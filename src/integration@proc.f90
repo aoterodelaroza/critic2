@@ -2643,6 +2643,34 @@ contains
     end do ! is
     res%fa3 = 0.5d0 * res%fa3
 
+    ! do is = 1, nspin
+    !    do iat_a = 1, nattr
+    !       do iat_b = 1, nattr
+    !          do rat_b = 1, nlattot
+    !             write (*,*) "xxxx ", abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is)))
+    !          end do
+    !       end do
+    !    end do
+    ! end do
+    ! stop 1
+
+    do is = 1, nspin
+       do iat_a = 1, nattr
+          do iat_b = 1, nattr
+             do rat_b = 1, nlattot
+                do iat_c = 1, nattr
+                   do rat_c = 1, nlattot
+                      write (*,'("is=",I1," A:",I2," B:",I2,"/",I2," C:",I2,"/",I2," = ",F15.8)') &
+                         is, iat_a, iat_b, rat_b, iat_c, rat_c, res%fa3(iat_a,iat_b,rat_b,iat_c,rat_c,is)
+                   end do
+                end do
+             end do
+          end do
+       end do
+    end do
+    write (*,*) "fin"
+    stop 1
+
   end subroutine calc_di3_wannier
 
   !> Calculate the Fa matrix from the Sij matrix, psink version
