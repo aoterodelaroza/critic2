@@ -299,6 +299,7 @@ module types
      complex*16, allocatable :: sijc(:,:,:,:) ! Sij from wannier/psink
      integer, allocatable :: sij_wnr_imap(:,:) ! mapping for Sij translation (wannier)
      real*8, allocatable :: fa(:,:,:,:) ! Fa integrals
+     real*8, allocatable :: fa3(:,:,:,:,:,:) ! three-center DIs
   end type int_result
 
   interface

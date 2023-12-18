@@ -1832,10 +1832,12 @@ contains
           call write_fachk(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,bas%nattr,res(l)%sijtype,res(l)%fa)
        end if
 
-       ! finished successfully
+       ! finished the Sij and Fa successfully
 999    continue
        if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
        if (allocated(res(l)%sij_wnr_imap)) deallocate(res(l)%sij_wnr_imap)
+
+       ! wrap up
        res(l)%done = .true.
        res(l)%reason = ""
        res(l)%outmode = out_deloc
@@ -2484,36 +2486,129 @@ contains
     type(int_result), intent(inout) :: res
     integer, intent(in) :: nmo, nbnd, nlat(3), nattr, nspin
 
-    integer :: i, j, is, k, imo, jmo, ia, ja, ka, iba, ib, jb, kb, ibb, nlattot
-    real*8 :: fatemp
+    integer :: iat_a, iat_b, iat_c, rat_b, rat_c
+    integer :: is, imo, jmo, kmo, ia, ja, ka, iba, ib, jb, kb, ibb
+    integer :: ic, jc, kc, icc, nlattot
+    real*8 :: fac
+    complex*16 :: f3temp
 
+    real*8, allocatable :: ftemp(:,:,:), f3temp(:,:,:,:,:)
+    logical, allocatable :: useovrlp(:,:,:)
+    real*8, parameter :: ovrlp_thr = 1d-50
+
+    ! number of lattice vectors
     nlattot = nlat(1)*nlat(2)*nlat(3)
-    allocate(res%fa(nattr,nattr,nlat(1)*nlat(2)*nlat(3),nspin))
-    res%fa = 0d0
-    !$omp parallel do private(fatemp,ia,ja,ka,iba,ib,jb,kb,ibb)
-    do i = 1, nattr
-       do j = 1, nattr
-          do is = 1, nspin
-             do k = 1, nlattot
-                fatemp = 0d0
-                do imo = 1, nmo
-                   call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
-                   ! if (iba > nbndw(is)) cycle
-                   do jmo = 1, nmo
-                      call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
-                      ! if (ibb > nbndw(is)) cycle
-                      fatemp = fatemp + real(res%sijc(jmo,imo,i,is) * &
-                         res%sijc(res%sij_wnr_imap(imo,k),res%sij_wnr_imap(jmo,k),j,is),8)
-                   end do
-                end do
-                !$omp critical (addfa)
-                res%fa(i,j,k,is) = fatemp
-                !$omp end critical (addfa)
-             end do
+
+    ! flag which overlaps will be used
+    allocate(useovrlp(nmo,nmo,nspin))
+    useovrlp = .true.
+    do is = 1, nspin
+       do imo = 1, nmo
+          do jmo = imo, nmo
+             useovrlp(imo,jmo,is) = (maxval(abs(res%sijc(imo,jmo,:,is))) >= ovrlp_thr)
           end do
        end do
     end do
-    !$omp end parallel do
+
+    ! calculate Fa matrix
+    allocate(res%fa(nattr,nattr,nlat(1)*nlat(2)*nlat(3),nspin),ftemp(nattr,nattr,nlattot))
+    ftemp = 0d0
+    res%fa = 0d0
+    do is = 1, nspin
+       !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,fac) firstprivate(ftemp)
+       do imo = 1, nmo
+          call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
+          do jmo = imo, nmo
+             call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
+             if (.not.useovrlp(imo,jmo,is)) cycle
+
+             ftemp = 0d0
+             do iat_a = 1, nattr
+                do iat_b = 1, nattr
+                   do rat_b = 1, nlattot
+                      ftemp(iat_a,iat_b,rat_b) = &
+                         real(res%sijc(jmo,imo,iat_a,is) * &
+                         res%sijc(res%sij_wnr_imap(imo,rat_b),res%sij_wnr_imap(jmo,rat_b),iat_b,is),8)
+                   end do
+                end do
+             end do
+
+             if (imo == jmo) then
+                fac = 1d0
+             else
+                fac = 2d0
+             end if
+             !$omp critical (addfa)
+             res%fa(:,:,:,is) = res%fa(:,:,:,is) + fac * ftemp
+             !$omp end critical (addfa)
+          end do
+       end do
+       !$omp end parallel do
+    end do
+
+    ! ! three-atom indices
+    ! allocate(res%fa3(nattr,nattr,nlattot,nattr,nlattot,nspin))
+    ! allocate(f3temp(nattr,nattr,nlattot,nattr,nlattot))
+    ! res%fa3 = 0d0
+    ! f3temp = 0d0
+    ! do is = 1, nspin
+
+    !    !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,ic,jc,kc,icc,fac) firstprivate(f3temp)
+    !    do imo = 1, nmo
+    !       call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
+    !       do jmo = 1, nmo
+    !          call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
+    !          if (.not.useovrlp(imo,jmo,is)) cycle
+    !          do kmo = imo, nmo
+    !             call unpackidx(jmo,ic,jc,kc,icc,nmo,nbnd,nlat)
+    !             if (.not.useovrlp(imo,kmo,is)) cycle
+    !             if (.not.useovrlp(jmo,kmo,is)) cycle
+
+    !             f3temp = 0d0
+    !             do iat_a = 1, nattr
+    !                do iat_b = 1, nattr
+    !                   do iat_c = 1, nattr
+    !                      do rat_b = 1, nlattot
+    !                         do rat_c = 1, nlattot
+    !                            f3temp(iat_a,iat_b,rat_b,iat_c,rat_c) = &
+    !                               real(res%sijc(imo,kmo,iat_a,is) * &
+    !                               res%sijc(res%sij_wnr_imap(jmo,rat_b),res%sij_wnr_imap(imo,rat_b),iat_b,is) * &
+    !                               res%sijc(res%sij_wnr_imap(kmo,rat_c),res%sij_wnr_imap(jmo,rat_c),iat_c,is),8) + &
+    !                               real(res%sijc(imo,kmo,iat_a,is) * &
+    !                               res%sijc(res%sij_wnr_imap(kmo,rat_b),res%sij_wnr_imap(jmo,rat_b),iat_b,is) * &
+    !                               res%sijc(res%sij_wnr_imap(jmo,rat_c),res%sij_wnr_imap(imo,rat_c),iat_c,is),8)
+    !                         end do ! rat_c
+    !                      end do ! rat_b
+    !                   end do ! iat_c
+    !                end do ! iat_b
+    !             end do ! iat_a
+
+    !             if (imo == kmo) then
+    !                fac = 1d0
+    !             else
+    !                fac = 2d0
+    !             end if
+
+    !             !$omp critical (addfa)
+    !             res%fa3(:,:,:,:,:,is) = res%fa3(:,:,:,:,:,is) + fac * f3temp
+    !             !$omp end critical (addfa)
+    !          end do ! kmo
+    !       end do ! jmo
+    !    end do ! imo
+    !    !$omp end parallel do
+    ! end do ! is
+    ! res%fa3 = 0.5d0 * res%fa3
+
+    ! do is = 1, nspin
+    !    do iat_a = 1, nattr
+    !       do iat_b = 1, nattr
+    !          do rat_b = 1, nlattot
+    !             write (*,*) "xxxx ", abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is)))
+    !          end do
+    !       end do
+    !    end do
+    ! end do
+    ! stop 1
 
   end subroutine calc_fa_wannier
 
