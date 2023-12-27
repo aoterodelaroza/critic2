@@ -39,6 +39,7 @@ submodule (integration) proc
   ! subroutine calc_fa_wannier(res,nmo,nbnd,nlat,nattr,nspin,di3)
   ! subroutine calc_di3_wannier(res,nmo,nbnd,nlat,nattr,nspin)
   ! subroutine calc_fa_psink(res,nmo,nbnd,nlat,nattr,nspin,kpt,occ)
+  ! subroutine calc_di3_psink(res,nmo,nbnd,nlat,nattr,nspin,kpt,occ)
   ! subroutine find_sij_translations(res,nmo,nbnd,nlat,nlattot)
   ! subroutine check_sij_sanity(res,nspin,nmo,nbnd,nlat,nlattot)
   ! function quadpack_f(x,unit,xnuc) result(res)
@@ -1661,7 +1662,6 @@ contains
                 ok = ok .and. all(abs(kpt - sy%f(fid)%grid%qe%kpt) < 1d-4)
                 ok = ok .and. all(abs(occ - sy%f(fid)%grid%qe%occ) < 1d-4)
                 if (ok) calcsij = .false.
-                deallocate(kpt,occ)
              end if
           end if
        end if ! sy%propi(l)%itype == itype_deloc, etc.
@@ -1814,12 +1814,7 @@ contains
        if (res(l)%sijtype == sijtype_wnr) then
           call calc_fa_wannier(res(l),nmo,nbnd,nlat,bas%nattr,nspin)
        elseif (res(l)%sijtype == sijtype_psink) then
-          if (calcsij) then
-             call calc_fa_psink(res(l),nmo,nbnd,nlat,bas%nattr,nspin,sy%f(fid)%grid%qe%kpt,sy%f(fid)%grid%qe%occ)
-          else
-             call calc_fa_psink(res(l),nmo,nbnd,nlat,bas%nattr,nspin,kpt,occ)
-             deallocate(kpt,occ)
-          end if
+          call calc_fa_psink(res(l),nmo,nbnd,nlat,bas%nattr,nspin,sy%f(fid)%grid%qe%kpt,sy%f(fid)%grid%qe%occ)
        end if
 
        ! write (*,*) "Check Fa...", sum(res(l)%fa(:,:,:,:))
@@ -1843,7 +1838,12 @@ contains
        ! calculate three-body DIs, if requested
        if (sy%propi(l)%di3) then
           write (uout,'("# Calculating three-atom delocalization indices")')
-          call calc_di3_wannier(res(l),nmo,nbnd,nlat,bas%nattr,nspin)
+          if (res(l)%sijtype == sijtype_wnr) then
+             call calc_di3_wannier(res(l),nmo,nbnd,nlat,bas%nattr,nspin)
+          else
+             call calc_di3_psink(res(l),nmo,nbnd,nlat,bas%nattr,nspin,&
+                sy%f(fid)%grid%qe%kpt,sy%f(fid)%grid%qe%occ)
+          end if
        end if
 
        ! finished the Sij and Fa successfully
@@ -2566,6 +2566,7 @@ contains
     type(int_result), intent(inout) :: res
     integer, intent(in) :: nmo, nbnd, nlat(3), nattr, nspin
 
+    integer :: i
     integer :: iat_a, iat_b, iat_c, rat_b, rat_c
     integer :: is, imo, jmo, kmo, ia, ja, ka, iba, ib, jb, kb, ibb
     integer :: ic, jc, kc, icc, nlattot
@@ -2596,14 +2597,13 @@ contains
     res%fa3 = 0d0
     f3temp = 0d0
     do is = 1, nspin
-
        !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,ic,jc,kc,icc,fac) firstprivate(f3temp)
        do imo = 1, nmo
           call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
           do jmo = 1, nmo
              call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
              if (.not.useovrlp(imo,jmo,is)) cycle
-             do kmo = imo, nmo
+             do kmo = 1, nmo
                 call unpackidx(jmo,ic,jc,kc,icc,nmo,nbnd,nlat)
                 if (.not.useovrlp(imo,kmo,is)) cycle
                 if (.not.useovrlp(jmo,kmo,is)) cycle
@@ -2643,16 +2643,18 @@ contains
     end do ! is
     res%fa3 = 0.5d0 * res%fa3
 
-    ! do is = 1, nspin
-    !    do iat_a = 1, nattr
-    !       do iat_b = 1, nattr
-    !          do rat_b = 1, nlattot
-    !             write (*,*) "xxxx ", abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is)))
-    !          end do
-    !       end do
-    !    end do
-    ! end do
-    ! stop 1
+    do is = 1, nspin
+       do iat_a = 1, nattr
+          do iat_b = 1, nattr
+             do rat_b = 1, nlattot
+                write (*,*) "xxxx ", abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
+                   abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
+                   abs(res%fa(iat_a,iat_b,rat_b,is)),sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))
+             end do
+          end do
+       end do
+    end do
+    stop 1
 
     do is = 1, nspin
        do iat_a = 1, nattr
@@ -2731,6 +2733,150 @@ contains
     res%fa = res%fa / (fspin*fspin)
 
   end subroutine calc_fa_psink
+
+  !> Calculate the Fa matrix from the Sij matrix, psink version
+  subroutine calc_di3_psink(res,nmo,nbnd,nlat,nattr,nspin,kpt,occ)
+    use types, only: int_result
+    use param, only: tpi, img
+    type(int_result), intent(inout) :: res
+    integer, intent(in) :: nmo, nbnd, nlat(3), nattr, nspin
+    real*8, intent(in) :: kpt(:,:), occ(:,:,:)
+
+    integer :: i, j, is, k, n
+    real*8 :: kdifb(3), kdifc(3), fspin, pfac
+    integer :: nlattot
+    integer :: imo, jmo, kmo, ia, ja, ka, iba, ib, jb, kb, ibb
+    integer :: ic, jc, kc, icc
+    integer :: ibnd, jbnd, kbnd, ik, jk, kk
+    integer :: iat_a, iat_b, iat_c, rat_b, rat_c
+
+    real*8, allocatable :: f3temp(:,:,:,:,:)
+    logical, allocatable :: useovrlp(:,:,:)
+    real*8, parameter :: ovrlp_thr = 1d-50
+
+    real*8, allocatable :: lvec(:,:)
+
+    ! number and list of lattice vectors
+    nlattot = nlat(1)*nlat(2)*nlat(3)
+    allocate(lvec(3,nlattot))
+    nlattot = 0
+    do i = 0, nlat(1)-1
+       do j = 0, nlat(2)-1
+          do k = 0, nlat(3)-1
+             nlattot = nlattot + 1
+             lvec(1,nlattot) = real(i,8)
+             lvec(2,nlattot) = real(j,8)
+             lvec(3,nlattot) = real(k,8)
+          end do
+       end do
+    end do
+
+    ! flag which overlaps will be used
+    allocate(useovrlp(nmo,nmo,nspin))
+    useovrlp = .true.
+    do is = 1, nspin
+       do imo = 1, nmo
+          do jmo = imo, nmo
+             useovrlp(imo,jmo,is) = (maxval(abs(res%sijc(imo,jmo,:,is))) >= ovrlp_thr)
+          end do
+       end do
+    end do
+
+    ! three-atom index calculation
+    allocate(res%fa3(nattr,nattr,nlattot,nattr,nlattot,nspin))
+    allocate(f3temp(nattr,nattr,nlattot,nattr,nlattot))
+    res%fa3 = 0d0
+    f3temp = 0d0
+    do is = 1, nspin
+       do imo = 1, nmo
+          ibnd = modulo(imo-1,nbnd) + 1
+          ik = (imo-1) / nbnd + 1
+          do jmo = 1, nmo
+             if (.not.useovrlp(imo,jmo,is)) cycle
+             jbnd = modulo(jmo-1,nbnd) + 1
+             jk = (jmo-1) / nbnd + 1
+             do kmo = 1, nmo
+                if (.not.useovrlp(imo,kmo,is)) cycle
+                if (.not.useovrlp(jmo,kmo,is)) cycle
+                kbnd = modulo(kmo-1,nbnd) + 1
+                kk = (kmo-1) / nbnd + 1
+
+
+                f3temp = 0d0
+                do iat_a = 1, nattr
+                   do iat_b = 1, nattr
+                      do iat_c = 1, nattr
+                         do rat_b = 1, nlattot
+                            do rat_c = 1, nlattot
+                               kdifb = kpt(:,ik) - kpt(:,jk)
+                               kdifc = kpt(:,jk) - kpt(:,kk)
+                               pfac = kdifb(1)*lvec(1,rat_b)+kdifb(2)*lvec(2,rat_b)+kdifb(3)*lvec(3,rat_b) +&
+                                  kdifc(1)*lvec(1,rat_c)+kdifc(2)*lvec(2,rat_c)+kdifc(3)*lvec(3,rat_c)
+                               f3temp(iat_a,iat_b,rat_b,iat_c,rat_c) = f3temp(iat_a,iat_b,rat_b,iat_c,rat_c) +&
+                                  real(res%sijc(imo,kmo,iat_a,is)*res%sijc(jmo,imo,iat_b,is)*res%sijc(kmo,jmo,iat_c,is)*&
+                                  exp(tpi*img*pfac),8)
+
+                               kdifb = kpt(:,jk) - kpt(:,kk)
+                               kdifc = kpt(:,jk) - kpt(:,ik)
+                               pfac = kdifb(1)*lvec(1,rat_b)+kdifb(2)*lvec(2,rat_b)+kdifb(3)*lvec(3,rat_b) +&
+                                  kdifc(1)*lvec(1,rat_c)+kdifc(2)*lvec(2,rat_c)+kdifc(3)*lvec(3,rat_c)
+                               f3temp(iat_a,iat_b,rat_b,iat_c,rat_c) = f3temp(iat_a,iat_b,rat_b,iat_c,rat_c) +&
+                                  real(res%sijc(imo,kmo,iat_a,is)*res%sijc(kmo,jmo,iat_b,is)*res%sijc(jmo,imo,iat_c,is)*&
+                                  exp(tpi*img*pfac),8)
+                            end do ! rat_c
+                         end do ! rat_b
+                      end do ! iat_c
+                   end do ! iat_b
+                end do ! iat_a
+                f3temp = f3temp * occ(ibnd,ik,is) * occ(jbnd,jk,is) * occ(kbnd,kk,is)
+
+                !$omp critical (addfa)
+                res%fa3(:,:,:,:,:,is) = res%fa3(:,:,:,:,:,is) + f3temp
+                !$omp end critical (addfa)
+             end do ! kmo = 1, nmo
+          end do ! jmo = 1, nmo
+       end do ! imo = 1, nmo
+    end do ! is = 1, nspin
+
+    ! set the spin multiplier
+    if (nspin == 1) then
+       fspin = 2d0
+    else
+       fspin = 1d0
+    end if
+    res%fa = res%fa / (fspin*fspin*fspin) * 128d0 ! xxxx
+
+    do is = 1, nspin
+       do iat_a = 1, nattr
+          do iat_b = 1, nattr
+             do rat_b = 1, nlattot
+                write (*,*) "xxxx ", abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
+                   abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
+                   abs(res%fa(iat_a,iat_b,rat_b,is)),sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))
+             end do
+          end do
+       end do
+    end do
+    stop 1
+
+    ! do is = 1, nspin
+    !    do iat_a = 1, nattr
+    !       do iat_b = 1, nattr
+    !          do rat_b = 1, nlattot
+    !             do iat_c = 1, nattr
+    !                do rat_c = 1, nlattot
+    !                   write (*,'("is=",I1," A:",I2," B:",I2,"/",I2," C:",I2,"/",I2," = ",F15.8)') &
+    !                      is, iat_a, iat_b, rat_b, iat_c, rat_c, res%fa3(iat_a,iat_b,rat_b,iat_c,rat_c,is)
+    !                end do
+    !             end do
+    !          end do
+    !       end do
+    !    end do
+    ! end do
+    ! write (*,*) "fin"
+    ! stop 1
+
+  end subroutine calc_di3_psink
 
   ! Calculate the information necessary to relate Sij^{A+R} to Sij^A.
   ! This information is different if Sij is calculated in terms of
@@ -3071,10 +3217,10 @@ contains
              string(i), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz), (trim(string(bas%xattr(j,i),'f',12,7)),j=1,3)
           if (di3) then
              write (uout,'("# Id   cp   ncp   Name  Z    Latt. vec.     &
-                ----  Cryst. coordinates ----       Distance        LI/DI        3c(in)       3c(out)")')
+               &----  Cryst. coordinates ----       Distance        LI/DI        3c(in)       3c(out)")')
           else
              write (uout,'("# Id   cp   ncp   Name  Z    Latt. vec.     &
-                ----  Cryst. coordinates ----       Distance        LI/DI")')
+               &----  Cryst. coordinates ----       Distance        LI/DI")')
           end if
 
           ! precompute the localization/delocalization indices for this atom and
