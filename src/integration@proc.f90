@@ -2844,20 +2844,24 @@ contains
     else
        fspin = 1d0
     end if
-    res%fa = res%fa / (fspin*fspin*fspin) * 128d0 ! xxxx
+    res%fa3 = 0.5d0 * res%fa3 / (fspin*fspin*fspin)
 
-    do is = 1, nspin
-       do iat_a = 1, nattr
-          do iat_b = 1, nattr
-             do rat_b = 1, nlattot
-                write (*,*) "xxxx ", abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
-                   abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
-                   abs(res%fa(iat_a,iat_b,rat_b,is)),sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))
-             end do
-          end do
-       end do
-    end do
-    stop 1
+    ! write (*,*) abs(res%fa(1,1,1,1)), sum(res%fa3(1,1,1,:,:,1))
+    ! write (*,*) res%fa3(1,1,1,:,:,1)
+    ! stop 1
+
+    ! do is = 1, nspin
+    !    do iat_a = 1, nattr
+    !       do iat_b = 1, nattr
+    !          do rat_b = 1, nlattot
+    !             write (*,*) "xxxx ", abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
+    !                abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
+    !                abs(res%fa(iat_a,iat_b,rat_b,is)),sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))
+    !          end do
+    !       end do
+    !    end do
+    ! end do
+    ! stop 1
 
     ! do is = 1, nspin
     !    do iat_a = 1, nattr
