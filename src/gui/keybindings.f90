@@ -63,37 +63,39 @@ module keybindings
   integer, parameter, public :: BIND_VIEW_ALIGN_Y_AXIS = 17 ! view: align view with y axis
   integer, parameter, public :: BIND_VIEW_ALIGN_Z_AXIS = 18 ! view: align view with z axis
   integer, parameter, public :: BIND_NAV_ROTATE = 19 ! view: rotate the view
-  integer, parameter, public :: BIND_NAV_TRANSLATE = 20 ! view: translate the view
-  integer, parameter, public :: BIND_NAV_ZOOM = 21 ! view: zoom the view
-  integer, parameter, public :: BIND_NAV_RESET = 22 ! view: reset the view
-  integer, parameter, public :: BIND_NAV_MEASURE = 23 ! view: reset the view
-  integer, parameter, public :: BIND_NUM = 23 ! total number of binds
+  integer, parameter, public :: BIND_NAV_ROTATE_PERP = 20 ! view: rotate around axis perp. to screen
+  integer, parameter, public :: BIND_NAV_TRANSLATE = 21 ! view: translate the view
+  integer, parameter, public :: BIND_NAV_ZOOM = 22 ! view: zoom the view
+  integer, parameter, public :: BIND_NAV_RESET = 23 ! view: reset the view
+  integer, parameter, public :: BIND_NAV_MEASURE = 24 ! view: reset the view
+  integer, parameter, public :: BIND_NUM = 24 ! total number of binds
 
   ! Bind names
-  character(len=31), parameter, public :: bindnames(BIND_NUM) = (/&
-     "Quit                           ",& ! BIND_QUIT
-     "New                            ",& ! BIND_NEW
-     "Open file(s)                   ",& ! BIND_OPEN
-     "Close all dialogs              ",& ! BIND_CLOSE_ALL_DIALOGS
-     "Close focused dialog           ",& ! BIND_CLOSE_FOCUSED_DIALOG
-     "OK in focused dialog           ",& ! BIND_OK_FOCUSED_DIALOG
-     "Remove selected system or field",& ! BIND_TREE_REMOVE_SYSTEM_FIELD
-     "Select previous system in tree ",& ! BIND_TREE_MOVE_UP
-     "Select next system in tree     ",& ! BIND_TREE_MOVE_DOWN
-     "Run the commands               ",& ! BIND_INPCON_RUN
-     "Increase number of cells       ",& ! BIND_VIEW_INC_NCELL
-     "Decrease number of cells       ",& ! BIND_VIEW_DEC_NCELL
-     "Align with a axis              ",& ! BIND_VIEW_ALIGN_A_AXIS
-     "Align with b axis              ",& ! BIND_VIEW_ALIGN_B_AXIS
-     "Align with c axis              ",& ! BIND_VIEW_ALIGN_C_AXIS
-     "Align with x axis              ",& ! BIND_VIEW_ALIGN_X_AXIS
-     "Align with y axis              ",& ! BIND_VIEW_ALIGN_Y_AXIS
-     "Align with z axis              ",& ! BIND_VIEW_ALIGN_Z_AXIS
-     "Rotate the camera              ",& ! BIND_NAV_ROTATE
-     "Translate the camera           ",& ! BIND_NAV_TRANSLATE
-     "Camera zoom                    ",& ! BIND_NAV_ZOOM
-     "Reset the camera               ",& ! BIND_NAV_RESET
-     "Measure distances and angles   "&  ! BIND_NAV_MEASURE
+  character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
+     "Quit                            ",& ! BIND_QUIT
+     "New                             ",& ! BIND_NEW
+     "Open file(s)                    ",& ! BIND_OPEN
+     "Close all dialogs               ",& ! BIND_CLOSE_ALL_DIALOGS
+     "Close focused dialog            ",& ! BIND_CLOSE_FOCUSED_DIALOG
+     "OK in focused dialog            ",& ! BIND_OK_FOCUSED_DIALOG
+     "Remove selected system or field ",& ! BIND_TREE_REMOVE_SYSTEM_FIELD
+     "Select previous system in tree  ",& ! BIND_TREE_MOVE_UP
+     "Select next system in tree      ",& ! BIND_TREE_MOVE_DOWN
+     "Run the commands                ",& ! BIND_INPCON_RUN
+     "Increase number of cells        ",& ! BIND_VIEW_INC_NCELL
+     "Decrease number of cells        ",& ! BIND_VIEW_DEC_NCELL
+     "Align with a axis               ",& ! BIND_VIEW_ALIGN_A_AXIS
+     "Align with b axis               ",& ! BIND_VIEW_ALIGN_B_AXIS
+     "Align with c axis               ",& ! BIND_VIEW_ALIGN_C_AXIS
+     "Align with x axis               ",& ! BIND_VIEW_ALIGN_X_AXIS
+     "Align with y axis               ",& ! BIND_VIEW_ALIGN_Y_AXIS
+     "Align with z axis               ",& ! BIND_VIEW_ALIGN_Z_AXIS
+     "Rotate the camera               ",& ! BIND_NAV_ROTATE
+     "Rotate around perpendicular axis",& ! BIND_NAV_ROTATE_PERP
+     "Translate the camera            ",& ! BIND_NAV_TRANSLATE
+     "Camera zoom                     ",& ! BIND_NAV_ZOOM
+     "Reset the camera                ",& ! BIND_NAV_RESET
+     "Measure distances and angles    "&  ! BIND_NAV_MEASURE
      /)
 
   ! The key associated with each bind, bind -> key

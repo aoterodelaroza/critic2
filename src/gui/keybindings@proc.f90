@@ -51,6 +51,7 @@ submodule (keybindings) proc
      group_view,&   ! BIND_VIEW_ALIGN_Y_AXIS
      group_view,&   ! BIND_VIEW_ALIGN_Z_AXIS
      group_view,&   ! BIND_NAV_ROTATE
+     group_view,&   ! BIND_NAV_ROTATE_PERP
      group_view,&   ! BIND_NAV_TRANSLATE
      group_view,&   ! BIND_NAV_ZOOM
      group_view,&   ! BIND_NAV_RESET
@@ -229,6 +230,7 @@ contains
     call set_bind(BIND_VIEW_ALIGN_Y_AXIS,ImGuiKey_Y,mod_none)
     call set_bind(BIND_VIEW_ALIGN_Z_AXIS,ImGuiKey_Z,mod_none)
     call set_bind(BIND_NAV_ROTATE,ImGuiKey_MouseLeft,mod_none)
+    call set_bind(BIND_NAV_ROTATE_PERP,ImGuiKey_MouseMiddle,mod_none)
     call set_bind(BIND_NAV_TRANSLATE,ImGuiKey_MouseRight,mod_none)
     call set_bind(BIND_NAV_ZOOM,ImGuiKey_MouseScroll,mod_none)
     call set_bind(BIND_NAV_RESET,ImGuiKey_MouseRightDouble,mod_none)

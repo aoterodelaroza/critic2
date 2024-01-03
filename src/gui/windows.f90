@@ -120,7 +120,7 @@ module windows
      integer :: view_mousebehavior = MB_navigation ! mouse behavior in the view
      integer :: idexportwin = 0 ! the ID for the export window
      type(ImVec2) :: mposlast ! mouse parameters ----v
-     real(c_float) :: mpos0_r(3), mpos0_l(3), cpos0_l(3)
+     real(c_float) :: mpos0_r(3), mpos0_l(3), mpos0_m(3), cpos0_l(3), cpos0_m(3)
      real(c_float) :: oldview(4,4)
      real(c_float) :: mpos0_s
      integer :: ilock = 0 ! mouse parameters -^

@@ -40,7 +40,7 @@ contains
     use keybindings, only: is_bind_event, BIND_VIEW_INC_NCELL, BIND_VIEW_DEC_NCELL,&
        BIND_VIEW_ALIGN_A_AXIS, BIND_VIEW_ALIGN_B_AXIS, BIND_VIEW_ALIGN_C_AXIS,&
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS,&
-       BIND_NAV_ROTATE, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
+       BIND_NAV_ROTATE, BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
        BIND_NAV_MEASURE, bindnames, get_bind_keyname,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use scenes, only: reptype_atoms, reptype_unitcell, style_phong, style_simple
@@ -686,6 +686,7 @@ contains
     viewtype = 0
     call iw_combo_simple("##viewmode","Navigate" // c_null_char,viewtype)
     msg = trim(get_bind_keyname(BIND_NAV_ROTATE)) // ": " // trim(bindnames(BIND_NAV_ROTATE)) // newline
+    msg = msg // trim(get_bind_keyname(BIND_NAV_ROTATE_PERP)) // ": " // trim(bindnames(BIND_NAV_ROTATE_PERP)) // newline
     msg = msg // trim(get_bind_keyname(BIND_NAV_TRANSLATE)) // ": " // trim(bindnames(BIND_NAV_TRANSLATE)) // newline
     msg = msg // trim(get_bind_keyname(BIND_NAV_ZOOM)) // ": " // trim(bindnames(BIND_NAV_ZOOM)) // newline
     msg = msg // trim(get_bind_keyname(BIND_NAV_RESET)) // ": " // trim(bindnames(BIND_NAV_RESET)) // newline
@@ -912,24 +913,28 @@ contains
     use utils, only: translate, rotate, mult, invmult
     use tools_math, only: cross_cfloat, matinv_cfloat
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
+       BIND_NAV_ROTATE_PERP,&
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE,&
        BIND_CLOSE_FOCUSED_DIALOG
     use gui_main, only: io, nsys, sysc
+    use param, only: pi
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
     integer(c_int), intent(in) :: idx(4)
 
     type(ImVec2) :: texpos, mousepos
     real(c_float) :: ratio, pos3(3), vnew(3), vold(3), axis(3), lax
-    real(c_float) :: mpos2(2), ang, xc(3)
+    real(c_float) :: mpos2(2), ang, sang, cang, xc(3), xc2(3), dist
 
     integer, parameter :: ilock_no = 0
     integer, parameter :: ilock_left = 1
     integer, parameter :: ilock_right = 2
     integer, parameter :: ilock_scroll = 3
+    integer, parameter :: ilock_middle = 4
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
+    real(c_float), parameter :: mindist_rotperp = 3._c_float
 
     ! first pass when opened, reset the state
     if (w%firstpass) then
@@ -940,6 +945,7 @@ contains
        w%oldview = 0._c_float
        w%cpos0_l = 0._c_float
        w%mpos0_s = 0._c_float
+       w%mpos0_m = 0._c_float
        w%ilock = ilock_no
     end if
 
@@ -1053,6 +1059,43 @@ contains
                 w%mpos0_l = (/texpos%x, texpos%y, 0._c_float/)
                 w%cpos0_l = w%mpos0_l
                 call w%texpos_to_view(w%cpos0_l)
+             end if
+          else
+             w%ilock = ilock_no
+          end if
+       end if
+
+       ! rotate around perpendicular axis
+       if (hover .and. is_bind_event(BIND_NAV_ROTATE_PERP,.false.) .and.&
+          (w%ilock == ilock_no .or. w%ilock == ilock_middle)) then
+          w%mpos0_m = w%sc%scenecenter
+          call w%world_to_texpos(w%mpos0_m)
+          vnew = (/texpos%x,texpos%y,0._c_float/)
+          vnew = vnew - w%mpos0_m
+          dist = norm2(vnew)
+          if (dist > 0._c_float) then
+             w%cpos0_m = vnew / dist
+          else
+             w%cpos0_m = (/0._c_float, -1._c_float, 0._c_float/)
+          end if
+          w%ilock = ilock_middle
+       elseif (w%ilock == ilock_middle) then
+          call igSetMouseCursor(ImGuiMouseCursor_Hand)
+          if (is_bind_event(BIND_NAV_ROTATE_PERP,.true.)) then
+             vnew = (/texpos%x,texpos%y,0._c_float/)
+             vnew = vnew - w%mpos0_m
+             dist = norm2(vnew)
+             if (dist > 0._c_float) then
+                vnew = vnew / dist
+                xc = cross_cfloat(w%cpos0_m,vnew)
+                ang = atan2(xc(3),dot_product(w%cpos0_m,vnew))
+                axis = (/0._c_float,0._c_float,1._c_float/)
+                call invmult(axis,w%sc%world,notrans=.true.)
+                call translate(w%sc%world,w%sc%scenecenter)
+                call rotate(w%sc%world,ang,axis)
+                call translate(w%sc%world,-w%sc%scenecenter)
+                w%forcerender = .true.
+                w%cpos0_m = vnew
              end if
           else
              w%ilock = ilock_no
