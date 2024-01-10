@@ -43,7 +43,7 @@ contains
     use struct_drivers, only: struct_crystal_input, struct_molcell,&
        struct_atomlabel, struct_sym, struct_sym, struct_charges, struct_write,&
        struct_powder, struct_rdf, struct_compare, struct_comparevc, struct_environ,&
-       struct_econ,&
+       struct_econ, struct_edit,&
        struct_coord, struct_polyhedra, struct_packing, struct_vdw, struct_identify,&
        struct_makemols_neighcrys, struct_molreorder, struct_molmove,&
        struct_kpoints, struct_bz, struct_newcell, struct_amd
@@ -92,6 +92,12 @@ contains
              if (iunit_isdef) iunit = iunit_ang
           end if
           call struct_crystal_input(subline,ismoli,.true.,.not.quiet,s0=sy)
+
+          ! newcell
+       elseif (equal(word,'edit')) then
+          call check_structure_defined(ok)
+          if (.not.ok) cycle
+          call struct_edit(sy,.not.quiet)
 
           ! newcell
        elseif (equal(word,'newcell')) then

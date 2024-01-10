@@ -1331,7 +1331,7 @@ contains
     use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
        ullmann_graph_matching, emd, synthetic_powder
     use tools_io, only: getword, equal, faterr, ferror, uout, string, ioj_center,&
-       ioj_left, string, lower, lgetword, fopen_read, fclose, getline, isreal,&
+       ioj_left, string, lower, lgetword, fopen_read, fclose, isreal,&
        file_read_xy
     use types, only: realloc
     use param, only: isformat_unknown, maxzat, pi
@@ -3102,6 +3102,99 @@ contains
     write (uout,*)
 
   end subroutine struct_vdw
+
+  !> Edit a molecular or crystal structure
+  module subroutine struct_edit(s,verbose)
+    use systemmod, only: system
+    use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, ferror, faterr,&
+       getword, isinteger, string
+    use types, only: realloc
+    type(system), intent(inout) :: s
+    logical, intent(in) :: verbose
+
+    character(len=:), allocatable :: line, word, errmsg
+    integer :: lp
+    integer :: idx, nat, i
+    integer, allocatable :: iat(:)
+    logical :: ok
+
+    if (verbose) then
+       write (uout,'("* Edit the crystal or molecular structure (EDIT)")')
+       write (uout,*)
+    end if
+
+    ! transform to the primitive?
+    errmsg = "Invalid syntax"
+    do while (getline(uin,line,ucopy=ucopy))
+       lp = 1
+       word = lgetword(line,lp)
+       if (equal(word,"delete")) then
+          word = lgetword(line,lp)
+
+          nat = 0
+          allocate(iat(10))
+          if (equal(word,"atoms") .or. equal(word,"atom")) then
+             ! read the list of atoms
+             do while (.true.)
+                word = getword(line,lp)
+                if (len_trim(word) == 0) exit
+                ok = isinteger(idx,word)
+                if (.not.ok) then
+                   errmsg = "invalid atom number in delete atoms"
+                   goto 999
+                end if
+                if (idx < 1 .or. idx > s%c%ncel) then
+                   errmsg = "atomic ID " // string(idx) // " outside valid range"
+                   goto 999
+                end if
+                nat = nat + 1
+                if (nat > size(iat,1)) call realloc(iat,2*nat)
+                iat(nat) = idx
+             end do
+          elseif (equal(word,"molecules") .or. equal(word,"molecule")) then
+             ! read the list of molecules
+             do while (.true.)
+                word = getword(line,lp)
+                if (len_trim(word) == 0) exit
+                ok = isinteger(idx,word)
+                if (.not.ok) then
+                   errmsg = "invalid molecule number in delete atoms"
+                   goto 999
+                end if
+                if (idx < 1 .or. idx > s%c%nmol) then
+                   errmsg = "molecule ID " // string(idx) // " outside valid range"
+                   goto 999
+                end if
+                do i = 1, s%c%ncel
+                   if (s%c%idatcelmol(i) == idx) then
+                      nat = nat + 1
+                      if (nat > size(iat,1)) call realloc(iat,2*nat)
+                      iat(nat) = i
+                   end if
+                end do
+             end do
+
+             ! transform
+             call s%c%delete_atoms(nat,iat(1:nat))
+             call s%reset_fields()
+             if (verbose) &
+                call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
+          else
+             goto 999
+          end if
+       elseif (equal(word,"end") .or. equal(word,"endedit")) then
+          exit
+       elseif (len_trim(word) > 0) then
+          goto 999
+       end if
+    end do
+
+    return
+999 continue
+
+    call ferror('struct_edit',errmsg,faterr,line,syntax=.true.)
+
+  end subroutine struct_edit
 
   !> Build a new crystal from the current crystal by cell transformation
   module subroutine struct_newcell(s,line,verbose)

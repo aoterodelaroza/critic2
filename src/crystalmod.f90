@@ -203,6 +203,7 @@ module crystalmod
      procedure :: cell_delaunay !< Transform to the Delaunay primitive cell
      procedure :: reorder_atoms !< reorder the atoms in the crystal/molecule
      procedure :: wholemols !< Re-assign atomic types to have an asymmetric unit with whole molecules
+     procedure :: delete_atoms !< Delete a list of atoms
 
      ! symmetry (symmetry)
      procedure :: sitesymm !< Determine the local-symmetry group symbol for a point
@@ -511,6 +512,12 @@ module crystalmod
        class(crystal), intent(inout) :: c
        type(thread_info), intent(in), optional :: ti
      end subroutine wholemols
+     module subroutine delete_atoms(c,nat,iat,ti)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: nat
+       integer, intent(in) :: iat(nat)
+       type(thread_info), intent(in), optional :: ti
+     end subroutine delete_atoms
      module function sitesymm(c,x0,eps0,leqv,lrotm)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3)

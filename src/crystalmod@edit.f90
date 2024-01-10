@@ -697,4 +697,57 @@ contains
 
   end subroutine wholemols
 
+  !> Delete the atoms with IDs in the array iat(1:nat) from the
+  !> structure.
+  module subroutine delete_atoms(c,nat,iat,ti)
+    use crystalseedmod, only: crystalseed
+    use types, only: realloc
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: nat
+    integer, intent(in) :: iat(nat)
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: seed
+    logical, allocatable :: useatoms(:), usespcs(:)
+    integer :: i
+
+    ! make seed from this crystal
+    call c%makeseed(seed,copysym=.false.)
+
+    ! flag the atoms and species to use
+    allocate(useatoms(c%ncel),usespcs(c%nspc))
+    useatoms = .true.
+    do i = 1, nat
+       useatoms(iat(i)) = .false.
+    end do
+    usespcs = .false.
+    do i = 1, c%ncel
+       if (useatoms(i)) usespcs(c%atcel(i)%is) = .true.
+    end do
+
+    ! re-do the atom and species info
+    seed%nat = 0
+    do i = 1, c%ncel
+       if (useatoms(i)) then
+          seed%nat = seed%nat + 1
+          seed%x(:,seed%nat) = c%atcel(i)%x
+          seed%is(seed%nat) = c%atcel(i)%is
+       end if
+    end do
+    call realloc(seed%x,3,seed%nat)
+    call realloc(seed%is,seed%nat)
+    seed%nspc = 0
+    do i = 1, c%nspc
+       if (usespcs(i)) then
+          seed%nspc = seed%nspc + 1
+          seed%spc(seed%nspc) = c%spc(i)
+       end if
+    end do
+    call realloc(seed%spc,seed%nspc)
+
+    ! build the new crystal
+    call c%struct_new(seed,crashfail=.true.,ti=ti)
+
+  end subroutine delete_atoms
+
 end submodule edit

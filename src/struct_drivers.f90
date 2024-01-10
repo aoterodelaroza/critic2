@@ -41,6 +41,7 @@ module struct_drivers
   public :: struct_polyhedra
   public :: struct_packing
   public :: struct_vdw
+  public :: struct_edit
   public :: struct_newcell
   public :: struct_molcell
   public :: struct_identify
@@ -122,6 +123,10 @@ module struct_drivers
        type(system), intent(in) :: s
        character*(*), intent(in) :: line
      end subroutine struct_vdw
+     module subroutine struct_edit(s,verbose)
+       type(system), intent(inout) :: s
+       logical, intent(in) :: verbose
+     end subroutine struct_edit
      module subroutine struct_newcell(s,line,verbose)
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line
