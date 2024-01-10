@@ -2927,7 +2927,7 @@ contains
 
   end subroutine trick_check_valence
 
-  ! TRICK GAUCOMP str1.s {str2.s|xyfile.s} [LOCAL] [GLOBAL] [ALPHA alpha.r] [MAXFEVAL maxfeval.i]
+  ! TRICK GAUCOMP str1.s {str2.s|xyfile.s} [LOCAL] [GLOBAL] [ALPHA alpha.r] [LAMBDA lambda.r] [MAXFEVAL maxfeval.i]
   subroutine trick_gaucomp(line0)
     use crystalseedmod, only: crystalseed
     use crystalmod, only: crystal
@@ -2952,8 +2952,8 @@ contains
     type(crystal) :: c1, c2
     integer*8 :: opt, lopt
     integer :: ires, imode, lu, maxfeval
-    real*8 :: lb(6), ub(6), th2ini, th2end, alpha
-    logical :: iresok, ok
+    real*8 :: lb(6), ub(6), th2ini, th2end, alpha, lambda
+    logical :: iresok, ok, readc2
     type(crystalseed) :: seed
 
     ! global block
@@ -2986,6 +2986,7 @@ contains
     lastval = -1d0
     bestval = 1.1d0
     nbesteval = 0
+    lambda = lambda0
 
     ! read crystal structures
     lp = 1
@@ -3027,13 +3028,14 @@ contains
        deallocate(io)
        th2ini = th2p2(1) - 1d-2
        th2end = th2p2(np2) + 1d-2
+       readc2 = .false.
     else
-       ! read crystal structure 2 and calculate pattern
+       ! read crystal structure 2
        th2ini = th2ini0
        th2end = th2end0
        write (uout,'("  Crystal 2: ",A)') string(word)
        call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
-       call powder_simple(c2,th2ini,th2end,lambda0,fpol0,th2p2,ip2,hvecp2,.false.)
+       readc2 = .true.
     end if
     write (uout,'("  Initial and final 2*theta: ",A," ",A)') &
        string(th2ini,'f',decimal=4), string(th2end,'f',decimal=4)
@@ -3056,13 +3058,19 @@ contains
           ok = isinteger(maxfeval,line0,lp)
           if (.not.ok) &
              call ferror("trick_gaucomp","invalid alpha in gaucomp",faterr)
+       elseif (equal(word,'lambda')) then
+          ok = isreal(lambda,line0,lp)
+          if (.not.ok) &
+             call ferror("trick_gaucomp","invalid lambda in gaucomp",faterr)
        else
           exit
        end if
     end do
 
     ! pre-calculation
-    call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.false.)
+    if (readc2) &
+       call powder_simple(c2,th2ini,th2end,lambda,fpol0,th2p2,ip2,hvecp2,.false.)
+    call powder_simple(c1,th2ini,th2end,lambda,fpol0,th2p1,ip1,hvecp1,.false.)
     call crosscorr_exp(alpha,th2p2,ip2,th2p2,ip2,sigma,dfg22)
 
     x(1:3) = c1%aa
@@ -3163,7 +3171,7 @@ contains
        ! write diffraction patterns to output
        word = trim(file1) // "-final.txt"
        lu = fopen_write(word)
-       call c1%powder(0,th2ini,th2end,lambda0,fpol0,final_npts,sigma,.false.,t=t,ih=ih)
+       call c1%powder(0,th2ini,th2end,lambda,fpol0,final_npts,sigma,.false.,t=t,ih=ih)
        write (lu,'("# ",A,A)') string("2*theta",13,ioj_center), string("Intensity",13,ioj_center)
        do i = 1, final_npts
           write (lu,'(A," ",A)') string(t(i),"f",15,7,ioj_center), &
@@ -3213,7 +3221,7 @@ contains
       end if
 
       ! only recompute crystal 1
-      call powder_simple(c1,th2ini,th2end,lambda0,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
+      call powder_simple(c1,th2ini,th2end,lambda,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
       call crosscorr_exp(alpha,th2p1,ip1,th2p1,ip1,sigma,dfg11,th2pg,ipg,dfgg11)
       call crosscorr_exp(alpha,th2p1,ip1,th2p2,ip2,sigma,dfg12,th2pg,ipg,dfgg12)
       diff = dfg12 / sqrt(dfg11 * dfg22)
