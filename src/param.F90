@@ -189,7 +189,8 @@ module param
 
   ! jmol colors (http://jmol.sourceforge.net/jscolors/)
   ! adapted from tessel.
-  integer, parameter :: JMLcol(3,maxzat0) = reshape((/&
+  integer, parameter :: JMLcol(3,0:maxzat0) = reshape((/&
+     135,206,250, & ! 000 Bq
      235,235,235, 207,235,235, 204,128,255, & ! 001-003 H,  He, Li
      194,255,000, 255,181,181, 108,108,108, & ! 004-006 Be, B,  C
      048,080,248, 255,013,013, 144,224,080, & ! 007-009 N,  O,  F
@@ -235,7 +236,8 @@ module param
      /),shape(JMLcol)) !< jmol color definitions
 
   ! jmol colors, slightly darker
-  integer, parameter :: JMLcol2(3,maxzat0) = reshape((/&
+  integer, parameter :: JMLcol2(3,0:maxzat0) = reshape((/&
+     095,166,210, & ! 000 Bq
      195,195,195, 157,195,195, 144,680,195, & ! 001-003 H,  He, Li
      134,195,000, 195,121,121, 084,084,084, & ! 004-006 Be, B,  C
      000,020,188, 195,000,000, 084,164,020, & ! 007-009 N,  O,  F
@@ -286,8 +288,9 @@ module param
   ! Fe (26): h.s.=1.52 l.s.=1.32 -> average = 1.42
   ! Co (27): h.s.=1.50 l.s.=1.26 -> average = 1.38
   ! Elements that do not have radius are assigned 1.50 (CSD).
-  real*8, parameter :: atmcov0(maxzat0) = (/&
+  real*8, parameter :: atmcov0(0:maxzat0) = (/&
      ! 1       2       3       4       5       6       7       8       9       0
+     0.60d0,& ! 0
      0.31d0, 0.28d0, 1.28d0, 0.96d0, 0.84d0, 0.73d0, 0.71d0, 0.66d0, 0.57d0, 0.58d0,& ! 1-10
      1.66d0, 1.41d0, 1.21d0, 1.11d0, 1.07d0, 1.05d0, 1.02d0, 1.06d0, 2.03d0, 1.76d0,& ! 11-20
      1.70d0, 1.60d0, 1.53d0, 1.39d0, 1.50d0, 1.42d0, 1.38d0, 1.24d0, 1.32d0, 1.22d0,& ! 21-30
@@ -301,13 +304,14 @@ module param
      1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0,& ! 101-110
      1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 1.50d0, 0.00d0, 0.00d0,& ! 111-120
      0.00d0, 0.00d0, 0.00d0/) / bohrtoa ! 121-123
-  real*8 :: atmcov(maxzat0) = atmcov0
+  real*8 :: atmcov(0:maxzat0) = atmcov0
 
   ! Van der Waals radii follow the CSD:
   ! From Bondi: http://dx.doi.org/10.1021/j100785a001
   ! except H from Rowland and Taylor http://dx.doi.org/10.1021/jp953141
   ! Elements that do not have radius are assigned 2.00.
-  real*8, parameter :: atmvdw0(maxzat0) = (/&
+  real*8, parameter :: atmvdw0(0:maxzat0) = (/&
+      0.60d0,& ! 0
       1.09d0, 1.40d0, 1.82d0, 2.00d0, 2.00d0, 1.70d0, 1.55d0, 1.52d0, 1.47d0, 1.54d0,& ! 1-10
       2.27d0, 1.73d0, 2.00d0, 2.10d0, 1.80d0, 1.80d0, 1.75d0, 1.88d0, 2.75d0, 2.00d0,& ! 11-20
       2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 1.63d0, 1.40d0, 1.39d0,& ! 21-30
@@ -321,10 +325,11 @@ module param
       2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0,& ! 101-1100
       2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 0.00d0, 0.00d0,& ! 111-118
       0.00d0, 0.00d0, 0.00d0/) / bohrtoa                                               ! 119-123
-  real*8 :: atmvdw(maxzat0) = atmvdw0
+  real*8 :: atmvdw(0:maxzat0) = atmvdw0
 
   ! standard atomic weights
-  real*8, parameter :: atmass(maxzat0) = (/&
+  real*8, parameter :: atmass(0:maxzat0) = (/&
+        0d0,& ! 0
         1.00794d0, 4.002602d0,     6.941d0, 9.012182d0,    10.811d0, 12.0107d0,   14.0067d0, 15.9994d0,& ! 1-8
      18.9984032d0,  20.1797d0, 22.989770d0,  24.3050d0, 26.981538d0, 28.0855d0, 30.973761d0,  32.065d0,& ! 9-16
          35.453d0,   39.948d0,   39.0983d0,   40.078d0, 44.955910d0,  47.867d0,   50.9415d0, 51.9961d0,& ! 17-24
