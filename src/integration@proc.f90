@@ -674,7 +674,7 @@ contains
           if (res(i)%done) saux = "Lmax = " // string(sy%propi(i)%lmax)
           itaux = string(fid)
        elseif (sy%propi(i)%itype == itype_deloc_wnr .or. sy%propi(i)%itype == itype_deloc_psink) then
-          if (res(i)%done) saux = " 3-center indices calculated "
+          if (res(i)%done .and. sy%propi(i)%di3) saux = " 3-center indices calculated "
           itaux = string(fid)
        else
           if (res(i)%done) saux = ""
