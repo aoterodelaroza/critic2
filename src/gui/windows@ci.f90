@@ -153,7 +153,7 @@ contains
        call iw_tooltip("Run these commands on all loaded systems")
        call igEndPopup()
     end if
-    call iw_tooltip("Run the commands (" // get_bind_keyname(BIND_INPCON_RUN) // ")."//newline//&
+    call iw_tooltip("Run the commands (" // trim(get_bind_keyname(BIND_INPCON_RUN)) // "). "//newline//&
        "Right-click to run commands on all systems.",ttshown)
 
     ! calculate sizes and draw the multiline
