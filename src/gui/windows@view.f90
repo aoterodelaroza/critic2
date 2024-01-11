@@ -259,33 +259,39 @@ contains
                 call w%sc%align_view_axis(1)
                 chrender = .true.
              end if
-             call iw_tooltip("Align the camera along the crystallographic a axis",ttshown)
+             call iw_tooltip("Align the camera along the crystallographic a axis ("//&
+                trim(get_bind_keyname(BIND_VIEW_ALIGN_A_AXIS)) // ").",ttshown)
              if (iw_button("b",sameline=.true.)) then
                 call w%sc%align_view_axis(2)
                 chrender = .true.
              end if
-             call iw_tooltip("Align the camera along the crystallographic b axis",ttshown)
+             call iw_tooltip("Align the camera along the crystallographic b axis ("//&
+                trim(get_bind_keyname(BIND_VIEW_ALIGN_B_AXIS)) // ").",ttshown)
              if (iw_button("c",sameline=.true.)) then
                 call w%sc%align_view_axis(3)
                 chrender = .true.
              end if
-             call iw_tooltip("Align the camera along the crystallographic c axis",ttshown)
+             call iw_tooltip("Align the camera along the crystallographic c axis ("//&
+                trim(get_bind_keyname(BIND_VIEW_ALIGN_C_AXIS)) // ").",ttshown)
           end if
           if (iw_button("x",sameline=.not.sys(w%view_selected)%c%ismolecule)) then
              call w%sc%align_view_axis(-1)
              chrender = .true.
           end if
-          call iw_tooltip("Align the camera along the Cartesian x axis",ttshown)
+          call iw_tooltip("Align the camera along the Cartesian x axis ("//&
+             trim(get_bind_keyname(BIND_VIEW_ALIGN_X_AXIS)) // ").",ttshown)
           if (iw_button("y",sameline=.true.)) then
              call w%sc%align_view_axis(-2)
              chrender = .true.
           end if
-          call iw_tooltip("Align the camera along the Cartesian y axis",ttshown)
+          call iw_tooltip("Align the camera along the Cartesian y axis ("//&
+             trim(get_bind_keyname(BIND_VIEW_ALIGN_Y_AXIS)) // ").",ttshown)
           if (iw_button("z",sameline=.true.)) then
              call w%sc%align_view_axis(-3)
              chrender = .true.
           end if
-          call iw_tooltip("Align the camera along the Cartesian z axis",ttshown)
+          call iw_tooltip("Align the camera along the Cartesian z axis ("//&
+             trim(get_bind_keyname(BIND_VIEW_ALIGN_Z_AXIS)) // ").",ttshown)
           call igSameLine(0._c_float,-1._c_float)
           str2 = "Reset Distance##resetdistance" // c_null_char
           str3 = "%.2f" // c_null_char

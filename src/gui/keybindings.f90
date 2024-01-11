@@ -81,9 +81,9 @@ module keybindings
      "Remove selected system or field ",& ! BIND_TREE_REMOVE_SYSTEM_FIELD
      "Select previous system in tree  ",& ! BIND_TREE_MOVE_UP
      "Select next system in tree      ",& ! BIND_TREE_MOVE_DOWN
-     "Run the commands                ",& ! BIND_INPCON_RUN
-     "Increase number of cells        ",& ! BIND_VIEW_INC_NCELL
-     "Decrease number of cells        ",& ! BIND_VIEW_DEC_NCELL
+     "Run input commands              ",& ! BIND_INPCON_RUN
+     "Increase number of cells shown  ",& ! BIND_VIEW_INC_NCELL
+     "Decrease number of cells shown  ",& ! BIND_VIEW_DEC_NCELL
      "Align with a axis               ",& ! BIND_VIEW_ALIGN_A_AXIS
      "Align with b axis               ",& ! BIND_VIEW_ALIGN_B_AXIS
      "Align with c axis               ",& ! BIND_VIEW_ALIGN_C_AXIS
