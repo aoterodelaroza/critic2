@@ -2126,7 +2126,7 @@ contains
     allocate(g(sy%f(ielf)%grid%n(1),sy%f(ielf)%grid%n(2),sy%f(ielf)%grid%n(3)))
     g = sqrt(1d0 / max(min(sy%f(ielf)%grid%f,1d0),1d-14) - 1d0)
     g = g * (ctf * max(sy%f(irho)%grid%f,0d0)**(5d0/3d0))
-    g = g + 0.125d0 * sy%f(igrad)%grid%f**2 / sy%f(irho)%grid%f
+    g = g + 0.125d0 * sy%f(igrad)%grid%f**2 / max(sy%f(irho)%grid%f,1d-80)
     call move_alloc(g,sy%f(itau)%grid%f)
 
     ! unload the temporary field
