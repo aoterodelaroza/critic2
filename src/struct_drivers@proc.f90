@@ -39,7 +39,7 @@ contains
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
        isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
        isformat_aimsout, isformat_tinkerfrac, isformat_castepcell,&
-       isformat_castepgeom, isformat_unknown
+       isformat_castepgeom, isformat_mol2, isformat_unknown
     use crystalseedmod, only: crystalseed, struct_detect_format,&
        struct_detect_ismol
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
@@ -64,7 +64,6 @@ contains
 
     ! read and parse
     lp=1
-    lp2=1
     word = getword(line,lp)
 
     ! detect the format for this file; see if we the user is forcing a particular format
@@ -136,6 +135,8 @@ contains
        isformat = isformat_aimsout
     elseif (equal(lword,'frac')) then
        isformat = isformat_tinkerfrac
+    elseif (equal(lword,'mol2')) then
+       isformat = isformat_mol2
     end if
     if (isformat /= isformat_unknown) then
        word = getword(line,lp)
@@ -159,6 +160,7 @@ contains
     end if
     docube = .false.
     rborder = rborder_def
+    lp2=1
     if (ismol) then
        do while(.true.)
           if (equal(word2,'cubic').or.equal(word2,'cube')) then
@@ -166,8 +168,12 @@ contains
           elseif (eval_next(raux,word2,lp2)) then
              rborder = raux / dunit0(iunit)
           elseif (len_trim(word2) > 1) then
-             call ferror('struct_crystal_input','Unknown extra keyword',faterr,line,syntax=.true.)
-             return
+             if (isformat == isformat_mol2) then
+                exit
+             else
+                call ferror('struct_crystal_input','Unknown extra keyword',faterr,line,syntax=.true.)
+                return
+             end if
           else
              exit
           end if
@@ -180,6 +186,9 @@ contains
     errmsg = ""
     if (isformat == isformat_cif) then
        call seed%read_cif(word,word2,mol,errmsg)
+
+    elseif (isformat == isformat_mol2) then
+       call seed%read_mol2(word,rborder,docube,word2,errmsg)
 
     elseif (isformat == isformat_shelx) then
        call seed%read_shelx(word,mol,errmsg)

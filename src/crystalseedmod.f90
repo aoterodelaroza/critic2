@@ -70,6 +70,7 @@ module crystalseedmod
      procedure :: read_library
      procedure :: read_any_file
      procedure :: read_cif
+     procedure :: read_mol2
      procedure :: read_shelx
      procedure :: read_f21
      procedure :: read_cube
@@ -156,6 +157,15 @@ module crystalseedmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_cif
+     module subroutine read_mol2(seed,file,rborder,docube,name,errmsg,ti)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       real*8, intent(in) :: rborder
+       logical, intent(in) :: docube
+       character*(*), intent(in) :: name
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_mol2
      module subroutine read_shelx(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout)  :: seed
        character*(*), intent(in) :: file

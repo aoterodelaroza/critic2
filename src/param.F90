@@ -115,6 +115,7 @@ module param
   integer, parameter, public :: isformat_gjf = 31
   integer, parameter, public :: isformat_castepcell = 32
   integer, parameter, public :: isformat_castepgeom = 33
+  integer, parameter, public :: isformat_mol2 = 34
 
   ! Enumerate for molecular and crystal properties. These are used
   ! throughout the code as flags for the calculation of scalar fields.
