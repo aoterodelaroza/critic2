@@ -44,7 +44,7 @@ if (USE_GUI_THREADS)
 endif()
 
 ## freetype
-if (FREETYPE2_FOUND)
+if (FREETYPE_FOUND)
   set(SOURCES ${SOURCES} imgui/imgui_freetype.cpp)
   add_definitions("-DIMGUI_ENABLE_FREETYPE")
   set_property(SOURCE cimgui/cimgui.cpp APPEND PROPERTY COMPILE_FLAGS "-DCIMGUI_FREETYPE")
@@ -55,4 +55,4 @@ add_library(fgui OBJECT ${SOURCES})
 ## include directories
 target_include_directories(fgui PRIVATE "${GLFW3_INCLUDE_DIR}")
 target_include_directories(fgui PRIVATE "${CMAKE_BINARY_DIR}/src/")
-target_include_directories(fgui PRIVATE "${FREETYPE2_INCLUDE_DIRS}")
+target_include_directories(fgui PRIVATE "${FREETYPE_INCLUDE_DIRS}")
