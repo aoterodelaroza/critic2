@@ -1116,7 +1116,7 @@ contains
   module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
      ncylflat,drawlist_cylflat,nstring,drawlist_string,nmsel)
     use gui_main, only: sys
-    use tools_io, only: string
+    use tools_io, only: string, nameguess
     use hashmod, only: hash
     use param, only: bohrtoa, newline
     class(representation), intent(inout), target :: r
@@ -1371,22 +1371,24 @@ contains
                       else
                          drawlist_string(nstring)%scale = -r%label_scale
                       end if
-                      if (r%label_style == 0) then ! 0 = atom name
+                      if (r%label_style == 0) then ! 0 = atomic symbol
+                         drawlist_string(nstring)%str = trim(nameguess(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z,.true.))
+                      elseif (r%label_style == 1) then ! 1 = atom name
                          drawlist_string(nstring)%str = trim(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%name)
-                      elseif (r%label_style == 1) then ! 1 = cel-atom
+                      elseif (r%label_style == 2) then ! 2 = cel-atom
                          drawlist_string(nstring)%str = string(i)
-                      elseif (r%label_style == 2) then ! 2 = cel-atom + lvec
+                      elseif (r%label_style == 3) then ! 3 = cel-atom + lvec
                          drawlist_string(nstring)%str = string(i) // newline // "(" // string(ix(1)) // "," //&
                             string(ix(2)) // "," // string(ix(3)) // ")"
-                      elseif (r%label_style == 3) then ! 3 = neq atom
+                      elseif (r%label_style == 4) then ! 4 = neq atom
                          drawlist_string(nstring)%str = string(sys(r%id)%c%atcel(i)%idx)
-                      elseif (r%label_style == 4) then ! 4 = spc
+                      elseif (r%label_style == 5) then ! 5 = spc
                          drawlist_string(nstring)%str = string(sys(r%id)%c%atcel(i)%is)
-                      elseif (r%label_style == 5) then ! 5 = Z
+                      elseif (r%label_style == 6) then ! 6 = Z
                          drawlist_string(nstring)%str = string(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z)
-                      elseif (r%label_style == 6) then ! 6 = mol
+                      elseif (r%label_style == 7) then ! 7 = mol
                          drawlist_string(nstring)%str = string(sys(r%id)%c%idatcelmol(i))
-                      elseif (r%label_style == 7) then ! 7 = wycoff
+                      elseif (r%label_style == 8) then ! 8 = wycoff
                          idx = sys(r%id)%c%atcel(i)%idx
                          drawlist_string(nstring)%str = string(sys(r%id)%c%at(idx)%mult) //&
                             string(sys(r%id)%c%at(idx)%wyc)

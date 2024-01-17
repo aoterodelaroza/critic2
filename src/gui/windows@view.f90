@@ -1610,8 +1610,8 @@ contains
     real(c_float) :: sqw
     integer :: i
 
-    integer(c_int), parameter :: lsttrans(0:6) = (/0,1,1,1,2,3,4/)
-    integer(c_int), parameter :: lsttransi(0:4) = (/0,1,4,5,6/)
+    integer(c_int), parameter :: lsttrans(0:7) = (/0,1,2,2,2,3,4,5/)
+    integer(c_int), parameter :: lsttransi(0:5) = (/0,1,2,5,6,7/)
 
     integer, parameter :: ic_id = 0
     integer, parameter :: ic_name = 1
@@ -2063,12 +2063,14 @@ contains
        ! label styles
        if (sys(isys)%c%ismolecule) then
           lst = lsttrans(w%rep%label_style)
-          call iw_combo_simple("Text##labelcontentselect","Atom name"// c_null_char// "Atom ID"// c_null_char//&
+          call iw_combo_simple("Text##labelcontentselect","Atomic symbol"//c_null_char//&
+             "Atom name"// c_null_char//"Atom ID"// c_null_char//&
              "Species ID"// c_null_char// "Atomic number"// c_null_char// "Molecule ID"// c_null_char,&
              lst,changed=ch)
           w%rep%label_style = lsttransi(lst)
        else
-          call iw_combo_simple("Text##labelcontentselect","Atom name"//c_null_char//"Cell atom ID"//c_null_char//&
+          call iw_combo_simple("Text##labelcontentselect","Atomic symbol"//c_null_char//&
+             "Atom name"//c_null_char//"Cell atom ID"//c_null_char//&
              "Cell atom ID + lattice vector"//c_null_char//"Symmetry-unique atom ID"//c_null_char//&
              "Species ID"//c_null_char//"Atomic number"//c_null_char//"Molecule ID"//c_null_char//&
              "Wyckoff position"//c_null_char,&
