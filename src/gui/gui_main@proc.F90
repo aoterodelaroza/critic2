@@ -190,6 +190,11 @@ contains
     font_large = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,font_dejavu_base85_ptr,&
        fontbakesize_large,c_null_ptr,c_loc(range))
 
+    ! bold font if using freetype
+#ifdef IMGUI_ENABLE_FREETYPE
+    fonts%FontBuilderFlags = ImGuiFreeTypeBuilderFlags_Bold
+#endif
+
     ! get the ImGui context pointer and the main viewport
     ptrc = igGetCurrentContext()
     call c_f_pointer(ptrc,g)

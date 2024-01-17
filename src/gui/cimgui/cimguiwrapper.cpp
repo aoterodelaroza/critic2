@@ -23,6 +23,7 @@
 #include "../imgui/imgui_internal.h"
 #include "../imgui/imgui.h"
 #include "cimgui.h"
+#include "../imgui/imgui_freetype.h"
 
 // enum ImGuiWindowFlags_
 const int const_ImGuiWindowFlags_None = ImGuiWindowFlags_None;
@@ -932,14 +933,16 @@ const int const_ImGuiTabItemFlags_NoCloseButton = ImGuiTabItemFlags_NoCloseButto
 const int const_ImGuiTabItemFlags_Button = ImGuiTabItemFlags_Button;
 const int const_ImGuiTabItemFlags_Unsorted = ImGuiTabItemFlags_Unsorted;
 const int const_ImGuiTabItemFlags_Preview = ImGuiTabItemFlags_Preview;
-// // enum ImGuiFreeTypeBuilderFlags
-// const int const_ImGuiFreeTypeBuilderFlags_NoHinting = ImGuiFreeTypeBuilderFlags_NoHinting;
-// const int const_ImGuiFreeTypeBuilderFlags_NoAutoHint = ImGuiFreeTypeBuilderFlags_NoAutoHint;
-// const int const_ImGuiFreeTypeBuilderFlags_ForceAutoHint = ImGuiFreeTypeBuilderFlags_ForceAutoHint;
-// const int const_ImGuiFreeTypeBuilderFlags_LightHinting = ImGuiFreeTypeBuilderFlags_LightHinting;
-// const int const_ImGuiFreeTypeBuilderFlags_MonoHinting = ImGuiFreeTypeBuilderFlags_MonoHinting;
-// const int const_ImGuiFreeTypeBuilderFlags_Bold = ImGuiFreeTypeBuilderFlags_Bold;
-// const int const_ImGuiFreeTypeBuilderFlags_Oblique = ImGuiFreeTypeBuilderFlags_Oblique;
-// const int const_ImGuiFreeTypeBuilderFlags_Monochrome = ImGuiFreeTypeBuilderFlags_Monochrome;
-// const int const_ImGuiFreeTypeBuilderFlags_LoadColor = ImGuiFreeTypeBuilderFlags_LoadColor;
-// const int const_ImGuiFreeTypeBuilderFlags_Bitmap = ImGuiFreeTypeBuilderFlags_Bitmap;
+#ifdef IMGUI_ENABLE_FREETYPE
+// enum ImGuiFreeTypeBuilderFlags
+const int const_ImGuiFreeTypeBuilderFlags_NoHinting = ImGuiFreeTypeBuilderFlags_NoHinting;
+const int const_ImGuiFreeTypeBuilderFlags_NoAutoHint = ImGuiFreeTypeBuilderFlags_NoAutoHint;
+const int const_ImGuiFreeTypeBuilderFlags_ForceAutoHint = ImGuiFreeTypeBuilderFlags_ForceAutoHint;
+const int const_ImGuiFreeTypeBuilderFlags_LightHinting = ImGuiFreeTypeBuilderFlags_LightHinting;
+const int const_ImGuiFreeTypeBuilderFlags_MonoHinting = ImGuiFreeTypeBuilderFlags_MonoHinting;
+const int const_ImGuiFreeTypeBuilderFlags_Bold = ImGuiFreeTypeBuilderFlags_Bold;
+const int const_ImGuiFreeTypeBuilderFlags_Oblique = ImGuiFreeTypeBuilderFlags_Oblique;
+const int const_ImGuiFreeTypeBuilderFlags_Monochrome = ImGuiFreeTypeBuilderFlags_Monochrome;
+const int const_ImGuiFreeTypeBuilderFlags_LoadColor = ImGuiFreeTypeBuilderFlags_LoadColor;
+const int const_ImGuiFreeTypeBuilderFlags_Bitmap = ImGuiFreeTypeBuilderFlags_Bitmap;
+#endif

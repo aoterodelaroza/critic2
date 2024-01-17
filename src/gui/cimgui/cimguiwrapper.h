@@ -931,16 +931,17 @@ extern "C" const int const_ImGuiTabItemFlags_NoCloseButton;
 extern "C" const int const_ImGuiTabItemFlags_Button;
 extern "C" const int const_ImGuiTabItemFlags_Unsorted;
 extern "C" const int const_ImGuiTabItemFlags_Preview;
-// // enum ImGuiFreeTypeBuilderFlags
-// extern "C" const int const_ImGuiFreeTypeBuilderFlags_NoHinting;
-// extern "C" const int const_ImGuiFreeTypeBuilderFlags_NoAutoHint;
-// extern "C" const int const_ImGuiFreeTypeBuilderFlags_ForceAutoHint;
-// extern "C" const int const_ImGuiFreeTypeBuilderFlags_LightHinting;
-// extern "C" const int const_ImGuiFreeTypeBuilderFlags_MonoHinting;
-// extern "C" const int const_ImGuiFreeTypeBuilderFlags_Bold;
-// extern "C" const int const_ImGuiFreeTypeBuilderFlags_Oblique;
-// extern "C" const int const_ImGuiFreeTypeBuilderFlags_Monochrome;
-// extern "C" const int const_ImGuiFreeTypeBuilderFlags_LoadColor;
-// extern "C" const int const_ImGuiFreeTypeBuilderFlags_Bitmap;
-
+#ifdef IMGUI_ENABLE_FREETYPE
+// enum ImGuiFreeTypeBuilderFlags
+extern "C" const int const_ImGuiFreeTypeBuilderFlags_NoHinting;
+extern "C" const int const_ImGuiFreeTypeBuilderFlags_NoAutoHint;
+extern "C" const int const_ImGuiFreeTypeBuilderFlags_ForceAutoHint;
+extern "C" const int const_ImGuiFreeTypeBuilderFlags_LightHinting;
+extern "C" const int const_ImGuiFreeTypeBuilderFlags_MonoHinting;
+extern "C" const int const_ImGuiFreeTypeBuilderFlags_Bold;
+extern "C" const int const_ImGuiFreeTypeBuilderFlags_Oblique;
+extern "C" const int const_ImGuiFreeTypeBuilderFlags_Monochrome;
+extern "C" const int const_ImGuiFreeTypeBuilderFlags_LoadColor;
+extern "C" const int const_ImGuiFreeTypeBuilderFlags_Bitmap;
+#endif
 #endif
