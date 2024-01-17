@@ -444,19 +444,19 @@ contains
 
     ! gear menu
     str1="##viewgear" // c_null_char
-    if (iw_button("Reps",sameline=.true.,disabled=.not.associated(w%sc))) then
+    if (iw_button("Show",sameline=.true.,disabled=.not.associated(w%sc))) then
        call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
     end if
     if (associated(w%sc)) then
        if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
           call igAlignTextToFramePadding()
           ! representations table
-          call iw_text("Representations",highlight=.true.)
+          call iw_text("List of Shown Objects",highlight=.true.)
 
           ! add button
           ldum = iw_button("Add",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
           if (ok) then
-             str2 = "Atoms" // c_null_char
+             str2 = "Atoms + Bonds + Labels" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 id = w%sc%get_new_representation_id()
                 call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style)
@@ -1520,7 +1520,7 @@ contains
 
        ! the representation type
        itype = w%rep%type - 1
-       call iw_combo_simple("##reptype","Atoms" // c_null_char // "Unit cell" // c_null_char,itype)
+       call iw_combo_simple("##reptype","Atoms + Bonds + Labels" // c_null_char // "Unit cell" // c_null_char,itype)
        if (w%rep%type /= itype + 1) changed = .true.
        w%rep%type = itype + 1
        call iw_tooltip("Type of representation",ttshown)
