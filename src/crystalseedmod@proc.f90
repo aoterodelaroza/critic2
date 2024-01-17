@@ -27,6 +27,7 @@ submodule (crystalseedmod) proc
   ! subroutine read_all_log(nseed,seed,file,errmsg,ti)
   ! subroutine read_all_aimsout(nseed,seed,file,errmsg,ti)
   ! subroutine read_all_castep_geom(nseed,seed,file,errmsg,ti)
+  ! subroutine read_pdb_geometry(file,nat,x,z,name,errmsg,ti)
   ! function which_out_format(file,ti)
   ! subroutine which_in_format(file,isformat,ti)
   ! function string_to_symop(str)
@@ -793,7 +794,8 @@ contains
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
        isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
        isformat_aimsout, isformat_tinkerfrac, isformat_gjf,&
-       isformat_castepcell, isformat_castepgeom, isformat_mol2
+       isformat_castepcell, isformat_castepgeom, isformat_mol2,&
+       isformat_pdb
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
@@ -867,7 +869,8 @@ contains
        isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
        isformat == isformat_molden.or.isformat == isformat_gaussian.or.&
        isformat == isformat_dat.or.isformat == isformat_pgout.or.&
-       isformat == isformat_orca.or.isformat == isformat_gjf) then
+       isformat == isformat_orca.or.isformat == isformat_gjf.or.&
+       isformat == isformat_pdb) then
        call seed%read_mol(file,isformat,rborder_def,.false.,errmsg,ti=ti)
 
     elseif (isformat == isformat_siesta) then
@@ -2253,7 +2256,7 @@ contains
 
   end subroutine read_elk
 
-  !> Read the structure from an xyz/wfn/wfx file
+  !> Read the structure from a molecule file
   module subroutine read_mol(seed,file,fmt,rborder,docube,errmsg,ti)
     use wfn_private, only: wfn_read_xyz_geometry, wfn_read_wfn_geometry, &
        wfn_read_wfx_geometry, wfn_read_fchk_geometry, wfn_read_molden_geometry,&
@@ -2261,7 +2264,7 @@ contains
        wfn_read_orca_geometry, wfn_read_gjf_geometry
     use param, only: isformat_xyz, isformat_wfn, isformat_wfx,&
        isformat_fchk, isformat_molden, isformat_gaussian, isformat_dat,&
-       isformat_pgout, isformat_orca, isformat_gjf
+       isformat_pgout, isformat_orca, isformat_gjf, isformat_pdb
     use tools_io, only: equali
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
@@ -2308,6 +2311,8 @@ contains
     elseif (fmt == isformat_orca) then
        ! orca output file
        call wfn_read_orca_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
+    elseif (fmt == isformat_pdb) then
+       call read_pdb_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     end if
     seed%useabr = 0
     seed%havesym = 0
@@ -4678,7 +4683,7 @@ contains
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
        isformat_castepcell, isformat_castepgeom, isformat_qein, isformat_qeout,&
-       isformat_mol2
+       isformat_mol2, isformat_pdb
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -4827,6 +4832,8 @@ contains
           (index(basename,'AECCAR1') > 0) .or. (index(basename,'AECCAR2') > 0)
     elseif (equal(wextdot,'mol2')) then
        isformat = isformat_mol2
+    elseif (equal(wextdot,'pdb')) then
+       isformat = isformat_pdb
     else
        goto 999
     endif
@@ -4852,7 +4859,7 @@ contains
        isformat_xsf, isformat_gen, isformat_vasp, isformat_pwc, isformat_axsf,&
        isformat_dat, isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
        isformat_aimsout, isformat_tinkerfrac, isformat_castepcell, isformat_castepgeom,&
-       isformat_mol2
+       isformat_mol2, isformat_pdb
     character*(*), intent(in) :: file
     integer, intent(in) :: isformat
     logical, intent(out) :: ismol
@@ -4874,7 +4881,7 @@ contains
 
     case (isformat_xyz,isformat_gjf,isformat_pgout,isformat_wfn,isformat_wfx,&
        isformat_gaussian,isformat_fchk,isformat_molden,isformat_dat,&
-       isformat_orca, isformat_mol2)
+       isformat_orca,isformat_mol2,isformat_pdb)
        ismol = .true.
 
     case(isformat_aimsout)
@@ -5018,7 +5025,7 @@ contains
        isformat_xsf, isformat_castepcell, isformat_castepgeom,&
        isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, isformat_orca,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
-       isformat_mol2
+       isformat_mol2, isformat_pdb
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(in) :: isformat0
@@ -5107,7 +5114,8 @@ contains
     elseif (isformat == isformat_wfn .or. isformat == isformat_wfx.or.&
        isformat == isformat_fchk.or.isformat == isformat_molden.or.&
        isformat == isformat_dat.or.isformat == isformat_pgout.or.&
-       isformat == isformat_orca.or.isformat == isformat_gjf) then
+       isformat == isformat_orca.or.isformat == isformat_gjf.or.&
+       isformat == isformat_pdb) then
        call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg,ti=ti)
     elseif (isformat == isformat_siesta) then
        call seed(1)%read_siesta(file,mol,errmsg,ti=ti)
@@ -7215,6 +7223,75 @@ contains
     call fclose(lu)
 
   end subroutine read_all_castep_geom
+
+  !> Read a molecular geometry from a pdb file. Returns the number of
+  !> atoms (n), atomic positions (x, in bohr), atomic numbers (z), and
+  !> atomic names (name). If error, return a non-empty errmsg.
+  subroutine read_pdb_geometry(file,n,x,z,name,errmsg,ti)
+    use tools_io, only: fopen_read, getline_raw, fclose, zatguess
+    use types, only: realloc
+    use param, only: bohrtoa
+    character*(*), intent(in) :: file
+    integer, intent(out) :: n
+    real*8, allocatable, intent(inout) :: x(:,:)
+    integer, allocatable, intent(inout) :: z(:)
+    character*(10), allocatable, intent(inout) :: name(:)
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lu
+    character(len=:), allocatable :: line
+    logical :: ok
+
+    errmsg = ""
+    ! deallocate
+    if (allocated(x)) deallocate(x)
+    if (allocated(z)) deallocate(z)
+    if (allocated(name)) deallocate(name)
+
+    lu = fopen_read(file,ti=ti)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
+    errmsg = "Error reading file."
+
+    n = 0
+    allocate(x(3,10),z(10),name(10))
+    main: do while (getline_raw(lu,line))
+       if (len(line) > 6) then
+          if (line(1:4) == "ATOM" .or. line(1:6) == "HETATM") then
+             n = n + 1
+             if (n > size(z,1)) then
+                call realloc(x,3,2*n)
+                call realloc(z,2*n)
+                call realloc(name,2*n)
+             end if
+
+             z(n) = zatguess(line(77:78))
+             if (z(n) <= 0) goto 999
+             name(n) = line(13:16)
+             read (line(31:38),*,err=999,end=999) x(1,n)
+             read (line(39:46),*,err=999,end=999) x(2,n)
+             read (line(47:54),*,err=999,end=999) x(3,n)
+          end if
+       end if
+    end do main
+
+    if (n == 0) then
+       errmsg = "No atoms found."
+       goto 999
+    else
+       call realloc(x,3,n)
+       call realloc(z,n)
+       call realloc(name,n)
+       x = x / bohrtoa
+    endif
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+  end subroutine read_pdb_geometry
 
   !> Determine whether a given output file (.scf.out or .out) comes
   !> from a crystal, quantum espresso, or orca calculation.
