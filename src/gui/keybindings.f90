@@ -62,13 +62,17 @@ module keybindings
   integer, parameter, public :: BIND_VIEW_ALIGN_X_AXIS = 16 ! view: align view with x axis
   integer, parameter, public :: BIND_VIEW_ALIGN_Y_AXIS = 17 ! view: align view with y axis
   integer, parameter, public :: BIND_VIEW_ALIGN_Z_AXIS = 18 ! view: align view with z axis
-  integer, parameter, public :: BIND_NAV_ROTATE = 19 ! view: rotate the view
-  integer, parameter, public :: BIND_NAV_ROTATE_PERP = 20 ! view: rotate around axis perp. to screen
-  integer, parameter, public :: BIND_NAV_TRANSLATE = 21 ! view: translate the view
-  integer, parameter, public :: BIND_NAV_ZOOM = 22 ! view: zoom the view
-  integer, parameter, public :: BIND_NAV_RESET = 23 ! view: reset the view
-  integer, parameter, public :: BIND_NAV_MEASURE = 24 ! view: reset the view
-  integer, parameter, public :: BIND_NUM = 24 ! total number of binds
+  integer, parameter, public :: BIND_VIEW_TOGGLE_ATOMS = 19 ! view: toggle atoms in the first rep
+  integer, parameter, public :: BIND_VIEW_TOGGLE_BONDS = 20 ! view: toggle bonds in the first rep
+  integer, parameter, public :: BIND_VIEW_TOGGLE_LABELS = 21 ! view: toggle labels in the first rep
+  integer, parameter, public :: BIND_VIEW_TOGGLE_CELL = 22 ! view: toggle cell in the first rep
+  integer, parameter, public :: BIND_NAV_ROTATE = 23 ! view: rotate the view
+  integer, parameter, public :: BIND_NAV_ROTATE_PERP = 24 ! view: rotate around axis perp. to screen
+  integer, parameter, public :: BIND_NAV_TRANSLATE = 25 ! view: translate the view
+  integer, parameter, public :: BIND_NAV_ZOOM = 26 ! view: zoom the view
+  integer, parameter, public :: BIND_NAV_RESET = 27 ! view: reset the view
+  integer, parameter, public :: BIND_NAV_MEASURE = 28 ! view: reset the view
+  integer, parameter, public :: BIND_NUM = 28 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -90,6 +94,10 @@ module keybindings
      "Align with x axis               ",& ! BIND_VIEW_ALIGN_X_AXIS
      "Align with y axis               ",& ! BIND_VIEW_ALIGN_Y_AXIS
      "Align with z axis               ",& ! BIND_VIEW_ALIGN_Z_AXIS
+     "Toggle display of atoms         ",& ! BIND_VIEW_TOGGLE_ATOMS
+     "Toggle display of bonds         ",& ! BIND_VIEW_TOGGLE_BONDS
+     "Toggle display of labels        ",& ! BIND_VIEW_TOGGLE_LABELS
+     "Toggle display of unit cell     ",& ! BIND_VIEW_TOGGLE_CELL
      "Rotate the camera               ",& ! BIND_NAV_ROTATE
      "Rotate around perpendicular axis",& ! BIND_NAV_ROTATE_PERP
      "Translate the camera            ",& ! BIND_NAV_TRANSLATE

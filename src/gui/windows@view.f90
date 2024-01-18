@@ -40,6 +40,8 @@ contains
     use keybindings, only: is_bind_event, BIND_VIEW_INC_NCELL, BIND_VIEW_DEC_NCELL,&
        BIND_VIEW_ALIGN_A_AXIS, BIND_VIEW_ALIGN_B_AXIS, BIND_VIEW_ALIGN_C_AXIS,&
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS,&
+       BIND_VIEW_TOGGLE_ATOMS, BIND_VIEW_TOGGLE_BONDS, BIND_VIEW_TOGGLE_LABELS,&
+       BIND_VIEW_TOGGLE_CELL,&
        BIND_NAV_ROTATE, BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
        BIND_NAV_MEASURE, bindnames, get_bind_keyname,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
@@ -64,6 +66,7 @@ contains
     integer(c_int) :: amax, flags, nc(3), ires, idx(4), viewtype, idum
     real(c_float) :: scal, width, sqw, ratio, depth, rgba(4)
     real*8 :: x0(3)
+    logical :: changedisplay(4) ! 1=atoms, 2=bonds, 3=labels, 4=cell
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -125,6 +128,41 @@ contains
        end do
     end if
 
+    ! process shortcut display bindings
+    if (associated(w%sc)) then
+       changedisplay = .false.
+       if (is_bind_event(BIND_VIEW_TOGGLE_ATOMS)) then
+          changedisplay(1) = .true.
+          isatom = .not.isatom
+       end if
+       if (is_bind_event(BIND_VIEW_TOGGLE_BONDS)) then
+          changedisplay(2) = .true.
+          isbond = .not.isbond
+       end if
+       if (is_bind_event(BIND_VIEW_TOGGLE_LABELS)) then
+          changedisplay(3) = .true.
+          islabels = .not.islabels
+       end if
+       if (is_bind_event(BIND_VIEW_TOGGLE_CELL)) then
+          changedisplay(4) = .true.
+          isuc = .not.isuc
+       end if
+       if (any(changedisplay)) then
+          do i = 1, w%sc%nrep
+             if (w%sc%rep(i)%isinit) then
+                if (w%sc%rep(i)%type == reptype_atoms) then
+                   if (changedisplay(1)) w%sc%rep(i)%atoms_display = isatom
+                   if (changedisplay(2)) w%sc%rep(i)%bonds_display = isbond
+                   if (changedisplay(3)) w%sc%rep(i)%labels_display = islabels
+                elseif (w%sc%rep(i)%type == reptype_unitcell) then
+                   if (changedisplay(4)) w%sc%rep(i)%shown = isuc
+                end if
+             end if
+          end do
+          chbuild = .true.
+       end if
+    end if
+
     ! scene menu
     str1="##viewscenebutton" // c_null_char
     if (iw_button("Scene",disabled=.not.associated(w%sc))) then
@@ -145,7 +183,8 @@ contains
              end do
              chbuild = .true.
           end if
-          call iw_tooltip("Toggle display atoms in all representations",ttshown)
+          call iw_tooltip("Toggle display atoms in all representations ("//&
+             trim(get_bind_keyname(BIND_VIEW_TOGGLE_ATOMS)) // ").",ttshown)
 
           str2 = "Bonds##bondsshortcut" // c_null_char
           call igSameLine(0._c_float,-1._c_float)
@@ -159,7 +198,8 @@ contains
              end do
              chbuild = .true.
           end if
-          call iw_tooltip("Toggle display bonds in all representations",ttshown)
+          call iw_tooltip("Toggle display bonds in all representations ("//&
+             trim(get_bind_keyname(BIND_VIEW_TOGGLE_BONDS)) // ").",ttshown)
 
           str2 = "Labels##labelshortcut" // c_null_char
           call igSameLine(0._c_float,-1._c_float)
@@ -173,7 +213,8 @@ contains
              end do
              chbuild = .true.
           end if
-          call iw_tooltip("Toggle display labels in all representations",ttshown)
+          call iw_tooltip("Toggle display labels in all representations ("//&
+             trim(get_bind_keyname(BIND_VIEW_TOGGLE_LABELS)) // ").",ttshown)
 
           if (.not.sys(w%view_selected)%c%ismolecule) then
              str2 = "Unit Cell##ucshortcut" // c_null_char
@@ -188,7 +229,8 @@ contains
                 end do
                 chbuild = .true.
              end if
-             call iw_tooltip("Toggle display of unit cell representations",ttshown)
+             call iw_tooltip("Toggle display unit cell in all representations ("//&
+                trim(get_bind_keyname(BIND_VIEW_TOGGLE_CELL)) // ").",ttshown)
           end if
 
           ! number of cells selector
@@ -2079,7 +2121,7 @@ contains
        call iw_tooltip("Text to display in the atom labels",ttshown)
        changed = changed .or. ch
 
-       ! scale and constant size
+       ! scale, constant size, color
        str2 = "Scale##labelscale" // c_null_char
        str3 = "%.2f" // c_null_char
        call igPushItemWidth(iw_calcwidth(4,1))
@@ -2093,12 +2135,16 @@ contains
        changed = changed .or. igCheckbox(c_loc(str2),w%rep%label_const_size)
        call iw_tooltip("Labels have constant size (on) or labels scale with the size of the associated atom (off)",ttshown)
 
-       ! color
        call igSameLine(0._c_float,-1._c_float)
        str2 = "Color##labelcolor" // c_null_char
        changed = changed .or. igColorEdit3(c_loc(str2),w%rep%label_rgb,ImGuiColorEditFlags_NoInputs)
        call iw_tooltip("Color of the atom labels",ttshown)
        call iw_clamp_color3(w%rep%label_rgb)
+
+       ! exclude H
+       str2 = "Exclude hydrogens##labelexcludeh" // c_null_char
+       changed = changed .or. igCheckbox(c_loc(str2),w%rep%label_exclude_h)
+       call iw_tooltip("Do not show labels on hydrogen atoms",ttshown)
     end if
 
   end function draw_editrep_atoms

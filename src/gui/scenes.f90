@@ -100,6 +100,7 @@ module scenes
      real(c_float) :: label_scale ! scale for the labels
      real(c_float) :: label_rgb(3) ! color of the labels
      logical(c_bool) :: label_const_size ! whether labels scale with objects or are constant size
+     logical(c_bool) :: label_exclude_h ! whether to exclude hydrogen labels
      ! unit cell
      logical(c_bool) :: uc_inner ! unit cell, display inner cylinders
      logical(c_bool) :: uc_coloraxes ! unit cell, color the axes (x=red,y=green,z=blue)

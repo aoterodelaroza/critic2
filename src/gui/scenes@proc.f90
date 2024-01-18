@@ -975,6 +975,7 @@ contains
     r%label_style = 0
     r%label_scale = 0.5_c_float
     r%label_const_size = .false._c_bool
+    r%label_exclude_h = .true._c_bool
     r%uc_radius = 0.15_c_float
     r%uc_radiusinner = 0.15_c_float
     r%uc_innersteplen = 2d0
@@ -1355,7 +1356,8 @@ contains
                    end if
 
                    ! labels
-                   if (r%labels_display) then
+                   if (r%labels_display .and. &
+                      (.not.r%label_exclude_h.or.sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z/=1)) then
                       nstring = nstring + 1
                       if (nstring > size(drawlist_string,1)) then
                          allocate(auxstr(2*nstring))
