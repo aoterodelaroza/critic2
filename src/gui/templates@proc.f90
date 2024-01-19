@@ -103,18 +103,18 @@ submodule (templates) proc
   ! keyword sections (need to be sequential)
   integer, parameter :: isection_none = 0
   integer, parameter :: isection_structural_tools = 1 ! structural tools
-  integer, parameter :: isection_readwrite = 2        ! read & write files
-  integer, parameter :: isection_fields = 3           ! fields
-  integer, parameter :: isection_field_evaluation = 4 ! field evaluation
-  integer, parameter :: isection_cps = 5              ! critical points
-  integer, parameter :: isection_aimplot = 6          ! aim plots
-  integer, parameter :: isection_integrals = 7        ! integrals
-  integer, parameter :: isection_stm = 8              ! stm
-  integer, parameter :: isection_nciplot = 9          ! nciplot
-  integer, parameter :: isection_xdm = 10             ! xdm
-  integer, parameter :: isection_sigmahole = 11       ! sigmahole
-  integer, parameter :: isection_variables = 12       ! variables
-  integer, parameter :: isection_misc = 13            ! miscellaneous
+  integer, parameter :: isection_fields = 2           ! fields
+  integer, parameter :: isection_readwrite = 3        ! read & write files
+  integer, parameter :: isection_misc = 4             ! miscellaneous
+  integer, parameter :: isection_variables = 5        ! variables
+  integer, parameter :: isection_field_evaluation = 6 ! field evaluation
+  integer, parameter :: isection_cps = 7              ! critical points
+  integer, parameter :: isection_aimplot = 8          ! aim plots
+  integer, parameter :: isection_integrals = 9        ! integrals
+  integer, parameter :: isection_nciplot = 10         ! nciplot
+  integer, parameter :: isection_stm = 11             ! stm
+  integer, parameter :: isection_sigmahole = 12       ! sigmahole
+  integer, parameter :: isection_xdm = 13             ! xdm
   integer, parameter :: isection_NUM = 13
   integer, parameter :: ikeyw_section(ikeyw_NUM) = (/&
      isection_structural_tools,& ! AMD
@@ -248,35 +248,35 @@ submodule (templates) proc
   ! section titles
   character(len=*,kind=c_char), parameter :: section_titles(isection_NUM) = (/&
      "Structural Tools  ",& ! structural tools
-     "Read/Write Files  ",& ! read/write files
      "Load/Unload Fields",& ! fields
+     "Read/Write Files  ",& ! read/write files
+     "Miscellaneous     ",& ! miscellaneous
+     "Variables         ",& ! variables
      "Field Evaluation  ",& ! field evaluation
      "Critical Points   ",& ! critical points
      "QTAIM Plots       ",& ! aim plots
      "Integrals         ",& ! integrals
-     "STM plots         ",& ! stm plots
      "NCI plots         ",& ! nciplots
-     "XDM dispersion    ",& ! xdm
+     "STM plots         ",& ! stm plots
      "Sigma holes       ",& ! sigma hole
-     "Variables         ",& ! variables
-     "Miscellaneous     "& ! miscellaneous
+     "XDM dispersion    "&  ! xdm
      /)
 
   ! section ranges
   integer, parameter :: section_ranges(2,isection_NUM) = reshape((/&
-     1,19,&  ! structural tools
-     24,25,& ! read/write files
-     20,23,& ! fields
-     35,38,& ! field evaluation
-     39,41,& ! critical points
-     42,45,& ! aim plots
-     46,55,& ! integrals
-     57,57,& ! stm plots
-     56,56,& ! nciplots
-     59,59,& ! xdm
-     58,58,& ! sigma hole
-     33,34,& ! variables
-     26,32& ! miscellaneous
+     1, 21,& ! structural tools
+     22,25,& ! fields
+     26,27,& ! read/write files
+     28,34,& ! miscellaneous
+     35,36,& ! variables
+     37,40,& ! field evaluation
+     41,43,& ! critical points
+     44,47,& ! qtaim plots
+     48,57,& ! integration
+     58,58,& ! nciplot
+     59,59,& ! stm
+     60,60,& ! sigmahole
+     61,61&  ! xdm
      /),shape(section_ranges))
 
   ! template (keyw) files
@@ -306,7 +306,7 @@ submodule (templates) proc
      "reference      ",& ! REFERENCE
      "setfield       ",& ! SETFIELD
      "unload         ",& ! UNLOAD
-     "makemolsnc     ",& ! WRITE
+     "makemolsnc     ",& ! MAKEMOLSNC
      "write          ",& ! WRITE
      "benchmark      ",& ! BENCHMARK
      "libxc          ",& ! LIBXC
@@ -325,8 +325,8 @@ submodule (templates) proc
      "cpreport       ",& ! CPREPORT
      "pointprop      ",& ! POINTPROP
      "grdvec         ",& ! GRDVEC
-     "fluxprint      ",& ! GRDVEC
-     "basinplot      ",& ! GRDVEC
+     "fluxprint      ",& ! FLUXPRINT
+     "basinplot      ",& ! BASINPLOT
      "bundleplot     ",& ! BUNDLEPLOT
      "integrable     ",& ! INTEGRABLE
      "integrals      ",& ! INTEGRALS
