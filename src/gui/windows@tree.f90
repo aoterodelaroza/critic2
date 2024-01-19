@@ -201,8 +201,8 @@ contains
     call igSameLine(0._c_float,-1._c_float)
 
     ! text filter
-    call igGetContentRegionAvail(sz)
-    width = max(sz%x - iw_calcwidth(12+5,1) - g%Style%WindowPadding%x,1._c_float)
+    call igGetContentRegionAvail(sz) ! Clear ... xxxx/xxxx shown
+    width = max(sz%x - iw_calcwidth(16+5,1) - g%Style%WindowPadding%x,1._c_float)
     if (.not.c_associated(cfilter)) &
        cfilter = ImGuiTextFilter_ImGuiTextFilter(c_loc(zeroc))
     str = "##treefilter" // c_null_char
@@ -215,7 +215,6 @@ contains
           call ImGuiTextFilter_Clear(cfilter)
     end if
     call iw_tooltip("Clear the filter",ttshown)
-    call iw_text(" " // string(shown_after_filter) // " shown",sameline=.true.)
 
     ! process force options
     if (allocated(w%forceremove)) then
@@ -296,6 +295,10 @@ contains
        w%forceinit = .false.
     end if
     nshown = size(w%iord,1)
+
+    ! final message in the header line
+    call iw_text(" " // string(shown_after_filter) // "/" // string(nshown) // " shown",&
+       sameline=.true.)
 
     ! set up the table, style and flags
     sz%x = 3._c_float
@@ -1039,10 +1042,10 @@ contains
          end if
 
          ! remove option (system)
-         strpop = "Remove" // c_null_char
+         strpop = "Close" // c_null_char
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
             w%forceremove = (/isys/)
-         call iw_tooltip("Remove this system",ttshown)
+         call iw_tooltip("Close this system",ttshown)
 
          call igEndPopup()
       end if
@@ -1051,7 +1054,7 @@ contains
       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
          if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
             if (bclose) then
-               strl = "Remove this system" // c_null_char
+               strl = "Close this system" // c_null_char
             elseif (bexpand) then
                strl = "Expand this system" // c_null_char
             else
