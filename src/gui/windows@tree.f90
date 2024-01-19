@@ -80,6 +80,7 @@ contains
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit, isend, ok, found
     logical :: export, didtableselected
+    logical(c_bool) :: ldum
     real(c_float) :: width, pos
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
@@ -120,11 +121,92 @@ contains
     call update_window_id(idrebond)
     call update_window_id(idplot)
 
+    ! Tree options button
+    export = .false.
+    ldum = (iw_button("❇",popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft))
+    if (ok) then
+       ! info at the top
+       str = "Right-click header for more" // c_null_char
+       ldum = igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.false._c_bool)
+       call igSeparator()
+
+       ! button: expand
+       str = "Expand All" // c_null_char
+       if (igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)) then
+          do i = 1, nsys
+             call expand_system(i)
+          end do
+       end if
+       call iw_tooltip("Expand all systems in the tree",ttshown)
+
+       ! button: collapse
+       str = "Collapse All" // c_null_char
+       if (igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)) then
+          do i = 1, nsys
+             call collapse_system(i)
+          end do
+       end if
+       call iw_tooltip("Collapse all systems in the tree",ttshown)
+
+       ! button: export
+       str = "Export Tree Table" // c_null_char
+       export = igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)
+       call iw_tooltip("Write the current table to the output console in csv-style (for copying)",ttshown)
+
+       ! button: plot
+       str = "Plot" // c_null_char
+       if (igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)) then
+          if (idplot > 0) then
+             call igSetWindowFocus_Str(c_loc(win(idplot)%name))
+          else
+             idplot = stack_create_window(wintype_treeplot,.true.,idcaller=w%id)
+          end if
+       end if
+       call iw_tooltip("Plot the tree data",ttshown)
+       call igSeparator()
+
+       ! close visible
+       str = "Close Visible" // c_null_char
+       if (igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)) then
+          if (allocated(w%forceremove)) deallocate(w%forceremove)
+          allocate(w%forceremove(nsys))
+          k = 0
+          do i = 1, nsys
+             if (c_associated(cfilter)) then
+                str = trim(sysc(i)%seed%name) // c_null_char
+                if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
+             end if
+             k = k + 1
+             w%forceremove(k) = i
+          end do
+          call realloc(w%forceremove,k)
+          if (c_associated(cfilter)) &
+             call ImGuiTextFilter_Clear(cfilter)
+       end if
+       call iw_tooltip("Close all visible systems",ttshown)
+
+       ! close all systems
+       str = "Close All" // c_null_char
+       if (igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)) then
+          if (allocated(w%forceremove)) deallocate(w%forceremove)
+          allocate(w%forceremove(nsys))
+          do i = 1, nsys
+             w%forceremove(i) = i
+          end do
+       end if
+       call iw_tooltip("Close all systems",ttshown)
+
+       call igEndPopup()
+    end if
+    call igSameLine(0._c_float,-1._c_float)
+
     ! text filter
+    call igGetContentRegionAvail(sz)
+    width = max(sz%x - iw_calcwidth(12+5,1) - g%Style%WindowPadding%x,1._c_float)
     if (.not.c_associated(cfilter)) &
        cfilter = ImGuiTextFilter_ImGuiTextFilter(c_loc(zeroc))
     str = "##treefilter" // c_null_char
-    ldum = ImGuiTextFilter_Draw(cfilter,c_loc(str),0._c_float)
+    ldum = ImGuiTextFilter_Draw(cfilter,c_loc(str),width)
     call iw_tooltip("Filter systems by name in the list below. Use comma-separated fields&
        & and - for excluding. Example: inc1,inc2,-exc includes all systems&
        & with inc1 or inc2 and excludes systems with exc.",ttshown)
@@ -134,73 +216,6 @@ contains
     end if
     call iw_tooltip("Clear the filter",ttshown)
     call iw_text(" " // string(shown_after_filter) // " shown",sameline=.true.)
-
-    ! row of buttons
-    ! button: expand
-    if (iw_button("Expand")) then
-       do i = 1, nsys
-          call expand_system(i)
-       end do
-    end if
-    call iw_tooltip("Expand all systems in the tree",ttshown)
-
-    ! button: collapse
-    if (iw_button("Collapse",sameline=.true.)) then
-       do i = 1, nsys
-          call collapse_system(i)
-       end do
-    end if
-    call iw_tooltip("Collapse all systems in the tree",ttshown)
-
-    ! button: export
-    export = iw_button("Export",sameline=.true.)
-    call iw_tooltip("Write the current table to the output console in csv-style (for copying)",ttshown)
-
-    ! button: plot
-    if (iw_button("Plot",sameline=.true.)) then
-       if (idplot > 0) then
-          call igSetWindowFocus_Str(c_loc(win(idplot)%name))
-       else
-          idplot = stack_create_window(wintype_treeplot,.true.,idcaller=w%id)
-       end if
-    end if
-    call iw_tooltip("Plot the tree data",ttshown)
-
-    ! helper
-    call iw_text("(?)",sameline=.true.)
-    call iw_tooltip("Right-click on the table headers for more options")
-
-    ! right-align for the rest of the contents
-    call iw_setposx_fromend(14,2)
-
-    ! button: close
-    if (iw_button("Close",danger=.true.)) then
-       if (allocated(w%forceremove)) deallocate(w%forceremove)
-       allocate(w%forceremove(nsys))
-       k = 0
-       do i = 1, nsys
-          if (c_associated(cfilter)) then
-             str = trim(sysc(i)%seed%name) // c_null_char
-             if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
-          end if
-          k = k + 1
-          w%forceremove(k) = i
-       end do
-       call realloc(w%forceremove,k)
-       if (c_associated(cfilter)) &
-          call ImGuiTextFilter_Clear(cfilter)
-    end if
-    call iw_tooltip("Close all visible systems",ttshown)
-
-    ! button: close all
-    if (iw_button("Close All",danger=.true.,sameline=.true.)) then
-       if (allocated(w%forceremove)) deallocate(w%forceremove)
-       allocate(w%forceremove(nsys))
-       do i = 1, nsys
-          w%forceremove(i) = i
-       end do
-    end if
-    call iw_tooltip("Close all systems",ttshown)
 
     ! process force options
     if (allocated(w%forceremove)) then
