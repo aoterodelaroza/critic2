@@ -296,8 +296,12 @@ contains
     end if
     nshown = size(w%iord,1)
 
+    ok = (nshown > 1)
+    if (.not.ok) &
+       ok = (sysc(w%iord(1))%status /= sys_empty)
     ! final message in the header line
-    call iw_text(" " // string(shown_after_filter) // "/" // string(nshown) // " shown",&
+    if (ok) &
+       call iw_text(" " // string(shown_after_filter) // "/" // string(nshown) // " shown",&
        sameline=.true.)
 
     ! set up the table, style and flags
