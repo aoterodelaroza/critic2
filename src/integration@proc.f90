@@ -2627,14 +2627,16 @@ contains
                    end do ! iat_b
                 end do ! iat_a
 
-                if (imo == kmo) then
-                   fac = 1d0
-                else
-                   fac = 2d0
-                end if
+                ! xxxx !
+                ! if (imo == kmo) then
+                !    fac = 1d0
+                ! else
+                !    fac = 2d0
+                ! end if
 
                 !$omp critical (addfa)
-                res%fa3(:,:,:,:,:,is) = res%fa3(:,:,:,:,:,is) + fac * f3temp
+                ! res%fa3(:,:,:,:,:,is) = res%fa3(:,:,:,:,:,is) + fac * f3temp
+                res%fa3(:,:,:,:,:,is) = res%fa3(:,:,:,:,:,is) + f3temp
                 !$omp end critical (addfa)
              end do ! kmo
           end do ! jmo
@@ -2643,19 +2645,7 @@ contains
     end do ! is
     res%fa3 = 0.5d0 * res%fa3
 
-    do is = 1, nspin
-       do iat_a = 1, nattr
-          do iat_b = 1, nattr
-             do rat_b = 1, nlattot
-                write (*,*) "xxxx ", abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
-                   abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
-                   abs(res%fa(iat_a,iat_b,rat_b,is)),sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))
-             end do
-          end do
-       end do
-    end do
-    stop 1
-
+    write (*,*) "xx checking individual values of DI3"
     do is = 1, nspin
        do iat_a = 1, nattr
           do iat_b = 1, nattr
@@ -2671,6 +2661,20 @@ contains
        end do
     end do
     write (*,*) "fin"
+
+    write (*,*) "xx checking consistency between fa and fa3"
+    do is = 1, nspin
+       do iat_a = 1, nattr
+          do iat_b = 1, nattr
+             do rat_b = 1, nlattot
+                write (*,'(I3,X,I3,X,I3,X,4(F20.12,X))') iat_a, iat_b, rat_b,&
+                   abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
+                   abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
+                   abs(res%fa(iat_a,iat_b,rat_b,is)),sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))
+             end do
+          end do
+       end do
+    end do
     stop 1
 
   end subroutine calc_di3_wannier
@@ -2686,6 +2690,7 @@ contains
     integer :: i, j, is, k, ia, ja, ka, imo1, ik1, ibnd1, imo2, ik2, ibnd2
     real*8 :: fatemp, kdif(3), fspin
     integer :: nlattot
+    integer :: iat_a, iat_b, iat_c, rat_b, rat_c
 
     ! set the spin multiplier
     if (nspin == 1) then
@@ -2846,39 +2851,36 @@ contains
     end if
     res%fa3 = 0.5d0 * res%fa3 / (fspin*fspin*fspin)
 
-    ! write (*,*) abs(res%fa(1,1,1,1)), sum(res%fa3(1,1,1,:,:,1))
-    ! write (*,*) res%fa3(1,1,1,:,:,1)
-    ! stop 1
+    do is = 1, nspin
+       do iat_a = 1, nattr
+          do iat_b = 1, nattr
+             do rat_b = 1, nlattot
+                do iat_c = 1, nattr
+                   do rat_c = 1, nlattot
+                      write (*,'("is=",I1," A:",I2," B:",I2,"/",I2," C:",I2,"/",I2," = ",F15.8)') &
+                         is, iat_a, iat_b, rat_b, iat_c, rat_c, res%fa3(iat_a,iat_b,rat_b,iat_c,rat_c,is)
+                   end do
+                end do
+             end do
+          end do
+       end do
+    end do
+    write (*,*) "fin"
 
-    ! do is = 1, nspin
-    !    do iat_a = 1, nattr
-    !       do iat_b = 1, nattr
-    !          do rat_b = 1, nlattot
-    !             write (*,*) "xxxx ", abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
-    !                abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
-    !                abs(res%fa(iat_a,iat_b,rat_b,is)),sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))
-    !          end do
-    !       end do
-    !    end do
-    ! end do
-    ! stop 1
-
-    ! do is = 1, nspin
-    !    do iat_a = 1, nattr
-    !       do iat_b = 1, nattr
-    !          do rat_b = 1, nlattot
-    !             do iat_c = 1, nattr
-    !                do rat_c = 1, nlattot
-    !                   write (*,'("is=",I1," A:",I2," B:",I2,"/",I2," C:",I2,"/",I2," = ",F15.8)') &
-    !                      is, iat_a, iat_b, rat_b, iat_c, rat_c, res%fa3(iat_a,iat_b,rat_b,iat_c,rat_c,is)
-    !                end do
-    !             end do
-    !          end do
-    !       end do
-    !    end do
-    ! end do
-    ! write (*,*) "fin"
-    ! stop 1
+    write (*,*) "xx checking consistency between fa and fa3"
+    do is = 1, nspin
+       do iat_a = 1, nattr
+          do iat_b = 1, nattr
+             do rat_b = 1, nlattot
+                write (*,'(I3,X,I3,X,I3,X,4(F20.12,X))') iat_a, iat_b, rat_b,&
+                   abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
+                   abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
+                   abs(res%fa(iat_a,iat_b,rat_b,is)),sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))
+             end do
+          end do
+       end do
+    end do
+    stop 1
 
   end subroutine calc_di3_psink
 
