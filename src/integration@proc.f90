@@ -674,7 +674,19 @@ contains
           if (res(i)%done) saux = "Lmax = " // string(sy%propi(i)%lmax)
           itaux = string(fid)
        elseif (sy%propi(i)%itype == itype_deloc_wnr .or. sy%propi(i)%itype == itype_deloc_psink) then
-          if (res(i)%done .and. sy%propi(i)%di3) saux = " 3-center indices calculated "
+          if (res(i)%done .and. sy%propi(i)%di3) then
+             if (sy%propi(i)%di3_atom1 < 0) then
+                saux = " 3-center indices calculated "
+             elseif (sy%propi(i)%di3_atom2(1) < 0) then
+                saux = " 3-center indices calculated for atom " // string(sy%propi(i)%di3_atom1) // " "
+             else
+                saux = " 3-center indices calculated for atom pair " // string(sy%propi(i)%di3_atom1) //&
+                   "," // string(sy%propi(i)%di3_atom2(1)) // "+(" //&
+                   string(sy%propi(i)%di3_atom2(2)) // "," //&
+                   string(sy%propi(i)%di3_atom2(3)) // "," //&
+                   string(sy%propi(i)%di3_atom2(4)) // ") "
+             end if
+          end if
           itaux = string(fid)
        else
           if (res(i)%done) saux = ""
@@ -1598,6 +1610,7 @@ contains
           end if
        else if ((sy%propi(l)%itype == itype_deloc_wnr .or. sy%propi(l)%itype == itype_deloc_psink).and.&
           sy%propi(l)%fachk .and..not.sy%propi(l)%di3) then
+          ! If DI3 calculation is requested, we need to read/calculate the Sij anyway
           if (read_chk_header(fafname,nbnd,nbndw,nlat,nmo,nlattot,nspin,natt1,isijtype)) then
              fid = sy%propi(l)%fid
 
@@ -1848,6 +1861,8 @@ contains
 
        ! finished the Sij and Fa successfully
 999    continue
+
+       ! deallocate
        if (allocated(res(l)%sijc)) deallocate(res(l)%sijc)
        if (allocated(res(l)%sij_wnr_imap)) deallocate(res(l)%sij_wnr_imap)
 

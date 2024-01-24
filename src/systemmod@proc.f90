@@ -854,7 +854,7 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
 
     logical :: ok
-    integer :: id, lp, lpold, idum, lp2
+    integer :: id, lp, lpold, idum, idum3(3), lp2
     character(len=:), allocatable :: word, expr, str
     logical :: useexpr, inpsijchk, inpfachk
 
@@ -986,6 +986,20 @@ contains
                    end if
                 else if (equal(word,"di3")) then
                    s%propi(s%npropi)%di3 = .true.
+                   s%propi(s%npropi)%di3_atom1 = -1
+                   s%propi(s%npropi)%di3_atom2 = (/-1,0,0,0/)
+                   ok = isinteger(idum,line,lp)
+                   if (ok) then
+                      s%propi(s%npropi)%di3_atom1 = idum
+                      ok = isinteger(idum,line,lp)
+                      if (ok) then
+                         s%propi(s%npropi)%di3_atom2(1) = idum
+                         ok = isinteger(idum3(1),line,lp)
+                         ok = ok .and. isinteger(idum3(2),line,lp)
+                         ok = ok .and. isinteger(idum3(3),line,lp)
+                         if (ok) s%propi(s%npropi)%di3_atom2(2:4) = idum3
+                      end if
+                   end if
                 else
                    lp = lp2
                    exit
