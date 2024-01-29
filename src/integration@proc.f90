@@ -37,9 +37,9 @@ submodule (integration) proc
   ! subroutine calc_sij_wannier(fid,wancut,useu,restart,imtype,natt1,iatt,ilvec,idg1,xattr,dat,luevc,luevc_ibnd,sij)
   ! subroutine calc_sij_psink(fid,imtype,natt1,iatt,ilvec,idg1,xattr,dat,sij)
   ! subroutine calc_fa_wannier(res,nmo,nbnd,nlat,nattr,nspin,di3)
-  ! subroutine calc_di3_wannier(res,nmo,nbnd,nlat,nattr,nspin)
+  ! subroutine calc_di3_wannier(res,nmo,nbnd,nlat,nattr,nspin,atom1,atom2)
   ! subroutine calc_fa_psink(res,nmo,nbnd,nlat,nattr,nspin,kpt,occ)
-  ! subroutine calc_di3_psink(res,nmo,nbnd,nlat,nattr,nspin,kpt,occ)
+  ! subroutine calc_di3_psink(res,nmo,nbnd,nlat,nattr,nspin,kpt,occ,atom1,atom2)
   ! subroutine find_sij_translations(res,nmo,nbnd,nlat,nlattot)
   ! subroutine check_sij_sanity(res,nspin,nmo,nbnd,nlat,nlattot)
   ! function quadpack_f(x,unit,xnuc) result(res)
@@ -1852,10 +1852,12 @@ contains
        if (sy%propi(l)%di3) then
           write (uout,'("# Calculating three-atom delocalization indices")')
           if (res(l)%sijtype == sijtype_wnr) then
-             call calc_di3_wannier(res(l),nmo,nbnd,nlat,bas%nattr,nspin)
+             call calc_di3_wannier(res(l),nmo,nbnd,nlat,bas%nattr,nspin,&
+                sy%propi(l)%di3_atom1,sy%propi(l)%di3_atom2)
           else
              call calc_di3_psink(res(l),nmo,nbnd,nlat,bas%nattr,nspin,&
-                sy%f(fid)%grid%qe%kpt,sy%f(fid)%grid%qe%occ)
+                sy%f(fid)%grid%qe%kpt,sy%f(fid)%grid%qe%occ,&
+                sy%propi(l)%di3_atom1,sy%propi(l)%di3_atom2)
           end if
        end if
 
@@ -2576,13 +2578,15 @@ contains
   end subroutine calc_fa_wannier
 
   !> Calculate the three-body DIs, wannier version
-  subroutine calc_di3_wannier(res,nmo,nbnd,nlat,nattr,nspin)
+  subroutine calc_di3_wannier(res,nmo,nbnd,nlat,nattr,nspin,atom1,atom2)
     use types, only: int_result
     type(int_result), intent(inout) :: res
     integer, intent(in) :: nmo, nbnd, nlat(3), nattr, nspin
+    integer, intent(in) :: atom1, atom2(4)
 
-    integer :: i
+    integer :: i, j, k
     integer :: iat_a, iat_b, iat_c, rat_b, rat_c
+    integer :: iat_a_ini, iat_a_end, iat_b_ini, iat_b_end, rat_b_ini, rat_b_end
     integer :: is, imo, jmo, kmo, ia, ja, ka, iba, ib, jb, kb, ibb
     integer :: ic, jc, kc, icc, nlattot
     real*8 :: fac
@@ -2591,6 +2595,36 @@ contains
     real*8, allocatable :: f3temp(:,:,:,:,:)
     logical, allocatable :: useovrlp(:,:,:)
     real*8, parameter :: ovrlp_thr = 1d-50
+
+    ! set limits for the sums
+    iat_a_ini = 1
+    iat_a_end = nattr
+    if (atom1 >= 0) then
+       iat_a_ini = atom1
+       iat_a_end = atom1
+    end if
+    iat_b_ini = 1
+    iat_b_end = nattr
+    rat_b_ini = 1
+    rat_b_end = nlattot
+    if (atom2(1) >= 0) then
+       iat_b_ini = atom2(1)
+       iat_b_end = atom2(1)
+       nlattot = 0
+       loopi: do i = 0, nlat(1)-1
+          do j = 0, nlat(2)-1
+             do k = 0, nlat(3)-1
+                nlattot = nlattot + 1
+                if (i == modulo(atom2(2),nlat(1)) .and. j == modulo(atom2(3),nlat(2)) .and.&
+                   k == modulo(atom2(4),nlat(3))) then
+                   rat_b_ini = nlattot
+                   rat_b_end = nlattot
+                   exit loopi
+                end if
+             end do
+          end do
+       end do loopi
+    end if
 
     ! number of lattice vectors
     nlattot = nlat(1)*nlat(2)*nlat(3)
@@ -2624,10 +2658,10 @@ contains
                 if (.not.useovrlp(jmo,kmo,is)) cycle
 
                 f3temp = 0d0
-                do iat_a = 1, nattr
-                   do iat_b = 1, nattr
-                      do iat_c = 1, nattr
-                         do rat_b = 1, nlattot
+                do iat_a = iat_a_ini, iat_a_end
+                   do iat_b = iat_b_ini, iat_b_end
+                      do rat_b = rat_b_ini, rat_b_end
+                         do iat_c = 1, nattr
                             do rat_c = 1, nlattot
                                f3temp(iat_a,iat_b,rat_b,iat_c,rat_c) = &
                                   real(res%sijc(imo,kmo,iat_a,is) * &
@@ -2637,8 +2671,8 @@ contains
                                   res%sijc(res%sij_wnr_imap(kmo,rat_b),res%sij_wnr_imap(jmo,rat_b),iat_b,is) * &
                                   res%sijc(res%sij_wnr_imap(jmo,rat_c),res%sij_wnr_imap(imo,rat_c),iat_c,is),8)
                             end do ! rat_c
-                         end do ! rat_b
-                      end do ! iat_c
+                         end do ! iat_c
+                      end do ! rat_b
                    end do ! iat_b
                 end do ! iat_a
 
@@ -2662,9 +2696,9 @@ contains
 
     write (*,*) "xx checking individual values of DI3"
     do is = 1, nspin
-       do iat_a = 1, nattr
-          do iat_b = 1, nattr
-             do rat_b = 1, nlattot
+       do iat_a = iat_a_ini, iat_a_end
+          do iat_b = iat_b_ini, iat_b_end
+             do rat_b = rat_b_ini, rat_b_end
                 do iat_c = 1, nattr
                    do rat_c = 1, nlattot
                       write (*,'("is=",I1," A:",I2," B:",I2,"/",I2," C:",I2,"/",I2," = ",F15.8)') &
@@ -2679,9 +2713,9 @@ contains
 
     write (*,*) "xx checking consistency between fa and fa3"
     do is = 1, nspin
-       do iat_a = 1, nattr
-          do iat_b = 1, nattr
-             do rat_b = 1, nlattot
+       do iat_a = iat_a_ini, iat_a_end
+          do iat_b = iat_b_ini, iat_b_end
+             do rat_b = rat_b_ini, rat_b_end
                 write (*,'(I3,X,I3,X,I3,X,4(F20.12,X))') iat_a, iat_b, rat_b,&
                    abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
                    abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
@@ -2755,12 +2789,13 @@ contains
   end subroutine calc_fa_psink
 
   !> Calculate the Fa matrix from the Sij matrix, psink version
-  subroutine calc_di3_psink(res,nmo,nbnd,nlat,nattr,nspin,kpt,occ)
+  subroutine calc_di3_psink(res,nmo,nbnd,nlat,nattr,nspin,kpt,occ,atom1,atom2)
     use types, only: int_result
     use param, only: tpi, img
     type(int_result), intent(inout) :: res
     integer, intent(in) :: nmo, nbnd, nlat(3), nattr, nspin
     real*8, intent(in) :: kpt(:,:), occ(:,:,:)
+    integer, intent(in) :: atom1, atom2(4)
 
     integer :: i, j, is, k, n
     real*8 :: kdifb(3), kdifc(3), fspin, pfac
@@ -2769,12 +2804,43 @@ contains
     integer :: ic, jc, kc, icc
     integer :: ibnd, jbnd, kbnd, ik, jk, kk
     integer :: iat_a, iat_b, iat_c, rat_b, rat_c
+    integer :: iat_a_ini, iat_a_end, iat_b_ini, iat_b_end, rat_b_ini, rat_b_end
 
     real*8, allocatable :: f3temp(:,:,:,:,:)
     logical, allocatable :: useovrlp(:,:,:)
     real*8, parameter :: ovrlp_thr = 1d-50
 
     real*8, allocatable :: lvec(:,:)
+
+    ! set limits for the sums
+    iat_a_ini = 1
+    iat_a_end = nattr
+    if (atom1 >= 0) then
+       iat_a_ini = atom1
+       iat_a_end = atom1
+    end if
+    iat_b_ini = 1
+    iat_b_end = nattr
+    rat_b_ini = 1
+    rat_b_end = nlattot
+    if (atom2(1) >= 0) then
+       iat_b_ini = atom2(1)
+       iat_b_end = atom2(1)
+       nlattot = 0
+       loopi: do i = 0, nlat(1)-1
+          do j = 0, nlat(2)-1
+             do k = 0, nlat(3)-1
+                nlattot = nlattot + 1
+                if (i == modulo(atom2(2),nlat(1)) .and. j == modulo(atom2(3),nlat(2)) .and.&
+                   k == modulo(atom2(4),nlat(3))) then
+                   rat_b_ini = nlattot
+                   rat_b_end = nlattot
+                   exit loopi
+                end if
+             end do
+          end do
+       end do loopi
+    end if
 
     ! number and list of lattice vectors
     nlattot = nlat(1)*nlat(2)*nlat(3)
@@ -2823,10 +2889,10 @@ contains
 
 
                 f3temp = 0d0
-                do iat_a = 1, nattr
-                   do iat_b = 1, nattr
-                      do iat_c = 1, nattr
-                         do rat_b = 1, nlattot
+                do iat_a = iat_a_ini, iat_a_end
+                   do iat_b = iat_b_ini, iat_b_end
+                      do rat_b = rat_b_ini, rat_b_end
+                         do iat_c = 1, nattr
                             do rat_c = 1, nlattot
                                kdifb = kpt(:,ik) - kpt(:,jk)
                                kdifc = kpt(:,jk) - kpt(:,kk)
@@ -2844,8 +2910,8 @@ contains
                                   real(res%sijc(imo,kmo,iat_a,is)*res%sijc(kmo,jmo,iat_b,is)*res%sijc(jmo,imo,iat_c,is)*&
                                   exp(tpi*img*pfac),8)
                             end do ! rat_c
-                         end do ! rat_b
-                      end do ! iat_c
+                         end do ! iat_c
+                      end do ! rat_b
                    end do ! iat_b
                 end do ! iat_a
                 f3temp = f3temp * occ(ibnd,ik,is) * occ(jbnd,jk,is) * occ(kbnd,kk,is)
@@ -2867,9 +2933,9 @@ contains
     res%fa3 = 0.5d0 * res%fa3 / (fspin*fspin*fspin)
 
     do is = 1, nspin
-       do iat_a = 1, nattr
-          do iat_b = 1, nattr
-             do rat_b = 1, nlattot
+       do iat_a = iat_a_ini, iat_a_end
+          do iat_b = iat_b_ini, iat_b_end
+             do rat_b = rat_b_ini, rat_b_end
                 do iat_c = 1, nattr
                    do rat_c = 1, nlattot
                       write (*,'("is=",I1," A:",I2," B:",I2,"/",I2," C:",I2,"/",I2," = ",F15.8)') &
@@ -2884,9 +2950,9 @@ contains
 
     write (*,*) "xx checking consistency between fa and fa3"
     do is = 1, nspin
-       do iat_a = 1, nattr
-          do iat_b = 1, nattr
-             do rat_b = 1, nlattot
+       do iat_a = iat_a_ini, iat_a_end
+          do iat_b = iat_b_ini, iat_b_end
+             do rat_b = rat_b_ini, rat_b_end
                 write (*,'(I3,X,I3,X,I3,X,4(F20.12,X))') iat_a, iat_b, rat_b,&
                    abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
                    abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
