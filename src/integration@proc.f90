@@ -675,12 +675,12 @@ contains
           itaux = string(fid)
        elseif (sy%propi(i)%itype == itype_deloc_wnr .or. sy%propi(i)%itype == itype_deloc_psink) then
           if (res(i)%done .and. sy%propi(i)%di3) then
-             if (sy%propi(i)%di3_atom1 < 0) then
+             if (sy%propi(i)%di3_atom1 < 0 .or. sy%propi(i)%di3_atom1 > bas%nattr) then
                 saux = " 3-center indices calculated "
-             elseif (sy%propi(i)%di3_atom2(1) < 0) then
-                saux = " 3-center indices calculated for atom " // string(sy%propi(i)%di3_atom1) // " "
+             elseif (sy%propi(i)%di3_atom2(1) < 0 .or. sy%propi(i)%di3_atom2(1) > bas%nattr) then
+                saux = " 3-center indices calculated for attractor " // string(sy%propi(i)%di3_atom1) // " "
              else
-                saux = " 3-center indices calculated for atom pair " // string(sy%propi(i)%di3_atom1) //&
+                saux = " 3-center indices calculated for attractor pair " // string(sy%propi(i)%di3_atom1) //&
                    "," // string(sy%propi(i)%di3_atom2(1)) // "+(" //&
                    string(sy%propi(i)%di3_atom2(2)) // "," //&
                    string(sy%propi(i)%di3_atom2(3)) // "," //&
@@ -2584,7 +2584,7 @@ contains
     integer, intent(in) :: nmo, nbnd, nlat(3), nattr, nspin
     integer, intent(in) :: atom1, atom2(4)
 
-    integer :: i, j, k
+    integer :: i, j, k, n
     integer :: iat_a, iat_b, iat_c, rat_b, rat_c
     integer :: iat_a_ini, iat_a_end, iat_b_ini, iat_b_end, rat_b_ini, rat_b_end
     integer :: is, imo, jmo, kmo, ia, ja, ka, iba, ib, jb, kb, ibb
@@ -2596,10 +2596,13 @@ contains
     logical, allocatable :: useovrlp(:,:,:)
     real*8, parameter :: ovrlp_thr = 1d-50
 
+    ! number of lattice vectors
+    nlattot = nlat(1)*nlat(2)*nlat(3)
+
     ! set limits for the sums
     iat_a_ini = 1
     iat_a_end = nattr
-    if (atom1 >= 0) then
+    if (atom1 > 0 .and. atom1 <= nattr) then
        iat_a_ini = atom1
        iat_a_end = atom1
     end if
@@ -2607,27 +2610,24 @@ contains
     iat_b_end = nattr
     rat_b_ini = 1
     rat_b_end = nlattot
-    if (atom2(1) >= 0) then
+    if (atom2(1) > 0 .and. atom2(1) <= nattr) then
        iat_b_ini = atom2(1)
        iat_b_end = atom2(1)
-       nlattot = 0
+       n = 0
        loopi: do i = 0, nlat(1)-1
           do j = 0, nlat(2)-1
              do k = 0, nlat(3)-1
-                nlattot = nlattot + 1
+                n = n + 1
                 if (i == modulo(atom2(2),nlat(1)) .and. j == modulo(atom2(3),nlat(2)) .and.&
                    k == modulo(atom2(4),nlat(3))) then
-                   rat_b_ini = nlattot
-                   rat_b_end = nlattot
+                   rat_b_ini = n
+                   rat_b_end = n
                    exit loopi
                 end if
              end do
           end do
        end do loopi
     end if
-
-    ! number of lattice vectors
-    nlattot = nlat(1)*nlat(2)*nlat(3)
 
     ! flag which overlaps will be used
     allocate(useovrlp(nmo,nmo,nspin))
@@ -2711,20 +2711,20 @@ contains
     end do
     write (*,*) "fin"
 
-    write (*,*) "xx checking consistency between fa and fa3"
-    do is = 1, nspin
-       do iat_a = iat_a_ini, iat_a_end
-          do iat_b = iat_b_ini, iat_b_end
-             do rat_b = rat_b_ini, rat_b_end
-                write (*,'(I3,X,I3,X,I3,X,4(F20.12,X))') iat_a, iat_b, rat_b,&
-                   abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
-                   abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
-                   abs(res%fa(iat_a,iat_b,rat_b,is)),sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))
-             end do
-          end do
-       end do
-    end do
-    stop 1
+    ! write (*,*) "xx checking consistency between fa and fa3"
+    ! do is = 1, nspin
+    !    do iat_a = iat_a_ini, iat_a_end
+    !       do iat_b = iat_b_ini, iat_b_end
+    !          do rat_b = rat_b_ini, rat_b_end
+    !             write (*,'(I3,X,I3,X,I3,X,4(F20.12,X))') iat_a, iat_b, rat_b,&
+    !                abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
+    !                abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
+    !                abs(res%fa(iat_a,iat_b,rat_b,is)),sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))
+    !          end do
+    !       end do
+    !    end do
+    ! end do
+    ! stop 1
 
   end subroutine calc_di3_wannier
 
@@ -2812,10 +2812,13 @@ contains
 
     real*8, allocatable :: lvec(:,:)
 
+    ! number of lattice vectors
+    nlattot = nlat(1)*nlat(2)*nlat(3)
+
     ! set limits for the sums
     iat_a_ini = 1
     iat_a_end = nattr
-    if (atom1 >= 0) then
+    if (atom1 > 0 .and. atom1 <= nattr) then
        iat_a_ini = atom1
        iat_a_end = atom1
     end if
@@ -2823,18 +2826,18 @@ contains
     iat_b_end = nattr
     rat_b_ini = 1
     rat_b_end = nlattot
-    if (atom2(1) >= 0) then
+    if (atom2(1) > 0 .and. atom2(1) <= nattr) then
        iat_b_ini = atom2(1)
        iat_b_end = atom2(1)
-       nlattot = 0
+       n = 0
        loopi: do i = 0, nlat(1)-1
           do j = 0, nlat(2)-1
              do k = 0, nlat(3)-1
-                nlattot = nlattot + 1
+                n = n + 1
                 if (i == modulo(atom2(2),nlat(1)) .and. j == modulo(atom2(3),nlat(2)) .and.&
                    k == modulo(atom2(4),nlat(3))) then
-                   rat_b_ini = nlattot
-                   rat_b_end = nlattot
+                   rat_b_ini = n
+                   rat_b_end = n
                    exit loopi
                 end if
              end do
@@ -2842,8 +2845,7 @@ contains
        end do loopi
     end if
 
-    ! number and list of lattice vectors
-    nlattot = nlat(1)*nlat(2)*nlat(3)
+    ! list of lattice vectors
     allocate(lvec(3,nlattot))
     nlattot = 0
     do i = 0, nlat(1)-1
@@ -2932,36 +2934,36 @@ contains
     end if
     res%fa3 = 0.5d0 * res%fa3 / (fspin*fspin*fspin)
 
-    do is = 1, nspin
-       do iat_a = iat_a_ini, iat_a_end
-          do iat_b = iat_b_ini, iat_b_end
-             do rat_b = rat_b_ini, rat_b_end
-                do iat_c = 1, nattr
-                   do rat_c = 1, nlattot
-                      write (*,'("is=",I1," A:",I2," B:",I2,"/",I2," C:",I2,"/",I2," = ",F15.8)') &
-                         is, iat_a, iat_b, rat_b, iat_c, rat_c, res%fa3(iat_a,iat_b,rat_b,iat_c,rat_c,is)
-                   end do
-                end do
-             end do
-          end do
-       end do
-    end do
-    write (*,*) "fin"
+    ! do is = 1, nspin
+    !    do iat_a = iat_a_ini, iat_a_end
+    !       do iat_b = iat_b_ini, iat_b_end
+    !          do rat_b = rat_b_ini, rat_b_end
+    !             do iat_c = 1, nattr
+    !                do rat_c = 1, nlattot
+    !                   write (*,'("is=",I1," A:",I2," B:",I2,"/",I2," C:",I2,"/",I2," = ",F15.8)') &
+    !                      is, iat_a, iat_b, rat_b, iat_c, rat_c, res%fa3(iat_a,iat_b,rat_b,iat_c,rat_c,is)
+    !                end do
+    !             end do
+    !          end do
+    !       end do
+    !    end do
+    ! end do
+    ! write (*,*) "fin"
 
-    write (*,*) "xx checking consistency between fa and fa3"
-    do is = 1, nspin
-       do iat_a = iat_a_ini, iat_a_end
-          do iat_b = iat_b_ini, iat_b_end
-             do rat_b = rat_b_ini, rat_b_end
-                write (*,'(I3,X,I3,X,I3,X,4(F20.12,X))') iat_a, iat_b, rat_b,&
-                   abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
-                   abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
-                   abs(res%fa(iat_a,iat_b,rat_b,is)),sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))
-             end do
-          end do
-       end do
-    end do
-    stop 1
+    ! write (*,*) "xx checking consistency between fa and fa3"
+    ! do is = 1, nspin
+    !    do iat_a = iat_a_ini, iat_a_end
+    !       do iat_b = iat_b_ini, iat_b_end
+    !          do rat_b = rat_b_ini, rat_b_end
+    !             write (*,'(I3,X,I3,X,I3,X,4(F20.12,X))') iat_a, iat_b, rat_b,&
+    !                abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
+    !                abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
+    !                abs(res%fa(iat_a,iat_b,rat_b,is)),sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))
+    !          end do
+    !       end do
+    !    end do
+    ! end do
+    ! stop 1
 
   end subroutine calc_di3_psink
 
@@ -3231,13 +3233,14 @@ contains
     real*8 :: fspin, xli, xnn, r1(3), asum, d2, raux, sfac
     real*8, allocatable :: dimol(:,:,:,:,:), limol(:), namol(:)
     real*8, allocatable :: dist(:), diout(:), xcm(:,:), diout_i(:), diout_o(:)
+    logical, allocatable :: diout_ioprint1(:), diout_ioprint2(:)
     integer, allocatable :: io(:), ilvec(:,:), idat(:), idxmol(:,:)
     integer :: ia, ja
     integer :: ic, jc, kc, lvec1(3), lvec2(3), lvec3(3)
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
     type(crystal) :: cr1
     type(crystalseed) :: ncseed
-    logical :: di3
+    logical :: di3, ok
 
     if (bas%imtype == imtype_isosurface) return
 
@@ -3296,13 +3299,40 @@ contains
        write (uout,'("  with all atoms in the environment. Last line: sum of LI + 0.5 * DIs,")')
        write (uout,'("  equal to the atomic population. Distances are in ",A,".")') iunitname0(iunit)
        allocate(dist(natt*nlattot),io(natt*nlattot),diout(natt*nlattot),ilvec(3,natt*nlattot),idat(natt*nlattot))
-       if (di3) allocate(diout_i(natt*nlattot),diout_o(natt*nlattot))
+       if (di3) then
+          allocate(diout_i(natt*nlattot),diout_o(natt*nlattot),diout_ioprint1(natt),diout_ioprint2(natt*nlattot))
+          k = 0
+          m = 0
+          do ic = 0, nlat(1)-1
+             do jc = 0, nlat(2)-1
+                do kc = 0, nlat(3)-1
+                   k = k + 1
+                   do j = 1, natt
+                      m = m + 1
+                      ok = sy%propi(l)%di3_atom2(1) < 0 .or. sy%propi(l)%di3_atom2(1) > natt .or.&
+                         (sy%propi(l)%di3_atom2(1) == j) .and.&
+                         ic == modulo(sy%propi(l)%di3_atom2(2),nlat(1)) .and.&
+                         jc == modulo(sy%propi(l)%di3_atom2(3),nlat(2)) .and.&
+                         kc == modulo(sy%propi(l)%di3_atom2(4),nlat(3))
+                      diout_ioprint2(m) = ok
+                   end do
+                end do
+             end do
+          end do
+          if (sy%propi(l)%di3_atom1 < 0 .or. sy%propi(l)%di3_atom1 > natt) then
+             diout_ioprint1 = .true.
+          else
+             diout_ioprint1 = .false.
+             diout_ioprint1(sy%propi(l)%di3_atom1) = .true.
+          end if
+       end if
+
        do i = 1, natt
           if (.not.bas%docelatom(bas%icp(i))) cycle
           call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
           write (uout,'("# Attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") at: ",3(A,"  "))') &
              string(i), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz), (trim(string(bas%xattr(j,i),'f',12,7)),j=1,3)
-          if (di3) then
+          if (di3.and.diout_ioprint1(i)) then
              write (uout,'("# Id   cp   ncp   Name  Z    Latt. vec.     &
                &----  Cryst. coordinates ----       Distance        LI/DI        3c(in)       3c(out)")')
           else
@@ -3329,7 +3359,7 @@ contains
                       if (dist(m) < 1d-5) sfac = 0.5d0
 
                       diout(m) = 2d0 * sum(abs(res(l)%fa(i,j,k,:))) * fspin * sfac
-                      if (di3) then
+                      if (di3.and.diout_ioprint1(i).and.diout_ioprint2(m)) then
                          diout_i(m) = sum(abs(res(l)%fa3(i,j,k,i,1,:))) + sum(abs(res(l)%fa3(i,j,k,j,k,:)))
                          diout_o(m) = sum(abs(res(l)%fa3(i,j,k,:,:,:))) - diout_i(m)
                          diout_i(m) = diout_i(m) * 2d0 * fspin * sfac
@@ -3349,7 +3379,7 @@ contains
              j = io(m)
              if (.not.bas%docelatom(bas%icp(idat(j)))) cycle
              if (dist(j) < 1d-5) then
-                if (di3) then
+                if (di3.and.diout_ioprint1(i).and.diout_ioprint2(j)) then
                    write (uout,'("  Localization index",71("."),3(A," "))') string(diout(j),'f',12,8,4),&
                       string(diout_i(j),'f',12,8,4), string(diout_o(j),'f',12,8,4)
                 else
@@ -3359,7 +3389,7 @@ contains
              else
                 call assign_strings(j,bas%icp(idat(j)),.false.,scp,sncp,sname,smult,sz)
                 r1 = bas%xattr(:,idat(j)) + ilvec(:,j)
-                if (di3) then
+                if (di3.and.diout_ioprint1(i).and.diout_ioprint2(j)) then
                    write (uout,'("  ",99(A," "))') string(j,4,ioj_left), scp, sncp, sname, sz,&
                       (string(ilvec(k,j),3,ioj_right),k=1,3), (string(r1(k),'f',12,7,4),k=1,3),&
                       string(dist(j),'f',12,7,4), string(diout(j),'f',12,8,4),&
@@ -3503,6 +3533,8 @@ contains
        deallocate(dist,io,diout,ilvec,idat)
        if (allocated(diout_i)) deallocate(diout_i)
        if (allocated(diout_o)) deallocate(diout_o)
+       if (allocated(diout_ioprint1)) deallocate(diout_ioprint1)
+       if (allocated(diout_ioprint2)) deallocate(diout_ioprint2)
     end do
 
   end subroutine int_output_deloc
