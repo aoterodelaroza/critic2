@@ -3228,13 +3228,13 @@ contains
     type(basindat), intent(in) :: bas
     type(int_result), intent(in) :: res(:)
 
-    integer :: i, j, k, l, m
+    integer :: i, j, k, l, m, n, jo, ko, kk
     integer :: fid, natt, nlat(3), nspin, nlattot
     real*8 :: fspin, xli, xnn, r1(3), asum, d2, raux, sfac
     real*8, allocatable :: dimol(:,:,:,:,:), limol(:), namol(:)
     real*8, allocatable :: dist(:), diout(:), xcm(:,:), diout_i(:), diout_o(:)
     logical, allocatable :: diout_ioprint1(:), diout_ioprint2(:)
-    integer, allocatable :: io(:), ilvec(:,:), idat(:), idxmol(:,:)
+    integer, allocatable :: io(:), ilvec(:,:), ilat(:), idat(:), idxmol(:,:)
     integer :: ia, ja
     integer :: ic, jc, kc, lvec1(3), lvec2(3), lvec3(3)
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
@@ -3299,6 +3299,7 @@ contains
        write (uout,'("  with all atoms in the environment. Last line: sum of LI + 0.5 * DIs,")')
        write (uout,'("  equal to the atomic population. Distances are in ",A,".")') iunitname0(iunit)
        allocate(dist(natt*nlattot),io(natt*nlattot),diout(natt*nlattot),ilvec(3,natt*nlattot),idat(natt*nlattot))
+       allocate(ilat(natt*nlattot))
        if (di3) then
           allocate(diout_i(natt*nlattot),diout_o(natt*nlattot),diout_ioprint1(natt),diout_ioprint2(natt*nlattot))
           k = 0
@@ -3366,6 +3367,7 @@ contains
                          diout_o(m) = diout_o(m) * 2d0 * fspin * sfac
                       end if
                       idat(m) = j
+                      ilat(m) = k
                       ilvec(:,m) = nint(bas%xattr(:,i) + cr1%c2x(r1) * nlat - bas%xattr(:,j))
                    end do
                 end do
@@ -3374,6 +3376,7 @@ contains
 
           ! sort by increasing distance and output for this atom
           call qcksort(dist,io,1,natt*nlattot)
+
           asum = 0d0
           do m = 1, natt*nlattot
              j = io(m)
@@ -3405,6 +3408,65 @@ contains
           write (uout,'("  Total (atomic population)",64("."),A)') string(asum,'f',12,8,4)
           write (uout,*)
        end do
+
+       ! three-body indices
+       if (di3) then
+          write (uout,'("* Three-center delocalization indices")')
+          write (uout,'("  Each block decomposes each calculated localization/delocalization indices into")')
+          write (uout,'("  three-center contributions. Distances are in ",A,".")') iunitname0(iunit)
+
+          do i = 1, natt
+             if (.not.bas%docelatom(bas%icp(i))) cycle
+             call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
+             write (uout,'("+ Attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") at: (",2(A,","),A,")")') &
+                string(i), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz),&
+                (trim(string(bas%xattr(k,i),'f',decimal=7)),k=1,3)
+
+             do m = 1, natt*nlattot
+                jo = io(m)
+                if (.not.bas%docelatom(bas%icp(idat(jo)))) cycle
+                if (dist(jo) < 1d-5) then
+                   call assign_strings(jo,bas%icp(idat(jo)),.false.,scp,sncp,sname,smult,sz)
+                   write (uout,'("# Localization index, LI=",A)') string(diout(jo),'f',decimal=8)
+                else
+                   call assign_strings(jo,bas%icp(idat(jo)),.false.,scp,sncp,sname,smult,sz)
+                   write (uout,'("# DI with attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") &
+                      &at (",2(A,","),A,") dist=",A," DI=",A)') &
+                      string(idat(jo)), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz),&
+                      (trim(string(bas%xattr(kk,idat(jo)) + ilvec(kk,jo),'f',decimal=7)),kk=1,3),&
+                      string(dist(jo),'f',decimal=7), string(diout(jo),'f',decimal=8)
+                end if
+                write (uout,'("# Id   cp   ncp   Name  Z    Latt. vec.     &
+                   &----  Cryst. coordinates ----       Distance        LI/DI")')
+
+                write (*,*) "i= ",i
+                write (*,*) "m= ",m
+                write (*,*) "jo= ",jo
+                write (*,*) "idat(jo)=",idat(jo)
+                write (*,*) "ilat(jo)=",ilat(jo)
+                write (*,*) "dist(jo)=",dist(jo)
+                stop 1
+
+                do n = 1, natt*nlattot
+                   ko = io(n)
+                   if (.not.bas%docelatom(bas%icp(idat(ko)))) cycle
+
+                   call assign_strings(ko,bas%icp(idat(ko)),.false.,scp,sncp,sname,smult,sz)
+                   r1 = bas%xattr(:,idat(ko)) + ilvec(:,ko)
+                   write (uout,'("  ",99(A," "))') string(ko,4,ioj_left), scp, sncp, sname, sz,&
+                      (string(ilvec(kk,ko),3,ioj_right),kk=1,3), (string(r1(kk),'f',12,7,4),kk=1,3),&
+                      string(dist(ko),'f',12,7,4),&
+                      string(sum(res(l)%fa3(i,idat(jo),ilat(jo),idat(ko),ilat(ko),:)),'f',12,8,4)
+                   write (*,*) "idat(ko)=",idat(ko)
+                   write (*,*) "ilat(ko)=",ilat(ko)
+                   write (*,*) "dist(ko)=",dist(ko)
+                   write (*,*) sum(res(l)%fa3(i,idat(jo),ilat(jo),idat(ko),ilat(ko),:))
+                   stop 1
+                end do
+             end do ! m = 1, natt*nlattot
+             write (uout,*)
+          end do ! i = 1, natt
+       end if
 
        ! Integrated molecular LI/DI
        if (.not.sy%c%ismolecule .and. all(sy%c%mol(1:sy%c%nmol)%discrete)) then
@@ -3530,7 +3592,7 @@ contains
 
        ! clean up
        call cr1%end()
-       deallocate(dist,io,diout,ilvec,idat)
+       deallocate(dist,io,diout,ilvec,idat,ilat)
        if (allocated(diout_i)) deallocate(diout_i)
        if (allocated(diout_o)) deallocate(diout_o)
        if (allocated(diout_ioprint1)) deallocate(diout_ioprint1)
