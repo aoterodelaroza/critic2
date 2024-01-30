@@ -3230,7 +3230,7 @@ contains
 
     integer :: i, j, k, l, m, n, jo, ko, kk
     integer :: fid, natt, nlat(3), nspin, nlattot
-    real*8 :: fspin, xli, xnn, r1(3), asum, d2, raux, sfac
+    real*8 :: fspin, xli, xnn, r1(3), r2(3), asum, d2, raux, sfac
     real*8, allocatable :: dimol(:,:,:,:,:), limol(:), namol(:)
     real*8, allocatable :: dist(:), diout(:), xcm(:,:), diout_i(:), diout_o(:)
     logical, allocatable :: diout_ioprint1(:), diout_ioprint2(:)
@@ -3241,6 +3241,7 @@ contains
     type(crystal) :: cr1
     type(crystalseed) :: ncseed
     logical :: di3, ok
+    real*8 :: di3aux, daux
 
     if (bas%imtype == imtype_isosurface) return
 
@@ -3293,17 +3294,23 @@ contains
        call cr1%struct_new(ncseed,.true.)
 
        ! header
+       di3 = sy%propi(l)%di3
        write (uout,'("+ Delocalization indices")')
        write (uout,'("  Each block gives information about a single atom in the main cell.")')
        write (uout,'("  First line: localization index. Next lines: delocalization index")')
        write (uout,'("  with all atoms in the environment. Last line: sum of LI + 0.5 * DIs,")')
        write (uout,'("  equal to the atomic population. Distances are in ",A,".")') iunitname0(iunit)
+       if (di3) then
+          write (uout,'("  Three-center: 3c(in) contribution to DI(AB) = sum of N(ABC) with C=A,B.")')
+          write (uout,'("  3c(in) contribution to LI(A) = N(AAA). 3c(out) contribution = the DI or LI")')
+          write (uout,'("  minus the 3c(in).")')
+       end if
+       write (uout,*)
        allocate(dist(natt*nlattot),io(natt*nlattot),diout(natt*nlattot),ilvec(3,natt*nlattot),idat(natt*nlattot))
 
        ! prepare for the di3 output
        ! diout_ioprint1 = print inner and outer contribution to DI3, filtered with di3_atom1
-       ! diout_ioprint2 = print inner and outer contribution to DI3, filtered with di3_atom2
-       di3 = sy%propi(l)%di3
+       ! diout_ioprint2 = same, but filtered with di3_atom2
        if (di3) then
           allocate(diout_i(natt*nlattot),diout_o(natt*nlattot),diout_ioprint1(natt),diout_ioprint2(natt*nlattot))
           k = 0
@@ -3365,9 +3372,13 @@ contains
                       sfac = 1d0
                       if (dist(m) < 1d-5) sfac = 0.5d0
 
-                      diout(m) = 2d0 * sum(abs(res(l)%fa(i,j,k,:))) * fspin * sfac
+                      diout(m) = 2d0 * sum(res(l)%fa(i,j,k,:)) * fspin * sfac
                       if (di3.and.diout_ioprint1(i).and.diout_ioprint2(m)) then
-                         diout_i(m) = sum(res(l)%fa3(i,j,k,i,1,:)) + sum(res(l)%fa3(i,j,k,j,k,:))
+                         if (j == i .and. k == 1) then
+                            diout_i(m) = sum(res(l)%fa3(i,j,k,i,1,:))
+                         else
+                            diout_i(m) = sum(res(l)%fa3(i,j,k,i,1,:)) + sum(res(l)%fa3(i,j,k,j,k,:))
+                         end if
                          diout_o(m) = sum(res(l)%fa3(i,j,k,:,:,:)) - diout_i(m)
                          diout_i(m) = diout_i(m) * 2d0 * fspin * sfac
                          diout_o(m) = diout_o(m) * 2d0 * fspin * sfac
@@ -3418,16 +3429,20 @@ contains
        if (di3) then
           allocate(ilat(natt*nlattot))
           write (uout,'("* Three-center delocalization indices")')
-          write (uout,'("  Each block decomposes each calculated localization/delocalization indices into")')
-          write (uout,'("  three-center contributions. Distances are in ",A,".")') iunitname0(iunit)
+          write (uout,'("  Each block shows the three-center contribution N(ABC) to each calculated")')
+          write (uout,'("  localization and delocalization indices, sorted by distance to atom A.")')
+          write (uout,'("  Distances are in ",A,".")') iunitname0(iunit)
+          write (uout,*)
 
           do i = 1, natt
              if (.not.bas%docelatom(bas%icp(i))) cycle
              if (.not.diout_ioprint1(i)) cycle
              call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
+             write (uout,'("+ Three-center decomposition of delocalization indices related to:")')
              write (uout,'("+ Attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") at: (",2(A,","),A,")")') &
                 string(i), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz),&
                 (trim(string(bas%xattr(k,i),'f',decimal=7)),k=1,3)
+             write (uout,*)
 
              ! Sort the second atom by distance to i
              ! calculate location and distance information. Obtain inner and outer
@@ -3459,33 +3474,52 @@ contains
                 jo = io(m)
                 if (.not.bas%docelatom(bas%icp(idat(jo)))) cycle
                 if (.not.diout_ioprint2(m)) cycle
+
+                ! write A again
+                call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
+                write (uout,'("# A: Attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") at: (",2(A,","),A,")")') &
+                   string(i), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz),&
+                   (trim(string(bas%xattr(k,i),'f',decimal=7)),k=1,3)
+
+                ! write B
+                call assign_strings(jo,bas%icp(idat(jo)),.false.,scp,sncp,sname,smult,sz)
+                write (uout,'("# B: Attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") &
+                   &at: (",2(A,","),A,")")') &
+                   string(idat(jo)), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz),&
+                   (trim(string(bas%xattr(kk,idat(jo)) + ilvec(kk,jo),'f',decimal=7)),kk=1,3)
+                write (uout,'("# C: each row in the following table.")')
+
                 if (dist(jo) < 1d-5) then
-                   call assign_strings(jo,bas%icp(idat(jo)),.false.,scp,sncp,sname,smult,sz)
-                   write (uout,'("# Localization index, LI=",A)') string(diout(jo),'f',decimal=8)
+                   sfac = 0.5d0
+                   write (uout,'("# A same as B, LI =",A)') string(diout(jo),'f',decimal=8)
                 else
-                   call assign_strings(jo,bas%icp(idat(jo)),.false.,scp,sncp,sname,smult,sz)
-                   write (uout,'("# DI with attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") &
-                      &at (",2(A,","),A,") dist=",A," DI=",A)') &
-                      string(idat(jo)), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz),&
-                      (trim(string(bas%xattr(kk,idat(jo)) + ilvec(kk,jo),'f',decimal=7)),kk=1,3),&
+                   sfac = 1d0
+                   write (uout,'("# dist(AB) = ",A,", DI = ",A)') &
                       string(dist(jo),'f',decimal=7), string(diout(jo),'f',decimal=8)
                 end if
 
                 ! run over the third atom
                 write (uout,'("# Id   cp   ncp   Name  Z    Latt. vec.     &
-                   &----  Cryst. coordinates ----       Distance        LI/DI")')
+                   &----  Cryst. coordinates ----        dist(AB)     dist(AC)     N(ABC)")')
                 do n = 1, natt*nlattot
                    ko = io(n)
                    if (.not.bas%docelatom(bas%icp(idat(ko)))) cycle
                    call assign_strings(ko,bas%icp(idat(ko)),.false.,scp,sncp,sname,smult,sz)
                    r1 = bas%xattr(:,idat(ko)) + ilvec(:,ko)
-                   write (uout,'("  ",99(A," "))') string(ko,4,ioj_left), scp, sncp, sname, sz,&
+                   r2 = (bas%xattr(:,idat(jo)) + ilvec(:,jo) - r1) / real(nlat,8)
+                   call cr1%shortest(r2,d2)
+                   daux = d2 * dunit0(iunit)
+                   di3aux = 2d0 * sum(res(l)%fa3(i,idat(jo),ilat(jo),idat(ko),ilat(ko),:)) * fspin * sfac
+                   write (uout,'("  ",99(A," "))') string(idat(ko),4,ioj_left), scp, sncp, sname, sz,&
                       (string(ilvec(kk,ko),3,ioj_right),kk=1,3), (string(r1(kk),'f',12,7,4),kk=1,3),&
                       string(dist(ko),'f',12,7,4),&
-                      string(sum(res(l)%fa3(i,idat(jo),ilat(jo),idat(ko),ilat(ko),:)),'f',12,8,4)
+                      string(daux,'f',12,7,4),&
+                      string(di3aux,'f',12,8,4)
                 end do
+                asum = 2d0 * sum(res(l)%fa3(i,idat(jo),ilat(jo),:,:,:)) * fspin * sfac
+                write (uout,'("  Total (2-center LI/DI)",80("."),A)') string(asum,'f',12,8,4)
+                write (uout,*)
              end do ! m = 1, natt*nlattot
-             write (uout,*)
           end do ! i = 1, natt
        end if
 
