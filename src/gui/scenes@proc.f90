@@ -789,6 +789,7 @@ contains
   !> representations array.
   module function get_new_representation_id(s) result(id)
     use types, only: realloc
+    use windows, only: regenerate_window_pointers
     class(scene), intent(inout), target :: s
     integer :: id
 
@@ -810,6 +811,7 @@ contains
        aux(1:size(s%rep,1)) = s%rep
        call move_alloc(aux,s%rep)
        call realloc(s%iord,2*s%nrep)
+       call regenerate_window_pointers()
     end if
     id = s%nrep
 
@@ -952,7 +954,6 @@ contains
     r%isinit = .false.
     r%shown = .false.
     r%type = reptype_none
-    r%sc => sc
     r%id = isys
     r%idrep = irep
     r%idwin = 0

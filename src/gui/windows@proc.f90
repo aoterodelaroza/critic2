@@ -56,6 +56,7 @@ contains
        allocate(winaux(2*(nwin+iroom)))
        winaux(1:size(win,1)) = win
        call move_alloc(winaux,win)
+       call regenerate_window_pointers()
     end if
 
   end subroutine stack_realloc_maybe
@@ -127,6 +128,30 @@ contains
 
   end subroutine update_window_id
 
+  !> This routine regenerates all pointers to the widows in the win(:)
+  !> structure and its components. It is used when an array size is
+  !> exceeded and move_alloc needs to be used to allocate more memory.
+  module subroutine regenerate_window_pointers()
+    use gui_main, only: sysc, nsys, sys_init
+
+    integer :: i, j, iv
+
+    do i = 1, nwin
+       if (win(i)%type == wintype_editrep .and. win(i)%irep > 0) then
+          win(i)%rep => win(win(i)%idparent)%sc%rep(win(i)%irep)
+       elseif (win(i)%type == wintype_view) then
+          win(i)%sc => null()
+          iv = win(i)%view_selected
+          if (iv >= 1 .and. iv <= nsys) then
+             if (sysc(iv)%status == sys_init.and.win(i)%ismain) then
+                win(i)%sc => sysc(iv)%sc
+             end if
+          end if
+       end if
+    end do
+
+  end subroutine regenerate_window_pointers
+
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
   module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idcaller)
@@ -182,6 +207,10 @@ contains
     w%forcequitdialog = .false.
     w%plotn = 0
     w%idsave = 0
+    if (present(isys)) w%isys = isys
+    if (present(irep)) w%irep = irep
+    if (present(idcaller)) w%idparent = idcaller
+    if (present(purpose)) w%dialog_purpose = purpose
 
     ! type-specific initialization
     if (type == wintype_dialog) then
@@ -193,17 +222,14 @@ contains
        call IGFD_SetFileStyle(w%dptr,IGFD_FileStyleByTypeFile,c_null_ptr,ColorDialogFile,c_loc(str1),c_null_ptr)
        if (.not.present(purpose)) &
           call ferror('window_init','dialog requires a purpose',faterr)
-       w%dialog_purpose = purpose
     elseif (type == wintype_load_field) then
        ! dialog: load field window
        if (.not.present(isys)) &
           call ferror('window_init','load_field requires isys',faterr)
-       w%isys = isys
     elseif (type == wintype_scfplot) then
        ! SCF plot window
        if (.not.present(isys)) &
           call ferror('window_init','scfplot requires isys',faterr)
-       w%isys = isys
     elseif (type == wintype_editrep) then
        ! edit representation window
        if (.not.present(isys)) &
@@ -212,14 +238,11 @@ contains
           call ferror('window_init','editrep requires irep',faterr)
        if (.not.present(idcaller)) &
           call ferror('window_init','editrep requires idcaller',faterr)
-       w%isys = isys
        w%rep => win(idcaller)%sc%rep(irep)
-       w%idparent = idcaller
     elseif (type == wintype_exportimage) then
        ! export image window
        if (.not.present(idcaller)) &
           call ferror('window_init','exportimage requires idcaller',faterr)
-       w%idparent = idcaller
     elseif (type == wintype_view) then
        ! view window
        if (.not.present(purpose)) &
@@ -237,7 +260,6 @@ contains
        ! recalculate bonds window
        if (.not.present(isys)) &
           call ferror('window_init','rebond requires isys',faterr)
-       w%isys = isys
     end if
 
   end subroutine window_init
@@ -270,6 +292,8 @@ contains
     if (allocated(w%plotx)) deallocate(w%plotx)
     if (allocated(w%ploty)) deallocate(w%ploty)
     nullify(w%rep)
+    w%isys = 1
+    w%irep = 0
 
   end subroutine window_end
 

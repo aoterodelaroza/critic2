@@ -90,6 +90,7 @@ module windows
      type(c_ptr) :: ptr ! ImGuiWindow* pointer (use only after Begin())
      type(c_ptr) :: dptr ! ImGuiFileDialog* pointer for dialogs
      integer :: isys = 1 ! the system on which the window operates
+     integer :: irep = 0 ! the representation on which the window operates
      real(c_float) :: pos(2) = (/0._c_float,0._c_float/) ! the position of the window's top left corner
      logical :: isdocked = .false. ! whether the window is docked
      real*8 :: timelastupdate ! time the window data was last updated
@@ -251,6 +252,7 @@ module windows
   public :: stack_realloc_maybe
   public :: stack_create_window
   public :: update_window_id
+  public :: regenerate_window_pointers
 
   !xx! Interfaces
   interface
@@ -273,6 +275,8 @@ module windows
        integer, intent(inout) :: id
        integer, intent(out), optional :: changed
      end subroutine update_window_id
+     module subroutine regenerate_window_pointers()
+     end subroutine regenerate_window_pointers
      module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idcaller)
        class(window), intent(inout), target :: w
        integer, intent(in) :: type

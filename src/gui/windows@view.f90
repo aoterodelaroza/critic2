@@ -1508,7 +1508,6 @@ contains
     if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
     if (.not.doquit) doquit = .not.associated(w%rep)
     if (.not.doquit) doquit = .not.w%rep%isinit
-    if (.not.doquit) doquit = .not.associated(w%rep%sc)
     if (.not.doquit) doquit = (w%rep%type <= 0)
     if (.not.doquit) doquit = .not.(w%idparent > 0 .and. w%idparent <= nwin)
     if (.not.doquit) doquit = .not.(win(w%idparent)%isinit)
@@ -1546,7 +1545,6 @@ contains
     if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
     if (.not.doquit) doquit = .not.associated(w%rep)
     if (.not.doquit) doquit = .not.w%rep%isinit
-    if (.not.doquit) doquit = .not.associated(w%rep%sc)
     if (.not.doquit) doquit = (w%rep%type <= 0)
     if (.not.doquit) doquit = .not.(w%idparent > 0 .and. w%idparent <= nwin)
     if (.not.doquit) doquit = .not.(win(w%idparent)%isinit)
@@ -1606,7 +1604,7 @@ contains
           str2 = w%rep%name
           itype = w%rep%type
           lshown = w%rep%shown
-          call w%rep%init(w%rep%sc,w%rep%id,w%rep%idrep,itype,win(w%idparent)%sc%style)
+          call w%rep%init(sysc(w%isys)%sc,w%rep%id,w%rep%idrep,itype,win(w%idparent)%sc%style)
           w%rep%name = str2
           w%rep%shown = lshown
           win(w%idparent)%sc%forcebuildlists = .true.

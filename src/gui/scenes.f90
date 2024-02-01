@@ -74,7 +74,6 @@ module scenes
      integer :: idwin = 0 ! edit representation window ID
      integer :: iord = 0 ! representation order integer in menu
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
-     type(scene), pointer :: sc ! pointer to the parent scene
      ! global parameters
      integer(c_int) :: pertype = 1 ! periodicity control: 0=none, 1=auto, 2=manual
      integer(c_int) :: ncell(3) ! number of unit cells drawn
