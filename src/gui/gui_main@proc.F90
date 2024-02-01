@@ -739,6 +739,7 @@ contains
     do i = 1, nsys
        do j = 1, sys(i)%nf
           sys(i)%f(j)%sptr = c_loc(sys(i))
+          sys(i)%f(j)%c => sys(i)%c
        end do
     end do
 
