@@ -1160,7 +1160,7 @@ contains
     use tools_io, only: faterr, ferror, uout, lgetword, equal, fopen_write,&
        ioj_center, getword, string, fclose, isinteger
     use types, only: realloc
-    type(system), intent(in) :: s
+    type(system), intent(inout), target :: s
     character*(*), intent(in) :: line
 
     real*8 :: rini, rend
@@ -2387,7 +2387,7 @@ contains
     use tools_io, only: string, lgetword, equal, ferror, faterr, noerr, string, uout,&
        ioj_right, ioj_center, zatguess, isinteger
     use param, only: bohrtoa, icrd_crys
-    type(system), intent(in) :: s
+    type(system), intent(inout), target :: s
     character*(*), intent(in) :: line
 
     real*8 :: up2d
@@ -2660,7 +2660,7 @@ contains
     use tools_io, only: ferror, faterr, zatguess, lgetword, equal, isinteger, ioj_center,&
        ioj_left, ioj_right, uout, string
     use param, only: atmcov, icrd_crys
-    type(system), intent(in) :: s
+    type(system), intent(inout), target :: s
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: word
@@ -2836,7 +2836,7 @@ contains
     ! use tools_io, only: ferror, faterr, zatguess, lgetword, equal, isinteger, ioj_center,&
     !    ioj_left, ioj_right, uout, string
     use param, only: atmcov, icrd_crys
-    type(system), intent(in) :: s
+    type(system), intent(inout), target :: s
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: at1, at2
@@ -2995,7 +2995,7 @@ contains
     use global, only: eval_next
     use tools_io, only: ferror, faterr, uout, lgetword, equal, string
     use param, only: atmvdw, atmcov
-    type(system), intent(in) :: s
+    type(system), intent(inout) :: s
     character*(*), intent(in) :: line
 
     integer :: lp
@@ -3064,7 +3064,7 @@ contains
     use systemmod, only: system
     use tools_io, only: ferror, faterr, uout, lgetword, equal, string
     use global, only: eval_next
-    type(system), intent(in) :: s
+    type(system), intent(inout) :: s
     character*(*), intent(in) :: line
 
     integer :: lp

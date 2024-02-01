@@ -42,7 +42,7 @@ module systemmod
   ! to be used, the system itself must be declared as TARGET.
   type system
      logical :: isinit = .false. !< Is the system initialized?
-     type(crystal), pointer :: c => null() !< Crystal structure (always allocated)
+     type(crystal), allocatable :: c !< Crystal structure (always allocated)
      integer :: nf = -1 !< Number of fields
      type(field), allocatable :: f(:) !< Fields for this system
      logical :: refset = .false. !< Has the reference been set?

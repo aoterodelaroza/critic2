@@ -53,7 +53,7 @@ contains
 
     integer :: i
 
-    if (associated(s%c)) then
+    if (allocated(s%c)) then
        call s%c%end()
        deallocate(s%c)
     end if
@@ -151,7 +151,7 @@ contains
     logical, intent(in) :: maybe
 
     if (.not.s%isinit) return
-    if (.not.allocated(s%f) .or. .not.associated(s%c)) return
+    if (.not.allocated(s%f) .or. .not.allocated(s%c)) return
     if (.not.s%c%isinit) return
     if (id < 0 .or. id > size(s%f)) return
     if (.not.s%goodfield(id)) return

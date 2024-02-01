@@ -85,7 +85,7 @@ module struct_drivers
        character*(*), intent(in) :: line
      end subroutine struct_powder
      module subroutine struct_rdf(s,line)
-       type(system), intent(in) :: s
+       type(system), intent(inout), target :: s
        character*(*), intent(in) :: line
      end subroutine struct_rdf
      module subroutine struct_amd(s,line)
@@ -101,26 +101,26 @@ module struct_drivers
        character*(*), intent(in) :: line
      end subroutine struct_comparevc
      module subroutine struct_environ(s,line)
-       type(system), intent(in) :: s
+       type(system), intent(inout), target :: s
        character*(*), intent(in) :: line
      end subroutine struct_environ
      module subroutine struct_econ(s)
        type(system), intent(in) :: s
      end subroutine struct_econ
      module subroutine struct_coord(s,line)
-       type(system), intent(in) :: s
+       type(system), intent(inout), target :: s
        character*(*), intent(in) :: line
      end subroutine struct_coord
      module subroutine struct_polyhedra(s,line)
-       type(system), intent(in) :: s
+       type(system), intent(inout), target :: s
        character*(*), intent(in) :: line
      end subroutine struct_polyhedra
      module subroutine struct_packing(s,line)
-       type(system), intent(in) :: s
+       type(system), intent(inout) :: s
        character*(*), intent(in) :: line
      end subroutine struct_packing
      module subroutine struct_vdw(s,line)
-       type(system), intent(in) :: s
+       type(system), intent(inout) :: s
        character*(*), intent(in) :: line
      end subroutine struct_vdw
      module subroutine struct_edit(s,verbose)

@@ -1409,7 +1409,7 @@ contains
     ! consistency checks
     if (.not.associated(sy)) &
        call ferror('trick_makecif_ccdc','system not defined',faterr)
-    if (.not.associated(sy%c)) &
+    if (.not.allocated(sy%c)) &
        call ferror('trick_makecif_ccdc','crystal structure not defined',faterr)
     if (.not.sy%c%isinit) &
        call ferror('trick_makecif_ccdc','crystal structure not initialized',faterr)
@@ -2766,7 +2766,7 @@ contains
     ! consistency checks
     if (.not.associated(sy)) &
        call ferror('trick_check_valence','system not defined',faterr)
-    if (.not.associated(sy%c)) &
+    if (.not.allocated(sy%c)) &
        call ferror('trick_check_valence','crystal structure not defined',faterr)
     if (.not.sy%c%isinit) &
        call ferror('trick_check_valence','crystal structure not initialized',faterr)

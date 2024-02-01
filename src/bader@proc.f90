@@ -97,7 +97,7 @@ contains
 
     if (.not.s%isinit) &
        call ferror("bader_integrate","system not initialized",faterr)
-    if (.not.associated(s%c)) &
+    if (.not.allocated(s%c)) &
        call ferror("bader_integrate","system does not have crystal",faterr)
 
     ! deallocate the arguments and private globals

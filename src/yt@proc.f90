@@ -59,7 +59,7 @@ contains
 
     if (.not.s%isinit) &
        call ferror("yt_integrate","system not initialized",faterr)
-    if (.not.associated(s%c)) &
+    if (.not.allocated(s%c)) &
        call ferror("yt_integrate","system does not have crystal",faterr)
 
     ! Pre-allocate atoms and nnm as maxima
@@ -254,7 +254,7 @@ contains
 
     if (.not.s%isinit) &
        call ferror("yt_isosurface","system not initialized",faterr)
-    if (.not.associated(s%c)) &
+    if (.not.allocated(s%c)) &
        call ferror("yt_isosurface","system does not have crystal",faterr)
 
     ! initialize

@@ -85,7 +85,7 @@ contains
        call ferror("intgrid_integrate","system not initialized",faterr)
        return
     end if
-    if (.not.associated(sy%c)) then
+    if (.not.allocated(sy%c)) then
        call ferror("intgrid_integrate","system does not have crystal",faterr)
        return
     end if

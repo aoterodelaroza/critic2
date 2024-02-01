@@ -652,7 +652,7 @@ contains
 
       ok = associated(sy)
       if (.not.ok) goto 999
-      ok = associated(sy%c)
+      ok = allocated(sy%c)
       if (.not.ok) goto 999
       ok = sy%c%isinit
       if (.not.ok) goto 999

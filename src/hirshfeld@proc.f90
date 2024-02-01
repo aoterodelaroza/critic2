@@ -36,7 +36,7 @@ contains
 
     if (.not.s%isinit) &
        call ferror("hirsh_grid","system not initialized",faterr)
-    if (.not.associated(s%c)) &
+    if (.not.allocated(s%c)) &
        call ferror("hirsh_grid","system does not have crystal",faterr)
 
     ! Atoms are the attractors in this case
@@ -110,7 +110,7 @@ contains
 
     if (.not.s%isinit) &
        call ferror("voronoi_grid","system not initialized",faterr)
-    if (.not.associated(s%c)) &
+    if (.not.allocated(s%c)) &
        call ferror("voronoi_grid","system does not have crystal",faterr)
 
     ! Atoms are the attractors in this case
