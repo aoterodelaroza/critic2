@@ -586,14 +586,8 @@ contains
        syscaux(1:size(sysc,1)) = sysc
        call move_alloc(syscaux,sysc)
 
-       ! refresh pointers in the systems after the move_alloc
-       do i = 1, nsys
-          do j = 1, sys(i)%nf
-             sys(i)%f(j)%sptr = c_loc(sys(i))
-          end do
-       end do
-
-       ! refresh window pointers
+       ! refresh system and window pointers
+       call regenerate_system_pointers()
        call regenerate_window_pointers()
     end if
 
@@ -732,6 +726,23 @@ contains
     ColorTableCellBg_Crys1d  = ImVec4(0.8 ,0.43,0.43,0.2)
 
   end subroutine set_default_ui_settings
+
+  !> This routine regenerates all pointers to the sytsems in the
+  !> sys(:) and sysc(:) structures and components. It is used when an
+  !> array size is exceeded and move_alloc needs to be used to
+  !> allocate more memory.
+  module subroutine regenerate_system_pointers()
+
+    integer :: i, j
+
+    ! refresh pointers in the systems after the move_alloc
+    do i = 1, nsys
+       do j = 1, sys(i)%nf
+          sys(i)%f(j)%sptr = c_loc(sys(i))
+       end do
+    end do
+
+  end subroutine regenerate_system_pointers
 
   !xx! private procedures
 

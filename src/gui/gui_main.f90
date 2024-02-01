@@ -106,6 +106,7 @@ module gui_main
   public :: add_systems_from_name
   public :: remove_system
   public :: set_default_ui_settings
+  public :: regenerate_system_pointers
 
   interface
      module subroutine gui_start()
@@ -138,6 +139,8 @@ module gui_main
      end subroutine remove_system
      module subroutine set_default_ui_settings()
      end subroutine set_default_ui_settings
+     module subroutine regenerate_system_pointers()
+     end subroutine regenerate_system_pointers
   end interface
 
 end module gui_main
