@@ -71,9 +71,11 @@ contains
     integer(c_short), allocatable, target :: range(:)
     type(GLFWimage), target :: icon
 
+    integer, parameter :: initial_nsys = 20
+
     ! initialize the sys arrays
     nsys = 0
-    allocate(sys(1),sysc(1))
+    allocate(sys(initial_nsys),sysc(initial_nsys))
 
     ! initialize threads: reserve some un-used LUs and then
     ! deallocate them for fopen
@@ -86,6 +88,7 @@ contains
        thread_ti(i)%id = i
        do j = 1, size(thread_ti(i)%lu,1)
           thread_ti(i)%lu(j) = falloc()
+          thread(i) = c_null_ptr
        end do
     end do
     do i = 1, nthread
@@ -529,7 +532,7 @@ contains
     type(system), allocatable :: syaux(:)
     type(sysconf), allocatable :: syscaux(:)
     integer(c_int) :: idum
-    logical :: collapse_
+    logical :: collapse_, isrun
     integer, allocatable :: id(:)
 
     if (nseed == 0) then
@@ -578,6 +581,11 @@ contains
     ! increment and reallocate if necessary
     nsys = max(nsys,id(nseed))
     if (nsys > size(sys,1)) then
+       ! stop the initialization if it's running
+       isrun = are_threads_running()
+       if (isrun) &
+          call kill_initialization_thread()
+
        allocate(syaux(2*nsys))
        syaux(1:size(sys,1)) = sys
        call move_alloc(syaux,sys)
@@ -589,6 +597,10 @@ contains
        ! refresh system and window pointers
        call regenerate_system_pointers()
        call regenerate_window_pointers()
+
+       ! start or restart initializations
+       if (isrun) &
+          call launch_initialization_thread()
     end if
 
     do iseed = 1, nseed
