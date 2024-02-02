@@ -266,7 +266,7 @@ contains
 
   !> Read the molecular geometry from a Gaussian input file
   module subroutine wfn_read_gjf_geometry(file,n,x,z,name,errmsg,ti)
-    use tools_io, only: getline_raw, fopen_read, fclose, zatguess
+    use tools_io, only: getline_raw, fopen_read, fclose, zatguess, isinteger
     use types, only: realloc
     use param, only: bohrtoa
     character*(*), intent(in) :: file
@@ -280,7 +280,6 @@ contains
     character(len=:), allocatable :: line
     character*10 :: atsym
     integer :: lu, nblank
-    !     integer :: i, lp
     logical :: ok, found0
 
     errmsg = ""
@@ -328,6 +327,12 @@ contains
        read (line,*,err=999,end=999) atsym, x(:,n)
        name(n) = trim(adjustl(atsym))
        z(n) = zatguess(atsym)
+       if (z(n) < 0) then
+          if (.not.isinteger(z(n),atsym)) then
+             errmsg = "Unknown atomic symbol"
+             goto 999
+          end if
+       end if
        x(:,n) = x(:,n) / bohrtoa
     end do
     call realloc(x,3,n)
