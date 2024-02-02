@@ -341,9 +341,8 @@ module windows
        class(window), intent(inout), target :: w
        type(ImVec2), intent(inout) :: pos
      end subroutine texpos_to_mousepos
-     module subroutine getpixel(w,fb,pos,depth,rgba)
+     module subroutine getpixel(w,pos,depth,rgba)
        class(window), intent(inout), target :: w
-       integer(c_int), intent(in) :: fb
        type(ImVec2), intent(inout) :: pos
        real(c_float), intent(out), optional :: depth
        real(c_float), intent(out), optional :: rgba(4)

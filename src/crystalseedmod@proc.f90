@@ -7241,7 +7241,6 @@ contains
 
     integer :: lu
     character(len=:), allocatable :: line
-    logical :: ok
 
     errmsg = ""
     ! deallocate

@@ -726,7 +726,7 @@ contains
     if (hover) then
        call igGetMousePos(pos)
        call w%mousepos_to_texpos(pos)
-       call w%getpixel(w%FBOpick,pos,depth,rgba)
+       call w%getpixel(pos,depth,rgba)
        idx = transfer(rgba,idx)
     end if
 
@@ -964,15 +964,14 @@ contains
        BIND_NAV_ROTATE_PERP,&
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE,&
        BIND_CLOSE_FOCUSED_DIALOG
-    use gui_main, only: io, nsys, sysc
-    use param, only: pi
+    use gui_main, only: io, nsys
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
     integer(c_int), intent(in) :: idx(4)
 
     type(ImVec2) :: texpos, mousepos
     real(c_float) :: ratio, pos3(3), vnew(3), vold(3), axis(3), lax
-    real(c_float) :: mpos2(2), ang, sang, cang, xc(3), xc2(3), dist
+    real(c_float) :: mpos2(2), ang, xc(3), dist
 
     integer, parameter :: ilock_no = 0
     integer, parameter :: ilock_left = 1
@@ -982,7 +981,6 @@ contains
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
-    real(c_float), parameter :: mindist_rotperp = 3._c_float
 
     ! first pass when opened, reset the state
     if (w%firstpass) then
@@ -1404,17 +1402,16 @@ contains
   end subroutine texpos_to_mousepos
 
   !> Get the view depth from the texture position
-  module subroutine getpixel(w,fb,pos,depth,rgba)
+  module subroutine getpixel(w,pos,depth,rgba)
     use interfaces_opengl3
     class(window), intent(inout), target :: w
-    integer(c_int), intent(in) :: fb
     type(ImVec2), intent(inout) :: pos
     real(c_float), intent(out), optional :: depth
     real(c_float), intent(out), optional :: rgba(4)
 
     real(c_float), target :: depth_, rgba_(4)
 
-    call glBindFramebuffer(GL_FRAMEBUFFER, fb)
+    call glBindFramebuffer(GL_FRAMEBUFFER, w%FBOpick)
     if (present(depth)) then
        call glReadPixels(int(pos%x), int(pos%y), 1_c_int, 1_c_int, GL_DEPTH_COMPONENT, GL_FLOAT, c_loc(depth_))
        depth = depth_
@@ -1432,7 +1429,6 @@ contains
   module subroutine view_to_texpos(w,pos)
     use utils, only: project, unproject
     use scenes, only: scene
-    use gui_main, only: sysc, nsys
     class(window), intent(inout), target :: w
     real(c_float), intent(inout) :: pos(3)
 
@@ -1448,7 +1444,6 @@ contains
   module subroutine texpos_to_view(w,pos)
     use utils, only: unproject
     use scenes, only: scene
-    use gui_main, only: sysc, nsys
     class(window), intent(inout), target :: w
     real(c_float), intent(inout) :: pos(3)
 
@@ -1464,7 +1459,6 @@ contains
   module subroutine world_to_texpos(w,pos)
     use utils, only: project
     use scenes, only: scene
-    use gui_main, only: sysc, nsys
     class(window), intent(inout), target :: w
     real(c_float), intent(inout) :: pos(3)
 
@@ -1480,7 +1474,6 @@ contains
   module subroutine texpos_to_world(w,pos)
     use utils, only: unproject
     use scenes, only: scene
-    use gui_main, only: sysc, nsys
     class(window), intent(inout), target :: w
     real(c_float), intent(inout) :: pos(3)
 

@@ -431,8 +431,6 @@ contains
     use interfaces_cimgui
     type(ImVec2), intent(out) :: pos
 
-    type(ImVec2) :: wpos
-    type(ImGuiWindow), pointer :: wptr
     integer :: i
     real(c_float) :: step
     logical :: found

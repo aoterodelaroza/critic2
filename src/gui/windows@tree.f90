@@ -2378,7 +2378,7 @@ contains
   module subroutine draw_treeplot(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: g, time, sysc, sys_empty, sys_init, sys
+    use gui_main, only: time, sysc, sys_empty, sys_init, sys
     use windows, only: win, iwin_tree
     use utils, only: iw_calcwidth, iw_button, iw_combo_simple, iw_tooltip, iw_text
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
@@ -2388,19 +2388,17 @@ contains
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
 
-    type(ImVec2) :: szavail, sz
+    type(ImVec2) :: sz
     logical :: ok
     integer :: i, j, nshown
     real*8 :: valx, valy
     character(len=:,kind=c_char), allocatable, target :: str1, str2
-    real(c_double) :: xmin, xmax, ymin, ymax, dy
     type(ImVec4) :: auto
     logical(c_bool) :: ch, forceupdate
 
     integer, save :: ic_plotx = 0, ic_ploty = 0
     logical, save :: ttshown = .false. ! tooltip flag
 
-    integer, parameter :: maxxticks = 10
     integer, parameter :: ictrans(0:14) = (/ic_id,ic_e,ic_v,ic_vmol,ic_nneq,ic_ncel,&
        ic_nmol,ic_a,ic_b,ic_c,ic_alpha,ic_beta,ic_gamma,ic_emol,ic_p/)
 

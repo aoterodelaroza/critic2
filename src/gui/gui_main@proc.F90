@@ -513,7 +513,7 @@ contains
     use interfaces_cimgui, only: getCurrentWorkDir
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
-    use windows, only: nwin, win, iwin_tree, regenerate_window_pointers
+    use windows, only: win, iwin_tree, regenerate_window_pointers
     use interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
     use crystalseedmod, only: read_seeds_from_file, crystalseed
     use tools_io, only: uout
@@ -780,7 +780,7 @@ contains
   ! Show the main menu
   subroutine show_main_menu()
     use interfaces_cimgui
-    use windows, only: nwin, win, iwin_tree, iwin_view, iwin_console_input,&
+    use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, update_window_id, wintype_view, wpurp_view_alternate,&

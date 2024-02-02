@@ -513,7 +513,6 @@ contains
     use interfaces_cimgui
     use interfaces_opengl3
     use shapes, only: sphVAO
-    use gui_main, only: fonts
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use shaders, only: shader_pickindex, useshader, setuniform_int,&

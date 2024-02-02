@@ -134,7 +134,7 @@ contains
   module subroutine regenerate_window_pointers()
     use gui_main, only: sysc, nsys, sys_init
 
-    integer :: i, j, iv
+    integer :: i, iv
 
     do i = 1, nwin
        if (win(i)%type == wintype_editrep .and. win(i)%irep > 0) then

@@ -2521,7 +2521,7 @@ contains
     integer :: is, imo, jmo, ia, ja, ka, iba, ib, jb, kb, ibb
     real*8 :: fac
 
-    real*8, allocatable :: ftemp(:,:,:), f3temp(:,:,:,:,:)
+    real*8, allocatable :: ftemp(:,:,:)
     logical, allocatable :: useovrlp(:,:,:)
     real*8, parameter :: ovrlp_thr = 1d-50
 
@@ -2739,7 +2739,6 @@ contains
     integer :: i, j, is, k, ia, ja, ka, imo1, ik1, ibnd1, imo2, ik2, ibnd2
     real*8 :: fatemp, kdif(3), fspin
     integer :: nlattot
-    integer :: iat_a, iat_b, iat_c, rat_b, rat_c
 
     ! set the spin multiplier
     if (nspin == 1) then
@@ -2800,8 +2799,7 @@ contains
     integer :: i, j, is, k, n
     real*8 :: kdifb(3), kdifc(3), fspin, pfac
     integer :: nlattot
-    integer :: imo, jmo, kmo, ia, ja, ka, iba, ib, jb, kb, ibb
-    integer :: ic, jc, kc, icc
+    integer :: imo, jmo, kmo
     integer :: ibnd, jbnd, kbnd, ik, jk, kk
     integer :: iat_a, iat_b, iat_c, rat_b, rat_c
     integer :: iat_a_ini, iat_a_end, iat_b_ini, iat_b_end, rat_b_ini, rat_b_end
