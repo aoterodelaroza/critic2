@@ -870,6 +870,8 @@ contains
     use tools_io, only: lgetword, getword, equal, isinteger, isreal, ferror, &
        faterr, string, uout, isassignment, getword, zatguess
     use param, only: maxzat0, atmcov, atmvdw
+    use systemmod, only: sy ! xxxx
+    use param, only: icrd_crys, icrd_rcrys ! xxxx
     character*(*), intent(in) :: line
     integer, intent(inout) :: lp
 
@@ -879,6 +881,10 @@ contains
     integer :: lp2, iz
     logical :: iscov
     character(len=:), allocatable :: errmsg
+    real*8 :: x(3), xx(3), dmax ! xxxx
+    integer :: j, nat, ierr, lvec(3), nat1, nat2 ! xxxx
+    integer, allocatable :: eid(:), lvec2(:,:) ! xxxx
+    real*8, allocatable :: dist(:) ! xxxx
 
     word = lgetword(line,lp)
     if (equal(word,'bondfactor')) then
@@ -1064,6 +1070,30 @@ contains
              atmvdw(iz) = rdum
           end if
        end do
+    elseif (equal(word,'temp')) then ! xxxx
+       call sy%c%build_env()
+
+       dmax = 20d0
+       x = (/-10.0d0,20.2d0,30.3d0/)
+       ! x = 0.5d0
+       ! x = (/0.9d0,0.8d0,0.3d0/)
+       call sy%c%env%list_near_atoms(x,icrd_rcrys,.true.,nat,ierr,eid,dist,lvec,up2d=dmax)
+       do j = 1, nat
+          xx = sy%c%env%at(eid(j))%x + sy%c%env%x2xr(real(lvec,8))
+          write (*,*) eid(j), xx, dist(j)
+       end do
+       ! write (*,*) "xx1 ", nat
+       write (*,*)
+       nat1 = nat
+
+       call sy%c%list_near_atoms(x,icrd_rcrys,.true.,nat,eid,dist,lvec2,up2d=dmax)
+       do j = 1, nat
+          write (*,*) eid(j), sy%c%x2xr(sy%c%atcel(eid(j))%x + lvec2(:,j)), dist(j)
+       end do
+       ! write (*,*) "xx2 ", nat
+       nat2 = nat
+       ! write (*,*) "xx ", nat1, nat2
+
     elseif (isassignment(var,word,line)) then
        rdum = eval(word,errmsg)
        if (len_trim(errmsg) > 0) then

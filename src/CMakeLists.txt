@@ -2,7 +2,8 @@
 set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   autocp@proc.f90 bader.f90 bader@proc.f90 bisect.f90 bisect@proc.f90
   cfftnd.f90 c_interface_module.f90 config.f90
-  crystalmod.f90 crystalmod@complex.f90 crystalmod@edit.f90 crystalmod@mols.f90
+  crystalmod.f90 crystalmod@complex.f90 crystalmod@edit.f90 crystalmod@env.f90
+  crystalmod@mols.f90
   crystalmod@proc.f90 crystalmod@powderproc.f90 crystalmod@symmetry.f90
   crystalmod@write.f90 crystalseedmod.f90
   crystalseedmod@proc.f90 dftb_private.f90

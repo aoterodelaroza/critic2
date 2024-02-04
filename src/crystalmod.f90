@@ -132,6 +132,11 @@ module crystalmod
      !! Initialization level: isenv !!
      ! atomic environment of the cell
      type(environ) :: env
+     integer :: nblock(3) ! number of environemt blocks
+     integer,allocatable :: iblock0(:,:,:) ! starting atomic index for each block
+     real*8 :: blockrmax ! radius of the largest sphere contained in a block
+     real*8 :: blockomega ! volume of a block
+     real*8 :: blockcv(3) ! cross products of the block lattice vectors
 
      !! Initialization level: isast !!
      ! asterisms
@@ -175,6 +180,10 @@ module crystalmod
      procedure :: nearest_atom_grid !< return the nearest atom IDs for a uniform grid of points
      procedure :: identify_atom !< Identify an atom in the unit cell
      procedure :: identify_spc !< Identify species in a structure from a string
+
+     ! atomic environments and distance calculations
+     procedure :: build_env
+     procedure :: list_near_atoms
 
      ! molecular environments and neighbors (mols)
      procedure :: identify_fragment !< Build an atomic fragment of the crystal
@@ -382,6 +391,31 @@ module crystalmod
        character*(*), intent(in) :: str
        integer :: res
      end function identify_spc
+     module subroutine build_env(c)
+       class(crystal), intent(inout) :: c
+     end subroutine build_env
+     module subroutine list_near_atoms(c,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,&
+        up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,ispc0,nozero)
+       class(crystal), intent(inout) :: c
+       real*8, intent(in) :: xp(3)
+       integer, intent(in) :: icrd
+       logical, intent(in) :: sorted
+       integer, intent(out) :: nat
+       integer, allocatable, intent(inout), optional :: eid(:)
+       real*8, allocatable, intent(inout), optional :: dist(:)
+       integer, allocatable, intent(inout), optional :: lvec(:,:)
+       integer, allocatable, intent(inout), optional :: ishell0(:)
+       real*8, intent(in), optional :: up2d
+       real*8, intent(in), optional :: up2dsp(:,:)
+       real*8, intent(in), optional :: up2dcidx(:)
+       integer, intent(in), optional :: up2sh
+       integer, intent(in), optional :: up2n
+       integer, intent(in), optional :: nid0
+       integer, intent(in), optional :: id0
+       integer, intent(in), optional :: iz0
+       integer, intent(in), optional :: ispc0
+       logical, intent(in), optional :: nozero
+     end subroutine list_near_atoms
      module function identify_fragment(c,nat,x0) result(fr)
        class(crystal), intent(in) :: c
        integer, intent(in) :: nat

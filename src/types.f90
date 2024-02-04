@@ -125,6 +125,7 @@ module types
      integer :: lvec(3) !< lattice vector to the atom in the complete atom list
      integer :: ir   !< rotation matrix to the representative equivalent atom
      integer :: ic   !< translation vector to the representative equivalent atom
+     integer :: inext = 0 !< next atom in the atomic environment block
   end type celatom
 
   !> Result of the evaluation of a scalar field
