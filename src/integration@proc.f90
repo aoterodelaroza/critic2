@@ -2590,7 +2590,6 @@ contains
     integer :: is, imo, jmo, kmo, ia, ja, ka, iba, ib, jb, kb, ibb
     integer :: ic, jc, kc, icc, nlattot
     real*8 :: fac
-    complex*16 :: f3temp
 
     real*8, allocatable :: f3temp(:,:,:,:,:)
     logical, allocatable :: useovrlp(:,:,:)
