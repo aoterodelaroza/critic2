@@ -884,7 +884,7 @@ contains
     real*8 :: x(3), xx(3), dmax ! xxxx
     integer :: j, nat, ierr, lvec(3), nat1, nat2 ! xxxx
     integer, allocatable :: eid(:), lvec2(:,:) ! xxxx
-    real*8, allocatable :: dist(:) ! xxxx
+    real*8, allocatable :: dist(:), up2dsp(:,:), up2dcidx(:) ! xxxx
 
     word = lgetword(line,lp)
     if (equal(word,'bondfactor')) then
@@ -1073,23 +1073,27 @@ contains
     elseif (equal(word,'temp')) then ! xxxx
        call sy%c%build_env()
 
-       dmax = 50d0
+       allocate(up2dsp(sy%c%nspc,2))
+       up2dsp = 3d0
+       up2dsp(1,2) = 10d0
+       ! up2dsp(:,:), up2dcidx(:)
+       ! dmax = 5d0
        ! x = (/0.5d0,0.5d0,0.5d0/)
        ! x = 0.5d0
        x = (/0.9d0,1.1d0,0.3d0/)
-       call sy%c%env%list_near_atoms(x,icrd_crys,.true.,nat,ierr,eid,dist,lvec,up2d=dmax)
+       call sy%c%env%list_near_atoms(x,icrd_crys,.true.,nat,ierr,eid,dist,lvec,up2dsp=up2dsp)
        ! do j = 1, nat
        !    xx = sy%c%env%at(eid(j))%x + sy%c%env%x2xr(real(lvec,8))
        !    write (*,*) eid(j), xx, dist(j)
        ! end do
        ! write (*,*) "xx1 ", nat
-       ! write (*,*)
+       write (*,*)
        nat1 = nat
 
-       call sy%c%list_near_atoms(x,icrd_crys,.true.,nat,eid,dist,lvec2,up2d=dmax)
+       call sy%c%list_near_atoms(x,icrd_crys,.true.,nat,eid,dist,lvec2,up2dsp=up2dsp)
        ! do j = 1, nat
-       !    ! write (*,*) eid(j), sy%c%x2xr(sy%c%atcel(eid(j))%x + lvec2(:,j)), dist(j)
-       !    write (*,*) eid(j), (sy%c%atcel(eid(j))%r + sy%c%molx0) * 0.529177d0, dist(j)
+       !    write (*,*) eid(j), sy%c%x2xr(sy%c%atcel(eid(j))%x + lvec2(:,j)), dist(j)
+       !    ! write (*,*) eid(j), (sy%c%atcel(eid(j))%r + sy%c%molx0) * 0.529177d0, dist(j)
        ! end do
        ! write (*,*) "xx2 ", nat
        nat2 = nat

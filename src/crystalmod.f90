@@ -406,8 +406,8 @@ module crystalmod
        integer, allocatable, intent(inout), optional :: lvec(:,:)
        integer, allocatable, intent(inout), optional :: ishell0(:)
        real*8, intent(in), optional :: up2d
-       real*8, intent(in), optional :: up2dsp(:,:)
-       real*8, intent(in), optional :: up2dcidx(:)
+       real*8, intent(in), optional :: up2dsp(1:c%nspc,2)
+       real*8, intent(in), optional :: up2dcidx(1:c%ncel)
        integer, intent(in), optional :: up2sh
        integer, intent(in), optional :: up2n
        integer, intent(in), optional :: nid0

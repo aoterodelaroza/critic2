@@ -112,8 +112,8 @@ contains
     integer, allocatable, intent(inout), optional :: lvec(:,:)
     integer, allocatable, intent(inout), optional :: ishell0(:)
     real*8, intent(in), optional :: up2d
-    real*8, intent(in), optional :: up2dsp(:,:)
-    real*8, intent(in), optional :: up2dcidx(:)
+    real*8, intent(in), optional :: up2dsp(1:c%nspc,2)
+    real*8, intent(in), optional :: up2dcidx(1:c%ncel)
     integer, intent(in), optional :: up2sh
     integer, intent(in), optional :: up2n
     integer, intent(in), optional :: nid0
@@ -122,7 +122,7 @@ contains
     integer, intent(in), optional :: ispc0
     logical, intent(in), optional :: nozero
 
-    logical :: doshell
+    logical :: doshell, ok
     real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xr(3)
     integer :: i, j, k, ix(3), nx(3), i0(3), i1(3), idx
     integer :: ib(3)
@@ -149,6 +149,10 @@ contains
     ! up to a distance
     if (present(up2d)) then
        dmax = up2d
+    elseif (present(up2dsp)) then
+       dmax = maxval(up2dsp)
+    elseif (present(up2dcidx)) then
+       dmax = maxval(up2dcidx)
     else
        write (*,*) "fixme!"
        stop 1
@@ -198,8 +202,16 @@ contains
                    x = c%xr2c(xr)
                 end if
                 dd = norm2(x - xorigc)
-                if (dd <= dmax) &
-                   call add_atom_to_output_list()
+
+                if (present(up2d)) then
+                   ok = (dd <= dmax)
+                elseif (present(up2dsp)) then
+                   ok = (dd >= up2dsp(c%atcel(idx)%is,1) .and. dd <= up2dsp(c%atcel(idx)%is,2))
+                elseif (present(up2dcidx)) then
+                   ok = (dd <= up2dcidx(idx))
+                end if
+                if (ok) call add_atom_to_output_list()
+
                 idx = c%atcel(idx)%inext
              end do
           end do
