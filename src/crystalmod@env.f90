@@ -122,18 +122,22 @@ contains
     integer, intent(in), optional :: ispc0
     logical, intent(in), optional :: nozero
 
-    logical :: doshell, ok
+    logical :: doshell, ok, nozero_, docycle
     real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xr(3)
     integer :: i, j, k, ix(3), nx(3), i0(3), i1(3), idx
     integer :: ib(3)
     integer, allocatable :: at_id(:), at_lvec(:,:), iord(:)
     real*8, allocatable :: at_dist(:)
 
+    real*8, parameter :: eps = 1d-10
+
     ! process input
     if (.not.present(up2d).and..not.present(up2dsp).and..not.present(up2dcidx).and.&
         .not.present(up2sh).and..not.present(up2n)) &
        call ferror("list_near_atoms","must give one of up2d, up2dsp, up2dcidx, up2sh, or up2n",faterr)
     doshell = present(ishell0) .or. present(up2sh)
+    nozero_ = .false.
+    if (present(nozero)) nozero_ = nozero
 
     ! locate the block containing the point
     if (icrd == icrd_crys) then
@@ -192,26 +196,45 @@ contains
                 lvecx = real(((/i,j,k/) - ib) / c%nblock,8)
              end if
 
+             ! run over atoms in this block
              idx = c%iblock0(ib(1),ib(2),ib(3))
              do while (idx /= 0)
-                if (c%ismolecule) then
-                   x = c%x2c(c%atcel(idx)%x)
-                else
-                   xr = c%x2xr(c%atcel(idx)%x)
-                   xr = xr - floor(xr) + lvecx
-                   x = c%xr2c(xr)
-                end if
-                dd = norm2(x - xorigc)
+                ! apply filters
+                docycle = .false.
+                if (present(nid0)) &
+                   docycle = (c%atcel(idx)%idx /= nid0)
+                if (present(ispc0)) &
+                   docycle = (c%atcel(idx)%is /= ispc0)
+                if (present(id0)) &
+                   docycle = (idx /= id0)
+                if (present(iz0)) &
+                   docycle = (c%spc(c%atcel(idx)%is)%z /= iz0)
 
-                if (present(up2d)) then
-                   ok = (dd <= dmax)
-                elseif (present(up2dsp)) then
-                   ok = (dd >= up2dsp(c%atcel(idx)%is,1) .and. dd <= up2dsp(c%atcel(idx)%is,2))
-                elseif (present(up2dcidx)) then
-                   ok = (dd <= up2dcidx(idx))
-                end if
-                if (ok) call add_atom_to_output_list()
+                if (.not.docycle) then
+                   ! calculate distance
+                   if (c%ismolecule) then
+                      x = c%x2c(c%atcel(idx)%x)
+                   else
+                      xr = c%x2xr(c%atcel(idx)%x)
+                      xr = xr - floor(xr) + lvecx
+                      x = c%xr2c(xr)
+                   end if
+                   dd = norm2(x - xorigc)
 
+                   ! check if we should add the atom to the list
+                   if (nozero_ .and. dd < eps) then
+                      ok = .false.
+                   elseif (present(up2d)) then
+                      ok = (dd <= dmax)
+                   elseif (present(up2dsp)) then
+                      ok = (dd >= up2dsp(c%atcel(idx)%is,1) .and. dd <= up2dsp(c%atcel(idx)%is,2))
+                   elseif (present(up2dcidx)) then
+                      ok = (dd <= up2dcidx(idx))
+                   end if
+                   if (ok) call add_atom_to_output_list()
+                end if
+
+                ! next atom
                 idx = c%atcel(idx)%inext
              end do
           end do

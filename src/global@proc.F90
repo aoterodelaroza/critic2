@@ -1073,31 +1073,29 @@ contains
     elseif (equal(word,'temp')) then ! xxxx
        call sy%c%build_env()
 
-       allocate(up2dsp(sy%c%nspc,2))
-       up2dsp = 3d0
-       up2dsp(1,2) = 10d0
-       ! up2dsp(:,:), up2dcidx(:)
-       ! dmax = 5d0
+       dmax = 7d0
        ! x = (/0.5d0,0.5d0,0.5d0/)
-       ! x = 0.5d0
-       x = (/0.9d0,1.1d0,0.3d0/)
-       call sy%c%env%list_near_atoms(x,icrd_crys,.true.,nat,ierr,eid,dist,lvec,up2dsp=up2dsp)
-       ! do j = 1, nat
-       !    xx = sy%c%env%at(eid(j))%x + sy%c%env%x2xr(real(lvec,8))
-       !    write (*,*) eid(j), xx, dist(j)
-       ! end do
-       ! write (*,*) "xx1 ", nat
+       x = 0.5d0
+       ! x = (/0.9d0,1.1d0,0.3d0/)
+       ! x=(/0.15191d0,0.20933d0,0.00913d0/)
+
+       call sy%c%env%list_near_atoms(x,icrd_crys,.true.,nat,ierr,eid,dist,lvec,up2d=dmax)
+       do j = 1, nat
+          xx = sy%c%env%at(eid(j))%x + sy%c%env%x2xr(real(lvec,8))
+          write (*,*) eid(j), xx, dist(j)
+       end do
+       write (*,*) "xx1 ", nat
        write (*,*)
        nat1 = nat
 
-       call sy%c%list_near_atoms(x,icrd_crys,.true.,nat,eid,dist,lvec2,up2dsp=up2dsp)
-       ! do j = 1, nat
-       !    write (*,*) eid(j), sy%c%x2xr(sy%c%atcel(eid(j))%x + lvec2(:,j)), dist(j)
-       !    ! write (*,*) eid(j), (sy%c%atcel(eid(j))%r + sy%c%molx0) * 0.529177d0, dist(j)
-       ! end do
-       ! write (*,*) "xx2 ", nat
+       call sy%c%list_near_atoms(x,icrd_crys,.true.,nat,eid,dist,lvec2,up2d=dmax)
+       do j = 1, nat
+          write (*,*) eid(j), sy%c%x2xr(sy%c%atcel(eid(j))%x + lvec2(:,j)), dist(j)
+          ! write (*,*) eid(j), (sy%c%atcel(eid(j))%r + sy%c%molx0) * 0.529177d0, dist(j)
+       end do
+       write (*,*) "xx2 ", nat
        nat2 = nat
-       write (*,*) "xx ", nat1, nat2
+       ! write (*,*) "xx ", nat1, nat2
 
     elseif (isassignment(var,word,line)) then
        rdum = eval(word,errmsg)
