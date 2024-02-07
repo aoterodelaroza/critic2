@@ -178,18 +178,28 @@ contains
     do i = i0(1), i1(1)
        do j = i0(2), i1(2)
           do k = i0(3), i1(3)
-             ib = (/modulo(i,c%nblock(1)), modulo(j,c%nblock(2)), modulo(k,c%nblock(3))/)
-             lvecx = real(((/i,j,k/) - ib) / c%nblock,8)
+             if (c%ismolecule) then
+                if (i < 0 .or. i >= c%nblock(1) .or. j < 0 .or. j >= c%nblock(2) .or.&
+                   k < 0 .or. k >= c%nblock(3)) cycle
+                ib = (/i, j, k/)
+                lvecx = 0
+             else
+                ib = (/modulo(i,c%nblock(1)), modulo(j,c%nblock(2)), modulo(k,c%nblock(3))/)
+                lvecx = real(((/i,j,k/) - ib) / c%nblock,8)
+             end if
 
              idx = c%iblock0(ib(1),ib(2),ib(3))
              do while (idx /= 0)
-                xr = c%x2xr(c%atcel(idx)%x)
-                xr = xr - floor(xr) + lvecx
-                x = c%xr2c(xr)
-                dd = norm2(x - xorigc)
-                if (dd <= dmax) then
-                   call add_atom_to_output_list()
+                if (c%ismolecule) then
+                   x = c%x2c(c%atcel(idx)%x)
+                else
+                   xr = c%x2xr(c%atcel(idx)%x)
+                   xr = xr - floor(xr) + lvecx
+                   x = c%xr2c(xr)
                 end if
+                dd = norm2(x - xorigc)
+                if (dd <= dmax) &
+                   call add_atom_to_output_list()
                 idx = c%atcel(idx)%inext
              end do
           end do

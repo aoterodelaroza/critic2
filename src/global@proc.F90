@@ -871,7 +871,7 @@ contains
        faterr, string, uout, isassignment, getword, zatguess
     use param, only: maxzat0, atmcov, atmvdw
     use systemmod, only: sy ! xxxx
-    use param, only: icrd_crys, icrd_rcrys ! xxxx
+    use param, only: icrd_crys, icrd_rcrys, icrd_cart ! xxxx
     character*(*), intent(in) :: line
     integer, intent(inout) :: lp
 
@@ -1073,26 +1073,27 @@ contains
     elseif (equal(word,'temp')) then ! xxxx
        call sy%c%build_env()
 
-       dmax = 20d0
-       x = (/-10.0d0,20.2d0,30.3d0/)
+       dmax = 50d0
+       ! x = (/0.5d0,0.5d0,0.5d0/)
        ! x = 0.5d0
-       ! x = (/0.9d0,0.8d0,0.3d0/)
-       call sy%c%env%list_near_atoms(x,icrd_rcrys,.true.,nat,ierr,eid,dist,lvec,up2d=dmax)
-       do j = 1, nat
-          xx = sy%c%env%at(eid(j))%x + sy%c%env%x2xr(real(lvec,8))
-          write (*,*) eid(j), xx, dist(j)
-       end do
+       x = (/0.9d0,1.1d0,0.3d0/)
+       call sy%c%env%list_near_atoms(x,icrd_crys,.true.,nat,ierr,eid,dist,lvec,up2d=dmax)
+       ! do j = 1, nat
+       !    xx = sy%c%env%at(eid(j))%x + sy%c%env%x2xr(real(lvec,8))
+       !    write (*,*) eid(j), xx, dist(j)
+       ! end do
        ! write (*,*) "xx1 ", nat
-       write (*,*)
+       ! write (*,*)
        nat1 = nat
 
-       call sy%c%list_near_atoms(x,icrd_rcrys,.true.,nat,eid,dist,lvec2,up2d=dmax)
-       do j = 1, nat
-          write (*,*) eid(j), sy%c%x2xr(sy%c%atcel(eid(j))%x + lvec2(:,j)), dist(j)
-       end do
+       call sy%c%list_near_atoms(x,icrd_crys,.true.,nat,eid,dist,lvec2,up2d=dmax)
+       ! do j = 1, nat
+       !    ! write (*,*) eid(j), sy%c%x2xr(sy%c%atcel(eid(j))%x + lvec2(:,j)), dist(j)
+       !    write (*,*) eid(j), (sy%c%atcel(eid(j))%r + sy%c%molx0) * 0.529177d0, dist(j)
+       ! end do
        ! write (*,*) "xx2 ", nat
        nat2 = nat
-       ! write (*,*) "xx ", nat1, nat2
+       write (*,*) "xx ", nat1, nat2
 
     elseif (isassignment(var,word,line)) then
        rdum = eval(word,errmsg)
