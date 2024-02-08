@@ -69,13 +69,13 @@ contains
 
   !> Given the point xp (in icrd coordinates), calculate the list of
   !> nearest atoms. If sorted is true, the list is sorted by distance
-  !> and shell. One of these optional criteria must be given:
+  !> and shell. One (and only one) of these criteria must be given:
   !> - up2d = list up to a distance up2d.
   !> - up2dsp = between a minimum and a maximum species-dependent distance.
   !> - up2dcidx = up to a distance to each atom in the complete list.
   !> - up2sh = up to a number of shells.
   !> - up2n = up to a number of atoms.
-  !> If up2n or up2sh is used, the list is always sorted.
+  !> The atom list with up2n is sorted by distance on output.
   !>
   !> Optional input:
   !> - nid0 = consider only atoms with index nid0 from the nneq list.
@@ -93,8 +93,6 @@ contains
   !> - lvec(3,nid) = lattice vectors for the atoms.
   !> - ishell0(nid) = shell ID.
   !>
-  !> Sorted and the up2sh and up2n options work only if the dist(:)
-  !> array is present.
   module subroutine list_near_atoms(c,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,&
      up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,ispc0,nozero)
     use tools, only: mergesort
@@ -122,22 +120,35 @@ contains
     integer, intent(in), optional :: ispc0
     logical, intent(in), optional :: nozero
 
-    logical :: doshell, ok, nozero_, docycle
+    logical :: ok, nozero_, docycle, sorted_
     real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xr(3)
     integer :: i, j, k, ix(3), nx(3), i0(3), i1(3), idx
-    integer :: ib(3)
-    integer, allocatable :: at_id(:), at_lvec(:,:), iord(:)
+    integer :: ib(3), ithis(3), nsafe
+    integer, allocatable :: at_id(:), at_lvec(:,:)
     real*8, allocatable :: at_dist(:)
+    integer :: nb, nshellb
+    integer, allocatable :: idb(:,:), iaux(:), iord(:)
 
     real*8, parameter :: eps = 1d-10
 
     ! process input
-    if (.not.present(up2d).and..not.present(up2dsp).and..not.present(up2dcidx).and.&
-        .not.present(up2sh).and..not.present(up2n)) &
-       call ferror("list_near_atoms","must give one of up2d, up2dsp, up2dcidx, up2sh, or up2n",faterr)
-    doshell = present(ishell0) .or. present(up2sh)
     nozero_ = .false.
+    sorted_ = sorted .or. present(up2n)
     if (present(nozero)) nozero_ = nozero
+    if (present(up2d)) then
+       dmax = up2d
+    elseif (present(up2dsp)) then
+       dmax = maxval(up2dsp)
+    elseif (present(up2dcidx)) then
+       dmax = maxval(up2dcidx)
+    elseif (present(up2n)) then
+       !
+    elseif (present(up2sh)) then
+       write (*,*) "fixme!"
+       stop 1
+    else
+       call ferror("list_near_atoms","must give one of up2d, up2dsp, up2dcidx, up2sh, or up2n",faterr)
+    end if
 
     ! locate the block containing the point
     if (icrd == icrd_crys) then
@@ -150,50 +161,29 @@ contains
     xorigc = c%xr2c(x)
     ix = floor(x * c%nblock)
 
-    ! up to a distance
-    if (present(up2d)) then
-       dmax = up2d
-    elseif (present(up2dsp)) then
-       dmax = maxval(up2dsp)
-    elseif (present(up2dcidx)) then
-       dmax = maxval(up2dcidx)
-    else
-       write (*,*) "fixme!"
-       stop 1
-    end if
-
-    ! calculate the number of blocks in each direction required for satifying
-    ! that the largest sphere in the super-block has radius > dmax.
-    ! r = Vblock / 2 / max(cv(3)/n3,cv(2)/n2,cv(1)/n1)
-    nx = ceiling(c%blockcv / (0.5d0 * c%blockomega / max(dmax,1d-40)))
-
-    ! define the search space
-    do i = 1, 3
-       if (mod(nx(i),2) == 0) then
-          i0(i) = ix(i) - nx(i)/2
-          i1(i) = ix(i) + nx(i)/2
-       else
-          i0(i) = ix(i) - (nx(i)/2+1)
-          i1(i) = ix(i) + (nx(i)/2+1)
-       end if
-    end do
-
     ! allocate space for atoms
     nat = 0
     allocate(at_id(20),at_dist(20),at_lvec(3,20))
 
-    ! run over the atoms and compile the list
-    do i = i0(1), i1(1)
-       do j = i0(2), i1(2)
-          do k = i0(3), i1(3)
+    ! xxxx
+
+    if (present(up2n)) then
+       nshellb = 0
+       do while(.true.)
+          call make_block_shell(nshellb)
+
+          do i = 1, nb
+             ithis = idb(:,i) + ix
+
              if (c%ismolecule) then
-                if (i < 0 .or. i >= c%nblock(1) .or. j < 0 .or. j >= c%nblock(2) .or.&
-                   k < 0 .or. k >= c%nblock(3)) cycle
-                ib = (/i, j, k/)
+                if (ithis(1) < 0 .or. ithis(1) >= c%nblock(1) .or.&
+                   ithis(2) < 0 .or. ithis(2) >= c%nblock(2) .or.&
+                   ithis(3) < 0 .or. ithis(3) >= c%nblock(3)) cycle
+                ib = ithis
                 lvecx = 0
              else
-                ib = (/modulo(i,c%nblock(1)), modulo(j,c%nblock(2)), modulo(k,c%nblock(3))/)
-                lvecx = real(((/i,j,k/) - ib) / c%nblock,8)
+                ib = (/modulo(ithis(1),c%nblock(1)), modulo(ithis(2),c%nblock(2)), modulo(ithis(3),c%nblock(3))/)
+                lvecx = real((ithis - ib) / c%nblock,8)
              end if
 
              ! run over atoms in this block
@@ -222,27 +212,121 @@ contains
                    dd = norm2(x - xorigc)
 
                    ! check if we should add the atom to the list
-                   if (nozero_ .and. dd < eps) then
-                      ok = .false.
-                   elseif (present(up2d)) then
-                      ok = (dd <= dmax)
-                   elseif (present(up2dsp)) then
-                      ok = (dd >= up2dsp(c%atcel(idx)%is,1) .and. dd <= up2dsp(c%atcel(idx)%is,2))
-                   elseif (present(up2dcidx)) then
-                      ok = (dd <= up2dcidx(idx))
-                   end if
+                   ok = .true.
+                   if (nozero_ .and. dd < eps) ok = .false.
                    if (ok) call add_atom_to_output_list()
                 end if
 
                 ! next atom
                 idx = c%atcel(idx)%inext
-             end do
+             end do ! while idx
           end do
+
+          ! check if we have enough atoms
+          nsafe = count(at_dist(1:nat) <= dmax)
+          if (nsafe >= up2n) exit
+
+          ! next shell
+          nshellb = nshellb + 1
+       end do ! while loop
+
+       ! filter out the unneeded atoms
+       allocate(iaux(nsafe))
+       nsafe = 0
+       do i = 1, nat
+          if (at_dist(i) <= dmax) then
+             nsafe = nsafe + 1
+             iaux(nsafe) = i
+          end if
        end do
-    end do
+       nat = nsafe
+       at_id(1:nsafe) = at_id(iaux)
+       at_dist(1:nsafe) = at_dist(iaux)
+       at_lvec(:,1:nsafe) = at_lvec(:,iaux)
+       call realloc(at_id,nsafe)
+       call realloc(at_dist,nsafe)
+       call realloc(at_lvec,3,nsafe)
+       deallocate(iaux)
+    else
+       ! calculate the number of blocks in each direction required for satifying
+       ! that the largest sphere in the super-block has radius > dmax.
+       ! r = Vblock / 2 / max(cv(3)/n3,cv(2)/n2,cv(1)/n1)
+       nx = ceiling(c%blockcv / (0.5d0 * c%blockomega / max(dmax,1d-40)))
+
+       ! define the search space
+       do i = 1, 3
+          if (mod(nx(i),2) == 0) then
+             i0(i) = ix(i) - nx(i)/2
+             i1(i) = ix(i) + nx(i)/2
+          else
+             i0(i) = ix(i) - (nx(i)/2+1)
+             i1(i) = ix(i) + (nx(i)/2+1)
+          end if
+       end do
+
+       ! run over the atoms and compile the list
+       do i = i0(1), i1(1)
+          do j = i0(2), i1(2)
+             do k = i0(3), i1(3)
+                if (c%ismolecule) then
+                   if (i < 0 .or. i >= c%nblock(1) .or. j < 0 .or. j >= c%nblock(2) .or.&
+                      k < 0 .or. k >= c%nblock(3)) cycle
+                   ib = (/i, j, k/)
+                   lvecx = 0
+                else
+                   ib = (/modulo(i,c%nblock(1)), modulo(j,c%nblock(2)), modulo(k,c%nblock(3))/)
+                   lvecx = real(((/i,j,k/) - ib) / c%nblock,8)
+                end if
+
+                ! run over atoms in this block
+                idx = c%iblock0(ib(1),ib(2),ib(3))
+                do while (idx /= 0)
+                   ! apply filters
+                   docycle = .false.
+                   if (present(nid0)) &
+                      docycle = (c%atcel(idx)%idx /= nid0)
+                   if (present(ispc0)) &
+                      docycle = (c%atcel(idx)%is /= ispc0)
+                   if (present(id0)) &
+                      docycle = (idx /= id0)
+                   if (present(iz0)) &
+                      docycle = (c%spc(c%atcel(idx)%is)%z /= iz0)
+
+                   if (.not.docycle) then
+                      ! calculate distance
+                      if (c%ismolecule) then
+                         x = c%x2c(c%atcel(idx)%x)
+                      else
+                         xr = c%x2xr(c%atcel(idx)%x)
+                         xr = xr - floor(xr) + lvecx
+                         x = c%xr2c(xr)
+                      end if
+                      dd = norm2(x - xorigc)
+
+                      ! check if we should add the atom to the list
+                      ok = .true.
+                      if (nozero_ .and. dd < eps) then
+                         ok = .false.
+                      elseif (present(up2d)) then
+                         ok = (dd <= dmax)
+                      elseif (present(up2dsp)) then
+                         ok = (dd >= up2dsp(c%atcel(idx)%is,1) .and. dd <= up2dsp(c%atcel(idx)%is,2))
+                      elseif (present(up2dcidx)) then
+                         ok = (dd <= up2dcidx(idx))
+                      end if
+                      if (ok) call add_atom_to_output_list()
+                   end if
+
+                   ! next atom
+                   idx = c%atcel(idx)%inext
+                end do ! while idx
+             end do ! k = i0(3), i1(3)
+          end do ! j = i0(2), i1(2)
+       end do ! i = i0(1), i1(1)
+    end if
 
     ! sort if necessary
-    if (sorted .and. nat > 0) then
+    if (sorted_ .and. nat > 0) then
        ! permutation vector
        allocate(iord(nat))
        do i = 1, nat
@@ -259,12 +343,113 @@ contains
        deallocate(iord)
     end if
 
+    ! reduce the list if up2n
+    if (present(up2n)) then
+       nat = up2n
+       call realloc(at_id,up2n)
+       call realloc(at_dist,up2n)
+       call realloc(at_lvec,3,up2n)
+    end if
+
     ! assign optional outputs
     if (present(eid)) eid = at_id
     if (present(dist)) dist = at_dist
     if (present(lvec)) lvec = at_lvec
 
   contains
+    ! Find the indices for the nth shell of blocks. Sets the number of indices (nb),
+    ! the indices themselves (idb(3,nb)), and the rmax for this shell (dmax).
+    subroutine make_block_shell(n)
+      integer, intent(in) :: n
+
+      integer :: i, j, ic
+
+      ! special case: n = 0
+      if (n == 0) then
+         nb = 1
+         if (allocated(idb)) deallocate(idb)
+         allocate(idb(3,nb))
+         idb = 0
+         dmax = 0d0
+         return
+      end if
+
+      ! allocate space for (2n+1)^3 - (2n-1)^3 blocks
+      nb = 2 + 24 * n * n
+      if (allocated(idb)) deallocate(idb)
+      allocate(idb(3,nb))
+
+      ! list them
+      ic = 0
+      do i = -n+1, n-1
+         do j = -n+1, n-1
+            ic = ic + 1
+            idb(:,ic) = (/n,i,j/)
+            ic = ic + 1
+            idb(:,ic) = (/-n,i,j/)
+
+            ic = ic + 1
+            idb(:,ic) = (/i,n,j/)
+            ic = ic + 1
+            idb(:,ic) = (/i,-n,j/)
+
+            ic = ic + 1
+            idb(:,ic) = (/i,j,n/)
+            ic = ic + 1
+            idb(:,ic) = (/i,j,-n/)
+         end do
+         ic = ic + 1
+         idb(:,ic) = (/n,n,i/)
+         ic = ic + 1
+         idb(:,ic) = (/n,-n,i/)
+         ic = ic + 1
+         idb(:,ic) = (/-n,n,i/)
+         ic = ic + 1
+         idb(:,ic) = (/-n,-n,i/)
+
+         ic = ic + 1
+         idb(:,ic) = (/n,i,n/)
+         ic = ic + 1
+         idb(:,ic) = (/n,i,-n/)
+         ic = ic + 1
+         idb(:,ic) = (/-n,i,n/)
+         ic = ic + 1
+         idb(:,ic) = (/-n,i,-n/)
+
+         ic = ic + 1
+         idb(:,ic) = (/i,n,n/)
+         ic = ic + 1
+         idb(:,ic) = (/i,n,-n/)
+         ic = ic + 1
+         idb(:,ic) = (/i,-n,n/)
+         ic = ic + 1
+         idb(:,ic) = (/i,-n,-n/)
+      end do
+
+      ic = ic + 1
+      idb(:,ic) = (/n,n,n/)
+      ic = ic + 1
+      idb(:,ic) = (/n,n,-n/)
+      ic = ic + 1
+      idb(:,ic) = (/n,-n,n/)
+      ic = ic + 1
+      idb(:,ic) = (/n,-n,-n/)
+      ic = ic + 1
+      idb(:,ic) = (/-n,n,n/)
+      ic = ic + 1
+      idb(:,ic) = (/-n,n,-n/)
+      ic = ic + 1
+      idb(:,ic) = (/-n,-n,n/)
+      ic = ic + 1
+      idb(:,ic) = (/-n,-n,-n/)
+
+      ! calculate the radius of the largest sphere contained in the blocked
+      ! region (dmax)
+      dmax = 0.5d0 * c%blockomega / maxval(c%blockcv / real(n,8))
+
+    end subroutine make_block_shell
+
+    ! add current atom (idx) to the output list
     subroutine add_atom_to_output_list()
       nat = nat + 1
       if (nat > size(at_id,1)) then
