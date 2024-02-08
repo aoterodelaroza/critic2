@@ -130,6 +130,7 @@ contains
     integer, allocatable :: idb(:,:), iaux(:), iord(:)
 
     real*8, parameter :: eps = 1d-10
+    integer, parameter :: ixmol_cut = 10 ! cutoff for switching to no-block molecule dist search
 
     ! process input
     nozero_ = .false.
@@ -164,74 +165,95 @@ contains
     ! allocate space for atoms
     nat = 0
     allocate(at_id(20),at_dist(20),at_lvec(3,20))
+    at_id = 0
+    at_dist = 0d0
+    at_lvec = 0
 
     ! run the search
     if (present(up2n)) then
+       ! cap the number of atoms requested at the number of atoms in the molecule
        up2n_ = up2n
        if (c%ismolecule) up2n_ = min(up2n,c%ncel)
 
-       ! find atoms until we have at least a given number
-       nshellb = 0
-       do while(.true.)
-          call make_block_shell(nshellb)
+       if (c%ismolecule .and. maxval(min(abs(ix), abs(ix-c%nblock))) > ixmol_cut) then
+          ! this point is too far away from the molecule: calculate
+          ! the distance to every atom in the molecule
+          nat = c%ncel
+          nsafe = nat
+          dmax = huge(1d0)
+          call realloc(at_id,nat)
+          call realloc(at_dist,nat)
+          call realloc(at_lvec,3,nat)
+          do i = 1, c%ncel
+             at_id(i) = i
+             at_dist(i) = norm2(c%atcel(i)%r - xorigc)
+             at_lvec(:,i) = 0
+          end do
+       else
+          ! Run over shells of nearby blocks and find atoms until we
+          ! have at least the given number
+          nshellb = 0
+          do while(.true.)
+             call make_block_shell(nshellb)
 
-          do i = 1, nb
-             ithis = idb(:,i) + ix
+             do i = 1, nb
+                ithis = idb(:,i) + ix
 
-             if (c%ismolecule) then
-                if (ithis(1) < 0 .or. ithis(1) >= c%nblock(1) .or.&
-                   ithis(2) < 0 .or. ithis(2) >= c%nblock(2) .or.&
-                   ithis(3) < 0 .or. ithis(3) >= c%nblock(3)) cycle
-                ib = ithis
-                lvecx = 0
-             else
-                ib = (/modulo(ithis(1),c%nblock(1)), modulo(ithis(2),c%nblock(2)), modulo(ithis(3),c%nblock(3))/)
-                lvecx = real((ithis - ib) / c%nblock,8)
-             end if
-
-             ! run over atoms in this block
-             idx = c%iblock0(ib(1),ib(2),ib(3))
-             do while (idx /= 0)
-                ! apply filters
-                docycle = .false.
-                if (present(nid0)) &
-                   docycle = (c%atcel(idx)%idx /= nid0)
-                if (present(ispc0)) &
-                   docycle = (c%atcel(idx)%is /= ispc0)
-                if (present(id0)) &
-                   docycle = (idx /= id0)
-                if (present(iz0)) &
-                   docycle = (c%spc(c%atcel(idx)%is)%z /= iz0)
-
-                if (.not.docycle) then
-                   ! calculate distance
-                   if (c%ismolecule) then
-                      x = c%x2c(c%atcel(idx)%x)
-                   else
-                      xr = c%x2xr(c%atcel(idx)%x)
-                      xr = xr - floor(xr) + lvecx
-                      x = c%xr2c(xr)
-                   end if
-                   dd = norm2(x - xorigc)
-
-                   ! check if we should add the atom to the list
-                   ok = .true.
-                   if (nozero_ .and. dd < eps) ok = .false.
-                   if (ok) call add_atom_to_output_list()
+                if (c%ismolecule) then
+                   if (ithis(1) < 0 .or. ithis(1) >= c%nblock(1) .or.&
+                      ithis(2) < 0 .or. ithis(2) >= c%nblock(2) .or.&
+                      ithis(3) < 0 .or. ithis(3) >= c%nblock(3)) cycle
+                   ib = ithis
+                   lvecx = 0
+                else
+                   ib = (/modulo(ithis(1),c%nblock(1)), modulo(ithis(2),c%nblock(2)), modulo(ithis(3),c%nblock(3))/)
+                   lvecx = real((ithis - ib) / c%nblock,8)
                 end if
 
-                ! next atom
-                idx = c%atcel(idx)%inext
-             end do ! while idx
-          end do
+                ! run over atoms in this block
+                idx = c%iblock0(ib(1),ib(2),ib(3))
+                do while (idx /= 0)
+                   ! apply filters
+                   docycle = .false.
+                   if (present(nid0)) &
+                      docycle = (c%atcel(idx)%idx /= nid0)
+                   if (present(ispc0)) &
+                      docycle = (c%atcel(idx)%is /= ispc0)
+                   if (present(id0)) &
+                      docycle = (idx /= id0)
+                   if (present(iz0)) &
+                      docycle = (c%spc(c%atcel(idx)%is)%z /= iz0)
 
-          ! check if we have enough atoms
-          nsafe = count(at_dist(1:nat) <= dmax)
-          if (nsafe >= up2n_) exit
+                   if (.not.docycle) then
+                      ! calculate distance
+                      if (c%ismolecule) then
+                         x = c%atcel(idx)%r
+                      else
+                         xr = c%x2xr(c%atcel(idx)%x)
+                         xr = xr - floor(xr) + lvecx
+                         x = c%xr2c(xr)
+                      end if
+                      dd = norm2(x - xorigc)
 
-          ! next shell
-          nshellb = nshellb + 1
-       end do ! while loop
+                      ! check if we should add the atom to the list
+                      ok = .true.
+                      if (nozero_ .and. dd < eps) ok = .false.
+                      if (ok) call add_atom_to_output_list()
+                   end if
+
+                   ! next atom
+                   idx = c%atcel(idx)%inext
+                end do ! while idx
+             end do
+
+             ! check if we have enough atoms
+             nsafe = count(at_dist(1:nat) <= dmax)
+             if (nsafe >= up2n_) exit
+
+             ! next shell
+             nshellb = nshellb + 1
+          end do ! while loop
+       end if
 
        ! bypass for efficiency: handle the case when up2n = 1 (nearest atom)
        if (up2n_ == 1) then
@@ -251,6 +273,7 @@ contains
                 iaux(nsafe) = i
              end if
           end do
+
           nat = nsafe
           at_id(1:nsafe) = at_id(iaux)
           at_dist(1:nsafe) = at_dist(iaux)

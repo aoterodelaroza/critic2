@@ -1074,7 +1074,7 @@ contains
        call sy%c%build_env()
 
        dmax = 7d0
-       x = (/0.5d0,0.52d0,0.51d0/)
+       x = (/1.5d0,0.52d0,0.51d0/)
        ! x = 0.5d0
        ! x = (/0.9d0,1.1d0,0.3d0/)
        ! x=(/0.15191d0,0.20933d0,0.00913d0/)
@@ -1090,8 +1090,8 @@ contains
 
        call sy%c%list_near_atoms(x,icrd_crys,.true.,nat,eid,dist,lvec2,up2n=10)
        do j = 1, nat
-          write (*,*) eid(j), sy%c%x2xr(sy%c%atcel(eid(j))%x + lvec2(:,j)), dist(j)
-          ! write (*,*) eid(j), (sy%c%atcel(eid(j))%r + sy%c%molx0) * 0.529177d0, dist(j)
+          ! write (*,*) eid(j), sy%c%x2xr(sy%c%atcel(eid(j))%x + lvec2(:,j)), dist(j)
+          write (*,*) eid(j), (sy%c%atcel(eid(j))%r + sy%c%molx0) * 0.529177d0, dist(j)
        end do
        write (*,*) "xx2 ", nat
        nat2 = nat
