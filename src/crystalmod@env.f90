@@ -95,6 +95,7 @@ contains
   !>
   module subroutine list_near_atoms(c,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,&
      up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,ispc0,nozero)
+    use hashmod, only: hash
     use tools, only: mergesort
     use tools_io, only: ferror, faterr
     use tools_math, only: cross, det3
@@ -123,18 +124,21 @@ contains
     logical :: ok, nozero_, docycle, sorted_
     real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xr(3)
     integer :: i, j, k, ix(3), nx(3), i0(3), i1(3), idx
-    integer :: ib(3), ithis(3), nsafe, up2n_
+    integer :: ib(3), ithis(3), nsafe, up2n_, nshel
     integer, allocatable :: at_id(:), at_lvec(:,:)
-    real*8, allocatable :: at_dist(:)
+    real*8, allocatable :: at_dist(:), rshel(:)
     integer :: nb, nshellb
     integer, allocatable :: idb(:,:), iaux(:), iord(:)
+    type(hash) :: hshell
 
     real*8, parameter :: eps = 1d-10
     integer, parameter :: ixmol_cut = 10 ! cutoff for switching to no-block molecule dist search
+    real*8, parameter :: shell_eps = 1d-5
+    integer, parameter :: ndecimal_shell = 5
 
     ! process input
     nozero_ = .false.
-    sorted_ = sorted .or. present(up2n)
+    sorted_ = sorted .or. present(up2n) .or. present(up2sh)
     if (present(nozero)) nozero_ = nozero
     if (present(up2d)) then
        dmax = up2d
@@ -145,8 +149,7 @@ contains
     elseif (present(up2n)) then
        !
     elseif (present(up2sh)) then
-       write (*,*) "fixme!"
-       stop 1
+       !
     else
        call ferror("list_near_atoms","must give one of up2d, up2dsp, up2dcidx, up2sh, or up2n",faterr)
     end if
@@ -170,7 +173,126 @@ contains
     at_lvec = 0
 
     ! run the search
-    if (present(up2n)) then
+    if (present(up2sh)) then
+       ! cap the number of shells at this number
+
+       if (c%ismolecule .and. maxval(min(abs(ix), abs(ix-c%nblock))) > ixmol_cut) then
+          ! this point is too far away from the molecule: calculate
+          ! the distance to every atom in the molecule
+          write (*,*) "too far!"
+          stop 1
+       else
+          ! Run over shells of nearby blocks and find atoms until we
+          ! have at least the given number of shells
+          nshellb = 0
+          do while(.true.)
+             call make_block_shell(nshellb)
+
+             do i = 1, nb
+                ithis = idb(:,i) + ix
+
+                if (c%ismolecule) then
+                   if (ithis(1) < 0 .or. ithis(1) >= c%nblock(1) .or.&
+                      ithis(2) < 0 .or. ithis(2) >= c%nblock(2) .or.&
+                      ithis(3) < 0 .or. ithis(3) >= c%nblock(3)) cycle
+                   ib = ithis
+                   lvecx = 0
+                else
+                   ib = (/modulo(ithis(1),c%nblock(1)), modulo(ithis(2),c%nblock(2)), modulo(ithis(3),c%nblock(3))/)
+                   lvecx = real((ithis - ib) / c%nblock,8)
+                end if
+
+                ! run over atoms in this block
+                idx = c%iblock0(ib(1),ib(2),ib(3))
+                do while (idx /= 0)
+                   ! apply filters
+                   docycle = .false.
+                   if (present(nid0)) &
+                      docycle = (c%atcel(idx)%idx /= nid0)
+                   if (present(ispc0)) &
+                      docycle = (c%atcel(idx)%is /= ispc0)
+                   if (present(id0)) &
+                      docycle = (idx /= id0)
+                   if (present(iz0)) &
+                      docycle = (c%spc(c%atcel(idx)%is)%z /= iz0)
+
+                   if (.not.docycle) then
+                      ! calculate distance
+                      if (c%ismolecule) then
+                         x = c%atcel(idx)%r
+                      else
+                         xr = c%x2xr(c%atcel(idx)%x)
+                         xr = xr - floor(xr) + lvecx
+                         x = c%xr2c(xr)
+                      end if
+                      dd = norm2(x - xorigc)
+
+                      ! check if we should add the atom to the list
+                      ok = .true.
+                      if (nozero_ .and. dd < eps) ok = .false.
+                      if (ok) then
+                         call add_atom_to_output_list()
+                         call add_shell_to_output_list()
+                      end if
+                   end if
+
+                   ! next atom
+                   idx = c%atcel(idx)%inext
+                end do ! while idx
+             end do
+
+             ! exit if we have enough shells
+             nshel = 0
+             do i = 1, hshell%keys()
+                if (hshell%get(hshell%getkey(i),dd) <= dmax) &
+                   nshel = nshel + 1
+             end do
+             ! if (nshel >= up2sh) exit
+             if (nshellb == 6) exit
+
+             ! next shell
+             nshellb = nshellb + 1
+          end do ! while loop
+       end if
+
+       ! re-calculate the dmax based on the shell radii
+       allocate(rshel(nshel))
+       nshel = 0
+       do i = 1, hshell%keys()
+          dd = hshell%get(hshell%getkey(i),dd)
+          if (dd <= dmax) then
+             nshel = nshel + 1
+             rshel(nshel) = dd
+          end if
+       end do
+       allocate(iord(nshel))
+       do i = 1, nshel
+          iord(i) = i
+       end do
+       call mergesort(rshel,iord,1,nshel)
+       dmax = rshel(iord(up2sh)) + shell_eps
+       deallocate(rshel,iord)
+
+       ! filter out the unneeded atoms
+       nsafe = count(at_dist(1:nat) <= dmax)
+       allocate(iaux(nsafe))
+       nsafe = 0
+       do i = 1, nat
+          if (at_dist(i) <= dmax) then
+             nsafe = nsafe + 1
+             iaux(nsafe) = i
+          end if
+       end do
+
+       nat = nsafe
+       at_id(1:nsafe) = at_id(iaux)
+       at_dist(1:nsafe) = at_dist(iaux)
+       at_lvec(:,1:nsafe) = at_lvec(:,iaux)
+       call realloc(at_id,nsafe)
+       call realloc(at_dist,nsafe)
+       call realloc(at_lvec,3,nsafe)
+       deallocate(iaux)
+    elseif (present(up2n)) then
        ! cap the number of atoms requested at the number of atoms in the molecule
        up2n_ = up2n
        if (c%ismolecule) up2n_ = min(up2n,c%ncel)
@@ -494,6 +616,17 @@ contains
       at_dist(nat) = dd
       at_lvec(:,nat) = nint(c%xr2x(xr) - c%atcel(idx)%x)
     end subroutine add_atom_to_output_list
+
+    subroutine add_shell_to_output_list()
+      use tools_io, only: string
+      integer :: nn
+
+      character(len=:), allocatable :: str
+
+      str = string(dd,'f',decimal=ndecimal_shell)
+      if (.not.hshell%iskey(str)) call hshell%put(str,dd)
+
+    end subroutine add_shell_to_output_list
 
   end subroutine list_near_atoms
 
