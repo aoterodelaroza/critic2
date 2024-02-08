@@ -246,6 +246,9 @@ contains
              nsafe = count(rshel(1:nshel) <= dmax)
              if (nsafe >= up2sh) exit
 
+             ! exit if we have examined all atoms in the molecule
+             if (c%ismolecule .and. nat == c%ncel) exit
+
              ! next shell
              nshellb = nshellb + 1
           end do ! while loop
@@ -256,7 +259,11 @@ contains
              iord(i) = i
           end do
           call mergesort(rshel,iord,1,nshel)
-          dmax = rshel(iord(up2sh)) + shell_eps
+          if (c%ismolecule .and. nshel < up2sh) then
+             dmax = rshel(iord(nshel)) + shell_eps
+          else
+             dmax = rshel(iord(up2sh)) + shell_eps
+          end if
           deallocate(rshel,iord)
        end if
 
