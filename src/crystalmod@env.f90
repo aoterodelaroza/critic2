@@ -165,9 +165,8 @@ contains
     nat = 0
     allocate(at_id(20),at_dist(20),at_lvec(3,20))
 
-    ! xxxx
-
     if (present(up2n)) then
+       ! find atoms until we have at least a given number
        nshellb = 0
        do while(.true.)
           call make_block_shell(nshellb)
@@ -230,24 +229,36 @@ contains
           nshellb = nshellb + 1
        end do ! while loop
 
-       ! filter out the unneeded atoms
-       allocate(iaux(nsafe))
-       nsafe = 0
-       do i = 1, nat
-          if (at_dist(i) <= dmax) then
-             nsafe = nsafe + 1
-             iaux(nsafe) = i
-          end if
-       end do
-       nat = nsafe
-       at_id(1:nsafe) = at_id(iaux)
-       at_dist(1:nsafe) = at_dist(iaux)
-       at_lvec(:,1:nsafe) = at_lvec(:,iaux)
-       call realloc(at_id,nsafe)
-       call realloc(at_dist,nsafe)
-       call realloc(at_lvec,3,nsafe)
-       deallocate(iaux)
+       ! bypass for efficiency: handle the case when up2n = 1 (nearest atom)
+       if (up2n == 1) then
+          idx = minloc(at_dist(1:nat),1)
+          nat = 1
+          at_dist(1) = at_dist(idx)
+          at_id(1) = at_id(idx)
+          at_lvec(:,1) = at_lvec(:,idx)
+          sorted_ = .false.
+       else
+          ! filter out the unneeded atoms
+          allocate(iaux(nsafe))
+          nsafe = 0
+          do i = 1, nat
+             if (at_dist(i) <= dmax) then
+                nsafe = nsafe + 1
+                iaux(nsafe) = i
+             end if
+          end do
+          nat = nsafe
+          at_id(1:nsafe) = at_id(iaux)
+          at_dist(1:nsafe) = at_dist(iaux)
+          at_lvec(:,1:nsafe) = at_lvec(:,iaux)
+          call realloc(at_id,nsafe)
+          call realloc(at_dist,nsafe)
+          call realloc(at_lvec,3,nsafe)
+          deallocate(iaux)
+       end if
     else
+       ! find atoms up to a given distance
+
        ! calculate the number of blocks in each direction required for satifying
        ! that the largest sphere in the super-block has radius > dmax.
        ! r = Vblock / 2 / max(cv(3)/n3,cv(2)/n2,cv(1)/n1)
@@ -343,18 +354,13 @@ contains
        deallocate(iord)
     end if
 
-    ! reduce the list if up2n
-    if (present(up2n)) then
-       nat = up2n
-       call realloc(at_id,up2n)
-       call realloc(at_dist,up2n)
-       call realloc(at_lvec,3,up2n)
-    end if
+    ! reduce the list if up2n (always sorted)
+    if (present(up2n)) nat = up2n
 
     ! assign optional outputs
-    if (present(eid)) eid = at_id
-    if (present(dist)) dist = at_dist
-    if (present(lvec)) lvec = at_lvec
+    if (present(eid)) eid = at_id(1:nat)
+    if (present(dist)) dist = at_dist(1:nat)
+    if (present(lvec)) lvec = at_lvec(:,1:nat)
 
   contains
     ! Find the indices for the nth shell of blocks. Sets the number of indices (nb),
