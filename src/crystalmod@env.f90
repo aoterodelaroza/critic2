@@ -172,17 +172,24 @@ contains
     at_lvec = 0
 
     ! run the search
-    if (present(up2sh)) then
-       ! cap the number of shells at this number
+    if (present(up2sh).or.present(up2n)) then
+       ! cap the number of shells or the number of atoms
 
-       ! initialize shell list
-       nshel = 0
-       allocate(rshel(up2sh))
+       up2n_ = 0
+       if (present(up2sh)) then
+          ! initialize shell list
+          nshel = 0
+          allocate(rshel(up2sh))
+       else
+          up2n_ = up2n
+          if (c%ismolecule) up2n_ = min(up2n,c%ncel)
+       end if
 
        if (c%ismolecule .and. maxval(min(abs(ix), abs(ix-c%nblock))) > ixmol_cut) then
           ! this point is too far away from the molecule: calculate
           ! the distance to every atom in the molecule
           nat = c%ncel
+          nsafe = nat
           dmax = huge(1d0)
           call realloc(at_id,nat)
           call realloc(at_dist,nat)
@@ -192,7 +199,8 @@ contains
              at_id(i) = i
              at_dist(i) = dd
              at_lvec(:,i) = 0
-             call add_shell_to_output_list()
+             if (present(up2sh)) &
+                call add_shell_to_output_list()
           end do
        else
           ! Run over shells of nearby blocks and find atoms until we
@@ -245,7 +253,8 @@ contains
                       if (nozero_ .and. dd < eps) ok = .false.
                       if (ok) then
                          call add_atom_to_output_list()
-                         call add_shell_to_output_list()
+                         if (present(up2sh)) &
+                            call add_shell_to_output_list()
                       end if
                    end if
 
@@ -254,9 +263,15 @@ contains
                 end do ! while idx
              end do
 
-             ! exit if we have enough shells
-             nsafe = count(rshel(1:nshel) <= dmax)
-             if (nsafe >= up2sh) exit
+             if (present(up2sh)) then
+                ! exit if we have enough shells
+                nsafe = count(rshel(1:nshel) <= dmax)
+                if (nsafe >= up2sh) exit
+             else
+                ! check if we have enough atoms
+                nsafe = count(at_dist(1:nat) <= dmax)
+                if (nsafe >= up2n_) exit
+             end if
 
              ! exit if we have examined all atoms in the molecule
              if (c%ismolecule .and. nat == c%ncel) exit
@@ -266,124 +281,8 @@ contains
           end do ! while loop
        end if
 
-       ! re-calculate the dmax based on the shell radii
-       allocate(iord(nshel))
-       do i = 1, nshel
-          iord(i) = i
-       end do
-       call mergesort(rshel,iord,1,nshel)
-       if (c%ismolecule .and. nshel < up2sh) then
-          dmax = rshel(iord(nshel)) + shell_eps
-       else
-          dmax = rshel(iord(up2sh)) + shell_eps
-       end if
-       deallocate(rshel,iord)
-
-       ! filter out the unneeded atoms
-       nsafe = count(at_dist(1:nat) <= dmax)
-       allocate(iaux(nsafe))
-       nsafe = 0
-       do i = 1, nat
-          if (at_dist(i) <= dmax) then
-             nsafe = nsafe + 1
-             iaux(nsafe) = i
-          end if
-       end do
-       nat = nsafe
-       at_id(1:nsafe) = at_id(iaux)
-       at_dist(1:nsafe) = at_dist(iaux)
-       at_lvec(:,1:nsafe) = at_lvec(:,iaux)
-       call realloc(at_id,nsafe)
-       call realloc(at_dist,nsafe)
-       call realloc(at_lvec,3,nsafe)
-       deallocate(iaux)
-    elseif (present(up2n)) then
-       ! cap the number of atoms requested at the number of atoms in the molecule
-       up2n_ = up2n
-       if (c%ismolecule) up2n_ = min(up2n,c%ncel)
-
-       if (c%ismolecule .and. maxval(min(abs(ix), abs(ix-c%nblock))) > ixmol_cut) then
-          ! this point is too far away from the molecule: calculate
-          ! the distance to every atom in the molecule
-          nat = c%ncel
-          nsafe = nat
-          dmax = huge(1d0)
-          call realloc(at_id,nat)
-          call realloc(at_dist,nat)
-          call realloc(at_lvec,3,nat)
-          do i = 1, c%ncel
-             at_id(i) = i
-             at_dist(i) = norm2(c%atcel(i)%r - xorigc)
-             at_lvec(:,i) = 0
-          end do
-       else
-          ! Run over shells of nearby blocks and find atoms until we
-          ! have at least the given number
-          nshellb = 0
-          do while(.true.)
-             call make_block_shell(nshellb)
-
-             do i = 1, nb
-                ithis = idb(:,i) + ix
-
-                if (c%ismolecule) then
-                   if (ithis(1) < 0 .or. ithis(1) >= c%nblock(1) .or.&
-                      ithis(2) < 0 .or. ithis(2) >= c%nblock(2) .or.&
-                      ithis(3) < 0 .or. ithis(3) >= c%nblock(3)) cycle
-                   ib = ithis
-                   lvecx = 0
-                else
-                   ib = (/modulo(ithis(1),c%nblock(1)), modulo(ithis(2),c%nblock(2)), modulo(ithis(3),c%nblock(3))/)
-                   lvecx = real((ithis - ib) / c%nblock,8)
-                end if
-
-                ! run over atoms in this block
-                idx = c%iblock0(ib(1),ib(2),ib(3))
-                do while (idx /= 0)
-                   ! apply filters
-                   docycle = .false.
-                   if (present(nid0)) &
-                      docycle = (c%atcel(idx)%idx /= nid0)
-                   if (present(ispc0)) &
-                      docycle = (c%atcel(idx)%is /= ispc0)
-                   if (present(id0)) &
-                      docycle = (idx /= id0)
-                   if (present(iz0)) &
-                      docycle = (c%spc(c%atcel(idx)%is)%z /= iz0)
-
-                   if (.not.docycle) then
-                      ! calculate distance
-                      if (c%ismolecule) then
-                         x = c%atcel(idx)%r
-                      else
-                         xr = c%x2xr(c%atcel(idx)%x)
-                         xr = xr - floor(xr) + lvecx
-                         x = c%xr2c(xr)
-                      end if
-                      dd = norm2(x - xorigc)
-
-                      ! check if we should add the atom to the list
-                      ok = .true.
-                      if (nozero_ .and. dd < eps) ok = .false.
-                      if (ok) call add_atom_to_output_list()
-                   end if
-
-                   ! next atom
-                   idx = c%atcel(idx)%inext
-                end do ! while idx
-             end do
-
-             ! check if we have enough atoms
-             nsafe = count(at_dist(1:nat) <= dmax)
-             if (nsafe >= up2n_) exit
-
-             ! next shell
-             nshellb = nshellb + 1
-          end do ! while loop
-       end if
-
-       ! bypass for efficiency: handle the case when up2n = 1 (nearest atom)
-       if (up2n_ == 1) then
+       if (present(up2n) .and. up2n_ == 1) then
+          ! bypass for efficiency: handle the case when up2n = 1 (nearest atom)
           idx = minloc(at_dist(1:nat),1)
           nat = 1
           at_dist(1) = at_dist(idx)
@@ -391,7 +290,23 @@ contains
           at_lvec(:,1) = at_lvec(:,idx)
           sorted_ = .false.
        else
+          if (present(up2sh)) then
+             ! re-calculate the dmax based on the shell radii
+             allocate(iord(nshel))
+             do i = 1, nshel
+                iord(i) = i
+             end do
+             call mergesort(rshel,iord,1,nshel)
+             if (c%ismolecule .and. nshel < up2sh) then
+                dmax = rshel(iord(nshel)) + shell_eps
+             else
+                dmax = rshel(iord(up2sh)) + shell_eps
+             end if
+             deallocate(rshel,iord)
+          end if
+
           ! filter out the unneeded atoms
+          nsafe = count(at_dist(1:nat) <= dmax)
           allocate(iaux(nsafe))
           nsafe = 0
           do i = 1, nat
