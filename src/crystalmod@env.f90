@@ -124,7 +124,7 @@ contains
     logical :: ok, nozero_, docycle, sorted_
     real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xr(3)
     integer :: i, j, k, ix(3), nx(3), i0(3), i1(3), idx
-    integer :: ib(3), ithis(3), nsafe, up2n_
+    integer :: ib(3), ithis(3), nsafe, up2n_, nseen
     integer, allocatable :: at_id(:), at_lvec(:,:)
     real*8, allocatable :: at_dist(:), rshel(:)
     integer :: nb, nshellb
@@ -205,6 +205,7 @@ contains
        else
           ! Run over shells of nearby blocks and find atoms until we
           ! have at least the given number of shells
+          nseen = 0
           nshellb = 0
           do while(.true.)
              call make_block_shell(nshellb)
@@ -226,6 +227,9 @@ contains
                 ! run over atoms in this block
                 idx = c%iblock0(ib(1),ib(2),ib(3))
                 do while (idx /= 0)
+                   ! increment the number of "seen" atoms
+                   nseen = nseen + 1
+
                    ! apply filters
                    docycle = .false.
                    if (present(nid0)) &
@@ -274,7 +278,10 @@ contains
              end if
 
              ! exit if we have examined all atoms in the molecule
-             if (c%ismolecule .and. nat == c%ncel) exit
+             if (c%ismolecule .and. nseen == c%ncel) then
+                up2n_ = min(up2n_,nat)
+                exit
+             end if
 
              ! next shell
              nshellb = nshellb + 1
