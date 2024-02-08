@@ -80,7 +80,6 @@ contains
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit, isend, ok, found
     logical :: export, didtableselected
-    logical(c_bool) :: ldum
     real(c_float) :: width, pos
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
