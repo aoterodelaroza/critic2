@@ -651,4 +651,143 @@ contains
 
   end function identify_atom_env
 
+  !> Calculate the core (if zpsp is present) or promolecular densities
+  !> at a point x0 (coord format given by icrd) using atomic radial
+  !> grids up to a number of derivatives nder (max: 2). Returns the
+  !> density (f), gradient (fp, nder >= 1), and Hessian (fpp, nder >=
+  !> 2). If a fragment (fr) is given, then only the atoms in it
+  !> contribute. This routine is thread-safe.
+  module subroutine promolecular_env(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
+    use grid1mod, only: cgrid, agrid, grid1
+    use global, only: cutrad
+    use fragmentmod, only: fragment
+    use tools_io, only: ferror, faterr
+    use param, only: icrd_crys, icrd_rcrys, maxzat
+    class(crystal), intent(inout) :: c
+    real*8, intent(in) :: x0(3)
+    integer, intent(in) :: icrd
+    real*8, intent(out) :: f
+    real*8, intent(out) :: fp(3)
+    real*8, intent(out) :: fpp(3,3)
+    integer, intent(in) :: nder
+    integer, intent(in), optional :: zpsp(:)
+    type(fragment), intent(in), optional :: fr
+
+    integer :: i, j, k, ii, iz
+    real*8 :: xc(3), xx(3), rlvec(3), r, rinv1, rinv1rp
+    real*8 :: rho, rhop, rhopp, rfac, radd, rmax
+    logical :: iscore
+    type(grid1), pointer :: g
+    integer :: nat
+    integer, allocatable :: nid(:), lvec(:,:)
+    real*8, allocatable :: dist(:), rcutmax(:,:)
+    logical, allocatable :: isinfr(:)
+
+    ! initialize
+    f = 0d0
+    fp = 0d0
+    fpp = 0d0
+    iscore = present(zpsp)
+    if (iscore) then
+       if (all(zpsp <= 0)) return
+    end if
+    if (iscore.and..not.allocated(cgrid)) then
+       call ferror("promolecular","cgrid not allocated",faterr)
+    elseif (.not.iscore.and..not.allocated(agrid)) then
+       call ferror("promolecular","agrid not allocated",faterr)
+    end if
+
+    ! convert to Cartesian
+    if (icrd == icrd_crys) then
+       xc = c%x2c(x0)
+    elseif (icrd == icrd_rcrys) then
+       xc = c%xr2c(x0)
+    else
+       xc = x0
+    end if
+
+    ! calculate the cutoffs
+    allocate(rcutmax(c%nspc,2))
+    rcutmax = 0d0
+    rmax = 0d0
+    do i = 1, c%nspc
+       iz = c%spc(i)%z
+       if (iz == 0 .or. iz > maxzat) cycle
+       if (iscore) then
+          if (zpsp(iz) <= 0) cycle
+          g => cgrid(iz,zpsp(iz))
+       else
+          g => agrid(iz)
+       end if
+       if (g%isinit) then
+          rcutmax(i,2) = min(cutrad(iz),g%rmax)
+       else
+          rcutmax(i,2) = cutrad(iz)
+       end if
+       rmax = max(rcutmax(i,2),rmax)
+    end do
+
+    ! compute the list of atoms that contribute to the point
+    call c%list_near_atoms(x0,icrd,.false.,nat,nid,dist,lvec,up2dsp=rcutmax)
+    deallocate(rcutmax)
+    if (nat == 0) return
+
+    ! if fragment is provided, use only the atoms in it (by their cell index)
+    if (present(fr)) then
+       allocate(isinfr(c%ncel))
+       isinfr = .false.
+       do i = 1, fr%nat
+          isinfr(fr%at(i)%cidx) = .true.
+       end do
+    end if
+
+    ! Do the density and derivatives sum
+    do ii = 1, nat
+       i = nid(ii)
+       if (present(fr)) then
+          if (.not.isinfr(i)) cycle
+       end if
+
+       iz = c%spc(c%atcel(i)%is)%z
+       if (iz == 0 .or. iz > maxzat) cycle
+       r = dist(ii)
+       if (r > cutrad(iz)) cycle
+
+       if (iscore) then
+          if (zpsp(iz) <= 0) cycle
+          g => cgrid(iz,zpsp(iz))
+       else
+          g => agrid(iz)
+       end if
+       if (.not.g%isinit) cycle
+
+       r = max(max(r,g%r(1)),1d-14)
+       call g%interp(r,rho,rhop,rhopp)
+       rho = max(rho,0d0)
+       f = f + rho
+
+       if (nder < 1) cycle
+       rlvec = real(lvec(:,ii),8)
+       rlvec = c%x2c(rlvec)
+       xx = xc - (c%atcel(i)%r + rlvec)
+       rinv1 = 1d0 / r
+       rinv1rp = rinv1 * rhop
+       fp = fp + xx * rinv1rp
+
+       if (nder < 2) cycle
+       rfac = (rhopp - rinv1rp) * rinv1 * rinv1
+       do j = 1, 3
+          fpp(j,j) = fpp(j,j) + rinv1rp + rfac * xx(j) * xx(j)
+          do k = 1, j-1
+             radd = rfac * xx(j) * xx(k)
+             fpp(j,k) = fpp(j,k) + radd
+             fpp(k,j) = fpp(k,j) + radd
+          end do
+       end do
+    end do
+
+    if (allocated(isinfr)) deallocate(isinfr)
+
+  end subroutine promolecular_env
+
 end submodule env

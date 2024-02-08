@@ -885,6 +885,9 @@ contains
     integer :: j, nat, ierr, nat1, nat2 ! xxxx
     integer :: nid, lvec(3) ! xxxx
     real*8 :: dist ! xxxx
+    real*8 :: f ! xxxx
+    real*8 :: fp(3) ! xxxx
+    real*8 :: fpp(3,3) ! xxxx
 
     word = lgetword(line,lp)
     if (equal(word,'bondfactor')) then
@@ -1075,15 +1078,23 @@ contains
 
        dmax = 3d0
        ! x = (/1.5d0,-1.52d0,0.51d0/)
+       x = (/1.5d0,-1.52d0,0.51d0/)
        ! x = 0.5d0
        ! x = (/10.9d0,1.1d0,0.3d0/)
-       x=(/0.151912d0,0.20933d0,0.00913d0/)
+       ! x=(/0.151912d0,0.20933d0,0.00913d0/)
 
-       write (*,*) "xx1 ",  sy%c%env%identify_atom(x,icrd_crys)
+       call sy%c%env%promolecular(x,icrd_crys,f,fp,fpp,2)
+       write (*,*) "xx1 ",  f
+       write (*,*) fp
+       write (*,*) fpp
        write (*,*)
 
-       ierr = sy%c%identify_atom_env(x,icrd_crys)
-       write (*,*) "xx2 ", ierr
+       call sy%c%promolecular_env(x,icrd_crys,f,fp,fpp,2)
+       write (*,*) "xx1 ",  f
+       write (*,*) fp
+       write (*,*) fpp
+       write (*,*)
+
        stop 1
 
     elseif (isassignment(var,word,line)) then
