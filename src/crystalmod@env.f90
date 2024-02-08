@@ -175,16 +175,28 @@ contains
     if (present(up2sh)) then
        ! cap the number of shells at this number
 
+       ! initialize shell list
+       nshel = 0
+       allocate(rshel(up2sh))
+
        if (c%ismolecule .and. maxval(min(abs(ix), abs(ix-c%nblock))) > ixmol_cut) then
           ! this point is too far away from the molecule: calculate
           ! the distance to every atom in the molecule
-          write (*,*) "too far!"
-          stop 1
+          nat = c%ncel
+          dmax = huge(1d0)
+          call realloc(at_id,nat)
+          call realloc(at_dist,nat)
+          call realloc(at_lvec,3,nat)
+          do i = 1, c%ncel
+             dd = norm2(c%atcel(i)%r - xorigc)
+             at_id(i) = i
+             at_dist(i) = dd
+             at_lvec(:,i) = 0
+             call add_shell_to_output_list()
+          end do
        else
           ! Run over shells of nearby blocks and find atoms until we
           ! have at least the given number of shells
-          nshel = 0
-          allocate(rshel(up2sh))
           nshellb = 0
           do while(.true.)
              call make_block_shell(nshellb)
@@ -252,20 +264,20 @@ contains
              ! next shell
              nshellb = nshellb + 1
           end do ! while loop
-
-          ! re-calculate the dmax based on the shell radii
-          allocate(iord(nshel))
-          do i = 1, nshel
-             iord(i) = i
-          end do
-          call mergesort(rshel,iord,1,nshel)
-          if (c%ismolecule .and. nshel < up2sh) then
-             dmax = rshel(iord(nshel)) + shell_eps
-          else
-             dmax = rshel(iord(up2sh)) + shell_eps
-          end if
-          deallocate(rshel,iord)
        end if
+
+       ! re-calculate the dmax based on the shell radii
+       allocate(iord(nshel))
+       do i = 1, nshel
+          iord(i) = i
+       end do
+       call mergesort(rshel,iord,1,nshel)
+       if (c%ismolecule .and. nshel < up2sh) then
+          dmax = rshel(iord(nshel)) + shell_eps
+       else
+          dmax = rshel(iord(up2sh)) + shell_eps
+       end if
+       deallocate(rshel,iord)
 
        ! filter out the unneeded atoms
        nsafe = count(at_dist(1:nat) <= dmax)
