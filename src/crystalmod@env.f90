@@ -124,17 +124,16 @@ contains
     logical :: ok, nozero_, docycle, sorted_
     real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xr(3)
     integer :: i, j, k, ix(3), nx(3), i0(3), i1(3), idx
-    integer :: ib(3), ithis(3), nsafe, up2n_, nshel
+    integer :: ib(3), ithis(3), nsafe, up2n_
     integer, allocatable :: at_id(:), at_lvec(:,:)
     real*8, allocatable :: at_dist(:), rshel(:)
     integer :: nb, nshellb
     integer, allocatable :: idb(:,:), iaux(:), iord(:)
-    type(hash) :: hshell
+    integer :: nshel
 
     real*8, parameter :: eps = 1d-10
     integer, parameter :: ixmol_cut = 10 ! cutoff for switching to no-block molecule dist search
     real*8, parameter :: shell_eps = 1d-5
-    integer, parameter :: ndecimal_shell = 5
 
     ! process input
     nozero_ = .false.
@@ -184,6 +183,8 @@ contains
        else
           ! Run over shells of nearby blocks and find atoms until we
           ! have at least the given number of shells
+          nshel = 0
+          allocate(rshel(up2sh))
           nshellb = 0
           do while(.true.)
              call make_block_shell(nshellb)
@@ -242,36 +243,22 @@ contains
              end do
 
              ! exit if we have enough shells
-             nshel = 0
-             do i = 1, hshell%keys()
-                if (hshell%get(hshell%getkey(i),dd) <= dmax) &
-                   nshel = nshel + 1
-             end do
-             ! if (nshel >= up2sh) exit
-             if (nshellb == 6) exit
+             nsafe = count(rshel(1:nshel) <= dmax)
+             if (nsafe >= up2sh) exit
 
              ! next shell
              nshellb = nshellb + 1
           end do ! while loop
-       end if
 
-       ! re-calculate the dmax based on the shell radii
-       allocate(rshel(nshel))
-       nshel = 0
-       do i = 1, hshell%keys()
-          dd = hshell%get(hshell%getkey(i),dd)
-          if (dd <= dmax) then
-             nshel = nshel + 1
-             rshel(nshel) = dd
-          end if
-       end do
-       allocate(iord(nshel))
-       do i = 1, nshel
-          iord(i) = i
-       end do
-       call mergesort(rshel,iord,1,nshel)
-       dmax = rshel(iord(up2sh)) + shell_eps
-       deallocate(rshel,iord)
+          ! re-calculate the dmax based on the shell radii
+          allocate(iord(nshel))
+          do i = 1, nshel
+             iord(i) = i
+          end do
+          call mergesort(rshel,iord,1,nshel)
+          dmax = rshel(iord(up2sh)) + shell_eps
+          deallocate(rshel,iord)
+       end if
 
        ! filter out the unneeded atoms
        nsafe = count(at_dist(1:nat) <= dmax)
@@ -283,7 +270,6 @@ contains
              iaux(nsafe) = i
           end if
        end do
-
        nat = nsafe
        at_id(1:nsafe) = at_id(iaux)
        at_dist(1:nsafe) = at_dist(iaux)
@@ -395,7 +381,6 @@ contains
                 iaux(nsafe) = i
              end if
           end do
-
           nat = nsafe
           at_id(1:nsafe) = at_id(iaux)
           at_dist(1:nsafe) = at_dist(iaux)
@@ -618,13 +603,16 @@ contains
     end subroutine add_atom_to_output_list
 
     subroutine add_shell_to_output_list()
-      use tools_io, only: string
-      integer :: nn
+      use types, only: realloc
 
-      character(len=:), allocatable :: str
+      integer :: i, ithis
 
-      str = string(dd,'f',decimal=ndecimal_shell)
-      if (.not.hshell%iskey(str)) call hshell%put(str,dd)
+      do i = 1, nshel
+         if (abs(rshel(i) - dd) < shell_eps) return
+      end do
+      nshel = nshel + 1
+      if (nshel > size(rshel,1)) call realloc(rshel,2*nshel)
+      rshel(nshel) = dd
 
     end subroutine add_shell_to_output_list
 
