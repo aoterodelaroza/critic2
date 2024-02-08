@@ -93,6 +93,7 @@ contains
   !> - lvec(3,nid) = lattice vectors for the atoms.
   !> - ishell0(nid) = shell ID.
   !>
+  !> This routine is thread-safe.
   module subroutine list_near_atoms(c,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,&
      up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,ispc0,nozero)
     use hashmod, only: hash
@@ -123,7 +124,7 @@ contains
 
     logical :: ok, nozero_, docycle, sorted_
     real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xr(3)
-    integer :: i, j, k, ix(3), nx(3), i0(3), i1(3), idx
+    integer :: i, j, k, ix(3), nx(3), i0(3), i1(3), idx, nn
     integer :: ib(3), ithis(3), nsafe, up2n_, nseen
     integer, allocatable :: at_id(:), at_lvec(:,:)
     real*8, allocatable :: at_dist(:), rshel(:)
@@ -166,7 +167,9 @@ contains
 
     ! allocate space for atoms
     nat = 0
-    allocate(at_id(20),at_dist(20),at_lvec(3,20))
+    nn = 20
+    if (present(up2n)) nn = min(up2n,20)
+    allocate(at_id(nn),at_dist(nn),at_lvec(3,nn))
     at_id = 0
     at_dist = 0d0
     at_lvec = 0
@@ -412,7 +415,7 @@ contains
     end if
 
     ! sort if necessary
-    if (sorted_ .and. nat > 0) then
+    if (sorted_ .and. nat > 1) then
        ! permutation vector
        allocate(iord(nat))
        do i = 1, nat
@@ -540,7 +543,11 @@ contains
       end if
       at_id(nat) = idx
       at_dist(nat) = dd
-      at_lvec(:,nat) = nint(c%xr2x(xr) - c%atcel(idx)%x)
+      if (c%ismolecule) then
+         at_lvec(:,nat) = 0
+      else
+         at_lvec(:,nat) = nint(c%xr2x(xr) - c%atcel(idx)%x)
+      end if
     end subroutine add_atom_to_output_list
 
     subroutine add_shell_to_output_list()
@@ -559,5 +566,61 @@ contains
 
   end subroutine list_near_atoms
 
+  !> Given the point xp (in icrd coordinates), calculate the
+  !> nearest atom up to a distance distmax (or up to infinity, if no
+  !> distmax is given). The nearest atom has ID nid from the complete
+  !> list (atcel) and is at a distance dist, or nid=0 and dist=distmax
+  !> if the search did not produce any atoms up to distmax. On output,
+  !> the optional argument lvec contains the lattice vector to the
+  !> nearest atom (i.e. its position is atcel(nid)%x + lvec).
+  !> Optional input:
+  !> - nid0 = consider only atoms with index nid0 from the nneq list.
+  !> - id0 = consider only atoms with index id0 from the complete list.
+  !> - iz0 = consider only atoms with atomic number iz0.
+  !> - ispc0 = consider only species with species ID ispc0.
+  !> - nozero = disregard zero-distance atoms.
+  !>
+  !> This routine is thread-safe.
+  module subroutine nearest_atom_env(c,xp,icrd,nid,dist,distmax,lvec,nid0,id0,iz0,ispc0,nozero)
+    class(crystal), intent(inout) :: c
+    real*8, intent(in) :: xp(3)
+    integer, intent(in) :: icrd
+    integer, intent(out) :: nid
+    real*8, intent(out) :: dist
+    real*8, intent(in), optional :: distmax
+    integer, intent(out), optional :: lvec(3)
+    integer, intent(in), optional :: nid0
+    integer, intent(in), optional :: id0
+    integer, intent(in), optional :: iz0
+    integer, intent(in), optional :: ispc0
+    logical, intent(in), optional :: nozero
+
+    integer :: nat
+    integer, allocatable :: eid(:), lvec_(:,:)
+    real*8, allocatable :: dist_(:)
+
+    ! get just one atom
+    call c%list_near_atoms(xp,icrd,.false.,nat,eid=eid,dist=dist_,lvec=lvec_,up2n=1,&
+       nid0=nid0,id0=id0,iz0=iz0,ispc0=ispc0,nozero=nozero)
+
+    ! if no atoms in output, return
+    nid = 0
+    dist = huge(1d0)
+    if (nat == 0) return
+
+    ! if the distance is higher than distmax, return
+    if (present(distmax)) then
+       if (dist_(1) > distmax) then
+          dist = distmax
+          return
+       end if
+    end if
+
+    ! write and finish
+    nid = eid(1)
+    dist = dist_(1)
+    if (present(lvec)) lvec = lvec_(:,1)
+
+  end subroutine nearest_atom_env
 
 end submodule env

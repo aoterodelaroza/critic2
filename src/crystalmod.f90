@@ -184,6 +184,7 @@ module crystalmod
      ! atomic environments and distance calculations
      procedure :: build_env
      procedure :: list_near_atoms
+     procedure :: nearest_atom_env
 
      ! molecular environments and neighbors (mols)
      procedure :: identify_fragment !< Build an atomic fragment of the crystal
@@ -416,6 +417,20 @@ module crystalmod
        integer, intent(in), optional :: ispc0
        logical, intent(in), optional :: nozero
      end subroutine list_near_atoms
+     module subroutine nearest_atom_env(c,xp,icrd,nid,dist,distmax,lvec,nid0,id0,iz0,ispc0,nozero)
+       class(crystal), intent(inout) :: c
+       real*8, intent(in) :: xp(3)
+       integer, intent(in) :: icrd
+       integer, intent(out) :: nid
+       real*8, intent(out) :: dist
+       real*8, intent(in), optional :: distmax
+       integer, intent(out), optional :: lvec(3)
+       integer, intent(in), optional :: nid0
+       integer, intent(in), optional :: id0
+       integer, intent(in), optional :: iz0
+       integer, intent(in), optional :: ispc0
+       logical, intent(in), optional :: nozero
+     end subroutine nearest_atom_env
      module function identify_fragment(c,nat,x0) result(fr)
        class(crystal), intent(in) :: c
        integer, intent(in) :: nat
