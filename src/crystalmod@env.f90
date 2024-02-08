@@ -623,4 +623,33 @@ contains
 
   end subroutine nearest_atom_env
 
+  !> Given point x0 (with icrd input coordinates), if x0 corresponds
+  !> to an atomic position (to within distmax or atomeps if distmax is
+  !> not given), return the complete-list ID of the atom. Otherwise,
+  !> return 0. Optionally, return the lattice vector translation
+  !> (lvec) and the distance (dist) to the closest atom. This routine
+  !> is thread-safe.
+  module function identify_atom_env(c,x0,icrd,lvec,dist,distmax)
+    use global, only: atomeps
+    class(crystal), intent(inout) :: c
+    real*8, intent(in) :: x0(3)
+    integer, intent(in) :: icrd
+    integer, intent(out), optional :: lvec(3)
+    real*8, intent(out), optional :: dist
+    real*8, intent(in), optional :: distmax
+    integer :: identify_atom_env
+
+    real*8 :: distmax_, dist0
+    integer :: lvec0(3)
+
+    identify_atom_env = 0
+    distmax_ = atomeps
+    if (present(distmax)) distmax_ = distmax
+
+    call c%nearest_atom_env(x0,icrd,identify_atom_env,dist0,distmax=distmax_,lvec=lvec0)
+    if (present(lvec)) lvec = lvec0
+    if (present(dist)) dist = dist0
+
+  end function identify_atom_env
+
 end submodule env

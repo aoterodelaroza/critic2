@@ -1074,18 +1074,17 @@ contains
        call sy%c%build_env()
 
        dmax = 3d0
-       x = (/1.5d0,-1.52d0,0.51d0/)
+       ! x = (/1.5d0,-1.52d0,0.51d0/)
        ! x = 0.5d0
        ! x = (/10.9d0,1.1d0,0.3d0/)
-       ! x=(/0.15191d0,0.20933d0,0.00913d0/)
+       x=(/0.151912d0,0.20933d0,0.00913d0/)
 
-       call sy%c%env%nearest_atom(x,icrd_crys,nid,dist,distmax=dmax,lvec=lvec)
-       write (*,*) "xx1 ", nid, dist, lvec
+       write (*,*) "xx1 ",  sy%c%env%identify_atom(x,icrd_crys)
        write (*,*)
 
-       call sy%c%nearest_atom_env(x,icrd_crys,nid,dist,distmax=dmax,lvec=lvec)
-       write (*,*) "xx2 ", nid, dist, lvec
-       write (*,*)
+       ierr = sy%c%identify_atom_env(x,icrd_crys)
+       write (*,*) "xx2 ", ierr
+       stop 1
 
     elseif (isassignment(var,word,line)) then
        rdum = eval(word,errmsg)
