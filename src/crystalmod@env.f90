@@ -27,11 +27,10 @@ contains
   !> complete atom list.
   module subroutine build_env(c)
     use tools_math, only: det3, cross
-    use param, only: pi
     class(crystal), intent(inout) :: c
 
     integer :: i, ix(3)
-    real*8 :: xred(3,3), xlen(3), aux, xr(3)
+    real*8 :: xred(3,3), xlen(3), xr(3)
 
     real*8, parameter :: lenmax = 15d0
 
@@ -101,7 +100,7 @@ contains
     use tools_io, only: ferror, faterr
     use tools_math, only: cross, det3
     use types, only: realloc
-    use param, only: icrd_cart, icrd_crys, icrd_rcrys
+    use param, only: icrd_cart, icrd_crys
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd
@@ -553,7 +552,7 @@ contains
     subroutine add_shell_to_output_list()
       use types, only: realloc
 
-      integer :: i, ithis
+      integer :: i
 
       do i = 1, nshel
          if (abs(rshel(i) - dd) < shell_eps) return
