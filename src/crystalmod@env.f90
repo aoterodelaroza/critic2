@@ -123,7 +123,7 @@ contains
     logical :: ok, nozero_, docycle, sorted_
     real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xr(3)
     integer :: i, j, k, ix(3), nx(3), i0(3), i1(3), idx
-    integer :: ib(3), ithis(3), nsafe
+    integer :: ib(3), ithis(3), nsafe, up2n_
     integer, allocatable :: at_id(:), at_lvec(:,:)
     real*8, allocatable :: at_dist(:)
     integer :: nb, nshellb
@@ -165,7 +165,11 @@ contains
     nat = 0
     allocate(at_id(20),at_dist(20),at_lvec(3,20))
 
+    ! run the search
     if (present(up2n)) then
+       up2n_ = up2n
+       if (c%ismolecule) up2n_ = min(up2n,c%ncel)
+
        ! find atoms until we have at least a given number
        nshellb = 0
        do while(.true.)
@@ -223,14 +227,14 @@ contains
 
           ! check if we have enough atoms
           nsafe = count(at_dist(1:nat) <= dmax)
-          if (nsafe >= up2n) exit
+          if (nsafe >= up2n_) exit
 
           ! next shell
           nshellb = nshellb + 1
        end do ! while loop
 
        ! bypass for efficiency: handle the case when up2n = 1 (nearest atom)
-       if (up2n == 1) then
+       if (up2n_ == 1) then
           idx = minloc(at_dist(1:nat),1)
           nat = 1
           at_dist(1) = at_dist(idx)
@@ -355,7 +359,7 @@ contains
     end if
 
     ! reduce the list if up2n (always sorted)
-    if (present(up2n)) nat = up2n
+    if (present(up2n)) nat = up2n_
 
     ! assign optional outputs
     if (present(eid)) eid = at_id(1:nat)
