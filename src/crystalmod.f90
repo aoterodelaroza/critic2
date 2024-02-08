@@ -187,6 +187,7 @@ module crystalmod
      procedure :: nearest_atom_env
      procedure :: identify_atom_env
      procedure :: promolecular_env
+     procedure :: find_asterisms_covalent
 
      ! molecular environments and neighbors (mols)
      procedure :: identify_fragment !< Build an atomic fragment of the crystal
@@ -454,6 +455,9 @@ module crystalmod
        integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular_env
+     module subroutine find_asterisms_covalent(c)
+       class(crystal), intent(inout) :: c
+     end subroutine find_asterisms_covalent
      module function identify_fragment(c,nat,x0) result(fr)
        class(crystal), intent(in) :: c
        integer, intent(in) :: nat

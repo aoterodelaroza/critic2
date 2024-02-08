@@ -790,4 +790,80 @@ contains
 
   end subroutine promolecular_env
 
+  module subroutine find_asterisms_covalent(c)
+    use global, only: bondfactor
+    use tools_io, only: ferror, faterr, uout, string
+    use types, only: realloc, celatom
+    use param, only: atmcov, icrd_crys
+    class(crystal), intent(inout) :: c
+
+    integer :: i, j, jj
+    real*8 :: x0(3), dist2, ri, rj, r2
+    integer :: p0(3), p1(3), idx1
+    integer :: j1, j2, j3, ki, kj, is, js
+    real*8, allocatable :: rij(:,:,:), dist(:)
+    integer :: nat
+    integer, allocatable :: eid(:), lvec(:,:)
+
+    ! return if there are no atoms
+    if (c%ncel == 0) return
+
+    ! allocate the asterism arrays
+    if (allocated(c%nstar)) deallocate(c%nstar)
+    allocate(c%nstar(c%ncel))
+    do i = 1, c%ncel
+       c%nstar(i)%ncon = 0
+       if (allocated(c%nstar(i)%idcon)) deallocate(c%nstar(i)%idcon)
+       if (allocated(c%nstar(i)%lcon)) deallocate(c%nstar(i)%lcon)
+       allocate(c%nstar(i)%idcon(20))
+       allocate(c%nstar(i)%lcon(3,20))
+    end do
+
+    ! pre-calculate the distance matrix
+    allocate(rij(c%nspc,2,c%nspc))
+    rij = 0d0
+    do i = 1, c%nspc
+       if (c%spc(i)%z <= 0) cycle
+       ri = atmcov(c%spc(i)%z)
+       do j = 1, c%nspc
+          if (c%spc(j)%z <= 0) cycle
+          rj = atmcov(c%spc(j)%z)
+
+          rij(j,2,i) = (ri+rj) * bondfactor
+          rij(j,1,i) = (ri+rj) / bondfactor
+       end do
+    end do
+
+    ! run over atoms in the unit cell and build the connectivity star
+    do i = 1, c%ncel
+       is = c%atcel(i)%is
+       if (c%spc(is)%z == 0) then
+          call realloc(c%nstar(i)%idcon,1)
+          call realloc(c%nstar(i)%lcon,3,1)
+          cycle
+       end if
+       call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.false.,nat,eid,dist,lvec,&
+          up2dsp=rij(:,:,is),nozero=.true.)
+
+       do jj = 1, nat
+          j = eid(jj)
+          js = c%atcel(j)%is
+          if (c%spc(js)%z == 0) cycle
+
+          if (dist(jj) >= rij(js,1,is) .and. dist(jj) <= rij(js,2,is)) then
+             c%nstar(i)%ncon = c%nstar(i)%ncon + 1
+             if (c%nstar(i)%ncon > size(c%nstar(i)%idcon,1)) then
+                call realloc(c%nstar(i)%idcon,2*c%nstar(i)%ncon)
+                call realloc(c%nstar(i)%lcon,3,2*c%nstar(i)%ncon)
+             end if
+             c%nstar(i)%idcon(c%nstar(i)%ncon) = j
+             c%nstar(i)%lcon(:,c%nstar(i)%ncon) = lvec(:,jj)
+          end if
+       end do
+       call realloc(c%nstar(i)%idcon,c%nstar(i)%ncon)
+       call realloc(c%nstar(i)%lcon,3,c%nstar(i)%ncon)
+    end do ! i = 1, c%ncel
+
+  end subroutine find_asterisms_covalent
+
 end submodule env

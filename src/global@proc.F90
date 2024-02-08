@@ -882,7 +882,7 @@ contains
     logical :: iscov
     character(len=:), allocatable :: errmsg
     real*8 :: x(3), xx(3), dmax ! xxxx
-    integer :: j, nat, ierr, nat1, nat2 ! xxxx
+    integer :: i, j, nat, ierr, nat1, nat2 ! xxxx
     integer :: nid, lvec(3) ! xxxx
     real*8 :: dist ! xxxx
     real*8 :: f ! xxxx
@@ -1076,24 +1076,40 @@ contains
     elseif (equal(word,'temp')) then ! xxxx
        call sy%c%build_env()
 
-       dmax = 3d0
+       ! dmax = 3d0
+       ! ! x = (/1.5d0,-1.52d0,0.51d0/)
        ! x = (/1.5d0,-1.52d0,0.51d0/)
-       x = (/1.5d0,-1.52d0,0.51d0/)
-       ! x = 0.5d0
-       ! x = (/10.9d0,1.1d0,0.3d0/)
-       ! x=(/0.151912d0,0.20933d0,0.00913d0/)
+       ! ! x = 0.5d0
+       ! ! x = (/10.9d0,1.1d0,0.3d0/)
+       ! ! x=(/0.151912d0,0.20933d0,0.00913d0/)
 
-       call sy%c%env%promolecular(x,icrd_crys,f,fp,fpp,2)
-       write (*,*) "xx1 ",  f
-       write (*,*) fp
-       write (*,*) fpp
-       write (*,*)
+       ! call sy%c%env%promolecular(x,icrd_crys,f,fp,fpp,2)
+       ! write (*,*) "xx1 ",  f
+       ! write (*,*) fp
+       ! write (*,*) fpp
+       ! write (*,*)
 
-       call sy%c%promolecular_env(x,icrd_crys,f,fp,fpp,2)
-       write (*,*) "xx1 ",  f
-       write (*,*) fp
-       write (*,*) fpp
-       write (*,*)
+       ! call sy%c%promolecular_env(x,icrd_crys,f,fp,fpp,2)
+       ! write (*,*) "xx1 ",  f
+       ! write (*,*) fp
+       ! write (*,*) fpp
+       ! write (*,*)
+
+       do i = 1, sy%c%ncel
+          write (*,*) "xx0 ", i, sy%c%nstar(i)%ncon
+          do j = 1, sy%c%nstar(i)%ncon
+             write (*,*) "xx2 ",sy%c%nstar(i)%idcon(j), sy%c%nstar(i)%lcon(:,j)
+          end do
+          write (*,*)
+       end do
+       call sy%c%find_asterisms_covalent()
+       do i = 1, sy%c%ncel
+          write (*,*) "xx0 ", i, sy%c%nstar(i)%ncon
+          do j = 1, sy%c%nstar(i)%ncon
+             write (*,*) "xx2 ",sy%c%nstar(i)%idcon(j), sy%c%nstar(i)%lcon(:,j)
+          end do
+          write (*,*)
+       end do
 
        stop 1
 
