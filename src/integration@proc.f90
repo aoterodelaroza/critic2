@@ -3342,7 +3342,9 @@ contains
           call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
           write (uout,'("# Attractor ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") at: ",3(A,"  "))') &
              string(i), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz), (trim(string(bas%xattr(j,i),'f',12,7)),j=1,3)
-          if (di3.and.diout_ioprint1(i)) then
+          ok = di3
+          if (ok) ok = diout_ioprint1(i)
+          if (ok) then
              write (uout,'("# Id   cp   ncp   Name  Z    Latt. vec.     &
                &----  Cryst. coordinates ----       Distance        LI/DI        3c(in)       3c(out)")')
           else
@@ -3370,15 +3372,17 @@ contains
                       if (dist(m) < 1d-5) sfac = 0.5d0
 
                       diout(m) = 2d0 * sum(res(l)%fa(i,j,k,:)) * fspin * sfac
-                      if (di3.and.diout_ioprint1(i).and.diout_ioprint2(m)) then
-                         if (j == i .and. k == 1) then
-                            diout_i(m) = sum(res(l)%fa3(i,j,k,i,1,:))
-                         else
-                            diout_i(m) = sum(res(l)%fa3(i,j,k,i,1,:)) + sum(res(l)%fa3(i,j,k,j,k,:))
+                      if (di3) then
+                         if (diout_ioprint1(i).and.diout_ioprint2(m)) then
+                            if (j == i .and. k == 1) then
+                               diout_i(m) = sum(res(l)%fa3(i,j,k,i,1,:))
+                            else
+                               diout_i(m) = sum(res(l)%fa3(i,j,k,i,1,:)) + sum(res(l)%fa3(i,j,k,j,k,:))
+                            end if
+                            diout_o(m) = sum(res(l)%fa3(i,j,k,:,:,:)) - diout_i(m)
+                            diout_i(m) = diout_i(m) * 2d0 * fspin * sfac
+                            diout_o(m) = diout_o(m) * 2d0 * fspin * sfac
                          end if
-                         diout_o(m) = sum(res(l)%fa3(i,j,k,:,:,:)) - diout_i(m)
-                         diout_i(m) = diout_i(m) * 2d0 * fspin * sfac
-                         diout_o(m) = diout_o(m) * 2d0 * fspin * sfac
                       end if
                       idat(m) = j
                       ilvec(:,m) = nint(bas%xattr(:,i) + cr1%c2x(r1) * nlat - bas%xattr(:,j))
@@ -3395,7 +3399,9 @@ contains
              j = io(m)
              if (.not.bas%docelatom(bas%icp(idat(j)))) cycle
              if (dist(j) < 1d-5) then
-                if (di3.and.diout_ioprint1(i).and.diout_ioprint2(j)) then
+                ok = di3
+                if (ok) ok = diout_ioprint1(i).and.diout_ioprint2(j)
+                if (ok) then
                    write (uout,'("  Localization index",71("."),3(A," "))') string(diout(j),'f',12,8,4),&
                       string(diout_i(j),'f',12,8,4), string(diout_o(j),'f',12,8,4)
                 else
@@ -3405,7 +3411,9 @@ contains
              else
                 call assign_strings(j,bas%icp(idat(j)),.false.,scp,sncp,sname,smult,sz)
                 r1 = bas%xattr(:,idat(j)) + ilvec(:,j)
-                if (di3.and.diout_ioprint1(i).and.diout_ioprint2(j)) then
+                ok = di3
+                if (ok) ok = diout_ioprint1(i).and.diout_ioprint2(j)
+                if (ok) then
                    write (uout,'("  ",99(A," "))') string(j,4,ioj_left), scp, sncp, sname, sz,&
                       (string(ilvec(k,j),3,ioj_right),k=1,3), (string(r1(k),'f',12,7,4),k=1,3),&
                       string(dist(j),'f',12,7,4), string(diout(j),'f',12,8,4),&
