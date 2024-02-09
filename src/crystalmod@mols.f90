@@ -136,17 +136,18 @@ contains
     real*8, allocatable :: rlvec(:,:), sigma(:), uvec(:,:), vvec(:,:), work(:)
     real*8 :: xcm(3)
 
-    if (.not.allocated(c%nstar)) &
-       call ferror('fill_molecular_fragments','no asterisms found',faterr)
+    ! initialize
+    c%nmol = 0
     if (allocated(c%mol)) deallocate(c%mol)
     if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
-
-    ! initizialize
-    c%nmol = 0
-    allocate(c%mol(1),id(10),lvec(3,10),ldone(10))
     if (c%ncel == 0) return
+
+    ! checks andallocate
+    if (.not.allocated(c%nstar)) &
+       call ferror('fill_molecular_fragments','no asterisms found',faterr)
     allocate(used(c%ncel))
     used = .false.
+    allocate(c%mol(1),id(10),lvec(3,10),ldone(10))
 
     ! run over atoms in the unit cell
     do i = 1, c%ncel
