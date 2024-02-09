@@ -142,10 +142,11 @@ contains
     if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
 
     ! initizialize
-    allocate(used(c%ncel))
-    used = .false.
     c%nmol = 0
     allocate(c%mol(1),id(10),lvec(3,10),ldone(10))
+    if (c%ncel == 0) return
+    allocate(used(c%ncel))
+    used = .false.
 
     ! run over atoms in the unit cell
     do i = 1, c%ncel
@@ -338,6 +339,8 @@ contains
 
     integer :: mmax, i, j, nat
     integer, allocatable :: midx(:,:)
+
+    if (c%nmol == 0 .or. c%ncel == 0) return
 
     ! 3d molecular crystals calculations
     c%ismol3d = all(c%mol(1:c%nmol)%discrete).and..not.c%ismolecule

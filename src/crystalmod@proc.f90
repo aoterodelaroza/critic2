@@ -516,41 +516,45 @@ contains
           call grid1_register_ae(c%spc(i)%z)
        end do
 
+       ! set up the block environments
+       call c%build_env()
+
+       ! find atomic connectivity and molecular fragments
+       call c%find_asterisms_covalent()
+       call c%fill_molecular_fragments()
+       call c%calculate_molecular_equivalence()
+
+       ! calculate vacuum lengths
+       allocate(xcoord(2*c%ncel),iord(2*c%ncel))
+       do i = 1, 3
+          do j = 1, c%ncel
+             xcoord(j) = (c%atcel(j)%x(i) - floor(c%atcel(j)%x(i))) * c%aa(i)
+             xcoord(c%ncel+j) = xcoord(j) + c%aa(i)
+             iord(j) = j
+             iord(c%ncel+j) = c%ncel + j
+          end do
+          call qcksort(xcoord,iord,1,2*c%ncel)
+          c%vaclength(i) = 0d0
+          do j = 2, 2*c%ncel
+             c%vaclength(i) = max(c%vaclength(i),xcoord(iord(j))-xcoord(iord(j-1)))
+          end do
+       end do
+       deallocate(xcoord,iord)
+
+       ! Write the half nearest-neighbor distance
+       do i = 1, c%nneq
+          if (.not.c%ismolecule .or. c%ncel > 1) then
+             call c%nearest_atom_env(c%at(i)%r,icrd_cart,iat,dist,nozero=.true.)
+             c%at(i)%rnn2 = 0.5d0 * dist
+          else
+             c%at(i)%rnn2 = 0d0
+          end if
+       end do
+
+       ! xxxx on the way out
        if (haveatoms) then
           ! Build the atomic environments
           call c%env%build(c%ismolecule,c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_x2c)
-
-          ! Find the atomic connectivity and the molecular fragments
-          call c%env%find_asterisms_covalent(c%nstar)
-          call c%fill_molecular_fragments()
-          call c%calculate_molecular_equivalence()
-
-          ! calculate vacuum lengths
-          allocate(xcoord(2*c%ncel),iord(2*c%ncel))
-          do i = 1, 3
-             do j = 1, c%ncel
-                xcoord(j) = (c%atcel(j)%x(i) - floor(c%atcel(j)%x(i))) * c%aa(i)
-                xcoord(c%ncel+j) = xcoord(j) + c%aa(i)
-                iord(j) = j
-                iord(c%ncel+j) = c%ncel + j
-             end do
-             call qcksort(xcoord,iord,1,2*c%ncel)
-             c%vaclength(i) = 0d0
-             do j = 2, 2*c%ncel
-                c%vaclength(i) = max(c%vaclength(i),xcoord(iord(j))-xcoord(iord(j-1)))
-             end do
-          end do
-          deallocate(xcoord,iord)
-
-          ! Write the half nearest-neighbor distance
-          do i = 1, c%nneq
-             if (.not.c%ismolecule .or. c%ncel > 1) then
-                call c%env%nearest_atom(c%at(i)%r,icrd_cart,iat,dist,nozero=.true.)
-                c%at(i)%rnn2 = 0.5d0 * dist
-             else
-                c%at(i)%rnn2 = 0d0
-             end if
-          end do
        end if
     end if
 
