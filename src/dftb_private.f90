@@ -18,7 +18,7 @@
 ! DFTB+ wavefunctions and readers
 module dftb_private
   use grid1mod, only: grid1
-  use environmod, only: environ
+  use crystalmod, only: crystal
   use types, only: thread_info
   implicit none
 
@@ -58,8 +58,7 @@ module dftb_private
      ! structural info
      real*8 :: globalcutoff = 0d0
      real*8, allocatable :: spcutoff(:,:)
-     logical :: isealloc = .false.
-     type(environ), pointer :: e
+     type(crystal), pointer :: c
    contains
      procedure :: end => dftb_end
      procedure :: read => dftb_read
@@ -71,13 +70,12 @@ module dftb_private
      module subroutine dftb_end(f)
        class(dftbwfn), intent(inout) :: f
      end subroutine dftb_end
-     module subroutine dftb_read(f,filexml,filebin,filehsd,env,errmsg,ti)
-       use types, only: anyatom, species
+     module subroutine dftb_read(f,c,filexml,filebin,filehsd,errmsg,ti)
        class(dftbwfn), intent(inout) :: f
+       type(crystal), intent(in), target :: c
        character*(*), intent(in) :: filexml
        character*(*), intent(in) :: filebin
        character*(*), intent(in) :: filehsd
-       type(environ), intent(in), target :: env
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine dftb_read

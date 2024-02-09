@@ -760,7 +760,7 @@ contains
           elseif (sys(i)%f(j)%type == type_pi) then
              if (.not.sys(i)%f(j)%pi%isealloc) sys(i)%f(j)%pi%e => sys(i)%c%env
           elseif (sys(i)%f(j)%type == type_dftb) then
-             if (.not.sys(i)%f(j)%dftb%isealloc) sys(i)%f(j)%dftb%e => sys(i)%c%env
+             sys(i)%f(j)%dftb%c => sys(i)%c
           elseif (sys(i)%f(j)%type == type_elk) then
              sys(i)%f(j)%elk%e => sys(i)%c%env
           elseif (sys(i)%f(j)%type == type_grid) then

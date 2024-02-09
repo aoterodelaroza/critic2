@@ -47,25 +47,21 @@ contains
     if (allocated(f%idxorb)) deallocate(f%idxorb)
     if (allocated(f%bas)) deallocate(f%bas)
     if (allocated(f%spcutoff)) deallocate(f%spcutoff)
-    if (f%isealloc) then
-       if (associated(f%e)) deallocate(f%e)
-    end if
-    nullify(f%e)
-    f%isealloc = .false.
+    nullify(f%c)
 
   end subroutine dftb_end
 
   !> Read the information for a DFTB+ field from the detailed.xml,
   !> eigenvec.bin, and the basis set definition in HSD format.
-  module subroutine dftb_read(f,filexml,filebin,filehsd,env,errmsg,ti)
+  module subroutine dftb_read(f,c,filexml,filebin,filehsd,errmsg,ti)
     use types, only: anyatom, species
     use tools_io, only: fopen_read, getline_raw, lower, string, fclose
     use param, only: tpi
     class(dftbwfn), intent(inout) :: f !< Output field
+    type(crystal), intent(in), target :: c
     character*(*), intent(in) :: filexml !< The detailed.xml file
     character*(*), intent(in) :: filebin !< The eigenvec.bin file
     character*(*), intent(in) :: filehsd !< The definition of the basis set in hsd format
-    type(environ), intent(in), target :: env !< environment of the cell
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
@@ -169,7 +165,7 @@ contains
     allocate(f%bas(10))
     n = 0
     do while(next_hsd_atom(lu,at,iserr))
-       if (.not.any(env%spc(1:env%nspc)%z == at%z)) cycle
+       if (.not.any(c%spc(1:c%nspc)%z == at%z)) cycle
        n = n + 1
        if (n > size(f%bas)) call realloc_dftbbasis(f%bas,2*n)
        f%bas(n) = at
@@ -183,11 +179,11 @@ contains
 
     ! tie the atomic numbers to the basis types
     if (allocated(f%ispec)) deallocate(f%ispec)
-    allocate(f%ispec(env%nspc))
+    allocate(f%ispec(c%nspc))
     f%ispec = 0
-    do i = 1, env%nspc
+    do i = 1, c%nspc
        do j = 1, n
-          if (f%bas(j)%z == env%spc(i)%z) then
+          if (f%bas(j)%z == c%spc(i)%z) then
              f%ispec(i) = j
              exit
           end if
@@ -196,12 +192,12 @@ contains
 
     ! indices for the atomic orbitals, for array sizes later on
     if (allocated(f%idxorb)) deallocate(f%idxorb)
-    allocate(f%idxorb(env%ncell))
+    allocate(f%idxorb(c%ncel))
     n = 0
     f%maxnorb = 0
     f%maxlm = 0
-    do i = 1, env%ncell
-       id = f%ispec(env%at(i)%is)
+    do i = 1, c%ncel
+       id = f%ispec(c%atcel(i)%is)
        if (id == 0) then
           lu = -1
           errmsg = "basis missing for atomic number"
@@ -226,10 +222,10 @@ contains
 
     ! find the individual species cutoffs and maximum cutoff
     if (allocated(f%spcutoff)) deallocate(f%spcutoff)
-    allocate(f%spcutoff(env%nspc,2))
+    allocate(f%spcutoff(c%nspc,2))
     f%spcutoff = 0d0
     f%globalcutoff = -1d0
-    do i = 1, env%nspc
+    do i = 1, c%nspc
        id = f%ispec(i)
        do j = 1, f%bas(id)%norb
           f%spcutoff(i,2) = max(f%spcutoff(i,2),f%bas(id)%cutoff(j))
@@ -237,22 +233,8 @@ contains
        f%globalcutoff = max(f%globalcutoff,f%spcutoff(i,2))
     end do
 
-    if (f%isealloc) then
-       if (associated(f%e)) deallocate(f%e)
-    end if
-    nullify(f%e)
-    if (f%globalcutoff >= env%dmax0 .and..not.env%ismolecule) then
-       ! Create a new environment to satisfy all searches.
-       ! The environment contains all the atoms in molecules anyway.
-       f%isealloc = .true.
-       nullify(f%e)
-       allocate(f%e)
-       call f%e%extend(env,f%globalcutoff)
-    else
-       ! keep a pointer to the environment
-       f%isealloc = .false.
-       f%e => env
-    end if
+    ! save the pointer to the crystal
+    f%c => c
 
     errmsg = ""
     return
@@ -292,8 +274,8 @@ contains
     integer :: nenvl, ionl
     integer :: imin, ip, im, iphas
     complex*16 :: xgrad1(3), xgrad2(3), xhess1(6), xhess2(6)
-    integer :: nenv, lvec(3), ierr, lenv(3)
-    integer, allocatable :: eid(:)
+    integer :: nenv, ierr, lenv(3)
+    integer, allocatable :: eid(:), lvec(:,:)
     real*8, allocatable :: dist(:)
 
     real*8, parameter :: docc_cutoff = 1d-20
@@ -303,8 +285,7 @@ contains
     grad = 0d0
     h = 0d0
     gkin = 0d0
-    call f%e%list_near_atoms(xpos,icrd_cart,.false.,nenv,ierr,eid,dist,lvec,up2dsp=f%spcutoff)
-    lvecc = f%e%x2c(real(lvec,8))
+    call f%c%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,up2dsp=f%spcutoff)
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     ! precalculate the quantities that depend only on the environment
@@ -326,8 +307,10 @@ contains
 
     nenvl = 0
     do ion = 1, nenv
-       xion = xpos - (f%e%at(eid(ion))%r + lvecc)
-       it = f%ispec(f%e%at(eid(ion))%is)
+       lvecc = real(lvec(:,ion),8)
+       lvecc = f%c%x2c(lvecc)
+       xion = xpos - (f%c%atcel(eid(ion))%r + lvecc)
+       it = f%ispec(f%c%atcel(eid(ion))%is)
 
        ! apply the distance cutoff
        rcut = maxval(f%bas(it)%cutoff(1:f%bas(it)%norb))
@@ -386,7 +369,7 @@ contains
           end do
        end do
 
-       lenv = floor(f%e%xr2x(f%e%at(eid(ion))%x) + lvec)
+       lenv = floor(f%c%atcel(eid(ion))%x + lvec(:,ion))
        ! calculate the phases
        if (.not.f%isreal) then
           do ik = 1, f%nkpt
@@ -424,10 +407,10 @@ contains
                 ! run over atoms
                 do ionl = 1, nenvl
                    ion = idxion(ionl)
-                   it = f%ispec(f%e%at(ion)%is)
+                   it = f%ispec(f%c%atcel(ion)%is)
 
                    ! run over atomic orbitals
-                   ixorb0 = f%idxorb(f%e%at(ion)%cidx)
+                   ixorb0 = f%idxorb(ion)
                    ixorb = ixorb0 - 1
                    do iorb = 1, f%bas(it)%norb
                       ! run over ms for the same l
@@ -512,10 +495,10 @@ contains
              ! run over atoms
              do ionl = 1, nenvl
                 ion = idxion(ionl)
-                it = f%ispec(f%e%at(ion)%is)
+                it = f%ispec(f%c%atcel(ion)%is)
 
                 ! run over atomic orbitals
-                ixorb0 = f%idxorb(f%e%at(ion)%cidx)
+                ixorb0 = f%idxorb(ion)
                 ixorb = ixorb0 - 1
                 do iorb = 1, f%bas(it)%norb
                    ! run over ms for the same l

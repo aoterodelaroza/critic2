@@ -43,20 +43,20 @@
   Coordinates (ang): -0.0000000  0.4253917  2.0088000  
 + Field: 1
   Type : (3,-1)
-  Field value (f): 2.118996955E-01
-  Field value, valence (fval): 2.118996955E-01
-  Gradient (grad f): -1.352621828E-02  -9.114559454E-02  -1.873632109E-01  
-  Gradient norm (|grad f|): 2.087952365E-01
+  Field value (f): 2.118999070E-01
+  Field value, valence (fval): 2.118999070E-01
+  Gradient (grad f): -1.353408131E-02  -9.114307959E-02  -1.873632916E-01  
+  Gradient norm (|grad f|): 2.087947206E-01
   Gradient norm, valence: 0.000000000E+00
-  Kinetic energy density (G,tau): 1.408621047E-01
-  Laplacian (del2 f): -5.954515902E-01
-  Laplacian, valence (del2 fval): -5.954515902E-01
+  Kinetic energy density (G,tau): 1.408535607E-01
+  Laplacian (del2 f): -5.954857661E-01
+  Laplacian, valence (del2 fval): -5.954857661E-01
   Hessian:
-    -4.090433843E-01   2.803068509E-02   2.639420760E-02  
-     2.803068509E-02  -2.433345136E-02   7.128795985E-02  
-     2.639420760E-02   7.128795985E-02  -1.620747545E-01  
-  Hessian eigenvalues: -4.129643954E-01  -1.915310508E-01  9.043855987E-03  
-  Ellipticity (l_1/l_2 - 1): 1.156122434E+00
+    -4.090566663E-01   2.806235039E-02   2.640182081E-02  
+     2.806235039E-02  -2.435426991E-02   7.128611878E-02  
+     2.640182081E-02   7.128611878E-02  -1.620748300E-01  
+  Hessian eigenvalues: -4.129824536E-01  -1.915338216E-01  9.030509149E-03  
+  Ellipticity (l_1/l_2 - 1): 1.156185524E+00
   Field 0 (f,|grad|,lap): 2.061296331E-01  2.144342739E-01  -3.493188039E-01  
-  Field 2 (f,|grad|,lap): 2.118996960E-01  2.087952382E-01  -5.954515853E-01  
+  Field 2 (f,|grad|,lap): 2.118999075E-01  2.087947223E-01  -5.954857612E-01  
 

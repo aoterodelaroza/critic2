@@ -381,7 +381,7 @@ contains
 
     elseif (seed%iff == ifformat_dftb) then
        call f%dftb%end()
-       call f%dftb%read(seed%file(1),seed%file(2),seed%file(3),f%c%env,errmsg,ti=ti)
+       call f%dftb%read(f%c,seed%file(1),seed%file(2),seed%file(3),errmsg,ti=ti)
        f%type = type_dftb
        f%file = seed%file(1)
 
