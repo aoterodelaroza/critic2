@@ -20,7 +20,7 @@
 
 !> Interface to aiPI (pi7) densities and structures.
 module pi_private
-  use environmod, only: environ
+  use crystalmod, only: crystal
   use grid1mod, only: grid1
   use types, only: thread_info
   implicit none
@@ -47,8 +47,7 @@ module pi_private
      type(piatom), allocatable :: bas(:)
      real*8 :: globalcutoff = 0d0
      real*8, allocatable :: spcutoff(:,:)
-     logical :: isealloc = .false.
-     type(environ), pointer :: e
+     type(crystal), pointer :: c
    contains
      procedure :: end => pi_end
      procedure :: read => pi_read
@@ -60,13 +59,13 @@ module pi_private
      module subroutine pi_end(f)
        class(piwfn), intent(inout) :: f
      end subroutine pi_end
-     module subroutine pi_read(f,nfile,piat,file,env,errmsg,ti)
+     module subroutine pi_read(f,c,nfile,piat,file,errmsg,ti)
        use param, only: mlen
        class(piwfn), intent(inout) :: f
+       type(crystal), intent(in), target :: c
        integer, intent(in) :: nfile
        character*10, intent(in) :: piat(:)
        character(len=mlen), intent(in) :: file(:)
-       type(environ), intent(in), target :: env
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine pi_read

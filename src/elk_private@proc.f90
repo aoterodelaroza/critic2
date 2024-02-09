@@ -49,6 +49,7 @@ contains
     if (allocated(f%rhomt)) deallocate(f%rhomt)
     if (allocated(f%rhok)) deallocate(f%rhok)
     if (allocated(f%rmt)) deallocate(f%rmt)
+    nullify(f%c)
 
   end subroutine elkwfn_end
 

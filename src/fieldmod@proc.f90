@@ -320,7 +320,7 @@ contains
        endif
 
     elseif (seed%iff == ifformat_pi) then
-       call f%pi%read(seed%nfile,seed%piat,seed%file,f%c%env,errmsg,ti=ti)
+       call f%pi%read(f%c,seed%nfile,seed%piat,seed%file,errmsg,ti=ti)
        f%type = type_pi
        f%file = "<pi ion files>"
 

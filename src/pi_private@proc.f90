@@ -42,24 +42,20 @@ contains
 
     if (allocated(f%bas)) deallocate(f%bas)
     if (allocated(f%spcutoff)) deallocate(f%spcutoff)
-    if (f%isealloc) then
-       if (associated(f%e)) deallocate(f%e)
-    end if
-    nullify(f%e)
-    f%isealloc = .false.
+    nullify(f%c)
 
   end subroutine pi_end
 
   !> Build a pi field from external file
-  module subroutine pi_read(f,nfile,piat,file,env,errmsg,ti)
+  module subroutine pi_read(f,c,nfile,piat,file,errmsg,ti)
     use global, only: cutrad
     use tools_io, only: isinteger, equali
     use param, only: mlen
     class(piwfn), intent(inout) :: f
+    type(crystal), intent(in), target :: c
     integer, intent(in) :: nfile
     character*10, intent(in) :: piat(:)
     character(len=mlen), intent(in) :: file(:)
-    type(environ), intent(in), target :: env
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
@@ -74,13 +70,13 @@ contains
     errmsg = ""
     ! restart and allocate all fields
     if (allocated(f%bas)) deallocate(f%bas)
-    allocate(f%bas(env%nspc))
+    allocate(f%bas(c%nspc))
 
     do i = 1, nfile
        iok = isinteger(ithis,piat(i))
        found = .false.
-       do j = 1, env%nspc
-          if (equali(piat(i),env%spc(j)%name)) then
+       do j = 1, c%nspc
+          if (equali(piat(i),c%spc(j)%name)) then
              call read_ion(f,file(i),j,errmsg,ti=ti)
              if (len_trim(errmsg) > 0) goto 999
              found = .true.
@@ -100,37 +96,22 @@ contains
 
     ! find the individual species cutoffs and maximum cutoff
     if (allocated(f%spcutoff)) deallocate(f%spcutoff)
-    allocate(f%spcutoff(env%nspc,2))
+    allocate(f%spcutoff(c%nspc,2))
     f%spcutoff = 0d0
     f%globalcutoff = -1d0
-    do i = 1, env%nspc
-       f%spcutoff(i,2) = cutrad(env%spc(i)%z)
+    do i = 1, c%nspc
+       f%spcutoff(i,2) = cutrad(c%spc(i)%z)
        f%globalcutoff = max(f%globalcutoff,f%spcutoff(i,2))
     end do
 
     ! pointer to the environment
-    if (f%isealloc) then
-       if (associated(f%e)) deallocate(f%e)
-    end if
-    nullify(f%e)
-    if (f%globalcutoff >= env%dmax0 .and..not.env%ismolecule) then
-       ! Create a new environment to satisfy all searches.
-       ! The environment contains all the atoms in molecules anyway.
-       f%isealloc = .true.
-       nullify(f%e)
-       allocate(f%e)
-       call f%e%extend(env,f%globalcutoff)
-    else
-       ! keep a pointer to the environment
-       f%isealloc = .false.
-       f%e => env
-    end if
+    f%c => c
 
     ! fill the interpolation tables
-    do i = 1, env%nspc
+    do i = 1, c%nspc
        if (.not.f%bas(i)%pi_used) cycle
        ! determine cutoff radius (crad)
-       crad = cutrad(env%spc(i)%z)
+       crad = cutrad(c%spc(i)%z)
        call rhoex1(f,i,crad,rrho,rrho1,rrho2)
        do while (rrho > pi_cutdens)
           crad = crad * 1.05d0
@@ -138,10 +119,10 @@ contains
        end do
 
        ! fill some grid info
-       f%bas(i)%pgrid%z = env%spc(i)%z
+       f%bas(i)%pgrid%z = c%spc(i)%z
        f%bas(i)%pgrid%qat = 0
        f%bas(i)%pgrid%isinit = .true.
-       f%bas(i)%pgrid%a = az / real(env%spc(i)%z,8)
+       f%bas(i)%pgrid%a = az / real(c%spc(i)%z,8)
        f%bas(i)%pgrid%b = b
        f%bas(i)%pgrid%ngrid = ceiling(log(crad/f%bas(i)%pgrid%a) / f%bas(i)%pgrid%b) + 1
        f%bas(i)%pgrid%rmax = f%bas(i)%pgrid%a * exp((f%bas(i)%pgrid%ngrid - 1) * f%bas(i)%pgrid%b)
@@ -185,28 +166,30 @@ contains
     real*8 :: phi, phip, phipp, zj, or
     real*8 :: rhop, rhopp, rhofac1, xx2r(3), xxion(3), rfac, radd
     integer :: n0, nm1, nm2, nenv, ierr
-    real*8 :: tmprho
-    integer, allocatable :: eid(:)
+    real*8 :: tmprho, lvecc(3)
+    integer, allocatable :: eid(:), lvec(:,:)
 
     ! calculate the environment of the input point
     rho = 0d0
     grad = 0d0
     h = 0d0
-    call f%e%list_near_atoms(xpos,icrd_cart,.false.,nenv,ierr,eid,up2dsp=f%spcutoff)
+    call f%c%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,lvec=lvec,up2dsp=f%spcutoff)
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     if (exact) then
        ! calculate exactly the contribution of each atom
        !.....recorre todos los iones de la red
        do ion= 1, nenv
-          ni = f%e%at(eid(ion))%is
+          ni = f%c%atcel(eid(ion))%is
           if (.not.f%bas(ni)%pi_used) cycle
           rhop = 0d0
           rhopp = 0d0
           !
-          xion = xpos(1) - f%e%at(eid(ion))%r(1)
-          yion = xpos(2) - f%e%at(eid(ion))%r(2)
-          zion = xpos(3) - f%e%at(eid(ion))%r(3)
+          lvecc = lvec(:,ion)
+          lvecc = f%c%x2c(lvecc)
+          xion = xpos(1) - (f%c%atcel(eid(ion))%r(1) + lvecc(1))
+          yion = xpos(2) - (f%c%atcel(eid(ion))%r(2) + lvecc(2))
+          zion = xpos(3) - (f%c%atcel(eid(ion))%r(3) + lvecc(3))
           xxion = (/ xion, yion, zion /)
           rions2 = xion*xion+yion*yion+zion*zion
           rion = sqrt(rions2)
@@ -281,10 +264,12 @@ contains
     else
        ! use the density grids
        do i = 1, nenv
-          ni = f%e%at(eid(i))%is
+          ni = f%c%atcel(eid(i))%is
           if (.not.f%bas(ni)%pi_used) cycle
 
-          xxion = xpos - f%e%at(eid(i))%r
+          lvecc = lvec(:,i)
+          lvecc = f%c%x2c(lvecc)
+          xxion = xpos - (f%c%atcel(eid(i))%r + lvecc)
           rion = max(norm2(xxion),eps0)
           rion1 = 1d0 / rion
           rion2 = rion1 * rion1

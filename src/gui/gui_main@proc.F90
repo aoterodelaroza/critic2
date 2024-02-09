@@ -758,7 +758,7 @@ contains
           if (sys(i)%f(j)%type == type_wfn) then
              if (.not.sys(i)%f(j)%wfn%isealloc) sys(i)%f(j)%wfn%env => sys(i)%c%env
           elseif (sys(i)%f(j)%type == type_pi) then
-             if (.not.sys(i)%f(j)%pi%isealloc) sys(i)%f(j)%pi%e => sys(i)%c%env
+             sys(i)%f(j)%pi%c => sys(i)%c
           elseif (sys(i)%f(j)%type == type_dftb) then
              sys(i)%f(j)%dftb%c => sys(i)%c
           elseif (sys(i)%f(j)%type == type_elk) then
