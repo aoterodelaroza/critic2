@@ -24,7 +24,7 @@
 
 !> Interface to ELK densities and structures.
 module elk_private
-  use environmod, only: environ
+  use crystalmod, only: crystal
   use types, only: thread_info
   implicit none
 
@@ -45,7 +45,7 @@ module elk_private
      complex*16, allocatable :: rhok(:) ! interstitial rho coeffs
      real*8, allocatable :: rmt(:) ! muffin tin radii
      integer :: n(3) ! interstitial grid size
-     type(environ), pointer :: e ! pointer to the environment
+     type(crystal), pointer :: c ! pointer to the crystal
    contains
      procedure :: end => elkwfn_end !< Deallocate all data
      procedure :: read_out !< Read the elkwfn data from an elk's OUT file
@@ -58,9 +58,9 @@ module elk_private
      module subroutine elkwfn_end(f)
        class(elkwfn), intent(inout) :: f
      end subroutine elkwfn_end
-     module subroutine read_out(f,env,file,file2,file3,errmsg,ti)
+     module subroutine read_out(f,c,file,file2,file3,errmsg,ti)
        class(elkwfn), intent(inout) :: f
-       type(environ), intent(in), target :: env
+       type(crystal), intent(in), target :: c
        character*(*), intent(in) :: file, file2
        character*(*), intent(in), optional :: file3
        character(len=:), allocatable, intent(out), optional :: errmsg

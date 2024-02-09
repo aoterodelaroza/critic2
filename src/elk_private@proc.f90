@@ -53,9 +53,9 @@ contains
   end subroutine elkwfn_end
 
   !> Read a elkwfn scalar field from an OUT file
-  module subroutine read_out(f,env,file,file2,file3,errmsg,ti)
+  module subroutine read_out(f,c,file,file2,file3,errmsg,ti)
     class(elkwfn), intent(inout) :: f
-    type(environ), intent(in), target :: env
+    type(crystal), intent(in), target :: c
     character*(*), intent(in) :: file, file2
     character*(*), intent(in), optional :: file3
     character(len=:), allocatable, intent(out), optional :: errmsg
@@ -71,19 +71,18 @@ contains
     if (len_trim(errmsg) > 0) return
 
     ! state data
-    call read_elk_state(f,file,env,errmsg,ti=ti)
+    call read_elk_state(f,file,c,errmsg,ti=ti)
     if (len_trim(errmsg) > 0) return
 
     ! read the third file
     if (present(file3)) then
-       call read_elk_myout(f,file3,env,errmsg,ti=ti)
+       call read_elk_myout(f,file3,c,errmsg,ti=ti)
        if (len_trim(errmsg) > 0) return
     end if
 
     ! save pointer to the environment
-    maxrmt = maxval(f%rmt(1:env%nspc))
-    nullify(f%e)
-    f%e => env
+    maxrmt = maxval(f%rmt(1:c%nspc))
+    f%c => c
 
   end subroutine read_out
 
@@ -125,16 +124,16 @@ contains
     frho = 0d0
     gfrho = 0d0
     hfrho = 0d0
-    call f%e%nearest_atom(vpl,icrd_crys,nid,dist,lvec=lvec)
+    call f%c%nearest_atom_env(vpl,icrd_crys,nid,dist,lvec=lvec)
 
     ! inside a muffin tin
     inmt = (nid > 0)
     if (inmt) then
-       is = f%e%at(nid)%is
+       is = f%c%atcel(nid)%is
        inmt = dist < f%rmt(is)
     end if
     if (inmt) then
-       v1 = vpl - (f%e%xr2x(f%e%at(nid)%x) - f%e%at(nid)%lvec + lvec)
+       v1 = vpl - (f%c%atcel(nid)%x + lvec)
        v1 = matmul(f%x2c,v1)
        call tosphere(v1,r,tp)
 
@@ -236,8 +235,8 @@ contains
 
     ! atomic spheres
     allocate(rgrid(size(f%rhomt,1)))
-    do iat = 1, f%e%ncell
-       is = f%e%at(iat)%is
+    do iat = 1, f%c%ncel
+       is = f%c%atcel(iat)%is
        lm = 0
        do l = 0, f%lmaxvr
           lp1 = l + 1
@@ -333,14 +332,14 @@ contains
 
   end subroutine elk_geometry
 
-  subroutine read_elk_state(f,filename,env,errmsg,ti)
+  subroutine read_elk_state(f,filename,c,errmsg,ti)
     use tools, only: qcksort
     use tools_io, only: fopen_read, fclose
     use tools_math, only: cross, det3
     use param, only: pi
     class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
-    type(environ), intent(in), target :: env
+    type(crystal), intent(in), target :: c
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
@@ -425,7 +424,7 @@ contains
     read(lu,err=999,end=999) idum  ! ldapu,dftu
     read(lu,err=999,end=999) idum  ! lmmaxdm,lmmaxlu
     ngrtot = ngrid(1)*ngrid(2)*ngrid(3)
-    allocate(rhotmp(lmmaxvr,nrmtmax,env%ncell))
+    allocate(rhotmp(lmmaxvr,nrmtmax,c%ncel))
     allocate(rhoktmp(ngrtot))
     if(isnewer(5,2,10)) then
        read(lu,err=999,end=999) idum ! xcgrad
@@ -437,8 +436,8 @@ contains
 
     ! reorder the rhotmp to rhomt
     if (allocated(f%rhomt)) deallocate(f%rhomt)
-    allocate(f%rhomt(nrmtmax,lmmaxvr,env%ncell))
-    do i = 1, env%ncell
+    allocate(f%rhomt(nrmtmax,lmmaxvr,c%ncel))
+    do i = 1, c%ncel
        do j = 1, nrmtmax
           f%rhomt(j,:,i) = rhotmp(:,j,i)
        end do
@@ -548,11 +547,11 @@ contains
 
   end subroutine read_elk_state
 
-  subroutine read_elk_myout(f,filename,env,errmsg,ti)
+  subroutine read_elk_myout(f,filename,c,errmsg,ti)
     use tools_io, only: fopen_read, fclose
     class(elkwfn), intent(inout) :: f
     character*(*), intent(in) :: filename
-    type(environ), intent(in), target :: env
+    type(crystal), intent(in), target :: c
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
@@ -589,13 +588,13 @@ contains
 
     ! unpack and reorder the rhotmp to rhomt
     f%rhomt = 0d0
-    do i = 1, env%ncell
+    do i = 1, c%ncel
        k = 0
-       do j = 1, nrmti(env%at(i)%is)
+       do j = 1, nrmti(c%atcel(i)%is)
           f%rhomt(j,1:lmmaxi,i) = rhotmp(k+1:k+lmmaxi,i)
           k = k + lmmaxi
        end do
-       do j = nrmti(env%at(i)%is)+1, nrmt(env%at(i)%is)
+       do j = nrmti(c%atcel(i)%is)+1, nrmt(c%atcel(i)%is)
           f%rhomt(j,:,i) = rhotmp(k+1:k+lmmaxo,i)
           k = k + lmmaxo
        end do

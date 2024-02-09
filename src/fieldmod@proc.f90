@@ -309,12 +309,12 @@ contains
           f%file = seed%file(1)
        elseif (seed%nfile == 2) then
           call f%elk%end()
-          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2),errmsg=errmsg,ti=ti)
+          call f%elk%read_out(f%c,seed%file(1),seed%file(2),errmsg=errmsg,ti=ti)
           f%type = type_elk
           f%file = seed%file(1)
        else
           call f%elk%end()
-          call f%elk%read_out(f%c%env,seed%file(1),seed%file(2),seed%file(3),errmsg=errmsg,ti=ti)
+          call f%elk%read_out(f%c,seed%file(1),seed%file(2),seed%file(3),errmsg=errmsg,ti=ti)
           f%type = type_elk
           f%file = seed%file(3)
        endif
