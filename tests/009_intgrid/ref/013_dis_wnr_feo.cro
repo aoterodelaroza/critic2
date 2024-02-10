@@ -205,6 +205,7 @@
   First line: localization index. Next lines: delocalization index
   with all atoms in the environment. Last line: sum of LI + 0.5 * DIs,
   equal to the atomic population. Distances are in bohr.
+
 # Attractor 1 (cp=1, ncp=1, name=fe, Z=26) at: 0.0000000  0.0000000  0.0000000  
 # Id   cp   ncp   Name  Z    Latt. vec.     ----  Cryst. coordinates ----       Distance        LI/DI
   Localization index.......................................................................  5.00297270
