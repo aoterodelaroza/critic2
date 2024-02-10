@@ -386,6 +386,11 @@ contains
        do i = 1, c%ncel
           c%atcel(i)%x = c%at(i)%x
           c%atcel(i)%r = c%at(i)%r
+
+          c%atcel(i)%rxc = c%x2xr(c%atcel(i)%x)
+          c%atcel(i)%rxc = c%atcel(i)%rxc - floor(c%atcel(i)%rxc)
+          c%atcel(i)%rxc = c%xr2c(c%atcel(i)%rxc)
+
           c%atcel(i)%is = c%at(i)%is
        end do
     end if
@@ -552,6 +557,11 @@ contains
        do i = 1, c%ncel
           c%atcel(i)%x = c%at(i)%x
           c%atcel(i)%r = c%at(i)%r
+
+          c%atcel(i)%rxc = c%x2xr(c%atcel(i)%x)
+          c%atcel(i)%rxc = c%atcel(i)%rxc - floor(c%atcel(i)%rxc)
+          c%atcel(i)%rxc = c%xr2c(c%atcel(i)%rxc)
+
           c%atcel(i)%idx = i
           c%atcel(i)%cidx = i
           c%atcel(i)%ir = 1

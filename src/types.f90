@@ -117,8 +117,9 @@ module types
 
   !> Atom from the complete atom list
   type :: celatom
-     real*8 :: x(3)   !< coordinates (crystallographic)
-     real*8 :: r(3)   !< coordinates (Cartesian)
+     real*8 :: x(3) !< coordinates (crystallographic, 0->1)
+     real*8 :: r(3) !< coordinates (Cartesian, same position as x)
+     real*8 :: rxc(3) !< coordinates (Cart., corresponding to 0->1 position in reduced cell)
      integer :: is = 0 !< species
      integer :: idx !< corresponding atom from the non-equivalent atom list
      integer :: cidx !< corresponding atom from the complete atom list

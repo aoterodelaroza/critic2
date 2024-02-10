@@ -871,6 +871,7 @@ contains
        faterr, string, uout, isassignment, getword, zatguess
     use param, only: maxzat0, atmcov, atmvdw
     use systemmod, only: sy ! xxxx
+    use tools_io, only: tictac ! xxxx
     use param, only: icrd_crys, icrd_rcrys, icrd_cart ! xxxx
     character*(*), intent(in) :: line
     integer, intent(inout) :: lp
@@ -884,6 +885,8 @@ contains
     real*8 :: x(3), xx(3), dmax ! xxxx
     integer :: i, j, nat, ierr, nat1, nat2 ! xxxx
     integer :: nid, lvec(3) ! xxxx
+    integer, allocatable :: eid(:), lvecx(:,:)
+    real*8, allocatable :: dist(:)
     real*8 :: dist ! xxxx
     real*8 :: f ! xxxx
     real*8 :: fp(3) ! xxxx
@@ -1076,40 +1079,45 @@ contains
     elseif (equal(word,'temp')) then ! xxxx
        call sy%c%build_env()
 
-       ! dmax = 3d0
-       ! ! x = (/1.5d0,-1.52d0,0.51d0/)
+       dmax = 7d0
        ! x = (/1.5d0,-1.52d0,0.51d0/)
-       ! ! x = 0.5d0
-       ! ! x = (/10.9d0,1.1d0,0.3d0/)
-       ! ! x=(/0.151912d0,0.20933d0,0.00913d0/)
+       ! x = (/1.5d0,-1.52d0,0.51d0/)
+       x = 0.5d0
+       ! x = (/0.9d0,0.1d0,0.3d0/)
+       ! x=(/0.151912d0,0.20933d0,0.00913d0/)
 
-       ! call sy%c%env%promolecular(x,icrd_crys,f,fp,fpp,2)
-       ! write (*,*) "xx1 ",  f
-       ! write (*,*) fp
-       ! write (*,*) fpp
+       call tictac("")
+       do i = 1, 1000
+          call sy%c%env%list_near_atoms(x,icrd_crys,.true.,nat,ierr,eid,dist,lvec,up2n=10)
+       end do
+       call tictac("")
+       ! call sy%c%env%list_near_atoms(x,icrd_crys,.true.,nat,ierr,eid,dist,lvec,up2n=10)
+       ! ! call sy%c%env%promolecular(x,icrd_crys,f,fp,fpp,2)
+       ! do i = 1, nat
+       !    if (sy%c%ismolecule) then
+       !       xx = (sy%c%env%at(eid(i))%r + sy%c%molx0) * 0.529177d0
+       !    else
+       !       xx = sy%c%env%xr2x(sy%c%env%at(eid(i))%x) + lvec
+       !    end if
+       !    write (*,*) i, xx, dist(i)
+       ! end do
        ! write (*,*)
 
-       ! call sy%c%promolecular_env(x,icrd_crys,f,fp,fpp,2)
-       ! write (*,*) "xx1 ",  f
-       ! write (*,*) fp
-       ! write (*,*) fpp
+       call tictac("")
+       do i = 1, 1000
+          call sy%c%list_near_atoms(x,icrd_crys,.true.,nat,eid,dist,lvec=lvecx,up2n=10)
+       end do
+       call tictac("")
+       ! call sy%c%list_near_atoms(x,icrd_crys,.true.,nat,eid,dist,lvec=lvecx,up2sh=10)
+       ! ! call sy%c%promolecular_env(x,icrd_crys,f,fp,fpp,2)
+       ! do i = 1, nat
+       !    xx = sy%c%atcel(eid(i))%x + lvecx(:,i)
+       !    if (sy%c%ismolecule) then
+       !       xx = (sy%c%x2c(xx) + sy%c%molx0) * 0.529177d0
+       !    end if
+       !    write (*,*) i, xx, dist(i)
+       ! end do
        ! write (*,*)
-
-       do i = 1, sy%c%ncel
-          write (*,*) "xx0 ", i, sy%c%nstar(i)%ncon
-          do j = 1, sy%c%nstar(i)%ncon
-             write (*,*) "xx2 ",sy%c%nstar(i)%idcon(j), sy%c%nstar(i)%lcon(:,j)
-          end do
-          write (*,*)
-       end do
-       call sy%c%find_asterisms_covalent()
-       do i = 1, sy%c%ncel
-          write (*,*) "xx0 ", i, sy%c%nstar(i)%ncon
-          do j = 1, sy%c%nstar(i)%ncon
-             write (*,*) "xx2 ",sy%c%nstar(i)%idcon(j), sy%c%nstar(i)%lcon(:,j)
-          end do
-          write (*,*)
-       end do
 
        stop 1
 

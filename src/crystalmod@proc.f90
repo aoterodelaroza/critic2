@@ -443,6 +443,11 @@ contains
                 newmult = newmult + 1
                 c%atcel(iat)%x = atpos(:,j)
                 c%atcel(iat)%r = c%x2c(atpos(:,j))
+
+                c%atcel(iat)%rxc = c%x2xr(atpos(:,j))
+                c%atcel(iat)%rxc = c%atcel(iat)%rxc - floor(c%atcel(iat)%rxc)
+                c%atcel(iat)%rxc = c%xr2c(c%atcel(iat)%rxc)
+
                 c%atcel(iat)%idx = i
                 c%atcel(iat)%cidx = iat
                 c%atcel(iat)%ir = irotm(j)

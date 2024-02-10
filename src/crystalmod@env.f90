@@ -122,7 +122,7 @@ contains
     logical, intent(in), optional :: nozero
 
     logical :: ok, nozero_, docycle, sorted_
-    real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xr(3)
+    real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xr(3), xdif(3), dsqrt
     integer :: i, j, k, ix(3), nx(3), i0(3), i1(3), idx, nn
     integer :: ib(3), ithis(3), nsafe, up2n_, nseen
     integer, allocatable :: at_id(:), at_lvec(:,:)
@@ -130,8 +130,10 @@ contains
     integer :: nb, nshellb
     integer, allocatable :: idb(:,:), iaux(:), iord(:)
     integer :: nshel
+    real*8 :: up2d_2
+    real*8,allocatable :: up2dsp_2(:,:), up2dcidx_2(:)
 
-    real*8, parameter :: eps = 1d-10
+    real*8, parameter :: eps = 1d-20
     integer, parameter :: ixmol_cut = 10 ! cutoff for switching to no-block molecule dist search
     real*8, parameter :: shell_eps = 1d-5
 
@@ -141,10 +143,13 @@ contains
     if (present(nozero)) nozero_ = nozero
     if (present(up2d)) then
        dmax = up2d
+       up2d_2 = up2d * up2d
     elseif (present(up2dsp)) then
        dmax = maxval(up2dsp)
+       up2dsp_2 = up2dsp * up2dsp
     elseif (present(up2dcidx)) then
        dmax = maxval(up2dcidx)
+       up2dcidx_2 = up2dcidx * up2dcidx
     elseif (present(up2n)) then
        !
     elseif (present(up2sh)) then
@@ -175,7 +180,7 @@ contains
 
     ! run the search
     if (present(up2sh).or.present(up2n)) then
-       ! cap the number of shells or the number of atoms
+       !!! search a number of shells or a number of atoms (up2n, up2sh) !!!
 
        up2n_ = 0
        if (present(up2sh)) then
@@ -197,9 +202,9 @@ contains
           call realloc(at_dist,nat)
           call realloc(at_lvec,3,nat)
           do i = 1, c%ncel
-             dd = norm2(c%atcel(i)%r - xorigc)
+             dsqrt = norm2(c%atcel(i)%r - xorigc)
              at_id(i) = i
-             at_dist(i) = dd
+             at_dist(i) = dsqrt
              at_lvec(:,i) = 0
              if (present(up2sh)) &
                 call add_shell_to_output_list()
@@ -221,9 +226,12 @@ contains
                       ithis(3) < 0 .or. ithis(3) >= c%nblock(3)) cycle
                    ib = ithis
                    lvecx = 0
+                   xdif = -xorigc
                 else
                    ib = (/modulo(ithis(1),c%nblock(1)), modulo(ithis(2),c%nblock(2)), modulo(ithis(3),c%nblock(3))/)
                    lvecx = real((ithis - ib) / c%nblock,8)
+                   lvecx = matmul(c%m_xr2c,real((ithis - ib) / c%nblock,8))
+                   xdif = lvecx - xorigc
                 end if
 
                 ! run over atoms in this block
@@ -247,18 +255,17 @@ contains
                       ! calculate distance
                       if (c%ismolecule) then
                          x = c%atcel(idx)%r
+                         dd = dot_product(x - xorigc,x - xorigc)
                       else
-                         xr = c%x2xr(c%atcel(idx)%x)
-                         xr = xr - floor(xr) + lvecx
-                         x = c%xr2c(xr)
+                         dd = dot_product(c%atcel(idx)%rxc + xdif,c%atcel(idx)%rxc + xdif)
                       end if
-                      dd = norm2(x - xorigc)
 
                       ! check if we should add the atom to the list
                       ok = .true.
                       if (nozero_ .and. dd < eps) ok = .false.
                       if (ok) then
                          call add_atom_to_output_list()
+                         dsqrt = at_dist(nat)
                          if (present(up2sh)) &
                             call add_shell_to_output_list()
                       end if
@@ -334,7 +341,7 @@ contains
           deallocate(iaux)
        end if
     else
-       ! find atoms up to a given distance
+       !!! search atoms up to a given distance (up2d*) !!!
 
        ! calculate the number of blocks in each direction required for satifying
        ! that the largest sphere in the super-block has radius > dmax.
@@ -361,9 +368,11 @@ contains
                       k < 0 .or. k >= c%nblock(3)) cycle
                    ib = (/i, j, k/)
                    lvecx = 0
+                   xdif = -xorigc
                 else
                    ib = (/modulo(i,c%nblock(1)), modulo(j,c%nblock(2)), modulo(k,c%nblock(3))/)
-                   lvecx = real(((/i,j,k/) - ib) / c%nblock,8)
+                   lvecx = matmul(c%m_xr2c,real(((/i,j,k/) - ib) / c%nblock,8))
+                   xdif = lvecx - xorigc
                 end if
 
                 ! run over atoms in this block
@@ -383,24 +392,22 @@ contains
                    if (.not.docycle) then
                       ! calculate distance
                       if (c%ismolecule) then
-                         x = c%x2c(c%atcel(idx)%x)
+                         x = c%atcel(idx)%r
+                         dd = dot_product(x - xorigc,x - xorigc)
                       else
-                         xr = c%x2xr(c%atcel(idx)%x)
-                         xr = xr - floor(xr) + lvecx
-                         x = c%xr2c(xr)
+                         dd = dot_product(c%atcel(idx)%rxc + xdif,c%atcel(idx)%rxc + xdif)
                       end if
-                      dd = norm2(x - xorigc)
 
                       ! check if we should add the atom to the list
                       ok = .true.
                       if (nozero_ .and. dd < eps) then
                          ok = .false.
                       elseif (present(up2d)) then
-                         ok = (dd <= dmax)
+                         ok = (dd <= up2d_2)
                       elseif (present(up2dsp)) then
-                         ok = (dd >= up2dsp(c%atcel(idx)%is,1) .and. dd <= up2dsp(c%atcel(idx)%is,2))
+                         ok = (dd >= up2dsp_2(c%atcel(idx)%is,1) .and. dd <= up2dsp_2(c%atcel(idx)%is,2))
                       elseif (present(up2dcidx)) then
-                         ok = (dd <= up2dcidx(idx))
+                         ok = (dd <= up2dcidx_2(idx))
                       end if
                       if (ok) call add_atom_to_output_list()
                    end if
@@ -541,11 +548,11 @@ contains
          call realloc(at_lvec,3,2*nat)
       end if
       at_id(nat) = idx
-      at_dist(nat) = dd
+      at_dist(nat) = sqrt(dd)
       if (c%ismolecule) then
          at_lvec(:,nat) = 0
       else
-         at_lvec(:,nat) = nint(c%xr2x(xr) - c%atcel(idx)%x)
+         at_lvec(:,nat) = nint(matmul(c%m_c2x,c%atcel(idx)%rxc + lvecx) - c%atcel(idx)%x)
       end if
     end subroutine add_atom_to_output_list
 
@@ -553,13 +560,14 @@ contains
       use types, only: realloc
 
       integer :: i
+      real*8 :: d
 
       do i = 1, nshel
-         if (abs(rshel(i) - dd) < shell_eps) return
+         if (abs(rshel(i) - dsqrt) < shell_eps) return
       end do
       nshel = nshel + 1
       if (nshel > size(rshel,1)) call realloc(rshel,2*nshel)
-      rshel(nshel) = dd
+      rshel(nshel) = dsqrt
 
     end subroutine add_shell_to_output_list
 
