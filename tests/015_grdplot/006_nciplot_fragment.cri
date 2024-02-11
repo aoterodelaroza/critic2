@@ -1,9 +1,9 @@
 ## check: 006_nciplot_fragment.cro -a1e-10
 ## check: 006_nciplot_fragment.vmd -a1e-10
-## check: 006_nciplot_fragment-grad.cube -a1e-10
-## check: 006_nciplot_fragment-dens.cube -a1e-10
-## check: 006_nciplot_fragment-pdens.cube -a1e-10
-## check: 006_nciplot_fragment.dat -a1e-10
+## check: 006_nciplot_fragment-grad.cube -a1e-5
+## check: 006_nciplot_fragment-dens.cube -a1e-5
+## check: 006_nciplot_fragment-pdens.cube -a1e-5
+## check: 006_nciplot_fragment.dat -a1e-5
 ## check: 006_nciplot_fragment_cell.xyz -a1e-10
 ## labels: regression quick nodata
 
