@@ -27,7 +27,7 @@ submodule (wfn_private) proc
   ! function gnorm_orca(type,a) result(N)
   ! function wfx_read_integers(lu,n,errmsg) result(x)
   ! function wfx_read_reals1(lu,n,errmsg) result(x)
-  ! subroutine complete_struct(f,env)
+  ! subroutine complete_struct(f,cptr)
 
   ! double factorials minus one
   integer, parameter :: dfacm1(0:8) = (/1,1,1,2,3,8,15,48,105/)
@@ -177,6 +177,7 @@ contains
 
   !> Terminate the wfn arrays
   module subroutine wfn_end(f)
+    use iso_c_binding, only: c_null_ptr
     class(molwfn), intent(inout) :: f
 
     if (allocated(f%icenter)) deallocate(f%icenter)
@@ -199,11 +200,7 @@ contains
     if (allocated(f%c_edf)) deallocate(f%c_edf)
     if (allocated(f%cint)) deallocate(f%cint)
     if (allocated(f%spcutoff)) deallocate(f%spcutoff)
-    if (f%isealloc) then
-       if (associated(f%env)) deallocate(f%env)
-    end if
-    nullify(f%env)
-    f%isealloc = .false.
+    f%cptr = c_null_ptr
 
   end subroutine wfn_end
 
@@ -967,11 +964,11 @@ contains
   end subroutine wfn_read_orca_geometry
 
   !> Read the wavefunction from a wfn file
-  module subroutine read_wfn(f,file,env,errmsg,ti)
+  module subroutine read_wfn(f,cptr,file,errmsg,ti)
     use tools_io, only: fopen_read, zatguess, fclose
     class(molwfn), intent(inout) :: f !< Output field
+    type(c_ptr), intent(in) :: cptr
     character*(*), intent(in) :: file !< Input file
-    type(environ), intent(in), target :: env
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
@@ -1090,7 +1087,7 @@ contains
     call prune_primitives(f)
 
     ! calculate the range of each primitive (in distance^2)
-    call complete_struct(f,env)
+    call complete_struct(f,cptr)
 
 101  format (4X,A4,10X,3(I5,15X))
 102  format(20X,20I3)
@@ -1107,12 +1104,12 @@ contains
   end subroutine read_wfn
 
   !> Read the wavefunction from a wfx file
-  module subroutine read_wfx(f,file,env,errmsg,ti)
+  module subroutine read_wfx(f,cptr,file,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, fclose
     use param, only: mlen
     class(molwfn), intent(inout) :: f !< Output field
+    type(c_ptr), intent(in) :: cptr
     character*(*), intent(in) :: file !< Input file
-    type(environ), intent(in), target :: env
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
@@ -1262,7 +1259,7 @@ contains
     call prune_primitives(f)
 
     ! calculate the range of each primitive (in distance^2)
-    call complete_struct(f,env)
+    call complete_struct(f,cptr)
 
     errmsg = ""
     return
@@ -1272,15 +1269,15 @@ contains
   end subroutine read_wfx
 
   !> Read the wavefunction from a Gaussian formatted checkpoint file (fchk)
-  module subroutine read_fchk(f,file,readvirtual,env,errmsg,ti)
+  module subroutine read_fchk(f,cptr,file,readvirtual,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, isinteger, ferror, warning, fclose
 #ifdef HAVE_CINT
     use param, only: sqpi
 #endif
     class(molwfn), intent(inout) :: f !< Output field
+    type(c_ptr), intent(in) :: cptr
     character*(*), intent(in) :: file !< Input file
     logical, intent(in) :: readvirtual !< Read the virtual orbitals
-    type(environ), intent(in), target :: env
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
@@ -1783,7 +1780,7 @@ contains
     call prune_primitives(f)
 
     ! calculate the range of each primitive (in distance^2)
-    call complete_struct(f,env)
+    call complete_struct(f,cptr)
 
     errmsg = ""
     return
@@ -1797,15 +1794,15 @@ contains
   !> of molden file (orca, psi4).  Uses the environment env for
   !> calculating the range of each primitive. See the manual for the
   !> list of molden-generating programs that have been tested.
-  module subroutine read_molden(f,file,molden_type,readvirtual,env,errmsg,ti)
+  module subroutine read_molden(f,cptr,file,molden_type,readvirtual,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, lower, ferror, warning, lgetword, &
        isinteger, isreal, fclose
     use param, only: mlen
     class(molwfn), intent(inout) :: f !< Output field
+    type(c_ptr), intent(in) :: cptr
     character*(*), intent(in) :: file !< Input file
     integer, intent(in) :: molden_type !< Type of molden file
     logical, intent(in) :: readvirtual !< Read the virtual orbitals
-    type(environ), intent(in), target :: env
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
@@ -2287,7 +2284,7 @@ contains
        call prune_primitives(f)
 
        ! calculate the range of each primitive (in distance^2)
-       call complete_struct(f,env)
+       call complete_struct(f,cptr)
 
        errmsg = ""
        return
@@ -2415,7 +2412,7 @@ contains
     call prune_primitives(f)
 
     ! calculate the range of each primitive (in distance^2)
-    call complete_struct(f,env)
+    call complete_struct(f,cptr)
 
     errmsg = ""
     return
@@ -2452,6 +2449,8 @@ contains
   !> been displaced to the center of a big cube. Same transformation
   !> as in load xyz/wfn/wfx. This routine is thread-safe.
   module subroutine rho2(f,xpos,nder,rho,rhoval,grad,gradval,h,hval,gkin,vir,stress,xmo)
+    use iso_c_binding, only: c_f_pointer
+    use crystalmod, only: crystal
     use param, only: icrd_cart
     class(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
@@ -2477,6 +2476,7 @@ contains
     real*8, allocatable :: dist(:)
     real*8, allocatable :: phi(:,:)
     real*8 :: rhoc, gradc(3), hhc(6), hhval(6,3)
+    type(crystal), pointer :: c
 
     ! initialize and calculate the environment of the point
     rho = 0d0
@@ -2489,7 +2489,8 @@ contains
     gkin = 0d0
     vir = 0d0
     stress = 0d0
-    call f%env%list_near_atoms(xpos,icrd_cart,.false.,nenv,ierr,eid,dist,up2dcidx=f%spcutoff)
+    call c_f_pointer(f%cptr,c)
+    call c%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,up2dcidx=f%spcutoff)
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     ! calculate the MO values and derivatives at the point
@@ -2738,10 +2739,13 @@ contains
     mep = sum(pmn * vmn)
 
     ! calculate the nuclear contribution
-    vnuc = 0d0
-    do i = 1, f%env%n
-       vnuc = vnuc + f%env%spc(f%env%at(i)%is)%z / norm2(xpos - f%env%at(i)%r)
-    end do
+    ! vnuc = 0d0
+    ! do i = 1, f%env%n
+    !    vnuc = vnuc + f%env%spc(f%env%at(i)%is)%z / norm2(xpos - f%env%at(i)%r)
+    ! end do
+    write (*,*) "fixme!"
+    stop 1
+    ! xxxx fixme!
 
     ! final result
     mep = vnuc - mep
@@ -2889,6 +2893,8 @@ contains
   !> Calculate a particular MO values at position xpos (Cartesian) and
   !> returns it in phi. fder is the selector for the MO.
   module subroutine calculate_mo(f,xpos,phi,fder)
+    use iso_c_binding, only: c_f_pointer
+    use crystalmod, only: crystal
     use tools_io, only: lower, isinteger, ferror, faterr, string
     use param, only: icrd_cart
     class(molwfn), intent(in) :: f !< Input field
@@ -2903,6 +2909,7 @@ contains
     integer :: nenv, ierr
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
+    type(crystal), pointer :: c
 
     imo = 0
     lp = 1
@@ -2976,7 +2983,8 @@ contains
        call ferror("calculate_mo","Invalid molecular orbital",faterr)
 
     phi = 0d0
-    call f%env%list_near_atoms(xpos,icrd_cart,.false.,nenv,ierr,eid,dist,up2dcidx=f%spcutoff)
+    call c_f_pointer(f%cptr,c)
+    call c%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,up2dcidx=f%spcutoff)
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     if (f%issto) then
@@ -2998,6 +3006,8 @@ contains
 
   !> Calculate the MO values at position xpos (Cartesian). STO version.
   subroutine calculate_mo_sto(f,xpos,phi,philb,imo0,imo1,nder,nenv,eid,dist)
+    use iso_c_binding, only: c_f_pointer
+    use crystalmod, only: crystal
     type(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     real*8, intent(inout) :: phi(:,:) !< array for the final values
@@ -3014,14 +3024,16 @@ contains
     real*8 :: xx(4), al, ex, exc, xratio(3)
     integer :: ipri, imo, phimo, ityp, ixx(4), iat
     real*8 :: fprod(-2:0,-2:0,-2:0), f0r, f1r, f2r
+    type(crystal), pointer :: c
 
     real*8, parameter :: stoeps = 1d-40
 
     ! run over atoms, then over primitives
     phi = 0d0
+    call c_f_pointer(f%cptr,c)
     do i = 1, nenv
-       iat = f%env%at(eid(i))%cidx
-       xx(1:3) = xpos - f%env%at(iat)%r
+       iat = eid(i)
+       xx(1:3) = xpos - c%atcel(iat)%r
        xx(4) = dist(i)
        ! calculate distances and their powers
        dx = 1d0
@@ -3115,6 +3127,8 @@ contains
 
   !> Calculate the MO values at position xpos (Cartesian). GTO version.
   subroutine calculate_mo_gto(f,xpos,phi,rhoc,gradc,hc,philb,imo0,imo1,nder,nenv,eid,dist)
+    use iso_c_binding, only: c_f_pointer
+    use crystalmod, only: crystal
     type(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     real*8, intent(inout) :: phi(:,:) !< array for the final values
@@ -3134,6 +3148,7 @@ contains
     real*8 :: al, ex, xl(3,0:2,0:5), d2, xx(3)
     real*8 :: chi(10)
     integer :: i, j
+    type(crystal), pointer :: c
 
     integer, parameter :: imax(0:2) = (/1,4,10/)
     integer, parameter :: li(3,56) = reshape((/&
@@ -3149,14 +3164,15 @@ contains
        3,1,1, 3,2,0, 4,0,1, 4,1,0, 5,0,0/),shape(li)) ! h
 
     ! run over atoms, then over primitives
+    call c_f_pointer(f%cptr,c)
     rhoc = 0d0
     gradc = 0d0
     hc = 0d0
     phi = 0d0
     do i = 1, nenv
-       iat = f%env%at(eid(i))%cidx
+       iat = eid(i)
        d2 = dist(i) * dist(i)
-       xx = xpos - f%env%at(iat)%r
+       xx = xpos - c%atcel(iat)%r
 
        ! calculate the powers of xyz
        do ix = 1, 3
@@ -3225,6 +3241,8 @@ contains
   end subroutine calculate_mo_gto
 
   subroutine calculate_edf(f,xpos,rhoc,gradc,hc,nder,nenv,eid,dist)
+    use iso_c_binding, only: c_f_pointer
+    use crystalmod, only: crystal
     type(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     real*8, intent(out) :: rhoc
@@ -3237,6 +3255,7 @@ contains
 
     integer :: i, j, ipri, ityp, l(3), iat, ix
     real*8 :: al, ex, exc, xl(3,0:2,0:5), d2, xx(3)
+    type(crystal), pointer :: c
 
     integer, parameter :: li(3,56) = reshape((/&
        0,0,0, & ! s
@@ -3252,14 +3271,15 @@ contains
 
     if (f%nedf == 0) return
 
+    call c_f_pointer(f%cptr,c)
     rhoc = 0d0
     gradc = 0d0
     hc = 0d0
 
     do i = 1, nenv
-       iat = f%env%at(eid(i))%cidx
+       iat = eid(i)
        d2 = dist(i) * dist(i)
-       xx = xpos - f%env%at(iat)%r
+       xx = xpos - c%atcel(iat)%r
 
        ! calculate the powers of xyz
        do ix = 1, 3
@@ -3637,19 +3657,23 @@ contains
   !> it does the same thing with the core functions. This routine sets
   !> f%spcutoff, f%globalcutoff, f%dran, f%lmax, f%icord, f%iprilo,
   !> f%iprihi, f%dran_edf, f%icord_edf, f%iprilo_edf, f%irpihi_edf.
-  subroutine complete_struct(f,env)
+  subroutine complete_struct(f,cptr)
+    use iso_c_binding, only: c_f_pointer
+    use crystalmod, only: crystal
     use tools, only: qcksort
     type(molwfn), intent(inout) :: f
-    type(environ), intent(in), target :: env
+    type(c_ptr), intent(in) :: cptr
 
+    type(crystal), pointer :: c
     integer :: i, iat
     integer, parameter :: limax(56) = (/&
        0,1,1,1,2,2,2,1,1,1,3,3,3,2,2,2,2,2,2,1,4,4,4,3,3,3,3,3,&
        3,2,2,2,2,2,2,5,4,3,3,4,5,4,3,2,3,4,3,2,2,3,3,3,3,4,4,5/)
 
     ! allocate the species cutoffs
+    call c_f_pointer(cptr,c)
     if (allocated(f%spcutoff)) deallocate(f%spcutoff)
-    allocate(f%spcutoff(env%ncell))
+    allocate(f%spcutoff(c%ncel))
     f%spcutoff = 0d0
     f%globalcutoff = -1d0
 
@@ -3657,15 +3681,15 @@ contains
     if (allocated(f%dran)) deallocate(f%dran)
     allocate(f%dran(f%npri))
     if (allocated(f%lmax)) deallocate(f%lmax)
-    allocate(f%lmax(env%ncell))
+    allocate(f%lmax(c%ncel))
     f%lmax = 0
     do i = 1, f%npri
        f%dran(i) = -log(rprim_thres) / f%e(i)
        if (f%issto) then
-          f%spcutoff(env%at(f%icenter(i))%cidx) = max(f%spcutoff(env%at(f%icenter(i))%cidx),f%dran(i))
+          f%spcutoff(f%icenter(i)) = max(f%spcutoff(f%icenter(i)),f%dran(i))
        else
           f%dran(i) = sqrt(f%dran(i))
-          f%spcutoff(env%at(f%icenter(i))%cidx) = max(f%spcutoff(env%at(f%icenter(i))%cidx),f%dran(i))
+          f%spcutoff(f%icenter(i)) = max(f%spcutoff(f%icenter(i)),f%dran(i))
           f%lmax(f%icenter(i)) = max(limax(f%itype(i)),f%lmax(f%icenter(i)))
        end if
     end do
@@ -3681,7 +3705,7 @@ contains
     ! limits for each atom in the ordered primitive list
     if (allocated(f%iprilo)) deallocate(f%iprilo)
     if (allocated(f%iprihi)) deallocate(f%iprihi)
-    allocate(f%iprilo(env%ncell),f%iprihi(env%ncell))
+    allocate(f%iprilo(c%ncel),f%iprihi(c%ncel))
     f%iprilo = 0
     f%iprihi = -1
     do i = 1, f%npri
@@ -3696,7 +3720,7 @@ contains
        allocate(f%dran_edf(f%nedf))
        do i = 1, f%nedf
           f%dran_edf(i) = sqrt(-log(rprim_thres) / f%e_edf(i))
-          f%spcutoff(env%at(f%icenter_edf(i))%cidx) = max(f%spcutoff(env%at(f%icenter_edf(i))%cidx),f%dran_edf(i))
+          f%spcutoff(f%icenter_edf(i)) = max(f%spcutoff(f%icenter_edf(i)),f%dran_edf(i))
        end do
 
        ! Find the ordered list of primitive centers
@@ -3710,7 +3734,7 @@ contains
        ! limits for each atom in the ordered primitive list
        if (allocated(f%iprilo_edf)) deallocate(f%iprilo_edf)
        if (allocated(f%iprihi_edf)) deallocate(f%iprihi_edf)
-       allocate(f%iprilo_edf(env%ncell),f%iprihi_edf(env%ncell))
+       allocate(f%iprilo_edf(c%ncel),f%iprihi_edf(c%ncel))
        f%iprilo_edf = 0
        f%iprihi_edf = -1
        do i = 1, f%nedf
@@ -3721,25 +3745,10 @@ contains
     end if
 
     ! calculate the global cutoff
-    f%globalcutoff = maxval(f%spcutoff(1:env%ncell))
+    f%globalcutoff = maxval(f%spcutoff(1:c%ncel))
 
-    ! associate the environment
-    if (f%isealloc) then
-       if (associated(f%env)) deallocate(f%env)
-    end if
-    nullify(f%env)
-    if (f%globalcutoff >= env%dmax0 .and..not.env%ismolecule) then
-       ! Create a new environment to satisfy all searches.
-       ! The environment contains all the atoms in molecules anyway.
-       f%isealloc = .true.
-       nullify(f%env)
-       allocate(f%env)
-       call f%env%extend(env,f%globalcutoff)
-    else
-       ! keep a pointer to the environment
-       f%isealloc = .false.
-       f%env => env
-    end if
+    ! associate the crystal structure
+    f%cptr = cptr
 
   end subroutine complete_struct
 

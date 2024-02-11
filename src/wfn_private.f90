@@ -23,7 +23,7 @@
 
 ! molecular wavefunction readers and tools
 module wfn_private
-  use environmod, only: environ
+  use iso_c_binding, only: c_ptr
   use types, only: thread_info
   implicit none
 
@@ -125,7 +125,8 @@ module wfn_private
      real*8 :: globalcutoff = 0d0
      real*8, allocatable :: spcutoff(:)
      logical :: isealloc = .false.
-     type(environ), pointer :: env
+     type(c_ptr) :: cptr ! pointer to crystal; gfortran-12,13 throws ICE if I "use crystalmod, only: crystal" in this module,
+                         ! so it is not possible to store this as "type(crystal), pointer" to the parent crystal.
    contains
      procedure :: end => wfn_end !< deallocate all arrays in wfn object
      procedure :: read_wfn !< read wavefunction from a Gaussian wfn file
@@ -257,34 +258,34 @@ module wfn_private
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine wfn_read_orca_geometry
-     module subroutine read_wfn(f,file,env,errmsg,ti)
+     module subroutine read_wfn(f,cptr,file,errmsg,ti)
        class(molwfn), intent(inout) :: f
+       type(c_ptr), intent(in) :: cptr
        character*(*), intent(in) :: file
-       type(environ), intent(in), target :: env
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_wfn
-     module subroutine read_wfx(f,file,env,errmsg,ti)
+     module subroutine read_wfx(f,cptr,file,errmsg,ti)
        class(molwfn), intent(inout) :: f
+       type(c_ptr), intent(in) :: cptr
        character*(*), intent(in) :: file
-       type(environ), intent(in), target :: env
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_wfx
-     module subroutine read_fchk(f,file,readvirtual,env,errmsg,ti)
+     module subroutine read_fchk(f,cptr,file,readvirtual,errmsg,ti)
        class(molwfn), intent(inout) :: f
+       type(c_ptr), intent(in) :: cptr
        character*(*), intent(in) :: file
        logical, intent(in) :: readvirtual
-       type(environ), intent(in), target :: env
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_fchk
-     module subroutine read_molden(f,file,molden_type,readvirtual,env,errmsg,ti)
+     module subroutine read_molden(f,cptr,file,molden_type,readvirtual,errmsg,ti)
        class(molwfn), intent(inout) :: f
+       type(c_ptr), intent(in) :: cptr
        character*(*), intent(in) :: file
        integer, intent(in) :: molden_type
        logical, intent(in) :: readvirtual
-       type(environ), intent(in), target :: env
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_molden

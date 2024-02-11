@@ -245,6 +245,7 @@ contains
   !> found, returns a non-zero-length error message (errmsg).
   !> Some new fields are handled at system level (see load_field_string).
   module subroutine field_new(f,seed,c,id,sptr,errmsg,ti)
+    use iso_c_binding, only: c_loc
     use types, only: realloc
     use fieldseedmod, only: fieldseed
     use arithmetic, only: eval
@@ -400,25 +401,25 @@ contains
 
     elseif (seed%iff == ifformat_wfn) then
        call f%wfn%end()
-       call f%wfn%read_wfn(seed%file(1),f%c%env,errmsg,ti=ti)
+       call f%wfn%read_wfn(c_loc(f%c),seed%file(1),errmsg,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_wfx) then
        call f%wfn%end()
-       call f%wfn%read_wfx(seed%file(1),f%c%env,errmsg,ti=ti)
+       call f%wfn%read_wfx(c_loc(f%c),seed%file(1),errmsg,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_fchk) then
        call f%wfn%end()
-       call f%wfn%read_fchk(seed%file(1),seed%readvirtual,f%c%env,errmsg,ti=ti)
+       call f%wfn%read_fchk(c_loc(f%c),seed%file(1),seed%readvirtual,errmsg,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_molden) then
        call f%wfn%end()
-       call f%wfn%read_molden(seed%file(1),seed%molden_type,seed%readvirtual,f%c%env,errmsg,ti=ti)
+       call f%wfn%read_molden(c_loc(f%c),seed%file(1),seed%molden_type,seed%readvirtual,errmsg,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
