@@ -37,6 +37,7 @@ contains
 
   !> Deallocate data
   module subroutine dftb_end(f)
+    use iso_c_binding, only: c_null_ptr
     class(dftbwfn), intent(inout) :: f
 
     if (allocated(f%docc)) deallocate(f%docc)
@@ -47,18 +48,20 @@ contains
     if (allocated(f%idxorb)) deallocate(f%idxorb)
     if (allocated(f%bas)) deallocate(f%bas)
     if (allocated(f%spcutoff)) deallocate(f%spcutoff)
-    nullify(f%c)
+    f%cptr = c_null_ptr
 
   end subroutine dftb_end
 
   !> Read the information for a DFTB+ field from the detailed.xml,
   !> eigenvec.bin, and the basis set definition in HSD format.
-  module subroutine dftb_read(f,c,filexml,filebin,filehsd,errmsg,ti)
+  module subroutine dftb_read(f,cptr,filexml,filebin,filehsd,errmsg,ti)
+    use crystalmod, only: crystal
+    use iso_c_binding, only: c_f_pointer
     use types, only: anyatom, species
     use tools_io, only: fopen_read, getline_raw, lower, string, fclose
     use param, only: tpi
     class(dftbwfn), intent(inout) :: f !< Output field
-    type(crystal), intent(in), target :: c
+    type(c_ptr), intent(in) :: cptr
     character*(*), intent(in) :: filexml !< The detailed.xml file
     character*(*), intent(in) :: filebin !< The eigenvec.bin file
     character*(*), intent(in) :: filehsd !< The definition of the basis set in hsd format
@@ -70,7 +73,9 @@ contains
     logical :: ok, iread(5), iserr
     type(dftbbasis) :: at
     real*8, allocatable :: dw(:)
+    type(crystal), pointer :: c
 
+    call c_f_pointer(cptr,c)
     errmsg = "Error reading file"
 
     ! detailed.xml, first pass
@@ -234,7 +239,7 @@ contains
     end do
 
     ! save the pointer to the crystal
-    f%c => c
+    f%cptr = cptr
 
     errmsg = ""
     return
@@ -249,6 +254,8 @@ contains
   !> and the G(r) kinetic energy density (gkin).  This routine is
   !> thread-safe.
   module subroutine rho2(f,xpos,exact,nder,rho,grad,h,gkin)
+    use crystalmod, only: crystal
+    use iso_c_binding, only: c_f_pointer
     use tools_math, only: tosphere, genylm, ylmderiv
     use param, only: img, icrd_cart
     class(dftbwfn), intent(inout) :: f !< Input field
@@ -277,15 +284,17 @@ contains
     integer :: nenv, ierr, lenv(3)
     integer, allocatable :: eid(:), lvec(:,:)
     real*8, allocatable :: dist(:)
+    type(crystal), pointer :: c
 
     real*8, parameter :: docc_cutoff = 1d-20
 
     ! calculate the environment of the input point
+    call c_f_pointer(f%cptr,c)
     rho = 0d0
     grad = 0d0
     h = 0d0
     gkin = 0d0
-    call f%c%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,up2dsp=f%spcutoff)
+    call c%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,lvec,up2dsp=f%spcutoff)
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     ! precalculate the quantities that depend only on the environment
@@ -308,9 +317,9 @@ contains
     nenvl = 0
     do ion = 1, nenv
        lvecc = real(lvec(:,ion),8)
-       lvecc = f%c%x2c(lvecc)
-       xion = xpos - (f%c%atcel(eid(ion))%r + lvecc)
-       it = f%ispec(f%c%atcel(eid(ion))%is)
+       lvecc = c%x2c(lvecc)
+       xion = xpos - (c%atcel(eid(ion))%r + lvecc)
+       it = f%ispec(c%atcel(eid(ion))%is)
 
        ! apply the distance cutoff
        rcut = maxval(f%bas(it)%cutoff(1:f%bas(it)%norb))
@@ -369,7 +378,7 @@ contains
           end do
        end do
 
-       lenv = floor(f%c%atcel(eid(ion))%x + lvec(:,ion))
+       lenv = floor(c%atcel(eid(ion))%x + lvec(:,ion))
        ! calculate the phases
        if (.not.f%isreal) then
           do ik = 1, f%nkpt
@@ -407,7 +416,7 @@ contains
                 ! run over atoms
                 do ionl = 1, nenvl
                    ion = idxion(ionl)
-                   it = f%ispec(f%c%atcel(ion)%is)
+                   it = f%ispec(c%atcel(ion)%is)
 
                    ! run over atomic orbitals
                    ixorb0 = f%idxorb(ion)
@@ -495,7 +504,7 @@ contains
              ! run over atoms
              do ionl = 1, nenvl
                 ion = idxion(ionl)
-                it = f%ispec(f%c%atcel(ion)%is)
+                it = f%ispec(c%atcel(ion)%is)
 
                 ! run over atomic orbitals
                 ixorb0 = f%idxorb(ion)

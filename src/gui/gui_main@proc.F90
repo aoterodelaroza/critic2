@@ -758,11 +758,11 @@ contains
           if (sys(i)%f(j)%type == type_wfn) then
              sys(i)%f(j)%wfn%cptr = c_loc(sys(i)%c)
           elseif (sys(i)%f(j)%type == type_pi) then
-             sys(i)%f(j)%pi%c => sys(i)%c
+             sys(i)%f(j)%pi%cptr = c_loc(sys(i)%c)
           elseif (sys(i)%f(j)%type == type_dftb) then
-             sys(i)%f(j)%dftb%c => sys(i)%c
+             sys(i)%f(j)%dftb%cptr = c_loc(sys(i)%c)
           elseif (sys(i)%f(j)%type == type_elk) then
-             sys(i)%f(j)%elk%c => sys(i)%c
+             sys(i)%f(j)%elk%cptr = c_loc(sys(i)%c)
           elseif (sys(i)%f(j)%type == type_grid) then
              sys(i)%f(j)%grid%atenv => sys(i)%c%env
           end if

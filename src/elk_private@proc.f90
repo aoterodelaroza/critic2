@@ -28,8 +28,8 @@ submodule (elk_private) proc
 
   !xx! private procedures
   ! subroutine elk_geometry(f,filename,errmsg,ti)
-  ! subroutine read_elk_state(f,filename,errmsg,ti)
-  ! subroutine read_elk_myout(f,filename,errmsg,ti)
+  ! subroutine read_elk_state(f,cptr,filename,errmsg,ti)
+  ! subroutine read_elk_myout(f,cptr,filename,errmsg,ti)
   ! subroutine sortidx(n,a,idx)
 
   ! private to the module
@@ -38,6 +38,7 @@ submodule (elk_private) proc
 contains
 
   module subroutine elkwfn_end(f)
+    use iso_c_binding, only: c_null_ptr
     class(elkwfn), intent(inout) :: f
 
     if (allocated(f%spr)) deallocate(f%spr)
@@ -49,20 +50,23 @@ contains
     if (allocated(f%rhomt)) deallocate(f%rhomt)
     if (allocated(f%rhok)) deallocate(f%rhok)
     if (allocated(f%rmt)) deallocate(f%rmt)
-    nullify(f%c)
+    f%cptr = c_null_ptr
 
   end subroutine elkwfn_end
 
   !> Read a elkwfn scalar field from an OUT file
-  module subroutine read_out(f,c,file,file2,file3,errmsg,ti)
+  module subroutine read_out(f,cptr,file,file2,file3,errmsg,ti)
+    use crystalmod, only: crystal
+    use iso_c_binding, only: c_f_pointer
     class(elkwfn), intent(inout) :: f
-    type(crystal), intent(in), target :: c
+    type(c_ptr), intent(in) :: cptr
     character*(*), intent(in) :: file, file2
     character*(*), intent(in), optional :: file3
     character(len=:), allocatable, intent(out), optional :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     real*8 :: maxrmt
+    type(crystal), pointer :: c
 
     errmsg = ""
     call f%end()
@@ -72,24 +76,27 @@ contains
     if (len_trim(errmsg) > 0) return
 
     ! state data
-    call read_elk_state(f,file,c,errmsg,ti=ti)
+    call read_elk_state(f,cptr,file,errmsg,ti=ti)
     if (len_trim(errmsg) > 0) return
 
     ! read the third file
     if (present(file3)) then
-       call read_elk_myout(f,file3,c,errmsg,ti=ti)
+       call read_elk_myout(f,cptr,file3,errmsg,ti=ti)
        if (len_trim(errmsg) > 0) return
     end if
 
     ! save pointer to the environment
+    call c_f_pointer(cptr,c)
     maxrmt = maxval(f%rmt(1:c%nspc))
-    f%c => c
+    f%cptr = cptr
 
   end subroutine read_out
 
   !> Calculate the density and its derivatives at a point in the unit
   !> cell vpl (crystallographic).  This routine is thread-safe.
   module subroutine rho2(f,vpl,nder,frho,gfrho,hfrho)
+    use crystalmod, only: crystal
+    use iso_c_binding, only: c_f_pointer
     use tools_math, only: radial_derivs, tosphere, genylm, ylmderiv
     use param, only: icrd_crys
     class(elkwfn), intent(in) :: f
@@ -112,6 +119,7 @@ contains
     real*8 :: xhess(6)
     complex*16 :: xhess1(6), xhess2(6)
     real*8 :: isig
+    type(crystal), pointer :: c
 
     integer :: elem
     real*8, parameter :: twopi1 = 1d0 / sqrt(2d0)
@@ -122,19 +130,20 @@ contains
     elem(l,m)=l*(l+1)+m+1
     !
 
+    call c_f_pointer(f%cptr,c)
     frho = 0d0
     gfrho = 0d0
     hfrho = 0d0
-    call f%c%nearest_atom_env(vpl,icrd_crys,nid,dist,lvec=lvec)
+    call c%nearest_atom_env(vpl,icrd_crys,nid,dist,lvec=lvec)
 
     ! inside a muffin tin
     inmt = (nid > 0)
     if (inmt) then
-       is = f%c%atcel(nid)%is
+       is = c%atcel(nid)%is
        inmt = dist < f%rmt(is)
     end if
     if (inmt) then
-       v1 = vpl - (f%c%atcel(nid)%x + lvec)
+       v1 = vpl - (c%atcel(nid)%x + lvec)
        v1 = matmul(f%x2c,v1)
        call tosphere(v1,r,tp)
 
@@ -225,6 +234,8 @@ contains
 
   !> Convert a given wien2k scalar field into its laplacian.
   module subroutine tolap(f)
+    use crystalmod, only: crystal
+    use iso_c_binding, only: c_f_pointer
     use tools_math, only: radial_derivs
     class(elkwfn), intent(inout) :: f
 
@@ -233,11 +244,13 @@ contains
     integer :: l, lp1, m, lm, is, ir, iat
     real*8 :: r, r1, r2
     real*8, allocatable :: rgrid(:)
+    type(crystal), pointer :: c
 
     ! atomic spheres
+    call c_f_pointer(f%cptr,c)
     allocate(rgrid(size(f%rhomt,1)))
-    do iat = 1, f%c%ncel
-       is = f%c%atcel(iat)%is
+    do iat = 1, c%ncel
+       is = c%atcel(iat)%is
        lm = 0
        do l = 0, f%lmaxvr
           lp1 = l + 1
@@ -333,14 +346,16 @@ contains
 
   end subroutine elk_geometry
 
-  subroutine read_elk_state(f,filename,c,errmsg,ti)
+  subroutine read_elk_state(f,cptr,filename,errmsg,ti)
     use tools, only: qcksort
     use tools_io, only: fopen_read, fclose
     use tools_math, only: cross, det3
     use param, only: pi
+    use crystalmod, only: crystal
+    use iso_c_binding, only: c_f_pointer
     class(elkwfn), intent(inout) :: f
+    type(c_ptr), intent(in) :: cptr
     character*(*), intent(in) :: filename
-    type(crystal), intent(in), target :: c
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
@@ -363,12 +378,14 @@ contains
     integer, allocatable :: ivg(:,:)
     integer :: nrcmtmax
     real*8, allocatable :: rcmt(:,:)
+    type(crystal), pointer :: c
 
     ! inline for version checking
     logical :: isnewer
     isnewer(i,j,k) = (vdum(1)>i).or.(vdum(1)==i.and.vdum(2)>j).or.(vdum(1)==i.and.vdum(2)==j.and.vdum(3)>=k)
 
     ! open the file
+    call c_f_pointer(cptr,c)
     errmsg = "Error reading file"
     lu = fopen_read(filename,"unformatted",ti=ti)
 
@@ -548,11 +565,13 @@ contains
 
   end subroutine read_elk_state
 
-  subroutine read_elk_myout(f,filename,c,errmsg,ti)
+  subroutine read_elk_myout(f,cptr,filename,errmsg,ti)
     use tools_io, only: fopen_read, fclose
+    use crystalmod, only: crystal
+    use iso_c_binding, only: c_f_pointer
     class(elkwfn), intent(inout) :: f
+    type(c_ptr), intent(in) :: cptr
     character*(*), intent(in) :: filename
-    type(crystal), intent(in), target :: c
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
@@ -561,8 +580,10 @@ contains
     integer, allocatable :: nrmti(:), nrmt(:)
     integer :: i, j, k
     real*8, allocatable :: rhoktmp(:), rhotmp(:,:)
+    type(crystal), pointer :: c
 
     ! open the file
+    call c_f_pointer(cptr,c)
     errmsg = "Error reading file"
     lu = fopen_read(filename,"unformatted",ti=ti)
     if (lu < 0) goto 999

@@ -38,21 +38,24 @@ contains
 
   ! Terminate the pi arrays
   module subroutine pi_end(f)
+    use iso_c_binding, only: c_null_ptr
     class(piwfn), intent(inout) :: f
 
     if (allocated(f%bas)) deallocate(f%bas)
     if (allocated(f%spcutoff)) deallocate(f%spcutoff)
-    nullify(f%c)
+    f%cptr = c_null_ptr
 
   end subroutine pi_end
 
   !> Build a pi field from external file
-  module subroutine pi_read(f,c,nfile,piat,file,errmsg,ti)
+  module subroutine pi_read(f,cptr,nfile,piat,file,errmsg,ti)
+    use crystalmod, only: crystal
+    use iso_c_binding, only: c_f_pointer
     use global, only: cutrad
     use tools_io, only: isinteger, equali
     use param, only: mlen
     class(piwfn), intent(inout) :: f
-    type(crystal), intent(in), target :: c
+    type(c_ptr), intent(in) :: cptr
     integer, intent(in) :: nfile
     character*10, intent(in) :: piat(:)
     character(len=mlen), intent(in) :: file(:)
@@ -62,12 +65,14 @@ contains
     integer :: i, j, ithis
     logical :: iok, found
     real*8 :: crad, rrho, rrho1, rrho2
+    type(crystal), pointer :: c
 
     real*8, parameter :: az = exp(-6d0)
     real*8, parameter :: b = 0.002
     real*8, parameter :: pi_cutdens = 1d-12
 
     errmsg = ""
+    call c_f_pointer(cptr,c)
     ! restart and allocate all fields
     if (allocated(f%bas)) deallocate(f%bas)
     allocate(f%bas(c%nspc))
@@ -105,7 +110,7 @@ contains
     end do
 
     ! pointer to the environment
-    f%c => c
+    f%cptr = cptr
 
     ! fill the interpolation tables
     do i = 1, c%nspc
@@ -147,6 +152,8 @@ contains
   !> (cartesian).  It is possible to use the 'approximate' method, by
   !> interpolating on a grid.  This routine is thread-safe.
   module subroutine rho2(f,xpos,exact,rho,grad,h)
+    use crystalmod, only: crystal
+    use iso_c_binding, only: c_f_pointer
     use tools_math, only: ep
     use param, only: pi, one, icrd_cart
     class(piwfn), intent(in) :: f
@@ -168,28 +175,30 @@ contains
     integer :: n0, nm1, nm2, nenv, ierr
     real*8 :: tmprho, lvecc(3)
     integer, allocatable :: eid(:), lvec(:,:)
+    type(crystal), pointer :: c
 
     ! calculate the environment of the input point
     rho = 0d0
     grad = 0d0
     h = 0d0
-    call f%c%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,lvec=lvec,up2dsp=f%spcutoff)
+    call c_f_pointer(f%cptr,c)
+    call c%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,lvec=lvec,up2dsp=f%spcutoff)
     if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     if (exact) then
        ! calculate exactly the contribution of each atom
        !.....recorre todos los iones de la red
        do ion= 1, nenv
-          ni = f%c%atcel(eid(ion))%is
+          ni = c%atcel(eid(ion))%is
           if (.not.f%bas(ni)%pi_used) cycle
           rhop = 0d0
           rhopp = 0d0
           !
           lvecc = lvec(:,ion)
-          lvecc = f%c%x2c(lvecc)
-          xion = xpos(1) - (f%c%atcel(eid(ion))%r(1) + lvecc(1))
-          yion = xpos(2) - (f%c%atcel(eid(ion))%r(2) + lvecc(2))
-          zion = xpos(3) - (f%c%atcel(eid(ion))%r(3) + lvecc(3))
+          lvecc = c%x2c(lvecc)
+          xion = xpos(1) - (c%atcel(eid(ion))%r(1) + lvecc(1))
+          yion = xpos(2) - (c%atcel(eid(ion))%r(2) + lvecc(2))
+          zion = xpos(3) - (c%atcel(eid(ion))%r(3) + lvecc(3))
           xxion = (/ xion, yion, zion /)
           rions2 = xion*xion+yion*yion+zion*zion
           rion = sqrt(rions2)
@@ -264,12 +273,12 @@ contains
     else
        ! use the density grids
        do i = 1, nenv
-          ni = f%c%atcel(eid(i))%is
+          ni = c%atcel(eid(i))%is
           if (.not.f%bas(ni)%pi_used) cycle
 
           lvecc = lvec(:,i)
-          lvecc = f%c%x2c(lvecc)
-          xxion = xpos - (f%c%atcel(eid(i))%r + lvecc)
+          lvecc = c%x2c(lvecc)
+          xxion = xpos - (c%atcel(eid(i))%r + lvecc)
           rion = max(norm2(xxion),eps0)
           rion1 = 1d0 / rion
           rion2 = rion1 * rion1

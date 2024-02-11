@@ -18,7 +18,7 @@
 ! DFTB+ wavefunctions and readers
 module dftb_private
   use grid1mod, only: grid1
-  use crystalmod, only: crystal
+  use iso_c_binding, only: c_ptr
   use types, only: thread_info
   implicit none
 
@@ -58,7 +58,7 @@ module dftb_private
      ! structural info
      real*8 :: globalcutoff = 0d0
      real*8, allocatable :: spcutoff(:,:)
-     type(crystal), pointer :: c
+     type(c_ptr) :: cptr
    contains
      procedure :: end => dftb_end
      procedure :: read => dftb_read
@@ -70,9 +70,9 @@ module dftb_private
      module subroutine dftb_end(f)
        class(dftbwfn), intent(inout) :: f
      end subroutine dftb_end
-     module subroutine dftb_read(f,c,filexml,filebin,filehsd,errmsg,ti)
+     module subroutine dftb_read(f,cptr,filexml,filebin,filehsd,errmsg,ti)
        class(dftbwfn), intent(inout) :: f
-       type(crystal), intent(in), target :: c
+       type(c_ptr), intent(in) :: cptr
        character*(*), intent(in) :: filexml
        character*(*), intent(in) :: filebin
        character*(*), intent(in) :: filehsd

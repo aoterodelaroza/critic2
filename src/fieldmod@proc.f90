@@ -317,20 +317,21 @@ contains
        elseif (seed%nfile == 2) then
           if (.not.allocated(f%elk)) allocate(f%elk)
           call f%elk%end()
-          call f%elk%read_out(f%c,seed%file(1),seed%file(2),errmsg=errmsg,ti=ti)
+          call f%elk%read_out(c_loc(f%c),seed%file(1),seed%file(2),errmsg=errmsg,ti=ti)
           f%type = type_elk
           f%file = seed%file(1)
        else
           if (.not.allocated(f%elk)) allocate(f%elk)
           call f%elk%end()
-          call f%elk%read_out(f%c,seed%file(1),seed%file(2),seed%file(3),errmsg=errmsg,ti=ti)
+          call f%elk%read_out(c_loc(f%c),seed%file(1),seed%file(2),seed%file(3),&
+             errmsg=errmsg,ti=ti)
           f%type = type_elk
           f%file = seed%file(3)
        endif
 
     elseif (seed%iff == ifformat_pi) then
        if (.not.allocated(f%pi)) allocate(f%pi)
-       call f%pi%read(f%c,seed%nfile,seed%piat,seed%file,errmsg,ti=ti)
+       call f%pi%read(c_loc(f%c),seed%nfile,seed%piat,seed%file,errmsg,ti=ti)
        f%type = type_pi
        f%file = "<pi ion files>"
 
@@ -401,7 +402,7 @@ contains
     elseif (seed%iff == ifformat_dftb) then
        if (.not.allocated(f%dftb)) allocate(f%dftb)
        call f%dftb%end()
-       call f%dftb%read(f%c,seed%file(1),seed%file(2),seed%file(3),errmsg,ti=ti)
+       call f%dftb%read(c_loc(f%c),seed%file(1),seed%file(2),seed%file(3),errmsg,ti=ti)
        f%type = type_dftb
        f%file = seed%file(1)
 
