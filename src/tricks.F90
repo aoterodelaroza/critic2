@@ -3996,11 +3996,12 @@ contains
     function fsimple(nprm, prm) result(yfit)
       real*8 :: prm(nprm)
       integer :: nprm
-      real*8 :: yfit(n)
+      real*8, allocatable :: yfit(:)
 
       integer :: i
       real*8 :: x0, gamma, eta, int
 
+      allocate(yfit(n))
       yfit = 0d0
       do i = 1, nprm, 4
          x0 = prm(i)
@@ -4010,6 +4011,7 @@ contains
 
          yfit = yfit + int * (eta * gaussian(x,x0,gamma) + (1-eta) * lorentz(x,x0,gamma))
       end do
+      deallocate(yfit)
 
     end function fsimple
 
