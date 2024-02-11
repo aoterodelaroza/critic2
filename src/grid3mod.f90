@@ -24,6 +24,14 @@ module grid3mod
 
   private
 
+  ! grid interpolation modes
+  integer, parameter, public :: mode_nearest = 1 !< nearest grid node
+  integer, parameter, public :: mode_trilinear = 2 !< trilinear
+  integer, parameter, public :: mode_trispline = 3 !< trispline
+  integer, parameter, public :: mode_tricubic = 4 !< tricubic
+  integer, parameter, public :: mode_smr = 5 !< smoothrho
+  integer, parameter, public :: mode_default = mode_tricubic
+
   !> Information for QE Kohn-Sham states, maybe plus wannier functions
   type qedat
      integer :: nks !< Number of k-points (nk1*nk2*nk3)
@@ -67,7 +75,7 @@ module grid3mod
      integer, allocatable :: vec(:,:) !< grid coordinates of neighbor grid points
      real*8, allocatable :: area(:) !< area of the Voronoi facets
      ! basic grid variables
-     integer :: mode !< interpolation mode
+     integer :: mode = mode_default !< interpolation mode
      real*8, allocatable :: f(:,:,:) !< grid values
      ! trispline interpolation
      real*8, allocatable :: c2(:,:,:,:) !< cubic coefficients
@@ -110,14 +118,6 @@ module grid3mod
      procedure :: new_eval !< grid3 from an arithmetic expression
   end type grid3
   public :: grid3
-
-  ! grid interpolation modes
-  integer, parameter, public :: mode_nearest = 1 !< nearest grid node
-  integer, parameter, public :: mode_trilinear = 2 !< trilinear
-  integer, parameter, public :: mode_trispline = 3 !< trispline
-  integer, parameter, public :: mode_tricubic = 4 !< tricubic
-  integer, parameter, public :: mode_smr = 5 !< smoothrho
-  integer, parameter, public :: mode_default = mode_tricubic
 
   interface
      module subroutine new_eval(f,sptr,n,expr,x2c,env)

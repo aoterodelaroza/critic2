@@ -415,7 +415,7 @@ contains
     type(scalar_value) :: res
     logical :: ok, doortho
     integer :: ix, iy, iz, i, ibnd, ik, inr(3), ispin
-    real*8, allocatable :: lf(:,:,:)
+    real*8, allocatable :: lf(:,:,:), fake(:,:,:)
     logical :: dogrid, useexpr, doheader
     integer :: outform, ishift(3), dopsi
     type(grid3) :: faux
@@ -676,7 +676,7 @@ contains
     ! step sizes and various checks
     if (dogrid) then
        ok = (id > -1)
-       if (ok) ok = ok .and. (sy%f(id)%type == type_grid)
+       if (ok) ok = ok .and. sy%f(id)%type == type_grid .and. allocated(sy%f(id)%grid)
        if (.not.ok) then
           call ferror('rhoplot_cube','CUBE GRID/MLWF/... can only be used with grid fields',faterr,syntax=.true.)
           return
@@ -707,11 +707,11 @@ contains
        if (outform == outform_bincube) then
           call ferror("rhoplot_cube","BINCUBE format is incompatible with HEADER",faterr)
        elseif (outform == outform_cube) then
-          call sy%c%writegrid_cube(sy%f(id)%grid%f,outfile,.true.,.false.,xd,x0+sy%c%molx0)
+          call sy%c%writegrid_cube(fake,outfile,.true.,.false.,xd,x0+sy%c%molx0)
        elseif (outform == outform_vasp) then
-          call sy%c%writegrid_vasp(sy%f(id)%grid%f,outfile,.true.)
+          call sy%c%writegrid_vasp(fake,outfile,.true.)
        elseif (outform == outform_xsf) then
-          call sy%c%writegrid_xsf(sy%f(id)%grid%f,outfile,.true.)
+          call sy%c%writegrid_xsf(fake,outfile,.true.)
        endif
        return
     end if

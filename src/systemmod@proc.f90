@@ -946,7 +946,9 @@ contains
              ok = isinteger(idum,line,lp)
              if (ok) s%propi(s%npropi)%lmax = idum
           elseif (equal(word,"deloc")) then
-             if (s%f(id)%type == type_grid .and. s%f(id)%grid%iswan) then
+             ok = s%f(id)%type == type_grid
+             if (ok) ok = s%f(id)%grid%iswan
+             if (ok) then
                 s%propi(s%npropi)%itype = itype_deloc_wnr
              else
                 s%propi(s%npropi)%itype = itype_deloc_psink

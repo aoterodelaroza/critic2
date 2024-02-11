@@ -332,7 +332,8 @@ contains
     dopro = .false.
     if (ipdens < 0) then
        ipdens = sy%getfieldnum()
-       if (allocated(sy%f(ipdens)%grid%f)) deallocate(sy%f(ipdens)%grid%f)
+       if (allocated(sy%f(ipdens)%grid)) deallocate(sy%f(ipdens)%grid)
+       allocate(sy%f(ipdens)%grid)
        allocate(sy%f(ipdens)%grid%f(n(1),n(2),n(3)))
        sy%f(ipdens)%grid%n = n
        sy%f(ipdens)%grid%f = 0d0
@@ -346,7 +347,8 @@ contains
     docor = .false.
     if (icor < 0 .and..not.(ib > 0 .and. irhoae > 0)) then
        icor = sy%getfieldnum()
-       if (allocated(sy%f(icor)%grid%f)) deallocate(sy%f(icor)%grid%f)
+       if (allocated(sy%f(icor)%grid)) deallocate(sy%f(icor)%grid)
+       allocate(sy%f(icor)%grid)
        allocate(sy%f(icor)%grid%f(n(1),n(2),n(3)))
        sy%f(icor)%grid%n = n
        sy%f(icor)%grid%f = 0d0
@@ -394,6 +396,8 @@ contains
     ! calculate the laplacian and the gradient (if we don't have the b already)
     if (ilap < 0 .and. ib < 0) then
        ilap = sy%getfieldnum()
+       if (allocated(sy%f(ilap)%grid)) deallocate(sy%f(ilap)%grid)
+       allocate(sy%f(ilap)%grid)
        write (uout,'("+ Calculating Laplacian of rho")')
        call sy%f(ilap)%grid%laplacian_hxx(sy%f(irho)%grid,0)
        sy%f(ilap)%isinit = .true.
@@ -404,6 +408,8 @@ contains
     endif
     if (igrad < 0 .and. ib < 0) then
        igrad = sy%getfieldnum()
+       if (allocated(sy%f(igrad)%grid)) deallocate(sy%f(igrad)%grid)
+       allocate(sy%f(igrad)%grid)
        write (uout,'("+ Calculating gradient of rho")')
        call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid)
        sy%f(igrad)%isinit = .true.
@@ -423,7 +429,8 @@ contains
           call ferror("xdm_driver","incongruent sizes of rho and grad",faterr)
        ! allocate a new field for it
        ib = sy%getfieldnum()
-       if (allocated(sy%f(ib)%grid%f)) deallocate(sy%f(ib)%grid%f)
+       if (allocated(sy%f(ib)%grid)) deallocate(sy%f(ib)%grid)
+       allocate(sy%f(ib)%grid)
        allocate(sy%f(ib)%grid%f(n(1),n(2),n(3)))
        sy%f(ib)%grid%n = n
        sy%f(ib)%isinit = .true.
@@ -2113,13 +2120,14 @@ contains
        call ferror("taufromelf","incongruent sizes of rho and elf",faterr)
 
     ! copy the elf field for now
-    if (allocated(sy%f(itau)%grid%c2)) deallocate(sy%f(itau)%grid%c2)
     sy%f(itau) = sy%f(ielf)
     if (allocated(sy%f(itau)%grid%f)) deallocate(sy%f(itau)%grid%f)
     sy%f(itau)%isinit = .true.
 
     ! allocate a temporary field for the gradient
     igrad = sy%getfieldnum()
+    if (allocated(sy%f(igrad)%grid)) deallocate(sy%f(igrad)%grid)
+    allocate(sy%f(igrad)%grid)
     call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid)
     sy%f(igrad)%isinit = .true.
 

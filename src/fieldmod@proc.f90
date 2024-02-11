@@ -70,15 +70,15 @@ contains
     f%typnuc = -3
     f%name = ""
     f%file = ""
-    call f%elk%end()
-    call f%wien%end()
-    call f%pi%end()
-    call f%grid%end()
-    call f%wfn%end()
-    call f%dftb%end()
+    if (allocated(f%elk)) deallocate(f%elk)
+    if (allocated(f%wien)) deallocate(f%wien)
+    if (allocated(f%pi)) deallocate(f%pi)
+    if (allocated(f%grid)) deallocate(f%grid)
+    if (allocated(f%wfn)) deallocate(f%wfn)
+    if (allocated(f%dftb)) deallocate(f%dftb)
+    if (allocated(f%fr)) deallocate(f%fr)
     f%zpsp = -1
     f%expr = ""
-    call f%fr%init()
     f%fcp_deferred = .true.
     if (allocated(f%cp)) deallocate(f%cp)
     if (allocated(f%cpcel)) deallocate(f%cpcel)
@@ -91,9 +91,9 @@ contains
   module subroutine field_set_default_options(ff)
     class(field), intent(inout) :: ff
 
-    call ff%grid%setmode('default')
+    if (allocated(ff%grid)) call ff%grid%setmode('default')
+    if (allocated(ff%wien)) ff%wien%cnorm = .true.
     ff%exact = .false.
-    ff%wien%cnorm = .true.
     ff%usecore = .false.
     ff%numerical = .false.
     ff%typnuc = -3
@@ -128,6 +128,10 @@ contains
        if (equal(word,'tricubic') .or. equal(word,'trispline') .or. &
           equal(word,'trilinear') .or. equal(word,'nearest') .or. &
           equal(word,'smoothrho')) then
+          if (.not.ff%type == type_grid.or..not.allocated(ff%grid)) then
+             errmsg = "tricubic/... incompatible with fields other than grids"
+             return
+          end if
           call ff%grid%setmode(word)
 
           do while (.true.)
@@ -156,7 +160,7 @@ contains
        else if (equal(word,'approximate')) then
           ff%exact = .false.
        else if (equal(word,'rhonorm')) then
-          if (.not.ff%type == type_wien) then
+          if (.not.ff%type == type_wien.or..not.allocated(ff%wien)) then
              errmsg = "rhonorm incompatible with fields other than wien2k"
              return
           end if
@@ -166,7 +170,7 @@ contains
                 ff%wien%slm(:,1,:) = ff%wien%slm(:,1,:) / sqfp
           end if
        else if (equal(word,'vnorm')) then
-          if (.not.ff%type == type_wien) then
+          if (.not.ff%type == type_wien.or..not.allocated(ff%wien)) then
              errmsg = "vnorm incompatible with fields other than wien2k"
              return
           end if
@@ -286,17 +290,18 @@ contains
     f%id = id
     f%name = adjustl(trim(seed%fid))
 
-    ! set the default field flags
-    call f%set_default_options()
-
     ! inherit the pseudopotential charges from the crystal
     f%zpsp = c%zpsp
+
+    ! set the default field flags
+    call f%set_default_options()
 
     ! interpret the seed and load the field
     if (seed%iff == ifformat_unknown) then
        errmsg = "unknown seed format"
 
     elseif (seed%iff == ifformat_wien) then
+       if (.not.allocated(f%wien)) allocate(f%wien)
        call f%wien%end()
        call f%wien%read_clmsum(seed%file(1),seed%file(2),errmsg,ti=ti)
        f%type = type_wien
@@ -304,16 +309,19 @@ contains
 
     elseif (seed%iff == ifformat_elk) then
        if (seed%nfile == 1) then
+          if (.not.allocated(f%grid)) allocate(f%grid)
           call f%grid%end()
           call f%grid%read_elk(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
           f%type = type_grid
           f%file = seed%file(1)
        elseif (seed%nfile == 2) then
+          if (.not.allocated(f%elk)) allocate(f%elk)
           call f%elk%end()
           call f%elk%read_out(f%c,seed%file(1),seed%file(2),errmsg=errmsg,ti=ti)
           f%type = type_elk
           f%file = seed%file(1)
        else
+          if (.not.allocated(f%elk)) allocate(f%elk)
           call f%elk%end()
           call f%elk%read_out(f%c,seed%file(1),seed%file(2),seed%file(3),errmsg=errmsg,ti=ti)
           f%type = type_elk
@@ -321,29 +329,34 @@ contains
        endif
 
     elseif (seed%iff == ifformat_pi) then
+       if (.not.allocated(f%pi)) allocate(f%pi)
        call f%pi%read(f%c,seed%nfile,seed%piat,seed%file,errmsg,ti=ti)
        f%type = type_pi
        f%file = "<pi ion files>"
 
     elseif (seed%iff == ifformat_cube) then
+       if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
        call f%grid%read_cube(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_bincube) then
+       if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
        call f%grid%read_bincube(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_abinit) then
+       if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
        call f%grid%read_abinit(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_vasp .or. seed%iff == ifformat_vaspnov) then
+       if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
        call f%grid%read_vasp(seed%file(1),c%m_x2c,(seed%iff == ifformat_vasp),seed%vaspblk,c%env,&
           errmsg,ti=ti)
@@ -351,42 +364,49 @@ contains
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_qub) then
+       if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
        call f%grid%read_qub(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_xsf) then
+       if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
        call f%grid%read_xsf(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_fmt) then
+       if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
        call f%grid%read_fmt(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_elkgrid) then
+       if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
        call f%grid%read_elk(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_siestagrid) then
+       if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
        call f%grid%read_siesta(seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_dftb) then
+       if (.not.allocated(f%dftb)) allocate(f%dftb)
        call f%dftb%end()
        call f%dftb%read(f%c,seed%file(1),seed%file(2),seed%file(3),errmsg,ti=ti)
        f%type = type_dftb
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_pwc) then
+       if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
 
        f%type = type_grid
@@ -400,24 +420,28 @@ contains
        end if
 
     elseif (seed%iff == ifformat_wfn) then
+       if (.not.allocated(f%wfn)) allocate(f%wfn)
        call f%wfn%end()
        call f%wfn%read_wfn(c_loc(f%c),seed%file(1),errmsg,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_wfx) then
+       if (.not.allocated(f%wfn)) allocate(f%wfn)
        call f%wfn%end()
        call f%wfn%read_wfx(c_loc(f%c),seed%file(1),errmsg,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_fchk) then
+       if (.not.allocated(f%wfn)) allocate(f%wfn)
        call f%wfn%end()
        call f%wfn%read_fchk(c_loc(f%c),seed%file(1),seed%readvirtual,errmsg,ti=ti)
        f%type = type_wfn
        f%file = trim(seed%file(1))
 
     elseif (seed%iff == ifformat_molden) then
+       if (.not.allocated(f%wfn)) allocate(f%wfn)
        call f%wfn%end()
        call f%wfn%read_molden(c_loc(f%c),seed%file(1),seed%molden_type,seed%readvirtual,errmsg,ti=ti)
        f%type = type_wfn
@@ -439,6 +463,7 @@ contains
        f%name = "<promolecular using fragment>"
 
     elseif (seed%iff == ifformat_as_promolecular.or.seed%iff == ifformat_as_core) then
+       if (.not.allocated(f%grid)) allocate(f%grid)
        if (seed%iff == ifformat_as_promolecular) then
           if (seed%nfile > 0) then
              fr = c%identify_fragment_from_xyz(seed%file(1),errmsg,ti=ti)
@@ -466,6 +491,7 @@ contains
        f%name = "<ghost>, " // trim(seed%expr)
 
     elseif (seed%iff == ifformat_as) then
+       if (.not.allocated(f%grid)) allocate(f%grid)
        f%type = type_grid
        f%file = ""
        n = seed%n
@@ -628,6 +654,7 @@ contains
     f%id = id
     f%isinit = .true.
     f%type = type_grid
+    if (.not.allocated(f%grid)) allocate(f%grid)
     if (ityp == ifformat_as_lap) then
        call f%grid%laplacian_hxx(g,0)
     elseif (ityp == ifformat_as_grad) then
@@ -1429,44 +1456,46 @@ contains
     write (uout,'("  Number of non-equivalent critical points: ",A)') string(f%ncp)
     write (uout,'("  Number of critical points in the unit cell: ",A)') string(f%ncpcel)
 
-    if (f%grid%isqe) then
-       if (f%grid%qe%nspin == 1) then
-          fspin = 2d0
-       else
-          fspin = 1d0
+    if (f%type == type_grid) then
+       if (f%grid%isqe) then
+          if (f%grid%qe%nspin == 1) then
+             fspin = 2d0
+          else
+             fspin = 1d0
+          end if
+
+          write (uout,*)
+          write (uout,'("+ Plane-wave Kohn-Sham states for this field")')
+          write (uout,'("  Spin: ",A," K-points: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nks), &
+             string(f%grid%qe%nbnd)
+          do i = 1, f%grid%qe%nks
+             write (uout,'("# kpt ",A," (",A," ",A," ",A,") w=",A)') string(i,2,justify=ioj_right), &
+                (string(f%grid%qe%kpt(j,i),'f',decimal=4,justify=ioj_right),j=1,3),&
+                string(f%grid%qe%wk(i),'e',decimal=8)
+             do is = 1, f%grid%qe%nspin
+                write (uout,'("  Ek(",A,"):",99(" ",A))') string(is),&
+                   (string(f%grid%qe%ek(j,i,1) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+                write (uout,'(" Occ(",A,"):",99(" ",A))') string(is),&
+                   (string(f%grid%qe%occ(j,i,1)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+             end do
+          end do
        end if
 
-       write (uout,*)
-       write (uout,'("+ Plane-wave Kohn-Sham states for this field")')
-       write (uout,'("  Spin: ",A," K-points: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nks), &
-          string(f%grid%qe%nbnd)
-       do i = 1, f%grid%qe%nks
-          write (uout,'("# kpt ",A," (",A," ",A," ",A,") w=",A)') string(i,2,justify=ioj_right), &
-             (string(f%grid%qe%kpt(j,i),'f',decimal=4,justify=ioj_right),j=1,3),&
-             string(f%grid%qe%wk(i),'e',decimal=8)
-          do is = 1, f%grid%qe%nspin
-             write (uout,'("  Ek(",A,"):",99(" ",A))') string(is),&
-                (string(f%grid%qe%ek(j,i,1) * hartoev,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
-             write (uout,'(" Occ(",A,"):",99(" ",A))') string(is),&
-                (string(f%grid%qe%occ(j,i,1)/f%grid%qe%wk(i)*fspin,'f',6,2,justify=ioj_right),j=1,f%grid%qe%nbnd)
+       if (f%grid%iswan) then
+          write (uout,*)
+          write (uout,'("+ Wannier functions information for this field")')
+          write (uout,'("  Real-space lattice vectors: ",3(A," "))') (string(f%grid%qe%nk(i)),i=1,3)
+          write (uout,'("  Spin: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nbnd)
+          write (uout,'("  Wannier function centers (cryst. coords.) and spreads: ")')
+          write (uout,'("# bnd spin        ----  center  ----        spread(",A,")")') iunitname0(iunit)
+          do i = 1, f%grid%qe%nspin
+             do j = 1, f%grid%qe%nbndw(i)
+                write (uout,'("  ",99(A," "))') string(j,4,ioj_center), string(i,2,ioj_center), &
+                   (string(f%grid%qe%center(k,j,i),'f',10,6,4),k=1,3),&
+                   string(f%grid%qe%spread(j,i) * dunit0(iunit),'f',14,8,4)
+             end do
           end do
-       end do
-    end if
-
-    if (f%grid%iswan) then
-       write (uout,*)
-       write (uout,'("+ Wannier functions information for this field")')
-       write (uout,'("  Real-space lattice vectors: ",3(A," "))') (string(f%grid%qe%nk(i)),i=1,3)
-       write (uout,'("  Spin: ",A," Bands: ",A)') string(f%grid%qe%nspin), string(f%grid%qe%nbnd)
-       write (uout,'("  Wannier function centers (cryst. coords.) and spreads: ")')
-       write (uout,'("# bnd spin        ----  center  ----        spread(",A,")")') iunitname0(iunit)
-       do i = 1, f%grid%qe%nspin
-          do j = 1, f%grid%qe%nbndw(i)
-             write (uout,'("  ",99(A," "))') string(j,4,ioj_center), string(i,2,ioj_center), &
-                (string(f%grid%qe%center(k,j,i),'f',10,6,4),k=1,3),&
-                string(f%grid%qe%spread(j,i) * dunit0(iunit),'f',14,8,4)
-          end do
-       end do
+       end if
     end if
 
   end subroutine printinfo

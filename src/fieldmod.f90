@@ -68,14 +68,14 @@ module fieldmod
      character(len=mlen) :: name = "" !< field name
      character(len=mlen) :: file = "" !< file name
      ! scalar field types
-     type(elkwfn) :: elk !< Elk densities
-     type(wienwfn) :: wien !< WIEN2k densities
-     type(piwfn) :: pi !< PI wavefunctions
-     type(grid3) :: grid !< Grid fields
-     type(molwfn) :: wfn !< GTO/STO atom-centered wavefunctions
-     type(dftbwfn) :: dftb !< DFTB wavefunctions
+     type(elkwfn), allocatable :: elk !< Elk densities
+     type(wienwfn), allocatable :: wien !< WIEN2k densities
+     type(piwfn), allocatable :: pi !< PI wavefunctions
+     type(grid3), allocatable :: grid !< Grid fields
+     type(molwfn), allocatable :: wfn !< GTO/STO atom-centered wavefunctions
+     type(dftbwfn), allocatable :: dftb !< DFTB wavefunctions
      ! promolecular and core densities
-     type(fragment) :: fr !< Fragment for the fragment-based promolecular density
+     type(fragment), allocatable :: fr !< Fragment for the fragment-based promolecular density
      integer :: zpsp(maxzat0) !< Pseudopotential charges
      ! ghost field
      character(len=mmlen) :: expr !< Expression for the ghost field

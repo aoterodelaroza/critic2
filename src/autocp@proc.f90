@@ -525,9 +525,11 @@ contains
     ! write the header to the output
     write (uout,'("* Automatic determination of CPs")')
 
-    if (sy%f(sy%iref)%type == type_grid .and. sy%f(sy%iref)%grid%mode == mode_smr) then
-       write (uout,'("  Using grids and smoothrho interpolation, please cite:")')
-       write (uout,'("    A. Otero-de-la-Roza, J. Chem. Phys. 156 (2022) 224116")')
+    if (sy%f(sy%iref)%type == type_grid) then
+       if (sy%f(sy%iref)%grid%mode == mode_smr) then
+          write (uout,'("  Using grids and smoothrho interpolation, please cite:")')
+          write (uout,'("    A. Otero-de-la-Roza, J. Chem. Phys. 156 (2022) 224116")')
+       end if
     end if
 
     write (uout,'("  Discard new CPs if another CP was found at a distance less than: ",A," ",A)') &
