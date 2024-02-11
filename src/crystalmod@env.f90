@@ -74,7 +74,8 @@ contains
   !> - up2dcidx = up to a distance to each atom in the complete list.
   !> - up2sh = up to a number of shells.
   !> - up2n = up to a number of atoms.
-  !> The atom list with up2n is sorted by distance on output.
+  !> If up2n, up2sh, or ishell0 are present, the atom list is sorted by distance on output
+  !> regardless of the value of sorted.
   !>
   !> Optional input:
   !> - nid0 = consider only atoms with index nid0 from the nneq list.
@@ -139,7 +140,7 @@ contains
 
     ! process input
     nozero_ = .false.
-    sorted_ = sorted .or. present(up2n) .or. present(up2sh)
+    sorted_ = sorted .or. present(up2n) .or. present(up2sh) .or. present(ishell0)
     if (present(nozero)) nozero_ = nozero
     if (present(up2d)) then
        dmax = up2d
@@ -318,7 +319,7 @@ contains
              else
                 dmax = rshel(iord(up2sh)) + shell_eps
              end if
-             deallocate(rshel,iord)
+             deallocate(iord)
           end if
 
           ! filter out the unneeded atoms
@@ -436,6 +437,21 @@ contains
        at_dist = at_dist(iord)
        at_lvec = at_lvec(:,iord)
        deallocate(iord)
+    end if
+
+    ! assign shells if requested
+    if (present(ishell0)) then
+       if (allocated(ishell0)) deallocate(ishell0)
+       allocate(ishell0(nat))
+       dd = -1d0
+       k = 0
+       do i = 1, nat
+          if (abs(at_dist(i) - dd) > shell_eps) then
+             k = k + 1
+             dd = at_dist(i)
+          end if
+          ishell0(i) = k
+       end do
     end if
 
     ! reduce the list if up2n (always sorted)
