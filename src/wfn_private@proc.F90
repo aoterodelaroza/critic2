@@ -2683,10 +2683,9 @@ contains
     use iso_c_binding, only: c_f_pointer
     use crystalmod, only: crystal
 #endif
-
-#ifdef HAVE_CINT
     class(molwfn), intent(in) :: f
     real*8, intent(in) :: xpos(3)
+#ifdef HAVE_CINT
     real*8 :: mep
     integer :: i, j, is0
     integer :: nbast, ioff, di, joff, dj

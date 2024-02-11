@@ -122,7 +122,7 @@ contains
     logical, intent(in), optional :: nozero
 
     logical :: ok, nozero_, docycle, sorted_
-    real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xr(3), xdif(3), dsqrt
+    real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xdif(3), dsqrt
     integer :: i, j, k, ix(3), nx(3), i0(3), i1(3), idx, nn
     integer :: ib(3), ithis(3), nsafe, up2n_, nseen
     integer, allocatable :: at_id(:), at_lvec(:,:)
@@ -560,7 +560,6 @@ contains
       use types, only: realloc
 
       integer :: i
-      real*8 :: d
 
       do i = 1, nshel
          if (abs(rshel(i) - dsqrt) < shell_eps) return
@@ -798,17 +797,18 @@ contains
 
   end subroutine promolecular_env
 
+  !> Find the covalent bond connectivity and return the bonds in the
+  !> c%nstar array.
   module subroutine find_asterisms_covalent(c)
     use global, only: bondfactor
-    use tools_io, only: ferror, faterr, uout, string
+    use tools_io, only: string
     use types, only: realloc, celatom
     use param, only: atmcov, icrd_crys
     class(crystal), intent(inout) :: c
 
     integer :: i, j, jj
-    real*8 :: x0(3), dist2, ri, rj, r2
-    integer :: p0(3), p1(3), idx1
-    integer :: j1, j2, j3, ki, kj, is, js
+    real*8 :: ri, rj
+    integer :: is, js
     real*8, allocatable :: rij(:,:,:), dist(:)
     integer :: nat
     integer, allocatable :: eid(:), lvec(:,:)
