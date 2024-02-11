@@ -513,7 +513,7 @@ contains
     use interfaces_cimgui, only: getCurrentWorkDir
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
-    use windows, only: win, iwin_tree, regenerate_window_pointers
+    use windows, only: regenerate_window_pointers
     use interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
     use crystalseedmod, only: read_seeds_from_file, crystalseed
     use tools_io, only: uout

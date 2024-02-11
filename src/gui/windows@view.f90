@@ -1170,7 +1170,7 @@ contains
   module subroutine draw_selection_tooltip(w,idx)
     use interfaces_cimgui
     use utils, only: iw_text
-    use gui_main, only: sys, sysc, fontsize
+    use gui_main, only: sys, fontsize
     use tools_io, only: string
     use tools_math, only: cross
     use param, only: bohrtoa, pi
