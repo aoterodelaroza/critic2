@@ -1272,6 +1272,8 @@ contains
   module subroutine read_fchk(f,cptr,file,readvirtual,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, isinteger, ferror, warning, fclose
 #ifdef HAVE_CINT
+    use iso_c_binding, only: c_f_pointer
+    use crystalmod, only: crystal
     use param, only: sqpi
 #endif
     class(molwfn), intent(inout) :: f !< Output field
@@ -1292,6 +1294,7 @@ contains
     real*8, allocatable :: cnorm(:), cpri(:), rtemp(:,:)
     logical, allocatable :: icdup(:)
 #ifdef HAVE_CINT
+    type(crystal), pointer :: c
     integer :: off
     real*8, external :: CINTgto_norm
     integer, external :: CINTcgto_cart, CINTcgto_spheric
@@ -1637,6 +1640,7 @@ contains
     ! molecular integrals.
     doexit = .false.
 #ifdef HAVE_CINT
+    call c_f_pointer(cptr,c)
     ! For now, only for restricted wavefunctions, although the
     ! following code also works for unrestricted.
     if (f%wfntyp == wfn_rhf) then
@@ -1644,21 +1648,21 @@ contains
        allocate(f%cint)
 
        ! prepare space for the doubles
-       allocate(f%cint%env(cint_ptr_env_start + 4*env%ncell + 2*nshel))
+       allocate(f%cint%env(cint_ptr_env_start + 4*c%ncel + 2*nshel))
        f%cint%env = 0d0
 
        ! atom info
        off = cint_ptr_env_start
-       f%cint%natm = env%ncell
+       f%cint%natm = c%ncel
        allocate(f%cint%atm(6,f%cint%natm))
        f%cint%atm = 0
-       do i = 1, env%ncell
-          f%cint%atm(1,i) = env%spc(env%at(i)%is)%z
+       do i = 1, c%ncel
+          f%cint%atm(1,i) = c%spc(c%atcel(i)%is)%z
           f%cint%atm(2,i) = off
           f%cint%atm(3,i) = 0
           f%cint%atm(4,i) = off + 3
           f%cint%atm(5:6,i) = 0
-          f%cint%env(off+1:off+3) = env%at(i)%r
+          f%cint%env(off+1:off+3) = c%atcel(i)%r
           f%cint%env(off+4) = 0d0
           off = off + 4
        end do
@@ -2675,10 +2679,15 @@ contains
   !> Calculate the molecular electrostatic potential at point xpos (Cartesian).
   module function mep(f,xpos)
     use tools_io, only: faterr, ferror
+#ifdef HAVE_CINT
+    use iso_c_binding, only: c_f_pointer
+    use crystalmod, only: crystal
+#endif
+
+#ifdef HAVE_CINT
     class(molwfn), intent(in) :: f
     real*8, intent(in) :: xpos(3)
     real*8 :: mep
-#ifdef HAVE_CINT
     integer :: i, j, is0
     integer :: nbast, ioff, di, joff, dj
     integer :: shls(4)
@@ -2686,12 +2695,14 @@ contains
     real*8, allocatable :: pmn(:,:), vmn(:,:), buf1e(:,:,:), env(:)
     integer, external :: CINTcgto_cart, CINT1e_rinv_cart
     integer, external :: CINTcgto_spheric, CINT1e_rinv_sph
+    type(crystal), pointer :: c
 
     if (.not.allocated(f%cint)) then
        call ferror('mep','basis set data required for MEP calculation',faterr)
     end if
 
     ! allocate space for the integrals, initialize with the 1-dm
+    call c_f_pointer(f%cptr,c)
     shls = 0
     nbast = f%cint%nbast
     allocate(vmn(nbast,nbast),pmn(nbast,nbast))
@@ -2739,13 +2750,10 @@ contains
     mep = sum(pmn * vmn)
 
     ! calculate the nuclear contribution
-    ! vnuc = 0d0
-    ! do i = 1, f%env%n
-    !    vnuc = vnuc + f%env%spc(f%env%at(i)%is)%z / norm2(xpos - f%env%at(i)%r)
-    ! end do
-    write (*,*) "fixme!"
-    stop 1
-    ! xxxx fixme!
+    vnuc = 0d0
+    do i = 1, c%ncel
+       vnuc = vnuc + c%spc(c%atcel(i)%is)%z / norm2(xpos - c%atcel(i)%r)
+    end do
 
     ! final result
     mep = vnuc - mep
