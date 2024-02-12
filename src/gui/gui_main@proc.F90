@@ -764,7 +764,7 @@ contains
           elseif (sys(i)%f(j)%type == type_elk) then
              sys(i)%f(j)%elk%cptr = c_loc(sys(i)%c)
           elseif (sys(i)%f(j)%type == type_grid) then
-             sys(i)%f(j)%grid%atenv => sys(i)%c%env
+             sys(i)%f(j)%grid%cptr = c_loc(sys(i)%c)
           end if
        end do
     end do
