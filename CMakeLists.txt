@@ -93,6 +93,7 @@ option(USE_EXTERNAL_LAPACK "Use external LAPACK/BLAS library (linear algebra ope
 option(USE_LIBXC "Use the libxc library for access (exchange-correlation energies and potentials)." ON)
 option(USE_LIBCINT "Use the libcint library (calculation of molecular integrals with Gaussian functions)." ON)
 option(USE_READLINE "Use the readline library (improved command-line interface)." ON)
+option(USE_NLOPT "Use the nlopt library (global optimization for variable-cell crystal structure comparison)." ON)
 option(ENABLE_OPENMP "Enable OpenMP parallelization." ON)
 option(BUILD_STATIC "Build critic2 statically (tested only on linux, and no GUI)." OFF)
 
@@ -253,7 +254,9 @@ if (USE_LIBCINT)
 endif()
 
 ## nlopt
-find_package(NLOPT)
+if (USE_NLOPT)
+  find_package(NLOPT)
+endif()
 
 ## the syntax.txt target
 add_custom_target(syntax

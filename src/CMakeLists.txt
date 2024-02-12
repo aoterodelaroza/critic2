@@ -110,26 +110,26 @@ target_sources(critic2 PRIVATE $<TARGET_OBJECTS:json-fortran>)
 add_dependencies(critic2_core json-fortran)
 
 ## libxc
-if (LIBXC_FOUND)
+if (USE_LIBXC AND LIBXC_FOUND)
   include_directories("${LIBXC_INCLUDE_DIRS}")
   target_link_libraries(critic2 PRIVATE ${LIBXC_xcf90_LIBRARY} ${LIBXC_xc_LIBRARY})
   add_definitions("-DHAVE_LIBXC")
 endif()
 
 ## libcint
-if (LIBCINT_FOUND)
+if (USE_LIBCINT AND LIBCINT_FOUND)
   target_link_libraries(critic2 PRIVATE ${LIBCINT_LIBRARY})
   add_definitions("-DHAVE_CINT")
 endif()
 
 ## readline
-if (READLINE_FOUND)
+if (USE_READLINE AND READLINE_FOUND)
   target_link_libraries(critic2 PRIVATE ${READLINE_LIBRARY})
   add_definitions("-DHAVE_READLINE")
 endif()
 
 ## libnlopt
-if (NLOPT_FOUND)
+if (USE_NLOPT AND NLOPT_FOUND)
   target_link_libraries(critic2 PRIVATE ${NLOPT_LIBRARIES})
   add_definitions("-DHAVE_NLOPT")
   include_directories("${NLOPT_INCLUDE_DIRS}")

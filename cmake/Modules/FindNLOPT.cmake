@@ -46,3 +46,6 @@ find_package_handle_standard_args(NLOPT
     FAIL_MESSAGE  DEFAULT_MSG
     REQUIRED_VARS NLOPT_INCLUDE_DIRS NLOPT_LIBRARIES
     VERSION_VAR   NLOPT_VERSION)
+
+# hide library and include variables
+mark_as_advanced(NLOPT_INCLUDE_DIRS NLOPT_LIBRARIES)
