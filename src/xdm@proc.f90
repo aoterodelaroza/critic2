@@ -26,14 +26,11 @@ submodule (xdm) proc
   ! subroutine xdm_from_file(line0)
   ! subroutine xdm_read_qe(file,p)
   ! subroutine xdm_read_postg(file,p)
-  ! subroutine xdm_excitation(line0)
-  ! subroutine xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,inow)
   ! subroutine xdm_wfn(a1o,a2o,chf)
   ! subroutine write_cube(file,line1,line2,n,c)
   ! function free_volume(iz) result(afree)
   ! function frevol(z,chf)
   ! subroutine calc_edisp(p)
-  ! function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
   ! subroutine calc_coefs(a1,a2,chf,v,mm,c6,c8,c10,rvdw)
   ! subroutine taufromelf(ielf,irho,itau)
 
@@ -103,8 +100,6 @@ contains
        call xdm_from_file(line(lp:),.true.)
     elseif (equal(word,"postg")) then
        call xdm_from_file(line(lp:),.false.)
-    elseif (equal(word,"excitation")) then
-       call xdm_excitation(line(lp:))
     else
        lp = 1
        ok = eval_next(a1,line,lp)
@@ -150,7 +145,6 @@ contains
 
   !> Calculate XDM using grids.
   subroutine xdm_grid(line)
-    use environmod, only: environ
     use systemmod, only: sy
     use crystalmod, only: search_lattice
     use grid1mod, only: grid1, agrid
@@ -171,12 +165,10 @@ contains
     real*8 :: eat, sat(3,3), ri3, rix, fcom, cn0, fll, rvdwx, exx, fxx
     integer :: ll, iat, nvec, imax, jmax, kmax, i3, i3i, l1, l2
     real*8, allocatable :: rc(:,:), alpha(:), ml(:,:), avol(:), afree(:), dist(:)
-    integer, allocatable :: lvec(:,:), ityp(:), eid(:)
+    integer, allocatable :: lvec(:,:), lvec2(:,:), ityp(:), eid(:)
     logical :: isdefa, onlyc
     real*8 :: etotal, sigma(3,3), for(3,sy%c%ncel), ehadd(6:10)
-    integer :: nclean, iclean(8), upto, lvec2(3), nat, ierr
-    logical :: isealloc
-    type(environ), pointer :: lenv
+    integer :: nclean, iclean(8), upto, nat
 
     real*8, parameter :: ecut = 1d-11
 
@@ -673,26 +665,16 @@ contains
 
     ! set the atomic environment for the sum
     rmax = (maxc6/ecut)**(1d0/6d0)
-    if (rmax >= sy%c%env%dmax0) then
-       isealloc = .true.
-       allocate(lenv)
-       call lenv%extend(sy%c%env,rmax)
-    else
-       isealloc = .false.
-       lenv => sy%c%env
-    end if
     rmax2 = rmax*rmax
     do ii = 1, sy%c%ncel
        i = sy%c%atcel(ii)%idx
-       call lenv%list_near_atoms(sy%c%atcel(ii)%x,icrd_crys,.false.,nat,ierr,eid,dist,lvec2,up2d=rmax,nozero=.true.)
-       if (ierr /= 0) &
-          call ferror("xdm_grid","error listing atoms from the environment",faterr)
+       call sy%c%list_near_atoms(sy%c%atcel(ii)%x,icrd_crys,.false.,nat,eid,dist,lvec2,up2d=rmax,nozero=.true.)
 
        eat = 0d0
        sat = 0d0
        do jj = 1, nat
-          j = lenv%at(eid(jj))%idx
-          x = lenv%x2c((lenv%xr2x(lenv%at(eid(jj))%x) + lvec2 - sy%c%atcel(ii)%x))
+          j = sy%c%atcel(eid(jj))%idx
+          x = sy%c%x2c(sy%c%atcel(eid(jj))%x + lvec2(:,jj) - sy%c%atcel(ii)%x)
 
           if (dist(jj) < 1d-10 .or. dist(jj)>rmax) cycle
           ri = dist(jj)
@@ -745,7 +727,6 @@ contains
     ehadd = - 0.5d0 * ehadd
     if (allocated(eid)) deallocate(eid)
     if (allocated(dist)) deallocate(dist)
-    if (isealloc) deallocate(lenv)
 
     write (uout,'("  Evdw = ",A," Hartree, ",A," Ry")') &
        string(etotal,'e',decimal=10), string(etotal*2,'e',decimal=10)
@@ -1160,129 +1141,6 @@ contains
 
   end subroutine xdm_calculate_c9
 
-
-  !> Calculate XDM from the information in a QE output
-  subroutine xdm_excitation(line0)
-    use systemmod, only: sy
-    use tools_io, only: ferror, faterr, uin, uout, ucopy, getline, isreal,&
-       equal, lgetword, getword, string
-    use param, only: bohrtoa
-    character*(*), intent(inout) :: line0
-
-    integer :: i, inow, lp
-    character(len=:), allocatable :: line, word, file
-    logical :: ok
-    real*8 :: a1, a2, e0, e1
-    real*8 :: v(sy%c%ncel,0:1), vfree(sy%c%ncel,0:1), mm(3,sy%c%ncel,0:1)
-    logical :: haveit(sy%c%ncel,0:1)
-    integer :: lvec(3,sy%c%ncel,0:1)
-
-    write (uout,'("* XDM dispersion for ground and excited states in a crystal")')
-
-    lp = 1
-    ok = isreal(a1,line0,lp)
-    ok = ok .and. isreal(a2,line0,lp)
-    if (.not.ok) &
-       call ferror("xdm_excitation","wrong a1 or a2 in XDM EXCITATION",faterr)
-    a2 = a2 / bohrtoa
-
-    ! read the inputs
-    haveit = .false.
-    v = 0d0
-    vfree = 0d0
-    mm = 0d0
-    inow = 0
-    lvec = 0
-    do while(.true.)
-       ok = getline(uin,line,ucopy=ucopy)
-       if (.not.ok) &
-          call ferror("xdm_excitation","unexpected end of input in XDM EXCITATION",faterr)
-       lp = 1
-       word = lgetword(line,lp)
-
-       if (equal(word,"end").or.equal(word,"endxdm")) then
-          exit
-       else if (equal(word,"ground")) then
-          file = getword(line,lp)
-          call xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,0)
-       else if (equal(word,"excitation")) then
-          file = getword(line,lp)
-          call xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,1)
-       else
-          call ferror("xdm_excitation","unknown keyword in XDM EXCITATION",faterr)
-       end if
-    end do
-
-    ! check we have all the atoms
-    do i = 1, sy%c%ncel
-       if (.not.haveit(i,0)) &
-          call ferror("xdm_excitation","atom missing in ground state",faterr)
-       if (.not.haveit(i,1)) then
-          v(i,1) = v(i,0)
-          vfree(i,1) = vfree(i,0)
-          mm(:,i,1) = mm(:,i,0)
-       end if
-    end do
-
-    e0 = calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,0,0)
-    e1 = calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,0,1)
-    write (uout,'("ground state  = ",A," Ha, ",A," Ry")') string(e0,'e',20,12), string(2d0*e0,'e',20,12)
-    write (uout,'("excited state = ",A," Ha, ",A," Ry")') string(e1,'e',20,12), string(2d0*e1,'e',20,12)
-    write (uout,'("difference    = ",A," Ha, ",A," Ry")') string((e1-e0),'e',20,12), string(2d0*(e1-e0),'e',20,12)
-    write (uout,*)
-
-  end subroutine xdm_excitation
-
-  subroutine xdm_excitation_readpostg(file,haveit,v,vfree,mm,lvec,inow)
-    use systemmod, only: sy
-    use tools_io, only: fopen_read, fclose, equal, getline_raw, isinteger, getword,&
-       ferror, faterr
-    use param, only: icrd_cart
-    character*(*), intent(in) :: file
-    logical, intent(inout) :: haveit(sy%c%ncel,0:1)
-    real*8, intent(inout) :: v(sy%c%ncel,0:1)
-    real*8, intent(inout) :: vfree(sy%c%ncel,0:1)
-    real*8, intent(inout) :: mm(3,sy%c%ncel,0:1)
-    integer, intent(inout) :: lvec(3,sy%c%ncel,0:1)
-    integer, intent(in) :: inow
-
-    logical :: ok
-    integer :: lu, i, nat, lp, id, idx, idmap(sy%c%ncel)
-    character(len=:), allocatable :: line, w1, w2
-    character*2 :: atsym
-    real*8 :: x(3)
-
-    idmap = 0
-    lu = fopen_read(file)
-    do while (getline_raw(lu,line))
-       lp = 1
-       w1 = getword(line,lp)
-       w2 = getword(line,lp)
-       if (equal(w1,"natoms")) then
-          lp = 7
-          ok = isinteger(nat,line,lp)
-       elseif (equal(w1,"#") .and. equal(w2,"n")) then
-          do i = 1, nat
-             read (lu,*) id, atsym, x(1:3)
-             idx = sy%c%identify_atom(x,icrd_cart)
-             if (idx == 0) &
-                call ferror("xdm_excitation_readpostg","atom not found",faterr)
-             idmap(i) = idx
-             haveit(idx,inow) = .true.
-             lvec(:,idx,inow) = nint(sy%c%c2x(x) - sy%c%atcel(idx)%x)
-          end do
-       elseif (equal(w1,"moments")) then
-          ok = getline_raw(lu,line)
-          do i = 1, nat
-             if (idmap(i) == 0) &
-                call ferror("xdm_excitation_readpostg","atom not found in moments",faterr)
-             read (lu,*) id, atsym, mm(1:3,idmap(i),inow), v(idmap(i),inow), vfree(idmap(i),inow)
-          end do
-       end if
-    end do
-    call fclose(lu)
-
-  end subroutine xdm_excitation_readpostg
 
   !> Calculate XDM in molecules and crystals using the wavefunction.
   subroutine xdm_wfn(a1o,a2o,chf)
@@ -1750,22 +1608,19 @@ contains
   subroutine calc_edisp(p)
     use systemmod, only: sy
     use crystalmod, only: crystal
-    use environmod, only: environ
     use tools_math, only: fdamp_bj
     use tools_io, only: uout, ferror, faterr
     use param, only: icrd_cart
     type(xdmparams), intent(in) :: p
 
-    integer :: i, j, jj, iz, nat, ierr
+    integer :: i, j, jj, iz, nat
     integer :: kk, k, izi, izj, izk
     real*8 :: d, dij, dik, djk, xi(3), xj(3), xk(3)
     real*8 :: bij, bik, bjk
     real*8 :: e, xij(3), xik(3), xjk(3), ci, cj, ck
     real*8 :: div, f9
-    integer, allocatable :: eid(:)
+    integer, allocatable :: eid(:), lvec(:,:)
     real*8, allocatable :: dist(:)
-    type(environ), pointer :: lenv
-    logical :: isealloc
     real*8 :: e6, e8, e9, e10, rmax, rmax9
 
     real*8, parameter :: e6thr = 1d-11
@@ -1776,32 +1631,20 @@ contains
     if (p%usec9) &
        rmax9 = (maxval(p%c9)/e9thr)**(1d0/9d0)
 
-    ! build the environment
-    if (rmax >= sy%c%env%dmax0) then
-       isealloc = .true.
-       allocate(lenv)
-       call lenv%extend(sy%c%env,rmax)
-    else
-       isealloc = .false.
-       lenv => sy%c%env
-    end if
-
     ! calculate the energies and derivatives
     e = 0d0
     e6 = 0d0
     e8 = 0d0
     e10 = 0d0
-    do i = 1, lenv%ncell
-       iz = lenv%spc(lenv%at(i)%is)%z
+    do i = 1, sy%c%ncel
+       iz = sy%c%spc(sy%c%atcel(i)%is)%z
        if (iz < 1) cycle
-       call lenv%list_near_atoms(lenv%at(i)%r,icrd_cart,.false.,nat,ierr,eid,dist,up2d=rmax,nozero=.true.)
-       if (ierr /= 0) &
-          call ferror("calc_edisp","could not find list of atoms from the environment",faterr)
+       call sy%c%list_near_atoms(sy%c%atcel(i)%r,icrd_cart,.false.,nat,eid,dist,up2d=rmax,nozero=.true.)
 
        do jj = 1, nat
-          j = lenv%at(eid(jj))%cidx
+          j = eid(jj)
           if (i < j) cycle
-          if (lenv%spc(lenv%at(eid(jj))%is)%z < 1) cycle
+          if (sy%c%spc(sy%c%atcel(eid(jj))%is)%z < 1) cycle
           if (dist(jj) < 1d-15 .or. dist(jj) > rmax) cycle
 
           d = dist(jj)
@@ -1819,17 +1662,16 @@ contains
     ! calculate the energies and derivatives
     e9 = 0d0
     if (p%usec9) then
-       do i = 1, lenv%ncell
-          izi = lenv%spc(lenv%at(i)%is)%z
+       do i = 1, sy%c%ncel
+          izi = sy%c%spc(sy%c%atcel(i)%is)%z
           if (izi < 1) cycle
-          call lenv%list_near_atoms(lenv%at(i)%r,icrd_cart,.false.,nat,ierr,eid,dist,up2d=rmax9,nozero=.true.)
-          if (ierr /= 0) &
-             call ferror("calc_edisp","could not find list of atoms from the environment",faterr)
+          call sy%c%list_near_atoms(sy%c%atcel(i)%r,icrd_cart,.false.,nat,eid,dist,lvec=lvec,&
+             up2d=rmax9,nozero=.true.)
 
           do jj = 1, nat
-             j = lenv%at(eid(jj))%cidx
+             j = eid(jj)
              if (i < j) cycle
-             izj = lenv%spc(lenv%at(eid(jj))%is)%z
+             izj = sy%c%spc(sy%c%atcel(eid(jj))%is)%z
              if (izj < 1) cycle
              if (dist(jj) < 1d-15 .or. dist(jj) > rmax9) cycle
 
@@ -1841,9 +1683,9 @@ contains
              end if
 
              do kk = 1, nat
-                k = lenv%at(eid(kk))%cidx
+                k = eid(kk)
                 if (j < k) cycle
-                izk = lenv%spc(lenv%at(eid(kk))%is)%z
+                izk = sy%c%spc(sy%c%atcel(eid(kk))%is)%z
                 if (izk < 1) cycle
 
                 if (i > j .and. j > k) then
@@ -1856,9 +1698,9 @@ contains
                    div = 6d0
                 end if
 
-                xi = lenv%at(i)%r
-                xj = lenv%at(eid(jj))%r
-                xk = lenv%at(eid(kk))%r
+                xi = sy%c%atcel(i)%r
+                xj = sy%c%x2c(sy%c%atcel(eid(jj))%x + lvec(:,jj))
+                xk = sy%c%x2c(sy%c%atcel(eid(kk))%x + lvec(:,kk))
 
                 xij = xj - xi
                 xik = xk - xi
@@ -1913,7 +1755,6 @@ contains
 
     ! Add up the contributions and wrap up
     e = p%scalc6 * e6 + p%scalc8 * e8 + p%scalc9 * e9 + p%scalc10 * e10
-    if (isealloc) deallocate(lenv)
 
     ! Write the energies
     write (uout,'("C6 contribution (Ha) ",1p,E20.12)') p%scalc6 * e6
@@ -1925,112 +1766,6 @@ contains
     write (uout,'("#"/)')
 
   end subroutine calc_edisp
-
-  !> Calculate the dispersion energy using moments and volumes
-  !> for a given molecular motif.
-  function calc_edisp_from_mv(a1,a2,v,vfree,mm,lvec,i0,i1)
-    use systemmod, only: sy
-    use crystalmod, only: crystal
-    use environmod, only: environ
-    use tools_io, only: ferror, faterr
-    use param, only: alpha_free, icrd_cart
-    real*8, intent(in) :: a1, a2
-    real*8, intent(in) :: v(sy%c%ncel,0:1), vfree(sy%c%ncel,0:1)
-    real*8, intent(in) :: mm(3,sy%c%ncel,0:1)
-    integer, intent(in) :: lvec(3,sy%c%ncel,0:1)
-    integer, intent(in) :: i0, i1
-    real*8 :: calc_edisp_from_mv
-
-    real*8 :: d
-    real*8 :: x0(3)
-    real*8 :: e, alpha0, alpha1, ml0(3), ml1(3)
-    integer :: jj, i, j, k, iz, nat, lvec2(3), ierr
-    real*8 :: rmax, rmax2, maxc6, c6, c8, c10, rc, rvdw
-    real*8, allocatable :: alpha(:,:), dist(:)
-    integer, allocatable :: eid(:)
-    type(environ), pointer :: lenv
-    logical :: isealloc
-
-    real*8, parameter :: ecut = 1d-11
-
-    ! free volumes and polarizabilities
-    allocate(alpha(sy%c%ncel,0:1))
-    do j = 0, 1
-       do i = 1, sy%c%ncel
-          iz = sy%c%spc(sy%c%atcel(i)%is)%z
-          alpha(i,j) = min(v(i,j) / vfree(i,j),1d0) * alpha_free(iz)
-       end do
-    end do
-
-    maxc6 = -1d0
-    do k = 0, 1
-       do i = 1, sy%c%ncel
-          do j = 1, i
-             c6 = alpha(i,k)*alpha(j,k)*mm(1,i,k)*mm(1,j,k) / (mm(1,i,k)*alpha(j,k) + mm(1,j,k)*alpha(i,k))
-             maxc6 = max(c6,maxc6)
-          end do
-       end do
-    end do
-
-    ! build the environment
-    rmax = (maxc6/ecut)**(1d0/6d0)
-    rmax2 = rmax * rmax
-    if (rmax >= sy%c%env%dmax0) then
-       isealloc = .true.
-       allocate(lenv)
-       call lenv%extend(sy%c%env,rmax)
-    else
-       isealloc = .false.
-       lenv => sy%c%env
-    end if
-
-    ! calculate the energies and derivatives
-    e = 0d0
-    do i = 1, lenv%ncell
-       iz = lenv%spc(lenv%at(i)%is)%z
-       if (iz < 1) cycle
-       x0 = sy%c%x2c(sy%c%atcel(i)%x + lvec(:,i,i1))
-       alpha1 = alpha(i,i1)
-       ml1 = mm(:,i,i1)
-
-       call lenv%list_near_atoms(x0,icrd_cart,.false.,nat,ierr,eid,dist,lvec2,up2d=rmax,nozero=.true.)
-       if (ierr /= 0) &
-          call ferror("calc_edisp","could not find list of atoms from the environment",faterr)
-
-       do jj = 1, nat
-          j = lenv%at(eid(jj))%cidx
-          iz = lenv%spc(lenv%at(eid(jj))%is)%z
-          if (iz < 1) cycle
-
-          if (dist(jj) < 1d-15 .or. dist(jj)>rmax2) cycle
-          d = dist(jj)
-
-          if (all(lenv%at(eid(jj))%lvec + lvec2 == lvec(:,j,i1))) then
-             alpha0 = alpha(j,i1)
-             ml0 = mm(:,j,i1)
-          else
-             alpha0 = alpha(j,i0)
-             ml0 = mm(:,j,i0)
-          end if
-
-          c6 = alpha1*alpha0*ml1(1)*ml0(1) / (ml1(1)*alpha0 + ml0(1)*alpha1)
-          c8 = 3d0/2d0 * (alpha1*alpha0*(ml1(1)*ml0(2)+ml1(2)*ml0(1))) /&
-             (ml1(1)*alpha0+ml0(1)*alpha1)
-          c10 = 2 * alpha1*alpha0 * (ml1(1)*ml0(3) + ml1(3)*ml0(1)) /&
-             (ml1(1)*alpha0 + ml0(1)*alpha1) + 21d0/5d0 * alpha1*alpha0*&
-             ml1(2)*ml0(2) / (alpha0*ml1(1)+alpha1*ml0(1))
-
-          rc = (sqrt(c8/c6) + sqrt(c10/c8) + (c10/c6)**(0.25d0)) / 3
-          rvdw = a1 * rc + a2
-
-          e = e - c6 / (rvdw**6 + d**6) - c8 / (rvdw**8 + d**8) - c10 / (rvdw**10 + d**10)
-       end do
-    end do
-    calc_edisp_from_mv = 0.5d0 * e
-    deallocate(alpha)
-    if (isealloc) deallocate(lenv)
-
-  end function calc_edisp_from_mv
 
   !> Calculate and the coefficients and van der Waals radii using the
   !> volumes and moments (v, mm) and the damping function parameters
