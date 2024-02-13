@@ -1020,6 +1020,37 @@ contains
 
   end subroutine list_near_lattice_points
 
+  !> Given the point xp (in icrd coordinates), calculate the nearest
+  !> lattice point. The lattice point (in cryst. coords.) is returne
+  !> in lvec and the distance in dist. If nozero, disregard
+  !> zero-distance lattice points. This routine is thread-safe.
+  module subroutine nearest_lattice_point(c,xp,icrd,dist,lvec,nozero)
+    class(crystal), intent(inout) :: c
+    real*8, intent(in) :: xp(3)
+    integer, intent(in) :: icrd
+    real*8, intent(out) :: dist
+    integer, intent(out), optional :: lvec(3)
+    logical, intent(in), optional :: nozero
+
+    integer :: nat
+    integer, allocatable :: eid(:), lvec_(:,:)
+    real*8, allocatable :: dist_(:)
+
+    ! get just one atom
+    call c%list_near_lattice_points(xp,icrd,.false.,nat,dist=dist_,lvec=lvec_,up2n=1,&
+       nozero=nozero)
+
+    ! if no atoms in output, return
+    if (present(lvec)) lvec = 0
+    dist = huge(1d0)
+    if (nat == 0) return
+
+    ! write and finish
+    dist = dist_(1)
+    if (present(lvec)) lvec = lvec_(:,1)
+
+  end subroutine nearest_lattice_point
+
   !xx! private procedures
 
   ! Find the indices for the nth shell of blocks. Sets the number of indices (nb),

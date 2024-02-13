@@ -634,20 +634,32 @@ contains
        elseif (equal(word,'temp')) then
           ! xxxx
 
-          ! xp = (/-15.3d0,0.1d0,21.4d0/)
-          xp = 0d0
+          xp = (/-15.3d0,0.1d0,21.4d0/)
+          ! xp = 0d0
           dmax = 30d0
 
+          ! call e%build_lattice(sy%c%m_x2c,150d0)
+          ! call e%list_near_atoms(xp,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,lvec=lvec2,up2n=2,nozero=.true.)
+          ! do i = 1, nat
+          !    write (*,*) i, e%xr2x(e%at(eid(i))%x) + lvec2, dist(i)
+          ! end do
+          ! write (*,*)
+
+          ! call sy%c%list_near_lattice_points(xp,icrd_crys,.true.,nat,dist,lvec,up2n=2,nozero=.true.)
+          ! do i = 1, nat
+          !    write (*,*) i, lvec(:,i), dist(i)
+          ! end do
+
           call e%build_lattice(sy%c%m_x2c,150d0)
-          call e%list_near_atoms(xp,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,lvec=lvec2,up2n=2,nozero=.true.)
+          call e%list_near_atoms(xp,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,lvec=lvec2,up2n=1,nozero=.true.)
           do i = 1, nat
              write (*,*) i, e%xr2x(e%at(eid(i))%x) + lvec2, dist(i)
           end do
           write (*,*)
 
-          call sy%c%list_near_lattice_points(xp,icrd_crys,.true.,nat,dist,lvec,up2n=2,nozero=.true.)
-          do i = 1, nat
-             write (*,*) i, lvec(:,i), dist(i)
+          call sy%c%nearest_lattice_point(xp,icrd_crys,dist(1),lvec2,nozero=.true.)
+          do i = 1, 1
+             write (*,*) i, lvec2, dist(i)
           end do
 
           write (*,*) "fin!"
