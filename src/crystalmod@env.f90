@@ -1041,13 +1041,16 @@ contains
   !> Given the point xp (in icrd coordinates), calculate the nearest
   !> lattice point. The lattice point (in cryst. coords.) is returne
   !> in lvec and the distance in dist. If nozero, disregard
-  !> zero-distance lattice points. This routine is thread-safe.
-  module subroutine nearest_lattice_point(c,xp,icrd,dist,lvec,nozero)
+  !> zero-distance lattice points.  If ndiv is given, divide the
+  !> parent lattice vectors by ndiv; useful for grids. This routine
+  !> is thread-safe.
+  module subroutine nearest_lattice_point(c,xp,icrd,dist,lvec,ndiv,nozero)
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd
     real*8, intent(out) :: dist
     integer, intent(out), optional :: lvec(3)
+    integer, intent(in), optional :: ndiv(3)
     logical, intent(in), optional :: nozero
 
     integer :: nat
@@ -1055,8 +1058,8 @@ contains
     real*8, allocatable :: dist_(:)
 
     ! get just one atom
-    call c%list_near_lattice_points(xp,icrd,.false.,nat,dist=dist_,lvec=lvec_,up2n=1,&
-       nozero=nozero)
+    call c%list_near_lattice_points(xp,icrd,.false.,nat,dist=dist_,&
+       lvec=lvec_,ndiv=ndiv,up2n=1,nozero=nozero)
 
     ! if no atoms in output, return
     if (present(lvec)) lvec = 0

@@ -474,12 +474,13 @@ module crystalmod
        integer, intent(in), optional :: up2n
        logical, intent(in), optional :: nozero
      end subroutine list_near_lattice_points
-     module subroutine nearest_lattice_point(c,xp,icrd,dist,lvec,nozero)
+     module subroutine nearest_lattice_point(c,xp,icrd,dist,lvec,ndiv,nozero)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: xp(3)
        integer, intent(in) :: icrd
        real*8, intent(out) :: dist
        integer, intent(out), optional :: lvec(3)
+       integer, intent(in), optional :: ndiv(3)
        logical, intent(in), optional :: nozero
      end subroutine nearest_lattice_point
      module function identify_fragment(c,nat,x0) result(fr)
