@@ -188,6 +188,7 @@ module crystalmod
      procedure :: identify_atom_env
      procedure :: promolecular_env
      procedure :: find_asterisms_covalent
+     procedure :: list_near_lattice_points
 
      ! molecular environments and neighbors (mols)
      procedure :: identify_fragment !< Build an atomic fragment of the crystal
@@ -458,6 +459,18 @@ module crystalmod
      module subroutine find_asterisms_covalent(c)
        class(crystal), intent(inout) :: c
      end subroutine find_asterisms_covalent
+     module subroutine list_near_lattice_points(c,xp,icrd,sorted,nat,dist,lvec,up2d,up2n,nozero)
+       class(crystal), intent(inout) :: c
+       real*8, intent(in) :: xp(3)
+       integer, intent(in) :: icrd
+       logical, intent(in) :: sorted
+       integer, intent(out) :: nat
+       real*8, allocatable, intent(inout), optional :: dist(:)
+       integer, allocatable, intent(inout), optional :: lvec(:,:)
+       real*8, intent(in), optional :: up2d
+       integer, intent(in), optional :: up2n
+       logical, intent(in), optional :: nozero
+     end subroutine list_near_lattice_points
      module function identify_fragment(c,nat,x0) result(fr)
        class(crystal), intent(in) :: c
        integer, intent(in) :: nat

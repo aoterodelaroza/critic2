@@ -54,6 +54,9 @@ contains
     use tools_io, only: ferror, faterr, uin, ucopy, uout, getword, lgetword, getline,&
        equal, isinteger, isreal, string, usegui
     use param, only: param_init
+    ! xxxx
+    use param, only: icrd_crys
+    use environmod, only: environ
 
     ! parsing
     integer :: lp, lpold
@@ -67,6 +70,12 @@ contains
 #ifdef HAVE_LIBXC
     logical :: doref, doname, doflags
 #endif
+    ! xxxx
+    real*8 :: xp(3), dmax
+    real*8, allocatable :: dist(:)
+    integer, allocatable :: lvec(:,:), eid(:)
+    integer :: nat, ierr
+    type(environ) :: e
 
     ! Start reading
     ncom = 1
@@ -620,6 +629,28 @@ contains
           ! trick
        elseif (equal(word,'trick')) then
           call trick(line(lp:))
+
+          ! trick
+       elseif (equal(word,'temp')) then
+          ! xxxx
+
+          xp = 0d0
+          dmax = 20d0
+
+          call e%build_lattice(sy%c%m_x2c,50d0)
+          call e%list_near_atoms(xp,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,up2d=dmax)
+          do i = 1, nat
+             write (*,*) i, e%xr2x(e%at(eid(i))%x), dist(i)
+          end do
+          write (*,*)
+
+          call sy%c%list_near_lattice_points(xp,icrd_crys,.true.,nat,dist,lvec,up2d=dmax)
+          do i = 1, nat
+             write (*,*) i, lvec(:,i), dist(i)
+          end do
+
+          write (*,*) "fin!"
+          stop 1
 
           ! end
        elseif (equal(word,'end').or.equal(word,'exit')) then

@@ -96,7 +96,6 @@ contains
   !> This routine is thread-safe.
   module subroutine list_near_atoms(c,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,&
      up2dsp,up2dcidx,up2sh,up2n,nid0,id0,iz0,ispc0,nozero)
-    use hashmod, only: hash
     use tools, only: mergesort
     use tools_io, only: ferror, faterr
     use tools_math, only: cross, det3
@@ -181,7 +180,7 @@ contains
 
     ! run the search
     if (present(up2sh).or.present(up2n)) then
-       !!! search a number of shells or a number of atoms (up2n, up2sh) !!!
+       ! search a number of shells or a number of atoms (up2n, up2sh) !!!
 
        up2n_ = 0
        if (present(up2sh)) then
@@ -342,7 +341,7 @@ contains
           deallocate(iaux)
        end if
     else
-       !!! search atoms up to a given distance (up2d*) !!!
+       ! search atoms up to a given distance (up2d*) !!!
 
        ! calculate the number of blocks in each direction required for satifying
        ! that the largest sphere in the super-block has radius > dmax.
@@ -889,5 +888,169 @@ contains
     end do ! i = 1, c%ncel
 
   end subroutine find_asterisms_covalent
+
+  !> Given the point xp (in icrd coordinates), calculate the list of
+  !> nearest lattice points. If sorted is true, the list is sorted by
+  !> distance. One (and only one) of these criteria must be
+  !> given:
+  !> - up2d = list up to a distance up2d.
+  !> - up2n = up to a number of atoms.
+  !> If up2n is present, the list is sorted by distance on output
+  !> regardless of the value of sorted.
+  !>
+  !> Optional input:
+  !> - nozero = disregard zero-distance lattice points.
+  !>
+  !> Output:
+  !> - nat = the list contains nat lattice points.
+  !>
+  !> Optional output:
+  !> - dist(nid) = distance from xp.
+  !> - lvec(3,nid) = lattice vector coordinates (crystallographic).
+  !>
+  !> This routine is thread-safe.
+  module subroutine list_near_lattice_points(c,xp,icrd,sorted,nat,dist,lvec,up2d,up2n,nozero)
+    use types, only: realloc
+    use tools, only: mergesort
+    use tools_math, only: det3, cross
+    use tools_io, only: ferror, faterr
+    use param, only: icrd_cart, icrd_crys
+    class(crystal), intent(inout) :: c
+    real*8, intent(in) :: xp(3)
+    integer, intent(in) :: icrd
+    logical, intent(in) :: sorted
+    integer, intent(out) :: nat
+    real*8, allocatable, intent(inout), optional :: dist(:)
+    integer, allocatable, intent(inout), optional :: lvec(:,:)
+    real*8, intent(in), optional :: up2d
+    integer, intent(in), optional :: up2n
+    logical, intent(in), optional :: nozero
+
+    logical :: nozero_
+    logical :: sorted_, ok
+    integer :: nx(3), nn, i0(3), i1(3), i, j, k, lvecx(3)
+    real*8 :: up2d_2, x(3), lvecini(3), blockcv(3), blockomega, xorigc(3)
+    real*8 :: xdif(3), dd
+    integer, allocatable :: at_lvec(:,:), iord(:)
+    real*8, allocatable :: at_dist(:)
+
+    real*8, parameter :: eps = 1d-20
+
+    ! process input
+    nozero_ = .false.
+    sorted_ = sorted .or. present(up2n)
+    if (present(nozero)) nozero_ = nozero
+    if (present(up2d)) then
+       up2d_2 = up2d * up2d
+    elseif (present(up2n)) then
+       !
+    else
+       call ferror("list_near_lattice_points","must give one of up2d or up2n",faterr)
+    end if
+
+    ! translate the point to the main cell
+    if (icrd == icrd_crys) then
+       x = c%x2xr(xp)
+    elseif (icrd == icrd_cart) then
+       x = c%c2xr(xp)
+    else
+       x = xp
+    end if
+    lvecini = floor(x)
+    x = x - lvecini
+    xorigc = c%xr2c(x)
+
+    ! allocate space for lattice points
+    nat = 0
+    nn = 20
+    if (present(up2n)) nn = min(up2n,20)
+    allocate(at_dist(nn),at_lvec(3,nn))
+    at_dist = 0d0
+    at_lvec = 0
+
+    ! run the search
+    if (present(up2n)) then
+       ! search a number of shells or a number of points (up2n) !!!
+       write (*,*) "fixme!"
+    else
+       ! search atoms up to a given distance (up2d) !!!
+
+       ! calculate the number of blocks in each direction required for satifying
+       ! that the largest sphere in the super-block has radius > dmax.
+       ! r = Vblock / 2 / max(cv(3)/n3,cv(2)/n2,cv(1)/n1)
+       blockcv(1) = norm2(cross(c%m_xr2c(:,2),c%m_xr2c(:,3)))
+       blockcv(2) = norm2(cross(c%m_xr2c(:,1),c%m_xr2c(:,3)))
+       blockcv(3) = norm2(cross(c%m_xr2c(:,1),c%m_xr2c(:,2)))
+       blockomega = det3(c%m_xr2c)
+       nx = ceiling(blockcv / (0.5d0 * blockomega / max(up2d,1d-40)))
+
+       ! define the search space
+       do i = 1, 3
+          if (mod(nx(i),2) == 0) then
+             i0(i) = - nx(i)/2
+             i1(i) = + nx(i)/2
+          else
+             i0(i) = - (nx(i)/2+1)
+             i1(i) = + (nx(i)/2+1)
+          end if
+       end do
+
+       ! run over all lattice points
+       do i = i0(1), i1(1)
+          do j = i0(2), i1(2)
+             do k = i0(3), i1(3)
+                lvecx = (/i,j,k/)
+                xdif = matmul(c%m_xr2c,real(lvecx,8)) - xorigc
+                dd = dot_product(xdif,xdif)
+                ! check if we should add the lattice point to the list
+                ok = .true.
+
+                if (nozero_ .and. dd < eps) then
+                   ok = .false.
+                elseif (present(up2d)) then
+                   ok = (dd <= up2d_2)
+                end if
+                if (ok) then
+                   nat = nat + 1
+                   if (nat > size(at_dist,1)) then
+                      call realloc(at_dist,2*nat)
+                      call realloc(at_lvec,3,2*nat)
+                   end if
+                   at_dist(nat) = sqrt(dd)
+                   at_lvec(:,nat) = nint(matmul(c%m_xr2x,lvecini + lvecx))
+                end if
+             end do ! k = i0(3), i1(3)
+          end do ! j = i0(2), i1(2)
+       end do ! i = i0(1), i1(1)
+    end if
+
+    ! sort if necessary
+    if (sorted_ .and. nat > 1) then
+       ! permutation vector
+       allocate(iord(nat))
+       do i = 1, nat
+          iord(i) = i
+       end do
+
+       ! sort by distance
+       call mergesort(at_dist,iord,1,nat)
+
+       ! reorder and clean up
+       at_dist = at_dist(iord)
+       at_lvec = at_lvec(:,iord)
+       deallocate(iord)
+    else
+       call realloc(at_lvec,3,nat)
+       call realloc(at_dist,nat)
+    end if
+
+    ! reduce the list if up2n (always sorted)
+    ! if (present(up2n)) nat = up2n_
+
+    ! output
+    if (present(dist)) dist = at_dist(1:nat)
+    if (present(lvec)) lvec = at_lvec(:,1:nat)
+
+  end subroutine list_near_lattice_points
 
 end submodule env
