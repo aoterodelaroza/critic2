@@ -74,7 +74,7 @@ contains
     real*8 :: xp(3), dmax
     real*8, allocatable :: dist(:)
     integer, allocatable :: lvec(:,:), eid(:)
-    integer :: nat, ierr
+    integer :: nat, ierr, lvec2(3)
     type(environ) :: e
 
     ! Start reading
@@ -634,17 +634,18 @@ contains
        elseif (equal(word,'temp')) then
           ! xxxx
 
+          ! xp = (/-15.3d0,0.1d0,21.4d0/)
           xp = 0d0
-          dmax = 20d0
+          dmax = 30d0
 
-          call e%build_lattice(sy%c%m_x2c,50d0)
-          call e%list_near_atoms(xp,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,up2d=dmax)
+          call e%build_lattice(sy%c%m_x2c,150d0)
+          call e%list_near_atoms(xp,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,lvec=lvec2,up2n=2,nozero=.true.)
           do i = 1, nat
-             write (*,*) i, e%xr2x(e%at(eid(i))%x), dist(i)
+             write (*,*) i, e%xr2x(e%at(eid(i))%x) + lvec2, dist(i)
           end do
           write (*,*)
 
-          call sy%c%list_near_lattice_points(xp,icrd_crys,.true.,nat,dist,lvec,up2d=dmax)
+          call sy%c%list_near_lattice_points(xp,icrd_crys,.true.,nat,dist,lvec,up2n=2,nozero=.true.)
           do i = 1, nat
              write (*,*) i, lvec(:,i), dist(i)
           end do

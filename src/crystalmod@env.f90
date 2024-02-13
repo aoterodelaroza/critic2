@@ -19,6 +19,9 @@
 submodule (crystalmod) env
   implicit none
 
+  !xx! private procedures
+  ! subroutine make_block_shell(c,n,nb,idb,dmax)
+
 contains
 
   !> Fill the environment variables (nblock, iblock0, blockrmax) as
@@ -215,7 +218,7 @@ contains
           nseen = 0
           nshellb = 0
           do while(.true.)
-             call make_block_shell(nshellb)
+             call make_block_shell(c,nshellb,nb,idb,dmax)
 
              do i = 1, nb
                 ithis = idb(:,i) + ix
@@ -462,98 +465,6 @@ contains
     if (present(lvec)) lvec = at_lvec(:,1:nat)
 
   contains
-    ! Find the indices for the nth shell of blocks. Sets the number of indices (nb),
-    ! the indices themselves (idb(3,nb)), and the rmax for this shell (dmax).
-    subroutine make_block_shell(n)
-      integer, intent(in) :: n
-
-      integer :: i, j, ic
-
-      ! special case: n = 0
-      if (n == 0) then
-         nb = 1
-         if (allocated(idb)) deallocate(idb)
-         allocate(idb(3,nb))
-         idb = 0
-         dmax = 0d0
-         return
-      end if
-
-      ! allocate space for (2n+1)^3 - (2n-1)^3 blocks
-      nb = 2 + 24 * n * n
-      if (allocated(idb)) deallocate(idb)
-      allocate(idb(3,nb))
-
-      ! list them
-      ic = 0
-      do i = -n+1, n-1
-         do j = -n+1, n-1
-            ic = ic + 1
-            idb(:,ic) = (/n,i,j/)
-            ic = ic + 1
-            idb(:,ic) = (/-n,i,j/)
-
-            ic = ic + 1
-            idb(:,ic) = (/i,n,j/)
-            ic = ic + 1
-            idb(:,ic) = (/i,-n,j/)
-
-            ic = ic + 1
-            idb(:,ic) = (/i,j,n/)
-            ic = ic + 1
-            idb(:,ic) = (/i,j,-n/)
-         end do
-         ic = ic + 1
-         idb(:,ic) = (/n,n,i/)
-         ic = ic + 1
-         idb(:,ic) = (/n,-n,i/)
-         ic = ic + 1
-         idb(:,ic) = (/-n,n,i/)
-         ic = ic + 1
-         idb(:,ic) = (/-n,-n,i/)
-
-         ic = ic + 1
-         idb(:,ic) = (/n,i,n/)
-         ic = ic + 1
-         idb(:,ic) = (/n,i,-n/)
-         ic = ic + 1
-         idb(:,ic) = (/-n,i,n/)
-         ic = ic + 1
-         idb(:,ic) = (/-n,i,-n/)
-
-         ic = ic + 1
-         idb(:,ic) = (/i,n,n/)
-         ic = ic + 1
-         idb(:,ic) = (/i,n,-n/)
-         ic = ic + 1
-         idb(:,ic) = (/i,-n,n/)
-         ic = ic + 1
-         idb(:,ic) = (/i,-n,-n/)
-      end do
-
-      ic = ic + 1
-      idb(:,ic) = (/n,n,n/)
-      ic = ic + 1
-      idb(:,ic) = (/n,n,-n/)
-      ic = ic + 1
-      idb(:,ic) = (/n,-n,n/)
-      ic = ic + 1
-      idb(:,ic) = (/n,-n,-n/)
-      ic = ic + 1
-      idb(:,ic) = (/-n,n,n/)
-      ic = ic + 1
-      idb(:,ic) = (/-n,n,-n/)
-      ic = ic + 1
-      idb(:,ic) = (/-n,-n,n/)
-      ic = ic + 1
-      idb(:,ic) = (/-n,-n,-n/)
-
-      ! calculate the radius of the largest sphere contained in the blocked
-      ! region (dmax)
-      dmax = 0.5d0 * c%blockomega / maxval(c%blockcv / real(n,8))
-
-    end subroutine make_block_shell
-
     ! add current atom (idx) to the output list
     subroutine add_atom_to_output_list()
       nat = nat + 1
@@ -928,9 +839,11 @@ contains
 
     logical :: nozero_
     logical :: sorted_, ok
+    integer :: nb, nshellb, nsafe, idx
     integer :: nx(3), nn, i0(3), i1(3), i, j, k, lvecx(3)
     real*8 :: up2d_2, x(3), lvecini(3), blockcv(3), blockomega, xorigc(3)
-    real*8 :: xdif(3), dd
+    real*8 :: xdif(3), dd, dmax
+    integer, allocatable :: idb(:,:), iaux(:)
     integer, allocatable :: at_lvec(:,:), iord(:)
     real*8, allocatable :: at_dist(:)
 
@@ -971,7 +884,64 @@ contains
     ! run the search
     if (present(up2n)) then
        ! search a number of shells or a number of points (up2n) !!!
-       write (*,*) "fixme!"
+
+       ! Run over shells of nearby blocks and find atoms until we
+       ! have at least the given number of shells
+       nshellb = 0
+       do while(.true.)
+          call make_block_shell(c,nshellb,nb,idb,dmax)
+
+          do i = 1, nb
+             xdif = matmul(c%m_xr2c,real(idb(:,i),8)) - xorigc
+             dd = dot_product(xdif,xdif)
+
+             ! check if we should add the atom to the list
+             ok = .true.
+             if (nozero_ .and. dd < eps) ok = .false.
+             if (ok) then
+                nat = nat + 1
+                if (nat > size(at_dist,1)) then
+                   call realloc(at_dist,2*nat)
+                   call realloc(at_lvec,3,2*nat)
+                end if
+                at_dist(nat) = sqrt(dd)
+                at_lvec(:,nat) = nint(matmul(c%m_xr2x,lvecini + idb(:,i)))
+             end if
+          end do
+
+          ! check if we have enough atoms
+          nsafe = count(at_dist(1:nat) <= dmax)
+          if (nsafe >= up2n) exit
+
+          ! next shell
+          nshellb = nshellb + 1
+       end do ! while loop
+
+       if (up2n == 1) then
+          ! bypass for efficiency: handle the case when up2n = 1 (nearest point)
+          idx = minloc(at_dist(1:nat),1)
+          nat = 1
+          at_dist(1) = at_dist(idx)
+          at_lvec(:,1) = at_lvec(:,idx)
+          sorted_ = .false.
+       else
+          ! filter out the unneeded atoms
+          nsafe = count(at_dist(1:nat) <= dmax)
+          allocate(iaux(nsafe))
+          nsafe = 0
+          do i = 1, nat
+             if (at_dist(i) <= dmax) then
+                nsafe = nsafe + 1
+                iaux(nsafe) = i
+             end if
+          end do
+          nat = nsafe
+          at_dist(1:nsafe) = at_dist(iaux)
+          at_lvec(:,1:nsafe) = at_lvec(:,iaux)
+          call realloc(at_dist,nsafe)
+          call realloc(at_lvec,3,nsafe)
+          deallocate(iaux)
+       end if
     else
        ! search atoms up to a given distance (up2d) !!!
 
@@ -1002,9 +972,9 @@ contains
                 lvecx = (/i,j,k/)
                 xdif = matmul(c%m_xr2c,real(lvecx,8)) - xorigc
                 dd = dot_product(xdif,xdif)
+
                 ! check if we should add the lattice point to the list
                 ok = .true.
-
                 if (nozero_ .and. dd < eps) then
                    ok = .false.
                 elseif (present(up2d)) then
@@ -1039,18 +1009,113 @@ contains
        at_dist = at_dist(iord)
        at_lvec = at_lvec(:,iord)
        deallocate(iord)
-    else
-       call realloc(at_lvec,3,nat)
-       call realloc(at_dist,nat)
     end if
 
     ! reduce the list if up2n (always sorted)
-    ! if (present(up2n)) nat = up2n_
+    if (present(up2n)) nat = up2n
 
     ! output
     if (present(dist)) dist = at_dist(1:nat)
     if (present(lvec)) lvec = at_lvec(:,1:nat)
 
   end subroutine list_near_lattice_points
+
+  !xx! private procedures
+
+  ! Find the indices for the nth shell of blocks. Sets the number of indices (nb),
+  ! the indices themselves (idb(3,nb)), and the rmax for this shell (dmax).
+  subroutine make_block_shell(c,n,nb,idb,dmax)
+    type(crystal), intent(in) :: c
+    integer, intent(in) :: n
+    integer, intent(out) :: nb
+    integer, allocatable, intent(inout) :: idb(:,:)
+    real*8, intent(out) :: dmax
+
+    integer :: i, j, ic
+
+    ! special case: n = 0
+    if (n == 0) then
+       nb = 1
+       if (allocated(idb)) deallocate(idb)
+       allocate(idb(3,nb))
+       idb = 0
+       dmax = 0d0
+       return
+    end if
+
+    ! allocate space for (2n+1)^3 - (2n-1)^3 blocks
+    nb = 2 + 24 * n * n
+    if (allocated(idb)) deallocate(idb)
+    allocate(idb(3,nb))
+
+    ! list them
+    ic = 0
+    do i = -n+1, n-1
+       do j = -n+1, n-1
+          ic = ic + 1
+          idb(:,ic) = (/n,i,j/)
+          ic = ic + 1
+          idb(:,ic) = (/-n,i,j/)
+
+          ic = ic + 1
+          idb(:,ic) = (/i,n,j/)
+          ic = ic + 1
+          idb(:,ic) = (/i,-n,j/)
+
+          ic = ic + 1
+          idb(:,ic) = (/i,j,n/)
+          ic = ic + 1
+          idb(:,ic) = (/i,j,-n/)
+       end do
+       ic = ic + 1
+       idb(:,ic) = (/n,n,i/)
+       ic = ic + 1
+       idb(:,ic) = (/n,-n,i/)
+       ic = ic + 1
+       idb(:,ic) = (/-n,n,i/)
+       ic = ic + 1
+       idb(:,ic) = (/-n,-n,i/)
+
+       ic = ic + 1
+       idb(:,ic) = (/n,i,n/)
+       ic = ic + 1
+       idb(:,ic) = (/n,i,-n/)
+       ic = ic + 1
+       idb(:,ic) = (/-n,i,n/)
+       ic = ic + 1
+       idb(:,ic) = (/-n,i,-n/)
+
+       ic = ic + 1
+       idb(:,ic) = (/i,n,n/)
+       ic = ic + 1
+       idb(:,ic) = (/i,n,-n/)
+       ic = ic + 1
+       idb(:,ic) = (/i,-n,n/)
+       ic = ic + 1
+       idb(:,ic) = (/i,-n,-n/)
+    end do
+
+    ic = ic + 1
+    idb(:,ic) = (/n,n,n/)
+    ic = ic + 1
+    idb(:,ic) = (/n,n,-n/)
+    ic = ic + 1
+    idb(:,ic) = (/n,-n,n/)
+    ic = ic + 1
+    idb(:,ic) = (/n,-n,-n/)
+    ic = ic + 1
+    idb(:,ic) = (/-n,n,n/)
+    ic = ic + 1
+    idb(:,ic) = (/-n,n,-n/)
+    ic = ic + 1
+    idb(:,ic) = (/-n,-n,n/)
+    ic = ic + 1
+    idb(:,ic) = (/-n,-n,-n/)
+
+    ! calculate the radius of the largest sphere contained in the blocked
+    ! region (dmax)
+    dmax = 0.5d0 * c%blockomega / maxval(c%blockcv / real(n,8))
+
+  end subroutine make_block_shell
 
 end submodule env
