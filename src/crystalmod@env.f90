@@ -810,6 +810,7 @@ contains
   !> regardless of the value of sorted.
   !>
   !> Optional input:
+  !> - ndiv = divide the parent lattice vectors by ndiv; useful for grids
   !> - nozero = disregard zero-distance lattice points.
   !>
   !> Output:
@@ -820,9 +821,10 @@ contains
   !> - lvec(3,nid) = lattice vector coordinates (crystallographic).
   !>
   !> This routine is thread-safe.
-  module subroutine list_near_lattice_points(c,xp,icrd,sorted,nat,dist,lvec,up2d,up2n,nozero)
+  module subroutine list_near_lattice_points(c,xp,icrd,sorted,nat,dist,lvec,ndiv,&
+     up2d,up2n,nozero)
     use types, only: realloc
-    use tools, only: mergesort
+    use tools, only: mergesort, wscell
     use tools_math, only: det3, cross
     use tools_io, only: ferror, faterr
     use param, only: icrd_cart, icrd_crys
@@ -833,6 +835,7 @@ contains
     integer, intent(out) :: nat
     real*8, allocatable, intent(inout), optional :: dist(:)
     integer, allocatable, intent(inout), optional :: lvec(:,:)
+    integer, intent(in), optional :: ndiv(3)
     real*8, intent(in), optional :: up2d
     integer, intent(in), optional :: up2n
     logical, intent(in), optional :: nozero
@@ -842,10 +845,11 @@ contains
     integer :: nb, nshellb, nsafe, idx
     integer :: nx(3), nn, i0(3), i1(3), i, j, k, lvecx(3)
     real*8 :: up2d_2, x(3), lvecini(3), blockcv(3), blockomega, xorigc(3)
-    real*8 :: xdif(3), dd, dmax
+    real*8 :: xdif(3), dd, dmax, x0(3)
     integer, allocatable :: idb(:,:), iaux(:)
     integer, allocatable :: at_lvec(:,:), iord(:)
     real*8, allocatable :: at_dist(:)
+    real*8 :: x2c(3,3), x2xr(3,3), xr2x(3,3), xr2c(3,3), c2xr(3,3)
 
     real*8, parameter :: eps = 1d-20
 
@@ -861,17 +865,31 @@ contains
        call ferror("list_near_lattice_points","must give one of up2d or up2n",faterr)
     end if
 
-    ! translate the point to the main cell
-    if (icrd == icrd_crys) then
-       x = c%x2xr(xp)
-    elseif (icrd == icrd_cart) then
-       x = c%c2xr(xp)
+    if (present(ndiv)) then
+       do i = 1, 3
+          x2c(:,i) = c%m_x2c(:,i) / real(ndiv(i),8)
+       end do
+       x0 = xp * ndiv
+       call wscell(x2c,.true.,m_xr2x=xr2x,m_xr2c=xr2c,m_x2xr=x2xr,m_c2xr=c2xr)
     else
-       x = xp
+       x0 = xp
+       xr2c = c%m_xr2c
+       c2xr = c%m_c2xr
+       xr2x = c%m_xr2x
+       x2xr = c%m_x2xr
+    end if
+
+    ! translate the point to the main reduced cell
+    if (icrd == icrd_crys) then
+       x = matmul(x2xr,x0)
+    elseif (icrd == icrd_cart) then
+       x = matmul(c2xr,x0)
+    else
+       x = x0
     end if
     lvecini = floor(x)
     x = x - lvecini
-    xorigc = c%xr2c(x)
+    xorigc = matmul(xr2c,x)
 
     ! allocate space for lattice points
     nat = 0
@@ -892,7 +910,7 @@ contains
           call make_block_shell(c,nshellb,nb,idb,dmax)
 
           do i = 1, nb
-             xdif = matmul(c%m_xr2c,real(idb(:,i),8)) - xorigc
+             xdif = matmul(xr2c,real(idb(:,i),8)) - xorigc
              dd = dot_product(xdif,xdif)
 
              ! check if we should add the atom to the list
@@ -905,7 +923,7 @@ contains
                    call realloc(at_lvec,3,2*nat)
                 end if
                 at_dist(nat) = sqrt(dd)
-                at_lvec(:,nat) = nint(matmul(c%m_xr2x,lvecini + idb(:,i)))
+                at_lvec(:,nat) = nint(matmul(xr2x,lvecini + idb(:,i)))
              end if
           end do
 
@@ -948,10 +966,10 @@ contains
        ! calculate the number of blocks in each direction required for satifying
        ! that the largest sphere in the super-block has radius > dmax.
        ! r = Vblock / 2 / max(cv(3)/n3,cv(2)/n2,cv(1)/n1)
-       blockcv(1) = norm2(cross(c%m_xr2c(:,2),c%m_xr2c(:,3)))
-       blockcv(2) = norm2(cross(c%m_xr2c(:,1),c%m_xr2c(:,3)))
-       blockcv(3) = norm2(cross(c%m_xr2c(:,1),c%m_xr2c(:,2)))
-       blockomega = det3(c%m_xr2c)
+       blockcv(1) = norm2(cross(xr2c(:,2),xr2c(:,3)))
+       blockcv(2) = norm2(cross(xr2c(:,1),xr2c(:,3)))
+       blockcv(3) = norm2(cross(xr2c(:,1),xr2c(:,2)))
+       blockomega = det3(xr2c)
        nx = ceiling(blockcv / (0.5d0 * blockomega / max(up2d,1d-40)))
 
        ! define the search space
@@ -970,7 +988,7 @@ contains
           do j = i0(2), i1(2)
              do k = i0(3), i1(3)
                 lvecx = (/i,j,k/)
-                xdif = matmul(c%m_xr2c,real(lvecx,8)) - xorigc
+                xdif = matmul(xr2c,real(lvecx,8)) - xorigc
                 dd = dot_product(xdif,xdif)
 
                 ! check if we should add the lattice point to the list
@@ -987,7 +1005,7 @@ contains
                       call realloc(at_lvec,3,2*nat)
                    end if
                    at_dist(nat) = sqrt(dd)
-                   at_lvec(:,nat) = nint(matmul(c%m_xr2x,lvecini + lvecx))
+                   at_lvec(:,nat) = nint(matmul(xr2x,lvecini + lvecx))
                 end if
              end do ! k = i0(3), i1(3)
           end do ! j = i0(2), i1(2)

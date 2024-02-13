@@ -460,7 +460,8 @@ module crystalmod
      module subroutine find_asterisms_covalent(c)
        class(crystal), intent(inout) :: c
      end subroutine find_asterisms_covalent
-     module subroutine list_near_lattice_points(c,xp,icrd,sorted,nat,dist,lvec,up2d,up2n,nozero)
+     module subroutine list_near_lattice_points(c,xp,icrd,sorted,nat,dist,lvec,ndiv,&
+        up2d,up2n,nozero)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: xp(3)
        integer, intent(in) :: icrd
@@ -468,6 +469,7 @@ module crystalmod
        integer, intent(out) :: nat
        real*8, allocatable, intent(inout), optional :: dist(:)
        integer, allocatable, intent(inout), optional :: lvec(:,:)
+       integer, intent(in), optional :: ndiv(3)
        real*8, intent(in), optional :: up2d
        integer, intent(in), optional :: up2n
        logical, intent(in), optional :: nozero
