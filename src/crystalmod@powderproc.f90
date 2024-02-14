@@ -318,7 +318,6 @@ contains
   module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0,ihat,intpeak)
     use global, only: atomeps
     use param, only: icrd_cart
-    use environmod, only: environ
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: rini
     real*8, intent(in) :: rend
@@ -465,7 +464,6 @@ contains
   !> Match. Commun. Math. Comput. Chem., 87 (2022) 529, doi:10.46793/match.87-3.529W
   !> Reference implementation: https://github.com/dwiddo/average-minimum-distance
   module subroutine amd(c,imax,res)
-    use environmod, only: environ
     use tools_io, only: string
     use param, only: icrd_crys
     class(crystal), intent(inout) :: c

@@ -232,7 +232,6 @@ contains
   !> weights does not involve a double sum over atoms.
   module subroutine genmesh_franchini(m,c,lvl)
     use crystalmod, only: crystal
-    use environmod, only: environ
     use tools_math, only: good_lebedev, select_lebedev
     use tools_io, only: faterr, ferror
     use param, only: maxzat, fourpi, icrd_cart

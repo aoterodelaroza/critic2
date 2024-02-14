@@ -1274,7 +1274,6 @@ contains
   !> Match. Commun. Math. Comput. Chem., 87 (2022) 529, doi:10.46793/match.87-3.529W
   !> Reference implementation: https://github.com/dwiddo/average-minimum-distance
   module subroutine struct_amd(s,line)
-    use environmod, only: environ
     use global, only: iunitname0, dunit0, iunit
     use tools_io, only: uout, isinteger, ferror, faterr, string, ioj_left, ioj_right, warning
     type(system), intent(inout) :: s
@@ -1972,7 +1971,6 @@ contains
   !> comparison method in struct_compare.
   module subroutine struct_comparevc(s,line)
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
-    use environmod, only: environ
     use global, only: iunitname0, dunit0, iunit, fileroot
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
@@ -2376,7 +2374,6 @@ contains
   !> non-equivalent atoms in the unit cell.
   module subroutine struct_environ(s,line)
     use systemmod, only: system
-    use environmod, only: environ
     use global, only: eval_next, dunit0, iunit, iunitname0
     use tools_io, only: string, lgetword, equal, ferror, faterr, noerr, string, uout,&
        ioj_right, ioj_center, zatguess, isinteger
@@ -2614,7 +2611,6 @@ contains
   !> Calculate the coordination numbers of all atoms.
   module subroutine struct_coord(s,line)
     use systemmod, only: system
-    use environmod, only: environ
     use global, only: bondfactor, eval_next
     use tools_io, only: ferror, faterr, zatguess, lgetword, equal, isinteger, ioj_center,&
        ioj_left, ioj_right, uout, string
@@ -2789,7 +2785,6 @@ contains
     use tools_io, only: equali, zatguess, ferror, faterr, getword, uout, string, ioj_left, ioj_center
     use tools_math, only: mixed
     use global, only: bondfactor, eval_next, dunit0, iunit, iunitname0
-    use environmod, only: environ
     ! use tools_io, only: ferror, faterr, zatguess, lgetword, equal, isinteger, ioj_center,&
     !    ioj_left, ioj_right, uout, string
     use param, only: atmcov, icrd_crys
@@ -3166,7 +3161,6 @@ contains
   !> Build a new crystal from the current crystal by cell transformation
   module subroutine struct_newcell(s,line,verbose)
     use systemmod, only: system
-    use environmod, only: environ
     use tools_math, only: matinv, cross, det3
     use global, only: iunitname0, dunit0, iunit, eval_next
     use tools_io, only: uout, ferror, faterr, lgetword, equal, string, isinteger, ioj_left,&
@@ -3444,7 +3438,6 @@ contains
   module subroutine struct_econ(s)
     use systemmod, only: system
     use crystalmod, only: crystal
-    use environmod, only: environ
     use global, only: iunitname0, dunit0, iunit
     use tools_io, only: uout, string, ioj_left, ioj_right, ferror, faterr
     use param, only: icrd_crys, bohrtoa

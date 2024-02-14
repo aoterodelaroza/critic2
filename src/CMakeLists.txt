@@ -7,8 +7,7 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   crystalmod@proc.f90 crystalmod@powderproc.f90 crystalmod@symmetry.f90
   crystalmod@write.f90 crystalseedmod.f90
   crystalseedmod@proc.f90 dftb_private.f90
-  dftb_private@proc.f90 elk_private.f90 elk_private@proc.f90
-  environmod.f90 environmod@proc.f90 fieldmod.f90
+  dftb_private@proc.f90 elk_private.f90 elk_private@proc.f90 fieldmod.f90
   fieldmod@proc.f90 fieldseedmod.f90 fieldseedmod@proc.f90
   flux.f90 flux@proc.f90 fragmentmod.f90
   fragmentmod@proc.f90 global.f90 global@proc.F90

@@ -99,7 +99,6 @@ contains
   !> and true, do not load the atomic grids or the environments in
   !> the new cell.
   module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv,ti)
-    use environmod, only: environ
     use crystalseedmod, only: crystalseed
     use tools_math, only: det3, matinv, mnorm2
     use tools_io, only: ferror, faterr, warning, string, uout

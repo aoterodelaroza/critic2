@@ -2195,7 +2195,6 @@ contains
   ! deformation up to ma.r angle.
   subroutine trick_compare_deformed(line)
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
-    use environmod, only: environ
     use global, only: iunitname0, dunit0, iunit, fileroot
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
