@@ -3011,6 +3011,7 @@ contains
 
   !> Calculate the van der Waals volume of a crystal or molecule.
   module subroutine struct_vdw(s,line)
+    use global, only: iunitname0, dunit0, iunit
     use systemmod, only: system
     use tools_io, only: ferror, faterr, uout, lgetword, equal, string
     use global, only: eval_next
@@ -3020,7 +3021,7 @@ contains
     integer :: lp
     logical :: ok
     character(len=:), allocatable :: word
-    real*8 :: vvdw
+    real*8 :: vvdw, fac3
     real*8 :: prec
 
     ! default values
@@ -3048,18 +3049,22 @@ contains
     end do
 
     ! calculate vdw volume
-    vvdw = s%c%vdw_volume(prec)
+    fac3 = dunit0(iunit)**3
+    vvdw = s%c%vdw_volume(prec) * fac3
 
     ! output
-    write (uout,'("+ Requested sigma_{Vvdw}/Vvdw: ",A)') string(prec,'e',decimal=4)
-    write (uout,'("+ Van der Waals volume (Vvdw): ",A," +- ",A)') &
-       string(vvdw,'f',decimal=6), string(prec*vvdw,'f',decimal=6)
+    write (uout,'("+ Requested relative std. deviation (sigma_{Vvdw}/Vvdw): ",A)') string(prec,'e',decimal=4)
+    write (uout,'("+ Van der Waals volume (Vvdw): ",A," +- ",A," ",A,"^3")') &
+       string(vvdw,'f',decimal=6), string(prec*vvdw,'f',decimal=6),&
+       iunitname0(iunit)
     if (.not.s%c%ismolecule) then
-       write (uout,'("+ Interstitial volume (outside vdw spheres): ",A," +- ",A)') &
-          string(s%c%omega-vvdw,'f',decimal=6), string(prec*vvdw,'f',decimal=6)
-       write (uout,'("+ Cell volume: ",A)') string(s%c%omega,'f',decimal=6)
-       write (uout,'("+ Packing ratio (%): ",A," +- ",A)') string(vvdw/s%c%omega*100d0,'f',decimal=6), &
-          string(prec*vvdw/s%c%omega*100d0,'f',decimal=6)
+       write (uout,'("+ Interstitial volume (outside vdw spheres): ",A," +- ",A," ",A,"^3")') &
+          string(s%c%omega*fac3-vvdw,'f',decimal=6), string(prec*vvdw,'f',decimal=6),&
+          iunitname0(iunit)
+       write (uout,'("+ Cell volume: ",A," ",A,"^3")') string(s%c%omega*fac3,'f',decimal=6),&
+          iunitname0(iunit)
+       write (uout,'("+ Packing ratio (%): ",A," +- ",A)') string(vvdw/s%c%omega/fac3*100d0,'f',decimal=6), &
+          string(prec*vvdw/s%c%omega/fac3*100d0,'f',decimal=6)
     end if
     write (uout,*)
 
