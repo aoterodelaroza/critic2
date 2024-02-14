@@ -41,7 +41,7 @@ contains
 
     n = 0
     do i = 1, nat
-       id = c%identify_atom_env(x0(:,i),icrd_cart)
+       id = c%identify_atom(x0(:,i),icrd_cart)
        if (id > 0) then
           n = n + 1
           fr%at(n)%r = x0(:,i)
@@ -90,7 +90,7 @@ contains
     do i = 1, nat
        read(lu,*,err=999,end=999) word, x0
        x0 = x0 / bohrtoa - c%molx0
-       id = c%identify_atom_env(x0,icrd_cart)
+       id = c%identify_atom(x0,icrd_cart)
        if (id == 0) then
           fr%nat = 0
           deallocate(fr%at)

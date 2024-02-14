@@ -1335,10 +1335,10 @@ contains
              errmsg = 'atom ID in rho0nuc structural variable out of range'
              return
           end if
-          call syl%c%nearest_atom_env(x0,icrd_cart,nid0,dist,lvec=lvec,id0=nid)
+          call syl%c%nearest_atom(x0,icrd_cart,nid0,dist,lvec=lvec,id0=nid)
           if (nid /= nid0) return ! fixme: the atom was too far
        else
-          call syl%c%nearest_atom_env(x0,icrd_cart,nid,dist,lvec=lvec)
+          call syl%c%nearest_atom(x0,icrd_cart,nid,dist,lvec=lvec)
        end if
 
        if (nid == 0) then

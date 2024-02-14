@@ -134,7 +134,7 @@ contains
     frho = 0d0
     gfrho = 0d0
     hfrho = 0d0
-    call c%nearest_atom_env(vpl,icrd_crys,nid,dist,lvec=lvec)
+    call c%nearest_atom(vpl,icrd_crys,nid,dist,lvec=lvec)
 
     ! inside a muffin tin
     inmt = (nid > 0)

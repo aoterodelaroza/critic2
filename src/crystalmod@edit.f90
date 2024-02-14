@@ -618,7 +618,7 @@ contains
                 if (ldone(c%atcel(k)%idx)) cycle
 
                 x0 = matmul(c%rotm(1:3,1:3,i),c%atcel(k)%x) + c%rotm(:,4,i) + c%cen(:,j)
-                id = c%identify_atom_env(x0,icrd_crys)
+                id = c%identify_atom(x0,icrd_crys)
 
                 if (id == 0) &
                    call ferror('wholemols','error identifying rotated atom',faterr)
@@ -649,7 +649,7 @@ contains
           if (.not.sgroup(j,ig)) cycle
           do k = 1, c%ncv
              x0 = matmul(c%rotm(1:3,1:3,j),c%atcel(i)%x) + c%rotm(:,4,j) + c%cen(:,k)
-             id = c%identify_atom_env(x0,icrd_crys)
+             id = c%identify_atom(x0,icrd_crys)
              if (id == 0) &
                 call ferror('wholemols','error identifying rotated atom',faterr)
              isuse(id) = .true.

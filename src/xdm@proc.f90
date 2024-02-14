@@ -362,8 +362,8 @@ contains
              do i = 1, n(1)
                 x = (/real(i-1,8)/n(1), real(j-1,8)/n(2), real(k-1,8)/n(3)/)
 
-                if (dopro) call sy%c%promolecular_env(x,icrd_crys,rhoat,rdum1,rdum2,0)
-                if (docor) call sy%c%promolecular_env(x,icrd_crys,rhocore,rdum1,rdum2,0,sy%f(irho)%zpsp)
+                if (dopro) call sy%c%promolecular_atom(x,icrd_crys,rhoat,rdum1,rdum2,0)
+                if (docor) call sy%c%promolecular_atom(x,icrd_crys,rhocore,rdum1,rdum2,0,sy%f(irho)%zpsp)
                 !$omp critical(write)
                 if (dopro) sy%f(ipdens)%grid%f(i,j,k) = rhoat
                 if (docor) sy%f(icor)%grid%f(i,j,k) = rhocore
@@ -1246,7 +1246,7 @@ contains
     ! fill the actual periodic promolecular density
     if (.not.sy%c%ismolecule) then
        do j = 1, m%n
-          call sy%c%promolecular_env(m%x(:,j),icrd_cart,rho,dum1,dum2,0)
+          call sy%c%promolecular_atom(m%x(:,j),icrd_cart,rho,dum1,dum2,0)
           m%f(j,2) = rho
        enddo
     end if

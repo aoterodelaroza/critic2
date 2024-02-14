@@ -175,7 +175,7 @@ contains
     end if
 
     ! is this a nuclear position? -> get charge
-    idnuc = c%identify_atom_env(x,icrd_crys)
+    idnuc = c%identify_atom(x,icrd_crys)
     if (idnuc > 0) then
        qnuc = c%spc(c%atcel(idnuc)%is)%qat
     else
@@ -268,7 +268,7 @@ contains
        do j = 1, n(2)
           do i = 1, n(1)
              x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
-             call c%promolecular_env(x,icrd_crys,rho,rdum1,rdum2,0,zpsp,fr)
+             call c%promolecular_atom(x,icrd_crys,rho,rdum1,rdum2,0,zpsp,fr)
 
              !$omp critical(write)
              f%f(i,j,k) = rho

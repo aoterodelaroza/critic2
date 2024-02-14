@@ -951,7 +951,7 @@ contains
           ok = ok .and. eval_next(x(3),line,lp)
           if (.not.ok) call ferror('nciplot','bad atom in fragment',faterr)
           x = x / bohrtoa - sy%c%molx0
-          id = sy%c%identify_atom_env(x,icrd_cart)
+          id = sy%c%identify_atom(x,icrd_cart)
 
           if (id > 0) then
              fr%nat = fr%nat + 1

@@ -513,7 +513,7 @@ contains
   !> - nozero = disregard zero-distance atoms.
   !>
   !> This routine is thread-safe.
-  module subroutine nearest_atom_env(c,xp,icrd,nid,dist,distmax,lvec,nid0,id0,iz0,ispc0,nozero)
+  module subroutine nearest_atom(c,xp,icrd,nid,dist,distmax,lvec,nid0,id0,iz0,ispc0,nozero)
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: xp(3)
     integer, intent(in) :: icrd
@@ -553,7 +553,7 @@ contains
     dist = dist_(1)
     if (present(lvec)) lvec = lvec_(:,1)
 
-  end subroutine nearest_atom_env
+  end subroutine nearest_atom
 
   !> Given point x0 (with icrd input coordinates), if x0 corresponds
   !> to an atomic position (to within distmax or atomeps if distmax is
@@ -561,7 +561,7 @@ contains
   !> return 0. Optionally, return the lattice vector translation
   !> (lvec) and the distance (dist) to the closest atom. This routine
   !> is thread-safe.
-  module function identify_atom_env(c,x0,icrd,lvec,dist,distmax)
+  module function identify_atom(c,x0,icrd,lvec,dist,distmax)
     use global, only: atomeps
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x0(3)
@@ -569,20 +569,20 @@ contains
     integer, intent(out), optional :: lvec(3)
     real*8, intent(out), optional :: dist
     real*8, intent(in), optional :: distmax
-    integer :: identify_atom_env
+    integer :: identify_atom
 
     real*8 :: distmax_, dist0
     integer :: lvec0(3)
 
-    identify_atom_env = 0
+    identify_atom = 0
     distmax_ = atomeps
     if (present(distmax)) distmax_ = distmax
 
-    call c%nearest_atom_env(x0,icrd,identify_atom_env,dist0,distmax=distmax_,lvec=lvec0)
+    call c%nearest_atom(x0,icrd,identify_atom,dist0,distmax=distmax_,lvec=lvec0)
     if (present(lvec)) lvec = lvec0
     if (present(dist)) dist = dist0
 
-  end function identify_atom_env
+  end function identify_atom
 
   !> Calculate the core (if zpsp is present) or promolecular densities
   !> at a point x0 (coord format given by icrd) using atomic radial
@@ -590,7 +590,7 @@ contains
   !> density (f), gradient (fp, nder >= 1), and Hessian (fpp, nder >=
   !> 2). If a fragment (fr) is given, then only the atoms in it
   !> contribute. This routine is thread-safe.
-  module subroutine promolecular_env(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
+  module subroutine promolecular_atom(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
     use grid1mod, only: cgrid, agrid, grid1
     use global, only: cutrad
     use fragmentmod, only: fragment
@@ -721,7 +721,7 @@ contains
 
     if (allocated(isinfr)) deallocate(isinfr)
 
-  end subroutine promolecular_env
+  end subroutine promolecular_atom
 
   !> Find the covalent bond connectivity and return the bonds in the
   !> c%nstar array.

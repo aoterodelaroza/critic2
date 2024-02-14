@@ -128,7 +128,6 @@ module crystalmod
      ! core charges
      integer :: zpsp(maxzat0)
 
-     !! Initialization level: isenv !!
      ! atomic environment of the cell
      integer :: nblock(3) ! number of environemt blocks
      integer,allocatable :: iblock0(:,:,:) ! starting atomic index for each block
@@ -136,7 +135,6 @@ module crystalmod
      real*8 :: blockomega ! volume of a block
      real*8 :: blockcv(3) ! cross products of the block lattice vectors
 
-     !! Initialization level: isast !!
      ! asterisms
      type(neighstar), allocatable :: nstar(:) !< Neighbor stars
      integer :: nmol = 0 !< Number of molecules in the unit cell
@@ -180,9 +178,9 @@ module crystalmod
      ! atomic environments and distance calculations
      procedure :: build_env
      procedure :: list_near_atoms
-     procedure :: nearest_atom_env
-     procedure :: identify_atom_env
-     procedure :: promolecular_env
+     procedure :: nearest_atom
+     procedure :: identify_atom
+     procedure :: promolecular_atom
      procedure :: find_asterisms_covalent
      procedure :: list_near_lattice_points
      procedure :: nearest_lattice_point
@@ -359,33 +357,11 @@ module crystalmod
        real*8, intent(out), optional :: dd
        logical :: are_lclose
      end function are_lclose
-     module subroutine nearest_atom(c,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,is0,nozero)
-       class(crystal), intent(in) :: c
-       real*8, intent(in) :: xp(3)
-       integer, intent(in) :: icrd
-       integer, intent(out) :: nid
-       real*8, intent(out) :: dist
-       real*8, intent(in), optional :: distmax
-       integer, intent(out), optional :: lvec(3)
-       integer, intent(in), optional :: cidx0
-       integer, intent(in), optional :: idx0
-       integer, intent(in), optional :: is0
-       logical, intent(in), optional :: nozero
-     end subroutine nearest_atom
      module subroutine nearest_atom_grid(c,n,idg)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: n(3)
        integer, allocatable, intent(inout) :: idg(:,:,:)
      end subroutine nearest_atom_grid
-     module function identify_atom(c,x0,icrd,lvec,dist,distmax)
-       class(crystal), intent(in) :: c
-       real*8, intent(in) :: x0(3)
-       integer, intent(in) :: icrd
-       integer, intent(out), optional :: lvec(3)
-       real*8, intent(out), optional :: dist
-       real*8, intent(in), optional :: distmax
-       integer :: identify_atom
-     end function identify_atom
      module function identify_spc(c,str) result(res)
        use crystalseedmod, only: crystalseed
        class(crystal), intent(inout) :: c
@@ -417,7 +393,7 @@ module crystalmod
        integer, intent(in), optional :: ispc0
        logical, intent(in), optional :: nozero
      end subroutine list_near_atoms
-     module subroutine nearest_atom_env(c,xp,icrd,nid,dist,distmax,lvec,nid0,id0,iz0,ispc0,nozero)
+     module subroutine nearest_atom(c,xp,icrd,nid,dist,distmax,lvec,nid0,id0,iz0,ispc0,nozero)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: xp(3)
        integer, intent(in) :: icrd
@@ -430,17 +406,17 @@ module crystalmod
        integer, intent(in), optional :: iz0
        integer, intent(in), optional :: ispc0
        logical, intent(in), optional :: nozero
-     end subroutine nearest_atom_env
-     module function identify_atom_env(c,x0,icrd,lvec,dist,distmax)
+     end subroutine nearest_atom
+     module function identify_atom(c,x0,icrd,lvec,dist,distmax)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x0(3)
        integer, intent(in) :: icrd
        integer, intent(out), optional :: lvec(3)
        real*8, intent(out), optional :: dist
        real*8, intent(in), optional :: distmax
-       integer :: identify_atom_env
-     end function identify_atom_env
-     module subroutine promolecular_env(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
+       integer :: identify_atom
+     end function identify_atom
+     module subroutine promolecular_atom(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
        use fragmentmod, only: fragment
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x0(3)
@@ -451,7 +427,7 @@ module crystalmod
        integer, intent(in) :: nder
        integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
-     end subroutine promolecular_env
+     end subroutine promolecular_atom
      module subroutine find_asterisms_covalent(c)
        class(crystal), intent(inout) :: c
      end subroutine find_asterisms_covalent

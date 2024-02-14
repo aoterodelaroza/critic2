@@ -876,11 +876,11 @@ contains
        ! all work done in Cartesians in a finite environment.
 
     case(type_promol)
-       call f%c%promolecular_env(wcr,icrd_cart,res%f,res%gf,res%hf,nder)
+       call f%c%promolecular_atom(wcr,icrd_cart,res%f,res%gf,res%hf,nder)
        ! not needed because grd_atomic uses struct.
 
     case(type_promol_frag)
-       call f%c%promolecular_env(wcr,icrd_cart,res%f,res%gf,res%hf,nder,fr=f%fr)
+       call f%c%promolecular_atom(wcr,icrd_cart,res%f,res%gf,res%hf,nder,fr=f%fr)
        ! not needed because grd_atomic uses struct.
 
     case(type_ghost)
@@ -903,7 +903,7 @@ contains
 
     ! augment with the core if applicable
     if (f%usecore .and. any(f%zpsp /= -1)) then
-       call f%c%promolecular_env(wc,icrd_cart,rho,grad,h,nder,zpsp=f%zpsp)
+       call f%c%promolecular_atom(wc,icrd_cart,rho,grad,h,nder,zpsp=f%zpsp)
        res%f = res%f + rho
        res%gf  = res%gf + grad
        res%hf = res%hf + h
@@ -914,7 +914,7 @@ contains
 
     ! If it's on a nucleus, nullify the gradient (may not be zero in
     ! grid fields, for instance)
-    nid = f%c%identify_atom_env(wc,icrd_cart,distmax=1d-5)
+    nid = f%c%identify_atom(wc,icrd_cart,distmax=1d-5)
     res%isnuc = (nid > 0)
 
     ! gradient
@@ -1002,9 +1002,9 @@ contains
     case(type_dftb)
        call f%dftb%rho2(wcr,f%exact,0,rho,grad,h,gkin)
     case(type_promol)
-       call f%c%promolecular_env(wcr,icrd_cart,rho,grad,h,0)
+       call f%c%promolecular_atom(wcr,icrd_cart,rho,grad,h,0)
     case(type_promol_frag)
-       call f%c%promolecular_env(wcr,icrd_cart,rho,grad,h,0,fr=f%fr)
+       call f%c%promolecular_atom(wcr,icrd_cart,rho,grad,h,0,fr=f%fr)
     case(type_ghost)
        rho = eval(f%expr,errmsg,wc,f%sptr,periodic)
        if (len_trim(errmsg) > 0) &
@@ -1014,7 +1014,7 @@ contains
     end select
 
     if (f%usecore .and. any(f%zpsp /= -1)) then
-       call f%c%promolecular_env(wc,icrd_cart,rhoaux,grad,h,0,zpsp=f%zpsp)
+       call f%c%promolecular_atom(wc,icrd_cart,rhoaux,grad,h,0,zpsp=f%zpsp)
        rho = rho + rhoaux
     end if
     grd0 = rho
@@ -2050,7 +2050,7 @@ contains
     end if
 
     ! distance to atoms
-    nid = f%c%identify_atom_env(xc,icrd_crys,dist=dist,distmax=max(nuceps,nucepsh))
+    nid = f%c%identify_atom(xc,icrd_crys,dist=dist,distmax=max(nuceps,nucepsh))
     if (nid > 0) then
        if (dist < nuceps) goto 999
        if (f%c%spc(f%c%atcel(nid)%is)%z == 1 .and. dist < nucepsh) goto 999
@@ -2295,7 +2295,7 @@ contains
        end if
 
        ! nearest nucleus
-       call fid%c%nearest_atom_env(xpoint,icrd_crys,idnuc,sphrad,lvec=lvec)
+       call fid%c%nearest_atom(xpoint,icrd_crys,idnuc,sphrad,lvec=lvec)
        xnuc = fid%c%x2c(fid%c%atcel(idnuc)%x + lvec)
        xnucr = fid%c%atcel(idnuc)%x + lvec
        idnuc = fid%c%atcel(idnuc)%idx

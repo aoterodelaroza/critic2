@@ -961,7 +961,7 @@ contains
        call sy%f(sy%iref)%nearest_cp(flx_path(flx_n)%x,flx_cpcelid(2),dist)
        if (dist <= cpeps) goto 999
 
-       flx_cpcelid(2) = sy%c%identify_atom_env(flx_path(flx_n)%x,icrd_crys,dist=dist,distmax=max(nuceps,nucepsh))
+       flx_cpcelid(2) = sy%c%identify_atom(flx_path(flx_n)%x,icrd_crys,dist=dist,distmax=max(nuceps,nucepsh))
        if (flx_cpcelid(2) > 0) then
           if (dist < nuceps) goto 999
           if (sy%c%spc(sy%c%atcel(flx_cpcelid(2))%is)%z == 1 .and. dist < nucepsh) goto 999

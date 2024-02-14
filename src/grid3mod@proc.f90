@@ -3154,7 +3154,7 @@ contains
      type(crystal), pointer :: c
 
      call c_f_pointer(cptr,c)
-     call c%promolecular_env(x0,icrd,f,fp,fpp,nder,zpsp,fr)
+     call c%promolecular_atom(x0,icrd,f,fp,fpp,nder,zpsp,fr)
 
    end subroutine crystalmod_promolecular
 

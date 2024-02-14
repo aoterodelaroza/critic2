@@ -548,7 +548,7 @@ contains
        ! Write the half nearest-neighbor distance
        do i = 1, c%nneq
           if (.not.c%ismolecule .or. c%ncel > 1) then
-             call c%nearest_atom_env(c%at(i)%r,icrd_cart,iat,dist,nozero=.true.)
+             call c%nearest_atom(c%at(i)%r,icrd_cart,iat,dist,nozero=.true.)
              c%at(i)%rnn2 = 0.5d0 * dist
           else
              c%at(i)%rnn2 = 0d0
@@ -816,7 +816,7 @@ contains
        do j = 1, n(2)
           do i = 1, n(1)
              x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
-             call c%nearest_atom_env(x,icrd_crys,nid,dist)
+             call c%nearest_atom(x,icrd_crys,nid,dist)
              !$omp critical(write)
              idg(i,j,k) = nid
              !$omp end critical(write)

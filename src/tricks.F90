@@ -636,18 +636,18 @@ contains
   !     !    call random_number(xx)
   !     !    x = cr%atcel(floor(xx(2)*cr%ncel+1))%r + x / norm2(x) * (xx(1)/1000d0)
 
-  !     !    nid1 = cr%identify_atom_env(x,.true.)
-  !     !    nid2 = env%identify_atom_env(x,icrd_cart,.true.)
-  !     !    nid3 = cr%identify_atom_env(x,.false.)
-  !     !    nid4 = env%identify_atom_env(x,icrd_cart,.false.)
+  !     !    nid1 = cr%identify_atom(x,.true.)
+  !     !    nid2 = env%identify_atom(x,icrd_cart,.true.)
+  !     !    nid3 = cr%identify_atom(x,.false.)
+  !     !    nid4 = env%identify_atom(x,icrd_cart,.false.)
   !     !    write (*,*) i, abs(nid1-nid2), abs(nid3-nid4), x
 
   !     !    ! ! test for not finding the atom
   !     !    ! call random_number(x)
   !     !    ! call random_number(xx)
   !     !    ! x = cr%atcel(floor(xx(2)*cr%ncel+1))%r + x / norm2(x) * (xx(1)/30d0)
-  !     !    ! nid1 = env%identify_atom_env(x,icrd_cart,.true.)
-  !     !    ! nid2 = env%identify_atom_env(x,icrd_cart,.false.)
+  !     !    ! nid1 = env%identify_atom(x,icrd_cart,.true.)
+  !     !    ! nid2 = env%identify_atom(x,icrd_cart,.false.)
   !     !    ! write (*,*) i, nid1, nid2
   !     ! end do
 
