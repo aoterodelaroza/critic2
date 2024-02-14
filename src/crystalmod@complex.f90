@@ -175,7 +175,7 @@ contains
     end if
 
     ! is this a nuclear position? -> get charge
-    idnuc = c%identify_atom(x,icrd_crys)
+    idnuc = c%identify_atom_env(x,icrd_crys)
     if (idnuc > 0) then
        qnuc = c%spc(c%atcel(idnuc)%is)%qat
     else
@@ -235,30 +235,6 @@ contains
 
   end function ewald_pot
 
-  !> Translate the point x0 to the main cell and calculate the core
-  !> (if zpsp is present) or promolecular densities at a point x0
-  !> (coord format given by icrd) using atomic radial grids up to a
-  !> number of derivatives nder (max: 2). Returns the density (f),
-  !> gradient (fp, nder >= 1), and Hessian (fpp, nder >= 2). If a
-  !> fragment (fr) is given, then only the atoms in it
-  !> contribute. This routine is a wrapper for the environment's
-  !> promolecular. Thread-safe.
-  module subroutine promolecular(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
-    use fragmentmod, only: fragment
-    class(crystal), intent(in) :: c
-    real*8, intent(in) :: x0(3) !< Point in cryst. coords.
-    integer, intent(in) :: icrd !< Input coordinate format
-    real*8, intent(out) :: f !< Density
-    real*8, intent(out) :: fp(3) !< Density gradient
-    real*8, intent(out) :: fpp(3,3) !< Density hessian
-    integer, intent(in) :: nder !< Number of derivatives to calculate
-    integer, intent(in), optional :: zpsp(:)
-    type(fragment), intent(in), optional :: fr !< Fragment contributing to the density
-
-    call c%env%promolecular(x0,icrd,f,fp,fpp,nder,zpsp,fr)
-
-  end subroutine promolecular
-
   !> Calculate the core or promolecular densities on a grid with n(:)
   !> points. If a fragment is given, then only the atoms in it
   !> contribute.  This routine is thread-safe.
@@ -267,7 +243,7 @@ contains
     use grid1mod, only: grid1
     use fragmentmod, only: fragment
     use param, only: icrd_crys
-    class(crystal), intent(in) :: c
+    class(crystal), intent(inout) :: c
     type(grid3), intent(out) :: f
     integer, intent(in) :: n(3)
     integer, intent(in), optional :: zpsp(:)
@@ -292,7 +268,7 @@ contains
        do j = 1, n(2)
           do i = 1, n(1)
              x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
-             call c%promolecular(x,icrd_crys,rho,rdum1,rdum2,0,zpsp,fr)
+             call c%promolecular_env(x,icrd_crys,rho,rdum1,rdum2,0,zpsp,fr)
 
              !$omp critical(write)
              f%f(i,j,k) = rho
@@ -328,7 +304,6 @@ contains
   !> rtable(1:maxzat0) is present, use those radii instead of the
   !> van der walls radii
   module function vdw_volume(c,relerr,rtable) result(vvdw)
-    use tools_io, only: ferror, faterr
     use param, only: VBIG, atmvdw, icrd_cart
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: relerr
@@ -338,7 +313,6 @@ contains
     real*8 :: xmin(3), xmax(3), x(3), vtot, svol, pp
     integer :: i, nat
     real*8, allocatable :: rvdw(:,:)
-    integer :: ierr
     integer*8 :: nin, ntot
     logical :: again
 
@@ -381,10 +355,8 @@ contains
        else
           x = c%x2c(x)
        end if
-       call c%env%list_near_atoms(x,icrd_cart,.false.,nat,ierr,up2dsp=rvdw)
-       if (ierr > 0) then
-          call ferror('vdw_volume','error determining the list of near atoms',faterr)
-       elseif (nat > 0) then
+       call c%list_near_atoms(x,icrd_cart,.false.,nat,up2dsp=rvdw)
+       if (nat > 0) then
           nin = nin + 1
        end if
 

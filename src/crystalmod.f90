@@ -19,7 +19,6 @@
 
 ! Structure class and routines for basic crystallography computations
 module crystalmod
-  use environmod, only: environ
   use spglib, only: SpglibDataset
   use types, only: neqatom, celatom, neighstar, species
   use fragmentmod, only: fragment
@@ -131,7 +130,6 @@ module crystalmod
 
      !! Initialization level: isenv !!
      ! atomic environment of the cell
-     type(environ) :: env
      integer :: nblock(3) ! number of environemt blocks
      integer,allocatable :: iblock0(:,:,:) ! starting atomic index for each block
      real*8 :: blockrmax ! radius of the largest sphere contained in a block
@@ -176,9 +174,7 @@ module crystalmod
      procedure :: shortest !< Gives the lattice-translated vector with shortest length
      procedure :: are_close !< True if a vector is at a distance less than eps of another
      procedure :: are_lclose !< True if a vector is at a distance less than eps of all latice translations of another
-     procedure :: nearest_atom !< Calculate the atom nearest to a given point
      procedure :: nearest_atom_grid !< return the nearest atom IDs for a uniform grid of points
-     procedure :: identify_atom !< Identify an atom in the unit cell
      procedure :: identify_spc !< Identify species in a structure from a string
 
      ! atomic environments and distance calculations
@@ -204,7 +200,6 @@ module crystalmod
      procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
      procedure :: ewald_energy !< electrostatic energy (Ewald)
      procedure :: ewald_pot !< electrostatic potential (Ewald)
-     procedure :: promolecular !< calculate core and promolecular densities
      procedure :: promolecular_grid !< calculate core and promolecular densities on a grid
      procedure :: get_pack_ratio !< Calculate the packing ratio
      procedure :: vdw_volume !< Calculate the van der waals volume
@@ -484,13 +479,13 @@ module crystalmod
        logical, intent(in), optional :: nozero
      end subroutine nearest_lattice_point
      module function identify_fragment(c,nat,x0) result(fr)
-       class(crystal), intent(in) :: c
+       class(crystal), intent(inout) :: c
        integer, intent(in) :: nat
        real*8, intent(in) :: x0(3,nat)
        type(fragment) :: fr
      end function identify_fragment
      module function identify_fragment_from_xyz(c,file,errmsg,ti) result(fr)
-       class(crystal), intent(in) :: c
+       class(crystal), intent(inout) :: c
        character*(*) :: file
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
@@ -546,7 +541,7 @@ module crystalmod
      end subroutine promolecular
      module subroutine promolecular_grid(c,f,n,zpsp,fr)
        use grid3mod, only: grid3
-       class(crystal), intent(in) :: c
+       class(crystal), intent(inout) :: c
        type(grid3), intent(out) :: f
        integer, intent(in) :: n(3)
        integer, intent(in), optional :: zpsp(:)
@@ -690,7 +685,7 @@ module crystalmod
        real*8, allocatable, intent(inout), optional :: ih(:)
      end subroutine powder
      module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0,ihat,intpeak)
-       class(crystal), intent(in) :: c
+       class(crystal), intent(inout) :: c
        real*8, intent(in) :: rini
        real*8, intent(in) :: rend
        real*8, intent(in) :: sigma
@@ -704,7 +699,7 @@ module crystalmod
        real*8, intent(in), optional :: intpeak(:)
      end subroutine rdf
      module subroutine amd(c,imax,res)
-       class(crystal), intent(in) :: c
+       class(crystal), intent(inout) :: c
        integer, intent(in) :: imax
        real*8, intent(out) :: res(imax)
      end subroutine amd

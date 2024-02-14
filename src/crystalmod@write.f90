@@ -349,9 +349,6 @@ contains
           write (uout,*)
        end if
 
-       ! Number of atoms in the atomic environment
-       call c%env%report()
-
        ! Wigner-Seitz cell
        if (.not.c%ismolecule) then
           write (uout,'("+ Vertex of the WS cell in cryst. coords. (",A,")")') string(c%ws_nv)

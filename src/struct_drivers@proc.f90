@@ -967,11 +967,6 @@ contains
           s%c%atcel(i)%is = s%c%at(s%c%atcel(i)%idx)%is
        end do
     end if
-    if (allocated(s%c%env%at)) then
-       do i = 1, s%c%env%n
-          s%c%env%at(i)%is = s%c%at(s%c%env%at(i)%idx)%is
-       end do
-    end if
     deallocate(is)
 
     ! Write the list of atomic coordinates
@@ -1282,7 +1277,7 @@ contains
     use environmod, only: environ
     use global, only: iunitname0, dunit0, iunit
     use tools_io, only: uout, isinteger, ferror, faterr, string, ioj_left, ioj_right, warning
-    type(system), intent(in) :: s
+    type(system), intent(inout) :: s
     character*(*), intent(in) :: line
 
     integer :: i, lp
@@ -1990,14 +1985,13 @@ contains
     character*(*), intent(in) :: line
 
     type(crystalseed) :: seed
-    type(environ) :: e
     integer :: lp, ierr, i, j
     character(len=:), allocatable :: file1, file2, errmsg, abc, word
     type(crystal) :: c1, c2, c2del, caux
     real*8 :: xd2(3,3), cd2(3,3), dmax0, xx(3)
     real*8 :: aa2(3), bb2(3), cc2(3), dd
     real*8, allocatable :: dist(:)
-    integer, allocatable :: eid(:), irange(:,:)
+    integer, allocatable :: eid(:), irange(:,:), lvec(:,:)
     integer :: nat, n1, n2, n3, i1, i2, i3
     real*8, allocatable :: iha1(:), iha2(:)
     real*8, allocatable :: t(:)
@@ -2158,8 +2152,8 @@ contains
        dmax0 = max(dmax0,norm2(c1%m_x2c(:,i)))
     end do
     dmax0 = dmax0 * (1d0 + max_elong * 1.5d0)
-    call e%build_lattice(c2%m_x2c,dmax0*2d0)
-    call e%list_near_atoms((/0d0,0d0,0d0/),icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,up2d=dmax0*1.25d0,nozero=.true.)
+    call c2%list_near_lattice_points((/0d0,0d0,0d0/),icrd_crys,.true.,nat,lvec=lvec,dist=dist,&
+       up2d=dmax0*1.25d0,nozero=.true.)
 
     ! set target cell lengths and angles
     targetaa = c1%aa
@@ -2173,7 +2167,7 @@ contains
     write (uout,'("+ Candidate lattice vectors for structure 2 (referred to the Niggli basis): ")')
     write (uout,'("#Id        x        y        z       length   used-by")')
     do i = 1, nat
-       xx = e%xr2x(e%at(eid(i))%x)
+       xx = real(lvec(:,i),8)
 
        abc = ""
        if (abs(dist(i) / targetaa(1) - 1d0) < max_elong) then
@@ -2245,15 +2239,15 @@ contains
     write (uout,'("+ INITIAL DIFF = ",A)') string(mindiff,'f',12,9)
     if (mindiff < powdiff_thr) goto 999
     do i1 = 1, n1
-       cd2(:,1) = e%xr2c(e%at(eid(irange(i1,1)))%x)
+       cd2(:,1) = c2%x2c(real(lvec(:,irange(i1,1)),8))
        aa2(1) = norm2(cd2(:,1))
        do i2 = 1, n2
           if (irange(i1,1) == irange(i2,2)) cycle
-          cd2(:,2) = e%xr2c(e%at(eid(irange(i2,2)))%x)
+          cd2(:,2) = c2%x2c(real(lvec(:,irange(i2,2)),8))
           aa2(2) = norm2(cd2(:,2))
           do i3 = 1, n3
              if (irange(i1,1) == irange(i3,3) .or. irange(i2,2) == irange(i3,3)) cycle
-             cd2(:,3) = e%xr2c(e%at(eid(irange(i3,3)))%x)
+             cd2(:,3) = c2%x2c(real(lvec(:,irange(i3,3)),8))
              aa2(3) = norm2(cd2(:,3))
 
              ! check collinear
@@ -2391,8 +2385,8 @@ contains
     character*(*), intent(in) :: line
 
     real*8 :: up2d
-    integer :: nat, lvec(3)
-    integer, allocatable :: eid(:), ishell(:)
+    integer :: nat
+    integer, allocatable :: eid(:), ishell(:), lvec(:,:)
     real*8, allocatable :: dist(:)
     integer :: lp, lp2, ierr
     character(len=:), allocatable :: word
@@ -2400,8 +2394,6 @@ contains
     logical :: doatoms, ok, groupshell
     logical, allocatable :: isdone(:)
     integer :: i, j, k, l, idx
-    type(environ), target :: eaux
-    type(environ), pointer :: eptr
 
     integer :: iat, iby, iat_mode, iby_mode
     integer, parameter :: inone = 0
@@ -2486,7 +2478,6 @@ contains
     end do
 
     write (uout,'("* ENVIRON")')
-    eptr => s%c%env
     if (doatoms) then
        allocate(isdone(s%c%nneq))
        isdone = .false.
@@ -2498,31 +2489,14 @@ contains
           isdone(idx) = .true.
 
           if (iby_mode == iid) then
-             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+             call s%c%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
                 lvec,ishell,up2d=up2d,nid0=iby,nozero=.true.)
           elseif (iby_mode == iznuc) then
-             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+             call s%c%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
                 lvec,ishell,up2d=up2d,iz0=iby,nozero=.true.)
           else
-             call eptr%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
+             call s%c%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,eid,dist,&
                 lvec,ishell,up2d=up2d,nozero=.true.)
-          end if
-          if (ierr > 0 .and..not.s%c%ismolecule) then
-             call ferror('struct_environ','very large distance cutoff, calculating a new environment',noerr)
-             call eaux%build(s%c%ismolecule,s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_x2c,up2d)
-             if (iby_mode == iid) then
-                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
-                   lvec,ishell,up2d=up2d,nid0=iby,nozero=.true.)
-             elseif (iby_mode == iznuc) then
-                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
-                   lvec,ishell,up2d=up2d,iz0=iby,nozero=.true.)
-             else
-                call eaux%list_near_atoms(s%c%atcel(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,&
-                   lvec,ishell,up2d=up2d,nozero=.true.)
-             end if
-             if (ierr > 0) &
-                call ferror('struct_environ','unknown error calculating atom environment',faterr)
-             eptr => eaux
           end if
 
           write (uout,'("+ Environment of atom ",A," (spc=",A,", nid=",A,") at ",3(A," "))') &
@@ -2539,25 +2513,11 @@ contains
        deallocate(isdone)
     else
        if (iby_mode == iid) then
-          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d,nid0=iby)
+          call s%c%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ishell,up2d=up2d,nid0=iby)
        elseif (iby_mode == iznuc) then
-          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d,iz0=iby)
+          call s%c%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ishell,up2d=up2d,iz0=iby)
        else
-          call eptr%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d)
-       end if
-       if (ierr > 0 .and..not.s%c%ismolecule) then
-          call ferror('struct_environ','very large distance cutoff, calculating a new environment',noerr)
-          call eaux%build(s%c%ismolecule,s%c%nspc,s%c%spc,s%c%ncel,s%c%atcel,s%c%m_x2c,up2d)
-          if (iby_mode == iid) then
-             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d,nid0=iby)
-          elseif (iby_mode == iznuc) then
-             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d,iz0=iby)
-          else
-             call eaux%list_near_atoms(x0,icrd_crys,.true.,nat,ierr,eid,dist,lvec,ishell,up2d=up2d)
-          end if
-          if (ierr > 0) &
-             call ferror('struct_environ','unknown error calculating point environment',faterr)
-          eptr => eaux
+          call s%c%list_near_atoms(x0,icrd_crys,.true.,nat,eid,dist,lvec,ishell,up2d=up2d)
        end if
 
        write (uout,'("+ Environment of point ",3(A," "))') (string(x0in(j),'f',length=10,decimal=6),j=1,3)
@@ -2587,18 +2547,17 @@ contains
          write (uout,'("#nid   id      lvec     name   spc  dist(",A,") shel      Coordinates (cryst. coord.) ")') iunitname0(iunit)
       end if
       do j = 1, nat
-         eidx = eid(j)
-         nidx = eptr%at(eidx)%idx
-         cidx = eptr%at(eidx)%cidx
+         cidx = eid(j)
+         nidx = s%c%atcel(cidx)%idx
          if (s%c%ismolecule) then
-            xx = (eptr%at(eidx)%r + s%c%molx0) * dunit0(iunit)
+            xx = (s%c%atcel(cidx)%r + s%c%molx0) * dunit0(iunit)
          else
-            xx = eptr%xr2x(eptr%at(eidx)%x) + lvec
+            xx = s%c%atcel(cidx)%x + lvec(:,j)
          end if
 
          write (uout,'("  ",2(A," "),"(",A," ",A," ",A,")",99(" ",A))') string(nidx,4,ioj_center), string(cidx,4,ioj_center),&
-            (string(eptr%at(eidx)%lvec(k)+lvec(k),2,ioj_right),k=1,3), string(s%c%spc(eptr%at(eidx)%is)%name,7,ioj_center),&
-            string(eptr%at(eidx)%is,2,ioj_right), string(dist(j)*dunit0(iunit),'f',12,6,4), string(ishell(j),3,ioj_center),&
+            (string(lvec(k,j),2,ioj_right),k=1,3), string(s%c%spc(s%c%atcel(cidx)%is)%name,7,ioj_center),&
+            string(s%c%atcel(cidx)%is,2,ioj_right), string(dist(j)*dunit0(iunit),'f',12,6,4), string(ishell(j),3,ioj_center),&
             (string(xx(k),'f',12,8,4),k=1,3)
       end do
       write (uout,*)
@@ -2632,22 +2591,22 @@ contains
          if (k == 1) exit
          nneig = k - ishl0
 
-         eidx = eid(k-1)
-         nidx = eptr%at(k-1)%idx
-         cidx = eptr%at(k-1)%cidx
+         cidx = eid(k-1)
+         nidx = s%c%atcel(cidx)%idx
          if (s%c%ismolecule) then
-            xx = (eptr%at(eidx)%r + s%c%molx0) * dunit0(iunit)
+            xx = (s%c%atcel(cidx)%r + s%c%molx0) * dunit0(iunit)
          else
-            xx = eptr%xr2x(eptr%at(eidx)%x) + lvec
+            xx = s%c%atcel(cidx)%x + lvec(:,k-1)
          end if
 
          write (uout,'(7(A," "),"(",3(A," "),")",99(A," "))') string(j,5,ioj_center),&
             string(nneig,5,ioj_center), string(nidx,4,ioj_center),&
-            string(s%c%spc(eptr%at(eidx)%is)%name,7,ioj_center), string(eptr%at(eidx)%is,2,ioj_right),&
+            string(s%c%spc(s%c%atcel(cidx)%is)%name,7,ioj_center), string(s%c%atcel(cidx)%is,2,ioj_right),&
             string(dist(k-1)*dunit0(iunit),'f',12,6,4), string(cidx,4,ioj_center),&
-            (string(eptr%at(eidx)%lvec(l)+lvec(l),2,ioj_right),l=1,3), (string(xx(l),'f',12,8,4),l=1,3)
+            (string(lvec(l,k-1),2,ioj_right),l=1,3), (string(xx(l),'f',12,8,4),l=1,3)
       end do main
       write (uout,*)
+
     end subroutine output_by_shell
 
   end subroutine struct_environ
@@ -2671,7 +2630,6 @@ contains
     integer :: nat, ierr
     integer, allocatable :: eid(:), coord2(:,:), coord2sp(:,:), coord3(:,:,:), coord3sp(:,:,:)
     real*8, allocatable :: up2dsp(:,:)
-    type(environ), pointer :: eptr
 
     ! allocate the default radii
     fac = bondfactor
@@ -2728,12 +2686,11 @@ contains
     allocate(up2dsp(s%c%nspc,2),coord2(s%c%nneq,s%c%nspc))
     up2dsp = 0d0
     coord2 = 0
-    eptr => s%c%env
     do i = 1, s%c%nneq
        up2dsp(:,2) = rad + rad(s%c%at(i)%is)
-       call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.false.,nat,ierr,eid,up2dsp=up2dsp,nozero=.true.)
+       call s%c%list_near_atoms(s%c%at(i)%x,icrd_crys,.false.,nat,eid,up2dsp=up2dsp,nozero=.true.)
        do j = 1, nat
-          coord2(i,eptr%at(eid(j))%is) = coord2(i,eptr%at(eid(j))%is) + 1
+          coord2(i,s%c%atcel(eid(j))%is) = coord2(i,s%c%atcel(eid(j))%is) + 1
        end do
     end do
     deallocate(rad,up2dsp)
@@ -2840,7 +2797,7 @@ contains
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: at1, at2
-    integer :: lp, is1, is2, iz1, iz2, ierr, lvec(3)
+    integer :: lp, is1, is2, iz1, iz2, ierr
     real*8 :: rdum, rmin, rmax, vol, xp1(3), xp2(3), xp3(3)
     logical :: ok
     integer, allocatable :: eid(:)
@@ -2849,8 +2806,7 @@ contains
     integer(c_int) :: nat, nf
     real(c_double) :: x0(3)
     real(c_double), allocatable :: xstar(:,:)
-    integer(c_int), allocatable :: iface(:,:)
-    type(environ), pointer :: eptr
+    integer(c_int), allocatable :: iface(:,:), lvec(:,:)
     type(c_ptr), target :: fid
 
     interface
@@ -2873,7 +2829,6 @@ contains
 
     ! Initialize
     lp = 1
-    eptr => s%c%env
 
     ! Literal interpretation of the species
     at1 = getword(line,lp)
@@ -2947,12 +2902,12 @@ contains
        ! find the environment
        if (is2 /= 0) then
           ! by species
-          call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,&
+          call s%c%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid=eid,dist=dist,&
              lvec=lvec,up2d=rmax,ispc0=is2,nozero=.true.)
        else
           ! by z
-          call eptr%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,&
-             up2d=rmax,iz0=iz2,nozero=.true.)
+          call s%c%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid=eid,dist=dist,&
+             lvec=lvec,up2d=rmax,iz0=iz2,nozero=.true.)
        end if
        if (nat <= 2) cycle
 
@@ -2961,7 +2916,7 @@ contains
        allocate(xstar(3,nat))
        x0 = s%c%at(i)%r
        do j = 1, nat
-          xstar(:,j) = eptr%xr2x(eptr%at(eid(j))%x) + lvec
+          xstar(:,j) = s%c%atcel(eid(j))%x + lvec(:,j)
           xstar(:,j) = s%c%x2c(xstar(:,j))
        end do
        call runqhull_basintriangulate_step1(nat,x0,xstar,nf,fid)
@@ -3229,9 +3184,8 @@ contains
     real*8 :: r, mm(3,3), dmax0
     logical :: doinv, dorefine
     integer :: nat, ierr
-    integer, allocatable :: eid(:)
-    real*8, allocatable :: dist(:), rmax(:), mmax(:,:,:)
-    type(environ) :: e
+    integer, allocatable :: eid(:), lvec(:,:)
+    real*8, allocatable :: rmax(:), mmax(:,:,:)
 
     integer, parameter :: inice_def = 64
 
@@ -3291,17 +3245,17 @@ contains
 
        dmax0 = 1.2d0 * real(inice,8)**(1d0/3d0) * max(norm2(s%c%m_xr2c(:,1)),norm2(s%c%m_xr2c(:,2)),&
           norm2(s%c%m_xr2c(:,3))) + 1d-1
-       call e%build_lattice(s%c%m_xr2c,dmax0)
-       call e%list_near_atoms((/0d0,0d0,0d0/),icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,up2d=dmax0,nozero=.true.)
+       call s%c%list_near_lattice_points((/0d0,0d0,0d0/),icrd_crys,.true.,nat,&
+          lvec=lvec,up2d=dmax0,nozero=.true.)
 
        rmax = 0d0
        mmax = 0d0
        do i = 1, nat
-          mm(:,1) = e%xr2x(e%at(eid(i))%x)
+          mm(:,1) = lvec(:,i)
           do j = i+1, nat
-             mm(:,2) = e%xr2x(e%at(eid(j))%x)
+             mm(:,2) = lvec(:,j)
              do k = j+1, nat
-                mm(:,3) = e%xr2x(e%at(eid(k))%x)
+                mm(:,3) = lvec(:,k)
 
                 dd = det3(mm)
                 if (dd < 0d0) mm = -mm
@@ -3494,7 +3448,7 @@ contains
     use global, only: iunitname0, dunit0, iunit
     use tools_io, only: uout, string, ioj_left, ioj_right, ferror, faterr
     use param, only: icrd_crys, bohrtoa
-    type(system), intent(in) :: s
+    type(system), intent(inout) :: s
 
     logical :: ok
     integer :: i, j, k, n
@@ -3532,13 +3486,13 @@ contains
           if (s%c%ismolecule .AND. s%c%ncel == 1) cycle
 
           ! grab the environment for this atom
-          call s%c%env%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,ierr,eid,dist,up2d=up2d,nozero=.true.)
+          call s%c%list_near_atoms(s%c%at(i)%x,icrd_crys,.true.,nat,eid,dist,up2d=up2d,nozero=.true.)
 
           ! get the minimum distance for all the species
           mindist = -1d0
           mindist(0) = dist(1)
           do k = 1, nat
-             if (mindist(s%c%env%at(eid(k))%is) < 0d0) mindist(s%c%env%at(eid(k))%is) = dist(k)
+             if (mindist(s%c%atcel(eid(k))%is) < 0d0) mindist(s%c%atcel(eid(k))%is) = dist(k)
              if (all(mindist >= 0d0)) exit
           end do
 
@@ -3556,7 +3510,7 @@ contains
                 numer = 0d0
                 econ = 0d0
                 do k = 1, nat
-                   if (j /= 0 .and. s%c%env%at(eid(k))%is /= j) cycle
+                   if (j /= 0 .and. s%c%atcel(eid(k))%is /= j) cycle
                    wi = exp(1 - (dist(k)/dist0)**6)
                    numer = numer + dist(k) * wi
                    econ = econ + wi

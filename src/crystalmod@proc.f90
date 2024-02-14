@@ -126,7 +126,6 @@ contains
     if (allocated(c%nstar)) deallocate(c%nstar)
     if (allocated(c%mol)) deallocate(c%mol)
     if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
-    call c%env%end()
     c%isinit = .false.
     c%havesym = 0
     c%isewald = .false.
@@ -555,12 +554,6 @@ contains
              c%at(i)%rnn2 = 0d0
           end if
        end do
-
-       ! xxxx on the way out
-       if (haveatoms) then
-          ! Build the atomic environments
-          call c%env%build(c%ismolecule,c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_x2c)
-       end if
     end if
 
     ! the initialization is done - this crystal is ready to use
@@ -798,36 +791,6 @@ contains
 
   end function are_lclose
 
-  !> Given the point xp (in icrd coordinates), translate to the main
-  !> cell if the environment is from a crystal. Then, calculate the
-  !> nearest atom up to a distance distmax. The nearest atom has ID
-  !> nid from the complete list (atcel) and is at a distance dist, or
-  !> nid=0 and dist=distmax if the search did not produce any atoms.
-  !> The default distmax is the environment's dmax0.  On output, the
-  !> optional argument lvec contains the lattice vector to the nearest
-  !> atom (i.e. its position is atcel(nid)%x + lvec). If cidx,
-  !> consider only atoms with index cidx0 from the complete list. If
-  !> idx0, consider only atoms with index id0 from the non-equivalent
-  !> list. If is0, consider only atoms of species is0. If nozero,
-  !> disregard zero-distance atoms. This routine is a wrapper for the
-  !> environment's nearest_atom. Thread-safe.
-  module subroutine nearest_atom(c,xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,is0,nozero)
-    class(crystal), intent(in) :: c
-    real*8, intent(in) :: xp(3)
-    integer, intent(in) :: icrd
-    integer, intent(out) :: nid
-    real*8, intent(out) :: dist
-    real*8, intent(in), optional :: distmax
-    integer, intent(out), optional :: lvec(3)
-    integer, intent(in), optional :: cidx0
-    integer, intent(in), optional :: idx0
-    integer, intent(in), optional :: is0
-    logical, intent(in), optional :: nozero
-
-    call c%env%nearest_atom(xp,icrd,nid,dist,distmax,lvec,cidx0,idx0,is0,nozero)
-
-  end subroutine nearest_atom
-
   !> Calculate the nearest atom on a grid of points whose dimensions
   !> are given by n. Return the complete atom list IDs in the idg
   !> array.
@@ -853,7 +816,7 @@ contains
        do j = 1, n(2)
           do i = 1, n(1)
              x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
-             call c%env%nearest_atom(x,icrd_crys,nid,dist)
+             call c%nearest_atom_env(x,icrd_crys,nid,dist)
              !$omp critical(write)
              idg(i,j,k) = nid
              !$omp end critical(write)
@@ -863,27 +826,6 @@ contains
     !$omp end parallel do
 
   end subroutine nearest_atom_grid
-
-  !> Given point x0 (with icrd input coordinates), translate to the
-  !> main cell if the environment is from a crystal. Then if x0
-  !> corresponds to an atomic position (to within distmax or atomeps
-  !> if distmax is not given), return the complete-list ID of the
-  !> atom. Otherwise, return 0. Optionally, return the lattice vector
-  !> translation (lvec) and the distance (dist) to the closest atom.
-  !> This routine is a wrapper for the environment's identify_atom
-  !> function. Thread-safe.
-  module function identify_atom(c,x0,icrd,lvec,dist,distmax)
-    class(crystal), intent(in) :: c
-    real*8, intent(in) :: x0(3)
-    integer, intent(in) :: icrd
-    integer, intent(out), optional :: lvec(3)
-    real*8, intent(out), optional :: dist
-    real*8, intent(in), optional :: distmax
-    integer :: identify_atom
-
-    identify_atom = c%env%identify_atom(x0,icrd,lvec,dist,distmax)
-
-  endfunction identify_atom
 
   !> Identify a species in the structure from a string. Step 1: check
   !> if str is equal to the name of any species (case sensitive). 2:

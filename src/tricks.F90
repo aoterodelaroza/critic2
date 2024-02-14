@@ -636,18 +636,18 @@ contains
   !     !    call random_number(xx)
   !     !    x = cr%atcel(floor(xx(2)*cr%ncel+1))%r + x / norm2(x) * (xx(1)/1000d0)
 
-  !     !    nid1 = cr%identify_atom(x,.true.)
-  !     !    nid2 = env%identify_atom(x,icrd_cart,.true.)
-  !     !    nid3 = cr%identify_atom(x,.false.)
-  !     !    nid4 = env%identify_atom(x,icrd_cart,.false.)
+  !     !    nid1 = cr%identify_atom_env(x,.true.)
+  !     !    nid2 = env%identify_atom_env(x,icrd_cart,.true.)
+  !     !    nid3 = cr%identify_atom_env(x,.false.)
+  !     !    nid4 = env%identify_atom_env(x,icrd_cart,.false.)
   !     !    write (*,*) i, abs(nid1-nid2), abs(nid3-nid4), x
 
   !     !    ! ! test for not finding the atom
   !     !    ! call random_number(x)
   !     !    ! call random_number(xx)
   !     !    ! x = cr%atcel(floor(xx(2)*cr%ncel+1))%r + x / norm2(x) * (xx(1)/30d0)
-  !     !    ! nid1 = env%identify_atom(x,icrd_cart,.true.)
-  !     !    ! nid2 = env%identify_atom(x,icrd_cart,.false.)
+  !     !    ! nid1 = env%identify_atom_env(x,icrd_cart,.true.)
+  !     !    ! nid2 = env%identify_atom_env(x,icrd_cart,.false.)
   !     !    ! write (*,*) i, nid1, nid2
   !     ! end do
 
@@ -2207,14 +2207,13 @@ contains
     character*(*), intent(in) :: line
 
     type(crystalseed) :: seed, c2seed
-    type(environ) :: e
     integer :: lp, lp2, ierr, i, j, n
     character(len=:), allocatable :: file1, file2, errmsg, abc, word
     type(crystal) :: c1, c2, c2del, caux
     real*8 :: xd2(3,3), cd2(3,3), dmax0, xx(3)
     real*8 :: aa2(3), bb2(3), cc2(3), dd
     real*8, allocatable :: dist(:), th2p(:), ip(:)
-    integer, allocatable :: eid(:), irange(:,:)
+    integer, allocatable :: eid(:), irange(:,:), lvec(:,:)
     integer :: nat, n1, n2, n3, i1, i2, i3, idx
     real*8, allocatable :: iha1(:), iha2(:)
     real*8, allocatable :: t(:)
@@ -2421,8 +2420,8 @@ contains
        end do
     end if
     dmax0 = dmax0 * (1d0 + max_elong * 1.5d0)
-    call e%build_lattice(c2%m_x2c,dmax0*2d0)
-    call e%list_near_atoms((/0d0,0d0,0d0/),icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,up2d=dmax0*1.25d0,nozero=.true.)
+    call c2%list_near_lattice_points((/0d0,0d0,0d0/),icrd_crys,.true.,nat,lvec=lvec,dist=dist,&
+       up2d=dmax0*1.25d0,nozero=.true.)
 
     ! set target cell lengths and angles
     if (usexy) then
@@ -2441,7 +2440,7 @@ contains
     write (uout,'("+ Candidate lattice vectors for structure 2 (referred to the Niggli basis): ")')
     write (uout,'("#Id        x        y        z       length   used-by")')
     do i = 1, nat
-       xx = e%xr2x(e%at(eid(i))%x)
+       xx = real(lvec(:,i),8)
 
        abc = ""
        if (abs(dist(i) / targetaa(1) - 1d0) < max_elong) then
@@ -2539,15 +2538,15 @@ contains
     write (uout,'("+ INITIAL DIFF = ",A)') string(mindiff,'f',12,9)
     if (mindiff < powdiff_thr) goto 999
     do i1 = 1, n1
-       cd2(:,1) = e%xr2c(e%at(eid(irange(i1,1)))%x)
+       cd2(:,1) = c2%x2c(real(lvec(:,irange(i1,1)),8))
        aa2(1) = norm2(cd2(:,1))
        do i2 = 1, n2
           if (irange(i1,1) == irange(i2,2)) cycle
-          cd2(:,2) = e%xr2c(e%at(eid(irange(i2,2)))%x)
+          cd2(:,2) = c2%x2c(real(lvec(:,irange(i2,2)),8))
           aa2(2) = norm2(cd2(:,2))
           do i3 = 1, n3
              if (irange(i1,1) == irange(i3,3) .or. irange(i2,2) == irange(i3,3)) cycle
-             cd2(:,3) = e%xr2c(e%at(eid(irange(i3,3)))%x)
+             cd2(:,3) = c2%x2c(real(lvec(:,irange(i3,3)),8))
              aa2(3) = norm2(cd2(:,3))
 
              ! check collinear

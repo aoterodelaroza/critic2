@@ -319,7 +319,7 @@ contains
     use global, only: atomeps
     use param, only: icrd_cart
     use environmod, only: environ
-    class(crystal), intent(in) :: c
+    class(crystal), intent(inout) :: c
     real*8, intent(in) :: rini
     real*8, intent(in) :: rend
     real*8, intent(in) :: sigma
@@ -332,11 +332,10 @@ contains
     real*8, allocatable, intent(inout), optional :: ihat(:,:)
     real*8, intent(in), optional :: intpeak(:)
 
-    integer :: i, j, k, nat, lvec(3), ierr, iz, jz, kz, npairs, iaux
+    integer :: i, j, k, nat, iz, jz, kz, npairs, iaux
     integer :: idx, mmult, mza
     real*8 :: int, sigma2, fac, tshift, imax
-    logical :: localenv, found
-    type(environ) :: le
+    logical :: found
     integer, allocatable :: eid(:), ipairs(:,:)
     real*8, allocatable :: dist(:), ihaux(:)
 
@@ -391,15 +390,6 @@ contains
     ih = 0d0
     ihaux = 0d0
 
-    ! prepare the environment
-    localenv = .true.
-    if (c%ismolecule .or. c%env%dmax0 > rend+tshift) then
-       localenv = .false.
-    end if
-    if (localenv) then
-       call le%build(c%ismolecule,c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_x2c)
-    end if
-
     ! calculate the radial distribution function for the crystal
     ! RDF(r) = sum_i=1...c%nneq sum_j=1...c%env%n sqrt(Zi*Zj) / c%nneq / rij * delta(r-rij)
     do i = 1, c%nneq
@@ -414,26 +404,16 @@ contains
           if (.not.found) cycle
        end if
        iz = c%spc(c%at(i)%is)%z
-       if (localenv) then
-          call le%list_near_atoms(c%at(i)%r,icrd_cart,.true.,nat,ierr,eid,dist,lvec,up2d=rend+tshift,nozero=.true.)
-       else
-          call c%env%list_near_atoms(c%at(i)%r,icrd_cart,.true.,nat,ierr,eid,dist,lvec,up2d=rend+tshift,nozero=.true.)
-       end if
+       call c%list_near_atoms(c%at(i)%r,icrd_cart,.true.,nat,eid,dist,up2d=rend+tshift,nozero=.true.)
 
        do j = 1, nat
           ! skip if at a distance lower than rini or higher than rend
           if (dist(j) < rini-tshift .or. dist(j) > rend+tshift) cycle
 
           ! get info for this atom from the environment
-          if (localenv) then
-             kz = le%at(eid(j))%is
-             jz = le%spc(kz)%z
-             idx = le%at(eid(j))%idx
-          else
-             kz = c%env%at(eid(j))%is
-             jz = c%env%spc(kz)%z
-             idx = c%env%at(eid(j))%idx
-          end if
+          kz = c%atcel(eid(j))%is
+          jz = c%spc(kz)%z
+          idx = c%atcel(eid(j))%idx
 
           ! only the chosen atomic pairs generate a peak
           if (npairs > 0) then
@@ -486,25 +466,18 @@ contains
   !> Reference implementation: https://github.com/dwiddo/average-minimum-distance
   module subroutine amd(c,imax,res)
     use environmod, only: environ
-    use tools_io, only: ferror, faterr, string
+    use tools_io, only: string
     use param, only: icrd_crys
-    class(crystal), intent(in) :: c
+    class(crystal), intent(inout) :: c
     integer, intent(in) :: imax
     real*8, intent(out) :: res(imax)
 
-    integer :: i, j, jini
-    integer :: nat, ierr, imax_
+    integer :: i, jini
+    integer :: nat, imax_
     real*8, allocatable :: dist(:)
-    real*8 :: dmax0
     logical :: ok
-    type(environ) :: le
-    logical :: localenv
-
-    integer, parameter :: maxtries = 5 ! maximum number of environment max. distance doubling before crashing
 
     ! initialize, check input and allocate
-    localenv = .false.
-    dmax0 = c%env%dmax0
     imax_ = imax
     if (c%ismolecule .and. imax > c%ncel-1) imax_ = c%ncel - 1
     res = 0d0
@@ -513,27 +486,7 @@ contains
     jini = 1
     do i = 1, c%nneq
        ok = .false.
-       do j = jini, maxtries
-          jini = j
-          if (localenv) then
-             call le%list_near_atoms(c%at(i)%x,icrd_crys,.true.,nat,ierr,dist=dist,up2n=imax_,nozero=.true.)
-          else
-             call c%env%list_near_atoms(c%at(i)%x,icrd_crys,.true.,nat,ierr,dist=dist,up2n=imax_,nozero=.true.)
-          end if
-
-          ! failed to get the requested number of atoms
-          if (ierr /= 0 .or. nat < imax_) then
-             ! create an environment with double the maximum distance and point to it
-             localenv = .true.
-             dmax0 = 2d0 * dmax0
-             call le%build(c%ismolecule,c%nspc,c%spc(1:c%nspc),c%ncel,c%atcel(1:c%ncel),c%m_x2c,dmax0=dmax0)
-          else
-             ok = .true.
-             exit
-          end if
-       end do
-       if (.not.ok) &
-          call ferror('struct_amd','Error calculating environment for atom: ' // string(i),faterr)
+       call c%list_near_atoms(c%at(i)%x,icrd_crys,.true.,nat,dist=dist,up2n=imax_,nozero=.true.)
        res = res + c%at(i)%mult * dist
     end do
     res = res / real(c%ncel,8)

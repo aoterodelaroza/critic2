@@ -133,7 +133,7 @@ contains
           ! check if it is an atom (use ratom)
           isassigned = .false.
           if (bas%atexist) then
-             nid = s%c%identify_atom(dv,icrd_crys,distmax=bas%ratom)
+             nid = s%c%identify_atom_env(dv,icrd_crys,distmax=bas%ratom)
              if (nid > 0) then
                 ibasin(ii) = nid
                 isassigned = .true.

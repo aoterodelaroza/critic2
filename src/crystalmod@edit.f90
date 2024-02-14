@@ -120,10 +120,9 @@ contains
     real*8 :: x(3), dx(3), dd, t(3)
     integer :: i, j, m
     integer :: nn
-    integer :: nlat, nlat2, ierr, nlatnew
-    integer, allocatable :: eid(:)
-    real*8, allocatable :: xlat(:,:), dist(:)
-    type(environ) :: e
+    integer :: nlat, nlat2, nlatnew
+    integer, allocatable :: lvec(:,:)
+    real*8, allocatable :: xlat(:,:)
 
     real*8, parameter :: eps = 1d-2
 
@@ -207,9 +206,8 @@ contains
        dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,0,1/),transpose(x0)))))
        dmax0 = max(dmax0,norm2(c%x2c(matmul((/0,1,1/),transpose(x0)))))
        dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,1,1/),transpose(x0)))))
-       call e%build_lattice(c%m_x2c,dmax0*2.0d0)
-       call e%list_near_atoms((/0d0,0d0,0d0/),icrd_crys,.true.,nlat2,ierr,eid=eid,dist=dist,&
-          up2d=dmax0*2.0d0,nozero=.true.)
+       call c%list_near_lattice_points((/0d0,0d0,0d0/),icrd_crys,.true.,nlat2,&
+          lvec=lvec,up2d=dmax0*2.0d0,nozero=.true.)
 
        ! make lattice vector list
        nlatnew = max(nint(dd),1)
@@ -218,7 +216,8 @@ contains
        xlat(:,1) = 0d0
        do i = 1, nlat2
           if (nlat == nlatnew) exit
-          x = matmul(e%xr2x(e%at(eid(i))%x),x0inv)
+          x = real(lvec(:,i),8)
+          x = matmul(x,x0inv)
           x = x - floor(x)
 
           found = .false.
@@ -620,7 +619,7 @@ contains
                 if (ldone(c%atcel(k)%idx)) cycle
 
                 x0 = matmul(c%rotm(1:3,1:3,i),c%atcel(k)%x) + c%rotm(:,4,i) + c%cen(:,j)
-                id = c%identify_atom(x0,icrd_crys)
+                id = c%identify_atom_env(x0,icrd_crys)
 
                 if (id == 0) &
                    call ferror('wholemols','error identifying rotated atom',faterr)
@@ -651,7 +650,7 @@ contains
           if (.not.sgroup(j,ig)) cycle
           do k = 1, c%ncv
              x0 = matmul(c%rotm(1:3,1:3,j),c%atcel(i)%x) + c%rotm(:,4,j) + c%cen(:,k)
-             id = c%identify_atom(x0,icrd_crys)
+             id = c%identify_atom_env(x0,icrd_crys)
              if (id == 0) &
                 call ferror('wholemols','error identifying rotated atom',faterr)
              isuse(id) = .true.

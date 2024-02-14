@@ -1054,7 +1054,7 @@ contains
     logical, intent(in), optional :: nozero
 
     integer :: nat
-    integer, allocatable :: eid(:), lvec_(:,:)
+    integer, allocatable :: lvec_(:,:)
     real*8, allocatable :: dist_(:)
 
     ! get just one atom

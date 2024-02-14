@@ -89,7 +89,7 @@ module struct_drivers
        character*(*), intent(in) :: line
      end subroutine struct_rdf
      module subroutine struct_amd(s,line)
-       type(system), intent(in) :: s
+       type(system), intent(inout) :: s
        character*(*), intent(in) :: line
      end subroutine struct_amd
      module subroutine struct_compare(s,line)
@@ -105,7 +105,7 @@ module struct_drivers
        character*(*), intent(in) :: line
      end subroutine struct_environ
      module subroutine struct_econ(s)
-       type(system), intent(in) :: s
+       type(system), intent(inout) :: s
      end subroutine struct_econ
      module subroutine struct_coord(s,line)
        type(system), intent(inout), target :: s

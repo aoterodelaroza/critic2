@@ -26,7 +26,7 @@ contains
   module function identify_fragment(c,nat,x0) result(fr)
     use types, only: realloc
     use param, only: icrd_cart
-    class(crystal), intent(in) :: c
+    class(crystal), intent(inout) :: c
     integer, intent(in) :: nat
     real*8, intent(in) :: x0(3,nat)
     type(fragment) :: fr
@@ -41,7 +41,7 @@ contains
 
     n = 0
     do i = 1, nat
-       id = c%identify_atom(x0(:,i),icrd_cart)
+       id = c%identify_atom_env(x0(:,i),icrd_cart)
        if (id > 0) then
           n = n + 1
           fr%at(n)%r = x0(:,i)
@@ -65,7 +65,7 @@ contains
     use param, only: bohrtoa, icrd_cart, mlen
     use types, only: realloc
 
-    class(crystal), intent(in) :: c
+    class(crystal), intent(inout) :: c
     character*(*) :: file
     type(thread_info), intent(in), optional :: ti
     character(len=:), allocatable, intent(out) :: errmsg
@@ -90,7 +90,7 @@ contains
     do i = 1, nat
        read(lu,*,err=999,end=999) word, x0
        x0 = x0 / bohrtoa - c%molx0
-       id = c%identify_atom(x0,icrd_cart)
+       id = c%identify_atom_env(x0,icrd_cart)
        if (id == 0) then
           fr%nat = 0
           deallocate(fr%at)

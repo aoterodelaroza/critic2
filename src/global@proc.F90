@@ -54,9 +54,6 @@ contains
     use tools_io, only: ferror, faterr, uin, ucopy, uout, getword, lgetword, getline,&
        equal, isinteger, isreal, string, usegui
     use param, only: param_init
-    ! xxxx
-    use param, only: icrd_crys
-    use environmod, only: environ
 
     ! parsing
     integer :: lp, lpold
@@ -70,12 +67,6 @@ contains
 #ifdef HAVE_LIBXC
     logical :: doref, doname, doflags
 #endif
-    ! xxxx
-    real*8 :: xp(3), dmax, xred(3,3)
-    real*8, allocatable :: dist(:)
-    integer, allocatable :: lvec(:,:), eid(:)
-    integer :: nat, ierr, lvec2(3), n(3)
-    type(environ) :: e
 
     ! Start reading
     ncom = 1
@@ -629,70 +620,6 @@ contains
           ! trick
        elseif (equal(word,'trick')) then
           call trick(line(lp:))
-
-          ! trick
-       elseif (equal(word,'temp')) then
-          ! xxxx
-
-          ! !! build lattice test
-          ! xp = (/10.3d0,0.1d0,-3.4d0/)
-          ! dmax = 30d0
-
-          ! call e%build_lattice(sy%c%m_x2c,150d0)
-          ! call e%list_near_atoms(xp,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,lvec=lvec2,up2n=10,nozero=.true.)
-          ! do i = 1, nat
-          !    write (*,*) i, e%xr2x(e%at(eid(i))%x) + lvec2, dist(i)
-          ! end do
-          ! write (*,*)
-
-          ! call sy%c%list_near_lattice_points(xp,icrd_crys,.true.,nat,dist,lvec,up2n=10,nozero=.true.)
-          ! do i = 1, nat
-          !    write (*,*) i, lvec(:,i), dist(i)
-          ! end do
-
-          !! ndiv, nearest lattice point
-          n = (/100,80,120/)
-          xp = (/0.3d0,0.1d0,0.411d0/) * n
-          dmax = 30d0
-          xred(:,1) = sy%c%m_x2c(:,1) / n(1)
-          xred(:,2) = sy%c%m_x2c(:,2) / n(2)
-          xred(:,3) = sy%c%m_x2c(:,3) / n(3)
-          call e%build_lattice(xred,5d0)
-          call e%list_near_atoms(xp,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,lvec=lvec2,up2n=1,nozero=.true.)
-          do i = 1, nat
-             write (*,*) i, e%xr2x(e%at(eid(i))%x) + lvec2, dist(i)
-          end do
-          write (*,*)
-
-          xp = (/0.3d0,0.1d0,0.411d0/)
-          call sy%c%nearest_lattice_point(xp,icrd_crys,dist=dist(1),lvec=lvec2,ndiv=n,nozero=.true.)
-          do i = 1, 1
-             write (*,*) i, lvec2, dist(i)
-          end do
-
-          ! !! ndiv
-          ! n = (/100,80,120/)
-          ! xp = (/0.3d0,0.1d0,0.4d0/) * n
-          ! dmax = 30d0
-          ! xred(:,1) = sy%c%m_x2c(:,1) / n(1)
-          ! xred(:,2) = sy%c%m_x2c(:,2) / n(2)
-          ! xred(:,3) = sy%c%m_x2c(:,3) / n(3)
-          ! call e%build_lattice(xred,5d0)
-          ! call e%list_near_atoms(xp,icrd_crys,.true.,nat,ierr,eid=eid,dist=dist,lvec=lvec2,up2n=10,nozero=.true.)
-          ! do i = 1, nat
-          !    write (*,*) i, e%xr2x(e%at(eid(i))%x) + lvec2, dist(i)
-          ! end do
-          ! write (*,*)
-
-          ! xp = (/0.3d0,0.1d0,0.4d0/)
-          ! call sy%c%list_near_lattice_points(xp,icrd_crys,.true.,nat,dist=dist,lvec=lvec,&
-          !    ndiv=n,up2n=10,nozero=.true.)
-          ! do i = 1, nat
-          !    write (*,*) i, lvec(:,i), dist(i)
-          ! end do
-
-          write (*,*) "fin!"
-          stop 1
 
           ! end
        elseif (equal(word,'end').or.equal(word,'exit')) then

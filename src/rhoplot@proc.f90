@@ -757,7 +757,7 @@ contains
        ! no special keywords used
        ok = .false.
        if (useexpr) then
-          call faux%new_eval(c_loc(sy),c_loc(sy%c),nn,expr,sy%c%m_x2c,sy%c%env)
+          call faux%new_eval(c_loc(sy),c_loc(sy%c),nn,expr,sy%c%m_x2c)
           ok = faux%isinit
        end if
        allocate(lf(nn(1),nn(2),nn(3)))
@@ -2524,8 +2524,8 @@ contains
     logical :: wasblank
 
     ! identify the endpoints
-    nid1 = sy%c%identify_atom(xpath(1)%x,icrd_crys,dist=dist1,distmax=1.1d0*prunedist)
-    nid2 = sy%c%identify_atom(xpath(nptf)%x,icrd_crys,dist=dist2,distmax=1.1d0*prunedist)
+    nid1 = sy%c%identify_atom_env(xpath(1)%x,icrd_crys,dist=dist1,distmax=1.1d0*prunedist)
+    nid2 = sy%c%identify_atom_env(xpath(nptf)%x,icrd_crys,dist=dist2,distmax=1.1d0*prunedist)
     rgb = (/0,0,0/)
     if (nid1 > 0 .and. (dist1 < dist2 .or. nid2 == 0)) then
        iz = sy%c%spc(sy%c%atcel(nid1)%is)%z

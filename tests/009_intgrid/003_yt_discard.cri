@@ -3,10 +3,10 @@
 ## delete: 003_yt_discard.xyz -a1e-10
 ## labels: regression
 
-crystal ../zz_source/vasp-unk/icecake/icecake.CHGCAR
+crystal ../zz_source/vasp-5.3.3/agtao3/CHGCAR
 
-load ../zz_source/vasp-unk/icecake/icecake.ELFCAR id elf
-load ../zz_source/vasp-unk/icecake/icecake.CHGCAR id rho
+load ../zz_source/vasp-5.3.3/agtao3/ELFCAR id elf
+load ../zz_source/vasp-5.3.3/agtao3/CHGCAR id rho
 
 reference elf
 integrable rho
@@ -15,6 +15,6 @@ yt nnm discard "$elf < 0.5"
 
 cpreport short
 
-cpreport 003_yt_discard.cml border cell
-cpreport 003_yt_discard.xyz border cell
+cpreport 007_bader_discard.cml border cell
+cpreport 007_bader_discard.xyz border cell
 

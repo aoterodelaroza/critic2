@@ -1035,7 +1035,7 @@ contains
     ! assign attractors to atoms
     if (bas%atexist) then
        do i = 1, nattr0
-          nid = ff%c%identify_atom(bas%xattr(:,i),icrd_crys,distmax=bas%ratom)
+          nid = ff%c%identify_atom_env(bas%xattr(:,i),icrd_crys,distmax=bas%ratom)
           if (nid > 0) then
              assigned(i) = nid
           else

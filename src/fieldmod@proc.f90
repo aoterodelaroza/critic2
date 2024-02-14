@@ -268,7 +268,7 @@ contains
     use iso_c_binding, only: c_ptr
     class(field), intent(inout) :: f !< Input field
     type(fieldseed), intent(in) :: seed
-    type(crystal), intent(in), target :: c
+    type(crystal), intent(inout), target :: c
     integer, intent(in) :: id
     type(c_ptr), intent(in) :: sptr
     character(len=:), allocatable, intent(out) :: errmsg
@@ -311,7 +311,7 @@ contains
        if (seed%nfile == 1) then
           if (.not.allocated(f%grid)) allocate(f%grid)
           call f%grid%end()
-          call f%grid%read_elk(c_loc(c),seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
+          call f%grid%read_elk(c_loc(c),seed%file(1),c%m_x2c,errmsg,ti=ti)
           f%type = type_grid
           f%file = seed%file(1)
        elseif (seed%nfile == 2) then
@@ -338,28 +338,28 @@ contains
     elseif (seed%iff == ifformat_cube) then
        if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
-       call f%grid%read_cube(c_loc(c),seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
+       call f%grid%read_cube(c_loc(c),seed%file(1),c%m_x2c,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_bincube) then
        if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
-       call f%grid%read_bincube(c_loc(c),seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
+       call f%grid%read_bincube(c_loc(c),seed%file(1),c%m_x2c,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_abinit) then
        if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
-       call f%grid%read_abinit(c_loc(c),seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
+       call f%grid%read_abinit(c_loc(c),seed%file(1),c%m_x2c,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_vasp .or. seed%iff == ifformat_vaspnov) then
        if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
-       call f%grid%read_vasp(c_loc(c),seed%file(1),c%m_x2c,(seed%iff == ifformat_vasp),seed%vaspblk,c%env,&
+       call f%grid%read_vasp(c_loc(c),seed%file(1),c%m_x2c,(seed%iff == ifformat_vasp),seed%vaspblk,&
           errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
@@ -367,35 +367,35 @@ contains
     elseif (seed%iff == ifformat_qub) then
        if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
-       call f%grid%read_qub(c_loc(c),seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
+       call f%grid%read_qub(c_loc(c),seed%file(1),c%m_x2c,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_xsf) then
        if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
-       call f%grid%read_xsf(c_loc(c),seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
+       call f%grid%read_xsf(c_loc(c),seed%file(1),c%m_x2c,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_fmt) then
        if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
-       call f%grid%read_fmt(c_loc(c),seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
+       call f%grid%read_fmt(c_loc(c),seed%file(1),c%m_x2c,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_elkgrid) then
        if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
-       call f%grid%read_elk(c_loc(c),seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
+       call f%grid%read_elk(c_loc(c),seed%file(1),c%m_x2c,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_siestagrid) then
        if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
-       call f%grid%read_siesta(c_loc(c),seed%file(1),c%m_x2c,c%env,errmsg,ti=ti)
+       call f%grid%read_siesta(c_loc(c),seed%file(1),c%m_x2c,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
@@ -413,7 +413,7 @@ contains
        f%type = type_grid
        f%file = seed%file(1)
        call f%grid%read_pwc(c_loc(c),seed%file(1),seed%pwcspin,seed%pwcikpt,seed%pwcibnd,&
-          seed%pwcemin,seed%pwcemax,c%m_x2c,c%env,errmsg,ti=ti)
+          seed%pwcemin,seed%pwcemax,c%m_x2c,errmsg,ti=ti)
        if (seed%nfile == 2) then
           call f%grid%read_wannier_chk(seed%file(2),errmsg=errmsg,ti=ti)
        elseif (seed%nfile == 3) then
@@ -496,7 +496,7 @@ contains
        f%type = type_grid
        f%file = ""
        n = seed%n
-       call f%grid%new_eval(sptr,c_loc(c),n,seed%expr,c%m_x2c,c%env)
+       call f%grid%new_eval(sptr,c_loc(c),n,seed%expr,c%m_x2c)
        if (.not.f%grid%isinit) then
           call f%grid%end()
           f%grid%n = n
@@ -876,11 +876,11 @@ contains
        ! all work done in Cartesians in a finite environment.
 
     case(type_promol)
-       call f%c%promolecular(wcr,icrd_cart,res%f,res%gf,res%hf,nder)
+       call f%c%promolecular_env(wcr,icrd_cart,res%f,res%gf,res%hf,nder)
        ! not needed because grd_atomic uses struct.
 
     case(type_promol_frag)
-       call f%c%promolecular(wcr,icrd_cart,res%f,res%gf,res%hf,nder,fr=f%fr)
+       call f%c%promolecular_env(wcr,icrd_cart,res%f,res%gf,res%hf,nder,fr=f%fr)
        ! not needed because grd_atomic uses struct.
 
     case(type_ghost)
@@ -903,7 +903,7 @@ contains
 
     ! augment with the core if applicable
     if (f%usecore .and. any(f%zpsp /= -1)) then
-       call f%c%promolecular(wc,icrd_cart,rho,grad,h,nder,zpsp=f%zpsp)
+       call f%c%promolecular_env(wc,icrd_cart,rho,grad,h,nder,zpsp=f%zpsp)
        res%f = res%f + rho
        res%gf  = res%gf + grad
        res%hf = res%hf + h
@@ -914,7 +914,7 @@ contains
 
     ! If it's on a nucleus, nullify the gradient (may not be zero in
     ! grid fields, for instance)
-    nid = f%c%identify_atom(wc,icrd_cart,distmax=1d-5)
+    nid = f%c%identify_atom_env(wc,icrd_cart,distmax=1d-5)
     res%isnuc = (nid > 0)
 
     ! gradient
@@ -1002,9 +1002,9 @@ contains
     case(type_dftb)
        call f%dftb%rho2(wcr,f%exact,0,rho,grad,h,gkin)
     case(type_promol)
-       call f%c%promolecular(wcr,icrd_cart,rho,grad,h,0)
+       call f%c%promolecular_env(wcr,icrd_cart,rho,grad,h,0)
     case(type_promol_frag)
-       call f%c%promolecular(wcr,icrd_cart,rho,grad,h,0,fr=f%fr)
+       call f%c%promolecular_env(wcr,icrd_cart,rho,grad,h,0,fr=f%fr)
     case(type_ghost)
        rho = eval(f%expr,errmsg,wc,f%sptr,periodic)
        if (len_trim(errmsg) > 0) &
@@ -1014,7 +1014,7 @@ contains
     end select
 
     if (f%usecore .and. any(f%zpsp /= -1)) then
-       call f%c%promolecular(wc,icrd_cart,rhoaux,grad,h,0,zpsp=f%zpsp)
+       call f%c%promolecular_env(wc,icrd_cart,rhoaux,grad,h,0,zpsp=f%zpsp)
        rho = rho + rhoaux
     end if
     grd0 = rho
@@ -1317,10 +1317,7 @@ contains
 
     ! type-specific
     if (f%type == type_promol) then
-       ! promolecular densities
-       if (isload) then
-          write (uout,'("  Atoms in the environment: ",A)') string(f%c%env%n)
-       end if
+       !
     elseif (f%type == type_grid) then
        ! grids
        n = f%grid%n
@@ -2053,7 +2050,7 @@ contains
     end if
 
     ! distance to atoms
-    nid = f%c%identify_atom(xc,icrd_crys,dist=dist,distmax=max(nuceps,nucepsh))
+    nid = f%c%identify_atom_env(xc,icrd_crys,dist=dist,distmax=max(nuceps,nucepsh))
     if (nid > 0) then
        if (dist < nuceps) goto 999
        if (f%c%spc(f%c%atcel(nid)%is)%z == 1 .and. dist < nucepsh) goto 999
@@ -2298,7 +2295,7 @@ contains
        end if
 
        ! nearest nucleus
-       call fid%c%nearest_atom(xpoint,icrd_crys,idnuc,sphrad,lvec=lvec)
+       call fid%c%nearest_atom_env(xpoint,icrd_crys,idnuc,sphrad,lvec=lvec)
        xnuc = fid%c%x2c(fid%c%atcel(idnuc)%x + lvec)
        xnucr = fid%c%atcel(idnuc)%x + lvec
        idnuc = fid%c%atcel(idnuc)%idx

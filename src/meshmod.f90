@@ -69,7 +69,7 @@ module meshmod
      end subroutine genmesh_becke
      module subroutine genmesh_franchini(m,c,lvl)
        class(mesh), intent(inout) :: m
-       type(crystal), intent(in) :: c
+       type(crystal), intent(inout) :: c
        integer, intent(in) :: lvl
      end subroutine genmesh_franchini
      module subroutine fillmesh(m,ff,prop,periodic)

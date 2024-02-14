@@ -136,7 +136,7 @@ module fieldmod
      module subroutine field_new(f,seed,c,id,sptr,errmsg,ti)
        class(field), intent(inout) :: f
        type(fieldseed), intent(in) :: seed
-       type(crystal), intent(in), target :: c
+       type(crystal), intent(inout), target :: c
        integer, intent(in) :: id
        type(c_ptr), intent(in) :: sptr
        character(len=:), allocatable, intent(out) :: errmsg

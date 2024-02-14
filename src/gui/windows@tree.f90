@@ -2339,7 +2339,7 @@ contains
     ! apply the changes
     if (iw_button("Apply",sameline=.true.)) then
        ! find the atomic connectivity and the molecular fragments
-       call sys(isys)%c%env%find_asterisms_covalent(sys(isys)%c%nstar)
+       call sys(isys)%c%find_asterisms_covalent()
        call sys(isys)%c%fill_molecular_fragments()
        call sys(isys)%c%calculate_molecular_equivalence()
        sysc(isys)%sc%forcebuildlists = .true.

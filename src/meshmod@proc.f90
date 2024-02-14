@@ -237,7 +237,7 @@ contains
     use tools_io, only: faterr, ferror
     use param, only: maxzat, fourpi, icrd_cart
     class(mesh), intent(inout) :: m
-    type(crystal), intent(in) :: c
+    type(crystal), intent(inout) :: c
     integer, intent(in) :: lvl
 
     real*8 :: r, vp0, vpsum
@@ -247,8 +247,6 @@ contains
     integer :: nr, nang, ir, il, istat, mang, mr, iz, izmr, iz2, nat, ierr
     real*8 :: x(3), fscal, fscal2, xnuc(3), rmax
     real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:), dist(:)
-    logical :: isealloc
-    type(environ), allocatable :: env
 
     real*8, parameter :: rthres = 12d0 ! contribution to weight: 2e-14
 
@@ -289,20 +287,10 @@ contains
     call rmesh_franchini(mr,izmr,rads,wrads)
     rmax = max(rads(mr),rthres)
 
-    ! pointer to the environment
-    if (rmax >= c%env%dmax0.and..not.c%ismolecule) then
-       isealloc = .true.
-       allocate(env)
-       call env%extend(c%env,rmax)
-    else
-       ! keep a pointer to the environment
-       isealloc = .false.
-    end if
-
     ! Precompute the mesh weights with multiple threads. The job has to be
     ! split in two because the nodes have to be positioned in the array in
     ! the correct order
-    !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,xnuc,nat,ierr) &
+    !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,xnuc,nat) &
     !$omp firstprivate(rads,wrads,xang,yang,zang,wang,eid,dist)
     do i = 1, c%ncel
        xnuc = c%x2xr(c%atcel(i)%x)
@@ -336,22 +324,11 @@ contains
              x = xnuc + r * (/xang(il),yang(il),zang(il)/)
 
              ! find all atoms within a distance = rthres from the mesh point
-             if (isealloc) then
-                call env%list_near_atoms(x,icrd_cart,.false.,nat,ierr,eid,dist,up2d=rmax)
-             else
-                call c%env%list_near_atoms(x,icrd_cart,.false.,nat,ierr,eid,dist,up2d=rmax)
-             end if
-             if (ierr > 0) then
-                call ferror('genmesh_franchini','could not find environment of a mesh point',faterr)
-             end if
+             call c%list_near_atoms(x,icrd_cart,.false.,nat,eid=eid,dist=dist,up2d=rmax)
 
              vpsum = 0d0
              do j = 1, nat
-                if (isealloc) then
-                   iz2 = c%spc(env%at(eid(j))%is)%z
-                else
-                   iz2 = c%spc(c%env%at(eid(j))%is)%z
-                end if
+                iz2 = c%spc(c%atcel(eid(j))%is)%z
                 if (iz2 < 1 .or. iz2 > maxzat) then
                    cycle
                 elseif (iz2 == 1) then
@@ -379,7 +356,6 @@ contains
     if (allocated(yang)) deallocate(yang)
     if (allocated(zang)) deallocate(zang)
     if (allocated(wang)) deallocate(wang)
-    if (isealloc) deallocate(env)
 
     ! fill the 3d mesh
     kk = 0
