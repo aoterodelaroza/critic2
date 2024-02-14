@@ -2206,13 +2206,13 @@ contains
     character*(*), intent(in) :: line
 
     type(crystalseed) :: seed, c2seed
-    integer :: lp, lp2, ierr, i, j, n
+    integer :: lp, lp2, i, j, n
     character(len=:), allocatable :: file1, file2, errmsg, abc, word
     type(crystal) :: c1, c2, c2del, caux
     real*8 :: xd2(3,3), cd2(3,3), dmax0, xx(3)
     real*8 :: aa2(3), bb2(3), cc2(3), dd
     real*8, allocatable :: dist(:), th2p(:), ip(:)
-    integer, allocatable :: eid(:), irange(:,:), lvec(:,:)
+    integer, allocatable :: irange(:,:), lvec(:,:)
     integer :: nat, n1, n2, n3, i1, i2, i3, idx
     real*8, allocatable :: iha1(:), iha2(:)
     real*8, allocatable :: t(:)

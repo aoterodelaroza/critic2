@@ -243,7 +243,7 @@ contains
     integer :: i, j, kk
     real*8, allocatable :: rads(:), wrads(:), xang(:), yang(:), zang(:), wang(:)
     integer, allocatable :: eid(:)
-    integer :: nr, nang, ir, il, istat, mang, mr, iz, izmr, iz2, nat, ierr
+    integer :: nr, nang, ir, il, istat, mang, mr, iz, izmr, iz2, nat
     real*8 :: x(3), fscal, fscal2, xnuc(3), rmax
     real*8, allocatable :: meshrl(:,:,:), meshx(:,:,:,:), dist(:)
 

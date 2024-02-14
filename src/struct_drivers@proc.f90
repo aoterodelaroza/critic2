@@ -1983,13 +1983,13 @@ contains
     character*(*), intent(in) :: line
 
     type(crystalseed) :: seed
-    integer :: lp, ierr, i, j
+    integer :: lp, i, j
     character(len=:), allocatable :: file1, file2, errmsg, abc, word
     type(crystal) :: c1, c2, c2del, caux
     real*8 :: xd2(3,3), cd2(3,3), dmax0, xx(3)
     real*8 :: aa2(3), bb2(3), cc2(3), dd
     real*8, allocatable :: dist(:)
-    integer, allocatable :: eid(:), irange(:,:), lvec(:,:)
+    integer, allocatable :: irange(:,:), lvec(:,:)
     integer :: nat, n1, n2, n3, i1, i2, i3
     real*8, allocatable :: iha1(:), iha2(:)
     real*8, allocatable :: t(:)
@@ -2375,7 +2375,7 @@ contains
   module subroutine struct_environ(s,line)
     use systemmod, only: system
     use global, only: eval_next, dunit0, iunit, iunitname0
-    use tools_io, only: string, lgetword, equal, ferror, faterr, noerr, string, uout,&
+    use tools_io, only: string, lgetword, equal, ferror, faterr, string, uout,&
        ioj_right, ioj_center, zatguess, isinteger
     use param, only: bohrtoa, icrd_crys
     type(system), intent(inout), target :: s
@@ -2385,7 +2385,7 @@ contains
     integer :: nat
     integer, allocatable :: eid(:), ishell(:), lvec(:,:)
     real*8, allocatable :: dist(:)
-    integer :: lp, lp2, ierr
+    integer :: lp, lp2
     character(len=:), allocatable :: word
     real*8 :: x0(3), x0in(3)
     logical :: doatoms, ok, groupshell
@@ -2528,7 +2528,7 @@ contains
 
   contains
     subroutine output_by_distance()
-      integer :: mshel, eidx, cidx, nidx
+      integer :: mshel, cidx, nidx
       real*8 :: xx(3)
 
       mshel = maxval(ishell)
@@ -2561,7 +2561,7 @@ contains
     end subroutine output_by_distance
 
     subroutine output_by_shell()
-      integer :: mshel, eidx, cidx, nidx, nneig, ishl0
+      integer :: mshel, cidx, nidx, nneig, ishl0
       real*8 :: xx(3)
 
       mshel = maxval(ishell)
@@ -2623,7 +2623,7 @@ contains
     real*8, allocatable :: rad(:)
     real*8 :: fac, dd
     logical :: ok
-    integer :: nat, ierr
+    integer :: nat
     integer, allocatable :: eid(:), coord2(:,:), coord2sp(:,:), coord3(:,:,:), coord3sp(:,:,:)
     real*8, allocatable :: up2dsp(:,:)
 
@@ -2792,7 +2792,7 @@ contains
     character*(*), intent(in) :: line
 
     character(len=:), allocatable :: at1, at2
-    integer :: lp, is1, is2, iz1, iz2, ierr
+    integer :: lp, is1, is2, iz1, iz2
     real*8 :: rdum, rmin, rmax, vol, xp1(3), xp2(3), xp3(3)
     logical :: ok
     integer, allocatable :: eid(:)
@@ -3177,8 +3177,8 @@ contains
     real*8 :: x0(3,3), t0(3), rdum(4), x2c(3,3), dd
     real*8 :: r, mm(3,3), dmax0
     logical :: doinv, dorefine
-    integer :: nat, ierr
-    integer, allocatable :: eid(:), lvec(:,:)
+    integer :: nat
+    integer, allocatable :: lvec(:,:)
     real*8, allocatable :: rmax(:), mmax(:,:,:)
 
     integer, parameter :: inice_def = 64
@@ -3445,7 +3445,7 @@ contains
 
     logical :: ok
     integer :: i, j, k, n
-    integer :: nat, ierr
+    integer :: nat
     integer, allocatable :: eid(:)
     real*8 :: dist0, econ, up2d
     real*8 :: wi, numer, econprev
