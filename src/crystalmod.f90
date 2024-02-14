@@ -175,7 +175,7 @@ module crystalmod
      procedure :: nearest_atom_grid !< return the nearest atom IDs for a uniform grid of points
      procedure :: identify_spc !< Identify species in a structure from a string
 
-     ! atomic environments and distance calculations
+     ! atomic environments and distance calculations (env)
      procedure :: build_env
      procedure :: list_near_atoms
      procedure :: nearest_atom

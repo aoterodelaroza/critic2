@@ -1411,7 +1411,8 @@ contains
              call ferror('rhoplot_grdvec','Bad limits for 3Dc plot',faterr,line,syntax=.true.)
              return
           end if
-          grpx(:,norig) = sy%c%c2x(grpx(:,norig) / dunit0(iunit) - sy%c%molx0)
+          if (sy%c%ismolecule) &
+             grpx(:,norig) = sy%c%c2x(grpx(:,norig) / dunit0(iunit) - sy%c%molx0)
           ok = check_no_extra_word()
           if (.not.ok) return
 
