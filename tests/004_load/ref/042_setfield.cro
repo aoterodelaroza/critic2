@@ -341,7 +341,6 @@
   Name: <promolecular>
   Source: <generated>
   Type: promolecular
-  Atoms in the environment: 1760
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -647,7 +646,6 @@
   Name: <promolecular>
   Source: <generated>
   Type: promolecular
-  Atoms in the environment: 1760
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -774,7 +772,6 @@
   Name: <promolecular>
   Source: <generated>
   Type: promolecular
-  Atoms in the environment: 1648
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3

@@ -2,8 +2,8 @@
 * Field : 0
   Benchmark of the grd call 
   Number of points : 10000
-  Total wall time : 0.403000 s
-  Avg. wall time per call : 40.3000 us
+  Total wall time : 0.549000 s
+  Avg. wall time per call : 54.9000 us
 
 + Field number 1
   Name: h2o_hf.wfn
@@ -27,6 +27,6 @@
 * Field : 1
   Benchmark of the grd call 
   Number of points : 10000
-  Total wall time : 0.020000 s
-  Avg. wall time per call : 2.0000 us
+  Total wall time : 0.033000 s
+  Avg. wall time per call : 3.3000 us
 
