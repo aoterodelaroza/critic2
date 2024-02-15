@@ -1,4 +1,5 @@
 + Field number 1
+  Name: phbr.fchk
   Source: ../zz_source/g16A.03/phbr/phbr.fchk
   Type: molecular wavefunction
   Wavefunction type: restricted
@@ -34,5 +35,5 @@
 # ss (size) = average aperture angle for MEP-positive region on isosurface (ang_^2)
 # 
 #id dist     ls       ms         rs       ss
-1  1.8592   180.00  3.1577E-02  2.8440    6.3197  
+1  1.8592   180.00  3.1577E-02  2.8440    6.3197   
 
