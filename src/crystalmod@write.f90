@@ -117,21 +117,14 @@ contains
     if (lq) then
        write (uout,'("+ List of atomic species: ")')
        write (uout,'("# spc = atomic species. Z = atomic number. name = atomic name (symbol).")')
-       write (uout,'("# Q = charge. ZPSP = pseudopotential charge.")')
+       write (uout,'("# Q = charge.")')
        write (uout,'("# ",99(A," "))') string("spc",3,ioj_center), &
           string("Z",3,ioj_center), string("name",7,ioj_center),&
-          string("Q",length=7,justify=ioj_center),&
-          string("ZPSP",length=4,justify=ioj_right)
+          string("Q",length=7,justify=ioj_center)
        do i = 1, c%nspc
-          str1 = " -- "
-          if (c%spc(i)%z > 0) then
-             if (c%zpsp(c%spc(i)%z) > 0) &
-                str1 = string(c%zpsp(c%spc(i)%z))
-          end if
           write (uout,'("  ",99(A," "))') string(i,3,ioj_center), &
              string(c%spc(i)%z,3,ioj_center), string(c%spc(i)%name,7,ioj_center),&
-             string(c%spc(i)%qat,'f',length=7,decimal=4,justify=ioj_right),&
-             str1
+             string(c%spc(i)%qat,'f',length=7,decimal=4,justify=ioj_right)
        end do
        write (uout,*)
     end if

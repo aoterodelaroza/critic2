@@ -134,7 +134,7 @@ contains
           end if
 
           ! q/qat, zpsp, nocore
-       elseif (equal(word,'q') .or. equal(word,'qat') .or. equal(word,'zpsp') .or. equal(word,'nocore')) then
+       elseif (equal(word,'q') .or. equal(word,'qat')) then
           call check_structure_defined(ok)
           if (.not.ok) cycle
           call struct_charges(sy,line,ok)

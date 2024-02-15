@@ -101,9 +101,6 @@ contains
     ! no 3d molecular crystals
     c%ismol3d = .false.
 
-    ! core charges
-    c%zpsp = -1
-
     ! the crystal is not initialized until struct_new is run
     c%file = ""
     c%isinit = .false.

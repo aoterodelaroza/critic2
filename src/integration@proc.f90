@@ -2675,15 +2675,7 @@ contains
                    end do ! iat_b
                 end do ! iat_a
 
-                ! xxxx !
-                ! if (imo == kmo) then
-                !    fac = 1d0
-                ! else
-                !    fac = 2d0
-                ! end if
-
                 !$omp critical (addfa)
-                ! res%fa3(:,:,:,:,:,is) = res%fa3(:,:,:,:,:,is) + fac * f3temp
                 res%fa3(:,:,:,:,:,is) = res%fa3(:,:,:,:,:,is) + f3temp
                 !$omp end critical (addfa)
              end do ! kmo

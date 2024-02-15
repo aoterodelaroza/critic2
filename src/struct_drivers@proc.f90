@@ -470,67 +470,36 @@ contains
     logical, intent(out) :: oksyn
 
     character(len=:), allocatable :: word
-    integer :: lp, nn, i, j, zpsp0(maxzat0)
+    integer :: lp, nn, i, j
     logical :: ok, do1
     real*8 :: xx
 
     oksyn = .false.
     lp = 1
     word = lgetword(line,lp)
-    zpsp0 = -2
-    if (equal(word,'q') .or. equal(word,'zpsp') .or. equal(word,'qat')) then
-       do1 = equal(word,'zpsp')
+    if (equal(word,'q') .or. equal(word,'qat')) then
        do while (.true.)
           word = getword(line,lp)
           if (len_trim(word) < 1) exit
           nn = zatguess(word)
           if (nn == -1) then
-             call ferror('struct_charges','Unknown atomic symbol in Q/QAT/ZPSP',faterr,line,syntax=.true.)
+             call ferror('struct_charges','Unknown atomic symbol in Q/QAT',faterr,line,syntax=.true.)
              return
           end if
           ok = eval_next(xx,line,lp)
           if (.not.ok) then
-             call ferror('struct_charges','Incorrect Q/QAT/ZPSP syntax',faterr,line,syntax=.true.)
+             call ferror('struct_charges','Incorrect Q/QAT syntax',faterr,line,syntax=.true.)
              return
           end if
-          if (.not.do1) then
-             do i = 1, s%c%nspc
-                if (s%c%spc(i)%z == nn) &
-                   s%c%spc(i)%qat = xx
-             end do
-          else
-             zpsp0(nn) = nint(xx)
-             if (nn > 0 .and. zpsp0(nn) > 0) &
-                call grid1_register_core(nn,zpsp0(nn))
-          end if
+          do i = 1, s%c%nspc
+             if (s%c%spc(i)%z == nn) &
+                s%c%spc(i)%qat = xx
+          end do
        end do
-    elseif (equal(word,'nocore')) then
-       zpsp0 = -1
-       word = getword(line,lp)
-       if (len_trim(word) > 0) then
-          call ferror('critic','Unknown extra keyword',faterr,line,syntax=.true.)
-          return
-       end if
     endif
     oksyn = .true.
 
-    ! fill the crystal zpsp
-    do j = 1, maxzat0
-       if (zpsp0(j) /= -2) &
-          s%c%zpsp(j) = zpsp0(j)
-    end do
-
-    ! fill the current fields zpsp
-    do i = 1, s%nf
-       if (s%f(i)%isinit) then
-          do j = 1, maxzat0
-             if (zpsp0(j) /= -2) &
-                s%f(i)%zpsp(j) = zpsp0(j)
-          end do
-       end if
-    end do
-
-    ! report the charges and zpsp
+    ! report the charges
     call s%c%report(.false.,.true.)
     call s%report(.false.,.false.,.false.,.false.,.false.,.true.,.false.)
 

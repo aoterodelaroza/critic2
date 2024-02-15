@@ -1,10 +1,10 @@
 ## check: 050_load-corekeyw.cro -a1e-10
 ## labels: regression quick
 crystal ../zz_source/qe-6.1/graphite/rho.cube
-load ../zz_source/qe-6.1/graphite/rho.cube core
+load ../zz_source/qe-6.1/graphite/rho.cube
 
 point 0 0 3/4
-zpsp C 4
+setfield 1 zpsp C 4
 point 0 0 3/4
-nocore
+setfield 1 nocore
 point 0 0 3/4

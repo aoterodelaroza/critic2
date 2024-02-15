@@ -13,7 +13,7 @@
   Average: 6.77829564E-02
   Max: 3.25200000E-01
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
-  Use core densities? T
+  Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
   Number of non-equivalent critical points: 2
@@ -40,16 +40,17 @@
      0.000000000E+00   0.000000000E+00   6.821697181E-01  
   Hessian eigenvalues: 6.821697181E-01  1.470218414E+00  2.188340358E+00  
 
-+ List of atomic species: 
-# spc = atomic species. Z = atomic number. name = atomic name (symbol).
-# Q = charge. ZPSP = pseudopotential charge.
-# spc  Z   name      Q    ZPSP 
-   1   6    C_     0.0000 4 
-
-* List of core and pseudopotential charges for each field
-# id  type   core?  ZPSP
-  0  promol   no   
-  1   grid    yes   C(4) 
++ Field number 1
+  Name: rho.cube
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Use core densities? T
+  Core charges (ZPSP): C(4)
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
 
 * POINT 0.0000000  0.0000000  0.7500000  
   Coordinates (bohr): 0.0000000  0.0000000  9.4901828  
@@ -69,16 +70,16 @@
     -1.620753029E+02  -2.701255046E+01  -1.373763895E+06  
   Hessian eigenvalues: -1.374364171E+06  -1.374363459E+06  -1.373718900E+06  
 
-+ List of atomic species: 
-# spc = atomic species. Z = atomic number. name = atomic name (symbol).
-# Q = charge. ZPSP = pseudopotential charge.
-# spc  Z   name      Q    ZPSP 
-   1   6    C_     0.0000  --  
-
-* List of core and pseudopotential charges for each field
-# id  type   core?  ZPSP
-  0  promol   no   
-  1   grid    yes  
++ Field number 1
+  Name: rho.cube
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
 
 * POINT 0.0000000  0.0000000  0.7500000  
   Coordinates (bohr): 0.0000000  0.0000000  9.4901828  

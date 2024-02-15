@@ -2,10 +2,11 @@
 ## labels: regression quick
 crystal ../zz_source/qe-6.1/graphite/rho.cube
 
-zpsp C 4
-load ../zz_source/qe-6.1/graphite/rho.cube core
-load ../zz_source/qe-6.1/graphite/rho.cube nocore
-load as core 10 10 10
-load as core sizeof 3
-load as "$1-$2-$4" sizeof 3
+load ../zz_source/qe-6.1/graphite/rho.cube zpsp C 4
+load ../zz_source/qe-6.1/graphite/rho.cube
+load as core 10 10 10 zpsp C 4
+load as core sizeof 3 zpsp C 4
+load as "$1-$2" sizeof 3
+reference 0
+point 0.1 0.2 0.3 all
 

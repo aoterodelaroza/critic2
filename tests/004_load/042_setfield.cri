@@ -19,7 +19,7 @@ setfield 3 trispline
 setfield 4 tricubic
 setfield 5 numerical
 setfield 6 analytical
-setfield 7 core zpsp c 4
+setfield 7 zpsp c 4
 setfield 8 nocore
 setfield 9 typnuc 1
 setfield 10 normalize 1.0

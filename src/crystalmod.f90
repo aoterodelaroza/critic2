@@ -124,8 +124,6 @@ module crystalmod
      real*8, allocatable :: ws_x(:,:) !< vertices of the WS cell (cryst. coords.)
      logical :: isortho !< is the cell orthogonal?
      logical :: isortho_del !< is the reduced cell orthogonal?
-     ! core charges
-     integer :: zpsp(maxzat0)
 
      ! atomic environment of the cell
      integer :: nblock(3) ! number of environemt blocks

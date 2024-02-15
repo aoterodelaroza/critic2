@@ -179,14 +179,13 @@ contains
              if (allocated(ff%wien%slm)) &
                 ff%wien%slm(:,1,:) = ff%wien%slm(:,1,:) * sqfp
           end if
-       else if (equal(word,'core')) then
-          ff%usecore = .true.
-       else if (equal(word,'nocore')) then
-          ff%usecore = .false.
        else if (equal(word,'numerical')) then
           ff%numerical = .true.
        else if (equal(word,'analytical')) then
           ff%numerical = .false.
+       else if (equal(word,'nocore')) then
+          ff%usecore = .false.
+          ff%zpsp = -1
        else if (equal(word,'typnuc')) then
           ok = eval_next(ff%typnuc,line,lp)
           if (.not.ok) then
@@ -210,6 +209,7 @@ contains
           end if
           call ff%grid%normalize(norm,ff%c%omega)
        else if (equal(word,'zpsp')) then
+          ff%usecore = .true.
           do while (.true.)
              lp2 = lp
              word2 = getword(line,lp)
@@ -291,7 +291,7 @@ contains
     f%name = adjustl(trim(seed%fid))
 
     ! inherit the pseudopotential charges from the crystal
-    f%zpsp = c%zpsp
+    f%zpsp = -1
 
     ! set the default field flags
     call f%set_default_options()
@@ -481,7 +481,8 @@ contains
              f%name = "<generated>, promolecular grid"
           end if
        else
-          call c%promolecular_grid(f%grid,seed%n,zpsp=c%zpsp)
+          call f%set_options(seed%elseopt,errmsg) ! I need the zpsp now
+          call c%promolecular_grid(f%grid,seed%n,zpsp=f%zpsp)
           f%name = "<generated>, core grid"
        end if
        f%type = type_grid
@@ -573,12 +574,11 @@ contains
     f%id = id
     f%isinit = .true.
     f%type = type_ghost
-    f%usecore = .false.
     f%numerical = .true.
     f%exact = .false.
     f%name = adjustl(name)
     f%file = ""
-    f%zpsp = c%zpsp
+    f%zpsp = -1
     f%expr = expr
     f%sptr = sptr
     call f%init_cplist()
@@ -607,13 +607,12 @@ contains
     else
        f%type = type_promol
     end if
-    f%usecore = .false.
     f%numerical = .false.
     f%exact = .false.
     f%name = adjustl(name)
     f%file = ""
     f%typnuc = -3
-    f%zpsp = c%zpsp
+    f%zpsp = -1
     call f%init_cplist()
 
   end subroutine load_promolecular
@@ -671,13 +670,12 @@ contains
     elseif (ityp == ifformat_as_resample) then
        call f%grid%resample(g,n)
     end if
-    f%usecore = .false.
     f%numerical = .false.
     f%exact = .false.
     f%name = adjustl(name)
     f%file = ""
     f%typnuc = -3
-    f%zpsp = c%zpsp
+    f%zpsp = -1
     call f%init_cplist()
 
   end subroutine load_as_fftgrid
