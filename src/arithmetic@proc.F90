@@ -2476,11 +2476,14 @@ contains
     real*8 :: res
 
     real*8 :: xp(3)
+    real*8 :: rcut, hcut, eta, qsum, q2sum
+    integer :: lrmax(3), lhmax(3)
 
     if (trim(fid) == "ewald") then
        ! Ewald potential at point x0
        xp = syl%c%c2x(x0)
-       res = syl%c%ewald_pot(xp)
+       call syl%c%calculate_ewald_cutoffs(rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
+       res = syl%c%ewald_pot(xp,rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
     end if
 
   end function specialfieldeval

@@ -108,7 +108,6 @@ contains
     c%file = ""
     c%isinit = .false.
     c%havesym = 0
-    c%isewald = .false.
 
   end subroutine struct_init
 
@@ -128,7 +127,6 @@ contains
     if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
     c%isinit = .false.
     c%havesym = 0
-    c%isewald = .false.
     c%file = ""
     c%nspc = 0
     c%nneq = 0

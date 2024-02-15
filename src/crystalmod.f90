@@ -67,7 +67,6 @@ module crystalmod
      ! Initialization flags
      logical :: isinit = .false. !< has the crystal structure been initialized?
      integer :: havesym = 0 !< was the symmetry determined? (0 - nosym, 1 - full)
-     logical :: isewald = .false. !< do we have the data for ewald's sum?
 
      ! file name for the occasional critic2 trick
      character(len=mlen) :: file
@@ -147,12 +146,6 @@ module crystalmod
      logical :: ismol3d !< Is this a 3d molecular crystal?
      integer, allocatable :: idxmol(:) !< -1: mol is fractional, 0: sym. unique, >0 index for nneq mol.
      integer, allocatable :: idatcelmol(:) !< cell atom i belongs to idatcelmol(i) molecule
-
-     !! Initialization level: isewald !!
-     ! ewald data
-     real*8 :: rcut, hcut, eta, qsum, q2sum
-     integer :: lrmax(3), lhmax(3)
-
    contains
      ! construction, destruction, initialization (proc)
      procedure :: init => struct_init !< Allocate arrays and nullify variables
@@ -492,16 +485,20 @@ module crystalmod
        type(fragment), intent(out), allocatable :: fr(:)
        logical, intent(out), allocatable :: isdiscrete(:)
      end subroutine listmolecules
-     module subroutine calculate_ewald_cutoffs(c)
+     module subroutine calculate_ewald_cutoffs(c,rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
        class(crystal), intent(inout) :: c
+       real*8, intent(out) :: rcut, hcut, eta, qsum, q2sum
+       integer, intent(out) :: lrmax(3), lhmax(3)
      end subroutine calculate_ewald_cutoffs
      module function ewald_energy(c) result(ewe)
        class(crystal), intent(inout) :: c
        real*8 :: ewe
      end function ewald_energy
-     module function ewald_pot(c,x)
+     module function ewald_pot(c,x,rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x(3)
+       real*8, intent(out) :: rcut, hcut, eta, qsum, q2sum
+       integer, intent(out) :: lrmax(3), lhmax(3)
        real*8 :: ewald_pot
      end function ewald_pot
      module subroutine promolecular(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)

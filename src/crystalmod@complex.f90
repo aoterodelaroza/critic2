@@ -22,10 +22,13 @@ submodule (crystalmod) complex
 contains
 
   !> Calculate real and reciprocal space sum cutoffs
-  module subroutine calculate_ewald_cutoffs(c)
+  module subroutine calculate_ewald_cutoffs(c,rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
     use tools_io, only: ferror, faterr
     use param, only: pi, rad, sqpi, tpi
     class(crystal), intent(inout) :: c
+
+    real*8, intent(out) :: rcut, hcut, eta, qsum, q2sum
+    integer, intent(out) :: lrmax(3), lhmax(3)
 
     real*8, parameter :: sgrow = 1.4d0
     real*8, parameter :: epscut = 1d-5
@@ -38,17 +41,15 @@ contains
     real*8 :: rcut1, rcut2, err_real
     real*8 :: hcut1, hcut2, err_rec
 
-    if (c%isewald) return
-
     ! calculate sum of charges and charges**2
-    c%qsum = 0d0
-    c%q2sum = 0d0
+    qsum = 0d0
+    q2sum = 0d0
     do i = 1, c%nneq
        qq = c%spc(c%at(i)%is)%qat
        if (abs(qq) < 1d-6) &
           call ferror('calculate_ewald_cutoffs','Some of the charges are 0',faterr)
-       c%qsum = c%qsum + real(c%at(i)%mult * qq,8)
-       c%q2sum = c%q2sum + real(c%at(i)%mult * qq**2,8)
+       qsum = qsum + real(c%at(i)%mult * qq,8)
+       q2sum = q2sum + real(c%at(i)%mult * qq**2,8)
     end do
 
     ! determine shortest vector in real space
@@ -74,7 +75,7 @@ contains
     end do
 
     ! convergence parameter
-    c%eta = sqrt(c%omega / pi / c%aa(ib) / sin(c%bb(ic)*rad))
+    eta = sqrt(c%omega / pi / c%aa(ib) / sin(c%bb(ic)*rad))
 
     ! real space cutoff
     rcut1 = 1d0
@@ -82,24 +83,24 @@ contains
     err_real = 1d30
     do while (err_real >= eeps)
        rcut2 = rcut2 * sgrow
-       err_real = pi * c%ncel**2 * c%q2sum / c%omega * c%eta**2 * erfc(rcut2 / c%eta)
+       err_real = pi * c%ncel**2 * q2sum / c%omega * eta**2 * erfc(rcut2 / eta)
     end do
     do while (rcut2-rcut1 >= epscut)
-       c%rcut = 0.5*(rcut1+rcut2)
-       err_real = pi * c%ncel**2 * c%q2sum / c%omega * c%eta**2 * erfc(c%rcut / c%eta)
+       rcut = 0.5*(rcut1+rcut2)
+       err_real = pi * c%ncel**2 * q2sum / c%omega * eta**2 * erfc(rcut / eta)
        if (err_real > eeps) then
-          rcut1 = c%rcut
+          rcut1 = rcut
        else
-          rcut2 = c%rcut
+          rcut2 = rcut
        endif
     end do
-    c%rcut = 0.5*(rcut1+rcut2)
+    rcut = 0.5*(rcut1+rcut2)
     ! real space cells to explore
     alrmax = 0d0
     alrmax(1) = c%aa(2) * c%aa(3) * sin(c%bb(1)*rad)
     alrmax(2) = c%aa(1) * c%aa(3) * sin(c%bb(2)*rad)
     alrmax(3) = c%aa(1) * c%aa(2) * sin(c%bb(3)*rad)
-    c%lrmax = ceiling(c%rcut * alrmax / c%omega)
+    lrmax = ceiling(rcut * alrmax / c%omega)
 
     ! reciprocal space cutoff
     hcut1 = 1d0
@@ -107,21 +108,20 @@ contains
     err_rec = 1d30
     do while(err_rec >= eeps)
        hcut2 = hcut2 * sgrow
-       err_rec = c%ncel**2 * c%q2sum / sqpi / c%eta * erfc(c%eta * hcut2 / 2)
+       err_rec = c%ncel**2 * q2sum / sqpi / eta * erfc(eta * hcut2 / 2)
     end do
     do while(hcut2-hcut1 > epscut)
-       c%hcut = 0.5*(hcut1+hcut2)
-       err_rec = c%ncel**2 * c%q2sum / sqpi / c%eta * erfc(c%eta * c%hcut / 2)
+       hcut = 0.5*(hcut1+hcut2)
+       err_rec = c%ncel**2 * q2sum / sqpi / eta * erfc(eta * hcut / 2)
        if (err_rec > eeps) then
-          hcut1 = c%hcut
+          hcut1 = hcut
        else
-          hcut2 = c%hcut
+          hcut2 = hcut
        endif
     end do
-    c%hcut = 0.5*(hcut1+hcut2)
+    hcut = 0.5*(hcut1+hcut2)
     ! reciprocal space cells to explore
-    c%lhmax = ceiling(c%aa(ia) / tpi * c%hcut)
-    c%isewald = .true.
+    lhmax = ceiling(c%aa(ia) / tpi * hcut)
 
   end subroutine calculate_ewald_cutoffs
 
@@ -133,16 +133,17 @@ contains
 
     real*8 :: x(3), pot
     integer :: i
+    real*8 :: rcut, hcut, eta, qsum, q2sum
+    integer :: lrmax(3), lhmax(3)
 
-    if (.not.c%isewald) &
-       call c%calculate_ewald_cutoffs()
+    call c%calculate_ewald_cutoffs(rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
 
     write (uout,'("+ Electrostatic potential at atomic positions")')
     write (uout,'("#id name mult    charge         Vel(Ha/e)")')
     ewe = 0d0
     do i = 1, c%nneq
        x = c%at(i)%x
-       pot = c%ewald_pot(x)
+       pot = c%ewald_pot(x,rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
        ewe = ewe + c%at(i)%mult * c%spc(c%at(i)%is)%qat * pot
        write (uout,'(99(A," "))') string(i,4), string(c%spc(c%at(i)%is)%name,4),&
           string(c%at(i)%mult,4),&
@@ -156,10 +157,12 @@ contains
   !> Calculate the Ewald electrostatic potential at an arbitrary
   !> position x (crystallographic coords.)  If x is the nucleus j,
   !> return pot - q_j / |r-rj| at rj.
-  module function ewald_pot(c,x)
+  module function ewald_pot(c,x,rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
     use param, only: tpi, pi, sqpi, icrd_crys
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x(3)
+    real*8, intent(out) :: rcut, hcut, eta, qsum, q2sum
+    integer, intent(out) :: lrmax(3), lhmax(3)
     real*8 :: ewald_pot
 
     real*8 :: rcut2, qnuc
@@ -167,12 +170,6 @@ contains
     real*8 :: px(3), lvec(3), d2, d, dh
     real*8 :: sfac_c, sfacp, bbarg
     real*8 :: sum_real, sum_rec, sum0, sum_back
-
-    if (.not.c%isewald) then
-       !$omp critical (fill_ewald)
-       call c%calculate_ewald_cutoffs()
-       !$omp end critical (fill_ewald)
-    end if
 
     ! is this a nuclear position? -> get charge
     idnuc = c%identify_atom(x,icrd_crys)
@@ -183,33 +180,33 @@ contains
     endif
 
     ! real space sum
-    rcut2 = c%rcut * c%rcut
+    rcut2 = rcut * rcut
     sum_real = 0
-    do i1 = -c%lrmax(1),c%lrmax(1)
-       do i2 = -c%lrmax(2),c%lrmax(2)
-          do i3 = -c%lrmax(3),c%lrmax(3)
+    do i1 = -lrmax(1),lrmax(1)
+       do i2 = -lrmax(2),lrmax(2)
+          do i3 = -lrmax(3),lrmax(3)
              lvec = real((/i1,i2,i3/),8)
              do i = 1,c%ncel
                 px = x - c%atcel(i)%x - lvec
                 d2 = dot_product(px,matmul(c%gtensor,px))
                 if (d2 < 1d-12 .or. d2 > rcut2) cycle
-                d = sqrt(d2) / c%eta
+                d = sqrt(d2) / eta
                 sum_real = sum_real + c%spc(c%atcel(i)%is)%qat * erfc(d) / d
              end do
           end do
        end do
     end do
-    sum_real = sum_real / c%eta
+    sum_real = sum_real / eta
 
     ! reciprocal space sum
     sum_rec = 0
-    do i1 = -c%lhmax(1),c%lhmax(1)
-       do i2 = -c%lhmax(2),c%lhmax(2)
-          do i3 = -c%lhmax(3),c%lhmax(3)
+    do i1 = -lhmax(1),lhmax(1)
+       do i2 = -lhmax(2),lhmax(2)
+          do i3 = -lhmax(3),lhmax(3)
              lvec = tpi * (/i1,i2,i3/)
              dh = sqrt(dot_product(lvec,matmul(c%grtensor,lvec)))
-             if (dh < 1d-12 .or. dh > c%hcut) cycle
-             bbarg = 0.5d0 * dh * c%eta
+             if (dh < 1d-12 .or. dh > hcut) cycle
+             bbarg = 0.5d0 * dh * eta
 
              sfac_c = 0
              do i = 1, c%ncel
@@ -225,10 +222,10 @@ contains
     sum_rec = sum_rec * 2d0 * pi / c%omega
 
     ! h = 0 term, applied only at the nucleus
-    sum0 = - 2d0 * qnuc / sqpi / c%eta
+    sum0 = - 2d0 * qnuc / sqpi / eta
 
     ! compensating background charge term
-    sum_back = -c%qsum * c%eta**2 * pi / c%omega
+    sum_back = -qsum * eta**2 * pi / c%omega
 
     ! sum up and exit
     ewald_pot = sum_real + sum_rec + sum0 + sum_back
