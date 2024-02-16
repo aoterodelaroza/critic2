@@ -482,6 +482,10 @@ contains
           end if
        else
           call f%set_options(seed%elseopt,errmsg) ! I need the zpsp now
+          if (all(f%zpsp < 0)) then
+             errmsg = "need zpsp values for load as core"
+             return
+          end if
           call c%promolecular_grid(f%grid,seed%n,zpsp=f%zpsp)
           f%name = "<generated>, core grid"
        end if
