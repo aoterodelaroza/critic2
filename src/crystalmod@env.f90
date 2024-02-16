@@ -647,8 +647,8 @@ contains
        iz = c%spc(i)%z
        if (iz == 0 .or. iz > maxzat) cycle
        if (iscore) then
-          if (zpsp(iz) <= 0) cycle
-          g => cgrid(iz,zpsp(iz))
+          if (zpsp(i) <= 0) cycle
+          g => cgrid(iz,zpsp(i))
        else
           g => agrid(iz)
        end if
@@ -687,8 +687,8 @@ contains
        if (r > cutrad(iz)) cycle
 
        if (iscore) then
-          if (zpsp(iz) <= 0) cycle
-          g => cgrid(iz,zpsp(iz))
+          if (zpsp(c%atcel(i)%is) <= 0) cycle
+          g => cgrid(iz,zpsp(c%atcel(i)%is))
        else
           g => agrid(iz)
        end if

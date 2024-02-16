@@ -77,7 +77,7 @@ contains
     if (allocated(f%wfn)) deallocate(f%wfn)
     if (allocated(f%dftb)) deallocate(f%dftb)
     if (allocated(f%fr)) deallocate(f%fr)
-    f%zpsp = -1
+    if (allocated(f%zpsp)) deallocate(f%zpsp)
     f%expr = ""
     f%fcp_deferred = .true.
     if (allocated(f%cp)) deallocate(f%cp)
@@ -97,6 +97,7 @@ contains
     ff%usecore = .false.
     ff%numerical = .false.
     ff%typnuc = -3
+    if (.not.allocated(ff%zpsp)) allocate(ff%zpsp(ff%c%nspc))
     ff%zpsp = -1
 
   end subroutine field_set_default_options
@@ -109,14 +110,14 @@ contains
     use grid1mod, only: grid1_register_core
     use global, only: eval_next
     use tools_io, only: string, lgetword, equal, zatguess,&
-       isinteger, getword
+       isinteger, getword, equali
     use param, only: sqfp
     class(field), intent(inout) :: ff
     character*(*), intent(in) :: line
     character(len=:), allocatable, intent(out) :: errmsg
 
     character(len=:), allocatable :: word, word2, aux
-    integer :: lp, lp2, iz, iq
+    integer :: lp, lp2, iz, iq, i, is
     logical :: ok
     real*8 :: norm
 
@@ -185,6 +186,7 @@ contains
           ff%numerical = .false.
        else if (equal(word,'nocore')) then
           ff%usecore = .false.
+          if (.not.allocated(ff%zpsp)) allocate(ff%zpsp(ff%c%nspc))
           ff%zpsp = -1
        else if (equal(word,'typnuc')) then
           ok = eval_next(ff%typnuc,line,lp)
@@ -210,29 +212,62 @@ contains
           call ff%grid%normalize(norm,ff%c%omega)
        else if (equal(word,'zpsp')) then
           ff%usecore = .true.
+          if (.not.allocated(ff%zpsp)) allocate(ff%zpsp(ff%c%nspc))
           do while (.true.)
              lp2 = lp
+
+             ! try matching to species names
              word2 = getword(line,lp)
-             if (len_trim(word2) > 0 .and. len_trim(word2) <= 2) then
-                iz = zatguess(word2)
-                if (iz > 0) then
-                   aux = getword(line,lp)
-                   if (.not.isinteger(iq,aux)) then
-                      errmsg = "wrong syntax in ZPSP"
-                      return
+             is = -1
+             do i = 1, ff%c%nspc
+                if (equali(ff%c%spc(i)%name,word2)) then
+                   is = i
+                   exit
+                end if
+             end do
+             if (is > 0) then
+                aux = getword(line,lp)
+                if (.not.isinteger(iq,aux)) then
+                   errmsg = "wrong syntax in ZPSP"
+                   return
+                end if
+                ff%zpsp(is) = iq
+             else
+                ! try matching the atomic number
+                if (len_trim(word2) > 0 .and. len_trim(word2) <= 2) then
+                   iz = zatguess(word2)
+                   if (iz > 0) then
+                      aux = getword(line,lp)
+                      if (.not.isinteger(iq,aux)) then
+                         errmsg = "wrong syntax in ZPSP"
+                         return
+                      end if
+                      do i = 1, ff%c%nspc
+                         if (ff%c%spc(i)%z == iz) then
+                            ff%zpsp(i) = iq
+                         end if
+                      end do
+                   else
+                      ! must be some other keyword
+                      lp = lp2
+                      exit
                    end if
-                   ff%zpsp(iz) = iq
-                   call grid1_register_core(iz,iq)
                 else
+                   ! must be some other keyword
                    lp = lp2
                    exit
                 end if
-             else
-                lp = lp2
-                exit
              end if
           end do
 
+          ! register the species
+          ff%usecore = any(ff%zpsp > 0)
+          if (ff%usecore) then
+             do i = 1, ff%c%nspc
+                if (ff%zpsp(i) > 0) &
+                   call grid1_register_core(ff%c%spc(i)%z,ff%zpsp(i))
+             end do
+          end if
        else if (len_trim(word) > 0) then
           errmsg = "unknown extra keyword"
           return
@@ -290,7 +325,8 @@ contains
     f%id = id
     f%name = adjustl(trim(seed%fid))
 
-    ! inherit the pseudopotential charges from the crystal
+    ! set the initial pseudopotential charges
+    if (.not.allocated(f%zpsp)) allocate(f%zpsp(f%c%nspc))
     f%zpsp = -1
 
     ! set the default field flags
@@ -582,6 +618,7 @@ contains
     f%exact = .false.
     f%name = adjustl(name)
     f%file = ""
+    if (.not.allocated(f%zpsp)) allocate(f%zpsp(f%c%nspc))
     f%zpsp = -1
     f%expr = expr
     f%sptr = sptr
@@ -616,6 +653,7 @@ contains
     f%name = adjustl(name)
     f%file = ""
     f%typnuc = -3
+    if (.not.allocated(f%zpsp)) allocate(f%zpsp(f%c%nspc))
     f%zpsp = -1
     call f%init_cplist()
 
@@ -679,6 +717,7 @@ contains
     f%name = adjustl(name)
     f%file = ""
     f%typnuc = -3
+    if (.not.allocated(f%zpsp)) allocate(f%zpsp(f%c%nspc))
     f%zpsp = -1
     call f%init_cplist()
 
@@ -1439,9 +1478,9 @@ contains
        write (uout,'("  Use core densities? ",L)') f%usecore
        if (any(f%zpsp > 0)) then
           str = ""
-          do i = 1, maxzat0
+          do i = 1, f%c%nspc
              if (f%zpsp(i) > 0) then
-                aux = str // string(nameguess(i,.true.)) // "(" // string(f%zpsp(i)) // "), "
+                aux = str // string(f%c%spc(i)%name) // "(" // string(f%zpsp(i)) // "), "
                 str = aux
              end if
           end do

@@ -76,7 +76,7 @@ module fieldmod
      type(dftbwfn), allocatable :: dftb !< DFTB wavefunctions
      ! promolecular and core densities
      type(fragment), allocatable :: fr !< Fragment for the fragment-based promolecular density
-     integer :: zpsp(maxzat0) !< Pseudopotential charges
+     integer, allocatable :: zpsp(:) !< Pseudopotential charges (1:nspc)
      ! ghost field
      character(len=mmlen) :: expr !< Expression for the ghost field
      type(c_ptr) :: sptr = c_null_ptr !< Pointer to the parent system

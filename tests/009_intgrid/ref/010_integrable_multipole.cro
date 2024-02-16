@@ -14,7 +14,7 @@
   Max: 6.59802541E+00
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? T
-  Core charges (ZPSP): O(6), Si(4)
+  Core charges (ZPSP): O_(6), Si(4)
   Numerical derivatives? F
   Nuclear CP signature: -3
   Number of non-equivalent critical points: 2
@@ -130,7 +130,7 @@
   8    8    2      Si   14  --   1.98351271E+01  7.75066647E-01  1.81782506E+00 
   9    9    2      Si   14  --   1.98351271E+01  7.75066649E-01  1.81807550E+00 
 --------------------------------------------------------------------------------
-  Sum                            7.62910486E+02  4.79994802E+01 -1.12088117E-12 
+  Sum                            7.62910486E+02  4.79994802E+01 -1.11866072E-12 
 
 * Basin multipole moments (using real solid harmonics)
 + Integrated property (number 4): $2#mpol

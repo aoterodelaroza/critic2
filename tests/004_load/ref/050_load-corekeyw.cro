@@ -46,7 +46,7 @@
   Type: grid
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? T
-  Core charges (ZPSP): C(4)
+  Core charges (ZPSP): C_(4)
   Numerical derivatives? F
   Nuclear CP signature: -3
   Number of non-equivalent critical points: 2

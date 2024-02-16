@@ -341,9 +341,9 @@ contains
                 yesno = " no "
              end if
              str = "  "
-             do j = 1, maxzat0
+             do j = 1, s%f(i)%c%nspc
                 if (s%f(i)%zpsp(j) > 0) then
-                   aux = str // string(nameguess(j,.true.)) // "(" // string(s%f(i)%zpsp(j)) // "), "
+                   aux = str // string(s%f(i)%c%spc(j)%name) // "(" // string(s%f(i)%zpsp(j)) // "), "
                    str = aux
                 end if
              end do

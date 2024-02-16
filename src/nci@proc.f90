@@ -159,7 +159,8 @@ contains
     end if
     rthres = 2.d0
     domolmotif = .false.
-    usecore = sy%f(sy%iref)%usecore .and. any(sy%f(sy%iref)%zpsp /= -1)
+    usecore = sy%f(sy%iref)%usecore
+    if (usecore) usecore = any(sy%f(sy%iref)%zpsp /= -1)
     srhorange = (/ -1d30, 1d30 /)
 
     do while(.true.)
