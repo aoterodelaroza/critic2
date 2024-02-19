@@ -124,6 +124,7 @@ contains
     real*8, allocatable :: xlat(:,:)
 
     real*8, parameter :: eps = 1d-2
+    real*8, parameter :: eps2 = eps * eps
 
     if (c%ismolecule) &
        call ferror('newcell','NEWCELL incompatible with molecules',faterr)
@@ -251,8 +252,8 @@ contains
              ok = .true.
              do m = 1, ncseed%nat
                 dx = x - ncseed%x(:,m)
-                dx = abs(dx - nint(dx))
-                if (all(dx < eps)) then
+                dx = matmul(ncseed%m_x2c,dx - nint(dx))
+                if (dot_product(dx,dx) < eps2) then
                    ok = .false.
                    exit
                 end if
