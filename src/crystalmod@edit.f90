@@ -114,15 +114,16 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: ncseed
-    logical :: ok, found, atgiven
+    logical :: ok, found, atgiven, issimple
     real*8 :: x0(3,3), x0inv(3,3), fvol, dmax0
-    real*8 :: x(3), dx(3), dd, t(3)
-    integer :: i, j, m
+    real*8 :: x(3), dx(3), dd, t(3), xshift(3)
+    integer :: i, j, k, m
     integer :: nn
-    integer :: nlat, nlat2, nlatnew
+    integer :: nlat, nlat2, nlatnew, nvec(3), ntot
     integer, allocatable :: lvec(:,:)
     real*8, allocatable :: xlat(:,:)
 
+    real*8, parameter :: epszero = 1d-8
     real*8, parameter :: eps = 1d-2
     real*8, parameter :: eps2 = eps * eps
 
@@ -174,105 +175,141 @@ contains
           ncseed%is(i) = isnew(i)
        end do
     else
-       ! check that the vectors are pure translations
-       do i = 1, 3
-          ok = .false.
-          do j = 1, c%ncv
-             ok = (c%are_lclose(x0(:,i),c%cen(:,j),1d-4))
-             if (ok) exit
+       ! check if this is a "simple" transformation (only integers in the diagonal)
+       issimple = abs(x0(1,2)) < epszero.and.abs(x0(1,3)) < epszero.and.abs(x0(2,3)) < epszero.and.&
+          abs(x0(2,1)) < epszero.and.abs(x0(3,1)) < epszero.and.abs(x0(3,2)) < epszero
+       issimple = issimple .and. (abs(x0(1,1) - nint(x0(1,1))) < epszero)
+       issimple = issimple .and. (abs(x0(2,2) - nint(x0(2,2))) < epszero)
+       issimple = issimple .and. (abs(x0(3,3) - nint(x0(3,3))) < epszero)
+
+       if (issimple) then
+          ! this is a simple transformation: translate the atoms a number of times
+
+          ! allocate
+          do i = 1, 3
+             nvec(i) = nint(x0(i,i))
           end do
-          if (.not.ok) then
-             write (uout,'("! Error: cell vectors are not lattice translations. This can happen for")')
-             write (uout,'("! several reasons but a common one is that the symmetry in your crystal")')
-             write (uout,'("! was not correctly calculated, or read from an external file (a cif")')
-             write (uout,'("! file) that does not have all the symmetry operations. If this is the")')
-             write (uout,'("! case, please try to run SYM RECALC before before attempting the cell")')
-             write (uout,'("! transformation.")')
-             call ferror("newcell","Cell vector number " // string(i) // &
-                " is not a pure translation",faterr)
-          end if
-       end do
+          ntot = product(nvec)
+          allocate(ncseed%x(3,c%ncel * ntot),ncseed%is(c%ncel * ntot))
 
-       ! inverse matrix
-       x0inv = transpose(x0)
-       call matinv(x0inv,3)
+          nn = ncseed%nat
+          do i = 1, nvec(1)
+             do j = 1, nvec(2)
+                do k = 1, nvec(3)
+                   xshift = real((/i,j,k/) - 1,8) / real(nvec,8)
+                   do m = 1, c%ncel
+                      nn = nn + 1
+                      ncseed%is(nn) = c%atcel(m)%is
+                      ncseed%x(:,nn) = c%atcel(m)%x / real(nvec,8) + xshift
+                   end do
+                end do
+             end do
+          end do
+          ncseed%nat = c%ncel * ntot
+       else
+          ! this is not a simple transformation, so we need to search for the lattice
+          ! vectors and compare the resulting atoms to avoid repetitions
 
-       ! calculate maximum distance
-       dmax0 = 0d0
-       dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,0,0/),transpose(x0)))))
-       dmax0 = max(dmax0,norm2(c%x2c(matmul((/0,1,0/),transpose(x0)))))
-       dmax0 = max(dmax0,norm2(c%x2c(matmul((/0,0,1/),transpose(x0)))))
-       dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,1,0/),transpose(x0)))))
-       dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,0,1/),transpose(x0)))))
-       dmax0 = max(dmax0,norm2(c%x2c(matmul((/0,1,1/),transpose(x0)))))
-       dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,1,1/),transpose(x0)))))
-       call c%list_near_lattice_points((/0d0,0d0,0d0/),icrd_crys,.true.,nlat2,&
-          lvec=lvec,up2d=dmax0*2.0d0,nozero=.true.)
-
-       ! make lattice vector list
-       nlatnew = max(nint(dd),1)
-       allocate(xlat(3,nlatnew))
-       nlat = 1
-       xlat(:,1) = 0d0
-       do i = 1, nlat2
-          if (nlat == nlatnew) exit
-          x = real(lvec(:,i),8)
-          x = matmul(x,x0inv)
-          x = x - floor(x)
-
-          found = .false.
-          do j = 1, nlat
-             dx = xlat(:,j) - x
-             dx = dx - nint(dx)
-             if (all(abs(dx) < eps)) then
-                found = .true.
-                exit
+          ! check that the vectors are pure translations
+          do i = 1, 3
+             ok = .false.
+             do j = 1, c%ncv
+                ok = (c%are_lclose(x0(:,i),c%cen(:,j),1d-4))
+                if (ok) exit
+             end do
+             if (.not.ok) then
+                write (uout,'("! Error: cell vectors are not lattice translations. This can happen for")')
+                write (uout,'("! several reasons but a common one is that the symmetry in your crystal")')
+                write (uout,'("! was not correctly calculated, or read from an external file (a cif")')
+                write (uout,'("! file) that does not have all the symmetry operations. If this is the")')
+                write (uout,'("! case, please try to run SYM RECALC before before attempting the cell")')
+                write (uout,'("! transformation.")')
+                call ferror("newcell","Cell vector number " // string(i) // &
+                   " is not a pure translation",faterr)
              end if
           end do
-          if (.not.found) then
-             nlat = nlat + 1
-             xlat(:,nlat) = x
-          end if
-       end do
 
-       ! build the new atom list
-       ncseed%nat = 0
-       fvol = abs(det3(x0))
-       nn = nint(c%ncel * fvol)
-       if (abs(nn - (c%ncel*fvol)) > eps) &
-          call ferror('newcell','inconsistent number of atoms in newcell',faterr)
-       allocate(ncseed%x(3,nn),ncseed%is(nn))
-       do i = 1, nlat
-          do j = 1, c%ncel
-             ! candidate atom
-             x = matmul(c%atcel(j)%x-t,x0inv) + xlat(:,i)
+          ! inverse matrix
+          x0inv = transpose(x0)
+          call matinv(x0inv,3)
+
+          ! calculate maximum distance
+          dmax0 = 0d0
+          dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,0,0/),transpose(x0)))))
+          dmax0 = max(dmax0,norm2(c%x2c(matmul((/0,1,0/),transpose(x0)))))
+          dmax0 = max(dmax0,norm2(c%x2c(matmul((/0,0,1/),transpose(x0)))))
+          dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,1,0/),transpose(x0)))))
+          dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,0,1/),transpose(x0)))))
+          dmax0 = max(dmax0,norm2(c%x2c(matmul((/0,1,1/),transpose(x0)))))
+          dmax0 = max(dmax0,norm2(c%x2c(matmul((/1,1,1/),transpose(x0)))))
+          call c%list_near_lattice_points((/0d0,0d0,0d0/),icrd_crys,.true.,nlat2,&
+             lvec=lvec,up2d=dmax0*2.0d0,nozero=.true.)
+
+          ! make lattice vector list
+          nlatnew = max(nint(dd),1)
+          allocate(xlat(3,nlatnew))
+          nlat = 1
+          xlat(:,1) = 0d0
+          do i = 1, nlat2
+             if (nlat == nlatnew) exit
+             x = real(lvec(:,i),8)
+             x = matmul(x,x0inv)
              x = x - floor(x)
 
-             ! check if we have it already
-             ok = .true.
-             do m = 1, ncseed%nat
-                dx = x - ncseed%x(:,m)
-                dx = matmul(ncseed%m_x2c,dx - nint(dx))
-                if (dot_product(dx,dx) < eps2) then
-                   ok = .false.
+             found = .false.
+             do j = 1, nlat
+                dx = xlat(:,j) - x
+                dx = dx - nint(dx)
+                if (all(abs(dx) < eps)) then
+                   found = .true.
                    exit
                 end if
              end do
-             if (ok) then
-                ! add it to the list
-                ncseed%nat = ncseed%nat + 1
-                if (ncseed%nat > size(ncseed%x,2)) then
-                   call realloc(ncseed%x,3,2*ncseed%nat)
-                   call realloc(ncseed%is,2*ncseed%nat)
-                end if
-                ncseed%x(:,ncseed%nat) = x
-                ncseed%is(ncseed%nat) = c%atcel(j)%is
+             if (.not.found) then
+                nlat = nlat + 1
+                xlat(:,nlat) = x
              end if
           end do
-       end do
-       call realloc(ncseed%x,3,ncseed%nat)
-       call realloc(ncseed%is,ncseed%nat)
-       deallocate(xlat)
+
+          ! build the new atom list
+          ncseed%nat = 0
+          fvol = abs(det3(x0))
+          nn = nint(c%ncel * fvol)
+          if (abs(nn - (c%ncel*fvol)) > eps) &
+             call ferror('newcell','inconsistent number of atoms in newcell',faterr)
+          allocate(ncseed%x(3,nn),ncseed%is(nn))
+          do i = 1, nlat
+             do j = 1, c%ncel
+                ! candidate atom
+                x = matmul(c%atcel(j)%x-t,x0inv) + xlat(:,i)
+                x = x - floor(x)
+
+                ! check if we have it already
+                ok = .true.
+                do m = 1, ncseed%nat
+                   dx = x - ncseed%x(:,m)
+                   dx = matmul(ncseed%m_x2c,dx - nint(dx))
+                   if (dot_product(dx,dx) < eps2) then
+                      ok = .false.
+                      exit
+                   end if
+                end do
+                if (ok) then
+                   ! add it to the list
+                   ncseed%nat = ncseed%nat + 1
+                   if (ncseed%nat > size(ncseed%x,2)) then
+                      call realloc(ncseed%x,3,2*ncseed%nat)
+                      call realloc(ncseed%is,2*ncseed%nat)
+                   end if
+                   ncseed%x(:,ncseed%nat) = x
+                   ncseed%is(ncseed%nat) = c%atcel(j)%is
+                end if
+             end do
+          end do
+          call realloc(ncseed%x,3,ncseed%nat)
+          call realloc(ncseed%is,ncseed%nat)
+          deallocate(xlat)
+       end if
     end if
 
     ! rest of the seed information
