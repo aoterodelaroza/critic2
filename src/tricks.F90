@@ -3212,6 +3212,7 @@ contains
       c1%gtensor(2,3) = b * c * calp
       c1%gtensor(3,2) = c1%gtensor(2,3)
       c1%gtensor(3,3) = c * c
+
       if (det3sym(c1%gtensor) < 0d0) then
          val = huge(1d0)
          if (need_gradient /= 0) grad = 0d0
@@ -3227,9 +3228,12 @@ contains
       ! write output
       val = 1d0 - diff
       if (need_gradient /= 0) then
-         ! derivatives wrt Gij
+         ! derivatives wrt Gij (the 0.5 in the second term is missing
+         ! because there are two dfgg11, one from each "1"
          diffg = -diff * (dfgg12 / dfg12 - dfgg11 / dfg11)
 
+         ! Off-diagonal components (2,3,5) are half what they should
+         ! be because we did not impose symmetric matrix
          grad(1) = a * diffg(1) + b * cgam * diffg(2) + c * cbet * diffg(3)
          grad(2) = a * cgam * diffg(2) + b * diffg(4) + c * calp * diffg(5)
          grad(3) = a * cbet * diffg(3) + b * calp * diffg(5) + c * diffg(6)
