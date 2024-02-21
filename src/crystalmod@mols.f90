@@ -128,11 +128,11 @@ contains
     use types, only: realloc
     class(crystal), intent(inout) :: c
 
-    integer :: i, j, k, l, jid, newid, newl(3)
+    integer :: i, j, k, l, jid, newid, id, newl(3)
     integer :: nat, nlvec, lwork, info
     logical :: found, fdisc
-    integer, allocatable :: id(:), lvec(:,:), iord(:), icidx(:)
-    logical, allocatable :: ldone(:), used(:)
+    integer, allocatable :: lvec(:,:), iord(:), icidx(:), lmol(:,:)
+    logical, allocatable :: ldone(:), used(:), isdiscrete(:)
     real*8, allocatable :: rlvec(:,:), sigma(:), uvec(:,:), vvec(:,:), work(:)
     real*8 :: xcm(3)
 
@@ -142,128 +142,48 @@ contains
     if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
     if (c%ncel == 0) return
 
-    ! checks andallocate
+    ! checks and allocate
     if (.not.allocated(c%nstar)) &
        call ferror('fill_molecular_fragments','no asterisms found',faterr)
-    allocate(used(c%ncel))
-    used = .false.
-    allocate(c%mol(1),id(10),lvec(3,10),ldone(10))
+    allocate(c%idatcelmol(c%ncel),lmol(3,c%ncel),isdiscrete(20))
+    c%idatcelmol = 0
+    isdiscrete = .true.
 
-    ! run over atoms in the unit cell
+    ! depth-first search for the connected components
     do i = 1, c%ncel
-       if (used(i)) cycle
+       if (c%idatcelmol(i) > 0) cycle
 
-       ! increment the fragment counter
        c%nmol = c%nmol + 1
-       if (c%nmol > size(c%mol)) then
-          call realloc_fragment(c%mol,2*c%nmol)
+       if (c%nmol > size(isdiscrete,1)) then
+          call realloc(isdiscrete,2*c%nmol)
+          isdiscrete(c%nmol:) = .true.
        end if
-       c%mol(c%nmol)%discrete = .true.
-       c%mol(c%nmol)%nlvec = 0
-
-       ! initialize the stack with atom i in the seed
-       nat = 1
-       id(1) = i
-       lvec(:,1) = 0d0
-       ldone(1) = .false.
-       ! run the stack
-       do while (.not.all(ldone(1:nat)))
-          ! find the next atom that is not done
-          do j = 1, nat
-             if (.not.ldone(j)) exit
-          end do
-          ldone(j) = .true.
-          jid = id(j)
-
-          ! run over all neighbors of j
-          do k = 1, c%nstar(jid)%ncon
-             ! id for the atom and lattice vector
-             newid = c%nstar(jid)%idcon(k)
-             newl = c%nstar(jid)%lcon(:,k) + lvec(:,j)
-
-             ! Is this atom in the fragment already? -> skip it. If it
-             ! has a different lattice vector, mark the fragment as
-             ! not discrete.
-             found = .false.
-             do l = 1, nat
-                found = (newid == id(l))
-                fdisc = all(newl == lvec(:,l))
-                if (found) exit
-             end do
-             if (found) then
-                if (.not.fdisc.and..not.c%ismolecule) then
-                   if (.not.allocated(c%mol(c%nmol)%lvec)) allocate(c%mol(c%nmol)%lvec(3,1))
-
-                   newl = newl - lvec(:,l)
-                   found = .false.
-                   do l = 1, c%mol(c%nmol)%nlvec
-                      if (all(c%mol(c%nmol)%lvec(:,l) == newl) .or. all(c%mol(c%nmol)%lvec(:,l) == -newl)) then
-                         found = .true.
-                         exit
-                      end if
-                   end do
-                   if (.not.found) then
-                      c%mol(c%nmol)%nlvec = c%mol(c%nmol)%nlvec + 1
-                      if (c%mol(c%nmol)%nlvec > size(c%mol(c%nmol)%lvec,2)) then
-                         call realloc(c%mol(c%nmol)%lvec,3,2*c%mol(c%nmol)%nlvec)
-                      end if
-                      c%mol(c%nmol)%lvec(:,c%mol(c%nmol)%nlvec) = newl
-                   end if
-
-                   c%mol(c%nmol)%discrete = .false.
-                end if
-                cycle
-             end if
-
-             ! Have we used this atom already?
-             if (used(newid)) cycle
-
-             ! Add the atom to the stack and mark it as used.
-             nat = nat + 1
-             if (nat > size(ldone)) then
-                call realloc(id,2*nat)
-                call realloc(lvec,3,2*nat)
-                call realloc(ldone,2*nat)
-             end if
-             id(nat) = newid
-             lvec(:,nat) = newl
-             used(newid) = .true.
-             ldone(nat) = .false.
-          end do
-       end do
-
-       ! add this fragment to the list
-       used(i) = .true.
-       allocate(c%mol(c%nmol)%spc(c%nspc))
-       c%mol(c%nmol)%nspc = c%nspc
-       c%mol(c%nmol)%spc = c%spc(1:c%nspc)
-       allocate(c%mol(c%nmol)%at(nat))
-       c%mol(c%nmol)%nat = nat
-       do j = 1, nat
-          ! if not a discrete fragment, do not translate
-          if (.not.c%mol(c%nmol)%discrete) lvec(:,j) = 0
-          c%mol(c%nmol)%at(j)%x = c%atcel(id(j))%x + lvec(:,j)
-          c%mol(c%nmol)%at(j)%r = c%x2c(c%mol(c%nmol)%at(j)%x)
-          c%mol(c%nmol)%at(j)%cidx = id(j)
-          c%mol(c%nmol)%at(j)%idx = c%atcel(id(j))%idx
-          c%mol(c%nmol)%at(j)%lvec = lvec(:,j)
-          c%mol(c%nmol)%at(j)%is = c%atcel(id(j))%is
-       end do
-       if (c%mol(c%nmol)%nlvec > 0) &
-          call realloc(c%mol(c%nmol)%lvec,3,c%mol(c%nmol)%nlvec)
-
-       ! reorder the fragment in order of increasing cidx
-       allocate(iord(nat),icidx(nat))
-       do j = 1, nat
-          iord(j) = j
-          icidx(j) = c%mol(c%nmol)%at(j)%cidx
-       end do
-       call qcksort(icidx,iord,1,nat)
-       c%mol(c%nmol)%at = c%mol(c%nmol)%at(iord)
-       deallocate(iord,icidx)
+       call explore_node(i,c%nmol,(/0,0,0/))
     end do
-    call realloc_fragment(c%mol,c%nmol)
-    deallocate(used)
+
+    ! fill molecules
+    allocate(c%mol(c%nmol))
+    do i = 1, c%nmol
+       c%mol(i)%nspc = c%nspc
+       c%mol(i)%spc = c%spc
+       c%mol(i)%nat = 0
+       allocate(c%mol(i)%at(count(c%idatcelmol == i)))
+    end do
+    do i = 1, c%ncel
+       id = c%idatcelmol(i)
+       c%mol(id)%nat = c%mol(id)%nat + 1
+       if (isdiscrete(id)) then
+          c%mol(id)%at(c%mol(id)%nat)%x = c%atcel(i)%x + lmol(:,i)
+          c%mol(id)%at(c%mol(id)%nat)%lvec = lmol(:,i)
+       else
+          c%mol(id)%at(c%mol(id)%nat)%x = c%atcel(i)%x
+          c%mol(id)%at(c%mol(id)%nat)%lvec = 0
+       end if
+       c%mol(id)%at(c%mol(id)%nat)%r = c%x2c(c%mol(id)%at(c%mol(id)%nat)%x)
+       c%mol(id)%at(c%mol(id)%nat)%cidx = i
+       c%mol(id)%at(c%mol(id)%nat)%idx = c%atcel(i)%idx
+       c%mol(id)%at(c%mol(id)%nat)%is = c%atcel(i)%is
+    end do
 
     ! translate all fragments to the main cell
     if (.not.c%ismolecule) then
@@ -316,15 +236,29 @@ contains
        deallocate(rlvec,sigma,uvec,vvec,work)
     end if
 
-    ! fill the mapping between atoms and molecules
-    if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
-    allocate(c%idatcelmol(c%ncel))
-    c%idatcelmol = 0
-    do i = 1, c%nmol
-       do j = 1, c%mol(i)%nat
-          c%idatcelmol(c%mol(i)%at(j)%cidx) = i
-       end do
-    end do
+  contains
+    recursive subroutine explore_node(i,nmol,lvec)
+      integer, intent(in) :: i
+      integer, intent(in) :: nmol
+      integer, intent(in) :: lvec(3)
+
+      integer :: k, newid
+
+      c%idatcelmol(i) = nmol
+      lmol(:,i) = lvec
+      do k = 1, c%nstar(i)%ncon
+         newid = c%nstar(i)%idcon(k)
+         if (c%idatcelmol(newid) == 0) then
+            call explore_node(newid,nmol,lvec+c%nstar(i)%lcon(:,k))
+         else
+            if (isdiscrete(nmol)) then
+               if (any(lvec+c%nstar(i)%lcon(:,k) /= lmol(:,newid))) &
+                  isdiscrete(nmol) = .false.
+            end if
+         end if
+      end do
+
+    end subroutine explore_node
 
   end subroutine fill_molecular_fragments
 
