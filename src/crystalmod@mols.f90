@@ -167,6 +167,7 @@ contains
        c%mol(i)%nspc = c%nspc
        c%mol(i)%spc = c%spc
        c%mol(i)%nat = 0
+       c%mol(i)%discrete = isdiscrete(i)
        allocate(c%mol(i)%at(count(c%idatcelmol == i)))
     end do
     do i = 1, c%ncel
