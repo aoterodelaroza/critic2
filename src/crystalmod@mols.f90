@@ -130,7 +130,7 @@ contains
 
     integer :: i, j, k, id, newl(3)
     integer :: nlvec, lwork, info
-    integer, allocatable :: lvec(:,:)
+    integer, allocatable :: lvec(:,:), lmol(:,:), nlmol(:)
     logical, allocatable :: isdiscrete(:)
     real*8, allocatable :: rlvec(:,:), sigma(:), uvec(:,:), vvec(:,:), work(:)
     real*8 :: xcm(3)
@@ -144,7 +144,8 @@ contains
     ! checks and allocate
     if (.not.allocated(c%nstar)) &
        call ferror('fill_molecular_fragments','no asterisms found',faterr)
-    allocate(c%idatcelmol(c%ncel),lvec(3,c%ncel),isdiscrete(20))
+    allocate(c%idatcelmol(c%ncel),lvec(3,c%ncel),isdiscrete(20),lmol(3,20),nlmol(20))
+    nlmol = 0
     c%idatcelmol = 0
     isdiscrete = .true.
 
@@ -154,8 +155,11 @@ contains
 
        c%nmol = c%nmol + 1
        if (c%nmol > size(isdiscrete,1)) then
+          call realloc(nlmol,2*c%nmol)
+          call realloc(lmol,3,2*c%nmol)
           call realloc(isdiscrete,2*c%nmol)
           isdiscrete(c%nmol:) = .true.
+          nlmol(c%nmol:) = 0
        end if
        call explore_node(i,c%nmol,(/0,0,0/))
     end do
@@ -168,11 +172,18 @@ contains
        c%mol(i)%nat = 0
        c%mol(i)%discrete = isdiscrete(i)
        allocate(c%mol(i)%at(count(c%idatcelmol == i)))
+       if (c%mol(i)%discrete) then
+          c%mol(i)%nlvec = 0
+       else
+          c%mol(i)%nlvec = nlmol(i)
+          c%mol(i)%lvec = lmol(:,1:nlmol(i))
+       end if
     end do
+    deallocate(nlmol,lmol,isdiscrete)
     do i = 1, c%ncel
        id = c%idatcelmol(i)
        c%mol(id)%nat = c%mol(id)%nat + 1
-       if (isdiscrete(id)) then
+       if (c%mol(id)%discrete) then
           c%mol(id)%at(c%mol(id)%nat)%x = c%atcel(i)%x + lvec(:,i)
           c%mol(id)%at(c%mol(id)%nat)%lvec = lvec(:,i)
        else
@@ -184,6 +195,7 @@ contains
        c%mol(id)%at(c%mol(id)%nat)%idx = c%atcel(i)%idx
        c%mol(id)%at(c%mol(id)%nat)%is = c%atcel(i)%is
     end do
+    deallocate(lvec)
 
     ! translate all fragments to the main cell
     if (.not.c%ismolecule) then
@@ -242,7 +254,8 @@ contains
       integer, intent(in) :: nmol
       integer, intent(in) :: lveci(3)
 
-      integer :: k, newid
+      integer :: k, newid, lnew(3), m
+      logical :: found
 
       c%idatcelmol(i) = nmol
       lvec(:,i) = lveci
@@ -251,9 +264,21 @@ contains
          if (c%idatcelmol(newid) == 0) then
             call explore_node(newid,nmol,lveci+c%nstar(i)%lcon(:,k))
          else
-            if (isdiscrete(nmol)) then
-               if (any(lveci+c%nstar(i)%lcon(:,k) /= lvec(:,newid))) &
-                  isdiscrete(nmol) = .false.
+            lnew = abs(lveci + c%nstar(i)%lcon(:,k) - lvec(:,newid))
+            if (any(lnew /= 0)) then
+               isdiscrete(nmol) = .false.
+               found = .false.
+               do m = 1, nlmol(nmol)
+                  if (all(lmol(:,m) == lnew)) then
+                     found = .true.
+                     exit
+                  end if
+               end do
+               if (.not.found) then
+                  nlmol(nmol) = nlmol(nmol) + 1
+                  if (size(lmol,2) < nlmol(nmol)) call realloc(lmol,3,2*nlmol(nmol))
+                  lmol(:,nlmol(nmol)) = lnew
+               end if
             end if
          end if
       end do
