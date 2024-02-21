@@ -464,14 +464,13 @@ contains
     use grid1mod, only: grid1_register_core
     use global, only: eval_next
     use tools_io, only: lgetword, equal, ferror, faterr, getword, zatguess
-    use param, only: maxzat0
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(out) :: oksyn
 
     character(len=:), allocatable :: word
-    integer :: lp, nn, i, j
-    logical :: ok, do1
+    integer :: lp, nn, i
+    logical :: ok
     real*8 :: xx
 
     oksyn = .false.

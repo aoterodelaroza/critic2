@@ -223,7 +223,6 @@ contains
   module subroutine report(s,lcrys,lfield,lpropi,lpropp,lalias,lzpsp,lcp)
     use tools_io, only: uout, string, ioj_right, ioj_center, ferror, faterr,&
        nameguess
-    use param, only: maxzat0
     class(system), intent(inout) :: s
     logical, intent(in) :: lcrys
     logical, intent(in) :: lfield

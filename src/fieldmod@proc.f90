@@ -1331,7 +1331,7 @@ contains
     use global, only: dunit0, iunit, iunitname0
     use tools_io, only: uout, string, ferror, faterr, ioj_center, nameguess, &
        ioj_right
-    use param, only: maxzat0, hartoev
+    use param, only: hartoev
     class(field), intent(in) :: f
     logical, intent(in) :: isload
     logical, intent(in) :: isset

@@ -128,11 +128,10 @@ contains
     use types, only: realloc
     class(crystal), intent(inout) :: c
 
-    integer :: i, j, k, l, jid, newid, id, newl(3)
-    integer :: nat, nlvec, lwork, info
-    logical :: found, fdisc
-    integer, allocatable :: lvec(:,:), iord(:), icidx(:), lmol(:,:)
-    logical, allocatable :: ldone(:), used(:), isdiscrete(:)
+    integer :: i, j, k, id, newl(3)
+    integer :: nlvec, lwork, info
+    integer, allocatable :: lvec(:,:)
+    logical, allocatable :: isdiscrete(:)
     real*8, allocatable :: rlvec(:,:), sigma(:), uvec(:,:), vvec(:,:), work(:)
     real*8 :: xcm(3)
 
@@ -145,7 +144,7 @@ contains
     ! checks and allocate
     if (.not.allocated(c%nstar)) &
        call ferror('fill_molecular_fragments','no asterisms found',faterr)
-    allocate(c%idatcelmol(c%ncel),lmol(3,c%ncel),isdiscrete(20))
+    allocate(c%idatcelmol(c%ncel),lvec(3,c%ncel),isdiscrete(20))
     c%idatcelmol = 0
     isdiscrete = .true.
 
@@ -174,8 +173,8 @@ contains
        id = c%idatcelmol(i)
        c%mol(id)%nat = c%mol(id)%nat + 1
        if (isdiscrete(id)) then
-          c%mol(id)%at(c%mol(id)%nat)%x = c%atcel(i)%x + lmol(:,i)
-          c%mol(id)%at(c%mol(id)%nat)%lvec = lmol(:,i)
+          c%mol(id)%at(c%mol(id)%nat)%x = c%atcel(i)%x + lvec(:,i)
+          c%mol(id)%at(c%mol(id)%nat)%lvec = lvec(:,i)
        else
           c%mol(id)%at(c%mol(id)%nat)%x = c%atcel(i)%x
           c%mol(id)%at(c%mol(id)%nat)%lvec = 0
@@ -238,22 +237,22 @@ contains
     end if
 
   contains
-    recursive subroutine explore_node(i,nmol,lvec)
+    recursive subroutine explore_node(i,nmol,lveci)
       integer, intent(in) :: i
       integer, intent(in) :: nmol
-      integer, intent(in) :: lvec(3)
+      integer, intent(in) :: lveci(3)
 
       integer :: k, newid
 
       c%idatcelmol(i) = nmol
-      lmol(:,i) = lvec
+      lvec(:,i) = lveci
       do k = 1, c%nstar(i)%ncon
          newid = c%nstar(i)%idcon(k)
          if (c%idatcelmol(newid) == 0) then
-            call explore_node(newid,nmol,lvec+c%nstar(i)%lcon(:,k))
+            call explore_node(newid,nmol,lveci+c%nstar(i)%lcon(:,k))
          else
             if (isdiscrete(nmol)) then
-               if (any(lvec+c%nstar(i)%lcon(:,k) /= lmol(:,newid))) &
+               if (any(lveci+c%nstar(i)%lcon(:,k) /= lvec(:,newid))) &
                   isdiscrete(nmol) = .false.
             end if
          end if
