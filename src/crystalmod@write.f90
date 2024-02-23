@@ -2711,15 +2711,16 @@ contains
 
   !> Write a CASTEP cell input template
   module subroutine write_castep_cell(c,file,rklength,ti)
-    use tools_io, only: fopen_write, fclose, string
+    use tools_io, only: fopen_write, fclose, string, nameguess, upper
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     real*8, intent(in), optional :: rklength
     type(thread_info), intent(in), optional :: ti
 
-    integer :: i, j, lu, nk(3)
+    integer :: i, j, lu, nk(3), iz
     real*8 :: rk
+    character*2 :: sym
 
     rk = 40d0
     if (present(rklength)) rk = rklength
@@ -2736,7 +2737,10 @@ contains
 
     write (lu,'("%block positions_frac")')
     do i = 1, c%ncel
-       write (lu,'("  ",4(" ",A))') string(c%spc(c%atcel(i)%is)%name), (string(c%atcel(i)%x(j),'f',decimal=10),j=1,3)
+       iz = c%spc(c%atcel(i)%is)%z
+       sym = nameguess(iz,.true.)
+       sym(1:1) = upper(sym(1:1))
+       write (lu,'("  ",4(" ",A))') sym, (string(c%atcel(i)%x(j),'f',decimal=10),j=1,3)
     end do
     write (lu,'("%endblock positions_frac")')
     write (lu,*)
