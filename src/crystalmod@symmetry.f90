@@ -337,7 +337,7 @@ contains
     if (doit) then
        do i = 1, c%ncel
           idx = c%atcel(i)%idx
-          if (c%at(idx)%wyc == "?") then
+          if (c%at(idx)%wyc == "?" .and. c%spg%wyckoffs(i) < 26) then
              ilet = c%spg%wyckoffs(i)+1
              c%at(idx)%wyc = wycklet(ilet:ilet)
           end if
