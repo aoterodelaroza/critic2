@@ -178,9 +178,9 @@ contains
        ! check if this is a "simple" transformation (only integers in the diagonal)
        issimple = abs(x0(1,2)) < epszero.and.abs(x0(1,3)) < epszero.and.abs(x0(2,3)) < epszero.and.&
           abs(x0(2,1)) < epszero.and.abs(x0(3,1)) < epszero.and.abs(x0(3,2)) < epszero
-       issimple = issimple .and. (abs(x0(1,1) - nint(x0(1,1))) < epszero)
-       issimple = issimple .and. (abs(x0(2,2) - nint(x0(2,2))) < epszero)
-       issimple = issimple .and. (abs(x0(3,3) - nint(x0(3,3))) < epszero)
+       issimple = issimple .and. x0(1,1) > 0d0 .and. (abs(x0(1,1) - nint(x0(1,1))) < epszero)
+       issimple = issimple .and. x0(2,2) > 0d0 .and. (abs(x0(2,2) - nint(x0(2,2))) < epszero)
+       issimple = issimple .and. x0(3,3) > 0d0 .and. (abs(x0(3,3) - nint(x0(3,3))) < epszero)
 
        if (issimple) then
           ! this is a simple transformation: translate the atoms a number of times
@@ -192,7 +192,7 @@ contains
           ntot = product(nvec)
           allocate(ncseed%x(3,c%ncel * ntot),ncseed%is(c%ncel * ntot))
 
-          nn = ncseed%nat
+          nn = 0
           do i = 1, nvec(1)
              do j = 1, nvec(2)
                 do k = 1, nvec(3)
