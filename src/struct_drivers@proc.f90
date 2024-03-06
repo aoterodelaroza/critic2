@@ -39,7 +39,8 @@ contains
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
        isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
        isformat_aimsout, isformat_tinkerfrac, isformat_castepcell,&
-       isformat_castepgeom, isformat_mol2, isformat_pdb, isformat_unknown
+       isformat_castepgeom, isformat_mol2, isformat_pdb, isformat_zmat,&
+       isformat_unknown
     use crystalseedmod, only: crystalseed, struct_detect_format,&
        struct_detect_ismol
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
@@ -95,6 +96,8 @@ contains
        isformat = isformat_xyz
     elseif (equal(lword,'gjf').or.equal(lword,'com')) then
        isformat = isformat_gjf
+    elseif (equal(lword,'zmat')) then
+       isformat = isformat_zmat
     elseif (equal(lword,'wfn')) then
        isformat = isformat_wfn
     elseif (equal(lword,'wfx')) then
@@ -262,7 +265,7 @@ contains
        isformat == isformat_molden.or.isformat == isformat_gaussian.or.&
        isformat == isformat_dat.or.isformat == isformat_pgout.or.&
        isformat == isformat_orca.or.isformat == isformat_gjf.or.&
-       isformat == isformat_pdb) then
+       isformat == isformat_pdb.or.isformat == isformat_zmat) then
        call seed%read_mol(word,isformat,rborder,docube,errmsg)
 
     elseif (isformat == isformat_siesta) then

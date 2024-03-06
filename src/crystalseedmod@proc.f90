@@ -28,6 +28,7 @@ submodule (crystalseedmod) proc
   ! subroutine read_all_aimsout(nseed,seed,file,errmsg,ti)
   ! subroutine read_all_castep_geom(nseed,seed,file,errmsg,ti)
   ! subroutine read_pdb_geometry(file,nat,x,z,name,errmsg,ti)
+  ! subroutine read_zmat_geometry(file,nat,x,z,name,errmsg,ti)
   ! function which_out_format(file,ti)
   ! subroutine which_in_format(file,isformat,ti)
   ! function string_to_symop(str)
@@ -793,7 +794,7 @@ contains
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
        isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
-       isformat_aimsout, isformat_tinkerfrac, isformat_gjf,&
+       isformat_aimsout, isformat_tinkerfrac, isformat_gjf, isformat_zmat,&
        isformat_castepcell, isformat_castepgeom, isformat_mol2,&
        isformat_pdb
     class(crystalseed), intent(inout) :: seed
@@ -870,7 +871,7 @@ contains
        isformat == isformat_molden.or.isformat == isformat_gaussian.or.&
        isformat == isformat_dat.or.isformat == isformat_pgout.or.&
        isformat == isformat_orca.or.isformat == isformat_gjf.or.&
-       isformat == isformat_pdb) then
+       isformat == isformat_zmat.or.isformat == isformat_pdb) then
        call seed%read_mol(file,isformat,rborder_def,.false.,errmsg,ti=ti)
 
     elseif (isformat == isformat_siesta) then
@@ -2264,7 +2265,7 @@ contains
        wfn_read_orca_geometry, wfn_read_gjf_geometry
     use param, only: isformat_xyz, isformat_wfn, isformat_wfx,&
        isformat_fchk, isformat_molden, isformat_gaussian, isformat_dat,&
-       isformat_pgout, isformat_orca, isformat_gjf, isformat_pdb
+       isformat_pgout, isformat_orca, isformat_gjf, isformat_zmat, isformat_pdb
     use tools_io, only: equali
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
@@ -2313,6 +2314,8 @@ contains
        call wfn_read_orca_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     elseif (fmt == isformat_pdb) then
        call read_pdb_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
+    elseif (fmt == isformat_zmat) then
+       call read_zmat_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     end if
     seed%useabr = 0
     seed%havesym = 0
@@ -4683,7 +4686,7 @@ contains
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
        isformat_castepcell, isformat_castepgeom, isformat_qein, isformat_qeout,&
-       isformat_mol2, isformat_pdb
+       isformat_mol2, isformat_pdb, isformat_zmat
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -4762,6 +4765,8 @@ contains
        isformat = isformat_xyz
     elseif (equal(wextdot,'gjf').or.equal(wextdot,'com')) then
        isformat = isformat_gjf
+    elseif (equal(wextdot,'zmat')) then
+       isformat = isformat_zmat
     elseif (equal(wextdot,'pgout')) then
        isformat = isformat_pgout
     elseif (equal(wextdot,'wfn')) then
@@ -4859,7 +4864,7 @@ contains
        isformat_xsf, isformat_gen, isformat_vasp, isformat_pwc, isformat_axsf,&
        isformat_dat, isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
        isformat_aimsout, isformat_tinkerfrac, isformat_castepcell, isformat_castepgeom,&
-       isformat_mol2, isformat_pdb
+       isformat_mol2, isformat_pdb, isformat_zmat
     character*(*), intent(in) :: file
     integer, intent(in) :: isformat
     logical, intent(out) :: ismol
@@ -4881,7 +4886,7 @@ contains
 
     case (isformat_xyz,isformat_gjf,isformat_pgout,isformat_wfn,isformat_wfx,&
        isformat_gaussian,isformat_fchk,isformat_molden,isformat_dat,&
-       isformat_orca,isformat_mol2,isformat_pdb)
+       isformat_orca,isformat_mol2,isformat_pdb,isformat_zmat)
        ismol = .true.
 
     case(isformat_aimsout)
@@ -5019,7 +5024,7 @@ contains
     use tools_io, only: getword, equali, fopen_read, fclose
     use param, only: isformat_cube, isformat_bincube, isformat_xyz, isformat_wfn,&
        isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian, isformat_gjf,&
-       isformat_abinit,isformat_cif,isformat_pwc,&
+       isformat_zmat,isformat_abinit,isformat_cif,isformat_pwc,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_axsf,&
        isformat_xsf, isformat_castepcell, isformat_castepgeom,&
@@ -5115,7 +5120,7 @@ contains
        isformat == isformat_fchk.or.isformat == isformat_molden.or.&
        isformat == isformat_dat.or.isformat == isformat_pgout.or.&
        isformat == isformat_orca.or.isformat == isformat_gjf.or.&
-       isformat == isformat_pdb) then
+       isformat == isformat_pdb.or.isformat == isformat_zmat) then
        call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg,ti=ti)
     elseif (isformat == isformat_siesta) then
        call seed(1)%read_siesta(file,mol,errmsg,ti=ti)
@@ -7291,6 +7296,179 @@ contains
 999 continue
     call fclose(lu)
   end subroutine read_pdb_geometry
+
+  !> Read a molecular geometry from a zmat file. Returns the number of
+  !> atoms (n), atomic positions (x, in bohr), atomic numbers (z), and
+  !> atomic names (name). If error, return a non-empty errmsg.
+  subroutine read_zmat_geometry(file,n,x,z,name,errmsg,ti)
+    use tools_io, only: fopen_read, getline_raw, fclose, zatguess,&
+       isinteger, getword, isreal
+    use types, only: realloc
+    use param, only: bohrtoa
+    character*(*), intent(in) :: file
+    integer, intent(out) :: n
+    real*8, allocatable, intent(inout) :: x(:,:)
+    integer, allocatable, intent(inout) :: z(:)
+    character*(10), allocatable, intent(inout) :: name(:)
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lu, lp, idum
+    character(len=:), allocatable :: line, word
+    logical :: first, ok
+    real*8 :: dist, ang, dih, xaux(3)
+    integer :: iat(3)
+
+    errmsg = ""
+    ! deallocate
+    if (allocated(x)) deallocate(x)
+    if (allocated(z)) deallocate(z)
+    if (allocated(name)) deallocate(name)
+
+    lu = fopen_read(file,ti=ti)
+    if (lu < 0) then
+       errmsg = "Could not open file."
+       return
+    end if
+    errmsg = "Error reading file."
+
+    first = .true.
+    n = 0
+    allocate(x(3,10),z(10),name(10))
+    main: do while (getline_raw(lu,line))
+       ! skip the first line if it contains two integers (q and mult)
+       if (first) then
+          lp = 1
+          ok = isinteger(idum,line,lp)
+          ok = ok .and. isinteger(idum,line,lp)
+          if (ok) cycle
+       end if
+       if (len_trim(line) == 0) cycle
+
+       ! new atom
+       n = n + 1
+       if (n > size(z,1)) then
+          call realloc(x,3,2*n)
+          call realloc(z,2*n)
+          call realloc(name,2*n)
+       end if
+
+       ! read symbol
+       lp = 1
+       word = getword(line,lp)
+       name(n) = word
+       z(n) = zatguess(word)
+       x(:,n) = 0d0
+       if (z(n) <= 0) goto 999
+
+       ! first atom: stop here
+       if (n == 1) cycle
+
+       ! read distance
+       ok = isinteger(iat(1),line,lp)
+       ok = ok .and. isreal(dist,line,lp)
+       if (.not.ok) goto 999
+       if (iat(1) < 1 .or. iat(1) >= n) goto 999
+
+       ! second atom: stop here
+       if (n == 2) then
+          x(3,n) = dist
+          cycle
+       end if
+
+       ! read angle
+       ok = isinteger(iat(2),line,lp)
+       ok = ok .and. isreal(ang,line,lp)
+       if (.not.ok) goto 999
+       if (iat(2) < 1 .or. iat(2) >= n) goto 999
+
+       ! third atom: stop here
+       if (n == 3) then
+          xaux = (/1d0,0d0,0d0/)
+          dih = 0d0
+          x(:,n) = zmat_step(x(:,iat(1)),x(:,iat(2)),xaux,dist,ang,dih)
+          cycle
+       end if
+
+       ! read dihedral
+       ok = isinteger(iat(3),line,lp)
+       ok = ok .and. isreal(dih,line,lp)
+       if (.not.ok) goto 999
+       if (iat(3) < 1 .or. iat(3) >= n) goto 999
+
+       ! calculate the position
+       x(:,n) = zmat_step(x(:,iat(1)),x(:,iat(2)),x(:,iat(3)),dist,ang,dih)
+    end do main
+
+    if (n == 0) then
+       errmsg = "No atoms found."
+       goto 999
+    else
+       call realloc(x,3,n)
+       call realloc(z,n)
+       call realloc(name,n)
+       x = x / bohrtoa
+    endif
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+  contains
+    ! Calculate the coordinates of atom number 4 given the coordinates
+    ! of atoms 1, 2 and 3, and the distance 4-1, angle 4-1-2 and dihedral
+    ! 4-1-2-3.
+    function zmat_step(x0_,x1_,x2_,d_,ang_,dieh_)
+      use tools_math, only: cross, matinv, tosphere
+      use param, only: pi
+      real*8, intent(in) :: x0_(3), x1_(3), x2_(3), d_, ang_, dieh_
+      real*8 :: zmat_step(3)
+
+      real*8 :: x0(3), x1(3), x2(3), x2p(3), d, ang, dieh
+      real*8 :: crot(3,3), xaux(3)
+      real*8 :: asph(2), r2, rf, phf, thf, xf(3)
+
+      ! copy the variables for work space
+      x0 = x0_
+      x1 = x1_
+      x2 = x2_
+      d = d_
+      ang = ang_
+      dieh = dieh_
+
+      ! convert to radians
+      ang = ang * pi / 180d0
+      dieh = dieh * pi / 180d0
+
+      ! subtract the origin
+      x1 = x1 - x0
+      x2 = x2 - x0
+
+      ! x1-x0 is aligned to z
+      crot(3,:) = x1 / norm2(x1)
+      xaux = (/0d0,0d0,1d0/)
+      crot(1,:) = cross(x1,xaux)
+      if (abs(norm2(crot(1,:))) < 1d-12) then
+         xaux = (/0d0,1d0,0d0/)
+         crot(1,:) = cross(x1,xaux)
+      end if
+      crot(1,:) = crot(1,:) / norm2(crot(1,:))
+      crot(2,:) = cross(crot(3,:),crot(1,:))
+
+      ! transform x2 b transforming to spherical coordinates and back
+      x2p = matmul(crot,x2)
+      call tosphere(x2p,r2,asph)
+      rf = d
+      phf = 0.5d0 * pi - ang
+      thf = asph(2) + dieh
+      xf(1) = rf * cos(phf) * cos(thf)
+      xf(2) = rf * cos(phf) * sin(thf)
+      xf(3) = rf * sin(phf)
+      call matinv(crot,3)
+      zmat_step = matmul(crot,xf) + x0
+
+    end function zmat_step
+
+  end subroutine read_zmat_geometry
 
   !> Determine whether a given output file (.scf.out or .out) comes
   !> from a crystal, quantum espresso, or orca calculation.
