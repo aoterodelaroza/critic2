@@ -7444,18 +7444,18 @@ contains
       x2 = x2 - x0
 
       ! x1-x0 is aligned to z
-      crot(3,:) = x1 / norm2(x1)
+      crot(:,3) = x1 / norm2(x1)
       xaux = (/0d0,0d0,1d0/)
-      crot(1,:) = cross(x1,xaux)
-      if (abs(norm2(crot(1,:))) < 1d-12) then
+      crot(:,1) = cross(x1,xaux)
+      if (abs(norm2(crot(:,1))) < 1d-12) then
          xaux = (/0d0,1d0,0d0/)
-         crot(1,:) = cross(x1,xaux)
+         crot(:,1) = cross(x1,xaux)
       end if
-      crot(1,:) = crot(1,:) / norm2(crot(1,:))
-      crot(2,:) = cross(crot(3,:),crot(1,:))
+      crot(:,1) = crot(:,1) / norm2(crot(:,1))
+      crot(:,2) = cross(crot(:,3),crot(:,1))
 
       ! transform x2 b transforming to spherical coordinates and back
-      x2p = matmul(crot,x2)
+      x2p = matmul(x2,crot)
       call tosphere(x2p,r2,asph)
       rf = d
       phf = 0.5d0 * pi - ang
@@ -7464,7 +7464,7 @@ contains
       xf(2) = rf * cos(phf) * sin(thf)
       xf(3) = rf * sin(phf)
       call matinv(crot,3)
-      zmat_step = matmul(crot,xf) + x0
+      zmat_step = matmul(xf,crot) + x0
 
     end function zmat_step
 
