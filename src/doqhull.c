@@ -132,14 +132,25 @@ void runqhull_voronoi_step2(int nf, int nv, int mnfv, int ivws[nf], double xvws[
 void runqhull_basintriangulate_step1(int n, double x0[3], double xvert[n][3], int *nf, FILE **fid){
   qhT qhT_;
 
+  const double thrsnorm = 1e-40;
+  const double thrsnorm2 = thrsnorm * thrsnorm;
+
+  int nactual = 0;
+  for (int i = 0; i < n; i++){
+    double x[3] = {xvert[i][0] - x0[0], xvert[i][1] - x0[1], xvert[i][2] - x0[2]};
+    if (x[0]*x[0]+x[1]*x[1]+x[2]*x[2] > thrsnorm2)
+      nactual++;
+  }
+
   // write input file
   FILE *fid1 = tmpfile();
   fprintf(fid1,"3\n");
-  fprintf(fid1,"%d\n", n);
+  fprintf(fid1,"%d\n", nactual);
   for (int i = 0; i < n; i++){
     double x[3] = {xvert[i][0] - x0[0], xvert[i][1] - x0[1], xvert[i][2] - x0[2]};
     double norm = sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]);
-    fprintf(fid1,"%.15e %.15e %.15e \n",x[0]/norm,x[1]/norm,x[2]/norm);
+    if (norm > thrsnorm)
+      fprintf(fid1,"%.15e %.15e %.15e \n",x[0]/norm,x[1]/norm,x[2]/norm);
   }
   rewind(fid1);
 
@@ -153,7 +164,7 @@ void runqhull_basintriangulate_step1(int n, double x0[3], double xvert[n][3], in
   qh_init_A(&qhT_, fid1, fid2, stderr, 0, NULL);
   qhT_.NOerrexit= False;
   char options [2000];
-  sprintf(options,"qhull Fv Qt");
+  sprintf(options,"qhull Fv Qt Pp QJ");
   qh_initflags(&qhT_, options);
 
   int dim, numpoints;
