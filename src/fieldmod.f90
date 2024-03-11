@@ -259,7 +259,7 @@ module fieldmod
        integer, intent(out) :: ier
        real*8, intent(in) :: gfnormeps
      end subroutine newton
-     module subroutine addcp(f,x0,cpeps,nuceps,nucepsh,gfnormeps,itype)
+     module subroutine addcp(f,x0,cpeps,nuceps,nucepsh,gfnormeps,itype,typeok)
        class(field), intent(inout) :: f
        real*8, intent(in) :: x0(3)
        real*8, intent(in) :: cpeps
@@ -267,6 +267,7 @@ module fieldmod
        real*8, intent(in) :: nucepsh
        real*8, intent(in) :: gfnormeps
        integer, intent(in), optional :: itype
+       logical, intent(in), optional :: typeok(4)
      end subroutine addcp
      module subroutine sortcps(f,cpeps)
        class(field), intent(inout) :: f

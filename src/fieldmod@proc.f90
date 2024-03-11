@@ -2042,8 +2042,9 @@ contains
   !> information: multiplicity, type, shell, assoc. nucleus, etc.
   !> Also, updates the complete CP list. Input x0 in Cartesian. If
   !> itype is present, assign itype as the type of critical bond
-  !> (-3,-1,1,3).
-  module subroutine addcp(f,x0,cpeps,nuceps,nucepsh,gfnormeps,itype)
+  !> (-3,-1,1,3). If typeok is present, only accept a CP type if the
+  !> corresponding element in typeok is true.
+  module subroutine addcp(f,x0,cpeps,nuceps,nucepsh,gfnormeps,itype,typeok)
     use arithmetic, only: eval
     use tools_io, only: ferror, string
     use types, only: scalar_value, realloc
@@ -2057,11 +2058,12 @@ contains
     real*8, intent(in) :: nucepsh !< Discard CPs closer than nucepsh from hydrogen
     real*8, intent(in) :: gfnormeps !< Discard CPs with gradient norm higher than this value
     integer, intent(in), optional :: itype !< Force a CP type (useful in grids)
+    logical, intent(in), optional :: typeok(4) !< Filter out by CP type
 
     real*8 :: xc(3), x1(3)
     integer :: nid
     real*8 :: dist
-    integer :: n, i, num
+    integer :: n, i, num, idx
     real*8, allocatable  :: sympos(:,:)
     integer, allocatable :: symrotm(:), symcenv(:)
     integer :: lnuc, lshell
@@ -2097,10 +2099,18 @@ contains
        if (f%c%spc(f%c%atcel(nid)%is)%z == 1 .and. dist < nucepsh) goto 999
     end if
 
-    ! density info; verify that the gradient norm is higher than the eps
+    ! density info
+    ! verify that the gradient norm is higher than the eps
+    ! apply type filter
     x1 = f%c%x2c(xc)
     call f%grd(x1,2,res)
     if (res%gfmod >= gfnormeps) goto 999
+    if (present(typeok)) then
+       idx = (res%s+5)/2
+       if (idx >= 1 .and. idx <= 4) then
+          if (.not.typeok(idx)) goto 999
+       end if
+    end if
 
     ! reallocate if more slots are needed for the new cp
     if (f%ncp >= size(f%cp)) then

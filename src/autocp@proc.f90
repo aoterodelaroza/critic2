@@ -120,6 +120,7 @@ contains
     real*8 :: nucepsh
     type(grhandle) :: gr
     type(mesh) :: meshseed
+    logical :: typeok(4)
 
     real*8, parameter :: gradeps_check = 1d-4 ! minimum gradeps requirement for addcp (grids)
 
@@ -160,6 +161,7 @@ contains
     ! parse the input
     lp = 1
     discexpr = ""
+    typeok = .true.
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,'dry')) then
@@ -347,6 +349,24 @@ contains
              call ferror("autocritic","wrong DISCARD keyword",faterr,line,syntax=.true.)
              return
           end if
+       elseif (equal(word,"types")) then
+          typeok = .false.
+          word = trim(lgetword(line,lp))
+          do i = 1, len(word)
+             if (word(i:i) == "n") then
+                typeok(1) = .true.
+             elseif (word(i:i) == "b") then
+                typeok(2) = .true.
+             elseif (word(i:i) == "r") then
+                typeok(3) = .true.
+             elseif (word(i:i) == "c") then
+                typeok(4) = .true.
+             else
+                write (*,*) "bleh! ->", word(i:i), "<-"
+                call ferror('autocritic','TYPES input letters can only be one of n, b, r, c',faterr,line,syntax=.true.)
+                return
+             end if
+          end do
        elseif (len_trim(word) > 0) then
           call ferror('autocritic','Unknown keyword in AUTO',faterr,line,syntax=.true.)
           return
@@ -542,6 +562,10 @@ contains
        string(CP_hdegen,'e',decimal=3)
     if (len_trim(discexpr) > 0) &
        write (uout,'("  Discard CP expression: ",A)') trim(discexpr)
+    if (.not.all(typeok)) then
+       write (uout,'("  CP types to keep: nuclei=",A,", bonds=",A,", rings=",A,", cages=",A)') &
+          (string(typeok(j)),j=1,4)
+    end if
     write (uout,'("  Discard CPs if grad(f) is above: ",A)') string(gfnormeps,'e',decimal=3)
     write (uout,'("+ List of seeding actions")')
     write (uout,'("  Id nseed     Type           Description")')
@@ -736,7 +760,8 @@ contains
 
              if (ok) then
                 !$omp critical (addcp)
-                call sy%addcp(sy%iref,x0,discexpr,cpeps,nuceps,nucepsh,max(gradeps_check,gfnormeps))
+                call sy%addcp(sy%iref,x0,discexpr,cpeps,nuceps,nucepsh,max(gradeps_check,gfnormeps),&
+                   typeok=typeok)
                 !$omp end critical (addcp)
              end if
           end if

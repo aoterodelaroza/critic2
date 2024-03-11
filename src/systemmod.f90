@@ -226,7 +226,7 @@ module systemmod
        real*8, intent(out) :: lprop(s%npropi)
        logical, intent(in), optional :: pmask(s%npropi)
      end subroutine grdall
-     module subroutine addcp(s,id,x0,discexpr,cpeps,nuceps,nucepsh,gfnormeps,itype)
+     module subroutine addcp(s,id,x0,discexpr,cpeps,nuceps,nucepsh,gfnormeps,itype,typeok)
        class(system), intent(inout) :: s
        integer, intent(in) :: id
        real*8, intent(in) :: x0(3)
@@ -236,6 +236,7 @@ module systemmod
        real*8, intent(in) :: nucepsh
        real*8, intent(in) :: gfnormeps
        integer, intent(in), optional :: itype
+       logical, intent(in), optional :: typeok(4)
      end subroutine addcp
   end interface
 
