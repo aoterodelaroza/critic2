@@ -1130,6 +1130,7 @@ contains
   !> the evaluation failed.
   recursive function fieldeval(fid,fder,errmsg,x0,syl,periodic)
     use systemmod, only: system
+    use tools_math, only: det3sym
     use tools_io, only: string, isinteger, lower
     use types, only: scalar_value
     real*8 :: fieldeval
@@ -1163,7 +1164,7 @@ contains
              nder = 0
           case ("x","y","z","g")
              nder = 1
-          case ("xx","xy","xz","yx","yy","yz","zx","zy","zz","l","lv","lc")
+          case ("xx","xy","xz","yx","yy","yz","zx","zy","zz","l","lv","lc","h1","h2","h3","hd","s","r")
              nder = 2
           case default
              ! let feval interpret fder - field-specific (e.g. a MO)
@@ -1222,6 +1223,18 @@ contains
              fieldeval = res%del2f - res%del2fval
           case ("g")
              fieldeval = res%gfmod
+          case ("h1")
+             fieldeval = res%hfeval(1)
+          case ("h2")
+             fieldeval = res%hfeval(2)
+          case ("h3")
+             fieldeval = res%hfeval(3)
+          case ("hd")
+             fieldeval = det3sym(res%hf)
+          case ("r")
+             fieldeval = res%r
+          case ("s")
+             fieldeval = res%s
           case default
              fieldeval = res%fspc
           end select
