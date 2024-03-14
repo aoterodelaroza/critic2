@@ -1289,8 +1289,8 @@ contains
     write (lu,'("/")')
     write (lu,'("&system")')
     write (lu,'(" ibrav=0,")')
-    write (lu,'(" nat=",I6,",")') c%ncel
-    write (lu,'(" ntyp=",I3,",")') c%nspc
+    write (lu,'(" nat=",A,",")') string(c%ncel)
+    write (lu,'(" ntyp=",A,",")') string(c%nspc)
     write (lu,'(" ecutwfc=60.0,")')
     write (lu,'(" ecutrho=600.0,")')
     write (lu,'(" xdm=.true.,")')
