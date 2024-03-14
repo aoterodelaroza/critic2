@@ -170,6 +170,7 @@ module crystalmod
      procedure :: build_env
      procedure :: list_near_atoms
      procedure :: nearest_atom
+     procedure :: get_rnn2
      procedure :: identify_atom
      procedure :: promolecular_atom
      procedure :: find_asterisms_covalent
@@ -398,6 +399,11 @@ module crystalmod
        integer, intent(in), optional :: ispc0
        logical, intent(in), optional :: nozero
      end subroutine nearest_atom
+     module function get_rnn2(c,ineq)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: ineq
+       real*8 :: get_rnn2
+     end function get_rnn2
      module function identify_atom(c,x0,icrd,lvec,dist,distmax)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x0(3)
@@ -675,7 +681,7 @@ module crystalmod
        real*8, intent(out) :: res(imax)
      end subroutine amd
      module subroutine struct_report(c,lcrys,lq)
-       class(crystal), intent(in) :: c
+       class(crystal), intent(inout) :: c
        logical, intent(in) :: lcrys
        logical, intent(in) :: lq
      end subroutine struct_report
@@ -689,7 +695,7 @@ module crystalmod
      end subroutine struct_report_symxyz
      module subroutine struct_write_json(c,json,p)
        use json_module, only: json_value, json_core
-       class(crystal), intent(in) :: c
+       class(crystal), intent(inout) :: c
        type(json_core), intent(inout) :: json
        type(json_value), pointer, intent(inout) :: p
      end subroutine struct_write_json

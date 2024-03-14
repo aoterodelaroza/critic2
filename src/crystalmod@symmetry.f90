@@ -409,7 +409,6 @@ contains
           c%at(c%nneq)%r = c%atcel(idx)%r
           c%at(c%nneq)%is = c%atcel(idx)%is
           c%at(c%nneq)%mult = 1
-          c%at(c%nneq)%rnn2 = 0d0
           c%at(c%nneq)%wyc = "?"
        else
           c%at(iidx(idx))%mult = c%at(iidx(idx))%mult + 1

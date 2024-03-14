@@ -286,10 +286,12 @@ contains
     real*8 :: px
 
     integer :: i
+    real*8 :: rnn2
 
     px = 0d0
     do i = 1, c%nneq
-       px = px + c%at(i)%mult * 4d0/3d0 * pi * c%at(i)%rnn2**3
+       rnn2 = c%get_rnn2(i)
+       px = px + c%at(i)%mult * 4d0/3d0 * pi * rnn2**3
     end do
     px = px / c%omega * 100d0
 

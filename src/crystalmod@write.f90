@@ -30,14 +30,14 @@ contains
     use tools_math, only: gcd
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
     use param, only: bohrtoa, maxzat, pi, atmass, pcamu, bohrtocm
-    class(crystal), intent(in) :: c
+    class(crystal), intent(inout) :: c
     logical, intent(in) :: lcrys
     logical, intent(in) :: lq
 
     integer :: i, j, k, iz, is
     integer :: nelec
     real*8 :: maxdv, xcm(3), x0(3), xlen(3), xang(3), xred(3,3)
-    real*8 :: dens, mass
+    real*8 :: dens, mass, rnn2
     character(len=:), allocatable :: str1
     integer, allocatable :: nis(:)
     integer :: izp0
@@ -213,11 +213,12 @@ contains
           else
              str1 = ""
           end if
+          rnn2 = c%get_rnn2(c%atcel(i)%idx)
           write (uout,'("  ",99(A," "))') &
              string(i,3,ioj_center),&
              (string((c%atcel(i)%r(j)+c%molx0(j))*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
              string(is,3,ioj_center),string(c%spc(is)%name,7,ioj_center), string(c%spc(is)%z,3,ioj_center),&
-             string(2d0*c%at(c%atcel(i)%idx)%rnn2*dunit0(iunit),'f',length=10,decimal=4,justify=4), &
+             string(2d0*rnn2*dunit0(iunit),'f',length=10,decimal=4,justify=4), &
              string(c%atcel(i)%idx,3,ioj_center), str1
        enddo
        write (uout,*)
@@ -610,7 +611,7 @@ contains
   !> json with root p.
   module subroutine struct_write_json(c,json,p)
     use json_module, only: json_value, json_core
-    class(crystal), intent(in) :: c
+    class(crystal), intent(inout) :: c
     type(json_core), intent(inout) :: json
     type(json_value), pointer, intent(inout) :: p
 
@@ -618,6 +619,7 @@ contains
 
     integer :: i
     character(len=mlen), allocatable :: strfin(:)
+    real*8 :: rnn2
 
     if (.not.c%isinit) return
     call json%create_object(s,'structure')
@@ -658,7 +660,8 @@ contains
        call json%add(ap,'cartesian_coordinates',c%at(i)%r(:))
        call json%add(ap,'multiplicity',c%at(i)%mult)
        call json%add(ap,'wyckoff_letter',c%at(i)%wyc)
-       call json%add(ap,'half_nn_distance',c%at(i)%rnn2)
+       rnn2 = c%get_rnn2(i)
+       call json%add(ap,'half_nn_distance',rnn2)
        call json%add(arr,ap)
        nullify(ap)
     end do

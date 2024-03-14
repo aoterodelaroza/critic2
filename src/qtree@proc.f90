@@ -916,7 +916,7 @@ contains
     integer :: l2, i, j, k, l, tt, tto, idum
     integer :: nid, nid0, vin(3)
     integer(qtreeidx) :: idx
-    real*8 :: xx(3), dist, mdist, rmin, rmax, rdist, rmt
+    real*8 :: xx(3), dist, mdist, rmin, rmax, rdist, rmt, rnn2
     real*8, allocatable :: rref(:)
     logical, allocatable :: nucmask(:), nfrozen(:)
     integer :: niter, icolor
@@ -948,16 +948,17 @@ contains
     ! Calculate sphere sizes (r_betagp and r_betaint)
     nfrozen = .false.
     do i = 1, nnuc
+       rnn2 = sy%c%get_rnn2(i)
        if (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_elk) then
           rmt = sy%f(sy%iref)%elk%rmt(sy%c%at(i)%is)
        elseif (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_wien) then
           rmt = sy%f(sy%iref)%wien%rmt_atom(sy%c%at(i)%x)
        else
-          rmt = sy%c%at(i)%rnn2
+          rmt = rnn2
        end if
 
        if (i <= sy%c%nneq) then
-          rref(i) = sy%c%at(i)%rnn2
+          rref(i) = rnn2
        else
           xx = sy%f(sy%iref)%cp(i)%x
           call sy%f(sy%iref)%nearest_cp(xx,idum,rref(i),type=sy%f(sy%iref)%typnuc,nozero=.true.)
@@ -1074,9 +1075,10 @@ contains
     do i = 1, nnuc
        r_betaint(i) = sphintfactor(i) * r_betagp(i)
        if (verbose) then
+          rnn2 = sy%c%get_rnn2(i)
           write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3("  ",A))') &
              string(i), string(sy%c%spc(sy%c%at(i)%is)%name), string(sphfactor(i),'f',decimal=6), &
-             string(r_betagp(i),'f',decimal=6), string(sy%c%at(i)%rnn2,'f',decimal=6)
+             string(r_betagp(i),'f',decimal=6), string(rnn2,'f',decimal=6)
        end if
     end do
     if (verbose) then
@@ -1114,7 +1116,7 @@ contains
 
     type(minisurf) :: srf
     integer :: i, j, idum, ii
-    real*8 :: xx(3), dist, plen
+    real*8 :: xx(3), dist, plen, rnn2
     real*8 :: rref, x0(3), unit(3), rmt
     integer :: ier
     integer :: ndo, nstep
@@ -1138,18 +1140,19 @@ contains
     ! Calculate sphere sizes (r_betagp and r_betaint)
     ndo = 0
     do i = 1, nnuc
+       rnn2 = sy%c%get_rnn2(i)
        if (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_elk) then
           rmt = sy%f(sy%iref)%elk%rmt(sy%c%at(i)%is)
        elseif (i<=sy%c%nneq .and. sy%f(sy%iref)%type == type_wien) then
           rmt = sy%f(sy%iref)%wien%rmt_atom(sy%c%at(i)%x)
        elseif (i<=sy%c%nneq) then
-          rmt = sy%c%at(i)%rnn2
+          rmt = rnn2
        else
           rmt = 1d30
        end if
 
        if (i <= sy%c%nneq) then
-          rref = sy%c%at(i)%rnn2
+          rref = rnn2
        else
           xx = sy%f(sy%iref)%cp(i)%x
           call sy%f(sy%iref)%nearest_cp(xx,idum,rref,type=sy%f(sy%iref)%typnuc,nozero=.true.)
@@ -1179,7 +1182,7 @@ contains
        i = ido(ii)
        if (i <= sy%c%nneq) then
           x0 = sy%c%at(i)%r
-          rref = sy%c%at(i)%rnn2
+          rref = sy%c%get_rnn2(i)
        else
           x0 = sy%f(sy%iref)%cp(i)%r
           call sy%f(sy%iref)%nearest_cp(xx,idum,rref,type=sy%f(sy%iref)%typnuc,nozero=.true.)
@@ -1217,9 +1220,10 @@ contains
        r_betaint(i) = sphintfactor(i) * r_betagp(i)
        if (verbose) then
           if (i <= sy%c%nneq) then
+             rnn2 = sy%c%get_rnn2(i)
              write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(A,"  "))') &
                 string(i), string(sy%c%spc(sy%c%at(i)%is)%name), string(sphfactor(i),'f',decimal=6), &
-                string(r_betagp(i),'f',decimal=6), string(sy%c%at(i)%rnn2,'f',decimal=6)
+                string(r_betagp(i),'f',decimal=6), string(rnn2,'f',decimal=6)
           else
              write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(A,"  "))') &
                 string(i), "nnm", string(sphfactor(i),'f',decimal=6), &

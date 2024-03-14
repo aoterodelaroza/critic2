@@ -103,7 +103,6 @@ module types
      integer :: is = 0 !< species
      integer :: mult  !< multiplicity
      character*1 :: wyc !< Wyckoff letter
-     real*8 :: rnn2   !< half the nearest neighbor distance
   end type neqatom
 
   !> Any atom in the crystal type

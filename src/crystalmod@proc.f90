@@ -83,11 +83,6 @@ contains
        c%spc(i)%qat = 0d0
     end do
 
-    ! initialize atoms
-    do i = 1, mneq0
-       c%at(i)%rnn2 = 0d0
-    end do
-
     ! no molecular fragments
     c%nmol = 0
     if (allocated(c%nstar)) deallocate(c%nstar)
@@ -539,16 +534,6 @@ contains
           end do
        end do
        deallocate(xcoord,iord)
-
-       ! Write the half nearest-neighbor distance
-       do i = 1, c%nneq
-          if (.not.c%ismolecule .or. c%ncel > 1) then
-             call c%nearest_atom(c%at(i)%r,icrd_cart,iat,dist,nozero=.true.)
-             c%at(i)%rnn2 = 0.5d0 * dist
-          else
-             c%at(i)%rnn2 = 0d0
-          end if
-       end do
     end if
 
     ! the initialization is done - this crystal is ready to use

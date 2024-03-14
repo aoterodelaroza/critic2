@@ -583,7 +583,7 @@ contains
 
     character(len=:), allocatable :: word
     integer :: meth, nr, ntheta, nphi, np, cpid
-    real*8 :: r0, rend
+    real*8 :: r0, rend, rnn2
     integer :: linmin, linmax
     integer :: lp, i, j, n, nn, k
     real*8 :: sprop(sy%npropi)
@@ -724,10 +724,11 @@ contains
 
     do i = linmin, linmax
        if ((sy%f(sy%iref)%cp(i)%typ /= sy%f(sy%iref)%typnuc .and. i>sy%c%nneq)) cycle
+       rnn2 = sy%c%get_rnn2(i)
 
        if (nr > 1) then
           if (rend < 0d0) then
-             h = log(sy%c%at(i)%rnn2 * abs(rend) / r0) / (nr - 1)
+             h = log(rnn2 * abs(rend) / r0) / (nr - 1)
           else
              h = log(rend / r0) / (nr - 1)
           end if
@@ -742,7 +743,7 @@ contains
           string(r0,'e',decimal=6)
        if (rend < 0d0) then
           write (uout,'("  Final radius (rend,",A,"): ",A)') iunitname0(iunit), &
-             string(sy%c%at(i)%rnn2 * abs(rend),'e',decimal=6)
+             string(rnn2 * abs(rend),'e',decimal=6)
        else
           write (uout,'("  Final radius (rend,",A,"): ",A)') iunitname0(iunit), string(rend,'e',decimal=6)
        end if
@@ -755,7 +756,7 @@ contains
        do n = 1, nr
           if (nr == 1) then
              if (rend < 0d0) then
-                r = sy%c%at(i)%rnn2 * abs(rend)
+                r = rnn2 * abs(rend)
              else
                 r = r0
              end if

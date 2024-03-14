@@ -555,6 +555,21 @@ contains
 
   end subroutine nearest_atom
 
+  !> Returns half of the nearest neighbor distance for non-equivalent
+  !> atom ineq.
+  module function get_rnn2(c,ineq)
+    use param, only: icrd_cart
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: ineq
+    real*8 :: get_rnn2
+
+    integer :: iaux
+
+    call c%nearest_atom(c%at(ineq)%r,icrd_cart,iaux,get_rnn2,nozero=.true.)
+    get_rnn2 = 0.5d0 * get_rnn2
+
+  end function get_rnn2
+
   !> Given point x0 (with icrd input coordinates), if x0 corresponds
   !> to an atomic position (to within distmax or atomeps if distmax is
   !> not given), return the complete-list ID of the atom. Otherwise,
