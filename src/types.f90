@@ -147,7 +147,7 @@ module types
      real*8 :: del2f = 0d0 ! field Laplacian
      real*8 :: del2fval = 0d0 ! field Laplacian (valence only)
      real*8 :: hfevec(3,3) = 0d0 ! field Hessian eigenvectors
-     real*8 :: hfeval(3) = 0d0 ! field Hessian eigenvalues
+     real*8 :: hfeval(3) = 0d0 ! field Hessian eigenvalues (ascending order)
      integer :: r = 0 ! field Hessian rank
      integer :: s = 0 ! field Hessian signature
      ! avail_gkin
