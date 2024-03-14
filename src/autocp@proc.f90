@@ -69,7 +69,7 @@ contains
     use tools, only: uniqc
     use tools_io, only: uout, ferror, faterr, lgetword, equal, isexpression_or_word,&
        string, warning, tictac
-    use types, only: realloc
+    use types, only: realloc, discard_cp_expr
     use param, only: pi
     character*(*), intent(in) :: line
 
@@ -100,7 +100,7 @@ contains
     real*8  :: iniv(4,3), xdum(3)
     integer :: nt
     logical :: ok, dryrun, dochk
-    character(len=:), allocatable :: word, str, discexpr
+    character(len=:), allocatable :: word, str
     real*8 :: gfnormeps
     integer :: ntetrag
     real*8, allocatable :: tetrag(:,:,:)
@@ -120,7 +120,8 @@ contains
     real*8 :: nucepsh
     type(grhandle) :: gr
     type(mesh) :: meshseed
-    logical :: typeok(4)
+    logical :: typeok(4), laux(4)
+    type(discard_cp_expr), allocatable :: discard(:)
 
     real*8, parameter :: gradeps_check = 1d-4 ! minimum gradeps requirement for addcp (grids)
 
@@ -160,7 +161,6 @@ contains
 
     ! parse the input
     lp = 1
-    discexpr = ""
     typeok = .true.
     do while (.true.)
        word = lgetword(line,lp)
@@ -344,11 +344,36 @@ contains
              endif
           end do
        elseif (equal(word,"discard")) then
-          ok = isexpression_or_word(discexpr,line,lp)
+          laux = .true.
+          lpo = lp
+          word = trim(lgetword(line,lp))
+          if (equal(word,"types")) then
+             laux = .false.
+             word = trim(lgetword(line,lp))
+             do i = 1, len(word)
+                if (word(i:i) == "n") then
+                   laux(1) = .true.
+                elseif (word(i:i) == "b") then
+                   laux(2) = .true.
+                elseif (word(i:i) == "r") then
+                   laux(3) = .true.
+                elseif (word(i:i) == "c") then
+                   laux(4) = .true.
+                else
+                   call ferror('autocritic','TYPES input letters can only be one of n, b, r, c',faterr,line,syntax=.true.)
+                   return
+                end if
+             end do
+          else
+             lp = lpo
+          end if
+
+          ok = isexpression_or_word(str,line,lp)
           if (.not. ok) then
              call ferror("autocritic","wrong DISCARD keyword",faterr,line,syntax=.true.)
              return
           end if
+          call add_discard_expression(str,laux)
        elseif (equal(word,"types")) then
           typeok = .false.
           word = trim(lgetword(line,lp))
@@ -362,7 +387,6 @@ contains
              elseif (word(i:i) == "c") then
                 typeok(4) = .true.
              else
-                write (*,*) "bleh! ->", word(i:i), "<-"
                 call ferror('autocritic','TYPES input letters can only be one of n, b, r, c',faterr,line,syntax=.true.)
                 return
              end if
@@ -560,8 +584,16 @@ contains
        string(nucepsh*dunit0(iunit),'e',decimal=3), iunitname0(iunit)
     write (uout,'("  CPs are degenerate if any Hessian element abs value is less than: ",A)') &
        string(CP_hdegen,'e',decimal=3)
-    if (len_trim(discexpr) > 0) &
-       write (uout,'("  Discard CP expression: ",A)') trim(discexpr)
+    if (allocated(discard)) then
+       do i = 1, size(discard,1)
+          if (all(discard(i)%typeok)) then
+             write (uout,'("  Discard CP expression: ",A)') trim(discard(i)%s)
+          else
+             write (uout,'("  Discard CP expression: ",A," applies to: n=",A,", b=",A,", r=",A,", c=",A)') &
+                trim(discard(i)%s), (string(discard(i)%typeok(j)),j=1,4)
+          end if
+       end do
+    end if
     if (.not.all(typeok)) then
        write (uout,'("  CP types to keep: nuclei=",A,", bonds=",A,", rings=",A,", cages=",A)') &
           (string(typeok(j)),j=1,4)
@@ -760,7 +792,7 @@ contains
 
              if (ok) then
                 !$omp critical (addcp)
-                call sy%addcp(sy%iref,x0,discexpr,cpeps,nuceps,nucepsh,max(gradeps_check,gfnormeps),&
+                call sy%addcp(sy%iref,x0,discard,cpeps,nuceps,nucepsh,max(gradeps_check,gfnormeps),&
                    typeok=typeok)
                 !$omp end critical (addcp)
              end if
@@ -822,6 +854,30 @@ contains
        call tictac("End AUTO")
        write (uout,*)
     end if
+
+  contains
+    subroutine add_discard_expression(str,type)
+      character(len=*), intent(in) :: str
+      logical, intent(in) :: type(4)
+
+      integer :: n
+      type(discard_cp_expr), allocatable :: temp(:)
+
+      if (.not.allocated(discard)) then
+         allocate(discard(1))
+         n = 1
+      else
+         n = size(discard,1)
+         allocate(temp(n+1))
+         temp(1:n) = discard
+         call move_alloc(temp,discard)
+         n = n + 1
+      end if
+
+      discard(n)%s = str
+      discard(n)%typeok = type
+
+    end subroutine add_discard_expression
 
   end subroutine autocritic
 

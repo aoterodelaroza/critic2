@@ -19,7 +19,7 @@
 module systemmod
   use grid1mod, only: grid1
   use hashmod, only: hash
-  use types, only: integrable, pointpropable
+  use types, only: integrable, pointpropable, discard_cp_expr
   use fieldmod, only: field
   use crystalmod, only: crystal
   use types, only: thread_info
@@ -226,11 +226,11 @@ module systemmod
        real*8, intent(out) :: lprop(s%npropi)
        logical, intent(in), optional :: pmask(s%npropi)
      end subroutine grdall
-     module subroutine addcp(s,id,x0,discexpr,cpeps,nuceps,nucepsh,gfnormeps,itype,typeok)
+     module subroutine addcp(s,id,x0,discard,cpeps,nuceps,nucepsh,gfnormeps,itype,typeok)
        class(system), intent(inout) :: s
        integer, intent(in) :: id
        real*8, intent(in) :: x0(3)
-       character*(*), intent(in) :: discexpr
+       type(discard_cp_expr), allocatable, intent(in) :: discard(:)
        real*8, intent(in) :: cpeps
        real*8, intent(in) :: nuceps
        real*8, intent(in) :: nucepsh

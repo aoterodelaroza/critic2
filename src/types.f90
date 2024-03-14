@@ -37,6 +37,7 @@ module types
   public :: gpathp
   public :: basindat
   public :: int_result
+  public :: discard_cp_expr
 
   ! overloaded procedures
   interface realloc
@@ -306,6 +307,12 @@ module types
      real*8, allocatable :: fa(:,:,:,:) ! Fa integrals
      real*8, allocatable :: fa3(:,:,:,:,:,:) ! three-center DIs
   end type int_result
+
+  !> Expressions for DISCARD in CP search
+  type discard_cp_expr
+     character(len=:), allocatable :: s
+     logical :: typeok(4)
+  end type discard_cp_expr
 
   interface
      module subroutine scalar_value_clear(s)

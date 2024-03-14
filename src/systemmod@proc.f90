@@ -1375,13 +1375,13 @@ contains
   !> length, discard the critical point if it gives a non-zero value
   !> for this expression. If typeok is present, only accept a CP type
   !> if the corresponding element in typeok is true.
-  module subroutine addcp(s,id,x0,discexpr,cpeps,nuceps,nucepsh,gfnormeps,itype,typeok)
+  module subroutine addcp(s,id,x0,discard,cpeps,nuceps,nucepsh,gfnormeps,itype,typeok)
     use tools_io, only: faterr, ferror
     use types, only: scalar_value
     class(system), intent(inout) :: s
     integer, intent(in) :: id
     real*8, intent(in) :: x0(3) !< Position of the CP, in Cartesian coordinates
-    character*(*), intent(in) :: discexpr !< Discard expression
+    type(discard_cp_expr), allocatable, intent(in) :: discard(:) !< Discard expressions
     real*8, intent(in) :: cpeps !< Discard CPs closer than cpeps from other CPs
     real*8, intent(in) :: nuceps !< Discard CPs closer than nuceps from nuclei
     real*8, intent(in) :: nucepsh !< Discard CPs closer than nucepsh from hydrogen
@@ -1390,32 +1390,30 @@ contains
     logical, intent(in), optional :: typeok(4) !< Filter out by CP type
 
     real*8 :: fval
-    logical :: ok, isexpr, istypeok
+    logical :: ok
     character(len=:), allocatable :: errmsg
     type(scalar_value) :: res
-    integer :: idx
+    integer :: idx, i
 
-    ! flags
-    istypeok = present(typeok)
-    if (istypeok) istypeok = .not.all(typeok)
-    isexpr = (len_trim(discexpr) > 0)
-
-    ! if type filter and discard expression are both on, pre-filter
-    if (istypeok .and. isexpr) then
+    ! if discard expression is on
+    if (allocated(discard)) then
+       ! pre-filter by type here
        call s%f(id)%grd(x0,2,res)
        idx = (res%s+5)/2
        if (idx >= 1 .and. idx <= 4) then
           if (.not.typeok(idx)) return
        end if
-    end if
 
-    ! apply the discard expression
-    if (isexpr) then
-       fval = s%eval(discexpr,errmsg,x0)
-       if (len_trim(errmsg) > 0) &
-          call ferror("addcp","Invalid DISCARD expression: " // trim(errmsg),faterr)
-       ok = (abs(fval) < 1d-30)
-       if (.not.ok) return
+       ! apply the discard expressions
+       do i = 1, size(discard,1)
+          if (discard(i)%typeok(idx)) then
+             fval = s%eval(discard(i)%s,errmsg,x0)
+             if (len_trim(errmsg) > 0) &
+                call ferror("addcp","Invalid DISCARD expression: " // trim(errmsg),faterr)
+             ok = (abs(fval) < 1d-30)
+             if (.not.ok) return
+          end if
+       end do
     end if
 
     ! add the CP and write down the info
