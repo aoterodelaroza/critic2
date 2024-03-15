@@ -3662,8 +3662,9 @@ contains
     write (uout,'("  Minimum intensity cutoff for peak detection: ",A)') &
        string(ymax_peakdetect,'f',decimal=2)
     do i = 3, n-2
-       if (y(i) > ymax_peakdetect .and. y(i) > y(i-1) .and. y(i) > y(i-2) .and. y(i) > y(i+1) .and.&
-          y(i) > y(i+2)) then
+       ! if (y(i) > ymax_peakdetect .and. y(i) > y(i-1) .and. y(i) > y(i-2) .and. y(i) > y(i+1) .and.&
+       !    y(i) > y(i+2)) then
+       if (y(i) > ymax_peakdetect .and. y(i) > y(i-1) .and. y(i) > y(i+1)) then
           npeaks = npeaks + 1
           if (npeaks > size(pth2,1)) then
              call realloc(pth2,2*npeaks)
@@ -3902,7 +3903,7 @@ contains
     ! calculate final profile and write it to disk
     ysum = fsimple(nprm,prm)
     lu = fopen_write("fit.dat")
-    write (lu,'("## x y yfit std-resid")')
+    write (lu,'("## x yorig ycalc")')
     do i = 1, n
        write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y_orig(i),'f',decimal=10),&
           string(ysum(i),'f',decimal=10)
