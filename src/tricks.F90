@@ -35,6 +35,7 @@ module tricks
   private :: trick_gaucomp
   private :: powder_simple
   private :: trick_profile_fit
+  private :: trick_profile_refit
 
 contains
 
@@ -3606,7 +3607,7 @@ contains
     integer, allocatable :: io(:), pid(:)
     real*8, allocatable :: x(:), y(:), pth2(:), phei(:), prm(:), lb(:), ub(:), yfit(:), ysum(:)
     real*8, allocatable :: y_orig(:)
-    real*8 :: x_, y_, ymax_peakdetect, minx, maxx, maxy, fac, ssq, maxa, xini, xend
+    real*8 :: x_, y_, ymax_peakdetect, minx, maxx, maxy, fac, ssq, maxa, xini, xend, xdif
     logical :: ok
     integer :: npeaks, npeaks_
     integer*8 :: opt
@@ -3809,16 +3810,16 @@ contains
           string(prm(4*(ip-1)+3),'f',decimal=4), string(prm(4*(ip-1)+4),'f',decimal=4),&
           string(ssq,'e',decimal=4)
 
-       ! calcualte final profile and write it to disk
+       ! calculate final profile and write it to disk
        yfit = fsimple(4,prm(4*(ip-1)+1:4*ip))
        ysum = ysum + yfit
-       lu = fopen_write("fit.dat")
-       write (lu,'("## x y yfit std-resid")')
-       do i = 1, n
-          write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y_orig(i),'f',decimal=10),&
-             string(ysum(i),'f',decimal=10)
-       end do
-       call fclose(lu)
+       ! lu = fopen_write("fit.dat")
+       ! write (lu,'("## x y yfit std-resid")')
+       ! do i = 1, n
+       !    write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y_orig(i),'f',decimal=10),&
+       !       string(ysum(i),'f',decimal=10)
+       ! end do
+       ! call fclose(lu)
     end do
     y = y_orig
     if (ires < 0) return
@@ -3843,8 +3844,15 @@ contains
     call realloc(ub,nprm)
     write (uout,'("+ Number of peaks after pruning: ",A/)') string(npeaks)
 
-    ! put back the maximum FWHM for all peaks
-    ub(2:nprm:4) = fwhm_max
+    ! put back the maximum FWHM for all peaks and set the minimum at
+    ! one average distance between x-points
+    xdif = (maxx - minx) / real(n-1,8)
+    do i = 1, npeaks
+       ub(4*(i-1)+2) = fwhm_max
+       lb(4*(i-1)+2) = min(xdif,0.99d0*fwhm_max)
+       prm(4*(i-1)+2) = min(max(prm(4*(i-1)+2),lb(4*(i-1)+2)),ub(4*(i-1)+2))
+    end do
+
 
     ! fitting the whole pattern
     write (uout,'("+ Fitting the whole pattern")')
