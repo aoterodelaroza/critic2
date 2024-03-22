@@ -2970,7 +2970,7 @@ contains
     integer, parameter :: imode_global = 2
     real*8, parameter :: max_elong_def = 0.1d0
     real*8, parameter :: max_ang_def = 5d0
-    integer, parameter :: maxfeval0 = 2000
+    integer, parameter :: maxfeval0 = 15000
     real*8, parameter :: besteps0 = 1d-4
 
     real*8, parameter :: sigma = 0.05d0
