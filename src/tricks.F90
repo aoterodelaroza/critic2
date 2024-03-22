@@ -2928,7 +2928,7 @@ contains
 
   end subroutine trick_check_valence
 
-  ! TRICK GAUCOMP str1.s {str2.s|xyfile.s} [LOCAL] [GLOBAL] [ALPHA alpha.r] [LAMBDA lambda.r] [MAXFEVAL maxfeval.i]
+  ! TRICK GAUCOMP str1.s {str2.s|xyfile.s} [LOCAL] [GLOBAL] [ALPHA alpha.r] [LAMBDA lambda.r] [MAXFEVAL maxfeval.i] [BESTEPS eps.r]
   subroutine trick_gaucomp(line0)
     use crystalseedmod, only: crystalseed
     use crystalmod, only: crystal
@@ -2953,7 +2953,7 @@ contains
     type(crystal) :: c1, c2
     integer*8 :: opt, lopt
     integer :: ires, imode, lu, maxfeval
-    real*8 :: lb(6), ub(6), th2ini, th2end, alpha, lambda
+    real*8 :: lb(6), ub(6), th2ini, th2end, alpha, lambda, besteps
     logical :: iresok, ok, readc2
     type(crystalseed) :: seed
 
@@ -2971,6 +2971,7 @@ contains
     real*8, parameter :: max_elong_def = 0.1d0
     real*8, parameter :: max_ang_def = 5d0
     integer, parameter :: maxfeval0 = 2000
+    real*8, parameter :: besteps0 = 1d-4
 
     real*8, parameter :: sigma = 0.05d0
     real*8, parameter :: th2ini0 = 5d0
@@ -3043,6 +3044,7 @@ contains
 
     ! read additional options
     maxfeval = maxfeval0
+    besteps = besteps0
     alpha = alpha0
     imode = imode_sp
     do while (.true.)
@@ -3058,7 +3060,11 @@ contains
        elseif (equal(word,'maxfeval')) then
           ok = isinteger(maxfeval,line0,lp)
           if (.not.ok) &
-             call ferror("trick_gaucomp","invalid alpha in gaucomp",faterr)
+             call ferror("trick_gaucomp","invalid maxfeval in gaucomp",faterr)
+       elseif (equal(word,'besteps')) then
+          ok = isreal(besteps,line0,lp)
+          if (.not.ok) &
+             call ferror("trick_gaucomp","invalid besteps in gaucomp",faterr)
        elseif (equal(word,'lambda')) then
           ok = isreal(lambda,line0,lp)
           if (.not.ok) &
@@ -3307,7 +3313,7 @@ contains
       character(len=:), allocatable :: str
 
       lastval = val
-      if (val < bestval) then
+      if (val < bestval * (1d0 - besteps)) then
          bestval = val
          nbesteval = neval
          str = ""
