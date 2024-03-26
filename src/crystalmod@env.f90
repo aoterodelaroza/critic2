@@ -233,7 +233,7 @@ contains
                 else
                    ib = (/modulo(ithis(1),c%nblock(1)), modulo(ithis(2),c%nblock(2)), modulo(ithis(3),c%nblock(3))/)
                    lvecx = real((ithis - ib) / c%nblock,8)
-                   lvecx = matmul(c%m_xr2c,real((ithis - ib) / c%nblock,8))
+                   lvecx = matmul(c%m_xr2c,lvecx)
                    xdif = lvecx - xorigc
                 end if
 
