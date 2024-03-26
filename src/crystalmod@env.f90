@@ -757,6 +757,7 @@ contains
     integer :: iblock_stride
     integer :: ix, iy, iz, jx, jy, jz, iid, jid, iidx(3), jidx(3)
     integer :: iat, jat, iaux(3), lvecx(3)
+    logical :: sameblock
 
     ! return if there are no atoms
     if (c%ncel == 0) return
@@ -834,16 +835,23 @@ contains
                       else
                          iaux = (/jx,jy,jz/)
                          jidx = (/modulo(jx,c%nblock(1)), modulo(jy,c%nblock(2)), modulo(jz,c%nblock(3))/)
+                         jid = (jidx(1) * iblock_stride + jidx(2)) * iblock_stride + jidx(3)
+                         if (jid < iid) cycle
                          xdelta = real((iaux - jidx) / c%nblock,8)
                          xdelta = matmul(c%m_xr2c,xdelta)
                       end if
                       if (c%iblock0(jidx(1),jidx(2),jidx(3)) == 0) cycle
+                      sameblock = (ix == jx) .and. (iy == jy) .and. (iz == jz)
 
                       jat = c%iblock0(jidx(1),jidx(2),jidx(3))
                       do while (jat /= 0)
                          xj = c%atcel(jat)%rxc + xdelta
 
-                         iat = c%iblock0(iidx(1),iidx(2),iidx(3))
+                         if (sameblock) then
+                            iat = c%atcel(jat)%inext
+                         else
+                            iat = c%iblock0(iidx(1),iidx(2),iidx(3))
+                         end if
                          do while (iat /= 0)
                             xi = c%atcel(iat)%rxc
 
