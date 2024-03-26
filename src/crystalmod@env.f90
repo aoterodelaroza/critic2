@@ -35,7 +35,7 @@ contains
     integer :: i, ix(3)
     real*8 :: xred(3,3), xlen(3), xr(3)
 
-    real*8, parameter :: lenmax = 15d0
+    real*8, parameter :: lenmax = 5d0
 
     ! calculate the number of cells in each direction and the lattice vectors
     do i = 1, 3
@@ -747,12 +747,16 @@ contains
     use param, only: atmcov, icrd_crys
     class(crystal), intent(inout) :: c
 
-    integer :: i, j, jj
-    real*8 :: ri, rj
+    integer :: i, j, jj, nx(3), i0shift(3), i1shift(3)
+    real*8 :: ri, rj, dmax, dd, xi(3), xj(3), xdelta(3)
+    real*8 :: xxi(3), xxj(3)
     integer :: is, js
-    real*8, allocatable :: rij(:,:,:), dist(:)
+    real*8, allocatable :: rij2(:,:,:), dist(:)
     integer :: nat
     integer, allocatable :: eid(:), lvec(:,:)
+    integer :: iblock_stride
+    integer :: ix, iy, iz, jx, jy, jz, iid, jid, iidx(3), jidx(3)
+    integer :: iat, jat, iaux(3), lvecx(3)
 
     ! return if there are no atoms
     if (c%ncel == 0) return
@@ -769,8 +773,9 @@ contains
     end do
 
     ! pre-calculate the distance matrix
-    allocate(rij(c%nspc,2,c%nspc))
-    rij = 0d0
+    allocate(rij2(c%nspc,2,c%nspc))
+    rij2 = 0d0
+    dmax = 0d0
     do i = 1, c%nspc
        if (c%spc(i)%z <= 0) cycle
        ri = atmcov(c%spc(i)%z)
@@ -778,40 +783,114 @@ contains
           if (c%spc(j)%z <= 0) cycle
           rj = atmcov(c%spc(j)%z)
 
-          rij(j,2,i) = (ri+rj) * bondfactor
-          rij(j,1,i) = (ri+rj) / bondfactor
+          rij2(j,2,i) = (ri+rj) * bondfactor
+          rij2(j,1,i) = (ri+rj) / bondfactor
+          rij2(j,2,i) = rij2(j,2,i) * rij2(j,2,i)
+          rij2(j,1,i) = rij2(j,1,i) * rij2(j,1,i)
+          dmax = max(dmax,(ri+rj) * bondfactor)
        end do
     end do
 
-    ! run over atoms in the unit cell and build the connectivity star
-    do i = 1, c%ncel
-       is = c%atcel(i)%is
-       if (c%spc(is)%z == 0) then
-          call realloc(c%nstar(i)%idcon,1)
-          call realloc(c%nstar(i)%lcon,3,1)
-          cycle
+    ! calculate the number of blocks in each direction required for satifying
+    ! that the largest sphere in the super-block has radius > dmax.
+    ! r = Vblock / 2 / max(cv(3)/n3,cv(2)/n2,cv(1)/n1)
+    nx = ceiling(c%blockcv / (0.5d0 * c%blockomega / max(dmax,1d-40)))
+
+    ! define the search space
+    do i = 1, 3
+       if (mod(nx(i),2) == 0) then
+          i0shift(i) = - nx(i)/2
+          i1shift(i) = nx(i)/2
+       else
+          i0shift(i) = - (nx(i)/2+1)
+          i1shift(i) = + (nx(i)/2+1)
        end if
-       call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.false.,nat,eid,dist,lvec,&
-          up2dsp=rij(:,:,is),nozero=.true.)
+    end do
 
-       do jj = 1, nat
-          j = eid(jj)
-          js = c%atcel(j)%is
-          if (c%spc(js)%z == 0) cycle
+    iblock_stride = maxval(c%nblock) + maxval(abs(i1shift)) + maxval(abs(i0shift)) + 10
 
-          if (dist(jj) >= rij(js,1,is) .and. dist(jj) <= rij(js,2,is)) then
-             c%nstar(i)%ncon = c%nstar(i)%ncon + 1
-             if (c%nstar(i)%ncon > size(c%nstar(i)%idcon,1)) then
-                call realloc(c%nstar(i)%idcon,2*c%nstar(i)%ncon)
-                call realloc(c%nstar(i)%lcon,3,2*c%nstar(i)%ncon)
-             end if
-             c%nstar(i)%idcon(c%nstar(i)%ncon) = j
-             c%nstar(i)%lcon(:,c%nstar(i)%ncon) = lvec(:,jj)
-          end if
+    do ix = 0, c%nblock(1)-1
+       do iy = 0, c%nblock(2)-1
+          do iz = 0, c%nblock(3)-1
+             if (c%iblock0(ix,iy,iz) == 0) cycle
+             iid = (ix * iblock_stride + iy) * iblock_stride + iz
+             iidx = (/ix,iy,iz/)
+
+             do jx = ix + i0shift(1), ix + i1shift(1)
+                do jy = iy + i0shift(2), iy + i1shift(2)
+                   do jz = iz + i0shift(2), iz + i1shift(3)
+                      ! skip if this block pair has been considered already, or outside the region
+                      ! skip if there are no atoms
+                      if (jx >= 0 .and. jx < c%nblock(1) .and.&
+                          jy >= 0 .and. jy < c%nblock(2) .and.&
+                          jz >= 0 .and. jz < c%nblock(3)) then
+                         jid = (jx * iblock_stride + jy) * iblock_stride + jz
+                         if (jid < iid) cycle
+                         jidx = (/jx,jy,jz/)
+                         if (c%iblock0(jidx(1),jidx(2),jidx(3)) == 0) cycle
+                         xdelta = 0d0
+                      elseif (c%ismolecule) then
+                         cycle
+                      else
+                         iaux = (/jx,jy,jz/)
+                         jidx = (/modulo(jx,c%nblock(1)), modulo(jy,c%nblock(2)), modulo(jz,c%nblock(3))/)
+                         xdelta = real((iaux - jidx) / c%nblock,8)
+                         xdelta = matmul(c%m_xr2c,xdelta)
+                      end if
+                      if (c%iblock0(jidx(1),jidx(2),jidx(3)) == 0) cycle
+
+                      jat = c%iblock0(jidx(1),jidx(2),jidx(3))
+                      do while (jat /= 0)
+                         xj = c%atcel(jat)%rxc + xdelta
+
+                         iat = c%iblock0(iidx(1),iidx(2),iidx(3))
+                         do while (iat /= 0)
+                            xi = c%atcel(iat)%rxc
+
+                            dd = dot_product(xi-xj,xi-xj)
+                            if (dd > rij2(c%atcel(jat)%is,1,c%atcel(iat)%is) .and. &
+                               dd < rij2(c%atcel(jat)%is,2,c%atcel(iat)%is)) then
+                               ! add this atom
+                               c%nstar(iat)%ncon = c%nstar(iat)%ncon + 1
+                               if (c%nstar(iat)%ncon > size(c%nstar(iat)%idcon,1)) then
+                                  call realloc(c%nstar(iat)%idcon,2*c%nstar(iat)%ncon)
+                                  call realloc(c%nstar(iat)%lcon,3,2*c%nstar(iat)%ncon)
+                               end if
+                               c%nstar(iat)%idcon(c%nstar(iat)%ncon) = jat
+
+                               c%nstar(jat)%ncon = c%nstar(jat)%ncon + 1
+                               if (c%nstar(jat)%ncon > size(c%nstar(jat)%idcon,1)) then
+                                  call realloc(c%nstar(jat)%idcon,2*c%nstar(jat)%ncon)
+                                  call realloc(c%nstar(jat)%lcon,3,2*c%nstar(jat)%ncon)
+                               end if
+                               c%nstar(jat)%idcon(c%nstar(jat)%ncon) = iat
+                               if (c%ismolecule) then
+                                  c%nstar(iat)%lcon(:,c%nstar(iat)%ncon) = 0
+                                  c%nstar(jat)%lcon(:,c%nstar(jat)%ncon) = 0
+                               else
+                                  lvecx = nint(matmul(c%m_c2x,xj-xi) + c%atcel(iat)%x - c%atcel(jat)%x)
+                                  c%nstar(iat)%lcon(:,c%nstar(iat)%ncon) = lvecx
+                                  c%nstar(jat)%lcon(:,c%nstar(jat)%ncon) = -lvecx
+                               end if
+                            end if
+
+                            iat = c%atcel(iat)%inext
+                         end do
+                         jat = c%atcel(jat)%inext
+                      end do
+                   end do
+                end do
+             end do
+
+          end do
        end do
+    end do
+
+    ! reallocate
+    do i = 1, c%ncel
        call realloc(c%nstar(i)%idcon,c%nstar(i)%ncon)
        call realloc(c%nstar(i)%lcon,3,c%nstar(i)%ncon)
-    end do ! i = 1, c%ncel
+    end do
 
   end subroutine find_asterisms_covalent
 
