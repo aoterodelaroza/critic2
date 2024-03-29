@@ -785,7 +785,7 @@ contains
           rj = atmcov(c%spc(j)%z)
 
           rij2(j,2,i) = (ri+rj) * bondfactor
-          rij2(j,1,i) = (ri+rj) / bondfactor
+          rij2(j,1,i) = 0d0
           rij2(j,2,i) = rij2(j,2,i) * rij2(j,2,i)
           rij2(j,1,i) = rij2(j,1,i) * rij2(j,1,i)
           dmax = max(dmax,(ri+rj) * bondfactor)
