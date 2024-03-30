@@ -1,11 +1,11 @@
 * COORD: calculation of coordination numbers
 + Atomic radii for all species
-# Atoms i and j are coordinated if distance(i,j) <= fac*(radi+radj), fac = 1.40 
+# Atoms i and j are coordinated if distance(i,j) <= fac*(radi+radj), fac = 1.30 
 # spc  Z   name    rad  
-   1   6     C     1.38 
-   2   8     O     1.25 
+   1   6     C     1.42 
+   2   8     O     1.19 
    3   7     N     1.34 
-   4   1     H     0.59 
+   4   1     H     0.60 
 
 + Pair coordination numbers (per non-equivalent atom in the cell)
 # id = non-equivalent atom ID. mult = multiplicity. rest = atomic species (by name).
