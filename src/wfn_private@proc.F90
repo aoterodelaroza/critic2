@@ -2685,8 +2685,8 @@ contains
 #endif
     class(molwfn), intent(in) :: f
     real*8, intent(in) :: xpos(3)
-#ifdef HAVE_CINT
     real*8 :: mep
+#ifdef HAVE_CINT
     integer :: i, j, is0
     integer :: nbast, ioff, di, joff, dj
     integer :: shls(4)
