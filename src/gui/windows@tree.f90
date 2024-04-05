@@ -2319,9 +2319,8 @@ contains
 
     ! explanation message
     call iw_text("Atoms i and j are bonded if:"//newline//&
-       "  (ri+rj)/(bond factor) < rij < (ri+rj)*(bond factor)"//newline//&
-       "where rij is the atomic distance, ri and rj are the radii")
-
+       "  d < (ri+rj)*(bond factor)"//newline//&
+       "where d = atom distance; ri, rj = atom radii")
 
     ! right-align and bottom-align for the rest of the contents
     call igGetContentRegionAvail(szavail)

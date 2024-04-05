@@ -2978,7 +2978,7 @@ contains
     real*8, parameter :: th2end0 = 50d0
     real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
-    real*8, parameter :: alpha0 = 0.5d0 ! width of the "triangle"
+    real*8, parameter :: alpha0 = 1.0d0 ! width of the "triangle"
     integer, parameter :: final_npts = 10001
 
     include 'nlopt.f'
