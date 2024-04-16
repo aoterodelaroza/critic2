@@ -1122,7 +1122,7 @@ contains
   !> structure.
   module subroutine struct_rdf(s,line)
     use systemmod, only: system
-    use global, only: fileroot, eval_next, dunit0, iunit
+    use global, only: fileroot, eval_next, dunit0, iunit, iunitname0, iunit_bohr
     use tools_io, only: faterr, ferror, uout, lgetword, equal, fopen_write,&
        ioj_center, getword, string, fclose, isinteger
     use types, only: realloc
@@ -1212,9 +1212,10 @@ contains
 
     ! write the data file
     lu = fopen_write(trim(root) // ".dat")
-    write (lu,'("# ",A,A)') string("r (bohr)",13,ioj_center), string("RDF(r)",13,ioj_center)
+    write (lu,'("# ",A,A)') string("r (" // iunitname0(iunit) // ")",13,ioj_center),&
+       string("RDF(r)",13,ioj_center)
     do i = 1, npts
-       write (lu,'(A," ",A)') string(t(i),"f",15,7,ioj_center), &
+       write (lu,'(A," ",A)') string(t(i) * dunit0(iunit),"f",15,7,ioj_center), &
           string(ih(i),"f",15,7,ioj_center)
     end do
     call fclose(lu)
@@ -1225,9 +1226,14 @@ contains
     write (lu,'("set terminal postscript eps color enhanced ""Helvetica"" 25")')
     write (lu,'("set output """,A,".eps""")') trim(root)
     write (lu,*)
-    write (lu,'("set xlabel ""r (bohr)""")')
+    if (iunit == iunit_bohr) then
+       write (lu,'("set xlabel ""r (bohr)""")')
+    else
+       write (lu,'("set xlabel ""r (ang)""")')
+    end if
     write (lu,'("set ylabel ""RDF(r)""")')
-    write (lu,'("set xrange [",A,":",A,"]")') string(rini,"f"), string(rend,"f")
+    write (lu,'("set xrange [",A,":",A,"]")') string(rini * dunit0(iunit),"f"), &
+       string(rend * dunit0(iunit),"f")
     write (lu,'("set style data lines")')
     write (lu,'("set grid")')
     write (lu,'("unset key")')
