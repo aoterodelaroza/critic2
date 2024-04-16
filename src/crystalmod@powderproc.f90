@@ -292,22 +292,18 @@ contains
   end subroutine powder
 
   !> Calculate the radial distribution function.  On input, npts is
-  !> the number of bins points from the initial (0) to the final
-  !> (rend) distance and sigma is the Gaussian broadening of the
-  !> peaks. If ishard=.false., represent the tails of the peaks
-  !> outside the plot range.
-  !> On output, t is the distance grid, and ih is the value of the
-  !> RDF. This routine is based on:
+  !> the number of bins from the initial (0) to the final (rend)
+  !> distance and sigma is the Gaussian broadening of the peaks. If
+  !> ishard=.false., represent the tails of the peaks outside the plot
+  !> range.  On output, t is the distance grid, and ih is the value of
+  !> the RDF. This routine is based on:
   !>   Willighagen et al., Acta Cryst. B 61 (2005) 29.
   !> except using the sqrt of the atomic numbers instead of the
   !> charges.
   !>
   !> Optionally, if npairs0/ipairs0 are given, return the RDF of only
   !> the pairs of species given in the ipairs0 array. npairs0 is the
-  !> number of selected pairs. If dp, ip, and isp are provided, on
-  !> output they will contain the list of peaks that contribute to the
-  !> RDF. Specifically, the distances (dp, in bohr), intensities (ip),
-  !> and the atomic species (isp(2,*)).
+  !> number of selected pairs.
   !>
   !> If ihat is present, return the RDF for non-equivalent atom i in
   !> ihat(:,i).
@@ -340,7 +336,7 @@ contains
 
     real*8, parameter :: ieps = 1d-10
 
-    ! set up the chosen pairs
+    ! set up the chosen pairs (ipairs(1) < ipairs(2))
     npairs = 0
     if (present(npairs0) .and. present(ipairs0)) then
        npairs = npairs0
@@ -418,7 +414,7 @@ contains
           if (npairs > 0) then
              found = .false.
              do k = 1, npairs
-                if (ipairs(1,k) == kz) then
+                if (ipairs(2,k) == kz) then
                    found = .true.
                    exit
                 end if
