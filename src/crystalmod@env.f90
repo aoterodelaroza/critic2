@@ -290,7 +290,7 @@ contains
              end if
 
              ! exit if we have examined all atoms in the molecule
-             if (c%ismolecule .and. nseen == c%ncel) then
+             if (c%ismolecule .and. nsafe == c%ncel) then
                 up2n_ = min(up2n_,nat)
                 exit
              end if
