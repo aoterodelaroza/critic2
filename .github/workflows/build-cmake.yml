@@ -14,11 +14,13 @@ jobs:
   build-cmake:
     name: ${{ matrix.os }}, gfortran-${{ matrix.ver }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
         ver: [10] # 7, 8, 9
 
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
