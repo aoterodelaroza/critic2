@@ -32,7 +32,7 @@ contains
     use crystalmod, only: crystal
     use param, only: isformat_cif, isformat_shelx, isformat_f21,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit,&
-       isformat_elk,&
+       isformat_elk, isformat_fploout,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz, isformat_gjf,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
@@ -92,6 +92,8 @@ contains
        isformat = isformat_qeout
     elseif (equal(lword,'crystal')) then
        isformat = isformat_crystal
+    elseif (equal(lword,'fplo')) then
+       isformat = isformat_fploout
     elseif (equal(lword,'xyz')) then
        isformat = isformat_xyz
     elseif (equal(lword,'gjf').or.equal(lword,'com')) then
@@ -256,6 +258,9 @@ contains
 
     elseif (isformat == isformat_crystal) then
        call seed%read_crystalout(word,mol,errmsg)
+
+    elseif (isformat == isformat_fploout) then
+       call seed%read_fploout(word,mol,errmsg)
 
     elseif (isformat == isformat_qein) then
        call seed%read_qein(word,mol,errmsg)

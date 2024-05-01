@@ -788,7 +788,7 @@ contains
     use global, only: rborder_def
     use param, only: isformat_cif, isformat_shelx, isformat_f21,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit,&
-       isformat_elk,&
+       isformat_elk, isformat_fploout,&
        isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
        isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
        isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
@@ -862,6 +862,9 @@ contains
 
     elseif (isformat == isformat_crystal) then
        call seed%read_crystalout(file,mol,errmsg,ti=ti)
+
+    elseif (isformat == isformat_fploout) then
+       call seed%read_fploout(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_qein) then
        call seed%read_qein(file,mol,errmsg,ti=ti)
@@ -2983,6 +2986,160 @@ contains
 
   end subroutine read_crystalout
 
+  !> Read the structure from an FPLO output
+  module subroutine read_fploout(seed,file,mol,errmsg,ti)
+    use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
+       zatguess, nameguess, fclose
+    use tools_math, only: matinv
+    use param, only: maxzat
+    use types, only: realloc
+    class(crystalseed), intent(inout) :: seed !< Output crystal seed
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lu, i, ll, ier
+    character(len=:), allocatable :: line
+    integer :: iz, lp, idum1, idum2, idum3
+    logical :: ok, iscell, isatoms
+    character*(10) :: ats
+    integer :: usez(maxzat)
+    real*8 :: r(3,3)
+
+    call seed%end()
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file."
+       return
+    end if
+
+    errmsg = "Error reading file."
+    iscell = .false.
+    isatoms = .false.
+    seed%nat = 0
+    seed%nspc = 0
+    ! rewind and read the correct structure
+    do while (getline_raw(lu,line))
+       ll = len(line)
+       if (ll == 15) then
+          if (line == "lattice vectors") then
+             do i = 1, 3
+                lp = 1
+                ok = getline_raw(lu,line)
+                line = line(12:)
+                ok = ok .and. isreal(r(i,1),line,lp)
+                ok = ok .and. isreal(r(i,2),line,lp)
+                ok = ok .and. isreal(r(i,3),line,lp)
+             end do
+             if (.not.ok) then
+                errmsg = "Error reading lattice vectors."
+                goto 999
+             end if
+             iscell = .true.
+          end if
+       elseif (ll == 27) then
+          if (line(18:27) == "Atom sites") then
+             ! number of sites
+             ok = getline_raw(lu,line)
+             ok = ok .and. getline_raw(lu,line)
+             ok = ok .and. isinteger(seed%nat,line(18:))
+             do i = 1, 3
+                ok = ok .and. getline_raw(lu,line)
+             end do
+             if (.not.ok) then
+                errmsg = "Error reading number of sites."
+                goto 999
+             end if
+
+             ! sites
+             seed%nspc = 0
+             if (allocated(seed%x)) deallocate(seed%x)
+             if (allocated(seed%is)) deallocate(seed%is)
+             allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+             usez = 0
+             do i = 1, seed%nat
+                ok = getline_raw(lu,line)
+                read (line,*) idum1, ats, idum2, idum3, seed%x(:,i)
+                iz = zatguess(ats)
+                if (iz < 1 .or. iz > maxzat) then
+                   errmsg = "Unknown atomic species: " // ats // "."
+                   goto 999
+                end if
+
+                if (usez(iz) == 0) then
+                   seed%nspc = seed%nspc + 1
+                   usez(iz) = seed%nspc
+                   seed%is(i) = seed%nspc
+                else
+                   seed%is(i) = usez(iz)
+                end if
+             end do
+
+             ! species
+             if (allocated(seed%spc)) deallocate(seed%spc)
+             allocate(seed%spc(seed%nspc))
+             do iz = 1, maxzat
+                if (usez(iz) > 0) then
+                   i = usez(iz)
+                   seed%spc(i)%name = nameguess(iz,.true.)
+                   seed%spc(i)%z = iz
+                   seed%spc(i)%qat = 0d0
+                end if
+             end do
+
+             ! all done
+             isatoms = (seed%nat > 0) .and. (seed%nspc > 0)
+          end if
+       end if
+    end do
+    if (.not.iscell) then
+       errmsg = "No lattice parameters found."
+       goto 999
+    end if
+    if (.not.isatoms) then
+       errmsg = "No atoms found."
+       goto 999
+    end if
+
+    ! cell
+    seed%m_x2c = transpose(r)
+    r = seed%m_x2c
+    call matinv(r,3,ier)
+    if (ier /= 0) then
+       errmsg = "Error inverting lattice parameter matrix"
+       goto 999
+    end if
+    seed%useabr = 2
+
+    ! atoms
+    do i = 1, seed%nat
+       seed%x(:,i) = matmul(r,seed%x(:,i))
+       seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
+    end do
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+    ! no symmetry
+    seed%havesym = 0
+    seed%findsym = -1
+    seed%checkrepeats = .false.
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%ismolecule = mol
+    seed%cubic = .false.
+    seed%border = 0d0
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    seed%file = file
+    seed%name = file
+
+  end subroutine read_fploout
+
   !> Read the structure from a siesta OUT input
   module subroutine read_siesta(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, nameguess, fclose
@@ -4859,7 +5016,8 @@ contains
        getline_raw, lgetword, equal, lower
     use param, only: isformat_cif, isformat_shelx, isformat_f21,&
        isformat_cube, isformat_bincube, isformat_struct, isformat_abinit, isformat_elk,&
-       isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz, isformat_gjf, isformat_wfn,&
+       isformat_qein, isformat_qeout, isformat_crystal, isformat_fploout,&
+       isformat_xyz, isformat_gjf, isformat_wfn,&
        isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian, isformat_siesta,&
        isformat_xsf, isformat_gen, isformat_vasp, isformat_pwc, isformat_axsf,&
        isformat_dat, isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
@@ -4881,7 +5039,7 @@ contains
        isformat_cube,isformat_bincube,isformat_struct,isformat_abinit,&
        isformat_elk,isformat_siesta,isformat_dmain,isformat_vasp,&
        isformat_axsf,isformat_tinkerfrac,isformat_qein,isformat_qeout,&
-       isformat_crystal,isformat_castepcell,isformat_castepgeom)
+       isformat_crystal,isformat_fploout,isformat_castepcell,isformat_castepgeom)
        ismol = .false.
 
     case (isformat_xyz,isformat_gjf,isformat_pgout,isformat_wfn,isformat_wfx,&
@@ -5024,7 +5182,7 @@ contains
     use tools_io, only: getword, equali, fopen_read, fclose
     use param, only: isformat_cube, isformat_bincube, isformat_xyz, isformat_wfn,&
        isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian, isformat_gjf,&
-       isformat_zmat,isformat_abinit,isformat_cif,isformat_pwc,&
+       isformat_zmat, isformat_abinit, isformat_cif, isformat_pwc, isformat_fploout,&
        isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
        isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_axsf,&
        isformat_xsf, isformat_castepcell, isformat_castepgeom,&
@@ -5110,6 +5268,8 @@ contains
        call read_all_qeout(nseed,seed,file,mol,-1,errmsg,ti=ti)
     elseif (isformat == isformat_crystal) then
        call seed(1)%read_crystalout(file,mol,errmsg,ti=ti)
+    elseif (isformat == isformat_fploout) then
+       call seed(1)%read_fploout(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_qein) then
        call seed(1)%read_qein(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_xyz) then
@@ -7474,7 +7634,8 @@ contains
   !> from a crystal, quantum espresso, or orca calculation.
   subroutine which_out_format(file,isformat,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, equal, lower, lgetword
-    use param, only: isformat_qeout, isformat_crystal, isformat_orca, isformat_aimsout
+    use param, only: isformat_qeout, isformat_crystal, isformat_fploout,&
+       isformat_orca, isformat_aimsout
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: isformat
     type(thread_info), intent(in), optional :: ti
@@ -7499,6 +7660,9 @@ contains
           exit
        elseif (index(line,"Invoking FHI-aims ...") > 0) then
           isformat = isformat_aimsout
+          exit
+       elseif (index(line,"FULL-POTENTIAL LOCAL-ORBITAL MINIMUM BASIS BANDSTRUCTURE CODE") > 0) then
+          isformat = isformat_fploout
           exit
        end if
     end do
