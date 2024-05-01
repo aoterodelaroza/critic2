@@ -36,6 +36,7 @@ set(TESTS
   035_crystal_forceformat  ## force a crystal file format
   036_crystal_cell         ## from a CASTEP cell file
   037_crystal_geom         ## from a CASTEP geom file
+  038_crystal_fploout      ## from an FPLO output file
   )
 
 runtests(${TESTS})

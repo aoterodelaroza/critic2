@@ -1,0 +1,5 @@
+## delete: 038_crystal_fploout.cro
+## check: 038_crystal_fploout_gen.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/fplo-22.00v62/scf.out
+write 038_crystal_fploout_gen.cri
