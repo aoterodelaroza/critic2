@@ -64,7 +64,7 @@ contains
        ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi, ifformat_cube,&
        ifformat_bincube, ifformat_abinit, ifformat_fmt,&
        ifformat_vasp, ifformat_vaspnov, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
-       ifformat_siestagrid, ifformat_dftb, ifformat_pwc,&
+       ifformat_siestagrid, ifformat_fplogrid, ifformat_dftb, ifformat_pwc,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk,&
        ifformat_molden, ifformat_as, ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap,&
        ifformat_as_resample,&
@@ -125,6 +125,9 @@ contains
        call read_next_as_file()
     elseif (equal(lfile,"siesta")) then
        f%iff = ifformat_siestagrid
+       call read_next_as_file()
+    elseif (equal(lfile,"fplo")) then
+       f%iff = ifformat_fplogrid
        call read_next_as_file()
     elseif (equal(lfile,"dftb")) then
        f%iff = ifformat_dftb
@@ -193,7 +196,7 @@ contains
        ! no files needed
        nfile = 0
     elseif (f%iff == ifformat_cube .or. f%iff == ifformat_bincube .or.&
-       f%iff == ifformat_abinit .or. f%iff == ifformat_siestagrid .or.&
+       f%iff == ifformat_abinit .or. f%iff == ifformat_siestagrid .or. f%iff == ifformat_fplogrid .or.&
        f%iff == ifformat_vasp .or. f%iff == ifformat_vaspnov .or. f%iff == ifformat_qub .or.&
        f%iff == ifformat_xsf .or. f%iff == ifformat_wfn .or. f%iff == ifformat_wfx .or.&
        f%iff == ifformat_fmt .or.&
@@ -647,7 +650,7 @@ contains
     use wfn_private, only: molden_type_unknown, molden_type_orca
     use tools_io, only: ferror, equal
     use param, only: dirsep,&
-       ifformat_cube,ifformat_bincube,ifformat_abinit,ifformat_siestagrid,&
+       ifformat_cube,ifformat_bincube,ifformat_abinit,ifformat_siestagrid,ifformat_fplogrid,&
        ifformat_dftb,ifformat_vasp,ifformat_vaspnov,ifformat_qub,ifformat_fmt,&
        ifformat_xsf,ifformat_wfn,ifformat_wfx,ifformat_fchk,ifformat_molden,&
        ifformat_molden,ifformat_wien,ifformat_elkgrid,ifformat_elk,&
@@ -687,6 +690,8 @@ contains
        equal(extdot,'DRHO') .or. equal(extdot,'LDOS') .or.&
        equal(extdot,'VT') .or. equal(extdot,'VH')) then
        field_detect_format = ifformat_siestagrid
+    else if (equal(extdot,'001')) then
+       field_detect_format = ifformat_fplogrid
     else if (equal(extdot,'xml')) then
        field_detect_format = ifformat_dftb
     else if (equal(extdot,'CHG').or.equal(extdot,'CHGCAR').or.&

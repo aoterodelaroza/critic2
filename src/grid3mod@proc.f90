@@ -659,6 +659,86 @@ contains
 
   end subroutine read_siesta
 
+  !> Read a grid in FPLO grid format
+  module subroutine read_fplo(f,cptr,file,x2c,errmsg,ti)
+    use tools_io, only: fopen_read, fclose, getline_raw, isinteger
+    use tools_math, only: matinv
+    class(grid3), intent(inout) :: f
+    type(c_ptr), intent(in) :: cptr
+    character*(*), intent(in) :: file !< Input file
+    real*8, intent(in) :: x2c(3,3)
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    logical :: ok
+    integer :: luc, nspin, istat
+    integer :: i, ix, iy, iz, n(3), ll, lp
+    real*8 :: r(3,3)
+    real*4, allocatable :: g(:)
+    character(len=:), allocatable :: line
+
+    errmsg = "Error reading file"
+
+    ! initialize
+    call f%end()
+    f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
+    f%mode = mode_default
+
+    ! open file
+    luc = fopen_read(file,ti=ti)
+    if (luc < 0) goto 999
+
+    ! read the header and initialize geometry
+    n = 0
+    do while (getline_raw(luc,line))
+       ll = len(line)
+       if (ll >= 17) then
+          if (line(1:17) == "#position-subdiv:") then
+             line = line(18:)
+             lp = 1
+             ok = isinteger(n(1),line,lp)
+             ok = ok .and. isinteger(n(2),line,lp)
+             ok = ok .and. isinteger(n(3),line,lp)
+             if (.not.ok) then
+                errmsg = "Error reading number of grid points."
+                goto 999
+             end if
+          elseif (ll >= 9) then
+             if (line(1:9) == "#columns:") exit
+          end if
+       end if
+    end do
+    if (any(n <= 0)) then
+       errmsg = "Number of grid points not found."
+       goto 999
+    end if
+    call init_geometry(f,x2c,n,cptr)
+
+    ! read the field and close
+    allocate(f%f(n(1),n(2),n(3)),stat=istat)
+    if (istat /= 0) then
+       errmsg = "Error allocating grid"
+       goto 999
+    end if
+    f%f = 0d0
+    do iz = 1, n(3)
+       do iy = 1, n(2)
+          do ix = 1, n(1)
+             read (luc,*,err=999,end=999) f%f(ix,iy,iz)
+          end do
+       end do
+    end do
+    call fclose(luc)
+
+    errmsg = ""
+    return
+999 continue
+    if (luc > 0) call fclose(luc)
+
+  end subroutine read_fplo
+
   !> Read a grid in abinit format
   module subroutine read_abinit(f,cptr,file,x2c,errmsg,ti)
     use tools_math, only: matinv

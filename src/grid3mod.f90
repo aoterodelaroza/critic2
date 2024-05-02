@@ -95,6 +95,7 @@ module grid3mod
      procedure :: read_cube !< grid3 from a Gaussian cube file
      procedure :: read_bincube !< grid3 from a binary cube file
      procedure :: read_siesta !< grid3 from siesta RHO file
+     procedure :: read_fplo !< grid3 from FPLO 001 file
      procedure :: read_abinit !< grid3 from abinit binary file
      procedure :: read_vasp !< grid3 from VASP file (CHG, CHGCAR, etc.)
      procedure :: read_qub !< grid3 from aimpac qub format
@@ -168,6 +169,14 @@ module grid3mod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_siesta
+     module subroutine read_fplo(f,cptr,file,x2c,errmsg,ti)
+       class(grid3), intent(inout) :: f
+       type(c_ptr), intent(in) :: cptr
+       character*(*), intent(in) :: file
+       real*8, intent(in) :: x2c(3,3)
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_fplo
      module subroutine read_abinit(f,cptr,file,x2c,errmsg,ti)
        class(grid3), intent(inout) :: f
        type(c_ptr), intent(in) :: cptr
