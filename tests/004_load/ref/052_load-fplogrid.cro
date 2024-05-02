@@ -1,0 +1,44 @@
++ Field number 1
+  Name: grid_dens.001
+  Source: ../zz_source/fplo-22.00v62/quartz/grid_dens.001
+  Type: grid
+  Grid dimensions : 31  31  31  
+  Max. length Voronoi-relevant vector (bohr):  0.32003  
+  First elements... 3.348430108050E-03  3.436753978053E-03  3.665741270579E-03  
+  Last elements... 3.665741270579E-03  3.436753978053E-03  3.348430108050E-03  
+  Sum of elements... 4.409401995036E+03
+  Sum of squares of elements... 7.463713441405E+04
+  Cell integral (grid SUM) = 100.53109310
+  Min: 1.60338298E-03
+  Average: 1.48011211E-01
+  Max: 7.26175267E+01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 9
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): 0.7699972  1.3336742  2.9763186  
+  Coordinates (ang): 0.4074650  0.7057500  1.5750000  
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 1.105288805E-02
+  Field value, valence (fval): 1.105288805E-02
+  Gradient (grad f): 2.296090292E-02  -5.508730930E-03  -7.380732725E-03  
+  Gradient norm (|grad f|): 2.473912680E-02
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): -5.630108537E-03
+  Laplacian, valence (del2 fval): -5.630108537E-03
+  Hessian:
+     6.800742229E-03  -1.855686061E-02  -2.245520310E-02  
+    -1.855686061E-02  -7.648121048E-03   5.779385532E-03  
+    -2.245520310E-02   5.779385532E-03  -4.782729718E-03  
+  Hessian eigenvalues: -2.608285680E-02  -1.215815755E-02  3.261090581E-02  
+  Ellipticity (l_1/l_2 - 1): 1.145296826E+00
+  Field 0 (f,|grad|,lap): 1.191073268E-02  2.098652336E-02  4.389095480E-02  
+

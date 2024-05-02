@@ -1,0 +1,5 @@
+## check: 052_load-fplogrid.cro -a1e-10
+## labels: regression quick
+crystal ../zz_source/fplo-22.00v62/quartz/scf.out
+load ../zz_source/fplo-22.00v62/quartz/grid_dens.001
+point 0.1 0.2 0.3 all

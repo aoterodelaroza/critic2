@@ -50,6 +50,7 @@ set(TESTS
   049_check_molwfn_wfntyp  ## molecular wavefunctions; check wavefunction type
   050_load-corekeyw        ## core, nocore, zpsp keywords
   051_load-fmt             ## load grid from CASTEP fmt file
+  052_load-fplogrid        ## load grid from FPLO grid file (001)
   )
 
 runtests(${TESTS})
