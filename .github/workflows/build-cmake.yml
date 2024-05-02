@@ -35,7 +35,7 @@ jobs:
       - name: Install packages (macOS)
         if: contains(matrix.os,'macos')
         run: |
-          brew install gcc || brew upgrade gcc || true
+          brew install gcc gfortran || brew upgrade gcc gfortran || true
 
       - name: Build
         run: |
