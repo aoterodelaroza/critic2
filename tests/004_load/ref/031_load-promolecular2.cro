@@ -75,14 +75,14 @@
   Type: grid
   Grid dimensions : 10  10  10  
   Max. length Voronoi-relevant vector (bohr):  1.05163  
-  First elements... 2.168404344971E-19  -2.168404344971E-19  -2.168404344971E-19  
-  Last elements... 1.734723475977E-18  3.469446951954E-18  -1.734723475977E-18  
-  Sum of elements... 3.778271098764E-14
-  Sum of squares of elements... 8.718036068114E-28
+  First elements... -4.336808689942E-19  2.168404344971E-19  4.336808689942E-19  
+  Last elements... -1.734723475977E-18  0.000000000000E+00  -1.734723475977E-18  
+  Sum of elements... 9.307637126310E-14
+  Sum of squares of elements... 4.118597939968E-27
   Cell integral (grid SUM) = 0.00000000
-  Min: -4.44089210E-16
-  Average: 3.77827110E-17
-  Max: 2.84217094E-14
+  Min: -3.33066907E-16
+  Average: 9.30763713E-17
+  Max: 5.68434189E-14
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
