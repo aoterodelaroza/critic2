@@ -16,7 +16,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+#        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
@@ -32,10 +33,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc gfortran
 
-      - name: Install packages (macOS)
-        if: contains(matrix.os,'macos')
-        run: |
-          brew install gcc || brew upgrade gcc || true
+#      - name: Install packages (macOS)
+#        if: contains(matrix.os,'macos')
+#        run: |
+#          brew install gcc || brew upgrade gcc || true
 
       - name: Build
         run: |
