@@ -671,10 +671,8 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     logical :: ok
-    integer :: luc, nspin, istat
-    integer :: i, ix, iy, iz, n(3), ll, lp
-    real*8 :: r(3,3)
-    real*4, allocatable :: g(:)
+    integer :: luc, istat
+    integer :: ix, iy, iz, n(3), ll, lp
     character(len=:), allocatable :: line
 
     errmsg = "Error reading file"
