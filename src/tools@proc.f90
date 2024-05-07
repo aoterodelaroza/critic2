@@ -591,7 +591,8 @@ contains
     real*8 :: c2x(3,3), sc(4,4), xstar(3,7), xlen(7), dd
     logical :: again, ok
 
-    real*8, parameter :: eps = 1d-10
+    real*8, parameter :: eps_scalar = 1d-10
+    real*8, parameter :: eps_det = 1d-5
 
     ! calculate the c2x matrix
     c2x = x2c
@@ -616,10 +617,10 @@ contains
           end do
        end do
 
-       if (any(sc > eps)) then
+       if (any(sc > eps_scalar)) then
           ai: do i = 1, 4
              aj: do j = i+1, 4
-                if (sc(i,j) > eps) exit ai
+                if (sc(i,j) > eps_scalar) exit ai
              end do aj
           end do ai
           do k = 1, 4
@@ -652,7 +653,7 @@ contains
           do j = i+1, 7
              rbas(:,3) = xstar(:,iord(j))
              dd = det3(rbas)
-             if (abs(dd) > eps) then
+             if (abs(dd) > eps_det) then
                 ok = .true.
                 exit iloop
              end if
