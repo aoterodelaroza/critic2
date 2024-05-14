@@ -150,14 +150,14 @@ contains
     use tools_io, only: ferror, faterr, zatguess, string
     use tools, only: wscell, qcksort
     use types, only: realloc
-    use param, only: pi, eyet, eye, icrd_cart
+    use param, only: pi, eyet, eye
     class(crystal), intent(inout) :: c
     type(crystalseed), intent(in) :: seed
     logical, intent(in) :: crashfail
     logical, intent(in), optional :: noenv
     type(thread_info), intent(in), optional :: ti
 
-    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), dist, border, xx(3)
+    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3)
     logical :: good, good2, clearsym, doenv
     integer :: i, j, k, l, iat, newmult
     real*8, allocatable :: atpos(:,:), area(:), xcoord(:)

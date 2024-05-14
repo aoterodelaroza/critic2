@@ -1,4 +1,3 @@
-## check: 039_benchmark.cro -r0.6
 ## labels: regression quick
 
 crystal ../zz_source/wien14.2/zno/zno.struct

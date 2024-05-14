@@ -1270,8 +1270,9 @@ contains
 
   !> Read the wavefunction from a Gaussian formatted checkpoint file (fchk)
   module subroutine read_fchk(f,cptr,file,readvirtual,errmsg,ti)
-    use tools_io, only: fopen_read, getline_raw, isinteger, ferror, warning, fclose
+    use tools_io, only: fopen_read, getline_raw, isinteger, ferror, fclose
 #ifdef HAVE_CINT
+    use tools_io, only: warning
     use iso_c_binding, only: c_f_pointer
     use crystalmod, only: crystal
     use param, only: sqpi

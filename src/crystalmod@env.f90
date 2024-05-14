@@ -744,16 +744,12 @@ contains
     use global, only: bondfactor
     use tools_io, only: string
     use types, only: realloc, celatom
-    use param, only: atmcov, icrd_crys
+    use param, only: atmcov
     class(crystal), intent(inout) :: c
 
-    integer :: i, j, jj, nx(3), i0shift(3), i1shift(3)
+    integer :: i, j, nx(3), i0shift(3), i1shift(3)
     real*8 :: ri, rj, dmax, dd, xi(3), xj(3), xdelta(3)
-    real*8 :: xxi(3), xxj(3)
-    integer :: is, js
-    real*8, allocatable :: rij2(:,:,:), dist(:)
-    integer :: nat
-    integer, allocatable :: eid(:), lvec(:,:)
+    real*8, allocatable :: rij2(:,:,:)
     integer :: iblock_stride
     integer :: ix, iy, iz, jx, jy, jz, iid, jid, iidx(3), jidx(3)
     integer :: iat, jat, iaux(3), lvecx(3)
