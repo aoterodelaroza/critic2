@@ -33,6 +33,7 @@ if (BUILD_RECIPE STREQUAL "MSYS2")
   ## set the cache
   set(CMAKE_INSTALL_PREFIX "D:/msys2/home/media service/critic2-install" CACHE PATH "Install directory" FORCE)
   set(BUILD_TESTING ON CACHE BOOL "" FORCE)
+  set(USE_EXTERNAL_LAPACK OFF CACHE BOOL "" FORCE)
   set(ENABLE_GUI ON CACHE BOOL "" FORCE)
   set(BUILD_TYPE "Debug" CACHE STRING "" FORCE)
   set(GLFW3_ROOT "/home/alberto/dll/glfw-3.3.8.bin.WIN64" CACHE STRING "" FORCE)
