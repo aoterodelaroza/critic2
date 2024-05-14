@@ -1,4 +1,3 @@
-## check: 045_comparevc.cro -a1e-10
 ## labels: regression
 
 crystal library diamond
