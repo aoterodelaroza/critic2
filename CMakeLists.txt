@@ -7,8 +7,8 @@ if(POLICY CMP0074)
 endif()
 
 ## some project variables
-set(critic2_MAJOR_VERSION 1)
-set(critic2_MINOR_VERSION 1)
+file(READ "VERSION" critic2_VERSION)
+string(REGEX REPLACE " *\n$" "" critic2_VERSION "${critic2_VERSION}")
 set(critic2_URL "https://aoterodelaroza.github.io/critic2/")
 set(critic2_EMAIL "aoterodelaroza@gmail.com")
 set(critic2_LICENSE "GNU/GPL version 3")
@@ -64,7 +64,7 @@ elseif (BUILD_RECIPE STREQUAL "WINE")
 endif()
 
 ## project definition
-project(critic2 VERSION "${critic2_MAJOR_VERSION}.${critic2_MINOR_VERSION}" LANGUAGES C Fortran)
+project(critic2 VERSION "${critic2_VERSION}" LANGUAGES C Fortran)
 
 ## global flags for cmake
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
