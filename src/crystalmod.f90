@@ -672,7 +672,7 @@ module crystalmod
        real*8, allocatable, intent(inout), optional :: t(:)
        real*8, allocatable, intent(inout), optional :: ih(:)
      end subroutine powder
-     module subroutine powder_peaks(c,p,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs)
+     module subroutine powder_peaks(c,p,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs,gg)
        class(crystal), intent(in) :: c
        type(xrpd_peaklist), intent(inout) :: p
        real*8, intent(in) :: th2ini0, th2end0
@@ -680,6 +680,7 @@ module crystalmod
        real*8, intent(in) :: fpol
        logical, intent(in) :: usehvecp
        logical, intent(in) :: calcderivs
+       real*8, intent(in), optional :: gg(3,3)
      end subroutine powder_peaks
      module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0,ihat,intpeak)
        class(crystal), intent(inout) :: c

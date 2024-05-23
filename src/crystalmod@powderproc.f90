@@ -294,8 +294,9 @@ contains
   !> Return the list of powder peaks between the initial (th2ini0) and
   !> final (th2end0) 2*theta (in angles), with wavelength lambda0
   !> (angstrom) and polarization factor fpol. If usehvecp, calculate
-  !> only the reflections in p%hvec.
-  module subroutine powder_peaks(c,p,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs)
+  !> only the reflections in p%hvec. If calcderivs, calculate derivatives.
+  !> If gg is present, override the gtensor from c.
+  module subroutine powder_peaks(c,p,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs,gg)
     use tools_math, only: matinv
     use tools, only: qcksort
     use types, only: realloc
@@ -307,23 +308,34 @@ contains
     real*8, intent(in) :: fpol
     logical, intent(in) :: usehvecp
     logical, intent(in) :: calcderivs
+    real*8, intent(in), optional :: gg(3,3)
 
-  !   integer :: i, kp, np, h, k, l, iz
     integer :: i
     real*8 :: th2ini, th2end, lambda, hvec(3)!, sth
     real*8 :: smax, imax!, dh2, dh, dh3, ar(3)
-  !   real*8 :: ffac, as(4), bs(4), cs, c2s(4), mcorr, afac
     real*8 :: int, intg(6), th2, th2g(6)
-  !   real*8 :: mcorrg(6)
     integer :: hmax, hcell, h, k, l
     logical :: again
     integer, allocatable :: io(:)
+    real*8 :: grtensor(3,3), ar(3)
 
     integer, parameter :: mp = 200
     real*8, parameter :: ieps = 1d-5
 
     th2ini = th2ini0 * pi / 180d0
     th2end = th2end0 * pi / 180d0
+
+    ! grtensor and ar
+    if (present(gg)) then
+       grtensor = gg
+       call matinv(grtensor,3)
+       do i = 1, 3
+          ar(i) = sqrt(grtensor(i,i))
+       end do
+    else
+       grtensor = c%grtensor
+       ar = c%ar
+    end if
 
     ! allocate peak list
     if (allocated(p%th2)) deallocate(p%th2)
@@ -340,7 +352,7 @@ contains
     ! metric tensor, cell limits, convert lambda to bohr
     lambda = lambda0 / bohrtoa
     smax = sin((th2end)/2d0)
-    hmax = 2*ceiling(2*smax/lambda/minval(c%ar))
+    hmax = 2*ceiling(2*smax/lambda/minval(ar))
 
     ! calculate the intensities
     if (.not.usehvecp) then
@@ -445,11 +457,11 @@ contains
       th2 = 0d0
 
       ! plane distance and derivatives
-      dh2 = dot_product(hvec,matmul(c%grtensor,hvec))
+      dh2 = dot_product(hvec,matmul(grtensor,hvec))
       dh = sqrt(dh2)
       dh3 = dh2 * dh
       if (calcderivs) then
-         dhv = matmul(c%grtensor,hvec)
+         dhv = matmul(grtensor,hvec)
          dhm(1) = dhv(1) * dhv(1)
          dhm(2) = dhv(1) * dhv(2)
          dhm(3) = dhv(1) * dhv(3)
