@@ -218,6 +218,7 @@ module crystalmod
 
      ! powder diffraction and related calcs (powderproc)
      procedure :: powder !< Calculate the powder diffraction pattern
+     procedure :: powder_peaks !< Calculate the XRPD peaks
      procedure :: rdf !< Calculate the radial distribution function
      procedure :: amd !< Calculate the average minimum distances (Widdowson et al.)
 
@@ -261,13 +262,23 @@ module crystalmod
   end type crystal
   public :: crystal
 
+  type xrpd_peaklist
+     integer :: npeak ! number of peaks
+     real*8, allocatable :: th2(:) ! reflection angles (2*theta)
+     real*8, allocatable :: ip(:) ! peak intensities
+     integer, allocatable :: hvec(:,:) ! reflection indices
+     real*8, allocatable :: th2g(:,:) ! gradient of th2 wrt metric tensor
+     real*8, allocatable :: ipg(:,:) ! gradient of ip wrt metric tensor
+  end type xrpd_peaklist
+  public :: xrpd_peaklist
+
   ! other crystallography tools that are crystal-independent (symmetry)
   public :: search_lattice
   public :: pointgroup_info
 
   ! module procedure interfaces
   interface
-     !xx! proc submodule
+     !xx! crystal type
      module subroutine struct_init(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_init
@@ -661,6 +672,15 @@ module crystalmod
        real*8, allocatable, intent(inout), optional :: t(:)
        real*8, allocatable, intent(inout), optional :: ih(:)
      end subroutine powder
+     module subroutine powder_peaks(c,p,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs)
+       class(crystal), intent(in) :: c
+       type(xrpd_peaklist), intent(inout) :: p
+       real*8, intent(in) :: th2ini0, th2end0
+       real*8, intent(in) :: lambda0
+       real*8, intent(in) :: fpol
+       logical, intent(in) :: usehvecp
+       logical, intent(in) :: calcderivs
+     end subroutine powder_peaks
      module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0,ihat,intpeak)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: rini
@@ -891,7 +911,6 @@ module crystalmod
        integer, intent(out) :: holo
        integer, intent(out) :: laue
      end subroutine pointgroup_info
-     !xx! write submodule
   end interface
 
 end module crystalmod

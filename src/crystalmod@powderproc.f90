@@ -291,6 +291,256 @@ contains
 
   end subroutine powder
 
+  !> Return the list of powder peaks between the initial (th2ini0) and
+  !> final (th2end0) 2*theta (in angles), with wavelength lambda0
+  !> (angstrom) and polarization factor fpol. If usehvecp, calculate
+  !> only the reflections in p%hvec.
+  module subroutine powder_peaks(c,p,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs)
+    use tools_math, only: matinv
+    use tools, only: qcksort
+    use types, only: realloc
+    use param, only: pi, bohrtoa
+    class(crystal), intent(in) :: c
+    type(xrpd_peaklist), intent(inout) :: p
+    real*8, intent(in) :: th2ini0, th2end0
+    real*8, intent(in) :: lambda0
+    real*8, intent(in) :: fpol
+    logical, intent(in) :: usehvecp
+    logical, intent(in) :: calcderivs
+
+  !   integer :: i, kp, np, h, k, l, iz
+    integer :: i
+    real*8 :: th2ini, th2end, lambda, hvec(3)!, sth
+    real*8 :: smax, imax!, dh2, dh, dh3, ar(3)
+  !   real*8 :: ffac, as(4), bs(4), cs, c2s(4), mcorr, afac
+    real*8 :: int, intg(6), th2, th2g(6)
+  !   real*8 :: mcorrg(6)
+    integer :: hmax, hcell, h, k, l
+    logical :: again
+    integer, allocatable :: io(:)
+
+    integer, parameter :: mp = 200
+    real*8, parameter :: ieps = 1d-5
+
+    th2ini = th2ini0 * pi / 180d0
+    th2end = th2end0 * pi / 180d0
+
+    ! allocate peak list
+    if (allocated(p%th2)) deallocate(p%th2)
+    if (allocated(p%ip)) deallocate(p%ip)
+    if (allocated(p%th2g)) deallocate(p%th2g)
+    if (allocated(p%ipg)) deallocate(p%ipg)
+    if (usehvecp) then
+       allocate(p%th2(p%npeak),p%ip(p%npeak),p%th2g(6,p%npeak),p%ipg(6,p%npeak))
+    else
+       if (allocated(p%hvec)) deallocate(p%hvec)
+       allocate(p%th2(mp),p%ip(mp),p%hvec(3,mp),p%th2g(6,mp),p%ipg(6,mp))
+    end if
+
+    ! metric tensor, cell limits, convert lambda to bohr
+    lambda = lambda0 / bohrtoa
+    smax = sin((th2end)/2d0)
+    hmax = 2*ceiling(2*smax/lambda/minval(c%ar))
+
+    ! calculate the intensities
+    if (.not.usehvecp) then
+       p%npeak = 0
+       hcell = 0
+       again = .true.
+       do while (again)
+          hcell = hcell + 1
+          again = (hcell <= hmax)
+          do h = -hcell, hcell
+             do k = -hcell, hcell
+                do l = -hcell, hcell
+                   if (abs(h)/=hcell.and.abs(k)/=hcell.and.abs(l)/=hcell) cycle
+
+                   ! calculate this reciprocal lattice vector
+                   hvec = real((/h,k,l/),8)
+                   call run_function_body()
+
+                   ! sum the peak
+                   if (int > ieps) then
+                      again = .true.
+                      p%npeak = p%npeak + 1
+                      if (p%npeak > size(p%th2,1)) then
+                         call realloc(p%th2,2*p%npeak)
+                         call realloc(p%ip,2*p%npeak)
+                         call realloc(p%hvec,3,2*p%npeak)
+                         call realloc(p%th2g,6,2*p%npeak)
+                         call realloc(p%ipg,6,2*p%npeak)
+                      end if
+                      p%th2(p%npeak) = th2
+                      p%ip(p%npeak) = int
+                      p%hvec(1,p%npeak) = h
+                      p%hvec(2,p%npeak) = k
+                      p%hvec(3,p%npeak) = l
+                      if (calcderivs) then
+                         p%th2g(:,p%npeak) = th2g
+                         p%ipg(:,p%npeak) = intg
+                      end if
+                   end if
+                end do
+             end do
+          end do
+       end do
+       call realloc(p%th2,p%npeak)
+       call realloc(p%ip,p%npeak)
+       call realloc(p%hvec,3,p%npeak)
+       call realloc(p%th2g,6,p%npeak)
+       call realloc(p%ipg,6,p%npeak)
+    else
+       do i = 1, p%npeak
+          hvec = real(p%hvec(:,i),8)
+          call run_function_body()
+          p%th2(i) = th2
+          p%ip(i) = int
+          if (calcderivs) then
+             p%th2g(:,i) = th2g
+             p%ipg(:,i) = intg
+          end if
+       end do
+    end if
+
+    ! sort the peaks
+    allocate(io(p%npeak))
+    do i = 1, p%npeak
+       io(i) = i
+    end do
+    call qcksort(p%th2,io,1,p%npeak)
+    p%th2 = p%th2(io)
+    p%ip = p%ip(io)
+    p%hvec = p%hvec(:,io)
+    if (calcderivs) then
+       p%th2g = p%th2g(:,io)
+       p%ipg = p%ipg(:,io)
+    end if
+    deallocate(io)
+
+    ! scale the angles
+    p%th2 = p%th2 * 180d0 / pi
+    if (calcderivs) p%th2g = p%th2g * 180d0 / pi
+
+    ! normalize the intensities (highest peak is 1)
+    imax = maxval(p%ip)
+    p%ip = p%ip / imax
+    if (calcderivs) p%ipg = p%ipg / imax
+
+  contains
+    subroutine run_function_body()
+      use tools_io, only: ferror, faterr
+      use param, only: cscatt, c2scatt
+      real*8 :: xfac, ffacg(6), esthlam, afac, mcorr, mcorrg(6)
+      real*8 :: cterm, sterm, ctermg(6), stermg(6), ffac
+      real*8 :: kx, ckx, skx
+      real*8 :: as(4), bs(4), cs, c2s(4)
+      real*8 :: dhv(3), dhm(6), sthlam, kvec(3), ebs(4)
+      real*8 :: th, dh, dh2, dh3, sth, cth, cth2
+      integer :: i, iz
+
+      ! initialize
+      int = 0d0
+      intg = 0d0
+      th = 0d0
+      th2 = 0d0
+
+      ! plane distance and derivatives
+      dh2 = dot_product(hvec,matmul(c%grtensor,hvec))
+      dh = sqrt(dh2)
+      dh3 = dh2 * dh
+      if (calcderivs) then
+         dhv = matmul(c%grtensor,hvec)
+         dhm(1) = dhv(1) * dhv(1)
+         dhm(2) = dhv(1) * dhv(2)
+         dhm(3) = dhv(1) * dhv(3)
+         dhm(4) = dhv(2) * dhv(2)
+         dhm(5) = dhv(2) * dhv(3)
+         dhm(6) = dhv(3) * dhv(3)
+         dhm = -0.5d0 * dhm / dh
+      end if
+
+      ! the theta is not outside the spectrum range
+      sth = 0.5d0 * lambda * dh
+      if (abs(sth) > 1d0) return
+      if (.not.usehvecp .and. abs(sth) > smax) return
+      th = asin(sth)
+      th2 = 2d0 * th
+      if (.not.usehvecp .and. (th2 < th2ini .or. th2 > th2end)) return
+      cth = cos(th)
+      if (calcderivs) &
+         th2g = 2d0 * sth / (cth * dh) * dhm
+
+      ! more stuff we need
+      sthlam = dh / bohrtoa / 2d0
+      kvec = 2 * pi * hvec
+
+      ! calculate the raw intensity for this (hkl)
+      cterm = 0d0
+      sterm = 0d0
+      if (calcderivs) then
+         ctermg = 0d0
+         stermg = 0d0
+      end if
+      do i = 1, c%ncel
+         iz = c%spc(c%atcel(i)%is)%z
+         if (iz < 1 .or. iz > size(cscatt,2)) &
+            call ferror('struct_powder','invalid Z -> no atomic scattering factors',faterr)
+         as = (/cscatt(1,iz),cscatt(3,iz),cscatt(5,iz),cscatt(7,iz)/)
+         bs = (/cscatt(2,iz),cscatt(4,iz),cscatt(6,iz),cscatt(8,iz)/)
+         cs = cscatt(9,iz)
+         if (dh < 2d0) then
+            ebs = exp(-bs * dh2)
+            ffac = as(1) * ebs(1) + as(2) * ebs(2) + as(3) * ebs(3) + as(4) * ebs(4) + cs
+            if (calcderivs) then
+               xfac = as(1)*bs(1)*ebs(1) + as(2)*bs(2)*ebs(2) + as(3)*bs(3)*ebs(3) + as(4)*bs(4)*ebs(4)
+               ffacg = -2d0 * dh * xfac * dhm
+            end if
+         elseif (iz == 1) then
+            ffac = 0d0
+            if (calcderivs) ffacg = 0d0
+         else
+            c2s = c2scatt(:,iz)
+            ffac = exp(c2s(1)+c2s(2)*dh+c2s(3)*dh2/10d0+c2s(4)*dh3/100d0)
+            if (calcderivs) then
+               xfac = c2s(2) + 2d0 * c2s(3) * dh / 10d0 + 3d0 * c2s(4) * dh2 / 100d0
+               ffacg = ffac * xfac * dhm
+            end if
+         end if
+         esthlam = exp(-sthlam**2)
+         if (calcderivs) &
+            ffacg = (ffacg - sthlam / bohrtoa * ffac * dhm) * esthlam
+         ffac = ffac * esthlam
+
+         kx = dot_product(kvec,c%atcel(i)%x)
+         ckx = cos(kx)
+         skx = sin(kx)
+         cterm = cterm + ffac * ckx
+         sterm = sterm + ffac * skx
+         if (calcderivs) then
+            ctermg = ctermg + ffacg * ckx
+            stermg = stermg + ffacg * skx
+         end if
+      end do
+      int = cterm*cterm + sterm*sterm
+      if (calcderivs) &
+         intg = 2d0 * (cterm * ctermg + sterm * stermg)
+
+      ! lorentz-polarization correction.
+      ! this formula is compatible with Pecharsky, IuCR
+      ! website, and the Fox, gdis, and dioptas implementations
+      cth2 = cth*cth-sth*sth
+      afac = (1-fpol) / (1+fpol)
+      mcorr = (1 + afac * cth2 * cth2) / (1 + afac) / cth / (sth*sth)
+      if (calcderivs) then
+         mcorrg = 0.5d0 * (- 8 * afac * cth2 / ((1+afac) * sth) - mcorr * cth / sth - mcorr * cth2 / (sth * cth)) * th2g
+         intg = intg * mcorr + int * mcorrg
+      end if
+      int = int * mcorr
+
+    end subroutine run_function_body
+
+  end subroutine powder_peaks
+
   !> Calculate the radial distribution function.  On input, npts is
   !> the number of bins from the initial (0) to the final (rend)
   !> distance and sigma is the Gaussian broadening of the peaks. If
