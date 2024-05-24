@@ -75,20 +75,26 @@ include(GNUInstallDirs)
 include(utils)
 
 ## whether we are following a build recipe
-if(NOT BUILD_RECIPE)
+if (NOT BUILD_RECIPE)
   set(BUILD_RECIPE OFF CACHE STRING "Choose the build recipe." FORCE)
+else()
+  set(BUILD_RECIPE CACHE STRING "Choose the build recipe.")
 endif()
 set_property(CACHE BUILD_RECIPE PROPERTY STRINGS OFF MSYS2 WINE)
 
 ## default build type, and type options
-if(NOT CMAKE_BUILD_TYPE)
+if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+else()
+  set(CMAKE_BUILD_TYPE CACHE STRING "Choose the type of build.")
 endif()
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Profile Release)
 
-## default build type, and type options
-if(NOT BUILD_LIBRARY)
+## build library
+if (NOT BUILD_LIBRARY)
   set(BUILD_LIBRARY "OFF" CACHE STRING "Build critic2 library." FORCE)
+else()
+  set(BUILD_LIBRARY CACHE STRING "Build critic2 library.")
 endif()
 set_property(CACHE BUILD_LIBRARY PROPERTY STRINGS SHARED STATIC OFF)
 
@@ -107,6 +113,11 @@ option(BUILD_STATIC "Build critic2 statically (tested only on linux, and no GUI)
 ## testing
 option(BUILD_TESTING "Enable the regression tests for the critic2 build." OFF)
 include(CTest)
+
+## library requires fpic
+if (BUILD_LIBRARY)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
 
 ## GUI requirements
 if (ENABLE_GUI)

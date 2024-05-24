@@ -69,31 +69,46 @@ add_dependencies(critic2 critic2_core)
 
 ## library
 if (BUILD_LIBRARY)
-  add_library(critic2l ${BUILD_LIBRARY} ${SOURCES_Fortran} ${SOURCES_C})
-  add_dependencies(critic2l critic2_core)
+  add_library(libcritic2 ${BUILD_LIBRARY} ${SOURCES_Fortran} ${SOURCES_C})
+  set_property(TARGET libcritic2 PROPERTY OUTPUT_NAME critic2)
+  add_dependencies(libcritic2 critic2_core)
+  add_dependencies(libcritic2 critic2)
 endif()
 
 ## cubpack
 add_subdirectory(cubpack)
 include_directories("${CMAKE_BINARY_DIR}/src/cubpack")
 target_sources(critic2 PRIVATE $<TARGET_OBJECTS:cubpack>)
+if (BUILD_LIBRARY)
+  target_sources(libcritic2 PRIVATE $<TARGET_OBJECTS:cubpack>)
+endif()
 add_dependencies(critic2_core cubpack)
 
 ## openmp
 if (OPENMP_FOUND)
   target_link_libraries(critic2 PRIVATE ${OpenMP_Fortran_LIBRARIES})
+  if (BUILD_LIBRARY)
+    target_link_libraries(libcritic2 PRIVATE ${OpenMP_Fortran_LIBRARIES})
+  endif()
 endif()
 
 ## lapack
 if (LAPACK_FOUND)
   set_property(TARGET critic2 APPEND PROPERTY LINK_FLAGS "${LAPACK_LINKER_FLAGS}")
   target_link_libraries(critic2 PRIVATE ${LAPACK_LIBRARIES})
+  if (BUILD_LIBRARY)
+    set_property(TARGET libcritic2 APPEND PROPERTY LINK_FLAGS "${LAPACK_LINKER_FLAGS}")
+    target_link_libraries(libcritic2 PRIVATE ${LAPACK_LIBRARIES})
+  endif()
   if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU")
     set(CMAKE_Fortran_FLAGS_${BT} "${CMAKE_Fortran_FLAGS_${BT}} -fexternal-blas")
   endif()
 else()
   add_subdirectory(oldlibs)
   target_sources(critic2 PRIVATE $<TARGET_OBJECTS:oldlibs>)
+  if (BUILD_LIBRARY)
+    target_sources(libcritic2 PRIVATE $<TARGET_OBJECTS:oldlibs>)
+  endif()
   add_dependencies(critic2_core oldlibs)
 endif()
 
@@ -101,41 +116,62 @@ endif()
 add_subdirectory(qhull)
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/qhull")
 target_sources(critic2 PRIVATE $<TARGET_OBJECTS:qhull>)
+if (BUILD_LIBRARY)
+  target_sources(libcritic2 PRIVATE $<TARGET_OBJECTS:qhull>)
+endif()
 add_dependencies(critic2_core qhull)
 
 ## spglib
 add_subdirectory(spglib)
 target_sources(critic2 PRIVATE $<TARGET_OBJECTS:spglib>)
+if (BUILD_LIBRARY)
+  target_sources(libcritic2 PRIVATE $<TARGET_OBJECTS:spglib>)
+endif()
 add_dependencies(critic2_core spglib)
 
 ## json-fortran
 add_subdirectory(json-fortran)
 include_directories("${CMAKE_BINARY_DIR}/src/json-fortran")
 target_sources(critic2 PRIVATE $<TARGET_OBJECTS:json-fortran>)
+if (BUILD_LIBRARY)
+  target_sources(libcritic2 PRIVATE $<TARGET_OBJECTS:json-fortran>)
+endif()
 add_dependencies(critic2_core json-fortran)
 
 ## libxc
 if (USE_LIBXC AND LIBXC_FOUND)
   include_directories("${LIBXC_INCLUDE_DIRS}")
   target_link_libraries(critic2 PRIVATE ${LIBXC_xcf90_LIBRARY} ${LIBXC_xc_LIBRARY})
+  if (BUILD_LIBRARY)
+    target_link_libraries(libcritic2 PRIVATE ${LIBXC_xcf90_LIBRARY} ${LIBXC_xc_LIBRARY})
+  endif()
   add_definitions("-DHAVE_LIBXC")
 endif()
 
 ## libcint
 if (USE_LIBCINT AND LIBCINT_FOUND)
   target_link_libraries(critic2 PRIVATE ${LIBCINT_LIBRARY})
+  if (BUILD_LIBRARY)
+    target_link_libraries(libcritic2 PRIVATE ${LIBCINT_LIBRARY})
+  endif()
   add_definitions("-DHAVE_CINT")
 endif()
 
 ## readline
 if (USE_READLINE AND READLINE_FOUND)
   target_link_libraries(critic2 PRIVATE ${READLINE_LIBRARY})
+  if (BUILD_LIBRARY)
+    target_link_libraries(libcritic2 PRIVATE ${READLINE_LIBRARY})
+  endif()
   add_definitions("-DHAVE_READLINE")
 endif()
 
 ## libnlopt
 if (USE_NLOPT AND NLOPT_FOUND)
   target_link_libraries(critic2 PRIVATE ${NLOPT_LIBRARIES})
+  if (BUILD_LIBRARY)
+    target_link_libraries(libcritic2 PRIVATE ${NLOPT_LIBRARIES})
+  endif()
   add_definitions("-DHAVE_NLOPT")
   include_directories("${NLOPT_INCLUDE_DIRS}")
 endif()
@@ -144,6 +180,9 @@ endif()
 add_subdirectory(emd)
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/emd")
 target_sources(critic2 PRIVATE $<TARGET_OBJECTS:emd>)
+if (BUILD_LIBRARY)
+  target_sources(libcritic2 PRIVATE $<TARGET_OBJECTS:emd>)
+endif()
 add_dependencies(critic2_core emd)
 
 ## graphical user interface
@@ -188,6 +227,9 @@ endif()
 
 ## install the binary
 install(TARGETS critic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+if (BUILD_LIBRARY)
+  install(TARGETS libcritic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
 
 ## recipe specific copies and install
 if (BUILD_RECIPE STREQUAL "MSYS2")
