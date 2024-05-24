@@ -851,61 +851,61 @@ contains
 
   end subroutine xrpd_peaks_from_file
 
-  module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,calcderivs,d12,d12g)
+  ! Calculate the Gaussian cross-correlation between the peak patterns
+  ! p1 and p2 with Gaussian triangle function width alpha and
+  ! Gaussian width sigma, and output the value in d12. If calcderivs
+  ! is present and true, calculate the derivatives wrt the metric
+  ! tensor of p1 in d12g (requires p1%havegradients).
+  module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,d12,calcderivs,d12g)
+    use tools_io, only: ferror, faterr
+    use param, only: pi
     type(xrpd_peaklist), intent(in) :: p1, p2
     real*8, intent(in) :: alpha, sigma
     real*8, intent(out) :: d12
     logical, intent(in), optional :: calcderivs
-    real*8, intent(out), optional :: d12g
+    real*8, intent(out), optional :: d12g(6)
 
-    write (*,*) "here crosscorr_gaussian!"
-    stop 1
+    logical :: calcg
+    real*8 :: z, zp, z2p, zsq, thdeps, expt12, thdif
+    integer :: imin, i, j
 
-      ! use param, only: pi
-      ! real*8, intent(in) :: alpha
-      ! real*8, intent(in) :: th1(:), th2(:), ip1(:), ip2(:)
-      ! real*8, intent(in) :: sigma
-      ! real*8, intent(out) :: dfg
-      ! real*8, intent(in), optional :: th1g(:,:), ip1g(:,:)
-      ! real*8, intent(out), optional :: dfgg(6)
+    real*8, parameter :: eps_discard = 1d-10
 
-      ! logical :: calcderiv
-      ! real*8 :: z, zp, z2p, zsq, expt12, thdif
-      ! real*8 :: thdeps
-      ! integer :: imin
+    ! consistency checks
+    calcg = present(calcderivs)
+    if (calcg) calcg = calcderivs
+    if (calcg .and..not.p1%havegradients) &
+       call ferror('crosscorr_gaussian','calcderivs requires p1%havegradients',faterr)
+    if (calcg .and..not.present(d12g)) &
+       call ferror('crosscorr_gaussian','calcderivs requires d12g being present',faterr)
 
-      ! real*8, parameter :: eps_discard = 1d-10
+    z = 1d0 / (alpha**2 + 4d0 * pi * sigma**2)
+    zp = pi * z
+    z2p = 2d0 * zp
+    zsq = sqrt(z)
 
-      ! calcderiv = present(th1g) .and. present(ip1g) .and. present(dfgg)
-
-      ! z = 1d0 / (alpha**2 + 4d0 * pi * sigma**2)
-      ! zp = pi * z
-      ! z2p = 2d0 * zp
-      ! zsq = sqrt(z)
-
-      ! thdeps = sqrt(abs(-log(eps_discard) / zp))
-      ! dfg = 0d0
-      ! imin = 1
-      ! if (calcderiv) dfgg = 0d0
-      ! do j = 1, size(th2,1)
-      !    iloop: do i = imin, size(th1,1)
-      !       thdif = th1(i) - th2(j)
-      !       if (abs(thdif) > thdeps) then
-      !          if (thdif > thdeps) then
-      !             exit iloop
-      !          else
-      !             imin = i+1
-      !             cycle
-      !          end if
-      !       end if
-      !       expt12 = exp(-zp * thdif * thdif)
-      !       dfg = dfg + ip1(i) * ip2(j) * expt12
-      !       if (calcderiv) dfgg = dfgg + ip2(j) * expt12 * (ip1g(:,i) - z2p * ip1(i) * thdif * th1g(:,i))
-      !    end do iloop
-      ! end do
-      ! dfg = dfg * zsq
-      ! if (calcderiv) dfgg = dfgg * zsq
-
+    thdeps = sqrt(abs(-log(eps_discard) / zp))
+    d12 = 0d0
+    imin = 1
+    if (calcg) d12g = 0d0
+    do j = 1, p2%npeak
+       iloop: do i = imin, p1%npeak
+          thdif = p1%th2(i) - p2%th2(j)
+          if (abs(thdif) > thdeps) then
+             if (thdif > thdeps) then
+                exit iloop
+             else
+                imin = i+1
+                cycle
+             end if
+          end if
+          expt12 = exp(-zp * thdif * thdif)
+          d12 = d12 + p1%ip(i) * p2%ip(j) * expt12
+          if (calcg) d12g = d12g + p2%ip(j) * expt12 * (p1%ipg(:,i) - z2p * p1%ip(i) * thdif * p1%th2g(:,i))
+       end do iloop
+    end do
+    d12 = d12 * zsq
+    if (calcg) d12g = d12g * zsq
 
   end subroutine crosscorr_gaussian
 

@@ -925,12 +925,12 @@ module crystalmod
        type(xrpd_peaklist), intent(inout) :: p
        character*(*), intent(in) :: file
      end subroutine xrpd_peaks_from_file
-     module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,calcderivs,d12,d12g)
+     module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,d12,calcderivs,d12g)
        type(xrpd_peaklist), intent(in) :: p1, p2
        real*8, intent(in) :: alpha, sigma
        real*8, intent(out) :: d12
        logical, intent(in), optional :: calcderivs
-       real*8, intent(out), optional :: d12g
+       real*8, intent(out), optional :: d12g(6)
      end subroutine crosscorr_gaussian
   end interface
 
