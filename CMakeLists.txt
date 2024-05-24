@@ -86,6 +86,12 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Profile Release)
 
+## default build type, and type options
+if(NOT BUILD_LIBRARY)
+  set(BUILD_LIBRARY "OFF" CACHE STRING "Build critic2 library." FORCE)
+endif()
+set_property(CACHE BUILD_LIBRARY PROPERTY STRINGS SHARED STATIC OFF)
+
 ## interface options
 option(ENABLE_GUI "Enables the critic2 GUI" OFF)
 option(USE_EXTERNAL_LAPACK "Use external LAPACK/BLAS library (linear algebra operations)." ON)
