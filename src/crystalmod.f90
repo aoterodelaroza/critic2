@@ -281,6 +281,7 @@ module crystalmod
   ! other crystallography tools that are crystal-independent (symmetry)
   public :: search_lattice
   public :: pointgroup_info
+  public :: xrpd_peaks_from_file
   public :: crosscorr_gaussian
 
   ! module procedure interfaces
@@ -920,6 +921,10 @@ module crystalmod
        integer, intent(out) :: holo
        integer, intent(out) :: laue
      end subroutine pointgroup_info
+     module subroutine xrpd_peaks_from_file(p,file)
+       type(xrpd_peaklist), intent(inout) :: p
+       character*(*), intent(in) :: file
+     end subroutine xrpd_peaks_from_file
      module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,calcderivs,d12,d12g)
        type(xrpd_peaklist), intent(in) :: p1, p2
        real*8, intent(in) :: alpha, sigma

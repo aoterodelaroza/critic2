@@ -767,6 +767,90 @@ contains
 
   end subroutine amd
 
+  !> Read the XRPD peaks from a peaks file. The peaks are sorted by th2
+  !> on output.
+  module subroutine xrpd_peaks_from_file(p,file)
+    use tools, only: qcksort
+    use tools_io, only: fopen_read, getline, isreal, ferror, faterr, fclose
+    use types, only: realloc
+    type(xrpd_peaklist), intent(inout) :: p
+    character*(*), intent(in) :: file
+
+    integer :: i, lu, lp
+    character(len=:), allocatable :: line
+    real*8 :: r1, r2
+    logical :: ok
+
+    integer, parameter :: mpeak = 1000
+    integer, allocatable :: io(:)
+
+    ! initialize output
+    p%npeak = 0
+    if (allocated(p%th2)) deallocate(p%th2)
+    if (allocated(p%ip)) deallocate(p%ip)
+    if (allocated(p%hvec)) deallocate(p%hvec)
+    if (allocated(p%th2g)) deallocate(p%th2g)
+    if (allocated(p%ipg)) deallocate(p%ipg)
+    if (allocated(p%fwhm)) deallocate(p%fwhm)
+    if (allocated(p%cgau)) deallocate(p%cgau)
+    p%havehvec = .false.
+    p%havegradients = .false.
+    p%havepeakshape = .true.
+
+    ! read the pattern from the peaks file
+    allocate(p%th2(mpeak),p%ip(mpeak),p%fwhm(mpeak),p%cgau(mpeak))
+    lu = fopen_read(file)
+    do while (getline(lu,line))
+       lp = 1
+       ok = isreal(r1,line,lp)
+       ok = ok .and. isreal(r2,line,lp)
+       if (.not.ok) &
+          call ferror("xrpd_peaks_from_file","invalid input in peaks file",faterr)
+       p%npeak = p%npeak + 1
+       if (p%npeak > size(p%th2,1)) then
+          call realloc(p%th2,2*p%npeak)
+          call realloc(p%ip,2*p%npeak)
+          if (p%havepeakshape) then
+             call realloc(p%fwhm,2*p%npeak)
+             call realloc(p%cgau,2*p%npeak)
+          end if
+       end if
+       p%th2(p%npeak) = r1
+       p%ip(p%npeak) = r2
+
+       if (p%havepeakshape) then
+          ok = isreal(r1,line,lp)
+          ok = ok .and. isreal(r2,line,lp)
+          if (.not.ok) then
+             p%havepeakshape = .false.
+             if (allocated(p%fwhm)) deallocate(p%fwhm)
+             if (allocated(p%cgau)) deallocate(p%cgau)
+          else
+             p%fwhm(p%npeak) = r1
+             p%cgau(p%npeak) = r2
+          end if
+       end if
+    end do
+    call fclose(lu)
+    call realloc(p%th2,p%npeak)
+    call realloc(p%ip,p%npeak)
+    if (allocated(p%fwhm)) call realloc(p%fwhm,p%npeak)
+    if (allocated(p%cgau)) call realloc(p%cgau,p%npeak)
+
+    ! sort the peaks
+    allocate(io(p%npeak))
+    do i = 1, p%npeak
+       io(i) = i
+    end do
+    call qcksort(p%th2,io,1,p%npeak)
+    p%th2 = p%th2(io)
+    p%ip = p%ip(io)
+    if (allocated(p%fwhm)) p%fwhm = p%fwhm(io)
+    if (allocated(p%cgau)) p%cgau = p%cgau(io)
+    deallocate(io)
+
+  end subroutine xrpd_peaks_from_file
+
   module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,calcderivs,d12,d12g)
     type(xrpd_peaklist), intent(in) :: p1, p2
     real*8, intent(in) :: alpha, sigma

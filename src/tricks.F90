@@ -2931,7 +2931,7 @@ contains
   ! TRICK GAUCOMP str1.s {str2.s|xyfile.s} [LOCAL] [GLOBAL] [ALPHA alpha.r] [LAMBDA lambda.r] [MAXFEVAL maxfeval.i] [BESTEPS eps.r]
   subroutine trick_gaucomp(line0)
     use crystalseedmod, only: crystalseed
-    use crystalmod, only: crystal
+    use crystalmod, only: crystal, xrpd_peaks_from_file, xrpd_peaklist
     use struct_drivers, only: struct_crystal_input
     use tools, only: qcksort
     use tools_io, only: getword, uout, string, tictac, ferror, faterr, lgetword, equal, &
@@ -3029,6 +3029,9 @@ contains
        th2p2 = th2p2(io)
        ip2 = ip2(io)
        deallocate(io)
+
+       !xxxx! call xrpd_peaks_from_file(p2,word)
+
        th2ini = th2p2(1) - 1d-2
        th2end = th2p2(np2) + 1d-2
        readc2 = .false.
