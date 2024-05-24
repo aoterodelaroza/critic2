@@ -2956,6 +2956,7 @@ contains
     real*8 :: lb(6), ub(6), th2ini, th2end, alpha, lambda, besteps
     logical :: iresok, ok, readc2
     type(crystalseed) :: seed
+    !xxxx! type(xrpd_peaklist) :: p1, p2
 
     ! global block
     integer :: neval
@@ -3078,6 +3079,7 @@ contains
     if (readc2) &
        call powder_simple(c2,th2ini,th2end,lambda,fpol0,th2p2,ip2,hvecp2,.false.)
     call powder_simple(c1,th2ini,th2end,lambda,fpol0,th2p1,ip1,hvecp1,.false.)
+    !xxxx! call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol0,.false.,.false.)
     call crosscorr_exp(alpha,th2p2,ip2,th2p2,ip2,sigma,dfg22)
 
     x(1:3) = c1%aa

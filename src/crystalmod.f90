@@ -262,19 +262,26 @@ module crystalmod
   end type crystal
   public :: crystal
 
+  !> Class for XRPD peak information
   type xrpd_peaklist
-     integer :: npeak ! number of peaks
+     integer :: npeak = 0 ! number of peaks
+     logical :: havehvec = .false. ! whether hvec data (hkl indices) are available
+     logical :: havegradients = .false. ! whether the gradients of th2 and ip are available
+     logical :: havepeakshape = .false. ! whether the fwhm and gau/lor coefs are available
      real*8, allocatable :: th2(:) ! reflection angles (2*theta)
      real*8, allocatable :: ip(:) ! peak intensities
      integer, allocatable :: hvec(:,:) ! reflection indices
      real*8, allocatable :: th2g(:,:) ! gradient of th2 wrt metric tensor
      real*8, allocatable :: ipg(:,:) ! gradient of ip wrt metric tensor
+     real*8, allocatable :: fwhm(:) ! peak full width at half maximum (fwhm)
+     real*8, allocatable :: cgau(:) ! Gaussian/Lorentzian peak shape coefficient
   end type xrpd_peaklist
   public :: xrpd_peaklist
 
   ! other crystallography tools that are crystal-independent (symmetry)
   public :: search_lattice
   public :: pointgroup_info
+  public :: crosscorr_gaussian
 
   ! module procedure interfaces
   interface
@@ -902,6 +909,7 @@ module crystalmod
        integer, intent(in), optional :: ishift0(3)
        type(thread_info), intent(in), optional :: ti
      end subroutine writegrid_xsf
+     !xx! independent procedures
      module subroutine search_lattice(x2r,rmax,imax,jmax,kmax)
        real*8, intent(in) :: x2r(3,3), rmax
        integer, intent(out) :: imax, jmax, kmax
@@ -912,6 +920,13 @@ module crystalmod
        integer, intent(out) :: holo
        integer, intent(out) :: laue
      end subroutine pointgroup_info
+     module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,calcderivs,d12,d12g)
+       type(xrpd_peaklist), intent(in) :: p1, p2
+       real*8, intent(in) :: alpha, sigma
+       real*8, intent(out) :: d12
+       logical, intent(in), optional :: calcderivs
+       real*8, intent(out), optional :: d12g
+     end subroutine crosscorr_gaussian
   end interface
 
 end module crystalmod

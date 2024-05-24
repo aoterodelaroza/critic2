@@ -292,12 +292,14 @@ contains
   end subroutine powder
 
   !> Return the list of powder peaks between the initial (th2ini0) and
-  !> final (th2end0) 2*theta (in angles), with wavelength lambda0
-  !> (angstrom) and polarization factor fpol. If usehvecp, calculate
-  !> only the reflections in p%hvec. If calcderivs, calculate derivatives.
-  !> If gg is present, override the gtensor from c.
+  !> final (th2end0) 2*theta (in angles), with wavelength lambda0 (in
+  !> angstrom) and polarization factor fpol. If usehvecp, calculate
+  !> only the reflections in p%hvec (requires p%npeaks and p%hvec). If
+  !> calcderivs, calculate derivatives and set p%th2g and p%ipg. If gg
+  !> is present, use gg instead of the metric tensor from c.
   module subroutine powder_peaks(c,p,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs,gg)
     use tools_math, only: matinv
+    use tools_io, only: ferror, faterr
     use tools, only: qcksort
     use types, only: realloc
     use param, only: pi, bohrtoa
@@ -311,8 +313,8 @@ contains
     real*8, intent(in), optional :: gg(3,3)
 
     integer :: i
-    real*8 :: th2ini, th2end, lambda, hvec(3)!, sth
-    real*8 :: smax, imax!, dh2, dh, dh3, ar(3)
+    real*8 :: th2ini, th2end, lambda, hvec(3)
+    real*8 :: smax, imax
     real*8 :: int, intg(6), th2, th2g(6)
     integer :: hmax, hcell, h, k, l
     logical :: again
@@ -322,6 +324,11 @@ contains
     integer, parameter :: mp = 200
     real*8, parameter :: ieps = 1d-5
 
+    ! consistency checks
+    if (usehvecp .and.(.not.p%havehvec.or..not.allocated(p%hvec).or.p%npeak<=0)) &
+       call ferror('powder_peaks','requested usehvecp without hvec information',faterr)
+
+    ! initialize angles
     th2ini = th2ini0 * pi / 180d0
     th2end = th2end0 * pi / 180d0
 
@@ -337,16 +344,23 @@ contains
        ar = c%ar
     end if
 
-    ! allocate peak list
+    ! allocate peak list and initialize output
+    p%havepeakshape = .false.
+    p%havehvec = .true.
+    p%havegradients = calcderivs
     if (allocated(p%th2)) deallocate(p%th2)
     if (allocated(p%ip)) deallocate(p%ip)
     if (allocated(p%th2g)) deallocate(p%th2g)
     if (allocated(p%ipg)) deallocate(p%ipg)
+    if (allocated(p%fwhm)) deallocate(p%fwhm)
+    if (allocated(p%cgau)) deallocate(p%cgau)
     if (usehvecp) then
-       allocate(p%th2(p%npeak),p%ip(p%npeak),p%th2g(6,p%npeak),p%ipg(6,p%npeak))
+       allocate(p%th2(p%npeak),p%ip(p%npeak))
+       if (calcderivs) allocate(p%th2g(6,p%npeak),p%ipg(6,p%npeak))
     else
        if (allocated(p%hvec)) deallocate(p%hvec)
-       allocate(p%th2(mp),p%ip(mp),p%hvec(3,mp),p%th2g(6,mp),p%ipg(6,mp))
+       allocate(p%th2(mp),p%ip(mp),p%hvec(3,mp))
+       if (calcderivs) allocate(p%th2g(6,mp),p%ipg(6,mp))
     end if
 
     ! metric tensor, cell limits, convert lambda to bohr
@@ -379,8 +393,10 @@ contains
                          call realloc(p%th2,2*p%npeak)
                          call realloc(p%ip,2*p%npeak)
                          call realloc(p%hvec,3,2*p%npeak)
-                         call realloc(p%th2g,6,2*p%npeak)
-                         call realloc(p%ipg,6,2*p%npeak)
+                         if (calcderivs) then
+                            call realloc(p%th2g,6,2*p%npeak)
+                            call realloc(p%ipg,6,2*p%npeak)
+                         end if
                       end if
                       p%th2(p%npeak) = th2
                       p%ip(p%npeak) = int
@@ -399,8 +415,10 @@ contains
        call realloc(p%th2,p%npeak)
        call realloc(p%ip,p%npeak)
        call realloc(p%hvec,3,p%npeak)
-       call realloc(p%th2g,6,p%npeak)
-       call realloc(p%ipg,6,p%npeak)
+       if (calcderivs) then
+          call realloc(p%th2g,6,p%npeak)
+          call realloc(p%ipg,6,p%npeak)
+       end if
     else
        do i = 1, p%npeak
           hvec = real(p%hvec(:,i),8)
@@ -748,5 +766,63 @@ contains
     res = res / real(c%ncel,8)
 
   end subroutine amd
+
+  module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,calcderivs,d12,d12g)
+    type(xrpd_peaklist), intent(in) :: p1, p2
+    real*8, intent(in) :: alpha, sigma
+    real*8, intent(out) :: d12
+    logical, intent(in), optional :: calcderivs
+    real*8, intent(out), optional :: d12g
+
+    write (*,*) "here crosscorr_gaussian!"
+    stop 1
+
+      ! use param, only: pi
+      ! real*8, intent(in) :: alpha
+      ! real*8, intent(in) :: th1(:), th2(:), ip1(:), ip2(:)
+      ! real*8, intent(in) :: sigma
+      ! real*8, intent(out) :: dfg
+      ! real*8, intent(in), optional :: th1g(:,:), ip1g(:,:)
+      ! real*8, intent(out), optional :: dfgg(6)
+
+      ! logical :: calcderiv
+      ! real*8 :: z, zp, z2p, zsq, expt12, thdif
+      ! real*8 :: thdeps
+      ! integer :: imin
+
+      ! real*8, parameter :: eps_discard = 1d-10
+
+      ! calcderiv = present(th1g) .and. present(ip1g) .and. present(dfgg)
+
+      ! z = 1d0 / (alpha**2 + 4d0 * pi * sigma**2)
+      ! zp = pi * z
+      ! z2p = 2d0 * zp
+      ! zsq = sqrt(z)
+
+      ! thdeps = sqrt(abs(-log(eps_discard) / zp))
+      ! dfg = 0d0
+      ! imin = 1
+      ! if (calcderiv) dfgg = 0d0
+      ! do j = 1, size(th2,1)
+      !    iloop: do i = imin, size(th1,1)
+      !       thdif = th1(i) - th2(j)
+      !       if (abs(thdif) > thdeps) then
+      !          if (thdif > thdeps) then
+      !             exit iloop
+      !          else
+      !             imin = i+1
+      !             cycle
+      !          end if
+      !       end if
+      !       expt12 = exp(-zp * thdif * thdif)
+      !       dfg = dfg + ip1(i) * ip2(j) * expt12
+      !       if (calcderiv) dfgg = dfgg + ip2(j) * expt12 * (ip1g(:,i) - z2p * ip1(i) * thdif * th1g(:,i))
+      !    end do iloop
+      ! end do
+      ! dfg = dfg * zsq
+      ! if (calcderiv) dfgg = dfgg * zsq
+
+
+  end subroutine crosscorr_gaussian
 
 end submodule powderproc
