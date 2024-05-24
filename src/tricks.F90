@@ -2930,7 +2930,7 @@ contains
   ! TRICK GAUCOMP str1.s {str2.s|xyfile.s} [LOCAL] [GLOBAL] [ALPHA alpha.r] [LAMBDA lambda.r] [MAXFEVAL maxfeval.i] [BESTEPS eps.r]
   subroutine trick_gaucomp(line0)
     use crystalseedmod, only: crystalseed
-    use crystalmod, only: crystal, xrpd_peaks_from_file, xrpd_peaklist, crosscorr_gaussian
+    use crystalmod, only: crystal, xrpd_peaks_from_file, xrpd_peaklist, gaussian_compare
     use struct_drivers, only: struct_crystal_input
     use tools, only: qcksort
     use tools_io, only: getword, uout, string, tictac, ferror, faterr, lgetword, equal, &
@@ -2942,34 +2942,28 @@ contains
     call ferror("trick_gaucomp","trick_gaucomp can only be used if nlopt is available",faterr)
 
 #else
-    integer :: lp, lp2
-    integer :: i, j, np2
-    real*8 :: dfg22, x(6), xorig(6), grad(6), diff, vorig, th2_, int_
-    real*8, allocatable :: th2p1(:), th2p2(:), ip1(:), ip2(:), th2pg(:,:), ipg(:,:)
-    integer, allocatable :: hvecp1(:,:), hvecp2(:,:), io(:)
+    integer :: lp
+    integer :: i
+    real*8 :: diff
     real*8, allocatable :: t(:), ih(:)
-    character(len=:), allocatable :: word, file1, line
+    character(len=:), allocatable :: word, file1
     type(crystal) :: c1, c2
-    integer*8 :: opt, lopt
-    integer :: ires, imode, lu, maxfeval
-    real*8 :: lb(6), ub(6), th2ini, th2end, alpha, lambda, besteps
-    logical :: iresok, ok, readc2
+    integer :: imode, lu, maxfeval
+    real*8 :: th2ini, th2end, alpha, lambda, besteps
+    logical :: ok, readc2
     type(crystalseed) :: seed
-    type(xrpd_peaklist) :: p1, p2
+    type(xrpd_peaklist) :: p2
 
     ! global block
     integer :: neval
     real*8 :: lastval
     real*8 :: bestval
     integer :: nbesteval
-    real*8, parameter :: ftol_eps = 1d-5
 
     ! parameters
     integer, parameter :: imode_sp = 0
     integer, parameter :: imode_local = 1
     integer, parameter :: imode_global = 2
-    real*8, parameter :: max_elong_def = 0.1d0
-    real*8, parameter :: max_ang_def = 5d0
     integer, parameter :: maxfeval0 = 15000
     real*8, parameter :: besteps0 = 1d-4
 
@@ -3047,98 +3041,13 @@ contains
     ! pre-calculation
     if (readc2) &
        call c2%powder_peaks(p2,th2ini,th2end,lambda,fpol0,.false.,.false.)
-    call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol0,.false.,.false.)
-    call crosscorr_gaussian(p2,p2,alpha,sigma,dfg22,.false.)
 
-    x(1:3) = c1%aa
-    x(4:6) = c1%bb
-    xorig = x
-    vorig = c1%omega
+    ! run the comparison
+    call gaussian_compare(c1,p2,imode,diff,seedout=seed,verbose0=.true.,&
+       alpha0=alpha,lambda0=lambda,maxfeval0=maxfeval,besteps0=besteps)
+
     if (imode /= imode_sp) then
-       if (imode == imode_global) then
-          ! global minimization
-          call nlo_create(lopt, NLOPT_LD_SLSQP, 6)
-          call nlo_set_ftol_rel(ires, lopt, ftol_eps)
-
-          call nlo_create(opt, NLOPT_G_MLSL_LDS, 6)
-          call nlo_set_local_optimizer(ires, opt, lopt)
-       else
-          ! local minimization
-          call nlo_create(opt, NLOPT_LD_SLSQP, 6)
-          call nlo_set_ftol_rel(ires, opt, ftol_eps)
-       end if
-
-       lb(1:3) = max(x(1:3) * (1 - max_elong_def),0d0)
-       ub(1:3) = x(1:3) * (1 + max_elong_def)
-       lb(4:6) = max(x(4:6) - max_ang_def,10d0)
-       ub(4:6) = min(x(4:6) + max_ang_def,170d0)
-       call nlo_set_lower_bounds(ires, opt, lb)
-       call nlo_set_upper_bounds(ires, opt, ub)
-       call nlo_set_min_objective(ires, opt, diff_fun, 0)
-
-       ! run the minimization
-       iresok = .false.
-       call nlo_optimize(ires, opt, x, diff)
-
-       ! final message
-       if (ires == 1) then
-          write (uout,'("+ SUCCESS")')
-       elseif (ires == 2) then
-          write (uout,'("+ SUCCESS: maximum iterations reached")')
-       elseif (ires == 3) then
-          write (uout,'("+ SUCCESS: ftol_rel or ftol_abs was reached")')
-       elseif (ires == 4) then
-          write (uout,'("+ SUCCESS: xtol_rel or xtol_abs was reached")')
-       elseif (ires == 5) then
-          write (uout,'("+ SUCCESS: maxeval was reached")')
-       elseif (ires == 6) then
-          write (uout,'("+ SUCCESS: maxtime was reached")')
-       elseif (ires == -1) then
-          write (uout,'("+ FAILURE")')
-       elseif (ires == -2) then
-          write (uout,'("+ FAILURE: invalid arguments")')
-       elseif (ires == -3) then
-          write (uout,'("+ FAILURE: out of memory")')
-       elseif (ires == -4) then
-          write (uout,'("+ FAILURE: roundoff errors limited progress")')
-       elseif (ires == -5) then
-          if (iresok) then
-             write (uout,'("+ SUCCESS? maximum number of evaluations reached")')
-          else
-             write (uout,'("+ FAILURE: termination forced by user")')
-          end if
-       end if
-
-       ! clean up
-       if (imode == imode_global) &
-          call nlo_destroy(lopt)
-       call nlo_destroy(opt)
-
-       ! make final structure
-       call c1%makeseed(seed,.false.)
-       seed%useabr = 1
-       seed%aa = x(1:3)
-       seed%bb = x(4:6)
        call c1%struct_new(seed,.true.)
-
-       ! write message to output
-       write (uout,'("+ Lattice parameters: ")')
-       write (uout,'("  Initial (1): ",6(A," "))') &
-          (string(xorig(i),'f',length=11,decimal=8),i=1,3), &
-          (string(xorig(i),'f',length=10,decimal=6),i=4,6)
-       write (uout,'("  Final (1):   ",6(A," "))') &
-          (string(x(i),'f',length=11,decimal=8),i=1,3), &
-          (string(x(i),'f',length=10,decimal=6),i=4,6)
-       write (uout,'("  Target (2):  ",6(A," "))') &
-          (string(c2%aa(i),'f',length=11,decimal=8),i=1,3), &
-          (string(c2%bb(i),'f',length=10,decimal=6),i=1,3)
-       write (uout,'(" Relative length deformations:   ",3(A," "))') &
-          (string(abs(xorig(i)-x(i))/xorig(i),'f',length=11,decimal=8),i=1,3)
-       write (uout,'(" Angle displacements:   ",3(A," "))') &
-          (string(abs(xorig(i)-x(i)),'f',length=7,decimal=4),i=4,6)
-       write (uout,'("  Initial volume (bohr3): ",A)') string(vorig,'f',decimal=4)
-       write (uout,'("  Final volume (bohr3): ",A)') string(c1%omega,'f',decimal=4)
-       write (uout,'("  Volume deformation: ",A)') string(abs(c1%omega-vorig)/vorig,'f',decimal=8)
 
        ! write structure to output
        word = trim(file1) // "-final.cif"
@@ -3155,99 +3064,9 @@ contains
              string(ih(i),"f",15,7,ioj_center)
        end do
        call fclose(lu)
-    else
-       call diff_fun(diff,6,x,grad,0,1.)
     end if
 
     write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
-
-  contains
-    subroutine diff_fun(val, n, x, grad, need_gradient, f_data)
-      use param, only: pi
-      use tools_io, only: string, uout, ioj_left, ioj_right
-      use tools_math, only: det3sym
-      real*8 :: val, x(n), grad(n)
-      integer :: n, need_gradient
-      real :: f_data
-
-      real*8 :: diff, diffg(6), calp, cbet, cgam, a, b, c, salp, sbet, sgam
-      real*8 :: dfg11, dfgg11(6), dfg12, dfgg12(6), gg(3,3)
-      integer :: i, ires
-      character(len=:), allocatable :: str
-
-      neval = neval + 1
-      a = x(1)
-      b = x(2)
-      c = x(3)
-      calp = cos(x(4) * pi / 180d0)
-      cbet = cos(x(5) * pi / 180d0)
-      cgam = cos(x(6) * pi / 180d0)
-      salp = sin(x(4) * pi / 180d0)
-      sbet = sin(x(5) * pi / 180d0)
-      sgam = sin(x(6) * pi / 180d0)
-      gg(1,1) = a * a
-      gg(1,2) = a * b * cgam
-      gg(2,1) = gg(1,2)
-      gg(1,3) = a * c * cbet
-      gg(3,1) = gg(1,3)
-      gg(2,2) = b * b
-      gg(2,3) = b * c * calp
-      gg(3,2) = gg(2,3)
-      gg(3,3) = c * c
-
-      if (det3sym(gg) < 0d0) then
-         val = huge(1d0)
-         if (need_gradient /= 0) grad = 0d0
-         return
-      end if
-
-      ! only recompute peak pattern for crystal 1
-      call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol0,.true.,.true.,gg)
-      call crosscorr_gaussian(p1,p1,alpha,sigma,dfg11,.true.,dfgg11)
-      call crosscorr_gaussian(p1,p2,alpha,sigma,dfg12,.true.,dfgg12)
-
-      diff = dfg12 / sqrt(dfg11 * dfg22)
-
-      ! write output
-      val = 1d0 - diff
-      if (need_gradient /= 0) then
-         ! derivatives wrt Gij (the 0.5 in the second term is missing
-         ! because there are two dfgg11, one from each "1"
-         diffg = -diff * (dfgg12 / dfg12 - dfgg11 / dfg11)
-
-         ! Off-diagonal components (2,3,5) are half what they should
-         ! be because we did not impose symmetric matrix
-         grad(1) = a * diffg(1) + b * cgam * diffg(2) + c * cbet * diffg(3)
-         grad(2) = a * cgam * diffg(2) + b * diffg(4) + c * calp * diffg(5)
-         grad(3) = a * cbet * diffg(3) + b * calp * diffg(5) + c * diffg(6)
-         grad(4) = - b * c * salp * diffg(5) * pi / 180d0
-         grad(5) = - a * c * sbet * diffg(3) * pi / 180d0
-         grad(6) = - a * b * sgam * diffg(2) * pi / 180d0
-         grad = 2 * grad
-      end if
-
-      ! message
-      lastval = val
-      if (val < bestval * (1d0 - besteps)) then
-         bestval = val
-         nbesteval = neval
-         str = ""
-      else
-         str = " | " // string(bestval,'f',12,8)  // "best for last " // string(neval - nbesteval) // " iterations"
-      end if
-      write (uout,'(A," ",A," at ",7(A," "))') string(neval,8,ioj_left),&
-         string(val,'f',length=12,decimal=8),&
-         (string(x(i),'f',length=7,decimal=4,justify=ioj_right),i=1,3), &
-         (string(x(i),'f',length=6,decimal=2,justify=ioj_right),i=4,6), &
-         str
-
-      ! force termination?
-      if (imode == imode_global .and. neval - nbesteval > maxfeval) then
-         iresok = .true.
-         call nlo_set_force_stop(ires, opt, 2)
-      end if
-
-    end subroutine diff_fun
 
 #endif
   end subroutine trick_gaucomp

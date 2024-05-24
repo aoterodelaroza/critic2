@@ -283,6 +283,7 @@ module crystalmod
   public :: pointgroup_info
   public :: xrpd_peaks_from_file
   public :: crosscorr_gaussian
+  public :: gaussian_compare
 
   ! module procedure interfaces
   interface
@@ -932,6 +933,23 @@ module crystalmod
        logical, intent(in), optional :: calcderivs
        real*8, intent(out), optional :: d12g(6)
      end subroutine crosscorr_gaussian
+     module subroutine gaussian_compare(c1,p2,imode,diff,seedout,verbose0,alpha0,&
+        lambda0,fpol0,maxfeval0,besteps0,max_elong_def0,max_ang_def0)
+       use crystalseedmod, only: crystalseed
+       type(crystal), intent(in) :: c1
+       type(xrpd_peaklist), intent(in) :: p2
+       integer, intent(in) :: imode
+       real*8, intent(out) :: diff
+       type(crystalseed), intent(out), optional :: seedout
+       logical, intent(in), optional :: verbose0
+       real*8, intent(in), optional :: alpha0
+       real*8, intent(in), optional :: lambda0
+       real*8, intent(in), optional :: fpol0
+       integer, intent(in), optional :: maxfeval0
+       real*8, intent(in), optional :: besteps0
+       real*8, intent(in), optional :: max_elong_def0
+       real*8, intent(in), optional :: max_ang_def0
+     end subroutine gaussian_compare
   end interface
 
 end module crystalmod
