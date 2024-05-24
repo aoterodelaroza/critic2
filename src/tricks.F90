@@ -33,7 +33,6 @@ module tricks
   private :: trick_compare_deformed
   private :: trick_check_valence
   private :: trick_gaucomp
-  private :: powder_simple
   private :: trick_profile_fit
   private :: trick_profile_refit
 
@@ -2931,7 +2930,7 @@ contains
   ! TRICK GAUCOMP str1.s {str2.s|xyfile.s} [LOCAL] [GLOBAL] [ALPHA alpha.r] [LAMBDA lambda.r] [MAXFEVAL maxfeval.i] [BESTEPS eps.r]
   subroutine trick_gaucomp(line0)
     use crystalseedmod, only: crystalseed
-    use crystalmod, only: crystal, xrpd_peaks_from_file, xrpd_peaklist
+    use crystalmod, only: crystal, xrpd_peaks_from_file, xrpd_peaklist, crosscorr_gaussian
     use struct_drivers, only: struct_crystal_input
     use tools, only: qcksort
     use tools_io, only: getword, uout, string, tictac, ferror, faterr, lgetword, equal, &
@@ -2956,7 +2955,7 @@ contains
     real*8 :: lb(6), ub(6), th2ini, th2end, alpha, lambda, besteps
     logical :: iresok, ok, readc2
     type(crystalseed) :: seed
-    !xxxx! type(xrpd_peaklist) :: p1, p2
+    type(xrpd_peaklist) :: p1, p2
 
     ! global block
     integer :: neval
@@ -2998,42 +2997,9 @@ contains
     call struct_crystal_input(file1,0,.false.,.false.,cr0=c1)
     word = getword(line0,lp)
     if (len(word) - index(word,".peaks") == 6) then
-       ! read the pattern from the peaks file
-       np2 = 0
-       allocate(th2p2(1000), ip2(1000))
-       lu = fopen_read(word)
-       do while (getline(lu,line))
-          lp2 = 1
-          ok = isreal(th2_,line,lp2)
-          ok = ok .and. isreal(int_,line,lp2)
-          if (.not.ok) &
-             call ferror("trick_gaucomp","invalid input in peaks file",faterr)
-          np2 = np2 + 1
-          if (np2 > size(th2p2,1)) then
-             call realloc(th2p2,2*np2)
-             call realloc(ip2,2*np2)
-          end if
-          th2p2(np2) = th2_
-          ip2(np2) = int_
-       end do
-       call fclose(lu)
-       call realloc(th2p2,np2)
-       call realloc(ip2,np2)
-
-       ! sort the peaks
-       allocate(io(np2))
-       do i = 1, np2
-          io(i) = i
-       end do
-       call qcksort(th2p2,io,1,np2)
-       th2p2 = th2p2(io)
-       ip2 = ip2(io)
-       deallocate(io)
-
-       !xxxx! call xrpd_peaks_from_file(p2,word)
-
-       th2ini = th2p2(1) - 1d-2
-       th2end = th2p2(np2) + 1d-2
+       call xrpd_peaks_from_file(p2,word)
+       th2ini = p2%th2(1) - 1d-2
+       th2end = p2%th2(p2%npeak) + 1d-2
        readc2 = .false.
     else
        ! read crystal structure 2
@@ -3080,10 +3046,9 @@ contains
 
     ! pre-calculation
     if (readc2) &
-       call powder_simple(c2,th2ini,th2end,lambda,fpol0,th2p2,ip2,hvecp2,.false.)
-    call powder_simple(c1,th2ini,th2end,lambda,fpol0,th2p1,ip1,hvecp1,.false.)
-    !xxxx! call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol0,.false.,.false.)
-    call crosscorr_exp(alpha,th2p2,ip2,th2p2,ip2,sigma,dfg22)
+       call c2%powder_peaks(p2,th2ini,th2end,lambda,fpol0,.false.,.false.)
+    call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol0,.false.,.false.)
+    call crosscorr_gaussian(p2,p2,alpha,sigma,dfg22,.false.)
 
     x(1:3) = c1%aa
     x(4:6) = c1%bb
@@ -3199,13 +3164,16 @@ contains
   contains
     subroutine diff_fun(val, n, x, grad, need_gradient, f_data)
       use param, only: pi
+      use tools_io, only: string, uout, ioj_left, ioj_right
       use tools_math, only: det3sym
       real*8 :: val, x(n), grad(n)
       integer :: n, need_gradient
       real :: f_data
 
       real*8 :: diff, diffg(6), calp, cbet, cgam, a, b, c, salp, sbet, sgam
-      real*8 :: dfg11, dfgg11(6), dfg12, dfgg12(6)
+      real*8 :: dfg11, dfgg11(6), dfg12, dfgg12(6), gg(3,3)
+      integer :: i, ires
+      character(len=:), allocatable :: str
 
       neval = neval + 1
       a = x(1)
@@ -3217,26 +3185,27 @@ contains
       salp = sin(x(4) * pi / 180d0)
       sbet = sin(x(5) * pi / 180d0)
       sgam = sin(x(6) * pi / 180d0)
-      c1%gtensor(1,1) = a * a
-      c1%gtensor(1,2) = a * b * cgam
-      c1%gtensor(2,1) = c1%gtensor(1,2)
-      c1%gtensor(1,3) = a * c * cbet
-      c1%gtensor(3,1) = c1%gtensor(1,3)
-      c1%gtensor(2,2) = b * b
-      c1%gtensor(2,3) = b * c * calp
-      c1%gtensor(3,2) = c1%gtensor(2,3)
-      c1%gtensor(3,3) = c * c
+      gg(1,1) = a * a
+      gg(1,2) = a * b * cgam
+      gg(2,1) = gg(1,2)
+      gg(1,3) = a * c * cbet
+      gg(3,1) = gg(1,3)
+      gg(2,2) = b * b
+      gg(2,3) = b * c * calp
+      gg(3,2) = gg(2,3)
+      gg(3,3) = c * c
 
-      if (det3sym(c1%gtensor) < 0d0) then
+      if (det3sym(gg) < 0d0) then
          val = huge(1d0)
          if (need_gradient /= 0) grad = 0d0
          return
       end if
 
-      ! only recompute crystal 1
-      call powder_simple(c1,th2ini,th2end,lambda,fpol0,th2p1,ip1,hvecp1,.true.,th2pg,ipg)
-      call crosscorr_exp(alpha,th2p1,ip1,th2p1,ip1,sigma,dfg11,th2pg,ipg,dfgg11)
-      call crosscorr_exp(alpha,th2p1,ip1,th2p2,ip2,sigma,dfg12,th2pg,ipg,dfgg12)
+      ! only recompute peak pattern for crystal 1
+      call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol0,.true.,.true.,gg)
+      call crosscorr_gaussian(p1,p1,alpha,sigma,dfg11,.true.,dfgg11)
+      call crosscorr_gaussian(p1,p2,alpha,sigma,dfg12,.true.,dfgg12)
+
       diff = dfg12 / sqrt(dfg11 * dfg22)
 
       ! write output
@@ -3258,65 +3227,6 @@ contains
       end if
 
       ! message
-      call write_message(x,val)
-
-    end subroutine diff_fun
-
-    subroutine crosscorr_exp(alpha,th1,ip1,th2,ip2,sigma,dfg,th1g,ip1g,dfgg)
-      use param, only: pi
-      real*8, intent(in) :: alpha
-      real*8, intent(in) :: th1(:), th2(:), ip1(:), ip2(:)
-      real*8, intent(in) :: sigma
-      real*8, intent(out) :: dfg
-      real*8, intent(in), optional :: th1g(:,:), ip1g(:,:)
-      real*8, intent(out), optional :: dfgg(6)
-
-      logical :: calcderiv
-      real*8 :: z, zp, z2p, zsq, expt12, thdif
-      real*8 :: thdeps
-      integer :: imin
-
-      real*8, parameter :: eps_discard = 1d-10
-
-      calcderiv = present(th1g) .and. present(ip1g) .and. present(dfgg)
-
-      z = 1d0 / (alpha**2 + 4d0 * pi * sigma**2)
-      zp = pi * z
-      z2p = 2d0 * zp
-      zsq = sqrt(z)
-
-      thdeps = sqrt(abs(-log(eps_discard) / zp))
-      dfg = 0d0
-      imin = 1
-      if (calcderiv) dfgg = 0d0
-      do j = 1, size(th2,1)
-         iloop: do i = imin, size(th1,1)
-            thdif = th1(i) - th2(j)
-            if (abs(thdif) > thdeps) then
-               if (thdif > thdeps) then
-                  exit iloop
-               else
-                  imin = i+1
-                  cycle
-               end if
-            end if
-            expt12 = exp(-zp * thdif * thdif)
-            dfg = dfg + ip1(i) * ip2(j) * expt12
-            if (calcderiv) dfgg = dfgg + ip2(j) * expt12 * (ip1g(:,i) - z2p * ip1(i) * thdif * th1g(:,i))
-         end do iloop
-      end do
-      dfg = dfg * zsq
-      if (calcderiv) dfgg = dfgg * zsq
-
-    end subroutine crosscorr_exp
-
-    subroutine write_message(x,val)
-      use tools_io, only: string, uout, ioj_left, ioj_right
-      real*8, intent(in) :: x(6), val
-
-      integer :: i, ires
-      character(len=:), allocatable :: str
-
       lastval = val
       if (val < bestval * (1d0 - besteps)) then
          bestval = val
@@ -3331,274 +3241,16 @@ contains
          (string(x(i),'f',length=6,decimal=2,justify=ioj_right),i=4,6), &
          str
 
-      ! force termination
+      ! force termination?
       if (imode == imode_global .and. neval - nbesteval > maxfeval) then
          iresok = .true.
          call nlo_set_force_stop(ires, opt, 2)
       end if
 
-    end subroutine write_message
+    end subroutine diff_fun
 
 #endif
   end subroutine trick_gaucomp
-
-  subroutine powder_simple(c,th2ini0,th2end0,lambda0,fpol,th2p,ip,hvecp,usehvecp,&
-     th2pg,ipg)
-    use crystalmod, only: crystal
-    use param, only: pi, bohrtoa, cscatt, c2scatt
-    use tools_io, only: ferror, faterr
-    use tools_math, only: matinv
-    use tools, only: qcksort
-    use types, only: realloc
-    type(crystal), intent(in) :: c
-    real*8, intent(in) :: th2ini0, th2end0
-    real*8, intent(in) :: lambda0
-    real*8, intent(in) :: fpol
-    real*8, allocatable, intent(inout) :: th2p(:)
-    real*8, allocatable, intent(inout) :: ip(:)
-    integer, allocatable, intent(inout) :: hvecp(:,:)
-    logical, intent(in) :: usehvecp
-    real*8, allocatable, intent(inout), optional :: th2pg(:,:)
-    real*8, allocatable, intent(inout), optional :: ipg(:,:)
-
-    integer :: i, kp, np, hcell, h, k, l, iz
-    real*8 :: th2ini, th2end, lambda, hvec(3), kvec(3), th, sth, th2, cth, cth2
-    real*8 :: smax, dh2, dh, dh3, ar(3), gr(3,3), imax
-    real*8 :: ffac, as(4), bs(4), cs, c2s(4), int, intg(6), mcorr, afac
-    real*8 :: th2g(6), mcorrg(6)
-    integer :: hmax
-    logical :: again, usederivs
-    integer, allocatable :: io(:)
-
-    integer, parameter :: mp = 20
-    real*8, parameter :: ieps = 1d-5
-
-    th2ini = th2ini0 * pi / 180d0
-    th2end = th2end0 * pi / 180d0
-
-    ! allocate for peak list
-    usederivs = present(th2pg) .and. present(ipg)
-    if (allocated(th2p)) deallocate(th2p)
-    if (present(th2pg)) then
-       if (allocated(th2pg)) deallocate(th2pg)
-    end if
-    if (allocated(ip)) deallocate(ip)
-    if (present(ipg)) then
-       if (allocated(ipg)) deallocate(ipg)
-    end if
-    if (.not.usehvecp) then
-       allocate(th2p(mp))
-       allocate(ip(mp))
-       if (allocated(hvecp)) deallocate(hvecp)
-       allocate(hvecp(3,mp))
-       if (present(th2pg)) allocate(th2pg(6,mp))
-       if (present(ipg)) allocate(ipg(6,mp))
-    else
-       np = size(hvecp,2)
-       allocate(th2p(np))
-       allocate(ip(np))
-       if (present(th2pg)) allocate(th2pg(6,np))
-       if (present(ipg)) allocate(ipg(6,np))
-    end if
-
-    ! metric tensor, cell limits, convert lambda to bohr
-    gr = c%gtensor
-    call matinv(gr,3)
-    do i = 1, 3
-       ar = sqrt(gr(i,i))
-    end do
-    lambda = lambda0 / bohrtoa
-    smax = sin((th2end)/2d0)
-    hmax = 2*ceiling(2*smax/lambda/minval(ar))
-
-    ! calculate the intensities
-    if (.not.usehvecp) then
-       np = 0
-       hcell = 0
-       again = .true.
-       do while (again)
-          hcell = hcell + 1
-          again = (hcell <= hmax)
-          do h = -hcell, hcell
-             do k = -hcell, hcell
-                do l = -hcell, hcell
-                   if (abs(h)/=hcell.and.abs(k)/=hcell.and.abs(l)/=hcell) cycle
-
-                   ! calculate this reciprocal lattice vector
-                   hvec = real((/h,k,l/),8)
-                   call run_function_body()
-
-                   ! sum the peak
-                   if (int > ieps) then
-                      again = .true.
-                      np = np + 1
-                      if (np > size(th2p)) then
-                         call realloc(th2p,2*np)
-                         call realloc(ip,2*np)
-                         call realloc(hvecp,3,2*np)
-                         if (present(th2pg)) call realloc(th2pg,6,2*np)
-                         if (present(ipg)) call realloc(ipg,6,2*np)
-                      end if
-                      th2p(np) = th2
-                      ip(np) = int
-                      hvecp(1,np) = h
-                      hvecp(2,np) = k
-                      hvecp(3,np) = l
-                      if (present(th2pg)) th2pg(:,np) = th2g
-                      if (present(ipg)) ipg(:,np) = intg
-                   end if
-                end do
-             end do
-          end do
-       end do
-       call realloc(th2p,np)
-       call realloc(ip,np)
-       call realloc(hvecp,3,np)
-       if (present(th2pg)) call realloc(th2pg,6,np)
-       if (present(ipg)) call realloc(ipg,6,np)
-    else
-       do kp = 1, size(hvecp,2)
-          hvec = real(hvecp(:,kp),8)
-          call run_function_body()
-          th2p(kp) = th2
-          ip(kp) = int
-          if (present(th2pg)) th2pg(:,kp) = th2g
-          if (present(ipg)) ipg(:,kp) = intg
-       end do
-    end if
-
-    ! sort the peaks
-    allocate(io(np))
-    do i = 1, np
-       io(i) = i
-    end do
-    call qcksort(th2p,io,1,np)
-    th2p = th2p(io)
-    ip = ip(io)
-    hvecp = hvecp(:,io)
-    if (present(th2pg)) th2pg = th2pg(:,io)
-    if (present(ipg)) ipg = ipg(:,io)
-    deallocate(io)
-
-    ! scale the angles
-    th2p = th2p * 180d0 / pi
-    if (present(th2pg)) th2pg = th2pg * 180d0 / pi
-
-    ! normalize the intensities (highest peak is 1)
-    imax = maxval(ip)
-    ip = ip / imax
-    if (present(ipg)) ipg = ipg / imax
-
-  contains
-    subroutine run_function_body()
-      real*8 :: xfac, ffacg(6), sthlam, esthlam
-      real*8 :: cterm, sterm, ctermg(6), stermg(6)
-      real*8 :: kx, ckx, skx
-      real*8 :: dhv(3), dhm(6), ebs(4)
-
-      ! initialize
-      int = 0d0
-      intg = 0d0
-      th = 0d0
-      th2 = 0d0
-
-      ! plane distance and derivatives
-      dh2 = dot_product(hvec,matmul(gr,hvec))
-      dh = sqrt(dh2)
-      dh3 = dh2 * dh
-      if (usederivs) then
-         dhv = matmul(gr,hvec)
-         dhm(1) = dhv(1) * dhv(1)
-         dhm(2) = dhv(1) * dhv(2)
-         dhm(3) = dhv(1) * dhv(3)
-         dhm(4) = dhv(2) * dhv(2)
-         dhm(5) = dhv(2) * dhv(3)
-         dhm(6) = dhv(3) * dhv(3)
-         dhm = -0.5d0 * dhm / dh
-      end if
-
-      ! the theta is not outside the spectrum range
-      sth = 0.5d0 * lambda * dh
-      if (abs(sth) > 1d0) return
-      if (.not.usehvecp .and. abs(sth) > smax) return
-      th = asin(sth)
-      th2 = 2d0 * th
-      if (.not.usehvecp .and. th2 < th2ini .or. th2 > th2end) return
-      cth = cos(th)
-      if (usederivs) &
-         th2g = 2d0 * sth / (cth * dh) * dhm
-
-      ! more stuff we need
-      sthlam = dh / bohrtoa / 2d0
-      kvec = 2 * pi * hvec
-
-      ! calculate the raw intensity for this (hkl)
-      cterm = 0d0
-      sterm = 0d0
-      if (usederivs) then
-         ctermg = 0d0
-         stermg = 0d0
-      end if
-      do i = 1, c%ncel
-         iz = c%spc(c%atcel(i)%is)%z
-         if (iz < 1 .or. iz > size(cscatt,2)) &
-            call ferror('struct_powder','invalid Z -> no atomic scattering factors',faterr)
-         as = (/cscatt(1,iz),cscatt(3,iz),cscatt(5,iz),cscatt(7,iz)/)
-         bs = (/cscatt(2,iz),cscatt(4,iz),cscatt(6,iz),cscatt(8,iz)/)
-         cs = cscatt(9,iz)
-         if (dh < 2d0) then
-            ebs = exp(-bs * dh2)
-            ffac = as(1) * ebs(1) + as(2) * ebs(2) + as(3) * ebs(3) + as(4) * ebs(4) + cs
-            if (usederivs) then
-               xfac = as(1)*bs(1)*ebs(1) + as(2)*bs(2)*ebs(2) + as(3)*bs(3)*ebs(3) + as(4)*bs(4)*ebs(4)
-               ffacg = -2d0 * dh * xfac * dhm
-            end if
-         elseif (iz == 1) then
-            ffac = 0d0
-            if (usederivs) ffacg = 0d0
-         else
-            c2s = c2scatt(:,iz)
-            ffac = exp(c2s(1)+c2s(2)*dh+c2s(3)*dh2/10d0+c2s(4)*dh3/100d0)
-            if (usederivs) then
-               xfac = c2s(2) + 2d0 * c2s(3) * dh / 10d0 + 3d0 * c2s(4) * dh2 / 100d0
-               ffacg = ffac * xfac * dhm
-            end if
-         end if
-         esthlam = exp(-sthlam**2)
-         if (usederivs) &
-            ffacg = (ffacg - sthlam / bohrtoa * ffac * dhm) * esthlam
-         ffac = ffac * esthlam
-
-         kx = dot_product(kvec,c%atcel(i)%x)
-         ckx = cos(kx)
-         skx = sin(kx)
-         cterm = cterm + ffac * ckx
-         sterm = sterm + ffac * skx
-         if (usederivs) then
-            ctermg = ctermg + ffacg * ckx
-            stermg = stermg + ffacg * skx
-         end if
-      end do
-      int = cterm*cterm + sterm*sterm
-      if (usederivs) &
-         intg = 2d0 * (cterm * ctermg + sterm * stermg)
-
-      ! lorentz-polarization correction.
-      ! this formula is compatible with Pecharsky, IuCR
-      ! website, and the Fox, gdis, and dioptas implementations
-      cth2 = cth*cth-sth*sth
-      afac = (1-fpol) / (1+fpol)
-      mcorr = (1 + afac * cth2 * cth2) / (1 + afac) / cth / (sth*sth)
-      if (usederivs) &
-         mcorrg = 0.5d0 * (- 8 * afac * cth2 / ((1+afac) * sth) - mcorr * cth / sth - mcorr * cth2 / (sth * cth)) * th2g
-
-      if (usederivs) &
-         intg = intg * mcorr + int * mcorrg
-      int = int * mcorr
-
-    end subroutine run_function_body
-
-  end subroutine powder_simple
 
   ! PROFILE_FIT file-xy.s ymax_peakdetect.r nadj.i
   subroutine trick_profile_fit(line0)
