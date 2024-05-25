@@ -29,6 +29,11 @@ submodule (libcritic2) proc
   real(c_double), parameter :: alpha_def = 1.0d0
   real(c_double), parameter :: th2ini_def = 5d0
   real(c_double), parameter :: th2end_def = 50d0
+  real(c_double), parameter :: besteps_def = 1d-4
+  real(c_double), parameter :: max_elong_def = 0.2d0
+  real(c_double), parameter :: max_ang_def = 15d0
+  integer(c_int), parameter :: maxfeval_def = 10000
+
 
   !xx! private procedures
   ! subroutine initialize_critic2()
@@ -326,6 +331,62 @@ contains
        alpha0=alpha,lambda0=lambda,fpol0=fpol)
 
   end function c2_compare_gpwdf
+
+  !xxxx!
+  module function c2_compare_vcgpwdf(c1,p2,crout,global,verbose,alpha,lambda,fpol,maxfeval,&
+     besteps,max_elong,max_ang) bind(c,name="c2_compare_vcgpwdf")
+    use crystalseedmod, only: crystalseed
+    use crystalmod, only: crystal, xrpd_peaklist, gaussian_compare
+    type(c_ptr), value, intent(in) :: c1
+    type(c_ptr), value, intent(in) :: p2
+    type(c_ptr) :: crout
+    logical(c_bool), value :: global, verbose
+    real(c_double), value :: alpha, lambda, fpol, besteps, max_elong, max_ang
+    integer(c_int), value :: maxfeval
+    real(c_double) :: c2_compare_vcgpwdf
+
+    type(crystal), pointer :: cr, croutf
+    type(xrpd_peaklist), pointer :: pk
+    integer :: imode
+    type(crystalseed) :: seed
+
+    ! consistency checks
+    if (.not.critic2_init) call initialize_critic2()
+    if (.not.c_associated(c1)) return
+    call c_f_pointer(c1,cr)
+    if (.not.associated(cr)) return
+    if (.not.c_associated(p2)) return
+    call c_f_pointer(p2,pk)
+    if (.not.associated(pk)) return
+
+    ! set default values
+    if (alpha < 0d0) alpha = alpha_def
+    if (lambda < 0d0) lambda = lambda_def
+    if (fpol < 0d0) fpol = fpol_def
+    if (maxfeval < 0) maxfeval = maxfeval_def
+    if (besteps < 0d0) besteps = besteps_def
+    if (max_elong < 0d0) max_elong = max_elong_def
+    if (max_ang < 0d0) max_ang = max_ang_def
+    if (global) then
+       imode = 2
+    else
+       imode = 1
+    end if
+
+    ! run the comparison
+    call gaussian_compare(cr,pk,imode,c2_compare_vcgpwdf,seed,logical(verbose),alpha,lambda,&
+       fpol,maxfeval,besteps,max_elong,max_ang)
+
+    ! crystal in output
+    allocate(croutf)
+    call croutf%struct_new(seed,.false.)
+    if (croutf%isinit) then
+       crout = c_loc(croutf)
+    else
+       crout = c_null_ptr
+    endif
+
+  end function c2_compare_vcgpwdf
 
   !xx! private procedures
 

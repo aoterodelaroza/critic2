@@ -3046,6 +3046,7 @@ contains
        call c2%powder_peaks(p2,th2ini,th2end,lambda,fpol0,.false.,.false.)
 
     ! run the comparison
+    write (uout,'("# step    DIFF        -- cell parameters --")')
     call gaussian_compare(c1,p2,imode,diff,seedout=seed,verbose0=.true.,&
        alpha0=alpha,lambda0=lambda,maxfeval0=maxfeval,besteps0=besteps)
 

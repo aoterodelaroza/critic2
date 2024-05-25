@@ -1027,6 +1027,8 @@ contains
     nbesteval = 0
     th2ini = p2%th2(1) - 2 * sigma
     th2end = p2%th2(p2%npeak) + 2 * sigma
+    if (verbose) &
+       write (uout,'("# step    DIFF        -- cell parameters --")')
 
     call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol,.false.,.false.)
     call crosscorr_gaussian(p2,p2,alpha,sigma,dfg22,.false.)

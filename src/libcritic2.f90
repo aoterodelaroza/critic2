@@ -19,7 +19,7 @@
 
 ! Public interface for the critic2 C/C++ library.
 module libcritic2
-  use iso_c_binding, only: c_ptr, c_int, c_double
+  use iso_c_binding, only: c_ptr, c_int, c_double, c_bool
   implicit none
 
   public
@@ -73,6 +73,16 @@ module libcritic2
        real(c_double), value :: alpha, lambda, fpol
        real(c_double) :: c2_compare_gpwdf
      end function c2_compare_gpwdf
+     module function c2_compare_vcgpwdf(c1,p2,crout,global,verbose,alpha,lambda,fpol,&
+        maxfeval,besteps,max_elong,max_ang) bind(c,name="c2_compare_vcgpwdf")
+       type(c_ptr), value, intent(in) :: c1
+       type(c_ptr), value, intent(in) :: p2
+       type(c_ptr) :: crout
+       logical(c_bool), value :: global, verbose
+       real(c_double), value :: alpha, lambda, fpol, besteps, max_elong, max_ang
+       integer(c_int), value :: maxfeval
+       real(c_double) :: c2_compare_vcgpwdf
+     end function c2_compare_vcgpwdf
   end interface
 
 end module libcritic2

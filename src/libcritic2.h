@@ -33,9 +33,9 @@ typedef void xrpd_peaklist;
 // structure object (requires destruction after use).
 crystal *c2_crystal_from_file(const char *file);
 crystal *c2_crystal_from_lattice(const int natom,const double lattice[3][3],
-				 const double position[][3],const int zat[]);
+                                 const double position[][3],const int zat[]);
 crystal *c2_crystal_from_cellpar(const int natom,const double cel[3], const double ang[3],
-				 const double position[][3],const int zat[]);
+                                 const double position[][3],const int zat[]);
 
 // Write a report about the crystal structure to standard output.
 void c2_describe_crystal(crystal *cr);
@@ -48,7 +48,7 @@ void c2_destroy_crystal(crystal *cr);
 
 // Calculate peak positions from crystal structure.
 xrpd_peaklist *c2_peaks_from_crystal(crystal *cr,double th2ini,double th2end,double lambda,
-				     double fpol);
+                                     double fpol);
 
 // Read peak positions from a file.
 xrpd_peaklist *c2_peaks_from_file(const char *file);
@@ -58,6 +58,14 @@ void c2_destroy_peaks(xrpd_peaklist *pk);
 
 // Calculate the GPWDF index between a crystal and a set of peaks
 double c2_compare_gpwdf(crystal *c1,xrpd_peaklist *p2,double alpha,double lambda,double fpol);
+
+// Calculate the VC-GPWDF index between a crystal and a set of peaks
+// double c2_compare_vcgpwdf(crystal *c1,xrpd_peaklist *p2,crystal **crout,bool global,bool verbose,
+//                        double alpha,double lambda,double fpol,int maxfeval,
+//                        double besteps,double max_elong,double max_ang);
+double c2_compare_vcgpwdf(crystal *c1,xrpd_peaklist *p2,crystal **crout,bool global,bool verbose,
+                          double alpha,double lambda,double fpol,int maxfeval,
+                          double besteps,double max_elong,double max_ang);
 
 #ifdef __cplusplus
 }
