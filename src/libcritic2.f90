@@ -83,6 +83,24 @@ module libcritic2
        integer(c_int), value :: maxfeval
        real(c_double) :: c2_compare_vcgpwdf
      end function c2_compare_vcgpwdf
+     module function c2_compare_vcgpwdf_global_safe(c1,p2,crout,verbose,lambda,fpol) &
+        bind(c,name="c2_compare_vcgpwdf_global_safe")
+       type(c_ptr), value, intent(in) :: c1
+       type(c_ptr), value, intent(in) :: p2
+       type(c_ptr) :: crout
+       logical(c_bool), value :: verbose
+       real(c_double), value :: lambda, fpol
+       real(c_double) :: c2_compare_vcgpwdf_global_safe
+     end function c2_compare_vcgpwdf_global_safe
+     module function c2_compare_vcgpwdf_global_quick(c1,p2,crout,verbose,lambda,fpol) &
+        bind(c,name="c2_compare_vcgpwdf_global_quick")
+       type(c_ptr), value, intent(in) :: c1
+       type(c_ptr), value, intent(in) :: p2
+       type(c_ptr) :: crout
+       logical(c_bool), value :: verbose
+       real(c_double), value :: lambda, fpol
+       real(c_double) :: c2_compare_vcgpwdf_global_quick
+     end function c2_compare_vcgpwdf_global_quick
   end interface
 
 end module libcritic2

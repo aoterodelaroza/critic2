@@ -29,10 +29,14 @@ submodule (libcritic2) proc
   real(c_double), parameter :: alpha_def = 1.0d0
   real(c_double), parameter :: th2ini_def = 5d0
   real(c_double), parameter :: th2end_def = 50d0
-  real(c_double), parameter :: besteps_def = 1d-4
-  real(c_double), parameter :: max_elong_def = 0.2d0
-  real(c_double), parameter :: max_ang_def = 15d0
-  integer(c_int), parameter :: maxfeval_def = 10000
+  real(c_double), parameter :: besteps_def_safe = 1d-4
+  real(c_double), parameter :: max_elong_def_safe = 0.2d0
+  real(c_double), parameter :: max_ang_def_safe = 15d0
+  integer(c_int), parameter :: maxfeval_def_safe = 10000
+  real(c_double), parameter :: besteps_def_quick = 1d-3
+  real(c_double), parameter :: max_elong_def_quick = 0.1d0
+  real(c_double), parameter :: max_ang_def_quick = 5d0
+  integer(c_int), parameter :: maxfeval_def_quick = 5000
 
 
   !xx! private procedures
@@ -332,7 +336,17 @@ contains
 
   end function c2_compare_gpwdf
 
-  !xxxx!
+  !> Compare crystal c1 and set of XRPD peaks p2 using variable-cell
+  !> (VC-)GPWDF. If global, use the global minimization for the best
+  !> GPWDF; otherwise use only a local minimization. If verbose, print
+  !> search progress to stdout. alpha = Gaussian triangle
+  !> width. lambda = wavelength in angstrom. fpol = polarization
+  !> correction factor (0 = unpolarized, 0.95 = synchrotron). maxfeval
+  !> = maximum number of function evaluations. besteps = do not
+  !> restart the feval count if a diff lower than the best diff is
+  !> found within besteps. max_elong = maximum cell length elongation
+  !> (%). max_ang = maximum cell angle deformation (degrees). Returns
+  !> the VC-GPDWF score and the deformed c1 structure in crout.
   module function c2_compare_vcgpwdf(c1,p2,crout,global,verbose,alpha,lambda,fpol,maxfeval,&
      besteps,max_elong,max_ang) bind(c,name="c2_compare_vcgpwdf")
     use crystalseedmod, only: crystalseed
@@ -363,10 +377,10 @@ contains
     if (alpha < 0d0) alpha = alpha_def
     if (lambda < 0d0) lambda = lambda_def
     if (fpol < 0d0) fpol = fpol_def
-    if (maxfeval < 0) maxfeval = maxfeval_def
-    if (besteps < 0d0) besteps = besteps_def
-    if (max_elong < 0d0) max_elong = max_elong_def
-    if (max_ang < 0d0) max_ang = max_ang_def
+    if (maxfeval < 0) maxfeval = maxfeval_def_safe
+    if (besteps < 0d0) besteps = besteps_def_safe
+    if (max_elong < 0d0) max_elong = max_elong_def_safe
+    if (max_ang < 0d0) max_ang = max_ang_def_safe
     if (global) then
        imode = 2
     else
@@ -387,6 +401,48 @@ contains
     endif
 
   end function c2_compare_vcgpwdf
+
+  !> Compare crystal c1 and set of XRPD peaks p2 using variable-cell
+  !> (VC-)GPWDF, global minimization. Use "safe" default settings. If
+  !> verbose, print search progress to stdout. lambda = wavelength in
+  !> angstrom. fpol = polarization correction factor (0 = unpolarized,
+  !> 0.95 = synchrotron). Returns the VC-GPDWF score and the deformed
+  !> c1 structure in crout.
+  module function c2_compare_vcgpwdf_global_safe(c1,p2,crout,verbose,lambda,fpol) &
+     bind(c,name="c2_compare_vcgpwdf_global_safe")
+    type(c_ptr), value, intent(in) :: c1
+    type(c_ptr), value, intent(in) :: p2
+    type(c_ptr) :: crout
+    logical(c_bool), value :: verbose
+    real(c_double), value :: lambda, fpol
+    real(c_double) :: c2_compare_vcgpwdf_global_safe
+
+    c2_compare_vcgpwdf_global_safe = c2_compare_vcgpwdf(c1,p2,crout,.true._c_bool,verbose,&
+       alpha_def,lambda,fpol,maxfeval_def_safe,besteps_def_safe,max_elong_def_safe,&
+       max_ang_def_safe)
+
+  end function c2_compare_vcgpwdf_global_safe
+
+  !> Compare crystal c1 and set of XRPD peaks p2 using variable-cell
+  !> (VC-)GPWDF, global minimization. Use "quick" default settings. If
+  !> verbose, print search progress to stdout. lambda = wavelength in
+  !> angstrom. fpol = polarization correction factor (0 = unpolarized,
+  !> 0.95 = synchrotron). Returns the VC-GPDWF score and the deformed
+  !> c1 structure in crout.
+  module function c2_compare_vcgpwdf_global_quick(c1,p2,crout,verbose,lambda,fpol) &
+     bind(c,name="c2_compare_vcgpwdf_global_quick")
+    type(c_ptr), value, intent(in) :: c1
+    type(c_ptr), value, intent(in) :: p2
+    type(c_ptr) :: crout
+    logical(c_bool), value :: verbose
+    real(c_double), value :: lambda, fpol
+    real(c_double) :: c2_compare_vcgpwdf_global_quick
+
+    c2_compare_vcgpwdf_global_quick = c2_compare_vcgpwdf(c1,p2,crout,.true._c_bool,verbose,&
+       alpha_def,lambda,fpol,maxfeval_def_quick,besteps_def_quick,max_elong_def_quick,&
+       max_ang_def_quick)
+
+  end function c2_compare_vcgpwdf_global_quick
 
   !xx! private procedures
 

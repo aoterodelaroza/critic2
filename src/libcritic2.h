@@ -60,12 +60,13 @@ void c2_destroy_peaks(xrpd_peaklist *pk);
 double c2_compare_gpwdf(crystal *c1,xrpd_peaklist *p2,double alpha,double lambda,double fpol);
 
 // Calculate the VC-GPWDF index between a crystal and a set of peaks
-// double c2_compare_vcgpwdf(crystal *c1,xrpd_peaklist *p2,crystal **crout,bool global,bool verbose,
-//                        double alpha,double lambda,double fpol,int maxfeval,
-//                        double besteps,double max_elong,double max_ang);
 double c2_compare_vcgpwdf(crystal *c1,xrpd_peaklist *p2,crystal **crout,bool global,bool verbose,
                           double alpha,double lambda,double fpol,int maxfeval,
                           double besteps,double max_elong,double max_ang);
+double c2_compare_vcgpwdf_global_safe(crystal *c1,xrpd_peaklist *p2,crystal **crout,bool verbose,
+                                      double lambda,double fpol);
+double c2_compare_vcgpwdf_global_quick(crystal *c1,xrpd_peaklist *p2,crystal **crout,bool verbose,
+                                       double lambda,double fpol);
 
 #ifdef __cplusplus
 }
