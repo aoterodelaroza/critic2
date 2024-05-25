@@ -29,42 +29,98 @@ typedef void crystal;
 typedef void xrpd_peaklist;
 
 //// Functions ////
-// Read structure from a file and return a pointer to the crystal
-// structure object (requires destruction after use).
+
+//// CRYSTAL ////
+
+// Create a crystal structure object from a file. The format of the
+// file is detected from the extension. Allocate space for the crystal
+// structure and return a pointer to it or NULL if there was an
+// error. Requires destruction of the object after its use.
 crystal *c2_crystal_from_file(const char *file);
+
+// Create a crystal structure from the lattice parameters (lattice,
+// in bohr), number of atoms (natom), atomic positions (position,
+// fractional coords), and atomic numbers (zat). Allocate space for
+// the crystal structure and return a pointer to it or NULL if there
+// was an error. Requires destruction of the object after its use.
 crystal *c2_crystal_from_lattice(const int natom,const double lattice[3][3],
                                  const double position[][3],const int zat[]);
+
+// Create a crystal structure from the cell lengths (cel, in bohr),
+// cell angles (ang, degrees), number of atoms (natom), atomic
+// positions (position, fractional coords), and atomic numbers
+// (zat). Allocate space for the crystal structure and return a
+// pointer to it or NULL if there was an error. Requires destruction
+// of the object after its use.
 crystal *c2_crystal_from_cellpar(const int natom,const double cel[3], const double ang[3],
                                  const double position[][3],const int zat[]);
 
-// Write a report about the crystal structure to standard output.
+// Write the report about the input crystal structure to standard output.
 void c2_describe_crystal(crystal *cr);
 
-// Write crystal structure to a file.
+// Write the crystal structure to a file. The format of the file is
+// detected from the extension.
 crystal *c2_write_crystal(crystal *cr,const char *file);
 
-// Destroy a crystal structure object.
+// Destroy the input crystal structure object and free the memory.
 void c2_destroy_crystal(crystal *cr);
 
-// Calculate peak positions from crystal structure.
+//// PEAKS ////
+
+// Calculate the XRPD peak positions from the crystal structure.
+// Limit the peaks to the 2theta range th2ini to th2end. lambda is
+// the wavelength in angstrom. fpol is the polarization correction
+// factor (0 = unpolarized, 0.95 = synchrotron). If th2ini, th2end,
+// lambda, fpol < 0, use default values.
 xrpd_peaklist *c2_peaks_from_crystal(crystal *cr,double th2ini,double th2end,double lambda,
                                      double fpol);
 
-// Read peak positions from a file.
+// Read xrpd peaks from a file. Allocate space for the crystal
+// structure and return a pointer to it or NULL if there was an
+// error.
 xrpd_peaklist *c2_peaks_from_file(const char *file);
 
-// Destroy a XRPD peak structure object.
+// Destroy the input XRPD peaks structure object and free the memory.
 void c2_destroy_peaks(xrpd_peaklist *pk);
 
-// Calculate the GPWDF index between a crystal and a set of peaks
+//// (VC-)GPWDF ////
+
+// Compare crystal c1 and set of XRPD peaks p2 using GPWDF. alpha =
+// Gaussian triangle width. lambda = wavelength in angstrom. fpol =
+// polarization correction factor (0 = unpolarized, 0.95 =
+// synchrotron). If alpha, lambda, fpol < 0, use default values.
 double c2_compare_gpwdf(crystal *c1,xrpd_peaklist *p2,double alpha,double lambda,double fpol);
 
-// Calculate the VC-GPWDF index between a crystal and a set of peaks
+// Compare crystal c1 and set of XRPD peaks p2 using variable-cell
+// (VC-)GPWDF. If global, use the global minimization for the best
+// GPWDF; otherwise use only a local minimization. If verbose, print
+// search progress to stdout. alpha = Gaussian triangle
+// width. lambda = wavelength in angstrom. fpol = polarization
+// correction factor (0 = unpolarized, 0.95 = synchrotron). maxfeval
+// = maximum number of function evaluations. besteps = do not
+// restart the feval count if a diff lower than the best diff is
+// found within besteps. max_elong = maximum cell length elongation
+// (%). max_ang = maximum cell angle deformation (degrees). Returns
+// the VC-GPDWF score and the deformed c1 structure in crout.
 double c2_compare_vcgpwdf(crystal *c1,xrpd_peaklist *p2,crystal **crout,bool global,bool verbose,
                           double alpha,double lambda,double fpol,int maxfeval,
                           double besteps,double max_elong,double max_ang);
+
+// Compare crystal c1 and set of XRPD peaks p2 using variable-cell
+// (VC-)GPWDF, global minimization. Use "safe" default settings. If
+// verbose, print search progress to stdout. lambda = wavelength in
+// angstrom. fpol = polarization correction factor (0 = unpolarized,
+// 0.95 = synchrotron). Returns the VC-GPDWF score and the deformed
+// c1 structure in crout.
 double c2_compare_vcgpwdf_global_safe(crystal *c1,xrpd_peaklist *p2,crystal **crout,bool verbose,
                                       double lambda,double fpol);
+
+// Compare crystal c1 and set of XRPD peaks p2 using variable-cell
+// (VC-)GPWDF, global minimization. Use "quick" default settings. If
+// verbose, print search progress to stdout. lambda = wavelength in
+// angstrom. fpol = polarization correction factor (0 = unpolarized,
+// 0.95 = synchrotron). Returns the VC-GPDWF score and the deformed
+// c1 structure in crout.
 double c2_compare_vcgpwdf_global_quick(crystal *c1,xrpd_peaklist *p2,crystal **crout,bool verbose,
                                        double lambda,double fpol);
 

@@ -44,10 +44,10 @@ submodule (libcritic2) proc
 
 contains
 
-  !> Read a crystal structure from a file. The format of the file is
-  !> detected from the extension. Allocate space for the crystal
-  !> structure and return a pointer to it or NULL if there was an
-  !> error. Requires destruction of the object after its use.
+  !> Create a crystal structure object from a file. The format of the
+  !> file is detected from the extension. Allocate space for the
+  !> crystal structure and return a pointer to it or NULL if there was
+  !> an error. Requires destruction of the object after its use.
   module function c2_crystal_from_file(file) bind(c,name="c2_crystal_from_file")
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
