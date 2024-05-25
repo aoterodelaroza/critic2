@@ -31,15 +31,14 @@ contains
   !> Read a crystal structure from a file. Allocate space for the
   !> crystal structure and return a pointer to it or NULL if there was
   !> an error. Requires destruction of the object after its use.
-  module function create_structure_from_file(file) bind(c,name="create_structure_from_file")
+  module function c2_crystal_from_file(file) bind(c,name="c2_crystal_from_file")
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use c_interface_module, only: c_f_string_alloc
     type(c_ptr), value, intent(in) :: file
-    type(c_ptr) :: create_structure_from_file
+    type(c_ptr) :: c2_crystal_from_file
 
     character(len=:), allocatable :: fname
-    character(len=1,kind=c_char), dimension(:), pointer :: p_chars
     type(crystalseed) :: seed
     integer :: i
     character(len=:), allocatable :: errmsg
@@ -49,7 +48,7 @@ contains
     if (.not.critic2_init) call initialize_critic2()
 
     ! read seed from file
-    create_structure_from_file = c_null_ptr
+    c2_crystal_from_file = c_null_ptr
     call c_f_string_alloc(file,fname)
     call seed%read_any_file(fname,-1,errmsg)
     if (len_trim(errmsg) > 0) return
@@ -58,12 +57,100 @@ contains
     allocate(crf)
     call crf%struct_new(seed,.false.)
     if (.not.crf%isinit) return
-    create_structure_from_file = c_loc(crf)
+    c2_crystal_from_file = c_loc(crf)
 
-  end function create_structure_from_file
+  end function c2_crystal_from_file
 
-  !> Write the report about a crystal structure to standard output.
-  module subroutine describe_structure(cr) bind(c,name="describe_structure")
+  !> Create a crystal structure from the lattice parameters (lattice,
+  !> in bohr), number of atoms (natom), atomic positions (position,
+  !> fractional coords), and atomic numbers (zat). Allocate space for
+  !> the crystal structure and return a pointer to it or NULL if there
+  !> was an error. Requires destruction of the object after its use.
+  module function c2_crystal_from_lattice(natom,lattice,position,zat) bind(c,name="c2_crystal_from_lattice")
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed
+    use tools_io, only: nameguess
+    use param, only: maxzat0
+    integer(c_int), intent(in), value :: natom
+    real(c_double), intent(in) :: lattice(3,3)
+    real(c_double), intent(in) :: position(3,natom)
+    integer(c_int), intent(in) :: zat(natom)
+    type(c_ptr) :: c2_crystal_from_lattice
+
+    integer :: isused(maxzat0)
+    type(crystalseed) :: seed
+    integer :: i
+    type(crystal), pointer :: crf
+
+    ! consistency checks
+    if (.not.critic2_init) call initialize_critic2()
+
+    ! build seed from lattice info
+    c2_crystal_from_lattice = c_null_ptr
+    call seed%end()
+    seed%m_x2c = lattice
+    seed%useabr = 2
+
+    ! atomic positions and types
+    isused = 0
+    seed%nat = natom
+    seed%nspc = 0
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    seed%x = position
+    do i = 1, natom
+       if (zat(i) <= 0 .or. zat(i) > maxzat0) return
+       if (isused(zat(i)) == 0) then
+          seed%nspc = seed%nspc + 1
+          isused(zat(i)) = seed%nspc
+       end if
+       seed%is(i) = isused(zat(i))
+    end do
+
+    ! atomic species
+    allocate(seed%spc(seed%nspc))
+    do i = 1, maxzat0
+       if(isused(i) > 0) then
+          seed%spc(isused(i))%z = i
+          seed%spc(isused(i))%name = nameguess(i)
+       end if
+    end do
+
+    ! rest of info
+    seed%isused = .true.
+    seed%ismolecule = .false.
+
+    ! output the crystal
+    allocate(crf)
+    call crf%struct_new(seed,.false.)
+    if (.not.crf%isinit) return
+    c2_crystal_from_lattice = c_loc(crf)
+
+  end function c2_crystal_from_lattice
+
+  !> Create a crystal structure from the cell lengths (cel, in bohr),
+  !> cell angles (ang, degrees), number of atoms (natom), atomic
+  !> positions (position, fractional coords), and atomic numbers
+  !> (zat). Allocate space for the crystal structure and return a
+  !> pointer to it or NULL if there was an error. Requires destruction
+  !> of the object after its use.
+  module function c2_crystal_from_cellpar(natom,cel,ang,position,zat) bind(c,name="c2_crystal_from_cellpar")
+    use tools_math, only: m_x2c_from_cellpar
+    integer(c_int), intent(in), value :: natom
+    real(c_double), intent(in) :: cel(3)
+    real(c_double), intent(in) :: ang(3)
+    real(c_double), intent(in) :: position(3,natom)
+    integer(c_int), intent(in) :: zat(natom)
+    type(c_ptr) :: c2_crystal_from_cellpar
+
+    real(c_double) :: lattice(3,3)
+
+    lattice = m_x2c_from_cellpar(cel,ang)
+    c2_crystal_from_cellpar = c2_crystal_from_lattice(natom,lattice,position,zat)
+
+  end function c2_crystal_from_cellpar
+
+  !> Write the report about the input crystal structure to standard output.
+  module subroutine c2_describe_crystal(cr) bind(c,name="c2_describe_crystal")
     use crystalmod, only: crystal
     type(c_ptr), value, intent(in) :: cr
 
@@ -78,10 +165,10 @@ contains
     ! write the report
     call crf%report(.true.,.false.)
 
-  end subroutine describe_structure
+  end subroutine c2_describe_crystal
 
-  !> Destroy a crystal structure object.
-  module subroutine destroy_structure(cr) bind(c,name="destroy_structure")
+  !> Destroy the input crystal structure object and free the memory.
+  module subroutine c2_destroy_crystal(cr) bind(c,name="c2_destroy_crystal")
     use crystalmod, only: crystal
     type(c_ptr), value, intent(in) :: cr
 
@@ -97,7 +184,7 @@ contains
     call crf%end()
     deallocate(crf)
 
-  end subroutine destroy_structure
+  end subroutine c2_destroy_crystal
 
   !xx! private procedures
 

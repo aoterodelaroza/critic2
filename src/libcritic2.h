@@ -30,13 +30,17 @@ typedef void crystal;
 //// Functions ////
 // Read structure from a file and return a pointer to the crystal
 // structure object (requires destruction after use).
-crystal *create_structure_from_file(const char *file);
+crystal *c2_crystal_from_file(const char *file);
+crystal *c2_crystal_from_lattice(const int natom,const double lattice[3][3],
+				 const double position[][3],const int zat[]);
+crystal *c2_crystal_from_cellpar(const int natom,const double cel[3], const double ang[3],
+				 const double position[][3],const int zat[]);
 
 // Write a report about the crystal structure to standard output.
-void describe_structure(crystal *cr);
+void c2_describe_crystal(crystal *cr);
 
 // Destroy a crystal structure object.
-void destroy_structure(crystal *cr);
+void c2_destroy_crystal(crystal *cr);
 
 #ifdef __cplusplus
 }

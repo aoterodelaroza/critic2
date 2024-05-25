@@ -19,20 +19,38 @@
 
 ! Public interface for the critic2 C/C++ library.
 module libcritic2
-  use iso_c_binding, only: c_ptr
+  use iso_c_binding, only: c_ptr, c_int, c_double
   implicit none
 
   public
 
   ! module procedure interfaces
   interface
-     module function create_structure_from_file(file) bind(c,name="create_structure_from_file")
+     module function c2_crystal_from_file(file) bind(c,name="c2_crystal_from_file")
        type(c_ptr), value, intent(in) :: file
-       type(c_ptr) :: create_structure_from_file
-     end function create_structure_from_file
-     module subroutine destroy_structure(cr) bind(c,name="destroy_structure")
+       type(c_ptr) :: c2_crystal_from_file
+     end function c2_crystal_from_file
+     module function c2_crystal_from_lattice(natom,lattice,position,zat) bind(c,name="c2_crystal_from_lattice")
+       integer(c_int), intent(in), value :: natom
+       real(c_double), intent(in) :: lattice(3,3)
+       real(c_double), intent(in) :: position(3,natom)
+       integer(c_int), intent(in) :: zat(natom)
+       type(c_ptr) :: c2_crystal_from_lattice
+     end function c2_crystal_from_lattice
+     module function c2_crystal_from_cellpar(natom,cel,ang,position,zat) bind(c,name="c2_crystal_from_cellpar")
+       integer(c_int), intent(in), value :: natom
+       real(c_double), intent(in) :: cel(3)
+       real(c_double), intent(in) :: ang(3)
+       real(c_double), intent(in) :: position(3,natom)
+       integer(c_int), intent(in) :: zat(natom)
+       type(c_ptr) :: c2_crystal_from_cellpar
+     end function c2_crystal_from_cellpar
+     module subroutine c2_describe_crystal(cr) bind(c,name="c2_describe_crystal")
        type(c_ptr), value, intent(in) :: cr
-     end subroutine destroy_structure
+     end subroutine c2_describe_crystal
+     module subroutine c2_destroy_crystal(cr) bind(c,name="c2_destroy_crystal")
+       type(c_ptr), value, intent(in) :: cr
+     end subroutine c2_destroy_crystal
   end interface
 
 end module libcritic2
