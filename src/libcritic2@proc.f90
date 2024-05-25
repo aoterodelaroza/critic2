@@ -23,6 +23,13 @@ submodule (libcritic2) proc
   ! whether critic2 has been initialized
   logical :: critic2_init = .false.
 
+  ! default values
+  real(c_double), parameter :: lambda_def = 1.5406_c_double
+  real(c_double), parameter :: fpol_def = 0._c_double
+  real(c_double), parameter :: alpha_def = 1.0d0
+  real(c_double), parameter :: th2ini_def = 5d0
+  real(c_double), parameter :: th2end_def = 50d0
+
   !xx! private procedures
   ! subroutine initialize_critic2()
 
@@ -213,8 +220,8 @@ contains
   !> Calculate the XRPD peak positions from the crystal structure.
   !> Limit the peaks to the 2theta range th2ini to th2end. lambda is
   !> the wavelength in angstrom. fpol is the polarization correction
-  !> factor (0 = unpolarized, 0.95 = synchrotron). If lambda or fpol
-  !> are negative, use default value.
+  !> factor (0 = unpolarized, 0.95 = synchrotron). If th2ini, th2end,
+  !> lambda, fpol < 0, use default values.
   function c2_peaks_from_crystal(cr,th2ini,th2end,lambda,fpol) bind(c,name="c2_peaks_from_crystal")
     use crystalmod, only: crystal, xrpd_peaklist
     type(c_ptr), value, intent(in) :: cr
@@ -224,9 +231,6 @@ contains
     type(crystal), pointer :: crf
     type(xrpd_peaklist), pointer :: pk
 
-    real(c_double), parameter :: lambda_def = 1.5406_c_double
-    real(c_double), parameter :: fpol_def = 0._c_double
-
     ! consistency checks
     if (.not.critic2_init) call initialize_critic2()
     if (.not.c_associated(cr)) return
@@ -234,6 +238,8 @@ contains
     if (.not.associated(crf)) return
 
     ! handle default values
+    if (th2ini < 0._c_double) th2ini = th2ini_def
+    if (th2end < 0._c_double) th2end = th2end_def
     if (lambda < 0._c_double) lambda = lambda_def
     if (fpol < 0._c_double) fpol = fpol_def
 
@@ -286,6 +292,40 @@ contains
     deallocate(pkf)
 
   end subroutine c2_destroy_peaks
+
+  !> Compare crystal c1 and set of XRPD peaks p2 using GPWDF. alpha =
+  !> Gaussian triangle width. lambda = wavelength in angstrom. fpol =
+  !> polarization correction factor (0 = unpolarized, 0.95 =
+  !> synchrotron). If alpha, lambda, fpol < 0, use default values.
+  module function c2_compare_gpwdf(c1,p2,alpha,lambda,fpol) bind(c,name="c2_compare_gpwdf")
+    use crystalmod, only: crystal, xrpd_peaklist, gaussian_compare
+    type(c_ptr), value, intent(in) :: c1
+    type(c_ptr), value, intent(in) :: p2
+    real(c_double), value :: alpha, lambda, fpol
+    real(c_double) :: c2_compare_gpwdf
+
+    type(crystal), pointer :: cr
+    type(xrpd_peaklist), pointer :: pk
+
+    ! consistency checks
+    if (.not.critic2_init) call initialize_critic2()
+    if (.not.c_associated(c1)) return
+    call c_f_pointer(c1,cr)
+    if (.not.associated(cr)) return
+    if (.not.c_associated(p2)) return
+    call c_f_pointer(p2,pk)
+    if (.not.associated(pk)) return
+
+    ! set default values
+    if (alpha < 0d0) alpha = alpha_def
+    if (lambda < 0d0) lambda = lambda_def
+    if (fpol < 0d0) fpol = fpol_def
+
+    ! run the comparison
+    call gaussian_compare(cr,pk,0,c2_compare_gpwdf,verbose0=.false.,&
+       alpha0=alpha,lambda0=lambda,fpol0=fpol)
+
+  end function c2_compare_gpwdf
 
   !xx! private procedures
 

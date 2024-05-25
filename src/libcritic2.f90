@@ -67,6 +67,12 @@ module libcritic2
      module subroutine c2_destroy_peaks(pk) bind(c,name="c2_destroy_peaks")
        type(c_ptr), value, intent(in) :: pk
      end subroutine c2_destroy_peaks
+     module function c2_compare_gpwdf(c1,p2,alpha,lambda,fpol) bind(c,name="c2_compare_gpwdf")
+       type(c_ptr), value, intent(in) :: c1
+       type(c_ptr), value, intent(in) :: p2
+       real(c_double), value :: alpha, lambda, fpol
+       real(c_double) :: c2_compare_gpwdf
+     end function c2_compare_gpwdf
   end interface
 
 end module libcritic2

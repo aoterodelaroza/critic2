@@ -56,6 +56,9 @@ xrpd_peaklist *c2_peaks_from_file(const char *file);
 // Destroy a XRPD peak structure object.
 void c2_destroy_peaks(xrpd_peaklist *pk);
 
+// Calculate the GPWDF index between a crystal and a set of peaks
+double c2_compare_gpwdf(crystal *c1,xrpd_peaklist *p2,double alpha,double lambda,double fpol);
+
 #ifdef __cplusplus
 }
 #endif
