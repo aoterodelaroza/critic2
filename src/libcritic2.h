@@ -26,6 +26,7 @@ extern "C" {
 
 //// Types ////
 typedef void crystal;
+typedef void xrpd_peaklist;
 
 //// Functions ////
 // Read structure from a file and return a pointer to the crystal
@@ -44,6 +45,10 @@ crystal *c2_write_crystal(crystal *cr,const char *file);
 
 // Destroy a crystal structure object.
 void c2_destroy_crystal(crystal *cr);
+
+// Calculate peak positions from crystal structure.
+xrpd_peaklist *c2_peaks_from_crystal(crystal *cr,double th2ini,double th2end,double lambda,
+				     double fpol);
 
 #ifdef __cplusplus
 }

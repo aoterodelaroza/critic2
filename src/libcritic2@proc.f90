@@ -210,6 +210,40 @@ contains
 
   end subroutine c2_destroy_crystal
 
+  !> Calculate the XRPD peak positions from the crystal structure.
+  !> Limit the peaks to the 2theta range th2ini to th2end. lambda is
+  !> the wavelength in angstrom. fpol is the polarization correction
+  !> factor (0 = unpolarized, 0.95 = synchrotron). If lambda or fpol
+  !> are negative, use default value.
+  function c2_peaks_from_crystal(cr,th2ini,th2end,lambda,fpol) bind(c,name="c2_peaks_from_crystal")
+    use crystalmod, only: crystal, xrpd_peaklist
+    type(c_ptr), value, intent(in) :: cr
+    real(c_double), value :: th2ini, th2end, lambda, fpol
+    type(c_ptr) :: c2_peaks_from_crystal
+
+    type(crystal), pointer :: crf
+    type(xrpd_peaklist), pointer :: pk
+
+    real(c_double), parameter :: lambda_def = 1.5406_c_double
+    real(c_double), parameter :: fpol_def = 0._c_double
+
+    ! consistency checks
+    if (.not.critic2_init) call initialize_critic2()
+    if (.not.c_associated(cr)) return
+    call c_f_pointer(cr,crf)
+    if (.not.associated(crf)) return
+
+    ! handle default values
+    if (lambda < 0._c_double) lambda = lambda_def
+    if (fpol < 0._c_double) fpol = fpol_def
+
+    ! calculate peak positions and return
+    allocate(pk)
+    call crf%powder_peaks(pk,th2ini,th2end,lambda,fpol,.false.,.false.)
+    c2_peaks_from_crystal = c_loc(pk)
+
+  end function c2_peaks_from_crystal
+
   !xx! private procedures
 
   !> Initialize critic2 when used as a library.

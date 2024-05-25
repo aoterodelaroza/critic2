@@ -55,6 +55,11 @@ module libcritic2
      module subroutine c2_destroy_crystal(cr) bind(c,name="c2_destroy_crystal")
        type(c_ptr), value, intent(in) :: cr
      end subroutine c2_destroy_crystal
+     module function c2_peaks_from_crystal(cr,th2ini,th2end,lambda,fpol) bind(c,name="c2_peaks_from_crystal")
+       type(c_ptr), value, intent(in) :: cr
+       real(c_double), value :: th2ini, th2end, lambda, fpol
+       type(c_ptr) :: c2_peaks_from_crystal
+     end function c2_peaks_from_crystal
   end interface
 
 end module libcritic2
