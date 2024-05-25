@@ -70,7 +70,7 @@ add_dependencies(critic2 critic2_core)
 
 ## library
 if (BUILD_LIBRARY)
-  add_library(libcritic2 ${BUILD_LIBRARY} ${SOURCES_Fortran} ${SOURCES_C} ${SOURCES_Fortran_Library})
+  add_library(libcritic2 SHARED ${SOURCES_Fortran} ${SOURCES_C} ${SOURCES_Fortran_Library})
   set_target_properties(libcritic2 PROPERTIES OUTPUT_NAME critic2 PUBLIC_HEADER "libcritic2.h")
   add_dependencies(libcritic2 critic2_core critic2)
 endif()

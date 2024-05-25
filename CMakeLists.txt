@@ -93,15 +93,8 @@ else()
 endif()
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Profile Release)
 
-## build library
-if (NOT BUILD_LIBRARY)
-  set(BUILD_LIBRARY "OFF" CACHE STRING "Build critic2 library." FORCE)
-else()
-  set(BUILD_LIBRARY CACHE STRING "Build critic2 library.")
-endif()
-set_property(CACHE BUILD_LIBRARY PROPERTY STRINGS SHARED STATIC OFF)
-
 ## interface options
+option(BUILD_LIBRARY "Build the critic2 shared library." OFF)
 option(ENABLE_GUI "Enables the critic2 GUI" OFF)
 option(USE_EXTERNAL_LAPACK "Use external LAPACK/BLAS library (linear algebra operations)." ON)
 #option(USE_EXTERNAL_QHULL "Use external QHULL library (calculation of convex hulls)." ON)
