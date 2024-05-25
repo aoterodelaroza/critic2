@@ -50,6 +50,9 @@ void c2_destroy_crystal(crystal *cr);
 xrpd_peaklist *c2_peaks_from_crystal(crystal *cr,double th2ini,double th2end,double lambda,
 				     double fpol);
 
+// Read peak positions from a file.
+xrpd_peaklist *c2_peaks_from_file(const char *file);
+
 #ifdef __cplusplus
 }
 #endif

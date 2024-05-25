@@ -922,9 +922,10 @@ module crystalmod
        integer, intent(out) :: holo
        integer, intent(out) :: laue
      end subroutine pointgroup_info
-     module subroutine xrpd_peaks_from_file(p,file)
+     module subroutine xrpd_peaks_from_file(p,file,errmsg)
        type(xrpd_peaklist), intent(inout) :: p
        character*(*), intent(in) :: file
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine xrpd_peaks_from_file
      module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,d12,calcderivs,d12g)
        type(xrpd_peaklist), intent(in) :: p1, p2

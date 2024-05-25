@@ -60,6 +60,10 @@ module libcritic2
        real(c_double), value :: th2ini, th2end, lambda, fpol
        type(c_ptr) :: c2_peaks_from_crystal
      end function c2_peaks_from_crystal
+     module function c2_peaks_from_file(file) bind(c,name="c2_peaks_from_file")
+       type(c_ptr), value, intent(in) :: file
+       type(c_ptr) :: c2_peaks_from_file
+     end function c2_peaks_from_file
   end interface
 
 end module libcritic2

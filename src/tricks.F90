@@ -2946,7 +2946,7 @@ contains
     integer :: i
     real*8 :: diff
     real*8, allocatable :: t(:), ih(:)
-    character(len=:), allocatable :: word, file1
+    character(len=:), allocatable :: word, file1, errmsg
     type(crystal) :: c1, c2
     integer :: imode, lu, maxfeval
     real*8 :: th2ini, th2end, alpha, lambda, besteps
@@ -2991,7 +2991,10 @@ contains
     call struct_crystal_input(file1,0,.false.,.false.,cr0=c1)
     word = getword(line0,lp)
     if (len(word) - index(word,".peaks") == 6) then
-       call xrpd_peaks_from_file(p2,word)
+       call xrpd_peaks_from_file(p2,word,errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror("trick_gaucomp",errmsg,faterr)
+       end if
        th2ini = p2%th2(1) - 1d-2
        th2end = p2%th2(p2%npeak) + 1d-2
        readc2 = .false.

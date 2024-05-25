@@ -768,13 +768,14 @@ contains
   end subroutine amd
 
   !> Read the XRPD peaks from a peaks file. The peaks are sorted by th2
-  !> on output.
-  module subroutine xrpd_peaks_from_file(p,file)
+  !> on output. If error, return non-zero-length errmsg.
+  module subroutine xrpd_peaks_from_file(p,file,errmsg)
     use tools, only: qcksort
-    use tools_io, only: fopen_read, getline, isreal, ferror, faterr, fclose
+    use tools_io, only: fopen_read, getline, isreal, fclose
     use types, only: realloc
     type(xrpd_peaklist), intent(inout) :: p
     character*(*), intent(in) :: file
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: i, lu, lp
     character(len=:), allocatable :: line
@@ -785,6 +786,7 @@ contains
     integer, allocatable :: io(:)
 
     ! initialize output
+    errmsg = ""
     p%npeak = 0
     if (allocated(p%th2)) deallocate(p%th2)
     if (allocated(p%ip)) deallocate(p%ip)
@@ -804,8 +806,10 @@ contains
        lp = 1
        ok = isreal(r1,line,lp)
        ok = ok .and. isreal(r2,line,lp)
-       if (.not.ok) &
-          call ferror("xrpd_peaks_from_file","invalid input in peaks file",faterr)
+       if (.not.ok) then
+          errmsg = "invalid input in peaks file"
+          return
+       end if
        p%npeak = p%npeak + 1
        if (p%npeak > size(p%th2,1)) then
           call realloc(p%th2,2*p%npeak)
