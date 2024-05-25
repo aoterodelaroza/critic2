@@ -48,6 +48,10 @@ module libcritic2
      module subroutine c2_describe_crystal(cr) bind(c,name="c2_describe_crystal")
        type(c_ptr), value, intent(in) :: cr
      end subroutine c2_describe_crystal
+     module subroutine c2_write_crystal(cr,file) bind(c,name="c2_write_crystal")
+       type(c_ptr), value, intent(in) :: cr
+       type(c_ptr), value, intent(in) :: file
+     end subroutine c2_write_crystal
      module subroutine c2_destroy_crystal(cr) bind(c,name="c2_destroy_crystal")
        type(c_ptr), value, intent(in) :: cr
      end subroutine c2_destroy_crystal

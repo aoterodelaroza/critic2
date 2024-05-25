@@ -39,6 +39,9 @@ crystal *c2_crystal_from_cellpar(const int natom,const double cel[3], const doub
 // Write a report about the crystal structure to standard output.
 void c2_describe_crystal(crystal *cr);
 
+// Write crystal structure to a file.
+crystal *c2_write_crystal(crystal *cr,const char *file);
+
 // Destroy a crystal structure object.
 void c2_destroy_crystal(crystal *cr);
 

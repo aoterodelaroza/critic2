@@ -28,9 +28,10 @@ submodule (libcritic2) proc
 
 contains
 
-  !> Read a crystal structure from a file. Allocate space for the
-  !> crystal structure and return a pointer to it or NULL if there was
-  !> an error. Requires destruction of the object after its use.
+  !> Read a crystal structure from a file. The format of the file is
+  !> detected from the extension. Allocate space for the crystal
+  !> structure and return a pointer to it or NULL if there was an
+  !> error. Requires destruction of the object after its use.
   module function c2_crystal_from_file(file) bind(c,name="c2_crystal_from_file")
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
@@ -166,6 +167,29 @@ contains
     call crf%report(.true.,.false.)
 
   end subroutine c2_describe_crystal
+
+  !> Write the crystal structure to a file. The format of the file is
+  !> detected from the extension.
+  module subroutine c2_write_crystal(cr,file) bind(c,name="c2_write_crystal")
+    use crystalmod, only: crystal
+    use c_interface_module, only: c_f_string_alloc
+    type(c_ptr), value, intent(in) :: cr
+    type(c_ptr), value, intent(in) :: file
+
+    type(crystal), pointer :: crf
+    character(len=:), allocatable :: fname
+
+    ! consistency checks
+    if (.not.critic2_init) call initialize_critic2()
+    if (.not.c_associated(cr)) return
+    call c_f_pointer(cr,crf)
+    if (.not.associated(crf)) return
+
+    ! write the file
+    call c_f_string_alloc(file,fname)
+    call crf%write_simple_driver(fname)
+
+  end subroutine c2_write_crystal
 
   !> Destroy the input crystal structure object and free the memory.
   module subroutine c2_destroy_crystal(cr) bind(c,name="c2_destroy_crystal")
