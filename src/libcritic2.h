@@ -24,8 +24,19 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 extern "C" {
 #endif
 
-// hello, world!
-void say_hello();
+//// Types ////
+typedef void crystal;
+
+//// Functions ////
+// Read structure from a file and return a pointer to the crystal
+// structure object (requires destruction after use).
+crystal *create_structure_from_file(const char *file);
+
+// Write a report about the crystal structure to standard output.
+void describe_structure(crystal *cr);
+
+// Destroy a crystal structure object.
+void destroy_structure(crystal *cr);
 
 #ifdef __cplusplus
 }

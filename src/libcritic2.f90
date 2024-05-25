@@ -17,18 +17,22 @@
 ! along with this program.  If not, see
 ! <http://www.gnu.org/licenses/>.
 
-! the critic2 library
+! Public interface for the critic2 C/C++ library.
 module libcritic2
+  use iso_c_binding, only: c_ptr
   implicit none
 
-  private
-
-  public :: say_hello
+  public
 
   ! module procedure interfaces
   interface
-     module subroutine say_hello() bind(c,name="say_hello")
-     end subroutine say_hello
+     module function create_structure_from_file(file) bind(c,name="create_structure_from_file")
+       type(c_ptr), value, intent(in) :: file
+       type(c_ptr) :: create_structure_from_file
+     end function create_structure_from_file
+     module subroutine destroy_structure(cr) bind(c,name="destroy_structure")
+       type(c_ptr), value, intent(in) :: cr
+     end subroutine destroy_structure
   end interface
 
 end module libcritic2
