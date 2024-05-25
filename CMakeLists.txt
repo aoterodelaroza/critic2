@@ -74,6 +74,9 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/Modules)
 include(GNUInstallDirs)
 include(utils)
 
+## The install prefix in the cache
+set(CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE STRING "Installation directory.")
+
 ## whether we are following a build recipe
 if (NOT BUILD_RECIPE)
   set(BUILD_RECIPE OFF CACHE STRING "Choose the build recipe." FORCE)

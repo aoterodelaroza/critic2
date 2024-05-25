@@ -39,6 +39,7 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   )
 set(SOURCES_C doqhull.c)
 set(SOURCES_Fortran_Main critic2.F90)
+set(SOURCES_Fortran_Library libcritic2.f90 libcritic2@proc.f90)
 set(SOURCES ${SOURCES_Fortran} ${SOURCES_C} ${SOURCES_Fortran_Main})
 add_library(critic2_core OBJECT ${SOURCES_Fortran} ${SOURCES_C})
 
@@ -69,10 +70,9 @@ add_dependencies(critic2 critic2_core)
 
 ## library
 if (BUILD_LIBRARY)
-  add_library(libcritic2 ${BUILD_LIBRARY} ${SOURCES_Fortran} ${SOURCES_C})
-  set_property(TARGET libcritic2 PROPERTY OUTPUT_NAME critic2)
-  add_dependencies(libcritic2 critic2_core)
-  add_dependencies(libcritic2 critic2)
+  add_library(libcritic2 ${BUILD_LIBRARY} ${SOURCES_Fortran} ${SOURCES_C} ${SOURCES_Fortran_Library})
+  set_target_properties(libcritic2 PROPERTIES OUTPUT_NAME critic2 PUBLIC_HEADER "libcritic2.h")
+  add_dependencies(libcritic2 critic2_core critic2)
 endif()
 
 ## cubpack
@@ -228,7 +228,9 @@ endif()
 ## install the binary
 install(TARGETS critic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 if (BUILD_LIBRARY)
-  install(TARGETS libcritic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+  install(TARGETS libcritic2
+          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
 
 ## recipe specific copies and install
