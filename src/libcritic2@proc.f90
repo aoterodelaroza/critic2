@@ -269,6 +269,24 @@ contains
 
   end function c2_peaks_from_file
 
+  !> Destroy the input XRPD peaks structure object and free the memory.
+  module subroutine c2_destroy_peaks(pk) bind(c,name="c2_destroy_peaks")
+    use crystalmod, only: xrpd_peaklist
+    type(c_ptr), value, intent(in) :: pk
+
+    type(xrpd_peaklist), pointer :: pkf
+
+    ! consistency checks
+    if (.not.critic2_init) call initialize_critic2()
+    if (.not.c_associated(pk)) return
+    call c_f_pointer(pk,pkf)
+    if (.not.associated(pkf)) return
+
+    ! destroy the crystal object and free memory
+    deallocate(pkf)
+
+  end subroutine c2_destroy_peaks
+
   !xx! private procedures
 
   !> Initialize critic2 when used as a library.
