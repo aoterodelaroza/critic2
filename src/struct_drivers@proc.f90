@@ -984,6 +984,7 @@ contains
   !> Calculate the powder diffraction pattern for the current
   !structure.
   module subroutine struct_powder(s,line)
+    use crystalmod, only: xrpd_lambda_def, xrpd_fpol_def, xrpd_sigma_def
     use systemmod, only: system
     use global, only: fileroot, eval_next
     use tools_io, only: ferror, faterr, uout, lgetword, equal, getword, &
@@ -1007,10 +1008,10 @@ contains
     ! default values
     th2ini = 5d0
     th2end = 90d0
-    lambda = 1.5406d0
-    fpol = 0d0 ! polarization, fpol = 0.95 for synchrotron
+    lambda = xrpd_lambda_def
+    fpol = xrpd_fpol_def
     npts = 10001
-    sigma = 0.05d0
+    sigma = xrpd_sigma_def
     root = trim(fileroot) // "_xrd"
     ishard = .false.
 
@@ -1313,7 +1314,7 @@ contains
   !>   de Gelder et al., J. Comput. Chem., 22 (2001) 273.
   module subroutine struct_compare(s,line)
     use systemmod, only: system
-    use crystalmod, only: crystal
+    use crystalmod, only: crystal, xrpd_lambda_def
     use crystalseedmod, only: struct_detect_format, struct_detect_ismol, crystalseed
     use global, only: doguess, eval_next, dunit0, iunit, iunitname0
     use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
@@ -1349,7 +1350,6 @@ contains
     integer, parameter :: msg_counter = 50
 
     real*8, parameter :: sigma0 = 0.05d0
-    real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
     integer, parameter :: npts = 10001
     real*8, parameter :: th2ini = 5d0
@@ -1654,7 +1654,7 @@ contains
              else
                 ! calculate the powder diffraction pattern
                 if (imethod == imethod_powder) then
-                   call c(i)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+                   call c(i)%powder(0,th2ini,xend,xrpd_lambda_def,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
                       t=t,ih=ih)
 
                    ! normalize the integral of abs(ih)
@@ -1733,7 +1733,7 @@ contains
                 singleatom(i) = c(i)%spc(c(i)%atcel(1)%is)%z
              else
                 ! calculate the powder diffraction pattern
-                call c(i)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+                call c(i)%powder(0,th2ini,xend,xrpd_lambda_def,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
                    th2p=th2p,ip=ip,discardp=emd_discardp)
 
                 ! normalize
@@ -1954,7 +1954,7 @@ contains
   module subroutine struct_comparevc(s,line)
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
     use global, only: iunitname0, dunit0, iunit, fileroot
-    use crystalmod, only: crystal
+    use crystalmod, only: crystal, xrpd_lambda_def
     use crystalseedmod, only: crystalseed
     use tools_math, only: matinv, m_c2x_from_cellpar, det3, crosscorr_triangle, &
        m_x2c_from_cellpar
@@ -1985,7 +1985,6 @@ contains
     real*8, parameter :: th2ini_def = 5d0
     real*8, parameter :: th2end_def = 50d0
     integer, parameter :: npts_def = 1001
-    real*8, parameter :: lambda0 = 1.5406d0
     real*8, parameter :: fpol0 = 0d0
     real*8, parameter :: sigma0 = 0.05d0
 
@@ -2176,7 +2175,7 @@ contains
 
     ! calculate the powder of structure 1 (reference)
     h = (th2end-th2ini) / real(npts-1,8)
-    call c1%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
+    call c1%powder(0,th2ini,th2end,xrpd_lambda_def,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
        t=t,ih=iha1)
     tini = iha1(1)**2
     tend = iha1(npts)**2
@@ -2195,7 +2194,7 @@ contains
     do i = 1, 3
        c2del%ar(i) = sqrt(c2del%grtensor(i,i))
     end do
-    call c2del%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
+    call c2del%powder(0,th2ini,th2end,xrpd_lambda_def,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
        t=t,ih=iha2)
     tini = iha2(1)**2
     tend = iha2(npts)**2
@@ -2297,7 +2296,7 @@ contains
              end do
 
              ! calculate the powder of structure 2
-             call c2del%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
+             call c2del%powder(0,th2ini,th2end,xrpd_lambda_def,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
                 t=t,ih=iha2)
              tini = iha2(1)**2
              tend = iha2(npts)**2

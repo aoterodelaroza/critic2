@@ -58,6 +58,22 @@ module crystalmod
      "unknown","-1     ","2/m    ","mmm    ","4/m    ","4/mmm  ",&
      "-3     ","-3m    ","6/m    ","6/mmm  ","m-3    ","m-3m   "/)
 
+  ! Defaults for powder X-ray diffraction routines
+  real*8, parameter, public :: xrpd_lambda_def = 1.5406d0
+  real*8, parameter, public :: xrpd_fpol_def = 0d0
+  real*8, parameter, public :: xrpd_alpha_def = 1.0d0
+  real*8, parameter, public :: xrpd_sigma_def = 0.05d0
+  real*8, parameter, public :: xrpd_th2ini_def = 5d0
+  real*8, parameter, public :: xrpd_th2end_def = 50d0
+  real*8, parameter, public :: xrpd_besteps_def_safe = 1d-4
+  real*8, parameter, public :: xrpd_besteps_def_quick = 1d-3
+  integer, parameter, public :: xrpd_maxfeval_def_safe = 10000
+  integer, parameter, public :: xrpd_maxfeval_def_quick = 5000
+  real*8, parameter, public :: xrpd_max_elong_def_safe = 0.2d0
+  real*8, parameter, public :: xrpd_max_elong_def_quick = 0.1d0
+  real*8, parameter, public :: xrpd_max_ang_def_safe = 15d0
+  real*8, parameter, public :: xrpd_max_ang_def_quick = 5d0
+
   !> The crystal class. A crystal contains the structural information for the
   !> system, and it can be an actual crystal (%ismolecule=.false.) or a molecule
   !> (%ismolecule=.true.) embedded in a large cell. When use in combination

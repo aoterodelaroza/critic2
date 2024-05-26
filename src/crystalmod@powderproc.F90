@@ -993,15 +993,6 @@ contains
     integer, parameter :: imode_sp = 0
     integer, parameter :: imode_local = 1
     integer, parameter :: imode_global = 2
-    real*8, parameter :: max_elong_defdef = 0.1d0
-    real*8, parameter :: max_ang_defdef = 5d0
-    integer, parameter :: maxfeval_def = 15000
-    real*8, parameter :: besteps_def = 1d-4
-
-    real*8, parameter :: sigma = 0.05d0
-    real*8, parameter :: lambda_def = 1.5406d0
-    real*8, parameter :: fpol_def = 0d0
-    real*8, parameter :: alpha_def = 1.0d0 ! width of the "triangle"
 
     include 'nlopt.f'
 
@@ -1017,19 +1008,19 @@ contains
     end if
 
     ! process the input options
-    alpha = alpha_def
+    alpha = xrpd_alpha_def
     if (present(alpha0)) alpha = alpha0
-    lambda = lambda_def
+    lambda = xrpd_lambda_def
     if (present(lambda0)) lambda = lambda0
-    maxfeval = maxfeval_def
+    maxfeval = xrpd_maxfeval_def_safe
     if (present(maxfeval0)) maxfeval = maxfeval0
-    besteps = besteps_def
+    besteps = xrpd_besteps_def_safe
     if (present(besteps0)) besteps = besteps0
-    max_elong_def = max_elong_defdef
+    max_elong_def = xrpd_max_elong_def_safe
     if (present(max_elong_def0)) max_elong_def = max_elong_def0
-    max_ang_def = max_ang_defdef
+    max_ang_def = xrpd_max_ang_def_safe
     if (present(max_ang_def0)) max_ang_def = max_ang_def0
-    fpol = fpol_def
+    fpol = xrpd_fpol_def
     if (present(fpol0)) fpol = fpol0
     verbose = .true.
     if (present(verbose0)) verbose = verbose0
@@ -1039,14 +1030,14 @@ contains
     lastval = -1d0
     bestval = 1.1d0
     nbesteval = 0
-    th2ini = p2%th2(1) - 2 * sigma
-    th2end = p2%th2(p2%npeak) + 2 * sigma
+    th2ini = p2%th2(1) - 2 * xrpd_sigma_def
+    th2end = p2%th2(p2%npeak) + 2 * xrpd_sigma_def
     if (verbose) &
        write (uout,'("# step    DIFF        -- cell parameters --")')
 
     call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol,.false.,.false.,errmsg)
     if (len_trim(errmsg) > 0) return
-    call crosscorr_gaussian(p2,p2,alpha,sigma,dfg22,errmsg,.false.)
+    call crosscorr_gaussian(p2,p2,alpha,xrpd_sigma_def,dfg22,errmsg,.false.)
     if (len_trim(errmsg) > 0) return
 
     x(1:3) = c1%aa
@@ -1195,9 +1186,9 @@ contains
       ! only recompute peak pattern for crystal 1
       call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol,.true.,.true.,errmsg,gg)
       if (len_trim(errmsg) > 0) goto 999
-      call crosscorr_gaussian(p1,p1,alpha,sigma,dfg11,errmsg,.true.,dfgg11)
+      call crosscorr_gaussian(p1,p1,alpha,xrpd_sigma_def,dfg11,errmsg,.true.,dfgg11)
       if (len_trim(errmsg) > 0) goto 999
-      call crosscorr_gaussian(p1,p2,alpha,sigma,dfg12,errmsg,.true.,dfgg12)
+      call crosscorr_gaussian(p1,p2,alpha,xrpd_sigma_def,dfg12,errmsg,.true.,dfgg12)
       if (len_trim(errmsg) > 0) goto 999
 
       dd = dfg12 / sqrt(dfg11 * dfg22)

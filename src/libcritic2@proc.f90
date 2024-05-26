@@ -17,27 +17,15 @@
 
 ! Implementation of the critic2 C/C++ library.
 submodule (libcritic2) proc
+  use crystalmod, only: xrpd_lambda_def, xrpd_fpol_def, xrpd_alpha_def, xrpd_th2ini_def,&
+     xrpd_th2end_def, xrpd_besteps_def_safe, xrpd_besteps_def_quick, xrpd_maxfeval_def_safe,&
+     xrpd_maxfeval_def_quick, xrpd_max_elong_def_safe, xrpd_max_elong_def_quick,&
+     xrpd_max_ang_def_safe, xrpd_max_ang_def_quick
   use iso_c_binding
   implicit none
 
   ! whether critic2 has been initialized
   logical :: critic2_init = .false.
-
-  ! default values
-  real(c_double), parameter :: lambda_def = 1.5406_c_double
-  real(c_double), parameter :: fpol_def = 0._c_double
-  real(c_double), parameter :: alpha_def = 1.0d0
-  real(c_double), parameter :: th2ini_def = 5d0
-  real(c_double), parameter :: th2end_def = 50d0
-  real(c_double), parameter :: besteps_def_safe = 1d-4
-  real(c_double), parameter :: max_elong_def_safe = 0.2d0
-  real(c_double), parameter :: max_ang_def_safe = 15d0
-  integer(c_int), parameter :: maxfeval_def_safe = 10000
-  real(c_double), parameter :: besteps_def_quick = 1d-3
-  real(c_double), parameter :: max_elong_def_quick = 0.1d0
-  real(c_double), parameter :: max_ang_def_quick = 5d0
-  integer(c_int), parameter :: maxfeval_def_quick = 5000
-
 
   !xx! private procedures
   ! subroutine initialize_critic2()
@@ -249,10 +237,10 @@ contains
     if (.not.associated(crf)) return
 
     ! handle default values
-    if (th2ini < 0._c_double) th2ini = th2ini_def
-    if (th2end < 0._c_double) th2end = th2end_def
-    if (lambda < 0._c_double) lambda = lambda_def
-    if (fpol < 0._c_double) fpol = fpol_def
+    if (th2ini < 0._c_double) th2ini = xrpd_th2ini_def
+    if (th2end < 0._c_double) th2end = xrpd_th2end_def
+    if (lambda < 0._c_double) lambda = xrpd_lambda_def
+    if (fpol < 0._c_double) fpol = xrpd_fpol_def
 
     ! calculate peak positions and return
     allocate(pk)
@@ -332,9 +320,9 @@ contains
     if (.not.associated(pk)) return
 
     ! set default values
-    if (alpha < 0d0) alpha = alpha_def
-    if (lambda < 0d0) lambda = lambda_def
-    if (fpol < 0d0) fpol = fpol_def
+    if (alpha < 0d0) alpha = xrpd_alpha_def
+    if (lambda < 0d0) lambda = xrpd_lambda_def
+    if (fpol < 0d0) fpol = xrpd_fpol_def
 
     ! run the comparison
     call gaussian_compare(cr,pk,0,c2_compare_gpwdf,errmsg,verbose0=.false.,&
@@ -387,13 +375,13 @@ contains
     if (.not.associated(pk)) return
 
     ! set default values
-    if (alpha < 0d0) alpha = alpha_def
-    if (lambda < 0d0) lambda = lambda_def
-    if (fpol < 0d0) fpol = fpol_def
-    if (maxfeval < 0) maxfeval = maxfeval_def_safe
-    if (besteps < 0d0) besteps = besteps_def_safe
-    if (max_elong < 0d0) max_elong = max_elong_def_safe
-    if (max_ang < 0d0) max_ang = max_ang_def_safe
+    if (alpha < 0d0) alpha = xrpd_alpha_def
+    if (lambda < 0d0) lambda = xrpd_lambda_def
+    if (fpol < 0d0) fpol = xrpd_fpol_def
+    if (maxfeval < 0) maxfeval = xrpd_maxfeval_def_safe
+    if (besteps < 0d0) besteps = xrpd_besteps_def_safe
+    if (max_elong < 0d0) max_elong = xrpd_max_elong_def_safe
+    if (max_ang < 0d0) max_ang = xrpd_max_ang_def_safe
     if (global) then
        imode = 2
     else
@@ -435,8 +423,8 @@ contains
     real(c_double) :: c2_compare_vcgpwdf_global_safe
 
     c2_compare_vcgpwdf_global_safe = c2_compare_vcgpwdf(c1,p2,crout,.true._c_bool,verbose,&
-       alpha_def,lambda,fpol,maxfeval_def_safe,besteps_def_safe,max_elong_def_safe,&
-       max_ang_def_safe)
+       xrpd_alpha_def,lambda,fpol,xrpd_maxfeval_def_safe,xrpd_besteps_def_safe,xrpd_max_elong_def_safe,&
+       xrpd_max_ang_def_safe)
 
   end function c2_compare_vcgpwdf_global_safe
 
@@ -456,8 +444,8 @@ contains
     real(c_double) :: c2_compare_vcgpwdf_global_quick
 
     c2_compare_vcgpwdf_global_quick = c2_compare_vcgpwdf(c1,p2,crout,.true._c_bool,verbose,&
-       alpha_def,lambda,fpol,maxfeval_def_quick,besteps_def_quick,max_elong_def_quick,&
-       max_ang_def_quick)
+       xrpd_alpha_def,lambda,fpol,xrpd_maxfeval_def_quick,xrpd_besteps_def_quick,xrpd_max_elong_def_quick,&
+       xrpd_max_ang_def_quick)
 
   end function c2_compare_vcgpwdf_global_quick
 

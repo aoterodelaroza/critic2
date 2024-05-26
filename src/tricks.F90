@@ -701,7 +701,8 @@ contains
   !         PATTERN i1.i i2.i ...
   !         [MOVEATOMS] [MAXDE maxde.r] [NONEG] [OUTPUTPOSCAR]
   subroutine trick_uspex_unpack(line0)
-    use crystalmod, only: crystal
+    use crystalmod, only: crystal, xrpd_fpol_def, xrpd_th2end_def, xrpd_th2ini_def,&
+       xrpd_lambda_def, xrpd_sigma_def
     use crystalseedmod, only: crystalseed
     use global, only: fileroot, rborder_def, eval_next
     use tools_io, only: lgetword, getword, ferror, faterr, getline_raw, fopen_read,&
@@ -741,14 +742,8 @@ contains
     real*8, parameter :: vdiff_thr = 0.1d0 ! volume difference threshold, ang^3
     real*8, parameter :: ediff_thr = 0.01d0 ! energy difference threshold, eV
     real*8, parameter :: powdiff_thr = 0.07d0 ! powdiff threshold
-
-    real*8, parameter :: th2ini = 5d0
     integer, parameter :: npts = 10001
-    real*8, parameter :: lambda0 = 1.5406d0
-    real*8, parameter :: fpol0 = 0d0
-    real*8, parameter :: sigma = 0.05d0
-    real*8, parameter :: xend = 50d0
-    real*8, parameter :: h = (xend-th2ini) / real(npts-1,8)
+    real*8, parameter :: h = (xrpd_th2end_def-xrpd_th2ini_def) / real(npts-1,8)
 
     ! read the file names
     lp = 1
@@ -1075,11 +1070,12 @@ contains
        call ci%struct_new(seed(i),.true.)
 
        ! powder for structure i
-       call ci%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
-          t=t,ih=ihi)
+       call ci%powder(0,xrpd_th2ini_def,xrpd_th2end_def,xrpd_lambda_def,xrpd_fpol_def,npts=npts,&
+          sigma=xrpd_sigma_def,ishard=.false.,t=t,ih=ihi)
        tini = ihi(1)*ihi(1)
        tend = ihi(npts)*ihi(npts)
-       nor = (2d0 * sum(ihi(2:npts-1)*ihi(2:npts-1)) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+       nor = (2d0 * sum(ihi(2:npts-1)*ihi(2:npts-1)) + tini + tend) * &
+          (xrpd_th2end_def - xrpd_th2ini_def) / 2d0 / real(npts-1,8)
        ihi = ihi / sqrt(nor)
        xnormi = sqrt(abs(crosscorr_triangle(h,ihi,ihi,1d0)))
 
@@ -1120,11 +1116,12 @@ contains
              call cj%struct_new(seed(j),.true.)
 
              ! powder for structure j
-             call cj%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
-                t=t,ih=ihj)
+             call cj%powder(0,xrpd_th2ini_def,xrpd_th2end_def,xrpd_lambda_def,xrpd_fpol_def,npts=npts,&
+                sigma=xrpd_sigma_def,ishard=.false.,t=t,ih=ihj)
              tini = ihj(1)*ihj(1)
              tend = ihj(npts)*ihj(npts)
-             nor = (2d0 * sum(ihj(2:npts-1)*ihj(2:npts-1)) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+             nor = (2d0 * sum(ihj(2:npts-1)*ihj(2:npts-1)) + tini + tend) * &
+                (xrpd_th2end_def - xrpd_th2ini_def) / 2d0 / real(npts-1,8)
              ihj = ihj / sqrt(nor)
              xnormj = sqrt(abs(crosscorr_triangle(h,ihj,ihj,1d0)))
 
@@ -1205,7 +1202,8 @@ contains
   ! where structure.s is the file name containing the structure and
   ! energy.r is the energy in kcal/mol per molecule.
   subroutine trick_reduce(line0)
-    use crystalmod, only: crystal
+    use crystalmod, only: crystal, xrpd_fpol_def, xrpd_th2end_def, xrpd_th2ini_def,&
+       xrpd_lambda_def, xrpd_sigma_def
     use crystalseedmod, only: crystalseed
     use tools_io, only: getword, ferror, faterr, getline, fopen_read,&
        fclose, string, uout, isreal, ioj_center
@@ -1233,14 +1231,8 @@ contains
     real*8, parameter :: vdiff_thr = 0.1d0 ! volume difference threshold, ang^3
     real*8, parameter :: ediff_thr = 0.01d0 ! energy difference threshold, eV
     real*8, parameter :: powdiff_thr = 0.07d0 ! powdiff threshold
-
-    real*8, parameter :: th2ini = 5d0
     integer, parameter :: npts = 10001
-    real*8, parameter :: lambda0 = 1.5406d0
-    real*8, parameter :: fpol0 = 0d0
-    real*8, parameter :: sigma = 0.05d0
-    real*8, parameter :: xend = 50d0
-    real*8, parameter :: h = (xend-th2ini) / real(npts-1,8)
+    real*8, parameter :: h = (xrpd_th2end_def-xrpd_th2ini_def) / real(npts-1,8)
 
     ! initialize
     errmsg = ""
@@ -1321,11 +1313,12 @@ contains
        if (.not.active(i)) cycle
 
        ! powder for structure i
-       call st(i)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
-          t=t,ih=ihi)
+       call st(i)%powder(0,xrpd_th2ini_def,xrpd_th2end_def,xrpd_lambda_def,xrpd_fpol_def,npts=npts,&
+          sigma=xrpd_sigma_def,ishard=.false.,t=t,ih=ihi)
        tini = ihi(1)*ihi(1)
        tend = ihi(npts)*ihi(npts)
-       nor = (2d0 * sum(ihi(2:npts-1)*ihi(2:npts-1)) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+       nor = (2d0 * sum(ihi(2:npts-1)*ihi(2:npts-1)) + tini + tend) * &
+          (xrpd_th2end_def - xrpd_th2ini_def) / 2d0 / real(npts-1,8)
        ihi = ihi / sqrt(nor)
        xnormi = sqrt(abs(crosscorr_triangle(h,ihi,ihi,1d0)))
 
@@ -1341,11 +1334,12 @@ contains
              exit
           else if (adh < ediff_thr) then
              ! powder for structure j
-             call st(j)%powder(0,th2ini,xend,lambda0,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
-                t=t,ih=ihj)
+             call st(j)%powder(0,xrpd_th2ini_def,xrpd_th2end_def,xrpd_lambda_def,xrpd_fpol_def,npts=npts,&
+                sigma=xrpd_sigma_def,ishard=.false.,t=t,ih=ihj)
              tini = ihj(1)*ihj(1)
              tend = ihj(npts)*ihj(npts)
-             nor = (2d0 * sum(ihj(2:npts-1)*ihj(2:npts-1)) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+             nor = (2d0 * sum(ihj(2:npts-1)*ihj(2:npts-1)) + tini + tend) *&
+                (xrpd_th2end_def - xrpd_th2ini_def) / 2d0 / real(npts-1,8)
              ihj = ihj / sqrt(nor)
              xnormj = sqrt(abs(crosscorr_triangle(h,ihj,ihj,1d0)))
 
@@ -2198,9 +2192,10 @@ contains
   subroutine trick_compare_deformed(line)
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
     use global, only: iunitname0, dunit0, iunit, fileroot
-    use crystalmod, only: crystal
+    use crystalmod, only: crystal, xrpd_fpol_def, xrpd_lambda_def, xrpd_sigma_def,&
+       xrpd_th2ini_def, xrpd_th2end_def
     use crystalseedmod, only: crystalseed
-    use tools_math, only: matinv, m_c2x_from_cellpar, det3, crosscorr_triangle, &
+    use tools_math, only: matinv, m_c2x_from_cellpar, det3, crosscorr_triangle,&
        m_x2c_from_cellpar, synthetic_powder
     use tools_io, only: getword, faterr, ferror, uout, string, ioj_left, ioj_right,&
        isreal, equal, lgetword, file_read_xy
@@ -2230,22 +2225,16 @@ contains
     integer :: nxy
     real*8, allocatable :: intxy(:)
 
-    real*8, parameter :: th2ini_def = 5d0
-    real*8, parameter :: th2end_def = 50d0
     integer, parameter :: npts_def = 1001
-    real*8, parameter :: lambda0 = 1.5406d0
-    real*8, parameter :: fpol0 = 0d0
-    real*8, parameter :: sigma0 = 0.05d0
     integer, parameter :: imax_amd = 100 ! the maximum nn in AMD
-
     real*8, parameter :: max_elong_def = 0.3d0 ! at most 30% elongation of cell lengths
     real*8, parameter :: max_ang_def = 20d0    ! at most 20 degrees change in angle
     character*1, parameter :: lvecname(3) = (/"a","b","c"/)
 
     ! header and initalization
     write (uout,'("* COMPARE, allowing for deformed cells")')
-    th2ini = th2ini_def
-    th2end = th2end_def
+    th2ini = xrpd_th2ini_def
+    th2end = xrpd_th2end_def
     npts = npts_def
 
     ! read the input files
@@ -2322,7 +2311,7 @@ contains
           call file_read_xy(file2,n,th2p,ip)
           th2ini = th2p(1)
           th2end = th2p(n)
-          call synthetic_powder(th2ini,th2end,npts,sigma0,th2p,ip,t,intxy)
+          call synthetic_powder(th2ini,th2end,npts,xrpd_sigma_def,th2p,ip,t,intxy)
        else
           ! interpret this as an xy file
           write (uout,'("+ Reading xy data from: ",A)') trim(file2)
@@ -2479,8 +2468,8 @@ contains
        if (usexy) then
           iha1 = intxy
        else
-          call c1%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
-             t=t,ih=iha1)
+          call c1%powder(0,th2ini,th2end,xrpd_lambda_def,xrpd_fpol_def,npts=npts,&
+             sigma=xrpd_sigma_def,ishard=.false.,t=t,ih=iha1)
        end if
        tini = iha1(1)**2
        tend = iha1(npts)**2
@@ -2511,8 +2500,8 @@ contains
        do i = 1, 3
           c2del%ar(i) = sqrt(c2del%grtensor(i,i))
        end do
-       call c2del%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
-          t=t,ih=iha2)
+       call c2del%powder(0,th2ini,th2end,xrpd_lambda_def,xrpd_fpol_def,npts=npts,&
+          sigma=xrpd_sigma_def,ishard=.false.,t=t,ih=iha2)
        tini = iha2(1)**2
        tend = iha2(npts)**2
        nor = (2d0 * sum(iha2(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
@@ -2628,8 +2617,8 @@ contains
                 end do
 
                 ! calculate the powder of structure 2
-                call c2del%powder(0,th2ini,th2end,lambda0,fpol0,npts=npts,sigma=sigma0,ishard=.false.,&
-                   t=t,ih=iha2)
+                call c2del%powder(0,th2ini,th2end,xrpd_lambda_def,xrpd_fpol_def,npts=npts,&
+                   sigma=xrpd_sigma_def,ishard=.false.,t=t,ih=iha2)
                 tini = iha2(1)**2
                 tend = iha2(npts)**2
                 nor = (2d0 * sum(iha2(2:npts-1)**2) + tini + tend) * (th2end - th2ini) / 2d0 / real(npts-1,8)
@@ -2930,7 +2919,9 @@ contains
   ! TRICK GAUCOMP str1.s {str2.s|xyfile.s} [LOCAL] [GLOBAL] [ALPHA alpha.r] [LAMBDA lambda.r] [MAXFEVAL maxfeval.i] [BESTEPS eps.r]
   subroutine trick_gaucomp(line0)
     use crystalseedmod, only: crystalseed
-    use crystalmod, only: crystal, xrpd_peaks_from_file, xrpd_peaklist, gaussian_compare
+    use crystalmod, only: crystal, xrpd_peaks_from_file, xrpd_peaklist, xrpd_fpol_def,&
+       gaussian_compare, xrpd_maxfeval_def_safe, xrpd_besteps_def_safe, xrpd_alpha_def,&
+       xrpd_lambda_def, xrpd_th2ini_def, xrpd_th2end_def, xrpd_sigma_def
     use struct_drivers, only: struct_crystal_input
     use tools, only: qcksort
     use tools_io, only: getword, uout, string, tictac, ferror, faterr, lgetword, equal, &
@@ -2964,15 +2955,6 @@ contains
     integer, parameter :: imode_sp = 0
     integer, parameter :: imode_local = 1
     integer, parameter :: imode_global = 2
-    integer, parameter :: maxfeval0 = 15000
-    real*8, parameter :: besteps0 = 1d-4
-
-    real*8, parameter :: sigma = 0.05d0
-    real*8, parameter :: th2ini0 = 5d0
-    real*8, parameter :: th2end0 = 50d0
-    real*8, parameter :: lambda0 = 1.5406d0
-    real*8, parameter :: fpol0 = 0d0
-    real*8, parameter :: alpha0 = 1.0d0 ! width of the "triangle"
     integer, parameter :: final_npts = 10001
 
     include 'nlopt.f'
@@ -2982,7 +2964,7 @@ contains
     lastval = -1d0
     bestval = 1.1d0
     nbesteval = 0
-    lambda = lambda0
+    lambda = xrpd_lambda_def
 
     ! read crystal structures
     lp = 1
@@ -2999,8 +2981,8 @@ contains
        readc2 = .false.
     else
        ! read crystal structure 2
-       th2ini = th2ini0
-       th2end = th2end0
+       th2ini = xrpd_th2ini_def
+       th2end = xrpd_th2end_def
        write (uout,'("  Crystal 2: ",A)') string(word)
        call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
        readc2 = .true.
@@ -3009,9 +2991,9 @@ contains
        string(th2ini,'f',decimal=4), string(th2end,'f',decimal=4)
 
     ! read additional options
-    maxfeval = maxfeval0
-    besteps = besteps0
-    alpha = alpha0
+    maxfeval = xrpd_maxfeval_def_safe
+    besteps = xrpd_besteps_def_safe
+    alpha = xrpd_alpha_def
     imode = imode_sp
     do while (.true.)
        word = lgetword(line0,lp)
@@ -3042,7 +3024,7 @@ contains
 
     ! pre-calculation
     if (readc2) then
-       call c2%powder_peaks(p2,th2ini,th2end,lambda,fpol0,.false.,.false.,errmsg)
+       call c2%powder_peaks(p2,th2ini,th2end,lambda,xrpd_fpol_def,.false.,.false.,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror("trick_gaucomp",errmsg,faterr)
     end if
@@ -3065,7 +3047,8 @@ contains
        ! write diffraction patterns to output
        word = trim(file1) // "-final.txt"
        lu = fopen_write(word)
-       call c1%powder(0,th2ini,th2end,lambda,fpol0,final_npts,sigma,.false.,t=t,ih=ih)
+       call c1%powder(0,th2ini,th2end,lambda,xrpd_fpol_def,final_npts,&
+          xrpd_sigma_def,.false.,t=t,ih=ih)
        write (lu,'("# ",A,A)') string("2*theta",13,ioj_center), string("Intensity",13,ioj_center)
        do i = 1, final_npts
           write (lu,'(A," ",A)') string(t(i),"f",15,7,ioj_center), &
