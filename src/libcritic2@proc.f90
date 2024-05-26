@@ -219,7 +219,7 @@ contains
   !> the wavelength in angstrom. fpol is the polarization correction
   !> factor (0 = unpolarized, 0.95 = synchrotron). If th2ini, th2end,
   !> lambda, fpol < 0, use default values. Returns NULL on error.
-  function c2_peaks_from_crystal(cr,th2ini,th2end,lambda,fpol) bind(c,name="c2_peaks_from_crystal")
+  module function c2_peaks_from_crystal(cr,th2ini,th2end,lambda,fpol) bind(c,name="c2_peaks_from_crystal")
     use crystalmod, only: crystal, xrpd_peaklist
     type(c_ptr), value, intent(in) :: cr
     real(c_double), value :: th2ini, th2end, lambda, fpol

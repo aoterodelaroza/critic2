@@ -975,7 +975,7 @@ contains
     integer :: i
     real*8 :: dfg22, x(6), xorig(6), vorig, grad(6), x2c(3,3), omega
     integer*8 :: opt, lopt
-    integer :: ires, imode, maxfeval
+    integer :: ires, maxfeval
     real*8 :: lb(6), ub(6), th2ini, th2end, alpha, lambda, besteps
     real*8 :: max_elong_def, max_ang_def, fpol
     logical :: iresok
