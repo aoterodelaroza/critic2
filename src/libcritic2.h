@@ -89,6 +89,7 @@ void c2_destroy_peaks(xrpd_peaklist *pk);
 // Gaussian triangle width. lambda = wavelength in angstrom. fpol =
 // polarization correction factor (0 = unpolarized, 0.95 =
 // synchrotron). If alpha, lambda, fpol < 0, use default values.
+// Returns -1 on error.
 double c2_compare_gpwdf(crystal *c1,xrpd_peaklist *p2,double alpha,double lambda,double fpol);
 
 // Compare crystal c1 and set of XRPD peaks p2 using variable-cell
@@ -102,6 +103,7 @@ double c2_compare_gpwdf(crystal *c1,xrpd_peaklist *p2,double alpha,double lambda
 // found within besteps. max_elong = maximum cell length elongation
 // (%). max_ang = maximum cell angle deformation (degrees). Returns
 // the VC-GPDWF score and the deformed c1 structure in crout.
+// Returns -1 on error.
 double c2_compare_vcgpwdf(crystal *c1,xrpd_peaklist *p2,crystal **crout,bool global,bool verbose,
                           double alpha,double lambda,double fpol,int maxfeval,
                           double besteps,double max_elong,double max_ang);
@@ -111,7 +113,7 @@ double c2_compare_vcgpwdf(crystal *c1,xrpd_peaklist *p2,crystal **crout,bool glo
 // verbose, print search progress to stdout. lambda = wavelength in
 // angstrom. fpol = polarization correction factor (0 = unpolarized,
 // 0.95 = synchrotron). Returns the VC-GPDWF score and the deformed
-// c1 structure in crout.
+// c1 structure in crout. Returns -1 on error.
 double c2_compare_vcgpwdf_global_safe(crystal *c1,xrpd_peaklist *p2,crystal **crout,bool verbose,
                                       double lambda,double fpol);
 
@@ -120,7 +122,7 @@ double c2_compare_vcgpwdf_global_safe(crystal *c1,xrpd_peaklist *p2,crystal **cr
 // verbose, print search progress to stdout. lambda = wavelength in
 // angstrom. fpol = polarization correction factor (0 = unpolarized,
 // 0.95 = synchrotron). Returns the VC-GPDWF score and the deformed
-// c1 structure in crout.
+// c1 structure in crout. Returns -1 on error.
 double c2_compare_vcgpwdf_global_quick(crystal *c1,xrpd_peaklist *p2,crystal **crout,bool verbose,
                                        double lambda,double fpol);
 
