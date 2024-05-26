@@ -2992,9 +2992,8 @@ contains
     word = getword(line0,lp)
     if (len(word) - index(word,".peaks") == 6) then
        call xrpd_peaks_from_file(p2,word,errmsg)
-       if (len_trim(errmsg) > 0) then
+       if (len_trim(errmsg) > 0) &
           call ferror("trick_gaucomp",errmsg,faterr)
-       end if
        th2ini = p2%th2(1) - 1d-2
        th2end = p2%th2(p2%npeak) + 1d-2
        readc2 = .false.
@@ -3042,13 +3041,18 @@ contains
     end do
 
     ! pre-calculation
-    if (readc2) &
-       call c2%powder_peaks(p2,th2ini,th2end,lambda,fpol0,.false.,.false.)
+    if (readc2) then
+       call c2%powder_peaks(p2,th2ini,th2end,lambda,fpol0,.false.,.false.,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror("trick_gaucomp",errmsg,faterr)
+    end if
 
     ! run the comparison
     write (uout,'("# step    DIFF        -- cell parameters --")')
-    call gaussian_compare(c1,p2,imode,diff,seedout=seed,verbose0=.true.,&
+    call gaussian_compare(c1,p2,imode,diff,errmsg,seedout=seed,verbose0=.true.,&
        alpha0=alpha,lambda0=lambda,maxfeval0=maxfeval,besteps0=besteps)
+    if (len_trim(errmsg) > 0) &
+       call ferror("trick_gaucomp",errmsg,faterr)
 
     if (imode /= imode_sp) then
        call c1%struct_new(seed,.true.)

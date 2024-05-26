@@ -297,9 +297,9 @@ contains
   !> only the reflections in p%hvec (requires p%npeaks and p%hvec). If
   !> calcderivs, calculate derivatives and set p%th2g and p%ipg. If gg
   !> is present, use gg instead of the metric tensor from c.
-  module subroutine powder_peaks(c,p,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs,gg)
+  module subroutine powder_peaks(c,p,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs,&
+     errmsg,gg)
     use tools_math, only: matinv
-    use tools_io, only: ferror, faterr
     use tools, only: qcksort
     use types, only: realloc
     use param, only: pi, bohrtoa
@@ -310,6 +310,7 @@ contains
     real*8, intent(in) :: fpol
     logical, intent(in) :: usehvecp
     logical, intent(in) :: calcderivs
+    character(len=:), allocatable, intent(out) :: errmsg
     real*8, intent(in), optional :: gg(3,3)
 
     integer :: i
@@ -325,8 +326,11 @@ contains
     real*8, parameter :: ieps = 1d-5
 
     ! consistency checks
-    if (usehvecp .and.(.not.p%havehvec.or..not.allocated(p%hvec).or.p%npeak<=0)) &
-       call ferror('powder_peaks','requested usehvecp without hvec information',faterr)
+    errmsg = ""
+    if (usehvecp .and.(.not.p%havehvec.or..not.allocated(p%hvec).or.p%npeak<=0)) then
+       errmsg = 'requested usehvecp without hvec information'
+       return
+    end if
 
     ! initialize angles
     th2ini = th2ini0 * pi / 180d0
@@ -384,6 +388,7 @@ contains
                    ! calculate this reciprocal lattice vector
                    hvec = real((/h,k,l/),8)
                    call run_function_body()
+                   if (len_trim(errmsg) > 0) return
 
                    ! sum the peak
                    if (int > ieps) then
@@ -423,6 +428,7 @@ contains
        do i = 1, p%npeak
           hvec = real(p%hvec(:,i),8)
           call run_function_body()
+          if (len_trim(errmsg) > 0) return
           p%th2(i) = th2
           p%ip(i) = int
           if (calcderivs) then
@@ -458,7 +464,6 @@ contains
 
   contains
     subroutine run_function_body()
-      use tools_io, only: ferror, faterr
       use param, only: cscatt, c2scatt
       real*8 :: xfac, ffacg(6), esthlam, afac, mcorr, mcorrg(6)
       real*8 :: cterm, sterm, ctermg(6), stermg(6), ffac
@@ -513,8 +518,10 @@ contains
       end if
       do i = 1, c%ncel
          iz = c%spc(c%atcel(i)%is)%z
-         if (iz < 1 .or. iz > size(cscatt,2)) &
-            call ferror('struct_powder','invalid Z -> no atomic scattering factors',faterr)
+         if (iz < 1 .or. iz > size(cscatt,2)) then
+            errmsg = 'invalid Z -> no atomic scattering factors'
+            return
+         end if
          as = (/cscatt(1,iz),cscatt(3,iz),cscatt(5,iz),cscatt(7,iz)/)
          bs = (/cscatt(2,iz),cscatt(4,iz),cscatt(6,iz),cscatt(8,iz)/)
          cs = cscatt(9,iz)
@@ -860,12 +867,12 @@ contains
   ! Gaussian width sigma, and output the value in d12. If calcderivs
   ! is present and true, calculate the derivatives wrt the metric
   ! tensor of p1 in d12g (requires p1%havegradients).
-  module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,d12,calcderivs,d12g)
-    use tools_io, only: ferror, faterr
+  module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,d12,errmsg,calcderivs,d12g)
     use param, only: pi
     type(xrpd_peaklist), intent(in) :: p1, p2
     real*8, intent(in) :: alpha, sigma
     real*8, intent(out) :: d12
+    character(len=:), allocatable, intent(out) :: errmsg
     logical, intent(in), optional :: calcderivs
     real*8, intent(out), optional :: d12g(6)
 
@@ -878,10 +885,14 @@ contains
     ! consistency checks
     calcg = present(calcderivs)
     if (calcg) calcg = calcderivs
-    if (calcg .and..not.p1%havegradients) &
-       call ferror('crosscorr_gaussian','calcderivs requires p1%havegradients',faterr)
-    if (calcg .and..not.present(d12g)) &
-       call ferror('crosscorr_gaussian','calcderivs requires d12g being present',faterr)
+    if (calcg .and..not.p1%havegradients) then
+       errmsg = 'calcderivs requires p1%havegradients'
+       return
+    end if
+    if (calcg .and..not.present(d12g)) then
+       errmsg = 'calcderivs requires d12g being present'
+       return
+    end if
 
     z = 1d0 / (alpha**2 + 4d0 * pi * sigma**2)
     zp = pi * z
@@ -930,20 +941,18 @@ contains
   !   value.
   ! - max_elong_def0 = maximum cell length deformation
   ! - max_ang_def0 = maximum angle deformation (degrees)
-  module subroutine gaussian_compare(c1,p2,imode,diff,seedout,verbose0,alpha0,&
+  module subroutine gaussian_compare(c1,p2,imode,diff,errmsg,seedout,verbose0,alpha0,&
      lambda0,fpol0,maxfeval0,besteps0,max_elong_def0,max_ang_def0)
     use crystalseedmod, only: crystalseed
-    use tools_io, only: ferror
-#ifndef HAVE_NLOPT
-    use tools_io, only: warning
-#else
-    use tools_io, only: faterr, uout, string
+#ifdef HAVE_NLOPT
+    use tools_io, only: uout, string
     use tools_math, only: m_x2c_from_cellpar, det3
 #endif
     type(crystal), intent(in) :: c1
     type(xrpd_peaklist), intent(in) :: p2
     integer, intent(in) :: imode
     real*8, intent(out) :: diff
+    character(len=:), allocatable, intent(out) :: errmsg
     type(crystalseed), intent(out), optional :: seedout
     logical, intent(in), optional :: verbose0
     real*8, intent(in), optional :: alpha0
@@ -956,7 +965,7 @@ contains
 
     ! bail out if NLOPT is not available
 #ifndef HAVE_NLOPT
-    call ferror("gaussian_compare","gaussian_compare can only be used if nlopt is available",warning)
+    errmsg = "gaussian_compare can only be used if nlopt is available"
     diff = 1d0
     if (present(seedout)) call seedout%end()
     return
@@ -997,10 +1006,15 @@ contains
     include 'nlopt.f'
 
     ! consistency checks
-    if (p2%npeak == 0) &
-       call ferror('gaussian_compare','no peaks found',faterr)
-    if (imode /= imode_sp .and. imode /= imode_local .and.imode /= imode_global) &
-       call ferror('gaussian_compare','imode must be one of 0, 1, 2',faterr)
+    errmsg = ""
+    if (p2%npeak == 0) then
+       errmsg = 'No peaks found in the pattern'
+       return
+    end if
+    if (imode /= imode_sp .and. imode /= imode_local .and. imode /= imode_global) then
+       errmsg = 'Incorrect imode (must be one of 0, 1, 2)'
+       return
+    end if
 
     ! process the input options
     alpha = alpha_def
@@ -1030,8 +1044,10 @@ contains
     if (verbose) &
        write (uout,'("# step    DIFF        -- cell parameters --")')
 
-    call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol,.false.,.false.)
-    call crosscorr_gaussian(p2,p2,alpha,sigma,dfg22,.false.)
+    call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol,.false.,.false.,errmsg)
+    if (len_trim(errmsg) > 0) return
+    call crosscorr_gaussian(p2,p2,alpha,sigma,dfg22,errmsg,.false.)
+    if (len_trim(errmsg) > 0) return
 
     x(1:3) = c1%aa
     x(4:6) = c1%bb
@@ -1093,6 +1109,10 @@ contains
              end if
           end if
        end if
+       if (.not.iresok .and. ires < 0) then
+          errmsg = "Error during the minimization process"
+          return
+       end if
 
        ! clean up
        if (imode == imode_global) &
@@ -1144,7 +1164,7 @@ contains
       real*8 :: dd, ddg(6)
       real*8 :: dfg11, dfgg11(6), dfg12, dfgg12(6)
       integer :: i, ires
-      character(len=:), allocatable :: str
+      character(len=:), allocatable :: str, errmsg
 
       neval = neval + 1
       a = x(1)
@@ -1173,9 +1193,12 @@ contains
       end if
 
       ! only recompute peak pattern for crystal 1
-      call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol,.true.,.true.,gg)
-      call crosscorr_gaussian(p1,p1,alpha,sigma,dfg11,.true.,dfgg11)
-      call crosscorr_gaussian(p1,p2,alpha,sigma,dfg12,.true.,dfgg12)
+      call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol,.true.,.true.,errmsg,gg)
+      if (len_trim(errmsg) > 0) goto 999
+      call crosscorr_gaussian(p1,p1,alpha,sigma,dfg11,errmsg,.true.,dfgg11)
+      if (len_trim(errmsg) > 0) goto 999
+      call crosscorr_gaussian(p1,p2,alpha,sigma,dfg12,errmsg,.true.,dfgg12)
+      if (len_trim(errmsg) > 0) goto 999
 
       dd = dfg12 / sqrt(dfg11 * dfg22)
 
@@ -1219,6 +1242,11 @@ contains
          iresok = .true.
          call nlo_set_force_stop(ires, opt, 2)
       end if
+      return
+999   continue
+
+      iresok = .false.
+      call nlo_set_force_stop(ires, opt, -1)
 
     end subroutine diff_fun
 #endif

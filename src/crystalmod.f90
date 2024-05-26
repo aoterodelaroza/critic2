@@ -681,7 +681,8 @@ module crystalmod
        real*8, allocatable, intent(inout), optional :: t(:)
        real*8, allocatable, intent(inout), optional :: ih(:)
      end subroutine powder
-     module subroutine powder_peaks(c,p,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs,gg)
+     module subroutine powder_peaks(c,p,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs,&
+        errmsg,gg)
        class(crystal), intent(in) :: c
        type(xrpd_peaklist), intent(inout) :: p
        real*8, intent(in) :: th2ini0, th2end0
@@ -689,6 +690,7 @@ module crystalmod
        real*8, intent(in) :: fpol
        logical, intent(in) :: usehvecp
        logical, intent(in) :: calcderivs
+       character(len=:), allocatable, intent(out) :: errmsg
        real*8, intent(in), optional :: gg(3,3)
      end subroutine powder_peaks
      module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0,ihat,intpeak)
@@ -927,20 +929,22 @@ module crystalmod
        character*(*), intent(in) :: file
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine xrpd_peaks_from_file
-     module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,d12,calcderivs,d12g)
+     module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,d12,errmsg,calcderivs,d12g)
        type(xrpd_peaklist), intent(in) :: p1, p2
        real*8, intent(in) :: alpha, sigma
        real*8, intent(out) :: d12
+       character(len=:), allocatable, intent(out) :: errmsg
        logical, intent(in), optional :: calcderivs
        real*8, intent(out), optional :: d12g(6)
      end subroutine crosscorr_gaussian
-     module subroutine gaussian_compare(c1,p2,imode,diff,seedout,verbose0,alpha0,&
+     module subroutine gaussian_compare(c1,p2,imode,diff,errmsg,seedout,verbose0,alpha0,&
         lambda0,fpol0,maxfeval0,besteps0,max_elong_def0,max_ang_def0)
        use crystalseedmod, only: crystalseed
        type(crystal), intent(in) :: c1
        type(xrpd_peaklist), intent(in) :: p2
        integer, intent(in) :: imode
        real*8, intent(out) :: diff
+       character(len=:), allocatable, intent(out) :: errmsg
        type(crystalseed), intent(out), optional :: seedout
        logical, intent(in), optional :: verbose0
        real*8, intent(in), optional :: alpha0

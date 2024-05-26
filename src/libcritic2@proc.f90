@@ -230,7 +230,7 @@ contains
   !> Limit the peaks to the 2theta range th2ini to th2end. lambda is
   !> the wavelength in angstrom. fpol is the polarization correction
   !> factor (0 = unpolarized, 0.95 = synchrotron). If th2ini, th2end,
-  !> lambda, fpol < 0, use default values.
+  !> lambda, fpol < 0, use default values. Returns NULL on error.
   function c2_peaks_from_crystal(cr,th2ini,th2end,lambda,fpol) bind(c,name="c2_peaks_from_crystal")
     use crystalmod, only: crystal, xrpd_peaklist
     type(c_ptr), value, intent(in) :: cr
@@ -239,8 +239,10 @@ contains
 
     type(crystal), pointer :: crf
     type(xrpd_peaklist), pointer :: pk
+    character(len=:), allocatable :: errmsg
 
     ! consistency checks
+    c2_peaks_from_crystal = c_null_ptr
     if (.not.critic2_init) call initialize_critic2()
     if (.not.c_associated(cr)) return
     call c_f_pointer(cr,crf)
@@ -254,7 +256,8 @@ contains
 
     ! calculate peak positions and return
     allocate(pk)
-    call crf%powder_peaks(pk,th2ini,th2end,lambda,fpol,.false.,.false.)
+    call crf%powder_peaks(pk,th2ini,th2end,lambda,fpol,.false.,.false.,errmsg)
+    if (len_trim(errmsg) > 0) return
     c2_peaks_from_crystal = c_loc(pk)
 
   end function c2_peaks_from_crystal
@@ -306,6 +309,7 @@ contains
   !> Gaussian triangle width. lambda = wavelength in angstrom. fpol =
   !> polarization correction factor (0 = unpolarized, 0.95 =
   !> synchrotron). If alpha, lambda, fpol < 0, use default values.
+  !> Returns -1 on error.
   module function c2_compare_gpwdf(c1,p2,alpha,lambda,fpol) bind(c,name="c2_compare_gpwdf")
     use crystalmod, only: crystal, xrpd_peaklist, gaussian_compare
     type(c_ptr), value, intent(in) :: c1
@@ -315,8 +319,10 @@ contains
 
     type(crystal), pointer :: cr
     type(xrpd_peaklist), pointer :: pk
+    character(len=:), allocatable :: errmsg
 
     ! consistency checks
+    c2_compare_gpwdf = -1._c_double
     if (.not.critic2_init) call initialize_critic2()
     if (.not.c_associated(c1)) return
     call c_f_pointer(c1,cr)
@@ -331,8 +337,12 @@ contains
     if (fpol < 0d0) fpol = fpol_def
 
     ! run the comparison
-    call gaussian_compare(cr,pk,0,c2_compare_gpwdf,verbose0=.false.,&
+    call gaussian_compare(cr,pk,0,c2_compare_gpwdf,errmsg,verbose0=.false.,&
        alpha0=alpha,lambda0=lambda,fpol0=fpol)
+    if (len_trim(errmsg) > 0) then
+       c2_compare_gpwdf = -1._c_double
+       return
+    end if
 
   end function c2_compare_gpwdf
 
@@ -347,6 +357,7 @@ contains
   !> found within besteps. max_elong = maximum cell length elongation
   !> (%). max_ang = maximum cell angle deformation (degrees). Returns
   !> the VC-GPDWF score and the deformed c1 structure in crout.
+  !> Returns -1 on error.
   module function c2_compare_vcgpwdf(c1,p2,crout,global,verbose,alpha,lambda,fpol,maxfeval,&
      besteps,max_elong,max_ang) bind(c,name="c2_compare_vcgpwdf")
     use crystalseedmod, only: crystalseed
@@ -363,8 +374,10 @@ contains
     type(xrpd_peaklist), pointer :: pk
     integer :: imode
     type(crystalseed) :: seed
+    character(len=:), allocatable :: errmsg
 
     ! consistency checks
+    c2_compare_vcgpwdf = -1._c_double
     if (.not.critic2_init) call initialize_critic2()
     if (.not.c_associated(c1)) return
     call c_f_pointer(c1,cr)
@@ -388,8 +401,12 @@ contains
     end if
 
     ! run the comparison
-    call gaussian_compare(cr,pk,imode,c2_compare_vcgpwdf,seed,logical(verbose),alpha,lambda,&
-       fpol,maxfeval,besteps,max_elong,max_ang)
+    call gaussian_compare(cr,pk,imode,c2_compare_vcgpwdf,errmsg,seed,logical(verbose),&
+       alpha,lambda,fpol,maxfeval,besteps,max_elong,max_ang)
+    if (len_trim(errmsg) > 0) then
+       c2_compare_vcgpwdf = -1._c_double
+       return
+    end if
 
     ! crystal in output
     allocate(croutf)
@@ -407,7 +424,7 @@ contains
   !> verbose, print search progress to stdout. lambda = wavelength in
   !> angstrom. fpol = polarization correction factor (0 = unpolarized,
   !> 0.95 = synchrotron). Returns the VC-GPDWF score and the deformed
-  !> c1 structure in crout.
+  !> c1 structure in crout. Returns -1 on error.
   module function c2_compare_vcgpwdf_global_safe(c1,p2,crout,verbose,lambda,fpol) &
      bind(c,name="c2_compare_vcgpwdf_global_safe")
     type(c_ptr), value, intent(in) :: c1
@@ -428,7 +445,7 @@ contains
   !> verbose, print search progress to stdout. lambda = wavelength in
   !> angstrom. fpol = polarization correction factor (0 = unpolarized,
   !> 0.95 = synchrotron). Returns the VC-GPDWF score and the deformed
-  !> c1 structure in crout.
+  !> c1 structure in crout. Returns -1 on error.
   module function c2_compare_vcgpwdf_global_quick(c1,p2,crout,verbose,lambda,fpol) &
      bind(c,name="c2_compare_vcgpwdf_global_quick")
     type(c_ptr), value, intent(in) :: c1
