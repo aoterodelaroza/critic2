@@ -65,6 +65,8 @@ endif()
 
 ## project definition
 project(critic2 VERSION "${critic2_VERSION}" LANGUAGES C Fortran)
+set(CMAKE_C_VISIBILITY_PRESET hidden)
+set(CMAKE_Fortran_VISIBILITY_PRESET hidden)
 
 ## global flags for cmake
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -123,6 +125,7 @@ if (ENABLE_GUI)
 
   ## needs -fPIC
   enable_language(CXX)
+  set(CMAKE_CXX_VISIBILITY_PRESET hidden)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
   ## find GUI libraries
