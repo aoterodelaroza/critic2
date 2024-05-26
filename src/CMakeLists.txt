@@ -73,6 +73,7 @@ if (BUILD_LIBRARY)
   add_library(libcritic2 SHARED ${SOURCES_Fortran} ${SOURCES_C} ${SOURCES_Fortran_Library})
   set_target_properties(libcritic2 PROPERTIES OUTPUT_NAME critic2 PUBLIC_HEADER "libcritic2.h")
   add_dependencies(libcritic2 critic2_core critic2)
+  set_source_files_properties(libcritic2@proc.f90 libcritic2.f90 PROPERTIES COMPILE_FLAGS "-fvisibility=default")
 endif()
 
 ## cubpack
