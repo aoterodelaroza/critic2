@@ -1308,9 +1308,11 @@ contains
   !> ymax_detect0. If ymax_detect0 is not given (or equal to
   !> -huge(1d0)), use the median intensity of the profile. If nadj0 is
   !> not given (or is negative), defaults to 2. If verbose0 is present
-  !> and true, write progress messages to stdout. errmsg is empty if
-  !> successful; otherwise it contains error message.
-  module subroutine xrpd_peaks_from_profile_file(p,xyfile,rms,errmsg,verbose0,ymax_detect0,nadj0)
+  !> and true, write progress messages to stdout.  Return profile read
+  !> from the file in xorig/yorig if present. Return the fitted
+  !> profile in ycalc if present.  errmsg is empty if successful;
+  !> otherwise it contains error message.
+  module subroutine xrpd_peaks_from_profile_file(p,xyfile,rms,errmsg,verbose0,ymax_detect0,nadj0,xorig,yorig,ycalc)
 #ifdef HAVE_NLOPT
     use param, only: pi
     use tools, only: qcksort
@@ -1324,6 +1326,9 @@ contains
     logical, intent(in), optional :: verbose0
     real*8, intent(in), optional :: ymax_detect0
     integer, intent(in), optional :: nadj0
+    real*8, intent(inout), allocatable, optional :: xorig(:)
+    real*8, intent(inout), allocatable, optional :: yorig(:)
+    real*8, intent(inout), allocatable, optional :: ycalc(:)
 
     ! bail out if NLOPT is not available
 #ifndef HAVE_NLOPT
@@ -1335,7 +1340,7 @@ contains
     integer :: i, ip, n, nprm, nprml
     integer, allocatable :: pid(:), io(:)
     real*8, allocatable :: x(:), y(:), pth2(:), phei(:), prm(:), lb(:), ub(:), yfit(:), ysum(:)
-    real*8, allocatable :: y_orig(:)
+    real*8, allocatable :: yread(:)
     real*8 :: fac, minx, maxx, maxy, ssq, maxa, xdif!, x_, y_, xini, xend
     logical :: ok
     integer :: npeaks, npeaks_
@@ -1487,13 +1492,13 @@ contains
        write (uout,'(/"+++ Pre-fitting peaks (this make take some time...)")')
     allocate(yfit(n),ysum(n))
     ysum = 0d0
-    y_orig = y
+    yread = y
     do ip = 1, npeaks
        ! number of parameters
        nprml = 4
 
        ! prepare fitting data and last peak
-       y = y_orig - ysum
+       y = yread - ysum
        prm(nprm) = max(y(pid(ip)) / fac,1d-20)
        lb(nprm) = 0d0
        ub(nprm) = (maxx-minx) * maxy
@@ -1551,13 +1556,13 @@ contains
        ! lu = fopen_write("fit.dat")
        ! write (lu,'("## x y yfit std-resid")')
        ! do i = 1, n
-       !    write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y_orig(i),'f',decimal=10),&
+       !    write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(yread(i),'f',decimal=10),&
        !       string(ysum(i),'f',decimal=10)
        ! end do
        ! call fclose(lu)
     end do
-    y = y_orig
-    rms = sqrt(sum((ysum - y_orig)**2) / real(n,8))
+    y = yread
+    rms = sqrt(sum((ysum - yread)**2) / real(n,8))
     if (ires < 0) then
        errmsg = "FAILURE in the prefitting stage"
        return
@@ -1655,7 +1660,7 @@ contains
 
     ! calculate final profile and rms
     call ffit(ssq,nprm,prm,prm,0,0.)
-    rms = sqrt(sum((yfit - y_orig)**2) / real(n,8))
+    rms = sqrt(sum((yfit - yread)**2) / real(n,8))
     if (verbose) then
        write (uout,'("+ Finished fitting pattern.")')
        write (*,'("+ RMS of the fit (final) = ",A/)') string(rms,'f',decimal=4)
@@ -1678,6 +1683,11 @@ contains
        p%cgau(ip) = prm(4*(ip-1)+3)
        p%ip(ip) = prm(4*(ip-1)+4)
     end do
+
+    ! output the pattern
+    if (present(xorig)) xorig = x
+    if (present(yorig)) yorig = yread
+    if (present(ycalc)) ycalc = yfit
 
   contains
     !> Helper routine: get the errormsg from the NLOPT error code.

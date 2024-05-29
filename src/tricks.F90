@@ -3079,7 +3079,7 @@ contains
 
     integer :: lpo
     character(len=:), allocatable :: file, errmsg
-    real*8, allocatable :: x(:), y(:)
+    real*8, allocatable :: x(:), y(:), yfit(:)
     real*8 :: ymax_peakdetect, rms, maxa
     integer :: nadj, ip, lu, i, n
     logical :: ok
@@ -3101,19 +3101,18 @@ contains
     end if
 
     ! run the peak fit
-    call p%from_profile_file(file,rms,errmsg,.true.,ymax_peakdetect,nadj)
+    call p%from_profile_file(file,rms,errmsg,.true.,ymax_peakdetect,nadj,xorig=x,yorig=y,ycalc=yfit)
     if (len_trim(errmsg) > 0) &
        call ferror('trick_profile_fit',errmsg,faterr)
 
-    ! ! write the profile to disk
-    ! ysum = fsimple(nprm,prm)
-    ! lu = fopen_write("fit.dat")
-    ! write (lu,'("## x yorig ycalc")')
-    ! do i = 1, n
-    !    write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y_orig(i),'f',decimal=10),&
-    !       string(ysum(i),'f',decimal=10)
-    ! end do
-    ! call fclose(lu)
+    ! write the profile to disk
+    lu = fopen_write("fit.dat")
+    write (lu,'("## x yorig ycalc")')
+    do i = 1, size(x,1)
+       write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y(i),'f',decimal=10),&
+          string(yfit(i),'f',decimal=10)
+    end do
+    call fclose(lu)
 
     ! calculate final profile and write it to disk
     n = 3000

@@ -981,7 +981,7 @@ module crystalmod
        real*8, intent(in), optional :: max_elong_def0
        real*8, intent(in), optional :: max_ang_def0
      end subroutine gaussian_compare
-     module subroutine xrpd_peaks_from_profile_file(p,xyfile,rms,errmsg,verbose0,ymax_detect0,nadj0)
+     module subroutine xrpd_peaks_from_profile_file(p,xyfile,rms,errmsg,verbose0,ymax_detect0,nadj0,xorig,yorig,ycalc)
        class(xrpd_peaklist), intent(inout) :: p
        character*(*), intent(in) :: xyfile
        real*8, intent(out) :: rms
@@ -989,6 +989,9 @@ module crystalmod
        logical, intent(in), optional :: verbose0
        real*8, intent(in), optional :: ymax_detect0
        integer, intent(in), optional :: nadj0
+       real*8, intent(inout), allocatable, optional :: xorig(:)
+       real*8, intent(inout), allocatable, optional :: yorig(:)
+       real*8, intent(inout), allocatable, optional :: ycalc(:)
      end subroutine xrpd_peaks_from_profile_file
      module subroutine xrpd_write_to_file(p,file)
        class(xrpd_peaklist), intent(in) :: p
