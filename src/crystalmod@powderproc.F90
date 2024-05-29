@@ -1793,4 +1793,39 @@ contains
 #endif
   end subroutine xrpd_peaks_from_profile_file
 
+  !> Write the peak list to a file.
+  module subroutine xrpd_write_to_file(p,file)
+    use param, only: pi
+    use tools_io, only: fopen_write, fclose, string
+    class(xrpd_peaklist), intent(in) :: p
+    character*(*), intent(in) :: file
+
+    integer :: lu, ip
+    character(len=:), allocatable :: str
+
+    lu = fopen_write(file)
+    write (lu,'("## List of peaks")')
+    write (lu,'("## 2*theta   Area   FWHM   gau/lor")')
+    if (p%haveth2limits) then
+       write (lu,'("@th2ini ",A)') string(p%th2ini * 180d0 / pi,'f',decimal=8)
+       write (lu,'("@th2end ",A)') string(p%th2end * 180d0 / pi,'f',decimal=8)
+    end if
+    if (p%haveradiation) then
+       write (lu,'("@lambda ",A)') string(p%lambda,'f',decimal=8)
+       write (lu,'("@fpol ",A)') string(p%fpol,'f',decimal=8)
+    end if
+    do ip = 1, p%npeak
+       str = string(p%th2(ip),'f',decimal=10) // " " // string(p%ip(ip),'f',decimal=10)
+       if (p%havepeakshape) then
+          str = str // " " // string(p%fwhm(ip),'f',decimal=10) // " " // string(p%cgau(ip),'f',decimal=10)
+          if (p%havehvec) then
+             str = str // string(p%hvec(1,ip)) // " " // string(p%hvec(2,ip)) // " " // string(p%hvec(3,ip))
+          end if
+       end if
+       write (lu,'(A)') str
+    end do
+    call fclose(lu)
+
+  end subroutine xrpd_write_to_file
+
 end submodule powderproc

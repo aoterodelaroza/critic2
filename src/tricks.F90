@@ -3133,20 +3133,7 @@ contains
 
     ! final list of peaks to disk
     write (uout,'("+ List of peaks written to file: fit.peaks")')
-    lu = fopen_write("fit.peaks")
-    write (lu,'("## List of peaks")')
-    write (lu,'("## 2*theta   Area   FWHM   gau/lor")')
-    if (p%haveth2limits) then
-       write (lu,'("@th2ini ",A)') string(p%th2ini * 180d0 / pi,'f',decimal=8)
-       write (lu,'("@th2end ",A)') string(p%th2end * 180d0 / pi,'f',decimal=8)
-    end if
-    do ip = 1, p%npeak
-       write (lu,'(4(A," "))') string(p%th2(ip),'f',decimal=10),&
-          string(p%ip(ip),'e',decimal=10),&
-          string(p%fwhm(ip),'f',decimal=10),&
-          string(p%cgau(ip),'f',decimal=10)
-    end do
-    call fclose(lu)
+    call p%write("fit.peaks")
 
 #endif
   end subroutine trick_profile_fit

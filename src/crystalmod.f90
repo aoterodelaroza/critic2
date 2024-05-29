@@ -300,6 +300,7 @@ module crystalmod
      procedure :: from_crystal => xrpd_peaks_from_crystal_powder
      procedure :: from_peaks_file => xrpd_peaks_from_peaks_file
      procedure :: from_profile_file => xrpd_peaks_from_profile_file
+     procedure :: write => xrpd_write_to_file
   end type xrpd_peaklist
   public :: xrpd_peaklist
 
@@ -988,6 +989,10 @@ module crystalmod
        real*8, intent(in), optional :: ymax_detect0
        integer, intent(in), optional :: nadj0
      end subroutine xrpd_peaks_from_profile_file
+     module subroutine xrpd_write_to_file(p,file)
+       class(xrpd_peaklist), intent(in) :: p
+       character*(*), intent(in) :: file
+     end subroutine xrpd_write_to_file
      module subroutine xrpd_peaklist_end(p)
        class(xrpd_peaklist), intent(inout) :: p
      end subroutine xrpd_peaklist_end
