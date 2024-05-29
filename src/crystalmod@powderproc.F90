@@ -1317,8 +1317,22 @@ contains
     call file_read_xy(xyfile,n,x,y,errmsg)
     if (len_trim(errmsg) > 0) return
 
-    ! xxxx fixme
-    if (ymax_detect == -huge(1d0)) ymax_detect = 0d0
+    ! if default ymax_detect, use the median of the data
+    if (ymax_detect == -huge(1d0)) then
+       ! straightforward calculation of the median
+       ysum = y
+       allocate(io(n))
+       do i = 1, n
+          io(i) = i
+       end do
+       call qcksort(ysum,io,1,n)
+       if (mod(n,2) == 0) then
+          ymax_detect = 0.5d0 * (ysum(io(n/2)) + ysum(io(n/2+1)))
+       else
+          ymax_detect = ysum(io(n/2+1))
+       end if
+       deallocate(io,ysum)
+    end if
 
     ! auto-detect the peaks
     if (verbose) &
@@ -1327,7 +1341,7 @@ contains
     allocate(pth2(100),pid(100),phei(100))
     if (verbose) then
        write (uout,'("  Minimum intensity cutoff for peak detection: ",A)') &
-          string(ymax_detect,'f',decimal=2)
+          string(ymax_detect,'f',decimal=4)
     end if
     do i = 3, n-2
        if (nadj == 2) then
