@@ -24,6 +24,8 @@ module tools_math
   !xx! proc submodule !xx!
   public :: crosscorr_triangle
   public :: synthetic_powder
+  public :: gaussian
+  public :: lorentzian
   public :: m_x2c_from_cellpar
   public :: m_c2x_from_cellpar
   public :: factorial
@@ -108,6 +110,14 @@ module tools_math
        real*8, allocatable, intent(inout) :: t(:)
        real*8, allocatable, intent(inout) :: ih(:)
      end subroutine synthetic_powder
+     module function gaussian(x,x0,gamma) result(gau)
+       real*8, intent(in) :: x(:), x0, gamma
+       real*8 :: gau(size(x,1))
+     end function gaussian
+     module function lorentzian(x,x0,gamma) result(lor)
+       real*8, intent(in) :: x(:), x0, gamma
+       real*8 :: lor(size(x,1))
+     end function lorentzian
      module function m_x2c_from_cellpar(aal,bbl) result(mat)
        real*8, intent(in) :: aal(3),bbl(3)
        real*8 :: mat(3,3)

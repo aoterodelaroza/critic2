@@ -1696,31 +1696,8 @@ contains
        end if
     end subroutine errmsg_from_ires
 
-    function gaussian(x,x0,gamma) result(gau)
-      use param, only: pi
-      real*8, intent(in) :: x(:), x0, gamma
-      real*8 :: gau(size(x,1))
-
-      real*8 :: s
-
-      s = gamma / 2d0 / sqrt(2d0 * log(2d0))
-      gau = 1d0 / (s * sqrt(2d0*pi)) * exp(-(x-x0)*(x-x0) / (2*s*s))
-
-    end function gaussian
-
-    function lorentz(x,x0,gamma) result(lor)
-      use param, only: pi
-      real*8, intent(in) :: x(:), x0, gamma
-      real*8 :: lor(size(x,1))
-
-      real*8 :: g2
-
-      g2 = gamma / 2
-      lor = (1d0/pi) * g2 / ((x-x0)*(x-x0) + g2*g2)
-
-    end function lorentz
-
     subroutine ffit(val, nprm, prm, grad, need_gradient, f_data)
+      use tools_math, only: gaussian, lorentzian
       use param, only: pi
       real*8 :: val, prm(nprm), grad(nprm)
       integer :: nprm, need_gradient
@@ -1740,7 +1717,7 @@ contains
          int = prm(i+3)
 
          gau = gaussian(x,x0,gamma)
-         lor = lorentz(x,x0,gamma)
+         lor = lorentzian(x,x0,gamma)
 
          xfit = xfit + int * (eta * gau + (1-eta) * lor)
          if (need_gradient /= 0) then
@@ -1768,6 +1745,7 @@ contains
     end subroutine ffit
 
     function fsimple(nprm, prm) result(yfit)
+      use tools_math, only: gaussian, lorentzian
       real*8 :: prm(nprm)
       integer :: nprm
       real*8, allocatable :: yfit(:)
@@ -1786,7 +1764,7 @@ contains
          eta = prm(i+2)
          int = prm(i+3)
 
-         yfit = yfit + int * (eta * gaussian(x,x0,gamma) + (1-eta) * lorentz(x,x0,gamma))
+         yfit = yfit + int * (eta * gaussian(x,x0,gamma) + (1-eta) * lorentzian(x,x0,gamma))
       end do
 
     end function fsimple

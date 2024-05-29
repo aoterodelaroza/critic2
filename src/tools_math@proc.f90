@@ -102,6 +102,33 @@ contains
 
   end subroutine synthetic_powder
 
+  !> Calculate a normalized Gaussian function with center x0
+  !> and FWHM gamma.
+  module function gaussian(x,x0,gamma) result(gau)
+    use param, only: pi
+    real*8, intent(in) :: x(:), x0, gamma
+    real*8 :: gau(size(x,1))
+
+    real*8 :: s
+
+    s = gamma / 2d0 / sqrt(2d0 * log(2d0))
+    gau = 1d0 / (s * sqrt(2d0*pi)) * exp(-(x-x0)*(x-x0) / (2*s*s))
+
+  end function gaussian
+
+  !> Calculate a Lorentzian function with center x0 and FWHM gamma.
+  module function lorentzian(x,x0,gamma) result(lor)
+    use param, only: pi
+    real*8, intent(in) :: x(:), x0, gamma
+    real*8 :: lor(size(x,1))
+
+    real*8 :: g2
+
+    g2 = gamma / 2
+    lor = (1d0/pi) * g2 / ((x-x0)*(x-x0) + g2*g2)
+
+  end function lorentzian
+
   !> Gives a crystallographic to cartesian conversion matrix from
   !> the cell parameters using the Cholesky decomposition of the
   !> metric tensor. Input angles in degrees.
