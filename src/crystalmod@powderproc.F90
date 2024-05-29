@@ -333,6 +333,7 @@ contains
     end if
 
     ! initialize angles and radiation
+    call p%end()
     p%haveth2limits = .true.
     p%th2ini = th2ini0
     p%th2end = th2end0
@@ -353,15 +354,8 @@ contains
     end if
 
     ! allocate peak list and initialize output
-    p%havepeakshape = .false.
     p%havehvec = .true.
     p%havegradients = calcderivs
-    if (allocated(p%th2)) deallocate(p%th2)
-    if (allocated(p%ip)) deallocate(p%ip)
-    if (allocated(p%th2g)) deallocate(p%th2g)
-    if (allocated(p%ipg)) deallocate(p%ipg)
-    if (allocated(p%fwhm)) deallocate(p%fwhm)
-    if (allocated(p%cgau)) deallocate(p%cgau)
     if (usehvecp) then
        allocate(p%th2(p%npeak),p%ip(p%npeak))
        if (calcderivs) allocate(p%th2g(6,p%npeak),p%ipg(6,p%npeak))
@@ -778,6 +772,30 @@ contains
 
   end subroutine amd
 
+  !> Terminate an xrpd_peaklist object.
+  module subroutine xrpd_peaklist_end(p)
+    class(xrpd_peaklist), intent(inout) :: p
+
+    p%npeak = 0
+    p%haveth2limits = .false.
+    p%haveradiation = .false.
+    p%havehvec = .false.
+    p%havegradients = .false.
+    p%havepeakshape = .false.
+    p%lambda = 0d0
+    p%fpol = 0d0
+    p%th2ini = 0d0
+    p%th2end = 0d0
+    if (allocated(p%th2)) deallocate(p%th2)
+    if (allocated(p%ip)) deallocate(p%ip)
+    if (allocated(p%hvec)) deallocate(p%hvec)
+    if (allocated(p%th2g)) deallocate(p%th2g)
+    if (allocated(p%ipg)) deallocate(p%ipg)
+    if (allocated(p%fwhm)) deallocate(p%fwhm)
+    if (allocated(p%cgau)) deallocate(p%cgau)
+
+  end subroutine xrpd_peaklist_end
+
   !> Read the XRPD peaks from a peaks file. The peaks are sorted by th2
   !> on output. If error, return non-zero-length errmsg.
   module subroutine xrpd_peaks_from_file(p,file,errmsg)
@@ -800,20 +818,11 @@ contains
 
     ! initialize output
     errmsg = ""
-    p%npeak = 0
-    if (allocated(p%th2)) deallocate(p%th2)
-    if (allocated(p%ip)) deallocate(p%ip)
-    if (allocated(p%hvec)) deallocate(p%hvec)
-    if (allocated(p%th2g)) deallocate(p%th2g)
-    if (allocated(p%ipg)) deallocate(p%ipg)
-    if (allocated(p%fwhm)) deallocate(p%fwhm)
-    if (allocated(p%cgau)) deallocate(p%cgau)
-    p%havehvec = .false.
-    p%havegradients = .false.
-    p%havepeakshape = .true.
+    call p%end()
 
     ! read the pattern from the peaks file
     readat = .false.
+    p%havepeakshape = .true.
     allocate(p%th2(mpeak),p%ip(mpeak),p%fwhm(mpeak),p%cgau(mpeak))
     lu = fopen_read(file)
     do while (getline(lu,line))
@@ -1643,21 +1652,12 @@ contains
     end if
 
     ! output the XRPD peak list
+    call p%end()
     p%npeak = npeaks
     p%haveth2limits = .true.
     p%th2ini = x(1) * pi / 180d0
     p%th2end = x(n) * pi / 180d0
-    p%haveradiation = .false.
-    p%havehvec = .false.
-    p%havegradients = .false.
     p%havepeakshape = .true.
-    if (allocated(p%th2)) deallocate(p%th2)
-    if (allocated(p%ip)) deallocate(p%ip)
-    if (allocated(p%hvec)) deallocate(p%hvec)
-    if (allocated(p%th2g)) deallocate(p%th2g)
-    if (allocated(p%ipg)) deallocate(p%ipg)
-    if (allocated(p%fwhm)) deallocate(p%fwhm)
-    if (allocated(p%cgau)) deallocate(p%cgau)
     allocate(p%th2(npeaks))
     allocate(p%ip(npeaks))
     allocate(p%fwhm(npeaks))

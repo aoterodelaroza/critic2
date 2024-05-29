@@ -296,6 +296,8 @@ module crystalmod
      real*8, allocatable :: ipg(:,:) ! gradient of ip wrt metric tensor
      real*8, allocatable :: fwhm(:) ! peak full width at half maximum (fwhm)
      real*8, allocatable :: cgau(:) ! Gaussian/Lorentzian peak shape coefficient
+   contains
+     procedure :: end => xrpd_peaklist_end
   end type xrpd_peaklist
   public :: xrpd_peaklist
 
@@ -986,6 +988,9 @@ module crystalmod
        real*8, intent(in), optional :: ymax_detect0
        integer, intent(in), optional :: nadj0
      end subroutine xrpd_peaks_from_profile
+     module subroutine xrpd_peaklist_end(p)
+       class(xrpd_peaklist), intent(inout) :: p
+     end subroutine xrpd_peaklist_end
   end interface
 
 end module crystalmod
