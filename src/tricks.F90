@@ -3099,7 +3099,7 @@ contains
     end if
 
     ! run the peak fit
-    call xrpd_peaks_from_profile(p,file,rms,errmsg,.true.,ymax_peakdetect,nadj)
+    call p%from_profile_file(file,rms,errmsg,.true.,ymax_peakdetect,nadj)
     if (len_trim(errmsg) > 0) &
        call ferror('trick_profile_fit',errmsg,faterr)
 

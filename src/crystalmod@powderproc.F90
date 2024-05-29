@@ -851,6 +851,7 @@ contains
              errmsg = "Error reading keyword symbol: " // word
              return
           end if
+          cycle
        end if
 
        lp = 1
