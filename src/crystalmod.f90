@@ -293,7 +293,7 @@ module crystalmod
      integer, allocatable :: hvec(:,:) ! reflection indices
      real*8, allocatable :: th2g(:,:) ! gradient of th2 wrt metric tensor (radians)
      real*8, allocatable :: ipg(:,:) ! gradient of ip wrt metric tensor
-     real*8, allocatable :: fwhm(:) ! peak full width at half maximum (fwhm)
+     real*8, allocatable :: fwhm(:) ! peak full width at half maximum (fwhm, degrees)
      real*8, allocatable :: cgau(:) ! Gaussian/Lorentzian peak shape coefficient
    contains
      procedure :: end => xrpd_peaklist_end
@@ -301,6 +301,7 @@ module crystalmod
      procedure :: from_peaks_file => xrpd_peaks_from_peaks_file
      procedure :: from_profile_file => xrpd_peaks_from_profile_file
      procedure :: write => xrpd_write_to_file
+     procedure :: calculate_profile => xrpd_calculate_profile
   end type xrpd_peaklist
   public :: xrpd_peaklist
 
@@ -996,6 +997,13 @@ module crystalmod
      module subroutine xrpd_peaklist_end(p)
        class(xrpd_peaklist), intent(inout) :: p
      end subroutine xrpd_peaklist_end
+     module subroutine xrpd_calculate_profile(p,n,x,y,errmsg,th2ini,th2end)
+       class(xrpd_peaklist), intent(inout) :: p
+       integer, intent(in) :: n
+       real*8, allocatable, intent(inout) :: x(:), y(:)
+       character(len=:), allocatable, intent(out) :: errmsg
+       real*8, intent(in), optional :: th2ini, th2end
+     end subroutine xrpd_calculate_profile
   end interface
 
 end module crystalmod

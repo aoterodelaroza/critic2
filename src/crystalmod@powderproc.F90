@@ -1787,4 +1787,70 @@ contains
 
   end subroutine xrpd_write_to_file
 
+  !> Calculate the XRPD profile corresponding to the peak list in
+  !> p. Requires having the peak shapes. The profile contains n evenly
+  !> distributed points: the angles (th2, degrees) are returned in x
+  !> and the intensity is returned in y. If the pattern contains
+  !> no th2ini and th2end info or if the user wants to override them,
+  !> use th2ini and th2end to set the profile limits. Return non-zero
+  !> errmsg on error.
+  module subroutine xrpd_calculate_profile(p,n,x,y,errmsg,th2ini,th2end)
+    use tools_math, only: gaussian, lorentzian
+    use param, only: pi
+    class(xrpd_peaklist), intent(inout) :: p
+    integer, intent(in) :: n
+    real*8, allocatable, intent(inout) :: x(:), y(:)
+    character(len=:), allocatable, intent(out) :: errmsg
+    real*8, intent(in), optional :: th2ini, th2end
+
+    logical :: ok
+    integer :: i
+    real*8 :: xini, xend, x0, gamma, eta, int
+
+    ! consistency checks
+    errmsg = ""
+    if (n <= 0) then
+       errmsg = "must have positive number of points for the grid"
+       return
+    end if
+    if (.not.p%havepeakshape) then
+       errmsg = "must have peak shapes for the profile calculation"
+       return
+    end if
+
+    ! initialize grid limits
+    if (.not.present(th2ini).and..not.present(th2end)) then
+       if (.not.p%haveth2limits) then
+          errmsg = "must have th2ini and th2end from the procedure arguments"
+          return
+       end if
+    end if
+    if (p%haveth2limits) then
+       xini = p%th2ini * 180d0 / pi
+       xend = p%th2end * 180d0 / pi
+    end if
+    if (present(th2ini)) xini = th2ini
+    if (present(th2end)) xend = th2end
+
+    ! initialize output arrays
+    if (allocated(x)) deallocate(x)
+    if (allocated(y)) deallocate(y)
+    allocate(x(n))
+    allocate(y(n))
+    do i = 1, n
+       x(i) = xini + real(i-1,8) / real(n-1,8) * (xend-xini)
+    end do
+
+    ! calculate the profile
+    y = 0d0
+    do i = 1, p%npeak
+       x0 = p%th2(i)
+       gamma = p%fwhm(i)
+       eta = p%cgau(i)
+       int = p%ip(i)
+       y = y + int * (eta * gaussian(x,x0,gamma) + (1-eta) * lorentzian(x,x0,gamma))
+    end do
+
+  end subroutine xrpd_calculate_profile
+
 end submodule powderproc

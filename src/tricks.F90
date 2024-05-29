@@ -3079,8 +3079,9 @@ contains
 
     integer :: lpo
     character(len=:), allocatable :: file, errmsg
+    real*8, allocatable :: x(:), y(:)
     real*8 :: ymax_peakdetect, rms, maxa
-    integer :: nadj, ip, lu
+    integer :: nadj, ip, lu, i, n
     logical :: ok
     type(xrpd_peaklist) :: p
 
@@ -3104,7 +3105,7 @@ contains
     if (len_trim(errmsg) > 0) &
        call ferror('trick_profile_fit',errmsg,faterr)
 
-    ! ! calculate final profile and write it to disk
+    ! ! write the profile to disk
     ! ysum = fsimple(nprm,prm)
     ! lu = fopen_write("fit.dat")
     ! write (lu,'("## x yorig ycalc")')
@@ -3114,22 +3115,17 @@ contains
     ! end do
     ! call fclose(lu)
 
-    ! ! calculate final profile and write it to disk
-    ! xini = x(1)
-    ! xend = x(n)
-    ! n = 3000
-    ! deallocate(x)
-    ! allocate(x(n))
-    ! do i = 1, n
-    !    x(i) = xini + real(i-1,8) / real(n-1,8) * (xend-xini)
-    ! end do
-    ! ysum = fsimple(nprm,prm)
-    ! lu = fopen_write("fitext.dat")
-    ! write (lu,'("## x ycalc")')
-    ! do i = 1, n
-    !    write (lu,'(2(A," "))') string(x(i),'f',decimal=10), string(ysum(i),'f',decimal=10)
-    ! end do
-    ! call fclose(lu)
+    ! calculate final profile and write it to disk
+    n = 3000
+    call p%calculate_profile(n,x,y,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('trick_profile_fit',errmsg,faterr)
+    lu = fopen_write("fitext.dat")
+    write (lu,'("## x ycalc")')
+    do i = 1, n
+       write (lu,'(2(A," "))') string(x(i),'f',decimal=10), string(y(i),'f',decimal=10)
+    end do
+    call fclose(lu)
 
     ! final list of peaks to disk
     write (uout,'("+ List of peaks written to file: fit.peaks")')
