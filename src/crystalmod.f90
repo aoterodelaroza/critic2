@@ -281,9 +281,11 @@ module crystalmod
   !> Class for XRPD peak information
   type xrpd_peaklist
      integer :: npeak = 0 ! number of peaks
+     ! logical :: haveth2limits = .false. ! whether th2ini and th2end are available
      logical :: havehvec = .false. ! whether hvec data (hkl indices) are available
      logical :: havegradients = .false. ! whether the gradients of th2 and ip are available
      logical :: havepeakshape = .false. ! whether the fwhm and gau/lor coefs are available
+     ! real*8 :: th2ini, th2end
      real*8, allocatable :: th2(:) ! reflection angles (2*theta)
      real*8, allocatable :: ip(:) ! peak intensities
      integer, allocatable :: hvec(:,:) ! reflection indices
@@ -300,6 +302,7 @@ module crystalmod
   public :: xrpd_peaks_from_file
   public :: crosscorr_gaussian
   public :: gaussian_compare
+  public :: xrpd_peaks_from_profile
 
   ! module procedure interfaces
   interface
@@ -971,6 +974,15 @@ module crystalmod
        real*8, intent(in), optional :: max_elong_def0
        real*8, intent(in), optional :: max_ang_def0
      end subroutine gaussian_compare
+     module subroutine xrpd_peaks_from_profile(p,xyfile,rms,errmsg,verbose0,ymax_detect0,nadj0)
+       type(xrpd_peaklist), intent(inout) :: p
+       character*(*), intent(in) :: xyfile
+       real*8, intent(out) :: rms
+       character(len=:), allocatable, intent(out) :: errmsg
+       logical, intent(in), optional :: verbose0
+       real*8, intent(in), optional :: ymax_detect0
+       integer, intent(in), optional :: nadj0
+     end subroutine xrpd_peaks_from_profile
   end interface
 
 end module crystalmod

@@ -310,11 +310,12 @@ module tools_io
      module subroutine tictac(mesg)
        character*(*), intent(in) :: mesg
      end subroutine tictac
-     module subroutine file_read_xy(file,npts,x,y)
+     module subroutine file_read_xy(file,npts,x,y,errmsg)
        character*(*), intent(in) :: file
        integer, intent(out) :: npts
        real*8, intent(inout), allocatable :: x(:)
        real*8, intent(inout), allocatable :: y(:)
+       character(len=:), allocatable, intent(out), optional :: errmsg
      end subroutine file_read_xy
      module subroutine start_clock()
      end subroutine start_clock

@@ -1606,15 +1606,17 @@ contains
 
   end subroutine tictac
 
-  !> Read a file with two columns of numbers, and return
-  !> the first and second column in x and y. The number of points
-  !> read is npts.
-  module subroutine file_read_xy(file,npts,x,y)
+  !> Read a file with two columns of numbers, and return the first and
+  !> second column in x and y. The number of points read is npts. If
+  !> errmsg is present: return empty string on success and non-zero
+  !> error string on fail. If errmsg is not present, crash on fail.
+  module subroutine file_read_xy(file,npts,x,y,errmsg)
     use types, only: realloc
     character*(*), intent(in) :: file
     integer, intent(out) :: npts
     real*8, intent(inout), allocatable :: x(:)
     real*8, intent(inout), allocatable :: y(:)
+    character(len=:), allocatable, intent(out), optional :: errmsg
 
     integer :: lu, lp
     character(len=:), allocatable :: str
@@ -1624,11 +1626,18 @@ contains
     ! initialize
     if (allocated(x)) deallocate(x)
     if (allocated(y)) deallocate(y)
+    if (present(errmsg)) errmsg = ""
 
     ! read the file
     lu = fopen_read(file)
-    if (lu < 0) &
-       call ferror('file_read_xyz','error opening file: ' // trim(file),faterr)
+    if (lu < 0) then
+       if (present(errmsg)) then
+          errmsg = 'error opening file: ' // trim(file)
+          return
+       else
+          call ferror('file_read_xyz','error opening file: ' // trim(file),faterr)
+       end if
+    end if
     npts = 0
     allocate(x(10),y(10))
     do while(getline(lu,str))

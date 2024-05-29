@@ -1243,4 +1243,465 @@ contains
 #endif
   end subroutine gaussian_compare
 
+  !> Fit XRPD profile data from an xy file (xyfile) and return the
+  !> peak list in p and the RMS of the fit in rms. The profile model
+  !> uses a sum of pseudo-Voigt functions. ymax_detect0 and nadj0
+  !> control the initial peak detection: A candidate peak is added to
+  !> the model if a point in the profile is found that is higher than
+  !> nadj0 points on either side and has profile intensity higher than
+  !> ymax_detect0. If ymax_detect0 is not given (or equal to
+  !> -huge(1d0)), use the median intensity of the profile. If nadj0 is
+  !> not given (or is negative), defaults to 2. If verbose0 is present
+  !> and true, write progress messages to stdout. errmsg is empty if
+  !> successful; otherwise it contains error message.
+  module subroutine xrpd_peaks_from_profile(p,xyfile,rms,errmsg,verbose0,ymax_detect0,nadj0)
+#ifdef HAVE_NLOPT
+    use param, only: pi
+    use tools, only: qcksort
+    use tools_io, only: uout, file_read_xy, string
+    use types, only: realloc
+#endif
+    type(xrpd_peaklist), intent(inout) :: p
+    character*(*), intent(in) :: xyfile
+    real*8, intent(out) :: rms
+    character(len=:), allocatable, intent(out) :: errmsg
+    logical, intent(in), optional :: verbose0
+    real*8, intent(in), optional :: ymax_detect0
+    integer, intent(in), optional :: nadj0
+
+    ! bail out if NLOPT is not available
+#ifndef HAVE_NLOPT
+    errmsg = "gaussian_compare can only be used if nlopt is available"
+    rms = huge(1d0)
+    return
+#else
+
+    integer :: i, ip, n, nprm, nprml
+    integer, allocatable :: pid(:), io(:)
+    real*8, allocatable :: x(:), y(:), pth2(:), phei(:), prm(:), lb(:), ub(:), yfit(:), ysum(:)
+    real*8, allocatable :: y_orig(:)
+    real*8 :: fac, minx, maxx, maxy, ssq, maxa, xdif!, x_, y_, xini, xend
+    logical :: ok
+    integer :: npeaks, npeaks_
+    integer*8 :: opt
+    integer :: ires
+    logical :: verbose
+    real*8 :: ymax_detect
+    integer :: nadj
+
+    include 'nlopt.f'
+
+    integer, parameter :: main_algorithm = NLOPT_LD_CCSAQ
+    integer, parameter :: fallback_algorithm = NLOPT_LD_MMA
+    real*8, parameter :: ftol_eps = 1d-8
+    real*8, parameter :: xtol_eps_abs(4) = (/1d-4,1d-8,1d-8,1d-4/) ! 2th, fwhm, eta, Int
+    real*8, parameter :: fwhm_max = 0.6 ! maximum peak FWHM
+    real*8, parameter :: fwhm_max_prefit = 0.1 ! maximum peak FWHM in prefit
+    real*8, parameter :: area_peak_filter = 1d-4
+    real*8, parameter :: gamma_default = 0.1d0
+    real*8, parameter :: eta_default = 0.0d0
+    integer, parameter :: prefit_percentile = 4
+
+    ! process input
+    errmsg = ""
+    verbose = .false.
+    if (present(verbose0)) verbose = verbose0
+    ymax_detect = -huge(1d0)
+    if (present(ymax_detect0)) ymax_detect = ymax_detect0
+    nadj = 2
+    if (present(nadj0)) nadj = nadj0
+
+    ! read the pattern
+    if (verbose) &
+       write (uout,'("+ Reading the pattern from xy file: ",A)') trim(xyfile)
+    call file_read_xy(xyfile,n,x,y,errmsg)
+    if (len_trim(errmsg) > 0) return
+
+    ! xxxx fixme
+    if (ymax_detect == -huge(1d0)) ymax_detect = 0d0
+
+    ! auto-detect the peaks
+    if (verbose) &
+       write (uout,'("+ Auto-detecting the peaks")')
+    npeaks = 0
+    allocate(pth2(100),pid(100),phei(100))
+    if (verbose) then
+       write (uout,'("  Minimum intensity cutoff for peak detection: ",A)') &
+          string(ymax_detect,'f',decimal=2)
+    end if
+    do i = 3, n-2
+       if (nadj == 2) then
+          ok = (y(i) > ymax_detect .and. y(i) > y(i-1) .and. y(i) > y(i-2) .and. y(i) > y(i+1) .and.&
+             y(i) > y(i+2))
+       else
+          ok = (y(i) > ymax_detect .and. y(i) > y(i-1) .and. y(i) > y(i+1))
+       end if
+       if (ok) then
+          npeaks = npeaks + 1
+          if (npeaks > size(pth2,1)) then
+             call realloc(pth2,2*npeaks)
+             call realloc(pid,2*npeaks)
+             call realloc(phei,2*npeaks)
+          end if
+          pth2(npeaks) = x(i)
+          phei(npeaks) = y(i)
+          pid(npeaks) = i
+       end if
+    end do
+    call realloc(pth2,npeaks)
+    call realloc(pid,npeaks)
+    call realloc(phei,npeaks)
+    if (verbose) &
+       write (uout,'("  Peaks detected: ",A)') string(npeaks)
+
+    ! sort the peaks from highest to lowest
+    allocate(io(npeaks))
+    do i = 1, npeaks
+       io(i) = i
+    end do
+    call qcksort(phei,io,1,npeaks)
+    pth2 = pth2(io(npeaks:1:-1))
+    phei = phei(io(npeaks:1:-1))
+    pid = pid(io(npeaks:1:-1))
+    deallocate(io)
+
+    ! prepare the parameter list
+    fac = eta_default * 2 * sqrt(log(2d0)) / (sqrt(pi) * gamma_default) + &
+       (1-eta_default) * 2 / (pi * gamma_default)
+    allocate(prm(4*npeaks),lb(4*npeaks),ub(4*npeaks))
+    minx = minval(x)
+    maxx = maxval(x)
+    maxy = maxval(y)
+    nprm = 0
+    do i = 1, npeaks
+       ! peak position (2*theta)
+       nprm = nprm + 1
+       prm(nprm) = pth2(i)
+       if (pid(i) == 1) then
+          lb(nprm) = x(1) - 1d-10
+          ub(nprm) = pth2(i) + 2 * (x(pid(i)+1) - pth2(i))
+       elseif (pid(i) == n) then
+          lb(nprm) = pth2(i) - 2 * (pth2(i) - x(pid(i)-1))
+          ub(nprm) = x(n) + 1d-10
+       else
+          lb(nprm) = pth2(i) - 2 * (pth2(i) - x(pid(i)-1))
+          ub(nprm) = pth2(i) + 2 * (x(pid(i)+1) - pth2(i))
+       end if
+
+       ! peak FWHM (gamma)
+       nprm = nprm + 1
+       prm(nprm) = gamma_default
+       lb(nprm) = 1d-5
+       ub(nprm) = fwhm_max
+       if (i <= npeaks/prefit_percentile) then
+          ub(nprm) = fwhm_max_prefit
+       else
+          ub(nprm) = fwhm_max
+       end if
+
+       ! Gaussian/Lorentz coefficient (eta)
+       nprm = nprm + 1
+       prm(nprm) = eta_default
+       lb(nprm) = 0d0
+       ub(nprm) = 1d0
+
+       ! peak area
+       nprm = nprm + 1
+       prm(nprm) = phei(i) / fac
+       lb(nprm) = 0d0
+       ub(nprm) = (maxx-minx) * maxy
+    end do
+
+    ! pre-fit the peaks
+    if (verbose)&
+       write (uout,'(/"+++ Pre-fitting peaks (this make take some time...)")')
+    allocate(yfit(n),ysum(n))
+    ysum = 0d0
+    y_orig = y
+    do ip = 1, npeaks
+       ! number of parameters
+       nprml = 4
+
+       ! prepare fitting data and last peak
+       y = y_orig - ysum
+       prm(nprm) = max(y(pid(ip)) / fac,1d-20)
+       lb(nprm) = 0d0
+       ub(nprm) = (maxx-minx) * maxy
+
+       ! run the minimization (main algorithm)
+       call nlo_create(opt, main_algorithm, nprml)
+       call nlo_set_xtol_abs(ires, opt, xtol_eps_abs)
+       call nlo_set_lower_bounds(ires, opt, lb(4*(ip-1)+1:4*ip))
+       call nlo_set_upper_bounds(ires, opt, ub(4*(ip-1)+1:4*ip))
+       call nlo_set_min_objective(ires, opt, ffit, 0)
+       call nlo_optimize(ires, opt, prm(4*(ip-1)+1:4*ip), ssq)
+       call nlo_destroy(opt)
+       if (ires < 0) then
+          ! run the minimization (fallback algorithm)
+          call nlo_create(opt, fallback_algorithm, nprml)
+          call nlo_set_xtol_abs(ires, opt, xtol_eps_abs)
+          call nlo_set_lower_bounds(ires, opt, lb(4*(ip-1)+1:4*ip))
+          call nlo_set_upper_bounds(ires, opt, ub(4*(ip-1)+1:4*ip))
+          call nlo_set_min_objective(ires, opt, ffit, 0)
+          call nlo_optimize(ires, opt, prm(4*(ip-1)+1:4*ip), ssq)
+          call nlo_destroy(opt)
+       end if
+
+       ! output message
+       if (ires < 0) then
+          if (ires == -1) then
+             errmsg = "FAILURE"
+          elseif (ires == -2) then
+             errmsg = "FAILURE: invalid arguments"
+          elseif (ires == -3) then
+             errmsg = "FAILURE: out of memory"
+          elseif (ires == -4) then
+             errmsg = "FAILURE: roundoff errors limited progress"
+          elseif (ires == -5) then
+             errmsg = "FAILURE: termination forced by user"
+          end if
+          if (verbose) &
+             write (uout,'(A)') errmsg
+          return
+       end if
+
+       ! output peak
+       rms = sqrt(ssq / real(n,8))
+       if (verbose) then
+          write (uout,'("Peak ",A,": center=",A," fwhm=",A," gaussian_ratio=",A," area=",A," rms=",A)') &
+             string(ip), string(prm(4*(ip-1)+1),'f',decimal=4), string(prm(4*(ip-1)+2),'f',decimal=4),&
+             string(prm(4*(ip-1)+3),'f',decimal=4), string(prm(4*(ip-1)+4),'f',decimal=4),&
+             string(rms,'e',decimal=4)
+       end if
+
+       ! calculate final profile and write it to disk
+       yfit = fsimple(4,prm(4*(ip-1)+1:4*ip))
+       ysum = ysum + yfit
+       ! lu = fopen_write("fit.dat")
+       ! write (lu,'("## x y yfit std-resid")')
+       ! do i = 1, n
+       !    write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y_orig(i),'f',decimal=10),&
+       !       string(ysum(i),'f',decimal=10)
+       ! end do
+       ! call fclose(lu)
+    end do
+    y = y_orig
+    rms = sqrt(sum((ysum - y_orig)**2) / real(n,8))
+    if (ires < 0) then
+       errmsg = "FAILURE in the prefitting stage"
+       return
+    end if
+    write (uout,'("+ Finished pre-fitting peaks.")')
+    write (*,'("+ RMS of the fit (after prefit) = ",A)') string(rms,'f',decimal=4)
+
+    ! prune the peaks
+    maxa = maxval(prm(4:nprm:4))
+    npeaks_ = 0
+    do i = 1, npeaks
+       if (abs(prm(4*(i-1)+4) / maxa * 100d0) > area_peak_filter) then
+          npeaks_ = npeaks_ + 1
+          prm(4*(npeaks_-1)+1:4*npeaks_) = prm(4*(i-1)+1:4*i)
+          lb(4*(npeaks_-1)+1:4*npeaks_) = lb(4*(i-1)+1:4*i)
+          ub(4*(npeaks_-1)+1:4*npeaks_) = ub(4*(i-1)+1:4*i)
+       end if
+    end do
+    npeaks = npeaks_
+    nprm = 4*npeaks
+    call realloc(prm,nprm)
+    call realloc(lb,nprm)
+    call realloc(ub,nprm)
+    if (verbose) &
+       write (uout,'("+ Number of peaks after pruning: ",A/)') string(npeaks)
+
+    ! put back the maximum FWHM for all peaks and set the minimum at
+    ! one average distance between x-points
+    xdif = (maxx - minx) / real(n-1,8)
+    do i = 1, npeaks
+       ub(4*(i-1)+2) = fwhm_max
+       lb(4*(i-1)+2) = min(xdif,0.99d0*fwhm_max)
+       prm(4*(i-1)+2) = min(max(prm(4*(i-1)+2),lb(4*(i-1)+2)),ub(4*(i-1)+2))
+    end do
+
+    ! fitting the whole pattern
+    if (verbose) &
+       write (uout,'("+++ Fitting the whole pattern")')
+    ! run the minimization (main algorithm)
+    call nlo_create(opt, main_algorithm, nprm)
+    call nlo_set_ftol_rel(ires, opt, ftol_eps)
+    call nlo_set_lower_bounds(ires, opt, lb)
+    call nlo_set_upper_bounds(ires, opt, ub)
+    call nlo_set_min_objective(ires, opt, ffit, 0)
+    call nlo_optimize(ires, opt, prm, ssq)
+    call nlo_destroy(opt)
+    if (ires < 0) then
+       call nlo_create(opt, fallback_algorithm, nprm)
+       call nlo_set_ftol_rel(ires, opt, ftol_eps)
+       call nlo_set_lower_bounds(ires, opt, lb)
+       call nlo_set_upper_bounds(ires, opt, ub)
+       call nlo_set_min_objective(ires, opt, ffit, 0)
+       call nlo_optimize(ires, opt, prm, ssq)
+       call nlo_destroy(opt)
+    end if
+
+    ! output message
+    if (ires < 0) then
+       call errmsg_from_ires()
+       if (verbose) &
+          write (uout,'(A)') errmsg
+       return
+    end if
+
+    ! prune the peaks again
+    maxa = maxval(prm(4:nprm:4))
+    npeaks_ = 0
+    do i = 1, npeaks
+       if (abs(prm(4*(i-1)+4) / maxa * 100d0) > area_peak_filter) then
+          npeaks_ = npeaks_ + 1
+          prm(4*(npeaks_-1)+1:4*npeaks_) = prm(4*(i-1)+1:4*i)
+          lb(4*(npeaks_-1)+1:4*npeaks_) = lb(4*(i-1)+1:4*i)
+          ub(4*(npeaks_-1)+1:4*npeaks_) = ub(4*(i-1)+1:4*i)
+       end if
+    end do
+    npeaks = npeaks_
+    nprm = 4*npeaks
+    call realloc(prm,nprm)
+    call realloc(lb,nprm)
+    call realloc(ub,nprm)
+    if (verbose) &
+       write (uout,'("+ Number of peaks after final pruning: ",A)') string(npeaks)
+
+    ! output peaks
+    if (verbose) then
+       write (uout,'("+ Final list of peaks:")')
+       maxa = maxval(prm(4:nprm:4))
+       do ip = 1, npeaks
+          write (uout,'("Peak ",A,": center=",A," fwhm=",A," gaussian_ratio=",A," area=",A," norm_area=",A," ssq=",A)') &
+             string(ip), string(prm(4*(ip-1)+1),'f',decimal=4), string(prm(4*(ip-1)+2),'f',decimal=4),&
+             string(prm(4*(ip-1)+3),'f',decimal=4), string(prm(4*(ip-1)+4),'f',decimal=4),&
+             string(prm(4*(ip-1)+4)/maxa*100d0,'f',decimal=4),&
+             string(ssq,'e',decimal=4)
+       end do
+    end if
+
+    ! calculate final profile and output
+    ysum = fsimple(nprm,prm)
+    rms = sqrt(sum((ysum - y_orig)**2) / real(n,8))
+    if (verbose) then
+       write (uout,'("+ Finished fitting pattern.")')
+       write (*,'("+ RMS of the fit (final) = ",A/)') string(rms,'f',decimal=4)
+    end if
+
+  contains
+    !> Helper routine: get the errormsg from the NLOPT error code.
+    subroutine errmsg_from_ires()
+       if (ires == -1) then
+          errmsg = "FAILURE"
+       elseif (ires == -2) then
+          errmsg = "FAILURE: invalid arguments"
+       elseif (ires == -3) then
+          errmsg = "FAILURE: out of memory"
+       elseif (ires == -4) then
+          errmsg = "FAILURE: roundoff errors limited progress"
+       elseif (ires == -5) then
+          errmsg = "FAILURE: termination forced by user"
+       end if
+    end subroutine errmsg_from_ires
+
+    function gaussian(x,x0,gamma) result(gau)
+      use param, only: pi
+      real*8, intent(in) :: x(:), x0, gamma
+      real*8 :: gau(size(x,1))
+
+      real*8 :: s
+
+      s = gamma / 2d0 / sqrt(2d0 * log(2d0))
+      gau = 1d0 / (s * sqrt(2d0*pi)) * exp(-(x-x0)*(x-x0) / (2*s*s))
+
+    end function gaussian
+
+    function lorentz(x,x0,gamma) result(lor)
+      use param, only: pi
+      real*8, intent(in) :: x(:), x0, gamma
+      real*8 :: lor(size(x,1))
+
+      real*8 :: g2
+
+      g2 = gamma / 2
+      lor = (1d0/pi) * g2 / ((x-x0)*(x-x0) + g2*g2)
+
+    end function lorentz
+
+    subroutine ffit(val, nprm, prm, grad, need_gradient, f_data)
+      use param, only: pi
+      real*8 :: val, prm(nprm), grad(nprm)
+      integer :: nprm, need_gradient
+      real :: f_data
+
+      integer :: i
+      real*8 :: x0, gamma, eta, int, s, g2
+      real*8, allocatable :: gau(:), lor(:), xfit(:), xfitg(:,:), ydif(:)
+
+      allocate(gau(n), lor(n), xfit(n), xfitg(n,nprm), ydif(n))
+
+      xfit = 0d0
+      do i = 1, nprm, 4
+         x0 = prm(i)
+         gamma = max(prm(i+1),1d-80)
+         eta = prm(i+2)
+         int = prm(i+3)
+
+         gau = gaussian(x,x0,gamma)
+         lor = lorentz(x,x0,gamma)
+
+         xfit = xfit + int * (eta * gau + (1-eta) * lor)
+         if (need_gradient /= 0) then
+            g2 = gamma / 2d0
+            s = g2 / sqrt(2d0 * log(2d0))
+
+            xfitg(:,i) = int * (eta * (gau * (x-x0) / (s * s)) +&
+               (1-eta) * (lor * lor * 4 * pi * (x-x0) / gamma))
+            xfitg(:,i+1) = int * (eta * (-gau / gamma + gau * (x-x0)*(x-x0) / (s*s) / gamma) +&
+               (1-eta) * (lor / gamma - pi * lor * lor))
+            xfitg(:,i+2) = int * (gau - lor)
+            xfitg(:,i+3) = eta * gau + (1-eta) * lor
+         end if
+      end do
+
+      ydif = y - xfit
+      val = sum(ydif * ydif)
+      if (need_gradient /= 0) then
+         do i = 1, nprm
+            grad(i) = -2d0 * sum(ydif * xfitg(:,i))
+         end do
+      end if
+      ! write (*,*) "call = ", x0, gamma, eta, int, val
+
+    end subroutine ffit
+
+    function fsimple(nprm, prm) result(yfit)
+      real*8 :: prm(nprm)
+      integer :: nprm
+      real*8, allocatable :: yfit(:)
+
+      integer :: i
+      real*8 :: x0, gamma, eta, int
+
+      if (allocated(yfit)) then
+         if (size(yfit,1) /= n) deallocate(yfit)
+      end if
+      if (.not.allocated(yfit)) allocate(yfit(n))
+      yfit = 0d0
+      do i = 1, nprm, 4
+         x0 = prm(i)
+         gamma = max(prm(i+1),1d-80)
+         eta = prm(i+2)
+         int = prm(i+3)
+
+         yfit = yfit + int * (eta * gaussian(x,x0,gamma) + (1-eta) * lorentz(x,x0,gamma))
+      end do
+
+    end function fsimple
+#endif
+  end subroutine xrpd_peaks_from_profile
+
 end submodule powderproc
