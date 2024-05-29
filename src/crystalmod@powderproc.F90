@@ -1544,9 +1544,10 @@ contains
              string(rms,'e',decimal=4)
        end if
 
-       ! calculate final profile and write it to disk
-       yfit = fsimple(4,prm(4*(ip-1)+1:4*ip))
+       ! calculate final profile and sum it
+       call ffit(ssq,4,prm(4*(ip-1)+1:4*ip),prm(4*(ip-1)+1:4*ip),0,0.)
        ysum = ysum + yfit
+
        ! lu = fopen_write("fit.dat")
        ! write (lu,'("## x y yfit std-resid")')
        ! do i = 1, n
@@ -1645,17 +1646,16 @@ contains
        write (uout,'("+ Final list of peaks:")')
        maxa = maxval(prm(4:nprm:4))
        do ip = 1, npeaks
-          write (uout,'("Peak ",A,": center=",A," fwhm=",A," gaussian_ratio=",A," area=",A," norm_area=",A," ssq=",A)') &
+          write (uout,'("Peak ",A,": center=",A," fwhm=",A," gaussian_ratio=",A," area=",A," norm_area=",A)') &
              string(ip), string(prm(4*(ip-1)+1),'f',decimal=4), string(prm(4*(ip-1)+2),'f',decimal=4),&
              string(prm(4*(ip-1)+3),'f',decimal=4), string(prm(4*(ip-1)+4),'f',decimal=4),&
-             string(prm(4*(ip-1)+4)/maxa*100d0,'f',decimal=4),&
-             string(ssq,'e',decimal=4)
+             string(prm(4*(ip-1)+4)/maxa*100d0,'f',decimal=4)
        end do
     end if
 
     ! calculate final profile and rms
-    ysum = fsimple(nprm,prm)
-    rms = sqrt(sum((ysum - y_orig)**2) / real(n,8))
+    call ffit(ssq,nprm,prm,prm,0,0.)
+    rms = sqrt(sum((yfit - y_orig)**2) / real(n,8))
     if (verbose) then
        write (uout,'("+ Finished fitting pattern.")')
        write (*,'("+ RMS of the fit (final) = ",A/)') string(rms,'f',decimal=4)
@@ -1696,6 +1696,12 @@ contains
        end if
     end subroutine errmsg_from_ires
 
+    !> Routine for NLOPT optimization. Returns sum of the squares of
+    !> the difference in val for a model with nprm parameters in the
+    !> vector prm. If need_gradient is non-zero, return the gradient
+    !> of the parameters in grad. f_data is ignored. Side-effect:
+    !> Writes the pattern corresponding to prm in the yfit vector
+    !> from the parent routine.
     subroutine ffit(val, nprm, prm, grad, need_gradient, f_data)
       use tools_math, only: gaussian, lorentzian
       use param, only: pi
@@ -1705,11 +1711,12 @@ contains
 
       integer :: i
       real*8 :: x0, gamma, eta, int, s, g2
-      real*8, allocatable :: gau(:), lor(:), xfit(:), xfitg(:,:), ydif(:)
+      real*8, allocatable :: gau(:), lor(:), yfitg(:,:), ydif(:)
 
-      allocate(gau(n), lor(n), xfit(n), xfitg(n,nprm), ydif(n))
+      if (.not.allocated(yfit)) allocate(yfit(n))
+      allocate(gau(n), lor(n), yfitg(n,nprm), ydif(n))
 
-      xfit = 0d0
+      yfit = 0d0
       do i = 1, nprm, 4
          x0 = prm(i)
          gamma = max(prm(i+1),1d-80)
@@ -1719,55 +1726,29 @@ contains
          gau = gaussian(x,x0,gamma)
          lor = lorentzian(x,x0,gamma)
 
-         xfit = xfit + int * (eta * gau + (1-eta) * lor)
+         yfit = yfit + int * (eta * gau + (1-eta) * lor)
          if (need_gradient /= 0) then
             g2 = gamma / 2d0
             s = g2 / sqrt(2d0 * log(2d0))
 
-            xfitg(:,i) = int * (eta * (gau * (x-x0) / (s * s)) +&
+            yfitg(:,i) = int * (eta * (gau * (x-x0) / (s * s)) +&
                (1-eta) * (lor * lor * 4 * pi * (x-x0) / gamma))
-            xfitg(:,i+1) = int * (eta * (-gau / gamma + gau * (x-x0)*(x-x0) / (s*s) / gamma) +&
+            yfitg(:,i+1) = int * (eta * (-gau / gamma + gau * (x-x0)*(x-x0) / (s*s) / gamma) +&
                (1-eta) * (lor / gamma - pi * lor * lor))
-            xfitg(:,i+2) = int * (gau - lor)
-            xfitg(:,i+3) = eta * gau + (1-eta) * lor
+            yfitg(:,i+2) = int * (gau - lor)
+            yfitg(:,i+3) = eta * gau + (1-eta) * lor
          end if
       end do
 
-      ydif = y - xfit
+      ydif = y - yfit
       val = sum(ydif * ydif)
       if (need_gradient /= 0) then
          do i = 1, nprm
-            grad(i) = -2d0 * sum(ydif * xfitg(:,i))
+            grad(i) = -2d0 * sum(ydif * yfitg(:,i))
          end do
       end if
-      ! write (*,*) "call = ", x0, gamma, eta, int, val
 
     end subroutine ffit
-
-    function fsimple(nprm, prm) result(yfit)
-      use tools_math, only: gaussian, lorentzian
-      real*8 :: prm(nprm)
-      integer :: nprm
-      real*8, allocatable :: yfit(:)
-
-      integer :: i
-      real*8 :: x0, gamma, eta, int
-
-      if (allocated(yfit)) then
-         if (size(yfit,1) /= n) deallocate(yfit)
-      end if
-      if (.not.allocated(yfit)) allocate(yfit(n))
-      yfit = 0d0
-      do i = 1, nprm, 4
-         x0 = prm(i)
-         gamma = max(prm(i+1),1d-80)
-         eta = prm(i+2)
-         int = prm(i+3)
-
-         yfit = yfit + int * (eta * gaussian(x,x0,gamma) + (1-eta) * lorentzian(x,x0,gamma))
-      end do
-
-    end function fsimple
 #endif
   end subroutine xrpd_peaks_from_profile_file
 
