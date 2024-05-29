@@ -296,15 +296,16 @@ contains
   !> angstrom) and polarization factor fpol. If usehvecp, calculate
   !> only the reflections in p%hvec (requires p%npeaks and p%hvec). If
   !> calcderivs, calculate derivatives and set p%th2g and p%ipg. If gg
-  !> is present, use gg instead of the metric tensor from c.
-  module subroutine powder_peaks(c,p,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs,&
+  !> is present, use gg instead of the metric tensor from c. Return
+  !> non-zero errmsg on error.
+  module subroutine xrpd_peaks_from_crystal_powder(p,c,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs,&
      errmsg,gg)
     use tools_math, only: matinv
     use tools, only: qcksort
     use types, only: realloc
     use param, only: pi, bohrtoa
-    class(crystal), intent(in) :: c
-    type(xrpd_peaklist), intent(inout) :: p
+    class(xrpd_peaklist), intent(inout) :: p
+    type(crystal), intent(in) :: c
     real*8, intent(in) :: th2ini0, th2end0
     real*8, intent(in) :: lambda0
     real*8, intent(in) :: fpol
@@ -574,7 +575,7 @@ contains
 
     end subroutine run_function_body
 
-  end subroutine powder_peaks
+  end subroutine xrpd_peaks_from_crystal_powder
 
   !> Calculate the radial distribution function.  On input, npts is
   !> the number of bins from the initial (0) to the final (rend)
@@ -798,12 +799,12 @@ contains
 
   !> Read the XRPD peaks from a peaks file. The peaks are sorted by th2
   !> on output. If error, return non-zero-length errmsg.
-  module subroutine xrpd_peaks_from_file(p,file,errmsg)
+  module subroutine xrpd_peaks_from_peaks_file(p,file,errmsg)
     use param, only: pi
     use tools, only: qcksort
     use tools_io, only: fopen_read, getline, isreal, fclose, getword, lower, isreal
     use types, only: realloc
-    type(xrpd_peaklist), intent(inout) :: p
+    class(xrpd_peaklist), intent(inout) :: p
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
 
@@ -906,7 +907,7 @@ contains
     if (allocated(p%cgau)) p%cgau = p%cgau(io)
     deallocate(io)
 
-  end subroutine xrpd_peaks_from_file
+  end subroutine xrpd_peaks_from_peaks_file
 
   ! Calculate the Gaussian cross-correlation between the peak patterns
   ! p1 and p2 with Gaussian triangle function width alpha and
@@ -1081,7 +1082,7 @@ contains
     if (verbose) &
        write (uout,'("# step    DIFF        -- cell parameters --")')
 
-    call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol,.false.,.false.,errmsg)
+    call p1%from_crystal(c1,th2ini,th2end,lambda,fpol,.false.,.false.,errmsg)
     if (len_trim(errmsg) > 0) return
     call crosscorr_gaussian(p2,p2,alpha,xrpd_sigma_def,dfg22,errmsg,.false.)
     if (len_trim(errmsg) > 0) return
@@ -1230,7 +1231,7 @@ contains
       end if
 
       ! only recompute peak pattern for crystal 1
-      call c1%powder_peaks(p1,th2ini,th2end,lambda,fpol,.true.,.true.,errmsg,gg)
+      call p1%from_crystal(c1,th2ini,th2end,lambda,fpol,.true.,.true.,errmsg,gg)
       if (len_trim(errmsg) > 0) goto 999
       call crosscorr_gaussian(p1,p1,alpha,xrpd_sigma_def,dfg11,errmsg,.true.,dfgg11)
       if (len_trim(errmsg) > 0) goto 999
@@ -1300,14 +1301,14 @@ contains
   !> not given (or is negative), defaults to 2. If verbose0 is present
   !> and true, write progress messages to stdout. errmsg is empty if
   !> successful; otherwise it contains error message.
-  module subroutine xrpd_peaks_from_profile(p,xyfile,rms,errmsg,verbose0,ymax_detect0,nadj0)
+  module subroutine xrpd_peaks_from_profile_file(p,xyfile,rms,errmsg,verbose0,ymax_detect0,nadj0)
 #ifdef HAVE_NLOPT
     use param, only: pi
     use tools, only: qcksort
     use tools_io, only: uout, file_read_xy, string
     use types, only: realloc
 #endif
-    type(xrpd_peaklist), intent(inout) :: p
+    class(xrpd_peaklist), intent(inout) :: p
     character*(*), intent(in) :: xyfile
     real*8, intent(out) :: rms
     character(len=:), allocatable, intent(out) :: errmsg
@@ -1781,6 +1782,6 @@ contains
 
     end function fsimple
 #endif
-  end subroutine xrpd_peaks_from_profile
+  end subroutine xrpd_peaks_from_profile_file
 
 end submodule powderproc

@@ -234,7 +234,6 @@ module crystalmod
 
      ! powder diffraction and related calcs (powderproc)
      procedure :: powder !< Calculate the powder diffraction pattern
-     procedure :: powder_peaks !< Calculate the XRPD peaks
      procedure :: rdf !< Calculate the radial distribution function
      procedure :: amd !< Calculate the average minimum distances (Widdowson et al.)
 
@@ -298,16 +297,17 @@ module crystalmod
      real*8, allocatable :: cgau(:) ! Gaussian/Lorentzian peak shape coefficient
    contains
      procedure :: end => xrpd_peaklist_end
+     procedure :: from_crystal => xrpd_peaks_from_crystal_powder
+     procedure :: from_peaks_file => xrpd_peaks_from_peaks_file
+     procedure :: from_profile_file => xrpd_peaks_from_profile_file
   end type xrpd_peaklist
   public :: xrpd_peaklist
 
   ! other crystallography tools that are crystal-independent (symmetry)
   public :: search_lattice
   public :: pointgroup_info
-  public :: xrpd_peaks_from_file
   public :: crosscorr_gaussian
   public :: gaussian_compare
-  public :: xrpd_peaks_from_profile
 
   ! module procedure interfaces
   interface
@@ -705,10 +705,10 @@ module crystalmod
        real*8, allocatable, intent(inout), optional :: t(:)
        real*8, allocatable, intent(inout), optional :: ih(:)
      end subroutine powder
-     module subroutine powder_peaks(c,p,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs,&
+     module subroutine xrpd_peaks_from_crystal_powder(p,c,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs,&
         errmsg,gg)
-       class(crystal), intent(in) :: c
-       type(xrpd_peaklist), intent(inout) :: p
+       class(xrpd_peaklist), intent(inout) :: p
+       type(crystal), intent(in) :: c
        real*8, intent(in) :: th2ini0, th2end0
        real*8, intent(in) :: lambda0
        real*8, intent(in) :: fpol
@@ -716,7 +716,7 @@ module crystalmod
        logical, intent(in) :: calcderivs
        character(len=:), allocatable, intent(out) :: errmsg
        real*8, intent(in), optional :: gg(3,3)
-     end subroutine powder_peaks
+     end subroutine xrpd_peaks_from_crystal_powder
      module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0,ihat,intpeak)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: rini
@@ -948,11 +948,11 @@ module crystalmod
        integer, intent(out) :: holo
        integer, intent(out) :: laue
      end subroutine pointgroup_info
-     module subroutine xrpd_peaks_from_file(p,file,errmsg)
-       type(xrpd_peaklist), intent(inout) :: p
+     module subroutine xrpd_peaks_from_peaks_file(p,file,errmsg)
+       class(xrpd_peaklist), intent(inout) :: p
        character*(*), intent(in) :: file
        character(len=:), allocatable, intent(out) :: errmsg
-     end subroutine xrpd_peaks_from_file
+     end subroutine xrpd_peaks_from_peaks_file
      module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,d12,errmsg,calcderivs,d12g)
        type(xrpd_peaklist), intent(in) :: p1, p2
        real*8, intent(in) :: alpha, sigma
@@ -979,15 +979,15 @@ module crystalmod
        real*8, intent(in), optional :: max_elong_def0
        real*8, intent(in), optional :: max_ang_def0
      end subroutine gaussian_compare
-     module subroutine xrpd_peaks_from_profile(p,xyfile,rms,errmsg,verbose0,ymax_detect0,nadj0)
-       type(xrpd_peaklist), intent(inout) :: p
+     module subroutine xrpd_peaks_from_profile_file(p,xyfile,rms,errmsg,verbose0,ymax_detect0,nadj0)
+       class(xrpd_peaklist), intent(inout) :: p
        character*(*), intent(in) :: xyfile
        real*8, intent(out) :: rms
        character(len=:), allocatable, intent(out) :: errmsg
        logical, intent(in), optional :: verbose0
        real*8, intent(in), optional :: ymax_detect0
        integer, intent(in), optional :: nadj0
-     end subroutine xrpd_peaks_from_profile
+     end subroutine xrpd_peaks_from_profile_file
      module subroutine xrpd_peaklist_end(p)
        class(xrpd_peaklist), intent(inout) :: p
      end subroutine xrpd_peaklist_end

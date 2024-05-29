@@ -2919,7 +2919,7 @@ contains
   ! TRICK GAUCOMP str1.s {str2.s|xyfile.s} [LOCAL] [GLOBAL] [ALPHA alpha.r] [LAMBDA lambda.r] [MAXFEVAL maxfeval.i] [BESTEPS eps.r]
   subroutine trick_gaucomp(line0)
     use crystalseedmod, only: crystalseed
-    use crystalmod, only: crystal, xrpd_peaks_from_file, xrpd_peaklist, xrpd_fpol_def,&
+    use crystalmod, only: crystal, xrpd_peaklist, xrpd_fpol_def,&
        gaussian_compare, xrpd_maxfeval_def_safe, xrpd_besteps_def_safe, xrpd_alpha_def,&
        xrpd_lambda_def, xrpd_th2ini_def, xrpd_th2end_def, xrpd_sigma_def
     use struct_drivers, only: struct_crystal_input
@@ -2973,7 +2973,7 @@ contains
     call struct_crystal_input(file1,0,.false.,.false.,cr0=c1)
     word = getword(line0,lp)
     if (len(word) - index(word,".peaks") == 6) then
-       call xrpd_peaks_from_file(p2,word,errmsg)
+       call p2%from_peaks_file(word,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror("trick_gaucomp",errmsg,faterr)
        th2ini = p2%th2(1) - 1d-2
@@ -3024,7 +3024,7 @@ contains
 
     ! pre-calculation
     if (readc2) then
-       call c2%powder_peaks(p2,th2ini,th2end,lambda,xrpd_fpol_def,.false.,.false.,errmsg)
+       call p2%from_crystal(c2,th2ini,th2end,lambda,xrpd_fpol_def,.false.,.false.,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror("trick_gaucomp",errmsg,faterr)
     end if
@@ -3070,7 +3070,7 @@ contains
 
     call ferror("trick_profile_fit","trick_profile_fit can only be used if nlopt is available",faterr)
 #else
-    use crystalmod, only: xrpd_peaklist, xrpd_peaks_from_profile
+    use crystalmod, only: xrpd_peaklist
     use tools_io, only: ferror, faterr, uout, getword, isreal, isinteger, string, fopen_write, fclose,&
        string
     use param, only: pi

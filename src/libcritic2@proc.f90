@@ -244,7 +244,7 @@ contains
 
     ! calculate peak positions and return
     allocate(pk)
-    call crf%powder_peaks(pk,th2ini,th2end,lambda,fpol,.false.,.false.,errmsg)
+    call pk%from_crystal(crf,th2ini,th2end,lambda,fpol,.false.,.false.,errmsg)
     if (len_trim(errmsg) > 0) return
     c2_peaks_from_crystal = c_loc(pk)
 
