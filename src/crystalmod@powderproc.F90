@@ -316,7 +316,7 @@ contains
 
     integer :: i
     real*8 :: lambda, hvec(3)
-    real*8 :: smax, imax
+    real*8 :: smax, imax, th2ini, th2end
     real*8 :: int, intg(6), th2, th2g(6), th2ini, th2end
     integer :: hmax, hcell, h, k, l
     logical :: again
@@ -342,8 +342,10 @@ contains
     ! initialize angles and radiation
     call p%end()
     p%haveth2limits = .true.
-    p%th2ini = th2ini0 * pi / 180d0
-    p%th2end = th2end0 * pi / 180d0
+    p%th2ini = th2ini0
+    p%th2end = th2end0
+    th2ini = th2ini0 * pi / 180d0
+    th2end = th2end0 * pi / 180d0
     p%haveradiation = .true.
     p%lambda = lambda
     p%fpol = fpol
@@ -375,7 +377,7 @@ contains
 
     ! metric tensor, cell limits, convert lambda to bohr
     lambda = lambda0 / bohrtoa
-    smax = sin((p%th2end)/2d0)
+    smax = sin(th2end/2d0)
     hmax = 2*ceiling(2*smax/lambda/minval(ar))
 
     ! calculate the intensities
@@ -507,7 +509,7 @@ contains
       if (.not.usehvecp .and. abs(sth) > smax) return
       th = asin(sth)
       th2 = 2d0 * th
-      if (.not.usehvecp .and. (th2 < p%th2ini .or. th2 > p%th2end)) return
+      if (.not.usehvecp .and. (th2 < th2ini .or. th2 > th2end)) return
       cth = cos(th)
       if (calcderivs) &
          th2g = 2d0 * sth / (cth * dh) * dhm
@@ -842,11 +844,9 @@ contains
           word = lower(word)
           if (word == "@th2ini") then
              ok = isreal(p%th2ini,line,lp)
-             p%th2ini = p%th2ini * pi / 180d0
              readat(1) = .true.
           elseif (word == "@th2end") then
              ok = isreal(p%th2end,line,lp)
-             p%th2end = p%th2end * pi / 180d0
              readat(2) = .true.
           elseif (word == "@lambda") then
              ok = isreal(p%lambda,line,lp)
@@ -1665,19 +1665,18 @@ contains
     call p%end()
     p%npeak = npeaks
     p%haveth2limits = .true.
-    p%th2ini = x(1) * pi / 180d0
-    p%th2end = x(n) * pi / 180d0
+    p%th2ini = x(1)
+    p%th2end = x(n)
     p%havepeakshape = .true.
     allocate(p%th2(npeaks))
     allocate(p%ip(npeaks))
     allocate(p%fwhm(npeaks))
     allocate(p%cgau(npeaks))
-    maxa = maxval(prm(4:nprm:4))
     do ip = 1, npeaks
        p%th2(ip) = prm(4*(ip-1)+1)
        p%fwhm(ip) = prm(4*(ip-1)+2)
        p%cgau(ip) = prm(4*(ip-1)+3)
-       p%ip(ip) = prm(4*(ip-1)+4)/maxa*100d0
+       p%ip(ip) = prm(4*(ip-1)+4)
     end do
 
   contains
@@ -1766,8 +1765,8 @@ contains
     write (lu,'("## List of peaks")')
     write (lu,'("## 2*theta   Area   FWHM   gau/lor")')
     if (p%haveth2limits) then
-       write (lu,'("@th2ini ",A)') string(p%th2ini * 180d0 / pi,'f',decimal=8)
-       write (lu,'("@th2end ",A)') string(p%th2end * 180d0 / pi,'f',decimal=8)
+       write (lu,'("@th2ini ",A)') string(p%th2ini,'f',decimal=8)
+       write (lu,'("@th2end ",A)') string(p%th2end,'f',decimal=8)
     end if
     if (p%haveradiation) then
        write (lu,'("@lambda ",A)') string(p%lambda,'f',decimal=8)
@@ -1826,8 +1825,8 @@ contains
        end if
     end if
     if (p%haveth2limits) then
-       xini = p%th2ini * 180d0 / pi
-       xend = p%th2end * 180d0 / pi
+       xini = p%th2ini
+       xend = p%th2end
     end if
     if (present(th2ini)) xini = th2ini
     if (present(th2end)) xend = th2end
