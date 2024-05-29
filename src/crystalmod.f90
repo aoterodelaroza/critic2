@@ -281,15 +281,18 @@ module crystalmod
   !> Class for XRPD peak information
   type xrpd_peaklist
      integer :: npeak = 0 ! number of peaks
-     ! logical :: haveth2limits = .false. ! whether th2ini and th2end are available
+     logical :: haveth2limits = .false. ! whether th2ini and th2end are available
+     logical :: haveradiation = .false. ! whether lambda and fpol are available
      logical :: havehvec = .false. ! whether hvec data (hkl indices) are available
      logical :: havegradients = .false. ! whether the gradients of th2 and ip are available
      logical :: havepeakshape = .false. ! whether the fwhm and gau/lor coefs are available
-     ! real*8 :: th2ini, th2end
-     real*8, allocatable :: th2(:) ! reflection angles (2*theta)
+     real*8 :: lambda ! wavelength of the radiation (angstrom)
+     real*8 :: fpol ! polarization correction factor (0 = unpolarized, 0.95 = syncrhotron)
+     real*8 :: th2ini, th2end ! initial and final reflection angles (radians)
+     real*8, allocatable :: th2(:) ! reflection angles (2*theta, radians)
      real*8, allocatable :: ip(:) ! peak intensities
      integer, allocatable :: hvec(:,:) ! reflection indices
-     real*8, allocatable :: th2g(:,:) ! gradient of th2 wrt metric tensor
+     real*8, allocatable :: th2g(:,:) ! gradient of th2 wrt metric tensor (radians)
      real*8, allocatable :: ipg(:,:) ! gradient of ip wrt metric tensor
      real*8, allocatable :: fwhm(:) ! peak full width at half maximum (fwhm)
      real*8, allocatable :: cgau(:) ! Gaussian/Lorentzian peak shape coefficient

@@ -314,7 +314,7 @@ contains
     real*8, intent(in), optional :: gg(3,3)
 
     integer :: i
-    real*8 :: th2ini, th2end, lambda, hvec(3)
+    real*8 :: lambda, hvec(3)
     real*8 :: smax, imax
     real*8 :: int, intg(6), th2, th2g(6)
     integer :: hmax, hcell, h, k, l
@@ -332,9 +332,13 @@ contains
        return
     end if
 
-    ! initialize angles
-    th2ini = th2ini0 * pi / 180d0
-    th2end = th2end0 * pi / 180d0
+    ! initialize angles and radiation
+    p%haveth2limits = .true.
+    p%th2ini = th2ini0
+    p%th2end = th2end0
+    p%haveradiation = .true.
+    p%lambda = lambda
+    p%fpol = fpol
 
     ! grtensor and ar
     if (present(gg)) then
@@ -369,7 +373,7 @@ contains
 
     ! metric tensor, cell limits, convert lambda to bohr
     lambda = lambda0 / bohrtoa
-    smax = sin((th2end)/2d0)
+    smax = sin((p%th2end)/2d0)
     hmax = 2*ceiling(2*smax/lambda/minval(ar))
 
     ! calculate the intensities
@@ -500,7 +504,7 @@ contains
       if (.not.usehvecp .and. abs(sth) > smax) return
       th = asin(sth)
       th2 = 2d0 * th
-      if (.not.usehvecp .and. (th2 < th2ini .or. th2 > th2end)) return
+      if (.not.usehvecp .and. (th2 < p%th2ini .or. th2 > p%th2end)) return
       cth = cos(th)
       if (calcderivs) &
          th2g = 2d0 * sth / (cth * dh) * dhm
@@ -777,17 +781,19 @@ contains
   !> Read the XRPD peaks from a peaks file. The peaks are sorted by th2
   !> on output. If error, return non-zero-length errmsg.
   module subroutine xrpd_peaks_from_file(p,file,errmsg)
+    use param, only: pi
     use tools, only: qcksort
-    use tools_io, only: fopen_read, getline, isreal, fclose
+    use tools_io, only: fopen_read, getline, isreal, fclose, getword, lower, isreal
     use types, only: realloc
     type(xrpd_peaklist), intent(inout) :: p
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: i, lu, lp
-    character(len=:), allocatable :: line
+    character(len=:), allocatable :: line, word
     real*8 :: r1, r2
     logical :: ok
+    logical :: readat(4)
 
     integer, parameter :: mpeak = 1000
     integer, allocatable :: io(:)
@@ -807,9 +813,36 @@ contains
     p%havepeakshape = .true.
 
     ! read the pattern from the peaks file
+    readat = .false.
     allocate(p%th2(mpeak),p%ip(mpeak),p%fwhm(mpeak),p%cgau(mpeak))
     lu = fopen_read(file)
     do while (getline(lu,line))
+       if (line(1:1) == "@") then
+          ! interpret special keywords
+          lp = 1
+          word = getword(line,lp)
+          word = lower(word)
+          if (word == "@th2ini") then
+             ok = isreal(p%th2ini,line,lp)
+             p%th2ini = p%th2ini * pi / 180d0
+             readat(1) = .true.
+          elseif (word == "@th2end") then
+             ok = isreal(p%th2end,line,lp)
+             p%th2end = p%th2end * pi / 180d0
+             readat(2) = .true.
+          elseif (word == "@lambda") then
+             ok = isreal(p%lambda,line,lp)
+             readat(3) = .true.
+          elseif (word == "@fpol") then
+             ok = isreal(p%fpol,line,lp)
+             readat(4) = .true.
+          end if
+          if (.not.ok) then
+             errmsg = "Error reading keyword symbol: " // word
+             return
+          end if
+       end if
+
        lp = 1
        ok = isreal(r1,line,lp)
        ok = ok .and. isreal(r2,line,lp)
@@ -847,6 +880,10 @@ contains
     call realloc(p%ip,p%npeak)
     if (allocated(p%fwhm)) call realloc(p%fwhm,p%npeak)
     if (allocated(p%cgau)) call realloc(p%cgau,p%npeak)
+
+    ! process at symbols
+    p%haveth2limits = (readat(1) .and. readat(2))
+    p%haveradiation = (readat(3) .and. readat(4))
 
     ! sort the peaks
     allocate(io(p%npeak))
@@ -1584,7 +1621,7 @@ contains
     if (verbose) &
        write (uout,'("+ Number of peaks after final pruning: ",A)') string(npeaks)
 
-    ! output peaks
+    ! peaks to standard output
     if (verbose) then
        write (uout,'("+ Final list of peaks:")')
        maxa = maxval(prm(4:nprm:4))
@@ -1597,13 +1634,41 @@ contains
        end do
     end if
 
-    ! calculate final profile and output
+    ! calculate final profile and rms
     ysum = fsimple(nprm,prm)
     rms = sqrt(sum((ysum - y_orig)**2) / real(n,8))
     if (verbose) then
        write (uout,'("+ Finished fitting pattern.")')
        write (*,'("+ RMS of the fit (final) = ",A/)') string(rms,'f',decimal=4)
     end if
+
+    ! output the XRPD peak list
+    p%npeak = npeaks
+    p%haveth2limits = .true.
+    p%th2ini = x(1) * pi / 180d0
+    p%th2end = x(n) * pi / 180d0
+    p%haveradiation = .false.
+    p%havehvec = .false.
+    p%havegradients = .false.
+    p%havepeakshape = .true.
+    if (allocated(p%th2)) deallocate(p%th2)
+    if (allocated(p%ip)) deallocate(p%ip)
+    if (allocated(p%hvec)) deallocate(p%hvec)
+    if (allocated(p%th2g)) deallocate(p%th2g)
+    if (allocated(p%ipg)) deallocate(p%ipg)
+    if (allocated(p%fwhm)) deallocate(p%fwhm)
+    if (allocated(p%cgau)) deallocate(p%cgau)
+    allocate(p%th2(npeaks))
+    allocate(p%ip(npeaks))
+    allocate(p%fwhm(npeaks))
+    allocate(p%cgau(npeaks))
+    maxa = maxval(prm(4:nprm:4))
+    do ip = 1, npeaks
+       p%th2(ip) = prm(4*(ip-1)+1)
+       p%fwhm(ip) = prm(4*(ip-1)+2)
+       p%cgau(ip) = prm(4*(ip-1)+3)
+       p%ip(ip) = prm(4*(ip-1)+4)/maxa*100d0
+    end do
 
   contains
     !> Helper routine: get the errormsg from the NLOPT error code.
