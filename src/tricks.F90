@@ -3033,6 +3033,7 @@ contains
     write (uout,'("# step    DIFF        -- cell parameters --")')
     call gaussian_compare(c1,p2,imode,diff,errmsg,seedout=seed,verbose0=.true.,&
        alpha0=alpha,lambda0=lambda,maxfeval0=maxfeval,besteps0=besteps)
+
     if (len_trim(errmsg) > 0) &
        call ferror("trick_gaucomp",errmsg,faterr)
 

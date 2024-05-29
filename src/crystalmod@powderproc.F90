@@ -317,27 +317,33 @@ contains
     integer :: i
     real*8 :: lambda, hvec(3)
     real*8 :: smax, imax
-    real*8 :: int, intg(6), th2, th2g(6)
+    real*8 :: int, intg(6), th2, th2g(6), th2ini, th2end
     integer :: hmax, hcell, h, k, l
     logical :: again
     integer, allocatable :: io(:)
     real*8 :: grtensor(3,3), ar(3)
+    integer, allocatable :: hvecini(:,:)
+    integer :: nhvecini
 
     integer, parameter :: mp = 200
     real*8, parameter :: ieps = 1d-5
 
     ! consistency checks
     errmsg = ""
-    if (usehvecp .and.(.not.p%havehvec.or..not.allocated(p%hvec).or.p%npeak<=0)) then
-       errmsg = 'requested usehvecp without hvec information'
-       return
+    if (usehvecp) then
+       if (.not.p%havehvec.or..not.allocated(p%hvec).or.p%npeak<=0) then
+          errmsg = 'requested usehvecp without hvec information'
+          return
+       end if
+       nhvecini = p%npeak
+       hvecini = p%hvec
     end if
 
     ! initialize angles and radiation
     call p%end()
     p%haveth2limits = .true.
-    p%th2ini = th2ini0
-    p%th2end = th2end0
+    p%th2ini = th2ini0 * pi / 180d0
+    p%th2end = th2end0 * pi / 180d0
     p%haveradiation = .true.
     p%lambda = lambda
     p%fpol = fpol
@@ -358,6 +364,7 @@ contains
     p%havehvec = .true.
     p%havegradients = calcderivs
     if (usehvecp) then
+       p%npeak = nhvecini
        allocate(p%th2(p%npeak),p%ip(p%npeak))
        if (calcderivs) allocate(p%th2g(6,p%npeak),p%ipg(6,p%npeak))
     else
@@ -424,6 +431,7 @@ contains
           call realloc(p%ipg,6,p%npeak)
        end if
     else
+       p%hvec = hvecini
        do i = 1, p%npeak
           hvec = real(p%hvec(:,i),8)
           call run_function_body()
