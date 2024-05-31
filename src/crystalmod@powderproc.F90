@@ -810,7 +810,6 @@ contains
   !> Read the XRPD peaks from a peaks file. The peaks are sorted by th2
   !> on output. If error, return non-zero-length errmsg.
   module subroutine xrpd_peaks_from_peaks_file(p,file,errmsg)
-    use param, only: pi
     use tools, only: qcksort
     use tools_io, only: fopen_read, getline, isreal, fclose, getword, lower, isreal
     use types, only: realloc
@@ -964,7 +963,7 @@ contains
     integer, allocatable :: pid(:), io(:)
     real*8, allocatable :: x(:), y(:), pth2(:), phei(:), prm(:), lb(:), ub(:), yfit(:), ysum(:)
     real*8, allocatable :: yread(:)
-    real*8 :: fac, minx, maxx, maxy, ssq, maxa, xdif, x_, y_, xini, xend, xshift
+    real*8 :: fac, minx, maxx, maxy, ssq, maxa, xdif, xshift
     logical :: ok
     integer :: npeaks, npeaks_
     integer*8 :: opt
@@ -1432,7 +1431,6 @@ contains
 
   !> Write the peak list to a file.
   module subroutine xrpd_write_to_file(p,file)
-    use param, only: pi
     use tools_io, only: fopen_write, fclose, string
     class(xrpd_peaklist), intent(in) :: p
     character*(*), intent(in) :: file
@@ -1474,14 +1472,12 @@ contains
   !> errmsg on error.
   module subroutine xrpd_calculate_profile(p,n,x,y,errmsg,th2ini,th2end)
     use tools_math, only: gaussian, lorentzian
-    use param, only: pi
     class(xrpd_peaklist), intent(inout) :: p
     integer, intent(in) :: n
     real*8, allocatable, intent(inout) :: x(:), y(:)
     character(len=:), allocatable, intent(out) :: errmsg
     real*8, intent(in), optional :: th2ini, th2end
 
-    logical :: ok
     integer :: i
     real*8 :: xini, xend, x0, gamma, eta, int
 

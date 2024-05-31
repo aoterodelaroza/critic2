@@ -3075,14 +3075,13 @@ contains
     use crystalmod, only: xrpd_peaklist
     use tools_io, only: ferror, faterr, uout, getword, isreal, isinteger, string, fopen_write, fclose,&
        string
-    use param, only: pi
     character*(*), intent(in) :: line0
 
     integer :: lpo
     character(len=:), allocatable :: file, errmsg
     real*8, allocatable :: x(:), y(:), yfit(:)
-    real*8 :: ymax_peakdetect, rms, maxa
-    integer :: nadj, ip, lu, i, n
+    real*8 :: ymax_peakdetect, rms
+    integer :: nadj, lu, i, n
     logical :: ok
     type(xrpd_peaklist) :: p
 
@@ -3146,26 +3145,12 @@ contains
 #ifndef HAVE_NLOPT
     call ferror("trick_profile_refit","trick_profile_refit can only be used if nlopt is available",faterr)
 #else
-    character(len=:), allocatable :: line, xyfile, file, errmsg
-    integer :: lu, lp, lpo, i, ip
-    integer :: n, nprm
-    real*8, allocatable :: x(:), y(:), yfit(:), prm(:), lb(:), ub(:), ysum(:)
-    real*8, allocatable :: y_orig(:)
-    real*8 :: x_, y_, minx, maxx, maxy, ssq, maxa, xini, xend
-    real*8 :: th2, area, fwhm, eta, rms
-    logical :: ok
-    integer :: npeaks, npeaks_
-    integer*8 :: opt
-    integer :: ires
+    character(len=:), allocatable :: xyfile, file, errmsg
+    integer :: lu, lpo, i
+    integer :: n
+    real*8, allocatable :: x(:), y(:), yfit(:)
+    real*8 :: rms
     type(xrpd_peaklist) :: p
-
-    include 'nlopt.f'
-
-    integer, parameter :: main_algorithm = NLOPT_LD_CCSAQ
-    integer, parameter :: fallback_algorithm = NLOPT_LD_MMA
-    real*8, parameter :: ftol_eps = 1d-8
-    real*8, parameter :: fwhm_max = 0.6 ! maximum peak FWHM
-    real*8, parameter :: area_peak_filter = 1d-4
 
     ! read file names and header
     write (uout,'("* Trick: profile refit")')
