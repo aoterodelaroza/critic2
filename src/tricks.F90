@@ -2921,7 +2921,8 @@ contains
     use crystalseedmod, only: crystalseed
     use crystalmod, only: crystal, xrpd_peaklist, xrpd_fpol_def,&
        gaussian_compare, xrpd_maxfeval_def_safe, xrpd_besteps_def_safe, xrpd_alpha_def,&
-       xrpd_lambda_def, xrpd_th2ini_def, xrpd_th2end_def, xrpd_sigma_def
+       xrpd_lambda_def, xrpd_th2ini_def, xrpd_th2end_def, xrpd_sigma_def,&
+       xrpd_max_elong_def_quick, xrpd_max_ang_def_quick
     use struct_drivers, only: struct_crystal_input
     use tools, only: qcksort
     use tools_io, only: getword, uout, string, tictac, ferror, faterr, lgetword, equal, &
@@ -3030,9 +3031,9 @@ contains
     end if
 
     ! run the comparison
-    write (uout,'("# step    DIFF        -- cell parameters --")')
     call gaussian_compare(c1,p2,imode,diff,errmsg,seedout=seed,verbose0=.true.,&
-       alpha0=alpha,lambda0=lambda,maxfeval0=maxfeval,besteps0=besteps)
+       alpha0=alpha,lambda0=lambda,maxfeval0=maxfeval,besteps0=besteps,&
+       max_elong_def0=xrpd_max_elong_def_quick,max_ang_def0=xrpd_max_ang_def_quick)
 
     if (len_trim(errmsg) > 0) &
        call ferror("trick_gaucomp",errmsg,faterr)

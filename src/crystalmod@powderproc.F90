@@ -1086,8 +1086,8 @@ contains
     lastval = -1d0
     bestval = 1.1d0
     nbesteval = 0
-    th2ini = p2%th2(1) - 2 * xrpd_sigma_def
-    th2end = p2%th2(p2%npeak) + 2 * xrpd_sigma_def
+    th2ini = p2%th2(1) - 1d-2
+    th2end = p2%th2(p2%npeak) + 1d-2
     if (verbose) &
        write (uout,'("# step    DIFF        -- cell parameters --")')
 
