@@ -536,8 +536,7 @@ contains
 
     integer :: i
     real*8 :: lambda, hvec(3)
-    real*8 :: smax, imax, th2ini, th2end
-    real*8 :: int, intg(6), th2, th2g(6), th2ini, th2end
+    real*8 :: int, intg(6), th2, th2g(6), th2ini, th2end, smax, imax
     integer :: hmax, hcell, h, k, l
     logical :: again
     integer, allocatable :: io(:)
