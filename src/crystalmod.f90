@@ -707,18 +707,6 @@ module crystalmod
        real*8, allocatable, intent(inout), optional :: t(:)
        real*8, allocatable, intent(inout), optional :: ih(:)
      end subroutine powder
-     module subroutine xrpd_peaks_from_crystal_powder(p,c,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs,&
-        errmsg,gg)
-       class(xrpd_peaklist), intent(inout) :: p
-       type(crystal), intent(in) :: c
-       real*8, intent(in) :: th2ini0, th2end0
-       real*8, intent(in) :: lambda0
-       real*8, intent(in) :: fpol
-       logical, intent(in) :: usehvecp
-       logical, intent(in) :: calcderivs
-       character(len=:), allocatable, intent(out) :: errmsg
-       real*8, intent(in), optional :: gg(3,3)
-     end subroutine xrpd_peaks_from_crystal_powder
      module subroutine rdf(c,rini,rend,sigma,ishard,npts,t,ih,npairs0,ipairs0,ihat,intpeak)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: rini
@@ -939,6 +927,52 @@ module crystalmod
        integer, intent(in), optional :: ishift0(3)
        type(thread_info), intent(in), optional :: ti
      end subroutine writegrid_xsf
+     !xx! xrpd_peaklist type
+     module subroutine xrpd_peaklist_end(p)
+       class(xrpd_peaklist), intent(inout) :: p
+     end subroutine xrpd_peaklist_end
+     module subroutine xrpd_peaks_from_crystal_powder(p,c,th2ini0,th2end0,lambda0,fpol,usehvecp,calcderivs,&
+        errmsg,gg)
+       class(xrpd_peaklist), intent(inout) :: p
+       type(crystal), intent(in) :: c
+       real*8, intent(in) :: th2ini0, th2end0
+       real*8, intent(in) :: lambda0
+       real*8, intent(in) :: fpol
+       logical, intent(in) :: usehvecp
+       logical, intent(in) :: calcderivs
+       character(len=:), allocatable, intent(out) :: errmsg
+       real*8, intent(in), optional :: gg(3,3)
+     end subroutine xrpd_peaks_from_crystal_powder
+     module subroutine xrpd_peaks_from_peaks_file(p,file,errmsg)
+       class(xrpd_peaklist), intent(inout) :: p
+       character*(*), intent(in) :: file
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine xrpd_peaks_from_peaks_file
+     module subroutine xrpd_peaks_from_profile_file(p,xyfile,rms,errmsg,verbose0,&
+        ymax_detect0,nadj0,pkinput,xorig,yorig,ycalc)
+       class(xrpd_peaklist), intent(inout) :: p
+       character*(*), intent(in) :: xyfile
+       real*8, intent(out) :: rms
+       character(len=:), allocatable, intent(out) :: errmsg
+       logical, intent(in), optional :: verbose0
+       real*8, intent(in), optional :: ymax_detect0
+       integer, intent(in), optional :: nadj0
+       type(xrpd_peaklist), intent(in), optional :: pkinput
+       real*8, intent(inout), allocatable, optional :: xorig(:)
+       real*8, intent(inout), allocatable, optional :: yorig(:)
+       real*8, intent(inout), allocatable, optional :: ycalc(:)
+     end subroutine xrpd_peaks_from_profile_file
+     module subroutine xrpd_write_to_file(p,file)
+       class(xrpd_peaklist), intent(in) :: p
+       character*(*), intent(in) :: file
+     end subroutine xrpd_write_to_file
+     module subroutine xrpd_calculate_profile(p,n,x,y,errmsg,th2ini,th2end)
+       class(xrpd_peaklist), intent(inout) :: p
+       integer, intent(in) :: n
+       real*8, allocatable, intent(inout) :: x(:), y(:)
+       character(len=:), allocatable, intent(out) :: errmsg
+       real*8, intent(in), optional :: th2ini, th2end
+     end subroutine xrpd_calculate_profile
      !xx! independent procedures
      module subroutine search_lattice(x2r,rmax,imax,jmax,kmax)
        real*8, intent(in) :: x2r(3,3), rmax
@@ -950,11 +984,6 @@ module crystalmod
        integer, intent(out) :: holo
        integer, intent(out) :: laue
      end subroutine pointgroup_info
-     module subroutine xrpd_peaks_from_peaks_file(p,file,errmsg)
-       class(xrpd_peaklist), intent(inout) :: p
-       character*(*), intent(in) :: file
-       character(len=:), allocatable, intent(out) :: errmsg
-     end subroutine xrpd_peaks_from_peaks_file
      module subroutine crosscorr_gaussian(p1,p2,alpha,sigma,d12,errmsg,calcderivs,d12g)
        type(xrpd_peaklist), intent(in) :: p1, p2
        real*8, intent(in) :: alpha, sigma
@@ -981,32 +1010,6 @@ module crystalmod
        real*8, intent(in), optional :: max_elong_def0
        real*8, intent(in), optional :: max_ang_def0
      end subroutine gaussian_compare
-     module subroutine xrpd_peaks_from_profile_file(p,xyfile,rms,errmsg,verbose0,ymax_detect0,nadj0,xorig,yorig,ycalc)
-       class(xrpd_peaklist), intent(inout) :: p
-       character*(*), intent(in) :: xyfile
-       real*8, intent(out) :: rms
-       character(len=:), allocatable, intent(out) :: errmsg
-       logical, intent(in), optional :: verbose0
-       real*8, intent(in), optional :: ymax_detect0
-       integer, intent(in), optional :: nadj0
-       real*8, intent(inout), allocatable, optional :: xorig(:)
-       real*8, intent(inout), allocatable, optional :: yorig(:)
-       real*8, intent(inout), allocatable, optional :: ycalc(:)
-     end subroutine xrpd_peaks_from_profile_file
-     module subroutine xrpd_write_to_file(p,file)
-       class(xrpd_peaklist), intent(in) :: p
-       character*(*), intent(in) :: file
-     end subroutine xrpd_write_to_file
-     module subroutine xrpd_peaklist_end(p)
-       class(xrpd_peaklist), intent(inout) :: p
-     end subroutine xrpd_peaklist_end
-     module subroutine xrpd_calculate_profile(p,n,x,y,errmsg,th2ini,th2end)
-       class(xrpd_peaklist), intent(inout) :: p
-       integer, intent(in) :: n
-       real*8, allocatable, intent(inout) :: x(:), y(:)
-       character(len=:), allocatable, intent(out) :: errmsg
-       real*8, intent(in), optional :: th2ini, th2end
-     end subroutine xrpd_calculate_profile
   end interface
 
 end module crystalmod

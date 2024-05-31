@@ -3136,26 +3136,28 @@ contains
 
   ! PROFILE_REFIT file-xy.s fit.peaks
   subroutine trick_profile_refit(line0)
+    use crystalmod, only: xrpd_peaklist
     use types, only: realloc
     use tools_io, only: fopen_write, fopen_read, fclose, ferror, faterr, isreal, getline, string,&
-       uout, getword
+       uout, getword, file_read_xy
     use tools, only: mergesort, qcksort
     character*(*), intent(in) :: line0
 
 #ifndef HAVE_NLOPT
     call ferror("trick_profile_refit","trick_profile_refit can only be used if nlopt is available",faterr)
 #else
-    character(len=:), allocatable :: line, file
+    character(len=:), allocatable :: line, xyfile, file, errmsg
     integer :: lu, lp, lpo, i, ip
     integer :: n, nprm
-    real*8, allocatable :: x(:), y(:), prm(:), lb(:), ub(:), ysum(:)
+    real*8, allocatable :: x(:), y(:), yfit(:), prm(:), lb(:), ub(:), ysum(:)
     real*8, allocatable :: y_orig(:)
     real*8 :: x_, y_, minx, maxx, maxy, ssq, maxa, xini, xend
-    real*8 :: th2, area, fwhm, eta
+    real*8 :: th2, area, fwhm, eta, rms
     logical :: ok
     integer :: npeaks, npeaks_
     integer*8 :: opt
     integer :: ires
+    type(xrpd_peaklist) :: p
 
     include 'nlopt.f'
 
@@ -3165,303 +3167,52 @@ contains
     real*8, parameter :: fwhm_max = 0.6 ! maximum peak FWHM
     real*8, parameter :: area_peak_filter = 1d-4
 
+    ! read file names and header
     write (uout,'("* Trick: profile refit")')
+    lpo = 1
+    xyfile = getword(line0,lpo)
+    write (uout,'("+ Reading the pattern from file: ",A)') trim(xyfile)
+    file = getword(line0,lpo)
+    write (uout,'("+ Reading the peaks from file: ",A)') trim(file)
+
+    ! read the peaks file
+    call p%from_peaks_file(file,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('trick_profile_refit',errmsg,faterr)
 
     ! read the pattern
-    lpo = 1
-    file = getword(line0,lpo)
-    write (uout,'("+ Reading the pattern from file:",A)') trim(file)
-    n = 0
-    allocate(x(1000),y(1000))
-    lu = fopen_read(file)
-    do while (getline(lu,line))
-       lp = 1
-       ok = isreal(x_,line,lp)
-       ok = ok .and. isreal(y_,line,lp)
-       if (.not.ok) &
-          call ferror('trick','Unexpected line in data file',faterr)
-       n = n + 1
-       if (n > size(x,1)) then
-          call realloc(x,2*n)
-          call realloc(y,2*n)
-       end if
-       x(n) = x_
-       y(n) = max(y_,0d0)
-    end do
-    call fclose(lu)
-    call realloc(x,n)
-    call realloc(y,n)
+    call file_read_xy(xyfile,n,x,y,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('trick_profile_refit',errmsg,faterr)
 
-    file = getword(line0,lpo)
-    write (uout,'("+ Reading the peaks from file:",A)') trim(file)
-    npeaks = 0
-    nprm = 0
-    allocate(prm(400))
-    lu = fopen_read(file)
-    do while (getline(lu,line))
-       lp = 1
-       ok = isreal(th2,line,lp)
-       ok = ok .and. isreal(area,line,lp)
-       ok = ok .and. isreal(fwhm,line,lp)
-       ok = ok .and. isreal(eta,line,lp)
-       if (.not.ok) &
-          call ferror('trick','Incorrect line in input peaks file',faterr)
+    ! fit the pattern
+    call p%from_profile_file(xyfile,rms,errmsg,verbose0=.true.,pkinput=p,xorig=x,&
+       yorig=y,ycalc=yfit)
 
-       npeaks = npeaks + 1
-       if (size(prm,1) < 4 * npeaks) call realloc(prm,8 * npeaks)
-       prm(nprm+1) = th2
-       prm(nprm+2) = fwhm
-       prm(nprm+3) = eta
-       prm(nprm+4) = area
-       nprm = nprm + 4
-    end do
-    call fclose(lu)
-    call realloc(prm,nprm)
-
-    ! pre-fit the peaks
-    write (uout,'(/"+ Initial list of peaks")')
-    do ip = 1, npeaks
-       write (uout,'("Peak ",A,": center=",A," fwhm=",A," gaussian_ratio=",A," area=",A)') &
-          string(ip), string(prm(4*(ip-1)+1),'f',decimal=4), string(prm(4*(ip-1)+2),'f',decimal=4),&
-          string(prm(4*(ip-1)+3),'f',decimal=4), string(prm(4*(ip-1)+4),'f',decimal=4)
-    end do
-    y_orig = y
-    ysum = fsimple(nprm,prm)
-    write (*,'("+ Initial RMS of the fit = ",A/)') string(sqrt(sum((ysum - y_orig)**2) / real(n,8)),'f',decimal=4)
-
-    ! assign the bounds
-    allocate(lb(nprm),ub(nprm))
-    minx = minval(x)
-    maxx = maxval(x)
-    maxy = maxval(y)
-    nprm = 0
-    do i = 1, npeaks
-       ! peak position (2*theta)
-       nprm = nprm + 1
-       lb(nprm) = prm(nprm) - 1d0
-       ub(nprm) = prm(nprm) + 1d0
-
-       ! peak FWHM (gamma)
-       nprm = nprm + 1
-       lb(nprm) = 1d-5
-       ub(nprm) = fwhm_max
-
-       ! Gaussian/Lorentz coefficient (eta)
-       nprm = nprm + 1
-       lb(nprm) = 0d0
-       ub(nprm) = 1d0
-
-       ! peak area
-       nprm = nprm + 1
-       lb(nprm) = 0d0
-       ub(nprm) = (maxx-minx) * maxy
-    end do
-
-    ! fitting the whole pattern
-    write (uout,'("+ Fitting the whole pattern")')
-    ! run the minimization (main algorithm)
-    call nlo_create(opt, main_algorithm, nprm)
-    call nlo_set_ftol_rel(ires, opt, ftol_eps)
-    call nlo_set_lower_bounds(ires, opt, lb)
-    call nlo_set_upper_bounds(ires, opt, ub)
-    call nlo_set_min_objective(ires, opt, ffit, 0)
-    call nlo_optimize(ires, opt, prm, ssq)
-    call nlo_destroy(opt)
-    if (ires < 0) then
-       call nlo_create(opt, fallback_algorithm, nprm)
-       call nlo_set_ftol_rel(ires, opt, ftol_eps)
-       call nlo_set_lower_bounds(ires, opt, lb)
-       call nlo_set_upper_bounds(ires, opt, ub)
-       call nlo_set_min_objective(ires, opt, ffit, 0)
-       call nlo_optimize(ires, opt, prm, ssq)
-       call nlo_destroy(opt)
-    end if
-
-    ! output message
-    if (ires == -1) then
-       write (uout,'("+ FAILURE")')
-       return
-    elseif (ires == -2) then
-       write (uout,'("+ FAILURE: invalid arguments")')
-       return
-    elseif (ires == -3) then
-       write (uout,'("+ FAILURE: out of memory")')
-       return
-    elseif (ires == -4) then
-       write (uout,'("+ FAILURE: roundoff errors limited progress")')
-       return
-    elseif (ires == -5) then
-       write (uout,'("+ FAILURE: termination forced by user")')
-       return
-    end if
-
-    ! prune the peaks again
-    maxa = maxval(prm(4:nprm:4))
-    npeaks_ = 0
-    do i = 1, npeaks
-       if (abs(prm(4*(i-1)+4) / maxa * 100d0) > area_peak_filter) then
-          npeaks_ = npeaks_ + 1
-          prm(4*(npeaks_-1)+1:4*npeaks_) = prm(4*(i-1)+1:4*i)
-          lb(4*(npeaks_-1)+1:4*npeaks_) = lb(4*(i-1)+1:4*i)
-          ub(4*(npeaks_-1)+1:4*npeaks_) = ub(4*(i-1)+1:4*i)
-       end if
-    end do
-    npeaks = npeaks_
-    nprm = 4*npeaks
-    call realloc(prm,nprm)
-    call realloc(lb,nprm)
-    call realloc(ub,nprm)
-    write (uout,'("+ Number of peaks after final pruning: ",A)') string(npeaks)
-
-    ! output peaks
-    write (uout,'("+ Final list of peaks:")')
-    maxa = maxval(prm(4:nprm:4))
-    do ip = 1, npeaks
-       write (uout,'("Peak ",A,": center=",A," fwhm=",A," gaussian_ratio=",A," area=",A," norm_area=",A," ssq=",A)') &
-          string(ip), string(prm(4*(ip-1)+1),'f',decimal=4), string(prm(4*(ip-1)+2),'f',decimal=4),&
-          string(prm(4*(ip-1)+3),'f',decimal=4), string(prm(4*(ip-1)+4),'f',decimal=4),&
-          string(prm(4*(ip-1)+4)/maxa*100d0,'f',decimal=4),&
-          string(ssq,'e',decimal=4)
-    end do
-
-    ! calculate final profile and write it to disk
-    ysum = fsimple(nprm,prm)
+    ! write the profile to disk
     lu = fopen_write("fit.dat")
     write (lu,'("## x yorig ycalc")')
-    do i = 1, n
-       write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y_orig(i),'f',decimal=10),&
-          string(ysum(i),'f',decimal=10)
+    do i = 1, size(x,1)
+       write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y(i),'f',decimal=10),&
+          string(yfit(i),'f',decimal=10)
     end do
     call fclose(lu)
-    write (uout,'("+ Finished fitting pattern.")')
-    write (*,'("+ Final RMS of the fit = ",A/)') string(sqrt(sum((ysum - y_orig)**2) / real(n,8)),'f',decimal=4)
 
     ! calculate final profile and write it to disk
-    xini = x(1)
-    xend = x(n)
     n = 3000
-    deallocate(x)
-    allocate(x(n))
-    do i = 1, n
-       x(i) = xini + real(i-1,8) / real(n-1,8) * (xend-xini)
-    end do
-    ysum = fsimple(nprm,prm)
+    call p%calculate_profile(n,x,y,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('trick_profile_fit',errmsg,faterr)
     lu = fopen_write("fitext.dat")
     write (lu,'("## x ycalc")')
     do i = 1, n
-       write (lu,'(2(A," "))') string(x(i),'f',decimal=10), string(ysum(i),'f',decimal=10)
+       write (lu,'(2(A," "))') string(x(i),'f',decimal=10), string(y(i),'f',decimal=10)
     end do
     call fclose(lu)
 
     ! final list of peaks to disk
     write (uout,'("+ List of peaks written to file: fit.peaks")')
-    lu = fopen_write("fit.peaks")
-    write (lu,'("## List of peaks")')
-    write (lu,'("## 2*theta   Area   FWHM   gau/lor")')
-    do ip = 1, npeaks
-       write (lu,'(4(A," "))') string(prm(4*(ip-1)+1),'f',decimal=10),&
-          string(prm(4*(ip-1)+4),'e',decimal=10),&
-          string(prm(4*(ip-1)+2),'f',decimal=10),&
-          string(prm(4*(ip-1)+3),'f',decimal=10)
-    end do
-    call fclose(lu)
-
-  contains
-    function gaussian(x,x0,gamma) result(gau)
-      use param, only: pi
-      real*8, intent(in) :: x(:), x0, gamma
-      real*8 :: gau(size(x,1))
-
-      real*8 :: s
-
-      s = gamma / 2d0 / sqrt(2d0 * log(2d0))
-      gau = 1d0 / (s * sqrt(2d0*pi)) * exp(-(x-x0)*(x-x0) / (2*s*s))
-
-    end function gaussian
-
-    function lorentz(x,x0,gamma) result(lor)
-      use param, only: pi
-      real*8, intent(in) :: x(:), x0, gamma
-      real*8 :: lor(size(x,1))
-
-      real*8 :: g2
-
-      g2 = gamma / 2
-      lor = (1d0/pi) * g2 / ((x-x0)*(x-x0) + g2*g2)
-
-    end function lorentz
-
-    subroutine ffit(val, nprm, prm, grad, need_gradient, f_data)
-      use param, only: pi
-      real*8 :: val, prm(nprm), grad(nprm)
-      integer :: nprm, need_gradient
-      real :: f_data
-
-      integer :: i
-      real*8 :: x0, gamma, eta, int, s, g2
-      real*8, allocatable :: gau(:), lor(:), xfit(:), xfitg(:,:), ydif(:)
-
-      allocate(gau(n), lor(n), xfit(n), xfitg(n,nprm), ydif(n))
-
-      xfit = 0d0
-      do i = 1, nprm, 4
-         x0 = prm(i)
-         gamma = max(prm(i+1),1d-80)
-         eta = prm(i+2)
-         int = prm(i+3)
-
-         gau = gaussian(x,x0,gamma)
-         lor = lorentz(x,x0,gamma)
-
-         xfit = xfit + int * (eta * gau + (1-eta) * lor)
-         if (need_gradient /= 0) then
-            g2 = gamma / 2d0
-            s = g2 / sqrt(2d0 * log(2d0))
-
-            xfitg(:,i) = int * (eta * (gau * (x-x0) / (s * s)) +&
-               (1-eta) * (lor * lor * 4 * pi * (x-x0) / gamma))
-            xfitg(:,i+1) = int * (eta * (-gau / gamma + gau * (x-x0)*(x-x0) / (s*s) / gamma) +&
-               (1-eta) * (lor / gamma - pi * lor * lor))
-            xfitg(:,i+2) = int * (gau - lor)
-            xfitg(:,i+3) = eta * gau + (1-eta) * lor
-         end if
-      end do
-
-      ydif = y - xfit
-      val = sum(ydif * ydif)
-      if (need_gradient /= 0) then
-         do i = 1, nprm
-            grad(i) = -2d0 * sum(ydif * xfitg(:,i))
-         end do
-      end if
-      ! write (*,*) "call = ", x0, gamma, eta, int, val
-
-    end subroutine ffit
-
-    function fsimple(nprm, prm) result(yfit)
-      real*8 :: prm(nprm)
-      integer :: nprm
-      real*8, allocatable :: yfit(:)
-
-      integer :: i
-      real*8 :: x0, gamma, eta, int
-
-      if (allocated(yfit)) then
-         if (size(yfit,1) /= n) deallocate(yfit)
-      end if
-      if (.not.allocated(yfit)) allocate(yfit(n))
-      yfit = 0d0
-      do i = 1, nprm, 4
-         x0 = prm(i)
-         gamma = max(prm(i+1),1d-80)
-         eta = prm(i+2)
-         int = prm(i+3)
-
-         yfit = yfit + int * (eta * gaussian(x,x0,gamma) + (1-eta) * lorentz(x,x0,gamma))
-      end do
-
-    end function fsimple
-
+    call p%write("fit.peaks")
 #endif
   end subroutine trick_profile_refit
 
