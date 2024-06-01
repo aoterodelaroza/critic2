@@ -69,9 +69,9 @@ module crystalmod
   real*8, parameter, public :: xrpd_besteps_def_quick = 1d-3
   integer, parameter, public :: xrpd_maxfeval_def_safe = 10000
   integer, parameter, public :: xrpd_maxfeval_def_quick = 5000
-  real*8, parameter, public :: xrpd_max_elong_def_safe = 0.2d0
+  real*8, parameter, public :: xrpd_max_elong_def_safe = 0.15d0
   real*8, parameter, public :: xrpd_max_elong_def_quick = 0.1d0
-  real*8, parameter, public :: xrpd_max_ang_def_safe = 15d0
+  real*8, parameter, public :: xrpd_max_ang_def_safe = 10d0
   real*8, parameter, public :: xrpd_max_ang_def_quick = 5d0
 
   !> The crystal class. A crystal contains the structural information for the
