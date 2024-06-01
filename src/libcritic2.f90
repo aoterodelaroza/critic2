@@ -78,6 +78,17 @@ module libcritic2
        type(c_ptr), value, intent(in) :: file
        type(c_ptr) :: c2_peaks_from_file
      end function c2_peaks_from_file
+     module function c2_peaks_from_profile(xyfile,rms,verbose,def_ymax_detect,ymax_detect,&
+        nadj,pkinput) bind(c,name="c2_peaks_from_profile")
+       type(c_ptr), value, intent(in) :: xyfile
+       real(c_double) :: rms
+       logical(c_bool), value :: verbose
+       logical(c_bool), value :: def_ymax_detect
+       real(c_double), value :: ymax_detect
+       integer(c_int), value :: nadj
+       type(c_ptr), value :: pkinput
+       type(c_ptr) :: c2_peaks_from_profile
+     end function c2_peaks_from_profile
      module subroutine c2_write_peaks(pk,file) bind(c,name="c2_write_peaks")
        type(c_ptr), value, intent(in) :: pk
        type(c_ptr), value, intent(in) :: file

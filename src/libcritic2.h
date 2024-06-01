@@ -89,10 +89,26 @@ void c2_destroy_crystal(crystal *cr);
 xrpd_peaklist *c2_peaks_from_crystal(crystal *cr,double th2ini,double th2end,double lambda,
                                      double fpol);
 
-// Read xrpd peaks from a file. Allocate space for the crystal
-// structure and return a pointer to it or NULL if there was an
-// error.
+// Read xrpd peaks from a peaks file. Allocate space for the crystal
+// structure and return a pointer to it or NULL if there was an error.
 xrpd_peaklist *c2_peaks_from_file(const char *file);
+
+// Fit XRPD profile data from an xy file (xyfile) and return the peak
+// list and the RMS of the fit (rms), or NULL if there was an
+// error. Other arguments:
+// - verbose: print fitting info to the stdout.
+// - ymax_detect: maxima are added to the initial model as candidate
+// peaks if their intensities are higher than this value.
+// - def_ymax_detect: use the default ymax_detect (the median of the
+// profile intensities). If this is true, ymax_detect is ignored.
+// - nadj: a candidate peak is added if the maximum is surrounded by
+//   nadj points on either side with smaller intensity. If negative,
+//   use the default value (2).
+// - pkinput: if non-NULL use a peak list as the initial model (nadj0
+//   and ymax_detect0 are not used if pkinput is given).
+xrpd_peaklist *c2_peaks_from_profile(const char *xyfile,double *rms,bool verbose,
+				     bool def_ymax_detect,double ymax_detect,
+				     int nadj,xrpd_peaklist *pkinput);
 
 // Write the peak list to a file.
 void c2_write_peaks(xrpd_peaklist *pk, const char *file);

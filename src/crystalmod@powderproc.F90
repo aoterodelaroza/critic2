@@ -926,7 +926,7 @@ contains
   !>   default value (median of the profile intensities).
   !> - nadj0: a candidate peak is added if the maximum is surrounded by
   !>   nadj0 points on either side with smaller intensity. If negative,
-  !>   use the default value (-2).
+  !>   use the default value (2).
   !> - pkinput: use a peak list as the initial model (nadj0 and ymax_detect0
   !>   are not used if pkinput is given).
   !> - xorig/yorig: return the pattern profile read from the file.

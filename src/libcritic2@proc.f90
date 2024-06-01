@@ -354,6 +354,59 @@ contains
 
   end function c2_peaks_from_file
 
+  ! Fit XRPD profile data from an xy file (xyfile) and return the peak
+  ! list and the RMS of the fit (rms), or NULL if there was an
+  ! error. Other arguments:
+  ! - verbose: print fitting info to the stdout.
+  ! - ymax_detect: maxima are added to the initial model as candidate
+  ! peaks if their intensities are higher than this value.
+  ! - def_ymax_detect: use the default ymax_detect (the median of the
+  ! profile intensities). If this is true, ymax_detect is ignored.
+  ! - nadj: a candidate peak is added if the maximum is surrounded by
+  !   nadj points on either side with smaller intensity. If negative,
+  !   use the default value (2).
+  ! - pkinput: if non-NULL use the peak list as the initial model
+  !   (nadj0 and ymax_detect0 are not used if pkinput is given).
+  module function c2_peaks_from_profile(xyfile,rms,verbose,def_ymax_detect,ymax_detect,&
+     nadj,pkinput) bind(c,name="c2_peaks_from_profile")
+    use crystalmod, only: xrpd_peaklist
+    use c_interface_module, only: c_f_string_alloc
+    type(c_ptr), value, intent(in) :: xyfile
+    real(c_double) :: rms
+    logical(c_bool), value :: verbose
+    logical(c_bool), value :: def_ymax_detect
+    real(c_double), value :: ymax_detect
+    integer(c_int), value :: nadj
+    type(c_ptr), value :: pkinput
+    type(c_ptr) :: c2_peaks_from_profile
+
+    type(xrpd_peaklist), pointer :: pkout, pkin
+    character(len=:), allocatable :: xyfname, errmsg
+    real*8 :: ymaxf
+
+    ! consistency checks
+    c2_peaks_from_profile = c_null_ptr
+    if (.not.critic2_init) call initialize_critic2()
+    call c_f_string_alloc(xyfile,xyfname)
+
+    ! process options
+    ymaxf = -huge(1d0)
+    if (.not.def_ymax_detect) ymaxf = ymax_detect
+
+    allocate(pkout)
+    if (c_associated(pkinput)) then
+       call c_f_pointer(pkinput,pkin)
+       call pkout%from_profile_file(xyfname,rms,errmsg,verbose0=logical(verbose),ymax_detect0=ymaxf,&
+          nadj0=nadj,pkinput=pkin)
+    else
+       call pkout%from_profile_file(xyfname,rms,errmsg,verbose0=logical(verbose),ymax_detect0=ymaxf,&
+          nadj0=nadj)
+    end if
+    if (len_trim(errmsg) > 0) return
+    c2_peaks_from_profile = c_loc(pkout)
+
+  end function c2_peaks_from_profile
+
   !> Write the peak list to a file.
   module subroutine c2_write_peaks(pk,file) bind(c,name="c2_write_peaks")
     use crystalmod, only: xrpd_peaklist
