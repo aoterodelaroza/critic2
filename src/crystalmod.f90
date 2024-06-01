@@ -61,7 +61,7 @@ module crystalmod
   ! Defaults for powder X-ray diffraction routines
   real*8, parameter, public :: xrpd_lambda_def = 1.5406d0
   real*8, parameter, public :: xrpd_fpol_def = 0d0
-  real*8, parameter, public :: xrpd_alpha_def = 1.0d0
+  real*8, parameter, public :: xrpd_alpha_def = 0.5d0
   real*8, parameter, public :: xrpd_sigma_def = 0.05d0
   real*8, parameter, public :: xrpd_th2ini_def = 5d0
   real*8, parameter, public :: xrpd_th2end_def = 50d0

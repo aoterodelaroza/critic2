@@ -2916,7 +2916,7 @@ contains
 
   end subroutine trick_check_valence
 
-  ! TRICK GAUCOMP str1.s {str2.s|xyfile.s} [LOCAL] [GLOBAL] [ALPHA alpha.r] [LAMBDA lambda.r] [MAXFEVAL maxfeval.i] [BESTEPS eps.r]
+  ! TRICK GAUCOMP str1.s {str2.s|xyfile.s} [LOCAL] [GLOBAL] [ALPHA alpha.r] [LAMBDA lambda.r] [MAXFEVAL maxfeval.i] [BESTEPS eps.r] [MAX_ELONG max_elong.r] [MAX_ANG max_ang.r]
   subroutine trick_gaucomp(line0)
     use crystalseedmod, only: crystalseed
     use crystalmod, only: crystal, xrpd_peaklist, xrpd_fpol_def,&
@@ -2941,7 +2941,7 @@ contains
     character(len=:), allocatable :: word, file1, errmsg
     type(crystal) :: c1, c2
     integer :: imode, lu, maxfeval
-    real*8 :: th2ini, th2end, alpha, lambda, besteps
+    real*8 :: th2ini, th2end, alpha, lambda, besteps, max_elong, max_ang
     logical :: ok, readc2
     type(crystalseed) :: seed
     type(xrpd_peaklist) :: p2
@@ -2992,6 +2992,8 @@ contains
        string(th2ini,'f',decimal=4), string(th2end,'f',decimal=4)
 
     ! read additional options
+    max_elong = xrpd_max_elong_def_quick
+    max_ang = xrpd_max_ang_def_quick
     maxfeval = xrpd_maxfeval_def_safe
     besteps = xrpd_besteps_def_safe
     alpha = xrpd_alpha_def
@@ -3018,6 +3020,14 @@ contains
           ok = isreal(lambda,line0,lp)
           if (.not.ok) &
              call ferror("trick_gaucomp","invalid lambda in gaucomp",faterr)
+       elseif (equal(word,'max_elong')) then
+          ok = isreal(max_elong,line0,lp)
+          if (.not.ok) &
+             call ferror("trick_gaucomp","invalid max_elong in gaucomp",faterr)
+       elseif (equal(word,'max_ang')) then
+          ok = isreal(max_ang,line0,lp)
+          if (.not.ok) &
+             call ferror("trick_gaucomp","invalid max_ang in gaucomp",faterr)
        else
           exit
        end if
@@ -3033,7 +3043,7 @@ contains
     ! run the comparison
     call gaussian_compare(c1,p2,imode,diff,errmsg,seedout=seed,verbose0=.true.,&
        alpha0=alpha,lambda0=lambda,maxfeval0=maxfeval,besteps0=besteps,&
-       max_elong_def0=xrpd_max_elong_def_quick,max_ang_def0=xrpd_max_ang_def_quick)
+       max_elong_def0=max_elong,max_ang_def0=max_ang)
 
     if (len_trim(errmsg) > 0) &
        call ferror("trick_gaucomp",errmsg,faterr)
