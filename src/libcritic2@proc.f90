@@ -149,6 +149,9 @@ contains
 
     real(c_double) :: lattice(3,3)
 
+    ! consistency checks
+    if (.not.critic2_init) call initialize_critic2()
+
     lattice = m_x2c_from_cellpar(cel,ang)
     c2_crystal_from_cellpar = c2_crystal_from_lattice(natom,lattice,position,zat)
 
@@ -254,7 +257,7 @@ contains
   !> structure and return a pointer to it or NULL if there was an
   !> error.
   module function c2_peaks_from_file(file) bind(c,name="c2_peaks_from_file")
-    use crystalmod, only: xrpd_peaklist, xrpd_peaks_from_file
+    use crystalmod, only: xrpd_peaklist
     use c_interface_module, only: c_f_string_alloc
     type(c_ptr), value, intent(in) :: file
     type(c_ptr) :: c2_peaks_from_file
@@ -269,7 +272,8 @@ contains
     c2_peaks_from_file = c_null_ptr
     allocate(pk)
     call c_f_string_alloc(file,fname)
-    call xrpd_peaks_from_file(pk,fname,errmsg)
+    ! xxxx !
+    ! call xrpd_peaks_from_file(pk,fname,errmsg)
     if (len_trim(errmsg) > 0) return
     c2_peaks_from_file = c_loc(pk)
 
