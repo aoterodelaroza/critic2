@@ -377,6 +377,59 @@ contains
 
   end subroutine c2_write_peaks
 
+  ! Calculate the diffraction profile from peak list pk with n points
+  ! between 2*theta values th2ini and th2end (if th2ini and th2end are
+  ! negative, use the th2ini and th2end in the peak list
+  ! structure). Return the 2*theta in x[] and the profile intensity in
+  ! y[]. x and y must be freed after use. If error, return NULL in x
+  ! and y.
+  module subroutine c2_peaks_calculate_profile(pk,n,th2ini,th2end,x,y)&
+     bind(c,name="c2_peaks_calculate_profile")
+    use c_interface_module, only: c_malloc
+    use crystalmod, only: xrpd_peaklist
+    type(c_ptr), value, intent(in) :: pk
+    integer(c_int), value, intent(in) :: n
+    real(c_double), value, intent(in) :: th2ini, th2end
+    type(c_ptr), intent(inout) :: x, y
+
+    real*8 :: xini, xend
+    type(xrpd_peaklist), pointer :: pkf
+    real(c_double), pointer :: xf(:), yf(:)
+    real*8, allocatable :: xaux(:), yaux(:)
+    character(len=:), allocatable :: errmsg
+
+    ! consistency checks
+    x = c_null_ptr
+    y = c_null_ptr
+    if (.not.critic2_init) call initialize_critic2()
+    if (.not.c_associated(pk)) return
+    call c_f_pointer(pk,pkf)
+    if (.not.associated(pkf)) return
+    if (n <= 0) return
+
+    ! process th2ini and th2end
+    xini = th2ini
+    xend = th2end
+    if (th2ini < 0d0 .or. th2end < 0d0) then
+       if (.not.pkf%haveth2limits) return
+       if (th2ini < 0d0) xini = pkf%th2ini
+       if (th2end < 0d0) xend = pkf%th2end
+    end if
+
+    ! calculate the profile
+    call pkf%calculate_profile(n,xaux,yaux,errmsg,xini,xend)
+    if (len_trim(errmsg) > 0) return
+
+    ! allocate space in x and y
+    x = c_malloc(n * c_sizeof(th2ini))
+    y = c_malloc(n * c_sizeof(th2ini))
+    call c_f_pointer(x,xf,(/n/))
+    call c_f_pointer(y,yf,(/n/))
+    xf(1:n) = xaux
+    yf(1:n) = yaux
+
+  end subroutine c2_peaks_calculate_profile
+
   !> Destroy the input XRPD peaks structure object and free the memory.
   module subroutine c2_destroy_peaks(pk) bind(c,name="c2_destroy_peaks")
     use crystalmod, only: xrpd_peaklist

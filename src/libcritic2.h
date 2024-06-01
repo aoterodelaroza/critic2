@@ -97,6 +97,15 @@ xrpd_peaklist *c2_peaks_from_file(const char *file);
 // Write the peak list to a file.
 void c2_write_peaks(xrpd_peaklist *pk, const char *file);
 
+// Calculate the diffraction profile from peak list pk with n points
+// between 2*theta values th2ini and th2end (if th2ini and th2end are
+// negative, use the th2ini and th2end in the peak list
+// structure). Return the 2*theta in x[] and the profile intensity in
+// y[]. x and y must be freed after use. If error, return NULL in x
+// and y.
+void c2_peaks_calculate_profile(xrpd_peaklist *pk,int n,double th2ini,double th2end,
+				double **x,double **y);
+
 // Destroy the input XRPD peaks structure object and free the memory.
 void c2_destroy_peaks(xrpd_peaklist *pk);
 

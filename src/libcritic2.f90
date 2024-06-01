@@ -82,6 +82,13 @@ module libcritic2
        type(c_ptr), value, intent(in) :: pk
        type(c_ptr), value, intent(in) :: file
      end subroutine c2_write_peaks
+     module subroutine c2_peaks_calculate_profile(pk,n,th2ini,th2end,x,y)&
+        bind(c,name="c2_peaks_calculate_profile")
+       type(c_ptr), value, intent(in) :: pk
+       integer(c_int), value, intent(in) :: n
+       real(c_double), value, intent(in) :: th2ini, th2end
+       type(c_ptr), intent(inout) :: x, y
+     end subroutine c2_peaks_calculate_profile
      module subroutine c2_destroy_peaks(pk) bind(c,name="c2_destroy_peaks")
        type(c_ptr), value, intent(in) :: pk
      end subroutine c2_destroy_peaks

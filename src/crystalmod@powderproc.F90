@@ -1486,10 +1486,6 @@ contains
        errmsg = "must have positive number of points for the grid"
        return
     end if
-    if (.not.p%havepeakshape) then
-       errmsg = "must have peak shapes for the profile calculation"
-       return
-    end if
 
     ! initialize grid limits
     if (.not.present(th2ini).and..not.present(th2end)) then
@@ -1518,8 +1514,13 @@ contains
     y = 0d0
     do i = 1, p%npeak
        x0 = p%th2(i)
-       gamma = p%fwhm(i)
-       eta = p%cgau(i)
+       if (p%havepeakshape) then
+          gamma = p%fwhm(i)
+          eta = p%cgau(i)
+       else
+          gamma = 2d0 * sqrt(2d0 * log(2d0)) * xrpd_sigma_def
+          eta = 1d0
+       end if
        int = p%ip(i)
        y = y + int * (eta * gaussian(x,x0,gamma) + (1-eta) * lorentzian(x,x0,gamma))
     end do
