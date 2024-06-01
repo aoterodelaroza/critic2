@@ -1221,11 +1221,11 @@ contains
        end do
     else
        ! sort the peaks from highest to lowest
-       npeaks = p%npeak
+       npeaks = pkinput%npeak
        allocate(io(npeaks),phei(npeaks))
        do i = 1, npeaks
           io(i) = i
-          phei(i) = -p%ip(i)
+          phei(i) = -pkinput%ip(i)
        end do
        call qcksort(phei,io,1,npeaks)
        deallocate(phei)
@@ -1240,25 +1240,33 @@ contains
           i = io(ii)
           ! peak position (2*theta)
           nprm = nprm + 1
-          prm(nprm) = p%th2(i)
+          prm(nprm) = pkinput%th2(i)
           lb(nprm) = prm(nprm) - 2*xshift
           ub(nprm) = prm(nprm) + 2*xshift
 
           ! peak FWHM (gamma)
           nprm = nprm + 1
-          prm(nprm) = p%fwhm(i)
+          if (pkinput%havepeakshape) then
+             prm(nprm) = pkinput%fwhm(i)
+          else
+             prm(nprm) = gamma_default
+          end if
           lb(nprm) = 1d-5
           ub(nprm) = fwhm_max
 
           ! Gaussian/Lorentz coefficient (eta)
           nprm = nprm + 1
-          prm(nprm) = p%cgau(i)
+          if (pkinput%havepeakshape) then
+             prm(nprm) = pkinput%cgau(i)
+          else
+             prm(nprm) = 0d0
+          end if
           lb(nprm) = 0d0
           ub(nprm) = 1d0
 
           ! peak area
           nprm = nprm + 1
-          prm(nprm) = p%ip(i)
+          prm(nprm) = pkinput%ip(i)
           lb(nprm) = 0d0
           ub(nprm) = (maxx-minx) * maxy
        end do
