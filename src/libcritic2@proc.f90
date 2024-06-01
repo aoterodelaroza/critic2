@@ -293,9 +293,10 @@ contains
   end subroutine c2_destroy_crystal
 
   !> Calculate the XRPD peak positions from the crystal structure.
-  !> Limit the peaks to the 2theta range th2ini to th2end. lambda is
-  !> the wavelength in angstrom. fpol is the polarization correction
-  !> factor (0 = unpolarized, 0.95 = synchrotron). If th2ini, th2end,
+  !> Limit the peaks to the 2theta range th2ini (default: 5) to th2end
+  !> (default: 50. lambda is the wavelength in angstrom (default:
+  !> 1.5406). fpol is the polarization correction factor (0 =
+  !> unpolarized, 0.95 = synchrotron, default: 0). If th2ini, th2end,
   !> lambda, fpol < 0, use default values. Returns NULL on error.
   module function c2_peaks_from_crystal(cr,th2ini,th2end,lambda,fpol) bind(c,name="c2_peaks_from_crystal")
     use crystalmod, only: crystal, xrpd_peaklist
@@ -353,6 +354,28 @@ contains
     c2_peaks_from_file = c_loc(pk)
 
   end function c2_peaks_from_file
+
+  !> Write the peak list to a file.
+  module subroutine c2_write_peaks(pk,file) bind(c,name="c2_write_peaks")
+    use crystalmod, only: xrpd_peaklist
+    use c_interface_module, only: c_f_string_alloc
+    type(c_ptr), value, intent(in) :: pk
+    type(c_ptr), value, intent(in) :: file
+
+    type(xrpd_peaklist), pointer :: pkf
+    character(len=:), allocatable :: fname
+
+    ! consistency checks
+    if (.not.critic2_init) call initialize_critic2()
+    if (.not.c_associated(pk)) return
+    call c_f_pointer(pk,pkf)
+    if (.not.associated(pkf)) return
+
+    ! write to file
+    call c_f_string_alloc(file,fname)
+    call pkf%write(fname)
+
+  end subroutine c2_write_peaks
 
   !> Destroy the input XRPD peaks structure object and free the memory.
   module subroutine c2_destroy_peaks(pk) bind(c,name="c2_destroy_peaks")

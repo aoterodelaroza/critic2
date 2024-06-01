@@ -78,6 +78,10 @@ module libcritic2
        type(c_ptr), value, intent(in) :: file
        type(c_ptr) :: c2_peaks_from_file
      end function c2_peaks_from_file
+     module subroutine c2_write_peaks(pk,file) bind(c,name="c2_write_peaks")
+       type(c_ptr), value, intent(in) :: pk
+       type(c_ptr), value, intent(in) :: file
+     end subroutine c2_write_peaks
      module subroutine c2_destroy_peaks(pk) bind(c,name="c2_destroy_peaks")
        type(c_ptr), value, intent(in) :: pk
      end subroutine c2_destroy_peaks

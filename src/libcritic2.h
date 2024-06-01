@@ -81,10 +81,11 @@ void c2_destroy_crystal(crystal *cr);
 //// PEAKS ////
 
 // Calculate the XRPD peak positions from the crystal structure.
-// Limit the peaks to the 2theta range th2ini to th2end. lambda is
-// the wavelength in angstrom. fpol is the polarization correction
-// factor (0 = unpolarized, 0.95 = synchrotron). If th2ini, th2end,
-// lambda, fpol < 0, use default values.
+// Limit the peaks to the 2theta range th2ini (default: 5) to th2end
+// (default: 50. lambda is the wavelength in angstrom (default:
+// 1.5406). fpol is the polarization correction factor (0 =
+// unpolarized, 0.95 = synchrotron, default: 0). If th2ini, th2end,
+// lambda, fpol < 0, use default values. Returns NULL on error.
 xrpd_peaklist *c2_peaks_from_crystal(crystal *cr,double th2ini,double th2end,double lambda,
                                      double fpol);
 
@@ -92,6 +93,9 @@ xrpd_peaklist *c2_peaks_from_crystal(crystal *cr,double th2ini,double th2end,dou
 // structure and return a pointer to it or NULL if there was an
 // error.
 xrpd_peaklist *c2_peaks_from_file(const char *file);
+
+// Write the peak list to a file.
+void c2_write_peaks(xrpd_peaklist *pk, const char *file);
 
 // Destroy the input XRPD peaks structure object and free the memory.
 void c2_destroy_peaks(xrpd_peaklist *pk);

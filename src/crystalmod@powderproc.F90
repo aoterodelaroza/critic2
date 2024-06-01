@@ -685,9 +685,9 @@ contains
     p%th2 = p%th2 * 180d0 / pi
     if (calcderivs) p%th2g = p%th2g * 180d0 / pi
 
-    ! normalize the intensities (highest peak is 1)
+    ! normalize the intensities (highest peak is 100)
     imax = maxval(p%ip)
-    p%ip = p%ip / imax
+    p%ip = p%ip / imax * 100d0
     if (calcderivs) p%ipg = p%ipg / imax
 
   contains
