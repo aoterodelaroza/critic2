@@ -348,8 +348,7 @@ contains
     c2_peaks_from_file = c_null_ptr
     allocate(pk)
     call c_f_string_alloc(file,fname)
-    ! xxxx !
-    ! call xrpd_peaks_from_file(pk,fname,errmsg)
+    call pk%from_peaks_file(fname,errmsg)
     if (len_trim(errmsg) > 0) return
     c2_peaks_from_file = c_loc(pk)
 
