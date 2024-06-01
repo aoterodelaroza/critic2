@@ -58,6 +58,19 @@ crystal *c2_crystal_from_cellpar(const int natom,const double cel[3], const doub
 // Write the report about the input crystal structure to standard output.
 void c2_describe_crystal(crystal *cr);
 
+// Return the number of atoms from crystal cr.
+int c2_crystal_get_natom(crystal *cr);
+
+// Get the number of atoms (nat), cell lengths (cel, bohr), cell
+// angles (ang, degrees), lattice vectors (lattice, bohr),
+// atomic positions (position, fractional coords), and atomic numbers
+// (zat) from the crystal structure cr. The input variables must point
+// to enough space to contain the output (cel[3], ang[3], lattice[3][3],
+// position[natom][3], zat[natom]). If the pointer is NULL, do not
+// return that variable.
+void c2_crystal_get_structure(crystal *cr,int *natom,double *cel,double *ang,
+                              double *lattice,double *position, int *zat);
+
 // Write the crystal structure to a file. The format of the file is
 // detected from the extension.
 crystal *c2_write_crystal(crystal *cr,const char *file);

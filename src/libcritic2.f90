@@ -48,6 +48,20 @@ module libcritic2
      module subroutine c2_describe_crystal(cr) bind(c,name="c2_describe_crystal")
        type(c_ptr), value, intent(in) :: cr
      end subroutine c2_describe_crystal
+     module function c2_crystal_get_natom(cr) bind(c,name="c2_crystal_get_natom")
+       type(c_ptr), value, intent(in) :: cr
+       integer(c_int) :: c2_crystal_get_natom
+     end function c2_crystal_get_natom
+     module subroutine c2_crystal_get_structure(cr,natom,cel,ang,lattice,position,zat) &
+        bind(c,name="c2_crystal_get_structure")
+       type(c_ptr), value, intent(in) :: cr
+       integer(c_int) :: natom
+       type(c_ptr), value :: cel
+       type(c_ptr), value :: ang
+       type(c_ptr), value :: lattice
+       type(c_ptr), value :: position
+       type(c_ptr), value :: zat
+     end subroutine c2_crystal_get_structure
      module subroutine c2_write_crystal(cr,file) bind(c,name="c2_write_crystal")
        type(c_ptr), value, intent(in) :: cr
        type(c_ptr), value, intent(in) :: file

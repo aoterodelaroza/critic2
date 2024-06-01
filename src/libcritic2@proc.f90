@@ -45,7 +45,6 @@ contains
 
     character(len=:), allocatable :: fname
     type(crystalseed) :: seed
-    integer :: i
     character(len=:), allocatable :: errmsg
     type(crystal), pointer :: crf
 
@@ -174,6 +173,82 @@ contains
     call crf%report(.true.,.false.)
 
   end subroutine c2_describe_crystal
+
+  ! Return the number of atoms from crystal cr.
+  module function c2_crystal_get_natom(cr) bind(c,name="c2_crystal_get_natom")
+    use crystalmod, only: crystal
+    type(c_ptr), value, intent(in) :: cr
+    integer(c_int) :: c2_crystal_get_natom
+
+    type(crystal), pointer :: crf
+
+    ! consistency checks
+    if (.not.critic2_init) call initialize_critic2()
+    if (.not.c_associated(cr)) return
+    call c_f_pointer(cr,crf)
+    if (.not.associated(crf)) return
+
+    c2_crystal_get_natom = crf%ncel
+
+  end function c2_crystal_get_natom
+
+  ! Get the number of atoms (nat), cell lengths (cel, bohr), cell
+  ! angles (ang, degrees), lattice vectors (lattice, bohr),
+  ! atomic positions (position, fractional coords), and atomic numbers
+  ! (zat) from the crystal structure cr. The input variables must point
+  ! to enough space to contain the output (cel[3], ang[3], lattice[3][3],
+  ! position[natom][3], zat[natom]). If the pointer is NULL, do not
+  ! return that variable.
+  module subroutine c2_crystal_get_structure(cr,natom,cel,ang,lattice,position,zat) &
+     bind(c,name="c2_crystal_get_structure")
+    use crystalmod, only: crystal
+    type(c_ptr), value, intent(in) :: cr
+    integer(c_int) :: natom
+    type(c_ptr), value :: cel
+    type(c_ptr), value :: ang
+    type(c_ptr), value :: lattice
+    type(c_ptr), value :: position
+    type(c_ptr), value :: zat
+
+    type(crystal), pointer :: crf
+    real(c_double), pointer :: fptr(:), fptr2(:,:)
+    integer(c_int), pointer :: iptr(:)
+    integer :: i
+
+    ! consistency checks
+    if (.not.critic2_init) call initialize_critic2()
+    if (.not.c_associated(cr)) return
+    call c_f_pointer(cr,crf)
+    if (.not.associated(crf)) return
+
+    ! number of atoms
+    natom = crf%ncel
+
+    ! cell lengths, angles, lattice vectors
+    if (c_associated(cel)) then
+       call c_f_pointer(cel,fptr,(/3/))
+       fptr(1:3) = crf%aa
+    end if
+    if (c_associated(ang)) then
+       call c_f_pointer(ang,fptr,(/3/))
+       fptr(1:3) = crf%bb
+    end if
+    if (c_associated(lattice)) then
+       call c_f_pointer(lattice,fptr2,(/3,3/))
+       fptr2(1:3,1:3) = crf%m_x2c
+    end if
+
+    ! atomic positions and atomic numbers
+    if (c_associated(position)) then
+       call c_f_pointer(zat,iptr,(/natom/))
+       call c_f_pointer(position,fptr2,(/3,natom/))
+       do i = 1, crf%ncel
+          iptr(i) = crf%spc(crf%atcel(i)%is)%z
+          fptr2(1:3,i) = crf%atcel(i)%x
+       end do
+    end if
+
+  end subroutine c2_crystal_get_structure
 
   !> Write the crystal structure to a file. The format of the file is
   !> detected from the extension.
