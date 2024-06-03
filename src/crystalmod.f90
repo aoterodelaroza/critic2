@@ -310,6 +310,7 @@ module crystalmod
   public :: pointgroup_info
   public :: crosscorr_gaussian
   public :: gaussian_compare
+  public :: david_sivia_calculate_background
 
   ! module procedure interfaces
   interface
@@ -1010,6 +1011,13 @@ module crystalmod
        real*8, intent(in), optional :: max_elong_def0
        real*8, intent(in), optional :: max_ang_def0
      end subroutine gaussian_compare
+     module function david_sivia_calculate_background(n,x,y,errmsg) result(yb)
+       integer, intent(in) :: n
+       real*8, intent(in) :: x(n)
+       real*8, intent(in) :: y(n)
+       character(len=:), allocatable, intent(out) :: errmsg
+       real*8 :: yb(n)
+     end function david_sivia_calculate_background
   end interface
 
 end module crystalmod

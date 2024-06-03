@@ -1919,6 +1919,110 @@ contains
 #endif
   end subroutine gaussian_compare
 
+  !> Calculate the background for a diffraction pattern with n points
+  !> given by 2*theta (x) and profile intensity (y) and return it in
+  !> yb(n). The x must be in strict increasing order. The background
+  !> is estimated using robust Bayesian analysis, as proposed in David
+  !> and Sivia, J. Appl. Cryst. 34 (2001) 318.
+  module function david_sivia_calculate_background(n,x,y,errmsg) result(yb)
+    use tools_math, only: splinefit, splineval
+    use tools_io, only: fopen_write, fclose
+    integer, intent(in) :: n
+    real*8, intent(in) :: x(n)
+    real*8, intent(in) :: y(n)
+    character(len=:), allocatable, intent(out) :: errmsg
+    real*8 :: yb(n)
+#ifndef HAVE_NLOPT
+    errmsg = "david_sivia_calculate_background can only be used if nlopt is available"
+    yb = 0d0
+    return
+#else
+    integer :: i, nk, j, jold, lu
+    real*8, allocatable :: xk(:), yk(:), c(:,:)
+    real*8 :: ssq
+    integer*8 :: opt
+    integer :: ires
+
+    integer, parameter :: nknot0 = 25
+    real*8, parameter :: ftol_eps = 1d-8
+
+    include 'nlopt.f'
+
+    ! set up the initial knots
+    errmsg = ""
+    nk = max(min(nknot0,n/2),2)
+    nk = 30
+
+    allocate(xk(nk),yk(nk))
+    jold = 1
+    do i = 1, nk
+       xk(i) = x(1) + real(i - 1,8) / real(nk - 1,8) * (x(n) - x(1))
+       do j = jold, n
+          if (xk(i) <= x(j)) then
+             jold = j
+             yk(i) = y(jold)
+             exit
+          end if
+       end do
+    end do
+
+    ! optimize
+    call nlo_create(opt, NLOPT_LN_PRAXIS, nk)
+    call nlo_set_ftol_rel(ires, opt, ftol_eps)
+    call nlo_set_min_objective(ires, opt, lsfun, 0)
+    call nlo_optimize(ires, opt, yk, ssq)
+    call nlo_destroy(opt)
+
+    ! output message and destroy
+    if (ires < 0) then
+       if (ires == -1) then
+          errmsg = "FAILURE"
+       elseif (ires == -2) then
+          errmsg = "FAILURE: invalid arguments"
+       elseif (ires == -3) then
+          errmsg = "FAILURE: out of memory"
+       elseif (ires == -4) then
+          errmsg = "FAILURE: roundoff errors limited progress"
+       elseif (ires == -5) then
+          errmsg = "FAILURE: termination forced by user"
+       end if
+       return
+    end if
+
+    ! output the final background pattern
+    c = splinefit(nk,xk,yk)
+    do i = 1, n
+       yb(i) = splineval(nk,c,x(i))
+    end do
+
+    lu = fopen_write("bleh.txt")
+    do i = 1, nk
+       write (lu,*) xk(i), yk(i)
+    end do
+    call fclose(lu)
+
+  contains
+    subroutine lsfun(val, nin, yin, grad, need_gradient, f_data)
+      real*8 :: val, yin(nin), grad(nin)
+      integer :: nin, need_gradient
+      real :: f_data
+
+      integer :: i
+      real*8 :: t, diff
+
+      c = splinefit(nk,xk,yin)
+      val = 0d0
+      do i = 1, n
+         t = (y(i) - splineval(nk,c,x(i))) / sqrt(2d0)
+         diff = loglike_bayes(t)
+         val = val - diff
+      end do
+      write (*,*) "eval = ", val
+
+    end subroutine lsfun
+#endif
+  end function david_sivia_calculate_background
+
   !xx! private procedures
 
   !> Returns the log(likelihood) function for the robust estimation of
