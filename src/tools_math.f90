@@ -66,6 +66,8 @@ module tools_math
   public :: ullmann_graph_matching
   public :: invert_permutation
   public :: emd
+  public :: splinefit
+  public :: splineval
   !xx! lebedev submodule !xx!
   public :: good_lebedev
   public :: select_lebedev
@@ -367,6 +369,21 @@ module tools_math
        integer, intent(in) :: distfun
        real*8 :: emd
      end function emd
+     module function splinefit(n,x,y,ibeg,iend,ypend) result(c)
+       integer, intent(in) :: n
+       real*8, intent(in) :: x(n)
+       real*8, intent(in) :: y(n)
+       integer, intent(in), optional :: ibeg
+       integer, intent(in), optional :: iend
+       real*8, intent(in), optional :: ypend(2)
+       real*8 :: c(5,n)
+     end function splinefit
+     module function splineval(n,c,x) result (y)
+       integer, intent(in) :: n
+       real*8, intent(in) :: c(5,n)
+       real*8, intent(in) :: x
+       real*8 :: y
+     end function splineval
      !xx! lebedev submodule
      module subroutine good_lebedev(npts)
        integer, intent(inout) :: npts

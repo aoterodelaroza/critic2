@@ -2166,6 +2166,203 @@ contains
 
   end function emd
 
+  !> Calculate the coefficients of a cubic spline fitting n (>=2)
+  !> points with abscissas x(:) and ordinates y(:). The values in x(:)
+  !> must be strictly increasing. ibeg/iend are the boundary
+  !> conditions at the beginning and end of the interval: 0 = no
+  !> boundary condition (use not-a-knot condition - third derivatives
+  !> are continuous at the boundary points); 1 = the slope at x(1/2)
+  !> equals ypend(1/2); 2 = the second derivative at x(1/2) equals
+  !> ypend(1/2). If not present ibeg/iend = 0. The function
+  !> returns the spline coefficients for the x_i -> x_i+1 interval:
+  !> f(x) = c(1,i) + c(2,i) * h +c(3,i) * h^2 / 2 + c(4,i) * h^3 / 6.
+  !> with h=x-c(5,i), and c(5,i) is equal to x(i). Evaluate with splineval.
+  !>
+  !> Adapted from John Burkdardt's cubspl subroutine, from pppack (Carl de Boor).
+  !> https://people.sc.fsu.edu/~jburkardt/f_src/pppack/pppack.html
+  module function splinefit(n,x,y,ibeg,iend,ypend) result(c)
+    use tools_io, only: ferror, faterr
+    integer, intent(in) :: n
+    real*8, intent(in) :: x(n)
+    real*8, intent(in) :: y(n)
+    integer, intent(in), optional :: ibeg
+    integer, intent(in), optional :: iend
+    real*8, intent(in), optional :: ypend(2)
+    real*8 :: c(5,n)
+
+    integer :: i
+    real*8 :: g, divdf1, divdf3, dtau
+    integer :: ibcbeg, ibcend
+
+    ! process input
+    ibcbeg = 0
+    ibcend = 0
+    if (present(ibeg)) ibcbeg = ibeg
+    if (present(iend)) ibcend = iend
+    if (ibcbeg >= 1 .or. ibcend >= 2) then
+       if (.not.present(ypend)) &
+          call ferror('splinefit','ibeg/iend>=1 must have ypend present',faterr)
+       if (ibcbeg >= 1) c(2,1) = ypend(1)
+       if (ibcend >= 1) c(2,n) = ypend(2)
+    end if
+
+    !  C(3,*) and C(4,*) are used initially for temporary storage.
+    !  Store first differences of the TAU sequence in C(3,*).
+    !  Store first divided difference of data in C(4,*).
+    c(1,:) = y
+    c(5,:) = x
+    do i = 2, n
+       c(3,i) = x(i) - x(i-1)
+    end do
+    do i = 2, n
+       c(4,i) = ( c(1,i) - c(1,i-1) ) / ( x(i) - x(i-1) )
+    end do
+
+    !  Construct the first equation from the boundary condition
+    !  at the left endpoint, of the form:
+    !    C(4,1) * S(1) + C(3,1) * S(2) = C(2,1)
+    if ( ibcbeg == 0 ) then
+       !  IBCBEG = 0: Not-a-knot
+       if ( n <= 2 ) then
+          c(4,1) = 1.0D+00
+          c(3,1) = 1.0D+00
+          c(2,1) = 2.0D+00 * c(4,2)
+          goto 120
+       end if
+
+       c(4,1) = c(3,3)
+       c(3,1) = c(3,2) + c(3,3)
+       c(2,1) = ((c(3,2) + 2.0D+00 * c(3,1)) * c(4,2) * c(3,3) + c(3,2)**2 * c(4,3)) / c(3,1)
+
+    else if ( ibcbeg == 1 ) then
+       !  IBCBEG = 1: derivative specified.
+       c(4,1) = 1.0D+00
+       c(3,1) = 0.0D+00
+       if ( n == 2 ) goto 120
+
+    else
+       !  Second derivative prescribed at left end.
+       c(4,1) = 2.0D+00
+       c(3,1) = 1.0D+00
+       c(2,1) = 3.0D+00 * c(4,2) - c(3,2) / 2.0D+00 * c(2,1)
+
+       if ( n == 2 ) goto 120
+    end if
+
+    !  If there are interior knots, generate the corresponding
+    !  equations and carry out the forward pass of Gauss elimination,
+    !  after which the I-th equation reads:
+    !    C(4,I) * S(I) + C(3,I) * S(I+1) = C(2,I).
+    do i = 2, n-1
+       g = -c(3,i+1) / c(4,i-1)
+       c(2,i) = g * c(2,i-1) + 3.0D+00 * ( c(3,i) * c(4,i+1) + c(3,i+1) * c(4,i) )
+       c(4,i) = g * c(3,i-1) + 2.0D+00 * ( c(3,i) + c(3,i+1))
+    end do
+
+    !  Construct the last equation from the second boundary condition, of
+    !  the form
+    !    -G * C(4,N-1) * S(N-1) + C(4,N) * S(N) = C(2,N)
+    !  If slope is prescribed at right end, one can go directly to
+    !  back-substitution, since the C array happens to be set up just
+    !  right for it at this point.
+    if ( ibcend == 1 ) goto 160
+    if ( 1 < ibcend ) goto 110
+
+    !  Not-a-knot and 3 <= N, and either 3 < N or also not-a-knot
+    !  at left end point.
+    if (n /= 3 .or. ibcbeg /= 0 ) then
+       g = c(3,n-1) + c(3,n)
+       c(2,n) = ((c(3,n) + 2.0D+00 * g) * c(4,n) * c(3,n-1) + c(3,n)**2 * (c(1,n-1) - c(1,n-2)) / c(3,n-1)) / g
+       g = - g / c(4,n-1)
+       c(4,n) = c(3,n-1)
+       c(4,n) = c(4,n) + g * c(3,n-1)
+       c(2,n) = (g * c(2,n-1) + c(2,n)) / c(4,n)
+       goto 160
+    end if
+
+    ! N = 3 and not-a-knot also at left.
+    c(2,n) = 2.0D+00 * c(4,n)
+    c(4,n) = 1.0D+00
+    g = -1.0D+00 / c(4,n-1)
+    c(4,n) = c(4,n) - c(3,n-1) / c(4,n-1)
+    c(2,n) = (g * c(2,n-1) + c(2,n)) / c(4,n)
+    goto 160
+
+    ! IBCEND = 2: Second derivative prescribed at right endpoint.
+110 continue
+
+    c(2,n) = 3.0D+00 * c(4,n) + c(3,n) / 2.0D+00 * c(2,n)
+    c(4,n) = 2.0D+00
+    g = -1.0D+00 / c(4,n-1)
+    c(4,n) = c(4,n) - c(3,n-1) / c(4,n-1)
+    c(2,n) = (g * c(2,n-1) + c(2,n)) / c(4,n)
+    goto 160
+
+    !  N = 2.
+120 continue
+
+    if (ibcend == 2) then
+       c(2,n) = 3.0D+00 * c(4,n) + c(3,n) / 2.0D+00 * c(2,n)
+       c(4,n) = 2.0D+00
+       g = -1.0D+00 / c(4,n-1)
+       c(4,n) = c(4,n) - c(3,n-1) / c(4,n-1)
+       c(2,n) = (g * c(2,n-1) + c(2,n)) / c(4,n)
+    else if ( ibcend == 0 .and. ibcbeg /= 0 ) then
+       c(2,n) = 2.0D+00 * c(4,n)
+       c(4,n) = 1.0D+00
+       g = -1.0D+00 / c(4,n-1)
+       c(4,n) = c(4,n) - c(3,n-1) / c(4,n-1)
+       c(2,n) = (g * c(2,n-1) + c(2,n)) / c(4,n)
+    else if ( ibcend == 0 .and. ibcbeg == 0 ) then
+       c(2,n) = c(4,n)
+    end if
+
+    ! Back solve the upper triangular system
+    !   C(4,I) * S(I) + C(3,I) * S(I+1) = B(I)
+    ! for the slopes C(2,I), given that S(N) is already known.
+160 continue
+
+    do i = n-1, 1, -1
+       c(2,i) = (c(2,i) - c(3,i) * c(2,i+1)) / c(4,i)
+    end do
+
+    ! Generate cubic coefficients in each interval, that is, the
+    ! derivatives at its left endpoint, from value and slope at its
+    ! endpoints.
+    do i = 2, n
+       dtau = c(3,i)
+       divdf1 = ( c(1,i) - c(1,i-1) ) / dtau
+       divdf3 = c(2,i-1) + c(2,i) - 2.0D+00 * divdf1
+       c(3,i-1) = ( divdf1 - c(2,i-1) - divdf3 ) / dtau
+       c(4,i-1) = divdf3 / dtau**2
+    end do
+
+  end function splinefit
+
+  !> Evaluate the spline determined by coefficients c (output of
+  !> splinefit) with n knots at x. Return the result in y.
+  module function splineval(n,c,x) result (y)
+    integer, intent(in) :: n
+    real*8, intent(in) :: c(5,n)
+    real*8, intent(in) :: x
+    real*8 :: y
+
+    integer :: i
+    real*8 :: h
+
+    ! locate the bracket; use the last interval on either end if
+    ! the point is outside the spline range
+    do i = 1, n
+       if (x < c(5,i)) exit
+    end do
+    if (i > 1) i = i - 1
+
+    ! interpolate
+    h = x - c(5,i)
+    y = c(1,i) + h * (c(2,i) + h * (c(3,i) + h * c(4,i)))
+
+  end function splineval
+
   !xx! private procedures
 
   !< RHS of the BR hole equation, and derivative.
