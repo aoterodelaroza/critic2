@@ -2363,6 +2363,29 @@ contains
 
   end function splineval
 
+  !> Given a set of n points with coordinates x and y, interpolate
+  !> linearly at xi and return the interpolated y value (yi). The
+  !> x are assumed to be in increasing order.
+  module function interp1(n,x,y,xi) result(yi)
+    integer, intent(in) :: n
+    real*8, intent(in) :: x(n), y(n), xi
+    real*8 :: yi
+
+    integer :: i, iopt
+
+    if (xi < x(1)) then
+       iopt = 1
+    else
+       do i = 2, n
+          iopt = i
+          if (xi < x(i)) exit
+       end do
+       iopt = iopt - 1
+    end if
+    yi = y(iopt) + (y(iopt+1) - y(iopt)) / (x(iopt+1) - x(iopt)) * (xi - x(iopt))
+
+  end function interp1
+
   !xx! private procedures
 
   !< RHS of the BR hole equation, and derivative.

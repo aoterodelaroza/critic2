@@ -68,6 +68,7 @@ module tools_math
   public :: emd
   public :: splinefit
   public :: splineval
+  public :: interp1
   !xx! lebedev submodule !xx!
   public :: good_lebedev
   public :: select_lebedev
@@ -384,6 +385,11 @@ module tools_math
        real*8, intent(in) :: x
        real*8 :: y
      end function splineval
+     module function interp1(n,x,y,xi) result(yi)
+       integer, intent(in) :: n
+       real*8, intent(in) :: x(n), y(n), xi
+       real*8 :: yi
+     end function interp1
      !xx! lebedev submodule
      module subroutine good_lebedev(npts)
        integer, intent(inout) :: npts
