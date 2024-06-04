@@ -125,6 +125,15 @@ void c2_peaks_calculate_profile(xrpd_peaklist *pk,int n,double th2ini,double th2
 // Destroy the input XRPD peaks structure object and free the memory.
 void c2_destroy_peaks(xrpd_peaklist *pk);
 
+//// Background estimation ////
+// Read a XRPD pattern from file xyfile and estimate the background
+// contribution using David/Sivia's method with nknot knots in the
+// cubic spline (if nknot <= 0, defaults to 20). Write the resulting
+// background to file xyback (if non-NULL) and the original pattern
+// minus the background to file xyclean (if non-NULL).
+void c2_profile_background(const char *xyfile,const char *xyback,const char *xyclean,
+			   int nknot);
+
 //// (VC-)GPWDF ////
 
 // Compare crystal c1 and set of XRPD peaks p2 using GPWDF. alpha =

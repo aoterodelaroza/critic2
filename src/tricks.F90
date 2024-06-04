@@ -3214,15 +3214,16 @@ contains
 #endif
   end subroutine trick_profile_refit
 
-  ! PROFILE_BACKGROUND file-xy.s file-newxy.s
+  ! PROFILE_BACKGROUND file-xy.s file-newxy.s [nknot.i]
   subroutine trick_profile_background(line0)
     use tools_io, only: uout, getword, file_read_xy, ferror, faterr, fopen_write,&
-       fclose, string
+       fclose, string, isinteger
     use crystalmod, only: david_sivia_calculate_background
     character*(*), intent(in) :: line0
 
+    logical :: ok
     character(len=:), allocatable :: xyfile, file, errmsg
-    integer :: lpo, n, lu, i
+    integer :: lpo, n, lu, i, nknot
     real*8, allocatable :: x(:), y(:), yout(:)
 
     ! read file names and header
@@ -3232,6 +3233,10 @@ contains
     write (uout,'("+ Reading the pattern from file: ",A)') trim(xyfile)
     file = getword(line0,lpo)
     write (uout,'("+ Writting background to file: ",A)') trim(file)
+    ok = isinteger(nknot,line0,lpo)
+    if (.not.ok) nknot = 20
+    write (uout,'("+ Number of knots: ",A)') string(nknot)
+    write (uout,*)
 
     ! read the pattern
     call file_read_xy(xyfile,n,x,y,errmsg)
@@ -3239,7 +3244,7 @@ contains
        call ferror('trick_profile_background',errmsg,faterr)
 
     ! calculate the background
-    yout = david_sivia_calculate_background(n,x,y,errmsg)
+    yout = david_sivia_calculate_background(n,x,y,errmsg,nknot=nknot)
     if (len_trim(errmsg) > 0) &
        call ferror('trick_profile_background',errmsg,faterr)
 

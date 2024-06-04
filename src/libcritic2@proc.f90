@@ -500,6 +500,71 @@ contains
 
   end subroutine c2_destroy_peaks
 
+  !> Read a XRPD pattern from file xyfile and estimate the background
+  !> contribution using David/Sivia's method with nknot knots in the
+  !> cubic spline (if nknot <= 0, defaults to 20). Write the resulting
+  !> background to file xyback (if non-NULL) and the original pattern
+  !> minus the background to file xyclean (if non-NULL).
+  module subroutine c2_profile_background(xyfile,xyback,xyclean,nknot) bind(c,name="c2_profile_background")
+    use crystalmod, only: david_sivia_calculate_background
+    use c_interface_module, only: c_f_string_alloc
+    use tools_io, only: file_read_xy, fopen_write, fclose, string
+    type(c_ptr), value, intent(in) :: xyfile
+    type(c_ptr), value, intent(in) :: xyback
+    type(c_ptr), value, intent(in) :: xyclean
+    integer, value, intent(in) :: nknot
+
+    integer :: n, lu, i
+    character(len=:), allocatable :: fname, errmsg
+    real*8, allocatable :: x(:), y(:), yout(:)
+
+    ! consistency checks
+    if (.not.critic2_init) call initialize_critic2()
+    if (.not.c_associated(xyfile)) return
+    call c_f_string_alloc(xyfile,fname)
+
+    ! read the pattern
+    call file_read_xy(fname,n,x,y,errmsg)
+    if (len_trim(errmsg) > 0) return
+
+    ! calculate the background
+    if (nknot >= 2) then
+       yout = david_sivia_calculate_background(n,x,y,errmsg,nknot=nknot)
+    else
+       yout = david_sivia_calculate_background(n,x,y,errmsg)
+    endif
+    if (len_trim(errmsg) > 0) return
+
+    ! write the background
+    if (c_associated(xyback)) then
+       call c_f_string_alloc(xyback,fname)
+
+       ! write the background to the file
+       lu = fopen_write(fname)
+       write (lu,'("## x  ybackground")')
+       do i = 1, n
+          write (lu,'(4(A,X))') string(x(i),'f',decimal=10),&
+             string(yout(i),'e',decimal=10)
+       end do
+       call fclose(lu)
+    end if
+
+    ! write the background
+    if (c_associated(xyclean)) then
+       call c_f_string_alloc(xyclean,fname)
+
+       ! write the background to the file
+       lu = fopen_write(fname)
+       write (lu,'("## x  yclean")')
+       do i = 1, n
+          write (lu,'(4(A,X))') string(x(i),'f',decimal=10),&
+             string(y(i)-yout(i),'e',decimal=10)
+       end do
+       call fclose(lu)
+    end if
+
+  end subroutine c2_profile_background
+
   !> Compare crystal c1 and set of XRPD peaks p2 using GPWDF. alpha =
   !> Gaussian triangle width. lambda = wavelength in angstrom. fpol =
   !> polarization correction factor (0 = unpolarized, 0.95 =

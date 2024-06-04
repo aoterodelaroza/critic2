@@ -1923,8 +1923,9 @@ contains
   !> given by 2*theta (x) and profile intensity (y) and return it in
   !> yb(n). The x must be in strict increasing order. The background
   !> is estimated using robust Bayesian analysis, as proposed in David
-  !> and Sivia, J. Appl. Cryst. 34 (2001) 318.
-  module function david_sivia_calculate_background(n,x,y,errmsg) result(yb)
+  !> and Sivia, J. Appl. Cryst. 34 (2001) 318. nknot = number of knots
+  !> in the spline (default: 20).
+  module function david_sivia_calculate_background(n,x,y,errmsg,nknot) result(yb)
     use tools_math, only: splinefit, splineval
     use tools_io, only: fopen_write, fclose
     integer, intent(in) :: n
@@ -1932,6 +1933,7 @@ contains
     real*8, intent(in) :: y(n)
     character(len=:), allocatable, intent(out) :: errmsg
     real*8 :: yb(n)
+    integer, intent(in), optional :: nknot
 #ifndef HAVE_NLOPT
     errmsg = "david_sivia_calculate_background can only be used if nlopt is available"
     yb = 0d0
@@ -1943,15 +1945,15 @@ contains
     integer*8 :: opt
     integer :: ires
 
-    integer, parameter :: nknot0 = 25
+    integer, parameter :: nknot0 = 20
     real*8, parameter :: ftol_eps = 1d-8
 
     include 'nlopt.f'
 
-    ! set up the initial knots
+    ! set up the initial knots and initialize
     errmsg = ""
-    nk = max(min(nknot0,n/2),2)
-    nk = 20 ! xxxxx
+    nk = nknot0
+    if (present(nknot)) nk = nknot
 
     allocate(xk(nk),yk(nk))
     do i = 1, nk

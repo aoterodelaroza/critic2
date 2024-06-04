@@ -103,6 +103,12 @@ module libcritic2
      module subroutine c2_destroy_peaks(pk) bind(c,name="c2_destroy_peaks")
        type(c_ptr), value, intent(in) :: pk
      end subroutine c2_destroy_peaks
+     module subroutine c2_profile_background(xyfile,xyback,xyclean,nknot) bind(c,name="c2_profile_background")
+       type(c_ptr), value, intent(in) :: xyfile
+       type(c_ptr), value, intent(in) :: xyback
+       type(c_ptr), value, intent(in) :: xyclean
+       integer, value, intent(in) :: nknot
+     end subroutine c2_profile_background
      module function c2_compare_gpwdf(c1,p2,alpha,lambda,fpol) bind(c,name="c2_compare_gpwdf")
        type(c_ptr), value, intent(in) :: c1
        type(c_ptr), value, intent(in) :: p2
