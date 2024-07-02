@@ -96,6 +96,7 @@ module crystalseedmod
      procedure :: read_aimsin
      procedure :: read_aimsout
      procedure :: read_tinkerfrac
+     procedure :: report
   end type crystalseed
   public :: crystalseed
 
@@ -383,6 +384,9 @@ module crystalseedmod
        integer, intent(out), optional :: iafield
        type(thread_info), intent(in), optional :: ti
      end subroutine read_seeds_from_file
+     module subroutine report(seed)
+       class(crystalseed), intent(inout) :: seed
+     end subroutine report
   end interface
 
 end module crystalseedmod

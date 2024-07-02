@@ -5349,6 +5349,62 @@ contains
 
   end subroutine read_seeds_from_file
 
+  !> Report the contents of a crystalseed (debug only)
+  module subroutine report(seed)
+    use tools_io, only: uout, string
+    class(crystalseed), intent(inout) :: seed
+
+    integer :: i, j
+
+    write (uout,'("isused = ",A)') string(seed%isused)
+    write (uout,'("file = ",A)') string(seed%file)
+    write (uout,'("name = ",A)') string(seed%name)
+    write (uout,*)
+
+    write (uout,'("## species (",A,")")') string(seed%nspc)
+    do i = 1, seed%nspc
+       write (uout,'(99(A,X))') string(seed%spc(i)%z), string(seed%name)
+    end do
+    write (uout,*)
+
+    write (uout,'("## atomic positions (",A,")")') string(seed%nat)
+    do i = 1, seed%nat
+       write (uout,'(99(A,X))') string(seed%is(i)), &
+          (string(seed%x(j,i),'f',decimal=10),j=1,3)
+    end do
+    write (uout,*)
+
+    write (uout,'("## cell")')
+    write (uout,'("useabr = ",A)') string(seed%useabr)
+    if (seed%useabr == 1) then
+       write (uout,'("aa = ",3(A,X))') (string(seed%aa(i),'f',decimal=8),i=1,3)
+       write (uout,'("bb = ",3(A,X))') (string(seed%bb(i),'f',decimal=5),i=1,3)
+    else
+       write (uout,'("x2c = ",3(A,X))') (string(seed%m_x2c(1,i),'f',decimal=8),i=1,3)
+       write (uout,'("x2c = ",3(A,X))') (string(seed%m_x2c(2,i),'f',decimal=8),i=1,3)
+       write (uout,'("x2c = ",3(A,X))') (string(seed%m_x2c(3,i),'f',decimal=8),i=1,3)
+    end if
+    write (uout,*)
+
+    write (uout,'("## symmetry")')
+    write (uout,'("havesym = ",A)') string(seed%havesym)
+    write (uout,'("findsym = ",A)') string(seed%findsym)
+    write (uout,'("checkrepeats = ",A)') string(seed%checkrepeats)
+    write (uout,'("neqv = ",A)') string(seed%neqv)
+    write (uout,'("ncv = ",A)') string(seed%ncv)
+    write (uout,*)
+
+    write (uout,'("## extra fields")')
+    write (uout,'("ismolecule = ",A)') string(seed%ismolecule)
+    write (uout,'("cubic = ",A)') string(seed%cubic)
+    write (uout,'("border = ",A)') string(seed%border,'f',decimal=4)
+    write (uout,'("havex0 = ",A)') string(seed%havex0)
+    write (uout,'("molx0 = ",3(A,X))') (string(seed%molx0(i),'f',decimal=4),i=1,3)
+    write (uout,'("energy = ",A)') string(seed%energy,'e',decimal=10)
+    write (uout,'("pressure = ",A)') string(seed%pressure,'e',decimal=2)
+
+  end subroutine report
+
   !> Define the assignment operator for the crystal seed class.
   module subroutine assign_crystalseed(to,from)
     class(crystalseed), intent(out) :: to
