@@ -1884,7 +1884,6 @@ contains
        if (num <= 2) then ! triclinic
           write (lu,'(6(A," "))') (string(caux%aa(i)*bohrtoa,'f',15,8),i=1,3), (string(caux%bb(j),'f',15,8),j=1,3)
        elseif (num <= 15) then ! monoclinic
-          write (*,*) abs(caux%bb - 90d0)
           idang = maxloc(abs(caux%bb - 90d0),1)
           write (lu,'(6(A," "))') (string(caux%aa(i)*bohrtoa,'f',15,8),i=1,3), string(caux%bb(idang),'f',15,8)
        elseif (num <= 74) then ! orthorhombic
