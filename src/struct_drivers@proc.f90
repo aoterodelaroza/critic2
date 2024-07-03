@@ -732,13 +732,13 @@ contains
     elseif (equal(wext,'cif') .or. equal(wext,'d12') .or. equal(wext,'res')) then
        ! cif and d12
        dosym = .true.
-       doexternal = .false.
+       doexternal = .true.
        do while(.true.)
           word = lgetword(line,lp)
           if (equal(word,'nosym').or.equal(word,'nosymm')) then
              dosym = .false.
-          elseif (equal(word,'external')) then
-             doexternal = .true.
+          elseif (equal(word,'noexternal')) then
+             doexternal = .false.
           elseif (len_trim(word) > 1) then
              call ferror('struct_write','Unknown extra keyword',faterr,line,syntax=.true.)
              return
