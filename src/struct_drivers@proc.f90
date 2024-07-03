@@ -752,7 +752,7 @@ contains
           call s%c%write_cif(file,dosym)
        elseif (equal(wext,'d12')) then
           write (uout,'("* WRITE crystal file: ",A)') string(file)
-          if (.not.s%c%ismolecule.and.dosym) &
+          if (doexternal) &
              write (uout,'(/"+ WRITE fort.34 file: ",A)') file(:index(file,'.',.true.)-1) // ".fort.34"
           call s%c%write_d12(file,dosym,doexternal)
        elseif (equal(wext,'res')) then
