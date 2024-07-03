@@ -763,7 +763,7 @@ contains
     elseif (equal(wext,'cif')) then
        call c%write_cif(file,.true.,ti=ti)
     elseif (equal(wext,'d12').or.equal(wext,'34')) then
-       call c%write_d12(file,.true.,ti=ti)
+       call c%write_d12(file,.true.,.false.,ti=ti)
     elseif (equal(wext,'res')) then
        call c%write_res(file,-1,ti=ti)
     elseif (equal(wext,'m')) then
@@ -1832,21 +1832,25 @@ contains
   end subroutine write_cif
 
   !> Write a simple d12 file
-  module subroutine write_d12(c,file,dosym,ti)
+  module subroutine write_d12(c,file,dosym,doexternal,ti)
     use tools_io, only: fopen_write, fclose, string
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     logical, intent(in) :: dosym
+    logical, intent(in) :: doexternal
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: file34
     character(len=3) :: schpg
     integer :: lu, holo, laue
-    integer :: i, j, k, l
+    integer :: i, j, k, l, num, idang
     real*8 :: x(3)
     real*8 :: dum(3,3)
+    logical :: need34
+    type(crystal) :: caux
 
+    need34 = .false.
     lu = fopen_write(file,ti=ti)
     write (lu,'("Title")')
     if (c%ismolecule) then
@@ -1857,9 +1861,10 @@ contains
           write (lu,'(4(A," "))') string(c%spc(c%atcel(i)%is)%z), &
              (string((c%atcel(i)%r(j)+c%molx0(j))*bohrtoa,'f',15,8),j=1,3)
        end do
-    elseif (dosym) then
+    elseif (doexternal) then
        write (lu,'("EXTERNAL")')
-    else
+       need34 = .true.
+    elseif (.not.dosym) then
        write (lu,'("CRYSTAL")')
        write (lu,'("0 0 0")')
        write (lu,'("1")')
@@ -1868,6 +1873,35 @@ contains
        do i = 1, c%ncel
           write (lu,'(4(A," "))') string(c%spc(c%atcel(i)%is)%z), (string(c%atcel(i)%x(j),'f',15,8),j=1,3)
        end do
+    else
+       caux = c
+       dum = caux%cell_standard(.false.,.false.,.true.)
+
+       write (lu,'("CRYSTAL")')
+       write (lu,'("0 0 0")')
+       num = caux%spg%spacegroup_number
+       write (lu,'(A)') string(num)
+       if (num <= 2) then ! triclinic
+          write (lu,'(6(A," "))') (string(caux%aa(i)*bohrtoa,'f',15,8),i=1,3), (string(caux%bb(j),'f',15,8),j=1,3)
+       elseif (num <= 15) then ! monoclinic
+          ! idang = maxloc(abs(caux%bb - 90d0))
+          ! write (lu,'(6(A," "))') (string(caux%aa(i)*bohrtoa,'f',15,8),i=1,3), string(caux%bb(idang),'f',15,8)
+          write (*,*) idang ! xxxx
+       elseif (num <= 74) then ! orthorhombic
+          write (lu,'(6(A," "))') (string(caux%aa(i)*bohrtoa,'f',15,8),i=1,3)
+       elseif (num <= 142) then ! tetragonal
+          write (lu,'(6(A," "))') string(caux%aa(1)*bohrtoa,'f',15,8), string(caux%aa(3)*bohrtoa,'f',15,8)
+       elseif (num <= 167) then ! trigonal
+          write (lu,'(6(A," "))') string(caux%aa(1)*bohrtoa,'f',15,8), string(caux%aa(3)*bohrtoa,'f',15,8)
+       elseif (num <= 194) then ! hexagonal
+          write (lu,'(6(A," "))') string(caux%aa(1)*bohrtoa,'f',15,8), string(caux%aa(3)*bohrtoa,'f',15,8)
+       else ! cubic
+          write (lu,'(6(A," "))') string(caux%aa(1)*bohrtoa,'f',15,8)
+       end if
+       write (lu,'(A)') string(caux%nneq)
+       do i = 1, caux%nneq
+          write (lu,'(4(A," "))') string(caux%spc(caux%at(i)%is)%z), (string(caux%at(i)%x(j),'f',15,8),j=1,3)
+       end do
     end if
     write (lu,'("TESTGEOM")')
     write (lu,'("END")')
@@ -1875,7 +1909,7 @@ contains
     write (lu,'("END")')
     call fclose(lu)
 
-    if (.not.c%ismolecule.and.dosym) then
+    if (need34) then
        file34 = file(:index(file,'.',.true.)-1) // ".fort.34"
        lu = fopen_write(file34,ti=ti)
 

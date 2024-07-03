@@ -825,10 +825,11 @@ module crystalmod
        logical, intent(in) :: usesym0
        type(thread_info), intent(in), optional :: ti
      end subroutine write_cif
-     module subroutine write_d12(c,file,dosym,ti)
+     module subroutine write_d12(c,file,dosym,doexternal,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
        logical, intent(in) :: dosym
+       logical, intent(in) :: doexternal
        type(thread_info), intent(in), optional :: ti
      end subroutine write_d12
      module subroutine write_res(c,file,dosym,ti)

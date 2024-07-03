@@ -327,8 +327,9 @@ contains
   !> Transform to the standard cell. If toprim, convert to the
   !> primitive standard cell. If doforce = .true., force the
   !> transformation to the primitive even if it does not lead to a
-  !> smaller cell. Return the transformation matrix, or a matrix
-  !> of zeros if no change was done.
+  !> smaller cell. Refine = refine the symmetry positions. noenv = do
+  !> not initialize the environment. Return the transformation matrix,
+  !> or a matrix of zeros if no change was done.
   module function cell_standard(c,toprim,doforce,refine,noenv,ti) result(x0)
     use iso_c_binding, only: c_double
     use spglib, only: spg_standardize_cell

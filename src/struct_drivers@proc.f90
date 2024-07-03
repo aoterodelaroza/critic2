@@ -526,7 +526,7 @@ contains
     character(len=:), allocatable :: word, wext, file, wroot
     integer :: lp, ix(3), lp2, iaux, nmer, idx
     logical :: doborder, molmotif, dosym, docell, domolcell, ok, isqe
-    logical :: onemotif, environ, lnmer
+    logical :: onemotif, environ, lnmer, doexternal
     real*8 :: rsph, xsph(3), rcub, xcub(3), renv, rk
 
     lp = 1
@@ -732,10 +732,13 @@ contains
     elseif (equal(wext,'cif') .or. equal(wext,'d12') .or. equal(wext,'res')) then
        ! cif and d12
        dosym = .true.
+       doexternal = .false.
        do while(.true.)
           word = lgetword(line,lp)
           if (equal(word,'nosym').or.equal(word,'nosymm')) then
              dosym = .false.
+          elseif (equal(word,'external')) then
+             doexternal = .true.
           elseif (len_trim(word) > 1) then
              call ferror('struct_write','Unknown extra keyword',faterr,line,syntax=.true.)
              return
@@ -748,11 +751,10 @@ contains
           write (uout,'("* WRITE cif file: ",A)') string(file)
           call s%c%write_cif(file,dosym)
        elseif (equal(wext,'d12')) then
-
           write (uout,'("* WRITE crystal file: ",A)') string(file)
           if (.not.s%c%ismolecule.and.dosym) &
              write (uout,'(/"+ WRITE fort.34 file: ",A)') file(:index(file,'.',.true.)-1) // ".fort.34"
-          call s%c%write_d12(file,dosym)
+          call s%c%write_d12(file,dosym,doexternal)
        elseif (equal(wext,'res')) then
           write (uout,'("* WRITE res file: ",A)') string(file)
           if (dosym) then
