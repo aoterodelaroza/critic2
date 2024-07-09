@@ -1009,7 +1009,7 @@ contains
           r%onemotif = .false.
        else
           r%border = .true.
-          r%onemotif = .true.
+          r%onemotif = (sys(isys)%c%nmol > 1)
           r%ncell = 1
        end if
     elseif (itype == reptype_unitcell) then
