@@ -759,8 +759,8 @@ contains
           if (sys(w%view_selected)%c%nmol > 1) &
              msg = msg // ",molid=" // string(sys(w%view_selected)%c%idatcelmol(icel))
           msg = msg // "] " //&
-             string(x0(1),'f',decimal=4) //" "// string(x0(2),'f',decimal=4) //" "//&
-             string(x0(3),'f',decimal=4) // " (frac)"
+             string(x0(1)+idx(2),'f',decimal=4) //" "// string(x0(2)+idx(3),'f',decimal=4) //" "//&
+             string(x0(3)+idx(4),'f',decimal=4) // " (frac)"
        else
           x0 = (sys(w%view_selected)%c%atcel(icel)%r+sys(w%view_selected)%c%molx0) * dunit0(iunit_ang)
 
