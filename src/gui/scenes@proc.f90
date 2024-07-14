@@ -583,7 +583,7 @@ contains
           s%rep(i)%bond_color_style=0
           s%rep(i)%bond_rgb = 0._c_float
        end do
-       s%atomborder = 0.2_c_float
+       s%atomborder = 0.1_c_float
        s%bordercolor = 0._c_float
     end if
 
@@ -971,7 +971,7 @@ contains
     r%atom_radii_reset_type = 0
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
-    r%bond_rad = 0.2_c_float
+    r%bond_rad = 0.35_c_float
     r%label_style = 0
     r%label_scale = 0.5_c_float
     r%label_const_size = .false._c_bool
