@@ -3058,15 +3058,17 @@ contains
     use systemmod, only: system
     use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, ferror, faterr,&
        getword, isinteger, string
+    use global, only: eval_next_real, iunit, iunit_fractional, iunit_bohr, iunit_ang
     use types, only: realloc
     type(system), intent(inout) :: s
     logical, intent(in) :: verbose
 
     character(len=:), allocatable :: line, word, errmsg
-    integer :: lp
-    integer :: idx, nat, i
+    integer :: lp, lp2
+    integer :: idx, nat, i, iunit_l
     integer, allocatable :: iat(:)
-    logical :: ok
+    logical :: ok, dorelative
+    real*8 :: x(3)
 
     if (verbose) then
        write (uout,'("* Edit the crystal or molecular structure (EDIT)")')
@@ -3132,6 +3134,49 @@ contains
           else
              goto 999
           end if
+       elseif (equal(word,"move")) then
+          ! read atom ID and position
+          ok = isinteger(idx,line,lp)
+          if (.not.ok) then
+             errmsg = "invalid atom number in move"
+             goto 999
+          end if
+          if (idx < 1 .or. idx > s%c%ncel) then
+             errmsg = "atomic ID " // string(idx) // " outside valid range"
+             goto 999
+          end if
+          ok = eval_next_real(x(1),line,lp)
+          ok = ok .and. eval_next_real(x(2),line,lp)
+          ok = ok .and. eval_next_real(x(3),line,lp)
+
+          ! parse the rest of the options
+          if (s%c%ismolecule) then
+             iunit_l = iunit
+          else
+             iunit_l = iunit_fractional
+          end if
+          dorelative = .false.
+          do while (.true.)
+             word = lgetword(line,lp)
+             if (equal(word,"relative")) then
+                dorelative = .true.
+             elseif (equal(word,"bohr")) then
+                iunit_l = iunit_bohr
+             elseif (equal(word,"ang").or.equal(word,"angstrom")) then
+                iunit_l = iunit_ang
+             elseif (len_trim(word) == 0) then
+                exit
+             else
+                errmsg = "unknown extra keyword: " // word
+                goto 999
+             end if
+          end do
+
+          ! transform
+          call s%c%move_atom(idx,x,iunit_l,dorelative)
+          call s%reset_fields()
+          if (verbose) &
+             call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
        elseif (equal(word,"end") .or. equal(word,"endedit")) then
           exit
        elseif (len_trim(word) > 0) then

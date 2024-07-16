@@ -220,6 +220,7 @@ module crystalmod
      procedure :: reorder_atoms !< reorder the atoms in the crystal/molecule
      procedure :: wholemols !< Re-assign atomic types to have an asymmetric unit with whole molecules
      procedure :: delete_atoms !< Delete a list of atoms
+     procedure :: move_atom !< Move an atom
 
      ! symmetry (symmetry)
      procedure :: sitesymm !< Determine the local-symmetry group symbol for a point
@@ -638,6 +639,14 @@ module crystalmod
        integer, intent(in) :: iat(nat)
        type(thread_info), intent(in), optional :: ti
      end subroutine delete_atoms
+     module subroutine move_atom(c,idx,x,iunit_l,dorelative,ti)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: idx
+       real*8, intent(in) :: x(3)
+       integer, intent(in) :: iunit_l
+       logical, intent(in) :: dorelative
+       type(thread_info), intent(in), optional :: ti
+     end subroutine move_atom
      module function sitesymm(c,x0,eps0,leqv,lrotm)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3)

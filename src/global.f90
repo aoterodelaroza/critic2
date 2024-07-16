@@ -100,6 +100,7 @@ module global
   integer :: iunit
   logical :: iunit_isdef
 
+  integer, parameter :: iunit_fractional = 0
   integer, parameter :: iunit_bohr = 1
   integer, parameter :: iunit_ang = 2
   character*4, parameter :: iunitname0(2) = (/"bohr","ang_"/)

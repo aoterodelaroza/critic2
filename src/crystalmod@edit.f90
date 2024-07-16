@@ -787,4 +787,45 @@ contains
 
   end subroutine delete_atoms
 
+  !> Move atom with complete list ID idx to position x in units of
+  !> iunit_l (see global). If dorelative, the movement is relative to
+  !> its current position.
+  module subroutine move_atom(c,idx,x,iunit_l,dorelative,ti)
+    use crystalseedmod, only: crystalseed
+    use global, only: iunit_ang, iunit_bohr
+    use param, only: bohrtoa
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: idx
+    real*8, intent(in) :: x(3)
+    integer, intent(in) :: iunit_l
+    logical, intent(in) :: dorelative
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: seed
+    real*8 :: xx(3)
+
+    ! make seed from this crystal
+    call c%makeseed(seed,copysym=.false.)
+
+    ! interpret units
+    if (iunit_l == iunit_ang) then
+       xx = x / bohrtoa
+       xx = c%c2x(xx)
+    elseif (iunit_l == iunit_bohr) then
+       xx = c%c2x(x)
+    else
+       xx = x
+    end if
+
+    if (dorelative) then
+       seed%x(:,idx) = seed%x(:,idx) + xx
+    else
+       seed%x(:,idx) = xx
+    end if
+
+    ! build the new crystal
+    call c%struct_new(seed,crashfail=.true.,ti=ti)
+
+  end subroutine move_atom
+
 end submodule edit
