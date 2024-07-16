@@ -233,8 +233,9 @@ contains
                 trim(get_bind_keyname(BIND_VIEW_TOGGLE_CELL)) // ").",ttshown)
           end if
 
-          ! number of cells selector
+          ! periodicity (number of cells) selector
           if (.not.sys(w%view_selected)%c%ismolecule) then
+             ! title
              call igAlignTextToFramePadding()
              call iw_text("Periodicity",highlight=.true.)
              if (iw_button("Reset##periodicity",sameline=.true.)) then
@@ -243,6 +244,7 @@ contains
              end if
              call iw_tooltip("Reset the number of cells to one",ttshown)
 
+             ! number of cells in each direction
              ! calculate widths
              ipad = ceiling(log10(max(maxval(w%sc%nc),1) + 0.1))
              sqw = max(iw_calcwidth(1,1),igGetTextLineHeightWithSpacing())
@@ -290,7 +292,6 @@ contains
                 w%sc%nc = nc
                 chbuild = .true.
              end if
-
              call igPopItemWidth()
           end if
 
@@ -1785,17 +1786,26 @@ contains
     ! origin of the atoms
     call igPushItemWidth(iw_calcwidth(21,3))
     if (sys(isys)%c%ismolecule) then
-       str1 = "Origin shift (Å)##originatom" // c_null_char
+       str1 = "Translate Origin (Å)##originatom" // c_null_char
        str2 = "%.4f" // c_null_char
        changed = changed .or. igDragFloat3(c_loc(str1),w%rep%origin,&
           0.01_c_float,-FLT_MAX,FLT_MAX,c_loc(str2),ImGuiSliderFlags_None)
+       call iw_tooltip("Translation vector for the contents of the unit cell.",ttshown)
     else
-       str1 = "Origin shift (fractional coord.)##originatom" // c_null_char
+       ! origin translation
+       str1 = "Translate Origin (fractional)##originatom" // c_null_char
        str2 = "%.5f" // c_null_char
        changed = changed .or. igDragFloat3(c_loc(str1),w%rep%origin,&
           0.001_c_float,-FLT_MAX,FLT_MAX,c_loc(str2),ImGuiSliderFlags_None)
+       call iw_tooltip("Translation vector for the contents of the unit cell.",ttshown)
+
+       ! origin shift
+       str1 = "Cell Origin Shift (fractional)##origincell" // c_null_char
+       str2 = "%.5f" // c_null_char
+       changed = changed .or. igDragFloat3(c_loc(str1),w%rep%tshift,&
+          0.001_c_float,-FLT_MAX,FLT_MAX,c_loc(str2),ImGuiSliderFlags_None)
+       call iw_tooltip("Displace the origin of the cell being represented.",ttshown)
     end if
-    call iw_tooltip("Coordinates for the origin shift of the atoms/bonds/labels",ttshown)
     call igPopItemWidth()
 
     !!! atom selection !!!

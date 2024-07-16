@@ -983,6 +983,7 @@ contains
     r%uc_inner = .true.
     r%uc_coloraxes = .true.
     r%origin = 0._c_float
+    r%tshift = 0._c_float
 
     ! style-dependent settings
     if (style == style_phong) then
@@ -1133,7 +1134,7 @@ contains
     integer, intent(in) :: nmsel
 
     type(hash) :: shown_atoms
-    logical :: havefilter, step, isedge(3)
+    logical :: havefilter, step, isedge(3), usetshift
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
     real(c_float) :: rgb(3), rad
@@ -1188,6 +1189,7 @@ contains
        !! first, the atoms
        ! do we have a filter?
        havefilter = (len_trim(r%filter) > 0) .and. (len_trim(r%errfilter) == 0)
+       usetshift = any(abs(r%tshift) > 1d-5)
 
        ! calculate the periodicity
        n = 1
@@ -1265,8 +1267,12 @@ contains
           do i1 = n0(1), n1(1)
              do i2 = n0(2), n1(2)
                 do i3 = n0(3), n1(3)
-                   ! atoms
                    ix = (/i1,i2,i3/) + lvec
+                   if (usetshift) then
+                      xx = sys(r%id)%c%atcel(i)%x - r%tshift
+                      ix = ix + nint(xx - floor(xx) + r%tshift - sys(r%id)%c%atcel(i)%x)
+                   end if
+
                    xx = sys(r%id)%c%atcel(i)%x + ix
                    xx = sys(r%id)%c%x2c(xx)
 
