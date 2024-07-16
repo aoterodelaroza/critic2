@@ -200,7 +200,7 @@ contains
                    do m = 1, c%ncel
                       nn = nn + 1
                       ncseed%is(nn) = c%atcel(m)%is
-                      ncseed%x(:,nn) = c%atcel(m)%x / real(nvec,8) + xshift
+                      ncseed%x(:,nn) = (c%atcel(m)%x-t) / real(nvec,8) + xshift
                    end do
                 end do
              end do
