@@ -3084,9 +3084,10 @@ contains
           word = lgetword(line,lp)
 
           nat = 0
-          allocate(iat(10))
+          if (allocated(iat)) deallocate(iat)
           if (equal(word,"atoms") .or. equal(word,"atom")) then
              ! read the list of atoms
+             allocate(iat(10))
              do while (.true.)
                 word = getword(line,lp)
                 if (len_trim(word) == 0) exit
@@ -3105,6 +3106,7 @@ contains
              end do
           elseif (equal(word,"molecules") .or. equal(word,"molecule")) then
              ! read the list of molecules
+             allocate(iat(10))
              do while (.true.)
                 word = getword(line,lp)
                 if (len_trim(word) == 0) exit
@@ -3125,14 +3127,24 @@ contains
                    end if
                 end do
              end do
-
+          elseif (equal(word,"hydrogen") .or. equal(word,"hydrogens")) then
+             allocate(iat(s%c%ncel))
+             nat = 0
+             do i = 1, s%c%ncel
+                if (s%c%spc(s%c%atcel(i)%is)%z == 1) then
+                   nat = nat + 1
+                   iat(nat) = i
+                end if
+             end do
+          else
+             goto 999
+          end if
+          if (nat > 0) then
              ! transform
              call s%c%delete_atoms(nat,iat(1:nat))
              call s%reset_fields()
              if (verbose) &
                 call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
-          else
-             goto 999
           end if
        elseif (equal(word,"move")) then
           ! read atom ID and position

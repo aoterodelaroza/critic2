@@ -745,8 +745,9 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
-    logical, allocatable :: useatoms(:), usespcs(:)
-    integer :: i
+    logical, allocatable :: useatoms(:)
+    integer, allocatable :: usespcs(:)
+    integer :: i, nnspc
 
     ! make seed from this crystal
     call c%makeseed(seed,copysym=.false.)
@@ -757,9 +758,15 @@ contains
     do i = 1, nat
        useatoms(iat(i)) = .false.
     end do
-    usespcs = .false.
+    usespcs = 0
+    nnspc = 0
     do i = 1, c%ncel
-       if (useatoms(i)) usespcs(c%atcel(i)%is) = .true.
+       if (useatoms(i)) then
+          if (usespcs(c%atcel(i)%is) == 0) then
+             nnspc = nnspc + 1
+             usespcs(c%atcel(i)%is) = nnspc
+          end if
+       end if
     end do
 
     ! re-do the atom and species info
@@ -768,17 +775,14 @@ contains
        if (useatoms(i)) then
           seed%nat = seed%nat + 1
           seed%x(:,seed%nat) = c%atcel(i)%x
-          seed%is(seed%nat) = c%atcel(i)%is
+          seed%is(seed%nat) = usespcs(c%atcel(i)%is)
        end if
     end do
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
-    seed%nspc = 0
+    seed%nspc = nnspc
     do i = 1, c%nspc
-       if (usespcs(i)) then
-          seed%nspc = seed%nspc + 1
-          seed%spc(seed%nspc) = c%spc(i)
-       end if
+       if (usespcs(i) > 0) seed%spc(usespcs(i)) = c%spc(i)
     end do
     call realloc(seed%spc,seed%nspc)
 
