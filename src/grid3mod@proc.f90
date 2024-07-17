@@ -1626,7 +1626,7 @@ contains
 
        ! calculate the derivative in reciprocal space
        do igfft = 1, ntot
-          zaux(igfft) = vgc(i,igfft) * cmplx(-aimag(zaux(igfft)),dble(zaux(igfft)),8)
+          zaux(igfft) = vgc(i,igfft) * cmplx(-aimag(zaux(igfft)),dble(zaux(igfft)),16)
        end do
 
        ! FT back to real space and accumulate

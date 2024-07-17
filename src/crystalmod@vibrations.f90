@@ -24,14 +24,19 @@ contains
   !> Read a file containing the vibrational information for this
   !> system. Populates c%vib.
   module subroutine read_vibrations_file(c,file,errmsg,ti)
-    use param, only: isformat_unknown
+    use tools_io, only: fopen_read, fclose, getline_raw
     use crystalseedmod, only: vibrations_detect_format
+    use param, only: isformat_unknown
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: ivformat
+    integer :: ivformat, lu, nline, nline1, nat, idx
+    logical :: ok
+    character(len=:), allocatable :: line
+    integer :: ifreq, iat
+    real*8 :: xdum(6)
 
     ! detect the format
     call vibrations_detect_format(file,ivformat,ti)
@@ -40,8 +45,94 @@ contains
        return
     end if
 
-    write (*,*) "bleh!", ivformat
-    stop 1
+    ! open file
+    lu = fopen_read(file)
+    if (lu <= 0) then
+       errmsg = "File not found: " // trim(file)
+       return
+    end if
+
+    ! prepare container for data
+    if (allocated(c%vib)) deallocate(c%vib)
+    allocate(c%vib)
+
+    ! first pass: determine nqpt and nfreq
+    nline = 0
+    c%vib%nqpt = 0
+    c%vib%nfreq = 0
+    do while (getline_raw(lu,line,.false.))
+       nline = nline + 1
+       if (len(line) >= 4) then
+          if (line(1:4) == " q =") c%vib%nqpt = c%vib%nqpt + 1
+       end if
+       if (c%vib%nqpt == 1) then
+          if (len(line) >= 9) then
+             if (line(1:9) == "     freq") then
+                c%vib%nfreq = c%vib%nfreq + 1
+                if (c%vib%nfreq == 1) then
+                   nline1 = nline
+                elseif (c%vib%nfreq == 2) then
+                   nat = nline - nline1 - 1
+                end if
+             end if
+          end if
+       end if
+    end do
+    if (c%vib%nfreq == 0) then
+       errmsg = "found no frequencies in file"
+       goto 999
+    end if
+    if (c%vib%nqpt == 0) then
+       errmsg = "found no q-points in file"
+       goto 999
+    end if
+    if (nat /= c%ncel) then
+       errmsg = "number of atomic displacements inconsistent with number of atoms in crystal structure"
+       goto 999
+    end if
+
+    ! allocate arrays
+    allocate(c%vib%qpt(3,c%vib%nqpt))
+    allocate(c%vib%freq(c%vib%nfreq,c%vib%nqpt))
+    allocate(c%vib%vec(3,c%ncel,c%vib%nfreq,c%vib%nqpt))
+
+    ! second pass: read the information
+    errmsg = "error reading modes file"
+    rewind(lu)
+    c%vib%nqpt = 0
+    do while (getline_raw(lu,line,.false.))
+       ok = .false.
+       if (len(line) >= 4) ok = (line(1:4) == " q =")
+       if (ok) then
+          c%vib%nqpt = c%vib%nqpt + 1
+          read (line(5:),*,end=999,err=999) c%vib%qpt(:,c%vib%nqpt)
+          ok = getline_raw(lu,line,.false.)
+          if (.not.ok) goto 999
+          do ifreq = 1, c%vib%nfreq
+             ok = getline_raw(lu,line,.false.)
+             if (.not.ok) goto 999
+             idx = index(line,'=',back=.true.)
+             read(line(idx+1:),*) c%vib%freq(ifreq,c%vib%nqpt)
+             do iat = 1, c%ncel
+                ok = getline_raw(lu,line,.false.)
+                if (.not.ok) goto 999
+                idx = index(line,'(')
+                read(line(idx+1:),*,end=999,err=999) xdum
+                c%vib%vec(1,iat,ifreq,c%vib%nqpt) = cmplx(xdum(1),xdum(2),16)
+                c%vib%vec(2,iat,ifreq,c%vib%nqpt) = cmplx(xdum(3),xdum(4),16)
+                c%vib%vec(3,iat,ifreq,c%vib%nqpt) = cmplx(xdum(5),xdum(6),16)
+             end do
+          end do
+       end if
+    end do
+
+    ! wrap up
+    errmsg = ""
+    call fclose(lu)
+
+    return
+999 continue
+    if (lu >= 0) call fclose(lu)
 
   end subroutine read_vibrations_file
 

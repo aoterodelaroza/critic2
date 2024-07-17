@@ -315,10 +315,10 @@ module crystalmod
   !> Class for molecular or crystal vibrations
   type vibrations
      integer :: nqpt ! number of q-points
-     real*8, allocatable :: qpt(:,:) ! q-point coordinates (3,nqpt)
+     real*8, allocatable :: qpt(:,:) ! q-point coordinates (3,nqpt) (fractional)
      integer :: nfreq ! number of frequencies
-     real*8, allocatable :: freq(:,:) ! frequencies (nfreq,nqpt)
-     real*8, allocatable :: vec(:,:,:) ! eigenvector in Cartesian coordinates (3*nat,nfreq,nqpt)
+     real*8, allocatable :: freq(:,:) ! frequencies (nfreq,nqpt) (cm-1)
+     complex*16, allocatable :: vec(:,:,:,:) ! eigenvector in Cartesian coordinates (3,nat,nfreq,nqpt)
   end type vibrations
 
   ! other crystallography tools that are crystal-independent (symmetry)

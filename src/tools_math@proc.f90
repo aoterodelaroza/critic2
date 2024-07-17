@@ -292,7 +292,7 @@ contains
     ! phase factors exp(i*m*phi)
     do m=1,lmax
        t1=dble(m)*tp(2)
-       z(m)=cmplx(cos(t1),sin(t1),8)
+       z(m)=cmplx(cos(t1),sin(t1),16)
     end do
     do l=1,lmax
        if (mod(l,2).eq.0) then

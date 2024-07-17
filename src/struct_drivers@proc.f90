@@ -3446,6 +3446,7 @@ contains
     call s%c%read_vibrations_file(word,errmsg)
     if (len_trim(errmsg) > 0) &
        call ferror("struct_vibrations",errmsg,faterr)
+    write (uout,*)
 
   end subroutine struct_vibrations
 
