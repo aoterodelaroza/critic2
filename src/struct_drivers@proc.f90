@@ -397,7 +397,7 @@ contains
     real*8 :: x0(3,3)
     logical :: isempty
 
-    real*8, parameter :: spmin = 1d-20
+    real*8, parameter :: spmin = 1d-10
     real*8, parameter :: factor = 10d0
 
     ! header
@@ -431,7 +431,7 @@ contains
 
        write (uout,'("# Sym.Prec. Space group")')
        symprec = spmin / factor
-       do i = 1, 21
+       do i = 1, 11
           symprec = symprec * factor
           call s%c%spglib_wrap(spg,.false.,errmsg)
           if (len_trim(errmsg) > 0) exit
