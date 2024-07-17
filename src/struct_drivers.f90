@@ -43,6 +43,7 @@ module struct_drivers
   public :: struct_vdw
   public :: struct_edit
   public :: struct_newcell
+  public :: struct_vibrations
   public :: struct_molcell
   public :: struct_identify
   public :: struct_makemols_neighcrys
@@ -132,6 +133,11 @@ module struct_drivers
        character*(*), intent(in) :: line
        logical, intent(in) :: verbose
      end subroutine struct_newcell
+     module subroutine struct_vibrations(s,line,verbose)
+       type(system), intent(inout) :: s
+       character*(*), intent(in) :: line
+       logical, intent(in) :: verbose
+     end subroutine struct_vibrations
      module subroutine struct_molcell(s,line)
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line

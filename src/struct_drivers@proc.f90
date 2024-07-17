@@ -3411,6 +3411,32 @@ contains
 
   end subroutine struct_newcell
 
+  !> Load crystal or molecular vibrations from an external file
+  module subroutine struct_vibrations(s,line,verbose)
+    use tools_io, only: uout, getword, ferror, faterr
+    use param, only: isformat_unknown
+    type(system), intent(inout) :: s
+    character*(*), intent(in) :: line
+    logical, intent(in) :: verbose
+
+    character(len=:), allocatable :: word, errmsg
+    integer :: lp
+
+    ! read the file name
+    if (verbose) &
+       write (uout,'("* VIBRATIONS: reading vibrational frequencies and modes")')
+    lp=1
+    word = getword(line,lp)
+    if (verbose) &
+       write (uout,'("  File: ",A)') trim(word)
+
+    ! read the file
+    call s%c%read_vibrations_file(word,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror("struct_vibrations",errmsg,faterr)
+
+  end subroutine struct_vibrations
+
   !> Try to determine the molecular cell from the crystal geometry
   module subroutine struct_molcell(s,line)
     use systemmod, only: system

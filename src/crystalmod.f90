@@ -160,6 +160,9 @@ module crystalmod
      logical :: ismol3d !< Is this a 3d molecular crystal?
      integer, allocatable :: idxmol(:) !< -1: mol is fractional, 0: sym. unique, >0 index for nneq mol.
      integer, allocatable :: idatcelmol(:) !< cell atom i belongs to idatcelmol(i) molecule
+
+     ! vibrations
+     type(vibrations), allocatable :: vib !< molecular/crystal vibrations
    contains
      ! construction, destruction, initialization (proc)
      procedure :: init => struct_init !< Allocate arrays and nullify variables
@@ -275,6 +278,9 @@ module crystalmod
      procedure :: writegrid_cube
      procedure :: writegrid_vasp
      procedure :: writegrid_xsf
+
+     ! vibrations
+     procedure :: read_vibrations_file
   end type crystal
   public :: crystal
 
@@ -305,6 +311,15 @@ module crystalmod
      procedure :: calculate_profile => xrpd_calculate_profile
   end type xrpd_peaklist
   public :: xrpd_peaklist
+
+  !> Class for molecular or crystal vibrations
+  type vibrations
+     integer :: nqpt ! number of q-points
+     real*8, allocatable :: qpt(:,:) ! q-point coordinates (3,nqpt)
+     integer :: nfreq ! number of frequencies
+     real*8, allocatable :: freq(:,:) ! frequencies (nfreq,nqpt)
+     real*8, allocatable :: vec(:,:,:) ! eigenvector in Cartesian coordinates (3*nat,nfreq,nqpt)
+  end type vibrations
 
   ! other crystallography tools that are crystal-independent (symmetry)
   public :: search_lattice
@@ -938,6 +953,12 @@ module crystalmod
        integer, intent(in), optional :: ishift0(3)
        type(thread_info), intent(in), optional :: ti
      end subroutine writegrid_xsf
+     module subroutine read_vibrations_file(c,file,errmsg,ti)
+       class(crystal), intent(inout) :: c
+       character*(*), intent(in) :: file
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_vibrations_file
      !xx! xrpd_peaklist type
      module subroutine xrpd_peaklist_end(p)
        class(xrpd_peaklist), intent(inout) :: p

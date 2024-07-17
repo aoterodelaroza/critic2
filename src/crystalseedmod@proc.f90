@@ -5009,6 +5009,36 @@ contains
 
   end subroutine struct_detect_format
 
+  !> Detect the format for a file containing molecular or
+  !> crystal vibrations.
+  module subroutine vibrations_detect_format(file,ivformat,ti)
+    use param, only: isformat_unknown, isformat_v_matdynmodes, dirsep
+    use tools_io, only: equal, lower
+    character*(*), intent(in) :: file
+    integer, intent(out) :: ivformat
+    type(thread_info), intent(in), optional :: ti
+
+    character(len=:), allocatable :: basename, wextdot, wextdot2, wext_
+    integer :: idx
+
+    basename = file(index(file,dirsep,.true.)+1:)
+    wext_ = basename(index(basename,'_',.true.)+1:)
+    idx = index(basename,'.',.true.)
+    wextdot = basename(idx+1:)
+    if (idx > 0) then
+       wextdot2 = basename(index(basename(1:idx-1),'.',.true.)+1:)
+    else
+       wextdot2 = ""
+    end if
+
+    if (equal(lower(wextdot),'modes')) then
+       ivformat = isformat_v_matdynmodes
+    else
+       ivformat = isformat_unknown
+    endif
+
+  end subroutine vibrations_detect_format
+
   !> Detect whether a file with format isformat contains a molecule
   !> (ismol=.true.)  or a crystal (.false.)
   module subroutine struct_detect_ismol(file,isformat,ismol,ti)

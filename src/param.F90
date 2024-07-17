@@ -80,7 +80,7 @@ module param
   integer, parameter, public :: icrd_crys = 1 ! Crystallographic
   integer, parameter, public :: icrd_rcrys = 2 ! Reduced crystallographic
 
-  ! Enumerate for structure formats
+  ! Enumerate for structure/vibration formats
   integer, parameter, public :: isformat_unknown = 0
   integer, parameter, public :: isformat_cif = 1
   integer, parameter, public :: isformat_shelx = 2
@@ -119,6 +119,7 @@ module param
   integer, parameter, public :: isformat_mol2 = 35
   integer, parameter, public :: isformat_pdb = 36
   integer, parameter, public :: isformat_zmat = 37
+  integer, parameter, public :: isformat_v_matdynmodes = 38
 
   ! Enumerate for molecular and crystal properties. These are used
   ! throughout the code as flags for the calculation of scalar fields.
