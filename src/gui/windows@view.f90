@@ -571,7 +571,7 @@ contains
        disabled=.not.associated(w%sc))
     call iw_tooltip("Show various tools for operating on the view of this system",ttshown)
     if (ok) then
-       str2 = "Export..."
+       str2 = "Export to Image..." // c_null_char
        enabled = associated(w%sc)
        if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,enabled)) then
           if (w%idexportwin == 0) then
@@ -582,7 +582,7 @@ contains
        end if
        call iw_tooltip("Export the current view to an image file (png)",ttshown)
 
-       str2 = "Vibrations..."
+       str2 = "Vibrations..." // c_null_char
        if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,enabled)) then
           if (w%idvibrationswin == 0) then
              w%idvibrationswin = stack_create_window(wintype_vibrations,.true.,idcaller=w%id)

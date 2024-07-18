@@ -496,7 +496,7 @@ contains
           inisize%y = 44 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_exportimage) then
-          w%name = "Export Image" // "##" // string(w%id) // c_null_char
+          w%name = "Export to Image" // "##" // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 50 * fontsize%x
           inisize%y = 17 * fontsize%y
