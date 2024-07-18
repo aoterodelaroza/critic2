@@ -120,6 +120,7 @@ module windows
      logical :: forcerender = .true. ! force render of the scene
      integer :: view_mousebehavior = MB_navigation ! mouse behavior in the view
      integer :: idexportwin = 0 ! the ID for the export window
+     integer :: idvibrationswin = 0 ! the ID for the vibrations window
      type(ImVec2) :: mposlast ! mouse parameters ----v
      real(c_float) :: mpos0_r(3), mpos0_l(3), mpos0_m(3), cpos0_l(3), cpos0_m(3)
      real(c_float) :: oldview(4,4)
@@ -204,6 +205,8 @@ module windows
      procedure :: draw_editrep_unitcell
      ! export image
      procedure :: draw_exportimage
+     ! vibrations
+     procedure :: draw_vibrations
      ! rebond
      procedure :: draw_rebond
      ! preferences
@@ -232,10 +235,11 @@ module windows
   integer, parameter, public :: wintype_scfplot = 9
   integer, parameter, public :: wintype_editrep = 10
   integer, parameter, public :: wintype_exportimage = 11
-  integer, parameter, public :: wintype_about = 12
-  integer, parameter, public :: wintype_rebond = 13
-  integer, parameter, public :: wintype_preferences = 14
-  integer, parameter, public :: wintype_treeplot = 15
+  integer, parameter, public :: wintype_vibrations = 12
+  integer, parameter, public :: wintype_about = 13
+  integer, parameter, public :: wintype_rebond = 14
+  integer, parameter, public :: wintype_preferences = 15
+  integer, parameter, public :: wintype_treeplot = 16
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -433,6 +437,9 @@ module windows
      module subroutine draw_exportimage(w)
        class(window), intent(inout), target :: w
      end subroutine draw_exportimage
+     module subroutine draw_vibrations(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_vibrations
      module subroutine draw_rebond(w)
        class(window), intent(inout), target :: w
      end subroutine draw_rebond

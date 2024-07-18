@@ -62,7 +62,7 @@ contains
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol
-    logical(c_bool) :: isatom, isbond, islabels, isuc, ch
+    logical(c_bool) :: isatom, isbond, islabels, isuc, ch, enabled
     integer(c_int) :: amax, flags, nc(3), ires, idx(4), viewtype, idum
     real(c_float) :: scal, width, sqw, ratio, depth, rgba(4)
     real*8 :: x0(3)
@@ -86,6 +86,7 @@ contains
 
     ! update ID for the export window
     call update_window_id(w%idexportwin)
+    call update_window_id(w%idvibrationswin)
 
     ! whether the selected view system is a good system, and associate the scene
     goodsys = (w%view_selected >= 1 .and. w%view_selected <= nsys)
@@ -183,7 +184,7 @@ contains
              end do
              chbuild = .true.
           end if
-          call iw_tooltip("Toggle display atoms in all representations ("//&
+          call iw_tooltip("Toggle display atoms in all objects ("//&
              trim(get_bind_keyname(BIND_VIEW_TOGGLE_ATOMS)) // ").",ttshown)
 
           str2 = "Bonds##bondsshortcut" // c_null_char
@@ -198,7 +199,7 @@ contains
              end do
              chbuild = .true.
           end if
-          call iw_tooltip("Toggle display bonds in all representations ("//&
+          call iw_tooltip("Toggle display bonds in all objects ("//&
              trim(get_bind_keyname(BIND_VIEW_TOGGLE_BONDS)) // ").",ttshown)
 
           str2 = "Labels##labelshortcut" // c_null_char
@@ -213,7 +214,7 @@ contains
              end do
              chbuild = .true.
           end if
-          call iw_tooltip("Toggle display labels in all representations ("//&
+          call iw_tooltip("Toggle display labels in all objects ("//&
              trim(get_bind_keyname(BIND_VIEW_TOGGLE_LABELS)) // ").",ttshown)
 
           if (.not.sys(w%view_selected)%c%ismolecule) then
@@ -229,7 +230,7 @@ contains
                 end do
                 chbuild = .true.
              end if
-             call iw_tooltip("Toggle display unit cell in all representations ("//&
+             call iw_tooltip("Toggle display unit cell in all objects ("//&
                 trim(get_bind_keyname(BIND_VIEW_TOGGLE_CELL)) // ").",ttshown)
           end if
 
@@ -487,19 +488,19 @@ contains
 
     ! gear menu
     str1="##viewgear" // c_null_char
-    if (iw_button("Show",sameline=.true.,disabled=.not.associated(w%sc))) then
+    if (iw_button("Objects",sameline=.true.,disabled=.not.associated(w%sc))) then
        call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
     end if
     if (associated(w%sc)) then
        if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
           call igAlignTextToFramePadding()
           ! representations table
-          call iw_text("List of Shown Objects",highlight=.true.)
+          call iw_text("List of Objects",highlight=.true.)
 
           ! add button
           ldum = iw_button("Add",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
           if (ok) then
-             str2 = "Atoms + Bonds + Labels" // c_null_char
+             str2 = "Atoms" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 id = w%sc%get_new_representation_id()
                 call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style)
@@ -521,7 +522,7 @@ contains
           call iw_tooltip("Add a representation to the view",ttshown)
 
           ! rest of the table
-          str2 = "Representations##0,0" // c_null_char
+          str2 = "Objects##0,0" // c_null_char
           flags = ImGuiTableFlags_NoSavedSettings
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           flags = ior(flags,ImGuiTableFlags_NoBordersInBody)
@@ -556,7 +557,7 @@ contains
           call igEndPopup()
        end if
     end if
-    call iw_tooltip("Add, remove, and modify representations",ttshown)
+    call iw_tooltip("Add, remove, and modify objects",ttshown)
 
     ! update the draw lists and render
     if (associated(w%sc)) then
@@ -566,14 +567,33 @@ contains
     end if
 
     ! export image
-    if (iw_button("Export",disabled=.not.associated(w%sc),sameline=.true.)) then
-       if (w%idexportwin == 0) then
-          w%idexportwin = stack_create_window(wintype_exportimage,.true.,idcaller=w%id)
-       else
-          call igSetWindowFocus_Str(c_loc(win(w%idexportwin)%name))
+    ldum = iw_button("Tools",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft,&
+       disabled=.not.associated(w%sc))
+    call iw_tooltip("Show various tools for operating on the view of this system",ttshown)
+    if (ok) then
+       str2 = "Export..."
+       enabled = associated(w%sc)
+       if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,enabled)) then
+          if (w%idexportwin == 0) then
+             w%idexportwin = stack_create_window(wintype_exportimage,.true.,idcaller=w%id)
+          else
+             call igSetWindowFocus_Str(c_loc(win(w%idexportwin)%name))
+          end if
        end if
+       call iw_tooltip("Export the current view to an image file (png)",ttshown)
+
+       str2 = "Vibrations..."
+       if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,enabled)) then
+          if (w%idvibrationswin == 0) then
+             w%idvibrationswin = stack_create_window(wintype_vibrations,.true.,idcaller=w%id)
+          else
+             call igSetWindowFocus_Str(c_loc(win(w%idvibrationswin)%name))
+          end if
+       end if
+       call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
+       call igEndPopup()
     end if
-    call iw_tooltip("Export the current scene to an image file",ttshown)
+
 
     ! camera lock
     if (w%ismain) then
@@ -1554,7 +1574,7 @@ contains
 
        ! the representation type
        itype = w%rep%type - 1
-       call iw_combo_simple("##reptype","Atoms + Bonds + Labels" // c_null_char // "Unit cell" // c_null_char,itype)
+       call iw_combo_simple("##reptype","Atoms/Bonds/..." // c_null_char // "Unit cell" // c_null_char,itype)
        if (w%rep%type /= itype + 1) changed = .true.
        w%rep%type = itype + 1
        call iw_tooltip("Type of representation",ttshown)
@@ -2349,7 +2369,7 @@ contains
        doquit = .true.
     end if
 
-    ! check if we have info from the save image file window when it
+    ! check if we have info from the export image window when it
     ! closes and recover it
     call update_window_id(w%idsave,oid)
     if (oid /= 0) then
@@ -2554,5 +2574,42 @@ contains
     if (doquit) call w%end()
 
   end subroutine draw_exportimage
+
+  !> Draw the vibrations window
+  module subroutine draw_vibrations(w)
+    use utils, only: iw_text
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
+       BIND_CLOSE_ALL_DIALOGS
+    class(window), intent(inout), target :: w
+
+    logical :: doquit
+    integer :: isys, oid
+    ! logical, save :: ttshown = .false. ! tooltip flag
+
+    ! initialize state
+    if (w%firstpass) then
+       !
+    end if
+
+    ! initialize
+    doquit = .false.
+    if (associated(win(w%idparent)%sc)) then
+       isys = win(w%idparent)%sc%id
+    else
+       isys = win(w%idparent)%view_selected
+       doquit = .true.
+    end if
+
+    ! Image file button
+    call iw_text("Bleh!",highlight=.true.)
+
+    ! exit if focused and received the close keybinding
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
+
+    ! quit = close the window
+    if (doquit) call w%end()
+
+  end subroutine draw_vibrations
 
 end submodule view
