@@ -3443,7 +3443,7 @@ contains
        write (uout,'("  File: ",A)') trim(word)
 
     ! read the file
-    call s%c%read_vibrations_file(word,errmsg)
+    call s%c%read_vibrations_file(word,isformat_unknown,errmsg)
     if (len_trim(errmsg) > 0) &
        call ferror("struct_vibrations",errmsg,faterr)
     write (uout,*)

@@ -249,8 +249,9 @@ module windows
   integer, parameter, public :: wpurp_dialog_openfieldfile = 4
   integer, parameter, public :: wpurp_dialog_openonefilemodal = 5
   integer, parameter, public :: wpurp_dialog_saveimagefile = 6
-  integer, parameter, public :: wpurp_view_main = 7
-  integer, parameter, public :: wpurp_view_alternate = 8
+  integer, parameter, public :: wpurp_dialog_openvibfile = 7
+  integer, parameter, public :: wpurp_view_main = 8
+  integer, parameter, public :: wpurp_view_alternate = 9
 
   ! routines to manipulate the window stack
   public :: stack_realloc_maybe

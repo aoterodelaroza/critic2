@@ -450,6 +450,15 @@ contains
                 &"// c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+          elseif (w%dialog_purpose == wpurp_dialog_openvibfile) then
+             w%name = "Open Vibration Data File(s)##" // string(w%id)  // c_null_char
+             str1 = &
+                "&
+                &All files (*.*){*.*},&
+                &Quantum ESPRESSO matdyn.modes file (modes){.modes},&
+                &"// c_null_char
+             call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
+                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openonefilemodal) then
              w%name = "Open File##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
@@ -987,6 +996,21 @@ contains
 
     logical, save :: ttshown = .false. ! tooltip flag
 
+    ! permutations
+    integer, parameter :: isperm_openfiles(0:30) = &
+       (/0,7,5,1,11,4,20,3,27,8,28,29,15,17,13,14,26,25,16,24,9,10,22,2,18,30,21,6,23,19,12/)
+    integer, parameter :: isperm_inv_openfiles(0:30) = &
+       (/0,3,23,7,5,2,27,1,9,20,21,4,30,14,15,12,18,13,24,29,6,26,22,28,19,17,16,8,10,11,25/)
+    integer, parameter :: isperm_openfieldfile(0:17) = &
+       (/0,6,9,5,4,13,11,2,15,16,17,18,14,12,8,7,1,10/)
+    integer, parameter :: isperm_inv_openfieldfile(0:18) = &
+       (/0,16,7,0,4,3,1,15,14,2,17,6,13,5,12,8,9,10,11/)
+    integer, parameter :: isperm_openvibfile(0:1) = &
+       (/0,38/)
+    integer, parameter :: isperm_inv_openvibfile(0:38) = &
+       (/0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,&
+         0,0,0,0,0,0,0,0,0,0,0,0,1/)
+
     ! generate the data pointer
     call c_f_pointer(vUserData,data)
 
@@ -1076,10 +1100,13 @@ contains
           // "Xcrysden axsf file" // c_null_char &      ! isformat_axsf = 23
           // "Xcrysden xsf file" // c_null_char &       ! isformat_xsf = 19
           // "xyz file" // c_null_char                  ! isformat_xyz = 12
+       data%isformat = isperm_inv_openfiles(data%isformat)
        call iw_combo_simple("##formatcombo",stropt,data%isformat)
        call iw_tooltip("Force the new structure to be read with this file format, or auto-detect&
           &from the extension",ttshown)
        call igNewLine()
+       data%isformat = isperm_openfiles(data%isformat)
+
     elseif (data%purpose == wpurp_dialog_openfieldfile) then
        ! Input field format (ifformat)
        call iw_text("Read file format",highlight=.true.)
@@ -1102,10 +1129,25 @@ contains
           // "VASP CHGCAR-style file" // c_null_char &   ! ifformat_vasp = 7
           // "WIEN2k clmsum-style file" // c_null_char & ! ifformat_wien = 1
           // "Xcrysden xsf" // c_null_char               ! ifformat_xsf = 10
+       data%isformat = isperm_inv_openfieldfile(data%isformat)
        call iw_combo_simple("##formatcombo",stropt,data%isformat)
        call iw_tooltip("Force the new field to be read with the given file format, or auto-detect&
           &from the extension",ttshown)
        call igNewLine()
+       data%isformat = isperm_openfieldfile(data%isformat)
+
+    elseif (data%purpose == wpurp_dialog_openvibfile) then
+       ! Input field format (ifformat)
+       call iw_text("Read vibration data format",highlight=.true.)
+       stropt = "" &
+          // "Auto-detect" // c_null_char &              ! isformat_unknown = 0
+          // "Quantum ESPRESSO modes" // c_null_char     ! isformat_v_matdynmodes = 38
+       data%isformat = isperm_inv_openvibfile(data%isformat)
+       call iw_combo_simple("##formatcombo",stropt,data%isformat)
+       call iw_tooltip("Force the new field to be read with the given file format, or auto-detect&
+          &from the extension",ttshown)
+       call igNewLine()
+       data%isformat = isperm_openvibfile(data%isformat)
     end if
 
   end subroutine dialog_user_callback

@@ -42,10 +42,6 @@ contains
     logical :: readlastonly
     integer :: lu
 
-    ! permutation for the open file format list (see dialog_user_callback)
-    integer, parameter :: isperm(0:30) = (/0,7,5,1,11,4,20,3,27,8,28,29,15,17,13,&
-       14,26,25,16,24,9,10,22,2,18,30,21,6,23,19,12/)
-
     ! set initial, minimum, and maximum sizes
     minsize%x = 0._c_float
     minsize%y = 0._c_float
@@ -69,7 +65,7 @@ contains
                 call C_F_string_alloc(s(i)%fileName,name)
                 name = trim(path) // dirsep // trim(name)
                 readlastonly = w%dialog_data%readlastonly
-                call add_systems_from_name(name,w%dialog_data%mol,isperm(w%dialog_data%isformat),&
+                call add_systems_from_name(name,w%dialog_data%mol,w%dialog_data%isformat,&
                    readlastonly,w%dialog_data%rborder/bohrtoa,logical(w%dialog_data%molcubic))
              end do
 
@@ -95,7 +91,8 @@ contains
              end if
              call fclose(lu)
           elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile .or. &
-             w%dialog_purpose == wpurp_dialog_openfieldfile .or. w%dialog_purpose == wpurp_dialog_openonefilemodal) then
+             w%dialog_purpose == wpurp_dialog_openfieldfile .or. w%dialog_purpose == wpurp_dialog_openonefilemodal.or.&
+             w%dialog_purpose == wpurp_dialog_openvibfile) then
              !! new structure file dialog !!
              cstr = IGFD_GetFilePathName(w%dptr)
              call C_F_string_alloc(cstr,name)

@@ -1658,9 +1658,6 @@ contains
     logical, save :: file3_set = .false.
     integer, save :: iginterp = 3 ! 0 = nearest, 1 = trilinear, 2 = trispline, 3 = tricubic, 4 = smoothrho
 
-    ! permutation for the field format list (see dialog_user_callback)
-    integer, parameter :: ifperm(0:17) = (/0,6,9,5,4,13,11,2,15,16,17,18,14,12,8,7,1,10/)
-
     ! DFTB+ hsd name candidates
     character*15, parameter :: hsdnames(4) = (/&
        "wfc-3ob-3-1.hsd","wfc.3ob-3-1.hsd","wfc.pbc-0-3.hsd","wfc.mio-1-1.hsd"/)
@@ -1673,7 +1670,7 @@ contains
        if (win(oid)%okfile_set) then
           file1_read = .true.
           file1 = win(oid)%okfile
-          file1_format = ifperm(win(oid)%dialog_data%isformat)
+          file1_format = win(oid)%dialog_data%isformat
        end if
     end if
     call update_window_id(idopenfile2,oid)

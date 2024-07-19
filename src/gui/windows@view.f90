@@ -2577,18 +2577,20 @@ contains
 
   !> Draw the vibrations window
   module subroutine draw_vibrations(w)
-    use utils, only: iw_text
+    use gui_main, only: sysc, sys, nsys, sys_init
+    use utils, only: iw_text, iw_button, iw_tooltip
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
+    use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    logical :: doquit
+    logical :: doquit, system_ok, vib_ok
     integer :: isys, oid
-    ! logical, save :: ttshown = .false. ! tooltip flag
+    logical, save :: ttshown = .false. ! tooltip flag
 
     ! initialize state
     if (w%firstpass) then
-       !
+       w%errmsg = ""
     end if
 
     ! initialize
@@ -2599,9 +2601,52 @@ contains
        isys = win(w%idparent)%view_selected
        doquit = .true.
     end if
+    system_ok = (isys > 0 .and. isys <= nsys)
+    if (system_ok) system_ok = (sysc(isys)%status == sys_init)
+    vib_ok = system_ok
+    if (vib_ok) vib_ok = allocated(sys(isys)%c%vib)
+    if (vib_ok) vib_ok = (sys(isys)%c%vib%nqpt > 0) .and. (sys(isys)%c%vib%nfreq > 0)
 
-    ! Image file button
-    call iw_text("Bleh!",highlight=.true.)
+    ! check if we have info from the export image window when it
+    ! closes and recover it
+    call update_window_id(w%idsave,oid)
+    if (oid /= 0) then
+       if (win(oid)%okfile_set) &
+          call sys(isys)%c%read_vibrations_file(win(oid)%okfile,win(oid)%dialog_data%isformat,w%errmsg)
+    end if
+
+    ! header
+    if (system_ok) then
+       ! system name
+       call iw_text("System",highlight=.true.)
+       call iw_text("(" // string(isys) // ") " // trim(sysc(isys)%seed%name),sameline=.true.)
+
+       ! source of vibration data
+       call igAlignTextToFramePadding()
+       call iw_text("Vibration data",highlight=.true.)
+       if (.not.vib_ok) then
+          call iw_text("<none>",sameline=.true.)
+          if (iw_button("Load",danger=.true.,sameline=.true.)) &
+             w%idsave = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openvibfile)
+          call iw_tooltip("Load vibration data for this system from a file",ttshown)
+       else
+          call iw_text(sys(isys)%c%vib%file,sameline=.true.)
+       end if
+    end if
+
+    ! maybe the error message
+    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
+
+    if (vib_ok) then
+       ! clear and load buttons for the vibration data file
+       call igAlignTextToFramePadding()
+       if (iw_button("Clear",danger=.true.)) &
+          call sys(isys)%c%clear_vibrations()
+       call iw_tooltip("Clear vibration data for this system",ttshown)
+       if (iw_button("Load",danger=.true.,sameline=.true.)) &
+          w%idsave = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openvibfile)
+       call iw_tooltip("Load vibration data for this system from a file",ttshown)
+    end if
 
     ! exit if focused and received the close keybinding
     if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&

@@ -280,6 +280,7 @@ module crystalmod
      procedure :: writegrid_xsf
 
      ! vibrations
+     procedure :: clear_vibrations
      procedure :: read_vibrations_file
   end type crystal
   public :: crystal
@@ -314,6 +315,7 @@ module crystalmod
 
   !> Class for molecular or crystal vibrations
   type vibrations
+     character(len=mlen) :: file ! source of vibration data
      integer :: nqpt ! number of q-points
      real*8, allocatable :: qpt(:,:) ! q-point coordinates (3,nqpt) (fractional)
      integer :: nfreq ! number of frequencies
@@ -953,9 +955,13 @@ module crystalmod
        integer, intent(in), optional :: ishift0(3)
        type(thread_info), intent(in), optional :: ti
      end subroutine writegrid_xsf
-     module subroutine read_vibrations_file(c,file,errmsg,ti)
+     module subroutine clear_vibrations(c)
+       class(crystal), intent(inout) :: c
+     end subroutine clear_vibrations
+     module subroutine read_vibrations_file(c,file,ivformat,errmsg,ti)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
+       integer, intent(in) :: ivformat
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_vibrations_file

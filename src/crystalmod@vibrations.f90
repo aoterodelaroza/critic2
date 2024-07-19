@@ -21,40 +21,54 @@ submodule (crystalmod) edit
 
 contains
 
+  !> Remove the vibration data from the crystal object.
+  module subroutine clear_vibrations(c)
+    class(crystal), intent(inout) :: c
+    if (allocated(c%vib)) deallocate(c%vib)
+  end subroutine clear_vibrations
+
   !> Read a file containing the vibrational information for this
   !> system. Populates c%vib.
-  module subroutine read_vibrations_file(c,file,errmsg,ti)
+  module subroutine read_vibrations_file(c,file,ivformat,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalseedmod, only: vibrations_detect_format
     use param, only: isformat_unknown
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
+    integer, intent(in) :: ivformat
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: ivformat, lu, nline, nline1, nat, idx
+    integer :: ivf, lu, nline, nline1, nat, idx
     logical :: ok
     character(len=:), allocatable :: line
     integer :: ifreq, iat
     real*8 :: xdum(6)
 
     ! detect the format
-    call vibrations_detect_format(file,ivformat,ti)
     if (ivformat == isformat_unknown) then
-       errmsg = "Unknown vibration file format: " // trim(file)
-       return
+       call vibrations_detect_format(file,ivf,ti)
+       if (ivf == isformat_unknown) then
+          errmsg = "Unknown vibration file format: " // trim(file)
+          return
+       end if
+    else
+       ivf = ivformat
     end if
+
+    !!xxxx!! for now, only matdyn.modes is understood !!xxxx!!
 
     ! open file
     lu = fopen_read(file)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
-       return
+       goto 999
     end if
 
     ! prepare container for data
     if (allocated(c%vib)) deallocate(c%vib)
     allocate(c%vib)
+    c%vib%file = file
 
     ! first pass: determine nqpt and nfreq
     nline = 0
@@ -79,15 +93,15 @@ contains
        end if
     end do
     if (c%vib%nfreq == 0) then
-       errmsg = "found no frequencies in file"
+       errmsg = "Found no frequencies in file: " // trim(file)
        goto 999
     end if
     if (c%vib%nqpt == 0) then
-       errmsg = "found no q-points in file"
+       errmsg = "Found no q-points in file: "  // trim(file)
        goto 999
     end if
     if (nat /= c%ncel) then
-       errmsg = "number of atomic displacements inconsistent with number of atoms in crystal structure"
+       errmsg = "Number of atomic displacements inconsistent with number of atoms in crystal structure"
        goto 999
     end if
 
@@ -97,7 +111,7 @@ contains
     allocate(c%vib%vec(3,c%ncel,c%vib%nfreq,c%vib%nqpt))
 
     ! second pass: read the information
-    errmsg = "error reading modes file"
+    errmsg = "Error reading modes file: " // trim(file)
     rewind(lu)
     c%vib%nqpt = 0
     do while (getline_raw(lu,line,.false.))
@@ -132,6 +146,7 @@ contains
 
     return
 999 continue
+    if (allocated(c%vib)) deallocate(c%vib)
     if (lu >= 0) call fclose(lu)
 
   end subroutine read_vibrations_file
