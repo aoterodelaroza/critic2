@@ -2130,7 +2130,7 @@ contains
 
   end subroutine draw_scfplot
 
-  !> Draw the contents of the load field window.
+  !> Draw the contents of the rebond window.
   module subroutine draw_rebond(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS

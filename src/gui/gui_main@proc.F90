@@ -812,7 +812,6 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     integer(c_int) :: idum
-    logical(c_bool) :: enabled(4)
     logical :: launchquit, launch(4)
     integer :: i
 
@@ -824,15 +823,10 @@ contains
        call update_window_id(id(i))
     end do
 
-    ! calculate enabled and launches from keybindings
-    do i = 1, 4
-       enabled(i) = (id(i) == 0)
-    end do
-
     ! keybindings
     !! menu key bindings
-    launch(d_open) = (enabled(d_open) .and. is_bind_event(BIND_OPEN))
-    launch(d_new) = (enabled(d_new) .and. is_bind_event(BIND_NEW))
+    launch(d_open) = is_bind_event(BIND_OPEN)
+    launch(d_new) = is_bind_event(BIND_NEW)
     launch(d_newlib) = .false.
     launch(d_preferences) = .false.
     launchquit = is_bind_event(BIND_QUIT)
@@ -846,18 +840,18 @@ contains
           ! File -> New
           str1 = "New..." // c_null_char
           str2 = trim(get_bind_keyname(BIND_NEW)) // c_null_char
-          launch(d_new) = launch(d_new) .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled(d_new))
+          launch(d_new) = launch(d_new) .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)
           call iw_tooltip("Create a new structure",ttshown)
 
           ! File -> New from library
           str1 = "New from Library..." // c_null_char
-          launch(d_newlib) = igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,enabled(d_newlib))
+          launch(d_newlib) = igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)
           call iw_tooltip("Create a new structure from the critic2 library",ttshown)
 
           ! File -> Open
           str1 = "Open..." // c_null_char
           str2 = trim(get_bind_keyname(BIND_OPEN)) // c_null_char
-          launch(d_open) = launch(d_open) .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,enabled(d_open))
+          launch(d_open) = launch(d_open) .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)
           call iw_tooltip("Read molecule or crystal structures from file(s)",ttshown)
 
           ! File -> Separator
@@ -967,12 +961,27 @@ contains
     call igEndMainMenuBar()
 
     ! process launches
-    if (launch(d_new)) &
-       id(d_new) = stack_create_window(wintype_new_struct,.true.)
-    if (launch(d_newlib)) &
-       id(d_newlib) = stack_create_window(wintype_new_struct_library,.true.)
-    if (launch(d_open)) &
-       id(d_open) = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles)
+    if (launch(d_new)) then
+       if (id(d_new) > 0) then
+          call igSetWindowFocus_Str(c_loc(win(id(d_new))%name))
+       else
+          id(d_new) = stack_create_window(wintype_new_struct,.true.)
+       end if
+    end if
+    if (launch(d_newlib)) then
+       if (id(d_newlib) > 0) then
+          call igSetWindowFocus_Str(c_loc(win(id(d_newlib))%name))
+       else
+          id(d_newlib) = stack_create_window(wintype_new_struct_library,.true.)
+       end if
+    end if
+    if (launch(d_open)) then
+       if (id(d_open) > 0) then
+          call igSetWindowFocus_Str(c_loc(win(id(d_open))%name))
+       else
+          id(d_open) = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles)
+       end if
+    end if
     if (launchquit) then
        if (are_threads_running()) &
           call kill_initialization_thread()
