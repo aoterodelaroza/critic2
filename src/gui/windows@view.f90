@@ -2527,6 +2527,8 @@ contains
           call glReadPixels(origin(1), origin(2), width, height, GL_RGBA, GL_UNSIGNED_BYTE, c_loc(data))
        end if
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+       if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
+          w%errmsg = "Error rendering export image"
 
        ! write the file
        str = trim(w%okfile) // c_null_char
@@ -2539,8 +2541,8 @@ contains
        elseif (w%okfilter(1:3) == "JPE") then
           idum = stbi_write_jpg(c_loc(str), width, height, 4, c_loc(data), w%jpgquality)
        end if
-       if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
-          w%errmsg = "Could not save image to file: " // string(w%okfile)
+       if (idum == 0) &
+          w%errmsg = "Error exporting image to file: "  // string(w%okfile)
 
 999    continue
 
