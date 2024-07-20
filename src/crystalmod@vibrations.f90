@@ -30,9 +30,10 @@ contains
   !> Read a file containing the vibrational information for this
   !> system. Populates c%vib.
   module subroutine read_vibrations_file(c,file,ivformat,errmsg,ti)
+    use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalseedmod, only: vibrations_detect_format
-    use param, only: isformat_unknown
+    use param, only: isformat_unknown, pi
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     integer, intent(in) :: ivformat
@@ -42,8 +43,11 @@ contains
     integer :: ivf, lu, nline, nline1, nat, idx
     logical :: ok
     character(len=:), allocatable :: line
-    integer :: ifreq, iat
-    real*8 :: xdum(6)
+    integer :: ifreq, iat, ier
+    real*8 :: xdum(6), m(3,3)
+
+    m = c%m_c2x
+    call matinv(m,3,ier)
 
     ! initialize
     if (allocated(c%vib)) deallocate(c%vib)
@@ -74,6 +78,7 @@ contains
 
     ! first pass: determine nqpt and nfreq
     nline = 0
+    c%vib%qpt_digits = 3
     c%vib%nqpt = 0
     c%vib%nfreq = 0
     do while (getline_raw(lu,line,.false.))
@@ -122,6 +127,8 @@ contains
        if (ok) then
           c%vib%nqpt = c%vib%nqpt + 1
           read (line(5:),*,end=999,err=999) c%vib%qpt(:,c%vib%nqpt)
+          c%vib%qpt(:,c%vib%nqpt) = matmul(c%vib%qpt(:,c%vib%nqpt),m)
+
           ok = getline_raw(lu,line,.false.)
           if (.not.ok) goto 999
           do ifreq = 1, c%vib%nfreq

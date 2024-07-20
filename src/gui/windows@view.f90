@@ -2581,12 +2581,14 @@ contains
     use tools_io, only: string, ioj_right
     class(window), intent(inout), target :: w
 
-    logical :: doquit, system_ok, vib_ok
-    integer :: isys, oid, i
+    logical(c_bool) :: selected
+    logical :: doquit, system_ok, vib_ok, ok
+    integer :: isys, oid, i, digits
     integer(c_int) :: flags
+    character(kind=c_char,len=:), allocatable, target :: s, str1, str2, strl
+    type(ImVec2) :: sz0, szero
+
     logical, save :: ttshown = .false. ! tooltip flag
-    character(kind=c_char,len=:), allocatable, target :: s, str1, str2
-    type(ImVec2) :: sz0
 
     integer, parameter :: ic_q_id = 0
     integer, parameter :: ic_q_qpt = 1
@@ -2594,9 +2596,13 @@ contains
     ! initialize state
     if (w%firstpass) then
        w%errmsg = ""
+       w%iqpt_selected = 0
+       w%ifreq_selected = 0
     end if
 
     ! initialize
+    szero%x = 0
+    szero%y = 0
     doquit = .false.
     if (associated(win(w%idparent)%sc)) then
        isys = win(w%idparent)%sc%id
@@ -2660,7 +2666,7 @@ contains
        flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
        flags = ior(flags,ImGuiTableFlags_ScrollY)
        str1="##tablevibrationqpoints" // c_null_char
-       sz0%x = iw_calcwidth(32,0)
+       sz0%x = iw_calcwidth(33,0)
        sz0%y = iw_calcheight(5,0,.false.)
        if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
           ! header setup
@@ -2669,7 +2675,9 @@ contains
           call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_id)
 
           str2 = "Coordinates (frac.)" // c_null_char
+          flags = ImGuiTableColumnFlags_WidthFixed
           call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_qpt)
+          call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
           ! draw the header
           call igTableHeadersRow()
@@ -2679,71 +2687,84 @@ contains
           do i = 1, sys(isys)%c%vib%nqpt
              call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
 
-             ! flags = ImGuiSelectableFlags_SpanAllColumns
-             ! flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
-             ! flags = ior(flags,ImGuiSelectableFlags_AllowDoubleClick)
-             ! flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
-      ! selected = (w%table_selected==isys)
-      ! strl = "##selectable" // string(isys) // c_null_char
-      ! ok = igSelectable_Bool(c_loc(strl),selected,flags,szero)
-      ! ok = ok .or. (w%forceselect == isys)
-      ! if (ok) then
-
              ! id
-             if (igTableSetColumnIndex(ic_q_id)) call iw_text(string(i))
+             if (igTableSetColumnIndex(ic_q_id)) then
+                ! selectable
+                strl = "##selectq" // string(i) // c_null_char
+                flags = ImGuiSelectableFlags_SpanAllColumns
+                selected = (w%iqpt_selected == i)
+                if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) &
+                   w%iqpt_selected = i
+
+                ! text
+                call iw_text(string(i),sameline=.true.)
+             end if
 
              ! coordinates
              if (igTableSetColumnIndex(ic_q_qpt)) then
-                s = string(sys(isys)%c%vib%qpt(1,i),'f',length=9,decimal=5,justify=ioj_right)//&
-                   string(sys(isys)%c%vib%qpt(2,i),'f',length=9,decimal=5,justify=ioj_right)//&
-                   string(sys(isys)%c%vib%qpt(3,i),'f',length=9,decimal=5,justify=ioj_right)
+                digits = min(sys(isys)%c%vib%qpt_digits,5)
+                s = string(sys(isys)%c%vib%qpt(1,i),'f',length=9,decimal=digits,justify=ioj_right)//&
+                   string(sys(isys)%c%vib%qpt(2,i),'f',length=9,decimal=digits,justify=ioj_right)//&
+                   string(sys(isys)%c%vib%qpt(3,i),'f',length=9,decimal=digits,justify=ioj_right)
                 call iw_text(s)
              end if
           end do
           call igEndTable()
        end if
 
-       ! ! frequencies
-       ! call iw_text("Reciprocal space points (q)",highlight=.true.)
-       ! flags = ImGuiTableFlags_None
-       ! flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-       ! flags = ior(flags,ImGuiTableFlags_Borders)
-       ! flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-       ! flags = ior(flags,ImGuiTableFlags_ScrollY)
-       ! str1="##tablevibrationqpoints" // c_null_char
-       ! sz0%x = iw_calcwidth(32,0)
-       ! sz0%y = iw_calcheight(5,0,.false.)
-       ! if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
-       !    ! header setup
-       !    str2 = "Id" // c_null_char
-       !    flags = ImGuiTableColumnFlags_WidthFixed
-       !    call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_id)
+       if (w%iqpt_selected > 0) then
+          ! frequencies table
+          call iw_text("Frequencies",highlight=.true.)
+          flags = ImGuiTableFlags_None
+          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+          flags = ior(flags,ImGuiTableFlags_Borders)
+          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          flags = ior(flags,ImGuiTableFlags_ScrollY)
+          str1="##tablevibrationfreqs" // c_null_char
+          sz0%x = iw_calcwidth(33,0)
+          sz0%y = iw_calcheight(5,0,.false.)
+          if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
+             ! header setup
+             str2 = "Id" // c_null_char
+             flags = ImGuiTableColumnFlags_WidthFixed
+             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_id)
 
-       !    str2 = "Coordinates (frac.)" // c_null_char
-       !    call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_qpt)
+             str2 = "Frequency" // c_null_char
+             flags = ImGuiTableColumnFlags_WidthFixed
+             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_qpt)
+             call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
-       !    ! draw the header
-       !    call igTableHeadersRow()
-       !    call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+             ! draw the header
+             call igTableHeadersRow()
+             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
-       !    ! draw the rows
-       !    do i = 1, sys(isys)%c%vib%nqpt
-       !       call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+             ! draw the rows
+             do i = 1, sys(isys)%c%vib%nfreq
+                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
 
-       !       ! id
-       !       if (igTableSetColumnIndex(ic_q_id)) call iw_text(string(i))
+                ! id
+                if (igTableSetColumnIndex(ic_q_id)) then
+                   ! selectable
+                   strl = "##selectf" // string(i) // c_null_char
+                   flags = ImGuiSelectableFlags_SpanAllColumns
+                   selected = (w%ifreq_selected == i)
+                   if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) &
+                      w%ifreq_selected = i
 
-       !       ! coordinates
-       !       if (igTableSetColumnIndex(ic_q_qpt)) then
-       !          s = string(sys(isys)%c%vib%qpt(1,i),'f',length=9,decimal=5,justify=ioj_right)//&
-       !             string(sys(isys)%c%vib%qpt(2,i),'f',length=9,decimal=5,justify=ioj_right)//&
-       !             string(sys(isys)%c%vib%qpt(3,i),'f',length=9,decimal=5,justify=ioj_right)
-       !          call iw_text(s)
-       !       end if
-       !    end do
-       !    call igEndTable()
-       ! end if
-    end if
+                   ! text
+                   call iw_text(string(i),sameline=.true.)
+                end if
+
+                ! frequency
+                if (igTableSetColumnIndex(ic_q_qpt)) then
+                   s = string(sys(isys)%c%vib%freq(i,w%iqpt_selected),'f',length=9,decimal=2,justify=ioj_right)
+                   call iw_text(s)
+                end if
+             end do
+             call igEndTable()
+          end if ! igBeginTable (frequencies)
+       end if ! w%iqpt_selected > 0
+    end if ! vib_ok
 
     ! exit if focused and received the close keybinding
     if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&

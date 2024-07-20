@@ -152,6 +152,9 @@ module windows
      integer(c_int) :: npixel ! number of pixels in the export buffer
      logical(c_bool) :: transparentbg ! transparent background
      ! rebond parameters
+     ! vibrations parameters
+     integer :: iqpt_selected = 0 ! selected q-point in the vibrations window
+     integer :: ifreq_selected = 0 ! selected frequency in the vibrations window
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
