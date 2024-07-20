@@ -29,7 +29,7 @@ contains
     use gui_main, only: add_systems_from_name, launch_initialization_thread,&
        system_shorten_names
     use c_interface_module, only: C_F_string_alloc, c_free
-    use tools_io, only: ferror, faterr, fopen_write, fclose
+    use tools_io, only: ferror, faterr, fopen_write, fclose, uout
     use param, only: dirsep, bohrtoa
     class(window), intent(inout), target :: w
 
@@ -40,7 +40,7 @@ contains
     integer(c_size_t) :: i
     character(len=:), allocatable :: name, path
     logical :: readlastonly
-    integer :: lu
+    integer :: lu, ios
 
     ! set initial, minimum, and maximum sizes
     minsize%x = 0._c_float
@@ -82,14 +82,19 @@ contains
              call c_free(cstr)
 
              lu = fopen_write(name,errstop=.false.)
-             if (lu < 0) &
-                call ferror('draw_dialog','could not open file for writing: ' // name,faterr,syntax=.true.)
-             if (idcom == 0 .and. allocated(outputb)) then
-                write(lu,'(A)') outputb(1:lob)
-             elseif (idcom > 0) then
-                write(lu,'(A)') com(icom(idcom))%output
+             if (lu < 0) then
+                write (uout,'("Could not open file for writing: ",A)') trim(name)
+             else
+                if (idcom == 0 .and. allocated(outputb)) then
+                   write(lu,'(A)',iostat=ios) outputb(1:lob)
+                elseif (idcom > 0) then
+                   write(lu,'(A)',iostat=ios) com(icom(idcom))%output
+                end if
+                if (ios /= 0) then
+                   write (uout,'("Error writing to file: ",A)') trim(name)
+                end if
+                call fclose(lu)
              end if
-             call fclose(lu)
           elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile .or. &
              w%dialog_purpose == wpurp_dialog_openfieldfile .or. w%dialog_purpose == wpurp_dialog_openonefilemodal.or.&
              w%dialog_purpose == wpurp_dialog_openvibfile) then
