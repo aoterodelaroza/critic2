@@ -1613,7 +1613,7 @@ contains
     use gui_main, only: nsys, sysc, sys, sys_init, g
     use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button,&
        iw_calcwidth
-    use tools_io, only: string, uout
+    use tools_io, only: string
     class(window), intent(inout), target :: w
 
     logical :: oksys, ok, doquit, disabled
@@ -1621,7 +1621,7 @@ contains
     type(ImVec2) :: szavail, szero
     real(c_float) :: combowidth
     logical(c_bool) :: is_selected, ldum
-    character(len=:,kind=c_char), allocatable, target :: str1, str2, loadstr, errmsg
+    character(len=:,kind=c_char), allocatable, target :: str1, str2, loadstr
     logical :: isgrid
 
     ! window state
@@ -1741,8 +1741,10 @@ contains
              file1_format = -field_detect_format(file=file1)
           if (abs(file1_format) == ifformat_pi) file1_format = 0 ! aiPI deactivated for now
           if (file1_format == 0) then
-             write (uout,'("!! Warning !! : Unknown field file extension")')
+             w%errmsg = "Unknown field file extension"
              file1 = ""
+          else
+             w%errmsg = ""
           end if
           file2 = ""
           file2_set = .false.
@@ -1760,6 +1762,9 @@ contains
           idopenfile1 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfieldfile)
        call iw_tooltip("File from where the field is read",ttshown)
        call iw_text(file1,sameline=.true.)
+
+       ! error message, if applicable
+       if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
 
        isgrid = .false.
        if (file1_format /= 0) then
@@ -1894,6 +1899,7 @@ contains
 
     elseif (sourceopt == 1) then
        ! from expression
+       w%errmsg = ""
     end if
 
     if (sourceopt == 0 .and. isgrid) then
@@ -1933,14 +1939,8 @@ contains
        if (sourceopt == 0) then
           loadstr = file1_fmtstr // " " // trim(file1) // " " // trim(file2) // " " // trim(file3)
           loadstr = loadstr // " notestmt"
-          call sys(isys)%load_field_string(loadstr,.false.,iff,errmsg)
-          if (len_trim(errmsg) > 0) then
-             write (uout,'("!! Warning !! Could not read field for system: ",A)') string(isys)
-             write (uout,'("!! Warning !! Load string: ",A)') trim(loadstr)
-             write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)
-          else
-             doquit = .true.
-          end if
+          call sys(isys)%load_field_string(loadstr,.false.,iff,w%errmsg)
+          if (len_trim(w%errmsg) == 0) doquit = .true.
        elseif (sourceopt == 1) then
           ! todo
        end if
@@ -1966,6 +1966,7 @@ contains
   contains
     ! initialize the state for this window
     subroutine init_state()
+      w%errmsg = ""
       sourceopt = 0_c_int
       idopenfile1 = 0_c_int
       idopenfile2 = 0_c_int
