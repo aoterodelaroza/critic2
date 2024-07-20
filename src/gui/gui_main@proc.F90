@@ -510,7 +510,7 @@ contains
   !> other seeds in the tree view. If iafield, load a field from that
   !> seed.
   module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield)
-    use interfaces_cimgui, only: getCurrentWorkDir
+    use utils, only: get_current_working_dir
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
     use windows, only: regenerate_window_pointers
@@ -524,14 +524,12 @@ contains
     logical, intent(in), optional :: collapse
     integer, intent(in), optional :: iafield
 
-    integer :: i, j, nid
+    integer :: i, j, nid, idum
     integer :: iafield_
-    integer :: iseed, iseed_, idx, in
+    integer :: iseed, iseed_, idx
     character(len=:), allocatable :: errmsg, str
-    character(kind=c_char,len=:), allocatable, target :: strc
     type(system), allocatable :: syaux(:)
     type(sysconf), allocatable :: syscaux(:)
-    integer(c_int) :: idum
     logical :: collapse_, isrun
     integer, allocatable :: id(:)
 
@@ -626,12 +624,7 @@ contains
        if (str(1:1) == dirsep) then
           sysc(idx)%fullname = str
        else
-          if (allocated(strc)) deallocate(strc)
-          allocate(character(len=2049) :: strc)
-          idum = getCurrentWorkDir(c_loc(strc),2048_c_size_t)
-          in = index(strc,c_null_char)-1
-          if (strc(in:in) == dirsep.and.in > 0) in = in - 1
-          sysc(idx)%fullname = strc(1:in) // dirsep // str
+          sysc(idx)%fullname = get_current_working_dir() // dirsep // str
        end if
 
        ! initialization status

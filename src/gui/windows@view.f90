@@ -2323,10 +2323,11 @@ contains
     use interfaces_stb
     use gui_main, only: sysc, sys_init, nsys, g
     use windows, only: wintype_dialog, wpurp_dialog_saveimagefile
-    use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip
+    use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, get_current_working_dir
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
     use tools_io, only: ferror, string
+    use param, only: dirsep
     class(window), intent(inout), target :: w
 
     logical :: doquit, ok, goodsys, okvalid
@@ -2344,7 +2345,7 @@ contains
 
     ! initialize state
     if (w%firstpass) then
-       w%okfile = ""
+       w%okfile = get_current_working_dir() // dirsep // "image.png"
        w%okfilter = "   "
        w%nsample = 16
        w%jpgquality = 90

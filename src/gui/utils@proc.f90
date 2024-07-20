@@ -457,4 +457,22 @@ contains
 
   end subroutine get_nice_next_window_pos
 
+  !> Get the current working directory from imgui. No trailing /.
+  module function get_current_working_dir()
+    use interfaces_cimgui, only: getCurrentWorkDir
+    use param, only: dirsep
+    character(len=:), allocatable :: get_current_working_dir
+
+    character(kind=c_char,len=:), allocatable, target :: strc
+
+    integer :: idum, in
+
+    allocate(character(len=10241) :: strc)
+    idum = getCurrentWorkDir(c_loc(strc),10240_c_size_t)
+    in = index(strc,c_null_char)-1
+    if (strc(in:in) == dirsep.and.in > 0) in = in - 1
+    get_current_working_dir = strc(1:in)
+
+  end function get_current_working_dir
+
 end submodule proc

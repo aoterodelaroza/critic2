@@ -480,7 +480,7 @@ contains
           elseif (w%dialog_purpose == wpurp_dialog_saveimagefile) then
              w%name = "Save Image File##" // string(w%id) // c_null_char
              str1 = "PNG (*.png) {.png},BMP (*.bmp) {.bmp},TGA (*.tga) {.tga},JPEG (*.jpg) {.jpg}"// c_null_char
-             str2 = "file.png" // c_null_char
+             str2 = "image.png" // c_null_char
              str3 = "./" // c_null_char
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
