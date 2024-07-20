@@ -708,11 +708,8 @@ contains
              ! edit
              str2 = "Edit" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                if (s%rep(i)%idwin == 0) then
-                   s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller)
-                else
-                   call igSetWindowFocus_Str(c_loc(win(s%rep(i)%idwin)%name))
-                end if
+                s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller,&
+                   orraise=s%rep(i)%idwin)
              end if
              call iw_tooltip("Edit this representation",ttshown)
 
@@ -767,11 +764,8 @@ contains
        ! edit button
        if (igTableSetColumnIndex(ic_editbutton)) then
           if (iw_button("Edit##2ic_editbutton" // string(ic_editbutton) // "," // string(i))) then
-             if (s%rep(i)%idwin == 0) then
-                s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller)
-             else
-                call igSetWindowFocus_Str(c_loc(win(s%rep(i)%idwin)%name))
-             end if
+             s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller,&
+                orraise=s%rep(i)%idwin)
           end if
        end if
 

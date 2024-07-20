@@ -873,13 +873,8 @@ contains
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
           ! Edit -> Preferences...
           str1 = "Preferences..." // c_null_char
-          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) then
-             if (id(d_preferences) == 0) then
-                id(d_preferences) = stack_create_window(wintype_preferences,.true.)
-             else
-                call igSetWindowFocus_Str(c_loc(win(id(d_preferences))%name))
-             end if
-          end if
+          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) &
+             id(d_preferences) = stack_create_window(wintype_preferences,.true.,orraise=id(d_preferences))
           call iw_tooltip("Change the global UI settings and key bindings",ttshown)
 
           call igEndMenu()
@@ -961,27 +956,12 @@ contains
     call igEndMainMenuBar()
 
     ! process launches
-    if (launch(d_new)) then
-       if (id(d_new) > 0) then
-          call igSetWindowFocus_Str(c_loc(win(id(d_new))%name))
-       else
-          id(d_new) = stack_create_window(wintype_new_struct,.true.)
-       end if
-    end if
-    if (launch(d_newlib)) then
-       if (id(d_newlib) > 0) then
-          call igSetWindowFocus_Str(c_loc(win(id(d_newlib))%name))
-       else
-          id(d_newlib) = stack_create_window(wintype_new_struct_library,.true.)
-       end if
-    end if
-    if (launch(d_open)) then
-       if (id(d_open) > 0) then
-          call igSetWindowFocus_Str(c_loc(win(id(d_open))%name))
-       else
-          id(d_open) = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles)
-       end if
-    end if
+    if (launch(d_new)) &
+       id(d_new) = stack_create_window(wintype_new_struct,.true.,orraise=id(d_new))
+    if (launch(d_newlib)) &
+       id(d_newlib) = stack_create_window(wintype_new_struct_library,.true.,orraise=id(d_newlib))
+    if (launch(d_open)) &
+       id(d_open) = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles,orraise=id(d_open))
     if (launchquit) then
        if (are_threads_running()) &
           call kill_initialization_thread()

@@ -574,21 +574,15 @@ contains
        str2 = "Export to Image..." // c_null_char
        enabled = associated(w%sc)
        if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,enabled)) then
-          if (w%idexportwin == 0) then
-             w%idexportwin = stack_create_window(wintype_exportimage,.true.,idcaller=w%id)
-          else
-             call igSetWindowFocus_Str(c_loc(win(w%idexportwin)%name))
-          end if
+          w%idexportwin = stack_create_window(wintype_exportimage,.true.,idcaller=w%id,&
+             orraise=w%idexportwin)
        end if
        call iw_tooltip("Export the current view to an image file (png)",ttshown)
 
        str2 = "Vibrations..." // c_null_char
        if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,enabled)) then
-          if (w%idvibrationswin == 0) then
-             w%idvibrationswin = stack_create_window(wintype_vibrations,.true.,idcaller=w%id)
-          else
-             call igSetWindowFocus_Str(c_loc(win(w%idvibrationswin)%name))
-          end if
+          w%idvibrationswin = stack_create_window(wintype_vibrations,.true.,idcaller=w%id,&
+             orraise=w%idvibrationswin)
        end if
        call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
        call igEndPopup()

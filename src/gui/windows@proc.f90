@@ -62,8 +62,13 @@ contains
   end subroutine stack_realloc_maybe
 
   !> Create a window in the window stack with the given type. Returns
-  !> the window ID.
-  module function stack_create_window(type,isopen,purpose,isys,irep,idcaller,permanent)
+  !> the window ID. If isopen, initialize the window as open. purpose =
+  !> for dialogs, purpose of the dialog. isys = associated system.
+  !> irep = associated representation. idcaller = window ID of the
+  !> caller. permanent = do not kill the window when closed.
+  !> orraise = if this is a valid window ID, raise the window instead
+  !> of creating a new one.
+  module function stack_create_window(type,isopen,purpose,isys,irep,idcaller,permanent,orraise)
     use tools_io, only: ferror, faterr
     use windows, only: window, nwin, win
     integer, intent(in) :: type
@@ -73,11 +78,20 @@ contains
     integer, intent(in), optional :: irep
     integer, intent(in), optional :: idcaller
     logical, intent(in), optional :: permanent
+    integer, intent(in), optional :: orraise
 
     integer :: stack_create_window
 
     integer :: i, id
     integer, parameter :: maxwin = 40
+
+    ! If orraise and the window exists, raise it and exit
+    if (present(orraise)) then
+       if (orraise > 0 .and. orraise <= nwin) then
+          call igSetWindowFocus_Str(c_loc(win(orraise)%name))
+          return
+       end if
+    end if
 
     ! find the first unused window or create a new one
     id = 0

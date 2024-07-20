@@ -24,6 +24,7 @@ contains
 
   !> Draw the contents of the output console
   module subroutine draw_co(w)
+    use windows, only: stack_create_window
     use gui_main, only: g, ColorDangerButton, ColorFrameBgAlt
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text,&
        iw_setposx_fromend, iw_calcheight, iw_calcwidth

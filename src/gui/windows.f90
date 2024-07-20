@@ -266,7 +266,7 @@ module windows
      end subroutine command_end
      module subroutine stack_realloc_maybe()
      end subroutine stack_realloc_maybe
-     module function stack_create_window(type,isopen,purpose,isys,irep,idcaller,permanent)
+     module function stack_create_window(type,isopen,purpose,isys,irep,idcaller,permanent,orraise)
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
@@ -274,6 +274,7 @@ module windows
        integer, intent(in), optional :: irep
        integer, intent(in), optional :: idcaller
        logical, intent(in), optional :: permanent
+       integer, intent(in), optional :: orraise
        integer :: stack_create_window
      end function stack_create_window
      module subroutine update_window_id(id,changed)

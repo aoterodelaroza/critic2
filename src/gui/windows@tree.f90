@@ -154,13 +154,8 @@ contains
 
        ! button: plot
        str = "Plot" // c_null_char
-       if (igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)) then
-          if (idplot > 0) then
-             call igSetWindowFocus_Str(c_loc(win(idplot)%name))
-          else
-             idplot = stack_create_window(wintype_treeplot,.true.,idcaller=w%id)
-          end if
-       end if
+       if (igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)) &
+          idplot = stack_create_window(wintype_treeplot,.true.,idcaller=w%id,orraise=idplot)
        call iw_tooltip("Plot the tree data",ttshown)
        call igSeparator()
 
@@ -980,11 +975,8 @@ contains
                end if
 
                if (sysc(isyscollapse)%status == sys_init) then
-                  if (sysc(isyscollapse)%idwin_plotscf == 0) then
-                     sysc(isyscollapse)%idwin_plotscf = stack_create_window(wintype_scfplot,.true.,isys=isyscollapse)
-                  else
-                     call igSetWindowFocus_Str(c_loc(win(sysc(isyscollapse)%idwin_plotscf)%name))
-                  end if
+                  sysc(isyscollapse)%idwin_plotscf = stack_create_window(wintype_scfplot,.true.,isys=isyscollapse,&
+                     orraise=sysc(isyscollapse)%idwin_plotscf)
                end if
             end if
             call iw_tooltip("Plot the energy and other properties as a function of SCF cycle iterations",ttshown)
@@ -992,24 +984,14 @@ contains
 
          ! rebond
          strpop = "Recalculate Bonds" // c_null_char
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
-            if (idrebond > 0) then
-               win(idrebond)%isys = isys
-            else
-               idrebond = stack_create_window(wintype_rebond,.true.,isys=isys)
-            end if
-         end if
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+            idrebond = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=idrebond)
          call iw_tooltip("Recalculate the atomic bonds in this system",ttshown)
 
          ! load field
          strpop = "Load Field" // c_null_char
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
-            if (idloadfield > 0) then
-               win(idloadfield)%isys = isys
-            else
-               idloadfield = stack_create_window(wintype_load_field,.true.,isys=isys)
-            end if
-         end if
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+            idloadfield = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=idloadfield)
          call iw_tooltip("Load a scalar field for this system",ttshown)
 
          ! rename option (system)
