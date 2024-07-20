@@ -76,7 +76,7 @@ contains
     type(crystal), pointer :: c
 
     call c_f_pointer(cptr,c)
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(filexml)
 
     ! detailed.xml, first pass
     lu = fopen_read(filexml,ti=ti)
@@ -137,6 +137,7 @@ contains
     deallocate(dw)
 
     ! eigenvec.bin
+    errmsg = "Error reading file: " // trim(filebin)
     lu = fopen_read(filebin,"unformatted",ti=ti)
     if (lu < 0) goto 999
     read (lu,err=999,end=999) idum ! this is the identity number
@@ -164,6 +165,7 @@ contains
     call fclose(lu)
 
     ! open the hsd file with the basis definition
+    errmsg = "Error reading file: " // trim(filehsd)
     lu = fopen_read(filehsd,ti=ti)
     if (lu < 0) goto 999
     if (allocated(f%bas)) deallocate(f%bas)

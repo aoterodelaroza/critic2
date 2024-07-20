@@ -504,7 +504,7 @@ contains
     integer :: istat, n(3), i, j, k
     logical :: ismo
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(file)
     call f%end()
     luc = fopen_read(file,ti=ti)
     if (luc < 0) goto 999
@@ -561,7 +561,7 @@ contains
     logical :: ismo
     real*8 :: x0(3), xd(3,3), rdum
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(file)
     call f%end()
     luc = fopen_read(file,form="unformatted",ti=ti)
     if (luc < 0) goto 999
@@ -611,7 +611,7 @@ contains
     real*8 :: r(3,3)
     real*4, allocatable :: g(:)
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(file)
 
     ! initialize
     call f%end()
@@ -675,7 +675,7 @@ contains
     integer :: ix, iy, iz, n(3), ll, lp
     character(len=:), allocatable :: line
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(file)
 
     ! initialize
     call f%end()
@@ -765,7 +765,7 @@ contains
     call hdr_io(fform0,hdr,1,luc,errmsg)
     if (len_trim(errmsg) > 0) goto 999
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(file)
     f%isinit = .true.
     f%isqe = .false.
     f%iswan = .false.
@@ -811,7 +811,7 @@ contains
     character(len=:), allocatable :: line
     logical :: ok
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(file)
     call f%end()
     luc = fopen_read(file,ti=ti)
     if (luc < 0) goto 999
@@ -881,7 +881,7 @@ contains
     integer :: luc
     integer :: istat, n(3), i, j, k
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(file)
     call f%end()
     luc = fopen_read(file,ti=ti)
     if (luc < 0) goto 999
@@ -928,7 +928,7 @@ contains
     real*8 :: pmat(3,3)
     real*8, allocatable :: ggloc(:,:,:)
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(file)
     call f%end()
 
     ! open file for reading
@@ -1019,7 +1019,7 @@ contains
     integer :: luc
     integer :: istat, i, j, k, idum(3)
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(file)
     call f%end()
 
     ! open file for reading
@@ -1095,7 +1095,7 @@ contains
     real*8, parameter :: epsocc = 1d-6
 
     ! initialize
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(fpwc)
     call f%end()
     f%qe%fpwc = fpwc
     f%isqe = .true.
@@ -1311,7 +1311,6 @@ contains
     real*8, allocatable :: kpt(:,:)
 
     ! check qe is available
-    errmsg = "Error reading file"
     lu = -1
     if (.not.f%isinit) then
        errmsg = "cannot read wannier data with non-initialized grid"
@@ -1337,14 +1336,17 @@ contains
     nspin = f%qe%nspin
 
     ! open files and initialize
+    errmsg = "Error reading file: " // trim(fileup)
     lu(1) = fopen_read(fileup,form="unformatted",ti=ti)
     if (lu(1) < 0) goto 999
     if (nspin == 2) then
+       errmsg = "Error reading file: " // trim(filedn)
        lu(2) = fopen_read(filedn,form="unformatted",ti=ti)
        if (lu(2) < 0) goto 999
     end if
 
     ! header and number of bands
+    errmsg = "Error reading file (wannier chk)"
     do is = nspin, 1, -1
        read(lu(is),err=999,end=999) header
        read(lu(is),err=999,end=999) nbnd

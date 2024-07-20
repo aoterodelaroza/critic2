@@ -233,7 +233,7 @@ contains
        errmsg = "Could not open file."
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     read (lu,*,err=999,end=999) n
     read (lu,*,err=999,end=999)
@@ -291,7 +291,7 @@ contains
        errmsg = "Could not open file."
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     nblank = 0
     found0 = .false.
@@ -368,7 +368,7 @@ contains
        errmsg = "Could not open file."
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     ! read the number of atoms
     read (lu,*,err=999,end=999)
@@ -426,7 +426,7 @@ contains
        return
     end if
 
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     ! read the number of atoms
     do while (getline_raw(lu,line))
        if (line(1:1) == "<" .and. line(2:2) /= "/") then
@@ -525,7 +525,7 @@ contains
        errmsg = "Could not open file."
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     ! read the number of atoms
     n = 0
@@ -603,7 +603,7 @@ contains
        errmsg = "Could not open file."
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     ! read the number of atoms
     n = 0
@@ -707,7 +707,7 @@ contains
        errmsg = "Could not open file."
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     n = 0
     allocate(x(3,10),z(10),name(10))
@@ -786,7 +786,7 @@ contains
        errmsg = "Could not open file."
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     n = 0
     allocate(x(3,10),z(10),name(10))
@@ -858,7 +858,7 @@ contains
        errmsg = "Could not open file."
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     n = 0
     allocate(x(3,10),z(10),name(10))
@@ -922,7 +922,7 @@ contains
        errmsg = "Could not open file."
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     n = 0
     allocate(x(3,10),z(10),name(10))
@@ -980,7 +980,7 @@ contains
     logical :: isfrac, found
     character*8 :: dum1
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(file)
     f%molden_type = molden_type_unknown
     f%useecp = .false.
     f%issto = .false.
@@ -1118,7 +1118,7 @@ contains
     character(len=mlen) :: mline
     logical :: isfrac
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(file)
     f%molden_type = molden_type_unknown
     f%useecp = .false.
     f%issto = .false.
@@ -1345,7 +1345,7 @@ contains
     !  s  <- p ->  <---   d   --->  <---       f     --->  <---          g         --->
 #endif
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(file)
     ! no ecps for now
     f%molden_type = molden_type_unknown
     f%useecp = .false.
@@ -1874,7 +1874,7 @@ contains
        21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35&
        /)
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(file)
     ! initialize
     f%molden_type = molden_type_unknown
     f%useecp = .false.
@@ -3527,7 +3527,7 @@ contains
     logical :: ok
 
     if (present(errmsg)) &
-       errmsg = "Error reading file."
+       errmsg = "Error reading file (wfx)"
     kk = 0
     lp = 1
     ok = getline_raw(lu,line)
@@ -3571,7 +3571,7 @@ contains
     logical :: ok
 
     if (present(errmsg)) &
-       errmsg = "Error reading file."
+       errmsg = "Error reading file (wfx)"
     kk = 0
     lp = 1
     ok = getline_raw(lu,line)

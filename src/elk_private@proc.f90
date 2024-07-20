@@ -301,7 +301,7 @@ contains
     logical :: ok
     real*8 :: x(3)
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(filename)
     lu = fopen_read(filename,ti=ti)
     if (lu < 0) goto 999
     ! ignore the 'scale' stuff
@@ -386,7 +386,7 @@ contains
 
     ! open the file
     call c_f_pointer(cptr,c)
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(filename)
     lu = fopen_read(filename,"unformatted",ti=ti)
 
     ! read header
@@ -584,7 +584,7 @@ contains
 
     ! open the file
     call c_f_pointer(cptr,c)
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(filename)
     lu = fopen_read(filename,"unformatted",ti=ti)
     if (lu < 0) goto 999
 

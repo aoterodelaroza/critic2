@@ -512,7 +512,7 @@ contains
     integer, dimension(:), allocatable :: temp_iatnr
     real*8, dimension(:,:), allocatable :: temp_pos
 
-    errmsg = "Error reading file"
+    errmsg = "Error reading file: " // trim(file)
     lut = fopen_read(file,ti=ti)
     if (lut < 0) goto 999
     READ(lut,102,err=999,end=999) TITEL
@@ -944,7 +944,7 @@ contains
 
     return
 999 continue ! error condition
-    errmsg = "Error reading file"
+    errmsg = "Error reading file (k-points, clmsum)"
 
   end subroutine readk
 

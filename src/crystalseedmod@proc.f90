@@ -1014,7 +1014,7 @@ contains
 
     lu = fopen_read(file,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
 
@@ -1321,7 +1321,7 @@ contains
 
     ! open the file for reading
     call seed%end()
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     lu = fopen_read(file,ti=ti)
     if (lu < 0) goto 999
     seed%file = file
@@ -1491,10 +1491,10 @@ contains
     character(len=:), allocatable :: line
 
     call seed%end()
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     lu = fopen_read(file,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
 
@@ -1602,10 +1602,10 @@ contains
     real*8 :: x0(3), rmat(3,3), rdum, rx(3), rxt(3)
 
     call seed%end()
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     lu = fopen_read(file,form="unformatted",ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
 
@@ -1711,13 +1711,13 @@ contains
 
     ! seed file
     call seed%end()
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     seed%file = file
 
     ! first pass to see whether we have symmetry or not
     lut = fopen_read(file,ti=ti)
     if (lut < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
 
@@ -1928,11 +1928,11 @@ contains
 
     ! open
     call seed%end()
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     hastypes = .true.
     lu = fopen_read(file,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
 
@@ -2099,7 +2099,7 @@ contains
     errmsg = ""
     lu = fopen_read(file,"unformatted",errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
 
@@ -2172,10 +2172,10 @@ contains
     logical :: ok
 
     call seed%end()
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
 
@@ -2617,7 +2617,7 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
     r = 0d0
@@ -2857,11 +2857,11 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
 
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     r = 0d0
     iscrystal = .false.
     allocate(seed%x(3,10),seed%is(10),seed%spc(2))
@@ -3011,11 +3011,11 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
 
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     iscell = .false.
     isatoms = .false.
     seed%nat = 0
@@ -3161,10 +3161,10 @@ contains
     ! open
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     ! the lattice vectors
     do i = 1, 3
@@ -3237,10 +3237,10 @@ contains
     ! open
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     iscart = .false.
     seed%useabr = 0
@@ -3486,10 +3486,10 @@ contains
     ! open
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     ! first pass, read the number of lines and the number of atoms
     nlast = 0
@@ -3626,10 +3626,10 @@ contains
     ! open
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     ! loop over the lines
     haverlscal = .false.
@@ -3779,10 +3779,10 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     ! number of atoms and type of coordinates
     ok = getline(lu,line)
@@ -3914,12 +3914,12 @@ contains
     errmsg = ""
     lu = fopen_read(file,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
 
     xread = .false.
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     do while (.true.)
        ok = getline_raw(lu,line)
        if (.not.ok) exit
@@ -4093,10 +4093,10 @@ contains
     ! open
     lu = fopen_read(file,errstop=.false.,form="unformatted",ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     ! header
     read (lu,err=999,end=999) version
@@ -4186,11 +4186,11 @@ contains
     errmsg = ""
     lu = fopen_read(file,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
 
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     didreadr = .false.
     didreadx = .false.
     do while (.true.)
@@ -4354,10 +4354,10 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     call usespc%init()
 
     ! allocate atoms
@@ -4508,10 +4508,10 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     call usespc%init()
 
     ! allocate atoms
@@ -4740,10 +4740,10 @@ contains
 
     ! open the file
     call seed%end()
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     lu = fopen_read(file,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
     seed%file = file
@@ -5248,7 +5248,7 @@ contains
     end if
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Could not open file."
+       errmsg = "Error opening file: " // trim(file)
        goto 999
     end if
     call fclose(lu)
@@ -5517,10 +5517,10 @@ contains
     real*8 :: omegaa
 
     ! open
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     lu = fopen_read(file,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
 
@@ -5535,7 +5535,7 @@ contains
        if (nseed > size(seed,1)) call realloc_crystalseed(seed,2*nseed)
 
        ! generic error message
-       errmsg = "Error reading file"
+       errmsg = "Error reading file: " // trim(file)
 
        ! read the title and the scale line
        ok = getline_raw(lu,line)
@@ -6439,7 +6439,7 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
 
@@ -6473,7 +6473,7 @@ contains
 
     ! rewind and read all the structures
     rewind(lu)
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     nat = 0
     nspc = 0
     tox = .false.
@@ -6743,11 +6743,11 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
 
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     nseed = 0
     allocate(energy(10))
     do while (getline_raw(lu,line))
@@ -6879,10 +6879,10 @@ contains
 
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     ! count the number of seeds, atoms, and build the species
     energy = huge(1d0)
@@ -7059,10 +7059,10 @@ contains
     errmsg = ""
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
     call usespc%init()
 
     ! allocate initial seed
@@ -7338,10 +7338,10 @@ contains
     ! open
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
-       errmsg = "Error opening file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     ! first pass, read the number of lines and the number of atoms
     nseed = 0
@@ -7501,10 +7501,10 @@ contains
 
     lu = fopen_read(file,ti=ti)
     if (lu < 0) then
-       errmsg = "Could not open file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     n = 0
     allocate(x(3,10),z(10),name(10))
@@ -7573,10 +7573,10 @@ contains
 
     lu = fopen_read(file,ti=ti)
     if (lu < 0) then
-       errmsg = "Could not open file."
+       errmsg = "Error opening file: " // trim(file)
        return
     end if
-    errmsg = "Error reading file."
+    errmsg = "Error reading file: " // trim(file)
 
     first = .true.
     n = 0

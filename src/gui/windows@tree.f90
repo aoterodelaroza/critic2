@@ -1659,11 +1659,13 @@ contains
     if (oid /= 0) then
        if (win(oid)%okfile_set) file2 = win(oid)%okfile
        file2_set = .true.
+       w%errmsg = ""
     end if
     call update_window_id(idopenfile3,oid)
     if (oid /= 0) then
        if (win(oid)%okfile_set) file3 = win(oid)%okfile
        file3_set = .true.
+       w%errmsg = ""
     end if
 
     ! initialize
@@ -1762,9 +1764,6 @@ contains
           idopenfile1 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfieldfile)
        call iw_tooltip("File from where the field is read",ttshown)
        call iw_text(file1,sameline=.true.)
-
-       ! error message, if applicable
-       if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
 
        isgrid = .false.
        if (file1_format /= 0) then
@@ -1896,6 +1895,9 @@ contains
           call iw_tooltip("hsd file for reading the DFTB+ wavefunction",ttshown)
           call iw_text(file3,sameline=.true.)
        end select
+
+       ! error message, if applicable
+       if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
 
     elseif (sourceopt == 1) then
        ! from expression
