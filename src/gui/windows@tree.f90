@@ -1304,9 +1304,9 @@ contains
        str = str // trim(sysc(i)%seed%file) // newline
        if (sys(i)%c%ismolecule) then
           if (sys(i)%c%nmol == 1) then
-             str = str // "A molecule." // newline
+             str = str // "A molecule" // newline
           else
-             str = str // "A molecular cluster with " // string(sys(i)%c%nmol) // " fragments." //&
+             str = str // "A molecular cluster with " // string(sys(i)%c%nmol) // " fragments" //&
                 newline
           end if
        elseif (sys(i)%c%nlvac == 3) then
@@ -1327,15 +1327,15 @@ contains
                 str = str // " and Z'<1"
              end if
           end if
-          str = str // "." // newline
+          str = str // newline
        elseif (sys(i)%c%nlvac == 2) then
-          str = str // "A 1D periodic (chain) structure." //&
+          str = str // "A 1D periodic (chain) structure" //&
              newline
        elseif (sys(i)%c%nlvac == 1) then
-          str = str // "A 2D periodic (layered) structure." //&
+          str = str // "A 2D periodic (layered) structure" //&
              newline
        else
-          str = str // "A crystal." //&
+          str = str // "A crystal" //&
              newline
        end if
        str = str // newline
@@ -1411,6 +1411,8 @@ contains
 
        ! number of scalar fields
        str = str // string(sys(i)%nf) // " scalar fields loaded" // newline
+       if (allocated(sys(i)%c%vib)) &
+          str = str // "Vibrational data available" // newline
     else
        ! not initialized
        str = str // "Not initialized" // newline
