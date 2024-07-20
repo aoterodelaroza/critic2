@@ -2575,15 +2575,21 @@ contains
   !> Draw the vibrations window
   module subroutine draw_vibrations(w)
     use gui_main, only: sysc, sys, nsys, sys_init
-    use utils, only: iw_text, iw_button, iw_tooltip
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
-    use tools_io, only: string
+    use tools_io, only: string, ioj_right
     class(window), intent(inout), target :: w
 
     logical :: doquit, system_ok, vib_ok
-    integer :: isys, oid
+    integer :: isys, oid, i
+    integer(c_int) :: flags
     logical, save :: ttshown = .false. ! tooltip flag
+    character(kind=c_char,len=:), allocatable, target :: s, str1, str2
+    type(ImVec2) :: sz0
+
+    integer, parameter :: ic_q_id = 0
+    integer, parameter :: ic_q_qpt = 1
 
     ! initialize state
     if (w%firstpass) then
@@ -2623,11 +2629,18 @@ contains
        ! source of vibration data
        call igAlignTextToFramePadding()
        call iw_text("Vibration data",highlight=.true.)
+
+       if (iw_button("Clear",sameline=.true.,danger=.true.)) then
+          call sys(isys)%c%clear_vibrations()
+          vib_ok = .false.
+       end if
+       call iw_tooltip("Clear vibration data for this system",ttshown)
+
        if (.not.vib_ok) then
-          call iw_text("<none>",sameline=.true.)
           if (iw_button("Load",danger=.true.,sameline=.true.)) &
              w%idsave = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openvibfile)
           call iw_tooltip("Load vibration data from a file for this system",ttshown)
+          call iw_text("<none>",sameline=.true.)
        else
           call iw_text(sys(isys)%c%vib%file,sameline=.true.)
        end if
@@ -2636,15 +2649,100 @@ contains
     ! maybe the error message
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
 
+    ! q-points table
     if (vib_ok) then
-       ! clear and load buttons for the vibration data file
-       call igAlignTextToFramePadding()
-       if (iw_button("Clear",danger=.true.)) &
-          call sys(isys)%c%clear_vibrations()
-       call iw_tooltip("Clear vibration data for this system",ttshown)
-       if (iw_button("Load",danger=.true.,sameline=.true.)) &
-          w%idsave = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openvibfile)
-       call iw_tooltip("Load vibration data for this system from a file",ttshown)
+
+       ! q-points table
+       call iw_text("Reciprocal space points (q)",highlight=.true.)
+       flags = ImGuiTableFlags_None
+       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+       flags = ior(flags,ImGuiTableFlags_Borders)
+       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       flags = ior(flags,ImGuiTableFlags_ScrollY)
+       str1="##tablevibrationqpoints" // c_null_char
+       sz0%x = iw_calcwidth(32,0)
+       sz0%y = iw_calcheight(5,0,.false.)
+       if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
+          ! header setup
+          str2 = "Id" // c_null_char
+          flags = ImGuiTableColumnFlags_WidthFixed
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_id)
+
+          str2 = "Coordinates (frac.)" // c_null_char
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_qpt)
+
+          ! draw the header
+          call igTableHeadersRow()
+          call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+
+          ! draw the rows
+          do i = 1, sys(isys)%c%vib%nqpt
+             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+
+             ! flags = ImGuiSelectableFlags_SpanAllColumns
+             ! flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
+             ! flags = ior(flags,ImGuiSelectableFlags_AllowDoubleClick)
+             ! flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
+      ! selected = (w%table_selected==isys)
+      ! strl = "##selectable" // string(isys) // c_null_char
+      ! ok = igSelectable_Bool(c_loc(strl),selected,flags,szero)
+      ! ok = ok .or. (w%forceselect == isys)
+      ! if (ok) then
+
+             ! id
+             if (igTableSetColumnIndex(ic_q_id)) call iw_text(string(i))
+
+             ! coordinates
+             if (igTableSetColumnIndex(ic_q_qpt)) then
+                s = string(sys(isys)%c%vib%qpt(1,i),'f',length=9,decimal=5,justify=ioj_right)//&
+                   string(sys(isys)%c%vib%qpt(2,i),'f',length=9,decimal=5,justify=ioj_right)//&
+                   string(sys(isys)%c%vib%qpt(3,i),'f',length=9,decimal=5,justify=ioj_right)
+                call iw_text(s)
+             end if
+          end do
+          call igEndTable()
+       end if
+
+       ! ! frequencies
+       ! call iw_text("Reciprocal space points (q)",highlight=.true.)
+       ! flags = ImGuiTableFlags_None
+       ! flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+       ! flags = ior(flags,ImGuiTableFlags_Borders)
+       ! flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       ! flags = ior(flags,ImGuiTableFlags_ScrollY)
+       ! str1="##tablevibrationqpoints" // c_null_char
+       ! sz0%x = iw_calcwidth(32,0)
+       ! sz0%y = iw_calcheight(5,0,.false.)
+       ! if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
+       !    ! header setup
+       !    str2 = "Id" // c_null_char
+       !    flags = ImGuiTableColumnFlags_WidthFixed
+       !    call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_id)
+
+       !    str2 = "Coordinates (frac.)" // c_null_char
+       !    call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_qpt)
+
+       !    ! draw the header
+       !    call igTableHeadersRow()
+       !    call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+
+       !    ! draw the rows
+       !    do i = 1, sys(isys)%c%vib%nqpt
+       !       call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+
+       !       ! id
+       !       if (igTableSetColumnIndex(ic_q_id)) call iw_text(string(i))
+
+       !       ! coordinates
+       !       if (igTableSetColumnIndex(ic_q_qpt)) then
+       !          s = string(sys(isys)%c%vib%qpt(1,i),'f',length=9,decimal=5,justify=ioj_right)//&
+       !             string(sys(isys)%c%vib%qpt(2,i),'f',length=9,decimal=5,justify=ioj_right)//&
+       !             string(sys(isys)%c%vib%qpt(3,i),'f',length=9,decimal=5,justify=ioj_right)
+       !          call iw_text(s)
+       !       end if
+       !    end do
+       !    call igEndTable()
+       ! end if
     end if
 
     ! exit if focused and received the close keybinding
