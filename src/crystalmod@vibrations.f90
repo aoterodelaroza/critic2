@@ -45,6 +45,9 @@ contains
     integer :: ifreq, iat
     real*8 :: xdum(6)
 
+    ! initialize
+    if (allocated(c%vib)) deallocate(c%vib)
+
     ! detect the format
     if (ivformat == isformat_unknown) then
        call vibrations_detect_format(file,ivf,ti)
@@ -66,7 +69,6 @@ contains
     end if
 
     ! prepare container for data
-    if (allocated(c%vib)) deallocate(c%vib)
     allocate(c%vib)
     c%vib%file = file
 

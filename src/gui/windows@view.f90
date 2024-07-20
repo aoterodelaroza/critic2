@@ -2600,17 +2600,19 @@ contains
     end if
     system_ok = (isys > 0 .and. isys <= nsys)
     if (system_ok) system_ok = (sysc(isys)%status == sys_init)
-    vib_ok = system_ok
-    if (vib_ok) vib_ok = allocated(sys(isys)%c%vib)
-    if (vib_ok) vib_ok = (sys(isys)%c%vib%nqpt > 0) .and. (sys(isys)%c%vib%nfreq > 0)
 
     ! check if we have info from the export image window when it
     ! closes and recover it
     call update_window_id(w%idsave,oid)
     if (oid /= 0) then
-       if (win(oid)%okfile_set) &
+       if (system_ok .and. win(oid)%okfile_set) &
           call sys(isys)%c%read_vibrations_file(win(oid)%okfile,win(oid)%dialog_data%isformat,w%errmsg)
     end if
+
+    ! vibrations ok?
+    vib_ok = system_ok
+    if (vib_ok) vib_ok = allocated(sys(isys)%c%vib)
+    if (vib_ok) vib_ok = (sys(isys)%c%vib%nqpt > 0) .and. (sys(isys)%c%vib%nfreq > 0)
 
     ! header
     if (system_ok) then
@@ -2625,7 +2627,7 @@ contains
           call iw_text("<none>",sameline=.true.)
           if (iw_button("Load",danger=.true.,sameline=.true.)) &
              w%idsave = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openvibfile)
-          call iw_tooltip("Load vibration data for this system from a file",ttshown)
+          call iw_tooltip("Load vibration data from a file for this system",ttshown)
        else
           call iw_text(sys(isys)%c%vib%file,sameline=.true.)
        end if

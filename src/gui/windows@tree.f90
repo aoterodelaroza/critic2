@@ -81,11 +81,13 @@ contains
     logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit, isend, ok, found
     logical :: export, didtableselected
     real(c_float) :: width, pos
+    integer :: oid
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
     integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
     integer(c_int), save :: idloadfield = 0 ! ID of the window used to load a field into the sytsem
+    integer(c_int), save :: idloadvib = 0 ! ID of the window used to load vibration data
     integer(c_int), save :: idrebond = 0 ! ID of the window used to rebond the sytsem
     integer(c_int), save :: idplot = 0 ! ID of the plot window
     integer(c_int), save :: shown_after_filter = 0 ! number of systems shown after the filter
@@ -117,8 +119,14 @@ contains
 
     ! update the window ID for the load field dialog
     call update_window_id(idloadfield)
+    call update_window_id(idloadvib,oid)
     call update_window_id(idrebond)
     call update_window_id(idplot)
+    if (oid /= 0) then
+       ! if (win(oid)%okfile_set) &
+       !    call sys(isys)%c%read_vibrations_file(win(oid)%okfile,win(oid)%dialog_data%isformat,w%errmsg)
+       write (*,*) "here! ", win(oid)%okfile_set, win(oid)%okfile
+    end if
 
     ! Tree options button
     export = .false.
@@ -993,6 +1001,12 @@ contains
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
             idloadfield = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=idloadfield)
          call iw_tooltip("Load a scalar field for this system",ttshown)
+
+         ! load vibration data
+         strpop = "Load Vibration Data" // c_null_char
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+            idloadvib = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openvibfile,orraise=idloadvib)
+         call iw_tooltip("Load vibration data from a file for this system",ttshown)
 
          ! rename option (system)
          strpop = "Rename" // c_null_char
