@@ -52,6 +52,8 @@ contains
     c%grtensor = 0d0
     c%m_x2c = 0d0
     c%m_c2x = 0d0
+    c%m_rx2rc = 0d0
+    c%m_rc2rx = 0d0
     c%n2_x2c = 0d0
     c%n2_c2x = 0d0
 
@@ -248,6 +250,8 @@ contains
     end if
 
     ! rest of the cell metrics
+    c%m_rc2rx = transpose(c%m_x2c)
+    c%m_rx2rc = transpose(c%m_c2x)
     c%gtensor = g
     c%omega = sqrt(max(det3(g),0d0))
     c%grtensor = g
@@ -561,6 +565,26 @@ contains
     res = matmul(c%m_c2x,xx)
 
   end function c2x
+
+  !> Convert input reciprocal cryst. -> reciprocal cartesian. This routine is thread-safe.
+  pure module function rx2rc(c,xx) result(res)
+    class(crystal), intent(in) :: c
+    real*8, intent(in) :: xx(3)
+    real*8 :: res(3)
+
+    res = matmul(c%m_rx2rc,xx)
+
+  end function rx2rc
+
+  !> Convert input reciprocal cartesian -> reciprocal cryst. This routine is thread-safe.
+  pure module function rc2rx(c,xx) result(res)
+    class(crystal), intent(in) :: c
+    real*8, intent(in)  :: xx(3)
+    real*8 :: res(3)
+
+    res = matmul(c%m_rc2rx,xx)
+
+  end function rc2rx
 
   !> Convert reduced cryst. -> cartesian. This routine is thread-safe.
   pure module function xr2c(c,xx) result(res)

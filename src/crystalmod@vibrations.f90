@@ -44,10 +44,7 @@ contains
     logical :: ok
     character(len=:), allocatable :: line
     integer :: ifreq, iat, ier
-    real*8 :: xdum(6), m(3,3)
-
-    m = c%m_c2x
-    call matinv(m,3,ier)
+    real*8 :: xdum(6)
 
     ! initialize
     if (allocated(c%vib)) deallocate(c%vib)
@@ -127,7 +124,8 @@ contains
        if (ok) then
           c%vib%nqpt = c%vib%nqpt + 1
           read (line(5:),*,end=999,err=999) c%vib%qpt(:,c%vib%nqpt)
-          c%vib%qpt(:,c%vib%nqpt) = matmul(c%vib%qpt(:,c%vib%nqpt),m)
+          ! c%vib%qpt(:,c%vib%nqpt) = matmul(c%m_rc2rx,c%vib%qpt(:,c%vib%nqpt))
+          c%vib%qpt(:,c%vib%nqpt) = c%rc2rx(c%vib%qpt(:,c%vib%nqpt))
 
           ok = getline_raw(lu,line,.false.)
           if (.not.ok) goto 999

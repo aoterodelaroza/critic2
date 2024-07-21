@@ -111,6 +111,8 @@ module crystalmod
      real*8 :: m_c2xr(3,3) !< cartesian -> reduced cryst
      real*8 :: m_xr2x(3,3) !< reduced cryst -> input cryst
      real*8 :: m_x2xr(3,3) !< input cryst -> reduced cryst
+     real*8 :: m_rx2rc(3,3) !< input cell, reciprocal cryst. -> reciprocal cartesian
+     real*8 :: m_rc2rx(3,3) !< input cell, reciprocal cartesian -> reciprocal cryst.
      real*8 :: n2_x2c !< norm2 of input cell, crystallographic -> cartesian
      real*8 :: n2_c2x !< norm2 of input cell, cartesian -> crystallographic
      real*8 :: n2_xr2c !< norm2 of reduced cryst -> input cartesian
@@ -172,6 +174,8 @@ module crystalmod
      ! basic crystallographic operations (proc)
      procedure :: x2c !< Convert input cryst. -> cartesian
      procedure :: c2x !< Convert input cartesian -> cryst.
+     procedure :: rx2rc !< Convert input reciprocal cryst. -> reciprocal cartesian
+     procedure :: rc2rx !< Convert input reciprocal cartesian -> reciprocal cryst.
      procedure :: xr2c !< Convert reduced cryst. -> cartesian
      procedure :: c2xr !< Convert cartesian -> reduced cryst.
      procedure :: xr2x !< Convert reduced cryst. -> input cryst.
@@ -358,6 +362,16 @@ module crystalmod
        real*8, intent(in)  :: xx(3)
        real*8 :: res(3)
      end function c2x
+     pure module function rx2rc(c,xx) result(res)
+       class(crystal), intent(in) :: c
+       real*8, intent(in) :: xx(3)
+       real*8 :: res(3)
+     end function rx2rc
+     pure module function rc2rx(c,xx) result(res)
+       class(crystal), intent(in) :: c
+       real*8, intent(in)  :: xx(3)
+       real*8 :: res(3)
+     end function rc2rx
      pure module function xr2c(c,xx) result(res)
        class(crystal), intent(in) :: c
        real*8, intent(in)  :: xx(3)

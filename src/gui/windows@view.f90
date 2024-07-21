@@ -2575,10 +2575,12 @@ contains
   !> Draw the vibrations window
   module subroutine draw_vibrations(w)
     use gui_main, only: sysc, sys, nsys, sys_init
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
+       iw_combo_simple
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
     use tools_io, only: string, ioj_right
+    use param, only: cm1tothz, bohrtoa
     class(window), intent(inout), target :: w
 
     logical(c_bool) :: selected
@@ -2587,7 +2589,10 @@ contains
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, strl
     type(ImVec2) :: sz0, szero
+    real*8 :: unitfactor, xx(3)
 
+    integer, save :: ifrequnit = 0 ! 0 = cm-1, 1 = THz
+    integer, save :: iqptunit = 0 ! 0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang)
     logical, save :: ttshown = .false. ! tooltip flag
 
     integer, parameter :: ic_q_id = 0
@@ -2598,6 +2603,8 @@ contains
        w%errmsg = ""
        w%iqpt_selected = 0
        w%ifreq_selected = 0
+       ifrequnit = 0
+       iqptunit = 0
     end if
 
     ! initialize
@@ -2660,7 +2667,11 @@ contains
 
        ! q-points table
        call igBeginGroup()
-       call iw_text("Reciprocal space points (q)",highlight=.true.)
+       call igAlignTextToFramePadding()
+       call iw_text("Q-points",highlight=.true.)
+       call iw_combo_simple("##qptunit","fractional" // c_null_char // "1/bohr" // c_null_char //&
+          "1/Å" // c_null_char,iqptunit,sameline=.true.)
+
        flags = ImGuiTableFlags_None
        flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
        flags = ior(flags,ImGuiTableFlags_Borders)
@@ -2675,7 +2686,7 @@ contains
           flags = ImGuiTableColumnFlags_WidthFixed
           call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_id)
 
-          str2 = "Coordinates (frac.)" // c_null_char
+          str2 = "Coordinates" // c_null_char
           flags = ImGuiTableColumnFlags_WidthFixed
           call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_qpt)
           call igTableSetupScrollFreeze(0, 1) ! top row always visible
@@ -2687,6 +2698,18 @@ contains
           ! draw the rows
           do i = 1, sys(isys)%c%vib%nqpt
              call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+
+             xx = sys(isys)%c%vib%qpt(:,i)
+             digits = min(sys(isys)%c%vib%qpt_digits,5)
+             if (iqptunit == 0) then ! fractional
+                !
+             elseif (iqptunit == 1) then ! 1/bohr
+                xx = sys(isys)%c%rx2rc(xx)
+                digits = digits + 1
+             else ! 1/ang
+                xx = sys(isys)%c%rx2rc(xx) / bohrtoa
+                digits = digits + 1
+             end if
 
              ! id
              if (igTableSetColumnIndex(ic_q_id)) then
@@ -2703,10 +2726,9 @@ contains
 
              ! coordinates
              if (igTableSetColumnIndex(ic_q_qpt)) then
-                digits = min(sys(isys)%c%vib%qpt_digits,5)
-                s = string(sys(isys)%c%vib%qpt(1,i),'f',length=9,decimal=digits,justify=ioj_right)//&
-                   string(sys(isys)%c%vib%qpt(2,i),'f',length=9,decimal=digits,justify=ioj_right)//&
-                   string(sys(isys)%c%vib%qpt(3,i),'f',length=9,decimal=digits,justify=ioj_right)
+                s = string(xx(1),'f',length=10,decimal=digits,justify=ioj_right)//&
+                   string(xx(2),'f',length=10,decimal=digits,justify=ioj_right)//&
+                   string(xx(3),'f',length=10,decimal=digits,justify=ioj_right)
                 call iw_text(s)
              end if
           end do ! i = 1, sys(isys)%c%vib%nqpt
@@ -2717,8 +2739,21 @@ contains
        if (w%iqpt_selected > 0) then
           call igSameLine(0._c_float,-1._c_float)
           call igBeginGroup()
-          ! frequencies table
+
+          ! header
+          call igAlignTextToFramePadding()
           call iw_text("Frequencies",highlight=.true.)
+          call iw_combo_simple("##frequnit","1/cm" // c_null_char // "THz" // c_null_char,&
+             ifrequnit,sameline=.true.)
+          if (ifrequnit == 0) then
+             unitfactor = 1d0
+             digits = 2
+          else
+             unitfactor = cm1tothz
+             digits = 4
+          end if
+
+          ! frequencies table
           flags = ImGuiTableFlags_None
           flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
           flags = ior(flags,ImGuiTableFlags_Borders)
@@ -2761,7 +2796,8 @@ contains
 
                 ! frequency
                 if (igTableSetColumnIndex(ic_q_qpt)) then
-                   s = string(sys(isys)%c%vib%freq(i,w%iqpt_selected),'f',length=9,decimal=2,justify=ioj_right)
+                   s = string(sys(isys)%c%vib%freq(i,w%iqpt_selected)*unitfactor,'f',&
+                      length=9,decimal=digits,justify=ioj_right)
                    call iw_text(s)
                 end if
              end do
