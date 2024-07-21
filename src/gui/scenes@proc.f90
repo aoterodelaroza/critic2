@@ -55,6 +55,8 @@ contains
     s%scenexmin = 0d0
     s%scenexmax = 1d0
     s%forcebuildlists = .true.
+    s%iqpt_selected = 0
+    s%ifreq_selected = 0
 
     ! resolutions
     s%atom_res = 4
@@ -127,6 +129,8 @@ contains
     if (allocated(s%icount)) deallocate(s%icount)
     if (allocated(s%iord)) deallocate(s%iord)
     s%nrep = 0
+    s%iqpt_selected = 0
+    s%ifreq_selected = 0
 
   end subroutine scene_end
 
@@ -189,7 +193,8 @@ contains
     ! add the items by representation
     do i = 1, s%nrep
        call s%rep(i)%add_draw_elements(s%nc,s%nsph,s%drawlist_sph,s%ncyl,s%drawlist_cyl,&
-          s%ncylflat,s%drawlist_cylflat,s%nstring,s%drawlist_string,s%nmsel)
+          s%ncylflat,s%drawlist_cylflat,s%nstring,s%drawlist_string,s%iqpt_selected,&
+          s%ifreq_selected)
     end do
 
     ! recalculate scene center and radius
@@ -508,7 +513,7 @@ contains
 
   end subroutine scene_render
 
-  !> Draw the scene (for object picking
+  !> Draw the scene (for object picking)
   module subroutine scene_render_pick(s)
     use interfaces_cimgui
     use interfaces_opengl3
@@ -1110,11 +1115,11 @@ contains
 
   !> Add the spheres, cylinder, etc. to the draw lists.
   module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
-     ncylflat,drawlist_cylflat,nstring,drawlist_string,nmsel)
+     ncylflat,drawlist_cylflat,nstring,drawlist_string,iqpt,ifreq)
     use gui_main, only: sys
     use tools_io, only: string, nameguess
     use hashmod, only: hash
-    use param, only: bohrtoa, newline
+    use param, only: bohrtoa, newline, tpi, img
     class(representation), intent(inout), target :: r
     integer, intent(in) :: nc(3)
     integer, intent(inout) :: nsph
@@ -1125,14 +1130,15 @@ contains
     type(dl_cylinder), intent(inout), allocatable :: drawlist_cylflat(:)
     integer, intent(inout) :: nstring
     type(dl_string), intent(inout), allocatable :: drawlist_string(:)
-    integer, intent(in) :: nmsel
+    integer, intent(in) :: iqpt, ifreq
 
     type(hash) :: shown_atoms
     logical :: havefilter, step, isedge(3), usetshift
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
     real(c_float) :: rgb(3), rad
-    real*8 :: xx(3), x0(3), x1(3), x2(3), res, uoriginc(3)
+    real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), xdelta(3)
+    complex*16 :: phase
     type(dl_sphere), allocatable :: auxsph(:)
     type(dl_cylinder), allocatable :: auxcyl(:)
     type(dl_string), allocatable :: auxstr(:)
@@ -1268,17 +1274,24 @@ contains
                    end if
 
                    xx = sys(r%id)%c%atcel(i)%x + ix
-                   xx = sys(r%id)%c%x2c(xx)
+                   xc = sys(r%id)%c%x2c(xx)
 
                    ! apply the filter
                    if (havefilter) then
-                      res = sys(r%id)%eval(r%filter,errmsg,xx)
+                      res = sys(r%id)%eval(r%filter,errmsg,xc)
                       if (len_trim(errmsg) == 0) then
                          if (res == 0d0) cycle
                       else
                          havefilter = .false.
                          r%errfilter = errmsg
                       end if
+                   end if
+
+                   ! calculate the animation delta
+                   xdelta = 0d0
+                   if (iqpt > 0 .and. ifreq > 0 .and. allocated(sys(r%id)%c%vib)) then
+                      phase = tpi * dot_product(xx,sys(r%id)%c%vib%qpt(:,iqpt))
+                      xdelta = real(sys(r%id)%c%vib%vec(:,i,ifreq,iqpt) * exp(img * phase),8)
                    end if
 
                    ! draw the atom, reallocate if necessary
@@ -1291,7 +1304,7 @@ contains
                       end if
 
                       ! write down the sphere
-                      drawlist_sph(nsph)%x = real(xx + uoriginc,c_float)
+                      drawlist_sph(nsph)%x = real(xc + uoriginc,c_float)
                       drawlist_sph(nsph)%r = rad
                       drawlist_sph(nsph)%rgb = rgb
                       drawlist_sph(nsph)%idx(1) = i
@@ -1325,7 +1338,7 @@ contains
                             call move_alloc(auxcyl,drawlist_cyl)
                          end if
 
-                         x1 = xx + uoriginc
+                         x1 = xc + uoriginc
                          x2 = sys(r%id)%c%atcel(ineigh)%x + ixn
                          x2 = sys(r%id)%c%x2c(x2) + uoriginc
                          if (r%bond_color_style == 0) then
@@ -1365,7 +1378,7 @@ contains
                          call move_alloc(auxstr,drawlist_string)
                       end if
 
-                      drawlist_string(nstring)%x = real(xx + uoriginc,c_float)
+                      drawlist_string(nstring)%x = real(xc + uoriginc,c_float)
                       drawlist_string(nstring)%r = rad
                       drawlist_string(nstring)%rgb = r%label_rgb
                       if (r%label_const_size) then

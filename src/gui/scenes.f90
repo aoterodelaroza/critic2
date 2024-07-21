@@ -178,6 +178,9 @@ module scenes
      type(dl_cylinder), allocatable :: drawlist_cylflat(:) ! flat cylinder draw list
      integer :: nstring ! number of strings
      type(dl_string), allocatable :: drawlist_string(:) ! flat cylinder draw list
+     ! vibration animation
+     integer :: iqpt_selected = 0 ! selected q-point in the vibrations window
+     integer :: ifreq_selected = 0 ! selected frequency in the vibrations window
    contains
      procedure :: init => scene_init
      procedure :: end => scene_end
@@ -283,7 +286,7 @@ module scenes
        real*8, optional, intent(inout) :: xmax(3)
      end subroutine draw_unitcell
      module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
-        ncylflat,drawlist_cylflat,nstring,drawlist_string,nmsel)
+        ncylflat,drawlist_cylflat,nstring,drawlist_string,iqpt,ifreq)
        class(representation), intent(inout), target :: r
        integer, intent(in) :: nc(3)
        integer, intent(inout) :: nsph
@@ -294,7 +297,7 @@ module scenes
        type(dl_cylinder), intent(inout), allocatable :: drawlist_cylflat(:)
        integer, intent(inout) :: nstring
        type(dl_string), intent(inout), allocatable :: drawlist_string(:)
-       integer, intent(in) :: nmsel
+       integer, intent(in) :: iqpt, ifreq
      end subroutine add_draw_elements
      module subroutine draw_text_direct(str,x0,siz,color,centered)
        character(len=*), intent(in) :: str

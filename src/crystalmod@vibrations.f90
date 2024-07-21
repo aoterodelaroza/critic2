@@ -124,7 +124,6 @@ contains
        if (ok) then
           c%vib%nqpt = c%vib%nqpt + 1
           read (line(5:),*,end=999,err=999) c%vib%qpt(:,c%vib%nqpt)
-          ! c%vib%qpt(:,c%vib%nqpt) = matmul(c%m_rc2rx,c%vib%qpt(:,c%vib%nqpt))
           c%vib%qpt(:,c%vib%nqpt) = c%rc2rx(c%vib%qpt(:,c%vib%nqpt))
 
           ok = getline_raw(lu,line,.false.)

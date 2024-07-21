@@ -126,8 +126,6 @@ module windows
      real(c_float) :: oldview(4,4)
      real(c_float) :: mpos0_s
      integer :: ilock = 0 ! mouse parameters -^
-     integer :: iqpt_selected = 0 ! selected q-point in the vibrations window
-     integer :: ifreq_selected = 0 ! selected frequency in the vibrations window
      ! dialog parameters
      integer :: dialog_purpose ! purpose of the dialog (open, save,...)
      type(dialog_userdata) :: dialog_data ! for the side pane callback

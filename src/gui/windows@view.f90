@@ -2598,11 +2598,20 @@ contains
     integer, parameter :: ic_q_id = 0
     integer, parameter :: ic_q_qpt = 1
 
+    ! do we have a good parent window?
+    goodparent = w%idparent > 0 .and. w%idparent <= nwin
+    if (goodparent) goodparent = win(w%idparent)%isinit
+    if (goodparent) goodparent = (win(w%idparent)%type == wintype_view)
+
     ! initialize state
     if (w%firstpass) then
        w%errmsg = ""
-       win(w%idparent)%iqpt_selected = 0
-       win(w%idparent)%ifreq_selected = 0
+       if (goodparent) then
+          if (associated(win(w%idparent)%sc)) then
+             win(w%idparent)%sc%iqpt_selected = 0
+             win(w%idparent)%sc%ifreq_selected = 0
+          end if
+       end if
        ifrequnit = 0
        iqptunit = 0
     end if
@@ -2612,9 +2621,6 @@ contains
     szero%x = 0
     szero%y = 0
     doquit = .false.
-    goodparent = w%idparent > 0 .and. w%idparent <= nwin
-    if (goodparent) goodparent = win(w%idparent)%isinit
-    if (goodparent) goodparent = (win(w%idparent)%type == wintype_view)
     if (.not.doquit) doquit = .not.goodparent
     if (.not.doquit) then
        if (associated(win(w%idparent)%sc)) then
@@ -2639,6 +2645,7 @@ contains
     vib_ok = system_ok
     if (vib_ok) vib_ok = allocated(sys(isys)%c%vib)
     if (vib_ok) vib_ok = (sys(isys)%c%vib%nqpt > 0) .and. (sys(isys)%c%vib%nfreq > 0)
+    if (vib_ok) vib_ok = associated(win(w%idparent)%sc)
 
     ! header
     if (system_ok) then
@@ -2724,9 +2731,11 @@ contains
                 strl = "##selectq" // string(i) // c_null_char
                 flags = ImGuiSelectableFlags_SpanAllColumns
                 flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
-                selected = (win(w%idparent)%iqpt_selected == i)
-                if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) &
-                   win(w%idparent)%iqpt_selected = i
+                selected = (win(w%idparent)%sc%iqpt_selected == i)
+                if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) then
+                   win(w%idparent)%sc%iqpt_selected = i
+                   win(w%idparent)%sc%forcebuildlists = .true.
+                end if
 
                 ! text
                 call iw_text(string(i),sameline=.true.)
@@ -2744,7 +2753,7 @@ contains
        end if ! begintable
        call igEndGroup()
 
-       if (win(w%idparent)%iqpt_selected > 0) then
+       if (win(w%idparent)%sc%iqpt_selected > 0) then
           call igSameLine(0._c_float,-1._c_float)
           call igBeginGroup()
 
@@ -2795,9 +2804,11 @@ contains
                    strl = "##selectf" // string(i) // c_null_char
                    flags = ImGuiSelectableFlags_SpanAllColumns
                    flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
-                   selected = (win(w%idparent)%ifreq_selected == i)
-                   if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) &
-                      win(w%idparent)%ifreq_selected = i
+                   selected = (win(w%idparent)%sc%ifreq_selected == i)
+                   if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) then
+                      win(w%idparent)%sc%ifreq_selected = i
+                      win(w%idparent)%sc%forcebuildlists = .true.
+                   end if
 
                    ! text
                    call iw_text(string(i),sameline=.true.)
@@ -2805,7 +2816,7 @@ contains
 
                 ! frequency
                 if (igTableSetColumnIndex(ic_q_qpt)) then
-                   s = string(sys(isys)%c%vib%freq(i,win(w%idparent)%iqpt_selected)*unitfactor,'f',&
+                   s = string(sys(isys)%c%vib%freq(i,win(w%idparent)%sc%iqpt_selected)*unitfactor,'f',&
                       length=9,decimal=digits,justify=ioj_right)
                    call iw_text(s)
                 end if
@@ -2813,7 +2824,7 @@ contains
              call igEndTable()
           end if ! igBeginTable (frequencies)
           call igEndGroup()
-       end if ! win(w%idparent)%iqpt_selected > 0
+       end if ! win(w%idparent)%sc%iqpt_selected > 0
     end if ! vib_ok
 
     ! right-align and bottom-align for the rest of the contents
@@ -2834,8 +2845,10 @@ contains
     if (doquit) then
        call w%end()
        if (goodparent) then
-          win(w%idparent)%iqpt_selected = 0
-          win(w%idparent)%ifreq_selected = 0
+          if (associated(win(w%idparent)%sc)) then
+             win(w%idparent)%sc%iqpt_selected = 0
+             win(w%idparent)%sc%ifreq_selected = 0
+          end if
        end if
     end if
 

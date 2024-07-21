@@ -222,8 +222,6 @@ contains
     w%forcequitdialog = .false.
     w%plotn = 0
     w%idsave = 0
-    w%iqpt_selected = 0
-    w%ifreq_selected = 0
     if (present(isys)) w%isys = isys
     if (present(irep)) w%irep = irep
     if (present(idcaller)) w%idparent = idcaller
@@ -316,8 +314,6 @@ contains
     nullify(w%rep)
     w%isys = 1
     w%irep = 0
-    w%iqpt_selected = 0
-    w%ifreq_selected = 0
 
   end subroutine window_end
 
