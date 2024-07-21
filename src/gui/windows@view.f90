@@ -2574,7 +2574,7 @@ contains
 
   !> Draw the vibrations window
   module subroutine draw_vibrations(w)
-    use gui_main, only: sysc, sys, nsys, sys_init
+    use gui_main, only: sysc, sys, nsys, sys_init, g
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
        iw_combo_simple
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
@@ -2584,11 +2584,11 @@ contains
     class(window), intent(inout), target :: w
 
     logical(c_bool) :: selected
-    logical :: doquit, system_ok, vib_ok, ok
+    logical :: doquit, system_ok, vib_ok, ok, goodparent
     integer :: isys, oid, i, digits
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, strl
-    type(ImVec2) :: sz0, szero
+    type(ImVec2) :: sz0, szero, szavail
     real*8 :: unitfactor, xx(3)
 
     integer, save :: ifrequnit = 0 ! 0 = cm-1, 1 = THz
@@ -2601,21 +2601,28 @@ contains
     ! initialize state
     if (w%firstpass) then
        w%errmsg = ""
-       w%iqpt_selected = 0
-       w%ifreq_selected = 0
+       win(w%idparent)%iqpt_selected = 0
+       win(w%idparent)%ifreq_selected = 0
        ifrequnit = 0
        iqptunit = 0
     end if
 
     ! initialize
+    isys = 0
     szero%x = 0
     szero%y = 0
     doquit = .false.
-    if (associated(win(w%idparent)%sc)) then
-       isys = win(w%idparent)%sc%id
-    else
-       isys = win(w%idparent)%view_selected
-       doquit = .true.
+    goodparent = w%idparent > 0 .and. w%idparent <= nwin
+    if (goodparent) goodparent = win(w%idparent)%isinit
+    if (goodparent) goodparent = (win(w%idparent)%type == wintype_view)
+    if (.not.doquit) doquit = .not.goodparent
+    if (.not.doquit) then
+       if (associated(win(w%idparent)%sc)) then
+          isys = win(w%idparent)%sc%id
+       else
+          isys = win(w%idparent)%view_selected
+          doquit = .true.
+       end if
     end if
     system_ok = (isys > 0 .and. isys <= nsys)
     if (system_ok) system_ok = (sysc(isys)%status == sys_init)
@@ -2716,9 +2723,10 @@ contains
                 ! selectable
                 strl = "##selectq" // string(i) // c_null_char
                 flags = ImGuiSelectableFlags_SpanAllColumns
-                selected = (w%iqpt_selected == i)
+                flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
+                selected = (win(w%idparent)%iqpt_selected == i)
                 if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) &
-                   w%iqpt_selected = i
+                   win(w%idparent)%iqpt_selected = i
 
                 ! text
                 call iw_text(string(i),sameline=.true.)
@@ -2736,7 +2744,7 @@ contains
        end if ! begintable
        call igEndGroup()
 
-       if (w%iqpt_selected > 0) then
+       if (win(w%idparent)%iqpt_selected > 0) then
           call igSameLine(0._c_float,-1._c_float)
           call igBeginGroup()
 
@@ -2786,9 +2794,10 @@ contains
                    ! selectable
                    strl = "##selectf" // string(i) // c_null_char
                    flags = ImGuiSelectableFlags_SpanAllColumns
-                   selected = (w%ifreq_selected == i)
+                   flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
+                   selected = (win(w%idparent)%ifreq_selected == i)
                    if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) &
-                      w%ifreq_selected = i
+                      win(w%idparent)%ifreq_selected = i
 
                    ! text
                    call iw_text(string(i),sameline=.true.)
@@ -2796,7 +2805,7 @@ contains
 
                 ! frequency
                 if (igTableSetColumnIndex(ic_q_qpt)) then
-                   s = string(sys(isys)%c%vib%freq(i,w%iqpt_selected)*unitfactor,'f',&
+                   s = string(sys(isys)%c%vib%freq(i,win(w%idparent)%iqpt_selected)*unitfactor,'f',&
                       length=9,decimal=digits,justify=ioj_right)
                    call iw_text(s)
                 end if
@@ -2804,15 +2813,31 @@ contains
              call igEndTable()
           end if ! igBeginTable (frequencies)
           call igEndGroup()
-       end if ! w%iqpt_selected > 0
+       end if ! win(w%idparent)%iqpt_selected > 0
     end if ! vib_ok
+
+    ! right-align and bottom-align for the rest of the contents
+    call igGetContentRegionAvail(szavail)
+    call igSetCursorPosX(iw_calcwidth(5,1,from_end=.true.) - g%Style%ScrollbarSize)
+    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
+       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
+
+    ! final buttons: close
+    if (iw_button("Close")) doquit = .true.
+    call iw_tooltip("Close this window",ttshown)
 
     ! exit if focused and received the close keybinding
     if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
        is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
 
     ! quit = close the window
-    if (doquit) call w%end()
+    if (doquit) then
+       call w%end()
+       if (goodparent) then
+          win(w%idparent)%iqpt_selected = 0
+          win(w%idparent)%ifreq_selected = 0
+       end if
+    end if
 
   end subroutine draw_vibrations
 
