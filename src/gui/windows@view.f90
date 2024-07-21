@@ -2659,6 +2659,7 @@ contains
     if (vib_ok) then
 
        ! q-points table
+       call igBeginGroup()
        call iw_text("Reciprocal space points (q)",highlight=.true.)
        flags = ImGuiTableFlags_None
        flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
@@ -2666,7 +2667,7 @@ contains
        flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
        flags = ior(flags,ImGuiTableFlags_ScrollY)
        str1="##tablevibrationqpoints" // c_null_char
-       sz0%x = iw_calcwidth(33,0)
+       sz0%x = iw_calcwidth(37,0)
        sz0%y = iw_calcheight(5,0,.false.)
        if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
           ! header setup
@@ -2708,11 +2709,14 @@ contains
                    string(sys(isys)%c%vib%qpt(3,i),'f',length=9,decimal=digits,justify=ioj_right)
                 call iw_text(s)
              end if
-          end do
+          end do ! i = 1, sys(isys)%c%vib%nqpt
           call igEndTable()
-       end if
+       end if ! begintable
+       call igEndGroup()
 
        if (w%iqpt_selected > 0) then
+          call igSameLine(0._c_float,-1._c_float)
+          call igBeginGroup()
           ! frequencies table
           call iw_text("Frequencies",highlight=.true.)
           flags = ImGuiTableFlags_None
@@ -2721,7 +2725,7 @@ contains
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           flags = ior(flags,ImGuiTableFlags_ScrollY)
           str1="##tablevibrationfreqs" // c_null_char
-          sz0%x = iw_calcwidth(33,0)
+          sz0%x = iw_calcwidth(20,0)
           sz0%y = iw_calcheight(5,0,.false.)
           if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
              ! header setup
@@ -2763,6 +2767,7 @@ contains
              end do
              call igEndTable()
           end if ! igBeginTable (frequencies)
+          call igEndGroup()
        end if ! w%iqpt_selected > 0
     end if ! vib_ok
 
