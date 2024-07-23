@@ -21,14 +21,22 @@ submodule (crystalmod) edit
 
 contains
 
-  !> Make a crystal seed (seed) from a crystal structure
-  module subroutine makeseed(c,seed,copysym)
+  !> Make a crystal seed (seed) from a crystal structure. If useabr,
+  !> force the use of a particular value of useabr (1=aa and bb,
+  !> 2=x2c).
+  module subroutine makeseed(c,seed,copysym,useabr)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(in) :: c
     type(crystalseed), intent(out) :: seed
     logical, intent(in) :: copysym
+    integer, intent(in), optional :: useabr
 
     integer :: i
+    integer :: useabr_
+
+    ! initialize
+    useabr_ = 2
+    if (present(useabr)) useabr_ = useabr
 
     ! general
     seed%isused = .true.
@@ -60,10 +68,17 @@ contains
     end do
 
     ! cell
-    seed%useabr = 2
-    seed%aa = 0d0
-    seed%bb = 0d0
-    seed%m_x2c = c%m_x2c
+    if (useabr_ == 1) then
+       seed%useabr = 1
+       seed%aa = c%aa
+       seed%bb = c%bb
+       seed%m_x2c = 0d0
+    else
+       seed%useabr = 2
+       seed%aa = 0d0
+       seed%bb = 0d0
+       seed%m_x2c = c%m_x2c
+    end if
 
     ! symmetry
     seed%findsym = -1
@@ -831,5 +846,94 @@ contains
     call c%struct_new(seed,crashfail=.true.,ti=ti)
 
   end subroutine move_atom
+
+  !> Modify the unit cell by changing the parameter given by iaxis:
+  !> 1=a, 2=b, 3=c, -1=alpha, -2=beta, -3=gamma, 0=volume. The
+  !> parameter is changed to x in units of iunit_l. If dorelative, the
+  !> change is relative to the current value. If dofraction, x is
+  !> interpreted as the fractional change in the current value.
+  module subroutine move_cell(c,iaxis,x,iunit_l,dorelative,dofraction,ti)
+    use crystalseedmod, only: crystalseed
+    use global, only: iunit_ang
+    use param, only: bohrtoa, third
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: iaxis
+    real*8, intent(in) :: x
+    integer, intent(in) :: iunit_l
+    logical, intent(in) :: dorelative, dofraction
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: seed
+    real*8 :: xx, ref
+
+    ! make seed from this crystal
+    if (iaxis /= 0) then
+       call c%makeseed(seed,copysym=.false.,useabr=1)
+    else
+       call c%makeseed(seed,copysym=.false.,useabr=2)
+    end if
+
+    ! interpret units
+    if (iunit_l == iunit_ang.and..not.dofraction) then
+       if (iaxis /= 0) then
+          xx = x / bohrtoa
+       else
+          xx = x / bohrtoa**3
+       end if
+    else
+       xx = x
+    end if
+
+    ! get the reference value
+    if (iaxis == 1) then
+       ref = c%aa(1)
+    elseif (iaxis == 2) then
+       ref = c%aa(2)
+    elseif (iaxis == 3) then
+       ref = c%aa(3)
+    elseif (iaxis == -1) then
+       ref = c%bb(1)
+    elseif (iaxis == -2) then
+       ref = c%bb(2)
+    elseif (iaxis == -3) then
+       ref = c%bb(3)
+    elseif (iaxis == 0) then
+       ref = c%omega
+    else
+       return
+    end if
+
+    ! transform
+    if (dofraction) then
+       ref = ref * xx
+    elseif (dorelative) then
+       ref = ref + xx
+    else
+       ref = xx
+    end if
+
+    ! put back the value
+    if (iaxis == 1) then
+       seed%aa(1) = ref
+    elseif (iaxis == 2) then
+       seed%aa(2) = ref
+    elseif (iaxis == 3) then
+       seed%aa(3) = ref
+    elseif (iaxis == -1) then
+       seed%bb(1) = ref
+    elseif (iaxis == -2) then
+       seed%bb(2) = ref
+    elseif (iaxis == -3) then
+       seed%bb(3) = ref
+    elseif (iaxis == 0) then
+       seed%m_x2c = seed%m_x2c * (ref / c%omega)**third
+    else
+       return
+    end if
+
+    ! build the new crystal
+    call c%struct_new(seed,crashfail=.true.,ti=ti)
+
+  end subroutine move_cell
 
 end submodule edit

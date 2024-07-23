@@ -228,6 +228,7 @@ module crystalmod
      procedure :: wholemols !< Re-assign atomic types to have an asymmetric unit with whole molecules
      procedure :: delete_atoms !< Delete a list of atoms
      procedure :: move_atom !< Move an atom
+     procedure :: move_cell !< Move the unit cell
 
      ! symmetry (symmetry)
      procedure :: sitesymm !< Determine the local-symmetry group symbol for a point
@@ -619,11 +620,12 @@ module crystalmod
        real*8, intent(in) :: rk
        integer, intent(out) :: nk(3)
      end subroutine get_kpoints
-     module subroutine makeseed(c,seed,copysym)
+     module subroutine makeseed(c,seed,copysym,useabr)
        use crystalseedmod, only: crystalseed
        class(crystal), intent(in) :: c
        type(crystalseed), intent(out) :: seed
        logical, intent(in) :: copysym
+       integer, intent(in), optional :: useabr
      end subroutine makeseed
      module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv,ti)
        class(crystal), intent(inout) :: c
@@ -679,6 +681,14 @@ module crystalmod
        logical, intent(in) :: dorelative
        type(thread_info), intent(in), optional :: ti
      end subroutine move_atom
+     module subroutine move_cell(c,iaxis,x,iunit_l,dorelative,dofraction,ti)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: iaxis
+       real*8, intent(in) :: x
+       integer, intent(in) :: iunit_l
+       logical, intent(in) :: dorelative, dofraction
+       type(thread_info), intent(in), optional :: ti
+     end subroutine move_cell
      module function sitesymm(c,x0,eps0,leqv,lrotm)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3)

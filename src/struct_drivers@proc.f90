@@ -3065,10 +3065,10 @@ contains
 
     character(len=:), allocatable :: line, word, errmsg
     integer :: lp, lp2
-    integer :: idx, nat, i, iunit_l
+    integer :: idx, nat, i, iunit_l, iaxis
     integer, allocatable :: iat(:)
-    logical :: ok, dorelative
-    real*8 :: x(3)
+    logical :: ok, dorelative, dofraction, changed
+    real*8 :: x(3), rdum
 
     if (verbose) then
        write (uout,'("* Edit the crystal or molecular structure (EDIT)")')
@@ -3077,6 +3077,7 @@ contains
 
     ! transform to the primitive?
     errmsg = "Invalid syntax"
+    changed = .false.
     do while (getline(uin,line,ucopy=ucopy))
        lp = 1
        word = lgetword(line,lp)
@@ -3142,9 +3143,7 @@ contains
           if (nat > 0) then
              ! transform
              call s%c%delete_atoms(nat,iat(1:nat))
-             call s%reset_fields()
-             if (verbose) &
-                call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
+             changed = .true.
           end if
        elseif (equal(word,"move")) then
           ! read atom ID and position
@@ -3186,15 +3185,76 @@ contains
 
           ! transform
           call s%c%move_atom(idx,x,iunit_l,dorelative)
-          call s%reset_fields()
-          if (verbose) &
-             call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
+          changed = .true.
+
+       elseif (equal(word,"cellmove")) then
+          ! read axis/volume
+          word = lgetword(line,lp)
+          if (equal(word,"a")) then
+             iaxis = 1
+          elseif (equal(word,"b")) then
+             iaxis = 2
+          elseif (equal(word,"c")) then
+             iaxis = 3
+          elseif (equal(word,"alpha")) then
+             iaxis = -1
+          elseif (equal(word,"beta")) then
+             iaxis = -2
+          elseif (equal(word,"gamma")) then
+             iaxis = -3
+          elseif (equal(word,"volume").or.equal(word,"vol").or.equal(word,"v")) then
+             iaxis = 0
+          else
+             errmsg = "unknown keyword in cellmove: " // word
+             goto 999
+          end if
+
+          ! read displacement
+          ok = eval_next_real(rdum,line,lp)
+          if (.not.ok) then
+             errmsg = "invalid numerical argument in cellmove"
+             goto 999
+          end if
+
+          ! parse the rest of the options
+          dofraction = .false.
+          dorelative = .false.
+          iunit_l = iunit
+          do while (.true.)
+             word = lgetword(line,lp)
+             if (equal(word,"relative")) then
+                dorelative = .true.
+             elseif (equal(word,"fraction")) then
+                dofraction = .true.
+             elseif (equal(word,"bohr")) then
+                iunit_l = iunit_bohr
+             elseif (equal(word,"ang").or.equal(word,"angstrom")) then
+                iunit_l = iunit_ang
+             elseif (len_trim(word) == 0) then
+                exit
+             else
+                errmsg = "unknown extra keyword: " // word
+                goto 999
+             end if
+          end do
+
+          ! transform
+          call s%c%move_cell(iaxis,rdum,iunit_l,dorelative,dofraction)
+          changed = .true.
+
        elseif (equal(word,"end") .or. equal(word,"endedit")) then
           exit
        elseif (len_trim(word) > 0) then
           goto 999
        end if
     end do
+
+    ! wrap up
+    if (changed) then
+       call s%reset_fields()
+       if (verbose) &
+          call s%report(.true.,.true.,.true.,.true.,.true.,.true.,.false.)
+    end if
 
     return
 999 continue
