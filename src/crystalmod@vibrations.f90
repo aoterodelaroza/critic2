@@ -48,6 +48,7 @@ contains
 
     ! initialize
     if (allocated(c%vib)) deallocate(c%vib)
+    lu = -1
 
     ! detect the format
     if (ivformat == isformat_unknown) then

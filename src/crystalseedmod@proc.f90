@@ -5487,6 +5487,44 @@ contains
 
   end subroutine assign_crystalseed
 
+  !> Read the alat from a Quantum ESPRESSO output file (file) and
+  !> return it in alat. If error, return non-zero errmsg. ti = thread
+  !> info.
+  module subroutine read_alat_from_qeout(file,alat,errmsg,ti)
+    use tools_io, only: fopen_read, getline_raw, isreal, fclose
+    character*(*), intent(in) :: file
+    real*8, intent(out) :: alat
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    logical :: ok
+    integer :: lu, idx
+    character(len=:), allocatable :: line
+
+    ! open
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file: " // trim(file)
+       return
+    end if
+
+    ! read the alat
+    alat = -1d0
+    do while (getline_raw(lu,line))
+       if (index(line,"lattice parameter (alat)") > 0) then
+          idx = index(line,"=")
+          ok = isreal(alat,line(idx+1:))
+       end if
+    end do
+    if (alat < 0d0) then
+       errmsg = "Error reading alat from file: " // trim(file)
+       alat = 0d0
+    end if
+    call fclose(lu)
+
+  end subroutine read_alat_from_qeout
+
   !xx! private subroutines
 
   !> Read one or all structures from a VASP POSCAR-style file

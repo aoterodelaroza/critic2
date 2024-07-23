@@ -113,6 +113,7 @@ module crystalseedmod
   public :: vibrations_detect_format
   public :: struct_detect_ismol
   public :: read_seeds_from_file
+  public :: read_alat_from_qeout
 
   ! module procedure interfaces
   interface
@@ -393,6 +394,12 @@ module crystalseedmod
      module subroutine report(seed)
        class(crystalseed), intent(inout) :: seed
      end subroutine report
+     module subroutine read_alat_from_qeout(file,alat,errmsg,ti)
+       character*(*), intent(in) :: file
+       real*8, intent(out) :: alat
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_alat_from_qeout
   end interface
 
 end module crystalseedmod
