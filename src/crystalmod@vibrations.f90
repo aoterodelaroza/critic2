@@ -32,7 +32,7 @@ contains
   module subroutine read_vibrations_file(c,file,ivformat,errmsg,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose, getline_raw
-    use crystalseedmod, only: vibrations_detect_format
+    use crystalseedmod, only: vibrations_detect_format, read_alat_from_qeout
     use param, only: isformat_unknown, pi
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
@@ -44,7 +44,7 @@ contains
     logical :: ok
     character(len=:), allocatable :: line
     integer :: ifreq, iat, ier
-    real*8 :: xdum(6)
+    real*8 :: xdum(6), alat
 
     ! initialize
     if (allocated(c%vib)) deallocate(c%vib)
@@ -62,6 +62,12 @@ contains
     end if
 
     !!xxxx!! for now, only matdyn.modes is understood !!xxxx!!
+
+    ! read the alat from the crystal source file
+    call read_alat_from_qeout(c%file,alat,errmsg,ti)
+    if (len_trim(errmsg) > 0) then
+       errmsg = "Error reading alat: the crystal structure must come from a QE output"
+    end if
 
     ! open file
     lu = fopen_read(file)
@@ -125,7 +131,7 @@ contains
        if (ok) then
           c%vib%nqpt = c%vib%nqpt + 1
           read (line(5:),*,end=999,err=999) c%vib%qpt(:,c%vib%nqpt)
-          c%vib%qpt(:,c%vib%nqpt) = c%rc2rx(c%vib%qpt(:,c%vib%nqpt))
+          c%vib%qpt(:,c%vib%nqpt) = c%rc2rx(c%vib%qpt(:,c%vib%nqpt)) / alat
 
           ok = getline_raw(lu,line,.false.)
           if (.not.ok) goto 999

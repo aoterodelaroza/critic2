@@ -2591,12 +2591,10 @@ contains
     type(ImVec2) :: sz0, szero, szavail
     real*8 :: unitfactor, xx(3)
 
-    integer, save :: ifrequnit = 0 ! 0 = cm-1, 1 = THz
-    integer, save :: iqptunit = 0 ! 0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang)
-    logical, save :: ttshown = .false. ! tooltip flag
-
     integer, parameter :: ic_q_id = 0
     integer, parameter :: ic_q_qpt = 1
+
+    logical, save :: ttshown = .false. ! tooltip flag
 
     ! do we have a good parent window?
     goodparent = w%idparent > 0 .and. w%idparent <= nwin
@@ -2612,8 +2610,8 @@ contains
              win(w%idparent)%sc%ifreq_selected = 0
           end if
        end if
-       ifrequnit = 0
-       iqptunit = 0
+       w%ifrequnit = 0
+       w%iqptunit = 0
     end if
 
     ! initialize
@@ -2684,7 +2682,8 @@ contains
        call igAlignTextToFramePadding()
        call iw_text("Q-points",highlight=.true.)
        call iw_combo_simple("##qptunit","fractional" // c_null_char // "1/bohr" // c_null_char //&
-          "1/Å" // c_null_char,iqptunit,sameline=.true.)
+          "1/Å" // c_null_char,w%iqptunit,sameline=.true.)
+       call iw_tooltip("Units for the q-points",ttshown)
 
        flags = ImGuiTableFlags_None
        flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
@@ -2715,9 +2714,9 @@ contains
 
              xx = sys(isys)%c%vib%qpt(:,i)
              digits = min(sys(isys)%c%vib%qpt_digits,5)
-             if (iqptunit == 0) then ! fractional
+             if (w%iqptunit == 0) then ! fractional
                 !
-             elseif (iqptunit == 1) then ! 1/bohr
+             elseif (w%iqptunit == 1) then ! 1/bohr
                 xx = sys(isys)%c%rx2rc(xx)
                 digits = digits + 1
              else ! 1/ang
@@ -2761,8 +2760,9 @@ contains
           call igAlignTextToFramePadding()
           call iw_text("Frequencies",highlight=.true.)
           call iw_combo_simple("##frequnit","1/cm" // c_null_char // "THz" // c_null_char,&
-             ifrequnit,sameline=.true.)
-          if (ifrequnit == 0) then
+             w%ifrequnit,sameline=.true.)
+          call iw_tooltip("Units for the frequencies",ttshown)
+          if (w%ifrequnit == 0) then
              unitfactor = 1d0
              digits = 2
           else
