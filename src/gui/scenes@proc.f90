@@ -272,7 +272,7 @@ contains
     real(c_float) :: siz, hside, xsel(3,4), radsel(4), displ
     integer(c_int) :: nvert
     real(c_float), allocatable, target :: vert(:,:)
-    real(c_float) :: x(3)
+    real(c_float) :: x(3), x1(3), x2(3)
 
     real(c_float), parameter :: rgbsel(4,4) = reshape((/&
        1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
@@ -281,6 +281,9 @@ contains
        0.9_c_float, 0.7_c_float, 0.4_c_float, 0.5_c_float/),shape(rgbsel))
     real(c_float), parameter :: msel_thickness = 0.1_c_float
     real(c_float), parameter :: sel_label_size = 1.2_c_float
+
+    real(c_float), parameter :: ampanim = 1._c_float
+    real(c_float), parameter :: freqanim = 4._c_float
 
     ! check that the scene and system are initialized
     if (s%isinit == 0) return
@@ -295,7 +298,7 @@ contains
     if (s%forcebuildlists) call s%build_lists()
 
     ! calculate the time factor
-    displ = cos(real(time,c_float))
+    displ = ampanim * cos(real(time,c_float) * freqanim)
 
     if (s%style == style_phong) then
        !! phong !!
@@ -316,7 +319,7 @@ contains
        if (s%nsph > 0) then
           call glBindVertexArray(sphVAO(s%atom_res))
           do i = 1, s%nsph
-             x = s%drawlist_sph(i)%x + displ * s%drawlist_sph(i)%xdelta * 10d0
+             x = s%drawlist_sph(i)%x + displ * s%drawlist_sph(i)%xdelta
              call draw_sphere(x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
           end do
        end if
@@ -325,8 +328,9 @@ contains
        if (s%ncyl > 0) then
           call glBindVertexArray(cylVAO(s%bond_res))
           do i = 1, s%ncyl
-             call draw_cylinder(s%drawlist_cyl(i)%x1,s%drawlist_cyl(i)%x2,s%drawlist_cyl(i)%r,&
-                s%drawlist_cyl(i)%rgb,s%bond_res)
+             x1 = s%drawlist_cyl(i)%x1 + displ * s%drawlist_cyl(i)%x1delta
+             x2 = s%drawlist_cyl(i)%x2 + displ * s%drawlist_cyl(i)%x2delta
+             call draw_cylinder(x1,x2,s%drawlist_cyl(i)%r,s%drawlist_cyl(i)%rgb,s%bond_res)
           end do
        end if
 
@@ -349,9 +353,10 @@ contains
           do i = 1, s%nsph
              do j = 1, s%nmsel
                 if (all(s%drawlist_sph(i)%idx == s%msel(:,j))) then
-                   call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
+                   x = s%drawlist_sph(i)%x + displ * s%drawlist_sph(i)%xdelta
+                   call draw_sphere(x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
                    radsel(j) = s%drawlist_sph(i)%r + msel_thickness
-                   xsel(:,j) = s%drawlist_sph(i)%x
+                   xsel(:,j) = s%drawlist_sph(i)%x + displ * s%drawlist_sph(i)%xdelta
                 end if
              end do
           end do
@@ -385,7 +390,8 @@ contains
           else
              siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize_large
           end if
-          call calc_text_onscene_vertices(s%drawlist_string(i)%str,s%drawlist_string(i)%x,s%drawlist_string(i)%r,&
+          x = s%drawlist_string(i)%x + displ * s%drawlist_string(i)%xdelta
+          call calc_text_onscene_vertices(s%drawlist_string(i)%str,x,s%drawlist_string(i)%r,&
              siz,nvert,vert,centered=.true.)
           call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
           call glDrawArrays(GL_TRIANGLES, 0, nvert)
@@ -428,7 +434,9 @@ contains
        if (s%ncyl > 0) then
           call glBindVertexArray(cylVAO(s%bond_res))
           do i = 1, s%ncyl
-             call draw_cylinder(s%drawlist_cyl(i)%x1,s%drawlist_cyl(i)%x2,s%drawlist_cyl(i)%r,&
+             x1 = s%drawlist_cyl(i)%x1 + displ * s%drawlist_cyl(i)%x1delta
+             x2 = s%drawlist_cyl(i)%x2 + displ * s%drawlist_cyl(i)%x2delta
+             call draw_cylinder(x1,x2,s%drawlist_cyl(i)%r,&
                 s%drawlist_cyl(i)%rgb,s%bond_res)
           end do
        end if
@@ -450,9 +458,10 @@ contains
           do i = 1, s%nsph
              do j = 1, s%nmsel
                 if (all(s%drawlist_sph(i)%idx == s%msel(:,j))) then
-                   call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
+                   x = s%drawlist_sph(i)%x + displ * s%drawlist_sph(i)%xdelta
+                   call draw_sphere(x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
                    radsel(j) = s%drawlist_sph(i)%r + msel_thickness
-                   xsel(:,j) = s%drawlist_sph(i)%x
+                   xsel(:,j) = s%drawlist_sph(i)%x + displ * s%drawlist_sph(i)%xdelta
                 end if
              end do
           end do
@@ -486,7 +495,8 @@ contains
           else
              siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize_large
           end if
-          call calc_text_onscene_vertices(s%drawlist_string(i)%str,s%drawlist_string(i)%x,s%drawlist_string(i)%r,&
+          x = s%drawlist_string(i)%x + displ * s%drawlist_string(i)%xdelta
+          call calc_text_onscene_vertices(s%drawlist_string(i)%str,x,s%drawlist_string(i)%r,&
              siz,nvert,vert,centered=.true.)
           call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
           call glDrawArrays(GL_TRIANGLES, 0, nvert)
@@ -1143,7 +1153,8 @@ contains
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
     real(c_float) :: rgb(3), rad
-    real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), xdelta(3)
+    real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), xdelta(3), xdelta2(3)
+    real*8 :: xdelta0(3)
     complex*16 :: phase
     type(dl_sphere), allocatable :: auxsph(:)
     type(dl_cylinder), allocatable :: auxcyl(:)
@@ -1346,18 +1357,31 @@ contains
                             call move_alloc(auxcyl,drawlist_cyl)
                          end if
 
+                         ! calculate the animation delta of the other end
+                         xdelta2 = 0d0
+                         if (doanim) then
+                            xx = sys(r%id)%c%atcel(ineigh)%x + ixn
+                            phase = tpi * dot_product(xx,sys(r%id)%c%vib%qpt(:,iqpt))
+                            xdelta2 = real(sys(r%id)%c%vib%vec(:,ineigh,ifreq,iqpt) * exp(img * phase),8)
+                         end if
+
                          x1 = xc + uoriginc
                          x2 = sys(r%id)%c%atcel(ineigh)%x + ixn
                          x2 = sys(r%id)%c%x2c(x2) + uoriginc
                          if (r%bond_color_style == 0) then
                             drawlist_cyl(ncyl)%x1 = real(x1,c_float)
+                            drawlist_cyl(ncyl)%x1delta = real(xdelta,c_float)
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
+                            drawlist_cyl(ncyl)%x2delta = real(xdelta2,c_float)
                             drawlist_cyl(ncyl)%r = r%bond_rad
                             drawlist_cyl(ncyl)%rgb = r%bond_rgb
                          else
                             x0 = 0.5d0 * (x1 + x2)
+                            xdelta0 = 0.50 * (xdelta + xdelta2)
                             drawlist_cyl(ncyl-1)%x1 = real(x1,c_float)
+                            drawlist_cyl(ncyl-1)%x1delta = real(xdelta,c_float)
                             drawlist_cyl(ncyl-1)%x2 = real(x0,c_float)
+                            drawlist_cyl(ncyl-1)%x2delta = real(xdelta0,c_float)
                             drawlist_cyl(ncyl-1)%r = r%bond_rad
                             drawlist_cyl(ncyl-1)%rgb = r%atom_style(id)%rgb
 
@@ -1369,7 +1393,9 @@ contains
                                idaux = ineigh
                             end if
                             drawlist_cyl(ncyl)%x1 = real(x0,c_float)
+                            drawlist_cyl(ncyl)%x1delta = real(xdelta0,c_float)
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
+                            drawlist_cyl(ncyl)%x2delta = real(xdelta2,c_float)
                             drawlist_cyl(ncyl)%r = r%bond_rad
                             drawlist_cyl(ncyl)%rgb = r%atom_style(idaux)%rgb
                          end if
@@ -1387,6 +1413,7 @@ contains
                       end if
 
                       drawlist_string(nstring)%x = real(xc + uoriginc,c_float)
+                      drawlist_string(nstring)%xdelta = real(xdelta,c_float)
                       drawlist_string(nstring)%r = rad
                       drawlist_string(nstring)%rgb = r%label_rgb
                       if (r%label_const_size) then
