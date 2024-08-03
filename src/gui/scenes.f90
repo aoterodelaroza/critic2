@@ -32,6 +32,7 @@ module scenes
      real(c_float) :: r ! radius
      real(c_float) :: rgb(3) ! color
      integer(c_int) :: idx(4) ! atom ID (complete atom list) + lattice vector
+     real(c_float) :: xdelta(3) ! delta-vector for vibration animations
   end type dl_sphere
 
   !> cylinders for the draw list

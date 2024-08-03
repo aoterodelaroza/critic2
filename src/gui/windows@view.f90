@@ -564,6 +564,10 @@ contains
        if (chbuild .or. w%sc%timelastbuild < sysc(w%view_selected)%timelastchange) w%sc%forcebuildlists = .true.
        if (chrender .or. w%sc%forcebuildlists .or. w%sc%timelastrender < sysc(w%view_selected)%timelastchange) &
           w%forcerender = .true.
+
+       ! continuous render if animation is active
+       if (w%sc%ifreq_selected > 0.and.w%sc%iqpt_selected > 0.and.allocated(sys(w%view_selected)%c%vib)) &
+          w%forcerender = .true.
     end if
 
     ! export image

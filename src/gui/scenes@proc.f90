@@ -269,9 +269,10 @@ contains
     class(scene), intent(inout), target :: s
 
     integer :: i, j
-    real(c_float) :: siz, hside, xsel(3,4), radsel(4)
+    real(c_float) :: siz, hside, xsel(3,4), radsel(4), displ
     integer(c_int) :: nvert
     real(c_float), allocatable, target :: vert(:,:)
+    real(c_float) :: x(3)
 
     real(c_float), parameter :: rgbsel(4,4) = reshape((/&
        1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
@@ -293,6 +294,9 @@ contains
     ! if necessary, rebuild draw lists
     if (s%forcebuildlists) call s%build_lists()
 
+    ! calculate the time factor
+    displ = cos(real(time,c_float))
+
     if (s%style == style_phong) then
        !! phong !!
        ! set up the shader and the uniforms
@@ -312,7 +316,8 @@ contains
        if (s%nsph > 0) then
           call glBindVertexArray(sphVAO(s%atom_res))
           do i = 1, s%nsph
-             call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
+             x = s%drawlist_sph(i)%x + displ * s%drawlist_sph(i)%xdelta * 10d0
+             call draw_sphere(x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
           end do
        end if
 
@@ -413,7 +418,8 @@ contains
        if (s%nsph > 0) then
           call glBindVertexArray(sphVAO(s%atom_res))
           do i = 1, s%nsph
-             call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
+             x = s%drawlist_sph(i)%x + displ * s%drawlist_sph(i)%xdelta
+             call draw_sphere(x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
           end do
        end if
 
@@ -637,7 +643,7 @@ contains
   module function representation_menu(s,idcaller) result(changed)
     use interfaces_cimgui
     use utils, only: iw_text, iw_tooltip, iw_button
-    use windows, only: win, stack_create_window, wintype_editrep, update_window_id
+    use windows, only: stack_create_window, wintype_editrep, update_window_id
     use gui_main, only: ColorDangerButton, g
     use tools_io, only: string
     use tools, only: mergesort
@@ -1133,7 +1139,7 @@ contains
     integer, intent(in) :: iqpt, ifreq
 
     type(hash) :: shown_atoms
-    logical :: havefilter, step, isedge(3), usetshift
+    logical :: havefilter, step, isedge(3), usetshift, doanim
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
     real(c_float) :: rgb(3), rad
@@ -1182,6 +1188,7 @@ contains
        allocate(drawlist_string(100))
        nstring = 0
     end if
+    doanim = iqpt > 0 .and. ifreq > 0 .and. allocated(sys(r%id)%c%vib)
 
     if (r%type == reptype_atoms) then
        !!! atoms and bonds representation !!!
@@ -1289,7 +1296,7 @@ contains
 
                    ! calculate the animation delta
                    xdelta = 0d0
-                   if (iqpt > 0 .and. ifreq > 0 .and. allocated(sys(r%id)%c%vib)) then
+                   if (doanim) then
                       phase = tpi * dot_product(xx,sys(r%id)%c%vib%qpt(:,iqpt))
                       xdelta = real(sys(r%id)%c%vib%vec(:,i,ifreq,iqpt) * exp(img * phase),8)
                    end if
@@ -1309,6 +1316,7 @@ contains
                       drawlist_sph(nsph)%rgb = rgb
                       drawlist_sph(nsph)%idx(1) = i
                       drawlist_sph(nsph)%idx(2:4) = ix
+                      drawlist_sph(nsph)%xdelta = real(xdelta,c_float)
                    end if
 
                    ! bonds
