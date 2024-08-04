@@ -26,6 +26,10 @@ module scenes
   real(c_float), parameter, public :: min_zoom = 1._c_float
   real(c_float), parameter, public :: max_zoom = 100._c_float
 
+  !> Animation default parameters
+  real(c_float), parameter, public :: anim_speed_default = 4._c_float
+  real(c_float), parameter, public :: anim_amplitude_default = 1._c_float
+
   !> spheres for the draw list
   type dl_sphere
      real(c_float) :: x(3) ! position
@@ -186,8 +190,8 @@ module scenes
      integer :: animation = 0 ! animate the scene? 0=off, 1=manual, 2=automatic
      integer :: iqpt_selected = 0 ! selected q-point in the vibrations window
      integer :: ifreq_selected = 0 ! selected frequency in the vibrations window
-     real(c_float) :: anim_speed = 4._c_float ! animation speed
-     real(c_float) :: anim_amplitude = 1._c_float ! animation amplitude
+     real(c_float) :: anim_speed = anim_speed_default ! animation speed
+     real(c_float) :: anim_amplitude = anim_amplitude_default ! animation amplitude
    contains
      procedure :: init => scene_init
      procedure :: end => scene_end
@@ -317,4 +321,3 @@ module scenes
   end interface
 
 end module scenes
-

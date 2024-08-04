@@ -57,6 +57,9 @@ contains
     s%forcebuildlists = .true.
     s%iqpt_selected = 0
     s%ifreq_selected = 0
+    s%animation = 0
+    s%anim_speed = anim_speed_default
+    s%anim_amplitude = anim_amplitude_default
 
     ! resolutions
     s%atom_res = 4
@@ -131,6 +134,9 @@ contains
     s%nrep = 0
     s%iqpt_selected = 0
     s%ifreq_selected = 0
+    s%animation = 0
+    s%anim_speed = anim_speed_default
+    s%anim_amplitude = anim_amplitude_default
 
   end subroutine scene_end
 

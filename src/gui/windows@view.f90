@@ -2578,6 +2578,7 @@ contains
 
   !> Draw the vibrations window
   module subroutine draw_vibrations(w)
+    use scenes, only: anim_speed_default, anim_amplitude_default
     use gui_main, only: sysc, sys, nsys, sys_init, g
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_radiobutton
@@ -2599,9 +2600,6 @@ contains
     integer, parameter :: ic_q_qpt = 1
 
     logical, save :: ttshown = .false. ! tooltip flag
-
-    real(c_float), parameter :: anim_speed_default = 4._c_float
-    real(c_float), parameter :: anim_amplitude_default = 1._c_float
 
     ! do we have a good parent window?
     goodparent = w%idparent > 0 .and. w%idparent <= nwin
