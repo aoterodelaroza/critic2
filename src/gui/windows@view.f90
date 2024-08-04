@@ -2904,21 +2904,7 @@ contains
 
     ! quit = close the window
     if (doquit) then
-       ! deactivate the animation and render the scene as it was
-       if (associated(win(w%idparent)%sc)) then
-          win(w%idparent)%sc%iqpt_selected = 0
-          win(w%idparent)%sc%ifreq_selected = 0
-          win(w%idparent)%sc%animation = 0
-          win(w%idparent)%forcerender = .true.
-       end if
-
        call w%end()
-       if (goodparent) then
-          if (associated(win(w%idparent)%sc)) then
-             win(w%idparent)%sc%iqpt_selected = 0
-             win(w%idparent)%sc%ifreq_selected = 0
-          end if
-       end if
     end if
 
   end subroutine draw_vibrations

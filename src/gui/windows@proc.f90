@@ -291,11 +291,23 @@ contains
     ! window-specific destruction
     if (w%isinit) then
        if (w%type == wintype_dialog .and. c_associated(w%dptr)) then
+          ! destroy the dialog
           call IGFD_Destroy(w%dptr)
        elseif (w%type == wintype_view) then
+          ! delete the texture and deallocate the scene if not the main view
           call w%delete_texture_view()
           if (.not.w%ismain) then
              if (associated(w%sc)) deallocate(w%sc)
+          end if
+       elseif (w%type == wintype_vibrations) then
+          ! reset the animation status of the parent
+          if (w%idparent > 0 .and. w%idparent <= nwin) then
+             if (associated(win(w%idparent)%sc)) then
+                win(w%idparent)%sc%iqpt_selected = 0
+                win(w%idparent)%sc%ifreq_selected = 0
+                win(w%idparent)%sc%animation = 0
+                win(w%idparent)%forcerender = .true.
+             end if
           end if
        end if
     end if
