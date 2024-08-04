@@ -1538,7 +1538,7 @@ contains
        BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: nsys, sysc, sys_init, g
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
-       iw_radiobutton, iw_calcheight
+       iw_calcheight
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -2580,7 +2580,7 @@ contains
   module subroutine draw_vibrations(w)
     use gui_main, only: sysc, sys, nsys, sys_init, g
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
-       iw_combo_simple
+       iw_combo_simple, iw_radiobutton
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
     use tools_io, only: string, ioj_right
@@ -2588,7 +2588,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical(c_bool) :: selected
-    logical :: doquit, system_ok, vib_ok, ok, goodparent
+    logical :: doquit, system_ok, vib_ok, ok, goodparent, ldum, fset
     integer :: isys, oid, i, digits
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, strl
@@ -2599,6 +2599,9 @@ contains
     integer, parameter :: ic_q_qpt = 1
 
     logical, save :: ttshown = .false. ! tooltip flag
+
+    real(c_float), parameter :: anim_speed_default = 4._c_float
+    real(c_float), parameter :: anim_amplitude_default = 1._c_float
 
     ! do we have a good parent window?
     goodparent = w%idparent > 0 .and. w%idparent <= nwin
@@ -2612,6 +2615,7 @@ contains
           if (associated(win(w%idparent)%sc)) then
              win(w%idparent)%sc%iqpt_selected = 0
              win(w%idparent)%sc%ifreq_selected = 0
+             win(w%idparent)%sc%animation = 0
           end if
        end if
        w%ifrequnit = 0
@@ -2756,48 +2760,51 @@ contains
        end if ! begintable
        call igEndGroup()
 
-       if (win(w%idparent)%sc%iqpt_selected > 0) then
-          call igSameLine(0._c_float,-1._c_float)
-          call igBeginGroup()
+       ! frequency table
+       call igSameLine(0._c_float,-1._c_float)
+       call igBeginGroup()
+       ! header
+       call igAlignTextToFramePadding()
+       call iw_text("Frequencies",highlight=.true.)
+       call iw_combo_simple("##frequnit","1/cm" // c_null_char // "THz" // c_null_char,&
+          w%ifrequnit,sameline=.true.)
+       call iw_tooltip("Units for the frequencies",ttshown)
+       if (w%ifrequnit == 0) then
+          unitfactor = 1d0
+          digits = 2
+       else
+          unitfactor = cm1tothz
+          digits = 4
+       end if
 
-          ! header
-          call igAlignTextToFramePadding()
-          call iw_text("Frequencies",highlight=.true.)
-          call iw_combo_simple("##frequnit","1/cm" // c_null_char // "THz" // c_null_char,&
-             w%ifrequnit,sameline=.true.)
-          call iw_tooltip("Units for the frequencies",ttshown)
-          if (w%ifrequnit == 0) then
-             unitfactor = 1d0
-             digits = 2
-          else
-             unitfactor = cm1tothz
-             digits = 4
-          end if
+       ! frequencies table
+       flags = ImGuiTableFlags_None
+       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+       flags = ior(flags,ImGuiTableFlags_Borders)
+       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       flags = ior(flags,ImGuiTableFlags_ScrollY)
+       str1="##tablevibrationfreqs" // c_null_char
+       sz0%x = iw_calcwidth(20,0)
+       sz0%y = iw_calcheight(5,0,.false.)
+       if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
+          ! header setup
+          str2 = "Id" // c_null_char
+          flags = ImGuiTableColumnFlags_WidthFixed
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_id)
 
-          ! frequencies table
-          flags = ImGuiTableFlags_None
-          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-          flags = ior(flags,ImGuiTableFlags_Borders)
-          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-          flags = ior(flags,ImGuiTableFlags_ScrollY)
-          str1="##tablevibrationfreqs" // c_null_char
-          sz0%x = iw_calcwidth(20,0)
-          sz0%y = iw_calcheight(5,0,.false.)
-          if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
-             ! header setup
-             str2 = "Id" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_id)
+          str2 = "Frequency" // c_null_char
+          flags = ImGuiTableColumnFlags_WidthFixed
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_qpt)
+          call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
-             str2 = "Frequency" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_qpt)
-             call igTableSetupScrollFreeze(0, 1) ! top row always visible
+          ! draw the header
+          call igTableHeadersRow()
+          call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
-             ! draw the header
-             call igTableHeadersRow()
-             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+          ! check if the qpt/frequency has been set
+          fset = (win(w%idparent)%sc%iqpt_selected > 0 .and. win(w%idparent)%sc%ifreq_selected > 0)
 
+          if (win(w%idparent)%sc%iqpt_selected > 0) then
              ! draw the rows
              do i = 1, sys(isys)%c%vib%nfreq
                 call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
@@ -2825,10 +2832,60 @@ contains
                    call iw_text(s)
                 end if
              end do
-             call igEndTable()
-          end if ! igBeginTable (frequencies)
-          call igEndGroup()
-       end if ! win(w%idparent)%sc%iqpt_selected > 0
+          end if
+          call igEndTable()
+       end if ! igBeginTable (frequencies)
+       call igEndGroup()
+
+       ! set initial value of animation to automatic
+       if (win(w%idparent)%sc%iqpt_selected > 0 .and. win(w%idparent)%sc%ifreq_selected > 0 .and..not.fset) then
+          win(w%idparent)%sc%animation = 2
+          win(w%idparent)%sc%anim_speed = anim_speed_default
+          win(w%idparent)%sc%anim_amplitude = anim_amplitude_default
+       end if
+
+       ! animation radio buttons (no animation if no values selected)
+       call iw_text("Animation",highlight=.true.)
+       ldum = iw_radiobutton("None",int=win(w%idparent)%sc%animation,intval=0_c_int)
+       call iw_tooltip("Stop the animation",ttshown)
+       if (iw_radiobutton("Automatic",int=win(w%idparent)%sc%animation,intval=2_c_int,sameline=.true.)) then
+          win(w%idparent)%sc%anim_speed = anim_speed_default
+          win(w%idparent)%sc%anim_amplitude = anim_amplitude_default
+       end if
+       call iw_tooltip("Animate the scene with atomic displacements corresponding to a periodic sine function",ttshown)
+       if (iw_radiobutton("Manual",int=win(w%idparent)%sc%animation,intval=1_c_int,sameline=.true.)) then
+          win(w%idparent)%sc%anim_amplitude = 0._c_float
+       end if
+       call iw_tooltip("Animate the scene using a manually set atomic displacement value",ttshown)
+
+       if (win(w%idparent)%sc%animation == 1) then
+          ! manual
+          str1 = "Displacement##amplitude" // c_null_char
+          str2 = "%.3f" // c_null_char
+          call igPushItemWidth(iw_calcwidth(6,1))
+          ldum = igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_amplitude,&
+             0.005_c_float,-10.0_c_float,10.0_c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+          call igPopItemWidth()
+          call iw_tooltip("Atomic displacement along the chosen phonon normal mode",ttshown)
+       elseif (win(w%idparent)%sc%animation == 2) then
+          ! automatic
+          str1 = "Amplitude##amplitude" // c_null_char
+          str2 = "%.3f" // c_null_char
+          call igPushItemWidth(iw_calcwidth(5,1))
+          ldum = igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_amplitude,&
+             0.005_c_float,0.0_c_float,5.0_c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+          call igPopItemWidth()
+          call iw_tooltip("Amplitude of the atomic displacements",ttshown)
+
+          call igSameLine(0._c_float,-1._c_float)
+          str1 = "Speed##speed" // c_null_char
+          str2 = "%.2f" // c_null_char
+          call igPushItemWidth(iw_calcwidth(5,1))
+          ldum = igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_speed,&
+             0.02_c_float,0.0_c_float,50.0_c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+          call igPopItemWidth()
+          call iw_tooltip("Speed of the atomic displacements",ttshown)
+       end if
     end if ! vib_ok
 
     ! right-align and bottom-align for the rest of the contents
@@ -2847,6 +2904,14 @@ contains
 
     ! quit = close the window
     if (doquit) then
+       ! deactivate the animation and render the scene as it was
+       if (associated(win(w%idparent)%sc)) then
+          win(w%idparent)%sc%iqpt_selected = 0
+          win(w%idparent)%sc%ifreq_selected = 0
+          win(w%idparent)%sc%animation = 0
+          win(w%idparent)%forcerender = .true.
+       end if
+
        call w%end()
        if (goodparent) then
           if (associated(win(w%idparent)%sc)) then
