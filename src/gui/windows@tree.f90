@@ -23,24 +23,25 @@ submodule (windows) tree
   ! column ids for the table in the tree widget
   integer(c_int), parameter :: ic_closebutton = 0
   integer(c_int), parameter :: ic_expandbutton = 1
-  integer(c_int), parameter :: ic_id = 2
-  integer(c_int), parameter :: ic_name = 3
-  integer(c_int), parameter :: ic_spg = 4
-  integer(c_int), parameter :: ic_v = 5
-  integer(c_int), parameter :: ic_vmol = 6
-  integer(c_int), parameter :: ic_nneq = 7
-  integer(c_int), parameter :: ic_ncel = 8
-  integer(c_int), parameter :: ic_nmol = 9
-  integer(c_int), parameter :: ic_a = 10
-  integer(c_int), parameter :: ic_b = 11
-  integer(c_int), parameter :: ic_c = 12
-  integer(c_int), parameter :: ic_alpha = 13
-  integer(c_int), parameter :: ic_beta = 14
-  integer(c_int), parameter :: ic_gamma = 15
-  integer(c_int), parameter :: ic_e = 16
-  integer(c_int), parameter :: ic_emol = 17
-  integer(c_int), parameter :: ic_p = 18
-
+  integer(c_int), parameter :: ic_infobutton = 2
+  integer(c_int), parameter :: ic_id = 3
+  integer(c_int), parameter :: ic_name = 4
+  integer(c_int), parameter :: ic_spg = 5
+  integer(c_int), parameter :: ic_v = 6
+  integer(c_int), parameter :: ic_vmol = 7
+  integer(c_int), parameter :: ic_nneq = 8
+  integer(c_int), parameter :: ic_ncel = 9
+  integer(c_int), parameter :: ic_nmol = 10
+  integer(c_int), parameter :: ic_a = 11
+  integer(c_int), parameter :: ic_b = 12
+  integer(c_int), parameter :: ic_c = 13
+  integer(c_int), parameter :: ic_alpha = 15
+  integer(c_int), parameter :: ic_beta = 15
+  integer(c_int), parameter :: ic_gamma = 16
+  integer(c_int), parameter :: ic_e = 17
+  integer(c_int), parameter :: ic_emol = 18
+  integer(c_int), parameter :: ic_p = 19
+  integer(c_int), parameter :: ic_NUMCOLUMNS = 20 ! keep up to date
   !xx! private procedures
   ! function tree_system_tooltip_string(i)
   ! function tree_field_tooltip_string(si,fj)
@@ -71,6 +72,7 @@ contains
 
     character(kind=c_char,len=1024), target :: txtinp
     character(kind=c_char,len=:), allocatable, target :: str, strpop, strpop2, zeroc, ch
+    character(kind=c_char,len=:), allocatable :: tooltipstr
     type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
     integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev
@@ -78,7 +80,7 @@ contains
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
-    logical :: hadenabledcolumn, buttonhovered_close, buttonhovered_expand, reinit, isend, ok, found
+    logical :: hadenabledcolumn, reinit, isend, ok, found
     logical :: export, didtableselected
     real(c_float) :: width, pos
 
@@ -96,6 +98,7 @@ contains
     ! initialize
     hadenabledcolumn = .false.
     zeroc = "" // c_null_char
+    tooltipstr = ""
     szero%x = 0
     szero%y = 0
     if (.not.allocated(w%iord)) then
@@ -322,7 +325,7 @@ contains
     flags = ior(flags,ImGuiTableFlags_Hideable)
     flags = ior(flags,ImGuiTableFlags_Sortable)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    if (igBeginTable(c_loc(str),19,flags,szero,0._c_float)) then
+    if (igBeginTable(c_loc(str),ic_NUMCOLUMNS,flags,szero,0._c_float)) then
        ! force resize if asked for
        if (w%forceresize) then
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
@@ -343,7 +346,10 @@ contains
        call igTableSetupColumn(c_loc(str),flags,width,ic_closebutton)
 
        str = "(expand button)##0expandbutton" // c_null_char
-       call igTableSetupColumn(c_loc(str),flags,width,ic_expandbutton)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_expandbutton)
+
+       str = "(info button)##0expandbutton" // c_null_char
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_infobutton)
 
        str = "ID##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultSort
@@ -452,19 +458,18 @@ contains
           hadenabledcolumn = .false.
 
           ! close button
-          buttonhovered_close = .false.
           if (sysc(i)%status == sys_init) then
              if (igTableSetColumnIndex(ic_closebutton)) then
                 str = "##1closebutton" // string(ic_closebutton) // "," // string(i) // c_null_char
                 if (my_CloseButton(c_loc(str),ColorDangerButton)) w%forceremove = (/i/)
-                buttonhovered_close = igIsItemHovered(ImGuiHoveredFlags_None)
+                if (igIsItemHovered(ImGuiHoveredFlags_None)) &
+                   tooltipstr = "Close this system"
              end if
           end if
 
           ! expand button
-          buttonhovered_expand = .false.
-          if (sysc(i)%collapse < 0) then
-             if (igTableSetColumnIndex(ic_expandbutton)) then
+          if (igTableSetColumnIndex(ic_expandbutton)) then
+             if (sysc(i)%collapse < 0) then
                 ! expand button for multi-seed entries
                 str = "##expand" // string(ic_expandbutton) // "," // string(i) // c_null_char
                 if (sysc(i)%collapse == -1) then
@@ -480,7 +485,22 @@ contains
                       call collapse_system(i)
                    end if
                 end if
-                buttonhovered_expand = igIsItemHovered(ImGuiHoveredFlags_None)
+                if (igIsItemHovered(ImGuiHoveredFlags_None)) &
+                   tooltipstr = "Expand this system"
+             end if
+          end if
+
+          ! info buttons
+          if (igTableSetColumnIndex(ic_infobutton)) then
+             if (sysc(i)%status == sys_init) then
+                if (allocated(sys(i)%c%vib)) then
+                   str = "V" // c_null_char
+                   sz%y = iw_calcheight(1,0)
+                   sz%x = sz%y
+                   ldum = igButton(c_loc(str),sz)
+                   if (igIsItemHovered(ImGuiHoveredFlags_None)) &
+                      tooltipstr = "Vibrational data available"
+                end if
              end if
           end if
 
@@ -508,14 +528,14 @@ contains
           ! ID column
           if (igTableSetColumnIndex(ic_id)) then
              str = string(i)
-             call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+             call write_maybe_selectable(i,tooltipstr)
              call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
           end if
 
           ! name
           if (igTableSetColumnIndex(ic_name)) then
              ! selectable
-             call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+             call write_maybe_selectable(i,tooltipstr)
 
              ! expand button
              if (sysc(i)%showfields) then
@@ -680,7 +700,7 @@ contains
              else
                 str = "n/a"
              end if
-             call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+             call write_maybe_selectable(i,tooltipstr)
              call iw_text(str,copy_to_output=export)
           end if
 
@@ -693,7 +713,7 @@ contains
                 else
                    str = trim(sys(i)%c%spg%international_symbol)
                 end if
-                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
@@ -703,7 +723,7 @@ contains
                 else
                    str = string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2)
                 end if
-                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
@@ -713,25 +733,25 @@ contains
                 else
                    str = string(sys(i)%c%omega*bohrtoa**3/sys(i)%c%nmol,'f',decimal=2)
                 end if
-                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
              if (igTableSetColumnIndex(ic_nneq)) then ! nneq
                 str = string(sys(i)%c%nneq)
-                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
              if (igTableSetColumnIndex(ic_ncel)) then ! ncel
                 str = string(sys(i)%c%ncel)
-                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
              if (igTableSetColumnIndex(ic_nmol)) then ! nmol
                 str = string(sys(i)%c%nmol)
-                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
@@ -741,7 +761,7 @@ contains
                 else
                    str = string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4)
                 end if
-                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
              if (igTableSetColumnIndex(ic_b)) then ! b
@@ -750,7 +770,7 @@ contains
                 else
                    str = string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4)
                 end if
-                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
              if (igTableSetColumnIndex(ic_c)) then ! c
@@ -759,7 +779,7 @@ contains
                 else
                    str = string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4)
                 end if
-                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
              if (igTableSetColumnIndex(ic_alpha)) then ! alpha
@@ -768,7 +788,7 @@ contains
                 else
                    str = string(sys(i)%c%bb(1),'f',decimal=2)
                 end if
-                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
              if (igTableSetColumnIndex(ic_beta)) then ! beta
@@ -777,7 +797,7 @@ contains
                 else
                    str = string(sys(i)%c%bb(2),'f',decimal=2)
                 end if
-                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
              if (igTableSetColumnIndex(ic_gamma)) then ! gamma
@@ -786,7 +806,7 @@ contains
                 else
                    str = string(sys(i)%c%bb(3),'f',decimal=2)
                 end if
-                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
@@ -796,7 +816,7 @@ contains
                 else
                    str = "n/a"
                 end if
-                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,copy_to_output=export)
              end if
              if (igTableSetColumnIndex(ic_p)) then ! pressure
@@ -807,7 +827,7 @@ contains
                 else
                    str = "n/a"
                 end if
-                call write_maybe_selectable(i,buttonhovered_close,buttonhovered_expand)
+                call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,copy_to_output=export)
              end if
           end if
@@ -872,13 +892,13 @@ contains
 
   contains
 
-    subroutine write_maybe_selectable(isys,bclose,bexpand)
+    subroutine write_maybe_selectable(isys,tooltipstr)
       use gui_main, only: are_threads_running
       use utils, only: iw_text
       use global, only: iunit, iunit_bohr, iunit_ang
       use tools_io, only: uout
       integer, intent(in) :: isys
-      logical, intent(in) :: bclose, bexpand
+      character(kind=c_char,len=:), allocatable, intent(in) :: tooltipstr
 
       integer :: k, idx
       real(c_float) :: pos
@@ -1038,10 +1058,8 @@ contains
       ! delayed tooltip with info about the system
       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
          if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
-            if (bclose) then
-               strl = "Close this system" // c_null_char
-            elseif (bexpand) then
-               strl = "Expand this system" // c_null_char
+            if (len(tooltipstr) > 0) then
+               strl = tooltipstr // c_null_char
             else
                strl = tree_system_tooltip_string(isys)
             end if
