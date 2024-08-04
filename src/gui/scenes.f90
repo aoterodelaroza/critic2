@@ -196,6 +196,7 @@ module scenes
      procedure :: init => scene_init
      procedure :: end => scene_end
      procedure :: reset => scene_reset
+     procedure :: reset_animation => scene_reset_animation
      procedure :: build_lists => scene_build_lists
      procedure :: render => scene_render
      procedure :: renderpick => scene_render_pick
@@ -223,6 +224,9 @@ module scenes
      module subroutine scene_reset(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_reset
+     module subroutine scene_reset_animation(s)
+       class(scene), intent(inout), target :: s
+     end subroutine scene_reset_animation
      module subroutine scene_build_lists(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_build_lists

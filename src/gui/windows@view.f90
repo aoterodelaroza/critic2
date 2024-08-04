@@ -644,6 +644,7 @@ contains
           win(idum)%sc%rep(i)%idwin = 0
        end do
        win(idum)%view_selected = w%view_selected
+       call win(idum)%sc%reset_animation()
     end if
     call iw_tooltip("Create a new view for the current scene",ttshown)
 

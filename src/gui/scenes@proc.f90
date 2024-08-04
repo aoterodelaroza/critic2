@@ -173,6 +173,16 @@ contains
 
   end subroutine scene_reset
 
+  !> Reset animation parameters in the scene
+  module subroutine scene_reset_animation(s)
+    class(scene), intent(inout), target :: s
+
+    s%animation = 0
+    s%anim_speed = anim_speed_default
+    s%anim_amplitude = anim_amplitude_default
+
+  end subroutine scene_reset_animation
+
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
     use utils, only: translate
