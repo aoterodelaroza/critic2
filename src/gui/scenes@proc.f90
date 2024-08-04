@@ -284,11 +284,7 @@ contains
        setuniform_vec4, setuniform_mat3, setuniform_mat4
     class(scene), intent(inout), target :: s
 
-    integer :: i, j
-    real(c_float) :: siz, hside, xsel(3,4), radsel(4), displ
-    integer(c_int) :: nvert
-    real(c_float), allocatable, target :: vert(:,:)
-    real(c_float) :: x(3), x1(3), x2(3)
+    real(c_float) :: xsel(3,4), radsel(4), displ
 
     real(c_float), parameter :: rgbsel(4,4) = reshape((/&
        1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
@@ -337,35 +333,20 @@ contains
        ! draw the atoms
        if (s%nsph > 0) then
           call glBindVertexArray(sphVAO(s%atom_res))
-          do i = 1, s%nsph
-             x = s%drawlist_sph(i)%x
-             if (s%animation > 0) x = x + displ * s%drawlist_sph(i)%xdelta
-             call draw_sphere(x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
-          end do
+          call draw_all_spheres()
        end if
 
        ! draw the bonds
        if (s%ncyl > 0) then
           call glBindVertexArray(cylVAO(s%bond_res))
-          do i = 1, s%ncyl
-             x1 = s%drawlist_cyl(i)%x1
-             x2 = s%drawlist_cyl(i)%x2
-             if (s%animation > 0) then
-                x1 = x1 + displ * s%drawlist_cyl(i)%x1delta
-                x2 = x2 + displ * s%drawlist_cyl(i)%x2delta
-             end if
-             call draw_cylinder(x1,x2,s%drawlist_cyl(i)%r,s%drawlist_cyl(i)%rgb,s%bond_res)
-          end do
+          call draw_all_cylinders()
        end if
 
        ! draw the flat cylinders (unit cell)
        if (s%ncylflat > 0) then
           call setuniform_int("uselighting",0_c_int)
           call glBindVertexArray(cylVAO(s%uc_res))
-          do i = 1, s%ncylflat
-             call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
-                s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgb,s%uc_res)
-          end do
+          call draw_all_flat_cylinders()
        end if
 
        ! draw the selected atoms
@@ -374,17 +355,7 @@ contains
           call glBindVertexArray(sphVAO(s%atom_res))
           call glEnable(GL_BLEND)
           call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-          do i = 1, s%nsph
-             do j = 1, s%nmsel
-                if (all(s%drawlist_sph(i)%idx == s%msel(:,j))) then
-                   x = s%drawlist_sph(i)%x
-                   if (s%animation > 0) x = x + displ * s%drawlist_sph(i)%xdelta
-                   call draw_sphere(x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
-                   radsel(j) = s%drawlist_sph(i)%r + msel_thickness
-                   xsel(:,j) = x
-                end if
-             end do
-          end do
+          call draw_all_selections()
           call glDisable(GL_BLEND)
        end if
 
@@ -404,36 +375,11 @@ contains
        call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
        call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
 
-       do i = 1, s%nstring
-          call setuniform_vec3("textColor",s%drawlist_string(i)%rgb)
-          nvert = 0
-          if (s%drawlist_string(i)%scale > 0._c_float) then
-             hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
-             hside = hside * s%camratio
-             hside = max(hside,3._c_float)
-             siz = 2 * s%drawlist_string(i)%scale / fontbakesize_large / hside
-          else
-             siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize_large
-          end if
-          x = s%drawlist_string(i)%x
-          if (s%animation > 0) x = x + displ * s%drawlist_string(i)%xdelta
-          call calc_text_onscene_vertices(s%drawlist_string(i)%str,x,s%drawlist_string(i)%r,&
-             siz,nvert,vert,centered=.true.)
-          call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
-          call glDrawArrays(GL_TRIANGLES, 0, nvert)
-       end do
+       call draw_all_text()
 
        ! render selected atom labels with on-scene text
-       if (s%nmsel > 0) then
-          do j = 1, s%nmsel
-             call setuniform_vec3("textColor",(/1._c_float,1._c_float,1._c_float/))
-             siz = sel_label_size * s%projection(1,1) / fontbakesize_large
-             nvert = 0
-             call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
-             call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
-             call glDrawArrays(GL_TRIANGLES, 0, nvert)
-          end do
-       end if
+       if (s%nmsel > 0) &
+          call draw_selection_text()
        call glEnable(GL_MULTISAMPLE)
        call glDisable(GL_BLEND)
     else
@@ -449,35 +395,20 @@ contains
        call setuniform_vec3("bordercolor",s%bordercolor)
        if (s%nsph > 0) then
           call glBindVertexArray(sphVAO(s%atom_res))
-          do i = 1, s%nsph
-             x = s%drawlist_sph(i)%x
-             if (s%animation > 0) x = x + displ * s%drawlist_sph(i)%xdelta
-             call draw_sphere(x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
-          end do
+          call draw_all_spheres()
        end if
 
        ! draw the bonds
        call setuniform_float("rborder",-1._c_float)
        if (s%ncyl > 0) then
           call glBindVertexArray(cylVAO(s%bond_res))
-          do i = 1, s%ncyl
-             x1 = s%drawlist_cyl(i)%x1
-             x2 = s%drawlist_cyl(i)%x2
-             if (s%animation > 0) then
-                x1 = x1 + displ * s%drawlist_cyl(i)%x1delta
-                x2 = x2 + displ * s%drawlist_cyl(i)%x2delta
-             end if
-             call draw_cylinder(x1,x2,s%drawlist_cyl(i)%r,s%drawlist_cyl(i)%rgb,s%bond_res)
-          end do
+          call draw_all_cylinders()
        end if
 
        ! draw the flat cylinders (unit cell)
        if (s%ncylflat > 0) then
           call glBindVertexArray(cylVAO(s%uc_res))
-          do i = 1, s%ncylflat
-             call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
-                s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgb,s%uc_res)
-          end do
+          call draw_all_flat_cylinders()
        end if
 
        ! draw the selected atoms
@@ -485,17 +416,7 @@ contains
           call glBindVertexArray(sphVAO(s%atom_res))
           call glEnable(GL_BLEND)
           call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-          do i = 1, s%nsph
-             do j = 1, s%nmsel
-                if (all(s%drawlist_sph(i)%idx == s%msel(:,j))) then
-                   x = s%drawlist_sph(i)%x
-                   if (s%animation > 0) x = x + displ * s%drawlist_sph(i)%xdelta
-                   call draw_sphere(x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
-                   radsel(j) = s%drawlist_sph(i)%r + msel_thickness
-                   xsel(:,j) = x
-                end if
-             end do
-          end do
+          call draw_all_selections()
           call glDisable(GL_BLEND)
        end if
 
@@ -515,36 +436,11 @@ contains
        call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
        call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
 
-       do i = 1, s%nstring
-          call setuniform_vec3("textColor",s%drawlist_string(i)%rgb)
-          nvert = 0
-          if (s%drawlist_string(i)%scale > 0._c_float) then
-             hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
-             hside = hside * s%camratio
-             hside = max(hside,3._c_float)
-             siz = 2 * s%drawlist_string(i)%scale / fontbakesize_large / hside
-          else
-             siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize_large
-          end if
-          x = s%drawlist_string(i)%x
-          if (s%animation > 0) x = x + displ * s%drawlist_string(i)%xdelta
-          call calc_text_onscene_vertices(s%drawlist_string(i)%str,x,s%drawlist_string(i)%r,&
-             siz,nvert,vert,centered=.true.)
-          call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
-          call glDrawArrays(GL_TRIANGLES, 0, nvert)
-       end do
+       call draw_all_text()
 
        ! render selected atom labels with on-scene text
-       if (s%nmsel > 0) then
-          do j = 1, s%nmsel
-             call setuniform_vec3("textColor",(/1._c_float,1._c_float,1._c_float/))
-             siz = sel_label_size * s%projection(1,1) / fontbakesize_large
-             nvert = 0
-             call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
-             call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
-             call glDrawArrays(GL_TRIANGLES, 0, nvert)
-          end do
-       end if
+       if (s%nmsel > 0) &
+          call draw_selection_text()
        call glEnable(GL_MULTISAMPLE)
        call glDisable(GL_BLEND)
     end if
@@ -552,12 +448,113 @@ contains
     ! pop the large font
     call igPopFont()
 
+    ! clean up
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
     call glBindTexture(GL_TEXTURE_2D, 0)
 
     ! save the rendering time
     s%timelastrender = time
+
+  contains
+    subroutine draw_all_spheres()
+      integer :: i
+      real(c_float) :: x(3)
+
+      do i = 1, s%nsph
+         x = s%drawlist_sph(i)%x
+         if (s%animation > 0) x = x + displ * s%drawlist_sph(i)%xdelta
+         call draw_sphere(x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
+      end do
+
+    end subroutine draw_all_spheres
+
+    subroutine draw_all_cylinders()
+      integer :: i
+      real(c_float) :: x1(3), x2(3)
+
+      do i = 1, s%ncyl
+         x1 = s%drawlist_cyl(i)%x1
+         x2 = s%drawlist_cyl(i)%x2
+         if (s%animation > 0) then
+            x1 = x1 + displ * s%drawlist_cyl(i)%x1delta
+            x2 = x2 + displ * s%drawlist_cyl(i)%x2delta
+         end if
+         call draw_cylinder(x1,x2,s%drawlist_cyl(i)%r,s%drawlist_cyl(i)%rgb,s%bond_res)
+      end do
+
+    end subroutine draw_all_cylinders
+
+    subroutine draw_all_flat_cylinders()
+      integer :: i
+
+      do i = 1, s%ncylflat
+         call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
+            s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgb,s%uc_res)
+      end do
+
+    end subroutine draw_all_flat_cylinders
+
+    subroutine draw_all_selections()
+      integer :: i, j
+      real(c_float) :: x(3)
+
+      do i = 1, s%nsph
+         do j = 1, s%nmsel
+            if (all(s%drawlist_sph(i)%idx == s%msel(:,j))) then
+               x = s%drawlist_sph(i)%x
+               if (s%animation > 0) x = x + displ * s%drawlist_sph(i)%xdelta
+               call draw_sphere(x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
+               radsel(j) = s%drawlist_sph(i)%r + msel_thickness
+               xsel(:,j) = x
+            end if
+         end do
+      end do
+    end subroutine draw_all_selections
+
+    subroutine draw_all_text()
+      integer :: i
+      real(c_float) :: hside, siz, x(3)
+      integer(c_int) :: nvert
+      real(c_float), allocatable, target :: vert(:,:)
+
+      do i = 1, s%nstring
+         call setuniform_vec3("textColor",s%drawlist_string(i)%rgb)
+         nvert = 0
+         if (s%drawlist_string(i)%scale > 0._c_float) then
+            hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
+            hside = hside * s%camratio
+            hside = max(hside,3._c_float)
+            siz = 2 * s%drawlist_string(i)%scale / fontbakesize_large / hside
+         else
+            siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize_large
+         end if
+         x = s%drawlist_string(i)%x
+         if (s%animation > 0) x = x + displ * s%drawlist_string(i)%xdelta
+         call calc_text_onscene_vertices(s%drawlist_string(i)%str,x,s%drawlist_string(i)%r,&
+            siz,nvert,vert,centered=.true.)
+         call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
+         call glDrawArrays(GL_TRIANGLES, 0, nvert)
+      end do
+
+    end subroutine draw_all_text
+
+    subroutine draw_selection_text()
+      integer :: j
+      real(c_float) :: siz
+      integer(c_int) :: nvert
+      real(c_float), allocatable, target :: vert(:,:)
+
+      do j = 1, s%nmsel
+         call setuniform_vec3("textColor",(/1._c_float,1._c_float,1._c_float/))
+         siz = sel_label_size * s%projection(1,1) / fontbakesize_large
+         nvert = 0
+         call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
+         call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
+         call glDrawArrays(GL_TRIANGLES, 0, nvert)
+      end do
+
+    end subroutine draw_selection_text
 
   end subroutine scene_render
 
