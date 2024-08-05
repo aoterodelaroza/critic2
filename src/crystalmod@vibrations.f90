@@ -33,7 +33,7 @@ contains
     use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalseedmod, only: vibrations_detect_format, read_alat_from_qeout
-    use param, only: isformat_unknown, pi, atmass, isformat_qeout
+    use param, only: isformat_unknown, atmass, isformat_qeout
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     integer, intent(in) :: ivformat
@@ -43,8 +43,8 @@ contains
     integer :: ivf, lu, nline, nline1, nat, idx
     logical :: ok
     character(len=:), allocatable :: line
-    integer :: iqpt, ifreq, iat, ier, iz
-    real*8 :: xdum(6), alat, mass
+    integer :: iqpt, ifreq, iat, iz
+    real*8 :: xdum(6), alat
 
     ! initialize
     if (allocated(c%vib)) deallocate(c%vib)
@@ -52,7 +52,7 @@ contains
 
     ! detect the format
     if (ivformat == isformat_unknown) then
-       call vibrations_detect_format(file,ivf,ti)
+       call vibrations_detect_format(file,ivf)
        if (ivf == isformat_unknown) then
           errmsg = "Unknown vibration file format: " // trim(file)
           return

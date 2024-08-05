@@ -3064,7 +3064,7 @@ contains
     logical, intent(in) :: verbose
 
     character(len=:), allocatable :: line, word, errmsg
-    integer :: lp, lp2
+    integer :: lp
     integer :: idx, nat, i, iunit_l, iaxis
     integer, allocatable :: iat(:)
     logical :: ok, dorelative, dofraction, changed

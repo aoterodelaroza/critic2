@@ -1939,7 +1939,7 @@ contains
     yb = 0d0
     return
 #else
-    integer :: i, nk, j, lu
+    integer :: i, nk
     real*8, allocatable :: xk(:), yk(:), c(:,:)
     real*8 :: ssq
     integer*8 :: opt
@@ -2035,10 +2035,6 @@ contains
     use tools_math, only: splineval
     real*8, intent(in) :: t
     real*8 :: loglike_bayes
-
-    integer :: i, j
-
-    real*8, allocatable :: caux(:,:)
 
     integer, parameter :: nknot = 41
     real*8, parameter :: c(5,nknot) = reshape((/&

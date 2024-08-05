@@ -5048,12 +5048,11 @@ contains
 
   !> Detect the format for a file containing molecular or
   !> crystal vibrations.
-  module subroutine vibrations_detect_format(file,ivformat,ti)
+  module subroutine vibrations_detect_format(file,ivformat)
     use param, only: isformat_unknown, isformat_v_matdynmodes, dirsep
     use tools_io, only: equal, lower
     character*(*), intent(in) :: file
     integer, intent(out) :: ivformat
-    type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: basename, wextdot, wextdot2, wext_
     integer :: idx
