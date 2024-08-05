@@ -314,7 +314,7 @@ contains
     elseif (s%animation == 1) then ! manual
        displ = s%anim_amplitude
     else ! automatic
-       displ = s%anim_amplitude * exp(time * s%anim_speed * img)
+       displ = cmplx(s%anim_amplitude * exp(time * s%anim_speed * img),kind=c_float_complex)
     end if
 
     if (s%style == style_phong) then
@@ -1364,7 +1364,7 @@ contains
                       drawlist_sph(nsph)%rgb = rgb
                       drawlist_sph(nsph)%idx(1) = i
                       drawlist_sph(nsph)%idx(2:4) = ix
-                      drawlist_sph(nsph)%xdelta = xdelta1
+                      drawlist_sph(nsph)%xdelta = cmplx(xdelta1,kind=c_float_complex)
                    end if
 
                    ! bonds
@@ -1408,18 +1408,18 @@ contains
                          x2 = sys(r%id)%c%x2c(x2) + uoriginc
                          if (r%bond_color_style == 0) then
                             drawlist_cyl(ncyl)%x1 = real(x1,c_float)
-                            drawlist_cyl(ncyl)%x1delta = xdelta1
+                            drawlist_cyl(ncyl)%x1delta = cmplx(xdelta1,kind=c_float_complex)
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
-                            drawlist_cyl(ncyl)%x2delta = xdelta2
+                            drawlist_cyl(ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
                             drawlist_cyl(ncyl)%r = r%bond_rad
                             drawlist_cyl(ncyl)%rgb = r%bond_rgb
                          else
                             x0 = 0.5d0 * (x1 + x2)
                             xdelta0 = 0.50 * (xdelta1 + xdelta2)
                             drawlist_cyl(ncyl-1)%x1 = real(x1,c_float)
-                            drawlist_cyl(ncyl-1)%x1delta = xdelta1
+                            drawlist_cyl(ncyl-1)%x1delta = cmplx(xdelta1,kind=c_float_complex)
                             drawlist_cyl(ncyl-1)%x2 = real(x0,c_float)
-                            drawlist_cyl(ncyl-1)%x2delta = xdelta0
+                            drawlist_cyl(ncyl-1)%x2delta = cmplx(xdelta0,kind=c_float_complex)
                             drawlist_cyl(ncyl-1)%r = r%bond_rad
                             drawlist_cyl(ncyl-1)%rgb = r%atom_style(id)%rgb
 
@@ -1431,9 +1431,9 @@ contains
                                idaux = ineigh
                             end if
                             drawlist_cyl(ncyl)%x1 = real(x0,c_float)
-                            drawlist_cyl(ncyl)%x1delta = xdelta0
+                            drawlist_cyl(ncyl)%x1delta = cmplx(xdelta0,kind=c_float_complex)
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
-                            drawlist_cyl(ncyl)%x2delta = xdelta2
+                            drawlist_cyl(ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
                             drawlist_cyl(ncyl)%r = r%bond_rad
                             drawlist_cyl(ncyl)%rgb = r%atom_style(idaux)%rgb
                          end if
@@ -1451,7 +1451,7 @@ contains
                       end if
 
                       drawlist_string(nstring)%x = real(xc + uoriginc,c_float)
-                      drawlist_string(nstring)%xdelta = xdelta1
+                      drawlist_string(nstring)%xdelta = cmplx(xdelta1,kind=c_float_complex)
                       drawlist_string(nstring)%r = rad
                       drawlist_string(nstring)%rgb = r%label_rgb
                       if (r%label_const_size) then

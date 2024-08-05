@@ -593,7 +593,7 @@ contains
     if (nold(1) == n1 .and. nold(2) == n2) return
     allocate(temp(n1,n2))
 
-    temp = cmplx(0,8)
+    temp = cmplx(0,kind=8)
     temp(1:min(n1,nold(1)),1:min(n2,nold(2))) = a(1:min(n1,nold(1)),1:min(n2,nold(2)))
     call move_alloc(temp,a)
 
@@ -618,7 +618,7 @@ contains
         nold(4) == n4) return
     allocate(temp(n1,n2,n3,n4))
 
-    temp = cmplx(0,8)
+    temp = cmplx(0,kind=8)
     temp(1:min(n1,nold(1)),1:min(n2,nold(2)),1:min(n3,nold(3)),1:min(n4,nold(4))) = &
        a(1:min(n1,nold(1)),1:min(n2,nold(2)),1:min(n3,nold(3)),1:min(n4,nold(4)))
     call move_alloc(temp,a)
