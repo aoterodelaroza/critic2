@@ -33,7 +33,7 @@ contains
     use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalseedmod, only: vibrations_detect_format, read_alat_from_qeout
-    use param, only: isformat_unknown, pi, atmass
+    use param, only: isformat_unknown, pi, atmass, isformat_qeout
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     integer, intent(in) :: ivformat
@@ -65,10 +65,12 @@ contains
     !!xxxx!! from matdyn.x, flvec option !!xxxx!!
 
     ! read the alat from the crystal source file
-    call read_alat_from_qeout(c%file,alat,errmsg,ti)
-    if (len_trim(errmsg) > 0) then
-       errmsg = "Error reading alat: the crystal structure must come from a QE output"
+    if (c%isformat /= isformat_qeout) then
+       errmsg = "Error reading alat: the crystal structure must be a QE output"
+       goto 999
     end if
+    call read_alat_from_qeout(c%file,alat,errmsg,ti)
+    if (len_trim(errmsg) > 0) goto 999
 
     ! open file
     lu = fopen_read(file)
