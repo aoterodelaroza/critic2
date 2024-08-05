@@ -33,7 +33,7 @@ contains
     use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalseedmod, only: vibrations_detect_format, read_alat_from_qeout
-    use param, only: isformat_unknown, pi
+    use param, only: isformat_unknown, pi, atmass
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     integer, intent(in) :: ivformat
@@ -43,8 +43,8 @@ contains
     integer :: ivf, lu, nline, nline1, nat, idx
     logical :: ok
     character(len=:), allocatable :: line
-    integer :: ifreq, iat, ier
-    real*8 :: xdum(6), alat
+    integer :: iqpt, ifreq, iat, ier, iz
+    real*8 :: xdum(6), alat, mass
 
     ! initialize
     if (allocated(c%vib)) deallocate(c%vib)
@@ -62,6 +62,7 @@ contains
     end if
 
     !!xxxx!! for now, only matdyn.modes is understood !!xxxx!!
+    !!xxxx!! from matdyn.x, flvec option !!xxxx!!
 
     ! read the alat from the crystal source file
     call read_alat_from_qeout(c%file,alat,errmsg,ti)
@@ -152,6 +153,33 @@ contains
           end do
        end if
     end do
+
+    ! convert to mass-weighed coordinates (orthonormal eigenvectors)
+    do iat = 1, c%ncel
+       iz = c%spc(c%atcel(iat)%is)%z
+       c%vib%vec(:,iat,:,:) = c%vib%vec(:,iat,:,:) * sqrt(atmass(iz))
+    end do
+
+    ! normalize
+    do iqpt = 1, c%vib%nqpt
+       do ifreq = 1, c%vib%nfreq
+          c%vib%vec(:,:,ifreq,iqpt) = c%vib%vec(:,:,ifreq,iqpt) / &
+             sqrt(sum(c%vib%vec(:,:,ifreq,iqpt)*conjg(c%vib%vec(:,:,ifreq,iqpt))))
+       end do
+    end do
+
+    ! integer :: jfreq !xxxx
+    ! complex*16 :: summ
+    ! ! checking normalization
+    ! write (*,*) "checking normalization..."
+    ! do iqpt = 1, c%vib%nqpt
+    !    do ifreq = 1, c%vib%nfreq
+    !       do jfreq = 1, c%vib%nfreq
+    !          summ = sum(c%vib%vec(:,:,ifreq,iqpt)*conjg(c%vib%vec(:,:,jfreq,iqpt)))
+    !          write (*,*) ifreq, jfreq, summ
+    !       end do
+    !    end do
+    ! end do
 
     ! wrap up
     errmsg = ""

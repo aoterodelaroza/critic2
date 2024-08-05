@@ -326,7 +326,10 @@ module crystalmod
      integer :: qpt_digits ! number of significant digits for qpt
      integer :: nfreq ! number of frequencies
      real*8, allocatable :: freq(:,:) ! frequencies (nfreq,nqpt) (cm-1)
-     complex*16, allocatable :: vec(:,:,:,:) ! eigenvector in Cartesian coordinates (3,nat,nfreq,nqpt)
+     complex*16, allocatable :: vec(:,:,:,:) ! phonon eigenvector (3,nat,nfreq,nqpt)
+     ! note: these are the vectors that come out of the dynamical
+     ! matrix diagonalization and they must be orthonormal. For the
+     ! displacements, divide by the sqrt(m_j).
   end type vibrations
 
   ! other crystallography tools that are crystal-independent (symmetry)

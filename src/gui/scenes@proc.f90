@@ -282,6 +282,7 @@ contains
     use shaders, only: shader_phong, shader_simple, shader_text_onscene,&
        useshader, setuniform_int, setuniform_float, setuniform_vec3,&
        setuniform_vec4, setuniform_mat3, setuniform_mat4
+    use param, only: img
     class(scene), intent(inout), target :: s
 
     real(c_float) :: xsel(3,4), radsel(4), displ
@@ -312,7 +313,7 @@ contains
     elseif (s%animation == 1) then ! manual
        displ = s%anim_amplitude
     else ! automatic
-       displ = s%anim_amplitude * cos(real(time,c_float) * s%anim_speed)
+       displ = s%anim_amplitude * exp(time * s%anim_speed * img)
     end if
 
     if (s%style == style_phong) then
@@ -463,7 +464,9 @@ contains
 
       do i = 1, s%nsph
          x = s%drawlist_sph(i)%x
-         if (s%animation > 0) x = x + displ * s%drawlist_sph(i)%xdelta
+         if (s%animation > 0) then
+            x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
+         end if
          call draw_sphere(x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
       end do
 
@@ -477,8 +480,8 @@ contains
          x1 = s%drawlist_cyl(i)%x1
          x2 = s%drawlist_cyl(i)%x2
          if (s%animation > 0) then
-            x1 = x1 + displ * s%drawlist_cyl(i)%x1delta
-            x2 = x2 + displ * s%drawlist_cyl(i)%x2delta
+            x1 = x1 + real(displ * s%drawlist_cyl(i)%x1delta,c_float)
+            x2 = x2 + real(displ * s%drawlist_cyl(i)%x2delta,c_float)
          end if
          call draw_cylinder(x1,x2,s%drawlist_cyl(i)%r,s%drawlist_cyl(i)%rgb,s%bond_res)
       end do
@@ -503,7 +506,7 @@ contains
          do j = 1, s%nmsel
             if (all(s%drawlist_sph(i)%idx == s%msel(:,j))) then
                x = s%drawlist_sph(i)%x
-               if (s%animation > 0) x = x + displ * s%drawlist_sph(i)%xdelta
+               if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
                call draw_sphere(x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
                radsel(j) = s%drawlist_sph(i)%r + msel_thickness
                xsel(:,j) = x
@@ -530,7 +533,7 @@ contains
             siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize_large
          end if
          x = s%drawlist_string(i)%x
-         if (s%animation > 0) x = x + displ * s%drawlist_string(i)%xdelta
+         if (s%animation > 0) x = x + real(displ * s%drawlist_string(i)%xdelta,c_float)
          call calc_text_onscene_vertices(s%drawlist_string(i)%str,x,s%drawlist_string(i)%r,&
             siz,nvert,vert,centered=.true.)
          call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
@@ -1166,7 +1169,7 @@ contains
     use gui_main, only: sys
     use tools_io, only: string, nameguess
     use hashmod, only: hash
-    use param, only: bohrtoa, newline, tpi, img
+    use param, only: bohrtoa, newline, tpi, img, atmass
     class(representation), intent(inout), target :: r
     integer, intent(in) :: nc(3)
     integer, intent(inout) :: nsph
@@ -1185,9 +1188,8 @@ contains
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
     real(c_float) :: rgb(3), rad
-    real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), xdelta1(3), xdelta2(3)
-    real*8 :: xdelta0(3)
-    complex*16 :: phase
+    real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), phase, mass
+    complex*16 :: xdelta0(3), xdelta1(3), xdelta2(3)
     type(dl_sphere), allocatable :: auxsph(:)
     type(dl_cylinder), allocatable :: auxcyl(:)
     type(dl_string), allocatable :: auxstr(:)
@@ -1341,8 +1343,9 @@ contains
                    ! calculate the animation delta
                    xdelta1 = 0d0
                    if (doanim_) then
+                      mass = atmass(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z)
                       phase = tpi * dot_product(xx,sys(r%id)%c%vib%qpt(:,iqpt))
-                      xdelta1 = real(sys(r%id)%c%vib%vec(:,i,ifreq,iqpt) * exp(img * phase),8)
+                      xdelta1 = sys(r%id)%c%vib%vec(:,i,ifreq,iqpt) * exp(img * phase) / sqrt(mass)
                    end if
 
                    ! draw the atom, reallocate if necessary
@@ -1360,7 +1363,7 @@ contains
                       drawlist_sph(nsph)%rgb = rgb
                       drawlist_sph(nsph)%idx(1) = i
                       drawlist_sph(nsph)%idx(2:4) = ix
-                      drawlist_sph(nsph)%xdelta = real(xdelta1,c_float)
+                      drawlist_sph(nsph)%xdelta = xdelta1
                    end if
 
                    ! bonds
@@ -1393,9 +1396,10 @@ contains
                          ! calculate the animation delta of the other end
                          xdelta2 = 0d0
                          if (doanim_) then
+                            mass = atmass(sys(r%id)%c%spc(sys(r%id)%c%atcel(ineigh)%is)%z)
                             xx = sys(r%id)%c%atcel(ineigh)%x + ixn
                             phase = tpi * dot_product(xx,sys(r%id)%c%vib%qpt(:,iqpt))
-                            xdelta2 = real(sys(r%id)%c%vib%vec(:,ineigh,ifreq,iqpt) * exp(img * phase),8)
+                            xdelta2 = real(sys(r%id)%c%vib%vec(:,ineigh,ifreq,iqpt) * exp(img * phase),8) / sqrt(mass)
                          end if
 
                          x1 = xc + uoriginc
@@ -1403,18 +1407,18 @@ contains
                          x2 = sys(r%id)%c%x2c(x2) + uoriginc
                          if (r%bond_color_style == 0) then
                             drawlist_cyl(ncyl)%x1 = real(x1,c_float)
-                            drawlist_cyl(ncyl)%x1delta = real(xdelta1,c_float)
+                            drawlist_cyl(ncyl)%x1delta = xdelta1
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
-                            drawlist_cyl(ncyl)%x2delta = real(xdelta2,c_float)
+                            drawlist_cyl(ncyl)%x2delta = xdelta2
                             drawlist_cyl(ncyl)%r = r%bond_rad
                             drawlist_cyl(ncyl)%rgb = r%bond_rgb
                          else
                             x0 = 0.5d0 * (x1 + x2)
                             xdelta0 = 0.50 * (xdelta1 + xdelta2)
                             drawlist_cyl(ncyl-1)%x1 = real(x1,c_float)
-                            drawlist_cyl(ncyl-1)%x1delta = real(xdelta1,c_float)
+                            drawlist_cyl(ncyl-1)%x1delta = xdelta1
                             drawlist_cyl(ncyl-1)%x2 = real(x0,c_float)
-                            drawlist_cyl(ncyl-1)%x2delta = real(xdelta0,c_float)
+                            drawlist_cyl(ncyl-1)%x2delta = xdelta0
                             drawlist_cyl(ncyl-1)%r = r%bond_rad
                             drawlist_cyl(ncyl-1)%rgb = r%atom_style(id)%rgb
 
@@ -1426,9 +1430,9 @@ contains
                                idaux = ineigh
                             end if
                             drawlist_cyl(ncyl)%x1 = real(x0,c_float)
-                            drawlist_cyl(ncyl)%x1delta = real(xdelta0,c_float)
+                            drawlist_cyl(ncyl)%x1delta = xdelta0
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
-                            drawlist_cyl(ncyl)%x2delta = real(xdelta2,c_float)
+                            drawlist_cyl(ncyl)%x2delta = xdelta2
                             drawlist_cyl(ncyl)%r = r%bond_rad
                             drawlist_cyl(ncyl)%rgb = r%atom_style(idaux)%rgb
                          end if
@@ -1446,7 +1450,7 @@ contains
                       end if
 
                       drawlist_string(nstring)%x = real(xc + uoriginc,c_float)
-                      drawlist_string(nstring)%xdelta = real(xdelta1,c_float)
+                      drawlist_string(nstring)%xdelta = xdelta1
                       drawlist_string(nstring)%r = rad
                       drawlist_string(nstring)%rgb = r%label_rgb
                       if (r%label_const_size) then

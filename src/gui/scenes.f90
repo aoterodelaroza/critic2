@@ -36,7 +36,7 @@ module scenes
      real(c_float) :: r ! radius
      real(c_float) :: rgb(3) ! color
      integer(c_int) :: idx(4) ! atom ID (complete atom list) + lattice vector
-     real(c_float) :: xdelta(3) ! delta-vector for vibration animations
+     complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
   end type dl_sphere
 
   !> cylinders for the draw list
@@ -45,8 +45,8 @@ module scenes
      real(c_float) :: x2(3) ! other end of the cylinder
      real(c_float) :: r ! radius
      real(c_float) :: rgb(3) ! color
-     real(c_float) :: x1delta(3) ! delta-vector for vibration animations (end 1)
-     real(c_float) :: x2delta(3) ! delta-vector for vibration animations (end 2)
+     complex(c_float_complex) :: x1delta(3) ! delta-vector for vibration animations (end 1)
+     complex(c_float_complex) :: x2delta(3) ! delta-vector for vibration animations (end 2)
   end type dl_cylinder
 
   !> strings for the draw list
@@ -56,7 +56,7 @@ module scenes
      real(c_float) :: rgb(3) ! color
      real(c_float) :: scale ! scale (1.0 = radius)
      character(len=:), allocatable :: str ! string
-     real(c_float) :: xdelta(3) ! delta-vector for vibration animations
+     complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
   end type dl_string
 
   !> draw style for atoms
