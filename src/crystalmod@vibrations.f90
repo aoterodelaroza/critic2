@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Routines for reading and handling molecular and crystal vibrations.
-submodule (crystalmod) edit
+submodule (crystalmod) vibrations
   implicit none
 
   !xx! private procedures
@@ -229,4 +229,4 @@ contains
 
   end subroutine read_matdyn_modes
 
-end submodule edit
+end submodule vibrations
