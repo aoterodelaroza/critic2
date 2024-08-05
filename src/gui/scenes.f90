@@ -28,7 +28,7 @@ module scenes
 
   !> Animation default parameters
   real(c_float), parameter, public :: anim_speed_default = 4._c_float
-  real(c_float), parameter, public :: anim_amplitude_default = 1._c_float
+  real(c_float), parameter, public :: anim_amplitude_default = 3._c_float
 
   !> spheres for the draw list
   type dl_sphere

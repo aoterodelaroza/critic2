@@ -2863,7 +2863,7 @@ contains
           str2 = "%.3f" // c_null_char
           call igPushItemWidth(iw_calcwidth(6,1))
           ldum = igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_amplitude,&
-             0.005_c_float,-10.0_c_float,10.0_c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+             0.005_c_float,-15.0_c_float,15.0_c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
           call igPopItemWidth()
           call iw_tooltip("Atomic displacement along the chosen phonon normal mode",ttshown)
        elseif (win(w%idparent)%sc%animation == 2) then
@@ -2872,7 +2872,7 @@ contains
           str2 = "%.3f" // c_null_char
           call igPushItemWidth(iw_calcwidth(5,1))
           ldum = igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_amplitude,&
-             0.005_c_float,0.0_c_float,10.0_c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+             0.005_c_float,0.0_c_float,15.0_c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
           call igPopItemWidth()
           call iw_tooltip("Amplitude of the atomic displacements",ttshown)
 
