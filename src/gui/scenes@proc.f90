@@ -285,7 +285,8 @@ contains
     use param, only: img
     class(scene), intent(inout), target :: s
 
-    real(c_float) :: xsel(3,4), radsel(4), displ
+    real(c_float) :: xsel(3,4), radsel(4)
+    complex(c_float_complex) :: displ
 
     real(c_float), parameter :: rgbsel(4,4) = reshape((/&
        1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
