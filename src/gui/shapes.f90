@@ -24,6 +24,7 @@ module shapes
 
   public :: shapes_init
   public :: shapes_end
+  public :: icons_init
 
   ! sphere objects
   integer, parameter, public :: nmaxsph = 5
@@ -55,12 +56,17 @@ module shapes
   integer(c_int), target, public :: textVBOos
   integer(c_int), parameter, public :: text_maxvert = 6 * 128
 
+  ! icons for tree
+  integer(c_int), target, public :: treeicon1
+
   ! module procedure interfaces
   interface
      module subroutine shapes_init()
      end subroutine shapes_init
      module subroutine shapes_end()
      end subroutine shapes_end
+     module subroutine icons_init()
+     end subroutine icons_init
   end interface
 
 end module shapes

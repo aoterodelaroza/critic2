@@ -311,6 +311,11 @@ subroutine glLinkProgram(prog) bind(c,name="glLinkProgram_")
   import c_int
   integer(c_int), value :: prog
 end subroutine glLinkProgram
+! void glPixelStorei(GLenum pname,GLint param)
+subroutine glPixelStorei(pname,param) bind(c,name="glPixelStorei_")
+  import c_int
+  integer(c_int), value :: pname, param
+end subroutine glPixelStorei
 ! void glReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid * data);
 subroutine glReadPixels(x,y,width,height,form,type,data) bind(c,name="glReadPixels_")
   import c_int, c_ptr

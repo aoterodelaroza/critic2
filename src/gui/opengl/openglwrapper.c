@@ -162,6 +162,9 @@ void glGenVertexArrays_(GLsizei n, GLuint *arrays){
 void glLinkProgram_(GLuint program){
   glLinkProgram(program);
 }
+void glPixelStorei_(GLenum pname,GLint param){
+  glPixelStorei(pname,param);
+}
 void glReadPixels_(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid * data){
   glReadPixels(x,y,width,height,format,type,data);
 }

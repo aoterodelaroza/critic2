@@ -320,4 +320,37 @@ contains
 
   end subroutine shapes_end
 
+  ! !> Initialize images for the icons in the GUI.
+  ! module subroutine icons_init()
+  !   use interfaces_opengl3
+  !   use interfaces_stb
+  !   use tools_io, only: ferror, faterr
+  !   use global, only: critic_home
+  !   use param, only: dirsep
+
+  !   character(kind=c_char,len=:), allocatable, target :: file
+  !   type(c_ptr) :: image
+  !   integer(c_int) :: idum, width, height
+
+  !   integer(c_int) :: icon_side = 64
+
+  !   ! load the icon
+  !   file = trim(critic_home) // dirsep // "assets" // dirsep // "qe.png" // c_null_char
+  !   image = stbi_load(c_loc(file), width, height, idum, 4)
+  !   if (.not.c_associated(image)) &
+  !      call ferror('gui_start','Could not find GUI assets: have you set CRITIC_HOME?',faterr)
+
+  !   ! create the texture
+  !   call glGenTextures(1, c_loc(treeicon1))
+  !   call glBindTexture(GL_TEXTURE_2D, treeicon1)
+  !   call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+  !   call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+  !   call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image)
+  !   call glBindTexture(GL_TEXTURE_2D, 0)
+
+  !   ! free
+  !   call stbi_image_free(image)
+
+  ! end subroutine icons_init
+
 end submodule proc

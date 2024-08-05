@@ -50,6 +50,7 @@ contains
 
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
+    use shapes, only: treeicon1
     use windows, only: win, iwin_view
     use keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM_FIELD, BIND_TREE_MOVE_UP,&
        BIND_TREE_MOVE_DOWN
@@ -73,7 +74,7 @@ contains
     character(kind=c_char,len=1024), target :: txtinp
     character(kind=c_char,len=:), allocatable, target :: str, strpop, strpop2, zeroc, ch
     character(kind=c_char,len=:), allocatable :: tooltipstr
-    type(ImVec2) :: szero, sz
+    type(ImVec2) :: szero, sone, sz
     integer(c_int) :: flags, color, idir
     integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev
     logical(c_bool) :: ldum, isel
@@ -83,6 +84,7 @@ contains
     logical :: hadenabledcolumn, reinit, isend, ok, found
     logical :: export, didtableselected
     real(c_float) :: width, pos
+    type(ImVec4) :: tintcol, bgcol
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
@@ -101,6 +103,8 @@ contains
     tooltipstr = ""
     szero%x = 0
     szero%y = 0
+    sone%x = 1
+    sone%y = 1
     if (.not.allocated(w%iord)) then
        w%table_sortcid = ic_id
        w%table_sortdir = 1
@@ -488,6 +492,23 @@ contains
                 if (igIsItemHovered(ImGuiHoveredFlags_None)) &
                    tooltipstr = "Expand this system"
              end if
+
+             bgcol%x = 0._c_float
+             bgcol%y = 0._c_float
+             bgcol%z = 0._c_float
+             bgcol%w = 0._c_float
+             tintcol%x = 1._c_float
+             tintcol%y = 1._c_float
+             tintcol%z = 1._c_float
+             tintcol%w = 1._c_float
+             call igPushStyleColor_Vec4(ImGuiCol_Button,bgcol)
+             call igPushStyleColor_Vec4(ImGuiCol_ButtonActive,bgcol)
+             call igPushStyleColor_Vec4(ImGuiCol_ButtonHovered,bgcol)
+             sz%y = iw_calcheight(1,0)-1
+             sz%x = sz%y
+             ldum = igImageButton(treeicon1, sz, szero, sone, -1_c_int, bgcol, tintcol)
+             call igPopStyleColor(3)
+
           end if
 
           ! info buttons
@@ -495,8 +516,6 @@ contains
              if (sysc(i)%status == sys_init) then
                 if (allocated(sys(i)%c%vib)) then
                    str = "V" // c_null_char
-                   sz%y = iw_calcheight(1,0)
-                   sz%x = sz%y
                    ldum = igButton(c_loc(str),sz)
                    if (igIsItemHovered(ImGuiHoveredFlags_None)) &
                       tooltipstr = "Vibrational data available"

@@ -51,7 +51,7 @@ contains
     use interfaces_opengl3
     use interfaces_stb
     use shaders, only: shaders_init, shaders_end
-    use shapes, only: shapes_init, shapes_end
+    use shapes, only: shapes_init, shapes_end, icons_init
     use windows, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
        wintype_console_output, wintype_about, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, stack_realloc_maybe,&
@@ -213,6 +213,7 @@ contains
 
     ! create buffers for objects and compile and link shaders
     call shapes_init()
+    call icons_init()
     call shaders_init()
 
     ! initialize the window stack with the toggle-able windows
@@ -223,7 +224,7 @@ contains
     iwin_about = stack_create_window(wintype_about,.false.,permanent=.true.)
 
     ! main loop
-    show_demo_window = .false.
+    show_demo_window = .true.
     show_implot_demo_window = .false.
     firstpass = .true.
     do while (glfwWindowShouldClose(rootwin) == 0)
