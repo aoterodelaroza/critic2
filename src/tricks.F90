@@ -713,7 +713,7 @@ contains
     use tools_math, only: crosscorr_triangle, rmsd_walker
     use tools, only: mergesort, qcksort
     use types, only: realloc
-    use param, only: bohrtoa, isformat_xyz
+    use param, only: bohrtoa, isformat_xyz, isformat_vasp
     character*(*), intent(in) :: line0
 
     character*1024 :: sdum
@@ -1032,6 +1032,7 @@ contains
        seed(i)%havex0 = .false.
        seed(i)%molx0 = 0d0
        seed(i)%file = fileposcar
+       seed(i)%isformat = isformat_vasp
        seed(i)%name = ""
     end do
     call fclose(lu)

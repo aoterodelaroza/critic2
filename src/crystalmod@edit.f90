@@ -42,6 +42,7 @@ contains
     seed%isused = .true.
     seed%name = ""
     seed%file = c%file
+    seed%isformat = c%isformat
 
     ! atoms
     if (copysym .and. c%spgavail) then
@@ -330,6 +331,7 @@ contains
     ! rest of the seed information
     ncseed%isused = .true.
     ncseed%file = c%file
+    ncseed%isformat = c%isformat
     ncseed%havesym = 0
     ncseed%findsym = -1
     ncseed%ismolecule = .false.
@@ -740,6 +742,7 @@ contains
     ncseed%ismolecule = c%ismolecule
     ncseed%isused = .true.
     ncseed%file = c%file
+    ncseed%isformat = c%isformat
     ncseed%havesym = 1
     ncseed%findsym = 0
     ncseed%checkrepeats = .false.

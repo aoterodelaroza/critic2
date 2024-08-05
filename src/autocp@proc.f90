@@ -957,6 +957,7 @@ contains
           ! build the crystal structure containing the crystal points
           seed%isused = .true.
           seed%file = sy%c%file
+          seed%isformat = sy%c%isformat
           if (writevmd) then
              ! one species for every critical point
              seed%nspc = sy%c%nspc + (sy%f(sy%iref)%ncpcel - sy%c%ncel) + 1

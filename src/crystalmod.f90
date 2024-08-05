@@ -84,8 +84,9 @@ module crystalmod
      logical :: isinit = .false. !< has the crystal structure been initialized?
      integer :: havesym = 0 !< was the symmetry determined? (0 - nosym, 1 - full)
 
-     ! file name for the occasional critic2 trick
+     ! file name and format for the occasional critic2 trick
      character(len=mlen) :: file
+     integer :: isformat
 
      !! Initialization level: isinit !!
      ! species list

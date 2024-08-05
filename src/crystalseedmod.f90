@@ -32,6 +32,7 @@ module crystalseedmod
      logical :: isused = .false. !< Is the seed being used?
      character(len=mlen) :: file = "" !< Source file, if available
      character(len=mlen) :: name = "" !< Source file, if available
+     integer :: isformat !< source file format
      ! atoms
      integer :: nat = 0 !< Number of atoms
      real*8, allocatable :: x(:,:) !< Atomic positions (crystal - fractional;molecule with useabr=0 - bohr)

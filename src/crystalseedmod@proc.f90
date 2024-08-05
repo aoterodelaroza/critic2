@@ -37,11 +37,13 @@ contains
 
   !> Deallocate arrays in the seed
   module subroutine seed_end(seed)
+    use param, only: isformat_unknown
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
 
     seed%isused = .false.
     seed%file = ""
     seed%name = ""
+    seed%isformat = isformat_unknown
     seed%nat = 0
     if (allocated(seed%x)) deallocate(seed%x)
     if (allocated(seed%is)) deallocate(seed%is)
@@ -72,7 +74,7 @@ contains
     use tools_math, only: matinv
     use tools_io, only: uin, getline, ucopy, lgetword, equal, ferror, faterr,&
        getword, lower, isinteger, string, nameguess, zatguess, equali
-    use param, only: bohrtoa
+    use param, only: bohrtoa, isformat_from_input
     use types, only: realloc
 
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
@@ -393,6 +395,7 @@ contains
     seed%molx0 = 0d0
     seed%file = "<input>"
     seed%name = "<input>"
+    seed%isformat = isformat_from_input
 
   end subroutine parse_crystal_env
 
@@ -401,7 +404,7 @@ contains
     use global, only: rborder_def, eval_next, dunit0, iunit, iunit_ang, iunit_isdef
     use tools_io, only: uin, ucopy, getline, lgetword, equal, ferror, faterr,&
        string, isinteger, nameguess, getword, zatguess, equali
-    use param, only: bohrtoa
+    use param, only: bohrtoa, isformat_from_input
     use types, only: realloc
 
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
@@ -565,6 +568,7 @@ contains
     seed%molx0 = 0d0
     seed%file = "<input>"
     seed%name = "<input>"
+    seed%isformat = isformat_from_input
 
   contains
     function check_no_extra_word()
@@ -591,6 +595,7 @@ contains
     use global, only: mlib_file, clib_file
     use tools_io, only: lgetword, ferror, faterr, uout, fopen_read, getline,&
        equal, getword, fclose
+    use param, only: isformat_from_library
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: line
     logical, intent(out) :: oksyn
@@ -674,6 +679,7 @@ contains
     endif
     seed%file = trim(line) // " (library)"
     seed%name = trim(line) // " (library)"
+    seed%isformat = isformat_from_library
 
     call fclose(lu)
     if (.not.ok) return
@@ -695,6 +701,7 @@ contains
     use global, only: rborder_def
     use tools, only: qcksort
     use tools_io, only: ferror, faterr
+    use param, only: isformat_derived
     class(crystalseed), intent(inout) :: seed
     type(fragment), intent(in) :: fr
     logical, intent(in), optional :: order_by_cidx0
@@ -755,6 +762,7 @@ contains
     seed%molx0 = 0d0
     seed%file = ""
     seed%name = ""
+    seed%isformat = isformat_derived
 
   end subroutine from_fragment
 
@@ -966,7 +974,7 @@ contains
   module subroutine read_shelx(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
        lower, zatguess, fclose
-    use param, only: eyet, eye, bohrtoa
+    use param, only: eyet, eye, bohrtoa, isformat_shelx
     use types, only: realloc
     class(crystalseed), intent(inout)  :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
@@ -989,6 +997,7 @@ contains
     call seed%end()
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_shelx
     errmsg = ""
 
     ! initialize symmetry
@@ -1302,7 +1311,7 @@ contains
   !> Read the structure from a fort.21 from neighcrys
   module subroutine read_f21(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, nameguess
-    use param, only: bohrtoa, maxzat0, mlen
+    use param, only: bohrtoa, maxzat0, mlen, isformat_f21
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file !< Input file name
@@ -1326,6 +1335,7 @@ contains
     if (lu < 0) goto 999
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_f21
 
     ! read the lattice constants and the atomic coordinates
     isused = 0
@@ -1478,6 +1488,7 @@ contains
     use tools_io, only: fopen_read, fclose, nameguess, getline_raw
     use tools_math, only: matinv
     use types, only: realloc
+    use param, only: isformat_cube
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
@@ -1503,6 +1514,7 @@ contains
     if (.not.ok) goto 999
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_cube
 
     ! ignore the title lines
     read (lu,*,err=999,end=999)
@@ -1591,6 +1603,7 @@ contains
     use tools_io, only: fopen_read, fclose, nameguess, getline_raw
     use tools_math, only: matinv
     use types, only: realloc
+    use param, only: isformat_bincube
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
@@ -1684,6 +1697,7 @@ contains
     seed%border = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_bincube
 
   end subroutine read_bincube
 
@@ -1692,7 +1706,7 @@ contains
   module subroutine read_wien(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, zatguess, fclose, equal, equali
     use types, only: realloc
-    use param, only: pi
+    use param, only: pi, isformat_struct
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< struct file
     logical, intent(in) :: mol !< is this a molecule?
@@ -1713,6 +1727,7 @@ contains
     call seed%end()
     errmsg = "Error reading file: " // trim(file)
     seed%file = file
+    seed%isformat = isformat_struct
 
     ! first pass to see whether we have symmetry or not
     lut = fopen_read(file,ti=ti)
@@ -1909,7 +1924,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, isreal, &
        getword, zatguess, string, isinteger, nameguess, fclose
     use tools_math, only: det3sym, matinv
-    use param, only: bohrtoa
+    use param, only: bohrtoa, isformat_vasp
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
@@ -2075,6 +2090,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_vasp
 
   end subroutine read_vasp
 
@@ -2084,6 +2100,7 @@ contains
     use tools_io, only: fopen_read, nameguess, fclose
     use abinit_private, only: hdr_type, hdr_io
     use types, only: realloc
+    use param, only: isformat_abinit
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -2149,6 +2166,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_abinit
 
   end subroutine read_abinit
 
@@ -2160,6 +2178,7 @@ contains
        zatguess, nameguess, fclose, string
     use tools_math, only: matinv
     use types, only: realloc
+    use param, only: isformat_elk
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< input filename
     logical, intent(in) :: mol !< is this a molecule?
@@ -2257,6 +2276,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_elk
 
   end subroutine read_elk
 
@@ -2368,6 +2388,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = fmt
 
   end subroutine read_mol
 
@@ -2410,7 +2431,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, lower, getword,&
        equal, zatguess, fclose
     use tools_math, only: matinv
-    use param, only: bohrtoa
+    use param, only: bohrtoa, isformat_qein
     use types, only: realloc
     integer, parameter :: dp = selected_real_kind(14,200)
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
@@ -2830,6 +2851,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_qein
 
   end subroutine read_qein
 
@@ -2838,8 +2860,8 @@ contains
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, fclose, equali
     use tools_math, only: matinv
-    use param, only: bohrtoa
     use types, only: realloc
+    use param, only: bohrtoa, isformat_crystal
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -2983,6 +3005,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_crystal
 
   end subroutine read_crystalout
 
@@ -2991,7 +3014,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, nameguess, fclose
     use tools_math, only: matinv
-    use param, only: maxzat
+    use param, only: maxzat, isformat_fploout
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
@@ -3137,6 +3160,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_fploout
 
   end subroutine read_fploout
 
@@ -3144,8 +3168,8 @@ contains
   module subroutine read_siesta(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, nameguess, fclose
     use tools_math, only: matinv
-    use param, only: bohrtoa
     use types, only: realloc
+    use param, only: bohrtoa, isformat_siesta
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -3208,6 +3232,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_siesta
 
   end subroutine read_siesta
 
@@ -3217,7 +3242,7 @@ contains
        equal, getword, isinteger, zatguess, isreal, lower
     use tools_math, only: matinv
     use types, only: realloc
-    use param, only: bohrtoa, bohrtom, bohrtocm, bohrtonm
+    use param, only: bohrtoa, bohrtom, bohrtocm, bohrtonm, isformat_castepcell
     use hashmod, only: hash
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -3391,6 +3416,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_castepcell
 
   contains
     function get_optional_unit(rconv)
@@ -3466,6 +3492,7 @@ contains
        getword, lower, isinteger, isreal, zatguess
     use tools_math, only: matinv
     use hashmod, only: hash
+    use param, only: isformat_castepgeom
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -3597,6 +3624,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_castepgeom
 
   end subroutine read_castep_geom
 
@@ -3605,7 +3633,7 @@ contains
     use tools_io, only: fopen_read, nameguess, fclose, getline_raw, lgetword, isreal,&
        getword, zatguess, isinteger, lower
     use tools_math, only: matinv
-    use param, only: bohrtoa, maxzat
+    use param, only: bohrtoa, maxzat, isformat_dmain
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -3749,6 +3777,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_dmain
 
   end subroutine read_dmain
 
@@ -3757,7 +3786,7 @@ contains
     use tools_math, only: matinv
     use tools_io, only: fopen_read, getline, lower, equal, &
        getword, zatguess, nameguess, fclose
-    use param, only: bohrtoa
+    use param, only: bohrtoa, isformat_gen
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -3883,6 +3912,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_gen
 
   end subroutine read_dftbp
 
@@ -3891,7 +3921,7 @@ contains
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, nameguess, equal,&
        zatguess, isinteger, getword, isreal, lower, string
     use tools_math, only: matinv
-    use param, only: bohrtoa
+    use param, only: bohrtoa, isformat_xsf
     use types, only: realloc
     use hashmod, only: hash
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
@@ -4070,6 +4100,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_xsf
 
   end subroutine read_xsf
 
@@ -4077,6 +4108,7 @@ contains
   module subroutine read_pwc(seed,file,mol,errmsg,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose, zatguess
+    use param, only: isformat_pwc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -4153,6 +4185,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_pwc
 
   end subroutine read_pwc
 
@@ -4164,7 +4197,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, fclose, lgetword, equal, isinteger, &
        string, getword, isreal, nameguess, zatguess
     use tools_math, only: matinv
-    use param, only: bohrtoa
+    use param, only: bohrtoa, isformat_axsf
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -4323,6 +4356,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_axsf
 
   end subroutine read_axsf
 
@@ -4333,7 +4367,7 @@ contains
     use tools_math, only: matinv
     use types, only: realloc
     use hashmod, only: hash
-    use param, only: bohrtoa
+    use param, only: bohrtoa, isformat_aimsin
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     logical, intent(in) :: mol
@@ -4475,6 +4509,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_aimsin
 
   end subroutine read_aimsin
 
@@ -4485,7 +4520,7 @@ contains
     use tools_math, only: matinv
     use types, only: realloc
     use hashmod, only: hash
-    use param, only: bohrtoa, hartoev, eva3togpa
+    use param, only: bohrtoa, hartoev, eva3togpa, isformat_aimsout
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     logical, intent(in) :: mol
@@ -4717,6 +4752,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
+    seed%isformat = isformat_aimsout
 
   end subroutine read_aimsout
 
@@ -4724,7 +4760,7 @@ contains
   !> parameters in the second line).
   module subroutine read_tinkerfrac(seed,file,mol,errmsg,ti)
     use tools_io, only: getline_raw, fopen_read, fclose, isinteger, isreal, zatguess, nameguess
-    use param, only: bohrtoa, maxzat
+    use param, only: bohrtoa, maxzat, isformat_tinkerfrac
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
@@ -4747,6 +4783,7 @@ contains
        return
     end if
     seed%file = file
+    seed%isformat = isformat_tinkerfrac
 
     ! line 1: number of atoms and name of the seed
     lp = 1
@@ -5443,6 +5480,7 @@ contains
     to%isused = from%isused
     to%file = from%file
     to%name = from%name
+    to%isformat = from%isformat
     to%nat = from%nat
     if (allocated(from%x)) then
        to%x = from%x
@@ -5538,7 +5576,7 @@ contains
        isinteger
     use types, only: realloc
     use tools_math, only: det3sym, matinv
-    use param, only: bohrtoa, dirsep
+    use param, only: bohrtoa, dirsep, isformat_vasp
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
@@ -5752,6 +5790,7 @@ contains
        seed(i)%havex0 = .false.
        seed(i)%molx0 = 0d0
        seed(i)%file = file
+       seed(i)%isformat = isformat_vasp
     end do
 
   end subroutine read_all_vasp
@@ -5766,7 +5805,7 @@ contains
     use tools_io, only: fopen_read, fclose, getline_raw, lower, isexpression_or_word,&
        isreal, zatguess
     use types, only: realloc
-    use param, only: tab
+    use param, only: tab, isformat_cif
     integer, intent(out), optional :: nseed
     type(crystalseed), intent(inout), allocatable, optional :: mseed(:)
     type(crystalseed), intent(inout), optional :: seed0
@@ -6110,6 +6149,7 @@ contains
       call seed%end()
       seed%file = trim(file)
       seed%name = trim(file) // "|" // trim(blockname)
+      seed%isformat = isformat_cif
       seed%useabr = 1
       seed%aa = aa / bohrtoa
       seed%bb = bb
@@ -6251,7 +6291,7 @@ contains
     use tools_io, only: fopen_read, fclose, getline, lower, isexpression_or_word,&
        isreal, zatguess, equal, isinteger, zatguess
     use types, only: realloc
-    use param, only: maxzat, bohrtoa
+    use param, only: maxzat, bohrtoa, isformat_mol2
     integer, intent(out), optional :: nseed
     type(crystalseed), intent(inout), allocatable, optional :: mseed(:)
     type(crystalseed), intent(inout), optional :: seed0
@@ -6344,6 +6384,7 @@ contains
                 seed%havex0 = .false.
                 seed%molx0 = 0d0
                 seed%file = file
+                seed%isformat = isformat_mol2
                 if (len_trim(molname) > 0) then
                    seed%name = trim(file) // "|" // trim(molname)
                 else
@@ -6449,7 +6490,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, fclose, equali, string
     use tools_math, only: matinv
-    use param, only: bohrtoa
+    use param, only: bohrtoa, isformat_qeout
     use types, only: realloc, species
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
@@ -6713,6 +6754,7 @@ contains
              seed(iuse)%havex0 = .false.
              seed(iuse)%molx0 = 0d0
              seed(iuse)%file = file
+             seed(iuse)%isformat = isformat_qeout
 
              read (line,*,err=999,end=999) sdum, sdum, sdum, sdum, sene
              read (sene,*,err=999,end=999) rdum
@@ -6763,7 +6805,7 @@ contains
     use tools_io, only: fopen_read, fclose, getline_raw, lower, zatguess,&
        isinteger, isreal, string, nameguess
     use types, only: realloc
-    use param, only: maxzat, bohrtoa
+    use param, only: maxzat, bohrtoa, isformat_xyz
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
@@ -6825,6 +6867,7 @@ contains
        if (.not.ok) goto 999
        seed(nseed)%file = file
        seed(nseed)%name = seed(nseed)%file
+       seed(nseed)%isformat = isformat_xyz
 
        seed(nseed)%nspc = 0
        allocate(seed(nseed)%x(3,nat),seed(nseed)%is(nat),seed(nseed)%spc(10))
@@ -6898,7 +6941,7 @@ contains
     use global, only: rborder_def
     use tools_io, only: fopen_read, fclose, getline_raw, nameguess, string
     use types, only: species
-    use param, only: maxzat, bohrtoa
+    use param, only: maxzat, bohrtoa, isformat_gaussian
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
@@ -7014,6 +7057,7 @@ contains
           seed(in)%x = seed(in)%x / bohrtoa
           seed(in)%isused = .true.
           seed(in)%file = file
+          seed(in)%isformat = isformat_gaussian
           seed(in)%name = file
           seed(in)%nspc = nspc
           seed(in)%spc = spc
@@ -7078,7 +7122,7 @@ contains
     use tools_math, only: matinv
     use types, only: realloc
     use hashmod, only: hash
-    use param, only: bohrtoa, hartoev, eva3togpa
+    use param, only: bohrtoa, hartoev, eva3togpa, isformat_aimsout
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file
@@ -7317,6 +7361,7 @@ contains
        seed(i)%molx0 = 0d0
        seed(i)%file = file
        seed(i)%name = file
+       seed(i)%isformat = isformat_aimsout
 
        ! name and energy conversion
        if (i == nseed) then
@@ -7356,7 +7401,7 @@ contains
        getword, lower, isinteger, isreal, zatguess, string
     use tools_math, only: matinv
     use hashmod, only: hash
-    use param, only: hartoev
+    use param, only: hartoev, isformat_castepgeom
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file
@@ -7496,6 +7541,7 @@ contains
        seed(i)%havex0 = .false.
        seed(i)%molx0 = 0d0
        seed(i)%file = file
+       seed(i)%isformat = isformat_castepgeom
        if (i == nseed) then
           seed(i)%name = trim(file) // "|(fin) (" //&
              trim(adjustl(string(seed(i)%energy*hartoev,'f',20,8))) // " eV)"
