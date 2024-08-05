@@ -5049,7 +5049,8 @@ contains
   !> Detect the format for a file containing molecular or
   !> crystal vibrations.
   module subroutine vibrations_detect_format(file,ivformat)
-    use param, only: isformat_unknown, isformat_v_matdynmodes, dirsep
+    use param, only: isformat_unknown, isformat_v_matdynmodes, isformat_v_matdyneig,&
+       dirsep
     use tools_io, only: equal, lower
     character*(*), intent(in) :: file
     integer, intent(out) :: ivformat
@@ -5069,6 +5070,8 @@ contains
 
     if (equal(lower(wextdot),'modes')) then
        ivformat = isformat_v_matdynmodes
+    elseif (equal(lower(wextdot),'eig')) then
+       ivformat = isformat_v_matdyneig
     else
        ivformat = isformat_unknown
     endif

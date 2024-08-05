@@ -124,6 +124,7 @@ module param
   integer, parameter, public :: isformat_pdb = 39
   integer, parameter, public :: isformat_zmat = 40
   integer, parameter, public :: isformat_v_matdynmodes = 41
+  integer, parameter, public :: isformat_v_matdyneig = 42
 
   ! Enumerate for molecular and crystal properties. These are used
   ! throughout the code as flags for the calculation of scalar fields.

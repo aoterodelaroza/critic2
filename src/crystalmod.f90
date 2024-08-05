@@ -322,6 +322,7 @@ module crystalmod
   !> Class for molecular or crystal vibrations
   type vibrations
      character(len=mlen) :: file ! source of vibration data
+     integer :: ivformat ! format for the vibration data
      integer :: nqpt ! number of q-points
      real*8, allocatable :: qpt(:,:) ! q-point coordinates (3,nqpt) (fractional)
      integer :: qpt_digits ! number of significant digits for qpt

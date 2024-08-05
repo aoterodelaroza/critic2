@@ -19,6 +19,9 @@
 submodule (crystalmod) edit
   implicit none
 
+  !xx! private procedures
+  ! subroutine read_matdyn_modes(c,file,ivformat,errmsg,ti)
+
 contains
 
   !> Remove the vibration data from the crystal object.
@@ -27,13 +30,53 @@ contains
     if (allocated(c%vib)) deallocate(c%vib)
   end subroutine clear_vibrations
 
-  !> Read a file containing the vibrational information for this
-  !> system. Populates c%vib.
+  !> Read a file (file) containing the vibrational information for
+  !> this system and populates c%vib. The vibration data format is
+  !> detected from the file extension if ivformat is isformat_unknown
+  !> or format ivformat is used otherwise. Returns non-zero errmsg if
+  !> error.
   module subroutine read_vibrations_file(c,file,ivformat,errmsg,ti)
+    use param, only: isformat_unknown, isformat_v_matdynmodes, isformat_v_matdyneig
+    use crystalseedmod, only: vibrations_detect_format
+    class(crystal), intent(inout) :: c
+    character*(*), intent(in) :: file
+    integer, intent(in) :: ivformat
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: ivf
+
+    ! detect the format
+    if (ivformat == isformat_unknown) then
+       call vibrations_detect_format(file,ivf)
+       if (ivf == isformat_unknown) then
+          errmsg = "Unknown vibration file format: " // trim(file)
+          return
+       end if
+    else
+       ivf = ivformat
+    end if
+
+    ! read the vibrations
+    if (ivf == isformat_v_matdynmodes .or. ivf == isformat_v_matdyneig) then
+       call read_matdyn_modes(c,file,ivf,errmsg,ti)
+    else
+       errmsg = "Unknown vibration file format: " // trim(file)
+       return
+    end if
+
+  end subroutine read_vibrations_file
+
+  !xx! private procedures
+
+  !> Read vibration data with Quantum ESPRESSO matdyn.modes and
+  !> matdyn.eig format from a file. Populate c%vib. Return non-zero
+  !> errmsg.
+  subroutine read_matdyn_modes(c,file,ivformat,errmsg,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose, getline_raw
-    use crystalseedmod, only: vibrations_detect_format, read_alat_from_qeout
-    use param, only: isformat_unknown, atmass, isformat_qeout
+    use crystalseedmod, only: read_alat_from_qeout
+    use param, only: atmass, isformat_qeout, isformat_v_matdynmodes, isformat_v_matdyneig
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     integer, intent(in) :: ivformat
@@ -47,22 +90,9 @@ contains
     real*8 :: xdum(6), alat
 
     ! initialize
+    errmsg = ""
     if (allocated(c%vib)) deallocate(c%vib)
     lu = -1
-
-    ! detect the format
-    if (ivformat == isformat_unknown) then
-       call vibrations_detect_format(file,ivf)
-       if (ivf == isformat_unknown) then
-          errmsg = "Unknown vibration file format: " // trim(file)
-          return
-       end if
-    else
-       ivf = ivformat
-    end if
-
-    !!xxxx!! for now, only matdyn.modes is understood !!xxxx!!
-    !!xxxx!! from matdyn.x, flvec option !!xxxx!!
 
     ! read the alat from the crystal source file
     if (c%isformat /= isformat_qeout) then
@@ -82,6 +112,7 @@ contains
     ! prepare container for data
     allocate(c%vib)
     c%vib%file = file
+    c%vib%ivformat = ivf
 
     ! first pass: determine nqpt and nfreq
     nline = 0
@@ -157,10 +188,12 @@ contains
     end do
 
     ! convert to mass-weighed coordinates (orthonormal eigenvectors)
-    do iat = 1, c%ncel
-       iz = c%spc(c%atcel(iat)%is)%z
-       c%vib%vec(:,iat,:,:) = c%vib%vec(:,iat,:,:) * sqrt(atmass(iz))
-    end do
+    if (ivformat == isformat_v_matdynmodes) then
+       do iat = 1, c%ncel
+          iz = c%spc(c%atcel(iat)%is)%z
+          c%vib%vec(:,iat,:,:) = c%vib%vec(:,iat,:,:) * sqrt(atmass(iz))
+       end do
+    end if
 
     ! normalize
     do iqpt = 1, c%vib%nqpt
@@ -192,6 +225,8 @@ contains
     if (allocated(c%vib)) deallocate(c%vib)
     if (lu >= 0) call fclose(lu)
 
-  end subroutine read_vibrations_file
+
+
+  end subroutine read_matdyn_modes
 
 end submodule edit
