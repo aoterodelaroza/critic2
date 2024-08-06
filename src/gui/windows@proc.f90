@@ -324,7 +324,6 @@ contains
     if (allocated(w%plotx)) deallocate(w%plotx)
     if (allocated(w%ploty)) deallocate(w%ploty)
     nullify(w%rep)
-    w%isys = 1
     w%irep = 0
 
   end subroutine window_end

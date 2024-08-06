@@ -74,13 +74,13 @@ contains
     character(kind=c_char,len=:), allocatable :: tooltipstr
     type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev
+    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev, oid, isys
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     logical :: hadenabledcolumn, reinit, isend, ok, found
-    logical :: export, didtableselected
+    logical :: export, didtableselected, system_ok
     real(c_float) :: width, pos
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
@@ -89,6 +89,7 @@ contains
     integer(c_int), save :: idloadfield = 0 ! ID of the window used to load a field into the sytsem
     integer(c_int), save :: idrebond = 0 ! ID of the window used to rebond the sytsem
     integer(c_int), save :: idplot = 0 ! ID of the plot window
+    integer(c_int), save :: idloadvib = 0 ! ID of the window for loading vibrations
     integer(c_int), save :: shown_after_filter = 0 ! number of systems shown after the filter
     real*8, save :: timelastupdate = 0d0
     real*8, save :: timelastresize = 0d0
@@ -121,6 +122,21 @@ contains
     call update_window_id(idloadfield)
     call update_window_id(idrebond)
     call update_window_id(idplot)
+    call update_window_id(idloadvib,oid)
+    if (oid /= 0) then
+       ! process loading vibration data for a system from the tree
+       isys = win(oid)%isys
+       system_ok = (isys > 0 .and. isys <= nsys)
+       if (system_ok) system_ok = (sysc(isys)%status == sys_init)
+       if (system_ok .and. win(oid)%okfile_set) then
+          call sys(isys)%c%read_vibrations_file(win(oid)%okfile,win(oid)%dialog_data%isformat,w%errmsg)
+          if (len(w%errmsg) > 0) then
+             write (uout,'("Error loading vibration data from file: ",A)') win(oid)%okfile
+             write (uout,'(A)') w%errmsg
+             w%errmsg = ""
+          end if
+       end if
+    end if
 
     ! Tree options button
     export = .false.
@@ -996,6 +1012,20 @@ contains
             idloadfield = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=idloadfield)
          call iw_tooltip("Load a scalar field for this system",ttshown)
 
+         ! load vibration data
+         strpop = "Load Vibration Data" // c_null_char
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
+            idloadvib = stack_create_window(wintype_dialog,.true.,purpose=wpurp_dialog_openvibfile,&
+               isys=isys,orraise=idloadvib)
+         end if
+         call iw_tooltip("Load vibration data from an external file for this system",ttshown)
+
+         ! clear vibration data
+         strpop = "Clear Vibration Data" // c_null_char
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+            call sys(isys)%c%clear_vibrations()
+         call iw_tooltip("Clear vibration data for this system",ttshown)
+
          ! rename option (system)
          strpop = "Rename" // c_null_char
          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
@@ -1419,7 +1449,7 @@ contains
        ! number of scalar fields
        str = str // string(sys(i)%nf) // " scalar fields loaded" // newline
        if (allocated(sys(i)%c%vib)) &
-          str = str // "Vibrational data available" // newline
+          str = str // "Vibration data available" // newline
     else
        ! not initialized
        str = str // "Not initialized" // newline
