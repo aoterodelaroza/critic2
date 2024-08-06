@@ -221,6 +221,7 @@ module crystalmod
 
      ! changes to the crystal/molecular structure (edit)
      procedure :: makeseed !< make a crystal seed from a crystal
+     procedure :: makeseed_nudged !< make a crystal seed, displaced by a phonon
      procedure :: newcell !< Change the unit cell and rebuild the crystal
      procedure :: cell_standard !< Transform the the standard cell (possibly primitive)
      procedure :: cell_niggli !< Transform to the Niggli primitive cell
@@ -632,6 +633,14 @@ module crystalmod
        logical, intent(in) :: copysym
        integer, intent(in), optional :: useabr
      end subroutine makeseed
+     module subroutine makeseed_nudged(c,seed,qpt,evec,amplitude)
+       use crystalseedmod, only: crystalseed
+       class(crystal), intent(in) :: c
+       type(crystalseed), intent(out) :: seed
+       real*8, intent(in) :: qpt(3)
+       complex*16, intent(in) :: evec(:,:)
+       real*8, intent(in) :: amplitude
+     end subroutine makeseed_nudged
      module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv,ti)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x00(3,3)

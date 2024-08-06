@@ -28,7 +28,9 @@ module scenes
 
   !> Animation default parameters
   real(c_float), parameter, public :: anim_speed_default = 4._c_float
-  real(c_float), parameter, public :: anim_amplitude_default = 3._c_float
+  real(c_float), parameter, public :: anim_amplitude_default = 5._c_float
+  real(c_float), parameter, public :: anim_amplitude_max = 15._c_float
+  real(c_float), parameter, public :: anim_speed_max = 50._c_float
 
   !> spheres for the draw list
   type dl_sphere
@@ -192,6 +194,7 @@ module scenes
      integer :: ifreq_selected = 0 ! selected frequency in the vibrations window
      real(c_float) :: anim_speed = anim_speed_default ! animation speed
      real(c_float) :: anim_amplitude = anim_amplitude_default ! animation amplitude
+     real(c_float) :: anim_displacement = 0._c_float ! animation displacement (manual)
    contains
      procedure :: init => scene_init
      procedure :: end => scene_end

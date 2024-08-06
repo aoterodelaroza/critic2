@@ -560,7 +560,8 @@ contains
           w%forcerender = .true.
 
        ! continuous render if animation is active
-       if (w%sc%ifreq_selected > 0.and.w%sc%iqpt_selected > 0.and.allocated(sys(w%view_selected)%c%vib)) &
+       if (w%sc%ifreq_selected > 0.and.w%sc%iqpt_selected > 0.and.allocated(sys(w%view_selected)%c%vib).and.&
+          w%sc%animation > 0) &
           w%forcerender = .true.
     end if
 
@@ -2558,8 +2559,10 @@ contains
 
   !> Draw the vibrations window
   module subroutine draw_vibrations(w)
-    use scenes, only: anim_speed_default, anim_amplitude_default
-    use gui_main, only: sysc, sys, nsys, sys_init, g
+    use crystalseedmod, only: crystalseed
+    use scenes, only: anim_speed_default, anim_amplitude_default, anim_amplitude_max,&
+       anim_speed_max
+    use gui_main, only: sysc, sys, nsys, sys_init, g, add_systems_from_seeds
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_radiobutton
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
@@ -2576,6 +2579,7 @@ contains
     type(ImVec2) :: sz0, szero, szavail
     real*8 :: unitfactor, xx(3)
     integer*8 :: q, r(3)
+    type(crystalseed), allocatable :: seed(:)
 
     integer, parameter :: ic_q_id = 0
     integer, parameter :: ic_q_qpt = 1
@@ -2852,27 +2856,48 @@ contains
           win(w%idparent)%sc%anim_amplitude = anim_amplitude_default
        end if
        call iw_tooltip("Animate the scene with atomic displacements corresponding to a periodic sine function",ttshown)
-       if (iw_radiobutton("Manual",int=win(w%idparent)%sc%animation,intval=1_c_int,sameline=.true.)) then
-          win(w%idparent)%sc%anim_amplitude = 0._c_float
+       if (iw_radiobutton("Manual/Nudge Structure",int=win(w%idparent)%sc%animation,intval=1_c_int,sameline=.true.)) then
+          win(w%idparent)%sc%anim_amplitude = anim_amplitude_default
+          win(w%idparent)%sc%anim_displacement = 0._c_float
        end if
        call iw_tooltip("Animate the scene using a manually set atomic displacement value",ttshown)
 
        if (win(w%idparent)%sc%animation == 1) then
           ! manual
-          str1 = "Displacement##amplitude" // c_null_char
+          str1 = "Displacement##displacement" // c_null_char
           str2 = "%.3f" // c_null_char
           call igPushItemWidth(iw_calcwidth(6,1))
-          ldum = igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_amplitude,&
-             0.005_c_float,-15.0_c_float,15.0_c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+          ldum = igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_displacement,&
+             0.001_c_float,-1._c_float,1._c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
           call igPopItemWidth()
           call iw_tooltip("Atomic displacement along the chosen phonon normal mode",ttshown)
+
+          call igSameLine(0._c_float,-1._c_float)
+          str1 = "Amplitude##amplitude" // c_null_char
+          str2 = "%.2f" // c_null_char
+          call igPushItemWidth(iw_calcwidth(6,1))
+          ldum = igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_amplitude,&
+             0.01_c_float,0._c_float,anim_amplitude_max,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+          call igPopItemWidth()
+          call iw_tooltip("Amplitude of the phonon displacement",ttshown)
+
+          ! make seed
+          if (iw_button("Make Seed")) then
+             if (allocated(seed)) deallocate(seed)
+             allocate(seed(1))
+             call sys(isys)%c%makeseed_nudged(seed(1),sys(isys)%c%vib%qpt(:,win(w%idparent)%sc%iqpt_selected),&
+                sys(isys)%c%vib%vec(:,:,win(w%idparent)%sc%ifreq_selected,win(w%idparent)%sc%iqpt_selected),&
+                real(win(w%idparent)%sc%anim_amplitude,8))
+             call add_systems_from_seeds(1,seed)
+          end if
+
        elseif (win(w%idparent)%sc%animation == 2) then
           ! automatic
           str1 = "Amplitude##amplitude" // c_null_char
-          str2 = "%.3f" // c_null_char
+          str2 = "%.2f" // c_null_char
           call igPushItemWidth(iw_calcwidth(5,1))
           ldum = igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_amplitude,&
-             0.005_c_float,0.0_c_float,15.0_c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+             0.01_c_float,0._c_float,anim_amplitude_max,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
           call igPopItemWidth()
           call iw_tooltip("Amplitude of the atomic displacements",ttshown)
 
@@ -2881,7 +2906,7 @@ contains
           str2 = "%.2f" // c_null_char
           call igPushItemWidth(iw_calcwidth(5,1))
           ldum = igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_speed,&
-             0.02_c_float,0.0_c_float,50.0_c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+             0.02_c_float,0.0_c_float,anim_speed_max,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
           call igPopItemWidth()
           call iw_tooltip("Speed of the atomic displacements",ttshown)
        end if

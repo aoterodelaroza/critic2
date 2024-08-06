@@ -282,7 +282,7 @@ contains
     use shaders, only: shader_phong, shader_simple, shader_text_onscene,&
        useshader, setuniform_int, setuniform_float, setuniform_vec3,&
        setuniform_vec4, setuniform_mat3, setuniform_mat4
-    use param, only: img
+    use param, only: img, pi
     class(scene), intent(inout), target :: s
 
     real(c_float) :: xsel(3,4), radsel(4)
@@ -312,7 +312,8 @@ contains
     if (s%animation == 0) then ! off
        displ = 0._c_float
     elseif (s%animation == 1) then ! manual
-       displ = s%anim_amplitude
+       displ = cmplx(s%anim_amplitude * exp(0.5d0 * s%anim_displacement * pi * img),&
+          kind=c_float_complex)
     else ! automatic
        displ = cmplx(s%anim_amplitude * exp(time * s%anim_speed * img),kind=c_float_complex)
     end if
