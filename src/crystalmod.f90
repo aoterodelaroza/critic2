@@ -633,13 +633,13 @@ module crystalmod
        logical, intent(in) :: copysym
        integer, intent(in), optional :: useabr
      end subroutine makeseed
-     module subroutine makeseed_nudged(c,seed,qpt,evec,amplitude)
+     module subroutine makeseed_nudged(c,seed,qpt,evec,amplitude,phase)
        use crystalseedmod, only: crystalseed
        class(crystal), intent(in) :: c
        type(crystalseed), intent(out) :: seed
        real*8, intent(in) :: qpt(3)
        complex*16, intent(in) :: evec(:,:)
-       real*8, intent(in) :: amplitude
+       real*8, intent(in) :: amplitude, phase
      end subroutine makeseed_nudged
      module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv,ti)
        class(crystal), intent(inout) :: c

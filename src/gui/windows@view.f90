@@ -2896,7 +2896,7 @@ contains
              allocate(seed(1))
              call sys(isys)%c%makeseed_nudged(seed(1),sys(isys)%c%vib%qpt(:,win(w%idparent)%sc%iqpt_selected),&
                 sys(isys)%c%vib%vec(:,:,win(w%idparent)%sc%ifreq_selected,win(w%idparent)%sc%iqpt_selected),&
-                real(win(w%idparent)%sc%anim_amplitude,8))
+                real(win(w%idparent)%sc%anim_amplitude,8),real(win(w%idparent)%sc%anim_phase,8))
              call add_systems_from_seeds(1,seed)
              call launch_initialization_thread()
           end if

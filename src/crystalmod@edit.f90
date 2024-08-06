@@ -109,23 +109,26 @@ contains
 
   !> Make a crystal seed (seed) from a crystal structure, modulating
   !> the structure with a phonon displacement. The displacement
-  !> corresponds to q-point qpt, with eigenvector evec, and the given
-  !> amplitude. A supercell is built such that the structure is periodic
-  !> according with the supplied qpt.
-  module subroutine makeseed_nudged(c,seed,qpt,evec,amplitude)
+  !> corresponds to q-point qpt (fractional coords.), with eigenvector
+  !> evec, and the given amplitude and phase. A supercell is built
+  !> such that the structure is periodic according with the supplied
+  !> qpt.
+  module subroutine makeseed_nudged(c,seed,qpt,evec,amplitude,phase)
     use crystalseedmod, only: crystalseed
     use tools_math, only: rational_approx
+    use param, only: atmass, pi, img, tpi
     class(crystal), intent(in) :: c
     type(crystalseed), intent(out) :: seed
     real*8, intent(in) :: qpt(3)
     complex*16, intent(in) :: evec(:,:)
-    real*8, intent(in) :: amplitude
+    real*8, intent(in) :: amplitude, phase
 
     real*8, parameter :: rational_approx_eps = 1d-3
 
+    complex*16 :: displ, xdelta(3)
     integer :: i, nc(3), ix, iy, iz, k
     integer*8 :: q, r
-    real*8 :: xshift(3)
+    real*8 :: smass, xx(3), xd(3)
 
     ! general
     seed%isused = .true.
@@ -142,18 +145,26 @@ contains
        end if
     end do
 
+    ! drawlist_sph(nsph)%xdelta = cmplx(xdelta1,kind=c_float_complex)
+    ! x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
+
     ! atoms
+    displ = amplitude * exp(0.5d0 * phase * pi * img)
     k = 0
     seed%nat = c%ncel * nc(1) * nc(2) * nc(3)
     allocate(seed%x(3,seed%nat),seed%is(seed%nat))
-    do ix = 0, nc(1)-1
-       do iy = 0, nc(2)-1
-          do iz = 0, nc(3)-1
-             do i = 1, c%ncel
+    do i = 1, c%ncel
+       smass = sqrt(atmass(c%spc(c%atcel(i)%is)%z))
+       do ix = 0, nc(1)-1
+          do iy = 0, nc(2)-1
+             do iz = 0, nc(3)-1
                 k = k + 1
 
-                xshift = real((/ix,iy,iz/),8) / real(nc,8)
-                seed%x(:,k) = c%atcel(i)%x / real(nc,8) + xshift
+                xx = c%atcel(i)%x + real((/ix,iy,iz/),8)
+                xdelta = evec(:,i) * exp(img * tpi * dot_product(xx,qpt)) / smass
+                xd = real(displ * xdelta,8)
+
+                seed%x(:,k) = (xx + c%c2x(xd)) / real(nc,8)
                 seed%is(k) = c%atcel(i)%is
              end do
           end do
