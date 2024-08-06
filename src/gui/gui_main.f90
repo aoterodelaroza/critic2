@@ -105,6 +105,7 @@ module gui_main
   public :: add_systems_from_seeds
   public :: add_systems_from_name
   public :: remove_system
+  public :: duplicate_system
   public :: set_default_ui_settings
   public :: regenerate_system_pointers
 
@@ -137,6 +138,9 @@ module gui_main
      recursive module subroutine remove_system(idx)
        integer, intent(in) :: idx
      end subroutine remove_system
+     recursive module subroutine duplicate_system(idx)
+       integer, intent(in) :: idx
+     end subroutine duplicate_system
      module subroutine set_default_ui_settings()
      end subroutine set_default_ui_settings
      module subroutine regenerate_system_pointers()

@@ -875,7 +875,7 @@ contains
   contains
 
     subroutine write_maybe_selectable(isys,tooltipstr)
-      use gui_main, only: are_threads_running
+      use gui_main, only: are_threads_running, duplicate_system
       use utils, only: iw_text
       use global, only: iunit, iunit_bohr, iunit_ang
       use tools_io, only: uout
@@ -1012,6 +1012,13 @@ contains
             call igEndMenu()
          end if
          call iw_tooltip("Rename this system",ttshown)
+
+         ! remove option (system)
+         strpop = "Duplicate" // c_null_char
+         enabled = (sysc(isys)%status == sys_init) .and..not.are_threads_running()
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+            call duplicate_system(isys)
+         call iw_tooltip("Initialize a new copy of this system",ttshown)
 
          ! remove option (system)
          ok = enabled

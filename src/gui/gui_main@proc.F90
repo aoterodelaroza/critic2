@@ -707,6 +707,22 @@ contains
 
   end subroutine remove_system
 
+  !> Duplicate the given system.
+  recursive module subroutine duplicate_system(idx)
+    use crystalseedmod, only: crystalseed
+    integer, intent(in) :: idx
+
+    type(crystalseed), allocatable :: seed(:)
+
+    if (idx < 1 .or. idx > nsys) return
+    if (sysc(idx)%status == sys_empty) return
+    allocate(seed(1))
+    seed(1) = sysc(idx)%seed
+    call add_systems_from_seeds(1,seed)
+    call launch_initialization_thread()
+
+  end subroutine duplicate_system
+
   !> Reset all user interface settings to their default values
   module subroutine set_default_ui_settings()
     use keybindings, only: set_default_keybindings
