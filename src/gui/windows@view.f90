@@ -2830,7 +2830,6 @@ contains
           end do
           call iw_text("[" // string(r(1)) // " " // string(r(2)) // " " // string(r(3)) // "]",sameline=.true.)
           if (iw_button("Set",sameline=.true.)) then
-             write (*,*) "we are here!"
              win(w%idparent)%sc%nc = int(r)
              win(w%idparent)%sc%forcebuildlists = .true.
           end if
