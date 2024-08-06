@@ -287,6 +287,7 @@ contains
 
     real(c_float) :: xsel(3,4), radsel(4)
     complex(c_float_complex) :: displ
+    real*8 :: deltat
 
     real(c_float), parameter :: rgbsel(4,4) = reshape((/&
        1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
@@ -315,7 +316,8 @@ contains
        displ = cmplx(s%anim_amplitude * exp(0.5d0 * s%anim_phase * pi * img),&
           kind=c_float_complex)
     else ! automatic
-       displ = cmplx(s%anim_amplitude * exp(time * s%anim_speed * img),kind=c_float_complex)
+       deltat = time - s%timerefanimation
+       displ = cmplx(s%anim_amplitude * exp(deltat * s%anim_speed * img),kind=c_float_complex)
     end if
 
     if (s%style == style_phong) then

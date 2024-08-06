@@ -2563,7 +2563,7 @@ contains
     use scenes, only: anim_speed_default, anim_amplitude_default, anim_amplitude_max,&
        anim_speed_max
     use gui_main, only: sysc, sys, nsys, sys_init, g, add_systems_from_seeds,&
-       launch_initialization_thread
+       launch_initialization_thread, time
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_radiobutton
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
@@ -2916,8 +2916,9 @@ contains
           str1 = "Speed##speed" // c_null_char
           str2 = "%.2f" // c_null_char
           call igPushItemWidth(iw_calcwidth(5,1))
-          ldum = igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_speed,&
-             0.02_c_float,0.0_c_float,anim_speed_max,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+          if (igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_speed,&
+             0.02_c_float,0.0_c_float,anim_speed_max,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)) &
+             win(w%idparent)%sc%timerefanimation = time
           call igPopItemWidth()
           call iw_tooltip("Speed of the atomic displacements",ttshown)
        end if

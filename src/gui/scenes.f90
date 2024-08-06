@@ -140,6 +140,7 @@ module scenes
      logical :: forcebuildlists ! force rebuild of lists
      real*8 :: timelastrender = 0d0 ! time when the view was last rendered
      real*8 :: timelastbuild = 0d0 ! time of the last build
+     real*8 :: timerefanimation = 0d0 ! reference time for the animation
      real(c_float) :: scenerad = 1d0 ! scene radius
      real(c_float) :: scenecenter(3) ! scene center (world coords)
      real(c_float) :: scenexmin(3) ! scene xmin (world coords)
