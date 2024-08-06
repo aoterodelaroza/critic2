@@ -7838,7 +7838,7 @@ contains
     if (lu < 0) return
     line = ""
     do while(getline_raw(lu,line))
-       if (index(line,"--- An Ab Initio, DFT and Semiempirical electronic structure package ---") > 0) then
+       if (index(line,"* O   R   C   A *") > 0) then
           isformat = isformat_orca
           exit
        else if (index(line,"EEEEEEEEEE STARTING  DATE") > 0) then
