@@ -2563,6 +2563,7 @@ contains
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_radiobutton
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
+    use tools_math, only: rational_approx
     use tools_io, only: string, ioj_right
     use param, only: cm1tothz, bohrtoa
     class(window), intent(inout), target :: w
@@ -2574,9 +2575,11 @@ contains
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, strl
     type(ImVec2) :: sz0, szero, szavail
     real*8 :: unitfactor, xx(3)
+    integer*8 :: q, r(3)
 
     integer, parameter :: ic_q_id = 0
     integer, parameter :: ic_q_qpt = 1
+    real*8, parameter :: rational_approx_eps = 1d-3
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -2813,6 +2816,26 @@ contains
           call igEndTable()
        end if ! igBeginTable (frequencies)
        call igEndGroup()
+
+       ! suggested periodicity
+       if (win(w%idparent)%sc%iqpt_selected > 0) then
+          call igAlignTextToFramePadding()
+          call iw_text("Suggested Periodicity:",highlight=.true.)
+          do i = 1, 3
+             if (abs(sys(isys)%c%vib%qpt(i,win(w%idparent)%sc%iqpt_selected)) > rational_approx_eps) then
+                call rational_approx(sys(isys)%c%vib%qpt(i,win(w%idparent)%sc%iqpt_selected),q,r(i),rational_approx_eps)
+             else
+                r(i) = 1
+             end if
+          end do
+          call iw_text("[" // string(r(1)) // " " // string(r(2)) // " " // string(r(3)) // "]",sameline=.true.)
+          if (iw_button("Set",sameline=.true.)) then
+             write (*,*) "we are here!"
+             win(w%idparent)%sc%nc = int(r)
+             win(w%idparent)%sc%forcebuildlists = .true.
+          end if
+          call iw_tooltip("Change the number of unit cells represented to the suggested value",ttshown)
+       end if
 
        ! set initial value of animation to automatic
        if (win(w%idparent)%sc%iqpt_selected > 0 .and. win(w%idparent)%sc%ifreq_selected > 0 .and..not.fset) then
