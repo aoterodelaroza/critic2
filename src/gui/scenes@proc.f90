@@ -685,7 +685,7 @@ contains
   !> if the scene needs to be rendered again.
   module function representation_menu(s,idcaller) result(changed)
     use interfaces_cimgui
-    use utils, only: iw_text, iw_tooltip, iw_button
+    use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox
     use windows, only: stack_create_window, wintype_editrep, update_window_id
     use gui_main, only: ColorDangerButton, g
     use tools_io, only: string
@@ -744,8 +744,7 @@ contains
 
        ! view button
        if (igTableSetColumnIndex(ic_viewbutton)) then
-          str1 = "##2ic_viewbutton" // string(ic_viewbutton) // "," // string(i) // c_null_char
-          if (igCheckbox(c_loc(str1), s%rep(i)%shown)) &
+          if (iw_checkbox("##2ic_viewbutton" // string(ic_viewbutton) // "," // string(i),s%rep(i)%shown)) &
              changed = .true.
        end if
 

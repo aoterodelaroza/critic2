@@ -61,7 +61,7 @@ module scenes
 
   !> draw style for atoms
   type draw_style_atom
-     logical(c_bool) :: shown
+     logical :: shown
      real(c_float) :: rgb(3) ! color
      real(c_float) :: rad ! radius
   end type draw_style_atom
@@ -75,7 +75,7 @@ module scenes
   type representation
      ! main variables
      logical :: isinit = .false. ! whether the representation has been initialized
-     logical(c_bool) :: shown = .false. ! true if the representation is currently shown
+     logical :: shown = .false. ! true if the representation is currently shown
      integer :: type = reptype_none ! type of representation (atoms, cell,...)
      integer :: id ! system ID
      integer :: idrep ! representation ID
@@ -90,11 +90,11 @@ module scenes
      ! atoms, bonds, labels
      character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
      character(kind=c_char,len=:), allocatable :: errfilter ! filter error
-     logical(c_bool) :: atoms_display = .true. ! whether to draw the atoms
-     logical(c_bool) :: bonds_display = .true. ! whether to draw the bonds
-     logical(c_bool) :: labels_display = .true. ! whether to draw the labels
-     logical(c_bool) :: border = .true. ! draw atoms at the border of the unit cell
-     logical(c_bool) :: onemotif = .false. ! draw connected molecules
+     logical :: atoms_display = .true. ! whether to draw the atoms
+     logical :: bonds_display = .true. ! whether to draw the bonds
+     logical :: labels_display = .true. ! whether to draw the labels
+     logical :: border = .true. ! draw atoms at the border of the unit cell
+     logical :: onemotif = .false. ! draw connected molecules
      integer(c_int) :: atom_style_type = 0 ! atom style type: 0=species,1=nneq,2=cell
      integer :: natom_style = 0 ! number of atom styles
      integer(c_int) :: atom_radii_reset_type = 0 ! option to reset radii: 0=covalent, 1=vdw
@@ -107,16 +107,16 @@ module scenes
      integer(c_int) :: label_style ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
      real(c_float) :: label_scale ! scale for the labels
      real(c_float) :: label_rgb(3) ! color of the labels
-     logical(c_bool) :: label_const_size ! whether labels scale with objects or are constant size
-     logical(c_bool) :: label_exclude_h ! whether to exclude hydrogen labels
+     logical :: label_const_size ! whether labels scale with objects or are constant size
+     logical :: label_exclude_h ! whether to exclude hydrogen labels
      ! unit cell
-     logical(c_bool) :: uc_inner ! unit cell, display inner cylinders
-     logical(c_bool) :: uc_coloraxes ! unit cell, color the axes (x=red,y=green,z=blue)
+     logical :: uc_inner ! unit cell, display inner cylinders
+     logical :: uc_coloraxes ! unit cell, color the axes (x=red,y=green,z=blue)
      real(c_float) :: uc_radius ! unit cell cylinder radius
      real(c_float) :: uc_radiusinner ! unit cell cylinder radius (inner)
      real(c_float) :: uc_rgb(3) ! unit cell cylinder colors
      real(c_float) :: uc_innersteplen ! number of subdivisions for the inner sticks
-     logical(c_bool) :: uc_innerstipple ! stippled lines for the inner lines
+     logical :: uc_innerstipple ! stippled lines for the inner lines
    contains
      procedure :: init => representation_init
      procedure :: end => representation_end

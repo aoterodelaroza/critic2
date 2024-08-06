@@ -31,6 +31,7 @@ module utils
   public :: iw_calcwidth
   public :: iw_combo_simple
   public :: iw_radiobutton
+  public :: iw_checkbox
   public :: iw_text
   public :: iw_button
   public :: iw_tooltip
@@ -91,6 +92,12 @@ module utils
        logical, intent(in), optional :: sameline
        logical :: iw_radiobutton
      end function iw_radiobutton
+     module function iw_checkbox(str,bool,sameline)
+       character(len=*,kind=c_char), intent(in) :: str
+       logical, intent(inout) :: bool
+       logical, intent(in), optional :: sameline
+       logical :: iw_checkbox
+     end function iw_checkbox
      module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
         noadvance,copy_to_output,centered,rgba)
        character(len=*,kind=c_char), intent(in) :: str

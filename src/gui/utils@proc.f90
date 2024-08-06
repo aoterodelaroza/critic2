@@ -197,6 +197,33 @@ contains
 
   end function iw_radiobutton
 
+  !> Draw a checkbox with title str. The value of the checkbox is
+  !> associated with bool. sameline = draw it in the same line as the
+  !> previous widget.
+  module function iw_checkbox(str,bool,sameline)
+    use interfaces_cimgui
+    character(len=*,kind=c_char), intent(in) :: str
+    logical, intent(inout) :: bool
+    logical, intent(in), optional :: sameline
+    logical :: iw_checkbox
+
+    logical :: sameline_
+    character(len=:,kind=c_char), allocatable, target :: str1
+    logical(c_bool) :: bool_
+
+    iw_checkbox = .false.
+    bool_ = logical(bool,c_bool)
+    sameline_ = .false.
+    if (present(sameline)) sameline_ = sameline
+
+    if (sameline_) &
+       call igSameLine(0._c_float,-1._c_float)
+    str1 = str // c_null_char
+    iw_checkbox = igCheckbox(c_loc(str1),bool_)
+    bool = logical(bool_)
+
+  end function iw_checkbox
+
   !> Draw text. highlight = use the highlight color. danger = use the
   !> danger color. disabled = use the disabled font. sameline = draw
   !> it in the same line as the previous widget. sameline_nospace =

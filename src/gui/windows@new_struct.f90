@@ -33,7 +33,7 @@ contains
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
-       iw_calcwidth, buffer_to_string_array, iw_radiobutton, iw_combo_simple
+       iw_calcwidth, buffer_to_string_array, iw_radiobutton, iw_combo_simple, iw_checkbox
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use global, only: rborder_def
     use tools_io, only: string, fopen_scratch, fclose, stripchar, deblank
@@ -70,7 +70,7 @@ contains
     real(c_float), save :: aa(3) = 10._c_float ! cell lengths
     real(c_float), save :: bb(3) = 90._c_float ! cell angles
     real(c_float), save :: rborder = rborder_def*bohrtoa ! cell border, molecule (ang)
-    logical(c_bool), save :: molcubic = .false. ! cell for molecule is cubic
+    logical, save :: molcubic = .false. ! cell for molecule is cubic
 
     ! initialize
     szero%x = 0
@@ -217,8 +217,7 @@ contains
 
        ! cubic cell
        call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
-       str = "Cubic cell" // c_null_char
-       ldum = igCheckbox(c_loc(str),molcubic)
+       ldum = iw_checkbox("Cubic cell",molcubic)
        call iw_tooltip("Read new molecules inside a cubic periodic cell",ttshown)
        call igUnindent(0._c_float)
     end if
@@ -377,7 +376,7 @@ contains
     use gui_main, only: g, add_systems_from_seeds,&
        launch_initialization_thread, system_shorten_names
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
-       iw_calcwidth, iw_radiobutton
+       iw_calcwidth, iw_radiobutton, iw_checkbox
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
     use global, only: clib_file, mlib_file, rborder_def
@@ -403,7 +402,7 @@ contains
     logical(c_bool), allocatable, save :: lst(:) ! selected structures (1->nst)
     integer, save :: lastselected = 0 ! last selected structure (for shift/ctrl selection)
     real(c_float), save :: rborder = rborder_def*bohrtoa
-    logical(c_bool), save :: molcubic = .false.
+    logical, save :: molcubic = .false.
 
     ! initialize
     szero%x = 0
@@ -504,8 +503,7 @@ contains
 
        ! cubic cell
        call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
-       str = "Cubic cell" // c_null_char
-       ldum = igCheckbox(c_loc(str),molcubic)
+       ldum = iw_checkbox("Cubic cell",molcubic)
        call iw_tooltip("Read new molecules inside cubic periodic cell",ttshown)
     end if
 

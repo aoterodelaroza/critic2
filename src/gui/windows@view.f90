@@ -47,7 +47,7 @@ contains
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use scenes, only: reptype_atoms, reptype_unitcell, style_phong, style_simple
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
-       iw_setposx_fromend
+       iw_setposx_fromend, iw_checkbox
     use global, only: dunit0, iunit_ang
     use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
@@ -61,8 +61,9 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
-    logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol
-    logical(c_bool) :: isatom, isbond, islabels, isuc, ch, enabled
+    logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
+    logical :: islabels, isuc
+    logical(c_bool) :: ch, enabled
     integer(c_int) :: amax, flags, nc(3), ires, idx(4), viewtype, idum
     real(c_float) :: scal, width, sqw, ratio, depth, rgba(4)
     real*8 :: x0(3)
@@ -173,8 +174,7 @@ contains
        if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
           ! display shortcuts
           call iw_text("Display Shortcuts",highlight=.true.)
-          str2 = "Atoms##atomsshortcut" // c_null_char
-          if (igCheckbox(c_loc(str2),isatom)) then
+          if (iw_checkbox("Atoms##atomsshortcut",isatom)) then
              do i = 1, w%sc%nrep
                 if (w%sc%rep(i)%isinit) then
                    if (w%sc%rep(i)%type == reptype_atoms) then
@@ -187,9 +187,7 @@ contains
           call iw_tooltip("Toggle display atoms in all objects ("//&
              trim(get_bind_keyname(BIND_VIEW_TOGGLE_ATOMS)) // ").",ttshown)
 
-          str2 = "Bonds##bondsshortcut" // c_null_char
-          call igSameLine(0._c_float,-1._c_float)
-          if (igCheckbox(c_loc(str2),isbond)) then
+          if (iw_checkbox("Bonds##bondsshortcut",isbond,sameline=.true.)) then
              do i = 1, w%sc%nrep
                 if (w%sc%rep(i)%isinit) then
                    if (w%sc%rep(i)%type == reptype_atoms) then
@@ -202,9 +200,7 @@ contains
           call iw_tooltip("Toggle display bonds in all objects ("//&
              trim(get_bind_keyname(BIND_VIEW_TOGGLE_BONDS)) // ").",ttshown)
 
-          str2 = "Labels##labelshortcut" // c_null_char
-          call igSameLine(0._c_float,-1._c_float)
-          if (igCheckbox(c_loc(str2),islabels)) then
+          if (iw_checkbox("Labels##labelshortcut",islabels,sameline=.true.)) then
              do i = 1, w%sc%nrep
                 if (w%sc%rep(i)%isinit) then
                    if (w%sc%rep(i)%type == reptype_atoms) then
@@ -218,9 +214,7 @@ contains
              trim(get_bind_keyname(BIND_VIEW_TOGGLE_LABELS)) // ").",ttshown)
 
           if (.not.sys(w%view_selected)%c%ismolecule) then
-             str2 = "Unit Cell##ucshortcut" // c_null_char
-             call igSameLine(0._c_float,-1._c_float)
-             if (igCheckbox(c_loc(str2),isuc)) then
+             if (iw_checkbox("Unit Cell##ucshortcut",isuc,sameline=.true.)) then
                 do i = 1, w%sc%nrep
                    if (w%sc%rep(i)%isinit) then
                       if (w%sc%rep(i)%type == reptype_unitcell) then
@@ -1539,7 +1533,7 @@ contains
        BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: nsys, sysc, sys_init, g
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
-       iw_calcheight
+       iw_calcheight, iw_checkbox
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -1592,8 +1586,7 @@ contains
 
        ! shown checkbox
        call igSameLine(0._c_float,-1._c_float)
-       str2 = "Show" // c_null_char
-       changed = changed .or. igCheckbox(c_loc(str2),w%rep%shown)
+       changed = changed .or. iw_checkbox("Show",w%rep%shown)
        call iw_tooltip("Toggle show/hide this representation",ttshown)
 
        ! type-dependent items
@@ -1645,7 +1638,7 @@ contains
     use scenes, only: representation
     use gui_main, only: sys, g, ColorHighlightText
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
-       iw_radiobutton, iw_calcheight, iw_clamp_color3
+       iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox
     use tools_io, only: string, ioj_right, ioj_left
     use param, only: atmcov, atmvdw, jmlcol, jmlcol2, newline
     class(window), intent(inout), target :: w
@@ -1791,14 +1784,11 @@ contains
        end if
 
        ! checkbox for molecular motif
-       str2 = "Show connected molecules" // c_null_char
-       changed = changed .or. igCheckbox(c_loc(str2),w%rep%onemotif)
+       changed = changed .or. iw_checkbox("Show connected molecules",w%rep%onemotif)
        call iw_tooltip("Translate atoms to display whole molecules",ttshown)
-       call igSameLine(0._c_float,-1._c_float)
 
        ! checkbox for border
-       str2 = "Show atoms at cell edges" // c_null_char
-       changed = changed .or. igCheckbox(c_loc(str2),w%rep%border)
+       changed = changed .or. iw_checkbox("Show atoms at cell edges",w%rep%border,sameline=.true.)
        call iw_tooltip("Display atoms near the unit cell edges",ttshown)
     end if
 
@@ -1922,8 +1912,7 @@ contains
 
           ! shown
           if (igTableSetColumnIndex(ic_shown)) then
-             str2 = "##tableshown" // string(i) // c_null_char
-             changed = changed .or. igCheckbox(c_loc(str2),w%rep%atom_style(i)%shown)
+             changed = changed .or. iw_checkbox("##tableshown" // string(i) ,w%rep%atom_style(i)%shown)
              call iw_tooltip("Toggle display of the atom/bond/label associated to this atom",ttshown)
           end if
 
@@ -2004,9 +1993,8 @@ contains
     end if
 
     !!! atoms display !!!
-    str2 = "Atoms##atomsglobaldisplay " // c_null_char
     call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
-    changed = changed .or. igCheckbox(c_loc(str2),w%rep%atoms_display)
+    changed = changed .or. iw_checkbox("Atoms##atomsglobaldisplay",w%rep%atoms_display)
     call igPopStyleColor(1)
     call iw_tooltip("Draw the atoms in the scene",ttshown)
 
@@ -2075,9 +2063,8 @@ contains
 
     !!! bonds display !!!
 
-    str2 = "Bonds##bondsglobaldisplay" // c_null_char
     call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
-    changed = changed .or. igCheckbox(c_loc(str2),w%rep%bonds_display)
+    changed = changed .or. iw_checkbox("Bonds##bondsglobaldisplay",w%rep%bonds_display)
     call igPopStyleColor(1)
     call iw_tooltip("Draw the bonds in the scene",ttshown)
 
@@ -2115,9 +2102,8 @@ contains
 
     !!! labels display !!!
 
-    str2 = "Labels##labelsglobaldisplay" // c_null_char
     call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
-    changed = changed .or. igCheckbox(c_loc(str2),w%rep%labels_display)
+    changed = changed .or. iw_checkbox("Labels##labelsglobaldisplay",w%rep%labels_display)
     call igPopStyleColor(1)
     call iw_tooltip("Draw the atom labels in the scene",ttshown)
 
@@ -2150,9 +2136,7 @@ contains
        call igPopItemWidth()
        call iw_tooltip("Scale factor for the atom labels",ttshown)
 
-       call igSameLine(0._c_float,-1._c_float)
-       str2 = "Constant size##labelconstsize" // c_null_char
-       changed = changed .or. igCheckbox(c_loc(str2),w%rep%label_const_size)
+       changed = changed .or. iw_checkbox("Constant size##labelconstsize",w%rep%label_const_size,sameline=.true.)
        call iw_tooltip("Labels have constant size (on) or labels scale with the size of the associated atom (off)",ttshown)
 
        call igSameLine(0._c_float,-1._c_float)
@@ -2162,8 +2146,7 @@ contains
        call iw_clamp_color3(w%rep%label_rgb)
 
        ! exclude H
-       str2 = "Exclude hydrogens##labelexcludeh" // c_null_char
-       changed = changed .or. igCheckbox(c_loc(str2),w%rep%label_exclude_h)
+       changed = changed .or. iw_checkbox("Exclude hydrogens##labelexcludeh",w%rep%label_exclude_h)
        call iw_tooltip("Do not show labels on hydrogen atoms",ttshown)
     end if
 
@@ -2174,7 +2157,7 @@ contains
   module function draw_editrep_unitcell(w,ttshown) result(changed)
     use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_radiobutton, iw_button,&
-       iw_clamp_color3
+       iw_clamp_color3, iw_checkbox
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical(c_bool) :: changed, ldum
@@ -2255,8 +2238,7 @@ contains
 
     !! styles
     call iw_text("Style",highlight=.true.)
-    str1 = "Color crystallographic axes" // c_null_char
-    changed = changed .or. igCheckbox(c_loc(str1),w%rep%uc_coloraxes)
+    changed = changed .or. iw_checkbox("Color crystallographic axes",w%rep%uc_coloraxes)
     call iw_tooltip("Represent crystallographic axes with colors (a=red,b=green,c=blue)",ttshown)
 
     str1 = "Radius##outer" // c_null_char
@@ -2281,8 +2263,7 @@ contains
 
     !! inner divisions
     call iw_text("Inner Divisions",highlight=.true.)
-    str1 = "Display inner divisions" // c_null_char
-    changed = changed .or. igCheckbox(c_loc(str1),w%rep%uc_inner)
+    changed = changed .or. iw_checkbox("Display inner divisions",w%rep%uc_inner)
     call iw_tooltip("Represent the inner divisions inside a supercell",ttshown)
     if (w%rep%uc_inner) then
        str1 = "Radius##inner" // c_null_char
@@ -2294,8 +2275,7 @@ contains
        call igPopItemWidth()
        call iw_tooltip("Radii of the inner unit cell edges",ttshown)
 
-       str1 = "Use dashed lines" // c_null_char
-       changed = changed .or. igCheckbox(c_loc(str1),w%rep%uc_innerstipple)
+       changed = changed .or. iw_checkbox("Use dashed lines",w%rep%uc_innerstipple)
        call iw_tooltip("Use dashed lines for the inner cell divisions",ttshown)
 
        if (w%rep%uc_innerstipple) then
@@ -2328,7 +2308,8 @@ contains
     use interfaces_stb
     use gui_main, only: sysc, sys_init, nsys, g
     use windows, only: wintype_dialog, wpurp_dialog_saveimagefile
-    use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, get_current_working_dir
+    use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, get_current_working_dir,&
+       iw_checkbox
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
     use tools_io, only: ferror, string
@@ -2403,12 +2384,10 @@ contains
     call igPopItemWidth()
     call iw_tooltip("Number of samples for the anti-aliasing render",ttshown)
 
-    str2 = "Export the viewport only" // c_null_char
-    ldum = igCheckbox(c_loc(str2),w%exportview)
+    ldum = iw_checkbox("Export the viewport only",w%exportview)
     call iw_tooltip("Export the viewport only or the whole render buffer",ttshown)
 
-    str2 = "Transparent background" // c_null_char
-    ldum = igCheckbox(c_loc(str2),w%transparentbg)
+    ldum = iw_checkbox("Transparent background",w%transparentbg)
     call iw_tooltip("Make the background transparent in the exported image",ttshown)
 
     ! image settings
@@ -2583,14 +2562,13 @@ contains
     use gui_main, only: sysc, sys, nsys, sys_init, g
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_radiobutton
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
-       BIND_CLOSE_ALL_DIALOGS
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use tools_io, only: string, ioj_right
     use param, only: cm1tothz, bohrtoa
     class(window), intent(inout), target :: w
 
     logical(c_bool) :: selected
-    logical :: doquit, system_ok, vib_ok, ok, goodparent, ldum, fset
+    logical :: doquit, system_ok, vib_ok, goodparent, ldum, fset
     integer :: isys, oid, i, digits
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, strl

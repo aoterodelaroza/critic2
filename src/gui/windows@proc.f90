@@ -680,7 +680,8 @@ contains
        ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, set_default_ui_settings
     use interfaces_cimgui
     use keybindings
-    use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth, iw_clamp_color4
+    use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth, iw_clamp_color4,&
+       iw_checkbox
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str, str2, zeroc
@@ -765,7 +766,7 @@ contains
 
           str = "Enable tooltips" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             ldum = igCheckbox(c_loc(str), tooltip_enabled)
+             ldum = iw_checkbox(str,tooltip_enabled)
              call iw_tooltip("Show/hide the tooltips when hovering interface elements with the mouse",ttshown)
           end if
 
@@ -787,13 +788,13 @@ contains
 
           str = "Tree selects input console system" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             ldum = igCheckbox(c_loc(str),tree_select_updates_inpcon)
+             ldum = iw_checkbox(str,tree_select_updates_inpcon)
              call iw_tooltip("Selecting a system on the tree changes the system in the input console",ttshown)
           end if
 
           str = "Tree selects view system" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             ldum = igCheckbox(c_loc(str),tree_select_updates_view)
+             ldum = iw_checkbox(str,tree_select_updates_view)
              call iw_tooltip("Selecting a system on the tree changes the system in the view window",ttshown)
           end if
 
@@ -1008,7 +1009,7 @@ contains
   subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
     use gui_main, only: g
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_radiobutton,&
-       iw_combo_simple
+       iw_combo_simple, iw_checkbox
     use interfaces_cimgui
     use tools_io, only: string
     type(c_ptr), intent(in), value :: vFilter ! const char *
@@ -1047,8 +1048,7 @@ contains
     call iw_text("Options",highlight=.true.)
 
     ! show hidden files
-    str = "Show hidden files" // c_null_char
-    if (igCheckbox(c_loc(str),data%showhidden)) then
+    if (iw_checkbox("Show hidden files",data%showhidden)) then
        flags = IGFD_GetFlags(data%dptr)
        if (data%showhidden) then
           flags = iand(flags,not(ImGuiFileDialogFlags_DontShowHiddenFiles))
@@ -1061,8 +1061,7 @@ contains
 
     !! options specific to the open files dialog !!
     if (data%purpose == wpurp_dialog_openfiles) then
-       str = "Read last structure only" // c_null_char
-       ldum = igCheckbox(c_loc(str),data%readlastonly)
+       ldum = iw_checkbox("Read last structure only",data%readlastonly)
        call iw_tooltip("Read only the last structure in the file",ttshown)
        call igNewLine()
 
@@ -1087,8 +1086,7 @@ contains
        call iw_tooltip("Periodic cell border around new molecules",ttshown)
        call igPopItemWidth()
 
-       str = "Cubic cell" // c_null_char
-       ldum = igCheckbox(c_loc(str),data%molcubic)
+       ldum = iw_checkbox("Cubic cell",data%molcubic)
        call iw_tooltip("Read new molecules inside cubic periodic cell",ttshown)
        call igUnindent(0._c_float)
        call igNewLine()

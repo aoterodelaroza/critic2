@@ -66,11 +66,11 @@ module windows
   type, bind(c) :: dialog_userdata
      type(c_ptr) :: dptr = c_null_ptr ! the pointer for the file dialog
      integer(c_int) :: mol = -1 ! -1 = auto, 0 = crystal, 1 = molecule
-     logical(c_bool) :: showhidden = .false._c_bool ! show hidden files
+     logical :: showhidden = .false._c_bool ! show hidden files
      integer(c_int) :: isformat = isformat_unknown ! force structure format
-     logical(c_bool) :: readlastonly = .false._c_bool ! read only the last structure
+     logical :: readlastonly = .false._c_bool ! read only the last structure
      integer(c_int) :: purpose ! the purpose of the dialog
-     logical(c_bool) :: molcubic = .false. ! whether to read the cell as cubic in a molecule
+     logical :: molcubic = .false. ! whether to read the cell as cubic in a molecule
      real(c_float) :: rborder = real(rborder_def,c_float) ! border for the cell in a molecule
   end type dialog_userdata
 
@@ -148,9 +148,9 @@ module windows
      integer :: idsave = 0 ! window ID for the save file dialog (export image)
      integer(c_int) :: nsample ! number of samples for anti-aliasing
      integer(c_int) :: jpgquality ! jpg quality
-     logical(c_bool) :: exportview ! export viewport or whole texture
+     logical :: exportview ! export viewport or whole texture
      integer(c_int) :: npixel ! number of pixels in the export buffer
-     logical(c_bool) :: transparentbg ! transparent background
+     logical :: transparentbg ! transparent background
      ! rebond parameters
      ! vibrations parameters
      integer(c_int) :: ifrequnit = 0 ! frequency unit (0 = cm-1, 1 = THz)
