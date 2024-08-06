@@ -525,8 +525,7 @@ contains
           inisize%y = inisize%x
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_editrep) then
-          w%name = "Object [" // string(w%rep%name) // ", " // &
-             string(w%isys) // "]##" // string(w%id) // c_null_char
+          w%name = "Object [" // string(w%rep%name) // "]##" // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 60 * fontsize%x
           inisize%y = 44 * fontsize%y
