@@ -2650,6 +2650,8 @@ contains
 
        if (iw_button("Clear",sameline=.true.,danger=.true.)) then
           call sys(isys)%c%clear_vibrations()
+          win(w%idparent)%sc%iqpt_selected = 0
+          win(w%idparent)%sc%ifreq_selected = 0
           vib_ok = .false.
        end if
        call iw_tooltip("Clear vibration data for this system",ttshown)
@@ -2842,7 +2844,8 @@ contains
        end if
 
        ! set initial value of animation to automatic
-       if (win(w%idparent)%sc%iqpt_selected > 0 .and. win(w%idparent)%sc%ifreq_selected > 0 .and..not.fset) then
+       if (win(w%idparent)%sc%iqpt_selected > 0 .and. win(w%idparent)%sc%ifreq_selected > 0 .and.&
+          win(w%idparent)%sc%animation == 0 .and. .not.fset) then
           win(w%idparent)%sc%animation = 2
           win(w%idparent)%sc%anim_speed = anim_speed_default
           win(w%idparent)%sc%anim_amplitude = anim_amplitude_default
@@ -2850,39 +2853,42 @@ contains
 
        ! animation radio buttons (no animation if no values selected)
        call iw_text("Animation",highlight=.true.)
-       ldum = iw_radiobutton("None",int=win(w%idparent)%sc%animation,intval=0_c_int)
+       if (iw_radiobutton("None",int=win(w%idparent)%sc%animation,intval=0_c_int)) then
+          win(w%idparent)%forcerender = .true.
+       end if
        call iw_tooltip("Stop the animation",ttshown)
        if (iw_radiobutton("Automatic",int=win(w%idparent)%sc%animation,intval=2_c_int,sameline=.true.)) then
           win(w%idparent)%sc%anim_speed = anim_speed_default
           win(w%idparent)%sc%anim_amplitude = anim_amplitude_default
        end if
-       call iw_tooltip("Animate the scene with atomic displacements corresponding to a periodic sine function",ttshown)
+       call iw_tooltip("Animate the scene with atomic displacements corresponding to a periodic phase",ttshown)
        if (iw_radiobutton("Manual/Nudge Structure",int=win(w%idparent)%sc%animation,intval=1_c_int,sameline=.true.)) then
           win(w%idparent)%sc%anim_amplitude = anim_amplitude_default
-          win(w%idparent)%sc%anim_displacement = 0._c_float
+          win(w%idparent)%sc%anim_phase = 0._c_float
+          win(w%idparent)%forcerender = .true.
        end if
        call iw_tooltip("Animate the scene using a manually set atomic displacement value",ttshown)
 
        if (win(w%idparent)%sc%animation == 1) then
           ! manual
-          str1 = "Displacement##displacement" // c_null_char
-          str2 = "%.3f" // c_null_char
-          call igPushItemWidth(iw_calcwidth(6,1))
-          if (igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_displacement,&
-             0.001_c_float,-1._c_float,1._c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)) &
-             win(w%idparent)%forcerender = .true.
-          call igPopItemWidth()
-          call iw_tooltip("Atomic displacement along the chosen phonon normal mode",ttshown)
-
-          call igSameLine(0._c_float,-1._c_float)
           str1 = "Amplitude##amplitude" // c_null_char
           str2 = "%.2f" // c_null_char
-          call igPushItemWidth(iw_calcwidth(6,1))
+          call igPushItemWidth(iw_calcwidth(5,1))
           if (igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_amplitude,&
              0.01_c_float,0._c_float,anim_amplitude_max,c_loc(str2),ImGuiSliderFlags_AlwaysClamp))&
              win(w%idparent)%forcerender = .true.
           call igPopItemWidth()
-          call iw_tooltip("Amplitude of the phonon displacement",ttshown)
+          call iw_tooltip("Amplitude of the atomic displacements",ttshown)
+
+          call igSameLine(0._c_float,-1._c_float)
+          str1 = "Phase##phase" // c_null_char
+          str2 = "%.3f" // c_null_char
+          call igPushItemWidth(iw_calcwidth(6,1))
+          if (igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_phase,&
+             0.001_c_float,-1._c_float,1._c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)) &
+             win(w%idparent)%forcerender = .true.
+          call igPopItemWidth()
+          call iw_tooltip("Phase for the atomic displacements along the chosen phonon normal mode",ttshown)
 
           ! create nudged system
           if (iw_button("Create Nudged System")) then
@@ -2894,7 +2900,7 @@ contains
              call add_systems_from_seeds(1,seed)
              call launch_initialization_thread()
           end if
-          call iw_tooltip("Create a new system with displaced atomic positions",ttshown)
+          call iw_tooltip("Create a new system with displaced atomic positions as shown in the view",ttshown)
 
        elseif (win(w%idparent)%sc%animation == 2) then
           ! automatic

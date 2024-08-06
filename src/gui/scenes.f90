@@ -194,7 +194,7 @@ module scenes
      integer :: ifreq_selected = 0 ! selected frequency in the vibrations window
      real(c_float) :: anim_speed = anim_speed_default ! animation speed
      real(c_float) :: anim_amplitude = anim_amplitude_default ! animation amplitude
-     real(c_float) :: anim_displacement = 0._c_float ! animation displacement (manual)
+     real(c_float) :: anim_phase = 0._c_float ! animation phase (manual)
    contains
      procedure :: init => scene_init
      procedure :: end => scene_end

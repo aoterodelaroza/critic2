@@ -312,7 +312,7 @@ contains
     if (s%animation == 0) then ! off
        displ = 0._c_float
     elseif (s%animation == 1) then ! manual
-       displ = cmplx(s%anim_amplitude * exp(0.5d0 * s%anim_displacement * pi * img),&
+       displ = cmplx(s%anim_amplitude * exp(0.5d0 * s%anim_phase * pi * img),&
           kind=c_float_complex)
     else ! automatic
        displ = cmplx(s%anim_amplitude * exp(time * s%anim_speed * img),kind=c_float_complex)
