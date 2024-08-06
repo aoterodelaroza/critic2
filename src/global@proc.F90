@@ -46,7 +46,7 @@ contains
        struct_econ, struct_edit,&
        struct_coord, struct_polyhedra, struct_packing, struct_vdw, struct_identify,&
        struct_makemols_neighcrys, struct_molreorder, struct_molmove,&
-       struct_kpoints, struct_bz, struct_newcell, struct_amd, struct_vibrations
+       struct_kpoints, struct_bz, struct_newcell, struct_amd
     use systemmod, only: sy
     use spglib, only: spg_list_spg
     use arithmetic, only: listvariables, listlibxc
@@ -105,11 +105,12 @@ contains
           if (.not.ok) cycle
           call struct_newcell(sy,subline,.not.quiet)
 
-          ! vibrations
-       elseif (equal(word,'vibrations')) then
-          call check_structure_defined(ok)
-          if (.not.ok) cycle
-          call struct_vibrations(sy,subline,.not.quiet)
+          ! use struct_drivers, only: struct_vibrations
+       !    ! vibrations
+       ! elseif (equal(word,'vibrations')) then
+       !    call check_structure_defined(ok)
+       !    if (.not.ok) cycle
+       !    call struct_vibrations(sy,subline,.not.quiet)
 
           ! molcell
        elseif (equal(word,'molcell')) then
