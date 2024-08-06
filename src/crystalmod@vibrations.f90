@@ -225,8 +225,6 @@ contains
     if (allocated(c%vib)) deallocate(c%vib)
     if (lu >= 0) call fclose(lu)
 
-
-
   end subroutine read_matdyn_modes
 
 end submodule vibrations

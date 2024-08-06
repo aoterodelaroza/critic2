@@ -114,87 +114,81 @@ contains
   !> according with the supplied qpt.
   module subroutine makeseed_nudged(c,seed,qpt,evec,amplitude)
     use crystalseedmod, only: crystalseed
+    use tools_math, only: rational_approx
     class(crystal), intent(in) :: c
     type(crystalseed), intent(out) :: seed
     real*8, intent(in) :: qpt(3)
     complex*16, intent(in) :: evec(:,:)
     real*8, intent(in) :: amplitude
 
-    ! integer :: i
-    ! integer :: useabr_
+    real*8, parameter :: rational_approx_eps = 1d-3
 
-    ! ! initialize
-    ! useabr_ = 2
-    ! if (present(useabr)) useabr_ = useabr
+    integer :: i, nc(3), ix, iy, iz, k
+    integer*8 :: q, r
+    real*8 :: xshift(3)
 
-    ! ! general
-    ! seed%isused = .true.
-    ! seed%name = ""
-    ! seed%file = c%file
-    ! seed%isformat = c%isformat
+    ! general
+    seed%isused = .true.
+    seed%name = trim(c%file) // " (nudge)"
+    seed%file = c%file
+    seed%isformat = c%isformat
 
-    ! ! atoms
-    ! if (copysym .and. c%spgavail) then
-    !    seed%nat = c%nneq
-    !    allocate(seed%x(3,c%nneq),seed%is(c%nneq))
-    !    do i = 1, c%nneq
-    !       seed%x(:,i) = c%at(i)%x
-    !       seed%is(i) = c%at(i)%is
-    !    end do
-    ! else
-    !    seed%nat = c%ncel
-    !    allocate(seed%x(3,c%ncel),seed%is(c%ncel))
-    !    do i = 1, c%ncel
-    !       seed%x(:,i) = c%atcel(i)%x
-    !       seed%is(i) = c%atcel(i)%is
-    !    end do
-    ! end if
+    ! calculate number of cells
+    nc = 1
+    do i = 1, 3
+       if (abs(qpt(i)) > rational_approx_eps) then
+          call rational_approx(qpt(i),q,r,rational_approx_eps)
+          nc(i) = int(r)
+       end if
+    end do
 
-    ! ! species
-    ! seed%nspc = c%nspc
-    ! allocate(seed%spc(c%nspc))
-    ! do i = 1, c%nspc
-    !    seed%spc(i) = c%spc(i)
-    ! end do
+    ! atoms
+    k = 0
+    seed%nat = c%ncel * nc(1) * nc(2) * nc(3)
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    do ix = 0, nc(1)-1
+       do iy = 0, nc(2)-1
+          do iz = 0, nc(3)-1
+             do i = 1, c%ncel
+                k = k + 1
 
-    ! ! cell
-    ! if (useabr_ == 1) then
-    !    seed%useabr = 1
-    !    seed%aa = c%aa
-    !    seed%bb = c%bb
-    !    seed%m_x2c = 0d0
-    ! else
-    !    seed%useabr = 2
-    !    seed%aa = 0d0
-    !    seed%bb = 0d0
-    !    seed%m_x2c = c%m_x2c
-    ! end if
+                xshift = real((/ix,iy,iz/),8) / real(nc,8)
+                seed%x(:,k) = c%atcel(i)%x / real(nc,8) + xshift
+                seed%is(k) = c%atcel(i)%is
+             end do
+          end do
+       end do
+    end do
 
-    ! ! symmetry
-    ! seed%findsym = -1
-    ! seed%checkrepeats = .false.
-    ! if (copysym .and. c%spgavail) then
-    !    seed%havesym = 1
-    !    seed%neqv = c%neqv
-    !    seed%ncv = c%ncv
-    !    allocate(seed%rotm(3,4,c%neqv),seed%cen(3,c%ncv))
-    !    seed%rotm = c%rotm(:,:,1:c%neqv)
-    !    seed%cen = c%cen(:,1:c%ncv)
-    ! else
-    !    seed%havesym = 0
-    !    seed%neqv = 0
-    !    seed%ncv = 0
-    ! end if
+    ! species
+    seed%nspc = c%nspc
+    allocate(seed%spc(c%nspc))
+    do i = 1, c%nspc
+       seed%spc(i) = c%spc(i)
+    end do
 
-    ! ! molecular fields
-    ! seed%ismolecule = c%ismolecule
-    ! seed%cubic = (abs(c%aa(1)-c%aa(2)) < 1d-5).and.(abs(c%aa(1)-c%aa(3)) < 1d-5).and.&
-    !    all(abs(c%bb-90d0) < 1d-3)
-    ! seed%border = 0d0
-    ! seed%havex0 = .true.
-    ! seed%molx0 = c%molx0
-    write (*,*) "bleh!"
-    stop 1
+    ! cell
+    seed%useabr = 2
+    seed%aa = 0d0
+    seed%bb = 0d0
+    do i = 1, 3
+       seed%m_x2c(:,i) = c%m_x2c(:,i) * nc(i)
+    end do
+
+    ! symmetry
+    seed%findsym = -1
+    seed%checkrepeats = .false.
+    seed%havesym = 0
+    seed%neqv = 0
+    seed%ncv = 0
+
+    ! molecular fields
+    seed%ismolecule = c%ismolecule
+    seed%cubic = (abs(c%aa(1)-c%aa(2)) < 1d-5).and.(abs(c%aa(1)-c%aa(3)) < 1d-5).and.&
+       all(abs(c%bb-90d0) < 1d-3)
+    seed%border = 0d0
+    seed%havex0 = .true.
+    seed%molx0 = c%molx0
 
   end subroutine makeseed_nudged
 

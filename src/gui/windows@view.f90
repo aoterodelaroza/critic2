@@ -2562,7 +2562,8 @@ contains
     use crystalseedmod, only: crystalseed
     use scenes, only: anim_speed_default, anim_amplitude_default, anim_amplitude_max,&
        anim_speed_max
-    use gui_main, only: sysc, sys, nsys, sys_init, g, add_systems_from_seeds
+    use gui_main, only: sysc, sys, nsys, sys_init, g, add_systems_from_seeds,&
+       launch_initialization_thread
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_radiobutton
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
@@ -2867,8 +2868,9 @@ contains
           str1 = "Displacement##displacement" // c_null_char
           str2 = "%.3f" // c_null_char
           call igPushItemWidth(iw_calcwidth(6,1))
-          ldum = igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_displacement,&
-             0.001_c_float,-1._c_float,1._c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+          if (igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_displacement,&
+             0.001_c_float,-1._c_float,1._c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)) &
+             win(w%idparent)%forcerender = .true.
           call igPopItemWidth()
           call iw_tooltip("Atomic displacement along the chosen phonon normal mode",ttshown)
 
@@ -2876,20 +2878,23 @@ contains
           str1 = "Amplitude##amplitude" // c_null_char
           str2 = "%.2f" // c_null_char
           call igPushItemWidth(iw_calcwidth(6,1))
-          ldum = igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_amplitude,&
-             0.01_c_float,0._c_float,anim_amplitude_max,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+          if (igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_amplitude,&
+             0.01_c_float,0._c_float,anim_amplitude_max,c_loc(str2),ImGuiSliderFlags_AlwaysClamp))&
+             win(w%idparent)%forcerender = .true.
           call igPopItemWidth()
           call iw_tooltip("Amplitude of the phonon displacement",ttshown)
 
-          ! make seed
-          if (iw_button("Make Seed")) then
+          ! create nudged system
+          if (iw_button("Create Nudged System")) then
              if (allocated(seed)) deallocate(seed)
              allocate(seed(1))
              call sys(isys)%c%makeseed_nudged(seed(1),sys(isys)%c%vib%qpt(:,win(w%idparent)%sc%iqpt_selected),&
                 sys(isys)%c%vib%vec(:,:,win(w%idparent)%sc%ifreq_selected,win(w%idparent)%sc%iqpt_selected),&
                 real(win(w%idparent)%sc%anim_amplitude,8))
              call add_systems_from_seeds(1,seed)
+             call launch_initialization_thread()
           end if
+          call iw_tooltip("Create a new system with displaced atomic positions",ttshown)
 
        elseif (win(w%idparent)%sc%animation == 2) then
           ! automatic

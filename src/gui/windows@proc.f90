@@ -539,8 +539,8 @@ contains
        elseif (w%type == wintype_vibrations) then
           w%name = "Vibrations" // "##" // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 60 * fontsize%x
-          inisize%y = 23 * fontsize%y
+          inisize%x = 62 * fontsize%x
+          inisize%y = 25 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_rebond) then
           w%name = "Recalculate Bonds##"  // string(w%id) // c_null_char
