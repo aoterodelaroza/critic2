@@ -1400,7 +1400,7 @@ contains
                             mass = atmass(sys(r%id)%c%spc(sys(r%id)%c%atcel(ineigh)%is)%z)
                             xx = sys(r%id)%c%atcel(ineigh)%x + ixn
                             phase = tpi * dot_product(xx,sys(r%id)%c%vib%qpt(:,iqpt))
-                            xdelta2 = real(sys(r%id)%c%vib%vec(:,ineigh,ifreq,iqpt) * exp(img * phase),8) / sqrt(mass)
+                            xdelta2 = sys(r%id)%c%vib%vec(:,ineigh,ifreq,iqpt) * exp(img * phase) / sqrt(mass)
                          end if
 
                          x1 = xc + uoriginc
