@@ -2708,15 +2708,14 @@ contains
              call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
 
              xx = sys(isys)%c%vib%qpt(:,i)
-             digits = min(sys(isys)%c%vib%qpt_digits,5)
              if (w%iqptunit == 0) then ! fractional
-                !
+                digits = 5
              elseif (w%iqptunit == 1) then ! 1/bohr
                 xx = sys(isys)%c%rx2rc(xx)
-                digits = digits + 1
+                digits = 6
              else ! 1/ang
                 xx = sys(isys)%c%rx2rc(xx) / bohrtoa
-                digits = digits + 1
+                digits = 6
              end if
 
              ! id

@@ -121,7 +121,6 @@ contains
 
     ! first pass: determine nqpt and nfreq
     nline = 0
-    c%vib%qpt_digits = 3
     c%vib%nqpt = 0
     c%vib%nfreq = 0
     do while (getline_raw(lu,line,.false.))
@@ -275,7 +274,6 @@ contains
     c%vib%ivformat = isformat_v_qedyn
 
     ! advance to the header
-    c%vib%qpt_digits = 9
     c%vib%nqpt = 1
     allocate(c%vib%qpt(3,c%vib%nqpt))
     do while (getline_raw(lu,line,.false.))
