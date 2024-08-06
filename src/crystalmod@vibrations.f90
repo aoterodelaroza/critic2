@@ -91,6 +91,8 @@ contains
     character(len=:), allocatable :: line
     integer :: iqpt, ifreq, iat, iz
     real*8 :: xdum(6), alat
+    ! integer :: jfreq ! checking normalization
+    ! complex*16 :: summ
 
     ! initialize
     errmsg = ""
@@ -191,6 +193,7 @@ contains
     end do
 
     ! convert to mass-weighed coordinates (orthonormal eigenvectors)
+    ! (note: units are incorrect, but we are normalizing afterwards)
     if (ivformat == isformat_v_matdynmodes) then
        do iat = 1, c%ncel
           iz = c%spc(c%atcel(iat)%is)%z
@@ -206,8 +209,6 @@ contains
        end do
     end do
 
-    ! integer :: jfreq !xxxx
-    ! complex*16 :: summ
     ! ! checking normalization
     ! write (*,*) "checking normalization..."
     ! do iqpt = 1, c%vib%nqpt
@@ -245,6 +246,8 @@ contains
     character(len=:), allocatable :: line
     integer :: iz, i, j, lu
     real*8 :: xdum(6), alat
+    ! integer :: jfreq, iqpt, ifreq ! checking normalization
+    ! complex*16 :: summ
 
     ! initialize
     errmsg = "Error reading dyn file: " // trim(file)
@@ -322,6 +325,7 @@ contains
     end if
 
     ! convert to mass-weighed coordinates (orthonormal eigenvectors)
+    ! (note: units are incorrect, but we are normalizing afterwards)
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z
        c%vib%vec(:,i,:,:) = c%vib%vec(:,i,:,:) * sqrt(atmass(iz))
@@ -332,6 +336,17 @@ contains
        c%vib%vec(:,:,i,1) = c%vib%vec(:,:,i,1) / &
           sqrt(sum(c%vib%vec(:,:,i,1)*conjg(c%vib%vec(:,:,i,1))))
     end do
+
+    ! ! checking normalization
+    ! write (*,*) "checking normalization..."
+    ! do iqpt = 1, c%vib%nqpt
+    !    do ifreq = 1, c%vib%nfreq
+    !       do jfreq = 1, c%vib%nfreq
+    !          summ = sum(c%vib%vec(:,:,ifreq,iqpt)*conjg(c%vib%vec(:,:,jfreq,iqpt)))
+    !          write (*,*) ifreq, jfreq, summ
+    !       end do
+    !    end do
+    ! end do
 
     ! wrap up
     errmsg = ""
