@@ -406,8 +406,8 @@ contains
     character(len=:), allocatable :: line
     integer :: lu, idx, i, ifreq, iz
     real*8 :: xdum(6)
-    integer :: jfreq, iqpt, ifreq ! checking normalization
-    complex*16 :: summ
+    ! integer :: jfreq, iqpt, ifreq ! checking normalization
+    ! complex*16 :: summ
 
     ! initialize
     errmsg = "Error reading ascii file: " // trim(file)
@@ -485,16 +485,16 @@ contains
           sqrt(sum(vib%vec(:,:,i,1)*conjg(vib%vec(:,:,i,1))))
     end do
 
-    ! checking normalization
-    write (*,*) "checking normalization..."
-    do iqpt = 1, vib%nqpt
-       do ifreq = 1, vib%nfreq
-          do jfreq = 1, vib%nfreq
-             summ = sum(vib%vec(:,:,ifreq,iqpt)*conjg(vib%vec(:,:,jfreq,iqpt)))
-             write (*,*) ifreq, jfreq, summ
-          end do
-       end do
-    end do
+    ! ! checking normalization
+    ! write (*,*) "checking normalization..."
+    ! do iqpt = 1, vib%nqpt
+    !    do ifreq = 1, vib%nfreq
+    !       do jfreq = 1, vib%nfreq
+    !          summ = sum(vib%vec(:,:,ifreq,iqpt)*conjg(vib%vec(:,:,jfreq,iqpt)))
+    !          write (*,*) ifreq, jfreq, summ
+    !       end do
+    !    end do
+    ! end do
 
     ! wrap up
     errmsg = ""
