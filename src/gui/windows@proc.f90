@@ -289,9 +289,13 @@ contains
     integer :: i, id
     integer, parameter :: maxwin = 40
 
-    ! If orraise and the window exists, raise it and exit
+    ! If orraise and the window exists, raise it, update parameters, and exit
     if (present(orraise)) then
        if (orraise > 0 .and. orraise <= nwin) then
+          stack_create_window = orraise
+          if (present(isys)) win(orraise)%isys = isys
+          if (present(irep)) win(orraise)%irep = irep
+          if (present(idcaller)) win(orraise)%idparent = idcaller
           call igSetWindowFocus_Str(c_loc(win(orraise)%name))
           return
        end if
