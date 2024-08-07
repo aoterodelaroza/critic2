@@ -643,7 +643,7 @@ contains
           elseif (w%dialog_purpose == wpurp_dialog_openvibfile) then
              w%name = "Open Vibration Data File(s)##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openvibfile),&
-                c_loc(str2),c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+                c_loc(str2),c_funloc(dialog_user_callback),280._c_float,0_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openonefilemodal) then
              w%name = "Open File##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&

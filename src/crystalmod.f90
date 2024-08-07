@@ -333,6 +333,7 @@ module crystalmod
      ! matrix diagonalization and they must be orthonormal. For the
      ! displacements, divide by the sqrt(m_j).
   end type vibrations
+  public :: vibrations
 
   ! other crystallography tools that are crystal-independent (symmetry)
   public :: search_lattice

@@ -2568,13 +2568,13 @@ contains
        iw_combo_simple, iw_radiobutton
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use tools_math, only: rational_approx
-    use tools_io, only: string, ioj_right
+    use tools_io, only: string, ioj_right, uout
     use param, only: cm1tothz, bohrtoa
     class(window), intent(inout), target :: w
 
     logical(c_bool) :: selected
     logical :: doquit, system_ok, vib_ok, goodparent, ldum, fset
-    integer :: isys, oid, i, digits
+    integer :: isys, oid, i, digits, idx
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, strl
     type(ImVec2) :: sz0, szero, szavail
@@ -2628,8 +2628,19 @@ contains
     ! closes and recover it
     call update_window_id(w%idsave,oid)
     if (oid /= 0) then
-       if (system_ok .and. win(oid)%okfile_set) &
-          call sys(isys)%c%read_vibrations_file(win(oid)%okfile,win(oid)%dialog_data%isformat,w%errmsg)
+       if (system_ok .and. win(oid)%okfile_set) then
+          str1 = win(oid)%okfile
+          do while (.true.)
+             idx = index(str1,c_null_char)
+             if (idx == 0) exit
+             call sys(isys)%c%read_vibrations_file(str1(1:idx-1),win(oid)%dialog_data%isformat,w%errmsg)
+             if (len_trim(w%errmsg) > 0) then
+                write (uout,'(A)') w%errmsg
+                w%errmsg = ""
+             end if
+             str1 = str1(idx+1:)
+          end do
+       end if
     end if
 
     ! vibrations ok?

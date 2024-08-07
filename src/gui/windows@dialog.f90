@@ -98,13 +98,28 @@ contains
           elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile .or. &
              w%dialog_purpose == wpurp_dialog_openfieldfile .or. w%dialog_purpose == wpurp_dialog_openonefilemodal.or.&
              w%dialog_purpose == wpurp_dialog_openvibfile) then
-             !! new structure file dialog !!
-             cstr = IGFD_GetFilePathName(w%dptr)
-             call C_F_string_alloc(cstr,name)
-             call c_free(cstr)
-             w%okfile = trim(name)
+
+             ! !! new structure file dialog !!
+             ! cstr = IGFD_GetFilePathName(w%dptr)
+             ! call C_F_string_alloc(cstr,name)
+             ! call c_free(cstr)
+             ! w%okfile = trim(name)
              w%okfile_set = .true.
              w%okfile_read = .true.
+             w%okfile = ""
+
+             ! open all files selected and add the new systems
+             sel = IGFD_GetSelection(w%dptr)
+             call c_f_pointer(sel%table,s,(/sel%count/))
+             cstr = IGFD_GetCurrentPath(w%dptr)
+             call C_F_string_alloc(cstr,path)
+             call c_free(cstr)
+             do i = 1, sel%count
+                call C_F_string_alloc(s(i)%fileName,name)
+                name = trim(path) // dirsep // trim(name)
+                w%okfile = w%okfile // name // c_null_char
+             end do
+
           elseif (w%dialog_purpose == wpurp_dialog_saveimagefile) then
              !! save image file dialog !!
              w%okfile_set = .true.

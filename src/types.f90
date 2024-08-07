@@ -63,11 +63,14 @@ module types
      module procedure realloc1i
      module procedure realloc2i
      module procedure realloc1c
-     module procedure realloc1cmplx4
-     module procedure realloc2cmplx4
-     module procedure realloc4cmplx4
      module procedure realloc1cmplx8
+     module procedure realloc2cmplx8
+     module procedure realloc4cmplx8
      module procedure realloc5cmplx8
+     module procedure realloc1cmplx16
+     module procedure realloc2cmplx16
+     module procedure realloc4cmplx16
+     module procedure realloc5cmplx16
   end interface
 
   !> Variable-length strings
@@ -405,26 +408,38 @@ module types
        character*(*), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc1c
-     module subroutine realloc1cmplx4(a,nnew)
+     module subroutine realloc1cmplx8(a,nnew)
        complex*8, intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
-     end subroutine realloc1cmplx4
-     module subroutine realloc2cmplx4(a,n1,n2)
+     end subroutine realloc1cmplx8
+     module subroutine realloc2cmplx8(a,n1,n2)
        complex*8, intent(inout), allocatable :: a(:,:)
        integer, intent(in) :: n1, n2
-     end subroutine realloc2cmplx4
-     module subroutine realloc4cmplx4(a,n1,n2,n3,n4)
+     end subroutine realloc2cmplx8
+     module subroutine realloc4cmplx8(a,n1,n2,n3,n4)
        complex*8, intent(inout), allocatable :: a(:,:,:,:)
        integer, intent(in) :: n1, n2, n3, n4
-     end subroutine realloc4cmplx4
-     module subroutine realloc1cmplx8(a,nnew)
-       complex*16, intent(inout), allocatable :: a(:)
-       integer, intent(in) :: nnew
-     end subroutine realloc1cmplx8
+     end subroutine realloc4cmplx8
      module subroutine realloc5cmplx8(a,n1,n2,n3,n4,n5)
        complex*8, intent(inout), allocatable :: a(:,:,:,:,:)
        integer, intent(in) :: n1, n2, n3, n4, n5
      end subroutine realloc5cmplx8
+     module subroutine realloc1cmplx16(a,nnew)
+       complex*16, intent(inout), allocatable :: a(:)
+       integer, intent(in) :: nnew
+     end subroutine realloc1cmplx16
+     module subroutine realloc2cmplx16(a,n1,n2)
+       complex*16, intent(inout), allocatable :: a(:,:)
+       integer, intent(in) :: n1, n2
+     end subroutine realloc2cmplx16
+     module subroutine realloc4cmplx16(a,n1,n2,n3,n4)
+       complex*16, intent(inout), allocatable :: a(:,:,:,:)
+       integer, intent(in) :: n1, n2, n3, n4
+     end subroutine realloc4cmplx16
+     module subroutine realloc5cmplx16(a,n1,n2,n3,n4,n5)
+       complex*16, intent(inout), allocatable :: a(:,:,:,:,:)
+       integer, intent(in) :: n1, n2, n3, n4, n5
+     end subroutine realloc5cmplx16
   end interface
 
 end module types

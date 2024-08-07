@@ -556,8 +556,8 @@ contains
   end subroutine realloc1c
 
   !> Adapt the size of an allocatable 1D complex*8 array
-  module subroutine realloc1cmplx4(a,nnew)
-    complex*8, intent(inout), allocatable :: a(:) !< Input array, real*8, 1D
+  module subroutine realloc1cmplx8(a,nnew)
+    complex*8, intent(inout), allocatable :: a(:) !< Input array, complex*8, 1D
     integer, intent(in) :: nnew !< new dimension
 
     complex*8, allocatable :: temp(:)
@@ -571,14 +571,15 @@ contains
     if (nold == nnew) return
     allocate(temp(nnew))
 
+    temp = cmplx(0,kind=4)
     temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
     call move_alloc(temp,a)
 
-  end subroutine realloc1cmplx4
+  end subroutine realloc1cmplx8
 
   !> Adapt the size of an allocatable 2D complex*8 array
-  module subroutine realloc2cmplx4(a,n1,n2)
-    complex*8, intent(inout), allocatable :: a(:,:) !< Input array, real*8, 2D
+  module subroutine realloc2cmplx8(a,n1,n2)
+    complex*8, intent(inout), allocatable :: a(:,:) !< Input array, complex*8, 2D
     integer, intent(in) :: n1, n2 !< new dimension
 
     complex*8, allocatable :: temp(:,:)
@@ -593,15 +594,15 @@ contains
     if (nold(1) == n1 .and. nold(2) == n2) return
     allocate(temp(n1,n2))
 
-    temp = cmplx(0,kind=8)
+    temp = cmplx(0,kind=4)
     temp(1:min(n1,nold(1)),1:min(n2,nold(2))) = a(1:min(n1,nold(1)),1:min(n2,nold(2)))
     call move_alloc(temp,a)
 
-  end subroutine realloc2cmplx4
+  end subroutine realloc2cmplx8
 
   !> Adapt the size of an allocatable 2D complex*8 array
-  module subroutine realloc4cmplx4(a,n1,n2,n3,n4)
-    complex*8, intent(inout), allocatable :: a(:,:,:,:) !< Input array, real*8, 2D
+  module subroutine realloc4cmplx8(a,n1,n2,n3,n4)
+    complex*8, intent(inout), allocatable :: a(:,:,:,:) !< Input array, complex*8, 2D
     integer, intent(in) :: n1, n2, n3, n4 !< new dimension
 
     complex*8, allocatable :: temp(:,:,:,:)
@@ -618,37 +619,16 @@ contains
         nold(4) == n4) return
     allocate(temp(n1,n2,n3,n4))
 
-    temp = cmplx(0,kind=8)
+    temp = cmplx(0,kind=4)
     temp(1:min(n1,nold(1)),1:min(n2,nold(2)),1:min(n3,nold(3)),1:min(n4,nold(4))) = &
        a(1:min(n1,nold(1)),1:min(n2,nold(2)),1:min(n3,nold(3)),1:min(n4,nold(4)))
     call move_alloc(temp,a)
 
-  end subroutine realloc4cmplx4
-
-  !> Adapt the size of an allocatable 1D complex*16 array
-  module subroutine realloc1cmplx8(a,nnew)
-    complex*16, intent(inout), allocatable :: a(:) !< Input array, real*8, 1D
-    integer, intent(in) :: nnew !< new dimension
-
-    complex*16, allocatable :: temp(:)
-    integer :: nold
-
-    if (.not.allocated(a)) then
-       allocate(a(1:nnew))
-       return
-    end if
-    nold = size(a)
-    if (nold == nnew) return
-    allocate(temp(nnew))
-
-    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
-    call move_alloc(temp,a)
-
-  end subroutine realloc1cmplx8
+  end subroutine realloc4cmplx8
 
   !> Adapt the size of an allocatable 5D complex*8 array
   module subroutine realloc5cmplx8(a,n1,n2,n3,n4,n5)
-    complex*8, intent(inout), allocatable :: a(:,:,:,:,:) !< Input array, real*8, 3D
+    complex*8, intent(inout), allocatable :: a(:,:,:,:,:) !< Input array, complex*8, 3D
     integer, intent(in) :: n1, n2, n3, n4, n5 !< new dimension
 
     complex*8, allocatable :: temp(:,:,:,:,:)
@@ -667,11 +647,110 @@ contains
         nold(4) == n4 .and. nold(5) == n5) return
     allocate(temp(n1,n2,n3,n4,n5))
 
-    temp = 0d0
+    temp = cmplx(0,kind=4)
     temp(1:min(n1,nold(1)),1:min(n2,nold(2)),1:min(n3,nold(3)),1:min(n4,nold(4)),1:min(n5,nold(5))) = &
        a(1:min(n1,nold(1)),1:min(n2,nold(2)),1:min(n3,nold(3)),1:min(n4,nold(4)),1:min(n5,nold(5)))
     call move_alloc(temp,a)
 
   end subroutine realloc5cmplx8
+
+  !> Adapt the size of an allocatable 1D complex*16 array
+  module subroutine realloc1cmplx16(a,nnew)
+    complex*16, intent(inout), allocatable :: a(:) !< Input array, complex*16, 1D
+    integer, intent(in) :: nnew !< new dimension
+
+    complex*16, allocatable :: temp(:)
+    integer :: nold
+
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
+    nold = size(a)
+    if (nold == nnew) return
+    allocate(temp(nnew))
+
+    temp = cmplx(0,kind=8)
+    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
+    call move_alloc(temp,a)
+
+  end subroutine realloc1cmplx16
+
+  !> Adapt the size of an allocatable 2D complex*16 array
+  module subroutine realloc2cmplx16(a,n1,n2)
+    complex*16, intent(inout), allocatable :: a(:,:) !< Input array, complex*16, 2D
+    integer, intent(in) :: n1, n2 !< new dimension
+
+    complex*16, allocatable :: temp(:,:)
+    integer :: nold(2)
+
+    if (.not.allocated(a)) then
+       allocate(a(1:n1,1:n2))
+       return
+    end if
+    nold(1) = size(a,1)
+    nold(2) = size(a,2)
+    if (nold(1) == n1 .and. nold(2) == n2) return
+    allocate(temp(n1,n2))
+
+    temp = cmplx(0,kind=8)
+    temp(1:min(n1,nold(1)),1:min(n2,nold(2))) = a(1:min(n1,nold(1)),1:min(n2,nold(2)))
+    call move_alloc(temp,a)
+
+  end subroutine realloc2cmplx16
+
+  !> Adapt the size of an allocatable 2D complex*16 array
+  module subroutine realloc4cmplx16(a,n1,n2,n3,n4)
+    complex*16, intent(inout), allocatable :: a(:,:,:,:) !< Input array, complex*16, 2D
+    integer, intent(in) :: n1, n2, n3, n4 !< new dimension
+
+    complex*16, allocatable :: temp(:,:,:,:)
+    integer :: nold(4), i
+
+    if (.not.allocated(a)) then
+       allocate(a(1:n1,1:n2,1:n3,1:n4))
+       return
+    end if
+    do i = 1, 4
+       nold(i) = size(a,i)
+    end do
+    if (nold(1) == n1 .and. nold(2) == n2 .and. nold(3) == n3 .and.&
+        nold(4) == n4) return
+    allocate(temp(n1,n2,n3,n4))
+
+    temp = cmplx(0,kind=8)
+    temp(1:min(n1,nold(1)),1:min(n2,nold(2)),1:min(n3,nold(3)),1:min(n4,nold(4))) = &
+       a(1:min(n1,nold(1)),1:min(n2,nold(2)),1:min(n3,nold(3)),1:min(n4,nold(4)))
+    call move_alloc(temp,a)
+
+  end subroutine realloc4cmplx16
+
+  !> Adapt the size of an allocatable 5D complex*16 array
+  module subroutine realloc5cmplx16(a,n1,n2,n3,n4,n5)
+    complex*16, intent(inout), allocatable :: a(:,:,:,:,:) !< Input array, complex*16, 3D
+    integer, intent(in) :: n1, n2, n3, n4, n5 !< new dimension
+
+    complex*16, allocatable :: temp(:,:,:,:,:)
+    integer :: nold(5)
+
+    if (.not.allocated(a)) then
+       allocate(a(1:n1,1:n2,1:n3,1:n4,1:n5))
+       return
+    end if
+    nold(1) = size(a,1)
+    nold(2) = size(a,2)
+    nold(3) = size(a,3)
+    nold(4) = size(a,4)
+    nold(5) = size(a,5)
+    if (nold(1) == n1 .and. nold(2) == n2 .and. nold(3) == n3 .and.&
+        nold(4) == n4 .and. nold(5) == n5) return
+    allocate(temp(n1,n2,n3,n4,n5))
+
+    temp = cmplx(0,kind=8)
+    temp(1:min(n1,nold(1)),1:min(n2,nold(2)),1:min(n3,nold(3)),1:min(n4,nold(4)),1:min(n5,nold(5))) = &
+       a(1:min(n1,nold(1)),1:min(n2,nold(2)),1:min(n3,nold(3)),1:min(n4,nold(4)),1:min(n5,nold(5)))
+    call move_alloc(temp,a)
+
+  end subroutine realloc5cmplx16
 
 end submodule proc
