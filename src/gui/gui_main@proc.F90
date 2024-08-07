@@ -55,7 +55,7 @@ contains
     use windows, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
        wintype_console_output, wintype_about, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, stack_realloc_maybe,&
-       wpurp_view_main
+       wpurp_view_main, windows_init
     use global, only: critic_home
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string, falloc, fdealloc
@@ -214,6 +214,7 @@ contains
     ! create buffers for objects and compile and link shaders
     call shapes_init()
     call shaders_init()
+    call windows_init()
 
     ! initialize the window stack with the toggle-able windows
     iwin_tree = stack_create_window(wintype_tree,.true.,permanent=.true.)

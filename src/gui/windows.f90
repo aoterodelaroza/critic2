@@ -225,6 +225,7 @@ module windows
   integer, public :: iwin_console_output
   integer, public :: iwin_view
   integer, public :: iwin_about
+  public :: windows_init
 
   ! window types
   integer, parameter, public :: wintype_tree = 1
@@ -264,6 +265,8 @@ module windows
 
   !xx! Interfaces
   interface
+     module subroutine windows_init()
+     end subroutine windows_init
      module subroutine command_end(c)
        class(command_inout), intent(inout) :: c
      end subroutine command_end
