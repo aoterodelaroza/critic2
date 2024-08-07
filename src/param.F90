@@ -129,6 +129,7 @@ module param
   integer, parameter, public :: ivformat_matdynmodes = 1
   integer, parameter, public :: ivformat_matdyneig = 2
   integer, parameter, public :: ivformat_qedyn = 3
+  integer, parameter, public :: ivformat_phonopy_ascii = 4
 
   ! Enumerate for field formats
   integer, parameter, public :: ifformat_unknown = 0

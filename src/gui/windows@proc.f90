@@ -214,7 +214,8 @@ contains
        // "Auto-detect" // c_null_char &                 ! ivformat_unknown
        // "Quantum ESPRESSO modes file" // c_null_char & ! ivformat_matdynmodes
        // "Quantum ESPRESSO eig file" // c_null_char   & ! ivformat_matdyneig
-       // "Quantum ESPRESSO dyn file" // c_null_char     ! ivformat_qedyn
+       // "Quantum ESPRESSO dyn file" // c_null_char   & ! ivformat_qedyn
+       // "phonopy ascii file" // c_null_char            ! ivformat_phonopy_ascii
     nn = 0
     do i = 1,len(combostr_openvibfile)
        if (combostr_openvibfile(i:i) == c_null_char) nn = nn + 1
@@ -222,7 +223,7 @@ contains
 
     allocate(isperm_openvibfile(0:nn-1))
     isperm_openvibfile(0:nn-1) = (/ivformat_unknown,ivformat_matdynmodes,&
-       ivformat_matdyneig,ivformat_qedyn/)
+       ivformat_matdyneig,ivformat_qedyn,ivformat_phonopy_ascii/)
 
     allocate(isperm_inv_openvibfile(0:maxval(isperm_openvibfile)))
     isperm_inv_openvibfile = 0
