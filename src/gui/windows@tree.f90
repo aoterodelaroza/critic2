@@ -1006,25 +1006,37 @@ contains
             idrebond = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=idrebond)
          call iw_tooltip("Recalculate the atomic bonds in this system",ttshown)
 
-         ! load field
-         strpop = "Load Field" // c_null_char
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
-            idloadfield = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=idloadfield)
-         call iw_tooltip("Load a scalar field for this system",ttshown)
+         ! fields submenu (system)
+         strpop = "Fields" // c_null_char
+         if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+            ! load field
+            strpop2 = "Load Field" // c_null_char
+            if (igMenuItem_Bool(c_loc(strpop2),c_null_ptr,.false._c_bool,enabled)) &
+               idloadfield = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=idloadfield)
+            call iw_tooltip("Load a scalar field for this system",ttshown)
 
-         ! load vibration data
-         strpop = "Load Vibration Data" // c_null_char
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
-            idloadvib = stack_create_window(wintype_dialog,.true.,purpose=wpurp_dialog_openvibfile,&
-               isys=isys,orraise=idloadvib)
+            call igEndMenu()
          end if
-         call iw_tooltip("Load vibration data from an external file for this system",ttshown)
 
-         ! clear vibration data
-         strpop = "Clear Vibration Data" // c_null_char
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
-            call sys(isys)%c%clear_vibrations()
-         call iw_tooltip("Clear vibration data for this system",ttshown)
+         ! vibrations submenu (system)
+         strpop = "Vibrations" // c_null_char
+         if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+            ! load vibration data
+            strpop = "Load Vibration Data" // c_null_char
+            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
+               idloadvib = stack_create_window(wintype_dialog,.true.,purpose=wpurp_dialog_openvibfile,&
+                  isys=isys,orraise=idloadvib)
+            end if
+            call iw_tooltip("Load vibration data from an external file for this system",ttshown)
+
+            ! clear vibration data
+            strpop = "Clear Vibration Data" // c_null_char
+            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+               call sys(isys)%c%clear_vibrations()
+            call iw_tooltip("Clear vibration data for this system",ttshown)
+
+            call igEndMenu()
+         end if
 
          ! rename option (system)
          strpop = "Rename" // c_null_char
