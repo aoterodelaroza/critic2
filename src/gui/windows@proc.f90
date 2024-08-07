@@ -26,6 +26,8 @@ submodule (windows) proc
   ! strings and permutations for the open file dialogs
   integer, allocatable :: isperm_openfiles(:), isperm_inv_openfiles(:)
   character(kind=c_char,len=:), allocatable, target :: combostr_openfiles, dialogstr_openfiles
+  integer, allocatable :: isperm_openfieldfile(:), isperm_inv_openfieldfile(:)
+  character(kind=c_char,len=:), allocatable, target :: combostr_openfieldfile, dialogstr_openfieldfile
 
   !xx! private procedures
   ! subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
@@ -94,7 +96,7 @@ contains
        // "Gaussian wfx" // c_null_char &            ! isformat_wfx
        // "Gaussian zmat file" // c_null_char &      ! isformat_zmat
        // "mol2 file" // c_null_char &               ! isformat_mol2
-       // "molden file" // c_null_char &             ! isformat_molden
+       // "Molden-style file" // c_null_char &       ! isformat_molden
        // "ORCA output file" // c_null_char &        ! isformat_orca
        // "pdb file" // c_null_char &                ! isformat_pdb
        // "postg output" // c_null_char &            ! isformat_pgout
@@ -131,6 +133,71 @@ contains
     isperm_inv_openfiles = 0
     do i = 0, nn-1
        isperm_inv_openfiles(isperm_openfiles(i)) = i
+    end do
+
+    ! open field file
+    !! for the dialog: list of extensions "seen"
+    dialogstr_openfieldfile =&
+                "&
+                &All files (*.*){*.*},&
+                &ABINIT (DEN...){(DEN|ELF|POT|VHA\VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN|PAWDEN|VCLMB|VPSP)},&
+                &Aimpac (qub){.qub},&
+                &Binary cube file (bincube){.bincube},&
+                &CASTEP grid file (fmt){.fmt},&
+                &Cube file (cube){.cube},&
+                &DFTB+ (detailed.xml){.xml},&
+                &elk (grid){.grid},&
+                &elk STATE.OUT (OUT){.OUT},&
+                &FPLO grid (001){.001},&
+                &Gaussian wavefunction (wfn|wfx|fchk){.wfn,.wfx,.fchk},&
+                &Molden-style file (molden){.molden},&
+                &Quantum ESPRESSO pwc file (pwc){.pwc},&
+                &SIESTA (RHO...) {(RHO|BADER|DRHO|LDOS|VT|VH)},&
+                &VASP ELFCAR{(ELFCAR)},&
+                &VASP (CHGCAR...){(CONTCAR|CHGCAR|ELFCAR|CHG|AECCAR0|AECCAR1|AECCAR2|POSCAR)},&
+                &WIEN2k (clmsum...){.clmsum,.clmup,.clmdn},&
+                &Xcrysden (xsf|axsf) {.xsf,.axsf},&
+                &"// c_null_char
+
+    combostr_openfieldfile = "" &
+       // "Auto-detect" // c_null_char &              ! ifformat_unknown
+       // "ABINIT DEN-style file" // c_null_char &    ! ifformat_abinit
+       // "Aimpac qub" // c_null_char &               ! ifformat_qub
+       // "Binary cube" // c_null_char &              ! ifformat_bincube
+       // "CASTEP grid file" // c_null_char &         ! ifformat_fmt
+       // "Cube file" // c_null_char &                ! ifformat_cube
+       // "DFTB+ detailed.xml" // c_null_char &       ! ifformat_dftb
+       // "elk grid" // c_null_char &                 ! ifformat_elkgrid
+       // "elk STATE.OUT" // c_null_char &            ! ifformat_elk
+       // "FPLO grid" // c_null_char &                ! ifformat_fplogrid
+       // "Gaussian wfn" // c_null_char &             ! ifformat_wfn
+       // "Gaussian wfx" // c_null_char &             ! ifformat_wfx
+       // "Gaussian fchk" // c_null_char &            ! ifformat_fchk
+       // "Molden file" // c_null_char &              ! ifformat_molden
+       // "Quantum ESPRESSO pwc" // c_null_char &     ! ifformat_pwc
+       // "SIESTA RHO-style file" // c_null_char &    ! ifformat_siestagrid
+       // "VASP ELFCAR-style file" // c_null_char &   ! ifformat_vaspnov
+       // "VASP CHGCAR-style file" // c_null_char &   ! ifformat_vasp
+       // "WIEN2k clmsum-style file" // c_null_char & ! ifformat_wien
+       // "Xcrysden xsf" // c_null_char               ! ifformat_xsf
+    nn = 0
+    do i = 1,len(combostr_openfieldfile)
+       if (combostr_openfieldfile(i:i) == c_null_char) nn = nn + 1
+    end do
+
+    !! Permutations for interpreting the format coming out of the dialog combo
+    !! (same sequence as in combostr)
+    allocate(isperm_openfieldfile(0:nn-1))
+    isperm_openfieldfile(0:nn-1) = (/ifformat_unknown,ifformat_abinit,ifformat_qub,ifformat_bincube,&
+       ifformat_fmt,ifformat_cube,ifformat_dftb,ifformat_elkgrid,ifformat_elk,ifformat_fplogrid,&
+       ifformat_wfn,ifformat_wfx,ifformat_fchk,ifformat_molden,ifformat_pwc,ifformat_siestagrid,&
+       ifformat_vaspnov,ifformat_vasp,ifformat_wien,ifformat_xsf/)
+
+    !! Inverse of the permutation above
+    allocate(isperm_inv_openfieldfile(0:maxval(isperm_openfieldfile)))
+    isperm_inv_openfieldfile = 0
+    do i = 0, nn-1
+       isperm_inv_openfieldfile(isperm_openfieldfile(i)) = i
     end do
 
   end subroutine windows_init
@@ -537,27 +604,8 @@ contains
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openfieldfile) then
              w%name = "Open Field File(s)##" // string(w%id)  // c_null_char
-             str1 = &
-                "&
-                &All files (*.*){*.*},&
-                &ABINIT (DEN...){(DEN|ELF|POT|VHA\VHXC|VXC|GDEN1|GDEN2|GDEN3|LDEN|KDEN|PAWDEN|VCLMB|VPSP)},&
-                &Aimpac (qub){.qub},&
-                &Binary cube file (bincube){.bincube},&
-                &Cube file (cube){.cube},&
-                &DFTB+ (detailed.xml){.xml},&
-                &elk (grid){.grid},&
-                &elk STATE.OUT (OUT){.OUT},&
-                &Gaussian wavefunction (wfn|wfx|fchk){.wfn,.wfx,.fchk},&
-                &Molden-style file (molden){.molden},&
-                &Quantum ESPRESSO pwc file (pwc){.pwc},&
-                &SIESTA (RHO...) {(RHO|BADER|DRHO|LDOS|VT|VH)},&
-                &VASP ELFCAR{(ELFCAR)},&
-                &VASP (CHGCAR...){(CONTCAR|CHGCAR|ELFCAR|CHG|AECCAR0|AECCAR1|AECCAR2|POSCAR)},&
-                &WIEN2k (clmsum...){.clmsum,.clmup,.clmdn},&
-                &Xcrysden (xsf|axsf) {.xsf,.axsf},&
-                &"// c_null_char
-             call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
-                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+             call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openfieldfile),&
+                c_loc(str2),c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openvibfile) then
              w%name = "Open Vibration Data File(s)##" // string(w%id)  // c_null_char
              str1 = &
@@ -1105,10 +1153,6 @@ contains
     logical, save :: ttshown = .false. ! tooltip flag
 
     ! permutations
-    integer, parameter :: isperm_openfieldfile(0:17) = &
-       (/0,6,9,5,4,13,11,2,15,16,17,18,14,12,8,7,1,10/)
-    integer, parameter :: isperm_inv_openfieldfile(0:18) = &
-       (/0,16,7,0,4,3,1,15,14,2,17,6,13,5,12,8,9,10,11/)
     integer, parameter :: isperm_openvibfile(0:1) = &
        (/0,38/)
     integer, parameter :: isperm_inv_openvibfile(0:38) = &
@@ -1179,27 +1223,8 @@ contains
     elseif (data%purpose == wpurp_dialog_openfieldfile) then
        ! Input field format (ifformat)
        call iw_text("Read file format",highlight=.true.)
-       stropt = "" &
-          // "Auto-detect" // c_null_char &              ! ifformat_unknown = 0
-          // "ABINIT DEN-style file" // c_null_char &    ! ifformat_abinit = 6
-          // "Aimpac qub" // c_null_char &               ! ifformat_qub = 9
-          // "Binary cube" // c_null_char &              ! ifformat_bincube = 5
-          // "Cube file" // c_null_char &                ! ifformat_cube = 4
-          // "DFTB+ detailed.xml" // c_null_char &       ! ifformat_dftb = 13
-          // "elk grid" // c_null_char &                 ! ifformat_elkgrid = 11
-          // "elk STATE.OUT" // c_null_char &            ! ifformat_elk = 2
-          // "Gaussian wfn" // c_null_char &             ! ifformat_wfn = 15
-          // "Gaussian wfx" // c_null_char &             ! ifformat_wfx = 16
-          // "Gaussian fchk" // c_null_char &            ! ifformat_fchk = 17
-          // "Molden file" // c_null_char &              ! ifformat_molden = 18
-          // "Quantum ESPRESSO pwc" // c_null_char &     ! ifformat_pwc = 14
-          // "SIESTA RHO-style file" // c_null_char &    ! ifformat_siestagrid = 12
-          // "VASP ELFCAR-style file" // c_null_char &   ! ifformat_vaspnov = 8
-          // "VASP CHGCAR-style file" // c_null_char &   ! ifformat_vasp = 7
-          // "WIEN2k clmsum-style file" // c_null_char & ! ifformat_wien = 1
-          // "Xcrysden xsf" // c_null_char               ! ifformat_xsf = 10
        data%isformat = isperm_inv_openfieldfile(data%isformat)
-       call iw_combo_simple("##formatcombo",stropt,data%isformat)
+       call iw_combo_simple("##formatcombo",combostr_openfieldfile,data%isformat)
        call iw_tooltip("Force the new field to be read with the given file format, or auto-detect&
           &from the extension",ttshown)
        call igNewLine()
