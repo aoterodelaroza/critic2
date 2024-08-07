@@ -171,12 +171,8 @@ contains
 
     integer :: i, key, mod
 
-    ! get the mod
-    mod = 0
-    if (igIsKeyDown(ImGuiKey_LeftCtrl).or.igIsKeyDown(ImGuiKey_RightCtrl)) mod = mod + mod_ctrl
-    if (igIsKeyDown(ImGuiKey_LeftAlt).or.igIsKeyDown(ImGuiKey_RightAlt)) mod = mod + mod_alt
-    if (igIsKeyDown(ImGuiKey_LeftShift).or.igIsKeyDown(ImGuiKey_RightShift)) mod = mod + mod_shift
-    if (igIsKeyDown(ImGuiKey_LeftSuper).or.igIsKeyDown(ImGuiKey_RightSuper)) mod = mod + mod_super
+    ! get the current mod
+    mod = get_current_mod()
 
     ! get the key
     key = -1
@@ -255,8 +251,8 @@ contains
     logical, intent(in), optional :: held
     logical :: is_bind_event
 
-    integer :: key, mod
-    logical :: held_, moddown
+    integer :: key, mod, modnow
+    logical :: held_
 
     ! process options
     held_ = .false.
@@ -268,19 +264,14 @@ contains
     if (bind < 1 .or. bind > BIND_NUM) return
     if (.not.use_keybindings) return
 
-    ! get current key and mod for this bind
+    ! get key and mod for this bind, and the current mod
     key = keybind(bind)
     mod = modbind(bind)
+    modnow = get_current_mod()
 
-    ! is the mod down?
-    moddown = .true.
-    if (iand(mod,mod_ctrl) /= 0)  moddown = moddown .and. igIsKeyDown(ImGuiKey_ModCtrl)
-    if (iand(mod,mod_alt) /= 0)   moddown = moddown .and. igIsKeyDown(ImGuiKey_ModAlt)
-    if (iand(mod,mod_shift) /= 0) moddown = moddown .and. igIsKeyDown(ImGuiKey_ModShift)
-    if (iand(mod,mod_super) /= 0) moddown = moddown .and. igIsKeyDown(ImGuiKey_ModSuper)
-
-    if (key == ImGuiKey_None .or..not.moddown) then
-       ! no key or the mod is not down
+    ! check if any bind is triggered
+    if (key == ImGuiKey_None .or. mod /= modnow) then
+       ! no key or the mod is not correct
        return
     elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END .and..not.io%WantTextInput) then
        ! correct key ID and not keyboard captured or inputing text
@@ -380,5 +371,18 @@ contains
     hkey = string(key) // "_" // string(mod) // "_" // string(group)
 
   end function hkey
+
+  ! get current status of modifier keys
+  function get_current_mod() result(mod)
+    use interfaces_cimgui
+    integer :: mod
+
+    mod = 0
+    if (igIsKeyDown(ImGuiKey_ModCtrl)) mod = mod + mod_ctrl
+    if (igIsKeyDown(ImGuiKey_ModAlt)) mod = mod + mod_alt
+    if (igIsKeyDown(ImGuiKey_ModShift)) mod = mod + mod_shift
+    if (igIsKeyDown(ImGuiKey_ModSuper)) mod = mod + mod_super
+
+  end function get_current_mod
 
 end submodule proc
