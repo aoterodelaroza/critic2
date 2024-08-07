@@ -81,7 +81,7 @@ module param
   integer, parameter, public :: icrd_crys = 1 ! Crystallographic
   integer, parameter, public :: icrd_rcrys = 2 ! Reduced crystallographic
 
-  ! Enumerate for structure/vibration formats
+  ! Enumerate for structure formats
   integer, parameter, public :: isformat_unknown = 0
   integer, parameter, public :: isformat_from_input = 1
   integer, parameter, public :: isformat_from_library = 2
@@ -123,19 +123,12 @@ module param
   integer, parameter, public :: isformat_mol2 = 38
   integer, parameter, public :: isformat_pdb = 39
   integer, parameter, public :: isformat_zmat = 40
-  integer, parameter, public :: isformat_v_matdynmodes = 41
-  integer, parameter, public :: isformat_v_matdyneig = 42
-  integer, parameter, public :: isformat_v_qedyn = 43
 
-  ! Enumerate for molecular and crystal properties. These are used
-  ! throughout the code as flags for the calculation of scalar fields.
-  integer, parameter :: ims = 5    ! number of items in this enumerate
-  integer, parameter :: im_null = 0 ! the void property
-  integer, parameter :: im_volume = 1 ! volume (1)
-  integer, parameter :: im_rho = 2 ! the electron density (rho)
-  integer, parameter :: im_gradrho = 3  ! gradient of the electron density
-  integer, parameter :: im_gkin = 4  ! kinetic energy density (gradrho * gradrho)
-  integer, parameter :: im_b = 5  ! exchange-hole dipole
+  ! Enumerate for vibration data formats
+  integer, parameter, public :: ivformat_unknown = 0
+  integer, parameter, public :: ivformat_matdynmodes = 1
+  integer, parameter, public :: ivformat_matdyneig = 2
+  integer, parameter, public :: ivformat_qedyn = 3
 
   ! Enumerate for field formats
   integer, parameter, public :: ifformat_unknown = 0
@@ -175,6 +168,16 @@ module param
   integer, parameter, public :: ifformat_as_hxx1 = 34
   integer, parameter, public :: ifformat_as_hxx2 = 35
   integer, parameter, public :: ifformat_as_hxx3 = 36
+
+  ! Enumerate for molecular and crystal properties. These are used
+  ! throughout the code as flags for the calculation of scalar fields.
+  integer, parameter :: ims = 5    ! number of items in this enumerate
+  integer, parameter :: im_null = 0 ! the void property
+  integer, parameter :: im_volume = 1 ! volume (1)
+  integer, parameter :: im_rho = 2 ! the electron density (rho)
+  integer, parameter :: im_gradrho = 3  ! gradient of the electron density
+  integer, parameter :: im_gkin = 4  ! kinetic energy density (gradrho * gradrho)
+  integer, parameter :: im_b = 5  ! exchange-hole dipole
 
   ! free atomic polarizabilities from CRC handbook, 88th ed.
   real*8, parameter :: alpha_free(1:maxzat0) = (/  0.6668D0,  0.2051D0, 24.3300D0,  5.6000D0,& ! 1-4

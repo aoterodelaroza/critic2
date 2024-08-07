@@ -211,18 +211,18 @@ contains
        &Quantum ESPRESSO ph.x dyn file (dyn){.dyn},&
        &"// c_null_char
     combostr_openvibfile = "" &
-       // "Auto-detect" // c_null_char &                 ! isformat_unknown
-       // "Quantum ESPRESSO modes file" // c_null_char & ! isformat_v_matdynmodes
-       // "Quantum ESPRESSO eig file" // c_null_char   & ! isformat_v_matdyneig
-       // "Quantum ESPRESSO dyn file" // c_null_char     ! isformat_v_qedyn
+       // "Auto-detect" // c_null_char &                 ! ivformat_unknown
+       // "Quantum ESPRESSO modes file" // c_null_char & ! ivformat_matdynmodes
+       // "Quantum ESPRESSO eig file" // c_null_char   & ! ivformat_matdyneig
+       // "Quantum ESPRESSO dyn file" // c_null_char     ! ivformat_qedyn
     nn = 0
     do i = 1,len(combostr_openvibfile)
        if (combostr_openvibfile(i:i) == c_null_char) nn = nn + 1
     end do
 
     allocate(isperm_openvibfile(0:nn-1))
-    isperm_openvibfile(0:nn-1) = (/isformat_unknown,isformat_v_matdynmodes,&
-       isformat_v_matdyneig,isformat_v_qedyn/)
+    isperm_openvibfile(0:nn-1) = (/ivformat_unknown,ivformat_matdynmodes,&
+       ivformat_matdyneig,ivformat_qedyn/)
 
     allocate(isperm_inv_openvibfile(0:maxval(isperm_openvibfile)))
     isperm_inv_openvibfile = 0

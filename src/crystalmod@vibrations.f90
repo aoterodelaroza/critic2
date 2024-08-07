@@ -37,8 +37,8 @@ contains
   !> or format ivformat is used otherwise. Returns non-zero errmsg if
   !> error.
   module subroutine read_vibrations_file(c,file,ivformat,errmsg,ti)
-    use param, only: isformat_unknown, isformat_v_matdynmodes, isformat_v_matdyneig,&
-       isformat_v_qedyn
+    use param, only: ivformat_unknown, ivformat_matdynmodes, ivformat_matdyneig,&
+       ivformat_qedyn
     use crystalseedmod, only: vibrations_detect_format
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
@@ -49,9 +49,9 @@ contains
     integer :: ivf
 
     ! detect the format
-    if (ivformat == isformat_unknown) then
+    if (ivformat == ivformat_unknown) then
        call vibrations_detect_format(file,ivf)
-       if (ivf == isformat_unknown) then
+       if (ivf == ivformat_unknown) then
           errmsg = "Unknown vibration file format: " // trim(file)
           return
        end if
@@ -60,9 +60,9 @@ contains
     end if
 
     ! read the vibrations
-    if (ivf == isformat_v_matdynmodes .or. ivf == isformat_v_matdyneig) then
+    if (ivf == ivformat_matdynmodes .or. ivf == ivformat_matdyneig) then
        call read_matdyn_modes(c,file,ivf,errmsg,ti)
-    elseif (ivf == isformat_v_qedyn) then
+    elseif (ivf == ivformat_qedyn) then
        call read_qe_dyn(c,file,errmsg,ti)
     else
        errmsg = "Unknown vibration file format: " // trim(file)
@@ -79,7 +79,7 @@ contains
   subroutine read_matdyn_modes(c,file,ivformat,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalseedmod, only: read_alat_from_qeout
-    use param, only: atmass, isformat_qeout, isformat_v_matdynmodes
+    use param, only: atmass, isformat_qeout, ivformat_matdynmodes
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     integer, intent(in) :: ivformat
@@ -193,7 +193,7 @@ contains
 
     ! convert to mass-weighed coordinates (orthonormal eigenvectors)
     ! (note: units are incorrect, but we are normalizing afterwards)
-    if (ivformat == isformat_v_matdynmodes) then
+    if (ivformat == ivformat_matdynmodes) then
        do iat = 1, c%ncel
           iz = c%spc(c%atcel(iat)%is)%z
           c%vib%vec(:,iat,:,:) = c%vib%vec(:,iat,:,:) * sqrt(atmass(iz))
@@ -235,7 +235,7 @@ contains
   subroutine read_qe_dyn(c,file,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalseedmod, only: read_alat_from_qeout
-    use param, only: atmass, isformat_qeout, isformat_v_qedyn
+    use param, only: atmass, isformat_qeout, ivformat_qedyn
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
@@ -271,7 +271,7 @@ contains
     ! prepare container for data
     allocate(c%vib)
     c%vib%file = file
-    c%vib%ivformat = isformat_v_qedyn
+    c%vib%ivformat = ivformat_qedyn
 
     ! advance to the header
     c%vib%nqpt = 1
