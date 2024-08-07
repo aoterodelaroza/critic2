@@ -28,6 +28,8 @@ submodule (windows) proc
   character(kind=c_char,len=:), allocatable, target :: combostr_openfiles, dialogstr_openfiles
   integer, allocatable :: isperm_openfieldfile(:), isperm_inv_openfieldfile(:)
   character(kind=c_char,len=:), allocatable, target :: combostr_openfieldfile, dialogstr_openfieldfile
+  integer, allocatable :: isperm_openvibfile(:), isperm_inv_openvibfile(:)
+  character(kind=c_char,len=:), allocatable, target :: combostr_openvibfile, dialogstr_openvibfile
 
   !xx! private procedures
   ! subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
@@ -198,6 +200,34 @@ contains
     isperm_inv_openfieldfile = 0
     do i = 0, nn-1
        isperm_inv_openfieldfile(isperm_openfieldfile(i)) = i
+    end do
+
+    ! open vibration file
+    dialogstr_openvibfile = &
+       "&
+       &All files (*.*){*.*},&
+       &Quantum ESPRESSO matdyn.x modes file (modes){.modes},&
+       &Quantum ESPRESSO eig file (eig){.eig},&
+       &Quantum ESPRESSO ph.x dyn file (dyn){.dyn},&
+       &"// c_null_char
+    combostr_openvibfile = "" &
+       // "Auto-detect" // c_null_char &                 ! isformat_unknown
+       // "Quantum ESPRESSO modes file" // c_null_char & ! isformat_v_matdynmodes
+       // "Quantum ESPRESSO eig file" // c_null_char   & ! isformat_v_matdyneig
+       // "Quantum ESPRESSO dyn file" // c_null_char     ! isformat_v_qedyn
+    nn = 0
+    do i = 1,len(combostr_openvibfile)
+       if (combostr_openvibfile(i:i) == c_null_char) nn = nn + 1
+    end do
+
+    allocate(isperm_openvibfile(0:nn-1))
+    isperm_openvibfile(0:nn-1) = (/isformat_unknown,isformat_v_matdynmodes,&
+       isformat_v_matdyneig,isformat_v_qedyn/)
+
+    allocate(isperm_inv_openvibfile(0:maxval(isperm_openvibfile)))
+    isperm_inv_openvibfile = 0
+    do i = 0, nn-1
+       isperm_inv_openvibfile(isperm_openvibfile(i)) = i
     end do
 
   end subroutine windows_init
@@ -608,13 +638,8 @@ contains
                 c_loc(str2),c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openvibfile) then
              w%name = "Open Vibration Data File(s)##" // string(w%id)  // c_null_char
-             str1 = &
-                "&
-                &All files (*.*){*.*},&
-                &Quantum ESPRESSO matdyn.modes file (modes){.modes},&
-                &"// c_null_char
-             call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
-                c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
+             call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openvibfile),&
+                c_loc(str2),c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
           elseif (w%dialog_purpose == wpurp_dialog_openonefilemodal) then
              w%name = "Open File##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
@@ -1152,13 +1177,6 @@ contains
 
     logical, save :: ttshown = .false. ! tooltip flag
 
-    ! permutations
-    integer, parameter :: isperm_openvibfile(0:1) = &
-       (/0,38/)
-    integer, parameter :: isperm_inv_openvibfile(0:38) = &
-       (/0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,&
-         0,0,0,0,0,0,0,0,0,0,0,0,1/)
-
     ! generate the data pointer
     call c_f_pointer(vUserData,data)
 
@@ -1233,11 +1251,8 @@ contains
     elseif (data%purpose == wpurp_dialog_openvibfile) then
        ! Input field format (ifformat)
        call iw_text("Read vibration data format",highlight=.true.)
-       stropt = "" &
-          // "Auto-detect" // c_null_char &              ! isformat_unknown = 0
-          // "Quantum ESPRESSO modes" // c_null_char     ! isformat_v_matdynmodes = 38
        data%isformat = isperm_inv_openvibfile(data%isformat)
-       call iw_combo_simple("##formatcombo",stropt,data%isformat)
+       call iw_combo_simple("##formatcombo",combostr_openvibfile,data%isformat)
        call iw_tooltip("Force the new field to be read with the given file format, or auto-detect&
           &from the extension",ttshown)
        call igNewLine()
