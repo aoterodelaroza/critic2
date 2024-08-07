@@ -74,7 +74,7 @@ contains
     character(kind=c_char,len=:), allocatable :: tooltipstr
     type(ImVec2) :: szero, sz
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev, oid, isys
+    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev, oid, isys, idx
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -129,12 +129,17 @@ contains
        system_ok = (isys > 0 .and. isys <= nsys)
        if (system_ok) system_ok = (sysc(isys)%status == sys_init)
        if (system_ok .and. win(oid)%okfile_set) then
-          call sys(isys)%c%read_vibrations_file(win(oid)%okfile,win(oid)%dialog_data%isformat,w%errmsg)
-          if (len(w%errmsg) > 0) then
-             write (uout,'("Error loading vibration data from file: ",A)') win(oid)%okfile
-             write (uout,'(A)') w%errmsg
-             w%errmsg = ""
-          end if
+          str = win(oid)%okfile
+          do while (.true.)
+             idx = index(str,c_null_char)
+             if (idx == 0) exit
+             call sys(isys)%c%read_vibrations_file(str(1:idx-1),win(oid)%dialog_data%isformat,w%errmsg)
+             if (len_trim(w%errmsg) > 0) then
+                write (uout,'(A)') w%errmsg
+                w%errmsg = ""
+             end if
+             str = str(idx+1:)
+          end do
        end if
     end if
 
