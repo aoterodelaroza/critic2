@@ -27,7 +27,7 @@ contains
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
     use gui_main, only: add_systems_from_name, launch_initialization_thread,&
-       system_shorten_names
+       system_shorten_names, sysc, nsys, sys_init
     use c_interface_module, only: C_F_string_alloc, c_free
     use tools_io, only: ferror, faterr, fopen_write, fclose, uout
     use param, only: dirsep, bohrtoa
@@ -126,6 +126,12 @@ contains
        ! close the dialog and terminate the window
        call IGFD_CloseDialog(w%dptr)
        call w%end()
+    end if
+
+    ! handle cases when the dialog must quit
+    if (w%dialog_purpose == wpurp_dialog_openvibfile) then
+       if (w%isys < 1 .or. w%isys > nsys) w%forcequitdialog = .true.
+       if (.not.w%forcequitdialog) w%forcequitdialog = (sysc(w%isys)%status /= sys_init)
     end if
 
     ! exit if focused and received the close keybinding, or if forced by some other window
