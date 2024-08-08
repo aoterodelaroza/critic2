@@ -508,6 +508,7 @@ contains
 
     elseif (seed%iff == ifformat_as_promolecular.or.seed%iff == ifformat_as_core) then
        if (.not.allocated(f%grid)) allocate(f%grid)
+       call f%grid%end()
        if (seed%iff == ifformat_as_promolecular) then
           if (seed%nfile > 0) then
              fr = c%identify_fragment_from_xyz(seed%file(1),errmsg,ti=ti)
