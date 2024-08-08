@@ -678,13 +678,19 @@ contains
   !> Initialize basic variables at the beginning of the run.
   !> Also sets default values by calling global_set_defaults.
   module subroutine global_init(ghome,datadir)
-    use tools_io, only: string, ferror, warning, uout
+    use tools_io, only: string, ferror, warning, faterr, uout
     use param, only: dirsep
+#ifdef HAVE_HDF5
+    use hdf5, only: h5open_f
+#endif
     character*(*) :: ghome, datadir
     integer :: isenv
     logical :: lchk
     character(len=:), allocatable :: wfcstr, msgr1, msgr2, msg1, msg2, msg3
     integer, parameter :: maxlenpath = 1024
+#ifdef HAVE_HDF5
+    integer :: ierr
+#endif
 
     wfcstr = dirsep // "wfc" // dirsep // "h__pbe.wfc"
 
@@ -742,10 +748,31 @@ contains
     clib_file = trim(critic_home) // dirsep // "lib" // dirsep // "crystal.dat"
     mlib_file = trim(critic_home) // dirsep // "lib" // dirsep // "molecule.dat"
 
+    ! library-specific initialization
+#ifdef HAVE_HDF5
+    call h5open_f(ierr)
+    if (ierr > 0) &
+       call ferror('global_init','could not initialize the hdf5 interface',faterr)
+#endif
+
     ! set all default values
     call global_set_defaults()
 
   end subroutine global_init
+
+  !> Finalize the global module.
+  module subroutine global_end()
+#ifdef HAVE_HDF5
+    use tools_io, only: ferror, faterr
+    use hdf5, only: h5close_f
+
+    integer :: ierr
+
+    CALL h5close_f(ierr)
+    if (ierr > 0) &
+       call ferror('global_end','could not close the hdf5 interface',faterr)
+#endif
+  end subroutine global_end
 
   !> Set the default values for all the global variables
   module subroutine global_set_defaults()

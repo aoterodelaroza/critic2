@@ -179,6 +179,16 @@ if (USE_NLOPT AND NLOPT_FOUND)
   include_directories("${NLOPT_INCLUDE_DIRS}")
 endif()
 
+## hdf5
+if (USE_HDF5 AND HDF5_FOUND)
+  target_link_libraries(critic2 PRIVATE ${HDF5_LIBRARIES})
+  if (BUILD_LIBRARY)
+    target_link_libraries(libcritic2 PRIVATE ${HDF5_LIBRARIES})
+  endif()
+  add_definitions("-DHAVE_HDF5")
+  include_directories(${HDF5_INCLUDE_DIRS})
+endif()
+
 ## emd (earth mover's distance)
 add_subdirectory(emd)
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/emd")
@@ -198,12 +208,6 @@ if (ENABLE_GUI)
   if (FREETYPE_FOUND)
    target_include_directories(critic2 PRIVATE ${FREETYPE_INCLUDE_DIRS})
    target_link_libraries(critic2 PRIVATE ${FREETYPE_LIBRARIES})
-  endif()
-
-  if (HDF5_FOUND)
-    add_definitions("-DHAVE_HDF5")
-    target_include_directories(critic2 PRIVATE ${HDF5_INCLUDE_DIRS})
-    target_link_libraries(critic2 PRIVATE ${HDF5_LIBRARIES})
   endif()
 
   ## OpenGL

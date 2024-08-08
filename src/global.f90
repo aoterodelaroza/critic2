@@ -163,6 +163,8 @@ module global
      module subroutine global_init(ghome,datadir)
        character*(*) :: ghome, datadir
      end subroutine global_init
+     module subroutine global_end()
+     end subroutine global_end
      module subroutine global_set_defaults()
      end subroutine global_set_defaults
      module subroutine initial_banner()

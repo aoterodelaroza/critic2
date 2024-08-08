@@ -29,7 +29,7 @@ program critic
   use systemmod, only: systemmod_init
   use grid1mod, only: grid1_clean_grids
   use global, only: fileroot, quiet, testing, initial_banner, config_write, help_me,&
-     global_init, critic_main
+     global_init, global_end, critic_main
   use config, only: getstring, istring_datadir
   use tools_io, only: ncomms, nwarns, ucopy, uout, string, start_clock, stdargs,&
      history_init, history_end, tictac, print_clock, usegui
@@ -84,6 +84,7 @@ program critic
 
   call grid1_clean_grids()
   call history_end()
+  call global_end()
 
   if (.not.quiet) then
      write (uout,'("CRITIC2 ended successfully (",A," WARNINGS, ",A," COMMENTS)"/)')&
