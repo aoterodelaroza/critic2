@@ -214,7 +214,7 @@ module crystalmod
      procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
      procedure :: ewald_energy !< electrostatic energy (Ewald)
      procedure :: ewald_pot !< electrostatic potential (Ewald)
-     procedure :: promolecular_grid !< calculate core and promolecular densities on a grid
+     procedure :: promolecular_array3 !< calculate core and promolecular densities on a grid
      procedure :: get_pack_ratio !< Calculate the packing ratio
      procedure :: vdw_volume !< Calculate the van der waals volume
      procedure :: get_kpoints !< k-point grid for a given rklength
@@ -603,14 +603,13 @@ module crystalmod
        integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular
-     module subroutine promolecular_grid(c,f,n,zpsp,fr)
-       use grid3mod, only: grid3
+     module subroutine promolecular_array3(c,f,n,zpsp,fr)
        class(crystal), intent(inout) :: c
-       type(grid3), intent(out) :: f
+       real*8, intent(inout), allocatable :: f(:,:,:)
        integer, intent(in) :: n(3)
        integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
-     end subroutine promolecular_grid
+     end subroutine promolecular_array3
      module function get_pack_ratio(c) result (px)
        class(crystal), intent(inout) :: c
        real*8 :: px

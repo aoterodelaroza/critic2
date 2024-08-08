@@ -70,7 +70,7 @@ contains
     real*8, intent(out) :: w(:,:,:)
 
     type(fragment) :: fr
-    type(grid3) :: hwat
+    real*8, allocatable :: faux(:,:,:)
 
     ! initialize
     w = 0d0
@@ -89,10 +89,10 @@ contains
 
     ! Calculate grid with the atomic density. The sum over cells
     ! turns into a sum over periodic copies of the atom.  call
-    call s%c%promolecular_grid(hwat,bas%n,fr=fr)
+    call s%c%promolecular_array3(faux,bas%n,fr=fr)
 
     ! hirshfeld weights
-    w = hwat%f / max(bas%f,VSMALL)
+    w = faux / max(bas%f,VSMALL)
 
   end subroutine hirsh_weights
 

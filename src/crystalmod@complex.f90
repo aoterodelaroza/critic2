@@ -235,13 +235,12 @@ contains
   !> Calculate the core or promolecular densities on a grid with n(:)
   !> points. If a fragment is given, then only the atoms in it
   !> contribute.  This routine is thread-safe.
-  module subroutine promolecular_grid(c,f,n,zpsp,fr)
-    use grid3mod, only: grid3
+  module subroutine promolecular_array3(c,f,n,zpsp,fr)
     use grid1mod, only: grid1
     use fragmentmod, only: fragment
     use param, only: icrd_crys
     class(crystal), intent(inout) :: c
-    type(grid3), intent(out) :: f
+       real*8, intent(inout), allocatable :: f(:,:,:)
     integer, intent(in) :: n(3)
     integer, intent(in), optional :: zpsp(:)
     type(fragment), intent(in), optional :: fr
@@ -249,11 +248,8 @@ contains
     integer :: i, j, k
     real*8 :: x(3), xdelta(3,3), rdum1(3), rdum2(3,3), rho
 
-    ! initialize
-    call f%end()
-    f%isinit = .true.
-    f%n = n
-    allocate(f%f(n(1),n(2),n(3)))
+    if (allocated(f)) deallocate(f)
+    allocate(f(n(1),n(2),n(3)))
 
     do i = 1, 3
        xdelta(:,i) = 0d0
@@ -267,15 +263,13 @@ contains
              x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
              call c%promolecular_atom(x,icrd_crys,rho,rdum1,rdum2,0,zpsp,fr)
 
-             !$omp critical(write)
-             f%f(i,j,k) = rho
-             !$omp end critical(write)
+             f(i,j,k) = rho
           end do
        end do
     end do
     !$omp end parallel do
 
-  end subroutine promolecular_grid
+  end subroutine promolecular_array3
 
   !> Calculate the packing ratio (in %) using the nearest-neighbor
   !> information. Each atom is assigned a ratio equal to half the distance

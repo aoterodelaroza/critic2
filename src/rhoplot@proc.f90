@@ -415,7 +415,7 @@ contains
     type(scalar_value) :: res
     logical :: ok, doortho
     integer :: ix, iy, iz, i, ibnd, ik, inr(3), ispin
-    real*8, allocatable :: lf(:,:,:), fake(:,:,:)
+    real*8, allocatable :: lf(:,:,:), fake(:,:,:), ff(:,:,:)
     logical :: dogrid, useexpr, doheader
     integer :: outform, ishift(3), dopsi
     type(grid3) :: faux
@@ -721,7 +721,9 @@ contains
        if (dopsi == psi_none) then
           ! GRID keyword
           if (sy%f(id)%usecore) then
-             call sy%c%promolecular_grid(faux,sy%f(id)%grid%n,sy%f(id)%zpsp)
+             call sy%c%promolecular_array3(ff,sy%f(id)%grid%n,sy%f(id)%zpsp)
+             call faux%from_array3(ff,sy%c%m_x2c,c_loc(sy%c))
+             deallocate(ff)
              faux%f = faux%f + sy%f(id)%grid%f
           else
              faux = sy%f(id)%grid

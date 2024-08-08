@@ -76,7 +76,7 @@ contains
     integer :: lp, lp2
     logical :: ok, nonnm, noatoms
     real*8 :: ratom_def
-    type(grid3) :: faux
+    real*8, allocatable :: faux(:,:,:)
     type(int_result), allocatable :: res(:)
     type(basindat) :: bas
 
@@ -234,18 +234,16 @@ contains
     allocate(bas%f(bas%n(1),bas%n(2),bas%n(3)))
     if (sy%f(sy%iref)%usecore .and. (bas%imtype == imtype_yt .or. bas%imtype == imtype_bader)) then
        ! yt,bader with usercore -> augment qirh xoew
-       call sy%c%promolecular_grid(faux,sy%f(sy%iref)%grid%n,sy%f(sy%iref)%zpsp)
-       bas%f = sy%f(sy%iref)%grid%f + faux%f
-       call faux%end()
+       call sy%c%promolecular_array3(faux,sy%f(sy%iref)%grid%n,sy%f(sy%iref)%zpsp)
+       bas%f = sy%f(sy%iref)%grid%f + faux
     elseif (bas%imtype == imtype_isosurface .and..not.bas%higher) then
        ! isosurface lower -> minus the reference field
        bas%f = -sy%f(sy%iref)%grid%f
        bas%isov = -bas%isov
     elseif (bas%imtype == imtype_hirshfeld) then
        ! hirshfeld -> the promolecular density
-       call sy%c%promolecular_grid(faux,sy%f(sy%iref)%grid%n)
-       bas%f = faux%f
-       call faux%end()
+       call sy%c%promolecular_array3(faux,sy%f(sy%iref)%grid%n)
+       bas%f = faux
     else
        ! rest -> reference field
        bas%f = sy%f(sy%iref)%grid%f

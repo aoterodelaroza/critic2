@@ -312,6 +312,7 @@ contains
     integer :: i, j, k, n(3)
     type(fragment) :: fr
     real*8 :: xdelta(3,3), x(3), rho
+    real*8, allocatable :: faux(:,:,:)
     logical :: ifail
 
     errmsg = ""
@@ -514,14 +515,18 @@ contains
              fr = c%identify_fragment_from_xyz(seed%file(1),errmsg,ti=ti)
              if (len_trim(errmsg) == 0) then
                 if (fr%nat > 0) then
-                   call c%promolecular_grid(f%grid,seed%n,fr=fr)
+                   call c%promolecular_array3(faux,seed%n,fr=fr)
+                   call f%grid%from_array3(faux,c%m_x2c,c_loc(c))
+                   deallocate(faux)
                 else
                    errmsg = "zero atoms in the fragment"
                 end if
              end if
              f%name = "<generated>, promolecular grid using fragment"
           else
-             call c%promolecular_grid(f%grid,seed%n)
+             call c%promolecular_array3(faux,seed%n)
+             call f%grid%from_array3(faux,c%m_x2c,c_loc(c))
+             deallocate(faux)
              f%name = "<generated>, promolecular grid"
           end if
        else
@@ -530,7 +535,9 @@ contains
              errmsg = "need zpsp values for load as core"
              return
           end if
-          call c%promolecular_grid(f%grid,seed%n,zpsp=f%zpsp)
+          call c%promolecular_array3(faux,seed%n,zpsp=f%zpsp)
+          call f%grid%from_array3(faux,c%m_x2c,c_loc(c))
+          deallocate(faux)
           f%name = "<generated>, core grid"
        end if
        f%type = type_grid
