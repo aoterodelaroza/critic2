@@ -91,6 +91,7 @@ if (OPENMP_FOUND)
   if (BUILD_LIBRARY)
     target_link_libraries(libcritic2 PRIVATE ${OpenMP_Fortran_LIBRARIES})
   endif()
+  add_definitions("-DHAVE_OPENMP")
 endif()
 
 ## lapack
@@ -104,6 +105,7 @@ if (LAPACK_FOUND)
   if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU")
     set(CMAKE_Fortran_FLAGS_${BT} "${CMAKE_Fortran_FLAGS_${BT}} -fexternal-blas")
   endif()
+  add_definitions("-DHAVE_LAPACK")
 else()
   add_subdirectory(oldlibs)
   target_sources(critic2 PRIVATE $<TARGET_OBJECTS:oldlibs>)
@@ -196,6 +198,12 @@ if (ENABLE_GUI)
   if (FREETYPE_FOUND)
    target_include_directories(critic2 PRIVATE ${FREETYPE_INCLUDE_DIRS})
    target_link_libraries(critic2 PRIVATE ${FREETYPE_LIBRARIES})
+  endif()
+
+  if (HDF5_FOUND)
+    add_definitions("-DHAVE_HDF5")
+    target_include_directories(critic2 PRIVATE ${HDF5_INCLUDE_DIRS})
+    target_link_libraries(critic2 PRIVATE ${HDF5_LIBRARIES})
   endif()
 
   ## OpenGL

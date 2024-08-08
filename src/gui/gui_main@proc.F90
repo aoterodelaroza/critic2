@@ -60,7 +60,6 @@ contains
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string, falloc, fdealloc
     use param, only: dirsep
-    use omp_lib, only: omp_get_max_threads
     integer(c_int) :: idum, idum2, display_w, display_h, ileft, iright, ibottom, ileft2, iright2
     type(c_funptr) :: fdum
     type(c_ptr) :: ptrc

@@ -838,6 +838,9 @@ contains
 #ifdef HAVE_LIBXC
     use xc_f90_lib_m
 #endif
+#ifdef HAVE_OPENMP
+    use omp_lib, only: omp_get_max_threads
+#endif
     use config, only: getstring, istring_package, istring_atarget,&
        istring_adate, istring_datadir, istring_version
     use param, only: dirsep
@@ -845,6 +848,7 @@ contains
 
     logical :: lchk
     integer :: iver(3)
+    character(len=:), allocatable :: str
 
     write (uout,'("+ ",A," (development), version ",A,"")') getstring(istring_package), getstring(istring_version)
     write (uout,'("         host: ",A)') getstring(istring_atarget)
@@ -859,11 +863,41 @@ contains
     iver(3) = spg_get_micro_version()
     write (uout,'("       spglib: ",A,".",A,".",A)') string(iver(1)), string(iver(2)), string(iver(3))
 
+    str = ""
+#ifdef HAVE_LAPACK
+    str = str // "LAPACK(external)"
+#else
+    str = str // "LAPACK(internal)"
+#endif
 #ifdef HAVE_LIBXC
     call xc_f90_version(iver(1),iver(2),iver(3))
-    write (uout,'("        libxc: ",A,".",A,".",A)') string(iver(1)), string(iver(2)), string(iver(3))
+    str = str // " LibXC-" // string(iver(1)) // "." // string(iver(2)) // "." // string(iver(3))
+#endif
+#ifdef HAVE_CINT
+    str = str // " CINT"
+#endif
+#ifdef HAVE_READLINE
+    str = str // " Readline"
+#endif
+#ifdef HAVE_NLOPT
+    str = str // " NLopt"
+#endif
+#ifdef HAVE_HDF5
+    str = str // " HDF5"
+#endif
+#ifdef HAVE_GUI
+#ifdef FREETYPE_FOUND
+    str = str // " GUI(freetype)"
 #else
-    write (uout,'("        libxc: <unavailable>")')
+    str = str // " GUI"
+#endif
+#endif
+    write (uout,'("     features: ",A)') str
+
+#ifdef HAVE_OPENMP
+    write (uout,'("       openmp: yes (",A," max threads)")') string(omp_get_max_threads())
+#else
+    write (uout,'("       openmp: no")')
 #endif
     write (uout,*)
 

@@ -120,6 +120,7 @@ endif()
 ## GUI requirements
 if (ENABLE_GUI)
   ## GUI options
+  option(USE_HDF5 "Use the HDF5 library (reading hdf5 phonopy vibration data)." ON)
   option(USE_FREETYPE "Use the freetype library (improved font rendering in GUI)." ON)
   option(USE_GUI_THREADS "Use threads in the GUI." ON)
 
@@ -131,6 +132,18 @@ if (ENABLE_GUI)
   ## find GUI libraries
   if (USE_FREETYPE)
     find_package(Freetype)
+  endif()
+
+  ## HDF5
+  if (USE_HDF5)
+    find_package(HDF5 COMPONENTS Fortran HL)
+    mark_as_advanced(HDF5_C_COMPILER_EXECUTABLE)
+    mark_as_advanced(HDF5_Fortran_COMPILER_EXECUTABLE)
+    mark_as_advanced(HDF5_Fortran_HL_stub)
+    mark_as_advanced(HDF5_Fortran_stub)
+    mark_as_advanced(SZIP_INCLUDE_DIR)
+    mark_as_advanced(SZIP_LIBRARY)
+    mark_as_advanced(h5_conf)
   endif()
 
   ## glfw3
@@ -350,6 +363,7 @@ if (ENABLE_GUI)
     "glm: lib=${GLM_LIBRARIES} | inc=${GLM_INCLUDE_DIRS}\n"
     "glfw: lib=${GLFW3_LIBRARY} | inc=${GLFW3_INCLUDE_DIR}\n"
     "freetype: lib=${FREETYPE_LIBRARIES} | inc=${FREETYPE_INCLUDE_DIRS}\n"
+    "hdf5: lib=${HDF5_LIBRARIES} | inc=${HDF5_INCLUDE_DIRS}\n"
     "dl: lib=${CMAKE_DL_LIBS}\n")
 endif()
 
