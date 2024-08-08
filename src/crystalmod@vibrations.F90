@@ -24,7 +24,7 @@ submodule (crystalmod) vibrations
   ! subroutine read_qe_dyn(c,file,errmsg,ti)
   ! subroutine read_phonopy_ascii(c,vib,file,errmsg,ti)
   ! subroutine read_phonopy_yaml(c,vib,file,errmsg,ti)
-  ! subroutine read_phonopy_hdf5(c,vib,file,errmsg,ti)
+  ! subroutine read_phonopy_hdf5(c,vib,file,errmsg)
 
 contains
 
@@ -75,7 +75,7 @@ contains
     elseif (ivf == ivformat_phonopy_yaml) then
        call read_phonopy_yaml(c,vib,file,errmsg,ti)
     elseif (ivf == ivformat_phonopy_hdf5) then
-       call read_phonopy_hdf5(c,vib,file,errmsg,ti)
+       call read_phonopy_hdf5(c,vib,file,errmsg)
     else
        errmsg = "Unknown vibration file format: " // trim(file)
        return
@@ -151,7 +151,7 @@ contains
     if (len_trim(errmsg) > 0) goto 999
 
     ! open file
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
        goto 999
@@ -307,7 +307,7 @@ contains
     if (len_trim(errmsg) > 0) goto 999
 
     ! open file
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
        goto 999
@@ -427,7 +427,7 @@ contains
     lu = -1
 
     ! open file
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
        goto 999
@@ -545,7 +545,7 @@ contains
     use types, only: realloc
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalmod, only: vibrations
-    use param, only: atmass, ivformat_phonopy_yaml, cm1tothz
+    use param, only: ivformat_phonopy_yaml, cm1tothz
     class(crystal), intent(inout) :: c
     type(vibrations), intent(inout) :: vib
     character*(*), intent(in) :: file
@@ -554,7 +554,7 @@ contains
 
     logical :: ok
     character(len=:), allocatable :: line
-    integer :: lu, idx, i, j, ifreq, iz
+    integer :: lu, idx, i, j, ifreq
     real*8 :: xdum(2)
     ! integer :: jfreq, iqpt ! checking normalization
     ! complex*16 :: summ
@@ -564,7 +564,7 @@ contains
     lu = -1
 
     ! open file
-    lu = fopen_read(file)
+    lu = fopen_read(file,ti=ti)
     if (lu <= 0) then
        errmsg = "File not found: " // trim(file)
        goto 999
@@ -696,7 +696,7 @@ contains
   !> Read vibration data from a phonopy hdf5 file (MESH/WRITE_MESH or
   !> QPOINTS, plus EIGENVECTORS keywords), and return it in vib. If
   !> error, return non-zero errmsg.
-  subroutine read_phonopy_hdf5(c,vib,file,errmsg,ti)
+  subroutine read_phonopy_hdf5(c,vib,file,errmsg)
 #ifdef HAVE_HDF5
     use iso_c_binding, only: c_loc, c_ptr
     use hdf5
@@ -707,16 +707,15 @@ contains
     type(vibrations), intent(inout) :: vib
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
-    type(thread_info), intent(in), optional :: ti
 
 #ifdef HAVE_HDF5
     integer(HID_T) :: fid, dsetid, spaceid, ctypeid
-    integer(HSIZE_T) :: dim(2), dim3(3), maxdim(2), maxdim3(3), aux
-    integer :: i, ier, class, ifreq, iqpt
+    integer(HSIZE_T) :: dim(2), maxdim(2)
+    integer :: i, ier, ifreq, iqpt
     complex*16, allocatable, target :: vaux(:,:,:,:)
     type(c_ptr) :: cptr
-    integer :: jfreq ! checking normalization
-    complex*16 :: summ
+    ! integer :: jfreq ! checking normalization
+    ! complex*16 :: summ
 
     ! prepare container for data
     vib%file = file
