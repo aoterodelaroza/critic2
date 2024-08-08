@@ -6,7 +6,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 10  10  10  
-  Max. length Voronoi-relevant vector (bohr):  0.00000  
+  Max. length Voronoi-relevant vector (bohr):  1.05163  
   First elements... 1.810108118799E-03  1.828138463408E-03  1.778835744176E-03  
   Last elements... 7.881849380377E-03  9.252841906953E-03  7.521267642563E-03  
   Sum of elements... 3.872283571907E+02
@@ -30,7 +30,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 10  10  10  
-  Max. length Voronoi-relevant vector (bohr):  0.00000  
+  Max. length Voronoi-relevant vector (bohr):  1.05163  
   First elements... 9.050540593993E-04  1.235328355314E-03  1.411521139781E-03  
   Last elements... 3.275648043679E-04  3.987268129546E-04  6.033219720813E-04  
   Sum of elements... 1.936141785953E+02
@@ -52,7 +52,7 @@
   Source: <generated>
   Type: grid
   Grid dimensions : 10  10  10  
-  Max. length Voronoi-relevant vector (bohr):  0.00000  
+  Max. length Voronoi-relevant vector (bohr):  1.05163  
   First elements... 9.050540593993E-04  5.928101080941E-04  3.673146043942E-04  
   Last elements... 7.554284576009E-03  8.854115093998E-03  6.917945670482E-03  
   Sum of elements... 1.936141785953E+02
