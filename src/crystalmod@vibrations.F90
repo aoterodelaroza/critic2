@@ -197,8 +197,11 @@ contains
     end if
 
     ! allocate arrays
+    if (allocated(vib%qpt)) deallocate(vib%qpt)
     allocate(vib%qpt(3,vib%nqpt))
+    if (allocated(vib%freq)) deallocate(vib%freq)
     allocate(vib%freq(vib%nfreq,vib%nqpt))
+    if (allocated(vib%vec)) deallocate(vib%vec)
     allocate(vib%vec(3,c%ncel,vib%nfreq,vib%nqpt))
 
     ! second pass: read the information
@@ -316,6 +319,7 @@ contains
 
     ! advance to the header
     vib%nqpt = 1
+    if (allocated(vib%qpt)) deallocate(vib%qpt)
     allocate(vib%qpt(3,vib%nqpt))
     do while (getline_raw(lu,line,.false.))
        if (len(line) >= 39) then
@@ -333,7 +337,9 @@ contains
 
     ! allocate frequencies
     vib%nfreq = 3 * c%ncel
+    if (allocated(vib%freq)) deallocate(vib%freq)
     allocate(vib%freq(vib%nfreq,vib%nqpt))
+    if (allocated(vib%vec)) deallocate(vib%vec)
     allocate(vib%vec(3,c%ncel,vib%nfreq,vib%nqpt))
 
     ! read the frequencies
@@ -434,8 +440,11 @@ contains
     ! allocate and initialize
     vib%nqpt = 1
     vib%nfreq = 3 * c%ncel
+    if (allocated(vib%qpt)) deallocate(vib%qpt)
     allocate(vib%qpt(3,vib%nqpt))
+    if (allocated(vib%freq)) deallocate(vib%freq)
     allocate(vib%freq(vib%nfreq,vib%nqpt))
+    if (allocated(vib%vec)) deallocate(vib%vec)
     allocate(vib%vec(3,c%ncel,vib%nfreq,vib%nqpt))
 
     ! advance to the header
@@ -568,8 +577,11 @@ contains
     ! allocate and initialize
     vib%nqpt = 0
     vib%nfreq = 3 * c%ncel
+    if (allocated(vib%qpt)) deallocate(vib%qpt)
     allocate(vib%qpt(3,10))
+    if (allocated(vib%freq)) deallocate(vib%freq)
     allocate(vib%freq(vib%nfreq,10))
+    if (allocated(vib%vec)) deallocate(vib%vec)
     allocate(vib%vec(3,c%ncel,vib%nfreq,10))
 
     ! advance to the header
@@ -685,154 +697,106 @@ contains
   !> QPOINTS, plus EIGENVECTORS keywords), and return it in vib. If
   !> error, return non-zero errmsg.
   subroutine read_phonopy_hdf5(c,vib,file,errmsg,ti)
-    use types, only: realloc
-    use tools_io, only: fopen_read, fclose, getline_raw
+#ifdef HAVE_HDF5
+    use iso_c_binding, only: c_loc, c_ptr
+    use hdf5
+#endif
+    use param, only: ivformat_phonopy_hdf5, cm1tothz
     use crystalmod, only: vibrations
-    use param, only: atmass, ivformat_phonopy_yaml, cm1tothz
     class(crystal), intent(inout) :: c
     type(vibrations), intent(inout) :: vib
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    logical :: ok
-    character(len=:), allocatable :: line
-    integer :: lu, idx, i, j, ifreq, iz
-    real*8 :: xdum(2)
-    ! integer :: jfreq, iqpt ! checking normalization
-    ! complex*16 :: summ
-
-    write (*,*) "bleh!"
-    stop 1
-
-    ! initialize
-    errmsg = "Error reading yaml file: " // trim(file)
-    lu = -1
-
-    ! open file
-    lu = fopen_read(file)
-    if (lu <= 0) then
-       errmsg = "File not found: " // trim(file)
-       goto 999
-    end if
+#ifdef HAVE_HDF5
+    integer(HID_T) :: fid, dsetid, spaceid, ctypeid
+    integer(HSIZE_T) :: dim(2), dim3(3), maxdim(2), maxdim3(3), aux
+    integer :: i, ier, class, ifreq, iqpt
+    complex*16, allocatable, target :: vaux(:,:,:,:)
+    type(c_ptr) :: cptr
+    integer :: jfreq ! checking normalization
+    complex*16 :: summ
 
     ! prepare container for data
     vib%file = file
-    vib%ivformat = ivformat_phonopy_yaml
+    vib%ivformat = ivformat_phonopy_hdf5
 
-    ! allocate and initialize
-    vib%nqpt = 0
-    vib%nfreq = 3 * c%ncel
-    allocate(vib%qpt(3,10))
-    allocate(vib%freq(vib%nfreq,10))
-    allocate(vib%vec(3,c%ncel,vib%nfreq,10))
+    ! open file
+    call h5fopen_f(file,H5F_ACC_RDONLY_F, fid, ier)
+    if (ier < 0) then
+       errmsg = "error opening hdf5 file: " // trim(file)
+       return
+    end if
 
-    ! advance to the header
-    do while (getline_raw(lu,line,.false.))
-       if (index(line,"phonon:") > 0) exit
-    end do
+    ! read qpoints
+    call h5dopen_f(fid,"qpoint",dsetid,ier)
+    if (ier < 0) goto 999
+    call h5dget_space_f(dsetid,spaceid,ier)
+    if (ier < 0) goto 999
+    CALL h5sget_simple_extent_dims_f(spaceid,dim,maxdim,ier)
+    if (ier < 0) goto 999
+    vib%nqpt = int(dim(2))
+    if (allocated(vib%qpt)) deallocate(vib%qpt)
+    allocate(vib%qpt(dim(1),dim(2)))
+    call h5dread_f(dsetid,H5T_NATIVE_DOUBLE,vib%qpt,dim,ier)
+    if (ier < 0) goto 999
 
-    !!! Reader implemented to fit this YAML structure:
-    ! phonon:
-    ! - q-position: [    0.2500000,    0.0000000,    0.0000000 ]
-    !   distance_from_gamma:  0.021997038
-    !   weight: 2
-    !   band:
-    !   - # 1
-    !     frequency:     0.3378353291
-    !     eigenvector:
-    !     - # atom 1
-    !       - [  0.00451257038677,  0.00000000000000 ]
-    !       - [ -0.11674136018427,  0.04305724458615 ]
-    do while (getline_raw(lu,line,.false.))
-       if (index(line,"q-position") > 0) then
-          ! a new q-point, increase nqpt and reallocate
-          vib%nqpt = vib%nqpt + 1
-          ifreq = 0
-          if (vib%nqpt > size(vib%qpt,2)) then
-             call realloc(vib%qpt,3,2*vib%nqpt)
-             call realloc(vib%freq,vib%nfreq,2*vib%nqpt)
-             call realloc(vib%vec,3,c%ncel,vib%nfreq,2*vib%nqpt)
-          end if
-
-          ! a new q-point
-          idx = index(line,":")
-          line = line(idx+1:)
-          call strip(line)
-          read (line,*,err=999,end=999) vib%qpt(:,vib%nqpt)
-
-       elseif (index(line,"frequency") > 0) then
-          ! a new frequency (band)
-          ifreq = ifreq + 1
-          if (ifreq > vib%nfreq) then
-             errmsg = "Inconsistent number of frequencies"
-             goto 999
-          end if
-          idx = index(line,":")
-          line = line(idx+1:)
-          read (line,*,err=999,end=999) vib%freq(ifreq,vib%nqpt)
-
-       elseif (index(line,"eigenvector") > 0) then
-          ! an eigenvector
-          do i = 1, c%ncel
-             ok = getline_raw(lu,line,.false.)
-             if (.not.ok) goto 999
-             do j = 1, 3
-                ok = getline_raw(lu,line,.false.)
-                if (.not.ok) goto 999
-                idx = index(line,"[")
-                line = line(idx+1:)
-                call strip(line)
-                read (line,*,err=999,end=999) xdum
-                vib%vec(j,i,ifreq,vib%nqpt) = cmplx(xdum(1),xdum(2),8)
-             end do
-          end do
-       end if
-    end do
-    call realloc(vib%qpt,3,vib%nqpt)
-    call realloc(vib%freq,vib%nfreq,vib%nqpt)
-    call realloc(vib%vec,3,c%ncel,vib%nfreq,vib%nqpt)
+    ! read frequencies
+    call h5dopen_f(fid,"frequency",dsetid,ier)
+    if (ier < 0) goto 999
+    call h5dget_space_f(dsetid,spaceid,ier)
+    if (ier < 0) goto 999
+    CALL h5sget_simple_extent_dims_f(spaceid,dim,maxdim,ier)
+    if (ier < 0) goto 999
+    vib%nfreq = int(dim(1))
+    if (3*c%ncel /= vib%nfreq) then
+       errmsg = "Inconsistent number of frequencies: " // trim(file)
+       goto 999
+    end if
+    if (allocated(vib%freq)) deallocate(vib%freq)
+    allocate(vib%freq(dim(1),dim(2)))
+    call h5dread_f(dsetid,H5T_NATIVE_DOUBLE,vib%freq,dim,ier)
+    if (ier < 0) goto 999
 
     ! THz to cm-1
     vib%freq = vib%freq / cm1tothz
 
-    ! normalize
-    do i = 1, vib%nfreq
-       vib%vec(:,:,i,1) = vib%vec(:,:,i,1) / &
-          sqrt(sum(vib%vec(:,:,i,1)*conjg(vib%vec(:,:,i,1))))
-    end do
+    ! read eigenvectors
+    call h5dopen_f(fid,"eigenvector",dsetid,ier)
+    if (ier < 0) goto 999
 
-    ! ! checking normalization
-    ! write (*,*) "checking normalization..."
-    ! do iqpt = 1, vib%nqpt
-    !    do ifreq = 1, vib%nfreq
-    !       do jfreq = 1, vib%nfreq
-    !          summ = sum(vib%vec(:,:,ifreq,iqpt)*conjg(vib%vec(:,:,jfreq,iqpt)))
-    !          write (*,*) ifreq, jfreq, summ
-    !       end do
-    !    end do
-    ! end do
+    ! compound type for eigenvectors
+    CALL H5Tcreate_f(H5T_COMPOUND_F,16_8,ctypeid,ier)
+    if (ier < 0) goto 999
+    CALL H5Tinsert_f(ctypeid,"r",0_8,H5T_NATIVE_DOUBLE,ier)
+    if (ier < 0) goto 999
+    CALL H5Tinsert_f(ctypeid,"i",8_8,H5T_NATIVE_DOUBLE,ier)
+    if (ier < 0) goto 999
+
+    ! rearrange data = it is written in a weird, weird order
+    allocate(vaux(vib%nfreq,3,c%ncel,vib%nqpt))
+    cptr = c_loc(vaux)
+    call h5dread_f(dsetid,ctypeid,cptr,ier)
+    if (ier < 0) goto 999
+    allocate(vib%vec(3,c%ncel,vib%nfreq,vib%nqpt))
+    do iqpt = 1, vib%nqpt
+       do ifreq = 1, vib%nfreq
+          do i = 1, c%ncel
+             vib%vec(:,i,ifreq,iqpt) = vaux(ifreq,:,i,iqpt)
+          end do
+       end do
+    end do
+    deallocate(vaux)
 
     ! wrap up
     errmsg = ""
-    call fclose(lu)
-
-    return
 999 continue
-    if (lu >= 0) call fclose(lu)
+    call h5close_f(ier)
 
-  contains
-    subroutine strip(str)
-      character*(*), intent(inout) :: str
-
-      integer :: i
-
-      do i = 1, len(str)
-         if (str(i:i) == "[" .or. str(i:i) == "," .or. str(i:i) == "]") &
-            str(i:i) = " "
-      end do
-
-    end subroutine strip
+#else
+    errmsg = "Critic2 must be compiled against the HDF5 library to read phonopy hdf5 files"
+#endif
 
   end subroutine read_phonopy_hdf5
 
