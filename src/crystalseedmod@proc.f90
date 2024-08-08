@@ -5050,7 +5050,7 @@ contains
   !> crystal vibrations.
   module subroutine vibrations_detect_format(file,ivformat)
     use param, only: ivformat_unknown, ivformat_matdynmodes, ivformat_matdyneig,&
-       ivformat_qedyn, ivformat_phonopy_ascii, dirsep
+       ivformat_qedyn, ivformat_phonopy_ascii, ivformat_phonopy_yaml, dirsep
     use tools_io, only: equal, lower
     character*(*), intent(in) :: file
     integer, intent(out) :: ivformat
@@ -5074,6 +5074,8 @@ contains
        ivformat = ivformat_matdyneig
     elseif (equal(lower(wextdot),'ascii')) then
        ivformat = ivformat_phonopy_ascii
+    elseif (equal(lower(wextdot),'yaml')) then
+       ivformat = ivformat_phonopy_yaml
     elseif (isdynfile(wextdot)) then
        ivformat = ivformat_qedyn
     else

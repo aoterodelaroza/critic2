@@ -38,7 +38,7 @@ contains
   !> non-zero errmsg if error.
   module subroutine read_vibrations_file(c,file,ivformat,errmsg,ti)
     use param, only: ivformat_unknown, ivformat_matdynmodes, ivformat_matdyneig,&
-       ivformat_qedyn, ivformat_phonopy_ascii
+       ivformat_qedyn, ivformat_phonopy_ascii, ivformat_phonopy_yaml
     use crystalmod, only: vibrations
     use crystalseedmod, only: vibrations_detect_format
     use types, only: realloc
@@ -69,6 +69,8 @@ contains
        call read_qe_dyn(c,vib,file,errmsg,ti)
     elseif (ivf == ivformat_phonopy_ascii) then
        call read_phonopy_ascii(c,vib,file,errmsg,ti)
+    elseif (ivf == ivformat_phonopy_yaml) then
+       call read_phonopy_yaml(c,vib,file,errmsg,ti)
     else
        errmsg = "Unknown vibration file format: " // trim(file)
        return
@@ -406,7 +408,7 @@ contains
     character(len=:), allocatable :: line
     integer :: lu, idx, i, ifreq, iz
     real*8 :: xdum(6)
-    ! integer :: jfreq, iqpt, ifreq ! checking normalization
+    ! integer :: jfreq, iqpt ! checking normalization
     ! complex*16 :: summ
 
     ! initialize
@@ -518,5 +520,160 @@ contains
     end subroutine strip
 
   end subroutine read_phonopy_ascii
+
+  !> Read vibration data from a phonopy yaml file (MESH/WRITE_MESH or
+  !> QPOINTS, plus EIGENVECTORS keywords), and return it in vib. If
+  !> error, return non-zero errmsg. This implements a custom-made
+  !> parser for the yaml file, to avoid having to require libyaml or
+  !> incorporatin a proper YAML reader into the code. If more yaml
+  !> files come along, this will change.
+  subroutine read_phonopy_yaml(c,vib,file,errmsg,ti)
+    use types, only: realloc
+    use tools_io, only: fopen_read, fclose, getline_raw
+    use crystalmod, only: vibrations
+    use param, only: atmass, ivformat_phonopy_yaml, cm1tothz
+    class(crystal), intent(inout) :: c
+    type(vibrations), intent(inout) :: vib
+    character*(*), intent(in) :: file
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    logical :: ok
+    character(len=:), allocatable :: line
+    integer :: lu, idx, i, j, ifreq, iz
+    real*8 :: xdum(2)
+    ! integer :: jfreq, iqpt ! checking normalization
+    ! complex*16 :: summ
+
+    ! initialize
+    errmsg = "Error reading yaml file: " // trim(file)
+    lu = -1
+
+    ! open file
+    lu = fopen_read(file)
+    if (lu <= 0) then
+       errmsg = "File not found: " // trim(file)
+       goto 999
+    end if
+
+    ! prepare container for data
+    vib%file = file
+    vib%ivformat = ivformat_phonopy_yaml
+
+    ! allocate and initialize
+    vib%nqpt = 0
+    vib%nfreq = 3 * c%ncel
+    allocate(vib%qpt(3,10))
+    allocate(vib%freq(vib%nfreq,10))
+    allocate(vib%vec(3,c%ncel,vib%nfreq,10))
+
+    ! advance to the header
+    do while (getline_raw(lu,line,.false.))
+       if (index(line,"phonon:") > 0) exit
+    end do
+
+    !!! Reader implemented to fit this YAML structure:
+    ! phonon:
+    ! - q-position: [    0.2500000,    0.0000000,    0.0000000 ]
+    !   distance_from_gamma:  0.021997038
+    !   weight: 2
+    !   band:
+    !   - # 1
+    !     frequency:     0.3378353291
+    !     eigenvector:
+    !     - # atom 1
+    !       - [  0.00451257038677,  0.00000000000000 ]
+    !       - [ -0.11674136018427,  0.04305724458615 ]
+    do while (getline_raw(lu,line,.false.))
+       if (index(line,"q-position") > 0) then
+          ! a new q-point, increase nqpt and reallocate
+          vib%nqpt = vib%nqpt + 1
+          ifreq = 0
+          if (vib%nqpt > size(vib%qpt,2)) then
+             call realloc(vib%qpt,3,2*vib%nqpt)
+             call realloc(vib%freq,vib%nfreq,2*vib%nqpt)
+             call realloc(vib%vec,3,c%ncel,vib%nfreq,2*vib%nqpt)
+          end if
+
+          ! a new q-point
+          idx = index(line,":")
+          line = line(idx+1:)
+          call strip(line)
+          read (line,*,err=999,end=999) vib%qpt(:,vib%nqpt)
+
+       elseif (index(line,"frequency") > 0) then
+          ! a new frequency (band)
+          ifreq = ifreq + 1
+          if (ifreq > vib%nfreq) then
+             errmsg = "Inconsistent number of frequencies"
+             goto 999
+          end if
+          idx = index(line,":")
+          line = line(idx+1:)
+          read (line,*,err=999,end=999) vib%freq(ifreq,vib%nqpt)
+
+       elseif (index(line,"eigenvector") > 0) then
+          ! an eigenvector
+          do i = 1, c%ncel
+             ok = getline_raw(lu,line,.false.)
+             if (.not.ok) goto 999
+             do j = 1, 3
+                ok = getline_raw(lu,line,.false.)
+                if (.not.ok) goto 999
+                idx = index(line,"[")
+                line = line(idx+1:)
+                call strip(line)
+                read (line,*,err=999,end=999) xdum
+                vib%vec(j,i,ifreq,vib%nqpt) = cmplx(xdum(1),xdum(2),8)
+             end do
+          end do
+       end if
+    end do
+    call realloc(vib%qpt,3,vib%nqpt)
+    call realloc(vib%freq,vib%nfreq,vib%nqpt)
+    call realloc(vib%vec,3,c%ncel,vib%nfreq,vib%nqpt)
+
+    ! THz to cm-1
+    vib%freq = vib%freq / cm1tothz
+
+    ! normalize
+    do i = 1, vib%nfreq
+       vib%vec(:,:,i,1) = vib%vec(:,:,i,1) / &
+          sqrt(sum(vib%vec(:,:,i,1)*conjg(vib%vec(:,:,i,1))))
+    end do
+
+    ! ! checking normalization
+    ! write (*,*) "checking normalization..."
+    ! do iqpt = 1, vib%nqpt
+    !    do ifreq = 1, vib%nfreq
+    !       do jfreq = 1, vib%nfreq
+    !          summ = sum(vib%vec(:,:,ifreq,iqpt)*conjg(vib%vec(:,:,jfreq,iqpt)))
+    !          write (*,*) ifreq, jfreq, summ
+    !       end do
+    !    end do
+    ! end do
+
+    ! wrap up
+    errmsg = ""
+    call fclose(lu)
+
+    return
+999 continue
+    if (lu >= 0) call fclose(lu)
+
+  contains
+    subroutine strip(str)
+      character*(*), intent(inout) :: str
+
+      integer :: i
+
+      do i = 1, len(str)
+         if (str(i:i) == "[" .or. str(i:i) == "," .or. str(i:i) == "]") &
+            str(i:i) = " "
+      end do
+
+    end subroutine strip
+
+  end subroutine read_phonopy_yaml
 
 end submodule vibrations
