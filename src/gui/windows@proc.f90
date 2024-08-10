@@ -212,6 +212,7 @@ contains
        &phonopy ascii file (ascii){.ascii},&
        &phonopy yaml file (yaml){.yaml},&
        &phonopy hdf5 file (hdf5){.hdf5},&
+       &crystal output file (out){.out},&
        &"// c_null_char
     combostr_openvibfile = "" &
        // "Auto-detect" // c_null_char &                 ! ivformat_unknown
@@ -220,7 +221,8 @@ contains
        // "Quantum ESPRESSO dyn file" // c_null_char   & ! ivformat_qedyn
        // "phonopy ascii file" // c_null_char          & ! ivformat_phonopy_ascii
        // "phonopy yaml file" // c_null_char           & ! ivformat_phonopy_yaml
-       // "phonopy hdf5 file" // c_null_char             ! ivformat_phonopy_hdf5
+       // "phonopy hdf5 file" // c_null_char           & ! ivformat_phonopy_hdf5
+       // "crystal output file" // c_null_char           ! ivformat_crystal out
     nn = 0
     do i = 1,len(combostr_openvibfile)
        if (combostr_openvibfile(i:i) == c_null_char) nn = nn + 1
@@ -229,7 +231,7 @@ contains
     allocate(isperm_openvibfile(0:nn-1))
     isperm_openvibfile(0:nn-1) = (/ivformat_unknown,ivformat_matdynmodes,&
        ivformat_matdyneig,ivformat_qedyn,ivformat_phonopy_ascii,ivformat_phonopy_yaml,&
-       ivformat_phonopy_hdf5/)
+       ivformat_phonopy_hdf5,ivformat_crystal_out/)
 
     allocate(isperm_inv_openvibfile(0:maxval(isperm_openvibfile)))
     isperm_inv_openvibfile = 0

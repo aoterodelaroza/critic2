@@ -41,7 +41,8 @@ contains
   !> non-zero errmsg if error.
   module subroutine read_vibrations_file(c,file,ivformat,errmsg,ti)
     use param, only: ivformat_unknown, ivformat_matdynmodes, ivformat_matdyneig,&
-       ivformat_qedyn, ivformat_phonopy_ascii, ivformat_phonopy_yaml, ivformat_phonopy_hdf5
+       ivformat_qedyn, ivformat_phonopy_ascii, ivformat_phonopy_yaml, ivformat_phonopy_hdf5,&
+       ivformat_crystal_out
     use crystalmod, only: vibrations
     use crystalseedmod, only: vibrations_detect_format
     use types, only: realloc
@@ -76,6 +77,8 @@ contains
        call read_phonopy_yaml(c,vib,file,errmsg,ti)
     elseif (ivf == ivformat_phonopy_hdf5) then
        call read_phonopy_hdf5(c,vib,file,errmsg)
+    elseif (ivf == ivformat_crystal_out) then
+       call read_crystal_out(c,vib,file,errmsg)
     else
        errmsg = "Unknown vibration file format: " // trim(file)
        return
@@ -798,5 +801,119 @@ contains
 #endif
 
   end subroutine read_phonopy_hdf5
+
+  !> Read vibration data from a crystal output file, and return it in
+  !> vib. If error, return non-zero errmsg.
+  subroutine read_crystal_out(c,vib,file,errmsg,ti)
+    use types, only: realloc
+    use tools_io, only: fopen_read, fclose, getline_raw
+    use crystalmod, only: vibrations
+    use param, only: ivformat_crystal_out, cm1tothz, atmass
+    class(crystal), intent(inout) :: c
+    type(vibrations), intent(inout) :: vib
+    character*(*), intent(in) :: file
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    logical :: ok
+    character(len=:), allocatable :: line
+    integer :: lu, idx, i, j, k, ifreq, n0, n1, iz
+    real*8 :: xdum(6)
+    ! integer :: jfreq, iqpt ! checking normalization
+    ! complex*16 :: summ
+
+    ! initialize
+    errmsg = "Error reading output file: " // trim(file)
+    lu = -1
+
+    ! open file
+    lu = fopen_read(file,ti=ti)
+    if (lu <= 0) then
+       errmsg = "File not found: " // trim(file)
+       goto 999
+    end if
+
+    ! prepare container for data
+    vib%file = file
+    vib%ivformat = ivformat_crystal_out
+
+    ! allocate and initialize -> only gamma point
+    vib%nqpt = 1
+    vib%nfreq = 3 * c%ncel
+    if (allocated(vib%qpt)) deallocate(vib%qpt)
+    allocate(vib%qpt(3,1))
+    vib%qpt = 0d0
+    if (allocated(vib%freq)) deallocate(vib%freq)
+    allocate(vib%freq(vib%nfreq,1))
+    if (allocated(vib%vec)) deallocate(vib%vec)
+    allocate(vib%vec(3,c%ncel,vib%nfreq,1))
+
+    ! advance to the header
+    do while (getline_raw(lu,line,.false.))
+       if (index(line,"NORMAL MODES NORMALIZED TO CLASSICAL AMPLITUDES (IN BOHR)") > 0) exit
+    end do
+    ok = getline_raw(lu,line,.false.)
+    if (.not.ok) goto 999
+
+    ! read the info
+    do i = 1, vib%nfreq, 6
+       n0 = i
+       n1 = min(i+5,vib%nfreq)
+
+       ! read the frequency line
+       ok = getline_raw(lu,line,.false.)
+       if (.not.ok) goto 999
+       line = line(14:)
+       read (line,*,end=999,err=999) vib%freq(n0:n1,1)
+       ok = getline_raw(lu,line,.false.)
+       if (.not.ok) goto 999
+
+       ! read the eigenvector
+       do j = 1, c%ncel
+          do k = 1, 3
+             ok = getline_raw(lu,line,.false.)
+             if (.not.ok) goto 999
+             line = line(14:)
+             read (line,*,end=999,err=999) xdum
+             vib%vec(k,j,n0:n1,1) = xdum
+          end do
+       end do
+       ok = getline_raw(lu,line,.false.)
+       if (.not.ok) goto 999
+    end do
+
+    ! convert to mass-weighed coordinates (orthonormal eigenvectors)
+    ! (note: units are incorrect, but we are normalizing afterwards)
+    do i = 1, c%ncel
+       iz = c%spc(c%atcel(i)%is)%z
+       vib%vec(:,i,:,:) = vib%vec(:,i,:,:) * sqrt(atmass(iz))
+    end do
+
+    ! normalize
+    do i = 1, vib%nfreq
+       vib%vec(:,:,i,1) = vib%vec(:,:,i,1) / &
+          sqrt(sum(vib%vec(:,:,i,1)*conjg(vib%vec(:,:,i,1))))
+    end do
+
+    ! ! checking normalization
+    ! write (*,*) "checking normalization..."
+    ! do iqpt = 1, vib%nqpt
+    !    do ifreq = 1, vib%nfreq
+    !       do jfreq = 1, vib%nfreq
+    !          summ = sum(vib%vec(:,:,ifreq,iqpt)*conjg(vib%vec(:,:,jfreq,iqpt)))
+    !          write (*,*) ifreq, jfreq, summ
+    !       end do
+    !    end do
+    ! end do
+
+    ! wrap up
+    errmsg = ""
+    call fclose(lu)
+
+    return
+999 continue
+    if (lu >= 0) call fclose(lu)
+
+  end subroutine read_crystal_out
 
 end submodule vibrations

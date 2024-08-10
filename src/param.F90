@@ -132,6 +132,7 @@ module param
   integer, parameter, public :: ivformat_phonopy_ascii = 4
   integer, parameter, public :: ivformat_phonopy_yaml = 5
   integer, parameter, public :: ivformat_phonopy_hdf5 = 6
+  integer, parameter, public :: ivformat_crystal_out = 7
 
   ! Enumerate for field formats
   integer, parameter, public :: ifformat_unknown = 0
