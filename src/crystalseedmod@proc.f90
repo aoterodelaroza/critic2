@@ -2868,144 +2868,8 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, i, j, ier
-    character(len=:), allocatable :: line
-    integer :: idum, iz, lp
-    real*8 :: r(3,3), x(3)
-    logical :: ok, iscrystal
-    character*(10) :: ats
-
     call seed%end()
-    errmsg = ""
-    lu = fopen_read(file,errstop=.false.,ti=ti)
-    if (lu < 0) then
-       errmsg = "Error opening file: " // trim(file)
-       return
-    end if
-
-    errmsg = "Error reading file: " // trim(file)
-    r = 0d0
-    iscrystal = .false.
-    allocate(seed%x(3,10),seed%is(10),seed%spc(2))
-    seed%nat = 0
-    seed%nspc = 0
-    ! rewind and read the correct structure
-    rewind(lu)
-    do while (getline_raw(lu,line))
-       if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) then
-          cycle
-       elseif (index(line,"CRYSTAL CALCULATION") > 0) then
-          iscrystal = .true.
-       elseif (index(line,"3D - CRYSTAL") > 0) then
-          iscrystal = .true.
-       elseif (index(line,"MOLECULAR CALCULATION") > 0) then
-          iscrystal = .false.
-       elseif (index(line,"DIRECT LATTICE VECTORS CARTESIAN COMPONENTS") > 0) then
-          ok = getline_raw(lu,line)
-          if (.not.ok) goto 999
-          if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
-          do i = 1, 3
-             ok = getline_raw(lu,line)
-             if (.not.ok) goto 999
-             if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
-             lp = 1
-             ok = isreal(r(i,1),line,lp)
-             ok = ok.and.isreal(r(i,2),line,lp)
-             ok = ok.and.isreal(r(i,3),line,lp)
-             if (.not.ok) then
-                errmsg = "Wrong lattice vectors."
-                goto 999
-             end if
-          end do
-          r = r / bohrtoa
-       elseif (index(line,"CARTESIAN COORDINATES - PRIMITIVE CELL") > 0) then
-          do i = 1, 3
-             ok = getline_raw(lu,line)
-             if (.not.ok) goto 999
-             if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
-          end do
-          line = ""
-          seed%nat = 0
-          do while (.true.)
-             ok = getline_raw(lu,line)
-             if (.not.ok) goto 999
-             if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
-             if (len_trim(line) < 1) exit
-             if (index(line,"ERROR") > 0) exit
-             if (index(line,"WARNING") > 0) exit
-             seed%nat = seed%nat + 1
-             if (seed%nat > size(seed%x,2)) then
-                call realloc(seed%x,3,2*seed%nat)
-                call realloc(seed%is,2*seed%nat)
-             end if
-             read (line,*,err=999,end=999) idum, iz, ats, x
-             seed%x(:,seed%nat) = x / bohrtoa
-             seed%is(seed%nat) = 0
-             do j = 1, seed%nspc
-                if (equali(trim(ats),seed%spc(j)%name)) then
-                   seed%is(seed%nat) = j
-                   exit
-                end if
-             end do
-             if (seed%is(seed%nat) == 0) then
-                seed%nspc = seed%nspc + 1
-                if (seed%nspc > size(seed%spc,1)) &
-                   call realloc(seed%spc,2*seed%nspc)
-                seed%spc(seed%nspc)%name = trim(ats)
-                seed%spc(seed%nspc)%z = zatguess(ats)
-                seed%is(seed%nat) = seed%nspc
-             end if
-          end do
-       end if
-    end do
-    call realloc(seed%x,3,seed%nat)
-    call realloc(seed%is,seed%nat)
-    call realloc(seed%spc,seed%nspc)
-
-    if (.not.iscrystal) then
-       errmsg = "Only CRYSTAL calculations supported (no MOLECULE, SLAB or POLYMER)."
-       goto 999
-    end if
-    if (all(r == 0d0)) then
-       errmsg = "Could not find lattice vectors."
-       goto 999
-    end if
-
-    ! cell
-    seed%m_x2c = transpose(r)
-    r = seed%m_x2c
-    call matinv(r,3,ier)
-    if (ier /= 0) then
-       errmsg = "Error inverting matrix"
-       goto 999
-    end if
-    seed%useabr = 2
-
-    ! atoms
-    do i = 1, seed%nat
-       seed%x(:,i) = matmul(r,seed%x(:,i))
-       seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
-    end do
-
-    errmsg = ""
-999 continue
-    call fclose(lu)
-
-    ! no symmetry
-    seed%havesym = 0
-    seed%findsym = -1
-    seed%checkrepeats = .false.
-
-    ! rest of the seed information
-    seed%isused = .true.
-    seed%ismolecule = mol
-    seed%cubic = .false.
-    seed%border = 0d0
-    seed%havex0 = .false.
-    seed%molx0 = 0d0
-    seed%file = file
-    seed%name = file
-    seed%isformat = isformat_crystal
+    call read_all_crystalout(file,mol,errmsg,seed0=seed,ti=ti)
 
   end subroutine read_crystalout
 
@@ -5360,7 +5224,7 @@ contains
     elseif (isformat == isformat_qeout) then
        call read_all_qeout(nseed,seed,file,mol,-1,errmsg,ti=ti)
     elseif (isformat == isformat_crystal) then
-       call seed(1)%read_crystalout(file,mol,errmsg,ti=ti)
+       call read_all_crystalout(file,mol,errmsg,nseed=nseed,mseed=seed,ti=ti)
     elseif (isformat == isformat_fploout) then
        call seed(1)%read_fploout(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_qein) then
@@ -5438,7 +5302,8 @@ contains
 
     ! output collapse
     collapse = ((isformat == isformat_qeout .or. isformat == isformat_gaussian .or.&
-       isformat == isformat_aimsout .or. isformat == isformat_castepgeom).and.nseed > 1)
+       isformat == isformat_aimsout .or. isformat == isformat_castepgeom .or.&
+       isformat == isformat_crystal).and.nseed > 1)
 
   end subroutine read_seeds_from_file
 
@@ -5548,6 +5413,8 @@ contains
     to%border = from%border
     to%havex0 = from%havex0
     to%molx0 = from%molx0
+    to%energy = from%energy
+    to%pressure = from%pressure
 
   end subroutine assign_crystalseed
 
@@ -7584,6 +7451,283 @@ contains
     call fclose(lu)
 
   end subroutine read_all_castep_geom
+
+  !> Read all seeds from a crystal output file.
+  subroutine read_all_crystalout(file,mol,errmsg,nseed,mseed,seed0,ti)
+    use crystalseedmod, only: crystalseed
+    use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
+       zatguess, fclose, equali
+    use tools_math, only: matinv
+    use types, only: realloc
+    use param, only: bohrtoa, isformat_crystal
+    character*(*), intent(in) :: file
+    logical, intent(in) :: mol
+    character(len=:), allocatable, intent(out) :: errmsg
+    integer, intent(out), optional :: nseed
+    type(crystalseed), intent(inout), allocatable, optional :: mseed(:)
+    type(crystalseed), intent(inout), optional :: seed0
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lu, i, j, ier, idx
+    character(len=:), allocatable :: line
+    integer :: idum, iz, lp
+    real*8 :: r(3,3), x(3), energy
+    logical :: ok, firstseed, readseed, inopt
+    integer :: iscrystal
+    character*(10) :: ats, bts
+    type(crystalseed) :: seed
+
+    ! initialize and open the file
+    call seed%end()
+    errmsg = ""
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file: " // trim(file)
+       return
+    end if
+    if (present(nseed) .and. present(mseed)) then
+       nseed = 0
+       if (allocated(mseed)) deallocate(mseed)
+       allocate(mseed(10))
+    end if
+
+    ! run over the file
+    errmsg = "Error reading file: " // trim(file)
+    r = 0d0
+    iscrystal = -1
+    allocate(seed%x(3,10),seed%is(10),seed%spc(2))
+    seed%nat = 0
+    seed%nspc = 0
+    firstseed = .true.
+    readseed = .false.
+    inopt = .false.
+    do while (getline_raw(lu,line))
+       if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
+
+       ! whether this is a crystal or molecule
+       if (iscrystal < 0) then
+          if (index(line,"CRYSTAL CALCULATION") > 0) then
+             iscrystal = 1
+          elseif (index(line,"3D - CRYSTAL") > 0) then
+             iscrystal = 1
+          elseif (index(line,"MOLECULAR CALCULATION") > 0) then
+             iscrystal = 0
+          end if
+       end if
+
+       ! reading the first and last seeds, combination of the keywords:
+       ! lattice = DIRECT LATTICE VECTORS CARTESIAN COMPONENTS
+       ! atoms = CARTESIAN COORDINATES - PRIMITIVE CELL
+       if (index(line,"DIRECT LATTICE VECTORS CARTESIAN COMPONENTS") > 0) then
+          ! read the r
+          ok = getline_raw(lu,line)
+          if (.not.ok) goto 999
+          if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
+          do i = 1, 3
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
+             lp = 1
+             ok = isreal(r(i,1),line,lp)
+             ok = ok.and.isreal(r(i,2),line,lp)
+             ok = ok.and.isreal(r(i,3),line,lp)
+             if (.not.ok) then
+                errmsg = "Wrong lattice vectors."
+                goto 999
+             end if
+          end do
+          r = r / bohrtoa
+       elseif (index(line,"CARTESIAN COORDINATES - PRIMITIVE CELL") > 0) then
+          ! read the atomic information
+          do i = 1, 3
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
+          end do
+          line = ""
+          if (firstseed) then
+             seed%nat = 0
+             do while (.true.)
+                ok = getline_raw(lu,line)
+                if (.not.ok) goto 999
+                if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
+                if (len_trim(line) < 1) exit
+                if (index(line,"ERROR") > 0) exit
+                if (index(line,"WARNING") > 0) exit
+                seed%nat = seed%nat + 1
+                if (seed%nat > size(seed%x,2)) then
+                   call realloc(seed%x,3,2*seed%nat)
+                   call realloc(seed%is,2*seed%nat)
+                end if
+                read (line,*,err=999,end=999) idum, iz, ats, x
+                seed%x(:,seed%nat) = x / bohrtoa
+                seed%is(seed%nat) = 0
+                do j = 1, seed%nspc
+                   if (equali(trim(ats),seed%spc(j)%name)) then
+                      seed%is(seed%nat) = j
+                      exit
+                   end if
+                end do
+                if (seed%is(seed%nat) == 0) then
+                   seed%nspc = seed%nspc + 1
+                   if (seed%nspc > size(seed%spc,1)) &
+                      call realloc(seed%spc,2*seed%nspc)
+                   seed%spc(seed%nspc)%name = trim(ats)
+                   seed%spc(seed%nspc)%z = zatguess(ats)
+                   seed%is(seed%nat) = seed%nspc
+                end if
+             end do
+             call realloc(seed%x,3,seed%nat)
+             call realloc(seed%is,seed%nat)
+             call realloc(seed%spc,seed%nspc)
+
+             ! no symmetry
+             seed%havesym = 0
+             seed%findsym = -1
+             seed%checkrepeats = .false.
+
+             ! rest of the seed information
+             seed%isused = .true.
+             seed%ismolecule = mol
+             seed%cubic = .false.
+             seed%border = 0d0
+             seed%havex0 = .false.
+             seed%molx0 = 0d0
+             seed%file = file
+             seed%name = file
+             seed%isformat = isformat_crystal
+
+             ! done with the first seed
+             firstseed = .false.
+          else
+             ! this is not the first seed
+             do i = 1, seed%nat
+                ok = getline_raw(lu,line)
+                if (.not.ok) goto 999
+                if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
+                read (line,*,err=999,end=999) idum, iz, ats, x
+                seed%x(:,i) = x / bohrtoa
+             end do
+          end if
+
+          ! cell
+          seed%m_x2c = transpose(r)
+          r = seed%m_x2c
+          call matinv(r,3,ier)
+          if (ier /= 0) then
+             errmsg = "Error inverting matrix"
+             goto 999
+          end if
+          seed%useabr = 2
+
+          ! atoms
+          do i = 1, seed%nat
+             seed%x(:,i) = matmul(r,seed%x(:,i))
+             seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
+          end do
+
+          ! new seed is ready
+          readseed = .true.
+       elseif (index(line,"OPTOPTOPTOPT") > 0) then
+          inopt = .true.
+       end if
+
+       if (inopt) then
+          if (index(line,"COORDINATE AND CELL OPTIMIZATION - POINT") > 0) then
+             ! read cell parameters
+             do i = 1, 5
+                ok = getline_raw(lu,line)
+                if (.not.ok) goto 999
+                if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
+             end do
+             read (line,*,err=999,end=999) seed%aa, seed%bb
+             seed%aa = seed%aa / bohrtoa
+             seed%useabr = 1
+
+             ! read atomic positions
+             do i = 1, 4
+                ok = getline_raw(lu,line)
+                if (.not.ok) goto 999
+                if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
+             end do
+             do i = 1, seed%nat
+                ok = getline_raw(lu,line)
+                if (.not.ok) goto 999
+                if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
+                read (line,*,err=999,end=999) idum, bts, iz, ats, seed%x(:,i)
+                seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
+             end do
+
+             ! new seed is ready
+             readseed = .true.
+          end if
+       end if
+
+       ! read the total energy
+       if (len(line) > 13) then
+          if (line(1:13) == " TOTAL ENERGY") then
+             do i = 1, 3
+                idx = index(line,")")
+                line = line(idx+1:)
+             end do
+             read (line,*,err=999,end=999) energy
+             if (present(seed0)) seed0%energy = energy
+             if (present(nseed).and.present(mseed)) mseed(nseed)%energy = energy
+          end if
+       end if
+
+       ! transfer the seed
+       if (readseed) then
+          if (present(seed0)) seed0 = seed
+          if (present(nseed) .and. present(mseed)) then
+             nseed = nseed + 1
+             if (nseed > size(mseed,1)) call realloc_crystalseed(mseed,2*nseed)
+             mseed(nseed) = seed
+          end if
+          readseed = .false.
+       end if
+    end do
+
+    ! rearrange seeds if optimization
+    if (present(nseed).and.present(mseed)) then
+       if (inopt) then
+          ! opt = last point is repeated, move to next-to-last structure but keep the energy
+          energy = mseed(nseed-1)%energy
+          mseed(nseed-1) = mseed(nseed)
+          mseed(nseed-1)%energy = energy
+          nseed = nseed - 1
+       end if
+       call realloc_crystalseed(mseed,nseed)
+    end if
+
+    ! consistency checks
+    if (iscrystal /= 1) then
+       errmsg = "Only CRYSTAL calculations supported (no MOLECULE, SLAB or POLYMER)."
+       goto 999
+    end if
+    if (all(r == 0d0)) then
+       errmsg = "Could not find lattice vectors."
+       goto 999
+    end if
+    if (firstseed) then
+       errmsg = "Could not find crystal geometries."
+       goto 999
+    end if
+
+    ! done
+    errmsg = ""
+    call fclose(lu)
+    return
+
+999 continue
+    call fclose(lu)
+    if (present(nseed) .and. present(mseed)) then
+       nseed = 0
+       if (allocated(mseed)) deallocate(mseed)
+    end if
+    if (present(seed0)) call seed0%end()
+
+  end subroutine read_all_crystalout
 
   !> Read a molecular geometry from a pdb file. Returns the number of
   !> atoms (n), atomic positions (x, in bohr), atomic numbers (z), and
