@@ -2680,85 +2680,89 @@ contains
     ! maybe the error message
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
 
-    ! q-points table
+    ! rest of animation stuff
     if (vib_ok) then
 
-       ! q-points table
-       call igBeginGroup()
-       call igAlignTextToFramePadding()
-       call iw_text("Q-points",highlight=.true.)
-       call iw_combo_simple("##qptunit","fractional" // c_null_char // "1/bohr" // c_null_char //&
-          "1/Å" // c_null_char,w%iqptunit,sameline=.true.)
-       call iw_tooltip("Units for the q-points",ttshown)
+       if (.not.sys(isys)%c%ismolecule) then
+          ! q-points table
+          call igBeginGroup()
+          call igAlignTextToFramePadding()
+          call iw_text("Q-points",highlight=.true.)
+          call iw_combo_simple("##qptunit","fractional" // c_null_char // "1/bohr" // c_null_char //&
+             "1/Å" // c_null_char,w%iqptunit,sameline=.true.)
+          call iw_tooltip("Units for the q-points",ttshown)
 
-       flags = ImGuiTableFlags_None
-       flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-       flags = ior(flags,ImGuiTableFlags_Borders)
-       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-       flags = ior(flags,ImGuiTableFlags_ScrollY)
-       str1="##tablevibrationqpoints" // c_null_char
-       sz0%x = iw_calcwidth(37,0)
-       sz0%y = iw_calcheight(5,0,.false.)
-       if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
-          ! header setup
-          str2 = "Id" // c_null_char
-          flags = ImGuiTableColumnFlags_WidthFixed
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_id)
+          flags = ImGuiTableFlags_None
+          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+          flags = ior(flags,ImGuiTableFlags_Borders)
+          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          flags = ior(flags,ImGuiTableFlags_ScrollY)
+          str1="##tablevibrationqpoints" // c_null_char
+          sz0%x = iw_calcwidth(37,0)
+          sz0%y = iw_calcheight(5,0,.false.)
+          if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
+             ! header setup
+             str2 = "Id" // c_null_char
+             flags = ImGuiTableColumnFlags_WidthFixed
+             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_id)
 
-          str2 = "Coordinates" // c_null_char
-          flags = ImGuiTableColumnFlags_WidthFixed
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_qpt)
-          call igTableSetupScrollFreeze(0, 1) ! top row always visible
+             str2 = "Coordinates" // c_null_char
+             flags = ImGuiTableColumnFlags_WidthFixed
+             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_q_qpt)
+             call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
-          ! draw the header
-          call igTableHeadersRow()
-          call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+             ! draw the header
+             call igTableHeadersRow()
+             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
-          ! draw the rows
-          do i = 1, sys(isys)%c%vib%nqpt
-             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+             ! draw the rows
+             do i = 1, sys(isys)%c%vib%nqpt
+                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
 
-             xx = sys(isys)%c%vib%qpt(:,i)
-             if (w%iqptunit == 0) then ! fractional
-                digits = 5
-             elseif (w%iqptunit == 1) then ! 1/bohr
-                xx = sys(isys)%c%rx2rc(xx)
-                digits = 6
-             else ! 1/ang
-                xx = sys(isys)%c%rx2rc(xx) / bohrtoa
-                digits = 6
-             end if
-
-             ! id
-             if (igTableSetColumnIndex(ic_q_id)) then
-                ! selectable
-                strl = "##selectq" // string(i) // c_null_char
-                flags = ImGuiSelectableFlags_SpanAllColumns
-                flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
-                selected = (win(w%idparent)%sc%iqpt_selected == i)
-                if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) then
-                   win(w%idparent)%sc%iqpt_selected = i
-                   win(w%idparent)%sc%forcebuildlists = .true.
+                xx = sys(isys)%c%vib%qpt(:,i)
+                if (w%iqptunit == 0) then ! fractional
+                   digits = 5
+                elseif (w%iqptunit == 1) then ! 1/bohr
+                   xx = sys(isys)%c%rx2rc(xx)
+                   digits = 6
+                else ! 1/ang
+                   xx = sys(isys)%c%rx2rc(xx) / bohrtoa
+                   digits = 6
                 end if
 
-                ! text
-                call iw_text(string(i),sameline=.true.)
-             end if
+                ! id
+                if (igTableSetColumnIndex(ic_q_id)) then
+                   ! selectable
+                   strl = "##selectq" // string(i) // c_null_char
+                   flags = ImGuiSelectableFlags_SpanAllColumns
+                   flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
+                   selected = (win(w%idparent)%sc%iqpt_selected == i)
+                   if (igSelectable_Bool(c_loc(strl),selected,flags,szero)) then
+                      win(w%idparent)%sc%iqpt_selected = i
+                      win(w%idparent)%sc%forcebuildlists = .true.
+                   end if
 
-             ! coordinates
-             if (igTableSetColumnIndex(ic_q_qpt)) then
-                s = string(xx(1),'f',length=10,decimal=digits,justify=ioj_right)//&
-                   string(xx(2),'f',length=10,decimal=digits,justify=ioj_right)//&
-                   string(xx(3),'f',length=10,decimal=digits,justify=ioj_right)
-                call iw_text(s)
-             end if
-          end do ! i = 1, sys(isys)%c%vib%nqpt
-          call igEndTable()
-       end if ! begintable
-       call igEndGroup()
+                   ! text
+                   call iw_text(string(i),sameline=.true.)
+                end if
+
+                ! coordinates
+                if (igTableSetColumnIndex(ic_q_qpt)) then
+                   s = string(xx(1),'f',length=10,decimal=digits,justify=ioj_right)//&
+                      string(xx(2),'f',length=10,decimal=digits,justify=ioj_right)//&
+                      string(xx(3),'f',length=10,decimal=digits,justify=ioj_right)
+                   call iw_text(s)
+                end if
+             end do ! i = 1, sys(isys)%c%vib%nqpt
+             call igEndTable()
+          end if ! begintable
+          call igEndGroup()
+          call igSameLine(0._c_float,-1._c_float)
+       else
+          win(w%idparent)%sc%iqpt_selected = 1
+       end if
 
        ! frequency table
-       call igSameLine(0._c_float,-1._c_float)
        call igBeginGroup()
        ! header
        call igAlignTextToFramePadding()
@@ -2835,7 +2839,7 @@ contains
        call igEndGroup()
 
        ! suggested periodicity
-       if (win(w%idparent)%sc%iqpt_selected > 0) then
+       if (win(w%idparent)%sc%iqpt_selected > 0 .and..not.sys(isys)%c%ismolecule) then
           call igAlignTextToFramePadding()
           call iw_text("Suggested Periodicity:",highlight=.true.)
           do i = 1, 3
