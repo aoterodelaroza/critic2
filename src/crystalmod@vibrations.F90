@@ -25,6 +25,7 @@ submodule (crystalmod) vibrations
   ! subroutine read_phonopy_ascii(c,vib,file,errmsg,ti)
   ! subroutine read_phonopy_yaml(c,vib,file,errmsg,ti)
   ! subroutine read_phonopy_hdf5(c,vib,file,errmsg)
+  ! subroutine read_crystal_out(c,vib,file,errmsg,ti)
 
 contains
 
@@ -42,7 +43,7 @@ contains
   module subroutine read_vibrations_file(c,file,ivformat,errmsg,ti)
     use param, only: ivformat_unknown, ivformat_matdynmodes, ivformat_matdyneig,&
        ivformat_qedyn, ivformat_phonopy_ascii, ivformat_phonopy_yaml, ivformat_phonopy_hdf5,&
-       ivformat_crystal_out
+       ivformat_crystal_out, ivformat_gaussian_log
     use crystalmod, only: vibrations
     use crystalseedmod, only: vibrations_detect_format
     use types, only: realloc
@@ -79,6 +80,8 @@ contains
        call read_phonopy_hdf5(c,vib,file,errmsg)
     elseif (ivf == ivformat_crystal_out) then
        call read_crystal_out(c,vib,file,errmsg)
+    elseif (ivf == ivformat_gaussian_log) then
+       call read_gaussian_log(c,vib,file,errmsg)
     else
        errmsg = "Unknown vibration file format: " // trim(file)
        return
@@ -808,7 +811,7 @@ contains
     use types, only: realloc
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalmod, only: vibrations
-    use param, only: ivformat_crystal_out, cm1tothz, atmass
+    use param, only: ivformat_crystal_out, atmass
     class(crystal), intent(inout) :: c
     type(vibrations), intent(inout) :: vib
     character*(*), intent(in) :: file
@@ -817,7 +820,7 @@ contains
 
     logical :: ok
     character(len=:), allocatable :: line
-    integer :: lu, idx, i, j, k, ifreq, n0, n1, iz
+    integer :: lu, i, j, k, n0, n1, iz
     real*8 :: xdum(6)
     ! integer :: jfreq, iqpt ! checking normalization
     ! complex*16 :: summ
@@ -915,5 +918,127 @@ contains
     if (lu >= 0) call fclose(lu)
 
   end subroutine read_crystal_out
+
+  !> Read vibration data from a Gaussian output file, and return it in
+  !> vib. If error, return non-zero errmsg.
+  subroutine read_gaussian_log(c,vib,file,errmsg,ti)
+    use types, only: realloc
+    use tools_io, only: fopen_read, fclose, getline_raw, isreal
+    use crystalmod, only: vibrations
+    use param, only: ivformat_gaussian_log, atmass
+    class(crystal), intent(inout) :: c
+    type(vibrations), intent(inout) :: vib
+    character*(*), intent(in) :: file
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    logical :: ok, okl(3)
+    character(len=:), allocatable :: line
+    integer :: lu, i, j, nread, iz, nn, lp, idum(2)
+    real*8 :: xdum, xread(9)
+    ! integer :: jfreq ! checking normalization
+    ! complex*16 :: summ
+
+    ! initialize
+    errmsg = "Error reading vibrations from file: " // trim(file)
+    lu = -1
+
+    ! open file
+    lu = fopen_read(file,ti=ti)
+    if (lu <= 0) then
+       errmsg = "File not found: " // trim(file)
+       goto 999
+    end if
+
+    ! prepare container for data
+    vib%file = file
+    vib%ivformat = ivformat_gaussian_log
+
+    ! allocate and initialize -> only gamma point
+    vib%nqpt = 1
+    vib%nfreq = 3 * c%ncel
+    if (allocated(vib%qpt)) deallocate(vib%qpt)
+    allocate(vib%qpt(3,1))
+    vib%qpt = 0d0
+    if (allocated(vib%freq)) deallocate(vib%freq)
+    allocate(vib%freq(vib%nfreq,1))
+    if (allocated(vib%vec)) deallocate(vib%vec)
+    allocate(vib%vec(3,c%ncel,vib%nfreq,1))
+
+    nread = 0
+    do while (.true.)
+       ! advance to the next frequencies header
+       ok = .false.
+       do while (getline_raw(lu,line,.false.))
+          if (len(line) >= 15) then
+             if (index(line," Frequencies --") > 0) then
+                ok = .true.
+                exit
+             end if
+          end if
+       end do
+       if (.not.ok) exit
+
+       ! read the frequencies
+       line = line(16:)
+       lp = 1
+       do i = 1, 3
+          okl(i) = isreal(xdum,line,lp)
+          if (okl(i)) vib%freq(nread+i,1) = xdum
+       end do
+       nn = count(okl)
+
+       ! skip to the displacements
+       do i = 1, 4
+          ok = getline_raw(lu,line,.false.)
+          if (.not.ok) goto 999
+       end do
+
+       ! read the frequencies
+       do i = 1, c%ncel
+          ok = getline_raw(lu,line,.false.)
+          if (.not.ok) goto 999
+          read (line,*,end=999,err=999) idum, xread(1:3*nn)
+          do j = 1, nn
+             vib%vec(:,i,nread+j,1) = xread(3*(j-1)+1:3*j)
+          end do
+       end do
+       nread = nread + nn
+    end do
+    vib%nfreq = nread
+    call realloc(vib%freq,vib%nfreq,vib%nqpt)
+    call realloc(vib%vec,3,c%ncel,vib%nfreq,vib%nqpt)
+
+    ! convert to mass-weighed coordinates (orthonormal eigenvectors)
+    ! (note: units are incorrect, but we are normalizing afterwards)
+    do i = 1, c%ncel
+       iz = c%spc(c%atcel(i)%is)%z
+       vib%vec(:,i,:,:) = vib%vec(:,i,:,:) * sqrt(atmass(iz))
+    end do
+
+    ! normalize
+    do i = 1, vib%nfreq
+       vib%vec(:,:,i,1) = vib%vec(:,:,i,1) / &
+          sqrt(sum(vib%vec(:,:,i,1)*conjg(vib%vec(:,:,i,1))))
+    end do
+
+    ! ! checking normalization
+    ! write (*,*) "checking normalization..."
+    ! do ifreq = 1, vib%nfreq
+    !    do jfreq = 1, vib%nfreq
+    !       summ = sum(vib%vec(:,:,ifreq,1)*conjg(vib%vec(:,:,jfreq,1)))
+    !       write (*,*) ifreq, jfreq, summ
+    !    end do
+    ! end do
+
+    ! wrap up
+    errmsg = ""
+    call fclose(lu)
+
+    return
+999 continue
+    if (lu >= 0) call fclose(lu)
+
+  end subroutine read_gaussian_log
 
 end submodule vibrations
