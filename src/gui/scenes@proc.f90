@@ -275,7 +275,7 @@ contains
     use interfaces_cimgui
     use interfaces_opengl3
     use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
-    use gui_main, only: fonts, fontbakesize_large, time, font_large
+    use gui_main, only: fonts, fontbakesize_large, time, font_large, sys
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use tools_io, only: string
@@ -287,7 +287,7 @@ contains
 
     real(c_float) :: xsel(3,4), radsel(4)
     complex(c_float_complex) :: displ
-    real*8 :: deltat
+    real*8 :: deltat, fac
 
     real(c_float), parameter :: rgbsel(4,4) = reshape((/&
        1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
@@ -296,6 +296,8 @@ contains
        0.9_c_float, 0.7_c_float, 0.4_c_float, 0.5_c_float/),shape(rgbsel))
     real(c_float), parameter :: msel_thickness = 0.1_c_float
     real(c_float), parameter :: sel_label_size = 1.2_c_float
+    real*8, parameter :: freq_ref = 300d0
+    real*8, parameter :: freq_min = 50d0
 
     ! check that the scene and system are initialized
     if (s%isinit == 0) return
@@ -310,14 +312,16 @@ contains
     if (s%forcebuildlists) call s%build_lists()
 
     ! calculate the time factor
-    if (s%animation == 0) then ! off
-       displ = 0._c_float
-    elseif (s%animation == 1) then ! manual
-       displ = cmplx(s%anim_amplitude * exp(0.5d0 * s%anim_phase * pi * img),&
-          kind=c_float_complex)
-    else ! automatic
-       deltat = time - s%timerefanimation
-       displ = cmplx(s%anim_amplitude * exp(deltat * s%anim_speed * img),kind=c_float_complex)
+    displ = 0._c_float
+    if (s%ifreq_selected > 0 .and. s%iqpt_selected > 0) then
+       fac = s%anim_amplitude * sqrt(freq_ref / max(abs(sys(s%id)%c%vib%freq(s%ifreq_selected,s%iqpt_selected)),freq_min))
+       if (s%animation == 1) then ! manual
+          displ = cmplx(fac * exp(0.5d0 * s%anim_phase * pi * img),&
+             kind=c_float_complex)
+       else ! automatic
+          deltat = time - s%timerefanimation
+          displ = cmplx(fac * exp(deltat * s%anim_speed * img),kind=c_float_complex)
+       end if
     end if
 
     if (s%style == style_phong) then
