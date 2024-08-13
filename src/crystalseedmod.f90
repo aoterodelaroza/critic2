@@ -228,13 +228,14 @@ module crystalseedmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_elk
-     module subroutine read_mol(seed,file,fmt,rborder,docube,errmsg,ti)
+     module subroutine read_mol(seed,file,fmt,rborder,docube,errmsg,alsovib,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        integer, intent(in) :: fmt
        real*8, intent(in) :: rborder
        logical, intent(in) :: docube
        character(len=:), allocatable, intent(out) :: errmsg
+       logical, intent(out), optional :: alsovib
        type(thread_info), intent(in), optional :: ti
      end subroutine read_mol
      module subroutine read_qeout(seed,file,mol,istruct,errmsg,ti)
@@ -379,7 +380,7 @@ module crystalseedmod
        type(thread_info), intent(in), optional :: ti
      end subroutine read_potcar
      module subroutine read_seeds_from_file(file,mol0,isformat0,readlastonly,&
-        nseed,seed,collapse,errmsg,iafield,ti)
+        nseed,seed,collapse,errmsg,iafield,iavib,ti)
        character*(*), intent(in) :: file
        integer, intent(in) :: mol0
        integer, intent(in) :: isformat0
@@ -389,6 +390,7 @@ module crystalseedmod
        logical, intent(out) :: collapse
        character(len=:), allocatable, intent(out) :: errmsg
        integer, intent(out), optional :: iafield
+       integer, intent(out), optional :: iavib
        type(thread_info), intent(in), optional :: ti
      end subroutine read_seeds_from_file
      module subroutine report(seed)

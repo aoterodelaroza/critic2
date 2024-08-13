@@ -2281,7 +2281,7 @@ contains
   end subroutine read_elk
 
   !> Read the structure from a molecule file
-  module subroutine read_mol(seed,file,fmt,rborder,docube,errmsg,ti)
+  module subroutine read_mol(seed,file,fmt,rborder,docube,errmsg,alsovib,ti)
     use wfn_private, only: wfn_read_xyz_geometry, wfn_read_wfn_geometry, &
        wfn_read_wfx_geometry, wfn_read_fchk_geometry, wfn_read_molden_geometry,&
        wfn_read_log_geometry, wfn_read_dat_geometry, wfn_read_pgout_geometry,&
@@ -2297,12 +2297,14 @@ contains
     real*8, intent(in) :: rborder !< user-defined border in bohr
     logical, intent(in) :: docube !< if true, make the cell cubic
     character(len=:), allocatable, intent(out) :: errmsg
+    logical, intent(out), optional :: alsovib
     type(thread_info), intent(in), optional :: ti
 
     integer, allocatable :: z(:)
     character*(10), allocatable :: name(:) !< Atomic names
     integer :: i, j, it
 
+    if (present(alsovib)) alsovib = .false.
     call seed%end()
     errmsg = ""
     if (fmt == isformat_xyz) then
@@ -2319,7 +2321,7 @@ contains
        call wfn_read_wfx_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     elseif (fmt == isformat_fchk) then
        ! fchk
-       call wfn_read_fchk_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
+       call wfn_read_fchk_geometry(file,seed%nat,seed%x,z,name,errmsg,alsovib=alsovib,ti=ti)
     elseif (fmt == isformat_molden) then
        ! molden (psi4)
        call wfn_read_molden_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
@@ -5135,13 +5137,15 @@ contains
 
   !> Read all seeds from a file. If iafield is present, then return
   !> the seed number for which the file can be read as a field (or 0
-  !> if none). If mol0 == 1, force reading molecules, if mol0 == 0,
-  !> force reading crystals, if mol0 == -1, let the routine figure it
-  !> out. Returns the number of seeds read (nseed), the seeds themselves
-  !> (seed) and collapse=.true. if the seeds are the steps of a
-  !> geometry optimization.
+  !> if none). If iavib is present, return the seed number for which
+  !> the file can be read to obtain vibrational data. If mol0 == 1,
+  !> force reading molecules, if mol0 == 0, force reading crystals, if
+  !> mol0 == -1, let the routine figure it out. Returns the number of
+  !> seeds read (nseed), the seeds themselves (seed) and
+  !> collapse=.true. if the seeds are the steps of a geometry
+  !> optimization.
   module subroutine read_seeds_from_file(file,mol0,isformat0,readlastonly,&
-     nseed,seed,collapse,errmsg,iafield,ti)
+     nseed,seed,collapse,errmsg,iafield,iavib,ti)
     use global, only: rborder_def, doguess
     use tools_io, only: getword, equali, fopen_read, fclose
     use param, only: isformat_cube, isformat_bincube, isformat_xyz, isformat_wfn,&
@@ -5162,10 +5166,11 @@ contains
     logical, intent(out) :: collapse
     character(len=:), allocatable, intent(out) :: errmsg
     integer, intent(out), optional :: iafield
+    integer, intent(out), optional :: iavib
     type(thread_info), intent(in), optional :: ti
 
     integer :: isformat, is, mol0_, i, lu
-    logical :: mol, alsofield, ok
+    logical :: mol, alsofield, ok, alsovib
 
     errmsg = ""
     alsofield = .false.
@@ -5206,6 +5211,7 @@ contains
     allocate(seed(1))
 
     ! read all available seeds in the file
+    alsovib = .false.
     if (isformat == isformat_cif) then
        call read_all_cif(file,mol,errmsg,nseed=nseed,mseed=seed,ti=ti)
     elseif (isformat == isformat_mol2) then
@@ -5231,7 +5237,7 @@ contains
     elseif (isformat == isformat_qeout) then
        call read_all_qeout(nseed,seed,file,mol,-1,errmsg,ti=ti)
     elseif (isformat == isformat_crystal) then
-       call read_all_crystalout(file,mol,errmsg,nseed=nseed,mseed=seed,ti=ti)
+       call read_all_crystalout(file,mol,errmsg,nseed=nseed,mseed=seed,alsovib=alsovib,ti=ti)
     elseif (isformat == isformat_fploout) then
        call seed(1)%read_fploout(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_qein) then
@@ -5239,13 +5245,13 @@ contains
     elseif (isformat == isformat_xyz) then
        call read_all_xyz(nseed,seed,file,errmsg,ti=ti)
     elseif (isformat == isformat_gaussian) then
-       call read_all_log(nseed,seed,file,errmsg,ti=ti)
+       call read_all_log(nseed,seed,file,errmsg,alsovib=alsovib,ti=ti)
     elseif (isformat == isformat_wfn .or. isformat == isformat_wfx.or.&
        isformat == isformat_fchk.or.isformat == isformat_molden.or.&
        isformat == isformat_dat.or.isformat == isformat_pgout.or.&
        isformat == isformat_orca.or.isformat == isformat_gjf.or.&
        isformat == isformat_pdb.or.isformat == isformat_zmat) then
-       call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg,ti=ti)
+       call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg,alsovib=alsovib,ti=ti)
     elseif (isformat == isformat_siesta) then
        call seed(1)%read_siesta(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_castepcell) then
@@ -5304,6 +5310,15 @@ contains
           iafield = nseed
        else
           iafield = 0
+       end if
+    end if
+
+    ! output iavib
+    if (present(iavib)) then
+       if (alsovib) then
+          iavib = nseed
+       else
+          iavib = 0
        end if
     end if
 
@@ -6837,7 +6852,7 @@ contains
 
   !> Read all structures from a Gaussian output (log) file. Returns
   !> all crystal seeds.
-  subroutine read_all_log(nseed,seed,file,errmsg,ti)
+  subroutine read_all_log(nseed,seed,file,errmsg,alsovib,ti)
     use global, only: rborder_def
     use tools_io, only: fopen_read, fclose, getline_raw, nameguess, string
     use types, only: species
@@ -6846,6 +6861,7 @@ contains
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
     character(len=:), allocatable, intent(out) :: errmsg
+    logical, intent(out), optional :: alsovib
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, str
@@ -6856,8 +6872,11 @@ contains
     real*8 :: energy
     real*8, allocatable :: esave(:)
 
+    ! initialize
     errmsg = ""
+    if (present(alsovib)) alsovib = .false.
 
+    ! open file
     lu = fopen_read(file,errstop=.false.,ti=ti)
     if (lu < 0) then
        errmsg = "Error opening file: " // trim(file)
@@ -6877,6 +6896,13 @@ contains
        elseif (.not.lastinputor) then
           ok = (index(line,"Standard orientation:") > 0)
           if (ok) lastinputor = .false.
+       end if
+
+       ! set alsovib
+       if (present(alsovib)) then
+          if (.not.alsovib) then
+             if (index(line," Frequencies --") > 0) alsovib = .true.
+          end if
        end if
 
        if (ok) then
@@ -7460,7 +7486,7 @@ contains
   end subroutine read_all_castep_geom
 
   !> Read all seeds from a crystal output file.
-  subroutine read_all_crystalout(file,mol,errmsg,nseed,mseed,seed0,ti)
+  subroutine read_all_crystalout(file,mol,errmsg,nseed,mseed,seed0,alsovib,ti)
     use crystalseedmod, only: crystalseed
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, fclose, equali
@@ -7473,6 +7499,7 @@ contains
     integer, intent(out), optional :: nseed
     type(crystalseed), intent(inout), allocatable, optional :: mseed(:)
     type(crystalseed), intent(inout), optional :: seed0
+    logical, intent(out), optional :: alsovib
     type(thread_info), intent(in), optional :: ti
 
     integer :: lu, i, j, ier, idx
@@ -7497,6 +7524,7 @@ contains
        if (allocated(mseed)) deallocate(mseed)
        allocate(mseed(10))
     end if
+    if (present(alsovib)) alsovib = .false.
 
     ! run over the file
     errmsg = "Error reading file: " // trim(file)
@@ -7510,6 +7538,14 @@ contains
     inopt = .false.
     do while (getline_raw(lu,line))
        if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
+
+       ! set iavib
+       if (present(alsovib)) then
+          if (.not.alsovib) then
+             if (index(line,"NORMAL MODES NORMALIZED TO CLASSICAL AMPLITUDES (IN BOHR)") > 0) &
+                alsovib = .true.
+          end if
+       end if
 
        ! whether this is a crystal or molecule
        if (iscrystal < 0) then

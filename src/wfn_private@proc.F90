@@ -499,7 +499,7 @@ contains
   end subroutine wfn_read_wfx_geometry
 
   !> Read the molecular geometry from a fchk file
-  module subroutine wfn_read_fchk_geometry(file,n,x,z,name,errmsg,ti)
+  module subroutine wfn_read_fchk_geometry(file,n,x,z,name,errmsg,alsovib,ti)
     use tools_io, only: fopen_read, getline_raw, isinteger, nameguess, fclose
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
@@ -507,14 +507,18 @@ contains
     integer, allocatable, intent(inout) :: z(:) !< Atomic numbers
     character*(10), allocatable, intent(inout) :: name(:) !< Atomic names
     character(len=:), allocatable, intent(out) :: errmsg
+    logical, intent(out), optional :: alsovib
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, lp, i, j
+    integer :: lu, lp, i, j, ll
     character(len=:), allocatable :: line
     logical :: ok
     real*8, allocatable :: xat(:)
 
+    ! initialize
     errmsg = ""
+    if (present(alsovib)) alsovib = .false.
+
     ! deallocate
     if (allocated(x)) deallocate(x)
     if (allocated(z)) deallocate(z)
@@ -530,15 +534,18 @@ contains
     ! read the number of atoms
     n = 0
     do while (getline_raw(lu,line))
+       ll = len(line)
        lp = 45
-       if (line(1:15) == "Number of atoms") then
-          ok = isinteger(n,line,lp)
-          if (.not.ok) then
-             errmsg = "Could not read number of atoms."
-             goto 999
-          end if
-          exit
-       endif
+       if (ll >= 15) then
+          if (line(1:15) == "Number of atoms") then
+             ok = isinteger(n,line,lp)
+             if (.not.ok) then
+                errmsg = "Could not read number of atoms."
+                goto 999
+             end if
+             exit
+          endif
+       end if
     enddo
     if (n == 0) then
        errmsg = "Error reading number of atoms."
@@ -549,16 +556,29 @@ contains
     allocate(z(n),x(3,n),name(n),xat(3*n))
     rewind(lu)
     do while (getline_raw(lu,line))
+       ll = len(line)
        lp = 45
-       if (line(1:29) == "Current cartesian coordinates") then
-          do i = 0, (3*n-1)/5
-             read(lu,'(5E16.8)',err=999,end=999) (xat(5*i+j),j=1,min(5,3*n-5*i))
-          enddo
-       elseif (line(1:14) == "Atomic numbers") then
-          do i = 0, (n-1)/6
-             read(lu,'(6I12)',err=999,end=999) (z(6*i+j),j=1,min(6,n-6*i))
-          enddo
-       endif
+       if (ll >= 29) then
+          if (line(1:29) == "Current cartesian coordinates") then
+             do i = 0, (3*n-1)/5
+                read(lu,'(5E16.8)',err=999,end=999) (xat(5*i+j),j=1,min(5,3*n-5*i))
+             enddo
+          end if
+       end if
+       if (ll >= 14) then
+          if (line(1:14) == "Atomic numbers") then
+             do i = 0, (n-1)/6
+                read(lu,'(6I12)',err=999,end=999) (z(6*i+j),j=1,min(6,n-6*i))
+             enddo
+          endif
+       end if
+       if (present(alsovib)) then
+          if (ll >= 6) then
+             if (line(1:6) == "Vib-E2") then
+                alsovib = .true.
+             endif
+          end if
+       end if
     enddo
     do i = 1, n
        x(:,i) = xat((i-1)*3+1:(i-1)*3+3)
@@ -1345,7 +1365,9 @@ contains
     !  s  <- p ->  <---   d   --->  <---       f     --->  <---          g         --->
 #endif
 
+    ! initialize
     errmsg = "Error reading file: " // trim(file)
+
     ! no ecps for now
     f%molden_type = molden_type_unknown
     f%useecp = .false.

@@ -204,13 +204,14 @@ module wfn_private
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine wfn_read_wfx_geometry
-     module subroutine wfn_read_fchk_geometry(file,n,x,z,name,errmsg,ti)
+     module subroutine wfn_read_fchk_geometry(file,n,x,z,name,errmsg,alsovib,ti)
        character*(*), intent(in) :: file
        integer, intent(out) :: n
        real*8, allocatable, intent(inout) :: x(:,:)
        integer, allocatable, intent(inout) :: z(:)
        character*(10), allocatable, intent(inout) :: name(:)
        character(len=:), allocatable, intent(out) :: errmsg
+       logical, intent(out), optional :: alsovib
        type(thread_info), intent(in), optional :: ti
      end subroutine wfn_read_fchk_geometry
      module subroutine wfn_read_molden_geometry(file,n,x,z,name,errmsg,ti)

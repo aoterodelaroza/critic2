@@ -80,6 +80,7 @@ module gui_main
      logical :: showfields = .false. ! whether to show the fields in the tree view
      type(crystalseed) :: seed ! generating seed
      logical :: has_field = .false. ! true if the seed has a field
+     logical :: has_vib = .false. ! true if the seed has vibrational data
      integer :: collapse ! 0 if independent, -1 if master-collapsed, -2 if master-extended, <n> if dependent on n
      type(c_ptr) :: thread_lock = c_null_ptr ! the lock for initialization of this system
      character(len=:), allocatable :: fullname ! full-path name
@@ -121,11 +122,11 @@ module gui_main
      end function are_threads_running
      module subroutine system_shorten_names()
      end subroutine system_shorten_names
-     module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield)
+     module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib)
        integer, intent(in) :: nseed
        type(crystalseed), allocatable, intent(in) :: seed(:)
        logical, intent(in), optional :: collapse
-       integer, intent(in), optional :: iafield
+       integer, intent(in), optional :: iafield, iavib
      end subroutine add_systems_from_seeds
      module subroutine add_systems_from_name(name,mol,isformat,readlastonly,rborder,molcubic)
        character(len=*), intent(in) :: name

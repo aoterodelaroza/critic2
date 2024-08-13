@@ -478,7 +478,7 @@ contains
 
     integer :: i, nseed
     type(crystalseed), allocatable :: seed(:)
-    integer :: iafield
+    integer :: iafield, iavib
     logical :: collapse
     character(len=:), allocatable :: errmsg
 
@@ -486,7 +486,8 @@ contains
     errmsg = ""
     nseed = 0
     allocate(seed(1))
-    call read_seeds_from_file(name,mol,isformat,readlastonly,nseed,seed,collapse,errmsg,iafield)
+    call read_seeds_from_file(name,mol,isformat,readlastonly,nseed,seed,collapse,errmsg,&
+       iafield,iavib)
     if (len_trim(errmsg) > 0 .or. nseed == 0) goto 999
 
     ! set the border and molcubic
@@ -496,7 +497,7 @@ contains
     end do
 
     ! add the systems
-    call add_systems_from_seeds(nseed,seed,collapse,iafield)
+    call add_systems_from_seeds(nseed,seed,collapse,iafield,iavib)
 
     return
 999 continue
@@ -508,24 +509,24 @@ contains
   !> Add systems from the given seeds. If collapse is present and
   !> true, reorder to make the last system be first and collapse the
   !> other seeds in the tree view. If iafield, load a field from that
-  !> seed.
-  module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield)
+  !> seed. If iavib, load vibrational data from that seed.
+  module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib)
     use utils, only: get_current_working_dir
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
     use windows, only: regenerate_window_pointers
     use interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
-    use crystalseedmod, only: read_seeds_from_file, crystalseed
+    use crystalseedmod, only: crystalseed
     use tools_io, only: uout
     use types, only: realloc
     use param, only: dirsep
     integer, intent(in) :: nseed
     type(crystalseed), allocatable, intent(in) :: seed(:)
     logical, intent(in), optional :: collapse
-    integer, intent(in), optional :: iafield
+    integer, intent(in), optional :: iafield, iavib
 
     integer :: i, j, nid, idum
-    integer :: iafield_
+    integer :: iafield_, iavib_
     integer :: iseed, iseed_, idx
     character(len=:), allocatable :: errmsg, str
     type(system), allocatable :: syaux(:)
@@ -544,6 +545,8 @@ contains
     if (present(collapse)) collapse_ = collapse
     iafield_ = 0
     if (present(iafield)) iafield_ = iafield
+    iavib_ = 0
+    if (present(iafield)) iavib_ = iavib
 
     ! find contiguous IDs for the new systems
     allocate(id(nseed))
@@ -615,6 +618,7 @@ contains
        sysc(idx)%id = idx
        sysc(idx)%seed = seed(iseed)
        sysc(idx)%has_field = .false.
+       sysc(idx)%has_vib = .false.
        sysc(idx)%renamed = .false.
        sysc(idx)%showfields = .false.
        sysc(idx)%idwin_plotscf = 0
@@ -659,6 +663,9 @@ contains
 
        ! set the iafield
        if (iseed == iafield_) sysc(idx)%has_field = .true.
+
+       ! set the iafield
+       if (iseed == iavib_) sysc(idx)%has_vib = .true.
 
        ! set the time
        sysc(idx)%timelastchange = time
@@ -983,13 +990,15 @@ contains
   function initialization_thread_worker(arg)
     use interfaces_threads, only: thrd_success, mtx_unlock, mtx_trylock
     use tools_io, only: string, uout
+    use param, only: isformat_crystal, isformat_fchk, isformat_gaussian, ivformat_crystal_out,&
+       ivformat_gaussian_log, ivformat_gaussian_fchk, ivformat_unknown
     type(c_ptr), value :: arg
     integer(c_int) :: initialization_thread_worker
     type(thread_info), pointer :: ti
 
     integer :: i, i0, i1
     integer(c_int) :: idum
-    integer :: iff
+    integer :: iff, ivformat
     character(len=:), allocatable :: errmsg
 
     ! recover the thread info pointer
@@ -1019,6 +1028,24 @@ contains
                    call sys(i)%load_field_string(sysc(i)%seed%file,.false.,iff,errmsg,ti=ti)
                    if (len_trim(errmsg) > 0) then
                       write (uout,'("!! Warning !! Could not read field for system: ",A)') string(i)
+                      write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)
+                   end if
+                end if
+
+                ! load vibration data
+                if (sysc(i)%has_vib) then
+                   if (sysc(i)%seed%isformat == isformat_crystal) then
+                      ivformat = ivformat_crystal_out
+                   elseif (sysc(i)%seed%isformat == isformat_gaussian) then
+                      ivformat = ivformat_gaussian_log
+                   elseif (sysc(i)%seed%isformat == isformat_fchk) then
+                      ivformat = ivformat_gaussian_fchk
+                   else
+                      ivformat = ivformat_unknown
+                   end if
+                   call sys(i)%c%read_vibrations_file(sysc(i)%seed%file,ivformat,errmsg,ti=ti)
+                   if (len_trim(errmsg) > 0) then
+                      write (uout,'("!! Warning !! Could not read vibration data for system: ",A)') string(i)
                       write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)
                    end if
                 end if
