@@ -2877,7 +2877,7 @@ contains
        end if
        call iw_tooltip("Animate the scene with atomic displacements corresponding to a periodic phase",ttshown)
        if (iw_radiobutton("Manual/Nudge Structure",int=win(w%idparent)%sc%animation,intval=1_c_int,sameline=.true.)) then
-          win(w%idparent)%sc%anim_amplitude = anim_amplitude_default
+          win(w%idparent)%sc%anim_amplitude = 0._c_float
           win(w%idparent)%sc%anim_phase = 0._c_float
           win(w%idparent)%forcerender = .true.
        end if
@@ -2885,24 +2885,37 @@ contains
 
        if (win(w%idparent)%sc%animation == 1) then
           ! manual
-          str1 = "Amplitude##amplitude" // c_null_char
-          str2 = "%.2f" // c_null_char
-          call igPushItemWidth(iw_calcwidth(5,1))
-          if (igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_amplitude,&
-             0.01_c_float,0._c_float,anim_amplitude_max,c_loc(str2),ImGuiSliderFlags_AlwaysClamp))&
-             win(w%idparent)%forcerender = .true.
-          call igPopItemWidth()
-          call iw_tooltip("Amplitude of the atomic displacements",ttshown)
+          if (.not.sys(isys)%c%ismolecule) then
+             ! crystals
+             str1 = "Amplitude##amplitude" // c_null_char
+             str2 = "%.2f" // c_null_char
+             call igPushItemWidth(iw_calcwidth(5,1))
+             if (igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_amplitude,&
+                0.01_c_float,0._c_float,anim_amplitude_max,c_loc(str2),ImGuiSliderFlags_AlwaysClamp))&
+                win(w%idparent)%forcerender = .true.
+             call igPopItemWidth()
+             call iw_tooltip("Amplitude of the atomic displacements",ttshown)
 
-          call igSameLine(0._c_float,-1._c_float)
-          str1 = "Phase##phase" // c_null_char
-          str2 = "%.3f" // c_null_char
-          call igPushItemWidth(iw_calcwidth(6,1))
-          if (igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_phase,&
-             0.001_c_float,-1._c_float,1._c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)) &
-             win(w%idparent)%forcerender = .true.
-          call igPopItemWidth()
-          call iw_tooltip("Phase for the atomic displacements along the chosen phonon normal mode",ttshown)
+             call igSameLine(0._c_float,-1._c_float)
+             str1 = "Phase##phase" // c_null_char
+             str2 = "%.3f" // c_null_char
+             call igPushItemWidth(iw_calcwidth(6,1))
+             if (igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_phase,&
+                0.001_c_float,-1._c_float,1._c_float,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)) &
+                win(w%idparent)%forcerender = .true.
+             call igPopItemWidth()
+             call iw_tooltip("Phase for the atomic displacements along the chosen phonon normal mode",ttshown)
+          else
+             ! molecules
+             str1 = "Displacement##amplitude" // c_null_char
+             str2 = "%.2f" // c_null_char
+             call igPushItemWidth(iw_calcwidth(5,1))
+             if (igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_amplitude,&
+                0.01_c_float,-anim_amplitude_max,anim_amplitude_max,c_loc(str2),ImGuiSliderFlags_AlwaysClamp))&
+                win(w%idparent)%forcerender = .true.
+             call igPopItemWidth()
+             call iw_tooltip("Extent of the atomic displacements",ttshown)
+          end if
 
           ! create nudged system
           if (iw_button("Create Nudged System")) then
