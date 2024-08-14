@@ -1638,12 +1638,10 @@ contains
   !> Draw the editrep (Object) window, atoms class. Returns true if
   !> the scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_atoms(w,ttshown) result(changed)
-    use global, only: dunit0, iunit_ang
     use scenes, only: representation
     use gui_main, only: sys, g, ColorHighlightText
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox
-    use tools_io, only: string, ioj_right, ioj_left
     use param, only: atmcov, atmvdw, jmlcol, jmlcol2, newline
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -1651,12 +1649,10 @@ contains
 
     integer :: ispc, isys, iz, ll, ipad
     character(kind=c_char,len=1024), target :: txtinp
-    character(len=:), allocatable :: s
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
-    type(ImVec2) :: sz0
     real*8 :: x0(3)
     logical(c_bool) :: ch, ldum
-    integer(c_int) :: flags, nc(3), lst
+    integer(c_int) :: nc(3), lst
     real(c_float) :: sqw
     integer :: i
 
