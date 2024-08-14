@@ -64,8 +64,8 @@ module scenes
   !> Draw style for atoms
   type draw_style_atom
      logical :: isinit = .false. ! whether the style is intialized
-     integer :: type ! atom style type: 0=species,1=nneq,2=cell,3=mol
-     integer :: ntype ! number of entries in the style type (atoms or molecules)
+     integer :: type ! atom style type: 0=species,1=nneq,2=cell
+     integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
      logical, allocatable :: shown(:) ! whether it is shown (ntype)
      real(c_float), allocatable :: rgb(:,:) ! color (3,ntype)
      real(c_float), allocatable :: rad(:) ! radius (ntype)
@@ -73,6 +73,18 @@ module scenes
      procedure :: reset => reset_atom_style
   end type draw_style_atom
   public :: draw_style_atom
+
+  !> Draw style for molecules
+  type draw_style_molecule
+     logical :: isinit = .false. ! whether the style is intialized
+     integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
+     logical, allocatable :: shown(:) ! whether it is shown (ntype)
+     real(c_float), allocatable :: tint_rgb(:,:) ! tint color (3,ntype)
+     real(c_float), allocatable :: scale_rad(:) ! scale radius (ntype)
+   contains
+     procedure :: reset => reset_molecule_style
+  end type draw_style_molecule
+  public :: draw_style_molecule
 
   integer, parameter, public :: reptype_none = 0
   integer, parameter, public :: reptype_atoms = 1
@@ -110,6 +122,7 @@ module scenes
      real(c_float) :: bond_rgb(3) ! bond color (single color style)
      real(c_float) :: bond_rad ! bond radius
      type(draw_style_atom) :: atom_style ! atom styles
+     type(draw_style_molecule) :: mol_style ! atom styles
      integer(c_int) :: label_style ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
      real(c_float) :: label_scale ! scale for the labels
      real(c_float) :: label_rgb(3) ! color of the labels
@@ -275,11 +288,16 @@ module scenes
        class(scene), intent(inout), target :: s
        integer, intent(in) :: idx(4)
      end subroutine select_atom
-     ! draw_style_taom
+     ! draw_style_atom
      module subroutine reset_atom_style(d,isys,itype)
        class(draw_style_atom), intent(inout), target :: d
        integer, intent(in), value :: isys, itype
      end subroutine reset_atom_style
+     ! draw_style_molecule
+     module subroutine reset_molecule_style(d,isys)
+       class(draw_style_molecule), intent(inout), target :: d
+       integer, intent(in), value :: isys
+     end subroutine reset_molecule_style
      ! representation
      module subroutine representation_init(r,sc,isys,irep,itype,style)
        class(representation), intent(inout), target :: r

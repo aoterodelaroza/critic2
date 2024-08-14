@@ -1061,6 +1061,39 @@ contains
 
   end subroutine reset_atom_style
 
+  !> Reset molecule style with style. Use the information in system
+  !> isys, or leave it empty if isys = 0.
+  module subroutine reset_molecule_style(d,isys)
+    use gui_main, only: nsys, sys, sysc, sys_ready
+    use param, only: jmlcol, atmcov
+    class(draw_style_molecule), intent(inout), target :: d
+    integer, intent(in), value :: isys
+
+    integer :: i, ispc, iz
+
+    ! set the atom style to zero
+    d%ntype = 0
+    d%isinit = .false.
+    if (allocated(d%shown)) deallocate(d%shown)
+    if (allocated(d%tint_rgb)) deallocate(d%tint_rgb)
+    if (allocated(d%scale_rad)) deallocate(d%scale_rad)
+
+    ! check the system is sane
+    if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status < sys_ready) return
+
+    ! fill
+    d%ntype = sys(isys)%c%nmol
+    allocate(d%shown(d%ntype),d%tint_rgb(3,d%ntype),d%scale_rad(d%ntype))
+    do i = 1, sys(isys)%c%nmol
+       d%tint_rgb(:,i) = 1._c_float
+       d%scale_rad(i) = 1._c_float
+    end do
+    d%shown = .true.
+    d%isinit = .true.
+
+  end subroutine reset_molecule_style
+
   !xx! representation
 
   !> Initialize a representation. If itype is present and not _none,
@@ -1164,6 +1197,7 @@ contains
 
     ! initialize the styles
     call r%atom_style%reset(r%id,0)
+    call r%mol_style%reset(r%id)
 
   end subroutine representation_init
 
@@ -1265,8 +1299,9 @@ contains
     doanim_ = doanim
     if (doanim_) doanim_ = doanim_ .and. (iqpt > 0 .and. ifreq > 0 .and. allocated(sys(r%id)%c%vib))
 
-    ! initialize the atom style if not done already
+    ! initialize the atom and molecule style if not done already
     if (.not.r%atom_style%isinit) call r%atom_style%reset(r%id,r%atom_style%type)
+    if (.not.r%mol_style%isinit) call r%mol_style%reset(r%id)
 
     if (r%type == reptype_atoms) then
        !!! atoms and bonds representation !!!
