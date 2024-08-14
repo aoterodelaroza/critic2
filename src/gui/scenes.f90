@@ -139,6 +139,7 @@ module scenes
    contains
      procedure :: init => representation_init
      procedure :: end => representation_end
+     procedure :: update => update_structure
      procedure :: add_draw_elements
   end type representation
   public :: representation
@@ -327,6 +328,9 @@ module scenes
        real*8, optional, intent(inout) :: xmin(3)
        real*8, optional, intent(inout) :: xmax(3)
      end subroutine draw_unitcell
+     module subroutine update_structure(r)
+       class(representation), intent(inout), target :: r
+     end subroutine update_structure
      module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
         ncylflat,drawlist_cylflat,nstring,drawlist_string,doanim,iqpt,ifreq)
        class(representation), intent(inout), target :: r

@@ -1663,6 +1663,9 @@ contains
     changed = .false.
     isys = w%isys
 
+    ! update representation to respond to changes in number of atoms and molecules
+    call w%rep%update()
+
     ! filter
     call igAlignTextToFramePadding()
     call iw_text("Filter",highlight=.true.)

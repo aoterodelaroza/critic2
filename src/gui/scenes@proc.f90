@@ -214,6 +214,10 @@ contains
 
     ! add the items by representation
     do i = 1, s%nrep
+       ! update to reflect changes in the number of atoms or molecules
+       call s%rep(i)%update()
+
+       ! add draw elements
        call s%rep(i)%add_draw_elements(s%nc,s%nsph,s%drawlist_sph,s%ncyl,s%drawlist_cyl,&
           s%ncylflat,s%drawlist_cylflat,s%nstring,s%drawlist_string,s%animation>0,&
           s%iqpt_selected,s%ifreq_selected)
@@ -1210,6 +1214,27 @@ contains
 
   end subroutine representation_end
 
+  !> Update the representation to respond to a change in the number
+  !> of atoms or molecules in the associated system.
+  module subroutine update_structure(r)
+    use gui_main, only: sys
+    class(representation), intent(inout), target :: r
+
+    logical :: doreset
+
+    ! initialize the atom and molecule style if not done already or if
+    ! the number of atoms have changed
+    doreset = .not.r%atom_style%isinit
+    doreset = doreset .or. (r%atom_style%type == 0 .and. r%atom_style%ntype /= sys(r%id)%c%nspc)
+    doreset = doreset .or. (r%atom_style%type == 1 .and. r%atom_style%ntype /= sys(r%id)%c%nneq)
+    doreset = doreset .or. (r%atom_style%type == 2 .and. r%atom_style%ntype /= sys(r%id)%c%ncel)
+    if (doreset) call r%atom_style%reset(r%id,r%atom_style%type)
+    doreset = .not.r%mol_style%isinit
+    doreset = doreset .or. (r%mol_style%ntype /= sys(r%id)%c%nmol)
+    if (doreset) call r%mol_style%reset(r%id)
+
+  end subroutine update_structure
+
   !> Add the spheres, cylinder, etc. to the draw lists. Use nc number
   !> of cells and the data from representation r. If doanim, use qpt
   !> iqpt and frequency ifreq to animate the representation.
@@ -1287,10 +1312,6 @@ contains
     end if
     doanim_ = doanim
     if (doanim_) doanim_ = doanim_ .and. (iqpt > 0 .and. ifreq > 0 .and. allocated(sys(r%id)%c%vib))
-
-    ! initialize the atom and molecule style if not done already
-    if (.not.r%atom_style%isinit) call r%atom_style%reset(r%id,r%atom_style%type)
-    if (.not.r%mol_style%isinit) call r%mol_style%reset(r%id)
 
     if (r%type == reptype_atoms) then
        !!! atoms and bonds representation !!!
