@@ -1988,11 +1988,6 @@ contains
     end if
     call iw_tooltip("Toggle the show/hide status for all atoms/bonds/labels",ttshown)
 
-    !!! molecule selection !!!
-    if (sys(isys)%c%nmol > 1) then
-       call iw_text("Molecule Selection",highlight=.true.)
-    end if
-
     !!! atoms display !!!
     call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
     changed = changed .or. iw_checkbox("Atoms##atomsglobaldisplay",w%rep%atoms_display)
