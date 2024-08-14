@@ -2803,12 +2803,13 @@ contains
     type(draw_style_molecule), intent(inout), optional :: msty
     logical :: changed
 
+    logical :: domol
     logical(c_bool) :: ch
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3
     real*8 :: x0(3)
     type(ImVec2) :: sz0
-    integer :: ispc, i, iz
+    integer :: ispc, i, iz, ncol, ic_next
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -2819,7 +2820,6 @@ contains
     integer, parameter :: ic_shown = 3
     integer, parameter :: ic_color = 4
     integer, parameter :: ic_radius = 5
-    integer, parameter :: ic_rest = 6
 
     ! column IDs in molecule table
     integer, parameter :: im_id = 0
@@ -2848,6 +2848,11 @@ contains
        changed = .true.
     end if
 
+    ! whether to do the molecule column
+    ncol = 7
+    domol = (sty%type == 2 .or. (sty%type == 1 .and. c%ismolecule))
+    if (domol) ncol = 8
+
     ! atom style table, for atoms
     flags = ImGuiTableFlags_None
     flags = ior(flags,ImGuiTableFlags_Resizable)
@@ -2859,7 +2864,7 @@ contains
     str1="##tableatomstyles" // c_null_char
     sz0%x = 0
     sz0%y = iw_calcheight(min(5,sty%ntype)+1,0,.false.)
-    if (igBeginTable(c_loc(str1),7,flags,sz0,0._c_float)) then
+    if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
        ! header setup
        str2 = "Id" // c_null_char
        flags = ImGuiTableColumnFlags_None
@@ -2885,13 +2890,21 @@ contains
        flags = ImGuiTableColumnFlags_None
        call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_radius)
 
+       ic_next = ic_radius + 1
+       if (domol) then
+          str2 = "Mol" // c_null_char
+          flags = ImGuiTableColumnFlags_None
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_next)
+          ic_next = ic_next + 1
+       end if
+
        if (c%ismolecule) then
           str2 = "Coordinates (Å)" // c_null_char
        else
           str2 = "Coordinates (fractional)" // c_null_char
        end if
        flags = ImGuiTableColumnFlags_WidthStretch
-       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_rest)
+       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_next)
        call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
        ! draw the header
@@ -2957,8 +2970,16 @@ contains
              call igPopItemWidth()
           end if
 
+          ! molecule
+          ic_next = ic_radius + 1
+          if (domol) then
+             ! i is a complete list index in this case
+             if (igTableSetColumnIndex(ic_next)) call iw_text(string(c%idatcelmol(i)))
+             ic_next = ic_next + 1
+          end if
+
           ! rest of info
-          if (igTableSetColumnIndex(ic_rest)) then
+          if (igTableSetColumnIndex(ic_next)) then
              s = ""
              if (sty%type > 0) then
                 if (c%ismolecule) then
@@ -2968,10 +2989,7 @@ contains
                 else
                    x0 = c%atcel(i)%x
                 endif
-                if (sty%type == 2 .or. (sty%type == 1 .and. c%ismolecule)) then
-                   s = "mol="//string(c%idatcelmol(i),2,ioj_left)
-                end if
-                s = s // string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
+                s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
                    string(x0(3),'f',8,4,ioj_right)
              end if
              call iw_text(s)
