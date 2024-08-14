@@ -1160,7 +1160,7 @@ contains
        r%isinit = .true.
        r%shown = .true.
        r%type = reptype_atoms
-       r%name = "Atoms"
+       r%name = "Atoms+..."
        if (sys(isys)%c%ismolecule) then
           r%ncell = 0
           r%border = .false.

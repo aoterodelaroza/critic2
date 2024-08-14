@@ -949,9 +949,26 @@ end subroutine igNextColumn
 !x! void igSetColumnOffset(int column_index,float offset_x);
 !x! int igGetColumnsCount(void);
 !x! bool igBeginTabBar(const char* str_id,ImGuiTabBarFlags flags);
+function igBeginTabBar(str_id,flags) bind(c,name="igBeginTabBar")
+  import c_int, c_ptr, c_bool
+  type(c_ptr), value :: str_id
+  integer(c_int), value :: flags
+  logical(c_bool) :: igBeginTabBar
+end function igBeginTabBar
 !x! void igEndTabBar(void);
+subroutine igEndTabBar() bind(c,name="igEndTabBar")
+end subroutine igEndTabBar
 !x! bool igBeginTabItem(const char* label,bool* p_open,ImGuiTabItemFlags flags);
+function igBeginTabItem(label,p_open,flags) bind(c,name="igBeginTabItem")
+  import c_int, c_ptr, c_bool
+  type(c_ptr), value :: label
+  type(c_ptr), value :: p_open
+  integer(c_int), value :: flags
+  logical(c_bool) :: igBeginTabItem
+end function igBeginTabItem
 !x! void igEndTabItem(void);
+subroutine igEndTabItem() bind(c,name="igEndTabItem")
+end subroutine igEndTabItem
 !x! bool igTabItemButton(const char* label,ImGuiTabItemFlags flags);
 !x! void igSetTabItemClosed(const char* tab_or_docked_window_label);
 !x! ImGuiID igDockSpace(ImGuiID id,const ImVec2 size,ImGuiDockNodeFlags flags,const ImGuiWindowClass* window_class);
