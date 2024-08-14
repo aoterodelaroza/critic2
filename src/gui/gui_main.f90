@@ -68,11 +68,14 @@ module gui_main
   type(ImVec4), parameter, public :: ColorFrameBgAlt = ImVec4(0.29,0.16,0.48,0.54) ! alternate framebg
   type(ImVec4), parameter, public :: ColorFieldSelected = ImVec4(0.91,1.00,0.00,0.31) ! alternate framebg
 
+  ! system status (must be from lower to higher initialization level)
+  integer, parameter, public :: sys_empty = 0 ! not in use
+  integer, parameter, public :: sys_loaded_not_init = 1 ! the seed is available, waiting for initialization
+  integer, parameter, public :: sys_initializing = 2 ! the system is initializing
+  integer, parameter, public :: sys_ready = 3 ! the data is ready but thread is still working, so not initialized yet
+  integer, parameter, public :: sys_init = 4 ! the system is initialized
+
   ! systems arrays
-  integer, parameter, public :: sys_empty = 0
-  integer, parameter, public :: sys_loaded_not_init = 1
-  integer, parameter, public :: sys_initializing = 2
-  integer, parameter, public :: sys_init = 3
   type :: sysconf
      integer :: id ! ID for this system
      integer :: status = sys_empty ! current status

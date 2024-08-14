@@ -61,11 +61,15 @@ module scenes
      complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
   end type dl_string
 
-  !> draw style for atoms
+  !> Draw style for atoms
   type draw_style_atom
-     logical :: shown
-     real(c_float) :: rgb(3) ! color
-     real(c_float) :: rad ! radius
+     integer :: type ! atom style type: 0=species,1=nneq,2=cell,3=mol
+     integer :: ntype ! number of entries in the style type (atoms or molecules)
+     logical, allocatable :: shown(:) ! whether it is shown (ntype)
+     real(c_float), allocatable :: rgb(:,:) ! color (3,ntype)
+     real(c_float), allocatable :: rad(:) ! radius (ntype)
+   contains
+     procedure :: reset => reset_atom_style
   end type draw_style_atom
 
   integer, parameter, public :: reptype_none = 0
@@ -97,15 +101,13 @@ module scenes
      logical :: labels_display = .true. ! whether to draw the labels
      logical :: border = .true. ! draw atoms at the border of the unit cell
      logical :: onemotif = .false. ! draw connected molecules
-     integer(c_int) :: atom_style_type = 0 ! atom style type: 0=species,1=nneq,2=cell
-     integer :: natom_style = 0 ! number of atom styles
      integer(c_int) :: atom_radii_reset_type = 0 ! option to reset radii: 0=covalent, 1=vdw
      real(c_float) :: atom_radii_reset_scale = 0.7_c_float ! reset radii, scale factor
      integer(c_int) :: atom_color_reset_type = 0 ! option to reset colors: 0=jmlcol, 1=jmlcol2
      integer(c_int) :: bond_color_style ! bond color style: 0=single color, 1=half-and-half
      real(c_float) :: bond_rgb(3) ! bond color (single color style)
      real(c_float) :: bond_rad ! bond radius
-     type(draw_style_atom), allocatable :: atom_style(:) ! atom styles
+     type(draw_style_atom) :: atom_style ! atom styles
      integer(c_int) :: label_style ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
      real(c_float) :: label_scale ! scale for the labels
      real(c_float) :: label_rgb(3) ! color of the labels
@@ -122,7 +124,6 @@ module scenes
    contains
      procedure :: init => representation_init
      procedure :: end => representation_end
-     procedure :: reset_atom_style
      procedure :: add_draw_elements
   end type representation
   public :: representation
@@ -272,6 +273,11 @@ module scenes
        class(scene), intent(inout), target :: s
        integer, intent(in) :: idx(4)
      end subroutine select_atom
+     ! draw_style_taom
+     module subroutine reset_atom_style(d,isys,itype)
+       class(draw_style_atom), intent(inout), target :: d
+       integer, intent(in) :: isys, itype
+     end subroutine reset_atom_style
      ! representation
      module subroutine representation_init(r,sc,isys,irep,itype,style)
        class(representation), intent(inout), target :: r
@@ -284,9 +290,6 @@ module scenes
      module subroutine representation_end(r)
        class(representation), intent(inout), target :: r
      end subroutine representation_end
-     module subroutine reset_atom_style(r)
-       class(representation), intent(inout), target :: r
-     end subroutine reset_atom_style
      module subroutine representation_draw(r,nc,xmin,xmax)
        class(representation), intent(inout), target :: r
        integer, intent(in) :: nc(3)

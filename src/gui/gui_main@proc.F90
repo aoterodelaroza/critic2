@@ -1050,6 +1050,9 @@ contains
                    end if
                 end if
 
+                ! all data is in-place, so we flag the system as ready
+                sysc(i)%status = sys_ready
+
                 ! initialize the scene and build the initial draw list
                 call sysc(i)%sc%init(i)
                 call sysc(i)%sc%build_lists()
@@ -1059,8 +1062,8 @@ contains
                    call sysc(i)%sc%copy_cam(idx=sysc(i)%sc%lockedcam)
 
                 ! this system has been initialized
-                sysc(i)%status = sys_init
                 sysc(i)%timelastchange = time
+                sysc(i)%status = sys_init
              end if
 
 #ifdef _THREADS

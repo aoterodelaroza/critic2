@@ -40,11 +40,13 @@ contains
 
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
-    use gui_main, only: nsys, sys, sysc, lockbehavior
+    use gui_main, only: nsys, sys, sysc, lockbehavior, sys_ready
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
 
+    ! check the system is sane
     if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status < sys_ready) return
 
     ! basic variables
     s%id = isys
@@ -186,11 +188,15 @@ contains
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
     use utils, only: translate
-    use gui_main, only: time
+    use gui_main, only: time, sysc, sys_ready, nsys
     class(scene), intent(inout), target :: s
 
     integer :: i
     real(c_float) :: xmin(3), xmax(3), maxrad, xc(3)
+
+    ! only build lists if system is initialized
+    if (s%id < 1 .or. s%id > nsys) return
+    if (sysc(s%id)%status < sys_ready) return
 
     ! initialize
     s%nsph = 0
@@ -216,9 +222,8 @@ contains
     ! recalculate scene center and radius
     maxrad = 0._c_float
     do i = 1, s%nrep
-       if (s%rep(i)%shown .and. s%rep(i)%type == reptype_atoms) then
-          maxrad = max(maxrad,maxval(s%rep(i)%atom_style(1:s%rep(i)%natom_style)%rad))
-       end if
+       if (s%rep(i)%shown .and. s%rep(i)%type == reptype_atoms) &
+          maxrad = max(maxrad,maxval(s%rep(i)%atom_style%rad(1:s%rep(i)%atom_style%ntype)))
     end do
     if (s%nsph + s%ncyl + s%ncylflat + s%nstring > 0) then
        do i = 1, 3
@@ -986,6 +991,74 @@ contains
 
   end subroutine select_atom
 
+  !xx! draw_style_atom
+
+  !> Reset atom style with style type itype
+  !> (0=species,1=nneq,2=cell,3=mol). Use the information in system
+  !> isys, or leave it empty if isys = 0.
+  module subroutine reset_atom_style(d,isys,itype)
+    use gui_main, only: nsys, sys, sysc, sys_ready
+    use param, only: jmlcol, atmcov
+    class(draw_style_atom), intent(inout), target :: d
+    integer, intent(in) :: isys, itype
+
+    integer :: i, ispc, iz
+
+    ! set the atom style to zero
+    d%type = 0
+    d%ntype = 0
+    if (allocated(d%shown)) deallocate(d%shown)
+    if (allocated(d%rgb)) deallocate(d%rgb)
+    if (allocated(d%rad)) deallocate(d%rad)
+
+    ! check the system is sane
+    if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status < sys_ready) return
+    d%type = itype
+
+    ! fill according to the style
+    if (d%type == 0) then
+       ! species
+       d%ntype = sys(isys)%c%nspc
+       allocate(d%shown(d%ntype),d%rgb(3,d%ntype),d%rad(d%ntype))
+       do i = 1, d%ntype
+          iz = sys(isys)%c%spc(i)%z
+          d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+          d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
+       end do
+    elseif (d%type == 1) then
+       ! nneq
+       d%ntype = sys(isys)%c%nneq
+       allocate(d%shown(d%ntype),d%rgb(3,d%ntype),d%rad(d%ntype))
+       do i = 1, sys(isys)%c%nneq
+          ispc = sys(isys)%c%at(i)%is
+          iz = sys(isys)%c%spc(ispc)%z
+          d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+          d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
+       end do
+    elseif (d%type == 2) then
+       ! ncel
+       d%ntype = sys(isys)%c%ncel
+       allocate(d%shown(d%ntype),d%rgb(3,d%ntype),d%rad(d%ntype))
+       do i = 1, sys(isys)%c%ncel
+          ispc = sys(isys)%c%atcel(i)%is
+          iz = sys(isys)%c%spc(ispc)%z
+          d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+          d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
+       end do
+    elseif (d%type == 3) then
+       ! nmol
+       d%ntype = sys(isys)%c%nmol
+       allocate(d%shown(d%ntype),d%rgb(3,d%ntype),d%rad(d%ntype))
+       do i = 1, sys(isys)%c%nmol
+          d%rgb(:,i) = 1._c_float
+          d%rad(i) = 1._c_float
+       end do
+    end if
+    d%shown = .true.
+
+  end subroutine reset_atom_style
+
   !xx! representation
 
   !> Initialize a representation. If itype is present and not _none,
@@ -994,7 +1067,7 @@ contains
   !> = parent scene, isys = system ID, irep = representation ID, style
   !> = phong or simple.
   module subroutine representation_init(r,sc,isys,irep,itype,style)
-    use gui_main, only: sys
+    use gui_main, only: sys, nsys, sysc, sys_ready
     use tools_io, only: string
     class(representation), intent(inout), target :: r
     type(scene), intent(inout), target :: sc
@@ -1002,6 +1075,10 @@ contains
     integer, intent(in) :: irep
     integer, intent(in) :: itype
     integer, intent(in) :: style
+
+    ! check the system is sane
+    if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status < sys_ready) return
 
     ! common settings
     r%isinit = .false.
@@ -1020,8 +1097,6 @@ contains
     r%atoms_display = .true.
     r%bonds_display = .true.
     r%labels_display = .false.
-    r%atom_style_type = 0
-    r%natom_style = 0
     r%atom_radii_reset_type = 0
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
@@ -1086,7 +1161,7 @@ contains
     sc%forcesort = .true.
 
     ! initialize the styles
-    call r%reset_atom_style()
+    call r%atom_style%reset(r%id,0)
 
   end subroutine representation_init
 
@@ -1110,70 +1185,12 @@ contains
 
   end subroutine representation_end
 
-  !> Reset atom styles.
-  module subroutine reset_atom_style(r)
-    use gui_main, only: nsys, sys
-    use param, only: jmlcol, atmcov
-    class(representation), intent(inout), target :: r
-
-    integer :: i, ispc, iz
-
-    ! set the atom style to zero
-    r%natom_style = 0
-    if (allocated(r%atom_style)) deallocate(r%atom_style)
-
-    ! check the system is correct and initialized
-    if (r%id < 1 .or. r%id > nsys) return
-
-    ! fill the styles
-    if (r%atom_style_type == 0) then
-       ! species
-       r%natom_style = sys(r%id)%c%nspc
-       allocate(r%atom_style(r%natom_style))
-       do i = 1, sys(r%id)%c%nspc
-          r%atom_style(i)%shown = .true.
-
-          iz = sys(r%id)%c%spc(i)%z
-          r%atom_style(i)%rgb = real(jmlcol(:,iz),c_float) / 255._c_float
-
-          r%atom_style(i)%rad = 0.7_c_float * real(atmcov(iz),c_float)
-       end do
-    elseif (r%atom_style_type == 1) then
-       ! nneq
-       r%natom_style = sys(r%id)%c%nneq
-       allocate(r%atom_style(r%natom_style))
-       do i = 1, sys(r%id)%c%nneq
-          r%atom_style(i)%shown = .true.
-
-          ispc = sys(r%id)%c%at(i)%is
-          iz = sys(r%id)%c%spc(ispc)%z
-          r%atom_style(i)%rgb = real(jmlcol(:,iz),c_float) / 255._c_float
-
-          r%atom_style(i)%rad = 0.7_c_float * real(atmcov(iz),c_float)
-       end do
-    elseif (r%atom_style_type == 2) then
-       ! ncel
-       r%natom_style = sys(r%id)%c%ncel
-       allocate(r%atom_style(r%natom_style))
-       do i = 1, sys(r%id)%c%ncel
-          r%atom_style(i)%shown = .true.
-
-          ispc = sys(r%id)%c%atcel(i)%is
-          iz = sys(r%id)%c%spc(ispc)%z
-          r%atom_style(i)%rgb = real(jmlcol(:,iz),c_float) / 255._c_float
-
-          r%atom_style(i)%rad = 0.7_c_float * real(atmcov(iz),c_float)
-       end do
-    end if
-
-  end subroutine reset_atom_style
-
   !> Add the spheres, cylinder, etc. to the draw lists. Use nc number
   !> of cells and the data from representation r. If doanim, use qpt
   !> iqpt and frequency ifreq to animate the representation.
   module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
      ncylflat,drawlist_cylflat,nstring,drawlist_string,doanim,iqpt,ifreq)
-    use gui_main, only: sys
+    use gui_main, only: sys, sysc
     use tools_io, only: string, nameguess
     use hashmod, only: hash
     use param, only: bohrtoa, newline, tpi, img, atmass
@@ -1219,6 +1236,9 @@ contains
        1,0,0,  1,0,1/),shape(uc))
     integer, parameter :: ucdir(12) = (/1, 2, 3, 3, 2, 1, 2, 1, 3, 2, 1, 3/)
 
+    ! system has been initialized: ensured by scene_build_lists, which
+    ! calls this routine.
+
     ! return if not initialized
     if (.not.r%isinit) return
     if (.not.r%shown) return
@@ -1242,6 +1262,9 @@ contains
     end if
     doanim_ = doanim
     if (doanim_) doanim_ = doanim_ .and. (iqpt > 0 .and. ifreq > 0 .and. allocated(sys(r%id)%c%vib))
+
+    ! initialize the atom style if not done already
+    if (.not.allocated(r%atom_style%shown)) call r%atom_style%reset(r%id,r%atom_style%type)
 
     if (r%type == reptype_atoms) then
        !!! atoms and bonds representation !!!
@@ -1298,14 +1321,16 @@ contains
           end if
 
           ! skip hidden atoms
-          if (r%atom_style_type == 0) then
+          if (r%atom_style%type == 0) then ! species
              id = sys(r%id)%c%atcel(i)%is
-          elseif (r%atom_style_type == 1) then
+          elseif (r%atom_style%type == 1) then ! nneq
              id = sys(r%id)%c%atcel(i)%idx
-          else
+          elseif (r%atom_style%type == 2) then  ! ncel
              id = i
+          else ! nmol
+             id = sys(r%id)%c%idatcelmol(i)
           end if
-          if (.not.r%atom_style(id)%shown) cycle
+          if (.not.r%atom_style%shown(id)) cycle
 
           ! calculate the border
           n0 = 0
@@ -1322,8 +1347,8 @@ contains
           end if
 
           ! draw the spheres and cylinders
-          rgb = r%atom_style(id)%rgb
-          rad = r%atom_style(id)%rad
+          rgb = r%atom_style%rgb(:,id)
+          rad = r%atom_style%rad(id)
           do i1 = n0(1), n1(1)
              do i2 = n0(2), n1(2)
                 do i3 = n0(3), n1(3)
@@ -1427,21 +1452,25 @@ contains
                             drawlist_cyl(ncyl-1)%x2 = real(x0,c_float)
                             drawlist_cyl(ncyl-1)%x2delta = cmplx(xdelta0,kind=c_float_complex)
                             drawlist_cyl(ncyl-1)%r = r%bond_rad
-                            drawlist_cyl(ncyl-1)%rgb = r%atom_style(id)%rgb
+                            drawlist_cyl(ncyl-1)%rgb = r%atom_style%rgb(:,id)
 
-                            if (r%atom_style_type == 0) then
+                            if (r%atom_style%type == 0) then ! species
                                idaux = sys(r%id)%c%atcel(ineigh)%is
-                            elseif (r%atom_style_type == 1) then
+                            elseif (r%atom_style%type == 1) then ! nneq
                                idaux = sys(r%id)%c%atcel(ineigh)%idx
-                            else
+                            elseif (r%atom_style%type == 2) then ! ncel
                                idaux = ineigh
+                            else ! nmol
+                               idaux = sys(r%id)%c%idatcelmol(ineigh)
                             end if
+                            idaux = ineigh
+
                             drawlist_cyl(ncyl)%x1 = real(x0,c_float)
                             drawlist_cyl(ncyl)%x1delta = cmplx(xdelta0,kind=c_float_complex)
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
                             drawlist_cyl(ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
                             drawlist_cyl(ncyl)%r = r%bond_rad
-                            drawlist_cyl(ncyl)%rgb = r%atom_style(idaux)%rgb
+                            drawlist_cyl(ncyl)%rgb = r%atom_style%rgb(:,idaux)
                          end if
                       end do ! ncon
                    end if
