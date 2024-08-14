@@ -3086,11 +3086,11 @@ contains
                    str2 = "##tablemolradius" // string(i) // c_null_char
                    str3 = "%.3f" // c_null_char
                    call igPushItemWidth(iw_calcwidth(5,1))
-                   ch = igDragFloat(c_loc(str2),msty%scale_rad(i),0.001_c_float,0._c_float,1._c_float,c_loc(str3),&
+                   ch = igDragFloat(c_loc(str2),msty%scale_rad(i),0.005_c_float,0._c_float,5._c_float,c_loc(str3),&
                       ImGuiSliderFlags_AlwaysClamp)
                    call iw_tooltip("Scale factor for the atomic radii in this molecule",ttshown)
                    if (ch) then
-                      msty%scale_rad(i) = min(max(msty%scale_rad(i),0._c_float),1._c_float)
+                      msty%scale_rad(i) = max(msty%scale_rad(i),0._c_float)
                       changed = .true.
                    end if
                    call igPopItemWidth()

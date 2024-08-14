@@ -1018,8 +1018,7 @@ contains
     d%type = itype
 
     ! fill according to the style
-    if (d%type == 0) then
-       ! species
+    if (d%type == 0) then ! species
        d%ntype = sys(isys)%c%nspc
        allocate(d%shown(d%ntype),d%rgb(3,d%ntype),d%rad(d%ntype))
        do i = 1, d%ntype
@@ -1027,8 +1026,7 @@ contains
           d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
           d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
        end do
-    elseif (d%type == 1) then
-       ! nneq
+    elseif (d%type == 1) then ! nneq
        d%ntype = sys(isys)%c%nneq
        allocate(d%shown(d%ntype),d%rgb(3,d%ntype),d%rad(d%ntype))
        do i = 1, sys(isys)%c%nneq
@@ -1037,8 +1035,7 @@ contains
           d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
           d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
        end do
-    elseif (d%type == 2) then
-       ! ncel
+    else ! ncel
        d%ntype = sys(isys)%c%ncel
        allocate(d%shown(d%ntype),d%rgb(3,d%ntype),d%rad(d%ntype))
        do i = 1, sys(isys)%c%ncel
@@ -1046,14 +1043,6 @@ contains
           iz = sys(isys)%c%spc(ispc)%z
           d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
           d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
-       end do
-    elseif (d%type == 3) then
-       ! nmol
-       d%ntype = sys(isys)%c%nmol
-       allocate(d%shown(d%ntype),d%rgb(3,d%ntype),d%rad(d%ntype))
-       do i = 1, sys(isys)%c%nmol
-          d%rgb(:,i) = 1._c_float
-          d%rad(i) = 1._c_float
        end do
     end if
     d%shown = .true.
@@ -1352,22 +1341,27 @@ contains
                 lvec = 0
              end if
           else
+             ! next atom in the complete list, exit if done
              i = i + 1
              if (i > sys(r%id)%c%ncel) exit
              lvec = 0
+             imol = sys(r%id)%c%idatcelmol(i)
           end if
+          ! i is current atom from the complete atom list
+          ! imol is the corresponding molecule
 
           ! skip hidden atoms
           if (r%atom_style%type == 0) then ! species
              id = sys(r%id)%c%atcel(i)%is
           elseif (r%atom_style%type == 1) then ! nneq
              id = sys(r%id)%c%atcel(i)%idx
-          elseif (r%atom_style%type == 2) then  ! ncel
+          else ! ncel
              id = i
-          else ! nmol
-             id = sys(r%id)%c%idatcelmol(i)
           end if
           if (.not.r%atom_style%shown(id)) cycle
+
+          ! skip hidden molecules
+          if (.not.r%mol_style%shown(imol)) cycle
 
           ! calculate the border
           n0 = 0
@@ -1384,8 +1378,8 @@ contains
           end if
 
           ! draw the spheres and cylinders
-          rgb = r%atom_style%rgb(:,id)
-          rad = r%atom_style%rad(id)
+          rgb = r%atom_style%rgb(:,id) * r%mol_style%tint_rgb(:,imol)
+          rad = r%atom_style%rad(id) * r%mol_style%scale_rad(imol)
           do i1 = n0(1), n1(1)
              do i2 = n0(2), n1(2)
                 do i3 = n0(3), n1(3)
@@ -1489,25 +1483,23 @@ contains
                             drawlist_cyl(ncyl-1)%x2 = real(x0,c_float)
                             drawlist_cyl(ncyl-1)%x2delta = cmplx(xdelta0,kind=c_float_complex)
                             drawlist_cyl(ncyl-1)%r = r%bond_rad
-                            drawlist_cyl(ncyl-1)%rgb = r%atom_style%rgb(:,id)
+                            drawlist_cyl(ncyl-1)%rgb = rgb
 
                             if (r%atom_style%type == 0) then ! species
                                idaux = sys(r%id)%c%atcel(ineigh)%is
                             elseif (r%atom_style%type == 1) then ! nneq
                                idaux = sys(r%id)%c%atcel(ineigh)%idx
-                            elseif (r%atom_style%type == 2) then ! ncel
+                            else ! ncel
                                idaux = ineigh
-                            else ! nmol
-                               idaux = sys(r%id)%c%idatcelmol(ineigh)
                             end if
-                            idaux = ineigh
 
                             drawlist_cyl(ncyl)%x1 = real(x0,c_float)
                             drawlist_cyl(ncyl)%x1delta = cmplx(xdelta0,kind=c_float_complex)
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
                             drawlist_cyl(ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
                             drawlist_cyl(ncyl)%r = r%bond_rad
-                            drawlist_cyl(ncyl)%rgb = r%atom_style%rgb(:,idaux)
+                            drawlist_cyl(ncyl)%rgb = r%atom_style%rgb(:,idaux) * &
+                               r%mol_style%tint_rgb(:,sys(r%id)%c%idatcelmol(ineigh))
                          end if
                       end do ! ncon
                    end if
@@ -1547,7 +1539,7 @@ contains
                       elseif (r%label_style == 6) then ! 6 = Z
                          drawlist_string(nstring)%str = string(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z)
                       elseif (r%label_style == 7) then ! 7 = mol
-                         drawlist_string(nstring)%str = string(sys(r%id)%c%idatcelmol(i))
+                         drawlist_string(nstring)%str = string(imol)
                       elseif (r%label_style == 8) then ! 8 = wycoff
                          idx = sys(r%id)%c%atcel(i)%idx
                          drawlist_string(nstring)%str = string(sys(r%id)%c%at(idx)%mult) //&
