@@ -63,6 +63,7 @@ module scenes
 
   !> Draw style for atoms
   type draw_style_atom
+     logical :: isinit = .false. ! whether the style is intialized
      integer :: type ! atom style type: 0=species,1=nneq,2=cell,3=mol
      integer :: ntype ! number of entries in the style type (atoms or molecules)
      logical, allocatable :: shown(:) ! whether it is shown (ntype)
@@ -71,6 +72,7 @@ module scenes
    contains
      procedure :: reset => reset_atom_style
   end type draw_style_atom
+  public :: draw_style_atom
 
   integer, parameter, public :: reptype_none = 0
   integer, parameter, public :: reptype_atoms = 1
@@ -276,7 +278,7 @@ module scenes
      ! draw_style_taom
      module subroutine reset_atom_style(d,isys,itype)
        class(draw_style_atom), intent(inout), target :: d
-       integer, intent(in) :: isys, itype
+       integer, intent(in), value :: isys, itype
      end subroutine reset_atom_style
      ! representation
      module subroutine representation_init(r,sc,isys,irep,itype,style)

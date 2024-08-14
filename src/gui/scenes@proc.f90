@@ -1000,13 +1000,14 @@ contains
     use gui_main, only: nsys, sys, sysc, sys_ready
     use param, only: jmlcol, atmcov
     class(draw_style_atom), intent(inout), target :: d
-    integer, intent(in) :: isys, itype
+    integer, intent(in), value :: isys, itype
 
     integer :: i, ispc, iz
 
     ! set the atom style to zero
     d%type = 0
     d%ntype = 0
+    d%isinit = .false.
     if (allocated(d%shown)) deallocate(d%shown)
     if (allocated(d%rgb)) deallocate(d%rgb)
     if (allocated(d%rad)) deallocate(d%rad)
@@ -1056,6 +1057,7 @@ contains
        end do
     end if
     d%shown = .true.
+    d%isinit = .true.
 
   end subroutine reset_atom_style
 
@@ -1264,7 +1266,7 @@ contains
     if (doanim_) doanim_ = doanim_ .and. (iqpt > 0 .and. ifreq > 0 .and. allocated(sys(r%id)%c%vib))
 
     ! initialize the atom style if not done already
-    if (.not.allocated(r%atom_style%shown)) call r%atom_style%reset(r%id,r%atom_style%type)
+    if (.not.r%atom_style%isinit) call r%atom_style%reset(r%id,r%atom_style%type)
 
     if (r%type == reptype_atoms) then
        !!! atoms and bonds representation !!!
