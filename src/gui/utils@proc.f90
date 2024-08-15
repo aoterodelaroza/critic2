@@ -358,14 +358,28 @@ contains
 
   !> Create a wrapped tooltip, maybe with a delay to show. ttshown
   !> activates the delay, and is the show flag for the delayed tooltip.
-  module subroutine iw_tooltip(str,ttshown)
+  module subroutine iw_tooltip(str,ttshown,rgba,nowrap)
     use interfaces_cimgui
     use gui_main, only: tooltip_wrap_factor, tooltip_delay, tooltip_enabled, fontsize
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(inout), optional :: ttshown
+    real(c_float), intent(in), optional :: rgba(4)
+    logical, intent(in), optional :: nowrap
 
     character(len=:,kind=c_char), allocatable, target :: strloc
     integer :: flags
+    type(ImVec4) :: col
+    logical :: nowrap_
+
+    nowrap_ = .false.
+    if (present(nowrap)) nowrap_ = nowrap
+    if (present(rgba)) then
+       col%x = rgba(1)
+       col%y = rgba(2)
+       col%z = rgba(3)
+       col%w = rgba(4)
+       call igPushStyleColor_Vec4(ImGuiCol_Text,col)
+    end if
 
     if (.not.tooltip_enabled) return
     flags = ImGuiHoveredFlags_AllowWhenBlockedByPopup
@@ -375,13 +389,20 @@ contains
        if (igIsItemHovered(flags)) call show_tooltip()
     end if
 
+    if (present(rgba)) &
+       call igPopStyleColor(1)
+
   contains
     subroutine show_tooltip()
       strloc = trim(str) // c_null_char
       call igBeginTooltip()
-      call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
-      call igTextWrapped(c_loc(strloc))
-      call igPopTextWrapPos()
+      if (nowrap_) then
+         call igText(c_loc(strloc))
+      else
+         call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
+         call igTextWrapped(c_loc(strloc))
+         call igPopTextWrapPos()
+      end if
       call igEndTooltip()
     end subroutine show_tooltip
   end subroutine iw_tooltip

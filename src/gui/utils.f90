@@ -122,9 +122,11 @@ module utils
        integer(c_int), intent(in), optional :: popupflags
        logical :: iw_button
      end function iw_button
-     module subroutine iw_tooltip(str,ttshown)
+     module subroutine iw_tooltip(str,ttshown,rgba,nowrap)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(inout), optional :: ttshown
+       real(c_float), intent(in), optional :: rgba(4)
+       logical, intent(in), optional :: nowrap
      end subroutine iw_tooltip
      module function igIsItemHovered_delayed(flags,thr,already_shown)
        integer(c_int), value :: flags

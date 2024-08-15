@@ -44,9 +44,10 @@ submodule (windows) tree
 
   ! color for vibrations and fields in tree
   real(c_float), parameter :: rgba_vibrations(4) = (/0.84,0.86,0.00,1.00/)
+  real(c_float), parameter :: rgba_fields(4) = (/0.00,1.00,0.50,1.00/)
 
   !xx! private procedures
-  ! function tree_system_tooltip_string(i)
+  ! function tree_system_tooltip(i)
   ! function tree_field_tooltip_string(si,fj)
 
 contains
@@ -560,7 +561,11 @@ contains
              end if
              pos = igGetCursorPosX()
              call igSetCursorPosX(pos + g%Style%FramePadding%x)
-             call iw_text(ch)
+             if (sys(i)%nf > 0) then
+                call iw_text(ch,rgba=rgba_fields)
+             else
+                call iw_text(ch)
+             end if
              call igSameLine(0._c_float,-1._c_float)
              call igSetCursorPosX(pos)
              str = ch // "##" // string(ic_name) // "," // string(i) // c_null_char
@@ -1108,10 +1113,10 @@ contains
          if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
             if (len(tooltipstr) > 0) then
                strl = tooltipstr // c_null_char
+               call igSetTooltip(c_loc(strl))
             else
-               strl = tree_system_tooltip_string(isys)
+               call tree_system_tooltip(isys)
             end if
-            call igSetTooltip(c_loc(strl))
          end if
       end if
       hadenabledcolumn = .true.
@@ -1343,19 +1348,23 @@ contains
 
   ! Return the string for the tooltip shown by the tree window,
   ! corresponding to system i.
-  function tree_system_tooltip_string(i) result(str)
-    use utils, only: iw_tooltip
+  subroutine tree_system_tooltip(i)
+    use utils, only: iw_text
     use crystalmod, only: pointgroup_info, holo_string
-    use gui_main, only: sys, sysc, nsys, sys_init
+    use gui_main, only: sys, sysc, nsys, sys_init, ColorTableCellBg_Crys1d, ColorTableCellBg_Crys2d,&
+       ColorTableCellBg_Crys3d, ColorTableCellBg_Mol, ColorTableCellBg_MolClus,&
+       ColorTableCellBg_MolCrys
     use tools_io, only: string
-    use param, only: bohrtoa, maxzat, atmass, pcamu, bohrtocm, newline
+    use param, only: bohrtoa, maxzat, atmass, pcamu, bohrtocm
     use tools_math, only: gcd
     integer, intent(in) :: i
-    character(kind=c_char,len=:), allocatable, target :: str
 
+    character(kind=c_char,len=:), allocatable, target :: str
     integer, allocatable :: nis(:)
     integer :: k, iz
     real*8 :: maxdv, mass, dens
+    real(c_float) :: rgba(4)
+    type(ImVec4) :: col4
     integer :: nelec
     character(len=3) :: schpg
     integer :: holo, laue
@@ -1364,20 +1373,30 @@ contains
     str = ""
     if (i < 1 .or. i > nsys) return
 
+    ! begin the tooltip
+    call igBeginTooltip()
+
     ! file
-    str = "||" // trim(sysc(i)%seed%name) // "||" // newline
+    call iw_text("[",danger=.true.)
+    call iw_text(trim(sysc(i)%seed%name),highlight=.true.,sameline_nospace=.true.)
+    call iw_text("]",danger=.true.,sameline_nospace=.true.)
+
     if (sysc(i)%status == sys_init) then
        ! file and system type
-       str = str // trim(sysc(i)%seed%file) // newline
+       str = trim(adjustl(sysc(i)%seed%file))
+       call iw_text("File: ",highlight=.true.)
+       call iw_text(str,sameline_nospace=.true.)
+
        if (sys(i)%c%ismolecule) then
           if (sys(i)%c%nmol == 1) then
-             str = str // "A molecule" // newline
+             str = "A molecule"
+             col4 = ColorTableCellBg_Mol
           else
-             str = str // "A molecular cluster with " // string(sys(i)%c%nmol) // " fragments" //&
-                newline
+             str = "A molecular cluster with " // string(sys(i)%c%nmol) // " fragments"
+             col4 = ColorTableCellBg_MolClus
           end if
-       elseif (sys(i)%c%nlvac == 3) then
-          str = str // "A molecular crystal with Z=" // string(sys(i)%c%nmol)
+       elseif (sys(i)%c%ismol3d .or. sys(i)%c%nlvac == 3) then
+          str = "A molecular crystal with Z=" // string(sys(i)%c%nmol)
           if (sys(i)%c%spgavail) then
              izp0 = 0
              do k = 1, sys(i)%c%nmol
@@ -1394,23 +1413,31 @@ contains
                 str = str // " and Z'<1"
              end if
           end if
-          str = str // newline
+          col4 = ColorTableCellBg_MolCrys
        elseif (sys(i)%c%nlvac == 2) then
-          str = str // "A 1D periodic (chain) structure" //&
-             newline
+          str = "A 1D periodic (chain) structure"
+          col4 = ColorTableCellBg_Crys1d
        elseif (sys(i)%c%nlvac == 1) then
-          str = str // "A 2D periodic (layered) structure" //&
-             newline
+          str = "A 2D periodic (layered) structure"
+          col4 = ColorTableCellBg_Crys2d
        else
-          str = str // "A crystal" //&
-             newline
+          str = "A crystal"
+          col4 = ColorTableCellBg_Crys3d
        end if
-       str = str // newline
+       rgba = (/col4%x,col4%y,col4%z,1._c_float/)
+       str = str
+       call iw_text(str,rgba=rgba)
 
-       ! number of atoms, electrons, molar mass
-       str = str // string(sys(i)%c%ncel) // " atoms, " //&
-          string(sys(i)%c%nneq) // " non-eq atoms, "//&
-          string(sys(i)%c%nspc) // " species," // newline
+       ! number of atoms
+       call iw_text("")
+       call iw_text("Atoms: ",highlight=.true.)
+       str = string(sys(i)%c%ncel) // " ("
+       if (.not.sys(i)%c%ismolecule) &
+          str = str // string(sys(i)%c%nneq) // " non-eq, "
+       str = str // string(sys(i)%c%nspc) // " species)"
+       call iw_text(str,sameline_nospace=.true.)
+
+       ! electrons, molar mass
        nelec = 0
        mass = 0d0
        do k = 1, sys(i)%c%nneq
@@ -1419,8 +1446,11 @@ contains
           nelec = nelec + iz * sys(i)%c%at(k)%mult
           mass = mass + atmass(iz) * sys(i)%c%at(k)%mult
        end do
-       str = str // string(nelec) // " electrons, " //&
-          string(mass,'f',decimal=3) // " amu per cell" // newline
+       call iw_text("Electrons: ",highlight=.true.)
+       call iw_text(string(nelec),sameline_nospace=.true.)
+       call iw_text(" Mass (amu): ",highlight=.true.,sameline=.true.)
+       call iw_text(string(mass,'f',decimal=3),sameline_nospace=.true.)
+
        ! empirical formula
        allocate(nis(sys(i)%c%nspc))
        nis = 0
@@ -1428,66 +1458,83 @@ contains
           nis(sys(i)%c%at(k)%is) = nis(sys(i)%c%at(k)%is) + sys(i)%c%at(k)%mult
        end do
        maxdv = gcd(nis,sys(i)%c%nspc)
-       str = str // "Formula: "
+       call iw_text("Formula: ",highlight=.true.)
+       str = ""
        do k = 1, sys(i)%c%nspc
           str = str // string(sys(i)%c%spc(k)%name) // string(nint(nis(k)/maxdv)) // " "
        end do
-       str = str // newline // newline
+       call iw_text(str,sameline_nospace=.true.)
 
        if (.not.sys(i)%c%ismolecule) then
           ! cell parameters, volume, density, energy, pressure
-          str = str // "a/b/c (Å): " // &
-             string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4) // " " //&
+          call iw_text("")
+          call iw_text("a/b/c (Å): ",highlight=.true.)
+          str = string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4) // " " //&
              string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4) // " " //&
-             string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4) //&
-             newline
-          str = str // "α/β/γ (°): " // &
-             string(sys(i)%c%bb(1),'f',decimal=2) // " " //&
+             string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4)
+          call iw_text(str,sameline_nospace=.true.)
+
+          call iw_text("α/β/γ (°): ",highlight=.true.)
+          str = string(sys(i)%c%bb(1),'f',decimal=2) // " " //&
              string(sys(i)%c%bb(2),'f',decimal=2) // " " //&
-             string(sys(i)%c%bb(3),'f',decimal=2) // " " //&
-             newline
-          str = str // "V (Å³): " // &
-             string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2) // newline
+             string(sys(i)%c%bb(3),'f',decimal=2)
+          call iw_text(str,sameline_nospace=.true.)
+
+          call iw_text("V (Å³): ",highlight=.true.)
+          str = string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2)
+          call iw_text(str,sameline_nospace=.true.)
+
+          call iw_text("Density (g/cm³): ",highlight=.true.)
           dens = (mass*pcamu) / (sys(i)%c%omega*bohrtocm**3)
-          str = str // "Density (g/cm³): " // string(dens,'f',decimal=3) // newline
+          call iw_text(string(dens,'f',decimal=3),sameline_nospace=.true.)
+
           if (sysc(i)%seed%energy /= huge(1d0)) then
-             str = str // "Energy (Ha): " // string(sysc(i)%seed%energy,'f',decimal=8) // newline
+             call iw_text("Energy (Ha): ",highlight=.true.)
+             call iw_text(string(sysc(i)%seed%energy,'f',decimal=8),sameline_nospace=.true.)
           end if
           if (sysc(i)%seed%pressure /= huge(1d0)) then
-             str = str // "Pressure (GPa): " // string(sysc(i)%seed%pressure,'f',decimal=2) // newline
+             call iw_text("Pressure (GPa): ",highlight=.true.)
+             call iw_text(string(sysc(i)%seed%pressure,'f',decimal=2),sameline_nospace=.true.)
           end if
-          str = str // newline
 
           ! symmetry
           if (sys(i)%c%spgavail) then
              call pointgroup_info(sys(i)%c%spg%pointgroup_symbol,schpg,holo,laue)
-             str = str // "Symmetry: " // &
-                string(sys(i)%c%spg%international_symbol) // " (" //&
-                string(sys(i)%c%spg%spacegroup_number) // "), " //&
-                string(holo_string(holo)) // "," //&
-                newline
-
-             str = str // string(sys(i)%c%neqv) // " symm-ops, " //&
-                string(sys(i)%c%ncv) // " cent-vecs" //&
-                newline
+             call iw_text("")
+             call iw_text("Space group: ",highlight=.true.)
+             str = string(sys(i)%c%spg%international_symbol) // " (" //&
+                string(sys(i)%c%spg%spacegroup_number) // ", " //&
+                string(holo_string(holo)) // ")"
+             call iw_text(str,sameline_nospace=.true.)
           else
-             str = str // "Symmetry info not available" // newline
+             call iw_text("")
+             call iw_text("Space group: ",highlight=.true.)
+             call iw_text("not available",sameline_nospace=.true.)
           end if
-          str = str // newline
        end if
 
        ! number of scalar fields
-       str = str // string(sys(i)%nf) // " scalar fields loaded" // newline
-       if (allocated(sys(i)%c%vib)) &
-          str = str // "Vibration data available" // newline
+       if (sys(i)%nf > 0) then
+          call iw_text("")
+          call iw_text(string(sys(i)%nf) // " scalar fields loaded",rgba=rgba_fields)
+       end if
+
+       ! vibrations
+       if (allocated(sys(i)%c%vib)) then
+          call iw_text("")
+          call iw_text("Vibration data available",rgba=rgba_vibrations)
+       end if
     else
        ! not initialized
-       str = str // "Not initialized" // newline
+       call iw_text("")
+       call iw_text("Not initialized",danger=.true.)
     end if
-    str = str // newline // "[Right-click for options]" // newline
-    str = str // c_null_char
+    call iw_text("")
+    call iw_text("[Right-click for options]",highlight=.true.)
 
-  end function tree_system_tooltip_string
+    call igEndTooltip()
+
+  end subroutine tree_system_tooltip
 
   ! Return the string for the tooltip shown by the tree window,
   ! corresponding to system si and field fj
