@@ -541,9 +541,9 @@ contains
              if (ok) ok = allocated(sys(i)%c%vib)
              if (ok) then
                 call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,&
-                   rgba=rgba_vibrations,centered=.true.)
+                   rgba=rgba_vibrations)
              else
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,centered=.true.)
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
           end if
 
@@ -1344,6 +1344,7 @@ contains
   ! Return the string for the tooltip shown by the tree window,
   ! corresponding to system i.
   function tree_system_tooltip_string(i) result(str)
+    use utils, only: iw_tooltip
     use crystalmod, only: pointgroup_info, holo_string
     use gui_main, only: sys, sysc, nsys, sys_init
     use tools_io, only: string
