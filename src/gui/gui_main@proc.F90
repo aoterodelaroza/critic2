@@ -746,12 +746,7 @@ contains
     call set_default_keybindings()
 
     ! tree colors
-    ColorTableCellBg_Mol     = ImVec4(0.43,0.8 ,0.  ,0.2)
-    ColorTableCellBg_MolClus = ImVec4(0.0 ,0.8 ,0.43,0.2)
-    ColorTableCellBg_MolCrys = ImVec4(0.8 ,0.43,0.0 ,0.2)
-    ColorTableCellBg_Crys3d  = ImVec4(0.8 ,0.  ,0.0 ,0.2)
-    ColorTableCellBg_Crys2d  = ImVec4(0.8 ,0.  ,0.43,0.2)
-    ColorTableCellBg_Crys1d  = ImVec4(0.8 ,0.43,0.43,0.2)
+    ColorTableCellBg = ColorTableCellBg_def
 
   end subroutine set_default_ui_settings
 

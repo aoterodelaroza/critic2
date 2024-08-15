@@ -521,11 +521,6 @@ contains
        ! set up the block environments
        call c%build_env()
 
-       ! find atomic connectivity and molecular fragments
-       call c%find_asterisms_covalent()
-       call c%fill_molecular_fragments()
-       call c%calculate_molecular_equivalence()
-
        ! calculate vacuum lengths
        allocate(xcoord(2*c%ncel),iord(2*c%ncel))
        do i = 1, 3
@@ -542,6 +537,12 @@ contains
           end do
        end do
        deallocate(xcoord,iord)
+
+       ! find atomic connectivity and molecular fragments
+       call c%find_asterisms_covalent()
+       call c%fill_molecular_fragments()
+       call c%calculate_molecular_equivalence()
+       call c%calculate_periodicity()
     end if
 
     ! the initialization is done - this crystal is ready to use

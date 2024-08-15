@@ -379,9 +379,8 @@ contains
           win(i)%sc => null()
           iv = win(i)%view_selected
           if (iv >= 1 .and. iv <= nsys) then
-             if (sysc(iv)%status == sys_init.and.win(i)%ismain) then
+             if (sysc(iv)%status == sys_init.and.win(i)%ismain) &
                 win(i)%sc => sysc(iv)%sc
-             end if
           end if
        end if
     end do
@@ -724,7 +723,7 @@ contains
           w%name = "Preferences##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 65 * fontsize%x
-          inisize%y = 19 * fontsize%y
+          inisize%y = 23 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_treeplot) then
           w%name = "Plot Tree Data##" // string(w%id)  // c_null_char
@@ -846,9 +845,8 @@ contains
   !> Draw the preferences window
   module subroutine draw_preferences(w)
     use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor,&
-       tree_select_updates_inpcon, tree_select_updates_view, io, fontsize, ColorTableCellBg_Mol,&
-       ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
-       ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, set_default_ui_settings
+       tree_select_updates_inpcon, tree_select_updates_view, io, fontsize,&
+       set_default_ui_settings, ColorTableCellBg
     use interfaces_cimgui
     use keybindings
     use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth, iw_clamp_color4,&
@@ -1053,59 +1051,19 @@ contains
           call iw_text("Tree colors",highlight=.true.)
           call igSeparator()
 
-          str = "Molecule" // c_null_char
-          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             call imvec4_to_float4(ColorTableCellBg_Mol,rgba)
-             ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
-             call iw_tooltip("A molecular system with a single molecule",ttshown)
-             call iw_clamp_color4(rgba)
-             call float4_to_imvec4(rgba,ColorTableCellBg_Mol)
-          end if
-
-          str = "Molecular cluster" // c_null_char
-          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             call imvec4_to_float4(ColorTableCellBg_MolClus,rgba)
-             ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
-             call iw_tooltip("A molecular system with multiple molecules",ttshown)
-             call iw_clamp_color4(rgba)
-             call float4_to_imvec4(rgba,ColorTableCellBg_MolClus)
-          end if
-
-          str = "Crystal" // c_null_char
-          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             call imvec4_to_float4(ColorTableCellBg_Crys3d,rgba)
-             ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
-             call iw_tooltip("A crystal, with a three-dimensional periodic network of bonds",ttshown)
-             call iw_clamp_color4(rgba)
-             call float4_to_imvec4(rgba,ColorTableCellBg_Crys3d)
-          end if
-
-          str = "Crystal (layered)" // c_null_char
-          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             call imvec4_to_float4(ColorTableCellBg_Crys2d,rgba)
-             ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
-             call iw_tooltip("A layered crystal, with a two-dimensional periodic network of bonds",ttshown)
-             call iw_clamp_color4(rgba)
-             call float4_to_imvec4(rgba,ColorTableCellBg_Crys2d)
-          end if
-
-          str = "Crystal (chain)" // c_null_char
-          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             call imvec4_to_float4(ColorTableCellBg_Crys1d,rgba)
-             ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
-             call iw_tooltip("An atom-chain crystal, with a one-dimensional periodic network of bonds",ttshown)
-             call iw_clamp_color4(rgba)
-             call float4_to_imvec4(rgba,ColorTableCellBg_Crys1d)
-          end if
-
-          str = "Crystal (molecular)" // c_null_char
-          if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             call imvec4_to_float4(ColorTableCellBg_MolCrys,rgba)
-             ldum = igColorEdit4(c_loc(str),rgba,ImGuiColorEditFlags_NoInputs)
-             call iw_tooltip("A molecular crystal, comprising discrete molecules",ttshown)
-             call iw_clamp_color4(rgba)
-             call float4_to_imvec4(rgba,ColorTableCellBg_MolCrys)
-          end if
+          ! color editors
+          call color_edit4("Crystal","A molecular system with a single molecule",ColorTableCellBg(:,0))
+          call color_edit4("Layered crystal","A layered crystal, with two-dimensional periodic bonding networks",&
+             ColorTableCellBg(:,1))
+          call color_edit4("Crystal with 1D bonded chains",&
+             "A crystal, with a one-dimensional periodic bonding networks",&
+             ColorTableCellBg(:,2))
+          call color_edit4("Molecular crystal","A molecular crystal",ColorTableCellBg(:,3))
+          call color_edit4("Surface","A 2D surface",ColorTableCellBg(:,4))
+          call color_edit4("Chain","An one-dimensional atomic structure (e.g. a polymer)",ColorTableCellBg(:,5))
+          call color_edit4("Molecule in a box","A molecule in a large periodic box",ColorTableCellBg(:,6))
+          call color_edit4("Molecule","A molecule",ColorTableCellBg(:,7))
+          call color_edit4("Molecular cluster","A molecular cluster",ColorTableCellBg(:,8))
        end if
        call igPopItemWidth()
     end if
@@ -1150,27 +1108,22 @@ contains
        if (c_associated(cfilter)) call ImGuiTextFilter_Clear(cfilter)
     end subroutine end_state
 
-    subroutine imvec4_to_float4(im,f)
-      type(ImVec4), intent(in) :: im
-      real(c_float), intent(out) :: f(4)
+    ! display the color editor
+    subroutine color_edit4(str,strtt,rgba)
+      character*(*), intent(in) :: str, strtt
+      real(c_float), intent(inout) :: rgba(4)
 
-      f(1) = im%x
-      f(2) = im%y
-      f(3) = im%z
-      f(4) = im%w
+      character(len=:), allocatable, target :: str_
+      logical(c_bool) :: ldum
 
-    end subroutine imvec4_to_float4
+      str_ = str // c_null_char
+      if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str_),c_null_ptr)) then
+         ldum = igColorEdit4(c_loc(str_),rgba,ImGuiColorEditFlags_NoInputs)
+         call iw_tooltip(strtt,ttshown)
+         call iw_clamp_color4(rgba)
+      end if
 
-    subroutine float4_to_imvec4(f,im)
-      type(ImVec4), intent(out) :: im
-      real(c_float), intent(in) :: f(4)
-
-      im%x = f(1)
-      im%y = f(2)
-      im%z = f(3)
-      im%w = f(4)
-
-    end subroutine float4_to_imvec4
+    end subroutine color_edit4
 
   end subroutine draw_preferences
 

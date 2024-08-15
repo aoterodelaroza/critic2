@@ -60,10 +60,8 @@ contains
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
        iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_ready,&
-       sys_loaded_not_init, sys_initializing, ColorTableCellBg_Mol,&
-       ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
-       ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, ColorVibrationsAvail,&
-       launch_initialization_thread,&
+       sys_loaded_not_init, sys_initializing, ColorVibrationsAvail,&
+       launch_initialization_thread, ColorTableCellBg,&
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
        ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon,&
        tree_select_updates_view, fontsize, time
@@ -79,6 +77,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str, strpop, strpop2, zeroc, ch
     character(kind=c_char,len=:), allocatable :: tooltipstr
     type(ImVec2) :: szero, sz
+    type(ImVec4) :: col4
     integer(c_int) :: flags, color, idir
     integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev, oid, isys, idx
     logical(c_bool) :: ldum, isel
@@ -514,25 +513,12 @@ contains
           end if
 
           ! set background color for the name cell, if not selected
-          ! if (w%table_selected /= i) then
-          if (sysc(i)%seed%ismolecule) then
-             color = igGetColorU32_Vec4(ColorTableCellBg_Mol)
-             if (sysc(i)%status == sys_init) then
-                if (sys(i)%c%nmol > 1) color = igGetColorU32_Vec4(ColorTableCellBg_MolClus)
-             endif
-          else
-             color = igGetColorU32_Vec4(ColorTableCellBg_Crys3d)
-             if (sysc(i)%status == sys_init) then
-                if (sys(i)%c%nlvac == 3) then
-                   color = igGetColorU32_Vec4(ColorTableCellBg_MolCrys)
-                elseif (sys(i)%c%nlvac == 2) then
-                   color = igGetColorU32_Vec4(ColorTableCellBg_Crys1d)
-                elseif (sys(i)%c%nlvac == 1) then
-                   color = igGetColorU32_Vec4(ColorTableCellBg_Crys2d)
-                end if
-             end if
+          if (sysc(i)%status >= sys_ready) then
+             col4 = ImVec4(ColorTableCellBg(1,sys(i)%c%iperiod),ColorTableCellBg(2,sys(i)%c%iperiod),&
+                ColorTableCellBg(3,sys(i)%c%iperiod),ColorTableCellBg(4,sys(i)%c%iperiod))
+             color = igGetColorU32_Vec4(col4)
+             call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_name)
           end if
-          call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_name)
 
           ! ID column
           if (igTableSetColumnIndex(ic_id)) then
@@ -1350,10 +1336,11 @@ contains
   ! corresponding to system i.
   subroutine tree_system_tooltip(i)
     use utils, only: iw_text
-    use crystalmod, only: pointgroup_info, holo_string
-    use gui_main, only: sys, sysc, nsys, sys_init, ColorTableCellBg_Crys1d, ColorTableCellBg_Crys2d,&
-       ColorTableCellBg_Crys3d, ColorTableCellBg_Mol, ColorTableCellBg_MolClus,&
-       ColorTableCellBg_MolCrys
+    use crystalmod, only: pointgroup_info, holo_string, iperiod_3d_crystal,&
+       iperiod_3d_layered, iperiod_3d_chain, iperiod_3d_molecular,&
+       iperiod_2d, iperiod_1d, iperiod_0d, iperiod_mol_single,&
+       iperiod_mol_cluster
+    use gui_main, only: sys, sysc, nsys, sys_init, ColorTableCellBg
     use tools_io, only: string
     use param, only: bohrtoa, maxzat, atmass, pcamu, bohrtocm
     use tools_math, only: gcd
@@ -1387,15 +1374,13 @@ contains
        call iw_text("File: ",highlight=.true.)
        call iw_text(str,sameline_nospace=.true.)
 
-       if (sys(i)%c%ismolecule) then
-          if (sys(i)%c%nmol == 1) then
-             str = "A molecule"
-             col4 = ColorTableCellBg_Mol
-          else
-             str = "A molecular cluster with " // string(sys(i)%c%nmol) // " fragments"
-             col4 = ColorTableCellBg_MolClus
-          end if
-       elseif (sys(i)%c%ismol3d .or. sys(i)%c%nlvac == 3) then
+       if (sys(i)%c%iperiod == iperiod_3d_crystal) then
+          str = "A crystal"
+       elseif (sys(i)%c%iperiod == iperiod_3d_layered) then
+          str = "A layered crystal"
+       elseif (sys(i)%c%iperiod == iperiod_3d_chain) then
+          str = "A crystal with one-dimensional bonded chains"
+       elseif (sys(i)%c%iperiod == iperiod_3d_molecular) then
           str = "A molecular crystal with Z=" // string(sys(i)%c%nmol)
           if (sys(i)%c%spgavail) then
              izp0 = 0
@@ -1413,19 +1398,19 @@ contains
                 str = str // " and Z'<1"
              end if
           end if
-          col4 = ColorTableCellBg_MolCrys
-       elseif (sys(i)%c%nlvac == 2) then
-          str = "A 1D periodic (chain) structure"
-          col4 = ColorTableCellBg_Crys1d
-       elseif (sys(i)%c%nlvac == 1) then
-          str = "A 2D periodic (layered) structure"
-          col4 = ColorTableCellBg_Crys2d
-       else
-          str = "A crystal"
-          col4 = ColorTableCellBg_Crys3d
+       elseif (sys(i)%c%iperiod == iperiod_2d) then
+          str = "A surface (2D periodic structure)"
+       elseif (sys(i)%c%iperiod == iperiod_1d) then
+          str = "A one-dimensional periodic structure"
+       elseif (sys(i)%c%iperiod == iperiod_0d) then
+          str = "A molecule in a big periodic box"
+       elseif (sys(i)%c%iperiod == iperiod_mol_single) then
+          str = "A molecule"
+       elseif (sys(i)%c%iperiod == iperiod_mol_cluster) then
+          str = "A molecular cluster with " // string(sys(i)%c%nmol) // " fragments"
        end if
-       rgba = (/col4%x,col4%y,col4%z,1._c_float/)
-       str = str
+       rgba = ColorTableCellBg(:,sys(i)%c%iperiod)
+       rgba(4) = 1.0_c_float
        call iw_text(str,rgba=rgba)
 
        ! number of atoms
@@ -2439,6 +2424,7 @@ contains
        call sys(isys)%c%find_asterisms_covalent()
        call sys(isys)%c%fill_molecular_fragments()
        call sys(isys)%c%calculate_molecular_equivalence()
+       call sys(isys)%c%calculate_periodicity()
        sysc(isys)%sc%forcebuildlists = .true.
     end if
     call iw_tooltip("Recalculate the system bonds with the selected parameters",ttshown)

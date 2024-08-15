@@ -51,6 +51,7 @@ contains
     use scenes, only: reptype_atoms, reptype_unitcell, style_phong, style_simple
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
        iw_setposx_fromend, iw_checkbox
+    use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
     use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
@@ -74,8 +75,6 @@ contains
 
     logical, save :: ttshown = .false. ! tooltip flag
 
-    ! threshold for the increase/decrease cell number if vacuum
-    real*8, parameter :: vacthr = 15d0 ! bohr
     ! coordinate this with objects (representation) menu in scenes module
     integer(c_int), parameter :: ic_closebutton = 0
     integer(c_int), parameter :: ic_viewbutton = 1
@@ -806,16 +805,14 @@ contains
           if (.not.sys(w%view_selected)%c%ismolecule) then
              if (is_bind_event(BIND_VIEW_INC_NCELL)) then
                 do i = 1, 3
-                   if (sys(w%view_selected)%c%vaclength(i) < vacthr) then
+                   if (sys(w%view_selected)%c%vaclength(i) < iperiod_vacthr) &
                       w%sc%nc(i) = w%sc%nc(i) + 1
-                   endif
                 end do
                 w%sc%forcebuildlists = .true.
              elseif (is_bind_event(BIND_VIEW_DEC_NCELL)) then
                 do i = 1, 3
-                   if (sys(w%view_selected)%c%vaclength(i) < vacthr) then
+                   if (sys(w%view_selected)%c%vaclength(i) < iperiod_vacthr) &
                       w%sc%nc(i) = w%sc%nc(i) - 1
-                   endif
                 end do
                 w%sc%nc = max(w%sc%nc,1)
                 w%sc%forcebuildlists = .true.

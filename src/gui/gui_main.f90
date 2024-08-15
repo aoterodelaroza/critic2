@@ -53,12 +53,18 @@ module gui_main
   integer, public :: lockbehavior = 1 ! 0=no-lock, 1=only SCF, 2=all systems
 
   ! GUI colors
-  type(ImVec4), public :: ColorTableCellBg_Mol     = ImVec4(0.43,0.8 ,0.  ,0.2)  ! tree table name cell, molecule
-  type(ImVec4), public :: ColorTableCellBg_MolClus = ImVec4(0.0 ,0.8 ,0.43,0.2)  ! tree table name cell, molecular cluster
-  type(ImVec4), public :: ColorTableCellBg_MolCrys = ImVec4(0.8 ,0.43,0.0 ,0.2)  ! tree table name cell, molecular crystal
-  type(ImVec4), public :: ColorTableCellBg_Crys3d  = ImVec4(0.8 ,0.  ,0.0 ,0.2)  ! tree table name cell, 3d crystal
-  type(ImVec4), public :: ColorTableCellBg_Crys2d  = ImVec4(0.8 ,0.  ,0.43,0.2)  ! tree table name cell, 2d crystal
-  type(ImVec4), public :: ColorTableCellBg_Crys1d  = ImVec4(0.8 ,0.43,0.43,0.2)  ! tree table name cell, 1d crystal
+  real(c_float), parameter, public :: ColorTableCellBg_def(4,0:8) = reshape((/& ! tree table name cell
+     0.80_c_float,0.00_c_float,0.00_c_float,0.4_c_float,&  ! 3d periodic
+     1.00_c_float,0.43_c_float,0.00_c_float,0.4_c_float,&  ! 3d periodic, layered
+     1.00_c_float,0.79_c_float,0.00_c_float,0.4_c_float,&  ! 3d periodic, chain
+     0.58_c_float,1.00_c_float,0.00_c_float,0.4_c_float,&  ! 3d periodic, molecular
+     0.00_c_float,1.00_c_float,0.96_c_float,0.4_c_float,&  ! slab
+     0.00_c_float,0.28_c_float,1.00_c_float,0.4_c_float,&  ! chain
+     0.51_c_float,0.51_c_float,0.51_c_float,0.4_c_float,&  ! molecule in a box
+     0.56_c_float,0.00_c_float,1.00_c_float,0.4_c_float,&  ! single molecule
+     1.00_c_float,0.00_c_float,0.66_c_float,0.4_c_float/),&! molecular cluster
+     shape(ColorTableCellBg_def))
+  real(c_float), public :: ColorTableCellBg(4,0:8) = ColorTableCellBg_def
   type(ImVec4), parameter, public :: ColorDialogDir = ImVec4(0.9, 0.9, 0.5, 1.0) ! directories in the dialog
   type(ImVec4), parameter, public :: ColorDialogFile = ImVec4(1.0, 1.0, 1.0, 1.0) ! files in the dialog
   type(ImVec4), parameter, public :: ColorHighlightText = ImVec4(0.2, 0.64, 0.9, 1.0) ! highlighted text
@@ -85,6 +91,7 @@ module gui_main
      type(crystalseed) :: seed ! generating seed
      logical :: has_field = .false. ! true if the seed has a field
      logical :: has_vib = .false. ! true if the seed has vibrational data
+     integer :: iperiod = 0 ! periodicity (see iperiod_*)
      integer :: collapse ! 0 if independent, -1 if master-collapsed, -2 if master-extended, <n> if dependent on n
      type(c_ptr) :: thread_lock = c_null_ptr ! the lock for initialization of this system
      character(len=:), allocatable :: fullname ! full-path name

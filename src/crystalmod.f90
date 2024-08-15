@@ -28,7 +28,19 @@ module crystalmod
 
   private
 
-  ! Holohedry identifier
+  ! system periodicity
+  integer, parameter, public :: iperiod_3d_crystal = 0   ! 3d periodic
+  integer, parameter, public :: iperiod_3d_layered = 1   ! 3d periodic, layered
+  integer, parameter, public :: iperiod_3d_chain = 2     ! 3d periodic, chain
+  integer, parameter, public :: iperiod_3d_molecular = 3 ! 3d periodic, molecular
+  integer, parameter, public :: iperiod_2d = 4           ! slab
+  integer, parameter, public :: iperiod_1d = 5           ! chain
+  integer, parameter, public :: iperiod_0d = 6           ! molecule-in-a-box
+  integer, parameter, public :: iperiod_mol_single = 7   ! a single molecule
+  integer, parameter, public :: iperiod_mol_cluster = 8  ! a molecular cluster
+  real*8,  parameter, public :: iperiod_vacthr = 15d0    ! threshold for vacuum detection
+
+  ! holohedry identifier
   integer, parameter, public :: holo_unk = 0 ! unknown
   integer, parameter, public :: holo_tric = 1 ! triclinic
   integer, parameter, public :: holo_mono = 2 ! monoclinic
@@ -160,6 +172,7 @@ module crystalmod
      integer :: lcon(3,2) !< Connected lattice vectors
      real*8 :: vaclength(3) !< Vacuum length in bohr along the crystallographic axes (a,b,c)
      ! variables for 3d molecular crystals
+     integer :: iperiod !< periodicity (see iperiod_* constants)
      logical :: ismol3d !< Is this a 3d molecular crystal?
      integer, allocatable :: idxmol(:) !< -1: mol is fractional, 0: sym. unique, >0 index for nneq mol.
      integer, allocatable :: idatcelmol(:) !< cell atom i belongs to idatcelmol(i) molecule
@@ -206,6 +219,7 @@ module crystalmod
      procedure :: identify_fragment_from_xyz !< Build a crystal fragment from an xyz file
      procedure :: fill_molecular_fragments !< Find the molecular fragments in the crystal
      procedure :: calculate_molecular_equivalence !< Calculate symmetry relations between molecules
+     procedure :: calculate_periodicity !< Calculate symmetry relations between molecules
      procedure :: listatoms_cells !< List all atoms in n cells (maybe w border)
      procedure :: listatoms_sphcub !< List all atoms in a sphere or cube
      procedure :: listmolecules !< List all molecules in the crystal
@@ -557,6 +571,9 @@ module crystalmod
      module subroutine calculate_molecular_equivalence(c)
        class(crystal), intent(inout) :: c
      end subroutine calculate_molecular_equivalence
+     module subroutine calculate_periodicity(c)
+       class(crystal), intent(inout) :: c
+     end subroutine calculate_periodicity
      module function listatoms_cells(c,nx,doborder) result(fr)
        class(crystal), intent(in) :: c
        integer, intent(in) :: nx(3)

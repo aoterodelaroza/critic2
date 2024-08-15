@@ -351,6 +351,41 @@ contains
 
   end subroutine calculate_molecular_equivalence
 
+  !> Calculate the periodicity of this crystal and set c%iperiod.
+  module subroutine calculate_periodicity(c)
+    class(crystal), intent(inout) :: c
+
+    integer :: nvac
+
+    if (c%ismolecule) then
+       if (c%nmol > 1) then
+          c%iperiod = iperiod_mol_cluster
+       else
+          c%iperiod = iperiod_mol_single
+       end if
+    else
+       nvac = count(c%vaclength > iperiod_vacthr)
+       if (nvac == 3) then
+          c%iperiod = iperiod_0d
+       elseif (nvac == 2) then
+          c%iperiod = iperiod_1d
+       elseif (nvac == 1) then
+          c%iperiod = iperiod_2d
+       else
+          if (c%ismol3d .or. c%nlvac == 3) then
+             c%iperiod = iperiod_3d_molecular
+          elseif (c%nlvac == 2) then
+             c%iperiod = iperiod_3d_chain
+          elseif (c%nlvac == 1) then
+             c%iperiod = iperiod_3d_layered
+          else
+             c%iperiod = iperiod_3d_crystal
+          end if
+       end if
+    end if
+
+  end subroutine calculate_periodicity
+
   !> List atoms in a number of cells around the main cell (nx cells),
   !> possibly with border (doborder).
   module function listatoms_cells(c,nx,doborder) result(fr)
