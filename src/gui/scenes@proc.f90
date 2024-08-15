@@ -780,7 +780,7 @@ contains
                 s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller,&
                    orraise=s%rep(i)%idwin)
              end if
-             call iw_tooltip("Edit this representation",ttshown)
+             call iw_tooltip("Edit this object",ttshown)
 
              ! duplicate
              str2 = "Duplicate" // c_null_char
@@ -794,7 +794,7 @@ contains
                 s%forcesort = .true.
                 changed = .true.
              end if
-             call iw_tooltip("Make a copy of this representation",ttshown)
+             call iw_tooltip("Make a copy of this object",ttshown)
 
              ! show/hide
              str2 = "Show/Hide" // c_null_char
@@ -802,7 +802,7 @@ contains
                 s%rep(i)%shown = .not.s%rep(i)%shown
                 changed = .true.
              end if
-             call iw_tooltip("Toggle hide/show this representation",ttshown)
+             call iw_tooltip("Toggle hide/show this object",ttshown)
 
              ! rename
              str2 = "Rename" // c_null_char
@@ -818,13 +818,13 @@ contains
                 end if
                 call igEndMenu()
              end if
-             call iw_tooltip("Rename this representation",ttshown)
+             call iw_tooltip("Rename this object",ttshown)
 
              ! delete
              str2 = "Delete" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) &
                 doerase = .true.
-             call iw_tooltip("Delete this representation",ttshown)
+             call iw_tooltip("Delete this object",ttshown)
 
              call igEndPopup()
           end if

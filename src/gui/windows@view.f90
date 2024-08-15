@@ -76,7 +76,7 @@ contains
 
     ! threshold for the increase/decrease cell number if vacuum
     real*8, parameter :: vacthr = 15d0 ! bohr
-    ! coordinate this with representation_menu in scenes module
+    ! coordinate this with objects (representation) menu in scenes module
     integer(c_int), parameter :: ic_closebutton = 0
     integer(c_int), parameter :: ic_viewbutton = 1
     integer(c_int), parameter :: ic_name = 2
@@ -491,7 +491,7 @@ contains
     if (associated(w%sc)) then
        if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
           call igAlignTextToFramePadding()
-          ! representations table
+          ! objectss table
           call iw_text("List of Objects",highlight=.true.)
 
           ! add button
@@ -516,7 +516,7 @@ contains
              end if
              call igEndPopup()
           end if
-          call iw_tooltip("Add a representation to the view",ttshown)
+          call iw_tooltip("Add a new object to the view",ttshown)
 
           ! rest of the table
           str2 = "Objects##0,0" // c_null_char
@@ -1574,7 +1574,7 @@ contains
        call iw_combo_simple("##reptype","Atoms+..." // c_null_char // "Unit cell" // c_null_char,itype)
        if (w%rep%type /= itype + 1) changed = .true.
        w%rep%type = itype + 1
-       call iw_tooltip("Type of representation",ttshown)
+       call iw_tooltip("Type of object",ttshown)
 
        ! name text input
        str1 = "##nametextinput"
@@ -1586,12 +1586,12 @@ contains
           w%rep%name = txtinp(1:ll-1)
        end if
        call igPopItemWidth()
-       call iw_tooltip("Name of this representation",ttshown)
+       call iw_tooltip("Name of this object",ttshown)
 
        ! shown checkbox
        call igSameLine(0._c_float,-1._c_float)
        changed = changed .or. iw_checkbox("Show",w%rep%shown)
-       call iw_tooltip("Toggle show/hide this representation",ttshown)
+       call iw_tooltip("Toggle show/hide this object",ttshown)
 
        ! type-dependent items
        if (w%rep%type == reptype_atoms) then
@@ -1669,17 +1669,21 @@ contains
     ! row of display options
     call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
     changed = changed .or. iw_checkbox("Atoms##atomsglobaldisplay",w%rep%atoms_display)
+    call igPopStyleColor(1)
     call iw_tooltip("Draw the atoms in the scene",ttshown)
 
+    call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
     changed = changed .or. iw_checkbox("Bonds##bondsglobaldisplay",w%rep%bonds_display,sameline=.true.)
+    call igPopStyleColor(1)
     call iw_tooltip("Draw the bonds in the scene",ttshown)
 
+    call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
     changed = changed .or. iw_checkbox("Labels##labelsglobaldisplay",w%rep%labels_display,sameline=.true.)
-    call iw_tooltip("Draw the atom labels in the scene",ttshown)
     call igPopStyleColor(1)
+    call iw_tooltip("Draw the atom labels in the scene",ttshown)
 
     str1 = "##editrepatomstabbar" // c_null_char
-    flags = ImGuiTabBarFlags_None
+    flags = ImGuiTabBarFlags_Reorderable
     if (igBeginTabBar(c_loc(str1),flags)) then
 
        str1 = "Atoms##editrepatoms_atomstab" // c_null_char
@@ -1740,7 +1744,7 @@ contains
 
              ! radio buttons for the periodicity type
              changed = changed .or. iw_radiobutton("None",int=w%rep%pertype,intval=0_c_int,sameline=.true.)
-             call iw_tooltip("Cell not repeated for this representation",ttshown)
+             call iw_tooltip("This object is represented only in the main cell and not repeated by translation",ttshown)
              changed = changed .or. iw_radiobutton("Automatic",int=w%rep%pertype,intval=1_c_int,sameline=.true.)
              call iw_tooltip("Number of periodic cells controlled by the +/- options in the view menu",ttshown)
              changed = changed .or. iw_radiobutton("Manual",int=w%rep%pertype,intval=2_c_int,sameline=.true.)
@@ -1911,7 +1915,7 @@ contains
              call igSameLine(0._c_float,-1._c_float)
              str2 = "##bondcolor" // c_null_char
              ch = igColorEdit3(c_loc(str2),w%rep%bond_rgb,ImGuiColorEditFlags_NoInputs)
-             call iw_tooltip("Color for the representation bonds",ttshown)
+             call iw_tooltip("Color for the bonds",ttshown)
              call iw_clamp_color3(w%rep%bond_rgb)
              call iw_text("Color",sameline=.true.)
              if (ch) then
@@ -2013,7 +2017,7 @@ contains
 
     ! radio buttons for the periodicity type
     changed = changed .or. iw_radiobutton("None",int=w%rep%pertype,intval=0_c_int,sameline=.true.)
-    call iw_tooltip("Cell not repeated for this representation",ttshown)
+    call iw_tooltip("This object is represented only in the main cell and not repeated by translation",ttshown)
     changed = changed .or. iw_radiobutton("Automatic",int=w%rep%pertype,intval=1_c_int,sameline=.true.)
     call iw_tooltip("Number of periodic cells controlled by the +/- options in the view menu",ttshown)
     changed = changed .or. iw_radiobutton("Manual",int=w%rep%pertype,intval=2_c_int,sameline=.true.)
@@ -2863,7 +2867,7 @@ contains
        call iw_combo_simple("Atom types##atomtypeselection","Species"//c_null_char//"Atoms"//c_null_char//&
           c_null_char,sty%type,changed=ch)
     end if
-    call iw_tooltip("Group atoms in the representation by these categories",ttshown)
+    call iw_tooltip("Group atoms by these categories",ttshown)
     if (ch) then
        call sty%reset(isys,sty%type)
        changed = .true.
