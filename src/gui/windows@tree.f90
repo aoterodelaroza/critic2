@@ -41,6 +41,10 @@ submodule (windows) tree
   integer(c_int), parameter :: ic_emol = 17
   integer(c_int), parameter :: ic_p = 18
   integer(c_int), parameter :: ic_NUMCOLUMNS = 19 ! keep up to date
+
+  ! color for vibrations and fields in tree
+  real(c_float), parameter :: rgba_vibrations(4) = (/0.84,0.86,0.00,1.00/)
+
   !xx! private procedures
   ! function tree_system_tooltip_string(i)
   ! function tree_field_tooltip_string(si,fj)
@@ -54,10 +58,11 @@ contains
        BIND_TREE_MOVE_DOWN
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
        iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight
-    use gui_main, only: nsys, sys, sysc, sys_empty, sys_init,&
+    use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_ready,&
        sys_loaded_not_init, sys_initializing, ColorTableCellBg_Mol,&
        ColorTableCellBg_MolClus, ColorTableCellBg_MolCrys, ColorTableCellBg_Crys3d,&
-       ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, launch_initialization_thread,&
+       ColorTableCellBg_Crys2d, ColorTableCellBg_Crys1d, ColorVibrationsAvail,&
+       launch_initialization_thread,&
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
        ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon,&
        tree_select_updates_view, fontsize, time
@@ -532,7 +537,14 @@ contains
           if (igTableSetColumnIndex(ic_id)) then
              str = string(i)
              call write_maybe_selectable(i,tooltipstr)
-             call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+             ok = (sysc(i)%status >= sys_ready)
+             if (ok) ok = allocated(sys(i)%c%vib)
+             if (ok) then
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,&
+                   rgba=rgba_vibrations,centered=.true.)
+             else
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,centered=.true.)
+             end if
           end if
 
           ! name

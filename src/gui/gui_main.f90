@@ -67,6 +67,7 @@ module gui_main
   type(ImVec4), parameter, public :: ColorWaitBg = ImVec4(0.80, 0.80, 0.80, 0.6) ! dim the background while waiting
   type(ImVec4), parameter, public :: ColorFrameBgAlt = ImVec4(0.29,0.16,0.48,0.54) ! alternate framebg
   type(ImVec4), parameter, public :: ColorFieldSelected = ImVec4(0.91,1.00,0.00,0.31) ! alternate framebg
+  type(ImVec4), parameter, public :: ColorVibrationsAvail = ImVec4(0.84,0.86,0.00,1.00) ! crystal has vibrations
 
   ! system status (must be from lower to higher initialization level)
   integer, parameter, public :: sys_empty = 0 ! not in use

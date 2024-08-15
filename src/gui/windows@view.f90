@@ -2821,7 +2821,7 @@ contains
        iw_clamp_color3, iw_calcwidth, iw_button
     use crystalmod, only: crystal
     use global, only: iunit_ang, dunit0
-    use tools_io, only: string, ioj_left, ioj_right
+    use tools_io, only: string, ioj_right
     type(crystal), intent(in) :: c
     type(draw_style_atom), intent(inout) :: sty
     integer, intent(in) :: isys
