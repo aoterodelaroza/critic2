@@ -750,7 +750,7 @@ contains
     integer :: i, j, nx(3), i0shift(3), i1shift(3)
     real*8 :: ri, rj, dmax, dd, xi(3), xj(3), xdelta(3)
     real*8, allocatable :: rij2(:,:,:)
-    integer :: iblock_stride
+    integer :: iblock_stride, nconi, nconj
     integer :: ix, iy, iz, jx, jy, jz, iid, jid, iidx(3), jidx(3)
     integer :: iat, jat, iaux(3), lvecx(3)
     logical :: sameblock
@@ -856,25 +856,27 @@ contains
                                dd < rij2(c%atcel(jat)%is,2,c%atcel(iat)%is)) then
                                ! add this atom
                                c%nstar(iat)%ncon = c%nstar(iat)%ncon + 1
-                               if (c%nstar(iat)%ncon > size(c%nstar(iat)%idcon,1)) then
-                                  call realloc(c%nstar(iat)%idcon,2*c%nstar(iat)%ncon)
-                                  call realloc(c%nstar(iat)%lcon,3,2*c%nstar(iat)%ncon)
+                               nconi = c%nstar(iat)%ncon
+                               if (nconi > size(c%nstar(iat)%idcon,1)) then
+                                  call realloc(c%nstar(iat)%idcon,2*nconi)
+                                  call realloc(c%nstar(iat)%lcon,3,2*nconi)
                                end if
-                               c%nstar(iat)%idcon(c%nstar(iat)%ncon) = jat
+                               c%nstar(iat)%idcon(nconi) = jat
 
                                c%nstar(jat)%ncon = c%nstar(jat)%ncon + 1
-                               if (c%nstar(jat)%ncon > size(c%nstar(jat)%idcon,1)) then
-                                  call realloc(c%nstar(jat)%idcon,2*c%nstar(jat)%ncon)
-                                  call realloc(c%nstar(jat)%lcon,3,2*c%nstar(jat)%ncon)
+                               nconj = c%nstar(jat)%ncon
+                               if (nconj > size(c%nstar(jat)%idcon,1)) then
+                                  call realloc(c%nstar(jat)%idcon,2*nconj)
+                                  call realloc(c%nstar(jat)%lcon,3,2*nconj)
                                end if
-                               c%nstar(jat)%idcon(c%nstar(jat)%ncon) = iat
+                               c%nstar(jat)%idcon(nconj) = iat
                                if (c%ismolecule) then
-                                  c%nstar(iat)%lcon(:,c%nstar(iat)%ncon) = 0
-                                  c%nstar(jat)%lcon(:,c%nstar(jat)%ncon) = 0
+                                  c%nstar(iat)%lcon(:,nconi) = 0
+                                  c%nstar(jat)%lcon(:,nconj) = 0
                                else
                                   lvecx = nint(matmul(c%m_c2x,xj-xi) + c%atcel(iat)%x - c%atcel(jat)%x)
-                                  c%nstar(iat)%lcon(:,c%nstar(iat)%ncon) = lvecx
-                                  c%nstar(jat)%lcon(:,c%nstar(jat)%ncon) = -lvecx
+                                  c%nstar(iat)%lcon(:,nconi) = lvecx
+                                  c%nstar(jat)%lcon(:,nconj) = -lvecx
                                end if
                             end if
 
