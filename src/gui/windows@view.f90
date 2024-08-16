@@ -1558,13 +1558,18 @@ contains
     if (.not.doquit) doquit = .not.(win(w%idparent)%isinit)
     if (.not.doquit) doquit = .not.associated(win(w%idparent)%sc)
     if (.not.doquit) doquit = win(w%idparent)%type /= wintype_view
+    if (.not.doquit) doquit = (win(w%idparent)%view_selected /= isys)
 
     if (.not.doquit) then
        ! whether the rep has changed
        changed = .false.
 
-       !!! name and type block
-       call iw_text("Name and Type",highlight=.true.)
+       ! system
+       call iw_text("System",highlight=.true.)
+       call iw_text("(" // string(isys) // ") " // trim(sysc(isys)%seed%name),sameline=.true.)
+
+       ! name and type block
+       call iw_text("Type and Name",highlight=.true.)
 
        ! the representation type
        itype = w%rep%type - 1
@@ -1667,17 +1672,17 @@ contains
     call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
     changed = changed .or. iw_checkbox("Atoms##atomsglobaldisplay",w%rep%atoms_display)
     call igPopStyleColor(1)
-    call iw_tooltip("Draw the atoms in the scene",ttshown)
+    call iw_tooltip("Display atoms in the scene",ttshown)
 
     call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
     changed = changed .or. iw_checkbox("Bonds##bondsglobaldisplay",w%rep%bonds_display,sameline=.true.)
     call igPopStyleColor(1)
-    call iw_tooltip("Draw the bonds in the scene",ttshown)
+    call iw_tooltip("Display bonds in the scene",ttshown)
 
     call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
     changed = changed .or. iw_checkbox("Labels##labelsglobaldisplay",w%rep%labels_display,sameline=.true.)
     call igPopStyleColor(1)
-    call iw_tooltip("Draw the atom labels in the scene",ttshown)
+    call iw_tooltip("Display atomic labels in the scene",ttshown)
 
     str1 = "##editrepatomstabbar" // c_null_char
     flags = ImGuiTabBarFlags_Reorderable
