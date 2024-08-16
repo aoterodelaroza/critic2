@@ -1242,7 +1242,6 @@ contains
      ncylflat,drawlist_cylflat,nstring,drawlist_string,doanim,iqpt,ifreq)
     use gui_main, only: sys, sysc
     use tools_io, only: string, nameguess
-    use hashmod, only: hash
     use param, only: bohrtoa, newline, tpi, img, atmass
     class(representation), intent(inout), target :: r
     integer, intent(in) :: nc(3)
@@ -1257,7 +1256,7 @@ contains
     logical, intent(in) :: doanim
     integer, intent(in) :: iqpt, ifreq
 
-    type(hash) :: shown_atoms
+    logical, allocatable :: lshown(:,:,:,:)
     logical :: havefilter, step, isedge(3), usetshift, doanim_
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
@@ -1267,7 +1266,7 @@ contains
     type(dl_sphere), allocatable :: auxsph(:)
     type(dl_cylinder), allocatable :: auxcyl(:)
     type(dl_string), allocatable :: auxstr(:)
-    character(len=:), allocatable :: atcode, errmsg
+    character(len=:), allocatable :: errmsg
 
     real*8, parameter :: rthr = 0.01d0
     real*8, parameter :: rthr1 = 1-rthr
@@ -1335,6 +1334,10 @@ contains
        else
           uoriginc = sys(r%id)%c%x2c(real(r%origin,8))
        end if
+
+       ! array to check whether an atoms has been drawn
+       allocate(lshown(sys(r%id)%c%ncel,-1:n(1)+1,-1:n(2)+1,-1:n(3)+1))
+       lshown = .false.
 
        ! run over atoms, either directly or per-molecule
        i = 0
@@ -1452,18 +1455,18 @@ contains
 
                    ! bonds
                    if (r%bonds_display) then
-                      ! add this atom to the hash
-                      atcode = string(i) // "_" // string(ix(1)) // "_" // string(ix(2)) // "_" // string(ix(3))
-                      call shown_atoms%put(atcode,1)
+                      ! mark this atom as drawn
+                      call check_lshown(i,ix(1),ix(2),ix(3))
+                      lshown(i,ix(1),ix(2),ix(3)) = .true.
 
                       ! bonds
                       do ib = 1, sys(r%id)%c%nstar(i)%ncon
                          ineigh = sys(r%id)%c%nstar(i)%idcon(ib)
                          ixn = ix + sys(r%id)%c%nstar(i)%lcon(:,ib)
 
-                         ! check if the atom has been represented already
-                         atcode = string(ineigh) // "_" // string(ixn(1)) // "_" // string(ixn(2)) // "_" // string(ixn(3))
-                         if (.not.shown_atoms%iskey(atcode)) cycle
+                         ! skip if the atom has not been represented already
+                         call check_lshown(ineigh,ixn(1),ixn(2),ixn(3))
+                         if (.not.lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
 
                          ! draw the bond, reallocate if necessary
                          if (r%bond_color_style == 0) then
@@ -1657,6 +1660,35 @@ contains
       end if
 
     end subroutine increase_ncylflat
+
+    subroutine check_lshown(i,i1,i2,i3)
+      integer, intent(in) :: i, i1, i2, i3
+
+      integer :: l, l1, l2, l3, u, u1, u2, u3
+      logical, allocatable :: lshown_aux(:,:,:,:)
+
+      if (i < lbound(lshown,1) .or. i > ubound(lshown,1) .or.&
+         i1 < lbound(lshown,2) .or. i1 > ubound(lshown,2) .or.&
+         i2 < lbound(lshown,3) .or. i2 > ubound(lshown,3) .or.&
+         i3 < lbound(lshown,4) .or. i3 > ubound(lshown,4)) then
+         l = min(i,lbound(lshown,1))
+         u = max(i,ubound(lshown,1))
+         l1 = min(i1,lbound(lshown,2))
+         u1 = max(i1,ubound(lshown,2))
+         l2 = min(i2,lbound(lshown,3))
+         u2 = max(i2,ubound(lshown,3))
+         l3 = min(i3,lbound(lshown,4))
+         u3 = max(i3,ubound(lshown,4))
+         allocate(lshown_aux(l:u,l1:u1,l2:u2,l3:u3))
+         lshown_aux = .false.
+         lshown_aux(lbound(lshown,1):ubound(lshown,1),lbound(lshown,2):ubound(lshown,2),&
+            lbound(lshown,3):ubound(lshown,3),lbound(lshown,4):ubound(lshown,4)) = &
+            lshown
+         call move_alloc(lshown_aux,lshown)
+      end if
+
+    end subroutine check_lshown
+
   end subroutine add_draw_elements
 
   !xx! private procedures: low-level draws
