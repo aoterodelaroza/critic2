@@ -63,7 +63,7 @@ module windows
   integer, parameter :: MB_navigation = 1
 
   ! user data for the file open dialog
-  type, bind(c) :: dialog_userdata
+  type :: dialog_userdata
      type(c_ptr) :: dptr = c_null_ptr ! the pointer for the file dialog
      integer(c_int) :: mol = -1 ! -1 = auto, 0 = crystal, 1 = molecule
      logical :: showhidden = .false._c_bool ! show hidden files

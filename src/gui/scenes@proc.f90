@@ -530,8 +530,6 @@ contains
       integer :: i
       real(c_float) :: x(3)
 
-      integer :: idxvcolor, idxmodel, idxidx
-
       do i = 1, s%nsph
          x = s%drawlist_sph(i)%x
          if (s%animation > 0) then
@@ -1124,7 +1122,7 @@ contains
     class(draw_style_molecule), intent(inout), target :: d
     integer, intent(in), value :: isys
 
-    integer :: i, ispc, iz
+    integer :: i
 
     ! set the atom style to zero
     d%ntype = 0
@@ -1302,7 +1300,7 @@ contains
   !> iqpt and frequency ifreq to animate the representation.
   module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
      ncylflat,drawlist_cylflat,nstring,drawlist_string,doanim,iqpt,ifreq)
-    use gui_main, only: sys, sysc
+    use gui_main, only: sys
     use tools_io, only: string, nameguess
     use param, only: bohrtoa, newline, tpi, img, atmass
     class(representation), intent(inout), target :: r
@@ -1322,7 +1320,8 @@ contains
     logical :: havefilter, step, isedge(3), usetshift, doanim_
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
-    real(c_float) :: rgb(3), rad1, rad2, dd, f1, f2
+    real(c_float) :: rgb(3)
+    real*8 :: rad1, rad2, dd, f1, f2
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), phase, mass
     complex*16 :: xdelta0(3), xdelta1(3), xdelta2(3)
     type(dl_sphere), allocatable :: auxsph(:)
@@ -1508,7 +1507,7 @@ contains
 
                       ! write down the sphere
                       drawlist_sph(nsph)%x = real(xc + uoriginc,c_float)
-                      drawlist_sph(nsph)%r = rad1
+                      drawlist_sph(nsph)%r = real(rad1,c_float)
                       drawlist_sph(nsph)%rgb = rgb
                       drawlist_sph(nsph)%idx(1) = i
                       drawlist_sph(nsph)%idx(2:4) = ix
@@ -1608,7 +1607,7 @@ contains
 
                       drawlist_string(nstring)%x = real(xc + uoriginc,c_float)
                       drawlist_string(nstring)%xdelta = cmplx(xdelta1,kind=c_float_complex)
-                      drawlist_string(nstring)%r = rad1
+                      drawlist_string(nstring)%r = real(rad1,c_float)
                       drawlist_string(nstring)%rgb = r%label_rgb
                       if (r%label_const_size) then
                          drawlist_string(nstring)%scale = r%label_scale

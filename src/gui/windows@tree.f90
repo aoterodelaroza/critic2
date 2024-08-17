@@ -60,7 +60,7 @@ contains
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
        iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_ready,&
-       sys_loaded_not_init, sys_initializing, ColorVibrationsAvail,&
+       sys_loaded_not_init, sys_initializing,&
        launch_initialization_thread, ColorTableCellBg,&
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
        ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon,&
@@ -1347,7 +1347,6 @@ contains
     integer :: k, iz
     real*8 :: maxdv, mass, dens
     real(c_float) :: rgba(4)
-    type(ImVec4) :: col4
     integer :: nelec
     character(len=3) :: schpg
     integer :: holo, laue
@@ -2223,7 +2222,7 @@ contains
     use param, only: atmcov0, maxzat0, bohrtoa, newline
     class(window), intent(inout), target :: w
 
-    logical :: ok, doquit, oksys, ch
+    logical :: doquit, oksys, ch
     integer :: i, iz, isys, natused
     type(ImVec2) :: szavail, szero, sz0
     integer(c_int) :: flags

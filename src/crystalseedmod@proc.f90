@@ -2859,11 +2859,6 @@ contains
 
   !> Read the structure from a crystal output
   module subroutine read_crystalout(seed,file,mol,errmsg,ti)
-    use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
-       zatguess, fclose, equali
-    use tools_math, only: matinv
-    use types, only: realloc
-    use param, only: bohrtoa, isformat_crystal
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?

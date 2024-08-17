@@ -391,7 +391,7 @@ contains
   !> as open.
   module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idcaller)
     use interfaces_opengl3
-    use gui_main, only: ColorDialogDir, ColorDialogFile, sysc
+    use gui_main, only: ColorDialogDir, ColorDialogFile
     use tools_io, only: ferror, faterr
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
@@ -860,7 +860,6 @@ contains
     type(ImVec2) :: sz, szero
     integer :: i, newkey
     integer(c_int) :: flags
-    real(c_float) :: rgba(4)
 
     logical, save :: ttshown = .false. ! tooltip flag
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
