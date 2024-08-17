@@ -68,7 +68,7 @@ contains
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
     logical :: islabels, isuc
     logical(c_bool) :: ch, enabled
-    integer(c_int) :: amax, flags, nc(3), ires, idx(4), viewtype, idum
+    integer(c_int) :: amax, flags, nc(3), ires, idx(5), viewtype, idum
     real(c_float) :: scal, width, sqw, ratio, depth, rgba(4)
     real*8 :: x0(3)
     logical :: changedisplay(4) ! 1=atoms, 2=bonds, 3=labels, 4=cell
@@ -744,7 +744,15 @@ contains
        call igGetMousePos(pos)
        call w%mousepos_to_texpos(pos)
        call w%getpixel(pos,depth,rgba)
-       idx = transfer(rgba,idx)
+
+       ! transform to atom cell ID and lattice vector
+       idx(1:4) = transfer(rgba,idx(1:4))
+       idx(5) = idx(1)
+       if (associated(w%sc) .and. idx(1) > 0) then
+          idx(1:4) = w%sc%drawlist_sph(idx(1))%idx
+       else
+          idx = 0
+       end if
     end if
 
     ! mode selection
@@ -983,7 +991,7 @@ contains
     use gui_main, only: io, nsys
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
-    integer(c_int), intent(in) :: idx(4)
+    integer(c_int), intent(in) :: idx(5)
 
     type(ImVec2) :: texpos, mousepos
     real(c_float) :: ratio, pos3(3), vnew(3), vold(3), axis(3), lax
@@ -1176,7 +1184,7 @@ contains
           w%forcerender = .true.
        end if
        if (hover .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) then
-          call w%sc%select_atom((/0,0,0,0/))
+          call w%sc%select_atom((/0,0,0,0,0/))
           w%forcerender = .true.
        end if
     end if
@@ -1191,13 +1199,12 @@ contains
     use tools_math, only: cross
     use param, only: bohrtoa, pi
     class(window), intent(inout), target :: w
-    integer(c_int), intent(in) :: idx(4)
+    integer(c_int), intent(in) :: idx(5)
 
     integer :: nmsel
-    integer :: msel(4,4)
+    integer :: msel(5,4)
     integer :: idx1(4), idx2(4), idx3(4), idx4(4)
     real*8 :: x0(3), x1(3), x2(3), d, d1, d2, ang, n0(3), n1(3)
-
 
     real(c_float), parameter :: rgbsel(4,4) = reshape((/&
        1._c_float,  0.4_c_float, 0.4_c_float, 1._c_float,&
@@ -1211,7 +1218,7 @@ contains
     nmsel = w%sc%nmsel
     if (nmsel == 0) return
     msel = w%sc%msel
-    if (nmsel == 1 .and. (idx(1) == 0 .or. all(idx == msel(:,1)))) return
+    if (nmsel == 1 .and. (idx(1) == 0 .or. idx(5) == msel(5,1))) return
 
     ! start tooltip and header
     call igBeginTooltip()
@@ -1219,12 +1226,12 @@ contains
     call iw_text("Distance (d), angle (α), dihedral (φ)")
 
     ! distance 1-2
-    idx1 = msel(:,1)
+    idx1 = msel(1:4,1)
     if (nmsel == 1) then
-       idx2 = idx
+       idx2 = idx(1:4)
        if (idx(1) == 0) goto 999
     else
-       idx2 = msel(:,2)
+       idx2 = msel(1:4,2)
     end if
     x0 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4)
     x0 = x0 - (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
@@ -1244,13 +1251,13 @@ contains
     ! distance and angle with atom 3
     if (nmsel > 1) then
        ! distance 2-3
-       idx1 = msel(:,2)
+       idx1 = msel(1:4,2)
        if (nmsel == 2) then
-          idx2 = idx
+          idx2 = idx(1:4)
           if (idx(1) == 0) goto 999
-          if (all(idx == msel(:,2)) .or. all(idx == msel(:,1))) goto 999
+          if (idx(5) == msel(5,2) .or. idx(5) == msel(5,1)) goto 999
        else
-          idx2 = msel(:,3)
+          idx2 = msel(1:4,3)
        end if
        x0 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4)
        x0 = x0 - (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
@@ -1268,7 +1275,7 @@ contains
        end if
 
        ! angle 1-2-3
-       idx3 = msel(:,1)
+       idx3 = msel(1:4,1)
        x0 = sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4) -&
           (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
        x1 = sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4) -&
@@ -1294,13 +1301,13 @@ contains
     ! distance, angle, dihedral
     if (nmsel > 2) then
        ! distance 3-4
-       idx1 = msel(:,3)
+       idx1 = msel(1:4,3)
        if (nmsel == 3) then
-          idx2 = idx
+          idx2 = idx(1:4)
           if (idx(1) == 0) goto 999
-          if (all(idx == msel(:,3)) .or. all(idx == msel(:,2)) .or. all(idx == msel(:,1))) goto 999
+          if (idx(5) == msel(5,3) .or. idx(5) == msel(5,2) .or. idx(5) == msel(5,1)) goto 999
        else
-          idx2 = msel(:,4)
+          idx2 = msel(1:4,4)
        end if
        x0 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4)
        x0 = x0 - (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
@@ -1318,7 +1325,7 @@ contains
        end if
 
        ! angle 2-3-4
-       idx3 = msel(:,2)
+       idx3 = msel(1:4,2)
        x0 = sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4) -&
           (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
        x1 = sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4) -&
@@ -1341,7 +1348,7 @@ contains
        end if
 
        ! dihedral 1-2-3-4
-       idx4 = msel(:,1)
+       idx4 = msel(1:4,1)
        x0 = sys(w%view_selected)%c%atcel(idx4(1))%x + idx4(2:4) -&
           (sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4))
        x1 = sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4) -&

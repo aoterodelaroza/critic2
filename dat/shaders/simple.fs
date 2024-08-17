@@ -1,9 +1,10 @@
 #version 330 core
 
-uniform vec4 vColor;
-uniform vec3 bordercolor;
-uniform float rborder_sph;
-uniform float rborder_cyl;
+uniform int object_type; // 0=sphere, 1=cyl, 2=cyl_flat
+uniform float rborder; // border of the object
+uniform vec3 bordercolor; // color of the border
+uniform vec4 vColor; // color of the object
+uniform int ndash_cyl; // number of dashes in the cylinder
 
 in vec3 center;
 in vec3 vertex;
@@ -13,45 +14,53 @@ out vec4 outputColor;
 
 void main(){
 
-  if (rborder_sph > 0){
-    // sphere: radius and projected radius calculations in view space
-    vec3 vx = vertex - center;
-    vec3 n = vec3(0.,0.,-1.);
-    float radius = length(vx);
-    float rproj = length(vx - dot(vx,n) * n);
+  if (object_type == 0){
+    // sphere //
 
-    if (radius - rproj < rborder_sph)
+    // project onto the screen plane passing through the center of the sphere
+    vec3 vx = vertex - center;
+    vec3 ncam = vec3(0.,0.,-1.);
+
+    // radius = radius of the sphere, rproj = distance to the center
+    float radius = length(vx);
+    float rproj = length(vx - dot(vx,ncam) * ncam);
+
+    // use the border color if close to the edge of the sphere
+    if (radius - rproj < rborder)
       outputColor = vec4(bordercolor,vColor.a);
     else
       outputColor = vColor;
-  } else if (rborder_cyl > 0){
-    // cylinder calculations
-    // half-height and radius of the cylinder
+  } else if (object_type == 1) {
+    // cylinder //
+
+    // calculate half-height and radius of the cylinder in view coordinates
     float hheight = length(up-center);
     float radius = length(side-center);
 
-    // up vector and vector pointing towards camera
+    // up vector = along the cylinder, ncam = towards the camera
     vec3 upn = normalize(up-center);
-    vec3 n = vec3(0.,0.,-1.);
+    vec3 ncam = vec3(0.,0.,-1.);
 
-    // side2 is perpendicular to up and n
-    vec3 side2 = normalize(cross(n,upn));
+    // vperp is perpendicular to upn and ncam
+    vec3 vperp = normalize(cross(ncam,upn));
 
     // calculate the distance along the cylinder (-hheight to hheight) and project out the up
     vec3 vx = vertex-center;
     float ralong = dot(vx,upn);
     vx = vx - ralong * upn;
 
-    // // discard to make dashed
-    // int ndashes = 10;
-    // if (mod(trunc(0.5 * (hheight + ralong) / hheight * ndashes),2) == 1) discard;
-
-    // border
-    if (radius * (1 - abs(dot(normalize(vx),side2))) < rborder_cyl)
-      outputColor = vec4(bordercolor,vColor.a);
-    else
-      outputColor = vColor;
-  } else {
+    // discard to make dashed
+    if (mod(trunc(0.5 * (hheight + ralong) / hheight * ndash_cyl),2) == 1){
+      discard;
+    } else {
+      // border
+      if (radius - radius * abs(dot(normalize(vx),vperp)) < rborder)
+	outputColor = vec4(bordercolor,vColor.a);
+      else
+	outputColor = vColor;
+    }
+  } else if (object_type == 2) {
+    // flat cylinder //
     outputColor = vColor;
   }
 }

@@ -28,6 +28,21 @@ submodule (scenes) proc
      zero,zero,one,zero,&
      zero,zero,zero,one/),shape(eye4))
 
+  ! space for uniforms
+  integer, parameter :: iu_world = 1
+  integer, parameter :: iu_view = 2
+  integer, parameter :: iu_projection = 3
+  integer, parameter :: iu_model = 4
+  integer, parameter :: iu_object_type = 5
+  integer, parameter :: iu_rborder = 6
+  integer, parameter :: iu_bordercolor = 7
+  integer, parameter :: iu_vcolor = 8
+  integer, parameter :: iu_idx = 9
+  integer, parameter :: iu_delta_cyl = 10
+  integer, parameter :: iu_ndash_cyl = 11
+  integer, parameter :: iu_NUM = 12
+  integer(c_int) :: iunif(iu_NUM)
+
   !xx! private procedures: low-level draws
   ! subroutine draw_sphere(x0,rad,ires,rgb,index)
   ! subroutine draw_cylinder(x1,x2,rad,rgb,ires)
@@ -283,6 +298,7 @@ contains
   module subroutine scene_render(s)
     use interfaces_cimgui
     use interfaces_opengl3
+    use interfaces_glfw, only: glfwGetTime
     use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
     use gui_main, only: fonts, fontbakesize_large, time, font_large, sys
     use utils, only: ortho, project
@@ -290,13 +306,13 @@ contains
     use tools_io, only: string
     use shaders, only: shader_phong, shader_simple, shader_text_onscene,&
        useshader, setuniform_int, setuniform_float, setuniform_vec3,&
-       setuniform_vec4, setuniform_mat3, setuniform_mat4
+       setuniform_vec4, setuniform_mat3, setuniform_mat4, get_uniform_location
     use param, only: img, pi
     class(scene), intent(inout), target :: s
 
     real(c_float) :: xsel(3,4), radsel(4)
     complex(c_float_complex) :: displ
-    real*8 :: deltat, fac
+    real*8 :: deltat, fac, time0
 
     real(c_float), parameter :: rgbsel(4,4) = reshape((/&
        1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
@@ -313,6 +329,8 @@ contains
 
     ! build draw lists if not done already
     if (s%isinit == 1 .or. .not.allocated(s%drawlist_sph)) call s%build_lists()
+
+    ! time0 = glfwGetTime()
 
     ! render text with the large font
     call igPushFont(font_large)
@@ -337,16 +355,16 @@ contains
        !! phong !!
        ! set up the shader and the uniforms
        call useshader(shader_phong)
-       call setuniform_int("uselighting",1_c_int)
-       call setuniform_vec3("lightPos",s%lightpos)
-       call setuniform_vec3("lightColor",s%lightcolor)
-       call setuniform_float("ambient",s%ambient)
-       call setuniform_float("diffuse",s%diffuse)
-       call setuniform_float("specular",s%specular)
-       call setuniform_int("shininess",s%shininess)
-       call setuniform_mat4("world",s%world)
-       call setuniform_mat4("view",s%view)
-       call setuniform_mat4("projection",s%projection)
+       call setuniform_int(1_c_int,"uselighting")
+       call setuniform_vec3(s%lightpos,"lightPos")
+       call setuniform_vec3(s%lightcolor,"lightColor")
+       call setuniform_float(s%ambient,"ambient")
+       call setuniform_float(s%diffuse,"diffuse")
+       call setuniform_float(s%specular,"specular")
+       call setuniform_int(s%shininess,"shininess")
+       call setuniform_mat4(s%world,"world")
+       call setuniform_mat4(s%view,"view")
+       call setuniform_mat4(s%projection,"projection")
 
        ! draw the atoms
        if (s%nsph > 0) then
@@ -362,14 +380,14 @@ contains
 
        ! draw the flat cylinders (unit cell)
        if (s%ncylflat > 0) then
-          call setuniform_int("uselighting",0_c_int)
+          call setuniform_int(0_c_int,"uselighting")
           call glBindVertexArray(cylVAO(s%uc_res))
           call draw_all_flat_cylinders()
        end if
 
        ! draw the selected atoms
        if (s%nmsel > 0) then
-          call setuniform_int("uselighting",0_c_int)
+          call setuniform_int(0_c_int,"uselighting")
           call glBindVertexArray(sphVAO(s%atom_res))
           call glEnable(GL_BLEND)
           call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -379,9 +397,9 @@ contains
 
        ! render labels with on-scene text
        call useshader(shader_text_onscene)
-       call setuniform_mat4("world",s%world)
-       call setuniform_mat4("view",s%view)
-       call setuniform_mat4("projection",s%projection)
+       call setuniform_mat4(s%world,"world")
+       call setuniform_mat4(s%view,"view")
+       call setuniform_mat4(s%projection,"projection")
 
        call glDisable(GL_MULTISAMPLE)
        call glEnable(GL_BLEND)
@@ -401,33 +419,58 @@ contains
        call glEnable(GL_MULTISAMPLE)
        call glDisable(GL_BLEND)
     else
-       !! simple !!
-       ! set up the shader and the uniforms
-       call useshader(shader_simple)
-       call setuniform_mat4("world",s%world)
-       call setuniform_mat4("view",s%view)
-       call setuniform_mat4("projection",s%projection)
+       ! !! simple !!
 
-       ! draw the atoms
-       call setuniform_float("rborder_sph",s%atomborder)
-       call setuniform_float("rborder_cyl",-1._c_float)
-       call setuniform_vec3("bordercolor",s%bordercolor)
+       ! set up the shader
+       call useshader(shader_simple)
+
+       ! get all the uniforms
+       iunif(iu_world) = get_uniform_location("world")
+       iunif(iu_view) = get_uniform_location("view")
+       iunif(iu_projection) = get_uniform_location("projection")
+       iunif(iu_model) = get_uniform_location("model")
+       iunif(iu_object_type) = get_uniform_location("object_type")
+       iunif(iu_rborder) = get_uniform_location("rborder")
+       iunif(iu_bordercolor) = get_uniform_location("bordercolor")
+       iunif(iu_vcolor) = get_uniform_location("vColor")
+       iunif(iu_idx) = get_uniform_location("idx")
+       iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
+       iunif(iu_ndash_cyl) = get_uniform_location("ndash_cyl")
+
+       ! set the common uniforms
+       call setuniform_mat4(s%world,idxi=iunif(iu_world))
+       call setuniform_mat4(s%view,idxi=iunif(iu_view))
+       call setuniform_mat4(s%projection,idxi=iunif(iu_projection))
+
+       ! draw the spheres for the atoms
+       call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
+       call setuniform_float(s%atomborder,idxi=iunif(iu_rborder))
+       call setuniform_vec3(s%bordercolor,idxi=iunif(iu_bordercolor))
        if (s%nsph > 0) then
           call glBindVertexArray(sphVAO(s%atom_res))
           call draw_all_spheres()
        end if
 
-       ! draw the bonds
-       call setuniform_float("rborder_sph",-1._c_float)
-       call setuniform_float("rborder_cyl",s%atomborder)
+       ! draw the cylinders for the bonds (inherit border from atoms)
+       call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
+       call setuniform_int(0_c_int,idxi=iunif(iu_ndash_cyl))
+       ! call setuniform_float(0.275_c_float,idxi=iunif(iu_delta_cyl))
+       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
        if (s%ncyl > 0) then
           call glBindVertexArray(cylVAO(s%bond_res))
           call draw_all_cylinders()
        end if
 
-       ! draw the flat cylinders (unit cell)
-       call setuniform_float("rborder_sph",-1._c_float)
-       call setuniform_float("rborder_cyl",-1._c_float)
+       ! call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
+       ! call setuniform_int(0_c_int,idxi=iunif(iu_ndash_cyl))
+       ! call setuniform_float(-0.275_c_float,idxi=iunif(iu_delta_cyl))
+       ! if (s%ncyl > 0) then
+       !    call glBindVertexArray(cylVAO(s%bond_res))
+       !    call draw_all_cylinders()
+       ! end if
+
+       ! draw the flat cylinders for the unit cell
+       call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
        if (s%ncylflat > 0) then
           call glBindVertexArray(cylVAO(s%uc_res))
           call draw_all_flat_cylinders()
@@ -435,6 +478,9 @@ contains
 
        ! draw the selected atoms
        if (s%nmsel > 0) then
+          call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
+          call setuniform_float(0._c_float,idxi=iunif(iu_rborder))
+          ! call setuniform_vec3(0._c_float,idxi=iunif(iu_bordercolor))
           call glBindVertexArray(sphVAO(s%atom_res))
           call glEnable(GL_BLEND)
           call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -444,9 +490,9 @@ contains
 
        ! render labels with on-scene text
        call useshader(shader_text_onscene)
-       call setuniform_mat4("world",s%world)
-       call setuniform_mat4("view",s%view)
-       call setuniform_mat4("projection",s%projection)
+       call setuniform_mat4(s%world,"world")
+       call setuniform_mat4(s%view,"view")
+       call setuniform_mat4(s%projection,"projection")
 
        call glDisable(GL_MULTISAMPLE)
        call glEnable(GL_BLEND)
@@ -478,10 +524,14 @@ contains
     ! save the rendering time
     s%timelastrender = time
 
+    ! write (*,*) "render time (fps) = ", 1d0/(glfwGetTime()-time0)
+
   contains
     subroutine draw_all_spheres()
       integer :: i
       real(c_float) :: x(3)
+
+      integer :: idxvcolor, idxmodel, idxidx
 
       do i = 1, s%nsph
          x = s%drawlist_sph(i)%x
@@ -523,17 +573,15 @@ contains
       integer :: i, j
       real(c_float) :: x(3)
 
-      do i = 1, s%nsph
-         do j = 1, s%nmsel
-            if (all(s%drawlist_sph(i)%idx == s%msel(:,j))) then
-               x = s%drawlist_sph(i)%x
-               if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
-               call draw_sphere(x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
-               radsel(j) = s%drawlist_sph(i)%r + msel_thickness
-               xsel(:,j) = x
-            end if
-         end do
+      do j = 1, s%nmsel
+         i = s%msel(5,j)
+         x = s%drawlist_sph(i)%x
+         if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
+         call draw_sphere(x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
+         radsel(j) = s%drawlist_sph(i)%r + msel_thickness
+         xsel(:,j) = x
       end do
+
     end subroutine draw_all_selections
 
     subroutine draw_all_text()
@@ -542,8 +590,12 @@ contains
       integer(c_int) :: nvert
       real(c_float), allocatable, target :: vert(:,:)
 
+      integer :: iu
+
+      iu = get_uniform_location("textColor")
+
       do i = 1, s%nstring
-         call setuniform_vec3("textColor",s%drawlist_string(i)%rgb)
+         call setuniform_vec3(s%drawlist_string(i)%rgb,idxi=iu)
          nvert = 0
          if (s%drawlist_string(i)%scale > 0._c_float) then
             hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
@@ -569,8 +621,12 @@ contains
       integer(c_int) :: nvert
       real(c_float), allocatable, target :: vert(:,:)
 
+      integer :: iu
+
+      iu = get_uniform_location("textColor")
+
       do j = 1, s%nmsel
-         call setuniform_vec3("textColor",(/1._c_float,1._c_float,1._c_float/))
+         call setuniform_vec3((/1._c_float,1._c_float,1._c_float/),idxi=iu)
          siz = sel_label_size * s%projection(1,1) / fontbakesize_large
          nvert = 0
          call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
@@ -591,7 +647,7 @@ contains
     use tools_math, only: eigsym, matinv_cfloat
     use shaders, only: shader_pickindex, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
-       setuniform_mat4
+       setuniform_mat4, get_uniform_location
     class(scene), intent(inout), target :: s
 
     integer :: i
@@ -607,15 +663,19 @@ contains
 
     ! set up the shader and the uniforms
     call useshader(shader_pickindex)
-    call setuniform_mat4("world",s%world)
-    call setuniform_mat4("view",s%view)
-    call setuniform_mat4("projection",s%projection)
+    call setuniform_mat4(s%world,"world")
+    call setuniform_mat4(s%view,"view")
+    call setuniform_mat4(s%projection,"projection")
+
+    ! set the uniforms
+    iunif(iu_model) = get_uniform_location("model")
+    iunif(iu_idx) = get_uniform_location("idx")
 
     ! draw the atoms
     if (s%nsph > 0) then
        call glBindVertexArray(sphVAO(s%atom_res))
        do i = 1, s%nsph
-          call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%atom_res,idx=s%drawlist_sph(i)%idx)
+          call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%atom_res,idx=(/i,0,0,0/))
        end do
        call glBindVertexArray(0)
     end if
@@ -966,7 +1026,7 @@ contains
   !> clear the measure selection.
   module subroutine select_atom(s,idx)
     class(scene), intent(inout), target :: s
-    integer, intent(in) :: idx(4)
+    integer, intent(in) :: idx(5)
 
     integer :: i, j
 
@@ -978,7 +1038,7 @@ contains
 
     ! if the atom is already selected, deselect
     do i = 1, s%nmsel
-       if (all(idx == s%msel(:,i))) then
+       if (idx(5) == s%msel(5,i)) then
           do j = i+1, s%nmsel
              s%msel(:,j-1) = s%msel(:,j)
           end do
@@ -1725,18 +1785,20 @@ contains
     model(2,2) = rad
     model(3,3) = rad
 
-    ! draw the sphere
+    ! set the uniforms
     if (present(rgb)) then
        rgb_(1:3) = rgb
        rgb_(4) = 1._c_float
-       call setuniform_vec4("vColor",rgb_)
+       call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
     elseif (present(rgba)) then
-       call setuniform_vec4("vColor",rgba)
+       call setuniform_vec4(rgba,idxi=iunif(iu_vcolor))
     elseif (present(idx)) then
        ridx = transfer(idx,ridx)
-       call setuniform_vec4("idx",ridx)
+       call setuniform_vec4(ridx,idxi=iunif(iu_idx))
     end if
-    call setuniform_mat4("model",model)
+    call setuniform_mat4(model,idxi=iunif(iu_model))
+
+    ! draw
     call glDrawElements(GL_TRIANGLES, int(3*sphnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
 
   end subroutine draw_sphere
@@ -1746,7 +1808,7 @@ contains
   subroutine draw_cylinder(x1,x2,rad,rgb,ires)
     use interfaces_opengl3
     use tools_math, only: cross_cfloat
-    use shaders, only: setuniform_vec4, setuniform_mat4
+    use shaders, only: setuniform_vec4, setuniform_mat4, setuniform_int, setuniform_float
     use shapes, only: cylnel
     real(c_float), intent(in) :: x1(3)
     real(c_float), intent(in) :: x2(3)
@@ -1757,6 +1819,7 @@ contains
     real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
     real(c_float) :: a, ca, sa, axis(3), temp(3), rgb_(4)
 
+    ! some calculations for the model matrix
     xmid = 0.5_c_float * (x1 + x2)
     xdif = x2 - x1
     blen = norm2(xdif)
@@ -1793,11 +1856,13 @@ contains
     model(:,2) = model(:,2) * rad
     model(:,3) = model(:,3) * blen
 
-    ! draw the cylinder
+    ! set the uniforms
     rgb_(1:3) = rgb
     rgb_(4) = 1._c_float
-    call setuniform_vec4("vColor",rgb_)
-    call setuniform_mat4("model",model)
+    call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
+    call setuniform_mat4(model,idxi=iunif(iu_model))
+
+    ! draw
     call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
 
   end subroutine draw_cylinder

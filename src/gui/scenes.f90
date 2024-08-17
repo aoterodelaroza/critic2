@@ -196,7 +196,7 @@ module scenes
      integer, allocatable :: icount(:) ! last rep counter, for unique names
      ! measure atom sets
      integer :: nmsel
-     integer :: msel(4,4)
+     integer :: msel(5,4) ! 1 is atom cell ID, 2:4 is lattice vector, 5 is sphere ID
      ! draw lists
      integer :: nsph ! number of spheres
      type(dl_sphere), allocatable :: drawlist_sph(:) ! sphere draw list
@@ -287,7 +287,7 @@ module scenes
      end subroutine align_view_axis
      module subroutine select_atom(s,idx)
        class(scene), intent(inout), target :: s
-       integer, intent(in) :: idx(4)
+       integer, intent(in) :: idx(5)
      end subroutine select_atom
      ! draw_style_atom
      module subroutine reset_atom_style(d,isys,itype)

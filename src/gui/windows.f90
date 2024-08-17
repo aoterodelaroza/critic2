@@ -339,11 +339,11 @@ module windows
      module subroutine process_events_view(w,hover,idx)
        class(window), intent(inout), target :: w
        logical, intent(in) :: hover
-       integer(c_int), intent(in) :: idx(4)
+       integer(c_int), intent(in) :: idx(5)
      end subroutine process_events_view
      module subroutine draw_selection_tooltip(w,idx)
        class(window), intent(inout), target :: w
-       integer(c_int), intent(in) :: idx(4)
+       integer(c_int), intent(in) :: idx(5)
      end subroutine draw_selection_tooltip
      module subroutine mousepos_to_texpos(w,pos)
        class(window), intent(inout), target :: w
