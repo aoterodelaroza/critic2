@@ -25,13 +25,28 @@ void main(){
     else
       outputColor = vColor;
   } else if (rborder_cyl > 0){
-    // sphere: projection calculations in view space
+    // cylinder calculations
+    // half-height and radius of the cylinder
+    float hheight = length(up-center);
+    float radius = length(side-center);
+
+    // up vector and vector pointing towards camera
     vec3 upn = normalize(up-center);
     vec3 n = vec3(0.,0.,-1.);
-    float radius = length(side-center);
+
+    // side2 is perpendicular to up and n
     vec3 side2 = normalize(cross(n,upn));
+
+    // calculate the distance along the cylinder (-hheight to hheight) and project out the up
     vec3 vx = vertex-center;
-    vx = vx - dot(vx,upn) * upn;
+    float ralong = dot(vx,upn);
+    vx = vx - ralong * upn;
+
+    // // discard to make dashed
+    // int ndashes = 10;
+    // if (mod(trunc(0.5 * (hheight + ralong) / hheight * ndashes),2) == 1) discard;
+
+    // border
     if (radius * (1 - abs(dot(normalize(vx),side2))) < rborder_cyl)
       outputColor = vec4(bordercolor,vColor.a);
     else
