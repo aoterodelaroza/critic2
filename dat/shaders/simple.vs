@@ -29,6 +29,13 @@ void main(){
       up = up4.xyz / up4.w;
       vec4 side4 = vwm * vec4(0.,0.5,0.,1.);
       side = side4.xyz / side4.w;
+
+      // vec3 upn = normalize(up-center);
+      // vec3 n = vec3(0.,0.,-1.);
+      // vec3 side2 = normalize(cross(n,upn));
+      //
+      // vertex = vertex + side2 * 0.1;
+      // vertex4 = vec4(vertex,1.0);
     } else {
       up = vec3(0.,0.,0.);
     }
