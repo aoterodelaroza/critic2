@@ -290,7 +290,7 @@ contains
              else
                 newsel = 1
              end if
-             w%table_selected = newsel
+             call select_system(newsel,.false.)
           end if
           ! if we removed the system for the input console or the view, update
           if (w%forceremove(k) == win(iwin_console_input)%inpcon_selected) &
@@ -594,11 +594,7 @@ contains
                    call igPushStyleColor_Vec4(ImGuiCol_Header,ColorFieldSelected)
                    flags = ImGuiSelectableFlags_SpanAllColumns
                    if (igSelectable_Bool(c_loc(str),isel,flags,szero)) then
-                      w%table_selected = i
-                      if (tree_select_updates_inpcon) &
-                         win(iwin_console_input)%inpcon_selected = i
-                      if (tree_select_updates_view) &
-                         call win(iwin_view)%select_view(i)
+                      call select_system(i,.false.)
                       call sys(i)%set_reference(k,.false.)
                    end if
                    call igPopStyleColor(1)
@@ -927,15 +923,11 @@ contains
       ok = igSelectable_Bool(c_loc(strl),selected,flags,szero)
       ok = ok .or. (w%forceselect == isys)
       if (ok) then
-         w%table_selected = isys
+         call select_system(isys,.false.)
          if (w%forceselect > 0) then
             w%forceselect = 0
             call igSetKeyboardFocusHere(0)
          end if
-         if (tree_select_updates_inpcon) &
-            win(iwin_console_input)%inpcon_selected = isys
-         if (tree_select_updates_view) &
-            call win(iwin_view)%select_view(isys)
          if (igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) &
             sysc(isys)%showfields = .not.sysc(isys)%showfields
       end if
@@ -970,11 +962,8 @@ contains
          ! set as current system option
          strpop = "Set as Current System" // c_null_char
          enabled = (sysc(isys)%status == sys_init)
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
-            win(iwin_console_input)%inpcon_selected = isys
-            call win(iwin_view)%select_view(isys)
-            w%table_selected = isys
-         end if
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+            call select_system(isys,.true.)
          call iw_tooltip("Set this system as current",ttshown)
 
          ! set as current system option
@@ -1142,19 +1131,25 @@ contains
       sysc(i)%collapse = -1
       ! selected goes to master
       if (w%table_selected >= 1 .and. w%table_selected <= nsys) then
-         if (sysc(w%table_selected)%collapse == i) w%table_selected = i
-      end if
-      if (win(iwin_console_input)%inpcon_selected >= 1 .and. win(iwin_console_input)%inpcon_selected <= nsys) then
-         if (sysc(win(iwin_console_input)%inpcon_selected)%collapse == i) &
-            win(iwin_console_input)%inpcon_selected = i
-      end if
-      if (win(iwin_view)%view_selected >= 1 .and. win(iwin_view)%view_selected <= nsys) then
-         if (sysc(win(iwin_view)%view_selected)%collapse == i) &
-            call win(iwin_view)%select_view(i)
+         if (sysc(w%table_selected)%collapse == i) call select_system(i,.true.)
       end if
       w%forceupdate = .true.
 
     end subroutine collapse_system
+
+    ! Select table system i. If force, change inpcon and view selections
+    ! even if disabled by the preferences.
+    subroutine select_system(i,force)
+      integer, intent(in) :: i
+      logical, intent(in) :: force
+
+      w%table_selected = i
+      if (tree_select_updates_inpcon .or. force) &
+         win(iwin_console_input)%inpcon_selected = i
+      if (tree_select_updates_view .or. force) &
+         call win(iwin_view)%select_view(i)
+
+    end subroutine select_system
 
   end subroutine draw_tree
 
