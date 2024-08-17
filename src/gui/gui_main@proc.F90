@@ -519,7 +519,7 @@ contains
     use crystalseedmod, only: crystalseed
     use tools_io, only: uout
     use types, only: realloc
-    use param, only: dirsep
+    use param, only: dirsep, atmcov0
     integer, intent(in) :: nseed
     type(crystalseed), allocatable, intent(in) :: seed(:)
     logical, intent(in), optional :: collapse
@@ -669,6 +669,9 @@ contains
 
        ! set the time
        sysc(idx)%timelastchange = time
+
+       ! set the covalent radii
+       sysc(idx)%atmcov = atmcov0
     end do
     deallocate(id)
 

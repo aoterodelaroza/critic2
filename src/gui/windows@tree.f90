@@ -2222,9 +2222,9 @@ contains
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: nsys, sysc, sys, sys_init, g
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight
-    use global, only: bondfactor, bondfactor_def
+    use global, only: bondfactor_def
     use tools_io, only: string, nameguess
-    use param, only: atmcov, atmcov0, maxzat0, bohrtoa, newline
+    use param, only: atmcov0, maxzat0, bohrtoa, newline
     class(window), intent(inout), target :: w
 
     logical :: ok, doquit, oksys, ch
@@ -2374,11 +2374,11 @@ contains
              str2 = "##tableradius" // string(i) // c_null_char
              str3 = "%.3f" // c_null_char
              call igPushItemWidth(iw_calcwidth(5,1))
-             mrad = max(mrad,atmcov(iz))
-             rad = real(atmcov(iz) * bohrtoa,c_float)
+             mrad = max(mrad,sysc(isys)%atmcov(iz))
+             rad = real(sysc(isys)%atmcov(iz) * bohrtoa,c_float)
              ch = igDragFloat(c_loc(str2),rad,0.01_c_float,0._c_float,2.65_c_float,c_loc(str3),&
                 ImGuiSliderFlags_AlwaysClamp)
-             if (ch) atmcov(iz) = rad / bohrtoa
+             if (ch) sysc(isys)%atmcov(iz) = rad / bohrtoa
              call igPopItemWidth()
           end if
        end do
@@ -2390,14 +2390,14 @@ contains
     str2 = "##bondfactor" // c_null_char
     str3 = "%.4f" // c_null_char
     call igPushItemWidth(iw_calcwidth(6,1))
-    bf = real(bondfactor,c_float)
+    bf = real(sysc(isys)%bondfactor,c_float)
     call igSameLine(0._c_float,-1._c_float)
     bfmin = 1.0_c_float
     bfmax = 2.0_c_float
 
     ch = igDragFloat(c_loc(str2),bf,0.001_c_float,bfmin,bfmax,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Bond factor parameter for connectivity calculation",ttshown)
-    if (ch) bondfactor = bf
+    if (ch) sysc(isys)%bondfactor = bf
     call igPopItemWidth()
 
     ! explanation message
@@ -2413,15 +2413,15 @@ contains
 
     ! reset to the default bonds
     if (iw_button("Reset",danger=.true.)) then
-       atmcov = atmcov0
-       bondfactor = bondfactor_def
+       sysc(isys)%atmcov = atmcov0
+       sysc(isys)%bondfactor = bondfactor_def
     end if
     call iw_tooltip("Reset the default bonding parameters and recalculate the system bonds",ttshown)
 
     ! apply the changes
     if (iw_button("Apply",sameline=.true.)) then
        ! find the atomic connectivity and the molecular fragments
-       call sys(isys)%c%find_asterisms_covalent()
+       call sys(isys)%c%find_asterisms_covalent(sysc(isys)%atmcov,sysc(isys)%bondfactor)
        call sys(isys)%c%fill_molecular_fragments()
        call sys(isys)%c%calculate_molecular_equivalence()
        call sys(isys)%c%calculate_periodicity()
@@ -2430,14 +2430,10 @@ contains
     call iw_tooltip("Recalculate the system bonds with the selected parameters",ttshown)
 
     ! close button
-    ok = (w%focused() .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or.&
+    doquit = (w%focused() .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or.&
+       is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or.&
        is_bind_event(BIND_CLOSE_ALL_DIALOGS)))
-    ok = ok .or. iw_button("Close",sameline=.true.)
-    if (ok) then
-       atmcov = atmcov0
-       bondfactor = bondfactor_def
-       doquit = .true.
-    end if
+    doquit = doquit .or. iw_button("Close",sameline=.true.)
 
     ! quit the window
     if (doquit) then

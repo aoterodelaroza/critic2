@@ -26,6 +26,8 @@ module gui_main
   use systemmod, only: system
   use crystalseedmod, only: crystalseed
   use scenes, only: scene
+  use global, only: bondfactor_def
+  use param, only: maxzat0, atmcov0
   implicit none
 
   private
@@ -99,6 +101,8 @@ module gui_main
      integer :: idwin_plotscf = 0 ! window ID for the scf plot
      type(scene) :: sc ! scene for the system in the main view
      real*8 :: timelastchange = 0d0 ! time for the last change on the system
+     real*8 :: atmcov(0:maxzat0) = atmcov0 ! covalent radii for bonding
+     real*8 :: bondfactor = bondfactor_def ! bodn factor for bonding calculation
   end type sysconf
   integer, public :: nsys = 0
   type(system), allocatable, target, public :: sys(:)

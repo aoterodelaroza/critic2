@@ -150,13 +150,13 @@ contains
   module subroutine struct_new(c,seed,crashfail,noenv,ti)
     use crystalseedmod, only: crystalseed
     use grid1mod, only: grid1_register_ae
-    use global, only: crsmall, atomeps_structnew
+    use global, only: crsmall, atomeps_structnew, bondfactor
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det3, mnorm2
     use tools_io, only: ferror, faterr, zatguess, string
     use tools, only: wscell, qcksort
     use types, only: realloc
-    use param, only: pi, eyet, eye
+    use param, only: pi, eyet, eye, atmcov
     class(crystal), intent(inout) :: c
     type(crystalseed), intent(in) :: seed
     logical, intent(in) :: crashfail
@@ -539,7 +539,7 @@ contains
        deallocate(xcoord,iord)
 
        ! find atomic connectivity and molecular fragments
-       call c%find_asterisms_covalent()
+       call c%find_asterisms_covalent(atmcov,bondfactor)
        call c%fill_molecular_fragments()
        call c%calculate_molecular_equivalence()
        call c%calculate_periodicity()

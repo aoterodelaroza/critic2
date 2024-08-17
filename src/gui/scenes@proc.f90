@@ -1062,7 +1062,6 @@ contains
   !> isys, or leave it empty if isys = 0.
   module subroutine reset_molecule_style(d,isys)
     use gui_main, only: nsys, sys, sysc, sys_ready
-    use param, only: jmlcol, atmcov
     class(draw_style_molecule), intent(inout), target :: d
     integer, intent(in), value :: isys
 

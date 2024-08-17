@@ -526,8 +526,11 @@ module crystalmod
        integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular_atom
-     module subroutine find_asterisms_covalent(c)
+     module subroutine find_asterisms_covalent(c,atmrad,bondfac)
+       use param, only: maxzat0
        class(crystal), intent(inout) :: c
+       real*8, intent(in) :: atmrad(0:maxzat0)
+       real*8, intent(in) :: bondfac
      end subroutine find_asterisms_covalent
      module subroutine list_near_lattice_points(c,xp,icrd,sorted,nat,dist,lvec,ndiv,&
         up2d,up2n,nozero)

@@ -738,14 +738,16 @@ contains
 
   end subroutine promolecular_atom
 
-  !> Find the covalent bond connectivity and return the bonds in the
-  !> c%nstar array.
-  module subroutine find_asterisms_covalent(c)
-    use global, only: bondfactor
+  !> Find the covalent connectivity and return the bonds in the
+  !> c%nstar array. Two atoms i and j are bonded if their distance is
+  !> less than bondfac * (atmrad(i) + atmrad(j))
+  module subroutine find_asterisms_covalent(c,atmrad,bondfac)
     use tools_io, only: string
     use types, only: realloc, celatom
-    use param, only: atmcov
+    use param, only: maxzat0
     class(crystal), intent(inout) :: c
+    real*8, intent(in) :: atmrad(0:maxzat0)
+    real*8, intent(in) :: bondfac
 
     integer :: i, j, nx(3), i0shift(3), i1shift(3)
     real*8 :: ri, rj, dmax, dd, xi(3), xj(3), xdelta(3)
@@ -775,16 +777,16 @@ contains
     dmax = 0d0
     do i = 1, c%nspc
        if (c%spc(i)%z <= 0) cycle
-       ri = atmcov(c%spc(i)%z)
+       ri = atmrad(c%spc(i)%z)
        do j = 1, c%nspc
           if (c%spc(j)%z <= 0) cycle
-          rj = atmcov(c%spc(j)%z)
+          rj = atmrad(c%spc(j)%z)
 
-          rij2(j,2,i) = (ri+rj) * bondfactor
+          rij2(j,2,i) = (ri+rj) * bondfac
           rij2(j,1,i) = 0d0
           rij2(j,2,i) = rij2(j,2,i) * rij2(j,2,i)
           rij2(j,1,i) = rij2(j,1,i) * rij2(j,1,i)
-          dmax = max(dmax,(ri+rj) * bondfactor)
+          dmax = max(dmax,(ri+rj) * bondfac)
        end do
     end do
 
