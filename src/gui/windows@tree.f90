@@ -2403,7 +2403,7 @@ contains
 
     ! right-align and bottom-align for the rest of the contents
     call igGetContentRegionAvail(szavail)
-    call igSetCursorPosX(iw_calcwidth(15,3,from_end=.true.) - g%Style%ScrollbarSize)
+    call igSetCursorPosX(iw_calcwidth(34,4,from_end=.true.) - g%Style%ScrollbarSize)
     if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
        call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
 
@@ -2413,6 +2413,21 @@ contains
        sysc(isys)%bondfactor = bondfactor_def
     end if
     call iw_tooltip("Reset the default bonding parameters and recalculate the system bonds",ttshown)
+
+    ! apply the changes to all systems
+    if (iw_button("Apply to All Systems",sameline=.true.)) then
+       do i = 1, nsys
+          if (system_ok(i)) then
+             sysc(i)%atmcov = sysc(isys)%atmcov
+             sysc(i)%bondfactor = sysc(isys)%bondfactor
+             call sys(i)%c%find_asterisms_covalent(sysc(i)%atmcov,sysc(i)%bondfactor)
+             call sys(i)%c%fill_molecular_fragments()
+             call sys(i)%c%calculate_molecular_equivalence()
+             call sys(i)%c%calculate_periodicity()
+             sysc(i)%sc%forcebuildlists = .true.
+          end if
+       end do
+    end if
 
     ! apply the changes
     if (iw_button("Apply",sameline=.true.)) then
