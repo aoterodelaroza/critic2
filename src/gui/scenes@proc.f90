@@ -409,7 +409,8 @@ contains
        call setuniform_mat4("projection",s%projection)
 
        ! draw the atoms
-       call setuniform_float("rborder",s%atomborder)
+       call setuniform_float("rborder_sph",s%atomborder)
+       call setuniform_float("rborder_cyl",-1._c_float)
        call setuniform_vec3("bordercolor",s%bordercolor)
        if (s%nsph > 0) then
           call glBindVertexArray(sphVAO(s%atom_res))
@@ -417,13 +418,16 @@ contains
        end if
 
        ! draw the bonds
-       call setuniform_float("rborder",-1._c_float)
+       call setuniform_float("rborder_sph",-1._c_float)
+       call setuniform_float("rborder_cyl",s%atomborder)
        if (s%ncyl > 0) then
           call glBindVertexArray(cylVAO(s%bond_res))
           call draw_all_cylinders()
        end if
 
        ! draw the flat cylinders (unit cell)
+       call setuniform_float("rborder_sph",-1._c_float)
+       call setuniform_float("rborder_cyl",-1._c_float)
        if (s%ncylflat > 0) then
           call glBindVertexArray(cylVAO(s%uc_res))
           call draw_all_flat_cylinders()
