@@ -1264,7 +1264,7 @@ contains
     logical :: havefilter, step, isedge(3), usetshift, doanim_
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
-    real(c_float) :: rgb(3), rad
+    real(c_float) :: rgb(3), rad1, rad2, dd, f1, f2
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), phase, mass
     complex*16 :: xdelta0(3), xdelta1(3), xdelta2(3)
     type(dl_sphere), allocatable :: auxsph(:)
@@ -1407,7 +1407,7 @@ contains
 
           ! draw the spheres and cylinders
           rgb = r%atom_style%rgb(:,id) * r%mol_style%tint_rgb(:,imol)
-          rad = r%atom_style%rad(id) * r%mol_style%scale_rad(imol)
+          rad1 = r%atom_style%rad(id) * r%mol_style%scale_rad(imol)
           do i1 = n0(1), n1(1)
              do i2 = n0(2), n1(2)
                 do i3 = n0(3), n1(3)
@@ -1450,7 +1450,7 @@ contains
 
                       ! write down the sphere
                       drawlist_sph(nsph)%x = real(xc + uoriginc,c_float)
-                      drawlist_sph(nsph)%r = rad
+                      drawlist_sph(nsph)%r = rad1
                       drawlist_sph(nsph)%rgb = rgb
                       drawlist_sph(nsph)%idx(1) = i
                       drawlist_sph(nsph)%idx(2:4) = ix
@@ -1504,15 +1504,7 @@ contains
                             drawlist_cyl(ncyl)%r = r%bond_rad
                             drawlist_cyl(ncyl)%rgb = r%bond_rgb
                          else
-                            x0 = 0.5d0 * (x1 + x2)
-                            xdelta0 = 0.50 * (xdelta1 + xdelta2)
-                            drawlist_cyl(ncyl-1)%x1 = real(x1,c_float)
-                            drawlist_cyl(ncyl-1)%x1delta = cmplx(xdelta1,kind=c_float_complex)
-                            drawlist_cyl(ncyl-1)%x2 = real(x0,c_float)
-                            drawlist_cyl(ncyl-1)%x2delta = cmplx(xdelta0,kind=c_float_complex)
-                            drawlist_cyl(ncyl-1)%r = r%bond_rad
-                            drawlist_cyl(ncyl-1)%rgb = rgb
-
+                            ! calculate the midpoint, taking into account the atomic radii
                             if (r%atom_style%type == 0) then ! species
                                idaux = sys(r%id)%c%atcel(ineigh)%is
                             elseif (r%atom_style%type == 1) then ! nneq
@@ -1520,6 +1512,20 @@ contains
                             else ! ncel
                                idaux = ineigh
                             end if
+                            rad2 = r%atom_style%rad(idaux) * r%mol_style%scale_rad(sys(r%id)%c%idatcelmol(ineigh))
+                            dd = norm2(x2 - x1)
+                            f1 = min(max((0.5d0 + 0.5d0 * (rad2 - rad1) / dd),0._c_float),1._c_float)
+                            f2 = 1._c_float - f1
+                            x0 = f1 * x1 + f2 * x2
+                            xdelta0 = f1 * xdelta1 + f2 * xdelta2
+
+                            ! add the two cylinders to the list
+                            drawlist_cyl(ncyl-1)%x1 = real(x1,c_float)
+                            drawlist_cyl(ncyl-1)%x1delta = cmplx(xdelta1,kind=c_float_complex)
+                            drawlist_cyl(ncyl-1)%x2 = real(x0,c_float)
+                            drawlist_cyl(ncyl-1)%x2delta = cmplx(xdelta0,kind=c_float_complex)
+                            drawlist_cyl(ncyl-1)%r = r%bond_rad
+                            drawlist_cyl(ncyl-1)%rgb = rgb
 
                             drawlist_cyl(ncyl)%x1 = real(x0,c_float)
                             drawlist_cyl(ncyl)%x1delta = cmplx(xdelta0,kind=c_float_complex)
@@ -1544,7 +1550,7 @@ contains
 
                       drawlist_string(nstring)%x = real(xc + uoriginc,c_float)
                       drawlist_string(nstring)%xdelta = cmplx(xdelta1,kind=c_float_complex)
-                      drawlist_string(nstring)%r = rad
+                      drawlist_string(nstring)%r = rad1
                       drawlist_string(nstring)%rgb = r%label_rgb
                       if (r%label_const_size) then
                          drawlist_string(nstring)%scale = r%label_scale
