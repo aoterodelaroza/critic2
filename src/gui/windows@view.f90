@@ -29,6 +29,13 @@ submodule (windows) view
      zero,zero,one,zero,&
      zero,zero,zero,one/),shape(eye4))
 
+  ! ilock parameters for mouse interaction with view
+  integer, parameter :: ilock_no = 0
+  integer, parameter :: ilock_left = 1
+  integer, parameter :: ilock_right = 2
+  integer, parameter :: ilock_scroll = 3
+  integer, parameter :: ilock_middle = 4
+
   !xx! private procedures
   ! function atom_selection_widget() result(changed)
 
@@ -737,7 +744,7 @@ contains
 
     ! get hover, image rectangle coordinates, and atom idx
     idx = 0
-    hover = igIsItemHovered(ImGuiHoveredFlags_None) .and. goodsys
+    hover = igIsItemHovered(ImGuiHoveredFlags_None) .and. goodsys .and. w%ilock == ilock_no
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
     if (hover) then
@@ -856,7 +863,6 @@ contains
     ! right-align the rest of the contents
     call igSameLine(0._c_float,0._c_float)
     call iw_setposx_fromend(5,1)
-
 
     if (.not.w%ismain) then
        ! the close button
@@ -996,12 +1002,6 @@ contains
     type(ImVec2) :: texpos, mousepos
     real(c_float) :: ratio, pos3(3), vnew(3), vold(3), axis(3), lax
     real(c_float) :: mpos2(2), ang, xc(3), dist
-
-    integer, parameter :: ilock_no = 0
-    integer, parameter :: ilock_left = 1
-    integer, parameter :: ilock_right = 2
-    integer, parameter :: ilock_scroll = 3
-    integer, parameter :: ilock_middle = 4
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
