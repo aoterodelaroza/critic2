@@ -2424,7 +2424,7 @@ contains
              call sys(i)%c%fill_molecular_fragments()
              call sys(i)%c%calculate_molecular_equivalence()
              call sys(i)%c%calculate_periodicity()
-             sysc(i)%sc%forcebuildlists = .true.
+             call system_force_build_lists(i)
           end if
        end do
     end if
@@ -2436,7 +2436,7 @@ contains
        call sys(isys)%c%fill_molecular_fragments()
        call sys(isys)%c%calculate_molecular_equivalence()
        call sys(isys)%c%calculate_periodicity()
-       sysc(isys)%sc%forcebuildlists = .true.
+       call system_force_build_lists(isys)
     end if
     call iw_tooltip("Recalculate the system bonds with the selected parameters",ttshown)
 
@@ -2461,6 +2461,22 @@ contains
       if (system_ok) system_ok = (sysc(isys)%status == sys_init)
 
     end function system_ok
+
+    ! build lists for all scenes associated with system i (including alternate views)
+    subroutine system_force_build_lists(i)
+      use windows, only: nwin
+      integer, intent(in) :: i
+
+      integer :: j
+
+      sysc(i)%sc%forcebuildlists = .true.
+      do j = 1, nwin
+         if (.not.win(j)%isinit) cycle
+         if (win(j)%type == wintype_view .and. .not.win(j)%ismain) &
+            win(j)%sc%forcebuildlists = .true.
+      end do
+
+    end subroutine system_force_build_lists
   end subroutine draw_rebond
 
   !> Draw the tree plot window
