@@ -946,11 +946,12 @@ contains
 
   !> Select system isys in view window.
   module subroutine select_view(w,isys)
-    use gui_main, only: nsys, sysc
+    use gui_main, only: nsys, sysc, sys_init
     class(window), intent(inout), target :: w
     integer, intent(in) :: isys
 
     if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status /= sys_init) w%forcerender = .true. ! for removing the last system in tree
     if (w%view_selected == isys) return
     w%view_selected = isys
     if (w%ismain) then
