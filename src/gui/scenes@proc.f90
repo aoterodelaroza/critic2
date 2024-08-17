@@ -298,7 +298,6 @@ contains
   module subroutine scene_render(s)
     use interfaces_cimgui
     use interfaces_opengl3
-    use interfaces_glfw, only: glfwGetTime
     use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
     use gui_main, only: fonts, fontbakesize_large, time, font_large, sys
     use utils, only: ortho, project
@@ -312,7 +311,7 @@ contains
 
     real(c_float) :: xsel(3,4), radsel(4)
     complex(c_float_complex) :: displ
-    real*8 :: deltat, fac, time0
+    real*8 :: deltat, fac
 
     real(c_float), parameter :: rgbsel(4,4) = reshape((/&
        1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
@@ -329,8 +328,6 @@ contains
 
     ! build draw lists if not done already
     if (s%isinit == 1 .or. .not.allocated(s%drawlist_sph)) call s%build_lists()
-
-    ! time0 = glfwGetTime()
 
     ! render text with the large font
     call igPushFont(font_large)
@@ -365,6 +362,10 @@ contains
        call setuniform_mat4(s%world,"world")
        call setuniform_mat4(s%view,"view")
        call setuniform_mat4(s%projection,"projection")
+
+       ! get all the uniforms
+       iunif(iu_model) = get_uniform_location("model")
+       iunif(iu_vcolor) = get_uniform_location("vColor")
 
        ! draw the atoms
        if (s%nsph > 0) then
@@ -523,8 +524,6 @@ contains
 
     ! save the rendering time
     s%timelastrender = time
-
-    ! write (*,*) "render time (fps) = ", 1d0/(glfwGetTime()-time0)
 
   contains
     subroutine draw_all_spheres()
