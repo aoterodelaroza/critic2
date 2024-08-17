@@ -1148,6 +1148,7 @@ contains
          win(iwin_console_input)%inpcon_selected = i
       if (tree_select_updates_view .or. force) &
          call win(iwin_view)%select_view(i)
+      if (idrebond > 0) win(idrebond)%isys = i
 
     end subroutine select_system
 
