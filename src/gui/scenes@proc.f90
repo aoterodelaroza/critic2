@@ -1120,8 +1120,8 @@ contains
 
   end subroutine reset_atom_style
 
-  !> Reset molecule style with style. Use the information in system
-  !> isys, or leave it empty if isys = 0.
+  !> Reset molecule style with default values. Use the information in
+  !> system isys, or leave it empty if isys = 0.
   module subroutine reset_molecule_style(d,isys)
     use gui_main, only: nsys, sys, sysc, sys_ready
     class(draw_style_molecule), intent(inout), target :: d
@@ -1151,6 +1151,51 @@ contains
     d%isinit = .true.
 
   end subroutine reset_molecule_style
+
+  !> Reset bond style with default values. Use the information in
+  !> system isys, or leave it empty if isys = 0.
+  module subroutine reset_bond_style(d,isys)
+    use gui_main, only: nsys, sys, sysc, sys_ready
+    class(draw_style_bond), intent(inout), target :: d
+    integer, intent(in), value :: isys
+
+    integer :: i, n
+
+    real(c_float), parameter :: bond_rad_def = 0.35_c_float
+
+    ! clear the bond style
+    d%isinit = .false.
+    d%isdef = .true.
+    if (allocated(d%nstar)) deallocate(d%nstar)
+    if (allocated(d%shown)) deallocate(d%shown)
+    if (allocated(d%twocolor)) deallocate(d%twocolor)
+    if (allocated(d%rgb)) deallocate(d%rgb)
+    if (allocated(d%rad)) deallocate(d%rad)
+    if (allocated(d%order)) deallocate(d%order)
+
+    ! check the system is sane
+    if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status < sys_ready) return
+
+    ! fill
+    d%isinit = .true.
+    d%nstar = sys(isys)%c%nstar
+    n = 0
+    do i = 1, sys(isys)%c%ncel
+       n = max(n,d%nstar(i)%ncon)
+    end do
+    allocate(d%shown(n,sys(isys)%c%ncel))
+    allocate(d%twocolor(n,sys(isys)%c%ncel))
+    allocate(d%rgb(3,n,sys(isys)%c%ncel))
+    allocate(d%rad(n,sys(isys)%c%ncel))
+    allocate(d%order(n,sys(isys)%c%ncel))
+    d%shown = .true.
+    d%twocolor = .false.
+    d%rgb = 0._c_float
+    d%rad = bond_rad_def
+    d%order = 1
+
+  end subroutine reset_bond_style
 
   !xx! representation
 
@@ -1256,6 +1301,7 @@ contains
     ! initialize the styles
     call r%atom_style%reset(r%id,0)
     call r%mol_style%reset(r%id)
+    call r%bond_style%reset(r%id)
 
   end subroutine representation_init
 
@@ -1294,9 +1340,14 @@ contains
     doreset = doreset .or. (r%atom_style%type == 1 .and. r%atom_style%ntype /= sys(r%id)%c%nneq)
     doreset = doreset .or. (r%atom_style%type == 2 .and. r%atom_style%ntype /= sys(r%id)%c%ncel)
     if (doreset) call r%atom_style%reset(r%id,r%atom_style%type)
+
+    doreset = doreset .or. .not.r%bond_style%isinit
+    if (doreset) call r%bond_style%reset(r%id)
+
     doreset = .not.r%mol_style%isinit
     doreset = doreset .or. (r%mol_style%ntype /= sys(r%id)%c%nmol)
     if (doreset) call r%mol_style%reset(r%id)
+
 
   end subroutine update_structure
 

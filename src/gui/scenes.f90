@@ -18,6 +18,7 @@
 ! Scene object and GL rendering utilities
 module scenes
   use iso_c_binding
+  use types, only: neighstar
   implicit none
 
   private
@@ -86,6 +87,21 @@ module scenes
   end type draw_style_molecule
   public :: draw_style_molecule
 
+  !> Draw style for bonds
+  type draw_style_bond
+     logical :: isinit = .false. ! whether the style is intialized
+     logical :: isdef = .true. ! whether this is using the system's neighbor star
+     type(neighstar), allocatable :: nstar(:) ! the neighbor star
+     logical, allocatable :: shown(:,:) ! whether the bond is shown
+     logical, allocatable :: twocolor(:,:) ! whether the bond is two-colored
+     real(c_float), allocatable :: rgb(:,:,:) ! color of the bond (3,nstar%ncon)
+     real(c_float), allocatable :: rad(:,:) ! radius of the bond
+     integer, allocatable :: order(:,:) ! bond order (-n=dashed,1=single,2=double,etc.)
+   contains
+     procedure :: reset => reset_bond_style
+  end type draw_style_bond
+  public :: draw_style_bond
+
   integer, parameter, public :: reptype_none = 0
   integer, parameter, public :: reptype_atoms = 1
   integer, parameter, public :: reptype_unitcell = 2
@@ -123,6 +139,7 @@ module scenes
      real(c_float) :: bond_rad ! bond radius
      type(draw_style_atom) :: atom_style ! atom styles
      type(draw_style_molecule) :: mol_style ! molecule styles
+     type(draw_style_bond) :: bond_style ! bond styles
      integer(c_int) :: label_style ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
      real(c_float) :: label_scale ! scale for the labels
      real(c_float) :: label_rgb(3) ! color of the labels
@@ -299,6 +316,11 @@ module scenes
        class(draw_style_molecule), intent(inout), target :: d
        integer, intent(in), value :: isys
      end subroutine reset_molecule_style
+     ! draw_style_bond
+     module subroutine reset_bond_style(d,isys)
+       class(draw_style_bond), intent(inout), target :: d
+       integer, intent(in), value :: isys
+     end subroutine reset_bond_style
      ! representation
      module subroutine representation_init(r,sc,isys,irep,itype,style)
        class(representation), intent(inout), target :: r
