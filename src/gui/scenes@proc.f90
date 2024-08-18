@@ -206,7 +206,7 @@ contains
     use gui_main, only: time, sysc, sys_ready, nsys
     class(scene), intent(inout), target :: s
 
-    integer :: i
+    integer :: i, j
     real(c_float) :: xmin(3), xmax(3), maxrad, xc(3)
 
     ! only build lists if system is initialized
@@ -237,6 +237,10 @@ contains
           s%ncylflat,s%drawlist_cylflat,s%nstring,s%drawlist_string,s%animation>0,&
           s%iqpt_selected,s%ifreq_selected)
     end do
+
+    ! reset the selection
+    s%nmsel = 0
+    s%msel = 0
 
     ! recalculate scene center and radius
     maxrad = 0._c_float
@@ -647,7 +651,7 @@ contains
        setuniform_mat4, get_uniform_location
     class(scene), intent(inout), target :: s
 
-    integer :: i
+    integer :: i, j
 
     ! check that the scene and system are initialized
     if (s%isinit < 2) return
@@ -672,6 +676,7 @@ contains
     if (s%nsph > 0) then
        call glBindVertexArray(sphVAO(s%atom_res))
        do i = 1, s%nsph
+          ! draw the sphere
           call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%atom_res,idx=(/i,0,0,0/))
        end do
        call glBindVertexArray(0)
