@@ -539,7 +539,7 @@ contains
        deallocate(xcoord,iord)
 
        ! find atomic connectivity and molecular fragments
-       call c%find_asterisms_covalent(atmcov,bondfactor)
+       call c%find_asterisms(c%nstar,atmcov,bondfactor)
        call c%fill_molecular_fragments()
        call c%calculate_molecular_equivalence()
        call c%calculate_periodicity()

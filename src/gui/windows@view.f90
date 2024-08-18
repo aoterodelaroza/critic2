@@ -1648,7 +1648,7 @@ contains
   !> the scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_atoms(w,ttshown) result(changed)
     use scenes, only: representation
-    use gui_main, only: sys, g, ColorHighlightText
+    use gui_main, only: sys, g
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox
     use param, only: atmcov, atmvdw, jmlcol, jmlcol2, newline

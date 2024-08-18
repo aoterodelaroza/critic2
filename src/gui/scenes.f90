@@ -122,7 +122,7 @@ module scenes
      real(c_float) :: bond_rgb(3) ! bond color (single color style)
      real(c_float) :: bond_rad ! bond radius
      type(draw_style_atom) :: atom_style ! atom styles
-     type(draw_style_molecule) :: mol_style ! atom styles
+     type(draw_style_molecule) :: mol_style ! molecule styles
      integer(c_int) :: label_style ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
      real(c_float) :: label_scale ! scale for the labels
      real(c_float) :: label_rgb(3) ! color of the labels

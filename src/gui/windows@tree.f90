@@ -2419,7 +2419,7 @@ contains
           if (system_ok(i)) then
              sysc(i)%atmcov = sysc(isys)%atmcov
              sysc(i)%bondfactor = sysc(isys)%bondfactor
-             call sys(i)%c%find_asterisms_covalent(sysc(i)%atmcov,sysc(i)%bondfactor)
+             call sys(i)%c%find_asterisms(sys(i)%c%nstar,sysc(i)%atmcov,sysc(i)%bondfactor)
              call sys(i)%c%fill_molecular_fragments()
              call sys(i)%c%calculate_molecular_equivalence()
              call sys(i)%c%calculate_periodicity()
@@ -2431,7 +2431,7 @@ contains
     ! apply the changes
     if (iw_button("Apply",sameline=.true.)) then
        ! find the atomic connectivity and the molecular fragments
-       call sys(isys)%c%find_asterisms_covalent(sysc(isys)%atmcov,sysc(isys)%bondfactor)
+       call sys(isys)%c%find_asterisms(sys(i)%c%nstar,sysc(isys)%atmcov,sysc(isys)%bondfactor)
        call sys(isys)%c%fill_molecular_fragments()
        call sys(isys)%c%calculate_molecular_equivalence()
        call sys(isys)%c%calculate_periodicity()

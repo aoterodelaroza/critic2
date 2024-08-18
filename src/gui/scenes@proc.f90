@@ -206,7 +206,7 @@ contains
     use gui_main, only: time, sysc, sys_ready, nsys
     class(scene), intent(inout), target :: s
 
-    integer :: i, j
+    integer :: i
     real(c_float) :: xmin(3), xmax(3), maxrad, xc(3)
 
     ! only build lists if system is initialized
@@ -651,7 +651,7 @@ contains
        setuniform_mat4, get_uniform_location
     class(scene), intent(inout), target :: s
 
-    integer :: i, j
+    integer :: i
 
     ! check that the scene and system are initialized
     if (s%isinit < 2) return

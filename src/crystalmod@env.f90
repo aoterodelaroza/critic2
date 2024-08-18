@@ -741,13 +741,15 @@ contains
   !> Find the covalent connectivity and return the bonds in the
   !> c%nstar array. Two atoms i and j are bonded if their distance is
   !> less than bondfac * (atmrad(i) + atmrad(j))
-  module subroutine find_asterisms_covalent(c,atmrad,bondfac)
-    use tools_io, only: string
+  module subroutine find_asterisms(c,nstar,atmrad,bondfac,rij)
+    use tools_io, only: string, ferror, faterr
     use types, only: realloc, celatom
     use param, only: maxzat0
     class(crystal), intent(inout) :: c
-    real*8, intent(in) :: atmrad(0:maxzat0)
-    real*8, intent(in) :: bondfac
+    type(neighstar), allocatable, intent(inout) :: nstar(:)
+    real*8, intent(in), optional :: atmrad(0:maxzat0)
+    real*8, intent(in), optional :: bondfac
+    real*8, intent(in), optional :: rij(:,:,:)
 
     integer :: i, j, nx(3), i0shift(3), i1shift(3)
     real*8 :: ri, rj, dmax, dd, xi(3), xj(3), xdelta(3)
@@ -761,34 +763,45 @@ contains
     if (c%ncel == 0) return
 
     ! allocate the asterism arrays
-    if (allocated(c%nstar)) deallocate(c%nstar)
-    allocate(c%nstar(c%ncel))
+    if (allocated(nstar)) deallocate(nstar)
+    allocate(nstar(c%ncel))
     do i = 1, c%ncel
-       c%nstar(i)%ncon = 0
-       if (allocated(c%nstar(i)%idcon)) deallocate(c%nstar(i)%idcon)
-       if (allocated(c%nstar(i)%lcon)) deallocate(c%nstar(i)%lcon)
-       allocate(c%nstar(i)%idcon(20))
-       allocate(c%nstar(i)%lcon(3,20))
+       nstar(i)%ncon = 0
+       if (allocated(nstar(i)%idcon)) deallocate(nstar(i)%idcon)
+       if (allocated(nstar(i)%lcon)) deallocate(nstar(i)%lcon)
+       allocate(nstar(i)%idcon(20))
+       allocate(nstar(i)%lcon(3,20))
     end do
 
     ! pre-calculate the distance matrix
     allocate(rij2(c%nspc,2,c%nspc))
     rij2 = 0d0
     dmax = 0d0
-    do i = 1, c%nspc
-       if (c%spc(i)%z <= 0) cycle
-       ri = atmrad(c%spc(i)%z)
-       do j = 1, c%nspc
-          if (c%spc(j)%z <= 0) cycle
-          rj = atmrad(c%spc(j)%z)
+    if (present(atmrad).and.present(bondfac)) then
+       ! from atmrad and bondfac
+       do i = 1, c%nspc
+          if (c%spc(i)%z <= 0) cycle
+          ri = atmrad(c%spc(i)%z)
+          do j = 1, c%nspc
+             if (c%spc(j)%z <= 0) cycle
+             rj = atmrad(c%spc(j)%z)
 
-          rij2(j,2,i) = (ri+rj) * bondfac
-          rij2(j,1,i) = 0d0
-          rij2(j,2,i) = rij2(j,2,i) * rij2(j,2,i)
-          rij2(j,1,i) = rij2(j,1,i) * rij2(j,1,i)
-          dmax = max(dmax,(ri+rj) * bondfac)
+             rij2(j,2,i) = (ri+rj) * bondfac
+             rij2(j,1,i) = 0d0
+             rij2(j,2,i) = rij2(j,2,i) * rij2(j,2,i)
+             rij2(j,1,i) = rij2(j,1,i) * rij2(j,1,i)
+             dmax = max(dmax,(ri+rj) * bondfac)
+          end do
        end do
-    end do
+    elseif (present(rij)) then
+       ! from rij
+       if (any(shape(rij) /= shape(rij2))) &
+          call ferror('find_asterisms','error in rij shape',faterr)
+       rij2 = rij * rij
+       dmax = maxval(rij)
+    else
+       call ferror('find_asterisms','error in input arguments',faterr)
+    end if
 
     ! calculate the number of blocks in each direction required for satifying
     ! that the largest sphere in the super-block has radius > dmax.
@@ -857,28 +870,28 @@ contains
                             if (dd > rij2(c%atcel(jat)%is,1,c%atcel(iat)%is) .and. &
                                dd < rij2(c%atcel(jat)%is,2,c%atcel(iat)%is)) then
                                ! add this atom
-                               c%nstar(iat)%ncon = c%nstar(iat)%ncon + 1
-                               nconi = c%nstar(iat)%ncon
-                               if (nconi > size(c%nstar(iat)%idcon,1)) then
-                                  call realloc(c%nstar(iat)%idcon,2*nconi)
-                                  call realloc(c%nstar(iat)%lcon,3,2*nconi)
+                               nstar(iat)%ncon = nstar(iat)%ncon + 1
+                               nconi = nstar(iat)%ncon
+                               if (nconi > size(nstar(iat)%idcon,1)) then
+                                  call realloc(nstar(iat)%idcon,2*nconi)
+                                  call realloc(nstar(iat)%lcon,3,2*nconi)
                                end if
-                               c%nstar(iat)%idcon(nconi) = jat
+                               nstar(iat)%idcon(nconi) = jat
 
-                               c%nstar(jat)%ncon = c%nstar(jat)%ncon + 1
-                               nconj = c%nstar(jat)%ncon
-                               if (nconj > size(c%nstar(jat)%idcon,1)) then
-                                  call realloc(c%nstar(jat)%idcon,2*nconj)
-                                  call realloc(c%nstar(jat)%lcon,3,2*nconj)
+                               nstar(jat)%ncon = nstar(jat)%ncon + 1
+                               nconj = nstar(jat)%ncon
+                               if (nconj > size(nstar(jat)%idcon,1)) then
+                                  call realloc(nstar(jat)%idcon,2*nconj)
+                                  call realloc(nstar(jat)%lcon,3,2*nconj)
                                end if
-                               c%nstar(jat)%idcon(nconj) = iat
+                               nstar(jat)%idcon(nconj) = iat
                                if (c%ismolecule) then
-                                  c%nstar(iat)%lcon(:,nconi) = 0
-                                  c%nstar(jat)%lcon(:,nconj) = 0
+                                  nstar(iat)%lcon(:,nconi) = 0
+                                  nstar(jat)%lcon(:,nconj) = 0
                                else
                                   lvecx = nint(matmul(c%m_c2x,xj-xi) + c%atcel(iat)%x - c%atcel(jat)%x)
-                                  c%nstar(iat)%lcon(:,nconi) = lvecx
-                                  c%nstar(jat)%lcon(:,nconj) = -lvecx
+                                  nstar(iat)%lcon(:,nconi) = lvecx
+                                  nstar(jat)%lcon(:,nconj) = -lvecx
                                end if
                             end if
 
@@ -896,11 +909,11 @@ contains
 
     ! reallocate
     do i = 1, c%ncel
-       call realloc(c%nstar(i)%idcon,c%nstar(i)%ncon)
-       call realloc(c%nstar(i)%lcon,3,c%nstar(i)%ncon)
+       call realloc(nstar(i)%idcon,nstar(i)%ncon)
+       call realloc(nstar(i)%lcon,3,nstar(i)%ncon)
     end do
 
-  end subroutine find_asterisms_covalent
+  end subroutine find_asterisms
 
   !> Given the point xp (in icrd coordinates), calculate the list of
   !> nearest lattice points. If sorted is true, the list is sorted by

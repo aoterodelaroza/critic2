@@ -210,7 +210,7 @@ module crystalmod
      procedure :: get_rnn2
      procedure :: identify_atom
      procedure :: promolecular_atom
-     procedure :: find_asterisms_covalent
+     procedure :: find_asterisms
      procedure :: list_near_lattice_points
      procedure :: nearest_lattice_point
 
@@ -526,12 +526,14 @@ module crystalmod
        integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular_atom
-     module subroutine find_asterisms_covalent(c,atmrad,bondfac)
+     module subroutine find_asterisms(c,nstar,atmrad,bondfac,rij)
        use param, only: maxzat0
        class(crystal), intent(inout) :: c
-       real*8, intent(in) :: atmrad(0:maxzat0)
-       real*8, intent(in) :: bondfac
-     end subroutine find_asterisms_covalent
+       type(neighstar), allocatable, intent(inout) :: nstar(:)
+       real*8, intent(in), optional :: atmrad(0:maxzat0)
+       real*8, intent(in), optional :: bondfac
+       real*8, intent(in), optional :: rij(:,:,:)
+     end subroutine find_asterisms
      module subroutine list_near_lattice_points(c,xp,icrd,sorted,nat,dist,lvec,ndiv,&
         up2d,up2n,nozero)
        class(crystal), intent(inout) :: c
