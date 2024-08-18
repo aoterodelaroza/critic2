@@ -134,9 +134,6 @@ module scenes
      integer(c_int) :: atom_radii_reset_type = 0 ! option to reset radii: 0=covalent, 1=vdw
      real(c_float) :: atom_radii_reset_scale = 0.7_c_float ! reset radii, scale factor
      integer(c_int) :: atom_color_reset_type = 0 ! option to reset colors: 0=jmlcol, 1=jmlcol2
-     integer(c_int) :: bond_color_style ! bond color style: 0=single color, 1=half-and-half
-     real(c_float) :: bond_rgb(3) ! bond color (single color style)
-     real(c_float) :: bond_rad ! bond radius
      type(draw_style_atom) :: atom_style ! atom styles
      type(draw_style_molecule) :: mol_style ! molecule styles
      type(draw_style_bond) :: bond_style ! bond styles

@@ -708,7 +708,6 @@ contains
        do i = 1, s%nrep
           s%rep(i)%label_rgb = 1._c_float
           s%rep(i)%uc_rgb = 1._c_float
-          s%rep(i)%bond_color_style=1
        end do
     else
        !! simple !!
@@ -716,8 +715,6 @@ contains
        do i = 1, s%nrep
           s%rep(i)%label_rgb = 0._c_float
           s%rep(i)%uc_rgb = 0._c_float
-          s%rep(i)%bond_color_style=0
-          s%rep(i)%bond_rgb = 0._c_float
        end do
        s%atomborder = 0.1_c_float
        s%bordercolor = 0._c_float
@@ -1238,7 +1235,6 @@ contains
     r%atom_radii_reset_type = 0
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
-    r%bond_rad = 0.35_c_float
     r%label_style = 0
     r%label_scale = 0.5_c_float
     r%label_const_size = .false._c_bool
@@ -1255,13 +1251,9 @@ contains
     ! style-dependent settings
     if (style == style_phong) then
        r%label_rgb = 1._c_float
-       r%bond_color_style = 1
-       r%bond_rgb = (/1._c_float,0._c_float,0._c_float/)
        r%uc_rgb = 1._c_float
     else
        r%label_rgb = 0._c_float
-       r%bond_color_style = 0
-       r%bond_rgb = 0._c_float
        r%uc_rgb = 0._c_float
     end if
 
@@ -1373,7 +1365,7 @@ contains
     integer, intent(in) :: iqpt, ifreq
 
     logical, allocatable :: lshown(:,:,:,:)
-    logical :: havefilter, step, isedge(3), usetshift, doanim_
+    logical :: havefilter, step, isedge(3), usetshift, doanim_, dobonds
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
     real(c_float) :: rgb(3)
@@ -1452,9 +1444,13 @@ contains
           uoriginc = sys(r%id)%c%x2c(real(r%origin,8))
        end if
 
-       ! array to check whether an atoms has been drawn
-       allocate(lshown(sys(r%id)%c%ncel,-1:n(1)+1,-1:n(2)+1,-1:n(3)+1))
-       lshown = .false.
+       ! whether we'll be doing bonds, allocate array to check whether
+       ! an atoms has been drawn
+       dobonds = r%bonds_display .and. r%bond_style%isinit
+       if (dobonds) then
+          allocate(lshown(sys(r%id)%c%ncel,-1:n(1)+1,-1:n(2)+1,-1:n(3)+1))
+          lshown = .false.
+       end if
 
        ! run over atoms, either directly or per-molecule
        i = 0
@@ -1571,22 +1567,23 @@ contains
                    end if
 
                    ! bonds
-                   if (r%bonds_display) then
+                   if (dobonds) then
                       ! mark this atom as drawn
                       call check_lshown(i,ix(1),ix(2),ix(3))
                       lshown(i,ix(1),ix(2),ix(3)) = .true.
 
                       ! bonds
-                      do ib = 1, sys(r%id)%c%nstar(i)%ncon
-                         ineigh = sys(r%id)%c%nstar(i)%idcon(ib)
-                         ixn = ix + sys(r%id)%c%nstar(i)%lcon(:,ib)
+                      do ib = 1, r%bond_style%nstar(i)%ncon
+                         if (.not.r%bond_style%shown(ib,i)) cycle
+                         ineigh = r%bond_style%nstar(i)%idcon(ib)
+                         ixn = ix + r%bond_style%nstar(i)%lcon(:,ib)
 
                          ! skip if the atom has not been represented already
                          call check_lshown(ineigh,ixn(1),ixn(2),ixn(3))
                          if (.not.lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
 
                          ! draw the bond, reallocate if necessary
-                         if (r%bond_color_style == 0) then
+                         if (.not.r%bond_style%twocolor(ib,i)) then
                             ncyl = ncyl + 1
                          else
                             ncyl = ncyl + 2
@@ -1609,13 +1606,13 @@ contains
                          x1 = xc + uoriginc
                          x2 = sys(r%id)%c%atcel(ineigh)%x + ixn
                          x2 = sys(r%id)%c%x2c(x2) + uoriginc
-                         if (r%bond_color_style == 0) then
+                         if (.not.r%bond_style%twocolor(ib,i)) then
                             drawlist_cyl(ncyl)%x1 = real(x1,c_float)
                             drawlist_cyl(ncyl)%x1delta = cmplx(xdelta1,kind=c_float_complex)
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
                             drawlist_cyl(ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
-                            drawlist_cyl(ncyl)%r = r%bond_rad
-                            drawlist_cyl(ncyl)%rgb = r%bond_rgb
+                            drawlist_cyl(ncyl)%r = r%bond_style%rad(ib,i)
+                            drawlist_cyl(ncyl)%rgb = r%bond_style%rgb(:,ib,i)
                          else
                             ! calculate the midpoint, taking into account the atomic radii
                             if (r%atom_style%type == 0) then ! species
@@ -1637,14 +1634,14 @@ contains
                             drawlist_cyl(ncyl-1)%x1delta = cmplx(xdelta1,kind=c_float_complex)
                             drawlist_cyl(ncyl-1)%x2 = real(x0,c_float)
                             drawlist_cyl(ncyl-1)%x2delta = cmplx(xdelta0,kind=c_float_complex)
-                            drawlist_cyl(ncyl-1)%r = r%bond_rad
+                            drawlist_cyl(ncyl-1)%r = r%bond_style%rad(ib,i)
                             drawlist_cyl(ncyl-1)%rgb = rgb
 
                             drawlist_cyl(ncyl)%x1 = real(x0,c_float)
                             drawlist_cyl(ncyl)%x1delta = cmplx(xdelta0,kind=c_float_complex)
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
                             drawlist_cyl(ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
-                            drawlist_cyl(ncyl)%r = r%bond_rad
+                            drawlist_cyl(ncyl)%r = r%bond_style%rad(ib,i)
                             drawlist_cyl(ncyl)%rgb = r%atom_style%rgb(:,idaux) * &
                                r%mol_style%tint_rgb(:,sys(r%id)%c%idatcelmol(ineigh))
                          end if

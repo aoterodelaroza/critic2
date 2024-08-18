@@ -1907,36 +1907,36 @@ contains
        if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
           !! bonds display !!
 
-          ! bond styles
-          call iw_text("Style Options",highlight=.true.)
-          !! colors
-          call iw_combo_simple("Style ##bondcolorsel","Single color"//c_null_char//"Two colors (atoms)"//c_null_char,&
-             w%rep%bond_color_style,changed=ch)
-          call iw_tooltip("Style for the bond colors",ttshown)
-          if (ch) changed = .true.
-          if (w%rep%bond_color_style == 0) then
-             call igSameLine(0._c_float,-1._c_float)
-             str2 = "##bondcolor" // c_null_char
-             ch = igColorEdit3(c_loc(str2),w%rep%bond_rgb,ImGuiColorEditFlags_NoInputs)
-             call iw_tooltip("Color for the bonds",ttshown)
-             call iw_clamp_color3(w%rep%bond_rgb)
-             call iw_text("Color",sameline=.true.)
-             if (ch) then
-                w%rep%bond_rgb = min(w%rep%bond_rgb,1._c_float)
-                w%rep%bond_rgb = max(w%rep%bond_rgb,0._c_float)
-                changed = .true.
-             end if
-          end if
+          ! ! bond styles
+          ! call iw_text("Style Options",highlight=.true.)
+          ! !! colors
+          ! call iw_combo_simple("Style ##bondcolorsel","Single color"//c_null_char//"Two colors (atoms)"//c_null_char,&
+          !    w%rep%bond_color_style,changed=ch)
+          ! call iw_tooltip("Style for the bond colors",ttshown)
+          ! if (ch) changed = .true.
+          ! if (w%rep%bond_color_style == 0) then
+          !    call igSameLine(0._c_float,-1._c_float)
+          !    str2 = "##bondcolor" // c_null_char
+          !    ch = igColorEdit3(c_loc(str2),w%rep%bond_rgb,ImGuiColorEditFlags_NoInputs)
+          !    call iw_tooltip("Color for the bonds",ttshown)
+          !    call iw_clamp_color3(w%rep%bond_rgb)
+          !    call iw_text("Color",sameline=.true.)
+          !    if (ch) then
+          !       w%rep%bond_rgb = min(w%rep%bond_rgb,1._c_float)
+          !       w%rep%bond_rgb = max(w%rep%bond_rgb,0._c_float)
+          !       changed = .true.
+          !    end if
+          ! end if
 
-          !! radius
-          call igSameLine(0._c_float,-1._c_float)
-          str2 = "Radius ##bondradius" // c_null_char
-          str3 = "%.3f" // c_null_char
-          call igPushItemWidth(iw_calcwidth(5,1))
-          changed = changed .or. igDragFloat(c_loc(str2),w%rep%bond_rad,0.005_c_float,0._c_float,2._c_float,&
-             c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
-          call igPopItemWidth()
-          call iw_tooltip("Radii of the cylinders representing the bonds",ttshown)
+          ! !! radius
+          ! call igSameLine(0._c_float,-1._c_float)
+          ! str2 = "Radius ##bondradius" // c_null_char
+          ! str3 = "%.3f" // c_null_char
+          ! call igPushItemWidth(iw_calcwidth(5,1))
+          ! changed = changed .or. igDragFloat(c_loc(str2),w%rep%bond_rad,0.005_c_float,0._c_float,2._c_float,&
+          !    c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+          ! call igPopItemWidth()
+          ! call iw_tooltip("Radii of the cylinders representing the bonds",ttshown)
 
           call igEndTabItem()
        end if ! begin tab item (bonds)
