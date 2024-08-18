@@ -200,27 +200,38 @@ contains
   !> Draw a checkbox with title str. The value of the checkbox is
   !> associated with bool. sameline = draw it in the same line as the
   !> previous widget.
-  module function iw_checkbox(str,bool,sameline)
+  module function iw_checkbox(str,bool,sameline,highlight)
     use interfaces_cimgui
+    use gui_main, only: ColorHighlightText
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(inout) :: bool
     logical, intent(in), optional :: sameline
+    logical, intent(in), optional :: highlight
     logical :: iw_checkbox
 
     logical :: sameline_
     character(len=:,kind=c_char), allocatable, target :: str1
     logical(c_bool) :: bool_
+    logical :: highlight_
 
     iw_checkbox = .false.
     bool_ = logical(bool,c_bool)
     sameline_ = .false.
+    highlight_ = .false.
     if (present(sameline)) sameline_ = sameline
+    if (present(highlight)) highlight_ = highlight
 
     if (sameline_) &
        call igSameLine(0._c_float,-1._c_float)
+    if (highlight_) &
+       call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
+
     str1 = str // c_null_char
     iw_checkbox = igCheckbox(c_loc(str1),bool_)
     bool = logical(bool_)
+
+    if (highlight_) &
+       call igPopStyleColor(1)
 
   end function iw_checkbox
 

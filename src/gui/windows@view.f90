@@ -1599,8 +1599,7 @@ contains
        call iw_tooltip("Name of this object",ttshown)
 
        ! shown checkbox
-       call igSameLine(0._c_float,-1._c_float)
-       changed = changed .or. iw_checkbox("Show",w%rep%shown)
+       changed = changed .or. iw_checkbox("Show",w%rep%shown,sameline=.true.)
        call iw_tooltip("Toggle show/hide this object",ttshown)
 
        ! type-dependent items
@@ -1677,19 +1676,13 @@ contains
     call w%rep%update()
 
     ! row of display options
-    call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
-    changed = changed .or. iw_checkbox("Atoms##atomsglobaldisplay",w%rep%atoms_display)
-    call igPopStyleColor(1)
+    changed = changed .or. iw_checkbox("Atoms##atomsglobaldisplay",w%rep%atoms_display,highlight=.true.)
     call iw_tooltip("Display atoms in the scene",ttshown)
 
-    call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
-    changed = changed .or. iw_checkbox("Bonds##bondsglobaldisplay",w%rep%bonds_display,sameline=.true.)
-    call igPopStyleColor(1)
+    changed = changed .or. iw_checkbox("Bonds##bondsglobaldisplay",w%rep%bonds_display,sameline=.true.,highlight=.true.)
     call iw_tooltip("Display bonds in the scene",ttshown)
 
-    call igPushStyleColor_Vec4(ImGuiCol_Text,ColorHighlightText)
-    changed = changed .or. iw_checkbox("Labels##labelsglobaldisplay",w%rep%labels_display,sameline=.true.)
-    call igPopStyleColor(1)
+    changed = changed .or. iw_checkbox("Labels##labelsglobaldisplay",w%rep%labels_display,sameline=.true.,highlight=.true.)
     call iw_tooltip("Display atomic labels in the scene",ttshown)
 
     str1 = "##editrepatomstabbar" // c_null_char
