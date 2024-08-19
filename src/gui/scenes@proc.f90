@@ -1213,12 +1213,12 @@ contains
   !> Generate the rij table from the bond globals.
   module subroutine generate_table_from_globals(d,isys)
     use gui_main, only: sys, nsys, sysc, sys_ready
-    use param, only: atmcov, bohrtoa
+    use param, only: atmcov, atmvdw, bohrtoa
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in) :: isys
 
     integer :: i, j
-    real*8 :: r1, r2
+    real*8 :: r1cov, r1vdw, r2cov, r2vdw
 
     ! check all the info is available
     if (.not.d%isinit) return
@@ -1243,12 +1243,22 @@ contains
 
     ! fill table data
     do i = 1, sys(isys)%c%nspc
-       r1 = atmcov(sys(isys)%c%spc(i)%z)
+       r1cov = atmcov(sys(isys)%c%spc(i)%z)
+       r1vdw = atmvdw(sys(isys)%c%spc(i)%z)
        do j = i, sys(isys)%c%nspc
-          r2 = atmcov(sys(isys)%c%spc(j)%z)
+          r2cov = atmcov(sys(isys)%c%spc(j)%z)
+          r2vdw = atmvdw(sys(isys)%c%spc(j)%z)
           if (d%distancetype_g == 0) then
-             d%rij_t(i,1,j) = d%bfmin_g * (r1 + r2)
-             d%rij_t(i,2,j) = d%bfmax_g * (r1 + r2)
+             if (d%radtype_g(1) == 0) then
+                d%rij_t(i,1,j) = d%bfmin_g * (r1cov + r2cov)
+             else
+                d%rij_t(i,1,j) = d%bfmin_g * (r1vdw + r2vdw)
+             end if
+             if (d%radtype_g(2) == 0) then
+                d%rij_t(i,2,j) = d%bfmax_g * (r1cov + r2cov)
+             else
+                d%rij_t(i,2,j) = d%bfmax_g * (r1vdw + r2vdw)
+             end if
           else
              d%rij_t(i,1,j) = d%dmin_g / bohrtoa
              d%rij_t(i,2,j) = d%dmax_g / bohrtoa

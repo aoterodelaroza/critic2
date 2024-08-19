@@ -1920,8 +1920,9 @@ contains
        if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
           !! bonds display !!
 
+          !! global options !!
           call igAlignTextToFramePadding()
-          call iw_text("Global Options",highlight=.true.)
+          call iw_text("Draw with Global Options",highlight=.true.)
           if (iw_button("Apply##applyglobal",sameline=.true.,danger=.true.)) then
              call w%rep%bond_style%generate_table_from_globals(isys)
              call w%rep%bond_style%generate_neighstars_from_table(isys)
@@ -1932,21 +1933,108 @@ contains
           call igAlignTextToFramePadding()
           call iw_text("Distance",highlight=.true.)
           call iw_text(" (",sameline_nospace=.true.,highlight=.true.)
-          call iw_combo_simple("##tablebondglobaldistcombo","Factor"//c_null_char//"Absolute"//c_null_char,&
+          call iw_combo_simple("##tablebondglobaldistcombo","Factor"//c_null_char//"Range"//c_null_char,&
              w%rep%bond_style%distancetype_g,sameline_nospace=.true.)
+          call iw_tooltip("Draw bonds whose length are a factor of the sum of atomic&
+             & radii (Factor) or give bond distance range (Range)",ttshown)
           call iw_text("): ",sameline_nospace=.true.,highlight=.true.)
 
-     ! real(c_float) :: dmin_g, dmax_g ! distance limits (angstrom)
-     ! real(c_float) :: bfmin_g, bfmax_g ! bondfactor limits
-     ! integer(c_int) :: radtype_g ! radii type (0=covalent,1=vdw)
-     ! integer(c_int) :: style_g ! bond style (0=single color, 1=two colors)
-     ! real(c_float) :: rad_g ! radius
-     ! real(c_float) :: rgb_g(3) ! color
-     ! integer(c_int) :: order_g ! order (1=single,2=double,etc.)
+          if (w%rep%bond_style%distancetype_g == 0) then
+             ! factor
+             call iw_text("  between")
+             call igSameLine(0._c_float,-1._c_float)
+             call igPushItemWidth(iw_calcwidth(5,1))
+             str2 = "##bondtableglobalbfmin" // c_null_char
+             if (igDragFloat(c_loc(str2),w%rep%bond_style%bfmin_g,0.01_c_float,0.0_c_float,9.999_c_float,&
+                c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
+             end if
+             call igPopItemWidth()
+             call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
 
-          ! top line of buttons
+             call iw_text("times",sameline=.true.)
+             call iw_combo_simple("##bondtableglobalradtypemin","cov."//c_null_char//"vdw"//c_null_char,&
+                w%rep%bond_style%radtype_g(1),sameline=.true.)
+             call iw_tooltip("Choose the atomic radii (covalent or van der Waals)",ttshown)
+             call iw_text("radii",sameline=.true.)
+
+             call igAlignTextToFramePadding()
+             call iw_text("  ... and")
+             call igSameLine(0._c_float,-1._c_float)
+             call igPushItemWidth(iw_calcwidth(5,1))
+             str2 = "##bondtableglobalbfmax" // c_null_char
+             if (igDragFloat(c_loc(str2),w%rep%bond_style%bfmax_g,0.01_c_float,0.0_c_float,9.999_c_float,&
+                c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
+             end if
+             call igPopItemWidth()
+             call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
+
+             call iw_text("times",sameline=.true.)
+             call iw_combo_simple("##bondtableglobalradtypemax","cov."//c_null_char//"vdw"//c_null_char,&
+                w%rep%bond_style%radtype_g(2),sameline=.true.)
+             call iw_tooltip("Choose the atomic radii (covalent or van der Waals)",ttshown)
+             call iw_text("radii",sameline=.true.)
+          else
+             ! range
+             call iw_text("between",sameline_nospace=.true.)
+             call igSameLine(0._c_float,-1._c_float)
+             call igPushItemWidth(iw_calcwidth(5,1))
+             str2 = "##bondtableglobaldmin" // c_null_char
+             if (igDragFloat(c_loc(str2),w%rep%bond_style%dmin_g,0.01_c_float,0.0_c_float,9.999_c_float,&
+                c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
+             end if
+             call igPopItemWidth()
+             call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
+
+             call iw_text("and",sameline=.true.)
+             call igSameLine(0._c_float,-1._c_float)
+             call igPushItemWidth(iw_calcwidth(5,1))
+             str2 = "##bondtableglobaldmax" // c_null_char
+             if (igDragFloat(c_loc(str2),w%rep%bond_style%dmax_g,0.01_c_float,0.0_c_float,9.999_c_float,&
+                c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
+             end if
+             call igPopItemWidth()
+             call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
+             call iw_text("Å",sameline=.true.)
+          end if
+
+          ! rest of the options
           call igAlignTextToFramePadding()
-          call iw_text("Atom Pairs Table",highlight=.true.)
+          call iw_text("Style",highlight=.true.)
+          call iw_combo_simple("##tablebondstyleglobalselect",&
+             "Single color"//c_null_char//"Two colors"//c_null_char,w%rep%bond_style%style_g,sameline=.true.)
+          call iw_tooltip("Bond style: use a single color or two colors from the bonds",ttshown)
+
+          ! rest of the options
+          call iw_text("  Radius",highlight=.true.,sameline=.true.)
+          str2 = "##radiusbondtableglobal" // c_null_char
+          str3 = "%.3f" // c_null_char
+          call igPushItemWidth(iw_calcwidth(5,1))
+          call igSameLine(0._c_float,-1._c_float)
+          ldum = igDragFloat(c_loc(str2),w%rep%bond_style%rad_g,0.005_c_float,0._c_float,2._c_float,&
+             c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+          call igPopItemWidth()
+          call iw_tooltip("Radius of the bonds",ttshown)
+
+          ! color
+          call iw_text("  Color",highlight=.true.,sameline=.true.)
+          str2 = "##colorbondtableglobal" // c_null_char
+          call igSameLine(0._c_float,-1._c_float)
+          ldum = igColorEdit3(c_loc(str2),w%rep%bond_style%rgb_g,ImGuiColorEditFlags_NoInputs)
+          call iw_clamp_color3(w%rep%bond_style%rgb_g)
+          call iw_tooltip("Color of the bonds",ttshown)
+
+          ! order
+          call iw_text("  Order",highlight=.true.,sameline=.true.)
+          call iw_combo_simple("##tablebondorderselectglobal",&
+             "Dashed"//c_null_char//"Single"//c_null_char//"Double"//c_null_char//"Triple"//c_null_char,&
+             w%rep%bond_style%order_g,sameline=.true.)
+          call iw_tooltip("Bond order (dashed, single, double, etc.)",ttshown)
+
+          !! atom pairs table !!
+          ! top line of buttons
+          call igNewLine()
+          call igAlignTextToFramePadding()
+          call iw_text("Draw with Atom Pairs Table",highlight=.true.)
           if (iw_button("Apply##applypairs",sameline=.true.,danger=.true.)) then
              call w%rep%bond_style%generate_neighstars_from_table(isys)
              changed = .true.
@@ -1969,15 +2057,15 @@ contains
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           flags = ior(flags,ImGuiTableFlags_ScrollY)
           str1="##tablespeciesbonding" // c_null_char
-          sz%x = iw_calcwidth(67,0)
+          sz%x = iw_calcwidth(69,0)
           sz%y = iw_calcheight(nspcpair,0,.false.)
           if (igBeginTable(c_loc(str1),9,flags,sz,0._c_float)) then
              ! header setup
-             str2 = "At. 1" // c_null_char
+             str2 = "Atom 1" // c_null_char
              flags = ImGuiTableColumnFlags_WidthFixed
              call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_sp1)
 
-             str2 = "At. 2" // c_null_char
+             str2 = "Atom 2" // c_null_char
              flags = ImGuiTableColumnFlags_WidthFixed
              call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_sp2)
 
@@ -2066,7 +2154,7 @@ contains
                       call iw_combo_simple("##tablebondstyleselect" // suffix,&
                          "One"//c_null_char//"Two"//c_null_char,w%rep%bond_style%style_t(i,j))
                       w%rep%bond_style%style_t(j,i) = w%rep%bond_style%style_t(i,j)
-                      call iw_tooltip("Bond style: choose a single color or use two colors from the bonded atoms",ttshown)
+                      call iw_tooltip("Bond style: use a single color or two colors from the bonded atoms",ttshown)
                    end if
 
                    ! color

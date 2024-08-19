@@ -95,7 +95,7 @@ module scenes
      integer(c_int) :: distancetype_g ! selector for distance type (0=factor,1=absolute)
      real(c_float) :: dmin_g, dmax_g ! distance limits (angstrom)
      real(c_float) :: bfmin_g, bfmax_g ! bondfactor limits
-     integer(c_int) :: radtype_g ! radii type (0=covalent,1=vdw)
+     integer(c_int) :: radtype_g(2) ! radii type for min and max (0=covalent,1=vdw)
      integer(c_int) :: style_g ! bond style (0=single color, 1=two colors)
      real(c_float) :: rad_g ! radius
      real(c_float) :: rgb_g(3) ! color
