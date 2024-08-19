@@ -125,27 +125,30 @@ contains
   !> separated by \0 and terminated by \0\0. ival is the current value
   !> of the combo.  sameline = place it in the same line as the last
   !> item. changed = returns true if the combo option changed.
-  module subroutine iw_combo_simple(str,stropt,ival,sameline,changed)
+  module subroutine iw_combo_simple(str,stropt,ival,sameline,sameline_nospace,changed)
     use interfaces_cimgui
     character(len=*,kind=c_char), intent(in) :: str
     character(len=*,kind=c_char), intent(in) :: stropt
     integer, intent(inout) :: ival
     logical, intent(in), optional :: sameline
+    logical, intent(in), optional :: sameline_nospace
     logical(c_bool), intent(out), optional :: changed
 
     character(len=:,kind=c_char), allocatable, target :: str1
     character(len=:,kind=c_char), allocatable, target :: stropt1
-    logical :: ldum, sameline_
+    logical :: ldum, sameline_, sameline_nospace_
     integer :: ll, maxlen, nidx, idx
 
     sameline_ = .false.
     if (present(sameline)) sameline_ = sameline
+    sameline_nospace_ = .false.
+    if (present(sameline_nospace)) sameline_nospace_ = sameline_nospace
 
     str1 = str // c_null_char
     stropt1 = stropt // c_null_char // c_null_char
 
-    if (sameline_) &
-       call igSameLine(0._c_float,-1._c_float)
+    if (sameline_) call igSameLine(0._c_float,-1._c_float)
+    if (sameline_nospace_) call igSameLine(0._c_float,0._c_float)
 
     maxlen = 0
     idx = 0

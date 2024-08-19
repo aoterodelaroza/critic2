@@ -1920,17 +1920,38 @@ contains
        if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
           !! bonds display !!
 
-          call iw_text("Global Options",highlight=.true.)
-          call iw_text("(click Generate when done)")
-
-          ! top line of buttons
           call igAlignTextToFramePadding()
-          call iw_text("Species Table",highlight=.true.)
-          if (iw_button("Apply",sameline=.true.,danger=.true.)) then
+          call iw_text("Global Options",highlight=.true.)
+          if (iw_button("Apply##applyglobal",sameline=.true.,danger=.true.)) then
+             call w%rep%bond_style%generate_table_from_globals(isys)
              call w%rep%bond_style%generate_neighstars_from_table(isys)
              changed = .true.
           end if
-          call iw_tooltip("Draw the bonds on the view with the current selection",ttshown)
+          call iw_tooltip("Draw the bonds with the currently selected global options",ttshown)
+
+          call igAlignTextToFramePadding()
+          call iw_text("Distance",highlight=.true.)
+          call iw_text(" (",sameline_nospace=.true.,highlight=.true.)
+          call iw_combo_simple("##tablebondglobaldistcombo","Factor"//c_null_char//"Absolute"//c_null_char,&
+             w%rep%bond_style%distancetype_g,sameline_nospace=.true.)
+          call iw_text("): ",sameline_nospace=.true.,highlight=.true.)
+
+     ! real(c_float) :: dmin_g, dmax_g ! distance limits (angstrom)
+     ! real(c_float) :: bfmin_g, bfmax_g ! bondfactor limits
+     ! integer(c_int) :: radtype_g ! radii type (0=covalent,1=vdw)
+     ! integer(c_int) :: style_g ! bond style (0=single color, 1=two colors)
+     ! real(c_float) :: rad_g ! radius
+     ! real(c_float) :: rgb_g(3) ! color
+     ! integer(c_int) :: order_g ! order (1=single,2=double,etc.)
+
+          ! top line of buttons
+          call igAlignTextToFramePadding()
+          call iw_text("Atom Pairs Table",highlight=.true.)
+          if (iw_button("Apply##applypairs",sameline=.true.,danger=.true.)) then
+             call w%rep%bond_style%generate_neighstars_from_table(isys)
+             changed = .true.
+          end if
+          call iw_tooltip("Draw the bonds with the currently selected options in the atom pairs table",ttshown)
 
           if (iw_button("Hide All##hideallatoms1",sameline=.true.)) &
              w%rep%bond_style%shown_t = .false.
