@@ -91,14 +91,33 @@ module scenes
   type draw_style_bond
      logical :: isinit = .false. ! whether the style is intialized
      logical :: isdef = .true. ! whether this is using the system's neighbor star
+     ! temporary storage for the edit object/bonds tab, global options
+     integer(c_int) :: distancetype_g ! selector for distance type (0=factor,1=absolute)
+     real(c_float) :: dmin_g, dmax_g ! distance limits (angstrom)
+     real(c_float) :: bfmin_g, bfmax_g ! bondfactor limits
+     integer(c_int) :: radtype_g ! radii type (0=covalent,1=vdw)
+     integer(c_int) :: style_g ! bond style (0=single color, 1=two colors)
+     real(c_float) :: rad_g ! radius
+     real(c_float) :: rgb_g(3) ! color
+     integer(c_int) :: order_g ! order (1=single,2=double,etc.)
+     ! temporary storage for rij table
+     real*8, allocatable :: rij_t(:,:,:) ! rij table for generating bonds
+     logical, allocatable :: shown_t(:,:) ! whether the bond is shown
+     integer(c_int), allocatable :: style_t(:,:) ! whether the bond is shown
+     real(c_float), allocatable :: rgb_t(:,:,:) ! color of the bond (3,nstar%ncon)
+     real(c_float), allocatable :: rad_t(:,:) ! radius of the bond
+     integer(c_int), allocatable :: order_t(:,:) ! bond order (-n=dashed,1=single,2=double,etc.)
+     ! the bond information
      type(neighstar), allocatable :: nstar(:) ! the neighbor star
-     logical, allocatable :: shown(:,:) ! whether the bond is shown
-     logical, allocatable :: twocolor(:,:) ! whether the bond is two-colored
+     logical(c_bool), allocatable :: shown(:,:) ! whether the bond is shown
+     integer(c_int), allocatable :: style(:,:) ! bond style (0=single color, 1=two colors)
      real(c_float), allocatable :: rgb(:,:,:) ! color of the bond (3,nstar%ncon)
      real(c_float), allocatable :: rad(:,:) ! radius of the bond
-     integer, allocatable :: order(:,:) ! bond order (-n=dashed,1=single,2=double,etc.)
+     integer(c_int), allocatable :: order(:,:) ! bond order (-n=dashed,1=single,2=double,etc.)
    contains
      procedure :: reset => reset_bond_style
+     procedure :: generate_table_from_globals
+     procedure :: generate_neighstars_from_table
   end type draw_style_bond
   public :: draw_style_bond
 
@@ -318,6 +337,14 @@ module scenes
        class(draw_style_bond), intent(inout), target :: d
        integer, intent(in), value :: isys
      end subroutine reset_bond_style
+     module subroutine generate_table_from_globals(d,isys)
+       class(draw_style_bond), intent(inout), target :: d
+       integer, intent(in) :: isys
+     end subroutine generate_table_from_globals
+     module subroutine generate_neighstars_from_table(d,isys)
+       class(draw_style_bond), intent(inout), target :: d
+       integer, intent(in) :: isys
+     end subroutine generate_neighstars_from_table
      ! representation
      module subroutine representation_init(r,sc,isys,irep,itype,style)
        class(representation), intent(inout), target :: r

@@ -43,6 +43,9 @@ submodule (scenes) proc
   integer, parameter :: iu_NUM = 12
   integer(c_int) :: iunif(iu_NUM)
 
+  ! default bond radius
+  real(c_float), parameter :: bond_rad_def = 0.35_c_float
+
   !xx! private procedures: low-level draws
   ! subroutine draw_sphere(x0,rad,ires,rgb,index)
   ! subroutine draw_cylinder(x1,x2,rad,rgb,ires)
@@ -1153,19 +1156,18 @@ contains
   !> system isys, or leave it empty if isys = 0.
   module subroutine reset_bond_style(d,isys)
     use gui_main, only: nsys, sys, sysc, sys_ready
+    use global, only: bondfactor
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in), value :: isys
 
     integer :: i, n
-
-    real(c_float), parameter :: bond_rad_def = 0.35_c_float
 
     ! clear the bond style
     d%isinit = .false.
     d%isdef = .true.
     if (allocated(d%nstar)) deallocate(d%nstar)
     if (allocated(d%shown)) deallocate(d%shown)
-    if (allocated(d%twocolor)) deallocate(d%twocolor)
+    if (allocated(d%style)) deallocate(d%style)
     if (allocated(d%rgb)) deallocate(d%rgb)
     if (allocated(d%rad)) deallocate(d%rad)
     if (allocated(d%order)) deallocate(d%order)
@@ -1174,7 +1176,7 @@ contains
     if (isys < 1 .or. isys > nsys) return
     if (sysc(isys)%status < sys_ready) return
 
-    ! fill
+    ! fill data
     d%isinit = .true.
     d%nstar = sys(isys)%c%nstar
     n = 0
@@ -1182,17 +1184,140 @@ contains
        n = max(n,d%nstar(i)%ncon)
     end do
     allocate(d%shown(n,sys(isys)%c%ncel))
-    allocate(d%twocolor(n,sys(isys)%c%ncel))
+    allocate(d%style(n,sys(isys)%c%ncel))
     allocate(d%rgb(3,n,sys(isys)%c%ncel))
     allocate(d%rad(n,sys(isys)%c%ncel))
     allocate(d%order(n,sys(isys)%c%ncel))
     d%shown = .true.
-    d%twocolor = .false.
+    d%style = 0
     d%rgb = 0._c_float
     d%rad = bond_rad_def
     d%order = 1
 
+    ! fill temp options
+    d%distancetype_g = 0
+    d%dmin_g = 0._c_float
+    d%dmax_g = 0._c_float
+    d%bfmin_g = 0._c_float
+    d%bfmax_g = real(bondfactor,c_float)
+    d%radtype_g = 0
+    d%style_g = 0
+    d%rad_g = bond_rad_def
+    d%rgb_g = 0._c_float
+    d%order_g = 1
+
+    call d%generate_table_from_globals(isys)
+
   end subroutine reset_bond_style
+
+  !> Generate the rij table from the bond globals.
+  module subroutine generate_table_from_globals(d,isys)
+    use gui_main, only: sys, nsys, sysc, sys_ready
+    use param, only: atmcov, bohrtoa
+    class(draw_style_bond), intent(inout), target :: d
+    integer, intent(in) :: isys
+
+    integer :: i, j
+    real*8 :: r1, r2
+
+    ! check all the info is available
+    if (.not.d%isinit) return
+    if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status < sys_ready) return
+
+    ! deallocate table data
+    if (allocated(d%rij_t)) deallocate(d%rij_t)
+    if (allocated(d%shown_t)) deallocate(d%shown_t)
+    if (allocated(d%style_t)) deallocate(d%style_t)
+    if (allocated(d%rgb_t)) deallocate(d%rgb_t)
+    if (allocated(d%rad_t)) deallocate(d%rad_t)
+    if (allocated(d%order_t)) deallocate(d%order_t)
+
+    ! allocate temporary data for rij table
+    allocate(d%rij_t(sys(isys)%c%nspc,2,sys(isys)%c%nspc))
+    allocate(d%shown_t(sys(isys)%c%nspc,sys(isys)%c%nspc))
+    allocate(d%style_t(sys(isys)%c%nspc,sys(isys)%c%nspc))
+    allocate(d%rgb_t(3,sys(isys)%c%nspc,sys(isys)%c%nspc))
+    allocate(d%rad_t(sys(isys)%c%nspc,sys(isys)%c%nspc))
+    allocate(d%order_t(sys(isys)%c%nspc,sys(isys)%c%nspc))
+
+    ! fill table data
+    do i = 1, sys(isys)%c%nspc
+       r1 = atmcov(sys(isys)%c%spc(i)%z)
+       do j = i, sys(isys)%c%nspc
+          r2 = atmcov(sys(isys)%c%spc(j)%z)
+          if (d%distancetype_g == 0) then
+             d%rij_t(i,1,j) = d%bfmin_g * (r1 + r2)
+             d%rij_t(i,2,j) = d%bfmax_g * (r1 + r2)
+          else
+             d%rij_t(i,1,j) = d%dmin_g / bohrtoa
+             d%rij_t(i,2,j) = d%dmax_g / bohrtoa
+          end if
+          d%rij_t(j,:,i) = d%rij_t(i,:,j)
+          d%rgb_t(:,i,j) = d%rgb_g
+          d%rgb_t(:,j,i) = d%rgb_g
+       end do
+    end do
+    d%shown_t = .true.
+    d%style_t = d%style_g
+    d%rad_t = d%rad_g
+    d%order_t = d%order_g
+
+  end subroutine generate_table_from_globals
+
+  !> Generate the neighbor stars from the data in the rij table using
+  !> the geometry in system isys.
+  module subroutine generate_neighstars_from_table(d,isys)
+    use gui_main, only: nsys, sys, sysc, sys_ready
+    class(draw_style_bond), intent(inout), target :: d
+    integer, intent(in) :: isys
+
+    integer :: i, j, n, ispc, jspc
+
+    ! check all the info is available
+    if (.not.d%isinit) return
+    if (.not.allocated(d%rij_t)) return
+    if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status < sys_ready) return
+
+    ! generate the new neighbor star
+    call sys(isys)%c%find_asterisms(d%nstar,rij=d%rij_t)
+
+    ! reallocate the additional information that goes with the neighstar
+    if (allocated(d%shown)) deallocate(d%shown)
+    if (allocated(d%style)) deallocate(d%style)
+    if (allocated(d%rgb)) deallocate(d%rgb)
+    if (allocated(d%rad)) deallocate(d%rad)
+    if (allocated(d%order)) deallocate(d%order)
+    n = 0
+    do i = 1, sys(isys)%c%ncel
+       n = max(n,d%nstar(i)%ncon)
+    end do
+    allocate(d%shown(n,sys(isys)%c%ncel))
+    allocate(d%style(n,sys(isys)%c%ncel))
+    allocate(d%rgb(3,n,sys(isys)%c%ncel))
+    allocate(d%rad(n,sys(isys)%c%ncel))
+    allocate(d%order(n,sys(isys)%c%ncel))
+    d%shown = .true.
+    d%style = 0
+    d%rgb = 0._c_float
+    d%rad = bond_rad_def
+    d%order = 1
+
+    ! transfer the info from the species table to the neighbor star
+    do i = 1, sys(isys)%c%ncel
+       ispc = sys(isys)%c%atcel(i)%is
+       do j = 1, d%nstar(i)%ncon
+          jspc = sys(isys)%c%atcel(d%nstar(i)%idcon(j))%is
+          d%shown(j,i) = d%shown_t(ispc,jspc)
+          d%style(j,i) = d%style_t(ispc,jspc)
+          d%rgb(:,j,i) = d%rgb_t(:,ispc,jspc)
+          d%rad(j,i) = d%rad_t(ispc,jspc)
+          d%order(j,i) = d%order_t(ispc,jspc)
+       end do
+    end do
+
+  end subroutine generate_neighstars_from_table
 
   !xx! representation
 
@@ -1583,7 +1708,7 @@ contains
                          if (.not.lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
 
                          ! draw the bond, reallocate if necessary
-                         if (.not.r%bond_style%twocolor(ib,i)) then
+                         if (r%bond_style%style(ib,i) == 0) then
                             ncyl = ncyl + 1
                          else
                             ncyl = ncyl + 2
@@ -1606,7 +1731,7 @@ contains
                          x1 = xc + uoriginc
                          x2 = sys(r%id)%c%atcel(ineigh)%x + ixn
                          x2 = sys(r%id)%c%x2c(x2) + uoriginc
-                         if (.not.r%bond_style%twocolor(ib,i)) then
+                         if (r%bond_style%style(ib,i) == 0) then
                             drawlist_cyl(ncyl)%x1 = real(x1,c_float)
                             drawlist_cyl(ncyl)%x1delta = cmplx(xdelta1,kind=c_float_complex)
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
