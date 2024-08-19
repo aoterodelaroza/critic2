@@ -1662,7 +1662,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, suffix
     real*8 :: x0(3)
     logical(c_bool) :: ch, ldum
-    integer(c_int) :: nc(3), lst, flags
+    integer(c_int) :: nc(3), lst, flags, nspcpair
     real(c_float) :: sqw, rijt
     integer :: i, j
     type(ImVec2) :: sz
@@ -1697,8 +1697,9 @@ contains
     changed = changed .or. iw_checkbox("Labels##labelsglobaldisplay",w%rep%labels_display,sameline=.true.,highlight=.true.)
     call iw_tooltip("Display atomic labels in the scene",ttshown)
 
-    str1 = "##editrepatomstabbar" // c_null_char
+    str1 = "##editrepatomstabbar" // string(w%isys) // c_null_char
     flags = ImGuiTabBarFlags_Reorderable
+    flags = ior(flags,ImGuiTabBarFlags_AutoSelectNewTabs)
     if (igBeginTabBar(c_loc(str1),flags)) then
 
        str1 = "Atoms##editrepatoms_atomstab" // c_null_char
@@ -1940,6 +1941,7 @@ contains
           call iw_tooltip("Toggle the show/hide status for all bonds",ttshown)
 
           ! species table
+          nspcpair = min(5,sys(isys)%c%nspc*(sys(isys)%c%nspc+1)/2+1)
           flags = ImGuiTableFlags_None
           flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
           flags = ior(flags,ImGuiTableFlags_Borders)
@@ -1947,7 +1949,7 @@ contains
           flags = ior(flags,ImGuiTableFlags_ScrollY)
           str1="##tablespeciesbonding" // c_null_char
           sz%x = iw_calcwidth(67,0)
-          sz%y = iw_calcheight(5,0,.false.)
+          sz%y = iw_calcheight(nspcpair,0,.false.)
           if (igBeginTable(c_loc(str1),9,flags,sz,0._c_float)) then
              ! header setup
              str2 = "At. 1" // c_null_char
@@ -2015,7 +2017,7 @@ contains
                       str2 = "##dminbondtable" // suffix // c_null_char
                       str3 = "%.3f" // c_null_char
                       call igPushItemWidth(iw_calcwidth(7,1))
-                      rijt = real(w%rep%bond_style%rij_t(i,1,j),c_float) * bohrtoa
+                      rijt = real(w%rep%bond_style%rij_t(i,1,j) * bohrtoa,c_float)
                       if (igDragFloat(c_loc(str2),rijt,0.01_c_float,0.0_c_float,10.0_c_float,&
                          c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
                          w%rep%bond_style%rij_t(j,1,i) = rijt / bohrtoa
@@ -2028,7 +2030,7 @@ contains
                       str2 = "##dmaxbondtable" // suffix // c_null_char
                       str3 = "%.3f" // c_null_char
                       call igPushItemWidth(iw_calcwidth(7,1))
-                      rijt = real(w%rep%bond_style%rij_t(i,2,j),c_float) * bohrtoa
+                      rijt = real(w%rep%bond_style%rij_t(i,2,j) * bohrtoa,c_float)
                       if (igDragFloat(c_loc(str2),rijt,0.01_c_float,0.0_c_float,10.0_c_float,&
                          c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
                          w%rep%bond_style%rij_t(j,2,i) = rijt / bohrtoa
