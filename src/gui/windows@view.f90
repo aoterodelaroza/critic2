@@ -2091,7 +2091,6 @@ contains
              call iw_tooltip("Toggle the show/hide status for all bonds",ttshown)
 
              if (iw_button("Apply##applypairs",sameline=.true.,danger=.true.)) then
-                call w%rep%bond_style%generate_table_from_globals(isys)
                 call w%rep%bond_style%generate_neighstars_from_table(isys,.true.)
                 changed = .true.
              end if
