@@ -122,46 +122,96 @@ contains
   end function iw_calcwidth
 
   !> Simple combo with title str. stropt contains the options
-  !> separated by \0 and terminated by \0\0. ival is the current value
-  !> of the combo.  sameline = place it in the same line as the last
-  !> item. changed = returns true if the combo option changed.
-  module subroutine iw_combo_simple(str,stropt,ival,sameline,sameline_nospace,changed)
+  !> separated by \0 and terminated by \0. ival is the current value
+  !> of the combo. sameline = place it in the same line as the last
+  !> item. samline_nospace = like sameline, but no extra
+  !> space. changed = returns true if the combo option
+  !> changed. noarrow = hide the arrow on the right of the combo.
+  module subroutine iw_combo_simple(str,stropt,ival,sameline,sameline_nospace,changed,noarrow)
     use interfaces_cimgui
+    use types, only: realloc
     character(len=*,kind=c_char), intent(in) :: str
     character(len=*,kind=c_char), intent(in) :: stropt
     integer, intent(inout) :: ival
     logical, intent(in), optional :: sameline
     logical, intent(in), optional :: sameline_nospace
     logical(c_bool), intent(out), optional :: changed
+    logical, intent(in), optional :: noarrow
 
-    character(len=:,kind=c_char), allocatable, target :: str1
+    type(ImVec2) :: szero
+    character(len=:,kind=c_char), allocatable, target :: str1, str2, preview
     character(len=:,kind=c_char), allocatable, target :: stropt1
-    logical :: ldum, sameline_, sameline_nospace_
-    integer :: ll, maxlen, nidx, idx
+    logical :: ldum, sameline_, sameline_nospace_, noarrow_
+    integer :: ll, maxlen, nidx, idx, ientry, nword, i, iselect
+    integer(c_int) :: flags
+    integer, allocatable :: idx(:)
+    logical(c_bool) :: selected
 
+    ! process input options
+    noarrow_ = .false.
+    if (present(noarrow)) noarrow_ = noarrow
     sameline_ = .false.
     if (present(sameline)) sameline_ = sameline
     sameline_nospace_ = .false.
     if (present(sameline_nospace)) sameline_nospace_ = sameline_nospace
+    szero%x = 0
+    szero%y = 0
 
+    ! strip null chars from the options string
     str1 = str // c_null_char
-    stropt1 = stropt // c_null_char // c_null_char
+    stropt1 = stropt
+    do while (.true.)
+       ll = len(stropt1)
+       if (index(stropt1,c_null_char,back=.true.) == ll) then
+          stropt1 = stropt1(1:ll-1)
+       else
+          exit
+       end if
+    end do
+    stropt1 = stropt1 // c_null_char
 
+    ! number of words and indices of the nulls
+    allocate(idx(20))
+    preview = c_null_char
+    nword = 0
+    idx(1) = 0
+    maxlen = 0
+    do i = 1, len(stropt1)
+       if (stropt1(i:i) == c_null_char) then
+          nword = nword + 1
+          if (nword+1 > size(idx,1)) call realloc(idx,2*nword)
+          idx(nword+1) = i
+          if (ival+1 == nword) preview = stropt1(idx(nword)+1:i-1) // c_null_char
+          maxlen = max(maxlen,i-1-idx(nword))
+       end if
+    end do
+
+    ! same line
     if (sameline_) call igSameLine(0._c_float,-1._c_float)
     if (sameline_nospace_) call igSameLine(0._c_float,0._c_float)
 
-    maxlen = 0
-    idx = 0
-    ll = len(stropt1)-1
-    do while (idx < ll)
-       nidx = idx + index(stropt1(idx+1:),c_null_char)
-       maxlen = max(maxlen,nidx-1-idx)
-       idx = nidx
-    end do
-    call igSetNextItemWidth(iw_calcwidth(maxlen+4,0))
-
-    ldum = igCombo_Str(c_loc(str1), ival, c_loc(stropt1), -1_c_int)
-    if (present(changed)) changed = ldum
+    ! display the combo
+    if (noarrow_) then
+       call igSetNextItemWidth(iw_calcwidth(maxlen+1,0))
+    else
+       call igSetNextItemWidth(iw_calcwidth(maxlen+4,0))
+    end if
+    iselect = ival
+    flags = ImGuiComboFlags_None
+    if (noarrow_) flags = ior(flags,ImGuiComboFlags_NoArrowButton)
+    if (igBeginCombo(c_loc(str1),c_loc(preview),flags)) then
+       do i = 1, nword
+          str2 = stropt1(idx(i)+1:idx(i+1)-1) // c_null_char
+          selected = (i == ival+1)
+          if (igSelectable_Bool(c_loc(str2),selected,ImGuiSelectableFlags_None,szero)) &
+             iselect = i-1
+          if (selected) &
+             call igSetItemDefaultFocus()
+       end do
+       call igEndCombo()
+    end if
+    if (present(changed)) changed = (ival /= iselect)
+    ival = iselect
 
   end subroutine iw_combo_simple
 

@@ -1189,7 +1189,7 @@ contains
     d%imol = 0
 
     ! fill temp options
-    d%distancetype_g = 1
+    d%distancetype_g = 0
     d%dmin_g = 0._c_float
     d%dmax_g = 0._c_float
     d%bfmin_g = 0._c_float

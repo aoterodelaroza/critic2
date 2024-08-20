@@ -93,7 +93,7 @@ module scenes
      logical :: isinit = .false. ! whether the style is intialized
      logical :: isdef = .true. ! whether this is using the system's neighbor star
      ! temporary storage for the edit object/bonds tab, global options
-     integer(c_int) :: distancetype_g ! selector for distance type (0=factor,1=absolute)
+     integer(c_int) :: distancetype_g ! selector for distance type (0=factor,1=range)
      real(c_float) :: dmin_g, dmax_g ! distance limits (angstrom)
      real(c_float) :: bfmin_g, bfmax_g ! bondfactor limits
      integer(c_int) :: radtype_g(2) ! radii type for min and max (0=covalent,1=vdw)

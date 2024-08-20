@@ -2019,9 +2019,9 @@ contains
           call igAlignTextToFramePadding()
           call iw_text("└──intra/inter-molecular")
           call iw_combo_simple("##tablebondimolselectglobal",&
-             "Any"//c_null_char//"Intra-mol"//c_null_char//"Inter-mol"//c_null_char,&
+             "Any"//c_null_char//"Intra"//c_null_char//"Inter"//c_null_char,&
              w%rep%bond_style%imol_g,sameline=.true.)
-          call iw_tooltip("Draw any bonds (Any), only intramolecular (Intra-mol), or only intermolecular (Inter-mol)",&
+          call iw_tooltip("Draw any bonds (Any), only intramolecular (Intra), or only intermolecular (Inter)",&
              ttshown)
           g%Style%ItemSpacing%y = saveitemspacing
           g%Style%FramePadding%y = saveframepadding
@@ -2206,17 +2206,18 @@ contains
                       if (igTableSetColumnIndex(ic_imol)) then
                          call iw_combo_simple("##tablebondimolselect" // suffix,&
                             "Any"//c_null_char//"Intra"//c_null_char//"Inter"//c_null_char,&
-                            w%rep%bond_style%imol_t(i,j),changed=ldum)
+                            w%rep%bond_style%imol_t(i,j),changed=ldum,noarrow=.true.)
                          ch = ch .or. ldum
                          w%rep%bond_style%imol_t(j,i) = w%rep%bond_style%imol_t(i,j)
-                         call iw_tooltip("Draw any bonds (Any), only intramolecular (Intra-mol),&
-                            & or only intermolecular (Inter-mol)",ttshown)
+                         call iw_tooltip("Draw any bonds (Any), only intramolecular (Intra),&
+                            & or only intermolecular (Inter)",ttshown)
                       end if
 
                       ! bond style
                       if (igTableSetColumnIndex(ic_bondstyle)) then
                          call iw_combo_simple("##tablebondstyleselect" // suffix,&
-                            "One"//c_null_char//"Two"//c_null_char,w%rep%bond_style%style_t(i,j),changed=ldum)
+                            "One"//c_null_char//"Two"//c_null_char,w%rep%bond_style%style_t(i,j),changed=ldum,&
+                            noarrow=.true.)
                          ch = ch .or. ldum
                          w%rep%bond_style%style_t(j,i) = w%rep%bond_style%style_t(i,j)
                          call iw_tooltip("Use a single color for the bond, or two colors from the bonded atoms",ttshown)
@@ -2256,7 +2257,7 @@ contains
                       if (igTableSetColumnIndex(ic_order)) then
                          call iw_combo_simple("##tablebondorderselect" // suffix,&
                             "Dashed"//c_null_char//"Single"//c_null_char//"Double"//c_null_char//"Triple"//c_null_char,&
-                            w%rep%bond_style%order_t(i,j),changed=ldum)
+                            w%rep%bond_style%order_t(i,j),changed=ldum,noarrow=.true.)
                          ch = ch .or. ldum
                          w%rep%bond_style%order_t(j,i) = w%rep%bond_style%order_t(i,j)
                          call iw_tooltip("Bond order (dashed, single, double, etc.)",ttshown)
