@@ -206,6 +206,7 @@ contains
     ! set the initial ImGui style
     call igStyleColorsDark(c_null_ptr)
     g%Style%FrameRounding = 3._c_float
+    g%Style%Colors(ImGuiCol_TabActive+1) = g%Style%Colors(ImGuiCol_TabHovered+1)
 
     ! set default UI settings
     call set_default_ui_settings()
