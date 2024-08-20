@@ -1189,7 +1189,7 @@ contains
     d%imol = 0
 
     ! fill temp options
-    d%distancetype_g = 0
+    d%distancetype_g = 1
     d%dmin_g = 0._c_float
     d%dmax_g = 0._c_float
     d%bfmin_g = 0._c_float
@@ -1275,10 +1275,11 @@ contains
 
   !> Generate the neighbor stars from the data in the rij table using
   !> the geometry in system isys.
-  module subroutine generate_neighstars_from_table(d,isys)
+  module subroutine generate_neighstars_from_table(d,isys,recalculate)
     use gui_main, only: nsys, sys, sysc, sys_ready
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in) :: isys
+    logical, intent(in) :: recalculate
 
     integer :: i, j, n, ispc, jspc
 
@@ -1289,7 +1290,8 @@ contains
     if (sysc(isys)%status < sys_ready) return
 
     ! generate the new neighbor star
-    call sys(isys)%c%find_asterisms(d%nstar,rij=d%rij_t)
+    if (recalculate) &
+       call sys(isys)%c%find_asterisms(d%nstar,rij=d%rij_t)
 
     ! reallocate the additional information that goes with the neighstar
     if (allocated(d%shown)) deallocate(d%shown)

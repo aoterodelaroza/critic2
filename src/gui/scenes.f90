@@ -345,9 +345,10 @@ module scenes
        class(draw_style_bond), intent(inout), target :: d
        integer, intent(in) :: isys
      end subroutine generate_table_from_globals
-     module subroutine generate_neighstars_from_table(d,isys)
+     module subroutine generate_neighstars_from_table(d,isys,recalculate)
        class(draw_style_bond), intent(inout), target :: d
        integer, intent(in) :: isys
+       logical, intent(in) :: recalculate
      end subroutine generate_neighstars_from_table
      ! representation
      module subroutine representation_init(r,sc,isys,irep,itype,style)
