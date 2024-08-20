@@ -681,7 +681,7 @@ contains
     ! resize the render texture if not large enough
     amax = max(ceiling(max(szavail%x,szavail%y)),1)
     if (amax > w%FBOside) then
-       amax = max(ceiling(1.5 * ceiling(max(szavail%x,szavail%y))),1)
+       amax = max(ceiling(1.2 * ceiling(max(szavail%x,szavail%y))),1)
        call w%delete_texture_view()
        call w%create_texture_view(amax)
        w%forcerender = .true.
@@ -739,7 +739,8 @@ contains
     call igPushStyleColor_Vec4(ImGuiCol_Button,bgcol)
     call igPushStyleColor_Vec4(ImGuiCol_ButtonActive,bgcol)
     call igPushStyleColor_Vec4(ImGuiCol_ButtonHovered,bgcol)
-    ldum = igImageButton(w%FBOtex, szavail, sz0, sz1, 0_c_int, bgcol, tintcol)
+    str1 = "##imagebutton" // c_null_char
+    ldum = igImageButtonEx(igGetID_Str(c_loc(str1)),w%FBOtex, szavail, sz0, sz1, szero, bgcol, tintcol)
     call igPopStyleColor(3)
 
     ! get hover, image rectangle coordinates, and atom idx

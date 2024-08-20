@@ -2186,7 +2186,19 @@ end function igButtonEx
 !x! bool igArrowButtonEx(const char* str_id,ImGuiDir dir,ImVec2 size_arg,ImGuiButtonFlags flags);
 !x! void igScrollbar(ImGuiAxis axis);
 !x! bool igScrollbarEx(const ImRect bb,ImGuiID id,ImGuiAxis axis,ImS64* p_scroll_v,ImS64 avail_v,ImS64 contents_v,ImDrawFlags flags);
-!x! bool igImageButtonEx(ImGuiID id,ImTextureID texture_id,const ImVec2 size,const ImVec2 uv0,const ImVec2 uv1,const ImVec2 padding,const ImVec4 bg_col,const ImVec4 tint_col);
+! bool igImageButtonEx(ImGuiID id,ImTextureID texture_id,const ImVec2 size,const ImVec2 uv0,const ImVec2 uv1,const ImVec2 padding,const ImVec4 bg_col,const ImVec4 tint_col);
+function igImageButtonEx(id,texture_id,size,uv0,uv1,padding,bg_col,tint_col) bind(c,name="igImageButtonEx")
+  import c_bool, c_int, c_ptr, ImVec2, ImVec4
+  logical(c_bool) :: igImageButton
+  integer(c_int), value :: id
+  integer(c_int), value :: texture_id ! type(c_ptr), value :: user_texture_id
+  type(ImVec2), intent(in), value :: size
+  type(ImVec2), intent(in), value :: uv0
+  type(ImVec2), intent(in), value :: uv1
+  type(ImVec2), intent(in), value :: padding
+  type(ImVec4), intent(in), value :: bg_col
+  type(ImVec4), intent(in), value :: tint_col
+end function igImageButtonEx
 !x! void igGetWindowScrollbarRect(ImRect *pOut,ImGuiWindow* window,ImGuiAxis axis);
 !x! ImGuiID igGetWindowScrollbarID(ImGuiWindow* window,ImGuiAxis axis);
 !x! ImGuiID igGetWindowResizeCornerID(ImGuiWindow* window,int n);
