@@ -461,21 +461,12 @@ contains
 
        ! draw the cylinders for the bonds (inherit border from atoms)
        call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
-       call setuniform_int(0_c_int,idxi=iunif(iu_ndash_cyl))
        ! call setuniform_float(0.275_c_float,idxi=iunif(iu_delta_cyl))
-       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
        if (s%ncyl > 0) then
           call glBindVertexArray(cylVAO(s%bond_res))
           call draw_all_cylinders()
        end if
-
-       ! call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
-       ! call setuniform_int(0_c_int,idxi=iunif(iu_ndash_cyl))
-       ! call setuniform_float(-0.275_c_float,idxi=iunif(iu_delta_cyl))
-       ! if (s%ncyl > 0) then
-       !    call glBindVertexArray(cylVAO(s%bond_res))
-       !    call draw_all_cylinders()
-       ! end if
+       call setuniform_int(0_c_int,idxi=iunif(iu_ndash_cyl))
 
        ! draw the flat cylinders for the unit cell
        call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
@@ -488,7 +479,6 @@ contains
        if (s%nmsel > 0) then
           call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
           call setuniform_float(0._c_float,idxi=iunif(iu_rborder))
-          ! call setuniform_vec3(0._c_float,idxi=iunif(iu_bordercolor))
           call glBindVertexArray(sphVAO(s%atom_res))
           call glEnable(GL_BLEND)
           call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -558,7 +548,8 @@ contains
             x1 = x1 + real(displ * s%drawlist_cyl(i)%x1delta,c_float)
             x2 = x2 + real(displ * s%drawlist_cyl(i)%x2delta,c_float)
          end if
-         call draw_cylinder(x1,x2,s%drawlist_cyl(i)%r,s%drawlist_cyl(i)%rgb,s%bond_res)
+         call draw_cylinder(x1,x2,s%drawlist_cyl(i)%r,s%drawlist_cyl(i)%rgb,s%bond_res,&
+            s%drawlist_cyl(i)%order)
       end do
 
     end subroutine draw_all_cylinders
@@ -568,7 +559,7 @@ contains
 
       do i = 1, s%ncylflat
          call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
-            s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgb,s%uc_res)
+            s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgb,s%uc_res,1)
       end do
 
     end subroutine draw_all_flat_cylinders
@@ -1748,6 +1739,7 @@ contains
                             drawlist_cyl(ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
                             drawlist_cyl(ncyl)%r = r%bond_style%rad(ib,i)
                             drawlist_cyl(ncyl)%rgb = r%bond_style%rgb(:,ib,i)
+                            drawlist_cyl(ncyl)%order = r%bond_style%order(ib,i)
                          else
                             ! calculate the midpoint, taking into account the atomic radii
                             if (r%atom_style%type == 0) then ! species
@@ -1771,6 +1763,7 @@ contains
                             drawlist_cyl(ncyl-1)%x2delta = cmplx(xdelta0,kind=c_float_complex)
                             drawlist_cyl(ncyl-1)%r = r%bond_style%rad(ib,i)
                             drawlist_cyl(ncyl-1)%rgb = rgb
+                            drawlist_cyl(ncyl-1)%order = r%bond_style%order(ib,i)
 
                             drawlist_cyl(ncyl)%x1 = real(x0,c_float)
                             drawlist_cyl(ncyl)%x1delta = cmplx(xdelta0,kind=c_float_complex)
@@ -1779,6 +1772,7 @@ contains
                             drawlist_cyl(ncyl)%r = r%bond_style%rad(ib,i)
                             drawlist_cyl(ncyl)%rgb = r%atom_style%rgb(:,idaux) * &
                                r%mol_style%tint_rgb(:,sys(r%id)%c%idatcelmol(ineigh))
+                            drawlist_cyl(ncyl)%order = r%bond_style%order(ib,i)
                          end if
                       end do ! ncon
                    end if
@@ -1991,7 +1985,7 @@ contains
 
   !> Draw a cylinder from x1 to x2 with radius rad and color
   !> rgb. Requires having the cylinder VAO bound.
-  subroutine draw_cylinder(x1,x2,rad,rgb,ires)
+  subroutine draw_cylinder(x1,x2,rad,rgb,ires,order)
     use interfaces_opengl3
     use tools_math, only: cross_cfloat
     use shaders, only: setuniform_vec4, setuniform_mat4, setuniform_int, setuniform_float
@@ -2001,9 +1995,13 @@ contains
     real(c_float), intent(in) :: rad
     real(c_float), intent(in) :: rgb(3)
     integer(c_int), intent(in) :: ires
+    integer(c_int), intent(in) :: order
 
     real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
     real(c_float) :: a, ca, sa, axis(3), temp(3), rgb_(4)
+    integer(c_int) :: ndash
+
+    real(c_float), parameter :: dash_length = 0.5 ! length of the dashes
 
     ! some calculations for the model matrix
     xmid = 0.5_c_float * (x1 + x2)
@@ -2047,6 +2045,10 @@ contains
     rgb_(4) = 1._c_float
     call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
     call setuniform_mat4(model,idxi=iunif(iu_model))
+    if (order == 0) then
+       ndash = nint(blen / dash_length)
+       call setuniform_int(ndash,idxi=iunif(iu_ndash_cyl))
+    end if
 
     ! draw
     call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)

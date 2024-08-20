@@ -50,7 +50,7 @@ void main(){
     vx = vx - ralong * upn;
 
     // discard to make dashed
-    if (mod(trunc(0.5 * (hheight + ralong) / hheight * ndash_cyl),2) == 1){
+    if (ndash_cyl > 0 && mod(trunc(0.5 * (hheight + ralong) / hheight * ndash_cyl),2) == 1){
       discard;
     } else {
       // border

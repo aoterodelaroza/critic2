@@ -50,6 +50,7 @@ module scenes
      real(c_float) :: rgb(3) ! color
      complex(c_float_complex) :: x1delta(3) ! delta-vector for vibration animations (end 1)
      complex(c_float_complex) :: x2delta(3) ! delta-vector for vibration animations (end 2)
+     integer(c_int) :: order ! order of the bond (0=dashed,1=single,2=double,3=triple)
   end type dl_cylinder
 
   !> strings for the draw list

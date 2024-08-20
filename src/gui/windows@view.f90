@@ -745,7 +745,8 @@ contains
 
     ! get hover, image rectangle coordinates, and atom idx
     idx = 0
-    hover = igIsItemHovered(ImGuiHoveredFlags_None) .and. goodsys .and. w%ilock == ilock_no
+    hover = goodsys .and. w%ilock == ilock_no
+    if (hover) hover = igIsItemHovered(ImGuiHoveredFlags_None)
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
     if (hover) then
@@ -2071,7 +2072,7 @@ contains
              flags = ImGuiTableColumnFlags_WidthFixed
              call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_sp2)
 
-             str2 = "Show" // c_null_char
+             str2 = "" // c_null_char
              flags = ImGuiTableColumnFlags_WidthFixed
              call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_shown)
 
