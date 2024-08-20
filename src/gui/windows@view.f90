@@ -1663,7 +1663,7 @@ contains
     character(kind=c_char,len=1024), target :: txtinp
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, suffix
     real*8 :: x0(3)
-    logical(c_bool) :: ch, ldum
+    logical(c_bool) :: ch, ch2, ldum
     integer(c_int) :: nc(3), lst, flags, nspcpair, iaux
     real(c_float) :: sqw, rijt, saveitemspacing, saveframepadding
     integer :: i, j
@@ -1677,11 +1677,11 @@ contains
     integer(c_int), parameter :: ic_shown = 2
     integer(c_int), parameter :: ic_dmin = 3
     integer(c_int), parameter :: ic_dmax = 4
-    integer(c_int), parameter :: ic_bondstyle = 5
-    integer(c_int), parameter :: ic_color = 6
-    integer(c_int), parameter :: ic_radius = 7
-    integer(c_int), parameter :: ic_order = 8
-    integer(c_int), parameter :: ic_imol = 9
+    integer(c_int), parameter :: ic_imol = 5
+    integer(c_int), parameter :: ic_bondstyle = 6
+    integer(c_int), parameter :: ic_color = 7
+    integer(c_int), parameter :: ic_radius = 8
+    integer(c_int), parameter :: ic_order = 9
 
     ! initialize
     changed = .false.
@@ -2054,7 +2054,15 @@ contains
           ch = ch .or. ldum
           call iw_tooltip("Bond order (dashed, single, double, etc.)",ttshown)
 
+          ! immediately update if non-distances have changed
+          if (ch) then
+             call w%rep%bond_style%generate_table_from_globals(isys)
+             call w%rep%bond_style%generate_neighstars_from_table(isys,.false.)
+             changed = .true.
+          end if
+
           !! atom pairs table !!
+          ch = .false.
           str2 = "Atom Pairs Table" // c_null_char
           ldum = igCollapsingHeader_BoolPtr(c_loc(str2),c_null_ptr,ImGuiTreeNodeFlags_None)
           call iw_tooltip("Choose which bonds to draw and their display properties using&
@@ -2115,6 +2123,10 @@ contains
                 flags = ImGuiTableColumnFlags_WidthFixed
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_dmax)
 
+                str2 = "I-mol" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_imol)
+
                 str2 = "Style" // c_null_char
                 flags = ImGuiTableColumnFlags_WidthFixed
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_bondstyle)
@@ -2131,10 +2143,6 @@ contains
                 flags = ImGuiTableColumnFlags_WidthFixed
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_order)
                 call igTableSetupScrollFreeze(0, 1) ! top row always visible
-
-                str2 = "I-mol" // c_null_char
-                flags = ImGuiTableColumnFlags_WidthFixed
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_imol)
                 call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
                 ! draw the header
@@ -2188,6 +2196,17 @@ contains
                          call iw_tooltip("Bonds with length above this value are not shown",ttshown)
                       end if
 
+                      ! intra/inter-molecular
+                      if (igTableSetColumnIndex(ic_imol)) then
+                         call iw_combo_simple("##tablebondimolselect" // suffix,&
+                            "Any"//c_null_char//"Intra"//c_null_char//"Inter"//c_null_char,&
+                            w%rep%bond_style%imol_t(i,j),changed=ldum)
+                         ch = ch .or. ldum
+                         w%rep%bond_style%imol_t(j,i) = w%rep%bond_style%imol_t(i,j)
+                         call iw_tooltip("Draw any bonds (Any), only intramolecular (Intra-mol),&
+                            & or only intermolecular (Inter-mol)",ttshown)
+                      end if
+
                       ! bond style
                       if (igTableSetColumnIndex(ic_bondstyle)) then
                          call iw_combo_simple("##tablebondstyleselect" // suffix,&
@@ -2236,17 +2255,6 @@ contains
                          w%rep%bond_style%order_t(j,i) = w%rep%bond_style%order_t(i,j)
                          call iw_tooltip("Bond order (dashed, single, double, etc.)",ttshown)
                       end if
-
-                      ! intra/inter-molecular
-                      if (igTableSetColumnIndex(ic_imol)) then
-                         call iw_combo_simple("##tablebondimolselect" // suffix,&
-                            "Any"//c_null_char//"Intra"//c_null_char//"Inter"//c_null_char,&
-                            w%rep%bond_style%imol_t(i,j),changed=ldum)
-                         ch = ch .or. ldum
-                         w%rep%bond_style%imol_t(j,i) = w%rep%bond_style%imol_t(i,j)
-                         call iw_tooltip("Draw any bonds (Any), only intramolecular (Intra-mol),&
-                            & or only intermolecular (Inter-mol)",ttshown)
-                      end if
                    end do
                 end do
                 call igEndTable()
@@ -2255,7 +2263,6 @@ contains
 
           ! immediately update if non-distances have changed
           if (ch) then
-             call w%rep%bond_style%generate_table_from_globals(isys)
              call w%rep%bond_style%generate_neighstars_from_table(isys,.false.)
              changed = .true.
           end if
