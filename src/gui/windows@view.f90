@@ -2458,7 +2458,7 @@ contains
     ! initialize state
     if (w%firstpass) then
        w%okfile = get_current_working_dir() // dirsep // "image.png"
-       w%okfilter = "   "
+       w%okfilter = "PNG"
        w%nsample = 16
        w%jpgquality = 90
        w%exportview = .true.
