@@ -678,14 +678,14 @@ contains
     call igGetContentRegionAvail(szavail)
     szavail%y = szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y
 
-    ! resize the render texture if not large enough
-    amax = max(ceiling(max(szavail%x,szavail%y)),1)
-    if (amax > w%FBOside) then
-       amax = max(ceiling(1.2 * ceiling(max(szavail%x,szavail%y))),1)
-       call w%delete_texture_view()
-       call w%create_texture_view(amax)
-       w%forcerender = .true.
-    end if
+    ! ! resize the render texture if not large enough
+    ! amax = max(ceiling(max(szavail%x,szavail%y)),1)
+    ! if (amax > w%FBOside) then
+    !    amax = max(ceiling(1.2 * ceiling(max(szavail%x,szavail%y))),1)
+    !    call w%delete_texture_view()
+    !    call w%create_texture_view(amax)
+    !    w%forcerender = .true.
+    ! end if
 
     ! draw the texture, largest region with the same shape as the available region
     ! that fits into the texture square
@@ -897,8 +897,8 @@ contains
     ! textures
     call glBindTexture(GL_TEXTURE_2D, w%FBOtex)
     call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, atex, atex, 0, GL_RGBA, GL_UNSIGNED_BYTE, c_null_ptr)
-    call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-    call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+    call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+    call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
     call glBindTexture(GL_TEXTURE_2D, 0)
 
     call glBindTexture(GL_TEXTURE_2D, w%FBOrgba)
@@ -2560,8 +2560,8 @@ contains
        call glBindTexture(GL_TEXTURE_2D, 0)
        call glBindTexture(GL_TEXTURE_2D, endFBOtex)
        call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w%npixel, w%npixel, 0, GL_RGBA, GL_UNSIGNED_BYTE, c_null_ptr)
-       call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-       call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+       call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+       call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
        call glBindTexture(GL_TEXTURE_2D, 0)
 
        ! render buffer
@@ -2608,7 +2608,7 @@ contains
        ! blit the multisampled buffer to the normal colorbuffer
        call glBindFramebuffer(GL_READ_FRAMEBUFFER, msFBO)
        call glBindFramebuffer(GL_DRAW_FRAMEBUFFER, endFBO)
-       call glBlitFramebuffer(0, 0, w%npixel, w%npixel, 0, 0, w%npixel, w%npixel, GL_COLOR_BUFFER_BIT, GL_NEAREST)
+       call glBlitFramebuffer(0, 0, w%npixel, w%npixel, 0, 0, w%npixel, w%npixel, GL_COLOR_BUFFER_BIT, GL_LINEAR)
        call glBindFramebuffer(GL_READ_FRAMEBUFFER, 0)
        call glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0)
 

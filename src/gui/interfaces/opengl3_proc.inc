@@ -230,6 +230,11 @@ subroutine glGenBuffers(n,buffers) bind(c,name="glGenBuffers_")
   integer(c_int), value :: n
   type(c_ptr), value :: buffers
 end subroutine glGenBuffers
+! void glGenerateMipmap(GLenum target);
+subroutine glGenerateMipmap(targt) bind(c,name="glGenerateMipmap")
+  import c_int
+  integer(c_int), value :: targt
+end subroutine glGenerateMipmap
 ! void glGenFramebuffers(GLsizei n,GLuint *ids);
 subroutine glGenFramebuffers(n,ids) bind(c,name="glGenFramebuffers_")
   import c_int, c_ptr

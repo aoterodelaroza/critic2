@@ -126,6 +126,9 @@ void glFramebufferRenderbuffer_(GLenum target, GLenum attachment, GLenum renderb
 void glGenBuffers_(GLsizei n, GLuint* buffers){
   glGenBuffers(n,buffers);
 }
+void glGenerateMipmap_(GLenum target){
+  glGenerateMipmap(target);
+}
 void glGenFramebuffers_(GLsizei n,GLuint *ids){
   glGenFramebuffers(n,ids);
 }
