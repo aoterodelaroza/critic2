@@ -1681,6 +1681,7 @@ contains
     integer(c_int), parameter :: ic_color = 6
     integer(c_int), parameter :: ic_radius = 7
     integer(c_int), parameter :: ic_order = 8
+    integer(c_int), parameter :: ic_imol = 9
 
     ! initialize
     changed = .false.
@@ -1933,13 +1934,13 @@ contains
           call iw_tooltip("Draw the bonds with the currently selected global options",ttshown)
 
           call igAlignTextToFramePadding()
-          call iw_text("Distance",highlight=.true.)
-          call iw_text(" (",sameline_nospace=.true.,highlight=.true.)
+          call iw_text("Distance")
+          call iw_text(" (",sameline_nospace=.true.)
           call iw_combo_simple("##tablebondglobaldistcombo","Factor"//c_null_char//"Range"//c_null_char,&
              w%rep%bond_style%distancetype_g,sameline_nospace=.true.)
           call iw_tooltip("Draw bonds whose length are a factor of the sum of atomic&
              & radii (Factor) or give bond distance range (Range)",ttshown)
-          call iw_text("): ",sameline_nospace=.true.,highlight=.true.)
+          call iw_text("): ",sameline_nospace=.true.)
 
           if (w%rep%bond_style%distancetype_g == 0) then
              ! factor
@@ -2001,13 +2002,13 @@ contains
 
           ! rest of the options
           call igAlignTextToFramePadding()
-          call iw_text("Style",highlight=.true.)
+          call iw_text("Style")
           call iw_combo_simple("##tablebondstyleglobalselect",&
              "Single color"//c_null_char//"Two colors"//c_null_char,w%rep%bond_style%style_g,sameline=.true.)
           call iw_tooltip("Use a single color for the bond, or two colors from the bonded atoms",ttshown)
 
           ! rest of the options
-          call iw_text(" Radius",highlight=.true.,sameline=.true.)
+          call iw_text(" Radius",sameline=.true.)
           str2 = "##radiusbondtableglobal" // c_null_char
           str3 = "%.3f" // c_null_char
           call igPushItemWidth(iw_calcwidth(5,1))
@@ -2018,8 +2019,7 @@ contains
           call iw_tooltip("Radius of the bonds",ttshown)
 
           ! color
-          call igAlignTextToFramePadding()
-          call iw_text("Color",highlight=.true.)
+          call iw_text(" Color",sameline=.true.)
           str2 = "##colorbondtableglobal" // c_null_char
           call igSameLine(0._c_float,-1._c_float)
           ldum = igColorEdit3(c_loc(str2),w%rep%bond_style%rgb_g,ImGuiColorEditFlags_NoInputs)
@@ -2027,11 +2027,19 @@ contains
           call iw_tooltip("Color of the bonds",ttshown)
 
           ! order
-          call iw_text(" Order",highlight=.true.,sameline=.true.)
+          call igAlignTextToFramePadding()
+          call iw_text("Order")
           call iw_combo_simple("##tablebondorderselectglobal",&
              "Dashed"//c_null_char//"Single"//c_null_char//"Double"//c_null_char//"Triple"//c_null_char,&
              w%rep%bond_style%order_g,sameline=.true.)
           call iw_tooltip("Bond order (dashed, single, double, etc.)",ttshown)
+
+          call iw_text(" Intra/inter-molecular",sameline=.true.)
+          call iw_combo_simple("##tablebondimolselectglobal",&
+             "Any"//c_null_char//"Intra-mol"//c_null_char//"Inter-mol"//c_null_char,&
+             w%rep%bond_style%imol_g,sameline=.true.)
+          call iw_tooltip("Draw any bonds (Any), only intramolecular (Intra-mol), or only intermolecular (Inter-mol)",&
+             ttshown)
 
           !! atom pairs table !!
           ! top line of buttons
@@ -2060,9 +2068,9 @@ contains
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           flags = ior(flags,ImGuiTableFlags_ScrollY)
           str1="##tablespeciesbonding" // c_null_char
-          sz%x = iw_calcwidth(55,0)
+          sz%x = iw_calcwidth(64,0)
           sz%y = iw_calcheight(nspcpair,0,.false.)
-          if (igBeginTable(c_loc(str1),9,flags,sz,0._c_float)) then
+          if (igBeginTable(c_loc(str1),10,flags,sz,0._c_float)) then
              ! header setup
              str2 = "" // c_null_char
              flags = ImGuiTableColumnFlags_WidthFixed
@@ -2092,13 +2100,18 @@ contains
              flags = ImGuiTableColumnFlags_WidthFixed
              call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_color)
 
-             str2 = "Radius" // c_null_char
+             str2 = "Rad" // c_null_char
              flags = ImGuiTableColumnFlags_WidthFixed
              call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_radius)
 
              str2 = "Order" // c_null_char
              flags = ImGuiTableColumnFlags_WidthFixed
              call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_order)
+             call igTableSetupScrollFreeze(0, 1) ! top row always visible
+
+             str2 = "I-mol" // c_null_char
+             flags = ImGuiTableColumnFlags_WidthFixed
+             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_imol)
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
              ! draw the header
@@ -2192,6 +2205,16 @@ contains
                          w%rep%bond_style%order_t(i,j))
                       w%rep%bond_style%order_t(j,i) = w%rep%bond_style%order_t(i,j)
                       call iw_tooltip("Bond order (dashed, single, double, etc.)",ttshown)
+                   end if
+
+                   ! intra/inter-molecular
+                   if (igTableSetColumnIndex(ic_imol)) then
+                      call iw_combo_simple("##tablebondimolselect" // suffix,&
+                         "Any"//c_null_char//"Intra"//c_null_char//"Inter"//c_null_char,&
+                         w%rep%bond_style%imol_t(i,j))
+                      w%rep%bond_style%imol_t(j,i) = w%rep%bond_style%imol_t(i,j)
+                      call iw_tooltip("Draw any bonds (Any), only intramolecular (Intra-mol),&
+                         & or only intermolecular (Inter-mol)",ttshown)
                    end if
                 end do
              end do

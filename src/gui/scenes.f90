@@ -101,6 +101,7 @@ module scenes
      real(c_float) :: rad_g ! radius
      real(c_float) :: rgb_g(3) ! color
      integer(c_int) :: order_g ! order (1=single,2=double,etc.)
+     integer(c_int) :: imol_g ! molecular connections (0=any,1=intramol,2=intermol)
      ! temporary storage for rij table
      real*8, allocatable :: rij_t(:,:,:) ! rij table for generating bonds
      logical, allocatable :: shown_t(:,:) ! whether the bond is shown
@@ -108,6 +109,7 @@ module scenes
      real(c_float), allocatable :: rgb_t(:,:,:) ! color of the bond (3,nstar%ncon)
      real(c_float), allocatable :: rad_t(:,:) ! radius of the bond
      integer(c_int), allocatable :: order_t(:,:) ! bond order (-n=dashed,1=single,2=double,etc.)
+     integer(c_int), allocatable :: imol_t(:,:) ! molecular connections (0=any,1=intramol,2=intermol)
      ! the bond information
      type(neighstar), allocatable :: nstar(:) ! the neighbor star
      logical(c_bool), allocatable :: shown(:,:) ! whether the bond is shown
@@ -115,6 +117,7 @@ module scenes
      real(c_float), allocatable :: rgb(:,:,:) ! color of the bond (3,nstar%ncon)
      real(c_float), allocatable :: rad(:,:) ! radius of the bond
      integer(c_int), allocatable :: order(:,:) ! bond order (-n=dashed,1=single,2=double,etc.)
+     integer(c_int), allocatable :: imol(:,:) ! molecular connections (0=any,1=intramol,2=intermol)
    contains
      procedure :: reset => reset_bond_style
      procedure :: generate_table_from_globals

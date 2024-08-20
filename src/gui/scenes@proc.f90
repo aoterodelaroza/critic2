@@ -1162,6 +1162,7 @@ contains
     if (allocated(d%rgb)) deallocate(d%rgb)
     if (allocated(d%rad)) deallocate(d%rad)
     if (allocated(d%order)) deallocate(d%order)
+    if (allocated(d%imol)) deallocate(d%imol)
 
     ! check the system is sane
     if (isys < 1 .or. isys > nsys) return
@@ -1179,11 +1180,13 @@ contains
     allocate(d%rgb(3,n,sys(isys)%c%ncel))
     allocate(d%rad(n,sys(isys)%c%ncel))
     allocate(d%order(n,sys(isys)%c%ncel))
+    allocate(d%imol(n,sys(isys)%c%ncel))
     d%shown = .true.
     d%style = 0
     d%rgb = 0._c_float
     d%rad = bond_rad_def
     d%order = 1
+    d%imol = 0
 
     ! fill temp options
     d%distancetype_g = 0
@@ -1196,6 +1199,7 @@ contains
     d%rad_g = bond_rad_def
     d%rgb_g = 0._c_float
     d%order_g = 1
+    d%imol_g = 0
 
     call d%generate_table_from_globals(isys)
 
@@ -1223,6 +1227,7 @@ contains
     if (allocated(d%rgb_t)) deallocate(d%rgb_t)
     if (allocated(d%rad_t)) deallocate(d%rad_t)
     if (allocated(d%order_t)) deallocate(d%order_t)
+    if (allocated(d%imol_t)) deallocate(d%imol_t)
 
     ! allocate temporary data for rij table
     allocate(d%rij_t(sys(isys)%c%nspc,2,sys(isys)%c%nspc))
@@ -1231,6 +1236,7 @@ contains
     allocate(d%rgb_t(3,sys(isys)%c%nspc,sys(isys)%c%nspc))
     allocate(d%rad_t(sys(isys)%c%nspc,sys(isys)%c%nspc))
     allocate(d%order_t(sys(isys)%c%nspc,sys(isys)%c%nspc))
+    allocate(d%imol_t(sys(isys)%c%nspc,sys(isys)%c%nspc))
 
     ! fill table data
     do i = 1, sys(isys)%c%nspc
@@ -1263,6 +1269,7 @@ contains
     d%style_t = d%style_g
     d%rad_t = d%rad_g
     d%order_t = d%order_g
+    d%imol_t = d%imol_g
 
   end subroutine generate_table_from_globals
 
@@ -1290,6 +1297,7 @@ contains
     if (allocated(d%rgb)) deallocate(d%rgb)
     if (allocated(d%rad)) deallocate(d%rad)
     if (allocated(d%order)) deallocate(d%order)
+    if (allocated(d%imol)) deallocate(d%imol)
     n = 0
     do i = 1, sys(isys)%c%ncel
        n = max(n,d%nstar(i)%ncon)
@@ -1299,11 +1307,13 @@ contains
     allocate(d%rgb(3,n,sys(isys)%c%ncel))
     allocate(d%rad(n,sys(isys)%c%ncel))
     allocate(d%order(n,sys(isys)%c%ncel))
+    allocate(d%imol(n,sys(isys)%c%ncel))
     d%shown = .true.
     d%style = 0
     d%rgb = 0._c_float
     d%rad = bond_rad_def
     d%order = 1
+    d%imol = 0
 
     ! transfer the info from the species table to the neighbor star
     do i = 1, sys(isys)%c%ncel
@@ -1315,6 +1325,7 @@ contains
           d%rgb(:,j,i) = d%rgb_t(:,ispc,jspc)
           d%rad(j,i) = d%rad_t(ispc,jspc)
           d%order(j,i) = d%order_t(ispc,jspc)
+          d%imol(j,i) = d%imol_t(ispc,jspc)
        end do
     end do
 
@@ -1703,6 +1714,13 @@ contains
                          if (.not.r%bond_style%shown(ib,i)) cycle
                          ineigh = r%bond_style%nstar(i)%idcon(ib)
                          ixn = ix + r%bond_style%nstar(i)%lcon(:,ib)
+
+                         ! intra/inter-mol for bonds
+                         if (r%bond_style%imol(ib,i) == 1) then ! intramol
+                            if (imol /= sys(r%id)%c%idatcelmol(ineigh)) cycle
+                         elseif (r%bond_style%imol(ib,i) == 2) then ! intermol
+                            if (imol == sys(r%id)%c%idatcelmol(ineigh)) cycle
+                         end if
 
                          ! skip if the atom has not been represented already
                          call check_lshown(ineigh,ixn(1),ixn(2),ixn(3))

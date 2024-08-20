@@ -54,7 +54,7 @@ void main(){
       discard;
     } else {
       // border
-      if (radius - radius * abs(dot(normalize(vx),vperp)) < rborder)
+      if (ndash_cyl == 0 && radius - radius * abs(dot(normalize(vx),vperp)) < rborder)
 	outputColor = vec4(bordercolor,vColor.a);
       else
 	outputColor = vColor;
