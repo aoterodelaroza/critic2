@@ -1924,11 +1924,17 @@ contains
           !! bonds display !!
 
           !! global options !!
+          call igAlignTextToFramePadding()
           call iw_text("Global Options",highlight=.true.)
           call iw_text("(?)",sameline=.true.)
           call iw_tooltip("Choose which bonds to draw and their display properties using global&
              & options and distance criteria. Click 'Apply' if you change the distance criteria&
              &to effect the changes. For finer control, use the Atom Pairs Table.")
+          if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
+             call w%rep%bond_style%reset(isys)
+             changed = .true.
+          end if
+          call iw_tooltip("Reset to the covalent bonding for this system and the default settings")
 
           call igAlignTextToFramePadding()
           call iw_text("Distance")
@@ -1937,7 +1943,7 @@ contains
              w%rep%bond_style%distancetype_g,sameline_nospace=.true.)
           call iw_tooltip("Draw bonds whose length are a factor of the sum of atomic&
              & radii (Factor) or give bond distance range (Range)",ttshown)
-          call iw_text("): ",sameline_nospace=.true.)
+          call iw_text("):",sameline_nospace=.true.)
           if (iw_button("Apply##applyglobal",sameline=.true.,danger=.true.)) then
              call w%rep%bond_style%generate_table_from_globals(isys)
              call w%rep%bond_style%generate_neighstars_from_table(isys,.true.)
