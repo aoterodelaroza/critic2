@@ -727,7 +727,14 @@ subroutine igTreePop() bind(c,name="igTreePop")
 end subroutine igTreePop
 !x! float igGetTreeNodeToLabelSpacing(void);
 !x! bool igCollapsingHeader_TreeNodeFlags(const char* label,ImGuiTreeNodeFlags flags);
-!x! bool igCollapsingHeader_BoolPtr(const char* label,bool* p_visible,ImGuiTreeNodeFlags flags);
+! bool igCollapsingHeader_BoolPtr(const char* label,bool* p_visible,ImGuiTreeNodeFlags flags);
+function igCollapsingHeader_BoolPtr(label,p_visible,flags) bind(c,name="igCollapsingHeader_BoolPtr")
+  import c_ptr, c_int, c_bool
+  type(c_ptr), intent(in), value :: label
+  type(c_ptr), value :: p_visible
+  integer(c_int), value :: flags
+  logical(c_bool) :: igCollapsingHeader_BoolPtr
+end function igCollapsingHeader_BoolPtr
 !x! void igSetNextItemOpen(bool is_open,ImGuiCond cond);
 ! bool igSelectable_Bool(const char* label,bool selected,ImGuiSelectableFlags flags,const ImVec2 size);
 function igSelectable_Bool(label, selected, flags, size) bind(c,name="igSelectable_Bool")

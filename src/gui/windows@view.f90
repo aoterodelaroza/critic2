@@ -1924,14 +1924,11 @@ contains
           !! bonds display !!
 
           !! global options !!
-          call igAlignTextToFramePadding()
-          call iw_text("Draw Bonds Using Global Options",highlight=.true.)
-          if (iw_button("Apply##applyglobal",sameline=.true.,danger=.true.)) then
-             call w%rep%bond_style%generate_table_from_globals(isys)
-             call w%rep%bond_style%generate_neighstars_from_table(isys)
-             changed = .true.
-          end if
-          call iw_tooltip("Draw the bonds with the currently selected global options",ttshown)
+          call iw_text("Global Options",highlight=.true.)
+          call iw_text("(?)",sameline=.true.)
+          call iw_tooltip("Choose which bonds to draw and their display properties using global&
+             & options and distance criteria. Click 'Apply' if you change the distance criteria&
+             &to effect the changes. For finer control, use the Atom Pairs Table.")
 
           call igAlignTextToFramePadding()
           call iw_text("Distance")
@@ -1941,6 +1938,12 @@ contains
           call iw_tooltip("Draw bonds whose length are a factor of the sum of atomic&
              & radii (Factor) or give bond distance range (Range)",ttshown)
           call iw_text("): ",sameline_nospace=.true.)
+          if (iw_button("Apply##applyglobal",sameline=.true.,danger=.true.)) then
+             call w%rep%bond_style%generate_table_from_globals(isys)
+             call w%rep%bond_style%generate_neighstars_from_table(isys)
+             changed = .true.
+          end if
+          call iw_tooltip("Recalculate and draw bonds using the selected distance criteria",ttshown)
 
           if (w%rep%bond_style%distancetype_g == 0) then
              ! factor
@@ -1978,7 +1981,7 @@ contains
              call iw_text("radii",sameline=.true.)
           else
              ! range
-             call iw_text("between",sameline_nospace=.true.)
+             call iw_text("  between")
              call igSameLine(0._c_float,-1._c_float)
              call igPushItemWidth(iw_calcwidth(5,1))
              str2 = "##bondtableglobaldmin" // c_null_char
@@ -1988,7 +1991,7 @@ contains
              call igPopItemWidth()
              call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
 
-             call iw_text("and",sameline=.true.)
+             call iw_text("  ... and")
              call igSameLine(0._c_float,-1._c_float)
              call igPushItemWidth(iw_calcwidth(5,1))
              str2 = "##bondtableglobaldmax" // c_null_char
@@ -2042,184 +2045,194 @@ contains
              ttshown)
 
           !! atom pairs table !!
-          ! top line of buttons
-          call igNewLine()
-          call igAlignTextToFramePadding()
-          call iw_text("Draw Bonds Using Atom Pairs",highlight=.true.)
-          if (iw_button("Apply##applypairs",sameline=.true.,danger=.true.)) then
-             call w%rep%bond_style%generate_neighstars_from_table(isys)
-             changed = .true.
-          end if
-          call iw_tooltip("Draw the bonds with the currently selected options in the atom pair table",ttshown)
+          str2 = "Atom Pairs Table" // c_null_char
+          ldum = igCollapsingHeader_BoolPtr(c_loc(str2),c_null_ptr,ImGuiTreeNodeFlags_None)
+          call iw_tooltip("Choose which bonds to draw and their display properties using&
+             & options and distance criteria specific for each pair of atomic species.")
+          if (ldum) then
+             call iw_tooltip("Click 'Apply' if you change the distance criteria to effect the changes. Click&
+                & 'Copy Globals' to copy the values in the Global Options block above.")
 
-          if (iw_button("Hide All##hideallatoms1")) &
-             w%rep%bond_style%shown_t = .false.
-          call iw_tooltip("Hide all bonds in this system",ttshown)
+             ! top line of buttons
+             if (iw_button("Copy Globals##copyglobalspairtable")) &
+                call w%rep%bond_style%generate_table_from_globals(isys)
+             call iw_tooltip("Copy the values from the 'Global Options' block above",ttshown)
 
-          if (iw_button("Toggle Show/Hide##toggleallatoms1",sameline=.true.)) &
-             w%rep%bond_style%shown_t = .not.w%rep%bond_style%shown_t
-          call iw_tooltip("Toggle the show/hide status for all bonds",ttshown)
+             if (iw_button("Hide All##hideallatoms1",sameline=.true.)) &
+                w%rep%bond_style%shown_t = .false.
+             call iw_tooltip("Hide all bonds in this system",ttshown)
 
-          ! species table
-          nspcpair = min(5,sys(isys)%c%nspc*(sys(isys)%c%nspc+1)/2+1)
-          flags = ImGuiTableFlags_None
-          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-          flags = ior(flags,ImGuiTableFlags_Borders)
-          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-          flags = ior(flags,ImGuiTableFlags_ScrollY)
-          str1="##tablespeciesbonding" // c_null_char
-          sz%x = iw_calcwidth(64,0)
-          sz%y = iw_calcheight(nspcpair,0,.false.)
-          if (igBeginTable(c_loc(str1),10,flags,sz,0._c_float)) then
-             ! header setup
-             str2 = "" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_sp1)
+             if (iw_button("Toggle Show/Hide##toggleallatoms1",sameline=.true.)) &
+                w%rep%bond_style%shown_t = .not.w%rep%bond_style%shown_t
+             call iw_tooltip("Toggle the show/hide status for all bonds",ttshown)
 
-             str2 = "" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_sp2)
+             if (iw_button("Apply##applypairs",sameline=.true.,danger=.true.)) then
+                call w%rep%bond_style%generate_neighstars_from_table(isys)
+                changed = .true.
+             end if
+             call iw_tooltip("Draw the bonds with the currently selected options in the atom pair table",ttshown)
 
-             str2 = "" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_shown)
+             ! species table
+             nspcpair = min(5,sys(isys)%c%nspc*(sys(isys)%c%nspc+1)/2+1)
+             flags = ImGuiTableFlags_None
+             flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+             flags = ior(flags,ImGuiTableFlags_Borders)
+             flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+             flags = ior(flags,ImGuiTableFlags_ScrollY)
+             str1="##tablespeciesbonding" // c_null_char
+             sz%x = iw_calcwidth(64,0)
+             sz%y = iw_calcheight(nspcpair,0,.false.)
+             if (igBeginTable(c_loc(str1),10,flags,sz,0._c_float)) then
+                ! header setup
+                str2 = "" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_sp1)
 
-             str2 = "dmin/Å" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_dmin)
+                str2 = "" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_sp2)
 
-             str2 = "dmax/Å" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_dmax)
+                str2 = "" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_shown)
 
-             str2 = "Style" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_bondstyle)
+                str2 = "dmin/Å" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_dmin)
 
-             str2 = "Col" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_color)
+                str2 = "dmax/Å" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_dmax)
 
-             str2 = "Rad" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_radius)
+                str2 = "Style" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_bondstyle)
 
-             str2 = "Order" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_order)
-             call igTableSetupScrollFreeze(0, 1) ! top row always visible
+                str2 = "Col" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_color)
 
-             str2 = "I-mol" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_imol)
-             call igTableSetupScrollFreeze(0, 1) ! top row always visible
+                str2 = "Rad" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_radius)
 
-             ! draw the header
-             call igTableHeadersRow()
-             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+                str2 = "Order" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_order)
+                call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
-             ! draw the rows
-             do i = 1, sys(isys)%c%nspc
-                do j = i, sys(isys)%c%nspc
-                   call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-                   suffix = "_" // string(i) // "_" // string(j)
+                str2 = "I-mol" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_imol)
+                call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
-                   ! species
-                   if (igTableSetColumnIndex(ic_sp1)) &
-                      call iw_text(trim(sys(isys)%c%spc(i)%name))
-                   if (igTableSetColumnIndex(ic_sp2)) &
-                      call iw_text(trim(sys(isys)%c%spc(j)%name))
+                ! draw the header
+                call igTableHeadersRow()
+                call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
-                   ! shown
-                   if (igTableSetColumnIndex(ic_shown)) then
-                      if (iw_checkbox("##bondtableshown" // suffix,w%rep%bond_style%shown_t(i,j))) &
-                         w%rep%bond_style%shown_t(j,i) = w%rep%bond_style%shown_t(i,j)
-                      call iw_tooltip("Toggle display of bonds connecting atoms of these types",ttshown)
-                   end if
+                ! draw the rows
+                do i = 1, sys(isys)%c%nspc
+                   do j = i, sys(isys)%c%nspc
+                      call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                      suffix = "_" // string(i) // "_" // string(j)
 
-                   ! dmin and dmax
-                   if (igTableSetColumnIndex(ic_dmin)) then
-                      str2 = "##dminbondtable" // suffix // c_null_char
-                      str3 = "%.3f" // c_null_char
-                      call igPushItemWidth(iw_calcwidth(5,1))
-                      rijt = real(w%rep%bond_style%rij_t(i,1,j) * bohrtoa,c_float)
-                      if (igDragFloat(c_loc(str2),rijt,0.01_c_float,0.0_c_float,9.999_c_float,&
-                         c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
-                         w%rep%bond_style%rij_t(j,1,i) = rijt / bohrtoa
-                         w%rep%bond_style%rij_t(i,1,j) = rijt / bohrtoa
+                      ! species
+                      if (igTableSetColumnIndex(ic_sp1)) &
+                         call iw_text(trim(sys(isys)%c%spc(i)%name))
+                      if (igTableSetColumnIndex(ic_sp2)) &
+                         call iw_text(trim(sys(isys)%c%spc(j)%name))
+
+                      ! shown
+                      if (igTableSetColumnIndex(ic_shown)) then
+                         if (iw_checkbox("##bondtableshown" // suffix,w%rep%bond_style%shown_t(i,j))) &
+                            w%rep%bond_style%shown_t(j,i) = w%rep%bond_style%shown_t(i,j)
+                         call iw_tooltip("Toggle display of bonds connecting atoms of these types",ttshown)
                       end if
-                      call igPopItemWidth()
-                      call iw_tooltip("Bonds with length below this value are not shown",ttshown)
-                   end if
-                   if (igTableSetColumnIndex(ic_dmax)) then
-                      str2 = "##dmaxbondtable" // suffix // c_null_char
-                      str3 = "%.3f" // c_null_char
-                      call igPushItemWidth(iw_calcwidth(5,1))
-                      rijt = real(w%rep%bond_style%rij_t(i,2,j) * bohrtoa,c_float)
-                      if (igDragFloat(c_loc(str2),rijt,0.01_c_float,0.0_c_float,9.999_c_float,&
-                         c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
-                         w%rep%bond_style%rij_t(j,2,i) = rijt / bohrtoa
-                         w%rep%bond_style%rij_t(i,2,j) = rijt / bohrtoa
+
+                      ! dmin and dmax
+                      if (igTableSetColumnIndex(ic_dmin)) then
+                         str2 = "##dminbondtable" // suffix // c_null_char
+                         str3 = "%.3f" // c_null_char
+                         call igPushItemWidth(iw_calcwidth(5,1))
+                         rijt = real(w%rep%bond_style%rij_t(i,1,j) * bohrtoa,c_float)
+                         if (igDragFloat(c_loc(str2),rijt,0.01_c_float,0.0_c_float,9.999_c_float,&
+                            c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
+                            w%rep%bond_style%rij_t(j,1,i) = rijt / bohrtoa
+                            w%rep%bond_style%rij_t(i,1,j) = rijt / bohrtoa
+                         end if
+                         call igPopItemWidth()
+                         call iw_tooltip("Bonds with length below this value are not shown",ttshown)
                       end if
-                      call igPopItemWidth()
-                      call iw_tooltip("Bonds with length above this value are not shown",ttshown)
-                   end if
-
-                   ! bond style
-                   if (igTableSetColumnIndex(ic_bondstyle)) then
-                      call iw_combo_simple("##tablebondstyleselect" // suffix,&
-                         "One"//c_null_char//"Two"//c_null_char,w%rep%bond_style%style_t(i,j))
-                      w%rep%bond_style%style_t(j,i) = w%rep%bond_style%style_t(i,j)
-                      call iw_tooltip("Use a single color for the bond, or two colors from the bonded atoms",ttshown)
-                   end if
-
-                   ! color
-                   if (igTableSetColumnIndex(ic_color)) then
-                      if (w%rep%bond_style%style_t(i,j) == 0) then
-                         str2 = "##colorbondtable" // suffix // c_null_char
-                         ldum = igColorEdit3(c_loc(str2),w%rep%bond_style%rgb_t(:,i,j),ImGuiColorEditFlags_NoInputs)
-                         call iw_clamp_color3(w%rep%bond_style%rgb_t(:,i,j))
-                         if (ldum) w%rep%bond_style%rgb_t(:,j,i) = w%rep%bond_style%rgb_t(:,i,j)
-                         call iw_tooltip("Bond color for this pair of atoms",ttshown)
-                      else
-                         call iw_text("n/a")
+                      if (igTableSetColumnIndex(ic_dmax)) then
+                         str2 = "##dmaxbondtable" // suffix // c_null_char
+                         str3 = "%.3f" // c_null_char
+                         call igPushItemWidth(iw_calcwidth(5,1))
+                         rijt = real(w%rep%bond_style%rij_t(i,2,j) * bohrtoa,c_float)
+                         if (igDragFloat(c_loc(str2),rijt,0.01_c_float,0.0_c_float,9.999_c_float,&
+                            c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
+                            w%rep%bond_style%rij_t(j,2,i) = rijt / bohrtoa
+                            w%rep%bond_style%rij_t(i,2,j) = rijt / bohrtoa
+                         end if
+                         call igPopItemWidth()
+                         call iw_tooltip("Bonds with length above this value are not shown",ttshown)
                       end if
-                   end if
 
-                   ! radius
-                   if (igTableSetColumnIndex(ic_radius)) then
-                      str2 = "##radiusbondtable" // suffix // c_null_char
-                      str3 = "%.3f" // c_null_char
-                      call igPushItemWidth(iw_calcwidth(5,1))
-                      if (igDragFloat(c_loc(str2),w%rep%bond_style%rad_t(i,j),0.005_c_float,0._c_float,2._c_float,&
-                         c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) &
-                         w%rep%bond_style%rad_t(j,i) = w%rep%bond_style%rad_t(i,j)
-                      call igPopItemWidth()
-                      call iw_tooltip("Bond radius for this pair of atoms",ttshown)
-                   end if
+                      ! bond style
+                      if (igTableSetColumnIndex(ic_bondstyle)) then
+                         call iw_combo_simple("##tablebondstyleselect" // suffix,&
+                            "One"//c_null_char//"Two"//c_null_char,w%rep%bond_style%style_t(i,j))
+                         w%rep%bond_style%style_t(j,i) = w%rep%bond_style%style_t(i,j)
+                         call iw_tooltip("Use a single color for the bond, or two colors from the bonded atoms",ttshown)
+                      end if
 
-                   ! bond order
-                   if (igTableSetColumnIndex(ic_order)) then
-                      call iw_combo_simple("##tablebondorderselect" // suffix,&
-                         "Dashed"//c_null_char//"Single"//c_null_char//"Double"//c_null_char//"Triple"//c_null_char,&
-                         w%rep%bond_style%order_t(i,j))
-                      w%rep%bond_style%order_t(j,i) = w%rep%bond_style%order_t(i,j)
-                      call iw_tooltip("Bond order (dashed, single, double, etc.)",ttshown)
-                   end if
+                      ! color
+                      if (igTableSetColumnIndex(ic_color)) then
+                         if (w%rep%bond_style%style_t(i,j) == 0) then
+                            str2 = "##colorbondtable" // suffix // c_null_char
+                            ldum = igColorEdit3(c_loc(str2),w%rep%bond_style%rgb_t(:,i,j),ImGuiColorEditFlags_NoInputs)
+                            call iw_clamp_color3(w%rep%bond_style%rgb_t(:,i,j))
+                            if (ldum) w%rep%bond_style%rgb_t(:,j,i) = w%rep%bond_style%rgb_t(:,i,j)
+                            call iw_tooltip("Bond color for this pair of atoms",ttshown)
+                         else
+                            call iw_text("n/a")
+                         end if
+                      end if
 
-                   ! intra/inter-molecular
-                   if (igTableSetColumnIndex(ic_imol)) then
-                      call iw_combo_simple("##tablebondimolselect" // suffix,&
-                         "Any"//c_null_char//"Intra"//c_null_char//"Inter"//c_null_char,&
-                         w%rep%bond_style%imol_t(i,j))
-                      w%rep%bond_style%imol_t(j,i) = w%rep%bond_style%imol_t(i,j)
-                      call iw_tooltip("Draw any bonds (Any), only intramolecular (Intra-mol),&
-                         & or only intermolecular (Inter-mol)",ttshown)
-                   end if
+                      ! radius
+                      if (igTableSetColumnIndex(ic_radius)) then
+                         str2 = "##radiusbondtable" // suffix // c_null_char
+                         str3 = "%.3f" // c_null_char
+                         call igPushItemWidth(iw_calcwidth(5,1))
+                         if (igDragFloat(c_loc(str2),w%rep%bond_style%rad_t(i,j),0.005_c_float,0._c_float,2._c_float,&
+                            c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) &
+                            w%rep%bond_style%rad_t(j,i) = w%rep%bond_style%rad_t(i,j)
+                         call igPopItemWidth()
+                         call iw_tooltip("Bond radius for this pair of atoms",ttshown)
+                      end if
+
+                      ! bond order
+                      if (igTableSetColumnIndex(ic_order)) then
+                         call iw_combo_simple("##tablebondorderselect" // suffix,&
+                            "Dashed"//c_null_char//"Single"//c_null_char//"Double"//c_null_char//"Triple"//c_null_char,&
+                            w%rep%bond_style%order_t(i,j))
+                         w%rep%bond_style%order_t(j,i) = w%rep%bond_style%order_t(i,j)
+                         call iw_tooltip("Bond order (dashed, single, double, etc.)",ttshown)
+                      end if
+
+                      ! intra/inter-molecular
+                      if (igTableSetColumnIndex(ic_imol)) then
+                         call iw_combo_simple("##tablebondimolselect" // suffix,&
+                            "Any"//c_null_char//"Intra"//c_null_char//"Inter"//c_null_char,&
+                            w%rep%bond_style%imol_t(i,j))
+                         w%rep%bond_style%imol_t(j,i) = w%rep%bond_style%imol_t(i,j)
+                         call iw_tooltip("Draw any bonds (Any), only intramolecular (Intra-mol),&
+                            & or only intermolecular (Inter-mol)",ttshown)
+                      end if
+                   end do
                 end do
-             end do
-             call igEndTable()
-          end if ! begintable
+                call igEndTable()
+             end if ! begintable
+          end if ! collapsing header for the atom pair table
 
           call igEndTabItem()
        end if ! begin tab item (bonds)
