@@ -2073,6 +2073,7 @@ contains
 
     ! draw
     if (order <= 1) then
+       call setuniform_float(0._c_float*rad,idxi=iunif(iu_delta_cyl))
        call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
     elseif (order == 2) then
        call setuniform_float(0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
