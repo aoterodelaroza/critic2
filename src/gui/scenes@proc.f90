@@ -461,12 +461,12 @@ contains
 
        ! draw the cylinders for the bonds (inherit border from atoms)
        call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
-       ! call setuniform_float(0.275_c_float,idxi=iunif(iu_delta_cyl))
        if (s%ncyl > 0) then
           call glBindVertexArray(cylVAO(s%bond_res))
           call draw_all_cylinders()
        end if
        call setuniform_int(0_c_int,idxi=iunif(iu_ndash_cyl))
+       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
 
        ! draw the flat cylinders for the unit cell
        call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
@@ -2020,8 +2020,9 @@ contains
     real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
     real(c_float) :: a, ca, sa, axis(3), temp(3), rgb_(4)
     integer(c_int) :: ndash
+    integer :: i
 
-    real(c_float), parameter :: dash_length = 0.5 ! length of the dashes
+    real(c_float), parameter :: dash_length = 0.4 ! length of the dashes
 
     ! some calculations for the model matrix
     xmid = 0.5_c_float * (x1 + x2)
@@ -2071,7 +2072,21 @@ contains
     end if
 
     ! draw
-    call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+    if (order <= 1) then
+       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+    elseif (order == 2) then
+       call setuniform_float(0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
+       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+       call setuniform_float(-0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
+       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+    elseif (order == 3) then
+       call setuniform_float(1.35_c_float*rad,idxi=iunif(iu_delta_cyl))
+       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
+       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+       call setuniform_float(-1.35_c_float*rad,idxi=iunif(iu_delta_cyl))
+       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+    end if
 
   end subroutine draw_cylinder
 
