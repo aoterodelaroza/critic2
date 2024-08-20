@@ -692,7 +692,7 @@ contains
 
     if (style_ == style_phong) then
        !! phong !!
-       s%bgcolor = (/0._c_float,0._c_float,0._c_float/)
+       s%bgcolor = (/0.3_c_float,0.3_c_float,0.3_c_float/)
        s%lightpos = (/20._c_float,20._c_float,0._c_float/)
        s%lightcolor = (/1._c_float,1._c_float,1._c_float/)
        s%ambient = 0.2_c_float
