@@ -43,8 +43,10 @@ submodule (windows) tree
   integer(c_int), parameter :: ic_NUMCOLUMNS = 19 ! keep up to date
 
   ! color for vibrations and fields in tree
-  real(c_float), parameter :: rgba_vibrations(4) = (/0.84,0.86,0.00,1.00/)
-  real(c_float), parameter :: rgba_fields(4) = (/0.00,1.00,0.50,1.00/)
+  real(c_float), parameter :: rgba_vibrations(4) = (/0.84_c_float,0.86_c_float,0.00_c_float,1.00_c_float/)
+  real(c_float), parameter :: rgba_fields(4) = (/0.00_c_float,1.00_c_float,0.50_c_float,1.00_c_float/)
+  real(c_float), parameter :: rgba_reference(4) = (/0.890_c_float,0.706_c_float,0.129_c_float,1._c_float/)
+
 
   !xx! private procedures
   ! function tree_system_tooltip(i)
@@ -690,7 +692,13 @@ contains
                    end if
 
                    ! tooltip
-                   call iw_tooltip(tree_field_tooltip_string(i,k),ttshown)
+                   if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+                      if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
+                         g%LastItemData%NavRect%max,.false._c_bool)) then
+                         call tree_field_tooltip_string(i,k)
+                      end if
+                   end if
+
                 end do
              end if
           end if
@@ -1518,8 +1526,9 @@ contains
 
   ! Return the string for the tooltip shown by the tree window,
   ! corresponding to system si and field fj
-  function tree_field_tooltip_string(si,fj) result(str)
-    use gui_main, only: sys, sysc, nsys, sys_init
+  subroutine tree_field_tooltip_string(si,fj)
+    use utils, only: iw_text
+    use gui_main, only: sys, sysc, nsys, sys_init, ColorFieldSelected
     use fieldmod, only: field, type_uninit, type_promol, type_grid, type_wien,&
        type_elk, type_pi, type_wfn, type_dftb, type_promol_frag, type_ghost
     use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_adf_sto,&
@@ -1529,8 +1538,8 @@ contains
     use tools_io, only: string, nameguess
     use param, only: newline, maxzat0
     integer, intent(in) :: si, fj
-    character(kind=c_char,len=:), allocatable, target :: str, aux
 
+    character(kind=c_char,len=:), allocatable, target :: str, aux
     integer :: i, nal
     type(field), pointer :: f
 
@@ -1541,160 +1550,218 @@ contains
     if (.not. sys(si)%f(fj)%isinit) return
     f => sys(si)%f(fj)
 
-    ! file
-    str = "||" // trim(f%name) // "||" // newline
-    if (sys(si)%iref == fj) &
-       str = str // "## Reference field for this system ##" // newline
-    call sys(si)%aliasstring(fj,nal,aux)
-    str = str // "Names: " // trim(adjustl(aux)) // newline
+    ! begin the tooltip
+    call igBeginTooltip()
 
-    ! type and type-specific info
+    ! file
+    call iw_text("[",danger=.true.)
+    call iw_text(trim(f%name),highlight=.true.,sameline_nospace=.true.)
+    call iw_text("]",danger=.true.,sameline_nospace=.true.)
+
+    ! field type
     select case (f%type)
     case (type_uninit)
-       str = str // "???" // newline // newline
-
+       str = "???"
     case (type_promol)
-       str = str // "Promolecular density" // newline // newline
-
+       str = "Promolecular density"
     case (type_grid)
-       str = str // "Grid field, with " // string(f%grid%n(1)) // "x" // string(f%grid%n(2)) // "x" //&
-          string(f%grid%n(3)) // " points" // newline
-       if (f%grid%isqe) then
-          str = str // "Plane-wave Kohn-Sham states available: spin=" // string(f%grid%qe%nspin) //&
-             ", k-points=" // string(f%grid%qe%nks) // ", bands=" // string(f%grid%qe%nbnd) // newline
-       end if
-       if (f%grid%iswan) then
-          str = str // "Wannier function info available: " // string(f%grid%qe%nk(1)) // "x" //&
-             string(f%grid%qe%nk(2)) // "x" // string(f%grid%qe%nk(3)) // newline
-       end if
-       str = str // newline
-
-       str = str // "Longest Voronoi vector (bohr): " // string(f%grid%dmax,'f',decimal=5) // newline
-       str = str // "Grid integral: " // &
-          string(sum(f%grid%f) * f%c%omega / real(product(f%grid%n),4),'f',decimal=8) // newline
-       str = str // "Minimum value: " // string(minval(f%grid%f),'e',decimal=4) // newline
-       str = str // "Average: " // string(sum(f%grid%f) / real(product(f%grid%n),4),'e',decimal=8) // newline
-       str = str // "Maximum value: " // string(maxval(f%grid%f),'e',decimal=4) // newline
-       str = str // "Interpolation mode: "
-       select case (f%grid%mode)
-       case(mode_nearest)
-          str = str // "nearest grid node value" // newline
-       case(mode_trilinear)
-          str = str // "tri-linear" // newline
-       case(mode_trispline)
-          str = str // "tri-spline" // newline
-       case(mode_tricubic)
-          str = str // "tri-cubic" // newline
-       case(mode_smr)
-          str = str // "smooth all-electron density with " // string(f%grid%smr_nenv) //&
-             " stencil nodes and " // string(f%grid%smr_fdmax,'f',decimal=4) //&
-             " smoothing dmax factor" // newline
-       end select
-
+       str = "Grid field, with " // string(f%grid%n(1)) // "x" // string(f%grid%n(2)) // "x" //&
+          string(f%grid%n(3)) // " points"
     case (type_wien)
-       str = str // "WIEN2k spherical harmonic + plane waves" // newline // newline
-
-       str = str // "Complex: " // string(f%wien%cmpl) // newline
-       str = str // "Spherical harmonics expansion LMmax: " // string(size(f%wien%lm,2)) // newline
-       str = str // "Max. points in radial grid: " // string(size(f%wien%slm,1)) // newline
-       str = str // "Total number of plane waves: " // string(f%wien%nwav) // newline
-       str = str // "Density-style normalization: " // string(f%wien%cnorm) // newline
-
+       str = "WIEN2k spherical harmonic + plane waves"
     case (type_elk)
-       str = str // "Elk spherical harmonic + plane waves" // newline // newline
-
-       str = str // "Number of LM pairs: " // string(size(f%elk%rhomt,2)) // newline
-       str = str // "Max. points in radial grid: " // string(size(f%elk%rhomt,1)) // newline
-       str = str // "Total number of plane waves: " // string(size(f%elk%rhok)) // newline
-
+       str = "Elk spherical harmonic + plane waves"
     case (type_pi)
-       str = str // "aiPI atomic radial functions" // newline // newline
-
-       str = str // "Exact calculation: " // string(f%exact) // newline
-       do i = 1, f%c%nspc
-          str = str // string(f%c%spc(f%c%at(i)%is)%name,length=5) //&
-             ": " // string(f%pi%bas(i)%piname) // newline
-       end do
-
+       str = "aiPI atomic radial functions"
     case (type_wfn)
-       str = str // "Molecular wavefunction "
+       str = "Molecular wavefunction "
        if (f%wfn%issto) then
           str = str // "(Slater-type orbitals)"
        else
           str = str // "(Gaussian-type orbitals)"
        end if
-       str = str // newline // newline
+    case (type_dftb)
+       str = "DFTB+, linear combination of atomic orbitals"
+    case (type_promol_frag)
+       str = "Promolecular with fragment"
+    case (type_ghost)
+       str = "Ghost field"
+    case default
+       str = "???"
+    end select
+    call iw_text(str,rgba=rgba_fields)
 
+    ! reference field
+    if (sys(si)%iref == fj) &
+       call iw_text("Reference field for this system",rgba=rgba_reference)
+
+    ! aliases
+    call sys(si)%aliasstring(fj,nal,aux)
+    call iw_text("Names: ",highlight=.true.)
+    call iw_text(trim(adjustl(aux)),sameline_nospace=.true.)
+
+    ! field details
+    select case (f%type)
+    case (type_grid)
+       if (f%grid%isqe) then
+          call iw_text("Plane-wave Kohn-Sham states available: ",highlight=.true.)
+          call iw_text("spin=" // string(f%grid%qe%nspin) // ", k-points=" // string(f%grid%qe%nks) //&
+             ", bands=" // string(f%grid%qe%nbnd),sameline_nospace=.true.)
+       end if
+       if (f%grid%iswan) then
+          call iw_text("Wannier function info available: ",highlight=.true.)
+          call iw_text(string(f%grid%qe%nk(1)) // "x" // string(f%grid%qe%nk(2)) // "x" //&
+             string(f%grid%qe%nk(3)),sameline_nospace=.true.)
+       end if
+
+       call iw_text("Longest Voronoi vector (bohr): ",highlight=.true.)
+       call iw_text(string(f%grid%dmax,'f',decimal=5),sameline_nospace=.true.)
+       call iw_text("Grid integral: ",highlight=.true.)
+       call iw_text(string(sum(f%grid%f) * f%c%omega / real(product(f%grid%n),4),'f',decimal=8),sameline_nospace=.true.)
+       call iw_text("Minimum value: ",highlight=.true.)
+       call iw_text(string(minval(f%grid%f),'e',decimal=4),sameline_nospace=.true.)
+       call iw_text("Average: ",highlight=.true.)
+       call iw_text(string(sum(f%grid%f) / real(product(f%grid%n),4),'e',decimal=8),sameline_nospace=.true.)
+       call iw_text("Maximum value: ",highlight=.true.)
+       call iw_text(string(maxval(f%grid%f),'e',decimal=4),sameline_nospace=.true.)
+       call iw_text("Interpolation mode: ",highlight=.true.)
+       select case (f%grid%mode)
+       case(mode_nearest)
+          str = "nearest grid node value"
+       case(mode_trilinear)
+          str = "tri-linear"
+       case(mode_trispline)
+          str = "tri-spline"
+       case(mode_tricubic)
+          str = "tri-cubic"
+       case(mode_smr)
+          str = "smooth all-electron density with " // string(f%grid%smr_nenv) //&
+             " stencil nodes and " // string(f%grid%smr_fdmax,'f',decimal=4) //&
+             " smoothing dmax factor"
+       end select
+       call iw_text(str,sameline_nospace=.true.)
+
+    case (type_wien)
+       call iw_text("Complex: ",highlight=.true.)
+       call iw_text(string(f%wien%cmpl),sameline_nospace=.true.)
+       call iw_text("Spherical harmonics expansion LMmax: ",highlight=.true.)
+       call iw_text(string(size(f%wien%lm,2)),sameline_nospace=.true.)
+       call iw_text("Max. points in radial grid: ",highlight=.true.)
+       call iw_text(string(size(f%wien%slm,1)),sameline_nospace=.true.)
+       call iw_text("Total number of plane waves: ",highlight=.true.)
+       call iw_text(string(f%wien%nwav),sameline_nospace=.true.)
+       call iw_text("Density-style normalization: ",highlight=.true.)
+       call iw_text(string(f%wien%cnorm),sameline_nospace=.true.)
+
+    case (type_elk)
+       call iw_text("Number of LM pairs: ",highlight=.true.)
+       call iw_text(string(size(f%elk%rhomt,2)),sameline_nospace=.true.)
+       call iw_text("Max. points in radial grid: ",highlight=.true.)
+       call iw_text(string(size(f%elk%rhomt,1)),sameline_nospace=.true.)
+       call iw_text("Total number of plane waves: ",highlight=.true.)
+       call iw_text(string(size(f%elk%rhok)),sameline_nospace=.true.)
+
+    case (type_pi)
+       call iw_text("Exact calculation: ",highlight=.true.)
+       call iw_text(string(f%exact),sameline_nospace=.true.)
+       do i = 1, f%c%nspc
+          call iw_text(string(f%c%spc(f%c%at(i)%is)%name,length=5) // ": ")
+          call iw_text(string(f%pi%bas(i)%piname),sameline_nospace=.true.)
+       end do
+
+    case (type_wfn)
        if (f%wfn%molden_type == molden_type_orca) then
-          str = str // "Molden file dialect: orca" // newline
+          call iw_text("Molden file dialect: ",highlight=.true.)
+          call iw_text("orca",sameline_nospace=.true.)
        else if (f%wfn%molden_type == molden_type_psi4) then
-          str = str // "Molden file dialect: psi4" // newline
+          call iw_text("Molden file dialect: ",highlight=.true.)
+          call iw_text("psi4",sameline_nospace=.true.)
        else if (f%wfn%molden_type == molden_type_adf_sto) then
-          str = str // "Molden file dialect: ADF (STOs)"  // newline
+          call iw_text("Molden file dialect: ",highlight=.true.)
+          call iw_text("ADF (STOs)",sameline_nospace=.true.)
        end if
        if (f%wfn%wfntyp == wfn_rhf) then
-          str = str // "Wavefunction type: restricted" // newline
-          str = str // "Number of MOs (total): " // string(f%wfn%nmoall) // newline
-          str = str // "Number of MOs (occupied): " // string(f%wfn%nmoocc) // newline
+          call iw_text("Wavefunction type: ",highlight=.true.)
+          call iw_text("restricted",sameline_nospace=.true.)
+          call iw_text("Number of MOs (total): ",highlight=.true.)
+          call iw_text(string(f%wfn%nmoall),sameline_nospace=.true.)
+          call iw_text("Number of MOs (occupied): ",highlight=.true.)
+          call iw_text(string(f%wfn%nmoocc),sameline_nospace=.true.)
        elseif (f%wfn%wfntyp == wfn_uhf) then
-          str = str // "Wavefunction type: unrestricted" // newline
-          str = str // "Number of MOs (total): " // string(f%wfn%nmoall) //&
+          call iw_text("Wavefunction type: ",highlight=.true.)
+          call iw_text("unrestricted",sameline_nospace=.true.)
+          call iw_text("Number of MOs (total): ",highlight=.true.)
+          call iw_text(string(f%wfn%nmoall) //&
              " (alpha=" // string(f%wfn%nalpha+f%wfn%nalpha_virt) // ",beta=" //&
-             string(f%wfn%nmoall-(f%wfn%nalpha+f%wfn%nalpha_virt)) // newline
-          str = str // "Number of MOs (occupied): " // string(f%wfn%nmoocc) //&
-             " (alpha=" // string(f%wfn%nalpha) // ",beta=" // string(f%wfn%nmoocc-f%wfn%nalpha) // newline
+             string(f%wfn%nmoall-(f%wfn%nalpha+f%wfn%nalpha_virt)),sameline_nospace=.true.)
+          call iw_text("Number of MOs (occupied): ",highlight=.true.)
+          call iw_text(string(f%wfn%nmoocc) // " (alpha=" // string(f%wfn%nalpha) //&
+             ",beta=" // string(f%wfn%nmoocc-f%wfn%nalpha),sameline_nospace=.true.)
        elseif (f%wfn%wfntyp == wfn_frac) then
-          str = str // "Wavefunction type: fractional occupation" // newline
-          str = str // "Number of MOs: " // string(f%wfn%nmoocc) // newline
-          str = str // "Number of electrons: " // string(nint(sum(f%wfn%occ(1:f%wfn%nmoocc)))) // newline
+          call iw_text("Wavefunction type: ",highlight=.true.)
+          call iw_text("fractional occupation",sameline_nospace=.true.)
+          call iw_text("Number of MOs: ",highlight=.true.)
+          call iw_text(string(f%wfn%nmoocc),sameline_nospace=.true.)
+          call iw_text("Number of electrons: ",highlight=.true.)
+          call iw_text(string(nint(sum(f%wfn%occ(1:f%wfn%nmoocc)))),sameline_nospace=.true.)
        end if
-       str = str // "Number of primitives: " // string(f%wfn%npri) // newline
-       str = str // "Number of EDFs: " // string(f%wfn%nedf) // newline
+       call iw_text("Number of primitives: ",highlight=.true.)
+       call iw_text(string(f%wfn%npri),sameline_nospace=.true.)
+       call iw_text("Number of EDFs: ",highlight=.true.)
+       call iw_text(string(f%wfn%nedf),sameline_nospace=.true.)
 
     case (type_dftb)
-       str = str // "DFTB+, linear combination of atomic orbitals" // newline // newline
-
-       str = str // "Number of states: " // string(f%dftb%nstates) // newline
-       str = str // "Number of spin channels: " // string(f%dftb%nspin) // newline
-       str = str // "Number of orbitals: " // string(f%dftb%norb) // newline
-       str = str // "Number of kpoints: " // string(f%dftb%nkpt) // newline
-       str = str // "Real wavefunction? " // string(f%dftb%isreal) // newline
-       str = str // "Exact calculation? " // string(f%exact) // newline
+       call iw_text("Number of states: ",highlight=.true.)
+       call iw_text(string(f%dftb%nstates),sameline_nospace=.true.)
+       call iw_text("Number of spin channels: ",highlight=.true.)
+       call iw_text(string(f%dftb%nspin),sameline_nospace=.true.)
+       call iw_text("Number of orbitals: ",highlight=.true.)
+       call iw_text(string(f%dftb%norb),sameline_nospace=.true.)
+       call iw_text("Number of kpoints: ",highlight=.true.)
+       call iw_text(string(f%dftb%nkpt),sameline_nospace=.true.)
+       call iw_text("Real wavefunction? ",highlight=.true.)
+       call iw_text(string(f%dftb%isreal),sameline_nospace=.true.)
+       call iw_text("Exact calculation? ",highlight=.true.)
+       call iw_text(string(f%exact),sameline_nospace=.true.)
 
     case (type_promol_frag)
-       str = str // "Promolecular with fragment" // newline // newline
-
-       str = str // "Number of atoms in fragment: " // string(f%fr%nat) // newline
+       call iw_text("Number of atoms in fragment: ",highlight=.true.)
+       call iw_text(string(f%fr%nat),sameline_nospace=.true.)
 
     case (type_ghost)
-       str = str // "Ghost field" // newline // newline
-
-       str = str // "Expression: " // string(f%expr)
-
-    case default
-       str = str // "???" // newline // newline
+       call iw_text("Expression: ",highlight=.true.)
+       call iw_text(string(f%expr),sameline_nospace=.true.)
     end select
-    str = str // "Use core densities: " // string(f%usecore) // newline
+
+    call iw_text("Use core densities: ",highlight=.true.)
+    call iw_text(string(f%usecore),sameline_nospace=.true.)
     if (any(f%zpsp > 0)) then
-       str = str // "Core charges (ZPSP): "
+       call iw_text("Core charges (ZPSP): ",highlight=.true.)
+       str = ""
        do i = 1, maxzat0
           if (f%zpsp(i) > 0) then
              str = str // string(nameguess(i,.true.)) // "(" // string(f%zpsp(i)) // ") "
           end if
        end do
-       str = str // newline
+       call iw_text(str,sameline_nospace=.true.)
     end if
-    str = str // "Numerical derivatives: " // string(f%numerical) // newline // newline
+    call iw_text("Numerical derivatives: ",highlight=.true.)
+    call iw_text(string(f%numerical),sameline_nospace=.true.)
 
     ! critical points
-    str = str // "Non-equivalent critical points: " // string(f%ncp) // newline
-    str = str // "Cell critical points: " // string(f%ncpcel) // newline
+    call igNewLine()
+    call iw_text("Non-equivalent critical points: ",highlight=.true.)
+    call iw_text(string(f%ncp),sameline_nospace=.true.)
+    call iw_text("Cell critical points: ",highlight=.true.)
+    call iw_text(string(f%ncpcel),sameline_nospace=.true.)
 
     ! last message
-    str = str // newline // "[Right-click for options]" // newline
-    str = str // c_null_char
+    call igNewLine()
+    call iw_text("[Right-click for options]",highlight=.true.)
 
-  end function tree_field_tooltip_string
+    call igEndTooltip()
+
+  end subroutine tree_field_tooltip_string
 
   !> Draw the contents of the load field window.
   module subroutine draw_load_field(w)
