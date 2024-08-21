@@ -132,8 +132,9 @@ module scenes
   integer, parameter, public :: repflavor_unknown = 0
   integer, parameter, public :: repflavor_atoms_basic = 1
   integer, parameter, public :: repflavor_atoms_vdwcontacts = 2
-  integer, parameter, public :: repflavor_unitcell_basic = 3
-  integer, parameter, public :: repflavor_NUM = 3
+  integer, parameter, public :: repflavor_atoms_hbonds = 3
+  integer, parameter, public :: repflavor_unitcell_basic = 4
+  integer, parameter, public :: repflavor_NUM = 4
 
   !> Representation: objects to draw on the scene
   type representation

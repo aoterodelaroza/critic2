@@ -1158,7 +1158,7 @@ contains
     integer, intent(in), value :: isys
     integer, intent(in) :: flavor
 
-    integer :: i, n
+    integer :: i, j, n, iz
 
     ! clear the bond style
     d%isinit = .false.
@@ -1212,6 +1212,31 @@ contains
              d%shown_g(i,:) = .false.
              d%shown_g(:,i) = .false.
           end if
+       end do
+       d%rad_g = 0.15_c_float
+       d%order_g = 0
+       call d%generate_neighstars_from_globals(isys,.true.)
+    elseif (flavor == repflavor_atoms_hbonds) then
+       ! hydrogen bonds
+       d%border_g = 0._c_float
+       d%bothends_g = .false.
+       d%distancetype_g = 0_c_int
+       d%bfmin_g = 1.2_c_float
+       d%radtype_g(1) = 0_c_int
+       d%bfmax_g = 1._c_float
+       d%radtype_g(2) = 1_c_int
+       d%imol_g = 2_c_int
+       d%rgb_g = (/0.11_c_float,0.44_c_float,0.83_c_float/)
+       d%shown_g = .false.
+       do i = 1, sys(isys)%c%nspc
+          if (sys(isys)%c%spc(i)%z /= 1) cycle
+          do j = 1, sys(isys)%c%nspc
+             iz = sys(isys)%c%spc(j)%z
+             if (iz == 7 .or. iz == 8 .or. iz == 9 .or. iz == 16 .or. iz == 17) then
+                d%shown_g(i,j) = .true.
+                d%shown_g(j,i) = .true.
+             end if
+          end do
        end do
        d%rad_g = 0.15_c_float
        d%order_g = 0
@@ -1450,6 +1475,11 @@ contains
     ! apply flavors, global options
     if (flavor == repflavor_atoms_vdwcontacts) then
        r%name = "VdW contacts"
+       r%atoms_display = .false.
+       r%bonds_display = .true.
+       r%labels_display = .false.
+    elseif (flavor == repflavor_atoms_hbonds) then
+       r%name = "Hydrogen bonds"
        r%atoms_display = .false.
        r%bonds_display = .true.
        r%labels_display = .false.

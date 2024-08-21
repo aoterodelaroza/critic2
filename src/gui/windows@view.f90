@@ -56,7 +56,7 @@ contains
        BIND_NAV_MEASURE, bindnames, get_bind_keyname,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use scenes, only: reptype_atoms, reptype_unitcell, style_phong, style_simple,&
-       repflavor_atoms_basic, repflavor_atoms_vdwcontacts,&
+       repflavor_atoms_basic, repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
        repflavor_unitcell_basic
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
        iw_setposx_fromend, iw_checkbox
@@ -530,6 +530,15 @@ contains
                 id = w%sc%get_new_representation_id()
                 call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style,&
                    repflavor_atoms_vdwcontacts)
+                chbuild = .true.
+             end if
+             call iw_tooltip("Display intermolecular close contacts using van der Waals radii",ttshown)
+
+             str2 = "Hydrogen Bonds" // c_null_char
+             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                id = w%sc%get_new_representation_id()
+                call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style,&
+                   repflavor_atoms_hbonds)
                 chbuild = .true.
              end if
              call iw_tooltip("Display intermolecular close contacts using van der Waals radii",ttshown)
