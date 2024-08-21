@@ -1196,8 +1196,18 @@ contains
     integer, intent(in) :: il(3), jl(3)
     logical :: in_same_molecule
 
-    in_same_molecule = all(il - c%mol(c%idatcelmol(1,i))%at(c%idatcelmol(2,i))%lvec == &
-       jl - c%mol(c%idatcelmol(1,j))%at(c%idatcelmol(2,j))%lvec)
+    integer :: imol, jmol
+
+    imol = c%idatcelmol(1,i)
+    jmol = c%idatcelmol(1,j)
+    if (imol /= jmol) then
+       in_same_molecule = .false.
+    elseif (.not.c%mol(imol)%discrete) then
+       in_same_molecule = .true.
+    else
+       in_same_molecule = all(il - c%mol(imol)%at(c%idatcelmol(2,i))%lvec == &
+          jl - c%mol(jmol)%at(c%idatcelmol(2,j))%lvec)
+    end if
 
   end function in_same_molecule
 
