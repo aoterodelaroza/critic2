@@ -103,15 +103,7 @@ module scenes
      integer(c_int) :: order_g ! order (1=single,2=double,etc.)
      integer(c_int) :: imol_g ! molecular connections (0=any,1=intramol,2=intermol)
      logical :: bothends_g ! if true, both atoms need to be drawn to draw the bond
-     ! temporary storage for rij table
-     real*8, allocatable :: rij_t(:,:,:) ! rij table for generating bonds
-     logical, allocatable :: shown_t(:,:) ! whether the bond is shown
-     integer(c_int), allocatable :: style_t(:,:) ! whether the bond is shown
-     real(c_float), allocatable :: rgb_t(:,:,:) ! color of the bond (3,nstar%ncon)
-     real(c_float), allocatable :: rad_t(:,:) ! radius of the bond
-     integer(c_int), allocatable :: order_t(:,:) ! bond order (-n=dashed,1=single,2=double,etc.)
-     integer(c_int), allocatable :: imol_t(:,:) ! molecular connections (0=any,1=intramol,2=intermol)
-     logical, allocatable :: bothends_t(:,:) ! if true, both atoms need to be drawn to draw the bond
+     logical, allocatable :: shown_g(:,:) ! by-species bond shown flags (nspc,nspc)
      ! the bond information
      type(neighstar), allocatable :: nstar(:) ! the neighbor star
      logical(c_bool), allocatable :: shown(:,:) ! whether the bond is shown
@@ -123,8 +115,7 @@ module scenes
      logical, allocatable :: bothends(:,:) ! if true, both atoms need to be drawn to draw the bond
    contains
      procedure :: reset => reset_bond_style
-     procedure :: generate_table_from_globals
-     procedure :: generate_neighstars_from_table
+     procedure :: generate_neighstars_from_globals
   end type draw_style_bond
   public :: draw_style_bond
 
@@ -344,15 +335,11 @@ module scenes
        class(draw_style_bond), intent(inout), target :: d
        integer, intent(in), value :: isys
      end subroutine reset_bond_style
-     module subroutine generate_table_from_globals(d,isys)
-       class(draw_style_bond), intent(inout), target :: d
-       integer, intent(in) :: isys
-     end subroutine generate_table_from_globals
-     module subroutine generate_neighstars_from_table(d,isys,recalculate)
+     module subroutine generate_neighstars_from_globals(d,isys,recalculate)
        class(draw_style_bond), intent(inout), target :: d
        integer, intent(in) :: isys
        logical, intent(in) :: recalculate
-     end subroutine generate_neighstars_from_table
+     end subroutine generate_neighstars_from_globals
      ! representation
      module subroutine representation_init(r,sc,isys,irep,itype,style)
        class(representation), intent(inout), target :: r

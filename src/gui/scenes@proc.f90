@@ -1156,6 +1156,7 @@ contains
     ! clear the bond style
     d%isinit = .false.
     d%isdef = .true.
+    if (allocated(d%shown_g)) deallocate(d%shown_g)
     if (allocated(d%nstar)) deallocate(d%nstar)
     if (allocated(d%shown)) deallocate(d%shown)
     if (allocated(d%style)) deallocate(d%style)
@@ -1192,6 +1193,7 @@ contains
     d%bothends = .true.
 
     ! fill temp options
+    allocate(d%shown_g(sys(isys)%c%nspc,sys(isys)%c%nspc))
     d%distancetype_g = 0
     d%dmin_g = 0._c_float
     d%dmax_g = 0._c_float
@@ -1204,101 +1206,61 @@ contains
     d%order_g = 1
     d%imol_g = 0
     d%bothends_g = .true.
-
-    call d%generate_table_from_globals(isys)
+    d%shown_g = .true.
 
   end subroutine reset_bond_style
 
-  !> Generate the rij table from the bond globals.
-  module subroutine generate_table_from_globals(d,isys)
-    use gui_main, only: sys, nsys, sysc, sys_ready
-    use param, only: atmcov, atmvdw, bohrtoa
-    class(draw_style_bond), intent(inout), target :: d
-    integer, intent(in) :: isys
-
-    integer :: i, j
-    real*8 :: r1cov, r1vdw, r2cov, r2vdw
-
-    ! check all the info is available
-    if (.not.d%isinit) return
-    if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status < sys_ready) return
-
-    ! deallocate table data
-    if (allocated(d%rij_t)) deallocate(d%rij_t)
-    if (allocated(d%shown_t)) deallocate(d%shown_t)
-    if (allocated(d%style_t)) deallocate(d%style_t)
-    if (allocated(d%rgb_t)) deallocate(d%rgb_t)
-    if (allocated(d%rad_t)) deallocate(d%rad_t)
-    if (allocated(d%order_t)) deallocate(d%order_t)
-    if (allocated(d%imol_t)) deallocate(d%imol_t)
-    if (allocated(d%bothends_t)) deallocate(d%bothends_t)
-
-    ! allocate temporary data for rij table
-    allocate(d%rij_t(sys(isys)%c%nspc,2,sys(isys)%c%nspc))
-    allocate(d%shown_t(sys(isys)%c%nspc,sys(isys)%c%nspc))
-    allocate(d%style_t(sys(isys)%c%nspc,sys(isys)%c%nspc))
-    allocate(d%rgb_t(3,sys(isys)%c%nspc,sys(isys)%c%nspc))
-    allocate(d%rad_t(sys(isys)%c%nspc,sys(isys)%c%nspc))
-    allocate(d%order_t(sys(isys)%c%nspc,sys(isys)%c%nspc))
-    allocate(d%imol_t(sys(isys)%c%nspc,sys(isys)%c%nspc))
-    allocate(d%bothends_t(sys(isys)%c%nspc,sys(isys)%c%nspc))
-
-    ! fill table data
-    do i = 1, sys(isys)%c%nspc
-       r1cov = atmcov(sys(isys)%c%spc(i)%z)
-       r1vdw = atmvdw(sys(isys)%c%spc(i)%z)
-       do j = i, sys(isys)%c%nspc
-          r2cov = atmcov(sys(isys)%c%spc(j)%z)
-          r2vdw = atmvdw(sys(isys)%c%spc(j)%z)
-          if (d%distancetype_g == 0) then
-             if (d%radtype_g(1) == 0) then
-                d%rij_t(i,1,j) = d%bfmin_g * (r1cov + r2cov)
-             else
-                d%rij_t(i,1,j) = d%bfmin_g * (r1vdw + r2vdw)
-             end if
-             if (d%radtype_g(2) == 0) then
-                d%rij_t(i,2,j) = d%bfmax_g * (r1cov + r2cov)
-             else
-                d%rij_t(i,2,j) = d%bfmax_g * (r1vdw + r2vdw)
-             end if
-          else
-             d%rij_t(i,1,j) = d%dmin_g / bohrtoa
-             d%rij_t(i,2,j) = d%dmax_g / bohrtoa
-          end if
-          d%rij_t(j,:,i) = d%rij_t(i,:,j)
-          d%rgb_t(:,i,j) = d%rgb_g
-          d%rgb_t(:,j,i) = d%rgb_g
-       end do
-    end do
-    d%shown_t = .true.
-    d%style_t = d%style_g
-    d%rad_t = d%rad_g
-    d%order_t = d%order_g
-    d%imol_t = d%imol_g
-    d%bothends_t = d%bothends_g
-
-  end subroutine generate_table_from_globals
-
   !> Generate the neighbor stars from the data in the rij table using
   !> the geometry in system isys.
-  module subroutine generate_neighstars_from_table(d,isys,recalculate)
+  module subroutine generate_neighstars_from_globals(d,isys,recalculate)
     use gui_main, only: nsys, sys, sysc, sys_ready
+    use param, only: bohrtoa, atmcov, atmvdw
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in) :: isys
     logical, intent(in) :: recalculate
 
     integer :: i, j, n, ispc, jspc
+    real*8 :: r1cov, r1vdw, r2cov, r2vdw
+    real*8, allocatable :: rij_t(:,:,:)
 
     ! check all the info is available
     if (.not.d%isinit) return
-    if (.not.allocated(d%rij_t)) return
     if (isys < 1 .or. isys > nsys) return
     if (sysc(isys)%status < sys_ready) return
 
-    ! generate the new neighbor star
-    if (recalculate) &
-       call sys(isys)%c%find_asterisms(d%nstar,rij=d%rij_t)
+    ! allocate temporary data for rij table
+    allocate(rij_t(sys(isys)%c%nspc,2,sys(isys)%c%nspc))
+
+    if (recalculate) then
+       ! fill table data
+       do i = 1, sys(isys)%c%nspc
+          r1cov = atmcov(sys(isys)%c%spc(i)%z)
+          r1vdw = atmvdw(sys(isys)%c%spc(i)%z)
+          do j = i, sys(isys)%c%nspc
+             r2cov = atmcov(sys(isys)%c%spc(j)%z)
+             r2vdw = atmvdw(sys(isys)%c%spc(j)%z)
+             if (d%distancetype_g == 0) then
+                if (d%radtype_g(1) == 0) then
+                   rij_t(i,1,j) = d%bfmin_g * (r1cov + r2cov)
+                else
+                   rij_t(i,1,j) = d%bfmin_g * (r1vdw + r2vdw)
+                end if
+                if (d%radtype_g(2) == 0) then
+                   rij_t(i,2,j) = d%bfmax_g * (r1cov + r2cov)
+                else
+                   rij_t(i,2,j) = d%bfmax_g * (r1vdw + r2vdw)
+                end if
+             else
+                rij_t(i,1,j) = d%dmin_g / bohrtoa
+                rij_t(i,2,j) = d%dmax_g / bohrtoa
+             end if
+             rij_t(j,:,i) = rij_t(i,:,j)
+          end do
+       end do
+
+       ! generate the new neighbor star
+       call sys(isys)%c%find_asterisms(d%nstar,rij=rij_t)
+    end if
 
     ! reallocate the additional information that goes with the neighstar
     if (allocated(d%shown)) deallocate(d%shown)
@@ -1332,20 +1294,20 @@ contains
        ispc = sys(isys)%c%atcel(i)%is
        do j = 1, d%nstar(i)%ncon
           jspc = sys(isys)%c%atcel(d%nstar(i)%idcon(j))%is
-          d%shown(j,i) = d%shown_t(ispc,jspc)
-          d%style(j,i) = d%style_t(ispc,jspc)
-          d%rgb(:,j,i) = d%rgb_t(:,ispc,jspc)
-          d%rad(j,i) = d%rad_t(ispc,jspc)
-          d%order(j,i) = d%order_t(ispc,jspc)
-          d%imol(j,i) = d%imol_t(ispc,jspc)
-          d%bothends(j,i) = d%bothends_t(ispc,jspc)
+          d%shown(j,i) = d%shown_g(ispc,jspc)
+          d%style(j,i) = d%style_g
+          d%rgb(:,j,i) = d%rgb_g
+          d%rad(j,i) = d%rad_g
+          d%order(j,i) = d%order_g
+          d%imol(j,i) = d%imol_g
+          d%bothends(j,i) = d%bothends_g
        end do
     end do
 
     ! not using the default values anymore
     d%isdef = .false.
 
-  end subroutine generate_neighstars_from_table
+  end subroutine generate_neighstars_from_globals
 
   !xx! representation
 
@@ -1518,7 +1480,7 @@ contains
     integer, intent(in) :: iqpt, ifreq
 
     logical, allocatable :: lshown(:,:,:,:)
-    logical :: havefilter, step, isedge(3), usetshift, doanim_, dobonds, intra
+    logical :: havefilter, step, isedge(3), usetshift, doanim_, dobonds
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3)
     integer :: i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
@@ -2041,7 +2003,6 @@ contains
     real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
     real(c_float) :: a, ca, sa, axis(3), temp(3), rgb_(4)
     integer(c_int) :: ndash
-    integer :: i
 
     real(c_float), parameter :: dash_length = 0.4 ! length of the dashes
 
