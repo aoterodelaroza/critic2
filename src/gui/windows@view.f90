@@ -1943,10 +1943,15 @@ contains
           call igPopItemWidth()
           call iw_tooltip("Radius of the bonds",ttshown)
 
-          call iw_text(" Both Atoms",sameline=.true.)
-          ch = ch .or. iw_checkbox("##bothatomstableglobal",w%rep%bond_style%bothends_g,sameline=.true.)
-          call iw_tooltip("Represent a bond if both end-atoms are in the scene (checked) or if only &
-             &one end-atom is in the scene (unchecked)",ttshown)
+          call iw_text(" Border",sameline=.true.)
+          str2 = "##borderbondtableglobal" // c_null_char
+          str3 = "%.3f" // c_null_char
+          call igPushItemWidth(iw_calcwidth(5,1))
+          call igSameLine(0._c_float,-1._c_float)
+          ch = ch .or. igDragFloat(c_loc(str2),w%rep%bond_style%border_g,0.002_c_float,0._c_float,2._c_float,&
+             c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+          call igPopItemWidth()
+          call iw_tooltip("Size of the border at the bond edges",ttshown)
 
           ! color
           call igAlignTextToFramePadding()
@@ -1964,6 +1969,12 @@ contains
              w%rep%bond_style%order_g,sameline=.true.,changed=ldum)
           ch = ch .or. ldum
           call iw_tooltip("Bond order (dashed, single, double, etc.)",ttshown)
+
+          ! both atoms
+          call iw_text(" Both Atoms",sameline=.true.)
+          ch = ch .or. iw_checkbox("##bothatomstableglobal",w%rep%bond_style%bothends_g,sameline=.true.)
+          call iw_tooltip("Represent a bond if both end-atoms are in the scene (checked) or if only &
+             &one end-atom is in the scene (unchecked)",ttshown)
 
           !! distance block !!
           call igAlignTextToFramePadding()

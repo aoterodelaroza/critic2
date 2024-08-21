@@ -51,6 +51,7 @@ module scenes
      complex(c_float_complex) :: x1delta(3) ! delta-vector for vibration animations (end 1)
      complex(c_float_complex) :: x2delta(3) ! delta-vector for vibration animations (end 2)
      integer(c_int) :: order ! order of the bond (0=dashed,1=single,2=double,3=triple)
+     real(c_float) :: border ! border size
   end type dl_cylinder
 
   !> strings for the draw list
@@ -99,6 +100,7 @@ module scenes
      integer(c_int) :: radtype_g(2) ! radii type for min and max (0=covalent,1=vdw)
      integer(c_int) :: style_g ! bond style (0=single color, 1=two colors)
      real(c_float) :: rad_g ! radius
+     real(c_float) :: border_g ! bond border
      real(c_float) :: rgb_g(3) ! color
      integer(c_int) :: order_g ! order (1=single,2=double,etc.)
      integer(c_int) :: imol_g ! molecular connections (0=any,1=intramol,2=intermol)
@@ -110,6 +112,7 @@ module scenes
      integer(c_int), allocatable :: style(:,:) ! bond style (0=single color, 1=two colors)
      real(c_float), allocatable :: rgb(:,:,:) ! color of the bond (3,nstar%ncon)
      real(c_float), allocatable :: rad(:,:) ! radius of the bond
+     real(c_float), allocatable :: border(:,:) ! border of the bond
      integer(c_int), allocatable :: order(:,:) ! bond order (-n=dashed,1=single,2=double,etc.)
      integer(c_int), allocatable :: imol(:,:) ! molecular connections (0=any,1=intramol,2=intermol)
      logical, allocatable :: bothends(:,:) ! if true, both atoms need to be drawn to draw the bond
