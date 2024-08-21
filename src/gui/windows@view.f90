@@ -1935,7 +1935,7 @@ contains
           call igAlignTextToFramePadding()
           call iw_text("Global Options",highlight=.true.)
           if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
-             call w%rep%bond_style%reset(isys)
+             call w%rep%bond_style%reset(isys,w%rep%flavor)
              changed = .true.
           end if
           call iw_tooltip("Reset to the covalent bonding for this system and the default settings")

@@ -343,9 +343,10 @@ module scenes
        integer, intent(in), value :: isys
      end subroutine reset_molecule_style
      ! draw_style_bond
-     module subroutine reset_bond_style(d,isys)
+     module subroutine reset_bond_style(d,isys,flavor)
        class(draw_style_bond), intent(inout), target :: d
        integer, intent(in), value :: isys
+       integer, intent(in) :: flavor
      end subroutine reset_bond_style
      module subroutine generate_neighstars_from_globals(d,isys,recalculate)
        class(draw_style_bond), intent(inout), target :: d

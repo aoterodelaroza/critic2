@@ -2476,7 +2476,7 @@ contains
             do k = 1, win(j)%sc%nrep
                if (win(j)%sc%rep(k)%isinit .and. win(j)%sc%rep(k)%type==reptype_atoms.and.&
                   win(j)%sc%rep(k)%bond_style%isinit.and.win(j)%sc%rep(k)%bond_style%isdef) then
-                  call win(j)%sc%rep(k)%bond_style%reset(i)
+                  call win(j)%sc%rep(k)%bond_style%reset(i,win(j)%sc%rep(k)%flavor)
                end if
             end do
             win(j)%sc%forcebuildlists = .true.

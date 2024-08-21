@@ -1148,13 +1148,15 @@ contains
 
   end subroutine reset_molecule_style
 
-  !> Reset bond style with default values. Use the information in
-  !> system isys, or leave it empty if isys = 0.
-  module subroutine reset_bond_style(d,isys)
+  !> Reset bond style with default values, according to the given
+  !> flavor. Use the information in system isys, or leave it empty if
+  !> isys = 0.
+  module subroutine reset_bond_style(d,isys,flavor)
     use gui_main, only: nsys, sys, sysc, sys_ready
     use global, only: bondfactor
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in), value :: isys
+    integer, intent(in) :: flavor
 
     integer :: i, n
 
@@ -1175,30 +1177,7 @@ contains
     ! check the system is sane
     if (isys < 1 .or. isys > nsys) return
     if (sysc(isys)%status < sys_ready) return
-
-    ! fill data
     d%isinit = .true.
-    d%nstar = sys(isys)%c%nstar
-    n = 0
-    do i = 1, sys(isys)%c%ncel
-       n = max(n,d%nstar(i)%ncon)
-    end do
-    allocate(d%shown(n,sys(isys)%c%ncel))
-    allocate(d%style(n,sys(isys)%c%ncel))
-    allocate(d%rgb(3,n,sys(isys)%c%ncel))
-    allocate(d%rad(n,sys(isys)%c%ncel))
-    allocate(d%border(n,sys(isys)%c%ncel))
-    allocate(d%order(n,sys(isys)%c%ncel))
-    allocate(d%imol(n,sys(isys)%c%ncel))
-    allocate(d%bothends(n,sys(isys)%c%ncel))
-    d%shown = .true.
-    d%style = 0
-    d%rgb = 0._c_float
-    d%rad = bond_rad_def
-    d%border = atomborder_def
-    d%order = 1
-    d%imol = 0
-    d%bothends = .true.
 
     ! fill temp options
     allocate(d%shown_g(sys(isys)%c%nspc,sys(isys)%c%nspc))
@@ -1216,6 +1195,51 @@ contains
     d%imol_g = 0
     d%bothends_g = .true.
     d%shown_g = .true.
+
+    ! fill data according to flavor
+    if (flavor == repflavor_atoms_vdwcontacts) then
+       ! van der waals contacts
+       d%border_g = 0._c_float
+       d%bothends_g = .false.
+       d%distancetype_g = 0_c_int
+       d%bfmin_g = 0._c_float
+       d%bfmax_g = 1._c_float
+       d%radtype_g(2) = 1_c_int
+       d%imol_g = 2_c_int
+       d%rgb_g = (/0.51_c_float,0.83_c_float,0.11_c_float/)
+       do i = 1, sys(isys)%c%nspc
+          if (sys(isys)%c%spc(i)%z == 1) then
+             d%shown_g(i,:) = .false.
+             d%shown_g(:,i) = .false.
+          end if
+       end do
+       d%rad_g = 0.15_c_float
+       d%order_g = 0
+       call d%generate_neighstars_from_globals(isys,.true.)
+    else
+       ! default flavor
+       d%nstar = sys(isys)%c%nstar
+       n = 0
+       do i = 1, sys(isys)%c%ncel
+          n = max(n,d%nstar(i)%ncon)
+       end do
+       allocate(d%shown(n,sys(isys)%c%ncel))
+       allocate(d%style(n,sys(isys)%c%ncel))
+       allocate(d%rgb(3,n,sys(isys)%c%ncel))
+       allocate(d%rad(n,sys(isys)%c%ncel))
+       allocate(d%border(n,sys(isys)%c%ncel))
+       allocate(d%order(n,sys(isys)%c%ncel))
+       allocate(d%imol(n,sys(isys)%c%ncel))
+       allocate(d%bothends(n,sys(isys)%c%ncel))
+       d%shown = .true.
+       d%style = 0
+       d%rgb = 0._c_float
+       d%rad = bond_rad_def
+       d%border = atomborder_def
+       d%order = 1
+       d%imol = 0
+       d%bothends = .true.
+    end if
 
   end subroutine reset_bond_style
 
@@ -1423,35 +1447,19 @@ contains
     r%iord = sc%icount(0)
     sc%forcesort = .true.
 
-    ! initialize the styles
-    call r%atom_style%reset(r%id,0)
-    call r%mol_style%reset(r%id)
-    call r%bond_style%reset(r%id)
-
-    ! apply flavors
+    ! apply flavors, global options
     if (flavor == repflavor_atoms_vdwcontacts) then
-       r%name = "Van der Waals contacts"
+       r%name = "VdW contacts"
        r%atoms_display = .false.
        r%bonds_display = .true.
        r%labels_display = .false.
-       r%bond_style%border_g = 0._c_float
-       r%bond_style%bothends_g = .false.
-       r%bond_style%distancetype_g = 0_c_int
-       r%bond_style%bfmin_g = 0._c_float
-       r%bond_style%bfmax_g = 1._c_float
-       r%bond_style%radtype_g(2) = 1_c_int
-       r%bond_style%imol_g = 2_c_int
-       r%bond_style%rgb_g = (/0.51_c_float,0.83_c_float,0.11_c_float/)
-       do i = 1, sys(isys)%c%nspc
-          if (sys(isys)%c%spc(i)%z == 1) then
-             r%bond_style%shown_g(i,:) = .false.
-             r%bond_style%shown_g(:,i) = .false.
-          end if
-       end do
-       r%bond_style%rad_g = 0.15_c_float
-       r%bond_style%order_g = 0
-       call r%bond_style%generate_neighstars_from_globals(isys,.true.)
     end if
+
+    ! initialize the styles
+    call r%atom_style%reset(r%id,0)
+    call r%mol_style%reset(r%id)
+    call r%bond_style%reset(r%id,r%flavor)
+
 
   end subroutine representation_init
 
@@ -1499,7 +1507,7 @@ contains
 
     doreset = doreset .or. .not.r%bond_style%isinit
     doreset = doreset .or. (size(r%bond_style%nstar,1) /= sys(r%id)%c%ncel)
-    if (doreset) call r%bond_style%reset(r%id)
+    if (doreset) call r%bond_style%reset(r%id,r%flavor)
 
     doreset = .not.r%mol_style%isinit
     doreset = doreset .or. (r%mol_style%ntype /= sys(r%id)%c%nmol)
