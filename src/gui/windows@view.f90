@@ -55,7 +55,9 @@ contains
        BIND_NAV_ROTATE, BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
        BIND_NAV_MEASURE, bindnames, get_bind_keyname,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use scenes, only: reptype_atoms, reptype_unitcell, style_phong, style_simple
+    use scenes, only: reptype_atoms, reptype_unitcell, style_phong, style_simple,&
+       repflavor_atoms_basic, repflavor_atoms_vdwcontacts,&
+       repflavor_unitcell_basic
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
        iw_setposx_fromend, iw_checkbox
     use crystalmod, only: iperiod_vacthr
@@ -506,20 +508,32 @@ contains
              str2 = "Atoms" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 id = w%sc%get_new_representation_id()
-                call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style)
+                call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style,&
+                   repflavor_atoms_basic)
                 chbuild = .true.
              end if
-             call iw_tooltip("Represent atoms, and also perhaps bonds, and labels in the scene",ttshown)
+             call iw_tooltip("Display atoms and maybe covalent bonds and labels in the scene",ttshown)
 
              if (.not.sys(w%view_selected)%c%ismolecule) then
                 str2 = "Unit Cell" // c_null_char
                 if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                    id = w%sc%get_new_representation_id()
-                   call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_unitcell,w%sc%style)
+                   call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_unitcell,w%sc%style,&
+                      repflavor_unitcell_basic)
                    chbuild = .true.
                 end if
-                call iw_tooltip("Represent the unit cell",ttshown)
+                call iw_tooltip("Display the unit cell",ttshown)
              end if
+
+             str2 = "Van der Waals Contacts" // c_null_char
+             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                id = w%sc%get_new_representation_id()
+                call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style,&
+                   repflavor_atoms_vdwcontacts)
+                chbuild = .true.
+             end if
+             call iw_tooltip("Display intermolecular close contacts using van der Waals radii",ttshown)
+
              call igEndPopup()
           end if
           call iw_tooltip("Add a new object to the view",ttshown)
@@ -1625,7 +1639,8 @@ contains
           str2 = w%rep%name
           itype = w%rep%type
           lshown = w%rep%shown
-          call w%rep%init(sysc(w%isys)%sc,w%rep%id,w%rep%idrep,itype,win(w%idparent)%sc%style)
+          call w%rep%init(sysc(w%isys)%sc,w%rep%id,w%rep%idrep,itype,win(w%idparent)%sc%style,&
+             w%rep%flavor)
           w%rep%name = str2
           w%rep%shown = lshown
           win(w%idparent)%sc%forcebuildlists = .true.

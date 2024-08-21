@@ -100,7 +100,7 @@ contains
     allocate(s%rep(20))
     s%nrep = 0
     if (allocated(s%icount)) deallocate(s%icount)
-    allocate(s%icount(0:reptype_NUM))
+    allocate(s%icount(0:repflavor_NUM))
     s%icount = 0
     if (allocated(s%iord)) deallocate(s%iord)
     allocate(s%iord(20))
@@ -108,12 +108,12 @@ contains
 
     ! atoms
     s%nrep = s%nrep + 1
-    call s%rep(s%nrep)%init(s,s%id,s%nrep,reptype_atoms,s%style)
+    call s%rep(s%nrep)%init(s,s%id,s%nrep,reptype_atoms,s%style,repflavor_atoms_basic)
 
     ! unit cell
     if (.not.sys(isys)%c%ismolecule) then
        s%nrep = s%nrep + 1
-       call s%rep(s%nrep)%init(s,s%id,s%nrep,reptype_unitcell,s%style)
+       call s%rep(s%nrep)%init(s,s%id,s%nrep,reptype_unitcell,s%style,repflavor_unitcell_basic)
     end if
 
     ! reset the camera later
@@ -850,7 +850,7 @@ contains
                 id = s%get_new_representation_id()
                 s%rep(id) = s%rep(i)
                 s%rep(id)%name = trim(s%rep(i)%name) // " (copy)"
-                s%icount(s%rep(i)%type) = s%icount(s%rep(i)%type) + 1
+                s%icount(s%rep(i)%flavor) = s%icount(s%rep(i)%flavor) + 1
                 s%icount(0) = s%icount(0) + 1
                 s%rep(id)%iord = s%icount(0)
                 s%forcesort = .true.
@@ -1329,7 +1329,7 @@ contains
   !> corresponding type and set isinit = .true. and shown = .true.  sc
   !> = parent scene, isys = system ID, irep = representation ID, style
   !> = phong or simple.
-  module subroutine representation_init(r,sc,isys,irep,itype,style)
+  module subroutine representation_init(r,sc,isys,irep,itype,style,flavor)
     use gui_main, only: sys, nsys, sysc, sys_ready
     use tools_io, only: string
     class(representation), intent(inout), target :: r
@@ -1338,6 +1338,9 @@ contains
     integer, intent(in) :: irep
     integer, intent(in) :: itype
     integer, intent(in) :: style
+    integer, intent(in) :: flavor
+
+    integer :: i, j
 
     ! check the system is sane
     if (isys < 1 .or. isys > nsys) return
@@ -1347,6 +1350,7 @@ contains
     r%isinit = .false.
     r%shown = .false.
     r%type = reptype_none
+    r%flavor = repflavor_unknown
     r%id = isys
     r%idrep = irep
     r%idwin = 0
@@ -1387,10 +1391,10 @@ contains
 
     ! type-dependent settings
     if (itype == reptype_atoms) then
+       r%name = "Atoms+..."
        r%isinit = .true.
        r%shown = .true.
        r%type = reptype_atoms
-       r%name = "Atoms+..."
        if (sys(isys)%c%ismolecule) then
           r%ncell = 0
           r%border = .false.
@@ -1406,11 +1410,12 @@ contains
        r%type = reptype_unitcell
        r%name = "Unit cell"
     end if
+    r%flavor = flavor
 
     ! increment type counter and set name
-    sc%icount(itype) = sc%icount(itype) + 1
-    if (sc%icount(itype) > 1) then
-       r%name = trim(r%name) // " " // string(sc%icount(itype))
+    sc%icount(flavor) = sc%icount(flavor) + 1
+    if (sc%icount(flavor) > 1) then
+       r%name = trim(r%name) // "/" // string(sc%icount(flavor))
     end if
 
     ! increment global counter and force sort of the parent scene
@@ -1422,6 +1427,31 @@ contains
     call r%atom_style%reset(r%id,0)
     call r%mol_style%reset(r%id)
     call r%bond_style%reset(r%id)
+
+    ! apply flavors
+    if (flavor == repflavor_atoms_vdwcontacts) then
+       r%name = "Van der Waals contacts"
+       r%atoms_display = .false.
+       r%bonds_display = .true.
+       r%labels_display = .false.
+       r%bond_style%border_g = 0._c_float
+       r%bond_style%bothends_g = .false.
+       r%bond_style%distancetype_g = 0_c_int
+       r%bond_style%bfmin_g = 0._c_float
+       r%bond_style%bfmax_g = 1._c_float
+       r%bond_style%radtype_g(2) = 1_c_int
+       r%bond_style%imol_g = 2_c_int
+       r%bond_style%rgb_g = (/0.51_c_float,0.83_c_float,0.11_c_float/)
+       do i = 1, sys(isys)%c%nspc
+          if (sys(isys)%c%spc(i)%z == 1) then
+             r%bond_style%shown_g(i,:) = .false.
+             r%bond_style%shown_g(:,i) = .false.
+          end if
+       end do
+       r%bond_style%rad_g = 0.15_c_float
+       r%bond_style%order_g = 0
+       call r%bond_style%generate_neighstars_from_globals(isys,.true.)
+    end if
 
   end subroutine representation_init
 
@@ -1436,6 +1466,7 @@ contains
     r%isinit = .false.
     r%shown = .false.
     r%type = reptype_none
+    r%flavor = repflavor_unknown
     r%id = 0
     r%idrep = 0
     r%iord = 0

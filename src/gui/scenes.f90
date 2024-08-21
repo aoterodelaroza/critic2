@@ -102,7 +102,7 @@ module scenes
      real(c_float) :: rad_g ! radius
      real(c_float) :: border_g ! bond border
      real(c_float) :: rgb_g(3) ! color
-     integer(c_int) :: order_g ! order (1=single,2=double,etc.)
+     integer(c_int) :: order_g ! order (0=dashed,1=single,2=double,etc.)
      integer(c_int) :: imol_g ! molecular connections (0=any,1=intramol,2=intermol)
      logical :: bothends_g ! if true, both atoms need to be drawn to draw the bond
      logical, allocatable :: shown_g(:,:) ! by-species bond shown flags (nspc,nspc)
@@ -122,10 +122,18 @@ module scenes
   end type draw_style_bond
   public :: draw_style_bond
 
+  ! types of representations
   integer, parameter, public :: reptype_none = 0
   integer, parameter, public :: reptype_atoms = 1
   integer, parameter, public :: reptype_unitcell = 2
   integer, parameter, public :: reptype_NUM = 2
+
+  ! representation flavors
+  integer, parameter, public :: repflavor_unknown = 0
+  integer, parameter, public :: repflavor_atoms_basic = 1
+  integer, parameter, public :: repflavor_atoms_vdwcontacts = 2
+  integer, parameter, public :: repflavor_unitcell_basic = 3
+  integer, parameter, public :: repflavor_NUM = 3
 
   !> Representation: objects to draw on the scene
   type representation
@@ -133,6 +141,7 @@ module scenes
      logical :: isinit = .false. ! whether the representation has been initialized
      logical :: shown = .false. ! true if the representation is currently shown
      integer :: type = reptype_none ! type of representation (atoms, cell,...)
+     integer :: flavor = repflavor_unknown ! flavor of the representation
      integer :: id ! system ID
      integer :: idrep ! representation ID
      integer :: idwin = 0 ! edit representation window ID
@@ -344,13 +353,14 @@ module scenes
        logical, intent(in) :: recalculate
      end subroutine generate_neighstars_from_globals
      ! representation
-     module subroutine representation_init(r,sc,isys,irep,itype,style)
+     module subroutine representation_init(r,sc,isys,irep,itype,style,flavor)
        class(representation), intent(inout), target :: r
        type(scene), intent(inout), target :: sc
        integer, intent(in) :: isys
        integer, intent(in) :: irep
        integer, intent(in) :: itype
        integer, intent(in) :: style
+       integer, intent(in) :: flavor
      end subroutine representation_init
      module subroutine representation_end(r)
        class(representation), intent(inout), target :: r
