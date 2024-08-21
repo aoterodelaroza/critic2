@@ -2463,16 +2463,24 @@ contains
 
     ! build lists for all scenes associated with system i (including alternate views)
     subroutine system_force_build_lists(i)
+      use scenes, only: reptype_atoms
       use windows, only: nwin
       integer, intent(in) :: i
 
-      integer :: j
+      integer :: j, k
 
       sysc(i)%sc%forcebuildlists = .true.
       do j = 1, nwin
          if (.not.win(j)%isinit) cycle
-         if (win(j)%type == wintype_view .and. .not.win(j)%ismain) &
+         if (win(j)%type == wintype_view .and..not.win(j)%ismain.and.associated(win(j)%sc)) then
+            do k = 1, win(j)%sc%nrep
+               if (win(j)%sc%rep(k)%isinit .and. win(j)%sc%rep(k)%type==reptype_atoms.and.&
+                  win(j)%sc%rep(k)%bond_style%isinit.and.win(j)%sc%rep(k)%bond_style%isdef) then
+                  call win(j)%sc%rep(k)%bond_style%reset(i)
+               end if
+            end do
             win(j)%sc%forcebuildlists = .true.
+         end if
       end do
 
     end subroutine system_force_build_lists

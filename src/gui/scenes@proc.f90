@@ -1331,6 +1331,9 @@ contains
        end do
     end do
 
+    ! not using the default values anymore
+    d%isdef = .false.
+
   end subroutine generate_neighstars_from_table
 
   !xx! representation
