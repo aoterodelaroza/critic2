@@ -175,7 +175,10 @@ module crystalmod
      integer :: iperiod !< periodicity (see iperiod_* constants)
      logical :: ismol3d !< Is this a 3d molecular crystal?
      integer, allocatable :: idxmol(:) !< -1: mol is fractional, 0: sym. unique, >0 index for nneq mol.
-     integer, allocatable :: idatcelmol(:) !< cell atom i belongs to idatcelmol(i) molecule
+     integer, allocatable :: idatcelmol(:,:) !< cell atom i belongs to idatcelmol(1,i) molecule; idatcelmol(2,i) is the atom ID in the molecule
+     ! --> These two are equal:
+     ! c%mol(idatcelmol(1,i))%at(idatcelmol(2,i))%x
+     ! c%atcel(i)%x + c%mol(idatcelmol(1))%at(idatcelmol(2))%lvec
 
      ! vibrations
      type(vibrations), allocatable :: vib !< molecular/crystal vibrations
@@ -213,6 +216,7 @@ module crystalmod
      procedure :: find_asterisms
      procedure :: list_near_lattice_points
      procedure :: nearest_lattice_point
+     procedure :: in_same_molecule
 
      ! molecular environments and neighbors (mols)
      procedure :: identify_fragment !< Build an atomic fragment of the crystal
@@ -557,6 +561,12 @@ module crystalmod
        integer, intent(in), optional :: ndiv(3)
        logical, intent(in), optional :: nozero
      end subroutine nearest_lattice_point
+     module function in_same_molecule(c,i,il,j,jl)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: i, j
+       integer, intent(in) :: il(3), jl(3)
+       logical :: in_same_molecule
+     end function in_same_molecule
      module function identify_fragment(c,nat,x0) result(fr)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: nat

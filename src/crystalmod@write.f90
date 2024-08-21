@@ -167,7 +167,7 @@ contains
           do i=1,c%ncel
              is = c%atcel(i)%is
              if (allocated(c%mol) .and. c%nmol > 0) then
-                str1 = string(c%idatcelmol(i),3,ioj_center)
+                str1 = string(c%idatcelmol(1,i),3,ioj_center)
              else
                 str1 = ""
              end if
@@ -209,7 +209,7 @@ contains
        do i=1,c%ncel
           is = c%atcel(i)%is
           if (allocated(c%mol) .and. c%nmol > 0) then
-             str1 = string(c%idatcelmol(i),3,ioj_center)
+             str1 = string(c%idatcelmol(1,i),3,ioj_center)
           else
              str1 = ""
           end if

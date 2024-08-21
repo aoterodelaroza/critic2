@@ -1187,6 +1187,20 @@ contains
 
   end subroutine nearest_lattice_point
 
+  ! Given atoms with complete cell IDs i and j and corresponding
+  ! lattice vectors il and jl, return .true. if they are in the same
+  ! molecule.
+  module function in_same_molecule(c,i,il,j,jl)
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: i, j
+    integer, intent(in) :: il(3), jl(3)
+    logical :: in_same_molecule
+
+    in_same_molecule = all(il - c%mol(c%idatcelmol(1,i))%at(c%idatcelmol(2,i))%lvec == &
+       jl - c%mol(c%idatcelmol(1,j))%at(c%idatcelmol(2,j))%lvec)
+
+  end function in_same_molecule
+
   !xx! private procedures
 
   ! Find the indices for the nth shell of blocks. Sets the number of indices (nb),

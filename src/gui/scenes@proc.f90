@@ -1507,8 +1507,9 @@ contains
     integer, intent(in) :: iqpt, ifreq
 
     logical, allocatable :: lshown(:,:,:,:)
-    logical :: havefilter, step, isedge(3), usetshift, doanim_, dobonds
-    integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3), i1, i2, i3, ix(3)
+    logical :: havefilter, step, isedge(3), usetshift, doanim_, dobonds, intra
+    integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3)
+    integer :: i1, i2, i3, ix(3)
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
     real(c_float) :: rgb(3)
     real*8 :: rad1, rad2, dd, f1, f2
@@ -1624,7 +1625,7 @@ contains
              i = i + 1
              if (i > sys(r%id)%c%ncel) exit
              lvec = 0
-             imol = sys(r%id)%c%idatcelmol(i)
+             imol = sys(r%id)%c%idatcelmol(1,i)
           end if
           ! i is current atom from the complete atom list
           ! imol is the corresponding molecule
@@ -1720,11 +1721,10 @@ contains
                          ineigh = r%bond_style%nstar(i)%idcon(ib)
                          ixn = ix + r%bond_style%nstar(i)%lcon(:,ib)
 
-                         ! intra/inter-mol for bonds
                          if (r%bond_style%imol(ib,i) == 1) then ! intramol
-                            if (imol /= sys(r%id)%c%idatcelmol(ineigh)) cycle
+                            if (.not.sys(r%id)%c%in_same_molecule(i,ix,ineigh,ixn)) cycle
                          elseif (r%bond_style%imol(ib,i) == 2) then ! intermol
-                            if (imol == sys(r%id)%c%idatcelmol(ineigh)) cycle
+                            if (sys(r%id)%c%in_same_molecule(i,ix,ineigh,ixn)) cycle
                          end if
 
                          ! skip if the atom has not been represented already
@@ -1772,7 +1772,7 @@ contains
                             else ! ncel
                                idaux = ineigh
                             end if
-                            rad2 = r%atom_style%rad(idaux) * r%mol_style%scale_rad(sys(r%id)%c%idatcelmol(ineigh))
+                            rad2 = r%atom_style%rad(idaux) * r%mol_style%scale_rad(sys(r%id)%c%idatcelmol(1,ineigh))
                             dd = norm2(x2 - x1)
                             f1 = min(max((0.5d0 + 0.5d0 * (rad2 - rad1) / dd),0._c_float),1._c_float)
                             f2 = 1._c_float - f1
@@ -1794,7 +1794,7 @@ contains
                             drawlist_cyl(ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
                             drawlist_cyl(ncyl)%r = r%bond_style%rad(ib,i)
                             drawlist_cyl(ncyl)%rgb = r%atom_style%rgb(:,idaux) * &
-                               r%mol_style%tint_rgb(:,sys(r%id)%c%idatcelmol(ineigh))
+                               r%mol_style%tint_rgb(:,sys(r%id)%c%idatcelmol(1,ineigh))
                             drawlist_cyl(ncyl)%order = r%bond_style%order(ib,i)
                          end if
                       end do ! ncon

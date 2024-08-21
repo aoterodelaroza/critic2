@@ -791,7 +791,7 @@ contains
              "," // string(idx(4)) // "),nneqid=" // string(ineq) // ",wyckoff=" // &
              string(sys(w%view_selected)%c%at(ineq)%mult) // string(sys(w%view_selected)%c%at(ineq)%wyc)
           if (sys(w%view_selected)%c%nmol > 1) &
-             msg = msg // ",molid=" // string(sys(w%view_selected)%c%idatcelmol(icel))
+             msg = msg // ",molid=" // string(sys(w%view_selected)%c%idatcelmol(1,icel))
           msg = msg // "] " //&
              string(x0(1)+idx(2),'f',decimal=4) //" "// string(x0(2)+idx(3),'f',decimal=4) //" "//&
              string(x0(3)+idx(4),'f',decimal=4) // " (frac)"
@@ -800,7 +800,7 @@ contains
 
           msg = trim(msg) // " [id=" // string(icel)
           if (sys(w%view_selected)%c%nmol > 1) &
-             msg = msg // ",molid=" // string(sys(w%view_selected)%c%idatcelmol(icel))
+             msg = msg // ",molid=" // string(sys(w%view_selected)%c%idatcelmol(1,icel))
           msg = msg // "] " //&
              string(x0(1),'f',decimal=4) //" "// string(x0(2),'f',decimal=4) //" "//&
              string(x0(3),'f',decimal=4) // " (Å)"
@@ -2019,9 +2019,9 @@ contains
           call igAlignTextToFramePadding()
           call iw_text("└──intra/inter-molecular")
           call iw_combo_simple("##tablebondimolselectglobal",&
-             "Any"//c_null_char//"Intra"//c_null_char//"Inter"//c_null_char,&
+             "any"//c_null_char//"intra"//c_null_char//"inter"//c_null_char,&
              w%rep%bond_style%imol_g,sameline=.true.)
-          call iw_tooltip("Draw any bonds (Any), only intramolecular (Intra), or only intermolecular (Inter)",&
+          call iw_tooltip("Draw any bonds (any), only intramolecular (intra), or only intermolecular (inter)",&
              ttshown)
           g%Style%ItemSpacing%y = saveitemspacing
           g%Style%FramePadding%y = saveframepadding
@@ -2204,12 +2204,12 @@ contains
                       ! intra/inter-molecular
                       if (igTableSetColumnIndex(ic_imol)) then
                          call iw_combo_simple("##tablebondimolselect" // suffix,&
-                            "Any"//c_null_char//"Intra"//c_null_char//"Inter"//c_null_char,&
+                            "any"//c_null_char//"intra"//c_null_char//"inter"//c_null_char,&
                             w%rep%bond_style%imol_t(i,j),changed=ldum,noarrow=.true.)
                          ch = ch .or. ldum
                          w%rep%bond_style%imol_t(j,i) = w%rep%bond_style%imol_t(i,j)
-                         call iw_tooltip("Draw any bonds (Any), only intramolecular (Intra),&
-                            & or only intermolecular (Inter)",ttshown)
+                         call iw_tooltip("Draw any bonds (any), only intramolecular (intra),&
+                            & or only intermolecular (inter)",ttshown)
                       end if
 
                       ! bond style
@@ -3337,7 +3337,7 @@ contains
           ic_next = ic_radius + 1
           if (domol) then
              ! i is a complete list index in this case
-             if (igTableSetColumnIndex(ic_next)) call iw_text(string(c%idatcelmol(i)))
+             if (igTableSetColumnIndex(ic_next)) call iw_text(string(c%idatcelmol(1,i)))
              ic_next = ic_next + 1
           end if
 

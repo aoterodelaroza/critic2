@@ -775,7 +775,7 @@ contains
                 if (id == 0) &
                    call ferror('wholemols','error identifying rotated atom',faterr)
 
-                if (c%idatcelmol(k) == c%idatcelmol(id)) &
+                if (c%idatcelmol(1,k) == c%idatcelmol(1,id)) &
                    ismap(j,i) = .true.
                 ldone(c%atcel(k)%idx) = .true.
              end do

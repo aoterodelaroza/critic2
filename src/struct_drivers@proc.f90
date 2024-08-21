@@ -3121,7 +3121,7 @@ contains
                    goto 999
                 end if
                 do i = 1, s%c%ncel
-                   if (s%c%idatcelmol(i) == idx) then
+                   if (s%c%idatcelmol(1,i) == idx) then
                       nat = nat + 1
                       if (nat > size(iat,1)) call realloc(iat,2*nat)
                       iat(nat) = i

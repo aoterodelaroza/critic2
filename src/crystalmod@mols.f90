@@ -144,14 +144,14 @@ contains
     ! checks and allocate
     if (.not.allocated(c%nstar)) &
        call ferror('fill_molecular_fragments','no asterisms found',faterr)
-    allocate(c%idatcelmol(c%ncel),lvec(3,c%ncel),isdiscrete(20),lmol(3,20),nlmol(20))
+    allocate(c%idatcelmol(2,c%ncel),lvec(3,c%ncel),isdiscrete(20),lmol(3,20),nlmol(20))
     nlmol = 0
     c%idatcelmol = 0
     isdiscrete = .true.
 
     ! depth-first search for the connected components
     do i = 1, c%ncel
-       if (c%idatcelmol(i) > 0) cycle
+       if (c%idatcelmol(1,i) > 0) cycle
 
        c%nmol = c%nmol + 1
        if (c%nmol > size(isdiscrete,1)) then
@@ -171,7 +171,7 @@ contains
        c%mol(i)%spc = c%spc
        c%mol(i)%nat = 0
        c%mol(i)%discrete = isdiscrete(i)
-       allocate(c%mol(i)%at(count(c%idatcelmol == i)))
+       allocate(c%mol(i)%at(count(c%idatcelmol(1,:) == i)))
        if (c%mol(i)%discrete) then
           c%mol(i)%nlvec = 0
        else
@@ -181,8 +181,9 @@ contains
     end do
     deallocate(nlmol,lmol,isdiscrete)
     do i = 1, c%ncel
-       id = c%idatcelmol(i)
+       id = c%idatcelmol(1,i)
        c%mol(id)%nat = c%mol(id)%nat + 1
+       c%idatcelmol(2,i) = c%mol(id)%nat
        if (c%mol(id)%discrete) then
           c%mol(id)%at(c%mol(id)%nat)%x = c%atcel(i)%x + lvec(:,i)
           c%mol(id)%at(c%mol(id)%nat)%lvec = lvec(:,i)
@@ -257,11 +258,11 @@ contains
       integer :: k, newid, lnew(3), m
       logical :: found
 
-      c%idatcelmol(i) = nmol
+      c%idatcelmol(1,i) = nmol
       lvec(:,i) = lveci
       do k = 1, c%nstar(i)%ncon
          newid = c%nstar(i)%idcon(k)
-         if (c%idatcelmol(newid) == 0) then
+         if (c%idatcelmol(1,newid) == 0) then
             call explore_node(newid,nmol,lveci+c%nstar(i)%lcon(:,k))
          else
             lnew = abs(lveci + c%nstar(i)%lcon(:,k) - lvec(:,newid))
