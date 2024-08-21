@@ -1682,6 +1682,7 @@ contains
     integer(c_int), parameter :: ic_color = 7
     integer(c_int), parameter :: ic_radius = 8
     integer(c_int), parameter :: ic_order = 9
+    integer(c_int), parameter :: ic_bothends = 10
 
     ! initialize
     changed = .false.
@@ -1929,7 +1930,7 @@ contains
           call iw_text("(?)",sameline=.true.)
           call iw_tooltip("Choose which bonds to draw and their display properties using global&
              & options and distance criteria. Click 'Apply' if you change the distance criteria&
-             &to effect the changes. For finer control, use the Atom Pairs Table.")
+             & to effect the changes. For finer control, use the Atom Pairs Table.")
           if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
              call w%rep%bond_style%reset(isys)
              changed = .true.
@@ -2044,6 +2045,11 @@ contains
           call igPopItemWidth()
           call iw_tooltip("Radius of the bonds",ttshown)
 
+          call iw_text(" Both Atoms",sameline=.true.)
+          ch = ch .or. iw_checkbox("##bothatomstableglobal",w%rep%bond_style%bothends_g,sameline=.true.)
+          call iw_tooltip("Represent a bond if both end-atoms are in the scene (checked) or if only &
+             &one end-atom is in the scene (unchecked)",ttshown)
+
           ! color
           call iw_text("Color")
           str2 = "##colorbondtableglobal" // c_null_char
@@ -2106,7 +2112,7 @@ contains
              str1="##tablespeciesbonding" // c_null_char
              sz%x = iw_calcwidth(64,0)
              sz%y = iw_calcheight(nspcpair,0,.false.)
-             if (igBeginTable(c_loc(str1),10,flags,sz,0._c_float)) then
+             if (igBeginTable(c_loc(str1),11,flags,sz,0._c_float)) then
                 ! header setup
                 str2 = "" // c_null_char
                 flags = ImGuiTableColumnFlags_WidthFixed
@@ -2147,6 +2153,11 @@ contains
                 str2 = "Order" // c_null_char
                 flags = ImGuiTableColumnFlags_WidthFixed
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_order)
+
+                str2 = "Both" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_bothends)
+
                 call igTableSetupScrollFreeze(0, 1) ! top row always visible
                 call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
@@ -2168,8 +2179,10 @@ contains
 
                       ! shown
                       if (igTableSetColumnIndex(ic_shown)) then
-                         if (iw_checkbox("##bondtableshown" // suffix,w%rep%bond_style%shown_t(i,j))) &
+                         if (iw_checkbox("##bondtableshown" // suffix,w%rep%bond_style%shown_t(i,j))) then
+                            ch = .true.
                             w%rep%bond_style%shown_t(j,i) = w%rep%bond_style%shown_t(i,j)
+                         end if
                          call iw_tooltip("Toggle display of bonds connecting atoms of these types",ttshown)
                       end if
 
@@ -2260,6 +2273,16 @@ contains
                          ch = ch .or. ldum
                          w%rep%bond_style%order_t(j,i) = w%rep%bond_style%order_t(i,j)
                          call iw_tooltip("Bond order (dashed, single, double, etc.)",ttshown)
+                      end if
+
+                      ! both ends
+                      if (igTableSetColumnIndex(ic_bothends)) then
+                         if (iw_checkbox("##tablebothatomsselect"//suffix,w%rep%bond_style%bothends_t(i,j))) then
+                            w%rep%bond_style%bothends_t(j,i) = w%rep%bond_style%bothends_t(i,j)
+                            ch = .true.
+                         end if
+                         call iw_tooltip("Represent a bond if both end-atoms are in the scene (checked) or if only &
+                            &one end-atom is in the scene (unchecked)",ttshown)
                       end if
                    end do
                 end do
