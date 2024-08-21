@@ -1476,12 +1476,12 @@ contains
     if (doreset) call r%atom_style%reset(r%id,r%atom_style%type)
 
     doreset = doreset .or. .not.r%bond_style%isinit
+    doreset = doreset .or. (size(r%bond_style%nstar,1) /= sys(r%id)%c%ncel)
     if (doreset) call r%bond_style%reset(r%id)
 
     doreset = .not.r%mol_style%isinit
     doreset = doreset .or. (r%mol_style%ntype /= sys(r%id)%c%nmol)
     if (doreset) call r%mol_style%reset(r%id)
-
 
   end subroutine update_structure
 
