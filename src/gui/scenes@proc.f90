@@ -1479,10 +1479,15 @@ contains
   !> Update the representation to respond to a change in the number
   !> of atoms or molecules in the associated system.
   module subroutine update_structure(r)
-    use gui_main, only: sys
+    use gui_main, only: nsys, sys, sysc, lockbehavior, sys_ready
     class(representation), intent(inout), target :: r
 
     logical :: doreset
+
+    ! consistency checks
+    if (.not.r%isinit .or. r%id == 0) return
+    if (r%id < 1 .or. r%id > nsys) return
+    if (sysc(r%id)%status < sys_ready) return
 
     ! initialize the atom and molecule style if not done already or if
     ! the number of atoms have changed
