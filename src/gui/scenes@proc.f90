@@ -564,7 +564,7 @@ contains
 
       do i = 1, s%ncylflat
          call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
-            s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgb,s%uc_res,1,0._c_float)
+            s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgb,s%uc_res,-1,0._c_float)
       end do
 
     end subroutine draw_all_flat_cylinders
@@ -2002,8 +2002,10 @@ contains
 
   end subroutine draw_sphere
 
-  !> Draw a cylinder from x1 to x2 with radius rad and color
-  !> rgb. Requires having the cylinder VAO bound.
+  !> Draw a cylinder from x1 to x2 with radius rad and color rgb. ires
+  !> = resolution. order = order of the bond or flat cylinder if order
+  !> < 0. border = size of the border. Requires having the cylinder
+  !> VAO bound.
   subroutine draw_cylinder(x1,x2,rad,rgb,ires,order,border)
     use interfaces_opengl3
     use tools_math, only: cross_cfloat
@@ -2065,26 +2067,31 @@ contains
     rgb_(4) = 1._c_float
     call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
     call setuniform_mat4(model,idxi=iunif(iu_model))
-    if (order == 0) then
-       ndash = nint(blen / dash_length)
-       call setuniform_int(ndash,idxi=iunif(iu_ndash_cyl))
-    end if
 
     ! draw
-    if (order == 0) then
+    if (order < 0) then
+       ! flat cylinder
+       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+    elseif (order == 0) then
+       ! dashed
+       ndash = nint(blen / dash_length)
+       call setuniform_int(ndash,idxi=iunif(iu_ndash_cyl))
        call setuniform_float(0._c_float*rad,idxi=iunif(iu_delta_cyl))
        call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
     elseif (order == 1) then
+       ! single
        call setuniform_float(border,idxi=iunif(iu_border))
        call setuniform_float(0._c_float*rad,idxi=iunif(iu_delta_cyl))
        call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
     elseif (order == 2) then
+       ! double
        call setuniform_float(border,idxi=iunif(iu_border))
        call setuniform_float(0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
        call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
        call setuniform_float(-0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
        call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
     elseif (order == 3) then
+       ! triple
        call setuniform_float(border,idxi=iunif(iu_border))
        call setuniform_float(1.35_c_float*rad,idxi=iunif(iu_delta_cyl))
        call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
