@@ -1878,59 +1878,61 @@ contains
              msty=w%rep%mol_style)
 
           ! style buttons: set radii
-          call iw_text("Style Options",highlight=.true.)
-          call iw_combo_simple("Radii ##atomradiicombo","Covalent" // c_null_char // "Van der Waals" // c_null_char,&
-             w%rep%atom_radii_reset_type,changed=ch)
-          call iw_tooltip("Set atomic radii to the tabulated values of this type",ttshown)
-          call igSameLine(0._c_float,-1._c_float)
-          call igPushItemWidth(iw_calcwidth(5,1))
-          str2 = "Radii Scale##atomradiiscale" // c_null_char
-          str3 = "%.3f" // c_null_char
-          ch = ch .or. igDragFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
-             ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
-          call igPopItemWidth()
-          if (ch) then
-             do i = 1, w%rep%atom_style%ntype
-                if (w%rep%atom_style%type == 0) then ! species
-                   ispc = i
-                elseif (w%rep%atom_style%type == 1) then ! nneq
-                   ispc = sys(isys)%c%at(i)%is
-                else ! ncel
-                   ispc = sys(isys)%c%atcel(i)%is
-                end if
-                iz = sys(isys)%c%spc(ispc)%z
-                if (w%rep%atom_radii_reset_type == 0) then
-                   w%rep%atom_style%rad(i) = real(atmcov(iz),c_float)
-                else
-                   w%rep%atom_style%rad(i) = real(atmvdw(iz),c_float)
-                end if
-                w%rep%atom_style%rad(i) = w%rep%atom_style%rad(i) * w%rep%atom_radii_reset_scale
-             end do
-             changed = .true.
-          end if
+          if (w%rep%atoms_display) then
+             call iw_text("Style Options",highlight=.true.)
+             call iw_combo_simple("Radii ##atomradiicombo","Covalent" // c_null_char // "Van der Waals" // c_null_char,&
+                w%rep%atom_radii_reset_type,changed=ch)
+             call iw_tooltip("Set atomic radii to the tabulated values of this type",ttshown)
+             call igSameLine(0._c_float,-1._c_float)
+             call igPushItemWidth(iw_calcwidth(5,1))
+             str2 = "Radii Scale##atomradiiscale" // c_null_char
+             str3 = "%.3f" // c_null_char
+             ch = ch .or. igDragFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
+                ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
+             call igPopItemWidth()
+             if (ch) then
+                do i = 1, w%rep%atom_style%ntype
+                   if (w%rep%atom_style%type == 0) then ! species
+                      ispc = i
+                   elseif (w%rep%atom_style%type == 1) then ! nneq
+                      ispc = sys(isys)%c%at(i)%is
+                   else ! ncel
+                      ispc = sys(isys)%c%atcel(i)%is
+                   end if
+                   iz = sys(isys)%c%spc(ispc)%z
+                   if (w%rep%atom_radii_reset_type == 0) then
+                      w%rep%atom_style%rad(i) = real(atmcov(iz),c_float)
+                   else
+                      w%rep%atom_style%rad(i) = real(atmvdw(iz),c_float)
+                   end if
+                   w%rep%atom_style%rad(i) = w%rep%atom_style%rad(i) * w%rep%atom_radii_reset_scale
+                end do
+                changed = .true.
+             end if
 
-          ! style buttons: set color
-          call iw_combo_simple("Colors ##atomcolorselect","jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
-             w%rep%atom_color_reset_type,changed=ch)
-          call iw_tooltip("Set the color of all atoms to the tabulated values",ttshown)
-          if (ch) then
-             do i = 1, w%rep%atom_style%ntype
-                if (w%rep%atom_style%type == 0) then ! species
-                   ispc = i
-                elseif (w%rep%atom_style%type == 1) then ! nneq
-                   ispc = sys(isys)%c%at(i)%is
-                else ! ncel
-                   ispc = sys(isys)%c%atcel(i)%is
-                end if
-                iz = sys(isys)%c%spc(ispc)%z
-                if (w%rep%atom_color_reset_type == 0) then
-                   w%rep%atom_style%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
-                else
-                   w%rep%atom_style%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
-                end if
-             end do
-             changed = .true.
+             ! style buttons: set color
+             call iw_combo_simple("Colors ##atomcolorselect","jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
+                w%rep%atom_color_reset_type,changed=ch)
+             call iw_tooltip("Set the color of all atoms to the tabulated values",ttshown)
+             if (ch) then
+                do i = 1, w%rep%atom_style%ntype
+                   if (w%rep%atom_style%type == 0) then ! species
+                      ispc = i
+                   elseif (w%rep%atom_style%type == 1) then ! nneq
+                      ispc = sys(isys)%c%at(i)%is
+                   else ! ncel
+                      ispc = sys(isys)%c%atcel(i)%is
+                   end if
+                   iz = sys(isys)%c%spc(ispc)%z
+                   if (w%rep%atom_color_reset_type == 0) then
+                      w%rep%atom_style%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+                   else
+                      w%rep%atom_style%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
+                   end if
+                end do
+                changed = .true.
+             end if
           end if
           call igEndTabItem()
        end if ! begin tab item (atoms)
