@@ -1691,7 +1691,7 @@ contains
     logical(c_bool) :: ch, ldum
     integer(c_int) :: nc(3), lst, flags, nspcpair
     real(c_float) :: sqw
-    integer :: i, j
+    integer :: i, j, intable, nrow, is, ncol
     type(ImVec2) :: sz
 
     integer(c_int), parameter :: lsttrans(0:7) = (/0,1,2,2,2,3,4,5/)
@@ -1700,6 +1700,12 @@ contains
     integer(c_int), parameter :: ic_sp1 = 0
     integer(c_int), parameter :: ic_sp2 = 1
     integer(c_int), parameter :: ic_shown = 2
+
+    integer(c_int), parameter :: id_id = 0
+    integer(c_int), parameter :: id_atom = 1
+    integer(c_int), parameter :: id_z = 2
+    integer(c_int), parameter :: id_shown = 3
+    integer(c_int), parameter :: id_text = 4
 
     ! initialize
     changed = .false.
@@ -2206,6 +2212,129 @@ contains
              0.001_c_float,99.999_c_float,99.999_c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Offset the position of the labels relative to the atom center",ttshown)
           call igPopItemWidth()
+
+          ! label styles
+          call iw_text("Label Selection",highlight=.true.)
+
+          !
+          select case(w%rep%label_style%style)
+          case (0,1,5,6)
+             intable = 0 ! species
+             nrow = sys(isys)%c%nspc
+             ncol = 5
+             call iw_text("(per species)",sameline=.true.)
+          case (2,3)
+             intable = 1 ! complete cell list
+             nrow = sys(isys)%c%ncel
+             ncol = 5
+             call iw_text("(per atom)",sameline=.true.)
+          case (4,8)
+             intable = 2 ! non-equivalent list
+             nrow = sys(isys)%c%nneq
+             ncol = 5
+             call iw_text("(per symmetry-unique atom)",sameline=.true.)
+          case (7)
+             intable = 3 ! molecules
+             nrow = sys(isys)%c%nmol
+             ncol = 3
+             call iw_text("(per molecule)",sameline=.true.)
+          end select
+
+          flags = ImGuiTableFlags_None
+          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+          flags = ior(flags,ImGuiTableFlags_Borders)
+          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          flags = ior(flags,ImGuiTableFlags_ScrollY)
+          str1="##tablespecieslabels" // c_null_char
+          sz%x = iw_calcwidth(30,ncol)
+          sz%y = iw_calcheight(min(8,nrow+1),0,.false.)
+          if (igBeginTable(c_loc(str1),ncol,flags,sz,0._c_float)) then
+             ncol = -1
+
+             ! header setup
+             str2 = "Id" // c_null_char
+             ncol = ncol + 1
+             flags = ImGuiTableColumnFlags_WidthFixed
+             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+
+             if (intable < 3) then
+                str2 = "Atom" // c_null_char
+                ncol = ncol + 1
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+
+                str2 = "Z" // c_null_char
+                ncol = ncol + 1
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+             end if
+
+             str2 = "Show" // c_null_char
+             ncol = ncol + 1
+             flags = ImGuiTableColumnFlags_WidthFixed
+             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+
+             str2 = "Text" // c_null_char
+             ncol = ncol + 1
+             flags = ImGuiTableColumnFlags_WidthStretch
+             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+
+             call igTableSetupScrollFreeze(0, 1) ! top row always visible
+
+             ! draw the header
+             call igTableHeadersRow()
+             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+             ! draw the rows
+             do i = 1, nrow
+                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                suffix = "_" // string(i)
+                ncol = -1
+
+                ! id
+                ncol = ncol + 1
+                if (igTableSetColumnIndex(ncol)) then
+                   call igAlignTextToFramePadding()
+                   call iw_text(string(i))
+                end if
+
+                if (intable == 0) then ! species
+                   is = i
+                elseif (intable == 1) then ! complete cell list
+                   is = sys(isys)%c%atcel(i)%is
+                elseif (intable == 2) then ! non-equivalent list
+                   is = sys(isys)%c%at(i)%is
+                end if
+
+                ! atom
+                if (intable < 3) then
+                   ncol = ncol + 1
+                   if (igTableSetColumnIndex(ncol)) &
+                      call iw_text(trim(sys(isys)%c%spc(is)%name))
+
+                   ! Z
+                   ncol = ncol + 1
+                   if (igTableSetColumnIndex(ncol)) &
+                      call iw_text(string(sys(isys)%c%spc(is)%z))
+                end if
+
+                ! shown
+                ncol = ncol + 1
+                if (igTableSetColumnIndex(ncol)) then
+                   !             if (iw_checkbox("##bondtableshown" // suffix,w%rep%bond_style%shown_g(i,j))) then
+                   !                ch = .true.
+                   !                w%rep%bond_style%shown_g(j,i) = w%rep%bond_style%shown_g(i,j)
+                   !             end if
+                   !             call iw_tooltip("Toggle display of bonds connecting these atom types",
+                end if
+
+                ! text
+                ncol = ncol + 1
+                if (igTableSetColumnIndex(ncol)) then
+                   ! 
+                end if
+             end do
+             call igEndTable()
+          end if ! begintable
 
           call igEndTabItem()
        end if ! begin tab item (labels)
