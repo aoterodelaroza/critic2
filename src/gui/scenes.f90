@@ -108,14 +108,6 @@ module scenes
      logical, allocatable :: shown_g(:,:) ! by-species bond shown flags (nspc,nspc)
      ! the bond information
      type(neighstar), allocatable :: nstar(:) ! the neighbor star
-     logical(c_bool), allocatable :: shown(:,:) ! whether the bond is shown
-     integer(c_int), allocatable :: style(:,:) ! bond style (0=single color, 1=two colors)
-     real(c_float), allocatable :: rgb(:,:,:) ! color of the bond (3,nstar%ncon)
-     real(c_float), allocatable :: rad(:,:) ! radius of the bond
-     real(c_float), allocatable :: border(:,:) ! border of the bond
-     integer(c_int), allocatable :: order(:,:) ! bond order (-n=dashed,1=single,2=double,etc.)
-     integer(c_int), allocatable :: imol(:,:) ! molecular connections (0=any,1=intramol,2=intermol)
-     logical, allocatable :: bothends(:,:) ! if true, both atoms need to be drawn to draw the bond
    contains
      procedure :: reset => reset_bond_style
      procedure :: generate_neighstars_from_globals
@@ -349,10 +341,9 @@ module scenes
        integer, intent(in), value :: isys
        integer, intent(in) :: flavor
      end subroutine reset_bond_style
-     module subroutine generate_neighstars_from_globals(d,isys,recalculate)
+     module subroutine generate_neighstars_from_globals(d,isys)
        class(draw_style_bond), intent(inout), target :: d
        integer, intent(in) :: isys
-       logical, intent(in) :: recalculate
      end subroutine generate_neighstars_from_globals
      ! representation
      module subroutine representation_init(r,sc,isys,irep,itype,style,flavor)

@@ -1166,14 +1166,6 @@ contains
     d%isdef = .true.
     if (allocated(d%shown_g)) deallocate(d%shown_g)
     if (allocated(d%nstar)) deallocate(d%nstar)
-    if (allocated(d%shown)) deallocate(d%shown)
-    if (allocated(d%style)) deallocate(d%style)
-    if (allocated(d%rgb)) deallocate(d%rgb)
-    if (allocated(d%rad)) deallocate(d%rad)
-    if (allocated(d%border)) deallocate(d%border)
-    if (allocated(d%order)) deallocate(d%order)
-    if (allocated(d%imol)) deallocate(d%imol)
-    if (allocated(d%bothends)) deallocate(d%bothends)
 
     ! check the system is sane
     if (isys < 1 .or. isys > nsys) return
@@ -1216,7 +1208,7 @@ contains
        end do
        d%rad_g = 0.15_c_float
        d%order_g = 0
-       call d%generate_neighstars_from_globals(isys,.true.)
+       call d%generate_neighstars_from_globals(isys)
     elseif (flavor == repflavor_atoms_hbonds) then
        ! hydrogen bonds
        d%border_g = 0._c_float
@@ -1241,7 +1233,7 @@ contains
        end do
        d%rad_g = 0.15_c_float
        d%order_g = 0
-       call d%generate_neighstars_from_globals(isys,.true.)
+       call d%generate_neighstars_from_globals(isys)
     else
        ! default flavor
        d%nstar = sys(isys)%c%nstar
@@ -1249,34 +1241,17 @@ contains
        do i = 1, sys(isys)%c%ncel
           n = max(n,d%nstar(i)%ncon)
        end do
-       allocate(d%shown(n,sys(isys)%c%ncel))
-       allocate(d%style(n,sys(isys)%c%ncel))
-       allocate(d%rgb(3,n,sys(isys)%c%ncel))
-       allocate(d%rad(n,sys(isys)%c%ncel))
-       allocate(d%border(n,sys(isys)%c%ncel))
-       allocate(d%order(n,sys(isys)%c%ncel))
-       allocate(d%imol(n,sys(isys)%c%ncel))
-       allocate(d%bothends(n,sys(isys)%c%ncel))
-       d%shown = .true.
-       d%style = 0
-       d%rgb = 0._c_float
-       d%rad = bond_rad_def
-       d%border = atomborder_def
-       d%order = 1
-       d%imol = 0
-       d%bothends = .true.
     end if
 
   end subroutine reset_bond_style
 
   !> Generate the neighbor stars from the data in the rij table using
   !> the geometry in system isys.
-  module subroutine generate_neighstars_from_globals(d,isys,recalculate)
+  module subroutine generate_neighstars_from_globals(d,isys)
     use gui_main, only: nsys, sys, sysc, sys_ready
     use param, only: bohrtoa, atmcov, atmvdw
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in) :: isys
-    logical, intent(in) :: recalculate
 
     integer :: i, j, n, ispc, jspc
     real*8 :: r1cov, r1vdw, r2cov, r2vdw
@@ -1290,85 +1265,34 @@ contains
     ! allocate temporary data for rij table
     allocate(rij_t(sys(isys)%c%nspc,2,sys(isys)%c%nspc))
 
-    if (recalculate) then
-       ! fill table data
-       do i = 1, sys(isys)%c%nspc
-          r1cov = atmcov(sys(isys)%c%spc(i)%z)
-          r1vdw = atmvdw(sys(isys)%c%spc(i)%z)
-          do j = i, sys(isys)%c%nspc
-             r2cov = atmcov(sys(isys)%c%spc(j)%z)
-             r2vdw = atmvdw(sys(isys)%c%spc(j)%z)
-             if (d%distancetype_g == 0) then
-                if (d%radtype_g(1) == 0) then
-                   rij_t(i,1,j) = d%bfmin_g * (r1cov + r2cov)
-                else
-                   rij_t(i,1,j) = d%bfmin_g * (r1vdw + r2vdw)
-                end if
-                if (d%radtype_g(2) == 0) then
-                   rij_t(i,2,j) = d%bfmax_g * (r1cov + r2cov)
-                else
-                   rij_t(i,2,j) = d%bfmax_g * (r1vdw + r2vdw)
-                end if
+    ! fill table data
+    do i = 1, sys(isys)%c%nspc
+       r1cov = atmcov(sys(isys)%c%spc(i)%z)
+       r1vdw = atmvdw(sys(isys)%c%spc(i)%z)
+       do j = i, sys(isys)%c%nspc
+          r2cov = atmcov(sys(isys)%c%spc(j)%z)
+          r2vdw = atmvdw(sys(isys)%c%spc(j)%z)
+          if (d%distancetype_g == 0) then
+             if (d%radtype_g(1) == 0) then
+                rij_t(i,1,j) = d%bfmin_g * (r1cov + r2cov)
              else
-                rij_t(i,1,j) = d%dmin_g / bohrtoa
-                rij_t(i,2,j) = d%dmax_g / bohrtoa
+                rij_t(i,1,j) = d%bfmin_g * (r1vdw + r2vdw)
              end if
-             rij_t(j,:,i) = rij_t(i,:,j)
-          end do
-       end do
-
-       ! generate the new neighbor star
-       call sys(isys)%c%find_asterisms(d%nstar,rij=rij_t)
-    end if
-
-    ! reallocate the additional information that goes with the neighstar
-    if (allocated(d%shown)) deallocate(d%shown)
-    if (allocated(d%style)) deallocate(d%style)
-    if (allocated(d%rgb)) deallocate(d%rgb)
-    if (allocated(d%rad)) deallocate(d%rad)
-    if (allocated(d%border)) deallocate(d%border)
-    if (allocated(d%order)) deallocate(d%order)
-    if (allocated(d%imol)) deallocate(d%imol)
-    if (allocated(d%bothends)) deallocate(d%bothends)
-    n = 0
-    do i = 1, sys(isys)%c%ncel
-       n = max(n,d%nstar(i)%ncon)
-    end do
-    allocate(d%shown(n,sys(isys)%c%ncel))
-    allocate(d%style(n,sys(isys)%c%ncel))
-    allocate(d%rgb(3,n,sys(isys)%c%ncel))
-    allocate(d%rad(n,sys(isys)%c%ncel))
-    allocate(d%border(n,sys(isys)%c%ncel))
-    allocate(d%order(n,sys(isys)%c%ncel))
-    allocate(d%imol(n,sys(isys)%c%ncel))
-    allocate(d%bothends(n,sys(isys)%c%ncel))
-    d%shown = .true.
-    d%style = 0
-    d%rgb = 0._c_float
-    d%rad = bond_rad_def
-    d%border = atomborder_def
-    d%order = 1
-    d%imol = 0
-    d%bothends = .true.
-
-    ! transfer the info from the species table to the neighbor star
-    do i = 1, sys(isys)%c%ncel
-       ispc = sys(isys)%c%atcel(i)%is
-       do j = 1, d%nstar(i)%ncon
-          jspc = sys(isys)%c%atcel(d%nstar(i)%idcon(j))%is
-          d%shown(j,i) = d%shown_g(ispc,jspc)
-          d%style(j,i) = d%style_g
-          d%rgb(:,j,i) = d%rgb_g
-          d%rad(j,i) = d%rad_g
-          d%border(j,i) = d%border_g
-          d%order(j,i) = d%order_g
-          d%imol(j,i) = d%imol_g
-          d%bothends(j,i) = d%bothends_g
+             if (d%radtype_g(2) == 0) then
+                rij_t(i,2,j) = d%bfmax_g * (r1cov + r2cov)
+             else
+                rij_t(i,2,j) = d%bfmax_g * (r1vdw + r2vdw)
+             end if
+          else
+             rij_t(i,1,j) = d%dmin_g / bohrtoa
+             rij_t(i,2,j) = d%dmax_g / bohrtoa
+          end if
+          rij_t(j,:,i) = rij_t(i,:,j)
        end do
     end do
 
-    ! not using the default values anymore
-    d%isdef = .false.
+    ! generate the new neighbor star
+    call sys(isys)%c%find_asterisms(d%nstar,rij=rij_t)
 
   end subroutine generate_neighstars_from_globals
 
@@ -1778,18 +1702,18 @@ contains
 
                       ! bonds
                       do ib = 1, r%bond_style%nstar(i)%ncon
-                         if (.not.r%bond_style%shown(ib,i)) cycle
                          ineigh = r%bond_style%nstar(i)%idcon(ib)
+                         if (.not.r%bond_style%shown_g(sys(r%id)%c%atcel(ineigh)%is,sys(r%id)%c%atcel(i)%is)) cycle
                          ixn = ix + r%bond_style%nstar(i)%lcon(:,ib)
 
-                         if (r%bond_style%imol(ib,i) == 1) then ! intramol
+                         if (r%bond_style%imol_g == 1) then ! intramol
                             if (.not.sys(r%id)%c%in_same_molecule(i,ix,ineigh,ixn)) cycle
-                         elseif (r%bond_style%imol(ib,i) == 2) then ! intermol
+                         elseif (r%bond_style%imol_g == 2) then ! intermol
                             if (sys(r%id)%c%in_same_molecule(i,ix,ineigh,ixn)) cycle
                          end if
 
                          call check_lshown(ineigh,ixn(1),ixn(2),ixn(3))
-                         if (r%bond_style%bothends(ib,i)) then
+                         if (r%bond_style%bothends_g) then
                             ! skip if the atom has been represented already
                             ! (draws once, and only if both atoms are present)
                             if (.not.lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
@@ -1800,7 +1724,7 @@ contains
                          end if
 
                          ! draw the bond, reallocate if necessary
-                         if (r%bond_style%style(ib,i) == 0) then
+                         if (r%bond_style%style_g == 0) then
                             ncyl = ncyl + 1
                          else
                             ncyl = ncyl + 2
@@ -1823,15 +1747,15 @@ contains
                          x1 = xc + uoriginc
                          x2 = sys(r%id)%c%atcel(ineigh)%x + ixn
                          x2 = sys(r%id)%c%x2c(x2) + uoriginc
-                         if (r%bond_style%style(ib,i) == 0) then
+                         if (r%bond_style%style_g == 0) then
                             drawlist_cyl(ncyl)%x1 = real(x1,c_float)
                             drawlist_cyl(ncyl)%x1delta = cmplx(xdelta1,kind=c_float_complex)
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
                             drawlist_cyl(ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
-                            drawlist_cyl(ncyl)%r = r%bond_style%rad(ib,i)
-                            drawlist_cyl(ncyl)%rgb = r%bond_style%rgb(:,ib,i)
-                            drawlist_cyl(ncyl)%order = r%bond_style%order(ib,i)
-                            drawlist_cyl(ncyl)%border = r%bond_style%border(ib,i)
+                            drawlist_cyl(ncyl)%r = r%bond_style%rad_g
+                            drawlist_cyl(ncyl)%rgb = r%bond_style%rgb_g
+                            drawlist_cyl(ncyl)%order = r%bond_style%order_g
+                            drawlist_cyl(ncyl)%border = r%bond_style%border_g
                          else
                             ! calculate the midpoint, taking into account the atomic radii
                             if (r%atom_style%type == 0) then ! species
@@ -1853,20 +1777,20 @@ contains
                             drawlist_cyl(ncyl-1)%x1delta = cmplx(xdelta1,kind=c_float_complex)
                             drawlist_cyl(ncyl-1)%x2 = real(x0,c_float)
                             drawlist_cyl(ncyl-1)%x2delta = cmplx(xdelta0,kind=c_float_complex)
-                            drawlist_cyl(ncyl-1)%r = r%bond_style%rad(ib,i)
+                            drawlist_cyl(ncyl-1)%r = r%bond_style%rad_g
                             drawlist_cyl(ncyl-1)%rgb = rgb
-                            drawlist_cyl(ncyl-1)%order = r%bond_style%order(ib,i)
-                            drawlist_cyl(ncyl-1)%border = r%bond_style%border(ib,i)
+                            drawlist_cyl(ncyl-1)%order = r%bond_style%order_g
+                            drawlist_cyl(ncyl-1)%border = r%bond_style%border_g
 
                             drawlist_cyl(ncyl)%x1 = real(x0,c_float)
                             drawlist_cyl(ncyl)%x1delta = cmplx(xdelta0,kind=c_float_complex)
                             drawlist_cyl(ncyl)%x2 = real(x2,c_float)
                             drawlist_cyl(ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
-                            drawlist_cyl(ncyl)%r = r%bond_style%rad(ib,i)
+                            drawlist_cyl(ncyl)%r = r%bond_style%rad_g
                             drawlist_cyl(ncyl)%rgb = r%atom_style%rgb(:,idaux) * &
                                r%mol_style%tint_rgb(:,sys(r%id)%c%idatcelmol(1,ineigh))
-                            drawlist_cyl(ncyl)%order = r%bond_style%order(ib,i)
-                            drawlist_cyl(ncyl)%border = r%bond_style%border(ib,i)
+                            drawlist_cyl(ncyl)%order = r%bond_style%order_g
+                            drawlist_cyl(ncyl)%border = r%bond_style%border_g
                          end if
                       end do ! ncon
                    end if

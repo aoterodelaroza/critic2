@@ -2012,7 +2012,8 @@ contains
              & radii (Factor) or give bond distance range (Range)",ttshown)
           call iw_text(")",highlight=.true.,sameline_nospace=.true.)
           if (iw_button("Apply##applyglobal",sameline=.true.,danger=.true.)) then
-             call w%rep%bond_style%generate_neighstars_from_globals(isys,.true.)
+             call w%rep%bond_style%generate_neighstars_from_globals(isys)
+             w%rep%bond_style%isdef = .false.
              changed = .true.
           end if
           call iw_tooltip("Recalculate and draw bonds using the selected distance criteria",ttshown)
@@ -2145,10 +2146,7 @@ contains
           end if ! begintable
 
           ! immediately update if non-distances have changed
-          if (ch) then
-             call w%rep%bond_style%generate_neighstars_from_globals(isys,.false.)
-             changed = .true.
-          end if
+          if (ch) changed = .true.
 
           call igEndTabItem()
        end if ! begin tab item (bonds)
