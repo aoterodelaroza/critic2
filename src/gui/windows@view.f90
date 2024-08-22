@@ -2198,6 +2198,15 @@ contains
           changed = changed .or. iw_checkbox("Exclude hydrogens##labelexcludeh",w%rep%label_style%exclude_h)
           call iw_tooltip("Do not show labels on hydrogen atoms",ttshown)
 
+          ! offset
+          call igPushItemWidth(iw_calcwidth(21,3))
+          str2 = "Offset (Å)" // c_null_char
+          str3 = "%.3f" // c_null_char
+          changed = changed .or. igDragFloat3(c_loc(str2),w%rep%label_style%offset,&
+             0.001_c_float,99.999_c_float,99.999_c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Offset the position of the labels relative to the atom center",ttshown)
+          call igPopItemWidth()
+
           call igEndTabItem()
        end if ! begin tab item (labels)
        call igEndTabBar()

@@ -60,8 +60,9 @@ module scenes
      real(c_float) :: r ! radius
      real(c_float) :: rgb(3) ! color
      real(c_float) :: scale ! scale (1.0 = radius)
-     character(len=:), allocatable :: str ! string
+     real(c_float) :: offset(3) ! offset of the label in pixels
      complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
+     character(len=:), allocatable :: str ! string
   end type dl_string
 
   !> Draw style for atoms
@@ -117,6 +118,7 @@ module scenes
      real(c_float) :: rgb(3) ! color of the labels
      logical :: const_size ! whether labels scale with objects or are constant size
      logical :: exclude_h ! whether to exclude hydrogen labels
+     real(c_float) :: offset(3) ! offset of the label
   end type draw_style_label
   public :: draw_style_label
 

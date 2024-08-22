@@ -41,7 +41,6 @@ module shaders
   public :: setuniform_mat3
   public :: setuniform_mat4
 
-
   ! module procedure interfaces
   interface
      module subroutine shaders_init()

@@ -269,19 +269,19 @@ contains
     call glGenBuffers(1, c_loc(textVBOos))
     call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
     call glBindVertexArray(textVAOos)
-    call glBufferData(GL_ARRAY_BUFFER, text_maxvert*8*c_sizeof(c_float_), c_null_ptr, GL_DYNAMIC_DRAW)
+    call glBufferData(GL_ARRAY_BUFFER, text_maxvert*10*c_sizeof(c_float_), c_null_ptr, GL_DYNAMIC_DRAW)
     call glEnableVertexAttribArray(0)
-    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(8*c_sizeof(c_float_),c_int),&
+    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
        c_null_ptr)
     call glEnableVertexAttribArray(1)
-    call glVertexAttribPointer(1, 1, GL_FLOAT, int(GL_FALSE,c_signed_char), int(8*c_sizeof(c_float_),c_int),&
+    call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
        transfer(3_c_int * c_sizeof(c_float_),c_ptr_))
     call glEnableVertexAttribArray(2)
-    call glVertexAttribPointer(2, 2, GL_FLOAT, int(GL_FALSE,c_signed_char), int(8*c_sizeof(c_float_),c_int),&
-       transfer(4_c_int * c_sizeof(c_float_),c_ptr_))
-    call glEnableVertexAttribArray(3)
-    call glVertexAttribPointer(3, 2, GL_FLOAT, int(GL_FALSE,c_signed_char), int(8*c_sizeof(c_float_),c_int),&
+    call glVertexAttribPointer(2, 2, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
        transfer(6_c_int * c_sizeof(c_float_),c_ptr_))
+    call glEnableVertexAttribArray(3)
+    call glVertexAttribPointer(3, 2, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
+       transfer(8_c_int * c_sizeof(c_float_),c_ptr_))
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
 

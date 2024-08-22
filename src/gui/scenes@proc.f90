@@ -607,9 +607,10 @@ contains
          end if
          x = s%drawlist_string(i)%x
          if (s%animation > 0) x = x + real(displ * s%drawlist_string(i)%xdelta,c_float)
+
          call calc_text_onscene_vertices(s%drawlist_string(i)%str,x,s%drawlist_string(i)%r,&
-            siz,nvert,vert,centered=.true.)
-         call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
+            siz,nvert,vert,shift=s%drawlist_string(i)%offset,centered=.true.)
+         call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*10*c_sizeof(c_float), c_loc(vert))
          call glDrawArrays(GL_TRIANGLES, 0, nvert)
       end do
 
@@ -630,7 +631,7 @@ contains
          siz = sel_label_size * s%projection(1,1) / fontbakesize_large
          nvert = 0
          call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
-         call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*8*c_sizeof(c_float), c_loc(vert))
+         call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*10*c_sizeof(c_float), c_loc(vert))
          call glDrawArrays(GL_TRIANGLES, 0, nvert)
       end do
 
@@ -1617,6 +1618,7 @@ contains
                       else
                          drawlist_string(nstring)%scale = -r%label_style%scale
                       end if
+                      drawlist_string(nstring)%offset = r%label_style%offset
                       if (r%label_style%style == 0) then ! 0 = atomic symbol
                          drawlist_string(nstring)%str = trim(nameguess(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z,.true.))
                       elseif (r%label_style%style == 1) then ! 1 = atom name
@@ -1966,6 +1968,7 @@ contains
     r%label_style%style = 0_c_int
     r%label_style%scale = 0.5_c_float
     r%label_style%rgb = 0._c_float
+    r%label_style%offset = 0._c_float
     r%label_style%const_size = .false.
     r%label_style%exclude_h = .true.
 
@@ -2246,23 +2249,24 @@ contains
   !> Calculate the vertices for the given text and adds them to
   !> nvert/vert, on-scene version. x0 = world position of the label.
   !> r = radius of the associated atom.
-  subroutine calc_text_onscene_vertices(text,x0,r,siz,nvert,vert,centered)
+  subroutine calc_text_onscene_vertices(text,x0,r,siz,nvert,vert,shift,centered)
     use interfaces_cimgui
     use gui_main, only: g, fontbakesize_large
     use types, only: realloc
-    use param, only: newline
+    use param, only: newline, bohrtoa
     character(len=*), intent(in) :: text
     real(c_float), intent(in) :: x0(3)
     real(c_float), intent(in) :: r
     real(c_float), intent(in) :: siz
     integer(c_int), intent(inout) :: nvert
     real(c_float), allocatable, intent(inout) :: vert(:,:)
+    real(c_float), intent(in), optional :: shift(3)
     logical, intent(in), optional :: centered
 
     integer :: i, j, nline, nvert0
     type(c_ptr) :: cptr
     type(ImFontGlyph), pointer :: glyph
-    real(c_float) :: xpos, ypos, lheight
+    real(c_float) :: xpos, ypos, lheight, shift_(3)
     logical :: centered_
     real(c_float), allocatable :: xlen(:)
     integer, allocatable :: jlen(:)
@@ -2272,8 +2276,10 @@ contains
     ! initialize
     centered_ = .false.
     if (present(centered)) centered_ = centered
+    shift_ = 0._c_float
+    if (present(shift)) shift_ = shift / real(bohrtoa,c_float)
     if (.not.allocated(vert)) then
-       allocate(vert(8,100))
+       allocate(vert(10,100))
        nvert = 0
     end if
     nvert0 = nvert
@@ -2318,22 +2324,23 @@ contains
        if (nvert+6 > size(vert,2)) call realloc(vert,8,2*(nvert+6))
        do j = nvert+1, nvert+6
           vert(1:3,j) = x0
-          vert(4,j) = r + rshift
+          vert(4:5,j) = shift_(1:2)
+          vert(6,j) = r + rshift + shift_(3)
        end do
 
-       vert(5:6,nvert+1) = (/xpos + glyph%X0, ypos + glyph%Y1/)
-       vert(5:6,nvert+2) = (/xpos + glyph%X0, ypos + glyph%Y0/)
-       vert(5:6,nvert+3) = (/xpos + glyph%X1, ypos + glyph%Y0/)
-       vert(5:6,nvert+4) = (/xpos + glyph%X0, ypos + glyph%Y1/)
-       vert(5:6,nvert+5) = (/xpos + glyph%X1, ypos + glyph%Y0/)
-       vert(5:6,nvert+6) = (/xpos + glyph%X1, ypos + glyph%Y1/)
+       vert(7:8,nvert+1) = (/xpos + glyph%X0, ypos + glyph%Y1/)
+       vert(7:8,nvert+2) = (/xpos + glyph%X0, ypos + glyph%Y0/)
+       vert(7:8,nvert+3) = (/xpos + glyph%X1, ypos + glyph%Y0/)
+       vert(7:8,nvert+4) = (/xpos + glyph%X0, ypos + glyph%Y1/)
+       vert(7:8,nvert+5) = (/xpos + glyph%X1, ypos + glyph%Y0/)
+       vert(7:8,nvert+6) = (/xpos + glyph%X1, ypos + glyph%Y1/)
 
-       vert(7:8,nvert+1) = (/glyph%U0, glyph%V1/)
-       vert(7:8,nvert+2) = (/glyph%U0, glyph%V0/)
-       vert(7:8,nvert+3) = (/glyph%U1, glyph%V0/)
-       vert(7:8,nvert+4) = (/glyph%U0, glyph%V1/)
-       vert(7:8,nvert+5) = (/glyph%U1, glyph%V0/)
-       vert(7:8,nvert+6) = (/glyph%U1, glyph%V1/)
+       vert(9:10,nvert+1) = (/glyph%U0, glyph%V1/)
+       vert(9:10,nvert+2) = (/glyph%U0, glyph%V0/)
+       vert(9:10,nvert+3) = (/glyph%U1, glyph%V0/)
+       vert(9:10,nvert+4) = (/glyph%U0, glyph%V1/)
+       vert(9:10,nvert+5) = (/glyph%U1, glyph%V0/)
+       vert(9:10,nvert+6) = (/glyph%U1, glyph%V1/)
        nvert = nvert + 6
 
        ! advance xpos
@@ -2348,11 +2355,11 @@ contains
        jlen(nline+1) = nvert+1
 
        do i = 1, nline
-          vert(5,jlen(i):jlen(i+1)-1) = vert(5,jlen(i):jlen(i+1)-1) - 0.5_c_float * xlen(i)
+          vert(7,jlen(i):jlen(i+1)-1) = vert(7,jlen(i):jlen(i+1)-1) - 0.5_c_float * xlen(i)
        end do
-       vert(6,jlen(1):nvert) = vert(6,jlen(1):nvert) - 0.5_c_float * nline * lheight
+       vert(8,jlen(1):nvert) = vert(8,jlen(1):nvert) - 0.5_c_float * nline * lheight
     end if
-    vert(5:6,nvert0+1:nvert) = vert(5:6,nvert0+1:nvert) * siz
+    vert(7:8,nvert0+1:nvert) = vert(7:8,nvert0+1:nvert) * siz
 
   end subroutine calc_text_onscene_vertices
 
