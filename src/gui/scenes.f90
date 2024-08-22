@@ -114,6 +114,19 @@ module scenes
   end type draw_style_bond
   public :: draw_style_bond
 
+  !> Draw style for labels
+  type draw_style_label
+     logical :: isinit = .false. ! whether the style is intialized
+     integer(c_int) :: style ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
+     real(c_float) :: scale ! scale for the labels
+     real(c_float) :: rgb(3) ! color of the labels
+     logical :: const_size ! whether labels scale with objects or are constant size
+     logical :: exclude_h ! whether to exclude hydrogen labels
+   contains
+     procedure :: reset => reset_label_style
+  end type draw_style_label
+  public :: draw_style_label
+
   ! types of representations
   integer, parameter, public :: reptype_none = 0
   integer, parameter, public :: reptype_atoms = 1
@@ -159,11 +172,7 @@ module scenes
      type(draw_style_atom) :: atom_style ! atom styles
      type(draw_style_molecule) :: mol_style ! molecule styles
      type(draw_style_bond) :: bond_style ! bond styles
-     integer(c_int) :: label_style ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
-     real(c_float) :: label_scale ! scale for the labels
-     real(c_float) :: label_rgb(3) ! color of the labels
-     logical :: label_const_size ! whether labels scale with objects or are constant size
-     logical :: label_exclude_h ! whether to exclude hydrogen labels
+     type(draw_style_label) :: label_style ! bond styles
      ! unit cell
      logical :: uc_inner ! unit cell, display inner cylinders
      logical :: uc_coloraxes ! unit cell, color the axes (x=red,y=green,z=blue)
@@ -345,6 +354,11 @@ module scenes
        class(draw_style_bond), intent(inout), target :: d
        integer, intent(in) :: isys
      end subroutine generate_neighstars_from_globals
+     ! draw_style_label
+     module subroutine reset_label_style(d,isys)
+       class(draw_style_label), intent(inout), target :: d
+       integer, intent(in), value :: isys
+     end subroutine reset_label_style
      ! representation
      module subroutine representation_init(r,sc,isys,irep,itype,style,flavor)
        class(representation), intent(inout), target :: r

@@ -705,14 +705,12 @@ contains
        s%specular = 0.6_c_float
        s%shininess = 8_c_int
        do i = 1, s%nrep
-          s%rep(i)%label_rgb = 1._c_float
           s%rep(i)%uc_rgb = 1._c_float
        end do
     else
        !! simple !!
        s%bgcolor = (/1._c_float,1._c_float,1._c_float/)
        do i = 1, s%nrep
-          s%rep(i)%label_rgb = 0._c_float
           s%rep(i)%uc_rgb = 0._c_float
        end do
        s%atomborder = atomborder_def
@@ -1253,7 +1251,7 @@ contains
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in) :: isys
 
-    integer :: i, j, n, ispc, jspc
+    integer :: i, j
     real*8 :: r1cov, r1vdw, r2cov, r2vdw
     real*8, allocatable :: rij_t(:,:,:)
 
@@ -1296,6 +1294,27 @@ contains
 
   end subroutine generate_neighstars_from_globals
 
+  !> Reset label style with default values. Use the information in
+  !> system isys, or leave it empty if isys = 0.
+  module subroutine reset_label_style(d,isys)
+    use gui_main, only: nsys, sysc, sys_ready
+    class(draw_style_label), intent(inout), target :: d
+    integer, intent(in), value :: isys
+
+    ! check the system is sane
+    if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status < sys_ready) return
+
+    ! set the atom style to defaults
+    d%isinit = .true.
+    d%style = 0_c_int
+    d%scale = 0.5_c_float
+    d%rgb = 0._c_float
+    d%const_size = .false.
+    d%exclude_h = .true.
+
+  end subroutine reset_label_style
+
   !xx! representation
 
   !> Initialize a representation. If itype is present and not _none,
@@ -1313,8 +1332,6 @@ contains
     integer, intent(in) :: itype
     integer, intent(in) :: style
     integer, intent(in) :: flavor
-
-    integer :: i, j
 
     ! check the system is sane
     if (isys < 1 .or. isys > nsys) return
@@ -1341,10 +1358,6 @@ contains
     r%atom_radii_reset_type = 0
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
-    r%label_style = 0
-    r%label_scale = 0.5_c_float
-    r%label_const_size = .false._c_bool
-    r%label_exclude_h = .true._c_bool
     r%uc_radius = 0.15_c_float
     r%uc_radiusinner = 0.15_c_float
     r%uc_innersteplen = 2d0
@@ -1356,10 +1369,8 @@ contains
 
     ! style-dependent settings
     if (style == style_phong) then
-       r%label_rgb = 1._c_float
        r%uc_rgb = 1._c_float
     else
-       r%label_rgb = 0._c_float
        r%uc_rgb = 0._c_float
     end if
 
@@ -1414,7 +1425,7 @@ contains
     call r%atom_style%reset(r%id,0)
     call r%mol_style%reset(r%id)
     call r%bond_style%reset(r%id,r%flavor)
-
+    call r%label_style%reset(r%id)
 
   end subroutine representation_init
 
@@ -1442,7 +1453,7 @@ contains
   !> Update the representation to respond to a change in the number
   !> of atoms or molecules in the associated system.
   module subroutine update_structure(r)
-    use gui_main, only: nsys, sys, sysc, lockbehavior, sys_ready
+    use gui_main, only: nsys, sys, sysc, sys_ready
     class(representation), intent(inout), target :: r
 
     logical :: doreset
@@ -1467,6 +1478,9 @@ contains
     doreset = .not.r%mol_style%isinit
     doreset = doreset .or. (r%mol_style%ntype /= sys(r%id)%c%nmol)
     if (doreset) call r%mol_style%reset(r%id)
+
+    doreset = .not.r%mol_style%isinit
+    if (doreset) call r%label_style%reset(r%id)
 
   end subroutine update_structure
 
@@ -1797,7 +1811,7 @@ contains
 
                    ! labels
                    if (r%labels_display .and. &
-                      (.not.r%label_exclude_h.or.sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z/=1)) then
+                      (.not.r%label_style%exclude_h.or.sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z/=1)) then
                       nstring = nstring + 1
                       if (nstring > size(drawlist_string,1)) then
                          allocate(auxstr(2*nstring))
@@ -1808,30 +1822,30 @@ contains
                       drawlist_string(nstring)%x = real(xc + uoriginc,c_float)
                       drawlist_string(nstring)%xdelta = cmplx(xdelta1,kind=c_float_complex)
                       drawlist_string(nstring)%r = real(rad1,c_float)
-                      drawlist_string(nstring)%rgb = r%label_rgb
-                      if (r%label_const_size) then
-                         drawlist_string(nstring)%scale = r%label_scale
+                      drawlist_string(nstring)%rgb = r%label_style%rgb
+                      if (r%label_style%const_size) then
+                         drawlist_string(nstring)%scale = r%label_style%scale
                       else
-                         drawlist_string(nstring)%scale = -r%label_scale
+                         drawlist_string(nstring)%scale = -r%label_style%scale
                       end if
-                      if (r%label_style == 0) then ! 0 = atomic symbol
+                      if (r%label_style%style == 0) then ! 0 = atomic symbol
                          drawlist_string(nstring)%str = trim(nameguess(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z,.true.))
-                      elseif (r%label_style == 1) then ! 1 = atom name
+                      elseif (r%label_style%style == 1) then ! 1 = atom name
                          drawlist_string(nstring)%str = trim(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%name)
-                      elseif (r%label_style == 2) then ! 2 = cel-atom
+                      elseif (r%label_style%style == 2) then ! 2 = cel-atom
                          drawlist_string(nstring)%str = string(i)
-                      elseif (r%label_style == 3) then ! 3 = cel-atom + lvec
+                      elseif (r%label_style%style == 3) then ! 3 = cel-atom + lvec
                          drawlist_string(nstring)%str = string(i) // newline // "(" // string(ix(1)) // "," //&
                             string(ix(2)) // "," // string(ix(3)) // ")"
-                      elseif (r%label_style == 4) then ! 4 = neq atom
+                      elseif (r%label_style%style == 4) then ! 4 = neq atom
                          drawlist_string(nstring)%str = string(sys(r%id)%c%atcel(i)%idx)
-                      elseif (r%label_style == 5) then ! 5 = spc
+                      elseif (r%label_style%style == 5) then ! 5 = spc
                          drawlist_string(nstring)%str = string(sys(r%id)%c%atcel(i)%is)
-                      elseif (r%label_style == 6) then ! 6 = Z
+                      elseif (r%label_style%style == 6) then ! 6 = Z
                          drawlist_string(nstring)%str = string(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z)
-                      elseif (r%label_style == 7) then ! 7 = mol
+                      elseif (r%label_style%style == 7) then ! 7 = mol
                          drawlist_string(nstring)%str = string(imol)
-                      elseif (r%label_style == 8) then ! 8 = wycoff
+                      elseif (r%label_style%style == 8) then ! 8 = wycoff
                          idx = sys(r%id)%c%atcel(i)%idx
                          drawlist_string(nstring)%str = string(sys(r%id)%c%at(idx)%mult) //&
                             string(sys(r%id)%c%at(idx)%wyc)

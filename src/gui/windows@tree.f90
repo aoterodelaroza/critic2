@@ -2541,6 +2541,7 @@ contains
       do j = 1, nwin
          if (.not.win(j)%isinit) cycle
          if (win(j)%type == wintype_view .and..not.win(j)%ismain.and.associated(win(j)%sc)) then
+            ! force build lists and update representations
             do k = 1, win(j)%sc%nrep
                if (win(j)%sc%rep(k)%isinit .and. win(j)%sc%rep(k)%type==reptype_atoms.and.&
                   win(j)%sc%rep(k)%bond_style%isinit.and.win(j)%sc%rep(k)%bond_style%isdef) then

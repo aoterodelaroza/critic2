@@ -2157,21 +2157,21 @@ contains
           !! labels display !!
 
           ! label styles
-          call iw_text("Style Options",highlight=.true.)
+          call iw_text("Global Options",highlight=.true.)
           if (sys(isys)%c%ismolecule) then
-             lst = lsttrans(w%rep%label_style)
+             lst = lsttrans(w%rep%label_style%style)
              call iw_combo_simple("Text##labelcontentselect","Atomic symbol"//c_null_char//&
                 "Atom name"// c_null_char//"Atom ID"// c_null_char//&
                 "Species ID"// c_null_char// "Atomic number"// c_null_char// "Molecule ID"// c_null_char,&
                 lst,changed=ch)
-             w%rep%label_style = lsttransi(lst)
+             w%rep%label_style%style = lsttransi(lst)
           else
              call iw_combo_simple("Text##labelcontentselect","Atomic symbol"//c_null_char//&
                 "Atom name"//c_null_char//"Cell atom ID"//c_null_char//&
                 "Cell atom ID + lattice vector"//c_null_char//"Symmetry-unique atom ID"//c_null_char//&
                 "Species ID"//c_null_char//"Atomic number"//c_null_char//"Molecule ID"//c_null_char//&
                 "Wyckoff position"//c_null_char,&
-                w%rep%label_style,changed=ch)
+                w%rep%label_style%style,changed=ch)
           end if
           call iw_tooltip("Text to display in the atom labels",ttshown)
           changed = changed .or. ch
@@ -2180,22 +2180,22 @@ contains
           str2 = "Scale##labelscale" // c_null_char
           str3 = "%.2f" // c_null_char
           call igPushItemWidth(iw_calcwidth(4,1))
-          changed = changed .or. igDragFloat(c_loc(str2),w%rep%label_scale,0.01_c_float,0._c_float,10._c_float,c_loc(str3),&
+          changed = changed .or. igDragFloat(c_loc(str2),w%rep%label_style%scale,0.01_c_float,0._c_float,10._c_float,c_loc(str3),&
              ImGuiSliderFlags_AlwaysClamp)
           call igPopItemWidth()
           call iw_tooltip("Scale factor for the atom labels",ttshown)
 
-          changed = changed .or. iw_checkbox("Constant size##labelconstsize",w%rep%label_const_size,sameline=.true.)
+          changed = changed .or. iw_checkbox("Constant size##labelconstsize",w%rep%label_style%const_size,sameline=.true.)
           call iw_tooltip("Labels have constant size (on) or labels scale with the size of the associated atom (off)",ttshown)
 
           call igSameLine(0._c_float,-1._c_float)
           str2 = "Color##labelcolor" // c_null_char
-          changed = changed .or. igColorEdit3(c_loc(str2),w%rep%label_rgb,ImGuiColorEditFlags_NoInputs)
+          changed = changed .or. igColorEdit3(c_loc(str2),w%rep%label_style%rgb,ImGuiColorEditFlags_NoInputs)
           call iw_tooltip("Color of the atom labels",ttshown)
-          call iw_clamp_color3(w%rep%label_rgb)
+          call iw_clamp_color3(w%rep%label_style%rgb)
 
           ! exclude H
-          changed = changed .or. iw_checkbox("Exclude hydrogens##labelexcludeh",w%rep%label_exclude_h)
+          changed = changed .or. iw_checkbox("Exclude hydrogens##labelexcludeh",w%rep%label_style%exclude_h)
           call iw_tooltip("Do not show labels on hydrogen atoms",ttshown)
 
           call igEndTabItem()
