@@ -2196,7 +2196,7 @@ end function igButtonEx
 ! bool igImageButtonEx(ImGuiID id,ImTextureID texture_id,const ImVec2 size,const ImVec2 uv0,const ImVec2 uv1,const ImVec2 padding,const ImVec4 bg_col,const ImVec4 tint_col);
 function igImageButtonEx(id,texture_id,size,uv0,uv1,padding,bg_col,tint_col) bind(c,name="igImageButtonEx")
   import c_bool, c_int, c_ptr, ImVec2, ImVec4
-  logical(c_bool) :: igImageButton
+  logical(c_bool) :: igImageButtonEx
   integer(c_int), value :: id
   integer(c_int), value :: texture_id ! type(c_ptr), value :: user_texture_id
   type(ImVec2), intent(in), value :: size
