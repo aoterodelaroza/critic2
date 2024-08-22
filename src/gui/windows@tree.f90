@@ -1529,7 +1529,7 @@ contains
   ! corresponding to system si and field fj
   subroutine tree_field_tooltip_string(si,fj)
     use utils, only: iw_text
-    use gui_main, only: sys, sysc, nsys, sys_init, ColorFieldSelected
+    use gui_main, only: sys, sysc, nsys, sys_init
     use fieldmod, only: field, type_uninit, type_promol, type_grid, type_wien,&
        type_elk, type_pi, type_wfn, type_dftb, type_promol_frag, type_ghost
     use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_adf_sto,&
@@ -1537,7 +1537,7 @@ contains
     use grid3mod, only: mode_nearest, mode_trilinear, mode_trispline, mode_tricubic,&
        mode_smr
     use tools_io, only: string, nameguess
-    use param, only: newline, maxzat0
+    use param, only: maxzat0
     integer, intent(in) :: si, fj
 
     character(kind=c_char,len=:), allocatable, target :: str, aux
@@ -2545,7 +2545,7 @@ contains
             do k = 1, win(j)%sc%nrep
                if (win(j)%sc%rep(k)%isinit .and. win(j)%sc%rep(k)%type==reptype_atoms.and.&
                   win(j)%sc%rep(k)%bond_style%isinit.and.win(j)%sc%rep(k)%bond_style%isdef) then
-                  call win(j)%sc%rep(k)%bond_style%reset(i,win(j)%sc%rep(k)%flavor)
+                  call win(j)%sc%rep(k)%reset_bond_style()
                end if
             end do
             win(j)%sc%forcebuildlists = .true.

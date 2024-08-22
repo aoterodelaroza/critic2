@@ -1056,193 +1056,6 @@ contains
 
   end subroutine select_atom
 
-  !xx! draw_style_atom
-
-  !> Reset atom style with style type itype
-  !> (0=species,1=nneq,2=cell,3=mol). Use the information in system
-  !> isys, or leave it empty if isys = 0.
-  module subroutine reset_atom_style(d,isys,itype)
-    use gui_main, only: nsys, sys, sysc, sys_ready
-    use param, only: jmlcol, atmcov
-    class(draw_style_atom), intent(inout), target :: d
-    integer, intent(in), value :: isys, itype
-
-    integer :: i, ispc, iz
-
-    ! set the atom style to zero
-    d%type = 0
-    d%ntype = 0
-    d%isinit = .false.
-    if (allocated(d%shown)) deallocate(d%shown)
-    if (allocated(d%rgb)) deallocate(d%rgb)
-    if (allocated(d%rad)) deallocate(d%rad)
-
-    ! check the system is sane
-    if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status < sys_ready) return
-    d%type = itype
-
-    ! fill according to the style
-    if (d%type == 0) then ! species
-       d%ntype = sys(isys)%c%nspc
-       allocate(d%shown(d%ntype),d%rgb(3,d%ntype),d%rad(d%ntype))
-       do i = 1, d%ntype
-          iz = sys(isys)%c%spc(i)%z
-          d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
-          d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
-       end do
-    elseif (d%type == 1) then ! nneq
-       d%ntype = sys(isys)%c%nneq
-       allocate(d%shown(d%ntype),d%rgb(3,d%ntype),d%rad(d%ntype))
-       do i = 1, sys(isys)%c%nneq
-          ispc = sys(isys)%c%at(i)%is
-          iz = sys(isys)%c%spc(ispc)%z
-          d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
-          d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
-       end do
-    else ! ncel
-       d%ntype = sys(isys)%c%ncel
-       allocate(d%shown(d%ntype),d%rgb(3,d%ntype),d%rad(d%ntype))
-       do i = 1, sys(isys)%c%ncel
-          ispc = sys(isys)%c%atcel(i)%is
-          iz = sys(isys)%c%spc(ispc)%z
-          d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
-          d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
-       end do
-    end if
-    d%shown = .true.
-    d%isinit = .true.
-
-  end subroutine reset_atom_style
-
-  !> Reset molecule style with default values. Use the information in
-  !> system isys, or leave it empty if isys = 0.
-  module subroutine reset_molecule_style(d,isys)
-    use gui_main, only: nsys, sys, sysc, sys_ready
-    class(draw_style_molecule), intent(inout), target :: d
-    integer, intent(in), value :: isys
-
-    integer :: i
-
-    ! set the atom style to zero
-    d%ntype = 0
-    d%isinit = .false.
-    if (allocated(d%shown)) deallocate(d%shown)
-    if (allocated(d%tint_rgb)) deallocate(d%tint_rgb)
-    if (allocated(d%scale_rad)) deallocate(d%scale_rad)
-
-    ! check the system is sane
-    if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status < sys_ready) return
-
-    ! fill
-    d%ntype = sys(isys)%c%nmol
-    allocate(d%shown(d%ntype),d%tint_rgb(3,d%ntype),d%scale_rad(d%ntype))
-    do i = 1, sys(isys)%c%nmol
-       d%tint_rgb(:,i) = 1._c_float
-       d%scale_rad(i) = 1._c_float
-    end do
-    d%shown = .true.
-    d%isinit = .true.
-
-  end subroutine reset_molecule_style
-
-  !> Reset bond style with default values, according to the given
-  !> flavor. Use the information in system isys, or leave it empty if
-  !> isys = 0.
-  module subroutine reset_bond_style(d,isys,flavor)
-    use gui_main, only: nsys, sys, sysc, sys_ready
-    use global, only: bondfactor
-    class(draw_style_bond), intent(inout), target :: d
-    integer, intent(in), value :: isys
-    integer, intent(in) :: flavor
-
-    integer :: i, j, n, iz
-
-    ! clear the bond style
-    d%isinit = .false.
-    d%isdef = .true.
-    if (allocated(d%shown_g)) deallocate(d%shown_g)
-    if (allocated(d%nstar)) deallocate(d%nstar)
-
-    ! check the system is sane
-    if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status < sys_ready) return
-    d%isinit = .true.
-
-    ! fill temp options
-    allocate(d%shown_g(sys(isys)%c%nspc,sys(isys)%c%nspc))
-    d%distancetype_g = 0
-    d%dmin_g = 0._c_float
-    d%dmax_g = 0._c_float
-    d%bfmin_g = 0._c_float
-    d%bfmax_g = real(bondfactor,c_float)
-    d%radtype_g = 0
-    d%style_g = 0
-    d%rad_g = bond_rad_def
-    d%border_g = atomborder_def
-    d%rgb_g = 0._c_float
-    d%order_g = 1
-    d%imol_g = 0
-    d%bothends_g = .true.
-    d%shown_g = .true.
-
-    ! fill data according to flavor
-    if (flavor == repflavor_atoms_vdwcontacts) then
-       ! van der waals contacts
-       d%border_g = 0._c_float
-       d%bothends_g = .false.
-       d%distancetype_g = 0_c_int
-       d%bfmin_g = 0._c_float
-       d%bfmax_g = 1._c_float
-       d%radtype_g(2) = 1_c_int
-       d%imol_g = 2_c_int
-       d%rgb_g = (/0.51_c_float,0.83_c_float,0.11_c_float/)
-       do i = 1, sys(isys)%c%nspc
-          if (sys(isys)%c%spc(i)%z == 1) then
-             d%shown_g(i,:) = .false.
-             d%shown_g(:,i) = .false.
-          end if
-       end do
-       d%rad_g = 0.15_c_float
-       d%order_g = 0
-       call d%generate_neighstars_from_globals(isys)
-    elseif (flavor == repflavor_atoms_hbonds) then
-       ! hydrogen bonds
-       d%border_g = 0._c_float
-       d%bothends_g = .false.
-       d%distancetype_g = 0_c_int
-       d%bfmin_g = 1.2_c_float
-       d%radtype_g(1) = 0_c_int
-       d%bfmax_g = 1._c_float
-       d%radtype_g(2) = 1_c_int
-       d%imol_g = 2_c_int
-       d%rgb_g = (/0.11_c_float,0.44_c_float,0.83_c_float/)
-       d%shown_g = .false.
-       do i = 1, sys(isys)%c%nspc
-          if (sys(isys)%c%spc(i)%z /= 1) cycle
-          do j = 1, sys(isys)%c%nspc
-             iz = sys(isys)%c%spc(j)%z
-             if (iz == 7 .or. iz == 8 .or. iz == 9 .or. iz == 16 .or. iz == 17) then
-                d%shown_g(i,j) = .true.
-                d%shown_g(j,i) = .true.
-             end if
-          end do
-       end do
-       d%rad_g = 0.15_c_float
-       d%order_g = 0
-       call d%generate_neighstars_from_globals(isys)
-    else
-       ! default flavor
-       d%nstar = sys(isys)%c%nstar
-       n = 0
-       do i = 1, sys(isys)%c%ncel
-          n = max(n,d%nstar(i)%ncon)
-       end do
-    end if
-
-  end subroutine reset_bond_style
-
   !> Generate the neighbor stars from the data in the rij table using
   !> the geometry in system isys.
   module subroutine generate_neighstars_from_globals(d,isys)
@@ -1293,27 +1106,6 @@ contains
     call sys(isys)%c%find_asterisms(d%nstar,rij=rij_t)
 
   end subroutine generate_neighstars_from_globals
-
-  !> Reset label style with default values. Use the information in
-  !> system isys, or leave it empty if isys = 0.
-  module subroutine reset_label_style(d,isys)
-    use gui_main, only: nsys, sysc, sys_ready
-    class(draw_style_label), intent(inout), target :: d
-    integer, intent(in), value :: isys
-
-    ! check the system is sane
-    if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status < sys_ready) return
-
-    ! set the atom style to defaults
-    d%isinit = .true.
-    d%style = 0_c_int
-    d%scale = 0.5_c_float
-    d%rgb = 0._c_float
-    d%const_size = .false.
-    d%exclude_h = .true.
-
-  end subroutine reset_label_style
 
   !xx! representation
 
@@ -1422,10 +1214,7 @@ contains
     end if
 
     ! initialize the styles
-    call r%atom_style%reset(r%id,0)
-    call r%mol_style%reset(r%id)
-    call r%bond_style%reset(r%id,r%flavor)
-    call r%label_style%reset(r%id)
+    call r%reset_all_styles()
 
   end subroutine representation_init
 
@@ -1469,18 +1258,18 @@ contains
     doreset = doreset .or. (r%atom_style%type == 0 .and. r%atom_style%ntype /= sys(r%id)%c%nspc)
     doreset = doreset .or. (r%atom_style%type == 1 .and. r%atom_style%ntype /= sys(r%id)%c%nneq)
     doreset = doreset .or. (r%atom_style%type == 2 .and. r%atom_style%ntype /= sys(r%id)%c%ncel)
-    if (doreset) call r%atom_style%reset(r%id,r%atom_style%type)
+    if (doreset) call r%reset_atom_style()
 
     doreset = doreset .or. .not.r%bond_style%isinit
     doreset = doreset .or. (size(r%bond_style%nstar,1) /= sys(r%id)%c%ncel)
-    if (doreset) call r%bond_style%reset(r%id,r%flavor)
+    if (doreset) call r%reset_bond_style()
 
     doreset = .not.r%mol_style%isinit
     doreset = doreset .or. (r%mol_style%ntype /= sys(r%id)%c%nmol)
-    if (doreset) call r%mol_style%reset(r%id)
+    if (doreset) call r%reset_mol_style()
 
     doreset = .not.r%mol_style%isinit
-    if (doreset) call r%label_style%reset(r%id)
+    if (doreset) call r%reset_label_style()
 
   end subroutine update_structure
 
@@ -1971,6 +1760,227 @@ contains
     end subroutine check_lshown
 
   end subroutine add_draw_elements
+
+  !> Reset atom style
+  module subroutine reset_atom_style(r)
+    use gui_main, only: nsys, sys, sysc, sys_ready
+    use param, only: jmlcol, atmcov
+    class(representation), intent(inout), target :: r
+
+    integer :: isys
+    integer :: i, ispc, iz
+
+    ! set the atom style to zero
+    r%atom_style%ntype = 0
+    r%atom_style%isinit = .false.
+    if (allocated(r%atom_style%shown)) deallocate(r%atom_style%shown)
+    if (allocated(r%atom_style%rgb)) deallocate(r%atom_style%rgb)
+    if (allocated(r%atom_style%rad)) deallocate(r%atom_style%rad)
+
+    ! check the system is sane
+    isys = r%id
+    if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status < sys_ready) return
+
+    ! fill according to the style
+    if (r%atom_style%type == 0) then ! species
+       r%atom_style%ntype = sys(isys)%c%nspc
+       allocate(r%atom_style%shown(r%atom_style%ntype),r%atom_style%rgb(3,r%atom_style%ntype))
+       allocate(r%atom_style%rad(r%atom_style%ntype))
+       do i = 1, r%atom_style%ntype
+          iz = sys(isys)%c%spc(i)%z
+          r%atom_style%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+          r%atom_style%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
+       end do
+    elseif (r%atom_style%type == 1) then ! nneq
+       r%atom_style%ntype = sys(isys)%c%nneq
+       allocate(r%atom_style%shown(r%atom_style%ntype),r%atom_style%rgb(3,r%atom_style%ntype))
+       allocate(r%atom_style%rad(r%atom_style%ntype))
+       do i = 1, sys(isys)%c%nneq
+          ispc = sys(isys)%c%at(i)%is
+          iz = sys(isys)%c%spc(ispc)%z
+          r%atom_style%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+          r%atom_style%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
+       end do
+    else ! ncel
+       r%atom_style%ntype = sys(isys)%c%ncel
+       allocate(r%atom_style%shown(r%atom_style%ntype),r%atom_style%rgb(3,r%atom_style%ntype))
+       allocate(r%atom_style%rad(r%atom_style%ntype))
+       do i = 1, sys(isys)%c%ncel
+          ispc = sys(isys)%c%atcel(i)%is
+          iz = sys(isys)%c%spc(ispc)%z
+          r%atom_style%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+          r%atom_style%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
+       end do
+    end if
+    r%atom_style%shown = .true.
+    r%atom_style%isinit = .true.
+
+  end subroutine reset_atom_style
+
+  !> Reset molecule style with default values. Use the information in
+  !> system isys, or leave it empty if isys = 0.
+  module subroutine reset_mol_style(r)
+    use gui_main, only: nsys, sys, sysc, sys_ready
+    class(representation), intent(inout), target :: r
+
+    integer :: isys
+    integer :: i
+
+    ! set the atom style to zero
+    isys = r%id
+    r%mol_style%ntype = 0
+    r%mol_style%isinit = .false.
+    if (allocated(r%mol_style%shown)) deallocate(r%mol_style%shown)
+    if (allocated(r%mol_style%tint_rgb)) deallocate(r%mol_style%tint_rgb)
+    if (allocated(r%mol_style%scale_rad)) deallocate(r%mol_style%scale_rad)
+
+    ! check the system is sane
+    if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status < sys_ready) return
+
+    ! fill
+    r%mol_style%ntype = sys(isys)%c%nmol
+    allocate(r%mol_style%shown(r%mol_style%ntype),r%mol_style%tint_rgb(3,r%mol_style%ntype))
+    allocate(r%mol_style%scale_rad(r%mol_style%ntype))
+    do i = 1, sys(isys)%c%nmol
+       r%mol_style%tint_rgb(:,i) = 1._c_float
+       r%mol_style%scale_rad(i) = 1._c_float
+    end do
+    r%mol_style%shown = .true.
+    r%mol_style%isinit = .true.
+
+  end subroutine reset_mol_style
+
+  !> Reset bond style with default values, according to the given
+  !> flavor. Use the information in system isys, or leave it empty if
+  !> isys = 0.
+  module subroutine reset_bond_style(r)
+    use gui_main, only: nsys, sys, sysc, sys_ready
+    use global, only: bondfactor
+    class(representation), intent(inout), target :: r
+
+    integer :: isys
+    integer :: i, j, n, iz
+
+    ! clear the bond style
+    isys = r%id
+    r%bond_style%isinit = .false.
+    r%bond_style%isdef = .true.
+    if (allocated(r%bond_style%shown_g)) deallocate(r%bond_style%shown_g)
+    if (allocated(r%bond_style%nstar)) deallocate(r%bond_style%nstar)
+
+    ! check the system is sane
+    if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status < sys_ready) return
+    r%bond_style%isinit = .true.
+
+    ! fill temp options
+    allocate(r%bond_style%shown_g(sys(isys)%c%nspc,sys(isys)%c%nspc))
+    r%bond_style%distancetype_g = 0
+    r%bond_style%dmin_g = 0._c_float
+    r%bond_style%dmax_g = 0._c_float
+    r%bond_style%bfmin_g = 0._c_float
+    r%bond_style%bfmax_g = real(bondfactor,c_float)
+    r%bond_style%radtype_g = 0
+    r%bond_style%style_g = 0
+    r%bond_style%rad_g = bond_rad_def
+    r%bond_style%border_g = atomborder_def
+    r%bond_style%rgb_g = 0._c_float
+    r%bond_style%order_g = 1
+    r%bond_style%imol_g = 0
+    r%bond_style%bothends_g = .true.
+    r%bond_style%shown_g = .true.
+
+    ! fill data according to flavor
+    if (r%flavor == repflavor_atoms_vdwcontacts) then
+       ! van der waals contacts
+       r%bond_style%border_g = 0._c_float
+       r%bond_style%bothends_g = .false.
+       r%bond_style%distancetype_g = 0_c_int
+       r%bond_style%bfmin_g = 0._c_float
+       r%bond_style%bfmax_g = 1._c_float
+       r%bond_style%radtype_g(2) = 1_c_int
+       r%bond_style%imol_g = 2_c_int
+       r%bond_style%rgb_g = (/0.51_c_float,0.83_c_float,0.11_c_float/)
+       do i = 1, sys(isys)%c%nspc
+          if (sys(isys)%c%spc(i)%z == 1) then
+             r%bond_style%shown_g(i,:) = .false.
+             r%bond_style%shown_g(:,i) = .false.
+          end if
+       end do
+       r%bond_style%rad_g = 0.15_c_float
+       r%bond_style%order_g = 0
+       call r%bond_style%generate_neighstars_from_globals(isys)
+    elseif (r%flavor == repflavor_atoms_hbonds) then
+       ! hydrogen bonds
+       r%bond_style%border_g = 0._c_float
+       r%bond_style%bothends_g = .false.
+       r%bond_style%distancetype_g = 0_c_int
+       r%bond_style%bfmin_g = 1.2_c_float
+       r%bond_style%radtype_g(1) = 0_c_int
+       r%bond_style%bfmax_g = 1._c_float
+       r%bond_style%radtype_g(2) = 1_c_int
+       r%bond_style%imol_g = 2_c_int
+       r%bond_style%rgb_g = (/0.11_c_float,0.44_c_float,0.83_c_float/)
+       r%bond_style%shown_g = .false.
+       do i = 1, sys(isys)%c%nspc
+          if (sys(isys)%c%spc(i)%z /= 1) cycle
+          do j = 1, sys(isys)%c%nspc
+             iz = sys(isys)%c%spc(j)%z
+             if (iz == 7 .or. iz == 8 .or. iz == 9 .or. iz == 16 .or. iz == 17) then
+                r%bond_style%shown_g(i,j) = .true.
+                r%bond_style%shown_g(j,i) = .true.
+             end if
+          end do
+       end do
+       r%bond_style%rad_g = 0.15_c_float
+       r%bond_style%order_g = 0
+       call r%bond_style%generate_neighstars_from_globals(isys)
+    else
+       ! default flavor
+       r%bond_style%nstar = sys(isys)%c%nstar
+       n = 0
+       do i = 1, sys(isys)%c%ncel
+          n = max(n,r%bond_style%nstar(i)%ncon)
+       end do
+    end if
+
+  end subroutine reset_bond_style
+
+  !> Reset label style with default values. Use the information in
+  !> system isys, or leave it empty if isys = 0.
+  module subroutine reset_label_style(r)
+    use gui_main, only: nsys, sysc, sys_ready
+    class(representation), intent(inout), target :: r
+
+    integer :: isys
+
+    ! check the system is sane
+    isys = r%id
+    if (isys < 1 .or. isys > nsys) return
+    if (sysc(isys)%status < sys_ready) return
+
+    ! set the atom style to defaults
+    r%label_style%isinit = .true.
+    r%label_style%style = 0_c_int
+    r%label_style%scale = 0.5_c_float
+    r%label_style%rgb = 0._c_float
+    r%label_style%const_size = .false.
+    r%label_style%exclude_h = .true.
+
+  end subroutine reset_label_style
+
+  !> Reset all styles.
+  module subroutine reset_all_styles(r)
+    class(representation), intent(inout), target :: r
+
+    call r%reset_atom_style()
+    call r%reset_mol_style()
+    call r%reset_bond_style()
+    call r%reset_label_style()
+
+  end subroutine reset_all_styles
 
   !xx! private procedures: low-level draws
 

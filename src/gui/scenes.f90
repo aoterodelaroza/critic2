@@ -72,8 +72,6 @@ module scenes
      logical, allocatable :: shown(:) ! whether it is shown (ntype)
      real(c_float), allocatable :: rgb(:,:) ! color (3,ntype)
      real(c_float), allocatable :: rad(:) ! radius (ntype)
-   contains
-     procedure :: reset => reset_atom_style
   end type draw_style_atom
   public :: draw_style_atom
 
@@ -84,8 +82,6 @@ module scenes
      logical, allocatable :: shown(:) ! whether it is shown (ntype)
      real(c_float), allocatable :: tint_rgb(:,:) ! tint color (3,ntype)
      real(c_float), allocatable :: scale_rad(:) ! scale radius (ntype)
-   contains
-     procedure :: reset => reset_molecule_style
   end type draw_style_molecule
   public :: draw_style_molecule
 
@@ -109,7 +105,6 @@ module scenes
      ! the bond information
      type(neighstar), allocatable :: nstar(:) ! the neighbor star
    contains
-     procedure :: reset => reset_bond_style
      procedure :: generate_neighstars_from_globals
   end type draw_style_bond
   public :: draw_style_bond
@@ -122,8 +117,6 @@ module scenes
      real(c_float) :: rgb(3) ! color of the labels
      logical :: const_size ! whether labels scale with objects or are constant size
      logical :: exclude_h ! whether to exclude hydrogen labels
-   contains
-     procedure :: reset => reset_label_style
   end type draw_style_label
   public :: draw_style_label
 
@@ -186,6 +179,11 @@ module scenes
      procedure :: end => representation_end
      procedure :: update => update_structure
      procedure :: add_draw_elements
+     procedure :: reset_atom_style
+     procedure :: reset_mol_style
+     procedure :: reset_bond_style
+     procedure :: reset_label_style
+     procedure :: reset_all_styles
   end type representation
   public :: representation
 
@@ -334,31 +332,11 @@ module scenes
        class(scene), intent(inout), target :: s
        integer, intent(in) :: idx(5)
      end subroutine select_atom
-     ! draw_style_atom
-     module subroutine reset_atom_style(d,isys,itype)
-       class(draw_style_atom), intent(inout), target :: d
-       integer, intent(in), value :: isys, itype
-     end subroutine reset_atom_style
-     ! draw_style_molecule
-     module subroutine reset_molecule_style(d,isys)
-       class(draw_style_molecule), intent(inout), target :: d
-       integer, intent(in), value :: isys
-     end subroutine reset_molecule_style
      ! draw_style_bond
-     module subroutine reset_bond_style(d,isys,flavor)
-       class(draw_style_bond), intent(inout), target :: d
-       integer, intent(in), value :: isys
-       integer, intent(in) :: flavor
-     end subroutine reset_bond_style
      module subroutine generate_neighstars_from_globals(d,isys)
        class(draw_style_bond), intent(inout), target :: d
        integer, intent(in) :: isys
      end subroutine generate_neighstars_from_globals
-     ! draw_style_label
-     module subroutine reset_label_style(d,isys)
-       class(draw_style_label), intent(inout), target :: d
-       integer, intent(in), value :: isys
-     end subroutine reset_label_style
      ! representation
      module subroutine representation_init(r,sc,isys,irep,itype,style,flavor)
        class(representation), intent(inout), target :: r
@@ -407,6 +385,21 @@ module scenes
        logical, intent(in) :: doanim
        integer, intent(in) :: iqpt, ifreq
      end subroutine add_draw_elements
+     module subroutine reset_atom_style(r)
+       class(representation), intent(inout), target :: r
+     end subroutine reset_atom_style
+     module subroutine reset_mol_style(r)
+       class(representation), intent(inout), target :: r
+     end subroutine reset_mol_style
+     module subroutine reset_bond_style(r)
+       class(representation), intent(inout), target :: r
+     end subroutine reset_bond_style
+     module subroutine reset_label_style(r)
+       class(representation), intent(inout), target :: r
+     end subroutine reset_label_style
+     module subroutine reset_all_styles(r)
+       class(representation), intent(inout), target :: r
+     end subroutine reset_all_styles
      module subroutine draw_text_direct(str,x0,siz,color,centered)
        character(len=*), intent(in) :: str
        real(c_float), intent(in) :: x0(2)
