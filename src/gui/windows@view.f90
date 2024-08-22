@@ -2124,8 +2124,10 @@ contains
                    suffix = "_" // string(i) // "_" // string(j)
 
                    ! species
-                   if (igTableSetColumnIndex(ic_sp1)) &
+                   if (igTableSetColumnIndex(ic_sp1)) then
+                      call igAlignTextToFramePadding()
                       call iw_text(trim(sys(isys)%c%spc(i)%name))
+                   end if
                    if (igTableSetColumnIndex(ic_sp2)) &
                       call iw_text(trim(sys(isys)%c%spc(j)%name))
 
@@ -2785,6 +2787,7 @@ contains
                 ! id
                 if (igTableSetColumnIndex(ic_q_id)) then
                    ! selectable
+                   call igAlignTextToFramePadding()
                    strl = "##selectq" // string(i) // c_null_char
                    flags = ImGuiSelectableFlags_SpanAllColumns
                    flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
@@ -2865,6 +2868,7 @@ contains
                 ! id
                 if (igTableSetColumnIndex(ic_q_id)) then
                    ! selectable
+                   call igAlignTextToFramePadding()
                    strl = "##selectf" // string(i) // c_null_char
                    flags = ImGuiSelectableFlags_SpanAllColumns
                    flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
@@ -3165,7 +3169,10 @@ contains
           iz = c%spc(ispc)%z
 
           ! id
-          if (igTableSetColumnIndex(ic_id)) call iw_text(string(i))
+          if (igTableSetColumnIndex(ic_id)) then
+             call igAlignTextToFramePadding()
+             call iw_text(string(i))
+          end if
 
           ! name
           if (igTableSetColumnIndex(ic_name)) call iw_text(string(c%spc(ispc)%name))
@@ -3312,7 +3319,10 @@ contains
                 call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
 
                 ! id
-                if (igTableSetColumnIndex(im_id)) call iw_text(string(i))
+                if (igTableSetColumnIndex(im_id)) then
+                   call igAlignTextToFramePadding()
+                   call iw_text(string(i))
+                end if
 
                 ! nat
                 if (igTableSetColumnIndex(im_nat)) call iw_text(string(c%mol(i)%nat))

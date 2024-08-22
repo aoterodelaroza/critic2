@@ -484,6 +484,7 @@ contains
           ! close button
           if (sysc(i)%status == sys_init) then
              if (igTableSetColumnIndex(ic_closebutton)) then
+                call igAlignTextToFramePadding()
                 str = "##1closebutton" // string(ic_closebutton) // "," // string(i) // c_null_char
                 if (my_CloseButton(c_loc(str),ColorDangerButton)) w%forceremove = (/i/)
                 if (igIsItemHovered(ImGuiHoveredFlags_None)) &

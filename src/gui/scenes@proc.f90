@@ -816,6 +816,7 @@ contains
        doerase = .false.
        call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
        if (igTableSetColumnIndex(ic_closebutton)) then
+          call igAlignTextToFramePadding()
           str1 = "##2ic_closebutton" // string(ic_closebutton) // "," // string(i) // c_null_char
           if (my_CloseButton(c_loc(str1),ColorDangerButton)) doerase = .true.
        end if
