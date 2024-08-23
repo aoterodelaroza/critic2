@@ -1686,6 +1686,7 @@ contains
 
     integer :: ispc, isys, iz, ll, ipad
     character(kind=c_char,len=1024), target :: txtinp
+    character(kind=c_char,len=33), target :: txtinp2
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, suffix
     real*8 :: x0(3)
     logical(c_bool) :: ch, ldum
@@ -2179,6 +2180,7 @@ contains
                 "Wyckoff position"//c_null_char,&
                 w%rep%label_style%style,changed=ch)
           end if
+          if (ch) call w%rep%reset_label_style()
           call iw_tooltip("Text to display in the atom labels",ttshown)
           changed = changed .or. ch
 
@@ -2200,10 +2202,6 @@ contains
           call iw_tooltip("Color of the atom labels",ttshown)
           call iw_clamp_color3(w%rep%label_style%rgb)
 
-          ! exclude H
-          changed = changed .or. iw_checkbox("Exclude hydrogens##labelexcludeh",w%rep%label_style%exclude_h)
-          call iw_tooltip("Do not show labels on hydrogen atoms",ttshown)
-
           ! offset
           call igPushItemWidth(iw_calcwidth(21,3))
           str2 = "Offset (Å)" // c_null_char
@@ -2213,10 +2211,10 @@ contains
           call iw_tooltip("Offset the position of the labels relative to the atom center",ttshown)
           call igPopItemWidth()
 
-          ! label styles
+          ! table for label selection
           call iw_text("Label Selection",highlight=.true.)
 
-          !
+          ! number of entries in the table
           select case(w%rep%label_style%style)
           case (0,1,5,6)
              intable = 0 ! species
@@ -2240,6 +2238,7 @@ contains
              call iw_text("(per molecule)",sameline=.true.)
           end select
 
+          ! the table itself
           flags = ImGuiTableFlags_None
           flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
           flags = ior(flags,ImGuiTableFlags_Borders)
@@ -2320,17 +2319,24 @@ contains
                 ! shown
                 ncol = ncol + 1
                 if (igTableSetColumnIndex(ncol)) then
-                   !             if (iw_checkbox("##bondtableshown" // suffix,w%rep%bond_style%shown_g(i,j))) then
-                   !                ch = .true.
-                   !                w%rep%bond_style%shown_g(j,i) = w%rep%bond_style%shown_g(i,j)
-                   !             end if
-                   !             call iw_tooltip("Toggle display of bonds connecting these atom types",
+                   changed = changed .or. iw_checkbox("##labeltableshown" // suffix,w%rep%label_style%shown(i))
+                   call iw_tooltip("Toggle display of labels for these atoms/molecules",ttshown)
                 end if
 
                 ! text
                 ncol = ncol + 1
                 if (igTableSetColumnIndex(ncol)) then
-                   ! 
+                   str1 = "##labeltabletext" // suffix // c_null_char
+                   txtinp2 = trim(w%rep%label_style%str(i)) // c_null_char
+                   call igPushItemWidth(iw_calcwidth(15,1))
+                   if (igInputText(c_loc(str1),c_loc(txtinp2),32_c_size_t,ImGuiInputTextFlags_None,&
+                      c_null_funptr,c_null_ptr)) then
+                      ll = index(txtinp2,c_null_char)
+                      w%rep%label_style%str(i) = txtinp2(1:ll-1)
+                      changed = .true.
+                   end if
+                   call igPopItemWidth()
+                   call iw_tooltip("Text for the atomic labels",ttshown)
                 end if
              end do
              call igEndTable()

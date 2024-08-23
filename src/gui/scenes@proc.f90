@@ -1247,6 +1247,7 @@ contains
     class(representation), intent(inout), target :: r
 
     logical :: doreset
+    integer :: icase
 
     ! consistency checks
     if (.not.r%isinit .or. r%id == 0) return
@@ -1269,7 +1270,21 @@ contains
     doreset = doreset .or. (r%mol_style%ntype /= sys(r%id)%c%nmol)
     if (doreset) call r%reset_mol_style()
 
-    doreset = .not.r%mol_style%isinit
+    select case(r%label_style%style)
+    case (0,1,5,6)
+       icase = 0
+    case (2,3)
+       icase = 1
+    case (4,8)
+       icase = 2
+    case (7)
+       icase = 3
+    end select
+    doreset = .not.r%label_style%isinit
+    doreset = doreset .or. (icase == 0 .and. r%label_style%ntype /= sys(r%id)%c%nspc)
+    doreset = doreset .or. (icase == 1 .and. r%label_style%ntype /= sys(r%id)%c%ncel)
+    doreset = doreset .or. (icase == 2 .and. r%label_style%ntype /= sys(r%id)%c%nneq)
+    doreset = doreset .or. (icase == 3 .and. r%label_style%ntype /= sys(r%id)%c%nmol)
     if (doreset) call r%reset_label_style()
 
   end subroutine update_structure
@@ -1298,7 +1313,7 @@ contains
     logical, allocatable :: lshown(:,:,:,:)
     logical :: havefilter, step, isedge(3), usetshift, doanim_, dobonds
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3)
-    integer :: i1, i2, i3, ix(3)
+    integer :: i1, i2, i3, ix(3), idl
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
     real(c_float) :: rgb(3)
     real*8 :: rad1, rad2, dd, f1, f2
@@ -1599,49 +1614,40 @@ contains
                       end do ! ncon
                    end if
 
-                   ! labels
-                   if (r%labels_display .and. &
-                      (.not.r%label_style%exclude_h.or.sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z/=1)) then
-                      nstring = nstring + 1
-                      if (nstring > size(drawlist_string,1)) then
-                         allocate(auxstr(2*nstring))
-                         auxstr(1:size(drawlist_string,1)) = drawlist_string
-                         call move_alloc(auxstr,drawlist_string)
-                      end if
+                   if (r%labels_display) then
+                      select case(r%label_style%style)
+                      case (0,1,5,6)
+                         idl = sys(r%id)%c%atcel(i)%is
+                      case (2,3)
+                         idl = i
+                      case (4,8)
+                         idl = sys(r%id)%c%atcel(i)%idx
+                      case (7)
+                         idl = sys(r%id)%c%idatcelmol(1,i)
+                      end select
 
-                      drawlist_string(nstring)%x = real(xc + uoriginc,c_float)
-                      drawlist_string(nstring)%xdelta = cmplx(xdelta1,kind=c_float_complex)
-                      drawlist_string(nstring)%r = real(rad1,c_float)
-                      drawlist_string(nstring)%rgb = r%label_style%rgb
-                      if (r%label_style%const_size) then
-                         drawlist_string(nstring)%scale = r%label_style%scale
-                      else
-                         drawlist_string(nstring)%scale = -r%label_style%scale
-                      end if
-                      drawlist_string(nstring)%offset = r%label_style%offset
-                      if (r%label_style%style == 0) then ! 0 = atomic symbol
-                         drawlist_string(nstring)%str = trim(nameguess(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z,.true.))
-                      elseif (r%label_style%style == 1) then ! 1 = atom name
-                         drawlist_string(nstring)%str = trim(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%name)
-                      elseif (r%label_style%style == 2) then ! 2 = cel-atom
-                         drawlist_string(nstring)%str = string(i)
-                      elseif (r%label_style%style == 3) then ! 3 = cel-atom + lvec
-                         drawlist_string(nstring)%str = string(i) // newline // "(" // string(ix(1)) // "," //&
-                            string(ix(2)) // "," // string(ix(3)) // ")"
-                      elseif (r%label_style%style == 4) then ! 4 = neq atom
-                         drawlist_string(nstring)%str = string(sys(r%id)%c%atcel(i)%idx)
-                      elseif (r%label_style%style == 5) then ! 5 = spc
-                         drawlist_string(nstring)%str = string(sys(r%id)%c%atcel(i)%is)
-                      elseif (r%label_style%style == 6) then ! 6 = Z
-                         drawlist_string(nstring)%str = string(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z)
-                      elseif (r%label_style%style == 7) then ! 7 = mol
-                         drawlist_string(nstring)%str = string(imol)
-                      elseif (r%label_style%style == 8) then ! 8 = wycoff
-                         idx = sys(r%id)%c%atcel(i)%idx
-                         drawlist_string(nstring)%str = string(sys(r%id)%c%at(idx)%mult) //&
-                            string(sys(r%id)%c%at(idx)%wyc)
-                      end if
-                   end if
+                      ! labels
+                      if (r%label_style%shown(idl)) then
+                         nstring = nstring + 1
+                         if (nstring > size(drawlist_string,1)) then
+                            allocate(auxstr(2*nstring))
+                            auxstr(1:size(drawlist_string,1)) = drawlist_string
+                            call move_alloc(auxstr,drawlist_string)
+                         end if
+
+                         drawlist_string(nstring)%x = real(xc + uoriginc,c_float)
+                         drawlist_string(nstring)%xdelta = cmplx(xdelta1,kind=c_float_complex)
+                         drawlist_string(nstring)%r = real(rad1,c_float)
+                         drawlist_string(nstring)%rgb = r%label_style%rgb
+                         if (r%label_style%const_size) then
+                            drawlist_string(nstring)%scale = r%label_style%scale
+                         else
+                            drawlist_string(nstring)%scale = -r%label_style%scale
+                         end if
+                         drawlist_string(nstring)%offset = r%label_style%offset
+                         drawlist_string(nstring)%str = trim(r%label_style%str(idl))
+                      end if ! label display conditions
+                   end if ! label_display
                 end do ! i3
              end do ! i2
           end do ! i1
@@ -1771,6 +1777,9 @@ contains
 
     integer :: isys
     integer :: i, ispc, iz
+
+    ! if not initialized, set type
+    if (.not.r%atom_style%isinit) r%atom_style%type = 0
 
     ! set the atom style to zero
     r%atom_style%ntype = 0
@@ -1953,10 +1962,14 @@ contains
   !> Reset label style with default values. Use the information in
   !> system isys, or leave it empty if isys = 0.
   module subroutine reset_label_style(r)
-    use gui_main, only: nsys, sysc, sys_ready
+    use gui_main, only: nsys, sys, sysc, sys_ready
+    use tools_io, only: nameguess, string
     class(representation), intent(inout), target :: r
 
-    integer :: isys
+    integer :: isys, i, idx
+
+    ! if not initialized, set type
+    if (.not.r%label_style%isinit) r%label_style%style = 0
 
     ! check the system is sane
     isys = r%id
@@ -1965,12 +1978,55 @@ contains
 
     ! set the atom style to defaults
     r%label_style%isinit = .true.
-    r%label_style%style = 0_c_int
     r%label_style%scale = 0.5_c_float
     r%label_style%rgb = 0._c_float
     r%label_style%offset = 0._c_float
     r%label_style%const_size = .false.
-    r%label_style%exclude_h = .true.
+
+    ! fill according to the style
+    select case(r%label_style%style)
+    case (0,1,5,6)
+       r%label_style%ntype = sys(isys)%c%nspc
+    case (2,3)
+       r%label_style%ntype = sys(isys)%c%ncel
+    case (4,8)
+       r%label_style%ntype = sys(isys)%c%nneq
+    case (7)
+       r%label_style%ntype = sys(isys)%c%nmol
+    end select
+    if (allocated(r%label_style%shown)) deallocate(r%label_style%shown)
+    if (allocated(r%label_style%str)) deallocate(r%label_style%str)
+    allocate(r%label_style%shown(r%label_style%ntype))
+    allocate(r%label_style%str(r%label_style%ntype))
+
+    ! fill shown, exclude hydrogens
+    r%label_style%shown = .true.
+    do i = 1, r%label_style%ntype
+       select case(r%label_style%style)
+       case (0,1,5,6)
+          if (sys(isys)%c%spc(i)%z == 1) r%label_style%shown(i) = .false.
+       case (2,3)
+          if (sys(isys)%c%spc(sys(isys)%c%atcel(i)%is)%z == 1) r%label_style%shown(i) = .false.
+       case (4,8)
+          if (sys(isys)%c%spc(sys(isys)%c%at(i)%is)%z == 1) r%label_style%shown(i) = .false.
+       end select
+    end do
+
+    ! fill text
+    do i = 1, r%label_style%ntype
+       if (r%label_style%style == 0) then ! 0 = atomic symbol
+          r%label_style%str(i) = trim(nameguess(sys(r%id)%c%spc(i)%z,.true.))
+       elseif (r%label_style%style == 1) then ! 1 = atom name
+          r%label_style%str(i) = trim(sys(r%id)%c%spc(i)%name)
+       elseif (r%label_style%style == 6) then ! 6 = Z
+          r%label_style%str(i) = string(sys(r%id)%c%spc(i)%z)
+       elseif (r%label_style%style == 8) then ! 8 = wyckoff
+          r%label_style%str(i) = string(sys(r%id)%c%at(i)%mult) //&
+             string(sys(r%id)%c%at(i)%wyc)
+       else
+          r%label_style%str(i) = string(i)
+       end if
+    end do
 
   end subroutine reset_label_style
 

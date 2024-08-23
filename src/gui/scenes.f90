@@ -113,12 +113,14 @@ module scenes
   !> Draw style for labels
   type draw_style_label
      logical :: isinit = .false. ! whether the style is intialized
-     integer(c_int) :: style ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
+     integer(c_int) :: style = 0 ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
      real(c_float) :: scale ! scale for the labels
      real(c_float) :: rgb(3) ! color of the labels
      logical :: const_size ! whether labels scale with objects or are constant size
-     logical :: exclude_h ! whether to exclude hydrogen labels
      real(c_float) :: offset(3) ! offset of the label
+     integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
+     logical, allocatable :: shown(:) ! whether it is shown (ntype)
+     character*32, allocatable :: str(:) ! text
   end type draw_style_label
   public :: draw_style_label
 
