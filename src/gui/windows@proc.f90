@@ -698,8 +698,8 @@ contains
        elseif (w%type == wintype_editrep) then
           w%name = "Object [" // string(w%rep%name) // "]##" // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 58 * fontsize%x
-          inisize%y = 44 * fontsize%y
+          inisize%x = 60 * fontsize%x
+          inisize%y = 46 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_exportimage) then
           w%name = "Export to Image" // "##" // string(w%id) // c_null_char

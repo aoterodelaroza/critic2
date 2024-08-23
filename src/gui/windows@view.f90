@@ -1881,9 +1881,6 @@ contains
           end if
           call igPopItemWidth()
 
-          ! draw the atom selection widget
-          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep)
-
           ! style buttons: set radii
           if (w%rep%atoms_display) then
              call iw_text("Style Options",highlight=.true.)
@@ -1941,6 +1938,10 @@ contains
                 changed = .true.
              end if
           end if
+
+          ! draw the atom selection widget
+          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep)
+
           call igEndTabItem()
        end if ! begin tab item (atoms)
 
