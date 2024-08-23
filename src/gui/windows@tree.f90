@@ -166,7 +166,7 @@ contains
              call expand_system(i)
           end do
        end if
-       call iw_tooltip("Expand all systems in the tree",ttshown)
+       call iw_tooltip("Expand all systems in the tree (show all SCF iterations)",ttshown)
 
        ! button: collapse
        str = "Collapse All" // c_null_char
@@ -175,12 +175,12 @@ contains
              call collapse_system(i)
           end do
        end if
-       call iw_tooltip("Collapse all systems in the tree",ttshown)
+       call iw_tooltip("Collapse all systems in the tree (hide all SCF iterations)",ttshown)
 
        ! button: export
        str = "Export Tree Table" // c_null_char
        export = igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)
-       call iw_tooltip("Write the current table to the output console in csv-style (for copying)",ttshown)
+       call iw_tooltip("Write the current tree to the output console in csv-style (for copying)",ttshown)
 
        ! button: plot
        str = "Plot" // c_null_char
@@ -966,14 +966,14 @@ contains
             iunit = iunit_bohr
             ldum = win(iwin_console_input)%read_output_ci(.true.,"[Describe system " // string(isys) // "]")
          end if
-         call iw_tooltip("Print a detailed description of this system in the Output Console",ttshown)
+         call iw_tooltip("Print a detailed description of this system in the output console",ttshown)
 
          ! set as current system option
          strpop = "Set as Current System" // c_null_char
          enabled = (sysc(isys)%status == sys_init)
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
             call select_system(isys,.true.)
-         call iw_tooltip("Set this system as current",ttshown)
+         call iw_tooltip("Set this system as the current system",ttshown)
 
          ! set as current system option
          strpop = "Display in New View" // c_null_char
@@ -986,7 +986,7 @@ contains
             end do
             win(idum)%view_selected = isys
          end if
-         call iw_tooltip("Display this system in a new alternate view window",ttshown)
+         call iw_tooltip("Display this system in a new view window",ttshown)
 
          ! scf energy plot
          if (sysc(isys)%collapse /= 0) then
@@ -1010,7 +1010,7 @@ contains
          strpop = "Recalculate Bonds" // c_null_char
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
             idrebond = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=idrebond)
-         call iw_tooltip("Recalculate the atomic bonds in this system",ttshown)
+         call iw_tooltip("Recalculate the covalent bonds in this system and the molecular structures",ttshown)
 
          ! fields submenu (system)
          strpop = "Fields" // c_null_char
@@ -1039,7 +1039,7 @@ contains
             strpop = "Clear Vibration Data" // c_null_char
             if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
                call sys(isys)%c%clear_vibrations()
-            call iw_tooltip("Clear vibration data for this system",ttshown)
+            call iw_tooltip("Clear the vibration data for this system",ttshown)
 
             call igEndMenu()
          end if

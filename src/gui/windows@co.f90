@@ -79,12 +79,12 @@ contains
           call igSetClipboardText(c_loc(com(icom(idcom))%output))
        end if
     end if
-    call iw_tooltip("Copy the shown output log to clipboard",ttshown)
+    call iw_tooltip("Copy the active output log to clipboard",ttshown)
 
     ! first line: save button
     if (iw_button("Save",disabled=(idsavedialog > 0),sameline=.true.)) &
        idsavedialog = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savelogfile)
-    call iw_tooltip("Save the shown output log to a file",ttshown)
+    call iw_tooltip("Save the active output log to a file",ttshown)
 
     ! first line: remove all button
     call iw_setposx_fromend(10,1)
@@ -100,7 +100,7 @@ contains
           call com(i)%end()
        end do
     end if
-    call iw_tooltip("Remove all commands",ttshown)
+    call iw_tooltip("Remove the output logs from all commands",ttshown)
 
     ! second line: all button
     xavail1 = max(xavail - iw_calcwidth(3,1) + g%Style%ItemSpacing%x,0._c_float)
@@ -113,7 +113,7 @@ contains
        idcom = 0
        setscroll = .true.
     end if
-    call iw_tooltip("Show all console output",ttshown)
+    call iw_tooltip("Show outputs from all commands in the console",ttshown)
     call igPopStyleColor(1)
 
     !! second line: list of command i/os

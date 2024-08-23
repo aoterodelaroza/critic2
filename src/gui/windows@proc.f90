@@ -900,13 +900,13 @@ contains
     if (igBeginChild_Str(c_loc(str),sz,.true._c_bool,ImGuiWindowFlags_None)) then
        str = "Interface" // c_null_char
        if (igSelectable_Bool(c_loc(str),logical(catid == 0,c_bool),ImGuiSelectableFlags_None,szero)) catid = 0
-       call iw_tooltip("Settings for the graphical user interface",ttshown)
+       call iw_tooltip("Global settings for the graphical user interface",ttshown)
        str = "Key bindings" // c_null_char
        if (igSelectable_Bool(c_loc(str),logical(catid == 1,c_bool),ImGuiSelectableFlags_None,szero)) catid = 1
        call iw_tooltip("User interface key bindings",ttshown)
        str = "Tree colors" // c_null_char
        if (igSelectable_Bool(c_loc(str),logical(catid == 2,c_bool),ImGuiSelectableFlags_None,szero)) catid = 2
-       call iw_tooltip("User interface key bindings",ttshown)
+       call iw_tooltip("Background colors for the systems in the tree window",ttshown)
     end if
     call igEndChild()
     call igSameLine(0._c_float,-1._c_float)
@@ -1165,7 +1165,7 @@ contains
        end if
        call IGFD_SetFlags(data%dptr,flags)
     end if
-    call iw_tooltip("Show the OS hidden files and directories in this dialog",ttshown)
+    call iw_tooltip("Show the hidden files and directories",ttshown)
 
     !! options specific to the open files dialog !!
     if (data%purpose == wpurp_dialog_openfiles) then
@@ -1191,7 +1191,7 @@ contains
        call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
        ldum = igInputFloat(c_loc(str),data%rborder,0._c_float,0._c_float,&
           c_loc(stropt),ImGuiInputTextFlags_None)
-       call iw_tooltip("Periodic cell border around new molecules",ttshown)
+       call iw_tooltip("Size of the periodic cell border around new molecules",ttshown)
        call igPopItemWidth()
 
        ldum = iw_checkbox("Cubic cell",data%molcubic)

@@ -479,7 +479,7 @@ contains
                 call sysc(i)%sc%build_lists()
              end do
           end if
-          call iw_tooltip("Apply these settings to all loaded systems",ttshown)
+          call iw_tooltip("Apply these settings to all systems",ttshown)
           if (iw_button("Reset",sameline=.true.,danger=.true.)) then
              call w%sc%init(w%view_selected)
              chbuild = .true.
@@ -512,7 +512,7 @@ contains
                    repflavor_atoms_basic)
                 chbuild = .true.
              end if
-             call iw_tooltip("Display atoms and maybe covalent bonds and labels in the scene",ttshown)
+             call iw_tooltip("Display atoms, bonds, and labels in the scene",ttshown)
 
              if (.not.sys(w%view_selected)%c%ismolecule) then
                 str2 = "Unit Cell" // c_null_char
@@ -525,7 +525,7 @@ contains
                 call iw_tooltip("Display the unit cell",ttshown)
              end if
 
-             str2 = "Van der Waals Contacts" // c_null_char
+             str2 = "Van der Waals Contacts [Atoms]" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 id = w%sc%get_new_representation_id()
                 call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style,&
@@ -534,7 +534,7 @@ contains
              end if
              call iw_tooltip("Display intermolecular close contacts using van der Waals radii",ttshown)
 
-             str2 = "Hydrogen Bonds" // c_null_char
+             str2 = "Hydrogen Bonds [Atoms]" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 id = w%sc%get_new_representation_id()
                 call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style,&
@@ -600,7 +600,7 @@ contains
     ! export image
     ldum = iw_button("Tools",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft,&
        disabled=.not.associated(w%sc))
-    call iw_tooltip("Show various tools for operating on the view of this system",ttshown)
+    call iw_tooltip("Show various tools operating on the view of this system",ttshown)
     if (ok) then
        str2 = "Export to Image..." // c_null_char
        enabled = associated(w%sc)
@@ -1790,7 +1790,8 @@ contains
              changed = changed .or. iw_radiobutton("None",int=w%rep%pertype,intval=0_c_int,sameline=.true.)
              call iw_tooltip("This object is represented only in the main cell and not repeated by translation",ttshown)
              changed = changed .or. iw_radiobutton("Automatic",int=w%rep%pertype,intval=1_c_int,sameline=.true.)
-             call iw_tooltip("Number of periodic cells controlled by the +/- options in the view menu",ttshown)
+             call iw_tooltip("Number of periodic cells controlled by the +/- options &
+                &in the 'Scene' button of the view window",ttshown)
              changed = changed .or. iw_radiobutton("Manual",int=w%rep%pertype,intval=2_c_int,sameline=.true.)
              call iw_tooltip("Manually set the number of periodic cells",ttshown)
 
@@ -2022,7 +2023,7 @@ contains
           call iw_text(" (",highlight=.true.,sameline_nospace=.true.)
           call iw_combo_simple("##tablebondglobaldistcombo","Factor"//c_null_char//"Range"//c_null_char,&
              w%rep%bond_style%distancetype_g,sameline_nospace=.true.)
-          call iw_tooltip("Draw bonds whose length are a factor of the sum of atomic&
+          call iw_tooltip("Draw bonds whose lengths are a factor of the sum of atomic&
              & radii (Factor) or give bond distance range (Range)",ttshown)
           call iw_text(")",highlight=.true.,sameline_nospace=.true.)
           if (iw_button("Apply##applyglobal",sameline=.true.,danger=.true.)) then

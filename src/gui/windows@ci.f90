@@ -58,7 +58,7 @@ contains
     ! first line: clear button
     if (iw_button("Clear",sameline=.true.)) &
        inputb(1:1) = c_null_char
-    call iw_tooltip("Clear the input text",ttshown)
+    call iw_tooltip("Clear the text from the input console",ttshown)
 
     ! first line: template button
     ldum = iw_button("Template",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)

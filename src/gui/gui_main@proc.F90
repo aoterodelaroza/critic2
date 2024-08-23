@@ -856,7 +856,7 @@ contains
           str1 = "New..." // c_null_char
           str2 = trim(get_bind_keyname(BIND_NEW)) // c_null_char
           launch(d_new) = launch(d_new) .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)
-          call iw_tooltip("Create a new structure",ttshown)
+          call iw_tooltip("Create a new structure from scaratc",ttshown)
 
           ! File -> New from library
           str1 = "New from Library..." // c_null_char
@@ -867,7 +867,7 @@ contains
           str1 = "Open..." // c_null_char
           str2 = trim(get_bind_keyname(BIND_OPEN)) // c_null_char
           launch(d_open) = launch(d_open) .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)
-          call iw_tooltip("Read molecule or crystal structures from file(s)",ttshown)
+          call iw_tooltip("Read molecular or crystal structures from external file(s)",ttshown)
 
           ! File -> Separator
           call igSeparator()
@@ -876,7 +876,7 @@ contains
           str1 = "Quit" // c_null_char
           str2 = trim(get_bind_keyname(BIND_QUIT)) // c_null_char
           launchquit = launchquit .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)
-          call iw_tooltip("Quit the program",ttshown)
+          call iw_tooltip("Quit critic2",ttshown)
 
           call igEndMenu()
        else
@@ -890,7 +890,7 @@ contains
           str1 = "Preferences..." // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) &
              id(d_preferences) = stack_create_window(wintype_preferences,.true.,orraise=id(d_preferences))
-          call iw_tooltip("Change the global UI settings and key bindings",ttshown)
+          call iw_tooltip("Change the user interface settings and key bindings",ttshown)
 
           call igEndMenu()
        else
@@ -904,31 +904,31 @@ contains
           str1 = "Tree" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_tree)%isopen,.true._c_bool)) &
              win(iwin_tree)%isopen = .not.win(iwin_tree)%isopen
-          call iw_tooltip("Toggle the tree window",ttshown)
+          call iw_tooltip("Toggle the display of the tree window",ttshown)
 
           ! Windows -> Main View
           str1 = "Main View" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_view)%isopen,.true._c_bool)) &
              win(iwin_view)%isopen = .not.win(iwin_view)%isopen
-          call iw_tooltip("Toggle the main view window",ttshown)
+          call iw_tooltip("Toggle the display of the main view window",ttshown)
 
           ! Windows -> Input Console
           str1 = "Input Console" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console_input)%isopen,.true._c_bool)) &
              win(iwin_console_input)%isopen = .not.win(iwin_console_input)%isopen
-          call iw_tooltip("Toggle the input console window",ttshown)
+          call iw_tooltip("Toggle the display of the input console window",ttshown)
 
           ! Windows -> Output Console
           str1 = "Output Console" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console_output)%isopen,.true._c_bool)) &
              win(iwin_console_output)%isopen = .not.win(iwin_console_output)%isopen
-          call iw_tooltip("Toggle the output console window",ttshown)
+          call iw_tooltip("Toggle the display of the output console window",ttshown)
 
           ! Windows -> Separator
           call igSeparator()
 
           ! Windows -> Alternate view
-          str1 = "New Alternate View" // c_null_char
+          str1 = "New View Window" // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) &
              idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
           call iw_tooltip("Open a new view window in addition to the main view",ttshown)

@@ -82,9 +82,9 @@ contains
 
     ! crystal or molecule
     ldum = iw_radiobutton("Crystal",bool=ismolecule,boolval=.false.)
-    call iw_tooltip("The new structure will be a periodic crystal",ttshown)
+    call iw_tooltip("The new structure is a periodic crystal",ttshown)
     ldum = iw_radiobutton("Molecule",bool=ismolecule,boolval=.true.,sameline=.true.)
-    call iw_tooltip("The new structure will be a molecule",ttshown)
+    call iw_tooltip("The new structure is a molecule",ttshown)
 
     ! name
     call iw_text("Name",highlight=.true.)
@@ -211,14 +211,14 @@ contains
        call igPushItemWidth(iw_calcwidth(7,1))
        ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
           c_loc(stropt),ImGuiInputTextFlags_None)
-       call iw_tooltip("Periodic cell border around new molecules",ttshown)
+       call iw_tooltip("Size of the periodic cell border around a new molecule",ttshown)
        call igPopItemWidth()
        call igSameLine(0._c_float,-1._c_float)
 
        ! cubic cell
        call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
        ldum = iw_checkbox("Cubic cell",molcubic)
-       call iw_tooltip("Read new molecules inside a cubic periodic cell",ttshown)
+       call iw_tooltip("New molecules are created inside a cubic periodic cell",ttshown)
        call igUnindent(0._c_float)
     end if
 
@@ -429,12 +429,12 @@ contains
        if (saveismol.and..not.w%okfile_set) w%okfile = trim(clib_file)
        w%okfile_read = .true.
     end if
-    call iw_tooltip("The new structure will be a periodic crystal",ttshown)
+    call iw_tooltip("The new structure is a periodic crystal",ttshown)
     if (iw_radiobutton("Molecule",bool=ismolecule,boolval=.true.,sameline=.true.)) then
        if (.not.saveismol.and..not.w%okfile_set) w%okfile = trim(mlib_file)
        w%okfile_read = .true.
     end if
-    call iw_tooltip("The new structure will be a molecule",ttshown)
+    call iw_tooltip("The new structure is a molecule",ttshown)
 
     ! render the rest of the window
     ! library file
@@ -497,14 +497,14 @@ contains
        call igPushItemWidth(iw_calcwidth(7,1))
        ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
           c_loc(stropt),ImGuiInputTextFlags_None)
-       call iw_tooltip("Periodic cell border around new molecules",ttshown)
+       call iw_tooltip("Size of the periodic cell border around a new molecule",ttshown)
        call igPopItemWidth()
        call igSameLine(0._c_float,-1._c_float)
 
        ! cubic cell
        call igSetCursorPosX(igGetCursorPosX() + 2 * g%Style%ItemSpacing%x)
        ldum = iw_checkbox("Cubic cell",molcubic)
-       call iw_tooltip("Read new molecules inside cubic periodic cell",ttshown)
+       call iw_tooltip("New molecules are created inside a cubic periodic cell",ttshown)
     end if
 
     ! right-align and bottom-align for the rest of the contents

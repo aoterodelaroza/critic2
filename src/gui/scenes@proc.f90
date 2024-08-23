@@ -864,7 +864,7 @@ contains
                 s%rep(i)%shown = .not.s%rep(i)%shown
                 changed = .true.
              end if
-             call iw_tooltip("Toggle hide/show this object",ttshown)
+             call iw_tooltip("Toggle hide/show of this object",ttshown)
 
              ! rename
              str2 = "Rename" // c_null_char
