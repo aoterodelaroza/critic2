@@ -417,20 +417,20 @@ contains
              call iw_tooltip("Change the color of the light",ttshown)
              call igSameLine(0._c_float,-1._c_float)
           elseif (w%sc%style == style_simple) then
+             call igAlignTextToFramePadding()
+             call iw_text("Atom Border: ")
+             call igSameLine(0._c_float,-1._c_float)
+
              call igPushItemWidth(iw_calcwidth(5,1))
-             str2 = "Border (Å)" // c_null_char
+             str2 = "Size (Å)" // c_null_char
              str3 = "%.3f" // c_null_char
              chrender = chrender .or. igDragFloat(c_loc(str2),w%sc%atomborder,&
                 0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the thickness of the atom borders",ttshown)
              call igPopItemWidth()
 
-             call igSameLine(0._c_float,-1._c_float)
-             str2 = "Color" // c_null_char
-             chrender = chrender .or. igColorEdit3(c_loc(str2),w%sc%bordercolor,&
-                ImGuiColorEditFlags_NoInputs)
+             chrender = chrender .or. iw_coloredit3("Color",w%sc%bordercolor,sameline=.true.)
              call iw_tooltip("Change the color of the atom borders",ttshown)
-             call iw_clamp_color3(w%sc%bordercolor)
           end if
 
           ! background color

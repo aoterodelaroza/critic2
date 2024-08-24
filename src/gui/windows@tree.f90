@@ -1452,6 +1452,7 @@ contains
        do k = 1, sys(i)%c%nspc
           str = str // string(sys(i)%c%spc(k)%name) // string(nint(nis(k)/maxdv)) // " "
        end do
+       if (len(str) > 30) str = str(1:27) // "..."
        call iw_text(str,sameline_nospace=.true.)
 
        if (.not.sys(i)%c%ismolecule) then
