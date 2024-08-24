@@ -59,7 +59,7 @@ contains
        repflavor_atoms_basic, repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
        repflavor_unitcell_basic
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
-       iw_setposx_fromend, iw_checkbox
+       iw_setposx_fromend, iw_checkbox, iw_coloredit3
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
     use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior
@@ -413,11 +413,8 @@ contains
              call iw_tooltip("Change the shininess of the light",ttshown)
              call igPopItemWidth()
 
-             str2 = "Light" // c_null_char
-             chrender = chrender .or. igColorEdit3(c_loc(str2),w%sc%lightcolor,&
-                ImGuiColorEditFlags_NoInputs)
+             chrender = chrender .or. iw_coloredit3("Light",w%sc%lightcolor)
              call iw_tooltip("Change the color of the light",ttshown)
-             call iw_clamp_color3(w%sc%lightcolor)
              call igSameLine(0._c_float,-1._c_float)
           elseif (w%sc%style == style_simple) then
              call igPushItemWidth(iw_calcwidth(5,1))
@@ -437,11 +434,8 @@ contains
           end if
 
           ! background color
-          str2 = "Background" // c_null_char
-          chrender = chrender .or. igColorEdit3(c_loc(str2),w%sc%bgcolor,&
-             ImGuiColorEditFlags_NoInputs)
+          chrender = chrender .or. iw_coloredit3("Background",w%sc%bgcolor)
           call iw_tooltip("Change the scene background color",ttshown)
-          call iw_clamp_color3(w%sc%bgcolor)
 
           ! apply to all scenes
           if (iw_button("Apply to All Systems",danger=.true.)) then
@@ -1678,7 +1672,7 @@ contains
     use gui_main, only: sys, g
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
-       iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox
+       iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit3
     use param, only: atmcov, atmvdw, jmlcol, jmlcol2, newline
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -1701,12 +1695,6 @@ contains
     integer(c_int), parameter :: ic_sp1 = 0
     integer(c_int), parameter :: ic_sp2 = 1
     integer(c_int), parameter :: ic_shown = 2
-
-    integer(c_int), parameter :: id_id = 0
-    integer(c_int), parameter :: id_atom = 1
-    integer(c_int), parameter :: id_z = 2
-    integer(c_int), parameter :: id_shown = 3
-    integer(c_int), parameter :: id_text = 4
 
     ! initialize
     changed = .false.
@@ -1997,10 +1985,7 @@ contains
           ! color
           call igAlignTextToFramePadding()
           call iw_text("Color")
-          str2 = "##colorbondtableglobal" // c_null_char
-          call igSameLine(0._c_float,-1._c_float)
-          ch = ch .or. igColorEdit3(c_loc(str2),w%rep%bond_style%rgb_g,ImGuiColorEditFlags_NoInputs)
-          call iw_clamp_color3(w%rep%bond_style%rgb_g)
+          ch = ch .or. iw_coloredit3("##colorbondtableglobal",w%rep%bond_style%rgb_g,sameline=.true.)
           call iw_tooltip("Color of the bonds",ttshown)
 
           ! order
@@ -2205,11 +2190,8 @@ contains
           changed = changed .or. iw_checkbox("Constant size##labelconstsize",w%rep%label_style%const_size,sameline=.true.)
           call iw_tooltip("Labels have constant size (on) or labels scale with the size of the associated atom (off)",ttshown)
 
-          call igSameLine(0._c_float,-1._c_float)
-          str2 = "Color##labelcolor" // c_null_char
-          changed = changed .or. igColorEdit3(c_loc(str2),w%rep%label_style%rgb,ImGuiColorEditFlags_NoInputs)
+          changed = changed .or. iw_coloredit3("Color##labelcolor",w%rep%label_style%rgb,sameline=.true.)
           call iw_tooltip("Color of the atom labels",ttshown)
-          call iw_clamp_color3(w%rep%label_style%rgb)
 
           ! offset
           call igPushItemWidth(iw_calcwidth(21,3))
@@ -2363,7 +2345,7 @@ contains
   module function draw_editrep_unitcell(w,ttshown) result(changed)
     use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_radiobutton, iw_button,&
-       iw_clamp_color3, iw_checkbox
+       iw_clamp_color3, iw_checkbox, iw_coloredit3
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical(c_bool) :: changed, ldum
@@ -2456,11 +2438,8 @@ contains
     call igPopItemWidth()
     call iw_tooltip("Radii of the unit cell edges",ttshown)
 
-    call igSameLine(0._c_float,-1._c_float)
-    str1 = "Color" // c_null_char
-    ch = igColorEdit3(c_loc(str1),w%rep%uc_rgb,ImGuiColorEditFlags_NoInputs)
+    ch = iw_coloredit3("Color",w%rep%uc_rgb,sameline=.true.)
     call iw_tooltip("Color of the unit cell edges",ttshown)
-    call iw_clamp_color3(w%rep%uc_rgb)
     if (ch) then
        w%rep%uc_rgb = min(w%rep%uc_rgb,1._c_float)
        w%rep%uc_rgb = max(w%rep%uc_rgb,0._c_float)
@@ -3186,7 +3165,7 @@ contains
   function atom_selection_widget(c,r) result(changed)
     use scenes, only: draw_style_atom, draw_style_molecule
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
-       iw_clamp_color3, iw_calcwidth, iw_button
+       iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit3
     use crystalmod, only: crystal
     use global, only: iunit_ang, dunit0
     use tools_io, only: string, ioj_right
@@ -3338,11 +3317,8 @@ contains
 
           ! color
           if (igTableSetColumnIndex(ic_color)) then
-             str2 = "##tablecolor" // string(i) // c_null_char
-             flags = ior(ImGuiColorEditFlags_NoInputs,ImGuiColorEditFlags_NoLabel)
-             ch = igColorEdit3(c_loc(str2),r%atom_style%rgb(:,i),flags)
+             ch = iw_coloredit3("##tablecolor",r%atom_style%rgb(:,i),nolabel=.true.)
              call iw_tooltip("Atom color",ttshown)
-             call iw_clamp_color3(r%atom_style%rgb(:,i))
              if (ch) then
                 r%atom_style%rgb(:,i) = min(r%atom_style%rgb(:,i),1._c_float)
                 r%atom_style%rgb(:,i) = max(r%atom_style%rgb(:,i),0._c_float)
@@ -3484,11 +3460,8 @@ contains
 
              ! color
              if (igTableSetColumnIndex(im_color)) then
-                str2 = "##tablemolcolor" // string(i) // c_null_char
-                flags = ior(ImGuiColorEditFlags_NoInputs,ImGuiColorEditFlags_NoLabel)
-                ch = igColorEdit3(c_loc(str2),r%mol_style%tint_rgb(:,i),flags)
+                ch = iw_coloredit3("##tablemolcolor" // string(i),r%mol_style%tint_rgb(:,i),nolabel=.true.)
                 call iw_tooltip("Molecule color tint",ttshown)
-                call iw_clamp_color3(r%mol_style%tint_rgb(:,i))
                 if (ch) then
                    r%mol_style%tint_rgb(:,i) = min(r%mol_style%tint_rgb(:,i),1._c_float)
                    r%mol_style%tint_rgb(:,i) = max(r%mol_style%tint_rgb(:,i),0._c_float)

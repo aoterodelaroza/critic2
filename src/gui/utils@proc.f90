@@ -40,6 +40,37 @@ contains
 
   end subroutine iw_clamp_color4
 
+  !> Draw a dragcolor3 widget with title str and color rgb. If
+  !> sameline, draw it in the same line as the last object. If
+  !> nolabel, do not show the widget label. Returns true if the color
+  !> changed.
+  module function iw_coloredit3(str,rgb,sameline,nolabel)
+    use interfaces_cimgui
+    character(len=*,kind=c_char), intent(in) :: str
+    real(c_float), intent(inout) :: rgb(3)
+    logical, intent(in), optional :: sameline, nolabel
+    logical :: iw_dragcolor3
+
+    character(len=:,kind=c_char), allocatable, target :: str1
+    logical :: sameline_, nolabel_
+    integer(c_int) :: flags
+
+    sameline_ = .false.
+    if (present(sameline)) sameline_ = sameline
+    nolabel_ = .false.
+    if (present(nolabel)) nolabel_ = nolabel
+
+    if (sameline_) &
+       call igSameLine(0._c_float,-1._c_float)
+    str1 = str // c_null_char
+
+    flags = ImGuiColorEditFlags_NoInputs
+    if (nolabel_) flags = ImGuiColorEditFlags_NoLabel
+    iw_coloredit3 = igColorEdit3(c_loc(str1),rgb,flags)
+    call iw_clamp_color3(rgb)
+
+  end function iw_coloredit3
+
   !> Set the cursor X position a distance from the end of the content
   !> region corresponding to ntext characters and nbutton buttons.
   module subroutine iw_setposx_fromend(ntext,nbutton)
