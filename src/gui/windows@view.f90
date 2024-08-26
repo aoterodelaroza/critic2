@@ -1688,6 +1688,8 @@ contains
     real(c_float) :: sqw
     integer :: i, j, intable, nrow, is, ncol
     type(ImVec2) :: sz
+    type(c_ptr), target :: clipper
+    type(ImGuiListClipper), pointer :: clipper_f
 
     integer(c_int), parameter :: lsttrans(0:7) = (/0,1,2,2,2,3,4,5/)
     integer(c_int), parameter :: lsttransi(0:5) = (/0,1,2,5,6,7/)
@@ -2274,62 +2276,76 @@ contains
              ! draw the header
              call igTableHeadersRow()
              call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+
+             ! start the clipper
+             clipper = ImGuiListClipper_ImGuiListClipper()
+             call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
+
              ! draw the rows
-             do i = 1, nrow
-                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-                suffix = "_" // string(i)
-                ncol = -1
+             ! do i = 1, nrow
+             do while(ImGuiListClipper_Step(clipper))
+                call c_f_pointer(clipper,clipper_f)
+                do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
 
-                ! id
-                ncol = ncol + 1
-                if (igTableSetColumnIndex(ncol)) then
-                   call igAlignTextToFramePadding()
-                   call iw_text(string(i))
-                end if
+                   ! set up the next row
+                   call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                   suffix = "_" // string(i)
+                   ncol = -1
 
-                if (intable == 0) then ! species
-                   is = i
-                elseif (intable == 1) then ! complete cell list
-                   is = sys(isys)%c%atcel(i)%is
-                elseif (intable == 2) then ! non-equivalent list
-                   is = sys(isys)%c%at(i)%is
-                end if
-
-                ! atom
-                if (intable < 3) then
+                   ! id
                    ncol = ncol + 1
-                   if (igTableSetColumnIndex(ncol)) &
-                      call iw_text(trim(sys(isys)%c%spc(is)%name))
-
-                   ! Z
-                   ncol = ncol + 1
-                   if (igTableSetColumnIndex(ncol)) &
-                      call iw_text(string(sys(isys)%c%spc(is)%z))
-                end if
-
-                ! shown
-                ncol = ncol + 1
-                if (igTableSetColumnIndex(ncol)) then
-                   changed = changed .or. iw_checkbox("##labeltableshown" // suffix,w%rep%label_style%shown(i))
-                   call iw_tooltip("Toggle display of labels for these atoms/molecules",ttshown)
-                end if
-
-                ! text
-                ncol = ncol + 1
-                if (igTableSetColumnIndex(ncol)) then
-                   str1 = "##labeltabletext" // suffix // c_null_char
-                   txtinp2 = trim(w%rep%label_style%str(i)) // c_null_char
-                   call igPushItemWidth(iw_calcwidth(15,1))
-                   if (igInputText(c_loc(str1),c_loc(txtinp2),32_c_size_t,ImGuiInputTextFlags_None,&
-                      c_null_funptr,c_null_ptr)) then
-                      ll = index(txtinp2,c_null_char)
-                      w%rep%label_style%str(i) = txtinp2(1:ll-1)
-                      changed = .true.
+                   if (igTableSetColumnIndex(ncol)) then
+                      call igAlignTextToFramePadding()
+                      call iw_text(string(i))
                    end if
-                   call igPopItemWidth()
-                   call iw_tooltip("Text for the atomic labels",ttshown)
-                end if
-             end do
+
+                   if (intable == 0) then ! species
+                      is = i
+                   elseif (intable == 1) then ! complete cell list
+                      is = sys(isys)%c%atcel(i)%is
+                   elseif (intable == 2) then ! non-equivalent list
+                      is = sys(isys)%c%at(i)%is
+                   end if
+
+                   ! atom
+                   if (intable < 3) then
+                      ncol = ncol + 1
+                      if (igTableSetColumnIndex(ncol)) &
+                         call iw_text(trim(sys(isys)%c%spc(is)%name))
+
+                      ! Z
+                      ncol = ncol + 1
+                      if (igTableSetColumnIndex(ncol)) &
+                         call iw_text(string(sys(isys)%c%spc(is)%z))
+                   end if
+
+                   ! shown
+                   ncol = ncol + 1
+                   if (igTableSetColumnIndex(ncol)) then
+                      changed = changed .or. iw_checkbox("##labeltableshown" // suffix,w%rep%label_style%shown(i))
+                      call iw_tooltip("Toggle display of labels for these atoms/molecules",ttshown)
+                   end if
+
+                   ! text
+                   ncol = ncol + 1
+                   if (igTableSetColumnIndex(ncol)) then
+                      str1 = "##labeltabletext" // suffix // c_null_char
+                      txtinp2 = trim(w%rep%label_style%str(i)) // c_null_char
+                      call igPushItemWidth(iw_calcwidth(15,1))
+                      if (igInputText(c_loc(str1),c_loc(txtinp2),32_c_size_t,ImGuiInputTextFlags_None,&
+                         c_null_funptr,c_null_ptr)) then
+                         ll = index(txtinp2,c_null_char)
+                         w%rep%label_style%str(i) = txtinp2(1:ll-1)
+                         changed = .true.
+                      end if
+                      call igPopItemWidth()
+                      call iw_tooltip("Text for the atomic labels",ttshown)
+                   end if
+                end do ! table rows: clipper range
+             end do ! table rows: clipper step
+
+             ! end the clipper and the table
+             call ImGuiListClipper_End(clipper)
              call igEndTable()
           end if ! begintable
 
