@@ -87,8 +87,10 @@ contains
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     logical :: hadenabledcolumn, reinit, isend, ok, found
-    logical :: export, didtableselected, system_ok
+    logical :: export, didtableselected, system_ok, hadrow
     real(c_float) :: width, pos
+    type(c_ptr), target :: clipper
+    type(ImGuiListClipper), pointer :: clipper_f
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
@@ -466,385 +468,404 @@ contains
        ! draw the header
        call igTableHeadersRow()
 
+       ! start the clipper
+       clipper = ImGuiListClipper_ImGuiListClipper()
+       call ImGuiListClipper_Begin(clipper,nshown,-1._c_float)
+
        ! draw the rows
+       hadrow = .false.
        shown_after_filter = 0
-       do j = 1, nshown
-          i = w%iord(j)
-          if (sysc(i)%status == sys_empty .or. sysc(i)%hidden) cycle
-          if (c_associated(cfilter)) then
-             str = trim(sysc(i)%seed%name) // c_null_char
-             if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
-          end if
-          shown_after_filter = shown_after_filter + 1
+       do while(ImGuiListClipper_Step(clipper))
+          call c_f_pointer(clipper,clipper_f)
+          do j = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
 
-          ! start defining the table row
-          call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-          hadenabledcolumn = .false.
-
-          ! close button
-          if (sysc(i)%status == sys_init) then
-             if (igTableSetColumnIndex(ic_closebutton)) then
-                call igAlignTextToFramePadding()
-                str = "##1closebutton" // string(ic_closebutton) // "," // string(i) // c_null_char
-                if (my_CloseButton(c_loc(str),ColorDangerButton)) w%forceremove = (/i/)
-                if (igIsItemHovered(ImGuiHoveredFlags_None)) &
-                   tooltipstr = "Close this system"
+             i = w%iord(j)
+             if (sysc(i)%status == sys_empty .or. sysc(i)%hidden) cycle
+             if (c_associated(cfilter)) then
+                str = trim(sysc(i)%seed%name) // c_null_char
+                if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
              end if
-          end if
+             shown_after_filter = shown_after_filter + 1
 
-          ! expand button
-          if (igTableSetColumnIndex(ic_expandbutton)) then
-             if (sysc(i)%collapse < 0) then
-                ! expand button for multi-seed entries
-                str = "##expand" // string(ic_expandbutton) // "," // string(i) // c_null_char
-                if (sysc(i)%collapse == -1) then
-                   idir = ImGuiDir_Right
-                else
-                   idir = ImGuiDir_Down
+             ! start defining the table row
+             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+             hadenabledcolumn = .false.
+             hadrow = .true.
+
+             ! close button
+             if (sysc(i)%status == sys_init) then
+                if (igTableSetColumnIndex(ic_closebutton)) then
+                   call igAlignTextToFramePadding()
+                   str = "##1closebutton" // string(ic_closebutton) // "," // string(i) // c_null_char
+                   if (my_CloseButton(c_loc(str),ColorDangerButton)) w%forceremove = (/i/)
+                   if (igIsItemHovered(ImGuiHoveredFlags_None)) &
+                      tooltipstr = "Close this system"
                 end if
-                if (igArrowButton(c_loc(str),idir)) then
-                   ! expand or collapse
-                   if (sysc(i)%collapse == -1) then
-                      call expand_system(i)
-                   else
-                      call collapse_system(i)
-                   end if
-                end if
-                if (igIsItemHovered(ImGuiHoveredFlags_None)) &
-                   tooltipstr = "Expand this system"
              end if
-          end if
-
-          ! set background color for the name cell, if not selected
-          if (sysc(i)%status >= sys_ready) then
-             col4 = ImVec4(ColorTableCellBg(1,sys(i)%c%iperiod),ColorTableCellBg(2,sys(i)%c%iperiod),&
-                ColorTableCellBg(3,sys(i)%c%iperiod),ColorTableCellBg(4,sys(i)%c%iperiod))
-             color = igGetColorU32_Vec4(col4)
-             call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_name)
-          end if
-
-          ! ID column
-          if (igTableSetColumnIndex(ic_id)) then
-             str = string(i)
-             call write_maybe_selectable(i,tooltipstr)
-             ok = (sysc(i)%status >= sys_ready)
-             if (ok) ok = allocated(sys(i)%c%vib)
-             if (ok) then
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,&
-                   rgba=rgba_vibrations)
-             else
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-             end if
-          end if
-
-          ! name
-          if (igTableSetColumnIndex(ic_name)) then
-             ! selectable
-             call write_maybe_selectable(i,tooltipstr)
 
              ! expand button
-             if (sysc(i)%showfields) then
-                ch = "▼"
-             else
-                ch = "▶"
-             end if
-             pos = igGetCursorPosX()
-             call igSetCursorPosX(pos + g%Style%FramePadding%x)
-             if (sys(i)%nf > 0) then
-                call iw_text(ch,rgba=rgba_fields)
-             else
-                call iw_text(ch)
-             end if
-             call igSameLine(0._c_float,-1._c_float)
-             call igSetCursorPosX(pos)
-             str = ch // "##" // string(ic_name) // "," // string(i) // c_null_char
-             sz%x = iw_calcwidth(1,1)
-             sz%y = iw_calcheight(1,0)
-             if (igInvisibleButton(c_loc(str),sz,ImGuiButtonFlags_None)) sysc(i)%showfields = .not.sysc(i)%showfields
-
-             ! the actual name
-             str = ""
-             if (sysc(i)%collapse == -2) then
-                str = "╭●─"
-                do k = 2, len(string(i))
-                   str = str // "─"
-                end do
-                str = str // "──"
-             elseif (sysc(i)%collapse > 0) then
-                str = "├[" // string(sysc(i)%collapse) // "]─"
-             end if
-             str = str // trim(sysc(i)%seed%name)
-             call iw_text(str,disabled=(sysc(i)%status /= sys_init),sameline_nospace=.true.,copy_to_output=export)
-
-             ! the fields
-             if (sysc(i)%showfields) then
-                do k = 0, sys(i)%nf
-                   if (.not.sys(i)%f(k)%isinit) cycle
-
-                   ! selectable
-                   call igSetCursorPosX(igGetCursorPosX() + iw_calcwidth(1,1))
-                   isend = (k == sys(i)%nf)
-                   if (.not.isend) isend = all(.not.sys(i)%f(k+1:)%isinit)
-                   if (.not.isend) call iw_text("┌",noadvance=.true.)
-                   if (sys(i)%iref == k) then
-                      str = "└─►(" // string(k) // ",ref): " // trim(sys(i)%f(k)%name) // "##field" // &
-                         string(i) // "," // string(k) // c_null_char
+             if (igTableSetColumnIndex(ic_expandbutton)) then
+                if (sysc(i)%collapse < 0) then
+                   ! expand button for multi-seed entries
+                   str = "##expand" // string(ic_expandbutton) // "," // string(i) // c_null_char
+                   if (sysc(i)%collapse == -1) then
+                      idir = ImGuiDir_Right
                    else
-                      str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // "##field" // &
-                         string(i) // "," // string(k) // c_null_char
+                      idir = ImGuiDir_Down
                    end if
-                   isel = (w%table_selected==i) .and. (sys(i)%iref == k)
-                   call igPushStyleColor_Vec4(ImGuiCol_Header,ColorFieldSelected)
-                   flags = ImGuiSelectableFlags_SpanAllColumns
-                   if (igSelectable_Bool(c_loc(str),isel,flags,szero)) then
-                      call select_system(i,.false.)
-                      call sys(i)%set_reference(k,.false.)
+                   if (igArrowButton(c_loc(str),idir)) then
+                      ! expand or collapse
+                      if (sysc(i)%collapse == -1) then
+                         call expand_system(i)
+                      else
+                         call collapse_system(i)
+                      end if
                    end if
-                   call igPopStyleColor(1)
+                   if (igIsItemHovered(ImGuiHoveredFlags_None)) &
+                      tooltipstr = "Expand this system"
+                end if
+             end if
 
-                   ! right click to open the field context menu
-                   if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
-                      ! remove option (fields)
-                      if (k > 0) then
-                         strpop = "Remove" // c_null_char
-                         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
-                            call sys(i)%unload_field(k)
-                         call iw_tooltip("Remove this field",ttshown)
+             ! set background color for the name cell, if not selected
+             if (sysc(i)%status >= sys_ready) then
+                col4 = ImVec4(ColorTableCellBg(1,sys(i)%c%iperiod),ColorTableCellBg(2,sys(i)%c%iperiod),&
+                   ColorTableCellBg(3,sys(i)%c%iperiod),ColorTableCellBg(4,sys(i)%c%iperiod))
+                color = igGetColorU32_Vec4(col4)
+                call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_name)
+             end if
+
+             ! ID column
+             if (igTableSetColumnIndex(ic_id)) then
+                str = string(i)
+                call write_maybe_selectable(i,tooltipstr)
+                ok = (sysc(i)%status >= sys_ready)
+                if (ok) ok = allocated(sys(i)%c%vib)
+                if (ok) then
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,&
+                      rgba=rgba_vibrations)
+                else
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                end if
+             end if
+
+             ! name
+             if (igTableSetColumnIndex(ic_name)) then
+                ! selectable
+                call write_maybe_selectable(i,tooltipstr)
+
+                ! expand button
+                if (sysc(i)%showfields) then
+                   ch = "▼"
+                else
+                   ch = "▶"
+                end if
+                pos = igGetCursorPosX()
+                call igSetCursorPosX(pos + g%Style%FramePadding%x)
+                if (sys(i)%nf > 0) then
+                   call iw_text(ch,rgba=rgba_fields)
+                else
+                   call iw_text(ch)
+                end if
+                call igSameLine(0._c_float,-1._c_float)
+                call igSetCursorPosX(pos)
+                str = ch // "##" // string(ic_name) // "," // string(i) // c_null_char
+                sz%x = iw_calcwidth(1,1)
+                sz%y = iw_calcheight(1,0)
+                if (igInvisibleButton(c_loc(str),sz,ImGuiButtonFlags_None)) sysc(i)%showfields = .not.sysc(i)%showfields
+
+                ! the actual name
+                str = ""
+                if (sysc(i)%collapse == -2) then
+                   str = "╭●─"
+                   do k = 2, len(string(i))
+                      str = str // "─"
+                   end do
+                   str = str // "──"
+                elseif (sysc(i)%collapse > 0) then
+                   str = "├[" // string(sysc(i)%collapse) // "]─"
+                end if
+                str = str // trim(sysc(i)%seed%name)
+                call iw_text(str,disabled=(sysc(i)%status /= sys_init),sameline_nospace=.true.,copy_to_output=export)
+
+                ! the fields
+                if (sysc(i)%showfields) then
+                   do k = 0, sys(i)%nf
+                      if (.not.sys(i)%f(k)%isinit) cycle
+
+                      ! selectable
+                      call igSetCursorPosX(igGetCursorPosX() + iw_calcwidth(1,1))
+                      isend = (k == sys(i)%nf)
+                      if (.not.isend) isend = all(.not.sys(i)%f(k+1:)%isinit)
+                      if (.not.isend) call iw_text("┌",noadvance=.true.)
+                      if (sys(i)%iref == k) then
+                         str = "└─►(" // string(k) // ",ref): " // trim(sys(i)%f(k)%name) // "##field" // &
+                            string(i) // "," // string(k) // c_null_char
+                      else
+                         str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // "##field" // &
+                            string(i) // "," // string(k) // c_null_char
                       end if
-
-                      ! rename option (fields)
-                      strpop = "Rename" // c_null_char
-                      if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-                         strpop2 = "##inputrenamefield" // c_null_char
-                         txtinp = trim(adjustl(sys(i)%f(k)%name)) // c_null_char
-                         call igSetKeyboardFocusHere(0_c_int)
-                         flags = ImGuiInputTextFlags_EnterReturnsTrue
-                         if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_funptr,c_null_ptr)) then
-                            ll = index(txtinp,c_null_char)
-                            sys(i)%f(k)%name = txtinp(1:ll-1)
-                            call igCloseCurrentPopup()
-                         end if
-                         call igEndMenu()
+                      isel = (w%table_selected==i) .and. (sys(i)%iref == k)
+                      call igPushStyleColor_Vec4(ImGuiCol_Header,ColorFieldSelected)
+                      flags = ImGuiSelectableFlags_SpanAllColumns
+                      if (igSelectable_Bool(c_loc(str),isel,flags,szero)) then
+                         call select_system(i,.false.)
+                         call sys(i)%set_reference(k,.false.)
                       end if
-                      call iw_tooltip("Rename this field",ttshown)
+                      call igPopStyleColor(1)
 
-                      !! now the load new field options !!
-                      call igSeparator()
-
-                      ! duplicate option (fields)
-                      strpop = "Duplicate" // c_null_char
-                      if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                         id = sys(i)%getfieldnum()
-                         call sys(i)%field_copy(k,id)
-                         sys(i)%f(id)%id = id
-                         sys(i)%f(id)%name = trim(sys(i)%f(k)%name)
-                      end if
-                      call iw_tooltip("Load a copy of this field as a new field",ttshown)
-
-                      ! grid calculation options
-                      if (sys(i)%f(k)%type == type_grid) then
-                         strpop = "Load gradient grid" // c_null_char
-                         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                            id = sys(i)%getfieldnum()
-                            call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, gradient of $" // string(k),&
-                               sys(i)%f(k)%grid,ifformat_as_grad)
+                      ! right click to open the field context menu
+                      if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
+                         ! remove option (fields)
+                         if (k > 0) then
+                            strpop = "Remove" // c_null_char
+                            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
+                               call sys(i)%unload_field(k)
+                            call iw_tooltip("Remove this field",ttshown)
                          end if
-                         call iw_tooltip("Load a new grid field as the gradient of this field",ttshown)
 
-                         strpop = "Load Laplacian grid" // c_null_char
-                         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                            id = sys(i)%getfieldnum()
-                            call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, Laplacian of $" // string(k),&
-                               sys(i)%f(k)%grid,ifformat_as_lap)
-                         end if
-                         call iw_tooltip("Load a new grid field as the Laplacian of this field",ttshown)
-
-                         strpop = "Load potential grid" // c_null_char
-                         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                            id = sys(i)%getfieldnum()
-                            call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, potential of $" // string(k),&
-                               sys(i)%f(k)%grid,ifformat_as_pot)
-                         end if
-                         call iw_tooltip("Load a new grid field as the potential of this field",ttshown)
-
-                         strpop = "Load resampled grid" // c_null_char
+                         ! rename option (fields)
+                         strpop = "Rename" // c_null_char
                          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-                            flags = ImGuiInputTextFlags_None
-                            strpop2 = "New size##resamplefieldmenunewsize" // c_null_char
-                            call igSetNextItemWidth(iw_calcwidth(4*3,2))
-                            ldum = igInputInt3(c_loc(strpop2),iresample,flags)
-
-                            strpop2 = "OK##resamplefieldmenuok" // c_null_char
-                            if (igMenuItem_Bool(c_loc(strpop2),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                               id = sys(i)%getfieldnum()
-                               call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, resample of $" // string(k),&
-                                  sys(i)%f(k)%grid,ifformat_as_resample,n=iresample)
+                            strpop2 = "##inputrenamefield" // c_null_char
+                            txtinp = trim(adjustl(sys(i)%f(k)%name)) // c_null_char
+                            call igSetKeyboardFocusHere(0_c_int)
+                            flags = ImGuiInputTextFlags_EnterReturnsTrue
+                            if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_funptr,c_null_ptr)) then
+                               ll = index(txtinp,c_null_char)
+                               sys(i)%f(k)%name = txtinp(1:ll-1)
+                               call igCloseCurrentPopup()
                             end if
                             call igEndMenu()
-                         else
-                            iresample = sys(i)%f(k)%grid%n
                          end if
-                         call iw_tooltip("Load a new grid field as a resampling of this field",ttshown)
+                         call iw_tooltip("Rename this field",ttshown)
 
+                         !! now the load new field options !!
+                         call igSeparator()
+
+                         ! duplicate option (fields)
+                         strpop = "Duplicate" // c_null_char
+                         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                            id = sys(i)%getfieldnum()
+                            call sys(i)%field_copy(k,id)
+                            sys(i)%f(id)%id = id
+                            sys(i)%f(id)%name = trim(sys(i)%f(k)%name)
+                         end if
+                         call iw_tooltip("Load a copy of this field as a new field",ttshown)
+
+                         ! grid calculation options
+                         if (sys(i)%f(k)%type == type_grid) then
+                            strpop = "Load gradient grid" // c_null_char
+                            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                               id = sys(i)%getfieldnum()
+                               call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, gradient of $" // string(k),&
+                                  sys(i)%f(k)%grid,ifformat_as_grad)
+                            end if
+                            call iw_tooltip("Load a new grid field as the gradient of this field",ttshown)
+
+                            strpop = "Load Laplacian grid" // c_null_char
+                            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                               id = sys(i)%getfieldnum()
+                               call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, Laplacian of $" // string(k),&
+                                  sys(i)%f(k)%grid,ifformat_as_lap)
+                            end if
+                            call iw_tooltip("Load a new grid field as the Laplacian of this field",ttshown)
+
+                            strpop = "Load potential grid" // c_null_char
+                            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                               id = sys(i)%getfieldnum()
+                               call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, potential of $" // string(k),&
+                                  sys(i)%f(k)%grid,ifformat_as_pot)
+                            end if
+                            call iw_tooltip("Load a new grid field as the potential of this field",ttshown)
+
+                            strpop = "Load resampled grid" // c_null_char
+                            if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+                               flags = ImGuiInputTextFlags_None
+                               strpop2 = "New size##resamplefieldmenunewsize" // c_null_char
+                               call igSetNextItemWidth(iw_calcwidth(4*3,2))
+                               ldum = igInputInt3(c_loc(strpop2),iresample,flags)
+
+                               strpop2 = "OK##resamplefieldmenuok" // c_null_char
+                               if (igMenuItem_Bool(c_loc(strpop2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                                  id = sys(i)%getfieldnum()
+                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, resample of $" // string(k),&
+                                     sys(i)%f(k)%grid,ifformat_as_resample,n=iresample)
+                               end if
+                               call igEndMenu()
+                            else
+                               iresample = sys(i)%f(k)%grid%n
+                            end if
+                            call iw_tooltip("Load a new grid field as a resampling of this field",ttshown)
+
+                         end if
+
+                         call igEndPopup()
                       end if
 
-
-                      call igEndPopup()
-                   end if
-
-                   ! tooltip
-                   if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-                      if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
-                         g%LastItemData%NavRect%max,.false._c_bool)) then
-                         call tree_field_tooltip_string(i,k)
+                      ! tooltip
+                      if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+                         if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
+                            g%LastItemData%NavRect%max,.false._c_bool)) then
+                            call tree_field_tooltip_string(i,k)
+                         end if
                       end if
-                   end if
 
-                end do
-             end if
-          end if
-
-          ! energy
-          if (igTableSetColumnIndex(ic_e)) then
-             if (sysc(i)%seed%energy /= huge(1d0)) then
-                str = string(sysc(i)%seed%energy,'f',decimal=8)
-             else
-                str = "n/a"
-             end if
-             call write_maybe_selectable(i,tooltipstr)
-             call iw_text(str,copy_to_output=export)
-          end if
-
-          if (sysc(i)%status == sys_init) then
-             if (igTableSetColumnIndex(ic_spg)) then ! spg
-                if (sys(i)%c%ismolecule) then
-                   str = "<mol>"
-                elseif (.not.sys(i)%c%spgavail) then
-                   str = "n/a"
-                else
-                   str = trim(sys(i)%c%spg%international_symbol)
+                   end do
                 end if
-                call write_maybe_selectable(i,tooltipstr)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
              end if
 
-             if (igTableSetColumnIndex(ic_v)) then ! volume
-                if (sys(i)%c%ismolecule) then
-                   str = "<mol>"
-                else
-                   str = string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2)
-                end if
-                call write_maybe_selectable(i,tooltipstr)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-             end if
-
-             if (igTableSetColumnIndex(ic_vmol)) then ! volume per molecule
-                if (sys(i)%c%ismolecule) then
-                   str = "<mol>"
-                else
-                   str = string(sys(i)%c%omega*bohrtoa**3/sys(i)%c%nmol,'f',decimal=2)
-                end if
-                call write_maybe_selectable(i,tooltipstr)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-             end if
-
-             if (igTableSetColumnIndex(ic_nneq)) then ! nneq
-                str = string(sys(i)%c%nneq)
-                call write_maybe_selectable(i,tooltipstr)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-             end if
-
-             if (igTableSetColumnIndex(ic_ncel)) then ! ncel
-                str = string(sys(i)%c%ncel)
-                call write_maybe_selectable(i,tooltipstr)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-             end if
-
-             if (igTableSetColumnIndex(ic_nmol)) then ! nmol
-                str = string(sys(i)%c%nmol)
-                call write_maybe_selectable(i,tooltipstr)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-             end if
-
-             if (igTableSetColumnIndex(ic_a)) then ! a
-                if (sys(i)%c%ismolecule) then
-                   str = "<mol>"
-                else
-                   str = string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4)
-                end if
-                call write_maybe_selectable(i,tooltipstr)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-             end if
-             if (igTableSetColumnIndex(ic_b)) then ! b
-                if (sys(i)%c%ismolecule) then
-                   str = "<mol>"
-                else
-                   str = string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4)
-                end if
-                call write_maybe_selectable(i,tooltipstr)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-             end if
-             if (igTableSetColumnIndex(ic_c)) then ! c
-                if (sys(i)%c%ismolecule) then
-                   str = "<mol>"
-                else
-                   str = string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4)
-                end if
-                call write_maybe_selectable(i,tooltipstr)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-             end if
-             if (igTableSetColumnIndex(ic_alpha)) then ! alpha
-                if (sys(i)%c%ismolecule) then
-                   str = "<mol>"
-                else
-                   str = string(sys(i)%c%bb(1),'f',decimal=2)
-                end if
-                call write_maybe_selectable(i,tooltipstr)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-             end if
-             if (igTableSetColumnIndex(ic_beta)) then ! beta
-                if (sys(i)%c%ismolecule) then
-                   str = "<mol>"
-                else
-                   str = string(sys(i)%c%bb(2),'f',decimal=2)
-                end if
-                call write_maybe_selectable(i,tooltipstr)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-             end if
-             if (igTableSetColumnIndex(ic_gamma)) then ! gamma
-                if (sys(i)%c%ismolecule) then
-                   str = "<mol>"
-                else
-                   str = string(sys(i)%c%bb(3),'f',decimal=2)
-                end if
-                call write_maybe_selectable(i,tooltipstr)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-             end if
-
-             if (igTableSetColumnIndex(ic_emol)) then ! energy/nmol
+             ! energy
+             if (igTableSetColumnIndex(ic_e)) then
                 if (sysc(i)%seed%energy /= huge(1d0)) then
-                   str = string(sysc(i)%seed%energy/sys(i)%c%nmol,'f',decimal=8)
+                   str = string(sysc(i)%seed%energy,'f',decimal=8)
                 else
                    str = "n/a"
                 end if
                 call write_maybe_selectable(i,tooltipstr)
                 call iw_text(str,copy_to_output=export)
              end if
-             if (igTableSetColumnIndex(ic_p)) then ! pressure
-                if (sys(i)%c%ismolecule) then
-                   str = "<mol>"
-                elseif (sysc(i)%seed%pressure /= huge(1d0)) then
-                   str = string(sysc(i)%seed%pressure,'f',decimal=2)
-                else
-                   str = "n/a"
+
+             if (sysc(i)%status == sys_init) then
+                if (igTableSetColumnIndex(ic_spg)) then ! spg
+                   if (sys(i)%c%ismolecule) then
+                      str = "<mol>"
+                   elseif (.not.sys(i)%c%spgavail) then
+                      str = "n/a"
+                   else
+                      str = trim(sys(i)%c%spg%international_symbol)
+                   end if
+                   call write_maybe_selectable(i,tooltipstr)
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                 end if
-                call write_maybe_selectable(i,tooltipstr)
-                call iw_text(str,copy_to_output=export)
+
+                if (igTableSetColumnIndex(ic_v)) then ! volume
+                   if (sys(i)%c%ismolecule) then
+                      str = "<mol>"
+                   else
+                      str = string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2)
+                   end if
+                   call write_maybe_selectable(i,tooltipstr)
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                end if
+
+                if (igTableSetColumnIndex(ic_vmol)) then ! volume per molecule
+                   if (sys(i)%c%ismolecule) then
+                      str = "<mol>"
+                   else
+                      str = string(sys(i)%c%omega*bohrtoa**3/sys(i)%c%nmol,'f',decimal=2)
+                   end if
+                   call write_maybe_selectable(i,tooltipstr)
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                end if
+
+                if (igTableSetColumnIndex(ic_nneq)) then ! nneq
+                   str = string(sys(i)%c%nneq)
+                   call write_maybe_selectable(i,tooltipstr)
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                end if
+
+                if (igTableSetColumnIndex(ic_ncel)) then ! ncel
+                   str = string(sys(i)%c%ncel)
+                   call write_maybe_selectable(i,tooltipstr)
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                end if
+
+                if (igTableSetColumnIndex(ic_nmol)) then ! nmol
+                   str = string(sys(i)%c%nmol)
+                   call write_maybe_selectable(i,tooltipstr)
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                end if
+
+                if (igTableSetColumnIndex(ic_a)) then ! a
+                   if (sys(i)%c%ismolecule) then
+                      str = "<mol>"
+                   else
+                      str = string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4)
+                   end if
+                   call write_maybe_selectable(i,tooltipstr)
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                end if
+                if (igTableSetColumnIndex(ic_b)) then ! b
+                   if (sys(i)%c%ismolecule) then
+                      str = "<mol>"
+                   else
+                      str = string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4)
+                   end if
+                   call write_maybe_selectable(i,tooltipstr)
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                end if
+                if (igTableSetColumnIndex(ic_c)) then ! c
+                   if (sys(i)%c%ismolecule) then
+                      str = "<mol>"
+                   else
+                      str = string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4)
+                   end if
+                   call write_maybe_selectable(i,tooltipstr)
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                end if
+                if (igTableSetColumnIndex(ic_alpha)) then ! alpha
+                   if (sys(i)%c%ismolecule) then
+                      str = "<mol>"
+                   else
+                      str = string(sys(i)%c%bb(1),'f',decimal=2)
+                   end if
+                   call write_maybe_selectable(i,tooltipstr)
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                end if
+                if (igTableSetColumnIndex(ic_beta)) then ! beta
+                   if (sys(i)%c%ismolecule) then
+                      str = "<mol>"
+                   else
+                      str = string(sys(i)%c%bb(2),'f',decimal=2)
+                   end if
+                   call write_maybe_selectable(i,tooltipstr)
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                end if
+                if (igTableSetColumnIndex(ic_gamma)) then ! gamma
+                   if (sys(i)%c%ismolecule) then
+                      str = "<mol>"
+                   else
+                      str = string(sys(i)%c%bb(3),'f',decimal=2)
+                   end if
+                   call write_maybe_selectable(i,tooltipstr)
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                end if
+
+                if (igTableSetColumnIndex(ic_emol)) then ! energy/nmol
+                   if (sysc(i)%seed%energy /= huge(1d0)) then
+                      str = string(sysc(i)%seed%energy/sys(i)%c%nmol,'f',decimal=8)
+                   else
+                      str = "n/a"
+                   end if
+                   call write_maybe_selectable(i,tooltipstr)
+                   call iw_text(str,copy_to_output=export)
+                end if
+                if (igTableSetColumnIndex(ic_p)) then ! pressure
+                   if (sys(i)%c%ismolecule) then
+                      str = "<mol>"
+                   elseif (sysc(i)%seed%pressure /= huge(1d0)) then
+                      str = string(sysc(i)%seed%pressure,'f',decimal=2)
+                   else
+                      str = "n/a"
+                   end if
+                   call write_maybe_selectable(i,tooltipstr)
+                   call iw_text(str,copy_to_output=export)
+                end if
              end if
+             ! enter new line
+             if (export) write (uout,*)
+          end do ! clipper indices
+
+          if (.not.hadrow) then
+             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+             if (igTableSetColumnIndex(ic_name)) then
+                call igAlignTextToFramePadding()
+                call iw_text("No systems loaded")
+             end if
+             hadrow = .true.
           end if
-          ! enter new line
-          if (export) write (uout,*)
-       end do
+       end do ! clipper step
+       call ImGuiListClipper_End(clipper)
 
        ! process the keybindings
        ok = is_bind_event(BIND_TREE_REMOVE_SYSTEM_FIELD)
@@ -880,6 +901,7 @@ contains
              w%forceremove = (/jsel/)
           end if
        end if
+
        call igEndTable()
     end if
     call igPopStyleVar(3_c_int)
