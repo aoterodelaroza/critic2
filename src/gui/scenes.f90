@@ -244,6 +244,10 @@ module scenes
      ! measure atom sets
      integer :: nmsel
      integer :: msel(5,4) ! 1 is atom cell ID, 2:4 is lattice vector, 5 is sphere ID
+     ! selection sets
+     integer :: nselection
+     integer :: selection_type ! 0=species,1=nneq,2=cell,3=mol
+     integer, allocatable :: selection(:)
      ! draw lists
      integer :: nsph ! number of spheres
      type(dl_sphere), allocatable :: drawlist_sph(:) ! sphere draw list

@@ -95,6 +95,12 @@ contains
     s%nmsel = 0
     s%msel = 0
 
+    ! selection sets
+    s%nselection = 0
+    s%selection_type = 2
+    if (allocated(s%selection)) deallocate(s%selection)
+    allocate(s%selection(10))
+
     ! initialize representations
     if (allocated(s%rep)) deallocate(s%rep)
     allocate(s%rep(20))
@@ -242,9 +248,13 @@ contains
           s%iqpt_selected,s%ifreq_selected)
     end do
 
-    ! reset the selection
+    ! reset the measure selection
     s%nmsel = 0
     s%msel = 0
+
+    ! reset the selection
+    s%nselection = 0
+    s%selection_type = 2
 
     ! recalculate scene center and radius
     maxrad = 0._c_float
@@ -321,12 +331,15 @@ contains
     complex(c_float_complex) :: displ
     real*8 :: deltat, fac
 
-    real(c_float), parameter :: rgbsel(4,4) = reshape((/&
+    real(c_float), parameter :: rgbmsel(4,4) = reshape((/&
        1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
        0.4_c_float, 1._c_float,  0.4_c_float, 0.5_c_float,&
        0.4_c_float, 0.4_c_float, 1._c_float,  0.5_c_float,&
-       0.9_c_float, 0.7_c_float, 0.4_c_float, 0.5_c_float/),shape(rgbsel))
+       0.9_c_float, 0.7_c_float, 0.4_c_float, 0.5_c_float/),shape(rgbmsel))
+    real(c_float), parameter :: rgbsel(4) = &
+       (/1._c_float,  0.8_c_float, 0.1_c_float, 0.5_c_float/)
     real(c_float), parameter :: msel_thickness = 0.1_c_float
+    real(c_float), parameter :: sel_thickness = 0.2_c_float
     real(c_float), parameter :: sel_label_size = 1.2_c_float
     real*8, parameter :: freq_ref = 300d0
     real*8, parameter :: freq_min = 50d0
@@ -394,8 +407,18 @@ contains
           call draw_all_flat_cylinders()
        end if
 
-       ! draw the selected atoms
+       ! draw the measure selection atoms
        if (s%nmsel > 0) then
+          call setuniform_int(0_c_int,"uselighting")
+          call glBindVertexArray(sphVAO(s%atom_res))
+          call glEnable(GL_BLEND)
+          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+          call draw_all_mselections()
+          call glDisable(GL_BLEND)
+       end if
+
+       ! draw the measure selection atoms
+       if (s%nselection > 0) then
           call setuniform_int(0_c_int,"uselighting")
           call glBindVertexArray(sphVAO(s%atom_res))
           call glEnable(GL_BLEND)
@@ -487,6 +510,17 @@ contains
           call glBindVertexArray(sphVAO(s%atom_res))
           call glEnable(GL_BLEND)
           call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+          call draw_all_mselections()
+          call glDisable(GL_BLEND)
+       end if
+
+       ! draw the measure selection atoms
+       if (s%nselection > 0) then
+          call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
+          call setuniform_float(0._c_float,idxi=iunif(iu_border))
+          call glBindVertexArray(sphVAO(s%atom_res))
+          call glEnable(GL_BLEND)
+          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
           call draw_all_selections()
           call glDisable(GL_BLEND)
        end if
@@ -569,7 +603,8 @@ contains
 
     end subroutine draw_all_flat_cylinders
 
-    subroutine draw_all_selections()
+    !> Draw the measure selections
+    subroutine draw_all_mselections()
       integer :: i, j
       real(c_float) :: x(3)
 
@@ -577,9 +612,39 @@ contains
          i = s%msel(5,j)
          x = s%drawlist_sph(i)%x
          if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
-         call draw_sphere(x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbsel(:,j))
+         call draw_sphere(x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbmsel(:,j))
          radsel(j) = s%drawlist_sph(i)%r + msel_thickness
          xsel(:,j) = x
+      end do
+
+    end subroutine draw_all_mselections
+
+    !> Draw the selections
+    subroutine draw_all_selections()
+      integer :: i, j, id
+      real(c_float) :: x(3)
+      logical :: ok
+
+      do i = 1, s%nsph
+         if (s%selection_type == 0) then
+            id = sys(s%id)%c%atcel(s%drawlist_sph(i)%idx(1))%is
+         elseif (s%selection_type == 1) then
+            id = sys(s%id)%c%atcel(s%drawlist_sph(i)%idx(1))%idx
+         elseif (s%selection_type == 2) then
+            id = s%drawlist_sph(i)%idx(1)
+         elseif (s%selection_type == 3) then
+            id = sys(s%id)%c%idatcelmol(1,s%drawlist_sph(i)%idx(1))
+         end if
+         ok = .false.
+         do j = 1, s%nselection
+            ok = ok .or. (id == s%selection(j))
+         end do
+         if (ok) then
+            x = s%drawlist_sph(i)%x
+            if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
+            call draw_sphere(x,s%drawlist_sph(i)%r + sel_thickness,s%atom_res,rgba=rgbsel)
+            radsel(j) = s%drawlist_sph(i)%r + sel_thickness
+         end if
       end do
 
     end subroutine draw_all_selections
@@ -1296,7 +1361,7 @@ contains
      ncylflat,drawlist_cylflat,nstring,drawlist_string,doanim,iqpt,ifreq)
     use gui_main, only: sys
     use tools_io, only: string, nameguess
-    use param, only: bohrtoa, newline, tpi, img, atmass
+    use param, only: bohrtoa, tpi, img, atmass
     class(representation), intent(inout), target :: r
     integer, intent(in) :: nc(3)
     integer, intent(inout) :: nsph
@@ -1314,7 +1379,7 @@ contains
     logical :: havefilter, step, isedge(3), usetshift, doanim_, dobonds
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3)
     integer :: i1, i2, i3, ix(3), idl
-    integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, idx
+    integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep
     real(c_float) :: rgb(3)
     real*8 :: rad1, rad2, dd, f1, f2
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), phase, mass
@@ -1966,7 +2031,7 @@ contains
     use tools_io, only: nameguess, string
     class(representation), intent(inout), target :: r
 
-    integer :: isys, i, idx
+    integer :: isys, i
 
     ! if not initialized, set type
     if (.not.r%label_style%isinit) r%label_style%style = 0
