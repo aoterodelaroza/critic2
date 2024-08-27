@@ -561,12 +561,14 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    logical :: ok
+    logical :: ok, readvec
     character(len=:), allocatable :: line
     integer :: lu, idx, i, j, ifreq
-    real*8 :: xdum(2)
+    real*8 :: xdum(2), norm
     ! integer :: jfreq, iqpt ! checking normalization
     ! complex*16 :: summ
+
+    real*8, parameter :: eps_error = 1d-100
 
     ! initialize
     errmsg = "Error reading yaml file: " // trim(file)
@@ -610,6 +612,7 @@ contains
     !     - # atom 1
     !       - [  0.00451257038677,  0.00000000000000 ]
     !       - [ -0.11674136018427,  0.04305724458615 ]
+    readvec = .false.
     do while (getline_raw(lu,line,.false.))
        if (index(line,"q-position") > 0) then
           ! a new q-point, increase nqpt and reallocate
@@ -639,6 +642,7 @@ contains
           read (line,*,err=999,end=999) vib%freq(ifreq,vib%nqpt)
 
        elseif (index(line,"eigenvector") > 0) then
+          readvec = .true.
           ! an eigenvector
           do i = 1, c%ncel
              ok = getline_raw(lu,line,.false.)
@@ -658,14 +662,22 @@ contains
     call realloc(vib%qpt,3,vib%nqpt)
     call realloc(vib%freq,vib%nfreq,vib%nqpt)
     call realloc(vib%vec,3,c%ncel,vib%nfreq,vib%nqpt)
+    if (.not.readvec) then
+       errmsg = "the yaml file contains no eigenvector information"
+       goto 999
+    end if
 
     ! THz to cm-1
     vib%freq = vib%freq / cm1tothz
 
     ! normalize
     do i = 1, vib%nfreq
-       vib%vec(:,:,i,1) = vib%vec(:,:,i,1) / &
-          sqrt(sum(vib%vec(:,:,i,1)*conjg(vib%vec(:,:,i,1))))
+       norm = sqrt(sum(vib%vec(:,:,i,1)*conjg(vib%vec(:,:,i,1))))
+       if (norm < eps_error) then
+          errmsg = "zero-length eigenvector found (the yaml file has eigenvector?)"
+          goto 999
+       end if
+       vib%vec(:,:,i,1) = vib%vec(:,:,i,1) / norm
     end do
 
     ! ! checking normalization

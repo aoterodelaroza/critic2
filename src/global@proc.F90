@@ -106,11 +106,11 @@ contains
           if (.not.ok) cycle
           call struct_newcell(sy,subline,.not.quiet)
 
-       !    ! vibrations
-       ! elseif (equal(word,'vibrations')) then
-       !    call check_structure_defined(ok)
-       !    if (.not.ok) cycle
-       !    call struct_vibrations(sy,subline,.not.quiet)
+          ! vibrations
+       elseif (equal(word,'vibrations')) then
+          call check_structure_defined(ok)
+          if (.not.ok) cycle
+          call struct_vibrations(sy,subline,.not.quiet)
 
           ! molcell
        elseif (equal(word,'molcell')) then
