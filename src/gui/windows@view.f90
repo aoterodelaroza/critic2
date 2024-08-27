@@ -3204,6 +3204,7 @@ contains
   !> Draw the atom selection table and return whether any item has
   !> been changed. sty = atom draw style, isys = current system.
   function atom_selection_widget(c,r) result(changed)
+    use gui_main, only: g
     use scenes, only: draw_style_atom, draw_style_molecule
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
        iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit3
@@ -3214,15 +3215,16 @@ contains
     type(representation), intent(inout) :: r
     logical :: changed
 
-    logical :: domol
+    logical :: domol, ldum, oksel
     logical(c_bool) :: ch
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3
     real*8 :: x0(3)
-    type(ImVec2) :: sz0
+    type(ImVec2) :: sz0, szero
     integer :: ispc, i, iz, ncol, ic_next, isys
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
+    real(c_float) :: pos
 
     ! column IDs in atom table
     integer, parameter :: ic_id = 0
@@ -3240,8 +3242,12 @@ contains
     integer, parameter :: im_radius = 4
     integer, parameter :: im_rest = 5
 
+    type(ImVec4), parameter :: rgbsel = ImVec4(1._c_float,0.8_c_float,0.1_c_float,0.5_c_float)
+
     logical, save :: ttshown = .false. ! tooltip flag
 
+    szero%x = 0
+    szero%y = 0
     isys = r%id
     call iw_text("Atom Selection",highlight=.true.)
 
@@ -3268,6 +3274,7 @@ contains
     if (domol) ncol = 8
 
     ! atom style table, for atoms
+    oksel = .false.
     flags = ImGuiTableFlags_None
     flags = ior(flags,ImGuiTableFlags_Resizable)
     flags = ior(flags,ImGuiTableFlags_Reorderable)
@@ -3350,6 +3357,26 @@ contains
              if (igTableSetColumnIndex(ic_id)) then
                 call igAlignTextToFramePadding()
                 call iw_text(string(i))
+
+                ! the selectable
+                call igPushStyleColor_Vec4(ImGuiCol_HeaderHovered,rgbsel)
+                pos = igGetCursorPosX()
+                flags = ImGuiSelectableFlags_SpanAllColumns
+                flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
+                str2 = "##selectableatomtable" // string(isys) // c_null_char
+                call igSameLine(0._c_float,0._c_float)
+                ldum = igSelectable_Bool(c_loc(str2),.false._c_bool,flags,szero)
+                call igSetCursorPosX(pos)
+                if (igIsItemHovered(ImGuiHoveredFlags_None)) then
+                   if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
+                      win(win(r%idwin)%idparent)%sc%nselection = 1
+                      win(win(r%idwin)%idparent)%sc%selection_type = r%atom_style%type
+                      win(win(r%idwin)%idparent)%sc%selection(1) = i
+                      win(win(r%idwin)%idparent)%forcerender = .true.
+                      oksel = .true.
+                   end if
+                end if
+                call igPopStyleColor(1)
              end if
 
              ! name
@@ -3420,6 +3447,13 @@ contains
        ! end the clipper and the table
        call ImGuiListClipper_End(clipper)
        call igEndTable()
+    end if
+
+    ! reset selection
+    if (.not.oksel) then
+       if (win(win(r%idwin)%idparent)%sc%nselection > 0) &
+          win(win(r%idwin)%idparent)%forcerender = .true.
+       win(win(r%idwin)%idparent)%sc%nselection = 0
     end if
 
     ! style buttons: show/hide
