@@ -3218,7 +3218,7 @@ contains
     logical :: domol, ldum, oksel
     logical(c_bool) :: ch
     integer(c_int) :: flags
-    character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3
+    character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3, suffix
     real*8 :: x0(3)
     type(ImVec2) :: sz0, szero
     integer :: ispc, i, iz, ncol, ic_next, isys
@@ -3340,6 +3340,8 @@ contains
        do while(ImGuiListClipper_Step(clipper))
           call c_f_pointer(clipper,clipper_f)
           do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+             suffix = "_" // string(i)
+
              call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
              if (r%atom_style%type == 0) then
                 ! species
@@ -3363,7 +3365,7 @@ contains
                 pos = igGetCursorPosX()
                 flags = ImGuiSelectableFlags_SpanAllColumns
                 flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
-                str2 = "##selectableatomtable" // string(isys) // c_null_char
+                str2 = "##selectableatomtable" // suffix // c_null_char
                 call igSameLine(0._c_float,0._c_float)
                 ldum = igSelectable_Bool(c_loc(str2),.false._c_bool,flags,szero)
                 call igSetCursorPosX(pos)
@@ -3387,13 +3389,13 @@ contains
 
              ! shown
              if (igTableSetColumnIndex(ic_shown)) then
-                changed = changed .or. iw_checkbox("##tableshown" // string(i) ,r%atom_style%shown(i))
+                changed = changed .or. iw_checkbox("##tableshown" // suffix ,r%atom_style%shown(i))
                 call iw_tooltip("Toggle display of the atom/bond/label associated to this atom",ttshown)
              end if
 
              ! color
              if (igTableSetColumnIndex(ic_color)) then
-                ch = iw_coloredit3("##tablecolor",r%atom_style%rgb(:,i),nolabel=.true.)
+                ch = iw_coloredit3("##tablecolor" // suffix,r%atom_style%rgb(:,i),nolabel=.true.)
                 call iw_tooltip("Atom color",ttshown)
                 if (ch) then
                    r%atom_style%rgb(:,i) = min(r%atom_style%rgb(:,i),1._c_float)
@@ -3404,7 +3406,7 @@ contains
 
              ! radius
              if (igTableSetColumnIndex(ic_radius)) then
-                str2 = "##tableradius" // string(i) // c_null_char
+                str2 = "##tableradius" // suffix // c_null_char
                 str3 = "%.3f" // c_null_char
                 call igPushItemWidth(iw_calcwidth(5,1))
                 ch = igDragFloat(c_loc(str2),r%atom_style%rad(i),0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
