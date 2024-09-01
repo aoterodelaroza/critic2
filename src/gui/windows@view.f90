@@ -3220,7 +3220,7 @@ contains
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3, suffix
     real*8 :: x0(3)
-    type(ImVec2) :: sz0, szero
+    type(ImVec2) :: sz0, sz1, szero
     integer :: ispc, i, iz, ncol, ic_next, isys
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
@@ -3361,6 +3361,9 @@ contains
                 call iw_text(string(i))
 
                 ! the selectable
+                sz1%x = g%Style%ItemSpacing%x
+                sz1%y = g%Style%ItemSpacing%y + g%Style%CellPadding%y + g%Style%FramePadding%y
+                call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz1)
                 call igPushStyleColor_Vec4(ImGuiCol_HeaderHovered,rgbsel)
                 pos = igGetCursorPosX()
                 flags = ImGuiSelectableFlags_SpanAllColumns
@@ -3378,7 +3381,8 @@ contains
                       oksel = .true.
                    end if
                 end if
-                call igPopStyleColor(1)
+                call igPopStyleColor(1_c_int)
+                call igPopStyleVar(1_c_int)
              end if
 
              ! name
