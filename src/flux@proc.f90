@@ -717,7 +717,7 @@ contains
     integer :: i, j
     real*8 :: x(3)
     character(len=:), allocatable :: str
-    real*8 :: maux(4,4)
+    real*8 :: maux(4,4), lvec(3)
     real*8, parameter :: rrad = 0.15d0
     integer :: idx(2), cpid(2), typ(2)
     character*10 :: cpname(2), cptype(2)
@@ -779,6 +779,9 @@ contains
           (string((flx_cpos(i,2)+sy%c%molx0(i))*dunit0(iunit),'f',12,8),i=1,3)
        write (luout,'("# ",A)')
 
+       ! lattice vectors
+       lvec = flx_xpos(:,1) - flx_path(1)%x
+
        if (.not.sy%c%ismolecule) then
           maux = 0d0
           maux(1:3,1:3) = sy%c%m_x2c
@@ -789,14 +792,14 @@ contains
           write (luout,'(A," ",A10," ",12(A20," "))') "#","x","y","z","rho","rhox","rhoy","rhoz",&
              "rhoxx","rhoxy","rhoxz","rhoyy","rhoyz","rhozz"
           do i = 1,flx_n
-             write (luout,'(99(E20.12," "))') flx_path(i)%x, flx_path(i)%f,&
+             write (luout,'(99(E20.12," "))') flx_path(i)%x + lvec, flx_path(i)%f,&
                 flx_path(i)%gf, flx_path(i)%hf(1,1:3), flx_path(i)%hf(2,2:3), flx_path(i)%hf(3,3)
           end do
        else
           write (luout,'(A," ",A10," ",12(A20," "))') "#","x","y","z","rho","rhox","rhoy","rhoz",&
              "rhoxx","rhoxy","rhoxz","rhoyy","rhoyz","rhozz"
           do i = 1,flx_n
-             x = flx_path(i)%x
+             x = flx_path(i)%x + lvec
              if (sy%c%ismolecule) &
                 x = (sy%c%x2c(x) + sy%c%molx0) * dunit0(iunit)
              write (luout,'(99(E20.12," "))') x, flx_path(i)%f,&
@@ -809,18 +812,18 @@ contains
        write (luout,'("# ")')
        write (luout,'("  ",A)') "curve balls type 6"
        do i=1,flx_n
-          write (luout,'("   ",3(E20.12," "))') flx_path(i)%x
+          write (luout,'("   ",3(E20.12," "))') flx_path(i)%x + lvec
        end do
        write (luout,'("  ",A)') "endcurve"
     elseif (outfmt=="obj" .or. outfmt=="off" .or. outfmt=="ply" .or. outfmt=="cml") then
        do i=1,flx_n
-          x = sy%c%x2c(flx_path(i)%x)
+          x = sy%c%x2c(flx_path(i)%x + lvec)
           if (outfmt == "obj" .or. outfmt == "off" .or. outfmt == "ply") then
              call gr%ball(x,rgb0,rrad)
           elseif (outfmt == "cml") then
              if (.not.sy%c%ismolecule) then
                 write (luout,'("<atom id=""a",A,""" elementType=""Xz"" xFract=""",A,""" yFract=""",A,""" zFract=""",A,"""/>")')&
-                   string(i), (trim(string(flx_path(i)%x(j),'f',18,10)),j=1,3)
+                   string(i), (trim(string(flx_path(i)%x(j) + lvec(j),'f',18,10)),j=1,3)
              else
                 x = x + sy%c%molx0
                 write (luout,'("<atom id=""a",A,""" elementType=""Xz"" x3=""",A,""" y3=""",A,""" z3=""",A,"""/>")') &
