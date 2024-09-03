@@ -3217,7 +3217,7 @@ contains
     use gui_main, only: g
     use scenes, only: draw_style_atom, draw_style_molecule
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
-       iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit3
+       iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit3, iw_highlight_selectable
     use crystalmod, only: crystal
     use global, only: iunit_ang, dunit0
     use tools_io, only: string, ioj_right
@@ -3251,8 +3251,6 @@ contains
     integer, parameter :: im_color = 3
     integer, parameter :: im_radius = 4
     integer, parameter :: im_rest = 5
-
-    type(ImVec4), parameter :: rgbsel = ImVec4(1._c_float,0.8_c_float,0.1_c_float,0.5_c_float)
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -3370,29 +3368,14 @@ contains
                 call igAlignTextToFramePadding()
                 call iw_text(string(i))
 
-                ! the selectable
-                sz1%x = g%Style%ItemSpacing%x
-                sz1%y = g%Style%ItemSpacing%y + g%Style%CellPadding%y + g%Style%FramePadding%y
-                call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz1)
-                call igPushStyleColor_Vec4(ImGuiCol_HeaderHovered,rgbsel)
-                pos = igGetCursorPosX()
-                flags = ImGuiSelectableFlags_SpanAllColumns
-                flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
-                str2 = "##selectableatomtable" // suffix // c_null_char
-                call igSameLine(0._c_float,0._c_float)
-                ldum = igSelectable_Bool(c_loc(str2),.false._c_bool,flags,szero)
-                call igSetCursorPosX(pos)
-                if (igIsItemHovered(ImGuiHoveredFlags_None)) then
-                   if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
-                      win(win(r%idwin)%idparent)%sc%nselection = 1
-                      win(win(r%idwin)%idparent)%sc%selection_type = r%atom_style%type
-                      win(win(r%idwin)%idparent)%sc%selection(1) = i
-                      win(win(r%idwin)%idparent)%forcerender = .true.
-                      oksel = .true.
-                   end if
+                ! the highlight selectable
+                if (iw_highlight_selectable("##selectableatomtable" // suffix)) then
+                   win(win(r%idwin)%idparent)%sc%nselection = 1
+                   win(win(r%idwin)%idparent)%sc%selection_type = r%atom_style%type
+                   win(win(r%idwin)%idparent)%sc%selection(1) = i
+                   win(win(r%idwin)%idparent)%forcerender = .true.
+                   oksel = .true.
                 end if
-                call igPopStyleColor(1_c_int)
-                call igPopStyleVar(1_c_int)
              end if
 
              ! name

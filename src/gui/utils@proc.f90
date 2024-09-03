@@ -502,6 +502,43 @@ contains
     end subroutine show_tooltip
   end subroutine iw_tooltip
 
+  !> Create a selectable that highlights the current row. Return true
+  !> if the selectable is hovered.
+  module function iw_highlight_selectable(str)
+    use interfaces_cimgui
+    use gui_main, only: g, ColorTableHighlightRow
+    character(len=*,kind=c_char), intent(in) :: str
+    logical :: iw_highlight_selectable
+
+    type(ImVec2) :: sz1, szero
+    real(c_float) :: pos
+    integer(c_int) :: flags
+    character(kind=c_char,len=:), allocatable, target :: str2
+    logical :: ldum
+
+    szero%x = 0
+    szero%y = 0
+    sz1%x = g%Style%ItemSpacing%x
+    sz1%y = g%Style%ItemSpacing%y + g%Style%CellPadding%y + g%Style%FramePadding%y
+    call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz1)
+    call igPushStyleColor_Vec4(ImGuiCol_HeaderHovered,ColorTableHighlightRow)
+    pos = igGetCursorPosX()
+    flags = ImGuiSelectableFlags_SpanAllColumns
+    flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
+    str2 = trim(str) // c_null_char
+    call igSameLine(0._c_float,0._c_float)
+    ldum = igSelectable_Bool(c_loc(str2),.false._c_bool,flags,szero)
+    call igSetCursorPosX(pos)
+    iw_highlight_selectable = .false.
+    if (igIsItemHovered(ImGuiHoveredFlags_None)) then
+       iw_highlight_selectable = &
+          igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)
+    end if
+    call igPopStyleColor(1_c_int)
+    call igPopStyleVar(1_c_int)
+
+  end function iw_highlight_selectable
+
   ! Returns true if the last item has been hovered for at least thr
   ! seconds. If already_shown (the tooltip has already been displayed),
   ! do not use the delay.

@@ -36,6 +36,7 @@ module utils
   public :: iw_text
   public :: iw_button
   public :: iw_tooltip
+  public :: iw_highlight_selectable
   public :: igIsItemHovered_delayed
   public :: get_time_string
   public :: buffer_to_string_array
@@ -139,6 +140,10 @@ module utils
        real(c_float), intent(in), optional :: rgba(4)
        logical, intent(in), optional :: nowrap
      end subroutine iw_tooltip
+     module function iw_highlight_selectable(str)
+       character(len=*,kind=c_char), intent(in) :: str
+       logical :: iw_highlight_selectable
+     end function iw_highlight_selectable
      module function igIsItemHovered_delayed(flags,thr,already_shown)
        integer(c_int), value :: flags
        real(c_float), intent(in) :: thr

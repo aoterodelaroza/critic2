@@ -317,7 +317,8 @@ contains
     use interfaces_cimgui
     use interfaces_opengl3
     use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
-    use gui_main, only: fonts, fontbakesize_large, time, font_large, sys
+    use gui_main, only: fonts, fontbakesize_large, time, font_large, sys,&
+       ColorTableHighlightRow
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use tools_io, only: string
@@ -336,8 +337,6 @@ contains
        0.4_c_float, 1._c_float,  0.4_c_float, 0.5_c_float,&
        0.4_c_float, 0.4_c_float, 1._c_float,  0.5_c_float,&
        0.9_c_float, 0.7_c_float, 0.4_c_float, 0.5_c_float/),shape(rgbmsel))
-    real(c_float), parameter :: rgbsel(4) = &
-       (/1._c_float,  0.8_c_float, 0.1_c_float, 0.5_c_float/)
     real(c_float), parameter :: msel_thickness = 0.1_c_float
     real(c_float), parameter :: sel_thickness = 0.2_c_float
     real(c_float), parameter :: sel_label_size = 1.2_c_float
@@ -622,7 +621,7 @@ contains
     !> Draw the selections
     subroutine draw_all_selections()
       integer :: i, j, id
-      real(c_float) :: x(3)
+      real(c_float) :: x(3), rgba(4)
       logical :: ok
 
       do i = 1, s%nsph
@@ -642,7 +641,8 @@ contains
          if (ok) then
             x = s%drawlist_sph(i)%x
             if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
-            call draw_sphere(x,s%drawlist_sph(i)%r + sel_thickness,s%atom_res,rgba=rgbsel)
+            rgba = (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/)
+            call draw_sphere(x,s%drawlist_sph(i)%r + sel_thickness,s%atom_res,rgba=rgba)
             radsel(j) = s%drawlist_sph(i)%r + sel_thickness
          end if
       end do
