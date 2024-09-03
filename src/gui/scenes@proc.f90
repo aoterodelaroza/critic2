@@ -849,7 +849,8 @@ contains
     integer(c_int), parameter :: ic_closebutton = 0
     integer(c_int), parameter :: ic_viewbutton = 1
     integer(c_int), parameter :: ic_name = 2
-    integer(c_int), parameter :: ic_editbutton = 3
+    integer(c_int), parameter :: ic_type = 3
+    integer(c_int), parameter :: ic_editbutton = 4
 
     ! initialization
     szero%x = 0
@@ -892,8 +893,8 @@ contains
        end if
 
        ! name
+       discol = .not.s%rep(i)%shown
        if (igTableSetColumnIndex(ic_name)) then
-          discol = .not.s%rep(i)%shown
           if (discol) &
              call igPushStyleColor_Vec4(ImGuiCol_Text,g%Style%Colors(ImGuiCol_TextDisabled+1))
           call iw_text(trim(s%rep(i)%name))
@@ -955,6 +956,20 @@ contains
 
              call igEndPopup()
           end if
+       end if
+
+       ! name
+       if (igTableSetColumnIndex(ic_type)) then
+          if (discol) &
+             call igPushStyleColor_Vec4(ImGuiCol_Text,g%Style%Colors(ImGuiCol_TextDisabled+1))
+          if (s%rep(i)%type == reptype_atoms) then
+             call iw_text("atoms")
+          elseif (s%rep(i)%type == reptype_unitcell) then
+             call iw_text("cell")
+          else
+             call iw_text("???")
+          end if
+          if (discol) call igPopStyleColor(1)
        end if
 
        ! edit button
@@ -1234,7 +1249,7 @@ contains
 
     ! type-dependent settings
     if (itype == reptype_atoms) then
-       r%name = "Atoms+..."
+       r%name = "Ball and Stick"
        r%isinit = .true.
        r%shown = .true.
        r%type = reptype_atoms
@@ -1251,7 +1266,7 @@ contains
        r%isinit = .true.
        r%shown = .true.
        r%type = reptype_unitcell
-       r%name = "Unit cell"
+       r%name = "Unit Cell"
     end if
     r%flavor = flavor
 

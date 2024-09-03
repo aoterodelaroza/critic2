@@ -88,7 +88,8 @@ contains
     integer(c_int), parameter :: ic_closebutton = 0
     integer(c_int), parameter :: ic_viewbutton = 1
     integer(c_int), parameter :: ic_name = 2
-    integer(c_int), parameter :: ic_editbutton = 3
+    integer(c_int), parameter :: ic_type = 3
+    integer(c_int), parameter :: ic_editbutton = 4
 
     ! initialize
     szero%x = 0
@@ -499,7 +500,7 @@ contains
           ! add button
           ldum = iw_button("Add",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
           if (ok) then
-             str2 = "Atoms" // c_null_char
+             str2 = "Ball and Stick [atoms]" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 id = w%sc%get_new_representation_id()
                 call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style,&
@@ -508,8 +509,27 @@ contains
              end if
              call iw_tooltip("Display atoms, bonds, and labels in the scene",ttshown)
 
+             str2 = "Van der Waals Contacts [atoms]" // c_null_char
+             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                id = w%sc%get_new_representation_id()
+                call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style,&
+                   repflavor_atoms_vdwcontacts)
+                chbuild = .true.
+             end if
+             call iw_tooltip("Display intermolecular close contacts using van der Waals radii",ttshown)
+
+             str2 = "Hydrogen Bonds [atoms]" // c_null_char
+             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                id = w%sc%get_new_representation_id()
+                call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style,&
+                   repflavor_atoms_hbonds)
+                chbuild = .true.
+             end if
+             call iw_tooltip("Display intermolecular close contacts using van der Waals radii",ttshown)
+
              if (.not.sys(w%view_selected)%c%ismolecule) then
-                str2 = "Unit Cell" // c_null_char
+                call igSeparator()
+                str2 = "Unit Cell [cell]" // c_null_char
                 if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                    id = w%sc%get_new_representation_id()
                    call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_unitcell,w%sc%style,&
@@ -519,24 +539,6 @@ contains
                 call iw_tooltip("Display the unit cell",ttshown)
              end if
 
-             str2 = "Van der Waals Contacts [Atoms]" // c_null_char
-             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                id = w%sc%get_new_representation_id()
-                call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style,&
-                   repflavor_atoms_vdwcontacts)
-                chbuild = .true.
-             end if
-             call iw_tooltip("Display intermolecular close contacts using van der Waals radii",ttshown)
-
-             str2 = "Hydrogen Bonds [Atoms]" // c_null_char
-             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                id = w%sc%get_new_representation_id()
-                call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style,&
-                   repflavor_atoms_hbonds)
-                chbuild = .true.
-             end if
-             call iw_tooltip("Display intermolecular close contacts using van der Waals radii",ttshown)
-
              call igEndPopup()
           end if
           call iw_tooltip("Add a new object to the view",ttshown)
@@ -544,30 +546,38 @@ contains
           ! rest of the table
           str2 = "Objects##0,0" // c_null_char
           flags = ImGuiTableFlags_NoSavedSettings
+          flags = ior(flags,ImGuiTableFlags_Borders)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-          flags = ior(flags,ImGuiTableFlags_NoBordersInBody)
           sz0%x = 0
           nrep = count(w%sc%rep(1:w%sc%nrep)%isinit)
           nrep = min(nrep,10)
           sz0%y = iw_calcheight(nrep,0,.true.)
-          if (igBeginTable(c_loc(str2),4,flags,sz0,0._c_float)) then
-             str3 = "[close button]##1closebutton" // c_null_char
+          if (igBeginTable(c_loc(str2),5,flags,sz0,0._c_float)) then
+             str3 = "##1closebutton" // c_null_char
              flags = ImGuiTableColumnFlags_None
              width = max(4._c_float, fontsize%y + 2._c_float)
              call igTableSetupColumn(c_loc(str3),flags,width,ic_closebutton)
 
-             str3 = "[view button]##1viewbutton" // c_null_char
+             str3 = "##1viewbutton" // c_null_char
              flags = ImGuiTableColumnFlags_None
              call igTableSetupColumn(c_loc(str3),flags,0.0_c_float,ic_viewbutton)
 
-             str3 = "[name]##1name" // c_null_char
+             str3 = "Name##1name" // c_null_char
              flags = ImGuiTableColumnFlags_WidthStretch
              call igTableSetupColumn(c_loc(str3),flags,0.0_c_float,ic_name)
 
-             str3 = "[edit button]##1editbutton" // c_null_char
+             str3 = "Type##1type" // c_null_char
+             flags = ImGuiTableColumnFlags_None
+             call igTableSetupColumn(c_loc(str3),flags,0.0_c_float,ic_type)
+
+             str3 = "##1editbutton" // c_null_char
              flags = ImGuiTableColumnFlags_None
              width = iw_calcwidth(4,1)
              call igTableSetupColumn(c_loc(str3),flags,width,ic_editbutton)
+
+             ! draw the header
+             call igTableHeadersRow()
+             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
              if (w%sc%representation_menu(w%id)) chbuild = .true.
 
@@ -1601,7 +1611,7 @@ contains
 
        ! the representation type
        itype = w%rep%type - 1
-       call iw_combo_simple("##reptype","Atoms+..." // c_null_char // "Unit cell" // c_null_char,itype)
+       call iw_combo_simple("##reptype","Atoms" // c_null_char // "Unit cell" // c_null_char,itype)
        if (w%rep%type /= itype + 1) changed = .true.
        w%rep%type = itype + 1
        call iw_tooltip("Type of object",ttshown)
