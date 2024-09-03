@@ -1682,7 +1682,8 @@ contains
     use gui_main, only: sys, g
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
-       iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit3
+       iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit3,&
+       iw_highlight_selectable
     use param, only: atmcov, atmvdw, jmlcol, jmlcol2, newline
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -1701,6 +1702,7 @@ contains
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     integer, allocatable :: indi(:), indj(:)
+    logical :: oksel
 
     integer(c_int), parameter :: lsttrans(0:7) = (/0,1,2,2,2,3,4,5/)
     integer(c_int), parameter :: lsttransi(0:5) = (/0,1,2,5,6,7/)
@@ -1712,6 +1714,7 @@ contains
     ! initialize
     changed = .false.
     isys = w%isys
+    oksel = .false.
 
     ! update representation to respond to changes in number of atoms and molecules
     call w%rep%update()
@@ -1947,7 +1950,7 @@ contains
           end if
 
           ! draw the atom selection widget
-          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep)
+          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,oksel)
 
           call igEndTabItem()
        end if ! begin tab item (atoms)
@@ -2332,6 +2335,15 @@ contains
                    if (igTableSetColumnIndex(ncol)) then
                       call igAlignTextToFramePadding()
                       call iw_text(string(i))
+
+                      ! the highlight selectable
+                      if (iw_highlight_selectable("##selectablelabeltable" // suffix)) then
+                         win(w%idparent)%sc%nselection = 1
+                         win(w%idparent)%sc%selection_type = intable
+                         win(w%idparent)%sc%selection(1) = i
+                         win(w%idparent)%forcerender = .true.
+                         oksel = .true.
+                      end if
                    end if
 
                    if (intable == 0) then ! species
@@ -2388,6 +2400,13 @@ contains
        end if ! begin tab item (labels)
        call igEndTabBar()
     end if ! begin tab bar
+
+    ! reset selection if nothing was selected this pass
+    if (.not.oksel) then
+       if (win(w%idparent)%sc%nselection > 0) &
+          win(w%idparent)%forcerender = .true.
+       win(w%idparent)%sc%nselection = 0
+    end if
 
   end function draw_editrep_atoms
 
@@ -3211,10 +3230,10 @@ contains
 
   !xx! private procedures
 
-  !> Draw the atom selection table and return whether any item has
-  !> been changed. sty = atom draw style, isys = current system.
-  function atom_selection_widget(c,r) result(changed)
-    use gui_main, only: g
+  !> Draw the atom selection table for crystal c on representation r
+  !> and return whether any item has been changed. Return oksel = .true.
+  !> if an item in a table has been hovered (for table row highlight).
+  function atom_selection_widget(c,r,oksel) result(changed)
     use scenes, only: draw_style_atom, draw_style_molecule
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
        iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit3, iw_highlight_selectable
@@ -3223,18 +3242,18 @@ contains
     use tools_io, only: string, ioj_right
     type(crystal), intent(in) :: c
     type(representation), intent(inout) :: r
+    logical, intent(inout) :: oksel
     logical :: changed
 
-    logical :: domol, ldum, oksel
+    logical :: domol
     logical(c_bool) :: ch
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3, suffix
     real*8 :: x0(3)
-    type(ImVec2) :: sz0, sz1, szero
+    type(ImVec2) :: sz0, szero
     integer :: ispc, i, iz, ncol, ic_next, isys
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
-    real(c_float) :: pos
 
     ! column IDs in atom table
     integer, parameter :: ic_id = 0
@@ -3282,7 +3301,6 @@ contains
     if (domol) ncol = 8
 
     ! atom style table, for atoms
-    oksel = .false.
     flags = ImGuiTableFlags_None
     flags = ior(flags,ImGuiTableFlags_Resizable)
     flags = ior(flags,ImGuiTableFlags_Reorderable)
@@ -3369,7 +3387,7 @@ contains
                 call iw_text(string(i))
 
                 ! the highlight selectable
-                if (iw_highlight_selectable("##selectableatomtable" // suffix)) then
+                if (iw_highlight_selectable("##selectablemoltable" // suffix)) then
                    win(win(r%idwin)%idparent)%sc%nselection = 1
                    win(win(r%idwin)%idparent)%sc%selection_type = r%atom_style%type
                    win(win(r%idwin)%idparent)%sc%selection(1) = i
@@ -3446,13 +3464,6 @@ contains
        ! end the clipper and the table
        call ImGuiListClipper_End(clipper)
        call igEndTable()
-    end if
-
-    ! reset selection
-    if (.not.oksel) then
-       if (win(win(r%idwin)%idparent)%sc%nselection > 0) &
-          win(win(r%idwin)%idparent)%forcerender = .true.
-       win(win(r%idwin)%idparent)%sc%nselection = 0
     end if
 
     ! style buttons: show/hide
@@ -3540,6 +3551,15 @@ contains
                 if (igTableSetColumnIndex(im_id)) then
                    call igAlignTextToFramePadding()
                    call iw_text(string(i))
+
+                   ! the highlight selectable
+                   if (iw_highlight_selectable("##selectableatomtable" // suffix)) then
+                      win(win(r%idwin)%idparent)%sc%nselection = 1
+                      win(win(r%idwin)%idparent)%sc%selection_type = 3
+                      win(win(r%idwin)%idparent)%sc%selection(1) = i
+                      win(win(r%idwin)%idparent)%forcerender = .true.
+                      oksel = .true.
+                   end if
                 end if
 
                 ! nat
