@@ -1959,7 +1959,11 @@ contains
        flags = ImGuiTabItemFlags_None
        if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
           !! bonds display !!
-          call iw_text("(Note: the Atoms tab also controls which bonds are shown)")
+          if (w%rep%bonds_display) then
+             call iw_text("(Note: the Atoms tab also controls which bonds are shown)")
+          else
+             call iw_text("Check the 'Bonds' box above to show the bonds.",danger=.true.)
+          end if
 
           !! global options !!
           call igAlignTextToFramePadding()
@@ -2193,8 +2197,12 @@ contains
        str1 = "Labels##editrepatoms_labelstab" // c_null_char
        flags = ImGuiTabItemFlags_None
        if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
-          call iw_text("(Note: the Atoms tab also controls which labels are shown)")
           !! labels display !!
+          if (w%rep%labels_display) then
+             call iw_text("(Note: the Atoms tab also controls which labels are shown)")
+          else
+             call iw_text("Check the 'Labels' box above to show the labels.",danger=.true.)
+          end if
 
           ! label styles
           call iw_text("Global Options",highlight=.true.)
