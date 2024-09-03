@@ -416,16 +416,6 @@ contains
           call glDisable(GL_BLEND)
        end if
 
-       ! draw the measure selection atoms
-       if (s%nselection > 0) then
-          call setuniform_int(0_c_int,"uselighting")
-          call glBindVertexArray(sphVAO(s%atom_res))
-          call glEnable(GL_BLEND)
-          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-          call draw_all_selections()
-          call glDisable(GL_BLEND)
-       end if
-
        ! render labels with on-scene text
        call useshader(shader_text_onscene)
        call setuniform_mat4(s%world,"world")
@@ -447,6 +437,18 @@ contains
        ! render selected atom labels with on-scene text
        if (s%nmsel > 0) &
           call draw_selection_text()
+
+       ! draw the highlighted/selected atoms
+       if (s%nselection > 0) then
+          call useshader(shader_phong)
+          call setuniform_int(0_c_int,"uselighting")
+          call glBindVertexArray(sphVAO(s%atom_res))
+          call glEnable(GL_BLEND)
+          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+          call draw_all_selections()
+          call glDisable(GL_BLEND)
+       end if
+
        call glEnable(GL_MULTISAMPLE)
        call glDisable(GL_BLEND)
     else
@@ -502,7 +504,7 @@ contains
        call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
        call setuniform_float(0._c_float,idxi=iunif(iu_border))
 
-       ! draw the selected atoms
+       ! draw the measure selection atoms
        if (s%nmsel > 0) then
           call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
           call setuniform_float(0._c_float,idxi=iunif(iu_border))
@@ -510,17 +512,6 @@ contains
           call glEnable(GL_BLEND)
           call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
           call draw_all_mselections()
-          call glDisable(GL_BLEND)
-       end if
-
-       ! draw the measure selection atoms
-       if (s%nselection > 0) then
-          call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
-          call setuniform_float(0._c_float,idxi=iunif(iu_border))
-          call glBindVertexArray(sphVAO(s%atom_res))
-          call glEnable(GL_BLEND)
-          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-          call draw_all_selections()
           call glDisable(GL_BLEND)
        end if
 
@@ -545,6 +536,19 @@ contains
        ! render selected atom labels with on-scene text
        if (s%nmsel > 0) &
           call draw_selection_text()
+
+       ! highlight the highlighted/selected atoms
+       if (s%nselection > 0) then
+          call useshader(shader_simple)
+          call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
+          call setuniform_float(0._c_float,idxi=iunif(iu_border))
+          call glBindVertexArray(sphVAO(s%atom_res))
+          call glEnable(GL_BLEND)
+          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+          call draw_all_selections()
+          call glDisable(GL_BLEND)
+       end if
+
        call glEnable(GL_MULTISAMPLE)
        call glDisable(GL_BLEND)
     end if
