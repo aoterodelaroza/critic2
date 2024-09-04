@@ -129,7 +129,7 @@ contains
     icon%pixels = stbi_load(c_loc(file), icon%width, icon%height, idum, 4)
     if (.not.c_associated(icon%pixels)) &
        call ferror('gui_start','Could not find GUI assets: have you set CRITIC_HOME?',faterr)
-    call glfwSetWindowIcon(rootwin, 1, c_loc(icon))
+    ! call glfwSetWindowIcon(rootwin, 1, c_loc(icon))
     call stbi_image_free(icon%pixels)
 
     ! set up ImGui context
