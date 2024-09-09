@@ -40,6 +40,8 @@ module scenes
      real(c_float) :: rgb(3) ! color
      integer(c_int) :: idx(4) ! atom ID (complete atom list) + lattice vector
      complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
+     real(c_float) :: border ! border size
+     real(c_float) :: rgbborder(3) ! border color
   end type dl_sphere
 
   !> cylinders for the draw list
@@ -52,6 +54,7 @@ module scenes
      complex(c_float_complex) :: x2delta(3) ! delta-vector for vibration animations (end 2)
      integer(c_int) :: order ! order of the bond (0=dashed,1=single,2=double,3=triple)
      real(c_float) :: border ! border size
+     real(c_float) :: rgbborder(3) ! border color
   end type dl_cylinder
 
   !> strings for the draw list
@@ -73,6 +76,8 @@ module scenes
      logical, allocatable :: shown(:) ! whether it is shown (ntype)
      real(c_float), allocatable :: rgb(:,:) ! color (3,ntype)
      real(c_float), allocatable :: rad(:) ! radius (ntype)
+     real(c_float) :: border_size = 0._c_float ! border size
+     real(c_float) :: rgbborder(3) ! border color 
   end type draw_style_atom
   public :: draw_style_atom
 
@@ -98,6 +103,7 @@ module scenes
      integer(c_int) :: style_g ! bond style (0=single color, 1=two colors)
      real(c_float) :: rad_g ! radius
      real(c_float) :: border_g ! bond border
+     real(c_float) :: rgbborder_g(3) ! bond color
      real(c_float) :: rgb_g(3) ! color
      integer(c_int) :: order_g ! order (0=dashed,1=single,2=double,etc.)
      integer(c_int) :: imol_g ! molecular connections (0=any,1=intramol,2=intermol)
@@ -223,7 +229,6 @@ module scenes
      real(c_float) :: diffuse ! diffuse light coefficent
      real(c_float) :: specular ! specular light coefficent
      integer(c_int) :: shininess ! shininess parameter
-     real(c_float) :: atomborder ! atom border (simple shader)
      real(c_float) :: bordercolor(3) ! border color (simple shader)
      ! scene transformation matrices
      real(c_float) :: camresetdist ! camera reset distance

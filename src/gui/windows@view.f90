@@ -422,14 +422,6 @@ contains
              call iw_text("Atom Border: ")
              call igSameLine(0._c_float,-1._c_float)
 
-             call igPushItemWidth(iw_calcwidth(5,1))
-             str2 = "Size (Å)" // c_null_char
-             str3 = "%.3f" // c_null_char
-             chrender = chrender .or. igDragFloat(c_loc(str2),w%sc%atomborder,&
-                0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
-             call iw_tooltip("Change the thickness of the atom borders",ttshown)
-             call igPopItemWidth()
-
              chrender = chrender .or. iw_coloredit3("Color",w%sc%bordercolor,sameline=.true.)
              call iw_tooltip("Change the color of the atom borders",ttshown)
           end if
@@ -465,7 +457,6 @@ contains
                    sysc(i)%sc%diffuse = w%sc%diffuse
                    sysc(i)%sc%specular = w%sc%specular
                    sysc(i)%sc%shininess = w%sc%shininess
-                   sysc(i)%sc%atomborder = w%sc%atomborder
                    sysc(i)%sc%bordercolor = w%sc%bordercolor
                    sysc(i)%sc%lightcolor = w%sc%lightcolor
                    sysc(i)%sc%bgcolor = w%sc%bgcolor
@@ -1949,6 +1940,19 @@ contains
              changed = .true.
           end if
 
+          ! border size
+          call igPushItemWidth(iw_calcwidth(5,1))
+          str2 = "Border Size (Å)" // c_null_char
+          str3 = "%.3f" // c_null_char
+          changed = changed .or. igDragFloat(c_loc(str2),w%rep%atom_style%border_size,&
+             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Change the thickness of the atom borders",ttshown)
+          call igPopItemWidth()
+
+          ! color
+          changed = changed .or. iw_coloredit3("Border Color",w%rep%atom_style%rgbborder,sameline=.true.)
+          call iw_tooltip("Color of the border for the atoms",ttshown)
+
           ! draw the atom selection widget
           changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,oksel)
 
@@ -1992,15 +1996,18 @@ contains
           call igPopItemWidth()
           call iw_tooltip("Radius of the bonds",ttshown)
 
-          call iw_text(" Border",sameline=.true.)
-          str2 = "##borderbondtableglobal" // c_null_char
-          str3 = "%.3f" // c_null_char
+          ! border size
           call igPushItemWidth(iw_calcwidth(5,1))
-          call igSameLine(0._c_float,-1._c_float)
-          ch = ch .or. igDragFloat(c_loc(str2),w%rep%bond_style%border_g,0.002_c_float,0._c_float,2._c_float,&
-             c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+          str2 = "Border Size (Å) " // c_null_char
+          str3 = "%.3f" // c_null_char
+          changed = changed .or. igDragFloat(c_loc(str2),w%rep%bond_style%border_g,&
+             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Change the thickness of the bond borders",ttshown)
           call igPopItemWidth()
-          call iw_tooltip("Size of the border at the bond edges",ttshown)
+
+          ! color
+          changed = changed .or. iw_coloredit3("Border Color",w%rep%bond_style%rgbborder_g,sameline=.true.)
+          call iw_tooltip("Color of the border for the bonds",ttshown)
 
           ! color
           call igAlignTextToFramePadding()

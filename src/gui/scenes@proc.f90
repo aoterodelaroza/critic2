@@ -477,8 +477,6 @@ contains
 
        ! draw the spheres for the atoms
        call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
-       call setuniform_float(s%atomborder,idxi=iunif(iu_border))
-       call setuniform_vec3(s%bordercolor,idxi=iunif(iu_bordercolor))
        if (s%nsph > 0) then
           call glBindVertexArray(sphVAO(s%atom_res))
           call draw_all_spheres()
@@ -492,9 +490,9 @@ contains
        end if
        call setuniform_int(0_c_int,idxi=iunif(iu_ndash_cyl))
        call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
-       call setuniform_float(0._c_float,idxi=iunif(iu_border))
 
        ! draw the flat cylinders for the unit cell
+       call setuniform_float(0._c_float,idxi=iunif(iu_border))
        call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
        if (s%ncylflat > 0) then
           call glBindVertexArray(cylVAO(s%uc_res))
@@ -502,12 +500,10 @@ contains
        end if
        call setuniform_int(0_c_int,idxi=iunif(iu_ndash_cyl))
        call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
-       call setuniform_float(0._c_float,idxi=iunif(iu_border))
 
        ! draw the measure selection atoms
        if (s%nmsel > 0) then
           call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
-          call setuniform_float(0._c_float,idxi=iunif(iu_border))
           call glBindVertexArray(sphVAO(s%atom_res))
           call glEnable(GL_BLEND)
           call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -541,7 +537,6 @@ contains
        if (s%nselection > 0) then
           call useshader(shader_simple)
           call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
-          call setuniform_float(0._c_float,idxi=iunif(iu_border))
           call glBindVertexArray(sphVAO(s%atom_res))
           call glEnable(GL_BLEND)
           call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -574,7 +569,8 @@ contains
          if (s%animation > 0) then
             x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
          end if
-         call draw_sphere(x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb)
+         call draw_sphere(x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb,&
+            border=s%drawlist_sph(i)%border,rgbborder=s%drawlist_sph(i)%rgbborder)
       end do
 
     end subroutine draw_all_spheres
@@ -591,7 +587,7 @@ contains
             x2 = x2 + real(displ * s%drawlist_cyl(i)%x2delta,c_float)
          end if
          call draw_cylinder(x1,x2,s%drawlist_cyl(i)%r,s%drawlist_cyl(i)%rgb,s%bond_res,&
-            s%drawlist_cyl(i)%order,s%drawlist_cyl(i)%border)
+            s%drawlist_cyl(i)%order,s%drawlist_cyl(i)%border,s%drawlist_cyl(i)%rgbborder)
       end do
 
     end subroutine draw_all_cylinders
@@ -783,7 +779,6 @@ contains
        do i = 1, s%nrep
           s%rep(i)%uc_rgb = 0._c_float
        end do
-       s%atomborder = atomborder_def
        s%bordercolor = 0._c_float
     end if
 
@@ -1595,6 +1590,8 @@ contains
                       drawlist_sph(nsph)%idx(1) = i
                       drawlist_sph(nsph)%idx(2:4) = ix
                       drawlist_sph(nsph)%xdelta = cmplx(xdelta1,kind=c_float_complex)
+                      drawlist_sph(nsph)%border = r%atom_style%border_size
+                      drawlist_sph(nsph)%rgbborder = r%atom_style%rgbborder
                    end if
 
                    ! bonds
@@ -1659,6 +1656,7 @@ contains
                             drawlist_cyl(ncyl)%rgb = r%bond_style%rgb_g
                             drawlist_cyl(ncyl)%order = r%bond_style%order_g
                             drawlist_cyl(ncyl)%border = r%bond_style%border_g
+                            drawlist_cyl(ncyl)%rgbborder = r%bond_style%rgbborder_g
                          else
                             ! calculate the midpoint, taking into account the atomic radii
                             if (r%atom_style%type == 0) then ! species
@@ -1684,6 +1682,7 @@ contains
                             drawlist_cyl(ncyl-1)%rgb = rgb
                             drawlist_cyl(ncyl-1)%order = r%bond_style%order_g
                             drawlist_cyl(ncyl-1)%border = r%bond_style%border_g
+                            drawlist_cyl(ncyl-1)%rgbborder = r%bond_style%rgbborder_g
 
                             drawlist_cyl(ncyl)%x1 = real(x0,c_float)
                             drawlist_cyl(ncyl)%x1delta = cmplx(xdelta0,kind=c_float_complex)
@@ -1694,6 +1693,7 @@ contains
                                r%mol_style%tint_rgb(:,sys(r%id)%c%idatcelmol(1,ineigh))
                             drawlist_cyl(ncyl)%order = r%bond_style%order_g
                             drawlist_cyl(ncyl)%border = r%bond_style%border_g
+                            drawlist_cyl(ncyl)%rgbborder = r%bond_style%rgbborder_g
                          end if
                       end do ! ncon
                    end if
@@ -1871,6 +1871,8 @@ contains
     if (allocated(r%atom_style%shown)) deallocate(r%atom_style%shown)
     if (allocated(r%atom_style%rgb)) deallocate(r%atom_style%rgb)
     if (allocated(r%atom_style%rad)) deallocate(r%atom_style%rad)
+    r%atom_style%border_size = atomborder_def
+    r%atom_style%rgbborder = 0._c_float
 
     ! check the system is sane
     isys = r%id
@@ -1981,6 +1983,7 @@ contains
     r%bond_style%style_g = 0
     r%bond_style%rad_g = bond_rad_def
     r%bond_style%border_g = atomborder_def
+    r%bond_style%rgbborder_g = 0._c_float
     r%bond_style%rgb_g = 0._c_float
     r%bond_style%order_g = 1
     r%bond_style%imol_g = 0
@@ -1991,6 +1994,7 @@ contains
     if (r%flavor == repflavor_atoms_vdwcontacts) then
        ! van der waals contacts
        r%bond_style%border_g = 0._c_float
+       r%bond_style%rgbborder_g = 0._c_float
        r%bond_style%bothends_g = .false.
        r%bond_style%distancetype_g = 0_c_int
        r%bond_style%bfmin_g = 0._c_float
@@ -2010,6 +2014,7 @@ contains
     elseif (r%flavor == repflavor_atoms_hbonds) then
        ! hydrogen bonds
        r%bond_style%border_g = 0._c_float
+       r%bond_style%rgbborder_g = 0._c_float
        r%bond_style%bothends_g = .false.
        r%bond_style%distancetype_g = 0_c_int
        r%bond_style%bfmin_g = 1.2_c_float
@@ -2129,9 +2134,9 @@ contains
 
   !> Draw a sphere with center x0, radius rad and color rgb. Requires
   !> having the sphere VAO bound.
-  subroutine draw_sphere(x0,rad,ires,rgb,rgba,idx)
+  subroutine draw_sphere(x0,rad,ires,rgb,rgba,idx,border,rgbborder)
     use interfaces_opengl3
-    use shaders, only: setuniform_vec3, setuniform_vec4, setuniform_mat4
+    use shaders, only: setuniform_vec3, setuniform_vec4, setuniform_mat4, setuniform_float
     use shapes, only: sphnel
     real(c_float), intent(in) :: x0(3)
     real(c_float), intent(in) :: rad
@@ -2139,9 +2144,12 @@ contains
     real(c_float), intent(in), optional :: rgb(3)
     real(c_float), intent(in), optional :: rgba(4)
     integer(c_int), intent(in), optional :: idx(4)
+    real(c_float), intent(in), optional :: border
+    real(c_float), intent(in), optional :: rgbborder(3)
 
     real(c_float) :: model(4,4)
     real(c_float) :: ridx(4), rgb_(4)
+    real(c_float) :: border_, rgbborder_(3)
 
     ! the model matrix: scale and translate
     model = eye4
@@ -2149,6 +2157,14 @@ contains
     model(1,1) = rad
     model(2,2) = rad
     model(3,3) = rad
+
+    ! border
+    border_ = atomborder_def
+    if (present(border)) border_ = border
+    call setuniform_float(border_,idxi=iunif(iu_border))
+    rgbborder_ = 0._c_float
+    if (present(rgbborder)) rgbborder_ = rgbborder
+    call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
 
     ! set the uniforms
     if (present(rgb)) then
@@ -2172,10 +2188,11 @@ contains
   !> = resolution. order = order of the bond or flat cylinder if order
   !> < 0. border = size of the border. Requires having the cylinder
   !> VAO bound.
-  subroutine draw_cylinder(x1,x2,rad,rgb,ires,order,border)
+  subroutine draw_cylinder(x1,x2,rad,rgb,ires,order,border,rgbborder)
     use interfaces_opengl3
     use tools_math, only: cross_cfloat
-    use shaders, only: setuniform_vec4, setuniform_mat4, setuniform_int, setuniform_float
+    use shaders, only: setuniform_vec4, setuniform_mat4, setuniform_int, setuniform_float,&
+       setuniform_vec3
     use shapes, only: cylnel
     real(c_float), intent(in) :: x1(3)
     real(c_float), intent(in) :: x2(3)
@@ -2184,12 +2201,17 @@ contains
     integer(c_int), intent(in) :: ires
     integer(c_int), intent(in) :: order
     real(c_float), intent(in) :: border
+    real(c_float), intent(in), optional :: rgbborder(3)
 
     real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
-    real(c_float) :: a, ca, sa, axis(3), temp(3), rgb_(4)
+    real(c_float) :: a, ca, sa, axis(3), temp(3), rgb_(4), rgbborder_(3)
     integer(c_int) :: ndash
 
     real(c_float), parameter :: dash_length = 0.4 ! length of the dashes
+
+    ! color of the border
+    rgbborder_ = 0._c_float
+    if (present(rgbborder)) rgbborder_ = rgbborder
 
     ! some calculations for the model matrix
     xmid = 0.5_c_float * (x1 + x2)
@@ -2247,11 +2269,13 @@ contains
     elseif (order == 1) then
        ! single
        call setuniform_float(border,idxi=iunif(iu_border))
+       call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
        call setuniform_float(0._c_float*rad,idxi=iunif(iu_delta_cyl))
        call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
     elseif (order == 2) then
        ! double
        call setuniform_float(border,idxi=iunif(iu_border))
+       call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
        call setuniform_float(0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
        call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
        call setuniform_float(-0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
@@ -2259,6 +2283,7 @@ contains
     elseif (order == 3) then
        ! triple
        call setuniform_float(border,idxi=iunif(iu_border))
+       call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
        call setuniform_float(1.35_c_float*rad,idxi=iunif(iu_delta_cyl))
        call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
        call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
