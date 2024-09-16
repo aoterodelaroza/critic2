@@ -2,7 +2,7 @@ xc b86bpbe
 spin none
 charge 0
 output_level MD_light
-xdm
+xdm lightdenser
 relativistic atomic_zora scalar
 
 sc_accuracy_rho 1e-7
