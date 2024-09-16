@@ -2658,7 +2658,7 @@ contains
        write (lu,'("spin none")')
        write (lu,'("charge 0")')
        write (lu,'("output_level MD_light")')
-       write (lu,'("xdm")')
+       write (lu,'("xdm lightdenser")')
        write (lu,'("relativistic atomic_zora scalar")')
        write (lu,'("")')
        write (lu,'("sc_accuracy_rho 1e-7")')
