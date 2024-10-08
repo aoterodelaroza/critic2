@@ -86,6 +86,21 @@ module crystalmod
   real*8, parameter, public :: xrpd_max_ang_def_safe = 10d0
   real*8, parameter, public :: xrpd_max_ang_def_quick = 5d0
 
+  !> Class for molecular or crystal vibrations
+  type vibrations
+     character(len=mlen) :: file ! source of vibration data
+     integer :: ivformat ! format for the vibration data
+     integer :: nqpt ! number of q-points
+     real*8, allocatable :: qpt(:,:) ! q-point coordinates (3,nqpt) (fractional)
+     integer :: nfreq ! number of frequencies
+     real*8, allocatable :: freq(:,:) ! frequencies (nfreq,nqpt) (cm-1)
+     complex*16, allocatable :: vec(:,:,:,:) ! phonon eigenvector (3,nat,nfreq,nqpt)
+     ! note: these are the vectors that come out of the dynamical
+     ! matrix diagonalization and they must be orthonormal. For the
+     ! displacements, divide by the sqrt(m_j).
+  end type vibrations
+  public :: vibrations
+
   !> The crystal class. A crystal contains the structural information for the
   !> system, and it can be an actual crystal (%ismolecule=.false.) or a molecule
   !> (%ismolecule=.true.) embedded in a large cell. When use in combination
@@ -337,21 +352,6 @@ module crystalmod
      procedure :: calculate_profile => xrpd_calculate_profile
   end type xrpd_peaklist
   public :: xrpd_peaklist
-
-  !> Class for molecular or crystal vibrations
-  type vibrations
-     character(len=mlen) :: file ! source of vibration data
-     integer :: ivformat ! format for the vibration data
-     integer :: nqpt ! number of q-points
-     real*8, allocatable :: qpt(:,:) ! q-point coordinates (3,nqpt) (fractional)
-     integer :: nfreq ! number of frequencies
-     real*8, allocatable :: freq(:,:) ! frequencies (nfreq,nqpt) (cm-1)
-     complex*16, allocatable :: vec(:,:,:,:) ! phonon eigenvector (3,nat,nfreq,nqpt)
-     ! note: these are the vectors that come out of the dynamical
-     ! matrix diagonalization and they must be orthonormal. For the
-     ! displacements, divide by the sqrt(m_j).
-  end type vibrations
-  public :: vibrations
 
   ! other crystallography tools that are crystal-independent (symmetry)
   public :: search_lattice
