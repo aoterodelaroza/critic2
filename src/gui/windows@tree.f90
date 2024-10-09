@@ -2563,7 +2563,7 @@ contains
       sysc(i)%sc%forcebuildlists = .true.
       do j = 1, nwin
          if (.not.win(j)%isinit) cycle
-         if (win(j)%type == wintype_view .and..not.win(j)%ismain.and.associated(win(j)%sc)) then
+         if (win(j)%type == wintype_view.and.associated(win(j)%sc)) then
             ! force build lists and update representations
             do k = 1, win(j)%sc%nrep
                if (win(j)%sc%rep(k)%isinit .and. win(j)%sc%rep(k)%type==reptype_atoms.and.&
