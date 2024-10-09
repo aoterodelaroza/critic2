@@ -3515,7 +3515,7 @@ contains
        flags = ior(flags,ImGuiTableFlags_ScrollY)
        str1="##tablemolstyles" // c_null_char
        sz0%x = 0
-       sz0%y = iw_calcheight(min(3,r%mol_style%ntype)+1,0,.false.)
+       sz0%y = iw_calcheight(min(5,r%mol_style%ntype)+1,0,.false.)
        if (igBeginTable(c_loc(str1),6,flags,sz0,0._c_float)) then
           ! header setup
           str2 = "Id" // c_null_char
