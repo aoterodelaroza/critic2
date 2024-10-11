@@ -892,8 +892,8 @@ contains
              ok = getline_raw(lu,line,.false.)
              if (.not.ok) goto 999
              line = line(14:)
-             read (line,*,end=999,err=999) xdum
-             vib%vec(k,j,n0:n1,1) = xdum
+             read (line,*,end=999,err=999) xdum(1:n1-n0+1)
+             vib%vec(k,j,n0:n1,1) = xdum(1:n1-n0+1)
           end do
        end do
        ok = getline_raw(lu,line,.false.)
