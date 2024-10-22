@@ -2103,15 +2103,18 @@ contains
 
     ! distance to other CPs
     call f%nearest_cp(xc,nid,dist)
-    if (dist < cpeps) then
+    if (nid > f%c%ncel .and. dist < cpeps) then
        goto 999
     end if
 
     ! distance to atoms
     nid = f%c%identify_atom(xc,icrd_crys,dist=dist,distmax=max(nuceps,nucepsh))
     if (nid > 0) then
-       if (dist < nuceps) goto 999
-       if (f%c%spc(f%c%atcel(nid)%is)%z == 1 .and. dist < nucepsh) goto 999
+       if (f%c%spc(f%c%atcel(nid)%is)%z == 1) then
+          if (dist < nucepsh) goto 999
+       else
+          if (dist < nuceps) goto 999
+       end if
     end if
 
     ! density info
