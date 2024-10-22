@@ -652,7 +652,7 @@ contains
           rbas(:,2) = xstar(:,iord(i))
           do j = i+1, 7
              rbas(:,3) = xstar(:,iord(j))
-             dd = det3(rbas)
+             dd = det3(rbas) / (xlen(iord(1)) * xlen(iord(i)) * xlen(iord(j)))
              if (abs(dd) > eps_det) then
                 ok = .true.
                 exit iloop
