@@ -895,9 +895,9 @@ contains
                 flx_path(k)%x = flx_path(k)%x + sy%c%cen(:,symcenv(j))
                 flx_path(k)%x = flx_path(k)%x + templvec
 
-                ! return the point to the big cell
-                where (flx_path(k)%x > 1.d0+flxsym+flx_epsx) flx_path(k)%x = flx_path(k)%x - 2*flxsym - 1.d0
-                where (flx_path(k)%x < -flxsym-flx_epsx)     flx_path(k)%x = flx_path(k)%x + 2*flxsym + 1.d0
+                ! ! return the point to the big cell
+                ! where (flx_path(k)%x > 1.d0+flxsym+flx_epsx) flx_path(k)%x = flx_path(k)%x - 2*flxsym - 1.d0
+                ! where (flx_path(k)%x < -flxsym-flx_epsx)     flx_path(k)%x = flx_path(k)%x + 2*flxsym + 1.d0
 
              end do
 
@@ -1370,7 +1370,7 @@ contains
        locallvec = (/ 0, 0, 0/)
     end if
 
-    ! graphcp case
+    ! particular CP case
     if (present(cpid)) then
        ! ncp
        if (sy%f(sy%iref)%cpcel(cpid)%typ == -3) then
@@ -1432,6 +1432,7 @@ contains
           if (dobcp) then
              ! compute bcp bond paths
              if (sy%f(sy%iref)%cp(i)%typ == -1) then
+                write (*,*) "doing: ", i, "with ", m+1,1,1,localsym,"dyn",rgb
                 call flx_bcp(m+1,1,1,localsym,"dyn",rgb=rgb)
              end if
           end if
