@@ -2842,21 +2842,23 @@ contains
       real*8, intent(in) :: x, a
       real*8, intent(out) :: w, wp, wpp
 
-      real*8 :: x7, x4, x3, x2, a3, denom1, denom2
+      real*8 :: x3, x2, a3, denom, denom2, denom4
 
       if (x > a - 1d-14) then ! good bc goes to zero pretty quickly
          w = 0d0
       else
          x2 = x * x
          x3 = x2 * x
-         x4 = x3 * x
-         x7 = x4 * x3
          a3 = a*a*a
-         denom2 = 1d0 / (x3 - a3)
-         denom1 = denom2 / a3
-         w = exp(x3 * denom1)
-         wp = -3d0 * x2 * denom1 * a3 * denom2 * w
-         wpp = -3d0 * x2 * denom1 * a3 * denom2 * wp + (6d0 * x - 24d0 * x4 * denom2 + 18d0 * x7 * denom2*denom2) * denom1 * w
+         denom = 1d0 / (x3 - a3)
+         denom2 = denom * denom
+         denom4 = denom2 * denom2
+         ! note: this version of weifun is different from the article. The argument
+         ! of the exponential is adimensional in this version, and prevents problems
+         ! with underflows in very fine grids.
+         w = exp(x3 * denom)
+         wp = -3d0 * a3 * x2 * w * denom2
+         wpp = 3d0 * a3 * x * (-2d0 * a3 * a3 + a3 * x3 + 4d0 * x3 * x3) * w * denom4
       end if
 
     end subroutine weifun
