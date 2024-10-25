@@ -19,6 +19,9 @@
 submodule (struct_drivers) proc
   implicit none
 
+  !xx! private routines
+  ! subroutine struct_comparevc_vcpwdf(s,line)
+
 contains
 
   !xx! top-level routines
@@ -2019,6 +2022,38 @@ contains
   !> without a phase change. Variable-cell version of the POWDIFF
   !> comparison method in struct_compare.
   module subroutine struct_comparevc(s,line)
+    use tools_io, only: uout, lgetword, equal
+    type(system), intent(in) :: s
+    character*(*), intent(in) :: line
+
+    integer :: lp
+    character(len=:), allocatable :: word, line0
+
+    ! header and initalization
+    lp = 1
+    write (uout,'("* COMPARE: compare crystal structures allowing for deformed cells")')
+
+    word = lgetword(line,lp)
+    if (equal(word,'vcgpwdf')) then
+       write (*,*) "fixme: ", line0
+       stop 1
+    else
+       if (equal(word,'vcpwdf')) then
+          line0 = line(lp:)
+       else
+          line0 = line
+       end if
+       write (*,*) line0
+       call struct_comparevc_vcpwdf(s,line0)
+    end if
+
+  end subroutine struct_comparevc
+
+  !> Compare structures, allowing deformation of one crystal into the
+  !> other such as may be cause by temperature or pressure effects
+  !> without a phase change. Variable-cell version of the POWDIFF
+  !> comparison method in struct_compare.
+  subroutine struct_comparevc_vcpwdf(s,line)
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
     use global, only: iunitname0, dunit0, iunit, fileroot
     use crystalmod, only: crystal, xrpd_lambda_def
@@ -2416,7 +2451,7 @@ contains
        call c2del%write_res(file2,-1)
     end if
 
-  end subroutine struct_comparevc
+  end subroutine struct_comparevc_vcpwdf
 
   !> Calculate the atomic environment of a point or all the
   !> non-equivalent atoms in the unit cell.
