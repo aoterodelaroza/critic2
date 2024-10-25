@@ -1316,7 +1316,8 @@ contains
   !>   de Gelder et al., J. Comput. Chem., 22 (2001) 273.
   module subroutine struct_compare(s,line)
     use systemmod, only: system
-    use crystalmod, only: crystal, xrpd_lambda_def
+    use crystalmod, only: crystal, xrpd_lambda_def, xrpd_peaklist, xrpd_alpha_def,&
+       xrpd_sigma_def, crosscorr_gaussian
     use crystalseedmod, only: struct_detect_format, struct_detect_ismol, crystalseed
     use global, only: doguess, eval_next, dunit0, iunit, iunitname0
     use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
@@ -1329,14 +1330,15 @@ contains
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
-    character(len=:), allocatable :: word, lword, tname, difstr
+    character(len=:), allocatable :: word, lword, tname, difstr, errmsg
     integer :: doguess0
     integer :: lp, i, j, k, l, n, iz, is, idx, ncount
     integer :: ns, imol, isformat, mcon, nlist
     integer :: amd_norm ! 0 = norm-inf (default), 1 = norm-1, 2 = norm-2
     type(crystal), allocatable :: c(:)
-    real*8 :: tini, tend, nor, h, xend, sigma, epsreduce, diffmin, diff2
+    real*8 :: tini, tend, nor, h, xend, sigma, epsreduce, diffmin, diff2, xnorm2
     character*15 :: auxdif(5)
+    type(xrpd_peaklist), allocatable :: xp(:)
     real*8, allocatable :: t(:), ih(:), iha(:,:), th2a(:,:)
     real*8, allocatable :: dref(:,:), ddg(:,:), ddh(:,:)
     integer, allocatable :: zcount1(:), zcount2(:), isperm(:), list(:,:), na(:), irepeat(:)
@@ -1366,13 +1368,14 @@ contains
 
     integer :: imethod
     integer, parameter :: imethod_default = 0
-    integer, parameter :: imethod_powder = 1
-    integer, parameter :: imethod_rdf = 2
-    integer, parameter :: imethod_sorted = 3
-    integer, parameter :: imethod_umeyama = 4
-    integer, parameter :: imethod_ullmann = 5
-    integer, parameter :: imethod_amd = 6
-    integer, parameter :: imethod_emd = 7
+    integer, parameter :: imethod_pwdf = 1
+    integer, parameter :: imethod_powder = 2
+    integer, parameter :: imethod_rdf = 3
+    integer, parameter :: imethod_sorted = 4
+    integer, parameter :: imethod_umeyama = 5
+    integer, parameter :: imethod_ullmann = 6
+    integer, parameter :: imethod_amd = 7
+    integer, parameter :: imethod_emd = 8
 
     ! initialize
     imethod = imethod_default
@@ -1408,6 +1411,8 @@ contains
              call ferror('struct_compare','incorrect REDUCE',faterr,syntax=.true.)
              return
           end if
+       elseif (equal(lword,'gpwdf')) then
+          imethod = imethod_pwdf
        elseif (equal(lword,'powder')) then
           imethod = imethod_powder
        elseif (equal(lword,'rdf')) then
@@ -1560,7 +1565,8 @@ contains
        end if
     else
        if (imethod /= imethod_rdf .and. imethod /= imethod_amd .and.&
-           imethod /= imethod_emd) imethod = imethod_powder
+           imethod /= imethod_emd .and. imethod /= imethod_powder)&
+           imethod = imethod_pwdf
     end if
 
     ! strip the hydrogens
@@ -1575,7 +1581,14 @@ contains
     end if
 
     ! rest of the header and default variables
-    if (imethod == imethod_powder) then
+    if (imethod == imethod_pwdf) then
+       write (uout,'("# Using cross-correlated Gaussian powder diffraction patterns (PWDF).")')
+       write (uout,'("# Please cite:")')
+       write (uout,'("#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414")')
+       write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
+       if (xend < 0d0) xend = th2end0
+       difstr = "DIFF"
+    elseif (imethod == imethod_powder) then
        write (uout,'("# Using cross-correlated POWDER diffraction patterns.")')
        write (uout,'("# Please cite:")')
        write (uout,'("#   de Gelder et al., J. Comput. Chem., 22 (2001) 273")')
@@ -1624,7 +1637,74 @@ contains
     allocate(diff(ns,ns))
     diff = 1d0
 
-    if (imethod == imethod_powder .or. imethod == imethod_rdf) then
+    if (imethod == imethod_pwdf) then
+       ! crystals: PWDF
+
+       ! calculate all the peak lists
+       allocate(xp(ns))
+       ncount = 0
+       do i = 1, ns
+          errmsg = ""
+          ncount = ncount + 1
+          if (mod(ncount-1,msg_counter) == 0) &
+          write (uout,'("  ... calculating pattern ",A," of ",A,".")') string(ncount), string(ns)
+          if (fname_type(i) == fname_current) then
+             call xp(i)%from_crystal(s%c,th2ini,th2end0,xrpd_lambda_def,fpol0,.false.,.false.,errmsg)
+          elseif (fname_type(i) == fname_peaks) then
+             call xp(i)%from_peaks_file(fname(i),errmsg)
+          elseif (fname_type(i) == fname_structure) then
+             call xp(i)%from_crystal(c(i),th2ini,th2end0,xrpd_lambda_def,fpol0,.false.,.false.,errmsg)
+          end if
+          if (len(errmsg) > 0) then
+             call ferror("struct_compare","error calculating pattern" // string(i) // " from file " //&
+                string(fname(i)) // ": " // errmsg,faterr)
+          end if
+       end do
+       write (uout,'("  ... finished calculating patterns")')
+
+       ! self-correlation
+       allocate(xnorm(ns))
+       do i = 1, ns
+          call crosscorr_gaussian(xp(i),xp(i),xrpd_alpha_def,xrpd_sigma_def,&
+             xnorm(i),errmsg,.false.)
+          if (len(errmsg) > 0) &
+             call ferror("struct_compare","error calculating Gaussian crosscorrelation",faterr)
+       end do
+       xnorm = sqrt(abs(xnorm))
+
+       ! calculate the overlap between diffraction patterns
+       diff = 0d0
+       ncount = 0
+       do i = 1, ns
+          ncount = ncount + 1
+          if (mod(i-1,msg_counter) == 0) &
+             write (uout,'("  ... comparing pattern ",A," of ",A,".")') string(i), string(ns)
+          if (epsreduce > 0d0) then
+             if (irepeat(i) > 0) cycle
+          end if
+          !$omp parallel do firstprivate(errmsg) private(xnorm2)
+          do j = i+1, ns
+             if (epsreduce > 0d0) then
+                if (irepeat(j) > 0) cycle
+             end if
+             call crosscorr_gaussian(xp(i),xp(j),xrpd_alpha_def,xrpd_sigma_def,xnorm2,errmsg,.false.)
+             !$omp critical (errmsg)
+             if (len(errmsg) > 0) &
+                call ferror("struct_compare","error calculating Gaussian crosscorrelation",faterr)
+             !$omp end critical (errmsg)
+             diff(i,j) = max(1d0 - xnorm2 / xnorm(i) / xnorm(j),0d0)
+             diff(j,i) = diff(i,j)
+
+             if (epsreduce > 0d0) then
+                if (diff(i,j) < epsreduce) irepeat(j) = i
+             end if
+          end do
+          !$omp end parallel do
+       end do
+       deallocate(xnorm,xp)
+       write (uout,'("  ... finished comparing patterns")')
+
+    elseif (imethod == imethod_powder .or. imethod == imethod_rdf) then
        ! crystals: POWDER and RDF
        allocate(iha(npts,ns),singleatom(ns),t(npts))
        singleatom = -1
@@ -1651,19 +1731,19 @@ contains
              nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
              iha(:,i) = ih / sqrt(nor)
           else
-             if (c(i)%ncel == 1) then
-                singleatom(i) = c(i)%spc(c(i)%atcel(1)%is)%z
-             else
-                ! calculate the powder diffraction pattern
-                if (imethod == imethod_powder) then
-                   call c(i)%powder(0,th2ini,xend,xrpd_lambda_def,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
-                      t=t,ih=ih)
+             ! calculate the powder diffraction pattern
+             if (imethod == imethod_powder) then
+                call c(i)%powder(0,th2ini,xend,xrpd_lambda_def,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+                   t=t,ih=ih)
 
-                   ! normalize the integral of abs(ih)
-                   tini = ih(1)**2
-                   tend = ih(npts)**2
-                   nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
-                   iha(:,i) = ih / sqrt(nor)
+                ! normalize the integral of abs(ih)
+                tini = ih(1)**2
+                tend = ih(npts)**2
+                nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+                iha(:,i) = ih / sqrt(nor)
+             else
+                if (c(i)%ncel == 1) then
+                   singleatom(i) = c(i)%spc(c(i)%atcel(1)%is)%z
                 else
                    call c(i)%rdf(0d0,xend,sigma,.false.,npts,t,ih)
                    iha(:,i) = ih
@@ -1724,25 +1804,20 @@ contains
        write (uout,'("  ... finished comparing patterns")')
     elseif (imethod == imethod_emd) then
        ! crystals: EMD
-       allocate(na(ns),th2a(100,ns),iha(100,ns),singleatom(ns))
-       singleatom = -1
+       allocate(na(ns),th2a(100,ns),iha(100,ns))
        do i = 1, ns
           if (fname_type(i) == fname_peaks) then
              call file_read_xy(fname(i),n,th2p,ip)
           else
              n = 0
-             if (c(i)%ncel == 1) then
-                singleatom(i) = c(i)%spc(c(i)%atcel(1)%is)%z
-             else
-                ! calculate the powder diffraction pattern
-                call c(i)%powder(0,th2ini,xend,xrpd_lambda_def,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
-                   th2p=th2p,ip=ip,discardp=emd_discardp)
+             ! calculate the powder diffraction pattern
+             call c(i)%powder(0,th2ini,xend,xrpd_lambda_def,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+                th2p=th2p,ip=ip,discardp=emd_discardp)
 
-                ! normalize
-                n = size(ip,1)
-                ip(1:n) = ip(1:n) / sum(ip(1:n))
-                th2p(1:n) = th2p(1:n) * 180d0 / pi
-             end if
+             ! normalize
+             n = size(ip,1)
+             ip(1:n) = ip(1:n) / sum(ip(1:n))
+             th2p(1:n) = th2p(1:n) * 180d0 / pi
           end if
 
           ! write it down
@@ -1762,17 +1837,7 @@ contains
        diff = 0d0
        do i = 1, ns
           do j = i+1, ns
-             if (singleatom(i) > 0 .and. singleatom(j) > 0) then
-                if (singleatom(i) == singleatom(j)) then
-                   diff(i,j) = 0d0
-                else
-                   diff(i,j) = 1d0
-                end if
-             else if (singleatom(i) > 0 .or. singleatom(j) > 0) then
-                diff(i,j) = 1d0
-             else
-                diff(i,j) = emd(1,na(i),th2a(1:na(i),i),iha(1:na(i),i),na(j),th2a(1:na(j),j),iha(1:na(j),j),1)
-             end if
+             diff(i,j) = emd(1,na(i),th2a(1:na(i),i),iha(1:na(i),i),na(j),th2a(1:na(j),j),iha(1:na(j),j),1)
              diff(j,i) = diff(i,j)
              if (epsreduce > 0d0) then
                 if (diff(i,j) < epsreduce) irepeat(j) = i
