@@ -357,6 +357,7 @@ module crystalmod
   public :: search_lattice
   public :: pointgroup_info
   public :: crosscorr_gaussian
+  public :: vcpwdf_compare
   public :: gaussian_compare
   public :: david_sivia_calculate_background
 
@@ -1100,6 +1101,19 @@ module crystalmod
        logical, intent(in), optional :: calcderivs
        real*8, intent(out), optional :: d12g(6)
      end subroutine crosscorr_gaussian
+     module subroutine vcpwdf_compare(c1,c2,diff,errmsg,max_elong,max_ang,max_vol,&
+        powdiff_thr,seedout,verbose)
+       use crystalseedmod, only: crystalseed
+       type(crystal), intent(in) :: c1, c2
+       real*8, intent(out) :: diff
+       character(len=:), allocatable, intent(out) :: errmsg
+       real*8, intent(in), optional :: max_elong
+       real*8, intent(in), optional :: max_ang
+       real*8, intent(in), optional :: max_vol
+       real*8, intent(in), optional :: powdiff_thr
+       type(crystalseed), intent(out), optional :: seedout
+       logical, intent(in), optional :: verbose
+     end subroutine vcpwdf_compare
      module subroutine gaussian_compare(c1,p2,imode,diff,errmsg,seedout,verbose0,alpha0,&
         lambda0,fpol0,maxfeval0,besteps0,max_elong_def0,max_ang_def0)
        use crystalseedmod, only: crystalseed

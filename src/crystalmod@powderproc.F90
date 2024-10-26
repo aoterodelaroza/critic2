@@ -1600,6 +1600,365 @@ contains
 
   end subroutine crosscorr_gaussian
 
+  module subroutine vcpwdf_compare(c1,c2,diff,errmsg,max_elong,max_ang,max_vol,&
+     powdiff_thr,seedout,verbose)
+    use crystalmod, only: xrpd_lambda_def
+    use crystalseedmod, only: crystalseed
+    use global, only: iunitname0, dunit0, iunit
+    use tools_math, only: crosscorr_triangle, matinv, m_x2c_from_cellpar, det3
+    use tools_io, only: uout, string, ioj_left, ioj_right
+    use param, only: eye, bohrtoa, icrd_crys, pi
+    type(crystal), intent(in) :: c1, c2
+    real*8, intent(out) :: diff
+    character(len=:), allocatable, intent(out) :: errmsg
+    real*8, intent(in), optional :: max_elong
+    real*8, intent(in), optional :: max_ang
+    real*8, intent(in), optional :: max_vol
+    real*8, intent(in), optional :: powdiff_thr
+    type(crystalseed), intent(out), optional :: seedout
+    logical, intent(in), optional :: verbose
+
+    integer :: i1, i2, i3
+    real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3), xd2min(3,3)
+    type(crystal) :: c2del, c1_, c2_, caux
+    real*8 :: max_vol_, max_ang_, max_elong_, powdiff_thr_, dmax0, h, vtarget, cd2(3,3), aa2(3)
+    real*8 :: targetaa(3), targetbb(3), xx(3), diffl, xd2(3,3)
+    real*8 :: bb2(3), cc2(3), dd, mindiff
+    logical :: verbose_
+    integer :: i, j, n1, n2, n3, nat
+    integer, allocatable :: lvec(:,:), irange(:,:)
+    real*8, allocatable :: dist(:)
+    character(len=:), allocatable :: abc
+    real*8, allocatable :: iha1(:), iha2(:)
+    real*8, allocatable :: t(:)
+    real*8 :: tini, tend, nor, xnorm1, xnorm2
+
+    character*1, parameter :: lvecname(3) = (/"a","b","c"/)
+    real*8, parameter :: eye_thr = 1d-5 ! threshold for considering a matrix transformation the identity
+    real*8, parameter :: max_ang_def = 20d0    ! at most 20 degrees change in angle
+    real*8, parameter :: max_elong_def = 0.3d0 ! at most 30% elongation of cell lengths
+    real*8, parameter :: max_vol_def = 0.5d0 ! at most 50% change in volume
+    real*8, parameter :: th2ini_def = 5d0
+    real*8, parameter :: th2end_def = 50d0
+    integer, parameter :: npts_def = 1001
+    real*8, parameter :: fpol0 = 0d0
+    real*8, parameter :: sigma0 = 0.05d0
+    real*8, parameter :: eps_collinear = 1d0 - 1d-4
+
+    ! initialize
+    errmsg = ""
+    powdiff_thr_ = -1d0
+    if (present(powdiff_thr)) powdiff_thr_ = powdiff_thr
+    verbose_ = .false.
+    if (present(verbose)) verbose_ = verbose
+    max_elong_ = max_elong_def
+    if (present(max_elong)) max_elong_ = max_elong
+    max_ang_ = max_ang_def
+    if (present(max_ang)) max_ang_ = max_ang
+    max_vol_ = max_vol_def
+    if (present(max_vol)) max_vol_ = max_vol
+    c1_ = c1
+    c2_ = c2
+
+    ! check both are molecular crystals
+    if (c1_%ismolecule) then
+       errmsg = 'structure 1 is a molecule'
+       return
+    end if
+    if (c2_%ismolecule) then
+       errmsg = 'structure 2 is a molecule'
+       return
+    end if
+
+    ! get the Delaunay cell of both cells
+    x0std1 = c1_%cell_standard(.true.,.false.,.false.,noenv=.true.)
+    x0del1 = c1_%cell_niggli(noenv=.true.)
+    if (all(abs(x0std1) < eye_thr)) x0std1 = eye
+    if (all(abs(x0del1) < eye_thr)) x0del1 = eye
+    x0std2 = c2_%cell_standard(.true.,.false.,.false.,noenv=.true.)
+    x0del2 = c2_%cell_niggli(noenv=.true.)
+    if (all(abs(x0std2) < eye_thr)) x0std2 = eye
+    if (all(abs(x0del2) < eye_thr)) x0del2 = eye
+
+    ! choose the largest crystal as the reference
+    if (c1_%ncel >= c2_%ncel) then
+       if (verbose_) then
+          write (uout,'("+ Using as reference: ",A)') trim(c1_%file)
+          write (uout,'("  The other crystal will be transformed to match the reference.")')
+       end if
+    else
+       if (verbose_) then
+          write (uout,'("+ Using as reference: ",A)') trim(c2_%file)
+          write (uout,'("  The other crystal will be transformed to match the reference.")')
+       end if
+       caux = c1_
+       c1_ = c2_
+       c2_ = caux
+    end if
+
+    ! some output for the structures
+    if (verbose_) then
+       write (uout,'("+ Niggli lattice vectors (",A,")")') iunitname0(iunit)
+       write (uout,'("# Structure 1 (",A,"):")') trim(c1_%file)
+       do i = 1, 3
+          write (uout,'("    ",A,": ",3(A," ")," length = ",A)') lvecname(i),&
+             (string(c1_%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
+             string(c1_%aa(i)*dunit0(iunit),'f',length=16,decimal=10,justify=5)
+       end do
+       write (uout,'("  Lengths (ang): ",3(A," "))') (string(c1_%aa(i)*bohrtoa,'f',length=8,decimal=5),i=1,3)
+       write (uout,'("  Angles (deg): ",3(A," "))') (string(c1_%bb(i),'f',length=8,decimal=3),i=1,3)
+       write (uout,'("# Structure 2 (",A,"):")') trim(c2_%file)
+       do i = 1, 3
+          c2_%aa(i) = norm2(c2_%m_x2c(:,i))
+          write (uout,'("    ",A,": ",3(A," ")," length = ",A)') lvecname(i),&
+             (string(c2_%m_x2c(j,i)*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
+             string(c2_%aa(i)*dunit0(iunit),'f',length=16,decimal=10,justify=5)
+       end do
+       write (uout,'("  Lengths (ang): ",3(A," "))') (string(c2_%aa(i)*bohrtoa,'f',length=8,decimal=5),i=1,3)
+       write (uout,'("  Angles (deg): ",3(A," "))') (string(c2_%bb(i),'f',length=8,decimal=3),i=1,3)
+       write (uout,*)
+    end if
+
+    ! build the lattice vector environment for the second crystal
+    dmax0 = 0d0
+    do i = 1, 3
+       dmax0 = max(dmax0,norm2(c1_%m_x2c(:,i)))
+    end do
+    dmax0 = dmax0 * (1d0 + max_elong * 1.5d0)
+    call c2_%list_near_lattice_points((/0d0,0d0,0d0/),icrd_crys,.true.,nat,lvec=lvec,dist=dist,&
+       up2d=dmax0*1.25d0,nozero=.true.)
+
+    ! set target cell lengths and angles
+    targetaa = c1_%aa
+    targetbb = c1_%bb
+
+    ! output for the second structure and determine integer ranges
+    n1 = 0
+    n2 = 0
+    n3 = 0
+    allocate(irange(nat,3))
+    if (verbose_) then
+       write (uout,'("+ Candidate lattice vectors for structure 2 (referred to the Niggli basis): ")')
+       write (uout,'("#Id        x        y        z       length   used-by")')
+    end if
+    do i = 1, nat
+       xx = real(lvec(:,i),8)
+
+       abc = ""
+       if (abs(dist(i) / targetaa(1) - 1d0) < max_elong) then
+          abc = trim(abc) // "1 "
+          n1 = n1 + 1
+          irange(n1,1) = i
+       end if
+       if (abs(dist(i) / targetaa(2) - 1d0) < max_elong) then
+          abc = trim(abc) // "2 "
+          n2 = n2 + 1
+          irange(n2,2) = i
+       end if
+       if (abs(dist(i) / targetaa(3) - 1d0) < max_elong) then
+          abc = trim(abc) // "3 "
+          n3 = n3 + 1
+          irange(n3,3) = i
+       end if
+       if (len_trim(abc) > 0) abc = "(" // trim(abc) // ")"
+
+       if (verbose_) then
+          write (uout,'("  ",6(A," "))') string(i,3,ioj_left), (string(xx(j),'f',8,2,ioj_right),j=1,3), &
+             string(dist(i),'f',12,6,ioj_right), abc
+       end if
+       if (all((dist(i) / targetaa - 1d0) > max_elong)) exit
+    end do
+    if (verbose_) &
+       write (uout,*)
+
+    ! calculate the powder of structure 1 (reference)
+    h = (th2end_def-th2ini_def) / real(npts_def-1,8)
+    call c1_%powder(0,th2ini_def,th2end_def,xrpd_lambda_def,fpol0,npts=npts_def,sigma=sigma0,ishard=.false.,&
+       t=t,ih=iha1)
+    tini = iha1(1)**2
+    tend = iha1(npts_def)**2
+    nor = (2d0 * sum(iha1(2:npts_def-1)**2) + tini + tend) * (th2end_def - th2ini_def) / 2d0 / real(npts_def-1,8)
+    iha1 = iha1 / sqrt(nor)
+    xnorm1 = crosscorr_triangle(h,iha1,iha1,1d0)
+    xnorm1 = sqrt(abs(xnorm1))
+
+    ! calculate the powder of structure 2 and prepare
+    c2del = c2_
+    c2del%aa = targetaa
+    c2del%bb = targetbb
+    c2del%m_x2c = m_x2c_from_cellpar(c2del%aa,c2del%bb)
+    c2del%grtensor = matmul(transpose(c2del%m_x2c),c2del%m_x2c)
+    call matinv(c2del%grtensor,3)
+    do i = 1, 3
+       c2del%ar(i) = sqrt(c2del%grtensor(i,i))
+    end do
+    call c2del%powder(0,th2ini_def,th2end_def,xrpd_lambda_def,fpol0,npts=npts_def,sigma=sigma0,ishard=.false.,&
+       t=t,ih=iha2)
+    tini = iha2(1)**2
+    tend = iha2(npts_def)**2
+    nor = (2d0 * sum(iha2(2:npts_def-1)**2) + tini + tend) * (th2end_def - th2ini_def) / 2d0 / real(npts_def-1,8)
+    iha2 = iha2 / sqrt(nor)
+    xnorm2 = crosscorr_triangle(h,iha2,iha2,1d0)
+    xnorm2 = sqrt(abs(xnorm2))
+
+    ! calculate baseline powdiff
+    mindiff = max(1d0 - crosscorr_triangle(h,iha1,iha2,1d0) / xnorm1 / xnorm2,0d0)
+    xd2min = eye
+
+    ! run over all permutations
+    vtarget = det3(m_x2c_from_cellpar(targetaa,targetbb))
+    if (verbose_) then
+       write (uout,'("+ Structural comparison of candidate structures")')
+       write (uout,'("# Reference structure is 1.")')
+       write (uout,'("# Structure 2 takes lattice vectors (a,b,c) from the list above.")')
+       write (uout,'("# max-dlen = maximum difference in cell lengths (bohr).")')
+       write (uout,'("# max-dang = maximum difference in angles (degree).")')
+       write (uout,'("#a  b  c max-dlen max-dang  powdiff")')
+       write (uout,'("+ INITIAL DIFF = ",A)') string(mindiff,'f',12,9)
+    end if
+    if (mindiff < powdiff_thr) goto 999
+    do i1 = 1, n1
+       cd2(:,1) = c2_%x2c(real(lvec(:,irange(i1,1)),8))
+       aa2(1) = norm2(cd2(:,1))
+       do i2 = 1, n2
+          if (irange(i1,1) == irange(i2,2)) cycle
+          cd2(:,2) = c2_%x2c(real(lvec(:,irange(i2,2)),8))
+          aa2(2) = norm2(cd2(:,2))
+          do i3 = 1, n3
+             if (irange(i1,1) == irange(i3,3) .or. irange(i2,2) == irange(i3,3)) cycle
+             cd2(:,3) = c2_%x2c(real(lvec(:,irange(i3,3)),8))
+             aa2(3) = norm2(cd2(:,3))
+
+             ! check collinear
+             cc2(1) = dot_product(cd2(:,2),cd2(:,3)) / aa2(2) / aa2(3)
+             cc2(2) = dot_product(cd2(:,1),cd2(:,3)) / aa2(1) / aa2(3)
+             cc2(3) = dot_product(cd2(:,1),cd2(:,2)) / aa2(1) / aa2(2)
+             if (any(abs(cc2) > eps_collinear)) then
+                if (verbose_) then
+                   write (uout,'(99(A," "))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
+                      string(irange(i3,3),2,ioj_right),&
+                      string(maxval(abs(targetaa-aa2)),'f',8,4,ioj_right), string(0d0,'f',8,3,ioj_right),&
+                      "rejected because collinear lattice vectors"
+                end if
+                cycle
+             end if
+
+             ! check angle conditions
+             bb2(1) = acos(cc2(1)) * 180d0 / pi
+             bb2(2) = acos(cc2(2)) * 180d0 / pi
+             bb2(3) = acos(cc2(3)) * 180d0 / pi
+             if (any(abs(targetbb - bb2) > max_ang_)) then
+                if (verbose_) then
+                   write (uout,'(99(A," "))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
+                      string(irange(i3,3),2,ioj_right),&
+                      string(maxval(abs(targetaa-aa2)),'f',8,4,ioj_right),&
+                      string(maxval(abs(targetbb-bb2)),'f',8,3,ioj_right),&
+                      "rejected because maximum angle exceeded"
+                end if
+                cycle
+             end if
+             xd2 = matmul(c2_%m_c2x,cd2)
+
+             ! check determinant
+             dd = det3(xd2)
+             if (abs(dd) < 1d-5) then
+                if (verbose_) then
+                   write (uout,'(99(A," "))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
+                      string(irange(i3,3),2,ioj_right),&
+                      string(maxval(abs(targetaa-aa2)),'f',8,4,ioj_right),&
+                      string(maxval(abs(targetbb-bb2)),'f',8,3,ioj_right),&
+                      "rejected because zero determinant"
+                end if
+                cycle
+             end if
+             if (dd < 0d0) xd2 = -xd2
+
+             ! check number of atoms
+             if (abs(abs(dd) - real(c1_%ncel,8)/real(c2_%ncel,8)) > 1d-5) then
+                if (verbose_) then
+                   write (uout,'(99(A," "))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
+                      string(irange(i3,3),2,ioj_right),&
+                      string(maxval(abs(targetaa-aa2)),'f',8,4,ioj_right), string(maxval(abs(targetbb-bb2)),'f',8,3,ioj_right),&
+                      "rejected because inconsistent number of atom ratio"
+                end if
+                cycle
+             end if
+
+             ! make the new crystal and check the volume
+             c2del = c2_
+             call c2del%newcell(xd2,noenv=.true.)
+             if (abs(c2del%omega-vtarget) / vtarget > max_vol_) then
+                if (verbose_) then
+                   write (uout,'(99(A," "))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
+                      string(irange(i3,3),2,ioj_right),&
+                      string(maxval(abs(targetaa-aa2)),'f',8,4,ioj_right), string(maxval(abs(targetbb-bb2)),'f',8,3,ioj_right),&
+                      "rejected because maximum volume exceeded"
+                end if
+                cycle
+             end if
+
+             ! transform the cell
+             c2del%aa = targetaa
+             c2del%bb = targetbb
+             c2del%m_x2c = m_x2c_from_cellpar(c2del%aa,c2del%bb)
+             c2del%grtensor = matmul(transpose(c2del%m_x2c),c2del%m_x2c)
+             call matinv(c2del%grtensor,3)
+             do i = 1, 3
+                c2del%ar(i) = sqrt(c2del%grtensor(i,i))
+             end do
+
+             ! calculate the powder of structure 2
+             call c2del%powder(0,th2ini_def,th2end_def,xrpd_lambda_def,fpol0,npts=npts_def,sigma=sigma0,ishard=.false.,&
+                t=t,ih=iha2)
+             tini = iha2(1)**2
+             tend = iha2(npts_def)**2
+             nor = (2d0 * sum(iha2(2:npts_def-1)**2) + tini + tend) * (th2end_def - th2ini_def) / 2d0 / real(npts_def-1,8)
+             iha2 = iha2 / sqrt(nor)
+             xnorm2 = crosscorr_triangle(h,iha2,iha2,1d0)
+             xnorm2 = sqrt(abs(xnorm2))
+
+             ! calculate the powdiff
+             diffl = max(1d0 - crosscorr_triangle(h,iha1,iha2,1d0) / xnorm1 / xnorm2,0d0)
+             if (diffl < mindiff) then
+                mindiff = diffl
+                xd2min = xd2
+             end if
+
+             ! write output
+             if (verbose_) then
+                write (uout,'(99(A," "))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
+                   string(irange(i3,3),2,ioj_right),&
+                   string(maxval(abs(targetaa-aa2)),'f',8,4,ioj_right), string(maxval(abs(targetbb-bb2)),'f',8,3,ioj_right),&
+                   string(diffl,'f',10,7)
+             end if
+             if (mindiff < powdiff_thr) goto 999
+          end do
+       end do
+    end do
+
+    ! output message and diff
+999 continue
+    if (verbose_) then
+       if (mindiff < powdiff_thr) &
+          write (uout,'("--- Last DIFF satisfies the threshold requirement for matching structures, skipping...")')
+       write (uout,'("+ FINAL DIFF = ",A)') string(mindiff,'f',12,9)
+       write (uout,*)
+    end if
+    diff = mindiff
+
+    ! output structure
+    if (present(seedout)) then
+       c2del = c2_
+       call c2del%newcell(xd2min)
+       call c2del%makeseed(seedout,.false.)
+       seedout%useabr = 1
+       seedout%aa = targetaa
+       seedout%bb = targetbb
+       seedout%findsym = 0
+    end if
+
+  end subroutine vcpwdf_compare
+
   ! Compare crystal structure c1 against XRPD pattern p2 using
   ! Gaussian PWDF (GPWDF) and variants. imode must be one of 0 (no
   ! change to c1), 1 (local minization of diff), 2 (global
