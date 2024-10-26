@@ -1724,7 +1724,7 @@ contains
     do i = 1, 3
        dmax0 = max(dmax0,norm2(c1_%m_x2c(:,i)))
     end do
-    dmax0 = dmax0 * (1d0 + max_elong * 1.5d0)
+    dmax0 = dmax0 * (1d0 + max_elong_ * 1.5d0)
     call c2_%list_near_lattice_points((/0d0,0d0,0d0/),icrd_crys,.true.,nat,lvec=lvec,dist=dist,&
        up2d=dmax0*1.25d0,nozero=.true.)
 
@@ -1745,17 +1745,17 @@ contains
        xx = real(lvec(:,i),8)
 
        abc = ""
-       if (abs(dist(i) / targetaa(1) - 1d0) < max_elong) then
+       if (abs(dist(i) / targetaa(1) - 1d0) < max_elong_) then
           abc = trim(abc) // "1 "
           n1 = n1 + 1
           irange(n1,1) = i
        end if
-       if (abs(dist(i) / targetaa(2) - 1d0) < max_elong) then
+       if (abs(dist(i) / targetaa(2) - 1d0) < max_elong_) then
           abc = trim(abc) // "2 "
           n2 = n2 + 1
           irange(n2,2) = i
        end if
-       if (abs(dist(i) / targetaa(3) - 1d0) < max_elong) then
+       if (abs(dist(i) / targetaa(3) - 1d0) < max_elong_) then
           abc = trim(abc) // "3 "
           n3 = n3 + 1
           irange(n3,3) = i
@@ -1766,7 +1766,7 @@ contains
           write (uout,'("  ",6(A," "))') string(i,3,ioj_left), (string(xx(j),'f',8,2,ioj_right),j=1,3), &
              string(dist(i),'f',12,6,ioj_right), abc
        end if
-       if (all((dist(i) / targetaa - 1d0) > max_elong)) exit
+       if (all((dist(i) / targetaa - 1d0) > max_elong_)) exit
     end do
     if (verbose_) &
        write (uout,*)
@@ -1816,7 +1816,7 @@ contains
        write (uout,'("#a  b  c max-dlen max-dang  powdiff")')
        write (uout,'("+ INITIAL DIFF = ",A)') string(mindiff,'f',12,9)
     end if
-    if (mindiff < powdiff_thr) goto 999
+    if (mindiff < powdiff_thr_) goto 999
     do i1 = 1, n1
        cd2(:,1) = c2_%x2c(real(lvec(:,irange(i1,1)),8))
        aa2(1) = norm2(cd2(:,1))
@@ -1931,7 +1931,7 @@ contains
                    string(maxval(abs(targetaa-aa2)),'f',8,4,ioj_right), string(maxval(abs(targetbb-bb2)),'f',8,3,ioj_right),&
                    string(diffl,'f',10,7)
              end if
-             if (mindiff < powdiff_thr) goto 999
+             if (mindiff < powdiff_thr_) goto 999
           end do
        end do
     end do
@@ -1939,7 +1939,7 @@ contains
     ! output message and diff
 999 continue
     if (verbose_) then
-       if (mindiff < powdiff_thr) &
+       if (mindiff < powdiff_thr_) &
           write (uout,'("--- Last DIFF satisfies the threshold requirement for matching structures, skipping...")')
        write (uout,'("+ FINAL DIFF = ",A)') string(mindiff,'f',12,9)
        write (uout,*)
