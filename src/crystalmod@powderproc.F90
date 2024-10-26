@@ -1600,6 +1600,15 @@ contains
 
   end subroutine crosscorr_gaussian
 
+  ! Compare crystals c1 and c2 allowing for deformations in the cell
+  ! of c1, then return the difference score in diff. The method is described in:
+  !   Mayo et al., CrystEngComm 24 (2022) 8326-8338. (doi:10.1039/D2CE01080A)
+  ! If error, return non-zero errmsg. max_elong = maximum elongation
+  ! of the cell lengths allowed.  max_ang = maximum deformation in the
+  ! angles allowed. max_vol = maximum change in the volume
+  ! allowed. powdiff_thr = stop if the diff is lower than this
+  ! value. seedout = seed for the deformed c2 crystal. verbose = write
+  ! messages to output.
   module subroutine vcpwdf_compare(c1,c2,diff,errmsg,max_elong,max_ang,max_vol,&
      powdiff_thr,seedout,verbose)
     use crystalmod, only: xrpd_lambda_def

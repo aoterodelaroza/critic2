@@ -2096,6 +2096,9 @@ contains
     ! header and initalization
     write (uout,'("* COMPAREVC: compare crystal structures allowing for deformed cells")')
     write (uout,'("+ VCPWDF method: exploring lattice deformations until a match is found")')
+    write (uout,'("# Please cite:")')
+    write (uout,'("#   Mayo et al., CrystEngComm 24 (2022) 8326-8338. (doi:10.1039/D2CE01080A)")')
+    write (uout,*)
     npts = npts_def
 
     ! read the input files
