@@ -2069,7 +2069,7 @@ contains
     type(crystalseed) :: seed
     integer :: lp, i, j
     character(len=:), allocatable :: file1, file2, errmsg, abc, word
-    type(crystal) :: c1, c2, c2del, caux
+    type(crystal) :: c1, c2, c2del, caux, c1out, c2out
     real*8 :: xd2(3,3), cd2(3,3), dmax0, xx(3)
     real*8 :: aa2(3), bb2(3), cc2(3), dd
     real*8, allocatable :: dist(:)
@@ -2177,7 +2177,7 @@ contains
 
     ! run the comparison
     if (dowrite) then
-       call vcpwdf_compare(c1,c2,diff,errmsg,max_elong,max_ang,max_vol,powdiff_thr,seed,verbose=.true.)
+       call vcpwdf_compare(c1,c2,diff,errmsg,max_elong,max_ang,max_vol,powdiff_thr,c1out,c2out,verbose=.true.)
     else
        call vcpwdf_compare(c1,c2,diff,errmsg,max_elong,max_ang,max_vol,powdiff_thr,verbose=.true.)
     end if
@@ -2186,17 +2186,14 @@ contains
 
     ! write the final structure  to output
     if (dowrite) then
-       ! make the minimum-powdiff structure 2
-       call c2del%struct_new(seed,.true.)
-
        ! write both to a res file
        file1 = fileroot // "_structure_1.res"
        write (uout,'("+ Structure 1 written to file: ",A)') trim(file1)
-       call c1%write_res(file1,-1)
+       call c1out%write_res(file1,-1)
 
        file2 = fileroot // "_structure_2.res"
        write (uout,'("+ Structure 2 written to file: ",A)') trim(file2)
-       call c2del%write_res(file2,-1)
+       call c2out%write_res(file2,-1)
     end if
 
   end subroutine struct_comparevc_vcpwdf
