@@ -21,6 +21,7 @@ submodule (struct_drivers) proc
 
   !xx! private routines
   ! subroutine struct_comparevc_vcpwdf(s,line)
+  ! subroutine struct_comparevc_vcgpwdf(s,line)
 
 contains
 
@@ -2035,15 +2036,13 @@ contains
 
     word = lgetword(line,lp)
     if (equal(word,'vcgpwdf')) then
-       write (*,*) "fixme: ", line0
-       stop 1
+       call struct_comparevc_vcgpwdf(s,line(lp:))
     else
        if (equal(word,'vcpwdf')) then
           line0 = line(lp:)
        else
           line0 = line
        end if
-       write (*,*) line0
        call struct_comparevc_vcpwdf(s,line0)
     end if
 
@@ -2197,6 +2196,176 @@ contains
     end if
 
   end subroutine struct_comparevc_vcpwdf
+
+  !> Compare structures, allowing deformation of one crystal into the
+  !> other such as may be cause by temperature or pressure effects
+  !> without a phase change. Variable-cell version of the Gaussian
+  !> POWDIFF comparison method in struct_compare.
+  subroutine struct_comparevc_vcgpwdf(s,line)
+    type(system), intent(in) :: s
+    character*(*), intent(in) :: line
+
+    write (*,*) "bleh!"
+    stop 1
+
+  ! TRICK GAUCOMP str1.s {str2.s|xyfile.s} [LOCAL] [GLOBAL] [ALPHA alpha.r] [LAMBDA lambda.r] [MAXFEVAL maxfeval.i] [BESTEPS eps.r] [MAX_ELONG max_elong.r] [MAX_ANG max_ang.r]
+
+!     use crystalseedmod, only: crystalseed
+!     use crystalmod, only: crystal, xrpd_peaklist, xrpd_fpol_def,&
+!        gaussian_compare, xrpd_maxfeval_def_safe, xrpd_besteps_def_safe, xrpd_alpha_def,&
+!        xrpd_lambda_def, xrpd_th2ini_def, xrpd_th2end_def, xrpd_sigma_def,&
+!        xrpd_max_elong_def_quick, xrpd_max_ang_def_quick
+!     use struct_drivers, only: struct_crystal_input
+!     use tools, only: qcksort
+!     use tools_io, only: getword, uout, string, tictac, ferror, faterr, lgetword, equal, &
+!        fopen_read, fclose, getline, isreal, isinteger, fopen_write, ioj_center
+!     use types, only: realloc
+!     character*(*), intent(in) :: line0
+! 
+! #ifndef HAVE_NLOPT
+!     call ferror("trick_gaucomp","trick_gaucomp can only be used if nlopt is available",faterr)
+! 
+! #else
+!     integer :: lp
+!     integer :: i
+!     real*8 :: diff
+!     real*8, allocatable :: t(:), ih(:)
+!     character(len=:), allocatable :: word, file1, errmsg
+!     type(crystal) :: c1, c2
+!     integer :: imode, lu, maxfeval
+!     real*8 :: th2ini, th2end, alpha, lambda, besteps, max_elong, max_ang
+!     logical :: ok, readc2
+!     type(crystalseed) :: seed
+!     type(xrpd_peaklist) :: p2
+! 
+!     ! global block
+!     integer :: neval
+!     real*8 :: lastval
+!     real*8 :: bestval
+!     integer :: nbesteval
+! 
+!     ! parameters
+!     integer, parameter :: imode_sp = 0
+!     integer, parameter :: imode_local = 1
+!     integer, parameter :: imode_global = 2
+!     integer, parameter :: final_npts = 10001
+! 
+!     include 'nlopt.f'
+! 
+!     ! initialize
+!     neval = 0
+!     lastval = -1d0
+!     bestval = 1.1d0
+!     nbesteval = 0
+!     lambda = xrpd_lambda_def
+! 
+!     ! read crystal structures
+!     lp = 1
+!     file1 = getword(line0,lp)
+!     write (uout,'("  Crystal 1: ",A)') string(file1)
+!     call struct_crystal_input(file1,0,.false.,.false.,cr0=c1)
+!     word = getword(line0,lp)
+!     if (len(word) - index(word,".peaks") == 6) then
+!        call p2%from_peaks_file(word,errmsg)
+!        if (len_trim(errmsg) > 0) &
+!           call ferror("trick_gaucomp",errmsg,faterr)
+!        th2ini = p2%th2(1) - 1d-2
+!        th2end = p2%th2(p2%npeak) + 1d-2
+!        readc2 = .false.
+!     else
+!        ! read crystal structure 2
+!        th2ini = xrpd_th2ini_def
+!        th2end = xrpd_th2end_def
+!        write (uout,'("  Crystal 2: ",A)') string(word)
+!        call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
+!        readc2 = .true.
+!     end if
+!     write (uout,'("  Initial and final 2*theta: ",A," ",A)') &
+!        string(th2ini,'f',decimal=4), string(th2end,'f',decimal=4)
+! 
+!     ! read additional options
+!     max_elong = xrpd_max_elong_def_quick
+!     max_ang = xrpd_max_ang_def_quick
+!     maxfeval = xrpd_maxfeval_def_safe
+!     besteps = xrpd_besteps_def_safe
+!     alpha = xrpd_alpha_def
+!     imode = imode_sp
+!     do while (.true.)
+!        word = lgetword(line0,lp)
+!        if (equal(word,'local')) then
+!           imode = imode_local
+!        elseif (equal(word,'global')) then
+!           imode = imode_global
+!        elseif (equal(word,'alpha')) then
+!           ok = isreal(alpha,line0,lp)
+!           if (.not.ok) &
+!              call ferror("trick_gaucomp","invalid alpha in gaucomp",faterr)
+!        elseif (equal(word,'maxfeval')) then
+!           ok = isinteger(maxfeval,line0,lp)
+!           if (.not.ok) &
+!              call ferror("trick_gaucomp","invalid maxfeval in gaucomp",faterr)
+!        elseif (equal(word,'besteps')) then
+!           ok = isreal(besteps,line0,lp)
+!           if (.not.ok) &
+!              call ferror("trick_gaucomp","invalid besteps in gaucomp",faterr)
+!        elseif (equal(word,'lambda')) then
+!           ok = isreal(lambda,line0,lp)
+!           if (.not.ok) &
+!              call ferror("trick_gaucomp","invalid lambda in gaucomp",faterr)
+!        elseif (equal(word,'max_elong')) then
+!           ok = isreal(max_elong,line0,lp)
+!           if (.not.ok) &
+!              call ferror("trick_gaucomp","invalid max_elong in gaucomp",faterr)
+!        elseif (equal(word,'max_ang')) then
+!           ok = isreal(max_ang,line0,lp)
+!           if (.not.ok) &
+!              call ferror("trick_gaucomp","invalid max_ang in gaucomp",faterr)
+!        else
+!           exit
+!        end if
+!     end do
+! 
+!     ! pre-calculation
+!     if (readc2) then
+!        call p2%from_crystal(c2,th2ini,th2end,lambda,xrpd_fpol_def,.false.,.false.,errmsg)
+!        if (len_trim(errmsg) > 0) &
+!           call ferror("trick_gaucomp",errmsg,faterr)
+!     end if
+! 
+!     ! run the comparison
+!     call gaussian_compare(c1,p2,imode,diff,errmsg,seedout=seed,verbose0=.true.,&
+!        alpha0=alpha,lambda0=lambda,maxfeval0=maxfeval,besteps0=besteps,&
+!        max_elong_def0=max_elong,max_ang_def0=max_ang)
+! 
+!     if (len_trim(errmsg) > 0) &
+!        call ferror("trick_gaucomp",errmsg,faterr)
+! 
+!     if (imode /= imode_sp) then
+!        call c1%struct_new(seed,.true.)
+! 
+!        ! write structure to output
+!        word = trim(file1) // "-final.cif"
+!        call c1%write_simple_driver(word)
+!        write (uout,'("+ Final structure written to ",A/)') trim(word)
+! 
+!        ! write diffraction patterns to output
+!        word = trim(file1) // "-final.txt"
+!        lu = fopen_write(word)
+!        call c1%powder(0,th2ini,th2end,lambda,xrpd_fpol_def,final_npts,&
+!           xrpd_sigma_def,.false.,t=t,ih=ih)
+!        write (lu,'("# ",A,A)') string("2*theta",13,ioj_center), string("Intensity",13,ioj_center)
+!        do i = 1, final_npts
+!           write (lu,'(A," ",A)') string(t(i),"f",15,7,ioj_center), &
+!              string(ih(i),"f",15,7,ioj_center)
+!        end do
+!        call fclose(lu)
+!     end if
+! 
+!     write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
+! 
+! #endif
+
+  end subroutine struct_comparevc_vcgpwdf
 
   !> Calculate the atomic environment of a point or all the
   !> non-equivalent atoms in the unit cell.
