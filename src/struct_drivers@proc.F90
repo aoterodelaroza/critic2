@@ -2209,7 +2209,7 @@ contains
     type(crystal) :: c1, c2
     integer :: imode, lu, maxfeval
     real*8 :: th2ini, th2end, alpha, lambda, besteps, max_elong, max_ang
-    logical :: ok, readc2
+    logical :: ok, readc2, dowrite
     type(crystalseed) :: seed
     type(xrpd_peaklist) :: p2
 
@@ -2282,6 +2282,7 @@ contains
     ! read additional options
     call set_quick_params()
     alpha = xrpd_alpha_def
+    dowrite = .false.
     imode = imode_global
     do while (.true.)
        word = lgetword(line,lp)
@@ -2329,11 +2330,12 @@ contains
              call ferror("struct_comparevc_vcgpwdf","invalid max_ang in gaucomp",faterr,syntax=.true.)
              return
           end if
+       elseif (equal(word,'write')) then
+          dowrite = .true.
        else
           exit
        end if
     end do
-
 
     ! pre-calculation
     if (readc2) then
@@ -2350,7 +2352,10 @@ contains
     if (len_trim(errmsg) > 0) &
        call ferror("struct_comparevc_vcgpwdf",errmsg,faterr)
 
-    if (imode /= imode_sp) then
+    write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
+
+    ! write to output
+    if (dowrite .and. imode /= imode_sp) then
        call c1%struct_new(seed,.true.)
 
        ! write structure to output
@@ -2370,8 +2375,6 @@ contains
        end do
        call fclose(lu)
     end if
-
-    write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
 contains
   subroutine set_quick_params()
     use crystalmod, only: xrpd_besteps_def_quick, xrpd_maxfeval_def_quick,&
