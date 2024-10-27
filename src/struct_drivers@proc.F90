@@ -1692,10 +1692,10 @@ contains
                 if (irepeat(j) > 0) cycle
              end if
              call crosscorr_gaussian(xp(i),xp(j),xrpd_alpha_def,xrpd_sigma_def,xnorm2,errmsg,.false.)
-             !$omp critical (errmsg)
+             !$omp critical (errmsg_)
              if (len(errmsg) > 0) &
                 call ferror("struct_compare","error calculating Gaussian crosscorrelation",faterr)
-             !$omp end critical (errmsg)
+             !$omp end critical (errmsg_)
              diff(i,j) = max(1d0 - xnorm2 / xnorm(i) / xnorm(j),0d0)
              diff(j,i) = diff(i,j)
 
