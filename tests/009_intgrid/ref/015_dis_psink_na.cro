@@ -88,9 +88,12 @@
 
 * Henkelman et al. integration 
   Please cite: 
-    G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36, 254-360 (2006).
-    E. Sanville, S. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28, 899-908 (2007).
-    W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).
+    G. Henkelman, A. Arnaldsson, and H. Jonsson,
+       Comput. Mater. Sci. 36, 254-360 (2006). (10.1016/j.commatsci.2005.04.010)
+    E. Sanville, S. Kenny, R. Smith, and G. Henkelman,
+       J. Comput. Chem. 28, 899-908 (2007). (10.1002/jcc.20575)
+    W. Tang, E. Sanville, and G. Henkelman,
+       J. Phys.: Condens. Matter 21, 084204 (2009). (10.1088/0953-8984/21/8/084204)
 + Distance for atomic assignment (bohr): 1.0000E+40
 + Attractors in BADER: 1
 + Attractors after reordering: 1

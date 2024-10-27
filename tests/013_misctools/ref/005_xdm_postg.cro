@@ -1,8 +1,8 @@
 * Exchange-hole dipole moment (XDM) dispersion calculation 
   Please cite: 
-  A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007).
-  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012).
-  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013).
+    A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007). (10.1063/1.2795701)
+    A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012). (10.1063/1.4705760)
+    A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013). (10.1063/1.4807330)
 
 * Calculation of XDM dispersion energy using a postg output
 + Reading coefficients from the file: ../zz_source/g16A.03/benzene/benzene.pgout
@@ -16,9 +16,9 @@ dispersion energy (Ry)  -4.703351904984E-02
 
 * Exchange-hole dipole moment (XDM) dispersion calculation 
   Please cite: 
-  A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007).
-  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012).
-  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013).
+    A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007). (10.1063/1.2795701)
+    A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012). (10.1063/1.4705760)
+    A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013). (10.1063/1.4807330)
 
 * Calculation of XDM dispersion energy using a postg output
 + Reading coefficients from the file: ../zz_source/g16A.03/benzene/benzene.pgout
@@ -32,9 +32,9 @@ dispersion energy (Ry)  -4.475799328080E-02
 
 * Exchange-hole dipole moment (XDM) dispersion calculation 
   Please cite: 
-  A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007).
-  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012).
-  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013).
+    A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007). (10.1063/1.2795701)
+    A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012). (10.1063/1.4705760)
+    A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013). (10.1063/1.4807330)
 
 * Calculation of XDM dispersion energy using a postg output
 + Reading coefficients from the file: ../zz_source/g16A.03/benzene/benzene.pgout
@@ -48,9 +48,9 @@ dispersion energy (Ry)  -4.651688414784E-02
 
 * Exchange-hole dipole moment (XDM) dispersion calculation 
   Please cite: 
-  A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007).
-  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012).
-  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013).
+    A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007). (10.1063/1.2795701)
+    A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012). (10.1063/1.4705760)
+    A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013). (10.1063/1.4807330)
 
 * Calculation of XDM dispersion energy using a postg output
 + Reading coefficients from the file: ../zz_source/g16A.03/benzene/benzene.pgout
@@ -64,9 +64,9 @@ dispersion energy (Ry)  -4.982567972088E-02
 
 * Exchange-hole dipole moment (XDM) dispersion calculation 
   Please cite: 
-  A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007).
-  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012).
-  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013).
+    A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007). (10.1063/1.2795701)
+    A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012). (10.1063/1.4705760)
+    A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013). (10.1063/1.4807330)
 
 * Calculation of XDM dispersion energy using a postg output
 + Reading coefficients from the file: ../zz_source/g16A.03/benzene/benzene.pgout

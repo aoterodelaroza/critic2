@@ -18,9 +18,9 @@
 
 * Exchange-hole dipole moment (XDM) dispersion calculation 
   Please cite: 
-  A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007).
-  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012).
-  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013).
+    A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007). (10.1063/1.2795701)
+    A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012). (10.1063/1.4705760)
+    A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013). (10.1063/1.4807330)
 
 a1             1.000000    
 a2(ang)        1.000000    

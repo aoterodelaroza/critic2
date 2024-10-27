@@ -5,8 +5,6 @@
   Molecule 4 : ../zz_source/g16A.03/benzene/benzene.fchk
   Molecule 5 : ../zz_source/g16A.03/benzene/benzene.log
 # Using cross-correlated radial distribution functions (RDF).
-# Please cite:
-#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
 # REDUCE: Only repeated/unique structures will be listed, at DIFF level: 1.0000E-06
   ... calculating pattern 1 of 5.

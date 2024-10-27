@@ -18,7 +18,7 @@
 
 * MOLCALC: calculations using meshes 
 + Measure of overlap between orbitals in an excitation (PEACH). 
-  Please cite: Peach et al., J. Chem. Phys. 128 (2008) 044118.
+  Please cite: Peach et al., J. Chem. Phys. 128 (2008) 044118. (10.1063/1.2831900)
   Mesh size      0
 + PEACH = 0.611   
 
