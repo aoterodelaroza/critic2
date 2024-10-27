@@ -2186,14 +2186,14 @@ contains
   subroutine struct_comparevc_vcgpwdf(s,line)
     use tools_io, only: uout, ferror, faterr
 #ifdef HAVE_NLOPT
-    use tools_io, only: uout, string
+    use global, only: fileroot
     use crystalseedmod, only: crystalseed
     use crystalmod, only: crystal, xrpd_peaklist, xrpd_fpol_def,&
        gaussian_compare, xrpd_alpha_def, xrpd_lambda_def,&
        xrpd_th2ini_def, xrpd_th2end_def, xrpd_sigma_def
     use struct_drivers, only: struct_crystal_input
     use tools, only: qcksort
-    use tools_io, only: getword, tictac, ferror, faterr, lgetword, equal, &
+    use tools_io, only: getword, tictac, lgetword, equal, string,&
        fopen_read, fclose, getline, isreal, isinteger, fopen_write, ioj_center
     use types, only: realloc
 #endif
@@ -2359,12 +2359,12 @@ contains
        call c1%struct_new(seed,.true.)
 
        ! write structure to output
-       word = trim(file1) // "-final.cif"
+       word = fileroot // "-final.res"
        call c1%write_simple_driver(word)
        write (uout,'("+ Final structure written to ",A/)') trim(word)
 
        ! write diffraction patterns to output
-       word = trim(file1) // "-final.txt"
+       word = fileroot // "-final.xy"
        lu = fopen_write(word)
        call c1%powder(0,th2ini,th2end,lambda,xrpd_fpol_def,final_npts,&
           xrpd_sigma_def,.false.,t=t,ih=ih)
@@ -2374,6 +2374,7 @@ contains
              string(ih(i),"f",15,7,ioj_center)
        end do
        call fclose(lu)
+       write (uout,'("+ Final diffraction pattern written to ",A/)') trim(word)
     end if
 contains
   subroutine set_quick_params()
