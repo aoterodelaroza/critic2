@@ -1071,7 +1071,7 @@ contains
 
     logical :: ok
     character(len=:), allocatable :: line
-    integer :: lu, i, j, k, nread, iz, nn, ll, n0, n1, nread, nnm
+    integer :: lu, i, j, k, nread, iz, nn, ll, n0, n1, nnm
     real*8 :: xdum(5)
     character*1 :: ch
     ! integer :: ifreq, jfreq ! checking normalization
