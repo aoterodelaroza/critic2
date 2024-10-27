@@ -86,9 +86,9 @@ contains
     ! header
     write (uout,'("* Exchange-hole dipole moment (XDM) dispersion calculation ")')
     write (uout,'("  Please cite: ")')
-    write (uout,'("  A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007).")')
-    write (uout,'("  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012).")')
-    write (uout,'("  A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013).")')
+    write (uout,'("    A. D. Becke, E. R. Johnson, J. Chem. Phys. 127, 154108 (2007). (10.1063/1.2795701)")')
+    write (uout,'("    A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 136, 174109 (2012). (10.1063/1.4705760)")')
+    write (uout,'("    A. Otero de la Roza, E. R. Johnson, J. Chem. Phys. 138, 204109 (2013). (10.1063/1.4807330)")')
     write (uout,*)
 
     ! parse the input

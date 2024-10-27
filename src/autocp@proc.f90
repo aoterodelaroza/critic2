@@ -572,7 +572,7 @@ contains
     if (sy%f(sy%iref)%type == type_grid) then
        if (sy%f(sy%iref)%grid%mode == mode_smr) then
           write (uout,'("  Using grids and smoothrho interpolation, please cite:")')
-          write (uout,'("    A. Otero-de-la-Roza, J. Chem. Phys. 156 (2022) 224116")')
+          write (uout,'("    A. Otero-de-la-Roza, J. Chem. Phys. 156 (2022) 224116 (doi:10.1063/5.0090232)")')
        end if
     end if
 

@@ -1588,7 +1588,7 @@ contains
     if (imethod == imethod_gpdwf) then
        write (uout,'("# Using cross-correlated Gaussian powder diffraction patterns (GPWDF).")')
        write (uout,'("# Please cite:")')
-       write (uout,'("#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414")')
+       write (uout,'("#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (10.1107/S1600576724007489)")')
        write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
        if (xend < 0d0) xend = th2end0
        difstr = "DIFF"
@@ -1596,6 +1596,7 @@ contains
        write (uout,'("# Using cross-correlated POWDER diffraction patterns.")')
        write (uout,'("# Please cite:")')
        write (uout,'("#   de Gelder et al., J. Comput. Chem., 22 (2001) 273")')
+       write (uout,'("#       (10.1002/1096-987X(200102)22:3%3C273::AID-JCC1001%3E3.0.CO;2-0)")')
        write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
        if (xend < 0d0) xend = th2end0
        difstr = "DIFF"
@@ -1608,8 +1609,6 @@ contains
        difstr = "DIFF"
     elseif (imethod == imethod_rdf) then
        write (uout,'("# Using cross-correlated radial distribution functions (RDF).")')
-       write (uout,'("# Please cite:")')
-       write (uout,'("#   de Gelder et al., J. Comput. Chem., 22 (2001) 273")')
        write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
        if (xend < 0d0) xend = rend0
        difstr = "DIFF"
@@ -2183,7 +2182,7 @@ contains
   !> deformations of the first structure to have a list of diffraction
   !> angles and intensities that best matches a second structure or an
   !> experimental pattern. See:
-  !> A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414
+  !> A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (10.1107/S1600576724007489)
   subroutine struct_comparevc_vcgpwdf(s,line)
     use tools_io, only: uout, ferror, faterr
 #ifdef HAVE_NLOPT
@@ -2233,7 +2232,7 @@ contains
     write (uout,'("* COMPAREVC: compare crystal structures allowing for deformed cells")')
     write (uout,'("+ VCGPWDF method: global lattice search for maximal powder diffraction overlap")')
     write (uout,'("# Please cite:")')
-    write (uout,'("#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414")')
+    write (uout,'("#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (10.1107/S1600576724007489)")')
     write (uout,*)
 
 #ifndef HAVE_NLOPT

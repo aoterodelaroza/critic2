@@ -831,8 +831,8 @@ contains
     write (uout,'("  Bugs, requests, and rants: aoterodelaroza@gmail.com ")')
     write (uout,'("  Website: https://aoterodelaroza.github.io/critic2/")')
     write (uout,'("  If you find this software useful, please cite:")')
-    write (uout,'("  A. Otero-de-la-Roza et al., Comput. Phys. Commun. 185 (2014) 1007-1018.")')
-    write (uout,'("  A. Otero-de-la-Roza et al., Comput. Phys. Commun. 180 (2009) 157-166.")')
+    write (uout,'("  A. Otero-de-la-Roza et al., Comput. Phys. Commun. 185 (2014) 1007-1018. (10.1016/j.cpc.2013.10.026)")')
+    write (uout,'("  A. Otero-de-la-Roza et al., Comput. Phys. Commun. 180 (2009) 157-166. (10.1016/j.cpc.2008.07.018)")')
     write (uout,*)
 
   end subroutine initial_banner

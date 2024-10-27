@@ -346,8 +346,8 @@ contains
     ! header
     write (uout,'("* NCIPLOT: non-covalent interactions")')
     write (uout,'("  Please cite:")')
-    write (uout,'("  E. R. Johnson et al., J. Am. Chem. Soc., 132 (2010) 6498.")')
-    write (uout,'("  A. Otero-de-la-Roza et al., Phys. Chem. Chem. Phys., 14 (2012) 12165.")')
+    write (uout,'("    E. R. Johnson et al., J. Am. Chem. Soc., 132 (2010) 6498. (10.1021/ja100936w)")')
+    write (uout,'("    A. Otero-de-la-Roza et al., Phys. Chem. Chem. Phys., 14 (2012) 12165. (10.1039/C2CP41395G)")')
     if (.not.quiet) call tictac("start nciplot")
 
     ! redefine the cube using the fragments

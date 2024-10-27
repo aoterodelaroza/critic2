@@ -254,9 +254,12 @@ contains
     if (bas%imtype == imtype_bader) then
        write (uout,'("* Henkelman et al. integration ")')
        write (uout,'("  Please cite: ")')
-       write (uout,'("    G. Henkelman, A. Arnaldsson, and H. Jonsson, Comput. Mater. Sci. 36, 254-360 (2006).")')
-       write (uout,'("    E. Sanville, S. Kenny, R. Smith, and G. Henkelman, J. Comput. Chem. 28, 899-908 (2007).")')
-       write (uout,'("    W. Tang, E. Sanville, and G. Henkelman, J. Phys.: Condens. Matter 21, 084204 (2009).")')
+       write (uout,'("    G. Henkelman, A. Arnaldsson, and H. Jonsson,")')
+       write (uout,'("       Comput. Mater. Sci. 36, 254-360 (2006). (10.1016/j.commatsci.2005.04.010)")')
+       write (uout,'("    E. Sanville, S. Kenny, R. Smith, and G. Henkelman,")')
+       write (uout,'("       J. Comput. Chem. 28, 899-908 (2007). (10.1002/jcc.20575)")')
+       write (uout,'("    W. Tang, E. Sanville, and G. Henkelman,")')
+       write (uout,'("       J. Phys.: Condens. Matter 21, 084204 (2009). (10.1088/0953-8984/21/8/084204)")')
        write (uout,'("+ Distance for atomic assignment (",A,"): ",A)') iunitname0(iunit),&
           string(max(bas%ratom,0d0),'e',decimal=4)
        if (len_trim(bas%expr) > 0) &
@@ -266,7 +269,7 @@ contains
     elseif (bas%imtype == imtype_yt) then
        write (uout,'("* Yu-Trinkle integration ")')
        write (uout,'("  Please cite: ")')
-       write (uout,'("  Min Yu, Dallas Trinkle, J. Chem. Phys. 134 (2011) 064111.")')
+       write (uout,'("  Min Yu, Dallas Trinkle, J. Chem. Phys. 134 (2011) 064111. (10.1063/1.3553716)")')
        write (uout,'("+ Distance for atomic assignment (",A,"): ",A)') iunitname0(iunit),&
           string(max(bas%ratom,0d0),'e',decimal=4)
        if (len_trim(bas%expr) > 0) &

@@ -282,7 +282,7 @@ contains
     ! header
     write (uout,'("* QTREE integration ")')
     write (uout,'("  Please cite: ")')
-    write (uout,'("  A. Otero-de-la-Roza et al., Comput. Phys. Commun. 180 (2009) 157."/)')
+    write (uout,'("    A. Otero-de-la-Roza et al., Comput. Phys. Commun. 180 (2009) 157. (10.1002/jcc.21620)"/)')
     if (sy%c%ismolecule) then
        call ferror("qtree","QTREE only available for crystals",faterr)
     end if
