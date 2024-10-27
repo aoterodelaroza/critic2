@@ -2305,9 +2305,17 @@ contains
     lp = 1
     file1 = getword(line,lp)
     write (uout,'("  Crystal 1: ",A)') string(file1)
-    call struct_crystal_input(file1,0,.false.,.false.,cr0=c1)
+    if (file1 == ".") then
+       c1 = s%c
+    else
+       call struct_crystal_input(file1,0,.false.,.false.,cr0=c1)
+    end if
     word = getword(line,lp)
-    if (len(word) - index(word,".peaks") == 6) then
+    write (uout,'("  Crystal 2: ",A)') string(word)
+    if (word == ".") then
+       c2 = s%c
+       readc2 = .true.
+    elseif (len(word) - index(word,".peaks") == 6) then
        call p2%from_peaks_file(word,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror("trick_gaucomp",errmsg,faterr)
@@ -2318,7 +2326,6 @@ contains
        ! read crystal structure 2
        th2ini = xrpd_th2ini_def
        th2end = xrpd_th2end_def
-       write (uout,'("  Crystal 2: ",A)') string(word)
        call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
        readc2 = .true.
     end if
