@@ -2,3 +2,4 @@
 
 crystal library diamond
 comparevc . ../zz_source/qe-6.5/graphite/graph.scf.in
+# comparevc vcpwdf . ../zz_source/qe-6.5/graphite/graph.scf.in
