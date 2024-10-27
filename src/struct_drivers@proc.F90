@@ -2048,10 +2048,10 @@ contains
 
   end subroutine struct_comparevc
 
-  !> Compare structures, allowing deformation of one crystal into the
-  !> other such as may be cause by temperature or pressure effects
-  !> without a phase change. Variable-cell version of the POWDIFF
-  !> comparison method in struct_compare.
+  !> COMPAREVC: vcpwdf version. Transform both cells to the primitive, then
+  !> calculate the deformation that brings one into agreement with the other.
+  !> Returns the minimal powder diffraction pattern (de Gelder) overlap. See:
+  !>   Mayo et al., CrystEngComm 24 (2022) 8326-8338.
   subroutine struct_comparevc_vcpwdf(s,line)
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
     use global, only: fileroot
@@ -2179,10 +2179,11 @@ contains
 
   end subroutine struct_comparevc_vcpwdf
 
-  !> Compare structures, allowing deformation of one crystal into the
-  !> other such as may be cause by temperature or pressure effects
-  !> without a phase change. Variable-cell version of the Gaussian
-  !> POWDIFF comparison method in struct_compare.
+  !> COMPAREVC: vcgpwdf version. Do a global search over lattice
+  !> deformations of the first structure to have a list of diffraction
+  !> angles and intensities that best matches a second structure or an
+  !> experimental pattern. See:
+  !> A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414
   subroutine struct_comparevc_vcgpwdf(s,line)
     use tools_io, only: uout, ferror, faterr
 #ifdef HAVE_NLOPT
