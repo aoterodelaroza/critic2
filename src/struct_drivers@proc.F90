@@ -2036,13 +2036,17 @@ contains
 
     ! header and initalization
     lp = 1
-    write (uout,'("* COMPAREVC: compare crystal structures allowing for deformed cells")')
-
     word = lgetword(line,lp)
     if (equal(word,'vcpwdf')) then
        call struct_comparevc_vcpwdf(s,line(lp:))
+    elseif (equal(word,'vcgpwdf')) then
+       call struct_comparevc_vcgpwdf(s,line(lp:))
     else
+#ifdef HAVE_NLOPT
        call struct_comparevc_vcgpwdf(s,line)
+#else
+       call struct_comparevc_vcpwdf(s,line)
+#endif
     end if
 
   end subroutine struct_comparevc
