@@ -3,9 +3,9 @@
 * COMPARE: compare structures
   Crystal 1 : ../zz_source/crystal06/oxalic_acid_beta/oxacb.out
   Crystal 2 : <current>
-# Using cross-correlated POWDER diffraction patterns.
+# Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
 # Please cite:
-#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
+#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414
 # Two structures are exactly equal if DIFF = 0.
   ... calculating pattern 1 of 2.
   ... finished calculating patterns
@@ -16,9 +16,9 @@
 * COMPARE: compare structures
   Crystal 1 : ../zz_source/crystal14/oxalic_acid_beta/oxacb.out
   Crystal 2 : <current>
-# Using cross-correlated POWDER diffraction patterns.
+# Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
 # Please cite:
-#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
+#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414
 # Two structures are exactly equal if DIFF = 0.
   ... calculating pattern 1 of 2.
   ... finished calculating patterns
@@ -29,9 +29,9 @@
 * COMPARE: compare structures
   Crystal 1 : ../zz_source/crystal17/oxalic_acid_beta/oxacb.out
   Crystal 2 : <current>
-# Using cross-correlated POWDER diffraction patterns.
+# Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
 # Please cite:
-#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
+#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414
 # Two structures are exactly equal if DIFF = 0.
   ... calculating pattern 1 of 2.
   ... finished calculating patterns

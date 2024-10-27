@@ -14,9 +14,9 @@
   Crystal 1 : <current>
   Crystal 2 : 017_compare_crystals_gen.scf.in
   Crystal 3 : 017_compare_crystals_gen.cif
-# Using cross-correlated POWDER diffraction patterns.
+# Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
 # Please cite:
-#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
+#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414
 # Two structures are exactly equal if DIFF = 0.
   ... calculating pattern 1 of 3.
   ... finished calculating patterns
