@@ -1193,7 +1193,7 @@ contains
           return
        end if
        write (uout,'("+ Finished pre-fitting peaks.")')
-       write (*,'("+ RMS of the fit (after prefit) = ",A)') string(rms,'f',decimal=4)
+       write (uout,'("+ RMS of the fit (after prefit) = ",A)') string(rms,'f',decimal=4)
 
        ! prune the peaks
        maxa = maxval(prm(4:nprm:4))
@@ -1341,7 +1341,7 @@ contains
     rms = sqrt(sum((yfit - yread)**2) / real(n,8))
     if (verbose) then
        write (uout,'("+ Finished fitting pattern.")')
-       write (*,'("+ RMS of the fit (final) = ",A/)') string(rms,'f',decimal=4)
+       write (uout,'("+ RMS of the fit (final) = ",A/)') string(rms,'f',decimal=4)
     end if
 
     ! output the XRPD peak list

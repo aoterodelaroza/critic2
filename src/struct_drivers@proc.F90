@@ -2274,28 +2274,40 @@ contains
           call set_safe_params()
        elseif (equal(word,'alpha')) then
           ok = isreal(alpha,line,lp)
-          if (.not.ok) &
-             call ferror("trick_gaucomp","invalid alpha in gaucomp",faterr)
+          if (.not.ok) then
+             call ferror("struct_comparevc_vcgpwdf","invalid alpha in gaucomp",faterr,syntax=.true.)
+             return
+          end if
        elseif (equal(word,'maxfeval')) then
           ok = isinteger(maxfeval,line,lp)
-          if (.not.ok) &
-             call ferror("trick_gaucomp","invalid maxfeval in gaucomp",faterr)
+          if (.not.ok) then
+             call ferror("struct_comparevc_vcgpwdf","invalid maxfeval in gaucomp",faterr,syntax=.true.)
+             return
+          end if
        elseif (equal(word,'besteps')) then
           ok = isreal(besteps,line,lp)
-          if (.not.ok) &
-             call ferror("trick_gaucomp","invalid besteps in gaucomp",faterr)
+          if (.not.ok) then
+             call ferror("struct_comparevc_vcgpwdf","invalid besteps in gaucomp",faterr,syntax=.true.)
+             return
+          end if
        elseif (equal(word,'lambda')) then
           ok = isreal(lambda,line,lp)
-          if (.not.ok) &
-             call ferror("trick_gaucomp","invalid lambda in gaucomp",faterr)
+          if (.not.ok) then
+             call ferror("struct_comparevc_vcgpwdf","invalid lambda in gaucomp",faterr,syntax=.true.)
+             return
+          end if
        elseif (equal(word,'max_elong')) then
           ok = isreal(max_elong,line,lp)
-          if (.not.ok) &
-             call ferror("trick_gaucomp","invalid max_elong in gaucomp",faterr)
+          if (.not.ok) then
+             call ferror("struct_comparevc_vcgpwdf","invalid max_elong in gaucomp",faterr,syntax=.true.)
+             return
+          end if
        elseif (equal(word,'max_ang')) then
           ok = isreal(max_ang,line,lp)
-          if (.not.ok) &
-             call ferror("trick_gaucomp","invalid max_ang in gaucomp",faterr)
+          if (.not.ok) then
+             call ferror("struct_comparevc_vcgpwdf","invalid max_ang in gaucomp",faterr,syntax=.true.)
+             return
+          end if
        else
           exit
        end if
@@ -2313,12 +2325,14 @@ contains
     word = getword(line,lp)
     write (uout,'("  Crystal 2: ",A)') string(word)
     if (word == ".") then
+       th2ini = xrpd_th2ini_def
+       th2end = xrpd_th2end_def
        c2 = s%c
        readc2 = .true.
     elseif (len(word) - index(word,".peaks") == 6) then
        call p2%from_peaks_file(word,errmsg)
        if (len_trim(errmsg) > 0) &
-          call ferror("trick_gaucomp",errmsg,faterr)
+          call ferror("struct_comparevc_vcgpwdf",errmsg,faterr)
        th2ini = p2%th2(1) - 1d-2
        th2end = p2%th2(p2%npeak) + 1d-2
        readc2 = .false.
@@ -2336,7 +2350,7 @@ contains
     if (readc2) then
        call p2%from_crystal(c2,th2ini,th2end,lambda,xrpd_fpol_def,.false.,.false.,errmsg)
        if (len_trim(errmsg) > 0) &
-          call ferror("trick_gaucomp",errmsg,faterr)
+          call ferror("struct_comparevc_vcgpwdf",errmsg,faterr)
     end if
 
     ! run the comparison
@@ -2345,7 +2359,7 @@ contains
        max_elong_def0=max_elong,max_ang_def0=max_ang)
 
     if (len_trim(errmsg) > 0) &
-       call ferror("trick_gaucomp",errmsg,faterr)
+       call ferror("struct_comparevc_vcgpwdf",errmsg,faterr)
 
     if (imode /= imode_sp) then
        call c1%struct_new(seed,.true.)
