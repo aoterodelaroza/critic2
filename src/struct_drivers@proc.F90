@@ -1372,7 +1372,7 @@ contains
 
     integer :: imethod
     integer, parameter :: imethod_default = 0
-    integer, parameter :: imethod_pwdf = 1
+    integer, parameter :: imethod_gpdwf = 1
     integer, parameter :: imethod_powder = 2
     integer, parameter :: imethod_rdf = 3
     integer, parameter :: imethod_sorted = 4
@@ -1416,7 +1416,7 @@ contains
              return
           end if
        elseif (equal(lword,'gpwdf')) then
-          imethod = imethod_pwdf
+          imethod = imethod_gpdwf
        elseif (equal(lword,'powder')) then
           imethod = imethod_powder
        elseif (equal(lword,'rdf')) then
@@ -1570,7 +1570,7 @@ contains
     else
        if (imethod /= imethod_rdf .and. imethod /= imethod_amd .and.&
            imethod /= imethod_emd .and. imethod /= imethod_powder)&
-           imethod = imethod_pwdf
+           imethod = imethod_gpdwf
     end if
 
     ! strip the hydrogens
@@ -1585,8 +1585,8 @@ contains
     end if
 
     ! rest of the header and default variables
-    if (imethod == imethod_pwdf) then
-       write (uout,'("# Using cross-correlated Gaussian powder diffraction patterns (PWDF).")')
+    if (imethod == imethod_gpdwf) then
+       write (uout,'("# Using cross-correlated Gaussian powder diffraction patterns (GPWDF).")')
        write (uout,'("# Please cite:")')
        write (uout,'("#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414")')
        write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
@@ -1641,8 +1641,8 @@ contains
     allocate(diff(ns,ns))
     diff = 1d0
 
-    if (imethod == imethod_pwdf) then
-       ! crystals: PWDF
+    if (imethod == imethod_gpdwf) then
+       ! crystals: GPWDF
 
        ! calculate all the peak lists
        allocate(xp(ns))
