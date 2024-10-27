@@ -2035,15 +2035,15 @@ contains
     write (uout,'("* COMPARE: compare crystal structures allowing for deformed cells")')
 
     word = lgetword(line,lp)
-    if (equal(word,'vcgpwdf')) then
-       call struct_comparevc_vcgpwdf(s,line(lp:))
+    if (equal(word,'vcpwdf')) then
+       call struct_comparevc_vcpwdf(s,line(lp:))
     else
-       if (equal(word,'vcpwdf')) then
+       if (equal(word,'vcgpwdf')) then
           line0 = line(lp:)
        else
           line0 = line
        end if
-       call struct_comparevc_vcpwdf(s,line0)
+       call struct_comparevc_vcgpwdf(s,line0)
     end if
 
   end subroutine struct_comparevc
