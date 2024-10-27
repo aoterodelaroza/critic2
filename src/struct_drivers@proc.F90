@@ -2246,6 +2246,39 @@ contains
     nbesteval = 0
     lambda = xrpd_lambda_def
 
+    ! read crystal structures
+    lp = 1
+    file1 = getword(line,lp)
+    write (uout,'("  Crystal 1: ",A)') string(file1)
+    if (file1 == ".") then
+       c1 = s%c
+    else
+       call struct_crystal_input(file1,0,.false.,.false.,cr0=c1)
+    end if
+    word = getword(line,lp)
+    write (uout,'("  Crystal 2: ",A)') string(word)
+    if (word == ".") then
+       th2ini = xrpd_th2ini_def
+       th2end = xrpd_th2end_def
+       c2 = s%c
+       readc2 = .true.
+    elseif (len(word) - index(word,".peaks") == 6) then
+       call p2%from_peaks_file(word,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror("struct_comparevc_vcgpwdf",errmsg,faterr)
+       th2ini = p2%th2(1) - 1d-2
+       th2end = p2%th2(p2%npeak) + 1d-2
+       readc2 = .false.
+    else
+       ! read crystal structure 2
+       th2ini = xrpd_th2ini_def
+       th2end = xrpd_th2end_def
+       call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
+       readc2 = .true.
+    end if
+    write (uout,'("  Initial and final 2*theta: ",A," ",A)') &
+       string(th2ini,'f',decimal=4), string(th2end,'f',decimal=4)
+
     ! read additional options
     call set_quick_params()
     alpha = xrpd_alpha_def
@@ -2301,38 +2334,6 @@ contains
        end if
     end do
 
-    ! read crystal structures
-    lp = 1
-    file1 = getword(line,lp)
-    write (uout,'("  Crystal 1: ",A)') string(file1)
-    if (file1 == ".") then
-       c1 = s%c
-    else
-       call struct_crystal_input(file1,0,.false.,.false.,cr0=c1)
-    end if
-    word = getword(line,lp)
-    write (uout,'("  Crystal 2: ",A)') string(word)
-    if (word == ".") then
-       th2ini = xrpd_th2ini_def
-       th2end = xrpd_th2end_def
-       c2 = s%c
-       readc2 = .true.
-    elseif (len(word) - index(word,".peaks") == 6) then
-       call p2%from_peaks_file(word,errmsg)
-       if (len_trim(errmsg) > 0) &
-          call ferror("struct_comparevc_vcgpwdf",errmsg,faterr)
-       th2ini = p2%th2(1) - 1d-2
-       th2end = p2%th2(p2%npeak) + 1d-2
-       readc2 = .false.
-    else
-       ! read crystal structure 2
-       th2ini = xrpd_th2ini_def
-       th2end = xrpd_th2end_def
-       call struct_crystal_input(word,0,.false.,.false.,cr0=c2)
-       readc2 = .true.
-    end if
-    write (uout,'("  Initial and final 2*theta: ",A," ",A)') &
-       string(th2ini,'f',decimal=4), string(th2end,'f',decimal=4)
 
     ! pre-calculation
     if (readc2) then
