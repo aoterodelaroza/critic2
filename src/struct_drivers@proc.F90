@@ -1321,7 +1321,7 @@ contains
   module subroutine struct_compare(s,line)
     use systemmod, only: system
     use crystalmod, only: crystal, xrpd_lambda_def, xrpd_peaklist, xrpd_alpha_def,&
-       xrpd_sigma_def, crosscorr_gaussian
+       xrpd_sigma_def, crosscorr_gaussian, xrpd_th2ini_def, xrpd_th2end_def, xrpd_fpol_def
     use crystalseedmod, only: struct_detect_format, struct_detect_ismol, crystalseed
     use global, only: doguess, eval_next, dunit0, iunit, iunitname0
     use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
@@ -1357,10 +1357,7 @@ contains
 
     integer, parameter :: msg_counter = 50
 
-    real*8, parameter :: fpol0 = 0d0
     integer, parameter :: npts = 10001
-    real*8, parameter :: th2ini = 5d0
-    real*8, parameter :: th2end0 = 50d0
     real*8, parameter :: rend0 = 25d0
     integer, parameter :: amd_imax = 100 ! length of the AMD vector
     real*8, parameter :: emd_discardp = 0.1d0 ! discard signals below this intentsity (highest I is 100)
@@ -1596,7 +1593,7 @@ contains
        write (uout,'("# Please cite:")')
        write (uout,'("#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (10.1107/S1600576724007489)")')
        write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
-       if (xend < 0d0) xend = th2end0
+       if (xend < 0d0) xend = xrpd_th2end_def
        difstr = "DIFF"
     elseif (imethod == imethod_powder) then
        write (uout,'("# Using cross-correlated POWDER diffraction patterns.")')
@@ -1604,14 +1601,14 @@ contains
        write (uout,'("#   de Gelder et al., J. Comput. Chem., 22 (2001) 273")')
        write (uout,'("#       (10.1002/1096-987X(200102)22:3%3C273::AID-JCC1001%3E3.0.CO;2-0)")')
        write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
-       if (xend < 0d0) xend = th2end0
+       if (xend < 0d0) xend = xrpd_th2end_def
        difstr = "DIFF"
     elseif (imethod == imethod_emd) then
        write (uout,'("# Using discrete powder diffraction patterns and the earth mover''s distance (EMD).")')
        write (uout,'("# Please cite:")')
        write (uout,'("#   Rubner et al., Int. J. Comput. Vis. 40.2 (2000) 99-121 (10.1023/A:1026543900054)")')
        write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
-       if (xend < 0d0) xend = th2end0
+       if (xend < 0d0) xend = xrpd_th2end_def
        difstr = "DIFF"
     elseif (imethod == imethod_rdf) then
        write (uout,'("# Using cross-correlated radial distribution functions (RDF).")')
@@ -1621,7 +1618,8 @@ contains
     elseif (imethod == imethod_amd) then
        write (uout,'("# Using average minimum distances (AMD) in bohr.")')
        write (uout,'("# Please cite:")')
-       write (uout,'("#   Widdowson et al., Match. Commun. Math. Comput. Chem., 87 (2022) 529 (doi:10.46793/match.87-3.529W)")')
+       write (uout,'("#   Widdowson et al., Match. Commun. Math. Comput. Chem., 87 (2022) 529")')
+       write (uout,'("#       (doi:10.46793/match.87-3.529W)")')
        write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
        if (xend < 0d0) xend = rend0
        difstr = "DIFF"
@@ -1637,7 +1635,8 @@ contains
        difstr = "RMS"
     end if
     if (epsreduce > 0d0) then
-       write (uout,'("# REDUCE: Only repeated/unique structures will be listed, at DIFF level: ",A)') string(epsreduce,'e',10,4)
+       write (uout,'("# REDUCE: Only repeated/unique structures will be listed, at DIFF level: ",A)') &
+          string(epsreduce,'e',10,4)
        allocate(irepeat(ns))
        irepeat = 0
     end if
@@ -1658,11 +1657,11 @@ contains
           if (mod(ncount-1,msg_counter) == 0) &
           write (uout,'("  ... calculating pattern ",A," of ",A,".")') string(ncount), string(ns)
           if (fname_type(i) == fname_current) then
-             call xp(i)%from_crystal(s%c,th2ini,xend,lambda,fpol0,.false.,.false.,errmsg)
+             call xp(i)%from_crystal(s%c,xrpd_th2ini_def,xend,lambda,xrpd_fpol_def,.false.,.false.,errmsg)
           elseif (fname_type(i) == fname_peaks) then
              call xp(i)%from_peaks_file(fname(i),errmsg)
           elseif (fname_type(i) == fname_structure) then
-             call xp(i)%from_crystal(c(i),th2ini,xend,lambda,fpol0,.false.,.false.,errmsg)
+             call xp(i)%from_crystal(c(i),xrpd_th2ini_def,xend,lambda,xrpd_fpol_def,.false.,.false.,errmsg)
           end if
           if (len(errmsg) > 0) then
              call ferror("struct_compare","error calculating pattern" // string(i) // " from file " //&
@@ -1730,25 +1729,25 @@ contains
           if (fname_type(i) == fname_peaks) then
              !$omp critical (fileread)
              call file_read_xy(fname(i),n,th2p,ip)
-             call synthetic_powder(th2ini,xend,npts,sigma,th2p,ip,t,ih)
+             call synthetic_powder(xrpd_th2ini_def,xend,npts,sigma,th2p,ip,t,ih)
              !$omp end critical (fileread)
              iha(:,i) = ih
 
              ! normalize the integral of abs(ih)
              tini = ih(1)**2
              tend = ih(npts)**2
-             nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+             nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - xrpd_th2ini_def) / 2d0 / real(npts-1,8)
              iha(:,i) = ih / sqrt(nor)
           else
              ! calculate the powder diffraction pattern
              if (imethod == imethod_powder) then
-                call c(i)%powder(0,th2ini,xend,lambda,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+                call c(i)%powder(0,xrpd_th2ini_def,xend,lambda,xrpd_fpol_def,npts=npts,sigma=sigma,ishard=.false.,&
                    t=t,ih=ih)
 
                 ! normalize the integral of abs(ih)
                 tini = ih(1)**2
                 tend = ih(npts)**2
-                nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - th2ini) / 2d0 / real(npts-1,8)
+                nor = (2d0 * sum(ih(2:npts-1)**2) + tini + tend) * (xend - xrpd_th2ini_def) / 2d0 / real(npts-1,8)
                 iha(:,i) = ih / sqrt(nor)
              else
                 if (c(i)%ncel == 1) then
@@ -1767,7 +1766,7 @@ contains
 
        ! self-correlation
        allocate(xnorm(ns))
-       h =  (xend-th2ini) / real(npts-1,8)
+       h =  (xend-xrpd_th2ini_def) / real(npts-1,8)
        do i = 1, ns
           if (singleatom(i) < 0) then
              xnorm(i) = crosscorr_triangle(h,iha(:,i),iha(:,i),1d0)
@@ -1820,7 +1819,7 @@ contains
           else
              n = 0
              ! calculate the powder diffraction pattern
-             call c(i)%powder(0,th2ini,xend,lambda,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+             call c(i)%powder(0,xrpd_th2ini_def,xend,lambda,xrpd_fpol_def,npts=npts,sigma=sigma,ishard=.false.,&
                 th2p=th2p,ip=ip,discardp=emd_discardp)
 
              ! normalize
