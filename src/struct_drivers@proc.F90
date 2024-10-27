@@ -1340,7 +1340,7 @@ contains
     integer :: ns, imol, isformat, mcon, nlist
     integer :: amd_norm ! 0 = norm-inf (default), 1 = norm-1, 2 = norm-2
     type(crystal), allocatable :: c(:)
-    real*8 :: tini, tend, nor, h, xend, sigma, epsreduce, diffmin, diff2, xnorm2
+    real*8 :: tini, tend, nor, h, xend, sigma, epsreduce, diffmin, diff2, xnorm2, lambda
     character*15 :: auxdif(5)
     type(xrpd_peaklist), allocatable :: xp(:)
     real*8, allocatable :: t(:), ih(:), iha(:,:), th2a(:,:)
@@ -1357,7 +1357,6 @@ contains
 
     integer, parameter :: msg_counter = 50
 
-    real*8, parameter :: sigma0 = 0.05d0
     real*8, parameter :: fpol0 = 0d0
     integer, parameter :: npts = 10001
     real*8, parameter :: th2ini = 5d0
@@ -1387,11 +1386,12 @@ contains
     ns = 0
     xend = -1d0
     allocate(fname(10),fname_type(10))
-    sigma = sigma0
+    sigma = xrpd_sigma_def
     epsreduce = -1d0
     imol = -1
     amd_norm = 0
     noh = .false.
+    lambda = xrpd_lambda_def
 
     ! read the input options
     do while(.true.)
@@ -1407,6 +1407,12 @@ contains
           ok = eval_next(sigma,line,lp)
           if (.not.ok) then
              call ferror('struct_compare','incorrect SIGMA',faterr,syntax=.true.)
+             return
+          end if
+       elseif (equal(lword,'lambda')) then
+          ok = eval_next(lambda,line,lp)
+          if (.not.ok) then
+             call ferror('struct_compare','incorrect LAMBDA',faterr,syntax=.true.)
              return
           end if
        elseif (equal(lword,'reduce')) then
@@ -1603,7 +1609,7 @@ contains
     elseif (imethod == imethod_emd) then
        write (uout,'("# Using discrete powder diffraction patterns and the earth mover''s distance (EMD).")')
        write (uout,'("# Please cite:")')
-       write (uout,'("#   Rubner et al., Int. J. Comput. Vis. 40.2 (2000) 99-121")')
+       write (uout,'("#   Rubner et al., Int. J. Comput. Vis. 40.2 (2000) 99-121 (10.1023/A:1026543900054)")')
        write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
        if (xend < 0d0) xend = th2end0
        difstr = "DIFF"
@@ -1652,11 +1658,11 @@ contains
           if (mod(ncount-1,msg_counter) == 0) &
           write (uout,'("  ... calculating pattern ",A," of ",A,".")') string(ncount), string(ns)
           if (fname_type(i) == fname_current) then
-             call xp(i)%from_crystal(s%c,th2ini,th2end0,xrpd_lambda_def,fpol0,.false.,.false.,errmsg)
+             call xp(i)%from_crystal(s%c,th2ini,xend,lambda,fpol0,.false.,.false.,errmsg)
           elseif (fname_type(i) == fname_peaks) then
              call xp(i)%from_peaks_file(fname(i),errmsg)
           elseif (fname_type(i) == fname_structure) then
-             call xp(i)%from_crystal(c(i),th2ini,th2end0,xrpd_lambda_def,fpol0,.false.,.false.,errmsg)
+             call xp(i)%from_crystal(c(i),th2ini,xend,lambda,fpol0,.false.,.false.,errmsg)
           end if
           if (len(errmsg) > 0) then
              call ferror("struct_compare","error calculating pattern" // string(i) // " from file " //&
@@ -1668,7 +1674,7 @@ contains
        ! self-correlation
        allocate(xnorm(ns))
        do i = 1, ns
-          call crosscorr_gaussian(xp(i),xp(i),xrpd_alpha_def,xrpd_sigma_def,&
+          call crosscorr_gaussian(xp(i),xp(i),xrpd_alpha_def,sigma,&
              xnorm(i),errmsg,.false.)
           if (len(errmsg) > 0) &
              call ferror("struct_compare","error calculating Gaussian crosscorrelation",faterr)
@@ -1690,7 +1696,7 @@ contains
              if (epsreduce > 0d0) then
                 if (irepeat(j) > 0) cycle
              end if
-             call crosscorr_gaussian(xp(i),xp(j),xrpd_alpha_def,xrpd_sigma_def,xnorm2,errmsg,.false.)
+             call crosscorr_gaussian(xp(i),xp(j),xrpd_alpha_def,sigma,xnorm2,errmsg,.false.)
              !$omp critical (errmsg_)
              if (len(errmsg) > 0) &
                 call ferror("struct_compare","error calculating Gaussian crosscorrelation",faterr)
@@ -1736,7 +1742,7 @@ contains
           else
              ! calculate the powder diffraction pattern
              if (imethod == imethod_powder) then
-                call c(i)%powder(0,th2ini,xend,xrpd_lambda_def,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+                call c(i)%powder(0,th2ini,xend,lambda,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
                    t=t,ih=ih)
 
                 ! normalize the integral of abs(ih)
@@ -1814,7 +1820,7 @@ contains
           else
              n = 0
              ! calculate the powder diffraction pattern
-             call c(i)%powder(0,th2ini,xend,xrpd_lambda_def,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
+             call c(i)%powder(0,th2ini,xend,lambda,fpol0,npts=npts,sigma=sigma,ishard=.false.,&
                 th2p=th2p,ip=ip,discardp=emd_discardp)
 
              ! normalize
