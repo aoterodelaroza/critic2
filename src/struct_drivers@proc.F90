@@ -2054,34 +2054,22 @@ contains
   !> comparison method in struct_compare.
   subroutine struct_comparevc_vcpwdf(s,line)
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
-    use global, only: iunitname0, dunit0, iunit, fileroot
-    use crystalmod, only: crystal, xrpd_lambda_def, vcpwdf_compare
+    use global, only: fileroot
+    use crystalmod, only: crystal, vcpwdf_compare
     use crystalseedmod, only: crystalseed
     use tools_math, only: matinv, m_c2x_from_cellpar, det3, crosscorr_triangle, &
        m_x2c_from_cellpar
-    use tools_io, only: getword, faterr, ferror, uout, string, ioj_left, ioj_right,&
-       isreal, equal, lgetword
-    use param, only: pi, icrd_crys, eye, bohrtoa
+    use tools_io, only: getword, faterr, ferror, uout, string, isreal, equal, lgetword
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
     type(crystalseed) :: seed
-    integer :: lp, i, j
-    character(len=:), allocatable :: file1, file2, errmsg, abc, word
-    type(crystal) :: c1, c2, c2del, caux, c1out, c2out
-    real*8 :: xd2(3,3), cd2(3,3), dmax0, xx(3)
-    real*8 :: aa2(3), bb2(3), cc2(3), dd
-    real*8, allocatable :: dist(:)
-    integer, allocatable :: irange(:,:), lvec(:,:)
-    integer :: nat, n1, n2, n3, i1, i2, i3
-    real*8, allocatable :: iha1(:), iha2(:)
-    real*8, allocatable :: t(:)
-    real*8 :: tini, tend, nor, diff, xnorm1, xnorm2, h, mindiff, vtarget
-    real*8 :: x0std1(3,3), x0std2(3,3), x0del1(3,3), x0del2(3,3), xd2min(3,3)
+    integer :: lp
+    character(len=:), allocatable :: file1, file2, errmsg, word
+    type(crystal) :: c1, c2, c1out, c2out
+    real*8 :: diff
     logical :: ok, dowrite, noh
     real*8 :: powdiff_thr, max_elong, max_ang, max_vol
-    real*8 :: targetaa(3), targetbb(3)
-    integer :: npts
 
     real*8, parameter :: max_elong_def = 0.3d0 ! at most 30% elongation of cell lengths
     real*8, parameter :: max_ang_def = 20d0    ! at most 20 degrees change in angle

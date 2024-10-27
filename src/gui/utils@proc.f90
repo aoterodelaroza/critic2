@@ -49,7 +49,6 @@ contains
     character(len=*,kind=c_char), intent(in) :: str
     real(c_float), intent(inout) :: rgb(3)
     logical, intent(in), optional :: sameline, nolabel
-    logical :: iw_dragcolor3
 
     character(len=:,kind=c_char), allocatable, target :: str1
     logical :: sameline_, nolabel_
@@ -172,8 +171,8 @@ contains
     type(ImVec2) :: szero
     character(len=:,kind=c_char), allocatable, target :: str1, str2, preview
     character(len=:,kind=c_char), allocatable, target :: stropt1
-    logical :: ldum, sameline_, sameline_nospace_, noarrow_
-    integer :: ll, maxlen, nidx, idx, ientry, nword, i, iselect
+    logical :: sameline_, sameline_nospace_, noarrow_
+    integer :: ll, maxlen, nword, i, iselect
     integer(c_int) :: flags
     integer, allocatable :: idx(:)
     logical(c_bool) :: selected
