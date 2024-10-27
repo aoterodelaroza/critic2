@@ -2196,6 +2196,8 @@ contains
   !> without a phase change. Variable-cell version of the Gaussian
   !> POWDIFF comparison method in struct_compare.
   subroutine struct_comparevc_vcgpwdf(s,line)
+    use tools_io, only: uout, ferror, faterr
+#ifndef HAVE_NLOPT
     use tools_io, only: uout, string
 !     use crystalseedmod, only: crystalseed
 !     use crystalmod, only: crystal, xrpd_peaklist, xrpd_fpol_def,&
@@ -2207,9 +2209,11 @@ contains
 !     use tools_io, only: getword, tictac, ferror, faterr, lgetword, equal, &
 !        fopen_read, fclose, getline, isreal, isinteger, fopen_write, ioj_center
 !     use types, only: realloc
+#endif
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
+#ifndef HAVE_NLOPT
     integer :: lp
     character(len=:), allocatable :: file1
 !     integer :: i
@@ -2237,6 +2241,7 @@ contains
 ! 
 !     include 'nlopt.f'
 ! 
+#endif
 
     ! header and initalization
     write (uout,'("* COMPAREVC: compare crystal structures allowing for deformed cells")')
@@ -2245,6 +2250,9 @@ contains
     write (uout,'("#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414")')
     write (uout,*)
 
+#ifndef HAVE_NLOPT
+    call ferror("struct_comparevc_vcgpwdf","COMPARE VCGPWDF can only be used if the NLOPT library is available",faterr)
+#else
 !     ! initialize
 !     neval = 0
 !     lastval = -1d0
@@ -2360,6 +2368,8 @@ contains
 
     write (*,*) "bleh!"
     stop 1
+
+#endif
 
   end subroutine struct_comparevc_vcgpwdf
 
