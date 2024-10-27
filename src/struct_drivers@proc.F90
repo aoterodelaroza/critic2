@@ -2201,9 +2201,8 @@ contains
     use tools_io, only: uout, string
     use crystalseedmod, only: crystalseed
     use crystalmod, only: crystal, xrpd_peaklist, xrpd_fpol_def,&
-       gaussian_compare, xrpd_maxfeval_def_safe, xrpd_besteps_def_safe, xrpd_alpha_def,&
-       xrpd_lambda_def, xrpd_th2ini_def, xrpd_th2end_def, xrpd_sigma_def,&
-       xrpd_max_elong_def_quick, xrpd_max_ang_def_quick
+       gaussian_compare, xrpd_alpha_def, xrpd_lambda_def,&
+       xrpd_th2ini_def, xrpd_th2end_def, xrpd_sigma_def
     use struct_drivers, only: struct_crystal_input
     use tools, only: qcksort
     use tools_io, only: getword, tictac, ferror, faterr, lgetword, equal, &
@@ -2259,21 +2258,8 @@ contains
     nbesteval = 0
     lambda = xrpd_lambda_def
 
-    ! quick
-    ! c2_compare_vcgpwdf_global_quick = c2_compare_vcgpwdf(c1,p2,crout,.true._c_bool,verbose,&
-    !    xrpd_alpha_def,lambda,fpol,xrpd_maxfeval_def_quick,xrpd_besteps_def_quick,xrpd_max_elong_def_quick,&
-    !    xrpd_max_ang_def_quick)
-
-    ! safe
-    ! c2_compare_vcgpwdf_global_safe = c2_compare_vcgpwdf(c1,p2,crout,.true._c_bool,verbose,&
-    !    xrpd_alpha_def,lambda,fpol,xrpd_maxfeval_def_safe,xrpd_besteps_def_safe,xrpd_max_elong_def_safe,&
-    !    xrpd_max_ang_def_safe)
-
     ! read additional options
-    max_elong = xrpd_max_elong_def_quick
-    max_ang = xrpd_max_ang_def_quick
-    maxfeval = xrpd_maxfeval_def_safe
-    besteps = xrpd_besteps_def_safe
+    call set_quick_params()
     alpha = xrpd_alpha_def
     imode = imode_global
     do while (.true.)
@@ -2282,6 +2268,10 @@ contains
           imode = imode_sp
        elseif (equal(word,'local')) then
           imode = imode_local
+       elseif (equal(word,'quick')) then
+          call set_quick_params()
+       elseif (equal(word,'safe')) then
+          call set_safe_params()
        elseif (equal(word,'alpha')) then
           ok = isreal(alpha,line,lp)
           if (.not.ok) &
@@ -2372,6 +2362,27 @@ contains
     end if
 
     write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
+contains
+  subroutine set_quick_params()
+    use crystalmod, only: xrpd_besteps_def_quick, xrpd_maxfeval_def_quick,&
+       xrpd_max_ang_def_quick, xrpd_max_elong_def_quick
+
+    max_elong = xrpd_max_elong_def_quick
+    max_ang = xrpd_max_ang_def_quick
+    maxfeval = xrpd_maxfeval_def_quick
+    besteps = xrpd_besteps_def_quick
+
+  end subroutine set_quick_params
+  subroutine set_safe_params()
+    use crystalmod, only: xrpd_besteps_def_safe, xrpd_maxfeval_def_safe,&
+       xrpd_max_elong_def_safe, xrpd_max_ang_def_safe
+
+    max_elong = xrpd_max_elong_def_safe
+    max_ang = xrpd_max_ang_def_safe
+    maxfeval = xrpd_maxfeval_def_safe
+    besteps = xrpd_besteps_def_safe
+
+  end subroutine set_safe_params
 #endif
 
   end subroutine struct_comparevc_vcgpwdf
