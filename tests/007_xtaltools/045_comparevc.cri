@@ -1,5 +1,7 @@
 ## labels: regression
+## check: 045_comparevc-final.res -a1e-5
+## check: 045_comparevc-final.xy -a1e-5
 
 crystal library diamond
-comparevc . ../zz_source/qe-6.5/graphite/graph.scf.in
-# comparevc vcpwdf . ../zz_source/qe-6.5/graphite/graph.scf.in
+comparevc . ../zz_source/qe-6.5/graphite/graph.scf.in write
+comparevc vcpwdf . ../zz_source/qe-6.5/graphite/graph.scf.in
