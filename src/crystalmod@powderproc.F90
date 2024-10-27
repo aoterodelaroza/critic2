@@ -2192,7 +2192,7 @@ contains
 
   contains
     subroutine diff_fun(val, n, x, grad, need_gradient, f_data)
-      use param, only: pi
+      use param, only: pi, VSMALL
       use tools_io, only: string, uout, ioj_left, ioj_right
       use tools_math, only: det3sym
       real*8 :: val, x(n), grad(n)
@@ -2246,7 +2246,7 @@ contains
       if (need_gradient /= 0) then
          ! derivatives wrt Gij (the 0.5 in the second term is missing
          ! because there are two dfgg11, one from each "1"
-         ddg = -dd * (dfgg12 / dfg12 - dfgg11 / dfg11)
+         ddg = -dd * (dfgg12 / max(dfg12,VSMALL) - dfgg11 / max(dfg11,VSMALL))
 
          ! Off-diagonal components (2,3,5) are half what they should
          ! be because we did not impose symmetric matrix
