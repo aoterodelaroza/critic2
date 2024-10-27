@@ -2036,18 +2036,13 @@ contains
 
     ! header and initalization
     lp = 1
-    write (uout,'("* COMPARE: compare crystal structures allowing for deformed cells")')
+    write (uout,'("* COMPAREVC: compare crystal structures allowing for deformed cells")')
 
     word = lgetword(line,lp)
     if (equal(word,'vcpwdf')) then
        call struct_comparevc_vcpwdf(s,line(lp:))
     else
-       if (equal(word,'vcgpwdf')) then
-          line0 = line(lp:)
-       else
-          line0 = line
-       end if
-       call struct_comparevc_vcgpwdf(s,line0)
+       call struct_comparevc_vcgpwdf(s,line)
     end if
 
   end subroutine struct_comparevc
@@ -2295,6 +2290,8 @@ contains
           imode = imode_sp
        elseif (equal(word,'local')) then
           imode = imode_local
+       elseif (equal(word,'global')) then
+          imode = imode_global
        elseif (equal(word,'quick')) then
           call set_quick_params()
        elseif (equal(word,'safe')) then
@@ -2323,13 +2320,13 @@ contains
              call ferror("struct_comparevc_vcgpwdf","invalid lambda in gaucomp",faterr,syntax=.true.)
              return
           end if
-       elseif (equal(word,'max_elong')) then
+       elseif (equal(word,'maxelong')) then
           ok = isreal(max_elong,line,lp)
           if (.not.ok) then
              call ferror("struct_comparevc_vcgpwdf","invalid max_elong in gaucomp",faterr,syntax=.true.)
              return
           end if
-       elseif (equal(word,'max_ang')) then
+       elseif (equal(word,'maxang')) then
           ok = isreal(max_ang,line,lp)
           if (.not.ok) then
              call ferror("struct_comparevc_vcgpwdf","invalid max_ang in gaucomp",faterr,syntax=.true.)
