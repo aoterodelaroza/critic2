@@ -4842,15 +4842,18 @@ contains
   !> Tools for editing and processing 1D x-ray powder diffraction
   !> patterns.
   module subroutine struct_xrpd(line0)
-    use crystalmod, only: david_sivia_calculate_background
+    use crystalmod, only: david_sivia_calculate_background, xrpd_peaklist
+    use global, only: fileroot
     use tools_io, only: uout, getword, lgetword, equal, ferror, faterr, isinteger, string,&
-       file_read_xy, fopen_write, fclose
+       file_read_xy, fopen_write, fclose, isreal
     character*(*), intent(in) :: line0
 
     character(len=:), allocatable :: word, xyfile, file, errmsg
-    integer :: lp, nknot, n, lu, i
+    integer :: lp, nknot, n, lu, i, nadj
     logical :: ok
-    real*8, allocatable :: x(:), y(:), yout(:)
+    real*8, allocatable :: x(:), y(:), yout(:), yfit(:)
+    real*8 :: ymax_peakdetect, rms
+    type(xrpd_peaklist) :: p
 
     integer, parameter :: nknot_def = 20
 
@@ -4886,15 +4889,50 @@ contains
 
        ! write the background to the file
        lu = fopen_write(file)
-       write (lu,'("## x  ybackground  yobs-ybackground  yobs")')
+       write (lu,'("## x  yobs-ybackground  ybackground  yobs")')
        do i = 1, n
           write (lu,'(4(A,X))') string(x(i),'f',decimal=10),&
-             string(yout(i),'e',decimal=10), string(y(i)-yout(i),'e',decimal=10),&
+             string(y(i)-yout(i),'e',decimal=10), string(yout(i),'e',decimal=10),&
              string(y(i),'e',decimal=10)
        end do
        call fclose(lu)
+
     elseif (equal(word,"fit")) then
-       write (*,*) "fixme2"
+       ! fit an experimental XRPD profile
+       !   FIT file-xy.s [ymax_peakdetect.r] [nadj.i]
+
+       ! header
+       write (uout,'("+ FIT: Fitting a peak profile to experimental XRPD data")')
+
+       ! read the input options
+       file = getword(line0,lp)
+       ymax_peakdetect = -huge(1d0)
+       ok = isreal(ymax_peakdetect,line0,lp)
+       if (ok) then
+          nadj = 2
+          ok = isinteger(nadj,line0,lp)
+          if (nadj /= 1 .and. nadj /= 2) &
+             call ferror('struct_xrpd','Number of adjacent points (NADJ) must be 1 or 2',faterr)
+       end if
+
+       ! run the peak fit
+       call p%from_profile_file(file,rms,errmsg,.true.,ymax_peakdetect,nadj,xorig=x,yorig=y,ycalc=yfit)
+       if (len_trim(errmsg) > 0) &
+          call ferror('struct_xrpd',errmsg,faterr)
+
+       ! write the profile to disk
+       lu = fopen_write(fileroot // "_fit.dat")
+       write (lu,'("## x yorig ycalc")')
+       do i = 1, size(x,1)
+          write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y(i),'f',decimal=10),&
+             string(yfit(i),'f',decimal=10)
+       end do
+       call fclose(lu)
+
+       ! final list of peaks to disk
+       file = fileroot // ".peaks"
+       write (uout,'("+ List of peaks written to file: ",A)') file
+       call p%write(file)
     elseif (equal(word,"refit")) then
        write (*,*) "fixme3"
     else

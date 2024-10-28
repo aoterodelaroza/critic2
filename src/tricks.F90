@@ -32,7 +32,6 @@ module tricks
   private :: trick_bfgs
   private :: trick_compare_deformed
   private :: trick_check_valence
-  private :: trick_profile_fit
   private :: trick_profile_refit
 
 contains
@@ -59,8 +58,6 @@ contains
        call trick_compare_deformed(line0(lp:))
     else if (equal(word,'check_valence')) then
        call trick_check_valence(line0(lp:))
-    else if (equal(word,'profile_fit')) then
-       call trick_profile_fit(line0(lp:))
     else if (equal(word,'profile_refit')) then
        call trick_profile_refit(line0(lp:))
     else
@@ -2914,75 +2911,6 @@ contains
 
   end subroutine trick_check_valence
 
-  ! PROFILE_FIT file-xy.s ymax_peakdetect.r nadj.i
-  subroutine trick_profile_fit(line0)
-#ifndef HAVE_NLOPT
-    use tools_io, only: ferror, faterr, uout, fopen_write
-    character*(*), intent(in) :: line0
-
-    call ferror("trick_profile_fit","trick_profile_fit can only be used if nlopt is available",faterr)
-#else
-    use crystalmod, only: xrpd_peaklist
-    use tools_io, only: ferror, faterr, uout, getword, isreal, isinteger, string, fopen_write, fclose,&
-       string
-    character*(*), intent(in) :: line0
-
-    integer :: lpo
-    character(len=:), allocatable :: file, errmsg
-    real*8, allocatable :: x(:), y(:), yfit(:)
-    real*8 :: ymax_peakdetect, rms
-    integer :: nadj, lu, i, n
-    logical :: ok
-    type(xrpd_peaklist) :: p
-
-    ! header
-    write (uout,'("* Trick: profile fit")')
-
-    ! read the input options
-    lpo = 1
-    file = getword(line0,lpo)
-    ymax_peakdetect = -huge(1d0)
-    ok = isreal(ymax_peakdetect,line0,lpo)
-    if (ok) then
-       nadj = 2
-       ok = isinteger(nadj,line0,lpo)
-       if (nadj /= 1 .and. nadj /= 2) &
-          call ferror('trick','Number of adjacent points must be 1 or 2',faterr)
-    end if
-
-    ! run the peak fit
-    call p%from_profile_file(file,rms,errmsg,.true.,ymax_peakdetect,nadj,xorig=x,yorig=y,ycalc=yfit)
-    if (len_trim(errmsg) > 0) &
-       call ferror('trick_profile_fit',errmsg,faterr)
-
-    ! write the profile to disk
-    lu = fopen_write("fit.dat")
-    write (lu,'("## x yorig ycalc")')
-    do i = 1, size(x,1)
-       write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y(i),'f',decimal=10),&
-          string(yfit(i),'f',decimal=10)
-    end do
-    call fclose(lu)
-
-    ! calculate final profile and write it to disk
-    n = 3000
-    call p%calculate_profile(n,x,y,errmsg)
-    if (len_trim(errmsg) > 0) &
-       call ferror('trick_profile_fit',errmsg,faterr)
-    lu = fopen_write("fitext.dat")
-    write (lu,'("## x ycalc")')
-    do i = 1, n
-       write (lu,'(2(A," "))') string(x(i),'f',decimal=10), string(y(i),'f',decimal=10)
-    end do
-    call fclose(lu)
-
-    ! final list of peaks to disk
-    write (uout,'("+ List of peaks written to file: fit.peaks")')
-    call p%write("fit.peaks")
-
-#endif
-  end subroutine trick_profile_fit
-
   ! PROFILE_REFIT file-xy.s fit.peaks
   subroutine trick_profile_refit(line0)
     use crystalmod, only: xrpd_peaklist
@@ -3037,7 +2965,7 @@ contains
     n = 3000
     call p%calculate_profile(n,x,y,errmsg)
     if (len_trim(errmsg) > 0) &
-       call ferror('trick_profile_fit',errmsg,faterr)
+       call ferror('trick_profile_refit',errmsg,faterr)
     lu = fopen_write("fitext.dat")
     write (lu,'("## x ycalc")')
     do i = 1, n

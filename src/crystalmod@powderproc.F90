@@ -956,7 +956,7 @@ contains
 
     ! bail out if NLOPT is not available
 #ifndef HAVE_NLOPT
-    errmsg = "gaussian_compare can only be used if nlopt is available"
+    errmsg = "xrpd_peaks_from_profile_file can only be used if nlopt is available"
     rms = huge(1d0)
     return
 #else
@@ -965,7 +965,7 @@ contains
     integer, allocatable :: pid(:), io(:)
     real*8, allocatable :: x(:), y(:), pth2(:), phei(:), prm(:), lb(:), ub(:), yfit(:), ysum(:)
     real*8, allocatable :: yread(:)
-    real*8 :: fac, minx, maxx, maxy, ssq, maxa, xdif, xshift
+    real*8 :: fac, minx, maxx, maxy, ssq, maxa, xdif, xshift, ymean
     logical :: ok
     integer :: npeaks, npeaks_
     integer*8 :: opt
@@ -1008,6 +1008,8 @@ contains
 
     ! if default ymax_detect, use the median of the data
     if (ymax_detect == -huge(1d0)) then
+       ymean = sum(y - minval(y))/size(y,1)
+
        ! straightforward calculation of the median
        ysum = y
        allocate(io(n))
