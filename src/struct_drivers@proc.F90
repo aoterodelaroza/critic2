@@ -4846,6 +4846,8 @@ contains
     use global, only: fileroot
     use tools_io, only: uout, getword, lgetword, equal, ferror, faterr, isinteger, string,&
        file_read_xy, fopen_write, fclose, isreal
+    use tools, only: mergesort, qcksort
+    use types, only: realloc
     character*(*), intent(in) :: line0
 
     character(len=:), allocatable :: word, xyfile, file, errmsg
@@ -4916,6 +4918,7 @@ contains
        end if
 
        ! run the peak fit
+       write (uout,'("  Reading the pattern from file: ",A)') trim(file)
        call p%from_profile_file(file,rms,errmsg,.true.,ymax_peakdetect,nadj,xorig=x,yorig=y,ycalc=yfit)
        if (len_trim(errmsg) > 0) &
           call ferror('struct_xrpd',errmsg,faterr)
@@ -4934,7 +4937,43 @@ contains
        write (uout,'("+ List of peaks written to file: ",A)') file
        call p%write(file)
     elseif (equal(word,"refit")) then
-       write (*,*) "fixme3"
+       ! refit an experimental XRPD profile with a user-provided peaks file
+       !   REFIT file-xy.s file.peaks
+
+       ! read file names and header
+       write (uout,'("+ REFIT: refit a powder pattern with a user-provided peaks file")')
+       xyfile = getword(line0,lp)
+       write (uout,'("  Reading the pattern from file: ",A)') trim(xyfile)
+       file = getword(line0,lp)
+       write (uout,'("  Reading the peaks from file: ",A)') trim(file)
+
+       ! read the peaks file
+       call p%from_peaks_file(file,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror('struct_xrpd',errmsg,faterr)
+
+       ! read the pattern
+       call file_read_xy(xyfile,n,x,y,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror('struct_xrpd',errmsg,faterr)
+
+       ! fit the pattern
+       call p%from_profile_file(xyfile,rms,errmsg,pkinput=p,xorig=x,&
+          yorig=y,ycalc=yfit)
+
+       ! write the profile to disk
+       lu = fopen_write(fileroot // "_fit.dat")
+       write (lu,'("## x yorig ycalc")')
+       do i = 1, size(x,1)
+          write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y(i),'f',decimal=10),&
+             string(yfit(i),'f',decimal=10)
+       end do
+       call fclose(lu)
+
+       ! final list of peaks to disk
+       file = fileroot // ".peaks"
+       write (uout,'("+ List of peaks written to file: fit.peaks")')
+       call p%write(file)
     else
        call ferror("struct_xrpd","unknown keyword in XRPD: " // word,faterr)
     end if

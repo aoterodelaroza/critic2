@@ -32,7 +32,6 @@ module tricks
   private :: trick_bfgs
   private :: trick_compare_deformed
   private :: trick_check_valence
-  private :: trick_profile_refit
 
 contains
 
@@ -58,8 +57,6 @@ contains
        call trick_compare_deformed(line0(lp:))
     else if (equal(word,'check_valence')) then
        call trick_check_valence(line0(lp:))
-    else if (equal(word,'profile_refit')) then
-       call trick_profile_refit(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -2910,73 +2907,5 @@ contains
     end if
 
   end subroutine trick_check_valence
-
-  ! PROFILE_REFIT file-xy.s fit.peaks
-  subroutine trick_profile_refit(line0)
-    use crystalmod, only: xrpd_peaklist
-    use types, only: realloc
-    use tools_io, only: fopen_write, fopen_read, fclose, ferror, faterr, isreal, getline, string,&
-       uout, getword, file_read_xy
-    use tools, only: mergesort, qcksort
-    character*(*), intent(in) :: line0
-
-#ifndef HAVE_NLOPT
-    call ferror("trick_profile_refit","trick_profile_refit can only be used if nlopt is available",faterr)
-#else
-    character(len=:), allocatable :: xyfile, file, errmsg
-    integer :: lu, lpo, i
-    integer :: n
-    real*8, allocatable :: x(:), y(:), yfit(:)
-    real*8 :: rms
-    type(xrpd_peaklist) :: p
-
-    ! read file names and header
-    write (uout,'("* Trick: profile refit")')
-    lpo = 1
-    xyfile = getword(line0,lpo)
-    write (uout,'("+ Reading the pattern from file: ",A)') trim(xyfile)
-    file = getword(line0,lpo)
-    write (uout,'("+ Reading the peaks from file: ",A)') trim(file)
-
-    ! read the peaks file
-    call p%from_peaks_file(file,errmsg)
-    if (len_trim(errmsg) > 0) &
-       call ferror('trick_profile_refit',errmsg,faterr)
-
-    ! read the pattern
-    call file_read_xy(xyfile,n,x,y,errmsg)
-    if (len_trim(errmsg) > 0) &
-       call ferror('trick_profile_refit',errmsg,faterr)
-
-    ! fit the pattern
-    call p%from_profile_file(xyfile,rms,errmsg,verbose0=.true.,pkinput=p,xorig=x,&
-       yorig=y,ycalc=yfit)
-
-    ! write the profile to disk
-    lu = fopen_write("fit.dat")
-    write (lu,'("## x yorig ycalc")')
-    do i = 1, size(x,1)
-       write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y(i),'f',decimal=10),&
-          string(yfit(i),'f',decimal=10)
-    end do
-    call fclose(lu)
-
-    ! calculate final profile and write it to disk
-    n = 3000
-    call p%calculate_profile(n,x,y,errmsg)
-    if (len_trim(errmsg) > 0) &
-       call ferror('trick_profile_refit',errmsg,faterr)
-    lu = fopen_write("fitext.dat")
-    write (lu,'("## x ycalc")')
-    do i = 1, n
-       write (lu,'(2(A," "))') string(x(i),'f',decimal=10), string(y(i),'f',decimal=10)
-    end do
-    call fclose(lu)
-
-    ! final list of peaks to disk
-    write (uout,'("+ List of peaks written to file: fit.peaks")')
-    call p%write("fit.peaks")
-#endif
-  end subroutine trick_profile_refit
 
 end module tricks
