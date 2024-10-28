@@ -4924,7 +4924,9 @@ contains
           call ferror('struct_xrpd',errmsg,faterr)
 
        ! write the profile to disk
-       lu = fopen_write(fileroot // "_fit.dat")
+       file = fileroot // "_fit.dat"
+       write (uout,'("  Writing original and fitted profile to file: ",A)') trim(file)
+       lu = fopen_write(file)
        write (lu,'("## x yorig ycalc")')
        do i = 1, size(x,1)
           write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y(i),'f',decimal=10),&
@@ -4962,7 +4964,9 @@ contains
           yorig=y,ycalc=yfit)
 
        ! write the profile to disk
-       lu = fopen_write(fileroot // "_fit.dat")
+       file = fileroot // "_fit.dat"
+       write (uout,'("  Writing original and fitted profile to file: ",A)') trim(file)
+       lu = fopen_write(file)
        write (lu,'("## x yorig ycalc")')
        do i = 1, size(x,1)
           write (lu,'(3(A," "))') string(x(i),'f',decimal=10), string(y(i),'f',decimal=10),&
