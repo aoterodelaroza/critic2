@@ -34,7 +34,6 @@ module tricks
   private :: trick_check_valence
   private :: trick_profile_fit
   private :: trick_profile_refit
-  private :: trick_profile_background
 
 contains
 
@@ -64,8 +63,6 @@ contains
        call trick_profile_fit(line0(lp:))
     else if (equal(word,'profile_refit')) then
        call trick_profile_refit(line0(lp:))
-    else if (equal(word,'profile_background')) then
-       call trick_profile_background(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -3053,51 +3050,5 @@ contains
     call p%write("fit.peaks")
 #endif
   end subroutine trick_profile_refit
-
-  ! PROFILE_BACKGROUND file-xy.s file-newxy.s [nknot.i]
-  subroutine trick_profile_background(line0)
-    use tools_io, only: uout, getword, file_read_xy, ferror, faterr, fopen_write,&
-       fclose, string, isinteger
-    use crystalmod, only: david_sivia_calculate_background
-    character*(*), intent(in) :: line0
-
-    logical :: ok
-    character(len=:), allocatable :: xyfile, file, errmsg
-    integer :: lpo, n, lu, i, nknot
-    real*8, allocatable :: x(:), y(:), yout(:)
-
-    ! read file names and header
-    write (uout,'("* Trick: profile background calculation")')
-    lpo = 1
-    xyfile = getword(line0,lpo)
-    write (uout,'("+ Reading the pattern from file: ",A)') trim(xyfile)
-    file = getword(line0,lpo)
-    write (uout,'("+ Writting background to file: ",A)') trim(file)
-    ok = isinteger(nknot,line0,lpo)
-    if (.not.ok) nknot = 20
-    write (uout,'("+ Number of knots: ",A)') string(nknot)
-    write (uout,*)
-
-    ! read the pattern
-    call file_read_xy(xyfile,n,x,y,errmsg)
-    if (len_trim(errmsg) > 0) &
-       call ferror('trick_profile_background',errmsg,faterr)
-
-    ! calculate the background
-    yout = david_sivia_calculate_background(n,x,y,errmsg,nknot=nknot)
-    if (len_trim(errmsg) > 0) &
-       call ferror('trick_profile_background',errmsg,faterr)
-
-    ! write the background to the file
-    lu = fopen_write(file)
-    write (lu,'("## x  ybackground  yobs-ybackground  yobs")')
-    do i = 1, n
-       write (lu,'(4(A,X))') string(x(i),'f',decimal=10),&
-          string(yout(i),'e',decimal=10), string(y(i)-yout(i),'e',decimal=10),&
-          string(y(i),'e',decimal=10)
-    end do
-    call fclose(lu)
-
-  end subroutine trick_profile_background
 
 end module tricks

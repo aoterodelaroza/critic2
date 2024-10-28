@@ -51,6 +51,7 @@ module struct_drivers
   public :: struct_molmove
   public :: struct_kpoints
   public :: struct_bz
+  public :: struct_xrpd
 
   interface
      module subroutine struct_crystal_input(line,mol0,allownofile,verbose,s0,cr0,seed0)
@@ -166,6 +167,9 @@ module struct_drivers
      module subroutine struct_bz(s)
        type(system), intent(in) :: s
      end subroutine struct_bz
+     module subroutine struct_xrpd(line0)
+       character*(*), intent(in) :: line0
+     end subroutine struct_xrpd
   end interface
 
 end module struct_drivers

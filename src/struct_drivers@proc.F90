@@ -4839,4 +4839,68 @@ contains
 
   end subroutine struct_bz
 
+  !> Tools for editing and processing 1D x-ray powder diffraction
+  !> patterns.
+  module subroutine struct_xrpd(line0)
+    use crystalmod, only: david_sivia_calculate_background
+    use tools_io, only: uout, getword, lgetword, equal, ferror, faterr, isinteger, string,&
+       file_read_xy, fopen_write, fclose
+    character*(*), intent(in) :: line0
+
+    character(len=:), allocatable :: word, xyfile, file, errmsg
+    integer :: lp, nknot, n, lu, i
+    logical :: ok
+    real*8, allocatable :: x(:), y(:), yout(:)
+
+    integer, parameter :: nknot_def = 20
+
+    ! header
+    write (uout,'("* XRPD: processing of X-ray powder diffraction data")')
+
+    lp = 1
+    word = lgetword(line0,lp)
+    if (equal(word,"background")) then
+       ! background fit using David-Sivia's method
+       !   BACKGROUND file-xy.s file-newxy.s [nknot.i]
+       write (uout,'("+ BACKGROUND: Fitting background to experimental XRPD data")')
+
+       ! read file names and header
+       xyfile = getword(line0,lp)
+       write (uout,'("  Reading the pattern from file: ",A)') trim(xyfile)
+       file = getword(line0,lp)
+       write (uout,'("  Writting background to file: ",A)') trim(file)
+       ok = isinteger(nknot,line0,lp)
+       if (.not.ok) nknot = nknot_def
+       write (uout,'("  Number of knots: ",A)') string(nknot)
+       write (uout,*)
+
+       ! read the pattern
+       call file_read_xy(xyfile,n,x,y,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror('struct_xrpd',errmsg,faterr)
+
+       ! calculate the background
+       yout = david_sivia_calculate_background(n,x,y,errmsg,nknot=nknot)
+       if (len_trim(errmsg) > 0) &
+          call ferror('struct_xrpd',errmsg,faterr)
+
+       ! write the background to the file
+       lu = fopen_write(file)
+       write (lu,'("## x  ybackground  yobs-ybackground  yobs")')
+       do i = 1, n
+          write (lu,'(4(A,X))') string(x(i),'f',decimal=10),&
+             string(yout(i),'e',decimal=10), string(y(i)-yout(i),'e',decimal=10),&
+             string(y(i),'e',decimal=10)
+       end do
+       call fclose(lu)
+    elseif (equal(word,"fit")) then
+       write (*,*) "fixme2"
+    elseif (equal(word,"refit")) then
+       write (*,*) "fixme3"
+    else
+       call ferror("struct_xrpd","unknown keyword in XRPD: " // word,faterr)
+    end if
+
+  end subroutine struct_xrpd
+
 end submodule proc

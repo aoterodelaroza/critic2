@@ -46,7 +46,7 @@ contains
        struct_econ, struct_edit,&
        struct_coord, struct_polyhedra, struct_packing, struct_vdw, struct_identify,&
        struct_makemols_neighcrys, struct_molreorder, struct_molmove,&
-       struct_kpoints, struct_bz, struct_newcell, struct_amd
+       struct_kpoints, struct_bz, struct_newcell, struct_amd, struct_xrpd
     use struct_drivers, only: struct_vibrations
     use systemmod, only: sy
     use spglib, only: spg_list_spg
@@ -508,6 +508,10 @@ contains
           call check_structure_defined(ok)
           if (.not.ok) cycle
           call struct_bz(sy)
+
+          ! xrpd
+       elseif (equal(word,'xrpd')) then
+          call struct_xrpd(line(lp:))
 
           ! sum/min/max/mean/count
        elseif (equal(word,'sum').or.equal(word,'min').or.equal(word,'max').or.&
