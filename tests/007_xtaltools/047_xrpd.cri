@@ -1,0 +1,8 @@
+## labels: quick regression
+
+xrpd background ../zz_source/xrpd_patterns/XXIX_PXRD_V4.xy 047_xrpd-new.xy
+xrpd fit 047_xrpd-new.xy 40.
+xrpd refit 047_xrpd-new.xy 047_xrpd.peaks
+
+
+

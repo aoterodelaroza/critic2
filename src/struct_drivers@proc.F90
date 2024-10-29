@@ -4877,7 +4877,6 @@ contains
        ok = isinteger(nknot,line0,lp)
        if (.not.ok) nknot = nknot_def
        write (uout,'("  Number of knots: ",A)') string(nknot)
-       write (uout,*)
 
        ! read the pattern
        call file_read_xy(xyfile,n,x,y,errmsg)
@@ -4981,6 +4980,7 @@ contains
     else
        call ferror("struct_xrpd","unknown keyword in XRPD: " // word,faterr)
     end if
+    write (uout,*)
 
   end subroutine struct_xrpd
 

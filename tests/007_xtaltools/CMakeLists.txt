@@ -45,6 +45,7 @@ set(TESTS
   044_amd_basic              ## amd keyword
   045_comparevc              ## comparevc keyword
   046_newcell_nice           ## newcell nice keyword
+  047_xrpd                   ## xrpd keyword
   )
 
 runtests(${TESTS})
