@@ -1591,7 +1591,7 @@ contains
     if (imethod == imethod_gpdwf) then
        write (uout,'("# Using cross-correlated Gaussian powder diffraction patterns (GPWDF).")')
        write (uout,'("# Please cite:")')
-       write (uout,'("#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (10.1107/S1600576724007489)")')
+       write (uout,'("#   Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (doi:10.1107/S1600576724007489)")')
        write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
        if (xend < 0d0) xend = xrpd_th2end_def
        difstr = "DIFF"
@@ -2186,7 +2186,7 @@ contains
   !> deformations of the first structure to have a list of diffraction
   !> angles and intensities that best matches a second structure or an
   !> experimental pattern. See:
-  !> A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (10.1107/S1600576724007489)
+  !> Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (doi:10.1107/S1600576724007489)
   subroutine struct_comparevc_vcgpwdf(s,line)
     use tools_io, only: uout, ferror, faterr
 #ifdef HAVE_NLOPT
@@ -2236,7 +2236,7 @@ contains
     write (uout,'("* COMPAREVC: compare crystal structures allowing for deformed cells")')
     write (uout,'("+ VCGPWDF method: global lattice search for maximal powder diffraction overlap")')
     write (uout,'("# Please cite:")')
-    write (uout,'("#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (10.1107/S1600576724007489)")')
+    write (uout,'("#   Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (doi:10.1107/S1600576724007489)")')
     write (uout,*)
 
 #ifndef HAVE_NLOPT
@@ -3721,8 +3721,8 @@ contains
     write (uout, '("* ECON")')
     write (uout, '("+ Effective Coordination Number (ECoN), per-species")')
     write (uout, '("# Please cite:")')
-    write (uout, '("#   Nespolo, Acta Cryst. B, 72 (2016) 51. (doi.org/10.1107/S2052520615019472)")')
-    write (uout, '("#   Hoppe, Z. Kristallogr. 150 (1979) 23. (doi.org/10.1524/zkri.1979.150.14.23)")')
+    write (uout, '("#   Nespolo, Acta Cryst. B, 72 (2016) 51. (doi:10.1107/S2052520615019472)")')
+    write (uout, '("#   Hoppe, Z. Kristallogr. 150 (1979) 23. (doi:10.1524/zkri.1979.150.14.23)")')
     write (uout, '("# nid = non-equivalent atom ID. name = atomic name (symbol)")')
     write (uout, '("# spc = atomic species (* means all species)")')
     write (uout, '("# econ = effective coordination number species spc around non-equivalent")')
@@ -4868,6 +4868,8 @@ contains
        ! background fit using David-Sivia's method
        !   BACKGROUND file-xy.s file-newxy.s [nknot.i]
        write (uout,'("+ BACKGROUND: Fitting background to experimental XRPD data")')
+       write (uout,'("# Please cite:")')
+       write (uout,'("#   David and Sivia, J. Appl. Crystallogr. 34 (2001) 318-324 (doi:10.1107/S0021889801004332)")')
 
        ! read file names and header
        xyfile = getword(line0,lp)
@@ -4904,6 +4906,8 @@ contains
 
        ! header
        write (uout,'("+ FIT: Fitting a peak profile to experimental XRPD data")')
+       write (uout,'("# Please cite:")')
+       write (uout,'("#   Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (doi:10.1107/S1600576724007489)")')
 
        ! read the input options
        file = getword(line0,lp)
@@ -4943,6 +4947,8 @@ contains
 
        ! read file names and header
        write (uout,'("+ REFIT: refit a powder pattern with a user-provided peaks file")')
+       write (uout,'("# Please cite:")')
+       write (uout,'("#   Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (doi:10.1107/S1600576724007489)")')
        xyfile = getword(line0,lp)
        write (uout,'("  Reading the pattern from file: ",A)') trim(xyfile)
        file = getword(line0,lp)
