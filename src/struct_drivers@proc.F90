@@ -2027,12 +2027,12 @@ contains
   !> without a phase change. Variable-cell version of the POWDIFF
   !> comparison method in struct_compare.
   module subroutine struct_comparevc(s,line)
-    use tools_io, only: uout, lgetword, equal
+    use tools_io, only: lgetword, equal
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
     integer :: lp
-    character(len=:), allocatable :: word, line0
+    character(len=:), allocatable :: word
 
     ! header and initalization
     lp = 1

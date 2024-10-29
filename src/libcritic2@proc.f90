@@ -512,7 +512,7 @@ contains
     type(c_ptr), value, intent(in) :: xyfile
     type(c_ptr), value, intent(in) :: xyback
     type(c_ptr), value, intent(in) :: xyclean
-    integer, value, intent(in) :: nknot
+    integer(c_int), value, intent(in) :: nknot
 
     integer :: n, lu, i
     character(len=:), allocatable :: fname, errmsg

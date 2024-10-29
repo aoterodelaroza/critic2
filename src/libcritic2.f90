@@ -107,7 +107,7 @@ module libcritic2
        type(c_ptr), value, intent(in) :: xyfile
        type(c_ptr), value, intent(in) :: xyback
        type(c_ptr), value, intent(in) :: xyclean
-       integer, value, intent(in) :: nknot
+       integer(c_int), value, intent(in) :: nknot
      end subroutine c2_profile_background
      module function c2_compare_gpwdf(c1,p2,alpha,lambda,fpol) bind(c,name="c2_compare_gpwdf")
        type(c_ptr), value, intent(in) :: c1
