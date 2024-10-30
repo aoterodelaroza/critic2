@@ -11,9 +11,9 @@
 * COMPARE: compare structures
   Crystal 1 : <current>
   Crystal 2 : 018_compare_crystals_opts_gen.scf.in
-# Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
+# Using cross-correlated Gaussian powder diffraction patterns (PWDF).
 # Please cite:
-#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (10.1107/S1600576724007489)
+#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414
 # Two structures are exactly equal if DIFF = 0.
   ... calculating pattern 1 of 2.
   ... finished calculating patterns
@@ -24,20 +24,22 @@
 * COMPARE: compare structures
   Crystal 1 : <current>
   Crystal 2 : 018_compare_crystals_opts_gen.scf.in
-# Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
+# Using cross-correlated Gaussian powder diffraction patterns (PWDF).
 # Please cite:
-#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (10.1107/S1600576724007489)
+#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414
 # Two structures are exactly equal if DIFF = 0.
   ... calculating pattern 1 of 2.
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 4.662937E-15
++ DIFF = 0.000000E+00
 
 * COMPARE: compare structures
   Crystal 1 : <current>
   Crystal 2 : 018_compare_crystals_opts_gen.scf.in
 # Using cross-correlated radial distribution functions (RDF).
+# Please cite:
+#   de Gelder et al., J. Comput. Chem., 22 (2001) 273
 # Two structures are exactly equal if DIFF = 0.
   ... calculating pattern 1 of 2.
   ... finished calculating patterns
@@ -50,8 +52,7 @@
   Crystal 2 : 018_compare_crystals_opts_gen.scf.in
 # Using average minimum distances (AMD) in bohr.
 # Please cite:
-#   Widdowson et al., Match. Commun. Math. Comput. Chem., 87 (2022) 529
-#       (doi:10.46793/match.87-3.529W)
+#   Widdowson et al., Match. Commun. Math. Comput. Chem., 87 (2022) 529 (doi:10.46793/match.87-3.529W)
 # Two structures are exactly equal if DIFF = 0.
 + DIFF = 1.847411E-13
 

@@ -3,9 +3,9 @@
 * COMPARE: compare structures
   Crystal 1 : 009_write_qein.scf.in
   Crystal 2 : <current>
-# Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
+# Using cross-correlated Gaussian powder diffraction patterns (PWDF).
 # Please cite:
-#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (10.1107/S1600576724007489)
+#   A. Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414
 # Two structures are exactly equal if DIFF = 0.
   ... calculating pattern 1 of 2.
   ... finished calculating patterns
