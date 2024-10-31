@@ -543,7 +543,7 @@ contains
        lu = fopen_write(fname)
        write (lu,'("## x  ybackground")')
        do i = 1, n
-          write (lu,'(4(A,X))') string(x(i),'f',decimal=10),&
+          write (lu,'(4(A," "))') string(x(i),'f',decimal=10),&
              string(yout(i),'e',decimal=10)
        end do
        call fclose(lu)
@@ -557,7 +557,7 @@ contains
        lu = fopen_write(fname)
        write (lu,'("## x  yclean")')
        do i = 1, n
-          write (lu,'(4(A,X))') string(x(i),'f',decimal=10),&
+          write (lu,'(4(A," "))') string(x(i),'f',decimal=10),&
              string(y(i)-yout(i),'e',decimal=10)
        end do
        call fclose(lu)

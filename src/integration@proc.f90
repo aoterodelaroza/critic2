@@ -2708,7 +2708,7 @@ contains
     !    do iat_a = iat_a_ini, iat_a_end
     !       do iat_b = iat_b_ini, iat_b_end
     !          do rat_b = rat_b_ini, rat_b_end
-    !             write (*,'(I3,X,I3,X,I3,X,4(F20.12,X))') iat_a, iat_b, rat_b,&
+    !             write (*,'(I3," ",I3," ",I3," ",4(F20.12," "))') iat_a, iat_b, rat_b,&
     !                abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
     !                abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
     !                abs(res%fa(iat_a,iat_b,rat_b,is)),sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))
@@ -2945,7 +2945,7 @@ contains
     !    do iat_a = iat_a_ini, iat_a_end
     !       do iat_b = iat_b_ini, iat_b_end
     !          do rat_b = rat_b_ini, rat_b_end
-    !             write (*,'(I3,X,I3,X,I3,X,4(F20.12,X))') iat_a, iat_b, rat_b,&
+    !             write (*,'(I3," ",I3," ",I3," ",4(F20.12," "))') iat_a, iat_b, rat_b,&
     !                abs(res%fa(iat_a,iat_b,rat_b,is)-sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
     !                abs(res%fa(iat_a,iat_b,rat_b,is)/sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))),&
     !                abs(res%fa(iat_a,iat_b,rat_b,is)),sum(res%fa3(iat_a,iat_b,rat_b,:,:,is))

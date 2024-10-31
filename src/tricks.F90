@@ -2369,7 +2369,7 @@ contains
     write (uout,'("+ Niggli lattice vectors (",A,")")') iunitname0(iunit)
     if (usexy) then
        write (uout,'("# Structure 1 (input diffraction pattern):")')
-       write (uout,'("  Using cell lengths (ang) and angles: ",6(A,X))') &
+       write (uout,'("  Using cell lengths (ang) and angles: ",6(A," "))') &
           (string(cellaa(j)*bohrtoa,'f',decimal=4),j=1,3), (string(cellbb(j),'f',decimal=2),j=1,3)
     else
        write (uout,'("# Structure 1 (",A,"):")') trim(c1%file)

@@ -3437,7 +3437,7 @@ contains
        write (uout,'("# newcell transformation = use these parameters in a NEWCELL command to obtain this cell")')
        write (uout,'("#n   rmax   niceness  -- NEWCELL transformation --")')
        do i = 1, inice
-          write (uout,'(3(A,X),X,3(3(A,X),X))') string(i,3,ioj_left),&
+          write (uout,'(3(A," ")," ",3(3(A," ")," "))') string(i,3,ioj_left),&
              string(rmax(i)*dunit0(iunit),'f',7,3), string(8d0 * rmax(i)**3 / (i*s%c%omega),'f',7,5),&
              ((string(nint(mmax(j,k,i)),length=2,justify=ioj_right),j=1,3),k=1,3)
        end do
@@ -4894,7 +4894,7 @@ contains
        lu = fopen_write(file)
        write (lu,'("## x  yobs-ybackground  ybackground  yobs")')
        do i = 1, n
-          write (lu,'(4(A,X))') string(x(i),'f',decimal=10),&
+          write (lu,'(4(A," "))') string(x(i),'f',decimal=10),&
              string(y(i)-yout(i),'e',decimal=10), string(yout(i),'e',decimal=10),&
              string(y(i),'e',decimal=10)
        end do
