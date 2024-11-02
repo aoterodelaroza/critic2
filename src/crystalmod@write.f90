@@ -2857,12 +2857,12 @@ contains
        write(lu,'("critic2-cube")')
        write(lu,'("critic2-cube")')
        if (precisecube) then
-          write(lu,'(I5," ",3(E22.14," "))') c%ncel, x0
+          write(lu,'(I5," ",3(E22.14E3," "))') c%ncel, x0
           do i = 1, 3
-             write(lu,'(I5," ",3(E22.14," "))') n(i), xd(:,i)
+             write(lu,'(I5," ",3(E22.14E3," "))') n(i), xd(:,i)
           end do
           do i = 1, c%ncel
-             write(lu,'(I4,F5.1,3(E22.14," "))') c%spc(c%atcel(i)%is)%z, 0d0, &
+             write(lu,'(I4,F5.1,3(E22.14E3," "))') c%spc(c%atcel(i)%is)%z, 0d0, &
                 c%atcel(i)%r(:) + c%molx0 - rshift
           end do
        else
@@ -2881,9 +2881,9 @@ contains
              do iiy = 0, n(2)-1
                 iy = modulo(iiy + ishift(2),n(2)) + 1
                 if (precisecube) then
-                   write (lu,'(6(" ",e22.14))') (g(ix,iy,modulo(iiz+ishift(3),n(3))+1),iiz=0,n(3)-1)
+                   write (lu,'(6(" ",E22.14E3))') (g(ix,iy,modulo(iiz+ishift(3),n(3))+1),iiz=0,n(3)-1)
                 else
-                   write (lu,'(1p,6(" ",e12.5))') (g(ix,iy,modulo(iiz+ishift(3),n(3))+1),iiz=0,n(3)-1)
+                   write (lu,'(1p,6(" ",E12.5E3))') (g(ix,iy,modulo(iiz+ishift(3),n(3))+1),iiz=0,n(3)-1)
                 end if
              enddo
           enddo
