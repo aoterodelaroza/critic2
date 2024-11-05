@@ -1144,6 +1144,7 @@ contains
     use tools_math, only: tosphere, genrlm_real
     use tools_io, only: uout, string
     use types, only: basindat, int_result, out_mpoles, out_field
+    use param, only: ifformat_as_ft_lap, ifformat_as_ft_grad
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
 
@@ -1215,10 +1216,10 @@ contains
                 fint = sy%f(fid)%grid%f
              elseif (sy%propi(k)%itype == itype_lapval .or.&
                 sy%propi(k)%itype == itype_lap.and..not.sy%f(fid)%usecore) then
-                call faux%laplacian_hxx(sy%f(fid)%grid,0)
+                call faux%fft(sy%f(fid)%grid,ifformat_as_ft_lap)
                 fint = faux%f
              elseif (sy%propi(k)%itype == itype_gmod.and..not.sy%f(fid)%usecore) then
-                call faux%gradrho(sy%f(fid)%grid)
+                call faux%fft(sy%f(fid)%grid,ifformat_as_ft_grad)
                 fint = faux%f
              else
                 fillgrd = .true.
@@ -1377,6 +1378,7 @@ contains
     use fieldmod, only: type_grid
     use tools_io, only: uout, string, ferror, faterr
     use types, only: basindat, int_result, out_field, realloc
+    use param, only: ifformat_as_ft_lap, ifformat_as_ft_grad
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
 
@@ -1448,10 +1450,10 @@ contains
                 fmap(:,:,:,nmap) = sy%f(fid)%grid%f
              elseif (sy%propi(k)%itype == itype_lapval .or.&
                 sy%propi(k)%itype == itype_lap.and..not.sy%f(fid)%usecore) then
-                call faux%laplacian_hxx(sy%f(fid)%grid,0)
+                call faux%fft(sy%f(fid)%grid,ifformat_as_ft_lap)
                 fmap(:,:,:,nmap) = faux%f
              elseif (sy%propi(k)%itype == itype_gmod.and..not.sy%f(fid)%usecore) then
-                call faux%gradrho(sy%f(fid)%grid)
+                call faux%fft(sy%f(fid)%grid,ifformat_as_ft_grad)
                 fmap(:,:,:,nmap) = faux%f
              else
                 fillgrd = .true.

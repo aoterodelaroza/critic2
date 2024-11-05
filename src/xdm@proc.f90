@@ -151,7 +151,8 @@ contains
     use global, only: eval_next, cutrad
     use tools_io, only: uout, lgetword, equal, getword, ferror, faterr, string,&
        warning, ioj_right
-    use param, only: bohrtoa, pi, maxzat0, alpha_free, fact, autogpa, icrd_crys
+    use param, only: bohrtoa, pi, maxzat0, alpha_free, fact, autogpa, icrd_crys,&
+       ifformat_as_ft_grad, ifformat_as_ft_lap
     character*(*), intent(inout) :: line
 
     logical :: ok, dopro, docor
@@ -391,7 +392,7 @@ contains
        if (allocated(sy%f(ilap)%grid)) deallocate(sy%f(ilap)%grid)
        allocate(sy%f(ilap)%grid)
        write (uout,'("+ Calculating Laplacian of rho")')
-       call sy%f(ilap)%grid%laplacian_hxx(sy%f(irho)%grid,0)
+       call sy%f(ilap)%grid%fft(sy%f(irho)%grid,ifformat_as_ft_lap)
        sy%f(ilap)%isinit = .true.
        ! write (uout,'("+ Writing Laplacian to: ",A)') trim(fileroot)//"-lap.cube"
        ! call write_cube(trim(fileroot)//"-lap.cube","Laplacian of the electron density","Written by critic2 for XDM",n,sy%f(ilap)%grid%f)
@@ -403,7 +404,7 @@ contains
        if (allocated(sy%f(igrad)%grid)) deallocate(sy%f(igrad)%grid)
        allocate(sy%f(igrad)%grid)
        write (uout,'("+ Calculating gradient of rho")')
-       call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid)
+       call sy%f(igrad)%grid%fft(sy%f(irho)%grid,ifformat_as_ft_grad)
        sy%f(igrad)%isinit = .true.
        ! write (uout,'("+ Writing gradient to: ",A)') trim(fileroot)//"-grad.cube"
        ! call write_cube(trim(fileroot)//"-grad.cube","Gradient of the electron density","Written by critic2 for XDM",n,sy%f(igrad)%grid%f)
@@ -1836,6 +1837,7 @@ contains
     use fieldmod, only: type_grid
     use grid3mod, only: grid3
     use tools_io, only: ferror, faterr, string, fclose
+    use param, only: ifformat_as_ft_grad
     integer, intent(in) :: ielf, irho, itau
 
     integer :: igrad
@@ -1863,7 +1865,7 @@ contains
     igrad = sy%getfieldnum()
     if (allocated(sy%f(igrad)%grid)) deallocate(sy%f(igrad)%grid)
     allocate(sy%f(igrad)%grid)
-    call sy%f(igrad)%grid%gradrho(sy%f(irho)%grid)
+    call sy%f(igrad)%grid%fft(sy%f(irho)%grid,ifformat_as_ft_grad)
     sy%f(igrad)%isinit = .true.
 
     allocate(g(sy%f(ielf)%grid%n(1),sy%f(ielf)%grid%n(2),sy%f(ielf)%grid%n(3)))

@@ -66,10 +66,13 @@ contains
        ifformat_vasp, ifformat_vaspnov, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
        ifformat_siestagrid, ifformat_fplogrid, ifformat_dftb, ifformat_pwc,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk,&
-       ifformat_molden, ifformat_as, ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap,&
-       ifformat_as_resample,&
-       ifformat_as_grad, ifformat_as_pot, ifformat_as_clm, ifformat_as_clm_sub, ifformat_copy, &
-       ifformat_promolecular, ifformat_promolecular_fragment, ifformat_as_ghost
+       ifformat_molden, ifformat_as, ifformat_as_promolecular, ifformat_as_core,&
+       ifformat_as_resample, ifformat_as_clm, ifformat_as_clm_sub, ifformat_copy,&
+       ifformat_promolecular, ifformat_promolecular_fragment, ifformat_as_ghost,&
+       ifformat_as_ft_x, ifformat_as_ft_y, ifformat_as_ft_z, ifformat_as_ft_xx,&
+       ifformat_as_ft_xy, ifformat_as_ft_xz, ifformat_as_ft_yy, ifformat_as_ft_yz,&
+       ifformat_as_ft_zz, ifformat_as_ft_grad, ifformat_as_ft_lap, ifformat_as_ft_pot
+
     class(fieldseed), intent(inout) :: f
     character*(*) :: line
     logical, intent(in) :: withoptions
@@ -323,13 +326,32 @@ contains
                 return
              end if
           end if
-       elseif (equal(lword,"lap") .or. equal(lword,"grad") .or. equal(lword,"pot")) then
-          if (equal(lword,"lap")) then
-             f%iff = ifformat_as_lap
-          elseif (equal(lword,"grad")) then
-             f%iff = ifformat_as_grad
-          else
-             f%iff = ifformat_as_pot
+       elseif (equal(lword,"fft")) then
+          call read_next_as_word()
+          if (equal(lword,"gx")) then
+             f%iff = ifformat_as_ft_x
+          elseif (equal(lword,"gy")) then
+             f%iff = ifformat_as_ft_y
+          elseif (equal(lword,"gz")) then
+             f%iff = ifformat_as_ft_z
+          elseif (equal(lword,"hxx")) then
+             f%iff = ifformat_as_ft_xx
+          elseif (equal(lword,"hxy")) then
+             f%iff = ifformat_as_ft_xy
+          elseif (equal(lword,"hxz")) then
+             f%iff = ifformat_as_ft_xz
+          elseif (equal(lword,"hyy")) then
+             f%iff = ifformat_as_ft_yy
+          elseif (equal(lword,"hyz")) then
+             f%iff = ifformat_as_ft_yz
+          elseif (equal(lword,"hzz")) then
+             f%iff = ifformat_as_ft_zz
+          elseif (equal(lword,"gmod")) then
+             f%iff = ifformat_as_ft_grad
+          elseif (equal(lword,"lap")) then
+             f%iff = ifformat_as_ft_lap
+          elseif (equal(lword,"pot")) then
+             f%iff = ifformat_as_ft_pot
           end if
           call read_next_as_word()
           if (len_trim(word) < 1) then
@@ -338,7 +360,7 @@ contains
              return
           end if
           f%ids = word
-          if (f%iff == ifformat_as_pot) then
+          if (f%iff == ifformat_as_ft_pot) then
              call read_next_as_word()
              if (equal(lword,"ry") .or. equal(lword,"rydberg")) then
                 f%isry = .true.

@@ -295,8 +295,10 @@ contains
        ifformat_xsf, ifformat_elkgrid, ifformat_siestagrid, ifformat_fplogrid,&
        ifformat_dftb, ifformat_pwc, ifformat_fmt,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk, ifformat_molden, ifformat_as,&
-       ifformat_as_promolecular, ifformat_as_core, ifformat_as_lap, ifformat_as_grad,&
-       ifformat_as_pot, ifformat_as_resample,&
+       ifformat_as_promolecular, ifformat_as_core, ifformat_as_resample,&
+       ifformat_as_ft_x,ifformat_as_ft_y,ifformat_as_ft_z,ifformat_as_ft_xx,&
+       ifformat_as_ft_xy,ifformat_as_ft_xz,ifformat_as_ft_yy,ifformat_as_ft_yz,&
+       ifformat_as_ft_zz,ifformat_as_ft_grad,ifformat_as_ft_lap,ifformat_as_ft_pot,&
        ifformat_as_clm, ifformat_as_clm_sub, ifformat_as_ghost, &
        ifformat_copy, ifformat_promolecular, ifformat_promolecular_fragment
     use hashmod, only: hash
@@ -585,8 +587,13 @@ contains
        end if
        f%name = "<generated>, grid: " // trim(seed%expr)
 
-    elseif (seed%iff == ifformat_copy .or. seed%iff == ifformat_as_lap .or.&
-       seed%iff == ifformat_as_pot .or. seed%iff == ifformat_as_grad .or. &
+    elseif (seed%iff == ifformat_copy .or. seed%iff == ifformat_as_ft_x .or.&
+       seed%iff == ifformat_as_ft_y .or. seed%iff == ifformat_as_ft_z .or. &
+       seed%iff == ifformat_as_ft_xx .or. seed%iff == ifformat_as_ft_xy .or. &
+       seed%iff == ifformat_as_ft_xz .or. seed%iff == ifformat_as_ft_yy .or. &
+       seed%iff == ifformat_as_ft_yz .or. seed%iff == ifformat_as_ft_zz .or. &
+       seed%iff == ifformat_as_ft_grad .or. seed%iff == ifformat_as_ft_lap .or. &
+       seed%iff == ifformat_as_ft_pot .or.&
        seed%iff == ifformat_as_clm .or. seed%iff == ifformat_as_clm_sub .or.&
        seed%iff == ifformat_as_resample) then
        errmsg = "error in file format for field_new"
@@ -686,8 +693,10 @@ contains
     use grid3mod, only: grid3
     use fragmentmod, only: fragment
     use tools_io, only: ferror, faterr
-    use param, only: ifformat_as_lap, ifformat_as_grad, ifformat_as_pot,&
-       ifformat_as_hxx1, ifformat_as_hxx2, ifformat_as_hxx3, ifformat_as_resample
+    use param, only: ifformat_as_ft_x,ifformat_as_ft_y,ifformat_as_ft_z,ifformat_as_ft_xx,&
+       ifformat_as_ft_xy,ifformat_as_ft_xz,ifformat_as_ft_yy,ifformat_as_ft_yz,&
+       ifformat_as_ft_zz,ifformat_as_ft_grad,ifformat_as_ft_lap,ifformat_as_ft_pot,&
+       ifformat_as_resample
     class(field), intent(inout) :: f !< Input/output field
     type(crystal), intent(in), target :: c
     integer, intent(in) :: id
@@ -712,20 +721,10 @@ contains
     f%isinit = .true.
     f%type = type_grid
     if (.not.allocated(f%grid)) allocate(f%grid)
-    if (ityp == ifformat_as_lap) then
-       call f%grid%laplacian_hxx(g,0)
-    elseif (ityp == ifformat_as_grad) then
-       call f%grid%gradrho(g)
-    elseif (ityp == ifformat_as_pot) then
-       call f%grid%pot(g,isry)
-    elseif (ityp == ifformat_as_hxx1) then
-       call f%grid%laplacian_hxx(g,1)
-    elseif (ityp == ifformat_as_hxx2) then
-       call f%grid%laplacian_hxx(g,2)
-    elseif (ityp == ifformat_as_hxx3) then
-       call f%grid%laplacian_hxx(g,3)
-    elseif (ityp == ifformat_as_resample) then
+    if (ityp == ifformat_as_resample) then
        call f%grid%resample(g,n)
+    else
+       call f%grid%fft(g,ityp)
     end if
     f%numerical = .false.
     f%exact = .false.

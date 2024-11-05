@@ -41,8 +41,8 @@ contains
        string, getword, uout, fopen_write, tictac, fclose
     use tools_math, only: eigsym, m_x2c_from_cellpar, matinv
     use types, only: scalar_value, realloc
-    use param, only: pi, vsmall, bohrtoa, ifformat_as_grad, ifformat_as_hxx1,&
-       ifformat_as_hxx2, ifformat_as_hxx3
+    use param, only: pi, vsmall, bohrtoa, ifformat_as_ft_grad, ifformat_as_ft_xx,&
+       ifformat_as_ft_yy, ifformat_as_ft_zz
     type(field) :: fgrho, fxx(3)
     type(scalar_value) :: res, resg
     character(len=:), allocatable :: line, word, oname, file, errmsg
@@ -494,10 +494,10 @@ contains
      if (.not.lchk) then
         ! Initialize gradrho out of the omp loop
         if (sy%f(sy%iref)%type == type_grid .and..not.usecore) then
-           call fgrho%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_grad)
-           call fxx(1)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_hxx1)
-           call fxx(2)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_hxx2)
-           call fxx(3)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_hxx3)
+           call fgrho%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_ft_grad)
+           call fxx(1)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_ft_xx)
+           call fxx(2)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_ft_yy)
+           call fxx(3)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_ft_zz)
            ! Set trilinear interpolation to prevent wonky negative values in the derivatives
            ! of the field in the low-density regions (which may have been noisy to begin with).
            call fgrho%grid%setmode("trilinear")
