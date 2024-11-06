@@ -89,7 +89,7 @@
   Alias for this field (1): $4
 
 + Field number 5
-  Name: <generated>
+  Name: <generated>, resample of $1
   Source: <generated>
   Type: grid
   Grid dimensions : 60  60  162  
