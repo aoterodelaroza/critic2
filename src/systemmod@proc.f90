@@ -436,10 +436,12 @@ contains
     use fieldmod, only: realloc_field, type_grid, type_elk, type_wien
     use fieldseedmod, only: fieldseed
     use arithmetic, only: fields_in_eval
-    use param, only: ifformat_copy, ifformat_as_lap, ifformat_as_grad, &
-       ifformat_as_pot, ifformat_as_clm, ifformat_promolecular_fragment,&
+    use param, only: ifformat_copy, ifformat_as_clm, ifformat_promolecular_fragment,&
        ifformat_as_clm_sub, ifformat_as_ghost, ifformat_as_promolecular,&
        ifformat_as_core, ifformat_promolecular,&
+       ifformat_as_ft_x,ifformat_as_ft_y,ifformat_as_ft_z,ifformat_as_ft_xx,&
+       ifformat_as_ft_xy,ifformat_as_ft_xz,ifformat_as_ft_yy,ifformat_as_ft_yz,&
+       ifformat_as_ft_zz,ifformat_as_ft_grad,ifformat_as_ft_lap,ifformat_as_ft_pot,&
        ifformat_as, ifformat_as_resample, mlen, dirsep
     use iso_c_binding, only: c_loc, c_associated, c_ptr, c_f_pointer
     class(system), intent(inout), target :: s
@@ -538,8 +540,14 @@ contains
        s%f(id)%id = id
        s%f(id)%name = trim(s%f(oid)%name)
 
-    elseif (seed%iff == ifformat_as_lap .or. seed%iff == ifformat_as_grad .or.&
-       seed%iff == ifformat_as_pot .or. seed%iff == ifformat_as_resample) then
+    elseif (seed%iff == ifformat_as_resample.or.seed%iff == ifformat_as_ft_x.or.&
+       seed%iff == ifformat_as_ft_y.or.seed%iff == ifformat_as_ft_z.or.&
+       seed%iff == ifformat_as_ft_xx.or.seed%iff == ifformat_as_ft_xy.or.&
+       seed%iff == ifformat_as_ft_xz.or.seed%iff == ifformat_as_ft_yy.or.&
+       seed%iff == ifformat_as_ft_yz.or.seed%iff == ifformat_as_ft_zz.or.&
+       seed%iff == ifformat_as_ft_grad.or.seed%iff == ifformat_as_ft_lap.or.&
+       seed%iff == ifformat_as_ft_pot) then
+
        ! load as lap/grad/pot id.s
        ! load as resample id.s n1.i n2.i n3.i
        oid = s%fieldname_to_idx(seed%ids)
@@ -558,31 +566,51 @@ contains
           end if
           id = s%getfieldnum()
           call s%f(id)%load_as_fftgrid(s%c,id,"<generated>",s%f(oid)%grid,seed%iff,seed%isry,seed%n)
-       elseif (s%f(oid)%type == type_wien .and. seed%iff == ifformat_as_lap) then
+       elseif (s%f(oid)%type == type_wien .and. seed%iff == ifformat_as_ft_lap) then
           id = s%getfieldnum()
           s%f(id) = s%f(oid)
           call s%f(id)%wien%tolap()
-       elseif (s%f(oid)%type == type_elk .and. seed%iff == ifformat_as_lap) then
+       elseif (s%f(oid)%type == type_elk .and. seed%iff == ifformat_as_ft_lap) then
           id = s%getfieldnum()
           s%f(id) = s%f(oid)
           call s%f(id)%elk%tolap()
        else
-          if (seed%iff == ifformat_as_lap) then
-             errmsg = "LOAD AS LAP can only be used with wien2k, elk, and grid fields"
+          if (seed%iff == ifformat_as_ft_lap) then
+             errmsg = "LOAD AS FFT LAP can only be used with wien2k, elk, and grid fields"
+          elseif (seed%iff == ifformat_as_resample) then
+             errmsg = "LOAD AS RESAMPLE can only be uesd with grid fields"
           else
-             errmsg = "LOAD AS GRAD/POT/RESAMPLE can only be uesd with grid fields"
+             errmsg = "LOAD AS FFT can only be uesd with grid fields"
           end if
           return
        end if
        s%f(id)%id = id
-       if (seed%iff == ifformat_as_lap) then
-          s%f(id)%name = "<generated>, Laplacian of $" // string(oid)
-       elseif (seed%iff == ifformat_as_grad) then
+       if (seed%iff == ifformat_as_ft_x) then
+          s%f(id)%name = "<generated>, x-derivative of $" // string(oid)
+       elseif (seed%iff == ifformat_as_ft_y) then
+          s%f(id)%name = "<generated>, y-derivative of $" // string(oid)
+       elseif (seed%iff == ifformat_as_ft_z) then
+          s%f(id)%name = "<generated>, z-derivative of $" // string(oid)
+       elseif (seed%iff == ifformat_as_ft_xx) then
+          s%f(id)%name = "<generated>, xx-derivative of $" // string(oid)
+       elseif (seed%iff == ifformat_as_ft_xy) then
+          s%f(id)%name = "<generated>, xy-derivative of $" // string(oid)
+       elseif (seed%iff == ifformat_as_ft_xz) then
+          s%f(id)%name = "<generated>, xz-derivative of $" // string(oid)
+       elseif (seed%iff == ifformat_as_ft_yy) then
+          s%f(id)%name = "<generated>, yy-derivative of $" // string(oid)
+       elseif (seed%iff == ifformat_as_ft_yz) then
+          s%f(id)%name = "<generated>, yz-derivative of $" // string(oid)
+       elseif (seed%iff == ifformat_as_ft_zz) then
+          s%f(id)%name = "<generated>, zz-derivative of $" // string(oid)
+       elseif (seed%iff == ifformat_as_ft_grad) then
           s%f(id)%name = "<generated>, gradient of $" // string(oid)
-       elseif (seed%iff == ifformat_as_pot) then
+       elseif (seed%iff == ifformat_as_ft_lap) then
+          s%f(id)%name = "<generated>, Laplacian of $" // string(oid)
+       elseif (seed%iff == ifformat_as_ft_pot) then
           s%f(id)%name = "<generated>, potential of $" // string(oid)
-       elseif (seed%iff == ifformat_as_grad) then
-          s%f(id)%name = "<generated>, resample of 4" // string(oid)
+       elseif (seed%iff == ifformat_as_resample) then
+          s%f(id)%name = "<generated>, resample of $" // string(oid)
        end if
        s%f(id)%file = "<generated>"
 

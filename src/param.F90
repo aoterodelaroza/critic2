@@ -161,19 +161,25 @@ module param
   integer, parameter, public :: ifformat_as = 21
   integer, parameter, public :: ifformat_as_promolecular = 22
   integer, parameter, public :: ifformat_as_core = 23
-  integer, parameter, public :: ifformat_as_lap = 24
-  integer, parameter, public :: ifformat_as_grad = 25
-  integer, parameter, public :: ifformat_as_pot = 26
-  integer, parameter, public :: ifformat_as_resample = 27
-  integer, parameter, public :: ifformat_as_clm = 28
-  integer, parameter, public :: ifformat_as_clm_sub = 29
-  integer, parameter, public :: ifformat_as_ghost = 30
-  integer, parameter, public :: ifformat_copy = 31
-  integer, parameter, public :: ifformat_promolecular = 32
-  integer, parameter, public :: ifformat_promolecular_fragment = 33
-  integer, parameter, public :: ifformat_as_hxx1 = 34
-  integer, parameter, public :: ifformat_as_hxx2 = 35
-  integer, parameter, public :: ifformat_as_hxx3 = 36
+  integer, parameter, public :: ifformat_as_resample = 24
+  integer, parameter, public :: ifformat_as_clm = 25
+  integer, parameter, public :: ifformat_as_clm_sub = 26
+  integer, parameter, public :: ifformat_as_ghost = 27
+  integer, parameter, public :: ifformat_copy = 28
+  integer, parameter, public :: ifformat_promolecular = 29
+  integer, parameter, public :: ifformat_promolecular_fragment = 30
+  integer, parameter, public :: ifformat_as_ft_x = 31
+  integer, parameter, public :: ifformat_as_ft_y = 32
+  integer, parameter, public :: ifformat_as_ft_z = 33
+  integer, parameter, public :: ifformat_as_ft_xx = 34
+  integer, parameter, public :: ifformat_as_ft_xy = 35
+  integer, parameter, public :: ifformat_as_ft_xz = 36
+  integer, parameter, public :: ifformat_as_ft_yy = 37
+  integer, parameter, public :: ifformat_as_ft_yz = 38
+  integer, parameter, public :: ifformat_as_ft_zz = 39
+  integer, parameter, public :: ifformat_as_ft_grad = 40
+  integer, parameter, public :: ifformat_as_ft_lap = 41
+  integer, parameter, public :: ifformat_as_ft_pot = 42
 
   ! Enumerate for molecular and crystal properties. These are used
   ! throughout the code as flags for the calculation of scalar fields.

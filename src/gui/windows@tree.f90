@@ -70,8 +70,7 @@ contains
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
-    use param, only: bohrtoa, ifformat_as_lap, ifformat_as_grad, ifformat_as_pot,&
-       ifformat_as_resample
+    use param, only: bohrtoa, ifformat_as_resample
     use c_interface_module
     class(window), intent(inout), target :: w
 
@@ -654,29 +653,29 @@ contains
 
                          ! grid calculation options
                          if (sys(i)%f(k)%type == type_grid) then
-                            strpop = "Load gradient grid" // c_null_char
-                            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                               id = sys(i)%getfieldnum()
-                               call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, gradient of $" // string(k),&
-                                  sys(i)%f(k)%grid,ifformat_as_grad)
-                            end if
-                            call iw_tooltip("Load a new grid field as the gradient of this field",ttshown)
+                            ! strpop = "Load gradient grid" // c_null_char
+                            ! if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                            !    id = sys(i)%getfieldnum()
+                            !    call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, gradient of $" // string(k),&
+                            !       sys(i)%f(k)%grid,ifformat_as_grad)
+                            ! end if
+                            ! call iw_tooltip("Load a new grid field as the gradient of this field",ttshown)
 
-                            strpop = "Load Laplacian grid" // c_null_char
-                            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                               id = sys(i)%getfieldnum()
-                               call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, Laplacian of $" // string(k),&
-                                  sys(i)%f(k)%grid,ifformat_as_lap)
-                            end if
-                            call iw_tooltip("Load a new grid field as the Laplacian of this field",ttshown)
+                            ! strpop = "Load Laplacian grid" // c_null_char
+                            ! if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                            !    id = sys(i)%getfieldnum()
+                            !    call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, Laplacian of $" // string(k),&
+                            !       sys(i)%f(k)%grid,ifformat_as_lap)
+                            ! end if
+                            ! call iw_tooltip("Load a new grid field as the Laplacian of this field",ttshown)
 
-                            strpop = "Load potential grid" // c_null_char
-                            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                               id = sys(i)%getfieldnum()
-                               call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, potential of $" // string(k),&
-                                  sys(i)%f(k)%grid,ifformat_as_pot)
-                            end if
-                            call iw_tooltip("Load a new grid field as the potential of this field",ttshown)
+                            ! strpop = "Load potential grid" // c_null_char
+                            ! if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                            !    id = sys(i)%getfieldnum()
+                            !    call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, potential of $" // string(k),&
+                            !       sys(i)%f(k)%grid,ifformat_as_pot)
+                            ! end if
+                            ! call iw_tooltip("Load a new grid field as the potential of this field",ttshown)
 
                             strpop = "Load resampled grid" // c_null_char
                             if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
