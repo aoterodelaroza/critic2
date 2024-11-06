@@ -1558,79 +1558,9 @@ contains
     zaux = reshape(fold%f,shape(zaux))
 
     ! run the FT
-    if (iff == ifformat_as_ft_x) then
-       call cfftnd(3,n,-1,zaux)
-       do igfft = 1, ntot
-          zaux(igfft) = vgc(1,igfft) * img * zaux(igfft)
-       end do
-       call cfftnd(3,n,+1,zaux)
+    if (iff == ifformat_as_ft_grad) then
+       ! gradient
        allocate(fnew%f(n(1),n(2),n(3)))
-       fnew%f = real(reshape(real(zaux,8),shape(fnew%f)),8)
-    elseif (iff == ifformat_as_ft_y) then
-       call cfftnd(3,n,-1,zaux)
-       do igfft = 1, ntot
-          zaux(igfft) = vgc(2,igfft) * img * zaux(igfft)
-       end do
-       call cfftnd(3,n,+1,zaux)
-       allocate(fnew%f(n(1),n(2),n(3)))
-       fnew%f = real(reshape(real(zaux,8),shape(fnew%f)),8)
-    elseif (iff == ifformat_as_ft_z) then
-       call cfftnd(3,n,-1,zaux)
-       do igfft = 1, ntot
-          zaux(igfft) = vgc(3,igfft) * img * zaux(igfft)
-       end do
-       call cfftnd(3,n,+1,zaux)
-       allocate(fnew%f(n(1),n(2),n(3)))
-       fnew%f = real(reshape(real(zaux,8),shape(fnew%f)),8)
-    elseif (iff == ifformat_as_ft_xx) then
-       call cfftnd(3,n,-1,zaux)
-       do igfft = 1, ntot
-          zaux(igfft) = -vgc(1,igfft) * vgc(1,igfft) * zaux(igfft)
-       end do
-       call cfftnd(3,n,+1,zaux)
-       allocate(fnew%f(n(1),n(2),n(3)))
-       fnew%f = real(reshape(real(zaux,8),shape(fnew%f)),8)
-    elseif (iff == ifformat_as_ft_xy) then
-       call cfftnd(3,n,-1,zaux)
-       do igfft = 1, ntot
-          zaux(igfft) = -vgc(1,igfft) * vgc(2,igfft) * zaux(igfft)
-       end do
-       call cfftnd(3,n,+1,zaux)
-       allocate(fnew%f(n(1),n(2),n(3)))
-       fnew%f = real(reshape(real(zaux,8),shape(fnew%f)),8)
-    elseif (iff == ifformat_as_ft_xz) then
-       call cfftnd(3,n,-1,zaux)
-       do igfft = 1, ntot
-          zaux(igfft) = -vgc(1,igfft) * vgc(3,igfft) * zaux(igfft)
-       end do
-       call cfftnd(3,n,+1,zaux)
-       allocate(fnew%f(n(1),n(2),n(3)))
-       fnew%f = real(reshape(real(zaux,8),shape(fnew%f)),8)
-    elseif (iff == ifformat_as_ft_yy) then
-       call cfftnd(3,n,-1,zaux)
-       do igfft = 1, ntot
-          zaux(igfft) = -vgc(2,igfft) * vgc(2,igfft) * zaux(igfft)
-       end do
-       call cfftnd(3,n,+1,zaux)
-       allocate(fnew%f(n(1),n(2),n(3)))
-       fnew%f = real(reshape(real(zaux,8),shape(fnew%f)),8)
-    elseif (iff == ifformat_as_ft_yz) then
-       call cfftnd(3,n,-1,zaux)
-       do igfft = 1, ntot
-          zaux(igfft) = -vgc(2,igfft) * vgc(3,igfft) * zaux(igfft)
-       end do
-       call cfftnd(3,n,+1,zaux)
-       allocate(fnew%f(n(1),n(2),n(3)))
-       fnew%f = real(reshape(real(zaux,8),shape(fnew%f)),8)
-    elseif (iff == ifformat_as_ft_zz) then
-       call cfftnd(3,n,-1,zaux)
-       do igfft = 1, ntot
-          zaux(igfft) = -vgc(3,igfft) * vgc(3,igfft) * zaux(igfft)
-       end do
-       call cfftnd(3,n,+1,zaux)
-       allocate(fnew%f(n(1),n(2),n(3)))
-       fnew%f = real(reshape(real(zaux,8),shape(fnew%f)),8)
-    elseif (iff == ifformat_as_ft_grad) then
        fnew%f = 0d0
        do i = 1, 3
           ! FT the source grid to reciprocal space
@@ -1647,30 +1577,49 @@ contains
           fnew%f = fnew%f + (real(reshape(real(zaux,8),shape(fnew%f)),8))**2
        end do
        fnew%f = sqrt(fnew%f)
-    elseif (iff == ifformat_as_ft_lap) then
+    else
+       ! rest
        call cfftnd(3,n,-1,zaux)
        do igfft = 1, ntot
-          zaux(igfft) = -dot_product(vgc(:,igfft),vgc(:,igfft)) * zaux(igfft)
-       end do
-       call cfftnd(3,n,+1,zaux)
-       allocate(fnew%f(n(1),n(2),n(3)))
-       fnew%f = real(reshape(real(zaux,8),shape(fnew%f)),8)
-    elseif (iff == ifformat_as_ft_pot) then
-       call cfftnd(3,n,-1,zaux)
-       do igfft = 1, ntot
-          vgc2 = dot_product(vgc(:,igfft),vgc(:,igfft))
-          if (vgc2 < 1d-12) then
-             zaux(igfft) = 0d0
-          else
-             zaux(igfft) = -zaux(igfft) / vgc2
+          if (iff == ifformat_as_ft_x) then
+             zaux(igfft) = vgc(1,igfft) * img * zaux(igfft)
+          elseif (iff == ifformat_as_ft_y) then
+             zaux(igfft) = vgc(2,igfft) * img * zaux(igfft)
+          elseif (iff == ifformat_as_ft_z) then
+             zaux(igfft) = vgc(3,igfft) * img * zaux(igfft)
+          elseif (iff == ifformat_as_ft_xx) then
+             zaux(igfft) = -vgc(1,igfft) * vgc(1,igfft) * zaux(igfft)
+          elseif (iff == ifformat_as_ft_xy) then
+             zaux(igfft) = -vgc(1,igfft) * vgc(2,igfft) * zaux(igfft)
+          elseif (iff == ifformat_as_ft_xz) then
+             zaux(igfft) = -vgc(1,igfft) * vgc(3,igfft) * zaux(igfft)
+          elseif (iff == ifformat_as_ft_yy) then
+             zaux(igfft) = -vgc(2,igfft) * vgc(2,igfft) * zaux(igfft)
+          elseif (iff == ifformat_as_ft_yz) then
+             zaux(igfft) = -vgc(2,igfft) * vgc(3,igfft) * zaux(igfft)
+          elseif (iff == ifformat_as_ft_zz) then
+             zaux(igfft) = -vgc(3,igfft) * vgc(3,igfft) * zaux(igfft)
+          elseif (iff == ifformat_as_ft_lap) then
+             zaux(igfft) = -dot_product(vgc(:,igfft),vgc(:,igfft)) * zaux(igfft)
+          elseif (iff == ifformat_as_ft_pot) then
+             vgc2 = dot_product(vgc(:,igfft),vgc(:,igfft))
+             if (vgc2 < 1d-12) then
+                zaux(igfft) = 0d0
+             else
+                zaux(igfft) = -zaux(igfft) / vgc2
+             end if
           end if
        end do
        call cfftnd(3,n,+1,zaux)
        allocate(fnew%f(n(1),n(2),n(3)))
-       fnew%f = -4d0 * pi * real(reshape(real(zaux,8),shape(fnew%f)),8)
+       if (iff == ifformat_as_ft_pot) then
+          fnew%f = -4d0 * pi * real(reshape(real(zaux,8),shape(fnew%f)),8)
+       else
+          fnew%f = real(reshape(real(zaux,8),shape(fnew%f)),8)
+       end if
     end if
 
-    ! FT back to real space
+    ! clean up
     deallocate(zaux)
 
   end subroutine fft
