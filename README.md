@@ -2,14 +2,15 @@
   <img src="https://github.com/aoterodelaroza/critic2/blob/master/dat/logo/critic2_logo-big-with-letters.png?raw=true" alt="critic2 logo" height="30%" width="30%"/>
 </p>
 
-**Critic2** is a program for the manipulation and analysis of structural
-and chemical information in molecules and periodic solids. Critic2 can
-be used to:
+**Critic2** is a program for the manipulation and analysis of
+structural and chemical information in molecules and solids. It
+can be used to:
 
-* Read, transform, and create molecular and crystal structures.
+* Read, transform, and create molecular and crystal structures in a
+  variety of file formats.
 
-* Carry out crystallographic computations (environments, coordination
-  numbers, structural comparison,...).
+* Carry out crystallographic computations (atomic environments,
+  coordination numbers, structural comparison,...).
 
 * Read, analyze, manipulate, combine, and create scalar fields such as
   the electron density or the ELF.
@@ -18,18 +19,18 @@ be used to:
   (finding critical points, integrating atomic basins, plotting
   gradient path manifolds,...).
 
-* Make non-covalent interaction (NCI) and other similar plots.
+* Apply chemical bonding analysis tools: non-covalent interaction
+  (NCI) plots, ELF plots, and others.
 
-Critic2 is provides an abstraction layer on top of the underlying
-quantum chemical calculation. Critic2 interfaces with many electronic
+Critic2 provides an abstraction layer on top of the underlying quantum
+chemical calculation because it interfaces with many electronic
 structure programs: WIEN2k, elk, PI, Quantum ESPRESSO, abinit, VASP,
-DFTB+, Gaussian, psi4, siesta, and more.
+DFTB+, Gaussian, psi4, siesta, and many more.
 
 ## Compilation and installation
 
-Critic2 can be compiled on Linux and macOS. For this, you
-will need a Fortran and a C compiler, and a build system (either
-autotools or cmake, and make). Detailed
+Critic2 can be compiled on Linux and macOS. For this, you will need a
+Fortran and a C compiler, and the cmake build system. Detailed
 [installation instructions](https://aoterodelaroza.github.io/critic2/installation/)
 can be found in the manual. Critic2 uses some fairly modern Fortran
 features, which may not be implemented on all current Fortran
@@ -42,14 +43,14 @@ specifically deactivated during the build process). You change the
 number of parallel threads by setting the <code>OMP_NUM_THREADS</code>
 environment variable.
 
-The environment variable CRITIC_HOME is necessary if critic2 was not
+The environment variable `CRITIC_HOME` is necessary if critic2 was not
 installed with `make install`. It must point to the root directory of
 the distribution:
 
 	export CRITIC_HOME=/home/alberto/programs/critic2dir
 
 This variable is necessary for critic2 to find the atomic densities,
-the cif dictionary and the library data. These should be in
+the cif dictionary, and other data. These data should be in
 `${CRITIC_HOME}/dat/`.
 
 Lastly, a number of
@@ -57,8 +58,9 @@ Lastly, a number of
 can be used to extend critic2's capabilities, including readline
 (shell-like features in the critic2 command line),
 [Libxc](https://gitlab.com/libxc/libxc) (exchange-correlation energies
-and potentials), and [Libcint](https://github.com/sunqm/libcint)
-(molecular integrals).
+and potentials), [NLOPT](https://github.com/stevengj/nlopt)
+(variable-cell comparison between crystal structures), and
+[Libcint](https://github.com/sunqm/libcint) (molecular integrals).
 
 ## Using critic2
 
