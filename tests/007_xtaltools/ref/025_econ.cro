@@ -1,8 +1,8 @@
 * ECON
 + Effective Coordination Number (ECoN), per-species
 # Please cite:
-#   Nespolo, Acta Cryst. B, 72 (2016) 51. (doi.org/10.1107/S2052520615019472)
-#   Hoppe, Z. Kristallogr. 150 (1979) 23. (doi.org/10.1524/zkri.1979.150.14.23)
+#   Nespolo, Acta Cryst. B, 72 (2016) 51. (doi:10.1107/S2052520615019472)
+#   Hoppe, Z. Kristallogr. 150 (1979) 23. (doi:10.1524/zkri.1979.150.14.23)
 # nid = non-equivalent atom ID. name = atomic name (symbol)
 # spc = atomic species (* means all species)
 # econ = effective coordination number species spc around non-equivalent
@@ -22,8 +22,8 @@
 * ECON
 + Effective Coordination Number (ECoN), per-species
 # Please cite:
-#   Nespolo, Acta Cryst. B, 72 (2016) 51. (doi.org/10.1107/S2052520615019472)
-#   Hoppe, Z. Kristallogr. 150 (1979) 23. (doi.org/10.1524/zkri.1979.150.14.23)
+#   Nespolo, Acta Cryst. B, 72 (2016) 51. (doi:10.1107/S2052520615019472)
+#   Hoppe, Z. Kristallogr. 150 (1979) 23. (doi:10.1524/zkri.1979.150.14.23)
 # nid = non-equivalent atom ID. name = atomic name (symbol)
 # spc = atomic species (* means all species)
 # econ = effective coordination number species spc around non-equivalent
