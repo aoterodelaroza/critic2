@@ -1,8 +1,8 @@
-# Critic2
+<p align="center">
+  <img src="https://github.com/aoterodelaroza/critic2/blob/master/dat/logo/critic2_logo-big-with-letters.png?raw=true" alt="critic2 logo" height="30%" width="30%"/>
+</p>
 
-## Overview
-
-Critic2 is a program for the manipulation and analysis of structural
+**Critic2** is a program for the manipulation and analysis of structural
 and chemical information in molecules and periodic solids. Critic2 can
 be used to:
 
