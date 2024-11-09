@@ -1582,11 +1582,11 @@ contains
        call cfftnd(3,n,-1,zaux)
        do igfft = 1, ntot
           if (iff == ifformat_as_ft_x) then
-             zaux(igfft) = vgc(1,igfft) * img * zaux(igfft)
+             zaux(igfft) = -vgc(1,igfft) * img * zaux(igfft)
           elseif (iff == ifformat_as_ft_y) then
-             zaux(igfft) = vgc(2,igfft) * img * zaux(igfft)
+             zaux(igfft) = -vgc(2,igfft) * img * zaux(igfft)
           elseif (iff == ifformat_as_ft_z) then
-             zaux(igfft) = vgc(3,igfft) * img * zaux(igfft)
+             zaux(igfft) = -vgc(3,igfft) * img * zaux(igfft)
           elseif (iff == ifformat_as_ft_xx) then
              zaux(igfft) = -vgc(1,igfft) * vgc(1,igfft) * zaux(igfft)
           elseif (iff == ifformat_as_ft_xy) then
