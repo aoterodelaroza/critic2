@@ -3061,7 +3061,7 @@ contains
        flags = ior(flags,ImGuiTableFlags_ScrollY)
        flags = ior(flags,ImGuiTableFlags_ScrollX)
        str1="##tablevibrationfreqs" // c_null_char
-       sz0%x = 0._c_flaot
+       sz0%x = 0._c_float
        sz0%y = iw_calcheight(5,0,.false.)
        if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
           ! header setup
