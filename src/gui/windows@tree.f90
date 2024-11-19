@@ -2409,6 +2409,7 @@ contains
     mrad = 0d0
     call iw_text("Atomic Radii",highlight=.true.)
     flags = ImGuiTableFlags_None
+    flags = ior(flags,ImGuiTableFlags_RowBg)
     flags = ior(flags,ImGuiTableFlags_Resizable)
     flags = ior(flags,ImGuiTableFlags_Reorderable)
     flags = ior(flags,ImGuiTableFlags_NoSavedSettings)

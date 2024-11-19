@@ -537,6 +537,7 @@ contains
           ! rest of the table
           str2 = "Objects##0,0" // c_null_char
           flags = ImGuiTableFlags_NoSavedSettings
+          flags = ior(flags,ImGuiTableFlags_RowBg)
           flags = ior(flags,ImGuiTableFlags_Borders)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           sz0%x = 0
@@ -1964,7 +1965,7 @@ contains
        if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
           !! bonds display !!
           if (w%rep%bonds_display) then
-             call iw_text("(Note: the Atoms tab also controls which bonds are shown)")
+             call iw_text("(Note: the Atoms tab controls which bonds are shown)")
           else
              call iw_text("Check the 'Bonds' box above to show the bonds.",danger=.true.)
           end if
@@ -2122,6 +2123,7 @@ contains
           flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
           flags = ior(flags,ImGuiTableFlags_Borders)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          flags = ior(flags,ImGuiTableFlags_RowBg)
           flags = ior(flags,ImGuiTableFlags_ScrollY)
           str1="##tablespeciesbonding" // c_null_char
           sz%x = iw_calcwidth(17,3)
@@ -2206,7 +2208,7 @@ contains
        if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
           !! labels display !!
           if (w%rep%labels_display) then
-             call iw_text("(Note: the Atoms tab also controls which labels are shown)")
+             call iw_text("(Note: the Atoms tab controls which labels are shown)")
           else
              call iw_text("Check the 'Labels' box above to show the labels.",danger=.true.)
           end if
@@ -2288,6 +2290,7 @@ contains
           ! the table itself
           flags = ImGuiTableFlags_None
           flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+          flags = ior(flags,ImGuiTableFlags_RowBg)
           flags = ior(flags,ImGuiTableFlags_Borders)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           flags = ior(flags,ImGuiTableFlags_ScrollY)
@@ -2963,6 +2966,7 @@ contains
 
           flags = ImGuiTableFlags_None
           flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+          flags = ior(flags,ImGuiTableFlags_RowBg)
           flags = ior(flags,ImGuiTableFlags_Borders)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           flags = ior(flags,ImGuiTableFlags_ScrollY)
@@ -3051,11 +3055,13 @@ contains
        ! frequencies table
        flags = ImGuiTableFlags_None
        flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+       flags = ior(flags,ImGuiTableFlags_RowBg)
        flags = ior(flags,ImGuiTableFlags_Borders)
        flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
        flags = ior(flags,ImGuiTableFlags_ScrollY)
+       flags = ior(flags,ImGuiTableFlags_ScrollX)
        str1="##tablevibrationfreqs" // c_null_char
-       sz0%x = iw_calcwidth(20,0)
+       sz0%x = 0._c_flaot
        sz0%y = iw_calcheight(5,0,.false.)
        if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
           ! header setup
