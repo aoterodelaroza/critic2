@@ -1884,549 +1884,545 @@ contains
        end if ! begin tab item (selection)
 
        !!!!! Atoms tab !!!!!
-       str1 = "Atoms##editrepatoms_atomstab" // c_null_char
-       flags = ImGuiTabItemFlags_None
-       if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
-          ! global options for atoms
-          call igAlignTextToFramePadding()
-          call iw_text("Global Options",highlight=.true.)
-          if (iw_button("Reset##resetglobalatoms",sameline=.true.,danger=.true.)) then
-             call w%rep%reset_atom_style()
-             changed = .true.
-          end if
-          call iw_tooltip("Reset to the default settings for the atom representation")
-          call iw_combo_simple("Radii ##atomradiicombo","Covalent" // c_null_char // "Van der Waals" // c_null_char,&
-             w%rep%atom_radii_reset_type,changed=ch)
-          call iw_tooltip("Set atomic radii to the tabulated values of this type",ttshown)
+       if (w%rep%atoms_display) then
+          str1 = "Atoms##editrepatoms_atomstab" // c_null_char
+          flags = ImGuiTabItemFlags_None
+          if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
+             ! global options for atoms
+             call igAlignTextToFramePadding()
+             call iw_text("Global Options",highlight=.true.)
+             if (iw_button("Reset##resetglobalatoms",sameline=.true.,danger=.true.)) then
+                call w%rep%reset_atom_style()
+                changed = .true.
+             end if
+             call iw_tooltip("Reset to the default settings for the atom representation")
+             call iw_combo_simple("Radii ##atomradiicombo","Covalent" // c_null_char // "Van der Waals" // c_null_char,&
+                w%rep%atom_radii_reset_type,changed=ch)
+             call iw_tooltip("Set atomic radii to the tabulated values of this type",ttshown)
 
-          call igSameLine(0._c_float,-1._c_float)
-          call igPushItemWidth(iw_calcwidth(5,1))
-          str2 = "Radii Scale##atomradiiscale" // c_null_char
-          str3 = "%.3f" // c_null_char
-          ch = ch .or. igDragFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
-             ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
-          call igPopItemWidth()
-          if (ch) then
-             do i = 1, w%rep%atom_style%ntype
-                if (w%rep%atom_style%type == 0) then ! species
-                   ispc = i
-                elseif (w%rep%atom_style%type == 1) then ! nneq
-                   ispc = sys(isys)%c%at(i)%is
-                else ! ncel
-                   ispc = sys(isys)%c%atcel(i)%is
-                end if
-                iz = sys(isys)%c%spc(ispc)%z
-                if (w%rep%atom_radii_reset_type == 0) then
-                   w%rep%atom_style%rad(i) = real(atmcov(iz),c_float)
-                else
-                   w%rep%atom_style%rad(i) = real(atmvdw(iz),c_float)
-                end if
-                w%rep%atom_style%rad(i) = w%rep%atom_style%rad(i) * w%rep%atom_radii_reset_scale
-             end do
-             changed = .true.
-          end if
+             call igSameLine(0._c_float,-1._c_float)
+             call igPushItemWidth(iw_calcwidth(5,1))
+             str2 = "Radii Scale##atomradiiscale" // c_null_char
+             str3 = "%.3f" // c_null_char
+             ch = ch .or. igDragFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
+                ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
+             call igPopItemWidth()
+             if (ch) then
+                do i = 1, w%rep%atom_style%ntype
+                   if (w%rep%atom_style%type == 0) then ! species
+                      ispc = i
+                   elseif (w%rep%atom_style%type == 1) then ! nneq
+                      ispc = sys(isys)%c%at(i)%is
+                   else ! ncel
+                      ispc = sys(isys)%c%atcel(i)%is
+                   end if
+                   iz = sys(isys)%c%spc(ispc)%z
+                   if (w%rep%atom_radii_reset_type == 0) then
+                      w%rep%atom_style%rad(i) = real(atmcov(iz),c_float)
+                   else
+                      w%rep%atom_style%rad(i) = real(atmvdw(iz),c_float)
+                   end if
+                   w%rep%atom_style%rad(i) = w%rep%atom_style%rad(i) * w%rep%atom_radii_reset_scale
+                end do
+                changed = .true.
+             end if
 
-          ! style buttons: set color
-          call iw_combo_simple("Colors ##atomcolorselect","jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
-             w%rep%atom_color_reset_type,changed=ch)
-          call iw_tooltip("Set the color of all atoms to the tabulated values",ttshown)
-          if (ch) then
-             do i = 1, w%rep%atom_style%ntype
-                if (w%rep%atom_style%type == 0) then ! species
-                   ispc = i
-                elseif (w%rep%atom_style%type == 1) then ! nneq
-                   ispc = sys(isys)%c%at(i)%is
-                else ! ncel
-                   ispc = sys(isys)%c%atcel(i)%is
-                end if
-                iz = sys(isys)%c%spc(ispc)%z
-                if (w%rep%atom_color_reset_type == 0) then
-                   w%rep%atom_style%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
-                else
-                   w%rep%atom_style%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
-                end if
-             end do
-             changed = .true.
-          end if
+             ! style buttons: set color
+             call iw_combo_simple("Colors ##atomcolorselect","jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
+                w%rep%atom_color_reset_type,changed=ch)
+             call iw_tooltip("Set the color of all atoms to the tabulated values",ttshown)
+             if (ch) then
+                do i = 1, w%rep%atom_style%ntype
+                   if (w%rep%atom_style%type == 0) then ! species
+                      ispc = i
+                   elseif (w%rep%atom_style%type == 1) then ! nneq
+                      ispc = sys(isys)%c%at(i)%is
+                   else ! ncel
+                      ispc = sys(isys)%c%atcel(i)%is
+                   end if
+                   iz = sys(isys)%c%spc(ispc)%z
+                   if (w%rep%atom_color_reset_type == 0) then
+                      w%rep%atom_style%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+                   else
+                      w%rep%atom_style%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
+                   end if
+                end do
+                changed = .true.
+             end if
 
-          ! border size
-          call igPushItemWidth(iw_calcwidth(5,1))
-          str2 = "Border Size (Å)" // c_null_char
-          str3 = "%.3f" // c_null_char
-          changed = changed .or. igDragFloat(c_loc(str2),w%rep%atom_style%border_size,&
-             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Change the thickness of the atom borders",ttshown)
-          call igPopItemWidth()
+             ! border size
+             call igPushItemWidth(iw_calcwidth(5,1))
+             str2 = "Border Size (Å)" // c_null_char
+             str3 = "%.3f" // c_null_char
+             changed = changed .or. igDragFloat(c_loc(str2),w%rep%atom_style%border_size,&
+                0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Change the thickness of the atom borders",ttshown)
+             call igPopItemWidth()
 
-          ! color
-          changed = changed .or. iw_coloredit3("Border Color",w%rep%atom_style%rgbborder,sameline=.true.)
-          call iw_tooltip("Color of the border for the atoms",ttshown)
+             ! color
+             changed = changed .or. iw_coloredit3("Border Color",w%rep%atom_style%rgbborder,sameline=.true.)
+             call iw_tooltip("Color of the border for the atoms",ttshown)
 
-          ! draw the atom selection widget
-          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,oksel,.false.,.true.)
+             ! draw the atom selection widget
+             changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,oksel,.false.,.true.)
 
-          call igEndTabItem()
-       end if ! begin tab item (atoms)
+             call igEndTabItem()
+          end if ! begin tab item (atoms)
+       end if
 
        !!!!! Bonds tab !!!!!
-       str1 = "Bonds##editrepatoms_bondstab" // c_null_char
-       flags = ImGuiTabItemFlags_None
-       if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
-          !! bonds display !!
-          if (w%rep%bonds_display) then
-             call iw_text("(Note: the Atoms tab controls which bonds are shown)")
-          else
-             call iw_text("Check the 'Bonds' box above to show the bonds.",danger=.true.)
-          end if
+       if (w%rep%bonds_display) then
+          str1 = "Bonds##editrepatoms_bondstab" // c_null_char
+          flags = ImGuiTabItemFlags_None
+          if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
+             !! bonds display !!
 
-          !! global options !!
-          call igAlignTextToFramePadding()
-          call iw_text("Global Options",highlight=.true.)
-          if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
-             call w%rep%reset_bond_style()
-             changed = .true.
-          end if
-          call iw_tooltip("Reset to the covalent bonding for this system and the default settings")
-
-          ! rest of the options (record changes)
-          ch = .false.
-          call igAlignTextToFramePadding()
-          call iw_text("Style")
-          call iw_combo_simple("##tablebondstyleglobalselect",&
-             "Single color"//c_null_char//"Two colors"//c_null_char,w%rep%bond_style%style_g,sameline=.true.,changed=ch)
-          call iw_tooltip("Use a single color for the bond, or two colors from the bonded atoms",ttshown)
-
-          call iw_text(" Radius",sameline=.true.)
-          str2 = "##radiusbondtableglobal" // c_null_char
-          str3 = "%.3f" // c_null_char
-          call igPushItemWidth(iw_calcwidth(5,1))
-          call igSameLine(0._c_float,-1._c_float)
-          ch = ch .or. igDragFloat(c_loc(str2),w%rep%bond_style%rad_g,0.005_c_float,0._c_float,2._c_float,&
-             c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
-          call igPopItemWidth()
-          call iw_tooltip("Radius of the bonds",ttshown)
-
-          ! border size
-          call igPushItemWidth(iw_calcwidth(5,1))
-          str2 = "Border Size (Å) " // c_null_char
-          str3 = "%.3f" // c_null_char
-          changed = changed .or. igDragFloat(c_loc(str2),w%rep%bond_style%border_g,&
-             0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Change the thickness of the bond borders",ttshown)
-          call igPopItemWidth()
-
-          ! color
-          changed = changed .or. iw_coloredit3("Border Color",w%rep%bond_style%rgbborder_g,sameline=.true.)
-          call iw_tooltip("Color of the border for the bonds",ttshown)
-
-          ! color
-          call igAlignTextToFramePadding()
-          call iw_text("Color")
-          ch = ch .or. iw_coloredit3("##colorbondtableglobal",w%rep%bond_style%rgb_g,sameline=.true.)
-          call iw_tooltip("Color of the bonds",ttshown)
-
-          ! order
-          call iw_text(" Order",sameline=.true.)
-          call iw_combo_simple("##tablebondorderselectglobal",&
-             "Dashed"//c_null_char//"Single"//c_null_char//"Double"//c_null_char//"Triple"//c_null_char,&
-             w%rep%bond_style%order_g,sameline=.true.,changed=ldum)
-          ch = ch .or. ldum
-          call iw_tooltip("Bond order (dashed, single, double, etc.)",ttshown)
-
-          ! both atoms
-          call iw_text(" Both Atoms",sameline=.true.)
-          ch = ch .or. iw_checkbox("##bothatomstableglobal",w%rep%bond_style%bothends_g,sameline=.true.)
-          call iw_tooltip("Represent a bond if both end-atoms are in the scene (checked) or if only &
-             &one end-atom is in the scene (unchecked)",ttshown)
-
-          !! distance block !!
-          call igAlignTextToFramePadding()
-          call iw_text("Distances",highlight=.true.)
-          call iw_text(" (",highlight=.true.,sameline_nospace=.true.)
-          call iw_combo_simple("##tablebondglobaldistcombo","Factor"//c_null_char//"Range"//c_null_char,&
-             w%rep%bond_style%distancetype_g,sameline_nospace=.true.)
-          call iw_tooltip("Draw bonds whose lengths are a factor of the sum of atomic&
-             & radii (Factor) or give bond distance range (Range)",ttshown)
-          call iw_text(")",highlight=.true.,sameline_nospace=.true.)
-          if (iw_button("Apply##applyglobal",sameline=.true.,danger=.true.)) then
-             call w%rep%bond_style%generate_neighstars_from_globals(isys)
-             w%rep%bond_style%isdef = .false.
-             changed = .true.
-          end if
-          call iw_tooltip("Recalculate and draw bonds using the selected distance criteria",ttshown)
-
-          if (w%rep%bond_style%distancetype_g == 0) then
-             ! factor
+             !! global options !!
              call igAlignTextToFramePadding()
-             call iw_text("Between")
-             call igSameLine(0._c_float,-1._c_float)
-             call igPushItemWidth(iw_calcwidth(5,1))
-             str2 = "##bondtableglobalbfmin" // c_null_char
-             if (igDragFloat(c_loc(str2),w%rep%bond_style%bfmin_g,0.01_c_float,0.0_c_float,9.999_c_float,&
-                c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
+             call iw_text("Global Options",highlight=.true.)
+             if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
+                call w%rep%reset_bond_style()
+                changed = .true.
              end if
-             call igPopItemWidth()
-             call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
+             call iw_tooltip("Reset to the covalent bonding for this system and the default settings")
 
-             call iw_text("times",sameline=.true.)
-             call iw_combo_simple("##bondtableglobalradtypemin","cov."//c_null_char//"vdw"//c_null_char,&
-                w%rep%bond_style%radtype_g(1),sameline=.true.)
-             call iw_tooltip("Choose the atomic radii (covalent or van der Waals)",ttshown)
-             call iw_text("radii",sameline=.true.)
-
+             ! rest of the options (record changes)
+             ch = .false.
              call igAlignTextToFramePadding()
-             call iw_text("... and")
-             call igSameLine(0._c_float,-1._c_float)
-             call igPushItemWidth(iw_calcwidth(5,1))
-             str2 = "##bondtableglobalbfmax" // c_null_char
-             if (igDragFloat(c_loc(str2),w%rep%bond_style%bfmax_g,0.01_c_float,0.0_c_float,9.999_c_float,&
-                c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
-             end if
-             call igPopItemWidth()
-             call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
+             call iw_text("Style")
+             call iw_combo_simple("##tablebondstyleglobalselect",&
+                "Single color"//c_null_char//"Two colors"//c_null_char,w%rep%bond_style%style_g,sameline=.true.,changed=ch)
+             call iw_tooltip("Use a single color for the bond, or two colors from the bonded atoms",ttshown)
 
-             call iw_text("times",sameline=.true.)
-             call iw_combo_simple("##bondtableglobalradtypemax","cov."//c_null_char//"vdw"//c_null_char,&
-                w%rep%bond_style%radtype_g(2),sameline=.true.)
-             call iw_tooltip("Choose the atomic radii (covalent or van der Waals)",ttshown)
-             call iw_text("radii",sameline=.true.)
-          else
-             ! range
+             call iw_text(" Radius",sameline=.true.)
+             str2 = "##radiusbondtableglobal" // c_null_char
+             str3 = "%.3f" // c_null_char
+             call igPushItemWidth(iw_calcwidth(5,1))
+             call igSameLine(0._c_float,-1._c_float)
+             ch = ch .or. igDragFloat(c_loc(str2),w%rep%bond_style%rad_g,0.005_c_float,0._c_float,2._c_float,&
+                c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+             call igPopItemWidth()
+             call iw_tooltip("Radius of the bonds",ttshown)
+
+             ! border size
+             call igPushItemWidth(iw_calcwidth(5,1))
+             str2 = "Border Size (Å) " // c_null_char
+             str3 = "%.3f" // c_null_char
+             changed = changed .or. igDragFloat(c_loc(str2),w%rep%bond_style%border_g,&
+                0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Change the thickness of the bond borders",ttshown)
+             call igPopItemWidth()
+
+             ! color
+             changed = changed .or. iw_coloredit3("Border Color",w%rep%bond_style%rgbborder_g,sameline=.true.)
+             call iw_tooltip("Color of the border for the bonds",ttshown)
+
+             ! color
              call igAlignTextToFramePadding()
-             call iw_text("Between")
-             call igSameLine(0._c_float,-1._c_float)
-             call igPushItemWidth(iw_calcwidth(5,1))
-             str2 = "##bondtableglobaldmin" // c_null_char
-             if (igDragFloat(c_loc(str2),w%rep%bond_style%dmin_g,0.01_c_float,0.0_c_float,9.999_c_float,&
-                c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
-             end if
-             call igPopItemWidth()
-             call iw_text("Å",sameline=.true.)
-             call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
+             call iw_text("Color")
+             ch = ch .or. iw_coloredit3("##colorbondtableglobal",w%rep%bond_style%rgb_g,sameline=.true.)
+             call iw_tooltip("Color of the bonds",ttshown)
 
+             ! order
+             call iw_text(" Order",sameline=.true.)
+             call iw_combo_simple("##tablebondorderselectglobal",&
+                "Dashed"//c_null_char//"Single"//c_null_char//"Double"//c_null_char//"Triple"//c_null_char,&
+                w%rep%bond_style%order_g,sameline=.true.,changed=ldum)
+             ch = ch .or. ldum
+             call iw_tooltip("Bond order (dashed, single, double, etc.)",ttshown)
+
+             ! both atoms
+             call iw_text(" Both Atoms",sameline=.true.)
+             ch = ch .or. iw_checkbox("##bothatomstableglobal",w%rep%bond_style%bothends_g,sameline=.true.)
+             call iw_tooltip("Represent a bond if both end-atoms are in the scene (checked) or if only &
+                &one end-atom is in the scene (unchecked)",ttshown)
+
+             !! distance block !!
              call igAlignTextToFramePadding()
-             call iw_text("... and")
-             call igSameLine(0._c_float,-1._c_float)
-             call igPushItemWidth(iw_calcwidth(5,1))
-             str2 = "##bondtableglobaldmax" // c_null_char
-             if (igDragFloat(c_loc(str2),w%rep%bond_style%dmax_g,0.01_c_float,0.0_c_float,9.999_c_float,&
-                c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
+             call iw_text("Distances",highlight=.true.)
+             call iw_text(" (",highlight=.true.,sameline_nospace=.true.)
+             call iw_combo_simple("##tablebondglobaldistcombo","Factor"//c_null_char//"Range"//c_null_char,&
+                w%rep%bond_style%distancetype_g,sameline_nospace=.true.)
+             call iw_tooltip("Draw bonds whose lengths are a factor of the sum of atomic&
+                & radii (Factor) or give bond distance range (Range)",ttshown)
+             call iw_text(")",highlight=.true.,sameline_nospace=.true.)
+             if (iw_button("Apply##applyglobal",sameline=.true.,danger=.true.)) then
+                call w%rep%bond_style%generate_neighstars_from_globals(isys)
+                w%rep%bond_style%isdef = .false.
+                changed = .true.
              end if
-             call igPopItemWidth()
-             call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
-             call iw_text("Å",sameline=.true.)
-          end if
-          call igAlignTextToFramePadding()
-          call iw_text("Intra/Inter-molecular")
-          call iw_combo_simple("##tablebondimolselectglobal",&
-             "any"//c_null_char//"intra"//c_null_char//"inter"//c_null_char,&
-             w%rep%bond_style%imol_g,sameline=.true.)
-          call iw_tooltip("Draw any bonds (any), only intramolecular (intra), or only intermolecular (inter)",&
-             ttshown)
+             call iw_tooltip("Recalculate and draw bonds using the selected distance criteria",ttshown)
 
-          !! atom selection block !!
-          call iw_text("Atom Pair Selection",highlight=.true.)
+             if (w%rep%bond_style%distancetype_g == 0) then
+                ! factor
+                call igAlignTextToFramePadding()
+                call iw_text("Between")
+                call igSameLine(0._c_float,-1._c_float)
+                call igPushItemWidth(iw_calcwidth(5,1))
+                str2 = "##bondtableglobalbfmin" // c_null_char
+                if (igDragFloat(c_loc(str2),w%rep%bond_style%bfmin_g,0.01_c_float,0.0_c_float,9.999_c_float,&
+                   c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
+                end if
+                call igPopItemWidth()
+                call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
 
-          nspcpair = min(5,sys(isys)%c%nspc*(sys(isys)%c%nspc+1)/2+1)
-          flags = ImGuiTableFlags_None
-          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-          flags = ior(flags,ImGuiTableFlags_Borders)
-          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-          flags = ior(flags,ImGuiTableFlags_RowBg)
-          flags = ior(flags,ImGuiTableFlags_ScrollY)
-          str1="##tablespeciesbonding" // c_null_char
-          sz%x = iw_calcwidth(17,3)
-          sz%y = iw_calcheight(nspcpair,0,.false.)
-          if (igBeginTable(c_loc(str1),3,flags,sz,0._c_float)) then
-             ! header setup
-             str2 = "Atom 1" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_sp1)
+                call iw_text("times",sameline=.true.)
+                call iw_combo_simple("##bondtableglobalradtypemin","cov."//c_null_char//"vdw"//c_null_char,&
+                   w%rep%bond_style%radtype_g(1),sameline=.true.)
+                call iw_tooltip("Choose the atomic radii (covalent or van der Waals)",ttshown)
+                call iw_text("radii",sameline=.true.)
 
-             str2 = "Atom 2" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_sp2)
+                call igAlignTextToFramePadding()
+                call iw_text("... and")
+                call igSameLine(0._c_float,-1._c_float)
+                call igPushItemWidth(iw_calcwidth(5,1))
+                str2 = "##bondtableglobalbfmax" // c_null_char
+                if (igDragFloat(c_loc(str2),w%rep%bond_style%bfmax_g,0.01_c_float,0.0_c_float,9.999_c_float,&
+                   c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
+                end if
+                call igPopItemWidth()
+                call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
 
-             str2 = "Show" // c_null_char
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_shown)
+                call iw_text("times",sameline=.true.)
+                call iw_combo_simple("##bondtableglobalradtypemax","cov."//c_null_char//"vdw"//c_null_char,&
+                   w%rep%bond_style%radtype_g(2),sameline=.true.)
+                call iw_tooltip("Choose the atomic radii (covalent or van der Waals)",ttshown)
+                call iw_text("radii",sameline=.true.)
+             else
+                ! range
+                call igAlignTextToFramePadding()
+                call iw_text("Between")
+                call igSameLine(0._c_float,-1._c_float)
+                call igPushItemWidth(iw_calcwidth(5,1))
+                str2 = "##bondtableglobaldmin" // c_null_char
+                if (igDragFloat(c_loc(str2),w%rep%bond_style%dmin_g,0.01_c_float,0.0_c_float,9.999_c_float,&
+                   c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
+                end if
+                call igPopItemWidth()
+                call iw_text("Å",sameline=.true.)
+                call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
 
-             call igTableSetupScrollFreeze(0, 1) ! top row always visible
+                call igAlignTextToFramePadding()
+                call iw_text("... and")
+                call igSameLine(0._c_float,-1._c_float)
+                call igPushItemWidth(iw_calcwidth(5,1))
+                str2 = "##bondtableglobaldmax" // c_null_char
+                if (igDragFloat(c_loc(str2),w%rep%bond_style%dmax_g,0.01_c_float,0.0_c_float,9.999_c_float,&
+                   c_loc(str3),ImGuiSliderFlags_AlwaysClamp)) then
+                end if
+                call igPopItemWidth()
+                call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
+                call iw_text("Å",sameline=.true.)
+             end if
+             call igAlignTextToFramePadding()
+             call iw_text("Intra/Inter-molecular")
+             call iw_combo_simple("##tablebondimolselectglobal",&
+                "any"//c_null_char//"intra"//c_null_char//"inter"//c_null_char,&
+                w%rep%bond_style%imol_g,sameline=.true.)
+             call iw_tooltip("Draw any bonds (any), only intramolecular (intra), or only intermolecular (inter)",&
+                ttshown)
 
-             ! draw the header
-             call igTableHeadersRow()
-             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+             !! atom selection block !!
+             call iw_text("Atom Pair Selection",highlight=.true.)
 
-             ! start the clipper
-             nrow = sys(isys)%c%nspc * (sys(isys)%c%nspc + 1) / 2
-             clipper = ImGuiListClipper_ImGuiListClipper()
-             call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
-             allocate(indi(nrow),indj(nrow))
-             k = 0
-             do i = 1, sys(isys)%c%nspc
-                do j = i, sys(isys)%c%nspc
-                   k = k + 1
-                   indi(k) = i
-                   indj(k) = j
+             nspcpair = min(5,sys(isys)%c%nspc*(sys(isys)%c%nspc+1)/2+1)
+             flags = ImGuiTableFlags_None
+             flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+             flags = ior(flags,ImGuiTableFlags_Borders)
+             flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+             flags = ior(flags,ImGuiTableFlags_RowBg)
+             flags = ior(flags,ImGuiTableFlags_ScrollY)
+             str1="##tablespeciesbonding" // c_null_char
+             sz%x = iw_calcwidth(17,3)
+             sz%y = iw_calcheight(nspcpair,0,.false.)
+             if (igBeginTable(c_loc(str1),3,flags,sz,0._c_float)) then
+                ! header setup
+                str2 = "Atom 1" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_sp1)
+
+                str2 = "Atom 2" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_sp2)
+
+                str2 = "Show" // c_null_char
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_shown)
+
+                call igTableSetupScrollFreeze(0, 1) ! top row always visible
+
+                ! draw the header
+                call igTableHeadersRow()
+                call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+
+                ! start the clipper
+                nrow = sys(isys)%c%nspc * (sys(isys)%c%nspc + 1) / 2
+                clipper = ImGuiListClipper_ImGuiListClipper()
+                call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
+                allocate(indi(nrow),indj(nrow))
+                k = 0
+                do i = 1, sys(isys)%c%nspc
+                   do j = i, sys(isys)%c%nspc
+                      k = k + 1
+                      indi(k) = i
+                      indj(k) = j
+                   end do
                 end do
-             end do
 
-             ! draw the rows
-             do while(ImGuiListClipper_Step(clipper))
-                call c_f_pointer(clipper,clipper_f)
-                do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
-                   i = indi(k)
-                   j = indj(k)
+                ! draw the rows
+                do while(ImGuiListClipper_Step(clipper))
+                   call c_f_pointer(clipper,clipper_f)
+                   do k = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                      i = indi(k)
+                      j = indj(k)
 
-                   call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-                   suffix = "_" // string(i) // "_" // string(j)
+                      call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                      suffix = "_" // string(i) // "_" // string(j)
 
-                   ! species
-                   if (igTableSetColumnIndex(ic_sp1)) then
-                      call igAlignTextToFramePadding()
-                      call iw_text(trim(sys(isys)%c%spc(i)%name))
-                   end if
-                   if (igTableSetColumnIndex(ic_sp2)) &
-                      call iw_text(trim(sys(isys)%c%spc(j)%name))
-
-                   ! shown
-                   if (igTableSetColumnIndex(ic_shown)) then
-                      if (iw_checkbox("##bondtableshown" // suffix,w%rep%bond_style%shown_g(i,j))) then
-                         ch = .true.
-                         w%rep%bond_style%shown_g(j,i) = w%rep%bond_style%shown_g(i,j)
+                      ! species
+                      if (igTableSetColumnIndex(ic_sp1)) then
+                         call igAlignTextToFramePadding()
+                         call iw_text(trim(sys(isys)%c%spc(i)%name))
                       end if
-                      call iw_tooltip("Toggle display of bonds connecting these atom types",ttshown)
-                   end if
-                end do ! clipper range
-             end do ! clipper step
+                      if (igTableSetColumnIndex(ic_sp2)) &
+                         call iw_text(trim(sys(isys)%c%spc(j)%name))
 
-             ! end the clipper and the table
-             deallocate(indi,indj)
-             call ImGuiListClipper_End(clipper)
-             call igEndTable()
-          end if ! begintable
+                      ! shown
+                      if (igTableSetColumnIndex(ic_shown)) then
+                         if (iw_checkbox("##bondtableshown" // suffix,w%rep%bond_style%shown_g(i,j))) then
+                            ch = .true.
+                            w%rep%bond_style%shown_g(j,i) = w%rep%bond_style%shown_g(i,j)
+                         end if
+                         call iw_tooltip("Toggle display of bonds connecting these atom types",ttshown)
+                      end if
+                   end do ! clipper range
+                end do ! clipper step
 
-          ! immediately update if non-distances have changed
-          if (ch) changed = .true.
+                ! end the clipper and the table
+                deallocate(indi,indj)
+                call ImGuiListClipper_End(clipper)
+                call igEndTable()
+             end if ! begintable
 
-          call igEndTabItem()
-       end if ! begin tab item (bonds)
+             ! immediately update if non-distances have changed
+             if (ch) changed = .true.
+
+             call igEndTabItem()
+          end if ! begin tab item (bonds)
+       end if
 
        !!!!! Labels tab !!!!!
-       str1 = "Labels##editrepatoms_labelstab" // c_null_char
-       flags = ImGuiTabItemFlags_None
-       if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
-          !! labels display !!
-          if (w%rep%labels_display) then
-             call iw_text("(Note: the Atoms tab controls which labels are shown)")
-          else
-             call iw_text("Check the 'Labels' box above to show the labels.",danger=.true.)
-          end if
+       if (w%rep%labels_display) then
+          str1 = "Labels##editrepatoms_labelstab" // c_null_char
+          flags = ImGuiTabItemFlags_None
+          if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
+             !! labels display !!
 
-          ! label styles
-          call iw_text("Global Options",highlight=.true.)
-          if (sys(isys)%c%ismolecule) then
-             lst = lsttrans(w%rep%label_style%style)
-             call iw_combo_simple("Text##labelcontentselect","Atomic symbol"//c_null_char//&
-                "Atom name"// c_null_char//"Atom ID"// c_null_char//&
-                "Species ID"// c_null_char// "Atomic number"// c_null_char// "Molecule ID"// c_null_char,&
-                lst,changed=ch)
-             w%rep%label_style%style = lsttransi(lst)
-          else
-             call iw_combo_simple("Text##labelcontentselect","Atomic symbol"//c_null_char//&
-                "Atom name"//c_null_char//"Cell atom ID"//c_null_char//&
-                "Cell atom ID + lattice vector"//c_null_char//"Symmetry-unique atom ID"//c_null_char//&
-                "Species ID"//c_null_char//"Atomic number"//c_null_char//"Molecule ID"//c_null_char//&
-                "Wyckoff position"//c_null_char,&
-                w%rep%label_style%style,changed=ch)
-          end if
-          if (ch) call w%rep%reset_label_style()
-          call iw_tooltip("Text to display in the atom labels",ttshown)
-          changed = changed .or. ch
-
-          ! scale, constant size, color
-          str2 = "Scale##labelscale" // c_null_char
-          str3 = "%.2f" // c_null_char
-          call igPushItemWidth(iw_calcwidth(4,1))
-          changed = changed .or. igDragFloat(c_loc(str2),w%rep%label_style%scale,0.01_c_float,&
-             0._c_float,10._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
-          call igPopItemWidth()
-          call iw_tooltip("Scale factor for the atom labels",ttshown)
-
-          changed = changed .or. iw_checkbox("Constant size##labelconstsize",&
-             w%rep%label_style%const_size,sameline=.true.)
-          call iw_tooltip("Labels have constant size (on) or labels scale with the&
-             & size of the associated atom (off)",ttshown)
-
-          changed = changed .or. iw_coloredit3("Color##labelcolor",w%rep%label_style%rgb,sameline=.true.)
-          call iw_tooltip("Color of the atom labels",ttshown)
-
-          ! offset
-          call igPushItemWidth(iw_calcwidth(21,3))
-          str2 = "Offset (Å)" // c_null_char
-          str3 = "%.3f" // c_null_char
-          changed = changed .or. igDragFloat3(c_loc(str2),w%rep%label_style%offset,&
-             0.001_c_float,99.999_c_float,99.999_c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Offset the position of the labels relative to the atom center",ttshown)
-          call igPopItemWidth()
-
-          ! table for label selection
-          call iw_text("Label Selection",highlight=.true.)
-
-          ! number of entries in the table
-          select case(w%rep%label_style%style)
-          case (0,1,5,6)
-             intable = 0 ! species
-             nrow = sys(isys)%c%nspc
-             ncol = 5
-             call iw_text("(per species)",sameline=.true.)
-          case (2,3)
-             intable = 1 ! complete cell list
-             nrow = sys(isys)%c%ncel
-             ncol = 5
-             call iw_text("(per atom)",sameline=.true.)
-          case (4,8)
-             intable = 2 ! non-equivalent list
-             nrow = sys(isys)%c%nneq
-             ncol = 5
-             call iw_text("(per symmetry-unique atom)",sameline=.true.)
-          case (7)
-             intable = 3 ! molecules
-             nrow = sys(isys)%c%nmol
-             ncol = 3
-             call iw_text("(per molecule)",sameline=.true.)
-          end select
-
-          ! the table itself
-          flags = ImGuiTableFlags_None
-          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-          flags = ior(flags,ImGuiTableFlags_RowBg)
-          flags = ior(flags,ImGuiTableFlags_Borders)
-          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-          flags = ior(flags,ImGuiTableFlags_ScrollY)
-          str1="##tablespecieslabels" // c_null_char
-          sz%x = iw_calcwidth(30,ncol)
-          sz%y = iw_calcheight(min(8,nrow+1),0,.false.)
-          if (igBeginTable(c_loc(str1),ncol,flags,sz,0._c_float)) then
-             ncol = -1
-
-             ! header setup
-             str2 = "Id" // c_null_char
-             ncol = ncol + 1
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
-
-             if (intable < 3) then
-                str2 = "Atom" // c_null_char
-                ncol = ncol + 1
-                flags = ImGuiTableColumnFlags_WidthFixed
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
-
-                str2 = "Z " // c_null_char
-                ncol = ncol + 1
-                flags = ImGuiTableColumnFlags_WidthFixed
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+             ! label styles
+             call iw_text("Global Options",highlight=.true.)
+             if (sys(isys)%c%ismolecule) then
+                lst = lsttrans(w%rep%label_style%style)
+                call iw_combo_simple("Text##labelcontentselect","Atomic symbol"//c_null_char//&
+                   "Atom name"// c_null_char//"Atom ID"// c_null_char//&
+                   "Species ID"// c_null_char// "Atomic number"// c_null_char// "Molecule ID"// c_null_char,&
+                   lst,changed=ch)
+                w%rep%label_style%style = lsttransi(lst)
+             else
+                call iw_combo_simple("Text##labelcontentselect","Atomic symbol"//c_null_char//&
+                   "Atom name"//c_null_char//"Cell atom ID"//c_null_char//&
+                   "Cell atom ID + lattice vector"//c_null_char//"Symmetry-unique atom ID"//c_null_char//&
+                   "Species ID"//c_null_char//"Atomic number"//c_null_char//"Molecule ID"//c_null_char//&
+                   "Wyckoff position"//c_null_char,&
+                   w%rep%label_style%style,changed=ch)
              end if
+             if (ch) call w%rep%reset_label_style()
+             call iw_tooltip("Text to display in the atom labels",ttshown)
+             changed = changed .or. ch
 
-             str2 = "Show" // c_null_char
-             ncol = ncol + 1
-             flags = ImGuiTableColumnFlags_WidthFixed
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+             ! scale, constant size, color
+             str2 = "Scale##labelscale" // c_null_char
+             str3 = "%.2f" // c_null_char
+             call igPushItemWidth(iw_calcwidth(4,1))
+             changed = changed .or. igDragFloat(c_loc(str2),w%rep%label_style%scale,0.01_c_float,&
+                0._c_float,10._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+             call igPopItemWidth()
+             call iw_tooltip("Scale factor for the atom labels",ttshown)
 
-             str2 = "Text" // c_null_char
-             ncol = ncol + 1
-             flags = ImGuiTableColumnFlags_WidthStretch
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+             changed = changed .or. iw_checkbox("Constant size##labelconstsize",&
+                w%rep%label_style%const_size,sameline=.true.)
+             call iw_tooltip("Labels have constant size (on) or labels scale with the&
+                & size of the associated atom (off)",ttshown)
 
-             call igTableSetupScrollFreeze(0, 1) ! top row always visible
+             changed = changed .or. iw_coloredit3("Color##labelcolor",w%rep%label_style%rgb,sameline=.true.)
+             call iw_tooltip("Color of the atom labels",ttshown)
 
-             ! draw the header
-             call igTableHeadersRow()
-             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+             ! offset
+             call igPushItemWidth(iw_calcwidth(21,3))
+             str2 = "Offset (Å)" // c_null_char
+             str3 = "%.3f" // c_null_char
+             changed = changed .or. igDragFloat3(c_loc(str2),w%rep%label_style%offset,&
+                0.001_c_float,99.999_c_float,99.999_c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Offset the position of the labels relative to the atom center",ttshown)
+             call igPopItemWidth()
 
-             ! start the clipper
-             clipper = ImGuiListClipper_ImGuiListClipper()
-             call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
+             ! table for label selection
+             call iw_text("Label Selection",highlight=.true.)
 
-             ! draw the rows
-             do while(ImGuiListClipper_Step(clipper))
-                call c_f_pointer(clipper,clipper_f)
-                do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+             ! number of entries in the table
+             select case(w%rep%label_style%style)
+             case (0,1,5,6)
+                intable = 0 ! species
+                nrow = sys(isys)%c%nspc
+                ncol = 5
+                call iw_text("(per species)",sameline=.true.)
+             case (2,3)
+                intable = 1 ! complete cell list
+                nrow = sys(isys)%c%ncel
+                ncol = 5
+                call iw_text("(per atom)",sameline=.true.)
+             case (4,8)
+                intable = 2 ! non-equivalent list
+                nrow = sys(isys)%c%nneq
+                ncol = 5
+                call iw_text("(per symmetry-unique atom)",sameline=.true.)
+             case (7)
+                intable = 3 ! molecules
+                nrow = sys(isys)%c%nmol
+                ncol = 3
+                call iw_text("(per molecule)",sameline=.true.)
+             end select
 
-                   ! set up the next row
-                   call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-                   suffix = "_" // string(i)
-                   ncol = -1
+             ! the table itself
+             flags = ImGuiTableFlags_None
+             flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+             flags = ior(flags,ImGuiTableFlags_RowBg)
+             flags = ior(flags,ImGuiTableFlags_Borders)
+             flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+             flags = ior(flags,ImGuiTableFlags_ScrollY)
+             str1="##tablespecieslabels" // c_null_char
+             sz%x = iw_calcwidth(30,ncol)
+             sz%y = iw_calcheight(min(8,nrow+1),0,.false.)
+             if (igBeginTable(c_loc(str1),ncol,flags,sz,0._c_float)) then
+                ncol = -1
 
-                   ! id
+                ! header setup
+                str2 = "Id" // c_null_char
+                ncol = ncol + 1
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+
+                if (intable < 3) then
+                   str2 = "Atom" // c_null_char
                    ncol = ncol + 1
-                   if (igTableSetColumnIndex(ncol)) then
-                      call igAlignTextToFramePadding()
-                      call iw_text(string(i))
+                   flags = ImGuiTableColumnFlags_WidthFixed
+                   call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
 
-                      ! the highlight selectable
-                      if (iw_highlight_selectable("##selectablelabeltable" // suffix)) then
-                         win(w%idparent)%sc%nselection = 1
-                         win(w%idparent)%sc%selection_type = intable
-                         win(w%idparent)%sc%selection(1) = i
-                         win(w%idparent)%forcerender = .true.
-                         oksel = .true.
-                      end if
-                   end if
+                   str2 = "Z " // c_null_char
+                   ncol = ncol + 1
+                   flags = ImGuiTableColumnFlags_WidthFixed
+                   call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+                end if
 
-                   if (intable == 0) then ! species
-                      is = i
-                   elseif (intable == 1) then ! complete cell list
-                      is = sys(isys)%c%atcel(i)%is
-                   elseif (intable == 2) then ! non-equivalent list
-                      is = sys(isys)%c%at(i)%is
-                   end if
+                str2 = "Show" // c_null_char
+                ncol = ncol + 1
+                flags = ImGuiTableColumnFlags_WidthFixed
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
 
-                   ! atom
-                   if (intable < 3) then
+                str2 = "Text" // c_null_char
+                ncol = ncol + 1
+                flags = ImGuiTableColumnFlags_WidthStretch
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
+
+                call igTableSetupScrollFreeze(0, 1) ! top row always visible
+
+                ! draw the header
+                call igTableHeadersRow()
+                call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+
+                ! start the clipper
+                clipper = ImGuiListClipper_ImGuiListClipper()
+                call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
+
+                ! draw the rows
+                do while(ImGuiListClipper_Step(clipper))
+                   call c_f_pointer(clipper,clipper_f)
+                   do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+
+                      ! set up the next row
+                      call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                      suffix = "_" // string(i)
+                      ncol = -1
+
+                      ! id
                       ncol = ncol + 1
-                      if (igTableSetColumnIndex(ncol)) &
-                         call iw_text(trim(sys(isys)%c%spc(is)%name))
+                      if (igTableSetColumnIndex(ncol)) then
+                         call igAlignTextToFramePadding()
+                         call iw_text(string(i))
 
-                      ! Z
-                      ncol = ncol + 1
-                      if (igTableSetColumnIndex(ncol)) &
-                         call iw_text(string(sys(isys)%c%spc(is)%z))
-                   end if
-
-                   ! shown
-                   ncol = ncol + 1
-                   if (igTableSetColumnIndex(ncol)) then
-                      changed = changed .or. iw_checkbox("##labeltableshown" // suffix,w%rep%label_style%shown(i))
-                      call iw_tooltip("Toggle display of labels for these atoms/molecules",ttshown)
-                   end if
-
-                   ! text
-                   ncol = ncol + 1
-                   if (igTableSetColumnIndex(ncol)) then
-                      str1 = "##labeltabletext" // suffix // c_null_char
-                      txtinp2 = trim(w%rep%label_style%str(i)) // c_null_char
-                      call igPushItemWidth(iw_calcwidth(15,1))
-                      if (igInputText(c_loc(str1),c_loc(txtinp2),32_c_size_t,ImGuiInputTextFlags_None,&
-                         c_null_funptr,c_null_ptr)) then
-                         ll = index(txtinp2,c_null_char)
-                         w%rep%label_style%str(i) = txtinp2(1:ll-1)
-                         changed = .true.
+                         ! the highlight selectable
+                         if (iw_highlight_selectable("##selectablelabeltable" // suffix)) then
+                            win(w%idparent)%sc%nselection = 1
+                            win(w%idparent)%sc%selection_type = intable
+                            win(w%idparent)%sc%selection(1) = i
+                            win(w%idparent)%forcerender = .true.
+                            oksel = .true.
+                         end if
                       end if
-                      call igPopItemWidth()
-                      call iw_tooltip("Text for the atomic labels",ttshown)
-                   end if
-                end do ! table rows: clipper range
-             end do ! table rows: clipper step
 
-             ! end the clipper and the table
-             call ImGuiListClipper_End(clipper)
-             call igEndTable()
-          end if ! begintable
+                      if (intable == 0) then ! species
+                         is = i
+                      elseif (intable == 1) then ! complete cell list
+                         is = sys(isys)%c%atcel(i)%is
+                      elseif (intable == 2) then ! non-equivalent list
+                         is = sys(isys)%c%at(i)%is
+                      end if
 
-          call igEndTabItem()
-       end if ! begin tab item (labels)
+                      ! atom
+                      if (intable < 3) then
+                         ncol = ncol + 1
+                         if (igTableSetColumnIndex(ncol)) &
+                            call iw_text(trim(sys(isys)%c%spc(is)%name))
+
+                         ! Z
+                         ncol = ncol + 1
+                         if (igTableSetColumnIndex(ncol)) &
+                            call iw_text(string(sys(isys)%c%spc(is)%z))
+                      end if
+
+                      ! shown
+                      ncol = ncol + 1
+                      if (igTableSetColumnIndex(ncol)) then
+                         changed = changed .or. iw_checkbox("##labeltableshown" // suffix,w%rep%label_style%shown(i))
+                         call iw_tooltip("Toggle display of labels for these atoms/molecules",ttshown)
+                      end if
+
+                      ! text
+                      ncol = ncol + 1
+                      if (igTableSetColumnIndex(ncol)) then
+                         str1 = "##labeltabletext" // suffix // c_null_char
+                         txtinp2 = trim(w%rep%label_style%str(i)) // c_null_char
+                         call igPushItemWidth(iw_calcwidth(15,1))
+                         if (igInputText(c_loc(str1),c_loc(txtinp2),32_c_size_t,ImGuiInputTextFlags_None,&
+                            c_null_funptr,c_null_ptr)) then
+                            ll = index(txtinp2,c_null_char)
+                            w%rep%label_style%str(i) = txtinp2(1:ll-1)
+                            changed = .true.
+                         end if
+                         call igPopItemWidth()
+                         call iw_tooltip("Text for the atomic labels",ttshown)
+                      end if
+                   end do ! table rows: clipper range
+                end do ! table rows: clipper step
+
+                ! end the clipper and the table
+                call ImGuiListClipper_End(clipper)
+                call igEndTable()
+             end if ! begintable
+
+             call igEndTabItem()
+          end if ! begin tab item (labels)
+       end if
        call igEndTabBar()
     end if ! begin tab bar
 
