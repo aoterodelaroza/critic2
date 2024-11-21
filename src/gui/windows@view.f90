@@ -1726,11 +1726,10 @@ contains
     flags = ior(flags,ImGuiTabBarFlags_AutoSelectNewTabs)
     if (igBeginTabBar(c_loc(str1),flags)) then
 
-       str1 = "Atoms##editrepatoms_atomstab" // c_null_char
+       !!!!! Selection tab !!!!!
+       str1 = "Selection##editrepatoms_selectiontab" // c_null_char
        flags = ImGuiTabItemFlags_None
        if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
-          !! atoms display !!
-
           ! filter
           call igAlignTextToFramePadding()
           call iw_text("Filter",highlight=.true.)
@@ -1878,6 +1877,16 @@ contains
           end if
           call igPopItemWidth()
 
+          ! draw the atom selection widget
+          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,oksel,.true.,.false.)
+
+          call igEndTabItem()
+       end if ! begin tab item (selection)
+
+       !!!!! Atoms tab !!!!!
+       str1 = "Atoms##editrepatoms_atomstab" // c_null_char
+       flags = ImGuiTabItemFlags_None
+       if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
           ! global options for atoms
           call igAlignTextToFramePadding()
           call iw_text("Global Options",highlight=.true.)
@@ -1955,11 +1964,12 @@ contains
           call iw_tooltip("Color of the border for the atoms",ttshown)
 
           ! draw the atom selection widget
-          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,oksel)
+          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,oksel,.false.,.true.)
 
           call igEndTabItem()
        end if ! begin tab item (atoms)
 
+       !!!!! Bonds tab !!!!!
        str1 = "Bonds##editrepatoms_bondstab" // c_null_char
        flags = ImGuiTabItemFlags_None
        if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
@@ -2203,6 +2213,7 @@ contains
           call igEndTabItem()
        end if ! begin tab item (bonds)
 
+       !!!!! Labels tab !!!!!
        str1 = "Labels##editrepatoms_labelstab" // c_null_char
        flags = ImGuiTabItemFlags_None
        if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
@@ -3254,7 +3265,7 @@ contains
   !> Draw the atom selection table for crystal c on representation r
   !> and return whether any item has been changed. Return oksel = .true.
   !> if an item in a table has been hovered (for table row highlight).
-  function atom_selection_widget(c,r,oksel) result(changed)
+  function atom_selection_widget(c,r,oksel,showselection,showdrawopts) result(changed)
     use scenes, only: draw_style_atom, draw_style_molecule
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
        iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit3, iw_highlight_selectable
@@ -3264,6 +3275,8 @@ contains
     type(crystal), intent(in) :: c
     type(representation), intent(inout) :: r
     logical, intent(inout) :: oksel
+    logical, intent(in) :: showselection
+    logical, intent(in) :: showdrawopts
     logical :: changed
 
     logical :: domol
@@ -3272,32 +3285,20 @@ contains
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3, suffix
     real*8 :: x0(3)
     type(ImVec2) :: sz0, szero
-    integer :: ispc, i, iz, ncol, ic_next, isys
+    integer :: ispc, i, iz, ncol, isys, icol
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
-
-    ! column IDs in atom table
-    integer, parameter :: ic_id = 0
-    integer, parameter :: ic_name = 1
-    integer, parameter :: ic_z = 2
-    integer, parameter :: ic_shown = 3
-    integer, parameter :: ic_color = 4
-    integer, parameter :: ic_radius = 5
-
-    ! column IDs in molecule table
-    integer, parameter :: im_id = 0
-    integer, parameter :: im_nat = 1
-    integer, parameter :: im_shown = 2
-    integer, parameter :: im_color = 3
-    integer, parameter :: im_radius = 4
-    integer, parameter :: im_rest = 5
 
     logical, save :: ttshown = .false. ! tooltip flag
 
     szero%x = 0
     szero%y = 0
     isys = r%id
-    call iw_text("Atom Selection",highlight=.true.)
+    if (showselection) then
+       call iw_text("Atom Selection",highlight=.true.)
+    elseif (showdrawopts) then
+       call iw_text("Atom Style",highlight=.true.)
+    end if
 
     ! selector and reset
     changed = .false.
@@ -3317,9 +3318,12 @@ contains
     end if
 
     ! whether to do the molecule column
-    ncol = 7
     domol = (r%atom_style%type == 2 .or. (r%atom_style%type == 1 .and. c%ismolecule))
-    if (domol) ncol = 8
+    ncol = 3
+    if (showselection) ncol = ncol + 1 ! show
+    if (showdrawopts) ncol = ncol + 2 ! col, radius
+    if (domol) ncol = ncol + 1 ! mol
+    if (r%atom_style%type > 0) ncol = ncol + 1 ! coordinates
 
     ! atom style table, for atoms
     flags = ImGuiTableFlags_None
@@ -3333,49 +3337,63 @@ contains
     sz0%x = 0
     sz0%y = iw_calcheight(min(5,r%atom_style%ntype)+1,0,.false.)
     if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
+       icol = -1
+
        ! header setup
+       icol = icol + 1
        str2 = "Id" // c_null_char
        flags = ImGuiTableColumnFlags_None
-       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_id)
+       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
 
+       icol = icol + 1
        str2 = "Atom" // c_null_char
        flags = ImGuiTableColumnFlags_None
-       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_name)
+       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
 
+       icol = icol + 1
        str2 = "Z " // c_null_char
        flags = ImGuiTableColumnFlags_None
-       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_z)
+       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
 
-       str2 = "Show" // c_null_char
-       flags = ImGuiTableColumnFlags_None
-       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_shown)
+       if (showselection) then
+          icol = icol + 1
+          str2 = "Show" // c_null_char
+          flags = ImGuiTableColumnFlags_None
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+       end if
 
-       str2 = "Col" // c_null_char
-       flags = ImGuiTableColumnFlags_None
-       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_color)
+       if (showdrawopts) then
+          icol = icol + 1
+          str2 = "Col" // c_null_char
+          flags = ImGuiTableColumnFlags_None
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
 
-       str2 = "Radius" // c_null_char
-       flags = ImGuiTableColumnFlags_None
-       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_radius)
+          icol = icol + 1
+          str2 = "Radius" // c_null_char
+          flags = ImGuiTableColumnFlags_None
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+       end if
 
-       ic_next = ic_radius + 1
        if (domol) then
+          icol = icol + 1
           str2 = "Mol" // c_null_char
           flags = ImGuiTableColumnFlags_None
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_next)
-          ic_next = ic_next + 1
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
        end if
 
-       if (c%ismolecule) then
-          str2 = "Coordinates (Å)" // c_null_char
-       else
-          str2 = "Coordinates (fractional)" // c_null_char
+       if (r%atom_style%type > 0) then
+          icol = icol + 1
+          if (c%ismolecule) then
+             str2 = "Coordinates (Å)" // c_null_char
+          else
+             str2 = "Coordinates (fractional)" // c_null_char
+          end if
+          flags = ImGuiTableColumnFlags_WidthStretch
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
        end if
-       flags = ImGuiTableColumnFlags_WidthStretch
-       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ic_next)
-       call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
        ! draw the header
+       call igTableSetupScrollFreeze(0, 1) ! top row always visible
        call igTableHeadersRow()
        call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
@@ -3388,6 +3406,7 @@ contains
           call c_f_pointer(clipper,clipper_f)
           do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
              suffix = "_" // string(i)
+             icol = -1
 
              call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
              if (r%atom_style%type == 0) then
@@ -3403,7 +3422,8 @@ contains
              iz = c%spc(ispc)%z
 
              ! id
-             if (igTableSetColumnIndex(ic_id)) then
+             icol = icol + 1
+             if (igTableSetColumnIndex(icol)) then
                 call igAlignTextToFramePadding()
                 call iw_text(string(i))
 
@@ -3418,66 +3438,77 @@ contains
              end if
 
              ! name
-             if (igTableSetColumnIndex(ic_name)) call iw_text(string(c%spc(ispc)%name))
+             icol = icol + 1
+             if (igTableSetColumnIndex(icol)) call iw_text(string(c%spc(ispc)%name))
 
              ! Z
-             if (igTableSetColumnIndex(ic_z)) call iw_text(string(iz))
+             icol = icol + 1
+             if (igTableSetColumnIndex(icol)) call iw_text(string(iz))
 
              ! shown
-             if (igTableSetColumnIndex(ic_shown)) then
-                changed = changed .or. iw_checkbox("##tableshown" // suffix ,r%atom_style%shown(i))
-                call iw_tooltip("Toggle display of the atom/bond/label associated to this atom",ttshown)
+             if (showselection) then
+                icol = icol + 1
+                if (igTableSetColumnIndex(icol)) then
+                   changed = changed .or. iw_checkbox("##tableshown" // suffix ,r%atom_style%shown(i))
+                   call iw_tooltip("Toggle display of the atom/bond/label associated to this atom",ttshown)
+                end if
              end if
 
              ! color
-             if (igTableSetColumnIndex(ic_color)) then
-                ch = iw_coloredit3("##tablecolor" // suffix,r%atom_style%rgb(:,i),nolabel=.true.)
-                call iw_tooltip("Atom color",ttshown)
-                if (ch) then
-                   r%atom_style%rgb(:,i) = min(r%atom_style%rgb(:,i),1._c_float)
-                   r%atom_style%rgb(:,i) = max(r%atom_style%rgb(:,i),0._c_float)
-                   changed = .true.
+             if (showdrawopts) then
+                icol = icol + 1
+                if (igTableSetColumnIndex(icol)) then
+                   ch = iw_coloredit3("##tablecolor" // suffix,r%atom_style%rgb(:,i),nolabel=.true.)
+                   call iw_tooltip("Atom color",ttshown)
+                   if (ch) then
+                      r%atom_style%rgb(:,i) = min(r%atom_style%rgb(:,i),1._c_float)
+                      r%atom_style%rgb(:,i) = max(r%atom_style%rgb(:,i),0._c_float)
+                      changed = .true.
+                   end if
                 end if
-             end if
 
-             ! radius
-             if (igTableSetColumnIndex(ic_radius)) then
-                str2 = "##tableradius" // suffix // c_null_char
-                str3 = "%.3f" // c_null_char
-                call igPushItemWidth(iw_calcwidth(5,1))
-                ch = igDragFloat(c_loc(str2),r%atom_style%rad(i),0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
-                   ImGuiSliderFlags_AlwaysClamp)
-                call iw_tooltip("Radius of the sphere representing the atom",ttshown)
-                if (ch) then
-                   r%atom_style%rad(i) = max(r%atom_style%rad(i),0._c_float)
-                   changed = .true.
+                ! radius
+                icol = icol + 1
+                if (igTableSetColumnIndex(icol)) then
+                   str2 = "##tableradius" // suffix // c_null_char
+                   str3 = "%.3f" // c_null_char
+                   call igPushItemWidth(iw_calcwidth(5,1))
+                   ch = igDragFloat(c_loc(str2),r%atom_style%rad(i),0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
+                      ImGuiSliderFlags_AlwaysClamp)
+                   call iw_tooltip("Radius of the sphere representing the atom",ttshown)
+                   if (ch) then
+                      r%atom_style%rad(i) = max(r%atom_style%rad(i),0._c_float)
+                      changed = .true.
+                   end if
+                   call igPopItemWidth()
                 end if
-                call igPopItemWidth()
              end if
 
              ! molecule
-             ic_next = ic_radius + 1
              if (domol) then
+                icol = icol + 1
                 ! i is a complete list index in this case
-                if (igTableSetColumnIndex(ic_next)) call iw_text(string(c%idatcelmol(1,i)))
-                ic_next = ic_next + 1
+                if (igTableSetColumnIndex(icol)) call iw_text(string(c%idatcelmol(1,i)))
              end if
 
              ! rest of info
-             if (igTableSetColumnIndex(ic_next)) then
-                s = ""
-                if (r%atom_style%type > 0) then
-                   if (c%ismolecule) then
-                      x0 = (c%atcel(i)%r+c%molx0) * dunit0(iunit_ang)
-                   elseif (r%atom_style%type == 1) then
-                      x0 = c%at(i)%x
-                   else
-                      x0 = c%atcel(i)%x
-                   endif
-                   s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
-                      string(x0(3),'f',8,4,ioj_right)
+             if (r%atom_style%type > 0) then
+                icol = icol + 1
+                if (igTableSetColumnIndex(icol)) then
+                   s = ""
+                   if (r%atom_style%type > 0) then
+                      if (c%ismolecule) then
+                         x0 = (c%atcel(i)%r+c%molx0) * dunit0(iunit_ang)
+                      elseif (r%atom_style%type == 1) then
+                         x0 = c%at(i)%x
+                      else
+                         x0 = c%atcel(i)%x
+                      endif
+                      s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
+                         string(x0(3),'f',8,4,ioj_right)
+                   end if
+                   call iw_text(s)
                 end if
-                call iw_text(s)
              end if
           end do ! clipper indices
        end do ! clipper step
@@ -3487,29 +3518,40 @@ contains
        call igEndTable()
     end if
 
-    ! style buttons: show/hide
-    if (iw_button("Show All##showallatoms")) then
-       r%atom_style%shown = .true.
-       changed = .true.
+    if (showselection) then
+       ! style buttons: show/hide
+       if (iw_button("Show All##showallatoms")) then
+          r%atom_style%shown = .true.
+          changed = .true.
+       end if
+       call iw_tooltip("Show all atoms/bonds/labels in the system",ttshown)
+       if (iw_button("Hide All##hideallatoms",sameline=.true.)) then
+          r%atom_style%shown = .false.
+          changed = .true.
+       end if
+       call iw_tooltip("Hide all atoms/bonds/labels in the system",ttshown)
+       if (iw_button("Toggle Show/Hide##toggleallatoms",sameline=.true.)) then
+          do i = 1, r%atom_style%ntype
+             r%atom_style%shown(i) = .not.r%atom_style%shown(i)
+          end do
+          changed = .true.
+       end if
+       call iw_tooltip("Toggle the show/hide status for all atoms/bonds/labels",ttshown)
     end if
-    call iw_tooltip("Show all atoms/bonds/labels in the system",ttshown)
-    if (iw_button("Hide All##hideallatoms",sameline=.true.)) then
-       r%atom_style%shown = .false.
-       changed = .true.
-    end if
-    call iw_tooltip("Hide all atoms/bonds/labels in the system",ttshown)
-    if (iw_button("Toggle Show/Hide##toggleallatoms",sameline=.true.)) then
-       do i = 1, r%atom_style%ntype
-          r%atom_style%shown(i) = .not.r%atom_style%shown(i)
-       end do
-       changed = .true.
-    end if
-    call iw_tooltip("Toggle the show/hide status for all atoms/bonds/labels",ttshown)
 
     ! molecule selection
     ! initialized and more than one molecule
     if (r%mol_style%isinit .and. r%mol_style%ntype > 1) then
-       call iw_text("Molecule Selection",highlight=.true.)
+       if (showselection) then
+          call iw_text("Molecule Selection",highlight=.true.)
+       elseif (showdrawopts) then
+          call iw_text("Molecule Style",highlight=.true.)
+       end if
+
+       ncol = 2
+       if (showselection) ncol = ncol + 1 ! show
+       if (showdrawopts) ncol = ncol + 2 ! tint, scale
+       ncol = ncol + 1 ! center of mass
 
        ! molecule style table, for molecules
        flags = ImGuiTableFlags_None
@@ -3522,38 +3564,50 @@ contains
        str1="##tablemolstyles" // c_null_char
        sz0%x = 0
        sz0%y = iw_calcheight(min(5,r%mol_style%ntype)+1,0,.false.)
-       if (igBeginTable(c_loc(str1),6,flags,sz0,0._c_float)) then
+       if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
+          icol = -1
+
           ! header setup
+          icol = icol + 1
           str2 = "Id" // c_null_char
           flags = ImGuiTableColumnFlags_None
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,im_id)
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
 
+          icol = icol + 1
           str2 = "nat" // c_null_char
           flags = ImGuiTableColumnFlags_None
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,im_nat)
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
 
-          str2 = "Show" // c_null_char
-          flags = ImGuiTableColumnFlags_None
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,im_shown)
+          if (showselection) then
+             icol = icol + 1
+             str2 = "Show" // c_null_char
+             flags = ImGuiTableColumnFlags_None
+             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+          end if
 
-          str2 = "Tint" // c_null_char
-          flags = ImGuiTableColumnFlags_None
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,im_color)
+          if (showdrawopts) then
+             icol = icol + 1
+             str2 = "Tint" // c_null_char
+             flags = ImGuiTableColumnFlags_None
+             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
 
-          str2 = "Scale" // c_null_char
-          flags = ImGuiTableColumnFlags_None
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,im_radius)
+             icol = icol + 1
+             str2 = "Scale" // c_null_char
+             flags = ImGuiTableColumnFlags_None
+             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+          end if
 
+          icol = icol + 1
           if (c%ismolecule) then
              str2 = "Center of mass (Å)" // c_null_char
           else
              str2 = "Center of mass (fractional)" // c_null_char
           end if
           flags = ImGuiTableColumnFlags_WidthStretch
-          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,im_rest)
-          call igTableSetupScrollFreeze(0, 1) ! top row always visible
+          call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
 
           ! draw the header
+          call igTableSetupScrollFreeze(0, 1) ! top row always visible
           call igTableHeadersRow()
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
@@ -3565,11 +3619,12 @@ contains
           do while(ImGuiListClipper_Step(clipper))
              call c_f_pointer(clipper,clipper_f)
              do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
-
+                icol = -1
                 call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
 
                 ! id
-                if (igTableSetColumnIndex(im_id)) then
+                icol = icol + 1
+                if (igTableSetColumnIndex(icol)) then
                    call igAlignTextToFramePadding()
                    call iw_text(string(i))
 
@@ -3584,42 +3639,51 @@ contains
                 end if
 
                 ! nat
-                if (igTableSetColumnIndex(im_nat)) call iw_text(string(c%mol(i)%nat))
+                icol = icol + 1
+                if (igTableSetColumnIndex(icol)) call iw_text(string(c%mol(i)%nat))
 
                 ! shown
-                if (igTableSetColumnIndex(im_shown)) then
-                   changed = changed .or. iw_checkbox("##tablemolshown" // string(i) ,r%mol_style%shown(i))
-                   call iw_tooltip("Toggle display of all atoms in this molecule",ttshown)
+                if (showselection) then
+                   icol = icol + 1
+                   if (igTableSetColumnIndex(icol)) then
+                      changed = changed .or. iw_checkbox("##tablemolshown" // string(i) ,r%mol_style%shown(i))
+                      call iw_tooltip("Toggle display of all atoms in this molecule",ttshown)
+                   end if
                 end if
 
                 ! color
-                if (igTableSetColumnIndex(im_color)) then
-                   ch = iw_coloredit3("##tablemolcolor" // string(i),r%mol_style%tint_rgb(:,i),nolabel=.true.)
-                   call iw_tooltip("Molecule color tint",ttshown)
-                   if (ch) then
-                      r%mol_style%tint_rgb(:,i) = min(r%mol_style%tint_rgb(:,i),1._c_float)
-                      r%mol_style%tint_rgb(:,i) = max(r%mol_style%tint_rgb(:,i),0._c_float)
-                      changed = .true.
+                if (showdrawopts) then
+                   icol = icol + 1
+                   if (igTableSetColumnIndex(icol)) then
+                      ch = iw_coloredit3("##tablemolcolor" // string(i),r%mol_style%tint_rgb(:,i),nolabel=.true.)
+                      call iw_tooltip("Molecule color tint",ttshown)
+                      if (ch) then
+                         r%mol_style%tint_rgb(:,i) = min(r%mol_style%tint_rgb(:,i),1._c_float)
+                         r%mol_style%tint_rgb(:,i) = max(r%mol_style%tint_rgb(:,i),0._c_float)
+                         changed = .true.
+                      end if
                    end if
-                end if
 
-                ! radius
-                if (igTableSetColumnIndex(im_radius)) then
-                   str2 = "##tablemolradius" // string(i) // c_null_char
-                   str3 = "%.3f" // c_null_char
-                   call igPushItemWidth(iw_calcwidth(5,1))
-                   ch = igDragFloat(c_loc(str2),r%mol_style%scale_rad(i),0.005_c_float,0._c_float,&
-                      5._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
-                   call iw_tooltip("Scale factor for the atomic radii in this molecule",ttshown)
-                   if (ch) then
-                      r%mol_style%scale_rad(i) = max(r%mol_style%scale_rad(i),0._c_float)
-                      changed = .true.
+                   ! radius
+                   icol = icol + 1
+                   if (igTableSetColumnIndex(icol)) then
+                      str2 = "##tablemolradius" // string(i) // c_null_char
+                      str3 = "%.3f" // c_null_char
+                      call igPushItemWidth(iw_calcwidth(5,1))
+                      ch = igDragFloat(c_loc(str2),r%mol_style%scale_rad(i),0.005_c_float,0._c_float,&
+                         5._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+                      call iw_tooltip("Scale factor for the atomic radii in this molecule",ttshown)
+                      if (ch) then
+                         r%mol_style%scale_rad(i) = max(r%mol_style%scale_rad(i),0._c_float)
+                         changed = .true.
+                      end if
+                      call igPopItemWidth()
                    end if
-                   call igPopItemWidth()
                 end if
 
                 ! rest of info
-                if (igTableSetColumnIndex(im_rest)) then
+                icol = icol + 1
+                if (igTableSetColumnIndex(icol)) then
                    x0 = c%mol(i)%cmass(.false.)
                    if (c%ismolecule) then
                       x0 = (x0+c%molx0) * dunit0(iunit_ang)
@@ -3636,6 +3700,27 @@ contains
           ! end the clipper and the table
           call ImGuiListClipper_End(clipper)
           call igEndTable()
+       end if
+
+       if (showselection) then
+          ! style buttons: show/hide
+          if (iw_button("Show All##showallmolecules")) then
+             r%mol_style%shown = .true.
+             changed = .true.
+          end if
+          call iw_tooltip("Show all molecules in the system",ttshown)
+          if (iw_button("Hide All##hideallmolecules",sameline=.true.)) then
+             r%mol_style%shown = .false.
+             changed = .true.
+          end if
+          call iw_tooltip("Hide all molecules in the system",ttshown)
+          if (iw_button("Toggle Show/Hide##toggleallmolecules",sameline=.true.)) then
+             do i = 1, r%mol_style%ntype
+                r%mol_style%shown(i) = .not.r%mol_style%shown(i)
+             end do
+             changed = .true.
+          end if
+          call iw_tooltip("Toggle the show/hide status for all molecules",ttshown)
        end if
     end if
 
