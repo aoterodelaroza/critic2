@@ -2220,7 +2220,16 @@ contains
              !! labels display !!
 
              ! label styles
+             !! global options !!
+             call igAlignTextToFramePadding()
              call iw_text("Global Options",highlight=.true.)
+             if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
+                w%rep%label_style%style = 0
+                call w%rep%reset_label_style()
+                changed = .true.
+             end if
+             call iw_tooltip("Reset to the labels to the default settings")
+
              if (sys(isys)%c%ismolecule) then
                 lst = lsttrans(w%rep%label_style%style)
                 call iw_combo_simple("Text##labelcontentselect","Atomic symbol"//c_null_char//&
