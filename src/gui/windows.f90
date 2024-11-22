@@ -121,6 +121,8 @@ module windows
      integer :: view_mousebehavior = MB_navigation ! mouse behavior in the view
      integer :: idexportwin = 0 ! the ID for the export window
      integer :: idvibrationswin = 0 ! the ID for the vibrations window
+     type(ImVec2) :: mousepos_lastframe ! save mouse position
+     integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
      type(ImVec2) :: mposlast ! mouse parameters ----v
      real(c_float) :: mpos0_r(3), mpos0_l(3), mpos0_m(3), cpos0_l(3), cpos0_m(3)
      real(c_float) :: oldview(4,4)

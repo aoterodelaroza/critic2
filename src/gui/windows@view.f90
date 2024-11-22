@@ -62,7 +62,7 @@ contains
        iw_setposx_fromend, iw_checkbox, iw_coloredit3
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
-    use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior
+    use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior, time
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
     use tools_io, only: string
     use param, only: newline
@@ -75,9 +75,9 @@ contains
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
-    logical :: islabels, isuc
+    logical :: islabels, isuc, hover_and_moved
     logical(c_bool) :: ch, enabled
-    integer(c_int) :: flags, nc(3), ires, idx(5), viewtype, idum
+    integer(c_int) :: flags, nc(3), ires, viewtype, idum
     real(c_float) :: scal, width, sqw, ratio, depth, rgba(4)
     real*8 :: x0(3)
     logical :: changedisplay(4) ! 1=atoms, 2=bonds, 3=labels, 4=cell
@@ -96,6 +96,10 @@ contains
     szero%y = 0
     chrender = .false.
     chbuild = .false.
+    if (w%firstpass) then
+       w%mousepos_lastframe%x = 0._c_float
+       w%mousepos_lastframe%y = 0._c_float
+    end if
 
     ! update ID for the export window
     call update_window_id(w%idexportwin)
@@ -763,25 +767,34 @@ contains
     ldum = igImageButtonEx(igGetID_Str(c_loc(str1)),w%FBOtex, szavail, sz0, sz1, szero, bgcol, tintcol)
     call igPopStyleColor(3)
 
-    ! get hover, image rectangle coordinates, and atom idx
-    idx = 0
+    ! get hover, hover_and_moved, image rectangle coordinates, and atom idx
     hover = goodsys .and. w%ilock == ilock_no
     if (hover) hover = igIsItemHovered(ImGuiHoveredFlags_None)
-    call igGetItemRectMin(w%v_rmin)
-    call igGetItemRectMax(w%v_rmax)
+    hover_and_moved = .false.
     if (hover) then
        call igGetMousePos(pos)
+       hover_and_moved = (abs(w%mousepos_lastframe%x-pos%x) > 1e-4 .or. abs(w%mousepos_lastframe%y-pos%y) > 1e-4)
+       w%mousepos_lastframe = pos
+    end if
+
+    ! get the ID of the atom under mouse
+    call igGetItemRectMin(w%v_rmin)
+    call igGetItemRectMax(w%v_rmax)
+    if (hover_and_moved) then
+       w%mousepos_idx = 0
        call w%mousepos_to_texpos(pos)
        call w%getpixel(pos,depth,rgba)
 
        ! transform to atom cell ID and lattice vector
-       idx(1:4) = transfer(rgba,idx(1:4))
-       idx(5) = idx(1)
-       if (associated(w%sc) .and. idx(1) > 0) then
-          idx(1:4) = w%sc%drawlist_sph(idx(1))%idx
+       w%mousepos_idx(1:4) = transfer(rgba,w%mousepos_idx(1:4))
+       w%mousepos_idx(5) = w%mousepos_idx(1)
+       if (associated(w%sc) .and. w%mousepos_idx(1) > 0) then
+          w%mousepos_idx(1:4) = w%sc%drawlist_sph(w%mousepos_idx(1))%idx
        else
-          idx = 0
+          w%mousepos_idx = 0
        end if
+    elseif (.not.hover) then
+       w%mousepos_idx = 0
     end if
 
     ! mode selection
@@ -796,9 +809,9 @@ contains
     call iw_tooltip(msg)
 
     ! atom hover message
-    if (hover .and. idx(1) > 0) then
+    if (hover .and. w%mousepos_idx(1) > 0) then
        call igSameLine(0._c_float,-1._c_float)
-       icel = idx(1)
+       icel = w%mousepos_idx(1)
        is = sys(w%view_selected)%c%atcel(icel)%is
        ineq = sys(w%view_selected)%c%atcel(icel)%idx
        ismol = sys(w%view_selected)%c%ismolecule
@@ -807,14 +820,14 @@ contains
        if (.not.ismol) then
           x0 = sys(w%view_selected)%c%atcel(icel)%x
 
-          msg = trim(msg) // " [cellid=" // string(icel) // "+(" // string(idx(2)) // "," // string(idx(3)) //&
-             "," // string(idx(4)) // "),nneqid=" // string(ineq) // ",wyckoff=" // &
+          msg = trim(msg) // " [cellid=" // string(icel) // "+(" // string(w%mousepos_idx(2)) // "," // string(w%mousepos_idx(3)) //&
+             "," // string(w%mousepos_idx(4)) // "),nneqid=" // string(ineq) // ",wyckoff=" // &
              string(sys(w%view_selected)%c%at(ineq)%mult) // string(sys(w%view_selected)%c%at(ineq)%wyc)
           if (sys(w%view_selected)%c%nmol > 1) &
              msg = msg // ",molid=" // string(sys(w%view_selected)%c%idatcelmol(1,icel))
           msg = msg // "] " //&
-             string(x0(1)+idx(2),'f',decimal=4) //" "// string(x0(2)+idx(3),'f',decimal=4) //" "//&
-             string(x0(3)+idx(4),'f',decimal=4) // " (frac)"
+             string(x0(1)+w%mousepos_idx(2),'f',decimal=4) //" "// string(x0(2)+w%mousepos_idx(3),'f',decimal=4) //" "//&
+             string(x0(3)+w%mousepos_idx(4),'f',decimal=4) // " (frac)"
        else
           x0 = (sys(w%view_selected)%c%atcel(icel)%r+sys(w%view_selected)%c%molx0) * dunit0(iunit_ang)
 
@@ -830,10 +843,10 @@ contains
 
     ! tooltip for distance measurement
     if (hover) &
-       call w%draw_selection_tooltip(idx)
+       call w%draw_selection_tooltip(w%mousepos_idx)
 
     ! Process mouse events
-    call w%process_events_view(hover,idx)
+    call w%process_events_view(hover,w%mousepos_idx)
 
     ! process keybindings
     !! increase and decrease the number of cells in main view
