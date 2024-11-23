@@ -310,12 +310,13 @@ contains
        if (orraise < 0) then
           raiseid = 0
           do i = 1, nwin
-             ! wintype_dialog
              ok = win(i)%type == type .and. win(i)%isopen
+             ! specific tests according to type
              if (ok.and.type == wintype_dialog) ok = (win(i)%dialog_data%purpose == purpose)
              if (ok.and.type == wintype_editrep) ok = (win(i)%isys == isys .and.&
                 win(i)%irep == irep .and. win(i)%idparent == idcaller)
              if (ok.and.type == wintype_scfplot) ok = (win(i)%isys == isys)
+             if (ok.and.type == wintype_geometry) ok = (win(i)%isys == isys)
              if (ok) then
                 raiseid = i
                 exit
@@ -517,6 +518,10 @@ contains
        ! recalculate bonds window
        if (.not.present(isys)) &
           call ferror('window_init','rebond requires isys',faterr)
+    elseif (type == wintype_geometry) then
+       ! geometry window
+       if (.not.present(isys)) &
+          call ferror('window_init','geometry requires isys',faterr)
     end if
 
   end subroutine window_init
@@ -736,6 +741,12 @@ contains
           inisize%x = 55 * fontsize%x
           inisize%y = 23 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+       elseif (w%type == wintype_geometry) then
+          w%name = "Geometry##"  // string(w%id) // c_null_char
+          w%flags = ImGuiWindowFlags_None
+          inisize%x = 55 * fontsize%x
+          inisize%y = 23 * fontsize%y
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_preferences) then
           w%name = "Preferences##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
@@ -797,6 +808,8 @@ contains
                 call w%draw_vibrations()
              elseif (w%type == wintype_rebond) then
                 call w%draw_rebond()
+             elseif (w%type == wintype_rebond) then
+                call w%draw_geometry()
              elseif (w%type == wintype_preferences) then
                 call w%draw_preferences()
              elseif (w%type == wintype_treeplot) then

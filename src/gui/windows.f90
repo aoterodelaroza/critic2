@@ -212,6 +212,8 @@ module windows
      procedure :: draw_vibrations
      ! rebond
      procedure :: draw_rebond
+     ! geometry
+     procedure :: draw_geometry
      ! preferences
      procedure :: draw_preferences
   end type window
@@ -244,6 +246,7 @@ module windows
   integer, parameter, public :: wintype_rebond = 14
   integer, parameter, public :: wintype_preferences = 15
   integer, parameter, public :: wintype_treeplot = 16
+  integer, parameter, public :: wintype_geometry = 17
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -451,6 +454,9 @@ module windows
      module subroutine draw_rebond(w)
        class(window), intent(inout), target :: w
      end subroutine draw_rebond
+     module subroutine draw_geometry(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_geometry
   end interface
 
 end module windows

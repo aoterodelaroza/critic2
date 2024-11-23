@@ -95,6 +95,7 @@ contains
     logical, save :: ttshown = .false. ! tooltip flag
     integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
     integer(c_int), save :: idrebond = 0 ! ID of the window used to rebond the sytsem
+    integer(c_int), save :: idgeometry = 0 ! ID of the window used for geometry view/edit
     integer(c_int), save :: shown_after_filter = 0 ! number of systems shown after the filter
     real*8, save :: timelastupdate = 0d0
     real*8, save :: timelastresize = 0d0
@@ -123,8 +124,9 @@ contains
        if (timelastsort < sysc(i)%timelastchange) w%forcesort = .true.
     end do
 
-    ! update the window ID for the rebond dialog
+    ! update the window ID for the dialogs
     call update_window_id(idrebond)
+    call update_window_id(idgeometry)
 
     ! Tree options button
     export = .false.
@@ -1001,13 +1003,13 @@ contains
          end if
 
          ! geometry submenu (system)
-         strpop = "Geometry" // c_null_char
+         strpop = "System" // c_null_char
          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-            ! ! Geometry
-            ! strpop = "Geometry Information" // c_null_char
-            ! if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
-            !    idrebond = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=-1)
-            ! call iw_tooltip("Recalculate the covalent bonds in this system and the molecular structures",ttshown)
+            ! Geometry
+            strpop = "Geometry" // c_null_char
+            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+               idgeometry = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
+            call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
 
             ! rebond
             strpop = "Recalculate Bonds" // c_null_char
@@ -1165,6 +1167,7 @@ contains
       if (tree_select_updates_view .or. force) &
          call win(iwin_view)%select_view(i)
       if (idrebond > 0) win(idrebond)%isys = i
+      if (idgeometry > 0) win(idgeometry)%isys = i
 
     end subroutine select_system
 
@@ -2768,5 +2771,36 @@ contains
     end subroutine getname
 
   end subroutine draw_treeplot
+
+  !> Draw the geometry window.
+  module subroutine draw_geometry(w)
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
+       BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
+    use gui_main, only: nsys, sysc, sys, sys_init, g
+    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight
+    use global, only: bondfactor_def
+    use tools_io, only: string, nameguess
+    use param, only: atmcov0, maxzat0, bohrtoa, newline
+    class(window), intent(inout), target :: w
+
+    logical :: doquit
+
+    ! initialize
+    doquit = .false.
+
+    ! xxxx
+
+    ! close button
+    doquit = (w%focused() .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or.&
+       is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)))
+    doquit = doquit .or. iw_button("Close",sameline=.true.)
+
+    ! quit the window
+    if (doquit) then
+       call w%end()
+    end if
+
+  end subroutine draw_geometry
 
 end submodule tree
