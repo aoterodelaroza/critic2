@@ -80,13 +80,13 @@ contains
     type(ImVec2) :: szero, sz
     type(ImVec4) :: col4
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev, oid, isys, idx
+    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev, isys, iaux
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     logical :: hadenabledcolumn, reinit, isend, ok, found
-    logical :: export, didtableselected, system_ok, hadrow
+    logical :: export, didtableselected, hadrow
     real(c_float) :: width, pos
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
@@ -94,10 +94,7 @@ contains
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
     integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
-    integer(c_int), save :: idloadfield = 0 ! ID of the window used to load a field into the sytsem
     integer(c_int), save :: idrebond = 0 ! ID of the window used to rebond the sytsem
-    integer(c_int), save :: idplot = 0 ! ID of the plot window
-    integer(c_int), save :: idloadvib = 0 ! ID of the window for loading vibrations
     integer(c_int), save :: shown_after_filter = 0 ! number of systems shown after the filter
     real*8, save :: timelastupdate = 0d0
     real*8, save :: timelastresize = 0d0
@@ -126,30 +123,8 @@ contains
        if (timelastsort < sysc(i)%timelastchange) w%forcesort = .true.
     end do
 
-    ! update the window ID for the load field dialog
-    call update_window_id(idloadfield)
+    ! update the window ID for the rebond dialog
     call update_window_id(idrebond)
-    call update_window_id(idplot)
-    call update_window_id(idloadvib,oid)
-    if (oid /= 0) then
-       ! process loading vibration data for a system from the tree
-       isys = win(oid)%isys
-       system_ok = (isys > 0 .and. isys <= nsys)
-       if (system_ok) system_ok = (sysc(isys)%status == sys_init)
-       if (system_ok .and. win(oid)%okfile_set) then
-          str = win(oid)%okfile
-          do while (.true.)
-             idx = index(str,c_null_char)
-             if (idx == 0) exit
-             call sys(isys)%c%read_vibrations_file(str(1:idx-1),win(oid)%dialog_data%isformat,w%errmsg)
-             if (len_trim(w%errmsg) > 0) then
-                write (uout,'(A)') w%errmsg
-                w%errmsg = ""
-             end if
-             str = str(idx+1:)
-          end do
-       end if
-    end if
 
     ! Tree options button
     export = .false.
@@ -186,7 +161,7 @@ contains
        ! button: plot
        str = "Plot" // c_null_char
        if (igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)) &
-          idplot = stack_create_window(wintype_treeplot,.true.,idcaller=w%id,orraise=idplot)
+          iaux = stack_create_window(wintype_treeplot,.true.,idcaller=w%id,orraise=-1)
        call iw_tooltip("Plot the tree data",ttshown)
        call igSeparator()
 
@@ -932,7 +907,7 @@ contains
       integer, intent(in) :: isys
       character(kind=c_char,len=:), allocatable, intent(in) :: tooltipstr
 
-      integer :: k, idx
+      integer :: k, idx, iaux
       real(c_float) :: pos
       integer(c_int) :: flags, ll, isyscollapse, idum
       logical(c_bool) :: selected, enabled
@@ -1019,19 +994,30 @@ contains
                   isyscollapse = abs(sysc(isys)%collapse)
                end if
 
-               if (sysc(isyscollapse)%status == sys_init) then
-                  sysc(isyscollapse)%idwin_plotscf = stack_create_window(wintype_scfplot,.true.,isys=isyscollapse,&
-                     orraise=sysc(isyscollapse)%idwin_plotscf)
-               end if
+               if (sysc(isyscollapse)%status == sys_init) &
+                  iaux = stack_create_window(wintype_scfplot,.true.,isys=isyscollapse,orraise=-1)
             end if
             call iw_tooltip("Plot the energy and other properties as a function of SCF cycle iterations",ttshown)
          end if
 
-         ! rebond
-         strpop = "Recalculate Bonds" // c_null_char
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
-            idrebond = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=idrebond)
-         call iw_tooltip("Recalculate the covalent bonds in this system and the molecular structures",ttshown)
+         ! geometry submenu (system)
+         strpop = "Geometry" // c_null_char
+         if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+            ! ! Geometry
+            ! strpop = "Geometry Information" // c_null_char
+            ! if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+            !    idrebond = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=-1)
+            ! call iw_tooltip("Recalculate the covalent bonds in this system and the molecular structures",ttshown)
+
+            ! rebond
+            strpop = "Recalculate Bonds" // c_null_char
+            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
+               idrebond = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=-1)
+            end if
+            call iw_tooltip("Recalculate the covalent bonds in this system and the molecular structures",ttshown)
+
+            call igEndMenu()
+         end if
 
          ! fields submenu (system)
          strpop = "Fields" // c_null_char
@@ -1039,7 +1025,7 @@ contains
             ! load field
             strpop2 = "Load Field" // c_null_char
             if (igMenuItem_Bool(c_loc(strpop2),c_null_ptr,.false._c_bool,enabled)) &
-               idloadfield = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=idloadfield)
+               iaux = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=-1)
             call iw_tooltip("Load a scalar field for this system",ttshown)
 
             call igEndMenu()
@@ -1051,8 +1037,8 @@ contains
             ! load vibration data
             strpop = "Load Vibration Data" // c_null_char
             if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
-               idloadvib = stack_create_window(wintype_dialog,.true.,purpose=wpurp_dialog_openvibfile,&
-                  isys=isys,orraise=idloadvib)
+               iaux = stack_create_window(wintype_dialog,.true.,purpose=wpurp_dialog_openvibfile,&
+                  isys=isys,orraise=-1)
             end if
             call iw_tooltip("Load vibration data from an external file for this system",ttshown)
 

@@ -62,13 +62,13 @@ contains
        iw_setposx_fromend, iw_checkbox, iw_coloredit3
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
-    use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior, time
+    use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
     use tools_io, only: string
     use param, only: newline
     class(window), intent(inout), target :: w
 
-    integer :: i, j, k, nrep, id, ipad, is, icel, ineq
+    integer :: i, j, k, nrep, id, ipad, is, icel, ineq, iaux
     type(ImVec2) :: szavail, sz0, sz1, szero, pos
     type(ImVec4) :: tintcol, bgcol
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
@@ -100,10 +100,6 @@ contains
        w%mousepos_lastframe%x = 0._c_float
        w%mousepos_lastframe%y = 0._c_float
     end if
-
-    ! update ID for the export window
-    call update_window_id(w%idexportwin)
-    call update_window_id(w%idvibrationswin)
 
     ! whether the selected view system is a good system, and associate the scene
     goodsys = (w%view_selected >= 1 .and. w%view_selected <= nsys)
@@ -605,15 +601,13 @@ contains
        str2 = "Export to Image..." // c_null_char
        enabled = associated(w%sc)
        if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,enabled)) then
-          w%idexportwin = stack_create_window(wintype_exportimage,.true.,idcaller=w%id,&
-             orraise=w%idexportwin)
+          iaux = stack_create_window(wintype_exportimage,.true.,idcaller=w%id,orraise=-1)
        end if
        call iw_tooltip("Export the current view to an image file (png)",ttshown)
 
        str2 = "Vibrations..." // c_null_char
        if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,enabled)) then
-          w%idvibrationswin = stack_create_window(wintype_vibrations,.true.,idcaller=w%id,&
-             orraise=w%idvibrationswin)
+          iaux = stack_create_window(wintype_vibrations,.true.,idcaller=w%id,orraise=-1)
        end if
        call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
        call igEndPopup()
@@ -2869,13 +2863,13 @@ contains
        iw_combo_simple, iw_radiobutton
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use tools_math, only: rational_approx
-    use tools_io, only: string, ioj_right, uout
+    use tools_io, only: string, ioj_right
     use param, only: cm1tothz, bohrtoa
     class(window), intent(inout), target :: w
 
     logical(c_bool) :: selected
     logical :: doquit, system_ok, vib_ok, goodparent, ldum, fset
-    integer :: isys, oid, i, digits, idx
+    integer :: isys, i, digits, iaux
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, strl
     type(ImVec2) :: sz0, szero, szavail
@@ -2925,25 +2919,6 @@ contains
     system_ok = (isys > 0 .and. isys <= nsys)
     if (system_ok) system_ok = (sysc(isys)%status == sys_init)
 
-    ! check if we have info from the export image window when it
-    ! closes and recover it
-    call update_window_id(w%idsave,oid)
-    if (oid /= 0) then
-       if (system_ok .and. win(oid)%okfile_set) then
-          str1 = win(oid)%okfile
-          do while (.true.)
-             idx = index(str1,c_null_char)
-             if (idx == 0) exit
-             call sys(isys)%c%read_vibrations_file(str1(1:idx-1),win(oid)%dialog_data%isformat,w%errmsg)
-             if (len_trim(w%errmsg) > 0) then
-                write (uout,'(A)') w%errmsg
-                w%errmsg = ""
-             end if
-             str1 = str1(idx+1:)
-          end do
-       end if
-    end if
-
     ! vibrations ok?
     vib_ok = system_ok
     if (vib_ok) vib_ok = allocated(sys(isys)%c%vib)
@@ -2970,7 +2945,7 @@ contains
 
        if (.not.vib_ok) then
           if (iw_button("Load",danger=.true.,sameline=.true.)) &
-             w%idsave = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openvibfile)
+             iaux = stack_create_window(wintype_dialog,.true.,purpose=wpurp_dialog_openvibfile,isys=isys,orraise=-1)
           call iw_tooltip("Load vibration data from a file for this system",ttshown)
           call iw_text("<none>",sameline=.true.)
        else

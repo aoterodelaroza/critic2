@@ -905,7 +905,7 @@ contains
              str2 = "Edit" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
                 s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller,&
-                   orraise=s%rep(i)%idwin)
+                   orraise=-1)
              end if
              call iw_tooltip("Edit this object",ttshown)
 
@@ -975,7 +975,7 @@ contains
        if (igTableSetColumnIndex(ic_editbutton)) then
           if (iw_button("Edit##2ic_editbutton" // string(ic_editbutton) // "," // string(i))) then
              s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller,&
-                orraise=s%rep(i)%idwin)
+                orraise=-1)
           end if
        end if
 

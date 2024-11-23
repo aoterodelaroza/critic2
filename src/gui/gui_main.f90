@@ -98,7 +98,6 @@ module gui_main
      type(c_ptr) :: thread_lock = c_null_ptr ! the lock for initialization of this system
      character(len=:), allocatable :: fullname ! full-path name
      logical :: renamed = .false. ! true if the system has been renamed
-     integer :: idwin_plotscf = 0 ! window ID for the scf plot
      type(scene) :: sc ! scene for the system in the main view
      real*8 :: timelastchange = 0d0 ! time for the last change on the system
      real*8 :: atmcov(0:maxzat0) = atmcov0 ! covalent radii for bonding

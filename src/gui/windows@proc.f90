@@ -285,7 +285,8 @@ contains
   !> irep = associated representation. idcaller = window ID of the
   !> caller. permanent = do not kill the window when closed.
   !> orraise = if this is a valid window ID, raise the window instead
-  !> of creating a new one.
+  !> of creating a new one; if orraise < 0, raise the first window
+  !> from the stack with the same type as type.
   module function stack_create_window(type,isopen,purpose,isys,irep,idcaller,permanent,orraise)
     use tools_io, only: ferror, faterr
     use windows, only: window, nwin, win
@@ -300,17 +301,35 @@ contains
 
     integer :: stack_create_window
 
-    integer :: i, id
+    integer :: i, id, raiseid
+    logical :: ok
     integer, parameter :: maxwin = 40
 
     ! If orraise and the window exists, raise it, update parameters, and exit
     if (present(orraise)) then
-       if (orraise > 0 .and. orraise <= nwin) then
-          stack_create_window = orraise
-          if (present(isys)) win(orraise)%isys = isys
-          if (present(irep)) win(orraise)%irep = irep
-          if (present(idcaller)) win(orraise)%idparent = idcaller
-          call igSetWindowFocus_Str(c_loc(win(orraise)%name))
+       if (orraise < 0) then
+          raiseid = 0
+          do i = 1, nwin
+             ! wintype_dialog
+             ok = win(i)%type == type .and. win(i)%isopen
+             if (ok.and.type == wintype_dialog) ok = (win(i)%dialog_data%purpose == purpose)
+             if (ok.and.type == wintype_editrep) ok = (win(i)%isys == isys .and.&
+                win(i)%irep == irep .and. win(i)%idparent == idcaller)
+             if (ok.and.type == wintype_scfplot) ok = (win(i)%isys == isys)
+             if (ok) then
+                raiseid = i
+                exit
+             end if
+          end do
+       else
+          raiseid = orraise
+       end if
+       if (raiseid > 0 .and. raiseid <= nwin) then
+          stack_create_window = raiseid
+          if (present(isys)) win(raiseid)%isys = isys
+          if (present(irep)) win(raiseid)%irep = irep
+          if (present(idcaller)) win(raiseid)%idparent = idcaller
+          call igSetWindowFocus_Str(c_loc(win(raiseid)%name))
           return
        end if
     end if
@@ -428,8 +447,6 @@ contains
     w%view_selected = 1
     nullify(w%sc)
     w%view_mousebehavior = MB_navigation
-    w%idexportwin = 0
-    w%idvibrationswin = 0
     w%forcerender = .true.
     if (allocated(w%iord)) deallocate(w%iord)
     w%dialog_data%dptr = c_null_ptr

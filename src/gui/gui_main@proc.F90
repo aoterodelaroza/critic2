@@ -622,7 +622,6 @@ contains
        sysc(idx)%has_vib = .false.
        sysc(idx)%renamed = .false.
        sysc(idx)%showfields = .false.
-       sysc(idx)%idwin_plotscf = 0
 
        ! write down the full name
        str = trim(adjustl(sysc(idx)%seed%name))
@@ -812,7 +811,7 @@ contains
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
-       wintype_preferences, update_window_id, wintype_view, wpurp_view_alternate,&
+       wintype_preferences, wintype_view, wpurp_view_alternate,&
        wintype_about
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
@@ -828,15 +827,9 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     integer(c_int) :: idum
     logical :: launchquit, launch(4)
-    integer :: i
+    integer :: iaux
 
     logical, save :: ttshown = .false. ! tooltip flag
-    integer, save :: id(4) = (/0,0,0,0/) ! the ID for the dialogs
-
-    ! check if the open and new dialogs are still open
-    do i = 1, 4
-       call update_window_id(id(i))
-    end do
 
     ! keybindings
     !! menu key bindings
@@ -889,7 +882,7 @@ contains
           ! Edit -> Preferences...
           str1 = "Preferences..." // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) &
-             id(d_preferences) = stack_create_window(wintype_preferences,.true.,orraise=id(d_preferences))
+             iaux = stack_create_window(wintype_preferences,.true.,orraise=-1)
           call iw_tooltip("Change the user interface settings and key bindings",ttshown)
 
           call igEndMenu()
@@ -972,11 +965,11 @@ contains
 
     ! process launches
     if (launch(d_new)) &
-       id(d_new) = stack_create_window(wintype_new_struct,.true.,orraise=id(d_new))
+       iaux = stack_create_window(wintype_new_struct,.true.,orraise=-1)
     if (launch(d_newlib)) &
-       id(d_newlib) = stack_create_window(wintype_new_struct_library,.true.,orraise=id(d_newlib))
+       iaux = stack_create_window(wintype_new_struct_library,.true.,orraise=-1)
     if (launch(d_open)) &
-       id(d_open) = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles,orraise=id(d_open))
+       iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles,orraise=-1)
     if (launchquit) then
        if (are_threads_running()) &
           call kill_initialization_thread()

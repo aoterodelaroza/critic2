@@ -119,8 +119,6 @@ module windows
      integer :: view_selected = 1 ! the system selected in the view window
      logical :: forcerender = .true. ! force render of the scene
      integer :: view_mousebehavior = MB_navigation ! mouse behavior in the view
-     integer :: idexportwin = 0 ! the ID for the export window
-     integer :: idvibrationswin = 0 ! the ID for the vibrations window
      type(ImVec2) :: mousepos_lastframe ! save mouse position
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
      type(ImVec2) :: mposlast ! mouse parameters ----v

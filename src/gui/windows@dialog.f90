@@ -27,7 +27,7 @@ contains
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
     use gui_main, only: add_systems_from_name, launch_initialization_thread,&
-       system_shorten_names, sysc, nsys, sys_init
+       system_shorten_names, sysc, nsys, sys_init, sys
     use c_interface_module, only: C_F_string_alloc, c_free
     use tools_io, only: ferror, faterr, fopen_write, fclose, uout
     use param, only: dirsep, bohrtoa
@@ -38,9 +38,9 @@ contains
     type(IGFD_Selection) :: sel
     type(c_ptr) :: cstr
     integer(c_size_t) :: i
-    character(len=:), allocatable :: name, path
-    logical :: readlastonly
-    integer :: lu, ios
+    character(len=:), allocatable :: name, path, str, errmsg
+    logical :: readlastonly, system_ok
+    integer :: lu, ios, idx
 
     ! set initial, minimum, and maximum sizes
     minsize%x = 0._c_float
@@ -96,9 +96,7 @@ contains
                 call fclose(lu)
              end if
           elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile .or. &
-             w%dialog_purpose == wpurp_dialog_openfieldfile .or. w%dialog_purpose == wpurp_dialog_openonefilemodal.or.&
-             w%dialog_purpose == wpurp_dialog_openvibfile) then
-
+             w%dialog_purpose == wpurp_dialog_openfieldfile .or. w%dialog_purpose == wpurp_dialog_openonefilemodal) then
              ! !! new structure file dialog !!
              ! cstr = IGFD_GetFilePathName(w%dptr)
              ! call C_F_string_alloc(cstr,name)
@@ -119,6 +117,37 @@ contains
                 name = trim(path) // dirsep // trim(name)
                 w%okfile = w%okfile // name // c_null_char
              end do
+
+          elseif (w%dialog_purpose == wpurp_dialog_openvibfile) then
+             w%okfile = ""
+
+             ! open all files selected and add the new systems
+             sel = IGFD_GetSelection(w%dptr)
+             call c_f_pointer(sel%table,s,(/sel%count/))
+             cstr = IGFD_GetCurrentPath(w%dptr)
+             call C_F_string_alloc(cstr,path)
+             call c_free(cstr)
+             do i = 1, sel%count
+                call C_F_string_alloc(s(i)%fileName,name)
+                name = trim(path) // dirsep // trim(name)
+                w%okfile = w%okfile // name // c_null_char
+             end do
+
+             ! open the vibrations file
+             system_ok = (w%isys > 0 .and. w%isys <= nsys)
+             if (system_ok) system_ok = (sysc(w%isys)%status == sys_init)
+             if (system_ok) then
+                call sys(w%isys)%c%clear_vibrations()
+                str = w%okfile
+                do while (.true.)
+                   idx = index(str,c_null_char)
+                   if (idx == 0) exit
+                   call sys(w%isys)%c%read_vibrations_file(str(1:idx-1),w%dialog_data%isformat,errmsg)
+                   if (len_trim(w%errmsg) > 0) &
+                      write (uout,'(A)') errmsg
+                   str = str(idx+1:)
+                end do
+             end if
 
           elseif (w%dialog_purpose == wpurp_dialog_saveimagefile) then
              !! save image file dialog !!
