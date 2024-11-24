@@ -995,9 +995,8 @@ contains
 
             ! rebond
             strpop = "Recalculate Bonds" // c_null_char
-            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled_no_threads)) then
+            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled_no_threads)) &
                idrebond = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=-1)
-            end if
             call iw_tooltip("Recalculate the covalent bonds in this system and the molecular structures",ttshown)
 
             call igEndMenu()

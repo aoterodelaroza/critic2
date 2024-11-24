@@ -57,6 +57,9 @@ contains
     elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
        ! open library file => quit if the caller window is gone
        w%forcequitdialog = .not.win(w%idparent)%isinit
+    elseif (w%dialog_purpose == wpurp_dialog_saveimagefile) then
+       ! save image file => quit if the caller window is gone
+       w%forcequitdialog = .not.win(w%idparent)%isinit
     end if
 
     ! process the dialog
@@ -183,17 +186,17 @@ contains
 
           elseif (w%dialog_purpose == wpurp_dialog_saveimagefile) then
              !! save image file dialog !!
-             w%okfile_set = .true.
+             win(w%idparent)%okfile_set = .true.
 
              cstr = IGFD_GetFilePathName(w%dptr)
              call C_F_string_alloc(cstr,name)
              call c_free(cstr)
-             w%okfile = trim(name)
+             win(w%idparent)%okfile = trim(name)
 
              cstr = IGFD_GetCurrentFilter(w%dptr)
              call C_F_string_alloc(cstr,name)
              call c_free(cstr)
-             w%okfilter = trim(name)
+             win(w%idparent)%okfilter = trim(name)
           else
              call ferror('draw_dialog','unknown dialog purpose',faterr)
           end if

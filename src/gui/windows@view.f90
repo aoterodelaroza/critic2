@@ -2612,7 +2612,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: doquit, ok, goodsys, okvalid
-    integer :: oid, isys, width, height
+    integer :: oid, isys, width, height, iaux
     integer(c_int), target :: msFBO, endFBO ! framebuffer
     integer(c_int), target :: msFBOdepth, endFBOdepth ! framebuffer, depth buffer
     integer(c_int), target :: msFBOtex, endFBOtex ! framebuffer, texture
@@ -2645,20 +2645,10 @@ contains
        doquit = .true.
     end if
 
-    ! check if we have info from the export image window when it
-    ! closes and recover it
-    call update_window_id(w%idsave,oid)
-    if (oid /= 0) then
-       if (win(oid)%okfile_set) then
-          w%okfile = win(oid)%okfile
-          w%okfilter = win(oid)%okfilter
-       end if
-    end if
-
     ! Image file button
     call iw_text("Image File",highlight=.true.)
-    if (iw_button("File",disabled=(w%idsave > 0),danger=.true.)) &
-       w%idsave = stack_create_window(wintype_dialog,.true.,wpurp_dialog_saveimagefile)
+    if (iw_button("File",danger=.true.)) &
+       iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_saveimagefile,idcaller=w%id,orraise=-1)
     call iw_tooltip("Choose the file to save the image to",ttshown)
     call iw_text(w%okfile,sameline=.true.)
 

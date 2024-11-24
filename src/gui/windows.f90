@@ -145,7 +145,6 @@ module windows
      ! edit representation parameters
      type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
      ! export image parameters
-     integer :: idsave = 0 ! window ID for the save file dialog (export image)
      integer(c_int) :: nsample ! number of samples for anti-aliasing
      integer(c_int) :: jpgquality ! jpg quality
      logical :: exportview ! export viewport or whole texture

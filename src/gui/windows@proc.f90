@@ -317,6 +317,7 @@ contains
                 win(i)%irep == irep .and. win(i)%idparent == idcaller)
              if (ok.and.type == wintype_scfplot) ok = (win(i)%isys == isys)
              if (ok.and.type == wintype_geometry) ok = (win(i)%isys == isys)
+             if (ok.and.type == wintype_rebond) ok = (win(i)%isys == isys)
              if (ok) then
                 raiseid = i
                 exit
@@ -460,7 +461,6 @@ contains
     w%dialog_data%rborder = rborder_def*bohrtoa
     w%forcequitdialog = .false.
     w%plotn = 0
-    w%idsave = 0
     if (present(isys)) w%isys = isys
     if (present(irep)) w%irep = irep
     if (present(idcaller)) w%idparent = idcaller
@@ -808,7 +808,7 @@ contains
                 call w%draw_vibrations()
              elseif (w%type == wintype_rebond) then
                 call w%draw_rebond()
-             elseif (w%type == wintype_rebond) then
+             elseif (w%type == wintype_geometry) then
                 call w%draw_geometry()
              elseif (w%type == wintype_preferences) then
                 call w%draw_preferences()
