@@ -912,7 +912,7 @@ contains
       integer :: k, idx, iaux
       real(c_float) :: pos
       integer(c_int) :: flags, ll, isyscollapse, idum
-      logical(c_bool) :: selected, enabled
+      logical(c_bool) :: selected, enabled, enabled_no_threads
       logical :: ok
       character(kind=c_char,len=:), allocatable, target :: strl, strpop, strpop2
       character(kind=c_char,len=1024), target :: txtinp
@@ -946,50 +946,15 @@ contains
       if (isys == w%table_selected) didtableselected = .true.
       if (.not.didtableselected) iprev = isys
 
+      enabled = (sysc(isys)%status == sys_init)
+      enabled_no_threads = enabled.and..not.are_threads_running()
+
       ! right click to open the context menu
       if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
-         ! describe this system in the console output
-         strpop = "Describe" // c_null_char
-         enabled = (sysc(isys)%status == sys_init) .and..not.are_threads_running()
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
-            idx = index(sysc(isys)%seed%name,c_null_char)
-            strl = "### Describe system (" // string(isys) // "): " // trim(sysc(isys)%seed%name(1:idx-1))
-            write (uout,'(/A/)') trim(strl)
-            if (sys(isys)%c%ismolecule) then
-               iunit = iunit_ang
-            else
-               iunit = iunit_bohr
-            end if
-            call sys(isys)%report(.true.,.true.,.true.,.true.,.true.,.true.,.true.)
-            iunit = iunit_bohr
-            ldum = win(iwin_console_input)%read_output_ci(.true.,"[Describe system " // string(isys) // "]")
-         end if
-         call iw_tooltip("Print a detailed description of this system in the output console",ttshown)
-
-         ! set as current system option
-         strpop = "Set as Current System" // c_null_char
-         enabled = (sysc(isys)%status == sys_init)
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
-            call select_system(isys,.true.)
-         call iw_tooltip("Set this system as the current system",ttshown)
-
-         ! set as current system option
-         strpop = "Display in New View" // c_null_char
-         enabled = (sysc(isys)%status == sys_init)
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
-            idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
-            win(idum)%sc = sysc(isys)%sc
-            do i = 1, win(idum)%sc%nrep
-               win(idum)%sc%rep(i)%idwin = 0
-            end do
-            win(idum)%view_selected = isys
-         end if
-         call iw_tooltip("Display this system in a new view window",ttshown)
-
          ! scf energy plot
          if (sysc(isys)%collapse /= 0) then
             strpop = "Plot SCF Iterations" // c_null_char
-            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
+            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled_no_threads)) then
                if (sysc(isys)%collapse < 0) then
                   isyscollapse = isys
                else
@@ -1011,9 +976,26 @@ contains
                idgeometry = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
             call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
 
+            ! describe this system in the console output
+            strpop = "Describe in Output Window" // c_null_char
+            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
+               idx = index(sysc(isys)%seed%name,c_null_char)
+               strl = "### Describe system (" // string(isys) // "): " // trim(sysc(isys)%seed%name(1:idx-1))
+               write (uout,'(/A/)') trim(strl)
+               if (sys(isys)%c%ismolecule) then
+                  iunit = iunit_ang
+               else
+                  iunit = iunit_bohr
+               end if
+               call sys(isys)%report(.true.,.true.,.true.,.true.,.true.,.true.,.true.)
+               iunit = iunit_bohr
+               ldum = win(iwin_console_input)%read_output_ci(.true.,"[Describe system " // string(isys) // "]")
+            end if
+            call iw_tooltip("Print a detailed description of this system in the output console",ttshown)
+
             ! rebond
             strpop = "Recalculate Bonds" // c_null_char
-            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
+            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled_no_threads)) then
                idrebond = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=-1)
             end if
             call iw_tooltip("Recalculate the covalent bonds in this system and the molecular structures",ttshown)
@@ -1070,10 +1052,27 @@ contains
          end if
          call iw_tooltip("Rename this system",ttshown)
 
+         ! set as current system option
+         strpop = "Set as Current System" // c_null_char
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled_no_threads)) &
+            call select_system(isys,.true.)
+         call iw_tooltip("Set this system as the current system",ttshown)
+
+         ! set as current system option
+         strpop = "Display in New View" // c_null_char
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled_no_threads)) then
+            idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
+            win(idum)%sc = sysc(isys)%sc
+            do i = 1, win(idum)%sc%nrep
+               win(idum)%sc%rep(i)%idwin = 0
+            end do
+            win(idum)%view_selected = isys
+         end if
+         call iw_tooltip("Display this system in a new view window",ttshown)
+
          ! remove option (system)
          strpop = "Duplicate" // c_null_char
-         enabled = (sysc(isys)%status == sys_init) .and..not.are_threads_running()
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled_no_threads)) &
             call duplicate_system(isys)
          call iw_tooltip("Initialize a new copy of this system",ttshown)
 
