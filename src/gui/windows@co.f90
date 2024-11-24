@@ -31,7 +31,7 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: i, curline, ndrawn, idx
+    integer :: i, curline, ndrawn, idx, idum
     character(kind=c_char,len=:), allocatable, target :: str1, strpop
     type(ImVec2) :: sz, szero, szavail
     logical(c_bool) :: ldum
@@ -42,15 +42,11 @@ contains
     real(c_float), save :: maxallscrolly = 0._c_float ! max scroll value of the All pane
     real(c_float), save :: allscrolly = 0._c_float ! scroll value of the All pane
     logical, save :: ttshown = .false. ! tooltip flag
-    integer, save :: idsavedialog = 0 ! the ID of the save window
 
     ! initialize
     szero%x = 0._c_float
     szero%y = 0._c_float
     setscroll = .false.
-
-    ! check if the save dialog is still open
-    call update_window_id(idsavedialog)
 
     ! read new output, if available
     ldum = w%read_output_ci(.false.)
@@ -82,8 +78,8 @@ contains
     call iw_tooltip("Copy the active output log to clipboard",ttshown)
 
     ! first line: save button
-    if (iw_button("Save",disabled=(idsavedialog > 0),sameline=.true.)) &
-       idsavedialog = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savelogfile)
+    if (iw_button("Save",sameline=.true.)) &
+       idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_savelogfile,orraise=-1)
     call iw_tooltip("Save the active output log to a file",ttshown)
 
     ! first line: remove all button

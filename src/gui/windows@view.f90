@@ -661,9 +661,6 @@ contains
     if (iw_button("+",disabled=.not.associated(w%sc),sameline=.true.)) then
        idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
        win(idum)%sc = w%sc
-       do i = 1, win(idum)%sc%nrep
-          win(idum)%sc%rep(i)%idwin = 0
-       end do
        win(idum)%view_selected = w%view_selected
        call win(idum)%sc%reset_animation()
     end if
@@ -1885,7 +1882,8 @@ contains
           call igPopItemWidth()
 
           ! draw the atom selection widget
-          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,oksel,.true.,.false.)
+          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,oksel,w%idparent,&
+             .true.,.false.)
 
           call igEndTabItem()
        end if ! begin tab item (selection)
@@ -1972,7 +1970,8 @@ contains
              call iw_tooltip("Color of the border for the atoms",ttshown)
 
              ! draw the atom selection widget
-             changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,oksel,.false.,.true.)
+             changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,oksel,w%idparent,&
+                .false.,.true.)
 
              call igEndTabItem()
           end if ! begin tab item (atoms)
@@ -3258,7 +3257,10 @@ contains
   !> Draw the atom selection table for crystal c on representation r
   !> and return whether any item has been changed. Return oksel = .true.
   !> if an item in a table has been hovered (for table row highlight).
-  function atom_selection_widget(c,r,oksel,showselection,showdrawopts) result(changed)
+  !> idparent = ID of the parent window who owns the correpsonding scene.
+  !> showselection = show the selection tab columns in the tables.
+  !> showdrawopts = show the atoms tab columns (draw) in the tables.
+  function atom_selection_widget(c,r,oksel,idparent,showselection,showdrawopts) result(changed)
     use scenes, only: draw_style_atom, draw_style_molecule
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
        iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit3, iw_highlight_selectable
@@ -3268,6 +3270,7 @@ contains
     type(crystal), intent(in) :: c
     type(representation), intent(inout) :: r
     logical, intent(inout) :: oksel
+    integer, intent(in) :: idparent
     logical, intent(in) :: showselection
     logical, intent(in) :: showdrawopts
     logical :: changed
@@ -3422,10 +3425,10 @@ contains
 
                 ! the highlight selectable
                 if (iw_highlight_selectable("##selectablemoltable" // suffix)) then
-                   win(win(r%idwin)%idparent)%sc%nselection = 1
-                   win(win(r%idwin)%idparent)%sc%selection_type = r%atom_style%type
-                   win(win(r%idwin)%idparent)%sc%selection(1) = i
-                   win(win(r%idwin)%idparent)%forcerender = .true.
+                   win(idparent)%sc%nselection = 1
+                   win(idparent)%sc%selection_type = r%atom_style%type
+                   win(idparent)%sc%selection(1) = i
+                   win(idparent)%forcerender = .true.
                    oksel = .true.
                 end if
              end if
@@ -3623,10 +3626,10 @@ contains
 
                    ! the highlight selectable
                    if (iw_highlight_selectable("##selectableatomtable" // suffix)) then
-                      win(win(r%idwin)%idparent)%sc%nselection = 1
-                      win(win(r%idwin)%idparent)%sc%selection_type = 3
-                      win(win(r%idwin)%idparent)%sc%selection(1) = i
-                      win(win(r%idwin)%idparent)%forcerender = .true.
+                      win(idparent)%sc%nselection = 1
+                      win(idparent)%sc%selection_type = 3
+                      win(idparent)%sc%selection(1) = i
+                      win(idparent)%forcerender = .true.
                       oksel = .true.
                    end if
                 end if

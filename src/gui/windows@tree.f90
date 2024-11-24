@@ -1063,9 +1063,6 @@ contains
          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled_no_threads)) then
             idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
             win(idum)%sc = sysc(isys)%sc
-            do i = 1, win(idum)%sc%nrep
-               win(idum)%sc%rep(i)%idwin = 0
-            end do
             win(idum)%view_selected = isys
          end if
          call iw_tooltip("Display this system in a new view window",ttshown)

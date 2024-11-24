@@ -389,14 +389,13 @@ contains
     logical(c_bool) :: ldum, doquit
     logical :: ok, saveismol, doubleclicked, isset
     type(ImVec2) :: szero, sz, szavail
-    integer :: i, nseed, oid
+    integer :: i, nseed, oid, idum
     type(crystalseed) :: seed
     type(crystalseed), allocatable :: seed_(:)
 
     ! window state
     logical, save :: ttshown = .false. ! tooltip flag
     logical, save :: ismolecule = .false. ! molecule/crystal choice at the top
-    integer(c_int), save :: idopenlibfile = 0 ! the ID for the open library file
     integer, save :: nst = 0 ! number of library structures
     type(vstring), allocatable, save :: st(:) ! library structures
     logical(c_bool), allocatable, save :: lst(:) ! selected structures (1->nst)
@@ -411,17 +410,6 @@ contains
 
     ! first pass when opened, reset the state
     if (w%firstpass) call init_state()
-
-    ! check if we have info from the open library file window when it
-    ! closes and recover it
-    call update_window_id(idopenlibfile,oid)
-    if (oid /= 0) then
-       w%okfile_read = win(oid)%okfile_read
-       if (w%okfile_read) then
-          w%okfile_set = win(oid)%okfile_set
-          w%okfile = win(oid)%okfile
-       end if
-    end if
 
     ! crystal or molecule, from library
     saveismol = ismolecule
@@ -439,8 +427,10 @@ contains
     ! render the rest of the window
     ! library file
     call iw_text("Source",highlight=.true.)
-    if (iw_button("Library file",disabled=(idopenlibfile /= 0))) &
-       idopenlibfile = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openlibraryfile)
+    if (iw_button("Library file")) then
+       idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openlibraryfile,&
+          idcaller=w%id,orraise=-1)
+    end if
     call iw_tooltip("Library file from where the structures are read",ttshown)
     call iw_text(w%okfile,sameline=.true.)
 
@@ -517,7 +507,6 @@ contains
     ok = (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG))
     ok = ok .or. doubleclicked
     ok = ok .or. iw_button("OK")
-    ok = ok .and. (idopenlibfile == 0)
     if (ok) then
        nseed = count(lst(1:nst))
        if (nseed > 0) then
@@ -566,7 +555,6 @@ contains
 
     ! quit the window
     if (doquit) then
-       if (idopenlibfile /= 0) win(idopenlibfile)%forcequitdialog = .true.
        call end_state()
        call w%end()
     end if
@@ -576,7 +564,6 @@ contains
     subroutine init_state()
       ttshown = .false.
       ismolecule = .false.
-      idopenlibfile = 0
       nst = 0
       lastselected = 0
       rborder = rborder_def*bohrtoa

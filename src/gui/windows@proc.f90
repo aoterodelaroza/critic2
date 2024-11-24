@@ -742,7 +742,7 @@ contains
           inisize%y = 23 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_geometry) then
-          w%name = "Geometry##"  // string(w%id) // c_null_char
+          w%name = "View/Edit Geometry##"  // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 55 * fontsize%x
           inisize%y = 23 * fontsize%y

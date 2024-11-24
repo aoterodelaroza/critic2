@@ -153,7 +153,6 @@ module scenes
      integer :: flavor = repflavor_unknown ! flavor of the representation
      integer :: id ! system ID
      integer :: idrep ! representation ID
-     integer :: idwin = 0 ! edit representation window ID
      integer :: iord = 0 ! representation order integer in menu
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
      ! global parameters

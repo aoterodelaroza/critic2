@@ -26,6 +26,7 @@ contains
   module subroutine draw_dialog(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
+    use windows, only: win
     use gui_main, only: add_systems_from_name, launch_initialization_thread,&
        system_shorten_names, sysc, nsys, sys_init, sys
     use c_interface_module, only: C_F_string_alloc, c_free
@@ -48,10 +49,20 @@ contains
     maxsize%x = 1e10_c_float
     maxsize%y = 1e10_c_float
 
+    ! handle cases when the dialog must quit
+    if (w%dialog_purpose == wpurp_dialog_openvibfile) then
+       ! open vibrations file dialog => quit if the system is gone
+       w%forcequitdialog = (w%isys < 1 .or. w%isys > nsys)
+       if (.not.w%forcequitdialog) w%forcequitdialog = (sysc(w%isys)%status /= sys_init)
+    elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
+       ! open library file => quit if the caller window is gone
+       w%forcequitdialog = .not.win(w%idparent)%isinit
+    end if
+
     ! process the dialog
     if (IGFD_DisplayDialog(w%dptr,c_loc(w%name),w%flags,minsize,maxsize)) then
        ! the dialog has been closed
-       if (IGFD_IsOk(w%dptr)) then
+       if (IGFD_IsOk(w%dptr).and..not.w%forcequitdialog) then
           ! with an OK, gather information
           if (w%dialog_purpose == wpurp_dialog_openfiles) then
              !! open files dialog !!
@@ -95,8 +106,29 @@ contains
                 end if
                 call fclose(lu)
              end if
-          elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile .or. &
-             w%dialog_purpose == wpurp_dialog_openfieldfile .or. w%dialog_purpose == wpurp_dialog_openonefilemodal) then
+          elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
+             ! !! new structure file dialog !!
+             ! cstr = IGFD_GetFilePathName(w%dptr)
+             ! call C_F_string_alloc(cstr,name)
+             ! call c_free(cstr)
+             ! w%okfile = trim(name)
+             win(w%idparent)%okfile_set = .true.
+             win(w%idparent)%okfile_read = .true.
+             win(w%idparent)%okfile = ""
+
+             ! open all files selected and add the new systems
+             sel = IGFD_GetSelection(w%dptr)
+             call c_f_pointer(sel%table,s,(/sel%count/))
+             cstr = IGFD_GetCurrentPath(w%dptr)
+             call C_F_string_alloc(cstr,path)
+             call c_free(cstr)
+             do i = 1, sel%count
+                call C_F_string_alloc(s(i)%fileName,name)
+                name = trim(path) // dirsep // trim(name)
+                win(w%idparent)%okfile = win(w%idparent)%okfile // name // c_null_char
+             end do
+
+          elseif (w%dialog_purpose == wpurp_dialog_openfieldfile .or. w%dialog_purpose == wpurp_dialog_openonefilemodal) then
              ! !! new structure file dialog !!
              ! cstr = IGFD_GetFilePathName(w%dptr)
              ! call C_F_string_alloc(cstr,name)
@@ -170,12 +202,6 @@ contains
        ! close the dialog and terminate the window
        call IGFD_CloseDialog(w%dptr)
        call w%end()
-    end if
-
-    ! handle cases when the dialog must quit
-    if (w%dialog_purpose == wpurp_dialog_openvibfile) then
-       if (w%isys < 1 .or. w%isys > nsys) w%forcequitdialog = .true.
-       if (.not.w%forcequitdialog) w%forcequitdialog = (sysc(w%isys)%status /= sys_init)
     end if
 
     ! exit if focused and received the close keybinding, or if forced by some other window

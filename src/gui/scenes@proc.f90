@@ -835,7 +835,7 @@ contains
     integer(c_int), intent(in) :: idcaller
     logical :: changed
 
-    integer :: i, ii, id, ll
+    integer :: i, ii, id, ll, idum
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical :: discol, doerase
     type(ImVec2) :: szero
@@ -873,9 +873,6 @@ contains
        i = s%iord(ii)
        if (.not.s%rep(i)%isinit) cycle
 
-       ! update window ID
-       call update_window_id(s%rep(i)%idwin)
-
        ! close button
        doerase = .false.
        call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
@@ -904,7 +901,7 @@ contains
              ! edit
              str2 = "Edit" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller,&
+                idum = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller,&
                    orraise=-1)
              end if
              call iw_tooltip("Edit this object",ttshown)
@@ -974,7 +971,7 @@ contains
        ! edit button
        if (igTableSetColumnIndex(ic_editbutton)) then
           if (iw_button("Edit##2ic_editbutton" // string(ic_editbutton) // "," // string(i))) then
-             s%rep(i)%idwin = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller,&
+             idum = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller,&
                 orraise=-1)
           end if
        end if
@@ -1216,7 +1213,6 @@ contains
     r%flavor = repflavor_unknown
     r%id = isys
     r%idrep = irep
-    r%idwin = 0
     r%name = ""
     r%filter = ""
     r%errfilter = ""
@@ -1313,9 +1309,6 @@ contains
     r%id = 0
     r%idrep = 0
     r%iord = 0
-    if (r%idwin > 0) &
-       nullify(win(r%idwin)%rep)
-    r%idwin = 0
 
   end subroutine representation_end
 
