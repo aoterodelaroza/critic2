@@ -971,7 +971,7 @@ contains
          strpop = "System" // c_null_char
          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
             ! Geometry
-            strpop = "Geometry" // c_null_char
+            strpop = "View/Edit Geometry" // c_null_char
             if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
                idgeometry = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
             call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)

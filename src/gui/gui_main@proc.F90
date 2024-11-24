@@ -812,7 +812,7 @@ contains
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate,&
-       wintype_about
+       wintype_about, wintype_geometry
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
@@ -827,7 +827,8 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     integer(c_int) :: idum
     logical :: launchquit, launch(4)
-    integer :: iaux
+    logical(c_bool) :: system_ok
+    integer :: isys
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -882,7 +883,7 @@ contains
           ! Edit -> Preferences...
           str1 = "Preferences..." // c_null_char
           if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) &
-             iaux = stack_create_window(wintype_preferences,.true.,orraise=-1)
+             idum = stack_create_window(wintype_preferences,.true.,orraise=-1)
           call iw_tooltip("Change the user interface settings and key bindings",ttshown)
 
           call igEndMenu()
@@ -931,6 +932,22 @@ contains
           ttshown = .false.
        end if
 
+       ! Windows
+       str1 = "Tools" // c_null_char
+       if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+          str2 = "View/Edit Geometry..." // c_null_char
+          isys = win(iwin_tree)%table_selected
+          system_ok = (isys > 0 .and. isys <= nsys)
+          if (system_ok) system_ok = (sysc(isys)%status == sys_init)
+          if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,system_ok)) &
+             idum = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
+          call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
+
+          call igEndMenu()
+       else
+          ttshown = .false.
+       end if
+
        ! Help
        str1 = "Help" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
@@ -965,11 +982,11 @@ contains
 
     ! process launches
     if (launch(d_new)) &
-       iaux = stack_create_window(wintype_new_struct,.true.,orraise=-1)
+       idum = stack_create_window(wintype_new_struct,.true.,orraise=-1)
     if (launch(d_newlib)) &
-       iaux = stack_create_window(wintype_new_struct_library,.true.,orraise=-1)
+       idum = stack_create_window(wintype_new_struct_library,.true.,orraise=-1)
     if (launch(d_open)) &
-       iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles,orraise=-1)
+       idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles,orraise=-1)
     if (launchquit) then
        if (are_threads_running()) &
           call kill_initialization_thread()

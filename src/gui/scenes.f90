@@ -77,7 +77,7 @@ module scenes
      real(c_float), allocatable :: rgb(:,:) ! color (3,ntype)
      real(c_float), allocatable :: rad(:) ! radius (ntype)
      real(c_float) :: border_size = 0._c_float ! border size
-     real(c_float) :: rgbborder(3) ! border color 
+     real(c_float) :: rgbborder(3) ! border color
   end type draw_style_atom
   public :: draw_style_atom
 
