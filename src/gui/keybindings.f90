@@ -65,7 +65,7 @@ module keybindings
   integer, parameter, public :: BIND_VIEW_ALIGN_Z_AXIS = 19 ! view: align view with z axis
   integer, parameter, public :: BIND_VIEW_TOGGLE_ATOMS = 20 ! view: toggle atoms in the first rep
   integer, parameter, public :: BIND_VIEW_TOGGLE_BONDS = 21 ! view: toggle bonds in the first rep
-  integer, parameter, public :: BIND_VIEW_TOGGLE_LABELS = 22 ! view: toggle labels in the first rep
+  integer, parameter, public :: BIND_VIEW_CYCLE_LABELS = 22 ! view: cycle labels in the first rep
   integer, parameter, public :: BIND_VIEW_TOGGLE_CELL = 23 ! view: toggle cell in the first rep
   integer, parameter, public :: BIND_NAV_ROTATE = 24 ! view: rotate the view
   integer, parameter, public :: BIND_NAV_ROTATE_PERP = 25 ! view: rotate around axis perp. to screen
@@ -98,7 +98,7 @@ module keybindings
      "Align with z axis               ",& ! BIND_VIEW_ALIGN_Z_AXIS
      "Toggle display of atoms         ",& ! BIND_VIEW_TOGGLE_ATOMS
      "Toggle display of bonds         ",& ! BIND_VIEW_TOGGLE_BONDS
-     "Toggle display of labels        ",& ! BIND_VIEW_TOGGLE_LABELS
+     "Cycle through display of labels ",& ! BIND_VIEW_CYCLE_LABELS
      "Toggle display of unit cell     ",& ! BIND_VIEW_TOGGLE_CELL
      "Rotate the camera               ",& ! BIND_NAV_ROTATE
      "Rotate around perpendicular axis",& ! BIND_NAV_ROTATE_PERP

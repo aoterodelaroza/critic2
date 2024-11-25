@@ -50,7 +50,7 @@ contains
     use keybindings, only: is_bind_event, BIND_VIEW_INC_NCELL, BIND_VIEW_DEC_NCELL,&
        BIND_VIEW_ALIGN_A_AXIS, BIND_VIEW_ALIGN_B_AXIS, BIND_VIEW_ALIGN_C_AXIS,&
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS,&
-       BIND_VIEW_TOGGLE_ATOMS, BIND_VIEW_TOGGLE_BONDS, BIND_VIEW_TOGGLE_LABELS,&
+       BIND_VIEW_TOGGLE_ATOMS, BIND_VIEW_TOGGLE_BONDS, BIND_VIEW_CYCLE_LABELS,&
        BIND_VIEW_TOGGLE_CELL,&
        BIND_NAV_ROTATE, BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
        BIND_NAV_MEASURE, bindnames, get_bind_keyname,&
@@ -75,7 +75,8 @@ contains
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
-    logical :: islabels, isuc, hover_and_moved, enabled
+    logical :: isuc, islabelsl, hover_and_moved, enabled
+    integer :: islabels
     logical(c_bool) :: ch
     integer(c_int) :: flags, nc(3), ires, viewtype, idum
     real(c_float) :: scal, width, sqw, ratio, depth, rgba(4)
@@ -125,7 +126,8 @@ contains
     ! flags for shortcuts
     isatom = .false.
     isbond = .false.
-    islabels = .false.
+    islabels = -1
+    islabelsl = .false.
     isuc = .false.
     if (associated(w%sc)) then
        do i = 1, w%sc%nrep
@@ -133,12 +135,14 @@ contains
              if (w%sc%rep(i)%type == reptype_atoms) then
                 isatom = isatom .or. w%sc%rep(i)%atoms_display
                 isbond = isbond .or. w%sc%rep(i)%bonds_display
-                islabels = islabels .or. w%sc%rep(i)%labels_display
+                if (w%sc%rep(i)%labels_display) &
+                   islabels = w%sc%rep(i)%label_style%style
              elseif (w%sc%rep(i)%type == reptype_unitcell) then
                 isuc = isuc .or. w%sc%rep(i)%shown
              end if
           end if
        end do
+       if (islabels >= 0) islabelsl = .true.
     end if
 
     ! process shortcut display bindings
@@ -152,9 +156,18 @@ contains
           changedisplay(2) = .true.
           isbond = .not.isbond
        end if
-       if (is_bind_event(BIND_VIEW_TOGGLE_LABELS)) then
+       if (is_bind_event(BIND_VIEW_CYCLE_LABELS)) then
           changedisplay(3) = .true.
-          islabels = .not.islabels
+          if (islabels == -1) then ! no labels -> atom-symbol
+             islabels = 0
+          elseif (islabels == 0) then ! atom-symbol -> celatom
+             islabels = 2
+          elseif (islabels == 2 .and..not.sys(w%view_selected)%c%ismolecule) then ! celatom -> wyckoff
+             islabels = 8
+          else ! * -> no labels
+             islabels = -1
+          end if
+          islabelsl = (islabels >= 0)
        end if
        if (is_bind_event(BIND_VIEW_TOGGLE_CELL)) then
           changedisplay(4) = .true.
@@ -166,7 +179,11 @@ contains
                 if (w%sc%rep(i)%type == reptype_atoms) then
                    if (changedisplay(1)) w%sc%rep(i)%atoms_display = isatom
                    if (changedisplay(2)) w%sc%rep(i)%bonds_display = isbond
-                   if (changedisplay(3)) w%sc%rep(i)%labels_display = islabels
+                   if (changedisplay(3)) then
+                      w%sc%rep(i)%labels_display = islabelsl
+                      if (islabelsl) &
+                         w%sc%rep(i)%label_style%style = islabels
+                   end if
                 elseif (w%sc%rep(i)%type == reptype_unitcell) then
                    if (changedisplay(4)) w%sc%rep(i)%shown = isuc
                 end if
@@ -211,18 +228,18 @@ contains
           call iw_tooltip("Toggle display bonds in all objects ("//&
              trim(get_bind_keyname(BIND_VIEW_TOGGLE_BONDS)) // ").",ttshown)
 
-          if (iw_checkbox("Labels##labelshortcut",islabels,sameline=.true.)) then
+          if (iw_checkbox("Labels##labelshortcut",islabelsl,sameline=.true.)) then
              do i = 1, w%sc%nrep
                 if (w%sc%rep(i)%isinit) then
                    if (w%sc%rep(i)%type == reptype_atoms) then
-                      w%sc%rep(i)%labels_display = islabels
+                      w%sc%rep(i)%labels_display = islabelsl
                    end if
                 end if
              end do
              chbuild = .true.
           end if
           call iw_tooltip("Toggle display labels in all objects ("//&
-             trim(get_bind_keyname(BIND_VIEW_TOGGLE_LABELS)) // ").",ttshown)
+             trim(get_bind_keyname(BIND_VIEW_CYCLE_LABELS)) // ").",ttshown)
 
           if (.not.sys(w%view_selected)%c%ismolecule) then
              if (iw_checkbox("Unit Cell##ucshortcut",isuc,sameline=.true.)) then
@@ -439,7 +456,14 @@ contains
                          if (sysc(i)%sc%rep(j)%type == reptype_atoms) then
                             sysc(i)%sc%rep(j)%atoms_display = isatom
                             sysc(i)%sc%rep(j)%bonds_display = isbond
-                            sysc(i)%sc%rep(j)%labels_display = islabels
+                            sysc(i)%sc%rep(j)%labels_display = islabelsl
+                            if (islabelsl) then
+                               if (sys(i)%c%ismolecule.and.islabels == 8) then
+                                  sysc(i)%sc%rep(j)%label_style%style = 0
+                               else
+                                  sysc(i)%sc%rep(j)%label_style%style = islabels
+                               end if
+                            end if
                          elseif (sysc(i)%sc%rep(j)%type == reptype_unitcell.and.&
                             .not.sys(w%view_selected)%c%ismolecule) then
                             sysc(i)%sc%rep(j)%shown = isuc
