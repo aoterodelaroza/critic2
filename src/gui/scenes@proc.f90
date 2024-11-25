@@ -826,7 +826,7 @@ contains
   !> if the scene needs to be rendered again.
   module function representation_menu(s,idparent) result(changed)
     use interfaces_cimgui
-    use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox
+    use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem
     use windows, only: stack_create_window, wintype_editrep, update_window_id
     use gui_main, only: ColorDangerButton, g
     use tools_io, only: string
@@ -837,10 +837,11 @@ contains
 
     integer :: i, ii, id, ll, idum
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
-    logical :: discol, doerase
+    logical :: discol, doerase, ok
     type(ImVec2) :: szero
     character(kind=c_char,len=1024), target :: txtinp
     integer, allocatable :: idx(:)
+    integer(c_int) :: flags
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -899,16 +900,12 @@ contains
           ! name context menu
           if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_MouseButtonRight)) then
              ! edit
-             str2 = "Edit" // c_null_char
-             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                idum = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idparent=idparent,&
-                   orraise=-1)
-             end if
+             if (iw_menuitem("Edit")) &
+                idum = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idparent=idparent,orraise=-1)
              call iw_tooltip("Edit this object",ttshown)
 
              ! duplicate
-             str2 = "Duplicate" // c_null_char
-             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             if (iw_menuitem("Duplicate")) then
                 id = s%get_new_representation_id()
                 s%rep(id) = s%rep(i)
                 s%rep(id)%name = trim(s%rep(i)%name) // " (copy)"
@@ -921,8 +918,7 @@ contains
              call iw_tooltip("Make a copy of this object",ttshown)
 
              ! show/hide
-             str2 = "Show/Hide" // c_null_char
-             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             if (iw_menuitem("Show/Hide")) then
                 s%rep(i)%shown = .not.s%rep(i)%shown
                 changed = .true.
              end if
@@ -945,8 +941,7 @@ contains
              call iw_tooltip("Rename this object",ttshown)
 
              ! delete
-             str2 = "Delete" // c_null_char
-             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) &
+             if (iw_menuitem("Delete")) &
                 doerase = .true.
              call iw_tooltip("Delete this object",ttshown)
 
@@ -954,17 +949,34 @@ contains
           end if
        end if
 
-       ! name
+       ! type
        if (igTableSetColumnIndex(ic_type)) then
           if (discol) &
              call igPushStyleColor_Vec4(ImGuiCol_Text,g%Style%Colors(ImGuiCol_TextDisabled+1))
+          ! if (s%rep(i)%type == reptype_atoms) then
+          !    call iw_text("atoms")
+          ! elseif (s%rep(i)%type == reptype_unitcell) then
+          !    call iw_text("cell")
+          ! else
+          !    call iw_text("???")
+          ! end if
           if (s%rep(i)%type == reptype_atoms) then
-             call iw_text("atoms")
+             str3 = "atoms" // c_null_char
           elseif (s%rep(i)%type == reptype_unitcell) then
-             call iw_text("cell")
+             str3 = "cell" // c_null_char
           else
-             call iw_text("???")
+             str3 = "???" // c_null_char
           end if
+          flags = ImGuiSelectableFlags_SpanAllColumns
+          flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
+          flags = ior(flags,ImGuiSelectableFlags_DontClosePopups)
+          flags = ior(flags,ImGuiSelectableFlags_AllowDoubleClick)
+          ok = igSelectable_Bool(c_loc(str3),.false._c_bool,flags,szero)
+          if (ok .and. igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) then
+             s%rep(i)%shown = .not.s%rep(i)%shown
+             changed = .true.
+          end if
+
           if (discol) call igPopStyleColor(1)
        end if
 

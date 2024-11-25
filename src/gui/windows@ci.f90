@@ -27,7 +27,7 @@ contains
     use keybindings, only: BIND_INPCON_RUN, get_bind_keyname, is_bind_event
     use gui_main, only: sys, sysc, nsys, sys_init, g, force_run_commands
     use templates, only: draw_keyword_context_menu
-    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_menuitem
     use systemmod, only: sy
     use tools_io, only: string
     use param, only: newline
@@ -147,8 +147,7 @@ contains
        end if
     end if
     if (ok2) then
-       str2 = "Run on all systems" // c_null_char
-       if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) &
+       if (iw_menuitem("Run on all systems")) &
           force_run_commands = 2
        call iw_tooltip("Run these commands on all loaded systems")
        call igEndPopup()

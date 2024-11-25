@@ -401,6 +401,43 @@ contains
 
   end subroutine iw_text
 
+  !> Create a menu item with the given label. If keybind is present
+  !> use the key bind text as shortcut. If selected, mark the menu
+  !> item as selected (default = false). If enabled, mark the menu
+  !> item as enabled (default = true).
+  module function iw_menuitem(label,keybind,selected,enabled,shortcut_text)
+    use interfaces_cimgui
+    use keybindings, only: get_bind_keyname
+    character(len=*,kind=c_char), intent(in) :: label
+    integer, intent(in), optional :: keybind
+    logical, intent(in), optional :: selected
+    logical, intent(in), optional :: enabled
+    character(len=*,kind=c_char), intent(in), optional :: shortcut_text
+    logical :: iw_menuitem
+
+    character(len=:,kind=c_char), allocatable, target :: str1, str2
+    type(c_ptr) :: shortcutptr
+    logical(c_bool) :: selected_, enabled_
+
+    str1 = trim(label) // c_null_char
+    if (present(keybind)) then
+       str2 = trim(get_bind_keyname(keybind)) // c_null_char
+       shortcutptr = c_loc(str2)
+    elseif (present(shortcut_text)) then
+       str2 = trim(shortcut_text) // c_null_char
+       shortcutptr = c_loc(str2)
+    else
+       shortcutptr = c_null_ptr
+    end if
+    selected_ = .false._c_bool
+    if (present(selected)) selected_ = selected
+    enabled_ = .true._c_bool
+    if (present(enabled)) enabled_ = enabled
+
+    iw_menuitem = igMenuItem_Bool(c_loc(str1),shortcutptr,selected_,enabled_)
+
+  end function iw_menuitem
+
   !> Draw a button. If danger, use the danger color. If sameline, draw
   !> the button in the same line as the preceding widgets.  If
   !> disabled, disable the button. If siz, use this size for the

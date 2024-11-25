@@ -60,7 +60,7 @@ contains
     use keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM_FIELD, BIND_TREE_MOVE_UP,&
        BIND_TREE_MOVE_DOWN
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
-       iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight
+       iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_ready,&
        sys_loaded_not_init, sys_initializing,&
        launch_initialization_thread, ColorTableCellBg,&
@@ -133,13 +133,11 @@ contains
     ldum = (iw_button("❇",popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft))
     if (ok) then
        ! info at the top
-       str = "Right-click header for more" // c_null_char
-       ldum = igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.false._c_bool)
+       ldum = iw_menuitem("Right-click header for more",enabled=.false.)
        call igSeparator()
 
        ! button: expand
-       str = "Expand All" // c_null_char
-       if (igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)) then
+       if (iw_menuitem("Expand All")) then
           do i = 1, nsys
              call expand_system(i)
           end do
@@ -147,8 +145,7 @@ contains
        call iw_tooltip("Expand all systems in the tree (show all SCF iterations)",ttshown)
 
        ! button: collapse
-       str = "Collapse All" // c_null_char
-       if (igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)) then
+       if (iw_menuitem("Collapse All")) then
           do i = 1, nsys
              call collapse_system(i)
           end do
@@ -156,20 +153,17 @@ contains
        call iw_tooltip("Collapse all systems in the tree (hide all SCF iterations)",ttshown)
 
        ! button: export
-       str = "Export Tree Table" // c_null_char
-       export = igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)
+       export = iw_menuitem("Export Tree Table")
        call iw_tooltip("Write the current tree to the output console in csv-style (for copying)",ttshown)
 
        ! button: plot
-       str = "Plot" // c_null_char
-       if (igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)) &
+       if (iw_menuitem("Plot")) &
           iaux = stack_create_window(wintype_treeplot,.true.,idparent=w%id,orraise=-1)
        call iw_tooltip("Plot the tree data",ttshown)
        call igSeparator()
 
        ! close visible
-       str = "Close Visible" // c_null_char
-       if (igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)) then
+       if (iw_menuitem("Close Visible")) then
           if (allocated(w%forceremove)) deallocate(w%forceremove)
           allocate(w%forceremove(nsys))
           k = 0
@@ -188,8 +182,7 @@ contains
        call iw_tooltip("Close all visible systems",ttshown)
 
        ! close all systems
-       str = "Close All" // c_null_char
-       if (igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)) then
+       if (iw_menuitem("Close All")) then
           if (allocated(w%forceremove)) deallocate(w%forceremove)
           allocate(w%forceremove(nsys))
           do i = 1, nsys
@@ -593,8 +586,7 @@ contains
                       if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
                          ! remove option (fields)
                          if (k > 0) then
-                            strpop = "Remove" // c_null_char
-                            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) &
+                            if (iw_menuitem("Remove")) &
                                call sys(i)%unload_field(k)
                             call iw_tooltip("Remove this field",ttshown)
                          end if
@@ -619,8 +611,7 @@ contains
                          call igSeparator()
 
                          ! duplicate option (fields)
-                         strpop = "Duplicate" // c_null_char
-                         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                         if (iw_menuitem("Duplicate")) then
                             id = sys(i)%getfieldnum()
                             call sys(i)%field_copy(k,id)
                             sys(i)%f(id)%id = id
@@ -631,7 +622,8 @@ contains
                          ! grid calculation options
                          if (sys(i)%f(k)%type == type_grid) then
                             ! strpop = "Load gradient grid" // c_null_char
-                            ! if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                            !! iw_menuitem
+                            !! ! if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
                             !    id = sys(i)%getfieldnum()
                             !    call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, gradient of $" // string(k),&
                             !       sys(i)%f(k)%grid,ifformat_as_grad)
@@ -639,7 +631,8 @@ contains
                             ! call iw_tooltip("Load a new grid field as the gradient of this field",ttshown)
 
                             ! strpop = "Load Laplacian grid" // c_null_char
-                            ! if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                            !! iw_menuitem
+                            !! if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
                             !    id = sys(i)%getfieldnum()
                             !    call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, Laplacian of $" // string(k),&
                             !       sys(i)%f(k)%grid,ifformat_as_lap)
@@ -647,7 +640,8 @@ contains
                             ! call iw_tooltip("Load a new grid field as the Laplacian of this field",ttshown)
 
                             ! strpop = "Load potential grid" // c_null_char
-                            ! if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                            !! iw_menuitem
+                            !! if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
                             !    id = sys(i)%getfieldnum()
                             !    call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, potential of $" // string(k),&
                             !       sys(i)%f(k)%grid,ifformat_as_pot)
@@ -661,8 +655,7 @@ contains
                                call igSetNextItemWidth(iw_calcwidth(4*3,2))
                                ldum = igInputInt3(c_loc(strpop2),iresample,flags)
 
-                               strpop2 = "OK##resamplefieldmenuok" // c_null_char
-                               if (igMenuItem_Bool(c_loc(strpop2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                               if (iw_menuitem("OK##resamplefieldmenuok")) then
                                   id = sys(i)%getfieldnum()
                                   call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, resample of $" // string(k),&
                                      sys(i)%f(k)%grid,ifformat_as_resample,n=iresample)
@@ -912,7 +905,8 @@ contains
       integer :: k, idx, iaux
       real(c_float) :: pos
       integer(c_int) :: flags, ll, isyscollapse, idum
-      logical(c_bool) :: selected, enabled, enabled_no_threads
+      logical(c_bool) :: selected
+      logical :: enabled, enabled_no_threads
       logical :: ok
       character(kind=c_char,len=:), allocatable, target :: strl, strpop, strpop2
       character(kind=c_char,len=1024), target :: txtinp
@@ -953,8 +947,7 @@ contains
       if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
          ! scf energy plot
          if (sysc(isys)%collapse /= 0) then
-            strpop = "Plot SCF Iterations" // c_null_char
-            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled_no_threads)) then
+            if (iw_menuitem("Plot SCF Iterations",enabled=enabled_no_threads)) then
                if (sysc(isys)%collapse < 0) then
                   isyscollapse = isys
                else
@@ -971,14 +964,12 @@ contains
          strpop = "System" // c_null_char
          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
             ! Geometry
-            strpop = "View/Edit Geometry" // c_null_char
-            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+            if (iw_menuitem("View/Edit Geometry",enabled=enabled)) &
                idgeometry = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
             call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
 
             ! describe this system in the console output
-            strpop = "Describe in Output Window" // c_null_char
-            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
+            if (iw_menuitem("Describe in Output Window",enabled=enabled)) then
                idx = index(sysc(isys)%seed%name,c_null_char)
                strl = "### Describe system (" // string(isys) // "): " // trim(sysc(isys)%seed%name(1:idx-1))
                write (uout,'(/A/)') trim(strl)
@@ -994,8 +985,7 @@ contains
             call iw_tooltip("Print a detailed description of this system in the output console",ttshown)
 
             ! rebond
-            strpop = "Recalculate Bonds" // c_null_char
-            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled_no_threads)) &
+            if (iw_menuitem("Recalculate Bonds",enabled=enabled_no_threads)) &
                idrebond = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=-1)
             call iw_tooltip("Recalculate the covalent bonds in this system and the molecular structures",ttshown)
 
@@ -1006,8 +996,7 @@ contains
          strpop = "Fields" // c_null_char
          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
             ! load field
-            strpop2 = "Load Field" // c_null_char
-            if (igMenuItem_Bool(c_loc(strpop2),c_null_ptr,.false._c_bool,enabled)) &
+            if (iw_menuitem("Load Field",enabled=enabled)) &
                iaux = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=-1)
             call iw_tooltip("Load a scalar field for this system",ttshown)
 
@@ -1018,16 +1007,14 @@ contains
          strpop = "Vibrations" // c_null_char
          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
             ! load vibration data
-            strpop = "Load Vibration Data" // c_null_char
-            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) then
+            if (iw_menuitem("Load Vibration Data",enabled=enabled)) then
                iaux = stack_create_window(wintype_dialog,.true.,purpose=wpurp_dialog_openvibfile,&
                   isys=isys,orraise=-1)
             end if
             call iw_tooltip("Load vibration data from an external file for this system",ttshown)
 
             ! clear vibration data
-            strpop = "Clear Vibration Data" // c_null_char
-            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+            if (iw_menuitem("Clear Vibration Data",enabled=enabled)) &
                call sys(isys)%c%clear_vibrations()
             call iw_tooltip("Clear the vibration data for this system",ttshown)
 
@@ -1052,14 +1039,12 @@ contains
          call iw_tooltip("Rename this system",ttshown)
 
          ! set as current system option
-         strpop = "Set as Current System" // c_null_char
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled_no_threads)) &
+         if (iw_menuitem("Set as Current System",enabled=enabled_no_threads)) &
             call select_system(isys,.true.)
          call iw_tooltip("Set this system as the current system",ttshown)
 
          ! set as current system option
-         strpop = "Display in New View" // c_null_char
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled_no_threads)) then
+         if (iw_menuitem("Display in New View",enabled=enabled_no_threads)) then
             idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
             win(idum)%sc = sysc(isys)%sc
             win(idum)%view_selected = isys
@@ -1067,8 +1052,7 @@ contains
          call iw_tooltip("Display this system in a new view window",ttshown)
 
          ! remove option (system)
-         strpop = "Duplicate" // c_null_char
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled_no_threads)) &
+         if (iw_menuitem("Duplicate",enabled=enabled_no_threads)) &
             call duplicate_system(isys)
          call iw_tooltip("Initialize a new copy of this system",ttshown)
 
@@ -1077,8 +1061,7 @@ contains
          if (ok) ok = (sys(isys)%nf > 0)
          if (ok) ok = any(sys(isys)%f(1:sys(isys)%nf)%isinit)
          if (ok) then
-            strpop = "Remove All Fields" // c_null_char
-            if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+            if (iw_menuitem("Remove All Fields")) then
                do k = 1, sys(isys)%nf
                   if (.not.sys(isys)%f(k)%isinit) cycle
                   call sys(isys)%unload_field(k)
@@ -1088,8 +1071,7 @@ contains
          end if
 
          ! remove option (system)
-         strpop = "Close" // c_null_char
-         if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,enabled)) &
+         if (iw_menuitem("Close",enabled=enabled)) &
             w%forceremove = (/isys/)
          call iw_tooltip("Close this system",ttshown)
 

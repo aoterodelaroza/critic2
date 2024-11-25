@@ -813,7 +813,7 @@ contains
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate,&
        wintype_about, wintype_geometry
-    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
@@ -827,7 +827,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     integer(c_int) :: idum
     logical :: launchquit, launch(4)
-    logical(c_bool) :: system_ok
+    logical :: system_ok
     integer :: isys
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -847,29 +847,22 @@ contains
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
 
           ! File -> New
-          str1 = "New..." // c_null_char
-          str2 = trim(get_bind_keyname(BIND_NEW)) // c_null_char
-          launch(d_new) = launch(d_new) .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)
-          call iw_tooltip("Create a new structure from scaratc",ttshown)
+          launch(d_new) = launch(d_new) .or. iw_menuitem("New...",BIND_NEW)
+          call iw_tooltip("Create a new structure from scratch",ttshown)
 
           ! File -> New from library
-          str1 = "New from Library..." // c_null_char
-          launch(d_newlib) = igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)
+          launch(d_newlib) = iw_menuitem("New from Library...")
           call iw_tooltip("Create a new structure from the critic2 library",ttshown)
 
           ! File -> Open
-          str1 = "Open..." // c_null_char
-          str2 = trim(get_bind_keyname(BIND_OPEN)) // c_null_char
-          launch(d_open) = launch(d_open) .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)
+          launch(d_open) = launch(d_open) .or. iw_menuitem("Open...",BIND_OPEN)
           call iw_tooltip("Read molecular or crystal structures from external file(s)",ttshown)
 
           ! File -> Separator
           call igSeparator()
 
           ! File -> Quit
-          str1 = "Quit" // c_null_char
-          str2 = trim(get_bind_keyname(BIND_QUIT)) // c_null_char
-          launchquit = launchquit .or. igMenuItem_Bool(c_loc(str1),c_loc(str2),.false._c_bool,.true._c_bool)
+          launchquit = launchquit .or. iw_menuitem("Quit",BIND_QUIT)
           call iw_tooltip("Quit critic2",ttshown)
 
           call igEndMenu()
@@ -881,8 +874,7 @@ contains
        str1 = "Edit" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
           ! Edit -> Preferences...
-          str1 = "Preferences..." // c_null_char
-          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) &
+          if (iw_menuitem("Preferences...")) &
              idum = stack_create_window(wintype_preferences,.true.,orraise=-1)
           call iw_tooltip("Change the user interface settings and key bindings",ttshown)
 
@@ -895,26 +887,22 @@ contains
        str1 = "Windows" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
           ! Windows -> Tree
-          str1 = "Tree" // c_null_char
-          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_tree)%isopen,.true._c_bool)) &
+          if (iw_menuitem("Tree",selected=logical(win(iwin_tree)%isopen))) &
              win(iwin_tree)%isopen = .not.win(iwin_tree)%isopen
           call iw_tooltip("Toggle the display of the tree window",ttshown)
 
           ! Windows -> Main View
-          str1 = "Main View" // c_null_char
-          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_view)%isopen,.true._c_bool)) &
+          if (iw_menuitem("Main View",selected=logical(win(iwin_view)%isopen))) &
              win(iwin_view)%isopen = .not.win(iwin_view)%isopen
           call iw_tooltip("Toggle the display of the main view window",ttshown)
 
           ! Windows -> Input Console
-          str1 = "Input Console" // c_null_char
-          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console_input)%isopen,.true._c_bool)) &
+          if (iw_menuitem("Input Console",selected=logical(win(iwin_console_input)%isopen))) &
              win(iwin_console_input)%isopen = .not.win(iwin_console_input)%isopen
           call iw_tooltip("Toggle the display of the input console window",ttshown)
 
           ! Windows -> Output Console
-          str1 = "Output Console" // c_null_char
-          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,win(iwin_console_output)%isopen,.true._c_bool)) &
+          if (iw_menuitem("Output Console",selected=logical(win(iwin_console_output)%isopen))) &
              win(iwin_console_output)%isopen = .not.win(iwin_console_output)%isopen
           call iw_tooltip("Toggle the display of the output console window",ttshown)
 
@@ -922,8 +910,7 @@ contains
           call igSeparator()
 
           ! Windows -> Alternate view
-          str1 = "New View Window" // c_null_char
-          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) &
+          if (iw_menuitem("New View Window")) &
              idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
           call iw_tooltip("Open a new view window in addition to the main view",ttshown)
 
@@ -935,11 +922,10 @@ contains
        ! Windows
        str1 = "Tools" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
-          str2 = "View/Edit Geometry..." // c_null_char
           isys = win(iwin_tree)%table_selected
           system_ok = (isys > 0 .and. isys <= nsys)
           if (system_ok) system_ok = (sysc(isys)%status == sys_init)
-          if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,system_ok)) &
+          if (iw_menuitem("View/Edit Geometry...",enabled=system_ok)) &
              idum = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
           call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
 
@@ -952,16 +938,14 @@ contains
        str1 = "Help" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
           ! Help -> Critic2 Manual
-          str1 = "Critic2 Manual..." // c_null_char
-          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) then
+          if (iw_menuitem("Critic2 Manual...")) then
              str2 = "https://aoterodelaroza.github.io/critic2/" // c_null_char
              call openLink(c_loc(str2))
           end if
           call iw_tooltip("Visit the critic2 website for more information about the program",ttshown)
 
           ! Help -> About
-          str1 = "About..." // c_null_char
-          if (igMenuItem_Bool(c_loc(str1),c_null_ptr,.false._c_bool,.true._c_bool)) then
+          if (iw_menuitem("About...")) then
              if (win(iwin_about)%isopen) then
                 call igSetWindowFocus_Str(c_loc(win(iwin_about)%name))
              else

@@ -59,7 +59,7 @@ contains
        repflavor_atoms_basic, repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
        repflavor_unitcell_basic
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
-       iw_setposx_fromend, iw_checkbox, iw_coloredit3
+       iw_setposx_fromend, iw_checkbox, iw_coloredit3, iw_menuitem
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
     use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior
@@ -75,8 +75,8 @@ contains
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
-    logical :: islabels, isuc, hover_and_moved
-    logical(c_bool) :: ch, enabled
+    logical :: islabels, isuc, hover_and_moved, enabled
+    logical(c_bool) :: ch
     integer(c_int) :: flags, nc(3), ires, viewtype, idum
     real(c_float) :: scal, width, sqw, ratio, depth, rgba(4)
     real*8 :: x0(3)
@@ -491,8 +491,7 @@ contains
           ! add button
           ldum = iw_button("Add",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
           if (ok) then
-             str2 = "Ball and Stick [atoms]" // c_null_char
-             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             if (iw_menuitem("Ball and Stick",shortcut_text="Atoms")) then
                 id = w%sc%get_new_representation_id()
                 call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style,&
                    repflavor_atoms_basic)
@@ -500,8 +499,7 @@ contains
              end if
              call iw_tooltip("Display atoms, bonds, and labels in the scene",ttshown)
 
-             str2 = "Van der Waals Contacts [atoms]" // c_null_char
-             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             if (iw_menuitem("Van der Waals Contacts",shortcut_text="Atoms")) then
                 id = w%sc%get_new_representation_id()
                 call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style,&
                    repflavor_atoms_vdwcontacts)
@@ -509,8 +507,7 @@ contains
              end if
              call iw_tooltip("Display intermolecular close contacts using van der Waals radii",ttshown)
 
-             str2 = "Hydrogen Bonds [atoms]" // c_null_char
-             if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+             if (iw_menuitem("Hydrogen Bonds",shortcut_text="Atoms")) then
                 id = w%sc%get_new_representation_id()
                 call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_atoms,w%sc%style,&
                    repflavor_atoms_hbonds)
@@ -520,8 +517,7 @@ contains
 
              if (.not.sys(w%view_selected)%c%ismolecule) then
                 call igSeparator()
-                str2 = "Unit Cell [cell]" // c_null_char
-                if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
+                if (iw_menuitem("Unit Cell",shortcut_text="Cell")) then
                    id = w%sc%get_new_representation_id()
                    call w%sc%rep(id)%init(w%sc,w%view_selected,id,reptype_unitcell,w%sc%style,&
                       repflavor_unitcell_basic)
@@ -598,17 +594,13 @@ contains
        disabled=.not.associated(w%sc))
     call iw_tooltip("Show various tools operating on the view of this system",ttshown)
     if (ok) then
-       str2 = "Export to Image..." // c_null_char
        enabled = associated(w%sc)
-       if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,enabled)) then
+       if (iw_menuitem("Export to Image...",enabled=enabled)) &
           iaux = stack_create_window(wintype_exportimage,.true.,idparent=w%id,orraise=-1)
-       end if
        call iw_tooltip("Export the current view to an image file (png)",ttshown)
 
-       str2 = "Vibrations..." // c_null_char
-       if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,enabled)) then
+       if (iw_menuitem("Vibrations...",enabled=enabled)) &
           iaux = stack_create_window(wintype_vibrations,.true.,idparent=w%id,orraise=-1)
-       end if
        call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
        call igEndPopup()
     end if
@@ -619,8 +611,7 @@ contains
        ldum = iw_button("Cam-Lock",disabled=.not.associated(w%sc),sameline=.true.,&
           popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
        if (ok) then
-          str2 = "Lock All" // c_null_char
-          if (igMenuItem_Bool(c_loc(str2),c_null_ptr,logical(lockbehavior==2,c_bool),.true._c_bool)) then
+          if (iw_menuitem("Lock All",selected=(lockbehavior==2))) then
              lockbehavior = 2
              do k = 1, nsys
                 sysc(k)%sc%lockedcam = 1
@@ -628,8 +619,7 @@ contains
           end if
           call iw_tooltip("Lock the camera position for all loaded systems",ttshown)
 
-          str2 = "Lock SCF Iterations Only" // c_null_char
-          if (igMenuItem_Bool(c_loc(str2),c_null_ptr,logical(lockbehavior==1,c_bool),.true._c_bool)) then
+          if (iw_menuitem("Lock SCF Iterations Only",selected=(lockbehavior==1))) then
              lockbehavior = 1
              do k = 1, nsys
                 if (sysc(k)%collapse < 0) then
@@ -643,8 +633,7 @@ contains
           end if
           call iw_tooltip("Lock the camera position only for SCF iterations of the same system",ttshown)
 
-          str2 = "Unlock All" // c_null_char
-          if (igMenuItem_Bool(c_loc(str2),c_null_ptr,logical(lockbehavior==0,c_bool),.true._c_bool)) then
+          if (iw_menuitem("Unlock All",selected=(lockbehavior==0))) then
              lockbehavior = 0
              do k = 1, nsys
                 sysc(k)%sc%lockedcam = 0

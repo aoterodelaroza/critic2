@@ -27,7 +27,7 @@ contains
     use windows, only: stack_create_window
     use gui_main, only: g, ColorDangerButton, ColorFrameBgAlt
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text,&
-       iw_setposx_fromend, iw_calcheight, iw_calcwidth
+       iw_setposx_fromend, iw_calcheight, iw_calcwidth, iw_menuitem
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -170,8 +170,7 @@ contains
 
        ! context menu
        if (ok) then
-          strpop = "Edit Input" // c_null_char
-          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+          if (iw_menuitem("Edit Input")) then
              idx = index(com(icom(i))%input,c_null_char)
              if (idx > 0) then
                 call w%fill_input_ci(com(icom(i))%input(1:idx))
@@ -179,8 +178,7 @@ contains
              call igFocusWindow(win(iwin_console_input)%ptr)
           end if
 
-          strpop = "Remove" // c_null_char
-          if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
+          if (iw_menuitem("Remove")) then
              call com(icom(i))%end()
              icom(i:nicom-1) = icom(i+1:nicom)
              nicom = nicom - 1

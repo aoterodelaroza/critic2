@@ -35,6 +35,7 @@ module utils
   public :: iw_checkbox
   public :: iw_text
   public :: iw_button
+  public :: iw_menuitem
   public :: iw_tooltip
   public :: iw_highlight_selectable
   public :: igIsItemHovered_delayed
@@ -123,6 +124,14 @@ module utils
        logical, intent(in), optional :: centered
        real(c_float), intent(in), optional :: rgba(4)
      end subroutine iw_text
+     module function iw_menuitem(label,keybind,selected,enabled,shortcut_text)
+       character(len=*,kind=c_char), intent(in) :: label
+       integer, intent(in), optional :: keybind
+       logical, intent(in), optional :: selected
+       logical, intent(in), optional :: enabled
+       character(len=*,kind=c_char), intent(in), optional :: shortcut_text
+       logical :: iw_menuitem
+     end function iw_menuitem
      module function iw_button(str,danger,sameline,disabled,siz,&
         popupcontext,popupflags)
        character(len=*,kind=c_char), intent(in) :: str
