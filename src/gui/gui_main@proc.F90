@@ -856,6 +856,9 @@ contains
        ! File
        str1 = "File" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+          ! The operations in this menu apply to the tree selected system
+          isys = win(iwin_tree)%tree_selected
+          isysok = ok_system(isys,sys_init)
 
           ! File -> New
           launch(d_new) = launch(d_new) .or. iw_menuitem("New...",BIND_NEW)
@@ -869,12 +872,15 @@ contains
           launch(d_open) = launch(d_open) .or. iw_menuitem("Open...",BIND_OPEN)
           call iw_tooltip("Read molecular or crystal structures from external file(s)",ttshown)
 
+          ! File -> Close
+          if (iw_menuitem("Close",enabled=isysok)) &
+             win(iwin_tree)%forceremove = (/isys/)
+          call iw_tooltip("Close the current system",ttshown)
+
           ! File -> Separator
           call igSeparator()
 
           ! File -> Load Field
-          isys = win(iwin_tree)%tree_selected
-          isysok = ok_system(isys,sys_init)
           if (iw_menuitem("Load Field...",enabled=isysok)) &
              idum = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=-1)
           call iw_tooltip("Load a scalar field for the current system",ttshown)
@@ -950,8 +956,10 @@ contains
        ! Windows
        str1 = "Tools" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+          ! The operations in this menu apply to the view selected system
           isys = win(iwin_view)%view_selected
           isysok = ok_system(isys,sys_init)
+
           launch(d_geometry) = launch(d_geometry) .or. &
              iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=isysok)
           call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
