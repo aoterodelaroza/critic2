@@ -275,13 +275,13 @@ module windows
      end subroutine command_end
      module subroutine stack_realloc_maybe()
      end subroutine stack_realloc_maybe
-     module function stack_create_window(type,isopen,purpose,isys,irep,idcaller,itoken,permanent,orraise)
+     module function stack_create_window(type,isopen,purpose,isys,irep,idparent,itoken,permanent,orraise)
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
        integer, intent(in), optional :: isys
        integer, intent(in), optional :: irep
-       integer, intent(in), optional :: idcaller
+       integer, intent(in), optional :: idparent
        integer, intent(in), optional :: itoken
        logical, intent(in), optional :: permanent
        integer, intent(in), optional :: orraise
@@ -293,7 +293,7 @@ module windows
      end subroutine update_window_id
      module subroutine regenerate_window_pointers()
      end subroutine regenerate_window_pointers
-     module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idcaller,itoken)
+     module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken)
        class(window), intent(inout), target :: w
        integer, intent(in) :: type
        logical, intent(in) :: isopen
@@ -301,7 +301,7 @@ module windows
        integer, intent(in), optional :: purpose
        integer, intent(in), optional :: isys
        integer, intent(in), optional :: irep
-       integer, intent(in), optional :: idcaller
+       integer, intent(in), optional :: idparent
        integer, intent(in), optional :: itoken
      end subroutine window_init
      module subroutine window_end(w)

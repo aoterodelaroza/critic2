@@ -824,7 +824,7 @@ contains
 
   !> Show the representation menu (called from view). Return .true.
   !> if the scene needs to be rendered again.
-  module function representation_menu(s,idcaller) result(changed)
+  module function representation_menu(s,idparent) result(changed)
     use interfaces_cimgui
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox
     use windows, only: stack_create_window, wintype_editrep, update_window_id
@@ -832,7 +832,7 @@ contains
     use tools_io, only: string
     use tools, only: mergesort
     class(scene), intent(inout), target :: s
-    integer(c_int), intent(in) :: idcaller
+    integer(c_int), intent(in) :: idparent
     logical :: changed
 
     integer :: i, ii, id, ll, idum
@@ -901,7 +901,7 @@ contains
              ! edit
              str2 = "Edit" // c_null_char
              if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                idum = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller,&
+                idum = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idparent=idparent,&
                    orraise=-1)
              end if
              call iw_tooltip("Edit this object",ttshown)
@@ -971,7 +971,7 @@ contains
        ! edit button
        if (igTableSetColumnIndex(ic_editbutton)) then
           if (iw_button("Edit##2ic_editbutton" // string(ic_editbutton) // "," // string(i))) then
-             idum = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idcaller=idcaller,&
+             idum = stack_create_window(wintype_editrep,.true.,isys=s%id,irep=i,idparent=idparent,&
                 orraise=-1)
           end if
        end if

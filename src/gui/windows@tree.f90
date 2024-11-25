@@ -163,7 +163,7 @@ contains
        ! button: plot
        str = "Plot" // c_null_char
        if (igMenuItem_Bool(c_loc(str),c_null_ptr,.false._c_bool,.true._c_bool)) &
-          iaux = stack_create_window(wintype_treeplot,.true.,idcaller=w%id,orraise=-1)
+          iaux = stack_create_window(wintype_treeplot,.true.,idparent=w%id,orraise=-1)
        call iw_tooltip("Plot the tree data",ttshown)
        call igSeparator()
 
@@ -1917,7 +1917,7 @@ contains
        call iw_text("Source",highlight=.true.)
        if (iw_button("File",danger=(file1_format==0))) then
           iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfieldfile,&
-             idcaller=w%id,itoken=itoken_file1)
+             idparent=w%id,itoken=itoken_file1)
        end if
        call iw_tooltip("File from where the field is read",ttshown)
        if (len(file1) > 0) then
@@ -2046,7 +2046,7 @@ contains
        case(ifformat_wien)
           if (iw_button("File (.struct)",danger=.not.file2_set,disabled=disabled)) then
              iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal,&
-                idcaller=w%id,itoken=itoken_file2)
+                idparent=w%id,itoken=itoken_file2)
           end if
           call iw_tooltip("WIEN2k structure file (.struct) used to interpret the clmsum-style file",ttshown)
           if (len(file2) > 0) then
@@ -2057,7 +2057,7 @@ contains
        case(ifformat_elk)
           if (iw_button("File (GEOMETRY.OUT)",danger=.not.file2_set,disabled=disabled)) then
              iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal,&
-                idcaller=w%id,itoken=itoken_file2)
+                idparent=w%id,itoken=itoken_file2)
           end if
           call iw_tooltip("GEOMETRY.OUT structure file used to interpret the STATE.OUT",ttshown)
           if (len(file2) > 0) then
@@ -2068,7 +2068,7 @@ contains
        case(ifformat_dftb)
           if (iw_button("File (.bin)",danger=.not.file2_set,disabled=disabled)) then
              iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal,&
-                idcaller=w%id,itoken=itoken_file2)
+                idparent=w%id,itoken=itoken_file2)
           end if
           call iw_tooltip("eigenvec.bin file for reading the DFTB+ wavefunction",ttshown)
           if (len(file2) > 0) then
@@ -2079,7 +2079,7 @@ contains
 
           if (iw_button("File (.hsd)",danger=.not.file3_set,disabled=disabled)) then
              iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal,&
-                idcaller=w%id,itoken=itoken_file3)
+                idparent=w%id,itoken=itoken_file3)
           end if
           call iw_tooltip("hsd file for reading the DFTB+ wavefunction",ttshown)
           if (len(file3) > 0) then

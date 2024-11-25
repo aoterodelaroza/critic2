@@ -282,12 +282,12 @@ contains
   !> Create a window in the window stack with the given type. Returns
   !> the window ID. If isopen, initialize the window as open. purpose =
   !> for dialogs, purpose of the dialog. isys = associated system.
-  !> irep = associated representation. idcaller = window ID of the
+  !> irep = associated representation. idparent = window ID of the
   !> caller. permanent = do not kill the window when closed.
   !> orraise = if this is a valid window ID, raise the window instead
   !> of creating a new one; if orraise < 0, raise the first window
   !> from the stack with the same type as type.
-  module function stack_create_window(type,isopen,purpose,isys,irep,idcaller,itoken,permanent,orraise)
+  module function stack_create_window(type,isopen,purpose,isys,irep,idparent,itoken,permanent,orraise)
     use tools_io, only: ferror, faterr
     use windows, only: window, nwin, win
     integer, intent(in) :: type
@@ -295,7 +295,7 @@ contains
     integer, intent(in), optional :: purpose
     integer, intent(in), optional :: isys
     integer, intent(in), optional :: irep
-    integer, intent(in), optional :: idcaller
+    integer, intent(in), optional :: idparent
     integer, intent(in), optional :: itoken
     logical, intent(in), optional :: permanent
     integer, intent(in), optional :: orraise
@@ -314,8 +314,8 @@ contains
              ok = win(i)%type == type .and. win(i)%isopen
              ! specific tests according to type
              if (ok.and.type == wintype_dialog.and.present(purpose)) ok = (win(i)%dialog_data%purpose == purpose)
-             if (ok.and.type == wintype_editrep.and.present(isys).and.present(irep).and.present(idcaller)) then
-                ok = (win(i)%isys == isys .and. win(i)%irep == irep .and. win(i)%idparent == idcaller)
+             if (ok.and.type == wintype_editrep.and.present(isys).and.present(irep).and.present(idparent)) then
+                ok = (win(i)%isys == isys .and. win(i)%irep == irep .and. win(i)%idparent == idparent)
                 if (ok.and.present(itoken)) &
                    ok = (win(i)%itoken == itoken)
              end if
@@ -334,7 +334,7 @@ contains
           stack_create_window = raiseid
           if (present(isys)) win(raiseid)%isys = isys
           if (present(irep)) win(raiseid)%irep = irep
-          if (present(idcaller)) win(raiseid)%idparent = idcaller
+          if (present(idparent)) win(raiseid)%idparent = idparent
           if (present(itoken)) win(raiseid)%itoken = itoken
           call igSetWindowFocus_Str(c_loc(win(raiseid)%name))
           return
@@ -361,7 +361,7 @@ contains
        call ferror('stack_create_window','too many windows',faterr)
 
     ! initialize the new window
-    call win(id)%init(type,isopen,id,purpose,isys,irep,idcaller,itoken)
+    call win(id)%init(type,isopen,id,purpose,isys,irep,idparent,itoken)
     if (present(permanent)) then
        win(id)%permanent = permanent
     else
@@ -415,7 +415,7 @@ contains
 
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
-  module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idcaller,itoken)
+  module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken)
     use interfaces_opengl3
     use gui_main, only: ColorDialogDir, ColorDialogFile
     use tools_io, only: ferror, faterr
@@ -427,7 +427,7 @@ contains
     integer, intent(in), optional :: purpose
     integer, intent(in), optional :: isys
     integer, intent(in), optional :: irep
-    integer, intent(in), optional :: idcaller
+    integer, intent(in), optional :: idparent
     integer, intent(in), optional :: itoken
 
     character(kind=c_char,len=:), allocatable, target :: str1
@@ -468,7 +468,7 @@ contains
     w%plotn = 0
     if (present(isys)) w%isys = isys
     if (present(irep)) w%irep = irep
-    if (present(idcaller)) w%idparent = idcaller
+    if (present(idparent)) w%idparent = idparent
     if (present(itoken)) w%itoken = itoken
     if (present(purpose)) w%dialog_purpose = purpose
 
@@ -496,17 +496,17 @@ contains
           call ferror('window_init','editrep requires isys',faterr)
        if (.not.present(irep)) &
           call ferror('window_init','editrep requires irep',faterr)
-       if (.not.present(idcaller)) &
-          call ferror('window_init','editrep requires idcaller',faterr)
-       w%rep => win(idcaller)%sc%rep(irep)
+       if (.not.present(idparent)) &
+          call ferror('window_init','editrep requires idparent',faterr)
+       w%rep => win(idparent)%sc%rep(irep)
     elseif (type == wintype_exportimage) then
        ! export image window
-       if (.not.present(idcaller)) &
-          call ferror('window_init','exportimage requires idcaller',faterr)
+       if (.not.present(idparent)) &
+          call ferror('window_init','exportimage requires idparent',faterr)
     elseif (type == wintype_exportimage) then
        ! vibrations window
-       if (.not.present(idcaller)) &
-          call ferror('window_init','vibrations requires idcaller',faterr)
+       if (.not.present(idparent)) &
+          call ferror('window_init','vibrations requires idparent',faterr)
     elseif (type == wintype_view) then
        ! view window
        if (.not.present(purpose)) &

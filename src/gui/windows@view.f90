@@ -601,13 +601,13 @@ contains
        str2 = "Export to Image..." // c_null_char
        enabled = associated(w%sc)
        if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,enabled)) then
-          iaux = stack_create_window(wintype_exportimage,.true.,idcaller=w%id,orraise=-1)
+          iaux = stack_create_window(wintype_exportimage,.true.,idparent=w%id,orraise=-1)
        end if
        call iw_tooltip("Export the current view to an image file (png)",ttshown)
 
        str2 = "Vibrations..." // c_null_char
        if (igMenuItem_Bool(c_loc(str2),c_null_ptr,.false._c_bool,enabled)) then
-          iaux = stack_create_window(wintype_vibrations,.true.,idcaller=w%id,orraise=-1)
+          iaux = stack_create_window(wintype_vibrations,.true.,idparent=w%id,orraise=-1)
        end if
        call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
        call igEndPopup()
@@ -2648,7 +2648,7 @@ contains
     ! Image file button
     call iw_text("Image File",highlight=.true.)
     if (iw_button("File",danger=.true.)) &
-       iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_saveimagefile,idcaller=w%id,orraise=-1)
+       iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_saveimagefile,idparent=w%id,orraise=-1)
     call iw_tooltip("Choose the file to save the image to",ttshown)
     call iw_text(w%okfile,sameline=.true.)
 

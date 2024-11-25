@@ -429,7 +429,7 @@ contains
     call iw_text("Source",highlight=.true.)
     if (iw_button("Library file")) then
        idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openlibraryfile,&
-          idcaller=w%id,orraise=-1)
+          idparent=w%id,orraise=-1)
     end if
     call iw_tooltip("Library file from where the structures are read",ttshown)
     call iw_text(w%okfile,sameline=.true.)

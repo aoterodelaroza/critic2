@@ -321,9 +321,9 @@ module scenes
        type(scene), intent(in), target, optional :: si
        integer, intent(in), optional :: idx
      end subroutine scene_copy_cam
-     module function representation_menu(s,idcaller) result(changed)
+     module function representation_menu(s,idparent) result(changed)
        class(scene), intent(inout), target :: s
-       integer(c_int), intent(in) :: idcaller
+       integer(c_int), intent(in) :: idparent
        logical :: changed
      end function representation_menu
      module function get_new_representation_id(s) result(id)
