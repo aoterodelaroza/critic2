@@ -439,9 +439,9 @@ contains
     w%id = -id
     w%name = "" // c_null_char
     w%errmsg = ""
-    w%table_selected = 1
-    w%table_sortcid = 0
-    w%table_sortdir = 1
+    w%tree_selected = 1
+    w%tree_sortcid = 0
+    w%tree_sortdir = 1
     w%forceresize = .false.
     w%forcesort = .false.
     w%forceupdate = .false.

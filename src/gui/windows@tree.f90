@@ -83,7 +83,7 @@ contains
     type(ImVec2) :: szero, sz
     type(ImVec4) :: col4
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev, isys, iaux
+    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev, isys, iaux, nfreal
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -111,9 +111,9 @@ contains
     szero%x = 0
     szero%y = 0
     if (.not.allocated(w%iord)) then
-       w%table_sortcid = ic_id
-       w%table_sortdir = 1
-       w%table_selected = 1
+       w%tree_sortcid = ic_id
+       w%tree_sortdir = 1
+       w%tree_selected = 1
        w%forceupdate = .true.
        timelastupdate = 0d0
        timelastresize = 0d0
@@ -230,10 +230,10 @@ contains
        do k = 1, size(w%forceremove,1)
           call remove_system(w%forceremove(k))
           ! if we removed the selected system, go to the next; either, go to the previous
-          if (w%forceremove(k) == w%table_selected) then
+          if (w%forceremove(k) == w%tree_selected) then
              jsel = 0
              do j = 1, size(w%iord,1)
-                if (w%iord(j) == w%table_selected) then
+                if (w%iord(j) == w%tree_selected) then
                    jsel = j
                    exit
                 end if
@@ -270,9 +270,9 @@ contains
           end if
           ! if we removed the system for the input console or the view, update
           if (w%forceremove(k) == win(iwin_console_input)%inpcon_selected) &
-             win(iwin_console_input)%inpcon_selected = w%table_selected
+             win(iwin_console_input)%inpcon_selected = w%tree_selected
           if (w%forceremove(k) == win(iwin_view)%view_selected) &
-             call win(iwin_view)%select_view(w%table_selected)
+             call win(iwin_view)%select_view(w%tree_selected)
        end do
        deallocate(w%forceremove)
        w%timelastupdate = time
@@ -284,7 +284,7 @@ contains
        timelastupdate = time
     end if
     if (w%forcesort) then
-       call w%sort_tree(w%table_sortcid,w%table_sortdir)
+       call w%sort_tree(w%tree_sortcid,w%tree_sortdir)
        timelastsort = time
     end if
     if (w%forceinit) then
@@ -425,15 +425,15 @@ contains
           call c_f_pointer(ptrc,sortspecs)
           if (c_associated(sortspecs%Specs)) then
              call c_f_pointer(sortspecs%Specs,colspecs)
-             w%table_sortcid = colspecs%ColumnUserID
-             w%table_sortdir = colspecs%SortDirection
+             w%tree_sortcid = colspecs%ColumnUserID
+             w%tree_sortdir = colspecs%SortDirection
              if (sortspecs%SpecsDirty .and. nshown > 1) then
                 w%forcesort = .true.
                 sortspecs%SpecsDirty = .false.
              end if
           else
-             w%table_sortcid = ic_id
-             w%table_sortdir = 1
+             w%tree_sortcid = ic_id
+             w%tree_sortdir = 1
           end if
        end if
 
@@ -533,7 +533,12 @@ contains
                 end if
                 pos = igGetCursorPosX()
                 call igSetCursorPosX(pos + g%Style%FramePadding%x)
-                if (sys(i)%nf > 0) then
+
+                nfreal = 0
+                do k = 1, sys(i)%nf
+                   if (sys(i)%f(k)%isinit) nfreal = nfreal + 1
+                end do
+                if (nfreal > 0) then
                    call iw_text(ch,rgba=rgba_fields)
                 else
                    call iw_text(ch)
@@ -576,7 +581,7 @@ contains
                          str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // "##field" // &
                             string(i) // "," // string(k) // c_null_char
                       end if
-                      isel = (w%table_selected==i) .and. (sys(i)%iref == k)
+                      isel = (w%tree_selected==i) .and. (sys(i)%iref == k)
                       call igPushStyleColor_Vec4(ImGuiCol_Header,ColorFieldSelected)
                       flags = ImGuiSelectableFlags_SpanAllColumns
                       if (igSelectable_Bool(c_loc(str),isel,flags,szero)) then
@@ -714,7 +719,7 @@ contains
                                      "<generated>, potential of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_pot)
                                end if
                                call iw_tooltip("Load a new grid field using FFT as the potential that generates&
-                                  this field (via Poisson's equation)",ttshown)
+                                  &this field (via Poisson's equation)",ttshown)
                                call igEndMenu()
                             end if
 
@@ -910,7 +915,7 @@ contains
        ok = is_bind_event(BIND_TREE_REMOVE_SYSTEM_FIELD)
        ok = ok .and. igIsWindowFocused(ImGuiFocusedFlags_None)
        if (ok) then
-          jsel = w%table_selected
+          jsel = w%tree_selected
           iref = sys(jsel)%iref
           ok = ok_system(jsel,sys_init)
           if (ok) ok = sysc(jsel)%showfields
@@ -989,7 +994,7 @@ contains
       flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
       flags = ior(flags,ImGuiSelectableFlags_AllowDoubleClick)
       flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
-      selected = (w%table_selected==isys)
+      selected = (w%tree_selected==isys)
       strl = "##selectable" // string(isys) // c_null_char
       ok = igSelectable_Bool(c_loc(strl),selected,flags,szero)
       ok = ok .or. (w%forceselect == isys)
@@ -1007,7 +1012,7 @@ contains
 
       ! update the iprev and inext
       if (inext==0.and.didtableselected) inext = isys
-      if (isys == w%table_selected) didtableselected = .true.
+      if (isys == w%tree_selected) didtableselected = .true.
       if (.not.didtableselected) iprev = isys
 
       enabled = (sysc(isys)%status == sys_init)
@@ -1057,7 +1062,7 @@ contains
             ! rebond
             if (iw_menuitem("Recalculate Bonds...",enabled=enabled_no_threads)) &
                idrebond = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=-1)
-            call iw_tooltip("Recalculate the covalent bonds in this system and the molecular structures",ttshown)
+            call iw_tooltip("Recalculate the bonds in this system",ttshown)
 
             call igEndMenu()
          end if
@@ -1195,8 +1200,8 @@ contains
       end do
       sysc(i)%collapse = -1
       ! selected goes to master
-      if (w%table_selected >= 1 .and. w%table_selected <= nsys) then
-         if (sysc(w%table_selected)%collapse == i) call select_system(i,.true.)
+      if (w%tree_selected >= 1 .and. w%tree_selected <= nsys) then
+         if (sysc(w%tree_selected)%collapse == i) call select_system(i,.true.)
       end if
       w%forceupdate = .true.
 
@@ -1208,7 +1213,7 @@ contains
       integer, intent(in) :: i
       logical, intent(in) :: force
 
-      w%table_selected = i
+      w%tree_selected = i
       if (tree_select_updates_inpcon .or. force) &
          win(iwin_console_input)%inpcon_selected = i
       if (tree_select_updates_view .or. force) &
@@ -1880,7 +1885,7 @@ contains
     oksys = ok_system(isys,sys_init)
     if (.not.oksys) then
        ! reset to the table selected
-       isys = win(iwin_tree)%table_selected
+       isys = win(iwin_tree)%tree_selected
        oksys = ok_system(isys,sys_init)
     end if
     if (.not.oksys) then
@@ -2390,7 +2395,7 @@ contains
     oksys = ok_system(isys,sys_init)
     if (.not.oksys) then
        ! reset to the table selected
-       isys = win(iwin_tree)%table_selected
+       isys = win(iwin_tree)%tree_selected
        oksys = ok_system(isys,sys_init)
     end if
     if (.not.oksys) then

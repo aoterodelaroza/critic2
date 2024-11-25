@@ -96,10 +96,10 @@ module windows
      logical :: isdocked = .false. ! whether the window is docked
      real*8 :: timelastupdate ! time the window data was last updated
      ! tree table parameters
-     integer :: table_selected = 1 ! the system selected in a table (input to iord)
+     integer :: tree_selected = 1 ! the system selected in a table (input to iord)
      integer, allocatable :: iord(:) ! table order
-     integer(c_int) :: table_sortcid = 0 ! sort table by this column id
-     integer(c_int) :: table_sortdir = 1 ! sort table with this direction
+     integer(c_int) :: tree_sortcid = 0 ! sort table by this column id
+     integer(c_int) :: tree_sortdir = 1 ! sort table with this direction
      logical :: forceresize = .false. ! make true to force resize of columns
      logical :: forcesort = .false. ! make true to force a sort of the tree
      logical :: forceupdate = .false. ! make true to force an update of the tree

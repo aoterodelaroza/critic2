@@ -820,8 +820,8 @@ contains
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
-       wintype_preferences, wintype_view, wpurp_view_alternate,&
-       wintype_about, wintype_geometry
+       wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
+       wintype_about, wintype_geometry, wintype_rebond, wintype_vibrations
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, BIND_GEOMETRY, get_bind_keyname,&
        is_bind_event
@@ -837,7 +837,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     integer(c_int) :: idum
-    logical :: launchquit, launch(5)
+    logical :: launchquit, launch(5), isysok, ifieldok
     integer :: isys
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -868,6 +868,23 @@ contains
           ! File -> Open
           launch(d_open) = launch(d_open) .or. iw_menuitem("Open...",BIND_OPEN)
           call iw_tooltip("Read molecular or crystal structures from external file(s)",ttshown)
+
+          ! File -> Separator
+          call igSeparator()
+
+          ! File -> Load Field
+          isys = win(iwin_tree)%tree_selected
+          isysok = ok_system(isys,sys_init)
+          if (iw_menuitem("Load Field...",enabled=isysok)) &
+             idum = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=-1)
+          call iw_tooltip("Load a scalar field for the current system",ttshown)
+
+          ! File -> Remove Field
+          ifieldok = isysok
+          if (ifieldok) ifieldok = (sys(isys)%iref /= 0)
+          if (iw_menuitem("Remove Field",enabled=ifieldok)) &
+             call sys(isys)%unload_field(sys(isys)%iref)
+          call iw_tooltip("Remove the reference field from the current system",ttshown)
 
           ! File -> Separator
           call igSeparator()
@@ -933,10 +950,19 @@ contains
        ! Windows
        str1 = "Tools" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
-          isys = win(iwin_tree)%table_selected
+          isys = win(iwin_view)%view_selected
+          isysok = ok_system(isys,sys_init)
           launch(d_geometry) = launch(d_geometry) .or. &
-             iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=ok_system(isys,sys_init))
+             iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=isysok)
           call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
+
+          if (iw_menuitem("Recalculate Bonds...",enabled=isysok.and..not.are_threads_running())) &
+             idum = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=-1)
+          call iw_tooltip("Recalculate the bonds in the current system",ttshown)
+
+          if (iw_menuitem("Vibrations...",enabled=isysok)) &
+             idum = stack_create_window(wintype_vibrations,.true.,idparent=iwin_view,orraise=-1)
+          call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
 
           call igEndMenu()
        else
