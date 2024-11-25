@@ -1920,6 +1920,18 @@ contains
              idcaller=w%id,itoken=itoken_file1)
        end if
        call iw_tooltip("File from where the field is read",ttshown)
+       if (len(file1) > 0) then
+          if (iw_button("Clear##clearfile1",sameline=.true.,danger=.true.)) then
+             file1_format = 0
+             file1 = ""
+             file1_set = .false.
+             file1_fmtstr = ""
+             file2 = ""
+             file2_set = .false.
+             file3 = ""
+             file3_set = .false.
+          end if
+       end if
        call iw_text(file1,sameline=.true.)
 
        isgrid = .false.
@@ -2037,6 +2049,10 @@ contains
                 idcaller=w%id,itoken=itoken_file2)
           end if
           call iw_tooltip("WIEN2k structure file (.struct) used to interpret the clmsum-style file",ttshown)
+          if (len(file2) > 0) then
+             if (iw_button("Clear##clearfile2",sameline=.true.,danger=.true.)) &
+                file2 = ""
+          end if
           call iw_text(file2,sameline=.true.)
        case(ifformat_elk)
           if (iw_button("File (GEOMETRY.OUT)",danger=.not.file2_set,disabled=disabled)) then
@@ -2044,6 +2060,10 @@ contains
                 idcaller=w%id,itoken=itoken_file2)
           end if
           call iw_tooltip("GEOMETRY.OUT structure file used to interpret the STATE.OUT",ttshown)
+          if (len(file2) > 0) then
+             if (iw_button("Clear##clearfile3",sameline=.true.,danger=.true.)) &
+                file2 = ""
+          end if
           call iw_text(file2,sameline=.true.)
        case(ifformat_dftb)
           if (iw_button("File (.bin)",danger=.not.file2_set,disabled=disabled)) then
@@ -2051,6 +2071,10 @@ contains
                 idcaller=w%id,itoken=itoken_file2)
           end if
           call iw_tooltip("eigenvec.bin file for reading the DFTB+ wavefunction",ttshown)
+          if (len(file2) > 0) then
+             if (iw_button("Clear##clearfile4",sameline=.true.,danger=.true.)) &
+                file2 = ""
+          end if
           call iw_text(file2,sameline=.true.)
 
           if (iw_button("File (.hsd)",danger=.not.file3_set,disabled=disabled)) then
@@ -2058,6 +2082,10 @@ contains
                 idcaller=w%id,itoken=itoken_file3)
           end if
           call iw_tooltip("hsd file for reading the DFTB+ wavefunction",ttshown)
+          if (len(file3) > 0) then
+             if (iw_button("Clear##clearfile5",sameline=.true.,danger=.true.)) &
+                file3 = ""
+          end if
           call iw_text(file3,sameline=.true.)
        end select
 

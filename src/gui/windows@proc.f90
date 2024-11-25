@@ -717,7 +717,7 @@ contains
        elseif (w%type == wintype_load_field) then
           w%name = "Load Field##" // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 60 * fontsize%x
+          inisize%x = 65 * fontsize%x
           inisize%y = 16 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_scfplot) then
