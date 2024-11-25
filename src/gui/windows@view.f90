@@ -752,7 +752,8 @@ contains
     hover_and_moved = .false.
     if (hover) then
        call igGetMousePos(pos)
-       hover_and_moved = (abs(w%mousepos_lastframe%x-pos%x) > 1e-4 .or. abs(w%mousepos_lastframe%y-pos%y) > 1e-4)
+       hover_and_moved = (abs(w%mousepos_lastframe%x-pos%x) > 1e-4.or.abs(w%mousepos_lastframe%y-pos%y) > 1e-4)
+       hover_and_moved = hover_and_moved.or.(w%view_mousebehavior == MB_Navigation.and.is_bind_event(BIND_NAV_MEASURE))
        w%mousepos_lastframe = pos
     end if
 
