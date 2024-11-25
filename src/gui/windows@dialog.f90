@@ -40,7 +40,7 @@ contains
     type(c_ptr) :: cstr
     integer(c_size_t) :: i
     character(len=:), allocatable :: name, path, str, errmsg
-    logical :: readlastonly, system_ok
+    logical :: readlastonly, system_ok, doquit
     integer :: lu, ios, idx
 
     ! set initial, minimum, and maximum sizes
@@ -50,21 +50,22 @@ contains
     maxsize%y = 1e10_c_float
 
     ! handle cases when the dialog must quit
+    doquit = .false.
     if (w%dialog_purpose == wpurp_dialog_openvibfile) then
        ! open vibrations file dialog => quit if the system is gone
-       w%forcequitdialog = (w%isys < 1 .or. w%isys > nsys)
-       if (.not.w%forcequitdialog) w%forcequitdialog = (sysc(w%isys)%status /= sys_init)
+       doquit = (w%isys < 1 .or. w%isys > nsys)
+       if (.not.doquit) doquit = (sysc(w%isys)%status /= sys_init)
     elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile.or.w%dialog_purpose == wpurp_dialog_saveimagefile.or.&
        w%dialog_purpose == wpurp_dialog_openfieldfile.or.w%dialog_purpose == wpurp_dialog_openonefilemodal) then
        ! open library file, save image file, open field file, open one file modal
        ! => quit if the caller window is gone
-       w%forcequitdialog = .not.win(w%idparent)%isinit
+       doquit = .not.win(w%idparent)%isinit
     end if
 
     ! process the dialog
     if (IGFD_DisplayDialog(w%dptr,c_loc(w%name),w%flags,minsize,maxsize)) then
        ! the dialog has been closed
-       if (IGFD_IsOk(w%dptr).and..not.w%forcequitdialog) then
+       if (IGFD_IsOk(w%dptr).and..not.doquit) then
           ! with an OK, gather information
           if (w%dialog_purpose == wpurp_dialog_openfiles) then
              !! open files dialog !!
@@ -191,7 +192,7 @@ contains
 
     ! exit if focused and received the close keybinding, or if forced by some other window
     if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or. &
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS) .or. w%forcequitdialog) &
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS) .or. doquit) &
        call IGFD_ForceQuit(w%dptr)
 
     ! exit if focused and received the OK keybinding

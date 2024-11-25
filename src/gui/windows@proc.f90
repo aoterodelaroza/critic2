@@ -465,7 +465,6 @@ contains
     w%dialog_data%purpose = wpurp_unknown
     w%dialog_data%molcubic = .false.
     w%dialog_data%rborder = rborder_def*bohrtoa
-    w%forcequitdialog = .false.
     w%plotn = 0
     if (present(isys)) w%isys = isys
     if (present(irep)) w%irep = irep
