@@ -965,6 +965,7 @@ contains
 
     subroutine write_maybe_selectable(isys,tooltipstr)
       use gui_main, only: are_threads_running, duplicate_system
+      use keybindings, only: BIND_GEOMETRY
       use utils, only: iw_text
       use global, only: iunit, iunit_bohr, iunit_ang
       use tools_io, only: uout
@@ -1033,7 +1034,7 @@ contains
          strpop = "System" // c_null_char
          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
             ! Geometry
-            if (iw_menuitem("View/Edit Geometry...",enabled=enabled)) &
+            if (iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=enabled)) &
                idgeometry = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
             call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
 

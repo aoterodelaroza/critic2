@@ -34,6 +34,7 @@ submodule (keybindings) proc
   integer, parameter :: groupbind(BIND_NUM) = (/&
      group_global,& ! BIND_QUIT
      group_global,& ! BIND_NEW
+     group_global,& ! BIND_GEOMETRY
      group_global,& ! BIND_OPEN
      group_global,& ! BIND_CLOSE_ALL_DIALOGS
      group_dialog,& ! BIND_CLOSE_FOCUSED_DIALOG
@@ -213,6 +214,7 @@ contains
     ! Default keybindings
     call set_bind(BIND_QUIT,ImGuiKey_Q,mod_ctrl)
     call set_bind(BIND_NEW,ImGuiKey_N,mod_ctrl)
+    call set_bind(BIND_GEOMETRY,ImGuiKey_G,mod_none)
     call set_bind(BIND_OPEN,ImGuiKey_O,mod_ctrl)
     call set_bind(BIND_CLOSE_ALL_DIALOGS,ImGuiKey_Backspace,mod_none)
     call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Escape,mod_none)

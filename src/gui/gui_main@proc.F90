@@ -823,7 +823,8 @@ contains
        wintype_preferences, wintype_view, wpurp_view_alternate,&
        wintype_about, wintype_geometry
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
-    use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, get_bind_keyname, is_bind_event
+    use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, BIND_GEOMETRY, get_bind_keyname,&
+       is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
 
@@ -832,10 +833,11 @@ contains
     integer, parameter :: d_new = 2
     integer, parameter :: d_newlib = 3
     integer, parameter :: d_preferences = 4
+    integer, parameter :: d_geometry = 5
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     integer(c_int) :: idum
-    logical :: launchquit, launch(4)
+    logical :: launchquit, launch(5)
     integer :: isys
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -846,6 +848,7 @@ contains
     launch(d_new) = is_bind_event(BIND_NEW)
     launch(d_newlib) = .false.
     launch(d_preferences) = .false.
+    launch(d_geometry) = is_bind_event(BIND_GEOMETRY)
     launchquit = is_bind_event(BIND_QUIT)
 
     ! start the menu
@@ -931,8 +934,8 @@ contains
        str1 = "Tools" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
           isys = win(iwin_tree)%table_selected
-          if (iw_menuitem("View/Edit Geometry...",enabled=ok_system(isys,sys_init))) &
-             idum = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
+          launch(d_geometry) = launch(d_geometry) .or. &
+             iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=ok_system(isys,sys_init))
           call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
 
           call igEndMenu()
@@ -977,6 +980,8 @@ contains
        idum = stack_create_window(wintype_new_struct_library,.true.,orraise=-1)
     if (launch(d_open)) &
        idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles,orraise=-1)
+    if (launch(d_geometry)) &
+       idum = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
     if (launchquit) then
        if (are_threads_running()) &
           call kill_initialization_thread()
