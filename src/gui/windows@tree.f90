@@ -70,7 +70,10 @@ contains
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
-    use param, only: bohrtoa, ifformat_as_resample
+    use param, only: bohrtoa, ifformat_as_resample, ifformat_as_ft_x, ifformat_as_ft_y,&
+       ifformat_as_ft_z, ifformat_as_ft_xx, ifformat_as_ft_xy, ifformat_as_ft_xz,&
+       ifformat_as_ft_yy, ifformat_as_ft_yz, ifformat_as_ft_zz, ifformat_as_ft_grad,&
+       ifformat_as_ft_lap, ifformat_as_ft_pot
     use c_interface_module
     class(window), intent(inout), target :: w
 
@@ -157,7 +160,7 @@ contains
        call iw_tooltip("Write the current tree to the output console in csv-style (for copying)",ttshown)
 
        ! button: plot
-       if (iw_menuitem("Plot")) &
+       if (iw_menuitem("Plot Tree Data...")) &
           iaux = stack_create_window(wintype_treeplot,.true.,idparent=w%id,orraise=-1)
        call iw_tooltip("Plot the tree data",ttshown)
        call igSeparator()
@@ -621,37 +624,104 @@ contains
 
                          ! grid calculation options
                          if (sys(i)%f(k)%type == type_grid) then
-                            ! strpop = "Load gradient grid" // c_null_char
-                            !! iw_menuitem
-                            !! ! if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                            !    id = sys(i)%getfieldnum()
-                            !    call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, gradient of $" // string(k),&
-                            !       sys(i)%f(k)%grid,ifformat_as_grad)
-                            ! end if
-                            ! call iw_tooltip("Load a new grid field as the gradient of this field",ttshown)
+                            strpop = "Load Fourier-Transformed Grid" // c_null_char
+                            if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+                               ldum = iw_menuitem("[First derivatives]",enabled=.false.)
+                               if (iw_menuitem("x")) then
+                                  id = sys(i)%getfieldnum()
+                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                     "<generated>, x-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_x)
+                               end if
+                               call iw_tooltip("Load a new grid field using FFT as the x-component of &
+                                  &this field's gradient",ttshown)
+                               if (iw_menuitem("y")) then
+                                  id = sys(i)%getfieldnum()
+                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                     "<generated>, y-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_y)
+                               end if
+                               call iw_tooltip("Load a new grid field using FFT as the y-component of &
+                                  &this field's gradient",ttshown)
+                               if (iw_menuitem("z")) then
+                                  id = sys(i)%getfieldnum()
+                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                     "<generated>, z-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_z)
+                               end if
+                               call iw_tooltip("Load a new grid field using FFT as the z-component of &
+                                  &this field's gradient",ttshown)
+                               if (iw_menuitem("Gradient Norm")) then
+                                  id = sys(i)%getfieldnum()
+                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                     "<generated>, grad of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_grad)
+                               end if
+                               call iw_tooltip("Load a new grid field using FFT as the norm of &
+                                  &this field's gradient",ttshown)
+                               call igSeparator()
 
-                            ! strpop = "Load Laplacian grid" // c_null_char
-                            !! iw_menuitem
-                            !! if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                            !    id = sys(i)%getfieldnum()
-                            !    call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, Laplacian of $" // string(k),&
-                            !       sys(i)%f(k)%grid,ifformat_as_lap)
-                            ! end if
-                            ! call iw_tooltip("Load a new grid field as the Laplacian of this field",ttshown)
+                               ldum = iw_menuitem("[Second derivatives]",enabled=.false.)
+                               if (iw_menuitem("xx")) then
+                                  id = sys(i)%getfieldnum()
+                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                     "<generated>, xx-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xx)
+                               end if
+                               call iw_tooltip("Load a new grid field using FFT as the xx component of &
+                                  &this field's Hessian matrix",ttshown)
+                               if (iw_menuitem("xy")) then
+                                  id = sys(i)%getfieldnum()
+                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                     "<generated>, xy-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xy)
+                               end if
+                               call iw_tooltip("Load a new grid field using FFT as the xy component of &
+                                  &this field's Hessian matrix",ttshown)
+                               if (iw_menuitem("xz")) then
+                                  id = sys(i)%getfieldnum()
+                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                     "<generated>, xz-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xz)
+                               end if
+                               call iw_tooltip("Load a new grid field using FFT as the xz component of &
+                                  &this field's Hessian matrix",ttshown)
+                               if (iw_menuitem("yy")) then
+                                  id = sys(i)%getfieldnum()
+                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                     "<generated>, yy-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_yy)
+                               end if
+                               call iw_tooltip("Load a new grid field using FFT as the yy component of &
+                                  &this field's Hessian matrix",ttshown)
+                               if (iw_menuitem("yz")) then
+                                  id = sys(i)%getfieldnum()
+                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                     "<generated>, yz-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_yz)
+                               end if
+                               call iw_tooltip("Load a new grid field using FFT as the yz component of &
+                                  &this field's Hessian matrix",ttshown)
+                               if (iw_menuitem("zz")) then
+                                  id = sys(i)%getfieldnum()
+                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, zz-derivative of $" // string(k),&
+                                     sys(i)%f(k)%grid,ifformat_as_ft_zz)
+                               end if
+                               call iw_tooltip("Load a new grid field using FFT as the zz component of &
+                                  &this field's Hessian matrix",ttshown)
+                               if (iw_menuitem("Laplacian")) then
+                                  id = sys(i)%getfieldnum()
+                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                     "<generated>, lap of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_lap)
+                               end if
+                               call iw_tooltip("Load a new grid field using FFT as the Laplacian of this field",ttshown)
 
-                            ! strpop = "Load potential grid" // c_null_char
-                            !! iw_menuitem
-                            !! if (igMenuItem_Bool(c_loc(strpop),c_null_ptr,.false._c_bool,.true._c_bool)) then
-                            !    id = sys(i)%getfieldnum()
-                            !    call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, potential of $" // string(k),&
-                            !       sys(i)%f(k)%grid,ifformat_as_pot)
-                            ! end if
-                            ! call iw_tooltip("Load a new grid field as the potential of this field",ttshown)
+                               call igSeparator()
+                               if (iw_menuitem("Potential")) then
+                                  id = sys(i)%getfieldnum()
+                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                     "<generated>, potential of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_pot)
+                               end if
+                               call iw_tooltip("Load a new grid field using FFT as the potential that generates&
+                                  this field (via Poisson's equation)",ttshown)
+                               call igEndMenu()
+                            end if
 
-                            strpop = "Load resampled grid" // c_null_char
+                            strpop = "Load Resampled Grid" // c_null_char
                             if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
                                flags = ImGuiInputTextFlags_None
-                               strpop2 = "New size##resamplefieldmenunewsize" // c_null_char
+                               strpop2 = "New Size##resamplefieldmenunewsize" // c_null_char
                                call igSetNextItemWidth(iw_calcwidth(4*3,2))
                                ldum = igInputInt3(c_loc(strpop2),iresample,flags)
 
@@ -946,7 +1016,7 @@ contains
       if (igBeginPopupContextItem(c_loc(strl),ImGuiPopupFlags_MouseButtonRight)) then
          ! scf energy plot
          if (sysc(isys)%collapse /= 0) then
-            if (iw_menuitem("Plot SCF Iterations",enabled=enabled_no_threads)) then
+            if (iw_menuitem("Plot SCF Iterations...",enabled=enabled_no_threads)) then
                if (sysc(isys)%collapse < 0) then
                   isyscollapse = isys
                else
@@ -963,7 +1033,7 @@ contains
          strpop = "System" // c_null_char
          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
             ! Geometry
-            if (iw_menuitem("View/Edit Geometry",enabled=enabled)) &
+            if (iw_menuitem("View/Edit Geometry...",enabled=enabled)) &
                idgeometry = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
             call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
 
@@ -984,7 +1054,7 @@ contains
             call iw_tooltip("Print a detailed description of this system in the output console",ttshown)
 
             ! rebond
-            if (iw_menuitem("Recalculate Bonds",enabled=enabled_no_threads)) &
+            if (iw_menuitem("Recalculate Bonds...",enabled=enabled_no_threads)) &
                idrebond = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=-1)
             call iw_tooltip("Recalculate the covalent bonds in this system and the molecular structures",ttshown)
 
@@ -995,7 +1065,7 @@ contains
          strpop = "Fields" // c_null_char
          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
             ! load field
-            if (iw_menuitem("Load Field",enabled=enabled)) &
+            if (iw_menuitem("Load Field...",enabled=enabled)) &
                iaux = stack_create_window(wintype_load_field,.true.,isys=isys,orraise=-1)
             call iw_tooltip("Load a scalar field for this system",ttshown)
 
@@ -1006,7 +1076,7 @@ contains
          strpop = "Vibrations" // c_null_char
          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
             ! load vibration data
-            if (iw_menuitem("Load Vibration Data",enabled=enabled)) then
+            if (iw_menuitem("Load Vibration Data...",enabled=enabled)) then
                iaux = stack_create_window(wintype_dialog,.true.,purpose=wpurp_dialog_openvibfile,&
                   isys=isys,orraise=-1)
             end if

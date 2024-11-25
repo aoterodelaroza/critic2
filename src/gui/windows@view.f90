@@ -2842,7 +2842,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical(c_bool) :: selected
-    logical :: doquit, system_ok, vib_ok, goodparent, ldum, fset
+    logical :: doquit, goodsys, vib_ok, goodparent, ldum, fset
     integer :: isys, i, digits, iaux
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, strl
@@ -2892,14 +2892,14 @@ contains
     end if
 
     ! vibrations ok?
-    system_ok = ok_system(isys,sys_init)
-    vib_ok = system_ok
+    goodsys = ok_system(isys,sys_init)
+    vib_ok = goodsys
     if (vib_ok) vib_ok = allocated(sys(isys)%c%vib)
     if (vib_ok) vib_ok = (sys(isys)%c%vib%nqpt > 0) .and. (sys(isys)%c%vib%nfreq > 0)
     if (vib_ok) vib_ok = associated(win(w%idparent)%sc)
 
     ! header
-    if (system_ok) then
+    if (goodsys) then
        ! system name
        call iw_text("System",highlight=.true.)
        call iw_text("(" // string(isys) // ") " // trim(sysc(isys)%seed%name),sameline=.true.)

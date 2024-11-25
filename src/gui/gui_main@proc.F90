@@ -836,7 +836,6 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     integer(c_int) :: idum
     logical :: launchquit, launch(4)
-    logical :: system_ok
     integer :: isys
 
     logical, save :: ttshown = .false. ! tooltip flag
