@@ -394,7 +394,7 @@ contains
   !> structure and its components. It is used when an array size is
   !> exceeded and move_alloc needs to be used to allocate more memory.
   module subroutine regenerate_window_pointers()
-    use gui_main, only: sysc, nsys, sys_init
+    use gui_main, only: sysc, nsys, sys_init, ok_system
 
     integer :: i, iv
 
@@ -404,9 +404,8 @@ contains
        elseif (win(i)%type == wintype_view) then
           win(i)%sc => null()
           iv = win(i)%view_selected
-          if (iv >= 1 .and. iv <= nsys) then
-             if (sysc(iv)%status == sys_init.and.win(i)%ismain) &
-                win(i)%sc => sysc(iv)%sc
+          if (ok_system(iv,sys_init)) then
+             if (win(i)%ismain) win(i)%sc => sysc(iv)%sc
           end if
        end if
     end do

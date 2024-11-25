@@ -59,13 +59,12 @@ contains
 
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
-    use gui_main, only: nsys, sys, sysc, lockbehavior, sys_ready
+    use gui_main, only: nsys, sys, sysc, lockbehavior, sys_ready, ok_system
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
 
     ! check the system is sane
-    if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status < sys_ready) return
+    if (.not.ok_system(isys,sys_ready)) return
 
     ! basic variables
     s%id = isys
@@ -213,15 +212,14 @@ contains
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
     use utils, only: translate
-    use gui_main, only: time, sysc, sys_ready, nsys
+    use gui_main, only: time, sysc, sys_ready, nsys, ok_system
     class(scene), intent(inout), target :: s
 
     integer :: i
     real(c_float) :: xmin(3), xmax(3), maxrad, xc(3)
 
     ! only build lists if system is initialized
-    if (s%id < 1 .or. s%id > nsys) return
-    if (sysc(s%id)%status < sys_ready) return
+    if (.not.ok_system(s%id,sys_ready)) return
 
     ! initialize
     s%nsph = 0
@@ -1148,7 +1146,7 @@ contains
   !> Generate the neighbor stars from the data in the rij table using
   !> the geometry in system isys.
   module subroutine generate_neighstars_from_globals(d,isys)
-    use gui_main, only: nsys, sys, sysc, sys_ready
+    use gui_main, only: nsys, sys, sysc, sys_ready, ok_system
     use param, only: bohrtoa, atmcov, atmvdw
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in) :: isys
@@ -1159,8 +1157,7 @@ contains
 
     ! check all the info is available
     if (.not.d%isinit) return
-    if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status < sys_ready) return
+    if (.not.ok_system(isys,sys_ready)) return
 
     ! allocate temporary data for rij table
     allocate(rij_t(sys(isys)%c%nspc,2,sys(isys)%c%nspc))
@@ -1204,7 +1201,7 @@ contains
   !> = parent scene, isys = system ID, irep = representation ID, style
   !> = phong or simple.
   module subroutine representation_init(r,sc,isys,irep,itype,style,flavor)
-    use gui_main, only: sys, nsys, sysc, sys_ready
+    use gui_main, only: sys, nsys, sysc, sys_ready, ok_system
     use tools_io, only: string
     class(representation), intent(inout), target :: r
     type(scene), intent(inout), target :: sc
@@ -1215,8 +1212,7 @@ contains
     integer, intent(in) :: flavor
 
     ! check the system is sane
-    if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status < sys_ready) return
+    if (.not.ok_system(isys,sys_ready)) return
 
     ! common settings
     r%isinit = .false.
@@ -1326,7 +1322,7 @@ contains
   !> Update the representation to respond to a change in the number
   !> of atoms or molecules in the associated system.
   module subroutine update_structure(r)
-    use gui_main, only: nsys, sys, sysc, sys_ready
+    use gui_main, only: nsys, sys, sysc, sys_ready, ok_system
     class(representation), intent(inout), target :: r
 
     logical :: doreset
@@ -1334,8 +1330,7 @@ contains
 
     ! consistency checks
     if (.not.r%isinit .or. r%id == 0) return
-    if (r%id < 1 .or. r%id > nsys) return
-    if (sysc(r%id)%status < sys_ready) return
+    if (.not.ok_system(r%id,sys_ready)) return
 
     ! initialize the atom and molecule style if not done already or if
     ! the number of atoms have changed
@@ -1859,7 +1854,7 @@ contains
 
   !> Reset atom style
   module subroutine reset_atom_style(r)
-    use gui_main, only: nsys, sys, sysc, sys_ready
+    use gui_main, only: nsys, sys, sysc, sys_ready, ok_system
     use param, only: jmlcol, atmcov
     class(representation), intent(inout), target :: r
 
@@ -1880,8 +1875,7 @@ contains
 
     ! check the system is sane
     isys = r%id
-    if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status < sys_ready) return
+    if (.not.ok_system(isys,sys_ready)) return
 
     ! fill according to the style
     if (r%atom_style%type == 0) then ! species
@@ -1922,7 +1916,7 @@ contains
   !> Reset molecule style with default values. Use the information in
   !> system isys, or leave it empty if isys = 0.
   module subroutine reset_mol_style(r)
-    use gui_main, only: nsys, sys, sysc, sys_ready
+    use gui_main, only: nsys, sys, sysc, sys_ready, ok_system
     class(representation), intent(inout), target :: r
 
     integer :: isys
@@ -1937,8 +1931,7 @@ contains
     if (allocated(r%mol_style%scale_rad)) deallocate(r%mol_style%scale_rad)
 
     ! check the system is sane
-    if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status < sys_ready) return
+    if (.not.ok_system(isys,sys_ready)) return
 
     ! fill
     r%mol_style%ntype = sys(isys)%c%nmol
@@ -1957,7 +1950,7 @@ contains
   !> flavor. Use the information in system isys, or leave it empty if
   !> isys = 0.
   module subroutine reset_bond_style(r)
-    use gui_main, only: nsys, sys, sysc, sys_ready
+    use gui_main, only: nsys, sys, sysc, sys_ready, ok_system
     use global, only: bondfactor
     class(representation), intent(inout), target :: r
 
@@ -1972,8 +1965,7 @@ contains
     if (allocated(r%bond_style%nstar)) deallocate(r%bond_style%nstar)
 
     ! check the system is sane
-    if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status < sys_ready) return
+    if (.not.ok_system(isys,sys_ready)) return
     r%bond_style%isinit = .true.
 
     ! fill temp options
@@ -2055,7 +2047,7 @@ contains
   !> Reset label style with default values. Use the information in
   !> system isys, or leave it empty if isys = 0.
   module subroutine reset_label_style(r)
-    use gui_main, only: nsys, sys, sysc, sys_ready
+    use gui_main, only: nsys, sys, sysc, sys_ready, ok_system
     use tools_io, only: nameguess, string
     class(representation), intent(inout), target :: r
 
@@ -2066,8 +2058,7 @@ contains
 
     ! check the system is sane
     isys = r%id
-    if (isys < 1 .or. isys > nsys) return
-    if (sysc(isys)%status < sys_ready) return
+    if (.not.ok_system(isys,sys_ready)) return
 
     ! set the atom style to defaults
     r%label_style%isinit = .true.

@@ -62,7 +62,7 @@ contains
        iw_setposx_fromend, iw_checkbox, iw_coloredit3, iw_menuitem
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
-    use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior
+    use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior, ok_system
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
     use tools_io, only: string
     use param, only: newline
@@ -102,8 +102,7 @@ contains
     end if
 
     ! whether the selected view system is a good system, and associate the scene
-    goodsys = (w%view_selected >= 1 .and. w%view_selected <= nsys)
-    if (goodsys) goodsys = sysc(w%view_selected)%status == sys_init
+    goodsys = ok_system(w%view_selected,sys_init)
     if (goodsys) then
        if (w%ismain) then
           if (.not.associated(w%sc)) w%sc => sysc(w%view_selected)%sc
@@ -1527,7 +1526,7 @@ contains
   !> Update the isys and irep in the edit represenatation window.
   module subroutine update_editrep(w)
     use windows, only: nwin, win, wintype_view
-    use gui_main, only: nsys, sysc, sys_init
+    use gui_main, only: nsys, sysc, sys_init, ok_system
     class(window), intent(inout), target :: w
 
     integer :: isys
@@ -1535,8 +1534,7 @@ contains
 
     ! check the system and representation are still active
     isys = w%isys
-    doquit = (isys < 1 .or. isys > nsys)
-    if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
+    doquit = .not.ok_system(isys,sys_init)
     if (.not.doquit) doquit = .not.associated(w%rep)
     if (.not.doquit) doquit = .not.w%rep%isinit
     if (.not.doquit) doquit = (w%rep%type <= 0)
@@ -1555,7 +1553,7 @@ contains
     use windows, only: nwin, win, wintype_view
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: nsys, sysc, sys_init, g
+    use gui_main, only: nsys, sysc, sys_init, g, ok_system
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_calcheight, iw_checkbox
     use tools_io, only: string
@@ -1572,8 +1570,7 @@ contains
 
     ! check the system and representation are still active
     isys = w%isys
-    doquit = (isys < 1 .or. isys > nsys)
-    if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
+    doquit = .not.ok_system(isys,sys_init)
     if (.not.doquit) doquit = .not.associated(w%rep)
     if (.not.doquit) doquit = .not.w%rep%isinit
     if (.not.doquit) doquit = (w%rep%type <= 0)
@@ -2590,7 +2587,7 @@ contains
   module subroutine draw_exportimage(w)
     use interfaces_opengl3
     use interfaces_stb
-    use gui_main, only: sysc, sys_init, nsys, g
+    use gui_main, only: sysc, sys_init, nsys, g, ok_system
     use windows, only: wintype_dialog, wpurp_dialog_saveimagefile
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, get_current_working_dir,&
        iw_checkbox
@@ -2748,8 +2745,7 @@ contains
              win(w%idparent)%sc%bgcolor(3),1._c_float)
        end if
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
-       goodsys = (isys >= 1 .and. isys <= nsys)
-       if (goodsys) goodsys = (sysc(isys)%status == sys_init)
+       goodsys = ok_system(isys,sys_init)
        if (goodsys) call win(w%idparent)%sc%render()
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
@@ -2836,7 +2832,7 @@ contains
     use scenes, only: anim_speed_default, anim_amplitude_default, anim_amplitude_max,&
        anim_speed_max
     use gui_main, only: sysc, sys, nsys, sys_init, g, add_systems_from_seeds,&
-       launch_initialization_thread, time
+       launch_initialization_thread, time, ok_system
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_radiobutton
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
@@ -2894,10 +2890,9 @@ contains
           doquit = .true.
        end if
     end if
-    system_ok = (isys > 0 .and. isys <= nsys)
-    if (system_ok) system_ok = (sysc(isys)%status == sys_init)
 
     ! vibrations ok?
+    system_ok = ok_system(isys,sys_init)
     vib_ok = system_ok
     if (vib_ok) vib_ok = allocated(sys(isys)%c%vib)
     if (vib_ok) vib_ok = (sys(isys)%c%vib%nqpt > 0) .and. (sys(isys)%c%vib%nfreq > 0)

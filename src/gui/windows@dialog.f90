@@ -28,7 +28,7 @@ contains
        BIND_OK_FOCUSED_DIALOG
     use windows, only: win
     use gui_main, only: add_systems_from_name, launch_initialization_thread,&
-       system_shorten_names, sysc, nsys, sys_init, sys
+       system_shorten_names, sysc, nsys, sys_init, sys, ok_system
     use c_interface_module, only: C_F_string_alloc, c_free
     use tools_io, only: ferror, faterr, fopen_write, fclose, uout
     use param, only: dirsep, bohrtoa
@@ -40,7 +40,7 @@ contains
     type(c_ptr) :: cstr
     integer(c_size_t) :: i
     character(len=:), allocatable :: name, path, str, errmsg
-    logical :: readlastonly, system_ok, doquit
+    logical :: readlastonly, doquit
     integer :: lu, ios, idx
 
     ! set initial, minimum, and maximum sizes
@@ -53,8 +53,7 @@ contains
     doquit = .false.
     if (w%dialog_purpose == wpurp_dialog_openvibfile) then
        ! open vibrations file dialog => quit if the system is gone
-       doquit = (w%isys < 1 .or. w%isys > nsys)
-       if (.not.doquit) doquit = (sysc(w%isys)%status /= sys_init)
+       doquit = (.not.ok_system(w%isys,sys_init))
     elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile.or.w%dialog_purpose == wpurp_dialog_saveimagefile.or.&
        w%dialog_purpose == wpurp_dialog_openfieldfile.or.w%dialog_purpose == wpurp_dialog_openonefilemodal) then
        ! open library file, save image file, open field file, open one file modal
@@ -152,9 +151,7 @@ contains
              end do
 
              ! open the vibrations file
-             system_ok = (w%isys > 0 .and. w%isys <= nsys)
-             if (system_ok) system_ok = (sysc(w%isys)%status == sys_init)
-             if (system_ok) then
+             if (ok_system(w%isys,sys_init)) then
                 call sys(w%isys)%c%clear_vibrations()
                 str = w%okfile
                 do while (.true.)

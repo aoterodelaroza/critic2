@@ -66,7 +66,7 @@ contains
        launch_initialization_thread, ColorTableCellBg,&
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
        ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon,&
-       tree_select_updates_view, fontsize, time
+       tree_select_updates_view, fontsize, time, ok_system
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
@@ -842,9 +842,8 @@ contains
        if (ok) then
           jsel = w%table_selected
           iref = sys(jsel)%iref
-          ok = (jsel >= 1 .and. jsel <= nsys)
+          ok = ok_system(jsel,sys_init)
           if (ok) ok = sysc(jsel)%showfields
-          if (ok) ok = (sysc(jsel)%status == sys_init)
           if (ok) ok = (iref >= 1 .and. iref <= sys(jsel)%nf)
           if (ok) ok = sys(jsel)%f(iref)%isinit
           if (ok) then
@@ -1332,7 +1331,7 @@ contains
        iperiod_3d_layered, iperiod_3d_chain, iperiod_3d_molecular,&
        iperiod_2d, iperiod_1d, iperiod_0d, iperiod_mol_single,&
        iperiod_mol_cluster
-    use gui_main, only: sys, sysc, nsys, sys_init, ColorTableCellBg
+    use gui_main, only: sys, sysc, nsys, sys_init, ColorTableCellBg, ok_system, sys_empty
     use tools_io, only: string
     use param, only: bohrtoa, maxzat, atmass, pcamu, bohrtocm
     use tools_math, only: gcd
@@ -1349,7 +1348,7 @@ contains
     integer :: izp0
 
     str = ""
-    if (i < 1 .or. i > nsys) return
+    if (.not.ok_system(i,sys_empty)) return
 
     ! begin the tooltip
     call igBeginTooltip()
@@ -1517,7 +1516,7 @@ contains
   ! corresponding to system si and field fj
   subroutine tree_field_tooltip_string(si,fj)
     use utils, only: iw_text
-    use gui_main, only: sys, sysc, nsys, sys_init
+    use gui_main, only: sys, sysc, nsys, sys_init, ok_system
     use fieldmod, only: field, type_uninit, type_promol, type_grid, type_wien,&
        type_elk, type_pi, type_wfn, type_dftb, type_promol_frag, type_ghost
     use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_adf_sto,&
@@ -1533,8 +1532,7 @@ contains
     type(field), pointer :: f
 
     str = ""
-    if (si < 1 .or. si > nsys) return
-    if (sysc(si)%status /= sys_init) return
+    if (.not.ok_system(si,sys_init)) return
     if (fj < 0 .or. fj > sys(si)%nf) return
     if (.not. sys(si)%f(fj)%isinit) return
     f => sys(si)%f(fj)
@@ -1762,7 +1760,7 @@ contains
        ifformat_wfx, ifformat_fchk, ifformat_molden, dirsep
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: nsys, sysc, sys, sys_init, g
+    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system
     use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button,&
        iw_calcwidth
     use tools_io, only: string
@@ -1808,21 +1806,21 @@ contains
     !! make sure we get a system that exists
     ! check if the system still exists
     isys = w%isys
-    oksys = system_ok(isys)
+    oksys = ok_system(isys,sys_init)
     if (.not.oksys) then
        ! reset to the table selected
        isys = win(iwin_tree)%table_selected
-       oksys = system_ok(isys)
+       oksys = ok_system(isys,sys_init)
     end if
     if (.not.oksys) then
        ! reset to the input console selected
        isys = win(iwin_tree)%inpcon_selected
-       oksys = system_ok(isys)
+       oksys = ok_system(isys,sys_init)
     end if
     if (.not.oksys) then
        ! check all systems and try to find one that is OK
        do i = 1, nsys
-          oksys = system_ok(isys)
+          oksys = ok_system(isys,sys_init)
           if (oksys) then
              isys = i
              exit
@@ -2167,29 +2165,18 @@ contains
       if (allocated(file2)) deallocate(file2)
       if (allocated(file3)) deallocate(file3)
     end subroutine end_state
-
-    ! returns OK if system isys is initialized
-    function system_ok(isys)
-      integer, intent(in) :: isys
-      logical :: system_ok
-
-      system_ok = (isys > 0 .and. isys <= nsys)
-      if (system_ok) system_ok = (sysc(isys)%status == sys_init)
-
-    end function system_ok
   end subroutine draw_load_field
 
   !> Update the parameters in an scfplot window
   module subroutine update_scfplot(w)
-    use gui_main, only: nsys, sysc, sys_init
+    use gui_main, only: nsys, sysc, sys_init, ok_system
     class(window), intent(inout), target :: w
 
     integer :: isys
     logical :: doquit
 
     isys = w%isys
-    doquit = (isys < 1 .or. isys > nsys)
-    if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
+    doquit = .not.ok_system(isys,sys_init)
     if (.not.doquit) doquit = (sysc(isys)%collapse >= 0)
     if (doquit) call w%end()
 
@@ -2198,7 +2185,7 @@ contains
   !> Draw the SCF plot window.
   module subroutine draw_scfplot(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: nsys, sysc, sys_init
+    use gui_main, only: nsys, sysc, sys_init, ok_system
     use utils, only: iw_text
     use types, only: realloc
     use tools_io, only: string
@@ -2216,8 +2203,7 @@ contains
     integer, parameter :: maxxticks = 10
 
     isys = w%isys
-    doquit = (isys < 1 .or. isys > nsys)
-    if (.not.doquit) doquit = (sysc(isys)%status /= sys_init)
+    doquit = .not.ok_system(isys,sys_init)
     if (.not.doquit) doquit = (sysc(isys)%collapse >= 0)
     if (w%firstpass) w%plotn = 0
 
@@ -2297,7 +2283,7 @@ contains
   module subroutine draw_rebond(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: nsys, sysc, sys, sys_init, g
+    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight
     use global, only: bondfactor_def
     use tools_io, only: string, nameguess
@@ -2330,21 +2316,21 @@ contains
     !! make sure we get a system that exists
     ! check if the system still exists
     isys = w%isys
-    oksys = system_ok(isys)
+    oksys = ok_system(isys,sys_init)
     if (.not.oksys) then
        ! reset to the table selected
        isys = win(iwin_tree)%table_selected
-       oksys = system_ok(isys)
+       oksys = ok_system(isys,sys_init)
     end if
     if (.not.oksys) then
        ! reset to the input console selected
        isys = win(iwin_tree)%inpcon_selected
-       oksys = system_ok(isys)
+       oksys = ok_system(isys,sys_init)
     end if
     if (.not.oksys) then
        ! check all systems and try to find one that is OK
        do i = 1, nsys
-          oksys = system_ok(isys)
+          oksys = ok_system(isys,sys_init)
           if (oksys) then
              isys = i
              exit
@@ -2499,7 +2485,7 @@ contains
     ! apply the changes to all systems
     if (iw_button("Apply to All Systems",sameline=.true.)) then
        do i = 1, nsys
-          if (system_ok(i)) then
+          if (sysc(i)%status >= sys_init) then
              sysc(i)%atmcov = sysc(isys)%atmcov
              sysc(i)%bondfactor = sysc(isys)%bondfactor
              call sys(i)%c%find_asterisms(sys(i)%c%nstar,sysc(i)%atmcov,sysc(i)%bondfactor)
@@ -2534,16 +2520,6 @@ contains
     end if
 
   contains
-    ! returns OK if system isys is initialized
-    function system_ok(isys)
-      integer, intent(in) :: isys
-      logical :: system_ok
-
-      system_ok = (isys > 0 .and. isys <= nsys)
-      if (system_ok) system_ok = (sysc(isys)%status == sys_init)
-
-    end function system_ok
-
     ! build lists for all scenes associated with system i (including alternate views)
     subroutine system_force_build_lists(i)
       use scenes, only: reptype_atoms

@@ -686,8 +686,7 @@ contains
 
     integer :: i
 
-    if (idx < 1 .or. idx > nsys) return
-    if (sysc(idx)%status == sys_empty) return
+    if (.not.ok_system(idx,sys_loaded_not_init)) return
     call sys(idx)%end()
     call sysc(idx)%seed%end()
 #ifdef _THREADS
@@ -724,8 +723,7 @@ contains
 
     type(crystalseed), allocatable :: seed(:)
 
-    if (idx < 1 .or. idx > nsys) return
-    if (sysc(idx)%status == sys_empty) return
+    if (.not.ok_system(idx,sys_loaded_not_init)) return
     allocate(seed(1))
     seed(1) = sysc(idx)%seed
     call add_systems_from_seeds(1,seed)
@@ -784,6 +782,17 @@ contains
     end do
 
   end subroutine regenerate_system_pointers
+
+  !> Check that the system ID is sane and has at least the requested
+  !> initialization level.
+  module function ok_system(isys,level)
+    integer, intent(in) :: isys, level
+    logical :: ok_system
+
+    ok_system = (isys >= 1 .and. isys <= nsys)
+    if (ok_system) ok_system = (sysc(isys)%status >= level)
+
+  end function ok_system
 
   !xx! private procedures
 
@@ -923,9 +932,7 @@ contains
        str1 = "Tools" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
           isys = win(iwin_tree)%table_selected
-          system_ok = (isys > 0 .and. isys <= nsys)
-          if (system_ok) system_ok = (sysc(isys)%status == sys_init)
-          if (iw_menuitem("View/Edit Geometry...",enabled=system_ok)) &
+          if (iw_menuitem("View/Edit Geometry...",enabled=ok_system(isys,sys_init))) &
              idum = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
           call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
 

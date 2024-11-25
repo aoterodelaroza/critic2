@@ -123,6 +123,7 @@ module gui_main
   public :: duplicate_system
   public :: set_default_ui_settings
   public :: regenerate_system_pointers
+  public :: ok_system
 
   interface
      module subroutine gui_start()
@@ -160,6 +161,10 @@ module gui_main
      end subroutine set_default_ui_settings
      module subroutine regenerate_system_pointers()
      end subroutine regenerate_system_pointers
+     module function ok_system(isys,level)
+       integer, intent(in) :: isys, level
+       logical :: ok_system
+     end function ok_system
   end interface
 
 end module gui_main
