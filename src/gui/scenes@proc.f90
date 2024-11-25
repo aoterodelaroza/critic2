@@ -1296,7 +1296,6 @@ contains
 
   !> Terminate a representation
   module subroutine representation_end(r)
-    use windows, only: win
     class(representation), intent(inout), target :: r
 
     r%name = ""

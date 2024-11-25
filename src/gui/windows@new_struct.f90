@@ -389,7 +389,7 @@ contains
     logical(c_bool) :: ldum, doquit
     logical :: ok, saveismol, doubleclicked, isset
     type(ImVec2) :: szero, sz, szavail
-    integer :: i, nseed, oid, idum
+    integer :: i, nseed, idum
     type(crystalseed) :: seed
     type(crystalseed), allocatable :: seed_(:)
 

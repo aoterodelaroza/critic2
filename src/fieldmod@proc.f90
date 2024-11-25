@@ -693,10 +693,7 @@ contains
     use grid3mod, only: grid3
     use fragmentmod, only: fragment
     use tools_io, only: ferror, faterr
-    use param, only: ifformat_as_ft_x,ifformat_as_ft_y,ifformat_as_ft_z,ifformat_as_ft_xx,&
-       ifformat_as_ft_xy,ifformat_as_ft_xz,ifformat_as_ft_yy,ifformat_as_ft_yz,&
-       ifformat_as_ft_zz,ifformat_as_ft_grad,ifformat_as_ft_lap,ifformat_as_ft_pot,&
-       ifformat_as_resample
+    use param, only: ifformat_as_resample
     class(field), intent(inout) :: f !< Input/output field
     type(crystal), intent(in), target :: c
     integer, intent(in) :: id

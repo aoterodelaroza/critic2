@@ -2612,7 +2612,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: doquit, ok, goodsys, okvalid
-    integer :: oid, isys, width, height, iaux
+    integer :: isys, width, height, iaux
     integer(c_int), target :: msFBO, endFBO ! framebuffer
     integer(c_int), target :: msFBOdepth, endFBOdepth ! framebuffer, depth buffer
     integer(c_int), target :: msFBOtex, endFBOtex ! framebuffer, texture
