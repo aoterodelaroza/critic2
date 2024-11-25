@@ -84,6 +84,7 @@ module windows
      integer :: type ! the window type
      integer(c_int) :: id ! internal ID for this window (index from win(:))
      integer :: idparent = 0 ! internal ID (from win(:)) for the caller window
+     integer :: itoken = 0 ! parent token for the function of some dialogs
      integer(c_int) :: flags ! window flags
      character(kind=c_char,len=:), allocatable :: name ! name of the window
      character(kind=c_char,len=:), allocatable :: errmsg ! error message in the window
@@ -137,6 +138,7 @@ module windows
      character(kind=c_char,len=:), allocatable :: okfilter ! ok filter
      logical :: okfile_set = .false. ! whether the library file has been set by the user
      logical :: okfile_read = .false. ! whether the structure list should be re-read from the lib
+     integer(c_int) :: okfile_format = 0 ! the file format
      ! load field parameters
      ! scf plot and tree plot parameters
      real(c_double) :: ymin, ymax ! y-end of the plot
@@ -274,13 +276,14 @@ module windows
      end subroutine command_end
      module subroutine stack_realloc_maybe()
      end subroutine stack_realloc_maybe
-     module function stack_create_window(type,isopen,purpose,isys,irep,idcaller,permanent,orraise)
+     module function stack_create_window(type,isopen,purpose,isys,irep,idcaller,itoken,permanent,orraise)
        integer, intent(in) :: type
        logical, intent(in) :: isopen
        integer, intent(in), optional :: purpose
        integer, intent(in), optional :: isys
        integer, intent(in), optional :: irep
        integer, intent(in), optional :: idcaller
+       integer, intent(in), optional :: itoken
        logical, intent(in), optional :: permanent
        integer, intent(in), optional :: orraise
        integer :: stack_create_window
@@ -291,7 +294,7 @@ module windows
      end subroutine update_window_id
      module subroutine regenerate_window_pointers()
      end subroutine regenerate_window_pointers
-     module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idcaller)
+     module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idcaller,itoken)
        class(window), intent(inout), target :: w
        integer, intent(in) :: type
        logical, intent(in) :: isopen
@@ -300,6 +303,7 @@ module windows
        integer, intent(in), optional :: isys
        integer, intent(in), optional :: irep
        integer, intent(in), optional :: idcaller
+       integer, intent(in), optional :: itoken
      end subroutine window_init
      module subroutine window_end(w)
        class(window), intent(inout), target :: w

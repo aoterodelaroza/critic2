@@ -287,7 +287,7 @@ contains
   !> orraise = if this is a valid window ID, raise the window instead
   !> of creating a new one; if orraise < 0, raise the first window
   !> from the stack with the same type as type.
-  module function stack_create_window(type,isopen,purpose,isys,irep,idcaller,permanent,orraise)
+  module function stack_create_window(type,isopen,purpose,isys,irep,idcaller,itoken,permanent,orraise)
     use tools_io, only: ferror, faterr
     use windows, only: window, nwin, win
     integer, intent(in) :: type
@@ -296,6 +296,7 @@ contains
     integer, intent(in), optional :: isys
     integer, intent(in), optional :: irep
     integer, intent(in), optional :: idcaller
+    integer, intent(in), optional :: itoken
     logical, intent(in), optional :: permanent
     integer, intent(in), optional :: orraise
 
@@ -312,12 +313,15 @@ contains
           do i = 1, nwin
              ok = win(i)%type == type .and. win(i)%isopen
              ! specific tests according to type
-             if (ok.and.type == wintype_dialog) ok = (win(i)%dialog_data%purpose == purpose)
-             if (ok.and.type == wintype_editrep) ok = (win(i)%isys == isys .and.&
-                win(i)%irep == irep .and. win(i)%idparent == idcaller)
-             if (ok.and.type == wintype_scfplot) ok = (win(i)%isys == isys)
-             if (ok.and.type == wintype_geometry) ok = (win(i)%isys == isys)
-             if (ok.and.type == wintype_rebond) ok = (win(i)%isys == isys)
+             if (ok.and.type == wintype_dialog.and.present(purpose)) ok = (win(i)%dialog_data%purpose == purpose)
+             if (ok.and.type == wintype_editrep.and.present(isys).and.present(irep).and.present(idcaller)) then
+                ok = (win(i)%isys == isys .and. win(i)%irep == irep .and. win(i)%idparent == idcaller)
+                if (ok.and.present(itoken)) &
+                   ok = (win(i)%itoken == itoken)
+             end if
+             if (ok.and.type == wintype_scfplot.and.present(isys)) ok = (win(i)%isys == isys)
+             if (ok.and.type == wintype_geometry.and.present(isys)) ok = (win(i)%isys == isys)
+             if (ok.and.type == wintype_rebond.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok) then
                 raiseid = i
                 exit
@@ -331,6 +335,7 @@ contains
           if (present(isys)) win(raiseid)%isys = isys
           if (present(irep)) win(raiseid)%irep = irep
           if (present(idcaller)) win(raiseid)%idparent = idcaller
+          if (present(itoken)) win(raiseid)%itoken = itoken
           call igSetWindowFocus_Str(c_loc(win(raiseid)%name))
           return
        end if
@@ -356,7 +361,7 @@ contains
        call ferror('stack_create_window','too many windows',faterr)
 
     ! initialize the new window
-    call win(id)%init(type,isopen,id,purpose,isys,irep,idcaller)
+    call win(id)%init(type,isopen,id,purpose,isys,irep,idcaller,itoken)
     if (present(permanent)) then
        win(id)%permanent = permanent
     else
@@ -410,7 +415,7 @@ contains
 
   !> Initialize a window of the given type. If isiopen, initialize it
   !> as open.
-  module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idcaller)
+  module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idcaller,itoken)
     use interfaces_opengl3
     use gui_main, only: ColorDialogDir, ColorDialogFile
     use tools_io, only: ferror, faterr
@@ -423,6 +428,7 @@ contains
     integer, intent(in), optional :: isys
     integer, intent(in), optional :: irep
     integer, intent(in), optional :: idcaller
+    integer, intent(in), optional :: itoken
 
     character(kind=c_char,len=:), allocatable, target :: str1
 
@@ -464,6 +470,7 @@ contains
     if (present(isys)) w%isys = isys
     if (present(irep)) w%irep = irep
     if (present(idcaller)) w%idparent = idcaller
+    if (present(itoken)) w%itoken = itoken
     if (present(purpose)) w%dialog_purpose = purpose
 
     ! type-specific initialization
@@ -560,6 +567,8 @@ contains
     w%isinit = .false.
     w%isopen = .false.
     w%id = -1
+    w%idparent = 0
+    w%itoken = 0
     w%name = "" // c_null_char
     if (allocated(w%iord)) deallocate(w%iord)
     if (allocated(w%forceremove)) deallocate(w%forceremove)

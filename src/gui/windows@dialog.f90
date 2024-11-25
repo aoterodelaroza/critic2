@@ -54,11 +54,10 @@ contains
        ! open vibrations file dialog => quit if the system is gone
        w%forcequitdialog = (w%isys < 1 .or. w%isys > nsys)
        if (.not.w%forcequitdialog) w%forcequitdialog = (sysc(w%isys)%status /= sys_init)
-    elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
-       ! open library file => quit if the caller window is gone
-       w%forcequitdialog = .not.win(w%idparent)%isinit
-    elseif (w%dialog_purpose == wpurp_dialog_saveimagefile) then
-       ! save image file => quit if the caller window is gone
+    elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile.or.w%dialog_purpose == wpurp_dialog_saveimagefile.or.&
+       w%dialog_purpose == wpurp_dialog_openfieldfile.or.w%dialog_purpose == wpurp_dialog_openonefilemodal) then
+       ! open library file, save image file, open field file, open one file modal
+       ! => quit if the caller window is gone
        w%forcequitdialog = .not.win(w%idparent)%isinit
     end if
 
@@ -109,7 +108,8 @@ contains
                 end if
                 call fclose(lu)
              end if
-          elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
+          elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile.or.&
+             w%dialog_purpose == wpurp_dialog_openfieldfile.or.w%dialog_purpose == wpurp_dialog_openonefilemodal) then
              ! !! new structure file dialog !!
              ! cstr = IGFD_GetFilePathName(w%dptr)
              ! call C_F_string_alloc(cstr,name)
@@ -118,6 +118,7 @@ contains
              win(w%idparent)%okfile_set = .true.
              win(w%idparent)%okfile_read = .true.
              win(w%idparent)%okfile = ""
+             win(w%idparent)%itoken = w%itoken
 
              ! open all files selected and add the new systems
              sel = IGFD_GetSelection(w%dptr)
@@ -128,30 +129,11 @@ contains
              do i = 1, sel%count
                 call C_F_string_alloc(s(i)%fileName,name)
                 name = trim(path) // dirsep // trim(name)
-                win(w%idparent)%okfile = win(w%idparent)%okfile // name // c_null_char
+                win(w%idparent)%okfile = win(w%idparent)%okfile // name
+                if (i < sel%count) &
+                   win(w%idparent)%okfile = win(w%idparent)%okfile // c_null_char
              end do
-
-          elseif (w%dialog_purpose == wpurp_dialog_openfieldfile .or. w%dialog_purpose == wpurp_dialog_openonefilemodal) then
-             ! !! new structure file dialog !!
-             ! cstr = IGFD_GetFilePathName(w%dptr)
-             ! call C_F_string_alloc(cstr,name)
-             ! call c_free(cstr)
-             ! w%okfile = trim(name)
-             w%okfile_set = .true.
-             w%okfile_read = .true.
-             w%okfile = ""
-
-             ! open all files selected and add the new systems
-             sel = IGFD_GetSelection(w%dptr)
-             call c_f_pointer(sel%table,s,(/sel%count/))
-             cstr = IGFD_GetCurrentPath(w%dptr)
-             call C_F_string_alloc(cstr,path)
-             call c_free(cstr)
-             do i = 1, sel%count
-                call C_F_string_alloc(s(i)%fileName,name)
-                name = trim(path) // dirsep // trim(name)
-                w%okfile = w%okfile // name // c_null_char
-             end do
+             win(w%idparent)%okfile_format = w%dialog_data%isformat
 
           elseif (w%dialog_purpose == wpurp_dialog_openvibfile) then
              w%okfile = ""

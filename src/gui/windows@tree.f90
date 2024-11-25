@@ -1787,22 +1787,23 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: oksys, ok, doquit, disabled
-    integer :: isys, i, j, oid, ll, idx, iff
+    integer :: isys, i, j, oid, ll, idx, iff, iaux
     type(ImVec2) :: szavail, szero
     real(c_float) :: combowidth
     logical(c_bool) :: is_selected, ldum
     character(len=:,kind=c_char), allocatable, target :: str1, str2, loadstr
     logical :: isgrid
 
+    integer, parameter :: itoken_file1 = 1
+    integer, parameter :: itoken_file2 = 2
+    integer, parameter :: itoken_file3 = 3
+
     ! window state
     logical, save :: ttshown = .false. ! tooltip flag
     integer(c_int), save :: sourceopt = 0_c_int ! 0 = file, 1 = expression
-    integer(c_int), save :: idopenfile1 = 0 ! the ID for the open field file
-    integer(c_int), save :: idopenfile2 = 0 ! the ID for the first auxiliary file
-    integer(c_int), save :: idopenfile3 = 0 ! the ID for the second auxiliary file
     character(len=:,kind=c_char), allocatable, target, save :: file1 ! first (main) file
     character(len=:,kind=c_char), allocatable, target, save :: file1_fmtstr ! first file format string
-    logical, save :: file1_read = .false.
+    logical, save :: file1_set = .false.
     integer, save :: file1_format = 0
     character(len=:,kind=c_char), allocatable, target, save :: file2 ! first auxiliary file
     logical, save :: file2_set = .false.
@@ -1816,27 +1817,6 @@ contains
 
     ! first pass when opened, reset the state
     if (w%firstpass) call init_state()
-
-    call update_window_id(idopenfile1,oid)
-    if (oid /= 0) then
-       if (win(oid)%okfile_set) then
-          file1_read = .true.
-          file1 = win(oid)%okfile
-          file1_format = win(oid)%dialog_data%isformat
-       end if
-    end if
-    call update_window_id(idopenfile2,oid)
-    if (oid /= 0) then
-       if (win(oid)%okfile_set) file2 = win(oid)%okfile
-       file2_set = .true.
-       w%errmsg = ""
-    end if
-    call update_window_id(idopenfile3,oid)
-    if (oid /= 0) then
-       if (win(oid)%okfile_set) file3 = win(oid)%okfile
-       file3_set = .true.
-       w%errmsg = ""
-    end if
 
     ! initialize
     szero%x = 0
@@ -1908,30 +1888,37 @@ contains
 
     if (sourceopt == 0) then
        ! if a new file is read, detect the format if necessary
-       if (file1_read) then
-          if (file1_format == 0) &
-             file1_format = -field_detect_format(file=file1)
-          if (abs(file1_format) == ifformat_pi) file1_format = 0 ! aiPI deactivated for now
-          if (file1_format == 0) then
-             w%errmsg = "Unknown field file extension"
-             file1 = ""
-          else
-             w%errmsg = ""
+       if (w%okfile_set) then
+          w%errmsg = ""
+          if (w%itoken == itoken_file1) then
+             file1 = w%okfile
+             file1_format = w%okfile_format
+             if (file1_format == 0) &
+                file1_format = -field_detect_format(file=w%okfile)
+             if (abs(file1_format) == ifformat_pi) file1_format = 0 ! aiPI deactivated for now
+             if (file1_format == 0) then
+                w%errmsg = "Unknown field file extension"
+                w%okfile = ""
+             end if
+             file1_set = .true.
+             file2 = ""
+             file2_set = .false.
+             file3 = ""
+             file3_set = .false.
+          elseif (w%itoken == itoken_file2) then
+             file2 = w%okfile
+             file2_set = .true.
+          elseif (w%itoken == itoken_file3) then
+             file3 = w%okfile
+             file3_set = .true.
           end if
-          file2 = ""
-          file2_set = .false.
-          file3 = ""
-          file3_set = .false.
-          file1_read = .false.
        end if
-
-       ! disabled buttons?
-       disabled = (idopenfile1 /= 0) .or. (idopenfile2 /= 0) .or. (idopenfile3 /= 0)
-
        ! source file and format
        call iw_text("Source",highlight=.true.)
-       if (iw_button("File",danger=(file1_format==0),disabled=disabled)) &
-          idopenfile1 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfieldfile)
+       if (iw_button("File",danger=(file1_format==0))) then
+          iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfieldfile,&
+             idcaller=w%id,itoken=itoken_file1)
+       end if
        call iw_tooltip("File from where the field is read",ttshown)
        call iw_text(file1,sameline=.true.)
 
@@ -2045,23 +2032,31 @@ contains
        ! format-specific options and additional files
        select case (abs(file1_format))
        case(ifformat_wien)
-          if (iw_button("File (.struct)",danger=.not.file2_set,disabled=disabled)) &
-             idopenfile2 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
+          if (iw_button("File (.struct)",danger=.not.file2_set,disabled=disabled)) then
+             iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal,&
+                idcaller=w%id,itoken=itoken_file2)
+          end if
           call iw_tooltip("WIEN2k structure file (.struct) used to interpret the clmsum-style file",ttshown)
           call iw_text(file2,sameline=.true.)
        case(ifformat_elk)
-          if (iw_button("File (GEOMETRY.OUT)",danger=.not.file2_set,disabled=disabled)) &
-             idopenfile2 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
+          if (iw_button("File (GEOMETRY.OUT)",danger=.not.file2_set,disabled=disabled)) then
+             iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal,&
+                idcaller=w%id,itoken=itoken_file2)
+          end if
           call iw_tooltip("GEOMETRY.OUT structure file used to interpret the STATE.OUT",ttshown)
           call iw_text(file2,sameline=.true.)
        case(ifformat_dftb)
-          if (iw_button("File (.bin)",danger=.not.file2_set,disabled=disabled)) &
-             idopenfile2 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
+          if (iw_button("File (.bin)",danger=.not.file2_set,disabled=disabled)) then
+             iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal,&
+                idcaller=w%id,itoken=itoken_file2)
+          end if
           call iw_tooltip("eigenvec.bin file for reading the DFTB+ wavefunction",ttshown)
           call iw_text(file2,sameline=.true.)
 
-          if (iw_button("File (.hsd)",danger=.not.file3_set,disabled=disabled)) &
-             idopenfile3 = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal)
+          if (iw_button("File (.hsd)",danger=.not.file3_set,disabled=disabled)) then
+             iaux = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openonefilemodal,&
+                idcaller=w%id,itoken=itoken_file3)
+          end if
           call iw_tooltip("hsd file for reading the DFTB+ wavefunction",ttshown)
           call iw_text(file3,sameline=.true.)
        end select
@@ -2073,6 +2068,7 @@ contains
        ! from expression
        w%errmsg = ""
     end if
+    w%okfile_set = .false.
 
     if (sourceopt == 0 .and. isgrid) then
        call iw_text("Options",highlight=.true.)
@@ -2128,9 +2124,6 @@ contains
 
     ! quit the window
     if (doquit) then
-       if (idopenfile1 /= 0) win(idopenfile1)%forcequitdialog = .true.
-       if (idopenfile2 /= 0) win(idopenfile2)%forcequitdialog = .true.
-       if (idopenfile3 /= 0) win(idopenfile3)%forcequitdialog = .true.
        call end_state()
        call w%end()
     end if
@@ -2140,11 +2133,8 @@ contains
     subroutine init_state()
       w%errmsg = ""
       sourceopt = 0_c_int
-      idopenfile1 = 0_c_int
-      idopenfile2 = 0_c_int
-      idopenfile3 = 0_c_int
       file1 = ""
-      file1_read = .false.
+      file1_set = .false.
       file1_format = 0
       file1_fmtstr = ""
       file2 = ""
@@ -2154,6 +2144,14 @@ contains
     end subroutine init_state
     ! terminate the state for this window
     subroutine end_state()
+      file1 = ""
+      file1_set = .false.
+      file1_format = 0
+      file1_fmtstr = ""
+      file2 = ""
+      file2_set = .false.
+      file3 = ""
+      file3_set = .false.
       if (allocated(file1)) deallocate(file1)
       if (allocated(file1_fmtstr)) deallocate(file1_fmtstr)
       if (allocated(file2)) deallocate(file2)
