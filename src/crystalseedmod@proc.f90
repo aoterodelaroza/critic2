@@ -6426,7 +6426,7 @@ contains
   subroutine read_all_sdf(file,errmsg,nseed,mseed,seed0,id,ti)
     use global, only: rborder_def
     use tools_io, only: fopen_read, fclose, getline_raw, lower, isexpression_or_word,&
-       isreal, isinteger, zatguess, equal, isinteger, zatguess
+       isreal, isinteger, zatguess, equal, isinteger, zatguess, lgetword
     use types, only: realloc
     use param, only: maxzat, bohrtoa, isformat_sdf
     integer, intent(out), optional :: nseed
@@ -6437,10 +6437,11 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu
-    logical :: ok, seedok
-    character(len=:), allocatable :: line
-    integer :: i, idseed, idtarget
+    integer :: lu, lp
+    logical :: ok, seedok, havedollars
+    character(len=:), allocatable :: line, word1, lword1, word2
+    character*5 :: version
+    integer :: i, idseed, idtarget, idum
     integer :: zat
     type(crystalseed) :: seed
     integer, allocatable :: usedz(:)
@@ -6472,6 +6473,7 @@ contains
        ! preapre the new seed
        seedok = .false.
        call seed%end()
+       havedollars = .false.
 
        ! header
        if (.not.getline_raw(lu,line)) exit main
@@ -6486,7 +6488,12 @@ contains
        ! counts line
        ! 11 fields w 3 char, 1 field w 6 char
        if (.not.getline_raw(lu,line)) exit main
-       if (lower(line(35:39)) == "v2000") then
+       if (len(line) >= 39) then
+          version = lower(line(35:39))
+       else
+          version = ""
+       end if
+       if (version == "v2000") then
           ! read the number of atoms and allocate space
           ok = isinteger(seed%nat,line(1:3))
           if (.not.ok) goto 100
@@ -6500,6 +6507,7 @@ contains
           ! read nat lines, write down coordinates
           do i = 1, seed%nat
              if (.not.getline_raw(lu,line)) goto 100
+             if (len(line) < 33) goto 100
 
              ! coordinates
              ok = isreal(seed%x(1,i),line(1:10))
@@ -6521,9 +6529,82 @@ contains
           end do
           call realloc(seed%spc,seed%nspc)
           deallocate(usedz)
-       elseif (lower(line(35:39)) == "v3000") then
-          errmsg = "v3000 not implemented"
-          goto 999
+       elseif (version == "v3000") then
+          do while (.true.)
+             if (.not.getline_raw(lu,line)) goto 100
+             if (line(1:4) == "$$$$") then
+                havedollars = .true.
+                goto 100
+             end if
+             if (len(line) < 8) continue
+             if (lower(line(1:7)) == "m  v30 ") then
+                line = line(8:)
+                lp = 1
+                word1 = lgetword(line,lp)
+                word2 = lgetword(line,lp)
+                if (word1 == "begin" .and. word2 == "ctab") then
+                   ! read the number of atoms
+                   if (.not.getline_raw(lu,line)) goto 100
+                   if (len(line) < 8) goto 100
+                   line = line(8:)
+                   lp = 1
+                   word1 = lgetword(line,lp)
+
+                   ! read the value and allocate space in the seed
+                   ok = isinteger(seed%nat,line,lp)
+                   if (.not.ok) goto 100
+                   allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+                elseif (word1 == "begin" .and. word2 == "atom") then
+                   ! must have the number of atoms already
+                   if (seed%nat == 0) goto 100
+
+                   ! prepare space for species
+                   seed%nspc = 0
+                   allocate(usedz(0:maxzat),seed%spc(10))
+                   usedz = 0
+
+                   ! read the atomic coordinates
+                   do i = 1, seed%nat
+                      lp = 1
+                      if (.not.getline_raw(lu,line)) goto 100
+                      if (len(line) < 8) goto 100
+                      line = line(8:)
+
+                      ! index and atomic symbol
+                      lp = 1
+                      ok = isinteger(idum,line,lp)
+                      ok = ok .and. isexpression_or_word(word1,line,lp)
+                      if (.not.ok) goto 100
+
+                      ! coordinates
+                      ok = isreal(seed%x(1,i),line,lp)
+                      ok = ok .and. isreal(seed%x(2,i),line,lp)
+                      ok = ok .and. isreal(seed%x(3,i),line,lp)
+                      if (.not.ok) goto 100
+
+                      ! atomic symbol and chemical species
+                      lword1 = lower(word1)
+                      if (lword1 == "a".or.lword1 == "q".or.lword1 == "*".or.lword1 == "r#") then
+                         zat = 0
+                      else
+                         zat = zatguess(word1)
+                      end if
+                      if (zat < 0) goto 100
+                      if (usedz(zat) == 0) then
+                         seed%nspc = seed%nspc + 1
+                         if (seed%nspc > size(seed%spc,1)) call realloc(seed%spc,2*seed%nspc)
+                         seed%spc(seed%nspc)%name = trim(adjustl(word1))
+                         seed%spc(seed%nspc)%z = zat
+                         usedz(zat) = seed%nspc
+                      end if
+                      seed%is(i) = usedz(zat)
+                   end do
+                   call realloc(seed%spc,seed%nspc)
+                   deallocate(usedz)
+                   exit
+                end if
+             end if
+          end do
        else
           errmsg = "unknown sdf/mol version"
           goto 999
@@ -6552,14 +6633,13 @@ contains
 100    continue
 
        ! search for the next $$$$, this completes the structure
-       ok = .false.
        do while (getline_raw(lu,line))
           if (line(1:4) == "$$$$") then
-             ok = .true.
+             havedollars = .true.
              exit
           end if
        end do
-       if (.not.ok) exit
+       if (.not.havedollars) exit
 
        ! adopt the seed
        idseed = idseed + 1
