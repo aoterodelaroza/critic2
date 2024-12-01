@@ -181,8 +181,10 @@ contains
                    if (changedisplay(2)) w%sc%rep(i)%bonds_display = isbond
                    if (changedisplay(3)) then
                       w%sc%rep(i)%labels_display = islabelsl
-                      if (islabelsl) &
+                      if (islabelsl) then
                          w%sc%rep(i)%label_style%style = islabels
+                         call w%sc%rep(i)%reset_label_style()
+                      end if
                    end if
                 elseif (w%sc%rep(i)%type == reptype_unitcell) then
                    if (changedisplay(4)) w%sc%rep(i)%shown = isuc
@@ -463,6 +465,7 @@ contains
                                else
                                   sysc(i)%sc%rep(j)%label_style%style = islabels
                                end if
+                               call sysc(i)%sc%rep(j)%reset_label_style()
                             end if
                          elseif (sysc(i)%sc%rep(j)%type == reptype_unitcell.and.&
                             .not.sys(w%view_selected)%c%ismolecule) then
