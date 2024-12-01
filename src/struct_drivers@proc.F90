@@ -44,7 +44,7 @@ contains
        isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
        isformat_aimsout, isformat_tinkerfrac, isformat_castepcell,&
        isformat_castepgeom, isformat_mol2, isformat_pdb, isformat_zmat,&
-       isformat_unknown
+       isformat_sdf, isformat_unknown
     use crystalseedmod, only: crystalseed, struct_detect_format,&
        struct_detect_ismol
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
@@ -61,7 +61,7 @@ contains
 
     integer :: lp, lp2, istruct
     character(len=:), allocatable :: word, word2, lword, subline
-    integer :: nn, isformat
+    integer :: nn, isformat, id
     real*8 :: rborder, raux, xnudge
     logical :: docube, ok, ismol, mol, hastypes, readtypes
     type(crystalseed) :: seed
@@ -148,6 +148,8 @@ contains
        isformat = isformat_mol2
     elseif (equal(lword,'pdb')) then
        isformat = isformat_pdb
+    elseif (equal(lword,'sdf')) then
+       isformat = isformat_sdf
     end if
     if (isformat /= isformat_unknown) then
        word = getword(line,lp)
@@ -171,11 +173,18 @@ contains
     end if
     docube = .false.
     rborder = rborder_def
+    id = 0
     lp2=1
     if (ismol) then
        do while(.true.)
           if (equal(word2,'cubic').or.equal(word2,'cube')) then
              docube = .true.
+          elseif (equal(word2,'id')) then
+             word2 = lgetword(line,lp)
+             if (.not.isinteger(id,word2)) then
+                call ferror('struct_crystal_input','Wrong ID in sdf/mol input',faterr,line,syntax=.true.)
+                return
+             end if
           elseif (eval_next(raux,word2,lp2)) then
              rborder = raux / dunit0(iunit)
           elseif (len_trim(word2) > 1) then
@@ -200,6 +209,9 @@ contains
 
     elseif (isformat == isformat_mol2) then
        call seed%read_mol2(word,rborder,docube,word2,errmsg)
+
+    elseif (isformat == isformat_sdf) then
+       call seed%read_sdf(word,rborder,docube,errmsg,id)
 
     elseif (isformat == isformat_shelx) then
        call seed%read_shelx(word,mol,errmsg)

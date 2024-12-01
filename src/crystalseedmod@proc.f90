@@ -22,6 +22,7 @@ submodule (crystalseedmod) proc
   !xx! private subroutines
   ! subroutine read_all_cif(file,mol,errmsg,nseed,mseed,seed0,dblock,ti)
   ! subroutine read_all_mol2(file,errmsg,nseed,mseed,seed0,name,ti)
+  ! subroutine read_all_sdf(file,errmsg,nseed,mseed,seed0,name,ti)
   ! subroutine read_all_qeout(nseed,seed,file,mol,istruct,errmsg,ti)
   ! subroutine read_all_xyz(nseed,seed,file,errmsg,ti)
   ! subroutine read_all_log(nseed,seed,file,errmsg,ti)
@@ -803,7 +804,7 @@ contains
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
        isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
        isformat_aimsout, isformat_tinkerfrac, isformat_gjf, isformat_zmat,&
-       isformat_castepcell, isformat_castepgeom, isformat_mol2,&
+       isformat_sdf, isformat_castepcell, isformat_castepgeom, isformat_mol2,&
        isformat_pdb
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
@@ -836,6 +837,9 @@ contains
 
     elseif (isformat == isformat_mol2) then
        call seed%read_mol2(file,rborder_def,.false.," ",errmsg,ti=ti)
+
+    elseif (isformat == isformat_sdf) then
+       call seed%read_sdf(file,rborder_def,.false.,errmsg,0,ti=ti)
 
     elseif (isformat == isformat_shelx) then
        call seed%read_shelx(file,mol,errmsg,ti=ti)
@@ -969,6 +973,27 @@ contains
     seed%cubic = docube
 
   end subroutine read_mol2
+
+  !> Read a structure seed from an sdf/mol file. If id is not present
+  !> or zero, return the first molecule in the mol2 file, otherwise
+  !> return the molecule with that number in the sequence. If mol,
+  !> force a molecule/crystal system. If error, return non-empty
+  !> errmsg.
+  module subroutine read_sdf(seed,file,rborder,docube,errmsg,id,ti)
+    class(crystalseed), intent(inout) :: seed
+    character*(*), intent(in) :: file
+    real*8, intent(in) :: rborder
+    logical, intent(in) :: docube
+    character(len=:), allocatable, intent(out) :: errmsg
+    integer, intent(in), optional :: id
+    type(thread_info), intent(in), optional :: ti
+
+    call seed%end()
+    call read_all_sdf(file,errmsg,seed0=seed,id=id,ti=ti)
+    seed%border = rborder
+    seed%cubic = docube
+
+  end subroutine read_sdf
 
   !> Read the structure from a res or ins (shelx) file
   module subroutine read_shelx(seed,file,mol,errmsg,ti)
@@ -4741,7 +4766,7 @@ contains
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
        isformat_castepcell, isformat_castepgeom, isformat_qein, isformat_qeout,&
-       isformat_mol2, isformat_pdb, isformat_zmat
+       isformat_mol2, isformat_pdb, isformat_zmat, isformat_sdf
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -4822,6 +4847,8 @@ contains
        isformat = isformat_gjf
     elseif (equal(wextdot,'zmat')) then
        isformat = isformat_zmat
+    elseif (equal(wextdot,'sdf').or.equal(wextdot,'mol')) then
+       isformat = isformat_sdf
     elseif (equal(wextdot,'pgout')) then
        isformat = isformat_pgout
     elseif (equal(wextdot,'wfn')) then
@@ -4983,7 +5010,7 @@ contains
        isformat_xsf, isformat_gen, isformat_vasp, isformat_pwc, isformat_axsf,&
        isformat_dat, isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
        isformat_aimsout, isformat_tinkerfrac, isformat_castepcell, isformat_castepgeom,&
-       isformat_mol2, isformat_pdb, isformat_zmat
+       isformat_mol2, isformat_pdb, isformat_zmat, isformat_sdf
     character*(*), intent(in) :: file
     integer, intent(in) :: isformat
     logical, intent(out) :: ismol
@@ -5005,7 +5032,7 @@ contains
 
     case (isformat_xyz,isformat_gjf,isformat_pgout,isformat_wfn,isformat_wfx,&
        isformat_gaussian,isformat_fchk,isformat_molden,isformat_dat,&
-       isformat_orca,isformat_mol2,isformat_pdb,isformat_zmat)
+       isformat_orca,isformat_mol2,isformat_pdb,isformat_zmat,isformat_sdf)
        ismol = .true.
 
     case(isformat_aimsout)
@@ -5151,7 +5178,7 @@ contains
        isformat_xsf, isformat_castepcell, isformat_castepgeom,&
        isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, isformat_orca,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
-       isformat_mol2, isformat_pdb
+       isformat_mol2, isformat_pdb, isformat_sdf
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(in) :: isformat0
@@ -5211,6 +5238,8 @@ contains
        call read_all_cif(file,mol,errmsg,nseed=nseed,mseed=seed,ti=ti)
     elseif (isformat == isformat_mol2) then
        call read_all_mol2(file,errmsg,nseed=nseed,mseed=seed,ti=ti)
+    elseif (isformat == isformat_sdf) then
+       call read_all_sdf(file,errmsg,nseed=nseed,mseed=seed,ti=ti)
     elseif (isformat == isformat_pwc) then
        call seed(1)%read_pwc(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_shelx) then
@@ -6387,6 +6416,182 @@ contains
     if (present(mseed)) deallocate(mseed)
 
   end subroutine read_all_mol2
+
+  !> Read multiple structure seeds from a sdf file. If mol, force a
+  !> molecule/crystal system. If error, return non-empty errmsg.  If
+  !> nseed and mseed are present, read all seeds into the mseed array
+  !> and return the number of seeds in nseed. If seed0 is present,
+  !> return the molecule number id. If id is not present or is empty,
+  !> return the first molecule in seed0.
+  subroutine read_all_sdf(file,errmsg,nseed,mseed,seed0,id,ti)
+    use global, only: rborder_def
+    use tools_io, only: fopen_read, fclose, getline_raw, lower, isexpression_or_word,&
+       isreal, isinteger, zatguess, equal, isinteger, zatguess
+    use types, only: realloc
+    use param, only: maxzat, bohrtoa, isformat_sdf
+    integer, intent(out), optional :: nseed
+    type(crystalseed), intent(inout), allocatable, optional :: mseed(:)
+    type(crystalseed), intent(inout), optional :: seed0
+    integer, intent(in), optional :: id
+    character*(*), intent(in) :: file
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lu
+    logical :: ok, seedok
+    character(len=:), allocatable :: line
+    integer :: i, idseed, idtarget
+    integer :: zat
+    type(crystalseed) :: seed
+    integer, allocatable :: usedz(:)
+
+    ! consistency check
+    if (.not.(present(nseed).and.present(mseed)).and..not.present(seed0)) then
+       errmsg = "Error reading mol/sdf file (incorrect use of the interface)"
+       return
+    end if
+
+    ! initialize
+    errmsg = ""
+    if (present(nseed).and.present(mseed)) then
+       nseed = 0
+       if (allocated(mseed)) deallocate(mseed)
+       allocate(mseed(10))
+    else
+       call seed0%end()
+    end if
+    idtarget = 1
+    if (present(id)) then
+       if (id > 0) idtarget = id
+    end if
+
+    ! main loop
+    idseed = 0
+    lu = fopen_read(file,ti=ti)
+    main: do while (.true.)
+       ! preapre the new seed
+       seedok = .false.
+       call seed%end()
+
+       ! header
+       if (.not.getline_raw(lu,line)) exit main
+       if (len_trim(line) > 0) then
+          seed%name = trim(file) // "|" // trim(line)
+       else
+          seed%name = trim(file)
+       end if
+       if (.not.getline_raw(lu,line)) exit main
+       if (.not.getline_raw(lu,line)) exit main
+
+       ! counts line
+       ! 11 fields w 3 char, 1 field w 6 char
+       if (.not.getline_raw(lu,line)) exit main
+       if (lower(line(35:39)) == "v2000") then
+          ! read the number of atoms and allocate space
+          ok = isinteger(seed%nat,line(1:3))
+          if (.not.ok) goto 100
+          allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+
+          ! prepare space for species
+          seed%nspc = 0
+          allocate(usedz(0:maxzat),seed%spc(10))
+          usedz = 0
+
+          ! read nat lines, write down coordinates
+          do i = 1, seed%nat
+             if (.not.getline_raw(lu,line)) goto 100
+
+             ! coordinates
+             ok = isreal(seed%x(1,i),line(1:10))
+             ok = ok .and. isreal(seed%x(2,i),line(11:20))
+             ok = ok .and. isreal(seed%x(3,i),line(21:30))
+             if (.not.ok) goto 100
+
+             ! atomic symbol and chemical species
+             zat = zatguess(line(31:33))
+             if (zat < 0) goto 100
+             if (usedz(zat) == 0) then
+                seed%nspc = seed%nspc + 1
+                if (seed%nspc > size(seed%spc,1)) call realloc(seed%spc,2*seed%nspc)
+                seed%spc(seed%nspc)%name = trim(adjustl(line(31:33)))
+                seed%spc(seed%nspc)%z = zat
+                usedz(zat) = seed%nspc
+             end if
+             seed%is(i) = usedz(zat)
+          end do
+          call realloc(seed%spc,seed%nspc)
+          deallocate(usedz)
+       elseif (lower(line(35:39)) == "v3000") then
+          errmsg = "v3000 not implemented"
+          goto 999
+       else
+          errmsg = "unknown sdf/mol version"
+          goto 999
+       end if
+
+       ! mol coordinates in angstrom
+       seed%x = seed%x / bohrtoa
+
+       ! rest of the seed information
+       seed%useabr = 0
+       seed%havesym = 0
+       seed%findsym = -1
+       seed%checkrepeats = .false.
+       seed%isused = .true.
+       seed%ismolecule = .true.
+       seed%cubic = .false.
+       seed%border = rborder_def
+       seed%havex0 = .false.
+       seed%molx0 = 0d0
+       seed%file = file
+       seed%isformat = isformat_sdf
+
+       ! done, seed is correct
+       seedok = .true.
+
+100    continue
+
+       ! search for the next $$$$, this completes the structure
+       ok = .false.
+       do while (getline_raw(lu,line))
+          if (line(1:4) == "$$$$") then
+             ok = .true.
+             exit
+          end if
+       end do
+       if (.not.ok) exit
+
+       ! adopt the seed
+       idseed = idseed + 1
+       if (present(nseed).and.present(mseed)) then
+          nseed = nseed + 1
+          call realloc_crystalseed(mseed,nseed)
+          mseed(nseed) = seed
+       elseif (present(seed0) .and. idseed == idtarget) then
+          seed0 = seed
+          exit main
+       end if
+    end do main
+    call fclose(lu)
+
+    ! check if a seed has been read
+    errmsg = "No structures found in the sdf/mol file"
+    if (present(nseed).and.present(mseed)) then
+       if (nseed == 0) goto 999
+    elseif (present(seed0)) then
+       if (.not.seed0%isused) goto 999
+    end if
+
+    ! all done
+    errmsg = ""
+
+    return
+999 continue
+    call fclose(lu)
+    if (present(nseed)) nseed = 0
+    if (present(mseed)) deallocate(mseed)
+
+  end subroutine read_all_sdf
 
   !> Read one or all structures from a QE output (filename file) and
   !> return the corresponding crystal seeds in seed. If istruct < 0,
