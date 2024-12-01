@@ -1,0 +1,8 @@
+## delete: 016_molecule-sdf.cro
+## check: 016_molecule-sdf_gen_01.cri -a1e-10
+## check: 016_molecule-sdf_gen_02.cri -a1e-10
+## labels: regression quick
+molecule ../zz_source/sdf/3438_B-Cl_2_o.sdf
+write 016_molecule-sdf_gen_01.cri
+molecule ../zz_source/sdf/aminoacids.sdf id 3
+write 016_molecule-sdf_gen_02.cri
