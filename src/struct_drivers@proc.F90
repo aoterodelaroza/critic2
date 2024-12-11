@@ -1377,6 +1377,7 @@ contains
     integer, parameter :: fname_current = 0
     integer, parameter :: fname_structure = 1
     integer, parameter :: fname_peaks = 2
+    real*8, parameter :: triangle_alpha = 1d0
 
     integer :: imethod
     integer, parameter :: imethod_default = 0
@@ -1781,7 +1782,7 @@ contains
        h =  (xend-xrpd_th2ini_def) / real(npts-1,8)
        do i = 1, ns
           if (singleatom(i) < 0) then
-             xnorm(i) = crosscorr_triangle(h,iha(:,i),iha(:,i),1d0)
+             xnorm(i) = crosscorr_triangle(h,iha(:,i),iha(:,i),triangle_alpha)
           end if
        end do
        xnorm = sqrt(abs(xnorm))
@@ -1810,7 +1811,7 @@ contains
              else if (singleatom(i) > 0 .or. singleatom(j) > 0) then
                 diff(i,j) = 1d0
              else
-                diff(i,j) = max(1d0 - crosscorr_triangle(h,iha(:,i),iha(:,j),1d0) / xnorm(i) / xnorm(j),0d0)
+                diff(i,j) = max(1d0 - crosscorr_triangle(h,iha(:,i),iha(:,j),triangle_alpha) / xnorm(i) / xnorm(j),0d0)
              end if
              diff(j,i) = diff(i,j)
 
@@ -2072,8 +2073,7 @@ contains
     use global, only: fileroot
     use crystalmod, only: crystal, vcpwdf_compare
     use crystalseedmod, only: crystalseed
-    use tools_math, only: matinv, m_c2x_from_cellpar, det3, crosscorr_triangle, &
-       m_x2c_from_cellpar
+    use tools_math, only: matinv, m_c2x_from_cellpar, det3, m_x2c_from_cellpar
     use tools_io, only: getword, faterr, ferror, uout, string, isreal, equal, lgetword
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
@@ -4179,7 +4179,7 @@ contains
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use tools, only: qcksort
-    use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
+    use tools_math, only: rmsd_walker, umeyama_graph_matching,&
        ullmann_graph_matching
     use tools_io, only: getword, string, ferror, faterr, lower, equal, uout, string
     use types, only: realloc
@@ -4511,7 +4511,7 @@ contains
     use crystalseedmod, only: crystalseed
     use fragmentmod, only: fragment
     use tools, only: qcksort
-    use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching
+    use tools_math, only: rmsd_walker, umeyama_graph_matching
     use tools_io, only: getword, string, ferror, faterr, lower, equal, uout, string
     use types, only: realloc
     character*(*), intent(in) :: line
