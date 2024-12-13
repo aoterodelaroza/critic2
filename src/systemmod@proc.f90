@@ -485,7 +485,7 @@ contains
 
     ! Maybe we can load it as a grid if all the fields are grids
     ! and they are the same size
-    if (seed%iff == ifformat_as_ghost) then
+    if (seed%iff == ifformat_as_ghost.and..not.seed%ghost_explicit) then
        syl => s
        call fields_in_eval(seed%expr,errmsg,nn,idlist,c_loc(syl))
        if (len_trim(errmsg) > 0) return

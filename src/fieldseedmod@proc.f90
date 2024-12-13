@@ -39,6 +39,7 @@ contains
     f%expr = ""
     f%elseopt = ""
     f%testrmt = .true.
+    f%ghost_explicit = .false.
     f%readvirtual = .false.
     f%vaspblk = 1
     f%fid = ""
@@ -443,6 +444,7 @@ contains
              f%ids = word
           elseif (equal(lword,"ghost")) then
              f%iff = ifformat_as_ghost
+             f%ghost_explicit = .true.
           else
              call backtrack()
              ok = eval_next(f%n(1),line,lp)

@@ -46,6 +46,7 @@ module fieldseedmod
      character(len=mlen) :: fid = "" !< field ID
      logical :: nou = .false. !< wannier option nou
      integer :: molden_type = molden_type_unknown !< type of molden file
+     logical :: ghost_explicit = .false. !< whether there has been a explicit for ghost
      ! pwc
      integer :: pwcspin = 0 !< read which spin (0=all,1=up,2=dn)
      integer, allocatable :: pwcikpt(:) !< read which kpts
