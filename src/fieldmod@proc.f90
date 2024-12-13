@@ -129,7 +129,7 @@ contains
        if (equal(word,'tricubic') .or. equal(word,'trispline') .or. &
           equal(word,'trilinear') .or. equal(word,'nearest') .or. &
           equal(word,'smoothrho')) then
-          if (.not.ff%type == type_grid.or..not.allocated(ff%grid)) then
+          if (.not.allocated(ff%grid)) then
              errmsg = "tricubic/... incompatible with fields other than grids"
              return
           end if
