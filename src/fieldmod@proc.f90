@@ -606,6 +606,13 @@ contains
     call f%set_options(seed%elseopt,errmsg)
     if (len_trim(errmsg) > 0) goto 999
 
+    ! if this is an "as core" field, deactivate the use of an additonal core (double count)
+    if (seed%iff == ifformat_as_core) then ! same as nocore
+       f%usecore = .false.
+       if (.not.allocated(f%zpsp)) allocate(f%zpsp(f%c%nspc))
+       f%zpsp = -1
+    end if
+
     f%isinit = .true.
     call f%init_cplist()
 
