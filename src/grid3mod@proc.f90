@@ -1065,6 +1065,105 @@ contains
 
   end subroutine read_fmt
 
+  !> Read a grid in BAND txt format, the plain text version of TAPE41
+  module subroutine read_txt(f,cptr,file,x2c,errmsg,ti)
+    use tools_math, only: matinv
+    use tools_io, only: fopen_read, getline_raw, lgetword, equal, fclose, isinteger
+    use types, only: realloc
+    class(grid3), intent(inout) :: f
+    type(c_ptr), intent(in) :: cptr
+    character*(*), intent(in) :: file !< Input file
+    real*8, intent(in) :: x2c(3,3)
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: luc
+    character(len=:), allocatable :: line
+    integer :: istat, i, j, k, n(3)
+    real*8, allocatable :: ggloc(:,:,:)
+    logical :: ok
+    integer :: idx, nc
+
+    errmsg = "Error reading file: " // trim(file)
+    call f%end()
+
+    ! open file for reading
+    luc = fopen_read(file,ti=ti)
+    if (luc < 0) goto 999
+
+    ! read the number of points in each direction
+    n = 0
+    do while (getline_raw(luc,line))
+       line = trim(adjustl(line))
+       if (len(line) == 0) cycle
+       if (line(1:1) == "!") cycle
+       if (line == "Grid") then
+          ok = getline_raw(luc,line)
+          if (.not.ok) exit
+          line = trim(adjustl(line))
+          if (line(1:12) == "nr of points") then
+             if (line(14:14) == "x") then
+                idx = 1
+             elseif (line(14:14) == "y") then
+                idx = 2
+             elseif (line(14:14) == "z") then
+                idx = 3
+             else
+                cycle
+             end if
+             ok = getline_raw(luc,line)
+             ok = ok .and. getline_raw(luc,line)
+             ok = ok .and. isinteger(n(idx),line)
+             if (.not.ok) exit
+          end if
+       end if
+       if (all(n /= 0)) exit
+    end do
+    if (any(n == 0)) goto 999
+
+    ! allocate the grid
+    allocate(ggloc(n(1),n(2),n(3)),stat=istat)
+    if (istat /= 0) goto 999
+
+    ! second pass to get the grid
+    nc = -1
+    do while (getline_raw(luc,line))
+       line = trim(adjustl(line))
+       if (len(line) == 0) cycle
+       if (line(1:1) == "!") cycle
+       if (line == "rho") then
+          read(luc,*)
+          read(luc,*,iostat=istat) (((ggloc(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
+          if (istat /= 0) goto 999
+          exit
+       end if
+    end do
+
+    ! copy the grid and trim the extra points at the end
+    f%n = n - 1
+    allocate(f%f(f%n(1),f%n(2),f%n(3)),stat=istat)
+    if (istat /= 0) then
+       errmsg = "error allocating grid"
+       goto 999
+    end if
+    f%f = ggloc(1:n(1)-1,1:n(2)-1,1:n(3)-1)
+    deallocate(ggloc)
+
+    ! wrap up
+    call fclose(luc)
+    f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
+    f%mode = mode_default
+    call init_geometry(f,x2c,f%n,cptr)
+
+    errmsg = ""
+    return
+999 continue
+    if (luc > 0) call fclose(luc)
+
+  end subroutine read_txt
+
   !> Read pwc file created by pw2critic.x in Quantum
   !> ESPRESSO. Contains the Bloch states, k-points, and structural
   !> info. Calculates the electron density from the Bloch states.

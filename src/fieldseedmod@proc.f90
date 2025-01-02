@@ -63,7 +63,7 @@ contains
     use tools_io, only: getword, lower, equal, isexpression
     use param, only: dirsep,&
        ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi, ifformat_cube,&
-       ifformat_bincube, ifformat_abinit, ifformat_fmt,&
+       ifformat_bincube, ifformat_abinit, ifformat_fmt, ifformat_txt,&
        ifformat_vasp, ifformat_vaspnov, ifformat_qub, ifformat_xsf, ifformat_elkgrid,&
        ifformat_siestagrid, ifformat_fplogrid, ifformat_dftb, ifformat_pwc,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk,&
@@ -123,6 +123,9 @@ contains
        call read_next_as_file()
     elseif (equal(lfile,"fmt")) then
        f%iff = ifformat_fmt
+       call read_next_as_file()
+    elseif (equal(lfile,"txt")) then
+       f%iff = ifformat_txt
        call read_next_as_file()
     elseif (equal(lfile,"elkgrid")) then
        f%iff = ifformat_elkgrid
@@ -203,7 +206,7 @@ contains
        f%iff == ifformat_abinit .or. f%iff == ifformat_siestagrid .or. f%iff == ifformat_fplogrid .or.&
        f%iff == ifformat_vasp .or. f%iff == ifformat_vaspnov .or. f%iff == ifformat_qub .or.&
        f%iff == ifformat_xsf .or. f%iff == ifformat_wfn .or. f%iff == ifformat_wfx .or.&
-       f%iff == ifformat_fmt .or.&
+       f%iff == ifformat_fmt .or. f%iff == ifformat_txt .or.&
        f%iff == ifformat_fchk .or. f%iff == ifformat_molden .or. f%iff == ifformat_wfx .or.&
        f%iff == ifformat_elkgrid .or. f%iff == ifformat_promolecular_fragment) then
        ! formats for which only one file is needed
@@ -675,7 +678,7 @@ contains
     use tools_io, only: ferror, equal
     use param, only: dirsep,&
        ifformat_cube,ifformat_bincube,ifformat_abinit,ifformat_siestagrid,ifformat_fplogrid,&
-       ifformat_dftb,ifformat_vasp,ifformat_vaspnov,ifformat_qub,ifformat_fmt,&
+       ifformat_dftb,ifformat_vasp,ifformat_vaspnov,ifformat_qub,ifformat_fmt,ifformat_txt,&
        ifformat_xsf,ifformat_wfn,ifformat_wfx,ifformat_fchk,ifformat_molden,&
        ifformat_molden,ifformat_wien,ifformat_elkgrid,ifformat_elk,&
        ifformat_pi,ifformat_pwc,ifformat_unknown
@@ -730,6 +733,8 @@ contains
        field_detect_format = ifformat_xsf
     else if (equal(extund,'fmt')) then
        field_detect_format = ifformat_fmt
+    else if (equal(extdot,'txt')) then
+       field_detect_format = ifformat_txt
     else if (equal(extdot,'wfn')) then
        field_detect_format = ifformat_wfn
     else if (equal(extdot,'wfx')) then
