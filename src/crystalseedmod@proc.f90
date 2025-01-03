@@ -886,8 +886,11 @@ contains
        isformat == isformat_molden.or.isformat == isformat_gaussian.or.&
        isformat == isformat_dat.or.isformat == isformat_pgout.or.&
        isformat == isformat_orca.or.isformat == isformat_gjf.or.&
-       isformat == isformat_zmat.or.isformat == isformat_pdb) then
+       isformat == isformat_zmat) then
        call seed%read_mol(file,isformat,rborder_def,.false.,errmsg,ti=ti)
+
+    elseif (isformat == isformat_pdb) then
+       call seed%read_pdb(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_siesta) then
        call seed%read_siesta(file,mol,errmsg,ti=ti)
@@ -2121,7 +2124,6 @@ contains
 
   !> Read the structure from an abinit DEN file (and similar files: ELF, LDEN, etc.)
   module subroutine read_abinit(seed,file,mol,errmsg,ti)
-    use tools_math, only: matinv
     use tools_io, only: fopen_read, nameguess, fclose
     use abinit_private, only: hdr_type, hdr_io
     use types, only: realloc
@@ -2201,7 +2203,6 @@ contains
   module subroutine read_elk(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, equal, getword,&
        zatguess, nameguess, fclose, string
-    use tools_math, only: matinv
     use types, only: realloc
     use param, only: isformat_elk
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
@@ -2313,7 +2314,7 @@ contains
        wfn_read_orca_geometry, wfn_read_gjf_geometry
     use param, only: isformat_xyz, isformat_wfn, isformat_wfx,&
        isformat_fchk, isformat_molden, isformat_gaussian, isformat_dat,&
-       isformat_pgout, isformat_orca, isformat_gjf, isformat_zmat, isformat_pdb
+       isformat_pgout, isformat_orca, isformat_gjf, isformat_zmat
     use tools_io, only: equali
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
@@ -2362,8 +2363,6 @@ contains
     elseif (fmt == isformat_orca) then
        ! orca output file
        call wfn_read_orca_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
-    elseif (fmt == isformat_pdb) then
-       call read_pdb_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     elseif (fmt == isformat_zmat) then
        call read_zmat_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
     end if
@@ -2418,6 +2417,153 @@ contains
     seed%isformat = fmt
 
   end subroutine read_mol
+
+  !> Read a pdb file and return a molecule or a crystal, depending
+  !> on whether SCALEn is present or not.
+  module subroutine read_pdb(seed,file,mol,errmsg,ti)
+    use tools_io, only: fopen_read, getline_raw, fclose, zatguess, nameguess
+    use tools_math, only: matinv
+    use types, only: realloc
+    use param, only: bohrtoa, isformat_pdb, maxzat0
+    class(crystalseed), intent(inout) :: seed
+    character*(*), intent(in) :: file
+    logical, intent(in) :: mol
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: i, n, ier
+    real*8, allocatable :: x(:,:)
+    integer, allocatable :: z(:)
+    integer :: ispc(maxzat0), nspc
+    integer :: lu
+    character(len=:), allocatable :: line
+    logical :: readscale(3)
+    real*8 :: r(3,3), x0(3)
+
+    ! initialize
+    call seed%end()
+    errmsg = ""
+    readscale = .false.
+    ispc = 0
+    nspc = 0
+
+    ! open the file
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file: " // trim(file)
+       return
+    end if
+    errmsg = "Error reading file: " // trim(file)
+
+    n = 0
+    allocate(x(3,10),z(10))
+    main: do while (getline_raw(lu,line))
+       if (len(line) > 6) then
+          if (line(1:4) == "ATOM" .or. line(1:6) == "HETATM") then
+             n = n + 1
+             if (n > size(z,1)) then
+                call realloc(x,3,2*n)
+                call realloc(z,2*n)
+             end if
+
+             z(n) = zatguess(line(77:78))
+             if (z(n) <= 0) goto 999
+             if (ispc(z(n)) == 0) then
+                nspc = nspc + 1
+                ispc(z(n)) = nspc
+             end if
+             ! name(n) = line(13:16)
+             read (line(31:38),*,err=999,end=999) x(1,n)
+             read (line(39:46),*,err=999,end=999) x(2,n)
+             read (line(47:54),*,err=999,end=999) x(3,n)
+          elseif (line(1:5) == "SCALE") then
+             if (line(6:6) == "1") then
+                readscale(1) = .true.
+                read(line(11:20),*) r(1,1)
+                read(line(21:30),*) r(1,2)
+                read(line(31:40),*) r(1,3)
+                read(line(46:55),*) x0(1)
+             elseif (line(6:6) == "2") then
+                readscale(2) = .true.
+                read(line(11:20),*) r(2,1)
+                read(line(21:30),*) r(2,2)
+                read(line(31:40),*) r(2,3)
+                read(line(46:55),*) x0(2)
+             elseif (line(6:6) == "3") then
+                readscale(3) = .true.
+                read(line(11:20),*) r(3,1)
+                read(line(21:30),*) r(3,2)
+                read(line(31:40),*) r(3,3)
+                read(line(46:55),*) x0(3)
+             end if
+          end if
+       end if
+    end do main
+    if (n == 0) then
+       errmsg = "No atoms found."
+       goto 999
+    endif
+
+    ! fill the seed
+    seed%nat = n
+    seed%nspc = nspc
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%spc(seed%nspc))
+    if (.not.mol.and.all(readscale)) then
+       ! read it as a crystal
+       seed%useabr = 2
+       seed%m_x2c = r * bohrtoa
+       call matinv(seed%m_x2c,3,ier)
+       if (ier /= 0) then
+          errmsg = "error inverting lattice vector matrix"
+          goto 999
+       end if
+
+       ! fill the atom parameters
+       do i = 1, n
+          seed%x(:,i) = matmul(r,x(:,i)) + x0
+          seed%is(i) = ispc(z(i))
+       end do
+    else
+       ! read it as a molecule
+       seed%useabr = 0
+       x = x / bohrtoa
+       do i = 1, n
+          seed%x(:,i) = x(:,i)
+          seed%is(i) = ispc(z(i))
+       end do
+    end if
+    deallocate(x,z)
+
+    ! fill the species
+    do i = 1, maxzat0
+       if (ispc(i) > 0) then
+          seed%spc(ispc(i))%name = nameguess(i,.true.)
+          seed%spc(ispc(i))%z = i
+          seed%spc(ispc(i))%qat = 0d0
+       end if
+    end do
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+    ! no symmetry
+    seed%havesym = 0
+    seed%findsym = -1
+    seed%checkrepeats = .false.
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%ismolecule = mol
+    seed%cubic = .false.
+    seed%border = 0d0
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    seed%file = file
+    seed%name = file
+    seed%isformat = isformat_pdb
+
+  end subroutine read_pdb
 
   !> Read the structure from a quantum espresso output (file) and
   !> return it as a crystal seed. If mol, the structure is assumed to
@@ -5032,8 +5178,22 @@ contains
 
     case (isformat_xyz,isformat_gjf,isformat_pgout,isformat_wfn,isformat_wfx,&
        isformat_gaussian,isformat_fchk,isformat_molden,isformat_dat,&
-       isformat_orca,isformat_mol2,isformat_pdb,isformat_zmat,isformat_sdf)
+       isformat_orca,isformat_mol2,isformat_zmat,isformat_sdf)
        ismol = .true.
+
+    case(isformat_pdb)
+       ismol = .true.
+       lu = fopen_read(file,errstop=.false.,ti=ti)
+       if (lu < 0) return
+       do while(getline_raw(lu,line))
+          lp = 1
+          word = lgetword(line,lp)
+          if (equal(word,"scale1")) then
+             ismol = .false.
+             exit
+          end if
+       end do
+       call fclose(lu)
 
     case(isformat_aimsout)
        lu = fopen_read(file,errstop=.false.,ti=ti)
@@ -5178,7 +5338,7 @@ contains
        isformat_xsf, isformat_castepcell, isformat_castepgeom,&
        isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, isformat_orca,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
-       isformat_mol2, isformat_pdb, isformat_sdf
+       isformat_mol2, isformat_sdf, isformat_pdb
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(in) :: isformat0
@@ -5274,8 +5434,10 @@ contains
        isformat == isformat_fchk.or.isformat == isformat_molden.or.&
        isformat == isformat_dat.or.isformat == isformat_pgout.or.&
        isformat == isformat_orca.or.isformat == isformat_gjf.or.&
-       isformat == isformat_pdb.or.isformat == isformat_zmat) then
+       isformat == isformat_zmat) then
        call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg,alsovib=alsovib,ti=ti)
+    elseif (isformat == isformat_pdb) then
+       call seed(1)%read_pdb(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_siesta) then
        call seed(1)%read_siesta(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_castepcell) then
@@ -8051,74 +8213,6 @@ contains
     if (present(seed0)) call seed0%end()
 
   end subroutine read_all_crystalout
-
-  !> Read a molecular geometry from a pdb file. Returns the number of
-  !> atoms (n), atomic positions (x, in bohr), atomic numbers (z), and
-  !> atomic names (name). If error, return a non-empty errmsg.
-  subroutine read_pdb_geometry(file,n,x,z,name,errmsg,ti)
-    use tools_io, only: fopen_read, getline_raw, fclose, zatguess
-    use types, only: realloc
-    use param, only: bohrtoa
-    character*(*), intent(in) :: file
-    integer, intent(out) :: n
-    real*8, allocatable, intent(inout) :: x(:,:)
-    integer, allocatable, intent(inout) :: z(:)
-    character*(10), allocatable, intent(inout) :: name(:)
-    character(len=:), allocatable, intent(out) :: errmsg
-    type(thread_info), intent(in), optional :: ti
-
-    integer :: lu
-    character(len=:), allocatable :: line
-
-    errmsg = ""
-    ! deallocate
-    if (allocated(x)) deallocate(x)
-    if (allocated(z)) deallocate(z)
-    if (allocated(name)) deallocate(name)
-
-    lu = fopen_read(file,ti=ti)
-    if (lu < 0) then
-       errmsg = "Error opening file: " // trim(file)
-       return
-    end if
-    errmsg = "Error reading file: " // trim(file)
-
-    n = 0
-    allocate(x(3,10),z(10),name(10))
-    main: do while (getline_raw(lu,line))
-       if (len(line) > 6) then
-          if (line(1:4) == "ATOM" .or. line(1:6) == "HETATM") then
-             n = n + 1
-             if (n > size(z,1)) then
-                call realloc(x,3,2*n)
-                call realloc(z,2*n)
-                call realloc(name,2*n)
-             end if
-
-             z(n) = zatguess(line(77:78))
-             if (z(n) <= 0) goto 999
-             name(n) = line(13:16)
-             read (line(31:38),*,err=999,end=999) x(1,n)
-             read (line(39:46),*,err=999,end=999) x(2,n)
-             read (line(47:54),*,err=999,end=999) x(3,n)
-          end if
-       end if
-    end do main
-
-    if (n == 0) then
-       errmsg = "No atoms found."
-       goto 999
-    else
-       call realloc(x,3,n)
-       call realloc(z,n)
-       call realloc(name,n)
-       x = x / bohrtoa
-    endif
-
-    errmsg = ""
-999 continue
-    call fclose(lu)
-  end subroutine read_pdb_geometry
 
   !> Read a molecular geometry from a zmat file. Returns the number of
   !> atoms (n), atomic positions (x, in bohr), atomic numbers (z), and

@@ -286,8 +286,11 @@ contains
        isformat == isformat_molden.or.isformat == isformat_gaussian.or.&
        isformat == isformat_dat.or.isformat == isformat_pgout.or.&
        isformat == isformat_orca.or.isformat == isformat_gjf.or.&
-       isformat == isformat_pdb.or.isformat == isformat_zmat) then
+       isformat == isformat_zmat) then
        call seed%read_mol(word,isformat,rborder,docube,errmsg)
+
+    elseif (isformat == isformat_pdb) then
+       call seed%read_pdb(word,mol,errmsg)
 
     elseif (isformat == isformat_siesta) then
        call seed%read_siesta(word,mol,errmsg)

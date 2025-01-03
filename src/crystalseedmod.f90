@@ -83,6 +83,7 @@ module crystalseedmod
      procedure :: read_abinit
      procedure :: read_elk
      procedure :: read_mol
+     procedure :: read_pdb
      procedure :: read_qeout
      procedure :: read_qein
      procedure :: read_crystalout
@@ -248,6 +249,13 @@ module crystalseedmod
        logical, intent(out), optional :: alsovib
        type(thread_info), intent(in), optional :: ti
      end subroutine read_mol
+     module subroutine read_pdb(seed,file,mol,errmsg,ti)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_pdb
      module subroutine read_qeout(seed,file,mol,istruct,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file

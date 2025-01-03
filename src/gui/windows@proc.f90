@@ -1216,7 +1216,7 @@ contains
        call iw_tooltip("Auto-detect whether new structures are read as crystals or molecules",ttshown)
        ldum = iw_radiobutton("Crystal",int=data%mol,intval=0_c_int)
        call iw_tooltip("Force new structures to be read as crystals",ttshown)
-       ldum = iw_radiobutton("Molecule",int=data%mol,intval=2_c_int)
+       ldum = iw_radiobutton("Molecule",int=data%mol,intval=1_c_int)
        call iw_tooltip("Force new structures to be read as molecules",ttshown)
 
        ! molecular options
