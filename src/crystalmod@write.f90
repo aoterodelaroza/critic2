@@ -2762,6 +2762,7 @@ contains
     real*8 :: maxdv, x(3)
     character(len=:), allocatable :: str
     character*2 :: atsym
+    character*11 :: spg
 
     ! open file
     lu = fopen_write(file,ti=ti)
@@ -2797,8 +2798,13 @@ contains
 
     ! lattice parameters
     if (.not.c%ismolecule) then
+       if (c%havesym > 0) then
+          spg = c%spg%international_symbol
+       else
+          spg = "P1"
+       end if
        write (lu,'("CRYST1",3(F9.3),3(F7.2)," ",2(A),"          ")') c%aa * bohrtoa, c%bb,&
-          string(c%spg%international_symbol,11), string(c%nmol,4)
+          string(spg,11), string(c%nmol,4)
        write (lu,'("SCALE1    ",3(F10.6),"     ",F10.5,"                         ")') c%m_c2x(1,:) / bohrtoa, 0d0
        write (lu,'("SCALE2    ",3(F10.6),"     ",F10.5,"                         ")') c%m_c2x(2,:) / bohrtoa, 0d0
        write (lu,'("SCALE3    ",3(F10.6),"     ",F10.5,"                         ")') c%m_c2x(3,:) / bohrtoa, 0d0
