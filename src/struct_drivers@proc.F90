@@ -837,6 +837,12 @@ contains
        call s%c%write_tinkerfrac(file)
        ok = check_no_extra_word()
        if (.not.ok) return
+    elseif (equal(wext,'pdb')) then
+       ! abinit
+       write (uout,'("* WRITE PDB file: ",A)') string(file)
+       call s%c%write_pdb(file)
+       ok = check_no_extra_word()
+       if (.not.ok) return
     else
        call ferror('struct_write','unrecognized file format',faterr,line,syntax=.true.)
        return

@@ -312,6 +312,7 @@ module crystalmod
      procedure :: write_pyscf
      procedure :: write_fhi
      procedure :: write_tinkerfrac
+     procedure :: write_pdb
      procedure :: write_castep_cell
 
      ! grid writers (write)
@@ -993,6 +994,11 @@ module crystalmod
        character*(*), intent(in) :: file
        type(thread_info), intent(in), optional :: ti
      end subroutine write_tinkerfrac
+     module subroutine write_pdb(c,file,ti)
+       class(crystal), intent(in) :: c
+       character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
+     end subroutine write_pdb
      module subroutine write_castep_cell(c,file,rklength,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
