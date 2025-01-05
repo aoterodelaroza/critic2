@@ -2759,14 +2759,9 @@ contains
     integer :: lu
     integer, allocatable :: nis(:)
     integer :: i
-    real*8 :: maxdv
+    real*8 :: maxdv, x(3)
     character(len=:), allocatable :: str
     character*2 :: atsym
-    ! integer :: i, j, nn, lu
-    ! integer :: iz, nneig, ityp
-    ! type(fragment) :: fr
-    ! integer, allocatable :: imap(:), ineig(:)
-    ! logical :: dowarn
 
     ! open file
     lu = fopen_write(file,ti=ti)
@@ -2811,10 +2806,15 @@ contains
 
     ! coordinates
     do i = 1, c%ncel
+       if (c%ismolecule) then
+          x = (c%atcel(i)%r + c%molx0) * bohrtoa
+       else
+          x = c%atcel(i)%r * bohrtoa
+       end if
        atsym = adjustr(nameguess(c%spc(c%atcel(i)%is)%z,.true.))
        write (lu,'("HETATM",A," ",A," UNL A    1   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
           string(i,5,ioj_right), string(c%spc(c%atcel(i)%is)%name,4,ioj_right),&
-          c%atcel(i)%r * bohrtoa, 1d0, 1d0, atsym
+          x, 1d0, 1d0, atsym
     end do
     call fclose(lu)
 
