@@ -6795,13 +6795,16 @@ contains
 100    continue
 
        ! search for the next $$$$, this completes the structure
-       do while (getline_raw(lu,line))
-          if (line(1:4) == "$$$$") then
-             havedollars = .true.
-             exit
-          end if
-       end do
-       if (.not.havedollars) exit
+       ! chemdraw doesn't write the $$$$ at the end (?)
+       if (.not.havedollars) then
+          do while (getline_raw(lu,line))
+             if (line(1:4) == "$$$$") then
+                havedollars = .true.
+                exit
+             end if
+          end do
+       end if
+       if (.not.havedollars.and.seed%nat==0 .or. seed%nspc==0) exit
 
        ! adopt the seed
        idseed = idseed + 1
