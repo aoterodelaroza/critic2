@@ -2831,20 +2831,85 @@ contains
   module subroutine draw_geometry(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: nsys, sysc, sys, sys_init, g
-    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth
+    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system
+    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
+       iw_combo_simple
     use global, only: bondfactor_def
     use tools_io, only: string, nameguess
     use param, only: atmcov0, maxzat0, bohrtoa, newline
     class(window), intent(inout), target :: w
 
-    logical :: doquit
+    logical :: doquit, oksys
+    logical(c_bool) :: is_selected
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: str1, str2
-    type(ImVec2) :: szavail
+    type(ImVec2) :: szavail, szero
+    real(c_float) :: combowidth
+    integer :: i, isys
+
+    logical, save :: ttshown = .false. ! tooltip flag
 
     ! initialize
     doquit = .false.
+    szero%x = 0
+    szero%y = 0
+
+    !! make sure we get a system that exists
+    ! check if the system still exists
+    isys = w%isys
+    oksys = ok_system(isys,sys_init)
+    if (.not.oksys) then
+       ! reset to the table selected
+       isys = win(iwin_tree)%tree_selected
+       oksys = ok_system(isys,sys_init)
+    end if
+    if (.not.oksys) then
+       ! reset to the input console selected
+       isys = win(iwin_tree)%inpcon_selected
+       oksys = ok_system(isys,sys_init)
+    end if
+    if (.not.oksys) then
+       ! check all systems and try to find one that is OK
+       do i = 1, nsys
+          oksys = ok_system(isys,sys_init)
+          if (oksys) then
+             isys = i
+             exit
+          end if
+       end do
+    end if
+    if (.not.oksys) then
+       ! this dialog does not make sense anymore, close it and exit
+       call w%end()
+       return
+    end if
+    w%isys = isys
+
+    ! system combo
+    call iw_text("System",highlight=.true.)
+    call igSameLine(0._c_float,-1._c_float)
+    call igGetContentRegionAvail(szavail)
+    combowidth = max(szavail%x - g%Style%ItemSpacing%x,0._c_float)
+    str1 = "##systemcombo" // c_null_char
+    call igSetNextItemWidth(combowidth)
+    if (oksys) &
+       str2 = string(isys) // ": " // trim(sysc(isys)%seed%name) // c_null_char
+    if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
+       do i = 1, nsys
+          if (sysc(i)%status == sys_init) then
+             is_selected = (isys == i)
+             str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
+             if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
+                w%isys = i
+                isys = w%isys
+             end if
+             if (is_selected) &
+                call igSetItemDefaultFocus()
+          end if
+       end do
+       call igEndCombo()
+    end if
+    call iw_tooltip("Recalculate the bonds in this system",ttshown)
 
     ! show the tabs
     str1 = "##drawgeometry_tabbar" // c_null_char
@@ -2856,7 +2921,261 @@ contains
        str2 = "Atoms##drawgeometry_atomstab" // c_null_char
        flags = ImGuiTabItemFlags_None
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
-          call iw_text("blah")
+
+
+    ! logical :: domol
+    ! logical(c_bool) :: ch
+    ! integer(c_int) :: flags
+    ! character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3, suffix
+    ! real*8 :: x0(3)
+    ! type(ImVec2) :: sz0, szero
+    ! integer :: ispc, i, iz, ncol, isys, icol
+    ! type(c_ptr), target :: clipper
+    ! type(ImGuiListClipper), pointer :: clipper_f
+
+    ! logical, save :: ttshown = .false. ! tooltip flag
+
+    ! szero%x = 0
+    ! szero%y = 0
+    ! isys = r%id
+
+          ! ! selector and reset
+          ! if (.not.c%ismolecule) then
+          !    call iw_combo_simple("Atom types##atomtypeselection","Species"//c_null_char//&
+          !       "Symmetry-unique" //c_null_char//"Cell"//c_null_char//c_null_char,&
+          !       r%atom_style%type,changed=ch)
+          ! else
+          !    call iw_combo_simple("Atom types##atomtypeselection","Species"//c_null_char//"Atoms"//c_null_char//&
+          !       c_null_char,r%atom_style%type,changed=ch)
+          ! end if
+          ! call iw_tooltip("Group atoms by these categories",ttshown)
+          ! if (ch) then
+          !    call r%reset_atom_style()
+          !    changed = .true.
+          ! end if
+
+    ! ! whether to do the molecule column
+    ! domol = (r%atom_style%type == 2 .or. (r%atom_style%type == 1 .and. c%ismolecule))
+    ! ncol = 3
+    ! if (showselection) ncol = ncol + 1 ! show
+    ! if (showdrawopts) ncol = ncol + 2 ! col, radius
+    ! if (domol) ncol = ncol + 1 ! mol
+    ! if (r%atom_style%type > 0) ncol = ncol + 1 ! coordinates
+
+    ! ! atom style table, for atoms
+    ! flags = ImGuiTableFlags_None
+    ! flags = ior(flags,ImGuiTableFlags_Resizable)
+    ! flags = ior(flags,ImGuiTableFlags_Reorderable)
+    ! flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+    ! flags = ior(flags,ImGuiTableFlags_Borders)
+    ! flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+    ! flags = ior(flags,ImGuiTableFlags_ScrollY)
+    ! str1="##tableatomstyles" // c_null_char
+    ! sz0%x = 0
+    ! sz0%y = iw_calcheight(min(5,r%atom_style%ntype)+1,0,.false.)
+    ! if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
+    !    icol = -1
+
+    !    ! header setup
+    !    icol = icol + 1
+    !    str2 = "Id" // c_null_char
+    !    flags = ImGuiTableColumnFlags_None
+    !    call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+
+    !    icol = icol + 1
+    !    str2 = "Atom" // c_null_char
+    !    flags = ImGuiTableColumnFlags_None
+    !    call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+
+    !    icol = icol + 1
+    !    str2 = "Z " // c_null_char
+    !    flags = ImGuiTableColumnFlags_None
+    !    call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+
+    !    if (showselection) then
+    !       icol = icol + 1
+    !       str2 = "Show" // c_null_char
+    !       flags = ImGuiTableColumnFlags_None
+    !       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+    !    end if
+
+    !    if (showdrawopts) then
+    !       icol = icol + 1
+    !       str2 = "Col" // c_null_char
+    !       flags = ImGuiTableColumnFlags_None
+    !       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+
+    !       icol = icol + 1
+    !       str2 = "Radius" // c_null_char
+    !       flags = ImGuiTableColumnFlags_None
+    !       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+    !    end if
+
+    !    if (domol) then
+    !       icol = icol + 1
+    !       str2 = "Mol" // c_null_char
+    !       flags = ImGuiTableColumnFlags_None
+    !       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+    !    end if
+
+    !    if (r%atom_style%type > 0) then
+    !       icol = icol + 1
+    !       if (c%ismolecule) then
+    !          str2 = "Coordinates (Å)" // c_null_char
+    !       else
+    !          str2 = "Coordinates (fractional)" // c_null_char
+    !       end if
+    !       flags = ImGuiTableColumnFlags_WidthStretch
+    !       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+    !    end if
+
+    !    ! draw the header
+    !    call igTableSetupScrollFreeze(0, 1) ! top row always visible
+    !    call igTableHeadersRow()
+    !    call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+
+    !    ! start the clipper
+    !    clipper = ImGuiListClipper_ImGuiListClipper()
+    !    call ImGuiListClipper_Begin(clipper,r%atom_style%ntype,-1._c_float)
+
+    !    ! draw the rows
+    !    do while(ImGuiListClipper_Step(clipper))
+    !       call c_f_pointer(clipper,clipper_f)
+    !       do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+    !          suffix = "_" // string(i)
+    !          icol = -1
+
+    !          call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+    !          if (r%atom_style%type == 0) then
+    !             ! species
+    !             ispc = i
+    !          elseif (r%atom_style%type == 1) then
+    !             ! nneq
+    !             ispc = c%at(i)%is
+    !          elseif (r%atom_style%type == 2) then
+    !             ! ncel
+    !             ispc = c%atcel(i)%is
+    !          end if
+    !          iz = c%spc(ispc)%z
+
+    !          ! id
+    !          icol = icol + 1
+    !          if (igTableSetColumnIndex(icol)) then
+    !             call igAlignTextToFramePadding()
+    !             call iw_text(string(i))
+
+    !             ! the highlight selectable
+    !             if (iw_highlight_selectable("##selectablemoltable" // suffix)) then
+    !                win(idparent)%sc%nselection = 1
+    !                win(idparent)%sc%selection_type = r%atom_style%type
+    !                win(idparent)%sc%selection(1) = i
+    !                win(idparent)%forcerender = .true.
+    !                oksel = .true.
+    !             end if
+    !          end if
+
+    !          ! name
+    !          icol = icol + 1
+    !          if (igTableSetColumnIndex(icol)) call iw_text(string(c%spc(ispc)%name))
+
+    !          ! Z
+    !          icol = icol + 1
+    !          if (igTableSetColumnIndex(icol)) call iw_text(string(iz))
+
+    !          ! shown
+    !          if (showselection) then
+    !             icol = icol + 1
+    !             if (igTableSetColumnIndex(icol)) then
+    !                changed = changed .or. iw_checkbox("##tableshown" // suffix ,r%atom_style%shown(i))
+    !                call iw_tooltip("Toggle display of the atom/bond/label associated to this atom",ttshown)
+    !             end if
+    !          end if
+
+    !          ! color
+    !          if (showdrawopts) then
+    !             icol = icol + 1
+    !             if (igTableSetColumnIndex(icol)) then
+    !                ch = iw_coloredit3("##tablecolor" // suffix,r%atom_style%rgb(:,i),nolabel=.true.)
+    !                call iw_tooltip("Atom color",ttshown)
+    !                if (ch) then
+    !                   r%atom_style%rgb(:,i) = min(r%atom_style%rgb(:,i),1._c_float)
+    !                   r%atom_style%rgb(:,i) = max(r%atom_style%rgb(:,i),0._c_float)
+    !                   changed = .true.
+    !                end if
+    !             end if
+
+    !             ! radius
+    !             icol = icol + 1
+    !             if (igTableSetColumnIndex(icol)) then
+    !                str2 = "##tableradius" // suffix // c_null_char
+    !                str3 = "%.3f" // c_null_char
+    !                call igPushItemWidth(iw_calcwidth(5,1))
+    !                ch = igDragFloat(c_loc(str2),r%atom_style%rad(i),0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
+    !                   ImGuiSliderFlags_AlwaysClamp)
+    !                call iw_tooltip("Radius of the sphere representing the atom",ttshown)
+    !                if (ch) then
+    !                   r%atom_style%rad(i) = max(r%atom_style%rad(i),0._c_float)
+    !                   changed = .true.
+    !                end if
+    !                call igPopItemWidth()
+    !             end if
+    !          end if
+
+    !          ! molecule
+    !          if (domol) then
+    !             icol = icol + 1
+    !             ! i is a complete list index in this case
+    !             if (igTableSetColumnIndex(icol)) call iw_text(string(c%idatcelmol(1,i)))
+    !          end if
+
+    !          ! rest of info
+    !          if (r%atom_style%type > 0) then
+    !             icol = icol + 1
+    !             if (igTableSetColumnIndex(icol)) then
+    !                s = ""
+    !                if (r%atom_style%type > 0) then
+    !                   if (c%ismolecule) then
+    !                      x0 = (c%atcel(i)%r+c%molx0) * dunit0(iunit_ang)
+    !                   elseif (r%atom_style%type == 1) then
+    !                      x0 = c%at(i)%x
+    !                   else
+    !                      x0 = c%atcel(i)%x
+    !                   endif
+    !                   s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
+    !                      string(x0(3),'f',8,4,ioj_right)
+    !                end if
+    !                call iw_text(s)
+    !             end if
+    !          end if
+    !       end do ! clipper indices
+    !    end do ! clipper step
+
+    !    ! end the clipper and the table
+    !    call ImGuiListClipper_End(clipper)
+    !    call igEndTable()
+    ! end if
+
+    ! if (showselection) then
+    !    ! style buttons: show/hide
+    !    if (iw_button("Show All##showallatoms")) then
+    !       r%atom_style%shown = .true.
+    !       changed = .true.
+    !    end if
+    !    call iw_tooltip("Show all atoms/bonds/labels in the system",ttshown)
+    !    if (iw_button("Hide All##hideallatoms",sameline=.true.)) then
+    !       r%atom_style%shown = .false.
+    !       changed = .true.
+    !    end if
+    !    call iw_tooltip("Hide all atoms/bonds/labels in the system",ttshown)
+    !    if (iw_button("Toggle Show/Hide##toggleallatoms",sameline=.true.)) then
+    !       do i = 1, r%atom_style%ntype
+    !          r%atom_style%shown(i) = .not.r%atom_style%shown(i)
+    !       end do
+    !       changed = .true.
+    !    end if
+    !    call iw_tooltip("Toggle the show/hide status for all atoms/bonds/labels",ttshown)
+    ! end if
+
           call igEndTabItem()
        end if
 

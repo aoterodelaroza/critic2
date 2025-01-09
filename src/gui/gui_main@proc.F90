@@ -1014,8 +1014,12 @@ contains
        idum = stack_create_window(wintype_new_struct_library,.true.,orraise=-1)
     if (launch(d_open)) &
        idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles,orraise=-1)
-    if (launch(d_geometry)) &
-       idum = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
+    if (launch(d_geometry)) then
+       isys = win(iwin_view)%view_selected
+       isysok = ok_system(isys,sys_init)
+       if (isysok) &
+          idum = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
+    end if
     if (launchquit) then
        if (are_threads_running()) &
           call kill_initialization_thread()
