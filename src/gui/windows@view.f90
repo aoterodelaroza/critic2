@@ -1801,6 +1801,7 @@ contains
     character(kind=c_char,len=33), target :: txtinp2
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, suffix
     real*8 :: x0(3)
+    logical :: dohighlight
     logical(c_bool) :: ch, ldum
     integer(c_int) :: nc(3), lst, flags, nspcpair
     real(c_float) :: sqw
@@ -1820,12 +1821,10 @@ contains
     ! initialize
     changed = .false.
     isys = w%isys
+    dohighlight = .false.
 
     ! update representation to respond to changes in number of atoms and molecules
     call w%rep%update()
-
-    ! clear highlight
-    call win(w%idparent)%highlight_clear(w%id)
 
     ! row of display options
     changed = changed .or. iw_checkbox("Atoms##atomsglobaldisplay",w%rep%atoms_display,highlight=.true.)
@@ -1995,7 +1994,7 @@ contains
 
           ! draw the atom selection widget
           changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,w%id,w%idparent,&
-             .true.,.false.)
+             .true.,.false.,dohighlight)
 
           call igEndTabItem()
        end if ! begin tab item (selection)
@@ -2083,7 +2082,7 @@ contains
 
              ! draw the atom selection widget
              changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,w%id,w%idparent,&
-                .false.,.true.)
+                .false.,.true.,dohighlight)
 
              call igEndTabItem()
           end if ! begin tab item (atoms)
@@ -2488,8 +2487,10 @@ contains
                          call iw_text(string(i))
 
                          ! the highlight selectable
-                         if (iw_highlight_selectable("##selectablelabeltable" // suffix)) &
+                         if (iw_highlight_selectable("##selectablelabeltable" // suffix)) then
                             call win(w%idparent)%highlight_atoms((/i/),intable,w%id)
+                            dohighlight = .true.
+                         end if
                       end if
 
                       if (intable == 0) then ! species
@@ -2547,6 +2548,10 @@ contains
        end if
        call igEndTabBar()
     end if ! begin tab bar
+
+    ! clear highlight
+    if (.not.dohighlight) &
+       call win(w%idparent)%highlight_clear(w%id)
 
   end function draw_editrep_atoms
 
@@ -3347,7 +3352,9 @@ contains
   !> the parent window who owns the correpsonding scene.
   !> showselection = show the selection tab columns in the tables.
   !> showdrawopts = show the atoms tab columns (draw) in the tables.
-  function atom_selection_widget(c,r,id,idparent,showselection,showdrawopts) result(changed)
+  !> dohighlight = return true if highlight has been done
+  function atom_selection_widget(c,r,id,idparent,showselection,showdrawopts,dohighlight) &
+     result(changed)
     use scenes, only: draw_style_atom, draw_style_molecule
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
        iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit3, iw_highlight_selectable
@@ -3360,6 +3367,7 @@ contains
     integer, intent(in) :: idparent
     logical, intent(in) :: showselection
     logical, intent(in) :: showdrawopts
+    logical, intent(inout) :: dohighlight
     logical :: changed
 
     logical :: domol
@@ -3511,8 +3519,10 @@ contains
                 call iw_text(string(i))
 
                 ! the highlight selectable
-                if (iw_highlight_selectable("##selectablemoltable" // suffix)) &
+                if (iw_highlight_selectable("##selectablemoltable" // suffix)) then
                    call win(idparent)%highlight_atoms((/i/),r%atom_style%type,id)
+                   dohighlight = .true.
+                end if
              end if
 
              ! name
@@ -3707,8 +3717,10 @@ contains
                    call iw_text(string(i))
 
                    ! the highlight selectable
-                   if (iw_highlight_selectable("##selectableatomtable" // suffix)) &
+                   if (iw_highlight_selectable("##selectableatomtable" // suffix)) then
                       call win(idparent)%highlight_atoms((/i/),3,id)
+                      dohighlight = .true.
+                   end if
                 end if
 
                 ! nat
