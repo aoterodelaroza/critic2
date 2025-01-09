@@ -18,7 +18,6 @@
 !xx! private procedures
 ! function atom_selection_widget(c,r,id,idparent,showselection,showdrawopts)
 
-
 ! Windows, view.
 submodule (windows) view
   use interfaces_cimgui
@@ -1565,22 +1564,33 @@ contains
     integer, intent(in) :: who
 
     type(atom_selection), allocatable :: aux(:)
-    integer :: i, nused, nrest
+    integer :: i, nused, nrest, idnew
+    logical :: forcerender
 
     ! initial checks
     if (.not.associated(w%sc)) return
-    if (.not.allocated(w%sc%selection)) allocate(w%sc%selection(10))
+    if (.not.allocated(w%sc%highlight)) allocate(w%sc%highlight(10))
+    forcerender = .false.
 
     ! re-use the nullified ids
     nused = 0
-    do i = 1, w%sc%nselection
-       if (w%sc%selection(i)%iwin == who .and. w%sc%selection(i)%id == 0) then
-          nused = nused + 1
-          w%sc%selection(i)%id = ids(nused)
-          w%sc%selection(i)%type = itype
-          w%sc%selection(i)%iwin = who
-          w%sc%selection(i)%rgba = &
-             (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/)
+    do i = 1, w%sc%nhighlight
+       if (w%sc%highlight(i)%iwin == who) then
+          if (nused < size(ids,1)) then
+             nused = nused + 1
+             idnew = ids(nused)
+          else
+             idnew = 0
+          end if
+
+          if (w%sc%highlight(i)%id /= idnew .or. w%sc%highlight(i)%type /= itype) then
+             w%sc%highlight(i)%id = idnew
+             w%sc%highlight(i)%type = itype
+             w%sc%highlight(i)%iwin = who
+             w%sc%highlight(i)%rgba = &
+                (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/)
+             forcerender = .true.
+          end if
        end if
     end do
 
@@ -1588,26 +1598,27 @@ contains
     nrest = size(ids,1) - nused
     if (nrest > 0) then
        ! reallocate
-       if (w%sc%nselection + nrest > size(w%sc%selection,1)) then
-          allocate(aux(2*(w%sc%nselection + nrest)))
-          aux(1:size(w%sc%selection,1)) = w%sc%selection
-          call move_alloc(aux,w%sc%selection)
+       if (w%sc%nhighlight + nrest > size(w%sc%highlight,1)) then
+          allocate(aux(2*(w%sc%nhighlight + nrest)))
+          aux(1:size(w%sc%highlight,1)) = w%sc%highlight
+          call move_alloc(aux,w%sc%highlight)
        end if
 
        ! populate the selection in the scene
        do i = 1, nrest
           nused = nused + 1
-          w%sc%selection(w%sc%nselection + i)%id = ids(nused)
-          w%sc%selection(w%sc%nselection + i)%type = itype
-          w%sc%selection(w%sc%nselection + i)%iwin = who
-          w%sc%selection(w%sc%nselection + i)%rgba = &
+          w%sc%highlight(w%sc%nhighlight + i)%id = ids(nused)
+          w%sc%highlight(w%sc%nhighlight + i)%type = itype
+          w%sc%highlight(w%sc%nhighlight + i)%iwin = who
+          w%sc%highlight(w%sc%nhighlight + i)%rgba = &
              (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/)
        end do
-       w%sc%nselection = w%sc%nselection + nrest
+       w%sc%nhighlight = w%sc%nhighlight + nrest
+       forcerender = .true.
     end if
 
     ! force a render
-    w%forcerender = .true.
+    if (forcerender) w%forcerender = .true.
 
   end subroutine highlight_atoms
 
@@ -1620,15 +1631,15 @@ contains
 
     ! initial checks
     if (.not.associated(w%sc)) return
-    if (.not.allocated(w%sc%selection)) allocate(w%sc%selection(10))
+    if (.not.allocated(w%sc%highlight)) allocate(w%sc%highlight(10))
 
     ! nullify the selections for this window
     if (who <= 0) then
-       w%sc%nselection = 0
+       w%sc%nhighlight = 0
     else
-       do i = 1, w%sc%nselection
-          if (w%sc%selection(i)%iwin == who) &
-             w%sc%selection(i)%id = 0
+       do i = 1, w%sc%nhighlight
+          if (w%sc%highlight(i)%iwin == who) &
+             w%sc%highlight(i)%id = 0
        end do
     end if
     w%forcerender = .true.

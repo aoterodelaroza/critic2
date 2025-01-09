@@ -258,8 +258,8 @@ module scenes
      integer :: nmsel
      integer :: msel(5,4) ! 1 is atom cell ID, 2:4 is lattice vector, 5 is sphere ID
      ! selection sets
-     integer :: nselection = 0 ! number of selections
-     type(atom_selection), allocatable :: selection(:)
+     integer :: nhighlight = 0 ! number of highlighted atoms
+     type(atom_selection), allocatable :: highlight(:)
      ! draw lists
      integer :: nsph ! number of spheres
      type(dl_sphere), allocatable :: drawlist_sph(:) ! sphere draw list

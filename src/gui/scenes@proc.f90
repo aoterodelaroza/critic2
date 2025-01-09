@@ -95,9 +95,9 @@ contains
     s%msel = 0
 
     ! selection sets
-    s%nselection = 0
-    if (allocated(s%selection)) deallocate(s%selection)
-    allocate(s%selection(10))
+    s%nhighlight = 0
+    if (allocated(s%highlight)) deallocate(s%highlight)
+    allocate(s%highlight(10))
 
     ! initialize representations
     if (allocated(s%rep)) deallocate(s%rep)
@@ -250,7 +250,7 @@ contains
     s%msel = 0
 
     ! reset the selection
-    s%nselection = 0
+    s%nhighlight = 0
 
     ! recalculate scene center and radius
     maxrad = 0._c_float
@@ -434,7 +434,7 @@ contains
           call draw_selection_text()
 
        ! draw the highlighted/selected atoms
-       if (s%nselection > 0) then
+       if (s%nhighlight > 0) then
           call useshader(shader_phong)
           call setuniform_int(0_c_int,"uselighting")
           call glBindVertexArray(sphVAO(s%atom_res))
@@ -529,7 +529,7 @@ contains
           call draw_selection_text()
 
        ! highlight the highlighted/selected atoms
-       if (s%nselection > 0) then
+       if (s%nhighlight > 0) then
           call useshader(shader_simple)
           call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
           call glBindVertexArray(sphVAO(s%atom_res))
@@ -619,26 +619,26 @@ contains
       real(c_float) :: x(3)
       logical :: ok
 
-      if (s%nselection == 0) return
-      if (all(s%selection(1:s%nselection)%id == 0)) return
+      if (s%nhighlight == 0) return
+      if (all(s%highlight(1:s%nhighlight)%id == 0)) return
 
       do i = 1, s%nsph
-         do is = 1, s%nselection
-            if (s%selection(is)%type == 0) then
+         do is = 1, s%nhighlight
+            if (s%highlight(is)%type == 0) then
                id = sys(s%id)%c%atcel(s%drawlist_sph(i)%idx(1))%is
-            elseif (s%selection(is)%type == 1) then
+            elseif (s%highlight(is)%type == 1) then
                id = sys(s%id)%c%atcel(s%drawlist_sph(i)%idx(1))%idx
-            elseif (s%selection(is)%type == 2) then
+            elseif (s%highlight(is)%type == 2) then
                id = s%drawlist_sph(i)%idx(1)
-            elseif (s%selection(is)%type == 3) then
+            elseif (s%highlight(is)%type == 3) then
                id = sys(s%id)%c%idatcelmol(1,s%drawlist_sph(i)%idx(1))
             end if
 
-            if (id == s%selection(is)%id) then
+            if (id == s%highlight(is)%id) then
                x = s%drawlist_sph(i)%x
                if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
                call draw_sphere(x,s%drawlist_sph(i)%r + sel_thickness,s%atom_res,&
-                  rgba=s%selection(is)%rgba)
+                  rgba=s%highlight(is)%rgba)
             end if
          end do
       end do

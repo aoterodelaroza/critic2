@@ -2840,7 +2840,7 @@ contains
     use param, only: atmcov0, maxzat0, bohrtoa, newline
     class(window), intent(inout), target :: w
 
-    logical :: doquit
+    logical :: doquit, dohighlight
     logical(c_bool) :: is_selected
     integer(c_int) :: flags, ntype, ncol
     character(kind=c_char,len=:), allocatable, target :: str1, str2, suffix
@@ -2853,6 +2853,7 @@ contains
     logical, save :: ttshown = .false. ! tooltip flag
 
     ! initialize
+    dohighlight = .false.
     doquit = .false.
     szero%x = 0
     szero%y = 0
@@ -2909,11 +2910,6 @@ contains
        call igEndCombo()
     end if
     call iw_tooltip("Recalculate the bonds in this system",ttshown)
-
-    ! clear the highlight
-    if (iview > 0) then
-       call win(iview)%highlight_clear(w%id)
-    end if
 
     ! show the tabs
     str1 = "##drawgeometry_tabbar" // c_null_char
@@ -3061,9 +3057,9 @@ contains
                       call iw_text(string(i))
 
                       ! the highlight selectable
-                      if (iview > 0) then
-                         if (iw_highlight_selectable("##selectablemoltable" // suffix)) &
-                            call win(iview)%highlight_atoms((/i/),w%geometry_atomtype,w%id)
+                      if (iview > 0 .and. iw_highlight_selectable("##selectablemoltable" // suffix)) then
+                         call win(iview)%highlight_atoms((/i/),w%geometry_atomtype,w%id)
+                         dohighlight = .true.
                       end if
                    end if
 
@@ -3189,6 +3185,10 @@ contains
        call igEndTabBar()
     end if
     call igEndGroup()
+
+    ! clear the highlight
+    if (iview > 0 .and..not.dohighlight) &
+       call win(iview)%highlight_clear(w%id)
 
     ! right-align and bottom-align for the rest of the contents
     call igGetContentRegionAvail(szavail)
