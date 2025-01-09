@@ -96,7 +96,6 @@ contains
 
     ! selection sets
     s%nselection = 0
-    s%selection_type = 2
     if (allocated(s%selection)) deallocate(s%selection)
     allocate(s%selection(10))
 
@@ -252,7 +251,6 @@ contains
 
     ! reset the selection
     s%nselection = 0
-    s%selection_type = 2
 
     ! recalculate scene center and radius
     maxrad = 0._c_float
@@ -315,8 +313,7 @@ contains
     use interfaces_cimgui
     use interfaces_opengl3
     use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
-    use gui_main, only: fonts, fontbakesize_large, time, font_large, sys,&
-       ColorTableHighlightRow
+    use gui_main, only: fonts, fontbakesize_large, time, font_large, sys
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use tools_io, only: string
@@ -618,31 +615,32 @@ contains
 
     !> Draw the selections
     subroutine draw_all_selections()
-      integer :: i, j, id
-      real(c_float) :: x(3), rgba(4)
+      integer :: i, j, is, id
+      real(c_float) :: x(3)
       logical :: ok
 
+      if (s%nselection == 0) return
+      if (all(s%selection(1:s%nselection)%id == 0)) return
+
       do i = 1, s%nsph
-         if (s%selection_type == 0) then
-            id = sys(s%id)%c%atcel(s%drawlist_sph(i)%idx(1))%is
-         elseif (s%selection_type == 1) then
-            id = sys(s%id)%c%atcel(s%drawlist_sph(i)%idx(1))%idx
-         elseif (s%selection_type == 2) then
-            id = s%drawlist_sph(i)%idx(1)
-         elseif (s%selection_type == 3) then
-            id = sys(s%id)%c%idatcelmol(1,s%drawlist_sph(i)%idx(1))
-         end if
-         ok = .false.
-         do j = 1, s%nselection
-            ok = ok .or. (id == s%selection(j))
+         do is = 1, s%nselection
+            if (s%selection(is)%type == 0) then
+               id = sys(s%id)%c%atcel(s%drawlist_sph(i)%idx(1))%is
+            elseif (s%selection(is)%type == 1) then
+               id = sys(s%id)%c%atcel(s%drawlist_sph(i)%idx(1))%idx
+            elseif (s%selection(is)%type == 2) then
+               id = s%drawlist_sph(i)%idx(1)
+            elseif (s%selection(is)%type == 3) then
+               id = sys(s%id)%c%idatcelmol(1,s%drawlist_sph(i)%idx(1))
+            end if
+
+            if (id == s%selection(is)%id) then
+               x = s%drawlist_sph(i)%x
+               if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
+               call draw_sphere(x,s%drawlist_sph(i)%r + sel_thickness,s%atom_res,&
+                  rgba=s%selection(is)%rgba)
+            end if
          end do
-         if (ok) then
-            x = s%drawlist_sph(i)%x
-            if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
-            rgba = (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/)
-            call draw_sphere(x,s%drawlist_sph(i)%r + sel_thickness,s%atom_res,rgba=rgba)
-            radsel(j) = s%drawlist_sph(i)%r + sel_thickness
-         end if
       end do
 
     end subroutine draw_all_selections

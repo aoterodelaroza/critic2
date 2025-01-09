@@ -156,7 +156,7 @@ module windows
      integer(c_int) :: ifrequnit = 0 ! frequency unit (0 = cm-1, 1 = THz)
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
      ! geometry parameters
-     integer(c_int) :: geometry_atomtype = 1 ! 0 = species, 1 = cell, 2 = sym-unique
+     integer(c_int) :: geometry_atomtype = 1 ! 0 = species, 1 = sym-unique, 2 = cell
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -181,6 +181,8 @@ module windows
      procedure :: texpos_to_view ! texture position to view coordinates
      procedure :: world_to_texpos ! world coordinates to texture position
      procedure :: texpos_to_world ! texture position to world coordinates
+     procedure :: highlight_atoms ! mark atoms for highlighting
+     procedure :: highlight_clear ! clear highlighting
      ! dialog procedures
      procedure :: draw_dialog ! draw an open/save dialog
      ! input console procedures
@@ -382,6 +384,16 @@ module windows
        class(window), intent(inout), target :: w
        real(c_float), intent(inout) :: pos(3)
      end subroutine texpos_to_world
+     module subroutine highlight_atoms(w,ids,itype,who)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: ids(:)
+       integer, intent(in) :: itype
+       integer, intent(in) :: who
+     end subroutine highlight_atoms
+     module subroutine highlight_clear(w,who)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: who
+     end subroutine highlight_clear
      module subroutine draw_dialog(w)
        class(window), intent(inout), target :: w
      end subroutine draw_dialog

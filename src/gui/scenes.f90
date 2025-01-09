@@ -130,6 +130,15 @@ module scenes
   end type draw_style_label
   public :: draw_style_label
 
+  !> User defined type for atomic selections
+  type atom_selection
+     integer :: id ! id of the selected atom or atoms
+     integer :: type ! 0=species,1=nneq,2=cell,3=mol
+     integer :: iwin ! window ID responsible for this selection
+     real(c_float) :: rgba(4) ! color of the selection
+  end type atom_selection
+  public :: atom_selection
+
   ! types of representations
   integer, parameter, public :: reptype_none = 0
   integer, parameter, public :: reptype_atoms = 1
@@ -249,9 +258,8 @@ module scenes
      integer :: nmsel
      integer :: msel(5,4) ! 1 is atom cell ID, 2:4 is lattice vector, 5 is sphere ID
      ! selection sets
-     integer :: nselection
-     integer :: selection_type ! 0=species,1=nneq,2=cell,3=mol
-     integer, allocatable :: selection(:)
+     integer :: nselection = 0 ! number of selections
+     type(atom_selection), allocatable :: selection(:)
      ! draw lists
      integer :: nsph ! number of spheres
      type(dl_sphere), allocatable :: drawlist_sph(:) ! sphere draw list

@@ -15,6 +15,10 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+!xx! private procedures
+! function atom_selection_widget(c,r,id,idparent,showselection,showdrawopts)
+
+
 ! Windows, view.
 submodule (windows) view
   use interfaces_cimgui
@@ -1549,6 +1553,88 @@ contains
 
   end subroutine texpos_to_world
 
+  !> Flag some atoms in the view as highlight. Select the atoms with
+  !> ids using selection type itype (species, nneq, ncel). The ID of
+  !> the selecting window is who.
+  module subroutine highlight_atoms(w,ids,itype,who)
+    use gui_main, only: ColorTableHighlightRow
+    use scenes, only: atom_selection
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: ids(:)
+    integer, intent(in) :: itype
+    integer, intent(in) :: who
+
+    type(atom_selection), allocatable :: aux(:)
+    integer :: i, nused, nrest
+
+    ! initial checks
+    if (.not.associated(w%sc)) return
+    if (.not.allocated(w%sc%selection)) allocate(w%sc%selection(10))
+
+    ! re-use the nullified ids
+    nused = 0
+    do i = 1, w%sc%nselection
+       if (w%sc%selection(i)%iwin == who .and. w%sc%selection(i)%id == 0) then
+          nused = nused + 1
+          w%sc%selection(i)%id = ids(nused)
+          w%sc%selection(i)%type = itype
+          w%sc%selection(i)%iwin = who
+          w%sc%selection(i)%rgba = &
+             (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/)
+       end if
+    end do
+
+    ! assign the rest
+    nrest = size(ids,1) - nused
+    if (nrest > 0) then
+       ! reallocate
+       if (w%sc%nselection + nrest > size(w%sc%selection,1)) then
+          allocate(aux(2*(w%sc%nselection + nrest)))
+          aux(1:size(w%sc%selection,1)) = w%sc%selection
+          call move_alloc(aux,w%sc%selection)
+       end if
+
+       ! populate the selection in the scene
+       do i = 1, nrest
+          nused = nused + 1
+          w%sc%selection(w%sc%nselection + i)%id = ids(nused)
+          w%sc%selection(w%sc%nselection + i)%type = itype
+          w%sc%selection(w%sc%nselection + i)%iwin = who
+          w%sc%selection(w%sc%nselection + i)%rgba = &
+             (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/)
+       end do
+       w%sc%nselection = w%sc%nselection + nrest
+    end if
+
+    ! force a render
+    w%forcerender = .true.
+
+  end subroutine highlight_atoms
+
+  !> Clear the highlighted atoms in the window
+  module subroutine highlight_clear(w,who)
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: who
+
+    integer :: i
+
+    ! initial checks
+    if (.not.associated(w%sc)) return
+    if (.not.allocated(w%sc%selection)) allocate(w%sc%selection(10))
+
+    ! nullify the selections for this window
+    if (who <= 0) then
+       w%sc%nselection = 0
+    else
+       do i = 1, w%sc%nselection
+          if (w%sc%selection(i)%iwin == who) &
+             w%sc%selection(i)%id = 0
+       end do
+    end if
+    w%forcerender = .true.
+
+  end subroutine highlight_clear
+
   !xx! edit representation
 
   !> Update the isys and irep in the edit represenatation window.
@@ -1712,7 +1798,6 @@ contains
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     integer, allocatable :: indi(:), indj(:)
-    logical :: oksel
 
     integer(c_int), parameter :: lsttrans(0:7) = (/0,1,2,2,2,3,4,5/)
     integer(c_int), parameter :: lsttransi(0:5) = (/0,1,2,5,6,7/)
@@ -1724,10 +1809,12 @@ contains
     ! initialize
     changed = .false.
     isys = w%isys
-    oksel = .false.
 
     ! update representation to respond to changes in number of atoms and molecules
     call w%rep%update()
+
+    ! clear highlight
+    call win(w%idparent)%highlight_clear(w%id)
 
     ! row of display options
     changed = changed .or. iw_checkbox("Atoms##atomsglobaldisplay",w%rep%atoms_display,highlight=.true.)
@@ -1896,7 +1983,7 @@ contains
           call igPopItemWidth()
 
           ! draw the atom selection widget
-          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,oksel,w%idparent,&
+          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,w%id,w%idparent,&
              .true.,.false.)
 
           call igEndTabItem()
@@ -1984,7 +2071,7 @@ contains
              call iw_tooltip("Color of the border for the atoms",ttshown)
 
              ! draw the atom selection widget
-             changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,oksel,w%idparent,&
+             changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,w%id,w%idparent,&
                 .false.,.true.)
 
              call igEndTabItem()
@@ -2390,13 +2477,8 @@ contains
                          call iw_text(string(i))
 
                          ! the highlight selectable
-                         if (iw_highlight_selectable("##selectablelabeltable" // suffix)) then
-                            win(w%idparent)%sc%nselection = 1
-                            win(w%idparent)%sc%selection_type = intable
-                            win(w%idparent)%sc%selection(1) = i
-                            win(w%idparent)%forcerender = .true.
-                            oksel = .true.
-                         end if
+                         if (iw_highlight_selectable("##selectablelabeltable" // suffix)) &
+                            call win(w%idparent)%highlight_atoms((/i/),intable,w%id)
                       end if
 
                       if (intable == 0) then ! species
@@ -2454,13 +2536,6 @@ contains
        end if
        call igEndTabBar()
     end if ! begin tab bar
-
-    ! reset selection if nothing was selected this pass
-    if (.not.oksel) then
-       if (win(w%idparent)%sc%nselection > 0) &
-          win(w%idparent)%forcerender = .true.
-       win(w%idparent)%sc%nselection = 0
-    end if
 
   end function draw_editrep_atoms
 
@@ -3257,12 +3332,11 @@ contains
   !xx! private procedures
 
   !> Draw the atom selection table for crystal c on representation r
-  !> and return whether any item has been changed. Return oksel = .true.
-  !> if an item in a table has been hovered (for table row highlight).
-  !> idparent = ID of the parent window who owns the correpsonding scene.
+  !> and return whether any item has been changed.  idparent = ID of
+  !> the parent window who owns the correpsonding scene.
   !> showselection = show the selection tab columns in the tables.
   !> showdrawopts = show the atoms tab columns (draw) in the tables.
-  function atom_selection_widget(c,r,oksel,idparent,showselection,showdrawopts) result(changed)
+  function atom_selection_widget(c,r,id,idparent,showselection,showdrawopts) result(changed)
     use scenes, only: draw_style_atom, draw_style_molecule
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
        iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit3, iw_highlight_selectable
@@ -3271,7 +3345,7 @@ contains
     use tools_io, only: string, ioj_right
     type(crystal), intent(in) :: c
     type(representation), intent(inout) :: r
-    logical, intent(inout) :: oksel
+    integer, intent(in) :: id
     integer, intent(in) :: idparent
     logical, intent(in) :: showselection
     logical, intent(in) :: showdrawopts
@@ -3426,13 +3500,8 @@ contains
                 call iw_text(string(i))
 
                 ! the highlight selectable
-                if (iw_highlight_selectable("##selectablemoltable" // suffix)) then
-                   win(idparent)%sc%nselection = 1
-                   win(idparent)%sc%selection_type = r%atom_style%type
-                   win(idparent)%sc%selection(1) = i
-                   win(idparent)%forcerender = .true.
-                   oksel = .true.
-                end if
+                if (iw_highlight_selectable("##selectablemoltable" // suffix)) &
+                   call win(idparent)%highlight_atoms((/i/),r%atom_style%type,id)
              end if
 
              ! name
@@ -3627,13 +3696,8 @@ contains
                    call iw_text(string(i))
 
                    ! the highlight selectable
-                   if (iw_highlight_selectable("##selectableatomtable" // suffix)) then
-                      win(idparent)%sc%nselection = 1
-                      win(idparent)%sc%selection_type = 3
-                      win(idparent)%sc%selection(1) = i
-                      win(idparent)%forcerender = .true.
-                      oksel = .true.
-                   end if
+                   if (iw_highlight_selectable("##selectableatomtable" // suffix)) &
+                      call win(idparent)%highlight_atoms((/i/),3,id)
                 end if
 
                 ! nat
