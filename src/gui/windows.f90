@@ -155,6 +155,8 @@ module windows
      ! vibrations parameters
      integer(c_int) :: ifrequnit = 0 ! frequency unit (0 = cm-1, 1 = THz)
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
+     ! geometry parameters
+     integer(c_int) :: geometry_atomtype = 1 ! 0 = species, 1 = cell, 2 = sym-unique
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window

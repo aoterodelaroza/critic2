@@ -3303,7 +3303,7 @@ contains
     ch = .false.
     if (.not.c%ismolecule) then
        call iw_combo_simple("Atom types##atomtypeselection","Species"//c_null_char//&
-          "Symmetry-unique" //c_null_char//"Cell"//c_null_char//c_null_char,&
+          "Symmetry unique" //c_null_char//"Cell"//c_null_char//c_null_char,&
           r%atom_style%type,changed=ch)
     else
        call iw_combo_simple("Atom types##atomtypeselection","Species"//c_null_char//"Atoms"//c_null_char//&

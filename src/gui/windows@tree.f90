@@ -2854,6 +2854,11 @@ contains
     szero%x = 0
     szero%y = 0
 
+    ! first pass
+    if (w%firstpass) then
+       w%geometry_atomtype = 1
+    end if
+
     ! check if the system still exists
     if (.not.ok_system(w%isys,sys_init)) then
        ! this dialog does not make sense anymore, close it and exit
@@ -2909,22 +2914,16 @@ contains
     ! type(c_ptr), target :: clipper
     ! type(ImGuiListClipper), pointer :: clipper_f
 
-    ! logical, save :: ttshown = .false. ! tooltip flag
-
-          ! ! selector and reset
-          ! if (.not.c%ismolecule) then
-          !    call iw_combo_simple("Atom types##atomtypeselection","Species"//c_null_char//&
-          !       "Symmetry-unique" //c_null_char//"Cell"//c_null_char//c_null_char,&
-          !       r%atom_style%type,changed=ch)
-          ! else
-          !    call iw_combo_simple("Atom types##atomtypeselection","Species"//c_null_char//"Atoms"//c_null_char//&
-          !       c_null_char,r%atom_style%type,changed=ch)
-          ! end if
-          ! call iw_tooltip("Group atoms by these categories",ttshown)
-          ! if (ch) then
-          !    call r%reset_atom_style()
-          !    changed = .true.
-          ! end if
+          ! selector and reset
+          if (.not.sys(isys)%c%ismolecule) then
+             call iw_combo_simple("Group atom types##atomtypeselectgeom","Species"//c_null_char//&
+                "Cell" //c_null_char//"Symmetry unique"//c_null_char//c_null_char,&
+                w%geometry_atomtype)
+          else
+             call iw_combo_simple("Atom types##atomtypeselectgeom","Species"//c_null_char//"Atoms"//c_null_char//&
+                c_null_char,w%geometry_atomtype)
+          end if
+          call iw_tooltip("Group atoms by these categories",ttshown)
 
     ! ! whether to do the molecule column
     ! domol = (r%atom_style%type == 2 .or. (r%atom_style%type == 1 .and. c%ismolecule))
