@@ -2585,9 +2585,9 @@ contains
     call iw_tooltip("Recalculate the system bonds with the selected parameters",ttshown)
 
     ! close button
-    doquit = (w%focused() .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or.&
-       is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)))
+    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
     doquit = doquit .or. iw_button("Close",sameline=.true.)
 
     ! quit the window
@@ -3197,15 +3197,14 @@ contains
        call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
 
     ! close button
-    doquit = (w%focused() .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or.&
-       is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)))
+    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
     doquit = doquit .or. iw_button("Close")
 
     ! quit the window
-    if (doquit) then
+    if (doquit) &
        call w%end()
-    end if
 
   end subroutine draw_geometry
 
