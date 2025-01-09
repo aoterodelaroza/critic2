@@ -2832,24 +2832,63 @@ contains
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: nsys, sysc, sys, sys_init, g
-    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight
+    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth
     use global, only: bondfactor_def
     use tools_io, only: string, nameguess
     use param, only: atmcov0, maxzat0, bohrtoa, newline
     class(window), intent(inout), target :: w
 
     logical :: doquit
+    integer(c_int) :: flags
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    type(ImVec2) :: szavail
 
     ! initialize
     doquit = .false.
 
-    ! xxxx
+    ! show the tabs
+    str1 = "##drawgeometry_tabbar" // c_null_char
+    flags = ImGuiTabBarFlags_Reorderable
+    flags = ior(flags,ImGuiTabBarFlags_AutoSelectNewTabs)
+    call igBeginGroup()
+    if (igBeginTabBar(c_loc(str1),flags)) then
+       !! atoms tab !!
+       str2 = "Atoms##drawgeometry_atomstab" // c_null_char
+       flags = ImGuiTabItemFlags_None
+       if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+          call iw_text("blah")
+          call igEndTabItem()
+       end if
+
+       str2 = "Molecules##drawgeometry_molstab" // c_null_char
+       flags = ImGuiTabItemFlags_None
+       if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+          call iw_text("blah")
+          call igEndTabItem()
+       end if
+
+       str2 = "Bonds##drawgeometry_bondstab" // c_null_char
+       flags = ImGuiTabItemFlags_None
+       if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+          call iw_text("blah")
+          call igEndTabItem()
+       end if
+
+       call igEndTabBar()
+    end if
+    call igEndGroup()
+
+    ! right-align and bottom-align for the rest of the contents
+    call igGetContentRegionAvail(szavail)
+    call igSetCursorPosX(iw_calcwidth(5,1,from_end=.true.) - g%Style%ScrollbarSize)
+    if (szavail%y > igGetTextLineHeightWithSpacing() + g%Style%WindowPadding%y) &
+       call igSetCursorPosY(igGetCursorPosY() + szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y)
 
     ! close button
     doquit = (w%focused() .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or.&
        is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or.&
        is_bind_event(BIND_CLOSE_ALL_DIALOGS)))
-    doquit = doquit .or. iw_button("Close",sameline=.true.)
+    doquit = doquit .or. iw_button("Close")
 
     ! quit the window
     if (doquit) then
