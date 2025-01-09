@@ -2839,7 +2839,7 @@ contains
     use param, only: atmcov0, maxzat0, bohrtoa, newline
     class(window), intent(inout), target :: w
 
-    logical :: doquit, oksys
+    logical :: doquit
     logical(c_bool) :: is_selected
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: str1, str2
@@ -2854,36 +2854,13 @@ contains
     szero%x = 0
     szero%y = 0
 
-    !! make sure we get a system that exists
     ! check if the system still exists
-    isys = w%isys
-    oksys = ok_system(isys,sys_init)
-    if (.not.oksys) then
-       ! reset to the table selected
-       isys = win(iwin_tree)%tree_selected
-       oksys = ok_system(isys,sys_init)
-    end if
-    if (.not.oksys) then
-       ! reset to the input console selected
-       isys = win(iwin_tree)%inpcon_selected
-       oksys = ok_system(isys,sys_init)
-    end if
-    if (.not.oksys) then
-       ! check all systems and try to find one that is OK
-       do i = 1, nsys
-          oksys = ok_system(isys,sys_init)
-          if (oksys) then
-             isys = i
-             exit
-          end if
-       end do
-    end if
-    if (.not.oksys) then
+    if (.not.ok_system(w%isys,sys_init)) then
        ! this dialog does not make sense anymore, close it and exit
        call w%end()
        return
     end if
-    w%isys = isys
+    isys = w%isys
 
     ! system combo
     call iw_text("System",highlight=.true.)
@@ -2892,8 +2869,7 @@ contains
     combowidth = max(szavail%x - g%Style%ItemSpacing%x,0._c_float)
     str1 = "##systemcombo" // c_null_char
     call igSetNextItemWidth(combowidth)
-    if (oksys) &
-       str2 = string(isys) // ": " // trim(sysc(isys)%seed%name) // c_null_char
+    str2 = string(isys) // ": " // trim(sysc(isys)%seed%name) // c_null_char
     if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
        do i = 1, nsys
           if (sysc(i)%status == sys_init) then
@@ -2928,16 +2904,12 @@ contains
     ! integer(c_int) :: flags
     ! character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3, suffix
     ! real*8 :: x0(3)
-    ! type(ImVec2) :: sz0, szero
+    ! type(ImVec2) :: sz0
     ! integer :: ispc, i, iz, ncol, isys, icol
     ! type(c_ptr), target :: clipper
     ! type(ImGuiListClipper), pointer :: clipper_f
 
     ! logical, save :: ttshown = .false. ! tooltip flag
-
-    ! szero%x = 0
-    ! szero%y = 0
-    ! isys = r%id
 
           ! ! selector and reset
           ! if (.not.c%ismolecule) then
