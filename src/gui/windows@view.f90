@@ -65,7 +65,8 @@ contains
        iw_setposx_fromend, iw_checkbox, iw_coloredit3, iw_menuitem
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
-    use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior, ok_system
+    use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior, ok_system,&
+       are_threads_running
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
     use tools_io, only: string
     use param, only: newline
@@ -628,12 +629,22 @@ contains
           iaux = stack_create_window(wintype_exportimage,.true.,idparent=w%id,orraise=-1)
        call iw_tooltip("Export the current view to an image file (png)",ttshown)
 
+       ! separator
+       call igSeparator()
+
+       if (iw_menuitem("View/Edit Geometry...",enabled=enabled)) &
+          iaux = stack_create_window(wintype_geometry,.true.,isys=w%view_selected,orraise=-1)
+       call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
+
+       if (iw_menuitem("Recalculate Bonds...",enabled=enabled.and..not.are_threads_running())) &
+          idum = stack_create_window(wintype_rebond,.true.,isys=w%view_selected,orraise=-1)
+       call iw_tooltip("Recalculate the bonds in the current system",ttshown)
+
        if (iw_menuitem("Vibrations...",enabled=enabled)) &
           iaux = stack_create_window(wintype_vibrations,.true.,idparent=w%id,orraise=-1)
        call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
        call igEndPopup()
     end if
-
 
     ! camera lock
     if (w%ismain) then
@@ -1774,6 +1785,7 @@ contains
     end if
 
     ! exit if focused and received the close keybinding
+    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
     if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
        is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
 
@@ -2937,6 +2949,7 @@ contains
     if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
+    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
     if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
        is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
 
@@ -2954,7 +2967,8 @@ contains
        launch_initialization_thread, time, ok_system
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_radiobutton
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
+       BIND_OK_FOCUSED_DIALOG
     use tools_math, only: rational_approx
     use tools_io, only: string, ioj_right
     use param, only: cm1tothz, bohrtoa
@@ -3335,13 +3349,13 @@ contains
     call iw_tooltip("Close this window",ttshown)
 
     ! exit if focused and received the close keybinding
+    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
     if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
        is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
 
     ! quit = close the window
-    if (doquit) then
+    if (doquit) &
        call w%end()
-    end if
 
   end subroutine draw_vibrations
 

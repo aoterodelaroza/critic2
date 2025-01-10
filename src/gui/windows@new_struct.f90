@@ -313,9 +313,9 @@ contains
     if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) &
-       doquit = .true.
+    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
 
     ! quit the window
     if (doquit) then
@@ -540,8 +540,9 @@ contains
     if (iw_button("Cancel",sameline=.true.)) doquit = .true.
 
     ! exit if focused and received the close keybinding
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.is_bind_event(BIND_CLOSE_ALL_DIALOGS)) &
-       doquit = .true.
+    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
 
     ! read the library file
     if (w%okfile_read) then

@@ -2260,7 +2260,8 @@ contains
 
   !> Draw the SCF plot window.
   module subroutine draw_scfplot(w)
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
+       BIND_OK_FOCUSED_DIALOG
     use gui_main, only: nsys, sysc, sys_init, ok_system
     use utils, only: iw_text
     use types, only: realloc
@@ -2348,8 +2349,9 @@ contains
     end if
 
     ! exit if focused and received the close keybinding
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.is_bind_event(BIND_CLOSE_ALL_DIALOGS))&
-       doquit = .true.
+    if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
+    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
 
     if (doquit) call w%end()
 
@@ -2591,9 +2593,8 @@ contains
     doquit = doquit .or. iw_button("Close",sameline=.true.)
 
     ! quit the window
-    if (doquit) then
+    if (doquit) &
        call w%end()
-    end if
 
   contains
     ! build lists for all scenes associated with system i (including alternate views)
