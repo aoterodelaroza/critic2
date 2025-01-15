@@ -723,7 +723,7 @@ contains
        field_detect_format = ifformat_dftb
     else if (equal(extdot,'CHG').or.equal(extdot,'CHGCAR').or.&
        equal(extdot,'AECCAR0').or.equal(extdot,'AECCAR1').or.&
-       equal(extdot,'AECCAR2')) then
+       equal(extdot,'AECCAR2').or.equal(extdot,'PARCHG')) then
        field_detect_format = ifformat_vasp
     else if (equal(extdot,'ELFCAR')) then
        field_detect_format = ifformat_vaspnov
