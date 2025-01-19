@@ -4943,7 +4943,7 @@ contains
        (index(basename,'CHGCAR') > 0) .or. (index(basename,'CHG') > 0).or.&
        (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0).or.&
        (index(basename,'AECCAR1') > 0) .or. (index(basename,'AECCAR2') > 0) .or.&
-       (index(basename,'POSCAR') > 0)
+       (index(basename,'POSCAR') > 0).or.(index(basename,'PARCHG') > 0)
 
     if (equal(lower(wextdot),'cif')) then
        isformat = isformat_cif
@@ -5062,7 +5062,8 @@ contains
        isformat = isformat_vasp
        alsofield_ = (index(basename,'CHGCAR') > 0) .or. (index(basename,'CHG') > 0) .or. &
           (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0) .or. &
-          (index(basename,'AECCAR1') > 0) .or. (index(basename,'AECCAR2') > 0)
+          (index(basename,'AECCAR1') > 0) .or. (index(basename,'AECCAR2') > 0).or.&
+          (index(basename,'PARCHG') > 0)
     elseif (equal(wextdot,'mol2')) then
        isformat = isformat_mol2
     elseif (equal(wextdot,'pdb')) then
