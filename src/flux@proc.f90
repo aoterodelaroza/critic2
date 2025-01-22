@@ -1432,7 +1432,6 @@ contains
           if (dobcp) then
              ! compute bcp bond paths
              if (sy%f(sy%iref)%cp(i)%typ == -1) then
-                write (*,*) "doing: ", i, "with ", m+1,1,1,localsym,"dyn",rgb
                 call flx_bcp(m+1,1,1,localsym,"dyn",rgb=rgb)
              end if
           end if
