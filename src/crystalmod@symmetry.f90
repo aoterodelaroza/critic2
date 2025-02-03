@@ -392,6 +392,7 @@ contains
           c%atcel(i)%rxc = c%xr2c(c%atcel(i)%rxc)
 
           c%atcel(i)%is = c%at(i)%is
+          c%atcel(i)%cidx = i
        end do
     end if
 
@@ -414,6 +415,7 @@ contains
           c%at(iidx(idx))%mult = c%at(iidx(idx))%mult + 1
        end if
        c%atcel(i)%idx = iidx(idx)
+       c%atcel(i)%cidx = i
     end do
     call realloc(c%at,c%nneq)
 
