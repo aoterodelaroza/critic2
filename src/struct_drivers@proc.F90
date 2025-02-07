@@ -2232,11 +2232,11 @@ contains
     integer :: i
     real*8 :: diff
     real*8, allocatable :: t(:), ih(:)
-    character(len=:), allocatable :: word, file1, errmsg
+    character(len=:), allocatable :: word, file1, errmsg, writefile
     type(crystal) :: c1, c2
     integer :: imode, lu, maxfeval
     real*8 :: th2ini, th2end, alpha, lambda, besteps, max_elong, max_ang
-    logical :: ok, readc2, dowrite
+    logical :: ok, readc2
     type(crystalseed) :: seed
     type(xrpd_peaklist) :: p2
 
@@ -2309,7 +2309,7 @@ contains
     ! read additional options
     call set_quick_params()
     alpha = xrpd_alpha_def
-    dowrite = .false.
+    writefile = ""
     imode = imode_global
     do while (.true.)
        word = lgetword(line,lp)
@@ -2360,7 +2360,7 @@ contains
              return
           end if
        elseif (equal(word,'write')) then
-          dowrite = .true.
+          writefile = getword(line,lp)
        else
           exit
        end if
@@ -2384,13 +2384,12 @@ contains
     write (uout,'("+ DIFF = ",A/)') string(max(diff,0d0),'f',decimal=10)
 
     ! write to output
-    if (dowrite .and. imode /= imode_sp) then
+    if (len(writefile) > 0 .and. imode /= imode_sp) then
        call c1%struct_new(seed,.true.)
 
        ! write structure to output
-       word = fileroot // "-final.res"
-       call c1%write_simple_driver(word)
-       write (uout,'("+ Final structure written to ",A/)') trim(word)
+       call c1%write_simple_driver(writefile)
+       write (uout,'("+ Final structure written to ",A/)') trim(writefile)
 
        ! write diffraction patterns to output
        word = fileroot // "-final.xy"
