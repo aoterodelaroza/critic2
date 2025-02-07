@@ -1,0 +1,5 @@
+## delete: 039_crystal_magres.cro
+## check: 039_crystal_magres_gen.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/magres/scf.nmr.magres
+write 039_crystal_magres_gen.cri
