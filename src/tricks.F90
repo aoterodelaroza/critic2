@@ -2912,6 +2912,8 @@ contains
   end subroutine trick_check_valence
 
   ! TRICK FORCE_CONSTANTS fc2.file {VASP|QE|FHIAIMS} [DISTEPS deps.r] [FC2EPS fc2eps.r]
+  ! ... PRINT
+  ! ... Q x.r y.r z.r
   subroutine trick_force_constants(line0)
     use tools_io, only: fopen_read, fclose, getline_raw, getword, string,&
        isreal, ioj_center, uout, ferror, faterr, lower, equal
@@ -2930,9 +2932,14 @@ contains
     character(len=:), allocatable :: firstline, line
     real*8, dimension(9) :: fc2_ijlist
     real*8 :: fc_item, disteps, fc2eps, fc2l, fc2factor
-    real*8 :: dist, rdum, maxdisteps
+    real*8 :: dist, rdum, maxdisteps, q(3)
     real*8, allocatable :: dista(:)
     integer, allocatable :: idx(:), i2(:,:), pair(:,:), x_map(:,:) ! i2-> pair
+
+    integer, parameter :: imode_unk = 0
+    integer, parameter :: imode_print = 1
+    integer, parameter :: imode_calcq = 2
+    integer :: imode
 
     ! consistency checks
     if (.not.associated(sy)) &
@@ -2951,6 +2958,8 @@ contains
     sort = .false.
     allocate(fc2(3,sy%c%ncel,3,sy%c%ncel))
     haveformat = .false.
+    imode = imode_unk
+    q = 0d0
 
     !! read command line
     lp = 1
@@ -2977,6 +2986,15 @@ contains
           haveformat = .true.
           write (*,*) "FIXME: VASP and FHIAIMS fc2factor"
           stop 1
+       elseif (equal(lword,'print')) then
+          imode = imode_print
+       elseif (equal(lword,'q')) then
+          imode = imode_calcq
+          ok = eval_next(q(1),line0,lp)
+          ok = ok .and. eval_next(q(2),line0,lp)
+          ok = ok .and. eval_next(q(3),line0,lp)
+          if (.not.ok) &
+             call ferror('trick_force_constants','Error reading q',faterr,line0,syntax=.true.)
        elseif (len(lword) == 0) then
           exit
        else
@@ -2984,24 +3002,9 @@ contains
        end if
     end do
     if (.not.haveformat) &
-       call ferror('trick_force_constants','A format is required in trick_force_constants',faterr)
-
-    ! allocate information about atom pairs, and optionally sort by distance
-    npair = sy%c%ncel*(sy%c%ncel + 1) / 2
-    allocate(dista(npair),idx(npair),i2(2,npair))
-    allocate(pair(2,npair))
-    k = 0
-    do i = 1, sy%c%ncel
-       do j = i, sy%c%ncel
-          k = k + 1
-          dista(k) = sy%c%eql_distance(sy%c%atcel(i)%x, sy%c%atcel(j)%x)
-          idx(k) = k
-          i2(1,k) = i
-          i2(2,k) = j
-       end do
-    end do
-    maxdisteps = maxval(dista)
-    if (sort) call mergesort(dista,idx,1,npair)
+       call ferror('trick_force_constants','A format is required',faterr)
+    if (imode == imode_unk) &
+       call ferror('trick_force_constants','An operation mode is required',faterr)
 
     ! read the fc2 file
     lu = fopen_read(fc2_file)
@@ -3021,11 +3024,51 @@ contains
     fc2 = fc2 * fc2factor
     call fclose(lu)
 
-    ! print the fc2 matrix
-    ! call print_fc2()
+    ! allocate information about atom pairs, and optionally sort by distance
+    npair = sy%c%ncel*(sy%c%ncel + 1) / 2
+    allocate(dista(npair),idx(npair),i2(2,npair))
+    allocate(pair(2,npair))
+    k = 0
+    do i = 1, sy%c%ncel
+       do j = i, sy%c%ncel
+          k = k + 1
+          dista(k) = sy%c%eql_distance(sy%c%atcel(i)%x, sy%c%atcel(j)%x)
+          idx(k) = k
+          i2(1,k) = i
+          i2(2,k) = j
+       end do
+    end do
+    maxdisteps = maxval(dista)
+    if (sort) call mergesort(dista,idx,1,npair)
 
-    ! run some calculations
-    call test((/0d0, 0d0, 0d0/))
+    ! print the fc2 matrix
+    if (imode == imode_print) then
+       write (uout,'(" # Id1 At1 Id2  At2  dist(",A,") isintra fc2xx fc2xy fc2xz fc2yx fc2yy fc2yz fc2zx fc2zy fc2zz")') iunitname0(iunit)
+       k = 0
+       do idum = 1, sy%c%ncel
+          do jdum = idum, sy%c%ncel
+             k = k + 1
+             i = i2(1,idx(k))
+             j = i2(2,idx(k))
+             dist = dista(idx(k))
+             isintra = (sy%c%idatcelmol(1, i) == sy%c%idatcelmol(1, j))
+             fcidx=0
+             if (dist <= disteps .and. any(abs(fc2(:,i,:,j)) >=fc2eps)) then
+                write (uout,'(99(A," "))') string(i, 5, ioj_center), string(sy%c%spc(sy%c%atcel(i)%is)%name,2),&
+                   string(j, 5, ioj_center), string(sy%c%spc(sy%c%atcel(j)%is)%name, 2),string(dist*dunit0(iunit),'f',12,6,justify=4),&
+                   string(isintra),&
+                   string(fc2(1,i,1,j),'e',15,8), string(fc2(1,i,2,j),'e',15,8), string(fc2(1,i,3,j),'e',15,8),& !
+                   string(fc2(2,i,1,j),'e',15,8), string(fc2(2,i,2,j),'e',15,8), string(fc2(2,i,3,j),'e',15,8),&
+                   string(fc2(3,i,1,j),'e',15,8), string(fc2(3,i,2,j),'e',15,8), string(fc2(3,i,3,j),'e',15,8)
+             end if
+          end do
+       end do
+       write (uout,*)
+
+    elseif (imode == imode_calcq) then
+       !!! calculate frequencies at a q-point q !!!
+       call test(q)
+    end if
 
     ! apply conversion factor
     deallocate(fc2)
@@ -3036,42 +3079,6 @@ contains
     call ferror('trick_force_constants','error reading file: ' // fc2_file,faterr)
 
   contains
-
-    !> print the fc2 with the correct format
-    subroutine print_fc2()
-      write (uout,'(" # Id1 At1 Id2  At2  dist(",A,") isintra fc2xx fc2xy fc2xz fc2yx fc2yy fc2yz fc2zx fc2zy fc2zz")') iunitname0(iunit)
-      k = 0
-      do idum = 1, sy%c%ncel !! last 1 to N
-         do jdum = idum, sy%c%ncel
-            k = k + 1
-            i = i2(1,idx(k))
-            j = i2(2,idx(k))
-            dist = dista(idx(k))
-            isintra = (sy%c%idatcelmol(1, i) == sy%c%idatcelmol(1, j))
-            fcidx=0
-            !! temporal solo para el print
-            ! > do l1 = 1, 3
-            ! >    do l2 = 1, 3
-            ! >       fcidx=fcidx+1
-            ! >       fc2l = fc2(l1,i,l2,j)
-            ! >       !! cambio temporal para imprimir las fc en una linea
-            ! >       !write (uout,'(99(A," "))') string(i, 5, ioj_center), string(sy%c%spc(sy%c%atcel(i)%is)%name,2),&
-            ! >       !     string(j, 5, ioj_center), string(sy%c%spc(sy%c%atcel(j)%is)%name, 2),&
-            ! >       !     string(dist*dunit0(iunit),'f',12,6,justify=4), string(isintra),string(fcidx,1,ioj_center), string(fc2l,'e',15,8)
-            ! >    end do
-            ! > end do
-            if ( dist <= disteps .and. any(abs(fc2(:,i,:,j)) >=fc2eps) ) then
-               write (uout,'(99(A," "))') string(i, 5, ioj_center), string(sy%c%spc(sy%c%atcel(i)%is)%name,2),&
-                  string(j, 5, ioj_center), string(sy%c%spc(sy%c%atcel(j)%is)%name, 2),string(dist*dunit0(iunit),'f',12,6,justify=4),&
-                  string(isintra),& !string(fcidx,1,ioj_center),&
-                  string(fc2(1,i,1,j),'e',15,8), string(fc2(1,i,2,j),'e',15,8), string(fc2(1,i,3,j),'e',15,8),& !
-                  string(fc2(2,i,1,j),'e',15,8), string(fc2(2,i,2,j),'e',15,8), string(fc2(2,i,3,j),'e',15,8),&
-                  string(fc2(3,i,1,j),'e',15,8), string(fc2(3,i,2,j),'e',15,8), string(fc2(3,i,3,j),'e',15,8)
-            end if
-         end do
-      end do
-      write (uout,*)
-    end subroutine print_fc2
 
     !> Calculate the dynamical matrix at reciprocal-space point q
     !> (fractional coordinates).
@@ -3090,43 +3097,72 @@ contains
       real*8 :: x(3), x1(3), x2(3), cut, dd
       real*8, allocatable:: eval(:), evali(:), dist(:), freq(:)
       integer :: i, jj, j
+      real*8, allocatable :: rused(:)
+      integer, allocatable :: mult(:)
 
-      allocate(dm(sy%c%ncel*3, sy%c%ncel*3))
-      dm = 0d0
+      !! conversion factors
+      ! sqrt(Hartree / bohr^2 / amu) / 1e12 -> THz
+      ! sqrt(4.3597447222071e-18) / 5.29177210903e-11 / sqrt(1.66053906660e-27) / 1e12 / 2 / pi
+      ! ans = 154.1079276131967
+      real*8, parameter :: factor = 154.1079276131967d0
+      ! sqrt(4.3597447222071e-18) / 5.29177210903e-11 / sqrt(1.66053906660e-27) /  2 / pi / c / 100
+      ! ans = 5140.487143715827
+      ! real*8, parameter :: factor = 5140.487143715827d0
 
-      do i = 1, sy%c%ncel
-         do j = 1, sy%c%ncel
-            x1 = sy%c%atcel(i)%x - sy%c%atcel(j)%x
-            call sy%c%shortest(x1,dd)
-
-            sqrt_ij = sqrt(atmass(sy%c%spc(sy%c%atcel(i)%is)%z) * atmass(sy%c%spc(sy%c%atcel(j)%is)%z))
-            phase = exp(-tpi * img * dot_product(q,x1))
-
-            dm_local = fc2(:,i,:,j) * phase / sqrt_ij
-            dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) = dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) + dm_local
-         end do
-      end do
-
+      ! good! only for q = 0 0 0
+      ! allocate(dm(sy%c%ncel*3, sy%c%ncel*3))
+      ! dm = 0d0
       ! do i = 1, sy%c%ncel
-      !    call sy%c%list_near_atoms(sy%c%atcel(i)%x,icrd_crys,.false.,nat,nida,dist=dist,lvec=lvec,&
-      !       up2d=min(disteps,maxdisteps))
-      !    do jj = 1, nat
-      !       j = nida(jj)
-
-      !       x1 = sy%c%atcel(i)%x
-      !       x2 = sy%c%atcel(j)%x + lvec(:,jj)
+      !    do j = 1, sy%c%ncel
+      !       x1 = sy%c%atcel(i)%x - sy%c%atcel(j)%x
+      !       call sy%c%shortest(x1,dd)
 
       !       sqrt_ij = sqrt(atmass(sy%c%spc(sy%c%atcel(i)%is)%z) * atmass(sy%c%spc(sy%c%atcel(j)%is)%z))
-      !       phase = exp(-tpi * img * dot_product(q,x1 - x2))
+      !       phase = exp(-tpi * img * dot_product(q,x1))
 
       !       dm_local = fc2(:,i,:,j) * phase / sqrt_ij
       !       dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) = dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) + dm_local
       !    end do
       ! end do
+
+      allocate(dm(sy%c%ncel*3, sy%c%ncel*3))
+      allocate(rused(sy%c%ncel),mult(sy%c%ncel))
+      dm = 0d0
+      do i = 1, sy%c%ncel
+         rused = huge(1d0)
+         mult = 0
+         call sy%c%list_near_atoms(sy%c%atcel(i)%x,icrd_crys,.true.,nat,nida,dist=dist,lvec=lvec,&
+            up2d=min(disteps,maxdisteps+1d-4))
+         do jj = 1, nat
+            j = nida(jj)
+            if (dist(jj) <= rused(j) + 1d-5) then
+               x1 = sy%c%atcel(i)%x
+               x2 = sy%c%atcel(j)%x + lvec(:,jj)
+
+               sqrt_ij = sqrt(atmass(sy%c%spc(sy%c%atcel(i)%is)%z) * atmass(sy%c%spc(sy%c%atcel(j)%is)%z))
+               phase = exp(-tpi * img * dot_product(q,x1 - x2))
+
+               dm_local = fc2(:,i,:,j) * phase / sqrt_ij
+               dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) = dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) + dm_local
+
+               rused(j) = min(rused(j),dist(jj))
+               mult(j) = mult(j) + 1
+            end if
+         end do
+
+         ! apply the multiplicities
+         do j = 1, sy%c%ncel
+            dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) = dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) / mult(j)
+         end do
+         ! do j = 1, sy%c%ncel
+         !    write (*,*) i, j, mult(j)
+         ! end do
+      end do
+
       ! impose hermiticity
       dm = (dm + transpose(conjg(dm)))/2
 
-      ! diagaonalize
+      ! diagonalize
       allocate(dmreal(sy%c%ncel*3,sy%c%ncel*3))
       dmreal = real(dm,8)
 
@@ -3134,11 +3170,7 @@ contains
       call eigherm(dm,sy%c%ncel*3,eval)
 
       ! calculate the frequencies
-      ! freq = sqrt(abs(eval)) * 4.134137333518178d+16 ! to Hz
-      ! freq = freq / 1d12 ! to Thz
-      ! freq = freq / cm1tothz ! to cm1
-
-      freq = sqrt(abs(eval)) * 108.97077184367376d0 * sqrt(2d0)
+      freq = sqrt(abs(eval)) * factor
       write (*,*) freq
 
     end subroutine test
