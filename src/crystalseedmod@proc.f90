@@ -804,8 +804,8 @@ contains
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
        isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
        isformat_aimsout, isformat_tinkerfrac, isformat_gjf, isformat_zmat,&
-       isformat_sdf, isformat_castepcell, isformat_castepgeom, isformat_mol2,&
-       isformat_pdb
+       isformat_magres, isformat_sdf, isformat_castepcell,&
+       isformat_castepgeom, isformat_mol2, isformat_pdb
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
@@ -840,6 +840,9 @@ contains
 
     elseif (isformat == isformat_sdf) then
        call seed%read_sdf(file,rborder_def,.false.,errmsg,0,ti=ti)
+
+    elseif (isformat == isformat_magres) then
+       call seed%read_magres(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_shelx) then
        call seed%read_shelx(file,mol,errmsg,ti=ti)
@@ -1338,6 +1341,185 @@ contains
       end do
     end function getline_local
   end subroutine read_shelx
+
+  !> Read the structure from a magres file, for structural and NMR info.
+  module subroutine read_magres(seed,file,mol,errmsg,ti)
+    use tools_math, only: matinv
+    use tools_io, only: fopen_read, getline_raw, lower, fclose, lgetword, equal,&
+       isreal, zatguess, nameguess
+    use types, only: realloc
+    use param, only: isformat_magres, maxzat, bohrtoa
+    class(crystalseed), intent(inout)  :: seed !< Output crystal seed
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< Is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    logical :: ok, havelat, haveatoms
+    integer :: lu, lp, iz, i, ier
+    character(len=:), allocatable :: line, word, word2
+    integer, allocatable :: usedz(:)
+    real*8 :: rmat(3,3)
+
+    ! file and seed name
+    call seed%end()
+    seed%file = file
+    seed%name = file
+    seed%isformat = isformat_magres
+    errmsg = ""
+
+    lu = fopen_read(file,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file: " // trim(file)
+       return
+    end if
+
+    ! locate the <atoms> tag
+    ok = .false.
+    do while (getline_raw(lu,line,.false.))
+       line = adjustl(lower(line))
+       if (len(line) >= 7) then
+          if (line(1:7) == "<atoms>") then
+             ok = .true.
+             exit
+          end if
+       end if
+    end do
+    if (.not.ok) then
+       errmsg = "<atoms> tag not found"
+       goto 999
+    end if
+
+    ! initialize
+    allocate(seed%x(3,10),seed%is(10),usedz(maxzat))
+    usedz = 0
+
+    havelat = .false.
+    haveatoms = .false.
+    seed%nat = 0
+    seed%nspc = 0
+    do while (getline_raw(lu,line,.false.))
+       lp = 1
+       word = lgetword(line,lp)
+       if (equal(word,"units")) then
+          word = lgetword(line,lp)
+          word2 = lgetword(line,lp)
+          ok = equal(word,"lattice") .or. equal(word,"atom")
+          ok = ok .and. equal(word2,"angstrom")
+          if (.not.ok) then
+             errmsg = "unknown units"
+             goto 999
+          end if
+       elseif (equal(word,"lattice")) then
+          ok = isreal(seed%m_x2c(1,1),line,lp)
+          ok = ok .and. isreal(seed%m_x2c(2,1),line,lp)
+          ok = ok .and. isreal(seed%m_x2c(3,1),line,lp)
+          ok = ok .and. isreal(seed%m_x2c(1,2),line,lp)
+          ok = ok .and. isreal(seed%m_x2c(2,2),line,lp)
+          ok = ok .and. isreal(seed%m_x2c(3,2),line,lp)
+          ok = ok .and. isreal(seed%m_x2c(1,3),line,lp)
+          ok = ok .and. isreal(seed%m_x2c(2,3),line,lp)
+          ok = ok .and. isreal(seed%m_x2c(3,3),line,lp)
+          if (.not.ok) then
+             errmsg = "error reading lattice vectors"
+             goto 999
+          end if
+          havelat = .true.
+       elseif (equal(word,"atom")) then
+          ! this is a new atom
+          seed%nat = seed%nat + 1
+          if (seed%nat > size(seed%is,1)) then
+             call realloc(seed%x,3,2*seed%nat)
+             call realloc(seed%is,2*seed%nat)
+          end if
+
+          ! get the atomic symbol
+          word = lgetword(line,lp)
+          word2 = lgetword(line,lp) ! the second symbol
+          word2 = lgetword(line,lp) ! the integer ID
+          iz = zatguess(word)
+          if (iz <= 0) then
+             errmsg = "unknown atomic symbol: " // word
+             goto 999
+          end if
+
+          ! assign the species
+          if (usedz(iz) == 0) then
+             seed%nspc = seed%nspc + 1
+             usedz(iz) = seed%nspc
+          end if
+          seed%is(seed%nat) = usedz(iz)
+
+          ! read the coordinates
+          ok = isreal(seed%x(1,seed%nat),line,lp)
+          ok = ok .and. isreal(seed%x(2,seed%nat),line,lp)
+          ok = ok .and. isreal(seed%x(3,seed%nat),line,lp)
+          if (.not.ok) then
+             errmsg = "error reading atomic coordinates"
+             goto 999
+          end if
+
+          ! finished
+          haveatoms = .true.
+       elseif (equal(word,"</atoms>")) then
+          exit
+       end if
+    end do
+    if (.not.havelat) then
+       errmsg = "lattice vectors not found"
+       goto 999
+    end if
+    if (.not.haveatoms) then
+       errmsg = "atoms not found"
+       goto 999
+    end if
+
+    ! assign chemical species
+    allocate(seed%spc(seed%nspc))
+    do i = 1, maxzat
+       if (usedz(i) > 0) then
+          seed%spc(usedz(i))%name = nameguess(i)
+          seed%spc(usedz(i))%z = i
+          seed%spc(usedz(i))%qat = 0d0
+       end if
+    end do
+
+    ! lattice vectors and convert to fractional coordinates
+    seed%useabr = 2
+    seed%m_x2c = transpose(seed%m_x2c)
+    rmat = transpose(seed%m_x2c)
+    call matinv(rmat,3,ier)
+    if (ier /= 0) then
+       errmsg = "Error inverting matrix"
+       goto 999
+    end if
+    do i = 1, seed%nat
+       seed%x(:,i) = matmul(rmat,seed%x(:,i))
+    end do
+    seed%m_x2c = seed%m_x2c / bohrtoa
+
+    ! wrap up
+    call fclose(lu)
+
+    ! no symmetry
+    seed%havesym = 0
+    seed%checkrepeats = .false.
+    seed%findsym = -1
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%ismolecule = mol
+    seed%cubic = .false.
+    seed%border = 0d0
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    return
+
+999 continue
+    call fclose(lu)
+    seed%isused = .false.
+
+  end subroutine read_magres
 
   !> Read the structure from a fort.21 from neighcrys
   module subroutine read_f21(seed,file,mol,errmsg,ti)
@@ -4885,9 +5067,6 @@ contains
   !> format detection decide. If the read was successful, return an
   !> empty error message
   module subroutine read_xyz(seed,file,mol,rborder,docube,errmsg,ti)
-    use tools_io, only: getline_raw, fopen_read, fclose, isinteger, isreal, zatguess, nameguess
-    use param, only: bohrtoa, maxzat, isformat_tinkerfrac
-    use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -4946,7 +5125,7 @@ contains
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
        isformat_castepcell, isformat_castepgeom, isformat_qein, isformat_qeout,&
-       isformat_mol2, isformat_pdb, isformat_zmat, isformat_sdf
+       isformat_mol2, isformat_pdb, isformat_zmat, isformat_sdf, isformat_magres
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -5029,6 +5208,8 @@ contains
        isformat = isformat_zmat
     elseif (equal(wextdot,'sdf').or.equal(wextdot,'mol')) then
        isformat = isformat_sdf
+    elseif (equal(wextdot,'magres')) then
+       isformat = isformat_magres
     elseif (equal(wextdot,'pgout')) then
        isformat = isformat_pgout
     elseif (equal(wextdot,'wfn')) then
@@ -5191,7 +5372,7 @@ contains
        isformat_xsf, isformat_gen, isformat_vasp, isformat_pwc, isformat_axsf,&
        isformat_dat, isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
        isformat_aimsout, isformat_tinkerfrac, isformat_castepcell, isformat_castepgeom,&
-       isformat_mol2, isformat_pdb, isformat_zmat, isformat_sdf
+       isformat_mol2, isformat_pdb, isformat_zmat, isformat_sdf, isformat_magres
     character*(*), intent(in) :: file
     integer, intent(in) :: isformat
     logical, intent(out) :: ismol
@@ -5208,7 +5389,8 @@ contains
        isformat_cube,isformat_bincube,isformat_struct,isformat_abinit,&
        isformat_elk,isformat_siesta,isformat_dmain,isformat_vasp,&
        isformat_axsf,isformat_tinkerfrac,isformat_qein,isformat_qeout,&
-       isformat_crystal,isformat_fploout,isformat_castepcell,isformat_castepgeom)
+       isformat_crystal,isformat_fploout,isformat_castepcell,isformat_castepgeom,&
+       isformat_magres)
        ismol = .false.
 
     case (isformat_gjf,isformat_pgout,isformat_wfn,isformat_wfx,&
@@ -5400,7 +5582,7 @@ contains
        isformat_xsf, isformat_castepcell, isformat_castepgeom,&
        isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, isformat_orca,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
-       isformat_mol2, isformat_sdf, isformat_pdb
+       isformat_mol2, isformat_sdf, isformat_pdb, isformat_magres
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(in) :: isformat0
@@ -5462,6 +5644,8 @@ contains
        call read_all_mol2(file,errmsg,nseed=nseed,mseed=seed,ti=ti)
     elseif (isformat == isformat_sdf) then
        call read_all_sdf(file,errmsg,nseed=nseed,mseed=seed,ti=ti)
+    elseif (isformat == isformat_magres) then
+       call seed(1)%read_magres(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_pwc) then
        call seed(1)%read_pwc(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_shelx) then
@@ -7241,7 +7425,7 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     integer :: lu, nat, i, iz, lp, ier
-    logical :: ok, ismol, haveenergy
+    logical :: ok, ismol
     logical, allocatable :: ismola(:)
     real*8 :: edum, r(3,3)
     real*8, allocatable :: energy(:), ra(:,:,:)

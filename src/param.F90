@@ -124,6 +124,7 @@ module param
   integer, parameter, public :: isformat_pdb = 39
   integer, parameter, public :: isformat_zmat = 40
   integer, parameter, public :: isformat_sdf = 41
+  integer, parameter, public :: isformat_magres = 42
 
   ! Enumerate for vibration data formats
   integer, parameter, public :: ivformat_unknown = 0
