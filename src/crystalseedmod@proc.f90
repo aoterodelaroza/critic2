@@ -1379,7 +1379,7 @@ contains
     do while (getline_raw(lu,line,.false.))
        line = adjustl(lower(line))
        if (len(line) >= 7) then
-          if (line(1:7) == "<atoms>") then
+          if (line(1:7) == "<atoms>" .or. line(1:7) == "[atoms]") then
              ok = .true.
              exit
           end if
@@ -1461,7 +1461,7 @@ contains
 
           ! finished
           haveatoms = .true.
-       elseif (equal(word,"</atoms>")) then
+       elseif (equal(word,"</atoms>") .or. equal(word,"[/atoms]")) then
           exit
        end if
     end do
@@ -1486,8 +1486,7 @@ contains
 
     ! lattice vectors and convert to fractional coordinates
     seed%useabr = 2
-    seed%m_x2c = transpose(seed%m_x2c)
-    rmat = transpose(seed%m_x2c)
+    rmat = seed%m_x2c
     call matinv(rmat,3,ier)
     if (ier /= 0) then
        errmsg = "Error inverting matrix"

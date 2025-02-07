@@ -1612,7 +1612,7 @@ contains
   ! value. seedout = seed for the deformed c2 crystal. verbose = write
   ! messages to output.
   module subroutine vcpwdf_compare(c1,c2,diff,errmsg,max_elong,max_ang,max_vol,&
-     powdiff_thr,c1out,c2out,verbose)
+     powdiff_thr,c2out,verbose)
     use crystalmod, only: xrpd_lambda_def
     use crystalseedmod, only: crystalseed
     use global, only: iunitname0, dunit0, iunit
@@ -1626,7 +1626,6 @@ contains
     real*8, intent(in), optional :: max_ang
     real*8, intent(in), optional :: max_vol
     real*8, intent(in), optional :: powdiff_thr
-    type(crystal), intent(out), optional :: c1out
     type(crystal), intent(out), optional :: c2out
     logical, intent(in), optional :: verbose
 
@@ -1960,7 +1959,6 @@ contains
     diff = mindiff
 
     ! output structures
-    if (present(c1out)) c1out = c1_
     if (present(c2out)) then
        c2out = c2_
        call c2out%newcell(xd2min)
