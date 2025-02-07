@@ -2943,7 +2943,7 @@ contains
              write(lu,'(I5," ",3(E22.14E3," "))') n(i), xd(:,i)
           end do
           do i = 1, c%ncel
-             write(lu,'(I4,F5.1,3(E22.14E3," "))') c%spc(c%atcel(i)%is)%z, 0d0, &
+             write(lu,'(I5," ",F5.1," ",3(E22.14E3," "))') c%spc(c%atcel(i)%is)%z, 0d0, &
                 c%atcel(i)%r(:) + c%molx0 - rshift
           end do
        else
