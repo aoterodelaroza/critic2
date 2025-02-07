@@ -911,6 +911,44 @@ contains
 
   end function lattice_direction
 
+  !> Find the eigenvectors and eigenvalues of a real nxn Hermitian
+  !> matrix, mat. The eigenvectors are stored column-wise in mat.  The
+  !> eigenvalues, in ascending order, are returned in eval.
+  module subroutine eigherm(mat,n0,eval)
+    use tools_io, only: ferror, faterr
+    integer, intent(in) :: n0
+    complex*16, intent(inout) :: mat(n0,n0)
+    real*8, intent(out) :: eval(n0)
+
+    complex*16 :: onework(1)
+    integer :: lwork, info, n
+    complex*16, allocatable :: work(:)
+    real*8, allocatable :: rwork(:)
+
+    ! subroutine zheev	(	character	jobz,
+    ! character	uplo,
+    ! integer	n,
+    ! complex*16, dimension( lda, * )	a,
+    ! integer	lda,
+    ! double precision, dimension( * )	w,
+    ! complex*16, dimension( * )	work,
+    ! integer	lwork,
+    ! double precision, dimension( * )	rwork,
+    ! integer	info )
+
+    n = n0
+    lwork = -1
+    allocate(rwork(max(1,3*n-2)))
+    call zheev('V','U',n,mat,n,eval,onework,lwork,rwork,info)
+    if (info /= 0) call ferror('eig','Error in diagonalization',faterr)
+    lwork = nint(real(onework(1),8))
+    allocate(work(lwork))
+    call zheev('V','U',n,mat,n,eval,work,lwork,rwork,info)
+    if (info /= 0) call ferror('eig','Error in diagonalization',faterr)
+    deallocate(work,rwork)
+
+  end subroutine eigherm
+
   !> Find the eigenvectors and eigenvalues of a real nxn symmetric
   !> matrix, mat. The eigenvectors are stored column-wise in mat.
   !> The eigenvalues, in ascending order, are returned in eval.

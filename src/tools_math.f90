@@ -39,6 +39,7 @@ module tools_math
   public :: lcm
   public :: rational_approx
   public :: lattice_direction
+  public :: eigherm
   public :: eigsym
   public :: eig
   public :: rsindex
@@ -216,6 +217,11 @@ module tools_math
        logical, intent(in) :: allowr
        integer :: yy(3)
      end function lattice_direction
+     module subroutine eigherm(mat,n0,eval)
+       integer, intent(in) :: n0
+       complex*16, intent(inout) :: mat(n0,n0)
+       real*8, intent(out) :: eval(n0)
+     end subroutine eigherm
      module subroutine eigsym(mat,n0,eval)
        integer, intent(in) :: n0
        real*8, intent(inout) :: mat(n0,n0)

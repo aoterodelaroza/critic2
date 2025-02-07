@@ -32,6 +32,7 @@ module tricks
   private :: trick_bfgs
   private :: trick_compare_deformed
   private :: trick_check_valence
+  private :: trick_force_constants
 
 contains
 
@@ -57,6 +58,8 @@ contains
        call trick_compare_deformed(line0(lp:))
     else if (equal(word,'check_valence')) then
        call trick_check_valence(line0(lp:))
+    else if (equal(word,'force_constants')) then
+       call trick_force_constants(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -2907,5 +2910,239 @@ contains
     end if
 
   end subroutine trick_check_valence
+
+  ! TRICK FORCE_CONSTANTS fc2.file {VASP|QE|FHIAIMS} [DISTEPS deps.r] [FC2EPS fc2eps.r]
+  subroutine trick_force_constants(line0)
+    use tools_io, only: fopen_read, fclose, getline_raw, getword, string,&
+       isreal, ioj_center, uout, ferror, faterr, lower, equal
+    use tools, only: mergesort !> si lo pongo aqui no esta fuera no?
+    use systemmod, only: sy
+    use global, only: iunitname0, dunit0, iunit, eval_next
+    use param, only: bohrtoa
+    character*(*), intent(in) :: line0
+    ! ok
+    logical :: ok, isintra, sort, haveformat
+    real*8, allocatable :: fc2(:,:,:,:) ! any size
+    integer :: lu, lp, npair
+    integer :: i, j, k, l, count, idum, jdum, n_raw, m_raw
+    integer :: l1, l2, fcidx
+    character(len=:), allocatable :: fc2_file, lword, word
+    character(len=:), allocatable :: firstline, line
+    real*8, dimension(9) :: fc2_ijlist
+    real*8 :: fc_item, disteps, fc2eps, fc2l, fc2factor
+    real*8 :: dist, rdum, maxdisteps
+    real*8, allocatable :: dista(:)
+    integer, allocatable :: idx(:), i2(:,:), pair(:,:), x_map(:,:) ! i2-> pair
+
+    ! consistency checks
+    if (.not.associated(sy)) &
+       call ferror('trick_force_constants','system not defined',faterr)
+    if (.not.allocated(sy%c)) &
+       call ferror('trick_force_constants','crystal structure not defined',faterr)
+    if (.not.sy%c%isinit) &
+       call ferror('trick_force_constants','crystal structure not initialized',faterr)
+    if (sy%c%ismolecule) &
+       call ferror('trick_force_constants','structure is a molecule',faterr)
+
+    ! initialize
+    disteps = huge(1d0)
+    fc2eps = 0d0
+    fc2factor = 1.d0 !> do nothing if not define
+    sort = .false.
+    allocate(fc2(3,sy%c%ncel,3,sy%c%ncel))
+    haveformat = .false.
+
+    !! read command line
+    lp = 1
+    fc2_file = getword(line0,lp)
+    do while (.true.)
+       word = getword(line0,lp)
+       lword = lower(word)
+       if (equal(lword,'disteps')) then
+          ok = eval_next(disteps,line0,lp)
+          write (uout,'("# Cutoff distance for pairs = ("F12.6") (",A,") ")')  disteps, iunitname0(iunit)
+          sort = .true.
+          if (.not.ok) &
+             call ferror('trick_force_constants','error reading disteps',faterr,line0,syntax=.true.)
+       elseif (equal(lword,'fc2eps')) then
+          ok = eval_next(fc2eps,line0,lp)
+          write (uout,'("# Cutoff for FC2 values = ("E12.6") ")')  fc2eps
+          if (.not.ok) &
+             call ferror('trick_force_constants','error reading fc2eps',faterr,line0,syntax=.true.)
+       elseif (equal(lword,'qe')) then
+          fc2factor = 0.5d0
+          haveformat = .true.
+       elseif (equal(lword,'vasp') .or. equal(lword,'fhiaims')) then
+          fc2factor = 1d0
+          haveformat = .true.
+          write (*,*) "FIXME: VASP and FHIAIMS fc2factor"
+          stop 1
+       elseif (len(lword) == 0) then
+          exit
+       else
+          call ferror('trick_force_constants','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
+       end if
+    end do
+    if (.not.haveformat) &
+       call ferror('trick_force_constants','A format is required in trick_force_constants',faterr)
+
+    ! allocate information about atom pairs, and optionally sort by distance
+    npair = sy%c%ncel*(sy%c%ncel + 1) / 2
+    allocate(dista(npair),idx(npair),i2(2,npair))
+    allocate(pair(2,npair))
+    k = 0
+    do i = 1, sy%c%ncel
+       do j = i, sy%c%ncel
+          k = k + 1
+          dista(k) = sy%c%eql_distance(sy%c%atcel(i)%x, sy%c%atcel(j)%x)
+          idx(k) = k
+          i2(1,k) = i
+          i2(2,k) = j
+       end do
+    end do
+    maxdisteps = maxval(dista)
+    if (sort) call mergesort(dista,idx,1,npair)
+
+    ! read the fc2 file
+    lu = fopen_read(fc2_file)
+    if (lu < 0) &
+       call ferror('trick_force_constants','could not open file ' // fc2_file,faterr)
+    read(lu,*,err=999,end=999) n_raw, m_raw
+    if (sy%c%ncel /= n_raw .or. sy%c%ncel /= m_raw ) &
+       call ferror('trick_force_constants','inconsistent atom number in file ' // fc2_file,faterr)
+    do idum = 1, sy%c%ncel
+       do jdum = 1, sy%c%ncel
+          read (lu,*,err=999,end=999) i, j
+          read (lu,*,err=999,end=999) fc2(1,i,1,j), fc2(2,i,1,j), fc2(3,i,1,j)
+          read (lu,*,err=999,end=999) fc2(1,i,2,j), fc2(2,i,2,j), fc2(3,i,2,j)
+          read (lu,*,err=999,end=999) fc2(1,i,3,j), fc2(2,i,3,j), fc2(3,i,3,j)
+       end do
+    end do
+    fc2 = fc2 * fc2factor
+    call fclose(lu)
+
+    ! print the fc2 matrix
+    ! call print_fc2()
+
+    ! run some calculations
+    call test((/0d0, 0d0, 0d0/))
+
+    ! apply conversion factor
+    deallocate(fc2)
+
+    return
+999 continue
+    call fclose(lu)
+    call ferror('trick_force_constants','error reading file: ' // fc2_file,faterr)
+
+  contains
+
+    !> print the fc2 with the correct format
+    subroutine print_fc2()
+      write (uout,'(" # Id1 At1 Id2  At2  dist(",A,") isintra fc2xx fc2xy fc2xz fc2yx fc2yy fc2yz fc2zx fc2zy fc2zz")') iunitname0(iunit)
+      k = 0
+      do idum = 1, sy%c%ncel !! last 1 to N
+         do jdum = idum, sy%c%ncel
+            k = k + 1
+            i = i2(1,idx(k))
+            j = i2(2,idx(k))
+            dist = dista(idx(k))
+            isintra = (sy%c%idatcelmol(1, i) == sy%c%idatcelmol(1, j))
+            fcidx=0
+            !! temporal solo para el print
+            ! > do l1 = 1, 3
+            ! >    do l2 = 1, 3
+            ! >       fcidx=fcidx+1
+            ! >       fc2l = fc2(l1,i,l2,j)
+            ! >       !! cambio temporal para imprimir las fc en una linea
+            ! >       !write (uout,'(99(A," "))') string(i, 5, ioj_center), string(sy%c%spc(sy%c%atcel(i)%is)%name,2),&
+            ! >       !     string(j, 5, ioj_center), string(sy%c%spc(sy%c%atcel(j)%is)%name, 2),&
+            ! >       !     string(dist*dunit0(iunit),'f',12,6,justify=4), string(isintra),string(fcidx,1,ioj_center), string(fc2l,'e',15,8)
+            ! >    end do
+            ! > end do
+            if ( dist <= disteps .and. any(abs(fc2(:,i,:,j)) >=fc2eps) ) then
+               write (uout,'(99(A," "))') string(i, 5, ioj_center), string(sy%c%spc(sy%c%atcel(i)%is)%name,2),&
+                  string(j, 5, ioj_center), string(sy%c%spc(sy%c%atcel(j)%is)%name, 2),string(dist*dunit0(iunit),'f',12,6,justify=4),&
+                  string(isintra),& !string(fcidx,1,ioj_center),&
+                  string(fc2(1,i,1,j),'e',15,8), string(fc2(1,i,2,j),'e',15,8), string(fc2(1,i,3,j),'e',15,8),& !
+                  string(fc2(2,i,1,j),'e',15,8), string(fc2(2,i,2,j),'e',15,8), string(fc2(2,i,3,j),'e',15,8),&
+                  string(fc2(3,i,1,j),'e',15,8), string(fc2(3,i,2,j),'e',15,8), string(fc2(3,i,3,j),'e',15,8)
+            end if
+         end do
+      end do
+      write (uout,*)
+    end subroutine print_fc2
+
+    !> Calculate the dynamical matrix at reciprocal-space point q
+    !> (fractional coordinates).
+    subroutine test(q)
+      use param, only: icrd_crys, atmass, tpi, img, cm1tothz
+      use tools_math, only: eigherm, eigsym, eig
+      real*8, intent(in) :: q(3)
+
+      complex*16, allocatable :: dm(:,:)
+      real*8, allocatable :: dmreal(:,:)
+      complex*16 :: dm_local(3,3), phase
+      real*8 :: sqrt_ij, fcdum(3,3)
+      integer, allocatable :: nneig_nneq(:) ! nneig_nneq: stores the number of neighbors
+      integer :: i_scel, nat, j_neig, dcidx, idum
+      integer, allocatable :: s2nneq(:,:), nida(:), lvec(:,:)
+      real*8 :: x(3), x1(3), x2(3), cut, dd
+      real*8, allocatable:: eval(:), evali(:), dist(:), freq(:)
+      integer :: i, jj, j
+
+      allocate(dm(sy%c%ncel*3, sy%c%ncel*3))
+      dm = 0d0
+
+      do i = 1, sy%c%ncel
+         do j = 1, sy%c%ncel
+            x1 = sy%c%atcel(i)%x - sy%c%atcel(j)%x
+            call sy%c%shortest(x1,dd)
+
+            sqrt_ij = sqrt(atmass(sy%c%spc(sy%c%atcel(i)%is)%z) * atmass(sy%c%spc(sy%c%atcel(j)%is)%z))
+            phase = exp(-tpi * img * dot_product(q,x1))
+
+            dm_local = fc2(:,i,:,j) * phase / sqrt_ij
+            dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) = dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) + dm_local
+         end do
+      end do
+
+      ! do i = 1, sy%c%ncel
+      !    call sy%c%list_near_atoms(sy%c%atcel(i)%x,icrd_crys,.false.,nat,nida,dist=dist,lvec=lvec,&
+      !       up2d=min(disteps,maxdisteps))
+      !    do jj = 1, nat
+      !       j = nida(jj)
+
+      !       x1 = sy%c%atcel(i)%x
+      !       x2 = sy%c%atcel(j)%x + lvec(:,jj)
+
+      !       sqrt_ij = sqrt(atmass(sy%c%spc(sy%c%atcel(i)%is)%z) * atmass(sy%c%spc(sy%c%atcel(j)%is)%z))
+      !       phase = exp(-tpi * img * dot_product(q,x1 - x2))
+
+      !       dm_local = fc2(:,i,:,j) * phase / sqrt_ij
+      !       dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) = dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) + dm_local
+      !    end do
+      ! end do
+      ! impose hermiticity
+      dm = (dm + transpose(conjg(dm)))/2
+
+      ! diagaonalize
+      allocate(dmreal(sy%c%ncel*3,sy%c%ncel*3))
+      dmreal = real(dm,8)
+
+      allocate(eval(sy%c%ncel*3),evali(3*sy%c%ncel),freq(sy%c%ncel*3))
+      call eigherm(dm,sy%c%ncel*3,eval)
+
+      ! calculate the frequencies
+      ! freq = sqrt(abs(eval)) * 4.134137333518178d+16 ! to Hz
+      ! freq = freq / 1d12 ! to Thz
+      ! freq = freq / cm1tothz ! to cm1
+
+      freq = sqrt(abs(eval)) * 108.97077184367376d0 * sqrt(2d0)
+      write (*,*) freq
+
+    end subroutine test
+
+  end subroutine trick_force_constants
 
 end module tricks
