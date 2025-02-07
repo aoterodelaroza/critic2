@@ -24,7 +24,7 @@ submodule (crystalseedmod) proc
   ! subroutine read_all_mol2(file,errmsg,nseed,mseed,seed0,name,ti)
   ! subroutine read_all_sdf(file,errmsg,nseed,mseed,seed0,name,ti)
   ! subroutine read_all_qeout(nseed,seed,file,mol,istruct,errmsg,ti)
-  ! subroutine read_all_xyz(nseed,seed,file,errmsg,ti)
+  ! subroutine read_all_xyz(nseed,seed,file,mol,errmsg,seed0,ti)
   ! subroutine read_all_log(nseed,seed,file,errmsg,ti)
   ! subroutine read_all_aimsout(nseed,seed,file,errmsg,ti)
   ! subroutine read_all_castep_geom(nseed,seed,file,errmsg,ti)
@@ -881,13 +881,16 @@ contains
     elseif (isformat == isformat_qein) then
        call seed%read_qein(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
+    elseif (isformat == isformat_wfn.or.&
        isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
        isformat == isformat_molden.or.isformat == isformat_gaussian.or.&
        isformat == isformat_dat.or.isformat == isformat_pgout.or.&
        isformat == isformat_orca.or.isformat == isformat_gjf.or.&
        isformat == isformat_zmat) then
        call seed%read_mol(file,isformat,rborder_def,.false.,errmsg,ti=ti)
+
+    elseif (isformat == isformat_xyz) then
+       call seed%read_xyz(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_pdb) then
        call seed%read_pdb(file,mol,errmsg,ti=ti)
@@ -4877,6 +4880,33 @@ contains
 
   end subroutine read_tinkerfrac
 
+  !> Read the structure from an xyz file. If mol0 == 1, force a
+  !> molecule. If mol0 == 0, force a crystal. If mol0 == -1, let the
+  !> format detection decide. If the read was successful, return an
+  !> empty error message
+  module subroutine read_xyz(seed,file,mol,errmsg,ti)
+    use tools_io, only: getline_raw, fopen_read, fclose, isinteger, isreal, zatguess, nameguess
+    use param, only: bohrtoa, maxzat, isformat_tinkerfrac
+    use types, only: realloc
+    class(crystalseed), intent(inout) :: seed !< Output crystal seed
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed), allocatable :: seedaux(:)
+    integer :: nseed, imol
+
+    if (mol) then
+       imol = 1
+    else
+       imol = 0
+    end if
+    call seed%end()
+    call read_all_xyz(nseed,seedaux,file,imol,errmsg,seed0=seed,ti=ti)
+
+  end subroutine read_xyz
+
   !> Adapt the size of an allocatable 1D type(crystalseed) array
   module subroutine realloc_crystalseed(a,nnew)
 
@@ -5164,7 +5194,7 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: line, word
-    integer :: lu, ios, lp, nat
+    integer :: lu, ios, lp, nat, idx, i
     character*1 :: isfrac
     logical :: ok
 
@@ -5177,10 +5207,37 @@ contains
        isformat_crystal,isformat_fploout,isformat_castepcell,isformat_castepgeom)
        ismol = .false.
 
-    case (isformat_xyz,isformat_gjf,isformat_pgout,isformat_wfn,isformat_wfx,&
+    case (isformat_gjf,isformat_pgout,isformat_wfn,isformat_wfx,&
        isformat_gaussian,isformat_fchk,isformat_molden,isformat_dat,&
        isformat_orca,isformat_mol2,isformat_zmat,isformat_sdf)
        ismol = .true.
+
+    case(isformat_xyz)
+       ! detect if this is an ASE file: check for "pbc" and "lattice *="
+       ismol = .true.
+       lu = fopen_read(file,errstop=.false.,ti=ti)
+       if (lu < 0) return
+       ok = getline_raw(lu,line)
+       ok = ok.and.getline_raw(lu,line)
+       if (.not.ok) return
+       line = lower(line)
+
+       idx = index(line,"pbc")
+       if (idx > 0) then
+          idx = index(line,"lattice")
+          if (idx > 0) then
+             ismol = .false.
+             do i = idx+7,len(line)
+                if (line(i:i) == " ") cycle ! skip blanks
+                if (line(i:i) /= "=") then
+                   ismol = .true.
+                   exit
+                end if
+                exit
+             end do
+          end if
+       end if
+       call fclose(lu)
 
     case(isformat_pdb)
        ismol = .true.
@@ -5428,7 +5485,7 @@ contains
     elseif (isformat == isformat_qein) then
        call seed(1)%read_qein(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_xyz) then
-       call read_all_xyz(nseed,seed,file,errmsg,ti=ti)
+       call read_all_xyz(nseed,seed,file,-1,errmsg,ti=ti)
     elseif (isformat == isformat_gaussian) then
        call read_all_log(nseed,seed,file,errmsg,alsovib=alsovib,ti=ti)
     elseif (isformat == isformat_wfn .or. isformat == isformat_wfx.or.&
@@ -7159,10 +7216,14 @@ contains
 
   end subroutine read_all_qeout
 
-  !> Read all structures from an xyz file. Returns all seeds.
-  subroutine read_all_xyz(nseed,seed,file,errmsg,ti)
+  !> Read all structures from an xyz file. Returns nseed seeds in the
+  !> seed variable. mol = 1 (force molecules), 0 (force crystals), -1
+  !> (detect format). If seed0 is present, read only the first
+  !> structure and ignore the rest.
+  subroutine read_all_xyz(nseed,seed,file,mol,errmsg,seed0,ti)
     use global, only: rborder_def
     use hashmod, only: hash
+    use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose, getline_raw, lower, zatguess,&
        isinteger, isreal, string, nameguess
     use types, only: realloc
@@ -7170,13 +7231,16 @@ contains
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
+    integer, intent(in) :: mol
     character(len=:), allocatable, intent(out) :: errmsg
+    type(crystalseed), intent(inout), optional :: seed0
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, nat, i, iz, lp
-    logical :: ok
-    real*8 :: edum
-    real*8, allocatable :: energy(:)
+    integer :: lu, nat, i, iz, lp, ier
+    logical :: ok, ismol, haveenergy
+    logical, allocatable :: ismola(:)
+    real*8 :: edum, r(3,3)
+    real*8, allocatable :: energy(:), ra(:,:,:)
     character(len=:), allocatable :: line, latn
     character*10 :: atn
     type(hash) :: usen
@@ -7190,7 +7254,7 @@ contains
 
     errmsg = "Error reading file: " // trim(file)
     nseed = 0
-    allocate(energy(10))
+    allocate(energy(10),ismola(10),ra(3,3,10))
     do while (getline_raw(lu,line))
        if (len_trim(line) == 0) cycle
        read (line,*,err=999,end=999) nat
@@ -7198,19 +7262,26 @@ contains
        if (.not.ok) goto 999
 
        ! interpret the title line, if possible
-       lp = 1
-       ok = isreal(edum,line,lp)
-       if (.not.ok .or. len_trim(line(lp:)) > 0) then ! a single numerical field -> energy
-          edum = 0d0
-       end if
+       call interpret_title_line()
 
        do i = 1, nat
           ok = getline_raw(lu,line)
           if (.not.ok) goto 999
        end do
        nseed = nseed + 1
-       if (nseed > size(energy,1)) call realloc(energy,2*nseed)
+       if (nseed > size(energy,1)) then
+          call realloc(energy,2*nseed)
+          call realloc(ismola,2*nseed)
+          call realloc(ra,3,3,2*nseed)
+       end if
        energy(nseed) = edum
+       if (mol == 1) then
+          ismola(nseed) = .true.
+       else
+          ismola(nseed) = ismol
+       end if
+       ra(:,:,nseed) = r
+       if (present(seed0)) exit ! stop here if we only need 1 seed
     end do
 
     if (allocated(seed)) deallocate (seed)
@@ -7266,25 +7337,47 @@ contains
        end do
        call realloc(seed(nseed)%spc,seed(nseed)%nspc)
        seed(nseed)%x = seed(nseed)%x / bohrtoa
-       seed(nseed)%useabr = 0
        seed(nseed)%havesym = 0
        seed(nseed)%checkrepeats = .false.
        seed(nseed)%findsym = -1
        seed(nseed)%isused = .true.
-       seed(nseed)%ismolecule = .true.
        seed(nseed)%cubic = .false.
        seed(nseed)%border = rborder_def
        seed(nseed)%havex0 = .false.
        seed(nseed)%molx0 = 0d0
        seed(nseed)%energy = energy(nseed)
+
+       ! set molecule or crystal fields
+       seed(nseed)%ismolecule = ismola(nseed)
+       if (ismola(nseed)) then
+          seed(nseed)%useabr = 0
+          seed(nseed)%m_x2c = 0d0
+       else
+          seed(nseed)%useabr = 2
+          seed(nseed)%m_x2c = transpose(ra(:,:,nseed))
+          r = seed(nseed)%m_x2c
+          call matinv(r,3,ier)
+          if (ier /= 0) then
+             errmsg = "Error inverting lattice vector matrix"
+             goto 999
+          end if
+          do i = 1, seed(nseed)%nat
+             seed(nseed)%x(:,i) = matmul(r,seed(nseed)%x(:,i))
+          end do
+       end if
+       if (present(seed0)) exit ! stop here if we only need 1 seed
     end do
     deallocate(energy)
 
+    ! set all seed names
     if (nseed > 1) then
        do i = 1, nseed
           seed(i)%name = trim(seed(i)%name) // "|" // string(i)
        end do
     end if
+
+    ! assign seed0
+    if (present(seed0)) seed0 = seed(1)
 
     errmsg = ""
 999 continue
@@ -7293,6 +7386,74 @@ contains
        nseed = 0
        if (allocated(seed)) deallocate(seed)
     end if
+
+  contains
+    ! Interpret the title line, contained in the "line" variable.
+    ! Sets edum, lp, ismol, r
+    subroutine interpret_title_line()
+      use tools_io, only: lower
+      integer :: idx
+      logical :: firstpass, ok
+
+      ! initialize
+      edum = 0d0
+      lp = 1
+      ismol = .true.
+      r = 0d0
+
+      ! check if it is a single field -> energy
+      ok = isreal(edum,line,lp)
+      if (.not.ok .or. len_trim(line(lp:)) > 0) then
+         edum = 0d0
+      else
+         return
+      end if
+
+      ! check if we can read the lattice parameters from the line
+      line = lower(line)
+      idx = index(line,"pbc")
+      if (idx > 0) then
+         idx = index(line,"lattice")
+         if (idx > 0) then
+            ismol = .false.
+            firstpass = .true.
+            do i = idx+7,len(line)
+               if (line(i:i) == " ") cycle ! skip blanks
+               if (firstpass) then
+                  if (line(i:i) /= "=") then
+                     ismol = .true.
+                     exit
+                  else
+                     firstpass = .false.
+                     cycle
+                  end if
+               end if
+               if (line(i:i) == "'" .or. line(i:i) == '"') then
+                  lp = i+1
+                  exit
+               end if
+               ismol = .true.
+               exit
+            end do
+
+            ! read the real numbers
+            if (.not.ismol) then
+               ok = isreal(r(1,1),line,lp)
+               ok = ok .and. isreal(r(1,2),line,lp)
+               ok = ok .and. isreal(r(1,3),line,lp)
+               ok = ok .and. isreal(r(2,1),line,lp)
+               ok = ok .and. isreal(r(2,2),line,lp)
+               ok = ok .and. isreal(r(2,3),line,lp)
+               ok = ok .and. isreal(r(3,1),line,lp)
+               ok = ok .and. isreal(r(3,2),line,lp)
+               ok = ok .and. isreal(r(3,3),line,lp)
+               if (.not.ok) ismol = .true.
+            end if
+         end if
+      end if
+      if (.not.ismol) r = r / bohrtoa
+
+    end subroutine interpret_title_line
 
   end subroutine read_all_xyz
 

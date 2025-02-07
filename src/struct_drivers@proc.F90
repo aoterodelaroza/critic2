@@ -281,13 +281,16 @@ contains
     elseif (isformat == isformat_qein) then
        call seed%read_qein(word,mol,errmsg)
 
-    elseif (isformat == isformat_xyz.or.isformat == isformat_wfn.or.&
+    elseif (isformat == isformat_wfn.or.&
        isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
        isformat == isformat_molden.or.isformat == isformat_gaussian.or.&
        isformat == isformat_dat.or.isformat == isformat_pgout.or.&
        isformat == isformat_orca.or.isformat == isformat_gjf.or.&
        isformat == isformat_zmat) then
        call seed%read_mol(word,isformat,rborder,docube,errmsg)
+
+    elseif (isformat == isformat_xyz) then
+       call seed%read_xyz(word,mol,errmsg)
 
     elseif (isformat == isformat_pdb) then
        call seed%read_pdb(word,mol,errmsg)

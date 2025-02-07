@@ -99,6 +99,7 @@ module crystalseedmod
      procedure :: read_aimsin
      procedure :: read_aimsout
      procedure :: read_tinkerfrac
+     procedure :: read_xyz
      procedure :: report
   end type crystalseed
   public :: crystalseed
@@ -371,6 +372,13 @@ module crystalseedmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_tinkerfrac
+     module subroutine read_xyz(seed,file,mol,errmsg,ti)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_xyz
      module subroutine realloc_crystalseed(a,nnew)
        type(crystalseed), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
