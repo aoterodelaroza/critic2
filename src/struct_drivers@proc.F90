@@ -2097,10 +2097,10 @@ contains
 
     type(crystalseed) :: seed
     integer :: lp
-    character(len=:), allocatable :: file1, file2, errmsg, word
-    type(crystal) :: c1, c2, c1out, c2out
+    character(len=:), allocatable :: file1, file2, errmsg, word, writefile
+    type(crystal) :: c1, c2, c2out
     real*8 :: diff
-    logical :: ok, dowrite, noh
+    logical :: ok, noh
     real*8 :: powdiff_thr, max_elong, max_ang, max_vol
 
     real*8, parameter :: max_elong_def = 0.3d0 ! at most 30% elongation of cell lengths
@@ -2127,7 +2127,7 @@ contains
     max_ang = max_ang_def
     max_vol = max_vol_def
     powdiff_thr = -1d0
-    dowrite = .false.
+    writefile = ""
     noh = .false.
     do while (.true.)
        word = lgetword(line,lp)
@@ -2144,7 +2144,7 @@ contains
           ok = isreal(max_vol,line,lp)
           if (.not.ok) call ferror('struct_comparevc_vcpwdf','Wrong MAXVOL',faterr)
        elseif (equal(word,'write')) then
-          dowrite = .true.
+          writefile = getword(line,lp)
        elseif (equal(word,'noh')) then
           noh = .true.
        elseif (len_trim(word) > 0) then
@@ -2189,24 +2189,18 @@ contains
     end if
 
     ! run the comparison
-    if (dowrite) then
-       call vcpwdf_compare(c1,c2,diff,errmsg,max_elong,max_ang,max_vol,powdiff_thr,c1out,c2out,verbose=.true.)
+    if (len(writefile) > 0) then
+       call vcpwdf_compare(c1,c2,diff,errmsg,max_elong,max_ang,max_vol,powdiff_thr,c2out,verbose=.true.)
     else
        call vcpwdf_compare(c1,c2,diff,errmsg,max_elong,max_ang,max_vol,powdiff_thr,verbose=.true.)
     end if
     if (len_trim(errmsg) > 0) &
        call ferror('struct_comparevc_vcpwdf',errmsg,faterr)
 
-    ! write the final structure  to output
-    if (dowrite) then
-       ! write both to a res file
-       file1 = fileroot // "_structure_1.res"
-       write (uout,'("+ Structure 1 written to file: ",A)') trim(file1)
-       call c1out%write_res(file1,-1)
-
-       file2 = fileroot // "_structure_2.res"
-       write (uout,'("+ Structure 2 written to file: ",A)') trim(file2)
-       call c2out%write_res(file2,-1)
+    ! write the final structure to output
+    if (len(writefile) > 0) then
+       write (uout,'("+ Structure 2 written to file: ",A/)') trim(writefile)
+       call c2out%write_simple_driver(writefile)
     end if
 
   end subroutine struct_comparevc_vcpwdf
