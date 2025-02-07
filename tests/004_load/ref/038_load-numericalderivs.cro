@@ -45,198 +45,108 @@
   Alias for this field (1): $2
 
 + Field number 3
-  Name: <generated>, grid: abs($2:x-$1:x)
+  Name: <ghost>, abs($2:x-$1:x)
   Source: <generated>
-  Type: grid
-  Grid dimensions : 30  30  81  
-  Max. length Voronoi-relevant vector (bohr):  0.15622  
-  First elements... 1.102995010142E-15  1.102995010142E-15  1.102995010142E-15  
-  Last elements... 1.367855227631E-08  1.150240198599E-08  9.637136986568E-09  
-  Sum of elements... 2.595819325229E-01
-  Sum of squares of elements... 7.681225902197E-06
-  Cell integral (grid SUM) = 0.00084052
-  Min: 0.00000000E+00
-  Average: 3.56079468E-06
-  Max: 1.18754419E-04
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Type: ghost field
+  Expression: abs($2:x-$1:x)
   Use core densities? F
-  Numerical derivatives? F
+  Numerical derivatives? T
   Nuclear CP signature: -3
   Number of non-equivalent critical points: 2
   Number of critical points in the unit cell: 4
   Alias for this field (2): $3, $x
 
 + Field number 4
-  Name: <generated>, grid: abs($2:y-$1:y)
+  Name: <ghost>, abs($2:y-$1:y)
   Source: <generated>
-  Type: grid
-  Grid dimensions : 30  30  81  
-  Max. length Voronoi-relevant vector (bohr):  0.15622  
-  First elements... 7.720965070993E-15  3.658098129977E-15  4.533410683889E-14  
-  Last elements... 3.813442608116E-08  8.807978041966E-09  1.274590822725E-08  
-  Sum of elements... 3.275129516516E-01
-  Sum of squares of elements... 1.177038854613E-05
-  Cell integral (grid SUM) = 0.00106048
-  Min: 6.07763107E-16
-  Average: 4.49263308E-06
-  Max: 1.51293678E-04
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Type: ghost field
+  Expression: abs($2:y-$1:y)
   Use core densities? F
-  Numerical derivatives? F
+  Numerical derivatives? T
   Nuclear CP signature: -3
   Number of non-equivalent critical points: 2
   Number of critical points in the unit cell: 4
   Alias for this field (2): $4, $y
 
 + Field number 5
-  Name: <generated>, grid: abs($2:z-$1:z)
+  Name: <ghost>, abs($2:z-$1:z)
   Source: <generated>
-  Type: grid
-  Grid dimensions : 30  30  81  
-  Max. length Voronoi-relevant vector (bohr):  0.15622  
-  First elements... 1.102995010142E-15  3.320259498287E-07  6.948458544211E-07  
-  Last elements... 1.162243330098E-06  7.107001667676E-07  3.210499008783E-07  
-  Sum of elements... 3.058670211182E-01
-  Sum of squares of elements... 4.546784101407E-06
-  Cell integral (grid SUM) = 0.00099039
-  Min: 0.00000000E+00
-  Average: 4.19570674E-06
-  Max: 7.44847923E-05
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Type: ghost field
+  Expression: abs($2:z-$1:z)
   Use core densities? F
-  Numerical derivatives? F
+  Numerical derivatives? T
   Nuclear CP signature: -3
   Number of non-equivalent critical points: 2
   Number of critical points in the unit cell: 4
   Alias for this field (2): $5, $z
 
 + Field number 6
-  Name: <generated>, grid: abs($2:xx-$1:xx)
+  Name: <ghost>, abs($2:xx-$1:xx)
   Source: <generated>
-  Type: grid
-  Grid dimensions : 30  30  81  
-  Max. length Voronoi-relevant vector (bohr):  0.15622  
-  First elements... 8.203550369633E-08  6.272499550059E-08  2.400338246352E-08  
-  Last elements... 9.190028242652E-05  7.727683743432E-05  6.474340757463E-05  
-  Sum of elements... 1.744392768705E+03
-  Sum of squares of elements... 3.468713398407E+02
-  Cell integral (grid SUM) = 5.64828316
-  Min: 1.63578786E-13
-  Average: 2.39285702E-02
-  Max: 7.98033770E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Type: ghost field
+  Expression: abs($2:xx-$1:xx)
   Use core densities? F
-  Numerical derivatives? F
+  Numerical derivatives? T
   Nuclear CP signature: -3
   Number of non-equivalent critical points: 2
   Number of critical points in the unit cell: 4
   Alias for this field (2): $6, $xx
 
 + Field number 7
-  Name: <generated>, grid: abs($2:xy-$1:xy)
+  Name: <ghost>, abs($2:xy-$1:xy)
   Source: <generated>
-  Type: grid
-  Grid dimensions : 30  30  81  
-  Max. length Voronoi-relevant vector (bohr):  0.15622  
-  First elements... 7.207381970669E-08  4.615145201805E-08  1.841485355977E-08  
-  Last elements... 5.301926477862E-05  4.459681029701E-05  3.736741426160E-05  
-  Sum of elements... 1.007133199977E+03
-  Sum of squares of elements... 1.156241496597E+02
-  Cell integral (grid SUM) = 3.26106230
-  Min: 1.48322974E-09
-  Average: 1.38152702E-02
-  Max: 4.60754858E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Type: ghost field
+  Expression: abs($2:xy-$1:xy)
   Use core densities? F
-  Numerical derivatives? F
+  Numerical derivatives? T
   Nuclear CP signature: -3
   Number of non-equivalent critical points: 2
   Number of critical points in the unit cell: 4
   Alias for this field (2): $7, $xy
 
 + Field number 8
-  Name: <generated>, grid: abs($2:xz-$1:xz)
+  Name: <ghost>, abs($2:xz-$1:xz)
   Source: <generated>
-  Type: grid
-  Grid dimensions : 30  30  81  
-  Max. length Voronoi-relevant vector (bohr):  0.15622  
-  First elements... 3.209238430557E-12  6.418476861114E-13  3.209238430557E-12  
-  Last elements... 1.215628925007E-08  1.719250428868E-08  1.414748272057E-08  
-  Sum of elements... 4.716974580767E-02
-  Sum of squares of elements... 2.836874141298E-07
-  Cell integral (grid SUM) = 0.00015273
-  Min: 0.00000000E+00
-  Average: 6.47047268E-07
-  Max: 2.24865688E-05
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Type: ghost field
+  Expression: abs($2:xz-$1:xz)
   Use core densities? F
-  Numerical derivatives? F
+  Numerical derivatives? T
   Nuclear CP signature: -3
   Number of non-equivalent critical points: 2
   Number of critical points in the unit cell: 4
   Alias for this field (2): $8, $xz
 
 + Field number 9
-  Name: <generated>, grid: abs($2:yy-$1:yy)
+  Name: <ghost>, abs($2:yy-$1:yy)
   Source: <generated>
-  Type: grid
-  Grid dimensions : 30  30  81  
-  Max. length Voronoi-relevant vector (bohr):  0.15622  
-  First elements... 1.400054018900E-07  9.469344304232E-08  1.846433620497E-08  
-  Last elements... 2.562123616504E-04  5.916475054498E-05  8.563540676878E-05  
-  Sum of elements... 2.274129510175E+03
-  Sum of squares of elements... 5.712128369248E+02
-  Cell integral (grid SUM) = 7.36355231
-  Min: 1.06836463E-08
-  Average: 3.11951922E-02
-  Max: 1.27082892E+00
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Type: ghost field
+  Expression: abs($2:yy-$1:yy)
   Use core densities? F
-  Numerical derivatives? F
+  Numerical derivatives? T
   Nuclear CP signature: -3
   Number of non-equivalent critical points: 2
   Number of critical points in the unit cell: 4
   Alias for this field (2): $9, $yy
 
 + Field number 10
-  Name: <generated>, grid: abs($2:yz-$1:yz)
+  Name: <ghost>, abs($2:yz-$1:yz)
   Source: <generated>
-  Type: grid
-  Grid dimensions : 30  30  81  
-  Max. length Voronoi-relevant vector (bohr):  0.15622  
-  First elements... 3.478626530347E-11  2.862691276158E-11  9.974659986867E-12  
-  Last elements... 2.036712178251E-08  1.318169797588E-08  1.773853425521E-08  
-  Sum of elements... 5.509365654635E-02
-  Sum of squares of elements... 3.604702085140E-07
-  Cell integral (grid SUM) = 0.00017839
-  Min: 9.79025888E-14
-  Average: 7.55742888E-07
-  Max: 2.64070489E-05
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Type: ghost field
+  Expression: abs($2:yz-$1:yz)
   Use core densities? F
-  Numerical derivatives? F
+  Numerical derivatives? T
   Nuclear CP signature: -3
   Number of non-equivalent critical points: 2
   Number of critical points in the unit cell: 4
   Alias for this field (2): $10, $yz
 
 + Field number 11
-  Name: <generated>, grid: abs($2:zz-$1:zz)
+  Name: <ghost>, abs($2:zz-$1:zz)
   Source: <generated>
-  Type: grid
-  Grid dimensions : 30  30  81  
-  Max. length Voronoi-relevant vector (bohr):  0.15622  
-  First elements... 1.273575657018E-07  2.231399506281E-03  4.669518118817E-03  
-  Last elements... 7.810482751980E-03  4.776073020128E-03  2.157279565088E-03  
-  Sum of elements... 2.055429155795E+03
-  Sum of squares of elements... 2.053256976019E+02
-  Cell integral (grid SUM) = 6.65540817
-  Min: 3.55701711E-08
-  Average: 2.81951873E-02
-  Max: 5.00540110E-01
-  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Type: ghost field
+  Expression: abs($2:zz-$1:zz)
   Use core densities? F
-  Numerical derivatives? F
+  Numerical derivatives? T
   Nuclear CP signature: -3
   Number of non-equivalent critical points: 2
   Number of critical points in the unit cell: 4
@@ -262,15 +172,15 @@
   Ellipticity (l_1/l_2 - 1): 2.029216709E+00
   Field 0 (f,|grad|,lap): 1.951971298E-01  2.373939233E-01  -3.629821587E-01  
   Field 2 (f,|grad|,lap): 1.865804650E-01  2.287702817E-01  -2.310209598E-01  
-  Field 3 (f,|grad|,lap): 5.879388264E-15  1.140581265E-05  2.525775664E-03  
-  Field 4 (f,|grad|,lap): 1.969506097E-05  4.855966842E-05  -8.009380898E-04  
-  Field 5 (f,|grad|,lap): 1.462245634E-05  1.410267256E-05  -1.199415747E-04  
-  Field 6 (f,|grad|,lap): 3.464853917E-06  7.666491440E-02  1.697170307E+01  
-  Field 7 (f,|grad|,lap): 5.370702125E-06  4.428617375E-02  9.798215340E+00  
-  Field 8 (f,|grad|,lap): 1.623730915E-10  3.576831810E-06  7.021426326E-04  
-  Field 9 (f,|grad|,lap): 1.323506664E-01  3.263212224E-01  -5.382183114E+00  
-  Field 10 (f,|grad|,lap): 3.481934407E-06  9.251396269E-06  -3.139699178E-04  
-  Field 11 (f,|grad|,lap): 9.826369162E-02  9.477032739E-02  -8.059165536E-01  
+  Field 3 (f,|grad|,lap): 5.554964179E-14  1.445176665E-09  1.585027275E-02  
+  Field 4 (f,|grad|,lap): 1.969506099E-05  3.732907221E-05  -1.826770292E+02  
+  Field 5 (f,|grad|,lap): 2.471078897E-13  2.506412112E-10  -1.958038066E-06  
+  Field 6 (f,|grad|,lap): 3.495718079E-06  7.246016426E-05  7.335811154E+01  
+  Field 7 (f,|grad|,lap): 5.384143764E-06  2.514123567E-05  1.147905254E+02  
+  Field 8 (f,|grad|,lap): 3.499520418E-11  8.183915616E-08  2.026102350E-03  
+  Field 9 (f,|grad|,lap): 1.323506432E-01  2.508418654E-01  -7.835022789E+05  
+  Field 10 (f,|grad|,lap): 2.573922809E-06  2.915194156E-05  -1.508696967E+01  
+  Field 11 (f,|grad|,lap): 4.540899323E-10  3.086609487E-07  -4.352737898E-03  
 
 + Field number 1
   Name: zno.clmsum
