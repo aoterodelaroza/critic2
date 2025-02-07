@@ -372,10 +372,12 @@ module crystalseedmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_tinkerfrac
-     module subroutine read_xyz(seed,file,mol,errmsg,ti)
+     module subroutine read_xyz(seed,file,mol,rborder,docube,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
        logical, intent(in) :: mol
+       real*8, intent(in) :: rborder
+       logical, intent(in) :: docube
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_xyz

@@ -890,7 +890,7 @@ contains
        call seed%read_mol(file,isformat,rborder_def,.false.,errmsg,ti=ti)
 
     elseif (isformat == isformat_xyz) then
-       call seed%read_xyz(file,mol,errmsg,ti=ti)
+       call seed%read_xyz(file,mol,rborder_def,.false.,errmsg,ti=ti)
 
     elseif (isformat == isformat_pdb) then
        call seed%read_pdb(file,mol,errmsg,ti=ti)
@@ -4884,13 +4884,15 @@ contains
   !> molecule. If mol0 == 0, force a crystal. If mol0 == -1, let the
   !> format detection decide. If the read was successful, return an
   !> empty error message
-  module subroutine read_xyz(seed,file,mol,errmsg,ti)
+  module subroutine read_xyz(seed,file,mol,rborder,docube,errmsg,ti)
     use tools_io, only: getline_raw, fopen_read, fclose, isinteger, isreal, zatguess, nameguess
     use param, only: bohrtoa, maxzat, isformat_tinkerfrac
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
+    real*8, intent(in) :: rborder
+    logical, intent(in) :: docube
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
@@ -4904,6 +4906,8 @@ contains
     end if
     call seed%end()
     call read_all_xyz(nseed,seedaux,file,imol,errmsg,seed0=seed,ti=ti)
+    seed%border = rborder
+    seed%cubic = docube
 
   end subroutine read_xyz
 

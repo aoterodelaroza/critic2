@@ -290,7 +290,7 @@ contains
        call seed%read_mol(word,isformat,rborder,docube,errmsg)
 
     elseif (isformat == isformat_xyz) then
-       call seed%read_xyz(word,mol,errmsg)
+       call seed%read_xyz(word,mol,rborder,docube,errmsg)
 
     elseif (isformat == isformat_pdb) then
        call seed%read_pdb(word,mol,errmsg)
