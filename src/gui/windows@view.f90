@@ -614,7 +614,7 @@ contains
           w%forcerender = .true.
 
        ! continuous render if animation is active
-       if (w%sc%ifreq_selected > 0.and.w%sc%iqpt_selected > 0.and.allocated(sys(w%view_selected)%c%vib).and.&
+       if (w%sc%ifreq_selected > 0.and.w%sc%iqpt_selected > 0.and.sys(w%view_selected)%c%vib%isinit.and.&
           w%sc%animation > 0) &
           w%forcerender = .true.
     end if
@@ -3027,7 +3027,7 @@ contains
     ! vibrations ok?
     goodsys = ok_system(isys,sys_init)
     vib_ok = goodsys
-    if (vib_ok) vib_ok = allocated(sys(isys)%c%vib)
+    if (vib_ok) vib_ok = sys(isys)%c%vib%isinit
     if (vib_ok) vib_ok = (sys(isys)%c%vib%nqpt > 0) .and. (sys(isys)%c%vib%nfreq > 0)
     if (vib_ok) vib_ok = associated(win(w%idparent)%sc)
 
@@ -3042,7 +3042,7 @@ contains
        call iw_text("Vibration data",highlight=.true.)
 
        if (iw_button("Clear",sameline=.true.,danger=.true.)) then
-          call sys(isys)%c%clear_vibrations()
+          call sys(isys)%c%vib%end()
           win(w%idparent)%sc%iqpt_selected = 0
           win(w%idparent)%sc%ifreq_selected = 0
           vib_ok = .false.

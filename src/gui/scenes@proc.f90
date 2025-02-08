@@ -1442,7 +1442,7 @@ contains
        nstring = 0
     end if
     doanim_ = doanim
-    if (doanim_) doanim_ = doanim_ .and. (iqpt > 0 .and. ifreq > 0 .and. allocated(sys(r%id)%c%vib))
+    if (doanim_) doanim_ = doanim_ .and. (iqpt > 0 .and. ifreq > 0 .and. sys(r%id)%c%vib%isinit)
 
     if (r%type == reptype_atoms) then
        !!! atoms and bonds representation !!!

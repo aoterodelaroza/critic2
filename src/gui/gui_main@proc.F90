@@ -1085,7 +1085,7 @@ contains
                    else
                       ivformat = ivformat_unknown
                    end if
-                   call sys(i)%c%read_vibrations_file(sysc(i)%seed%file,ivformat,errmsg,ti=ti)
+                   call sys(i)%c%vib%read_file(sys(i)%c,sysc(i)%seed%file,ivformat,errmsg,ti=ti)
                    if (len_trim(errmsg) > 0) then
                       write (uout,'("!! Warning !! Could not read vibration data for system: ",A)') string(i)
                       write (uout,'("!! Warning !! Error message: ",A)') trim(errmsg)

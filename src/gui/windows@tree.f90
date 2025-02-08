@@ -511,7 +511,7 @@ contains
                 str = string(i)
                 call write_maybe_selectable(i,tooltipstr)
                 ok = (sysc(i)%status >= sys_ready)
-                if (ok) ok = allocated(sys(i)%c%vib)
+                if (ok) ok = sys(i)%c%vib%isinit
                 if (ok) then
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,&
                       rgba=rgba_vibrations)
@@ -1090,7 +1090,7 @@ contains
 
             ! clear vibration data
             if (iw_menuitem("Clear Vibration Data",enabled=enabled)) &
-               call sys(isys)%c%clear_vibrations()
+               call sys(isys)%c%vib%end()
             call iw_tooltip("Clear the vibration data for this system",ttshown)
 
             call igEndMenu()
@@ -1572,7 +1572,7 @@ contains
        end if
 
        ! vibrations
-       if (allocated(sys(i)%c%vib)) then
+       if (sys(i)%c%vib%isinit) then
           call iw_text("")
           call iw_text("Vibration data available",rgba=rgba_vibrations)
        end if

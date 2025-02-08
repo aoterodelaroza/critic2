@@ -88,6 +88,7 @@ module crystalmod
 
   !> Class for molecular or crystal vibrations
   type vibrations
+     logical :: isinit = .false. ! true if vibrations are available
      character(len=mlen) :: file ! source of vibration data
      integer :: ivformat ! format for the vibration data
      integer :: nqpt ! number of q-points
@@ -98,6 +99,9 @@ module crystalmod
      ! note: these are the vectors that come out of the dynamical
      ! matrix diagonalization and they must be orthonormal. For the
      ! displacements, divide by the sqrt(m_j).
+   contains
+     procedure :: end => vibrations_end !< terminate the vibrations object
+     procedure :: read_file => vibrations_read_file !< read a vib file, detect the format
   end type vibrations
   public :: vibrations
 
@@ -196,7 +200,7 @@ module crystalmod
      ! c%atcel(i)%x + c%mol(idatcelmol(1))%at(idatcelmol(2))%lvec
 
      ! vibrations
-     type(vibrations), allocatable :: vib !< molecular/crystal vibrations
+     type(vibrations) :: vib !< molecular/crystal vibrations
    contains
      ! construction, destruction, initialization (proc)
      procedure :: init => struct_init !< Allocate arrays and nullify variables
@@ -319,10 +323,6 @@ module crystalmod
      procedure :: writegrid_cube
      procedure :: writegrid_vasp
      procedure :: writegrid_xsf
-
-     ! vibrations
-     procedure :: clear_vibrations
-     procedure :: read_vibrations_file
   end type crystal
   public :: crystal
 
@@ -1032,16 +1032,18 @@ module crystalmod
        integer, intent(in), optional :: ishift0(3)
        type(thread_info), intent(in), optional :: ti
      end subroutine writegrid_xsf
-     module subroutine clear_vibrations(c)
-       class(crystal), intent(inout) :: c
-     end subroutine clear_vibrations
-     module subroutine read_vibrations_file(c,file,ivformat,errmsg,ti)
-       class(crystal), intent(inout) :: c
+     !xx! vibrations type
+     module subroutine vibrations_end(v)
+       class(vibrations), intent(inout) :: v
+     end subroutine vibrations_end
+     module subroutine vibrations_read_file(v,c,file,ivformat,errmsg,ti)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(in) :: c
        character*(*), intent(in) :: file
        integer, intent(in) :: ivformat
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
-     end subroutine read_vibrations_file
+     end subroutine vibrations_read_file
      !xx! xrpd_peaklist type
      module subroutine xrpd_peaklist_end(p)
        class(xrpd_peaklist), intent(inout) :: p

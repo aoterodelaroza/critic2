@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Routines for reading and handling molecular and crystal vibrations.
-submodule (crystalmod) vibrations
+submodule (crystalmod) vibrationsmod
   implicit none
 
   !xx! private procedures
@@ -30,32 +30,42 @@ submodule (crystalmod) vibrations
 
 contains
 
-  !> Remove the vibration data from the crystal object.
-  module subroutine clear_vibrations(c)
-    class(crystal), intent(inout) :: c
-    if (allocated(c%vib)) deallocate(c%vib)
-  end subroutine clear_vibrations
+  !> Terminate a vibrations object
+  module subroutine vibrations_end(v)
+    use param, only: ivformat_unknown
+    class(vibrations), intent(inout) :: v
+
+    v%isinit = .false.
+    v%file = ""
+    v%ivformat = ivformat_unknown
+    v%nqpt = 0
+    if (allocated(v%qpt)) deallocate(v%qpt)
+    if (allocated(v%freq)) deallocate(v%freq)
+    if (allocated(v%vec)) deallocate(v%vec)
+    v%nfreq = 0
+
+  end subroutine vibrations_end
 
   !> Read a file (file) containing the vibrational information for
   !> this system and add the q-points to c%vib. The vibration data
   !> format is detected from the file extension if ivformat is
   !> isformat_unknown or format ivformat is used otherwise. Returns
   !> non-zero errmsg if error.
-  module subroutine read_vibrations_file(c,file,ivformat,errmsg,ti)
+  module subroutine vibrations_read_file(v,c,file,ivformat,errmsg,ti)
     use param, only: ivformat_unknown, ivformat_matdynmodes, ivformat_matdyneig,&
        ivformat_qedyn, ivformat_phonopy_ascii, ivformat_phonopy_yaml, ivformat_phonopy_hdf5,&
        ivformat_crystal_out, ivformat_gaussian_log, ivformat_gaussian_fchk
     use crystalmod, only: vibrations
     use crystalseedmod, only: vibrations_detect_format
     use types, only: realloc
-    class(crystal), intent(inout) :: c
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     integer, intent(in) :: ivformat
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: ivf, nqpt_
-    type(vibrations) :: vib
+    integer :: ivf
 
     ! detect the format
     if (ivformat == ivformat_unknown) then
@@ -68,72 +78,54 @@ contains
        ivf = ivformat
     end if
 
+    ! initialize
+    call v%end()
+
     ! read the vibrations
     if (ivf == ivformat_matdynmodes .or. ivf == ivformat_matdyneig) then
-       call read_matdyn_modes(c,vib,file,ivf,errmsg,ti)
+       call read_matdyn_modes(v,c,file,ivf,errmsg,ti)
     elseif (ivf == ivformat_qedyn) then
-       call read_qe_dyn(c,vib,file,errmsg,ti)
+       call read_qe_dyn(v,c,file,errmsg,ti)
     elseif (ivf == ivformat_phonopy_ascii) then
-       call read_phonopy_ascii(c,vib,file,errmsg,ti)
+       call read_phonopy_ascii(v,c,file,errmsg,ti)
     elseif (ivf == ivformat_phonopy_yaml) then
-       call read_phonopy_yaml(c,vib,file,errmsg,ti)
+       call read_phonopy_yaml(v,c,file,errmsg,ti)
     elseif (ivf == ivformat_phonopy_hdf5) then
-       call read_phonopy_hdf5(c,vib,file,errmsg)
+       call read_phonopy_hdf5(v,c,file,errmsg)
     elseif (ivf == ivformat_crystal_out) then
-       call read_crystal_out(c,vib,file,errmsg)
+       call read_crystal_out(v,c,file,errmsg,ti)
     elseif (ivf == ivformat_gaussian_log) then
-       call read_gaussian_log(c,vib,file,errmsg)
+       call read_gaussian_log(v,c,file,errmsg,ti)
     elseif (ivf == ivformat_gaussian_fchk) then
-       call read_gaussian_fchk(c,vib,file,errmsg)
+       call read_gaussian_fchk(v,c,file,errmsg,ti)
     else
        errmsg = "Unknown vibration file format: " // trim(file)
        return
     end if
     if (len(errmsg) > 0) return
-    if (vib%nfreq == 0) then
+    if (v%nfreq == 0) then
        errmsg = "No frequencies found in file: " // trim(file)
        return
     end if
-    if (vib%nqpt == 0) then
+    if (v%nqpt == 0) then
        errmsg = "No q-points found in file: " // trim(file)
        return
     end if
 
-    ! add to c%vib
-    if (.not.allocated(c%vib)) then
-       allocate(c%vib)
-       c%vib%nqpt = 0
-       c%vib%nfreq = vib%nfreq
-    end if
-    if (c%vib%nfreq /= vib%nfreq) then
-       errmsg = "Inconsistent number of frequencies: " // trim(file)
-       return
-    end if
-    nqpt_ = c%vib%nqpt
-    c%vib%file = vib%file
-    c%vib%ivformat = vib%ivformat
-    c%vib%nqpt = nqpt_ + vib%nqpt
-    call realloc(c%vib%qpt,3,c%vib%nqpt)
-    c%vib%qpt(:,nqpt_+1:c%vib%nqpt) = vib%qpt
-    call realloc(c%vib%freq,c%vib%nfreq,c%vib%nqpt)
-    c%vib%freq(:,nqpt_+1:c%vib%nqpt) = vib%freq
-    call realloc(c%vib%vec,3,c%ncel,c%vib%nfreq,c%vib%nqpt)
-    c%vib%vec(:,:,:,nqpt_+1:c%vib%nqpt) = vib%vec
-
-  end subroutine read_vibrations_file
+  end subroutine vibrations_read_file
 
   !xx! private procedures
 
   !> Read vibration data with Quantum ESPRESSO matdyn.modes and
   !> matdyn.eig format from a file, and return it in vib. If error,
   !> return non-zero errmsg.
-  subroutine read_matdyn_modes(c,vib,file,ivformat,errmsg,ti)
+  subroutine read_matdyn_modes(v,c,file,ivformat,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalmod, only: vibrations
     use crystalseedmod, only: read_alat_from_qeout
     use param, only: atmass, isformat_qeout, ivformat_matdynmodes
-    class(crystal), intent(inout) :: c
-    type(vibrations), intent(inout) :: vib
+    type(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     integer, intent(in) :: ivformat
     character(len=:), allocatable, intent(out) :: errmsg
@@ -167,36 +159,36 @@ contains
     end if
 
     ! prepare container for data
-    vib%file = file
-    vib%ivformat = ivf
+    v%file = file
+    v%ivformat = ivf
 
     ! first pass: determine nqpt and nfreq
     nline = 0
-    vib%nqpt = 0
-    vib%nfreq = 0
+    v%nqpt = 0
+    v%nfreq = 0
     do while (getline_raw(lu,line,.false.))
        nline = nline + 1
        if (len(line) >= 4) then
-          if (line(1:4) == " q =") vib%nqpt = vib%nqpt + 1
+          if (line(1:4) == " q =") v%nqpt = v%nqpt + 1
        end if
-       if (vib%nqpt == 1) then
+       if (v%nqpt == 1) then
           if (len(line) >= 9) then
              if (line(1:9) == "     freq") then
-                vib%nfreq = vib%nfreq + 1
-                if (vib%nfreq == 1) then
+                v%nfreq = v%nfreq + 1
+                if (v%nfreq == 1) then
                    nline1 = nline
-                elseif (vib%nfreq == 2) then
+                elseif (v%nfreq == 2) then
                    nat = nline - nline1 - 1
                 end if
              end if
           end if
        end if
     end do
-    if (vib%nfreq == 0) then
+    if (v%nfreq == 0) then
        errmsg = "Found no frequencies in file: " // trim(file)
        goto 999
     end if
-    if (vib%nqpt == 0) then
+    if (v%nqpt == 0) then
        errmsg = "Found no q-points in file: "  // trim(file)
        goto 999
     end if
@@ -206,40 +198,40 @@ contains
     end if
 
     ! allocate arrays
-    if (allocated(vib%qpt)) deallocate(vib%qpt)
-    allocate(vib%qpt(3,vib%nqpt))
-    if (allocated(vib%freq)) deallocate(vib%freq)
-    allocate(vib%freq(vib%nfreq,vib%nqpt))
-    if (allocated(vib%vec)) deallocate(vib%vec)
-    allocate(vib%vec(3,c%ncel,vib%nfreq,vib%nqpt))
+    if (allocated(v%qpt)) deallocate(v%qpt)
+    allocate(v%qpt(3,v%nqpt))
+    if (allocated(v%freq)) deallocate(v%freq)
+    allocate(v%freq(v%nfreq,v%nqpt))
+    if (allocated(v%vec)) deallocate(v%vec)
+    allocate(v%vec(3,c%ncel,v%nfreq,v%nqpt))
 
     ! second pass: read the information
     errmsg = "Error reading modes file: " // trim(file)
     rewind(lu)
-    vib%nqpt = 0
+    v%nqpt = 0
     do while (getline_raw(lu,line,.false.))
        ok = .false.
        if (len(line) >= 4) ok = (line(1:4) == " q =")
        if (ok) then
-          vib%nqpt = vib%nqpt + 1
-          read (line(5:),*,end=999,err=999) vib%qpt(:,vib%nqpt)
-          vib%qpt(:,vib%nqpt) = c%rc2rx(vib%qpt(:,vib%nqpt)) / alat
+          v%nqpt = v%nqpt + 1
+          read (line(5:),*,end=999,err=999) v%qpt(:,v%nqpt)
+          v%qpt(:,v%nqpt) = c%rc2rx(v%qpt(:,v%nqpt)) / alat
 
           ok = getline_raw(lu,line,.false.)
           if (.not.ok) goto 999
-          do ifreq = 1, vib%nfreq
+          do ifreq = 1, v%nfreq
              ok = getline_raw(lu,line,.false.)
              if (.not.ok) goto 999
              idx = index(line,'=',back=.true.)
-             read(line(idx+1:),*) vib%freq(ifreq,vib%nqpt)
+             read(line(idx+1:),*) v%freq(ifreq,v%nqpt)
              do iat = 1, c%ncel
                 ok = getline_raw(lu,line,.false.)
                 if (.not.ok) goto 999
                 idx = index(line,'(')
                 read(line(idx+1:),*,end=999,err=999) xdum
-                vib%vec(1,iat,ifreq,vib%nqpt) = cmplx(xdum(1),xdum(2),8)
-                vib%vec(2,iat,ifreq,vib%nqpt) = cmplx(xdum(3),xdum(4),8)
-                vib%vec(3,iat,ifreq,vib%nqpt) = cmplx(xdum(5),xdum(6),8)
+                v%vec(1,iat,ifreq,v%nqpt) = cmplx(xdum(1),xdum(2),8)
+                v%vec(2,iat,ifreq,v%nqpt) = cmplx(xdum(3),xdum(4),8)
+                v%vec(3,iat,ifreq,v%nqpt) = cmplx(xdum(5),xdum(6),8)
              end do
           end do
        end if
@@ -250,24 +242,24 @@ contains
     if (ivformat == ivformat_matdynmodes) then
        do iat = 1, c%ncel
           iz = c%spc(c%atcel(iat)%is)%z
-          vib%vec(:,iat,:,:) = vib%vec(:,iat,:,:) * sqrt(atmass(iz))
+          v%vec(:,iat,:,:) = v%vec(:,iat,:,:) * sqrt(atmass(iz))
        end do
     end if
 
     ! normalize
-    do iqpt = 1, vib%nqpt
-       do ifreq = 1, vib%nfreq
-          vib%vec(:,:,ifreq,iqpt) = vib%vec(:,:,ifreq,iqpt) / &
-             sqrt(sum(vib%vec(:,:,ifreq,iqpt)*conjg(vib%vec(:,:,ifreq,iqpt))))
+    do iqpt = 1, v%nqpt
+       do ifreq = 1, v%nfreq
+          v%vec(:,:,ifreq,iqpt) = v%vec(:,:,ifreq,iqpt) / &
+             sqrt(sum(v%vec(:,:,ifreq,iqpt)*conjg(v%vec(:,:,ifreq,iqpt))))
        end do
     end do
 
     ! ! checking normalization
     ! write (*,*) "checking normalization..."
-    ! do iqpt = 1, vib%nqpt
-    !    do ifreq = 1, vib%nfreq
-    !       do jfreq = 1, vib%nfreq
-    !          summ = sum(vib%vec(:,:,ifreq,iqpt)*conjg(vib%vec(:,:,jfreq,iqpt)))
+    ! do iqpt = 1, v%nqpt
+    !    do ifreq = 1, v%nfreq
+    !       do jfreq = 1, v%nfreq
+    !          summ = sum(v%vec(:,:,ifreq,iqpt)*conjg(v%vec(:,:,jfreq,iqpt)))
     !          write (*,*) ifreq, jfreq, summ
     !       end do
     !    end do
@@ -275,6 +267,7 @@ contains
 
     ! wrap up
     errmsg = ""
+    v%isinit = .true.
     call fclose(lu)
 
     return
@@ -285,13 +278,13 @@ contains
 
   !> Read vibration data with Quantum ESPRESSO *.dyn* file format, and
   !> return it in vib. If error, return non-zero errmsg.
-  subroutine read_qe_dyn(c,vib,file,errmsg,ti)
+  subroutine read_qe_dyn(v,c,file,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalmod, only: vibrations
     use crystalseedmod, only: read_alat_from_qeout
     use param, only: atmass, isformat_qeout, ivformat_qedyn
-    class(crystal), intent(inout) :: c
-    type(vibrations), intent(inout) :: vib
+    type(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
@@ -323,13 +316,13 @@ contains
     end if
 
     ! prepare container for data
-    vib%file = file
-    vib%ivformat = ivformat_qedyn
+    v%file = file
+    v%ivformat = ivformat_qedyn
 
     ! advance to the header
-    vib%nqpt = 1
-    if (allocated(vib%qpt)) deallocate(vib%qpt)
-    allocate(vib%qpt(3,vib%nqpt))
+    v%nqpt = 1
+    if (allocated(v%qpt)) deallocate(v%qpt)
+    allocate(v%qpt(3,v%nqpt))
     do while (getline_raw(lu,line,.false.))
        if (len(line) >= 39) then
           if (line(1:39) == "     Diagonalizing the dynamical matrix") exit
@@ -341,34 +334,34 @@ contains
     ok = ok .and. getline_raw(lu,line,.false.)
     if (.not.ok) goto 999
     if (len(line) < 11) goto 999
-    read (line(11:),*,end=999,err=999) vib%qpt(:,1)
-    vib%qpt(:,1) = c%rc2rx(vib%qpt(:,1)) / alat
+    read (line(11:),*,end=999,err=999) v%qpt(:,1)
+    v%qpt(:,1) = c%rc2rx(v%qpt(:,1)) / alat
 
     ! allocate frequencies
-    vib%nfreq = 3 * c%ncel
-    if (allocated(vib%freq)) deallocate(vib%freq)
-    allocate(vib%freq(vib%nfreq,vib%nqpt))
-    if (allocated(vib%vec)) deallocate(vib%vec)
-    allocate(vib%vec(3,c%ncel,vib%nfreq,vib%nqpt))
+    v%nfreq = 3 * c%ncel
+    if (allocated(v%freq)) deallocate(v%freq)
+    allocate(v%freq(v%nfreq,v%nqpt))
+    if (allocated(v%vec)) deallocate(v%vec)
+    allocate(v%vec(3,c%ncel,v%nfreq,v%nqpt))
 
     ! read the frequencies
     ok = getline_raw(lu,line,.false.)
     ok = ok .and. getline_raw(lu,line,.false.)
     if (.not.ok) goto 999
-    do i = 1, vib%nfreq
+    do i = 1, v%nfreq
        ok = getline_raw(lu,line,.false.)
        if (.not.ok) goto 999
        if (len(line) < 42) goto 999
-       read(line(43:),*,end=999,err=999) vib%freq(i,1)
+       read(line(43:),*,end=999,err=999) v%freq(i,1)
 
        do j = 1, c%ncel
           ok = getline_raw(lu,line,.false.)
           if (.not.ok) goto 999
           if (len(line) < 2) goto 999
           read(line(3:),*,end=999,err=999) xdum
-          vib%vec(1,j,i,1) = cmplx(xdum(1),xdum(2),8)
-          vib%vec(2,j,i,1) = cmplx(xdum(3),xdum(4),8)
-          vib%vec(3,j,i,1) = cmplx(xdum(5),xdum(6),8)
+          v%vec(1,j,i,1) = cmplx(xdum(1),xdum(2),8)
+          v%vec(2,j,i,1) = cmplx(xdum(3),xdum(4),8)
+          v%vec(3,j,i,1) = cmplx(xdum(5),xdum(6),8)
        end do
     end do
     ok = getline_raw(lu,line,.false.)
@@ -382,21 +375,21 @@ contains
     ! (note: units are incorrect, but we are normalizing afterwards)
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z
-       vib%vec(:,i,:,:) = vib%vec(:,i,:,:) * sqrt(atmass(iz))
+       v%vec(:,i,:,:) = v%vec(:,i,:,:) * sqrt(atmass(iz))
     end do
 
     ! normalize
-    do i = 1, vib%nfreq
-       vib%vec(:,:,i,1) = vib%vec(:,:,i,1) / &
-          sqrt(sum(vib%vec(:,:,i,1)*conjg(vib%vec(:,:,i,1))))
+    do i = 1, v%nfreq
+       v%vec(:,:,i,1) = v%vec(:,:,i,1) / &
+          sqrt(sum(v%vec(:,:,i,1)*conjg(v%vec(:,:,i,1))))
     end do
 
     ! ! checking normalization
     ! write (*,*) "checking normalization..."
-    ! do iqpt = 1, vib%nqpt
-    !    do ifreq = 1, vib%nfreq
-    !       do jfreq = 1, vib%nfreq
-    !          summ = sum(vib%vec(:,:,ifreq,iqpt)*conjg(vib%vec(:,:,jfreq,iqpt)))
+    ! do iqpt = 1, v%nqpt
+    !    do ifreq = 1, v%nfreq
+    !       do jfreq = 1, v%nfreq
+    !          summ = sum(v%vec(:,:,ifreq,iqpt)*conjg(v%vec(:,:,jfreq,iqpt)))
     !          write (*,*) ifreq, jfreq, summ
     !       end do
     !    end do
@@ -404,6 +397,7 @@ contains
 
     ! wrap up
     errmsg = ""
+    v%isinit = .true.
     call fclose(lu)
 
     return
@@ -414,12 +408,12 @@ contains
 
   !> Read vibration data from a phonopy ascii file (ANIME keyword),
   !> and return it in vib. If error, return non-zero errmsg.
-  subroutine read_phonopy_ascii(c,vib,file,errmsg,ti)
+  subroutine read_phonopy_ascii(v,c,file,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalmod, only: vibrations
     use param, only: atmass, ivformat_phonopy_ascii, cm1tothz
-    class(crystal), intent(inout) :: c
-    type(vibrations), intent(inout) :: vib
+    type(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
@@ -443,18 +437,18 @@ contains
     end if
 
     ! prepare container for data
-    vib%file = file
-    vib%ivformat = ivformat_phonopy_ascii
+    v%file = file
+    v%ivformat = ivformat_phonopy_ascii
 
     ! allocate and initialize
-    vib%nqpt = 1
-    vib%nfreq = 3 * c%ncel
-    if (allocated(vib%qpt)) deallocate(vib%qpt)
-    allocate(vib%qpt(3,vib%nqpt))
-    if (allocated(vib%freq)) deallocate(vib%freq)
-    allocate(vib%freq(vib%nfreq,vib%nqpt))
-    if (allocated(vib%vec)) deallocate(vib%vec)
-    allocate(vib%vec(3,c%ncel,vib%nfreq,vib%nqpt))
+    v%nqpt = 1
+    v%nfreq = 3 * c%ncel
+    if (allocated(v%qpt)) deallocate(v%qpt)
+    allocate(v%qpt(3,v%nqpt))
+    if (allocated(v%freq)) deallocate(v%freq)
+    allocate(v%freq(v%nfreq,v%nqpt))
+    if (allocated(v%vec)) deallocate(v%vec)
+    allocate(v%vec(3,c%ncel,v%nfreq,v%nqpt))
 
     ! advance to the header
     do while (getline_raw(lu,line,.false.))
@@ -467,55 +461,55 @@ contains
     idx = index(line,"[")
     line = line(idx+1:)
     call strip(line)
-    read (line,*,err=999,end=999) vib%qpt(:,1), vib%freq(1,1)
+    read (line,*,err=999,end=999) v%qpt(:,1), v%freq(1,1)
 
     ! get the rest of the info
-    do ifreq = 1, vib%nfreq
+    do ifreq = 1, v%nfreq
        ! read the eigenvector
        do i = 1, c%ncel
           ok = getline_raw(lu,line,.false.)
           if (.not.ok) goto 999
           call strip(line)
           read (line,*,err=999,end=999) xdum
-          vib%vec(1,i,ifreq,1) = cmplx(xdum(1),xdum(4),8)
-          vib%vec(2,i,ifreq,1) = cmplx(xdum(2),xdum(5),8)
-          vib%vec(3,i,ifreq,1) = cmplx(xdum(3),xdum(6),8)
+          v%vec(1,i,ifreq,1) = cmplx(xdum(1),xdum(4),8)
+          v%vec(2,i,ifreq,1) = cmplx(xdum(2),xdum(5),8)
+          v%vec(3,i,ifreq,1) = cmplx(xdum(3),xdum(6),8)
        end do
 
        ! advance to the next metadata
-       if (ifreq < vib%nfreq) then
+       if (ifreq < v%nfreq) then
           ok = getline_raw(lu,line,.false.)
           ok = ok .and. getline_raw(lu,line,.false.)
           if (.not.ok) goto 999
           idx = index(line,"[")
           line = line(idx+1:)
           call strip(line)
-          read (line,*,err=999,end=999) xdum(1:3), vib%freq(ifreq+1,1)
+          read (line,*,err=999,end=999) xdum(1:3), v%freq(ifreq+1,1)
        end if
     end do
 
     ! THz to cm-1
-    vib%freq = vib%freq / cm1tothz
+    v%freq = v%freq / cm1tothz
 
     ! convert to mass-weighed coordinates (orthonormal eigenvectors)
     ! (note: units are incorrect, but we are normalizing afterwards)
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z
-       vib%vec(:,i,:,:) = vib%vec(:,i,:,:) * sqrt(atmass(iz))
+       v%vec(:,i,:,:) = v%vec(:,i,:,:) * sqrt(atmass(iz))
     end do
 
     ! normalize
-    do i = 1, vib%nfreq
-       vib%vec(:,:,i,1) = vib%vec(:,:,i,1) / &
-          sqrt(sum(vib%vec(:,:,i,1)*conjg(vib%vec(:,:,i,1))))
+    do i = 1, v%nfreq
+       v%vec(:,:,i,1) = v%vec(:,:,i,1) / &
+          sqrt(sum(v%vec(:,:,i,1)*conjg(v%vec(:,:,i,1))))
     end do
 
     ! ! checking normalization
     ! write (*,*) "checking normalization..."
-    ! do iqpt = 1, vib%nqpt
-    !    do ifreq = 1, vib%nfreq
-    !       do jfreq = 1, vib%nfreq
-    !          summ = sum(vib%vec(:,:,ifreq,iqpt)*conjg(vib%vec(:,:,jfreq,iqpt)))
+    ! do iqpt = 1, v%nqpt
+    !    do ifreq = 1, v%nfreq
+    !       do jfreq = 1, v%nfreq
+    !          summ = sum(v%vec(:,:,ifreq,iqpt)*conjg(v%vec(:,:,jfreq,iqpt)))
     !          write (*,*) ifreq, jfreq, summ
     !       end do
     !    end do
@@ -523,6 +517,7 @@ contains
 
     ! wrap up
     errmsg = ""
+    v%isinit = .true.
     call fclose(lu)
 
     return
@@ -550,13 +545,13 @@ contains
   !> parser for the yaml file, to avoid having to require libyaml or
   !> incorporating a proper YAML reader into the code. If more yaml
   !> files come along, this will change.
-  subroutine read_phonopy_yaml(c,vib,file,errmsg,ti)
+  subroutine read_phonopy_yaml(v,c,file,errmsg,ti)
     use types, only: realloc
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalmod, only: vibrations
     use param, only: ivformat_phonopy_yaml, cm1tothz
-    class(crystal), intent(inout) :: c
-    type(vibrations), intent(inout) :: vib
+    type(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
@@ -582,18 +577,18 @@ contains
     end if
 
     ! prepare container for data
-    vib%file = file
-    vib%ivformat = ivformat_phonopy_yaml
+    v%file = file
+    v%ivformat = ivformat_phonopy_yaml
 
     ! allocate and initialize
-    vib%nqpt = 0
-    vib%nfreq = 3 * c%ncel
-    if (allocated(vib%qpt)) deallocate(vib%qpt)
-    allocate(vib%qpt(3,10))
-    if (allocated(vib%freq)) deallocate(vib%freq)
-    allocate(vib%freq(vib%nfreq,10))
-    if (allocated(vib%vec)) deallocate(vib%vec)
-    allocate(vib%vec(3,c%ncel,vib%nfreq,10))
+    v%nqpt = 0
+    v%nfreq = 3 * c%ncel
+    if (allocated(v%qpt)) deallocate(v%qpt)
+    allocate(v%qpt(3,10))
+    if (allocated(v%freq)) deallocate(v%freq)
+    allocate(v%freq(v%nfreq,10))
+    if (allocated(v%vec)) deallocate(v%vec)
+    allocate(v%vec(3,c%ncel,v%nfreq,10))
 
     ! advance to the header
     do while (getline_raw(lu,line,.false.))
@@ -616,30 +611,30 @@ contains
     do while (getline_raw(lu,line,.false.))
        if (index(line,"q-position") > 0) then
           ! a new q-point, increase nqpt and reallocate
-          vib%nqpt = vib%nqpt + 1
+          v%nqpt = v%nqpt + 1
           ifreq = 0
-          if (vib%nqpt > size(vib%qpt,2)) then
-             call realloc(vib%qpt,3,2*vib%nqpt)
-             call realloc(vib%freq,vib%nfreq,2*vib%nqpt)
-             call realloc(vib%vec,3,c%ncel,vib%nfreq,2*vib%nqpt)
+          if (v%nqpt > size(v%qpt,2)) then
+             call realloc(v%qpt,3,2*v%nqpt)
+             call realloc(v%freq,v%nfreq,2*v%nqpt)
+             call realloc(v%vec,3,c%ncel,v%nfreq,2*v%nqpt)
           end if
 
           ! a new q-point
           idx = index(line,":")
           line = line(idx+1:)
           call strip(line)
-          read (line,*,err=999,end=999) vib%qpt(:,vib%nqpt)
+          read (line,*,err=999,end=999) v%qpt(:,v%nqpt)
 
        elseif (index(line,"frequency") > 0) then
           ! a new frequency (band)
           ifreq = ifreq + 1
-          if (ifreq > vib%nfreq) then
+          if (ifreq > v%nfreq) then
              errmsg = "Inconsistent number of frequencies"
              goto 999
           end if
           idx = index(line,":")
           line = line(idx+1:)
-          read (line,*,err=999,end=999) vib%freq(ifreq,vib%nqpt)
+          read (line,*,err=999,end=999) v%freq(ifreq,v%nqpt)
 
        elseif (index(line,"eigenvector") > 0) then
           readvec = .true.
@@ -654,38 +649,38 @@ contains
                 line = line(idx+1:)
                 call strip(line)
                 read (line,*,err=999,end=999) xdum
-                vib%vec(j,i,ifreq,vib%nqpt) = cmplx(xdum(1),xdum(2),8)
+                v%vec(j,i,ifreq,v%nqpt) = cmplx(xdum(1),xdum(2),8)
              end do
           end do
        end if
     end do
-    call realloc(vib%qpt,3,vib%nqpt)
-    call realloc(vib%freq,vib%nfreq,vib%nqpt)
-    call realloc(vib%vec,3,c%ncel,vib%nfreq,vib%nqpt)
+    call realloc(v%qpt,3,v%nqpt)
+    call realloc(v%freq,v%nfreq,v%nqpt)
+    call realloc(v%vec,3,c%ncel,v%nfreq,v%nqpt)
     if (.not.readvec) then
        errmsg = "the yaml file contains no eigenvector information"
        goto 999
     end if
 
     ! THz to cm-1
-    vib%freq = vib%freq / cm1tothz
+    v%freq = v%freq / cm1tothz
 
     ! normalize
-    do i = 1, vib%nfreq
-       norm = sqrt(sum(vib%vec(:,:,i,1)*conjg(vib%vec(:,:,i,1))))
+    do i = 1, v%nfreq
+       norm = sqrt(real(sum(v%vec(:,:,i,1)*conjg(v%vec(:,:,i,1))),8))
        if (norm < eps_error) then
           errmsg = "zero-length eigenvector found (the yaml file has eigenvector?)"
           goto 999
        end if
-       vib%vec(:,:,i,1) = vib%vec(:,:,i,1) / norm
+       v%vec(:,:,i,1) = v%vec(:,:,i,1) / norm
     end do
 
     ! ! checking normalization
     ! write (*,*) "checking normalization..."
-    ! do iqpt = 1, vib%nqpt
-    !    do ifreq = 1, vib%nfreq
-    !       do jfreq = 1, vib%nfreq
-    !          summ = sum(vib%vec(:,:,ifreq,iqpt)*conjg(vib%vec(:,:,jfreq,iqpt)))
+    ! do iqpt = 1, v%nqpt
+    !    do ifreq = 1, v%nfreq
+    !       do jfreq = 1, v%nfreq
+    !          summ = sum(v%vec(:,:,ifreq,iqpt)*conjg(v%vec(:,:,jfreq,iqpt)))
     !          write (*,*) ifreq, jfreq, summ
     !       end do
     !    end do
@@ -693,6 +688,7 @@ contains
 
     ! wrap up
     errmsg = ""
+    v%isinit = .true.
     call fclose(lu)
 
     return
@@ -715,17 +711,17 @@ contains
   end subroutine read_phonopy_yaml
 
   !> Read vibration data from a phonopy hdf5 file (MESH/WRITE_MESH or
-  !> QPOINTS, plus EIGENVECTORS keywords), and return it in vib. If
+  !> QPOINTS, plus EIGENVECTORS keywords), and return it in v. If
   !> error, return non-zero errmsg.
-  subroutine read_phonopy_hdf5(c,vib,file,errmsg)
+  subroutine read_phonopy_hdf5(v,c,file,errmsg)
 #ifdef HAVE_HDF5
     use iso_c_binding, only: c_loc, c_ptr
     use hdf5
 #endif
     use param, only: ivformat_phonopy_hdf5, cm1tothz
     use crystalmod, only: vibrations
-    class(crystal), intent(inout) :: c
-    type(vibrations), intent(inout) :: vib
+    type(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
 
@@ -739,8 +735,8 @@ contains
     ! complex*16 :: summ
 
     ! prepare container for data
-    vib%file = file
-    vib%ivformat = ivformat_phonopy_hdf5
+    v%file = file
+    v%ivformat = ivformat_phonopy_hdf5
 
     ! open file
     call h5fopen_f(file,H5F_ACC_RDONLY_F, fid, ier)
@@ -756,10 +752,10 @@ contains
     if (ier < 0) goto 999
     CALL h5sget_simple_extent_dims_f(spaceid,dim,maxdim,ier)
     if (ier < 0) goto 999
-    vib%nqpt = int(dim(2))
-    if (allocated(vib%qpt)) deallocate(vib%qpt)
-    allocate(vib%qpt(dim(1),dim(2)))
-    call h5dread_f(dsetid,H5T_NATIVE_DOUBLE,vib%qpt,dim,ier)
+    v%nqpt = int(dim(2))
+    if (allocated(v%qpt)) deallocate(v%qpt)
+    allocate(v%qpt(dim(1),dim(2)))
+    call h5dread_f(dsetid,H5T_NATIVE_DOUBLE,v%qpt,dim,ier)
     if (ier < 0) goto 999
 
     ! read frequencies
@@ -769,18 +765,18 @@ contains
     if (ier < 0) goto 999
     CALL h5sget_simple_extent_dims_f(spaceid,dim,maxdim,ier)
     if (ier < 0) goto 999
-    vib%nfreq = int(dim(1))
-    if (3*c%ncel /= vib%nfreq) then
+    v%nfreq = int(dim(1))
+    if (3*c%ncel /= v%nfreq) then
        errmsg = "Inconsistent number of frequencies: " // trim(file)
        goto 999
     end if
-    if (allocated(vib%freq)) deallocate(vib%freq)
-    allocate(vib%freq(dim(1),dim(2)))
-    call h5dread_f(dsetid,H5T_NATIVE_DOUBLE,vib%freq,dim,ier)
+    if (allocated(v%freq)) deallocate(v%freq)
+    allocate(v%freq(dim(1),dim(2)))
+    call h5dread_f(dsetid,H5T_NATIVE_DOUBLE,v%freq,dim,ier)
     if (ier < 0) goto 999
 
     ! THz to cm-1
-    vib%freq = vib%freq / cm1tothz
+    v%freq = v%freq / cm1tothz
 
     ! read eigenvectors
     call h5dopen_f(fid,"eigenvector",dsetid,ier)
@@ -795,21 +791,22 @@ contains
     if (ier < 0) goto 999
 
     ! rearrange data = it is written in a weird, weird order
-    allocate(vaux(vib%nfreq,3,c%ncel,vib%nqpt))
+    allocate(vaux(v%nfreq,3,c%ncel,v%nqpt))
     cptr = c_loc(vaux)
     call h5dread_f(dsetid,ctypeid,cptr,ier)
     if (ier < 0) goto 999
-    allocate(vib%vec(3,c%ncel,vib%nfreq,vib%nqpt))
-    do iqpt = 1, vib%nqpt
-       do ifreq = 1, vib%nfreq
+    allocate(v%vec(3,c%ncel,v%nfreq,v%nqpt))
+    do iqpt = 1, v%nqpt
+       do ifreq = 1, v%nfreq
           do i = 1, c%ncel
-             vib%vec(:,i,ifreq,iqpt) = vaux(ifreq,:,i,iqpt)
+             v%vec(:,i,ifreq,iqpt) = vaux(ifreq,:,i,iqpt)
           end do
        end do
     end do
     deallocate(vaux)
 
     ! wrap up
+    v%isinit = .true.
     errmsg = ""
 999 continue
     call h5close_f(ier)
@@ -822,13 +819,13 @@ contains
 
   !> Read vibration data from a crystal output file, and return it in
   !> vib. If error, return non-zero errmsg.
-  subroutine read_crystal_out(c,vib,file,errmsg,ti)
+  subroutine read_crystal_out(v,c,file,errmsg,ti)
     use types, only: realloc
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalmod, only: vibrations
     use param, only: ivformat_crystal_out, atmass
-    class(crystal), intent(inout) :: c
-    type(vibrations), intent(inout) :: vib
+    type(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
@@ -852,19 +849,19 @@ contains
     end if
 
     ! prepare container for data
-    vib%file = file
-    vib%ivformat = ivformat_crystal_out
+    v%file = file
+    v%ivformat = ivformat_crystal_out
 
     ! allocate and initialize -> only gamma point
-    vib%nqpt = 1
-    vib%nfreq = 3 * c%ncel
-    if (allocated(vib%qpt)) deallocate(vib%qpt)
-    allocate(vib%qpt(3,1))
-    vib%qpt = 0d0
-    if (allocated(vib%freq)) deallocate(vib%freq)
-    allocate(vib%freq(vib%nfreq,1))
-    if (allocated(vib%vec)) deallocate(vib%vec)
-    allocate(vib%vec(3,c%ncel,vib%nfreq,1))
+    v%nqpt = 1
+    v%nfreq = 3 * c%ncel
+    if (allocated(v%qpt)) deallocate(v%qpt)
+    allocate(v%qpt(3,1))
+    v%qpt = 0d0
+    if (allocated(v%freq)) deallocate(v%freq)
+    allocate(v%freq(v%nfreq,1))
+    if (allocated(v%vec)) deallocate(v%vec)
+    allocate(v%vec(3,c%ncel,v%nfreq,1))
 
     ! advance to the header
     do while (getline_raw(lu,line,.false.))
@@ -874,15 +871,15 @@ contains
     if (.not.ok) goto 999
 
     ! read the info
-    do i = 1, vib%nfreq, 6
+    do i = 1, v%nfreq, 6
        n0 = i
-       n1 = min(i+5,vib%nfreq)
+       n1 = min(i+5,v%nfreq)
 
        ! read the frequency line
        ok = getline_raw(lu,line,.false.)
        if (.not.ok) goto 999
        line = line(14:)
-       read (line,*,end=999,err=999) vib%freq(n0:n1,1)
+       read (line,*,end=999,err=999) v%freq(n0:n1,1)
        ok = getline_raw(lu,line,.false.)
        if (.not.ok) goto 999
 
@@ -893,7 +890,7 @@ contains
              if (.not.ok) goto 999
              line = line(14:)
              read (line,*,end=999,err=999) xdum(1:n1-n0+1)
-             vib%vec(k,j,n0:n1,1) = xdum(1:n1-n0+1)
+             v%vec(k,j,n0:n1,1) = xdum(1:n1-n0+1)
           end do
        end do
        ok = getline_raw(lu,line,.false.)
@@ -904,27 +901,28 @@ contains
     ! (note: units are incorrect, but we are normalizing afterwards)
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z
-       vib%vec(:,i,:,:) = vib%vec(:,i,:,:) * sqrt(atmass(iz))
+       v%vec(:,i,:,:) = v%vec(:,i,:,:) * sqrt(atmass(iz))
     end do
 
     ! normalize
-    do i = 1, vib%nfreq
-       vib%vec(:,:,i,1) = vib%vec(:,:,i,1) / &
-          sqrt(sum(vib%vec(:,:,i,1)*conjg(vib%vec(:,:,i,1))))
+    do i = 1, v%nfreq
+       v%vec(:,:,i,1) = v%vec(:,:,i,1) / &
+          sqrt(sum(v%vec(:,:,i,1)*conjg(v%vec(:,:,i,1))))
     end do
 
     ! ! checking normalization
     ! write (*,*) "checking normalization..."
-    ! do iqpt = 1, vib%nqpt
-    !    do ifreq = 1, vib%nfreq
-    !       do jfreq = 1, vib%nfreq
-    !          summ = sum(vib%vec(:,:,ifreq,iqpt)*conjg(vib%vec(:,:,jfreq,iqpt)))
+    ! do iqpt = 1, v%nqpt
+    !    do ifreq = 1, v%nfreq
+    !       do jfreq = 1, v%nfreq
+    !          summ = sum(v%vec(:,:,ifreq,iqpt)*conjg(v%vec(:,:,jfreq,iqpt)))
     !          write (*,*) ifreq, jfreq, summ
     !       end do
     !    end do
     ! end do
 
     ! wrap up
+    v%isinit = .true.
     errmsg = ""
     call fclose(lu)
 
@@ -935,14 +933,14 @@ contains
   end subroutine read_crystal_out
 
   !> Read vibration data from a Gaussian output file, and return it in
-  !> vib. If error, return non-zero errmsg.
-  subroutine read_gaussian_log(c,vib,file,errmsg,ti)
+  !> v. If error, return non-zero errmsg.
+  subroutine read_gaussian_log(v,c,file,errmsg,ti)
     use types, only: realloc
     use tools_io, only: fopen_read, fclose, getline_raw, isreal
     use crystalmod, only: vibrations
     use param, only: ivformat_gaussian_log, atmass
-    class(crystal), intent(inout) :: c
-    type(vibrations), intent(inout) :: vib
+    type(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
@@ -966,19 +964,19 @@ contains
     end if
 
     ! prepare container for data
-    vib%file = file
-    vib%ivformat = ivformat_gaussian_log
+    v%file = file
+    v%ivformat = ivformat_gaussian_log
 
     ! allocate and initialize -> only gamma point
-    vib%nqpt = 1
-    vib%nfreq = 3 * c%ncel
-    if (allocated(vib%qpt)) deallocate(vib%qpt)
-    allocate(vib%qpt(3,1))
-    vib%qpt = 0d0
-    if (allocated(vib%freq)) deallocate(vib%freq)
-    allocate(vib%freq(vib%nfreq,1))
-    if (allocated(vib%vec)) deallocate(vib%vec)
-    allocate(vib%vec(3,c%ncel,vib%nfreq,1))
+    v%nqpt = 1
+    v%nfreq = 3 * c%ncel
+    if (allocated(v%qpt)) deallocate(v%qpt)
+    allocate(v%qpt(3,1))
+    v%qpt = 0d0
+    if (allocated(v%freq)) deallocate(v%freq)
+    allocate(v%freq(v%nfreq,1))
+    if (allocated(v%vec)) deallocate(v%vec)
+    allocate(v%vec(3,c%ncel,v%nfreq,1))
 
     nread = 0
     do while (.true.)
@@ -999,7 +997,7 @@ contains
        lp = 1
        do i = 1, 3
           okl(i) = isreal(xdum,line,lp)
-          if (okl(i)) vib%freq(nread+i,1) = xdum
+          if (okl(i)) v%freq(nread+i,1) = xdum
        end do
        nn = count(okl)
 
@@ -1015,39 +1013,40 @@ contains
           if (.not.ok) goto 999
           read (line,*,end=999,err=999) idum, xread(1:3*nn)
           do j = 1, nn
-             vib%vec(:,i,nread+j,1) = xread(3*(j-1)+1:3*j)
+             v%vec(:,i,nread+j,1) = xread(3*(j-1)+1:3*j)
           end do
        end do
        nread = nread + nn
     end do
-    vib%nfreq = nread
-    call realloc(vib%freq,vib%nfreq,vib%nqpt)
-    call realloc(vib%vec,3,c%ncel,vib%nfreq,vib%nqpt)
+    v%nfreq = nread
+    call realloc(v%freq,v%nfreq,v%nqpt)
+    call realloc(v%vec,3,c%ncel,v%nfreq,v%nqpt)
 
     ! convert to mass-weighed coordinates (orthonormal eigenvectors)
     ! (note: units are incorrect, but we are normalizing afterwards)
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z
-       vib%vec(:,i,:,:) = vib%vec(:,i,:,:) * sqrt(atmass(iz))
+       v%vec(:,i,:,:) = v%vec(:,i,:,:) * sqrt(atmass(iz))
     end do
 
     ! normalize
-    do i = 1, vib%nfreq
-       vib%vec(:,:,i,1) = vib%vec(:,:,i,1) / &
-          sqrt(sum(vib%vec(:,:,i,1)*conjg(vib%vec(:,:,i,1))))
+    do i = 1, v%nfreq
+       v%vec(:,:,i,1) = v%vec(:,:,i,1) / &
+          sqrt(sum(v%vec(:,:,i,1)*conjg(v%vec(:,:,i,1))))
     end do
 
     ! ! checking normalization
     ! write (*,*) "checking normalization..."
-    ! do ifreq = 1, vib%nfreq
-    !    do jfreq = 1, vib%nfreq
-    !       summ = sum(vib%vec(:,:,ifreq,1)*conjg(vib%vec(:,:,jfreq,1)))
+    ! do ifreq = 1, v%nfreq
+    !    do jfreq = 1, v%nfreq
+    !       summ = sum(v%vec(:,:,ifreq,1)*conjg(v%vec(:,:,jfreq,1)))
     !       write (*,*) ifreq, jfreq, summ
     !    end do
     ! end do
 
     ! wrap up
     errmsg = ""
+    v%isinit = .true.
     call fclose(lu)
 
     return
@@ -1057,14 +1056,14 @@ contains
   end subroutine read_gaussian_log
 
   !> Read vibration data from a Gaussian formatted checkpoint file,
-  !> and return it in vib. If error, return non-zero errmsg.
-  subroutine read_gaussian_fchk(c,vib,file,errmsg,ti)
+  !> and return it in v. If error, return non-zero errmsg.
+  subroutine read_gaussian_fchk(v,c,file,errmsg,ti)
     use types, only: realloc
     use tools_io, only: fopen_read, fclose, getline_raw, isreal
     use crystalmod, only: vibrations
     use param, only: ivformat_gaussian_fchk, atmass
-    class(crystal), intent(inout) :: c
-    type(vibrations), intent(inout) :: vib
+    type(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
@@ -1089,17 +1088,17 @@ contains
     end if
 
     ! prepare container for data
-    vib%file = file
-    vib%ivformat = ivformat_gaussian_fchk
+    v%file = file
+    v%ivformat = ivformat_gaussian_fchk
 
     ! allocate and initialize -> only gamma point
-    vib%nqpt = 1
-    vib%nfreq = 0
-    if (allocated(vib%qpt)) deallocate(vib%qpt)
-    allocate(vib%qpt(3,1))
-    vib%qpt = 0d0
-    if (allocated(vib%freq)) deallocate(vib%freq)
-    if (allocated(vib%vec)) deallocate(vib%vec)
+    v%nqpt = 1
+    v%nfreq = 0
+    if (allocated(v%qpt)) deallocate(v%qpt)
+    allocate(v%qpt(3,1))
+    v%qpt = 0d0
+    if (allocated(v%freq)) deallocate(v%freq)
+    if (allocated(v%vec)) deallocate(v%vec)
 
     do while (getline_raw(lu,line,.false.))
        ll = len(line)
@@ -1108,21 +1107,21 @@ contains
        if (ll >= 22) then
           if (line(1:22) == "Number of Normal Modes") then
              line = line(23:)
-             read (line,*,end=999,err=999) ch, vib%nfreq
-             allocate(vib%freq(vib%nfreq,1))
-             allocate(vib%vec(3,c%ncel,vib%nfreq,1))
+             read (line,*,end=999,err=999) ch, v%nfreq
+             allocate(v%freq(v%nfreq,1))
+             allocate(v%vec(3,c%ncel,v%nfreq,1))
           end if
        end if
 
        ! read frequencies
        if (ll >= 6) then
           if (line(1:6) == "Vib-E2") then
-             do i = 1, vib%nfreq, 5
+             do i = 1, v%nfreq, 5
                 n0 = i
-                n1 = min(i+4,vib%nfreq)
+                n1 = min(i+4,v%nfreq)
                 ok = getline_raw(lu,line,.false.)
                 if (.not.ok) goto 999
-                read (line,*,end=999,err=999) vib%freq(n0:n1,1)
+                read (line,*,end=999,err=999) v%freq(n0:n1,1)
              end do
           end if
        end if
@@ -1132,18 +1131,18 @@ contains
           if (line(1:9) == "Vib-Modes") then
 
              nn = -1
-             do i = 1, vib%nfreq
+             do i = 1, v%nfreq
                 do j = 1, c%ncel
                    do k = 1, 3
                       nn = nn + 1
                       nnm = mod(nn,5) + 1
                       if (mod(nn,5) == 0) then
-                         nread = min(vib%nfreq * c%ncel * 3 - nn,5)
+                         nread = min(v%nfreq * c%ncel * 3 - nn,5)
                          ok = getline_raw(lu,line,.false.)
                          if (.not.ok) goto 999
                          read (line,*,end=999,err=999) xdum(1:nread)
                       end if
-                      vib%vec(k,j,i,1) = xdum(nnm)
+                      v%vec(k,j,i,1) = xdum(nnm)
                    end do
                 end do
              end do
@@ -1156,26 +1155,27 @@ contains
     ! (note: units are incorrect, but we are normalizing afterwards)
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z
-       vib%vec(:,i,:,:) = vib%vec(:,i,:,:) * sqrt(atmass(iz))
+       v%vec(:,i,:,:) = v%vec(:,i,:,:) * sqrt(atmass(iz))
     end do
 
     ! normalize
-    do i = 1, vib%nfreq
-       vib%vec(:,:,i,1) = vib%vec(:,:,i,1) / &
-          sqrt(sum(vib%vec(:,:,i,1)*conjg(vib%vec(:,:,i,1))))
+    do i = 1, v%nfreq
+       v%vec(:,:,i,1) = v%vec(:,:,i,1) / &
+          sqrt(sum(v%vec(:,:,i,1)*conjg(v%vec(:,:,i,1))))
     end do
 
     ! ! checking normalization
     ! write (*,*) "checking normalization..."
-    ! do ifreq = 1, vib%nfreq
-    !    do jfreq = 1, vib%nfreq
-    !       summ = sum(vib%vec(:,:,ifreq,1)*conjg(vib%vec(:,:,jfreq,1)))
+    ! do ifreq = 1, v%nfreq
+    !    do jfreq = 1, v%nfreq
+    !       summ = sum(v%vec(:,:,ifreq,1)*conjg(v%vec(:,:,jfreq,1)))
     !       write (*,*) ifreq, jfreq, summ
     !    end do
     ! end do
 
     ! wrap up
     errmsg = ""
+    v%isinit = .true.
     call fclose(lu)
 
     return
@@ -1184,4 +1184,4 @@ contains
 
   end subroutine read_gaussian_fchk
 
-end submodule vibrations
+end submodule vibrationsmod
