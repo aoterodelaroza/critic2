@@ -191,6 +191,7 @@ contains
        ! print the whole fc2 matrix
        write (uout,'("# Id1,Id2 = complete cell IDs. At1,At2 = atomic symbols. isintra = is intramolecular?")')
        write (uout,'("# norm = Frobenius norm FC2. xx,... = FC2 components")')
+       write (uout,'("# All FC2 in Hartre/bohr^2.")')
        write (uout,'("# Id1 At1  Id2 At2  dist(bohr) isintra FC2: norm      xx              xy              xz   &
           &           yx              yy              yz              zx              zy              zz   ")')
        k = 0
@@ -201,8 +202,8 @@ contains
              j = i2(2,idx(k))
              dist = dista(idx(k))
              isintra = (c%idatcelmol(1, i) == c%idatcelmol(1, j))
-             if (dist <= disteps_ .and. any(abs(v%fc2(:,:,i,j)) >= fc2eps_)) then
-                norm = sqrt(sum(v%fc2(:,:,i,j)**2))
+             norm = sqrt(sum(v%fc2(:,:,i,j)**2))
+             if (dist <= disteps_ .and. norm >= fc2eps_) then
                 write (uout,'(99(A," "))') string(i, 5, ioj_center), string(c%spc(c%atcel(i)%is)%name,2),&
                    string(j, 5, ioj_center), string(c%spc(c%atcel(j)%is)%name,2),&
                    string(dist*dunit0(iunit),'f',12,6,ioj_right), string(isintra), string(norm,'e',15,8,ioj_right),&
@@ -238,6 +239,7 @@ contains
           write (uout,'("# nid = non-equivalent list atomic ID. id = complete list ID plus lattice vector (lvec).")')
           write (uout,'("# name = atomic name. dist = distance. isintra = is intramolecular?")')
           write (uout,'("# norm = Frobenius norm FC2. xx,... = FC2 components")')
+          write (uout,'("# All FC2 in Hartre/bohr^2.")')
           write (uout,'("#nid   id      lvec     name  dist(",A,")  isintra FC2: norm        xx              &
              &xy              xz              yx              yy              yz              &
              &zx              zy              zz")') iunitname0(iunit)
@@ -256,14 +258,16 @@ contains
 
              isintra = (c%idatcelmol(1,i) == c%idatcelmol(1,cidx))
              norm = sqrt(sum(v%fc2(:,:,i,cidx)**2))
-             write (uout,'("  ",2(A," "),"(",A," ",A," ",A,")",99(" ",A))') string(nidx,4,ioj_center), string(cidx,4,ioj_center),&
-                (string(lvec(k,j),2,ioj_right),k=1,3), string(c%spc(c%atcel(cidx)%is)%name,7,ioj_center),&
-                string(distr(j)*dunit0(iunit),'f',12,6,4), string(isintra), string(norm,'e',15,8,ioj_right),&
-                string(v%fc2(1,1,i,cidx),'e',15,8,ioj_right), string(v%fc2(1,2,i,cidx),'e',15,8,ioj_right),&
-                string(v%fc2(1,3,i,cidx),'e',15,8,ioj_right), string(v%fc2(2,1,i,cidx),'e',15,8,ioj_right),&
-                string(v%fc2(2,2,i,cidx),'e',15,8,ioj_right), string(v%fc2(2,3,i,cidx),'e',15,8,ioj_right),&
-                string(v%fc2(3,1,i,cidx),'e',15,8,ioj_right), string(v%fc2(3,2,i,cidx),'e',15,8,ioj_right),&
-                string(v%fc2(3,3,i,cidx),'e',15,8,ioj_right)
+             if (distr(j) <= disteps_ .and. norm >= fc2eps_) then
+                write (uout,'("  ",2(A," "),"(",A," ",A," ",A,")",99(" ",A))') string(nidx,4,ioj_center), string(cidx,4,ioj_center),&
+                   (string(lvec(k,j),2,ioj_right),k=1,3), string(c%spc(c%atcel(cidx)%is)%name,7,ioj_center),&
+                   string(distr(j)*dunit0(iunit),'f',12,6,4), string(isintra), string(norm,'e',15,8,ioj_right),&
+                   string(v%fc2(1,1,i,cidx),'e',15,8,ioj_right), string(v%fc2(1,2,i,cidx),'e',15,8,ioj_right),&
+                   string(v%fc2(1,3,i,cidx),'e',15,8,ioj_right), string(v%fc2(2,1,i,cidx),'e',15,8,ioj_right),&
+                   string(v%fc2(2,2,i,cidx),'e',15,8,ioj_right), string(v%fc2(2,3,i,cidx),'e',15,8,ioj_right),&
+                   string(v%fc2(3,1,i,cidx),'e',15,8,ioj_right), string(v%fc2(3,2,i,cidx),'e',15,8,ioj_right),&
+                   string(v%fc2(3,3,i,cidx),'e',15,8,ioj_right)
+             end if
           end do
           write (uout,*)
        end do
