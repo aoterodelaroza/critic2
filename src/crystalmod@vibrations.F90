@@ -122,6 +122,70 @@ contains
 
   end subroutine vibrations_read_file
 
+  !> Print a summary of the vibrational info.
+  module subroutine vibrations_print_summary(v)
+    use tools_io, only: uout, string, ioj_right
+    use param, only: ivformat_matdynmodes, ivformat_matdyneig, ivformat_qedyn,&
+       ivformat_phonopy_ascii, ivformat_phonopy_yaml, ivformat_phonopy_hdf5,&
+       ivformat_crystal_out, ivformat_gaussian_log,&
+       ivformat_gaussian_fchk
+    class(vibrations), intent(inout) :: v
+
+    integer :: i, j
+
+    write (uout,'("+ PRINT summary")')
+
+    ! dynamical matrices
+    if (v%isinit) then
+       write (uout,*)
+       write (uout,'("# Dynamical matrices available")')
+       write (uout,'("  File: ",A)') trim(v%file)
+       if (v%ivformat == ivformat_matdynmodes) then
+          write (uout,'("  Format: QE matdyn.modes")')
+       elseif (v%ivformat == ivformat_matdyneig) then
+          write (uout,'("  Format: QE matdyn.eig")')
+       elseif (v%ivformat == ivformat_qedyn) then
+          write (uout,'("  Format: QE ph.x dyn files")')
+       elseif (v%ivformat == ivformat_phonopy_ascii) then
+          write (uout,'("  Format: phonopy ascii file")')
+       elseif (v%ivformat == ivformat_phonopy_yaml) then
+          write (uout,'("  Format: phonopy yaml file")')
+       elseif (v%ivformat == ivformat_phonopy_hdf5) then
+          write (uout,'("  Format: phonopy hdf5 file")')
+       elseif (v%ivformat == ivformat_crystal_out) then
+          write (uout,'("  Format: crystal output file")')
+       elseif (v%ivformat == ivformat_gaussian_log) then
+          write (uout,'("  Format: Gaussian output file")')
+       elseif (v%ivformat == ivformat_gaussian_fchk) then
+          write (uout,'("  Format: Gaussian formatted checkpoint file")')
+       end if
+
+       write (uout,*)
+       if (v%nqpt == 0) then
+          write (uout,'("# No q-points known")')
+       else
+          write (uout,'("# List of q-points: ",A)') string(v%nqpt)
+          write (uout,'("# id           x              y              z")')
+          do i = 1, v%nqpt
+             write (uout,'(4(A," "))') string(i,5), (string(v%qpt(j,i),'f',14,8,ioj_right),j=1,3)
+          end do
+       end if
+       write (uout,'("# Number of frequencies at each q-point: ",A)') string(v%nfreq)
+    else
+       write (uout,*)
+       write (uout,'("# Dynamical matrices NOT available")')
+    end if
+
+    if (v%hasfc2) then
+       write (uout,*)
+       write (uout,'("# Second-order force constants available")')
+    else
+       write (uout,*)
+       write (uout,'("# Second-order force constants NOT available")')
+    end if
+
+  end subroutine vibrations_print_summary
+
   !> Print information about the stored FC2 to the standard output.
   !> The structural info comes from crystal structures c.
   module subroutine vibrations_print_fc2(v,c,disteps,fc2eps,environ)
@@ -356,7 +420,7 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: ivf, lu, nline, nline1, nat, idx
+    integer :: lu, nline, nline1, nat, idx
     logical :: ok
     character(len=:), allocatable :: line
     integer :: iqpt, ifreq, iat, iz
@@ -385,7 +449,7 @@ contains
 
     ! prepare container for data
     v%file = file
-    v%ivformat = ivf
+    v%ivformat = ivformat
 
     ! first pass: determine nqpt and nfreq
     nline = 0

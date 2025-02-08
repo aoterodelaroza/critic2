@@ -106,6 +106,7 @@ module crystalmod
      ! displacements, divide by the sqrt(m_j).
    contains
      procedure :: end => vibrations_end !< terminate the vibrations object
+     procedure :: print_summary => vibrations_print_summary !< print summary of vibs
      procedure :: read_file => vibrations_read_file !< read a vib file, detect the format
      procedure :: print_fc2 => vibrations_print_fc2 !< print info about the FC2
   end type vibrations
@@ -1050,6 +1051,9 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine vibrations_read_file
+     module subroutine vibrations_print_summary(v)
+       class(vibrations), intent(inout) :: v
+     end subroutine vibrations_print_summary
      module subroutine vibrations_print_fc2(v,c,disteps,fc2eps,environ)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(inout) :: c

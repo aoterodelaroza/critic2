@@ -3622,7 +3622,9 @@ contains
        end do
 
        ! execute the print
-       if (equal(mode,'fc2')) then
+       if (equal(mode,'summary')) then
+          call s%c%vib%print_summary()
+       elseif (equal(mode,'fc2')) then
           call s%c%vib%print_fc2(s%c,disteps,fc2eps,environ)
        end if
     end if
