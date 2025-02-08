@@ -339,6 +339,45 @@ contains
 
   end subroutine vibrations_print_fc2
 
+  !> Print frequency information about a particular q-point.
+  module subroutine vibrations_print_freq(v,id,q)
+    use tools_io, only: uout, ferror, faterr, string, ioj_right
+    class(vibrations), intent(inout) :: v
+    integer, intent(in), optional :: id
+    real*8, intent(in), optional :: q(3)
+
+    integer :: i, j, id_
+    real*8, parameter :: eps = 1d-3
+
+    ! header
+    write (uout,'("+ PRINT frequency info for a given q-point")')
+
+    ! find the q-point id
+    if (present(id)) then
+       if (id <= 0 .or. id > v%nqpt) &
+          call ferror('vibrations_print_freq','q-point index out of range',faterr)
+       id_ = id
+    elseif (present(q)) then
+       id_ = 0
+       do i = 1, v%nqpt
+          if (all(abs(q - v%qpt(:,i)) < eps)) then
+             id_ = i
+             exit
+          end if
+       end do
+       if (id_ == 0) &
+          call ferror('vibrations_print_freq','q-point not found; use PRINT SUMMARY',faterr)
+    end if
+    write (uout,'("# q-point (",A,") = ",3(A," "))') string(id_), (string(v%qpt(j,id_),'f',14,8,ioj_right),j=1,3)
+
+    ! write the info
+    write (uout,'("# List of frequencies (cm^-1): ",A)') string(v%nfreq)
+    do i = 1, v%nfreq
+       write (uout,'(4(A," "))') string(i,5), string(v%freq(i,id_),'f',14,8,ioj_right)
+    end do
+
+  end subroutine vibrations_print_freq
+
   !xx! private procedures
 
   !> Detect the format for a file containing molecular or

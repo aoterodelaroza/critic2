@@ -3562,15 +3562,15 @@ contains
   !> Load crystal or molecular vibrations from an external file
   module subroutine struct_vibrations(s,line,verbose)
     use global, only: eval_next
-    use tools_io, only: uout, lgetword, getword, ferror, faterr, equal
+    use tools_io, only: uout, lgetword, getword, ferror, faterr, equal, isreal, isinteger
     use param, only: ivformat_unknown
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
 
     character(len=:), allocatable :: filename, word, mode, sline, errmsg
-    integer :: lp
-    real*8 :: disteps, fc2eps
+    integer :: lp, lpo, id
+    real*8 :: disteps, fc2eps, q(3)
     logical :: ok, environ
 
     ! header
@@ -3605,6 +3605,7 @@ contains
 
        ! parse the options
        do while (.true.)
+          lpo = lp
           word = lgetword(line,lp)
           if (equal(word,'disteps')) then
              ok = eval_next(disteps,line,lp)
@@ -3617,6 +3618,7 @@ contains
           elseif (equal(word,'environ')) then
              environ = .true.
           else
+             lp = lpo
              exit
           end if
        end do
@@ -3626,6 +3628,22 @@ contains
           call s%c%vib%print_summary()
        elseif (equal(mode,'fc2')) then
           call s%c%vib%print_fc2(s%c,disteps,fc2eps,environ)
+       elseif (equal(mode,'freq').or.equal(mode,'frequency').or.equal(mode,'frequencies')) then
+          lpo = lp
+          ok = eval_next(q(1),line,lp)
+          ok = ok .and. eval_next(q(2),line,lp)
+          ok = ok .and. eval_next(q(3),line,lp)
+          if (ok) then
+             call s%c%vib%print_freq(q=q)
+          else
+             lp = lpo
+             ok = isinteger(id,line,lp)
+             if (ok) then
+                call s%c%vib%print_freq(id=id)
+             else
+                call ferror('struct_vibrations','Error reading PRINT FREQ options',faterr,syntax=.true.)
+             end if
+          end if
        end if
     end if
 
