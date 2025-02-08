@@ -124,20 +124,27 @@ contains
 
   !> Print information about the stored FC2 to the standard output.
   !> The structural info comes from crystal structures c.
-  module subroutine vibrations_print_fc2(v,c,disteps,fc2eps)
+  module subroutine vibrations_print_fc2(v,c,disteps,fc2eps,environ)
     use tools_io, only: uout, ioj_center, ioj_right, string
     use global, only: iunit, iunitname0, dunit0
     use tools, only: mergesort
+    use param, only: icrd_crys
     class(vibrations), intent(inout) :: v
-    type(crystal), intent(in) :: c
+    type(crystal), intent(inout) :: c
     real*8, intent(in), optional :: disteps, fc2eps
+    logical, intent(in), optional :: environ
 
-    integer :: i, j, k, idum, jdum
-    integer :: npair
-    real*8 :: maxdisteps, dist, disteps_, fc2eps_
-    logical :: isintra
+    integer :: i, j, k, idum, jdum, id
+    integer :: npair, cidx, nidx
+    real*8 :: maxdisteps, dist, disteps_, fc2eps_, up2d, xx(3), norm
+    logical :: isintra, environ_
     real*8, allocatable :: dista(:)
     integer, allocatable :: idx(:), i2(:,:), pair(:,:)
+    logical, allocatable :: isdone(:), isdonej(:)
+    integer :: nat
+    integer, allocatable :: eid(:)
+    real*8, allocatable :: distr(:)
+    integer, allocatable :: lvec(:,:)
 
     ! header and checks
     write (uout,'("+ PRINT 2nd-order force constant information (FC2)")')
@@ -149,6 +156,7 @@ contains
     ! process options
     disteps_ = huge(1d0)
     fc2eps_ = 0d0
+    environ_ = .false.
     if (present(disteps)) then
        disteps_ = disteps
        if (disteps_ < huge(1d0)) &
@@ -160,6 +168,7 @@ contains
        if (fc2eps_ > 0d0) &
           write (uout,'("# Cutoff for FC2 values = ",A)') string(fc2eps_,'e',decimal=5)
     end if
+    if (present(environ)) environ_ = environ
 
     ! allocate information about atom pairs, and sort by distance
     npair = c%ncel*(c%ncel + 1) / 2
@@ -178,29 +187,84 @@ contains
     maxdisteps = maxval(dista)
     call mergesort(dista,idx,1,npair)
 
-    ! print the fc2 matrix
-    write (uout,'("# Id1 At1  Id2 At2  dist(bohr) isintra fc2xx         fc2xy           fc2xz&
-       &           fc2yx           fc2yy           fc2yz           fc2zx           fc2zy           fc2zz")')
-    k = 0
-    do idum = 1, c%ncel
-       do jdum = idum, c%ncel
-          k = k + 1
-          i = i2(1,idx(k))
-          j = i2(2,idx(k))
-          dist = dista(idx(k))
-          isintra = (c%idatcelmol(1, i) == c%idatcelmol(1, j))
-          if (dist <= disteps_ .and. any(abs(v%fc2(:,:,i,j)) >= fc2eps_)) then
-             write (uout,'(99(A," "))') string(i, 5, ioj_center), string(c%spc(c%atcel(i)%is)%name,2),&
-                string(j, 5, ioj_center), string(c%spc(c%atcel(j)%is)%name,2),&
-                string(dist*dunit0(iunit),'f',12,6,ioj_right), string(isintra),&
-                string(v%fc2(1,1,i,j),'e',15,8,ioj_right), string(v%fc2(1,2,i,j),'e',15,8,ioj_right),&
-                string(v%fc2(1,3,i,j),'e',15,8,ioj_right), string(v%fc2(2,1,i,j),'e',15,8,ioj_right),&
-                string(v%fc2(2,2,i,j),'e',15,8,ioj_right), string(v%fc2(2,3,i,j),'e',15,8,ioj_right),&
-                string(v%fc2(3,1,i,j),'e',15,8,ioj_right), string(v%fc2(3,2,i,j),'e',15,8,ioj_right),&
-                string(v%fc2(3,3,i,j),'e',15,8,ioj_right)
-          end if
+    if (.not.environ) then
+       ! print the whole fc2 matrix
+       write (uout,'("# Id1 At1  Id2 At2  dist(bohr) isintra norm          fc2xx           fc2xy           fc2xz&
+          &           fc2yx           fc2yy           fc2yz           fc2zx           fc2zy           fc2zz")')
+       k = 0
+       do idum = 1, c%ncel
+          do jdum = idum, c%ncel
+             k = k + 1
+             i = i2(1,idx(k))
+             j = i2(2,idx(k))
+             dist = dista(idx(k))
+             isintra = (c%idatcelmol(1, i) == c%idatcelmol(1, j))
+             if (dist <= disteps_ .and. any(abs(v%fc2(:,:,i,j)) >= fc2eps_)) then
+                norm = sqrt(sum(v%fc2(:,:,i,j)**2))
+                write (uout,'(99(A," "))') string(i, 5, ioj_center), string(c%spc(c%atcel(i)%is)%name,2),&
+                   string(j, 5, ioj_center), string(c%spc(c%atcel(j)%is)%name,2),&
+                   string(dist*dunit0(iunit),'f',12,6,ioj_right), string(isintra), string(norm,'e',15,8,ioj_right),&
+                   string(v%fc2(1,1,i,j),'e',15,8,ioj_right), string(v%fc2(1,2,i,j),'e',15,8,ioj_right),&
+                   string(v%fc2(1,3,i,j),'e',15,8,ioj_right), string(v%fc2(2,1,i,j),'e',15,8,ioj_right),&
+                   string(v%fc2(2,2,i,j),'e',15,8,ioj_right), string(v%fc2(2,3,i,j),'e',15,8,ioj_right),&
+                   string(v%fc2(3,1,i,j),'e',15,8,ioj_right), string(v%fc2(3,2,i,j),'e',15,8,ioj_right),&
+                   string(v%fc2(3,3,i,j),'e',15,8,ioj_right)
+             end if
+          end do
        end do
-    end do
+    else
+       ! print the FC2 in environments of nneq atoms
+       allocate(isdone(c%nneq),isdonej(c%ncel))
+       isdone = .false.
+       up2d = min(disteps_,maxdisteps+1d-4)
+
+       ! run over non-equivalent atoms, i is the complete list index
+       write (uout,*)
+       do i = 1, c%ncel
+          id = c%atcel(i)%idx
+          if (isdone(id)) cycle
+          isdone(id) = .true.
+
+          ! find the atomic environment
+          call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,nat,eid,distr,lvec,up2d=up2d)
+
+          write (uout,'("+ Environment of atom ",A," (spc=",A,", nid=",A,") at ",3(A," "))') &
+             string(i), string(c%spc(c%at(id)%is)%name), string(id), &
+             (string(c%atcel(i)%x(j),'f',length=10,decimal=6),j=1,3)
+          write (uout,'("# Up to distance (",A,"): ",A)') iunitname0(iunit), string(up2d*dunit0(iunit),'f',length=10,decimal=6)
+          write (uout,'("# Number of atoms in the environment: ",A)') string(nat)
+          write (uout,'("# nid = non-equivalent list atomic ID. id = complete list ID plus lattice vector (lvec).")')
+          write (uout,'("# name = atomic name. dist = distance. norm = Frobenius norm FC2. xx,... = FC2 components")')
+          write (uout,'("#nid   id      lvec     name  dist(",A,")  isintra FC2: norm        xx              &
+             &xy              xz              yx              yy              yz              &
+             &zx              zy              zz")') iunitname0(iunit)
+          isdonej = .false.
+          do j = 1, nat
+             cidx = eid(j)
+             if (isdonej(cidx)) cycle
+             isdonej(cidx) = .true.
+
+             nidx = c%atcel(cidx)%idx
+             if (c%ismolecule) then
+                xx = (c%atcel(cidx)%r + c%molx0) * dunit0(iunit)
+             else
+                xx = c%atcel(cidx)%x + lvec(:,j)
+             end if
+
+             isintra = (c%idatcelmol(1,i) == c%idatcelmol(1,cidx))
+             norm = sqrt(sum(v%fc2(:,:,i,cidx)**2))
+             write (uout,'("  ",2(A," "),"(",A," ",A," ",A,")",99(" ",A))') string(nidx,4,ioj_center), string(cidx,4,ioj_center),&
+                (string(lvec(k,j),2,ioj_right),k=1,3), string(c%spc(c%atcel(cidx)%is)%name,7,ioj_center),&
+                string(distr(j)*dunit0(iunit),'f',12,6,4), string(isintra), string(norm,'e',15,8,ioj_right),&
+                string(v%fc2(1,1,i,cidx),'e',15,8,ioj_right), string(v%fc2(1,2,i,cidx),'e',15,8,ioj_right),&
+                string(v%fc2(1,3,i,cidx),'e',15,8,ioj_right), string(v%fc2(2,1,i,cidx),'e',15,8,ioj_right),&
+                string(v%fc2(2,2,i,cidx),'e',15,8,ioj_right), string(v%fc2(2,3,i,cidx),'e',15,8,ioj_right),&
+                string(v%fc2(3,1,i,cidx),'e',15,8,ioj_right), string(v%fc2(3,2,i,cidx),'e',15,8,ioj_right),&
+                string(v%fc2(3,3,i,cidx),'e',15,8,ioj_right)
+          end do
+          write (uout,*)
+       end do
+    end if
 
   end subroutine vibrations_print_fc2
 

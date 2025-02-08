@@ -1050,10 +1050,11 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine vibrations_read_file
-     module subroutine vibrations_print_fc2(v,c,disteps,fc2eps)
+     module subroutine vibrations_print_fc2(v,c,disteps,fc2eps,environ)
        class(vibrations), intent(inout) :: v
-       type(crystal), intent(in) :: c
+       type(crystal), intent(inout) :: c
        real*8, intent(in), optional :: disteps, fc2eps
+       logical, intent(in), optional :: environ
      end subroutine vibrations_print_fc2
      !xx! xrpd_peaklist type
      module subroutine xrpd_peaklist_end(p)

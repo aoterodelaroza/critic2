@@ -3571,7 +3571,7 @@ contains
     character(len=:), allocatable :: filename, word, mode, sline, errmsg
     integer :: lp
     real*8 :: disteps, fc2eps
-    logical :: ok
+    logical :: ok, environ
 
     ! header
     if (verbose) &
@@ -3601,6 +3601,7 @@ contains
        mode = lgetword(line,lp)
        disteps = huge(1d0)
        fc2eps = 0d0
+       environ = .false.
 
        ! parse the options
        do while (.true.)
@@ -3613,6 +3614,8 @@ contains
              ok = eval_next(fc2eps,line,lp)
              if (.not.ok) &
                 call ferror('struct_vibrations','Error reading FC2EPS',faterr,syntax=.true.)
+          elseif (equal(word,'environ')) then
+             environ = .true.
           else
              exit
           end if
@@ -3620,7 +3623,7 @@ contains
 
        ! execute the print
        if (equal(mode,'fc2')) then
-          call s%c%vib%print_fc2(s%c,disteps,fc2eps)
+          call s%c%vib%print_fc2(s%c,disteps,fc2eps,environ)
        end if
     end if
 
