@@ -36,9 +36,11 @@ contains
     class(vibrations), intent(inout) :: v
 
     v%isinit = .false.
+    v%hasfc2 = .false.
     v%file = ""
     v%ivformat = ivformat_unknown
     v%nqpt = 0
+    if (allocated(v%fc2)) deallocate(v%fc2)
     if (allocated(v%qpt)) deallocate(v%qpt)
     if (allocated(v%freq)) deallocate(v%freq)
     if (allocated(v%vec)) deallocate(v%vec)
@@ -51,16 +53,15 @@ contains
   !> format is detected from the file extension if ivformat is
   !> isformat_unknown or format ivformat is used otherwise. Returns
   !> non-zero errmsg if error.
-  module subroutine vibrations_read_file(v,c,file,ivformat,errmsg,ti)
+  module subroutine vibrations_read_file(v,c,file,sline,ivformat,errmsg,ti)
     use param, only: ivformat_unknown, ivformat_matdynmodes, ivformat_matdyneig,&
        ivformat_qedyn, ivformat_phonopy_ascii, ivformat_phonopy_yaml, ivformat_phonopy_hdf5,&
-       ivformat_crystal_out, ivformat_gaussian_log, ivformat_gaussian_fchk
-    use crystalmod, only: vibrations
-    use crystalseedmod, only: vibrations_detect_format
+       ivformat_crystal_out, ivformat_gaussian_log, ivformat_gaussian_fchk,&
+       ivformat_phonopy_fc2
     use types, only: realloc
     class(vibrations), intent(inout) :: v
     type(crystal), intent(in) :: c
-    character*(*), intent(in) :: file
+    character*(*), intent(in) :: file, sline
     integer, intent(in) :: ivformat
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
@@ -92,6 +93,8 @@ contains
        call read_phonopy_yaml(v,c,file,errmsg,ti)
     elseif (ivf == ivformat_phonopy_hdf5) then
        call read_phonopy_hdf5(v,c,file,errmsg)
+    elseif (ivf == ivformat_phonopy_fc2) then
+       call read_phonopy_fc2(v,c,file,sline,errmsg,ti)
     elseif (ivf == ivformat_crystal_out) then
        call read_crystal_out(v,c,file,errmsg,ti)
     elseif (ivf == ivformat_gaussian_log) then
@@ -103,25 +106,91 @@ contains
        return
     end if
     if (len(errmsg) > 0) return
-    if (v%nfreq == 0) then
-       errmsg = "No frequencies found in file: " // trim(file)
-       return
-    end if
-    if (v%nqpt == 0) then
-       errmsg = "No q-points found in file: " // trim(file)
-       return
+    if (v%isinit) then
+       if (v%nfreq == 0) then
+          errmsg = "No frequencies found in file: " // trim(file)
+          return
+       end if
+       if (v%nqpt == 0) then
+          errmsg = "No q-points found in file: " // trim(file)
+          return
+       end if
     end if
 
   end subroutine vibrations_read_file
 
   !xx! private procedures
 
+  !> Detect the format for a file containing molecular or
+  !> crystal vibrations.
+  subroutine vibrations_detect_format(file,ivformat)
+    use param, only: ivformat_unknown, ivformat_matdynmodes, ivformat_matdyneig,&
+       ivformat_qedyn, ivformat_phonopy_ascii, ivformat_phonopy_yaml,&
+       ivformat_phonopy_hdf5, ivformat_crystal_out, ivformat_gaussian_log,&
+       ivformat_gaussian_fchk, ivformat_phonopy_fc2, dirsep
+    use tools_io, only: equal, lower
+    character*(*), intent(in) :: file
+    integer, intent(out) :: ivformat
+
+    character(len=:), allocatable :: basename, wextdot, wextdot2, wext_
+    integer :: idx
+
+    basename = file(index(file,dirsep,.true.)+1:)
+    wext_ = basename(index(basename,'_',.true.)+1:)
+    idx = index(basename,'.',.true.)
+    wextdot = basename(idx+1:)
+    if (idx > 0) then
+       wextdot2 = basename(index(basename(1:idx-1),'.',.true.)+1:)
+    else
+       wextdot2 = ""
+    end if
+
+    if (equal(lower(wextdot),'modes')) then
+       ivformat = ivformat_matdynmodes
+    elseif (equal(lower(wextdot),'eig')) then
+       ivformat = ivformat_matdyneig
+    elseif (equal(lower(wextdot),'ascii')) then
+       ivformat = ivformat_phonopy_ascii
+    elseif (equal(lower(wextdot),'yaml')) then
+       ivformat = ivformat_phonopy_yaml
+    elseif (equal(lower(wextdot),'hdf5')) then
+       ivformat = ivformat_phonopy_hdf5
+    elseif (equal(lower(wextdot),'out')) then
+       ivformat = ivformat_crystal_out
+    elseif (equal(lower(wextdot),'log')) then
+       ivformat = ivformat_gaussian_log
+    elseif (equal(lower(wextdot),'fchk')) then
+       ivformat = ivformat_gaussian_fchk
+    elseif (isdynfile(wextdot)) then
+       ivformat = ivformat_qedyn
+    elseif (index(basename,'FORCE_CONSTANTS') > 0) then
+       ivformat = ivformat_phonopy_fc2
+    else
+       ivformat = ivformat_unknown
+    endif
+
+  contains
+    function isdynfile(str)
+      logical :: isdynfile
+      character*(*), intent(in) :: str
+
+      isdynfile = .false.
+      if (len(str) < 3) return
+      if (str(1:3) /= "dyn") return
+      if (len(str) > 3) then
+         if (str(4:4) == "0") return
+      end if
+      isdynfile = .true.
+
+    end function isdynfile
+
+  end subroutine vibrations_detect_format
+
   !> Read vibration data with Quantum ESPRESSO matdyn.modes and
   !> matdyn.eig format from a file, and return it in vib. If error,
   !> return non-zero errmsg.
   subroutine read_matdyn_modes(v,c,file,ivformat,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw
-    use crystalmod, only: vibrations
     use crystalseedmod, only: read_alat_from_qeout
     use param, only: atmass, isformat_qeout, ivformat_matdynmodes
     type(vibrations), intent(inout) :: v
@@ -280,7 +349,6 @@ contains
   !> return it in vib. If error, return non-zero errmsg.
   subroutine read_qe_dyn(v,c,file,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw
-    use crystalmod, only: vibrations
     use crystalseedmod, only: read_alat_from_qeout
     use param, only: atmass, isformat_qeout, ivformat_qedyn
     type(vibrations), intent(inout) :: v
@@ -410,7 +478,6 @@ contains
   !> and return it in vib. If error, return non-zero errmsg.
   subroutine read_phonopy_ascii(v,c,file,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw
-    use crystalmod, only: vibrations
     use param, only: atmass, ivformat_phonopy_ascii, cm1tothz
     type(vibrations), intent(inout) :: v
     type(crystal), intent(in) :: c
@@ -548,7 +615,6 @@ contains
   subroutine read_phonopy_yaml(v,c,file,errmsg,ti)
     use types, only: realloc
     use tools_io, only: fopen_read, fclose, getline_raw
-    use crystalmod, only: vibrations
     use param, only: ivformat_phonopy_yaml, cm1tothz
     type(vibrations), intent(inout) :: v
     type(crystal), intent(in) :: c
@@ -719,7 +785,6 @@ contains
     use hdf5
 #endif
     use param, only: ivformat_phonopy_hdf5, cm1tothz
-    use crystalmod, only: vibrations
     type(vibrations), intent(inout) :: v
     type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
@@ -817,12 +882,89 @@ contains
 
   end subroutine read_phonopy_hdf5
 
+  !> Read the force constants from a phonopy FORCE_CONSTANTS file and
+  !> populate v. Use the structure information in the crystal
+  !> structure c. If error, return non-zero errmsg.
+  subroutine read_phonopy_fc2(v,c,file,sline,errmsg,ti)
+    use types, only: realloc
+    use tools_io, only: fopen_read, fclose, getline_raw, lgetword, equal
+    use param, only: ivformat_phonopy_fc2
+    type(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
+    character*(*), intent(in) :: file, sline
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    character(len=:), allocatable :: word
+    integer :: lp, lu, nat, mat, i, j, idum, jdum
+    real*8 :: fc2factor
+
+    ! initialize
+    errmsg = "Error reading FORCE_CONSTANTS file: " // trim(file)
+    lu = -1
+
+    ! interpret format and set conversion factor
+    lp = 1
+    word = lgetword(sline,lp)
+    if (equal(word,"qe")) then
+       fc2factor = 0.5d0
+    elseif (equal(word,"vasp")) then
+       write (*,*) "fixme: vasp in FC2 reader"
+       stop 1
+    elseif (equal(word,"fhiaims")) then
+       write (*,*) "fixme: fhiaims in FC2 reader"
+       stop 1
+    else
+       errmsg = "A generator keyword (qe,vasp,fhiaims,...) is required to read FORCE_CONSTANTS"
+       goto 999
+    end if
+
+    ! open file
+    lu = fopen_read(file,ti=ti)
+    if (lu <= 0) then
+       errmsg = "File not found: " // trim(file)
+       goto 999
+    end if
+
+    ! read the number of atoms from the fc2 file
+    read(lu,*,err=999,end=999) nat, mat
+    if (c%ncel /= nat .or. c%ncel /= mat ) then
+       errmsg = 'Inconsistent atom number in FORCE_CONSTANTS file'
+       goto 999
+    end if
+
+    ! prepare the fc2 matrix
+    errmsg = "Error reading force constants from FORCE_CONSTANTS file"
+    if (allocated(v%fc2)) deallocate(v%fc2)
+    allocate(v%fc2(3,3,nat,nat))
+    do idum = 1, c%ncel
+       do jdum = 1, c%ncel
+          read (lu,*,err=999,end=999) i, j
+          read (lu,*,err=999,end=999) v%fc2(1,1,i,j), v%fc2(2,1,i,j), v%fc2(3,1,i,j)
+          read (lu,*,err=999,end=999) v%fc2(1,2,i,j), v%fc2(2,2,i,j), v%fc2(3,2,i,j)
+          read (lu,*,err=999,end=999) v%fc2(1,3,i,j), v%fc2(2,3,i,j), v%fc2(3,3,i,j)
+       end do
+    end do
+    v%fc2 = v%fc2 * fc2factor
+
+    ! wrap up
+    v%file = file
+    v%ivformat = ivformat_phonopy_fc2
+    v%hasfc2 = .true.
+    errmsg = ""
+    call fclose(lu)
+
+    return
+999 continue
+    if (lu >= 0) call fclose(lu)
+
+  end subroutine read_phonopy_fc2
+
   !> Read vibration data from a crystal output file, and return it in
   !> vib. If error, return non-zero errmsg.
   subroutine read_crystal_out(v,c,file,errmsg,ti)
     use types, only: realloc
     use tools_io, only: fopen_read, fclose, getline_raw
-    use crystalmod, only: vibrations
     use param, only: ivformat_crystal_out, atmass
     type(vibrations), intent(inout) :: v
     type(crystal), intent(in) :: c
@@ -937,7 +1079,6 @@ contains
   subroutine read_gaussian_log(v,c,file,errmsg,ti)
     use types, only: realloc
     use tools_io, only: fopen_read, fclose, getline_raw, isreal
-    use crystalmod, only: vibrations
     use param, only: ivformat_gaussian_log, atmass
     type(vibrations), intent(inout) :: v
     type(crystal), intent(in) :: c
@@ -1060,7 +1201,6 @@ contains
   subroutine read_gaussian_fchk(v,c,file,errmsg,ti)
     use types, only: realloc
     use tools_io, only: fopen_read, fclose, getline_raw, isreal
-    use crystalmod, only: vibrations
     use param, only: ivformat_gaussian_fchk, atmass
     type(vibrations), intent(inout) :: v
     type(crystal), intent(in) :: c

@@ -157,7 +157,7 @@ contains
                 do while (.true.)
                    idx = index(str,c_null_char)
                    if (idx == 0) exit
-                   call sys(w%isys)%c%vib%read_file(sys(w%isys)%c,str(1:idx-1),w%dialog_data%isformat,errmsg)
+                   call sys(w%isys)%c%vib%read_file(sys(w%isys)%c,str(1:idx-1),"",w%dialog_data%isformat,errmsg)
                    if (len_trim(w%errmsg) > 0) &
                       write (uout,'(A)') errmsg
                    str = str(idx+1:)

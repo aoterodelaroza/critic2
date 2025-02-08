@@ -3561,27 +3561,41 @@ contains
 
   !> Load crystal or molecular vibrations from an external file
   module subroutine struct_vibrations(s,line,verbose)
-    use tools_io, only: uout, getword, ferror, faterr
-    use param, only: isformat_unknown
+    use tools_io, only: uout, lgetword, getword, ferror, faterr, equal
+    use param, only: ivformat_unknown
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
 
-    character(len=:), allocatable :: word, errmsg
+    character(len=:), allocatable :: filename, word, sline, errmsg
     integer :: lp
 
-    ! read the file name
+    ! header
     if (verbose) &
        write (uout,'("* VIBRATIONS: reading vibrational frequencies and modes")')
-    lp=1
-    word = getword(line,lp)
-    if (verbose) &
-       write (uout,'("  File: ",A)') trim(word)
 
-    ! read the file
-    call s%c%vib%read_file(s%c,word,isformat_unknown,errmsg)
-    if (len_trim(errmsg) > 0) &
-       call ferror("struct_vibrations",errmsg,faterr)
+    ! checks
+    if (.not.s%isinit) &
+       call ferror('struct_vibrations','System is not initialized',faterr)
+    if (.not.s%c%isinit) &
+       call ferror('struct_vibrations','A structure is required for VIBRATIONS',faterr)
+
+    ! parse the line
+    lp = 1
+    word = lgetword(line,lp)
+    if (equal(word,'load')) then
+       ! load a vibrations file
+       filename = getword(line,lp)
+       if (verbose) &
+          write (uout,'("  Loading vibrations file: ",A)') trim(word)
+       sline = line(lp:)
+
+       call s%c%vib%read_file(s%c,filename,sline,ivformat_unknown,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror("struct_vibrations",errmsg,faterr)
+    end if
+
+    ! wrap up
     write (uout,*)
 
   end subroutine struct_vibrations

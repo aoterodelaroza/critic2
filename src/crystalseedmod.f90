@@ -115,7 +115,6 @@ module crystalseedmod
 
   public :: realloc_crystalseed
   public :: struct_detect_format
-  public :: vibrations_detect_format
   public :: struct_detect_ismol
   public :: read_seeds_from_file
   public :: read_alat_from_qeout
@@ -399,10 +398,6 @@ module crystalseedmod
        logical, intent(out), optional :: alsofield
        type(thread_info), intent(in), optional :: ti
      end subroutine struct_detect_format
-     module subroutine vibrations_detect_format(file,ivformat)
-       character*(*), intent(in) :: file
-       integer, intent(out) :: ivformat
-     end subroutine vibrations_detect_format
      module subroutine struct_detect_ismol(file,isformat,ismol,ti)
        character*(*), intent(in) :: file
        integer, intent(in) :: isformat

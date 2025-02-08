@@ -88,9 +88,14 @@ module crystalmod
 
   !> Class for molecular or crystal vibrations
   type vibrations
-     logical :: isinit = .false. ! true if vibrations are available
+     !! source file and format
      character(len=mlen) :: file ! source of vibration data
      integer :: ivformat ! format for the vibration data
+     !! 2nd-order force constants
+     logical :: hasfc2 = .false. ! true if FC2 is available
+     real*8, allocatable :: fc2(:,:,:,:) ! 2nd-order FC matrix (3,3,nat,nat)
+     !! frequencies and eigenvectors
+     logical :: isinit = .false. ! true if frequencies/eigenvectors are available
      integer :: nqpt ! number of q-points
      real*8, allocatable :: qpt(:,:) ! q-point coordinates (3,nqpt) (fractional)
      integer :: nfreq ! number of frequencies
@@ -1036,10 +1041,10 @@ module crystalmod
      module subroutine vibrations_end(v)
        class(vibrations), intent(inout) :: v
      end subroutine vibrations_end
-     module subroutine vibrations_read_file(v,c,file,ivformat,errmsg,ti)
+     module subroutine vibrations_read_file(v,c,file,sline,ivformat,errmsg,ti)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(in) :: c
-       character*(*), intent(in) :: file
+       character*(*), intent(in) :: file, sline
        integer, intent(in) :: ivformat
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti

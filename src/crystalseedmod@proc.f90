@@ -5295,69 +5295,6 @@ contains
 
   end subroutine struct_detect_format
 
-  !> Detect the format for a file containing molecular or
-  !> crystal vibrations.
-  module subroutine vibrations_detect_format(file,ivformat)
-    use param, only: ivformat_unknown, ivformat_matdynmodes, ivformat_matdyneig,&
-       ivformat_qedyn, ivformat_phonopy_ascii, ivformat_phonopy_yaml,&
-       ivformat_phonopy_hdf5, ivformat_crystal_out, ivformat_gaussian_log,&
-       ivformat_gaussian_fchk, dirsep
-    use tools_io, only: equal, lower
-    character*(*), intent(in) :: file
-    integer, intent(out) :: ivformat
-
-    character(len=:), allocatable :: basename, wextdot, wextdot2, wext_
-    integer :: idx
-
-    basename = file(index(file,dirsep,.true.)+1:)
-    wext_ = basename(index(basename,'_',.true.)+1:)
-    idx = index(basename,'.',.true.)
-    wextdot = basename(idx+1:)
-    if (idx > 0) then
-       wextdot2 = basename(index(basename(1:idx-1),'.',.true.)+1:)
-    else
-       wextdot2 = ""
-    end if
-
-    if (equal(lower(wextdot),'modes')) then
-       ivformat = ivformat_matdynmodes
-    elseif (equal(lower(wextdot),'eig')) then
-       ivformat = ivformat_matdyneig
-    elseif (equal(lower(wextdot),'ascii')) then
-       ivformat = ivformat_phonopy_ascii
-    elseif (equal(lower(wextdot),'yaml')) then
-       ivformat = ivformat_phonopy_yaml
-    elseif (equal(lower(wextdot),'hdf5')) then
-       ivformat = ivformat_phonopy_hdf5
-    elseif (equal(lower(wextdot),'out')) then
-       ivformat = ivformat_crystal_out
-    elseif (equal(lower(wextdot),'log')) then
-       ivformat = ivformat_gaussian_log
-    elseif (equal(lower(wextdot),'fchk')) then
-       ivformat = ivformat_gaussian_fchk
-    elseif (isdynfile(wextdot)) then
-       ivformat = ivformat_qedyn
-    else
-       ivformat = ivformat_unknown
-    endif
-
-  contains
-    function isdynfile(str)
-      logical :: isdynfile
-      character*(*), intent(in) :: str
-
-      isdynfile = .false.
-      if (len(str) < 3) return
-      if (str(1:3) /= "dyn") return
-      if (len(str) > 3) then
-         if (str(4:4) == "0") return
-      end if
-      isdynfile = .true.
-
-    end function isdynfile
-
-  end subroutine vibrations_detect_format
-
   !> Detect whether a file with format isformat contains a molecule
   !> (ismol=.true.)  or a crystal (.false.)
   module subroutine struct_detect_ismol(file,isformat,ismol,ti)
