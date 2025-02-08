@@ -189,8 +189,10 @@ contains
 
     if (.not.environ) then
        ! print the whole fc2 matrix
-       write (uout,'("# Id1 At1  Id2 At2  dist(bohr) isintra norm          fc2xx           fc2xy           fc2xz&
-          &           fc2yx           fc2yy           fc2yz           fc2zx           fc2zy           fc2zz")')
+       write (uout,'("# Id1,Id2 = complete cell IDs. At1,At2 = atomic symbols. isintra = is intramolecular?")')
+       write (uout,'("# norm = Frobenius norm FC2. xx,... = FC2 components")')
+       write (uout,'("# Id1 At1  Id2 At2  dist(bohr) isintra FC2: norm      xx              xy              xz   &
+          &           yx              yy              yz              zx              zy              zz   ")')
        k = 0
        do idum = 1, c%ncel
           do jdum = idum, c%ncel
@@ -234,7 +236,8 @@ contains
           write (uout,'("# Up to distance (",A,"): ",A)') iunitname0(iunit), string(up2d*dunit0(iunit),'f',length=10,decimal=6)
           write (uout,'("# Number of atoms in the environment: ",A)') string(nat)
           write (uout,'("# nid = non-equivalent list atomic ID. id = complete list ID plus lattice vector (lvec).")')
-          write (uout,'("# name = atomic name. dist = distance. norm = Frobenius norm FC2. xx,... = FC2 components")')
+          write (uout,'("# name = atomic name. dist = distance. isintra = is intramolecular?")')
+          write (uout,'("# norm = Frobenius norm FC2. xx,... = FC2 components")')
           write (uout,'("#nid   id      lvec     name  dist(",A,")  isintra FC2: norm        xx              &
              &xy              xz              yx              yy              yz              &
              &zx              zy              zz")') iunitname0(iunit)
