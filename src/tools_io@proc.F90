@@ -499,7 +499,7 @@ contains
     if (a) then
        s = "Yes"
     else
-       s = "No"
+       s = "No "
     end if
 
   end function string_logical

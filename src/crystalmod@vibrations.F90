@@ -20,13 +20,16 @@ submodule (crystalmod) vibrationsmod
   implicit none
 
   !xx! private procedures
-  ! subroutine read_matdyn_modes(c,file,ivformat,errmsg,ti)
-  ! subroutine read_qe_dyn(c,file,errmsg,ti)
-  ! subroutine read_phonopy_ascii(c,vib,file,errmsg,ti)
-  ! subroutine read_phonopy_yaml(c,vib,file,errmsg,ti)
-  ! subroutine read_phonopy_hdf5(c,vib,file,errmsg)
-  ! subroutine read_crystal_out(c,vib,file,errmsg,ti)
-  ! subroutine read_gaussian_fchk(c,vib,file,errmsg,ti)
+  ! subroutine vibrations_detect_format(file,ivformat)
+  ! subroutine read_matdyn_modes(v,c,file,ivformat,errmsg,ti)
+  ! subroutine read_qe_dyn(v,c,file,errmsg,ti)
+  ! subroutine read_phonopy_ascii(v,c,file,errmsg,ti)
+  ! subroutine read_phonopy_yaml(v,c,file,errmsg,ti)
+  ! subroutine read_phonopy_hdf5(v,c,file,errmsg)
+  ! subroutine read_phonopy_fc2(v,c,file,sline,errmsg,ti)
+  ! subroutine read_crystal_out(v,c,file,errmsg,ti)
+  ! subroutine read_gaussian_log(v,c,file,errmsg,ti)
+  ! subroutine read_gaussian_fchk(v,c,file,errmsg,ti)
 
 contains
 
@@ -118,6 +121,88 @@ contains
     end if
 
   end subroutine vibrations_read_file
+
+  !> Print information about the stored FC2 to the standard output.
+  !> The structural info comes from crystal structures c.
+  module subroutine vibrations_print_fc2(v,c,disteps,fc2eps)
+    use tools_io, only: uout, ioj_center, ioj_right, string
+    use global, only: iunit, iunitname0, dunit0
+    use tools, only: mergesort
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
+    real*8, intent(in), optional :: disteps, fc2eps
+
+    integer :: i, j, k, idum, jdum
+    integer :: npair
+    real*8 :: maxdisteps, dist, disteps_, fc2eps_
+    logical :: isintra
+    real*8, allocatable :: dista(:)
+    integer, allocatable :: idx(:), i2(:,:), pair(:,:)
+
+    ! header and checks
+    write (uout,'("+ PRINT 2nd-order force constant information (FC2)")')
+    if (.not.v%hasfc2.or..not.allocated(v%fc2)) then
+       write (uout,'("!! No FC2 info has been loaded, exiting.")')
+       return
+    end if
+
+    ! process options
+    disteps_ = huge(1d0)
+    fc2eps_ = 0d0
+    if (present(disteps)) then
+       disteps_ = disteps
+       if (disteps_ < huge(1d0)) &
+          write (uout,'("# Cutoff distance for pairs = ",A," ",A)') &
+             string(disteps_,'f',decimal=5), iunitname0(iunit)
+    end if
+    if (present(fc2eps)) then
+       fc2eps_ = fc2eps
+       if (fc2eps_ > 0d0) &
+          write (uout,'("# Cutoff for FC2 values = ",A)') string(fc2eps_,'e',decimal=5)
+    end if
+
+    ! allocate information about atom pairs, and sort by distance
+    npair = c%ncel*(c%ncel + 1) / 2
+    allocate(dista(npair),idx(npair),i2(2,npair))
+    allocate(pair(2,npair))
+    k = 0
+    do i = 1, c%ncel
+       do j = i, c%ncel
+          k = k + 1
+          dista(k) = c%eql_distance(c%atcel(i)%x, c%atcel(j)%x)
+          idx(k) = k
+          i2(1,k) = i
+          i2(2,k) = j
+       end do
+    end do
+    maxdisteps = maxval(dista)
+    call mergesort(dista,idx,1,npair)
+
+    ! print the fc2 matrix
+    write (uout,'("# Id1 At1  Id2 At2  dist(bohr) isintra fc2xx         fc2xy           fc2xz&
+       &           fc2yx           fc2yy           fc2yz           fc2zx           fc2zy           fc2zz")')
+    k = 0
+    do idum = 1, c%ncel
+       do jdum = idum, c%ncel
+          k = k + 1
+          i = i2(1,idx(k))
+          j = i2(2,idx(k))
+          dist = dista(idx(k))
+          isintra = (c%idatcelmol(1, i) == c%idatcelmol(1, j))
+          if (dist <= disteps_ .and. any(abs(v%fc2(:,:,i,j)) >= fc2eps_)) then
+             write (uout,'(99(A," "))') string(i, 5, ioj_center), string(c%spc(c%atcel(i)%is)%name,2),&
+                string(j, 5, ioj_center), string(c%spc(c%atcel(j)%is)%name,2),&
+                string(dist*dunit0(iunit),'f',12,6,ioj_right), string(isintra),&
+                string(v%fc2(1,1,i,j),'e',15,8,ioj_right), string(v%fc2(1,2,i,j),'e',15,8,ioj_right),&
+                string(v%fc2(1,3,i,j),'e',15,8,ioj_right), string(v%fc2(2,1,i,j),'e',15,8,ioj_right),&
+                string(v%fc2(2,2,i,j),'e',15,8,ioj_right), string(v%fc2(2,3,i,j),'e',15,8,ioj_right),&
+                string(v%fc2(3,1,i,j),'e',15,8,ioj_right), string(v%fc2(3,2,i,j),'e',15,8,ioj_right),&
+                string(v%fc2(3,3,i,j),'e',15,8,ioj_right)
+          end if
+       end do
+    end do
+
+  end subroutine vibrations_print_fc2
 
   !xx! private procedures
 

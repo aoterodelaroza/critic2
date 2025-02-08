@@ -107,6 +107,7 @@ module crystalmod
    contains
      procedure :: end => vibrations_end !< terminate the vibrations object
      procedure :: read_file => vibrations_read_file !< read a vib file, detect the format
+     procedure :: print_fc2 => vibrations_print_fc2 !< print info about the FC2
   end type vibrations
   public :: vibrations
 
@@ -1049,6 +1050,11 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine vibrations_read_file
+     module subroutine vibrations_print_fc2(v,c,disteps,fc2eps)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(in) :: c
+       real*8, intent(in), optional :: disteps, fc2eps
+     end subroutine vibrations_print_fc2
      !xx! xrpd_peaklist type
      module subroutine xrpd_peaklist_end(p)
        class(xrpd_peaklist), intent(inout) :: p

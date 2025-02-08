@@ -3561,14 +3561,17 @@ contains
 
   !> Load crystal or molecular vibrations from an external file
   module subroutine struct_vibrations(s,line,verbose)
+    use global, only: eval_next
     use tools_io, only: uout, lgetword, getword, ferror, faterr, equal
     use param, only: ivformat_unknown
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
 
-    character(len=:), allocatable :: filename, word, sline, errmsg
+    character(len=:), allocatable :: filename, word, mode, sline, errmsg
     integer :: lp
+    real*8 :: disteps, fc2eps
+    logical :: ok
 
     ! header
     if (verbose) &
@@ -3593,6 +3596,32 @@ contains
        call s%c%vib%read_file(s%c,filename,sline,ivformat_unknown,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror("struct_vibrations",errmsg,faterr)
+    elseif (equal(word,'print')) then
+       ! print information from the stored vibration data: get the mode and initialize
+       mode = lgetword(line,lp)
+       disteps = huge(1d0)
+       fc2eps = 0d0
+
+       ! parse the options
+       do while (.true.)
+          word = lgetword(line,lp)
+          if (equal(word,'disteps')) then
+             ok = eval_next(disteps,line,lp)
+             if (.not.ok) &
+                call ferror('struct_vibrations','Error reading DISTEPS',faterr,syntax=.true.)
+          elseif (equal(word,'fc2eps')) then
+             ok = eval_next(fc2eps,line,lp)
+             if (.not.ok) &
+                call ferror('struct_vibrations','Error reading FC2EPS',faterr,syntax=.true.)
+          else
+             exit
+          end if
+       end do
+
+       ! execute the print
+       if (equal(mode,'fc2')) then
+          call s%c%vib%print_fc2(s%c,disteps,fc2eps)
+       end if
     end if
 
     ! wrap up
