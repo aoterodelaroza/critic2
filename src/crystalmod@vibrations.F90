@@ -34,20 +34,28 @@ submodule (crystalmod) vibrationsmod
 contains
 
   !> Terminate a vibrations object
-  module subroutine vibrations_end(v)
+  module subroutine vibrations_end(v,keepfc2)
     use param, only: ivformat_unknown
     class(vibrations), intent(inout) :: v
+    logical, intent(in), optional :: keepfc2
+
+    logical :: keepfc2_
+
+    keepfc2_ = .false.
+    if (present(keepfc2)) keepfc2_ = keepfc2
 
     v%isinit = .false.
-    v%hasfc2 = .false.
     v%file = ""
     v%ivformat = ivformat_unknown
     v%nqpt = 0
-    if (allocated(v%fc2)) deallocate(v%fc2)
     if (allocated(v%qpt)) deallocate(v%qpt)
     if (allocated(v%freq)) deallocate(v%freq)
     if (allocated(v%vec)) deallocate(v%vec)
     v%nfreq = 0
+    if (.not.keepfc2_) then
+       v%hasfc2 = .false.
+       if (allocated(v%fc2)) deallocate(v%fc2)
+    end if
 
   end subroutine vibrations_end
 
@@ -411,6 +419,101 @@ contains
     end do
 
   end subroutine vibrations_print_eigenvector
+
+  !> Calculate frequencies and eigenvectors from the FC2 for a single q;
+  !> adds the resulting frequencies and eigenvectors to the v type.
+  module subroutine vibrations_calculate_q(v,c,q)
+    use param, only: icrd_crys, atmass, tpi, img
+    use types, only: realloc
+    use tools_math, only: eigherm
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(inout) :: c
+    real*8, intent(in) :: q(3)
+
+    complex*16 :: dm_local(3,3), phase
+    real*8 :: sqrt_ij
+    integer :: nat
+    real*8 :: x1(3), x2(3), maxdisteps
+    integer :: i, jj, j
+    integer, allocatable :: nida(:), lvec(:,:), mult(:)
+    real*8, allocatable:: eval(:), dist(:), freq(:), rused(:)
+    complex*16, allocatable :: dm(:,:)
+
+    ! conversion factor
+    ! sqrt(Hartree / bohr^2 / amu) / 1e12 -> THz
+    ! sqrt(4.3597447222071e-18) / 5.29177210903e-11 / sqrt(1.66053906660e-27) /  2 / pi / c / 100
+    real*8, parameter :: factor = 5140.487143715827d0
+    real*8, parameter :: epsgen = 1d-4
+    real*8, parameter :: epsneigh = 1d-5
+
+    ! return if no FC2 is available
+    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+
+    ! maximum distance of all pairs of atoms in the unit cell
+    maxdisteps = 0d0
+    do i = 1, c%ncel
+       do j = i+1, c%ncel
+          maxdisteps = max(maxdisteps,c%eql_distance(c%atcel(i)%x, c%atcel(j)%x))
+       end do
+    end do
+
+    ! build the dynamical matrix for this q-point (Parlinski's recipe)
+    allocate(dm(c%ncel*3,c%ncel*3),rused(c%ncel),mult(c%ncel))
+    dm = 0d0
+    do i = 1, c%ncel
+       rused = huge(1d0)
+       mult = 0
+       call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,nat,nida,dist=dist,lvec=lvec,up2d=maxdisteps+epsgen)
+       do jj = 1, nat
+          j = nida(jj)
+          if (dist(jj) <= rused(j) + epsneigh) then
+             x1 = c%atcel(i)%x
+             x2 = c%atcel(j)%x + lvec(:,jj)
+
+             sqrt_ij = sqrt(atmass(c%spc(c%atcel(i)%is)%z) * atmass(c%spc(c%atcel(j)%is)%z))
+             phase = exp(-tpi * img * dot_product(q,x1 - x2))
+
+             dm_local = v%fc2(:,:,i,j) * phase / sqrt_ij
+             dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) = dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) + dm_local
+
+             rused(j) = min(rused(j),dist(jj))
+             mult(j) = mult(j) + 1
+          end if
+       end do
+
+       ! apply the multiplicities
+       do j = 1, c%ncel
+          dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) = dm(3*(i-1)+1:3*i,3*(j-1)+1:3*j) / mult(j)
+       end do
+    end do
+
+    ! impose hermiticity
+    dm = (dm + transpose(conjg(dm)))/2
+
+    ! diagonalize
+    allocate(eval(c%ncel*3),freq(c%ncel*3))
+    call eigherm(dm,c%ncel*3,eval)
+
+    ! calculate the frequencies
+    freq = sqrt(abs(eval)) * factor
+
+    ! save the info
+    v%nqpt = v%nqpt + 1
+    if (.not.allocated(v%qpt)) allocate(v%qpt(3,v%nqpt))
+    if (.not.allocated(v%freq)) then
+       v%nfreq = 3 * c%ncel
+       allocate(v%freq(3*c%ncel,v%nqpt))
+    end if
+    if (.not.allocated(v%vec)) allocate(v%vec(3,c%ncel,3*c%ncel,v%nqpt))
+    if (v%nqpt > size(v%qpt,2)) call realloc(v%qpt,3,2*v%nqpt)
+    if (v%nqpt > size(v%freq,2)) call realloc(v%freq,size(v%freq,1),2*v%nqpt)
+    if (v%nqpt > size(v%vec,4)) call realloc(v%vec,size(v%vec,1),size(v%vec,2),size(v%vec,3),2*v%nqpt)
+    v%freq(:,v%nqpt) = freq
+    do i = 1, 3*c%ncel
+       v%vec(:,:,i,v%nqpt) = reshape(dm(:,i),(/3,c%ncel/))
+    end do
+
+  end subroutine vibrations_calculate_q
 
   !xx! private procedures
 

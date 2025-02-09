@@ -3648,6 +3648,8 @@ contains
              call ferror('vibrations_print_freq','q-point not found; use PRINT SUMMARY',faterr)
           call s%c%vib%print_eigenvector(s%c,ifreq,idq,cartesian)
        end if
+    elseif (equal(word,'calcq')) then
+       call s%c%vib%calculate_q(s%c,(/0d0,0d0,0d0/))
     end if
 
     ! wrap up

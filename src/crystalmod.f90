@@ -111,6 +111,7 @@ module crystalmod
      procedure :: print_freq => vibrations_print_freq !< print frequency info
      procedure :: print_eigenvector => vibrations_print_eigenvector !< print eigvec info
      procedure :: read_file => vibrations_read_file !< read a vib file, detect the format
+     procedure :: calculate_q => vibrations_calculate_q !< calculate freqs and vec for a single q
   end type vibrations
   public :: vibrations
 
@@ -1042,8 +1043,9 @@ module crystalmod
        type(thread_info), intent(in), optional :: ti
      end subroutine writegrid_xsf
      !xx! vibrations type
-     module subroutine vibrations_end(v)
+     module subroutine vibrations_end(v,keepfc2)
        class(vibrations), intent(inout) :: v
+       logical, intent(in), optional :: keepfc2
      end subroutine vibrations_end
      module subroutine vibrations_read_file(v,c,file,sline,ivformat,errmsg,ti)
        class(vibrations), intent(inout) :: v
@@ -1072,6 +1074,11 @@ module crystalmod
        integer, intent(in) :: ifreq, idq
        logical, intent(in) :: cartesian
      end subroutine vibrations_print_eigenvector
+     module subroutine vibrations_calculate_q(v,c,q)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(inout) :: c
+       real*8, intent(in) :: q(3)
+     end subroutine vibrations_calculate_q
      !xx! xrpd_peaklist type
      module subroutine xrpd_peaklist_end(p)
        class(xrpd_peaklist), intent(inout) :: p

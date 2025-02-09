@@ -925,17 +925,6 @@ contains
     complex*16, allocatable :: work(:)
     real*8, allocatable :: rwork(:)
 
-    ! subroutine zheev	(	character	jobz,
-    ! character	uplo,
-    ! integer	n,
-    ! complex*16, dimension( lda, * )	a,
-    ! integer	lda,
-    ! double precision, dimension( * )	w,
-    ! complex*16, dimension( * )	work,
-    ! integer	lwork,
-    ! double precision, dimension( * )	rwork,
-    ! integer	info )
-
     n = n0
     lwork = -1
     allocate(rwork(max(1,3*n-2)))
