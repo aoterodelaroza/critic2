@@ -3559,19 +3559,23 @@ contains
 
   end subroutine struct_newcell
 
-  !> Load crystal or molecular vibrations from an external file
+  !> Driver for operations on crystal or molecular vibrations.
   module subroutine struct_vibrations(s,line,verbose)
     use global, only: eval_next
-    use tools_io, only: uout, lgetword, getword, ferror, faterr, equal, isreal, isinteger
+    use tools_io, only: uout, lgetword, getword, ferror, faterr, equal, isreal, isinteger,&
+       uin, ucopy, getline
+    use types, only: realloc
     use param, only: ivformat_unknown
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
 
     character(len=:), allocatable :: filename, word, mode, sline, errmsg
-    integer :: lp, lpo, idq, ifreq
-    real*8 :: disteps, fc2eps, q(3)
+    integer :: lp, lpo, idq, ifreq, npts, n(3)
+    real*8 :: disteps, fc2eps, q(3), q1(3), q2(3)
     logical :: ok, environ, cartesian
+    integer :: nq, i, j, k
+    real*8, allocatable :: qlist(:,:)
 
     ! header
     if (verbose) &
@@ -3647,9 +3651,64 @@ contains
           if (idq <= 0) &
              call ferror('vibrations_print_freq','q-point not found; use PRINT SUMMARY',faterr)
           call s%c%vib%print_eigenvector(s%c,ifreq,idq,cartesian)
+       else
+          call ferror('vibrations_print_freq','unknown keyword in PRINT SUMMARY',faterr,syntax=.true.)
        end if
     elseif (equal(word,'calcq')) then
-       call s%c%vib%calculate_q(s%c,(/0d0,0d0,0d0/))
+       nq = 0
+       allocate(qlist(3,10))
+
+       do while (getline(uin,sline,ucopy=ucopy))
+          lp = 1
+          word = lgetword(sline,lp)
+          if (equal(word,'end').or.equal(word,'endvibration').or.equal(word,'endvibrations')) then
+             exit
+          elseif (equal(word,'q')) then
+             ok = isreal(q(1),sline,lp)
+             ok = ok.and.isreal(q(2),sline,lp)
+             ok = ok.and.isreal(q(3),sline,lp)
+             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/Q',faterr)
+             nq = nq + 1
+             if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
+             qlist(:,nq) = q
+          elseif (equal(word,'line')) then
+             ok = isreal(q1(1),sline,lp)
+             ok = ok.and.isreal(q1(2),sline,lp)
+             ok = ok.and.isreal(q1(3),sline,lp)
+             ok = ok.and.isreal(q2(1),sline,lp)
+             ok = ok.and.isreal(q2(2),sline,lp)
+             ok = ok.and.isreal(q2(3),sline,lp)
+             ok = ok.and.isinteger(npts,sline,lp)
+             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/LINE',faterr)
+             do i = 1, npts
+                q = q1 + real(i-1,8) / real(npts-1,8) * (q2 - q1)
+                nq = nq + 1
+                if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
+                qlist(:,nq) = q
+             end do
+          elseif (equal(word,'mesh')) then
+             ok = isinteger(n(1),sline,lp)
+             ok = ok.and.isinteger(n(2),sline,lp)
+             ok = ok.and.isinteger(n(3),sline,lp)
+             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/MESH',faterr)
+             do i = 1, n(1)
+                do j = 1, n(2)
+                   do k = 1, n(3)
+                      q = (/real(i-1,8)/real(n(1),8), real(j-1,8)/real(n(2),8), real(k-1,8)/real(n(3),8)/)
+                      nq = nq + 1
+                      if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
+                      qlist(:,nq) = q
+                   end do
+                end do
+             end do
+          end if
+       end do
+
+       ! calculate the frequencies and eigenvectors
+       call s%c%vib%end(keepfc2=.true.)
+       do i = 1, nq
+          call s%c%vib%calculate_q(s%c,qlist(:,i))
+       end do
     end if
 
     ! wrap up

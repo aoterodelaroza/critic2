@@ -508,10 +508,12 @@ contains
     if (v%nqpt > size(v%qpt,2)) call realloc(v%qpt,3,2*v%nqpt)
     if (v%nqpt > size(v%freq,2)) call realloc(v%freq,size(v%freq,1),2*v%nqpt)
     if (v%nqpt > size(v%vec,4)) call realloc(v%vec,size(v%vec,1),size(v%vec,2),size(v%vec,3),2*v%nqpt)
+    v%qpt(:,v%nqpt) = q
     v%freq(:,v%nqpt) = freq
     do i = 1, 3*c%ncel
        v%vec(:,:,i,v%nqpt) = reshape(dm(:,i),(/3,c%ncel/))
     end do
+    v%isinit = .true.
 
   end subroutine vibrations_calculate_q
 
