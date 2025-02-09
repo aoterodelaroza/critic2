@@ -1662,7 +1662,7 @@ contains
   !> Update the isys and irep in the edit represenatation window.
   module subroutine update_editrep(w)
     use windows, only: nwin, win, wintype_view
-    use gui_main, only: nsys, sysc, sys_init, ok_system
+    use gui_main, only: sys_init, ok_system
     class(window), intent(inout), target :: w
 
     integer :: isys
@@ -1689,7 +1689,7 @@ contains
     use windows, only: nwin, win, wintype_view
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: nsys, sysc, sys_init, g, ok_system
+    use gui_main, only: sysc, sys_init, g, ok_system
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_calcheight, iw_checkbox
     use tools_io, only: string
@@ -2718,7 +2718,7 @@ contains
   module subroutine draw_exportimage(w)
     use interfaces_opengl3
     use interfaces_stb
-    use gui_main, only: sysc, sys_init, nsys, g, ok_system
+    use gui_main, only: sys_init, g, ok_system
     use windows, only: wintype_dialog, wpurp_dialog_saveimagefile
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, get_current_working_dir,&
        iw_checkbox
@@ -2963,7 +2963,7 @@ contains
     use crystalseedmod, only: crystalseed
     use scenes, only: anim_speed_default, anim_amplitude_default, anim_amplitude_max,&
        anim_speed_max
-    use gui_main, only: sysc, sys, nsys, sys_init, g, add_systems_from_seeds,&
+    use gui_main, only: sysc, sys, sys_init, g, add_systems_from_seeds,&
        launch_initialization_thread, time, ok_system
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_radiobutton

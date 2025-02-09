@@ -2920,21 +2920,18 @@ contains
     use tools, only: mergesort !> si lo pongo aqui no esta fuera no?
     use systemmod, only: sy
     use global, only: iunitname0, dunit0, iunit, eval_next
-    use param, only: bohrtoa
     character*(*), intent(in) :: line0
     ! ok
     logical :: ok, isintra, sort, haveformat
     real*8, allocatable :: fc2(:,:,:,:) ! any size
     integer :: lu, lp, npair
-    integer :: i, j, k, l, count, idum, jdum, n_raw, m_raw
-    integer :: l1, l2, fcidx
+    integer :: i, j, k, idum, jdum, n_raw, m_raw
+    integer :: fcidx
     character(len=:), allocatable :: fc2_file, lword, word
-    character(len=:), allocatable :: firstline, line
-    real*8, dimension(9) :: fc2_ijlist
-    real*8 :: fc_item, disteps, fc2eps, fc2l, fc2factor
-    real*8 :: dist, rdum, maxdisteps, q(3)
+    real*8 :: disteps, fc2eps, fc2factor
+    real*8 :: dist, maxdisteps, q(3)
     real*8, allocatable :: dista(:)
-    integer, allocatable :: idx(:), i2(:,:), pair(:,:), x_map(:,:) ! i2-> pair
+    integer, allocatable :: idx(:), i2(:,:), pair(:,:)
 
     integer, parameter :: imode_unk = 0
     integer, parameter :: imode_print = 1
@@ -3083,18 +3080,17 @@ contains
     !> Calculate the dynamical matrix at reciprocal-space point q
     !> (fractional coordinates).
     subroutine test(q)
-      use param, only: icrd_crys, atmass, tpi, img, cm1tothz
+      use param, only: icrd_crys, atmass, tpi, img
       use tools_math, only: eigherm, eigsym, eig
       real*8, intent(in) :: q(3)
 
       complex*16, allocatable :: dm(:,:)
       real*8, allocatable :: dmreal(:,:)
       complex*16 :: dm_local(3,3), phase
-      real*8 :: sqrt_ij, fcdum(3,3)
-      integer, allocatable :: nneig_nneq(:) ! nneig_nneq: stores the number of neighbors
-      integer :: i_scel, nat, j_neig, dcidx, idum
-      integer, allocatable :: s2nneq(:,:), nida(:), lvec(:,:)
-      real*8 :: x(3), x1(3), x2(3), cut, dd
+      real*8 :: sqrt_ij
+      integer :: nat
+      integer, allocatable :: nida(:), lvec(:,:)
+      real*8 :: x1(3), x2(3)
       real*8, allocatable:: eval(:), evali(:), dist(:), freq(:)
       integer :: i, jj, j
       real*8, allocatable :: rused(:)

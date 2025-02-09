@@ -83,7 +83,7 @@ contains
     type(ImVec2) :: szero, sz
     type(ImVec4) :: col4
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev, isys, iaux, nfreal
+    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev, iaux, nfreal
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -1407,7 +1407,7 @@ contains
        iperiod_3d_layered, iperiod_3d_chain, iperiod_3d_molecular,&
        iperiod_2d, iperiod_1d, iperiod_0d, iperiod_mol_single,&
        iperiod_mol_cluster
-    use gui_main, only: sys, sysc, nsys, sys_init, ColorTableCellBg, ok_system, sys_empty
+    use gui_main, only: sys, sysc, sys_init, ColorTableCellBg, ok_system, sys_empty
     use tools_io, only: string
     use param, only: bohrtoa, maxzat, atmass, pcamu, bohrtocm
     use tools_math, only: gcd
@@ -1592,7 +1592,7 @@ contains
   ! corresponding to system si and field fj
   subroutine tree_field_tooltip_string(si,fj)
     use utils, only: iw_text
-    use gui_main, only: sys, sysc, nsys, sys_init, ok_system
+    use gui_main, only: sys, sys_init, ok_system
     use fieldmod, only: field, type_uninit, type_promol, type_grid, type_wien,&
        type_elk, type_pi, type_wfn, type_dftb, type_promol_frag, type_ghost
     use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_adf_sto,&
@@ -1843,7 +1843,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: oksys, ok, doquit, disabled
-    integer :: isys, i, j, oid, ll, idx, iff, iaux
+    integer :: isys, i, j, ll, idx, iff, iaux
     type(ImVec2) :: szavail, szero
     real(c_float) :: combowidth
     logical(c_bool) :: is_selected, ldum
@@ -2245,7 +2245,7 @@ contains
 
   !> Update the parameters in an scfplot window
   module subroutine update_scfplot(w)
-    use gui_main, only: nsys, sysc, sys_init, ok_system
+    use gui_main, only: sysc, sys_init, ok_system
     class(window), intent(inout), target :: w
 
     integer :: isys
@@ -2836,9 +2836,7 @@ contains
     use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable
-    use global, only: bondfactor_def
     use tools_io, only: string, nameguess
-    use param, only: atmcov0, maxzat0, bohrtoa, newline
     class(window), intent(inout), target :: w
 
     logical :: doquit, dohighlight

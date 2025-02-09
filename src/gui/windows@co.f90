@@ -32,7 +32,7 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: i, curline, ndrawn, idx, idum
-    character(kind=c_char,len=:), allocatable, target :: str1, strpop
+    character(kind=c_char,len=:), allocatable, target :: str1
     type(ImVec2) :: sz, szero, szavail
     logical(c_bool) :: ldum
     logical :: setscroll, skip, pushed, ok

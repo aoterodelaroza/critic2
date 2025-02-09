@@ -28,7 +28,7 @@ contains
        BIND_OK_FOCUSED_DIALOG
     use windows, only: win
     use gui_main, only: add_systems_from_name, launch_initialization_thread,&
-       system_shorten_names, sysc, nsys, sys_init, sys, ok_system
+       system_shorten_names, sys_init, sys, ok_system
     use c_interface_module, only: C_F_string_alloc, c_free
     use tools_io, only: ferror, faterr, fopen_write, fclose, uout
     use param, only: dirsep, bohrtoa

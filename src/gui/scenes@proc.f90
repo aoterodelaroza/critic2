@@ -59,7 +59,7 @@ contains
 
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
-    use gui_main, only: nsys, sys, sysc, lockbehavior, sys_ready, ok_system
+    use gui_main, only: sys, sysc, lockbehavior, sys_ready, ok_system
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
 
@@ -211,7 +211,7 @@ contains
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
     use utils, only: translate
-    use gui_main, only: time, sysc, sys_ready, nsys, ok_system
+    use gui_main, only: time, sys_ready, ok_system
     class(scene), intent(inout), target :: s
 
     integer :: i
@@ -615,9 +615,8 @@ contains
 
     !> Draw the selections
     subroutine draw_all_selections()
-      integer :: i, j, is, id
+      integer :: i, is, id
       real(c_float) :: x(3)
-      logical :: ok
 
       if (s%nhighlight == 0) return
       if (all(s%highlight(1:s%nhighlight)%id == 0)) return
@@ -1144,7 +1143,7 @@ contains
   !> Generate the neighbor stars from the data in the rij table using
   !> the geometry in system isys.
   module subroutine generate_neighstars_from_globals(d,isys)
-    use gui_main, only: nsys, sys, sysc, sys_ready, ok_system
+    use gui_main, only: sys, sys_ready, ok_system
     use param, only: bohrtoa, atmcov, atmvdw
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in) :: isys
@@ -1199,7 +1198,7 @@ contains
   !> = parent scene, isys = system ID, irep = representation ID, style
   !> = phong or simple.
   module subroutine representation_init(r,sc,isys,irep,itype,style,flavor)
-    use gui_main, only: sys, nsys, sysc, sys_ready, ok_system
+    use gui_main, only: sys, sys_ready, ok_system
     use tools_io, only: string
     class(representation), intent(inout), target :: r
     type(scene), intent(inout), target :: sc
@@ -1320,7 +1319,7 @@ contains
   !> Update the representation to respond to a change in the number
   !> of atoms or molecules in the associated system.
   module subroutine update_structure(r)
-    use gui_main, only: nsys, sys, sysc, sys_ready, ok_system
+    use gui_main, only: sys, sys_ready, ok_system
     class(representation), intent(inout), target :: r
 
     logical :: doreset
@@ -1852,7 +1851,7 @@ contains
 
   !> Reset atom style
   module subroutine reset_atom_style(r)
-    use gui_main, only: nsys, sys, sysc, sys_ready, ok_system
+    use gui_main, only: sys, sys_ready, ok_system
     use param, only: jmlcol, atmcov
     class(representation), intent(inout), target :: r
 
@@ -1914,7 +1913,7 @@ contains
   !> Reset molecule style with default values. Use the information in
   !> system isys, or leave it empty if isys = 0.
   module subroutine reset_mol_style(r)
-    use gui_main, only: nsys, sys, sysc, sys_ready, ok_system
+    use gui_main, only: sys, sys_ready, ok_system
     class(representation), intent(inout), target :: r
 
     integer :: isys
@@ -1948,7 +1947,7 @@ contains
   !> flavor. Use the information in system isys, or leave it empty if
   !> isys = 0.
   module subroutine reset_bond_style(r)
-    use gui_main, only: nsys, sys, sysc, sys_ready, ok_system
+    use gui_main, only: sys, sys_ready, ok_system
     use global, only: bondfactor
     class(representation), intent(inout), target :: r
 
@@ -2045,7 +2044,7 @@ contains
   !> Reset label style with default values. Use the information in
   !> system isys, or leave it empty if isys = 0.
   module subroutine reset_label_style(r)
-    use gui_main, only: nsys, sys, sysc, sys_ready, ok_system
+    use gui_main, only: sys, sys_ready, ok_system
     use tools_io, only: nameguess, string
     class(representation), intent(inout), target :: r
 
