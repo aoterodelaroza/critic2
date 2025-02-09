@@ -3575,7 +3575,7 @@ contains
 
     ! header
     if (verbose) &
-       write (uout,'("* VIBRATIONS: reading vibrational frequencies and modes")')
+       write (uout,'("* VIBRATIONS: operations with vibrational frequencies and modes")')
 
     ! checks
     if (.not.s%isinit) &
@@ -3596,6 +3596,10 @@ contains
        call s%c%vib%read_file(s%c,filename,sline,ivformat_unknown,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror("struct_vibrations",errmsg,faterr)
+
+    elseif (equal(word,'clear')) then
+       call s%c%vib%end()
+
     elseif (equal(word,'print')) then
        ! print information from the stored vibration data: get the mode and initialize
        mode = lgetword(line,lp)
