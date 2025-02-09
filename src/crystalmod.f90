@@ -1066,10 +1066,11 @@ module crystalmod
        class(vibrations), intent(inout) :: v
        integer, intent(in) :: id
      end subroutine vibrations_print_freq
-     module subroutine vibrations_print_eigenvector(v,c,ifreq,idq)
+     module subroutine vibrations_print_eigenvector(v,c,ifreq,idq,cartesian)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(in) :: c
        integer, intent(in) :: ifreq, idq
+       logical, intent(in) :: cartesian
      end subroutine vibrations_print_eigenvector
      !xx! xrpd_peaklist type
      module subroutine xrpd_peaklist_end(p)

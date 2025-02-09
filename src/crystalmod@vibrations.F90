@@ -366,16 +366,21 @@ contains
 
   end subroutine vibrations_print_freq
 
-  !> Print information about a particular eigenvector with band index ifreq
-  !> and q-point index idq.
-  module subroutine vibrations_print_eigenvector(v,c,ifreq,idq)
+  !> Print information about a particular eigenvector with band index
+  !> ifreq and q-point index idq. If cartesian, convert to Cartesian
+  !> coordinates by dividing by sqrt(mass); otherwise, mass-weighted
+  !> coordinates (orthonormal eigenvecs).
+  module subroutine vibrations_print_eigenvector(v,c,ifreq,idq,cartesian)
     use tools_io, only: string, ferror, faterr, ioj_right, ioj_center, uout
+    use param, only: atmass
     class(vibrations), intent(inout) :: v
     type(crystal), intent(in) :: c
     integer, intent(in) :: ifreq, idq
+    logical, intent(in) :: cartesian
 
     integer :: i, j, k, nidx
     character*3, parameter :: dir(3) = (/" x "," y "," z "/)
+    complex*16 :: evec
 
     ! header
     write (uout,'("+ PRINT eigenvector for a given q-point and band index")')
@@ -387,7 +392,7 @@ contains
        call ferror('vibrations_print_eigenvector','frequency index out of range',faterr)
     write (uout,'("# q-point (",A,", cryst. coords.) = ",3(A," "))') string(idq),&
        (string(v%qpt(j,idq),'f',decimal=8,justify=ioj_right),j=1,3)
-    write (uout,'("# frequency (",A,") = ",A," cm^-1"))') string(ifreq),&
+    write (uout,'("# frequency (",A,") = ",A," cm^-1")') string(ifreq),&
        string(v%freq(ifreq,idq),'f',decimal=8,justify=ioj_right)
     write (uout,'("# nid = non-equivalent list atomic ID. id = complete list ID plus lattice vector (lvec).")')
     write (uout,'("# name = atomic name. dir = direction. evec = eigenvector, real and imaginary parts.")')
@@ -395,11 +400,13 @@ contains
     do i = 1, c%ncel
        do k = 1, 3
           nidx = c%atcel(i)%idx
+          evec = v%vec(k,i,ifreq,idq)
+          if (cartesian) evec = evec / sqrt(atmass(c%spc(c%atcel(i)%is)%z))
           write (uout,'("  ",99(A," "))') string(nidx,4,ioj_center), string(i,4,ioj_center),&
              string(c%spc(c%atcel(i)%is)%name,7,ioj_center),&
              (string(c%atcel(i)%x(j),'f',length=10,decimal=6),j=1,3),&
-             dir(k), string(real(v%vec(k,i,ifreq,idq),8),'e',18,10,ioj_right),&
-             string(aimag(v%vec(1,i,ifreq,idq)),'e',18,10,ioj_right)
+             dir(k), string(real(evec,8),'e',18,10,ioj_right),&
+             string(aimag(evec),'e',18,10,ioj_right)
        end do
     end do
 

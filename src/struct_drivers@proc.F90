@@ -3571,7 +3571,7 @@ contains
     character(len=:), allocatable :: filename, word, mode, sline, errmsg
     integer :: lp, lpo, idq, ifreq
     real*8 :: disteps, fc2eps, q(3)
-    logical :: ok, environ
+    logical :: ok, environ, cartesian
 
     ! header
     if (verbose) &
@@ -3602,6 +3602,7 @@ contains
        disteps = huge(1d0)
        fc2eps = 0d0
        environ = .false.
+       cartesian = .false.
 
        ! parse the options
        do while (.true.)
@@ -3617,6 +3618,8 @@ contains
                 call ferror('struct_vibrations','Error reading FC2EPS',faterr,syntax=.true.)
           elseif (equal(word,'environ')) then
              environ = .true.
+          elseif (equal(word,'cartesian')) then
+             cartesian = .true.
           else
              lp = lpo
              exit
@@ -3639,7 +3642,7 @@ contains
           call readq()
           if (idq <= 0) &
              call ferror('vibrations_print_freq','q-point not found; use PRINT SUMMARY',faterr)
-          call s%c%vib%print_eigenvector(s%c,ifreq,idq)
+          call s%c%vib%print_eigenvector(s%c,ifreq,idq,cartesian)
        end if
     end if
 
