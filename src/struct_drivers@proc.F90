@@ -3569,7 +3569,7 @@ contains
     logical, intent(in) :: verbose
 
     character(len=:), allocatable :: filename, word, mode, sline, errmsg
-    integer :: lp, lpo, id
+    integer :: lp, lpo, idq, ifreq
     real*8 :: disteps, fc2eps, q(3)
     logical :: ok, environ
 
@@ -3629,27 +3629,50 @@ contains
        elseif (equal(mode,'fc2')) then
           call s%c%vib%print_fc2(s%c,disteps,fc2eps,environ)
        elseif (equal(mode,'freq').or.equal(mode,'frequency').or.equal(mode,'frequencies')) then
-          lpo = lp
-          ok = eval_next(q(1),line,lp)
-          ok = ok .and. eval_next(q(2),line,lp)
-          ok = ok .and. eval_next(q(3),line,lp)
-          if (ok) then
-             call s%c%vib%print_freq(q=q)
-          else
-             lp = lpo
-             ok = isinteger(id,line,lp)
-             if (ok) then
-                call s%c%vib%print_freq(id=id)
-             else
-                call ferror('struct_vibrations','Error reading PRINT FREQ options',faterr,syntax=.true.)
-             end if
-          end if
+          call readq()
+          if (idq <= 0) &
+             call ferror('vibrations_print_freq','q-point not found; use PRINT SUMMARY',faterr)
+          call s%c%vib%print_freq(idq)
+       elseif (equal(mode,'eigenvector').or.equal(mode,'eigenvectors')) then
+          if (.not.isinteger(ifreq,line,lp)) &
+             call ferror('struct_vibrations','Error reading freq index in PRINT EIGENVECTOR',faterr,syntax=.true.)
+          call readq()
+          if (idq <= 0) &
+             call ferror('vibrations_print_freq','q-point not found; use PRINT SUMMARY',faterr)
+          call s%c%vib%print_eigenvector(s%c,ifreq,idq)
        end if
     end if
 
     ! wrap up
-    write (uout,*)
+    if (verbose) &
+       write (uout,*)
 
+  contains
+    !> Read a q-point, either from coordinates or from ID. Returns idq = -1
+    !> if not found.
+    subroutine readq()
+      real*8, parameter :: eps = 1d-3
+      integer :: i
+
+      idq = -1
+      lpo = lp
+      ok = eval_next(q(1),line,lp)
+      ok = ok .and. eval_next(q(2),line,lp)
+      ok = ok .and. eval_next(q(3),line,lp)
+      if (ok) then
+         do i = 1, s%c%vib%nqpt
+            if (all(abs(q - s%c%vib%qpt(:,i)) < eps)) then
+               idq = i
+               return
+            end if
+         end do
+      else
+         lp = lpo
+         ok = isinteger(idq,line,lp)
+         if (.not.ok) idq = -1
+      end if
+
+    end subroutine readq
   end subroutine struct_vibrations
 
   !> Try to determine the molecular cell from the crystal geometry

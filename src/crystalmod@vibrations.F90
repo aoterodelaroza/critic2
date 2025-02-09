@@ -255,7 +255,7 @@ contains
        ! print the whole fc2 matrix
        write (uout,'("# Id1,Id2 = complete cell IDs. At1,At2 = atomic symbols. isintra = is intramolecular?")')
        write (uout,'("# norm = Frobenius norm FC2. xx,... = FC2 components")')
-       write (uout,'("# All FC2 in Hartre/bohr^2.")')
+       write (uout,'("# All FC2 in Hartree/bohr^2.")')
        write (uout,'("# Id1 At1  Id2 At2  dist(bohr) isintra FC2: norm      xx              xy              xz   &
           &           yx              yy              yz              zx              zy              zz   ")')
        k = 0
@@ -303,7 +303,7 @@ contains
           write (uout,'("# nid = non-equivalent list atomic ID. id = complete list ID plus lattice vector (lvec).")')
           write (uout,'("# name = atomic name. dist = distance. isintra = is intramolecular?")')
           write (uout,'("# norm = Frobenius norm FC2. xx,... = FC2 components")')
-          write (uout,'("# All FC2 in Hartre/bohr^2.")')
+          write (uout,'("# All FC2 in Hartree/bohr^2.")')
           write (uout,'("#nid   id      lvec     name  dist(",A,")  isintra FC2: norm        xx              &
              &xy              xz              yx              yy              yz              &
              &zx              zy              zz")') iunitname0(iunit)
@@ -339,44 +339,71 @@ contains
 
   end subroutine vibrations_print_fc2
 
-  !> Print frequency information about a particular q-point.
-  module subroutine vibrations_print_freq(v,id,q)
+  !> Print frequency information about a particular q-point with given
+  !> id.
+  module subroutine vibrations_print_freq(v,id)
     use tools_io, only: uout, ferror, faterr, string, ioj_right
     class(vibrations), intent(inout) :: v
-    integer, intent(in), optional :: id
-    real*8, intent(in), optional :: q(3)
+    integer, intent(in) :: id
 
-    integer :: i, j, id_
-    real*8, parameter :: eps = 1d-3
+    integer :: i, j
 
     ! header
     write (uout,'("+ PRINT frequency info for a given q-point")')
 
-    ! find the q-point id
-    if (present(id)) then
-       if (id <= 0 .or. id > v%nqpt) &
-          call ferror('vibrations_print_freq','q-point index out of range',faterr)
-       id_ = id
-    elseif (present(q)) then
-       id_ = 0
-       do i = 1, v%nqpt
-          if (all(abs(q - v%qpt(:,i)) < eps)) then
-             id_ = i
-             exit
-          end if
-       end do
-       if (id_ == 0) &
-          call ferror('vibrations_print_freq','q-point not found; use PRINT SUMMARY',faterr)
-    end if
-    write (uout,'("# q-point (",A,") = ",3(A," "))') string(id_), (string(v%qpt(j,id_),'f',14,8,ioj_right),j=1,3)
+    ! check the q-point id
+    if (id <= 0 .or. id > v%nqpt) &
+       call ferror('vibrations_print_freq','q-point index out of range',faterr)
+    write (uout,'("# q-point (",A,", cryst. coords.) = ",3(A," "))') string(id), &
+       (string(v%qpt(j,id),'f',decimal=8,justify=ioj_right),j=1,3)
 
     ! write the info
-    write (uout,'("# List of frequencies (cm^-1): ",A)') string(v%nfreq)
+    write (uout,'("# List of frequencies: ",A)') string(v%nfreq)
+    write (uout,'("#Id      Frequency(cm^-1)")')
     do i = 1, v%nfreq
-       write (uout,'(4(A," "))') string(i,5), string(v%freq(i,id_),'f',14,8,ioj_right)
+       write (uout,'(4(A," "))') string(i,5), string(v%freq(i,id),'f',decimal=8,justify=ioj_right)
     end do
 
   end subroutine vibrations_print_freq
+
+  !> Print information about a particular eigenvector with band index ifreq
+  !> and q-point index idq.
+  module subroutine vibrations_print_eigenvector(v,c,ifreq,idq)
+    use tools_io, only: string, ferror, faterr, ioj_right, ioj_center, uout
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
+    integer, intent(in) :: ifreq, idq
+
+    integer :: i, j, k, nidx
+    character*3, parameter :: dir(3) = (/" x "," y "," z "/)
+
+    ! header
+    write (uout,'("+ PRINT eigenvector for a given q-point and band index")')
+
+    ! check the q-point idq
+    if (idq <= 0 .or. idq > v%nqpt) &
+       call ferror('vibrations_print_eigenvector','q-point index out of range',faterr)
+    if (ifreq <= 0 .or. ifreq > v%nfreq) &
+       call ferror('vibrations_print_eigenvector','frequency index out of range',faterr)
+    write (uout,'("# q-point (",A,", cryst. coords.) = ",3(A," "))') string(idq),&
+       (string(v%qpt(j,idq),'f',decimal=8,justify=ioj_right),j=1,3)
+    write (uout,'("# frequency (",A,") = ",A," cm^-1"))') string(ifreq),&
+       string(v%freq(ifreq,idq),'f',decimal=8,justify=ioj_right)
+    write (uout,'("# nid = non-equivalent list atomic ID. id = complete list ID plus lattice vector (lvec).")')
+    write (uout,'("# name = atomic name. dir = direction. evec = eigenvector, real and imaginary parts.")')
+    write (uout,'("#nid   id     name  ---      cryst. coords.     ---  dir   evec(real)         evec(imag) ")')
+    do i = 1, c%ncel
+       do k = 1, 3
+          nidx = c%atcel(i)%idx
+          write (uout,'("  ",99(A," "))') string(nidx,4,ioj_center), string(i,4,ioj_center),&
+             string(c%spc(c%atcel(i)%is)%name,7,ioj_center),&
+             (string(c%atcel(i)%x(j),'f',length=10,decimal=6),j=1,3),&
+             dir(k), string(real(v%vec(k,i,ifreq,idq),8),'e',18,10,ioj_right),&
+             string(aimag(v%vec(1,i,ifreq,idq)),'e',18,10,ioj_right)
+       end do
+    end do
+
+  end subroutine vibrations_print_eigenvector
 
   !xx! private procedures
 
