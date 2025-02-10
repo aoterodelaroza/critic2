@@ -112,6 +112,7 @@ module crystalmod
      procedure :: print_eigenvector => vibrations_print_eigenvector !< print eigvec info
      procedure :: read_file => vibrations_read_file !< read a vib file, detect the format
      procedure :: calculate_q => vibrations_calculate_q !< calculate freqs and vec for a single q
+     procedure :: calculate_thermo => vibrations_calculate_thermo !< calculate thermodynamic properties
   end type vibrations
   public :: vibrations
 
@@ -1079,6 +1080,11 @@ module crystalmod
        type(crystal), intent(inout) :: c
        real*8, intent(in) :: q(3)
      end subroutine vibrations_calculate_q
+     module subroutine vibrations_calculate_thermo(v,t,zpe,fvib,svib,cv)
+       class(vibrations), intent(inout) :: v
+       real*8, intent(in) :: t
+       real*8, intent(out) :: zpe, fvib, svib, cv
+     end subroutine vibrations_calculate_thermo
      !xx! xrpd_peaklist type
      module subroutine xrpd_peaklist_end(p)
        class(xrpd_peaklist), intent(inout) :: p

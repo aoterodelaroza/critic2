@@ -3563,7 +3563,7 @@ contains
   module subroutine struct_vibrations(s,line,verbose)
     use global, only: eval_next
     use tools_io, only: uout, lgetword, getword, ferror, faterr, equal, isreal, isinteger,&
-       uin, ucopy, getline
+       uin, ucopy, getline, string, ioj_right
     use types, only: realloc
     use param, only: ivformat_unknown
     type(system), intent(inout) :: s
@@ -3572,7 +3572,8 @@ contains
 
     character(len=:), allocatable :: filename, word, mode, sline, errmsg
     integer :: lp, lpo, idq, ifreq, npts, n(3)
-    real*8 :: disteps, fc2eps, q(3), q1(3), q2(3)
+    real*8 :: disteps, fc2eps, q(3), q1(3), q2(3), tini, tend, t
+    real*8 :: zpe, fvib, svib, cv
     logical :: ok, environ, cartesian
     integer :: nq, i, j, k
     real*8, allocatable :: qlist(:,:)
@@ -3681,7 +3682,7 @@ contains
              ok = ok.and.isinteger(npts,sline,lp)
              if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/LINE',faterr)
              do i = 1, npts
-                q = q1 + real(i-1,8) / real(npts-1,8) * (q2 - q1)
+                q = q1 + real(i-1,8) / real(max(npts-1,1),8) * (q2 - q1)
                 nq = nq + 1
                 if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
                 qlist(:,nq) = q
@@ -3709,6 +3710,31 @@ contains
        do i = 1, nq
           call s%c%vib%calculate_q(s%c,qlist(:,i))
        end do
+    elseif (equal(word,'thermo')) then
+       ok = isreal(tini,line,lp)
+       if (.not.ok) &
+          call ferror('struct_vibrations','Error reading temperature in THERMO',faterr,syntax=.true.)
+       if (ok) then
+          lpo = lp
+          ok = isreal(tend,line,lp)
+          ok = ok .and. isinteger(npts,line,lp)
+          if (.not.ok) then
+             lp = lpo
+             tend = tini
+             npts = 1
+          end if
+          write (uout,'("+ Calculation of thermodynamic properties in the harmonic approximation (THERMO)")')
+          write (uout,'("# Number of frequencies = ",A)') string(s%c%vib%nfreq * s%c%vib%nqpt)
+          write (uout,'("# T in K, ZPE and Fvib in kJ/mol, Svib and CV in J/K/mol.")')
+          write (uout,'("##  Temperature      ZPE              Fvib             Svib             CV")')
+          do i = 1, npts
+             t = tini + real(i-1,8) / real(max(npts-1,1),8) * (tend - tini)
+             call s%c%vib%calculate_thermo(t,zpe,fvib,svib,cv)
+             write (uout,'("  ",99(A," "))') string(t,'f',10,3,ioj_right),&
+                string(zpe,'f',16,7,ioj_right), string(fvib,'f',16,7,ioj_right),&
+                string(svib,'f',16,7,ioj_right), string(cv,'f',16,7,ioj_right)
+          end do
+       end if
     end if
 
     ! wrap up

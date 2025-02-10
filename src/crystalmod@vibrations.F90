@@ -517,6 +517,83 @@ contains
 
   end subroutine vibrations_calculate_q
 
+  !> Calculate thermodynamic properties at temperature T using the
+  !> vibrational frequencies in v. The routine assumes the frequencies
+  !> have all equal weight (i.e. it is a mesh)
+  module subroutine vibrations_calculate_thermo(v,t,zpe,fvib,svib,cv)
+    use tools_io, only: ferror, faterr
+    class(vibrations), intent(inout) :: v
+    real*8, intent(in) :: t
+    real*8, intent(out) :: zpe, fvib, svib, cv
+
+    integer :: i, j, ncount
+    real*8 :: zpe, fvib, svib, cv, nu, x, y, nut, nue, rt, ff, l1mx, nutdiv
+    real*8 :: ym1
+    real*8, parameter :: cutoff_frequency = 1d0 ! cutoff frequency, cm-1
+
+    real*8, parameter :: cminv_to_kJmol = 1.196265656955833d-02 ! c * h * NA / 10
+    real*8, parameter :: cminv_to_K = 1.438776959983815d0 ! c * h * 100 / kb
+    real*8, parameter :: R = 8.314462618d0 ! molar gas constant (kB/NA, J/K/mol)
+    real*8, parameter :: small1 = 50000d0 * cminv_to_K / huge(1d0) ! protection against zerodiv in nu/(kB*T)
+    real*8, parameter :: small2 = 0.5d0 * log(huge(1d0)) ! protection against overflow in exp(nu/kB*T)**2
+    real*8, parameter :: small3 = sqrt(1d0 / huge(1d0)) ! protection against 1/(e^(nu/kt)-1)^2 overflow
+
+    ! calculate the thermodynamic properties
+    zpe = 0d0
+    fvib = 0d0
+    svib = 0d0
+    cv = 0d0
+    ncount = 0
+    do i = 1, v%nqpt
+       do j = 1, v%nfreq
+          ! prepare and cycle if this is a low frequency
+          nu = v%freq(j,i)
+          nut = nu * cminv_to_K      ! frequency in K
+          nue = nu * cminv_to_kJmol ! frequency in kJ/mol
+          rt = R / 1000d0 * t        ! RT in kJ/mol
+          if (nu < cutoff_frequency) cycle
+          ncount = ncount + 1
+
+          ! some quantities we will need, with protection
+          if (t < small1) then
+             x = 0d0
+          else
+             nutdiv = nut / t
+             x = exp(-nutdiv)
+          end if
+          l1mx = log(1d0 - x)
+
+          ! fvib and zpe calculation
+          zpe = zpe + 0.5d0 * nue
+          fvib = fvib + 0.5d0 * nue + rt * log(1d0 - x)
+
+          ! svib
+          if (t > small1) then
+             svib = svib + R * (-l1mx + nutdiv * x / (1d0 - x))
+          end if
+
+          ! cv
+          if (nutdiv <= small2) then
+             y = exp(nutdiv)
+             ym1 = y - 1
+             if (ym1 >= small3) then
+                cv = cv + R * nutdiv * nutdiv * y / ((y-1) * (y-1))
+             end if
+          end if
+       end do
+    end do
+    if (ncount == 0) &
+       call ferror('vibrations_calculate_thermo','no frequencies available for THERMO',faterr)
+
+    ! renormalize after taking out the zero frequencies
+    ff = real(v%nfreq,8) / real(ncount,8)
+    zpe = zpe * ff
+    fvib = fvib * ff
+    svib = svib * ff
+    cv = cv * ff
+
+  end subroutine vibrations_calculate_thermo
+
   !xx! private procedures
 
   !> Detect the format for a file containing molecular or
