@@ -1415,9 +1415,9 @@ contains
     do idum = 1, c%ncel
        do jdum = 1, c%ncel
           read (lu,*,err=999,end=999) i, j
-          read (lu,*,err=999,end=999) v%fc2(1,1,i,j), v%fc2(2,1,i,j), v%fc2(3,1,i,j)
-          read (lu,*,err=999,end=999) v%fc2(1,2,i,j), v%fc2(2,2,i,j), v%fc2(3,2,i,j)
-          read (lu,*,err=999,end=999) v%fc2(1,3,i,j), v%fc2(2,3,i,j), v%fc2(3,3,i,j)
+          read (lu,*,err=999,end=999) v%fc2(1,1,i,j), v%fc2(1,2,i,j), v%fc2(1,3,i,j)
+          read (lu,*,err=999,end=999) v%fc2(2,1,i,j), v%fc2(2,2,i,j), v%fc2(2,3,i,j)
+          read (lu,*,err=999,end=999) v%fc2(3,1,i,j), v%fc2(3,2,i,j), v%fc2(3,3,i,j)
        end do
     end do
     v%fc2 = v%fc2 * fc2factor
