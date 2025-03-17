@@ -1599,6 +1599,9 @@ contains
        ! advance to the next frequencies header
        ok = .false.
        do while (getline_raw(lu,line,.false.))
+          if (len(line) >= 30) then
+             if (index(line," Harmonic frequencies (cm**-1)") > 0) nread = 0
+          end if
           if (len(line) >= 15) then
              if (index(line," Frequencies --") > 0) then
                 ok = .true.
