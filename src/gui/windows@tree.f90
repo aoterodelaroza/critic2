@@ -2842,7 +2842,7 @@ contains
 
     logical :: doquit, dohighlight
     logical(c_bool) :: is_selected
-    integer(c_int) :: flags, ntype, ncol
+    integer(c_int) :: flags, ntype, ncol, ndigit
     character(kind=c_char,len=:), allocatable, target :: str1, str2, suffix
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
@@ -3033,6 +3033,9 @@ contains
              clipper = ImGuiListClipper_ImGuiListClipper()
              call ImGuiListClipper_Begin(clipper,ntype,-1._c_float)
 
+             ! calculate the number of digits for output
+             ndigit = ceiling(log10(ntype+0.1d0))
+
              ! draw the rows
              do while(ImGuiListClipper_Step(clipper))
                 call c_f_pointer(clipper,clipper_f)
@@ -3076,7 +3079,7 @@ contains
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
                       call igAlignTextToFramePadding()
-                      call iw_text(string(i))
+                      call iw_text(string(i,ndigit))
 
                       ! the highlight selectable
                       if (iview > 0 .and. iw_highlight_selectable("##selectablemoltable" // suffix)) then
@@ -3195,6 +3198,17 @@ contains
           call igEndTabItem()
        end if
 
+       !! cell tab !!
+       if (.not.sys(isys)%c%ismolecule) then
+          str2 = "Cell##drawgeometry_celltab" // c_null_char
+          flags = ImGuiTabItemFlags_None
+          if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+             call iw_text("blah")
+             call igEndTabItem()
+          end if
+       end if
+
+       !! molecules tab !!
        str2 = "Molecules##drawgeometry_molstab" // c_null_char
        flags = ImGuiTabItemFlags_None
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
@@ -3202,6 +3216,7 @@ contains
           call igEndTabItem()
        end if
 
+       !! bonds tab !!
        str2 = "Bonds##drawgeometry_bondstab" // c_null_char
        flags = ImGuiTabItemFlags_None
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
