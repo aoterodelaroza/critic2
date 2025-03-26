@@ -2334,6 +2334,28 @@ contains
                 call igEndTable()
              end if ! begintable
 
+             ! style buttons: show/hide
+             if (iw_button("Show All##showallbonds")) then
+                w%rep%bond_style%shown_g = .true.
+                ch = .true.
+             end if
+             call iw_tooltip("Show all bonds in the system",ttshown)
+             if (iw_button("Hide All##hideallbonds",sameline=.true.)) then
+                w%rep%bond_style%shown_g = .false.
+                ch = .true.
+             end if
+             call iw_tooltip("Hide all bonds in the system",ttshown)
+             if (iw_button("Toggle Show/Hide##toggleallatoms",sameline=.true.)) then
+                do i = 1, sys(isys)%c%nspc
+                   do j = i, sys(isys)%c%nspc
+                      w%rep%bond_style%shown_g(j,i) = .not.w%rep%bond_style%shown_g(j,i)
+                      w%rep%bond_style%shown_g(i,j) = w%rep%bond_style%shown_g(j,i)
+                   end do
+                end do
+                ch = .true.
+             end if
+             call iw_tooltip("Toggle the show/hide status for all bonds",ttshown)
+
              ! immediately update if non-distances have changed
              if (ch) changed = .true.
 
@@ -3560,7 +3582,7 @@ contains
              if (showdrawopts) then
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
-                   ch = iw_coloredit3("##tablecolor" // suffix,r%atom_style%rgb(:,i),nolabel=.true.)
+                   ch = iw_coloredit3("##tablecolor" // suffix,r%atom_style%rgb(:,i))
                    call iw_tooltip("Atom color",ttshown)
                    if (ch) then
                       r%atom_style%rgb(:,i) = min(r%atom_style%rgb(:,i),1._c_float)
@@ -3754,7 +3776,7 @@ contains
                 if (showdrawopts) then
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
-                      ch = iw_coloredit3("##tablemolcolor" // string(i),r%mol_style%tint_rgb(:,i),nolabel=.true.)
+                      ch = iw_coloredit3("##tablemolcolor" // string(i),r%mol_style%tint_rgb(:,i))
                       call iw_tooltip("Molecule color tint",ttshown)
                       if (ch) then
                          r%mol_style%tint_rgb(:,i) = min(r%mol_style%tint_rgb(:,i),1._c_float)
