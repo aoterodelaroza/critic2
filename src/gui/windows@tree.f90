@@ -2837,20 +2837,29 @@ contains
     use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit3
-    use tools_io, only: string, nameguess
+    use global, only: dunit0, iunit_ang
+    use tools_io, only: string, nameguess, ioj_right
     class(window), intent(inout), target :: w
 
     logical :: domol
     logical :: doquit, dohighlight
     logical(c_bool) :: is_selected
-    integer(c_int) :: flags, ntype, ncol, ndigit, ndigitm
-    character(kind=c_char,len=:), allocatable, target :: str1, str2, suffix
+    integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm
+    character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
     integer :: i, j, isys, icol, ispc, iz, iview
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, ldum
+    real*8 :: x0(3)
+
+    ! logical(c_bool) :: ch
+    ! integer(c_int) :: flags
+    ! character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3, suffix
+    ! type(ImVec2) :: sz0
+    ! integer :: ispc, i, iz, ncol
+
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -2873,22 +2882,8 @@ contains
     end if
     isys = w%isys
 
-    ! associate a view to highlight the atoms
-    iview = 0
-    if (isys == win(iwin_view)%view_selected) then
-       iview = iwin_view
-    else
-       do i = 1, nwin
-          if (.not.win(i)%isinit) cycle
-          if (win(i)%type /= wintype_view.or..not.associated(win(i)%sc)) cycle
-          if (isys == win(i)%view_selected) then
-             iview = i
-             exit
-          end if
-       end do
-    end if
-
     ! system combo
+    atompreflags = ImGuiTabItemFlags_None
     call iw_text("System",highlight=.true.)
     call igSameLine(0._c_float,-1._c_float)
     call igGetContentRegionAvail(szavail)
@@ -2904,6 +2899,7 @@ contains
              if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
                 w%isys = i
                 isys = w%isys
+                atompreflags = ImGuiTabItemFlags_SetSelected
              end if
              if (is_selected) &
                 call igSetItemDefaultFocus()
@@ -2913,24 +2909,30 @@ contains
     end if
     call iw_tooltip("Recalculate the bonds in this system",ttshown)
 
+    ! associate a view to highlight the atoms
+    iview = 0
+    if (isys == win(iwin_view)%view_selected) then
+       iview = iwin_view
+    else
+       do i = 1, nwin
+          if (.not.win(i)%isinit) cycle
+          if (win(i)%type /= wintype_view.or..not.associated(win(i)%sc)) cycle
+          if (isys == win(i)%view_selected) then
+             iview = i
+             exit
+          end if
+       end do
+    end if
+
     ! show the tabs
     str1 = "##drawgeometry_tabbar" // c_null_char
     flags = ImGuiTabBarFlags_Reorderable
-    flags = ior(flags,ImGuiTabBarFlags_AutoSelectNewTabs)
     call igBeginGroup()
     if (igBeginTabBar(c_loc(str1),flags)) then
        !! atoms tab !!
        str2 = "Atoms##drawgeometry_atomstab" // c_null_char
-       flags = ImGuiTabItemFlags_None
+       flags = atompreflags
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
-
-    ! logical(c_bool) :: ch
-    ! integer(c_int) :: flags
-    ! character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3, suffix
-    ! real*8 :: x0(3)
-    ! type(ImVec2) :: sz0
-    ! integer :: ispc, i, iz, ncol
-
           ! selector and reset
           if (.not.sys(isys)%c%ismolecule) then
              call iw_combo_simple("Group atom types##atomtypeselectgeom","Species"//c_null_char//&
@@ -2954,10 +2956,8 @@ contains
 
           ! number of columns
           ncol = 3
-    ! if (showselection) ncol = ncol + 1 ! show
-    ! if (showdrawopts) ncol = ncol + 2 ! col, radius
           if (domol) ncol = ncol + 1 ! mol
-    ! if (r%atom_style%type > 0) ncol = ncol + 1 ! coordinates
+          if (w%geometry_atomtype > 0) ncol = ncol + 1 ! coordinates
 
           ! atom style table, for atoms
           flags = ImGuiTableFlags_None
@@ -2996,16 +2996,16 @@ contains
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
              end if
 
-    !    if (r%atom_style%type > 0) then
-    !       icol = icol + 1
-    !       if (c%ismolecule) then
-    !          str2 = "Coordinates (Å)" // c_null_char
-    !       else
-    !          str2 = "Coordinates (fractional)" // c_null_char
-    !       end if
-    !       flags = ImGuiTableColumnFlags_WidthStretch
-    !       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
-    !    end if
+             if (w%geometry_atomtype > 0) then
+                icol = icol + 1
+                if (sys(isys)%c%ismolecule) then
+                   str2 = "Coordinates (Å)" // c_null_char
+                else
+                   str2 = "Coordinates (fractional)" // c_null_char
+                end if
+                flags = ImGuiTableColumnFlags_WidthStretch
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             end if
 
              ! draw the header
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
@@ -3093,25 +3093,25 @@ contains
                       if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%idatcelmol(1,i),ndigitm))
                    end if
 
-    !          ! rest of info
-    !          if (r%atom_style%type > 0) then
-    !             icol = icol + 1
-    !             if (igTableSetColumnIndex(icol)) then
-    !                s = ""
-    !                if (r%atom_style%type > 0) then
-    !                   if (c%ismolecule) then
-    !                      x0 = (c%atcel(i)%r+c%molx0) * dunit0(iunit_ang)
-    !                   elseif (r%atom_style%type == 1) then
-    !                      x0 = c%at(i)%x
-    !                   else
-    !                      x0 = c%atcel(i)%x
-    !                   endif
-    !                   s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
-    !                      string(x0(3),'f',8,4,ioj_right)
-    !                end if
-    !                call iw_text(s)
-    !             end if
-    !          end if
+                   ! coordinates
+                   if (w%geometry_atomtype > 0) then
+                      icol = icol + 1
+                      if (igTableSetColumnIndex(icol)) then
+                         s = ""
+                         if (w%geometry_atomtype > 0) then
+                            if (sys(isys)%c%ismolecule) then
+                               x0 = (sys(isys)%c%atcel(i)%r+sys(isys)%c%molx0) * dunit0(iunit_ang)
+                            elseif (w%geometry_atomtype == 1) then
+                               x0 = sys(isys)%c%at(i)%x
+                            else
+                               x0 = sys(isys)%c%atcel(i)%x
+                            endif
+                            s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
+                               string(x0(3),'f',8,4,ioj_right)
+                         end if
+                         call iw_text(s)
+                      end if
+                   end if
                 end do ! clipper indices
              end do ! clipper step
 
