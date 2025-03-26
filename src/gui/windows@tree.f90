@@ -2840,9 +2840,10 @@ contains
     use tools_io, only: string, nameguess
     class(window), intent(inout), target :: w
 
+    logical :: domol
     logical :: doquit, dohighlight
     logical(c_bool) :: is_selected
-    integer(c_int) :: flags, ntype, ncol, ndigit
+    integer(c_int) :: flags, ntype, ncol, ndigit, ndigitm
     character(kind=c_char,len=:), allocatable, target :: str1, str2, suffix
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
@@ -2923,7 +2924,6 @@ contains
        flags = ImGuiTabItemFlags_None
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
 
-    ! logical :: domol
     ! logical(c_bool) :: ch
     ! integer(c_int) :: flags
     ! character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3, suffix
@@ -2949,12 +2949,14 @@ contains
              ntype = sys(isys)%c%ncel
           end if
 
-    ! ! whether to do the molecule column
-    ! domol = (r%atom_style%type == 2 .or. (r%atom_style%type == 1 .and. c%ismolecule))
+          ! whether to do the molecule column
+          domol = (w%geometry_atomtype == 2 .or. (w%geometry_atomtype == 1 .and. sys(isys)%c%ismolecule))
+
+          ! number of columns
           ncol = 3
     ! if (showselection) ncol = ncol + 1 ! show
     ! if (showdrawopts) ncol = ncol + 2 ! col, radius
-    ! if (domol) ncol = ncol + 1 ! mol
+          if (domol) ncol = ncol + 1 ! mol
     ! if (r%atom_style%type > 0) ncol = ncol + 1 ! coordinates
 
           ! atom style table, for atoms
@@ -2987,31 +2989,12 @@ contains
              flags = ImGuiTableColumnFlags_None
              call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
 
-    !    if (showselection) then
-    !       icol = icol + 1
-    !       str2 = "Show" // c_null_char
-    !       flags = ImGuiTableColumnFlags_None
-    !       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
-    !    end if
-
-    !    if (showdrawopts) then
-    !       icol = icol + 1
-    !       str2 = "Col" // c_null_char
-    !       flags = ImGuiTableColumnFlags_None
-    !       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
-
-    !       icol = icol + 1
-    !       str2 = "Radius" // c_null_char
-    !       flags = ImGuiTableColumnFlags_None
-    !       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
-    !    end if
-
-    !    if (domol) then
-    !       icol = icol + 1
-    !       str2 = "Mol" // c_null_char
-    !       flags = ImGuiTableColumnFlags_None
-    !       call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
-    !    end if
+             if (domol) then
+                icol = icol + 1
+                str2 = "Mol" // c_null_char
+                flags = ImGuiTableColumnFlags_None
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             end if
 
     !    if (r%atom_style%type > 0) then
     !       icol = icol + 1
@@ -3035,6 +3018,8 @@ contains
 
              ! calculate the number of digits for output
              ndigit = ceiling(log10(ntype+0.1d0))
+             ndigitm = 0
+             if (domol) ndigitm = ceiling(log10(sys(isys)%c%nmol+0.1d0))
 
              ! draw the rows
              do while(ImGuiListClipper_Step(clipper))
@@ -3101,51 +3086,12 @@ contains
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) call iw_text(string(iz))
 
-    !          ! shown
-    !          if (showselection) then
-    !             icol = icol + 1
-    !             if (igTableSetColumnIndex(icol)) then
-    !                changed = changed .or. iw_checkbox("##tableshown" // suffix ,r%atom_style%shown(i))
-    !                call iw_tooltip("Toggle display of the atom/bond/label associated to this atom",ttshown)
-    !             end if
-    !          end if
-
-    !          ! color
-    !          if (showdrawopts) then
-    !             icol = icol + 1
-    !             if (igTableSetColumnIndex(icol)) then
-    !                ch = iw_coloredit3("##tablecolor" // suffix,r%atom_style%rgb(:,i),nolabel=.true.)
-    !                call iw_tooltip("Atom color",ttshown)
-    !                if (ch) then
-    !                   r%atom_style%rgb(:,i) = min(r%atom_style%rgb(:,i),1._c_float)
-    !                   r%atom_style%rgb(:,i) = max(r%atom_style%rgb(:,i),0._c_float)
-    !                   changed = .true.
-    !                end if
-    !             end if
-
-    !             ! radius
-    !             icol = icol + 1
-    !             if (igTableSetColumnIndex(icol)) then
-    !                str2 = "##tableradius" // suffix // c_null_char
-    !                str3 = "%.3f" // c_null_char
-    !                call igPushItemWidth(iw_calcwidth(5,1))
-    !                ch = igDragFloat(c_loc(str2),r%atom_style%rad(i),0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
-    !                   ImGuiSliderFlags_AlwaysClamp)
-    !                call iw_tooltip("Radius of the sphere representing the atom",ttshown)
-    !                if (ch) then
-    !                   r%atom_style%rad(i) = max(r%atom_style%rad(i),0._c_float)
-    !                   changed = .true.
-    !                end if
-    !                call igPopItemWidth()
-    !             end if
-    !          end if
-
-    !          ! molecule
-    !          if (domol) then
-    !             icol = icol + 1
-    !             ! i is a complete list index in this case
-    !             if (igTableSetColumnIndex(icol)) call iw_text(string(c%idatcelmol(1,i)))
-    !          end if
+                   ! molecule
+                   if (domol) then
+                      icol = icol + 1
+                      ! i is a complete list index in this case
+                      if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%idatcelmol(1,i),ndigitm))
+                   end if
 
     !          ! rest of info
     !          if (r%atom_style%type > 0) then
