@@ -3139,7 +3139,7 @@ contains
           do i = 1, 3
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
-             read (lu,*,iostat=ios) (r(i,j),j=1,3)
+             read (line,*,iostat=ios) (r(i,j),j=1,3)
              if (ios/=0) goto 999
           end do
        endif
