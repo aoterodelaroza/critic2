@@ -2830,6 +2830,7 @@ contains
     integer :: nattot
     real(dp), allocatable :: tautot(:,:)
     integer, allocatable :: ityptot(:)
+    logical :: ok
 
     integer, parameter :: ntypx = 10
     integer, parameter :: nsx = ntypx
@@ -3079,16 +3080,18 @@ contains
        lp = 1
        word = getword(line,lp)
        if (equal(word,'atomic_species')) then
+          errmsg = "Error reading atomic species."
           do i = 1, ntyp
-             read (lu,*,iostat=ios) seed%spc(i)%name
-             if (ios/=0) then
-                errmsg = "Error reading atomic species."
-                goto 999
-             end if
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+             read (line,*,iostat=ios) seed%spc(i)%name
+             if (ios/=0 .or. len(seed%spc(i)%name) == 0) goto 999
              seed%spc(i)%z = zatguess(seed%spc(i)%name)
+             if (seed%spc(i)%z < 0) goto 999
           end do
 
        else if (equal(word,'atomic_positions')) then
+          errmsg = "Error reading atomic positions."
           word = getword(line,lp)
           if (index(word,"crystal_sg") > 0) then
              iunit = icrystalsg
@@ -3104,11 +3107,11 @@ contains
              iunit = ialat
           end if
           do i = 1, nat
-             read (lu,*,iostat=ios) atm, seed%x(:,i)
-             if (ios/=0) then
-                errmsg = "Error reading atomic positions."
-                goto 999
-             end if
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
+
+             read (line,*,iostat=ios) atm, seed%x(:,i)
+             if (ios/=0 .or. len(atm) == 0) goto 999
              seed%is(i) = 0
              do j = 1, seed%nspc
                 if (equal(seed%spc(j)%name,atm)) then
@@ -3116,12 +3119,10 @@ contains
                    exit
                 end if
              end do
-             if (seed%is(i) == 0) then
-                errmsg = "Could not find atomic species "//trim(atm)//"."
-                goto 999
-             end if
+             if (seed%is(i) == 0) goto 999
           end do
        elseif (equal(word,'cell_parameters')) then
+          errmsg = "Error reading CELL_PARAMETERS."
           word = getword(line,lp)
           cunit = ialat
           if (index(word,"bohr") > 0) then
@@ -3136,14 +3137,14 @@ contains
              cunit = ibohr
           end if
           do i = 1, 3
+             ok = getline_raw(lu,line)
+             if (.not.ok) goto 999
              read (lu,*,iostat=ios) (r(i,j),j=1,3)
-             if (ios/=0) then
-                errmsg = "Error reading cell parameters."
-                goto 999
-             end if
+             if (ios/=0) goto 999
           end do
        endif
     end do
+    errmsg = ""
 
     ! figure it out
     if (space_group /= 0) then
@@ -6180,10 +6181,11 @@ contains
     logical :: indata, inloopheader, inloop, ldum, ok
     logical :: havefields(10) ! 1-3 = abc, 4-6 = angles, 7=symbol, 8-10=xyz
     integer :: looptype ! 1 = symmetry, 2 = atoms
-    integer :: cols(5) ! 1=symbol, 2=x, 3=y, 4=z, 5=symop
+    integer :: cols(6) ! 1=symbol, 2=x, 3=y, 4=z, 5=label, 6=symop
     integer :: nat, nop
     real*8, allocatable :: xat(:,:)
     integer, allocatable :: zat(:)
+    character*10, allocatable :: atname(:)
     character*256, allocatable :: ops(:)
     type(crystalseed) :: seed
 
@@ -6204,7 +6206,7 @@ contains
     ! initialize atom list
     nat = 0
     nop = 0
-    allocate(xat(3,20),zat(20))
+    allocate(xat(3,20),zat(20),atname(20))
     allocate(ops(48))
 
     ! run over lines in the file
@@ -6322,6 +6324,7 @@ contains
                    cols(1) = nhead
                 elseif (word == "_atom_site_label") then
                    if (cols(1) == 0) cols(1) = nhead
+                   cols(5) = nhead
                 elseif (word == "_atom_site_fract_x") then
                    cols(2) = nhead
                 elseif (word == "_atom_site_fract_y") then
@@ -6335,9 +6338,9 @@ contains
                 looptype = 1
                 nop = 0
                 if (word == "_symmetry_equiv_pos_as_xyz") then
-                   cols(5) = nhead
+                   cols(6) = nhead
                 elseif (word == "_space_group_symop_operation_xyz") then
-                   if (cols(5) == 0) cols(5) = nhead
+                   if (cols(6) == 0) cols(6) = nhead
                 end if
              end if
           end if
@@ -6356,11 +6359,12 @@ contains
              if (nat > size(zat,1)) then
                 call realloc(xat,3,2*nat)
                 call realloc(zat,2*nat)
+                call realloc(atname,2*nat)
              end if
 
              ! read the fields
              lp = 1
-             do i = 1, maxval(cols(1:4))
+             do i = 1, maxval(cols(1:5))
                 ok = isexpression_or_word(word,line,lp)
                 if (ok) then
                    if (cols(2)==i .or. cols(3)==i .or. cols(4)==i) then
@@ -6381,6 +6385,8 @@ contains
                       zat(nat) = zatguess(word)
                       ok = (zat(nat) /= 0)
                       havefields(7) = .true.
+                   elseif (cols(5)==i) then
+                      atname(nat) = word
                    end if
                 end if
 
@@ -6397,9 +6403,9 @@ contains
 
              ! read the fields
              lp = 1
-             do i = 1, cols(5)
+             do i = 1, cols(6)
                 ok = isexpression_or_word(word,line,lp)
-                if (ok.and.cols(5)==i) ops(nop) = word
+                if (ok.and.cols(6)==i) ops(nop) = word
                 if (.not.ok) then
                    errmsg = "Error reading cif file (symop loop)"
                    return
@@ -6539,7 +6545,7 @@ contains
       do i = 1, nat
          seed%is(i) = zspc(zat(i))
          seed%x(:,i) = xat(:,i)
-         seed%atname(i) = ""
+         seed%atname(i) = atname(i)
       end do
 
       ! pre-allocate the symmetry
