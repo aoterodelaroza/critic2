@@ -44,20 +44,22 @@ contains
   !> sameline, draw it in the same line as the last object. If
   !> nolabel, do not show the widget label. Returns true if the color
   !> changed.
-  module function iw_coloredit3(str,rgb,sameline,nolabel)
+  module function iw_coloredit3(str,rgb,sameline,nolabel,nointeraction)
     use interfaces_cimgui
     character(len=*,kind=c_char), intent(in) :: str
     real(c_float), intent(inout) :: rgb(3)
-    logical, intent(in), optional :: sameline, nolabel
+    logical, intent(in), optional :: sameline, nolabel, nointeraction
 
     character(len=:,kind=c_char), allocatable, target :: str1
-    logical :: sameline_, nolabel_
+    logical :: sameline_, nolabel_, nointeraction_
     integer(c_int) :: flags
 
     sameline_ = .false.
     if (present(sameline)) sameline_ = sameline
     nolabel_ = .false.
     if (present(nolabel)) nolabel_ = nolabel
+    nointeraction_ = .false.
+    if (present(nointeraction)) nointeraction_ = nointeraction
 
     if (sameline_) &
        call igSameLine(0._c_float,-1._c_float)
@@ -65,6 +67,13 @@ contains
 
     flags = ImGuiColorEditFlags_NoInputs
     if (nolabel_) flags = ImGuiColorEditFlags_NoLabel
+    if (nointeraction_) then
+       flags = ior(flags,ImGuiColorEditFlags_NoPicker)
+       flags = ior(flags,ImGuiColorEditFlags_NoOptions)
+       flags = ior(flags,ImGuiColorEditFlags_NoTooltip)
+       flags = ior(flags,ImGuiColorEditFlags_NoSidePreview)
+       flags = ior(flags,ImGuiColorEditFlags_NoDragDrop)
+    end if
     iw_coloredit3 = igColorEdit3(c_loc(str1),rgb,flags)
     call iw_clamp_color3(rgb)
 

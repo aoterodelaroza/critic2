@@ -2830,12 +2830,13 @@ contains
 
   !> Draw the geometry window.
   module subroutine draw_geometry(w)
+    use scenes, only: reptype_atoms
     use windows, only: iwin_view
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
-       iw_combo_simple, iw_highlight_selectable
+       iw_combo_simple, iw_highlight_selectable, iw_coloredit3
     use tools_io, only: string, nameguess
     class(window), intent(inout), target :: w
 
@@ -2844,10 +2845,11 @@ contains
     integer(c_int) :: flags, ntype, ncol
     character(kind=c_char,len=:), allocatable, target :: str1, str2, suffix
     type(ImVec2) :: szavail, szero, sz0
-    real(c_float) :: combowidth
-    integer :: i, isys, icol, ispc, iz, iview
+    real(c_float) :: combowidth, rgb(3)
+    integer :: i, j, isys, icol, ispc, iz, iview
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
+    logical :: havergb, ldum
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -2948,9 +2950,8 @@ contains
           end if
 
     ! ! whether to do the molecule column
-          ncol = 1
     ! domol = (r%atom_style%type == 2 .or. (r%atom_style%type == 1 .and. c%ismolecule))
-    ! ncol = 3
+          ncol = 3
     ! if (showselection) ncol = ncol + 1 ! show
     ! if (showdrawopts) ncol = ncol + 2 ! col, radius
     ! if (domol) ncol = ncol + 1 ! mol
@@ -2976,15 +2977,15 @@ contains
              flags = ImGuiTableColumnFlags_None
              call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
 
-    !    icol = icol + 1
-    !    str2 = "Atom" // c_null_char
-    !    flags = ImGuiTableColumnFlags_None
-    !    call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             icol = icol + 1
+             str2 = "Atom" // c_null_char
+             flags = ImGuiTableColumnFlags_None
+             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
 
-    !    icol = icol + 1
-    !    str2 = "Z " // c_null_char
-    !    flags = ImGuiTableColumnFlags_None
-    !    call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             icol = icol + 1
+             str2 = "Z " // c_null_char
+             flags = ImGuiTableColumnFlags_None
+             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
 
     !    if (showselection) then
     !       icol = icol + 1
@@ -3039,6 +3040,7 @@ contains
                    suffix = "_" // string(i)
                    icol = -1
 
+                   ! start the table and identify the species and Z
                    call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
                    if (w%geometry_atomtype == 0) then ! species
                       ispc = i
@@ -3048,6 +3050,27 @@ contains
                       ispc = sys(isys)%c%atcel(i)%is
                    end if
                    iz = sys(isys)%c%spc(ispc)%z
+
+                   ! get the color from the first active atoms representation in the main view
+                   havergb = .false.
+                   if (iview > 0) then
+                      do j = 1, win(iview)%sc%nrep
+                         if (win(iview)%sc%rep(j)%type == reptype_atoms.and.win(iview)%sc%rep(j)%isinit.and.&
+                            win(iview)%sc%rep(j)%shown) then
+                            if (win(iview)%sc%rep(j)%atom_style%type == 0) then ! color by species
+                               rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,ispc)
+                               havergb = .true.
+                            elseif (win(iview)%sc%rep(j)%atom_style%type == w%geometry_atomtype) then ! color by nneq or ncel
+                               rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,i)
+                               havergb = .true.
+                            elseif (win(iview)%sc%rep(j)%atom_style%type == 1 .and. w%geometry_atomtype == 2) then ! color by nneq, select by ncel
+                               rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,sys(isys)%c%atcel(i)%idx)
+                               havergb = .true.
+                            end if
+                            if (havergb) exit
+                         end if
+                      end do
+                   end if
 
                    ! id
                    icol = icol + 1
@@ -3062,13 +3085,18 @@ contains
                       end if
                    end if
 
-    !          ! name
-    !          icol = icol + 1
-    !          if (igTableSetColumnIndex(icol)) call iw_text(string(c%spc(ispc)%name))
+                   ! name
+                   icol = icol + 1
+                   if (igTableSetColumnIndex(icol)) then
+                      call iw_text(string(sys(isys)%c%spc(ispc)%name,2))
+                      if (havergb) then
+                         ldum = iw_coloredit3("##tablecolorg" // suffix,rgb,sameline=.true.,nointeraction=.true.)
+                      end if
+                   end if
 
-    !          ! Z
-    !          icol = icol + 1
-    !          if (igTableSetColumnIndex(icol)) call iw_text(string(iz))
+                   ! Z
+                   icol = icol + 1
+                   if (igTableSetColumnIndex(icol)) call iw_text(string(iz))
 
     !          ! shown
     !          if (showselection) then
