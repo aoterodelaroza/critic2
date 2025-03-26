@@ -1538,7 +1538,6 @@ contains
     use systemmod, only: sy, itype_deloc_wnr, itype_deloc_psink, itype_deloc_sijchk, itype_deloc_fachk
     use fieldmod, only: type_grid, type_wfn
     use crystalmod, only: crystal
-    use crystalseedmod, only: crystalseed
     use global, only: fileroot
     use tools_io, only: uout, string, fclose
     use tools_math, only: matinv
@@ -2316,7 +2315,6 @@ contains
     use systemmod, only: sy
     use yt, only: yt_weights, ytdata, ytdata_clean
     use crystalmod, only: crystal
-    use crystalseedmod, only: crystalseed
     use tools_io, only: ferror, faterr, uout, string, fopen_read, fclose
     use types, only: sijtype_psink
     use param, only: tpi, img

@@ -47,17 +47,19 @@ contains
     ! atoms
     if (copysym .and. c%spgavail) then
        seed%nat = c%nneq
-       allocate(seed%x(3,c%nneq),seed%is(c%nneq))
+       allocate(seed%x(3,c%nneq),seed%is(c%nneq),seed%atname(c%nneq))
        do i = 1, c%nneq
           seed%x(:,i) = c%at(i)%x
           seed%is(i) = c%at(i)%is
+          seed%atname(i) = ""
        end do
     else
        seed%nat = c%ncel
-       allocate(seed%x(3,c%ncel),seed%is(c%ncel))
+       allocate(seed%x(3,c%ncel),seed%is(c%ncel),seed%atname(c%ncel))
        do i = 1, c%ncel
           seed%x(:,i) = c%atcel(i)%x
           seed%is(i) = c%atcel(i)%is
+          seed%atname(i) = ""
        end do
     end if
 
@@ -281,10 +283,11 @@ contains
 
        ! build the atomic info in the new seed from the info in input
        ncseed%nat = nnew
-       allocate(ncseed%x(3,nnew),ncseed%is(nnew))
+       allocate(ncseed%x(3,nnew),ncseed%is(nnew),ncseed%atname(nnew))
        do i = 1, nnew
           ncseed%x(:,i) = xnew(:,i)
           ncseed%is(i) = isnew(i)
+          ncseed%atname(i) = ""
        end do
     else
        ! check if this is a "simple" transformation (only integers in the diagonal)
@@ -302,7 +305,7 @@ contains
              nvec(i) = nint(x0(i,i))
           end do
           ntot = product(nvec)
-          allocate(ncseed%x(3,c%ncel * ntot),ncseed%is(c%ncel * ntot))
+          allocate(ncseed%x(3,c%ncel * ntot),ncseed%is(c%ncel * ntot),ncseed%atname(c%ncel * ntot))
 
           nn = 0
           do i = 1, nvec(1)
@@ -313,6 +316,7 @@ contains
                       nn = nn + 1
                       ncseed%is(nn) = c%atcel(m)%is
                       ncseed%x(:,nn) = (c%atcel(m)%x-t) / real(nvec,8) + xshift
+                      ncseed%atname(nn) = ""
                    end do
                 end do
              end do
@@ -389,7 +393,7 @@ contains
           nn = nint(c%ncel * fvol)
           if (abs(nn - (c%ncel*fvol)) > eps) &
              call ferror('newcell','inconsistent number of atoms in newcell',faterr)
-          allocate(ncseed%x(3,nn),ncseed%is(nn))
+          allocate(ncseed%x(3,nn),ncseed%is(nn),ncseed%atname(nn))
           do i = 1, nlat
              do j = 1, c%ncel
                 ! candidate atom
@@ -412,14 +416,17 @@ contains
                    if (ncseed%nat > size(ncseed%x,2)) then
                       call realloc(ncseed%x,3,2*ncseed%nat)
                       call realloc(ncseed%is,2*ncseed%nat)
+                      call realloc(ncseed%atname,2*ncseed%nat)
                    end if
                    ncseed%x(:,ncseed%nat) = x
                    ncseed%is(ncseed%nat) = c%atcel(j)%is
+                   ncseed%atname(ncseed%nat) = ""
                 end if
              end do
           end do
           call realloc(ncseed%x,3,ncseed%nat)
           call realloc(ncseed%is,ncseed%nat)
+          call realloc(ncseed%atname,ncseed%nat)
           deallocate(xlat)
        end if
     end if
@@ -790,7 +797,7 @@ contains
     deallocate(ldone,ismap)
 
     ! calculate the asymmetric unit for the new group, write it down in the seed
-    allocate(ncseed%x(3,c%ncel),ncseed%is(c%ncel))
+    allocate(ncseed%x(3,c%ncel),ncseed%is(c%ncel),ncseed%atname(c%ncel))
     ncseed%nat = 0
     allocate(isuse(c%ncel))
     isuse = .false.
@@ -811,6 +818,7 @@ contains
        ncseed%nat = ncseed%nat + 1
        ncseed%x(:,ncseed%nat) = c%atcel(i)%x
        ncseed%is(ncseed%nat) = c%atcel(i)%is
+       ncseed%atname(ncseed%nat) = ""
     end do
     deallocate(isuse)
 

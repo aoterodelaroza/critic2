@@ -1000,9 +1000,10 @@ contains
           end if
 
           seed%nat = sy%f(sy%iref)%ncpcel
-          allocate(seed%x(3,sy%f(sy%iref)%ncpcel),seed%is(sy%f(sy%iref)%ncpcel))
+          allocate(seed%x(3,sy%f(sy%iref)%ncpcel),seed%is(sy%f(sy%iref)%ncpcel),seed%atname(sy%f(sy%iref)%ncpcel))
           do i = 1, sy%f(sy%iref)%ncpcel
              seed%x(:,i) = sy%f(sy%iref)%cpcel(i)%x
+             seed%atname(i) = ""
              if (i <= sy%c%ncel) then
                 seed%is(i) = sy%c%atcel(i)%is
              else
@@ -1089,6 +1090,7 @@ contains
 
       call realloc(seed%x,3,seed%nat+nstep)
       call realloc(seed%is,seed%nat+nstep)
+      call realloc(seed%atname,seed%nat+nstep)
       n = seed%nat
       do i = 1, nstep
          n = n + 1
@@ -1098,6 +1100,7 @@ contains
          else
             seed%is(n) = sy%c%nspc+5
          end if
+         seed%atname(n) = ""
       end do
       seed%nat = n
 

@@ -4655,6 +4655,7 @@ contains
              end if
              seed%x(:,n) = xnew
              seed%is(n) = cx%atcel(cidxorig(isperm(i,is),is))%is
+             seed%atname(n) = ""
           end do
        end do
 

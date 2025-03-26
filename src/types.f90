@@ -104,6 +104,7 @@ module types
      real*8 :: x(3)   !< coordinates (crystallographic)
      real*8 :: r(3)   !< coordinates (Cartesian)
      integer :: is = 0 !< species
+     character*10 :: name !< atom name
      integer :: mult  !< multiplicity
      character*1 :: wyc !< Wyckoff letter
   end type neqatom

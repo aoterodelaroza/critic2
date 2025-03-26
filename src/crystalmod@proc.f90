@@ -306,6 +306,7 @@ contains
              i = i + 1
              c%at(i)%x = seed%x(:,j)
              c%at(i)%is = seed%is(j)
+             c%at(i)%name = seed%atname(j)
           end if
        end do
     end if

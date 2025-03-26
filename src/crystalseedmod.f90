@@ -37,6 +37,7 @@ module crystalseedmod
      integer :: nat = 0 !< Number of atoms
      real*8, allocatable :: x(:,:) !< Atomic positions (crystal - fractional;molecule with useabr=0 - bohr)
      integer, allocatable :: is(:) !< Species of a given atom
+     character*10, allocatable :: atname(:) !< atomic names
      ! species
      integer :: nspc = 0 !< Number of species
      type(species), allocatable :: spc(:) !< Species

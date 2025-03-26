@@ -974,11 +974,12 @@ contains
 
           ! assign nat and species mapping
           seed(i)%nat = 0
-          allocate(seed(i)%is(sum(nsp)))
+          allocate(seed(i)%is(sum(nsp)),seed(i)%atname(sum(nsp)))
           do j = 1, seed(i)%nspc
              do k = 1, nsp(j)
                 seed(i)%nat = seed(i)%nat + 1
                 seed(i)%is(iperm(seed(i)%nat)) = j
+                seed(i)%atname(iperm(seed(i)%nat)) = ""
              end do
           end do
           if (seed(i)%nat /= size(iperm,1)) then
@@ -995,6 +996,7 @@ contains
        else
           seed(i)%nat = seed(1)%nat
           seed(i)%is = seed(1)%is
+          seed(i)%atname = ""
        end if
 
        ! check the "direct" keyword

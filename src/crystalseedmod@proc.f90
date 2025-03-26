@@ -48,6 +48,7 @@ contains
     seed%nat = 0
     if (allocated(seed%x)) deallocate(seed%x)
     if (allocated(seed%is)) deallocate(seed%is)
+    if (allocated(seed%atname)) deallocate(seed%atname)
     seed%nspc = 0
     if (allocated(seed%spc)) deallocate(seed%spc)
     seed%useabr = 0
@@ -109,7 +110,7 @@ contains
     else
        luout = -1
     endif
-    allocate(seed%x(3,10),seed%is(10),seed%spc(2))
+    allocate(seed%x(3,10),seed%is(10),seed%spc(2),seed%atname(10))
     do while (getline(lu,line,ucopy=luout))
        lp = 1
        word = lgetword(line,lp)
@@ -239,6 +240,7 @@ contains
           if (seed%nat > size(seed%x,2)) then
              call realloc(seed%x,3,2*seed%nat)
              call realloc(seed%is,2*seed%nat)
+             call realloc(seed%atname,2*seed%nat)
           end if
 
           if (.not.equal(word,'neq')) then
@@ -388,6 +390,7 @@ contains
     oksyn = .true.
 
     ! rest of the seed information
+    seed%atname = ""
     seed%isused = .true.
     seed%ismolecule = .false.
     seed%cubic = .false.
@@ -429,7 +432,7 @@ contains
     rborder = rborder_def
     seed%nat = 0
     seed%nspc = 0
-    allocate(seed%x(3,10),seed%is(10),seed%spc(2))
+    allocate(seed%x(3,10),seed%is(10),seed%spc(2),seed%atname(10))
     if (lu == uin) then
        luout = ucopy
     else
@@ -469,6 +472,7 @@ contains
           if (seed%nat > size(seed%x,2)) then
              call realloc(seed%x,3,2*seed%nat)
              call realloc(seed%is,2*seed%nat)
+             call realloc(seed%atname,2*seed%nat)
           end if
 
           if (.not.equal(word,'neq')) then
@@ -561,6 +565,7 @@ contains
     seed%useabr = 0
 
     ! rest of the seed information
+    seed%atname = ""
     seed%isused = .true.
     seed%ismolecule = .true.
     seed%cubic = docube
@@ -743,10 +748,12 @@ contains
     seed%nat = fr%nat
     if (allocated(seed%x)) deallocate(seed%x)
     if (allocated(seed%is)) deallocate(seed%is)
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    if (allocated(seed%is)) deallocate(seed%atname)
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
     do i = 1, seed%nat
        seed%x(:,i) = fr%at(iord(i))%r
        seed%is(i) = fr%at(iord(i))%is
+       seed%atname(i) = ""
     end do
     deallocate(iord)
 
@@ -780,11 +787,13 @@ contains
           nnat = nnat + 1
           seed%x(:,nnat) = seed%x(:,i)
           seed%is(nnat) = seed%is(i)
+          seed%atname(nnat) = seed%atname(i)
        end if
     end do
     seed%nat = nnat
     call realloc(seed%x,3,nnat)
     call realloc(seed%is,nnat)
+    call realloc(seed%atname,nnat)
 
   end subroutine strip_hydrogens
 
@@ -1047,6 +1056,7 @@ contains
     seed%nat = 0
     if (.not.allocated(seed%x)) allocate(seed%x(3,10))
     if (.not.allocated(seed%is)) allocate(seed%is(10))
+    if (.not.allocated(seed%atname)) allocate(seed%atname(10))
 
     ! centering vectors may come in symm. If that happens,
     ! replicate the atoms and let LATT determine the global
@@ -1241,6 +1251,7 @@ contains
           if (seed%nat > size(seed%is)) then
              call realloc(seed%x,3,2*seed%nat)
              call realloc(seed%is,2*seed%nat)
+             call realloc(seed%atname,2*seed%nat)
           end if
           ok = isinteger(iz,line,lp)
           ok = ok .and. isreal(seed%x(1,seed%nat),line,lp)
@@ -1304,9 +1315,11 @@ contains
     end if
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
+    call realloc(seed%atname,seed%nat)
     call realloc(seed%cen,3,seed%ncv)
 
     ! use the symmetry in this file
+    seed%atname = ""
     seed%havesym = 1
     seed%checkrepeats = .true.
     seed%findsym = -1
@@ -1391,7 +1404,7 @@ contains
     end if
 
     ! initialize
-    allocate(seed%x(3,10),seed%is(10),usedz(maxzat))
+    allocate(seed%x(3,10),seed%is(10),seed%atname(10),usedz(maxzat))
     usedz = 0
 
     havelat = .false.
@@ -1431,6 +1444,7 @@ contains
           if (seed%nat > size(seed%is,1)) then
              call realloc(seed%x,3,2*seed%nat)
              call realloc(seed%is,2*seed%nat)
+             call realloc(seed%atname,2*seed%nat)
           end if
 
           ! get the atomic symbol
@@ -1506,6 +1520,7 @@ contains
     seed%findsym = -1
 
     ! rest of the seed information
+    seed%atname = ""
     seed%isused = .true.
     seed%ismolecule = mol
     seed%cubic = .false.
@@ -1653,7 +1668,7 @@ contains
           end do
 
           ! read the second block, with the atomic coordinates
-          allocate(seed%x(3,seed%nat))
+          allocate(seed%x(3,seed%nat),seed%atname(seed%nat))
           ok = getline_raw(lu,line)
           ok = ok.and.getline_raw(lu,line)
           ok = ok.and.getline_raw(lu,line)
@@ -1685,6 +1700,7 @@ contains
     seed%molx0 = 0d0
 
     ! rest of the seed information
+    seed%atname = ""
     seed%isused = .true.
     seed%cubic = .false.
     seed%border = 0d0
@@ -1752,7 +1768,7 @@ contains
     seed%useabr = 2
 
     ! Atomic positions.
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
     allocate(seed%spc(2))
     nn = seed%nat
     seed%nat = 0
@@ -1786,8 +1802,10 @@ contains
     if (seed%nat /= nn) then
        call realloc(seed%x,3,seed%nat)
        call realloc(seed%is,seed%nat)
+       call realloc(seed%atname,seed%nat)
     end if
     call realloc(seed%spc,seed%nspc)
+    seed%atname = ""
 
     errmsg = ""
 999 continue
@@ -1852,7 +1870,7 @@ contains
     seed%useabr = 2
 
     ! Atomic positions.
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
     allocate(seed%spc(2))
     nn = seed%nat
     seed%nat = 0
@@ -1886,8 +1904,10 @@ contains
     if (seed%nat /= nn) then
        call realloc(seed%x,3,seed%nat)
        call realloc(seed%is,seed%nat)
+       call realloc(seed%atname,seed%nat)
     end if
     call realloc(seed%spc,seed%nspc)
+    seed%atname = ""
 
     errmsg = ""
 999 continue
@@ -2026,7 +2046,7 @@ contains
 
     seed%nspc = 0
     allocate(seed%spc(2))
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
     iat = 0
     DO JATOM=1,seed%nat
        iat0 = iat
@@ -2034,6 +2054,7 @@ contains
        if (iat > size(seed%is)) then
           call realloc(seed%x,3,2*iat)
           call realloc(seed%is,2*iat)
+          call realloc(seed%atname,2*iat)
        end if
        READ(lut,1012,err=999,end=999) iatnr,seed%x(:,iat),MULTW
 
@@ -2044,6 +2065,7 @@ contains
              if (iat > size(seed%is)) then
                 call realloc(seed%x,3,2*iat)
                 call realloc(seed%is,2*iat)
+                call realloc(seed%atname,2*iat)
              end if
              READ(lut,1013,err=999,end=999) iatnr, seed%x(:,iat)
           end DO
@@ -2082,6 +2104,7 @@ contains
     seed%nat = iat
     call realloc(seed%x,3,iat)
     call realloc(seed%is,iat)
+    call realloc(seed%atname,iat)
     call realloc(seed%spc,seed%nspc)
 
     !.read number of symmetry operations, sym. operations
@@ -2255,6 +2278,7 @@ contains
        end if
     end if
     allocate(seed%x(3,seed%nat))
+    allocate(seed%atname(seed%nat))
     call realloc(seed%is,seed%nat)
 
     ! check there are no more atoms in this line
@@ -2283,6 +2307,7 @@ contains
        if (iscar) &
           seed%x(:,i) = matmul(rprim,seed%x(:,i) / bohrtoa)
     enddo
+    seed%atname = ""
 
     errmsg = ""
 999 continue
@@ -2351,10 +2376,11 @@ contains
 
     ! atoms
     seed%nat = hdr%natom
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
     do i = 1, seed%nat
        seed%x(:,i) = hdr%xred(:,i)
        seed%is(i) = hdr%typat(i)
+       seed%atname(i) = ""
     end do
 
     errmsg = ""
@@ -2428,7 +2454,7 @@ contains
     end if
 
     seed%nat = 0
-    allocate(seed%x(3,10),seed%is(10))
+    allocate(seed%x(3,10),seed%is(10),seed%atname(10))
     read(lu,'(I4)',err=999,end=999) seed%nspc
     allocate(seed%spc(seed%nspc))
     do i = 1, seed%nspc
@@ -2460,13 +2486,16 @@ contains
           if (seed%nat > size(seed%x,2)) then
              call realloc(seed%x,3,2*seed%nat)
              call realloc(seed%is,2*seed%nat)
+             call realloc(seed%atname,2*seed%nat)
           end if
           read(lu,*,err=999,end=999) seed%x(:,seed%nat)
           seed%is(seed%nat) = i
+          seed%atname(seed%nat) = ""
        end do
     end do
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
+    call realloc(seed%atname,seed%nat)
 
     errmsg = ""
 999 continue
@@ -2511,7 +2540,6 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     integer, allocatable :: z(:)
-    character*(10), allocatable :: name(:) !< Atomic names
     integer :: i, j, it
 
     if (present(alsovib)) alsovib = .false.
@@ -2519,36 +2547,36 @@ contains
     errmsg = ""
     if (fmt == isformat_xyz) then
        ! xyz
-       call wfn_read_xyz_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
+       call wfn_read_xyz_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
     elseif (fmt == isformat_gjf) then
        ! xyz
-       call wfn_read_gjf_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
+       call wfn_read_gjf_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
     elseif (fmt == isformat_wfn) then
        ! wfn
-       call wfn_read_wfn_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
+       call wfn_read_wfn_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
     elseif (fmt == isformat_wfx) then
        ! wfx
-       call wfn_read_wfx_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
+       call wfn_read_wfx_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
     elseif (fmt == isformat_fchk) then
        ! fchk
-       call wfn_read_fchk_geometry(file,seed%nat,seed%x,z,name,errmsg,alsovib=alsovib,ti=ti)
+       call wfn_read_fchk_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,alsovib=alsovib,ti=ti)
     elseif (fmt == isformat_molden) then
        ! molden (psi4)
-       call wfn_read_molden_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
+       call wfn_read_molden_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
     elseif (fmt == isformat_gaussian) then
        ! Gaussian output file
-       call wfn_read_log_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
+       call wfn_read_log_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
     elseif (fmt == isformat_dat) then
        ! psi4 output file
-       call wfn_read_dat_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
+       call wfn_read_dat_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
     elseif (fmt == isformat_pgout) then
        ! postg output file
-       call wfn_read_pgout_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
+       call wfn_read_pgout_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
     elseif (fmt == isformat_orca) then
        ! orca output file
-       call wfn_read_orca_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
+       call wfn_read_orca_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
     elseif (fmt == isformat_zmat) then
-       call read_zmat_geometry(file,seed%nat,seed%x,z,name,errmsg,ti=ti)
+       call read_zmat_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
     end if
     seed%useabr = 0
     seed%havesym = 0
@@ -2561,7 +2589,7 @@ contains
     do i = 1, seed%nat
        it = 0
        do j = 1, seed%nspc
-          if (equali(seed%spc(j)%name,name(i))) then
+          if (equali(seed%spc(j)%name,seed%atname(i))) then
              it = j
              exit
           end if
@@ -2570,7 +2598,7 @@ contains
           seed%nspc = seed%nspc + 1
           if (seed%nspc > size(seed%spc,1)) &
              call realloc(seed%spc,2*seed%nspc)
-          seed%spc(seed%nspc)%name = name(i)
+          seed%spc(seed%nspc)%name = seed%atname(i)
           seed%spc(seed%nspc)%z = z(i)
           it = seed%nspc
        end if
@@ -2691,7 +2719,7 @@ contains
     ! fill the seed
     seed%nat = n
     seed%nspc = nspc
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%spc(seed%nspc))
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%spc(seed%nspc),seed%atname(seed%nat))
     if (.not.mol.and.all(readscale)) then
        ! read it as a crystal
        seed%useabr = 2
@@ -2706,6 +2734,7 @@ contains
        do i = 1, n
           seed%x(:,i) = matmul(r,x(:,i)) + x0
           seed%is(i) = ispc(z(i))
+          seed%atname(i) = ""
        end do
     else
        ! read it as a molecule
@@ -2714,6 +2743,7 @@ contains
        do i = 1, n
           seed%x(:,i) = x(:,i)
           seed%is(i) = ispc(z(i))
+          seed%atname(i) = ""
        end do
     end if
     deallocate(x,z)
@@ -3039,7 +3069,7 @@ contains
     ! allocate space for atoms
     seed%nat = nat
     seed%nspc = ntyp
-    allocate(seed%x(3,nat),seed%is(nat),seed%spc(ntyp))
+    allocate(seed%x(3,nat),seed%is(nat),seed%spc(ntyp),seed%atname(nat))
 
     ! read the cards
     iunit = icrystal
@@ -3141,10 +3171,12 @@ contains
        seed%nat = nattot
        if (allocated(seed%x)) deallocate(seed%x)
        if (allocated(seed%is)) deallocate(seed%is)
-       allocate(seed%x(3,nattot),seed%is(nattot))
+       if (allocated(seed%atname)) deallocate(seed%atname)
+       allocate(seed%x(3,nattot),seed%is(nattot),seed%atname(nattot))
        do i = 1, nattot
           seed%x(:,i) = tautot(:,i)
           seed%is(i) = ityptot(i)
+          seed%atname(i) = ""
        end do
 
        ! calculate the new r
@@ -3188,6 +3220,7 @@ contains
           seed%x(:,i) = matmul(r,seed%x(:,i) / bohrtoa)
        endif
        seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
+       seed%atname(i) = ""
     end do
 
     errmsg = ""
@@ -3296,7 +3329,8 @@ contains
              seed%nspc = 0
              if (allocated(seed%x)) deallocate(seed%x)
              if (allocated(seed%is)) deallocate(seed%is)
-             allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+             if (allocated(seed%atname)) deallocate(seed%atname)
+             allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
              usez = 0
              do i = 1, seed%nat
                 ok = getline_raw(lu,line)
@@ -3314,6 +3348,7 @@ contains
                 else
                    seed%is(i) = usez(iz)
                 end if
+                seed%atname(i) = ""
              end do
 
              ! species
@@ -3356,6 +3391,7 @@ contains
     do i = 1, seed%nat
        seed%x(:,i) = matmul(r,seed%x(:,i))
        seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
+       seed%atname(i) = ""
     end do
 
     errmsg = ""
@@ -3415,7 +3451,7 @@ contains
     ! the atoms
     seed%nspc = 0
     read (lu,*,err=999,end=999) seed%nat
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%spc(2))
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%spc(2),seed%atname(seed%nat))
     do i = 1, seed%nat
        read (lu,*,err=999,end=999) seed%is(i), idum, seed%x(:,i)
        if (idum > size(seed%spc,1)) &
@@ -3423,6 +3459,7 @@ contains
        seed%nspc = max(seed%nspc,seed%is(i))
        seed%spc(seed%is(i))%z = idum
        seed%spc(seed%is(i))%name = nameguess(idum)
+       seed%atname(i) = ""
     end do
     call realloc(seed%spc,seed%nspc)
 
@@ -3532,13 +3569,14 @@ contains
              ok = .true.
              seed%nat = 0
              seed%nspc = 0
-             allocate(seed%x(3,10),seed%is(10),seed%spc(2))
+             allocate(seed%x(3,10),seed%is(10),seed%spc(2),seed%atname(10))
              do while(ok)
                 if (line(1:1) == "%") exit
                 seed%nat = seed%nat + 1
                 if (seed%nat > size(seed%x,2)) then
                    call realloc(seed%x,3,2*seed%nat)
                    call realloc(seed%is,2*seed%nat)
+                   call realloc(seed%atname,2*seed%nat)
                 end if
 
                 ! read the atomic symbol or number
@@ -3571,6 +3609,7 @@ contains
                 ok = ok .and. isreal(seed%x(2,seed%nat),line,lp)
                 ok = ok .and. isreal(seed%x(3,seed%nat),line,lp)
                 if (.not.ok) goto 999
+                seed%atname(seed%nat) = ""
 
                 ok = get_next_line()
              end do
@@ -3581,6 +3620,7 @@ contains
              call realloc(seed%x,3,seed%nat)
              call realloc(seed%is,seed%nat)
              call realloc(seed%spc,seed%nspc)
+             call realloc(seed%atname,seed%nat)
 
              ! conversion factor
              if (iscart) seed%x = seed%x * rconv
@@ -3611,6 +3651,7 @@ contains
        end if
        do i = 1, seed%nat
           seed%x(:,i) = matmul(m,seed%x(:,i))
+          seed%atname(i) = ""
        end do
     end if
 
@@ -3763,7 +3804,7 @@ contains
     seed%useabr = 2
     seed%nat = nat
     seed%nspc = nspc
-    allocate(seed%x(3,nat),seed%is(nat),seed%spc(nspc),usespc(nspc))
+    allocate(seed%x(3,nat),seed%is(nat),seed%spc(nspc),usespc(nspc),seed%atname(nat))
     usespc = .false.
     rewind(lu)
     do i = 1, nlast-1
@@ -3791,6 +3832,7 @@ contains
           ok = ok .and. isreal(seed%x(2,nat),line,lp)
           ok = ok .and. isreal(seed%x(3,nat),line,lp)
           if (.not.ok) goto 999
+          seed%atname(nat) = ""
 
           is = usen%get(lword,1)
           seed%is(nat) = is
@@ -3820,6 +3862,7 @@ contains
     end if
     do i = 1, seed%nat
        seed%x(:,i) = matmul(m,seed%x(:,i))
+       seed%atname(i) = ""
     end do
 
     errmsg = ""
@@ -3898,7 +3941,7 @@ contains
        elseif (word == "basi") then
           seed%nspc = 0
           seed%nat = 0
-          allocate(seed%x(3,10),seed%is(10),seed%spc(2),usedz(maxzat))
+          allocate(seed%x(3,10),seed%is(10),seed%spc(2),usedz(maxzat),seed%atname(10))
           usedz = 0
           do while(.true.)
              ! get the atom
@@ -3926,12 +3969,14 @@ contains
              if (seed%nat > size(seed%x,2)) then
                 call realloc(seed%x,3,2*seed%nat)
                 call realloc(seed%is,2*seed%nat)
+                call realloc(seed%atname,2*seed%nat)
              end if
              ok = isreal(seed%x(1,seed%nat),line,lp)
              ok = ok .and. isreal(seed%x(2,seed%nat),line,lp)
              ok = ok .and. isreal(seed%x(3,seed%nat),line,lp)
              if (.not.ok) goto 999
              seed%is(seed%nat) = usedz(iz)
+             seed%atname(seed%nat) = ""
 
              ! process the block for this atom
              ok = getline_raw(lu,line)
@@ -3957,6 +4002,7 @@ contains
           end do
           call realloc(seed%spc,seed%nspc)
           call realloc(seed%x,3,seed%nat)
+          call realloc(seed%atname,seed%nat)
           exit
        elseif (word == "stop") then
           exit
@@ -3973,6 +4019,7 @@ contains
     if (ier /= 0) goto 999
     do i = 1, seed%nat
        seed%x(:,i) = matmul(r,seed%x(:,i))
+       seed%atname(i) = ""
     end do
 
     errmsg = ""
@@ -4038,7 +4085,7 @@ contains
        errmsg = 'Wrong coordinate selector.'
        goto 999
     end if
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
 
     ! atom types
     seed%nspc = 0
@@ -4070,6 +4117,7 @@ contains
        read (line,*,err=999,end=999) idum, seed%is(i), seed%x(:,i)
        if (isfrac /= "f") &
           seed%x(:,i) = seed%x(:,i) / bohrtoa
+       seed%atname(i) = ""
     end do
 
     ! read lattice vectors, if they exist
@@ -4096,6 +4144,7 @@ contains
        elseif (isfrac == "s") then
           do i = 1, seed%nat
              seed%x(:,i) = matmul(r,seed%x(:,i))
+             seed%atname(i) = ""
           end do
        end if
        seed%useabr = 2
@@ -4179,7 +4228,7 @@ contains
           ismol = .false.
        elseif (equal(word,"primcoord").and..not.xread) then
           read (lu,*,err=999,end=999) seed%nat
-          allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+          allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
           seed%nspc = 0
           allocate(seed%spc(2))
           do i = 1, seed%nat
@@ -4203,6 +4252,7 @@ contains
                 goto 999
              end if
              seed%x(:,i) = seed%x(:,i) / bohrtoa
+             seed%atname(i) = ""
 
              it = 0
              do j = 1, seed%nspc
@@ -4228,7 +4278,7 @@ contains
           call usen%init()
           seed%nat = 0
           seed%nspc = 0
-          allocate(seed%x(3,10),seed%spc(5),seed%is(10))
+          allocate(seed%x(3,10),seed%spc(5),seed%is(10),seed%atname(10))
           do while (getline_raw(lu,line))
              if (len_trim(line) == 0) exit
 
@@ -4237,8 +4287,10 @@ contains
              if (seed%nat > size(seed%x,2)) then
                 call realloc(seed%x,3,2*seed%nat)
                 call realloc(seed%is,2*seed%nat)
+                call realloc(seed%atname,2*seed%nat)
              end if
              seed%x(:,seed%nat) = x / bohrtoa
+             seed%atname(seed%nat) = ""
 
              ok = isinteger(iz,atn)
              if (.not.ok) then
@@ -4266,6 +4318,7 @@ contains
           call realloc(seed%x,3,seed%nat)
           call realloc(seed%is,seed%nat)
           call realloc(seed%spc,seed%nspc)
+          call realloc(seed%atname,seed%nat)
           xread = .true.
        end if
     end do
@@ -4293,6 +4346,7 @@ contains
        ! convert atoms to crystallographic
        do i = 1, seed%nat
           seed%x(:,i) = matmul(r,seed%x(:,i))
+          seed%atname(i) = ""
        end do
     else
        seed%useabr = 0
@@ -4365,11 +4419,12 @@ contains
     deallocate(atm)
 
     ! read the rest
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
     read (lu,err=999,end=999) seed%is
     read (lu,err=999,end=999) seed%x
     read (lu,err=999,end=999) seed%m_x2c
     seed%m_x2c = seed%m_x2c * alat
+    seed%atname = ""
 
     ! convert to crystallographic
     r = seed%m_x2c
@@ -4459,7 +4514,7 @@ contains
           if (iprim == nread0) then
              didreadx = .true.
              read (lu,*,err=999,end=999) seed%nat
-             allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+             allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
              seed%nspc = 0
              allocate(seed%spc(2))
              do i = 1, seed%nat
@@ -4485,6 +4540,7 @@ contains
                    goto 999
                 end if
                 seed%x(:,i) = seed%x(:,i) / bohrtoa
+                seed%atname(i) = ""
 
                 ! file this species if it is a new species
                 it = 0
@@ -4513,6 +4569,7 @@ contains
                    goto 999
                 end if
                 seed%x(:,i) = seed%x(:,i) + xnudge * x
+                seed%atname(i) = ""
              end do
           end if
        end if
@@ -4549,6 +4606,7 @@ contains
        ! convert atoms to crystallographic
        do i = 1, seed%nat
           seed%x(:,i) = matmul(r,seed%x(:,i))
+          seed%atname(i) = ""
        end do
     else
        seed%useabr = 0
@@ -4611,7 +4669,7 @@ contains
     call usespc%init()
 
     ! allocate atoms
-    allocate(isfrac(10),seed%x(3,10),seed%is(10))
+    allocate(isfrac(10),seed%x(3,10),seed%is(10),seed%atname(10))
 
     ! collect the information
     is_file_mol = .true.
@@ -4630,12 +4688,14 @@ contains
              call realloc(isfrac,2*seed%nat)
              call realloc(seed%x,3,2*seed%nat)
              call realloc(seed%is,2*seed%nat)
+             call realloc(seed%atname,2*seed%nat)
           end if
           ok = isreal(seed%x(1,seed%nat),line,lp)
           ok = ok .and. isreal(seed%x(2,seed%nat),line,lp)
           ok = ok .and. isreal(seed%x(3,seed%nat),line,lp)
           if (.not.ok) goto 999
           isfrac(seed%nat) = equal(word,'atom_frac')
+          seed%atname(seed%nat) = ""
 
           word = getword(line,lp)
           if (.not.usespc%iskey(word)) then
@@ -4664,6 +4724,7 @@ contains
     end if
     call realloc(isfrac,seed%nat)
     call realloc(seed%x,3,seed%nat)
+    call realloc(seed%atname,seed%nat)
     call realloc(seed%is,seed%nat)
 
     ! fill the species array
@@ -4705,6 +4766,7 @@ contains
        if (.not.isfrac(i)) then
           seed%x(:,i) = seed%x(:,i) / bohrtoa
           if (.not.is_file_mol) seed%x(:,i) = matmul(rlat,seed%x(:,i))
+          seed%atname(i) = ""
        end if
     end do
 
@@ -4766,7 +4828,7 @@ contains
     call usespc%init()
 
     ! allocate atoms
-    allocate(isfrac(10),seed%x(3,10),seed%is(10))
+    allocate(isfrac(10),seed%x(3,10),seed%is(10),seed%atname(10))
 
     ! advance until we are at the "Input geometry" line
     ok = .false.
@@ -4810,9 +4872,11 @@ contains
           call realloc(isfrac,2*seed%nat)
           call realloc(seed%x,3,2*seed%nat)
           call realloc(seed%is,2*seed%nat)
+          call realloc(seed%atname,2*seed%nat)
        end if
        read(line,*,err=999,end=999) cdum, dum1, dum2, splbl, (seed%x(j,seed%nat),j=1,3)
        isfrac(seed%nat) = .false.
+       seed%atname(seed%nat) = ""
 
        word = trim(adjustl(splbl))
        if (.not.usespc%iskey(word)) then
@@ -4826,6 +4890,7 @@ contains
     call realloc(isfrac,seed%nat)
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
+    call realloc(seed%atname,seed%nat)
 
     ! fill the species array
     allocate(seed%spc(seed%nspc))
@@ -4905,6 +4970,7 @@ contains
              ok = ok .and. isreal(seed%x(2,iat),line,lp)
              ok = ok .and. isreal(seed%x(3,iat),line,lp)
              isfrac(iat) = .false.
+             seed%atname(iat) = ""
           end if
        end do
     end if
@@ -4935,6 +5001,7 @@ contains
        if (.not.isfrac(i)) then
           seed%x(:,i) = seed%x(:,i) / bohrtoa
           if (.not.is_file_mol) seed%x(:,i) = matmul(rlat,seed%x(:,i))
+          seed%atname(i) = ""
        end if
     end do
 
@@ -5015,7 +5082,7 @@ contains
 
     ! atoms
     seed%nspc = 0
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
     allocate(seed%spc(2),imap(maxzat))
     imap = 0
     do i = 1, seed%nat
@@ -5034,10 +5101,12 @@ contains
           imap(iz) = seed%nspc
        endif
        seed%is(i) = imap(iz)
+       seed%atname(i) = ""
     end do
     call realloc(seed%spc,seed%nspc)
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
+    call realloc(seed%atname,seed%nat)
     deallocate(imap)
 
     errmsg = ""
@@ -5719,6 +5788,7 @@ contains
     do i = 1, seed%nat
        write (uout,'(99(A," "))') string(seed%is(i)), &
           (string(seed%x(j,i),'f',decimal=10),j=1,3)
+       seed%atname(i) = ""
     end do
     write (uout,*)
 
@@ -5772,6 +5842,11 @@ contains
        to%is = from%is
     else
        if (allocated(to%is)) deallocate(to%is)
+    end if
+    if (allocated(from%atname)) then
+       to%atname = from%atname
+    else
+       if (allocated(to%atname)) deallocate(to%atname)
     end if
     to%nspc = from%nspc
     if (allocated(from%spc)) then
@@ -6012,7 +6087,7 @@ contains
           end do
           seed(nseed)%nat = seed(nseed)%nat + nn
        end do
-       allocate(seed(nseed)%x(3,seed(nseed)%nat))
+       allocate(seed(nseed)%x(3,seed(nseed)%nat),seed(nseed)%atname(seed(nseed)%nat))
        call realloc(seed(nseed)%is,seed(nseed)%nat)
 
        ! check there are no more atoms in this line
@@ -6042,6 +6117,7 @@ contains
           read(lu,*,err=998,end=998) seed(nseed)%x(:,i)
           if (iscar) &
              seed(nseed)%x(:,i) = matmul(rprim,seed(nseed)%x(:,i) / bohrtoa)
+          seed(nseed)%atname(i) = ""
        enddo
     end do
 998 continue
@@ -6458,10 +6534,12 @@ contains
       seed%nat = nat
       if (allocated(seed%x)) deallocate(seed%x)
       if (allocated(seed%is)) deallocate(seed%is)
-      allocate(seed%x(3,nat),seed%is(nat))
+      if (allocated(seed%atname)) deallocate(seed%atname)
+      allocate(seed%x(3,nat),seed%is(nat),seed%atname(nat))
       do i = 1, nat
          seed%is(i) = zspc(zat(i))
          seed%x(:,i) = xat(:,i)
+         seed%atname(i) = ""
       end do
 
       ! pre-allocate the symmetry
@@ -6626,7 +6704,7 @@ contains
                 ! fill the seed with information from this ATOM block
                 call seed%end()
                 seed%nat = nat
-                allocate(seed%x(3,nat),seed%is(nat),usedz(maxzat))
+                allocate(seed%x(3,nat),seed%is(nat),seed%atname(nat),usedz(maxzat))
                 usedz = 0
                 seed%nspc = 0
                 allocate(seed%spc(10))
@@ -6648,6 +6726,7 @@ contains
                       usedz(zat) = seed%nspc
                    end if
                    seed%is(i) = usedz(zat)
+                   seed%atname(i) = ""
                 end do
                 call realloc(seed%spc,seed%nspc)
                 deallocate(usedz)
@@ -6841,7 +6920,7 @@ contains
           ! read the number of atoms and allocate space
           ok = isinteger(seed%nat,line(1:3))
           if (.not.ok) goto 100
-          allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+          allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
 
           ! prepare space for species
           seed%nspc = 0
@@ -6858,6 +6937,7 @@ contains
              ok = ok .and. isreal(seed%x(2,i),line(11:20))
              ok = ok .and. isreal(seed%x(3,i),line(21:30))
              if (.not.ok) goto 100
+             seed%atname(i) = ""
 
              ! atomic symbol and chemical species
              zat = zatguess(line(31:33))
@@ -6897,7 +6977,7 @@ contains
                    ! read the value and allocate space in the seed
                    ok = isinteger(seed%nat,line,lp)
                    if (.not.ok) goto 100
-                   allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+                   allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
                 elseif (word1 == "begin" .and. word2 == "atom") then
                    ! must have the number of atoms already
                    if (seed%nat == 0) goto 100
@@ -6925,6 +7005,7 @@ contains
                       ok = ok .and. isreal(seed%x(2,i),line,lp)
                       ok = ok .and. isreal(seed%x(3,i),line,lp)
                       if (.not.ok) goto 100
+                      seed%atname(i) = ""
 
                       ! atomic symbol and chemical species
                       lword1 = lower(word1)
@@ -7053,6 +7134,7 @@ contains
     integer :: nat, nspc, iuse
     real*8, allocatable :: x(:,:)
     integer, allocatable :: is(:)
+    character*10, allocatable :: atname(:)
     type(species), allocatable :: spc(:) !< Species
     real*8 :: m_x2c(3,3)
     logical :: hasx, hasis, hasspc, hasr
@@ -7113,7 +7195,8 @@ contains
           ok = isinteger(nat,line,ideq)
           if (allocated(x)) deallocate(x)
           if (allocated(is)) deallocate(is)
-          allocate(x(3,nat),is(nat))
+          if (allocated(atname)) deallocate(atname)
+          allocate(x(3,nat),is(nat),atname(nat))
 
        elseif (index(line,"number of atomic types") > 0) then
           ok = isinteger(nspc,line,ideq)
@@ -7154,6 +7237,7 @@ contains
           ok = getline_raw(lu,line)
           if (.not.ok) goto 999
           is = 0
+          atname = ""
           do i = 1, nat
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
@@ -7215,6 +7299,7 @@ contains
              rfac = 1d0
           end if
           is = 0
+          atname = ""
           do i = 1, nat
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
@@ -7269,6 +7354,7 @@ contains
              seed(iuse)%spc = spc
              seed(iuse)%x = x
              seed(iuse)%is = is
+             seed(iuse)%atname = atname
              seed(iuse)%m_x2c = m_x2c
 
              seed(iuse)%useabr = 2
@@ -7426,9 +7512,10 @@ contains
        seed(nseed)%isformat = isformat_xyz
 
        seed(nseed)%nspc = 0
-       allocate(seed(nseed)%x(3,nat),seed(nseed)%is(nat),seed(nseed)%spc(10))
+       allocate(seed(nseed)%x(3,nat),seed(nseed)%is(nat),seed(nseed)%spc(10),seed(nseed)%atname(nat))
        do i = 1, nat
           read (lu,*,err=999,end=999) atn, seed(nseed)%x(:,i)
+          seed(nseed)%atname(i) = ""
 
           ok = isinteger(iz,atn)
           if (ok) then
@@ -7461,6 +7548,7 @@ contains
        end do
        call realloc(seed(nseed)%spc,seed(nseed)%nspc)
        seed(nseed)%x = seed(nseed)%x / bohrtoa
+       seed(nseed)%atname = ""
        seed(nseed)%havesym = 0
        seed(nseed)%checkrepeats = .false.
        seed(nseed)%findsym = -1
@@ -7487,6 +7575,7 @@ contains
           end if
           do i = 1, seed(nseed)%nat
              seed(nseed)%x(:,i) = matmul(r,seed(nseed)%x(:,i))
+             seed(nseed)%atname(i) = ""
           end do
        end if
        if (present(seed0)) exit ! stop here if we only need 1 seed
@@ -7698,7 +7787,7 @@ contains
        if (ok) then
           in = in + 1
           seed(in)%nat = nat
-          allocate(seed(in)%x(3,nat),seed(in)%is(nat))
+          allocate(seed(in)%x(3,nat),seed(in)%is(nat),seed(in)%atname(nat))
 
           ok = getline_raw(lu,line)
           ok = ok .and. getline_raw(lu,line)
@@ -7709,6 +7798,7 @@ contains
           do i = 1, nat
              read (lu,*,err=999,end=999) idum, iz, idum, seed(in)%x(:,i)
              seed(in)%is(i) = usez(iz)
+             seed(in)%atname(i) = ""
           end do
 
           seed(in)%x = seed(in)%x / bohrtoa
@@ -7810,7 +7900,7 @@ contains
     allocate(seed(10))
 
     ! allocate atoms
-    allocate(isfrac(10),seed(1)%x(3,10),seed(1)%is(10))
+    allocate(isfrac(10),seed(1)%x(3,10),seed(1)%is(10),seed(1)%atname(10))
 
     ! advance until we are at the "Input geometry" line
     ok = .false.
@@ -7854,8 +7944,10 @@ contains
           call realloc(isfrac,2*seed(1)%nat)
           call realloc(seed(1)%x,3,2*seed(1)%nat)
           call realloc(seed(1)%is,2*seed(1)%nat)
+          call realloc(seed(1)%atname,2*seed(1)%nat)
        end if
        read(line,*,err=999,end=999) cdum, dum1, dum2, splbl, (seed(1)%x(j,seed(1)%nat),j=1,3)
+       seed(1)%atname(seed(1)%nat) = ""
        isfrac(seed(1)%nat) = .false.
 
        word = trim(adjustl(splbl))
@@ -7870,6 +7962,7 @@ contains
     call realloc(isfrac,seed(1)%nat)
     call realloc(seed(1)%x,3,seed(1)%nat)
     call realloc(seed(1)%is,seed(1)%nat)
+    call realloc(seed(1)%atname,seed(1)%nat)
 
     ! fill the species array
     allocate(seed(1)%spc(seed(1)%nspc))
@@ -7944,7 +8037,7 @@ contains
        seed(nseed)%spc = seed(1)%spc
        seed(nseed)%nat = seed(1)%nat
        seed(nseed)%is = seed(1)%is
-       allocate(seed(nseed)%x(3,seed(1)%nat))
+       allocate(seed(nseed)%x(3,seed(1)%nat),seed(nseed)%atname(seed(1)%nat))
 
        ! read the geometry block
        nlat = 0
@@ -7968,6 +8061,7 @@ contains
              ok = ok .and. isreal(seed(nseed)%x(2,iat),line,lp)
              ok = ok .and. isreal(seed(nseed)%x(3,iat),line,lp)
              isfrac(iat) = .false.
+             seed(nseed)%atname(iat) = ""
           end if
        end do
 
@@ -8110,10 +8204,11 @@ contains
     if (allocated(seed)) deallocate(seed)
     allocate(seed(nseed))
     do i = 1, nseed
-       allocate(seed(i)%x(3,nat),seed(i)%is(nat),seed(i)%spc(nspc))
+       allocate(seed(i)%x(3,nat),seed(i)%is(nat),seed(i)%spc(nspc),seed(i)%atname(nat))
        seed(i)%useabr = 2
        seed(i)%nat = nat
        seed(i)%nspc = nspc
+       seed(i)%atname = ""
     end do
 
     ! second pass, actual read
@@ -8144,6 +8239,7 @@ contains
           ok = ok .and. isreal(seed(nseed)%x(2,nat),line,lp)
           ok = ok .and. isreal(seed(nseed)%x(3,nat),line,lp)
           if (.not.ok) goto 999
+          seed(nseed)%atname(nat) = ""
 
           is = usen%get(lword,1)
           seed(nseed)%is(nat) = is
@@ -8179,6 +8275,7 @@ contains
        end if
        do j = 1, seed(i)%nat
           seed(i)%x(:,j) = matmul(m,seed(i)%x(:,j))
+          seed(i)%atname(j) = ""
        end do
     end do
 
@@ -8261,7 +8358,7 @@ contains
     errmsg = "Error reading file: " // trim(file)
     r = 0d0
     iscrystal = -1
-    allocate(seed%x(3,10),seed%is(10),seed%spc(2))
+    allocate(seed%x(3,10),seed%is(10),seed%spc(2),seed%atname(10))
     seed%nat = 0
     seed%nspc = 0
     firstseed = .true.
@@ -8332,9 +8429,11 @@ contains
                 if (seed%nat > size(seed%x,2)) then
                    call realloc(seed%x,3,2*seed%nat)
                    call realloc(seed%is,2*seed%nat)
+                   call realloc(seed%atname,2*seed%nat)
                 end if
                 read (line,*,err=999,end=999) idum, iz, ats, x
                 seed%x(:,seed%nat) = x / bohrtoa
+                seed%atname(seed%nat) = ""
                 seed%is(seed%nat) = 0
                 do j = 1, seed%nspc
                    if (equali(trim(ats),seed%spc(j)%name)) then
@@ -8353,6 +8452,7 @@ contains
              end do
              call realloc(seed%x,3,seed%nat)
              call realloc(seed%is,seed%nat)
+             call realloc(seed%atname,seed%nat)
              call realloc(seed%spc,seed%nspc)
 
              ! no symmetry
@@ -8430,6 +8530,7 @@ contains
                 if (index(line,"PROCESS") > 0 .and. index(line,"WORKING") > 0) cycle
                 read (line,*,err=999,end=999) idum, bts, iz, ats, seed%x(:,i)
                 seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
+                seed%atname(i) = ""
              end do
 
              ! new seed is ready
