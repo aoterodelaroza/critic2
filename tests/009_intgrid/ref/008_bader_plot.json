@@ -50,7 +50,7 @@
     "species": [
       {
         "id": 1,
-        "name": "O_",
+        "name": "O",
         "atomic_number": 8
       },
       {
@@ -476,7 +476,7 @@
         "id": 1,
         "cell_cp": "1",
         "nonequivalent_cp": "1",
-        "name": "O_",
+        "name": "O",
         "atomic_number": "8",
         "fractional_coordinates": [
           0.41299999999999998E+0,
@@ -494,7 +494,7 @@
         "id": 2,
         "cell_cp": "2",
         "nonequivalent_cp": "1",
-        "name": "O_",
+        "name": "O",
         "atomic_number": "8",
         "fractional_coordinates": [
           0.73319999999999996E+0,
@@ -512,7 +512,7 @@
         "id": 3,
         "cell_cp": "3",
         "nonequivalent_cp": "1",
-        "name": "O_",
+        "name": "O",
         "atomic_number": "8",
         "fractional_coordinates": [
           0.85380000000000011E+0,
@@ -530,7 +530,7 @@
         "id": 4,
         "cell_cp": "4",
         "nonequivalent_cp": "1",
-        "name": "O_",
+        "name": "O",
         "atomic_number": "8",
         "fractional_coordinates": [
           0.26680000000000009E+0,
@@ -548,7 +548,7 @@
         "id": 5,
         "cell_cp": "5",
         "nonequivalent_cp": "1",
-        "name": "O_",
+        "name": "O",
         "atomic_number": "8",
         "fractional_coordinates": [
           0.14619999999999991E+0,
@@ -566,7 +566,7 @@
         "id": 6,
         "cell_cp": "6",
         "nonequivalent_cp": "1",
-        "name": "O_",
+        "name": "O",
         "atomic_number": "8",
         "fractional_coordinates": [
           0.58699999999999997E+0,

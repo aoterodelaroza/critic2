@@ -55,14 +55,14 @@
 * List of attractors integrated
 # Id   cp   ncp   Name  Z   mult           Position (cryst.) 
   1    1    1      Mg   12  --    0.4999992    0.0000013    0.0000013  
-  2    2    2      O_   8   --    0.9999999    0.5000006    0.5000006  
+  2    2    2      O    8   --    0.9999999    0.5000006    0.5000006  
 
 * Integrated atomic properties
 # (See key above for interpretation of column headings.)
 # Integrable properties 1 to 3
 # Id   cp   ncp   Name  Z   mult     Volume            Pop             Lap       
   1    1    1      Mg   12  --   7.09806724E+01  1.70129056E+00  4.15842867E+00 
-  2    2    2      O_   8   --   4.77975582E+01  6.29870838E+00 -4.15842867E+00 
+  2    2    2      O    8   --   4.77975582E+01  6.29870838E+00 -4.15842867E+00 
 --------------------------------------------------------------------------------
-  Sum                            1.18778231E+02  7.99999893E+00 -5.06261699E-14 
+  Sum                            1.18778231E+02  7.99999893E+00 -5.24025268E-14 
 
