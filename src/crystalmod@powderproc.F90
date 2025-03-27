@@ -1001,6 +1001,7 @@ contains
        write (uout,'("+ Reading the pattern from xy file: ",A)') trim(xyfile)
     call file_read_xy(xyfile,n,x,y,errmsg)
     if (len_trim(errmsg) > 0) return
+    y = y - min(minval(y),0d0)
     yread = y
     minx = minval(x)
     maxx = maxval(x)
@@ -2313,7 +2314,7 @@ contains
 #else
     integer :: i, nk
     real*8, allocatable :: xk(:), yk(:), c(:,:)
-    real*8 :: ssq
+    real*8 :: ssq, yback
     integer*8 :: opt
     integer :: ires
 
@@ -2326,12 +2327,13 @@ contains
     errmsg = ""
     nk = nknot0
     if (present(nknot)) nk = nknot
+    yback = min(minval(y) - 10d0,0d0)
 
     allocate(xk(nk),yk(nk))
     do i = 1, nk
        xk(i) = x(1) + real(i - 1,8) / real(nk - 1,8) * (x(n) - x(1))
     end do
-    yk = sum(y) / real(n,8)
+    yk = sum(y) / real(n,8) - yback
 
     ! optimize
     call nlo_create(opt, NLOPT_LN_PRAXIS, nk)
@@ -2374,7 +2376,7 @@ contains
       c = splinefit(nk,xk,yin)
       val = 0d0
       do i = 1, n
-         t = (y(i) - splineval(nk,c,x(i))) / sqrt(y(i))
+         t = (y(i) - splineval(nk,c,x(i))) / sqrt(y(i) - yback)
          diff = loglike_bayes(t)
          val = val - diff
       end do
