@@ -61,7 +61,7 @@ contains
 
     integer :: lp, lp2, istruct
     character(len=:), allocatable :: word, word2, lword, subline
-    integer :: nn, isformat, id
+    integer :: i, nn, isformat, id
     real*8 :: rborder, raux, xnudge
     logical :: docube, ok, ismol, mol, hastypes, readtypes
     type(crystalseed) :: seed
@@ -260,8 +260,13 @@ contains
                 word2 = getword(line,lp)
              end do
           end if
-          if (seed%nspc == 0) &
+          if (seed%nspc == 0) then
              errmsg = "Atom types not found (use POTCAR or give atom types after structure file)"
+          else
+             do i = 1, seed%nat
+                seed%atname(i) = seed%spc(seed%is(i))%name
+             end do
+          end if
           call realloc(seed%spc,seed%nspc)
        end if
 

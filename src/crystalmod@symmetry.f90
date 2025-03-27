@@ -372,6 +372,7 @@ contains
     integer :: i, j, k, iat, idx
     logical :: found
     real*8 :: rotm(3,3), x0(3)
+    character*10, allocatable :: name(:)
 
     c%spgavail = .false.
     call c%spglib_wrap(c%spg,usenneq,errmsg,ti=ti)
@@ -381,6 +382,7 @@ contains
     ! make a copy of nneq into ncel, if appropriate
     if (usenneq) then
        c%ncel = c%nneq
+       allocate(name(c%ncel))
        if (allocated(c%atcel)) deallocate(c%atcel)
        allocate(c%atcel(c%ncel))
        do i = 1, c%ncel
@@ -393,6 +395,12 @@ contains
 
           c%atcel(i)%is = c%at(i)%is
           c%atcel(i)%cidx = i
+          name(i) = c%at(i)%name
+       end do
+    else
+       allocate(name(c%ncel))
+       do i = 1, c%ncel
+          name(i) = c%at(c%atcel(i)%idx)%name
        end do
     end if
 
@@ -409,6 +417,7 @@ contains
           c%at(c%nneq)%x = c%atcel(idx)%x
           c%at(c%nneq)%r = c%atcel(idx)%r
           c%at(c%nneq)%is = c%atcel(idx)%is
+          c%at(c%nneq)%name = name(idx)
           c%at(c%nneq)%mult = 1
           c%at(c%nneq)%wyc = "?"
        else
@@ -418,6 +427,7 @@ contains
        c%atcel(i)%cidx = i
     end do
     call realloc(c%at,c%nneq)
+    deallocate(name)
 
     ! unpack spglib's output into pure translations and symops
     c%neqv = 1
@@ -507,6 +517,7 @@ contains
 
     type(neqatom), allocatable :: aux(:)
     integer :: idir, i
+    character*10, allocatable :: name(:)
 
     idir = 0
     if (present(cel2neq)) then
@@ -537,6 +548,11 @@ contains
     if (idir == 1) then
        ! convert ncel to nneq
        if (c%nneq /= c%ncel) then
+          allocate(name(c%ncel))
+          do i = 1, c%ncel
+             name(i) = c%at(c%atcel(i)%idx)%name
+          end do
+
           allocate(aux(c%nneq))
           aux = c%at(1:c%nneq)
           c%nneq = c%ncel
@@ -547,8 +563,9 @@ contains
              c%at(i)%is = c%atcel(i)%is
              c%at(i)%mult = 1
              c%at(i)%wyc = "?"
+             c%at(i)%name = name(i)
           end do
-          deallocate(aux)
+          deallocate(aux,name)
        end if
     elseif (idir == -1) then
        ! convert nneq to ncel

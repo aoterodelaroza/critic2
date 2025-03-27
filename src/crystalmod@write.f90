@@ -146,7 +146,7 @@ contains
              write (uout,'("  ",99(A," "))') string(i,3,ioj_center),&
                 (string(c%at(i)%x(j),'f',length=14,decimal=10,justify=3),j=1,3),&
                 string(is,3,ioj_center), string(c%at(i)%mult,3,ioj_right) // c%at(i)%wyc, &
-                string(c%spc(is)%name,7,ioj_center), &
+                string(c%at(i)%name,7,ioj_center), &
                 string(c%at(i)%mult,4,ioj_center), string(c%spc(is)%z,3,ioj_center)
           enddo
           write (uout,*)
@@ -177,7 +177,7 @@ contains
                 string(c%atcel(i)%x(2),'f',length=14,decimal=10,justify=3),&
                 string(c%atcel(i)%x(3),'f',length=14,decimal=10,justify=3),&
                 string(is,3,ioj_center),&
-                string(c%spc(is)%name,7,ioj_center),&
+                string(c%at(c%atcel(i)%idx)%name,7,ioj_center),&
                 string(c%spc(is)%z,3,ioj_center),&
                 string(c%atcel(i)%idx,3,ioj_center), str1
           enddo
@@ -217,7 +217,7 @@ contains
           write (uout,'("  ",99(A," "))') &
              string(i,3,ioj_center),&
              (string((c%atcel(i)%r(j)+c%molx0(j))*dunit0(iunit),'f',length=16,decimal=10,justify=5),j=1,3),&
-             string(is,3,ioj_center),string(c%spc(is)%name,7,ioj_center), string(c%spc(is)%z,3,ioj_center),&
+             string(is,3,ioj_center),string(c%at(c%atcel(i)%idx)%name,7,ioj_center), string(c%spc(is)%z,3,ioj_center),&
              string(2d0*rnn2*dunit0(iunit),'f',length=10,decimal=4,justify=4), &
              string(c%atcel(i)%idx,3,ioj_center), str1
        enddo
