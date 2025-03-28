@@ -1077,7 +1077,7 @@ contains
        if (verbose) then
           rnn2 = sy%c%get_rnn2(i)
           write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3("  ",A))') &
-             string(i), string(sy%c%spc(sy%c%at(i)%is)%name), string(sphfactor(i),'f',decimal=6), &
+             string(i), string(sy%c%at(i)%name), string(sphfactor(i),'f',decimal=6), &
              string(r_betagp(i),'f',decimal=6), string(rnn2,'f',decimal=6)
        end if
     end do
@@ -1222,7 +1222,7 @@ contains
           if (i <= sy%c%nneq) then
              rnn2 = sy%c%get_rnn2(i)
              write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(A,"  "))') &
-                string(i), string(sy%c%spc(sy%c%at(i)%is)%name), string(sphfactor(i),'f',decimal=6), &
+                string(i), string(sy%c%at(i)%name), string(sphfactor(i),'f',decimal=6), &
                 string(r_betagp(i),'f',decimal=6), string(rnn2,'f',decimal=6)
           else
              write (uout,'("+ Sphfactor/rbeta/rnn2 of nuc ",A," (",A,") :",3(A,"  "))') &

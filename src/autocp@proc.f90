@@ -1003,7 +1003,6 @@ contains
           allocate(seed%x(3,sy%f(sy%iref)%ncpcel),seed%is(sy%f(sy%iref)%ncpcel),seed%atname(sy%f(sy%iref)%ncpcel))
           do i = 1, sy%f(sy%iref)%ncpcel
              seed%x(:,i) = sy%f(sy%iref)%cpcel(i)%x
-             seed%atname(i) = ""
              if (i <= sy%c%ncel) then
                 seed%is(i) = sy%c%atcel(i)%is
              else
@@ -1023,6 +1022,7 @@ contains
                    end if
                 end if
              end if
+             seed%atname(i) = seed%spc(seed%is(i))%name
           end do
           seed%useabr = 2
           seed%m_x2c = sy%c%m_x2c
@@ -1100,7 +1100,7 @@ contains
          else
             seed%is(n) = sy%c%nspc+5
          end if
-         seed%atname(n) = ""
+         seed%atname(n) = seed%spc(seed%is(n))%name
       end do
       seed%nat = n
 

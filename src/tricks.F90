@@ -979,7 +979,7 @@ contains
              do k = 1, nsp(j)
                 seed(i)%nat = seed(i)%nat + 1
                 seed(i)%is(iperm(seed(i)%nat)) = j
-                seed(i)%atname(iperm(seed(i)%nat)) = ""
+                seed(i)%atname(iperm(seed(i)%nat)) = seed(i)%spc(j)%name
              end do
           end do
           if (seed(i)%nat /= size(iperm,1)) then
@@ -996,7 +996,7 @@ contains
        else
           seed(i)%nat = seed(1)%nat
           seed(i)%is = seed(1)%is
-          seed(i)%atname = ""
+          seed(i)%atname = seed(1)%atname
        end if
 
        ! check the "direct" keyword

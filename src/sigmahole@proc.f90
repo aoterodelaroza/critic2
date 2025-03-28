@@ -118,8 +118,8 @@ contains
     ! some info to the output
     write (uout,'("+ Data file: ",A)') trim(filename)
     write (uout,'("+ gnuplot file: ",A)') trim(gnuname)
-    write (uout,'("  Base atom (B): ",A," (",A,")")') trim(s%c%spc(s%c%at(ic)%is)%name), string(ic)
-    write (uout,'("  Electronegative atom (X): ",A," (",A,")")') trim(s%c%spc(s%c%at(ix)%is)%name), string(ix)
+    write (uout,'("  Base atom (B): ",A," (",A,")")') trim(s%c%at(ic)%name), string(ic)
+    write (uout,'("  Electronegative atom (X): ",A," (",A,")")') trim(s%c%at(ix)%name), string(ix)
     write (uout,'("  Electron density isosurface (a.u.): ",A)') string(isoval,'e',decimal=4)
     write (uout,'("  Number of u-points: ",A)') string(nu)
     write (uout,'("  Number of v-points: ",A)') string(nv)

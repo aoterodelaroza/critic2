@@ -943,7 +943,7 @@ contains
           elseif (index(aux,"%l") > 0) then
              ! the original atom label
              idx = index(aux,"%l")
-             aux2 = aux(1:idx-1) // string(s%c%spc(s%c%at(i)%is)%name) // aux(idx+2:)
+             aux2 = aux(1:idx-1) // string(s%c%at(i)%name) // aux(idx+2:)
              aux = trim(aux2)
           else
              exit
@@ -998,7 +998,7 @@ contains
              string(s%c%at(i)%x(1),'f',length=14,decimal=10,justify=3),&
              string(s%c%at(i)%x(2),'f',length=14,decimal=10,justify=3),&
              string(s%c%at(i)%x(3),'f',length=14,decimal=10,justify=3),&
-             string(s%c%spc(s%c%at(i)%is)%name,10,ioj_center), &
+             string(s%c%at(i)%name,10,ioj_center), &
              string(s%c%at(i)%mult,4,ioj_center), &
              string(s%c%spc(s%c%at(i)%is)%z,4,ioj_center)
        enddo
@@ -2561,7 +2561,7 @@ contains
           end if
 
           write (uout,'("+ Environment of atom ",A," (spc=",A,", nid=",A,") at ",3(A," "))') &
-             string(i), string(s%c%spc(s%c%at(idx)%is)%name), string(idx), &
+             string(i), string(s%c%at(idx)%name), string(idx), &
              (string(s%c%atcel(i)%x(j),'f',length=10,decimal=6),j=1,3)
 
           if (groupshell) then
@@ -2993,7 +2993,7 @@ contains
        end do
 
        write (uout,'(99(A," "))') string(i,3,ioj_left), &
-          string(s%c%spc(s%c%at(i)%is)%name,4,ioj_center),string(s%c%at(i)%mult,3),&
+          string(s%c%at(i)%name,4,ioj_center),string(s%c%at(i)%mult,3),&
           (string(s%c%at(i)%x(j),'f',length=10,decimal=6),j=1,3),&
           string(nat,3,ioj_center), string(minval(dist)*dunit0(iunit),'f',length=10,decimal=6),&
           string(maxval(dist)*dunit0(iunit),'f',length=10,decimal=6), string(nf,3,ioj_center),&
@@ -3953,7 +3953,7 @@ contains
           end if
 
           write (uout,'(A," -> ",A,A," -> ",99(A," "))') string(i,length=4,justify=ioj_right), str,&
-             string(s%c%spc(s%c%at(i)%is)%name,length=9,justify=ioj_right), namestr,&
+             string(s%c%at(i)%name,length=9,justify=ioj_right), namestr,&
              string(econij(j,i),'f',length=10,decimal=4,justify=ioj_right),&
              string(econij_noit(j,i),'f',length=10,decimal=4,justify=ioj_right),&
              string(ndij(j,i)*dunit0(iunit),'f',length=10,decimal=4,justify=ioj_right),&
@@ -4660,7 +4660,7 @@ contains
              end if
              seed%x(:,n) = xnew
              seed%is(n) = cx%atcel(cidxorig(isperm(i,is),is))%is
-             seed%atname(n) = ""
+             seed%atname(n) = cx%at(cx%atcel(cidxorig(isperm(i,is),is))%idx)%name
           end do
        end do
 

@@ -145,7 +145,7 @@ contains
        x = c%at(i)%x
        pot = c%ewald_pot(x,rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
        ewe = ewe + c%at(i)%mult * c%spc(c%at(i)%is)%qat * pot
-       write (uout,'(99(A," "))') string(i,4), string(c%spc(c%at(i)%is)%name,4),&
+       write (uout,'(99(A," "))') string(i,4), string(c%at(i)%name,4),&
           string(c%at(i)%mult,4),&
           string(c%spc(c%at(i)%is)%qat,'e',14,6,3), string(pot,'e',18,10,3)
     end do

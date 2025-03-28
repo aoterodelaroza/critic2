@@ -1814,7 +1814,7 @@ contains
     if (usesym) then
        do i = 1, c%nneq
           iz = c%at(i)%is
-          str = trim(c%spc(iz)%name) // string(addlabel(i))
+          str = trim(c%at(i)%name) // string(addlabel(i))
           write (lu,'(5(A," "))') string(str,5,ioj_left),&
              string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
              (string(c%at(i)%x(j),'f',decimal=14),j=1,3)
@@ -1822,7 +1822,7 @@ contains
     else
        do i = 1, c%ncel
           iz = c%atcel(i)%is
-          str = trim(c%spc(iz)%name) // string(addlabel(i))
+          str = trim(c%at(c%atcel(i)%idx)%name) // string(addlabel(i))
           write (lu,'(5(A," "))') string(str,5,ioj_left),&
              string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
              (string(c%atcel(i)%x(j),'f',decimal=14),j=1,3)
@@ -2074,13 +2074,13 @@ contains
     ! list of atoms
     if (usesym) then
        do i = 1, c%nneq
-          write (lu,'(999(A," "))') trim(c%spc(c%at(i)%is)%name) // string(i), string(c%at(i)%is), &
+          write (lu,'(999(A," "))') trim(c%at(i)%name) // string(i), string(c%at(i)%is), &
              (string(c%at(i)%x(j),'f',12,8),j=1,3), string(real(c%at(i)%mult,8)/(c%neqv*c%ncv),'f',12,8), &
              "0.05"
        end do
     else
        do i = 1, c%ncel
-          write (lu,'(999(A," "))') trim(c%spc(c%atcel(i)%is)%name) // string(i), string(c%atcel(i)%is), &
+          write (lu,'(999(A," "))') trim(c%at(c%atcel(i)%idx)%name) // string(i), string(c%atcel(i)%is), &
              (string(c%atcel(i)%x(j),'f',12,8),j=1,3), "1.0", "0.05"
        end do
     end if

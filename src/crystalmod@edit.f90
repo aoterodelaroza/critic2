@@ -51,7 +51,7 @@ contains
        do i = 1, c%nneq
           seed%x(:,i) = c%at(i)%x
           seed%is(i) = c%at(i)%is
-          seed%atname(i) = ""
+          seed%atname(i) = c%at(i)%name
        end do
     else
        seed%nat = c%ncel
@@ -59,7 +59,7 @@ contains
        do i = 1, c%ncel
           seed%x(:,i) = c%atcel(i)%x
           seed%is(i) = c%atcel(i)%is
-          seed%atname(i) = ""
+          seed%atname(i) = c%at(c%atcel(i)%idx)%name
        end do
     end if
 
@@ -287,7 +287,7 @@ contains
        do i = 1, nnew
           ncseed%x(:,i) = xnew(:,i)
           ncseed%is(i) = isnew(i)
-          ncseed%atname(i) = ""
+          ncseed%atname(i) = c%spc(isnew(i))%name
        end do
     else
        ! check if this is a "simple" transformation (only integers in the diagonal)
@@ -316,7 +316,7 @@ contains
                       nn = nn + 1
                       ncseed%is(nn) = c%atcel(m)%is
                       ncseed%x(:,nn) = (c%atcel(m)%x-t) / real(nvec,8) + xshift
-                      ncseed%atname(nn) = ""
+                      ncseed%atname(nn) = c%at(c%atcel(m)%idx)%name
                    end do
                 end do
              end do
@@ -420,7 +420,7 @@ contains
                    end if
                    ncseed%x(:,ncseed%nat) = x
                    ncseed%is(ncseed%nat) = c%atcel(j)%is
-                   ncseed%atname(ncseed%nat) = ""
+                   ncseed%atname(ncseed%nat) = c%at(c%atcel(j)%idx)%name
                 end if
              end do
           end do
@@ -818,7 +818,7 @@ contains
        ncseed%nat = ncseed%nat + 1
        ncseed%x(:,ncseed%nat) = c%atcel(i)%x
        ncseed%is(ncseed%nat) = c%atcel(i)%is
-       ncseed%atname(ncseed%nat) = ""
+       ncseed%atname(ncseed%nat) = c%at(c%atcel(i)%idx)%name
     end do
     deallocate(isuse)
 

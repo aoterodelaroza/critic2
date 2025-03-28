@@ -86,7 +86,7 @@ contains
     write (luo,'("  ",A,6(F10.4," "))') "clippingbox ", clip0, clip1
     do i = 1, sy%f(sy%iref)%ncp
        if (i <= sy%c%nneq) then
-          label = trim(sy%c%spc(sy%c%at(i)%is)%name)
+          label = trim(sy%c%at(i)%name)
           if (label(2:2) == " ") label(2:2) = "_"
        else if (sy%f(sy%iref)%cp(i)%typ == -3) then
           label = "XX"
@@ -108,7 +108,7 @@ contains
     end if
     do i = 1, sy%f(sy%iref)%ncp
        if (i <= sy%c%nneq) then
-          label = trim(sy%c%spc(sy%c%at(i)%is)%name)
+          label = trim(sy%c%at(i)%name)
           if (label(2:2) == " ") label(2:2) = "_"
        else if (sy%f(sy%iref)%cp(i)%typ == -3) then
           label = "XX"
@@ -272,7 +272,7 @@ contains
     write (ludif,'("  ",A,6(F10.4," "))') "clippingbox ", clip0, clip1
     do i = 1, sy%f(sy%iref)%ncp
        if (i <= sy%c%nneq) then
-          label = trim(sy%c%spc(sy%c%at(i)%is)%name)
+          label = trim(sy%c%at(i)%name)
           if (label(2:2) == " ") label(2:2) = "_"
        else if (sy%f(sy%iref)%cp(i)%typ == -3) then
           label = "XX"
@@ -290,7 +290,7 @@ contains
     write (ludif,'(" ",A,3(F10.4," "))') "wigner_seitz edges irreducible radius 0.01 at ", ws_origin
     do i = 1, sy%f(sy%iref)%ncp
        if (i <= sy%c%nneq) then
-          label = trim(sy%c%spc(sy%c%at(i)%is)%name)
+          label = trim(sy%c%at(i)%name)
           if (label(2:2) == " ") label(2:2) = "_"
        else if (sy%f(sy%iref)%cp(i)%typ == -3) then
           label = "XX"

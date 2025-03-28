@@ -223,7 +223,7 @@ contains
     do iat = 1, sy%c%nneq
        write (uout,'(5(A," "))') string(iat,length=4,justify=ioj_center), &
           string(sy%c%at(iat)%mult,length=4,justify=ioj_center), &
-          string(sy%c%spc(sy%c%at(iat)%is)%name,length=5,justify=ioj_center), &
+          string(sy%c%at(iat)%name,length=5,justify=ioj_center), &
           string(nat(iat),'f',length=16,decimal=10,justify=3), &
           string(vat(iat),'f',length=16,decimal=10,justify=3)
     end do
