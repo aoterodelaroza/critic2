@@ -36,6 +36,9 @@ submodule (gui_main) proc
   type(c_ptr), target, allocatable :: thread(:)
   type(thread_info), target, allocatable :: thread_ti(:)
 
+  ! whether glfw errors are fatal
+  logical :: glfw_lenient = .false.
+
   !xx! private procedures
   ! subroutine process_arguments()
   ! subroutine show_main_menu()
@@ -109,10 +112,12 @@ contains
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
     if (glfwInit() == 0) &
        call ferror('gui_start','Failed to initialize GLFW',faterr)
+    glfw_lenient = .true.
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, opengl_version_major)
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, opengl_version_minor)
     call glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
     call glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE)
+    glfw_lenient = .false.
     ! call glfwWindowHint(GLFW_SAMPLES, ms_samples) ! activate multisampling
 
     ! set up window
@@ -129,7 +134,9 @@ contains
     icon%pixels = stbi_load(c_loc(file), icon%width, icon%height, idum, 4)
     if (.not.c_associated(icon%pixels)) &
        call ferror('gui_start','Could not find GUI assets: have you set CRITIC_HOME?',faterr)
+    glfw_lenient = .true.
     call glfwSetWindowIcon(rootwin, 1, c_loc(icon))
+    glfw_lenient = .false.
     call stbi_image_free(icon%pixels)
 
     ! set up ImGui context
@@ -149,7 +156,9 @@ contains
        string(opengl_version_major) // '.' // string(opengl_version_minor) // ' not supported',faterr)
 
     ! set glfw options
+    glfw_lenient = .true.
     call glfwSetInputMode(rootwin, GLFW_STICKY_KEYS, 1)
+    glfw_lenient = .false.
 
     ! set opengl options
     call glEnable(GL_DEPTH_TEST)
@@ -333,21 +342,27 @@ contains
 #endif
 
     ! terminate
+    glfw_lenient = .true.
     call glfwDestroyWindow(rootwin)
     call glfwTerminate()
+    glfw_lenient = .false.
 
   contains
     ! typedef void(* GLFWerrorfun) (int, const char *)
     subroutine error_callback(error,description) bind(c)
       use c_interface_module, only: c_f_string_alloc, c_strlen
-      use tools_io, only: ferror, faterr, string
+      use tools_io, only: ferror, faterr, string, warning
       integer(c_int), value :: error
       type(c_ptr), intent(in), value :: description
 
       character(len=:), allocatable :: msg
 
       call c_f_string_alloc(description,msg)
-      call ferror('glfw',"GLFW error (" // string(error) // "): " // trim(msg),faterr)
+      if (glfw_lenient) then
+         call ferror('glfw',"GLFW error (" // string(error) // "): " // trim(msg),warning)
+      else
+         call ferror('glfw',"GLFW error (" // string(error) // "): " // trim(msg),faterr)
+      end if
 
     end subroutine error_callback
     ! void drop_callback(GLFWwindow* window, int count, const char* paths[])
