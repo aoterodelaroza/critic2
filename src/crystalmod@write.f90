@@ -2617,7 +2617,7 @@ contains
   end subroutine write_pyscf
 
   !> Write the crystal or molecualr structure in FHIaims geometry.in
-  !> format.  If frac = .true., use atom_frac instead of atom if c is
+  !> format. If frac = .true., use atom_frac instead of atom if c is
   !> a crystal.
   module subroutine write_fhi(c,file,frac,rklength,ti)
     use tools_io, only: fopen_write, fclose, string, nameguess

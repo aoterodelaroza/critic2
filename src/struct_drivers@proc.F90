@@ -550,7 +550,7 @@ contains
     use systemmod, only: system
     use global, only: eval_next, dunit0, iunit
     use tools_io, only: getword, equal, lower, lgetword, ferror, faterr, uout, &
-       string
+       string, isreal
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(in) :: usexyznames
@@ -558,7 +558,7 @@ contains
     character(len=:), allocatable :: word, wext, file, wroot
     integer :: lp, ix(3), lp2, iaux, nmer, idx
     logical :: doborder, molmotif, dosym, docell, domolcell, ok, isqe
-    logical :: onemotif, environ, lnmer, doexternal
+    logical :: onemotif, environ, lnmer, doexternal, cartesian
     real*8 :: rsph, xsph(3), rcub, xcub(3), renv, rk
 
     lp = 1
@@ -690,22 +690,35 @@ contains
           isqe = equal(wext,'scf')
        endif
 
-       ok = eval_next(rk,line,lp)
+       rk = -1d0
+       cartesian = .false.
+       do while (.true.)
+          word = lgetword(line,lp)
+          if (len_trim(word) == 0) then
+             exit
+          elseif (equal(word,'cartesian')) then
+             cartesian = .true.
+          else
+             ok = isreal(rk,word)
+             if (.not.ok) &
+                call ferror('struct_write','Unknown extra keyword',faterr,line,syntax=.true.)
+          end if
+       end do
 
        ! espresso
        if (isqe) then
           write (uout,'("* WRITE espresso file: ",A)') string(file)
-          if (ok) then
+          if (rk > 0d0) then
              call s%c%write_espresso(file,rk)
           else
              call s%c%write_espresso(file)
           end if
        else
           write (uout,'("* WRITE FHIaims file: ",A)') string(file)
-          if (ok) then
-             call s%c%write_fhi(file,.true.,rk)
+          if (rk > 0d0) then
+             call s%c%write_fhi(file,.not.cartesian,rk)
           else
-             call s%c%write_fhi(file,.true.)
+             call s%c%write_fhi(file,.not.cartesian)
           end if
        end if
 

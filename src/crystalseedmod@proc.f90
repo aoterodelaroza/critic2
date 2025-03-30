@@ -6388,9 +6388,9 @@ contains
                       zat(nat) = zatguess(word)
                       ok = (zat(nat) /= 0)
                       havefields(7) = .true.
-                   elseif (cols(5)==i) then
-                      atname(nat) = word
                    end if
+                   if (cols(5)==i) &
+                      atname(nat) = word
                 end if
 
                 if (.not.ok) then
