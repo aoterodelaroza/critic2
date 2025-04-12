@@ -2841,10 +2841,10 @@ contains
     use tools_io, only: string, nameguess, ioj_right
     class(window), intent(inout), target :: w
 
-    logical :: domol
+    logical :: domol, dowyc, doidx
     logical :: doquit, dohighlight
     logical(c_bool) :: is_selected
-    integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm
+    integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
@@ -2853,13 +2853,6 @@ contains
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, ldum
     real*8 :: x0(3)
-
-    ! logical(c_bool) :: ch
-    ! integer(c_int) :: flags
-    ! character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3, suffix
-    ! type(ImVec2) :: sz0
-    ! integer :: ispc, i, iz, ncol
-
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -2951,12 +2944,16 @@ contains
              ntype = sys(isys)%c%ncel
           end if
 
-          ! whether to do the molecule column
+          ! whether to do the molecule column, wyckoff, nneq index
           domol = (w%geometry_atomtype == 2 .or. (w%geometry_atomtype == 1 .and. sys(isys)%c%ismolecule))
+          dowyc = (w%geometry_atomtype == 1 .and..not.sys(isys)%c%ismolecule)
+          doidx = (w%geometry_atomtype == 2 .and..not.sys(isys)%c%ismolecule)
 
           ! number of columns
           ncol = 3
           if (domol) ncol = ncol + 1 ! mol
+          if (dowyc) ncol = ncol + 1 ! wyckoff/multiplicity
+          if (doidx) ncol = ncol + 1 ! nneq idx
           if (w%geometry_atomtype > 0) ncol = ncol + 1 ! coordinates
 
           ! atom style table, for atoms
@@ -2991,7 +2988,25 @@ contains
 
              if (domol) then
                 icol = icol + 1
-                str2 = "Mol" // c_null_char
+                str2 = "mol" // c_null_char
+                flags = ImGuiTableColumnFlags_None
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             end if
+
+             if (dowyc) then
+                icol = icol + 1
+                if (sys(isys)%c%havesym > 0 .and. sys(isys)%c%spgavail) then
+                   str2 = "Wyc" // c_null_char
+                else
+                   str2 = "Mul" // c_null_char
+                end if
+                flags = ImGuiTableColumnFlags_None
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             end if
+
+             if (doidx) then
+                icol = icol + 1
+                str2 = "idx" // c_null_char
                 flags = ImGuiTableColumnFlags_None
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
              end if
@@ -3006,9 +3021,9 @@ contains
                 flags = ImGuiTableColumnFlags_WidthStretch
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
              end if
+             call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
              ! draw the header
-             call igTableSetupScrollFreeze(0, 1) ! top row always visible
              call igTableHeadersRow()
              call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
@@ -3019,7 +3034,9 @@ contains
              ! calculate the number of digits for output
              ndigit = ceiling(log10(ntype+0.1d0))
              ndigitm = 0
+             ndigitidx = 0
              if (domol) ndigitm = ceiling(log10(sys(isys)%c%nmol+0.1d0))
+             if (doidx) ndigitidx = ceiling(log10(sys(isys)%c%nneq+0.1d0))
 
              ! draw the rows
              do while(ImGuiListClipper_Step(clipper))
@@ -3076,10 +3093,10 @@ contains
                    ! name
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
-                      call iw_text(string(sys(isys)%c%spc(ispc)%name,2))
                       if (havergb) then
-                         ldum = iw_coloredit3("##tablecolorg" // suffix,rgb,sameline=.true.,nointeraction=.true.)
+                         ldum = iw_coloredit3("##tablecolorg" // suffix,rgb,nointeraction=.true.)
                       end if
+                      call iw_text(string(sys(isys)%c%spc(ispc)%name,2),sameline=.true.)
                    end if
 
                    ! Z
@@ -3091,6 +3108,26 @@ contains
                       icol = icol + 1
                       ! i is a complete list index in this case
                       if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%idatcelmol(1,i),ndigitm))
+                   end if
+
+                   ! multiplicity
+                   if (dowyc) then
+                      icol = icol + 1
+                      ! i is an nneq index in this case
+                      if (igTableSetColumnIndex(icol)) then
+                         if (sys(isys)%c%havesym > 0 .and. sys(isys)%c%spgavail) then
+                            call iw_text(string(sys(isys)%c%at(i)%mult) // sys(isys)%c%at(i)%wyc)
+                         else
+                            call iw_text(string(sys(isys)%c%at(i)%mult,2))
+                         end if
+                      end if
+                   end if
+
+                   ! multiplicity
+                   if (doidx) then
+                      icol = icol + 1
+                      ! i is cell index in this case
+                      if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%atcel(i)%idx,ndigitidx))
                    end if
 
                    ! coordinates
@@ -3119,27 +3156,6 @@ contains
              call ImGuiListClipper_End(clipper)
              call igEndTable()
           end if
-
-    ! if (showselection) then
-    !    ! style buttons: show/hide
-    !    if (iw_button("Show All##showallatoms")) then
-    !       r%atom_style%shown = .true.
-    !       changed = .true.
-    !    end if
-    !    call iw_tooltip("Show all atoms/bonds/labels in the system",ttshown)
-    !    if (iw_button("Hide All##hideallatoms",sameline=.true.)) then
-    !       r%atom_style%shown = .false.
-    !       changed = .true.
-    !    end if
-    !    call iw_tooltip("Hide all atoms/bonds/labels in the system",ttshown)
-    !    if (iw_button("Toggle Show/Hide##toggleallatoms",sameline=.true.)) then
-    !       do i = 1, r%atom_style%ntype
-    !          r%atom_style%shown(i) = .not.r%atom_style%shown(i)
-    !       end do
-    !       changed = .true.
-    !    end if
-    !    call iw_tooltip("Toggle the show/hide status for all atoms/bonds/labels",ttshown)
-    ! end if
 
           call igEndTabItem()
        end if
