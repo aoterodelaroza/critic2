@@ -969,7 +969,7 @@ contains
   contains
 
     subroutine write_maybe_selectable(isys,tooltipstr)
-      use gui_main, only: are_threads_running, duplicate_system
+      use gui_main, only: are_threads_running, duplicate_system, reread_system_from_file
       use keybindings, only: BIND_GEOMETRY
       use utils, only: iw_text
       use global, only: iunit, iunit_bohr, iunit_ang
@@ -1126,10 +1126,16 @@ contains
          end if
          call iw_tooltip("Display this system in a new view window",ttshown)
 
-         ! remove option (system)
+         ! duplicate system
          if (iw_menuitem("Duplicate",enabled=enabled_no_threads)) &
             call duplicate_system(isys)
-         call iw_tooltip("Initialize a new copy of this system",ttshown)
+         call iw_tooltip("Create a copy of this system",ttshown)
+
+         ! duplicate system
+         if (iw_menuitem("Reopen from File",enabled=enabled_no_threads)) then
+            call reread_system_from_file(isys)
+         end if
+         call iw_tooltip("Close this system and reopen it from the file (only last structure is read)",ttshown)
 
          ! remove option (system)
          ok = enabled
@@ -1142,7 +1148,7 @@ contains
                   call sys(isys)%unload_field(k)
                end do
             end if
-            call iw_tooltip("Rename all fields in this system",ttshown)
+            call iw_tooltip("Remove all fields in this system",ttshown)
          end if
 
          ! remove option (system)

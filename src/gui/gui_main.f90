@@ -77,7 +77,7 @@ module gui_main
   type(ImVec4), parameter, public :: ColorFieldSelected = ImVec4(0.91,1.00,0.00,0.31) ! alternate framebg
   type(ImVec4), parameter, public :: ColorTableHighlightRow = ImVec4(1._c_float,0.8_c_float,0.1_c_float,0.5_c_float)
 
-  ! system status (must be from lower to higher initialization level)
+  ! system status (from lower to higher initialization level)
   integer, parameter, public :: sys_empty = 0 ! not in use
   integer, parameter, public :: sys_loaded_not_init = 1 ! the seed is available, waiting for initialization
   integer, parameter, public :: sys_initializing = 2 ! the system is initializing
@@ -120,6 +120,7 @@ module gui_main
   public :: add_systems_from_seeds
   public :: add_systems_from_name
   public :: remove_system
+  public :: reread_system_from_file
   public :: duplicate_system
   public :: set_default_ui_settings
   public :: regenerate_system_pointers
@@ -137,23 +138,30 @@ module gui_main
      end function are_threads_running
      module subroutine system_shorten_names()
      end subroutine system_shorten_names
-     module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib)
+     module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx)
        integer, intent(in) :: nseed
        type(crystalseed), allocatable, intent(in) :: seed(:)
        logical, intent(in), optional :: collapse
        integer, intent(in), optional :: iafield, iavib
+       integer, intent(in), optional :: forceidx
      end subroutine add_systems_from_seeds
-     module subroutine add_systems_from_name(name,mol,isformat,readlastonly,rborder,molcubic)
+     module subroutine add_systems_from_name(name,mol,isformat,readlastonly,rborder,molcubic,&
+        forceidx)
        character(len=*), intent(in) :: name
        integer, intent(in) :: mol
        integer, intent(in) :: isformat
        logical, intent(in) :: readlastonly
        real*8, intent(in) :: rborder
        logical, intent(in) :: molcubic
+       integer, intent(in), optional :: forceidx
      end subroutine add_systems_from_name
-     recursive module subroutine remove_system(idx)
+     recursive module subroutine remove_system(idx,kill_dependents_if_extended)
        integer, intent(in) :: idx
+       logical, intent(in), optional :: kill_dependents_if_extended
      end subroutine remove_system
+     recursive module subroutine reread_system_from_file(idx)
+       integer, intent(in) :: idx
+     end subroutine reread_system_from_file
      recursive module subroutine duplicate_system(idx)
        integer, intent(in) :: idx
      end subroutine duplicate_system

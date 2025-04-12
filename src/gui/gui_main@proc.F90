@@ -481,8 +481,10 @@ contains
 
   !> Add systems by reading them from a file, passed by name. mol = 1
   !> read as crystal, 0 read as molecule, -1 autodetect. isformat,
-  !> force file format if /= 0.
-  module subroutine add_systems_from_name(name,mol,isformat,readlastonly,rborder,molcubic)
+  !> force file format if /= 0. If forceidx is present, force the
+  !> system to be in the provided index.
+  module subroutine add_systems_from_name(name,mol,isformat,readlastonly,rborder,molcubic,&
+     forceidx)
     use crystalseedmod, only: crystalseed, read_seeds_from_file
     use tools_io, only: uout
     character(len=*), intent(in) :: name
@@ -491,6 +493,7 @@ contains
     logical, intent(in) :: readlastonly
     real*8, intent(in) :: rborder
     logical, intent(in) :: molcubic
+    integer, intent(in), optional :: forceidx
 
     integer :: i, nseed
     type(crystalseed), allocatable :: seed(:)
@@ -513,7 +516,7 @@ contains
     end do
 
     ! add the systems
-    call add_systems_from_seeds(nseed,seed,collapse,iafield,iavib)
+    call add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx=forceidx)
 
     return
 999 continue
@@ -525,8 +528,9 @@ contains
   !> Add systems from the given seeds. If collapse is present and
   !> true, reorder to make the last system be first and collapse the
   !> other seeds in the tree view. If iafield, load a field from that
-  !> seed. If iavib, load vibrational data from that seed.
-  module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib)
+  !> seed. If iavib, load vibrational data from that seed. If forceidx
+  !> is present, force the system to be in the provided index.
+  module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx)
     use utils, only: get_current_working_dir
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
@@ -540,9 +544,10 @@ contains
     type(crystalseed), allocatable, intent(in) :: seed(:)
     logical, intent(in), optional :: collapse
     integer, intent(in), optional :: iafield, iavib
+    integer, intent(in), optional :: forceidx
 
     integer :: i, j, nid, idum
-    integer :: iafield_, iavib_
+    integer :: iafield_, iavib_, forceidx_
     integer :: iseed, iseed_, idx
     character(len=:), allocatable :: errmsg, str
     type(system), allocatable :: syaux(:)
@@ -563,36 +568,43 @@ contains
     if (present(iafield)) iafield_ = iafield
     iavib_ = 0
     if (present(iafield)) iavib_ = iavib
+    forceidx_ = -1
+    if (present(forceidx)) forceidx_ = forceidx
 
     ! find contiguous IDs for the new systems
-    allocate(id(nseed))
-    if (reuse_mid_empty_systems) then
-       ! may reuse old IDs
-       nid = 0
-       do i = 1, nsys
-          if (sysc(i)%status == sys_empty) then
-             nid = nid + 1
-             id(nid) = i
-             if (nid == nseed) exit
-          else
-             nid = 0
-          end if
-       end do
-       do i = nid+1, nseed
-          id(i) = nsys + i - nid
-       end do
+    if (nseed == 1 .and. forceidx_ > 0) then
+       allocate(id(nseed))
+       id(1) = forceidx_
     else
-       ! append IDs at the end, discard empty systems
-       nid = 0
-       do i = nsys, 1, -1
-          if (sysc(i)%status /= sys_empty) then
-             nid = i
-             exit
-          end if
-       end do
-       do i = 1, nseed
-          id(i) = nid + i
-       end do
+       allocate(id(nseed))
+       if (reuse_mid_empty_systems) then
+          ! may reuse old IDs
+          nid = 0
+          do i = 1, nsys
+             if (sysc(i)%status == sys_empty) then
+                nid = nid + 1
+                id(nid) = i
+                if (nid == nseed) exit
+             else
+                nid = 0
+             end if
+          end do
+          do i = nid+1, nseed
+             id(i) = nsys + i - nid
+          end do
+       else
+          ! append IDs at the end, discard empty systems
+          nid = 0
+          do i = nsys, 1, -1
+             if (sysc(i)%status /= sys_empty) then
+                nid = i
+                exit
+             end if
+          end do
+          do i = 1, nseed
+             id(i) = nid + i
+          end do
+       end if
     end if
 
     ! increment and reallocate if necessary
@@ -695,11 +707,16 @@ contains
   ! Remove system with index idx and leave behind a sys_empty spot. If
   ! master and collapsed, kill all dependents. If master and extended,
   ! make all dependents master.
-  recursive module subroutine remove_system(idx)
+  recursive module subroutine remove_system(idx,kill_dependents_if_extended)
     use interfaces_threads, only: deallocate_mtx
     integer, intent(in) :: idx
+    logical, intent(in), optional :: kill_dependents_if_extended
 
     integer :: i
+    logical :: kdie
+
+    kdie = .false.
+    if (present(kill_dependents_if_extended)) kdie = kill_dependents_if_extended
 
     if (.not.ok_system(idx,sys_loaded_not_init)) return
     call sys(idx)%end()
@@ -715,7 +732,7 @@ contains
     sysc(idx)%showfields = .false.
     sysc(idx)%timelastchange = time
 
-    if (sysc(idx)%collapse == -1) then
+    if (sysc(idx)%collapse == -1 .or. kdie) then
        ! kill all dependents if collapsed
        do i = 1, nsys
           if (sysc(i)%status /= sys_empty .and. sysc(i)%collapse == idx) &
@@ -745,6 +762,47 @@ contains
     call launch_initialization_thread()
 
   end subroutine duplicate_system
+
+  !> Re-read the system from file name of system idx
+  recursive module subroutine reread_system_from_file(idx)
+    use crystalseedmod, only: crystalseed
+    integer, intent(in) :: idx
+
+    character(len=:), allocatable :: file
+    type(crystalseed), allocatable :: seed(:)
+    logical :: exist, cubic
+    integer :: isformat, mol
+    real*8 :: border
+
+    ! the seed is available
+    if (.not.ok_system(idx,sys_loaded_not_init)) return
+
+    ! make sure the file exists
+    file = sysc(idx)%seed%file
+    inquire(file=file,exist=exist)
+    if (.not.exist) return
+
+    ! save the seed info
+    if (sysc(idx)%seed%ismolecule) then
+       mol = 1
+    else
+       mol = 0
+    end if
+    isformat = sysc(idx)%seed%isformat
+    border = sysc(idx)%seed%border
+    cubic = sysc(idx)%seed%cubic
+
+    ! remove the system
+    call remove_system(idx,kill_dependents_if_extended=.true.)
+
+    ! add the system again
+    call add_systems_from_name(file,mol,isformat,.true.,border,cubic,forceidx=idx)
+
+    ! initialize
+    call launch_initialization_thread()
+    call system_shorten_names()
+
+  end subroutine reread_system_from_file
 
   !> Reset all user interface settings to their default values
   module subroutine set_default_ui_settings()
