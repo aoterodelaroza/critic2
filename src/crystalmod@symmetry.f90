@@ -377,6 +377,10 @@ contains
     c%spgavail = .false.
     call c%spglib_wrap(c%spg,usenneq,errmsg,ti=ti)
     if (len_trim(errmsg) > 0) return
+    if (c%spg%n_atoms == 0 .or. c%spg%n_operations == 0) then
+       errmsg = "error detecting space group"
+       return
+    end if
     c%spgavail = .true.
 
     ! make a copy of nneq into ncel, if appropriate
