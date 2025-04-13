@@ -896,43 +896,50 @@ contains
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
        wintype_about, wintype_geometry, wintype_rebond, wintype_vibrations
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
-    use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_NEW, BIND_GEOMETRY, get_bind_keyname,&
-       is_bind_event
+    use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
+       BIND_GEOMETRY, get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
 
     ! enum for the dialog types that can be launched from the menu
     integer, parameter :: d_open = 1
-    integer, parameter :: d_new = 2
-    integer, parameter :: d_newlib = 3
-    integer, parameter :: d_preferences = 4
-    integer, parameter :: d_geometry = 5
+    integer, parameter :: d_close = 2
+    integer, parameter :: d_reopen = 3
+    integer, parameter :: d_new = 4
+    integer, parameter :: d_newlib = 5
+    integer, parameter :: d_preferences = 6
+    integer, parameter :: d_geometry = 7
+    integer, parameter :: D_TOTAL = 7
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     integer(c_int) :: idum
-    logical :: launchquit, launch(5), isysok, ifieldok
-    integer :: isys
+    logical :: launchquit, launch(D_TOTAL), isysok, isysvok, ifieldok
+    integer :: isys, isysv
 
     logical, save :: ttshown = .false. ! tooltip flag
 
     ! keybindings
     !! menu key bindings
     launch(d_open) = is_bind_event(BIND_OPEN)
+    launch(d_close) = is_bind_event(BIND_CLOSE)
+    launch(d_reopen) = is_bind_event(BIND_REOPEN)
     launch(d_new) = is_bind_event(BIND_NEW)
     launch(d_newlib) = .false.
     launch(d_preferences) = .false.
     launch(d_geometry) = is_bind_event(BIND_GEOMETRY)
     launchquit = is_bind_event(BIND_QUIT)
 
+    ! isys is the tree selected system, isysv is the view selected system
+    isys = win(iwin_tree)%tree_selected
+    isysok = ok_system(isys,sys_init)
+    isysv = win(iwin_view)%view_selected
+    isysvok = ok_system(isysv,sys_init)
+
     ! start the menu
     if (igBeginMainMenuBar()) then
        ! File
        str1 = "File" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
-          ! The operations in this menu apply to the tree selected system
-          isys = win(iwin_tree)%tree_selected
-          isysok = ok_system(isys,sys_init)
-
           ! File -> New
           launch(d_new) = launch(d_new) .or. iw_menuitem("New...",BIND_NEW)
           call iw_tooltip("Create a new structure from scratch",ttshown)
@@ -945,9 +952,17 @@ contains
           launch(d_open) = launch(d_open) .or. iw_menuitem("Open...",BIND_OPEN)
           call iw_tooltip("Read molecular or crystal structures from external file(s)",ttshown)
 
+         ! File -> Duplicate
+          if (iw_menuitem("Duplicate",enabled=isysok)) &
+             call duplicate_system(isys)
+          call iw_tooltip("Create a copy of this system",ttshown)
+
+          ! File -> Reopen from file
+          launch(d_reopen) = launch(d_reopen) .or. iw_menuitem("Reopen from File",BIND_REOPEN,enabled=isysok)
+          call iw_tooltip("Read the file for this system and reopen it (only last structure is read)",ttshown)
+
           ! File -> Close
-          if (iw_menuitem("Close",enabled=isysok)) &
-             win(iwin_tree)%forceremove = (/isys/)
+          launch(d_close) = launch(d_close) .or. iw_menuitem("Close",BIND_CLOSE,enabled=isysok)
           call iw_tooltip("Close the current system",ttshown)
 
           ! File -> Separator
@@ -1029,19 +1044,15 @@ contains
        ! Windows
        str1 = "Tools" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
-          ! The operations in this menu apply to the view selected system
-          isys = win(iwin_view)%view_selected
-          isysok = ok_system(isys,sys_init)
-
           launch(d_geometry) = launch(d_geometry) .or. &
-             iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=isysok)
+             iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=isysvok)
           call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
 
-          if (iw_menuitem("Recalculate Bonds...",enabled=isysok.and..not.are_threads_running())) &
-             idum = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=-1)
+          if (iw_menuitem("Recalculate Bonds...",enabled=isysvok.and..not.are_threads_running())) &
+             idum = stack_create_window(wintype_rebond,.true.,isys=isysv,orraise=-1)
           call iw_tooltip("Recalculate the bonds in the current system",ttshown)
 
-          if (iw_menuitem("Vibrations...",enabled=isysok)) &
+          if (iw_menuitem("Vibrations...",enabled=isysvok)) &
              idum = stack_create_window(wintype_vibrations,.true.,idparent=iwin_view,orraise=-1)
           call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
 
@@ -1087,11 +1098,15 @@ contains
        idum = stack_create_window(wintype_new_struct_library,.true.,orraise=-1)
     if (launch(d_open)) &
        idum = stack_create_window(wintype_dialog,.true.,wpurp_dialog_openfiles,orraise=-1)
-    if (launch(d_geometry)) then
-       isys = win(iwin_view)%view_selected
-       isysok = ok_system(isys,sys_init)
-       if (isysok) &
-          idum = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
+    if (isysok) then
+       if (launch(d_reopen)) &
+          call reread_system_from_file(isys)
+       if (launch(d_close)) &
+          win(iwin_tree)%forceremove = (/isys/)
+    end if
+
+    if (launch(d_geometry).and.isysvok) then
+       idum = stack_create_window(wintype_geometry,.true.,isys=isysv,orraise=-1)
     end if
     if (launchquit) then
        if (are_threads_running()) &

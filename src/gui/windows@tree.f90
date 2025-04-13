@@ -1131,11 +1131,11 @@ contains
             call duplicate_system(isys)
          call iw_tooltip("Create a copy of this system",ttshown)
 
-         ! duplicate system
+         ! reopen from file
          if (iw_menuitem("Reopen from File",enabled=enabled_no_threads)) then
             call reread_system_from_file(isys)
          end if
-         call iw_tooltip("Close this system and reopen it from the file (only last structure is read)",ttshown)
+         call iw_tooltip("Read the file for this system and reopen it (only last structure is read)",ttshown)
 
          ! remove option (system)
          ok = enabled

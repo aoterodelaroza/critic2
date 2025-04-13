@@ -47,40 +47,44 @@ module keybindings
   integer, parameter, public :: BIND_QUIT = 1 ! quit the program
   integer, parameter, public :: BIND_NEW = 2 ! create new systems
   integer, parameter, public :: BIND_OPEN = 3 ! open systems
-  integer, parameter, public :: BIND_GEOMETRY = 4 ! view/edit geometry
-  integer, parameter, public :: BIND_CLOSE_ALL_DIALOGS = 5 ! close all open dialogs
-  integer, parameter, public :: BIND_CLOSE_FOCUSED_DIALOG = 6 ! close focused dialog
-  integer, parameter, public :: BIND_OK_FOCUSED_DIALOG = 7 ! OK focused dialog
-  integer, parameter, public :: BIND_TREE_REMOVE_SYSTEM_FIELD = 8 ! tree: remove system or field
-  integer, parameter, public :: BIND_TREE_MOVE_UP = 9 ! tree: move selection up
-  integer, parameter, public :: BIND_TREE_MOVE_DOWN = 10 ! tree: move selection down
-  integer, parameter, public :: BIND_INPCON_RUN = 11 ! tree: remove system
-  integer, parameter, public :: BIND_VIEW_INC_NCELL = 12 ! view: increase number of cells
-  integer, parameter, public :: BIND_VIEW_DEC_NCELL = 13 ! view: decrease number of cells
-  integer, parameter, public :: BIND_VIEW_ALIGN_A_AXIS = 14 ! view: align view with a axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_B_AXIS = 15 ! view: align view with b axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_C_AXIS = 16 ! view: align view with c axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_X_AXIS = 17 ! view: align view with x axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_Y_AXIS = 18 ! view: align view with y axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_Z_AXIS = 19 ! view: align view with z axis
-  integer, parameter, public :: BIND_VIEW_TOGGLE_ATOMS = 20 ! view: toggle atoms in the first rep
-  integer, parameter, public :: BIND_VIEW_TOGGLE_BONDS = 21 ! view: toggle bonds in the first rep
-  integer, parameter, public :: BIND_VIEW_CYCLE_LABELS = 22 ! view: cycle labels in the first rep
-  integer, parameter, public :: BIND_VIEW_TOGGLE_CELL = 23 ! view: toggle cell in the first rep
-  integer, parameter, public :: BIND_NAV_ROTATE = 24 ! view: rotate the view
-  integer, parameter, public :: BIND_NAV_ROTATE_PERP = 25 ! view: rotate around axis perp. to screen
-  integer, parameter, public :: BIND_NAV_TRANSLATE = 26 ! view: translate the view
-  integer, parameter, public :: BIND_NAV_ZOOM = 27 ! view: zoom the view
-  integer, parameter, public :: BIND_NAV_RESET = 28 ! view: reset the view
-  integer, parameter, public :: BIND_NAV_MEASURE = 29 ! view: reset the view
-  integer, parameter, public :: BIND_NUM = 29 ! total number of binds
+  integer, parameter, public :: BIND_CLOSE = 4 ! close system
+  integer, parameter, public :: BIND_REOPEN = 5 ! reopen system
+  integer, parameter, public :: BIND_GEOMETRY = 6 ! view/edit geometry
+  integer, parameter, public :: BIND_CLOSE_ALL_DIALOGS = 7 ! close all open dialogs
+  integer, parameter, public :: BIND_CLOSE_FOCUSED_DIALOG = 8 ! close focused dialog
+  integer, parameter, public :: BIND_OK_FOCUSED_DIALOG = 9 ! OK focused dialog
+  integer, parameter, public :: BIND_TREE_REMOVE_SYSTEM_FIELD = 10 ! tree: remove system or field
+  integer, parameter, public :: BIND_TREE_MOVE_UP = 11 ! tree: move selection up
+  integer, parameter, public :: BIND_TREE_MOVE_DOWN = 12 ! tree: move selection down
+  integer, parameter, public :: BIND_INPCON_RUN = 13 ! tree: remove system
+  integer, parameter, public :: BIND_VIEW_INC_NCELL = 14 ! view: increase number of cells
+  integer, parameter, public :: BIND_VIEW_DEC_NCELL = 15 ! view: decrease number of cells
+  integer, parameter, public :: BIND_VIEW_ALIGN_A_AXIS = 16 ! view: align view with a axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_B_AXIS = 17 ! view: align view with b axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_C_AXIS = 18 ! view: align view with c axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_X_AXIS = 19 ! view: align view with x axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_Y_AXIS = 20 ! view: align view with y axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_Z_AXIS = 21 ! view: align view with z axis
+  integer, parameter, public :: BIND_VIEW_TOGGLE_ATOMS = 22 ! view: toggle atoms in the first rep
+  integer, parameter, public :: BIND_VIEW_TOGGLE_BONDS = 23 ! view: toggle bonds in the first rep
+  integer, parameter, public :: BIND_VIEW_CYCLE_LABELS = 24 ! view: cycle labels in the first rep
+  integer, parameter, public :: BIND_VIEW_TOGGLE_CELL = 25 ! view: toggle cell in the first rep
+  integer, parameter, public :: BIND_NAV_ROTATE = 26 ! view: rotate the view
+  integer, parameter, public :: BIND_NAV_ROTATE_PERP = 27 ! view: rotate around axis perp. to screen
+  integer, parameter, public :: BIND_NAV_TRANSLATE = 28 ! view: translate the view
+  integer, parameter, public :: BIND_NAV_ZOOM = 29 ! view: zoom the view
+  integer, parameter, public :: BIND_NAV_RESET = 30 ! view: reset the view
+  integer, parameter, public :: BIND_NAV_MEASURE = 31 ! view: reset the view
+  integer, parameter, public :: BIND_NUM = 31 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
      "Quit                            ",& ! BIND_QUIT
      "New                             ",& ! BIND_NEW
-     "View/Edit Geometry              ",& ! BIND_GEOMETRY
      "Open file(s)                    ",& ! BIND_OPEN
+     "Close current system            ",& ! BIND_CLOSE
+     "Reopen current system           ",& ! BIND_REOPEN
+     "View/Edit Geometry              ",& ! BIND_GEOMETRY
      "Close all dialogs               ",& ! BIND_CLOSE_ALL_DIALOGS
      "Close focused dialog            ",& ! BIND_CLOSE_FOCUSED_DIALOG
      "OK in focused dialog            ",& ! BIND_OK_FOCUSED_DIALOG

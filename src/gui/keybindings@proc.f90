@@ -36,6 +36,8 @@ submodule (keybindings) proc
      group_global,& ! BIND_NEW
      group_global,& ! BIND_GEOMETRY
      group_global,& ! BIND_OPEN
+     group_global,& ! BIND_CLOSE
+     group_global,& ! BIND_REOPEN
      group_global,& ! BIND_CLOSE_ALL_DIALOGS
      group_dialog,& ! BIND_CLOSE_FOCUSED_DIALOG
      group_dialog,& ! BIND_OK_FOCUSED_DIALOG
@@ -216,6 +218,8 @@ contains
     call set_bind(BIND_NEW,ImGuiKey_N,mod_ctrl)
     call set_bind(BIND_GEOMETRY,ImGuiKey_G,mod_none)
     call set_bind(BIND_OPEN,ImGuiKey_O,mod_ctrl)
+    call set_bind(BIND_CLOSE,ImGuiKey_W,mod_ctrl)
+    call set_bind(BIND_REOPEN,ImGuiKey_R,mod_ctrl)
     call set_bind(BIND_CLOSE_ALL_DIALOGS,ImGuiKey_Backspace,mod_none)
     call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Escape,mod_none)
     call set_bind(BIND_OK_FOCUSED_DIALOG,ImGuiKey_Enter,mod_ctrl)
