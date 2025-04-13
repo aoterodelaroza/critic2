@@ -894,7 +894,7 @@ contains
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
-       wintype_about, wintype_geometry, wintype_rebond, wintype_vibrations
+       wintype_about, wintype_geometry, wintype_rebond, wintype_vibrations, wintype_exportimage
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_GEOMETRY, get_bind_keyname, is_bind_event
@@ -1044,6 +1044,10 @@ contains
        ! Windows
        str1 = "Tools" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+          if (iw_menuitem("Export to Image...",enabled=isysvok)) &
+             idum = stack_create_window(wintype_exportimage,.true.,idparent=iwin_view,orraise=-1)
+          call iw_tooltip("Export the current view to an image file (png)",ttshown)
+
           launch(d_geometry) = launch(d_geometry) .or. &
              iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=isysvok)
           call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
