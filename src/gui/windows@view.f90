@@ -2577,6 +2577,23 @@ contains
                 call igEndTable()
              end if ! begintable
 
+             ! style buttons: show/hide
+             if (iw_button("Show All##showalllabels")) then
+                w%rep%label_style%shown = .true.
+                changed = .true.
+             end if
+             call iw_tooltip("Show all labels",ttshown)
+             if (iw_button("Hide All##hidealllabels",sameline=.true.)) then
+                w%rep%label_style%shown = .false.
+                changed = .true.
+             end if
+             call iw_tooltip("Hide all labels",ttshown)
+             if (iw_button("Toggle Show/Hide##togglealllabels",sameline=.true.)) then
+                w%rep%label_style%shown = .not.w%rep%label_style%shown
+                changed = .true.
+             end if
+             call iw_tooltip("Toggle the show/hide status for all bonds",ttshown)
+
              call igEndTabItem()
           end if ! begin tab item (labels)
        end if
