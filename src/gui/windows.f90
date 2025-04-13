@@ -84,7 +84,7 @@ module windows
      integer :: type ! the window type
      integer(c_int) :: id ! internal ID for this window (index from win(:))
      integer :: idparent = 0 ! internal ID (from win(:)) for the caller window
-     integer :: itoken = 0 ! parent token for the function of some dialogs
+     integer :: itoken = 0 ! parent token for some dialogs functions
      integer(c_int) :: flags ! window flags
      character(kind=c_char,len=:), allocatable :: name ! name of the window
      character(kind=c_char,len=:), allocatable :: errmsg ! error message in the window
@@ -92,6 +92,7 @@ module windows
      type(c_ptr) :: dptr ! ImGuiFileDialog* pointer for dialogs
      integer :: isys = 1 ! the system on which the window operates
      integer :: irep = 0 ! the representation on which the window operates
+     logical :: tied_to_tree = .false. ! whether the system in this window is tied to the tree system
      real(c_float) :: pos(2) = (/0._c_float,0._c_float/) ! the position of the window's top left corner
      logical :: isdocked = .false. ! whether the window is docked
      real*8 :: timelastupdate ! time the window data was last updated
@@ -217,6 +218,7 @@ module windows
      ! rebond
      procedure :: draw_rebond
      ! geometry
+     procedure :: update_geometry
      procedure :: draw_geometry
      ! preferences
      procedure :: draw_preferences
@@ -470,6 +472,9 @@ module windows
      module subroutine draw_rebond(w)
        class(window), intent(inout), target :: w
      end subroutine draw_rebond
+     module subroutine update_geometry(w)
+       class(window), intent(inout), target :: w
+     end subroutine update_geometry
      module subroutine draw_geometry(w)
        class(window), intent(inout), target :: w
      end subroutine draw_geometry

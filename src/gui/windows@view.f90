@@ -1659,7 +1659,8 @@ contains
 
   !xx! edit representation
 
-  !> Update the isys and irep in the edit represenatation window.
+  !> Update tasks for the edit representation window, before the
+  !> window is created.
   module subroutine update_editrep(w)
     use windows, only: nwin, win, wintype_view
     use gui_main, only: sys_init, ok_system

@@ -567,6 +567,9 @@ contains
     w%id = -1
     w%idparent = 0
     w%itoken = 0
+    w%isys = 0
+    w%irep = 0
+    w%tied_to_tree = .false.
     w%name = "" // c_null_char
     if (allocated(w%iord)) deallocate(w%iord)
     if (allocated(w%forceremove)) deallocate(w%forceremove)
@@ -777,6 +780,8 @@ contains
           call w%update_scfplot()
        elseif (w%type == wintype_editrep) then
           call w%update_editrep()
+       elseif (w%type == wintype_geometry) then
+          call w%update_geometry()
        end if
     end if
 

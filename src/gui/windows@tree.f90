@@ -1225,7 +1225,6 @@ contains
       if (tree_select_updates_view .or. force) &
          call win(iwin_view)%select_view(i)
       if (idrebond > 0) win(idrebond)%isys = i
-      if (idgeometry > 0) win(idgeometry)%isys = i
 
     end subroutine select_system
 
@@ -2249,7 +2248,7 @@ contains
     end subroutine end_state
   end subroutine draw_load_field
 
-  !> Update the parameters in an scfplot window
+  !> Update tasks for the SCF window, before the window is created.
   module subroutine update_scfplot(w)
     use gui_main, only: sysc, sys_init, ok_system
     class(window), intent(inout), target :: w
@@ -2834,10 +2833,24 @@ contains
 
   end subroutine draw_treeplot
 
+  !> Update tasks for the geometry window, before the window is
+  !> created.
+  module subroutine update_geometry(w)
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+
+    if (w%firstpass.or.w%tied_to_tree) then
+       w%name = "View/Edit Geometry###view_edit_geometry"  // string(w%id) // c_null_char
+    else
+       w%name = "View/Edit Geometry [detached]###view_edit_geometry"  // string(w%id) // c_null_char
+    end if
+
+  end subroutine update_geometry
+
   !> Draw the geometry window.
   module subroutine draw_geometry(w)
     use scenes, only: reptype_atoms
-    use windows, only: iwin_view
+    use windows, only: iwin_view, iwin_tree
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system
@@ -2871,7 +2884,12 @@ contains
     ! first pass
     if (w%firstpass) then
        w%geometry_atomtype = 1
+       w%tied_to_tree = (w%isys == win(iwin_tree)%tree_selected)
     end if
+
+    ! if tied to tree, update the isys
+    if (w%tied_to_tree .and. (w%isys /= win(iwin_tree)%tree_selected)) &
+       w%isys = win(iwin_tree)%tree_selected
 
     ! check if the system still exists
     if (.not.ok_system(w%isys,sys_init)) then
@@ -2899,6 +2917,7 @@ contains
                 w%isys = i
                 isys = w%isys
                 atompreflags = ImGuiTabItemFlags_SetSelected
+                w%tied_to_tree = w%tied_to_tree .and. (w%isys == win(iwin_tree)%tree_selected)
              end if
              if (is_selected) &
                 call igSetItemDefaultFocus()
