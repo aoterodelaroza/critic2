@@ -216,6 +216,7 @@ module windows
      ! vibrations
      procedure :: draw_vibrations
      ! rebond
+     procedure :: update_rebond
      procedure :: draw_rebond
      ! geometry
      procedure :: update_geometry
@@ -469,6 +470,9 @@ module windows
      module subroutine draw_vibrations(w)
        class(window), intent(inout), target :: w
      end subroutine draw_vibrations
+     module subroutine update_rebond(w)
+       class(window), intent(inout), target :: w
+     end subroutine update_rebond
      module subroutine draw_rebond(w)
        class(window), intent(inout), target :: w
      end subroutine draw_rebond

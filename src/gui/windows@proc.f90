@@ -746,7 +746,7 @@ contains
           inisize%y = 25 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_rebond) then
-          w%name = "Recalculate Bonds##"  // string(w%id) // c_null_char
+          w%name = "Recalculate Bonds###rebond"  // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
           inisize%x = 55 * fontsize%x
           inisize%y = 23 * fontsize%y
@@ -782,6 +782,8 @@ contains
           call w%update_editrep()
        elseif (w%type == wintype_geometry) then
           call w%update_geometry()
+       elseif (w%type == wintype_rebond) then
+          call w%update_rebond()
        end if
     end if
 

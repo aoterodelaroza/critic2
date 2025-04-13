@@ -82,7 +82,7 @@ contains
     character(kind=c_char,len=:), allocatable :: tooltipstr
     type(ImVec2) :: szero, sz
     type(ImVec4) :: col4
-    integer(c_int) :: flags, color, idir
+    integer(c_int) :: flags, color, idir, idum
     integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev, iaux, nfreal
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
@@ -97,8 +97,6 @@ contains
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
     integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
-    integer(c_int), save :: idrebond = 0 ! ID of the window used to rebond the sytsem
-    integer(c_int), save :: idgeometry = 0 ! ID of the window used for geometry view/edit
     integer(c_int), save :: shown_after_filter = 0 ! number of systems shown after the filter
     real*8, save :: timelastupdate = 0d0
     real*8, save :: timelastresize = 0d0
@@ -126,10 +124,6 @@ contains
        if (timelastresize < sysc(i)%timelastchange) w%forceresize = .true.
        if (timelastsort < sysc(i)%timelastchange) w%forcesort = .true.
     end do
-
-    ! update the window ID for the dialogs
-    call update_window_id(idrebond)
-    call update_window_id(idgeometry)
 
     ! Tree options button
     export = .false.
@@ -1040,7 +1034,7 @@ contains
          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
             ! Geometry
             if (iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=enabled)) &
-               idgeometry = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
+               idum = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
             call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
 
             ! describe this system in the console output
@@ -1061,7 +1055,7 @@ contains
 
             ! rebond
             if (iw_menuitem("Recalculate Bonds...",enabled=enabled_no_threads)) &
-               idrebond = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=-1)
+               idum = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=-1)
             call iw_tooltip("Recalculate the bonds in this system",ttshown)
 
             call igEndMenu()
@@ -1224,7 +1218,6 @@ contains
          win(iwin_console_input)%inpcon_selected = i
       if (tree_select_updates_view .or. force) &
          call win(iwin_view)%select_view(i)
-      if (idrebond > 0) win(idrebond)%isys = i
 
     end subroutine select_system
 
@@ -2362,6 +2355,20 @@ contains
 
   end subroutine draw_scfplot
 
+  !> Update tasks for the rebond window, before the window is
+  !> created.
+  module subroutine update_rebond(w)
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+
+    if (w%firstpass.or.w%tied_to_tree) then
+       w%name = "Recalculate Bonds###rebond"  // string(w%id) // c_null_char
+    else
+       w%name = "Recalculate Bonds [detached]###rebond"  // string(w%id) // c_null_char
+    end if
+
+  end subroutine update_rebond
+
   !> Draw the contents of the rebond window.
   module subroutine draw_rebond(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
@@ -2396,35 +2403,22 @@ contains
     szero%y = 0
     doquit = .false.
 
-    !! make sure we get a system that exists
+    ! first pass
+    if (w%firstpass) then
+       w%tied_to_tree = (w%isys == win(iwin_tree)%tree_selected)
+    end if
+
+    ! if tied to tree, update the isys
+    if (w%tied_to_tree .and. (w%isys /= win(iwin_tree)%tree_selected)) &
+       w%isys = win(iwin_tree)%tree_selected
+
     ! check if the system still exists
-    isys = w%isys
-    oksys = ok_system(isys,sys_init)
-    if (.not.oksys) then
-       ! reset to the table selected
-       isys = win(iwin_tree)%tree_selected
-       oksys = ok_system(isys,sys_init)
-    end if
-    if (.not.oksys) then
-       ! reset to the input console selected
-       isys = win(iwin_tree)%inpcon_selected
-       oksys = ok_system(isys,sys_init)
-    end if
-    if (.not.oksys) then
-       ! check all systems and try to find one that is OK
-       do i = 1, nsys
-          oksys = ok_system(isys,sys_init)
-          if (oksys) then
-             isys = i
-             exit
-          end if
-       end do
-    end if
-    if (.not.oksys) then
+    if (.not.ok_system(w%isys,sys_init)) then
        ! this dialog does not make sense anymore, close it and exit
        call w%end()
        return
     end if
+    isys = w%isys
 
     ! system combo
     call iw_text("System",highlight=.true.)
@@ -2433,8 +2427,7 @@ contains
     combowidth = max(szavail%x - g%Style%ItemSpacing%x,0._c_float)
     str1 = "##systemcombo" // c_null_char
     call igSetNextItemWidth(combowidth)
-    if (oksys) &
-       str2 = string(isys) // ": " // trim(sysc(isys)%seed%name) // c_null_char
+    str2 = string(isys) // ": " // trim(sysc(isys)%seed%name) // c_null_char
     if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
        do i = 1, nsys
           if (sysc(i)%status == sys_init) then
@@ -2443,6 +2436,7 @@ contains
              if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
                 w%isys = i
                 isys = w%isys
+                w%tied_to_tree = w%tied_to_tree .and. (w%isys == win(iwin_tree)%tree_selected)
              end if
              if (is_selected) &
                 call igSetItemDefaultFocus()
