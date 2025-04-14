@@ -158,6 +158,9 @@ module windows
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
      ! geometry parameters
      integer(c_int) :: geometry_atomtype = 1 ! 0 = species, 1 = sym-unique, 2 = cell
+     logical, allocatable :: geometry_selected(:) ! selected items in atoms table
+     real(c_float), allocatable :: geometry_rgba(:,:) ! color highlights in atoms table
+     real(c_float) :: geometry_highlight_rgba(4) ! highlight color
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -270,7 +273,6 @@ module windows
   ! routines to manipulate the window stack
   public :: stack_realloc_maybe
   public :: stack_create_window
-  public :: update_window_id
   public :: regenerate_window_pointers
 
   !xx! Interfaces
@@ -294,10 +296,6 @@ module windows
        integer, intent(in), optional :: orraise
        integer :: stack_create_window
      end function stack_create_window
-     module subroutine update_window_id(id,changed)
-       integer, intent(inout) :: id
-       integer, intent(out), optional :: changed
-     end subroutine update_window_id
      module subroutine regenerate_window_pointers()
      end subroutine regenerate_window_pointers
      module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken)

@@ -149,8 +149,10 @@ module utils
        real(c_float), intent(in), optional :: rgba(4)
        logical, intent(in), optional :: nowrap
      end subroutine iw_tooltip
-     module function iw_highlight_selectable(str)
+     module function iw_highlight_selectable(str,selected,clicked)
        character(len=*,kind=c_char), intent(in) :: str
+       logical, intent(in), optional :: selected
+       logical, intent(out), optional :: clicked
        logical :: iw_highlight_selectable
      end function iw_highlight_selectable
      module function igIsItemHovered_delayed(flags,thr,already_shown)

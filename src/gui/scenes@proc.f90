@@ -822,7 +822,7 @@ contains
   module function representation_menu(s,idparent) result(changed)
     use interfaces_cimgui
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem
-    use windows, only: stack_create_window, wintype_editrep, update_window_id
+    use windows, only: stack_create_window, wintype_editrep
     use gui_main, only: ColorDangerButton, g
     use tools_io, only: string
     use tools, only: mergesort

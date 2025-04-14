@@ -1564,8 +1564,8 @@ contains
   end subroutine texpos_to_world
 
   !> Flag some atoms in the view as highlight. Select the atoms with
-  !> ids using selection type itype (species, nneq, ncel). The ID of
-  !> the selecting window is who.
+  !> ids using selection type itype (0=species, 1=nneq, 2=ncel). The
+  !> ID of the selecting window is who.
   module subroutine highlight_atoms(w,ids,itype,who)
     use gui_main, only: ColorTableHighlightRow
     use scenes, only: atom_selection

@@ -548,11 +548,14 @@ contains
   end subroutine iw_tooltip
 
   !> Create a selectable that highlights the current row. Return true
-  !> if the selectable is hovered.
-  module function iw_highlight_selectable(str)
+  !> if the selectable is hovered. If clicked is present, return .true.
+  !> if clicked.
+  module function iw_highlight_selectable(str,selected,clicked)
     use interfaces_cimgui
     use gui_main, only: g, ColorTableHighlightRow
     character(len=*,kind=c_char), intent(in) :: str
+    logical, intent(in), optional :: selected
+    logical, intent(out), optional :: clicked
     logical :: iw_highlight_selectable
 
     type(ImVec2) :: sz1, szero
@@ -570,9 +573,11 @@ contains
     pos = igGetCursorPosX()
     flags = ImGuiSelectableFlags_SpanAllColumns
     flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
+    flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
     str2 = trim(str) // c_null_char
     call igSameLine(0._c_float,0._c_float)
     ldum = igSelectable_Bool(c_loc(str2),.false._c_bool,flags,szero)
+    if (present(clicked)) clicked = ldum
     call igSetCursorPosX(pos)
     iw_highlight_selectable = .false.
     if (igIsItemHovered(ImGuiHoveredFlags_None)) then

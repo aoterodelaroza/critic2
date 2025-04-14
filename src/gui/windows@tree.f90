@@ -2855,7 +2855,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx
-    logical :: doquit, dohighlight
+    logical :: doquit, dohighlight, clicked
     logical(c_bool) :: is_selected
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
@@ -2864,8 +2864,10 @@ contains
     integer :: i, j, isys, icol, ispc, iz, iview
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
-    logical :: havergb, ldum
+    logical :: havergb, ldum, ok
     real*8 :: x0(3)
+    type(ImVec4) :: col4
+    integer(c_int) :: color
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -2879,6 +2881,9 @@ contains
     if (w%firstpass) then
        w%geometry_atomtype = 1
        w%tied_to_tree = (w%isys == win(iwin_tree)%tree_selected)
+       if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
+       if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
+       w%geometry_highlight_rgba = (/0.2_c_float, 0.64_c_float, 0.9_c_float, 1.0_c_float/)
     end if
 
     ! if tied to tree, update the isys
@@ -2945,9 +2950,9 @@ contains
        str2 = "Atoms##drawgeometry_atomstab" // c_null_char
        flags = atompreflags
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
-          ! selector and reset
+          ! group atom types
           if (.not.sys(isys)%c%ismolecule) then
-             call iw_combo_simple("Group atom types##atomtypeselectgeom","Species"//c_null_char//&
+             call iw_combo_simple("Atom types##atomtypeselectgeom","Species"//c_null_char//&
                 "Symmetry unique" //c_null_char//"Cell"//c_null_char//c_null_char,&
                 w%geometry_atomtype)
           else
@@ -2961,6 +2966,26 @@ contains
              ntype = sys(isys)%c%nneq
           elseif (w%geometry_atomtype == 2) then
              ntype = sys(isys)%c%ncel
+          end if
+
+          ! highlight color
+          call igSameLine(0._c_float,-1._c_float)
+          ldum = iw_coloredit3("Highlight Color",w%geometry_highlight_rgba)
+
+          ! handle selection
+          if (allocated(w%geometry_selected)) then
+             if (size(w%geometry_selected,1) /= ntype) then
+                deallocate(w%geometry_selected)
+                deallocate(w%geometry_rgba)
+             end if
+          end if
+          if (.not.allocated(w%geometry_selected)) then
+             allocate(w%geometry_selected(ntype))
+             w%geometry_selected = .false.
+          end if
+          if (.not.allocated(w%geometry_rgba)) then
+             allocate(w%geometry_rgba(4,ntype))
+             w%geometry_rgba = 0._c_float
           end if
 
           ! whether to do the molecule column, wyckoff, nneq index
@@ -2978,7 +3003,6 @@ contains
           ! atom style table, for atoms
           flags = ImGuiTableFlags_None
           flags = ior(flags,ImGuiTableFlags_Resizable)
-          flags = ior(flags,ImGuiTableFlags_Reorderable)
           flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
           flags = ior(flags,ImGuiTableFlags_Borders)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
@@ -3096,6 +3120,15 @@ contains
                       end do
                    end if
 
+                   ! real(c_float), allocatable :: geometry_rgba(:,:) ! color highlights in atoms table
+                   ! background color for the table row
+                   if (w%geometry_selected(i)) then
+                      col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
+                         w%geometry_rgba(3,i),w%geometry_rgba(4,i))
+                      color = igGetColorU32_Vec4(col4)
+                      call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
+                   end if
+
                    ! id
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
@@ -3103,9 +3136,15 @@ contains
                       call iw_text(string(i,ndigit))
 
                       ! the highlight selectable
-                      if (iview > 0 .and. iw_highlight_selectable("##selectablemoltable" // suffix)) then
+                      clicked = .false.
+                      if (iview > 0 .and. iw_highlight_selectable("##selectablemoltable" // suffix,&
+                         selected=w%geometry_selected(i),clicked=clicked)) then
                          call win(iview)%highlight_atoms((/i/),w%geometry_atomtype,w%id)
                          dohighlight = .true.
+                      end if
+                      if (clicked) then
+                         w%geometry_selected(i) = .not.w%geometry_selected(i)
+                         w%geometry_rgba(:,i) = w%geometry_highlight_rgba
                       end if
                    end if
 

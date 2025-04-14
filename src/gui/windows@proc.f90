@@ -371,25 +371,6 @@ contains
 
   end function stack_create_window
 
-  !> Check whether the window with the given id is still open. If it is
-  !> not, or id points to an invalid window, set it to id = 0. If changed
-  !> is present, set it to the old id if the id has been changed.
-  module subroutine update_window_id(id,changed)
-    integer, intent(inout) :: id
-    integer, intent(out), optional :: changed
-
-    integer :: oid
-
-    oid = id
-    id = 0
-    if (present(changed)) changed = oid
-    if (oid < 1 .or. oid > nwin) return
-    if (.not.win(oid)%isinit .or. .not.win(oid)%isopen) return
-    id = oid
-    if (present(changed)) changed = 0
-
-  end subroutine update_window_id
-
   !> This routine regenerates all pointers to the widows in the win(:)
   !> structure and its components. It is used when an array size is
   !> exceeded and move_alloc needs to be used to allocate more memory.
