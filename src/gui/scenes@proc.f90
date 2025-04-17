@@ -1137,6 +1137,125 @@ contains
 
   end subroutine select_atom
 
+  !> Flag some atoms in the scene as highlight. Select the atoms with
+  !> ids using selection type itype (0=species, 1=nneq, 2=ncel). Use
+  !> itag as identifier for the selection (for later clearing). The ID
+  !> of the selecting window is who. rgba is the color. Returns true
+  !> if a new render of the scene is required to show the highlights.
+  module function highlight_atoms(s,ids,itype,itag,who,rgba) result(forcerender)
+    use gui_main, only: ColorTableHighlightRow
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: ids(:)
+    integer, intent(in) :: itype, itag
+    integer, intent(in) :: who
+    real(c_float), intent(in) :: rgba(4)
+    logical :: forcerender
+
+    type(atom_selection), allocatable :: aux(:)
+    integer :: i, nused, nrest, idnew
+
+    ! check that the scene and system are initialized
+    forcerender = .false.
+    if (s%isinit < 2) return
+
+    ! initial checks
+    if (.not.allocated(s%highlight)) then
+       s%nhighlight = 0
+       allocate(s%highlight(10))
+    end if
+
+    ! re-use the nullified ids
+    nused = 0
+    do i = 1, s%nhighlight
+       if (s%highlight(i)%id <= 0) then
+          if (nused < size(ids,1)) then
+             nused = nused + 1
+             idnew = ids(nused)
+          else
+             idnew = 0
+          end if
+
+          if (s%highlight(i)%id /= idnew .or. s%highlight(i)%type /= itype) then
+             s%highlight(i)%id = idnew
+             s%highlight(i)%type = itype
+             s%highlight(i)%iwin = who
+             s%highlight(i)%itag = itag
+             s%highlight(i)%rgba = rgba
+             forcerender = .true.
+          end if
+       end if
+    end do
+
+    ! assign the rest
+    nrest = size(ids,1) - nused
+    if (nrest > 0) then
+       ! reallocate
+       if (s%nhighlight + nrest > size(s%highlight,1)) then
+          allocate(aux(2*(s%nhighlight + nrest)))
+          aux(1:size(s%highlight,1)) = s%highlight
+          call move_alloc(aux,s%highlight)
+       end if
+
+       ! populate the selection in the scene
+       do i = 1, nrest
+          nused = nused + 1
+          s%highlight(s%nhighlight + i)%id = ids(nused)
+          s%highlight(s%nhighlight + i)%type = itype
+          s%highlight(s%nhighlight + i)%iwin = who
+          s%highlight(s%nhighlight + i)%itag = itag
+          s%highlight(s%nhighlight + i)%rgba = rgba
+       end do
+       s%nhighlight = s%nhighlight + nrest
+       forcerender = .true.
+    end if
+
+  end function highlight_atoms
+
+  !> Clear the highlighted atoms in the window. who = ID of the
+  !> window; if <= 0, clear all highlights. itag: if present, clear
+  !> only atoms with this tag. Return true if the scene requires a new
+  !> render to update the highlights
+  module function highlight_clear(s,who,itag) result(forcerender)
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: who
+    integer, intent(in), optional :: itag
+    logical :: forcerender
+
+    integer :: i, itag_
+    logical :: pitag, ok
+
+    ! check that the scene and system are initialized
+    forcerender = .false.
+    if (s%isinit < 2) return
+
+    ! initial checks
+    if (.not.allocated(s%highlight)) then
+       s%nhighlight = 0
+       allocate(s%highlight(10))
+    end if
+
+    ! optional arguments
+    pitag = present(itag)
+    itag_ = 0
+    if (pitag) itag_ = itag
+
+    ! nullify the selections for this window
+    if (who <= 0) then
+       forcerender = (s%nhighlight > 0 .and. any(s%highlight(1:s%nhighlight)%id > 0))
+       s%nhighlight = 0
+    else
+       do i = 1, s%nhighlight
+          ok = (s%highlight(i)%iwin == who)
+          if (ok) ok = .not.pitag .or. (s%highlight(i)%itag == itag_)
+          if (ok) then
+             forcerender = forcerender .or. (s%highlight(i)%id > 0)
+             s%highlight(i)%id = 0
+          end if
+       end do
+    end if
+
+  end function highlight_clear
+
   !> Generate the neighbor stars from the data in the rij table using
   !> the geometry in system isys.
   module subroutine generate_neighstars_from_globals(d,isys)

@@ -1565,79 +1565,26 @@ contains
 
   end subroutine texpos_to_world
 
-  !> Flag some atoms in the view as highlight. Select the atoms with
-  !> ids using selection type itype (0=species, 1=nneq, 2=ncel). Use
-  !> itag as identifier for the selection (for later clearing). The ID
-  !> of the selecting window is who. rgba is the color.
+  !> Flag some atoms in the scene associated with the view as
+  !> highlight.  ids using selection type itype (0=species, 1=nneq,
+  !> 2=ncel). Use itag as identifier for the selection (for later
+  !> clearing). The ID of the selecting window is who. rgba is the
+  !> color.
   module subroutine highlight_atoms(w,ids,itype,itag,who,rgba)
-    use gui_main, only: ColorTableHighlightRow
-    use scenes, only: atom_selection
     class(window), intent(inout), target :: w
     integer, intent(in) :: ids(:)
     integer, intent(in) :: itype, itag
     integer, intent(in) :: who
     real(c_float), intent(in) :: rgba(4)
 
-    type(atom_selection), allocatable :: aux(:)
-    integer :: i, nused, nrest, idnew
-    logical :: forcerender
-
-    ! initial checks
     if (.not.associated(w%sc)) return
-    if (.not.allocated(w%sc%highlight)) allocate(w%sc%highlight(10))
-    forcerender = .false.
-
-    ! re-use the nullified ids
-    nused = 0
-    do i = 1, w%sc%nhighlight
-       if (w%sc%highlight(i)%id <= 0) then
-          if (nused < size(ids,1)) then
-             nused = nused + 1
-             idnew = ids(nused)
-          else
-             idnew = 0
-          end if
-
-          if (w%sc%highlight(i)%id /= idnew .or. w%sc%highlight(i)%type /= itype) then
-             w%sc%highlight(i)%id = idnew
-             w%sc%highlight(i)%type = itype
-             w%sc%highlight(i)%iwin = who
-             w%sc%highlight(i)%itag = itag
-             w%sc%highlight(i)%rgba = rgba
-             forcerender = .true.
-          end if
-       end if
-    end do
-
-    ! assign the rest
-    nrest = size(ids,1) - nused
-    if (nrest > 0) then
-       ! reallocate
-       if (w%sc%nhighlight + nrest > size(w%sc%highlight,1)) then
-          allocate(aux(2*(w%sc%nhighlight + nrest)))
-          aux(1:size(w%sc%highlight,1)) = w%sc%highlight
-          call move_alloc(aux,w%sc%highlight)
-       end if
-
-       ! populate the selection in the scene
-       do i = 1, nrest
-          nused = nused + 1
-          w%sc%highlight(w%sc%nhighlight + i)%id = ids(nused)
-          w%sc%highlight(w%sc%nhighlight + i)%type = itype
-          w%sc%highlight(w%sc%nhighlight + i)%iwin = who
-          w%sc%highlight(w%sc%nhighlight + i)%itag = itag
-          w%sc%highlight(w%sc%nhighlight + i)%rgba = rgba
-       end do
-       w%sc%nhighlight = w%sc%nhighlight + nrest
-       forcerender = .true.
-    end if
-
-    ! force a render
-    if (forcerender) w%forcerender = .true.
+    w%forcerender = w%sc%highlight_atoms(ids,itype,itag,who,rgba)
 
   end subroutine highlight_atoms
 
-  !> Clear the highlighted atoms in the window
+  !> Clear the highlighted atoms in the scene associated with the
+  !> window. who = ID of the window; if <= 0, clear all
+  !> highlights. itag: if present, clear only atoms with this tag.
   module subroutine highlight_clear(w,who,itag)
     class(window), intent(inout), target :: w
     integer, intent(in) :: who
@@ -1646,25 +1593,8 @@ contains
     integer :: i, itag_
     logical :: pitag, ok
 
-    ! initial checks
     if (.not.associated(w%sc)) return
-    if (.not.allocated(w%sc%highlight)) allocate(w%sc%highlight(10))
-
-    pitag = present(itag)
-    itag_ = 0
-    if (pitag) itag_ = itag
-
-    ! nullify the selections for this window
-    if (who <= 0) then
-       w%sc%nhighlight = 0
-    else
-       do i = 1, w%sc%nhighlight
-          ok = (w%sc%highlight(i)%iwin == who)
-          if (ok) ok = .not.pitag .or. (w%sc%highlight(i)%itag == itag_)
-          if (ok) w%sc%highlight(i)%id = 0
-       end do
-    end if
-    w%forcerender = .true.
+    w%forcerender = w%sc%highlight_clear(who,itag)
 
   end subroutine highlight_clear
 
