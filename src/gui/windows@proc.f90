@@ -550,6 +550,9 @@ contains
              if (w%isys == win(i)%view_selected) &
                 call win(i)%highlight_clear(w%id)
           end do
+       elseif (w%type == wintype_editrep) then
+          ! remove highlights
+          call win(w%idparent)%highlight_clear(w%id)
        end if
     end if
 

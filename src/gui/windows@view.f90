@@ -690,8 +690,8 @@ contains
     if (iw_button("+",disabled=.not.associated(w%sc),sameline=.true.)) then
        idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
        win(idum)%sc = w%sc
-       win(idum)%sc%nhighlight = 0
        win(idum)%view_selected = w%view_selected
+       call win(idum)%highlight_clear(0)
        call win(idum)%sc%reset_animation()
     end if
     call iw_tooltip("Create a new view for the current scene",ttshown)
@@ -1021,6 +1021,8 @@ contains
     class(window), intent(inout), target :: w
     integer, intent(in) :: isys
 
+    logical :: ldum
+
     if (isys < 1 .or. isys > nsys) return
     if (sysc(isys)%status /= sys_init) w%forcerender = .true. ! for removing the last system in tree
     if (w%view_selected == isys) return
@@ -1037,7 +1039,7 @@ contains
        call w%sc%end()
        call w%sc%init(w%view_selected)
     end if
-    w%sc%nhighlight = 0
+    ldum = w%sc%highlight_clear(0)
     w%forcerender = .true.
 
   end subroutine select_view
@@ -1755,11 +1757,10 @@ contains
     character(kind=c_char,len=33), target :: txtinp2
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, suffix
     real*8 :: x0(3)
-    logical :: dohighlight
     logical(c_bool) :: ch, ldum
     integer(c_int) :: nc(3), lst, flags, nspcpair
     real(c_float) :: sqw
-    integer :: i, j, k, intable, nrow, is, ncol
+    integer :: i, j, k, intable, nrow, is, ncol, ihighlight, highlight_type
     type(ImVec2) :: sz
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
@@ -1773,9 +1774,10 @@ contains
     integer(c_int), parameter :: ic_shown = 2
 
     ! initialize
+    ihighlight = 0
+    highlight_type = 0
     changed = .false.
     isys = w%isys
-    dohighlight = .false.
 
     ! update representation to respond to changes in number of atoms and molecules
     call w%rep%update()
@@ -1948,7 +1950,7 @@ contains
 
           ! draw the atom selection widget
           changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,w%id,w%idparent,&
-             .true.,.false.,dohighlight)
+             .true.,.false.,ihighlight,highlight_type)
 
           call igEndTabItem()
        end if ! begin tab item (selection)
@@ -2036,7 +2038,7 @@ contains
 
              ! draw the atom selection widget
              changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,w%id,w%idparent,&
-                .false.,.true.,dohighlight)
+                .false.,.true.,ihighlight,highlight_type)
 
              call igEndTabItem()
           end if ! begin tab item (atoms)
@@ -2464,10 +2466,8 @@ contains
 
                          ! the highlight selectable
                          if (iw_highlight_selectable("##selectablelabeltable" // suffix)) then
-                            call win(w%idparent)%highlight_atoms((/i/),intable,0,w%id,&
-                               (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,&
-                               ColorTableHighlightRow%z,ColorTableHighlightRow%w/))
-                            dohighlight = .true.
+                            ihighlight = i
+                            highlight_type = intable
                          end if
                       end if
 
@@ -2544,9 +2544,12 @@ contains
        call igEndTabBar()
     end if ! begin tab bar
 
-    ! clear highlight
-    if (.not.dohighlight) &
-       call win(w%idparent)%highlight_clear(w%id)
+    ! process highlighs
+    call win(w%idparent)%highlight_clear(w%id,-1)
+    if (ihighlight > 0) then
+       call win(w%idparent)%highlight_atoms((/ihighlight/),highlight_type,-1,w%id,&
+          (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/))
+    end if
 
   end function draw_editrep_atoms
 
@@ -3350,7 +3353,7 @@ contains
   !> showselection = show the selection tab columns in the tables.
   !> showdrawopts = show the atoms tab columns (draw) in the tables.
   !> dohighlight = return true if highlight has been done
-  function atom_selection_widget(c,r,id,idparent,showselection,showdrawopts,dohighlight) &
+  function atom_selection_widget(c,r,id,idparent,showselection,showdrawopts,ihighlight,highlight_type) &
      result(changed)
     use gui_main, only: ColorTableHighlightRow
     use scenes, only: draw_style_atom, draw_style_molecule
@@ -3365,7 +3368,8 @@ contains
     integer, intent(in) :: idparent
     logical, intent(in) :: showselection
     logical, intent(in) :: showdrawopts
-    logical, intent(inout) :: dohighlight
+    integer, intent(out) :: ihighlight
+    integer, intent(out) :: highlight_type
     logical :: changed
 
     logical :: domol
@@ -3380,6 +3384,8 @@ contains
 
     logical, save :: ttshown = .false. ! tooltip flag
 
+    ihighlight = 0
+    highlight_type = 0
     szero%x = 0
     szero%y = 0
     isys = r%id
@@ -3518,10 +3524,8 @@ contains
 
                 ! the highlight selectable
                 if (iw_highlight_selectable("##selectablemoltable" // suffix)) then
-                   call win(idparent)%highlight_atoms((/i/),r%atom_style%type,0,id,&
-                      (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,&
-                      ColorTableHighlightRow%z,ColorTableHighlightRow%w/))
-                   dohighlight = .true.
+                   ihighlight = i
+                   highlight_type = r%atom_style%type
                 end if
              end if
 
@@ -3718,9 +3722,8 @@ contains
 
                    ! the highlight selectable
                    if (iw_highlight_selectable("##selectableatomtable" // suffix)) then
-                      call win(idparent)%highlight_atoms((/i/),3,0,id,(/ColorTableHighlightRow%x,&
-                         ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/))
-                      dohighlight = .true.
+                      ihighlight = i
+                      highlight_type = 3
                    end if
                 end if
 
