@@ -94,7 +94,7 @@ contains
     s%nmsel = 0
     s%msel = 0
 
-    ! selection sets
+    ! initialize highlight sets
     s%nhighlight = 0
     if (allocated(s%highlight)) deallocate(s%highlight)
     allocate(s%highlight(10))
@@ -248,9 +248,6 @@ contains
     ! reset the measure selection
     s%nmsel = 0
     s%msel = 0
-
-    ! reset the selection
-    s%nhighlight = 0
 
     ! recalculate scene center and radius
     maxrad = 0._c_float
@@ -440,7 +437,7 @@ contains
           call glBindVertexArray(sphVAO(s%atom_res))
           call glEnable(GL_BLEND)
           call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-          call draw_all_selections()
+          call draw_highlights()
           call glDisable(GL_BLEND)
        end if
 
@@ -535,7 +532,7 @@ contains
           call glBindVertexArray(sphVAO(s%atom_res))
           call glEnable(GL_BLEND)
           call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-          call draw_all_selections()
+          call draw_highlights()
           call glDisable(GL_BLEND)
        end if
 
@@ -614,7 +611,7 @@ contains
     end subroutine draw_all_mselections
 
     !> Draw the selections
-    subroutine draw_all_selections()
+    subroutine draw_highlights()
       integer :: i, is, id
       real(c_float) :: x(3)
 
@@ -642,7 +639,7 @@ contains
          end do
       end do
 
-    end subroutine draw_all_selections
+    end subroutine draw_highlights
 
     subroutine draw_all_text()
       integer :: i
