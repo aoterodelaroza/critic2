@@ -690,6 +690,7 @@ contains
     if (iw_button("+",disabled=.not.associated(w%sc),sameline=.true.)) then
        idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
        win(idum)%sc = w%sc
+       win(idum)%sc%nhighlight = 0
        win(idum)%view_selected = w%view_selected
        call win(idum)%sc%reset_animation()
     end if
@@ -1036,6 +1037,7 @@ contains
        call w%sc%end()
        call w%sc%init(w%view_selected)
     end if
+    w%sc%nhighlight = 0
     w%forcerender = .true.
 
   end subroutine select_view
@@ -1564,15 +1566,17 @@ contains
   end subroutine texpos_to_world
 
   !> Flag some atoms in the view as highlight. Select the atoms with
-  !> ids using selection type itype (0=species, 1=nneq, 2=ncel). The
-  !> ID of the selecting window is who.
-  module subroutine highlight_atoms(w,ids,itype,who)
+  !> ids using selection type itype (0=species, 1=nneq, 2=ncel). Use
+  !> itag as identifier for the selection (for later clearing). The ID
+  !> of the selecting window is who. rgba is the color.
+  module subroutine highlight_atoms(w,ids,itype,itag,who,rgba)
     use gui_main, only: ColorTableHighlightRow
     use scenes, only: atom_selection
     class(window), intent(inout), target :: w
     integer, intent(in) :: ids(:)
-    integer, intent(in) :: itype
+    integer, intent(in) :: itype, itag
     integer, intent(in) :: who
+    real(c_float), intent(in) :: rgba(4)
 
     type(atom_selection), allocatable :: aux(:)
     integer :: i, nused, nrest, idnew
@@ -1586,7 +1590,7 @@ contains
     ! re-use the nullified ids
     nused = 0
     do i = 1, w%sc%nhighlight
-       if (w%sc%highlight(i)%iwin == who) then
+       if (w%sc%highlight(i)%id <= 0) then
           if (nused < size(ids,1)) then
              nused = nused + 1
              idnew = ids(nused)
@@ -1598,8 +1602,8 @@ contains
              w%sc%highlight(i)%id = idnew
              w%sc%highlight(i)%type = itype
              w%sc%highlight(i)%iwin = who
-             w%sc%highlight(i)%rgba = &
-                (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/)
+             w%sc%highlight(i)%itag = itag
+             w%sc%highlight(i)%rgba = rgba
              forcerender = .true.
           end if
        end if
@@ -1621,8 +1625,8 @@ contains
           w%sc%highlight(w%sc%nhighlight + i)%id = ids(nused)
           w%sc%highlight(w%sc%nhighlight + i)%type = itype
           w%sc%highlight(w%sc%nhighlight + i)%iwin = who
-          w%sc%highlight(w%sc%nhighlight + i)%rgba = &
-             (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/)
+          w%sc%highlight(w%sc%nhighlight + i)%itag = itag
+          w%sc%highlight(w%sc%nhighlight + i)%rgba = rgba
        end do
        w%sc%nhighlight = w%sc%nhighlight + nrest
        forcerender = .true.
@@ -1634,23 +1638,30 @@ contains
   end subroutine highlight_atoms
 
   !> Clear the highlighted atoms in the window
-  module subroutine highlight_clear(w,who)
+  module subroutine highlight_clear(w,who,itag)
     class(window), intent(inout), target :: w
     integer, intent(in) :: who
+    integer, intent(in), optional :: itag
 
-    integer :: i
+    integer :: i, itag_
+    logical :: pitag, ok
 
     ! initial checks
     if (.not.associated(w%sc)) return
     if (.not.allocated(w%sc%highlight)) allocate(w%sc%highlight(10))
+
+    pitag = present(itag)
+    itag_ = 0
+    if (pitag) itag_ = itag
 
     ! nullify the selections for this window
     if (who <= 0) then
        w%sc%nhighlight = 0
     else
        do i = 1, w%sc%nhighlight
-          if (w%sc%highlight(i)%iwin == who) &
-             w%sc%highlight(i)%id = 0
+          ok = (w%sc%highlight(i)%iwin == who)
+          if (ok) ok = .not.pitag .or. (w%sc%highlight(i)%itag == itag_)
+          if (ok) w%sc%highlight(i)%id = 0
        end do
     end if
     w%forcerender = .true.
@@ -1799,7 +1810,7 @@ contains
   !> the scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_atoms(w,ttshown) result(changed)
     use scenes, only: representation
-    use gui_main, only: sys, g
+    use gui_main, only: sys, g, ColorTableHighlightRow
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit3,&
@@ -2523,7 +2534,9 @@ contains
 
                          ! the highlight selectable
                          if (iw_highlight_selectable("##selectablelabeltable" // suffix)) then
-                            call win(w%idparent)%highlight_atoms((/i/),intable,w%id)
+                            call win(w%idparent)%highlight_atoms((/i/),intable,0,w%id,&
+                               (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,&
+                               ColorTableHighlightRow%z,ColorTableHighlightRow%w/))
                             dohighlight = .true.
                          end if
                       end if
@@ -3409,6 +3422,7 @@ contains
   !> dohighlight = return true if highlight has been done
   function atom_selection_widget(c,r,id,idparent,showselection,showdrawopts,dohighlight) &
      result(changed)
+    use gui_main, only: ColorTableHighlightRow
     use scenes, only: draw_style_atom, draw_style_molecule
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
        iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit3, iw_highlight_selectable
@@ -3574,7 +3588,9 @@ contains
 
                 ! the highlight selectable
                 if (iw_highlight_selectable("##selectablemoltable" // suffix)) then
-                   call win(idparent)%highlight_atoms((/i/),r%atom_style%type,id)
+                   call win(idparent)%highlight_atoms((/i/),r%atom_style%type,0,id,&
+                      (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,&
+                      ColorTableHighlightRow%z,ColorTableHighlightRow%w/))
                    dohighlight = .true.
                 end if
              end if
@@ -3772,7 +3788,8 @@ contains
 
                    ! the highlight selectable
                    if (iw_highlight_selectable("##selectableatomtable" // suffix)) then
-                      call win(idparent)%highlight_atoms((/i/),3,id)
+                      call win(idparent)%highlight_atoms((/i/),3,0,id,(/ColorTableHighlightRow%x,&
+                         ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/))
                       dohighlight = .true.
                    end if
                 end if

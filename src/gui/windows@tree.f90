@@ -2847,7 +2847,7 @@ contains
     use windows, only: iwin_view, iwin_tree
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system
+    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system, ColorTableHighlightRow
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit3
     use global, only: dunit0, iunit_ang
@@ -2855,13 +2855,14 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx
-    logical :: doquit, dohighlight, clicked
+    logical :: doquit, clicked, redo_highlights
+    integer :: ihighlight, iclicked, iview
     logical(c_bool) :: is_selected
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
-    integer :: i, j, isys, icol, ispc, iz, iview
+    integer :: i, j, isys, icol, ispc, iz
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, ldum, ok
@@ -2872,18 +2873,21 @@ contains
     logical, save :: ttshown = .false. ! tooltip flag
 
     ! initialize
-    dohighlight = .false.
+    ihighlight = 0
+    iclicked = 0
     doquit = .false.
     szero%x = 0
     szero%y = 0
 
     ! first pass
     if (w%firstpass) then
+       w%geometry_iview = 0
        w%geometry_atomtype = 1
        w%tied_to_tree = (w%isys == win(iwin_tree)%tree_selected)
        if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
        if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
-       w%geometry_highlight_rgba = (/0.2_c_float, 0.64_c_float, 0.9_c_float, 1.0_c_float/)
+       w%geometry_select_rgba = (/0.2_c_float, 0.64_c_float, 0.9_c_float, 0.5_c_float/)
+       w%geometry_highlighted = 0
     end if
 
     ! if tied to tree, update the isys
@@ -2927,19 +2931,36 @@ contains
     call iw_tooltip("Recalculate the bonds in this system",ttshown)
 
     ! associate a view to highlight the atoms
-    iview = 0
-    if (isys == win(iwin_view)%view_selected) then
-       iview = iwin_view
-    else
-       do i = 1, nwin
-          if (.not.win(i)%isinit) cycle
-          if (win(i)%type /= wintype_view.or..not.associated(win(i)%sc)) cycle
-          if (isys == win(i)%view_selected) then
-             iview = i
-             exit
-          end if
-       end do
+    ! first check if the old association is still valid
+    ok = .false.
+    redo_highlights = .false.
+    if (w%geometry_iview > 0) then
+       ok = win(w%geometry_iview)%isinit
+       if (ok) ok = (win(w%geometry_iview)%type == wintype_view).and.associated(win(w%geometry_iview)%sc)
+       if (ok) ok = (isys == win(w%geometry_iview)%view_selected)
     end if
+    if (.not.ok) then
+       ! the view window has changed, clear and re-do the highlights
+       redo_highlights = .true.
+       if (w%geometry_iview > 0) &
+          call win(w%geometry_iview)%highlight_clear(w%id)
+
+       ! find a new iview
+       w%geometry_iview = 0
+       if (isys == win(iwin_view)%view_selected) then
+          w%geometry_iview = iwin_view
+       else
+          do i = 1, nwin
+             if (.not.win(i)%isinit) cycle
+             if (win(i)%type /= wintype_view.or..not.associated(win(i)%sc)) cycle
+             if (isys == win(i)%view_selected) then
+                w%geometry_iview = i
+                exit
+             end if
+          end do
+       end if
+    end if
+    iview = w%geometry_iview
 
     ! show the tabs
     str1 = "##drawgeometry_tabbar" // c_null_char
@@ -2970,9 +2991,9 @@ contains
 
           ! highlight color
           call igSameLine(0._c_float,-1._c_float)
-          ldum = iw_coloredit3("Highlight Color",w%geometry_highlight_rgba)
+          ldum = iw_coloredit3("Highlight Color",w%geometry_select_rgba)
 
-          ! handle selection
+          ! reallocate if ntype has changed and redo highlights
           if (allocated(w%geometry_selected)) then
              if (size(w%geometry_selected,1) /= ntype) then
                 deallocate(w%geometry_selected)
@@ -2982,6 +3003,7 @@ contains
           if (.not.allocated(w%geometry_selected)) then
              allocate(w%geometry_selected(ntype))
              w%geometry_selected = .false.
+             redo_highlights = .true.
           end if
           if (.not.allocated(w%geometry_rgba)) then
              allocate(w%geometry_rgba(4,ntype))
@@ -3120,7 +3142,6 @@ contains
                       end do
                    end if
 
-                   ! real(c_float), allocatable :: geometry_rgba(:,:) ! color highlights in atoms table
                    ! background color for the table row
                    if (w%geometry_selected(i)) then
                       col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
@@ -3135,17 +3156,13 @@ contains
                       call igAlignTextToFramePadding()
                       call iw_text(string(i,ndigit))
 
-                      ! the highlight selectable
+                      ! the highlight selectable: hover and click
                       clicked = .false.
-                      if (iview > 0 .and. iw_highlight_selectable("##selectablemoltable" // suffix,&
-                         selected=w%geometry_selected(i),clicked=clicked)) then
-                         call win(iview)%highlight_atoms((/i/),w%geometry_atomtype,w%id)
-                         dohighlight = .true.
-                      end if
-                      if (clicked) then
-                         w%geometry_selected(i) = .not.w%geometry_selected(i)
-                         w%geometry_rgba(:,i) = w%geometry_highlight_rgba
-                      end if
+                      ok = (iview > 0)
+                      if (ok) ok = iw_highlight_selectable("##selectablemoltable" // suffix,&
+                         selected=w%geometry_selected(i),clicked=clicked)
+                      if (ok) ihighlight = i
+                      if (clicked) iclicked = i
                    end if
 
                    ! name
@@ -3248,9 +3265,33 @@ contains
     end if
     call igEndGroup()
 
-    ! clear the highlight
-    if (iview > 0 .and..not.dohighlight) &
-       call win(iview)%highlight_clear(w%id)
+    ! process highlights
+    if (iview > 0) then
+       if (redo_highlights) &
+          call win(iview)%highlight_clear(w%id)
+       if (ihighlight /= w%geometry_highlighted.or.redo_highlights) then
+          w%geometry_highlighted = ihighlight
+          call win(iview)%highlight_clear(w%id,-1)
+          call win(iview)%highlight_atoms((/ihighlight/),w%geometry_atomtype,-1,w%id,&
+             (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/))
+       end if
+       if (redo_highlights) then
+          do i = 1, size(w%geometry_selected,1)
+             if (w%geometry_selected(i)) then
+                call win(iview)%highlight_atoms((/i/),w%geometry_atomtype,i,w%id,w%geometry_rgba(:,i))
+             end if
+          end do
+       end if
+       if (iclicked > 0) then
+          w%geometry_selected(iclicked) = .not.w%geometry_selected(iclicked)
+          w%geometry_rgba(:,iclicked) = w%geometry_select_rgba
+          if (w%geometry_selected(iclicked)) then
+             call win(iview)%highlight_atoms((/iclicked/),w%geometry_atomtype,iclicked,w%id,w%geometry_select_rgba)
+          else
+             call win(iview)%highlight_clear(w%id,iclicked)
+          end if
+       end if
+    end if
 
     ! right-align and bottom-align for the rest of the contents
     call igGetContentRegionAvail(szavail)

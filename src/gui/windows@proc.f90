@@ -517,6 +517,8 @@ contains
     use interfaces_opengl3
     class(window), intent(inout), target :: w
 
+    integer :: i
+
     ! window-specific destruction
     if (w%isinit) then
        if (w%type == wintype_dialog .and. c_associated(w%dptr)) then
@@ -538,6 +540,16 @@ contains
                 win(w%idparent)%forcerender = .true.
              end if
           end if
+       elseif (w%type == wintype_geometry) then
+          ! remove all highlights
+          w%geometry_highlighted = 0
+          if (allocated(w%geometry_selected)) w%geometry_selected = .false.
+          do i = 1, nwin
+             if (.not.win(i)%isinit) cycle
+             if (win(i)%type /= wintype_view.or..not.associated(win(i)%sc)) cycle
+             if (w%isys == win(i)%view_selected) &
+                call win(i)%highlight_clear(w%id)
+          end do
        end if
     end if
 

@@ -132,9 +132,10 @@ module scenes
 
   !> User defined type for atomic selections
   type atom_selection
-     integer :: id ! id of the selected atom or atoms
+     integer :: id ! id of the selected atom or atoms (or <= 0 if unused)
      integer :: type ! 0=species,1=nneq,2=cell,3=mol
      integer :: iwin ! window ID responsible for this selection
+     integer :: itag ! tag for identifying atom selection
      real(c_float) :: rgba(4) ! color of the selection
   end type atom_selection
   public :: atom_selection

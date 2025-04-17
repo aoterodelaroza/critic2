@@ -158,9 +158,11 @@ module windows
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
      ! geometry parameters
      integer(c_int) :: geometry_atomtype = 1 ! 0 = species, 1 = sym-unique, 2 = cell
+     integer(c_int) :: geometry_highlighted ! ID of the highlighted atom
      logical, allocatable :: geometry_selected(:) ! selected items in atoms table
      real(c_float), allocatable :: geometry_rgba(:,:) ! color highlights in atoms table
-     real(c_float) :: geometry_highlight_rgba(4) ! highlight color
+     real(c_float) :: geometry_select_rgba(4) ! highlight color
+     integer(c_int) :: geometry_iview = 0 ! ID of the view window where highlights are displayed
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -385,15 +387,18 @@ module windows
        class(window), intent(inout), target :: w
        real(c_float), intent(inout) :: pos(3)
      end subroutine texpos_to_world
-     module subroutine highlight_atoms(w,ids,itype,who)
+     module subroutine highlight_atoms(w,ids,itype,itag,who,rgba)
        class(window), intent(inout), target :: w
        integer, intent(in) :: ids(:)
        integer, intent(in) :: itype
+       integer, intent(in) :: itag
        integer, intent(in) :: who
+       real(c_float), intent(in) :: rgba(4)
      end subroutine highlight_atoms
-     module subroutine highlight_clear(w,who)
+     module subroutine highlight_clear(w,who,itag)
        class(window), intent(inout), target :: w
        integer, intent(in) :: who
+       integer, intent(in), optional :: itag
      end subroutine highlight_clear
      module subroutine draw_dialog(w)
        class(window), intent(inout), target :: w
