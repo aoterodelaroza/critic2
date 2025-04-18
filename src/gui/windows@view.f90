@@ -162,9 +162,9 @@ contains
        end if
        if (is_bind_event(BIND_VIEW_CYCLE_LABELS)) then
           changedisplay(3) = .true.
-          if (islabels == -1) then ! no labels -> atom-symbol
-             islabels = 0
-          elseif (islabels == 0) then ! atom-symbol -> celatom
+          if (islabels == -1) then ! no labels -> atom-name
+             islabels = 1
+          elseif (islabels == 1) then ! atom-name -> celatom
              islabels = 2
           elseif (islabels == 2 .and..not.sys(w%view_selected)%c%ismolecule) then ! celatom -> wyckoff
              islabels = 8
