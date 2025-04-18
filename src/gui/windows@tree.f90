@@ -3279,7 +3279,7 @@ contains
           call win(iview)%highlight_atoms((/ihighlight/),w%geometry_atomtype,-1,w%id,&
              (/ColorHighlightScene%x,ColorHighlightScene%y,ColorHighlightScene%z,ColorHighlightScene%w/))
        end if
-       if (redo_highlights) then
+       if (redo_highlights.and.allocated(w%geometry_selected).and.allocated(w%geometry_rgba)) then
           do i = 1, size(w%geometry_selected,1)
              if (w%geometry_selected(i)) then
                 call win(iview)%highlight_atoms((/i/),w%geometry_atomtype,i,w%id,w%geometry_rgba(:,i))
