@@ -618,7 +618,10 @@ contains
       ! initial checks
       if (s%isinit < 2) return
       if (s%nhighlight == 0) return
-      if (all(s%highlight(1:s%nhighlight)%id <= 0)) return
+      if (all(s%highlight(1:s%nhighlight)%id <= 0)) then
+         s%nhighlight = 0
+         return
+      end if
 
       ! highlight the spheres
       do i = 1, s%nsph
@@ -1273,6 +1276,12 @@ contains
              s%highlight(i)%id = 0
           end if
        end do
+    end if
+
+    ! bring nhighlight down to zero if no atoms are left
+    if (all(s%highlight(1:s%nhighlight)%id <= 0)) then
+       s%nhighlight = 0
+       return
     end if
 
   end function highlight_clear
