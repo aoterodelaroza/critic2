@@ -62,7 +62,7 @@ contains
        repflavor_atoms_basic, repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
        repflavor_unitcell_basic
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
-       iw_setposx_fromend, iw_checkbox, iw_coloredit3, iw_menuitem
+       iw_setposx_fromend, iw_checkbox, iw_coloredit, iw_menuitem
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
     use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior, ok_system,&
@@ -436,7 +436,7 @@ contains
              call iw_tooltip("Change the shininess of the light",ttshown)
              call igPopItemWidth()
 
-             chrender = chrender .or. iw_coloredit3("Light",w%sc%lightcolor)
+             chrender = chrender .or. iw_coloredit("Light",rgb=w%sc%lightcolor)
              call iw_tooltip("Change the color of the light",ttshown)
              call igSameLine(0._c_float,-1._c_float)
           elseif (w%sc%style == style_simple) then
@@ -444,12 +444,12 @@ contains
              call iw_text("Atom Border: ")
              call igSameLine(0._c_float,-1._c_float)
 
-             chrender = chrender .or. iw_coloredit3("Color",w%sc%bordercolor,sameline=.true.)
+             chrender = chrender .or. iw_coloredit("Color",rgb=w%sc%bordercolor,sameline=.true.)
              call iw_tooltip("Change the color of the atom borders",ttshown)
           end if
 
           ! background color
-          chrender = chrender .or. iw_coloredit3("Background",w%sc%bgcolor)
+          chrender = chrender .or. iw_coloredit("Background",rgb=w%sc%bgcolor)
           call iw_tooltip("Change the scene background color",ttshown)
 
           ! apply to all scenes
@@ -1745,7 +1745,7 @@ contains
     use gui_main, only: sys, g, ColorHighlightScene
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
-       iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit3,&
+       iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&
        iw_highlight_selectable
     use param, only: atmcov, atmvdw, jmlcol, jmlcol2, newline
     class(window), intent(inout), target :: w
@@ -2033,7 +2033,7 @@ contains
              call igPopItemWidth()
 
              ! color
-             changed = changed .or. iw_coloredit3("Border Color",w%rep%atom_style%rgbborder,sameline=.true.)
+             changed = changed .or. iw_coloredit("Border Color",rgb=w%rep%atom_style%rgbborder,sameline=.true.)
              call iw_tooltip("Color of the border for the atoms",ttshown)
 
              ! draw the atom selection widget
@@ -2088,13 +2088,13 @@ contains
              call igPopItemWidth()
 
              ! color
-             changed = changed .or. iw_coloredit3("Border Color",w%rep%bond_style%rgbborder_g,sameline=.true.)
+             changed = changed .or. iw_coloredit("Border Color",rgb=w%rep%bond_style%rgbborder_g,sameline=.true.)
              call iw_tooltip("Color of the border for the bonds",ttshown)
 
              ! color
              call igAlignTextToFramePadding()
              call iw_text("Color")
-             ch = ch .or. iw_coloredit3("##colorbondtableglobal",w%rep%bond_style%rgb_g,sameline=.true.)
+             ch = ch .or. iw_coloredit("##colorbondtableglobal",rgb=w%rep%bond_style%rgb_g,sameline=.true.)
              call iw_tooltip("Color of the bonds",ttshown)
 
              ! order
@@ -2358,7 +2358,7 @@ contains
              call iw_tooltip("Labels have constant size (on) or labels scale with the&
                 & size of the associated atom (off)",ttshown)
 
-             changed = changed .or. iw_coloredit3("Color##labelcolor",w%rep%label_style%rgb,sameline=.true.)
+             changed = changed .or. iw_coloredit("Color##labelcolor",rgb=w%rep%label_style%rgb,sameline=.true.)
              call iw_tooltip("Color of the atom labels",ttshown)
 
              ! offset
@@ -2558,7 +2558,7 @@ contains
   module function draw_editrep_unitcell(w,ttshown) result(changed)
     use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_radiobutton, iw_button,&
-       iw_clamp_color3, iw_checkbox, iw_coloredit3
+       iw_clamp_color3, iw_checkbox, iw_coloredit
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical(c_bool) :: changed, ldum
@@ -2651,7 +2651,7 @@ contains
     call igPopItemWidth()
     call iw_tooltip("Radii of the unit cell edges",ttshown)
 
-    ch = iw_coloredit3("Color",w%rep%uc_rgb,sameline=.true.)
+    ch = iw_coloredit("Color",rgb=w%rep%uc_rgb,sameline=.true.)
     call iw_tooltip("Color of the unit cell edges",ttshown)
     if (ch) then
        w%rep%uc_rgb = min(w%rep%uc_rgb,1._c_float)
@@ -3357,7 +3357,7 @@ contains
      result(changed)
     use scenes, only: draw_style_atom, draw_style_molecule
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
-       iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit3, iw_highlight_selectable
+       iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit, iw_highlight_selectable
     use crystalmod, only: crystal
     use global, only: iunit_ang, dunit0
     use tools_io, only: string, ioj_right
@@ -3549,7 +3549,7 @@ contains
              if (showdrawopts) then
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
-                   ch = iw_coloredit3("##tablecolor" // suffix,r%atom_style%rgb(:,i))
+                   ch = iw_coloredit("##tablecolor" // suffix,rgb=r%atom_style%rgb(:,i))
                    call iw_tooltip("Atom color",ttshown)
                    if (ch) then
                       r%atom_style%rgb(:,i) = min(r%atom_style%rgb(:,i),1._c_float)
@@ -3743,7 +3743,7 @@ contains
                 if (showdrawopts) then
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
-                      ch = iw_coloredit3("##tablemolcolor" // string(i),r%mol_style%tint_rgb(:,i))
+                      ch = iw_coloredit("##tablemolcolor" // string(i),rgb=r%mol_style%tint_rgb(:,i))
                       call iw_tooltip("Molecule color tint",ttshown)
                       if (ch) then
                          r%mol_style%tint_rgb(:,i) = min(r%mol_style%tint_rgb(:,i),1._c_float)

@@ -26,7 +26,7 @@ module utils
   !xx! proc submodule !xx!
   public :: iw_clamp_color3
   public :: iw_clamp_color4
-  public :: iw_coloredit3
+  public :: iw_coloredit
   public :: iw_setposx_fromend
   public :: iw_calcheight
   public :: iw_calcwidth
@@ -63,12 +63,13 @@ module utils
      module subroutine iw_clamp_color4(rgba)
        real(c_float), intent(inout) :: rgba(4)
      end subroutine iw_clamp_color4
-     module function iw_coloredit3(str,rgb,sameline,nolabel,nointeraction)
+     module function iw_coloredit(str,rgb,rgba,sameline,nolabel,nointeraction)
        character(len=*,kind=c_char), intent(in) :: str
-       real(c_float), intent(inout) :: rgb(3)
+       real(c_float), intent(inout), optional :: rgb(3)
+       real(c_float), intent(inout), optional :: rgba(4)
        logical, intent(in), optional :: sameline, nolabel, nointeraction
-       logical :: iw_coloredit3
-     end function iw_coloredit3
+       logical :: iw_coloredit
+     end function iw_coloredit
      module subroutine iw_setposx_fromend(ntext,nbutton)
        integer, intent(in) :: ntext
        integer, intent(in) :: nbutton

@@ -2847,7 +2847,7 @@ contains
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system, ColorHighlightScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
-       iw_combo_simple, iw_highlight_selectable, iw_coloredit3
+       iw_combo_simple, iw_highlight_selectable, iw_coloredit
     use global, only: dunit0, iunit_ang
     use tools_io, only: string, nameguess, ioj_right
     class(window), intent(inout), target :: w
@@ -2989,7 +2989,7 @@ contains
 
           ! highlight color
           call igSameLine(0._c_float,-1._c_float)
-          ldum = iw_coloredit3("Highlight Color",w%geometry_select_rgba)
+          ldum = iw_coloredit("Highlight Color",rgba=w%geometry_select_rgba)
 
           ! reallocate if ntype has changed and redo highlights
           if (allocated(w%geometry_selected)) then
@@ -3167,7 +3167,7 @@ contains
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
                       if (havergb) then
-                         ldum = iw_coloredit3("##tablecolorg" // suffix,rgb,nointeraction=.true.)
+                         ldum = iw_coloredit("##tablecolorg" // suffix,rgb=rgb,nointeraction=.true.)
                       end if
                       call iw_text(string(sys(isys)%c%spc(ispc)%name,2),sameline=.true.)
                    end if

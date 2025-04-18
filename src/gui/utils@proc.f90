@@ -44,10 +44,11 @@ contains
   !> sameline, draw it in the same line as the last object. If
   !> nolabel, do not show the widget label. Returns true if the color
   !> changed.
-  module function iw_coloredit3(str,rgb,sameline,nolabel,nointeraction)
+  module function iw_coloredit(str,rgb,rgba,sameline,nolabel,nointeraction)
     use interfaces_cimgui
     character(len=*,kind=c_char), intent(in) :: str
-    real(c_float), intent(inout) :: rgb(3)
+    real(c_float), intent(inout), optional :: rgb(3)
+    real(c_float), intent(inout), optional :: rgba(4)
     logical, intent(in), optional :: sameline, nolabel, nointeraction
 
     character(len=:,kind=c_char), allocatable, target :: str1
@@ -74,10 +75,15 @@ contains
        flags = ior(flags,ImGuiColorEditFlags_NoSidePreview)
        flags = ior(flags,ImGuiColorEditFlags_NoDragDrop)
     end if
-    iw_coloredit3 = igColorEdit3(c_loc(str1),rgb,flags)
-    call iw_clamp_color3(rgb)
+    if (present(rgb)) then
+       iw_coloredit = igColorEdit3(c_loc(str1),rgb,flags)
+       call iw_clamp_color3(rgb)
+    elseif (present(rgba)) then
+       iw_coloredit = igColorEdit4(c_loc(str1),rgba,flags)
+       call iw_clamp_color4(rgba)
+    end if
 
-  end function iw_coloredit3
+  end function iw_coloredit
 
   !> Set the cursor X position a distance from the end of the content
   !> region corresponding to ntext characters and nbutton buttons.
