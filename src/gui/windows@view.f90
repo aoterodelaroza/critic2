@@ -1580,7 +1580,7 @@ contains
     real(c_float), intent(in) :: rgba(4)
 
     if (.not.associated(w%sc)) return
-    w%forcerender = w%sc%highlight_atoms(ids,itype,itag,who,rgba)
+    w%forcerender = w%forcerender .or. w%sc%highlight_atoms(ids,itype,itag,who,rgba)
 
   end subroutine highlight_atoms
 
@@ -1596,7 +1596,7 @@ contains
     logical :: pitag, ok
 
     if (.not.associated(w%sc)) return
-    w%forcerender = w%sc%highlight_clear(who,itag)
+    w%forcerender = w%forcerender .or. w%sc%highlight_clear(who,itag)
 
   end subroutine highlight_clear
 
