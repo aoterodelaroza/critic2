@@ -1492,11 +1492,11 @@ contains
     if (doreset) call r%reset_mol_style()
 
     select case(r%label_style%style)
-    case (0,1,5,6)
+    case (0,5,6)
        icase = 0
     case (2,3)
        icase = 1
-    case (4,8)
+    case (1,4,8)
        icase = 2
     case (7)
        icase = 3
@@ -1842,11 +1842,11 @@ contains
 
                    if (r%labels_display) then
                       select case(r%label_style%style)
-                      case (0,1,5,6)
+                      case (0,5,6)
                          idl = sys(r%id)%c%atcel(i)%is
                       case (2,3)
                          idl = i
-                      case (4,8)
+                      case (1,4,8)
                          idl = sys(r%id)%c%atcel(i)%idx
                       case (7)
                          idl = sys(r%id)%c%idatcelmol(1,i)
@@ -2212,11 +2212,11 @@ contains
 
     ! fill according to the style
     select case(r%label_style%style)
-    case (0,1,5,6)
+    case (0,5,6)
        r%label_style%ntype = sys(isys)%c%nspc
     case (2,3)
        r%label_style%ntype = sys(isys)%c%ncel
-    case (4,8)
+    case (1,4,8)
        r%label_style%ntype = sys(isys)%c%nneq
     case (7)
        r%label_style%ntype = sys(isys)%c%nmol
@@ -2230,11 +2230,11 @@ contains
     r%label_style%shown = .true.
     do i = 1, r%label_style%ntype
        select case(r%label_style%style)
-       case (0,1,5,6)
+       case (0,5,6)
           if (sys(isys)%c%spc(i)%z == 1) r%label_style%shown(i) = .false.
        case (2,3)
           if (sys(isys)%c%spc(sys(isys)%c%atcel(i)%is)%z == 1) r%label_style%shown(i) = .false.
-       case (4,8)
+       case (1,4,8)
           if (sys(isys)%c%spc(sys(isys)%c%at(i)%is)%z == 1) r%label_style%shown(i) = .false.
        end select
     end do
@@ -2244,7 +2244,7 @@ contains
        if (r%label_style%style == 0) then ! 0 = atomic symbol
           r%label_style%str(i) = trim(nameguess(sys(r%id)%c%spc(i)%z,.true.))
        elseif (r%label_style%style == 1) then ! 1 = atom name
-          r%label_style%str(i) = trim(sys(r%id)%c%spc(i)%name)
+          r%label_style%str(i) = trim(sys(r%id)%c%at(i)%name)
        elseif (r%label_style%style == 6) then ! 6 = Z
           r%label_style%str(i) = string(sys(r%id)%c%spc(i)%z)
        elseif (r%label_style%style == 8) then ! 8 = wyckoff

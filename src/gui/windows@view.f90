@@ -838,7 +838,7 @@ contains
        ineq = sys(w%view_selected)%c%atcel(icel)%idx
        ismol = sys(w%view_selected)%c%ismolecule
 
-       msg = trim(sys(w%view_selected)%c%spc(is)%name)
+       msg = trim(sys(w%view_selected)%c%at(ineq)%name)
        if (.not.ismol) then
           x0 = sys(w%view_selected)%c%atcel(icel)%x
 
@@ -2375,7 +2375,7 @@ contains
 
              ! number of entries in the table
              select case(w%rep%label_style%style)
-             case (0,1,5,6)
+             case (0,5,6)
                 intable = 0 ! species
                 nrow = sys(isys)%c%nspc
                 ncol = 5
@@ -2385,7 +2385,7 @@ contains
                 nrow = sys(isys)%c%ncel
                 ncol = 5
                 call iw_text("(per atom)",sameline=.true.)
-             case (4,8)
+             case (1,4,8)
                 intable = 2 ! non-equivalent list
                 nrow = sys(isys)%c%nneq
                 ncol = 5

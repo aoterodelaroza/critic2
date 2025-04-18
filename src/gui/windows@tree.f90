@@ -2858,6 +2858,7 @@ contains
     logical(c_bool) :: is_selected
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
+    character(len=:), allocatable :: name
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
     integer :: i, j, isys, icol, ispc, iz
@@ -3112,10 +3113,13 @@ contains
                    call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
                    if (w%geometry_atomtype == 0) then ! species
                       ispc = i
+                      name = string(sys(isys)%c%spc(ispc)%name,2)
                    elseif (w%geometry_atomtype == 1) then ! nneq
                       ispc = sys(isys)%c%at(i)%is
+                      name = trim(sys(isys)%c%at(i)%name)
                    elseif (w%geometry_atomtype == 2) then ! ncel
                       ispc = sys(isys)%c%atcel(i)%is
+                      name = trim(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%name)
                    end if
                    iz = sys(isys)%c%spc(ispc)%z
 
@@ -3169,7 +3173,7 @@ contains
                       if (havergb) then
                          ldum = iw_coloredit("##tablecolorg" // suffix,rgb=rgb,nointeraction=.true.)
                       end if
-                      call iw_text(string(sys(isys)%c%spc(ispc)%name,2),sameline=.true.)
+                      call iw_text(name,sameline=.true.)
                    end if
 
                    ! Z
