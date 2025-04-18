@@ -610,14 +610,17 @@ contains
 
     end subroutine draw_all_mselections
 
-    !> Draw the selections
+    !> Draw the highlights on the scene
     subroutine draw_highlights()
       integer :: i, is, id
       real(c_float) :: x(3)
 
+      ! initial checks
+      if (s%isinit < 2) return
       if (s%nhighlight == 0) return
-      if (all(s%highlight(1:s%nhighlight)%id == 0)) return
+      if (all(s%highlight(1:s%nhighlight)%id <= 0)) return
 
+      ! highlight the spheres
       do i = 1, s%nsph
          do is = 1, s%nhighlight
             if (s%highlight(is)%type == 0) then
@@ -1151,7 +1154,10 @@ contains
     logical :: forcerender
 
     type(atom_selection), allocatable :: aux(:)
-    integer :: i, nused, nrest, idnew
+    integer :: i, j, nused, nrest, idnew
+    integer :: nids
+    logical, allocatable :: touse(:)
+    integer, allocatable :: ids_(:)
 
     ! check that the scene and system are initialized
     forcerender = .false.
@@ -1163,30 +1169,45 @@ contains
        allocate(s%highlight(10))
     end if
 
+    ! check which of the given ids we are going to use
+    allocate(touse(size(ids,1)))
+    touse = .true.
+    do i = 1, s%nhighlight
+       if (s%highlight(i)%type /= itype) cycle
+       if (s%highlight(i)%iwin /= who) cycle
+       if (s%highlight(i)%itag /= itag) cycle
+
+       do j = 1, size(ids,1)
+          if (s%highlight(i)%id == ids(j)) touse(j) = .false.
+       end do
+    end do
+    if (.not.any(touse)) return
+
+    ! short list of ids
+    nids = 0
+    allocate(ids_(count(touse)))
+    do i = 1, size(ids,1)
+       if (.not.touse(i)) cycle
+       nids = nids + 1
+       ids_(nids) = ids(i)
+    end do
+
     ! re-use the nullified ids
     nused = 0
     do i = 1, s%nhighlight
-       if (s%highlight(i)%id <= 0) then
-          if (nused < size(ids,1)) then
-             nused = nused + 1
-             idnew = ids(nused)
-          else
-             idnew = 0
-          end if
-
-          if (s%highlight(i)%id /= idnew .or. s%highlight(i)%type /= itype) then
-             s%highlight(i)%id = idnew
-             s%highlight(i)%type = itype
-             s%highlight(i)%iwin = who
-             s%highlight(i)%itag = itag
-             s%highlight(i)%rgba = rgba
-             forcerender = .true.
-          end if
+       if (s%highlight(i)%id <= 0 .and. nused < nids) then
+          nused = nused + 1
+          s%highlight(i)%id = ids_(nused)
+          s%highlight(i)%type = itype
+          s%highlight(i)%iwin = who
+          s%highlight(i)%itag = itag
+          s%highlight(i)%rgba = rgba
+          forcerender = .true.
        end if
     end do
 
     ! assign the rest
-    nrest = size(ids,1) - nused
+    nrest = nids - nused
     if (nrest > 0) then
        ! reallocate
        if (s%nhighlight + nrest > size(s%highlight,1)) then
@@ -1198,7 +1219,7 @@ contains
        ! populate the selection in the scene
        do i = 1, nrest
           nused = nused + 1
-          s%highlight(s%nhighlight + i)%id = ids(nused)
+          s%highlight(s%nhighlight + i)%id = ids_(nused)
           s%highlight(s%nhighlight + i)%type = itype
           s%highlight(s%nhighlight + i)%iwin = who
           s%highlight(s%nhighlight + i)%itag = itag
@@ -1238,11 +1259,12 @@ contains
     itag_ = 0
     if (pitag) itag_ = itag
 
-    ! nullify the selections for this window
     if (who <= 0) then
+       ! remove all highlights
        forcerender = (s%nhighlight > 0 .and. any(s%highlight(1:s%nhighlight)%id > 0))
        s%nhighlight = 0
     else
+       ! nullify the highlights for this window only
        do i = 1, s%nhighlight
           ok = (s%highlight(i)%iwin == who)
           if (ok) ok = .not.pitag .or. (s%highlight(i)%itag == itag_)
