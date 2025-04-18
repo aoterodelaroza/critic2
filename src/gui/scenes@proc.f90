@@ -634,7 +634,7 @@ contains
                x = s%drawlist_sph(i)%x
                if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
                call draw_sphere(x,s%drawlist_sph(i)%r + sel_thickness,s%atom_res,&
-                  rgba=s%highlight(is)%rgba)
+                  rgba=s%highlight(is)%rgba,rgbborder=s%highlight(is)%rgba(1:3))
             end if
          end do
       end do
