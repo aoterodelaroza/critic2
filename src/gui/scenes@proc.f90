@@ -1872,6 +1872,11 @@ contains
                          end if
                          drawlist_string(nstring)%offset = r%label_style%offset
                          drawlist_string(nstring)%str = trim(r%label_style%str(idl))
+                         if (r%label_style%style == 3) then
+                            ! add the lattice vectors
+                            drawlist_string(nstring)%str = drawlist_string(nstring)%str // "[" //&
+                               string(ix(1)) // "," // string(ix(2)) // "," //string(ix(3)) // "]"
+                         end if
                       end if ! label display conditions
                    end if ! label_display
                 end do ! i3
