@@ -2845,7 +2845,8 @@ contains
     use windows, only: iwin_view, iwin_tree
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system, ColorHighlightScene
+    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system, ColorHighlightScene,&
+       ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit
     use global, only: dunit0, iunit_ang
@@ -2885,7 +2886,8 @@ contains
        w%tied_to_tree = (w%isys == win(iwin_tree)%tree_selected)
        if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
        if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
-       w%geometry_select_rgba = (/0.2_c_float, 0.64_c_float, 0.9_c_float, 0.5_c_float/)
+       w%geometry_select_rgba = (/ColorHighlightSelectScene%x,ColorHighlightSelectScene%y,&
+          ColorHighlightSelectScene%z,ColorHighlightSelectScene%w/)
        w%geometry_highlighted = 0
     end if
 
@@ -3160,8 +3162,7 @@ contains
 
                       ! the highlight selectable: hover and click
                       clicked = .false.
-                      ok = (iview > 0)
-                      if (ok) ok = iw_highlight_selectable("##selectablemoltable" // suffix,&
+                      ok = iw_highlight_selectable("##selectablemoltable" // suffix,&
                          selected=w%geometry_selected(i),clicked=clicked)
                       if (ok) ihighlight = i
                       if (clicked) iclicked = i
@@ -3172,8 +3173,10 @@ contains
                    if (igTableSetColumnIndex(icol)) then
                       if (havergb) then
                          ldum = iw_coloredit("##tablecolorg" // suffix,rgb=rgb,nointeraction=.true.)
+                         call iw_text(name,sameline=.true.)
+                      else
+                         call iw_text(name)
                       end if
-                      call iw_text(name,sameline=.true.)
                    end if
 
                    ! Z
@@ -3267,12 +3270,11 @@ contains
     end if
     call igEndGroup()
 
-    ! process highlights
+    ! process highlight
     if (iview > 0) then
        if (redo_highlights) &
           call win(iview)%highlight_clear(w%id)
        if (ihighlight /= w%geometry_highlighted.or.redo_highlights) then
-          w%geometry_highlighted = ihighlight
           call win(iview)%highlight_clear(w%id,-1)
           call win(iview)%highlight_atoms((/ihighlight/),w%geometry_atomtype,-1,w%id,&
              (/ColorHighlightScene%x,ColorHighlightScene%y,ColorHighlightScene%z,ColorHighlightScene%w/))
@@ -3284,9 +3286,14 @@ contains
              end if
           end do
        end if
-       if (iclicked > 0) then
-          w%geometry_selected(iclicked) = .not.w%geometry_selected(iclicked)
-          w%geometry_rgba(:,iclicked) = w%geometry_select_rgba
+    end if
+    w%geometry_highlighted = ihighlight
+
+    ! process clicked
+    if (iclicked > 0) then
+       w%geometry_selected(iclicked) = .not.w%geometry_selected(iclicked)
+       w%geometry_rgba(:,iclicked) = w%geometry_select_rgba
+       if (iview > 0) then
           if (w%geometry_selected(iclicked)) then
              call win(iview)%highlight_atoms((/iclicked/),w%geometry_atomtype,iclicked,w%id,w%geometry_select_rgba)
           else

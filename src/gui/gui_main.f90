@@ -77,6 +77,7 @@ module gui_main
   type(ImVec4), parameter, public :: ColorFieldSelected = ImVec4(0.91,1.00,0.00,0.31) ! alternate framebg
   type(ImVec4), parameter, public :: ColorTableHighlightRow = ImVec4(1._c_float,0.8_c_float,0.1_c_float,0.5_c_float)
   type(ImVec4), parameter, public :: ColorHighlightScene = ImVec4(1.0_c_float,1.0_c_float,0.5_c_float,0.7_c_float)
+  type(ImVec4), parameter, public :: ColorHighlightSelectScene = ImVec4(0.2_c_float,0.64_c_float,0.9_c_float,0.7_c_float)
 
   ! system status (from lower to higher initialization level)
   integer, parameter, public :: sys_empty = 0 ! not in use
