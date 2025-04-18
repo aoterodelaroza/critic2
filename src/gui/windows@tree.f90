@@ -2624,8 +2624,6 @@ contains
 
   !> Draw the tree plot window
   module subroutine draw_treeplot(w)
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
-       BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use gui_main, only: time, sysc, sys_empty, sys_init, sys
     use windows, only: win, iwin_tree
     use utils, only: iw_calcwidth, iw_button, iw_combo_simple, iw_tooltip, iw_text
@@ -2847,7 +2845,7 @@ contains
     use windows, only: iwin_view, iwin_tree
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system, ColorTableHighlightRow
+    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system, ColorHighlightScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit3
     use global, only: dunit0, iunit_ang
@@ -3273,7 +3271,7 @@ contains
           w%geometry_highlighted = ihighlight
           call win(iview)%highlight_clear(w%id,-1)
           call win(iview)%highlight_atoms((/ihighlight/),w%geometry_atomtype,-1,w%id,&
-             (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/))
+             (/ColorHighlightScene%x,ColorHighlightScene%y,ColorHighlightScene%z,ColorHighlightScene%w/))
        end if
        if (redo_highlights) then
           do i = 1, size(w%geometry_selected,1)
@@ -3302,7 +3300,8 @@ contains
     ! close button
     if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
     if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) doquit = .true.
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) &
+       doquit = .true.
     doquit = doquit .or. iw_button("Close")
 
     ! quit the window

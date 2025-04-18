@@ -1143,7 +1143,6 @@ contains
   !> of the selecting window is who. rgba is the color. Returns true
   !> if a new render of the scene is required to show the highlights.
   module function highlight_atoms(s,ids,itype,itag,who,rgba) result(forcerender)
-    use gui_main, only: ColorTableHighlightRow
     class(scene), intent(inout), target :: s
     integer, intent(in) :: ids(:)
     integer, intent(in) :: itype, itag

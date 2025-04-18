@@ -1742,7 +1742,7 @@ contains
   !> the scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_atoms(w,ttshown) result(changed)
     use scenes, only: representation
-    use gui_main, only: sys, g, ColorTableHighlightRow
+    use gui_main, only: sys, g, ColorHighlightScene
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit3,&
@@ -2548,7 +2548,7 @@ contains
     call win(w%idparent)%highlight_clear(w%id,-1)
     if (ihighlight > 0) then
        call win(w%idparent)%highlight_atoms((/ihighlight/),highlight_type,-1,w%id,&
-          (/ColorTableHighlightRow%x,ColorTableHighlightRow%y,ColorTableHighlightRow%z,ColorTableHighlightRow%w/))
+          (/ColorHighlightScene%x,ColorHighlightScene%y,ColorHighlightScene%z,ColorHighlightScene%w/))
     end if
 
   end function draw_editrep_atoms
@@ -3355,7 +3355,6 @@ contains
   !> dohighlight = return true if highlight has been done
   function atom_selection_widget(c,r,id,idparent,showselection,showdrawopts,ihighlight,highlight_type) &
      result(changed)
-    use gui_main, only: ColorTableHighlightRow
     use scenes, only: draw_style_atom, draw_style_molecule
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
        iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit3, iw_highlight_selectable
