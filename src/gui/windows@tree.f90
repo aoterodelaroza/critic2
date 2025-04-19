@@ -2855,10 +2855,12 @@ contains
 
     logical :: domol, dowyc, doidx
     logical :: doquit, clicked, redo_highlights
-    integer :: ihighlight, iclicked, iview
+    integer :: ihighlight, iclicked, iview, nhigh
     logical(c_bool) :: is_selected
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
+    integer, allocatable :: ihigh(:)
+    real(c_float), allocatable :: irgba(:,:)
     character(len=:), allocatable :: name
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
@@ -2943,8 +2945,6 @@ contains
     if (.not.ok) then
        ! the view window has changed, clear and re-do the highlights
        redo_highlights = .true.
-       if (w%geometry_iview > 0) &
-          call win(w%geometry_iview)%highlight_clear(w%id)
 
        ! find a new iview
        w%geometry_iview = 0
@@ -2989,10 +2989,6 @@ contains
           elseif (w%geometry_atomtype == 2) then
              ntype = sys(isys)%c%ncel
           end if
-
-          ! highlight color
-          call igSameLine(0._c_float,-1._c_float)
-          ldum = iw_coloredit("Highlight Color",rgba=w%geometry_select_rgba)
 
           ! reallocate if ntype has changed and redo highlights
           if (allocated(w%geometry_selected)) then
@@ -3237,6 +3233,37 @@ contains
              call igEndTable()
           end if
 
+          ! highlight color
+          call igAlignTextToFramePadding()
+          call iw_text("Highlight",highlight=.true.)
+          call igSameLine(0._c_float,-1._c_float)
+          ldum = iw_coloredit("##drawgeometryhighlightcolor",rgba=w%geometry_select_rgba)
+          call iw_tooltip("Color used for highlighting atoms")
+
+          ! style buttons: all, none, toggle
+          if (iw_button("All##highlightall",sameline=.true.)) then
+             w%geometry_selected = .true.
+             do i = 1, size(w%geometry_selected,1)
+                w%geometry_rgba(:,i) = w%geometry_select_rgba
+             end do
+             redo_highlights = .true.
+          end if
+          call iw_tooltip("Highlight all atoms in the system",ttshown)
+          if (iw_button("None##highlightnone",sameline=.true.)) then
+             w%geometry_selected = .false.
+             redo_highlights = .true.
+          end if
+          call iw_tooltip("Remove the highlight for all atoms in the system",ttshown)
+          if (iw_button("Toggle##highlighttoggle",sameline=.true.)) then
+             w%geometry_selected = .not.w%geometry_selected
+             do i = 1, size(w%geometry_selected,1)
+                if (w%geometry_selected(i)) &
+                   w%geometry_rgba(:,i) = w%geometry_select_rgba
+             end do
+             redo_highlights = .true.
+          end if
+          call iw_tooltip("Toggel the highlight for all atoms in the system",ttshown)
+
           call igEndTabItem()
        end if
 
@@ -3272,19 +3299,31 @@ contains
 
     ! process highlight
     if (iview > 0) then
+       ! clear
        if (redo_highlights) &
           call win(iview)%highlight_clear(w%id)
-       if (ihighlight /= w%geometry_highlighted.or.redo_highlights) then
+       if (ihighlight /= w%geometry_highlighted) &
           call win(iview)%highlight_clear(w%id,-1)
+
+       ! hover highlight
+       if (ihighlight > 0 .and. (ihighlight /= w%geometry_highlighted.or.redo_highlights)) then
           call win(iview)%highlight_atoms((/ihighlight/),w%geometry_atomtype,-1,w%id,&
              (/ColorHighlightScene%x,ColorHighlightScene%y,ColorHighlightScene%z,ColorHighlightScene%w/))
        end if
+
+       ! click highlight
        if (redo_highlights.and.allocated(w%geometry_selected).and.allocated(w%geometry_rgba)) then
+          allocate(ihigh(count(w%geometry_selected)),irgba(4,count(w%geometry_selected)))
+          nhigh = 0
           do i = 1, size(w%geometry_selected,1)
              if (w%geometry_selected(i)) then
-                call win(iview)%highlight_atoms((/i/),w%geometry_atomtype,i,w%id,w%geometry_rgba(:,i))
+                nhigh = nhigh + 1
+                ihigh(nhigh) = i
+                irgba(:,nhigh) = w%geometry_rgba(:,i)
              end if
           end do
+          call win(iview)%highlight_atoms(ihigh,w%geometry_atomtype,i,w%id,irgba)
+          deallocate(ihigh)
        end if
     end if
     w%geometry_highlighted = ihighlight
