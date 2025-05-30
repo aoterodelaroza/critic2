@@ -194,11 +194,11 @@ contains
           up2n_ = up2n
           if (c%ismolecule) up2n_ = min(up2n,c%ncel)
        end if
-       nat = c%ncel
 
        if (c%ismolecule .and. maxval(min(abs(ix), abs(ix-c%nblock))) > ixmol_cut) then
           ! this point is too far away from the molecule: calculate
           ! the distance to every atom in the molecule
+          nat = c%ncel
           nsafe = nat
           dmax = huge(1d0)
           call realloc(at_id,nat)
@@ -265,7 +265,10 @@ contains
 
                       ! check if we should add the atom to the list
                       ok = .true.
-                      if (nozero_ .and. dd < eps) ok = .false.
+                      if (nozero_ .and. dd < eps) then
+                         ok = .false.
+                         if (c%ismolecule) up2n_ = min(up2n,c%ncel-1)
+                      end if
                       if (ok) then
                          call add_atom_to_output_list()
                          dsqrt = at_dist(nat)
@@ -565,6 +568,13 @@ contains
 
     integer :: iaux
 
+    ! special case: only 1 atom in the molecule
+    if (c%ismolecule .and. c%ncel <= 1) then
+       get_rnn2 = 0d0
+       return
+    end if
+
+    ! normal case
     call c%nearest_atom(c%at(ineq)%r,icrd_cart,iaux,get_rnn2,nozero=.true.)
     get_rnn2 = 0.5d0 * get_rnn2
 
