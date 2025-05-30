@@ -194,11 +194,11 @@ contains
           up2n_ = up2n
           if (c%ismolecule) up2n_ = min(up2n,c%ncel)
        end if
+       nat = c%ncel
 
        if (c%ismolecule .and. maxval(min(abs(ix), abs(ix-c%nblock))) > ixmol_cut) then
           ! this point is too far away from the molecule: calculate
           ! the distance to every atom in the molecule
-          nat = c%ncel
           nsafe = nat
           dmax = huge(1d0)
           call realloc(at_id,nat)
