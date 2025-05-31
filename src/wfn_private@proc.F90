@@ -1909,7 +1909,7 @@ contains
     line = ""
     issto = .false.
     isgto = .false.
-    isorca = .false.
+    isorca = (f%molden_type == molden_type_orca)
     f%nedf = 0
     nmf = 0
 
@@ -2040,7 +2040,7 @@ contains
        if (.not.ok) exit
     end do
 
-    ! orca always uses spherical
+   ! orca always uses spherical
     if (isorca) then
        is5d = .true.
        is7f = .true.

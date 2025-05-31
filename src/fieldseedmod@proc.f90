@@ -79,7 +79,7 @@ contains
     logical, intent(in) :: withoptions
     integer, intent(inout), optional :: lp0
 
-    character(len=:), allocatable :: file, lfile, extdot, extdot2, extund, word, lword
+    character(len=:), allocatable :: file, lfile, extdot, extund, word, lword
     integer :: lp, nfile, i, lpo, lpo2
     logical :: ok, nofoundexit, savemid
 
@@ -494,11 +494,7 @@ contains
 
       idx = index(word,'.',.true.)
       extdot = word(idx+1:)
-      if (idx > 0) then
-         extdot2 = file(index(file(1:idx-1),'.',.true.)+1:)
-      else
-         extdot2 = ""
-      end if
+
     end subroutine read_next_as_file
 
     subroutine backtrack()
@@ -697,6 +693,9 @@ contains
     idx = index(word,'.',.true.)
     if (idx > 0) then
        extdot2 = file(index(file(1:idx-1),'.',.true.)+1:)
+       idx = index(extdot2,'/',.true.)
+       if (idx > 0) &
+          extdot2 = extdot2(idx+1:)
     else
        extdot2 = ""
     end if
