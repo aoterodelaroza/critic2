@@ -19,7 +19,7 @@
 ! THREAD-SAFE (or should be, at least).
 submodule (arithmetic) proc
 #ifdef HAVE_LIBXC
-  use xc_f90_lib_m, only: xc_f90_func_t, xc_f90_func_info_t
+  use xc_f03_lib_m, only: xc_f03_func_t, xc_f03_func_info_t
 #endif
   implicit none
 
@@ -154,8 +154,8 @@ submodule (arithmetic) proc
      logical :: init = .false.
      integer :: family ! LDA, GGA, etc.
      integer :: id     ! identifier
-     type(xc_f90_func_t) :: conf ! the pointer used to call the library
-     type(xc_f90_func_info_t) :: info ! information about the functional
+     type(xc_f03_func_t) :: conf ! the pointer used to call the library
+     type(xc_f03_func_info_t) :: info ! information about the functional
   end type libxc_functional
   type(libxc_functional) :: ifun(maxfun)
 #endif
@@ -603,7 +603,7 @@ contains
   module subroutine listlibxc(doref,doname,doflags)
 #ifdef HAVE_LIBXC
     use tools_io, only: uout, string, ioj_left
-    use xc_f90_lib_m
+    use xc_f03_lib_m
 #endif
     logical, intent(in) :: doref
     logical, intent(in) :: doname
@@ -614,29 +614,29 @@ contains
      integer, allocatable :: idlist(:)
      character(len=256) :: name
      character(len=2048) :: longname
-     type(xc_f90_func_t) :: p
-     type(xc_f90_func_reference_t) :: ref
-     type(xc_f90_func_info_t) :: info
+     type(xc_f03_func_t) :: p
+     type(xc_f03_func_reference_t) :: ref
+     type(xc_f03_func_info_t) :: info
      character(len=:), allocatable :: str, aux
 
      ! header and some libxc info
      write (uout,'("* LIST of libxc functionals")')
-     nfun = xc_f90_number_of_functionals()
+     nfun = xc_f03_number_of_functionals()
      allocate(idlist(nfun))
-     call xc_f90_available_functional_numbers(idlist(1)) ! hack
-     mlen = xc_f90_maximum_name_length()
+     call xc_f03_available_functional_numbers(idlist(1)) ! hack
+     mlen = xc_f03_maximum_name_length()
 
      ! gather and write info about the functionals in this libxc
      do i = 1, nfun
         id = idlist(i)
-        name = xc_f90_functional_get_name(id)
-        call xc_f90_func_init(p, id, XC_UNPOLARIZED)
-        info = xc_f90_func_get_info(p)
+        name = xc_f03_functional_get_name(id)
+        call xc_f03_func_init(p, id, XC_UNPOLARIZED)
+        info = xc_f03_func_get_info(p)
 
-        ifam = xc_f90_func_info_get_family(info)
-        ikind = xc_f90_func_info_get_kind(info)
-        iflags = xc_f90_func_info_get_flags(info)
-        longname = xc_f90_func_info_get_name(info)
+        ifam = xc_f03_func_info_get_family(info)
+        ikind = xc_f03_func_info_get_kind(info)
+        iflags = xc_f03_func_info_get_flags(info)
+        longname = xc_f03_func_info_get_name(info)
 
         str = string(id,5,ioj_left)
         str = str // " " // string(name,mlen+1,ioj_left)
@@ -702,9 +702,9 @@ contains
           iref = 0
           str = str // " ["
           do while (iref >= 0)
-             ref = xc_f90_func_info_get_references(info,iref)
+             ref = xc_f03_func_info_get_references(info,iref)
              if (iref < 0) exit
-             longname = xc_f90_func_reference_get_ref(ref)
+             longname = xc_f03_func_reference_get_ref(ref)
              if (iref == 1) then
                 str = str // trim(longname)
              else
@@ -715,7 +715,7 @@ contains
           str = str // "]"
        end if
 
-       call xc_f90_func_end(p)
+       call xc_f03_func_end(p)
        write (uout,'(A)') trim(str)
      end do
      write (uout,*)
@@ -1769,7 +1769,7 @@ contains
     use tools_io, only: string
 #ifdef HAVE_LIBXC
     use iso_c_binding, only: c_size_t
-    use xc_f90_lib_m
+    use xc_f03_lib_m
 #endif
     real*8, intent(inout) :: q(:)
     integer, intent(inout) :: s(:)
@@ -1820,9 +1820,9 @@ contains
           !$omp critical (ifuninit)
           if (.not.ifun(ia)%init) then
              ifun(ia)%id = ia
-             call xc_f90_func_init(ifun(ia)%conf, ifun(ia)%id, XC_UNPOLARIZED)
-             ifun(ia)%info = xc_f90_func_get_info(ifun(ia)%conf)
-             ifun(ia)%family = xc_f90_func_info_get_family(ifun(ia)%info)
+             call xc_f03_func_init(ifun(ia)%conf, ifun(ia)%id, XC_UNPOLARIZED)
+             ifun(ia)%info = xc_f03_func_get_info(ifun(ia)%conf)
+             ifun(ia)%family = xc_f03_func_info_get_family(ifun(ia)%info)
              ifun(ia)%init = .true.
           end if
           !$omp end critical (ifuninit)
@@ -1838,19 +1838,19 @@ contains
        select case(ifun(ia)%family)
        case (XC_FAMILY_LDA)
           rho = q(nq-1)
-          call xc_f90_lda_exc(ifun(ia)%conf, 1_c_size_t, rho, zk)
+          call xc_f03_lda_exc(ifun(ia)%conf, 1_c_size_t, rho, zk)
           nq = nq - 1
        case (XC_FAMILY_GGA)
           rho = q(nq-2)
           grho = q(nq-1)*q(nq-1)
-          call xc_f90_gga_exc(ifun(ia)%conf, 1_c_size_t, rho, grho, zk)
+          call xc_f03_gga_exc(ifun(ia)%conf, 1_c_size_t, rho, grho, zk)
           nq = nq - 2
        case (XC_FAMILY_MGGA)
           rho = q(nq-4)
           grho = q(nq-3)*q(nq-3)
           lapl = q(nq-2)
           tau = q(nq-1)
-          call xc_f90_mgga_exc(ifun(ia)%conf, 1_c_size_t, rho, grho, lapl, tau, zk)
+          call xc_f03_mgga_exc(ifun(ia)%conf, 1_c_size_t, rho, grho, lapl, tau, zk)
           nq = nq - 4
        end select
        q(nq) = zk(1) * rho(1)

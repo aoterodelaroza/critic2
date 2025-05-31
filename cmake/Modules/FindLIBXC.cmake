@@ -1,7 +1,7 @@
 ## Find the libxc library. Sets:
 ## LIBXC_FOUND - whether the following three items were found
 ## LIBXC_xc_LIBRARY - the libxc library.
-## LIBXC_xcf90_LIBRARY - the libxcf90 library.
+## LIBXC_xcf03_LIBRARY - the libxcf03 library.
 ## LIBXC_INCLUDE_DIRS - the directory containing the mod files.
 ## LIBXC_VERSION - the version of the libxc found
 
@@ -18,23 +18,23 @@ find_library(LIBXC_xc_LIBRARY
   PATH_SUFFIXES lib
   HINTS ${LIBXC_DIR}
   )
-find_library(LIBXC_xcf90_LIBRARY
-  NAMES xcf90
+find_library(LIBXC_xcf03_LIBRARY
+  NAMES xcf03
   PATH_SUFFIXES lib
   HINTS ${LIBXC_DIR}
   )
 
 find_path(LIBXC_INCLUDE_DIRS
-  NAMES xc_f90_lib_m.mod
+  NAMES xc_f03_lib_m.mod
   PATH_SUFFIXES include
   HINTS ${LIBXC_DIR}
   )
 
 find_package_handle_standard_args(LIBXC
-  REQUIRED_VARS LIBXC_xc_LIBRARY LIBXC_xcf90_LIBRARY LIBXC_INCLUDE_DIRS
+  REQUIRED_VARS LIBXC_xc_LIBRARY LIBXC_xcf03_LIBRARY LIBXC_INCLUDE_DIRS
   )
 
-mark_as_advanced(LIBXC_xc_LIBRARY LIBXC_xcf90_LIBRARY LIBXC_INCLUDE_DIRS)
+mark_as_advanced(LIBXC_xc_LIBRARY LIBXC_xcf03_LIBRARY LIBXC_INCLUDE_DIRS)
 if (NOT LIBXC_FOUND)
   set(LIBXC_DIR "${LIBXC_DIR}" CACHE STRING "Directory containing the libxc library (>=4.1).")
 endif()
@@ -42,10 +42,10 @@ endif()
 ## check whether we can compile against it
 if (LIBXC_FOUND)
   try_compile(LIBXC_FOUND "${CMAKE_BINARY_DIR}/temp" "${CMAKE_SOURCE_DIR}/cmake/Modules/libxc_test.f90"
-    LINK_LIBRARIES ${LIBXC_xcf90_LIBRARY} ${LIBXC_xc_LIBRARY}
+    LINK_LIBRARIES ${LIBXC_xcf03_LIBRARY} ${LIBXC_xc_LIBRARY}
     CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${LIBXC_INCLUDE_DIRS}")
   if (NOT LIBXC_FOUND)
-    message(STATUS "Found libxc (lib=${LIBXC_xcf90_LIBRARY} ${LIBXC_xc_LIBRARY} | inc=${LIBXC_INCLUDE_DIRS}) but could not compile against it (different compiler?)")
+    message(STATUS "Found libxc (lib=${LIBXC_xcf03_LIBRARY} ${LIBXC_xc_LIBRARY} | inc=${LIBXC_INCLUDE_DIRS}) but could not compile against it (different compiler?)")
   endif()
 endif()
 

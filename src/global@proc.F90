@@ -867,7 +867,7 @@ contains
   module subroutine config_write()
     use spglib, only: spg_get_major_version, spg_get_minor_version, spg_get_micro_version
 #ifdef HAVE_LIBXC
-    use xc_f90_lib_m
+    use xc_f03_lib_m
 #endif
 #ifdef HAVE_OPENMP
     use omp_lib, only: omp_get_max_threads
@@ -901,7 +901,7 @@ contains
     str = str // "LAPACK(internal)"
 #endif
 #ifdef HAVE_LIBXC
-    call xc_f90_version(iver(1),iver(2),iver(3))
+    call xc_f03_version(iver(1),iver(2),iver(3))
     str = str // " LibXC-" // string(iver(1)) // "." // string(iver(2)) // "." // string(iver(3))
 #endif
 #ifdef HAVE_CINT
