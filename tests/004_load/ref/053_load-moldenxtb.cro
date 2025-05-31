@@ -1,0 +1,48 @@
++ Field number 1
+  Name: molden.input
+  Source: ../zz_source/xtb-6.7.1/benzene/molden.input
+  Type: molecular wavefunction
+  Molden file dialect: orca
+  Wavefunction type: restricted
+  Number of MOs (total): 15
+  Number of MOs (occupied): 15
+  Number of primitives (GTO): 114
+  Number of EDFs: 0
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 12
+  Number of critical points in the unit cell: 12
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
+* LINE written to file: 053_load-moldenxtb.line1
+
+* MOLCALC: calculations using meshes 
++ Molecular mesh integral calculation
+  Expression: $1
+  Mesh size      219252
+  Mesh type      Franchini
+  Mesh level     good
++ Integral($1) = 29.99999318   
+
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (ang): 0.1000000  0.2000000  0.3000000  
++ Field: 1
+  Type : (3,1)
+  Field value (f): 2.229715373E-02
+  Field value, valence (fval): 2.229715373E-02
+  Gradient (grad f): 1.421971536E-02  2.844833342E-02  -1.280582347E-02  
+  Gradient norm (|grad f|): 3.428552310E-02
+  Gradient norm, valence: 3.428552310E-02
+  Kinetic energy density (G,tau): 3.168097417E-02
+  Laplacian (del2 f): 1.496678828E-01
+  Laplacian, valence (del2 fval): 1.496678828E-01
+  Hessian:
+     7.817057430E-02   5.559405815E-03  -9.498330233E-03  
+     5.559405815E-03   8.664709511E-02  -1.900652082E-02  
+    -9.498330233E-03  -1.900652082E-02  -1.514978666E-02  
+  Hessian eigenvalues: -1.930301976E-02  7.541818868E-02  9.355271383E-02  
+  Field 0 (f,|grad|,lap): 4.645257843E-02  3.592378323E-02  1.208351861E-01  
+

@@ -527,7 +527,7 @@ contains
     real*8, intent(out) :: zpe, fvib, svib, cv
 
     integer :: i, j, ncount
-    real*8 :: zpe, fvib, svib, cv, nu, x, y, nut, nue, rt, ff, l1mx, nutdiv
+    real*8 :: nu, x, y, nut, nue, rt, ff, l1mx, nutdiv
     real*8 :: ym1
     real*8, parameter :: cutoff_frequency = 1d0 ! cutoff frequency, cm-1
 

@@ -51,6 +51,7 @@ set(TESTS
   050_load-corekeyw        ## core, nocore, zpsp keywords
   051_load-fmt             ## load grid from CASTEP fmt file
   052_load-fplogrid        ## load grid from FPLO grid file (001)
+  053_load-moldenxtb       ## load molden file from xtb
   )
 
 runtests(${TESTS})
