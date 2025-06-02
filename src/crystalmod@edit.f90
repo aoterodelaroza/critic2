@@ -154,7 +154,7 @@ contains
     displ = amplitude * exp(0.5d0 * phase * pi * img)
     k = 0
     seed%nat = c%ncel * nc(1) * nc(2) * nc(3)
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
     do i = 1, c%ncel
        smass = sqrt(atmass(c%spc(c%atcel(i)%is)%z))
        do ix = 0, nc(1)-1
@@ -168,6 +168,7 @@ contains
 
                 seed%x(:,k) = (xx + c%c2x(xd)) / real(nc,8)
                 seed%is(k) = c%atcel(i)%is
+                seed%atname(k) = c%at(c%atcel(i)%idx)%name
              end do
           end do
        end do
