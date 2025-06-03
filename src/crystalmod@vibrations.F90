@@ -44,7 +44,7 @@ contains
     keepfc2_ = .false.
     if (present(keepfc2)) keepfc2_ = keepfc2
 
-    v%isinit = .false.
+    v%hasvibs = .false.
     v%file = ""
     v%ivformat = ivformat_unknown
     v%nqpt = 0
@@ -117,7 +117,7 @@ contains
        return
     end if
     if (len(errmsg) > 0) return
-    if (v%isinit) then
+    if (v%hasvibs) then
        if (v%nfreq == 0) then
           errmsg = "No frequencies found in file: " // trim(file)
           return
@@ -144,7 +144,7 @@ contains
     write (uout,'("+ PRINT summary")')
 
     ! dynamical matrices
-    if (v%isinit) then
+    if (v%hasvibs) then
        write (uout,*)
        write (uout,'("# Dynamical matrices available")')
        write (uout,'("  File: ",A)') trim(v%file)
@@ -513,7 +513,7 @@ contains
     do i = 1, 3*c%ncel
        v%vec(:,:,i,v%nqpt) = reshape(dm(:,i),(/3,c%ncel/))
     end do
-    v%isinit = .true.
+    v%hasvibs = .true.
 
   end subroutine vibrations_calculate_q
 
@@ -811,7 +811,7 @@ contains
 
     ! wrap up
     errmsg = ""
-    v%isinit = .true.
+    v%hasvibs = .true.
     call fclose(lu)
 
     return
@@ -940,7 +940,7 @@ contains
 
     ! wrap up
     errmsg = ""
-    v%isinit = .true.
+    v%hasvibs = .true.
     call fclose(lu)
 
     return
@@ -1059,7 +1059,7 @@ contains
 
     ! wrap up
     errmsg = ""
-    v%isinit = .true.
+    v%hasvibs = .true.
     call fclose(lu)
 
     return
@@ -1229,7 +1229,7 @@ contains
 
     ! wrap up
     errmsg = ""
-    v%isinit = .true.
+    v%hasvibs = .true.
     call fclose(lu)
 
     return
@@ -1346,7 +1346,7 @@ contains
     deallocate(vaux)
 
     ! wrap up
-    v%isinit = .true.
+    v%hasvibs = .true.
     errmsg = ""
 999 continue
     call h5close_f(ier)
@@ -1426,6 +1426,7 @@ contains
     v%file = file
     v%ivformat = ivformat_phonopy_fc2
     v%hasfc2 = .true.
+    v%hasvibs = .false.
     errmsg = ""
     call fclose(lu)
 
@@ -1539,7 +1540,7 @@ contains
     ! end do
 
     ! wrap up
-    v%isinit = .true.
+    v%hasvibs = .true.
     errmsg = ""
     call fclose(lu)
 
@@ -1665,7 +1666,7 @@ contains
 
     ! wrap up
     errmsg = ""
-    v%isinit = .true.
+    v%hasvibs = .true.
     call fclose(lu)
 
     return
@@ -1793,7 +1794,7 @@ contains
 
     ! wrap up
     errmsg = ""
-    v%isinit = .true.
+    v%hasvibs = .true.
     call fclose(lu)
 
     return

@@ -614,7 +614,7 @@ contains
           w%forcerender = .true.
 
        ! continuous render if animation is active
-       if (w%sc%ifreq_selected > 0.and.w%sc%iqpt_selected > 0.and.sys(w%view_selected)%c%vib%isinit.and.&
+       if (w%sc%ifreq_selected > 0.and.w%sc%iqpt_selected > 0.and.sys(w%view_selected)%c%vib%hasvibs.and.&
           w%sc%animation > 0) &
           w%forcerender = .true.
     end if
@@ -3013,7 +3013,7 @@ contains
     ! vibrations ok?
     goodsys = ok_system(isys,sys_init)
     vib_ok = goodsys
-    if (vib_ok) vib_ok = sys(isys)%c%vib%isinit
+    if (vib_ok) vib_ok = sys(isys)%c%vib%hasvibs
     if (vib_ok) vib_ok = (sys(isys)%c%vib%nqpt > 0) .and. (sys(isys)%c%vib%nfreq > 0)
     if (vib_ok) vib_ok = associated(win(w%idparent)%sc)
 

@@ -3613,7 +3613,7 @@ contains
        ! load a vibrations file
        filename = getword(line,lp)
        if (verbose) &
-          write (uout,'("  Loading vibrations file: ",A)') trim(word)
+          write (uout,'("  Loading vibrations file: ",A)') trim(filename)
        sline = line(lp:)
 
        call s%c%vib%read_file(s%c,filename,sline,ivformat_unknown,errmsg)

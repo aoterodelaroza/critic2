@@ -505,7 +505,7 @@ contains
                 str = string(i)
                 call write_maybe_selectable(i,tooltipstr)
                 ok = (sysc(i)%status >= sys_ready)
-                if (ok) ok = sys(i)%c%vib%isinit
+                if (ok) ok = sys(i)%c%vib%hasvibs
                 if (ok) then
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,&
                       rgba=rgba_vibrations)
@@ -1570,7 +1570,7 @@ contains
        end if
 
        ! vibrations
-       if (sys(i)%c%vib%isinit) then
+       if (sys(i)%c%vib%hasvibs) then
           call iw_text("")
           call iw_text("Vibration data available",rgba=rgba_vibrations)
        end if

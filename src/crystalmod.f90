@@ -95,7 +95,7 @@ module crystalmod
      logical :: hasfc2 = .false. ! true if FC2 is available
      real*8, allocatable :: fc2(:,:,:,:) ! 2nd-order FC matrix (3,3,nat,nat)
      !! frequencies and eigenvectors
-     logical :: isinit = .false. ! true if frequencies/eigenvectors are available
+     logical :: hasvibs = .false. ! true if frequencies/eigenvectors are available
      integer :: nqpt ! number of q-points
      real*8, allocatable :: qpt(:,:) ! q-point coordinates (3,nqpt) (fractional)
      integer :: nfreq ! number of frequencies
