@@ -422,11 +422,46 @@ contains
 
   !> Modify the current FC2 by imposing acoustic sum rules.
   module subroutine vibrations_apply_acoustic(v,c)
+    use tools_io, only: uout, string
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
 
-    write (*,*) "bleh!"
-    stop 1
+    integer :: i, j, iat, jat
+    real*8 :: summ
+
+    ! !! ernesto
+    ! integer :: l, k, iter
+    ! real*8 :: sum
+
+    ! real*8, allocatable :: fc2(:,:,:,:) ! 2nd-order FC matrix (3,3,nat,nat)
+    do iat = 1, c%ncel
+       do i = 1, 3
+          do j = 1, 3
+             summ = sum(v%fc2(i,j,iat,:)) / c%ncel
+             v%fc2(i,j,iat,:) = v%fc2(i,j,iat,:) - summ
+          end do
+       end do
+    end do
+    do iat = 1, c%ncel
+       do i = 1, 3
+          do j = 1, 3
+             summ = sum(v%fc2(i,j,:,iat)) / c%ncel
+             v%fc2(i,j,:,iat) = v%fc2(i,j,:,iat) - summ
+          end do
+       end do
+    end do
+    do iat = 1, c%ncel
+       do jat = iat+1, c%ncel
+          do i = 1, 3
+             do j = 1, 3
+                v%fc2(i,j,iat,jat) = 0.5d0 * (v%fc2(i,j,iat,jat) + v%fc2(i,j,jat,iat))
+                v%fc2(i,j,jat,iat) = v%fc2(i,j,iat,jat)
+             end do
+          end do
+       end do
+    end do
+    write (uout,'("+ FC2 ACOUSTIC_SUM_RULES: apply acoustic sum rules to FC2")')
+    write (uout,'("  Resulting acoustic sum = ",A)') string(sum(v%fc2),'e',10,5)
 
   end subroutine vibrations_apply_acoustic
 
