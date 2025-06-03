@@ -111,7 +111,9 @@ module crystalmod
      procedure :: print_freq => vibrations_print_freq !< print frequency info
      procedure :: print_eigenvector => vibrations_print_eigenvector !< print eigvec info
      procedure :: read_file => vibrations_read_file !< read a vib file, detect the format
+     procedure :: apply_acoustic => vibrations_apply_acoustic !< apply acoustic sum rules to FC2
      procedure :: calculate_q => vibrations_calculate_q !< calculate freqs and vec for a single q
+     procedure :: calculate_vs => vibrations_calculate_vs !< calculate freqs and vec for a single q
      procedure :: calculate_thermo => vibrations_calculate_thermo !< calculate thermodynamic properties
   end type vibrations
   public :: vibrations
@@ -1075,11 +1077,23 @@ module crystalmod
        integer, intent(in) :: ifreq, idq
        logical, intent(in) :: cartesian
      end subroutine vibrations_print_eigenvector
-     module subroutine vibrations_calculate_q(v,c,q)
+     module subroutine vibrations_apply_acoustic(v,c)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(inout) :: c
+     end subroutine vibrations_apply_acoustic
+     module subroutine vibrations_calculate_q(v,c,q,freqo,veco)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(inout) :: c
        real*8, intent(in) :: q(3)
+       real*8, intent(inout), allocatable, optional :: freqo(:)
+       complex*16, intent(inout), allocatable, optional :: veco(:,:)
      end subroutine vibrations_calculate_q
+     module subroutine vibrations_calculate_vs(v,c,q,vs)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(inout) :: c
+       real*8, intent(in) :: q(3)
+       real*8, intent(out) :: vs(3)
+     end subroutine vibrations_calculate_vs
      module subroutine vibrations_calculate_thermo(v,t,zpe,fvib,svib,cv)
        class(vibrations), intent(inout) :: v
        real*8, intent(in) :: t

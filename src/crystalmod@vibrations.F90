@@ -420,15 +420,31 @@ contains
 
   end subroutine vibrations_print_eigenvector
 
-  !> Calculate frequencies and eigenvectors from the FC2 for a single q;
-  !> adds the resulting frequencies and eigenvectors to the v type.
-  module subroutine vibrations_calculate_q(v,c,q)
+  !> Modify the current FC2 by imposing acoustic sum rules.
+  module subroutine vibrations_apply_acoustic(v,c)
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(inout) :: c
+
+    write (*,*) "bleh!"
+    stop 1
+
+  end subroutine vibrations_apply_acoustic
+
+  !> Calculate frequencies and eigenvectors from the FC2 for a single
+  !> q (fractional coordiantes in reciprocal space); adds the
+  !> resulting frequencies and eigenvectors to the v type.  If the
+  !> optional arguments freqo and veco are present, return the
+  !> frequencies and eigenvectors in these variables instead of
+  !> overwriting the vibrational info in v.
+  module subroutine vibrations_calculate_q(v,c,q,freqo,veco)
     use param, only: icrd_crys, atmass, tpi, img
     use types, only: realloc
     use tools_math, only: eigherm
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: q(3)
+    real*8, intent(inout), allocatable, optional :: freqo(:)
+    complex*16, intent(inout), allocatable, optional :: veco(:,:)
 
     complex*16 :: dm_local(3,3), phase
     real*8 :: sqrt_ij
@@ -438,6 +454,7 @@ contains
     integer, allocatable :: nida(:), lvec(:,:), mult(:)
     real*8, allocatable:: eval(:), dist(:), freq(:), rused(:)
     complex*16, allocatable :: dm(:,:)
+    logical :: varoutput
 
     ! conversion factor
     ! sqrt(Hartree / bohr^2 / amu) / 1e12 -> THz
@@ -448,6 +465,8 @@ contains
 
     ! return if no FC2 is available
     if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+
+    varoutput = present(freqo) .and. present(veco)
 
     ! maximum distance of all pairs of atoms in the unit cell
     maxdisteps = 0d0
@@ -497,25 +516,78 @@ contains
     ! calculate the frequencies
     freq = sqrt(abs(eval)) * factor
 
-    ! save the info
-    v%nqpt = v%nqpt + 1
-    if (.not.allocated(v%qpt)) allocate(v%qpt(3,v%nqpt))
-    if (.not.allocated(v%freq)) then
-       v%nfreq = 3 * c%ncel
-       allocate(v%freq(3*c%ncel,v%nqpt))
+    if (varoutput) then
+       freqo = freq
+       veco = dm
+    else
+       ! save the info
+       v%nqpt = v%nqpt + 1
+       if (.not.allocated(v%qpt)) allocate(v%qpt(3,v%nqpt))
+       if (.not.allocated(v%freq)) then
+          v%nfreq = 3 * c%ncel
+          allocate(v%freq(3*c%ncel,v%nqpt))
+       end if
+       if (.not.allocated(v%vec)) allocate(v%vec(3,c%ncel,3*c%ncel,v%nqpt))
+       if (v%nqpt > size(v%qpt,2)) call realloc(v%qpt,3,2*v%nqpt)
+       if (v%nqpt > size(v%freq,2)) call realloc(v%freq,size(v%freq,1),2*v%nqpt)
+       if (v%nqpt > size(v%vec,4)) call realloc(v%vec,size(v%vec,1),size(v%vec,2),size(v%vec,3),2*v%nqpt)
+       v%qpt(:,v%nqpt) = q
+       v%freq(:,v%nqpt) = freq
+       do i = 1, 3*c%ncel
+          v%vec(:,:,i,v%nqpt) = reshape(dm(:,i),(/3,c%ncel/))
+       end do
+       v%hasvibs = .true.
     end if
-    if (.not.allocated(v%vec)) allocate(v%vec(3,c%ncel,3*c%ncel,v%nqpt))
-    if (v%nqpt > size(v%qpt,2)) call realloc(v%qpt,3,2*v%nqpt)
-    if (v%nqpt > size(v%freq,2)) call realloc(v%freq,size(v%freq,1),2*v%nqpt)
-    if (v%nqpt > size(v%vec,4)) call realloc(v%vec,size(v%vec,1),size(v%vec,2),size(v%vec,3),2*v%nqpt)
-    v%qpt(:,v%nqpt) = q
-    v%freq(:,v%nqpt) = freq
-    do i = 1, 3*c%ncel
-       v%vec(:,:,i,v%nqpt) = reshape(dm(:,i),(/3,c%ncel/))
-    end do
-    v%hasvibs = .true.
 
   end subroutine vibrations_calculate_q
+
+  !> Calculate sound velocities in the reciprocal space direction
+  !> given by q (Cartesian coordinates). q cannot be zero, and it is
+  !> normalized on input. c = crystal structure. vs = output sound
+  !> velocities in increasing order. Nullifies the
+  !> eigenvector/eigenvalue information (%hasvibs), which it uses for
+  !> work space.
+  module subroutine vibrations_calculate_vs(v,c,q,vs)
+    use tools_io, only: ferror, faterr
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(inout) :: c
+    real*8, intent(in) :: q(3)
+    real*8, intent(out) :: vs(3)
+
+    real*8 :: normq, qn(3), qthis(3)
+    integer :: i
+    real*8, allocatable :: freq(:)
+    complex*16, allocatable :: vec(:,:)
+
+    real*8, parameter :: epsnq = 1d-10
+    integer, parameter :: npts = 51
+    real*8, parameter :: maxlen = 0.05d0
+
+    ! return if no FC2 is available
+    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+
+    ! normalize q
+    normq = norm2(q)
+    if (normq < epsnq) &
+       call ferror('vibrations_calculate_vs','zero-length q-point',faterr)
+    qn = q / normq
+
+    ! build the list of q and run the q-point calculation
+    do i = 1, npts
+       qthis = real(i-1,8) / real(npts-1,8) * maxlen * qn
+       call v%calculate_q(c,qthis,freq,vec)
+       write (*,*) "xx ", i, freq(1:3)
+    end do
+    if (allocated(freq)) deallocate(freq)
+    if (allocated(vec)) deallocate(vec)
+
+
+    stop 1
+    ! normalize q
+
+    ! vs in increasing order
+
+  end subroutine vibrations_calculate_vs
 
   !> Calculate thermodynamic properties at temperature T using the
   !> vibrational frequencies in v. The routine assumes the frequencies

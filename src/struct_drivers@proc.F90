@@ -3582,6 +3582,7 @@ contains
     use global, only: eval_next
     use tools_io, only: uout, lgetword, getword, ferror, faterr, equal, isreal, isinteger,&
        uin, ucopy, getline, string, ioj_right
+    use tools_math, only: good_lebedev, select_lebedev
     use types, only: realloc
     use param, only: ivformat_unknown
     type(system), intent(inout) :: s
@@ -3591,10 +3592,11 @@ contains
     character(len=:), allocatable :: filename, word, mode, sline, errmsg
     integer :: lp, lpo, idq, ifreq, npts, n(3)
     real*8 :: disteps, fc2eps, q(3), q1(3), q2(3), tini, tend, t
-    real*8 :: zpe, fvib, svib, cv
+    real*8 :: zpe, fvib, svib, cv, vs(3)
     logical :: ok, environ, cartesian
     integer :: nq, i, j, k
     real*8, allocatable :: qlist(:,:)
+    real*8, allocatable :: xleb(:), yleb(:), zleb(:), wleb(:)
 
     ! header
     if (verbose) &
@@ -3738,6 +3740,16 @@ contains
        do i = 1, nq
           call s%c%vib%calculate_q(s%c,qlist(:,i))
        end do
+
+    elseif (equal(word,'fc2')) then
+
+       word = lgetword(line,lp)
+       if (equal(word,'acoustic_sum_rules')) then
+          call s%c%vib%apply_acoustic(s%c)
+       else
+          call ferror('struct_vibrations','Unknown keyword: ' // word,faterr,syntax=.true.)
+       end if
+
     elseif (equal(word,'thermo')) then
        ok = isreal(tini,line,lp)
        if (.not.ok) &
@@ -3764,9 +3776,18 @@ contains
           end do
        end if
     elseif (equal(word,'sound_velocities')) then
+
+       ! check we have the FC2 to calculate the sound velocities
+       if (.not.s%c%vib%hasfc2.or..not.allocated(s%c%vib%fc2)) &
+          call ferror('struct_vibrations','SOUND_VELOCITIES requires FC2',faterr)
+
+       ! parse initial line
+       word = lgetword(line,lp)
+       cartesian = (equal(word,'cartesian'))
+
+       ! parse coordinate block
        nq = 0
        allocate(qlist(3,10))
-
        do while (getline(uin,sline,ucopy=ucopy))
           lp = 1
           word = lgetword(sline,lp)
@@ -3776,49 +3797,48 @@ contains
              ok = isreal(q(1),sline,lp)
              ok = ok.and.isreal(q(2),sline,lp)
              ok = ok.and.isreal(q(3),sline,lp)
-             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/Q',faterr)
+             if (.not.ok) call ferror('struct_vibrations','error reading SOUND_VELOCITIES/Q',faterr)
+
+             if (.not.cartesian) q = s%c%rx2rc(q)
              nq = nq + 1
              if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
              qlist(:,nq) = q
-          elseif (equal(word,'line')) then
-             ok = isreal(q1(1),sline,lp)
-             ok = ok.and.isreal(q1(2),sline,lp)
-             ok = ok.and.isreal(q1(3),sline,lp)
-             ok = ok.and.isreal(q2(1),sline,lp)
-             ok = ok.and.isreal(q2(2),sline,lp)
-             ok = ok.and.isreal(q2(3),sline,lp)
-             ok = ok.and.isinteger(npts,sline,lp)
-             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/LINE',faterr)
+          elseif (equal(word,'lebedev')) then
+             ok = isinteger(npts,sline,lp)
+             if (.not.ok) call ferror('struct_vibrations','error reading SOUND_VELOCITIES/LEBEDEV',faterr)
+             call good_lebedev(npts)
+
+             write (uout,'("  Adding Lebedev mesh: ",A)') string(npts)
+             allocate(xleb(npts),yleb(npts),zleb(npts),wleb(npts))
+             call select_lebedev(npts,xleb,yleb,zleb,wleb)
+             if (nq + npts > size(qlist,2)) call realloc(qlist,3,nq + npts + 1)
              do i = 1, npts
-                q = q1 + real(i-1,8) / real(max(npts-1,1),8) * (q2 - q1)
-                nq = nq + 1
-                if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
-                qlist(:,nq) = q
+                qlist(1,nq+i) = xleb(i)
+                qlist(2,nq+i) = yleb(i)
+                qlist(3,nq+i) = zleb(i)
              end do
-          elseif (equal(word,'mesh')) then
-             ok = isinteger(n(1),sline,lp)
-             ok = ok.and.isinteger(n(2),sline,lp)
-             ok = ok.and.isinteger(n(3),sline,lp)
-             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/MESH',faterr)
-             do i = 1, n(1)
-                do j = 1, n(2)
-                   do k = 1, n(3)
-                      q = (/real(i-1,8)/real(n(1),8), real(j-1,8)/real(n(2),8), real(k-1,8)/real(n(3),8)/)
-                      nq = nq + 1
-                      if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
-                      qlist(:,nq) = q
-                   end do
-                end do
-             end do
+             deallocate(xleb,yleb,zleb,wleb)
+             nq = nq + npts
+          else
+             ! this must be a q, wihtout the q
+             lp = 1
+             ok = isreal(q(1),sline,lp)
+             ok = ok.and.isreal(q(2),sline,lp)
+             ok = ok.and.isreal(q(3),sline,lp)
+             if (.not.ok) call ferror('struct_vibrations','error reading SOUND_VELOCITIES/Q',faterr)
+             if (.not.cartesian) q = s%c%rx2rc(q)
+             nq = nq + 1
+             if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
+             qlist(:,nq) = q
           end if
        end do
-       stop 1
 
-       ! ! calculate the frequencies and eigenvectors
-       ! call s%c%vib%end(keepfc2=.true.)
-       ! do i = 1, nq
-       !    call s%c%vib%calculate_q(s%c,qlist(:,i))
-       ! end do
+       ! cqalculate sound velocities
+       do i = 1, nq
+          call s%c%vib%calculate_vs(s%c,qlist(:,i),vs)
+          write (*,*) "vs final = ", vs
+          stop 1
+       end do
     end if
 
     ! wrap up
