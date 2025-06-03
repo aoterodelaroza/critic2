@@ -50,6 +50,7 @@ module param
   real*8, parameter :: eva3togpa = 160.2176487028540d0 !< eV/ang**3 to gpa
   real*8, parameter :: pcamu = 1.660538782d-24 !< atomic mass unit [g] (nist2006)
   real*8, parameter :: cm1tothz = 2.99792458d-2 !< cm-1 to THz conversion factor (c*1e-10)
+  real*8, parameter :: cm1tohz = 2.99792458d10 !< cm-1 to Hz conversion factor (c*100)
   real*8, parameter :: zero=0d0 !< 0
   real*8, parameter :: one=1d0 !< 1
   real*8, parameter :: two=2d0 !< 2

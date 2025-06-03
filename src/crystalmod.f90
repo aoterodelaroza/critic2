@@ -94,6 +94,8 @@ module crystalmod
      !! 2nd-order force constants
      logical :: hasfc2 = .false. ! true if FC2 is available
      real*8, allocatable :: fc2(:,:,:,:) ! 2nd-order FC matrix (3,3,nat,nat)
+     real*8 :: fc2_vs_delta = -1d0 ! delta for calculation of sound velocities (bohr-1)
+     real*8 :: fc2_gamma_ac(3) = (/-1d0,-1d0,-1d0/) ! acoustic frequencies at gamma (cm-1)
      !! frequencies and eigenvectors
      logical :: hasvibs = .false. ! true if frequencies/eigenvectors are available
      integer :: nqpt ! number of q-points
