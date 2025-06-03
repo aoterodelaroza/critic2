@@ -426,16 +426,22 @@ contains
   !>   sum_a phi_(ia,jb) = 0
   !>   sum_b phi_(ia,jb) = 0
   !>   phi_(ia,jb) = phi(jb,ia)
-  module subroutine vibrations_apply_acoustic(v,c)
+  module subroutine vibrations_apply_acoustic(v,c,verbose)
     use tools_io, only: uout, string
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
+    logical, intent(in), optional :: verbose
 
     integer :: i, j, iat, jat
     real*8 :: summ
+    logical :: verbose_
 
     ! return if no FC2 is available
     if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+
+    ! optional parameters
+    verbose_ = .false.
+    if (present(verbose)) verbose_ = verbose
 
     ! apply acoustic sum rules
     do iat = 1, c%ncel
@@ -464,8 +470,10 @@ contains
           end do
        end do
     end do
-    write (uout,'("+ FC2 ACOUSTIC_SUM_RULES: apply acoustic sum rules to FC2")')
-    write (uout,'("  Resulting acoustic sum = ",A)') string(sum(v%fc2),'e',10,5)
+    if (verbose_) then
+       write (uout,'("+ FC2 ACOUSTIC_SUM_RULES: apply acoustic sum rules to FC2")')
+       write (uout,'("  Resulting acoustic sum = ",A)') string(sum(v%fc2),'e',10,5)
+    end if
 
   end subroutine vibrations_apply_acoustic
 

@@ -1079,9 +1079,10 @@ module crystalmod
        integer, intent(in) :: ifreq, idq
        logical, intent(in) :: cartesian
      end subroutine vibrations_print_eigenvector
-     module subroutine vibrations_apply_acoustic(v,c)
+     module subroutine vibrations_apply_acoustic(v,c,verbose)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(inout) :: c
+       logical, intent(in), optional :: verbose
      end subroutine vibrations_apply_acoustic
      module subroutine vibrations_calculate_q(v,c,q,freqo,veco)
        class(vibrations), intent(inout) :: v

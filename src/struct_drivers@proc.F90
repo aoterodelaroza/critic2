@@ -3579,12 +3579,12 @@ contains
 
   !> Driver for operations on crystal or molecular vibrations.
   module subroutine struct_vibrations(s,line,verbose)
-    use global, only: eval_next
+    use global, only: eval_next, iunitname0, dunit0, iunit, iunit_ang
     use tools_io, only: uout, lgetword, getword, ferror, faterr, equal, isreal, isinteger,&
-       uin, ucopy, getline, string, ioj_right
+       uin, ucopy, getline, string, ioj_right, ioj_left
     use tools_math, only: good_lebedev, select_lebedev
     use types, only: realloc
-    use param, only: ivformat_unknown
+    use param, only: ivformat_unknown, bohrtoa, fourpi
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
@@ -3592,11 +3592,12 @@ contains
     character(len=:), allocatable :: filename, word, mode, sline, errmsg
     integer :: lp, lpo, idq, ifreq, npts, n(3)
     real*8 :: disteps, fc2eps, q(3), q1(3), q2(3), tini, tend, t
-    real*8 :: zpe, fvib, svib, cv, vs(3)
+    real*8 :: zpe, fvib, svib, cv, vs(3), fac, vsavg(3)
     logical :: ok, environ, cartesian
     integer :: nq, i, j, k
-    real*8, allocatable :: qlist(:,:)
+    real*8, allocatable :: qlist(:,:), wlist(:)
     real*8, allocatable :: xleb(:), yleb(:), zleb(:), wleb(:)
+    logical :: didlebedev, didother, calcavg
 
     ! header
     if (verbose) &
@@ -3745,7 +3746,7 @@ contains
 
        word = lgetword(line,lp)
        if (equal(word,'acoustic_sum_rules')) then
-          call s%c%vib%apply_acoustic(s%c)
+          call s%c%vib%apply_acoustic(s%c,verbose=.true.)
        else
           call ferror('struct_vibrations','Unknown keyword: ' // word,faterr,syntax=.true.)
        end if
@@ -3786,14 +3787,17 @@ contains
        cartesian = (equal(word,'cartesian'))
 
        ! parse coordinate block
+       didlebedev = .false.
+       didother = .false.
        nq = 0
-       allocate(qlist(3,10))
+       allocate(qlist(3,10),wlist(10))
        do while (getline(uin,sline,ucopy=ucopy))
           lp = 1
           word = lgetword(sline,lp)
           if (equal(word,'end').or.equal(word,'endvibration').or.equal(word,'endvibrations')) then
              exit
           elseif (equal(word,'q')) then
+             didother = .true.
              ok = isreal(q(1),sline,lp)
              ok = ok.and.isreal(q(2),sline,lp)
              ok = ok.and.isreal(q(3),sline,lp)
@@ -3801,26 +3805,37 @@ contains
 
              if (.not.cartesian) q = s%c%rx2rc(q)
              nq = nq + 1
-             if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
+             if (nq > size(qlist,2)) then
+                call realloc(qlist,3,2*nq)
+                call realloc(wlist,2*nq)
+             end if
              qlist(:,nq) = q
+             wlist(nq) = 1d0
           elseif (equal(word,'lebedev')) then
+             if (didlebedev) didother = .true.
+             didlebedev = .true.
              ok = isinteger(npts,sline,lp)
              if (.not.ok) call ferror('struct_vibrations','error reading SOUND_VELOCITIES/LEBEDEV',faterr)
              call good_lebedev(npts)
 
-             write (uout,'("  Adding Lebedev mesh: ",A)') string(npts)
+             ! write (uout,'("  Adding Lebedev mesh: ",A)') string(npts)
              allocate(xleb(npts),yleb(npts),zleb(npts),wleb(npts))
              call select_lebedev(npts,xleb,yleb,zleb,wleb)
-             if (nq + npts > size(qlist,2)) call realloc(qlist,3,nq + npts + 1)
+             if (nq + npts > size(qlist,2)) then
+                call realloc(qlist,3,nq + npts + 1)
+                call realloc(wlist,nq + npts + 1)
+             end if
              do i = 1, npts
                 qlist(1,nq+i) = xleb(i)
                 qlist(2,nq+i) = yleb(i)
                 qlist(3,nq+i) = zleb(i)
+                wlist(nq+i) = wleb(i)
              end do
              deallocate(xleb,yleb,zleb,wleb)
              nq = nq + npts
           else
              ! this must be a q, wihtout the q
+             didother = .true.
              lp = 1
              ok = isreal(q(1),sline,lp)
              ok = ok.and.isreal(q(2),sline,lp)
@@ -3828,17 +3843,41 @@ contains
              if (.not.ok) call ferror('struct_vibrations','error reading SOUND_VELOCITIES/Q',faterr)
              if (.not.cartesian) q = s%c%rx2rc(q)
              nq = nq + 1
-             if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
+             if (nq > size(qlist,2)) then
+                call realloc(qlist,3,2*nq)
+                call realloc(wlist,2*nq)
+             end if
              qlist(:,nq) = q
+             wlist(nq) = 1d0
           end if
        end do
+       calcavg = (didlebedev.and..not.didother)
 
-       ! cqalculate sound velocities
+       vsavg = 0d0
+       write (uout,'("+ Calculation of sound velocities in reciprocal space directions (SOUND_VELOCITIES)")')
+       write (uout,'("# id    -----     q (fractional)   -----        ----  q (Cartesian,",A,"^-1)&
+          & ----     ----- sound velocities (m/s)  -----")') iunitname0(iunit)
        do i = 1, nq
+          if (iunit == iunit_ang) then
+             fac = 1d0/bohrtoa
+          else
+             fac = 1d0
+          end if
+
           call s%c%vib%calculate_vs(s%c,qlist(:,i),vs)
-          write (*,*) "vs final = ", vs
-          stop 1
+          q = s%c%rc2rx(qlist(:,i))
+          write (uout,'(99(A,X))') string(i,5,ioj_left), (string(q(j),'f',12,5,4),j=1,3),&
+             (string(qlist(j,i) * fac,'f',12,5,4),j=1,3), (string(vs(j),'f',12,3),j=1,3)
+          if (calcavg) then
+             vsavg = vsavg + wlist(i) * vs
+          end if
        end do
+       if (calcavg) then
+          vsavg = vsavg / fourpi
+          write (uout,'("# Average sound velocities (m/s) = ",3(A,X))') (string(vsavg(j),'f',12,3),j=1,3)
+       end if
+       write (uout,*)
+
     end if
 
     ! wrap up
