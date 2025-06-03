@@ -3720,6 +3720,16 @@ contains
                    end do
                 end do
              end do
+          else
+             ! this must be a q, wihtout the q
+             lp = 1
+             ok = isreal(q(1),sline,lp)
+             ok = ok.and.isreal(q(2),sline,lp)
+             ok = ok.and.isreal(q(3),sline,lp)
+             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/Q',faterr)
+             nq = nq + 1
+             if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
+             qlist(:,nq) = q
           end if
        end do
 
@@ -3753,6 +3763,62 @@ contains
                 string(svib,'f',16,7,ioj_right), string(cv,'f',16,7,ioj_right)
           end do
        end if
+    elseif (equal(word,'sound_velocities')) then
+       nq = 0
+       allocate(qlist(3,10))
+
+       do while (getline(uin,sline,ucopy=ucopy))
+          lp = 1
+          word = lgetword(sline,lp)
+          if (equal(word,'end').or.equal(word,'endvibration').or.equal(word,'endvibrations')) then
+             exit
+          elseif (equal(word,'q')) then
+             ok = isreal(q(1),sline,lp)
+             ok = ok.and.isreal(q(2),sline,lp)
+             ok = ok.and.isreal(q(3),sline,lp)
+             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/Q',faterr)
+             nq = nq + 1
+             if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
+             qlist(:,nq) = q
+          elseif (equal(word,'line')) then
+             ok = isreal(q1(1),sline,lp)
+             ok = ok.and.isreal(q1(2),sline,lp)
+             ok = ok.and.isreal(q1(3),sline,lp)
+             ok = ok.and.isreal(q2(1),sline,lp)
+             ok = ok.and.isreal(q2(2),sline,lp)
+             ok = ok.and.isreal(q2(3),sline,lp)
+             ok = ok.and.isinteger(npts,sline,lp)
+             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/LINE',faterr)
+             do i = 1, npts
+                q = q1 + real(i-1,8) / real(max(npts-1,1),8) * (q2 - q1)
+                nq = nq + 1
+                if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
+                qlist(:,nq) = q
+             end do
+          elseif (equal(word,'mesh')) then
+             ok = isinteger(n(1),sline,lp)
+             ok = ok.and.isinteger(n(2),sline,lp)
+             ok = ok.and.isinteger(n(3),sline,lp)
+             if (.not.ok) call ferror('struct_vibrations','error reading CALCQ/MESH',faterr)
+             do i = 1, n(1)
+                do j = 1, n(2)
+                   do k = 1, n(3)
+                      q = (/real(i-1,8)/real(n(1),8), real(j-1,8)/real(n(2),8), real(k-1,8)/real(n(3),8)/)
+                      nq = nq + 1
+                      if (nq > size(qlist,2)) call realloc(qlist,3,2*nq)
+                      qlist(:,nq) = q
+                   end do
+                end do
+             end do
+          end if
+       end do
+       stop 1
+
+       ! ! calculate the frequencies and eigenvectors
+       ! call s%c%vib%end(keepfc2=.true.)
+       ! do i = 1, nq
+       !    call s%c%vib%calculate_q(s%c,qlist(:,i))
+       ! end do
     end if
 
     ! wrap up
