@@ -429,11 +429,10 @@ contains
     integer :: i, j, iat, jat
     real*8 :: summ
 
-    ! !! ernesto
-    ! integer :: l, k, iter
-    ! real*8 :: sum
+    ! return if no FC2 is available
+    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
 
-    ! real*8, allocatable :: fc2(:,:,:,:) ! 2nd-order FC matrix (3,3,nat,nat)
+    ! apply acoustic sum rules
     do iat = 1, c%ncel
        do i = 1, 3
           do j = 1, 3
@@ -454,8 +453,8 @@ contains
        do jat = iat+1, c%ncel
           do i = 1, 3
              do j = 1, 3
-                v%fc2(i,j,iat,jat) = 0.5d0 * (v%fc2(i,j,iat,jat) + v%fc2(i,j,jat,iat))
-                v%fc2(i,j,jat,iat) = v%fc2(i,j,iat,jat)
+                v%fc2(i,j,iat,jat) = 0.5d0 * (v%fc2(i,j,iat,jat) + v%fc2(j,i,jat,iat))
+                v%fc2(j,i,jat,iat) = v%fc2(i,j,iat,jat)
              end do
           end do
        end do
@@ -579,9 +578,8 @@ contains
   !> Calculate sound velocities in the reciprocal space direction
   !> given by q (Cartesian coordinates). q cannot be zero, and it is
   !> normalized on input. c = crystal structure. vs = output sound
-  !> velocities in increasing order. Nullifies the
-  !> eigenvector/eigenvalue information (%hasvibs), which it uses for
-  !> work space.
+  !> velocities in increasing order. Automatically applies acoustic
+  !> sum rules and changes the FC2.
   module subroutine vibrations_calculate_vs(v,c,q,vs)
     use tools_io, only: ferror, faterr
     class(vibrations), intent(inout) :: v
@@ -606,6 +604,9 @@ contains
     if (normq < epsnq) &
        call ferror('vibrations_calculate_vs','zero-length q-point',faterr)
     qn = q / normq
+
+    ! apply acoustic sum rules
+    call v%apply_acoustic(c)
 
     ! build the list of q and run the q-point calculation
     do i = 1, npts
