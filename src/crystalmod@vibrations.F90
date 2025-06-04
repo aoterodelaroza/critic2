@@ -73,7 +73,7 @@ contains
        ivformat_phonopy_fc2
     use types, only: realloc
     class(vibrations), intent(inout) :: v
-    type(crystal), intent(in) :: c
+    type(crystal), intent(inout) :: c
     character*(*), intent(in) :: file, sline
     integer, intent(in) :: ivformat
     character(len=:), allocatable, intent(out) :: errmsg
@@ -487,7 +487,6 @@ contains
   module subroutine vibrations_calculate_q(v,c,q,freqo,veco)
     use param, only: icrd_crys, atmass, tpi, img
     use types, only: realloc
-    use tools_io, only: uout
     use tools_math, only: eigherm
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
@@ -1530,18 +1529,23 @@ contains
   !> populate v. Use the structure information in the crystal
   !> structure c. If error, return non-zero errmsg.
   subroutine read_phonopy_fc2(v,c,file,sline,errmsg,ti)
+    use crystalseedmod, only: crystalseed
+    use global, only: eval_next
     use types, only: realloc
-    use tools_io, only: fopen_read, fclose, getline_raw, lgetword, equal
-    use param, only: ivformat_phonopy_fc2
+    use tools_io, only: fopen_read, fclose, getline_raw, lgetword, equal, getword
+    use param, only: ivformat_phonopy_fc2, icrd_cart
     type(vibrations), intent(inout) :: v
-    type(crystal), intent(in) :: c
+    type(crystal), intent(inout) :: c
     character*(*), intent(in) :: file, sline
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     character(len=:), allocatable :: word
-    integer :: lp, lu, nat, mat, i, j, idum, jdum
-    real*8 :: fc2factor
+    integer :: lp, lp2, lu, nat, mat, i, j, idum, jdum
+    real*8 :: fc2factor, rdum(4), x0(3,3), rmat(3,3)
+    logical :: ok, isfull
+    type(crystal) :: sc
+    type(crystalseed) :: seed
 
     ! initialize
     errmsg = "Error reading FORCE_CONSTANTS file: " // trim(file)
@@ -1563,6 +1567,46 @@ contains
        goto 999
     end if
 
+    ! read the supercell transformation or the supercell file
+    lp2 = lp
+    x0 = 0d0
+    ok = eval_next(rdum(1),sline,lp)
+    ok = ok .and. eval_next(rdum(2),sline,lp)
+    ok = ok .and. eval_next(rdum(3),sline,lp)
+    if (ok) then
+       ok = eval_next(rdum(4),sline,lp)
+       if (ok) then
+          x0(:,1) = rdum(1:3)
+          x0(1,2) = rdum(4)
+          ok = eval_next(x0(2,2),sline,lp)
+          ok = ok .and. eval_next(x0(3,2),sline,lp)
+          ok = ok .and. eval_next(x0(1,3),sline,lp)
+          ok = ok .and. eval_next(x0(2,3),sline,lp)
+          ok = ok .and. eval_next(x0(3,3),sline,lp)
+          if (.not.ok) then
+             errmsg = "Wrong syntax for supercell transformation"
+             goto 999
+          end if
+       else
+          do i = 1, 3
+             x0(i,i) = rdum(i)
+          end do
+       end if
+       ! create the supercell
+       sc = c
+       call sc%newcell(x0)
+    else
+       lp = lp2
+       word = getword(sline,lp)
+       call seed%read_any_file(word,-1,errmsg)
+       if (len_trim(errmsg) > 0) goto 999
+       call sc%struct_new(seed,.true.)
+       if (sc%ismolecule) then
+          errmsg = "Supercell file in VIBRATIONS LOAD is a molecule"
+          goto 999
+       end if
+    end if
+
     ! open file
     lu = fopen_read(file,ti=ti)
     if (lu <= 0) then
@@ -1572,24 +1616,46 @@ contains
 
     ! read the number of atoms from the fc2 file
     read(lu,*,err=999,end=999) nat, mat
-    if (c%ncel /= nat .or. c%ncel /= mat ) then
+    isfull = (nat == mat)
+    if (sc%ncel /= mat .or. .not.isfull .and. c%ncel /= nat) then
        errmsg = 'Inconsistent atom number in FORCE_CONSTANTS file'
        goto 999
     end if
 
-    ! prepare the fc2 matrix
+    ! calculate the fc2 matrix auxiliary info
+    v%afc2_nenv = mat
+    allocate(v%afc2_idx(mat),v%afc2_lvec(3,mat))
+    do i = 1, sc%ncel
+       v%afc2_idx(i) = c%identify_atom(sc%atcel(i)%r,icrd_cart,v%afc2_lvec(:,i))
+       if (v%afc2_idx(i) == 0) then
+          errmsg = "Atom position in supercell incompatible with current structure"
+          goto 999
+       end if
+    end do
+
+    ! read the fc2 matrix
     errmsg = "Error reading force constants from FORCE_CONSTANTS file"
     if (allocated(v%fc2)) deallocate(v%fc2)
-    allocate(v%fc2(3,3,nat,nat))
-    do idum = 1, c%ncel
-       do jdum = 1, c%ncel
+    allocate(v%fc2(3,3,mat,mat),v%afc2(3,3,c%ncel,mat))
+    do idum = 1, nat
+       do jdum = 1, mat
           read (lu,*,err=999,end=999) i, j
-          read (lu,*,err=999,end=999) v%fc2(1,1,i,j), v%fc2(1,2,i,j), v%fc2(1,3,i,j)
-          read (lu,*,err=999,end=999) v%fc2(2,1,i,j), v%fc2(2,2,i,j), v%fc2(2,3,i,j)
-          read (lu,*,err=999,end=999) v%fc2(3,1,i,j), v%fc2(3,2,i,j), v%fc2(3,3,i,j)
+          read (lu,*,err=999,end=999) rmat(1,:)
+          read (lu,*,err=999,end=999) rmat(2,:)
+          read (lu,*,err=999,end=999) rmat(3,:)
+
+          if (isfull) then
+             v%fc2(:,:,i,j) = rmat
+             if (all(v%afc2_lvec(:,idum) == 0)) then
+                v%afc2(:,:,v%afc2_idx(idum),jdum) = rmat
+             end if
+          else
+             v%afc2(:,:,idum,jdum) = rmat
+          end if
        end do
     end do
     v%fc2 = v%fc2 * fc2factor
+    v%afc2 = v%afc2 * fc2factor
 
     ! wrap up
     v%file = file

@@ -94,6 +94,13 @@ module crystalmod
      !! 2nd-order force constants
      logical :: hasfc2 = .false. ! true if FC2 is available
      real*8, allocatable :: fc2(:,:,:,:) ! 2nd-order FC matrix (3,3,nat,nat)
+
+     ! xxxx !
+     integer :: afc2_nenv ! number of force constants calculated
+     real*8, allocatable :: afc2(:,:,:,:) ! 2nd-order FC matrix (3,3,ncel,sc-ncel)
+     integer, allocatable :: afc2_idx(:) ! cell list indices (sc-ncel)
+     integer, allocatable :: afc2_lvec(:,:) ! lattice vectors (3,sc-ncel)
+
      real*8 :: fc2_vs_delta = -1d0 ! delta for calculation of sound velocities (bohr-1)
      real*8 :: fc2_gamma_ac(3) = (/-1d0,-1d0,-1d0/) ! acoustic frequencies at gamma (cm-1)
      !! frequencies and eigenvectors
@@ -1054,7 +1061,7 @@ module crystalmod
      end subroutine vibrations_end
      module subroutine vibrations_read_file(v,c,file,sline,ivformat,errmsg,ti)
        class(vibrations), intent(inout) :: v
-       type(crystal), intent(in) :: c
+       type(crystal), intent(inout) :: c
        character*(*), intent(in) :: file, sline
        integer, intent(in) :: ivformat
        character(len=:), allocatable, intent(out) :: errmsg
