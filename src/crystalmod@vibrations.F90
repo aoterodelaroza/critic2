@@ -1636,6 +1636,14 @@ contains
        goto 999
     end if
 
+    ! maximum distance for the q-point frequency calculation
+    v%afc2_dmax = 0d0
+    do i = 1, sc%ncel
+       do j = i+1, sc%ncel
+          v%afc2_dmax = max(v%afc2_dmax,sc%eql_distance(sc%atcel(i)%x, sc%atcel(j)%x))
+       end do
+    end do
+
     ! calculate the fc2 matrix auxiliary info
     v%afc2_nenv = mat
     allocate(v%afc2_idx(mat),v%afc2_lvec(3,mat))
