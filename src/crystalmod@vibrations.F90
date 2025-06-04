@@ -423,8 +423,8 @@ contains
   end subroutine vibrations_print_eigenvector
 
   !> Modify the current FC2 by imposing acoustic sum rules and symmetrize the FC2:
-  !>   sum_a phi_(ia,jb) = 0
-  !>   sum_b phi_(ia,jb) = 0
+  !>   sum_i phi_(ia,jb) = 0
+  !>   sum_j phi_(ia,jb) = 0
   !>   phi_(ia,jb) = phi(jb,ia)
   module subroutine vibrations_apply_acoustic(v,c,verbose)
     use tools_io, only: uout, string
@@ -449,6 +449,9 @@ contains
           do j = 1, 3
              summ = sum(v%fc2(i,j,iat,:)) / c%ncel
              v%fc2(i,j,iat,:) = v%fc2(i,j,iat,:) - summ
+
+             summ = sum(v%afc2(i,j,iat,:)) / v%afc2_nenv
+             v%afc2(i,j,iat,:) = v%afc2(i,j,iat,:) - summ
           end do
        end do
     end do
@@ -460,6 +463,16 @@ contains
           end do
        end do
     end do
+
+    do iat = 1, v%afc2_nenv
+       do i = 1, 3
+          do j = 1, 3
+             summ = sum(v%afc2(i,j,:,iat)) / c%ncel
+             v%afc2(i,j,:,iat) = v%afc2(i,j,:,iat) - summ
+          end do
+       end do
+    end do
+
     do iat = 1, c%ncel
        do jat = iat+1, c%ncel
           do i = 1, 3
@@ -473,6 +486,7 @@ contains
     if (verbose_) then
        write (uout,'("+ FC2 ACOUSTIC_SUM_RULES: apply acoustic sum rules to FC2")')
        write (uout,'("  Resulting acoustic sum = ",A)') string(sum(v%fc2),'e',10,5)
+       write (uout,'("  Resulting acoustic sum = ",A)') string(sum(v%afc2),'e',10,5)
     end if
 
   end subroutine vibrations_apply_acoustic

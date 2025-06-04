@@ -96,7 +96,7 @@ module crystalmod
      real*8, allocatable :: fc2(:,:,:,:) ! 2nd-order FC matrix (3,3,nat,nat)
 
      ! xxxx !
-     integer :: afc2_nenv ! number of force constants calculated
+     integer :: afc2_nenv ! number of atoms in the calculated FC2 environment
      real*8, allocatable :: afc2(:,:,:,:) ! 2nd-order FC matrix (3,3,ncel,sc-ncel)
      integer, allocatable :: afc2_idx(:) ! cell list indices (sc-ncel)
      integer, allocatable :: afc2_lvec(:,:) ! lattice vectors (3,sc-ncel)
