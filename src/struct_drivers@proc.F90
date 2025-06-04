@@ -3594,7 +3594,7 @@ contains
     real*8 :: disteps, fc2eps, q(3), q1(3), q2(3), tini, tend, t
     real*8 :: zpe, fvib, svib, cv, vs(3), fac, vsavg(3)
     logical :: ok, environ, cartesian
-    integer :: nq, i, j, k
+    integer :: nq, i, j, k, fini, fend
     real*8, allocatable :: qlist(:,:), wlist(:)
     real*8, allocatable :: xleb(:), yleb(:), zleb(:), wleb(:)
     logical :: didlebedev, didother, calcavg
@@ -3680,6 +3680,12 @@ contains
        nq = 0
        allocate(qlist(3,10))
 
+       ! read the initial and final frequency to print
+       fini = -1
+       fend = -1
+       ok = isinteger(fini,line,lp)
+       ok = ok .and. isinteger(fend,line,lp)
+
        do while (getline(uin,sline,ucopy=ucopy))
           lp = 1
           word = lgetword(sline,lp)
@@ -3738,8 +3744,26 @@ contains
 
        ! calculate the frequencies and eigenvectors
        call s%c%vib%end(keepfc2=.true.)
+       if (fini > 0 .and. fend > 0) then
+          write (uout,'("+ Calculation of frequencies at points in reciprocal space (CALCQ)")')
+          write (uout,'("# id      -----     q (fractional)   -----       ----  q (Cartesian,",A,"^-1)&
+             & ----       frequencies (cm^-1)")') iunitname0(iunit)
+
+          if (iunit == iunit_ang) then
+             fac = 1d0/bohrtoa
+          else
+             fac = 1d0
+          end if
+       end if
        do i = 1, nq
           call s%c%vib%calculate_q(s%c,qlist(:,i))
+          if (fini > 0 .and. fend > 0) then
+             q = s%c%rx2rc(qlist(:,i))
+             write (uout,'(999(A,X))') string(i,5,ioj_left),&
+                (string(qlist(j,i),'f',12,8,4),j=1,3),&
+                (string(q(j) * fac,'f',12,8,4),j=1,3),&
+                (string(s%c%vib%freq(j,s%c%vib%nqpt),'f',12,4,5),j=fini,fend)
+          end if
        end do
 
     elseif (equal(word,'fc2')) then
@@ -3853,21 +3877,21 @@ contains
        end do
        calcavg = (didlebedev.and..not.didother)
 
+       ! print sound velocities to output
        vsavg = 0d0
        write (uout,'("+ Calculation of sound velocities in reciprocal space directions (SOUND_VELOCITIES)")')
        write (uout,'("# id    -----     q (fractional)   -----        ----  q (Cartesian,",A,"^-1)&
           & ----     ----- sound velocities (m/s)  -----")') iunitname0(iunit)
+       if (iunit == iunit_ang) then
+          fac = 1d0/bohrtoa
+       else
+          fac = 1d0
+       end if
        do i = 1, nq
-          if (iunit == iunit_ang) then
-             fac = 1d0/bohrtoa
-          else
-             fac = 1d0
-          end if
-
           call s%c%vib%calculate_vs(s%c,qlist(:,i),vs)
           q = s%c%rc2rx(qlist(:,i))
-          write (uout,'(99(A,X))') string(i,5,ioj_left), (string(q(j),'f',12,5,4),j=1,3),&
-             (string(qlist(j,i) * fac,'f',12,5,4),j=1,3), (string(vs(j),'f',12,3),j=1,3)
+          write (uout,'(99(A,X))') string(i,5,ioj_left), (string(q(j),'f',12,8,4),j=1,3),&
+             (string(qlist(j,i) * fac,'f',12,8,4),j=1,3), (string(vs(j),'f',12,3),j=1,3)
           if (calcavg) then
              vsavg = vsavg + wlist(i) * vs
           end if

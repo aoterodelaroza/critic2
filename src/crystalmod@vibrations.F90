@@ -482,11 +482,12 @@ contains
   !> resulting frequencies and eigenvectors to the v type.  If the
   !> optional arguments freqo and veco are present, return the
   !> frequencies and eigenvectors in these variables instead of
-  !> overwriting the vibrational info in v. Frequencies are in
-  !> ascending order.
+  !> overwriting the vibrational info in v. Frequencies in output are
+  !> in ascending order.
   module subroutine vibrations_calculate_q(v,c,q,freqo,veco)
     use param, only: icrd_crys, atmass, tpi, img
     use types, only: realloc
+    use tools_io, only: uout
     use tools_math, only: eigherm
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
@@ -514,6 +515,7 @@ contains
     ! return if no FC2 is available
     if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
 
+    ! process input arguments
     varoutput = present(freqo) .and. present(veco)
 
     ! maximum distance of all pairs of atoms in the unit cell
@@ -564,6 +566,7 @@ contains
     ! calculate the frequencies
     freq = sqrt(abs(eval)) * factor
 
+    ! save output
     if (varoutput) then
        freqo = freq
        veco = dm
@@ -638,10 +641,11 @@ contains
     if (v%fc2_vs_delta < 0d0) then
        ! calculate the frequencies at gamma
        qthis = 0d0
-       call v%calculate_q(c,qthis,freq,vec)
+       call v%calculate_q(c,qthis,freqo=freq,veco=vec)
        v%fc2_gamma_ac = freq(1:3)
 
        ! bracketing for maxlen
+       write (*,*) 0d0, v%fc2_gamma_ac
        fdiff = 0d0
        v%fc2_vs_delta = maxlen_ini
        do while (any(fdiff < fdiff_thr))
@@ -649,8 +653,9 @@ contains
           h = v%fc2_vs_delta / real(npts-1,8)
           qthis = h * qn
           qthis = c%rc2rx(qthis)
-          call v%calculate_q(c,qthis,freq,vec)
+          call v%calculate_q(c,qthis,freqo=freq,veco=vec)
           fdiff = abs(freq(1:3) - v%fc2_gamma_ac)
+          write (*,*) "running = ", h, freq(1:3)
        end do
     end if
 
@@ -661,7 +666,9 @@ contains
        h = v%fc2_vs_delta / real(npts-1,8)
        qthis = real(i-1,8) * h * qn
        qthis = c%rc2rx(qthis)
-       call v%calculate_q(c,qthis,freq,vec)
+       write (*,*) "h = ", h
+       write (*,*) "qthis = ", qthis
+       call v%calculate_q(c,qthis,freqo=freq,veco=vec)
        ff(i,:) = freq(1:3)
     end do
     if (allocated(freq)) deallocate(freq)
