@@ -645,7 +645,6 @@ contains
        v%fc2_gamma_ac = freq(1:3)
 
        ! bracketing for maxlen
-       write (*,*) 0d0, v%fc2_gamma_ac
        fdiff = 0d0
        v%fc2_vs_delta = maxlen_ini
        do while (any(fdiff < fdiff_thr))
@@ -655,7 +654,6 @@ contains
           qthis = c%rc2rx(qthis)
           call v%calculate_q(c,qthis,freqo=freq,veco=vec)
           fdiff = abs(freq(1:3) - v%fc2_gamma_ac)
-          write (*,*) "running = ", h, freq(1:3)
        end do
     end if
 
@@ -666,8 +664,6 @@ contains
        h = v%fc2_vs_delta / real(npts-1,8)
        qthis = real(i-1,8) * h * qn
        qthis = c%rc2rx(qthis)
-       write (*,*) "h = ", h
-       write (*,*) "qthis = ", qthis
        call v%calculate_q(c,qthis,freqo=freq,veco=vec)
        ff(i,:) = freq(1:3)
     end do
