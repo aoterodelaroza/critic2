@@ -315,11 +315,20 @@ set(_message
 "Fortran flags: ${CMAKE_Fortran_FLAGS_${BT}}\n"
 "C compiler: ${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID}, ${CMAKE_C_COMPILER_VERSION})\n"
 "C flags: ${CMAKE_C_FLAGS_${BT}}\n"
-"CXX compiler: ${CMAKE_CXX_COMPILER} (${CMAKE_CXX_COMPILER_ID}, ${CMAKE_CXX_COMPILER_VERSION})\n"
-"CXX flags: ${CMAKE_CXX_FLAGS_${BT}}\n"
-"Install directory: ${CMAKE_INSTALL_PREFIX}\n"
+)
+
+if (ENABLE_GUI)
+  set(_message
+    "${_message}CXX compiler: ${CMAKE_CXX_COMPILER} (${CMAKE_CXX_COMPILER_ID}, ${CMAKE_CXX_COMPILER_VERSION})\n"
+    "CXX flags: ${CMAKE_CXX_FLAGS_${BT}}\n"
+  )
+endif()
+
+set(_message
+"${_message}Install directory: ${CMAKE_INSTALL_PREFIX}\n"
 "OpenMP parallelization: ${OPENMP_FOUND}\n"
 )
+
 if (LAPACK_FOUND)
   set(_message "${_message}Lapack: lib=${LAPACK_LIBRARIES}\n")
 else()
