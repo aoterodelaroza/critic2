@@ -44,6 +44,7 @@ module param
   real*8, parameter :: bohrtom = 0.52917720859d-10      !< bohr -> m (nist2006)
   real*8, parameter :: bohrtonm = 0.052917720859d2      !< bohr -> nm (nist2006)
   real*8, parameter :: bohrtopm = 0.52917720859d2       !< bohr -> pm (nist2006)
+  real*8, parameter :: hartokjmol = 2625.49962248d0 !< hartree to kJ/mol factor
   real*8, parameter :: hartocm1 =  2.194746313705d5 !< hartree to cm-1 factor
   real*8, parameter :: hartoev  =  27.211386245988d0 !< hartree to ev factor
   real*8, parameter :: autogpa  =  29421.0108037190d0 !< hartree/bohr**3 to gpa

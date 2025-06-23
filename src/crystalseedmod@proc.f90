@@ -1019,7 +1019,7 @@ contains
   module subroutine read_shelx(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
        lower, zatguess, fclose, getword
-    use param, only: eyet, eye, bohrtoa, isformat_shelx
+    use param, only: eyet, eye, bohrtoa, isformat_shelx, hartokjmol
     use types, only: realloc
     class(crystalseed), intent(inout)  :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
@@ -1027,9 +1027,9 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, lp, ilat
+    integer :: lu, lp, ilat, ll
     logical :: ok, iscent, havecell, found
-    character(len=:), allocatable :: uword, word, line, aux
+    character(len=:), allocatable :: uword, word, line, aux, word2
     real*8 :: raux, rot0(3,4)
     integer :: i, j, n
     integer :: iz
@@ -1080,7 +1080,15 @@ contains
        uword = getword(line,lp)
        word = lower(uword)
        if (len_trim(word) > 4) word = word(1:4)
-       if (equal(word,"cell")) then
+       if (equal(word,"titl")) then
+          ! try to read the energy (output of mol-cspy, in kJ/mol per molecule)
+          word2 = getword(line,lp)
+          ll = min(len(word2),len(file))
+          if (equal(word2(1:ll-1),file(1:ll-1))) then
+             ok = isreal(raux,line,lp)
+             if (ok) seed%energy = raux / hartokjmol
+          end if
+       elseif (equal(word,"cell")) then
           ! read the cell parameters from the cell card
           ok = isreal(raux,line,lp)
           ok = ok .and. isreal(seed%aa(1),line,lp)
@@ -1223,8 +1231,7 @@ contains
           equal(word,"sadi").or.equal(word,"same").or.equal(word,"shel").or.&
           equal(word,"simu").or.equal(word,"size").or.equal(word,"spec").or.&
           equal(word,"stir").or.equal(word,"sump").or.equal(word,"swat").or.&
-          equal(word,"temp").or.equal(word,"time").or.&
-          equal(word,"titl").or.equal(word,"twin").or.&
+          equal(word,"temp").or.equal(word,"time").or.equal(word,"twin").or.&
           equal(word,"twst").or.equal(word,"wght").or.equal(word,"wigl").or.&
           equal(word,"wpdb").or.equal(word,"xnpd").or.equal(word,"zerr")) then
           cycle
