@@ -1547,7 +1547,7 @@ contains
     use global, only: eval_next
     use types, only: realloc
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, equal, getword
-    use param, only: ivformat_phonopy_fc2, icrd_cart
+    use param, only: ivformat_phonopy_fc2, icrd_cart, hartoev, bohrtoa
     type(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: file, sline
@@ -1573,9 +1573,8 @@ contains
     elseif (equal(word,"vasp")) then
        write (*,*) "fixme: vasp in FC2 reader"
        stop 1
-    elseif (equal(word,"fhiaims")) then
-       write (*,*) "fixme: fhiaims in FC2 reader"
-       stop 1
+    elseif (equal(word,"aims").or.equal(word,"fhiaims")) then
+       fc2factor = bohrtoa**2 / hartoev
     else
        errmsg = "A generator keyword (qe,vasp,fhiaims,...) is required to read FORCE_CONSTANTS"
        goto 999
