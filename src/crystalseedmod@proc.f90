@@ -7861,8 +7861,8 @@ contains
           trim(adjustl(string(energy,'f',decimal=9))) // " Ha)"
        seed(nseed)%energy = energy
     else
-       seed(in)%name = trim(file)
-       if (seed(in)%energy /= huge(1d0)) seed(in)%energy = energy
+       seed(1)%name = trim(file)
+       if (seed(1)%energy /= huge(1d0)) seed(1)%energy = energy
     end if
 
     errmsg = ""
