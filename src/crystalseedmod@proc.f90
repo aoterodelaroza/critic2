@@ -7755,6 +7755,7 @@ contains
                 if (index(line,"---------") > 0) exit
                 nat = nat + 1
                 read(line,*,err=999,end=999) idum, iz
+                if (iz < 0) iz = 0
                 usez(iz) = 1
              end do
           end if
@@ -7811,6 +7812,7 @@ contains
 
           do i = 1, nat
              read (lu,*,err=999,end=999) idum, iz, idum, seed(in)%x(:,i)
+             if (iz < 0) iz = 0
              seed(in)%is(i) = usez(iz)
              seed(in)%atname(i) = spc(usez(iz))%name
           end do
