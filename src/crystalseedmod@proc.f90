@@ -7724,7 +7724,7 @@ contains
     nseed = 0
     lastinputor = .false.
     do while (getline_raw(lu,line))
-       ok = (index(line,"Input orientation:") > 0)
+       ok = (index(line,"Input orientation:") > 0) .or. (index(line,"Z-Matrix orientation:") > 0)
        if (ok) then
           lastinputor = .true.
        elseif (.not.lastinputor) then
@@ -7790,7 +7790,7 @@ contains
     in = 0
     lastinputor = .false.
     do while (getline_raw(lu,line))
-       ok = (index(line,"Input orientation:") > 0)
+       ok = (index(line,"Input orientation:") > 0) .or. (index(line,"Z-Matrix orientation:") > 0)
        if (ok) then
           lastinputor = .true.
        elseif (.not.lastinputor) then
