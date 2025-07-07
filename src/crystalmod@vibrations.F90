@@ -1759,7 +1759,6 @@ contains
           errmsg = "Error calculating non-equivalent atom mapping; check structure"
           return
        end if
-       deallocate(dneq)
 
        ! calculate the rotation matrices in cartesian coordinates
        allocate(rotc(3,3,c%neqv))
@@ -1769,7 +1768,7 @@ contains
 
        ! calculate all remaining fc2
        do i = 1, c%ncel
-          if (ineq(i) == i) cycle
+          if (dneq(i)) cycle
           rot = rotc(:,:,ineqrot(i))
           do j = 1, c%ncel
              fc2_ = matmul(transpose(rot),matmul(v%fc2(:,:,ineq(i),atop(j,ineqrot(i),ineqcen(i))),rot))
@@ -1778,7 +1777,7 @@ contains
        end do
 
        ! clean up
-       deallocate(atop,ineq,ineqrot,ineqcen,rotc)
+       deallocate(atop,ineq,ineqrot,ineqcen,rotc,dneq)
     end if
 
     ! wrap up
