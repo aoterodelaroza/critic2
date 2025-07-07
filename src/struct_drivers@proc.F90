@@ -3771,6 +3771,9 @@ contains
        word = lgetword(line,lp)
        if (equal(word,'acoustic_sum_rules')) then
           call s%c%vib%apply_acoustic(s%c,verbose=.true.)
+       elseif (equal(word,'write')) then
+          word = getword(line,lp)
+          call s%c%vib%write_fc2(s%c,word,verbose=.true.)
        else
           call ferror('struct_vibrations','Unknown keyword: ' // word,faterr,syntax=.true.)
        end if

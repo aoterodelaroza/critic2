@@ -449,9 +449,6 @@ contains
           do j = 1, 3
              summ = sum(v%fc2(i,j,iat,:)) / c%ncel
              v%fc2(i,j,iat,:) = v%fc2(i,j,iat,:) - summ
-
-             summ = sum(v%afc2(i,j,iat,:)) / v%afc2_nenv
-             v%afc2(i,j,iat,:) = v%afc2(i,j,iat,:) - summ
           end do
        end do
     end do
@@ -460,15 +457,6 @@ contains
           do j = 1, 3
              summ = sum(v%fc2(i,j,:,iat)) / c%ncel
              v%fc2(i,j,:,iat) = v%fc2(i,j,:,iat) - summ
-          end do
-       end do
-    end do
-
-    do iat = 1, v%afc2_nenv
-       do i = 1, 3
-          do j = 1, 3
-             summ = sum(v%afc2(i,j,:,iat)) / c%ncel
-             v%afc2(i,j,:,iat) = v%afc2(i,j,:,iat) - summ
           end do
        end do
     end do
@@ -486,10 +474,50 @@ contains
     if (verbose_) then
        write (uout,'("+ FC2 ACOUSTIC_SUM_RULES: apply acoustic sum rules to FC2")')
        write (uout,'("  Resulting acoustic sum = ",A)') string(sum(v%fc2),'e',10,5)
-       write (uout,'("  Resulting acoustic sum = ",A)') string(sum(v%afc2),'e',10,5)
     end if
 
   end subroutine vibrations_apply_acoustic
+
+  !> Write the FC2 to a phonopy-style file. If no file is given or if
+  !> file is empty, use FORCE_CONSTANTS.
+  module subroutine vibrations_write_fc2(v,c,file,verbose)
+    use tools_io, only: fopen_write, fclose, uout, string, ioj_right
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(inout) :: c
+    character(len=:), allocatable, intent(in), optional :: file
+    logical, intent(in), optional :: verbose
+
+    integer :: lu, i, j, k
+    logical :: verbose_
+    character(len=:), allocatable :: file_
+
+    ! return if no FC2 is available
+    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+
+    ! optional parameters
+    verbose_ = .false.
+    if (present(verbose)) verbose_ = verbose
+    file_ = "FORCE_CONSTANTS"
+    if (present(file)) then
+       if (len(file) > 0) file_ = file
+    end if
+
+    ! write the file
+    lu = fopen_write(file_)
+    write (lu,'(A,X,A)') string(c%ncel), string(c%ncel)
+    do i = 1, c%ncel
+       do j = 1, c%ncel
+          write (lu,'(A,X,A)') string(i), string(j)
+          write (lu,'(3(A,X))') (string(2*v%fc2(1,k,i,j),'f',22,15,ioj_right),k=1,3)
+          write (lu,'(3(A,X))') (string(2*v%fc2(2,k,i,j),'f',22,15,ioj_right),k=1,3)
+          write (lu,'(3(A,X))') (string(2*v%fc2(3,k,i,j),'f',22,15,ioj_right),k=1,3)
+       end do
+    end do
+    call fclose(lu)
+
+    write (uout,'("+ Written FC2 file (QE format, Ry/bohr^2): ",A)') file_
+
+  end subroutine vibrations_write_fc2
 
   !> Calculate frequencies and eigenvectors from the FC2 for a single
   !> q (fractional coordiantes in reciprocal space); adds the
@@ -1546,8 +1574,9 @@ contains
     use crystalseedmod, only: crystalseed
     use global, only: eval_next
     use types, only: realloc
+    use tools_math, only: matinv, det3
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, equal, getword
-    use param, only: ivformat_phonopy_fc2, icrd_cart, hartoev, bohrtoa
+    use param, only: ivformat_phonopy_fc2, hartoev, bohrtoa
     type(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     character*(*), intent(in) :: file, sline
@@ -1557,9 +1586,16 @@ contains
     character(len=:), allocatable :: word
     integer :: lp, lp2, lu, nat, mat, i, j, idum, jdum
     real*8 :: fc2factor, rdum(4), x0(3,3), rmat(3,3)
-    logical :: ok, isfull
+    logical :: ok
+    integer :: isin ! 0 = full; 1 = left is cell; 2 = right is cell
+    integer, allocatable :: atop(:,:,:), ineq(:), ineqrot(:), ineqcen(:)
     type(crystal) :: sc
     type(crystalseed) :: seed
+    logical, allocatable :: done(:,:), dneq(:)
+    real*8, allocatable :: rotc(:,:,:)
+    integer :: irot, icv
+    real*8 :: fc2_(3,3), rot(3,3)
+    real*8 :: xi_(3), xj_(3), xdif(3)
 
     ! initialize
     errmsg = "Error reading FORCE_CONSTANTS file: " // trim(file)
@@ -1629,35 +1665,29 @@ contains
 
     ! read the number of atoms from the fc2 file
     read(lu,*,err=999,end=999) nat, mat
-    isfull = (nat == mat)
-    if (sc%ncel /= mat .or. .not.isfull .and. c%ncel /= nat) then
+    isin = -1
+    if (nat == mat .and. nat == c%ncel) then
+       isin = 0
+    elseif (nat /= mat .and. mat == c%ncel) then
+       isin = 1
+    elseif (nat /= mat .and. nat == c%ncel) then
+       isin = 2
+       write (*,*) "fixme!! isin = 2"
+       stop 1
+    else
        errmsg = 'Inconsistent atom number in FORCE_CONSTANTS file'
        goto 999
     end if
 
-    ! maximum distance for the q-point frequency calculation
-    v%afc2_dmax = 0d0
-    do i = 1, sc%ncel
-       do j = i+1, sc%ncel
-          v%afc2_dmax = max(v%afc2_dmax,sc%eql_distance(sc%atcel(i)%x, sc%atcel(j)%x))
-       end do
-    end do
-
-    ! calculate the fc2 matrix auxiliary info
-    v%afc2_nenv = mat
-    allocate(v%afc2_idx(mat),v%afc2_lvec(3,mat))
-    do i = 1, sc%ncel
-       v%afc2_idx(i) = c%identify_atom(sc%atcel(i)%r,icrd_cart,v%afc2_lvec(:,i))
-       if (v%afc2_idx(i) == 0) then
-          errmsg = "Atom position in supercell incompatible with current structure"
-          goto 999
-       end if
-    end do
-
     ! read the fc2 matrix
+    if (isin > 0) then
+       allocate(done(mat,mat))
+       done = .false.
+    end if
     errmsg = "Error reading force constants from FORCE_CONSTANTS file"
     if (allocated(v%fc2)) deallocate(v%fc2)
-    allocate(v%fc2(3,3,mat,mat),v%afc2(3,3,c%ncel,mat))
+    allocate(v%fc2(3,3,mat,mat))
+    v%fc2 = 0d0
     do idum = 1, nat
        do jdum = 1, mat
           read (lu,*,err=999,end=999) i, j
@@ -1665,18 +1695,91 @@ contains
           read (lu,*,err=999,end=999) rmat(2,:)
           read (lu,*,err=999,end=999) rmat(3,:)
 
-          if (isfull) then
-             v%fc2(:,:,i,j) = rmat
-             if (all(v%afc2_lvec(:,idum) == 0)) then
-                v%afc2(:,:,v%afc2_idx(idum),jdum) = rmat
-             end if
-          else
-             v%afc2(:,:,idum,jdum) = rmat
-          end if
+          v%fc2(:,:,i,j) = rmat
+          if (isin > 0) done(i,j) = .true.
        end do
     end do
     v%fc2 = v%fc2 * fc2factor
-    v%afc2 = v%afc2 * fc2factor
+
+    ! for which atoms do we have full FC2 info?
+    allocate(dneq(c%ncel))
+    dneq = .false.
+    do i = 1, c%ncel
+       dneq(i) = all(done(i,:))
+    end do
+    deallocate(done)
+
+    ! isin == 1 corresponds to the case when the crystal structure is
+    ! a supercell and we are only given the force constants for the
+    ! non-equivalent atoms on the left atom.
+    if (isin == 1) then
+       ! calculate the effect of every symmetry operation on every atom
+       ! xxxx FIXME?
+       allocate(atop(c%ncel,c%neqv,c%ncv))
+       atop = 0
+       do i = 1, c%ncel
+          do irot = 1, c%neqv
+             xj_ = matmul(c%rotm(1:3,1:3,irot),c%atcel(i)%x) + c%rotm(:,4,irot)
+             do icv = 1, c%ncv
+                xi_ = xj_ + c%cen(:,icv)
+                do j = 1, c%ncel
+                   xdif = c%atcel(j)%x - xi_
+                   if (all(abs(xdif - nint(xdif)) < 1d-2)) then
+                      atop(i,irot,icv) = j
+                      exit
+                   end if
+                end do
+             end do
+          end do
+       end do
+       if (any(atop == 0)) then
+          errmsg = "Error calculating atom mapping from symmetry operations; check structure"
+          return
+       end if
+
+       ! calculate the representative atoms
+       ! calculate the symmetry operations that lead to each atom from the representatives
+       !   ineqrot(i) and ineqcen(i) are the symmetry operation IDs such that:
+       !   rot * i + cen = j
+       allocate(ineq(c%ncel),ineqrot(c%ncel),ineqcen(c%ncel))
+       ineq = c%ncel + 1
+       do icv = 1, c%ncv
+          do irot = 1, c%neqv
+             do i = 1, c%ncel
+                j = atop(i,irot,icv)
+                if (dneq(j) .and. j < ineq(i)) then
+                   ineq(i) = j
+                   ineqrot(i) = irot
+                   ineqcen(i) = icv
+                end if
+             end do
+          end do
+       end do
+       if (any(ineq == c%ncel + 1)) then
+          errmsg = "Error calculating non-equivalent atom mapping; check structure"
+          return
+       end if
+       deallocate(dneq)
+
+       ! calculate the rotation matrices in cartesian coordinates
+       allocate(rotc(3,3,c%neqv))
+       do irot = 1, c%neqv
+          rotc(:,:,irot) = matmul(c%m_x2c,matmul(c%rotm(1:3,1:3,irot),c%m_c2x))
+       end do
+
+       ! calculate all remaining fc2
+       do i = 1, c%ncel
+          if (ineq(i) == i) cycle
+          rot = rotc(:,:,ineqrot(i))
+          do j = 1, c%ncel
+             fc2_ = matmul(transpose(rot),matmul(v%fc2(:,:,ineq(i),atop(j,ineqrot(i),ineqcen(i))),rot))
+             v%fc2(:,:,i,j) = fc2_
+          end do
+       end do
+
+       ! clean up
+       deallocate(atop,ineq,ineqrot,ineqcen,rotc)
+    end if
 
     ! wrap up
     v%file = file

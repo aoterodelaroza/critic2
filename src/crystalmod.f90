@@ -94,14 +94,6 @@ module crystalmod
      !! 2nd-order force constants
      logical :: hasfc2 = .false. ! true if FC2 is available
      real*8, allocatable :: fc2(:,:,:,:) ! 2nd-order FC matrix (3,3,nat,nat)
-
-     ! xxxx !
-     integer :: afc2_nenv ! number of atoms in the calculated FC2 environment
-     real*8 :: afc2_dmax ! maximum distance for the q-point frequency calculation
-     real*8, allocatable :: afc2(:,:,:,:) ! 2nd-order FC matrix (3,3,ncel,sc-ncel)
-     integer, allocatable :: afc2_idx(:) ! cell list indices (sc-ncel)
-     integer, allocatable :: afc2_lvec(:,:) ! lattice vectors (3,sc-ncel)
-
      real*8 :: fc2_vs_delta = -1d0 ! delta for calculation of sound velocities (bohr-1)
      real*8 :: fc2_gamma_ac(3) = (/-1d0,-1d0,-1d0/) ! acoustic frequencies at gamma (cm-1)
      !! frequencies and eigenvectors
@@ -122,6 +114,7 @@ module crystalmod
      procedure :: print_eigenvector => vibrations_print_eigenvector !< print eigvec info
      procedure :: read_file => vibrations_read_file !< read a vib file, detect the format
      procedure :: apply_acoustic => vibrations_apply_acoustic !< apply acoustic sum rules to FC2
+     procedure :: write_fc2 => vibrations_write_fc2 !< write FC2
      procedure :: calculate_q => vibrations_calculate_q !< calculate freqs and vec for a single q
      procedure :: calculate_vs => vibrations_calculate_vs !< calculate freqs and vec for a single q
      procedure :: calculate_thermo => vibrations_calculate_thermo !< calculate thermodynamic properties
@@ -1092,6 +1085,12 @@ module crystalmod
        type(crystal), intent(inout) :: c
        logical, intent(in), optional :: verbose
      end subroutine vibrations_apply_acoustic
+     module subroutine vibrations_write_fc2(v,c,file,verbose)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(inout) :: c
+       character(len=:), allocatable, intent(in), optional :: file
+       logical, intent(in), optional :: verbose
+     end subroutine vibrations_write_fc2
      module subroutine vibrations_calculate_q(v,c,q,freqo,veco)
        class(vibrations), intent(inout) :: v
        type(crystal), intent(inout) :: c
