@@ -815,7 +815,7 @@ contains
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
        isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
        isformat_aimsout, isformat_tinkerfrac, isformat_gjf, isformat_zmat,&
-       isformat_magres, isformat_sdf, isformat_castepcell,&
+       isformat_magres, isformat_alamode, isformat_sdf, isformat_castepcell,&
        isformat_castepgeom, isformat_mol2, isformat_pdb
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
@@ -854,6 +854,9 @@ contains
 
     elseif (isformat == isformat_magres) then
        call seed%read_magres(file,mol,errmsg,ti=ti)
+
+    elseif (isformat == isformat_alamode) then
+       call seed%read_alamode(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_shelx) then
        call seed%read_shelx(file,mol,errmsg,ti=ti)
@@ -1544,6 +1547,213 @@ contains
     seed%isused = .false.
 
   end subroutine read_magres
+
+  !> Read the structure from a magres file, for structural and NMR info.
+  module subroutine read_alamode(seed,file,mol,errmsg,ti)
+    use tools_math, only: matinv
+    use tools_io, only: fopen_read, getline_raw, lower, fclose, lgetword, equal,&
+       isreal, zatguess, nameguess, getword, isinteger, getline
+    use types, only: realloc
+    use param, only: isformat_alamode, maxzat, bohrtoa
+    class(crystalseed), intent(inout)  :: seed !< Output crystal seed
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< Is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    logical :: ok, havelat, haveatoms
+    integer :: idx, nat, nkd
+    integer :: lu, lp, iz, i, ier
+    character(len=:), allocatable :: line, word, word2, atomstr
+    integer, allocatable :: usedz(:)
+    real*8 :: rmat(3,3), unit
+
+    ! file and seed name
+    call seed%end()
+    seed%file = file
+    seed%name = file
+    seed%isformat = isformat_alamode
+    errmsg = ""
+
+    lu = fopen_read(file,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file: " // trim(file)
+       return
+    end if
+
+    ! locate the &general tag
+    ok = .false.
+    do while (getline_raw(lu,line,.false.))
+       line = adjustl(lower(line))
+       if (len(line) >= 8) then
+          if (line(1:8) == "&general") then
+             ok = .true.
+             exit
+          end if
+       end if
+    end do
+    if (.not.ok) then
+       errmsg = "&general namelist not found"
+       goto 999
+    end if
+
+    ! read the &general info for nat and nkd
+    errmsg = "error reading nat and nkd from &general"
+    nat = 0
+    nkd = 0
+    do while (getline_raw(lu,line,.false.))
+       line = adjustl(line)
+       do while (.true.)
+          lp = 1
+          word = lgetword(line,lp)
+          if (equal(word,'nat')) then
+             idx = index(line,"=")
+             word = line(idx+1:)
+             idx = index(word,';')
+             if (idx > 0) word = word(:idx-1)
+             read (word,*,err=999,end=999) nat
+          elseif (equal(word,'nkd')) then
+             idx = index(line,"=")
+             word = line(idx+1:)
+             idx = index(word,';')
+             if (idx > 0) word = word(:idx-1)
+             read (word,*,err=999,end=999) nkd
+          elseif (equal(word,'kd')) then
+             idx = index(line,"=")
+             atomstr = line(idx+1:)
+             idx = index(atomstr,';')
+             if (idx > 0) atomstr = atomstr(:idx-1)
+          elseif (equal(word,'/')) then
+             exit
+          end if
+
+          idx = index(line,";")
+          if (idx <= 0) then
+             exit
+          else
+             line = line(idx+1:)
+             if (len_trim(line) == 0) exit
+          end if
+       end do
+    end do
+    if (nat == 0) then
+       errmsg = "nat not found in &general"
+       goto 999
+    end if
+    if (nkd == 0) then
+       errmsg = "nkd not found in &general"
+       goto 999
+    end if
+
+    ! allocate
+    seed%nat = nat
+    allocate(seed%x(3,nat),seed%is(nat))
+
+    ! rewind and re-read
+    rewind(lu)
+    errmsg = "error reading &cell and &position"
+    havelat = .false.
+    haveatoms = .false.
+    do while (getline_raw(lu,line,.false.))
+       line = adjustl(lower(line))
+       if (len(line) >= 5) then
+          if (line(1:5) == "&cell") then
+             ok = getline(lu,line)
+             ok = ok .and. isreal(unit,line)
+             if (.not.ok) goto 999
+
+             lp = 1
+             ok = getline(lu,line)
+             ok = ok .and. isreal(seed%m_x2c(1,1),line,lp)
+             ok = ok .and. isreal(seed%m_x2c(2,1),line,lp)
+             ok = ok .and. isreal(seed%m_x2c(3,1),line,lp)
+             if (.not.ok) goto 999
+
+             lp = 1
+             ok = getline(lu,line)
+             ok = ok .and. isreal(seed%m_x2c(1,2),line,lp)
+             ok = ok .and. isreal(seed%m_x2c(2,2),line,lp)
+             ok = ok .and. isreal(seed%m_x2c(3,2),line,lp)
+             if (.not.ok) goto 999
+
+             lp = 1
+             ok = getline(lu,line)
+             ok = ok .and. isreal(seed%m_x2c(1,3),line,lp)
+             ok = ok .and. isreal(seed%m_x2c(2,3),line,lp)
+             ok = ok .and. isreal(seed%m_x2c(3,3),line,lp)
+             if (.not.ok) goto 999
+             havelat = .true.
+
+             ! fill the cell metrics
+             seed%m_x2c = seed%m_x2c * unit
+             seed%useabr = 2
+          end if
+       end if
+       if (len(line) >= 9) then
+          if (line(1:9) == "&position") then
+             do i = 1, nat
+                lp = 1
+                ok = getline(lu,line)
+                if (.not.ok) goto 999
+                read(line,*,err=999,end=999) seed%is(i), seed%x(:,i)
+             end do
+             haveatoms = .true.
+          end if
+       end if
+    end do
+    if (.not.havelat) then
+       errmsg = "lattice vectors (&cell) not found"
+       goto 999
+    end if
+    if (.not.haveatoms) then
+       errmsg = "atomic positions (&position) not found"
+       goto 999
+    end if
+
+    ! assign species
+    seed%nspc = nkd
+    allocate(seed%spc(nkd))
+    lp = 1
+    do i = 1, nkd
+       word = getword(atomstr,lp)
+       seed%spc(i)%name = word
+       seed%spc(i)%z = zatguess(word)
+       if (seed%spc(i)%z < 0) then
+          errmsg = "unknown atom: " // word
+          goto 999
+       end if
+       seed%spc(i)%qat = 0d0
+    end do
+
+    ! assign atom names
+    allocate(seed%atname(nat))
+    do i = 1, nat
+       seed%atname(i) = seed%spc(seed%is(i))%name
+    end do
+
+    ! wrap up
+    errmsg = ""
+    call fclose(lu)
+
+    ! no symmetry
+    seed%havesym = 0
+    seed%checkrepeats = .false.
+    seed%findsym = -1
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%ismolecule = mol
+    seed%cubic = .false.
+    seed%border = 0d0
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    return
+
+999 continue
+    call fclose(lu)
+    seed%isused = .false.
+
+  end subroutine read_alamode
 
   !> Read the structure from a fort.21 from neighcrys
   module subroutine read_f21(seed,file,mol,errmsg,ti)
@@ -5202,7 +5412,8 @@ contains
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
        isformat_castepcell, isformat_castepgeom, isformat_qein, isformat_qeout,&
-       isformat_mol2, isformat_pdb, isformat_zmat, isformat_sdf, isformat_magres
+       isformat_mol2, isformat_pdb, isformat_zmat, isformat_sdf, isformat_magres,&
+       isformat_alamode
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -5386,7 +5597,8 @@ contains
        isformat_xsf, isformat_gen, isformat_vasp, isformat_pwc, isformat_axsf,&
        isformat_dat, isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
        isformat_aimsout, isformat_tinkerfrac, isformat_castepcell, isformat_castepgeom,&
-       isformat_mol2, isformat_pdb, isformat_zmat, isformat_sdf, isformat_magres
+       isformat_mol2, isformat_pdb, isformat_zmat, isformat_sdf, isformat_magres,&
+       isformat_alamode
     character*(*), intent(in) :: file
     integer, intent(in) :: isformat
     logical, intent(out) :: ismol
@@ -5404,7 +5616,7 @@ contains
        isformat_elk,isformat_siesta,isformat_dmain,isformat_vasp,&
        isformat_axsf,isformat_tinkerfrac,isformat_qein,isformat_qeout,&
        isformat_crystal,isformat_fploout,isformat_castepcell,isformat_castepgeom,&
-       isformat_magres)
+       isformat_magres,isformat_alamode)
        ismol = .false.
 
     case (isformat_gjf,isformat_pgout,isformat_wfn,isformat_wfx,&
@@ -5596,7 +5808,7 @@ contains
        isformat_xsf, isformat_castepcell, isformat_castepgeom,&
        isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, isformat_orca,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
-       isformat_mol2, isformat_sdf, isformat_pdb, isformat_magres
+       isformat_mol2, isformat_sdf, isformat_pdb, isformat_magres, isformat_alamode
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(in) :: isformat0
@@ -5660,6 +5872,8 @@ contains
        call read_all_sdf(file,errmsg,nseed=nseed,mseed=seed,ti=ti)
     elseif (isformat == isformat_magres) then
        call seed(1)%read_magres(file,mol,errmsg,ti=ti)
+    elseif (isformat == isformat_alamode) then
+       call seed(1)%read_alamode(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_pwc) then
        call seed(1)%read_pwc(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_shelx) then
@@ -8853,7 +9067,7 @@ contains
   !> or a quantum espresso calculation.
   subroutine which_in_format(file,isformat,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, equal, lgetword, lower
-    use param, only: isformat_qein, isformat_aimsin
+    use param, only: isformat_qein, isformat_aimsin, isformat_alamode
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: isformat
     type(thread_info), intent(in), optional :: ti
@@ -8878,6 +9092,10 @@ contains
        end if
        if (equal(word,"atom").or.equal(word,"atom_frac").or.equal(word,"lattice_vector")) then
           isformat = isformat_aimsin
+          exit
+       end if
+       if (equal(word,"&general")) then
+          isformat = isformat_alamode
           exit
        end if
     end do

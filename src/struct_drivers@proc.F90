@@ -44,7 +44,7 @@ contains
        isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
        isformat_aimsout, isformat_tinkerfrac, isformat_castepcell,&
        isformat_castepgeom, isformat_mol2, isformat_pdb, isformat_zmat,&
-       isformat_sdf, isformat_magres, isformat_unknown
+       isformat_sdf, isformat_magres, isformat_alamode, isformat_unknown
     use crystalseedmod, only: crystalseed, struct_detect_format,&
        struct_detect_ismol
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
@@ -152,6 +152,8 @@ contains
        isformat = isformat_sdf
     elseif (equal(lword,'magres')) then
        isformat = isformat_magres
+    elseif (equal(lword,'alamode')) then
+       isformat = isformat_alamode
     end if
     if (isformat /= isformat_unknown) then
        word = getword(line,lp)
@@ -217,6 +219,9 @@ contains
 
     elseif (isformat == isformat_magres) then
        call seed%read_magres(word,mol,errmsg)
+
+    elseif (isformat == isformat_alamode) then
+       call seed%read_alamode(word,mol,errmsg)
 
     elseif (isformat == isformat_shelx) then
        call seed%read_shelx(word,mol,errmsg)
