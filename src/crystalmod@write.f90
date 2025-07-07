@@ -2869,6 +2869,56 @@ contains
 
   end subroutine write_castep_cell
 
+  !> Write an ALAMODE file.
+  module subroutine write_alamode(c,file,ti)
+    use tools_io, only: fopen_write, fopen_append, string, uout, fclose, nameguess
+    use param, only: bohrtoa
+    class(crystal), intent(in) :: c
+    character*(*), intent(in) :: file
+    type(thread_info), intent(in), optional :: ti
+
+    character(len=:), allocatable :: lbl1, lbl2, aux, auxname
+    integer :: i, j, lu, ntyp
+    logical :: append_, ok
+
+    lu = fopen_write(file,ti=ti)
+    write (lu,'("&general")')
+    write (lu,'("  PREFIX = crystal")')
+    write (lu,'("  MODE = suggest")')
+    write (lu,'("  NAT = ",A)') string(c%ncel)
+    write (lu,'("  NKD = ",A)') string(c%nspc)
+
+    ! species string
+    aux = ""
+    do i = 1, c%nspc
+       if (i > 1) aux = aux // " "
+       aux = aux // trim(c%spc(i)%name)
+    end do
+    write (lu,'("  KD = ",A)') aux
+
+    write (lu,'("/")')
+    write (lu,'("&interaction")')
+    write (lu,'("  NORDER = 1  # 1: harmonic, 2: cubic, ..")')
+    write (lu,'("/")')
+    write (lu,'("&cell")')
+    write (lu,'("1.0")')
+    do i = 1, 3
+       write (lu,'(3(A," "))') (string(c%m_x2c(j,i),'f',20,12),j=1,3)
+    end do
+    write (lu,'("/")')
+    write (lu,'("&cutoff")')
+    write (lu,'("  *-* None")')
+    write (lu,'("/")')
+    write (lu,'("&position")')
+    do i = 1, c%ncel
+       write (lu,'(4(A," "))') string(c%atcel(i)%is), (string(c%atcel(i)%x(j),'f',20,12),j=1,3)
+    end do
+    write (lu,'("/")')
+
+    call fclose(lu)
+
+  end subroutine write_alamode
+
   !> Write a grid to a cube file. The input is the crystal (c),
   !> the grid in 3D array form (g), the filename (file), and whether
   !> to write the whole cube or only the header (onlyheader). If xd0

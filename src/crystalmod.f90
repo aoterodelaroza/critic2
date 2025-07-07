@@ -334,6 +334,7 @@ module crystalmod
      procedure :: write_tinkerfrac
      procedure :: write_pdb
      procedure :: write_castep_cell
+     procedure :: write_alamode
 
      ! grid writers (write)
      procedure :: writegrid_cube
@@ -1021,6 +1022,11 @@ module crystalmod
        real*8, intent(in), optional :: rklength
        type(thread_info), intent(in), optional :: ti
      end subroutine write_castep_cell
+     module subroutine write_alamode(c,file,ti)
+       class(crystal), intent(in) :: c
+       character*(*), intent(in) :: file
+       type(thread_info), intent(in), optional :: ti
+     end subroutine write_alamode
      module subroutine writegrid_cube(c,g,file,onlyheader,binary,xd0,x00,ishift0,ti)
        class(crystal), intent(in) :: c
        real*8, intent(in), allocatable :: g(:,:,:)

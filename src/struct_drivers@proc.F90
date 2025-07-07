@@ -562,7 +562,7 @@ contains
 
     character(len=:), allocatable :: word, wext, file, wroot
     integer :: lp, ix(3), lp2, iaux, nmer, idx
-    logical :: doborder, molmotif, dosym, docell, domolcell, ok, isqe
+    logical :: doborder, molmotif, dosym, docell, domolcell, ok, isqe, isalm
     logical :: onemotif, environ, lnmer, doexternal, cartesian
     real*8 :: rsph, xsph(3), rcub, xcub(3), renv, rk
 
@@ -690,9 +690,11 @@ contains
        ! quantum espresso (scf.in) and FHI aims (geometry.in)
        idx = index(wroot,'.',.true.)
        isqe = .false.
+       isalm = .false.
        if (idx > 0) then
           wext = lower(wroot(idx+1:))
           isqe = equal(wext,'scf')
+          isalm = equal(wext,'alm')
        endif
 
        rk = -1d0
@@ -718,6 +720,9 @@ contains
           else
              call s%c%write_espresso(file)
           end if
+       elseif (isalm) then
+          write (uout,'("* WRITE alamode file: ",A)') string(file)
+          call s%c%write_alamode(file)
        else
           write (uout,'("* WRITE FHIaims file: ",A)') string(file)
           if (rk > 0d0) then
@@ -863,13 +868,13 @@ contains
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'frac')) then
-       ! abinit
+       ! tinker
        write (uout,'("* WRITE TINKER frac file: ",A)') string(file)
        call s%c%write_tinkerfrac(file)
        ok = check_no_extra_word()
        if (.not.ok) return
     elseif (equal(wext,'pdb')) then
-       ! abinit
+       ! pdb
        write (uout,'("* WRITE PDB file: ",A)') string(file)
        call s%c%write_pdb(file)
        ok = check_no_extra_word()
