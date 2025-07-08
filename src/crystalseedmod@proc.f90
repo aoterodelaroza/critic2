@@ -1554,7 +1554,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, lower, fclose, lgetword, equal,&
        isreal, zatguess, nameguess, getword, isinteger, getline
     use types, only: realloc
-    use param, only: isformat_alamode, maxzat, bohrtoa
+    use param, only: isformat_alamode
     class(crystalseed), intent(inout)  :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
@@ -1563,10 +1563,9 @@ contains
 
     logical :: ok, havelat, haveatoms
     integer :: idx, nat, nkd
-    integer :: lu, lp, iz, i, ier
-    character(len=:), allocatable :: line, word, word2, atomstr
-    integer, allocatable :: usedz(:)
-    real*8 :: rmat(3,3), unit
+    integer :: lu, lp, i
+    character(len=:), allocatable :: line, word, atomstr
+    real*8 :: unit
 
     ! file and seed name
     call seed%end()
@@ -5412,8 +5411,7 @@ contains
        isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout,&
        isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
        isformat_castepcell, isformat_castepgeom, isformat_qein, isformat_qeout,&
-       isformat_mol2, isformat_pdb, isformat_zmat, isformat_sdf, isformat_magres,&
-       isformat_alamode
+       isformat_mol2, isformat_pdb, isformat_zmat, isformat_sdf, isformat_magres
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep

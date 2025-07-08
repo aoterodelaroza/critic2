@@ -2115,7 +2115,6 @@ contains
   !>   Mayo et al., CrystEngComm 24 (2022) 8326-8338.
   subroutine struct_comparevc_vcpwdf(s,line)
     use spglib, only: spg_delaunay_reduce, spg_standardize_cell
-    use global, only: fileroot
     use crystalmod, only: crystal, vcpwdf_compare
     use crystalseedmod, only: crystalseed
     use tools_math, only: matinv, m_c2x_from_cellpar, det3, m_x2c_from_cellpar
@@ -3589,7 +3588,7 @@ contains
 
   !> Driver for operations on crystal or molecular vibrations.
   module subroutine struct_vibrations(s,line,verbose)
-    use global, only: eval_next, iunitname0, dunit0, iunit, iunit_ang
+    use global, only: eval_next, iunitname0, iunit, iunit_ang
     use tools_io, only: uout, lgetword, getword, ferror, faterr, equal, isreal, isinteger,&
        uin, ucopy, getline, string, ioj_right, ioj_left
     use tools_math, only: good_lebedev, select_lebedev

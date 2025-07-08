@@ -82,7 +82,7 @@ contains
     character(kind=c_char,len=:), allocatable :: tooltipstr
     type(ImVec2) :: szero, sz
     type(ImVec4) :: col4
-    integer(c_int) :: flags, color, idir, idum
+    integer(c_int) :: flags, color, idir
     integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev, iaux, nfreal
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
@@ -2380,7 +2380,7 @@ contains
     use param, only: atmcov0, maxzat0, bohrtoa, newline
     class(window), intent(inout), target :: w
 
-    logical :: doquit, oksys, ch
+    logical :: doquit, ch
     integer :: i, iz, isys, natused
     type(ImVec2) :: szavail, szero, sz0
     integer(c_int) :: flags

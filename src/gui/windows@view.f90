@@ -1592,9 +1592,6 @@ contains
     integer, intent(in) :: who
     integer, intent(in), optional :: itag
 
-    integer :: i, itag_
-    logical :: pitag, ok
-
     if (.not.associated(w%sc)) return
     w%forcerender = w%forcerender .or. w%sc%highlight_clear(who,itag)
 

@@ -2871,15 +2871,13 @@ contains
 
   !> Write an ALAMODE file.
   module subroutine write_alamode(c,file,ti)
-    use tools_io, only: fopen_write, fopen_append, string, uout, fclose, nameguess
-    use param, only: bohrtoa
+    use tools_io, only: fopen_write, fopen_append, string, fclose, nameguess
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     type(thread_info), intent(in), optional :: ti
 
-    character(len=:), allocatable :: lbl1, lbl2, aux, auxname
-    integer :: i, j, lu, ntyp
-    logical :: append_, ok
+    character(len=:), allocatable :: aux
+    integer :: i, j, lu
 
     lu = fopen_write(file,ti=ti)
     write (lu,'("&general")')
