@@ -258,9 +258,6 @@ module scenes
      ! measure atom sets
      integer :: nmsel
      integer :: msel(5,4) ! 1 is atom cell ID, 2:4 is lattice vector, 5 is sphere ID
-     ! selection sets
-     integer :: nhighlight = 0 ! number of highlighted atoms
-     type(atom_selection), allocatable :: highlight(:)
      ! draw lists
      integer :: nsph ! number of spheres
      type(dl_sphere), allocatable :: drawlist_sph(:) ! sphere draw list
@@ -293,8 +290,6 @@ module scenes
      procedure :: update_view_matrix
      procedure :: align_view_axis
      procedure :: select_atom
-     procedure :: highlight_atoms
-     procedure :: highlight_clear
   end type scene
   public :: scene
 
@@ -355,21 +350,6 @@ module scenes
        class(scene), intent(inout), target :: s
        integer, intent(in) :: idx(5)
      end subroutine select_atom
-     module function highlight_atoms(s,ids,itype,itag,who,rgba) result(forcerender)
-       class(scene), intent(inout), target :: s
-       integer, intent(in) :: ids(:)
-       integer, intent(in) :: itype
-       integer, intent(in) :: itag
-       integer, intent(in) :: who
-       real(c_float), intent(in) :: rgba(4)
-       logical :: forcerender
-     end function highlight_atoms
-     module function highlight_clear(s,who,itag) result(forcerender)
-       class(scene), intent(inout), target :: s
-       integer, intent(in) :: who
-       integer, intent(in), optional :: itag
-       logical :: forcerender
-     end function highlight_clear
      ! draw_style_bond
      module subroutine generate_neighstars_from_globals(d,isys)
        class(draw_style_bond), intent(inout), target :: d

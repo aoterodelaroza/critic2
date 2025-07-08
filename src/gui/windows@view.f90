@@ -609,8 +609,8 @@ contains
 
     ! update the draw lists and render
     if (associated(w%sc)) then
-       if (chbuild .or. w%sc%timelastbuild < sysc(w%view_selected)%timelastchange) w%sc%forcebuildlists = .true.
-       if (chrender .or. w%sc%forcebuildlists .or. w%sc%timelastrender < sysc(w%view_selected)%timelastchange) &
+       if (chbuild .or. w%sc%timelastbuild < sysc(w%view_selected)%timelastchange_build) w%sc%forcebuildlists = .true.
+       if (chrender .or. w%sc%forcebuildlists .or. w%sc%timelastrender < sysc(w%view_selected)%timelastchange_render) &
           w%forcerender = .true.
 
        ! continuous render if animation is active
@@ -691,7 +691,6 @@ contains
        idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
        win(idum)%sc = w%sc
        win(idum)%view_selected = w%view_selected
-       call win(idum)%highlight_clear(0)
        call win(idum)%sc%reset_animation()
     end if
     call iw_tooltip("Create a new view for the current scene",ttshown)
@@ -1039,7 +1038,6 @@ contains
        call w%sc%end()
        call w%sc%init(w%view_selected)
     end if
-    ldum = w%sc%highlight_clear(0)
     w%forcerender = .true.
 
   end subroutine select_view
@@ -1567,36 +1565,6 @@ contains
 
   end subroutine texpos_to_world
 
-  !> Flag some atoms in the scene associated with the view as
-  !> highlight.  ids using selection type itype (0=species, 1=nneq,
-  !> 2=ncel). Use itag as identifier for the selection (for later
-  !> clearing). The ID of the selecting window is who. rgba is the
-  !> color.
-  module subroutine highlight_atoms(w,ids,itype,itag,who,rgba)
-    class(window), intent(inout), target :: w
-    integer, intent(in) :: ids(:)
-    integer, intent(in) :: itype, itag
-    integer, intent(in) :: who
-    real(c_float), intent(in) :: rgba(4)
-
-    if (.not.associated(w%sc)) return
-    w%forcerender = w%forcerender .or. w%sc%highlight_atoms(ids,itype,itag,who,rgba)
-
-  end subroutine highlight_atoms
-
-  !> Clear the highlighted atoms in the scene associated with the
-  !> window. who = ID of the window; if <= 0, clear all
-  !> highlights. itag: if present, clear only atoms with this tag.
-  module subroutine highlight_clear(w,who,itag)
-    class(window), intent(inout), target :: w
-    integer, intent(in) :: who
-    integer, intent(in), optional :: itag
-
-    if (.not.associated(w%sc)) return
-    w%forcerender = w%forcerender .or. w%sc%highlight_clear(who,itag)
-
-  end subroutine highlight_clear
-
   !xx! edit representation
 
   !> Update tasks for the edit representation window, before the
@@ -1739,7 +1707,7 @@ contains
   !> the scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_atoms(w,ttshown) result(changed)
     use scenes, only: representation
-    use gui_main, only: sys, g, ColorHighlightScene
+    use gui_main, only: sys, sysc, g, ColorHighlightScene
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&
@@ -2541,11 +2509,10 @@ contains
        call igEndTabBar()
     end if ! begin tab bar
 
-    ! process highlighs
-    call win(w%idparent)%highlight_clear(w%id,-1)
+    ! process transient highlighs
     if (ihighlight > 0) then
-       call win(w%idparent)%highlight_atoms((/ihighlight/),highlight_type,-1,w%id,&
-          (/ColorHighlightScene%x,ColorHighlightScene%y,ColorHighlightScene%z,ColorHighlightScene%w/))
+       call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),highlight_type,&
+          reshape((/ColorHighlightScene%x,ColorHighlightScene%y,ColorHighlightScene%z,ColorHighlightScene%w/),(/4,1/)))
     end if
 
   end function draw_editrep_atoms
@@ -2943,11 +2910,12 @@ contains
 
   !> Draw the vibrations window
   module subroutine draw_vibrations(w)
+    use interfaces_glfw, only: glfwGetTime
     use crystalseedmod, only: crystalseed
     use scenes, only: anim_speed_default, anim_amplitude_default, anim_amplitude_max,&
        anim_speed_max
     use gui_main, only: sysc, sys, sys_init, g, add_systems_from_seeds,&
-       launch_initialization_thread, time, ok_system
+       launch_initialization_thread, ok_system
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_radiobutton
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
@@ -3315,7 +3283,7 @@ contains
           call igPushItemWidth(iw_calcwidth(5,1))
           if (igDragFloat(c_loc(str1),win(w%idparent)%sc%anim_speed,&
              0.02_c_float,0.0_c_float,anim_speed_max,c_loc(str2),ImGuiSliderFlags_AlwaysClamp)) &
-             win(w%idparent)%sc%timerefanimation = time
+             win(w%idparent)%sc%timerefanimation = glfwGetTime()
           call igPopItemWidth()
           call iw_tooltip("Speed of the atomic displacements",ttshown)
        end if

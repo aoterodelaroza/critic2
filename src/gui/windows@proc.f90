@@ -514,10 +514,9 @@ contains
 
   !> End a window and deallocate the data.
   module subroutine window_end(w)
+    use gui_main, only: ok_system, sysc, sys_init
     use interfaces_opengl3
     class(window), intent(inout), target :: w
-
-    integer :: i
 
     ! window-specific destruction
     if (w%isinit) then
@@ -542,17 +541,9 @@ contains
           end if
        elseif (w%type == wintype_geometry) then
           ! remove all highlights
-          w%geometry_highlighted = 0
           if (allocated(w%geometry_selected)) w%geometry_selected = .false.
-          do i = 1, nwin
-             if (.not.win(i)%isinit) cycle
-             if (win(i)%type /= wintype_view.or..not.associated(win(i)%sc)) cycle
-             if (w%isys == win(i)%view_selected) &
-                call win(i)%highlight_clear(w%id)
-          end do
-       elseif (w%type == wintype_editrep) then
-          ! remove highlights
-          call win(w%idparent)%highlight_clear(w%id)
+          if (ok_system(w%isys,sys_init)) &
+             call sysc(w%isys)%highlight_clear(.false.)
        end if
     end if
 

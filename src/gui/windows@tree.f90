@@ -56,6 +56,7 @@ contains
 
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
+    use interfaces_glfw, only: glfwGetTime
     use windows, only: win, iwin_view
     use keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM_FIELD, BIND_TREE_MOVE_UP,&
        BIND_TREE_MOVE_DOWN
@@ -66,7 +67,7 @@ contains
        launch_initialization_thread, ColorTableCellBg,&
        kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
        ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon,&
-       tree_select_updates_view, fontsize, time, ok_system
+       tree_select_updates_view, fontsize, ok_system
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
@@ -93,6 +94,7 @@ contains
     real(c_float) :: width, pos
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
+    real*8 :: time
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
@@ -108,6 +110,7 @@ contains
     tooltipstr = ""
     szero%x = 0
     szero%y = 0
+    time = glfwGetTime()
     if (.not.allocated(w%iord)) then
        w%tree_sortcid = ic_id
        w%tree_sortdir = 1
@@ -120,9 +123,9 @@ contains
 
     ! check for updates in systems
     do i = 1, nsys
-       if (timelastupdate < sysc(i)%timelastchange) w%forceupdate = .true.
-       if (timelastresize < sysc(i)%timelastchange) w%forceresize = .true.
-       if (timelastsort < sysc(i)%timelastchange) w%forcesort = .true.
+       if (timelastupdate < sysc(i)%timelastchange_build) w%forceupdate = .true.
+       if (timelastresize < sysc(i)%timelastchange_build) w%forceresize = .true.
+       if (timelastsort < sysc(i)%timelastchange_build) w%forcesort = .true.
     end do
 
     ! Tree options button
@@ -193,7 +196,7 @@ contains
     call igSameLine(0._c_float,-1._c_float)
 
     ! text filter
-    call igGetContentRegionAvail(sz) ! Clear ... xxxx/xxxx shown
+    call igGetContentRegionAvail(sz) ! Clear ... x/x shown
     width = max(sz%x - iw_calcwidth(16+5,1) - g%Style%WindowPadding%x,1._c_float)
     if (.not.c_associated(cfilter)) &
        cfilter = ImGuiTextFilter_ImGuiTextFilter(c_loc(zeroc))
@@ -1227,7 +1230,8 @@ contains
   ! (iord). Only the systems that are not empty are pointed by
   ! iord. This is routine is used when the systems change.
   module subroutine update_tree(w)
-    use gui_main, only: sysc, nsys, sys_empty, time
+    use interfaces_glfw, only: glfwGetTime
+    use gui_main, only: sysc, nsys, sys_empty
     class(window), intent(inout) :: w
 
     integer :: i, n
@@ -1247,14 +1251,15 @@ contains
     end if
     w%forceupdate = .false.
     w%forcesort = .true.
-    w%timelastupdate = time
+    w%timelastupdate = glfwGetTime()
 
   end subroutine update_tree
 
   ! Sort the table row order by column cid and in direction dir
   ! (ascending=1, descending=2). Modifies the w%iord.
   module subroutine sort_tree(w,cid,dir)
-    use gui_main, only: sys, sysc, sys_init, sys_empty, time
+    use interfaces_glfw, only: glfwGetTime
+    use gui_main, only: sys, sysc, sys_init, sys_empty
     use tools, only: mergesort
     use tools_math, only: invert_permutation
     use tools_io, only: ferror, faterr
@@ -1391,7 +1396,7 @@ contains
     w%forcesort = .false.
 
     ! update the time
-    w%timelastupdate = time
+    w%timelastupdate = glfwGetTime()
 
   end subroutine sort_tree
 
@@ -2624,7 +2629,8 @@ contains
 
   !> Draw the tree plot window
   module subroutine draw_treeplot(w)
-    use gui_main, only: time, sysc, sys_empty, sys_init, sys
+    use interfaces_glfw, only: glfwGetTime
+    use gui_main, only: sysc, sys_empty, sys_init, sys
     use windows, only: win, iwin_tree
     use utils, only: iw_calcwidth, iw_button, iw_combo_simple, iw_tooltip, iw_text
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
@@ -2695,7 +2701,7 @@ contains
           call realloc(w%plotx,w%plotn)
           call realloc(w%ploty,w%plotn)
        end if
-       w%timelastupdate = time
+       w%timelastupdate = glfwGetTime()
     end if
 
     ! make the plot
@@ -2854,17 +2860,17 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx
-    logical :: doquit, clicked, redo_highlights
-    integer :: ihighlight, iclicked, iview, nhigh
-    logical(c_bool) :: is_selected
+    logical :: doquit, clicked
+    integer :: ihighlight, iclicked, nhigh
+    logical(c_bool) :: is_selected, redo_highlights
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
+    character(len=:), allocatable :: name
     integer, allocatable :: ihigh(:)
     real(c_float), allocatable :: irgba(:,:)
-    character(len=:), allocatable :: name
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
-    integer :: i, j, isys, icol, ispc, iz
+    integer :: i, j, isys, icol, ispc, iz, iview
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, ldum, ok
@@ -2880,22 +2886,21 @@ contains
     doquit = .false.
     szero%x = 0
     szero%y = 0
+    redo_highlights = .false.
 
     ! first pass
     if (w%firstpass) then
-       w%geometry_iview = 0
        w%geometry_atomtype = 1
        w%tied_to_tree = (w%isys == win(iwin_tree)%tree_selected)
        if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
        if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
        w%geometry_select_rgba = (/ColorHighlightSelectScene%x,ColorHighlightSelectScene%y,&
           ColorHighlightSelectScene%z,ColorHighlightSelectScene%w/)
-       w%geometry_highlighted = 0
     end if
 
     ! if tied to tree, update the isys
     if (w%tied_to_tree .and. (w%isys /= win(iwin_tree)%tree_selected)) &
-       w%isys = win(iwin_tree)%tree_selected
+       call change_system(win(iwin_tree)%tree_selected)
 
     ! check if the system still exists
     if (.not.ok_system(w%isys,sys_init)) then
@@ -2920,10 +2925,9 @@ contains
              is_selected = (isys == i)
              str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
              if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) then
-                w%isys = i
+                call change_system(i)
                 isys = w%isys
                 atompreflags = ImGuiTabItemFlags_SetSelected
-                w%tied_to_tree = w%tied_to_tree .and. (w%isys == win(iwin_tree)%tree_selected)
              end if
              if (is_selected) &
                 call igSetItemDefaultFocus()
@@ -2932,36 +2936,6 @@ contains
        call igEndCombo()
     end if
     call iw_tooltip("Recalculate the bonds in this system",ttshown)
-
-    ! associate a view to highlight the atoms
-    ! first check if the old association is still valid
-    ok = .false.
-    redo_highlights = .false.
-    if (w%geometry_iview > 0) then
-       ok = win(w%geometry_iview)%isinit
-       if (ok) ok = (win(w%geometry_iview)%type == wintype_view).and.associated(win(w%geometry_iview)%sc)
-       if (ok) ok = (isys == win(w%geometry_iview)%view_selected)
-    end if
-    if (.not.ok) then
-       ! the view window has changed, clear and re-do the highlights
-       redo_highlights = .true.
-
-       ! find a new iview
-       w%geometry_iview = 0
-       if (isys == win(iwin_view)%view_selected) then
-          w%geometry_iview = iwin_view
-       else
-          do i = 1, nwin
-             if (.not.win(i)%isinit) cycle
-             if (win(i)%type /= wintype_view.or..not.associated(win(i)%sc)) cycle
-             if (isys == win(i)%view_selected) then
-                w%geometry_iview = i
-                exit
-             end if
-          end do
-       end if
-    end if
-    iview = w%geometry_iview
 
     ! show the tabs
     str1 = "##drawgeometry_tabbar" // c_null_char
@@ -2994,7 +2968,7 @@ contains
           if (allocated(w%geometry_selected)) then
              if (size(w%geometry_selected,1) /= ntype) then
                 deallocate(w%geometry_selected)
-                deallocate(w%geometry_rgba)
+                if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
              end if
           end if
           if (.not.allocated(w%geometry_selected)) then
@@ -3099,6 +3073,21 @@ contains
              ndigitidx = 0
              if (domol) ndigitm = ceiling(log10(sys(isys)%c%nmol+0.1d0))
              if (doidx) ndigitidx = ceiling(log10(sys(isys)%c%nneq+0.1d0))
+
+             ! get the current view, if available
+             iview = 0
+             if (isys == win(iwin_view)%view_selected) then
+                iview = iwin_view
+             else
+                do j = 1, nwin
+                   if (.not.win(j)%isinit) cycle
+                   if (win(j)%type /= wintype_view.or..not.associated(win(j)%sc)) cycle
+                   if (isys == win(j)%view_selected) then
+                      iview = j
+                      exit
+                   end if
+                end do
+             end if
 
              ! draw the rows
              do while(ImGuiListClipper_Step(clipper))
@@ -3297,48 +3286,33 @@ contains
     end if
     call igEndGroup()
 
-    ! process highlight
-    if (iview > 0) then
-       ! clear
-       if (redo_highlights) &
-          call win(iview)%highlight_clear(w%id)
-       if (ihighlight /= w%geometry_highlighted) &
-          call win(iview)%highlight_clear(w%id,-1)
-
-       ! hover highlight
-       if (ihighlight > 0 .and. (ihighlight /= w%geometry_highlighted.or.redo_highlights)) then
-          call win(iview)%highlight_atoms((/ihighlight/),w%geometry_atomtype,-1,w%id,&
-             (/ColorHighlightScene%x,ColorHighlightScene%y,ColorHighlightScene%z,ColorHighlightScene%w/))
-       end if
-
-       ! click highlight
-       if (redo_highlights.and.allocated(w%geometry_selected).and.allocated(w%geometry_rgba)) then
-          allocate(ihigh(count(w%geometry_selected)),irgba(4,count(w%geometry_selected)))
-          nhigh = 0
-          do i = 1, size(w%geometry_selected,1)
-             if (w%geometry_selected(i)) then
-                nhigh = nhigh + 1
-                ihigh(nhigh) = i
-                irgba(:,nhigh) = w%geometry_rgba(:,i)
-             end if
-          end do
-          call win(iview)%highlight_atoms(ihigh,w%geometry_atomtype,i,w%id,irgba)
-          deallocate(ihigh)
-       end if
+    ! hover highlight
+    if (ihighlight > 0) then
+       call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),w%geometry_atomtype,&
+          reshape((/ColorHighlightScene%x,ColorHighlightScene%y,ColorHighlightScene%z,ColorHighlightScene%w/),(/4,1/)))
     end if
-    w%geometry_highlighted = ihighlight
 
     ! process clicked
     if (iclicked > 0) then
        w%geometry_selected(iclicked) = .not.w%geometry_selected(iclicked)
        w%geometry_rgba(:,iclicked) = w%geometry_select_rgba
-       if (iview > 0) then
-          if (w%geometry_selected(iclicked)) then
-             call win(iview)%highlight_atoms((/iclicked/),w%geometry_atomtype,iclicked,w%id,w%geometry_select_rgba)
-          else
-             call win(iview)%highlight_clear(w%id,iclicked)
+       redo_highlights = .true.
+    end if
+
+    ! redo highlights
+    if (redo_highlights.and.allocated(w%geometry_selected).and.allocated(w%geometry_rgba)) then
+       call sysc(isys)%highlight_clear(.false.)
+       allocate(ihigh(count(w%geometry_selected)),irgba(4,count(w%geometry_selected)))
+       nhigh = 0
+       do i = 1, size(w%geometry_selected,1)
+          if (w%geometry_selected(i)) then
+             nhigh = nhigh + 1
+             ihigh(nhigh) = i
+             irgba(:,nhigh) = w%geometry_rgba(:,i)
           end if
-       end if
+       end do
+       call sysc(isys)%highlight_atoms(.false.,ihigh,w%geometry_atomtype,irgba)
+       deallocate(ihigh,irgba)
     end if
 
     ! right-align and bottom-align for the rest of the contents
@@ -3357,6 +3331,26 @@ contains
     ! quit the window
     if (doquit) &
        call w%end()
+
+  contains
+    subroutine change_system(i)
+      integer, intent(in) :: i
+
+      ! do nothing if we are already in the same system
+      if (w%isys == i) return
+
+      ! clear the highlights for the current system
+      call sysc(w%isys)%highlight_clear(.false.)
+
+      ! remove the selecion and highlights
+      if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
+      if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
+
+      ! change the system
+      w%isys = i
+      w%tied_to_tree = w%tied_to_tree .and. (w%isys == win(iwin_tree)%tree_selected)
+
+    end subroutine change_system
 
   end subroutine draw_geometry
 

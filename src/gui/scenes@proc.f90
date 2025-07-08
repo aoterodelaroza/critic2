@@ -94,11 +94,6 @@ contains
     s%nmsel = 0
     s%msel = 0
 
-    ! initialize highlight sets
-    s%nhighlight = 0
-    if (allocated(s%highlight)) deallocate(s%highlight)
-    allocate(s%highlight(10))
-
     ! initialize representations
     if (allocated(s%rep)) deallocate(s%rep)
     allocate(s%rep(20))
@@ -210,8 +205,9 @@ contains
 
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
+    use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
-    use gui_main, only: time, sys_ready, ok_system
+    use gui_main, only: sys_ready, ok_system
     class(scene), intent(inout), target :: s
 
     integer :: i
@@ -301,16 +297,17 @@ contains
     ! rebuilding lists is done
     s%forcebuildlists = .false.
     s%isinit = 2
-    s%timelastbuild = time
+    s%timelastbuild = glfwGetTime()
 
   end subroutine scene_build_lists
 
   !> Draw the scene
   module subroutine scene_render(s)
+    use interfaces_glfw, only: glfwGetTime
     use interfaces_cimgui
     use interfaces_opengl3
     use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
-    use gui_main, only: fonts, fontbakesize_large, time, font_large, sys
+    use gui_main, only: fonts, fontbakesize_large, font_large, sys, sysc
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use tools_io, only: string
@@ -322,7 +319,8 @@ contains
 
     real(c_float) :: xsel(3,4), radsel(4)
     complex(c_float_complex) :: displ
-    real*8 :: deltat, fac
+    real*8 :: deltat, fac, time
+    logical :: doit
 
     real(c_float), parameter :: rgbmsel(4,4) = reshape((/&
        1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
@@ -340,6 +338,9 @@ contains
 
     ! build draw lists if not done already
     if (s%isinit == 1 .or. .not.allocated(s%drawlist_sph)) call s%build_lists()
+
+    ! get the time
+    time = glfwGetTime()
 
     ! render text with the large font
     call igPushFont(font_large)
@@ -431,7 +432,12 @@ contains
           call draw_selection_text()
 
        ! draw the highlighted/selected atoms
-       if (s%nhighlight > 0) then
+       doit = .false.
+       if (allocated(sysc(s%id)%highlight_rgba)) &
+          doit = any(sysc(s%id)%highlight_rgba >= 0._c_float)
+       if (.not.doit.and.allocated(sysc(s%id)%highlight_rgba_transient)) &
+          doit = any(sysc(s%id)%highlight_rgba_transient >= 0._c_float)
+       if (doit) then
           call useshader(shader_phong)
           call setuniform_int(0_c_int,"uselighting")
           call glBindVertexArray(sphVAO(s%atom_res))
@@ -526,7 +532,12 @@ contains
           call draw_selection_text()
 
        ! highlight the highlighted/selected atoms
-       if (s%nhighlight > 0) then
+       doit = .false.
+       if (allocated(sysc(s%id)%highlight_rgba)) &
+          doit = any(sysc(s%id)%highlight_rgba >= 0._c_float)
+       if (.not.doit.and.allocated(sysc(s%id)%highlight_rgba_transient)) &
+          doit = any(sysc(s%id)%highlight_rgba_transient >= 0._c_float)
+       if (doit) then
           call useshader(shader_simple)
           call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
           call glBindVertexArray(sphVAO(s%atom_res))
@@ -612,37 +623,28 @@ contains
 
     !> Draw the highlights on the scene
     subroutine draw_highlights()
-      integer :: i, is, id
-      real(c_float) :: x(3)
+      use gui_main, only: sysc
+      integer :: i, id
+      real(c_float) :: x(3), rgba(4)
 
       ! initial checks
       if (s%isinit < 2) return
-      if (s%nhighlight == 0) return
-      if (all(s%highlight(1:s%nhighlight)%id <= 0)) then
-         s%nhighlight = 0
-         return
-      end if
+      if (.not.allocated(sysc(s%id)%highlight_rgba).and.&
+         .not.allocated(sysc(s%id)%highlight_rgba_transient)) return
 
       ! highlight the spheres
       do i = 1, s%nsph
-         do is = 1, s%nhighlight
-            if (s%highlight(is)%type == 0) then
-               id = sys(s%id)%c%atcel(s%drawlist_sph(i)%idx(1))%is
-            elseif (s%highlight(is)%type == 1) then
-               id = sys(s%id)%c%atcel(s%drawlist_sph(i)%idx(1))%idx
-            elseif (s%highlight(is)%type == 2) then
-               id = s%drawlist_sph(i)%idx(1)
-            elseif (s%highlight(is)%type == 3) then
-               id = sys(s%id)%c%idatcelmol(1,s%drawlist_sph(i)%idx(1))
-            end if
-
-            if (id == s%highlight(is)%id) then
-               x = s%drawlist_sph(i)%x
-               if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
-               call draw_sphere(x,s%drawlist_sph(i)%r + sel_thickness,s%atom_res,&
-                  rgba=s%highlight(is)%rgba,rgbborder=s%highlight(is)%rgba(1:3))
-            end if
-         end do
+         id = s%drawlist_sph(i)%idx(1)
+         rgba = -1._c_float
+         if (allocated(sysc(s%id)%highlight_rgba_transient)) &
+            rgba = sysc(s%id)%highlight_rgba_transient(:,id)
+         if (any(rgba < 0).and.allocated(sysc(s%id)%highlight_rgba)) &
+            rgba = sysc(s%id)%highlight_rgba(:,id)
+         if (all(rgba >= 0)) then
+            x = s%drawlist_sph(i)%x
+            if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
+            call draw_sphere(x,s%drawlist_sph(i)%r + sel_thickness,s%atom_res,rgba=rgba,rgbborder=rgba(1:3))
+         end if
       end do
 
     end subroutine draw_highlights
@@ -1142,149 +1144,6 @@ contains
     end if
 
   end subroutine select_atom
-
-  !> Flag some atoms in the scene as highlight. Select the atoms with
-  !> ids using selection type itype (0=species, 1=nneq, 2=ncel). Use
-  !> itag as identifier for the selection (for later clearing). The ID
-  !> of the selecting window is who. rgba is the color. Returns true
-  !> if a new render of the scene is required to show the highlights.
-  module function highlight_atoms(s,ids,itype,itag,who,rgba) result(forcerender)
-    class(scene), intent(inout), target :: s
-    integer, intent(in) :: ids(:)
-    integer, intent(in) :: itype, itag
-    integer, intent(in) :: who
-    real(c_float), intent(in) :: rgba(4)
-    logical :: forcerender
-
-    type(atom_selection), allocatable :: aux(:)
-    integer :: i, j, nused, nrest, idnew
-    integer :: nids
-    logical, allocatable :: touse(:)
-    integer, allocatable :: ids_(:)
-
-    ! check that the scene and system are initialized
-    forcerender = .false.
-    if (s%isinit < 2) return
-
-    ! initial checks
-    if (.not.allocated(s%highlight)) then
-       s%nhighlight = 0
-       allocate(s%highlight(10))
-    end if
-
-    ! check which of the given ids we are going to use
-    allocate(touse(size(ids,1)))
-    touse = .true.
-    do i = 1, s%nhighlight
-       if (s%highlight(i)%type /= itype) cycle
-       if (s%highlight(i)%iwin /= who) cycle
-       if (s%highlight(i)%itag /= itag) cycle
-
-       do j = 1, size(ids,1)
-          if (s%highlight(i)%id == ids(j)) touse(j) = .false.
-       end do
-    end do
-    if (.not.any(touse)) return
-
-    ! short list of ids
-    nids = 0
-    allocate(ids_(count(touse)))
-    do i = 1, size(ids,1)
-       if (.not.touse(i)) cycle
-       nids = nids + 1
-       ids_(nids) = ids(i)
-    end do
-
-    ! re-use the nullified ids
-    nused = 0
-    do i = 1, s%nhighlight
-       if (s%highlight(i)%id <= 0 .and. nused < nids) then
-          nused = nused + 1
-          s%highlight(i)%id = ids_(nused)
-          s%highlight(i)%type = itype
-          s%highlight(i)%iwin = who
-          s%highlight(i)%itag = itag
-          s%highlight(i)%rgba = rgba
-          forcerender = .true.
-       end if
-    end do
-
-    ! assign the rest
-    nrest = nids - nused
-    if (nrest > 0) then
-       ! reallocate
-       if (s%nhighlight + nrest > size(s%highlight,1)) then
-          allocate(aux(2*(s%nhighlight + nrest)))
-          aux(1:size(s%highlight,1)) = s%highlight
-          call move_alloc(aux,s%highlight)
-       end if
-
-       ! populate the selection in the scene
-       do i = 1, nrest
-          nused = nused + 1
-          s%highlight(s%nhighlight + i)%id = ids_(nused)
-          s%highlight(s%nhighlight + i)%type = itype
-          s%highlight(s%nhighlight + i)%iwin = who
-          s%highlight(s%nhighlight + i)%itag = itag
-          s%highlight(s%nhighlight + i)%rgba = rgba
-       end do
-       s%nhighlight = s%nhighlight + nrest
-       forcerender = .true.
-    end if
-
-  end function highlight_atoms
-
-  !> Clear the highlighted atoms in the window. who = ID of the
-  !> window; if <= 0, clear all highlights. itag: if present, clear
-  !> only atoms with this tag. Return true if the scene requires a new
-  !> render to update the highlights
-  module function highlight_clear(s,who,itag) result(forcerender)
-    class(scene), intent(inout), target :: s
-    integer, intent(in) :: who
-    integer, intent(in), optional :: itag
-    logical :: forcerender
-
-    integer :: i, itag_
-    logical :: pitag, ok
-
-    ! check that the scene and system are initialized
-    forcerender = .false.
-    if (s%isinit < 2) return
-
-    ! initial checks
-    if (.not.allocated(s%highlight)) then
-       s%nhighlight = 0
-       allocate(s%highlight(10))
-    end if
-
-    ! optional arguments
-    pitag = present(itag)
-    itag_ = 0
-    if (pitag) itag_ = itag
-
-    if (who <= 0) then
-       ! remove all highlights
-       forcerender = (s%nhighlight > 0 .and. any(s%highlight(1:s%nhighlight)%id > 0))
-       s%nhighlight = 0
-    else
-       ! nullify the highlights for this window only
-       do i = 1, s%nhighlight
-          ok = (s%highlight(i)%iwin == who)
-          if (ok) ok = .not.pitag .or. (s%highlight(i)%itag == itag_)
-          if (ok) then
-             forcerender = forcerender .or. (s%highlight(i)%id > 0)
-             s%highlight(i)%id = 0
-          end if
-       end do
-    end if
-
-    ! bring nhighlight down to zero if no atoms are left
-    if (all(s%highlight(1:s%nhighlight)%id <= 0)) then
-       s%nhighlight = 0
-       return
-    end if
-
-  end function highlight_clear
 
   !> Generate the neighbor stars from the data in the rij table using
   !> the geometry in system isys.

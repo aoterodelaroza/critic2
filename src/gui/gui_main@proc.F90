@@ -102,12 +102,6 @@ contains
        call fdealloc(ludum(i))
     end do
 
-    ! Parse the command line and read as many systems as possible
-    ! Initialize the first system, if available
-    call process_arguments()
-    call launch_initialization_thread()
-    call system_shorten_names()
-
     ! Initialize glfw
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
     if (glfwInit() == 0) &
@@ -217,6 +211,12 @@ contains
     g%Style%FrameRounding = 3._c_float
     g%Style%Colors(ImGuiCol_TabActive+1) = g%Style%Colors(ImGuiCol_TabHovered+1)
 
+    ! Parse the command line and read as many systems as possible
+    ! Initialize the first system, if available
+    call process_arguments()
+    call launch_initialization_thread()
+    call system_shorten_names()
+
     ! set default UI settings
     call set_default_ui_settings()
 
@@ -239,7 +239,6 @@ contains
     do while (glfwWindowShouldClose(rootwin) == 0)
        ! poll events
        call glfwPollEvents()
-       time = glfwGetTime()
 
        ! start the ImGui frame
        call ImGui_ImplOpenGL3_NewFrame()
@@ -249,6 +248,9 @@ contains
        ! calculate default font size
        strc = "A" // c_null_char
        call igCalcTextSize(fontsize,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
+
+       ! set the transient flags to false
+       sysc(1:nsys)%highlight_transient_set = .false.
 
        ! show main menu
        call show_main_menu()
@@ -318,6 +320,12 @@ contains
           win(iwin_console_input)%inpcon_selected = saveinpcon
           force_run_commands = 0
        end if
+
+       ! if the transient flag is false, clear the transient highlight
+       do i = 1, nsys
+          if (.not.sysc(i)%highlight_transient_set) &
+             call sysc(i)%highlight_clear(.true.)
+       end do
 
        firstpass = .false.
     end do
@@ -532,6 +540,7 @@ contains
   !> seed. If iavib, load vibrational data from that seed. If forceidx
   !> is present, force the system to be in the provided index.
   module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx)
+    use interfaces_glfw, only: glfwGetTime
     use utils, only: get_current_working_dir
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
@@ -555,6 +564,7 @@ contains
     type(sysconf), allocatable :: syscaux(:)
     logical :: collapse_, isrun
     integer, allocatable :: id(:)
+    real*8 :: time
 
     if (nseed == 0) then
        write (uout,'("WARNING : Could not read structures.")')
@@ -650,6 +660,8 @@ contains
        sysc(idx)%has_vib = .false.
        sysc(idx)%renamed = .false.
        sysc(idx)%showfields = .false.
+       if (allocated(sysc(idx)%highlight_rgba)) deallocate(sysc(idx)%highlight_rgba)
+       if (allocated(sysc(idx)%highlight_rgba_transient)) deallocate(sysc(idx)%highlight_rgba_transient)
 
        ! write down the full name
        str = trim(adjustl(sysc(idx)%seed%name))
@@ -696,7 +708,9 @@ contains
        if (iseed == iavib_) sysc(idx)%has_vib = .true.
 
        ! set the time
-       sysc(idx)%timelastchange = time
+       time = glfwGetTime()
+       sysc(idx)%timelastchange_build = time
+       sysc(idx)%timelastchange_render = time
 
        ! set the covalent radii
        sysc(idx)%atmcov = atmcov0
@@ -709,12 +723,14 @@ contains
   ! master and collapsed, kill all dependents. If master and extended,
   ! make all dependents master.
   recursive module subroutine remove_system(idx,kill_dependents_if_extended)
+    use interfaces_glfw, only: glfwGetTime
     use interfaces_threads, only: deallocate_mtx
     integer, intent(in) :: idx
     logical, intent(in), optional :: kill_dependents_if_extended
 
     integer :: i
     logical :: kdie
+    real*8 :: time
 
     kdie = .false.
     if (present(kill_dependents_if_extended)) kdie = kill_dependents_if_extended
@@ -731,7 +747,9 @@ contains
     sysc(idx)%status = sys_empty
     sysc(idx)%hidden = .false.
     sysc(idx)%showfields = .false.
-    sysc(idx)%timelastchange = time
+    time = glfwGetTime()
+    sysc(idx)%timelastchange_build = time
+    sysc(idx)%timelastchange_render = time
 
     if (sysc(idx)%collapse == -1 .or. kdie) then
        ! kill all dependents if collapsed
@@ -770,7 +788,6 @@ contains
     integer, intent(in) :: idx
 
     character(len=:), allocatable :: file
-    type(crystalseed), allocatable :: seed(:)
     logical :: exist, cubic
     integer :: isformat, mol
     real*8 :: border
@@ -867,6 +884,187 @@ contains
     if (ok_system) ok_system = (sysc(isys)%status >= level)
 
   end function ok_system
+
+  !> Highlight atoms in the system. If transient, add the highlighted
+  !> atom to the transient list and clear the list before adding. Add
+  !> atoms with indices idx of the given type (0=species,1=nneq,2=ncel,3=nmol)
+  !> and color rgba.
+  module subroutine highlight_atoms(sysc,transient,idx,type,rgba)
+    use interfaces_glfw, only: glfwGetTime
+    use windows, only: win, iwin_view
+    class(sysconf), intent(inout) :: sysc
+    logical, intent(in) :: transient
+    integer, intent(in) :: idx(:)
+    integer, intent(in) :: type
+    real(c_float), intent(in) :: rgba(:,:)
+
+    integer :: nat, i, id, iat
+    real(c_float), allocatable :: highlight_aux(:,:)
+    logical :: changed
+    real*8 :: time
+
+    ! input checks
+    if (sysc%status < sys_init) return
+    nat = sys(sysc%id)%c%ncel
+    if (nat <= 0) return
+    time = glfwGetTime()
+
+    ! check the size of the highlight arrays, allocate if not already done
+    if (.not.transient) then
+       if (allocated(sysc%highlight_rgba)) then
+          if (size(sysc%highlight_rgba,2) /= nat) deallocate(sysc%highlight_rgba)
+       end if
+       if (.not.allocated(sysc%highlight_rgba)) then
+          allocate(sysc%highlight_rgba(4,nat))
+          sysc%highlight_rgba = -1._c_float
+          sysc%timelastchange_render = time
+       end if
+    else
+       if (allocated(sysc%highlight_rgba_transient)) then
+          if (size(sysc%highlight_rgba_transient,2) /= nat) deallocate(sysc%highlight_rgba_transient)
+       end if
+       if (.not.allocated(sysc%highlight_rgba_transient)) then
+          allocate(sysc%highlight_rgba_transient(4,nat))
+          sysc%highlight_rgba_transient = -1._c_float
+          sysc%timelastchange_render = time
+       end if
+    end if
+
+    ! save a copy of the current highlight
+    allocate(highlight_aux(4,nat))
+    if (transient) then
+       highlight_aux = sysc%highlight_rgba_transient
+    else
+       highlight_aux = sysc%highlight_rgba
+    end if
+
+    ! if transient, clear the list
+    if (transient) sysc%highlight_rgba_transient = -1
+
+    ! highlight the atoms
+    do iat = 1, nat
+       if (type == 0) then ! species
+          id = sys(sysc%id)%c%atcel(iat)%is
+       elseif (type == 1) then ! nneq
+          id = sys(sysc%id)%c%atcel(iat)%idx
+       elseif (type == 2) then ! ncel
+          id = iat
+       else ! nmol
+          id = sys(sysc%id)%c%idatcelmol(1,iat)
+       end if
+
+       do i = 1, size(idx,1)
+          if (idx(i) == id) then
+             if (.not.transient) then
+                sysc%highlight_rgba(:,iat) = rgba(:,i)
+             else
+                sysc%highlight_rgba_transient(:,iat) = rgba(:,i)
+             end if
+          end if
+       end do
+    end do
+
+    ! set highlighted, the transient flag, and time for render if highlight has changed
+    if (transient) then
+       changed = any(sysc%highlight_rgba_transient /= highlight_aux)
+       sysc%highlight_transient_set = .true.
+    else
+       changed = any(sysc%highlight_rgba /= highlight_aux)
+    end if
+    if (changed) then
+       sysc%timelastchange_render = time
+    end if
+
+  end subroutine highlight_atoms
+
+  !> Clear highlights in the system. If transient, clear the
+  !> highlighted atoms in the transient list. If idx and type are
+  !> present, clear atoms with indices idx of the given type
+  !> (0=species,1=nneq,2=ncel,3=nmol).
+  module subroutine highlight_clear(sysc,transient,idx,type)
+    use interfaces_glfw, only: glfwGetTime
+    class(sysconf), intent(inout) :: sysc
+    logical, intent(in) :: transient
+    integer, intent(in), optional :: idx(:)
+    integer, intent(in), optional :: type
+
+    integer :: nat, iat, id, i
+    logical :: changed
+    real(c_float), allocatable :: highlight_aux(:,:)
+    real*8 :: time
+
+    ! input checks
+    if (sysc%status < sys_init) return
+    nat = sys(sysc%id)%c%ncel
+    if (nat <= 0) return
+    time = glfwGetTime()
+
+    ! check the size of the highlight arrays, allocate if not already done
+    if (.not.transient) then
+       if (allocated(sysc%highlight_rgba)) then
+          if (size(sysc%highlight_rgba,2) /= nat) deallocate(sysc%highlight_rgba)
+       end if
+       if (.not.allocated(sysc%highlight_rgba)) then
+          allocate(sysc%highlight_rgba(4,nat))
+          sysc%highlight_rgba = -1._c_float
+          sysc%timelastchange_render = time
+       end if
+    else
+       if (allocated(sysc%highlight_rgba_transient)) then
+          if (size(sysc%highlight_rgba_transient,2) /= nat) deallocate(sysc%highlight_rgba_transient)
+       end if
+       if (.not.allocated(sysc%highlight_rgba_transient)) then
+          allocate(sysc%highlight_rgba_transient(4,nat))
+          sysc%highlight_rgba_transient = -1._c_float
+          sysc%timelastchange_render = time
+       end if
+    end if
+
+    ! clear highlights
+    if (transient) then
+       changed = any(sysc%highlight_rgba_transient >= 0._c_float)
+       sysc%highlight_rgba_transient = -1._c_float
+    else
+       if (present(idx) .and. present(type)) then
+          ! save a copy of the current highlight
+          allocate(highlight_aux(4,nat))
+          highlight_aux = sysc%highlight_rgba
+
+          ! highlight the atoms
+          do iat = 1, nat
+             if (type == 0) then ! species
+                id = sys(sysc%id)%c%atcel(iat)%is
+             elseif (type == 1) then ! nneq
+                id = sys(sysc%id)%c%atcel(iat)%idx
+             elseif (type == 2) then ! ncel
+                id = iat
+             else ! nmol
+                id = sys(sysc%id)%c%idatcelmol(1,iat)
+             end if
+
+             do i = 1, size(idx,1)
+                if (idx(i) == id) then
+                   if (.not.transient) then
+                      sysc%highlight_rgba(:,iat) = -1._c_float
+                   else
+                      sysc%highlight_rgba_transient(:,iat) = -1._c_float
+                   end if
+                end if
+             end do
+          end do
+          changed = any(sysc%highlight_rgba /= highlight_aux)
+       else
+          changed = any(sysc%highlight_rgba >= 0._c_float)
+          sysc%highlight_rgba = -1._c_float
+       end if
+    end if
+
+    ! set highlighted and time for render
+    if (changed) then
+       sysc%timelastchange_render = time
+    end if
+
+  end subroutine highlight_clear
 
   !xx! private procedures
 
@@ -1123,6 +1321,7 @@ contains
 
   ! Thread worker: run over all systems and initialize the ones that are not locked
   function initialization_thread_worker(arg)
+    use interfaces_glfw, only: glfwGetTime
     use interfaces_threads, only: thrd_success, mtx_unlock, mtx_trylock
     use tools_io, only: string, uout
     use param, only: isformat_crystal, isformat_fchk, isformat_gaussian, ivformat_crystal_out,&
@@ -1135,10 +1334,12 @@ contains
     integer(c_int) :: idum
     integer :: iff, ivformat
     character(len=:), allocatable :: errmsg
+    real*8 :: time
 
     ! recover the thread info pointer
     call c_f_pointer(arg,ti)
     ti%active = .true.
+    time = glfwGetTime()
 
     ! run over systems
     i0 = 1
@@ -1197,7 +1398,8 @@ contains
                    call sysc(i)%sc%copy_cam(idx=sysc(i)%sc%lockedcam)
 
                 ! this system has been initialized
-                sysc(i)%timelastchange = time
+                sysc(i)%timelastchange_build = time
+                sysc(i)%timelastchange_render = time
                 sysc(i)%status = sys_init
              end if
 

@@ -33,7 +33,6 @@ module gui_main
   private
 
   ! variables to GUI's structures & data
-  real*8, public :: time ! the time
   type(ImGuiIO), pointer, public :: io ! pointer to ImGui's IO object
   type(ImFontAtlas), pointer, public :: fonts ! pointer to IO%Fonts
   type(ImGuiContext), pointer, public :: g ! pointer to ImGui's context
@@ -88,6 +87,7 @@ module gui_main
 
   ! systems arrays
   type :: sysconf
+     ! system ID and properties
      integer :: id ! ID for this system
      integer :: status = sys_empty ! current status
      logical :: hidden = .false. ! whether it is hidden in the tree view (filter)
@@ -98,12 +98,24 @@ module gui_main
      integer :: iperiod = 0 ! periodicity (see iperiod_*)
      integer :: collapse ! 0 if independent, -1 if master-collapsed, -2 if master-extended, <n> if dependent on n
      type(c_ptr) :: thread_lock = c_null_ptr ! the lock for initialization of this system
+     ! system name
      character(len=:), allocatable :: fullname ! full-path name
      logical :: renamed = .false. ! true if the system has been renamed
+     ! scene
      type(scene) :: sc ! scene for the system in the main view
-     real*8 :: timelastchange = 0d0 ! time for the last change on the system
+     ! bonding
      real*8 :: atmcov(0:maxzat0) = atmcov0 ! covalent radii for bonding
-     real*8 :: bondfactor = bondfactor_def ! bodn factor for bonding calculation
+     real*8 :: bondfactor = bondfactor_def ! bond factor for bonding calculation
+     ! highlights
+     real(c_float), allocatable :: highlight_rgba(:,:) ! highlight colors
+     real(c_float), allocatable :: highlight_rgba_transient(:,:) ! transient highlight colors
+     logical :: highlight_transient_set = .false. ! set to false at beginning of main loop; clears transient highlight at end of loop
+     ! time
+     real*8 :: timelastchange_build = 0d0 ! time for the last change on the system that requires a list rebuild
+     real*8 :: timelastchange_render = 0d0 ! time for the last change on the system that requires a render
+   contains
+     procedure :: highlight_atoms
+     procedure :: highlight_clear
   end type sysconf
   integer, public :: nsys = 0
   type(system), allocatable, target, public :: sys(:)
@@ -175,6 +187,20 @@ module gui_main
        integer, intent(in) :: isys, level
        logical :: ok_system
      end function ok_system
+     ! sysconf
+     module subroutine highlight_atoms(sysc,transient,idx,type,rgba)
+       class(sysconf), intent(inout) :: sysc
+       logical, intent(in) :: transient
+       integer, intent(in) :: idx(:)
+       integer, intent(in) :: type
+       real(c_float), intent(in) :: rgba(:,:)
+     end subroutine highlight_atoms
+     module subroutine highlight_clear(sysc,transient,idx,type)
+       class(sysconf), intent(inout) :: sysc
+       logical, intent(in) :: transient
+       integer, intent(in), optional :: idx(:)
+       integer, intent(in), optional :: type
+     end subroutine highlight_clear
   end interface
 
 end module gui_main
