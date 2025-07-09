@@ -187,7 +187,7 @@ contains
                       w%sc%rep(i)%labels_display = islabelsl
                       if (islabelsl) then
                          w%sc%rep(i)%label_style%style = islabels
-                         call w%sc%rep(i)%reset_label_style()
+                         call w%sc%rep(i)%label_style%reset(w%sc%rep(i)%id)
                       end if
                    end if
                 elseif (w%sc%rep(i)%type == reptype_unitcell) then
@@ -469,7 +469,7 @@ contains
                                else
                                   sysc(i)%sc%rep(j)%label_style%style = islabels
                                end if
-                               call sysc(i)%sc%rep(j)%reset_label_style()
+                               call sysc(i)%sc%rep(j)%label_style%reset(sysc(i)%sc%rep(j)%id)
                             end if
                          elseif (sysc(i)%sc%rep(j)%type == reptype_unitcell.and.&
                             .not.sys(w%view_selected)%c%ismolecule) then
@@ -1930,7 +1930,7 @@ contains
              call igAlignTextToFramePadding()
              call iw_text("Global Options",highlight=.true.)
              if (iw_button("Reset##resetglobalatoms",sameline=.true.,danger=.true.)) then
-                call w%rep%reset_atom_style()
+                call w%rep%atom_style%reset(w%rep%id)
                 changed = .true.
              end if
              call iw_tooltip("Reset to the default settings for the atom representation")
@@ -2021,7 +2021,7 @@ contains
              call igAlignTextToFramePadding()
              call iw_text("Global Options",highlight=.true.)
              if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
-                call w%rep%reset_bond_style()
+                call w%rep%bond_style%reset(w%rep%id,w%rep%flavor)
                 changed = .true.
              end if
              call iw_tooltip("Reset to the covalent bonding for this system and the default settings")
@@ -2087,7 +2087,7 @@ contains
                 & radii (Factor) or give bond distance range (Range)",ttshown)
              call iw_text(")",highlight=.true.,sameline_nospace=.true.)
              if (iw_button("Apply##applyglobal",sameline=.true.,danger=.true.)) then
-                call w%rep%bond_style%generate_neighstars_from_globals(isys)
+                call w%rep%bond_style%generate_neighstars(isys)
                 w%rep%bond_style%isdef = .false.
                 changed = .true.
              end if
@@ -2286,7 +2286,7 @@ contains
              call iw_text("Global Options",highlight=.true.)
              if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
                 w%rep%label_style%style = 0
-                call w%rep%reset_label_style()
+                call w%rep%label_style%reset(w%rep%id)
                 changed = .true.
              end if
              call iw_tooltip("Reset to the labels to the default settings")
@@ -2306,7 +2306,7 @@ contains
                    "Wyckoff position"//c_null_char,&
                    w%rep%label_style%style,changed=ch)
              end if
-             if (ch) call w%rep%reset_label_style()
+             if (ch) call w%rep%label_style%reset(w%rep%id)
              call iw_tooltip("Text to display in the atom labels",ttshown)
              changed = changed .or. ch
 
@@ -3373,7 +3373,7 @@ contains
     end if
     call iw_tooltip("Group atoms by these categories",ttshown)
     if (ch) then
-       call r%reset_atom_style()
+       call r%atom_style%reset(r%id)
        changed = .true.
     end if
 

@@ -124,8 +124,8 @@ contains
     ! check for updates in systems
     do i = 1, nsys
        if (timelastupdate < sysc(i)%timelastchange_geometry) w%forceupdate = .true.
-       if (timelastresize < sysc(i)%timelastchange_geometry) w%forceresize = .true.
-       if (timelastsort < sysc(i)%timelastchange_geometry) w%forcesort = .true.
+       if (timelastresize < sysc(i)%timelastchange_rebond) w%forceresize = .true.
+       if (timelastsort < sysc(i)%timelastchange_rebond) w%forcesort = .true.
     end do
 
     ! Tree options button
@@ -2378,7 +2378,7 @@ contains
   module subroutine draw_rebond(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system, lastchange_geometry
+    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system, lastchange_rebond
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight
     use global, only: bondfactor_def
     use tools_io, only: string, nameguess
@@ -2574,7 +2574,7 @@ contains
              call sys(i)%c%fill_molecular_fragments()
              call sys(i)%c%calculate_molecular_equivalence()
              call sys(i)%c%calculate_periodicity()
-             call sysc(i)%set_timelastchange(lastchange_geometry)
+             call sysc(i)%set_timelastchange(lastchange_rebond)
           end if
        end do
     end if
@@ -2586,7 +2586,7 @@ contains
        call sys(isys)%c%fill_molecular_fragments()
        call sys(isys)%c%calculate_molecular_equivalence()
        call sys(isys)%c%calculate_periodicity()
-       call sysc(isys)%set_timelastchange(lastchange_geometry)
+       call sysc(isys)%set_timelastchange(lastchange_rebond)
     end if
     call iw_tooltip("Recalculate the system bonds with the selected parameters",ttshown)
 

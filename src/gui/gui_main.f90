@@ -111,17 +111,21 @@ module gui_main
      real(c_float), allocatable :: highlight_rgba_transient(:,:) ! transient highlight colors
      logical :: highlight_transient_set = .false. ! set to false at beginning of main loop; clears transient highlight at end of loop
      ! time
-     real*8 :: timelastchange_geometry = 0d0 ! time for the last change on the system that changed geometry
-     real*8 :: timelastchange_buildlists = 0d0 ! time for the last change on the system that requires a list rebuild
-     real*8 :: timelastchange_render = 0d0 ! time for the last change on the system that requires a render
+     real*8 :: timelastchange_geometry = 0d0   ! time system last changed geometry
+     real*8 :: timelastchange_rebond = 0d0     ! time system last was rebonded
+     real*8 :: timelastchange_buildlists = 0d0 ! time system last required a list rebuild
+     real*8 :: timelastchange_render = 0d0     ! time system last required a render
    contains
      procedure :: highlight_atoms
      procedure :: highlight_clear
      procedure :: set_timelastchange
   end type sysconf
-  integer, parameter, public :: lastchange_render = 0 ! system needs a new render
+
+  ! list of changes to the system, in order of severity
+  integer, parameter, public :: lastchange_render = 0     ! system needs a new render
   integer, parameter, public :: lastchange_buildlists = 1 ! system needs building new lists
-  integer, parameter, public :: lastchange_geometry = 2 ! system needs redoing everything
+  integer, parameter, public :: lastchange_rebond = 2     ! system has been rebonded
+  integer, parameter, public :: lastchange_geometry = 3   ! system geometry has changed
 
   ! system arrays
   integer, public :: nsys = 0

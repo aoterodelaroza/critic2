@@ -1062,6 +1062,7 @@ contains
     time = glfwGetTime()
     if (level >= lastchange_render) sysc%timelastchange_render = time
     if (level >= lastchange_buildlists) sysc%timelastchange_buildlists = time
+    if (level >= lastchange_rebond) sysc%timelastchange_rebond = time
     if (level >= lastchange_geometry) sysc%timelastchange_geometry = time
 
   end subroutine set_timelastchange

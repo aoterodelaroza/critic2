@@ -71,6 +71,7 @@ module scenes
   !> Draw style for atoms
   type draw_style_atom
      logical :: isinit = .false. ! whether the style is intialized
+     real*8 :: timelastreset = 0d0 ! time the style was last reset
      integer :: type ! atom style type: 0=species,1=nneq,2=cell
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
      logical, allocatable :: shown(:) ! whether it is shown (ntype)
@@ -78,22 +79,28 @@ module scenes
      real(c_float), allocatable :: rad(:) ! radius (ntype)
      real(c_float) :: border_size = 0._c_float ! border size
      real(c_float) :: rgbborder(3) ! border color
+   contains
+     procedure :: reset => reset_atom_style
   end type draw_style_atom
   public :: draw_style_atom
 
   !> Draw style for molecules
   type draw_style_molecule
      logical :: isinit = .false. ! whether the style is intialized
+     real*8 :: timelastreset = 0d0 ! time the style was last reset
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
      logical, allocatable :: shown(:) ! whether it is shown (ntype)
      real(c_float), allocatable :: tint_rgb(:,:) ! tint color (3,ntype)
      real(c_float), allocatable :: scale_rad(:) ! scale radius (ntype)
+   contains
+     procedure :: reset => reset_mol_style
   end type draw_style_molecule
   public :: draw_style_molecule
 
   !> Draw style for bonds
   type draw_style_bond
      logical :: isinit = .false. ! whether the style is intialized
+     real*8 :: timelastreset = 0d0 ! time the style was last reset
      logical :: isdef = .true. ! whether this is using the system's neighbor star
      ! temporary storage for the edit object/bonds tab, global options
      integer(c_int) :: distancetype_g ! selector for distance type (0=factor,1=range)
@@ -112,13 +119,16 @@ module scenes
      ! the bond information
      type(neighstar), allocatable :: nstar(:) ! the neighbor star
    contains
-     procedure :: generate_neighstars_from_globals
+     procedure :: generate_neighstars
+     procedure :: copy_neighstars_from_system
+     procedure :: reset => reset_bond_style
   end type draw_style_bond
   public :: draw_style_bond
 
   !> Draw style for labels
   type draw_style_label
      logical :: isinit = .false. ! whether the style is intialized
+     real*8 :: timelastreset = 0d0 ! time the style was last reset
      integer(c_int) :: style = 0 ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
      real(c_float) :: scale ! scale for the labels
      real(c_float) :: rgb(3) ! color of the labels
@@ -127,18 +137,10 @@ module scenes
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
      logical, allocatable :: shown(:) ! whether it is shown (ntype)
      character*32, allocatable :: str(:) ! text
+   contains
+     procedure :: reset => reset_label_style
   end type draw_style_label
   public :: draw_style_label
-
-  !> User defined type for atomic selections
-  type atom_selection
-     integer :: id ! id of the selected atom or atoms (or <= 0 if unused)
-     integer :: type ! 0=species,1=nneq,2=cell,3=mol
-     integer :: iwin ! window ID responsible for this selection
-     integer :: itag ! tag for identifying atom selection
-     real(c_float) :: rgba(4) ! color of the selection
-  end type atom_selection
-  public :: atom_selection
 
   ! types of representations
   integer, parameter, public :: reptype_none = 0
@@ -165,7 +167,10 @@ module scenes
      integer :: idrep ! representation ID
      integer :: iord = 0 ! representation order integer in menu
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
-     real*8 :: timelastreset = 0d0 ! time of last update to atom,... styles
+     real*8 :: timelastreset_atom = 0d0 ! time of last update to atom style
+     real*8 :: timelastreset_bond = 0d0 ! time of last update to bond style
+     real*8 :: timelastreset_mol = 0d0 ! time of last update to mol style
+     real*8 :: timelastreset_label = 0d0 ! time of last update to label style
      ! global parameters
      integer(c_int) :: pertype = 1 ! periodicity control: 0=none, 1=auto, 2=manual
      integer(c_int) :: ncell(3) ! number of unit cells drawn
@@ -199,10 +204,6 @@ module scenes
      procedure :: end => representation_end
      procedure :: update => update_structure
      procedure :: add_draw_elements
-     procedure :: reset_atom_style
-     procedure :: reset_mol_style
-     procedure :: reset_bond_style
-     procedure :: reset_label_style
      procedure :: reset_all_styles
   end type representation
   public :: representation
@@ -352,10 +353,14 @@ module scenes
        integer, intent(in) :: idx(5)
      end subroutine select_atom
      ! draw_style_bond
-     module subroutine generate_neighstars_from_globals(d,isys)
+     module subroutine generate_neighstars(d,isys)
        class(draw_style_bond), intent(inout), target :: d
        integer, intent(in) :: isys
-     end subroutine generate_neighstars_from_globals
+     end subroutine generate_neighstars
+     module subroutine copy_neighstars_from_system(d,isys)
+       class(draw_style_bond), intent(inout), target :: d
+       integer, intent(in) :: isys
+     end subroutine copy_neighstars_from_system
      ! representation
      module subroutine representation_init(r,sc,isys,irep,itype,style,flavor)
        class(representation), intent(inout), target :: r
@@ -404,17 +409,22 @@ module scenes
        logical, intent(in) :: doanim
        integer, intent(in) :: iqpt, ifreq
      end subroutine add_draw_elements
-     module subroutine reset_atom_style(r)
-       class(representation), intent(inout), target :: r
+     module subroutine reset_atom_style(d,isys)
+       class(draw_style_atom), intent(inout), target :: d
+       integer, intent(in) :: isys
      end subroutine reset_atom_style
-     module subroutine reset_mol_style(r)
-       class(representation), intent(inout), target :: r
+     module subroutine reset_mol_style(d,isys)
+       class(draw_style_molecule), intent(inout), target :: d
+       integer, intent(in) :: isys
      end subroutine reset_mol_style
-     module subroutine reset_bond_style(r)
-       class(representation), intent(inout), target :: r
+     module subroutine reset_bond_style(d,isys,flavor)
+       class(draw_style_bond), intent(inout), target :: d
+       integer, intent(in) :: isys
+       integer, intent(in), optional :: flavor
      end subroutine reset_bond_style
-     module subroutine reset_label_style(r)
-       class(representation), intent(inout), target :: r
+     module subroutine reset_label_style(d,isys)
+       class(draw_style_label), intent(inout), target :: d
+       integer, intent(in) :: isys
      end subroutine reset_label_style
      module subroutine reset_all_styles(r)
        class(representation), intent(inout), target :: r
