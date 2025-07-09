@@ -2607,7 +2607,7 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use gui_main, only: sysc, sys_empty, sys_init, sys
     use windows, only: win, iwin_tree
-    use utils, only: iw_calcwidth, iw_button, iw_combo_simple, iw_tooltip, iw_text
+    use utils, only: iw_calcwidth, iw_combo_simple, iw_tooltip, iw_text
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
     use tools_io, only: string
@@ -2834,7 +2834,7 @@ contains
     use tools_io, only: string, nameguess, ioj_right
     class(window), intent(inout), target :: w
 
-    logical :: domol, dowyc, doidx
+    logical :: domol, dowyc, doidx, havesel
     logical :: doquit, clicked
     integer :: ihighlight, iclicked, nhigh
     logical(c_bool) :: is_selected, redo_highlights
@@ -3197,14 +3197,15 @@ contains
              call igEndTable()
           end if
 
+          !! highlight/selection row
           ! highlight color
           call igAlignTextToFramePadding()
-          call iw_text("Highlight",highlight=.true.)
+          call iw_text("Selection",highlight=.true.)
           call igSameLine(0._c_float,-1._c_float)
           ldum = iw_coloredit("##drawgeometryhighlightcolor",rgba=w%geometry_select_rgba)
           call iw_tooltip("Color used for highlighting atoms")
 
-          ! style buttons: all, none, toggle
+          ! Highlight buttons: all, none, toggle
           if (iw_button("All##highlightall",sameline=.true.)) then
              w%geometry_selected = .true.
              do i = 1, size(w%geometry_selected,1)
@@ -3212,12 +3213,12 @@ contains
              end do
              redo_highlights = .true.
           end if
-          call iw_tooltip("Highlight all atoms in the system",ttshown)
+          call iw_tooltip("Select all atoms in the system",ttshown)
           if (iw_button("None##highlightnone",sameline=.true.)) then
              w%geometry_selected = .false.
              redo_highlights = .true.
           end if
-          call iw_tooltip("Remove the highlight for all atoms in the system",ttshown)
+          call iw_tooltip("Deselect all atoms",ttshown)
           if (iw_button("Toggle##highlighttoggle",sameline=.true.)) then
              w%geometry_selected = .not.w%geometry_selected
              do i = 1, size(w%geometry_selected,1)
@@ -3226,7 +3227,19 @@ contains
              end do
              redo_highlights = .true.
           end if
-          call iw_tooltip("Toggel the highlight for all atoms in the system",ttshown)
+          call iw_tooltip("Toggle atomic selection",ttshown)
+
+          !! edit row
+          ! highlight color
+          call igAlignTextToFramePadding()
+          call iw_text("Edit",highlight=.true.)
+
+          ! Remove button
+          havesel = any(w%geometry_selected)
+          if (iw_button("Remove##removeselection",sameline=.true.,disabled=.not.havesel)) then
+             call sysc(isys)%remove_highlighted_atoms()
+          end if
+          call iw_tooltip("Remove selected atoms",ttshown)
 
           call igEndTabItem()
        end if

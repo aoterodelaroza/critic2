@@ -118,6 +118,7 @@ module gui_main
    contains
      procedure :: highlight_atoms
      procedure :: highlight_clear
+     procedure :: remove_highlighted_atoms
      procedure :: set_timelastchange
   end type sysconf
 
@@ -212,6 +213,9 @@ module gui_main
        integer, intent(in), optional :: idx(:)
        integer, intent(in), optional :: type
      end subroutine highlight_clear
+     module subroutine remove_highlighted_atoms(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine remove_highlighted_atoms
      module subroutine set_timelastchange(sysc,level)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: level

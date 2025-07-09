@@ -1051,6 +1051,36 @@ contains
 
   end subroutine highlight_clear
 
+  !> Remove the highlighted atoms from the system.
+  module subroutine remove_highlighted_atoms(sysc)
+    class(sysconf), intent(inout) :: sysc
+
+    integer :: i, nat, id
+    integer, allocatable :: iat(:)
+
+    ! consistency checks
+    id = sysc%id
+    if (.not.ok_system(id,sys_init)) return
+
+    ! build the list of atoms to remove
+    allocate(iat(sys(id)%c%ncel))
+    nat = 0
+    do i = 1, sys(id)%c%ncel
+       if (any(sysc%highlight_rgba(:,i) >= 0._c_float)) then
+          nat = nat + 1
+          iat(nat) = i
+       end if
+    end do
+
+    ! remove the atoms, reset fields
+    call sys(id)%c%delete_atoms(nat,iat(1:nat))
+    call sys(id)%reset_fields()
+
+    ! the geometry has changed
+    call sysc%set_timelastchange(lastchange_geometry)
+
+  end subroutine remove_highlighted_atoms
+
   !> Set the time for last change at level level.
   module subroutine set_timelastchange(sysc,level)
     use interfaces_glfw, only: glfwGetTime

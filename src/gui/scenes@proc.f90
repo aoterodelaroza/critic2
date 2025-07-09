@@ -1207,7 +1207,8 @@ contains
     if (.not.ok_system(isys,sys_ready)) return
 
     ! copy the nstar
-    d%nstar = sys(isys)%c%nstar
+    if (allocated(sys(isys)%c%nstar)) &
+       d%nstar = sys(isys)%c%nstar
 
   end subroutine copy_neighstars_from_system
 
