@@ -29,6 +29,7 @@ module struct_drivers
   public :: struct_sym
   public :: struct_charges
   public :: struct_write
+  public :: struct_write_bulk
   public :: struct_atomlabel
   public :: struct_powder
   public :: struct_rdf
@@ -78,6 +79,9 @@ module struct_drivers
        character*(*), intent(in) :: line
        logical, intent(in) :: usexyznames
      end subroutine struct_write
+     module subroutine struct_write_bulk(s)
+       type(system), intent(inout) :: s
+     end subroutine struct_write_bulk
      module subroutine struct_atomlabel(s,line)
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line

@@ -41,7 +41,7 @@ contains
        rhoplot_grdvec
     use fieldmod, only: type_grid
     use struct_drivers, only: struct_crystal_input, struct_molcell,&
-       struct_atomlabel, struct_sym, struct_sym, struct_charges, struct_write,&
+       struct_atomlabel, struct_sym, struct_sym, struct_charges, struct_write, struct_write_bulk,&
        struct_powder, struct_rdf, struct_compare, struct_comparevc, struct_environ,&
        struct_econ, struct_edit,&
        struct_coord, struct_polyhedra, struct_packing, struct_vdw, struct_identify,&
@@ -156,7 +156,15 @@ contains
        elseif (equal(word,'write')) then
           call check_structure_defined(ok)
           if (.not.ok) cycle
-          call struct_write(sy,subline,.false.)
+
+          word = lgetword(line,lp)
+          if (equal(word,'bulk')) then
+             ! write many structures
+             call struct_write_bulk(sy)
+          else
+             ! single write
+             call struct_write(sy,subline,.false.)
+          end if
 
           ! load
        elseif (equal(word,'load')) then

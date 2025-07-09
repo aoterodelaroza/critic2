@@ -1072,6 +1072,9 @@ contains
        end if
     end do
 
+    ! return if nothing to do
+    if (nat == 0) return
+
     ! remove the atoms, reset fields
     call sys(id)%c%delete_atoms(nat,iat(1:nat))
     call sys(id)%reset_fields()

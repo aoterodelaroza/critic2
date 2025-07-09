@@ -418,7 +418,6 @@ contains
   !> Clear the symmetry in the system.
   module subroutine struct_sym(s,line,verbose)
     use iso_c_binding, only: c_double
-    use crystalseedmod, only: crystalseed
     use spglib, only: SpglibDataset, spg_standardize_cell
     use global, only: symprec
     use tools_math, only: matinv
@@ -903,6 +902,91 @@ contains
 
     end function check_no_extra_word
   end subroutine struct_write
+
+  ! Write multiple structures to several files.
+  module subroutine struct_write_bulk(s)
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed, realloc_crystalseed
+    use systemmod, only: system
+    use tools_io, only: getline, uin, ucopy, lgetword, ferror, faterr, getword, equal,&
+       string
+    use global, only: fileroot, eval_next
+    use param, only: bohrtoa
+    type(system), intent(inout) :: s
+
+    character(len=:), allocatable :: root, line, word, file, pre, post
+    integer :: lp, idx, nseed, nn, i, j, npad
+    type(crystalseed) :: seed0
+    type(crystalseed), allocatable :: seed(:)
+    real*8 :: xdelta(3), rattle_mag
+    logical :: ok
+    type(crystal) :: caux
+
+    real*8, parameter :: rattle_mag_default = 0.02d0 / bohrtoa ! 0.02 angstrom
+
+    ! initialize
+    nseed = 0
+    allocate(seed(10))
+    rattle_mag = rattle_mag_default
+
+    ! default file root: write FHIaims format
+    root = trim(fileroot) // "-*.in"
+
+    do while (getline(uin,line,ucopy=ucopy))
+       lp = 1
+       word = lgetword(line,lp)
+       if (equal(word,"root")) then
+          root = getword(line,lp)
+          idx = index(root,'*')
+          if (idx == 0) then
+             call ferror('struct_write_bulk','ROOT must contain a * character',faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,"rattle")) then
+          ! read the number of structures
+          ok = eval_next(nn,line,lp)
+          if (.not.ok) &
+             call ferror('struct_write_bulk','Incorrect number of structures in RATTLE',faterr,line,syntax=.true.)
+
+          ! reallocate if necessary
+          if (nseed + nn > size(seed,1)) &
+             call realloc_crystalseed(seed,2*(nseed + nn))
+
+          ! copy the seed from the current system to the output seeds, then rattle the atoms
+          call s%c%makeseed(seed0,.false.,useabr=2)
+          do i = nseed+1, nseed+nn
+             seed(i) = seed0
+
+             ! translate randomly all atoms
+             do j = 1, s%c%ncel
+                call random_number(xdelta)
+                xdelta = xdelta / norm2(xdelta) * rattle_mag
+                seed(i)%x(:,j) = matmul(s%c%m_c2x,s%c%atcel(j)%r + xdelta)
+             end do
+          end do
+
+          ! clean up
+          nseed = nseed + nn
+       elseif (equal(word,"end").or.equal(word,"endwrite")) then
+          exit
+       elseif (len_trim(word) > 0) then
+          call ferror('struct_write_bulk','Unknown extra keyword',faterr,line,syntax=.true.)
+          return
+       end if
+    end do
+
+    ! create the crystals associated with the seeds and write them
+    idx = index(root,'*')
+    pre = root(:idx-1)
+    post = root(idx+1:)
+    npad = ceiling(log10(nseed+0.1d0))
+    do i = 1, nseed
+       file = pre // string(i,npad,pad0=.true.) // post
+       call caux%struct_new(seed(i),.true.)
+       call caux%write_simple_driver(file)
+    end do
+
+  end subroutine struct_write_bulk
 
   !> Relabel atoms based on user's input
   module subroutine struct_atomlabel(s,line)

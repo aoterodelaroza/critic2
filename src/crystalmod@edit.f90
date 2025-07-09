@@ -872,6 +872,9 @@ contains
     integer, allocatable :: usespcs(:)
     integer :: i, nnspc
 
+    ! return if nothing to do
+    if (nat == 0) return
+
     ! make seed from this crystal
     call c%makeseed(seed,copysym=.false.)
 
