@@ -85,7 +85,7 @@ module gui_main
   integer, parameter, public :: sys_ready = 3 ! the data is ready but thread is still working, so not initialized yet
   integer, parameter, public :: sys_init = 4 ! the system is initialized
 
-  ! systems arrays
+  ! system configuration type
   type :: sysconf
      ! system ID and properties
      integer :: id ! ID for this system
@@ -111,12 +111,19 @@ module gui_main
      real(c_float), allocatable :: highlight_rgba_transient(:,:) ! transient highlight colors
      logical :: highlight_transient_set = .false. ! set to false at beginning of main loop; clears transient highlight at end of loop
      ! time
-     real*8 :: timelastchange_build = 0d0 ! time for the last change on the system that requires a list rebuild
+     real*8 :: timelastchange_geometry = 0d0 ! time for the last change on the system that changed geometry
+     real*8 :: timelastchange_buildlists = 0d0 ! time for the last change on the system that requires a list rebuild
      real*8 :: timelastchange_render = 0d0 ! time for the last change on the system that requires a render
    contains
      procedure :: highlight_atoms
      procedure :: highlight_clear
+     procedure :: set_timelastchange
   end type sysconf
+  integer, parameter, public :: lastchange_render = 0 ! system needs a new render
+  integer, parameter, public :: lastchange_buildlists = 1 ! system needs building new lists
+  integer, parameter, public :: lastchange_geometry = 2 ! system needs redoing everything
+
+  ! system arrays
   integer, public :: nsys = 0
   type(system), allocatable, target, public :: sys(:)
   type(sysconf), allocatable, target, public :: sysc(:)
@@ -201,6 +208,10 @@ module gui_main
        integer, intent(in), optional :: idx(:)
        integer, intent(in), optional :: type
      end subroutine highlight_clear
+     module subroutine set_timelastchange(sysc,level)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: level
+     end subroutine set_timelastchange
   end interface
 
 end module gui_main

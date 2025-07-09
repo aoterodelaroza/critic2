@@ -1148,7 +1148,7 @@ contains
   !> Generate the neighbor stars from the data in the rij table using
   !> the geometry in system isys.
   module subroutine generate_neighstars_from_globals(d,isys)
-    use gui_main, only: sys, sys_ready, ok_system
+    use gui_main, only: sys, sysc, sys_ready, ok_system, lastchange_geometry
     use param, only: bohrtoa, atmcov, atmvdw
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in) :: isys
@@ -1192,6 +1192,7 @@ contains
 
     ! generate the new neighbor star
     call sys(isys)%c%find_asterisms(d%nstar,rij=rij_t)
+    call sysc(isys)%set_timelastchange(lastchange_geometry)
 
   end subroutine generate_neighstars_from_globals
 
@@ -1324,7 +1325,8 @@ contains
   !> Update the representation to respond to a change in the number
   !> of atoms or molecules in the associated system.
   module subroutine update_structure(r)
-    use gui_main, only: sys, sys_ready, ok_system
+    use interfaces_glfw, only: glfwGetTime
+    use gui_main, only: sys, sys_ready, ok_system, sysc
     class(representation), intent(inout), target :: r
 
     logical :: doreset
@@ -1342,8 +1344,11 @@ contains
     doreset = doreset .or. (r%atom_style%type == 2 .and. r%atom_style%ntype /= sys(r%id)%c%ncel)
     if (doreset) call r%reset_atom_style()
 
+    ! check if we need to force an update of the representation styles
     doreset = doreset .or. .not.r%bond_style%isinit
     doreset = doreset .or. (size(r%bond_style%nstar,1) /= sys(r%id)%c%ncel)
+    doreset = doreset .or. (r%timelastreset < sysc(r%id)%timelastchange_geometry) .and.&
+       r%bond_style%isdef
     if (doreset) call r%reset_bond_style()
 
     doreset = .not.r%mol_style%isinit
@@ -1366,6 +1371,9 @@ contains
     doreset = doreset .or. (icase == 2 .and. r%label_style%ntype /= sys(r%id)%c%nneq)
     doreset = doreset .or. (icase == 3 .and. r%label_style%ntype /= sys(r%id)%c%nmol)
     if (doreset) call r%reset_label_style()
+
+    ! set the time
+    r%timelastreset = glfwGetTime()
 
   end subroutine update_structure
 

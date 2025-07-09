@@ -165,10 +165,9 @@ contains
 
   !> Run the commands from the console input
   module subroutine run_commands_ci(w)
-    use interfaces_glfw, only: glfwGetTime
     use systemmod, only: sy
     use gui_main, only: launch_initialization_thread, kill_initialization_thread, are_threads_running,&
-       sysc, sys_init, nsys, sys
+       sysc, sys_init, nsys, sys, lastchange_geometry
     use global, only: critic_main
     use tools_io, only: falloc, uin, fclose, ferror, faterr
     use iso_fortran_env, only: input_unit
@@ -177,7 +176,6 @@ contains
     integer :: idx
     integer :: ios
     logical :: reinit, ldum
-    real*8 :: time
 
     ! if no system selected, return
     if (w%inpcon_selected < 1 .or. w%inpcon_selected > nsys) return
@@ -210,9 +208,7 @@ contains
     if (reinit) call launch_initialization_thread()
 
     ! set the time to rebuild lists
-    time = glfwGetTime()
-    sysc(w%inpcon_selected)%timelastchange_build = time
-    sysc(w%inpcon_selected)%timelastchange_render = time
+    call sysc(w%inpcon_selected)%set_timelastchange(lastchange_geometry)
 
     ! clean up
     call fclose(uin)

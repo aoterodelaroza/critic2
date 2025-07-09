@@ -165,6 +165,7 @@ module scenes
      integer :: idrep ! representation ID
      integer :: iord = 0 ! representation order integer in menu
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
+     real*8 :: timelastreset = 0d0 ! time of last update to atom,... styles
      ! global parameters
      integer(c_int) :: pertype = 1 ! periodicity control: 0=none, 1=auto, 2=manual
      integer(c_int) :: ncell(3) ! number of unit cells drawn

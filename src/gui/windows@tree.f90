@@ -123,9 +123,9 @@ contains
 
     ! check for updates in systems
     do i = 1, nsys
-       if (timelastupdate < sysc(i)%timelastchange_build) w%forceupdate = .true.
-       if (timelastresize < sysc(i)%timelastchange_build) w%forceresize = .true.
-       if (timelastsort < sysc(i)%timelastchange_build) w%forcesort = .true.
+       if (timelastupdate < sysc(i)%timelastchange_geometry) w%forceupdate = .true.
+       if (timelastresize < sysc(i)%timelastchange_geometry) w%forceresize = .true.
+       if (timelastsort < sysc(i)%timelastchange_geometry) w%forcesort = .true.
     end do
 
     ! Tree options button
@@ -2378,7 +2378,7 @@ contains
   module subroutine draw_rebond(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system
+    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system, lastchange_geometry
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight
     use global, only: bondfactor_def
     use tools_io, only: string, nameguess
@@ -2574,7 +2574,7 @@ contains
              call sys(i)%c%fill_molecular_fragments()
              call sys(i)%c%calculate_molecular_equivalence()
              call sys(i)%c%calculate_periodicity()
-             call system_force_build_lists(i)
+             call sysc(i)%set_timelastchange(lastchange_geometry)
           end if
        end do
     end if
@@ -2586,7 +2586,7 @@ contains
        call sys(isys)%c%fill_molecular_fragments()
        call sys(isys)%c%calculate_molecular_equivalence()
        call sys(isys)%c%calculate_periodicity()
-       call system_force_build_lists(isys)
+       call sysc(isys)%set_timelastchange(lastchange_geometry)
     end if
     call iw_tooltip("Recalculate the system bonds with the selected parameters",ttshown)
 
@@ -2600,31 +2600,6 @@ contains
     if (doquit) &
        call w%end()
 
-  contains
-    ! build lists for all scenes associated with system i (including alternate views)
-    subroutine system_force_build_lists(i)
-      use scenes, only: reptype_atoms
-      use windows, only: nwin
-      integer, intent(in) :: i
-
-      integer :: j, k
-
-      sysc(i)%sc%forcebuildlists = .true.
-      do j = 1, nwin
-         if (.not.win(j)%isinit) cycle
-         if (win(j)%type == wintype_view.and.associated(win(j)%sc)) then
-            ! force build lists and update representations
-            do k = 1, win(j)%sc%nrep
-               if (win(j)%sc%rep(k)%isinit .and. win(j)%sc%rep(k)%type==reptype_atoms.and.&
-                  win(j)%sc%rep(k)%bond_style%isinit.and.win(j)%sc%rep(k)%bond_style%isdef) then
-                  call win(j)%sc%rep(k)%reset_bond_style()
-               end if
-            end do
-            win(j)%sc%forcebuildlists = .true.
-         end if
-      end do
-
-    end subroutine system_force_build_lists
   end subroutine draw_rebond
 
   !> Draw the tree plot window

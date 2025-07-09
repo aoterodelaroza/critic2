@@ -609,7 +609,8 @@ contains
 
     ! update the draw lists and render
     if (associated(w%sc)) then
-       if (chbuild .or. w%sc%timelastbuild < sysc(w%view_selected)%timelastchange_build) w%sc%forcebuildlists = .true.
+       if (chbuild .or. w%sc%timelastbuild < sysc(w%view_selected)%timelastchange_buildlists) &
+          w%sc%forcebuildlists = .true.
        if (chrender .or. w%sc%forcebuildlists .or. w%sc%timelastrender < sysc(w%view_selected)%timelastchange_render) &
           w%forcerender = .true.
 
