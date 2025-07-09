@@ -910,7 +910,7 @@ contains
     use systemmod, only: system
     use tools_io, only: getline, uin, ucopy, lgetword, ferror, faterr, getword, equal,&
        string
-    use global, only: fileroot, eval_next
+    use global, only: fileroot, eval_next, dunit0, iunit
     use param, only: bohrtoa
     type(system), intent(inout) :: s
 
@@ -947,6 +947,22 @@ contains
           ok = eval_next(nn,line,lp)
           if (.not.ok) &
              call ferror('struct_write_bulk','Incorrect number of structures in RATTLE',faterr,line,syntax=.true.)
+
+          do while(.true.)
+             word = lgetword(line,lp)
+             if (equal(word,"mag")) then
+                ok = eval_next(rattle_mag,line,lp)
+                if (.not.ok) &
+                   call ferror('struct_write_bulk','Incorrect value in MAG',faterr,line,syntax=.true.)
+                rattle_mag = rattle_mag / dunit0(iunit)
+
+             elseif (len_trim(word) > 0) then
+                call ferror('struct_write_bulk','Unknown extra keyword',faterr,line,syntax=.true.)
+                return
+             else
+                exit
+             end if
+          end do
 
           ! reallocate if necessary
           if (nseed + nn > size(seed,1)) &
