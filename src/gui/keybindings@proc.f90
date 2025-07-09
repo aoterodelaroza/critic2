@@ -27,42 +27,44 @@ submodule (keybindings) proc
 
   ! Bind groups. The first group (1) must be the global.
   integer, parameter :: group_global = 1
-  integer, parameter :: group_tree = 2   ! if the tree is active
-  integer, parameter :: group_inpcon = 3 ! the input console is active
-  integer, parameter :: group_dialog = 4 ! a dialog is active
-  integer, parameter :: group_view = 5   ! if the view is active
+  integer, parameter :: group_tree = 2     ! if the tree is active
+  integer, parameter :: group_inpcon = 3   ! the input console is active
+  integer, parameter :: group_dialog = 4   ! a dialog is active
+  integer, parameter :: group_view = 5     ! if the view is active
+  integer, parameter :: group_editgeom = 6 ! if the edit geometry window is active
   integer, parameter :: groupbind(BIND_NUM) = (/&
-     group_global,& ! BIND_QUIT
-     group_global,& ! BIND_NEW
-     group_global,& ! BIND_GEOMETRY
-     group_global,& ! BIND_OPEN
-     group_global,& ! BIND_CLOSE
-     group_global,& ! BIND_REOPEN
-     group_global,& ! BIND_CLOSE_ALL_DIALOGS
-     group_dialog,& ! BIND_CLOSE_FOCUSED_DIALOG
-     group_dialog,& ! BIND_OK_FOCUSED_DIALOG
-     group_tree,&   ! BIND_TREE_REMOVE_SYSTEM_FIELD
-     group_tree,&   ! BIND_TREE_MOVE_UP
-     group_tree,&   ! BIND_TREE_MOVE_DOWN
-     group_inpcon,& ! BIND_INPCON_RUN
-     group_view,&   ! BIND_VIEW_INC_NCELL
-     group_view,&   ! BIND_VIEW_DEC_NCELL
-     group_view,&   ! BIND_VIEW_ALIGN_A_AXIS
-     group_view,&   ! BIND_VIEW_ALIGN_B_AXIS
-     group_view,&   ! BIND_VIEW_ALIGN_C_AXIS
-     group_view,&   ! BIND_VIEW_ALIGN_X_AXIS
-     group_view,&   ! BIND_VIEW_ALIGN_Y_AXIS
-     group_view,&   ! BIND_VIEW_ALIGN_Z_AXIS
-     group_view,&   ! BIND_VIEW_TOGGLE_ATOMS
-     group_view,&   ! BIND_VIEW_TOGGLE_BONDS
-     group_view,&   ! BIND_VIEW_CYCLE_LABELS
-     group_view,&   ! BIND_VIEW_TOGGLE_CELL
-     group_view,&   ! BIND_NAV_ROTATE
-     group_view,&   ! BIND_NAV_ROTATE_PERP
-     group_view,&   ! BIND_NAV_TRANSLATE
-     group_view,&   ! BIND_NAV_ZOOM
-     group_view,&   ! BIND_NAV_RESET
-     group_view/)   ! BIND_NAV_MEASURE
+     group_global,&   ! BIND_QUIT
+     group_global,&   ! BIND_NEW
+     group_global,&   ! BIND_GEOMETRY
+     group_global,&   ! BIND_OPEN
+     group_global,&   ! BIND_CLOSE
+     group_global,&   ! BIND_REOPEN
+     group_global,&   ! BIND_CLOSE_ALL_DIALOGS
+     group_dialog,&   ! BIND_CLOSE_FOCUSED_DIALOG
+     group_dialog,&   ! BIND_OK_FOCUSED_DIALOG
+     group_tree,&     ! BIND_TREE_REMOVE_SYSTEM_FIELD
+     group_tree,&     ! BIND_TREE_MOVE_UP
+     group_tree,&     ! BIND_TREE_MOVE_DOWN
+     group_inpcon,&   ! BIND_INPCON_RUN
+     group_view,&     ! BIND_VIEW_INC_NCELL
+     group_view,&     ! BIND_VIEW_DEC_NCELL
+     group_view,&     ! BIND_VIEW_ALIGN_A_AXIS
+     group_view,&     ! BIND_VIEW_ALIGN_B_AXIS
+     group_view,&     ! BIND_VIEW_ALIGN_C_AXIS
+     group_view,&     ! BIND_VIEW_ALIGN_X_AXIS
+     group_view,&     ! BIND_VIEW_ALIGN_Y_AXIS
+     group_view,&     ! BIND_VIEW_ALIGN_Z_AXIS
+     group_view,&     ! BIND_VIEW_TOGGLE_ATOMS
+     group_view,&     ! BIND_VIEW_TOGGLE_BONDS
+     group_view,&     ! BIND_VIEW_CYCLE_LABELS
+     group_view,&     ! BIND_VIEW_TOGGLE_CELL
+     group_view,&     ! BIND_NAV_ROTATE
+     group_view,&     ! BIND_NAV_ROTATE_PERP
+     group_view,&     ! BIND_NAV_TRANSLATE
+     group_view,&     ! BIND_NAV_ZOOM
+     group_view,&     ! BIND_NAV_RESET
+     group_view,&     ! BIND_NAV_MEASURE
+     group_editgeom/) ! BIND_EDITGEOM_REMOVE
 
   integer, parameter :: ngroupbinds = 2
 
@@ -245,6 +247,7 @@ contains
     call set_bind(BIND_NAV_ZOOM,ImGuiKey_MouseScroll,mod_none)
     call set_bind(BIND_NAV_RESET,ImGuiKey_MouseRightDouble,mod_none)
     call set_bind(BIND_NAV_MEASURE,ImGuiKey_MouseLeftDouble,mod_none)
+    call set_bind(BIND_EDITGEOM_REMOVE,ImGuiKey_Delete,mod_none)
 
   end subroutine set_default_keybindings
 

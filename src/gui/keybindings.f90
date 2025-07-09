@@ -75,7 +75,8 @@ module keybindings
   integer, parameter, public :: BIND_NAV_ZOOM = 29 ! view: zoom the view
   integer, parameter, public :: BIND_NAV_RESET = 30 ! view: reset the view
   integer, parameter, public :: BIND_NAV_MEASURE = 31 ! view: reset the view
-  integer, parameter, public :: BIND_NUM = 31 ! total number of binds
+  integer, parameter, public :: BIND_EDITGEOM_REMOVE = 32 ! edit geometry: remove atoms
+  integer, parameter, public :: BIND_NUM = 32 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -109,7 +110,8 @@ module keybindings
      "Translate the camera            ",& ! BIND_NAV_TRANSLATE
      "Camera zoom                     ",& ! BIND_NAV_ZOOM
      "Reset the camera                ",& ! BIND_NAV_RESET
-     "Measure distances and angles    "&  ! BIND_NAV_MEASURE
+     "Measure distances and angles    ",& ! BIND_NAV_MEASURE
+     "Remove atoms                    "&  ! BIND_EDITGEOM_REMOVE
      /)
 
   ! The key associated with each bind, bind -> key

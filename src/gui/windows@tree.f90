@@ -2824,8 +2824,8 @@ contains
   module subroutine draw_geometry(w)
     use scenes, only: reptype_atoms
     use windows, only: iwin_view, iwin_tree
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
-       BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
+    use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
+       BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITGEOM_REMOVE
     use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system, ColorHighlightScene,&
        ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
@@ -2834,7 +2834,7 @@ contains
     use tools_io, only: string, nameguess, ioj_right
     class(window), intent(inout), target :: w
 
-    logical :: domol, dowyc, doidx, havesel
+    logical :: domol, dowyc, doidx, havesel, removehighlight
     logical :: doquit, clicked
     integer :: ihighlight, iclicked, nhigh
     logical(c_bool) :: is_selected, redo_highlights
@@ -2862,6 +2862,7 @@ contains
     szero%x = 0
     szero%y = 0
     redo_highlights = .false.
+    removehighlight = .false.
 
     ! first pass
     if (w%firstpass) then
@@ -3236,10 +3237,9 @@ contains
 
           ! Remove button
           havesel = any(w%geometry_selected)
-          if (iw_button("Remove##removeselection",sameline=.true.,disabled=.not.havesel)) then
-             call sysc(isys)%remove_highlighted_atoms()
-          end if
-          call iw_tooltip("Remove selected atoms",ttshown)
+          if (iw_button("Remove##removeselection",sameline=.true.,disabled=.not.havesel)) &
+             removehighlight = .true.
+          call iw_tooltip("Remove selected atoms (" // trim(get_bind_keyname(BIND_EDITGEOM_REMOVE)) // ")",ttshown)
 
           call igEndTabItem()
        end if
@@ -3302,6 +3302,11 @@ contains
        call sysc(isys)%highlight_atoms(.false.,ihigh,w%geometry_atomtype,irgba)
        deallocate(ihigh,irgba)
     end if
+
+    ! remove highlighted atoms
+    removehighlight = removehighlight .or. (w%focused() .and. is_bind_event(BIND_EDITGEOM_REMOVE))
+    if (removehighlight) &
+       call sysc(isys)%remove_highlighted_atoms()
 
     ! right-align and bottom-align for the rest of the contents
     call igGetContentRegionAvail(szavail)
