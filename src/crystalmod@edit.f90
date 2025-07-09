@@ -45,7 +45,8 @@ contains
     seed%isformat = c%isformat
 
     ! atoms
-    if (copysym .and. c%spgavail) then
+    if (.not.c%ismolecule .and. copysym .and. c%spgavail) then
+       ! crystals with symmetry
        seed%nat = c%nneq
        allocate(seed%x(3,c%nneq),seed%is(c%nneq),seed%atname(c%nneq))
        do i = 1, c%nneq
@@ -54,6 +55,7 @@ contains
           seed%atname(i) = c%at(i)%name
        end do
     else
+       ! crystals without symmetry
        seed%nat = c%ncel
        allocate(seed%x(3,c%ncel),seed%is(c%ncel),seed%atname(c%ncel))
        do i = 1, c%ncel
@@ -71,13 +73,16 @@ contains
     end do
 
     ! cell
-    if (useabr_ == 1) then
-       seed%useabr = 1
+    seed%useabr = useabr_
+    if (useabr_ == 0) then
+       seed%aa = c%aa
+       seed%bb = c%bb
+       seed%m_x2c = c%m_x2c
+    elseif (useabr_ == 1) then
        seed%aa = c%aa
        seed%bb = c%bb
        seed%m_x2c = 0d0
     else
-       seed%useabr = 2
        seed%aa = 0d0
        seed%bb = 0d0
        seed%m_x2c = c%m_x2c

@@ -952,8 +952,10 @@ contains
           if (nseed + nn > size(seed,1)) &
              call realloc_crystalseed(seed,2*(nseed + nn))
 
-          ! copy the seed from the current system to the output seeds, then rattle the atoms
-          call s%c%makeseed(seed0,.false.,useabr=2)
+          ! copy the seed from the current system to the output seeds
+          call s%c%makeseed(seed0,.false.)
+
+          ! rattle the atoms
           do i = nseed+1, nseed+nn
              seed(i) = seed0
 
