@@ -655,7 +655,7 @@ contains
           if (iw_menuitem("Lock All",selected=(lockbehavior==2))) then
              lockbehavior = 2
              do k = 1, nsys
-                sysc(k)%sc%lockedcam = 1
+                sysc(k)%sc%lockedcam = -1
              end do
           end if
           call iw_tooltip("Lock the camera position for all loaded systems",ttshown)
@@ -1029,11 +1029,6 @@ contains
     w%view_selected = isys
     if (w%ismain) then
        w%sc => sysc(w%view_selected)%sc
-
-       ! if the camera is locked, copy the camera parameters from the member
-       ! of the locking group who was rendered last
-       if (sysc(isys)%sc%lockedcam > 0) &
-          call sysc(isys)%sc%copy_cam(idx=sysc(isys)%sc%lockedcam)
     else
        if (.not.associated(w%sc)) allocate(w%sc)
        call w%sc%end()
@@ -1046,7 +1041,7 @@ contains
   !> Process the mouse events in the view window
   module subroutine process_events_view(w,hover,idx)
     use interfaces_cimgui
-    use scenes, only: scene, min_zoom, max_zoom
+    use scenes, only: scene
     use utils, only: translate, rotate, mult, invmult
     use tools_math, only: cross_cfloat, matinv_cfloat
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
@@ -1059,7 +1054,7 @@ contains
     integer(c_int), intent(in) :: idx(5)
 
     type(ImVec2) :: texpos, mousepos
-    real(c_float) :: ratio, pos3(3), vnew(3), vold(3), axis(3), lax
+    real(c_float) :: ratio, pos3(3), vnew(3), vold(3), axis(3)
     real(c_float) :: mpos2(2), ang, xc(3), dist
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
@@ -1114,18 +1109,7 @@ contains
        end if
        if (ratio /= 0._c_float) then
           ratio = min(max(ratio,-0.99999_c_float),0.9999_c_float)
-
-          call mult(xc,w%sc%world,w%sc%scenecenter)
-          pos3 = w%sc%campos - xc
-          pos3 = pos3 - ratio * pos3
-          if (norm2(pos3) < min_zoom) &
-             pos3 = pos3 / norm2(pos3) * min_zoom
-          if (norm2(pos3) > max_zoom * w%sc%scenerad) &
-             pos3 = pos3 / norm2(pos3) * (max_zoom * w%sc%scenerad)
-          w%sc%campos = xc + pos3
-
-          call w%sc%update_view_matrix()
-          call w%sc%update_projection_matrix()
+          call w%sc%cam_zoom(ratio)
           w%forcerender = .true.
        end if
 
@@ -1149,8 +1133,7 @@ contains
 
                 xc = vold - vnew
                 call invmult(xc,w%oldview)
-                w%sc%campos = xc
-                call w%sc%update_view_matrix()
+                call w%sc%cam_move(xc)
                 w%forcerender = .true.
              end if
           else
@@ -1168,26 +1151,25 @@ contains
           call igSetMouseCursor(ImGuiMouseCursor_Hand)
           if (is_bind_event(BIND_NAV_ROTATE,.true.)) then
              if (texpos%x /= w%mpos0_l(1) .or. texpos%y /= w%mpos0_l(2)) then
+                ! calculate the axis
                 vnew = (/texpos%x,texpos%y,w%mpos0_l(3)/)
                 call w%texpos_to_view(vnew)
                 pos3 = (/0._c_float,0._c_float,1._c_float/)
                 axis = cross_cfloat(pos3,vnew - w%cpos0_l)
-                lax = norm2(axis)
-                if (lax > 1e-10_c_float) then
-                   axis = axis / lax
-                   call invmult(axis,w%sc%world,notrans=.true.)
-                   mpos2(1) = texpos%x - w%mpos0_l(1)
-                   mpos2(2) = texpos%y - w%mpos0_l(2)
-                   ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
-                   call translate(w%sc%world,w%sc%scenecenter)
-                   call rotate(w%sc%world,ang,axis)
-                   call translate(w%sc%world,-w%sc%scenecenter)
 
-                   w%forcerender = .true.
-                end if
+                ! calculate the angle
+                mpos2(1) = texpos%x - w%mpos0_l(1)
+                mpos2(2) = texpos%y - w%mpos0_l(2)
+                ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
+
+                ! rotate the camera
+                call w%sc%cam_rotate(axis,ang)
+
+                ! save the new position and re-render
                 w%mpos0_l = (/texpos%x, texpos%y, 0._c_float/)
                 w%cpos0_l = w%mpos0_l
                 call w%texpos_to_view(w%cpos0_l)
+                w%forcerender = .true.
              end if
           else
              w%ilock = ilock_no
@@ -1219,10 +1201,7 @@ contains
                 xc = cross_cfloat(w%cpos0_m,vnew)
                 ang = atan2(xc(3),dot_product(w%cpos0_m,vnew))
                 axis = (/0._c_float,0._c_float,1._c_float/)
-                call invmult(axis,w%sc%world,notrans=.true.)
-                call translate(w%sc%world,w%sc%scenecenter)
-                call rotate(w%sc%world,ang,axis)
-                call translate(w%sc%world,-w%sc%scenecenter)
+                call w%sc%cam_rotate(axis,ang)
                 w%forcerender = .true.
                 w%cpos0_m = vnew
              end if

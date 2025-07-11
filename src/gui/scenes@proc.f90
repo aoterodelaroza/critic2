@@ -123,13 +123,14 @@ contains
     s%forcesort = .true.
     s%timelastrender = 0d0
     s%timelastbuild = 0d0
+    s%timelastcamchange = 0d0
 
     ! locking group for the camera
     s%forceresetcam = .true.
     if (lockbehavior == 0) then ! no-lock
        s%lockedcam = 0
     elseif (lockbehavior == 2) then ! all-lock
-       s%lockedcam = 1
+       s%lockedcam = -1
     else ! ==1, only scf
        if (sysc(isys)%collapse < 0) then
           s%lockedcam = isys
@@ -165,6 +166,7 @@ contains
   !> world, projection, and znear.
   module subroutine scene_reset(s)
     use param, only: pi
+    use interfaces_glfw, only: glfwGetTime
     class(scene), intent(inout), target :: s
 
     real(c_float) :: pic
@@ -191,6 +193,10 @@ contains
     ! projection matrix
     call s%update_projection_matrix()
 
+    ! the camera has been updated
+    s%timelastcamchange = glfwGetTime()
+    s%forceresetcam = .false.
+
   end subroutine scene_reset
 
   !> Reset animation parameters in the scene
@@ -208,6 +214,7 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
     use gui_main, only: sys_ready, ok_system
+    use interfaces_glfw, only: glfwGetTime
     class(scene), intent(inout), target :: s
 
     integer :: i
@@ -285,14 +292,8 @@ contains
     s%scenexmin = xmin
     s%scenexmax = xmax
 
-    if (s%forceresetcam) then
-       ! reset the camera if requested
-       call s%reset()
-       s%forceresetcam = .false.
-    elseif (s%lockedcam == 0) then
-       ! translate the scene so the center position remains unchanged
-       call translate(s%world,-xc)
-    end if
+    ! translate the scene so the center position remains unchanged
+    call translate(s%world,-xc)
 
     ! rebuilding lists is done
     s%forcebuildlists = .false.
@@ -307,7 +308,7 @@ contains
     use interfaces_cimgui
     use interfaces_opengl3
     use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
-    use gui_main, only: fonts, fontbakesize_large, font_large, sys, sysc
+    use gui_main, only: fonts, fontbakesize_large, font_large, sys, sysc, nsys
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use tools_io, only: string
@@ -321,6 +322,7 @@ contains
     complex(c_float_complex) :: displ
     real*8 :: deltat, fac, time
     logical :: doit
+    integer :: i, ifound
 
     real(c_float), parameter :: rgbmsel(4,4) = reshape((/&
        1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
@@ -339,14 +341,31 @@ contains
     ! build draw lists if not done already
     if (s%isinit == 1 .or. .not.allocated(s%drawlist_sph)) call s%build_lists()
 
+    ! if necessary, rebuild draw lists
+    if (s%forcebuildlists) call s%build_lists()
+
+    ! if the camera is locked, copy the camera parameters from the member
+    ! of the locking group who was moved last
+    if (s%lockedcam /= 0) then
+       ifound = 0
+       time = s%timelastcamchange
+       do i = 1, nsys
+          if (sysc(i)%sc%lockedcam == s%lockedcam .and. sysc(i)%sc%timelastcamchange > time) then
+             ifound = i
+             time = sysc(i)%sc%timelastcamchange
+          end if
+       end do
+       if (ifound > 0) call s%cam_copy(sysc(ifound)%sc)
+    end if
+
+    ! if necessary, reset the camera
+    if (s%forceresetcam) call s%reset()
+
     ! get the time
     time = glfwGetTime()
 
     ! render text with the large font
     call igPushFont(font_large)
-
-    ! if necessary, rebuild draw lists
-    if (s%forcebuildlists) call s%build_lists()
 
     ! calculate the time factor
     displ = 0._c_float
@@ -708,6 +727,7 @@ contains
   module subroutine scene_render_pick(s)
     use interfaces_cimgui
     use interfaces_opengl3
+    use gui_main, only: sysc, nsys
     use shapes, only: sphVAO
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
@@ -716,7 +736,8 @@ contains
        setuniform_mat4, get_uniform_location
     class(scene), intent(inout), target :: s
 
-    integer :: i
+    integer :: i, ifound
+    real*8 :: time
 
     ! check that the scene and system are initialized
     if (s%isinit < 2) return
@@ -726,6 +747,23 @@ contains
 
     ! if necessary, rebuild draw lists
     if (s%forcebuildlists) call s%build_lists()
+
+    ! if the camera is locked, copy the camera parameters from the member
+    ! of the locking group who was moved last
+    if (s%lockedcam /= 0) then
+       ifound = 0
+       time = s%timelastcamchange
+       do i = 1, nsys
+          if (sysc(i)%sc%lockedcam == s%lockedcam .and. sysc(i)%sc%timelastcamchange > time) then
+             ifound = i
+             time = sysc(i)%sc%timelastcamchange
+          end if
+       end do
+       if (ifound > 0) call s%cam_copy(sysc(ifound)%sc)
+    end if
+
+    ! if necessary, reset the camera
+    if (s%forceresetcam) call s%reset()
 
     ! set up the shader and the uniforms
     call useshader(shader_pickindex)
@@ -788,39 +826,91 @@ contains
   !> integer is given instead, search the system list for the most
   !> recent render in group idx and, if found, copy the camera
   !> parameters from that scene.
-  recursive module subroutine scene_copy_cam(s,si,idx)
+  module subroutine scene_cam_copy(s,si)
+    use interfaces_glfw, only: glfwGetTime
     use gui_main, only: nsys, sysc
     class(scene), intent(inout), target :: s
-    type(scene), intent(in), target, optional :: si
-    integer, intent(in), optional :: idx
+    type(scene), intent(in), target :: si
 
-    real*8 :: time
-    integer :: i, ifound
+    s%camresetdist = si%camresetdist
+    s%camratio = si%camratio
+    s%ortho_fov = si%ortho_fov
+    s%persp_fov = si%persp_fov
+    s%campos = si%campos
+    s%camfront = si%camfront
+    s%camup = si%camup
+    s%world = si%world
+    s%view = si%view
+    s%projection = si%projection
+    call s%update_view_matrix()
+    call s%update_projection_matrix()
+    s%timelastcamchange = glfwGetTime()
+    s%forceresetcam = .false.
 
-    if (present(si)) then
-       s%camresetdist = si%camresetdist
-       s%camratio = si%camratio
-       s%ortho_fov = si%ortho_fov
-       s%persp_fov = si%persp_fov
-       s%campos = si%campos
-       s%camfront = si%camfront
-       s%camup = si%camup
-       s%world = si%world
-       s%view = si%view
-       s%projection = si%projection
-    elseif (present(idx)) then
-       time = 0d0
-       ifound = 0
-       do i = 1, nsys
-          if (sysc(i)%sc%lockedcam == idx .and. sysc(i)%sc%timelastrender > time) then
-             ifound = i
-             time = sysc(i)%sc%timelastrender
-          end if
-       end do
-       if (ifound > 0) call s%copy_cam(sysc(ifound)%sc)
+  end subroutine scene_cam_copy
+
+  !> Zoom in and out towards the center of the scene by a factor equal
+  !> to ratio. min_zoom and max_zoom apply.
+  module subroutine scene_cam_zoom(s,ratio)
+    use interfaces_glfw, only: glfwGetTime
+    use utils, only: mult
+    class(scene), intent(inout), target :: s
+    real(c_float), intent(in) :: ratio
+
+    real(c_float) :: xc(3), pos3(3)
+
+    ! calculate scene center in tworld coordinates
+    call mult(xc,s%world,s%scenecenter)
+
+    ! scale the vector from camera position to scene center
+    pos3 = s%campos - xc
+    pos3 = pos3 - ratio * pos3
+    if (norm2(pos3) < min_zoom) &
+       pos3 = pos3 / norm2(pos3) * min_zoom
+    if (norm2(pos3) > max_zoom * s%scenerad) &
+       pos3 = pos3 / norm2(pos3) * (max_zoom * s%scenerad)
+
+    ! move the camera
+    call s%cam_move(xc + pos3)
+
+  end subroutine scene_cam_zoom
+
+  !> Move camera to position xc (tworld coordinates).
+  module subroutine scene_cam_move(s,xc)
+    use interfaces_glfw, only: glfwGetTime
+    use utils, only: mult
+    class(scene), intent(inout), target :: s
+    real(c_float), intent(in) :: xc(3)
+
+    s%campos = xc
+    call s%update_view_matrix()
+    call s%update_projection_matrix()
+    s%timelastcamchange = glfwGetTime()
+
+  end subroutine scene_cam_move
+
+  !> Rotate the camera around the given axis (view coordinates) by angle ang
+  !> (radians).
+  module subroutine scene_cam_rotate(s,axis,ang)
+    use interfaces_glfw, only: glfwGetTime
+    use utils, only: translate, rotate, invmult
+    class(scene), intent(inout), target :: s
+    real(c_float), intent(in) :: axis(3)
+    real(c_float), intent(in) :: ang
+
+    real(c_float) :: lax, axis_(3)
+
+    lax = norm2(axis)
+    if (lax > 1e-10_c_float) then
+       axis_ = axis / lax
+       call invmult(axis_,s%world,notrans=.true.)
+       call translate(s%world,s%scenecenter)
+       call rotate(s%world,ang,axis_)
+       call translate(s%world,-s%scenecenter)
+       s%timelastcamchange = glfwGetTime()
     end if
 
-  end subroutine scene_copy_cam
+  end subroutine scene_cam_rotate
 
   !> Show the representation menu (called from view). Return .true.
   !> if the scene needs to be rendered again.

@@ -1423,10 +1423,6 @@ contains
                 ! initialize the scene and build the initial draw list
                 call sysc(i)%sc%init(i)
 
-                ! copy the camera if this is a dependent
-                if (sysc(i)%sc%lockedcam /= 0 .and. sysc(i)%sc%lockedcam /= i) &
-                   call sysc(i)%sc%copy_cam(idx=sysc(i)%sc%lockedcam)
-
                 ! this system has been initialized
                 call sysc(i)%set_timelastchange(lastchange_geometry)
                 sysc(i)%status = sys_init

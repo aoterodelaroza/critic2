@@ -167,10 +167,6 @@ module scenes
      integer :: idrep ! representation ID
      integer :: iord = 0 ! representation order integer in menu
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
-     real*8 :: timelastreset_atom = 0d0 ! time of last update to atom style
-     real*8 :: timelastreset_bond = 0d0 ! time of last update to bond style
-     real*8 :: timelastreset_mol = 0d0 ! time of last update to mol style
-     real*8 :: timelastreset_label = 0d0 ! time of last update to label style
      ! global parameters
      integer(c_int) :: pertype = 1 ! periodicity control: 0=none, 1=auto, 2=manual
      integer(c_int) :: ncell(3) ! number of unit cells drawn
@@ -221,6 +217,7 @@ module scenes
      logical :: forcebuildlists ! force rebuild of lists
      real*8 :: timelastrender = 0d0 ! time when the view was last rendered
      real*8 :: timelastbuild = 0d0 ! time of the last build
+     real*8 :: timelastcamchange = 0d0 ! time the camera was last changed
      real*8 :: timerefanimation = 0d0 ! reference time for the animation
      real(c_float) :: scenerad = 1d0 ! scene radius
      real(c_float) :: scenecenter(3) ! scene center (world coords)
@@ -252,7 +249,7 @@ module scenes
      real(c_float) :: world(4,4) ! world transform matrix
      real(c_float) :: view(4,4) ! view transform matrix
      real(c_float) :: projection(4,4) ! projection transform matrix
-     integer :: lockedcam = 0 ! 0=no, n=locking group n (same as first system in the lock group)
+     integer :: lockedcam = 0 ! 0=no, -1=global locking group, n=locking group n (same as first system in the lock group)
      ! list of representations
      integer :: nrep = 0 ! number of representation
      type(representation), allocatable :: rep(:) ! representations
@@ -285,7 +282,10 @@ module scenes
      procedure :: render => scene_render
      procedure :: renderpick => scene_render_pick
      procedure :: set_style_defaults => scene_set_style_defaults
-     procedure :: copy_cam => scene_copy_cam
+     procedure :: cam_copy => scene_cam_copy
+     procedure :: cam_zoom => scene_cam_zoom
+     procedure :: cam_move => scene_cam_move
+     procedure :: cam_rotate => scene_cam_rotate
      procedure :: representation_menu
      procedure :: get_new_representation_id
      procedure :: update_projection_matrix
@@ -324,11 +324,23 @@ module scenes
        class(scene), intent(inout), target :: s
        integer(c_int), intent(in), optional :: style
      end subroutine scene_set_style_defaults
-     recursive module subroutine scene_copy_cam(s,si,idx)
+     module subroutine scene_cam_copy(s,si)
        class(scene), intent(inout), target :: s
-       type(scene), intent(in), target, optional :: si
-       integer, intent(in), optional :: idx
-     end subroutine scene_copy_cam
+       type(scene), intent(in), target :: si
+     end subroutine scene_cam_copy
+     module subroutine scene_cam_zoom(s,ratio)
+       class(scene), intent(inout), target :: s
+       real(c_float), intent(in) :: ratio
+     end subroutine scene_cam_zoom
+     module subroutine scene_cam_move(s,xc)
+       class(scene), intent(inout), target :: s
+       real(c_float), intent(in) :: xc(3)
+     end subroutine scene_cam_move
+     module subroutine scene_cam_rotate(s,axis,ang)
+       class(scene), intent(inout), target :: s
+       real(c_float), intent(in) :: axis(3)
+       real(c_float), intent(in) :: ang
+     end subroutine scene_cam_rotate
      module function representation_menu(s,idparent) result(changed)
        class(scene), intent(inout), target :: s
        integer(c_int), intent(in) :: idparent
