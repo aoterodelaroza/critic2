@@ -747,8 +747,8 @@ contains
        elseif (w%type == wintype_preferences) then
           w%name = "Preferences##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 65 * fontsize%x
-          inisize%y = 23 * fontsize%y
+          inisize%x = 70 * fontsize%x
+          inisize%y = 33 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_treeplot) then
           w%name = "Plot Tree Data##" // string(w%id)  // c_null_char
@@ -892,6 +892,7 @@ contains
     type(ImVec2) :: sz, szero
     integer :: i, newkey, igroup
     integer(c_int) :: flags
+    real(c_float) :: width
 
     logical, save :: ttshown = .false. ! tooltip flag
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
@@ -1017,9 +1018,9 @@ contains
              sz%y = 0
              if (igBeginTable(c_loc(str),2,flags,sz,0._c_float)) then
                 ! set up the columns
-                flags = ImGuiTableColumnFlags_WidthStretch
-                call igTableSetupColumn(c_null_ptr,flags,0.0_c_float,0)
-                call igTableSetupColumn(c_null_ptr,flags,0.0_c_float,1)
+                width = iw_calcwidth(len(bindnames(1)),0)
+                call igTableSetupColumn(c_null_ptr,ImGuiTableColumnFlags_None,width,0)
+                call igTableSetupColumn(c_null_ptr,ImGuiTableColumnFlags_WidthStretch,0.0_c_float,1)
                 call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
                 ! table rows
