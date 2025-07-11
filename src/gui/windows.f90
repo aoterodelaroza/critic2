@@ -161,6 +161,8 @@ module windows
      logical, allocatable :: geometry_selected(:) ! selected items in atoms table
      real(c_float), allocatable :: geometry_rgba(:,:) ! color highlights in atoms table
      real(c_float) :: geometry_select_rgba(4) ! highlight color
+     ! preferences parameters
+     logical :: color_preferences_reset_reps = .true. ! whether changing the element colors resets current representations
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window

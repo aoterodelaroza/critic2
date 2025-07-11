@@ -209,6 +209,21 @@ contains
 
   end subroutine scene_reset_animation
 
+  !> Reset atom colors in the scene to the defaults
+  module subroutine scene_reset_atom_colors(s)
+    class(scene), intent(inout), target :: s
+
+    integer :: irep
+
+    if (.not.allocated(s%rep)) return
+
+    do irep = 1, s%nrep
+       call s%rep(irep)%atom_style%reset_colors(s%id)
+    end do
+    s%forcebuildlists = .true.
+
+  end subroutine scene_reset_atom_colors
+
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
     use interfaces_glfw, only: glfwGetTime
@@ -1040,13 +1055,6 @@ contains
        if (igTableSetColumnIndex(ic_type)) then
           if (discol) &
              call igPushStyleColor_Vec4(ImGuiCol_Text,g%Style%Colors(ImGuiCol_TextDisabled+1))
-          ! if (s%rep(i)%type == reptype_atoms) then
-          !    call iw_text("atoms")
-          ! elseif (s%rep(i)%type == reptype_unitcell) then
-          !    call iw_text("cell")
-          ! else
-          !    call iw_text("???")
-          ! end if
           if (s%rep(i)%type == reptype_atoms) then
              str3 = "atoms" // c_null_char
           elseif (s%rep(i)%type == reptype_unitcell) then
@@ -1964,7 +1972,6 @@ contains
     class(draw_style_atom), intent(inout), target :: d
     integer, intent(in) :: isys
 
-    integer :: isys
     integer :: i, ispc, iz
 
     ! if not initialized, set type
@@ -2020,6 +2027,41 @@ contains
     d%isinit = .true.
 
   end subroutine reset_atom_style
+
+  !> Reset colors in an atom style to defaults.
+  module subroutine reset_colors_atom_style(d,isys)
+    use interfaces_glfw, only: glfwGetTime
+    use gui_main, only: sys, sys_ready, ok_system, ColorElement
+    use param, only: atmcov
+    class(draw_style_atom), intent(inout), target :: d
+    integer, intent(in) :: isys
+
+    integer :: i, ispc, iz
+
+    ! check the system is sane
+    if (.not.ok_system(isys,sys_ready)) return
+
+    ! fill according to the style
+    if (d%type == 0) then ! species
+       do i = 1, d%ntype
+          iz = sys(isys)%c%spc(i)%z
+          d%rgb(:,i) = ColorElement(:,iz)
+       end do
+    elseif (d%type == 1) then ! nneq
+       do i = 1, sys(isys)%c%nneq
+          ispc = sys(isys)%c%at(i)%is
+          iz = sys(isys)%c%spc(ispc)%z
+          d%rgb(:,i) = ColorElement(:,iz)
+       end do
+    else ! ncel
+       do i = 1, sys(isys)%c%ncel
+          ispc = sys(isys)%c%atcel(i)%is
+          iz = sys(isys)%c%spc(ispc)%z
+          d%rgb(:,i) = ColorElement(:,iz)
+       end do
+    end if
+
+  end subroutine reset_colors_atom_style
 
   !> Reset molecule style with default values. Use the information in
   !> system isys, or leave it empty if isys = 0.

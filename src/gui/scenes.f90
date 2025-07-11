@@ -81,6 +81,7 @@ module scenes
      real(c_float) :: rgbborder(3) ! border color
    contains
      procedure :: reset => reset_atom_style
+     procedure :: reset_colors => reset_colors_atom_style
   end type draw_style_atom
   public :: draw_style_atom
 
@@ -278,6 +279,7 @@ module scenes
      procedure :: end => scene_end
      procedure :: reset => scene_reset
      procedure :: reset_animation => scene_reset_animation
+     procedure :: reset_atom_colors => scene_reset_atom_colors
      procedure :: build_lists => scene_build_lists
      procedure :: render => scene_render
      procedure :: renderpick => scene_render_pick
@@ -311,6 +313,9 @@ module scenes
      module subroutine scene_reset_animation(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_reset_animation
+     module subroutine scene_reset_atom_colors(s)
+       class(scene), intent(inout), target :: s
+     end subroutine scene_reset_atom_colors
      module subroutine scene_build_lists(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_build_lists
@@ -425,6 +430,10 @@ module scenes
        class(draw_style_atom), intent(inout), target :: d
        integer, intent(in) :: isys
      end subroutine reset_atom_style
+     module subroutine reset_colors_atom_style(d,isys)
+       class(draw_style_atom), intent(inout), target :: d
+       integer, intent(in) :: isys
+     end subroutine reset_colors_atom_style
      module subroutine reset_mol_style(d,isys)
        class(draw_style_molecule), intent(inout), target :: d
        integer, intent(in) :: isys

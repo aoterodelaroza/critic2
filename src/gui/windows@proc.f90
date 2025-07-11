@@ -875,12 +875,13 @@ contains
 
   !> Draw the preferences window
   module subroutine draw_preferences(w)
+    use windows, only: nwin, win
     use tools_io, only: nameguess, string
     use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor,&
        tree_select_updates_inpcon, tree_select_updates_view, io, fontsize,&
        set_default_ui_settings, ColorTableCellBg, ColorHighlightScene,&
        ColorHighlightSelectScene, ColorHighlightSelectScene, ColorMeasureSelect, &
-       ColorElement
+       ColorElement, nsys, sysc
     use interfaces_cimgui
     use keybindings
     use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth, iw_clamp_color4,&
@@ -890,10 +891,10 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str, str2, zeroc
     character(len=:), allocatable, target :: strf
-    logical(c_bool) :: ldum
+    logical(c_bool) :: ldum, ch
     logical :: doquit
     type(ImVec2) :: sz, szero
-    integer :: i, newkey, igroup, kmod, nrow
+    integer :: i, newkey, igroup, kmod, nrow, iwin, isys
     integer(c_int) :: flags
     real(c_float) :: width
 
@@ -1133,9 +1134,13 @@ contains
              & when measuring distances and angles",ColorMeasureSelect(:,4))
 
           ! elements
+          call igAlignTextToFramePadding()
           call iw_text("Elements",highlight=.true.)
+          ldum = iw_checkbox("Apply changes immediately",w%color_preferences_reset_reps,&
+             sameline=.true.)
+          call iw_tooltip("If checked, changes to the element colors are immediately&
+             & applied to all atoms in all open systems.")
           call igSeparator()
-          ! ldum = iw_checkbox(str,tooltip_enabled)
 
           str = "##elementcolortable" // c_null_char
           flags = ImGuiTableFlags_NoSavedSettings
@@ -1163,8 +1168,23 @@ contains
                       call iw_text(string(nrow))
                    end if
                 end if
-                if (igTableSetColumnIndex(kmod+1)) &
-                   ldum = iw_coloredit(nameguess(i,.true.),rgb=ColorElement(:,i))
+                if (igTableSetColumnIndex(kmod+1)) then
+                   ch = iw_coloredit(nameguess(i,.true.),rgb=ColorElement(:,i))
+                   if (ch .and. w%color_preferences_reset_reps) then
+                      !! reset colors
+                      ! systems
+                      do isys = 1, nsys
+                         call sysc(isys)%sc%reset_atom_colors()
+                      end do
+                      ! alternate view windows
+                      do iwin = 1, nwin
+                         if (win(iwin)%type == wintype_view.and..not.win(iwin)%ismain.and.&
+                            associated(win(iwin)%sc)) then
+                            call win(iwin)%sc%reset_atom_colors()
+                         end if
+                      end do
+                   end if
+                end if
              end do
 
              call igEndTable()

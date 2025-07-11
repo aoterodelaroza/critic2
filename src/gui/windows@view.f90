@@ -1021,8 +1021,6 @@ contains
     class(window), intent(inout), target :: w
     integer, intent(in) :: isys
 
-    logical :: ldum
-
     if (isys < 1 .or. isys > nsys) return
     if (sysc(isys)%status /= sys_init) w%forcerender = .true. ! for removing the last system in tree
     if (w%view_selected == isys) return
@@ -1239,7 +1237,7 @@ contains
     class(window), intent(inout), target :: w
     integer(c_int), intent(in) :: idx(5)
 
-    integer :: nmsel, i
+    integer :: nmsel
     integer :: msel(5,4)
     integer :: idx1(4), idx2(4), idx3(4), idx4(4)
     real*8 :: x0(3), x1(3), x2(3), d, d1, d2, ang, n0(3), n1(3)
