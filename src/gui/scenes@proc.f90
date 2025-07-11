@@ -324,11 +324,6 @@ contains
     logical :: doit
     integer :: i, ifound
 
-    real(c_float), parameter :: rgbmsel(4,4) = reshape((/&
-       1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
-       0.4_c_float, 1._c_float,  0.4_c_float, 0.5_c_float,&
-       0.4_c_float, 0.4_c_float, 1._c_float,  0.5_c_float,&
-       0.9_c_float, 0.7_c_float, 0.4_c_float, 0.5_c_float/),shape(rgbmsel))
     real(c_float), parameter :: msel_thickness = 0.1_c_float
     real(c_float), parameter :: sel_thickness = 0.2_c_float
     real(c_float), parameter :: sel_label_size = 1.2_c_float
@@ -626,6 +621,7 @@ contains
 
     !> Draw the measure selections
     subroutine draw_all_mselections()
+      use gui_main, only: ColorMeasureSelect
       integer :: i, j
       real(c_float) :: x(3)
 
@@ -633,7 +629,8 @@ contains
          i = s%msel(5,j)
          x = s%drawlist_sph(i)%x
          if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
-         call draw_sphere(x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,rgba=rgbmsel(:,j))
+         call draw_sphere(x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,&
+            rgba=ColorMeasureSelect(:,j))
          radsel(j) = s%drawlist_sph(i)%r + msel_thickness
          xsel(:,j) = x
       end do

@@ -831,6 +831,9 @@ contains
 
     ! tree colors
     ColorTableCellBg = ColorTableCellBg_def
+    ColorHighlightScene = ColorHighlightScene_def
+    ColorHighlightSelectScene = ColorHighlightSelectScene_def
+    ColorMeasureSelect = ColorMeasureSelect_def
 
   end subroutine set_default_ui_settings
 

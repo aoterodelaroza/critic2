@@ -877,7 +877,8 @@ contains
   module subroutine draw_preferences(w)
     use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor,&
        tree_select_updates_inpcon, tree_select_updates_view, io, fontsize,&
-       set_default_ui_settings, ColorTableCellBg
+       set_default_ui_settings, ColorTableCellBg, ColorHighlightScene,&
+       ColorHighlightSelectScene, ColorHighlightSelectScene, ColorMeasureSelect
     use interfaces_cimgui
     use keybindings
     use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth, iw_clamp_color4,&
@@ -935,7 +936,7 @@ contains
        str = "Key bindings" // c_null_char
        if (igSelectable_Bool(c_loc(str),logical(catid == 1,c_bool),ImGuiSelectableFlags_None,szero)) catid = 1
        call iw_tooltip("User interface key bindings",ttshown)
-       str = "Tree colors" // c_null_char
+       str = "Colors" // c_null_char
        if (igSelectable_Bool(c_loc(str),logical(catid == 2,c_bool),ImGuiSelectableFlags_None,szero)) catid = 2
        call iw_tooltip("Background colors for the systems in the tree window",ttshown)
     end if
@@ -1091,6 +1092,7 @@ contains
                 call igEndPopup()
              end if
           end if
+
        elseif (catid == 2) then
           !! tree colors
           call iw_text("Tree colors",highlight=.true.)
@@ -1109,6 +1111,22 @@ contains
           call color_edit4("Molecule in a box","A molecule in a large periodic box",ColorTableCellBg(:,6))
           call color_edit4("Molecule","A molecule",ColorTableCellBg(:,7))
           call color_edit4("Molecular cluster","A molecular cluster",ColorTableCellBg(:,8))
+
+          ! UI colors
+          call iw_text("UI colors",highlight=.true.)
+          call igSeparator()
+          call color_edit4("Hovered atom","Atoms hovered by mouse in a table are&
+             & shown in this color in the view window",ColorHighlightScene)
+          call color_edit4("Selected atom","Atoms selected in the view or edit&
+             & geometry windows",ColorHighlightSelectScene)
+          call color_edit4("Measure (1st atom)","Atoms selected by double-click&
+             & when measuring distances and angles",ColorMeasureSelect(:,1))
+          call color_edit4("Measure (2nd atom)","Atoms selected by double-click&
+             & when measuring distances and angles",ColorMeasureSelect(:,2))
+          call color_edit4("Measure (3rd atom)","Atoms selected by double-click&
+             & when measuring distances and angles",ColorMeasureSelect(:,3))
+          call color_edit4("Measure (4th atom)","Atoms selected by double-click&
+             & when measuring distances and angles",ColorMeasureSelect(:,4))
        end if
        call igPopItemWidth()
     end if

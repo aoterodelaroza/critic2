@@ -113,7 +113,7 @@ module utils
        logical :: iw_checkbox
      end function iw_checkbox
      module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
-        noadvance,copy_to_output,centered,rgba)
+        noadvance,copy_to_output,centered,rgb,rgba)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: highlight
        logical, intent(in), optional :: danger
@@ -123,6 +123,7 @@ module utils
        logical, intent(in), optional :: noadvance
        logical, intent(in), optional :: copy_to_output
        logical, intent(in), optional :: centered
+       real(c_float), intent(in), optional :: rgb(3)
        real(c_float), intent(in), optional :: rgba(4)
      end subroutine iw_text
      module function iw_menuitem(label,keybind,selected,enabled,shortcut_text)

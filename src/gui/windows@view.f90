@@ -1232,23 +1232,17 @@ contains
   module subroutine draw_selection_tooltip(w,idx)
     use interfaces_cimgui
     use utils, only: iw_text
-    use gui_main, only: sys, fontsize
+    use gui_main, only: sys, fontsize, ColorMeasureSelect
     use tools_io, only: string
     use tools_math, only: cross
     use param, only: bohrtoa, pi
     class(window), intent(inout), target :: w
     integer(c_int), intent(in) :: idx(5)
 
-    integer :: nmsel
+    integer :: nmsel, i
     integer :: msel(5,4)
     integer :: idx1(4), idx2(4), idx3(4), idx4(4)
     real*8 :: x0(3), x1(3), x2(3), d, d1, d2, ang, n0(3), n1(3)
-
-    real(c_float), parameter :: rgbsel(4,4) = reshape((/&
-       1._c_float,  0.4_c_float, 0.4_c_float, 1._c_float,&
-       0.4_c_float, 1._c_float,  0.4_c_float, 1._c_float,&
-       0.4_c_float, 0.4_c_float, 1._c_float, 1._c_float,&
-       0.9_c_float, 0.7_c_float, 0.4_c_float, 1._c_float/),shape(rgbsel))
 
     if (.not.associated(w%sc)) return
 
@@ -1277,9 +1271,9 @@ contains
     d = norm2(x0)*bohrtoa
     if (abs(d) > 1d-14) then
        call iw_text("d(")
-       call iw_text("1",rgba=rgbsel(:,1),sameline_nospace=.true.)
+       call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
        if (nmsel > 1) then
-          call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
+          call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
        else
           call iw_text("*",sameline_nospace=.true.)
        end if
@@ -1303,9 +1297,9 @@ contains
        d = norm2(x0)*bohrtoa
        if (d > 1d-14) then
           call iw_text("d(")
-          call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
+          call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
           if (nmsel > 2) then
-             call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
+             call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
           else
              call iw_text("*",sameline_nospace=.true.)
           end if
@@ -1325,10 +1319,10 @@ contains
        if (d1 > 1d-14 .and. d2 > 1d-14) then
           ang = acos(dot_product(x0,x1) / d1 / d2) * 180d0 / pi
           call iw_text(", α(",sameline_nospace=.true.)
-          call iw_text("1",rgba=rgbsel(:,1),sameline_nospace=.true.)
-          call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
+          call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
+          call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
           if (nmsel > 2) then
-             call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
+             call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
           else
              call iw_text("*",sameline_nospace=.true.)
           end if
@@ -1353,9 +1347,9 @@ contains
        d = norm2(x0)*bohrtoa
        if (d > 1d-14) then
           call iw_text("d(")
-          call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
+          call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
           if (nmsel > 3) then
-             call iw_text("4",rgba=rgbsel(:,4),sameline_nospace=.true.)
+             call iw_text("4",rgb=ColorMeasureSelect(1:3,4),sameline_nospace=.true.)
           else
              call iw_text("*",sameline_nospace=.true.)
           end if
@@ -1375,10 +1369,10 @@ contains
        if (d1 > 1d-14 .and. d2 > 1d-14) then
           ang = acos(dot_product(x0,x1) / norm2(x0) / norm2(x1)) * 180d0 / pi
           call iw_text(", α(",sameline_nospace=.true.)
-          call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
-          call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
+          call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
+          call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
           if (nmsel > 3) then
-             call iw_text("4",rgba=rgbsel(:,4),sameline_nospace=.true.)
+             call iw_text("4",rgb=ColorMeasureSelect(1:3,4),sameline_nospace=.true.)
           else
              call iw_text("*",sameline_nospace=.true.)
           end if
@@ -1401,11 +1395,11 @@ contains
 
        ang = -atan2(norm2(x1) * dot_product(x0,n1), dot_product(n0,n1)) * 180d0/pi
        call iw_text(", φ(",sameline_nospace=.true.)
-       call iw_text("1",rgba=rgbsel(:,1),sameline_nospace=.true.)
-       call iw_text("2",rgba=rgbsel(:,2),sameline_nospace=.true.)
-       call iw_text("3",rgba=rgbsel(:,3),sameline_nospace=.true.)
+       call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
+       call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
+       call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
        if (nmsel > 3) then
-          call iw_text("4",rgba=rgbsel(:,4),sameline_nospace=.true.)
+          call iw_text("4",rgb=ColorMeasureSelect(1:3,4),sameline_nospace=.true.)
        else
           call iw_text("*",sameline_nospace=.true.)
        end if
@@ -2492,7 +2486,7 @@ contains
     ! process transient highlighs
     if (ihighlight > 0) then
        call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),highlight_type,&
-          reshape((/ColorHighlightScene%x,ColorHighlightScene%y,ColorHighlightScene%z,ColorHighlightScene%w/),(/4,1/)))
+          reshape(ColorHighlightScene,(/4,1/)))
     end if
 
   end function draw_editrep_atoms

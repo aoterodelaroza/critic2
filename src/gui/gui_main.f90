@@ -65,6 +65,14 @@ module gui_main
      0.56_c_float,0.00_c_float,1.00_c_float,0.4_c_float,&  ! single molecule
      1.00_c_float,0.00_c_float,0.66_c_float,0.4_c_float/),&! molecular cluster
      shape(ColorTableCellBg_def))
+  real(c_float), parameter, public :: ColorHighlightScene_def(4) = (/1.0_c_float,1.0_c_float,0.5_c_float,0.7_c_float/) ! hover highlight of atoms in view
+  real(c_float), parameter, public :: ColorHighlightSelectScene_def(4) = (/0.2_c_float,0.64_c_float,0.9_c_float,0.7_c_float/) ! edit geometry selection color
+  real(c_float), parameter, public :: ColorMeasureSelect_def(4,4) = reshape((/&
+     1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
+     0.4_c_float, 1._c_float,  0.4_c_float, 0.5_c_float,&
+     0.4_c_float, 0.4_c_float, 1._c_float, 0.5_c_float,&
+     0.9_c_float, 0.7_c_float, 0.4_c_float, 0.5_c_float/),(/4,4/))
+
   real(c_float), public :: ColorTableCellBg(4,0:8) = ColorTableCellBg_def
   type(ImVec4), parameter, public :: ColorDialogDir = ImVec4(0.9, 0.9, 0.5, 1.0) ! directories in the dialog
   type(ImVec4), parameter, public :: ColorDialogFile = ImVec4(1.0, 1.0, 1.0, 1.0) ! files in the dialog
@@ -73,10 +81,11 @@ module gui_main
   type(ImVec4), parameter, public :: ColorDangerText = ImVec4(0.80, 0.08, 0.08, 1.0) ! important text
   type(ImVec4), parameter, public :: ColorWaitBg = ImVec4(0.80, 0.80, 0.80, 0.6) ! dim the background while waiting
   type(ImVec4), parameter, public :: ColorFrameBgAlt = ImVec4(0.29,0.16,0.48,0.54) ! alternate framebg
-  type(ImVec4), parameter, public :: ColorFieldSelected = ImVec4(0.91,1.00,0.00,0.31) ! alternate framebg
-  type(ImVec4), parameter, public :: ColorTableHighlightRow = ImVec4(1._c_float,0.8_c_float,0.1_c_float,0.5_c_float)
-  type(ImVec4), parameter, public :: ColorHighlightScene = ImVec4(1.0_c_float,1.0_c_float,0.5_c_float,0.7_c_float)
-  type(ImVec4), parameter, public :: ColorHighlightSelectScene = ImVec4(0.2_c_float,0.64_c_float,0.9_c_float,0.7_c_float)
+  type(ImVec4), parameter, public :: ColorFieldSelected = ImVec4(0.91,1.00,0.00,0.31) ! selected field
+  type(ImVec4), parameter, public :: ColorTableHighlightRow = ImVec4(1._c_float,0.8_c_float,0.1_c_float,0.5_c_float) ! selectable highlight color
+  real(c_float), public :: ColorHighlightScene(4) = ColorHighlightScene_def
+  real(c_float), public :: ColorHighlightSelectScene(4) = ColorHighlightSelectScene_def
+  real(c_float), public :: ColorMeasureSelect(4,4) = ColorMeasureSelect_def
 
   ! system status (from lower to higher initialization level)
   integer, parameter, public :: sys_empty = 0 ! not in use

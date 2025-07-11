@@ -342,7 +342,7 @@ contains
   !> a comma after the string). centered = center the text in the window.
   !> rgba = use this color for the text.
   module subroutine iw_text(str,highlight,danger,disabled,sameline,sameline_nospace,&
-     noadvance,copy_to_output,centered,rgba)
+     noadvance,copy_to_output,centered,rgb,rgba)
     use interfaces_cimgui
     use gui_main, only: ColorHighlightText, ColorDangerText
     use tools_io, only: uout
@@ -355,6 +355,7 @@ contains
     logical, intent(in), optional :: noadvance
     logical, intent(in), optional :: copy_to_output
     logical, intent(in), optional :: centered
+    real(c_float), intent(in), optional :: rgb(3)
     real(c_float), intent(in), optional :: rgba(4)
 
     character(len=:,kind=c_char), allocatable, target :: str1
@@ -398,6 +399,12 @@ contains
        call igTextColored(ColorHighlightText,c_loc(str1))
     elseif (danger_) then
        call igTextColored(ColorDangerText,c_loc(str1))
+    elseif (present(rgb)) then
+       col%x = rgb(1)
+       col%y = rgb(2)
+       col%z = rgb(3)
+       col%w = 1._c_float
+       call igTextColored(col,c_loc(str1))
     elseif (present(rgba)) then
        col%x = rgba(1)
        col%y = rgba(2)

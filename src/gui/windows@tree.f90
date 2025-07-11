@@ -2870,8 +2870,7 @@ contains
        w%tied_to_tree = (w%isys == win(iwin_tree)%tree_selected)
        if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
        if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
-       w%geometry_select_rgba = (/ColorHighlightSelectScene%x,ColorHighlightSelectScene%y,&
-          ColorHighlightSelectScene%z,ColorHighlightSelectScene%w/)
+       w%geometry_select_rgba = ColorHighlightSelectScene
     end if
 
     ! if tied to tree, update the isys
@@ -3277,7 +3276,7 @@ contains
     ! hover highlight
     if (ihighlight > 0) then
        call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),w%geometry_atomtype,&
-          reshape((/ColorHighlightScene%x,ColorHighlightScene%y,ColorHighlightScene%z,ColorHighlightScene%w/),(/4,1/)))
+          reshape(ColorHighlightScene,(/4,1/)))
     end if
 
     ! process clicked
