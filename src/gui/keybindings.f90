@@ -125,6 +125,59 @@ module keybindings
   integer(c_int), parameter :: mod_super = 8
   integer(c_int), public :: modbind(BIND_NUM)
 
+  ! The keybinding groups. The first group (1) must be the global.
+  integer, parameter, public :: group_global = 1   ! keybindings that apply everywhere
+  integer, parameter, public :: group_tree = 2     ! if the tree is active
+  integer, parameter, public :: group_inpcon = 3   ! the input console is active
+  integer, parameter, public :: group_dialog = 4   ! a dialog is active
+  integer, parameter, public :: group_view = 5     ! if the view is active
+  integer, parameter, public :: group_editgeom = 6 ! if the edit geometry window is active
+  integer, parameter, public :: group_NUM = 6 ! total number of groups
+
+  ! Names of the keybinding groups
+  character(len=18), parameter, public :: groupnames(group_NUM) = (/&
+     "Global            ",&
+     "Tree Window       ",&
+     "Input Window      ",&
+     "Dialogs           ",&
+     "View Window       ",&
+     "View/Edit Geometry"/)
+
+  ! Bind groups assignment
+  integer, parameter, public :: groupbind(BIND_NUM) = (/&
+     group_global,&   ! BIND_QUIT
+     group_global,&   ! BIND_NEW
+     group_global,&   ! BIND_GEOMETRY
+     group_global,&   ! BIND_OPEN
+     group_global,&   ! BIND_CLOSE
+     group_global,&   ! BIND_REOPEN
+     group_global,&   ! BIND_CLOSE_ALL_DIALOGS
+     group_dialog,&   ! BIND_CLOSE_FOCUSED_DIALOG
+     group_dialog,&   ! BIND_OK_FOCUSED_DIALOG
+     group_tree,&     ! BIND_TREE_REMOVE_SYSTEM_FIELD
+     group_tree,&     ! BIND_TREE_MOVE_UP
+     group_tree,&     ! BIND_TREE_MOVE_DOWN
+     group_inpcon,&   ! BIND_INPCON_RUN
+     group_view,&     ! BIND_VIEW_INC_NCELL
+     group_view,&     ! BIND_VIEW_DEC_NCELL
+     group_view,&     ! BIND_VIEW_ALIGN_A_AXIS
+     group_view,&     ! BIND_VIEW_ALIGN_B_AXIS
+     group_view,&     ! BIND_VIEW_ALIGN_C_AXIS
+     group_view,&     ! BIND_VIEW_ALIGN_X_AXIS
+     group_view,&     ! BIND_VIEW_ALIGN_Y_AXIS
+     group_view,&     ! BIND_VIEW_ALIGN_Z_AXIS
+     group_view,&     ! BIND_VIEW_TOGGLE_ATOMS
+     group_view,&     ! BIND_VIEW_TOGGLE_BONDS
+     group_view,&     ! BIND_VIEW_CYCLE_LABELS
+     group_view,&     ! BIND_VIEW_TOGGLE_CELL
+     group_view,&     ! BIND_NAV_ROTATE
+     group_view,&     ! BIND_NAV_ROTATE_PERP
+     group_view,&     ! BIND_NAV_TRANSLATE
+     group_view,&     ! BIND_NAV_ZOOM
+     group_view,&     ! BIND_NAV_RESET
+     group_view,&     ! BIND_NAV_MEASURE
+     group_editgeom/) ! BIND_EDITGEOM_REMOVE
+
   ! module procedure interfaces
   interface
      module subroutine erase_bind(key, mod, group)
