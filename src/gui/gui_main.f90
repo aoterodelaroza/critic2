@@ -53,7 +53,7 @@ module gui_main
   logical, public :: tree_select_updates_view = .true. ! selecting in tree chooses system in view
   integer, public :: lockbehavior = 1 ! 0=no-lock, 1=only SCF, 2=all systems
 
-  ! GUI colors
+  ! GUI colors, defaults
   real(c_float), parameter, public :: ColorTableCellBg_def(4,0:8) = reshape((/& ! tree table name cell
      0.80_c_float,0.00_c_float,0.00_c_float,0.4_c_float,&  ! 3d periodic
      1.00_c_float,0.43_c_float,0.00_c_float,0.4_c_float,&  ! 3d periodic, layered
@@ -73,7 +73,8 @@ module gui_main
      0.4_c_float, 0.4_c_float, 1._c_float, 0.5_c_float,&
      0.9_c_float, 0.7_c_float, 0.4_c_float, 0.5_c_float/),(/4,4/))
 
-  real(c_float), public :: ColorTableCellBg(4,0:8) = ColorTableCellBg_def
+  ! GUI colors, actual values
+  real(c_float), public :: ColorTableCellBg(4,0:8)
   type(ImVec4), parameter, public :: ColorDialogDir = ImVec4(0.9, 0.9, 0.5, 1.0) ! directories in the dialog
   type(ImVec4), parameter, public :: ColorDialogFile = ImVec4(1.0, 1.0, 1.0, 1.0) ! files in the dialog
   type(ImVec4), parameter, public :: ColorHighlightText = ImVec4(0.2, 0.64, 0.9, 1.0) ! highlighted text
@@ -83,9 +84,12 @@ module gui_main
   type(ImVec4), parameter, public :: ColorFrameBgAlt = ImVec4(0.29,0.16,0.48,0.54) ! alternate framebg
   type(ImVec4), parameter, public :: ColorFieldSelected = ImVec4(0.91,1.00,0.00,0.31) ! selected field
   type(ImVec4), parameter, public :: ColorTableHighlightRow = ImVec4(1._c_float,0.8_c_float,0.1_c_float,0.5_c_float) ! selectable highlight color
-  real(c_float), public :: ColorHighlightScene(4) = ColorHighlightScene_def
-  real(c_float), public :: ColorHighlightSelectScene(4) = ColorHighlightSelectScene_def
-  real(c_float), public :: ColorMeasureSelect(4,4) = ColorMeasureSelect_def
+  real(c_float), public :: ColorHighlightScene(4)
+  real(c_float), public :: ColorHighlightSelectScene(4)
+  real(c_float), public :: ColorMeasureSelect(4,4)
+
+  ! element colors
+  real(c_float), public :: ColorElement(3,0:maxzat0)
 
   ! system status (from lower to higher initialization level)
   integer, parameter, public :: sys_empty = 0 ! not in use

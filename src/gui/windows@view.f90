@@ -1681,12 +1681,12 @@ contains
   !> the scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_atoms(w,ttshown) result(changed)
     use scenes, only: representation
-    use gui_main, only: sys, sysc, g, ColorHighlightScene
+    use gui_main, only: sys, sysc, g, ColorHighlightScene, ColorElement
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&
        iw_highlight_selectable
-    use param, only: atmcov, atmvdw, jmlcol, jmlcol2, newline
+    use param, only: atmcov, atmvdw, newline, jmlcol, jmlcol2
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical(c_bool) :: changed
@@ -1940,7 +1940,8 @@ contains
              end if
 
              ! style buttons: set color
-             call iw_combo_simple("Colors ##atomcolorselect","jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
+             call iw_combo_simple("Colors ##atomcolorselect","Current defaults" // c_null_char //&
+                "jmol (light)" // c_null_char // "jmol2 (dark)" // c_null_char,&
                 w%rep%atom_color_reset_type,changed=ch)
              call iw_tooltip("Set the color of all atoms to the tabulated values",ttshown)
              if (ch) then
@@ -1954,6 +1955,8 @@ contains
                    end if
                    iz = sys(isys)%c%spc(ispc)%z
                    if (w%rep%atom_color_reset_type == 0) then
+                      w%rep%atom_style%rgb(:,i) = ColorElement(:,iz)
+                   elseif (w%rep%atom_color_reset_type == 1) then
                       w%rep%atom_style%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
                    else
                       w%rep%atom_style%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float

@@ -747,7 +747,7 @@ contains
        elseif (w%type == wintype_preferences) then
           w%name = "Preferences##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 70 * fontsize%x
+          inisize%x = 81 * fontsize%x
           inisize%y = 33 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_treeplot) then
@@ -875,14 +875,17 @@ contains
 
   !> Draw the preferences window
   module subroutine draw_preferences(w)
+    use tools_io, only: nameguess, string
     use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor,&
        tree_select_updates_inpcon, tree_select_updates_view, io, fontsize,&
        set_default_ui_settings, ColorTableCellBg, ColorHighlightScene,&
-       ColorHighlightSelectScene, ColorHighlightSelectScene, ColorMeasureSelect
+       ColorHighlightSelectScene, ColorHighlightSelectScene, ColorMeasureSelect, &
+       ColorElement
     use interfaces_cimgui
     use keybindings
     use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth, iw_clamp_color4,&
-       iw_checkbox
+       iw_checkbox, iw_coloredit
+    use param, only: maxzat0
     class(window), intent(inout), target :: w
 
     character(kind=c_char,len=:), allocatable, target :: str, str2, zeroc
@@ -890,7 +893,7 @@ contains
     logical(c_bool) :: ldum
     logical :: doquit
     type(ImVec2) :: sz, szero
-    integer :: i, newkey, igroup
+    integer :: i, newkey, igroup, kmod, nrow
     integer(c_int) :: flags
     real(c_float) :: width
 
@@ -910,7 +913,7 @@ contains
     szero%y = 0
 
     ! text filter
-    call igAlignTextToFramePadding();
+    call igAlignTextToFramePadding()
     call iw_text("Filter")
     call igSameLine(0._c_float,-1._c_float)
     if (.not.c_associated(cfilter)) &
@@ -1096,7 +1099,7 @@ contains
 
        elseif (catid == 2) then
           !! tree colors
-          call iw_text("Tree colors",highlight=.true.)
+          call iw_text("Tree window",highlight=.true.)
           call igSeparator()
 
           ! color editors
@@ -1113,8 +1116,8 @@ contains
           call color_edit4("Molecule","A molecule",ColorTableCellBg(:,7))
           call color_edit4("Molecular cluster","A molecular cluster",ColorTableCellBg(:,8))
 
-          ! UI colors
-          call iw_text("UI colors",highlight=.true.)
+          ! atom selection and highlights
+          call iw_text("Atom selection and highlights",highlight=.true.)
           call igSeparator()
           call color_edit4("Hovered atom","Atoms hovered by mouse in a table are&
              & shown in this color in the view window",ColorHighlightScene)
@@ -1128,6 +1131,45 @@ contains
              & when measuring distances and angles",ColorMeasureSelect(:,3))
           call color_edit4("Measure (4th atom)","Atoms selected by double-click&
              & when measuring distances and angles",ColorMeasureSelect(:,4))
+
+          ! elements
+          call iw_text("Elements",highlight=.true.)
+          call igSeparator()
+          ! ldum = iw_checkbox(str,tooltip_enabled)
+
+          str = "##elementcolortable" // c_null_char
+          flags = ImGuiTableFlags_NoSavedSettings
+          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          flags = ior(flags,ImGuiTableFlags_Borders)
+          if (igBeginTable(c_loc(str),11,flags,szero,0._c_float)) then
+             ! header
+             call igTableSetupColumn(c_null_ptr,ImGuiTableColumnFlags_None,iw_calcwidth(2,0),0)
+             width = iw_calcwidth(5,0)
+             do i = 0, 9
+                str = string(i) // c_null_char
+                call igTableSetupColumn(c_loc(str),ImGuiTableColumnFlags_None,width,i+1)
+             end do
+             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+             call igTableHeadersRow()
+
+             nrow = -1
+             do i = 0, maxzat0
+                kmod = mod(i,10)
+                if (kmod == 0) then
+                   call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                   if (igTableSetColumnIndex(0)) then
+                      call igAlignTextToFramePadding()
+                      nrow = nrow + 1
+                      call iw_text(string(nrow))
+                   end if
+                end if
+                if (igTableSetColumnIndex(kmod+1)) &
+                   ldum = iw_coloredit(nameguess(i,.true.),rgb=ColorElement(:,i))
+             end do
+
+             call igEndTable()
+          end if
+
        end if
        call igPopItemWidth()
     end if

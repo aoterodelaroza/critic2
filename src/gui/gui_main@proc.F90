@@ -817,6 +817,7 @@ contains
   !> Reset all user interface settings to their default values
   module subroutine set_default_ui_settings()
     use keybindings, only: set_default_keybindings
+    use param, only: JMLcol
 
     ! interface settings
     io%FontGlobalScale = 1._c_float
@@ -834,6 +835,7 @@ contains
     ColorHighlightScene = ColorHighlightScene_def
     ColorHighlightSelectScene = ColorHighlightSelectScene_def
     ColorMeasureSelect = ColorMeasureSelect_def
+    ColorElement = real(JMLcol,c_float) / 255._c_float
 
   end subroutine set_default_ui_settings
 

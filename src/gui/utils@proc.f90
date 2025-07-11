@@ -50,6 +50,7 @@ contains
     real(c_float), intent(inout), optional :: rgb(3)
     real(c_float), intent(inout), optional :: rgba(4)
     logical, intent(in), optional :: sameline, nolabel, nointeraction
+    logical :: iw_coloredit
 
     character(len=:,kind=c_char), allocatable, target :: str1
     logical :: sameline_, nolabel_, nointeraction_

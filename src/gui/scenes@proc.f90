@@ -1959,8 +1959,8 @@ contains
   !> if system is not ready.
   module subroutine reset_atom_style(d,isys)
     use interfaces_glfw, only: glfwGetTime
-    use gui_main, only: sys, sys_ready, ok_system
-    use param, only: jmlcol, atmcov
+    use gui_main, only: sys, sys_ready, ok_system, ColorElement
+    use param, only: atmcov
     class(draw_style_atom), intent(inout), target :: d
     integer, intent(in) :: isys
 
@@ -1992,7 +1992,7 @@ contains
        allocate(d%rad(d%ntype))
        do i = 1, d%ntype
           iz = sys(isys)%c%spc(i)%z
-          d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+          d%rgb(:,i) = ColorElement(:,iz)
           d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
        end do
     elseif (d%type == 1) then ! nneq
@@ -2002,7 +2002,7 @@ contains
        do i = 1, sys(isys)%c%nneq
           ispc = sys(isys)%c%at(i)%is
           iz = sys(isys)%c%spc(ispc)%z
-          d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+          d%rgb(:,i) = ColorElement(:,iz)
           d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
        end do
     else ! ncel
@@ -2012,7 +2012,7 @@ contains
        do i = 1, sys(isys)%c%ncel
           ispc = sys(isys)%c%atcel(i)%is
           iz = sys(isys)%c%spc(ispc)%z
-          d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+          d%rgb(:,i) = ColorElement(:,iz)
           d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
        end do
     end if
