@@ -840,7 +840,6 @@ contains
   !> parameters from that scene.
   module subroutine scene_cam_copy(s,si)
     use interfaces_glfw, only: glfwGetTime
-    use gui_main, only: nsys, sysc
     class(scene), intent(inout), target :: s
     type(scene), intent(in), target :: si
 
@@ -1243,7 +1242,7 @@ contains
   !> Generate the neighbor stars from the data in the rij table using
   !> the geometry in system isys.
   module subroutine generate_neighstars(d,isys)
-    use gui_main, only: sys, sysc, sys_ready, ok_system
+    use gui_main, only: sys, sys_ready, ok_system
     use param, only: bohrtoa, atmcov, atmvdw
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in) :: isys
@@ -1292,8 +1291,7 @@ contains
 
   !> Copy the neighbor stars from the given system.
   module subroutine copy_neighstars_from_system(d,isys)
-    use gui_main, only: sys, sysc, sys_ready, ok_system
-    use param, only: bohrtoa, atmcov, atmvdw
+    use gui_main, only: sys, sys_ready, ok_system
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in) :: isys
 
@@ -1436,7 +1434,7 @@ contains
   !> Update the representation to respond to a change in the number
   !> of atoms or molecules in the associated system.
   module subroutine update_structure(r)
-    use gui_main, only: sys, sys_ready, ok_system, sysc
+    use gui_main, only: sys_ready, ok_system, sysc
     class(representation), intent(inout), target :: r
 
     logical :: doreset
@@ -2032,7 +2030,6 @@ contains
   module subroutine reset_colors_atom_style(d,isys)
     use interfaces_glfw, only: glfwGetTime
     use gui_main, only: sys, sys_ready, ok_system, ColorElement
-    use param, only: atmcov
     class(draw_style_atom), intent(inout), target :: d
     integer, intent(in) :: isys
 
@@ -2110,7 +2107,7 @@ contains
     integer, intent(in) :: isys
     integer, intent(in), optional :: flavor
 
-    integer :: i, j, n, iz
+    integer :: i, j, iz
     integer :: flavor_
 
     ! optional arguments

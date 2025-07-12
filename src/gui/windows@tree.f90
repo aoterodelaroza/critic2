@@ -41,11 +41,9 @@ contains
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
        iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_ready,&
-       sys_loaded_not_init, sys_initializing,&
-       launch_initialization_thread, ColorTableCellBg,&
-       kill_initialization_thread, system_shorten_names, remove_system, tooltip_delay,&
-       ColorDangerButton, ColorFieldSelected, g, tree_select_updates_inpcon,&
-       tree_select_updates_view, fontsize, ok_system
+       sys_loaded_not_init, launch_initialization_thread, ColorTableCellBg,&
+       kill_initialization_thread, system_shorten_names, tooltip_delay,&
+       ColorDangerButton, ColorFieldSelected, g, fontsize, ok_system
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
@@ -62,12 +60,12 @@ contains
     type(ImVec2) :: szero, sz
     type(ImVec4) :: col4
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, nshown, newsel, jsel, ll, id, iref, inext, iprev, iaux, nfreal
+    integer :: i, j, k, nshown, jsel, ll, id, iref, inext, iprev, iaux, nfreal
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
-    logical :: hadenabledcolumn, reinit, isend, ok, found
+    logical :: hadenabledcolumn, isend, ok, found
     logical :: export, didtableselected, hadrow
     real(c_float) :: width, pos
     type(c_ptr), target :: clipper
@@ -97,7 +95,7 @@ contains
     do i = 1, nsys
        ! if a system has changed fundamentally, the table needs an update (maybe)
        if (w%timelast_tree_update < sysc(i)%timelastchange_geometry) w%forceupdate = .true.
-       ! if a system has been rebonded, the "nmol" column may have changed
+       ! if a system has been rebonded, the "nmol" column may have changed: sort and resize
        if (w%timelast_tree_resize < sysc(i)%timelastchange_rebond) w%forceresize = .true.
        if (w%timelast_tree_sort < sysc(i)%timelastchange_rebond) w%forcesort = .true.
     end do
@@ -185,75 +183,17 @@ contains
     end if
     call iw_tooltip("Clear the filter",ttshown)
 
-    ! process force options
-    if (allocated(w%forceremove)) then
-       ! stop all initialization threads, if any of the systems to
-       ! remove may be initialized in the near future
-       if (any((sysc(w%forceremove)%status == sys_loaded_not_init.and..not.sysc(w%forceremove)%hidden).or.&
-                sysc(w%forceremove)%status == sys_initializing)) then
-          call kill_initialization_thread()
-          reinit = .true.
-       else
-          reinit = .false.
-       end if
-
-       ! remove a system and move the table selection if the system was selected
-       do k = 1, size(w%forceremove,1)
-          call remove_system(w%forceremove(k))
-          ! if we removed the selected system, go to the next; either, go to the previous
-          if (w%forceremove(k) == w%tree_selected) then
-             jsel = 0
-             do j = 1, size(w%iord,1)
-                if (w%iord(j) == w%tree_selected) then
-                   jsel = j
-                   exit
-                end if
-             end do
-             if (jsel > 0) then
-                newsel = 0
-                do j = jsel, size(w%iord,1)
-                   i = w%iord(j)
-                   if (sysc(i)%status /= sys_init) cycle
-                   if (c_associated(cfilter)) then
-                      str = trim(sysc(i)%seed%name) // c_null_char
-                      if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
-                   end if
-                   newsel = i
-                   exit
-                end do
-                if (newsel == 0) then
-                   do j = jsel, 1, -1
-                      i = w%iord(j)
-                      if (sysc(i)%status /= sys_init) cycle
-                      if (c_associated(cfilter)) then
-                         str = trim(sysc(i)%seed%name) // c_null_char
-                         if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
-                      end if
-                      newsel = i
-                      exit
-                   end do
-                   if (newsel == 0) newsel = 1
-                end if
-             else
-                newsel = 1
-             end if
-             call select_system(newsel,.false.)
-          end if
-          ! if we removed the system for the input console or the view, update
-          if (w%forceremove(k) == win(iwin_console_input)%inpcon_selected) &
-             win(iwin_console_input)%inpcon_selected = w%tree_selected
-          if (w%forceremove(k) == win(iwin_view)%view_selected) &
-             call win(iwin_view)%select_view(w%tree_selected)
-       end do
-       deallocate(w%forceremove)
-       ! restart initialization if the threads were killed
-       if (reinit) w%forceinit = .true.
-       w%forceupdate = .true.
-    end if
+    !! process force options !!
+    ! remove systems from the tree
+    if (allocated(w%forceremove)) &
+       call w%remove_systems_tree(cfilter)
+    ! remap the tree index (iord)
     if (w%forceupdate) &
-       call w%update_tree()
+       call w%remap_tree()
+    ! sort the tree
     if (w%forcesort) &
-       call w%sort_tree(w%tree_sortcid,w%tree_sortdir)
+       call w%sort_tree()
+    ! re-run the initialization threads
     if (w%forceinit) then
        call kill_initialization_thread()
        call launch_initialization_thread()
@@ -261,10 +201,10 @@ contains
     end if
     nshown = size(w%iord,1)
 
+    ! final message in the header line
     ok = (nshown > 1)
     if (.not.ok) &
        ok = (sysc(w%iord(1))%status /= sys_empty)
-    ! final message in the header line
     if (ok) &
        call iw_text(" " // string(shown_after_filter) // "/" // string(nshown) // " shown",&
        sameline=.true.)
@@ -552,7 +492,7 @@ contains
                       call igPushStyleColor_Vec4(ImGuiCol_Header,ColorFieldSelected)
                       flags = ImGuiSelectableFlags_SpanAllColumns
                       if (igSelectable_Bool(c_loc(str),isel,flags,szero)) then
-                         call select_system(i,.false.)
+                         call w%select_system_tree(i)
                          call sys(i)%set_reference(k,.false.)
                       end if
                       call igPopStyleColor(1)
@@ -966,7 +906,7 @@ contains
       ok = igSelectable_Bool(c_loc(strl),selected,flags,szero)
       ok = ok .or. (w%forceselect == isys)
       if (ok) then
-         call select_system(isys,.false.)
+         call w%select_system_tree(isys)
          if (w%forceselect > 0) then
             w%forceselect = 0
             call igSetKeyboardFocusHere(0)
@@ -1082,7 +1022,7 @@ contains
 
          ! set as current system option
          if (iw_menuitem("Set as Current System",enabled=enabled_no_threads)) &
-            call select_system(isys,.true.)
+            call w%select_system_tree(isys)
          call iw_tooltip("Set this system as the current system",ttshown)
 
          ! set as current system option
@@ -1174,32 +1114,19 @@ contains
       sysc(i)%collapse = -1
       ! selected goes to master
       if (w%tree_selected >= 1 .and. w%tree_selected <= nsys) then
-         if (sysc(w%tree_selected)%collapse == i) call select_system(i,.true.)
+         if (sysc(w%tree_selected)%collapse == i) &
+            call w%select_system_tree(i)
       end if
       w%forceupdate = .true.
 
     end subroutine collapse_system
-
-    ! Select table system i. If force, change inpcon and view selections
-    ! even if disabled by the preferences.
-    subroutine select_system(i,force)
-      integer, intent(in) :: i
-      logical, intent(in) :: force
-
-      w%tree_selected = i
-      if (tree_select_updates_inpcon .or. force) &
-         win(iwin_console_input)%inpcon_selected = i
-      if (tree_select_updates_view .or. force) &
-         call win(iwin_view)%select_view(i)
-
-    end subroutine select_system
 
   end subroutine draw_tree
 
   ! Update the table rows by building a new row index array
   ! (iord). Only the systems that are not empty are pointed by
   ! iord. This routine is used when the systems change.
-  module subroutine update_tree(w)
+  module subroutine remap_tree(w)
     use interfaces_glfw, only: glfwGetTime
     use gui_main, only: sysc, nsys, sys_empty
     class(window), intent(inout) :: w
@@ -1223,11 +1150,11 @@ contains
     w%forcesort = .true.
     w%timelast_tree_update = glfwGetTime()
 
-  end subroutine update_tree
+  end subroutine remap_tree
 
   ! Sort the table row order by column cid and in direction dir
   ! (ascending=1, descending=2). Modifies the w%iord.
-  module subroutine sort_tree(w,cid,dir)
+  module subroutine sort_tree(w)
     use interfaces_glfw, only: glfwGetTime
     use gui_main, only: sys, sysc, sys_init, sys_empty
     use tools, only: mergesort
@@ -1235,7 +1162,6 @@ contains
     use tools_io, only: ferror, faterr
     use types, only: vstring
     class(window), intent(inout) :: w
-    integer(c_int), intent(in) :: cid, dir
 
     integer :: i, n, nvalid, nnovalid
     integer, allocatable :: ival(:), iperm(:), ivalid(:), inovalid(:)
@@ -1253,18 +1179,19 @@ contains
     valid = .true.
 
     ! different types, different sorts
-    if (cid == ic_tree_id .or. cid == ic_tree_nneq .or. cid == ic_tree_ncel .or. cid == ic_tree_nmol) then
+    if (w%tree_sortcid == ic_tree_id.or.w%tree_sortcid == ic_tree_nneq.or.w%tree_sortcid == ic_tree_ncel.or.&
+       w%tree_sortcid == ic_tree_nmol) then
        ! sort by integer
        allocate(ival(n))
        do i = 1, n
-          if (cid == ic_tree_id) then
+          if (w%tree_sortcid == ic_tree_id) then
              ival(i) = w%iord(i)
           elseif (sysc(w%iord(i))%status == sys_init) then
-             if (cid == ic_tree_nneq) then
+             if (w%tree_sortcid == ic_tree_nneq) then
                 ival(i) = sys(w%iord(i))%c%nneq
-             elseif (cid == ic_tree_ncel) then
+             elseif (w%tree_sortcid == ic_tree_ncel) then
                 ival(i) = sys(w%iord(i))%c%ncel
-             elseif (cid == ic_tree_nmol) then
+             elseif (w%tree_sortcid == ic_tree_nmol) then
                 ival(i) = sys(w%iord(i))%c%nmol
              end if
           else
@@ -1274,35 +1201,37 @@ contains
        end do
        call mergesort(ival,iperm,1,n)
        deallocate(ival)
-    elseif (cid == ic_tree_v .or. cid == ic_tree_a .or. cid == ic_tree_b .or. cid == ic_tree_c .or.&
-       cid == ic_tree_alpha .or. cid == ic_tree_beta .or. cid == ic_tree_gamma .or. cid == ic_tree_vmol.or.&
-       cid == ic_tree_e .or. cid == ic_tree_emol .or. cid == ic_tree_p) then
+    elseif (w%tree_sortcid == ic_tree_v.or.w%tree_sortcid == ic_tree_a.or.w%tree_sortcid == ic_tree_b.or.&
+       w%tree_sortcid == ic_tree_c.or.w%tree_sortcid == ic_tree_alpha.or.w%tree_sortcid == ic_tree_beta.or.&
+       w%tree_sortcid == ic_tree_gamma.or.w%tree_sortcid == ic_tree_vmol.or.&
+       w%tree_sortcid == ic_tree_e.or.w%tree_sortcid == ic_tree_emol.or.w%tree_sortcid == ic_tree_p) then
        ! sort by real
        allocate(rval(n))
        do i = 1, n
           doit = sysc(w%iord(i))%status == sys_init
           if (doit) doit = (.not.sys(w%iord(i))%c%ismolecule)
-          if (cid == ic_tree_v .and. doit) then
+          if (w%tree_sortcid == ic_tree_v .and. doit) then
              rval(i) = sys(w%iord(i))%c%omega
-          elseif (cid == ic_tree_a .and. doit) then
+          elseif (w%tree_sortcid == ic_tree_a .and. doit) then
              rval(i) = sys(w%iord(i))%c%aa(1)
-          elseif (cid == ic_tree_b .and. doit) then
+          elseif (w%tree_sortcid == ic_tree_b .and. doit) then
              rval(i) = sys(w%iord(i))%c%aa(2)
-          elseif (cid == ic_tree_c .and. doit) then
+          elseif (w%tree_sortcid == ic_tree_c .and. doit) then
              rval(i) = sys(w%iord(i))%c%aa(3)
-          elseif (cid == ic_tree_alpha .and. doit) then
+          elseif (w%tree_sortcid == ic_tree_alpha .and. doit) then
              rval(i) = sys(w%iord(i))%c%bb(1)
-          elseif (cid == ic_tree_beta .and. doit) then
+          elseif (w%tree_sortcid == ic_tree_beta .and. doit) then
              rval(i) = sys(w%iord(i))%c%bb(2)
-          elseif (cid == ic_tree_gamma .and. doit) then
+          elseif (w%tree_sortcid == ic_tree_gamma .and. doit) then
              rval(i) = sys(w%iord(i))%c%bb(3)
-          elseif (cid == ic_tree_vmol .and. doit) then
+          elseif (w%tree_sortcid == ic_tree_vmol .and. doit) then
              rval(i) = sys(w%iord(i))%c%omega / sys(w%iord(i))%c%nmol
-          elseif (cid == ic_tree_e .and. sysc(w%iord(i))%seed%energy /= huge(1d0)) then
+          elseif (w%tree_sortcid == ic_tree_e .and. sysc(w%iord(i))%seed%energy /= huge(1d0)) then
              rval(i) = sysc(w%iord(i))%seed%energy
-          elseif (cid == ic_tree_emol .and. sysc(w%iord(i))%status == sys_init .and. sysc(w%iord(i))%seed%energy /= huge(1d0)) then
+          elseif (w%tree_sortcid == ic_tree_emol .and. sysc(w%iord(i))%status == sys_init .and.&
+             sysc(w%iord(i))%seed%energy /= huge(1d0)) then
              rval(i) = sysc(w%iord(i))%seed%energy / sys(w%iord(i))%c%nmol
-          elseif (cid == ic_tree_p .and. sysc(w%iord(i))%seed%pressure /= huge(1d0)) then
+          elseif (w%tree_sortcid == ic_tree_p .and. sysc(w%iord(i))%seed%pressure /= huge(1d0)) then
              rval(i) = sysc(w%iord(i))%seed%pressure
           else
              rval(i) = huge(1d0)
@@ -1311,14 +1240,15 @@ contains
        end do
        call mergesort(rval,iperm,1,n)
        deallocate(rval)
-    elseif (cid == ic_tree_name .or. cid == ic_tree_spg) then
+    elseif (w%tree_sortcid == ic_tree_name .or. w%tree_sortcid == ic_tree_spg) then
        ! sort by string
        allocate(sval(n))
        do i = 1, n
-          if (cid == ic_tree_name .and. sysc(w%iord(i))%status /= sys_empty .and..not.sysc(w%iord(i))%hidden) then
+          if (w%tree_sortcid == ic_tree_name .and. sysc(w%iord(i))%status /= sys_empty.and.&
+             .not.sysc(w%iord(i))%hidden) then
              sval(i)%s = trim(sysc(w%iord(i))%seed%name)
           else
-             doit = (cid == ic_tree_spg) .and. (sysc(w%iord(i))%status == sys_init)
+             doit = (w%tree_sortcid == ic_tree_spg) .and. (sysc(w%iord(i))%status == sys_init)
              if (doit) doit = .not.sys(w%iord(i))%c%ismolecule
              if (doit) doit = sys(w%iord(i))%c%spgavail
              if (doit) then
@@ -1350,7 +1280,7 @@ contains
        end if
     end do
     do i = nvalid, 1, -1
-       if (dir == 2) then
+       if (w%tree_sortdir == 2) then
           iperm(nvalid-i+1) = ivalid(i)
        else
           iperm(i) = ivalid(i)
@@ -1369,6 +1299,96 @@ contains
     w%timelast_tree_sort = glfwGetTime()
 
   end subroutine sort_tree
+
+  !> Remove systems given by index idx from the tree.
+  module subroutine remove_systems_tree(w,cfilter)
+    use gui_main, only: sysc, sys_init, sys_initializing, sys_loaded_not_init,&
+       kill_initialization_thread, remove_system
+    class(window), intent(inout) :: w
+    type(c_ptr), intent(inout) :: cfilter
+
+    logical :: reinit
+    integer :: i, j, jsel, k, newsel
+    character(kind=c_char,len=:), allocatable, target :: str
+
+    ! stop all initialization threads, if any of the systems to
+    ! remove may be initialized in the near future
+    if (any((sysc(w%forceremove)%status == sys_loaded_not_init.and..not.sysc(w%forceremove)%hidden).or.&
+       sysc(w%forceremove)%status == sys_initializing)) then
+       call kill_initialization_thread()
+       reinit = .true.
+    else
+       reinit = .false.
+    end if
+
+    ! remove a system and move the table selection if the system was selected
+    do k = 1, size(w%forceremove,1)
+       call remove_system(w%forceremove(k))
+       ! if we removed the selected system, go to the next; either, go to the previous
+       if (w%forceremove(k) == w%tree_selected) then
+          jsel = 0
+          do j = 1, size(w%iord,1)
+             if (w%iord(j) == w%tree_selected) then
+                jsel = j
+                exit
+             end if
+          end do
+          if (jsel > 0) then
+             newsel = 0
+             do j = jsel, size(w%iord,1)
+                i = w%iord(j)
+                if (sysc(i)%status /= sys_init) cycle
+                if (c_associated(cfilter)) then
+                   str = trim(sysc(i)%seed%name) // c_null_char
+                   if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
+                end if
+                newsel = i
+                exit
+             end do
+             if (newsel == 0) then
+                do j = jsel, 1, -1
+                   i = w%iord(j)
+                   if (sysc(i)%status /= sys_init) cycle
+                   if (c_associated(cfilter)) then
+                      str = trim(sysc(i)%seed%name) // c_null_char
+                      if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
+                   end if
+                   newsel = i
+                   exit
+                end do
+                if (newsel == 0) newsel = 1
+             end if
+          else
+             newsel = 1
+          end if
+          call w%select_system_tree(newsel)
+       end if
+       ! if we removed the system for the input console or the view, update
+       if (w%forceremove(k) == win(iwin_console_input)%inpcon_selected) &
+          win(iwin_console_input)%inpcon_selected = w%tree_selected
+       if (w%forceremove(k) == win(iwin_view)%view_selected) &
+          call win(iwin_view)%select_view(w%tree_selected)
+    end do
+    deallocate(w%forceremove)
+    ! restart initialization if the threads were killed
+    if (reinit) w%forceinit = .true.
+    w%forceupdate = .true.
+
+  end subroutine remove_systems_tree
+
+  !> Select system idx from the tree
+  module subroutine select_system_tree(w,idx)
+    use gui_main, only: tree_select_updates_inpcon, tree_select_updates_view
+    class(window), intent(inout) :: w
+    integer, intent(in) :: idx
+
+    w%tree_selected = idx
+    if (tree_select_updates_inpcon) &
+       win(iwin_console_input)%inpcon_selected = idx
+    if (tree_select_updates_view) &
+       call win(iwin_view)%select_view(idx)
+
+  end subroutine select_system_tree
 
   !xx! private procedures
 

@@ -173,8 +173,11 @@ module windows
      procedure :: draw => window_draw ! draw the window, calls one of the draw commands below
      ! tree procedures
      procedure :: draw_tree ! draw a tree
-     procedure :: update_tree ! update the system information shown by the tree
+     procedure :: remap_tree ! update the system information shown by the tree
      procedure :: sort_tree ! sort the systems in the tree
+     procedure :: remove_systems_tree ! remove systems from the tree
+     procedure :: select_system_tree ! select a system in the tree
+     ! treeplot procedures
      procedure :: draw_treeplot
      ! view procedures
      procedure :: draw_view ! draw a view
@@ -347,13 +350,20 @@ module windows
      module subroutine draw_tree(w)
        class(window), intent(inout), target :: w
      end subroutine draw_tree
-     module subroutine update_tree(w)
+     module subroutine remap_tree(w)
        class(window), intent(inout) :: w
-     end subroutine update_tree
-     module subroutine sort_tree(w,cid,dir)
+     end subroutine remap_tree
+     module subroutine sort_tree(w)
        class(window), intent(inout) :: w
-       integer(c_int), intent(in) :: cid, dir
      end subroutine sort_tree
+     module subroutine remove_systems_tree(w,cfilter)
+       class(window), intent(inout) :: w
+       type(c_ptr), intent(inout) :: cfilter
+     end subroutine remove_systems_tree
+     module subroutine select_system_tree(w,idx)
+       class(window), intent(inout) :: w
+       integer, intent(in) :: idx
+     end subroutine select_system_tree
      module subroutine draw_treeplot(w)
        class(window), intent(inout), target :: w
      end subroutine draw_treeplot
