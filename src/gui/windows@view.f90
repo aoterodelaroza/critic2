@@ -104,9 +104,10 @@ contains
        w%mousepos_lastframe%y = 0._c_float
     end if
 
-    ! update the tree based on time signals between dependent windows
-    if (w%timelast_view_assign < win(iwin_tree)%timelast_tree_assign.and.&
-       tree_select_updates_view) then
+    !! update the tree based on time signals between dependent windows
+    ! track the tree system if this is the main view and the option is active
+    if (w%timelast_view_assign < win(iwin_tree)%timelast_tree_assign .and.&
+       w%ismain .and. tree_select_updates_view) then
        call w%select_view(win(iwin_tree)%tree_selected)
     end if
 
