@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Routines for the view/edit geometry window.
-submodule (windows) edit_geometry
+submodule (windows) geometry
   use interfaces_cimgui
   implicit none
 contains
@@ -561,4 +561,4 @@ contains
 
   end subroutine draw_geometry
 
-end submodule edit_geometry
+end submodule geometry
