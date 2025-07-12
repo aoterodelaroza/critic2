@@ -102,6 +102,7 @@ module windows
      integer(c_int) :: tree_sortdir = 1 ! sort table with this direction
      integer :: forceselect = 0 ! make the tree select this system in the next pass
      real*8 :: timelast_tree_update = 0d0 ! time the tree was last updated
+     real*8 :: timelast_tree_reassign = 0d0 ! time the tree was last reassigned
      real*8 :: timelast_tree_resize = 0d0 ! time the tree columnes were last resized
      real*8 :: timelast_tree_sort = 0d0   ! time the tree was last sorted
      ! view parameters
@@ -171,6 +172,7 @@ module windows
      procedure :: remap_tree ! update the system information shown by the tree
      procedure :: sort_tree ! sort the systems in the tree
      procedure :: remove_systems_tree ! remove systems from the tree
+     procedure :: reassign_tree ! reassign the currently selected system in the tree
      procedure :: select_system_tree ! select a system in the tree
      ! treeplot procedures
      procedure :: draw_treeplot
@@ -351,11 +353,14 @@ module windows
      module subroutine sort_tree(w)
        class(window), intent(inout) :: w
      end subroutine sort_tree
-     module subroutine remove_systems_tree(w,cfilter,idx)
+     module subroutine remove_systems_tree(w,idx)
        class(window), intent(inout) :: w
-       type(c_ptr), intent(inout) :: cfilter
        integer, intent(in) :: idx(:)
      end subroutine remove_systems_tree
+     module subroutine reassign_tree(w,cfilter)
+       class(window), intent(inout) :: w
+       type(c_ptr), intent(inout) :: cfilter
+     end subroutine reassign_tree
      module subroutine select_system_tree(w,idx)
        class(window), intent(inout) :: w
        integer, intent(in) :: idx

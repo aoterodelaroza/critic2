@@ -60,19 +60,22 @@ contains
     type(ImVec2) :: szero, sz
     type(ImVec4) :: col4
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, nshown, jsel, ll, id, iref, inext, iprev, iaux, nfreal
+    integer :: i, j, k, jsel, ll, id, iref, inext, iprev, iaux, nfreal
+    integer :: nshown, nshown_after_filter
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     logical :: hadenabledcolumn, isend, ok, found, reinit
-    logical :: export, didtableselected, hadrow
+    logical :: export, didtableselected
     real(c_float) :: width, pos
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
+    integer, allocatable :: ishown(:)
 
     integer, allocatable, save :: forceremove(:) ! enter integers to remove one or more systems
     integer, save :: forceselect = 0 ! force selection of a system
+    logical, save :: forcereassign = .false. ! force a check of reassign current selected system
     logical, save :: forceremap = .false. ! force a remap of the tree
     logical, save :: forcesort = .false. ! force a sort of the tree
     logical, save :: forceresize = .false. ! force a resize of the tree columns
@@ -80,7 +83,6 @@ contains
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
     integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
-    integer(c_int), save :: shown_after_filter = 0 ! number of systems shown after the filter
 
     ! initialize
     hadenabledcolumn = .false.
@@ -88,7 +90,7 @@ contains
     tooltipstr = ""
     szero%x = 0
     szero%y = 0
-    if (.not.allocated(w%iord)) then
+    if (w%firstpass) then
        w%tree_sortcid = ic_tree_id
        w%tree_sortdir = 1
        w%tree_selected = 1
@@ -99,7 +101,9 @@ contains
     ! update the tree based on time signals between dependent windows
     do i = 1, nsys
        ! if a system has changed fundamentally, the table needs an update (maybe)
+       ! and maybe we need to reassign the currently selected system
        if (w%timelast_tree_update < sysc(i)%timelastchange_geometry) forceremap = .true.
+       if (w%timelast_tree_reassign < sysc(i)%timelastchange_geometry) forcereassign = .true.
        ! if a system has been rebonded, the "nmol" column may have changed: sort and resize
        if (w%timelast_tree_resize < sysc(i)%timelastchange_rebond) forceresize = .true.
        if (w%timelast_tree_sort < sysc(i)%timelastchange_rebond) forcesort = .true.
@@ -194,12 +198,18 @@ contains
        reinit = any((sysc(forceremove)%status == sys_loaded_not_init.and..not.sysc(forceremove)%hidden).or.&
           sysc(forceremove)%status == sys_initializing)
        if (reinit) call kill_initialization_thread()
-       call w%remove_systems_tree(cfilter,forceremove)
-       if (reinit) forceinit = .true.
+       call w%remove_systems_tree(forceremove)
+       if (reinit) call launch_initialization_thread()
        forceremap = .true.
+       forcereassign = .true.
        deallocate(forceremove)
     end if
-    ! remap the tree index (iord)
+    ! reassign the tree (needs to go before regenerating iord)
+    if (forcereassign) then
+       call w%reassign_tree(cfilter)
+       forcereassign = .false.
+    end if
+    ! remap the tree index (regenerate iord)
     if (forceremap) then
        call w%remap_tree()
        forceremap = .false.
@@ -216,15 +226,33 @@ contains
        call launch_initialization_thread()
        forceinit = .false.
     end if
-    nshown = size(w%iord,1)
 
-    ! final message in the header line
-    ok = (nshown > 1)
-    if (.not.ok) &
-       ok = (sysc(w%iord(1))%status /= sys_empty)
-    if (ok) &
-       call iw_text(" " // string(shown_after_filter) // "/" // string(nshown) // " shown",&
-       sameline=.true.)
+    ! final message in the header line, count systems, select which ones will be shown
+    nshown_after_filter = 0
+    nshown = 0
+    if (allocated(w%iord)) then
+       nshown = size(w%iord,1)
+       allocate(ishown(nshown))
+       if (c_associated(cfilter)) then
+          do j = 1, size(w%iord,1)
+             i = w%iord(j)
+             if (sysc(i)%status == sys_empty .or. sysc(i)%hidden) cycle
+             str = trim(sysc(i)%seed%name) // c_null_char
+             if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
+                nshown_after_filter = nshown_after_filter + 1
+                ishown(nshown_after_filter) = i
+             end if
+          end do
+       else
+          do i = 1, nshown
+             ishown(i) = i
+          end do
+       end if
+    end if
+    if (nshown > 1) then
+       call iw_text(" " // string(nshown_after_filter) // "/" // string(nshown) // " shown",&
+          sameline=.true.)
+    end if
 
     ! set up the table, style and flags
     sz%x = 3._c_float
@@ -364,517 +392,505 @@ contains
        ! draw the header
        call igTableHeadersRow()
 
-       ! start the clipper
-       clipper = ImGuiListClipper_ImGuiListClipper()
-       call ImGuiListClipper_Begin(clipper,nshown,-1._c_float)
+       ! the big table
+       if (allocated(w%iord) .and. nshown_after_filter > 0) then
+          ! start the clipper
+          clipper = ImGuiListClipper_ImGuiListClipper()
+          call ImGuiListClipper_Begin(clipper,nshown_after_filter,-1._c_float)
 
-       ! draw the rows
-       hadrow = .false.
-       shown_after_filter = 0
-       do while(ImGuiListClipper_Step(clipper))
-          call c_f_pointer(clipper,clipper_f)
-          do j = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+          ! draw the rows
+          do while(ImGuiListClipper_Step(clipper))
+             call c_f_pointer(clipper,clipper_f)
+             do j = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                i = ishown(j)
 
-             i = w%iord(j)
-             if (sysc(i)%status == sys_empty .or. sysc(i)%hidden) cycle
-             if (c_associated(cfilter)) then
-                str = trim(sysc(i)%seed%name) // c_null_char
-                if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
-             end if
-             shown_after_filter = shown_after_filter + 1
+                ! start defining the table row
+                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                hadenabledcolumn = .false.
 
-             ! start defining the table row
-             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-             hadenabledcolumn = .false.
-             hadrow = .true.
-
-             ! close button
-             if (sysc(i)%status == sys_init) then
-                if (igTableSetColumnIndex(ic_tree_closebutton)) then
-                   call igAlignTextToFramePadding()
-                   str = "##1closebutton" // string(ic_tree_closebutton) // "," // string(i) // c_null_char
-                   if (my_CloseButton(c_loc(str),ColorDangerButton)) forceremove = (/i/)
-                   if (igIsItemHovered(ImGuiHoveredFlags_None)) &
-                      tooltipstr = "Close this system"
-                end if
-             end if
-
-             ! expand button
-             if (igTableSetColumnIndex(ic_tree_expandbutton)) then
-                if (sysc(i)%collapse < 0) then
-                   ! expand button for multi-seed entries
-                   str = "##expand" // string(ic_tree_expandbutton) // "," // string(i) // c_null_char
-                   if (sysc(i)%collapse == -1) then
-                      idir = ImGuiDir_Right
-                   else
-                      idir = ImGuiDir_Down
+                ! close button
+                if (sysc(i)%status == sys_init) then
+                   if (igTableSetColumnIndex(ic_tree_closebutton)) then
+                      call igAlignTextToFramePadding()
+                      str = "##1closebutton" // string(ic_tree_closebutton) // "," // string(i) // c_null_char
+                      if (my_CloseButton(c_loc(str),ColorDangerButton)) forceremove = (/i/)
+                      if (igIsItemHovered(ImGuiHoveredFlags_None)) &
+                         tooltipstr = "Close this system"
                    end if
-                   if (igArrowButton(c_loc(str),idir)) then
-                      ! expand or collapse
-                      if (sysc(i)%collapse == -1) then
-                         call expand_system(i)
-                      else
-                         call collapse_system(i)
-                      end if
-                   end if
-                   if (igIsItemHovered(ImGuiHoveredFlags_None)) &
-                      tooltipstr = "Expand this system"
                 end if
-             end if
-
-             ! set background color for the name cell, if not selected
-             if (sysc(i)%status >= sys_ready) then
-                col4 = ImVec4(ColorTableCellBg(1,sys(i)%c%iperiod),ColorTableCellBg(2,sys(i)%c%iperiod),&
-                   ColorTableCellBg(3,sys(i)%c%iperiod),ColorTableCellBg(4,sys(i)%c%iperiod))
-                color = igGetColorU32_Vec4(col4)
-                call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_tree_name)
-             end if
-
-             ! ID column
-             if (igTableSetColumnIndex(ic_tree_id)) then
-                str = string(i)
-                call write_maybe_selectable(i,tooltipstr)
-                ok = (sysc(i)%status >= sys_ready)
-                if (ok) ok = sys(i)%c%vib%hasvibs
-                if (ok) then
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,&
-                      rgba=rgba_vibrations)
-                else
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-                end if
-             end if
-
-             ! name
-             if (igTableSetColumnIndex(ic_tree_name)) then
-                ! selectable
-                call write_maybe_selectable(i,tooltipstr)
 
                 ! expand button
-                if (sysc(i)%showfields) then
-                   ch = "▼"
-                else
-                   ch = "▶"
-                end if
-                pos = igGetCursorPosX()
-                call igSetCursorPosX(pos + g%Style%FramePadding%x)
-
-                nfreal = 0
-                do k = 1, sys(i)%nf
-                   if (sys(i)%f(k)%isinit) nfreal = nfreal + 1
-                end do
-                if (nfreal > 0) then
-                   call iw_text(ch,rgba=rgba_fields)
-                else
-                   call iw_text(ch)
-                end if
-                call igSameLine(0._c_float,-1._c_float)
-                call igSetCursorPosX(pos)
-                str = ch // "##" // string(ic_tree_name) // "," // string(i) // c_null_char
-                sz%x = iw_calcwidth(1,1)
-                sz%y = iw_calcheight(1,0)
-                if (igInvisibleButton(c_loc(str),sz,ImGuiButtonFlags_None)) sysc(i)%showfields = .not.sysc(i)%showfields
-
-                ! the actual name
-                str = ""
-                if (sysc(i)%collapse == -2) then
-                   str = "╭●─"
-                   do k = 2, len(string(i))
-                      str = str // "─"
-                   end do
-                   str = str // "──"
-                elseif (sysc(i)%collapse > 0) then
-                   str = "├[" // string(sysc(i)%collapse) // "]─"
-                end if
-                str = str // trim(sysc(i)%seed%name)
-                call iw_text(str,disabled=(sysc(i)%status /= sys_init),sameline_nospace=.true.,copy_to_output=export)
-
-                ! the fields
-                if (sysc(i)%showfields) then
-                   do k = 0, sys(i)%nf
-                      if (.not.sys(i)%f(k)%isinit) cycle
-
-                      ! selectable
-                      call igSetCursorPosX(igGetCursorPosX() + iw_calcwidth(1,1))
-                      isend = (k == sys(i)%nf)
-                      if (.not.isend) isend = all(.not.sys(i)%f(k+1:)%isinit)
-                      if (.not.isend) call iw_text("┌",noadvance=.true.)
-                      if (sys(i)%iref == k) then
-                         str = "└─►(" // string(k) // ",ref): " // trim(sys(i)%f(k)%name) // "##field" // &
-                            string(i) // "," // string(k) // c_null_char
+                if (igTableSetColumnIndex(ic_tree_expandbutton)) then
+                   if (sysc(i)%collapse < 0) then
+                      ! expand button for multi-seed entries
+                      str = "##expand" // string(ic_tree_expandbutton) // "," // string(i) // c_null_char
+                      if (sysc(i)%collapse == -1) then
+                         idir = ImGuiDir_Right
                       else
-                         str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // "##field" // &
-                            string(i) // "," // string(k) // c_null_char
+                         idir = ImGuiDir_Down
                       end if
-                      isel = (w%tree_selected==i) .and. (sys(i)%iref == k)
-                      call igPushStyleColor_Vec4(ImGuiCol_Header,ColorFieldSelected)
-                      flags = ImGuiSelectableFlags_SpanAllColumns
-                      if (igSelectable_Bool(c_loc(str),isel,flags,szero)) then
-                         call w%select_system_tree(i)
-                         call sys(i)%set_reference(k,.false.)
-                      end if
-                      call igPopStyleColor(1)
-
-                      ! right click to open the field context menu
-                      if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
-                         ! remove option (fields)
-                         if (k > 0) then
-                            if (iw_menuitem("Remove")) &
-                               call sys(i)%unload_field(k)
-                            call iw_tooltip("Remove this field",ttshown)
-                         end if
-
-                         ! rename option (fields)
-                         strpop = "Rename" // c_null_char
-                         if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-                            strpop2 = "##inputrenamefield" // c_null_char
-                            txtinp = trim(adjustl(sys(i)%f(k)%name)) // c_null_char
-                            call igSetKeyboardFocusHere(0_c_int)
-                            flags = ImGuiInputTextFlags_EnterReturnsTrue
-                            if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_funptr,c_null_ptr)) then
-                               ll = index(txtinp,c_null_char)
-                               sys(i)%f(k)%name = txtinp(1:ll-1)
-                               call igCloseCurrentPopup()
-                            end if
-                            call igEndMenu()
-                         end if
-                         call iw_tooltip("Rename this field",ttshown)
-
-                         !! now the load new field options !!
-                         call igSeparator()
-
-                         ! duplicate option (fields)
-                         if (iw_menuitem("Duplicate")) then
-                            id = sys(i)%getfieldnum()
-                            call sys(i)%field_copy(k,id)
-                            sys(i)%f(id)%id = id
-                            sys(i)%f(id)%name = trim(sys(i)%f(k)%name)
-                         end if
-                         call iw_tooltip("Load a copy of this field as a new field",ttshown)
-
-                         ! grid calculation options
-                         if (sys(i)%f(k)%type == type_grid) then
-                            strpop = "Load Fourier-Transformed Grid" // c_null_char
-                            if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-                               ldum = iw_menuitem("[First derivatives]",enabled=.false.)
-                               if (iw_menuitem("x")) then
-                                  id = sys(i)%getfieldnum()
-                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                     "<generated>, x-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_x)
-                               end if
-                               call iw_tooltip("Load a new grid field using FFT as the x-component of &
-                                  &this field's gradient",ttshown)
-                               if (iw_menuitem("y")) then
-                                  id = sys(i)%getfieldnum()
-                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                     "<generated>, y-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_y)
-                               end if
-                               call iw_tooltip("Load a new grid field using FFT as the y-component of &
-                                  &this field's gradient",ttshown)
-                               if (iw_menuitem("z")) then
-                                  id = sys(i)%getfieldnum()
-                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                     "<generated>, z-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_z)
-                               end if
-                               call iw_tooltip("Load a new grid field using FFT as the z-component of &
-                                  &this field's gradient",ttshown)
-                               if (iw_menuitem("Gradient Norm")) then
-                                  id = sys(i)%getfieldnum()
-                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                     "<generated>, grad of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_grad)
-                               end if
-                               call iw_tooltip("Load a new grid field using FFT as the norm of &
-                                  &this field's gradient",ttshown)
-                               call igSeparator()
-
-                               ldum = iw_menuitem("[Second derivatives]",enabled=.false.)
-                               if (iw_menuitem("xx")) then
-                                  id = sys(i)%getfieldnum()
-                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                     "<generated>, xx-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xx)
-                               end if
-                               call iw_tooltip("Load a new grid field using FFT as the xx component of &
-                                  &this field's Hessian matrix",ttshown)
-                               if (iw_menuitem("xy")) then
-                                  id = sys(i)%getfieldnum()
-                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                     "<generated>, xy-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xy)
-                               end if
-                               call iw_tooltip("Load a new grid field using FFT as the xy component of &
-                                  &this field's Hessian matrix",ttshown)
-                               if (iw_menuitem("xz")) then
-                                  id = sys(i)%getfieldnum()
-                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                     "<generated>, xz-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xz)
-                               end if
-                               call iw_tooltip("Load a new grid field using FFT as the xz component of &
-                                  &this field's Hessian matrix",ttshown)
-                               if (iw_menuitem("yy")) then
-                                  id = sys(i)%getfieldnum()
-                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                     "<generated>, yy-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_yy)
-                               end if
-                               call iw_tooltip("Load a new grid field using FFT as the yy component of &
-                                  &this field's Hessian matrix",ttshown)
-                               if (iw_menuitem("yz")) then
-                                  id = sys(i)%getfieldnum()
-                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                     "<generated>, yz-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_yz)
-                               end if
-                               call iw_tooltip("Load a new grid field using FFT as the yz component of &
-                                  &this field's Hessian matrix",ttshown)
-                               if (iw_menuitem("zz")) then
-                                  id = sys(i)%getfieldnum()
-                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, zz-derivative of $" // string(k),&
-                                     sys(i)%f(k)%grid,ifformat_as_ft_zz)
-                               end if
-                               call iw_tooltip("Load a new grid field using FFT as the zz component of &
-                                  &this field's Hessian matrix",ttshown)
-                               if (iw_menuitem("Laplacian")) then
-                                  id = sys(i)%getfieldnum()
-                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                     "<generated>, lap of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_lap)
-                               end if
-                               call iw_tooltip("Load a new grid field using FFT as the Laplacian of this field",ttshown)
-
-                               call igSeparator()
-                               if (iw_menuitem("Potential")) then
-                                  id = sys(i)%getfieldnum()
-                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                     "<generated>, potential of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_pot)
-                               end if
-                               call iw_tooltip("Load a new grid field using FFT as the potential that generates&
-                                  &this field (via Poisson's equation)",ttshown)
-                               call igEndMenu()
-                            end if
-
-                            strpop = "Load Resampled Grid" // c_null_char
-                            if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-                               flags = ImGuiInputTextFlags_None
-                               strpop2 = "New Size##resamplefieldmenunewsize" // c_null_char
-                               call igSetNextItemWidth(iw_calcwidth(4*3,2))
-                               ldum = igInputInt3(c_loc(strpop2),iresample,flags)
-
-                               if (iw_menuitem("OK##resamplefieldmenuok")) then
-                                  id = sys(i)%getfieldnum()
-                                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, resample of $" // string(k),&
-                                     sys(i)%f(k)%grid,ifformat_as_resample,n=iresample)
-                               end if
-                               call igEndMenu()
-                            else
-                               iresample = sys(i)%f(k)%grid%n
-                            end if
-                            call iw_tooltip("Load a new grid field as a resampling of this field",ttshown)
-
-                         end if
-
-                         call igEndPopup()
-                      end if
-
-                      ! tooltip
-                      if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-                         if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
-                            g%LastItemData%NavRect%max,.false._c_bool)) then
-                            call tree_field_tooltip_string(i,k)
+                      if (igArrowButton(c_loc(str),idir)) then
+                         ! expand or collapse
+                         if (sysc(i)%collapse == -1) then
+                            call expand_system(i)
+                         else
+                            call collapse_system(i)
                          end if
                       end if
+                      if (igIsItemHovered(ImGuiHoveredFlags_None)) &
+                         tooltipstr = "Expand this system"
+                   end if
+                end if
 
+                ! set background color for the name cell, if not selected
+                if (sysc(i)%status >= sys_ready) then
+                   col4 = ImVec4(ColorTableCellBg(1,sys(i)%c%iperiod),ColorTableCellBg(2,sys(i)%c%iperiod),&
+                      ColorTableCellBg(3,sys(i)%c%iperiod),ColorTableCellBg(4,sys(i)%c%iperiod))
+                   color = igGetColorU32_Vec4(col4)
+                   call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_tree_name)
+                end if
+
+                ! ID column
+                if (igTableSetColumnIndex(ic_tree_id)) then
+                   str = string(i)
+                   call write_maybe_selectable(i,tooltipstr)
+                   ok = (sysc(i)%status >= sys_ready)
+                   if (ok) ok = sys(i)%c%vib%hasvibs
+                   if (ok) then
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,&
+                         rgba=rgba_vibrations)
+                   else
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   end if
+                end if
+
+                ! name
+                if (igTableSetColumnIndex(ic_tree_name)) then
+                   ! selectable
+                   call write_maybe_selectable(i,tooltipstr)
+
+                   ! expand button
+                   if (sysc(i)%showfields) then
+                      ch = "▼"
+                   else
+                      ch = "▶"
+                   end if
+                   pos = igGetCursorPosX()
+                   call igSetCursorPosX(pos + g%Style%FramePadding%x)
+
+                   nfreal = 0
+                   do k = 1, sys(i)%nf
+                      if (sys(i)%f(k)%isinit) nfreal = nfreal + 1
                    end do
-                end if
-             end if
-
-             ! energy
-             if (igTableSetColumnIndex(ic_tree_e)) then
-                if (sysc(i)%seed%energy /= huge(1d0)) then
-                   str = string(sysc(i)%seed%energy,'f',decimal=8)
-                else
-                   str = "n/a"
-                end if
-                call write_maybe_selectable(i,tooltipstr)
-                call iw_text(str,copy_to_output=export)
-             end if
-
-             if (sysc(i)%status == sys_init) then
-                if (igTableSetColumnIndex(ic_tree_spg)) then ! spg
-                   if (sys(i)%c%ismolecule) then
-                      str = "<mol>"
-                   elseif (.not.sys(i)%c%spgavail) then
-                      str = "n/a"
+                   if (nfreal > 0) then
+                      call iw_text(ch,rgba=rgba_fields)
                    else
-                      str = trim(sys(i)%c%spg%international_symbol)
+                      call iw_text(ch)
                    end if
-                   call write_maybe_selectable(i,tooltipstr)
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   call igSameLine(0._c_float,-1._c_float)
+                   call igSetCursorPosX(pos)
+                   str = ch // "##" // string(ic_tree_name) // "," // string(i) // c_null_char
+                   sz%x = iw_calcwidth(1,1)
+                   sz%y = iw_calcheight(1,0)
+                   if (igInvisibleButton(c_loc(str),sz,ImGuiButtonFlags_None)) sysc(i)%showfields = .not.sysc(i)%showfields
+
+                   ! the actual name
+                   str = ""
+                   if (sysc(i)%collapse == -2) then
+                      str = "╭●─"
+                      do k = 2, len(string(i))
+                         str = str // "─"
+                      end do
+                      str = str // "──"
+                   elseif (sysc(i)%collapse > 0) then
+                      str = "├[" // string(sysc(i)%collapse) // "]─"
+                   end if
+                   str = str // trim(sysc(i)%seed%name)
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),sameline_nospace=.true.,copy_to_output=export)
+
+                   ! the fields
+                   if (sysc(i)%showfields) then
+                      do k = 0, sys(i)%nf
+                         if (.not.sys(i)%f(k)%isinit) cycle
+
+                         ! selectable
+                         call igSetCursorPosX(igGetCursorPosX() + iw_calcwidth(1,1))
+                         isend = (k == sys(i)%nf)
+                         if (.not.isend) isend = all(.not.sys(i)%f(k+1:)%isinit)
+                         if (.not.isend) call iw_text("┌",noadvance=.true.)
+                         if (sys(i)%iref == k) then
+                            str = "└─►(" // string(k) // ",ref): " // trim(sys(i)%f(k)%name) // "##field" // &
+                               string(i) // "," // string(k) // c_null_char
+                         else
+                            str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // "##field" // &
+                               string(i) // "," // string(k) // c_null_char
+                         end if
+                         isel = (w%tree_selected==i) .and. (sys(i)%iref == k)
+                         call igPushStyleColor_Vec4(ImGuiCol_Header,ColorFieldSelected)
+                         flags = ImGuiSelectableFlags_SpanAllColumns
+                         if (igSelectable_Bool(c_loc(str),isel,flags,szero)) then
+                            call w%select_system_tree(i)
+                            call sys(i)%set_reference(k,.false.)
+                         end if
+                         call igPopStyleColor(1)
+
+                         ! right click to open the field context menu
+                         if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
+                            ! remove option (fields)
+                            if (k > 0) then
+                               if (iw_menuitem("Remove")) &
+                                  call sys(i)%unload_field(k)
+                               call iw_tooltip("Remove this field",ttshown)
+                            end if
+
+                            ! rename option (fields)
+                            strpop = "Rename" // c_null_char
+                            if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+                               strpop2 = "##inputrenamefield" // c_null_char
+                               txtinp = trim(adjustl(sys(i)%f(k)%name)) // c_null_char
+                               call igSetKeyboardFocusHere(0_c_int)
+                               flags = ImGuiInputTextFlags_EnterReturnsTrue
+                               if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_funptr,c_null_ptr)) then
+                                  ll = index(txtinp,c_null_char)
+                                  sys(i)%f(k)%name = txtinp(1:ll-1)
+                                  call igCloseCurrentPopup()
+                               end if
+                               call igEndMenu()
+                            end if
+                            call iw_tooltip("Rename this field",ttshown)
+
+                            !! now the load new field options !!
+                            call igSeparator()
+
+                            ! duplicate option (fields)
+                            if (iw_menuitem("Duplicate")) then
+                               id = sys(i)%getfieldnum()
+                               call sys(i)%field_copy(k,id)
+                               sys(i)%f(id)%id = id
+                               sys(i)%f(id)%name = trim(sys(i)%f(k)%name)
+                            end if
+                            call iw_tooltip("Load a copy of this field as a new field",ttshown)
+
+                            ! grid calculation options
+                            if (sys(i)%f(k)%type == type_grid) then
+                               strpop = "Load Fourier-Transformed Grid" // c_null_char
+                               if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+                                  ldum = iw_menuitem("[First derivatives]",enabled=.false.)
+                                  if (iw_menuitem("x")) then
+                                     id = sys(i)%getfieldnum()
+                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                        "<generated>, x-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_x)
+                                  end if
+                                  call iw_tooltip("Load a new grid field using FFT as the x-component of &
+                                     &this field's gradient",ttshown)
+                                  if (iw_menuitem("y")) then
+                                     id = sys(i)%getfieldnum()
+                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                        "<generated>, y-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_y)
+                                  end if
+                                  call iw_tooltip("Load a new grid field using FFT as the y-component of &
+                                     &this field's gradient",ttshown)
+                                  if (iw_menuitem("z")) then
+                                     id = sys(i)%getfieldnum()
+                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                        "<generated>, z-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_z)
+                                  end if
+                                  call iw_tooltip("Load a new grid field using FFT as the z-component of &
+                                     &this field's gradient",ttshown)
+                                  if (iw_menuitem("Gradient Norm")) then
+                                     id = sys(i)%getfieldnum()
+                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                        "<generated>, grad of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_grad)
+                                  end if
+                                  call iw_tooltip("Load a new grid field using FFT as the norm of &
+                                     &this field's gradient",ttshown)
+                                  call igSeparator()
+
+                                  ldum = iw_menuitem("[Second derivatives]",enabled=.false.)
+                                  if (iw_menuitem("xx")) then
+                                     id = sys(i)%getfieldnum()
+                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                        "<generated>, xx-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xx)
+                                  end if
+                                  call iw_tooltip("Load a new grid field using FFT as the xx component of &
+                                     &this field's Hessian matrix",ttshown)
+                                  if (iw_menuitem("xy")) then
+                                     id = sys(i)%getfieldnum()
+                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                        "<generated>, xy-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xy)
+                                  end if
+                                  call iw_tooltip("Load a new grid field using FFT as the xy component of &
+                                     &this field's Hessian matrix",ttshown)
+                                  if (iw_menuitem("xz")) then
+                                     id = sys(i)%getfieldnum()
+                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                        "<generated>, xz-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xz)
+                                  end if
+                                  call iw_tooltip("Load a new grid field using FFT as the xz component of &
+                                     &this field's Hessian matrix",ttshown)
+                                  if (iw_menuitem("yy")) then
+                                     id = sys(i)%getfieldnum()
+                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                        "<generated>, yy-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_yy)
+                                  end if
+                                  call iw_tooltip("Load a new grid field using FFT as the yy component of &
+                                     &this field's Hessian matrix",ttshown)
+                                  if (iw_menuitem("yz")) then
+                                     id = sys(i)%getfieldnum()
+                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                        "<generated>, yz-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_yz)
+                                  end if
+                                  call iw_tooltip("Load a new grid field using FFT as the yz component of &
+                                     &this field's Hessian matrix",ttshown)
+                                  if (iw_menuitem("zz")) then
+                                     id = sys(i)%getfieldnum()
+                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, zz-derivative of $" // string(k),&
+                                        sys(i)%f(k)%grid,ifformat_as_ft_zz)
+                                  end if
+                                  call iw_tooltip("Load a new grid field using FFT as the zz component of &
+                                     &this field's Hessian matrix",ttshown)
+                                  if (iw_menuitem("Laplacian")) then
+                                     id = sys(i)%getfieldnum()
+                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                        "<generated>, lap of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_lap)
+                                  end if
+                                  call iw_tooltip("Load a new grid field using FFT as the Laplacian of this field",ttshown)
+
+                                  call igSeparator()
+                                  if (iw_menuitem("Potential")) then
+                                     id = sys(i)%getfieldnum()
+                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                                        "<generated>, potential of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_pot)
+                                  end if
+                                  call iw_tooltip("Load a new grid field using FFT as the potential that generates&
+                                     &this field (via Poisson's equation)",ttshown)
+                                  call igEndMenu()
+                               end if
+
+                               strpop = "Load Resampled Grid" // c_null_char
+                               if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+                                  flags = ImGuiInputTextFlags_None
+                                  strpop2 = "New Size##resamplefieldmenunewsize" // c_null_char
+                                  call igSetNextItemWidth(iw_calcwidth(4*3,2))
+                                  ldum = igInputInt3(c_loc(strpop2),iresample,flags)
+
+                                  if (iw_menuitem("OK##resamplefieldmenuok")) then
+                                     id = sys(i)%getfieldnum()
+                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, resample of $" // string(k),&
+                                        sys(i)%f(k)%grid,ifformat_as_resample,n=iresample)
+                                  end if
+                                  call igEndMenu()
+                               else
+                                  iresample = sys(i)%f(k)%grid%n
+                               end if
+                               call iw_tooltip("Load a new grid field as a resampling of this field",ttshown)
+
+                            end if
+
+                            call igEndPopup()
+                         end if
+
+                         ! tooltip
+                         if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+                            if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
+                               g%LastItemData%NavRect%max,.false._c_bool)) then
+                               call tree_field_tooltip_string(i,k)
+                            end if
+                         end if
+
+                      end do
+                   end if
                 end if
 
-                if (igTableSetColumnIndex(ic_tree_v)) then ! volume
-                   if (sys(i)%c%ismolecule) then
-                      str = "<mol>"
-                   else
-                      str = string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2)
-                   end if
-                   call write_maybe_selectable(i,tooltipstr)
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-                end if
-
-                if (igTableSetColumnIndex(ic_tree_vmol)) then ! volume per molecule
-                   if (sys(i)%c%ismolecule) then
-                      str = "<mol>"
-                   else
-                      str = string(sys(i)%c%omega*bohrtoa**3/sys(i)%c%nmol,'f',decimal=2)
-                   end if
-                   call write_maybe_selectable(i,tooltipstr)
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-                end if
-
-                if (igTableSetColumnIndex(ic_tree_nneq)) then ! nneq
-                   str = string(sys(i)%c%nneq)
-                   call write_maybe_selectable(i,tooltipstr)
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-                end if
-
-                if (igTableSetColumnIndex(ic_tree_ncel)) then ! ncel
-                   str = string(sys(i)%c%ncel)
-                   call write_maybe_selectable(i,tooltipstr)
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-                end if
-
-                if (igTableSetColumnIndex(ic_tree_nmol)) then ! nmol
-                   str = string(sys(i)%c%nmol)
-                   call write_maybe_selectable(i,tooltipstr)
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-                end if
-
-                if (igTableSetColumnIndex(ic_tree_a)) then ! a
-                   if (sys(i)%c%ismolecule) then
-                      str = "<mol>"
-                   else
-                      str = string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4)
-                   end if
-                   call write_maybe_selectable(i,tooltipstr)
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-                end if
-                if (igTableSetColumnIndex(ic_tree_b)) then ! b
-                   if (sys(i)%c%ismolecule) then
-                      str = "<mol>"
-                   else
-                      str = string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4)
-                   end if
-                   call write_maybe_selectable(i,tooltipstr)
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-                end if
-                if (igTableSetColumnIndex(ic_tree_c)) then ! c
-                   if (sys(i)%c%ismolecule) then
-                      str = "<mol>"
-                   else
-                      str = string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4)
-                   end if
-                   call write_maybe_selectable(i,tooltipstr)
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-                end if
-                if (igTableSetColumnIndex(ic_tree_alpha)) then ! alpha
-                   if (sys(i)%c%ismolecule) then
-                      str = "<mol>"
-                   else
-                      str = string(sys(i)%c%bb(1),'f',decimal=2)
-                   end if
-                   call write_maybe_selectable(i,tooltipstr)
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-                end if
-                if (igTableSetColumnIndex(ic_tree_beta)) then ! beta
-                   if (sys(i)%c%ismolecule) then
-                      str = "<mol>"
-                   else
-                      str = string(sys(i)%c%bb(2),'f',decimal=2)
-                   end if
-                   call write_maybe_selectable(i,tooltipstr)
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-                end if
-                if (igTableSetColumnIndex(ic_tree_gamma)) then ! gamma
-                   if (sys(i)%c%ismolecule) then
-                      str = "<mol>"
-                   else
-                      str = string(sys(i)%c%bb(3),'f',decimal=2)
-                   end if
-                   call write_maybe_selectable(i,tooltipstr)
-                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
-                end if
-
-                if (igTableSetColumnIndex(ic_tree_emol)) then ! energy/nmol
+                ! energy
+                if (igTableSetColumnIndex(ic_tree_e)) then
                    if (sysc(i)%seed%energy /= huge(1d0)) then
-                      str = string(sysc(i)%seed%energy/sys(i)%c%nmol,'f',decimal=8)
+                      str = string(sysc(i)%seed%energy,'f',decimal=8)
                    else
                       str = "n/a"
                    end if
                    call write_maybe_selectable(i,tooltipstr)
                    call iw_text(str,copy_to_output=export)
                 end if
-                if (igTableSetColumnIndex(ic_tree_p)) then ! pressure
-                   if (sys(i)%c%ismolecule) then
-                      str = "<mol>"
-                   elseif (sysc(i)%seed%pressure /= huge(1d0)) then
-                      str = string(sysc(i)%seed%pressure,'f',decimal=2)
-                   else
-                      str = "n/a"
-                   end if
-                   call write_maybe_selectable(i,tooltipstr)
-                   call iw_text(str,copy_to_output=export)
-                end if
-             end if
-             ! enter new line
-             if (export) write (uout,*)
-          end do ! clipper indices
 
-          if (.not.hadrow) then
-             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-             if (igTableSetColumnIndex(ic_tree_name)) then
-                call igAlignTextToFramePadding()
-                call iw_text("No systems loaded")
-             end if
-             hadrow = .true.
+                if (sysc(i)%status == sys_init) then
+                   if (igTableSetColumnIndex(ic_tree_spg)) then ! spg
+                      if (sys(i)%c%ismolecule) then
+                         str = "<mol>"
+                      elseif (.not.sys(i)%c%spgavail) then
+                         str = "n/a"
+                      else
+                         str = trim(sys(i)%c%spg%international_symbol)
+                      end if
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   end if
+
+                   if (igTableSetColumnIndex(ic_tree_v)) then ! volume
+                      if (sys(i)%c%ismolecule) then
+                         str = "<mol>"
+                      else
+                         str = string(sys(i)%c%omega*bohrtoa**3,'f',decimal=2)
+                      end if
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   end if
+
+                   if (igTableSetColumnIndex(ic_tree_vmol)) then ! volume per molecule
+                      if (sys(i)%c%ismolecule) then
+                         str = "<mol>"
+                      else
+                         str = string(sys(i)%c%omega*bohrtoa**3/sys(i)%c%nmol,'f',decimal=2)
+                      end if
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   end if
+
+                   if (igTableSetColumnIndex(ic_tree_nneq)) then ! nneq
+                      str = string(sys(i)%c%nneq)
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   end if
+
+                   if (igTableSetColumnIndex(ic_tree_ncel)) then ! ncel
+                      str = string(sys(i)%c%ncel)
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   end if
+
+                   if (igTableSetColumnIndex(ic_tree_nmol)) then ! nmol
+                      str = string(sys(i)%c%nmol)
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   end if
+
+                   if (igTableSetColumnIndex(ic_tree_a)) then ! a
+                      if (sys(i)%c%ismolecule) then
+                         str = "<mol>"
+                      else
+                         str = string(sys(i)%c%aa(1)*bohrtoa,'f',decimal=4)
+                      end if
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   end if
+                   if (igTableSetColumnIndex(ic_tree_b)) then ! b
+                      if (sys(i)%c%ismolecule) then
+                         str = "<mol>"
+                      else
+                         str = string(sys(i)%c%aa(2)*bohrtoa,'f',decimal=4)
+                      end if
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   end if
+                   if (igTableSetColumnIndex(ic_tree_c)) then ! c
+                      if (sys(i)%c%ismolecule) then
+                         str = "<mol>"
+                      else
+                         str = string(sys(i)%c%aa(3)*bohrtoa,'f',decimal=4)
+                      end if
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   end if
+                   if (igTableSetColumnIndex(ic_tree_alpha)) then ! alpha
+                      if (sys(i)%c%ismolecule) then
+                         str = "<mol>"
+                      else
+                         str = string(sys(i)%c%bb(1),'f',decimal=2)
+                      end if
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   end if
+                   if (igTableSetColumnIndex(ic_tree_beta)) then ! beta
+                      if (sys(i)%c%ismolecule) then
+                         str = "<mol>"
+                      else
+                         str = string(sys(i)%c%bb(2),'f',decimal=2)
+                      end if
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   end if
+                   if (igTableSetColumnIndex(ic_tree_gamma)) then ! gamma
+                      if (sys(i)%c%ismolecule) then
+                         str = "<mol>"
+                      else
+                         str = string(sys(i)%c%bb(3),'f',decimal=2)
+                      end if
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   end if
+
+                   if (igTableSetColumnIndex(ic_tree_emol)) then ! energy/nmol
+                      if (sysc(i)%seed%energy /= huge(1d0)) then
+                         str = string(sysc(i)%seed%energy/sys(i)%c%nmol,'f',decimal=8)
+                      else
+                         str = "n/a"
+                      end if
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,copy_to_output=export)
+                   end if
+                   if (igTableSetColumnIndex(ic_tree_p)) then ! pressure
+                      if (sys(i)%c%ismolecule) then
+                         str = "<mol>"
+                      elseif (sysc(i)%seed%pressure /= huge(1d0)) then
+                         str = string(sysc(i)%seed%pressure,'f',decimal=2)
+                      else
+                         str = "n/a"
+                      end if
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,copy_to_output=export)
+                   end if
+                end if
+                ! enter new line
+                if (export) write (uout,*)
+             end do ! clipper indices
+          end do ! clipper step
+          call ImGuiListClipper_End(clipper)
+       else
+          call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+          if (igTableSetColumnIndex(ic_tree_name)) then
+             call igAlignTextToFramePadding()
+             call iw_text("No systems loaded")
           end if
-       end do ! clipper step
-       call ImGuiListClipper_End(clipper)
+       end if
+       call igEndTable()
+    end if
+    call igPopStyleVar(3_c_int)
 
-       ! process the keybindings
-       ok = is_bind_event(BIND_TREE_REMOVE_SYSTEM_FIELD)
-       ok = ok .and. igIsWindowFocused(ImGuiFocusedFlags_None)
+    !! process the keybindings
+    ! remove system or field
+    ok = is_bind_event(BIND_TREE_REMOVE_SYSTEM_FIELD)
+    ok = ok .and. igIsWindowFocused(ImGuiFocusedFlags_None)
+    if (ok) then
+       jsel = w%tree_selected
+       iref = sys(jsel)%iref
+       ok = ok_system(jsel,sys_init)
+       if (ok) ok = sysc(jsel)%showfields
+       if (ok) ok = (iref >= 1 .and. iref <= sys(jsel)%nf)
+       if (ok) ok = sys(jsel)%f(iref)%isinit
        if (ok) then
-          jsel = w%tree_selected
-          iref = sys(jsel)%iref
-          ok = ok_system(jsel,sys_init)
-          if (ok) ok = sysc(jsel)%showfields
-          if (ok) ok = (iref >= 1 .and. iref <= sys(jsel)%nf)
-          if (ok) ok = sys(jsel)%f(iref)%isinit
-          if (ok) then
-             found = .false.
-             do k = iref+1, sys(jsel)%nf
+          found = .false.
+          do k = iref+1, sys(jsel)%nf
+             if (sys(jsel)%f(k)%isinit) then
+                call sys(jsel)%set_reference(k,.false.)
+                found = .true.
+                exit
+             end if
+          end do
+          if (.not.found) then
+             do k = iref-1, 1, -1
                 if (sys(jsel)%f(k)%isinit) then
                    call sys(jsel)%set_reference(k,.false.)
                    found = .true.
                    exit
                 end if
              end do
-             if (.not.found) then
-                do k = iref-1, 1, -1
-                   if (sys(jsel)%f(k)%isinit) then
-                      call sys(jsel)%set_reference(k,.false.)
-                      found = .true.
-                      exit
-                   end if
-                end do
-             end if
-             call sys(jsel)%unload_field(iref)
-          else
-             forceremove = (/jsel/)
           end if
+          call sys(jsel)%unload_field(iref)
+       else
+          forceremove = (/jsel/)
        end if
-
-       call igEndTable()
     end if
-    call igPopStyleVar(3_c_int)
-
-    ! process the keybindings
-    !! up and down the tree
+    ! up and down the tree
     if (is_bind_event(BIND_TREE_MOVE_UP)) then
        if (iprev > 0) &
           forceselect = iprev
@@ -1164,6 +1180,7 @@ contains
        end do
     end if
     w%timelast_tree_update = glfwGetTime()
+    if (n == 0) deallocate(w%iord)
 
   end subroutine remap_tree
 
@@ -1184,6 +1201,12 @@ contains
     real*8, allocatable :: rval(:)
     type(vstring), allocatable :: sval(:)
     logical :: doit
+
+    ! update the time
+    w%timelast_tree_sort = glfwGetTime()
+
+    ! check if we have something to sort
+    if (.not.allocated(w%iord)) return
 
     ! initialize the identity permutation
     n = size(w%iord,1)
@@ -1309,17 +1332,13 @@ contains
     ! apply the permutation
     w%iord = w%iord(iperm)
 
-    ! update the time
-    w%timelast_tree_sort = glfwGetTime()
-
   end subroutine sort_tree
 
   !> Remove systems given by index idx from the tree.
-  module subroutine remove_systems_tree(w,cfilter,idx)
+  module subroutine remove_systems_tree(w,idx)
     use gui_main, only: sysc, sys_init, sys_loaded_not_init,&
        kill_initialization_thread, remove_system
     class(window), intent(inout) :: w
-    type(c_ptr), intent(inout) :: cfilter
     integer, intent(in) :: idx(:)
 
     integer :: i, j, jsel, k, newsel
@@ -1328,53 +1347,72 @@ contains
     ! remove a system and move the table selection if the system was selected
     do k = 1, size(idx,1)
        call remove_system(idx(k))
-       ! if we removed the selected system, go to the next; either, go to the previous
-       if (idx(k) == w%tree_selected) then
-          jsel = 0
-          do j = 1, size(w%iord,1)
-             if (w%iord(j) == w%tree_selected) then
-                jsel = j
-                exit
-             end if
-          end do
-          if (jsel > 0) then
-             newsel = 0
-             do j = jsel, size(w%iord,1)
-                i = w%iord(j)
-                if (sysc(i)%status /= sys_init) cycle
-                if (c_associated(cfilter)) then
-                   str = trim(sysc(i)%seed%name) // c_null_char
-                   if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
-                end if
-                newsel = i
-                exit
-             end do
-             if (newsel == 0) then
-                do j = jsel, 1, -1
-                   i = w%iord(j)
-                   if (sysc(i)%status /= sys_init) cycle
-                   if (c_associated(cfilter)) then
-                      str = trim(sysc(i)%seed%name) // c_null_char
-                      if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
-                   end if
-                   newsel = i
-                   exit
-                end do
-                if (newsel == 0) newsel = 1
-             end if
-          else
-             newsel = 1
-          end if
-          call w%select_system_tree(newsel)
-       end if
-       ! if we removed the system for the input console or the view, update
-       if (idx(k) == win(iwin_console_input)%inpcon_selected) &
-          win(iwin_console_input)%inpcon_selected = w%tree_selected
-       if (idx(k) == win(iwin_view)%view_selected) &
-          call win(iwin_view)%select_view(w%tree_selected)
     end do
 
   end subroutine remove_systems_tree
+
+  !> Reassign the currently selected system
+  module subroutine reassign_tree(w,cfilter)
+    use interfaces_glfw, only: glfwGetTime
+    use gui_main, only: sysc, sys_init, sys_loaded_not_init,&
+       kill_initialization_thread, remove_system
+    class(window), intent(inout) :: w
+    type(c_ptr), intent(inout) :: cfilter
+
+    integer :: idx, i, j, jsel, k, newsel
+    character(kind=c_char,len=:), allocatable, target :: str
+
+    ! this routine only works if the selected tree system is empty
+    idx = w%tree_selected
+    w%timelast_tree_reassign = glfwGetTime()
+    if (sysc(idx)%status == sys_init) return
+    if (.not.allocated(w%iord)) then
+       w%tree_selected = 1
+       return
+    end if
+
+    ! find jsel, the currently selected system in the table
+    jsel = 0
+    do j = 1, size(w%iord,1)
+       if (w%iord(j) == idx) then
+          jsel = j
+          exit
+       end if
+    end do
+    if (jsel > 0) then
+       ! search for the next initialized system
+       newsel = 0
+       do j = jsel, size(w%iord,1)
+          i = w%iord(j)
+          if (sysc(i)%status /= sys_init) cycle
+          if (c_associated(cfilter)) then
+             str = trim(sysc(i)%seed%name) // c_null_char
+             if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
+          end if
+          newsel = i
+          exit
+       end do
+       if (newsel == 0) then
+          ! not found: search backwards for an initialized system
+          do j = jsel, 1, -1
+             i = w%iord(j)
+             if (sysc(i)%status /= sys_init) cycle
+             if (c_associated(cfilter)) then
+                str = trim(sysc(i)%seed%name) // c_null_char
+                if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
+             end if
+             newsel = i
+             exit
+          end do
+          ! well, then set it to 1
+          if (newsel == 0) newsel = 1
+       end if
+    else
+       newsel = 1
+    end if
+    call w%select_system_tree(newsel)
+
+  end subroutine reassign_tree
 
   !> Select system idx from the tree
   module subroutine select_system_tree(w,idx)

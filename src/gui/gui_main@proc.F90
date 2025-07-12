@@ -1343,9 +1343,8 @@ contains
     if (isysok) then
        if (launch(d_reopen)) &
           call reread_system_from_file(isys)
-       ! xxxx !
-       ! if (launch(d_close)) &
-       !    win(iwin_tree)%forceremove = (/isys/)
+       if (launch(d_close)) &
+          call remove_system(isys)
     end if
 
     if (launch(d_geometry).and.isysvok) then

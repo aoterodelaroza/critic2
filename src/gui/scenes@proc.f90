@@ -69,6 +69,7 @@ contains
     ! basic variables
     s%id = isys
     s%isinit = 1
+    s%iscaminit = .false.
     s%nc = 1
     s%scenerad = 10d0
     s%scenecenter = 0d0
@@ -148,6 +149,7 @@ contains
     class(scene), intent(inout), target :: s
 
     s%isinit = 0
+    s%iscaminit = .false.
     s%id = 0
     if (allocated(s%rep)) deallocate(s%rep)
     if (allocated(s%icount)) deallocate(s%icount)
@@ -196,6 +198,7 @@ contains
     ! the camera has been updated
     s%timelastcamchange = glfwGetTime()
     s%forceresetcam = .false.
+    s%iscaminit = .true.
 
   end subroutine scene_reset
 
@@ -308,7 +311,8 @@ contains
     s%scenexmax = xmax
 
     ! translate the scene so the center position remains unchanged
-    call translate(s%world,-xc)
+    if (s%iscaminit) &
+       call translate(s%world,-xc)
 
     ! rebuilding lists is done
     s%forcebuildlists = .false.
@@ -857,6 +861,7 @@ contains
     call s%update_projection_matrix()
     s%timelastcamchange = glfwGetTime()
     s%forceresetcam = .false.
+    s%iscaminit = .true.
 
   end subroutine scene_cam_copy
 
