@@ -117,7 +117,7 @@ contains
 
     ! reset the camera later
     s%camresetdist = 1.5_c_float
-    s%camratio = 2.5_c_float
+    s%camratio = 1.5_c_float
 
     ! sort the representations next pass
     s%forcesort = .true.

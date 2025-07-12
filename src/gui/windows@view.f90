@@ -515,7 +515,7 @@ contains
     if (associated(w%sc)) then
        if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
           call igAlignTextToFramePadding()
-          ! objectss table
+          ! objects table
           call iw_text("List of Objects",highlight=.true.)
 
           ! add button
@@ -739,12 +739,19 @@ contains
     sz0%y = 0.5 * (real(w%FBOside,c_float) - szavail%y * scal) / real(w%FBOside,c_float)
     sz1%x = 1._c_float - sz0%x
     sz1%y = 1._c_float - sz0%y
-    if (szavail%x > szavail%y) then
-       ratio = szavail%x / max(szavail%y,1._c_float)
-    else
-       ratio = szavail%y / max(szavail%x,1._c_float)
-    end if
-    if (associated(w%sc)) w%sc%camratio = min(ratio,2.5_c_float)
+
+    !!! The camratio is used for resetting the camera. The problem with this
+    !!! is that in the first render the window dimensions are still changing
+    !!! and the camratio of the first view rendered is different from the rest.
+    !!! Therefore, set to a constant of 1.5 in scene_init for the time being.
+    ! if (szavail%x > szavail%y) then
+    !    ratio = szavail%x / max(szavail%y,1._c_float)
+    ! else
+    !    ratio = szavail%y / max(szavail%x,1._c_float)
+    ! end if
+    ! if (associated(w%sc)) then
+    !    w%sc%camratio = min(ratio,2.5_c_float)
+    ! end if
 
     ! render the image to the texture, if requested
     if (w%forcerender) then
