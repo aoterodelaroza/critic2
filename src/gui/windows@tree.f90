@@ -94,15 +94,11 @@ contains
     real(c_float) :: width, pos
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
-    real*8 :: time
 
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
     integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
     integer(c_int), save :: shown_after_filter = 0 ! number of systems shown after the filter
-    real*8, save :: timelastupdate = 0d0
-    real*8, save :: timelastresize = 0d0
-    real*8, save :: timelastsort = 0d0
 
     ! initialize
     hadenabledcolumn = .false.
@@ -110,22 +106,22 @@ contains
     tooltipstr = ""
     szero%x = 0
     szero%y = 0
-    time = glfwGetTime()
     if (.not.allocated(w%iord)) then
        w%tree_sortcid = ic_id
        w%tree_sortdir = 1
        w%tree_selected = 1
        w%forceupdate = .true.
-       timelastupdate = 0d0
-       timelastresize = 0d0
-       timelastsort = 0d0
+       w%forceresize = .true.
+       w%forcesort = .true.
     end if
 
-    ! check for updates in systems
+    ! update the tree based on time signals between dependent windows
     do i = 1, nsys
-       if (timelastupdate < sysc(i)%timelastchange_geometry) w%forceupdate = .true.
-       if (timelastresize < sysc(i)%timelastchange_rebond) w%forceresize = .true.
-       if (timelastsort < sysc(i)%timelastchange_rebond) w%forcesort = .true.
+       ! if a system has changed fundamentally, the table needs an update (maybe)
+       if (w%timelast_tree_update < sysc(i)%timelastchange_geometry) w%forceupdate = .true.
+       ! if a system has been rebonded, the "nmol" column may have changed
+       if (w%timelast_tree_resize < sysc(i)%timelastchange_rebond) w%forceresize = .true.
+       if (w%timelast_tree_sort < sysc(i)%timelastchange_rebond) w%forcesort = .true.
     end do
 
     ! Tree options button
@@ -272,18 +268,14 @@ contains
              call win(iwin_view)%select_view(w%tree_selected)
        end do
        deallocate(w%forceremove)
-       w%timelastupdate = time
        ! restart initialization if the threads were killed
        if (reinit) w%forceinit = .true.
+       w%forceupdate = .true.
     end if
-    if (w%forceupdate) then
+    if (w%forceupdate) &
        call w%update_tree()
-       timelastupdate = time
-    end if
-    if (w%forcesort) then
+    if (w%forcesort) &
        call w%sort_tree(w%tree_sortcid,w%tree_sortdir)
-       timelastsort = time
-    end if
     if (w%forceinit) then
        call kill_initialization_thread()
        call launch_initialization_thread()
@@ -328,7 +320,7 @@ contains
        if (w%forceresize) then
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
           w%forceresize = .false.
-          timelastresize = time
+          w%timelast_tree_resize = glfwGetTime()
        end if
 
        ! set up the columns
@@ -1228,7 +1220,7 @@ contains
 
   ! Update the table rows by building a new row index array
   ! (iord). Only the systems that are not empty are pointed by
-  ! iord. This is routine is used when the systems change.
+  ! iord. This routine is used when the systems change.
   module subroutine update_tree(w)
     use interfaces_glfw, only: glfwGetTime
     use gui_main, only: sysc, nsys, sys_empty
@@ -1251,7 +1243,7 @@ contains
     end if
     w%forceupdate = .false.
     w%forcesort = .true.
-    w%timelastupdate = glfwGetTime()
+    w%timelast_tree_update = glfwGetTime()
 
   end subroutine update_tree
 
@@ -1396,7 +1388,7 @@ contains
     w%forcesort = .false.
 
     ! update the time
-    w%timelastupdate = glfwGetTime()
+    w%timelast_tree_sort = glfwGetTime()
 
   end subroutine sort_tree
 
@@ -2630,13 +2622,18 @@ contains
        ic_nmol,ic_a,ic_b,ic_c,ic_alpha,ic_beta,ic_gamma,ic_emol,ic_p/)
 
     ! initialize
+    forceupdate = .false.
     if (w%firstpass) then
        ic_plotx = 2
        ic_ploty = 1
+       forceupdate = .true.
     end if
 
+    ! update the plot based on time signals between dependent windows
+    !! if the tree info has been updated, also update the plot
+    if (w%timelast_plot_update < win(iwin_tree)%timelast_tree_update) forceupdate = .true.
+
     ! x-choose and y-choose
-    forceupdate = .false.
     str1 = "ID"//c_null_char//"Energy (Ha)"//c_null_char//"Volume (Å³)"//c_null_char//&
        "Volume/Z (Å³)"//c_null_char//&
        "Number of symmetry-unique atoms"//c_null_char//"Number of cell atoms"//c_null_char//&
@@ -2654,7 +2651,7 @@ contains
     forceupdate = forceupdate .or. ch
 
     ! update the plot data if necessary
-    if (w%firstpass .or. w%timelastupdate < win(iwin_tree)%timelastupdate .or. forceupdate) then
+    if (forceupdate) then
        w%plotn = 0
        if (allocated(w%plotx)) deallocate(w%plotx)
        if (allocated(w%ploty)) deallocate(w%ploty)
@@ -2676,7 +2673,7 @@ contains
           call realloc(w%plotx,w%plotn)
           call realloc(w%ploty,w%plotn)
        end if
-       w%timelastupdate = glfwGetTime()
+       w%timelast_plot_update = glfwGetTime()
     end if
 
     ! make the plot

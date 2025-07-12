@@ -628,10 +628,10 @@ contains
              call igSetNextWindowPos(pos,ImGuiCond_None,pivot)
           end if
        elseif (w%type == wintype_console_input) then
-          w%name = "Input Console##" // string(w%id)  // c_null_char
+          w%name = "Input##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
        elseif (w%type == wintype_console_output) then
-          w%name = "Output Console##" // string(w%id)  // c_null_char
+          w%name = "Output##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
        elseif (w%type == wintype_about) then
           w%name = "About##" // string(w%id)  // c_null_char

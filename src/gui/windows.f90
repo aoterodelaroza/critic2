@@ -95,7 +95,6 @@ module windows
      logical :: tied_to_tree = .false. ! whether the system in this window is tied to the tree system
      real(c_float) :: pos(2) = (/0._c_float,0._c_float/) ! the position of the window's top left corner
      logical :: isdocked = .false. ! whether the window is docked
-     real*8 :: timelastupdate ! time the window data was last updated
      ! tree table parameters
      integer :: tree_selected = 1 ! the system selected in a table (input to iord)
      integer, allocatable :: iord(:) ! table order
@@ -107,6 +106,9 @@ module windows
      logical :: forceinit = .false. ! make true to force an initialization of the systems
      integer, allocatable :: forceremove(:) ! enter integers to remove one or more systems
      integer :: forceselect = 0 ! make the tree select this system in the next pass
+     real*8 :: timelast_tree_update = 0d0 ! time the tree was last updated
+     real*8 :: timelast_tree_resize = 0d0 ! time the tree columnes were last resized
+     real*8 :: timelast_tree_sort = 0d0   ! time the tree was last sorted
      ! view parameters
      logical :: ismain ! whether this is the main view or an alternate
      type(scene), pointer :: sc ! pointer to the view scene
@@ -146,6 +148,7 @@ module windows
      real(c_double), allocatable :: plotx(:), ploty(:) ! plot data
      ! edit representation parameters
      type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
+     real*8 :: timelast_plot_update = 0d0 ! time the plot was last updaed
      ! export image parameters
      integer(c_int) :: nsample ! number of samples for anti-aliasing
      integer(c_int) :: jpgquality ! jpg quality

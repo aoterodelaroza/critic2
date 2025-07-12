@@ -63,7 +63,7 @@ contains
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string, falloc, fdealloc
     use param, only: dirsep
-    integer(c_int) :: idum, idum2, display_w, display_h, ileft, iright, ibottom
+    integer(c_int) :: idum, idum2, display_w, display_h, ileft, iright
     type(c_funptr) :: fdum
     type(c_ptr) :: ptrc
     logical(c_bool) :: ldum, show_demo_window, show_implot_demo_window
@@ -272,12 +272,12 @@ contains
        ! https://github.com/ocornut/imgui/issues/2109
        if (firstpass) then
           ileft = igDockBuilderSplitNode(iddock, ImGuiDir_Left, 0.3_c_float, idum, iright)
-          ibottom = igDockBuilderSplitNode(iright, ImGuiDir_Down, 0.3_c_float, idum, idum2)
+          ! ibottom = igDockBuilderSplitNode(iright, ImGuiDir_Down, 0.3_c_float, idum, idum2)
 
           call igDockBuilderDockWindow(c_loc(win(iwin_tree)%name), ileft)
           call igDockBuilderDockWindow(c_loc(win(iwin_view)%name), iright)
-          call igDockBuilderDockWindow(c_loc(win(iwin_console_input)%name), ibottom)
-          call igDockBuilderDockWindow(c_loc(win(iwin_console_output)%name), ibottom)
+          call igDockBuilderDockWindow(c_loc(win(iwin_console_input)%name), ileft)
+          call igDockBuilderDockWindow(c_loc(win(iwin_console_output)%name), ileft)
           call igDockBuilderFinish(iddock)
           win(iwin_console_input)%isopen = .false.
           win(iwin_console_output)%isopen = .false.
