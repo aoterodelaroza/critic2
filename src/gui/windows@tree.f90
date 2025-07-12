@@ -858,9 +858,7 @@ contains
 
     !! process the keybindings
     ! remove system or field
-    ok = is_bind_event(BIND_TREE_REMOVE_SYSTEM_FIELD)
-    ok = ok .and. igIsWindowFocused(ImGuiFocusedFlags_None)
-    if (ok) then
+    if (is_bind_event(BIND_TREE_REMOVE_SYSTEM_FIELD).and.w%focused()) then
        jsel = w%tree_selected
        iref = sys(jsel)%iref
        ok = ok_system(jsel,sys_init)
