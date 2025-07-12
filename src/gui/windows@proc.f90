@@ -792,7 +792,7 @@ contains
              elseif (w%type == wintype_new_struct) then
                 call w%draw_new_struct()
              elseif (w%type == wintype_new_struct_library) then
-                call w%draw_new_struct_from_library()
+                call w%draw_new_struct_library()
              elseif (w%type == wintype_load_field) then
                 call w%draw_load_field()
              elseif (w%type == wintype_scfplot) then

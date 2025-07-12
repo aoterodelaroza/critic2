@@ -27,9 +27,10 @@ set(SOURCES
   gui_main.f90 gui_main@proc.F90
   keybindings.f90 keybindings@proc.f90
   windows.f90 windows@proc.f90 windows@tree.f90 windows@view.f90 windows@dialog.f90
-  windows@ci.f90 windows@co.f90 windows@new_struct.f90
+  windows@ci.f90 windows@co.f90 windows@new_struct.f90 windows@new_struct_library.f90
   windows@edit_geometry.f90 windows@treeplot.f90 windows@rebond.f90 windows@scfplot.f90
   windows@load_field.f90 windows@preferences.f90 windows@about.f90 windows@exportimage.f90
+  windows@vibrations.f90
   utils.f90 utils@proc.f90 utils@math.f90
   templates.f90 templates@proc.f90
   shapes.f90 shapes@proc.f90

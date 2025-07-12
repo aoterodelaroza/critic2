@@ -208,7 +208,7 @@ module windows
      ! new structure procedures
      procedure :: draw_new_struct
      ! new structure from library procedures
-     procedure :: draw_new_struct_from_library
+     procedure :: draw_new_struct_library
      ! load field
      procedure :: draw_load_field
      ! scf plot
@@ -462,9 +462,9 @@ module windows
      module subroutine draw_new_struct(w)
        class(window), intent(inout), target :: w
      end subroutine draw_new_struct
-     module subroutine draw_new_struct_from_library(w)
+     module subroutine draw_new_struct_library(w)
        class(window), intent(inout), target :: w
-     end subroutine draw_new_struct_from_library
+     end subroutine draw_new_struct_library
      module subroutine draw_load_field(w)
        class(window), intent(inout), target :: w
      end subroutine draw_load_field
