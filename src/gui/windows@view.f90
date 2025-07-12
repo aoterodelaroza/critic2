@@ -66,7 +66,7 @@ contains
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
     use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior, ok_system,&
-       are_threads_running
+       are_threads_running, tree_select_updates_view
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
     use tools_io, only: string
     use param, only: newline
@@ -104,6 +104,12 @@ contains
     if (w%firstpass) then
        w%mousepos_lastframe%x = 0._c_float
        w%mousepos_lastframe%y = 0._c_float
+    end if
+
+    ! update the tree based on time signals between dependent windows
+    if (w%timelast_view_assign < win(iwin_tree)%timelast_tree_assign.and.&
+       tree_select_updates_view) then
+       call w%select_view(win(iwin_tree)%tree_selected)
     end if
 
     ! whether the selected view system is a good system, and associate the scene
@@ -1024,6 +1030,7 @@ contains
 
   !> Select system isys in view window.
   module subroutine select_view(w,isys)
+    use interfaces_glfw, only: glfwGetTime
     use gui_main, only: nsys, sysc, sys_init
     class(window), intent(inout), target :: w
     integer, intent(in) :: isys
@@ -1040,6 +1047,7 @@ contains
        call w%sc%init(w%view_selected)
     end if
     w%forcerender = .true.
+    w%timelast_view_assign = glfwGetTime()
 
   end subroutine select_view
 

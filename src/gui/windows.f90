@@ -126,6 +126,7 @@ module windows
      real(c_float) :: oldview(4,4)
      real(c_float) :: mpos0_s
      integer :: ilock = 0 ! mouse parameters -^
+     real*8 :: timelast_view_assign = 0d0   ! time the view was last assigned a system
      ! dialog parameters
      integer :: dialog_purpose ! purpose of the dialog (open, save,...)
      type(dialog_userdata) :: dialog_data ! for the side pane callback

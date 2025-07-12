@@ -1413,15 +1413,11 @@ contains
   !> Select system idx from the tree
   module subroutine select_system_tree(w,idx)
     use interfaces_glfw, only: glfwGetTime
-    use gui_main, only: tree_select_updates_view
     class(window), intent(inout) :: w
     integer, intent(in) :: idx
 
     w%tree_selected = idx
     w%timelast_tree_assign = glfwGetTime()
-
-    ! if (tree_select_updates_view) &
-    !    call win(iwin_view)%select_view(idx)
 
   end subroutine select_system_tree
 
