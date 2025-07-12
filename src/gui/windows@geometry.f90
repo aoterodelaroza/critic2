@@ -484,6 +484,16 @@ contains
           call igEndTabItem()
        end if
 
+       !! symmetry tab !!
+       if (.not.sys(isys)%c%ismolecule) then
+          str2 = "Symmetry##drawgeometry_symmetrytab" // c_null_char
+          flags = ImGuiTabItemFlags_None
+          if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+             call iw_text("blah")
+             call igEndTabItem()
+          end if
+       end if
+
        call igEndTabBar()
     end if
     call igEndGroup()
