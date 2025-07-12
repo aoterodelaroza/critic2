@@ -25,7 +25,6 @@ submodule (windows) tree
   real(c_float), parameter :: rgba_fields(4) = (/0.00_c_float,1.00_c_float,0.50_c_float,1.00_c_float/)
   real(c_float), parameter :: rgba_reference(4) = (/0.890_c_float,0.706_c_float,0.129_c_float,1._c_float/)
 
-
   !xx! private procedures
   ! function tree_system_tooltip(i)
   ! function tree_field_tooltip_string(si,fj)

@@ -44,8 +44,6 @@ submodule (windows) view
 
 contains
 
-  !xx! view
-
   !> Draw the view.
   module subroutine draw_view(w)
     use interfaces_opengl3
