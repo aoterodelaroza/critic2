@@ -279,8 +279,8 @@ contains
           call igDockBuilderDockWindow(c_loc(win(iwin_console_input)%name), ileft)
           call igDockBuilderDockWindow(c_loc(win(iwin_console_output)%name), ileft)
           call igDockBuilderFinish(iddock)
-          win(iwin_console_input)%isopen = .false.
-          win(iwin_console_output)%isopen = .false.
+          win(iwin_console_input)%isopen = .true.
+          win(iwin_console_output)%isopen = .true.
        end if
 
        ! show demo window
