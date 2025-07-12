@@ -30,12 +30,13 @@ set(SOURCES
   windows@ci.f90 windows@co.f90 windows@new_struct.f90 windows@new_struct_library.f90
   windows@geometry.f90 windows@treeplot.f90 windows@rebond.f90 windows@scfplot.f90
   windows@load_field.f90 windows@preferences.f90 windows@about.f90 windows@exportimage.f90
-  windows@vibrations.f90
+  windows@vibrations.f90 windows@editrep.f90
   utils.f90 utils@proc.f90 utils@math.f90
   templates.f90 templates@proc.f90
   shapes.f90 shapes@proc.f90
   shaders.f90 shaders@proc.f90
   scenes.f90 scenes@proc.f90
+  representations.f90 representations@proc.f90
   )
 
 ## cross-compilation for windows, add the flag

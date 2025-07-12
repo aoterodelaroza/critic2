@@ -63,7 +63,7 @@ contains
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string, falloc, fdealloc
     use param, only: dirsep
-    integer(c_int) :: idum, idum2, display_w, display_h, ileft, iright
+    integer(c_int) :: idum, display_w, display_h, ileft, iright
     type(c_funptr) :: fdum
     type(c_ptr) :: ptrc
     logical(c_bool) :: ldum, show_demo_window, show_implot_demo_window

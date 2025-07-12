@@ -37,7 +37,7 @@ contains
 
   !> Draw the geometry window.
   module subroutine draw_geometry(w)
-    use scenes, only: reptype_atoms
+    use representations, only: reptype_atoms
     use windows, only: iwin_view, iwin_tree
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITGEOM_REMOVE

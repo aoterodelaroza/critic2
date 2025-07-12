@@ -18,7 +18,8 @@
 ! The class to handle ImGui windows.
 module windows
   use iso_c_binding
-  use scenes, only: representation, scene
+  use representations, only: representation
+  use scenes, only: scene
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
   use param, only: isformat_unknown
