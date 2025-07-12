@@ -1286,6 +1286,9 @@ contains
              idum = stack_create_window(wintype_exportimage,.true.,idparent=iwin_view,orraise=-1)
           call iw_tooltip("Export the current view to an image file (png)",ttshown)
 
+          ! separator
+          call igSeparator()
+
           launch(d_geometry) = launch(d_geometry) .or. &
              iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=isysvok)
           call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
