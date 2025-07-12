@@ -83,7 +83,7 @@ contains
     integer :: islabels
     logical(c_bool) :: ch
     integer(c_int) :: flags, nc(3), ires, viewtype, idum
-    real(c_float) :: scal, width, sqw, ratio, depth, rgba(4)
+    real(c_float) :: scal, width, sqw, depth, rgba(4)
     real*8 :: x0(3)
     logical :: changedisplay(4) ! 1=atoms, 2=bonds, 3=labels, 4=cell
 

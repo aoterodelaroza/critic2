@@ -35,7 +35,7 @@ contains
   !> Draw the contents of a tree window
   module subroutine draw_tree(w)
     use interfaces_glfw, only: glfwGetTime
-    use windows, only: win, iwin_view
+    use windows, only: win
     use keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM_FIELD, BIND_TREE_MOVE_UP,&
        BIND_TREE_MOVE_DOWN
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
@@ -43,7 +43,7 @@ contains
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_ready,&
        sys_loaded_not_init, launch_initialization_thread, ColorTableCellBg,&
        kill_initialization_thread, system_shorten_names, tooltip_delay,&
-       ColorDangerButton, ColorFieldSelected, g, fontsize, ok_system
+       ColorDangerButton, ColorFieldSelected, g, fontsize, ok_system, sys_initializing
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
@@ -65,12 +65,18 @@ contains
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
-    logical :: hadenabledcolumn, isend, ok, found
+    logical :: hadenabledcolumn, isend, ok, found, reinit
     logical :: export, didtableselected, hadrow
     real(c_float) :: width, pos
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
 
+    integer, allocatable, save :: forceremove(:) ! enter integers to remove one or more systems
+    integer, save :: forceselect = 0 ! force selection of a system
+    logical, save :: forceremap = .false. ! force a remap of the tree
+    logical, save :: forcesort = .false. ! force a sort of the tree
+    logical, save :: forceresize = .false. ! force a resize of the tree columns
+    logical, save :: forceinit = .false. ! run the initialization threads
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
     integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
@@ -86,18 +92,17 @@ contains
        w%tree_sortcid = ic_tree_id
        w%tree_sortdir = 1
        w%tree_selected = 1
-       w%forceupdate = .true.
-       w%forceresize = .true.
-       w%forcesort = .true.
+       forceremap = .true.
+       forcesort = .true.
     end if
 
     ! update the tree based on time signals between dependent windows
     do i = 1, nsys
        ! if a system has changed fundamentally, the table needs an update (maybe)
-       if (w%timelast_tree_update < sysc(i)%timelastchange_geometry) w%forceupdate = .true.
+       if (w%timelast_tree_update < sysc(i)%timelastchange_geometry) forceremap = .true.
        ! if a system has been rebonded, the "nmol" column may have changed: sort and resize
-       if (w%timelast_tree_resize < sysc(i)%timelastchange_rebond) w%forceresize = .true.
-       if (w%timelast_tree_sort < sysc(i)%timelastchange_rebond) w%forcesort = .true.
+       if (w%timelast_tree_resize < sysc(i)%timelastchange_rebond) forceresize = .true.
+       if (w%timelast_tree_sort < sysc(i)%timelastchange_rebond) forcesort = .true.
     end do
 
     ! Tree options button
@@ -136,8 +141,8 @@ contains
 
        ! close visible
        if (iw_menuitem("Close Visible")) then
-          if (allocated(w%forceremove)) deallocate(w%forceremove)
-          allocate(w%forceremove(nsys))
+          if (allocated(forceremove)) deallocate(forceremove)
+          allocate(forceremove(nsys))
           k = 0
           do i = 1, nsys
              if (c_associated(cfilter)) then
@@ -145,9 +150,9 @@ contains
                 if (.not.ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) cycle
              end if
              k = k + 1
-             w%forceremove(k) = i
+             forceremove(k) = i
           end do
-          call realloc(w%forceremove,k)
+          call realloc(forceremove,k)
           if (c_associated(cfilter)) &
              call ImGuiTextFilter_Clear(cfilter)
        end if
@@ -155,10 +160,10 @@ contains
 
        ! close all systems
        if (iw_menuitem("Close All")) then
-          if (allocated(w%forceremove)) deallocate(w%forceremove)
-          allocate(w%forceremove(nsys))
+          if (allocated(forceremove)) deallocate(forceremove)
+          allocate(forceremove(nsys))
           do i = 1, nsys
-             w%forceremove(i) = i
+             forceremove(i) = i
           end do
        end if
        call iw_tooltip("Close all systems",ttshown)
@@ -185,19 +190,31 @@ contains
 
     !! process force options !!
     ! remove systems from the tree
-    if (allocated(w%forceremove)) &
-       call w%remove_systems_tree(cfilter)
+    if (allocated(forceremove)) then
+       reinit = any((sysc(forceremove)%status == sys_loaded_not_init.and..not.sysc(forceremove)%hidden).or.&
+          sysc(forceremove)%status == sys_initializing)
+       if (reinit) call kill_initialization_thread()
+       call w%remove_systems_tree(cfilter,forceremove)
+       if (reinit) forceinit = .true.
+       forceremap = .true.
+       deallocate(forceremove)
+    end if
     ! remap the tree index (iord)
-    if (w%forceupdate) &
+    if (forceremap) then
        call w%remap_tree()
+       forceremap = .false.
+       forcesort = .true.
+    end if
     ! sort the tree
-    if (w%forcesort) &
+    if (forcesort) then
        call w%sort_tree()
+       forcesort = .false.
+    end if
     ! re-run the initialization threads
-    if (w%forceinit) then
+    if (forceinit) then
        call kill_initialization_thread()
        call launch_initialization_thread()
-       w%forceinit = .false.
+       forceinit = .false.
     end if
     nshown = size(w%iord,1)
 
@@ -235,9 +252,9 @@ contains
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
     if (igBeginTable(c_loc(str),ic_tree_NUMCOLUMNS,flags,szero,0._c_float)) then
        ! force resize if asked for
-       if (w%forceresize) then
+       if (forceresize) then
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
-          w%forceresize = .false.
+          forceresize = .false.
           w%timelast_tree_resize = glfwGetTime()
        end if
 
@@ -335,7 +352,7 @@ contains
              w%tree_sortcid = colspecs%ColumnUserID
              w%tree_sortdir = colspecs%SortDirection
              if (sortspecs%SpecsDirty .and. nshown > 1) then
-                w%forcesort = .true.
+                forcesort = .true.
                 sortspecs%SpecsDirty = .false.
              end if
           else
@@ -376,7 +393,7 @@ contains
                 if (igTableSetColumnIndex(ic_tree_closebutton)) then
                    call igAlignTextToFramePadding()
                    str = "##1closebutton" // string(ic_tree_closebutton) // "," // string(i) // c_null_char
-                   if (my_CloseButton(c_loc(str),ColorDangerButton)) w%forceremove = (/i/)
+                   if (my_CloseButton(c_loc(str),ColorDangerButton)) forceremove = (/i/)
                    if (igIsItemHovered(ImGuiHoveredFlags_None)) &
                       tooltipstr = "Close this system"
                 end if
@@ -848,7 +865,7 @@ contains
              end if
              call sys(jsel)%unload_field(iref)
           else
-             w%forceremove = (/jsel/)
+             forceremove = (/jsel/)
           end if
        end if
 
@@ -860,10 +877,10 @@ contains
     !! up and down the tree
     if (is_bind_event(BIND_TREE_MOVE_UP)) then
        if (iprev > 0) &
-          w%forceselect = iprev
+          forceselect = iprev
     elseif (is_bind_event(BIND_TREE_MOVE_DOWN)) then
        if (inext > 0) &
-          w%forceselect = inext
+          forceselect = inext
     end if
 
     ! if exporting, read the export command
@@ -904,11 +921,11 @@ contains
       selected = (w%tree_selected==isys)
       strl = "##selectable" // string(isys) // c_null_char
       ok = igSelectable_Bool(c_loc(strl),selected,flags,szero)
-      ok = ok .or. (w%forceselect == isys)
+      ok = ok .or. (forceselect == isys)
       if (ok) then
          call w%select_system_tree(isys)
-         if (w%forceselect > 0) then
-            w%forceselect = 0
+         if (forceselect > 0) then
+            forceselect = 0
             call igSetKeyboardFocusHere(0)
          end if
          if (igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)) &
@@ -1060,7 +1077,7 @@ contains
 
          ! remove option (system)
          if (iw_menuitem("Close",enabled=enabled)) &
-            w%forceremove = (/isys/)
+            forceremove = (/isys/)
          call iw_tooltip("Close this system",ttshown)
 
          call igEndPopup()
@@ -1091,12 +1108,12 @@ contains
       if (sysc(i)%collapse /= -1) return
       do k = 1, nsys
          if (sysc(k)%collapse == i) then
-            if (sysc(k)%status == sys_loaded_not_init) w%forceinit = .true.
+            if (sysc(k)%status == sys_loaded_not_init) forceinit = .true.
             sysc(k)%hidden = .false.
          end if
       end do
       sysc(i)%collapse = -2
-      w%forceupdate = .true.
+      forceremap = .true.
 
     end subroutine expand_system
 
@@ -1117,7 +1134,7 @@ contains
          if (sysc(w%tree_selected)%collapse == i) &
             call w%select_system_tree(i)
       end if
-      w%forceupdate = .true.
+      forceremap = .true.
 
     end subroutine collapse_system
 
@@ -1146,8 +1163,6 @@ contains
           end if
        end do
     end if
-    w%forceupdate = .false.
-    w%forcesort = .true.
     w%timelast_tree_update = glfwGetTime()
 
   end subroutine remap_tree
@@ -1293,7 +1308,6 @@ contains
 
     ! apply the permutation
     w%iord = w%iord(iperm)
-    w%forcesort = .false.
 
     ! update the time
     w%timelast_tree_sort = glfwGetTime()
@@ -1301,31 +1315,21 @@ contains
   end subroutine sort_tree
 
   !> Remove systems given by index idx from the tree.
-  module subroutine remove_systems_tree(w,cfilter)
-    use gui_main, only: sysc, sys_init, sys_initializing, sys_loaded_not_init,&
+  module subroutine remove_systems_tree(w,cfilter,idx)
+    use gui_main, only: sysc, sys_init, sys_loaded_not_init,&
        kill_initialization_thread, remove_system
     class(window), intent(inout) :: w
     type(c_ptr), intent(inout) :: cfilter
+    integer, intent(in) :: idx(:)
 
-    logical :: reinit
     integer :: i, j, jsel, k, newsel
     character(kind=c_char,len=:), allocatable, target :: str
 
-    ! stop all initialization threads, if any of the systems to
-    ! remove may be initialized in the near future
-    if (any((sysc(w%forceremove)%status == sys_loaded_not_init.and..not.sysc(w%forceremove)%hidden).or.&
-       sysc(w%forceremove)%status == sys_initializing)) then
-       call kill_initialization_thread()
-       reinit = .true.
-    else
-       reinit = .false.
-    end if
-
     ! remove a system and move the table selection if the system was selected
-    do k = 1, size(w%forceremove,1)
-       call remove_system(w%forceremove(k))
+    do k = 1, size(idx,1)
+       call remove_system(idx(k))
        ! if we removed the selected system, go to the next; either, go to the previous
-       if (w%forceremove(k) == w%tree_selected) then
+       if (idx(k) == w%tree_selected) then
           jsel = 0
           do j = 1, size(w%iord,1)
              if (w%iord(j) == w%tree_selected) then
@@ -1364,15 +1368,11 @@ contains
           call w%select_system_tree(newsel)
        end if
        ! if we removed the system for the input console or the view, update
-       if (w%forceremove(k) == win(iwin_console_input)%inpcon_selected) &
+       if (idx(k) == win(iwin_console_input)%inpcon_selected) &
           win(iwin_console_input)%inpcon_selected = w%tree_selected
-       if (w%forceremove(k) == win(iwin_view)%view_selected) &
+       if (idx(k) == win(iwin_view)%view_selected) &
           call win(iwin_view)%select_view(w%tree_selected)
     end do
-    deallocate(w%forceremove)
-    ! restart initialization if the threads were killed
-    if (reinit) w%forceinit = .true.
-    w%forceupdate = .true.
 
   end subroutine remove_systems_tree
 

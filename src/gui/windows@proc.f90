@@ -423,11 +423,6 @@ contains
     w%tree_selected = 1
     w%tree_sortcid = 0
     w%tree_sortdir = 1
-    w%forceresize = .false.
-    w%forcesort = .false.
-    w%forceupdate = .false.
-    w%forceinit = .false.
-    w%forceselect = 0
     w%inpcon_selected = 1
     w%okfile = ""
     w%okfile_set = .false. ! whether the library file has been set by the user
@@ -559,7 +554,6 @@ contains
     w%tied_to_tree = .false.
     w%name = "" // c_null_char
     if (allocated(w%iord)) deallocate(w%iord)
-    if (allocated(w%forceremove)) deallocate(w%forceremove)
     w%plotn = 0
     if (allocated(w%plotx)) deallocate(w%plotx)
     if (allocated(w%ploty)) deallocate(w%ploty)

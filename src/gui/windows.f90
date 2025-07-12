@@ -100,11 +100,6 @@ module windows
      integer, allocatable :: iord(:) ! table order
      integer(c_int) :: tree_sortcid = 0 ! sort table by this column id
      integer(c_int) :: tree_sortdir = 1 ! sort table with this direction
-     logical :: forceresize = .false. ! make true to force resize of columns
-     logical :: forcesort = .false. ! make true to force a sort of the tree
-     logical :: forceupdate = .false. ! make true to force an update of the tree
-     logical :: forceinit = .false. ! make true to force an initialization of the systems
-     integer, allocatable :: forceremove(:) ! enter integers to remove one or more systems
      integer :: forceselect = 0 ! make the tree select this system in the next pass
      real*8 :: timelast_tree_update = 0d0 ! time the tree was last updated
      real*8 :: timelast_tree_resize = 0d0 ! time the tree columnes were last resized
@@ -356,9 +351,10 @@ module windows
      module subroutine sort_tree(w)
        class(window), intent(inout) :: w
      end subroutine sort_tree
-     module subroutine remove_systems_tree(w,cfilter)
+     module subroutine remove_systems_tree(w,cfilter,idx)
        class(window), intent(inout) :: w
        type(c_ptr), intent(inout) :: cfilter
+       integer, intent(in) :: idx(:)
      end subroutine remove_systems_tree
      module subroutine select_system_tree(w,idx)
        class(window), intent(inout) :: w
