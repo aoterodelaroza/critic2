@@ -22,8 +22,23 @@ submodule (windows) co
 
 contains
 
+  !> Update tasks for the rebond window, before the window is
+  !> created.
+  module subroutine update_co(w)
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+
+    if (w%timelast_outcon_focused < timelast_output_written) then
+       w%flags = ImGuiWindowFlags_UnsavedDocument
+    else
+       w%flags = ImGuiWindowFlags_None
+    end if
+
+  end subroutine update_co
+
   !> Draw the contents of the output console
   module subroutine draw_co(w)
+    use interfaces_glfw, only: glfwGetTime
     use commands, only: com, clear_all_commands, nicom, icom, idcom
     use windows, only: stack_create_window
     use gui_main, only: g, ColorDangerButton, ColorFrameBgAlt
@@ -48,6 +63,12 @@ contains
     szero%x = 0._c_float
     szero%y = 0._c_float
     setscroll = .false.
+    if (w%firstpass) &
+       w%timelast_outcon_focused = glfwGetTime()
+
+    ! if focused, update the time
+    if (w%focused()) &
+       w%timelast_outcon_focused = glfwGetTime()
 
     ! read new output, if available
     ldum = read_output_uout(.false.)
@@ -63,6 +84,7 @@ contains
     if (idcom == 0) then
        if (iw_button("Clear",sameline=.true.)) then
           outputb(1:1) = c_null_char
+          timelast_output_written = glfwGetTime()
           lob = 0
        end if
        call iw_tooltip("Clear the output log",ttshown)
@@ -245,6 +267,7 @@ contains
   !> string as command info instead of the contents of the input buffer.
   !> Return true if output has been read.
   module function read_output_uout(iscom,cominfo)
+    use interfaces_glfw, only: glfwGetTime
     use commands, only: command_inout, com, icom, command_inout_empty, command_inout_used,&
        maxcomout, ncom, ncomid, nicom
     use utils, only: get_time_string
@@ -404,6 +427,9 @@ contains
 
        ! we have new data
        read_output_uout = .true.
+
+       ! update the time
+       timelast_output_written = glfwGetTime()
     end if
 
   end function read_output_uout

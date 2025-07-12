@@ -30,6 +30,7 @@ module windows
   character(kind=c_char,len=:), allocatable, target :: outputb
   integer(c_size_t) :: lob = 0
   integer(c_size_t), parameter :: maxlob = 2000000
+  real*8 :: timelast_output_written = 0d0 ! time the output was last written
 
   ! the buffer for the input console
   character(kind=c_char,len=:), allocatable, target :: inputb
@@ -109,6 +110,8 @@ module windows
      ! input console parameters
      integer :: inpcon_selected = 1 ! the system selected in the input console
      real*8 :: timelast_inpcon_assign = 0d0 ! time the inpcon was last assigned a system
+     ! output console parameters
+     real*8 :: timelast_outcon_focused = 0d0 ! time the outcon was last focused
      ! new structure from library & save image
      character(kind=c_char,len=:), allocatable :: okfile ! ok file
      character(kind=c_char,len=:), allocatable :: okfilter ! ok filter
@@ -177,6 +180,7 @@ module windows
      procedure :: fill_input_ci ! fill the input buffer with the given string
      procedure :: get_input_details_ci ! get the system & field strings for current input
      ! output console procedures
+     procedure :: update_co ! update the output console
      procedure :: draw_co ! draw the output console
      ! about window
      procedure :: draw_about ! draw the about window
@@ -422,6 +426,9 @@ module windows
        class(window), intent(inout), target :: w
        character(len=:), allocatable, intent(inout) :: csystem, cfield
      end subroutine get_input_details_ci
+     module subroutine update_co(w)
+       class(window), intent(inout), target :: w
+     end subroutine update_co
      module subroutine draw_co(w)
        class(window), intent(inout), target :: w
      end subroutine draw_co

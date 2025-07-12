@@ -751,8 +751,8 @@ contains
           call w%update_geometry()
        elseif (w%type == wintype_rebond) then
           call w%update_rebond()
-       elseif (w%type == wintype_treeplot) then
-          ! nothing to do yet
+       elseif (w%type == wintype_console_output) then
+          call w%update_co()
        end if
     end if
 
