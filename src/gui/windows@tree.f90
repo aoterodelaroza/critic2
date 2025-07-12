@@ -20,28 +20,6 @@ submodule (windows) tree
   use interfaces_cimgui
   implicit none
 
-  ! column ids for the table in the tree widget
-  integer(c_int), parameter :: ic_closebutton = 0
-  integer(c_int), parameter :: ic_expandbutton = 1
-  integer(c_int), parameter :: ic_id = 2
-  integer(c_int), parameter :: ic_name = 3
-  integer(c_int), parameter :: ic_spg = 4
-  integer(c_int), parameter :: ic_v = 5
-  integer(c_int), parameter :: ic_vmol = 6
-  integer(c_int), parameter :: ic_nneq = 7
-  integer(c_int), parameter :: ic_ncel = 8
-  integer(c_int), parameter :: ic_nmol = 9
-  integer(c_int), parameter :: ic_a = 10
-  integer(c_int), parameter :: ic_b = 11
-  integer(c_int), parameter :: ic_c = 12
-  integer(c_int), parameter :: ic_alpha = 13
-  integer(c_int), parameter :: ic_beta = 14
-  integer(c_int), parameter :: ic_gamma = 15
-  integer(c_int), parameter :: ic_e = 16
-  integer(c_int), parameter :: ic_emol = 17
-  integer(c_int), parameter :: ic_p = 18
-  integer(c_int), parameter :: ic_NUMCOLUMNS = 19 ! keep up to date
-
   ! color for vibrations and fields in tree
   real(c_float), parameter :: rgba_vibrations(4) = (/0.84_c_float,0.86_c_float,0.00_c_float,1.00_c_float/)
   real(c_float), parameter :: rgba_fields(4) = (/0.00_c_float,1.00_c_float,0.50_c_float,1.00_c_float/)
@@ -107,7 +85,7 @@ contains
     szero%x = 0
     szero%y = 0
     if (.not.allocated(w%iord)) then
-       w%tree_sortcid = ic_id
+       w%tree_sortcid = ic_tree_id
        w%tree_sortdir = 1
        w%tree_selected = 1
        w%forceupdate = .true.
@@ -315,7 +293,7 @@ contains
     flags = ior(flags,ImGuiTableFlags_Hideable)
     flags = ior(flags,ImGuiTableFlags_Sortable)
     flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    if (igBeginTable(c_loc(str),ic_NUMCOLUMNS,flags,szero,0._c_float)) then
+    if (igBeginTable(c_loc(str),ic_tree_NUMCOLUMNS,flags,szero,0._c_float)) then
        ! force resize if asked for
        if (w%forceresize) then
           call igTableSetColumnWidthAutoAll(igGetCurrentTable())
@@ -333,78 +311,78 @@ contains
        flags = ior(flags,ImGuiTableColumnFlags_NoHeaderLabel)
        flags = ior(flags,ImGuiTableColumnFlags_NoHeaderWidth)
        width = max(4._c_float, fontsize%y + 2._c_float)
-       call igTableSetupColumn(c_loc(str),flags,width,ic_closebutton)
+       call igTableSetupColumn(c_loc(str),flags,width,ic_tree_closebutton)
 
        str = "(expand button)##0expandbutton" // c_null_char
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_expandbutton)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_expandbutton)
 
        str = "ID##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultSort
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_id)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_id)
 
        str = "Name##0" // c_null_char
        flags = ImGuiTableColumnFlags_WidthStretch
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_name)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_name)
 
        str = "spg##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_spg)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_spg)
 
        str = "V/Å³##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_v)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_v)
 
        str = "(V/Z)/Å³##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_vmol)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_vmol)
 
        str = "nneq##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_nneq)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_nneq)
 
        str = "nat/ncel##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_ncel)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_ncel)
 
        str = "nmol##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_nmol)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_nmol)
 
        str = "a/Å##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_a)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_a)
 
        str = "b/Å##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_b)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_b)
 
        str = "c/Å##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_c)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_c)
 
        str = "α/°##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_alpha)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_alpha)
 
        str = "β/°##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_beta)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_beta)
 
        str = "γ/°##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_gamma)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_gamma)
 
        str = "E/Ha##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_e)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_e)
 
        str = "(E/Z)/Ha##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_emol)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_emol)
 
        str = "p/GPa##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
-       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_p)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_p)
 
        call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
@@ -421,7 +399,7 @@ contains
                 sortspecs%SpecsDirty = .false.
              end if
           else
-             w%tree_sortcid = ic_id
+             w%tree_sortcid = ic_tree_id
              w%tree_sortdir = 1
           end if
        end if
@@ -455,9 +433,9 @@ contains
 
              ! close button
              if (sysc(i)%status == sys_init) then
-                if (igTableSetColumnIndex(ic_closebutton)) then
+                if (igTableSetColumnIndex(ic_tree_closebutton)) then
                    call igAlignTextToFramePadding()
-                   str = "##1closebutton" // string(ic_closebutton) // "," // string(i) // c_null_char
+                   str = "##1closebutton" // string(ic_tree_closebutton) // "," // string(i) // c_null_char
                    if (my_CloseButton(c_loc(str),ColorDangerButton)) w%forceremove = (/i/)
                    if (igIsItemHovered(ImGuiHoveredFlags_None)) &
                       tooltipstr = "Close this system"
@@ -465,10 +443,10 @@ contains
              end if
 
              ! expand button
-             if (igTableSetColumnIndex(ic_expandbutton)) then
+             if (igTableSetColumnIndex(ic_tree_expandbutton)) then
                 if (sysc(i)%collapse < 0) then
                    ! expand button for multi-seed entries
-                   str = "##expand" // string(ic_expandbutton) // "," // string(i) // c_null_char
+                   str = "##expand" // string(ic_tree_expandbutton) // "," // string(i) // c_null_char
                    if (sysc(i)%collapse == -1) then
                       idir = ImGuiDir_Right
                    else
@@ -492,11 +470,11 @@ contains
                 col4 = ImVec4(ColorTableCellBg(1,sys(i)%c%iperiod),ColorTableCellBg(2,sys(i)%c%iperiod),&
                    ColorTableCellBg(3,sys(i)%c%iperiod),ColorTableCellBg(4,sys(i)%c%iperiod))
                 color = igGetColorU32_Vec4(col4)
-                call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_name)
+                call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_tree_name)
              end if
 
              ! ID column
-             if (igTableSetColumnIndex(ic_id)) then
+             if (igTableSetColumnIndex(ic_tree_id)) then
                 str = string(i)
                 call write_maybe_selectable(i,tooltipstr)
                 ok = (sysc(i)%status >= sys_ready)
@@ -510,7 +488,7 @@ contains
              end if
 
              ! name
-             if (igTableSetColumnIndex(ic_name)) then
+             if (igTableSetColumnIndex(ic_tree_name)) then
                 ! selectable
                 call write_maybe_selectable(i,tooltipstr)
 
@@ -534,7 +512,7 @@ contains
                 end if
                 call igSameLine(0._c_float,-1._c_float)
                 call igSetCursorPosX(pos)
-                str = ch // "##" // string(ic_name) // "," // string(i) // c_null_char
+                str = ch // "##" // string(ic_tree_name) // "," // string(i) // c_null_char
                 sz%x = iw_calcwidth(1,1)
                 sz%y = iw_calcheight(1,0)
                 if (igInvisibleButton(c_loc(str),sz,ImGuiButtonFlags_None)) sysc(i)%showfields = .not.sysc(i)%showfields
@@ -748,7 +726,7 @@ contains
              end if
 
              ! energy
-             if (igTableSetColumnIndex(ic_e)) then
+             if (igTableSetColumnIndex(ic_tree_e)) then
                 if (sysc(i)%seed%energy /= huge(1d0)) then
                    str = string(sysc(i)%seed%energy,'f',decimal=8)
                 else
@@ -759,7 +737,7 @@ contains
              end if
 
              if (sysc(i)%status == sys_init) then
-                if (igTableSetColumnIndex(ic_spg)) then ! spg
+                if (igTableSetColumnIndex(ic_tree_spg)) then ! spg
                    if (sys(i)%c%ismolecule) then
                       str = "<mol>"
                    elseif (.not.sys(i)%c%spgavail) then
@@ -771,7 +749,7 @@ contains
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                 end if
 
-                if (igTableSetColumnIndex(ic_v)) then ! volume
+                if (igTableSetColumnIndex(ic_tree_v)) then ! volume
                    if (sys(i)%c%ismolecule) then
                       str = "<mol>"
                    else
@@ -781,7 +759,7 @@ contains
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                 end if
 
-                if (igTableSetColumnIndex(ic_vmol)) then ! volume per molecule
+                if (igTableSetColumnIndex(ic_tree_vmol)) then ! volume per molecule
                    if (sys(i)%c%ismolecule) then
                       str = "<mol>"
                    else
@@ -791,25 +769,25 @@ contains
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                 end if
 
-                if (igTableSetColumnIndex(ic_nneq)) then ! nneq
+                if (igTableSetColumnIndex(ic_tree_nneq)) then ! nneq
                    str = string(sys(i)%c%nneq)
                    call write_maybe_selectable(i,tooltipstr)
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                 end if
 
-                if (igTableSetColumnIndex(ic_ncel)) then ! ncel
+                if (igTableSetColumnIndex(ic_tree_ncel)) then ! ncel
                    str = string(sys(i)%c%ncel)
                    call write_maybe_selectable(i,tooltipstr)
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                 end if
 
-                if (igTableSetColumnIndex(ic_nmol)) then ! nmol
+                if (igTableSetColumnIndex(ic_tree_nmol)) then ! nmol
                    str = string(sys(i)%c%nmol)
                    call write_maybe_selectable(i,tooltipstr)
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                 end if
 
-                if (igTableSetColumnIndex(ic_a)) then ! a
+                if (igTableSetColumnIndex(ic_tree_a)) then ! a
                    if (sys(i)%c%ismolecule) then
                       str = "<mol>"
                    else
@@ -818,7 +796,7 @@ contains
                    call write_maybe_selectable(i,tooltipstr)
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                 end if
-                if (igTableSetColumnIndex(ic_b)) then ! b
+                if (igTableSetColumnIndex(ic_tree_b)) then ! b
                    if (sys(i)%c%ismolecule) then
                       str = "<mol>"
                    else
@@ -827,7 +805,7 @@ contains
                    call write_maybe_selectable(i,tooltipstr)
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                 end if
-                if (igTableSetColumnIndex(ic_c)) then ! c
+                if (igTableSetColumnIndex(ic_tree_c)) then ! c
                    if (sys(i)%c%ismolecule) then
                       str = "<mol>"
                    else
@@ -836,7 +814,7 @@ contains
                    call write_maybe_selectable(i,tooltipstr)
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                 end if
-                if (igTableSetColumnIndex(ic_alpha)) then ! alpha
+                if (igTableSetColumnIndex(ic_tree_alpha)) then ! alpha
                    if (sys(i)%c%ismolecule) then
                       str = "<mol>"
                    else
@@ -845,7 +823,7 @@ contains
                    call write_maybe_selectable(i,tooltipstr)
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                 end if
-                if (igTableSetColumnIndex(ic_beta)) then ! beta
+                if (igTableSetColumnIndex(ic_tree_beta)) then ! beta
                    if (sys(i)%c%ismolecule) then
                       str = "<mol>"
                    else
@@ -854,7 +832,7 @@ contains
                    call write_maybe_selectable(i,tooltipstr)
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                 end if
-                if (igTableSetColumnIndex(ic_gamma)) then ! gamma
+                if (igTableSetColumnIndex(ic_tree_gamma)) then ! gamma
                    if (sys(i)%c%ismolecule) then
                       str = "<mol>"
                    else
@@ -864,7 +842,7 @@ contains
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                 end if
 
-                if (igTableSetColumnIndex(ic_emol)) then ! energy/nmol
+                if (igTableSetColumnIndex(ic_tree_emol)) then ! energy/nmol
                    if (sysc(i)%seed%energy /= huge(1d0)) then
                       str = string(sysc(i)%seed%energy/sys(i)%c%nmol,'f',decimal=8)
                    else
@@ -873,7 +851,7 @@ contains
                    call write_maybe_selectable(i,tooltipstr)
                    call iw_text(str,copy_to_output=export)
                 end if
-                if (igTableSetColumnIndex(ic_p)) then ! pressure
+                if (igTableSetColumnIndex(ic_tree_p)) then ! pressure
                    if (sys(i)%c%ismolecule) then
                       str = "<mol>"
                    elseif (sysc(i)%seed%pressure /= huge(1d0)) then
@@ -891,7 +869,7 @@ contains
 
           if (.not.hadrow) then
              call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-             if (igTableSetColumnIndex(ic_name)) then
+             if (igTableSetColumnIndex(ic_tree_name)) then
                 call igAlignTextToFramePadding()
                 call iw_text("No systems loaded")
              end if
@@ -1275,18 +1253,18 @@ contains
     valid = .true.
 
     ! different types, different sorts
-    if (cid == ic_id .or. cid == ic_nneq .or. cid == ic_ncel .or. cid == ic_nmol) then
+    if (cid == ic_tree_id .or. cid == ic_tree_nneq .or. cid == ic_tree_ncel .or. cid == ic_tree_nmol) then
        ! sort by integer
        allocate(ival(n))
        do i = 1, n
-          if (cid == ic_id) then
+          if (cid == ic_tree_id) then
              ival(i) = w%iord(i)
           elseif (sysc(w%iord(i))%status == sys_init) then
-             if (cid == ic_nneq) then
+             if (cid == ic_tree_nneq) then
                 ival(i) = sys(w%iord(i))%c%nneq
-             elseif (cid == ic_ncel) then
+             elseif (cid == ic_tree_ncel) then
                 ival(i) = sys(w%iord(i))%c%ncel
-             elseif (cid == ic_nmol) then
+             elseif (cid == ic_tree_nmol) then
                 ival(i) = sys(w%iord(i))%c%nmol
              end if
           else
@@ -1296,35 +1274,35 @@ contains
        end do
        call mergesort(ival,iperm,1,n)
        deallocate(ival)
-    elseif (cid == ic_v .or. cid == ic_a .or. cid == ic_b .or. cid == ic_c .or.&
-       cid == ic_alpha .or. cid == ic_beta .or. cid == ic_gamma .or. cid == ic_vmol.or.&
-       cid == ic_e .or. cid == ic_emol .or. cid == ic_p) then
+    elseif (cid == ic_tree_v .or. cid == ic_tree_a .or. cid == ic_tree_b .or. cid == ic_tree_c .or.&
+       cid == ic_tree_alpha .or. cid == ic_tree_beta .or. cid == ic_tree_gamma .or. cid == ic_tree_vmol.or.&
+       cid == ic_tree_e .or. cid == ic_tree_emol .or. cid == ic_tree_p) then
        ! sort by real
        allocate(rval(n))
        do i = 1, n
           doit = sysc(w%iord(i))%status == sys_init
           if (doit) doit = (.not.sys(w%iord(i))%c%ismolecule)
-          if (cid == ic_v .and. doit) then
+          if (cid == ic_tree_v .and. doit) then
              rval(i) = sys(w%iord(i))%c%omega
-          elseif (cid == ic_a .and. doit) then
+          elseif (cid == ic_tree_a .and. doit) then
              rval(i) = sys(w%iord(i))%c%aa(1)
-          elseif (cid == ic_b .and. doit) then
+          elseif (cid == ic_tree_b .and. doit) then
              rval(i) = sys(w%iord(i))%c%aa(2)
-          elseif (cid == ic_c .and. doit) then
+          elseif (cid == ic_tree_c .and. doit) then
              rval(i) = sys(w%iord(i))%c%aa(3)
-          elseif (cid == ic_alpha .and. doit) then
+          elseif (cid == ic_tree_alpha .and. doit) then
              rval(i) = sys(w%iord(i))%c%bb(1)
-          elseif (cid == ic_beta .and. doit) then
+          elseif (cid == ic_tree_beta .and. doit) then
              rval(i) = sys(w%iord(i))%c%bb(2)
-          elseif (cid == ic_gamma .and. doit) then
+          elseif (cid == ic_tree_gamma .and. doit) then
              rval(i) = sys(w%iord(i))%c%bb(3)
-          elseif (cid == ic_vmol .and. doit) then
+          elseif (cid == ic_tree_vmol .and. doit) then
              rval(i) = sys(w%iord(i))%c%omega / sys(w%iord(i))%c%nmol
-          elseif (cid == ic_e .and. sysc(w%iord(i))%seed%energy /= huge(1d0)) then
+          elseif (cid == ic_tree_e .and. sysc(w%iord(i))%seed%energy /= huge(1d0)) then
              rval(i) = sysc(w%iord(i))%seed%energy
-          elseif (cid == ic_emol .and. sysc(w%iord(i))%status == sys_init .and. sysc(w%iord(i))%seed%energy /= huge(1d0)) then
+          elseif (cid == ic_tree_emol .and. sysc(w%iord(i))%status == sys_init .and. sysc(w%iord(i))%seed%energy /= huge(1d0)) then
              rval(i) = sysc(w%iord(i))%seed%energy / sys(w%iord(i))%c%nmol
-          elseif (cid == ic_p .and. sysc(w%iord(i))%seed%pressure /= huge(1d0)) then
+          elseif (cid == ic_tree_p .and. sysc(w%iord(i))%seed%pressure /= huge(1d0)) then
              rval(i) = sysc(w%iord(i))%seed%pressure
           else
              rval(i) = huge(1d0)
@@ -1333,14 +1311,14 @@ contains
        end do
        call mergesort(rval,iperm,1,n)
        deallocate(rval)
-    elseif (cid == ic_name .or. cid == ic_spg) then
+    elseif (cid == ic_tree_name .or. cid == ic_tree_spg) then
        ! sort by string
        allocate(sval(n))
        do i = 1, n
-          if (cid == ic_name .and. sysc(w%iord(i))%status /= sys_empty .and..not.sysc(w%iord(i))%hidden) then
+          if (cid == ic_tree_name .and. sysc(w%iord(i))%status /= sys_empty .and..not.sysc(w%iord(i))%hidden) then
              sval(i)%s = trim(sysc(w%iord(i))%seed%name)
           else
-             doit = (cid == ic_spg) .and. (sysc(w%iord(i))%status == sys_init)
+             doit = (cid == ic_tree_spg) .and. (sysc(w%iord(i))%status == sys_init)
              if (doit) doit = .not.sys(w%iord(i))%c%ismolecule
              if (doit) doit = sys(w%iord(i))%c%spgavail
              if (doit) then
@@ -2593,214 +2571,5 @@ contains
        call w%end()
 
   end subroutine draw_rebond
-
-  !> Draw the tree plot window
-  module subroutine draw_treeplot(w)
-    use interfaces_glfw, only: glfwGetTime
-    use gui_main, only: sysc, sys_empty, sys_init, sys
-    use windows, only: win, iwin_tree
-    use utils, only: iw_calcwidth, iw_combo_simple, iw_tooltip, iw_text
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
-       BIND_OK_FOCUSED_DIALOG
-    use tools_io, only: string
-    use types, only: realloc
-    use param, only: bohrtoa
-    class(window), intent(inout), target :: w
-
-    type(ImVec2) :: sz
-    logical :: ok
-    integer :: i, j, nshown
-    real*8 :: valx, valy
-    character(len=:,kind=c_char), allocatable, target :: str1, str2
-    type(ImVec4) :: auto
-    logical(c_bool) :: ch, forceupdate
-
-    integer, save :: ic_plotx = 0, ic_ploty = 0
-    logical, save :: ttshown = .false. ! tooltip flag
-
-    integer, parameter :: ictrans(0:14) = (/ic_id,ic_e,ic_v,ic_vmol,ic_nneq,ic_ncel,&
-       ic_nmol,ic_a,ic_b,ic_c,ic_alpha,ic_beta,ic_gamma,ic_emol,ic_p/)
-
-    ! initialize
-    forceupdate = .false.
-    if (w%firstpass) then
-       ic_plotx = 2
-       ic_ploty = 1
-       forceupdate = .true.
-    end if
-
-    ! update the plot based on time signals between dependent windows
-    !! if the tree info has been updated, also update the plot
-    if (w%timelast_plot_update < win(iwin_tree)%timelast_tree_update) forceupdate = .true.
-
-    ! x-choose and y-choose
-    str1 = "ID"//c_null_char//"Energy (Ha)"//c_null_char//"Volume (Å³)"//c_null_char//&
-       "Volume/Z (Å³)"//c_null_char//&
-       "Number of symmetry-unique atoms"//c_null_char//"Number of cell atoms"//c_null_char//&
-       "Number of molecules"//c_null_char//"a (Å)"//c_null_char//&
-       "b (Å)"//c_null_char//"c (Å)"//c_null_char//"α (°)"//c_null_char//"β (°)"//c_null_char//&
-       "γ (°)"//c_null_char//"Energy/Z (Ha)"//c_null_char//"Pressure (GPa)"//c_null_char//c_null_char
-    call iw_text("x: ")
-    call iw_combo_simple("##xselect",str1,ic_plotx,changed=ch,sameline=.true.)
-    call iw_tooltip("Property to represent on the x-axis",ttshown)
-    forceupdate = forceupdate .or. ch
-
-    call iw_text("y: ")
-    call iw_combo_simple("##yselect",str1,ic_ploty,changed=ch,sameline=.true.)
-    call iw_tooltip("Property to represent on the y-axis",ttshown)
-    forceupdate = forceupdate .or. ch
-
-    ! update the plot data if necessary
-    if (forceupdate) then
-       w%plotn = 0
-       if (allocated(w%plotx)) deallocate(w%plotx)
-       if (allocated(w%ploty)) deallocate(w%ploty)
-       nshown = size(win(iwin_tree)%iord,1)
-       allocate(w%plotx(nshown),w%ploty(nshown))
-       do j = 1, nshown
-          i = win(iwin_tree)%iord(j)
-          if (sysc(i)%status == sys_empty .or. sysc(i)%hidden) cycle
-
-          ok = getvalue(valx,ictrans(ic_plotx),i)
-          ok = ok .and. getvalue(valy,ictrans(ic_ploty),i)
-          if (ok) then
-             w%plotn = w%plotn + 1
-             w%plotx(w%plotn) = valx
-             w%ploty(w%plotn) = valy
-          end if
-       end do
-       if (w%plotn > 0) then
-          call realloc(w%plotx,w%plotn)
-          call realloc(w%ploty,w%plotn)
-       end if
-       w%timelast_plot_update = glfwGetTime()
-    end if
-
-    ! make the plot
-    if (w%plotn > 0) then
-       str1 = "##treeplot" // c_null_char
-       call igGetContentRegionAvail(sz)
-       if (ipBeginPlot(c_loc(str1),sz,ImPlotFlags_None)) then
-          call getname(str1,ictrans(ic_plotx))
-          call getname(str2,ictrans(ic_ploty))
-          call ipSetupAxes(c_loc(str1),c_loc(str2),ImPlotAxisFlags_AutoFit,ImPlotAxisFlags_AutoFit)
-
-          auto%x = 0._c_float
-          auto%y = 0._c_float
-          auto%z = 0._c_float
-          auto%w = -1._c_float
-          call ipSetNextMarkerStyle(ImPlotMarker_Circle,-1._c_float,auto,-1._c_float,auto)
-
-          call ipPlotLine(c_loc(str2),c_loc(w%plotx),c_loc(w%ploty),w%plotn,ImPlotLineFlags_None,0_c_int)
-          call ipEndPlot()
-       end if
-    end if
-
-    ! close
-    if ((w%focused() .and. (is_bind_event(BIND_OK_FOCUSED_DIALOG) .or. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG) .or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)))) &
-       call w%end()
-
-  contains
-    ! Get value ic for system i and return it in val. The function returns ok if it
-    ! is a valid value.
-    function getvalue(val,ic,i)
-      real*8, intent(out) :: val
-      integer, intent(in) :: ic, i
-      logical :: getvalue
-
-      val = 0d0
-      getvalue = .false.
-      if (ic == ic_id) then
-         val = real(i,8)
-      elseif (ic == ic_e) then
-         if (sysc(i)%seed%energy == huge(1d0)) return
-         val = sysc(i)%seed%energy
-      elseif (ic == ic_v) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
-         val = sys(i)%c%omega*bohrtoa**3
-      elseif (ic == ic_vmol) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
-         val = sys(i)%c%omega*bohrtoa**3/sys(i)%c%nmol
-      elseif (ic == ic_nneq) then
-         if (sysc(i)%status /= sys_init) return
-         val = sys(i)%c%nneq
-      elseif (ic == ic_ncel) then
-         if (sysc(i)%status /= sys_init) return
-         val = sys(i)%c%ncel
-      elseif (ic == ic_nmol) then
-         if (sysc(i)%status /= sys_init) return
-         val = sys(i)%c%nmol
-      elseif (ic == ic_a) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
-         val = sys(i)%c%aa(1)*bohrtoa
-      elseif (ic == ic_b) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
-         val = sys(i)%c%aa(2)*bohrtoa
-      elseif (ic == ic_c) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
-         val = sys(i)%c%aa(3)*bohrtoa
-      elseif (ic == ic_alpha) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
-         val = sys(i)%c%bb(1)
-      elseif (ic == ic_beta) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
-         val = sys(i)%c%bb(2)
-      elseif (ic == ic_gamma) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
-         val = sys(i)%c%bb(3)
-      elseif (ic == ic_emol) then
-         if (sysc(i)%status /= sys_init .or. sysc(i)%seed%energy == huge(1d0)) return
-         val = sysc(i)%seed%energy/sys(i)%c%nmol
-      elseif (ic == ic_p) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule .or.&
-             sysc(i)%seed%pressure == huge(1d0)) return
-         val = sysc(i)%seed%pressure
-      end if
-      getvalue = .true.
-
-    end function getvalue
-
-    ! Get value ic for system i and return it in val. The function returns ok if it
-    ! is a valid value.
-    subroutine getname(str,ic)
-      character(len=:,kind=c_char), allocatable, target :: str
-      integer, intent(in) :: ic
-
-      if (ic == ic_id) then
-         str = "ID" // c_null_char
-      elseif (ic == ic_e) then
-         str = "Energy (Ha)" // c_null_char
-      elseif (ic == ic_v) then
-         str = "Volume (Å³)" // c_null_char
-      elseif (ic == ic_vmol) then
-         str = "Volume/Z (Å³)" // c_null_char
-      elseif (ic == ic_nneq) then
-         str = "Number of symmetry-unique atoms" // c_null_char
-      elseif (ic == ic_ncel) then
-         str = "Number of cell atoms" // c_null_char
-      elseif (ic == ic_nmol) then
-         str = "Number of molecules" // c_null_char
-      elseif (ic == ic_a) then
-         str = "a (Å)" // c_null_char
-      elseif (ic == ic_b) then
-         str = "b (Å)" // c_null_char
-      elseif (ic == ic_c) then
-         str = "c (Å)" // c_null_char
-      elseif (ic == ic_alpha) then
-         str = "α (°)" // c_null_char
-      elseif (ic == ic_beta) then
-         str = "β (°)" // c_null_char
-      elseif (ic == ic_gamma) then
-         str = "γ (°)" // c_null_char
-      elseif (ic == ic_emol) then
-         str = "Energy/Z (Ha)" // c_null_char
-      elseif (ic == ic_p) then
-         str = "Pressure (GPa)" // c_null_char
-      end if
-
-    end subroutine getname
-
-  end subroutine draw_treeplot
 
 end submodule tree

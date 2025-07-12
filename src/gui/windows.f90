@@ -273,6 +273,28 @@ module windows
   integer, parameter, public :: wpurp_view_main = 8
   integer, parameter, public :: wpurp_view_alternate = 9
 
+  ! column ids for the table in the tree widget
+  integer(c_int), parameter, public :: ic_tree_closebutton = 0
+  integer(c_int), parameter, public :: ic_tree_expandbutton = 1
+  integer(c_int), parameter, public :: ic_tree_id = 2
+  integer(c_int), parameter, public :: ic_tree_name = 3
+  integer(c_int), parameter, public :: ic_tree_spg = 4
+  integer(c_int), parameter, public :: ic_tree_v = 5
+  integer(c_int), parameter, public :: ic_tree_vmol = 6
+  integer(c_int), parameter, public :: ic_tree_nneq = 7
+  integer(c_int), parameter, public :: ic_tree_ncel = 8
+  integer(c_int), parameter, public :: ic_tree_nmol = 9
+  integer(c_int), parameter, public :: ic_tree_a = 10
+  integer(c_int), parameter, public :: ic_tree_b = 11
+  integer(c_int), parameter, public :: ic_tree_c = 12
+  integer(c_int), parameter, public :: ic_tree_alpha = 13
+  integer(c_int), parameter, public :: ic_tree_beta = 14
+  integer(c_int), parameter, public :: ic_tree_gamma = 15
+  integer(c_int), parameter, public :: ic_tree_e = 16
+  integer(c_int), parameter, public :: ic_tree_emol = 17
+  integer(c_int), parameter, public :: ic_tree_p = 18
+  integer(c_int), parameter, public :: ic_tree_NUMCOLUMNS = 19 ! keep up to date
+
   ! routines to manipulate the window stack
   public :: stack_realloc_maybe
   public :: stack_create_window
