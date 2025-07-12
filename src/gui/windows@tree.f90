@@ -898,10 +898,7 @@ contains
 
     ! if exporting, read the export command
     if (export) &
-       ldum = win(iwin_console_input)%read_output_ci(.true.,"[Table export]")
-
-    ! clean up
-    ! call ImGuiTextFilter_destroy(cfilter)
+       ldum = read_output_uout(.true.,"[Table export]")
 
   contains
 
@@ -992,7 +989,7 @@ contains
                end if
                call sys(isys)%report(.true.,.true.,.true.,.true.,.true.,.true.,.true.)
                iunit = iunit_bohr
-               ldum = win(iwin_console_input)%read_output_ci(.true.,"[Describe system " // string(isys) // "]")
+               ldum = read_output_uout(.true.,"[Describe system " // string(isys) // "]")
             end if
             call iw_tooltip("Print a detailed description of this system in the output console",ttshown)
 
@@ -1333,15 +1330,12 @@ contains
 
   !> Remove systems given by index idx from the tree.
   module subroutine remove_systems_tree(w,idx)
-    use gui_main, only: sysc, sys_init, sys_loaded_not_init,&
-       kill_initialization_thread, remove_system
+    use gui_main, only: remove_system
     class(window), intent(inout) :: w
     integer, intent(in) :: idx(:)
 
-    integer :: i, j, jsel, k, newsel
-    character(kind=c_char,len=:), allocatable, target :: str
+    integer :: k
 
-    ! remove a system and move the table selection if the system was selected
     do k = 1, size(idx,1)
        call remove_system(idx(k))
     end do
@@ -1350,12 +1344,11 @@ contains
 
   !> Reassign the currently selected system
   module subroutine reassign_tree(w,cfilter)
-    use gui_main, only: sysc, sys_init, sys_loaded_not_init,&
-       kill_initialization_thread, remove_system
+    use gui_main, only: sysc, sys_init, kill_initialization_thread, remove_system
     class(window), intent(inout) :: w
     type(c_ptr), intent(inout) :: cfilter
 
-    integer :: idx, i, j, jsel, k, newsel
+    integer :: idx, i, j, jsel, newsel
     character(kind=c_char,len=:), allocatable, target :: str
 
     ! this routine only works if the selected tree system is empty

@@ -24,6 +24,7 @@ contains
 
   !> Draw the open files dialog.
   module subroutine draw_dialog(w)
+    use commands, only: com, idcom, icom
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
     use windows, only: win

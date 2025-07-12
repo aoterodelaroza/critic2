@@ -246,20 +246,6 @@ contains
 
   end subroutine windows_init
 
-  !> Deallocate all data in a command and reset it to emtpy
-  module subroutine command_end(c)
-    class(command_inout), intent(inout) :: c
-
-    c%id = 0
-    c%status = command_inout_empty
-    c%size = 0
-    c%scrolly = 0._c_float
-    if (allocated(c%tooltipinfo)) deallocate(c%tooltipinfo)
-    if (allocated(c%input)) deallocate(c%input)
-    if (allocated(c%output)) deallocate(c%output)
-
-  end subroutine command_end
-
   !xx! Module functions and subroutines
 
   !> Reallocate the window stack if there are only a few windows

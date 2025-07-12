@@ -35,30 +35,6 @@ module windows
   character(kind=c_char,len=:), allocatable, target :: inputb
   integer(c_size_t), parameter :: maxlib = 40000
 
-  ! command input and output
-  integer, parameter :: command_inout_empty = 0
-  integer, parameter :: command_inout_used = 1
-  type command_inout
-     integer :: id ! unique command ID
-     integer :: status = command_inout_empty ! status of this command
-     integer(c_size_t) :: size = 0 ! size of the output
-     real(c_float) :: scrolly = 0._c_float ! scrolling position in console output view
-     character(len=:,kind=c_char), allocatable :: tooltipinfo ! tooltip info for command (c_null_char term)
-     character(len=:,kind=c_char), allocatable :: input ! command input (c_null_char term)
-     character(len=:,kind=c_char), allocatable :: output ! command output (c_null_char term)
-   contains
-     procedure :: end => command_end
-  end type command_inout
-
-  ! command inout stack
-  integer :: ncomid = 0 ! unique command ID generator (always incremented)
-  integer :: ncom = 0 ! number of commands (com(:))
-  integer :: nicom = 0 ! number of ordered commands (icom(:))
-  integer :: idcom = 0 ! current output shown (0 = all)
-  integer, allocatable :: icom(:) ! order in which to show the commands
-  type(command_inout), allocatable, target :: com(:) ! the actual commands
-  integer(c_size_t), parameter :: maxcomout = 20000000 ! maximum command size
-
   ! view mouse behavior parameters
   integer, parameter :: MB_navigation = 1
 
@@ -198,7 +174,6 @@ module windows
      procedure :: draw_ci ! draw the input console
      procedure :: run_commands_ci ! run the commands in the input buffer
      procedure :: block_gui_ci ! block the GUI while the input buffer commands are run
-     procedure :: read_output_ci ! read the generated output and maybe create a command i/o
      procedure :: fill_input_ci ! fill the input buffer with the given string
      procedure :: get_input_details_ci ! get the system & field strings for current input
      ! output console procedures
@@ -301,14 +276,12 @@ module windows
   public :: stack_realloc_maybe
   public :: stack_create_window
   public :: regenerate_window_pointers
+  public :: read_output_uout
 
   !xx! Interfaces
   interface
      module subroutine windows_init()
      end subroutine windows_init
-     module subroutine command_end(c)
-       class(command_inout), intent(inout) :: c
-     end subroutine command_end
      module subroutine stack_realloc_maybe()
      end subroutine stack_realloc_maybe
      module function stack_create_window(type,isopen,purpose,isys,irep,idparent,itoken,permanent,orraise)
@@ -325,6 +298,11 @@ module windows
      end function stack_create_window
      module subroutine regenerate_window_pointers()
      end subroutine regenerate_window_pointers
+     module function read_output_uout(iscom,cominfo)
+       logical, intent(in) :: iscom
+       character*(*), intent(in), optional :: cominfo
+       logical :: read_output_uout
+     end function read_output_uout
      module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken)
        class(window), intent(inout), target :: w
        integer, intent(in) :: type
@@ -436,12 +414,6 @@ module windows
        class(window), intent(inout), target :: w
        logical, intent(in) :: allsys
      end subroutine block_gui_ci
-     module function read_output_ci(w,iscom,cominfo)
-       class(window), intent(inout), target :: w
-       logical, intent(in) :: iscom
-       character*(*), intent(in), optional :: cominfo
-       logical :: read_output_ci
-     end function read_output_ci
      module subroutine fill_input_ci(w,str)
        class(window), intent(inout), target :: w
        character(len=*), intent(in) :: str

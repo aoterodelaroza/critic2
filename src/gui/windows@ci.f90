@@ -59,10 +59,6 @@ contains
        call assign_system(win(iwin_tree)%tree_selected)
     end if
 
-    ! , iwin_tree
-    ! if (tree_select_updates_inpcon) &
-    !    win(iwin_console_input)%inpcon_selected = idx
-
     ! first line: text
     call iw_text("Input",highlight=.true.)
 
@@ -223,7 +219,7 @@ contains
     call critic_main()
 
     ! read the output
-    ldum = w%read_output_ci(.true.)
+    ldum = read_output_uout(.true.)
 
     ! reinitialize the threads
     if (reinit) call launch_initialization_thread()
@@ -334,172 +330,6 @@ contains
     call igEnd()
 
   end subroutine block_gui_ci
-
-  !> Read new output from the scratch LU uout. If iscom, this output corresponds
-  !> to a command, so create the command i/o object. Return true if
-  !> output has been read.
-  module function read_output_ci(w,iscom,cominfo)
-    use utils, only: get_time_string
-    use gui_main, only: are_threads_running
-    use tools_io, only: uout, getline_raw, string, ferror, faterr
-    use types, only: realloc
-    use param, only: newline
-    class(window), intent(inout), target :: w
-    logical, intent(in) :: iscom
-    character*(*), intent(in), optional :: cominfo
-    logical :: read_output_ci
-
-    character(kind=c_char,len=:), allocatable, target :: csystem, cfield
-    type(command_inout), allocatable :: aux(:)
-    character(len=:), allocatable :: line, commonstr, showinp
-    integer(c_size_t) :: pos, lshift, ll, olob, total, newsize
-    integer :: idx, ithis, i
-    logical :: ok
-
-    ! allocate the output buffer if not allocated
-    read_output_ci = .false.
-    if (.not.allocated(outputb)) then
-       allocate(character(len=maxlob+1) :: outputb)
-       outputb(1:1) = c_null_char
-       lob = 0
-    end if
-
-    ! allocate the command input/output stack, if not allocated
-    if (.not.allocated(com)) then
-       ncom = 0
-       allocate(com(10))
-    end if
-    if (.not.allocated(icom)) then
-       nicom = 0
-       allocate(icom(10))
-    end if
-
-    ! do not read if initialization threads are still running (may generate output)
-    if (are_threads_running()) return
-
-    ! get size of the new output
-    inquire(uout,pos=pos)
-    if (pos > 1) then
-       ! there is new output, rewind, read it, and rewind again
-
-       ! I am going to need pos-1 new characters
-       ll = pos-1
-       rewind(uout)
-
-       ! do not have enough room to accomodate this much output = discard new text
-       do while (ll > maxlob)
-          ok = getline_raw(uout,line)
-          if (.not.ok) return
-          ll = ll - (len(line)+1)
-       end do
-
-       ! check whether we can accomodate the new text = discard from the beginning
-       if (lob + ll > maxlob) then
-          lshift = ll + lob - maxlob
-          outputb(1:lob-lshift) = outputb(lshift+1:lob)
-          lob = lob - lshift
-          ! adjust to the next newline
-          idx = index(outputb,newline)
-          if (idx == 0) then
-             lob = 0
-          else
-             outputb(1:lob-idx) = outputb(idx+1:lob)
-             lob = lob - idx
-          end if
-       end if
-
-       ! read the new output and rewind
-       olob = lob
-       do while(getline_raw(uout,line))
-          ll = len(line)
-          if (ll > 0) then
-             outputb(lob+1:lob+ll) = line(1:ll)
-             lob = lob + ll
-          end if
-          outputb(lob+1:lob+1) = newline
-          lob = lob + 1
-          inquire(uout,pos=pos)
-       end do
-       outputb(lob+1:lob+1) = c_null_char
-       rewind(uout)
-
-       if (iscom) then
-          ! try to remove commands if we exceed the size
-          newsize = lob - olob + 1
-          if (newsize > maxcomout) &
-             call ferror('read_output_ci','exceeded output buffer for command',faterr)
-          total = newsize
-          do i = 1, nicom
-             total = total + com(icom(i))%size
-          end do
-          i = 0
-          do while (total > maxcomout)
-             i = i + 1
-             total = total - com(icom(i))%size
-             call com(icom(i))%end()
-          end do
-          icom(1:nicom-i) = icom(i+1:nicom)
-          nicom = nicom - i
-
-          ! get an unusued command ID
-          ithis = 0
-          do i = 1, ncom
-             if (com(i)%status == command_inout_empty) then
-                ithis = i
-                exit
-             end if
-          end do
-
-          ! add a new command, reallocate if necessary
-          if (ithis == 0) then
-             ncom = ncom + 1
-             if (ncom > size(com,1)) then
-                allocate(aux(2*ncom))
-                aux(1:size(com,1)) = com
-                call move_alloc(aux,com)
-             end if
-             ithis = ncom
-          end if
-
-          ! fill the new command info
-          ncomid = ncomid + 1
-          call w%get_input_details_ci(csystem,cfield)
-          com(ithis)%id = ncomid
-          com(ithis)%status = command_inout_used
-          com(ithis)%size = lob - olob + 1
-          if (present(cominfo)) then
-             showinp = trim(cominfo)
-             com(ithis)%input = c_null_char
-          else
-             idx = index(inputb,c_null_char)
-             showinp = inputb(1:idx-1)
-             com(ithis)%input = inputb(1:idx)
-          end if
-
-          commonstr = "### Command: " // string(ncomid) // " (" // get_time_string() // ")" // newline
-          com(ithis)%tooltipinfo = commonstr // &
-             "System: " // csystem // newline //&
-             "Field: " // cfield // newline //&
-             "Input: " // newline // showinp // newline //&
-             "#########" // newline // newline // "[Right-click for options]"
-          com(ithis)%output = commonstr // &
-             "## System: " // csystem // newline //&
-             "## Field: " // cfield // newline //&
-             "## Input: " // newline // showinp // newline //&
-             "#########" // newline // newline // outputb(olob+1:lob+1)
-
-          ! add it to the list of active commands
-          nicom = nicom + 1
-          if (nicom > size(icom,1)) &
-             call realloc(icom,2*nicom)
-          icom(nicom) = ithis
-       end if
-
-       ! we have new data
-       read_output_ci = .true.
-    end if
-
-  end function read_output_ci
 
   !> Fill the input buffer with the given string.
   module subroutine fill_input_ci(w,str)
