@@ -25,7 +25,8 @@ contains
   !> Draw the contents of the input console
   module subroutine draw_ci(w)
     use keybindings, only: BIND_INPCON_RUN, get_bind_keyname, is_bind_event
-    use gui_main, only: sys, sysc, nsys, sys_init, g, force_run_commands
+    use gui_main, only: sys, sysc, nsys, sys_init, g, force_run_commands,&
+       tree_select_updates_inpcon
     use templates, only: draw_keyword_context_menu
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_menuitem
     use systemmod, only: sy
@@ -51,6 +52,16 @@ contains
        allocate(character(len=maxlib+1) :: inputb)
        inputb(1:1) = c_null_char
     end if
+
+    ! update based on time signals between dependent windows
+    if (w%timelast_inpcon_assign < win(iwin_tree)%timelast_tree_assign.and.&
+       tree_select_updates_inpcon) then
+       call assign_system(win(iwin_tree)%tree_selected)
+    end if
+
+    ! , iwin_tree
+    ! if (tree_select_updates_inpcon) &
+    !    win(iwin_console_input)%inpcon_selected = idx
 
     ! first line: text
     call iw_text("Input",highlight=.true.)
@@ -101,7 +112,7 @@ contains
              is_selected = (w%inpcon_selected == i)
              str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
              if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) &
-                w%inpcon_selected = i
+                call assign_system(i)
              if (is_selected) &
                 call igSetItemDefaultFocus()
           end if
@@ -160,6 +171,16 @@ contains
     str1 = "##inputmultiline" // c_null_char
     ldum = igInputTextMultiline(c_loc(str1),c_loc(inputb),maxlib,sz,&
        ImGuiInputTextFlags_AllowTabInput,c_null_funptr,c_null_ptr)
+
+  contains
+    subroutine assign_system(idx)
+      use interfaces_glfw, only: glfwGetTime
+      integer, intent(in) :: idx
+
+      w%inpcon_selected = idx
+      w%timelast_inpcon_assign = glfwGetTime()
+
+    end subroutine assign_system
 
   end subroutine draw_ci
 
