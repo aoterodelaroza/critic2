@@ -28,6 +28,7 @@ set(SOURCES
   keybindings.f90 keybindings@proc.f90
   windows.f90 windows@proc.f90 windows@tree.f90 windows@view.f90 windows@dialog.f90
   windows@ci.f90 windows@co.f90 windows@new_struct.f90
+  windows@edit_geometry.f90
   utils.f90 utils@proc.f90 utils@math.f90
   templates.f90 templates@proc.f90
   shapes.f90 shapes@proc.f90
