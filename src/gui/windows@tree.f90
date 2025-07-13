@@ -42,7 +42,8 @@ contains
     use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_ready,&
        sys_loaded_not_init, launch_initialization_thread, ColorTableCellBg,&
        kill_initialization_thread, system_shorten_names, tooltip_delay,&
-       ColorDangerButton, ColorFieldSelected, g, fontsize, ok_system, sys_initializing
+       ColorDangerButton, ColorFieldSelected, g, fontsize, ok_system, sys_initializing,&
+       remove_systems
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
@@ -198,7 +199,7 @@ contains
        reinit = any((sysc(forceremove)%status == sys_loaded_not_init.and..not.sysc(forceremove)%hidden).or.&
           sysc(forceremove)%status == sys_initializing)
        if (reinit) call kill_initialization_thread()
-       call w%remove_systems_tree(forceremove)
+       call remove_systems(forceremove)
        if (reinit) call launch_initialization_thread()
        forceremap = .true.
        forcereassign = .true.
@@ -1331,20 +1332,6 @@ contains
     w%iord = w%iord(iperm)
 
   end subroutine sort_tree
-
-  !> Remove systems given by index idx from the tree.
-  module subroutine remove_systems_tree(w,idx)
-    use gui_main, only: remove_system
-    class(window), intent(inout) :: w
-    integer, intent(in) :: idx(:)
-
-    integer :: k
-
-    do k = 1, size(idx,1)
-       call remove_system(idx(k))
-    end do
-
-  end subroutine remove_systems_tree
 
   !> Reassign the currently selected system
   module subroutine reassign_tree(w,cfilter)

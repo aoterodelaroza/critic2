@@ -759,6 +759,18 @@ contains
 
   end subroutine remove_system
 
+  !> Remove systems given by indices idx.
+  module subroutine remove_systems(idx)
+    integer, intent(in) :: idx(:)
+
+    integer :: k
+
+    do k = 1, size(idx,1)
+       call remove_system(idx(k))
+    end do
+
+  end subroutine remove_systems
+
   !> Duplicate the given system.
   recursive module subroutine duplicate_system(idx)
     use crystalseedmod, only: crystalseed

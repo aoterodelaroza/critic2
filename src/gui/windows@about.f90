@@ -19,6 +19,7 @@
 submodule (windows) about
   use interfaces_cimgui
   implicit none
+
 contains
 
   !> Draw the about window

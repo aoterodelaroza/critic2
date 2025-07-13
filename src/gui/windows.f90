@@ -153,7 +153,6 @@ module windows
      procedure :: draw_tree ! draw a tree
      procedure :: remap_tree ! update the system information shown by the tree
      procedure :: sort_tree ! sort the systems in the tree
-     procedure :: remove_systems_tree ! remove systems from the tree
      procedure :: reassign_tree ! reassign the currently selected system in the tree
      procedure :: select_system_tree ! select a system in the tree
      ! treeplot procedures
@@ -338,10 +337,6 @@ module windows
      module subroutine sort_tree(w)
        class(window), intent(inout) :: w
      end subroutine sort_tree
-     module subroutine remove_systems_tree(w,idx)
-       class(window), intent(inout) :: w
-       integer, intent(in) :: idx(:)
-     end subroutine remove_systems_tree
      module subroutine reassign_tree(w,cfilter)
        class(window), intent(inout) :: w
        type(c_ptr), intent(inout) :: cfilter

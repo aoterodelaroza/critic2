@@ -159,6 +159,7 @@ module gui_main
   public :: add_systems_from_seeds
   public :: add_systems_from_name
   public :: remove_system
+  public :: remove_systems
   public :: reread_system_from_file
   public :: duplicate_system
   public :: set_default_ui_settings
@@ -198,6 +199,9 @@ module gui_main
        integer, intent(in) :: idx
        logical, intent(in), optional :: kill_dependents_if_extended
      end subroutine remove_system
+     module subroutine remove_systems(idx)
+       integer, intent(in) :: idx(:)
+     end subroutine remove_systems
      recursive module subroutine reread_system_from_file(idx)
        integer, intent(in) :: idx
      end subroutine reread_system_from_file
