@@ -40,7 +40,7 @@ contains
   module subroutine draw_co(w)
     use interfaces_glfw, only: glfwGetTime
     use commands, only: com, clear_all_commands, nicom, icom, idcom
-    use windows, only: stack_create_window
+    use windows, only: stack_create_window, fill_input_ci
     use gui_main, only: g, ColorDangerButton, ColorFrameBgAlt
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text,&
        iw_setposx_fromend, iw_calcheight, iw_calcwidth, iw_menuitem
@@ -187,7 +187,7 @@ contains
           if (iw_menuitem("Edit Input")) then
              idx = index(com(icom(i))%input,c_null_char)
              if (idx > 0) then
-                call w%fill_input_ci(com(icom(i))%input(1:idx))
+                call fill_input_ci(com(icom(i))%input(1:idx))
              end if
              call igFocusWindow(win(iwin_console_input)%ptr)
           end if

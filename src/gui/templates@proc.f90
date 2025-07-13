@@ -426,7 +426,7 @@ contains
     use utils, only: iw_menuitem
     logical, intent(in) :: textinsert
 
-    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    character(kind=c_char,len=:), allocatable, target :: str1
 
     integer :: i, j
 
@@ -452,7 +452,7 @@ contains
   !> textinsert, insert the template into the console
   !> input. Otherwise, open the documentation.
   subroutine launch_keyword_action(textinsert,ikeyw)
-    use windows, only: win, iwin_console_input
+    use windows, only: win, fill_input_ci
     use interfaces_cimgui
     logical, intent(in) :: textinsert
     integer, intent(in) :: ikeyw
@@ -461,7 +461,7 @@ contains
 
     if (textinsert) then
        str = get_keyword_template(ikeyw)
-       call win(iwin_console_input)%fill_input_ci(str)
+       call fill_input_ci(str)
     else
        str = "https://aoterodelaroza.github.io/critic2/manual/" // trim(doclink(ikeyw)) //&
           c_null_char

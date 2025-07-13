@@ -177,7 +177,6 @@ module windows
      procedure :: draw_ci ! draw the input console
      procedure :: run_commands_ci ! run the commands in the input buffer
      procedure :: block_gui_ci ! block the GUI while the input buffer commands are run
-     procedure :: fill_input_ci ! fill the input buffer with the given string
      procedure :: get_input_details_ci ! get the system & field strings for current input
      ! output console procedures
      procedure :: update_co ! update the output console
@@ -281,6 +280,7 @@ module windows
   public :: stack_create_window
   public :: regenerate_window_pointers
   public :: read_output_uout
+  public :: fill_input_ci
 
   !xx! Interfaces
   interface
@@ -415,14 +415,13 @@ module windows
        class(window), intent(inout), target :: w
        logical, intent(in) :: allsys
      end subroutine block_gui_ci
-     module subroutine fill_input_ci(w,str)
-       class(window), intent(inout), target :: w
-       character(len=*), intent(in) :: str
-     end subroutine fill_input_ci
      module subroutine get_input_details_ci(w,csystem,cfield)
        class(window), intent(inout), target :: w
        character(len=:), allocatable, intent(inout) :: csystem, cfield
      end subroutine get_input_details_ci
+     module subroutine fill_input_ci(str)
+       character(len=*), intent(in) :: str
+     end subroutine fill_input_ci
      !xx! co submodule !xx!
      module subroutine update_co(w)
        class(window), intent(inout), target :: w

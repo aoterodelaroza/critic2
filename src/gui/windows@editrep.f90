@@ -368,7 +368,7 @@ contains
           call igPopItemWidth()
 
           ! draw the atom selection widget
-          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,w%id,w%idparent,&
+          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,&
              .true.,.false.,ihighlight,highlight_type)
 
           call igEndTabItem()
@@ -459,7 +459,7 @@ contains
              call iw_tooltip("Color of the border for the atoms",ttshown)
 
              ! draw the atom selection widget
-             changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,w%id,w%idparent,&
+             changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,&
                 .false.,.true.,ihighlight,highlight_type)
 
              call igEndTabItem()
@@ -1129,7 +1129,7 @@ contains
   !> showselection = show the selection tab columns in the tables.
   !> showdrawopts = show the atoms tab columns (draw) in the tables.
   !> dohighlight = return true if highlight has been done
-  function atom_selection_widget(c,r,id,idparent,showselection,showdrawopts,ihighlight,highlight_type) &
+  function atom_selection_widget(c,r,showselection,showdrawopts,ihighlight,highlight_type) &
      result(changed)
     use representations, only: draw_style_atom, draw_style_molecule
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
@@ -1139,8 +1139,6 @@ contains
     use tools_io, only: string, ioj_right
     type(crystal), intent(in) :: c
     type(representation), intent(inout) :: r
-    integer, intent(in) :: id
-    integer, intent(in) :: idparent
     logical, intent(in) :: showselection
     logical, intent(in) :: showdrawopts
     integer, intent(out) :: ihighlight

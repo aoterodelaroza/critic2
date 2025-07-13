@@ -130,7 +130,6 @@ contains
 
   !> Reset the representation to the default values.
   module subroutine representation_reset(r)
-    use scenes, only: style_phong
     use systems, only: sys, sys_ready, ok_system
     use tools_io, only: string
     class(representation), intent(inout), target :: r

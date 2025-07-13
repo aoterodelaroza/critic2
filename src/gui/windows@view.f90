@@ -15,9 +15,6 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-!xx! private procedures
-! function atom_selection_widget(c,r,id,idparent,showselection,showdrawopts)
-
 ! Windows, view.
 submodule (windows) view
   use interfaces_cimgui

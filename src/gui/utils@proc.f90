@@ -564,11 +564,10 @@ contains
   !> Create a selectable that highlights the current row. Return true
   !> if the selectable is hovered. If clicked is present, return .true.
   !> if clicked.
-  module function iw_highlight_selectable(str,selected,clicked)
+  module function iw_highlight_selectable(str,clicked)
     use interfaces_cimgui
     use gui_main, only: g, ColorTableHighlightRow
     character(len=*,kind=c_char), intent(in) :: str
-    logical, intent(in), optional :: selected
     logical, intent(out), optional :: clicked
     logical :: iw_highlight_selectable
 

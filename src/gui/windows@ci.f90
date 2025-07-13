@@ -331,23 +331,6 @@ contains
 
   end subroutine block_gui_ci
 
-  !> Fill the input buffer with the given string.
-  module subroutine fill_input_ci(w,str)
-    class(window), intent(inout), target :: w
-    character(len=*), intent(in) :: str
-
-    integer :: idx
-
-    idx = index(str,c_null_char)
-    if (idx == 0) then
-       idx = len_trim(str)
-    else
-       idx = idx - 1
-    end if
-    inputb(1:idx+1) = trim(str(1:idx)) // c_null_char
-
-  end subroutine fill_input_ci
-
   !> Get the system and field strings for current input (without null char).
   module subroutine get_input_details_ci(w,csystem,cfield)
     use systems, only: nsys, sysc, sys_init, sys
@@ -369,5 +352,21 @@ contains
     end if
 
   end subroutine get_input_details_ci
+
+  !> Fill the input buffer with the given string.
+  module subroutine fill_input_ci(str)
+    character(len=*), intent(in) :: str
+
+    integer :: idx
+
+    idx = index(str,c_null_char)
+    if (idx == 0) then
+       idx = len_trim(str)
+    else
+       idx = idx - 1
+    end if
+    inputb(1:idx+1) = trim(str(1:idx)) // c_null_char
+
+  end subroutine fill_input_ci
 
 end submodule ci

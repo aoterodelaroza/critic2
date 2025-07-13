@@ -343,8 +343,7 @@ contains
 
                       ! the highlight selectable: hover and click
                       clicked = .false.
-                      ok = iw_highlight_selectable("##selectablemoltable" // suffix,&
-                         selected=w%geometry_selected(i),clicked=clicked)
+                      ok = iw_highlight_selectable("##selectablemoltable" // suffix,clicked=clicked)
                       if (ok) ihighlight = i
                       if (clicked) iclicked = i
                    end if
