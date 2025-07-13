@@ -23,7 +23,7 @@ contains
 
   !> Update tasks for the SCF window, before the window is created.
   module subroutine update_scfplot(w)
-    use gui_main, only: sysc, sys_init, ok_system
+    use systems, only: sysc, sys_init, ok_system
     class(window), intent(inout), target :: w
 
     integer :: isys
@@ -40,7 +40,7 @@ contains
   module subroutine draw_scfplot(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
-    use gui_main, only: nsys, sysc, sys_init, ok_system
+    use systems, only: nsys, sysc, sys_init, ok_system
     use utils, only: iw_text
     use types, only: realloc
     use tools_io, only: string

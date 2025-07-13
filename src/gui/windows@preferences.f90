@@ -29,7 +29,8 @@ contains
        tree_select_updates_inpcon, tree_select_updates_view, io, fontsize,&
        set_default_ui_settings, ColorTableCellBg, ColorHighlightScene,&
        ColorHighlightSelectScene, ColorHighlightSelectScene, ColorMeasureSelect, &
-       ColorElement, nsys, sysc
+       ColorElement
+    use systems, only: nsys, sysc
     use interfaces_cimgui
     use keybindings
     use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth, iw_clamp_color4,&

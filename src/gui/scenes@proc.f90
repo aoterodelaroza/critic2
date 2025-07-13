@@ -57,7 +57,8 @@ contains
   module subroutine scene_init(s,isys)
     use representations, only: reptype_atoms, reptype_unitcell, repflavor_atoms_basic, &
        repflavor_unitcell_basic, repflavor_NUM
-    use gui_main, only: sys, sysc, lockbehavior, sys_ready, ok_system
+    use systems, only: sys, sysc, sys_ready, ok_system
+    use gui_main, only: lockbehavior
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
 
@@ -227,7 +228,7 @@ contains
     use representations, only: reptype_atoms
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
-    use gui_main, only: sys_ready, ok_system
+    use systems, only: sys_ready, ok_system
     use interfaces_glfw, only: glfwGetTime
     class(scene), intent(inout), target :: s
 
@@ -323,7 +324,8 @@ contains
     use interfaces_cimgui
     use interfaces_opengl3
     use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
-    use gui_main, only: fonts, fontbakesize_large, font_large, sys, sysc, nsys
+    use gui_main, only: fonts, fontbakesize_large, font_large
+    use systems, only: sys, sysc, nsys
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use tools_io, only: string
@@ -654,7 +656,7 @@ contains
 
     !> Draw the highlights on the scene
     subroutine draw_highlights()
-      use gui_main, only: sysc
+      use systems, only: sysc
       integer :: i, id
       real(c_float) :: x(3), rgba(4)
 
@@ -739,7 +741,7 @@ contains
   module subroutine scene_render_pick(s)
     use interfaces_cimgui
     use interfaces_opengl3
-    use gui_main, only: sysc, nsys
+    use systems, only: sysc, nsys
     use shapes, only: sphVAO
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
@@ -1160,7 +1162,7 @@ contains
   !> Align the view with a given scene axis. a,b,c = 1,2,3 and x,y,z =
   !> -1,-2,-3.
   module subroutine align_view_axis(s,iaxis)
-    use gui_main, only: sys
+    use systems, only: sys
     use tools_math, only: cross
     use utils, only: rotate, translate
     class(scene), intent(inout), target :: s

@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Routines for the vibrations window.
-submodule (windows) about
+submodule (windows) vibrations
   use interfaces_cimgui
   implicit none
 contains
@@ -27,8 +27,9 @@ contains
     use crystalseedmod, only: crystalseed
     use scenes, only: anim_speed_default, anim_amplitude_default, anim_amplitude_max,&
        anim_speed_max
-    use gui_main, only: sysc, sys, sys_init, g, add_systems_from_seeds,&
+    use systems, only: sysc, sys, sys_init, add_systems_from_seeds,&
        launch_initialization_thread, ok_system
+    use gui_main, only: g
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_radiobutton
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
@@ -423,4 +424,4 @@ contains
 
   end subroutine draw_vibrations
 
-end submodule about
+end submodule vibrations

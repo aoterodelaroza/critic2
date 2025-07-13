@@ -28,7 +28,7 @@ contains
   !> count array of the calling scene.
   module subroutine representation_init(r,isys,irep,itype,style,flavor,icount)
     use scenes, only: style_phong
-    use gui_main, only: sys, sys_ready, ok_system
+    use systems, only: sys, sys_ready, ok_system
     use tools_io, only: string
     class(representation), intent(inout), target :: r
     integer, intent(in) :: isys
@@ -131,7 +131,7 @@ contains
   !> Reset the representation to the default values.
   module subroutine representation_reset(r)
     use scenes, only: style_phong
-    use gui_main, only: sys, sys_ready, ok_system
+    use systems, only: sys, sys_ready, ok_system
     use tools_io, only: string
     class(representation), intent(inout), target :: r
 
@@ -214,7 +214,7 @@ contains
   !> Update the representation to respond to a change in the number
   !> of atoms or molecules in the associated system.
   module subroutine update_structure(r)
-    use gui_main, only: sys_ready, ok_system, sysc
+    use systems, only: sys_ready, ok_system, sysc
     class(representation), intent(inout), target :: r
 
     logical :: doreset
@@ -256,7 +256,7 @@ contains
   !> iqpt and frequency ifreq to animate the representation.
   module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
      ncylflat,drawlist_cylflat,nstring,drawlist_string,doanim,iqpt,ifreq)
-    use gui_main, only: sys
+    use systems, only: sys
     use tools_io, only: string, nameguess
     use param, only: bohrtoa, tpi, img, atmass
     class(representation), intent(inout), target :: r
@@ -756,7 +756,8 @@ contains
   !> if system is not ready.
   module subroutine reset_atom_style(d,isys)
     use interfaces_glfw, only: glfwGetTime
-    use gui_main, only: sys, sys_ready, ok_system, ColorElement
+    use systems, only: sys, sys_ready, ok_system
+    use gui_main, only: ColorElement
     use param, only: atmcov
     class(draw_style_atom), intent(inout), target :: d
     integer, intent(in) :: isys
@@ -820,7 +821,8 @@ contains
   !> Reset colors in an atom style to defaults.
   module subroutine reset_colors_atom_style(d,isys)
     use interfaces_glfw, only: glfwGetTime
-    use gui_main, only: sys, sys_ready, ok_system, ColorElement
+    use systems, only: sys, sys_ready, ok_system
+    use gui_main, only: ColorElement
     class(draw_style_atom), intent(inout), target :: d
     integer, intent(in) :: isys
 
@@ -855,7 +857,7 @@ contains
   !> system isys, or leave it empty if isys = 0.
   module subroutine reset_mol_style(d,isys)
     use interfaces_glfw, only: glfwGetTime
-    use gui_main, only: sys, sys_ready, ok_system
+    use systems, only: sys, sys_ready, ok_system
     class(draw_style_molecule), intent(inout), target :: d
     integer, intent(in) :: isys
 
@@ -890,7 +892,7 @@ contains
   !> Generate the neighbor stars from the data in the rij table using
   !> the geometry in system isys.
   module subroutine generate_neighstars(d,isys)
-    use gui_main, only: sys, sys_ready, ok_system
+    use systems, only: sys, sys_ready, ok_system
     use param, only: bohrtoa, atmcov, atmvdw
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in) :: isys
@@ -939,7 +941,7 @@ contains
 
   !> Copy the neighbor stars from the given system.
   module subroutine copy_neighstars_from_system(d,isys)
-    use gui_main, only: sys, sys_ready, ok_system
+    use systems, only: sys, sys_ready, ok_system
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in) :: isys
 
@@ -958,7 +960,7 @@ contains
   !> isys = 0.
   module subroutine reset_bond_style(d,isys,flavor)
     use interfaces_glfw, only: glfwGetTime
-    use gui_main, only: sys, sys_ready, ok_system
+    use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in) :: isys
@@ -1063,7 +1065,7 @@ contains
   !> system isys, or leave it empty if isys = 0.
   module subroutine reset_label_style(d,isys)
     use interfaces_glfw, only: glfwGetTime
-    use gui_main, only: sys, sys_ready, ok_system
+    use systems, only: sys, sys_ready, ok_system
     use tools_io, only: nameguess, string
     class(draw_style_label), intent(inout), target :: d
     integer, intent(in) :: isys

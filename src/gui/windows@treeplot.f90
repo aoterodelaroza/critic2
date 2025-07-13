@@ -24,7 +24,7 @@ contains
   !> Draw the tree plot window
   module subroutine draw_treeplot(w)
     use interfaces_glfw, only: glfwGetTime
-    use gui_main, only: sysc, sys_empty, sys_init, sys
+    use systems, only: sysc, sys_empty, sys_init, sys
     use windows, only: win, iwin_tree
     use utils, only: iw_calcwidth, iw_combo_simple, iw_tooltip, iw_text
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&

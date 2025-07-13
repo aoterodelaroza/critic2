@@ -25,7 +25,8 @@ contains
   module subroutine draw_exportimage(w)
     use interfaces_opengl3
     use interfaces_stb
-    use gui_main, only: sys_init, g, ok_system
+    use gui_main, only: g
+    use systems, only: sys_init, ok_system
     use windows, only: wintype_dialog, wpurp_dialog_saveimagefile
     use utils, only: iw_text, iw_button, iw_calcwidth, iw_tooltip, get_current_working_dir,&
        iw_checkbox

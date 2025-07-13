@@ -39,11 +39,12 @@ contains
        BIND_TREE_MOVE_DOWN
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
        iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem
-    use gui_main, only: nsys, sys, sysc, sys_empty, sys_init, sys_ready,&
-       sys_loaded_not_init, launch_initialization_thread, ColorTableCellBg,&
-       kill_initialization_thread, system_shorten_names, tooltip_delay,&
-       ColorDangerButton, ColorFieldSelected, g, fontsize, ok_system, sys_initializing,&
+    use systems, only: nsys, sys, sysc, sys_empty, sys_init, sys_ready,&
+       sys_loaded_not_init, launch_initialization_thread,&
+       kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
        remove_systems
+    use gui_main, only: ColorTableCellBg, tooltip_delay, ColorDangerButton,&
+       ColorFieldSelected, g, fontsize
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
@@ -913,7 +914,7 @@ contains
   contains
 
     subroutine write_maybe_selectable(isys,tooltipstr)
-      use gui_main, only: are_threads_running, duplicate_system, reread_system_from_file
+      use systems, only: are_threads_running, duplicate_system, reread_system_from_file
       use keybindings, only: BIND_GEOMETRY
       use utils, only: iw_text
       use global, only: iunit, iunit_bohr, iunit_ang
@@ -1160,7 +1161,7 @@ contains
   ! iord. This routine is used when the systems change.
   module subroutine remap_tree(w)
     use interfaces_glfw, only: glfwGetTime
-    use gui_main, only: sysc, nsys, sys_empty
+    use systems, only: sysc, nsys, sys_empty
     class(window), intent(inout) :: w
 
     integer :: i, n
@@ -1187,7 +1188,7 @@ contains
   ! (ascending=1, descending=2). Modifies the w%iord.
   module subroutine sort_tree(w)
     use interfaces_glfw, only: glfwGetTime
-    use gui_main, only: sys, sysc, sys_init, sys_empty
+    use systems, only: sys, sysc, sys_init, sys_empty
     use tools, only: mergesort
     use tools_math, only: invert_permutation
     use tools_io, only: ferror, faterr
@@ -1336,7 +1337,7 @@ contains
   !> Reassign the currently selected system
   module subroutine reassign_tree(w,cfilter)
     use interfaces_glfw, only: glfwGetTime
-    use gui_main, only: sysc, sys_init, kill_initialization_thread, remove_system
+    use systems, only: sysc, sys_init, kill_initialization_thread, remove_system
     class(window), intent(inout) :: w
     type(c_ptr), intent(inout) :: cfilter
 
@@ -1418,7 +1419,8 @@ contains
        iperiod_3d_layered, iperiod_3d_chain, iperiod_3d_molecular,&
        iperiod_2d, iperiod_1d, iperiod_0d, iperiod_mol_single,&
        iperiod_mol_cluster
-    use gui_main, only: sys, sysc, sys_init, ColorTableCellBg, ok_system, sys_empty
+    use systems, only: sys, sysc, sys_init, ok_system, sys_empty
+    use gui_main, only: ColorTableCellBg
     use tools_io, only: string
     use param, only: bohrtoa, maxzat, atmass, pcamu, bohrtocm
     use tools_math, only: gcd
@@ -1603,7 +1605,7 @@ contains
   ! corresponding to system si and field fj
   subroutine tree_field_tooltip_string(si,fj)
     use utils, only: iw_text
-    use gui_main, only: sys, sys_init, ok_system
+    use systems, only: sys, sys_init, ok_system
     use fieldmod, only: field, type_uninit, type_promol, type_grid, type_wien,&
        type_elk, type_pi, type_wfn, type_dftb, type_promol_frag, type_ghost
     use wfn_private, only: molden_type_psi4, molden_type_orca, molden_type_adf_sto,&

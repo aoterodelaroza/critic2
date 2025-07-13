@@ -28,7 +28,7 @@ contains
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
     use windows, only: win
-    use gui_main, only: add_systems_from_name, launch_initialization_thread,&
+    use systems, only: add_systems_from_name, launch_initialization_thread,&
        system_shorten_names, sys_init, sys, ok_system
     use c_interface_module, only: C_F_string_alloc, c_free
     use tools_io, only: ferror, faterr, fopen_write, fclose, uout

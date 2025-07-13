@@ -31,6 +31,7 @@ set(SOURCES
   windows@geometry.f90 windows@treeplot.f90 windows@rebond.f90 windows@scfplot.f90
   windows@load_field.f90 windows@preferences.f90 windows@exportimage.f90
   windows@vibrations.f90 windows@editrep.f90 windows@about.f90
+  systems.f90 systems@proc.f90
   utils.f90 utils@proc.f90 utils@math.f90
   templates.f90 templates@proc.f90
   shapes.f90 shapes@proc.f90

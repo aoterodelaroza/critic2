@@ -61,8 +61,8 @@ contains
        iw_setposx_fromend, iw_checkbox, iw_coloredit, iw_menuitem
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
-    use gui_main, only: sysc, sys, sys_init, nsys, g, fontsize, lockbehavior, ok_system,&
-       are_threads_running, tree_select_updates_view
+    use systems, only: sysc, sys, sys_init, nsys, ok_system, are_threads_running
+    use gui_main, only: g, fontsize, lockbehavior, tree_select_updates_view
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
     use tools_io, only: string
     use param, only: newline
@@ -1020,7 +1020,7 @@ contains
   !> Select system isys in view window.
   module subroutine select_view(w,isys)
     use interfaces_glfw, only: glfwGetTime
-    use gui_main, only: nsys, sysc, sys_init
+    use systems, only: nsys, sysc, sys_init
     class(window), intent(inout), target :: w
     integer, intent(in) :: isys
 
@@ -1050,7 +1050,8 @@ contains
        BIND_NAV_ROTATE_PERP,&
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE,&
        BIND_CLOSE_FOCUSED_DIALOG
-    use gui_main, only: io, nsys
+    use systems, only: nsys
+    use gui_main, only: io
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
     integer(c_int), intent(in) :: idx(5)
@@ -1234,7 +1235,8 @@ contains
   module subroutine draw_selection_tooltip(w,idx)
     use interfaces_cimgui
     use utils, only: iw_text
-    use gui_main, only: sys, fontsize, ColorMeasureSelect
+    use systems, only: sys
+    use gui_main, only: fontsize, ColorMeasureSelect
     use tools_io, only: string
     use tools_math, only: cross
     use param, only: bohrtoa, pi

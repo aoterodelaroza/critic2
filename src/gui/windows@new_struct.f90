@@ -30,8 +30,9 @@ contains
   module subroutine draw_new_struct(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
-    use gui_main, only: g, add_systems_from_seeds,&
-       launch_initialization_thread, system_shorten_names
+    use gui_main, only: g
+    use systems, only: add_systems_from_seeds, launch_initialization_thread,&
+       system_shorten_names
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
        iw_calcwidth, buffer_to_string_array, iw_radiobutton, iw_combo_simple, iw_checkbox
     use crystalseedmod, only: crystalseed, realloc_crystalseed

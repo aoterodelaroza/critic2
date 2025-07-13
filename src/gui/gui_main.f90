@@ -22,12 +22,7 @@ module gui_main
   use iso_c_binding, only: c_ptr, c_float, c_int, c_null_ptr, c_bool
   use interfaces_cimgui, only: ImGuiIO, ImGuiContext, ImVec4, ImVec2, ImGuiViewport,&
      ImFontAtlas
-  use windows, only: window
-  use systemmod, only: system
-  use crystalseedmod, only: crystalseed
-  use scenes, only: scene
-  use global, only: bondfactor_def
-  use param, only: maxzat0, atmcov0
+  use param, only: maxzat0
   implicit none
 
   private
@@ -91,152 +86,19 @@ module gui_main
   ! element colors
   real(c_float), public :: ColorElement(3,0:maxzat0)
 
-  ! system status (from lower to higher initialization level)
-  integer, parameter, public :: sys_empty = 0 ! not in use
-  integer, parameter, public :: sys_loaded_not_init = 1 ! the seed is available, waiting for initialization
-  integer, parameter, public :: sys_initializing = 2 ! the system is initializing
-  integer, parameter, public :: sys_ready = 3 ! the data is ready but thread is still working, so not initialized yet
-  integer, parameter, public :: sys_init = 4 ! the system is initialized
-
-  ! system configuration type
-  type :: sysconf
-     ! system ID and properties
-     integer :: id ! ID for this system
-     integer :: status = sys_empty ! current status
-     logical :: hidden = .false. ! whether it is hidden in the tree view (filter)
-     logical :: showfields = .false. ! whether to show the fields in the tree view
-     type(crystalseed) :: seed ! generating seed
-     logical :: has_field = .false. ! true if the seed has a field
-     logical :: has_vib = .false. ! true if the seed has vibrational data
-     integer :: iperiod = 0 ! periodicity (see iperiod_*)
-     integer :: collapse ! 0 if independent, -1 if master-collapsed, -2 if master-extended, <n> if dependent on n
-     type(c_ptr) :: thread_lock = c_null_ptr ! the lock for initialization of this system
-     ! system name
-     character(len=:), allocatable :: fullname ! full-path name
-     logical :: renamed = .false. ! true if the system has been renamed
-     ! scene
-     type(scene) :: sc ! scene for the system in the main view
-     ! bonding
-     real*8 :: atmcov(0:maxzat0) = atmcov0 ! covalent radii for bonding
-     real*8 :: bondfactor = bondfactor_def ! bond factor for bonding calculation
-     ! highlights
-     real(c_float), allocatable :: highlight_rgba(:,:) ! highlight colors
-     real(c_float), allocatable :: highlight_rgba_transient(:,:) ! transient highlight colors
-     logical :: highlight_transient_set = .false. ! set to false at beginning of main loop; clears transient highlight at end of loop
-     ! time
-     real*8 :: timelastchange_geometry = 0d0   ! time system last changed geometry
-     real*8 :: timelastchange_rebond = 0d0     ! time system last was rebonded
-     real*8 :: timelastchange_buildlists = 0d0 ! time system last required a list rebuild
-     real*8 :: timelastchange_render = 0d0     ! time system last required a render
-   contains
-     procedure :: highlight_atoms
-     procedure :: highlight_clear
-     procedure :: remove_highlighted_atoms
-     procedure :: set_timelastchange
-  end type sysconf
-
-  ! list of changes to the system, in order of severity
-  integer, parameter, public :: lastchange_render = 0     ! system needs a new render
-  integer, parameter, public :: lastchange_buildlists = 1 ! system needs building new lists
-  integer, parameter, public :: lastchange_rebond = 2     ! system has been rebonded
-  integer, parameter, public :: lastchange_geometry = 3   ! system geometry has changed
-
-  ! system arrays
-  integer, public :: nsys = 0
-  type(system), allocatable, target, public :: sys(:)
-  type(sysconf), allocatable, target, public :: sysc(:)
-
   ! flags to control main's behavior
   integer, public :: force_run_commands = 0 ! execute commands from the input console (0=no,1=only selected,2=all)
   logical, public :: force_quit_threads = .false. ! set to true to force all threads to quit as soon as possible
 
   ! public procedures
   public :: gui_start
-  public :: launch_initialization_thread
-  public :: kill_initialization_thread
-  public :: are_threads_running
-  public :: system_shorten_names
-  public :: add_systems_from_seeds
-  public :: add_systems_from_name
-  public :: remove_system
-  public :: remove_systems
-  public :: reread_system_from_file
-  public :: duplicate_system
   public :: set_default_ui_settings
-  public :: regenerate_system_pointers
-  public :: ok_system
 
   interface
      module subroutine gui_start()
      end subroutine gui_start
-     module subroutine launch_initialization_thread()
-     end subroutine launch_initialization_thread
-     module subroutine kill_initialization_thread()
-     end subroutine kill_initialization_thread
-     module function are_threads_running()
-       logical :: are_threads_running
-     end function are_threads_running
-     module subroutine system_shorten_names()
-     end subroutine system_shorten_names
-     module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx)
-       integer, intent(in) :: nseed
-       type(crystalseed), allocatable, intent(in) :: seed(:)
-       logical, intent(in), optional :: collapse
-       integer, intent(in), optional :: iafield, iavib
-       integer, intent(in), optional :: forceidx
-     end subroutine add_systems_from_seeds
-     module subroutine add_systems_from_name(name,mol,isformat,readlastonly,rborder,molcubic,&
-        forceidx)
-       character(len=*), intent(in) :: name
-       integer, intent(in) :: mol
-       integer, intent(in) :: isformat
-       logical, intent(in) :: readlastonly
-       real*8, intent(in) :: rborder
-       logical, intent(in) :: molcubic
-       integer, intent(in), optional :: forceidx
-     end subroutine add_systems_from_name
-     recursive module subroutine remove_system(idx,kill_dependents_if_extended)
-       integer, intent(in) :: idx
-       logical, intent(in), optional :: kill_dependents_if_extended
-     end subroutine remove_system
-     module subroutine remove_systems(idx)
-       integer, intent(in) :: idx(:)
-     end subroutine remove_systems
-     recursive module subroutine reread_system_from_file(idx)
-       integer, intent(in) :: idx
-     end subroutine reread_system_from_file
-     recursive module subroutine duplicate_system(idx)
-       integer, intent(in) :: idx
-     end subroutine duplicate_system
      module subroutine set_default_ui_settings()
      end subroutine set_default_ui_settings
-     module subroutine regenerate_system_pointers()
-     end subroutine regenerate_system_pointers
-     module function ok_system(isys,level)
-       integer, intent(in) :: isys, level
-       logical :: ok_system
-     end function ok_system
-     ! sysconf
-     module subroutine highlight_atoms(sysc,transient,idx,type,rgba)
-       class(sysconf), intent(inout) :: sysc
-       logical, intent(in) :: transient
-       integer, intent(in) :: idx(:)
-       integer, intent(in) :: type
-       real(c_float), intent(in) :: rgba(:,:)
-     end subroutine highlight_atoms
-     module subroutine highlight_clear(sysc,transient,idx,type)
-       class(sysconf), intent(inout) :: sysc
-       logical, intent(in) :: transient
-       integer, intent(in), optional :: idx(:)
-       integer, intent(in), optional :: type
-     end subroutine highlight_clear
-     module subroutine remove_highlighted_atoms(sysc)
-       class(sysconf), intent(inout) :: sysc
-     end subroutine remove_highlighted_atoms
-     module subroutine set_timelastchange(sysc,level)
-       class(sysconf), intent(inout) :: sysc
-       integer, intent(in) :: level
-     end subroutine set_timelastchange
   end interface
 
 end module gui_main

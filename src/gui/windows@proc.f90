@@ -361,7 +361,7 @@ contains
   !> structure and its components. It is used when an array size is
   !> exceeded and move_alloc needs to be used to allocate more memory.
   module subroutine regenerate_window_pointers()
-    use gui_main, only: sysc, sys_init, ok_system
+    use systems, only: sysc, sys_init, ok_system
 
     integer :: i, iv
 
@@ -495,7 +495,7 @@ contains
 
   !> End a window and deallocate the data.
   module subroutine window_end(w)
-    use gui_main, only: ok_system, sysc, sys_init
+    use systems, only: ok_system, sysc, sys_init
     use interfaces_opengl3
     class(window), intent(inout), target :: w
 

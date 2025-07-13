@@ -271,7 +271,7 @@ contains
     use commands, only: command_inout, com, icom, command_inout_empty, command_inout_used,&
        maxcomout, ncom, ncomid, nicom
     use utils, only: get_time_string
-    use gui_main, only: are_threads_running
+    use systems, only: are_threads_running
     use tools_io, only: uout, getline_raw, string, ferror, faterr
     use types, only: realloc
     use param, only: newline

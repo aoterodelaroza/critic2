@@ -41,8 +41,8 @@ contains
     use windows, only: iwin_view, iwin_tree
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITGEOM_REMOVE
-    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system, ColorHighlightScene,&
-       ColorHighlightSelectScene, reread_system_from_file
+    use systems, only: nsys, sysc, sys, sys_init, ok_system, reread_system_from_file
+    use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit
     use global, only: dunit0, iunit_ang

@@ -31,7 +31,8 @@ contains
        ifformat_wfx, ifformat_fchk, ifformat_molden, dirsep
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system
+    use systems, only: nsys, sysc, sys, sys_init, ok_system
+    use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_radiobutton, iw_button,&
        iw_calcwidth
     use tools_io, only: string

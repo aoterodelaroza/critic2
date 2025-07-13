@@ -39,7 +39,8 @@ contains
   module subroutine draw_rebond(w)
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system, lastchange_rebond
+    use systems, only: nsys, sysc, sys, sys_init, ok_system, lastchange_rebond
+    use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight
     use global, only: bondfactor_def
     use tools_io, only: string, nameguess

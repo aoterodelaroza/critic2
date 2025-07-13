@@ -29,7 +29,7 @@ contains
   !> window is created.
   module subroutine update_editrep(w)
     use windows, only: nwin, win, wintype_view
-    use gui_main, only: sys_init, ok_system
+    use systems, only: sys_init, ok_system
     class(window), intent(inout), target :: w
 
     integer :: isys
@@ -56,7 +56,8 @@ contains
     use windows, only: nwin, win, wintype_view
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
-    use gui_main, only: sysc, sys_init, g, ok_system
+    use systems, only: sysc, sys_init, ok_system
+    use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_calcheight, iw_checkbox
     use tools_io, only: string
@@ -159,7 +160,8 @@ contains
   !> the scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_atoms(w,ttshown) result(changed)
     use representations, only: representation
-    use gui_main, only: sys, sysc, g, ColorHighlightScene, ColorElement
+    use systems, only: sys, sysc
+    use gui_main, only: g, ColorHighlightScene, ColorElement
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&

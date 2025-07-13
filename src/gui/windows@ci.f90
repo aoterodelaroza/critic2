@@ -25,8 +25,8 @@ contains
   !> Draw the contents of the input console
   module subroutine draw_ci(w)
     use keybindings, only: BIND_INPCON_RUN, get_bind_keyname, is_bind_event
-    use gui_main, only: sys, sysc, nsys, sys_init, g, force_run_commands,&
-       tree_select_updates_inpcon
+    use systems, only: sys, sysc, nsys, sys_init
+    use gui_main, only: g, force_run_commands, tree_select_updates_inpcon
     use templates, only: draw_keyword_context_menu
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_menuitem
     use systemmod, only: sy
@@ -183,7 +183,7 @@ contains
   !> Run the commands from the console input
   module subroutine run_commands_ci(w)
     use systemmod, only: sy
-    use gui_main, only: launch_initialization_thread, kill_initialization_thread, are_threads_running,&
+    use systems, only: launch_initialization_thread, kill_initialization_thread, are_threads_running,&
        sysc, sys_init, nsys, sys, lastchange_geometry
     use global, only: critic_main
     use tools_io, only: falloc, uin, fclose, ferror, faterr
@@ -350,7 +350,7 @@ contains
 
   !> Get the system and field strings for current input (without null char).
   module subroutine get_input_details_ci(w,csystem,cfield)
-    use gui_main, only: nsys, sysc, sys_init, sys
+    use systems, only: nsys, sysc, sys_init, sys
     use tools_io, only: string
     class(window), intent(inout), target :: w
     character(len=:), allocatable, intent(inout) :: csystem, cfield
