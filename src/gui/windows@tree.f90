@@ -100,9 +100,10 @@ contains
     ! update the tree based on time signals between dependent windows
     do i = 1, nsys
        ! if a system has changed fundamentally, the table needs an update (maybe)
-       ! and maybe we need to reassign the currently selected system
        if (w%timelast_tree_update < sysc(i)%timelastchange_geometry) forceremap = .true.
-       if (w%timelast_tree_assign < sysc(i)%timelastchange_geometry) forcereassign = .true.
+       ! if the currently selected system has changed, maybe we need to reassign
+       if (w%tree_selected == i .and. w%timelast_tree_assign < sysc(i)%timelastchange_geometry) &
+          forcereassign = .true.
        ! if a system has been rebonded, the "nmol" column may have changed: sort and resize
        if (w%timelast_tree_resize < sysc(i)%timelastchange_rebond) forceresize = .true.
        if (w%timelast_tree_sort < sysc(i)%timelastchange_rebond) forcesort = .true.
@@ -1347,6 +1348,7 @@ contains
 
   !> Reassign the currently selected system
   module subroutine reassign_tree(w,cfilter)
+    use interfaces_glfw, only: glfwGetTime
     use gui_main, only: sysc, sys_init, kill_initialization_thread, remove_system
     class(window), intent(inout) :: w
     type(c_ptr), intent(inout) :: cfilter
@@ -1356,7 +1358,10 @@ contains
 
     ! this routine only works if the selected tree system is empty
     idx = w%tree_selected
-    if (sysc(idx)%status == sys_init) return
+    if (sysc(idx)%status == sys_init) then
+       w%timelast_tree_assign = glfwGetTime()
+       return
+    end if
     if (.not.allocated(w%iord)) then
        call w%select_system_tree(1)
        return
