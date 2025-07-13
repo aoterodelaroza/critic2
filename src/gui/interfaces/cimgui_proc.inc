@@ -1353,7 +1353,13 @@ function ImGuiListClipper_Step(self) bind(c,name="ImGuiListClipper_Step")
   type(c_ptr), value :: self
   logical(c_bool) :: ImGuiListClipper_Step
 end function ImGuiListClipper_Step
-!x! void ImGuiListClipper_ForceDisplayRangeByIndices(ImGuiListClipper* self,int item_min,int item_max);
+! void ImGuiListClipper_ForceDisplayRangeByIndices(ImGuiListClipper* self,int item_min,int item_max);
+subroutine ImGuiListClipper_ForceDisplayRangeByIndices(self,item_min,item_max) &
+   bind(c,name="ImGuiListClipper_ForceDisplayRangeByIndices")
+  import c_ptr, c_int
+  type(c_ptr), value :: self
+  integer(c_int), value :: item_min, item_max
+end subroutine ImGuiListClipper_ForceDisplayRangeByIndices
 !x! ImColor* ImColor_ImColor_Nil(void);
 !x! void ImColor_destroy(ImColor* self);
 !x! ImColor* ImColor_ImColor_Float(float r,float g,float b,float a);

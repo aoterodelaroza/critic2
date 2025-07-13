@@ -59,7 +59,7 @@ contains
     type(ImVec2) :: szero, sz
     type(ImVec4) :: col4
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, jsel, ll, id, iref, inext, iprev, iaux, nfreal
+    integer :: i, j, k, jsel, ll, id, iref, inext, iprev, ithis, nfreal
     integer :: nshown, nshown_after_filter
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
@@ -231,7 +231,7 @@ contains
     nshown = 0
     inext = 0
     iprev = 0
-    iaux = 0
+    ithis = 0
     if (allocated(w%iord)) then
        nshown = size(w%iord,1)
        allocate(ishown(nshown))
@@ -243,7 +243,7 @@ contains
              if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
                 nshown_after_filter = nshown_after_filter + 1
                 ishown(nshown_after_filter) = i
-                if (i == w%tree_selected) iaux = nshown_after_filter
+                if (i == w%tree_selected) ithis = nshown_after_filter
              end if
           end do
        else
@@ -251,10 +251,12 @@ contains
              ishown(i) = i
           end do
        end if
-    end if
-    if (iaux > 0) then
-       if (iaux > 1) iprev = ishown(iaux-1)
-       if (iaux < nshown_after_filter) inext = ishown(iaux + 1)
+       if (ithis > 0) then
+          if (ithis > 1) &
+             iprev = ishown(iprevi)
+          if (ithis < nshown_after_filter) &
+             inext = ishown(inexti)
+       end if
     end if
 
     ! final message in the header line
@@ -401,6 +403,7 @@ contains
           ! start the clipper
           clipper = ImGuiListClipper_ImGuiListClipper()
           call ImGuiListClipper_Begin(clipper,nshown_after_filter,-1._c_float)
+          call ImGuiListClipper_ForceDisplayRangeByIndices(clipper,ithis-4,ithis+4)
 
           ! draw the rows
           do while(ImGuiListClipper_Step(clipper))
