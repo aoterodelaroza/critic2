@@ -1243,6 +1243,21 @@ contains
 
   end subroutine select_atom
 
+  !> Add a new representation to the scene with type itype and the given flavor.
+  module subroutine add_representation(s,itype,flavor)
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: itype
+    integer, intent(in) :: flavor
+
+    integer :: id
+
+    id = s%get_new_representation_id()
+    call s%rep(id)%init(s%id,id,itype,s%style,flavor,s%icount)
+    s%forcesort = .true.
+    s%forcebuildlists = .true.
+
+  end subroutine add_representation
+
   !xx! private procedures: low-level draws
 
   !> Draw a sphere with center x0, radius rad and color rgb. Requires
@@ -1641,20 +1656,5 @@ contains
     vert(7:8,nvert0+1:nvert) = vert(7:8,nvert0+1:nvert) * siz
 
   end subroutine calc_text_onscene_vertices
-
-  !> Add a new representation to the scene with type itype and the given flavor.
-  module subroutine add_representation(s,itype,flavor)
-    class(scene), intent(inout), target :: s
-    integer, intent(in) :: itype
-    integer, intent(in) :: flavor
-
-    integer :: id
-
-    id = s%get_new_representation_id()
-    call s%rep(id)%init(s%id,id,itype,s%style,flavor,s%icount)
-    s%forcesort = .true.
-    s%forcebuildlists = .true.
-
-  end subroutine add_representation
 
 end submodule proc

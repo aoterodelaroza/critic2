@@ -21,7 +21,6 @@ submodule (windows) new_struct
   implicit none
 
   !xx! private procedures
-  ! subroutine get_library_structure_list(libfile,nst,st,ismol)
   ! subroutine draw_spg_table(ispg)
 
 contains

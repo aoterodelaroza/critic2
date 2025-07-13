@@ -59,6 +59,7 @@ submodule (keybindings) proc
 
   !xx! private procedures
   ! function hkey(key,mod,group)
+  ! function get_current_mod() result(mod)
 
 contains
 

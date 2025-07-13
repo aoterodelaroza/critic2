@@ -19,6 +19,10 @@
 submodule (windows) new_struct_library
   use interfaces_cimgui
   implicit none
+
+  !xx! private procedures
+  ! subroutine get_library_structure_list(libfile,nst,st,ismol)
+
 contains
 
   !> Draw the contents of the new structure from library window.
@@ -289,6 +293,5 @@ contains
     call fclose(lu)
 
   end subroutine get_library_structure_list
-
 
 end submodule new_struct_library

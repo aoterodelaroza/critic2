@@ -413,6 +413,8 @@ submodule (templates) proc
   type(hash) :: thash
 
   !xx! private procedures
+  ! subroutine launch_keyword_action(textinsert,ikeyw)
+  ! function get_keyword_template(ikeyw)
 
 contains
 

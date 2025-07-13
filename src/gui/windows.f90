@@ -284,6 +284,7 @@ module windows
 
   !xx! Interfaces
   interface
+     !xx! proc submodule !xx!
      module subroutine windows_init()
      end subroutine windows_init
      module subroutine stack_realloc_maybe()
@@ -302,11 +303,6 @@ module windows
      end function stack_create_window
      module subroutine regenerate_window_pointers()
      end subroutine regenerate_window_pointers
-     module function read_output_uout(iscom,cominfo)
-       logical, intent(in) :: iscom
-       character*(*), intent(in), optional :: cominfo
-       logical :: read_output_uout
-     end function read_output_uout
      module subroutine window_init(w,type,isopen,id,purpose,isys,irep,idparent,itoken)
        class(window), intent(inout), target :: w
        integer, intent(in) :: type
@@ -328,6 +324,7 @@ module windows
      module subroutine window_draw(w)
        class(window), intent(inout), target :: w
      end subroutine window_draw
+     !xx! tree submodule !xx!
      module subroutine draw_tree(w)
        class(window), intent(inout), target :: w
      end subroutine draw_tree
@@ -345,9 +342,11 @@ module windows
        class(window), intent(inout) :: w
        integer, intent(in) :: idx
      end subroutine select_system_tree
+     !xx! treeplot submodule !xx!
      module subroutine draw_treeplot(w)
        class(window), intent(inout), target :: w
      end subroutine draw_treeplot
+     !xx! view submodule !xx!
      module subroutine draw_view(w)
        class(window), intent(inout), target :: w
      end subroutine draw_view
@@ -401,9 +400,11 @@ module windows
        class(window), intent(inout), target :: w
        real(c_float), intent(inout) :: pos(3)
      end subroutine texpos_to_world
+     !xx! dialog submodule !xx!
      module subroutine draw_dialog(w)
        class(window), intent(inout), target :: w
      end subroutine draw_dialog
+     !xx! ci submodule !xx!
      module subroutine draw_ci(w)
        class(window), intent(inout), target :: w
      end subroutine draw_ci
@@ -422,33 +423,46 @@ module windows
        class(window), intent(inout), target :: w
        character(len=:), allocatable, intent(inout) :: csystem, cfield
      end subroutine get_input_details_ci
+     !xx! co submodule !xx!
      module subroutine update_co(w)
        class(window), intent(inout), target :: w
      end subroutine update_co
      module subroutine draw_co(w)
        class(window), intent(inout), target :: w
      end subroutine draw_co
+     module function read_output_uout(iscom,cominfo)
+       logical, intent(in) :: iscom
+       character*(*), intent(in), optional :: cominfo
+       logical :: read_output_uout
+     end function read_output_uout
+     !xx! about submodule !xx!
      module subroutine draw_about(w)
        class(window), intent(inout), target :: w
      end subroutine draw_about
+     !xx! preferences submodule !xx!
      module subroutine draw_preferences(w)
        class(window), intent(inout), target :: w
      end subroutine draw_preferences
+     !xx! new_struct submodule !xx!
      module subroutine draw_new_struct(w)
        class(window), intent(inout), target :: w
      end subroutine draw_new_struct
+     !xx! new_struct_library submodule !xx!
      module subroutine draw_new_struct_library(w)
        class(window), intent(inout), target :: w
      end subroutine draw_new_struct_library
+     !xx! load_field submodule !xx!
      module subroutine draw_load_field(w)
        class(window), intent(inout), target :: w
      end subroutine draw_load_field
+     !xx! scfplot submodule !xx!
      module subroutine update_scfplot(w)
        class(window), intent(inout), target :: w
      end subroutine update_scfplot
      module subroutine draw_scfplot(w)
        class(window), intent(inout), target :: w
      end subroutine draw_scfplot
+     !xx! editrep submodule !xx!
      module subroutine update_editrep(w)
        class(window), intent(inout), target :: w
      end subroutine update_editrep
@@ -465,18 +479,22 @@ module windows
        logical, intent(inout) :: ttshown
        logical(c_bool) :: changed
      end function draw_editrep_unitcell
+     !xx! exportimage submodule !xx!
      module subroutine draw_exportimage(w)
        class(window), intent(inout), target :: w
      end subroutine draw_exportimage
+     !xx! vibrations submodule !xx!
      module subroutine draw_vibrations(w)
        class(window), intent(inout), target :: w
      end subroutine draw_vibrations
+     !xx! rebond submodule !xx!
      module subroutine update_rebond(w)
        class(window), intent(inout), target :: w
      end subroutine update_rebond
      module subroutine draw_rebond(w)
        class(window), intent(inout), target :: w
      end subroutine draw_rebond
+     !xx! geometry submodule !xx!
      module subroutine update_geometry(w)
        class(window), intent(inout), target :: w
      end subroutine update_geometry
