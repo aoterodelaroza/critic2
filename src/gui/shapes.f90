@@ -55,6 +55,58 @@ module shapes
   integer(c_int), target, public :: textVBOos
   integer(c_int), parameter, public :: text_maxvert = 6 * 128
 
+  !! draw list objects
+  !> spheres for the draw list
+  type dl_sphere
+     real(c_float) :: x(3) ! position
+     real(c_float) :: r ! radius
+     real(c_float) :: rgb(3) ! color
+     integer(c_int) :: idx(4) ! atom ID (complete atom list) + lattice vector
+     complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
+     real(c_float) :: border ! border size
+     real(c_float) :: rgbborder(3) ! border color
+  end type dl_sphere
+  public :: dl_sphere
+
+  !> cylinders for the draw list
+  type dl_cylinder
+     real(c_float) :: x1(3) ! one end of the cylinder
+     real(c_float) :: x2(3) ! other end of the cylinder
+     real(c_float) :: r ! radius
+     real(c_float) :: rgb(3) ! color
+     complex(c_float_complex) :: x1delta(3) ! delta-vector for vibration animations (end 1)
+     complex(c_float_complex) :: x2delta(3) ! delta-vector for vibration animations (end 2)
+     integer(c_int) :: order ! order of the bond (0=dashed,1=single,2=double,3=triple)
+     real(c_float) :: border ! border size
+     real(c_float) :: rgbborder(3) ! border color
+  end type dl_cylinder
+  public :: dl_cylinder
+
+  !> strings for the draw list
+  type dl_string
+     real(c_float) :: x(3) ! position
+     real(c_float) :: r ! radius
+     real(c_float) :: rgb(3) ! color
+     real(c_float) :: scale ! scale (1.0 = radius)
+     real(c_float) :: offset(3) ! offset of the label in pixels
+     complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
+     character(len=:), allocatable :: str ! string
+  end type dl_string
+  public :: dl_string
+
+  !> collection of objects (draw lists) belonging to a scene
+  type scene_objects
+     integer :: nsph ! number of spheres
+     type(dl_sphere), allocatable :: sph(:) ! sphere draw list
+     integer :: ncyl ! number of cylinders
+     type(dl_cylinder), allocatable :: cyl(:) ! cylinder draw list
+     integer :: ncylflat ! number of flat cylinders
+     type(dl_cylinder), allocatable :: cylflat(:) ! flat cylinder draw list
+     integer :: nstring ! number of strings
+     type(dl_string), allocatable :: string(:) ! flat cylinder draw list
+  end type scene_objects
+  public :: scene_objects
+
   ! module procedure interfaces
   interface
      module subroutine shapes_init()

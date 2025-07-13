@@ -239,18 +239,18 @@ contains
     if (.not.ok_system(s%id,sys_ready)) return
 
     ! initialize
-    s%nsph = 0
-    if (allocated(s%drawlist_sph)) deallocate(s%drawlist_sph)
-    allocate(s%drawlist_sph(100))
-    s%ncyl = 0
-    if (allocated(s%drawlist_cyl)) deallocate(s%drawlist_cyl)
-    allocate(s%drawlist_cyl(100))
-    s%ncylflat = 0
-    if (allocated(s%drawlist_cylflat)) deallocate(s%drawlist_cylflat)
-    allocate(s%drawlist_cylflat(10))
-    s%nstring = 0
-    if (allocated(s%drawlist_string)) deallocate(s%drawlist_string)
-    allocate(s%drawlist_string(10))
+    s%obj%nsph = 0
+    if (allocated(s%obj%sph)) deallocate(s%obj%sph)
+    allocate(s%obj%sph(100))
+    s%obj%ncyl = 0
+    if (allocated(s%obj%cyl)) deallocate(s%obj%cyl)
+    allocate(s%obj%cyl(100))
+    s%obj%ncylflat = 0
+    if (allocated(s%obj%cylflat)) deallocate(s%obj%cylflat)
+    allocate(s%obj%cylflat(10))
+    s%obj%nstring = 0
+    if (allocated(s%obj%string)) deallocate(s%obj%string)
+    allocate(s%obj%string(10))
 
     ! add the items by representation
     do i = 1, s%nrep
@@ -258,9 +258,7 @@ contains
        call s%rep(i)%update()
 
        ! add draw elements
-       call s%rep(i)%add_draw_elements(s%nc,s%nsph,s%drawlist_sph,s%ncyl,s%drawlist_cyl,&
-          s%ncylflat,s%drawlist_cylflat,s%nstring,s%drawlist_string,s%animation>0,&
-          s%iqpt_selected,s%ifreq_selected)
+       call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
     end do
 
     ! reset the measure selection
@@ -273,24 +271,24 @@ contains
        if (s%rep(i)%shown .and. s%rep(i)%type == reptype_atoms) &
           maxrad = max(maxrad,maxval(s%rep(i)%atom_style%rad(1:s%rep(i)%atom_style%ntype)))
     end do
-    if (s%nsph + s%ncyl + s%ncylflat + s%nstring > 0) then
+    if (s%obj%nsph + s%obj%ncyl + s%obj%ncylflat + s%obj%nstring > 0) then
        do i = 1, 3
           xmin(i) = huge(1._c_float)
           xmax(i) = -huge(1._c_float)
 
-          xmin(i) = minval(s%drawlist_sph(1:s%nsph)%x(i)) - maxrad
-          xmin(i) = min(xmin(i),minval(s%drawlist_cyl(1:s%ncyl)%x1(i)))
-          xmin(i) = min(xmin(i),minval(s%drawlist_cyl(1:s%ncyl)%x2(i)))
-          xmin(i) = min(xmin(i),minval(s%drawlist_cylflat(1:s%ncylflat)%x1(i)))
-          xmin(i) = min(xmin(i),minval(s%drawlist_cylflat(1:s%ncylflat)%x2(i)))
-          xmin(i) = min(xmin(i),minval(s%drawlist_string(1:s%nstring)%x(i)))
+          xmin(i) = minval(s%obj%sph(1:s%obj%nsph)%x(i)) - maxrad
+          xmin(i) = min(xmin(i),minval(s%obj%cyl(1:s%obj%ncyl)%x1(i)))
+          xmin(i) = min(xmin(i),minval(s%obj%cyl(1:s%obj%ncyl)%x2(i)))
+          xmin(i) = min(xmin(i),minval(s%obj%cylflat(1:s%obj%ncylflat)%x1(i)))
+          xmin(i) = min(xmin(i),minval(s%obj%cylflat(1:s%obj%ncylflat)%x2(i)))
+          xmin(i) = min(xmin(i),minval(s%obj%string(1:s%obj%nstring)%x(i)))
 
-          xmax(i) = maxval(s%drawlist_sph(1:s%nsph)%x(i)) + maxrad
-          xmax(i) = max(xmax(i),maxval(s%drawlist_cyl(1:s%ncyl)%x1(i)))
-          xmax(i) = max(xmax(i),maxval(s%drawlist_cyl(1:s%ncyl)%x2(i)))
-          xmax(i) = max(xmax(i),maxval(s%drawlist_cylflat(1:s%ncylflat)%x1(i)))
-          xmax(i) = max(xmax(i),maxval(s%drawlist_cylflat(1:s%ncylflat)%x2(i)))
-          xmax(i) = max(xmax(i),maxval(s%drawlist_string(1:s%nstring)%x(i)))
+          xmax(i) = maxval(s%obj%sph(1:s%obj%nsph)%x(i)) + maxrad
+          xmax(i) = max(xmax(i),maxval(s%obj%cyl(1:s%obj%ncyl)%x1(i)))
+          xmax(i) = max(xmax(i),maxval(s%obj%cyl(1:s%obj%ncyl)%x2(i)))
+          xmax(i) = max(xmax(i),maxval(s%obj%cylflat(1:s%obj%ncylflat)%x1(i)))
+          xmax(i) = max(xmax(i),maxval(s%obj%cylflat(1:s%obj%ncylflat)%x2(i)))
+          xmax(i) = max(xmax(i),maxval(s%obj%string(1:s%obj%nstring)%x(i)))
        end do
     else
        xmin = 0._c_float
@@ -351,7 +349,7 @@ contains
     if (s%isinit == 0) return
 
     ! build draw lists if not done already
-    if (s%isinit == 1 .or. .not.allocated(s%drawlist_sph)) call s%build_lists()
+    if (s%isinit == 1 .or. .not.allocated(s%obj%sph)) call s%build_lists()
 
     ! if necessary, rebuild draw lists
     if (s%forcebuildlists) call s%build_lists()
@@ -412,19 +410,19 @@ contains
        iunif(iu_vcolor) = get_uniform_location("vColor")
 
        ! draw the atoms
-       if (s%nsph > 0) then
+       if (s%obj%nsph > 0) then
           call glBindVertexArray(sphVAO(s%atom_res))
           call draw_all_spheres()
        end if
 
        ! draw the bonds
-       if (s%ncyl > 0) then
+       if (s%obj%ncyl > 0) then
           call glBindVertexArray(cylVAO(s%bond_res))
           call draw_all_cylinders()
        end if
 
        ! draw the flat cylinders (unit cell)
-       if (s%ncylflat > 0) then
+       if (s%obj%ncylflat > 0) then
           call setuniform_int(0_c_int,"uselighting")
           call glBindVertexArray(cylVAO(s%uc_res))
           call draw_all_flat_cylinders()
@@ -506,14 +504,14 @@ contains
 
        ! draw the spheres for the atoms
        call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
-       if (s%nsph > 0) then
+       if (s%obj%nsph > 0) then
           call glBindVertexArray(sphVAO(s%atom_res))
           call draw_all_spheres()
        end if
 
        ! draw the cylinders for the bonds (inherit border from atoms)
        call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
-       if (s%ncyl > 0) then
+       if (s%obj%ncyl > 0) then
           call glBindVertexArray(cylVAO(s%bond_res))
           call draw_all_cylinders()
        end if
@@ -523,7 +521,7 @@ contains
        ! draw the flat cylinders for the unit cell
        call setuniform_float(0._c_float,idxi=iunif(iu_border))
        call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
-       if (s%ncylflat > 0) then
+       if (s%obj%ncylflat > 0) then
           call glBindVertexArray(cylVAO(s%uc_res))
           call draw_all_flat_cylinders()
        end if
@@ -598,13 +596,13 @@ contains
       integer :: i
       real(c_float) :: x(3)
 
-      do i = 1, s%nsph
-         x = s%drawlist_sph(i)%x
+      do i = 1, s%obj%nsph
+         x = s%obj%sph(i)%x
          if (s%animation > 0) then
-            x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
+            x = x + real(displ * s%obj%sph(i)%xdelta,c_float)
          end if
-         call draw_sphere(x,s%drawlist_sph(i)%r,s%atom_res,rgb=s%drawlist_sph(i)%rgb,&
-            border=s%drawlist_sph(i)%border,rgbborder=s%drawlist_sph(i)%rgbborder)
+         call draw_sphere(x,s%obj%sph(i)%r,s%atom_res,rgb=s%obj%sph(i)%rgb,&
+            border=s%obj%sph(i)%border,rgbborder=s%obj%sph(i)%rgbborder)
       end do
 
     end subroutine draw_all_spheres
@@ -613,15 +611,15 @@ contains
       integer :: i
       real(c_float) :: x1(3), x2(3)
 
-      do i = 1, s%ncyl
-         x1 = s%drawlist_cyl(i)%x1
-         x2 = s%drawlist_cyl(i)%x2
+      do i = 1, s%obj%ncyl
+         x1 = s%obj%cyl(i)%x1
+         x2 = s%obj%cyl(i)%x2
          if (s%animation > 0) then
-            x1 = x1 + real(displ * s%drawlist_cyl(i)%x1delta,c_float)
-            x2 = x2 + real(displ * s%drawlist_cyl(i)%x2delta,c_float)
+            x1 = x1 + real(displ * s%obj%cyl(i)%x1delta,c_float)
+            x2 = x2 + real(displ * s%obj%cyl(i)%x2delta,c_float)
          end if
-         call draw_cylinder(x1,x2,s%drawlist_cyl(i)%r,s%drawlist_cyl(i)%rgb,s%bond_res,&
-            s%drawlist_cyl(i)%order,s%drawlist_cyl(i)%border,s%drawlist_cyl(i)%rgbborder)
+         call draw_cylinder(x1,x2,s%obj%cyl(i)%r,s%obj%cyl(i)%rgb,s%bond_res,&
+            s%obj%cyl(i)%order,s%obj%cyl(i)%border,s%obj%cyl(i)%rgbborder)
       end do
 
     end subroutine draw_all_cylinders
@@ -629,9 +627,9 @@ contains
     subroutine draw_all_flat_cylinders()
       integer :: i
 
-      do i = 1, s%ncylflat
-         call draw_cylinder(s%drawlist_cylflat(i)%x1,s%drawlist_cylflat(i)%x2,&
-            s%drawlist_cylflat(i)%r,s%drawlist_cylflat(i)%rgb,s%uc_res,-1,0._c_float)
+      do i = 1, s%obj%ncylflat
+         call draw_cylinder(s%obj%cylflat(i)%x1,s%obj%cylflat(i)%x2,&
+            s%obj%cylflat(i)%r,s%obj%cylflat(i)%rgb,s%uc_res,-1,0._c_float)
       end do
 
     end subroutine draw_all_flat_cylinders
@@ -644,11 +642,11 @@ contains
 
       do j = 1, s%nmsel
          i = s%msel(5,j)
-         x = s%drawlist_sph(i)%x
-         if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
-         call draw_sphere(x,s%drawlist_sph(i)%r + msel_thickness,s%atom_res,&
+         x = s%obj%sph(i)%x
+         if (s%animation > 0) x = x + real(displ * s%obj%sph(i)%xdelta,c_float)
+         call draw_sphere(x,s%obj%sph(i)%r + msel_thickness,s%atom_res,&
             rgba=ColorMeasureSelect(:,j))
-         radsel(j) = s%drawlist_sph(i)%r + msel_thickness
+         radsel(j) = s%obj%sph(i)%r + msel_thickness
          xsel(:,j) = x
       end do
 
@@ -666,17 +664,17 @@ contains
          .not.allocated(sysc(s%id)%highlight_rgba_transient)) return
 
       ! highlight the spheres
-      do i = 1, s%nsph
-         id = s%drawlist_sph(i)%idx(1)
+      do i = 1, s%obj%nsph
+         id = s%obj%sph(i)%idx(1)
          rgba = -1._c_float
          if (allocated(sysc(s%id)%highlight_rgba_transient)) &
             rgba = sysc(s%id)%highlight_rgba_transient(:,id)
          if (any(rgba < 0).and.allocated(sysc(s%id)%highlight_rgba)) &
             rgba = sysc(s%id)%highlight_rgba(:,id)
          if (all(rgba >= 0)) then
-            x = s%drawlist_sph(i)%x
-            if (s%animation > 0) x = x + real(displ * s%drawlist_sph(i)%xdelta,c_float)
-            call draw_sphere(x,s%drawlist_sph(i)%r + sel_thickness,s%atom_res,rgba=rgba,rgbborder=rgba(1:3))
+            x = s%obj%sph(i)%x
+            if (s%animation > 0) x = x + real(displ * s%obj%sph(i)%xdelta,c_float)
+            call draw_sphere(x,s%obj%sph(i)%r + sel_thickness,s%atom_res,rgba=rgba,rgbborder=rgba(1:3))
          end if
       end do
 
@@ -692,22 +690,22 @@ contains
 
       iu = get_uniform_location("textColor")
 
-      do i = 1, s%nstring
-         call setuniform_vec3(s%drawlist_string(i)%rgb,idxi=iu)
+      do i = 1, s%obj%nstring
+         call setuniform_vec3(s%obj%string(i)%rgb,idxi=iu)
          nvert = 0
-         if (s%drawlist_string(i)%scale > 0._c_float) then
+         if (s%obj%string(i)%scale > 0._c_float) then
             hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
             hside = hside * s%camratio
             hside = max(hside,3._c_float)
-            siz = 2 * s%drawlist_string(i)%scale / fontbakesize_large / hside
+            siz = 2 * s%obj%string(i)%scale / fontbakesize_large / hside
          else
-            siz = 2 * abs(s%drawlist_string(i)%scale) * s%projection(1,1) / fontbakesize_large
+            siz = 2 * abs(s%obj%string(i)%scale) * s%projection(1,1) / fontbakesize_large
          end if
-         x = s%drawlist_string(i)%x
-         if (s%animation > 0) x = x + real(displ * s%drawlist_string(i)%xdelta,c_float)
+         x = s%obj%string(i)%x
+         if (s%animation > 0) x = x + real(displ * s%obj%string(i)%xdelta,c_float)
 
-         call calc_text_onscene_vertices(s%drawlist_string(i)%str,x,s%drawlist_string(i)%r,&
-            siz,nvert,vert,shift=s%drawlist_string(i)%offset,centered=.true.)
+         call calc_text_onscene_vertices(s%obj%string(i)%str,x,s%obj%string(i)%r,&
+            siz,nvert,vert,shift=s%obj%string(i)%offset,centered=.true.)
          call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*10*c_sizeof(c_float), c_loc(vert))
          call glDrawArrays(GL_TRIANGLES, 0, nvert)
       end do
@@ -757,7 +755,7 @@ contains
     if (s%isinit < 2) return
 
     ! build draw lists if not done already
-    if (.not.allocated(s%drawlist_sph)) call s%build_lists()
+    if (.not.allocated(s%obj%sph)) call s%build_lists()
 
     ! if necessary, rebuild draw lists
     if (s%forcebuildlists) call s%build_lists()
@@ -790,11 +788,11 @@ contains
     iunif(iu_idx) = get_uniform_location("idx")
 
     ! draw the atoms
-    if (s%nsph > 0) then
+    if (s%obj%nsph > 0) then
        call glBindVertexArray(sphVAO(s%atom_res))
-       do i = 1, s%nsph
+       do i = 1, s%obj%nsph
           ! draw the sphere
-          call draw_sphere(s%drawlist_sph(i)%x,s%drawlist_sph(i)%r,s%atom_res,idx=(/i,0,0,0/))
+          call draw_sphere(s%obj%sph(i)%x,s%obj%sph(i)%r,s%atom_res,idx=(/i,0,0,0/))
        end do
        call glBindVertexArray(0)
     end if

@@ -18,7 +18,8 @@
 ! Scene object and GL rendering utilities
 module scenes
   use iso_c_binding
-  use representations, only: representation, dl_sphere, dl_cylinder, dl_string
+  use shapes, only: scene_objects
+  use representations, only: representation
   use types, only: neighstar
   implicit none
 
@@ -89,15 +90,8 @@ module scenes
      ! measure atom sets
      integer :: nmsel
      integer :: msel(5,4) ! 1 is atom cell ID, 2:4 is lattice vector, 5 is sphere ID
-     ! draw lists
-     integer :: nsph ! number of spheres
-     type(dl_sphere), allocatable :: drawlist_sph(:) ! sphere draw list
-     integer :: ncyl ! number of cylinders
-     type(dl_cylinder), allocatable :: drawlist_cyl(:) ! cylinder draw list
-     integer :: ncylflat ! number of flat cylinders
-     type(dl_cylinder), allocatable :: drawlist_cylflat(:) ! flat cylinder draw list
-     integer :: nstring ! number of strings
-     type(dl_string), allocatable :: drawlist_string(:) ! flat cylinder draw list
+     ! draw lists packed in a scene object
+     type(scene_objects) :: obj
      ! vibration animation
      integer :: animation = 0 ! animate the scene? 0=off, 1=manual, 2=automatic
      integer :: iqpt_selected = 0 ! selected q-point in the vibrations window

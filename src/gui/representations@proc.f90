@@ -253,21 +253,13 @@ contains
   !> Add the spheres, cylinder, etc. to the draw lists. Use nc number
   !> of cells and the data from representation r. If doanim, use qpt
   !> iqpt and frequency ifreq to animate the representation.
-  module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
-     ncylflat,drawlist_cylflat,nstring,drawlist_string,doanim,iqpt,ifreq)
+  module subroutine add_draw_elements(r,nc,obj,doanim,iqpt,ifreq)
     use systems, only: sys
     use tools_io, only: string, nameguess
     use param, only: bohrtoa, tpi, img, atmass
     class(representation), intent(inout), target :: r
     integer, intent(in) :: nc(3)
-    integer, intent(inout) :: nsph
-    type(dl_sphere), intent(inout), allocatable :: drawlist_sph(:)
-    integer, intent(inout) :: ncyl
-    type(dl_cylinder), intent(inout), allocatable :: drawlist_cyl(:)
-    integer, intent(inout) :: ncylflat
-    type(dl_cylinder), intent(inout), allocatable :: drawlist_cylflat(:)
-    integer, intent(inout) :: nstring
-    type(dl_string), intent(inout), allocatable :: drawlist_string(:)
+    type(scene_objects), intent(inout) :: obj
     logical, intent(in) :: doanim
     integer, intent(in) :: iqpt, ifreq
 
@@ -310,21 +302,21 @@ contains
     if (.not.r%shown) return
 
     ! initialize the drawlists if not done already
-    if (.not.allocated(drawlist_sph)) then
-       allocate(drawlist_sph(100))
-       nsph = 0
+    if (.not.allocated(obj%sph)) then
+       allocate(obj%sph(100))
+       obj%nsph = 0
     end if
-    if (.not.allocated(drawlist_cyl)) then
-       allocate(drawlist_cyl(100))
-       ncyl = 0
+    if (.not.allocated(obj%cyl)) then
+       allocate(obj%cyl(100))
+       obj%ncyl = 0
     end if
-    if (.not.allocated(drawlist_cylflat)) then
-       allocate(drawlist_cylflat(100))
-       ncylflat = 0
+    if (.not.allocated(obj%cylflat)) then
+       allocate(obj%cylflat(100))
+       obj%ncylflat = 0
     end if
-    if (.not.allocated(drawlist_string)) then
-       allocate(drawlist_string(100))
-       nstring = 0
+    if (.not.allocated(obj%string)) then
+       allocate(obj%string(100))
+       obj%nstring = 0
     end if
     doanim_ = doanim
     if (doanim_) doanim_ = doanim_ .and. (iqpt > 0 .and. ifreq > 0 .and. sys(r%id)%c%vib%hasvibs)
@@ -458,22 +450,22 @@ contains
 
                    ! draw the atom, reallocate if necessary
                    if (r%atoms_display) then
-                      nsph = nsph + 1
-                      if (nsph > size(drawlist_sph,1)) then
-                         allocate(auxsph(2*nsph))
-                         auxsph(1:size(drawlist_sph,1)) = drawlist_sph
-                         call move_alloc(auxsph,drawlist_sph)
+                      obj%nsph = obj%nsph + 1
+                      if (obj%nsph > size(obj%sph,1)) then
+                         allocate(auxsph(2*obj%nsph))
+                         auxsph(1:size(obj%sph,1)) = obj%sph
+                         call move_alloc(auxsph,obj%sph)
                       end if
 
                       ! write down the sphere
-                      drawlist_sph(nsph)%x = real(xc + uoriginc,c_float)
-                      drawlist_sph(nsph)%r = real(rad1,c_float)
-                      drawlist_sph(nsph)%rgb = rgb
-                      drawlist_sph(nsph)%idx(1) = i
-                      drawlist_sph(nsph)%idx(2:4) = ix
-                      drawlist_sph(nsph)%xdelta = cmplx(xdelta1,kind=c_float_complex)
-                      drawlist_sph(nsph)%border = r%atom_style%border_size
-                      drawlist_sph(nsph)%rgbborder = r%atom_style%rgbborder
+                      obj%sph(obj%nsph)%x = real(xc + uoriginc,c_float)
+                      obj%sph(obj%nsph)%r = real(rad1,c_float)
+                      obj%sph(obj%nsph)%rgb = rgb
+                      obj%sph(obj%nsph)%idx(1) = i
+                      obj%sph(obj%nsph)%idx(2:4) = ix
+                      obj%sph(obj%nsph)%xdelta = cmplx(xdelta1,kind=c_float_complex)
+                      obj%sph(obj%nsph)%border = r%atom_style%border_size
+                      obj%sph(obj%nsph)%rgbborder = r%atom_style%rgbborder
                    end if
 
                    ! bonds
@@ -507,14 +499,14 @@ contains
 
                          ! draw the bond, reallocate if necessary
                          if (r%bond_style%style_g == 0) then
-                            ncyl = ncyl + 1
+                            obj%ncyl = obj%ncyl + 1
                          else
-                            ncyl = ncyl + 2
+                            obj%ncyl = obj%ncyl + 2
                          end if
-                         if (ncyl > size(drawlist_cyl,1)) then
-                            allocate(auxcyl(2*ncyl))
-                            auxcyl(1:size(drawlist_cyl,1)) = drawlist_cyl
-                            call move_alloc(auxcyl,drawlist_cyl)
+                         if (obj%ncyl > size(obj%cyl,1)) then
+                            allocate(auxcyl(2*obj%ncyl))
+                            auxcyl(1:size(obj%cyl,1)) = obj%cyl
+                            call move_alloc(auxcyl,obj%cyl)
                          end if
 
                          ! calculate the animation delta of the other end
@@ -530,15 +522,15 @@ contains
                          x2 = sys(r%id)%c%atcel(ineigh)%x + ixn
                          x2 = sys(r%id)%c%x2c(x2) + uoriginc
                          if (r%bond_style%style_g == 0) then
-                            drawlist_cyl(ncyl)%x1 = real(x1,c_float)
-                            drawlist_cyl(ncyl)%x1delta = cmplx(xdelta1,kind=c_float_complex)
-                            drawlist_cyl(ncyl)%x2 = real(x2,c_float)
-                            drawlist_cyl(ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
-                            drawlist_cyl(ncyl)%r = r%bond_style%rad_g
-                            drawlist_cyl(ncyl)%rgb = r%bond_style%rgb_g
-                            drawlist_cyl(ncyl)%order = r%bond_style%order_g
-                            drawlist_cyl(ncyl)%border = r%bond_style%border_g
-                            drawlist_cyl(ncyl)%rgbborder = r%bond_style%rgbborder_g
+                            obj%cyl(obj%ncyl)%x1 = real(x1,c_float)
+                            obj%cyl(obj%ncyl)%x1delta = cmplx(xdelta1,kind=c_float_complex)
+                            obj%cyl(obj%ncyl)%x2 = real(x2,c_float)
+                            obj%cyl(obj%ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
+                            obj%cyl(obj%ncyl)%r = r%bond_style%rad_g
+                            obj%cyl(obj%ncyl)%rgb = r%bond_style%rgb_g
+                            obj%cyl(obj%ncyl)%order = r%bond_style%order_g
+                            obj%cyl(obj%ncyl)%border = r%bond_style%border_g
+                            obj%cyl(obj%ncyl)%rgbborder = r%bond_style%rgbborder_g
                          else
                             ! calculate the midpoint, taking into account the atomic radii
                             if (r%atom_style%type == 0) then ! species
@@ -556,26 +548,26 @@ contains
                             xdelta0 = f1 * xdelta1 + f2 * xdelta2
 
                             ! add the two cylinders to the list
-                            drawlist_cyl(ncyl-1)%x1 = real(x1,c_float)
-                            drawlist_cyl(ncyl-1)%x1delta = cmplx(xdelta1,kind=c_float_complex)
-                            drawlist_cyl(ncyl-1)%x2 = real(x0,c_float)
-                            drawlist_cyl(ncyl-1)%x2delta = cmplx(xdelta0,kind=c_float_complex)
-                            drawlist_cyl(ncyl-1)%r = r%bond_style%rad_g
-                            drawlist_cyl(ncyl-1)%rgb = rgb
-                            drawlist_cyl(ncyl-1)%order = r%bond_style%order_g
-                            drawlist_cyl(ncyl-1)%border = r%bond_style%border_g
-                            drawlist_cyl(ncyl-1)%rgbborder = r%bond_style%rgbborder_g
+                            obj%cyl(obj%ncyl-1)%x1 = real(x1,c_float)
+                            obj%cyl(obj%ncyl-1)%x1delta = cmplx(xdelta1,kind=c_float_complex)
+                            obj%cyl(obj%ncyl-1)%x2 = real(x0,c_float)
+                            obj%cyl(obj%ncyl-1)%x2delta = cmplx(xdelta0,kind=c_float_complex)
+                            obj%cyl(obj%ncyl-1)%r = r%bond_style%rad_g
+                            obj%cyl(obj%ncyl-1)%rgb = rgb
+                            obj%cyl(obj%ncyl-1)%order = r%bond_style%order_g
+                            obj%cyl(obj%ncyl-1)%border = r%bond_style%border_g
+                            obj%cyl(obj%ncyl-1)%rgbborder = r%bond_style%rgbborder_g
 
-                            drawlist_cyl(ncyl)%x1 = real(x0,c_float)
-                            drawlist_cyl(ncyl)%x1delta = cmplx(xdelta0,kind=c_float_complex)
-                            drawlist_cyl(ncyl)%x2 = real(x2,c_float)
-                            drawlist_cyl(ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
-                            drawlist_cyl(ncyl)%r = r%bond_style%rad_g
-                            drawlist_cyl(ncyl)%rgb = r%atom_style%rgb(:,idaux) * &
+                            obj%cyl(obj%ncyl)%x1 = real(x0,c_float)
+                            obj%cyl(obj%ncyl)%x1delta = cmplx(xdelta0,kind=c_float_complex)
+                            obj%cyl(obj%ncyl)%x2 = real(x2,c_float)
+                            obj%cyl(obj%ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
+                            obj%cyl(obj%ncyl)%r = r%bond_style%rad_g
+                            obj%cyl(obj%ncyl)%rgb = r%atom_style%rgb(:,idaux) * &
                                r%mol_style%tint_rgb(:,sys(r%id)%c%idatcelmol(1,ineigh))
-                            drawlist_cyl(ncyl)%order = r%bond_style%order_g
-                            drawlist_cyl(ncyl)%border = r%bond_style%border_g
-                            drawlist_cyl(ncyl)%rgbborder = r%bond_style%rgbborder_g
+                            obj%cyl(obj%ncyl)%order = r%bond_style%order_g
+                            obj%cyl(obj%ncyl)%border = r%bond_style%border_g
+                            obj%cyl(obj%ncyl)%rgbborder = r%bond_style%rgbborder_g
                          end if
                       end do ! ncon
                    end if
@@ -594,27 +586,27 @@ contains
 
                       ! labels
                       if (r%label_style%shown(idl)) then
-                         nstring = nstring + 1
-                         if (nstring > size(drawlist_string,1)) then
-                            allocate(auxstr(2*nstring))
-                            auxstr(1:size(drawlist_string,1)) = drawlist_string
-                            call move_alloc(auxstr,drawlist_string)
+                         obj%nstring = obj%nstring + 1
+                         if (obj%nstring > size(obj%string,1)) then
+                            allocate(auxstr(2*obj%nstring))
+                            auxstr(1:size(obj%string,1)) = obj%string
+                            call move_alloc(auxstr,obj%string)
                          end if
 
-                         drawlist_string(nstring)%x = real(xc + uoriginc,c_float)
-                         drawlist_string(nstring)%xdelta = cmplx(xdelta1,kind=c_float_complex)
-                         drawlist_string(nstring)%r = real(rad1,c_float)
-                         drawlist_string(nstring)%rgb = r%label_style%rgb
+                         obj%string(obj%nstring)%x = real(xc + uoriginc,c_float)
+                         obj%string(obj%nstring)%xdelta = cmplx(xdelta1,kind=c_float_complex)
+                         obj%string(obj%nstring)%r = real(rad1,c_float)
+                         obj%string(obj%nstring)%rgb = r%label_style%rgb
                          if (r%label_style%const_size) then
-                            drawlist_string(nstring)%scale = r%label_style%scale
+                            obj%string(obj%nstring)%scale = r%label_style%scale
                          else
-                            drawlist_string(nstring)%scale = -r%label_style%scale
+                            obj%string(obj%nstring)%scale = -r%label_style%scale
                          end if
-                         drawlist_string(nstring)%offset = r%label_style%offset
-                         drawlist_string(nstring)%str = trim(r%label_style%str(idl))
+                         obj%string(obj%nstring)%offset = r%label_style%offset
+                         obj%string(obj%nstring)%str = trim(r%label_style%str(idl))
                          if (r%label_style%style == 3) then
                             ! add the lattice vectors
-                            drawlist_string(nstring)%str = drawlist_string(nstring)%str // "[" //&
+                            obj%string(obj%nstring)%str = obj%string(obj%nstring)%str // "[" //&
                                string(ix(1)) // "," // string(ix(2)) // "," //string(ix(3)) // "]"
                          end if
                       end if ! label display conditions
@@ -642,17 +634,17 @@ contains
           x2 = sys(r%id)%c%x2c(x2)
 
           call increase_ncylflat()
-          drawlist_cylflat(ncylflat)%x1 = real(x1,c_float)
-          drawlist_cylflat(ncylflat)%x2 = real(x2,c_float)
-          drawlist_cylflat(ncylflat)%r = r%uc_radius
+          obj%cylflat(obj%ncylflat)%x1 = real(x1,c_float)
+          obj%cylflat(obj%ncylflat)%x2 = real(x2,c_float)
+          obj%cylflat(obj%ncylflat)%r = r%uc_radius
           if (r%uc_coloraxes.and.i==1) then
-             drawlist_cylflat(ncylflat)%rgb = (/1._c_float,0._c_float,0._c_float/)
+             obj%cylflat(obj%ncylflat)%rgb = (/1._c_float,0._c_float,0._c_float/)
           elseif (r%uc_coloraxes.and.i==2) then
-             drawlist_cylflat(ncylflat)%rgb = (/0._c_float,1._c_float,0._c_float/)
+             obj%cylflat(obj%ncylflat)%rgb = (/0._c_float,1._c_float,0._c_float/)
           elseif (r%uc_coloraxes.and.i==3) then
-             drawlist_cylflat(ncylflat)%rgb = (/0._c_float,0._c_float,1._c_float/)
+             obj%cylflat(obj%ncylflat)%rgb = (/0._c_float,0._c_float,1._c_float/)
           else
-             drawlist_cylflat(ncylflat)%rgb = r%uc_rgb
+             obj%cylflat(obj%ncylflat)%rgb = r%uc_rgb
           end if
        end do
 
@@ -680,17 +672,19 @@ contains
                          nstep = ceiling(norm2(x2 - x1) / r%uc_innersteplen)
                          do j = 1, nstep
                             call increase_ncylflat()
-                            drawlist_cylflat(ncylflat)%x1 = real(x1 + real(2*j-1,8)/real(2*nstep,8) * (x2-x1) ,c_float)
-                            drawlist_cylflat(ncylflat)%x2 = real(x1 + real(2*j,8)/real(2*nstep,8) * (x2-x1) ,c_float)
-                            drawlist_cylflat(ncylflat)%r = r%uc_radiusinner
-                            drawlist_cylflat(ncylflat)%rgb = r%uc_rgb
+                            obj%cylflat(obj%ncylflat)%x1 = &
+                               real(x1 + real(2*j-1,8)/real(2*nstep,8) * (x2-x1) ,c_float)
+                            obj%cylflat(obj%ncylflat)%x2 = &
+                               real(x1 + real(2*j,8)/real(2*nstep,8) * (x2-x1) ,c_float)
+                            obj%cylflat(obj%ncylflat)%r = r%uc_radiusinner
+                            obj%cylflat(obj%ncylflat)%rgb = r%uc_rgb
                          end do
                       else
                          call increase_ncylflat()
-                         drawlist_cylflat(ncylflat)%x1 = real(x1 ,c_float)
-                         drawlist_cylflat(ncylflat)%x2 = real(x2 ,c_float)
-                         drawlist_cylflat(ncylflat)%r = r%uc_radiusinner
-                         drawlist_cylflat(ncylflat)%rgb = r%uc_rgb
+                         obj%cylflat(obj%ncylflat)%x1 = real(x1 ,c_float)
+                         obj%cylflat(obj%ncylflat)%x2 = real(x2 ,c_float)
+                         obj%cylflat(obj%ncylflat)%r = r%uc_radiusinner
+                         obj%cylflat(obj%ncylflat)%rgb = r%uc_rgb
                       end if
                    end do
                 end do
@@ -701,11 +695,11 @@ contains
   contains
     subroutine increase_ncylflat()
 
-      ncylflat = ncylflat + 1
-      if (ncylflat > size(drawlist_cylflat,1)) then
-         allocate(auxcyl(2*ncylflat))
-         auxcyl(1:size(drawlist_cylflat,1)) = drawlist_cylflat
-         call move_alloc(auxcyl,drawlist_cylflat)
+      obj%ncylflat = obj%ncylflat + 1
+      if (obj%ncylflat > size(obj%cylflat,1)) then
+         allocate(auxcyl(2*obj%ncylflat))
+         auxcyl(1:size(obj%cylflat,1)) = obj%cylflat
+         call move_alloc(auxcyl,obj%cylflat)
       end if
 
     end subroutine increase_ncylflat

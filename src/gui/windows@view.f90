@@ -809,8 +809,8 @@ contains
        ! transform to atom cell ID and lattice vector
        w%mousepos_idx(1:4) = transfer(rgba,w%mousepos_idx(1:4))
        w%mousepos_idx(5) = w%mousepos_idx(1)
-       if (associated(w%sc) .and. w%mousepos_idx(1) > 0 .and. w%mousepos_idx(1) <= w%sc%nsph) then
-          w%mousepos_idx(1:4) = w%sc%drawlist_sph(w%mousepos_idx(1))%idx
+       if (associated(w%sc) .and. w%mousepos_idx(1) > 0 .and. w%mousepos_idx(1) <= w%sc%obj%nsph) then
+          w%mousepos_idx(1:4) = w%sc%obj%sph(w%mousepos_idx(1))%idx
        else
           w%mousepos_idx = 0
        end if

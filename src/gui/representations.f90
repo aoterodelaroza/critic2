@@ -19,6 +19,7 @@
 module representations
   use iso_c_binding
   use types, only: neighstar
+  use shapes, only: dl_sphere, dl_cylinder, dl_string, scene_objects
   implicit none
 
   private
@@ -26,44 +27,6 @@ module representations
   ! default bond radius and atom border
   real(c_float), parameter, public :: bond_rad_def = 0.35_c_float
   real(c_float), parameter, public :: atomborder_def = 0.1_c_float
-
-  !> spheres for the draw list
-  type dl_sphere
-     real(c_float) :: x(3) ! position
-     real(c_float) :: r ! radius
-     real(c_float) :: rgb(3) ! color
-     integer(c_int) :: idx(4) ! atom ID (complete atom list) + lattice vector
-     complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
-     real(c_float) :: border ! border size
-     real(c_float) :: rgbborder(3) ! border color
-  end type dl_sphere
-  public :: dl_sphere
-
-  !> cylinders for the draw list
-  type dl_cylinder
-     real(c_float) :: x1(3) ! one end of the cylinder
-     real(c_float) :: x2(3) ! other end of the cylinder
-     real(c_float) :: r ! radius
-     real(c_float) :: rgb(3) ! color
-     complex(c_float_complex) :: x1delta(3) ! delta-vector for vibration animations (end 1)
-     complex(c_float_complex) :: x2delta(3) ! delta-vector for vibration animations (end 2)
-     integer(c_int) :: order ! order of the bond (0=dashed,1=single,2=double,3=triple)
-     real(c_float) :: border ! border size
-     real(c_float) :: rgbborder(3) ! border color
-  end type dl_cylinder
-  public :: dl_cylinder
-
-  !> strings for the draw list
-  type dl_string
-     real(c_float) :: x(3) ! position
-     real(c_float) :: r ! radius
-     real(c_float) :: rgb(3) ! color
-     real(c_float) :: scale ! scale (1.0 = radius)
-     real(c_float) :: offset(3) ! offset of the label in pixels
-     complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
-     character(len=:), allocatable :: str ! string
-  end type dl_string
-  public :: dl_string
 
   !> Draw style for atoms
   type draw_style_atom
@@ -223,18 +186,13 @@ module representations
      module subroutine update_structure(r)
        class(representation), intent(inout), target :: r
      end subroutine update_structure
-     module subroutine add_draw_elements(r,nc,nsph,drawlist_sph,ncyl,drawlist_cyl,&
-        ncylflat,drawlist_cylflat,nstring,drawlist_string,doanim,iqpt,ifreq)
+     module subroutine add_draw_elements(r,nc,obj,doanim,iqpt,ifreq)
+       use systems, only: sys
+       use tools_io, only: string, nameguess
+       use param, only: bohrtoa, tpi, img, atmass
        class(representation), intent(inout), target :: r
        integer, intent(in) :: nc(3)
-       integer, intent(inout) :: nsph
-       type(dl_sphere), intent(inout), allocatable :: drawlist_sph(:)
-       integer, intent(inout) :: ncyl
-       type(dl_cylinder), intent(inout), allocatable :: drawlist_cyl(:)
-       integer, intent(inout) :: ncylflat
-       type(dl_cylinder), intent(inout), allocatable :: drawlist_cylflat(:)
-       integer, intent(inout) :: nstring
-       type(dl_string), intent(inout), allocatable :: drawlist_string(:)
+       type(scene_objects), intent(inout) :: obj
        logical, intent(in) :: doanim
        integer, intent(in) :: iqpt, ifreq
      end subroutine add_draw_elements
