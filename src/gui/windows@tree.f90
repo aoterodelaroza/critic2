@@ -66,7 +66,7 @@ contains
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     logical :: hadenabledcolumn, isend, ok, found, reinit
-    logical :: export, didtableselected
+    logical :: export
     real(c_float) :: width, pos
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
@@ -226,9 +226,12 @@ contains
        forceinit = .false.
     end if
 
-    ! final message in the header line, count systems, select which ones will be shown
+    ! count systems, select which ones will be shown; next and previous systems
     nshown_after_filter = 0
     nshown = 0
+    inext = 0
+    iprev = 0
+    iaux = 0
     if (allocated(w%iord)) then
        nshown = size(w%iord,1)
        allocate(ishown(nshown))
@@ -240,6 +243,7 @@ contains
              if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
                 nshown_after_filter = nshown_after_filter + 1
                 ishown(nshown_after_filter) = i
+                if (i == w%tree_selected) iaux = nshown_after_filter
              end if
           end do
        else
@@ -248,6 +252,12 @@ contains
           end do
        end if
     end if
+    if (iaux > 0) then
+       if (iaux > 1) iprev = ishown(iaux-1)
+       if (iaux < nshown_after_filter) inext = ishown(iaux + 1)
+    end if
+
+    ! final message in the header line
     if (nshown > 1) then
        call iw_text(" " // string(nshown_after_filter) // "/" // string(nshown) // " shown",&
           sameline=.true.)
@@ -263,11 +273,6 @@ contains
     sz%x = 2._c_float
     sz%y = 2._c_float
     call igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding,sz)
-
-    ! next and previous systems
-    didtableselected = .false.
-    inext = 0
-    iprev = 0
 
     str = "Structures##0,0" // c_null_char
     flags = ImGuiTableFlags_Borders
@@ -943,11 +948,6 @@ contains
       end if
       call igSameLine(0._c_float,-1._c_float)
       call igSetCursorPosX(pos)
-
-      ! update the iprev and inext
-      if (inext==0.and.didtableselected) inext = isys
-      if (isys == w%tree_selected) didtableselected = .true.
-      if (.not.didtableselected) iprev = isys
 
       enabled = (sysc(isys)%status == sys_init)
       enabled_no_threads = enabled.and..not.are_threads_running()
