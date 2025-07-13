@@ -1196,7 +1196,7 @@ contains
           call iw_tooltip("Create a copy of this system",ttshown)
 
           ! File -> Reopen from file
-          launch(d_reopen) = launch(d_reopen) .or. iw_menuitem("Reopen from File",BIND_REOPEN,enabled=isysok)
+          launch(d_reopen) = launch(d_reopen) .or. iw_menuitem("Restore from File",BIND_REOPEN,enabled=isysok)
           call iw_tooltip("Read the file for this system and reopen it (only last structure is read)",ttshown)
 
           ! File -> Close

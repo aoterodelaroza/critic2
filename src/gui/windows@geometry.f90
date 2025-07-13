@@ -42,7 +42,7 @@ contains
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITGEOM_REMOVE
     use gui_main, only: nsys, sysc, sys, sys_init, g, ok_system, ColorHighlightScene,&
-       ColorHighlightSelectScene
+       ColorHighlightSelectScene, reread_system_from_file
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit
     use global, only: dunit0, iunit_ang
@@ -126,6 +126,12 @@ contains
        call igEndCombo()
     end if
     call iw_tooltip("Recalculate the bonds in this system",ttshown)
+
+    !! line of global buttons
+    ! restore, only if system is independent or master
+    if (iw_button("Restore",disabled=(sysc(isys)%collapse > 0))) &
+       call reread_system_from_file(isys)
+    call iw_tooltip("Read the file for this system and reopen it",ttshown)
 
     ! show the tabs
     str1 = "##drawgeometry_tabbar" // c_null_char

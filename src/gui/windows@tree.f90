@@ -59,7 +59,7 @@ contains
     type(ImVec2) :: szero, sz
     type(ImVec4) :: col4
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, jsel, ll, id, iref, inext, iprev, ithis, nfreal
+    integer :: i, j, k, jsel, ll, id, iref, inext, iprev, ithis, nfreal, iaux
     integer :: nshown, nshown_after_filter
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
@@ -253,9 +253,9 @@ contains
        end if
        if (ithis > 0) then
           if (ithis > 1) &
-             iprev = ishown(iprevi)
+             iprev = ishown(ithis - 1)
           if (ithis < nshown_after_filter) &
-             inext = ishown(inexti)
+             inext = ishown(ithis + 1)
        end if
     end if
 
