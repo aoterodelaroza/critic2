@@ -1024,6 +1024,8 @@ contains
     if (isys < 1 .or. isys > nsys) return
     if (sysc(isys)%status /= sys_init) w%forcerender = .true. ! for removing the last system in tree
     if (w%view_selected == isys) return
+
+    ! select and render the new scene
     w%view_selected = isys
     if (w%ismain) then
        w%sc => sysc(w%view_selected)%sc
@@ -1033,6 +1035,14 @@ contains
        call w%sc%init(w%view_selected)
     end if
     w%forcerender = .true.
+
+    ! reset the mouse variables
+    w%ilock = ilock_no
+    w%mousepos_lastframe%x = 0._c_float
+    w%mousepos_lastframe%y = 0._c_float
+    w%mousepos_idx = 0
+
+    ! set the time
     w%timelast_view_assign = glfwGetTime()
 
   end subroutine select_view
