@@ -67,6 +67,7 @@ contains
     r%uc_innerstipple = .true.
     r%uc_inner = .true.
     r%uc_coloraxes = .true.
+    r%uc_vaccutsticks = .true.
     r%origin = 0._c_float
     r%tshift = 0._c_float
 
@@ -157,6 +158,7 @@ contains
     r%uc_innerstipple = .true.
     r%uc_inner = .true.
     r%uc_coloraxes = .true.
+    r%uc_vaccutsticks = .true.
     r%origin = 0._c_float
     r%tshift = 0._c_float
     r%uc_rgb = 0._c_float
@@ -631,11 +633,13 @@ contains
 
        ! vacuum directions: we have a vacuum and only one cell in that direction
        isvac = .false.
-       do i = 1, 3
-          if (sys(r%id)%c%vaclength(i) > iperiod_vacthr .and. n(i) == 1) then
-             isvac(i) = .true.
-          end if
-       end do
+       if (r%uc_vaccutsticks) then
+          do i = 1, 3
+             if (sys(r%id)%c%vaclength(i) > iperiod_vacthr .and. n(i) == 1) then
+                isvac(i) = .true.
+             end if
+          end do
+       end if
 
        ! external cell
        do i = 1, 12

@@ -151,6 +151,7 @@ module representations
      ! unit cell
      logical :: uc_inner ! unit cell, display inner cylinders
      logical :: uc_coloraxes ! unit cell, color the axes (x=red,y=green,z=blue)
+     logical :: uc_vaccutsticks ! unit cell, cut sticks in systems with vacuum
      real(c_float) :: uc_radius ! unit cell cylinder radius
      real(c_float) :: uc_radiusinner ! unit cell cylinder radius (inner)
      real(c_float) :: uc_rgb(3) ! unit cell cylinder colors

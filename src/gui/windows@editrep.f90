@@ -1062,6 +1062,8 @@ contains
     call iw_text("Style",highlight=.true.)
     changed = changed .or. iw_checkbox("Color crystallographic axes",w%rep%uc_coloraxes)
     call iw_tooltip("Represent crystallographic axes with colors (a=red,b=green,c=blue)",ttshown)
+    changed = changed .or. iw_checkbox("Hide axes in vacuum directions",w%rep%uc_vaccutsticks)
+    call iw_tooltip("In systems with vacuum direction(s), do not show the unit cell in the vacuum region",ttshown)
 
     str1 = "Radius##outer" // c_null_char
     str2 = "%.3f" // c_null_char
