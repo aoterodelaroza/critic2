@@ -275,9 +275,12 @@ contains
           call igDockBuilderDockWindow(c_loc(win(iwin_view)%name), iright)
           call igDockBuilderDockWindow(c_loc(win(iwin_console_input)%name), ileft)
           call igDockBuilderDockWindow(c_loc(win(iwin_console_output)%name), ileft)
+          call igDockBuilderFinish(ileft)
+          call igDockBuilderFinish(iright)
           call igDockBuilderFinish(iddock)
           win(iwin_console_input)%isopen = .true.
           win(iwin_console_output)%isopen = .true.
+          call igSetWindowFocus_Str(c_loc(win(iwin_view)%name))
        end if
 
        ! show demo window
