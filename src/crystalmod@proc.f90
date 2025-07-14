@@ -94,6 +94,8 @@ contains
     c%lvac = 0
     c%lcon = 0
     c%vaclength = 0d0
+    c%vacbot = 0d0
+    c%vactop = 0d0
     if (allocated(c%idatcelmol)) deallocate(c%idatcelmol)
 
     ! no 3d molecular crystals
@@ -163,7 +165,7 @@ contains
     logical, intent(in), optional :: noenv
     type(thread_info), intent(in), optional :: ti
 
-    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3)
+    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3), dx
     logical :: good, good2, clearsym, doenv
     integer :: i, j, k, l, iat, newmult
     real*8, allocatable :: atpos(:,:), area(:), xcoord(:)
@@ -534,7 +536,12 @@ contains
           call qcksort(xcoord,iord,1,2*c%ncel)
           c%vaclength(i) = 0d0
           do j = 2, 2*c%ncel
-             c%vaclength(i) = max(c%vaclength(i),xcoord(iord(j))-xcoord(iord(j-1)))
+             dx = xcoord(iord(j))-xcoord(iord(j-1))
+             if (dx > c%vaclength(i)) then
+                c%vaclength(i) = dx
+                c%vactop(i) = xcoord(iord(j)) / c%aa(i)
+                c%vacbot(i) = xcoord(iord(j-1)) / c%aa(i)
+             end if
           end do
        end do
        deallocate(xcoord,iord)

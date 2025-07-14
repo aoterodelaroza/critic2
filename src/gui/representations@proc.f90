@@ -255,6 +255,7 @@ contains
   !> iqpt and frequency ifreq to animate the representation.
   module subroutine add_draw_elements(r,nc,obj,doanim,iqpt,ifreq)
     use systems, only: sys
+    use crystalmod, only: iperiod_vacthr
     use tools_io, only: string, nameguess
     use param, only: bohrtoa, tpi, img, atmass
     class(representation), intent(inout), target :: r
@@ -264,7 +265,8 @@ contains
     integer, intent(in) :: iqpt, ifreq
 
     logical, allocatable :: lshown(:,:,:,:)
-    logical :: havefilter, step, isedge(3), usetshift, doanim_, dobonds
+    logical :: havefilter, step, isedge(3), usetshift, doanim_, dobonds, isvac(3)
+    logical :: isvacdir, docycle
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3)
     integer :: i1, i2, i3, ix(3), idl
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep
@@ -293,6 +295,7 @@ contains
        0,0,1,  1,0,1,&
        1,0,0,  1,0,1/),shape(uc))
     integer, parameter :: ucdir(12) = (/1, 2, 3, 3, 2, 1, 2, 1, 3, 2, 1, 3/)
+    real*8, parameter :: vacextension = 2d0 / bohrtoa
 
     ! system has been initialized: ensured by scene_build_lists, which
     ! calls this routine.
@@ -626,13 +629,22 @@ contains
           n = r%ncell
        end if
 
+       ! vacuum directions: we have a vacuum and only one cell in that direction
+       isvac = .false.
+       do i = 1, 3
+          if (sys(r%id)%c%vaclength(i) > iperiod_vacthr .and. n(i) == 1) then
+             isvac(i) = .true.
+          end if
+       end do
+
        ! external cell
        do i = 1, 12
-          x1 = real(uc(:,1,i) * n,8) + r%origin
-          x1 = sys(r%id)%c%x2c(x1)
-          x2 = real(uc(:,2,i) * n,8) + r%origin
-          x2 = sys(r%id)%c%x2c(x2)
+          ix1 = uc(:,1,i) * n
+          ix2 = uc(:,2,i) * n
+          call process_vacuum_uc_sticks(ix1,ix2,x1,x2,docycle)
+          if (docycle) cycle
 
+          ! add the sticks
           call increase_ncylflat()
           obj%cylflat(obj%ncylflat)%x1 = real(x1,c_float)
           obj%cylflat(obj%ncylflat)%x2 = real(x2,c_float)
@@ -662,12 +674,11 @@ contains
                       isedge(ucdir(i)) = .true.
                       if (all(isedge)) cycle
 
-                      x1 = real(ix1,8) + r%origin
-                      x1 = sys(r%id)%c%x2c(x1)
-                      x2 = real(ix2,8) + r%origin
-                      x2 = sys(r%id)%c%x2c(x2)
+                      ! process vacuum
+                      call process_vacuum_uc_sticks(ix1,ix2,x1,x2,docycle)
+                      if (docycle) cycle
 
-                      ! logical :: uc_innerstipple ! stippled lines for the inner lines
+                      ! stippled lines for the inner lines
                       if (r%uc_innerstipple) then
                          nstep = ceiling(norm2(x2 - x1) / r%uc_innersteplen)
                          do j = 1, nstep
@@ -703,6 +714,53 @@ contains
       end if
 
     end subroutine increase_ncylflat
+
+    subroutine process_vacuum_uc_sticks(ix1,ix2,x1,x2,docycle)
+      integer, intent(in) :: ix1(3), ix2(3)
+      real*8, intent(out) :: x1(3), x2(3)
+      logical, intent(out) :: docycle
+
+      real*8 :: ucini(3), ucend(3)
+
+      ! initialize
+      docycle = .false.
+
+      ! check whether this stick goes in the vacuum direction
+      isvacdir = any((ix1 /= ix2) .and. isvac .and..not.all(isvac))
+
+      ucini = real(ix1,8)
+      ucend = real(ix2,8)
+      if (isvacdir) then
+         ! there is vacuum and this stick goes in the vacuum direction: cut it
+         do j = 1, 3
+            if (isvac(j)) then
+               ucini(j) = sys(r%id)%c%vactop(j) - 1d0 - vacextension / sys(r%id)%c%aa(j)
+               ucend(j) = sys(r%id)%c%vacbot(j) + vacextension / sys(r%id)%c%aa(j)
+            end if
+         end do
+      elseif (any(isvac).and..not.all(isvac)) then
+         ! there is vacuum and this stick does not go in the vacuum direction:
+         ! remove it if "uc" has a 1 in that coordinate; shift it if it has 0 coordinate
+         do j = 1, 3
+            if (isvac(j)) then
+               if (ix1(j) /= 0) then
+                  docycle = .true.
+                  return
+               else
+                  ucini(j) = 0.5d0 * (sys(r%id)%c%vactop(j) - 1d0 + sys(r%id)%c%vacbot(j))
+                  ucend(j) = 0.5d0 * (sys(r%id)%c%vactop(j) - 1d0 + sys(r%id)%c%vacbot(j))
+               end if
+            end if
+         end do
+      end if
+
+      ! stick ends
+      x1 = ucini + r%origin
+      x1 = sys(r%id)%c%x2c(x1)
+      x2 = ucend + r%origin
+      x2 = sys(r%id)%c%x2c(x2)
+
+    end subroutine process_vacuum_uc_sticks
 
     subroutine check_lshown(i,i1,i2,i3)
       integer, intent(in) :: i, i1, i2, i3

@@ -206,6 +206,8 @@ module crystalmod
      integer :: lvac(3,2) !< Vacuum lattice vectors
      integer :: lcon(3,2) !< Connected lattice vectors
      real*8 :: vaclength(3) !< Vacuum length in bohr along the crystallographic axes (a,b,c)
+     real*8 :: vacbot(3) !< Bottom of the vacuum region in each axis
+     real*8 :: vactop(3) !< Top of the vacuum region in each axis
      ! variables for 3d molecular crystals
      integer :: iperiod !< periodicity (see iperiod_* constants)
      logical :: ismol3d !< Is this a 3d molecular crystal?
