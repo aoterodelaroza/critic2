@@ -1337,7 +1337,7 @@ contains
   !> Reassign the currently selected system
   module subroutine reassign_tree(w,cfilter)
     use interfaces_glfw, only: glfwGetTime
-    use systems, only: sysc, sys_init, kill_initialization_thread, remove_system
+    use systems, only: sysc, sys_empty, sys_init, kill_initialization_thread, remove_system
     class(window), intent(inout) :: w
     type(c_ptr), intent(inout) :: cfilter
 
@@ -1346,7 +1346,7 @@ contains
 
     ! this routine only works if the selected tree system is empty
     idx = w%tree_selected
-    if (sysc(idx)%status == sys_init) then
+    if (sysc(idx)%status > sys_empty) then
        w%timelast_tree_assign = glfwGetTime()
        return
     end if

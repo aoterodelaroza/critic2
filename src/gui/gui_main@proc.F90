@@ -518,8 +518,8 @@ contains
           call iw_tooltip("Create a copy of this system",ttshown)
 
           ! File -> Reopen from file
-          launch(d_reopen) = launch(d_reopen) .or. iw_menuitem("Restore from File",BIND_REOPEN,enabled=isysok)
-          call iw_tooltip("Read the file for this system and reopen it (only last structure is read)",ttshown)
+          launch(d_reopen) = launch(d_reopen) .or. iw_menuitem("Restore",BIND_REOPEN,enabled=isysok)
+          call iw_tooltip("Read the file for this system and reopen it",ttshown)
 
           ! File -> Close
           launch(d_close) = launch(d_close) .or. iw_menuitem("Close",BIND_CLOSE,enabled=isysok)

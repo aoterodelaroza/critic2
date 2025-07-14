@@ -239,6 +239,7 @@ contains
        sys(idx)%isinit = .false.
        sysc(idx)%id = idx
        sysc(idx)%seed = seed(iseed)
+       sysc(idx)%idseed = iseed
        sysc(idx)%has_field = .false.
        sysc(idx)%has_vib = .false.
        sysc(idx)%renamed = .false.
@@ -404,13 +405,15 @@ contains
 
   !> Re-read the system from file name of system idx
   module subroutine reread_system_from_file(idx)
-    use crystalseedmod, only: crystalseed
+    use crystalseedmod, only: crystalseed, read_seeds_from_file, realloc_crystalseed
     integer, intent(in) :: idx
 
-    character(len=:), allocatable :: file
+    character(len=:), allocatable :: file, errmsg
     logical :: exist, cubic
-    integer :: isformat, mol
+    integer :: isformat, mol, iafield, iavib, nseed, icol
     real*8 :: border
+    type(crystalseed), allocatable :: seed(:)
+    logical :: collapse, ihid
 
     ! the seed is available
     if (.not.ok_system(idx,sys_loaded_not_init)) return
@@ -429,12 +432,32 @@ contains
     isformat = sysc(idx)%seed%isformat
     border = sysc(idx)%seed%border
     cubic = sysc(idx)%seed%cubic
+    icol = sysc(idx)%collapse
+    ihid = sysc(idx)%hidden
 
-    ! remove the system
-    call remove_system(idx,kill_dependents_if_extended=.true.)
+    ! terminate the system
+    call sys(idx)%end()
+    call sysc(idx)%seed%end()
+    sysc(idx)%status = sys_empty
+
+    ! re-read the seeds from file
+    errmsg = ""
+    nseed = 0
+    allocate(seed(1))
+    call read_seeds_from_file(file,mol,isformat,.false.,nseed,seed,collapse,errmsg,&
+       iafield,iavib)
+    if (len_trim(errmsg) > 0 .or. nseed == 0) return
+
+    ! move the relevant seed to the first position
+    if (nseed > 1) then
+       seed(1) = seed(sysc(idx)%idseed)
+       call realloc_crystalseed(seed,1)
+    end if
 
     ! add the system again
-    call add_systems_from_name(file,mol,isformat,.true.,border,cubic,forceidx=idx)
+    call add_systems_from_seeds(1,seed,.false.,iafield,iavib,idx)
+    sysc(idx)%collapse = icol
+    sysc(idx)%hidden = ihid
 
     ! initialize
     call launch_initialization_thread()

@@ -129,7 +129,7 @@ contains
 
     !! line of global buttons
     ! restore, only if system is independent or master
-    if (iw_button("Restore",disabled=(sysc(isys)%collapse > 0))) &
+    if (iw_button("Restore")) &
        call reread_system_from_file(isys)
     call iw_tooltip("Read the file for this system and reopen it",ttshown)
 
