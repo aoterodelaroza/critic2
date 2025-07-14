@@ -219,7 +219,7 @@ contains
     logical :: is_bind_event
 
     integer :: key, mod, modnow
-    logical :: held_
+    logical :: held_, oktext
 
     ! process options
     held_ = .false.
@@ -236,11 +236,14 @@ contains
     mod = modbind(bind)
     modnow = get_current_mod()
 
+    ! if input is wated, only activate binds that require ctrl, alt, or super
+    oktext = (modnow >= 2) .or. .not.io%WantTextInput
+
     ! check if any bind is triggered
     if (key == ImGuiKey_None .or. mod /= modnow) then
        ! no key or the mod is not correct
        return
-    elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END .and..not.io%WantTextInput) then
+    elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END .and.oktext) then
        ! correct key ID and not keyboard captured or inputing text
        if (held_) then
           is_bind_event = igIsKeyDown(key)

@@ -119,9 +119,9 @@ module keybindings
 
   ! The modifiers associated with each bind, bind -> mod
   integer(c_int), parameter :: mod_none = 0
-  integer(c_int), parameter :: mod_ctrl = 1
-  integer(c_int), parameter :: mod_alt = 2
-  integer(c_int), parameter :: mod_shift = 4
+  integer(c_int), parameter :: mod_shift = 1
+  integer(c_int), parameter :: mod_ctrl = 2
+  integer(c_int), parameter :: mod_alt = 4
   integer(c_int), parameter :: mod_super = 8
   integer(c_int), public :: modbind(BIND_NUM)
 
