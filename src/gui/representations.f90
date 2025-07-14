@@ -187,9 +187,6 @@ module representations
        class(representation), intent(inout), target :: r
      end subroutine update_structure
      module subroutine add_draw_elements(r,nc,obj,doanim,iqpt,ifreq)
-       use systems, only: sys
-       use tools_io, only: string, nameguess
-       use param, only: bohrtoa, tpi, img, atmass
        class(representation), intent(inout), target :: r
        integer, intent(in) :: nc(3)
        type(scene_objects), intent(inout) :: obj
