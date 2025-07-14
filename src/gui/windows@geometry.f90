@@ -46,12 +46,12 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit
     use global, only: dunit0, iunit_ang
-    use tools_io, only: string, nameguess, ioj_right
+    use tools_io, only: string, nameguess, ioj_center
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, havesel, removehighlight
     logical :: doquit, clicked
-    integer :: ihighlight, iclicked, nhigh
+    integer :: ihighlight, iclicked, nhigh, dec
     logical(c_bool) :: is_selected, redo_highlights
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
@@ -187,7 +187,7 @@ contains
           if (domol) ncol = ncol + 1 ! mol
           if (dowyc) ncol = ncol + 1 ! wyckoff/multiplicity
           if (doidx) ncol = ncol + 1 ! nneq idx
-          if (w%geometry_atomtype > 0) ncol = ncol + 1 ! coordinates
+          if (w%geometry_atomtype > 0) ncol = ncol + 3 ! coordinates
 
           ! atom style table, for atoms
           flags = ImGuiTableFlags_None
@@ -246,9 +246,25 @@ contains
              if (w%geometry_atomtype > 0) then
                 icol = icol + 1
                 if (sys(isys)%c%ismolecule) then
-                   str2 = "Coordinates (Å)" // c_null_char
+                   str2 = "x (Å)" // c_null_char
                 else
-                   str2 = "Coordinates (fractional)" // c_null_char
+                   str2 = "x" // c_null_char
+                end if
+                flags = ImGuiTableColumnFlags_WidthStretch
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+                icol = icol + 1
+                if (sys(isys)%c%ismolecule) then
+                   str2 = "y (Å)" // c_null_char
+                else
+                   str2 = "y" // c_null_char
+                end if
+                flags = ImGuiTableColumnFlags_WidthStretch
+                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+                icol = icol + 1
+                if (sys(isys)%c%ismolecule) then
+                   str2 = "z (Å)" // c_null_char
+                else
+                   str2 = "z" // c_null_char
                 end if
                 flags = ImGuiTableColumnFlags_WidthStretch
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
@@ -392,22 +408,22 @@ contains
 
                    ! coordinates
                    if (w%geometry_atomtype > 0) then
-                      icol = icol + 1
-                      if (igTableSetColumnIndex(icol)) then
-                         s = ""
-                         if (w%geometry_atomtype > 0) then
-                            if (sys(isys)%c%ismolecule) then
-                               x0 = (sys(isys)%c%atcel(i)%r+sys(isys)%c%molx0) * dunit0(iunit_ang)
-                            elseif (w%geometry_atomtype == 1) then
-                               x0 = sys(isys)%c%at(i)%x
-                            else
-                               x0 = sys(isys)%c%atcel(i)%x
-                            endif
-                            s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
-                               string(x0(3),'f',8,4,ioj_right)
+                      dec = 6
+                      if (sys(isys)%c%ismolecule) then
+                         x0 = (sys(isys)%c%atcel(i)%r+sys(isys)%c%molx0) * dunit0(iunit_ang)
+                         dec = 4
+                      elseif (w%geometry_atomtype == 1) then
+                         x0 = sys(isys)%c%at(i)%x
+                      else
+                         x0 = sys(isys)%c%atcel(i)%x
+                      endif
+                      do j = 1, 3
+                         icol = icol + 1
+                         if (igTableSetColumnIndex(icol)) then
+                            s = string(x0(j),'f',dec+4,dec,ioj_center)
+                            call iw_text(s)
                          end if
-                         call iw_text(s)
-                      end if
+                      end do
                    end if
                 end do ! clipper indices
              end do ! clipper step
