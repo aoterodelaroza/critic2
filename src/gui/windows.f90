@@ -150,7 +150,7 @@ module windows
      procedure :: focused => window_focused ! whether the root window is focused (even if not current)
      procedure :: draw => window_draw ! draw the window, calls one of the draw commands below
      ! tree procedures
-     procedure :: draw_tree ! draw a tree
+     procedure :: draw_tree
      procedure :: remap_tree ! update the system information shown by the tree
      procedure :: sort_tree ! sort the systems in the tree
      procedure :: reassign_tree ! reassign the currently selected system in the tree
@@ -158,11 +158,11 @@ module windows
      ! treeplot procedures
      procedure :: draw_treeplot
      ! view procedures
-     procedure :: draw_view ! draw a view
+     procedure :: draw_view
      procedure :: create_texture_view ! create the texture for the view
      procedure :: delete_texture_view ! delete the texture for the view
      procedure :: process_events_view ! process the mouse events in the view
-     procedure :: select_view
+     procedure :: select_view ! select the system to show in a view
      procedure :: draw_selection_tooltip ! draw the measure selection tooltip
      procedure :: mousepos_to_texpos ! mouse position to texture position
      procedure :: texpos_to_mousepos ! texture position to mouse position
@@ -172,17 +172,17 @@ module windows
      procedure :: world_to_texpos ! world coordinates to texture position
      procedure :: texpos_to_world ! texture position to world coordinates
      ! dialog procedures
-     procedure :: draw_dialog ! draw an open/save dialog
+     procedure :: draw_dialog
      ! input console procedures
-     procedure :: draw_ci ! draw the input console
+     procedure :: draw_ci
      procedure :: run_commands_ci ! run the commands in the input buffer
      procedure :: block_gui_ci ! block the GUI while the input buffer commands are run
      procedure :: get_input_details_ci ! get the system & field strings for current input
      ! output console procedures
-     procedure :: update_co ! update the output console
-     procedure :: draw_co ! draw the output console
+     procedure :: update_co
+     procedure :: draw_co
      ! about window
-     procedure :: draw_about ! draw the about window
+     procedure :: draw_about
      ! new structure procedures
      procedure :: draw_new_struct
      ! new structure from library procedures
@@ -209,6 +209,8 @@ module windows
      procedure :: draw_geometry
      ! preferences
      procedure :: draw_preferences
+     ! builder window
+     procedure :: draw_builder
   end type window
   public :: window
 
@@ -220,6 +222,7 @@ module windows
   integer, public :: iwin_console_output
   integer, public :: iwin_view
   integer, public :: iwin_about
+  integer, public :: iwin_builder
   public :: windows_init
 
   ! window types
@@ -240,6 +243,7 @@ module windows
   integer, parameter, public :: wintype_preferences = 15
   integer, parameter, public :: wintype_treeplot = 16
   integer, parameter, public :: wintype_geometry = 17
+  integer, parameter, public :: wintype_builder = 18
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -500,6 +504,10 @@ module windows
      module subroutine draw_geometry(w)
        class(window), intent(inout), target :: w
      end subroutine draw_geometry
+     !xx! builder submodule !xx!
+     module subroutine draw_builder(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_builder
   end interface
 
 end module windows

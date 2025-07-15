@@ -53,9 +53,9 @@ contains
     use shaders, only: shaders_init, shaders_end
     use shapes, only: shapes_init, shapes_end
     use windows, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
-       wintype_console_output, wintype_about, iwin_tree, iwin_view, iwin_console_input,&
-       iwin_console_output, iwin_about, stack_create_window, stack_realloc_maybe,&
-       wpurp_view_main, windows_init
+       wintype_console_output, wintype_about, wintype_builder, iwin_tree, iwin_view,&
+       iwin_console_input, iwin_console_output, iwin_about, iwin_builder,&
+       stack_create_window, stack_realloc_maybe, wpurp_view_main, windows_init
     use global, only: critic_home
     use c_interface_module, only: f_c_string_dup, C_string_free
     use tools_io, only: ferror, faterr, string, falloc, fdealloc
@@ -227,6 +227,7 @@ contains
     iwin_view = stack_create_window(wintype_view,.true.,purpose=wpurp_view_main,permanent=.true.)
     iwin_console_input = stack_create_window(wintype_console_input,.true.,permanent=.true.)
     iwin_console_output = stack_create_window(wintype_console_output,.true.,permanent=.true.)
+    iwin_builder = stack_create_window(wintype_builder,.true.,permanent=.true.)
     iwin_about = stack_create_window(wintype_about,.false.,permanent=.true.)
 
     ! main loop
@@ -275,11 +276,13 @@ contains
           call igDockBuilderDockWindow(c_loc(win(iwin_view)%name), iright)
           call igDockBuilderDockWindow(c_loc(win(iwin_console_input)%name), ileft)
           call igDockBuilderDockWindow(c_loc(win(iwin_console_output)%name), ileft)
+          call igDockBuilderDockWindow(c_loc(win(iwin_builder)%name), ileft)
           call igDockBuilderFinish(ileft)
           call igDockBuilderFinish(iright)
           call igDockBuilderFinish(iddock)
           win(iwin_console_input)%isopen = .true.
           win(iwin_console_output)%isopen = .true.
+          win(iwin_builder)%isopen = .true.
           call igSetWindowFocus_Str(c_loc(win(iwin_view)%name))
        end if
 
@@ -451,7 +454,7 @@ contains
     use systems, only: sys, sys_init, ok_system, are_threads_running, duplicate_system,&
        reread_system_from_file, remove_system, kill_initialization_thread
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
-       iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
+       iwin_console_output, iwin_builder, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
        wintype_about, wintype_geometry, wintype_rebond, wintype_vibrations, wintype_exportimage
@@ -587,6 +590,11 @@ contains
           if (iw_menuitem("Output Console",selected=logical(win(iwin_console_output)%isopen))) &
              win(iwin_console_output)%isopen = .not.win(iwin_console_output)%isopen
           call iw_tooltip("Toggle the display of the output console window",ttshown)
+
+          ! Windows -> Input Console
+          if (iw_menuitem("Builder",selected=logical(win(iwin_builder)%isopen))) &
+             win(iwin_builder)%isopen = .not.win(iwin_builder)%isopen
+          call iw_tooltip("Toggle the display of the builder window",ttshown)
 
           ! Windows -> Separator
           call igSeparator()

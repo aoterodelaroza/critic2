@@ -15,7 +15,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-! Routines for the about window.
+! Routines for the edit representation window.
 submodule (windows) editrep
   use interfaces_cimgui
   implicit none

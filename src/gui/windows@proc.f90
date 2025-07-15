@@ -736,6 +736,12 @@ contains
           inisize%x = 55 * fontsize%x
           inisize%y = 25 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+       elseif (w%type == wintype_builder) then
+          w%name = "Builder##" // string(w%id)  // c_null_char
+          w%flags = ImGuiWindowFlags_None
+          inisize%x = 55 * fontsize%x
+          inisize%y = 25 * fontsize%y
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     end if
 
@@ -797,6 +803,8 @@ contains
                 call w%draw_preferences()
              elseif (w%type == wintype_treeplot) then
                 call w%draw_treeplot()
+             elseif (w%type == wintype_builder) then
+                call w%draw_builder()
              end if
           end if
           call igEnd()
