@@ -38,13 +38,13 @@ contains
 
   !> Deallocate arrays in the seed
   module subroutine seed_end(seed)
-    use param, only: isformat_unknown
+    use param, only: isformat_r_unknown
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
 
     seed%isused = .false.
     seed%file = ""
     seed%name = ""
-    seed%isformat = isformat_unknown
+    seed%isformat = isformat_r_unknown
     seed%nat = 0
     if (allocated(seed%x)) deallocate(seed%x)
     if (allocated(seed%is)) deallocate(seed%is)
@@ -76,7 +76,7 @@ contains
     use tools_math, only: matinv
     use tools_io, only: uin, getline, ucopy, lgetword, equal, ferror, faterr,&
        getword, lower, isinteger, string, nameguess, zatguess, equali
-    use param, only: bohrtoa, isformat_from_input
+    use param, only: bohrtoa, isformat_r_from_input
     use types, only: realloc
 
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
@@ -400,7 +400,7 @@ contains
     seed%molx0 = 0d0
     seed%file = "<input>"
     seed%name = "<input>"
-    seed%isformat = isformat_from_input
+    seed%isformat = isformat_r_from_input
 
   end subroutine parse_crystal_env
 
@@ -409,7 +409,7 @@ contains
     use global, only: rborder_def, eval_next, dunit0, iunit, iunit_ang, iunit_isdef
     use tools_io, only: uin, ucopy, getline, lgetword, equal, ferror, faterr,&
        string, isinteger, nameguess, getword, zatguess, equali, lower
-    use param, only: bohrtoa, isformat_from_input
+    use param, only: bohrtoa, isformat_r_from_input
     use types, only: realloc
 
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
@@ -576,7 +576,7 @@ contains
     seed%molx0 = 0d0
     seed%file = "<input>"
     seed%name = "<input>"
-    seed%isformat = isformat_from_input
+    seed%isformat = isformat_r_from_input
 
   contains
     function check_no_extra_word()
@@ -603,7 +603,7 @@ contains
     use global, only: mlib_file, clib_file
     use tools_io, only: lgetword, ferror, faterr, uout, fopen_read, getline,&
        equal, getword, fclose
-    use param, only: isformat_from_library
+    use param, only: isformat_r_from_library
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: line
     logical, intent(out) :: oksyn
@@ -687,7 +687,7 @@ contains
     endif
     seed%file = trim(line) // " (library)"
     seed%name = trim(line) // " (library)"
-    seed%isformat = isformat_from_library
+    seed%isformat = isformat_r_from_library
 
     call fclose(lu)
     if (.not.ok) return
@@ -709,7 +709,7 @@ contains
     use global, only: rborder_def
     use tools, only: qcksort
     use tools_io, only: ferror, faterr
-    use param, only: isformat_derived
+    use param, only: isformat_r_derived
     class(crystalseed), intent(inout) :: seed
     type(fragment), intent(in) :: fr
     logical, intent(in), optional :: order_by_cidx0
@@ -772,7 +772,7 @@ contains
     seed%molx0 = 0d0
     seed%file = ""
     seed%name = ""
-    seed%isformat = isformat_derived
+    seed%isformat = isformat_r_derived
 
   end subroutine from_fragment
 
@@ -806,17 +806,17 @@ contains
   !> message
   module subroutine read_any_file(seed,file,mol0,errmsg,ti)
     use global, only: rborder_def
-    use param, only: isformat_cif, isformat_shelx, isformat_f21,&
-       isformat_cube, isformat_bincube, isformat_struct, isformat_abinit,&
-       isformat_elk, isformat_fploout,&
-       isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz,&
-       isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
-       isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
-       isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
-       isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
-       isformat_aimsout, isformat_tinkerfrac, isformat_gjf, isformat_zmat,&
-       isformat_magres, isformat_alamode, isformat_sdf, isformat_castepcell,&
-       isformat_castepgeom, isformat_mol2, isformat_pdb
+    use param, only: isformat_r_cif, isformat_r_shelx, isformat_r_f21,&
+       isformat_r_cube, isformat_r_bincube, isformat_r_struct, isformat_r_abinit,&
+       isformat_r_elk, isformat_r_fploout,&
+       isformat_r_qein, isformat_r_qeout, isformat_r_crystal, isformat_r_xyz,&
+       isformat_r_wfn, isformat_r_wfx, isformat_r_fchk, isformat_r_molden,&
+       isformat_r_gaussian, isformat_r_siesta, isformat_r_xsf, isformat_r_gen,&
+       isformat_r_vasp, isformat_r_pwc, isformat_r_axsf, isformat_r_dat,&
+       isformat_r_pgout, isformat_r_orca, isformat_r_dmain, isformat_r_aimsin,&
+       isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_gjf, isformat_r_zmat,&
+       isformat_r_magres, isformat_r_alamode, isformat_r_sdf, isformat_r_castepcell,&
+       isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
@@ -828,7 +828,7 @@ contains
 
     ! detect the format for this file
     errmsg = ""
-    call struct_detect_format(file,isformat,ti=ti)
+    call struct_detect_read_format(file,isformat,ti=ti)
 
     ! is this a crystal or a molecule?
     if (mol0 == 1) then
@@ -843,114 +843,114 @@ contains
     end if
 
     ! build the seed
-    if (isformat == isformat_cif) then
+    if (isformat == isformat_r_cif) then
        call seed%read_cif(file," ",mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_mol2) then
+    elseif (isformat == isformat_r_mol2) then
        call seed%read_mol2(file,rborder_def,.false.," ",errmsg,ti=ti)
 
-    elseif (isformat == isformat_sdf) then
+    elseif (isformat == isformat_r_sdf) then
        call seed%read_sdf(file,rborder_def,.false.,errmsg,0,ti=ti)
 
-    elseif (isformat == isformat_magres) then
+    elseif (isformat == isformat_r_magres) then
        call seed%read_magres(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_alamode) then
+    elseif (isformat == isformat_r_alamode) then
        call seed%read_alamode(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_shelx) then
+    elseif (isformat == isformat_r_shelx) then
        call seed%read_shelx(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_f21) then
+    elseif (isformat == isformat_r_f21) then
        call seed%read_f21(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_cube) then
+    elseif (isformat == isformat_r_cube) then
        call seed%read_cube(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_bincube) then
+    elseif (isformat == isformat_r_bincube) then
        call seed%read_bincube(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_struct) then
+    elseif (isformat == isformat_r_struct) then
        call seed%read_wien(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_vasp) then
+    elseif (isformat == isformat_r_vasp) then
        call seed%read_vasp(file,mol,hastypes,errmsg,ti=ti)
        if (len_trim(errmsg) == 0 .and..not.hastypes) then
           errmsg = "Atom types not found in VASP file"
           return
        end if
 
-    elseif (isformat == isformat_abinit) then
+    elseif (isformat == isformat_r_abinit) then
        call seed%read_abinit(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_elk) then
+    elseif (isformat == isformat_r_elk) then
        call seed%read_elk(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_qeout) then
+    elseif (isformat == isformat_r_qeout) then
        call seed%read_qeout(file,mol,0,errmsg,ti=ti)
 
-    elseif (isformat == isformat_crystal) then
+    elseif (isformat == isformat_r_crystal) then
        call seed%read_crystalout(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_fploout) then
+    elseif (isformat == isformat_r_fploout) then
        call seed%read_fploout(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_qein) then
+    elseif (isformat == isformat_r_qein) then
        call seed%read_qein(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_wfn.or.&
-       isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
-       isformat == isformat_molden.or.isformat == isformat_gaussian.or.&
-       isformat == isformat_dat.or.isformat == isformat_pgout.or.&
-       isformat == isformat_orca.or.isformat == isformat_gjf.or.&
-       isformat == isformat_zmat) then
+    elseif (isformat == isformat_r_wfn.or.&
+       isformat == isformat_r_wfx.or.isformat == isformat_r_fchk.or.&
+       isformat == isformat_r_molden.or.isformat == isformat_r_gaussian.or.&
+       isformat == isformat_r_dat.or.isformat == isformat_r_pgout.or.&
+       isformat == isformat_r_orca.or.isformat == isformat_r_gjf.or.&
+       isformat == isformat_r_zmat) then
        call seed%read_mol(file,isformat,rborder_def,.false.,errmsg,ti=ti)
 
-    elseif (isformat == isformat_xyz) then
+    elseif (isformat == isformat_r_xyz) then
        call seed%read_xyz(file,mol,rborder_def,.false.,errmsg,ti=ti)
 
-    elseif (isformat == isformat_pdb) then
+    elseif (isformat == isformat_r_pdb) then
        call seed%read_pdb(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_siesta) then
+    elseif (isformat == isformat_r_siesta) then
        call seed%read_siesta(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_castepcell) then
+    elseif (isformat == isformat_r_castepcell) then
        call seed%read_castep_cell(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_castepgeom) then
+    elseif (isformat == isformat_r_castepgeom) then
        call seed%read_castep_geom(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_xsf) then
+    elseif (isformat == isformat_r_xsf) then
        call seed%read_xsf(file,rborder_def,.false.,errmsg,ti=ti)
        if (mol0 /= -1) &
           seed%ismolecule = mol
 
-    elseif (isformat == isformat_gen) then
+    elseif (isformat == isformat_r_gen) then
        call seed%read_dftbp(file,rborder_def,.false.,errmsg,ti=ti)
        if (mol0 /= -1) &
           seed%ismolecule = mol
 
-    elseif (isformat == isformat_pwc) then
+    elseif (isformat == isformat_r_pwc) then
        call seed%read_pwc(file,mol,errmsg,ti=ti)
        if (mol0 /= -1) &
           seed%ismolecule = mol
 
-    elseif (isformat == isformat_axsf) then
+    elseif (isformat == isformat_r_axsf) then
        call seed%read_axsf(file,1,0d0,rborder_def,.false.,errmsg,ti=ti)
        if (mol0 /= -1) &
           seed%ismolecule = mol
 
-    elseif (isformat == isformat_dmain) then
+    elseif (isformat == isformat_r_dmain) then
        call seed%read_dmain(file,mol,errmsg,ti=ti)
 
-    elseif (isformat == isformat_aimsin) then
+    elseif (isformat == isformat_r_aimsin) then
        call seed%read_aimsin(file,mol,rborder_def,.false.,errmsg,ti=ti)
 
-    elseif (isformat == isformat_aimsout) then
+    elseif (isformat == isformat_r_aimsout) then
        call seed%read_aimsout(file,mol,rborder_def,.false.,errmsg,ti=ti)
 
-    elseif (isformat == isformat_tinkerfrac) then
+    elseif (isformat == isformat_r_tinkerfrac) then
        call seed%read_tinkerfrac(file,mol,errmsg,ti=ti)
 
     else
@@ -1022,7 +1022,7 @@ contains
   module subroutine read_shelx(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, lgetword, equal, isreal, isinteger,&
        lower, zatguess, fclose, getword
-    use param, only: eyet, eye, bohrtoa, isformat_shelx, hartokjmol
+    use param, only: eyet, eye, bohrtoa, isformat_r_shelx, hartokjmol
     use types, only: realloc
     class(crystalseed), intent(inout)  :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
@@ -1045,7 +1045,7 @@ contains
     call seed%end()
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_shelx
+    seed%isformat = isformat_r_shelx
     errmsg = ""
 
     ! initialize symmetry
@@ -1374,7 +1374,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, lower, fclose, lgetword, equal,&
        isreal, zatguess, nameguess, getword
     use types, only: realloc
-    use param, only: isformat_magres, maxzat, bohrtoa
+    use param, only: isformat_r_magres, maxzat, bohrtoa
     class(crystalseed), intent(inout)  :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
@@ -1391,7 +1391,7 @@ contains
     call seed%end()
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_magres
+    seed%isformat = isformat_r_magres
     errmsg = ""
 
     lu = fopen_read(file,ti=ti)
@@ -1554,7 +1554,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, lower, fclose, lgetword, equal,&
        isreal, zatguess, nameguess, getword, isinteger, getline
     use types, only: realloc
-    use param, only: isformat_alamode
+    use param, only: isformat_r_alamode
     class(crystalseed), intent(inout)  :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
@@ -1571,7 +1571,7 @@ contains
     call seed%end()
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_alamode
+    seed%isformat = isformat_r_alamode
     errmsg = ""
 
     lu = fopen_read(file,ti=ti)
@@ -1757,7 +1757,7 @@ contains
   !> Read the structure from a fort.21 from neighcrys
   module subroutine read_f21(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, nameguess
-    use param, only: bohrtoa, maxzat0, mlen, isformat_f21
+    use param, only: bohrtoa, maxzat0, mlen, isformat_r_f21
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file !< Input file name
@@ -1781,7 +1781,7 @@ contains
     if (lu < 0) goto 999
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_f21
+    seed%isformat = isformat_r_f21
 
     ! read the lattice constants and the atomic coordinates
     isused = 0
@@ -1938,7 +1938,7 @@ contains
     use tools_io, only: fopen_read, fclose, nameguess, getline_raw
     use tools_math, only: matinv
     use types, only: realloc
-    use param, only: isformat_cube
+    use param, only: isformat_r_cube
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
@@ -1964,7 +1964,7 @@ contains
     if (.not.ok) goto 999
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_cube
+    seed%isformat = isformat_r_cube
 
     ! ignore the title lines
     read (lu,*,err=999,end=999)
@@ -2055,7 +2055,7 @@ contains
     use tools_io, only: fopen_read, fclose, nameguess, getline_raw
     use tools_math, only: matinv
     use types, only: realloc
-    use param, only: isformat_bincube
+    use param, only: isformat_r_bincube
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
@@ -2151,7 +2151,7 @@ contains
     seed%border = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_bincube
+    seed%isformat = isformat_r_bincube
 
   end subroutine read_bincube
 
@@ -2160,7 +2160,7 @@ contains
   module subroutine read_wien(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, zatguess, fclose, equal, equali
     use types, only: realloc
-    use param, only: pi, isformat_struct
+    use param, only: pi, isformat_r_struct
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< struct file
     logical, intent(in) :: mol !< is this a molecule?
@@ -2181,7 +2181,7 @@ contains
     call seed%end()
     errmsg = "Error reading file: " // trim(file)
     seed%file = file
-    seed%isformat = isformat_struct
+    seed%isformat = isformat_r_struct
 
     ! first pass to see whether we have symmetry or not
     lut = fopen_read(file,ti=ti)
@@ -2382,7 +2382,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, isreal, &
        getword, zatguess, string, isinteger, fclose
     use tools_math, only: det3sym, matinv
-    use param, only: bohrtoa, isformat_vasp
+    use param, only: bohrtoa, isformat_r_vasp
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< Is this a molecule?
@@ -2553,7 +2553,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_vasp
+    seed%isformat = isformat_r_vasp
 
   end subroutine read_vasp
 
@@ -2562,7 +2562,7 @@ contains
     use tools_io, only: fopen_read, nameguess, fclose
     use abinit_private, only: hdr_type, hdr_io
     use types, only: realloc
-    use param, only: isformat_abinit
+    use param, only: isformat_r_abinit
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -2629,7 +2629,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_abinit
+    seed%isformat = isformat_r_abinit
 
   end subroutine read_abinit
 
@@ -2640,7 +2640,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, equal, getword,&
        zatguess, fclose, string
     use types, only: realloc
-    use param, only: isformat_elk
+    use param, only: isformat_r_elk
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< input filename
     logical, intent(in) :: mol !< is this a molecule?
@@ -2739,7 +2739,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_elk
+    seed%isformat = isformat_r_elk
 
   end subroutine read_elk
 
@@ -2749,9 +2749,9 @@ contains
        wfn_read_wfx_geometry, wfn_read_fchk_geometry, wfn_read_molden_geometry,&
        wfn_read_log_geometry, wfn_read_dat_geometry, wfn_read_pgout_geometry,&
        wfn_read_orca_geometry, wfn_read_gjf_geometry
-    use param, only: isformat_xyz, isformat_wfn, isformat_wfx,&
-       isformat_fchk, isformat_molden, isformat_gaussian, isformat_dat,&
-       isformat_pgout, isformat_orca, isformat_gjf, isformat_zmat
+    use param, only: isformat_r_xyz, isformat_r_wfn, isformat_r_wfx,&
+       isformat_r_fchk, isformat_r_molden, isformat_r_gaussian, isformat_r_dat,&
+       isformat_r_pgout, isformat_r_orca, isformat_r_gjf, isformat_r_zmat
     use tools_io, only: equali
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
@@ -2769,37 +2769,37 @@ contains
     if (present(alsovib)) alsovib = .false.
     call seed%end()
     errmsg = ""
-    if (fmt == isformat_xyz) then
+    if (fmt == isformat_r_xyz) then
        ! xyz
        call wfn_read_xyz_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
-    elseif (fmt == isformat_gjf) then
+    elseif (fmt == isformat_r_gjf) then
        ! xyz
        call wfn_read_gjf_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
-    elseif (fmt == isformat_wfn) then
+    elseif (fmt == isformat_r_wfn) then
        ! wfn
        call wfn_read_wfn_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
-    elseif (fmt == isformat_wfx) then
+    elseif (fmt == isformat_r_wfx) then
        ! wfx
        call wfn_read_wfx_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
-    elseif (fmt == isformat_fchk) then
+    elseif (fmt == isformat_r_fchk) then
        ! fchk
        call wfn_read_fchk_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,alsovib=alsovib,ti=ti)
-    elseif (fmt == isformat_molden) then
+    elseif (fmt == isformat_r_molden) then
        ! molden (psi4)
        call wfn_read_molden_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
-    elseif (fmt == isformat_gaussian) then
+    elseif (fmt == isformat_r_gaussian) then
        ! Gaussian output file
        call wfn_read_log_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
-    elseif (fmt == isformat_dat) then
+    elseif (fmt == isformat_r_dat) then
        ! psi4 output file
        call wfn_read_dat_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
-    elseif (fmt == isformat_pgout) then
+    elseif (fmt == isformat_r_pgout) then
        ! postg output file
        call wfn_read_pgout_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
-    elseif (fmt == isformat_orca) then
+    elseif (fmt == isformat_r_orca) then
        ! orca output file
        call wfn_read_orca_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
-    elseif (fmt == isformat_zmat) then
+    elseif (fmt == isformat_r_zmat) then
        call read_zmat_geometry(file,seed%nat,seed%x,z,seed%atname,errmsg,ti=ti)
     end if
     seed%useabr = 0
@@ -2860,7 +2860,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, fclose, zatguess, nameguess
     use tools_math, only: matinv
     use types, only: realloc
-    use param, only: bohrtoa, isformat_pdb, maxzat0
+    use param, only: bohrtoa, isformat_r_pdb, maxzat0
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     logical, intent(in) :: mol
@@ -3001,7 +3001,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_pdb
+    seed%isformat = isformat_r_pdb
 
   end subroutine read_pdb
 
@@ -3044,7 +3044,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, lower, getword,&
        equal, zatguess, fclose
     use tools_math, only: matinv
-    use param, only: bohrtoa, isformat_qein
+    use param, only: bohrtoa, isformat_r_qein
     use types, only: realloc
     integer, parameter :: dp = selected_real_kind(14,200)
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
@@ -3468,7 +3468,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_qein
+    seed%isformat = isformat_r_qein
 
   end subroutine read_qein
 
@@ -3490,7 +3490,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, nameguess, fclose
     use tools_math, only: matinv
-    use param, only: maxzat, isformat_fploout
+    use param, only: maxzat, isformat_r_fploout
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
@@ -3638,7 +3638,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_fploout
+    seed%isformat = isformat_r_fploout
 
   end subroutine read_fploout
 
@@ -3647,7 +3647,7 @@ contains
     use tools_io, only: fopen_read, nameguess, fclose
     use tools_math, only: matinv
     use types, only: realloc
-    use param, only: bohrtoa, isformat_siesta
+    use param, only: bohrtoa, isformat_r_siesta
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -3711,7 +3711,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_siesta
+    seed%isformat = isformat_r_siesta
 
   end subroutine read_siesta
 
@@ -3721,7 +3721,7 @@ contains
        equal, getword, isinteger, zatguess, isreal, lower
     use tools_math, only: matinv
     use types, only: realloc
-    use param, only: bohrtoa, bohrtom, bohrtocm, bohrtonm, isformat_castepcell
+    use param, only: bohrtoa, bohrtom, bohrtocm, bohrtonm, isformat_r_castepcell
     use hashmod, only: hash
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -3898,7 +3898,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_castepcell
+    seed%isformat = isformat_r_castepcell
 
   contains
     function get_optional_unit(rconv)
@@ -3974,7 +3974,7 @@ contains
        getword, lower, isinteger, isreal, zatguess
     use tools_math, only: matinv
     use hashmod, only: hash
-    use param, only: isformat_castepgeom
+    use param, only: isformat_r_castepgeom
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -4107,7 +4107,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_castepgeom
+    seed%isformat = isformat_r_castepgeom
 
   end subroutine read_castep_geom
 
@@ -4116,7 +4116,7 @@ contains
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, isreal,&
        getword, zatguess, isinteger, lower
     use tools_math, only: matinv
-    use param, only: bohrtoa, maxzat, isformat_dmain
+    use param, only: bohrtoa, maxzat, isformat_r_dmain
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -4263,7 +4263,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_dmain
+    seed%isformat = isformat_r_dmain
 
   end subroutine read_dmain
 
@@ -4272,7 +4272,7 @@ contains
     use tools_math, only: matinv
     use tools_io, only: fopen_read, getline, lower, equal, &
        getword, zatguess, nameguess, fclose
-    use param, only: bohrtoa, isformat_gen
+    use param, only: bohrtoa, isformat_r_gen
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -4399,7 +4399,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_gen
+    seed%isformat = isformat_r_gen
 
   end subroutine read_dftbp
 
@@ -4408,7 +4408,7 @@ contains
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, nameguess, equal,&
        zatguess, isinteger, getword, isreal, lower, string
     use tools_math, only: matinv
-    use param, only: bohrtoa, isformat_xsf
+    use param, only: bohrtoa, isformat_r_xsf
     use types, only: realloc
     use hashmod, only: hash
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
@@ -4591,7 +4591,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_xsf
+    seed%isformat = isformat_r_xsf
 
   end subroutine read_xsf
 
@@ -4599,7 +4599,7 @@ contains
   module subroutine read_pwc(seed,file,mol,errmsg,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose, zatguess
-    use param, only: isformat_pwc
+    use param, only: isformat_r_pwc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
     logical, intent(in) :: mol !< is this a molecule?
@@ -4677,7 +4677,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_pwc
+    seed%isformat = isformat_r_pwc
 
   end subroutine read_pwc
 
@@ -4689,7 +4689,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, fclose, lgetword, equal, isinteger, &
        string, getword, isreal, nameguess, zatguess
     use tools_math, only: matinv
-    use param, only: bohrtoa, isformat_axsf
+    use param, only: bohrtoa, isformat_r_axsf
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -4849,7 +4849,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_axsf
+    seed%isformat = isformat_r_axsf
 
   end subroutine read_axsf
 
@@ -4860,7 +4860,7 @@ contains
     use tools_math, only: matinv
     use types, only: realloc
     use hashmod, only: hash
-    use param, only: bohrtoa, isformat_aimsin
+    use param, only: bohrtoa, isformat_r_aimsin
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     logical, intent(in) :: mol
@@ -5005,7 +5005,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_aimsin
+    seed%isformat = isformat_r_aimsin
 
   end subroutine read_aimsin
 
@@ -5016,7 +5016,7 @@ contains
     use tools_math, only: matinv
     use types, only: realloc
     use hashmod, only: hash
-    use param, only: bohrtoa, hartoev, eva3togpa, isformat_aimsout
+    use param, only: bohrtoa, hartoev, eva3togpa, isformat_r_aimsout
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     logical, intent(in) :: mol
@@ -5252,7 +5252,7 @@ contains
     seed%molx0 = 0d0
     seed%file = file
     seed%name = file
-    seed%isformat = isformat_aimsout
+    seed%isformat = isformat_r_aimsout
 
   end subroutine read_aimsout
 
@@ -5260,7 +5260,7 @@ contains
   !> parameters in the second line).
   module subroutine read_tinkerfrac(seed,file,mol,errmsg,ti)
     use tools_io, only: getline_raw, fopen_read, fclose, isinteger, isreal, zatguess, nameguess
-    use param, only: bohrtoa, maxzat, isformat_tinkerfrac
+    use param, only: bohrtoa, maxzat, isformat_r_tinkerfrac
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
     character*(*), intent(in) :: file !< Input file name
@@ -5283,7 +5283,7 @@ contains
        return
     end if
     seed%file = file
-    seed%isformat = isformat_tinkerfrac
+    seed%isformat = isformat_r_tinkerfrac
 
     ! line 1: number of atoms and name of the seed
     lp = 1
@@ -5402,16 +5402,16 @@ contains
   !> whether the file contains a molecule or crysatl is returned.
   !> If alsofield is present, then return .true. if the file also
   !> contains a scalar field.
-  module subroutine struct_detect_format(file,isformat,alsofield,ti)
-    use param, only: isformat_unknown, isformat_cif, isformat_shelx,&
-       isformat_f21, isformat_xyz, isformat_gjf,&
-       isformat_cube, isformat_bincube, isformat_struct, isformat_abinit, isformat_elk,&
-       isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
-       isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
-       isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat, isformat_pgout,&
-       isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
-       isformat_castepcell, isformat_castepgeom, isformat_qein, isformat_qeout,&
-       isformat_mol2, isformat_pdb, isformat_zmat, isformat_sdf, isformat_magres
+  module subroutine struct_detect_read_format(file,isformat,alsofield,ti)
+    use param, only: isformat_r_unknown, isformat_r_cif, isformat_r_shelx,&
+       isformat_r_f21, isformat_r_xyz, isformat_r_gjf,&
+       isformat_r_cube, isformat_r_bincube, isformat_r_struct, isformat_r_abinit, isformat_r_elk,&
+       isformat_r_wfn, isformat_r_wfx, isformat_r_fchk, isformat_r_molden,&
+       isformat_r_gaussian, isformat_r_siesta, isformat_r_xsf, isformat_r_gen,&
+       isformat_r_vasp, isformat_r_pwc, isformat_r_axsf, isformat_r_dat, isformat_r_pgout,&
+       isformat_r_dmain, isformat_r_aimsin, isformat_r_aimsout, isformat_r_tinkerfrac,&
+       isformat_r_castepcell, isformat_r_castepgeom, isformat_r_qein, isformat_r_qeout,&
+       isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
     use param, only: dirsep
@@ -5445,22 +5445,22 @@ contains
        (index(basename,'POSCAR') > 0).or.(index(basename,'PARCHG') > 0)
 
     if (equal(lower(wextdot),'cif')) then
-       isformat = isformat_cif
+       isformat = isformat_r_cif
     elseif (equal(wextdot,'pwc')) then
-       isformat = isformat_pwc
+       isformat = isformat_r_pwc
        alsofield_ = .true.
     elseif (equal(wextdot,'res').or.equal(wextdot,'ins').or.equal(wextdot,'16')) then
-       isformat = isformat_shelx
+       isformat = isformat_r_shelx
     elseif (equal(wextdot,'21')) then
-       isformat = isformat_f21
+       isformat = isformat_r_f21
     elseif (equal(wextdot,'cube')) then
-       isformat = isformat_cube
+       isformat = isformat_r_cube
        alsofield_ = .true.
     elseif (equal(wextdot,'bincube')) then
-       isformat = isformat_bincube
+       isformat = isformat_r_bincube
        alsofield_ = .true.
     elseif (equal(wextdot,'struct')) then
-       isformat = isformat_struct
+       isformat = isformat_r_struct
     elseif (equal(wextdot,'DEN').or.equal(wext_,'DEN').or.equal(wextdot,'ELF').or.equal(wext_,'ELF').or.&
        equal(wextdot,'POT').or.equal(wext_,'POT').or.equal(wextdot,'VHA').or.equal(wext_,'VHA').or.&
        equal(wextdot,'VHXC').or.equal(wext_,'VHXC').or.equal(wextdot,'VXC').or.equal(wext_,'VXC').or.&
@@ -5468,61 +5468,61 @@ contains
        equal(wextdot,'GDEN3').or.equal(wext_,'GDEN3').or.equal(wextdot,'LDEN').or.equal(wext_,'LDEN').or.&
        equal(wextdot,'KDEN').or.equal(wext_,'KDEN').or.equal(wextdot,'PAWDEN').or.equal(wext_,'PAWDEN').or.&
        equal(wextdot,'VCLMB').or.equal(wext_,'VCLMB').or.equal(wextdot,'VPSP').or.equal(wext_,'VPSP')) then
-       isformat = isformat_abinit
+       isformat = isformat_r_abinit
        alsofield_ = .true.
     elseif (equal(wextdot,'OUT')) then
-       isformat = isformat_elk
+       isformat = isformat_r_elk
     elseif (equal(wextdot,'out')) then
        call which_out_format(file,isformat,ti=ti)
     elseif (equal(wextdot,'own')) then
        call which_out_format(file,isformat,ti=ti)
-       if (isformat /= isformat_aimsout) goto 999
+       if (isformat /= isformat_r_aimsout) goto 999
     elseif (equal(wextdot,'in')) then
        call which_in_format(file,isformat,ti=ti)
     elseif (equal(wextdot2,'in.next_step')) then
        call which_in_format(file,isformat,ti=ti)
-       if (isformat /= isformat_aimsin) goto 999
+       if (isformat /= isformat_r_aimsin) goto 999
     elseif (equal(wextdot,'pwi')) then
-       isformat = isformat_qein
+       isformat = isformat_r_qein
     elseif (equal(wextdot,'pwo')) then
-       isformat = isformat_qeout
+       isformat = isformat_r_qeout
     elseif (equal(wextdot,'xyz')) then
-       isformat = isformat_xyz
+       isformat = isformat_r_xyz
     elseif (equal(wextdot,'gjf').or.equal(wextdot,'com')) then
-       isformat = isformat_gjf
+       isformat = isformat_r_gjf
     elseif (equal(wextdot,'zmat')) then
-       isformat = isformat_zmat
+       isformat = isformat_r_zmat
     elseif (equal(wextdot,'sdf').or.equal(wextdot,'mol')) then
-       isformat = isformat_sdf
+       isformat = isformat_r_sdf
     elseif (equal(wextdot,'magres')) then
-       isformat = isformat_magres
+       isformat = isformat_r_magres
     elseif (equal(wextdot,'pgout')) then
-       isformat = isformat_pgout
+       isformat = isformat_r_pgout
     elseif (equal(wextdot,'wfn')) then
-       isformat = isformat_wfn
+       isformat = isformat_r_wfn
        alsofield_ = .true.
     elseif (equal(wextdot,'wfx')) then
-       isformat = isformat_wfx
+       isformat = isformat_r_wfx
        alsofield_ = .true.
     elseif (equal(wextdot,'log')) then
-       isformat = isformat_gaussian
+       isformat = isformat_r_gaussian
        alsofield_ = .false.
     elseif (equal(wextdot,'fchk')) then
-       isformat = isformat_fchk
+       isformat = isformat_r_fchk
        alsofield_ = .true.
     elseif (equal(wextdot,'molden') .or. equal(wextdot2,'molden.input')) then
-       isformat = isformat_molden
+       isformat = isformat_r_molden
        alsofield_ = .true.
     elseif (equal(wextdot,'STRUCT_OUT').or.equal(wextdot,'STRUCT_IN')) then
-       isformat = isformat_siesta
+       isformat = isformat_r_siesta
     elseif (equal(wextdot,'cell')) then
-       isformat = isformat_castepcell
+       isformat = isformat_r_castepcell
     elseif (equal(wextdot,'geom')) then
-       isformat = isformat_castepgeom
+       isformat = isformat_r_castepgeom
     elseif (equal(wextdot,'dmain')) then
-       isformat = isformat_dmain
+       isformat = isformat_r_dmain
     elseif (equal(wextdot,'xsf')) then
-       isformat = isformat_xsf
+       isformat = isformat_r_xsf
        lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) goto 999
        do while (getline(lu,line))
@@ -5538,7 +5538,7 @@ contains
        end if
        call fclose(lu)
     elseif (equal(wextdot,'gen')) then
-       isformat = isformat_gen
+       isformat = isformat_r_gen
 
        ! determine whether it is a molecule or crystal
        lu = fopen_read(file,errstop=.false.,ti=ti)
@@ -5551,24 +5551,24 @@ contains
        isfrac = lower(isfrac)
        call fclose(lu)
     elseif (equal(wextdot,'axsf')) then
-       isformat = isformat_axsf
+       isformat = isformat_r_axsf
     elseif (equal(wextdot,'dat')) then
-       isformat = isformat_dat
+       isformat = isformat_r_dat
     elseif (equal(wextdot,'frac')) then
-       isformat = isformat_tinkerfrac
+       isformat = isformat_r_tinkerfrac
     elseif (equal(lower(wextdot),'vasp')) then
-       isformat = isformat_vasp
+       isformat = isformat_r_vasp
        alsofield_ = .false.
     elseif (isvasp) then
-       isformat = isformat_vasp
+       isformat = isformat_r_vasp
        alsofield_ = (index(basename,'CHGCAR') > 0) .or. (index(basename,'CHG') > 0) .or. &
           (index(basename,'ELFCAR') > 0) .or. (index(basename,'AECCAR0') > 0) .or. &
           (index(basename,'AECCAR1') > 0) .or. (index(basename,'AECCAR2') > 0).or.&
           (index(basename,'PARCHG') > 0)
     elseif (equal(wextdot,'mol2')) then
-       isformat = isformat_mol2
+       isformat = isformat_r_mol2
     elseif (equal(wextdot,'pdb')) then
-       isformat = isformat_pdb
+       isformat = isformat_r_pdb
     else
        goto 999
     endif
@@ -5578,25 +5578,25 @@ contains
 
     return
 999 continue
-    isformat = isformat_unknown
+    isformat = isformat_r_unknown
 
-  end subroutine struct_detect_format
+  end subroutine struct_detect_read_format
 
   !> Detect whether a file with format isformat contains a molecule
   !> (ismol=.true.)  or a crystal (.false.)
   module subroutine struct_detect_ismol(file,isformat,ismol,ti)
     use tools_io, only: fopen_read, fclose, getline, equali,&
        getline_raw, lgetword, equal, lower
-    use param, only: isformat_cif, isformat_shelx, isformat_f21,&
-       isformat_cube, isformat_bincube, isformat_struct, isformat_abinit, isformat_elk,&
-       isformat_qein, isformat_qeout, isformat_crystal, isformat_fploout,&
-       isformat_xyz, isformat_gjf, isformat_wfn,&
-       isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian, isformat_siesta,&
-       isformat_xsf, isformat_gen, isformat_vasp, isformat_pwc, isformat_axsf,&
-       isformat_dat, isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
-       isformat_aimsout, isformat_tinkerfrac, isformat_castepcell, isformat_castepgeom,&
-       isformat_mol2, isformat_pdb, isformat_zmat, isformat_sdf, isformat_magres,&
-       isformat_alamode
+    use param, only: isformat_r_cif, isformat_r_shelx, isformat_r_f21,&
+       isformat_r_cube, isformat_r_bincube, isformat_r_struct, isformat_r_abinit, isformat_r_elk,&
+       isformat_r_qein, isformat_r_qeout, isformat_r_crystal, isformat_r_fploout,&
+       isformat_r_xyz, isformat_r_gjf, isformat_r_wfn,&
+       isformat_r_wfx, isformat_r_fchk, isformat_r_molden, isformat_r_gaussian, isformat_r_siesta,&
+       isformat_r_xsf, isformat_r_gen, isformat_r_vasp, isformat_r_pwc, isformat_r_axsf,&
+       isformat_r_dat, isformat_r_pgout, isformat_r_orca, isformat_r_dmain, isformat_r_aimsin,&
+       isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_castepcell, isformat_r_castepgeom,&
+       isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres,&
+       isformat_r_alamode
     character*(*), intent(in) :: file
     integer, intent(in) :: isformat
     logical, intent(out) :: ismol
@@ -5609,20 +5609,20 @@ contains
 
     ismol = .false.
     select case (isformat)
-    case (isformat_cif,isformat_pwc,isformat_shelx,isformat_f21,&
-       isformat_cube,isformat_bincube,isformat_struct,isformat_abinit,&
-       isformat_elk,isformat_siesta,isformat_dmain,isformat_vasp,&
-       isformat_axsf,isformat_tinkerfrac,isformat_qein,isformat_qeout,&
-       isformat_crystal,isformat_fploout,isformat_castepcell,isformat_castepgeom,&
-       isformat_magres,isformat_alamode)
+    case (isformat_r_cif,isformat_r_pwc,isformat_r_shelx,isformat_r_f21,&
+       isformat_r_cube,isformat_r_bincube,isformat_r_struct,isformat_r_abinit,&
+       isformat_r_elk,isformat_r_siesta,isformat_r_dmain,isformat_r_vasp,&
+       isformat_r_axsf,isformat_r_tinkerfrac,isformat_r_qein,isformat_r_qeout,&
+       isformat_r_crystal,isformat_r_fploout,isformat_r_castepcell,isformat_r_castepgeom,&
+       isformat_r_magres,isformat_r_alamode)
        ismol = .false.
 
-    case (isformat_gjf,isformat_pgout,isformat_wfn,isformat_wfx,&
-       isformat_gaussian,isformat_fchk,isformat_molden,isformat_dat,&
-       isformat_orca,isformat_mol2,isformat_zmat,isformat_sdf)
+    case (isformat_r_gjf,isformat_r_pgout,isformat_r_wfn,isformat_r_wfx,&
+       isformat_r_gaussian,isformat_r_fchk,isformat_r_molden,isformat_r_dat,&
+       isformat_r_orca,isformat_r_mol2,isformat_r_zmat,isformat_r_sdf)
        ismol = .true.
 
-    case(isformat_xyz)
+    case(isformat_r_xyz)
        ! detect if this is an ASE file: check for "pbc" and "lattice *="
        ismol = .true.
        lu = fopen_read(file,errstop=.false.,ti=ti)
@@ -5649,7 +5649,7 @@ contains
        end if
        call fclose(lu)
 
-    case(isformat_pdb)
+    case(isformat_r_pdb)
        ismol = .true.
        lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) return
@@ -5663,7 +5663,7 @@ contains
        end do
        call fclose(lu)
 
-    case(isformat_aimsout)
+    case(isformat_r_aimsout)
        lu = fopen_read(file,errstop=.false.,ti=ti)
        ismol = .false.
        do while(getline_raw(lu,line))
@@ -5681,7 +5681,7 @@ contains
        end do
        call fclose(lu)
 
-    case (isformat_aimsin)
+    case (isformat_r_aimsin)
        ismol = .true.
        lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) return
@@ -5695,7 +5695,7 @@ contains
        end do
        call fclose(lu)
 
-    case (isformat_gen)
+    case (isformat_r_gen)
        ismol = .false.
        lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) return
@@ -5712,7 +5712,7 @@ contains
        end if
        call fclose(lu)
 
-    case (isformat_xsf)
+    case (isformat_r_xsf)
        ismol = .false.
        lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) return
@@ -5798,15 +5798,15 @@ contains
      nseed,seed,collapse,errmsg,iafield,iavib,ti)
     use global, only: rborder_def, doguess
     use tools_io, only: getword, equali, fopen_read, fclose
-    use param, only: isformat_cube, isformat_bincube, isformat_xyz, isformat_wfn,&
-       isformat_wfx, isformat_fchk, isformat_molden, isformat_gaussian, isformat_gjf,&
-       isformat_zmat, isformat_abinit, isformat_cif, isformat_pwc, isformat_fploout,&
-       isformat_crystal, isformat_elk, isformat_gen, isformat_qein, isformat_qeout,&
-       isformat_shelx, isformat_siesta, isformat_struct, isformat_vasp, isformat_axsf,&
-       isformat_xsf, isformat_castepcell, isformat_castepgeom,&
-       isformat_dat, isformat_f21, isformat_unknown, isformat_pgout, isformat_orca,&
-       isformat_dmain, isformat_aimsin, isformat_aimsout, isformat_tinkerfrac,&
-       isformat_mol2, isformat_sdf, isformat_pdb, isformat_magres, isformat_alamode
+    use param, only: isformat_r_cube, isformat_r_bincube, isformat_r_xyz, isformat_r_wfn,&
+       isformat_r_wfx, isformat_r_fchk, isformat_r_molden, isformat_r_gaussian, isformat_r_gjf,&
+       isformat_r_zmat, isformat_r_abinit, isformat_r_cif, isformat_r_pwc, isformat_r_fploout,&
+       isformat_r_crystal, isformat_r_elk, isformat_r_gen, isformat_r_qein, isformat_r_qeout,&
+       isformat_r_shelx, isformat_r_siesta, isformat_r_struct, isformat_r_vasp, isformat_r_axsf,&
+       isformat_r_xsf, isformat_r_castepcell, isformat_r_castepgeom,&
+       isformat_r_dat, isformat_r_f21, isformat_r_unknown, isformat_r_pgout, isformat_r_orca,&
+       isformat_r_dmain, isformat_r_aimsin, isformat_r_aimsout, isformat_r_tinkerfrac,&
+       isformat_r_mol2, isformat_r_sdf, isformat_r_pdb, isformat_r_magres, isformat_r_alamode
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(in) :: isformat0
@@ -5842,9 +5842,9 @@ contains
     end if
     call fclose(lu)
 
-    call struct_detect_format(file,is,alsofield,ti=ti)
-    if (isformat == isformat_unknown) isformat = is
-    if (isformat == isformat_unknown) then
+    call struct_detect_read_format(file,is,alsofield,ti=ti)
+    if (isformat == isformat_r_unknown) isformat = is
+    if (isformat == isformat_r_unknown) then
        errmsg = "Unknown file format/extension in file."
        goto 999
     end if
@@ -5862,73 +5862,73 @@ contains
 
     ! read all available seeds in the file
     alsovib = .false.
-    if (isformat == isformat_cif) then
+    if (isformat == isformat_r_cif) then
        call read_all_cif(file,mol,errmsg,nseed=nseed,mseed=seed,ti=ti)
-    elseif (isformat == isformat_mol2) then
+    elseif (isformat == isformat_r_mol2) then
        call read_all_mol2(file,errmsg,nseed=nseed,mseed=seed,ti=ti)
-    elseif (isformat == isformat_sdf) then
+    elseif (isformat == isformat_r_sdf) then
        call read_all_sdf(file,errmsg,nseed=nseed,mseed=seed,ti=ti)
-    elseif (isformat == isformat_magres) then
+    elseif (isformat == isformat_r_magres) then
        call seed(1)%read_magres(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_alamode) then
+    elseif (isformat == isformat_r_alamode) then
        call seed(1)%read_alamode(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_pwc) then
+    elseif (isformat == isformat_r_pwc) then
        call seed(1)%read_pwc(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_shelx) then
+    elseif (isformat == isformat_r_shelx) then
        call seed(1)%read_shelx(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_f21) then
+    elseif (isformat == isformat_r_f21) then
        call seed(1)%read_f21(file,mol,errmsg,ti=ti)
-    else if (isformat == isformat_cube) then
+    else if (isformat == isformat_r_cube) then
        call seed(1)%read_cube(file,mol,errmsg,ti=ti)
-    else if (isformat == isformat_bincube) then
+    else if (isformat == isformat_r_bincube) then
        call seed(1)%read_bincube(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_struct) then
+    elseif (isformat == isformat_r_struct) then
        call seed(1)%read_wien(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_vasp) then
+    elseif (isformat == isformat_r_vasp) then
        call read_all_vasp(nseed,seed,file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_abinit) then
+    elseif (isformat == isformat_r_abinit) then
        call seed(1)%read_abinit(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_elk) then
+    elseif (isformat == isformat_r_elk) then
        call seed(1)%read_elk(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_qeout) then
+    elseif (isformat == isformat_r_qeout) then
        call read_all_qeout(nseed,seed,file,mol,-1,errmsg,ti=ti)
-    elseif (isformat == isformat_crystal) then
+    elseif (isformat == isformat_r_crystal) then
        call read_all_crystalout(file,mol,errmsg,nseed=nseed,mseed=seed,alsovib=alsovib,ti=ti)
-    elseif (isformat == isformat_fploout) then
+    elseif (isformat == isformat_r_fploout) then
        call seed(1)%read_fploout(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_qein) then
+    elseif (isformat == isformat_r_qein) then
        call seed(1)%read_qein(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_xyz) then
+    elseif (isformat == isformat_r_xyz) then
        call read_all_xyz(nseed,seed,file,-1,errmsg,ti=ti)
-    elseif (isformat == isformat_gaussian) then
+    elseif (isformat == isformat_r_gaussian) then
        call read_all_log(nseed,seed,file,errmsg,alsovib=alsovib,ti=ti)
-    elseif (isformat == isformat_wfn .or. isformat == isformat_wfx.or.&
-       isformat == isformat_fchk.or.isformat == isformat_molden.or.&
-       isformat == isformat_dat.or.isformat == isformat_pgout.or.&
-       isformat == isformat_orca.or.isformat == isformat_gjf.or.&
-       isformat == isformat_zmat) then
+    elseif (isformat == isformat_r_wfn .or. isformat == isformat_r_wfx.or.&
+       isformat == isformat_r_fchk.or.isformat == isformat_r_molden.or.&
+       isformat == isformat_r_dat.or.isformat == isformat_r_pgout.or.&
+       isformat == isformat_r_orca.or.isformat == isformat_r_gjf.or.&
+       isformat == isformat_r_zmat) then
        call seed(1)%read_mol(file,isformat,rborder_def,.false.,errmsg,alsovib=alsovib,ti=ti)
-    elseif (isformat == isformat_pdb) then
+    elseif (isformat == isformat_r_pdb) then
        call seed(1)%read_pdb(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_siesta) then
+    elseif (isformat == isformat_r_siesta) then
        call seed(1)%read_siesta(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_castepcell) then
+    elseif (isformat == isformat_r_castepcell) then
        call seed(1)%read_castep_cell(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_castepgeom) then
+    elseif (isformat == isformat_r_castepgeom) then
        call read_all_castep_geom(nseed,seed,file,errmsg,ti=ti)
-    elseif (isformat == isformat_dmain) then
+    elseif (isformat == isformat_r_dmain) then
        call seed(1)%read_dmain(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_aimsin) then
+    elseif (isformat == isformat_r_aimsin) then
        call seed(1)%read_aimsin(file,mol,rborder_def,.false.,errmsg,ti=ti)
-    elseif (isformat == isformat_aimsout) then
+    elseif (isformat == isformat_r_aimsout) then
        call read_all_aimsout(nseed,seed,file,errmsg,ti=ti)
-    elseif (isformat == isformat_tinkerfrac) then
+    elseif (isformat == isformat_r_tinkerfrac) then
        call seed(1)%read_tinkerfrac(file,mol,errmsg,ti=ti)
-    elseif (isformat == isformat_axsf) then
+    elseif (isformat == isformat_r_axsf) then
        call seed(1)%read_axsf(file,1,0d0,rborder_def,.false.,errmsg,ti=ti)
-    elseif (isformat == isformat_xsf) then
+    elseif (isformat == isformat_r_xsf) then
        call seed(1)%read_xsf(file,rborder_def,.false.,errmsg,ti=ti)
-    elseif (isformat == isformat_gen) then
+    elseif (isformat == isformat_r_gen) then
        call seed(1)%read_dftbp(file,rborder_def,.false.,errmsg,ti=ti)
     end if
     if (mol0 /= -1) &
@@ -5981,9 +5981,9 @@ contains
     end if
 
     ! output collapse
-    collapse = ((isformat == isformat_qeout .or. isformat == isformat_gaussian .or.&
-       isformat == isformat_aimsout .or. isformat == isformat_castepgeom .or.&
-       isformat == isformat_crystal).and.nseed > 1)
+    collapse = ((isformat == isformat_r_qeout .or. isformat == isformat_r_gaussian .or.&
+       isformat == isformat_r_aimsout .or. isformat == isformat_r_castepgeom .or.&
+       isformat == isformat_r_crystal).and.nseed > 1)
 
   end subroutine read_seeds_from_file
 
@@ -6154,7 +6154,7 @@ contains
        isinteger
     use types, only: realloc
     use tools_math, only: det3sym, matinv
-    use param, only: bohrtoa, dirsep, isformat_vasp
+    use param, only: bohrtoa, dirsep, isformat_r_vasp
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
@@ -6372,7 +6372,7 @@ contains
        seed(i)%havex0 = .false.
        seed(i)%molx0 = 0d0
        seed(i)%file = file
-       seed(i)%isformat = isformat_vasp
+       seed(i)%isformat = isformat_r_vasp
     end do
 
   end subroutine read_all_vasp
@@ -6387,7 +6387,7 @@ contains
     use tools_io, only: fopen_read, fclose, getline_raw, lower, isexpression_or_word,&
        isreal, zatguess
     use types, only: realloc
-    use param, only: tab, isformat_cif
+    use param, only: tab, isformat_r_cif
     integer, intent(out), optional :: nseed
     type(crystalseed), intent(inout), allocatable, optional :: mseed(:)
     type(crystalseed), intent(inout), optional :: seed0
@@ -6736,7 +6736,7 @@ contains
       call seed%end()
       seed%file = trim(file)
       seed%name = trim(file) // "|" // trim(blockname)
-      seed%isformat = isformat_cif
+      seed%isformat = isformat_r_cif
       seed%useabr = 1
       seed%aa = aa / bohrtoa
       seed%bb = bb
@@ -6880,7 +6880,7 @@ contains
     use tools_io, only: fopen_read, fclose, getline, lower, isexpression_or_word,&
        isreal, zatguess, equal, isinteger, zatguess
     use types, only: realloc
-    use param, only: maxzat, bohrtoa, isformat_mol2
+    use param, only: maxzat, bohrtoa, isformat_r_mol2
     integer, intent(out), optional :: nseed
     type(crystalseed), intent(inout), allocatable, optional :: mseed(:)
     type(crystalseed), intent(inout), optional :: seed0
@@ -6974,7 +6974,7 @@ contains
                 seed%havex0 = .false.
                 seed%molx0 = 0d0
                 seed%file = file
-                seed%isformat = isformat_mol2
+                seed%isformat = isformat_r_mol2
                 if (len_trim(molname) > 0) then
                    seed%name = trim(file) // "|" // trim(molname)
                 else
@@ -7079,7 +7079,7 @@ contains
     use tools_io, only: fopen_read, fclose, getline_raw, lower, isexpression_or_word,&
        isreal, isinteger, zatguess, equal, isinteger, zatguess, lgetword
     use types, only: realloc
-    use param, only: maxzat, bohrtoa, isformat_sdf
+    use param, only: maxzat, bohrtoa, isformat_r_sdf
     integer, intent(out), optional :: nseed
     type(crystalseed), intent(inout), allocatable, optional :: mseed(:)
     type(crystalseed), intent(inout), optional :: seed0
@@ -7278,7 +7278,7 @@ contains
        seed%havex0 = .false.
        seed%molx0 = 0d0
        seed%file = file
-       seed%isformat = isformat_sdf
+       seed%isformat = isformat_r_sdf
 
        ! done, seed is correct
        seedok = .true.
@@ -7341,7 +7341,7 @@ contains
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
        zatguess, fclose, equali, string
     use tools_math, only: matinv
-    use param, only: bohrtoa, isformat_qeout
+    use param, only: bohrtoa, isformat_r_qeout
     use types, only: realloc, species
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
@@ -7610,7 +7610,7 @@ contains
              seed(iuse)%havex0 = .false.
              seed(iuse)%molx0 = 0d0
              seed(iuse)%file = file
-             seed(iuse)%isformat = isformat_qeout
+             seed(iuse)%isformat = isformat_r_qeout
 
              read (line,*,err=999,end=999) sdum, sdum, sdum, sdum, sene
              read (sene,*,err=999,end=999) rdum
@@ -7665,7 +7665,7 @@ contains
     use tools_io, only: fopen_read, fclose, getline_raw, lower, zatguess,&
        isinteger, isreal, string, nameguess
     use types, only: realloc
-    use param, only: maxzat, bohrtoa, isformat_xyz
+    use param, only: maxzat, bohrtoa, isformat_r_xyz
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
@@ -7737,7 +7737,7 @@ contains
        if (.not.ok) goto 999
        seed(nseed)%file = file
        seed(nseed)%name = seed(nseed)%file
-       seed(nseed)%isformat = isformat_xyz
+       seed(nseed)%isformat = isformat_r_xyz
 
        seed(nseed)%nspc = 0
        allocate(seed(nseed)%x(3,nat),seed(nseed)%is(nat),seed(nseed)%spc(10),seed(nseed)%atname(nat))
@@ -7902,7 +7902,7 @@ contains
     use global, only: rborder_def
     use tools_io, only: fopen_read, fclose, getline_raw, nameguess, string
     use types, only: species
-    use param, only: maxzat, bohrtoa, isformat_gaussian
+    use param, only: maxzat, bohrtoa, isformat_r_gaussian
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file !< Input file name
@@ -8032,7 +8032,7 @@ contains
           seed(in)%x = seed(in)%x / bohrtoa
           seed(in)%isused = .true.
           seed(in)%file = file
-          seed(in)%isformat = isformat_gaussian
+          seed(in)%isformat = isformat_r_gaussian
           seed(in)%name = file
           seed(in)%nspc = nspc
           seed(in)%spc = spc
@@ -8097,7 +8097,7 @@ contains
     use tools_math, only: matinv
     use types, only: realloc
     use hashmod, only: hash
-    use param, only: bohrtoa, hartoev, eva3togpa, isformat_aimsout
+    use param, only: bohrtoa, hartoev, eva3togpa, isformat_r_aimsout
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file
@@ -8340,7 +8340,7 @@ contains
        seed(i)%molx0 = 0d0
        seed(i)%file = file
        seed(i)%name = file
-       seed(i)%isformat = isformat_aimsout
+       seed(i)%isformat = isformat_r_aimsout
 
        ! name and energy conversion
        if (i == nseed) then
@@ -8380,7 +8380,7 @@ contains
        getword, lower, isinteger, isreal, zatguess, string
     use tools_math, only: matinv
     use hashmod, only: hash
-    use param, only: hartoev, isformat_castepgeom
+    use param, only: hartoev, isformat_r_castepgeom
     integer, intent(out) :: nseed !< number of seeds
     type(crystalseed), intent(inout), allocatable :: seed(:) !< seeds on output
     character*(*), intent(in) :: file
@@ -8522,7 +8522,7 @@ contains
        seed(i)%havex0 = .false.
        seed(i)%molx0 = 0d0
        seed(i)%file = file
-       seed(i)%isformat = isformat_castepgeom
+       seed(i)%isformat = isformat_r_castepgeom
        if (i == nseed) then
           seed(i)%name = trim(file) // "|(fin) (" //&
              trim(adjustl(string(seed(i)%energy*hartoev,'f',20,8))) // " eV)"
@@ -8547,7 +8547,7 @@ contains
        zatguess, fclose, equali
     use tools_math, only: matinv
     use types, only: realloc
-    use param, only: bohrtoa, isformat_crystal
+    use param, only: bohrtoa, isformat_r_crystal
     character*(*), intent(in) :: file
     logical, intent(in) :: mol
     character(len=:), allocatable, intent(out) :: errmsg
@@ -8696,7 +8696,7 @@ contains
              seed%molx0 = 0d0
              seed%file = file
              seed%name = file
-             seed%isformat = isformat_crystal
+             seed%isformat = isformat_r_crystal
 
              ! done with the first seed
              firstseed = .false.
@@ -9008,8 +9008,8 @@ contains
   !> from a crystal, quantum espresso, or orca calculation.
   subroutine which_out_format(file,isformat,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, equal, lower, lgetword
-    use param, only: isformat_qeout, isformat_crystal, isformat_fploout,&
-       isformat_orca, isformat_aimsout
+    use param, only: isformat_r_qeout, isformat_r_crystal, isformat_r_fploout,&
+       isformat_r_orca, isformat_r_aimsout
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: isformat
     type(thread_info), intent(in), optional :: ti
@@ -9024,29 +9024,29 @@ contains
     line = ""
     do while(getline_raw(lu,line))
        if (index(line,"* O   R   C   A *") > 0) then
-          isformat = isformat_orca
+          isformat = isformat_r_orca
           exit
        else if (index(line,"EEEEEEEEEE STARTING  DATE") > 0) then
-          isformat = isformat_crystal
+          isformat = isformat_r_crystal
           exit
        else if (index(line,"Program PWSCF") > 0) then
-          isformat = isformat_qeout
+          isformat = isformat_r_qeout
           exit
        elseif (index(line,"Invoking FHI-aims ...") > 0) then
-          isformat = isformat_aimsout
+          isformat = isformat_r_aimsout
           exit
        elseif (index(line,"FULL-POTENTIAL LOCAL-ORBITAL MINIMUM BASIS BANDSTRUCTURE CODE") > 0) then
-          isformat = isformat_fploout
+          isformat = isformat_r_fploout
           exit
        end if
     end do
 
     ! determine whether the aims output contains a molecule or a crystal
-    if (isformat == isformat_aimsout) then
+    if (isformat == isformat_r_aimsout) then
        isformat = 0
        do while(getline_raw(lu,line))
           if (adjustl(trim(line)) == "Input geometry:") then
-             isformat = isformat_aimsout
+             isformat = isformat_r_aimsout
              ok = getline_raw(lu,line)
              if (.not.ok) then
                 isformat = 0
@@ -9065,7 +9065,7 @@ contains
   !> or a quantum espresso calculation.
   subroutine which_in_format(file,isformat,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, equal, lgetword, lower
-    use param, only: isformat_qein, isformat_aimsin, isformat_alamode
+    use param, only: isformat_r_qein, isformat_r_aimsin, isformat_r_alamode
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: isformat
     type(thread_info), intent(in), optional :: ti
@@ -9085,21 +9085,21 @@ contains
        word = lgetword(line,lp)
        if (word(1:1) == "#") cycle
        if ((index(lline,"&control") > 0) .or. (index(lline,"&system") > 0)) then
-          isformat = isformat_qein
+          isformat = isformat_r_qein
           exit
        end if
        if (equal(word,"atom").or.equal(word,"atom_frac").or.equal(word,"lattice_vector")) then
-          isformat = isformat_aimsin
+          isformat = isformat_r_aimsin
           exit
        end if
        if (equal(word,"&general")) then
-          isformat = isformat_alamode
+          isformat = isformat_r_alamode
           exit
        end if
     end do
 
     ! If this is an FHI-aims input, determine whether it is a molecule or a crystal
-    if (isformat == isformat_aimsin) then
+    if (isformat == isformat_r_aimsin) then
        rewind(lu)
        do while(getline_raw(lu,line))
           lp = 1

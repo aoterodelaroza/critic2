@@ -717,84 +717,93 @@ contains
   end subroutine struct_write_json
 
   !> Write the structure to a file. Use the format derived from the
-  !> extension of file and use default values for all options.
-  module subroutine write_simple_driver(c,file,ti)
+  !> extension of file and use default values for all options. If
+  !> error, return a non-zero errmsg.
+  module subroutine write_any_file(c,file,errmsg,ti)
     use tools_io, only: lower, ferror, faterr, equal
+    use param, only: &
+       isformat_w_unknown, isformat_w_xyz, isformat_w_gjf, isformat_w_cml, isformat_w_obj,&
+       isformat_w_ply, isformat_w_off, isformat_w_gaussian_periodic, isformat_w_qein,&
+       isformat_w_aimsin, isformat_w_vasp, isformat_w_abinit, isformat_w_elk,&
+       isformat_w_tessel,&
+       isformat_w_critic, isformat_w_cif, isformat_w_crystal, isformat_w_shelx,&
+       isformat_w_octave, isformat_w_dcpdb, isformat_w_gulp, isformat_w_lammps,&
+       isformat_w_siesta_fdf, isformat_w_siesta_struct, isformat_w_dftbp_hsd,&
+       isformat_w_dftbp_gen, isformat_w_pyscf, isformat_w_tinkerfrac, isformat_w_pdb
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
+    character(len=:), allocatable, intent(inout) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    character(len=:), allocatable :: wext, wext2, wroot
-    integer :: idx
+    integer :: isformat
 
-    wext = lower(file(index(file,'.',.true.)+1:))
-    wroot = file(:index(file,'.',.true.)-1)
-
-    if (equal(wext,'xyz').or.equal(wext,'gjf').or.equal(wext,'cml')) then
-       call c%write_mol(file,wext,ti=ti)
-    else if(equal(wext,'obj').or.equal(wext,'ply').or.equal(wext,'off')) then
-       call c%write_3dmodel(file,wext,ti=ti)
-    elseif (equal(wext,'gau')) then
-       call c%write_gaussian(file,ti=ti)
-    elseif (equal(wext,'in')) then
-       idx = index(wroot,'.',.true.)
-       if (idx > 0) then
-          wext2 = lower(wroot(idx+1:))
-          if (equal(wext2,'scf')) then
-             call c%write_espresso(file,ti=ti)
-          else
-             idx = 0
-          end if
-       end if
-       if (idx == 0) &
-            call c%write_fhi(file,.true.,ti=ti)
-    elseif (equal(wext,'pwi')) then
-       call c%write_espresso(file,ti=ti)
-    elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
-       call c%write_vasp(file,.false.,ti=ti)
-    elseif (equal(wext,'abin')) then
-       call c%write_abinit(file,ti=ti)
-    elseif (equal(wext,'elk')) then
-       call c%write_elk(file,ti=ti)
-    elseif (equal(wext,'tess')) then
-       call c%write_tessel(file,ti=ti)
-    elseif (equal(wext,'incritic').or.equal(wext,'cri')) then
-       call c%write_critic(file,ti=ti)
-    elseif (equal(wext,'cif')) then
-       call c%write_cif(file,.true.,ti=ti)
-    elseif (equal(wext,'d12').or.equal(wext,'34')) then
-       call c%write_d12(file,.true.,.false.,ti=ti)
-    elseif (equal(wext,'res')) then
-       call c%write_res(file,-1,ti=ti)
-    elseif (equal(wext,'m')) then
-       call c%write_escher(file,ti=ti)
-    elseif (equal(wext,'db')) then
-       call c%write_db(file,ti=ti)
-    elseif (equal(wext,'gin')) then
-       call c%write_gulp(file,ti=ti)
-    elseif (equal(wext,'lammps')) then
-       call c%write_lammps(file,ti=ti)
-    elseif (equal(wext,'fdf')) then
-       call c%write_siesta_fdf(file,ti=ti)
-    elseif (equal(wext,'struct_in')) then
-       call c%write_siesta_in(file,ti=ti)
-    elseif (equal(wext,'hsd')) then
-       call c%write_dftbp_hsd(file,ti=ti)
-    elseif (equal(wext,'gen')) then
-       call c%write_dftbp_gen(file,ti=ti)
-    elseif (equal(wext,'pyscf')) then
-       call c%write_pyscf(file,ti=ti)
-    elseif (equal(wext,'fhi')) then
-       call c%write_fhi(file,.true.,ti=ti)
-    elseif (equal(wext,'frac')) then
-       call c%write_tinkerfrac(file,ti=ti)
-    elseif (equal(wext,'pdb')) then
-       call c%write_pdb(file,ti=ti)
-    else
-       call ferror('struct_write','unrecognized file format',faterr)
+    ! detect the format
+    errmsg = ""
+    call struct_detect_write_format(file,isformat)
+    if (isformat == isformat_w_unknown) then
+       errmsg = "Unknown extension: " // file
+       return
     end if
 
-  end subroutine write_simple_driver
+    if (isformat == isformat_w_xyz) then
+       call c%write_mol(file,'xyz',ti=ti)
+    elseif (isformat == isformat_w_gjf) then
+       call c%write_mol(file,'gjf',ti=ti)
+    elseif (isformat == isformat_w_cml) then
+       call c%write_mol(file,'cml',ti=ti)
+    elseif (isformat == isformat_w_obj) then
+       call c%write_3dmodel(file,'obj',ti=ti)
+    elseif (isformat == isformat_w_ply) then
+       call c%write_3dmodel(file,'ply',ti=ti)
+    elseif (isformat == isformat_w_off) then
+       call c%write_3dmodel(file,'off',ti=ti)
+    elseif (isformat == isformat_w_gaussian_periodic) then
+       call c%write_gaussian(file,ti=ti)
+    elseif (isformat == isformat_w_qein) then
+       call c%write_espresso(file,ti=ti)
+    elseif (isformat == isformat_w_aimsin) then
+       call c%write_fhi(file,.true.,ti=ti)
+    elseif (isformat == isformat_w_vasp) then
+       call c%write_vasp(file,.false.,ti=ti)
+    elseif (isformat == isformat_w_abinit) then
+       call c%write_abinit(file,ti=ti)
+    elseif (isformat == isformat_w_elk) then
+       call c%write_elk(file,ti=ti)
+    elseif (isformat == isformat_w_tessel) then
+       call c%write_tessel(file,ti=ti)
+    elseif (isformat == isformat_w_critic) then
+       call c%write_critic(file,ti=ti)
+    elseif (isformat == isformat_w_cif) then
+       call c%write_cif(file,.true.,ti=ti)
+    elseif (isformat == isformat_w_crystal) then
+       call c%write_d12(file,.true.,.false.,ti=ti)
+    elseif (isformat == isformat_w_shelx) then
+       call c%write_res(file,-1,ti=ti)
+    elseif (isformat == isformat_w_octave) then
+       call c%write_escher(file,ti=ti)
+    elseif (isformat == isformat_w_dcpdb) then
+       call c%write_db(file,ti=ti)
+    elseif (isformat == isformat_w_gulp) then
+       call c%write_gulp(file,ti=ti)
+    elseif (isformat == isformat_w_lammps) then
+       call c%write_lammps(file,ti=ti)
+    elseif (isformat == isformat_w_siesta_fdf) then
+       call c%write_siesta_fdf(file,ti=ti)
+    elseif (isformat == isformat_w_siesta_struct) then
+       call c%write_siesta_in(file,ti=ti)
+    elseif (isformat == isformat_w_dftbp_hsd) then
+       call c%write_dftbp_hsd(file,ti=ti)
+    elseif (isformat == isformat_w_dftbp_gen) then
+       call c%write_dftbp_gen(file,ti=ti)
+    elseif (isformat == isformat_w_pyscf) then
+       call c%write_pyscf(file,ti=ti)
+    elseif (isformat == isformat_w_tinkerfrac) then
+       call c%write_tinkerfrac(file,ti=ti)
+    elseif (isformat == isformat_w_pdb) then
+       call c%write_pdb(file,ti=ti)
+    end if
+
+  end subroutine write_any_file
 
   !> Write a xyz/gjf/cml file containing a finite piece of the crystal
   !> structure. fmt can be one of xyz, gjf, or cml. ix is the number
@@ -3178,5 +3187,99 @@ contains
     call fclose(lu)
 
   end subroutine writegrid_xsf
+
+  !> Detect the write format from the file and return it in isformat.
+  module subroutine struct_detect_write_format(file,isformat)
+    use param, only: &
+       isformat_w_unknown, isformat_w_xyz, isformat_w_gjf, isformat_w_cml, isformat_w_obj,&
+       isformat_w_ply, isformat_w_off, isformat_w_gaussian_periodic, isformat_w_qein,&
+       isformat_w_aimsin, isformat_w_vasp, isformat_w_abinit, isformat_w_elk,&
+       isformat_w_tessel,&
+       isformat_w_critic, isformat_w_cif, isformat_w_crystal, isformat_w_shelx,&
+       isformat_w_octave, isformat_w_dcpdb, isformat_w_gulp, isformat_w_lammps,&
+       isformat_w_siesta_fdf, isformat_w_siesta_struct, isformat_w_dftbp_hsd,&
+       isformat_w_dftbp_gen, isformat_w_pyscf, isformat_w_tinkerfrac, isformat_w_pdb
+    use tools_io, only: equal, lower
+    character*(*), intent(in) :: file
+    integer, intent(out) :: isformat
+
+    character(len=:), allocatable :: wext, wext2, wroot
+    integer :: idx
+
+    wext = lower(file(index(file,'.',.true.)+1:))
+    wroot = file(:index(file,'.',.true.)-1)
+    if (equal(wext,'xyz')) then
+       isformat = isformat_w_xyz
+    elseif (equal(wext,'gjf')) then
+       isformat = isformat_w_gjf
+    elseif (equal(wext,'cml')) then
+       isformat = isformat_w_cml
+    elseif (equal(wext,'obj')) then
+       isformat = isformat_w_obj
+    elseif (equal(wext,'ply')) then
+       isformat = isformat_w_ply
+    elseif (equal(wext,'off')) then
+       isformat = isformat_w_off
+    elseif (equal(wext,'gau')) then
+       isformat = isformat_w_gaussian_periodic
+    elseif (equal(wext,'in')) then
+       idx = index(wroot,'.',.true.)
+       if (idx > 0) then
+          wext2 = lower(wroot(idx+1:))
+          if (equal(wext2,'scf')) then
+             isformat = isformat_w_qein
+          else
+             idx = 0
+          end if
+       end if
+       if (idx == 0) &
+          isformat = isformat_w_aimsin
+    elseif (equal(wext,'fhi')) then
+       isformat = isformat_w_aimsin
+    elseif (equal(wext,'pwi')) then
+       isformat = isformat_w_qein
+    elseif (equal(wext,'poscar') .or. equal(wext,'contcar')) then
+       isformat = isformat_w_vasp
+    elseif (equal(wext,'abin')) then
+       isformat = isformat_w_abinit
+    elseif (equal(wext,'elk')) then
+       isformat = isformat_w_elk
+    elseif (equal(wext,'tess')) then
+       isformat = isformat_w_tessel
+    elseif (equal(wext,'incritic').or.equal(wext,'cri')) then
+       isformat = isformat_w_critic
+    elseif (equal(wext,'cif')) then
+       isformat = isformat_w_cif
+    elseif (equal(wext,'d12').or.equal(wext,'34')) then
+       isformat = isformat_w_crystal
+    elseif (equal(wext,'res')) then
+       isformat = isformat_w_shelx
+    elseif (equal(wext,'m')) then
+       isformat = isformat_w_octave
+    elseif (equal(wext,'db')) then
+       isformat = isformat_w_dcpdb
+    elseif (equal(wext,'gin')) then
+       isformat = isformat_w_gulp
+    elseif (equal(wext,'lammps')) then
+       isformat = isformat_w_lammps
+    elseif (equal(wext,'fdf')) then
+       isformat = isformat_w_siesta_fdf
+    elseif (equal(wext,'struct_in')) then
+       isformat = isformat_w_siesta_struct
+    elseif (equal(wext,'hsd')) then
+       isformat = isformat_w_dftbp_hsd
+    elseif (equal(wext,'gen')) then
+       isformat = isformat_w_dftbp_gen
+    elseif (equal(wext,'pyscf')) then
+       isformat = isformat_w_pyscf
+    elseif (equal(wext,'frac')) then
+       isformat = isformat_w_tinkerfrac
+    elseif (equal(wext,'pdb')) then
+       isformat = isformat_w_pdb
+    else
+       isformat = isformat_w_unknown
+    end if
+
+  end subroutine struct_detect_write_format
 
 end submodule write

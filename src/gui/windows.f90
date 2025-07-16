@@ -22,7 +22,7 @@ module windows
   use scenes, only: scene
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
-  use param, only: isformat_unknown
+  use param, only: isformat_r_unknown
   implicit none
 
   private
@@ -45,7 +45,7 @@ module windows
      type(c_ptr) :: dptr = c_null_ptr ! the pointer for the file dialog
      integer(c_int) :: mol = -1 ! -1 = auto, 0 = crystal, 1 = molecule
      logical :: showhidden = .false._c_bool ! show hidden files
-     integer(c_int) :: isformat = isformat_unknown ! force structure format
+     integer(c_int) :: isformat = isformat_r_unknown ! force structure format
      logical :: readlastonly = .false._c_bool ! read only the last structure
      integer(c_int) :: purpose ! the purpose of the dialog
      logical :: molcubic = .false. ! whether to read the cell as cubic in a molecule

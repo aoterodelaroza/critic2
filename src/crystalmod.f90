@@ -310,7 +310,7 @@ module crystalmod
      procedure :: struct_write_json !< Write a json object containing the crystal structure info
 
      ! structure writers (write)
-     procedure :: write_simple_driver
+     procedure :: write_any_file
      procedure :: write_mol
      procedure :: write_3dmodel
      procedure :: write_espresso
@@ -380,6 +380,7 @@ module crystalmod
   public :: vcpwdf_compare
   public :: gaussian_compare
   public :: david_sivia_calculate_background
+  public :: struct_detect_write_format
 
   ! module procedure interfaces
   interface
@@ -863,11 +864,12 @@ module crystalmod
        type(json_core), intent(inout) :: json
        type(json_value), pointer, intent(inout) :: p
      end subroutine struct_write_json
-     module subroutine write_simple_driver(c,file,ti)
+     module subroutine write_any_file(c,file,errmsg,ti)
        class(crystal), intent(inout) :: c
        character*(*), intent(in) :: file
+       character(len=:), allocatable, intent(inout) :: errmsg
        type(thread_info), intent(in), optional :: ti
-     end subroutine write_simple_driver
+     end subroutine write_any_file
      module subroutine write_mol(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
         environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,usenames0,luout,ti)
        class(crystal), intent(inout) :: c
@@ -1221,6 +1223,10 @@ module crystalmod
        integer, intent(in), optional :: nknot
        real*8 :: yb(n)
      end function david_sivia_calculate_background
+     module subroutine struct_detect_write_format(file,isformat)
+       character*(*), intent(in) :: file
+       integer, intent(out) :: isformat
+     end subroutine struct_detect_write_format
   end interface
 
 end module crystalmod

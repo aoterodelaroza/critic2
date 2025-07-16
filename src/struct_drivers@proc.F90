@@ -34,18 +34,18 @@ contains
   module subroutine struct_crystal_input(line,mol0,allownofile,verbose,s0,cr0,seed0)
     use systemmod, only: system
     use crystalmod, only: crystal
-    use param, only: isformat_cif, isformat_shelx, isformat_f21,&
-       isformat_cube, isformat_bincube, isformat_struct, isformat_abinit,&
-       isformat_elk, isformat_fploout,&
-       isformat_qein, isformat_qeout, isformat_crystal, isformat_xyz, isformat_gjf,&
-       isformat_wfn, isformat_wfx, isformat_fchk, isformat_molden,&
-       isformat_gaussian, isformat_siesta, isformat_xsf, isformat_gen,&
-       isformat_vasp, isformat_pwc, isformat_axsf, isformat_dat,&
-       isformat_pgout, isformat_orca, isformat_dmain, isformat_aimsin,&
-       isformat_aimsout, isformat_tinkerfrac, isformat_castepcell,&
-       isformat_castepgeom, isformat_mol2, isformat_pdb, isformat_zmat,&
-       isformat_sdf, isformat_magres, isformat_alamode, isformat_unknown
-    use crystalseedmod, only: crystalseed, struct_detect_format,&
+    use param, only: isformat_r_cif, isformat_r_shelx, isformat_r_f21,&
+       isformat_r_cube, isformat_r_bincube, isformat_r_struct, isformat_r_abinit,&
+       isformat_r_elk, isformat_r_fploout,&
+       isformat_r_qein, isformat_r_qeout, isformat_r_crystal, isformat_r_xyz, isformat_r_gjf,&
+       isformat_r_wfn, isformat_r_wfx, isformat_r_fchk, isformat_r_molden,&
+       isformat_r_gaussian, isformat_r_siesta, isformat_r_xsf, isformat_r_gen,&
+       isformat_r_vasp, isformat_r_pwc, isformat_r_axsf, isformat_r_dat,&
+       isformat_r_pgout, isformat_r_orca, isformat_r_dmain, isformat_r_aimsin,&
+       isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_castepcell,&
+       isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb, isformat_r_zmat,&
+       isformat_r_sdf, isformat_r_magres, isformat_r_alamode, isformat_r_unknown
+    use crystalseedmod, only: crystalseed, struct_detect_read_format,&
        struct_detect_ismol
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
@@ -73,92 +73,92 @@ contains
 
     ! detect the format for this file; see if we the user is forcing a particular format
     lword = lower(word)
-    isformat = isformat_unknown
+    isformat = isformat_r_unknown
     if (equal(lword,'cif')) then
-       isformat = isformat_cif
+       isformat = isformat_r_cif
     elseif (equal(lword,'shelx')) then
-       isformat = isformat_shelx
+       isformat = isformat_r_shelx
     elseif (equal(lword,'21')) then
-       isformat = isformat_f21
+       isformat = isformat_r_f21
     elseif (equal(lword,'cube')) then
-       isformat = isformat_cube
+       isformat = isformat_r_cube
     elseif (equal(lword,'bincube')) then
-       isformat = isformat_bincube
+       isformat = isformat_r_bincube
     elseif (equal(lword,'wien')) then
-       isformat = isformat_struct
+       isformat = isformat_r_struct
     elseif (equal(lword,'abinit')) then
-       isformat = isformat_abinit
+       isformat = isformat_r_abinit
     elseif (equal(lword,'elk')) then
-       isformat = isformat_elk
+       isformat = isformat_r_elk
     elseif (equal(lword,'qe_in')) then
-       isformat = isformat_qein
+       isformat = isformat_r_qein
     elseif (equal(lword,'qe_out')) then
-       isformat = isformat_qeout
+       isformat = isformat_r_qeout
     elseif (equal(lword,'crystal')) then
-       isformat = isformat_crystal
+       isformat = isformat_r_crystal
     elseif (equal(lword,'fplo')) then
-       isformat = isformat_fploout
+       isformat = isformat_r_fploout
     elseif (equal(lword,'xyz')) then
-       isformat = isformat_xyz
+       isformat = isformat_r_xyz
     elseif (equal(lword,'gjf').or.equal(lword,'com')) then
-       isformat = isformat_gjf
+       isformat = isformat_r_gjf
     elseif (equal(lword,'zmat')) then
-       isformat = isformat_zmat
+       isformat = isformat_r_zmat
     elseif (equal(lword,'wfn')) then
-       isformat = isformat_wfn
+       isformat = isformat_r_wfn
     elseif (equal(lword,'wfx')) then
-       isformat = isformat_wfx
+       isformat = isformat_r_wfx
     elseif (equal(lword,'fchk')) then
-       isformat = isformat_fchk
+       isformat = isformat_r_fchk
     elseif (equal(lword,'molden')) then
-       isformat = isformat_molden
+       isformat = isformat_r_molden
     elseif (equal(lword,'gaussian')) then
-       isformat = isformat_gaussian
+       isformat = isformat_r_gaussian
     elseif (equal(lword,'siesta')) then
-       isformat = isformat_siesta
+       isformat = isformat_r_siesta
     elseif (equal(lword,'cell')) then
-       isformat = isformat_castepcell
+       isformat = isformat_r_castepcell
     elseif (equal(lword,'geom')) then
-       isformat = isformat_castepgeom
+       isformat = isformat_r_castepgeom
     elseif (equal(lword,'xsf')) then
-       isformat = isformat_xsf
+       isformat = isformat_r_xsf
     elseif (equal(lword,'gen')) then
-       isformat = isformat_gen
+       isformat = isformat_r_gen
     elseif (equal(lword,'vasp')) then
-       isformat = isformat_vasp
+       isformat = isformat_r_vasp
     elseif (equal(lword,'pwc')) then
-       isformat = isformat_pwc
+       isformat = isformat_r_pwc
     elseif (equal(lword,'axsf')) then
-       isformat = isformat_axsf
+       isformat = isformat_r_axsf
     elseif (equal(lword,'dat')) then
-       isformat = isformat_dat
+       isformat = isformat_r_dat
     elseif (equal(lword,'pgout')) then
-       isformat = isformat_pgout
+       isformat = isformat_r_pgout
     elseif (equal(lword,'orca')) then
-       isformat = isformat_orca
+       isformat = isformat_r_orca
     elseif (equal(lword,'dmain')) then
-       isformat = isformat_dmain
+       isformat = isformat_r_dmain
     elseif (equal(lword,'fhiaims_in')) then
-       isformat = isformat_aimsin
+       isformat = isformat_r_aimsin
     elseif (equal(lword,'fhiaims_out')) then
-       isformat = isformat_aimsout
+       isformat = isformat_r_aimsout
     elseif (equal(lword,'frac')) then
-       isformat = isformat_tinkerfrac
+       isformat = isformat_r_tinkerfrac
     elseif (equal(lword,'mol2')) then
-       isformat = isformat_mol2
+       isformat = isformat_r_mol2
     elseif (equal(lword,'pdb')) then
-       isformat = isformat_pdb
+       isformat = isformat_r_pdb
     elseif (equal(lword,'sdf')) then
-       isformat = isformat_sdf
+       isformat = isformat_r_sdf
     elseif (equal(lword,'magres')) then
-       isformat = isformat_magres
+       isformat = isformat_r_magres
     elseif (equal(lword,'alamode')) then
-       isformat = isformat_alamode
+       isformat = isformat_r_alamode
     end if
-    if (isformat /= isformat_unknown) then
+    if (isformat /= isformat_r_unknown) then
        word = getword(line,lp)
     else
-       call struct_detect_format(word,isformat)
+       call struct_detect_read_format(word,isformat)
     end if
     call struct_detect_ismol(word,isformat,ismol)
     subline = line(lp:)
@@ -192,7 +192,7 @@ contains
           elseif (eval_next(raux,word2,lp2)) then
              rborder = raux / dunit0(iunit)
           elseif (len_trim(word2) > 1) then
-             if (isformat == isformat_mol2) then
+             if (isformat == isformat_r_mol2) then
                 exit
              else
                 call ferror('struct_crystal_input','Unknown extra keyword',faterr,line,syntax=.true.)
@@ -208,37 +208,37 @@ contains
 
     ! build the seed
     errmsg = ""
-    if (isformat == isformat_cif) then
+    if (isformat == isformat_r_cif) then
        call seed%read_cif(word,word2,mol,errmsg)
 
-    elseif (isformat == isformat_mol2) then
+    elseif (isformat == isformat_r_mol2) then
        call seed%read_mol2(word,rborder,docube,word2,errmsg)
 
-    elseif (isformat == isformat_sdf) then
+    elseif (isformat == isformat_r_sdf) then
        call seed%read_sdf(word,rborder,docube,errmsg,id)
 
-    elseif (isformat == isformat_magres) then
+    elseif (isformat == isformat_r_magres) then
        call seed%read_magres(word,mol,errmsg)
 
-    elseif (isformat == isformat_alamode) then
+    elseif (isformat == isformat_r_alamode) then
        call seed%read_alamode(word,mol,errmsg)
 
-    elseif (isformat == isformat_shelx) then
+    elseif (isformat == isformat_r_shelx) then
        call seed%read_shelx(word,mol,errmsg)
 
-    elseif (isformat == isformat_f21) then
+    elseif (isformat == isformat_r_f21) then
        call seed%read_f21(word,mol,errmsg)
 
-    elseif (isformat == isformat_cube) then
+    elseif (isformat == isformat_r_cube) then
        call seed%read_cube(word,mol,errmsg)
 
-    elseif (isformat == isformat_bincube) then
+    elseif (isformat == isformat_r_bincube) then
        call seed%read_bincube(word,mol,errmsg)
 
-    elseif (isformat == isformat_struct) then
+    elseif (isformat == isformat_r_struct) then
        call seed%read_wien(word,mol,errmsg)
 
-    elseif (isformat == isformat_vasp) then
+    elseif (isformat == isformat_r_vasp) then
        call seed%read_vasp(word,mol,hastypes,errmsg)
        if (.not.hastypes) then
           if (index(word2,'POTCAR') > 0) then
@@ -275,66 +275,66 @@ contains
           call realloc(seed%spc,seed%nspc)
        end if
 
-    elseif (isformat == isformat_abinit) then
+    elseif (isformat == isformat_r_abinit) then
        call seed%read_abinit(word,mol,errmsg)
 
-    elseif (isformat == isformat_elk) then
+    elseif (isformat == isformat_r_elk) then
        call seed%read_elk(word,mol,errmsg)
 
-    elseif (isformat == isformat_qeout) then
+    elseif (isformat == isformat_r_qeout) then
        lp2 = 1
        ok = isinteger(istruct,word2,lp2)
        if (.not.ok) istruct = 0
        call seed%read_qeout(word,mol,istruct,errmsg)
 
-    elseif (isformat == isformat_crystal) then
+    elseif (isformat == isformat_r_crystal) then
        call seed%read_crystalout(word,mol,errmsg)
 
-    elseif (isformat == isformat_fploout) then
+    elseif (isformat == isformat_r_fploout) then
        call seed%read_fploout(word,mol,errmsg)
 
-    elseif (isformat == isformat_qein) then
+    elseif (isformat == isformat_r_qein) then
        call seed%read_qein(word,mol,errmsg)
 
-    elseif (isformat == isformat_wfn.or.&
-       isformat == isformat_wfx.or.isformat == isformat_fchk.or.&
-       isformat == isformat_molden.or.isformat == isformat_gaussian.or.&
-       isformat == isformat_dat.or.isformat == isformat_pgout.or.&
-       isformat == isformat_orca.or.isformat == isformat_gjf.or.&
-       isformat == isformat_zmat) then
+    elseif (isformat == isformat_r_wfn.or.&
+       isformat == isformat_r_wfx.or.isformat == isformat_r_fchk.or.&
+       isformat == isformat_r_molden.or.isformat == isformat_r_gaussian.or.&
+       isformat == isformat_r_dat.or.isformat == isformat_r_pgout.or.&
+       isformat == isformat_r_orca.or.isformat == isformat_r_gjf.or.&
+       isformat == isformat_r_zmat) then
        call seed%read_mol(word,isformat,rborder,docube,errmsg)
 
-    elseif (isformat == isformat_xyz) then
+    elseif (isformat == isformat_r_xyz) then
        call seed%read_xyz(word,mol,rborder,docube,errmsg)
 
-    elseif (isformat == isformat_pdb) then
+    elseif (isformat == isformat_r_pdb) then
        call seed%read_pdb(word,mol,errmsg)
 
-    elseif (isformat == isformat_siesta) then
+    elseif (isformat == isformat_r_siesta) then
        call seed%read_siesta(word,mol,errmsg)
 
-    elseif (isformat == isformat_castepcell) then
+    elseif (isformat == isformat_r_castepcell) then
        call seed%read_castep_cell(word,mol,errmsg)
 
-    elseif (isformat == isformat_castepgeom) then
+    elseif (isformat == isformat_r_castepgeom) then
        call seed%read_castep_geom(word,mol,errmsg)
 
-    elseif (isformat == isformat_xsf) then
+    elseif (isformat == isformat_r_xsf) then
        call seed%read_xsf(word,rborder,docube,errmsg)
        if (mol0 /= -1) &
           seed%ismolecule = mol
 
-    elseif (isformat == isformat_gen) then
+    elseif (isformat == isformat_r_gen) then
        call seed%read_dftbp(word,rborder,docube,errmsg)
        if (mol0 /= -1) &
           seed%ismolecule = mol
 
-    elseif (isformat == isformat_pwc) then
+    elseif (isformat == isformat_r_pwc) then
        call seed%read_pwc(word,mol,errmsg)
        if (mol0 /= -1) &
           seed%ismolecule = mol
 
-    elseif (isformat == isformat_axsf) then
+    elseif (isformat == isformat_r_axsf) then
        istruct = 1
        xnudge = 0d0
 
@@ -352,16 +352,16 @@ contains
        if (mol0 /= -1) &
           seed%ismolecule = mol
 
-    elseif (isformat == isformat_dmain) then
+    elseif (isformat == isformat_r_dmain) then
        call seed%read_dmain(word,mol,errmsg)
 
-    elseif (isformat == isformat_aimsin) then
+    elseif (isformat == isformat_r_aimsin) then
        call seed%read_aimsin(word,mol,rborder,docube,errmsg)
 
-    elseif (isformat == isformat_aimsout) then
+    elseif (isformat == isformat_r_aimsout) then
        call seed%read_aimsout(word,mol,rborder,docube,errmsg)
 
-    elseif (isformat == isformat_tinkerfrac) then
+    elseif (isformat == isformat_r_tinkerfrac) then
        call seed%read_tinkerfrac(word,mol,errmsg)
 
     else if (equal(lower(word),'library')) then
@@ -914,7 +914,7 @@ contains
     use param, only: bohrtoa
     type(system), intent(inout) :: s
 
-    character(len=:), allocatable :: root, line, word, file, pre, post
+    character(len=:), allocatable :: root, line, word, file, pre, post, errmsg
     integer :: lp, idx, nseed, nn, i, j, npad
     type(crystalseed) :: seed0
     type(crystalseed), allocatable :: seed(:)
@@ -1001,7 +1001,9 @@ contains
     do i = 1, nseed
        file = pre // string(i,npad,pad0=.true.) // post
        call caux%struct_new(seed(i),.true.)
-       call caux%write_simple_driver(file)
+       call caux%write_any_file(file,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror("struct_write_bulk",errmsg,faterr)
     end do
 
   end subroutine struct_write_bulk
@@ -1481,7 +1483,7 @@ contains
     use systemmod, only: system
     use crystalmod, only: crystal, xrpd_lambda_def, xrpd_peaklist, xrpd_alpha_def,&
        xrpd_sigma_def, crosscorr_gaussian, xrpd_th2ini_def, xrpd_th2end_def, xrpd_fpol_def
-    use crystalseedmod, only: struct_detect_format, struct_detect_ismol, crystalseed
+    use crystalseedmod, only: struct_detect_read_format, struct_detect_ismol, crystalseed
     use global, only: doguess, eval_next, dunit0, iunit, iunitname0
     use tools_math, only: crosscorr_triangle, rmsd_walker, umeyama_graph_matching,&
        ullmann_graph_matching, emd, synthetic_powder
@@ -1489,7 +1491,7 @@ contains
        ioj_left, string, lower, lgetword, fopen_read, fclose, isreal,&
        file_read_xy
     use types, only: realloc
-    use param, only: isformat_unknown, maxzat, pi
+    use param, only: isformat_r_unknown, maxzat, pi
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
 
@@ -1658,10 +1660,10 @@ contains
              if (.not.laux) &
                 call ferror("struct_compare","file not found: " // string(fname(i)),faterr)
           elseif (fname_type(i) == fname_structure) then
-             call struct_detect_format(fname(i),isformat)
+             call struct_detect_read_format(fname(i),isformat)
              call struct_detect_ismol(fname(i),isformat,laux)
              ismol = ismol .and. laux
-             if (isformat == isformat_unknown) &
+             if (isformat == isformat_r_unknown) &
                 call ferror("struct_compare","unknown file format: " // string(fname(i)),faterr)
              inquire(file=fname(i),exist=laux)
              if (.not.laux) &
@@ -2329,7 +2331,9 @@ contains
     ! write the final structure to output
     if (len(writefile) > 0) then
        write (uout,'("+ Structure 2 written to file: ",A/)') trim(writefile)
-       call c2out%write_simple_driver(writefile)
+       call c2out%write_any_file(writefile,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror('struct_comparevc_vcpwdf',errmsg,faterr)
     end if
 
   end subroutine struct_comparevc_vcpwdf
@@ -2517,7 +2521,9 @@ contains
        call c1%struct_new(seed,.true.)
 
        ! write structure to output
-       call c1%write_simple_driver(writefile)
+       call c1%write_any_file(writefile,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror("struct_comparevc_vcgpwdf",errmsg,faterr)
        write (uout,'("+ Final structure written to ",A/)') trim(writefile)
 
        ! write diffraction patterns to output
@@ -4675,6 +4681,7 @@ contains
     logical :: moveatoms, doinv, umeyama
     integer, allocatable :: iz1(:), iz2(:), ncon1(:), ncon2(:), idcon1(:,:), idcon2(:,:), list(:,:)
     integer :: mcon, nlist
+    character(len=:), allocatable :: errmsg
 
     integer, parameter :: isuse_valid = 0
     integer, parameter :: isuse_different_nat = 1
@@ -4942,7 +4949,9 @@ contains
 
        call cx%struct_new(seed,.true.)
        call cx%wholemols()
-       call cx%write_simple_driver(wfile)
+       call cx%write_any_file(wfile,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror("struct_molreorder",errmsg,faterr)
     end if
     deallocate(isperm,cidxorig,isuse,c)
 
@@ -4995,7 +5004,7 @@ contains
     integer :: i, j, n, ns, nat, idmin
     type(crystal) :: cini, caux, cfin
     character*1024, allocatable :: fname(:)
-    character(len=:), allocatable :: word
+    character(len=:), allocatable :: word, errmsg
     type(fragment), allocatable :: mol(:)
     type(crystalseed) :: seed
     real*8 :: rms, q1(3,3), xcm1(3), xcm2(3), xnew(3), dmin, dd
@@ -5111,7 +5120,9 @@ contains
     write (uout,'("+ Final structure: ",A)') string(fname(ns))
     write (uout,*)
     call cfin%struct_new(seed,.true.)
-    call cfin%write_simple_driver(fname(ns))
+    call cfin%write_any_file(fname(ns),errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror("struct_molmove",errmsg,faterr)
     deallocate(fname)
 
   end subroutine struct_molmove

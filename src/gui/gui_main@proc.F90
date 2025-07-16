@@ -382,7 +382,7 @@ contains
       use systems, only: add_systems_from_name, launch_initialization_thread,&
          system_shorten_names
       use global, only: rborder_def
-      use param, only: isformat_unknown
+      use param, only: isformat_r_unknown
       use c_interface_module, only: c_f_string_alloc
       type(c_ptr), value :: window
       integer(c_int), value :: count
@@ -394,7 +394,7 @@ contains
       if (count < 1) return
       do i = 1, count
          call c_f_string_alloc(ipaths(i),file)
-         call add_systems_from_name(file,-1,isformat_unknown,.false.,rborder_def,.false.)
+         call add_systems_from_name(file,-1,isformat_r_unknown,.false.,rborder_def,.false.)
       end do
       call launch_initialization_thread()
       call system_shorten_names()
@@ -433,7 +433,7 @@ contains
   subroutine process_arguments()
     use systems, only: add_systems_from_name
     use global, only: rborder_def
-    use param, only: isformat_unknown
+    use param, only: isformat_r_unknown
     integer :: argc
     integer :: i
     character(len=1024) :: argv
@@ -443,7 +443,7 @@ contains
        call getarg(i,argv)
        argv = adjustl(argv)
        if (argv(1:1) == "-") cycle ! skip options
-       call add_systems_from_name(argv,-1,isformat_unknown,.false.,rborder_def,.false.)
+       call add_systems_from_name(argv,-1,isformat_r_unknown,.false.,rborder_def,.false.)
     end do
 
   end subroutine process_arguments

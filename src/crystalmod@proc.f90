@@ -23,7 +23,7 @@ contains
 
   !> Initialize the struct arrays
   module subroutine struct_init(c)
-    use param, only: isformat_unknown
+    use param, only: isformat_r_unknown
     class(crystal), intent(inout) :: c
 
     integer :: i
@@ -103,7 +103,7 @@ contains
 
     ! the crystal is not initialized until struct_new is run
     c%file = ""
-    c%isformat = isformat_unknown
+    c%isformat = isformat_r_unknown
     c%isinit = .false.
     c%havesym = 0
 
@@ -111,7 +111,7 @@ contains
 
   !> Terminate allocated arrays
   module subroutine struct_end(c)
-    use param, only: isformat_unknown
+    use param, only: isformat_r_unknown
     class(crystal), intent(inout) :: c
 
     c%isinit = .false.
@@ -127,7 +127,7 @@ contains
     c%isinit = .false.
     c%havesym = 0
     c%file = ""
-    c%isformat = isformat_unknown
+    c%isformat = isformat_r_unknown
     c%nspc = 0
     c%nneq = 0
     c%ncel = 0

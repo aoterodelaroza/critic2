@@ -116,7 +116,7 @@ module crystalseedmod
   end interface
 
   public :: realloc_crystalseed
-  public :: struct_detect_format
+  public :: struct_detect_read_format
   public :: struct_detect_ismol
   public :: read_seeds_from_file
   public :: read_alat_from_qeout
@@ -401,12 +401,12 @@ module crystalseedmod
        type(crystalseed), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_crystalseed
-     module subroutine struct_detect_format(file,isformat,alsofield,ti)
+     module subroutine struct_detect_read_format(file,isformat,alsofield,ti)
        character*(*), intent(in) :: file
        integer, intent(out) :: isformat
        logical, intent(out), optional :: alsofield
        type(thread_info), intent(in), optional :: ti
-     end subroutine struct_detect_format
+     end subroutine struct_detect_read_format
      module subroutine struct_detect_ismol(file,isformat,ismol,ti)
        character*(*), intent(in) :: file
        integer, intent(in) :: isformat

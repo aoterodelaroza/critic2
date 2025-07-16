@@ -753,7 +753,7 @@ contains
     use gui_main, only: force_quit_threads
     use interfaces_threads, only: thrd_success, mtx_unlock, mtx_trylock
     use tools_io, only: string, uout
-    use param, only: isformat_crystal, isformat_fchk, isformat_gaussian, ivformat_crystal_out,&
+    use param, only: isformat_r_crystal, isformat_r_fchk, isformat_r_gaussian, ivformat_crystal_out,&
        ivformat_gaussian_log, ivformat_gaussian_fchk, ivformat_unknown
     type(c_ptr), value :: arg
     integer(c_int) :: initialization_thread_worker
@@ -797,11 +797,11 @@ contains
 
                 ! load vibration data
                 if (sysc(i)%has_vib) then
-                   if (sysc(i)%seed%isformat == isformat_crystal) then
+                   if (sysc(i)%seed%isformat == isformat_r_crystal) then
                       ivformat = ivformat_crystal_out
-                   elseif (sysc(i)%seed%isformat == isformat_gaussian) then
+                   elseif (sysc(i)%seed%isformat == isformat_r_gaussian) then
                       ivformat = ivformat_gaussian_log
-                   elseif (sysc(i)%seed%isformat == isformat_fchk) then
+                   elseif (sysc(i)%seed%isformat == isformat_r_fchk) then
                       ivformat = ivformat_gaussian_fchk
                    else
                       ivformat = ivformat_unknown

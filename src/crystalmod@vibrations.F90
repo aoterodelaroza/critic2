@@ -877,7 +877,7 @@ contains
   subroutine read_matdyn_modes(v,c,file,ivformat,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalseedmod, only: read_alat_from_qeout
-    use param, only: atmass, isformat_qeout, ivformat_matdynmodes
+    use param, only: atmass, isformat_r_qeout, ivformat_matdynmodes
     type(vibrations), intent(inout) :: v
     type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
@@ -898,7 +898,7 @@ contains
     lu = -1
 
     ! read the alat from the crystal source file
-    if (c%isformat /= isformat_qeout) then
+    if (c%isformat /= isformat_r_qeout) then
        errmsg = "Error reading alat: the crystal structure must be a QE output"
        goto 999
     end if
@@ -1035,7 +1035,7 @@ contains
   subroutine read_qe_dyn(v,c,file,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw
     use crystalseedmod, only: read_alat_from_qeout
-    use param, only: atmass, isformat_qeout, ivformat_qedyn
+    use param, only: atmass, isformat_r_qeout, ivformat_qedyn
     type(vibrations), intent(inout) :: v
     type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
@@ -1054,7 +1054,7 @@ contains
     lu = -1
 
     ! read the alat from the crystal source file
-    if (c%isformat /= isformat_qeout) then
+    if (c%isformat /= isformat_r_qeout) then
        errmsg = "Error reading alat: the crystal structure must be a QE output"
        goto 999
     end if

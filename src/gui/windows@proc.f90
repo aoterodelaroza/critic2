@@ -76,44 +76,44 @@ contains
 
     !! for the dialog: options to force a particular format
     combostr_openfiles = "" &
-       // "Auto-detect" // c_null_char &             ! isformat_unknown
-       // "Abinit DEN-style file" // c_null_char &   ! isformat_abinit
-       // "Binary cube" // c_null_char &             ! isformat_bincube
-       // "CASTEP cell" // c_null_char &             ! isformat_castepcell
-       // "CASTEP geom" // c_null_char &             ! isformat_castepgeom
-       // "CIF file" // c_null_char &                ! isformat_cif
-       // "CRYSTAL output" // c_null_char &          ! isformat_crystal
-       // "Cube" // c_null_char &                    ! isformat_cube
-       // "DFTB+ gen file" // c_null_char &          ! isformat_gen
-       // "DMACRYS .21 file" // c_null_char &        ! isformat_f21
-       // "DMACRYS dmain file" // c_null_char &      ! isformat_dmain
-       // "elk GEOMETRY.OUT" // c_null_char &        ! isformat_elk
-       // "FHIaims input" // c_null_char &           ! isformat_aimsin
-       // "FHIaims output" // c_null_char &          ! isformat_aimsout
-       // "FPLO output" // c_null_char &             ! isformat_fploout
-       // "Gaussian fchk" // c_null_char &           ! isformat_fchk
-       // "Gaussian input" // c_null_char &          ! isformat_gjf
-       // "Gaussian output" // c_null_char &         ! isformat_gaussian
-       // "Gaussian wfn" // c_null_char &            ! isformat_wfn
-       // "Gaussian wfx" // c_null_char &            ! isformat_wfx
-       // "Gaussian zmat file" // c_null_char &      ! isformat_zmat
-       // "mol2 file" // c_null_char &               ! isformat_mol2
-       // "Molden-style file" // c_null_char &       ! isformat_molden
-       // "ORCA output file" // c_null_char &        ! isformat_orca
-       // "pdb file" // c_null_char &                ! isformat_pdb
-       // "postg output" // c_null_char &            ! isformat_pgout
-       // "psi4 output" // c_null_char &             ! isformat_dat
-       // "Quantum ESPRESSO input" // c_null_char &  ! isformat_qein
-       // "Quantum ESPRESSO output" // c_null_char & ! isformat_qeout
-       // "Quantum ESPRESSO pwc" // c_null_char &    ! isformat_pwc
-       // "SHELX" // c_null_char &                   ! isformat_shelx
-       // "SIESTA IN/OUT file" // c_null_char &      ! isformat_siesta
-       // "TINKER frac file" // c_null_char &        ! isformat_tinkerfrac
-       // "VASP" // c_null_char &                    ! isformat_vasp
-       // "WIEN2k struct file" // c_null_char &      ! isformat_struct
-       // "Xcrysden axsf file" // c_null_char &      ! isformat_axsf
-       // "Xcrysden xsf file" // c_null_char &       ! isformat_xsf
-       // "xyz file" // c_null_char                  ! isformat_xyz
+       // "Auto-detect" // c_null_char &             ! isformat_r_unknown
+       // "Abinit DEN-style file" // c_null_char &   ! isformat_r_abinit
+       // "Binary cube" // c_null_char &             ! isformat_r_bincube
+       // "CASTEP cell" // c_null_char &             ! isformat_r_castepcell
+       // "CASTEP geom" // c_null_char &             ! isformat_r_castepgeom
+       // "CIF file" // c_null_char &                ! isformat_r_cif
+       // "CRYSTAL output" // c_null_char &          ! isformat_r_crystal
+       // "Cube" // c_null_char &                    ! isformat_r_cube
+       // "DFTB+ gen file" // c_null_char &          ! isformat_r_gen
+       // "DMACRYS .21 file" // c_null_char &        ! isformat_r_f21
+       // "DMACRYS dmain file" // c_null_char &      ! isformat_r_dmain
+       // "elk GEOMETRY.OUT" // c_null_char &        ! isformat_r_elk
+       // "FHIaims input" // c_null_char &           ! isformat_r_aimsin
+       // "FHIaims output" // c_null_char &          ! isformat_r_aimsout
+       // "FPLO output" // c_null_char &             ! isformat_r_fploout
+       // "Gaussian fchk" // c_null_char &           ! isformat_r_fchk
+       // "Gaussian input" // c_null_char &          ! isformat_r_gjf
+       // "Gaussian output" // c_null_char &         ! isformat_r_gaussian
+       // "Gaussian wfn" // c_null_char &            ! isformat_r_wfn
+       // "Gaussian wfx" // c_null_char &            ! isformat_r_wfx
+       // "Gaussian zmat file" // c_null_char &      ! isformat_r_zmat
+       // "mol2 file" // c_null_char &               ! isformat_r_mol2
+       // "Molden-style file" // c_null_char &       ! isformat_r_molden
+       // "ORCA output file" // c_null_char &        ! isformat_r_orca
+       // "pdb file" // c_null_char &                ! isformat_r_pdb
+       // "postg output" // c_null_char &            ! isformat_r_pgout
+       // "psi4 output" // c_null_char &             ! isformat_r_dat
+       // "Quantum ESPRESSO input" // c_null_char &  ! isformat_r_qein
+       // "Quantum ESPRESSO output" // c_null_char & ! isformat_r_qeout
+       // "Quantum ESPRESSO pwc" // c_null_char &    ! isformat_r_pwc
+       // "SHELX" // c_null_char &                   ! isformat_r_shelx
+       // "SIESTA IN/OUT file" // c_null_char &      ! isformat_r_siesta
+       // "TINKER frac file" // c_null_char &        ! isformat_r_tinkerfrac
+       // "VASP" // c_null_char &                    ! isformat_r_vasp
+       // "WIEN2k struct file" // c_null_char &      ! isformat_r_struct
+       // "Xcrysden axsf file" // c_null_char &      ! isformat_r_axsf
+       // "Xcrysden xsf file" // c_null_char &       ! isformat_r_xsf
+       // "xyz file" // c_null_char                  ! isformat_r_xyz
     nn = 0
     do i = 1,len(combostr_openfiles)
        if (combostr_openfiles(i:i) == c_null_char) nn = nn + 1
@@ -122,13 +122,15 @@ contains
     !! Permutations for interpreting the format coming out of the dialog combo
     !! (same sequence as in combostr)
     allocate(isperm_openfiles(0:nn-1))
-    isperm_openfiles(0:nn-1) = (/isformat_unknown,isformat_abinit,isformat_bincube,isformat_castepcell,&
-       isformat_castepgeom,isformat_cif,isformat_crystal,isformat_cube,isformat_gen,isformat_f21,isformat_dmain,&
-       isformat_elk,isformat_aimsin,isformat_aimsout,isformat_fploout,isformat_fchk,isformat_gjf,&
-       isformat_gaussian,isformat_wfn,isformat_wfx,isformat_zmat,isformat_mol2,isformat_molden,isformat_orca,&
-       isformat_pdb,isformat_pgout,isformat_dat,isformat_qein,isformat_qeout,isformat_pwc,isformat_shelx,&
-       isformat_siesta,isformat_tinkerfrac,isformat_vasp,isformat_struct,isformat_axsf,&
-       isformat_xsf,isformat_xyz/)
+    isperm_openfiles(0:nn-1) = (/isformat_r_unknown,isformat_r_abinit,isformat_r_bincube,&
+       isformat_r_castepcell,isformat_r_castepgeom,isformat_r_cif,isformat_r_crystal,&
+       isformat_r_cube,isformat_r_gen,isformat_r_f21,isformat_r_dmain,isformat_r_elk,&
+       isformat_r_aimsin,isformat_r_aimsout,isformat_r_fploout,isformat_r_fchk,isformat_r_gjf,&
+       isformat_r_gaussian,isformat_r_wfn,isformat_r_wfx,isformat_r_zmat,isformat_r_mol2,&
+       isformat_r_molden,isformat_r_orca,isformat_r_pdb,isformat_r_pgout,isformat_r_dat,&
+       isformat_r_qein,isformat_r_qeout,isformat_r_pwc,isformat_r_shelx,isformat_r_siesta,&
+       isformat_r_tinkerfrac,isformat_r_vasp,isformat_r_struct,isformat_r_axsf,&
+       isformat_r_xsf,isformat_r_xyz/)
 
     !! Inverse of the permutation above
     allocate(isperm_inv_openfiles(0:maxval(isperm_openfiles)))
@@ -421,7 +423,7 @@ contains
     w%dialog_data%dptr = c_null_ptr
     w%dialog_data%mol = -1
     w%dialog_data%showhidden = .false._c_bool
-    w%dialog_data%isformat = isformat_unknown
+    w%dialog_data%isformat = isformat_r_unknown
     w%dialog_data%readlastonly = .false._c_bool
     w%dialog_data%purpose = wpurp_unknown
     w%dialog_data%molcubic = .false.

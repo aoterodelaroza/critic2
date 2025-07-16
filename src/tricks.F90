@@ -704,7 +704,7 @@ contains
     use tools_math, only: crosscorr_triangle, rmsd_walker
     use tools, only: mergesort, qcksort
     use types, only: realloc
-    use param, only: bohrtoa, isformat_xyz, isformat_vasp
+    use param, only: bohrtoa, isformat_r_xyz, isformat_r_vasp
     character*(*), intent(in) :: line0
 
     character*1024 :: sdum
@@ -792,7 +792,7 @@ contains
                 xaux(1:size(xtemplate,1)) = xtemplate
                 call move_alloc(xaux,xtemplate)
              end if
-             call molseed%read_mol(word,isformat_xyz,rborder_def,.false.,errmsg)
+             call molseed%read_mol(word,isformat_r_xyz,rborder_def,.false.,errmsg)
              if (len_trim(errmsg) > 0) then
                 errmsg = "error reading xyz file"
                 goto 999
@@ -1025,7 +1025,7 @@ contains
        seed(i)%havex0 = .false.
        seed(i)%molx0 = 0d0
        seed(i)%file = fileposcar
-       seed(i)%isformat = isformat_vasp
+       seed(i)%isformat = isformat_r_vasp
        seed(i)%name = ""
     end do
     call fclose(lu)
@@ -1953,7 +1953,9 @@ contains
     seed%m_x2c = h
     forall (k=0:nat-1,i=1:3) seed%x(i,k+1) = pos(3*k+i)
     call c%struct_new(seed,.true.)
-    call c%write_simple_driver(filegeom)
+    call c%write_any_file(filegeom,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('trick_bfgs',errmsg,faterr)
 
 99  continue ! skip here if converged
 

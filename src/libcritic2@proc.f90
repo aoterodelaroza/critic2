@@ -259,7 +259,7 @@ contains
     type(c_ptr), value, intent(in) :: file
 
     type(crystal), pointer :: crf
-    character(len=:), allocatable :: fname
+    character(len=:), allocatable :: fname, errmsg
 
     ! consistency checks
     if (.not.critic2_init) call initialize_critic2()
@@ -269,7 +269,7 @@ contains
 
     ! write the file
     call c_f_string_alloc(file,fname)
-    call crf%write_simple_driver(fname)
+    call crf%write_any_file(fname,errmsg)
 
   end subroutine c2_write_crystal
 
