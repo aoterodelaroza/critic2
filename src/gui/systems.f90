@@ -98,6 +98,7 @@ module systems
   public :: remove_system
   public :: remove_systems
   public :: reread_system_from_file
+  public :: write_system
   public :: duplicate_system
   public :: regenerate_system_pointers
   public :: ok_system
@@ -143,6 +144,9 @@ module systems
      module subroutine duplicate_system(idx)
        integer, intent(in) :: idx
      end subroutine duplicate_system
+     module subroutine write_system(idx)
+       integer, intent(in) :: idx
+     end subroutine write_system
      module subroutine regenerate_system_pointers()
      end subroutine regenerate_system_pointers
      module function ok_system(isys,level)

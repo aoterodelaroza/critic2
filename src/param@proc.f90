@@ -85,6 +85,45 @@ contains
 
   end subroutine param_init
 
+  !> Convert a structure format for reading to a format for writing.
+  !> Returns isformat_w_unknown if not possible.
+  module function isformat_write_from_read(isformat) result(iwformat)
+    integer, intent(in) :: isformat
+    integer :: iwformat
+
+    iwformat = isformat_w_unknown
+    if (isformat == isformat_r_cif) then
+       iwformat = isformat_w_cif
+    elseif (isformat == isformat_r_shelx) then
+       iwformat = isformat_w_shelx
+    elseif (isformat == isformat_r_abinit) then
+       iwformat = isformat_w_abinit
+    elseif (isformat == isformat_r_elk) then
+       iwformat = isformat_w_elk
+    elseif (isformat == isformat_r_qein) then
+       iwformat = isformat_w_qein
+    elseif (isformat == isformat_r_crystal) then
+       iwformat = isformat_w_crystal
+    elseif (isformat == isformat_r_xyz) then
+       iwformat = isformat_w_xyz
+    elseif (isformat == isformat_r_siesta) then
+       iwformat = isformat_w_siesta_struct
+    elseif (isformat == isformat_r_vasp) then
+       iwformat = isformat_w_vasp
+    elseif (isformat == isformat_r_aimsin) then
+       iwformat = isformat_w_aimsin
+    elseif (isformat == isformat_r_tinkerfrac) then
+       iwformat = isformat_w_tinkerfrac
+    elseif (isformat == isformat_r_gjf) then
+       iwformat = isformat_w_gjf
+    elseif (isformat == isformat_r_pdb) then
+       iwformat = isformat_w_pdb
+    end if
+
+  end function isformat_write_from_read
+
+  !xx! private procedures
+
   ! from quadpack.
   double precision function D1MACH(I)
       INTEGER I

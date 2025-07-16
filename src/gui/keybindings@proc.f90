@@ -176,10 +176,11 @@ contains
     ! Default keybindings
     call set_bind(BIND_QUIT,ImGuiKey_Q,mod_ctrl)
     call set_bind(BIND_NEW,ImGuiKey_N,mod_ctrl)
-    call set_bind(BIND_GEOMETRY,ImGuiKey_G,mod_none)
     call set_bind(BIND_OPEN,ImGuiKey_O,mod_ctrl)
     call set_bind(BIND_CLOSE,ImGuiKey_W,mod_ctrl)
     call set_bind(BIND_REOPEN,ImGuiKey_R,mod_ctrl)
+    call set_bind(BIND_GEOMETRY,ImGuiKey_G,mod_none)
+    call set_bind(BIND_SAVE,ImGuiKey_S,mod_ctrl)
     call set_bind(BIND_CLOSE_ALL_DIALOGS,ImGuiKey_Backspace,mod_none)
     call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Escape,mod_none)
     call set_bind(BIND_OK_FOCUSED_DIALOG,ImGuiKey_Enter,mod_ctrl)

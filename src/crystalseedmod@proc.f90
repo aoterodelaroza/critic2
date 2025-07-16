@@ -3642,7 +3642,7 @@ contains
 
   end subroutine read_fploout
 
-  !> Read the structure from a siesta OUT input
+  !> Read the structure from a siesta STRUCT_IN/OUT input
   module subroutine read_siesta(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, nameguess, fclose
     use tools_math, only: matinv

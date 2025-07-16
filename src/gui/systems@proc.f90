@@ -480,6 +480,32 @@ contains
 
   end subroutine duplicate_system
 
+  ! Write the system idx to the same file it was read from. Only for
+  ! those file formats that are not outputs.
+  module subroutine write_system(idx)
+    use tools_io, only: uout
+    use param, only: isformat_write_from_read, isformat_w_unknown
+    integer, intent(in) :: idx
+
+    integer :: iwformat
+    character(len=:), allocatable :: errmsg
+
+    ! only for initialized systems
+    if (.not.ok_system(idx,sys_init)) return
+
+    ! convert to the write format
+    iwformat = isformat_write_from_read(sysc(idx)%seed%isformat)
+    if (iwformat == isformat_w_unknown) return
+
+    ! write the file
+    call sys(idx)%c%write_any_file(sysc(idx)%fullname,errmsg,iwformat=iwformat)
+    if (len_trim(errmsg) > 0) then
+       write (uout,'("WARNING : Could not write structures: ",A)') trim(sysc(idx)%fullname)
+       write (uout,'("WARNING : ",A/)') trim(errmsg)
+    end if
+
+  end subroutine write_system
+
   !> This routine regenerates all pointers to the sytsems in the
   !> sys(:) and sysc(:) structures and components. It is used when an
   !> array size is exceeded and move_alloc needs to be used to

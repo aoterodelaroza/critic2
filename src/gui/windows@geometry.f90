@@ -131,7 +131,7 @@ contains
     ! restore, only if system is independent or master
     if (iw_button("Restore")) &
        call reread_system_from_file(isys)
-    call iw_tooltip("Read the file for this system and reopen it",ttshown)
+    call iw_tooltip("Restore the system to the original geometry it had when it was first opened",ttshown)
 
     ! show the tabs
     str1 = "##drawgeometry_tabbar" // c_null_char

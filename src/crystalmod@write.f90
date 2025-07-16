@@ -719,7 +719,7 @@ contains
   !> Write the structure to a file. Use the format derived from the
   !> extension of file and use default values for all options. If
   !> error, return a non-zero errmsg.
-  module subroutine write_any_file(c,file,errmsg,ti)
+  module subroutine write_any_file(c,file,errmsg,iwformat,ti)
     use tools_io, only: lower, ferror, faterr, equal
     use param, only: &
        isformat_w_unknown, isformat_w_xyz, isformat_w_gjf, isformat_w_cml, isformat_w_obj,&
@@ -733,16 +733,21 @@ contains
     class(crystal), intent(inout) :: c
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(inout) :: errmsg
+    integer, intent(in), optional :: iwformat
     type(thread_info), intent(in), optional :: ti
 
     integer :: isformat
 
     ! detect the format
     errmsg = ""
-    call struct_detect_write_format(file,isformat)
-    if (isformat == isformat_w_unknown) then
-       errmsg = "Unknown extension: " // file
-       return
+    if (present(iwformat)) then
+       isformat = iwformat
+    else
+       call struct_detect_write_format(file,isformat)
+       if (isformat == isformat_w_unknown) then
+          errmsg = "Unknown extension: " // file
+          return
+       end if
     end if
 
     if (isformat == isformat_w_xyz) then

@@ -452,7 +452,7 @@ contains
   subroutine show_main_menu()
     use interfaces_cimgui
     use systems, only: sys, sys_init, ok_system, are_threads_running, duplicate_system,&
-       reread_system_from_file, remove_system, kill_initialization_thread
+       reread_system_from_file, remove_system, kill_initialization_thread, write_system
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_builder, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
@@ -460,7 +460,7 @@ contains
        wintype_about, wintype_geometry, wintype_rebond, wintype_vibrations, wintype_exportimage
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
-       BIND_GEOMETRY, get_bind_keyname, is_bind_event
+       BIND_GEOMETRY, BIND_SAVE, get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
 
@@ -472,7 +472,8 @@ contains
     integer, parameter :: d_newlib = 5
     integer, parameter :: d_preferences = 6
     integer, parameter :: d_geometry = 7
-    integer, parameter :: D_TOTAL = 7
+    integer, parameter :: d_save = 8
+    integer, parameter :: D_TOTAL = 8
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     integer(c_int) :: idum
@@ -490,6 +491,7 @@ contains
     launch(d_newlib) = .false.
     launch(d_preferences) = .false.
     launch(d_geometry) = is_bind_event(BIND_GEOMETRY)
+    launch(d_save) = is_bind_event(BIND_SAVE)
     launchquit = is_bind_event(BIND_QUIT)
 
     ! isys is the tree selected system, isysv is the view selected system
@@ -522,11 +524,18 @@ contains
 
           ! File -> Reopen from file
           launch(d_reopen) = launch(d_reopen) .or. iw_menuitem("Restore",BIND_REOPEN,enabled=isysok)
-          call iw_tooltip("Read the file for this system and reopen it",ttshown)
+          call iw_tooltip("Restore the system to the original geometry it had when it was first opened",ttshown)
 
           ! File -> Close
           launch(d_close) = launch(d_close) .or. iw_menuitem("Close",BIND_CLOSE,enabled=isysok)
           call iw_tooltip("Close the current system",ttshown)
+
+          ! File -> Separator
+          call igSeparator()
+
+          ! File -> Close
+          launch(d_save) = launch(d_save) .or. iw_menuitem("Save",BIND_SAVE,enabled=isysok)
+          call iw_tooltip("Save the current system to the file from where it was read",ttshown)
 
           ! File -> Separator
           call igSeparator()
@@ -678,6 +687,8 @@ contains
           call reread_system_from_file(isys)
        if (launch(d_close)) &
           call remove_system(isys)
+       if (launch(d_save)) &
+          call write_system(isys)
     end if
 
     if (launch(d_geometry).and.isysvok) then

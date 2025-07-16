@@ -665,6 +665,10 @@ module param
      !xx! proc submodule
      module subroutine param_init()
      end subroutine param_init
+     module function isformat_write_from_read(isformat) result(iwformat)
+       integer, intent(in) :: isformat
+       integer :: iwformat
+     end function isformat_write_from_read
   end interface
 
 end module param
