@@ -451,7 +451,7 @@ contains
   ! Show the main menu
   subroutine show_main_menu()
     use interfaces_cimgui
-    use systems, only: sys, sys_init, ok_system, are_threads_running, duplicate_system,&
+    use systems, only: sys, sysc, sys_init, ok_system, are_threads_running, duplicate_system,&
        reread_system_from_file, remove_system, kill_initialization_thread, write_system
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_builder, iwin_about, stack_create_window, wintype_dialog,&
@@ -463,6 +463,7 @@ contains
        BIND_GEOMETRY, BIND_SAVE, get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
+    use param, only: isformat_write_from_read, isformat_w_unknown
 
     ! enum for the dialog types that can be launched from the menu
     integer, parameter :: d_open = 1
@@ -477,7 +478,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     integer(c_int) :: idum
-    logical :: launchquit, launch(D_TOTAL), isysok, isysvok, ifieldok
+    logical :: launchquit, launch(D_TOTAL), isysok, isysvok, ifieldok, ok
     integer :: isys, isysv
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -533,9 +534,11 @@ contains
           ! File -> Separator
           call igSeparator()
 
-          ! File -> Close
-          launch(d_save) = launch(d_save) .or. iw_menuitem("Save",BIND_SAVE,enabled=isysok)
-          call iw_tooltip("Save the current system to the file from where it was read",ttshown)
+          ! File -> Save
+          ok = isysok .and. (isformat_write_from_read(sysc(isys)%seed%isformat) /= isformat_w_unknown)
+          launch(d_save) = launch(d_save) .or. iw_menuitem("Save",BIND_SAVE,enabled=ok)
+          if (.not.ok) launch(d_save) = .false.
+          call iw_tooltip("Save the current system to the file from where it was read (only input files)",ttshown)
 
           ! File -> Separator
           call igSeparator()
