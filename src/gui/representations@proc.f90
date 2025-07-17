@@ -411,10 +411,13 @@ contains
           if (r%border.and..not.r%onemotif) then
              xx = sys(r%id)%c%atcel(i)%x
              do j = 1, 3
-                if (xx(j) < rthr) then
-                   n1(j) = n(j)
-                elseif (xx(j) > rthr1) then
-                   n0(j) = -1
+                ! not in a vacuum direction
+                if (sys(r%id)%c%vaclength(j) <= iperiod_vacthr) then
+                   if (xx(j) < rthr) then
+                      n1(j) = n(j)
+                   elseif (xx(j) > rthr1) then
+                      n0(j) = -1
+                   end if
                 end if
              end do
           end if
