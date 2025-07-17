@@ -17,8 +17,11 @@
 
 ! Scene object and GL rendering utilities
 submodule (representations) proc
+  use param, only: bohrtoa
   implicit none
 
+  ! extension of unit cell in the vacuum direction
+  real*8, parameter :: vacextension = 2d0 / bohrtoa
 
 contains
 
@@ -259,7 +262,7 @@ contains
     use systems, only: sys
     use crystalmod, only: iperiod_vacthr
     use tools_io, only: string, nameguess
-    use param, only: bohrtoa, tpi, img, atmass
+    use param, only: tpi, img, atmass
     class(representation), intent(inout), target :: r
     integer, intent(in) :: nc(3)
     type(scene_objects), intent(inout) :: obj
@@ -268,13 +271,14 @@ contains
 
     logical, allocatable :: lshown(:,:,:,:)
     logical :: havefilter, step, isedge(3), usetshift, doanim_, dobonds, isvac(3)
-    logical :: isvacdir, docycle
+    logical :: isvacdir, docycle, dovac(3)
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3)
     integer :: i1, i2, i3, ix(3), idl
-    integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep
+    integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3)
     real(c_float) :: rgb(3)
     real*8 :: rad1, rad2, dd, f1, f2
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), phase, mass
+    real*8 :: ucini(3), ucend(3)
     complex*16 :: xdelta0(3), xdelta1(3), xdelta2(3)
     type(dl_sphere), allocatable :: auxsph(:)
     type(dl_cylinder), allocatable :: auxcyl(:)
@@ -297,7 +301,6 @@ contains
        0,0,1,  1,0,1,&
        1,0,0,  1,0,1/),shape(uc))
     integer, parameter :: ucdir(12) = (/1, 2, 3, 3, 2, 1, 2, 1, 3, 2, 1, 3/)
-    real*8, parameter :: vacextension = 2d0 / bohrtoa
 
     ! system has been initialized: ensured by scene_build_lists, which
     ! calls this routine.
@@ -357,6 +360,13 @@ contains
           lshown = .false.
        end if
 
+       ! whether there is vacuum in any direction
+       dovac = (sys(r%id)%c%vaclength > iperiod_vacthr)
+       if (any(dovac)) then
+          ucini = sys(r%id)%c%vactop - 1d0 - vacextension / sys(r%id)%c%aa
+          ucend = sys(r%id)%c%vacbot + vacextension / sys(r%id)%c%aa
+       end if
+
        ! run over atoms, either directly or per-molecule
        i = 0
        imol = 0
@@ -406,17 +416,32 @@ contains
           if (.not.r%mol_style%shown(imol)) cycle
 
           ! calculate the border
+          xx = sys(r%id)%c%atcel(i)%x
           n0 = 0
           n1 = n-1
           if (r%border.and..not.r%onemotif) then
-             xx = sys(r%id)%c%atcel(i)%x
              do j = 1, 3
                 ! not in a vacuum direction
-                if (sys(r%id)%c%vaclength(j) <= iperiod_vacthr) then
+                if (.not.dovac(j)) then
                    if (xx(j) < rthr) then
                       n1(j) = n(j)
                    elseif (xx(j) > rthr1) then
                       n0(j) = -1
+                   end if
+                end if
+             end do
+          end if
+
+          ! calculate the vacuum shift
+          vacshift = 0
+          if (any(dovac)) then
+             xx = sys(r%id)%c%atcel(i)%x
+             do j = 1, 3
+                if (dovac(j)) then
+                   if (xx(j) < ucini(j)) then
+                      vacshift(j) = 1
+                   elseif (xx(j) > ucend(j)) then
+                      vacshift(j) = -1
                    end if
                 end if
              end do
@@ -428,7 +453,7 @@ contains
           do i1 = n0(1), n1(1)
              do i2 = n0(2), n1(2)
                 do i3 = n0(3), n1(3)
-                   ix = (/i1,i2,i3/) + lvec
+                   ix = (/i1,i2,i3/) + lvec + vacshift
                    if (usetshift) then
                       xx = sys(r%id)%c%atcel(i)%x - r%tshift
                       ix = ix + nint(xx - floor(xx) + r%tshift - sys(r%id)%c%atcel(i)%x)
@@ -951,7 +976,7 @@ contains
   !> the geometry in system isys.
   module subroutine generate_neighstars(d,isys)
     use systems, only: sys, sys_ready, ok_system
-    use param, only: bohrtoa, atmcov, atmvdw
+    use param, only: atmcov, atmvdw
     class(draw_style_bond), intent(inout), target :: d
     integer, intent(in) :: isys
 
