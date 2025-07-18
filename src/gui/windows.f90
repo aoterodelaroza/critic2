@@ -171,6 +171,8 @@ module windows
      procedure :: texpos_to_view ! texture position to view coordinates
      procedure :: world_to_texpos ! world coordinates to texture position
      procedure :: texpos_to_world ! texture position to world coordinates
+     procedure :: export_to_image ! export current scene to an image file
+     procedure :: export_to_png_simple ! export to a png file with the same name as system
      ! dialog procedures
      procedure :: draw_dialog
      ! input console procedures
@@ -404,6 +406,18 @@ module windows
        class(window), intent(inout), target :: w
        real(c_float), intent(inout) :: pos(3)
      end subroutine texpos_to_world
+     module subroutine export_to_image(w,file,fformat,nsample,npixel,transparentbg,&
+        exportview,jpgquality,errmsg)
+       class(window), intent(inout), target :: w
+       character(kind=c_char,len=*), intent(in) :: file
+       character(kind=c_char,len=*), intent(in) :: fformat
+       integer(c_int), intent(in) :: nsample, jpgquality, npixel
+       logical, intent(in) :: exportview, transparentbg
+       character(kind=c_char,len=:), allocatable, intent(inout) :: errmsg
+     end subroutine export_to_image
+     module subroutine export_to_png_simple(w)
+       class(window), intent(inout), target :: w
+     end subroutine export_to_png_simple
      !xx! dialog submodule !xx!
      module subroutine draw_dialog(w)
        class(window), intent(inout), target :: w

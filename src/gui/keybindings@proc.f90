@@ -181,6 +181,7 @@ contains
     call set_bind(BIND_REOPEN,ImGuiKey_R,mod_ctrl)
     call set_bind(BIND_GEOMETRY,ImGuiKey_G,mod_none)
     call set_bind(BIND_SAVE,ImGuiKey_S,mod_ctrl)
+    call set_bind(BIND_EXPORT_NOW,ImGuiKey_P,mod_ctrl)
     call set_bind(BIND_CLOSE_ALL_DIALOGS,ImGuiKey_Backspace,mod_none)
     call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Escape,mod_none)
     call set_bind(BIND_OK_FOCUSED_DIALOG,ImGuiKey_Enter,mod_ctrl)

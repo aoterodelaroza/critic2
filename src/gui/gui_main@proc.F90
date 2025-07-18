@@ -460,7 +460,7 @@ contains
        wintype_about, wintype_geometry, wintype_rebond, wintype_vibrations, wintype_exportimage
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
-       BIND_GEOMETRY, BIND_SAVE, get_bind_keyname, is_bind_event
+       BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
     use param, only: isformat_write_from_read, isformat_w_unknown
@@ -474,7 +474,8 @@ contains
     integer, parameter :: d_preferences = 6
     integer, parameter :: d_geometry = 7
     integer, parameter :: d_save = 8
-    integer, parameter :: D_TOTAL = 8
+    integer, parameter :: d_export_now = 9
+    integer, parameter :: D_TOTAL = 9
 
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     integer(c_int) :: idum
@@ -483,23 +484,24 @@ contains
 
     logical, save :: ttshown = .false. ! tooltip flag
 
-    ! keybindings
-    !! menu key bindings
-    launch(d_open) = is_bind_event(BIND_OPEN)
-    launch(d_close) = is_bind_event(BIND_CLOSE)
-    launch(d_reopen) = is_bind_event(BIND_REOPEN)
-    launch(d_new) = is_bind_event(BIND_NEW)
-    launch(d_newlib) = .false.
-    launch(d_preferences) = .false.
-    launch(d_geometry) = is_bind_event(BIND_GEOMETRY)
-    launch(d_save) = is_bind_event(BIND_SAVE)
-    launchquit = is_bind_event(BIND_QUIT)
-
     ! isys is the tree selected system, isysv is the view selected system
     isys = win(iwin_tree)%tree_selected
     isysok = ok_system(isys,sys_init)
     isysv = win(iwin_view)%view_selected
     isysvok = ok_system(isysv,sys_init)
+
+    ! keybindings
+    !! menu key bindings
+    launch(d_open) = is_bind_event(BIND_OPEN)
+    launch(d_close) = isysok .and. is_bind_event(BIND_CLOSE)
+    launch(d_reopen) = isysok .and. is_bind_event(BIND_REOPEN)
+    launch(d_new) = is_bind_event(BIND_NEW)
+    launch(d_newlib) = .false.
+    launch(d_preferences) = .false.
+    launch(d_geometry) = isysvok .and. is_bind_event(BIND_GEOMETRY)
+    launch(d_save) = isysok .and. is_bind_event(BIND_SAVE)
+    launch(d_export_now) = isysvok .and. is_bind_event(BIND_EXPORT_NOW)
+    launchquit = is_bind_event(BIND_QUIT)
 
     ! start the menu
     if (igBeginMainMenuBar()) then
@@ -533,6 +535,12 @@ contains
 
           ! File -> Separator
           call igSeparator()
+
+          ! File -> Export to PNG
+          launch(d_export_now) = launch(d_export_now) .or. iw_menuitem("Export to PNG",BIND_EXPORT_NOW,enabled=isysvok)
+          if (.not.ok) launch(d_export_now) = .false.
+          call iw_tooltip("Export an image for the current system.&
+             & Creates a PNG file with the same base name as the source file.",ttshown)
 
           ! File -> Save
           ok = isysok .and. (isformat_write_from_read(sysc(isys)%seed%isformat) /= isformat_w_unknown)
@@ -692,6 +700,8 @@ contains
           call remove_system(isys)
        if (launch(d_save)) &
           call write_system(isys)
+       if (launch(d_export_now)) &
+          call win(iwin_view)%export_to_png_simple()
     end if
 
     if (launch(d_geometry).and.isysvok) then

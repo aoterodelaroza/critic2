@@ -1550,4 +1550,213 @@ contains
 
   end subroutine texpos_to_world
 
+  !> Export the current view to an image file with currently selected
+  !> window options. The file name is file and the file format (PNG,
+  !> BMP, TGA, JPE) is fformat. nsample = number of samples for
+  !> anti-aliasing jpgquality = jpg quality. exportview = export the
+  !> view or the whole texture.  npixel = number of pixels in the
+  !> export buffer. transparentbg = transparent background. Sets the
+  !> w%errmsg flag, which becomes non-zero in case of error.
+  module subroutine export_to_image(w,file,fformat,nsample,npixel,transparentbg,&
+     exportview,jpgquality,errmsg)
+    use interfaces_opengl3
+    use interfaces_stb
+    use systems, only: sys_init, ok_system
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+    character(kind=c_char,len=*), intent(in) :: file
+    character(kind=c_char,len=*), intent(in) :: fformat
+    integer(c_int), intent(in) :: nsample, jpgquality, npixel
+    logical, intent(in) :: exportview, transparentbg
+    character(kind=c_char,len=:), allocatable, intent(inout) :: errmsg
+
+    integer(c_int), target :: msFBO, endFBO ! framebuffer
+    integer(c_int), target :: msFBOdepth, endFBOdepth ! framebuffer, depth buffer
+    integer(c_int), target :: msFBOtex, endFBOtex ! framebuffer, texture
+    integer :: isys
+    integer :: width, height, origin(2)
+    integer(c_signed_char), allocatable, target :: data(:)
+    type(ImVec2) :: x0, x1
+    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_int) :: idum
+
+    ! reset the error message
+    errmsg = ""
+
+    ! get the scene and the system
+    if (.not.associated(w%sc)) then
+       errmsg = "Scene is not available for exporting"
+       return
+    end if
+    isys = w%sc%id
+    if (.not.ok_system(isys,sys_init) .or. isys /= w%view_selected) then
+       errmsg = "System is not initialized"
+       return
+    end if
+
+    ! generate textures and buffers
+    call glGenTextures(1, c_loc(msFBOtex))
+    call glGenRenderbuffers(1, c_loc(msFBOdepth))
+    call glGenFramebuffers(1, c_loc(msFBO))
+    call glGenTextures(1, c_loc(endFBOtex))
+    call glGenRenderbuffers(1, c_loc(endFBOdepth))
+    call glGenFramebuffers(1, c_loc(endFBO))
+
+    ! textures
+    call glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, msFBOtex)
+    call glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, nsample, GL_RGBA, npixel, npixel,&
+       int(GL_TRUE,c_signed_char))
+    call glBindTexture(GL_TEXTURE_2D, 0)
+    call glBindTexture(GL_TEXTURE_2D, endFBOtex)
+    call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, npixel, npixel, 0, GL_RGBA, GL_UNSIGNED_BYTE, c_null_ptr)
+    call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+    call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+    call glBindTexture(GL_TEXTURE_2D, 0)
+
+    ! render buffer
+    call glBindRenderbuffer(GL_RENDERBUFFER, msFBOdepth)
+    call glRenderbufferStorageMultisample(GL_RENDERBUFFER, nsample, GL_DEPTH_COMPONENT, npixel, npixel)
+    call glBindRenderbuffer(GL_RENDERBUFFER, 0)
+    call glBindRenderbuffer(GL_RENDERBUFFER, endFBOdepth)
+    call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, npixel, npixel)
+    call glBindRenderbuffer(GL_RENDERBUFFER, 0)
+
+    ! frame buffer
+    call glBindFramebuffer(GL_FRAMEBUFFER, msFBO)
+    call glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, msFBOtex, 0)
+    call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, msFBOdepth)
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) then
+       errmsg = "Failed creating the multi-sampled framebuffer (too large?)"
+       goto 999
+    end if
+    call glBindFramebuffer(GL_FRAMEBUFFER, endFBO)
+    call glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, endFBOtex, 0)
+    call glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, endFBOdepth)
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) then
+       errmsg = "Failed creating the render framebuffer (too large?)"
+       goto 999
+    end if
+    call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+    ! render the scene to the multisampled framebuffer
+    call glBindFramebuffer(GL_FRAMEBUFFER, msFBO)
+    call glViewport(0_c_int,0_c_int,npixel,npixel)
+    if (transparentbg) then
+       call glClearColor(w%sc%bgcolor(1),w%sc%bgcolor(2),w%sc%bgcolor(3),0._c_float)
+    else
+       call glClearColor(w%sc%bgcolor(1),w%sc%bgcolor(2),w%sc%bgcolor(3),1._c_float)
+    end if
+    call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
+    call w%sc%render()
+    call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+    ! blit the multisampled buffer to the normal colorbuffer
+    call glBindFramebuffer(GL_READ_FRAMEBUFFER, msFBO)
+    call glBindFramebuffer(GL_DRAW_FRAMEBUFFER, endFBO)
+    call glBlitFramebuffer(0, 0, npixel, npixel, 0, 0, npixel, npixel, GL_COLOR_BUFFER_BIT, GL_LINEAR)
+    call glBindFramebuffer(GL_READ_FRAMEBUFFER, 0)
+    call glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0)
+
+    ! Read from the regular framebuffer into the data array
+    call glBindFramebuffer(GL_FRAMEBUFFER, endFBO)
+    if (.not.exportview) then
+       ! whole texture
+       width = npixel
+       height = npixel
+       allocate(data(4 * width * height))
+       data = 0_c_signed_char
+       call glReadPixels(0, 0, npixel, npixel, GL_RGBA, GL_UNSIGNED_BYTE, c_loc(data))
+    else
+       ! viewport only
+       x0%x = w%v_rmin%x
+       x0%y = w%v_rmin%y
+       x1%x = w%v_rmax%x
+       x1%y = w%v_rmax%y
+       call w%mousepos_to_texpos(x0)
+       call w%mousepos_to_texpos(x1)
+       width = min(nint((x1%x - x0%x) / real(w%FBOside,8) * npixel),npixel)
+       height = min(nint((x1%y - x0%y) / real(w%FBOside,8) * npixel),npixel)
+       origin(1) = max(nint(x0%x / real(w%FBOside,8) * npixel),0)
+       origin(2) = max(nint(x0%y / real(w%FBOside,8) * npixel),0)
+       allocate(data(4 * width * height))
+       data = 0_c_signed_char
+       call glReadPixels(origin(1), origin(2), width, height, GL_RGBA, GL_UNSIGNED_BYTE, c_loc(data))
+    end if
+    call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
+       errmsg = "Error rendering export image"
+
+    ! write the file
+    str = trim(file) // c_null_char
+    if (fformat(1:3) == "PNG") then
+       idum = stbi_write_png(c_loc(str), width, height, 4, c_loc(data), 4*width)
+    elseif (fformat(1:3) == "BMP") then
+       idum = stbi_write_bmp(c_loc(str), width, height, 4, c_loc(data))
+    elseif (fformat(1:3) == "TGA") then
+       idum = stbi_write_tga(c_loc(str), width, height, 4, c_loc(data))
+    elseif (fformat(1:3) == "JPE") then
+       idum = stbi_write_jpg(c_loc(str), width, height, 4, c_loc(data), jpgquality)
+    else
+       idum = 0
+       errmsg = "Unknown file format: "  // string(fformat)
+    end if
+    if (idum == 0) &
+       errmsg = "Error exporting image to file: "  // string(file)
+
+999 continue
+
+    ! delete the buffers
+    call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+    call glDeleteTextures(1, c_loc(msFBOtex))
+    call glDeleteRenderbuffers(1, c_loc(msFBOdepth))
+    call glDeleteFramebuffers(1, c_loc(msFBO))
+    call glDeleteTextures(1, c_loc(endFBOtex))
+    call glDeleteRenderbuffers(1, c_loc(endFBOdepth))
+    call glDeleteFramebuffers(1, c_loc(endFBO))
+
+  end subroutine export_to_image
+
+  !> Export the current system to a PNG file using the same file name
+  !> but with png extension, using all defaults
+  module subroutine export_to_png_simple(w)
+    use tools_io, only: equal, lower
+    use systems, only: sys_loaded_not_init, sysc, ok_system
+    class(window), intent(inout), target :: w
+
+    character(kind=c_char,len=:), allocatable :: file, errmsg
+    character(len=:), allocatable :: wext, wroot
+    integer(c_int) :: npixel
+    integer :: isys, idx
+
+    character(kind=c_char,len=3), parameter :: fformat = "PNG"
+    integer(c_int), parameter :: nsample = 16
+    integer(c_int), parameter :: jpgquality = 90
+    logical, parameter :: exportview = .true.
+    logical, parameter :: transparentbg = .true.
+
+    ! initialize
+    npixel = w%FBOside
+
+    ! get the root of the file name and append the png extension
+    isys = w%view_selected
+    if (.not.ok_system(isys,sys_loaded_not_init)) return
+    file = sysc(isys)%seed%file
+    wext = lower(file(index(file,'.',.true.)+1:))
+    wroot = file(:index(file,'.',.true.)-1)
+    if (equal(wext,'in')) then
+       idx = index(wroot,'.',.true.)
+       if (idx > 0) then
+          wext = lower(wroot(idx+1:))
+          if (equal(wext,'scf')) &
+             wroot = file(:index(file,'.',.true.)-1)
+       end if
+    end if
+    file = wroot // ".png"
+
+    ! export
+    call w%export_to_image(file,fformat,nsample,npixel,transparentbg,exportview,&
+       jpgquality,errmsg)
+
+  end subroutine export_to_png_simple
+
 end submodule view
