@@ -2772,7 +2772,7 @@ contains
 
     integer :: lu
     integer, allocatable :: nis(:)
-    integer :: i
+    integer :: i, icount
     real*8 :: maxdv, x(3)
     character(len=:), allocatable :: str
     character*2 :: atsym
@@ -2794,7 +2794,14 @@ contains
     write (lu,'("REMARK   3 REFINEMENT.                                                          ")')
     write (lu,'("HET    UNL  A   11  ",A,"     UNKNOWN                                           ")') &
        string(c%ncel,5)
-    write (lu,'("HETNAM     UNL ",A,"          ")') string(upper(c%file),55)
+
+    ! file name
+    str = trim(adjustl(upper(c%file)))
+    icount=0
+    do i = 1, len(str), 55
+       icount = icount + 1
+       write (lu,'("HETNAM  ",A2," UNL ",A55,"          ")') string(icount), str(i:min(i+54,len(str)))
+    end do
 
     ! empirical formula
     allocate(nis(c%nspc))
@@ -2808,7 +2815,13 @@ contains
        str = str // string(c%spc(i)%name) // "(" // string(nint(nis(i)/maxdv)) // ") "
     end do
     str = trim(adjustl(str))
-    write (lu,'("FORMUL   1  UNL    ",A51,"          ")') str
+    icount=0
+    do i = 1, len(str), 51
+       icount = icount + 1
+       write (lu,'("FORMUL   1  UNL ",A2," ",A51,"          ")') string(icount), str(i:min(i+50,len(str)))
+    end do
+
+
 
     ! lattice parameters
     if (.not.c%ismolecule) then
