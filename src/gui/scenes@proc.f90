@@ -57,7 +57,30 @@
 !   xtex = (0.5 * xndc + 0.5) * side
 !
 ! 7. Texture coordinates: mapping of the NDC into texture pixels,
-! between 0 and the side of the texture.
+! between 0 and the side of the texture (Tx,Ty).
+!
+! 7 -> 8 !! texpos to mousepos transformation !!
+!   texpos is (0,ty)   (tx,ty)
+!                  +---+
+!                  |   |
+!                  +---+
+!             (0,0)    (tx,0)
+!   First, transform to normalized coordinates:
+!     xnorm = 2 * tx/TX - 1
+!     ynorm = 1 - 2 * ty/TY
+!   norm  is (-1,-1)   (1,-1)
+!                  +---+
+!                  |   |
+!                  +---+
+!             (-1,1)   (1,1)
+!   Then, transform to mouse coordinaes:
+!     xmouse = xmin + 1/2 * (xmax-xmin) + 1/2 * xnorm * max(xmax-xmin,ymax-ymin)
+!     ymouse = ymin + 1/2 * (ymax-ymin) + 1/2 * ynorm * max(xmax-xmin,ymax-ymin)
+!   where (xmin,ymin) is the top left corner of the window and
+!   (xmax,ymax) is the bottom right corner of the window.
+!
+! 8. Mouse coordinates: coordinates of the mouse on the screen as
+! determined by imgui.
 !
 
 ! ---- Standard camera movements in the critic2 GUI ----
