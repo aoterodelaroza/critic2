@@ -15,6 +15,89 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! ---- Coordinate systems used for scene rendering ----
+! 1. Object coordinates: these are the coordinates local to the object.
+!
+! 1 -> 2 with MODEL MATRIX: The model matrix contains the scaling,
+! rotation and translation necessary to bring the object to its size,
+! position, and orientation in the scene.
+!
+! 2. World coordinates: the coordinates corresponding to the chemical
+! system. Identical to the Cartesian coordinates (%r) used by
+! critic2, in bohr.
+!
+! 2 -> 3 with WORLD MATRIX: a translation + rotation matrix that is
+! used to rotate and translate all objects at the same time.
+!
+! 3. Transformed world coordinates (tworld): the world coordinates
+! after rotation/translation of the whole scene
+!
+! 3 -> 4 with VIEW MATRIX: the view matrix is calculated from the
+! camera position (s%campos), the vector that indicates the direction
+! of the camera (s%camfront), and the up vector (s%camup) using the
+! lookat routine.
+!
+! 4. Eye/view coordinates: coordinate system in which the camera is at
+! (0,0,0) and points in the -z direction, with the up vector being
+! the -y direction.
+!
+! 4 -> 5 with PROJECTION MATRIX: the projection matrix is constructed
+! by selecting the visible region (fustrum) and mapping that into the
+! -1:1 cube.
+!
+! 5. Clip coordinates: homogeneous coordinates where the "visible"
+! space is between -w and +w.
+!
+! 5 -> 6 Divide by w
+!
+! 6. Normalized device coordinates (NDC): the visible region is
+! between -1 and +1 in all directions.
+!
+! 6 -> 7 Scale the -1:1 rectangle to the texture size.
+!   xtex = (0.5 * xndc + 0.5) * side
+!
+! 7. Texture coordinates: mapping of the NDC into texture pixels,
+! between 0 and the side of the texture.
+!
+
+! ---- Standard camera movements in the critic2 GUI ----
+!
+! 1. Zoom (default: mouse wheel). First, transform the scene center
+! to tworld coordinates. In tworld coordinates, calcualte the vector
+! from the scene center to the camera and reduce it or extend
+! it by a factor ("ratio"). Clip the resulting vector so it is not
+! shorter than min_zoom or longer than max_zoom. Move the camera to
+! the new position indicated by this vector.
+!
+! 2. Drag (default: right button). The first time the texture is
+! clicked, save the view coordinates corresponding to the mouse
+! position, and the view matrix. The mouse is now moved with the right
+! button down; the new texture position is also transformed to view
+! coordinates.  Calculate the difference vector betwen the new and the
+! old view coordinates and transform it to tworld coordinates using
+! the saved view matrix. Move the camera by this vector.
+!
+! 3. Rotate (default: left button). The first time the texture is
+! clicked, save the view and texture coordintes coordinates of the
+! mouse position. When the mouse is moved, take the difference between
+! the new position in view coordinates and the old position. The cross
+! product of (0,0,1), which is camera front-pointing vector in view
+! coordinates, with the difference vector gives the axis of rotation
+! in view coordinates. For the angle, calculate the difference between
+! the new and the old texture positions and divide by the side of the
+! texture to normalize. The angle is this value multiplied by the
+! sensitivity to rotation.
+!
+! 4. Rotate around perpendicular axis: the first time the scene is
+! clicked, save the scene center in texture coordinates and
+! the normalized difference vector between the mouse position and the
+! scene center, also in texture coordinates. When the mouse is moved,
+! calculate the normalized difference vector wrt the scene center
+! with the new position and then the angle between this vector
+! and the saved one. The camera is rotated around its front-pointing
+! vector by this angle.
+!
+
 ! Scene object and GL rendering utilities
 submodule (scenes) proc
   implicit none
