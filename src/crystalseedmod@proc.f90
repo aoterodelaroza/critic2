@@ -4874,7 +4874,6 @@ contains
     character(len=:), allocatable :: line, word
     real*8 :: rlat(3,3)
     logical, allocatable :: isfrac(:)
-    type(hash) :: usespc
 
     ! open
     call seed%end()
@@ -4885,10 +4884,12 @@ contains
        return
     end if
     errmsg = "Error reading file: " // trim(file)
-    call usespc%init()
 
     ! allocate atoms
     allocate(isfrac(10),seed%x(3,10),seed%is(10),seed%atname(10))
+
+    ! allocate species
+    allocate(seed%spc(10))
 
     ! collect the information
     is_file_mol = .true.
@@ -4916,12 +4917,26 @@ contains
           isfrac(seed%nat) = equal(word,'atom_frac')
 
           word = getword(line,lp)
-          if (.not.usespc%iskey(word)) then
-             seed%nspc = seed%nspc + 1
-             call usespc%put(word,seed%nspc)
-             seed%is(seed%nat) = seed%nspc
+          idx = 0
+          do i = 1, seed%nspc
+             if (equal(word,seed%spc(i)%name)) then
+                idx = i
+                exit
+             end if
+          end do
+          if (idx > 0) then
+             seed%is(seed%nat) = idx
           else
-             seed%is(seed%nat) = usespc%get(word,1)
+             seed%nspc = seed%nspc + 1
+             if (seed%nspc > size(seed%spc,1)) &
+                call realloc(seed%spc,2*seed%nspc)
+             seed%spc(seed%nspc)%name = word
+             seed%spc(seed%nspc)%z = zatguess(word)
+             if (seed%spc(seed%nspc)%z <= 0) then
+                errmsg = "unknown atom type: " // word
+                goto 999
+             end if
+             seed%is(seed%nat) = seed%nspc
           end if
           seed%atname(seed%nat) = word
 
@@ -4945,19 +4960,7 @@ contains
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%atname,seed%nat)
     call realloc(seed%is,seed%nat)
-
-    ! fill the species array
-    allocate(seed%spc(seed%nspc))
-    do i = 1, seed%nspc
-       word = usespc%getkey(i)
-       idx = usespc%get(word,1)
-       seed%spc(idx)%name = word
-       seed%spc(idx)%z = zatguess(word)
-       if (seed%spc(idx)%z <= 0) then
-          errmsg = "unknown atom type: " // word
-          goto 999
-       end if
-    end do
+    call realloc(seed%spc,seed%nspc)
 
     ! handle the molecule/crystal expectation/contents of the file
     if (is_file_mol) then
