@@ -1703,11 +1703,15 @@ contains
 
     ! for which atoms do we have full FC2 info?
     allocate(dneq(c%ncel))
-    dneq = .false.
-    do i = 1, c%ncel
-       dneq(i) = all(done(i,:))
-    end do
-    deallocate(done)
+    if (isin > 0) then
+       dneq = .false.
+       do i = 1, c%ncel
+          dneq(i) = all(done(i,:))
+       end do
+       deallocate(done)
+    else
+       dneq = .true.
+    end if
 
     ! isin == 1 corresponds to the case when the crystal structure is
     ! a supercell and we are only given the force constants for the
