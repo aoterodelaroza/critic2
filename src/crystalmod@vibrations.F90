@@ -522,8 +522,8 @@ contains
   !> Calculate frequencies and eigenvectors from the FC2 for a single
   !> q (fractional coordiantes in reciprocal space); adds the
   !> resulting frequencies and eigenvectors to the v type.  If the
-  !> optional arguments freqo and veco are present, return the
-  !> frequencies and eigenvectors in these variables instead of
+  !> optional arguments freqo or veco are present, return the
+  !> frequencies and/or eigenvectors in these variables instead of
   !> overwriting the vibrational info in v. Frequencies in output are
   !> in ascending order.
   module subroutine vibrations_calculate_q(v,c,q,freqo,veco)
@@ -557,7 +557,7 @@ contains
     if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
 
     ! process input arguments
-    varoutput = present(freqo) .and. present(veco)
+    varoutput = present(freqo) .or. present(veco)
 
     ! maximum distance of all pairs of atoms in the unit cell
     maxdisteps = 0d0
@@ -605,12 +605,12 @@ contains
     call eigherm(dm,c%ncel*3,eval)
 
     ! calculate the frequencies
-    freq = sqrt(abs(eval)) * factor
+    freq = sign(sqrt(abs(eval)) * factor,eval)
 
     ! save output
     if (varoutput) then
-       freqo = freq
-       veco = dm
+       if (present(freqo)) freqo = freq
+       if (present(veco)) veco = dm
     else
        ! save the info
        v%nqpt = v%nqpt + 1
