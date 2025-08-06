@@ -3708,7 +3708,7 @@ contains
 
     character(len=:), allocatable :: filename, word, mode, sline, errmsg
     integer :: lp, lpo, idq, ifreq, npts, n(3)
-    real*8 :: dist, disteps, fc2eps, q(3), q1(3), q2(3), tini, tend, t
+    real*8 :: dist, eps, disteps, fc2eps, q(3), q1(3), q2(3), tini, tend, t
     real*8 :: zpe, fvib, svib, cv, vs(3), fac, vsavg(3)
     logical :: ok, environ, cartesian
     integer :: nq, i, j, k, fini, fend
@@ -3888,9 +3888,11 @@ contains
        word = lgetword(line,lp)
        if (equal(word,'acoustic_sum_rules')) then
           call s%c%vib%apply_acoustic(s%c,verbose=.true.)
+
        elseif (equal(word,'write')) then
           word = getword(line,lp)
           call s%c%vib%write_fc2(s%c,word,verbose=.true.)
+
        elseif (equal(word,'trim')) then
           ok = eval_next(dist,line,lp)
           if (.not.ok) call ferror('struct_vibrations','FC2 TRIM needs distance',faterr)
@@ -3898,8 +3900,10 @@ contains
           call s%c%vib%trim_fc2(s%c,dist,verbose=.true.)
 
        elseif (equal(word,'zero')) then
-          write (*,*) "bleh!"
-          stop 1
+          ok = eval_next(eps,line,lp)
+          if (.not.ok) call ferror('struct_vibrations','FC2 ZERO needs eps',faterr)
+          call s%c%vib%zero_fc2(s%c,eps,verbose=.true.)
+
        else
           call ferror('struct_vibrations','Unknown keyword: ' // word,faterr,syntax=.true.)
        end if

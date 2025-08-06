@@ -949,8 +949,8 @@ contains
 
     ! final message
     if (verbose_) then
-       nmax = c%ncel * (c%ncel-1) / 2
-       perc = real(n,8) / real(nmax,8) * 100d0
+       nmax = 3 * 3 * c%ncel * c%ncel
+       perc = real(2 * n * 3 * 3,8) / real(nmax,8) * 100d0
        write (uout,'("+ FC2 TRIM: nullify all FC components beyond a distance")')
        write (uout,'("  Number of terms made zero = ",A," out of ",A," (",A,"%)")') &
           string(n), string(nmax), string(perc,'f',decimal=2)
@@ -960,13 +960,46 @@ contains
 
   !> Nullify the FC2 elements whose absolute value is below eps0.
   module subroutine vibrations_zero_fc2(v,c,eps0,verbose)
+    use tools_io, only: uout, string
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: eps0
     logical, intent(in), optional :: verbose
 
-    write (*,*) "bleh2"
-    stop 1
+    logical :: verbose_
+    integer :: i, j, k, l, n, nmax
+    real*8 :: perc
+
+    ! return if no FC2 is available
+    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+
+    ! optional parameters
+    verbose_ = .false.
+    if (present(verbose)) verbose_ = verbose
+
+    ! nullify
+    n = 0
+    do j = 1, c%ncel
+       do i = 1, c%ncel
+          do l = 1, 3
+             do k = 1, 3
+                if (abs(v%fc2(k,l,i,j)) < eps0) then
+                   v%fc2(k,l,i,j) = 0d0
+                   n = n + 1
+                end if
+             end do
+          end do
+       end do
+    end do
+
+    ! final message
+    if (verbose_) then
+       nmax = 3 * 3 * c%ncel * c%ncel
+       perc = real(n,8) / real(nmax,8) * 100d0
+       write (uout,'("+ FC2 ZERO: nullify all FC components with abs lower than a value")')
+       write (uout,'("  Number of terms made zero = ",A," out of ",A," (",A,"%)")') &
+          string(n), string(nmax), string(perc,'f',decimal=2)
+    end if
 
   end subroutine vibrations_zero_fc2
 
