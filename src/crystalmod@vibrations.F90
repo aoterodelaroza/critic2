@@ -23,7 +23,6 @@ submodule (crystalmod) vibrationsmod
   real*8, parameter :: der_coef1(3) = (/-1d0,  0d0, 1d0/)
   real*8, parameter :: der_coef2(3) = (/ 1d0, -2d0, 1d0/)
 
-
   !xx! private procedures
   ! subroutine vibrations_detect_format(file,ivformat)
   ! subroutine read_matdyn_modes(v,c,file,ivformat,errmsg,ti)
@@ -914,6 +913,62 @@ contains
     cv = cv * ff
 
   end subroutine vibrations_calculate_thermo
+
+  !> Nullify the FC2 elements where the atoms are farther apart
+  !> than dist.
+  module subroutine vibrations_trim_fc2(v,c,dist,verbose)
+    use tools_io, only: uout, string
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(inout) :: c
+    real*8, intent(in) :: dist
+    logical, intent(in), optional :: verbose
+
+    logical :: verbose_
+    integer :: i, j, n, nmax
+    real*8 :: dthis, perc
+
+    ! return if no FC2 is available
+    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+
+    ! optional parameters
+    verbose_ = .false.
+    if (present(verbose)) verbose_ = verbose
+
+    ! nullify
+    n = 0
+    do i = 1, c%ncel
+       do j = i+1, c%ncel
+          dthis = c%eql_distance(c%atcel(i)%x, c%atcel(j)%x)
+          if (dthis >= dist) then
+             v%fc2(:,:,i,j) = 0d0
+             v%fc2(:,:,j,i) = 0d0
+             n = n + 1
+          end if
+       end do
+    end do
+
+    ! final message
+    if (verbose_) then
+       nmax = c%ncel * (c%ncel-1) / 2
+       perc = real(n,8) / real(nmax,8) * 100d0
+       write (uout,'("+ FC2 TRIM: nullify all FC components beyond a distance")')
+       write (uout,'("  Number of terms made zero = ",A," out of ",A," (",A,"%)")') &
+          string(n), string(nmax), string(perc,'f',decimal=2)
+    end if
+
+  end subroutine vibrations_trim_fc2
+
+  !> Nullify the FC2 elements whose absolute value is below eps0.
+  module subroutine vibrations_zero_fc2(v,c,eps0,verbose)
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(inout) :: c
+    real*8, intent(in) :: eps0
+    logical, intent(in), optional :: verbose
+
+    write (*,*) "bleh2"
+    stop 1
+
+  end subroutine vibrations_zero_fc2
 
   !xx! private procedures
 

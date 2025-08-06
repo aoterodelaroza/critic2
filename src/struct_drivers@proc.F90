@@ -3696,7 +3696,7 @@ contains
 
   !> Driver for operations on crystal or molecular vibrations.
   module subroutine struct_vibrations(s,line,verbose)
-    use global, only: eval_next, iunitname0, iunit, iunit_ang
+    use global, only: eval_next, iunitname0, iunit, iunit_ang, dunit0
     use tools_io, only: uout, lgetword, getword, ferror, faterr, equal, isreal, isinteger,&
        uin, ucopy, getline, string, ioj_right, ioj_left
     use tools_math, only: good_lebedev, select_lebedev
@@ -3708,7 +3708,7 @@ contains
 
     character(len=:), allocatable :: filename, word, mode, sline, errmsg
     integer :: lp, lpo, idq, ifreq, npts, n(3)
-    real*8 :: disteps, fc2eps, q(3), q1(3), q2(3), tini, tend, t
+    real*8 :: dist, disteps, fc2eps, q(3), q1(3), q2(3), tini, tend, t
     real*8 :: zpe, fvib, svib, cv, vs(3), fac, vsavg(3)
     logical :: ok, environ, cartesian
     integer :: nq, i, j, k, fini, fend
@@ -3891,6 +3891,15 @@ contains
        elseif (equal(word,'write')) then
           word = getword(line,lp)
           call s%c%vib%write_fc2(s%c,word,verbose=.true.)
+       elseif (equal(word,'trim')) then
+          ok = eval_next(dist,line,lp)
+          if (.not.ok) call ferror('struct_vibrations','FC2 TRIM needs distance',faterr)
+          dist = dist / dunit0(iunit)
+          call s%c%vib%trim_fc2(s%c,dist,verbose=.true.)
+
+       elseif (equal(word,'zero')) then
+          write (*,*) "bleh!"
+          stop 1
        else
           call ferror('struct_vibrations','Unknown keyword: ' // word,faterr,syntax=.true.)
        end if

@@ -120,6 +120,8 @@ module crystalmod
      procedure :: calculate_vs => vibrations_calculate_vs !< calculate freqs and vec for a single q
      procedure :: calculate_vs_prepare => vibrations_calculate_vs_prepare !< prepare vs calculation
      procedure :: calculate_thermo => vibrations_calculate_thermo !< calculate thermodynamic properties
+     procedure :: trim_fc2 => vibrations_trim_fc2
+     procedure :: zero_fc2 => vibrations_zero_fc2
   end type vibrations
   public :: vibrations
 
@@ -1129,6 +1131,18 @@ module crystalmod
        real*8, intent(in) :: t
        real*8, intent(out) :: zpe, fvib, svib, cv
      end subroutine vibrations_calculate_thermo
+     module subroutine vibrations_trim_fc2(v,c,dist,verbose)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(inout) :: c
+       real*8, intent(in) :: dist
+       logical, intent(in), optional :: verbose
+     end subroutine vibrations_trim_fc2
+     module subroutine vibrations_zero_fc2(v,c,eps0,verbose)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(inout) :: c
+       real*8, intent(in) :: eps0
+       logical, intent(in), optional :: verbose
+     end subroutine vibrations_zero_fc2
      !xx! xrpd_peaklist type
      module subroutine xrpd_peaklist_end(p)
        class(xrpd_peaklist), intent(inout) :: p
