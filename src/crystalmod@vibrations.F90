@@ -19,6 +19,11 @@
 submodule (crystalmod) vibrationsmod
   implicit none
 
+  ! abramowitz, stegun, numerical differentiation formulas, table 25.2 (1st and 2nd derivatives)
+  real*8, parameter :: der_coef1(3) = (/-1d0,  0d0, 1d0/)
+  real*8, parameter :: der_coef2(3) = (/ 1d0, -2d0, 1d0/)
+
+
   !xx! private procedures
   ! subroutine vibrations_detect_format(file,ivformat)
   ! subroutine read_matdyn_modes(v,c,file,ivformat,errmsg,ti)
@@ -54,8 +59,9 @@ contains
     v%nfreq = 0
     if (.not.keepfc2_) then
        v%hasfc2 = .false.
+       v%fc2_acoustic = -1
+       v%fc2_vs_center = -1d0
        v%fc2_vs_delta = -1d0
-       v%fc2_gamma_ac = -1d0
        if (allocated(v%fc2)) deallocate(v%fc2)
     end if
 
@@ -641,30 +647,18 @@ contains
   !> order and in units of m/s.
   module subroutine vibrations_calculate_vs(v,c,q,vs)
     use tools_io, only: ferror, faterr
-    use param, only: fact, cm1tohz, bohrtom
+    use param, only: cm1tohz, bohrtom
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: q(3)
     real*8, intent(out) :: vs(3)
 
-    real*8 :: normq, qn(3), qthis(3), h, fd0(3), fdn, ratio, fdiff(3)
+    real*8 :: normq, qn(3), qthis(3) !, h, fd0(3), fdn, ratio, fdiff(3)
     integer :: i, j
-    real*8, allocatable :: freq(:), ff(:,:)
-    complex*16, allocatable :: vec(:,:)
+    real*8, allocatable :: freq(:)
+    real*8 :: fcur(3,3)
 
-    real*8, parameter :: fdiff_thr = 0.05d0 ! threshold for bracketing, cm-1
-    real*8, parameter :: maxlen_ini = 1d-8 ! initial bracketing value
-    real*8, parameter :: maxlen_step = 2d0 ! bracketing step
     real*8, parameter :: epsnq = 1d-10 ! cutoff for zero q-point
-    integer, parameter :: npts = 3 ! can be up to 6
-    real*8, parameter :: epsfd = 1d-3 ! error if finite differences disagree more than this
-
-    ! abramowitz, stegun, numerical differentiation formulas, table 25.2 (first derivatives)
-    real*8, parameter :: coefd(6,2:5) = reshape((/&
-       -3d0, 4d0, -1d0, 0d0, 0d0, 0d0,&
-       -11d0, 18d0, -9d0, 2d0, 0d0, 0d0,&
-       -50d0, 96d0, -72d0, 32d0, -6d0, 0d0,&
-       -274d0, 600d0, -600d0, 400d0, -150d0, 24d0/),(/6,4/))
 
     ! return if no FC2 is available
     if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
@@ -675,57 +669,174 @@ contains
        call ferror('vibrations_calculate_vs','zero-length q-point',faterr)
     qn = q / normq
 
-    ! apply acoustic sum rules
-    call v%apply_acoustic(c)
+    ! prepare for the vs calculation if not already done
+    if (any(v%fc2_acoustic < 0)) &
+       call v%calculate_vs_prepare(c,q,vs,.true.)
 
-    ! find frequencies at gamma and maxlen if they are not available
-    if (v%fc2_vs_delta < 0d0) then
-       ! calculate the frequencies at gamma
-       qthis = 0d0
-       call v%calculate_q(c,qthis,freqo=freq,veco=vec)
-       v%fc2_gamma_ac = freq(1:3)
-
-       ! bracketing for maxlen
-       fdiff = 0d0
-       v%fc2_vs_delta = maxlen_ini
-       do while (any(fdiff < fdiff_thr))
-          v%fc2_vs_delta = v%fc2_vs_delta * maxlen_step
-          h = v%fc2_vs_delta / real(npts-1,8)
-          qthis = h * qn
-          qthis = c%rc2rx(qthis)
-          call v%calculate_q(c,qthis,freqo=freq,veco=vec)
-          fdiff = abs(freq(1:3) - v%fc2_gamma_ac)
-       end do
-    end if
-
-    ! build the list of q and run the q-point calculation
-    allocate(ff(npts,3))
-    ff(1,:) = v%fc2_gamma_ac
-    do i = 2, npts
-       h = v%fc2_vs_delta / real(npts-1,8)
-       qthis = real(i-1,8) * h * qn
+    ! calculate the frequencies for the finite difference
+    do i = -1, 1
+       qthis = (v%fc2_vs_center + i * v%fc2_vs_delta) * qn
        qthis = c%rc2rx(qthis)
-       call v%calculate_q(c,qthis,freqo=freq,veco=vec)
-       ff(i,:) = freq(1:3)
-    end do
-    if (allocated(freq)) deallocate(freq)
-    if (allocated(vec)) deallocate(vec)
-
-    ! calculate finite differences, verify the error is low
-    do i = 1, 3
-       fd0(i) = (ff(2,i) - ff(1,i)) / h
-       do j = 2, npts-1
-          fdn = sum(ff(:,i) * coefd(1:npts,j)) / (h * fact(j))
-          ratio = abs(fdn-fd0(i)) / abs(fdn+fd0(i))
-          if (ratio > epsfd) &
-             call ferror('vibrations_calculate_vs','error calculating finite differences',faterr)
-       end do
+       call v%calculate_q(c,qthis,freqo=freq)
+       fcur(i+2,:) = freq(v%fc2_acoustic)
     end do
 
-    ! convert from cm-1*bohr to m/s
-    vs = fd0 * cm1tohz * bohrtom
+    ! first calculation of vs
+    vs = 0d0
+    do j = 1, 3
+       vs(j) = sum(fcur(:,j) * der_coef1) / (2d0 * v%fc2_vs_delta)
+    end do
+    vs = vs * cm1tohz * bohrtom
 
   end subroutine vibrations_calculate_vs
+
+  !> Prepare for the calculation of sound velocities by locating the
+  !> acoustic branches and finding the reciprocal distance range
+  !> where the slope is most easily calculated. For the preparation,
+  !> use reciprocal space direction given by q (Cartesian
+  !> coordinates). q cannot be zero, and it is normalized on input. c
+  !> = crystal structure. vs = output sound velocities in increasing
+  !> order. Automatically applies acoustic sum rules and changes the
+  !> FC2. Sound velocities are in ascending order and in units of m/s.
+  !> If verbose, write progress to standard output.
+  module subroutine vibrations_calculate_vs_prepare(v,c,q,vs,verbose)
+    use tools_io, only: ferror, faterr, uout, string
+    use param, only: cm1tohz, bohrtom
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(inout) :: c
+    real*8, intent(in) :: q(3)
+    real*8, intent(out) :: vs(3)
+    logical, intent(in) :: verbose
+
+    real*8 :: normq, qn(3), qthis(3)!, h, fd0(3), fdn, ratio, fdiff(3)
+    integer :: i, j, idx(3), iminlast
+    real*8, allocatable :: freq(:)!, ff(:,:)
+    real*8 :: fcur(3,3), f2, f2min
+
+    real*8, parameter :: ac_thr = 0.01d0 ! threshold for acoustic ident, cm-1
+    real*8, parameter :: epsnq = 1d-10 ! cutoff for zero q-point
+    real*8, parameter :: hstep = 1d-4 ! step for the bracketing
+    integer, parameter :: isafesteps = 10 ! number of steps after minimum before exiting
+
+    ! return if no FC2 is available
+    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+
+    ! header
+    if (verbose) &
+       write (uout,'("+ Preparing for sound velocity calculation")')
+
+    ! normalize q
+    normq = norm2(q)
+    if (normq < epsnq) &
+       call ferror('vibrations_calculate_vs','zero-length q-point',faterr)
+    qn = q / normq
+    if (verbose) then
+       qthis = c%rc2rx(qn)
+       qthis = qthis / norm2(qthis)
+       write (uout,'("  Direction (rec-cryst): ",3(A," "))') (string(qthis(i),'f',10,5),i=1,3)
+    end if
+
+    ! apply acoustic sum rules
+    if (verbose) &
+       write (uout,'("  Applying acoustic sum rules...")')
+    call v%apply_acoustic(c)
+
+    ! calculate the frequencies at gamma, locate the acoustic branches
+    qthis = 0d0
+    call v%calculate_q(c,qthis,freqo=freq)
+    idx = 0
+    j = 0
+    do i = 1, size(freq,1)
+       if (abs(freq(i)) < ac_thr) then
+          j = j + 1
+          if (j > 3) &
+             call ferror('vibrations_calculate_vs','too many zero frequencies',faterr)
+          idx(j) = i
+       end if
+    end do
+    if (any(idx == 0)) &
+       call ferror('vibrations_calculate_vs','too few zero frequencies',faterr)
+    if (verbose) then
+       write (uout,'("  Acoustic branches: ",2(A," (",A,"), "),A," (",A,")")') &
+          string(idx(1)), string(freq(idx(1)),'f',decimal=8),&
+          string(idx(2)), string(freq(idx(2)),'f',decimal=8),&
+          string(idx(3)), string(freq(idx(3)),'f',decimal=8)
+    end if
+    v%fc2_acoustic = idx
+
+    ! initialize the vs bracketing
+    if (verbose) &
+       write (uout,'("# h(bohr-1)  ---- frequencies (cm-1)    ----  ----- sound velocities (m/s) -----   curvature (au)")')
+    do i = 1, 3
+       qthis = i * hstep * qn
+       qthis = c%rc2rx(qthis)
+       call v%calculate_q(c,qthis,freqo=freq)
+       fcur(i,:) = freq(idx)
+       if (verbose .and. i < 3) &
+          write (uout,'("  "4(A," "))') string(i * hstep,'e',10,3), (string(freq(idx(j)),'e',10,3),j=1,3)
+    end do
+
+    ! first calculation of vs
+    vs = 0d0
+    f2 = 0d0
+    do j = 1, 3
+       vs(j) = sum(fcur(:,j) * der_coef1) / (2d0 * hstep)
+       f2 = f2 + abs(sum(fcur(:,j) * der_coef2) / (hstep * hstep))
+    end do
+    vs = vs * cm1tohz * bohrtom
+    if (verbose) then
+       write (uout,'("  "8(A," ")," (best)")') string(3 * hstep,'e',10,3),&
+          (string(freq(idx(j)),'e',10,3),j=1,3),&
+          (string(vs(j),'f',12,3),j=1,3), string(f2,'f',15,6)
+    end if
+    f2min = f2
+    iminlast = 3
+
+    ! continue taking steps until we find a minimum of f2
+    i = 3
+    do while (.true.)
+       i = i + 1
+       qthis = i * hstep * qn
+       qthis = c%rc2rx(qthis)
+       call v%calculate_q(c,qthis,freqo=freq)
+       fcur(1:2,:) = fcur(2:3,:)
+       fcur(3,:) = freq(idx)
+
+       vs = 0d0
+       f2 = 0d0
+       do j = 1, 3
+          vs(j) = sum(fcur(:,j) * der_coef1) / (2d0 * hstep)
+          f2 = f2 + abs(sum(fcur(:,j) * der_coef2) / (hstep * hstep))
+       end do
+       vs = vs * cm1tohz * bohrtom
+       if (verbose) then
+          if (f2 < f2min) then
+             write (uout,'("  "8(A," ")," (best)")') string(i * hstep,'e',10,3),&
+                (string(freq(idx(j)),'e',10,3),j=1,3),&
+                (string(vs(j),'f',12,3),j=1,3), string(f2,'f',15,6)
+          else
+             write (uout,'("  "8(A," "))') string(i * hstep,'e',10,3), (string(freq(idx(j)),'e',10,3),j=1,3),&
+                (string(vs(j),'f',12,3),j=1,3), string(f2,'f',15,6)
+          end if
+       end if
+       if (f2 < f2min) then
+          f2min = f2
+          iminlast = i
+       end if
+
+       if (iminlast > 0 .and. (i-iminlast) > isafesteps) exit
+    end do
+
+    ! save the info and final message
+    v%fc2_vs_delta = hstep
+    v%fc2_vs_center = (iminlast-1) * hstep
+    if (verbose) then
+       write (uout,'("# Finite difference distances (bohr-1): ",3(A," ")/)') &
+          string((iminlast-2) * hstep,'e',10,3), string((iminlast-1) * hstep,'e',10,3),&
+          string(iminlast * hstep,'e',10,3)
+    end if
+
+  end subroutine vibrations_calculate_vs_prepare
 
   !> Calculate thermodynamic properties at temperature T using the
   !> vibrational frequencies in v. The routine assumes the frequencies
@@ -1788,8 +1899,9 @@ contains
     v%file = file
     v%ivformat = ivformat_phonopy_fc2
     v%hasfc2 = .true.
+    v%fc2_acoustic = -1
+    v%fc2_vs_center = -1d0
     v%fc2_vs_delta = -1d0
-    v%fc2_gamma_ac = -1d0
     v%hasvibs = .false.
     errmsg = ""
     call fclose(lu)

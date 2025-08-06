@@ -3997,11 +3997,21 @@ contains
        end do
        calcavg = (didlebedev.and..not.didother)
 
+       ! check we have the FC2 to calculate the sound velocities
+       if (nq <= 0) &
+          call ferror('struct_vibrations','No directions given in SOUND_VELOCITIES',faterr)
+
+       ! header
+       write (uout,'("+ Calculation of sound velocities in reciprocal space directions (SOUND_VELOCITIES)")')
+
+       ! prepare for the calculation of sound velocities
+       call s%c%vib%calculate_vs_prepare(s%c,qlist(:,1),vs,.true.)
+
        ! print sound velocities to output
        vsavg = 0d0
-       write (uout,'("+ Calculation of sound velocities in reciprocal space directions (SOUND_VELOCITIES)")')
+       write (uout,'("+ Sound velocities")')
        write (uout,'("# id    -----     q (fractional)   -----        ----  q (Cartesian,",A,"^-1)&
-          & ----     ----- sound velocities (m/s)  -----")') iunitname0(iunit)
+          & ----    ----- sound velocities (m/s)  -----")') iunitname0(iunit)
        if (iunit == iunit_ang) then
           fac = 1d0/bohrtoa
        else
@@ -4010,6 +4020,7 @@ contains
        do i = 1, nq
           call s%c%vib%calculate_vs(s%c,qlist(:,i),vs)
           q = s%c%rc2rx(qlist(:,i))
+          q = q / norm2(q)
           write (uout,'(99(A,X))') string(i,5,ioj_left), (string(q(j),'f',12,8,4),j=1,3),&
              (string(qlist(j,i) * fac,'f',12,8,4),j=1,3), (string(vs(j),'f',12,3),j=1,3)
           if (calcavg) then

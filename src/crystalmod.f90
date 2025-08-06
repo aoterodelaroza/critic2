@@ -94,8 +94,9 @@ module crystalmod
      !! 2nd-order force constants
      logical :: hasfc2 = .false. ! true if FC2 is available
      real*8, allocatable :: fc2(:,:,:,:) ! 2nd-order FC matrix (3,3,nat,nat)
+     integer :: fc2_acoustic(3) = -1 ! acoustic branches for vs calculation
      real*8 :: fc2_vs_delta = -1d0 ! delta for calculation of sound velocities (bohr-1)
-     real*8 :: fc2_gamma_ac(3) = (/-1d0,-1d0,-1d0/) ! acoustic frequencies at gamma (cm-1)
+     real*8 :: fc2_vs_center = -1d0 ! center for calculation of sound velocities (bohr-1)
      !! frequencies and eigenvectors
      logical :: hasvibs = .false. ! true if frequencies/eigenvectors are available
      integer :: nqpt ! number of q-points
@@ -117,6 +118,7 @@ module crystalmod
      procedure :: write_fc2 => vibrations_write_fc2 !< write FC2
      procedure :: calculate_q => vibrations_calculate_q !< calculate freqs and vec for a single q
      procedure :: calculate_vs => vibrations_calculate_vs !< calculate freqs and vec for a single q
+     procedure :: calculate_vs_prepare => vibrations_calculate_vs_prepare !< prepare vs calculation
      procedure :: calculate_thermo => vibrations_calculate_thermo !< calculate thermodynamic properties
   end type vibrations
   public :: vibrations
@@ -1115,6 +1117,13 @@ module crystalmod
        real*8, intent(in) :: q(3)
        real*8, intent(out) :: vs(3)
      end subroutine vibrations_calculate_vs
+     module subroutine vibrations_calculate_vs_prepare(v,c,q,vs,verbose)
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(inout) :: c
+       real*8, intent(in) :: q(3)
+       real*8, intent(out) :: vs(3)
+       logical, intent(in) :: verbose
+     end subroutine vibrations_calculate_vs_prepare
      module subroutine vibrations_calculate_thermo(v,t,zpe,fvib,svib,cv)
        class(vibrations), intent(inout) :: v
        real*8, intent(in) :: t

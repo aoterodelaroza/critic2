@@ -720,7 +720,7 @@ contains
   !> extension of file and use default values for all options. If
   !> error, return a non-zero errmsg.
   module subroutine write_any_file(c,file,errmsg,iwformat,ti)
-    use tools_io, only: lower, ferror, faterr, equal
+    use tools_io, only: lower, equal
     use param, only: &
        isformat_w_unknown, isformat_w_xyz, isformat_w_gjf, isformat_w_cml, isformat_w_obj,&
        isformat_w_ply, isformat_w_off, isformat_w_gaussian_periodic, isformat_w_qein,&
