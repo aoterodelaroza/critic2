@@ -60,7 +60,7 @@ contains
     real(c_float), allocatable :: irgba(:,:)
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
-    integer :: ii, i, j, isys, icol, ispc, iz, iview
+    integer :: ii, i, j, isys, icol, ispc, iz, iview, loc_atomtype
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, ldum, ok
@@ -104,6 +104,7 @@ contains
        w%geometry_sortdir = 1
        if (allocated(w%iord)) deallocate(w%iord)
     end if
+    loc_atomtype = min(w%geometry_atomtype,2) ! collapse 2 and 3 into the same value (for comparison with atom_style types)
 
     ! if tied to tree, update the isys
     if (w%tied_to_tree .and. (w%isys /= win(iwin_tree)%tree_selected)) &
@@ -168,18 +169,20 @@ contains
           ! group atom types
           if (.not.sys(isys)%c%ismolecule) then
              call iw_combo_simple("Types##atomtypeselectgeom","Species"//c_null_char//&
-                "Symmetry unique" //c_null_char//"Cell"//c_null_char//c_null_char,&
+                "Symmetry unique" //c_null_char//"Cell (fractional)"//c_null_char//&
+                "Cell (Cartesian)"//c_null_char//c_null_char,&
                 w%geometry_atomtype)
           else
              call iw_combo_simple("Types##atomtypeselectgeom","Species"//c_null_char//"Atoms"//c_null_char//&
                 c_null_char,w%geometry_atomtype)
           end if
+          loc_atomtype = min(w%geometry_atomtype,2) ! collapse 2 and 3 into the same value (for comparison with atom_style types)
           call iw_tooltip("Group atoms by these categories",ttshown)
           if (w%geometry_atomtype == 0) then
              ntype = sys(isys)%c%nspc
           elseif (w%geometry_atomtype == 1) then
              ntype = sys(isys)%c%nneq
-          elseif (w%geometry_atomtype == 2) then
+          elseif (w%geometry_atomtype >= 2) then
              ntype = sys(isys)%c%ncel
           end if
 
@@ -209,9 +212,9 @@ contains
           end if
 
           ! whether to do the molecule column, wyckoff, nneq index
-          domol = (w%geometry_atomtype == 2 .or. (w%geometry_atomtype == 1 .and. sys(isys)%c%ismolecule))
+          domol = (w%geometry_atomtype >= 2 .or. (w%geometry_atomtype == 1 .and. sys(isys)%c%ismolecule))
           dowyc = (w%geometry_atomtype == 1 .and..not.sys(isys)%c%ismolecule)
-          doidx = (w%geometry_atomtype == 2 .and..not.sys(isys)%c%ismolecule)
+          doidx = (w%geometry_atomtype >= 2 .and..not.sys(isys)%c%ismolecule)
 
           ! number of columns
           ncol = 3
@@ -382,7 +385,7 @@ contains
                    elseif (w%geometry_atomtype == 1) then ! nneq
                       ispc = sys(isys)%c%at(i)%is
                       name = trim(sys(isys)%c%at(i)%name)
-                   elseif (w%geometry_atomtype == 2) then ! ncel
+                   elseif (w%geometry_atomtype >= 2) then ! ncel
                       ispc = sys(isys)%c%atcel(i)%is
                       name = trim(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%name)
                    end if
@@ -397,10 +400,10 @@ contains
                             if (win(iview)%sc%rep(j)%atom_style%type == 0) then ! color by species
                                rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,ispc)
                                havergb = .true.
-                            elseif (win(iview)%sc%rep(j)%atom_style%type == w%geometry_atomtype) then ! color by nneq or ncel
+                            elseif (win(iview)%sc%rep(j)%atom_style%type == loc_atomtype) then ! color by nneq or ncel
                                rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,i)
                                havergb = .true.
-                            elseif (win(iview)%sc%rep(j)%atom_style%type == 1 .and. w%geometry_atomtype == 2) then ! color by nneq, select by ncel
+                            elseif (win(iview)%sc%rep(j)%atom_style%type == 1 .and. w%geometry_atomtype >= 2) then ! color by nneq, select by ncel
                                rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,sys(isys)%c%atcel(i)%idx)
                                havergb = .true.
                             end if
@@ -480,8 +483,10 @@ contains
                          dec = 4
                       elseif (w%geometry_atomtype == 1) then
                          x0 = sys(isys)%c%at(i)%x
-                      else
+                      elseif (w%geometry_atomtype == 2) then
                          x0 = sys(isys)%c%atcel(i)%x
+                      else
+                         x0 = sys(isys)%c%atcel(i)%r
                       endif
                       do j = 1, 3
                          icol = icol + 1
@@ -587,7 +592,7 @@ contains
 
     ! hover highlight
     if (ihighlight > 0) then
-       call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),w%geometry_atomtype,&
+       call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),loc_atomtype,&
           reshape(ColorHighlightScene,(/4,1/)))
     end if
 
@@ -610,7 +615,7 @@ contains
              irgba(:,nhigh) = w%geometry_rgba(:,i)
           end if
        end do
-       call sysc(isys)%highlight_atoms(.false.,ihigh,w%geometry_atomtype,irgba)
+       call sysc(isys)%highlight_atoms(.false.,ihigh,loc_atomtype,irgba)
        deallocate(ihigh,irgba)
     end if
 
@@ -705,7 +710,7 @@ contains
                   ispc = i
                elseif (w%geometry_atomtype == 1) then ! nneq
                   ispc = sys(isys)%c%at(i)%is
-               elseif (w%geometry_atomtype == 2) then ! ncel
+               elseif (w%geometry_atomtype >= 2) then ! ncel
                   ispc = sys(isys)%c%atcel(i)%is
                end if
                ival(ii) = sys(isys)%c%spc(ispc)%z
@@ -729,8 +734,10 @@ contains
                x0 = (sys(isys)%c%atcel(i)%r+sys(isys)%c%molx0) * dunit0(iunit_ang)
             elseif (w%geometry_atomtype == 1) then
                x0 = sys(isys)%c%at(i)%x
-            else
+            elseif (w%geometry_atomtype == 2) then
                x0 = sys(isys)%c%atcel(i)%x
+            else
+               x0 = sys(isys)%c%atcel(i)%r
             endif
 
             if (icolsort(w%geometry_sortcid) == ic_x) then
@@ -753,7 +760,7 @@ contains
                   sval(ii)%s = string(sys(isys)%c%spc(i)%name,2)
                elseif (w%geometry_atomtype == 1) then ! nneq
                   sval(ii)%s = trim(sys(isys)%c%at(i)%name)
-               elseif (w%geometry_atomtype == 2) then ! ncel
+               elseif (w%geometry_atomtype >= 2) then ! ncel
                   sval(ii)%s = trim(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%name)
                end if
             elseif (icolsort(w%geometry_sortcid) == ic_wyc) then
