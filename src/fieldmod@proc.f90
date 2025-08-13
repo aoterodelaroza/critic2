@@ -303,6 +303,7 @@ contains
        ifformat_copy, ifformat_promolecular, ifformat_promolecular_fragment
     use hashmod, only: hash
     use iso_c_binding, only: c_ptr
+    use types, only: vstring
     class(field), intent(inout) :: f !< Input field
     type(fieldseed), intent(in) :: seed
     type(crystal), intent(inout), target :: c
@@ -316,6 +317,7 @@ contains
     real*8 :: xdelta(3,3), x(3), rho
     real*8, allocatable :: faux(:,:,:)
     logical :: ifail
+    type(vstring) :: lerrmsg
 
     errmsg = ""
     if (.not.c%isinit) then
@@ -573,16 +575,20 @@ contains
           end do
 
           ifail = .false.
-          !$omp parallel do private(x,rho,errmsg)
+          errmsg = ""
+          !$omp parallel do private(x,rho,lerrmsg)
           do k = 1, n(3)
              do j = 1, n(2)
                 do i = 1, n(1)
                    if (ifail) cycle
                    x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
                    x = c%x2c(x)
-                   rho = eval(seed%expr,errmsg,x,sptr,.true.)
+                   rho = eval(seed%expr,lerrmsg%s,x,sptr,.true.)
                    !$omp critical(write)
-                   if (len_trim(errmsg) > 0) ifail = .true.
+                   if (len_trim(lerrmsg%s) > 0) then
+                      errmsg = lerrmsg%s
+                      ifail = .true.
+                   end if
                    f%grid%f(i,j,k) = rho
                    !$omp end critical(write)
                 end do
