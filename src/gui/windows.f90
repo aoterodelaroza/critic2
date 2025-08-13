@@ -73,9 +73,9 @@ module windows
      logical :: tied_to_tree = .false. ! whether the system in this window is tied to the tree system
      real(c_float) :: pos(2) = (/0._c_float,0._c_float/) ! the position of the window's top left corner
      logical :: isdocked = .false. ! whether the window is docked
+     integer, allocatable :: iord(:) ! table order (multiple windows)
      ! tree table parameters
      integer :: tree_selected = 1 ! the system selected in a table (input to iord)
-     integer, allocatable :: iord(:) ! table order
      integer(c_int) :: tree_sortcid = 0 ! sort table by this column id
      integer(c_int) :: tree_sortdir = 1 ! sort table with this direction
      integer :: forceselect = 0 ! make the tree select this system in the next pass
@@ -142,6 +142,9 @@ module windows
      logical, allocatable :: geometry_selected(:) ! selected items in atoms table
      real(c_float), allocatable :: geometry_rgba(:,:) ! color highlights in atoms table
      real(c_float) :: geometry_select_rgba(4) ! highlight color
+     integer(c_int) :: geometry_sortcid = 0 ! sort table by this column id
+     integer(c_int) :: geometry_sortdir = 1 ! sort table with this direction
+     real*8 :: timelast_geometry_sort = 0d0  ! time the geometry table was last sorted
      ! preferences parameters
      logical :: color_preferences_reset_reps = .true. ! whether changing the element colors resets current representations
    contains

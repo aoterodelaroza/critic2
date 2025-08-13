@@ -50,25 +50,38 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, havesel, removehighlight
-    logical :: doquit, clicked
-    integer :: ihighlight, iclicked, nhigh, dec
+    logical :: doquit, clicked, forcesort
+    integer :: ihighlight, iclicked, nhigh, dec, icolsort(0:9)
     logical(c_bool) :: is_selected, redo_highlights
-    integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx
+    integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
     character(len=:), allocatable :: name
     integer, allocatable :: ihigh(:)
     real(c_float), allocatable :: irgba(:,:)
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
-    integer :: i, j, isys, icol, ispc, iz, iview
+    integer :: ii, i, j, isys, icol, ispc, iz, iview
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, ldum, ok
     real*8 :: x0(3)
     type(ImVec4) :: col4
-    integer(c_int) :: color
+    type(c_ptr) :: ptrc
+    type(ImGuiTableSortSpecs), pointer :: sortspecs
+    type(ImGuiTableColumnSortSpecs), pointer :: colspecs
 
     logical, save :: ttshown = .false. ! tooltip flag
+
+    integer, parameter :: ic_id = 0
+    integer, parameter :: ic_atom = 1
+    integer, parameter :: ic_zat = 2
+    integer, parameter :: ic_mol = 3
+    integer, parameter :: ic_mul = 4
+    integer, parameter :: ic_wyc = 5
+    integer, parameter :: ic_idx = 6
+    integer, parameter :: ic_x = 7
+    integer, parameter :: ic_y = 8
+    integer, parameter :: ic_z = 9
 
     ! initialize
     ihighlight = 0
@@ -78,6 +91,7 @@ contains
     szero%y = 0
     redo_highlights = .false.
     removehighlight = .false.
+    forcesort = .false.
 
     ! first pass
     if (w%firstpass) then
@@ -86,6 +100,9 @@ contains
        if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
        if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
        w%geometry_select_rgba = ColorHighlightSelectScene
+       w%geometry_sortcid = 0
+       w%geometry_sortdir = 1
+       if (allocated(w%iord)) deallocate(w%iord)
     end if
 
     ! if tied to tree, update the isys
@@ -99,6 +116,12 @@ contains
        return
     end if
     isys = w%isys
+
+    ! force sort if the system has been rebonded or changed geometry
+    if (w%timelast_geometry_sort < sysc(isys)%timelastchange_rebond) then
+       if (allocated(w%iord)) deallocate(w%iord)
+       forcesort = .true.
+    end if
 
     ! system combo
     atompreflags = ImGuiTabItemFlags_None
@@ -144,11 +167,11 @@ contains
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
           ! group atom types
           if (.not.sys(isys)%c%ismolecule) then
-             call iw_combo_simple("Atom types##atomtypeselectgeom","Species"//c_null_char//&
+             call iw_combo_simple("Types##atomtypeselectgeom","Species"//c_null_char//&
                 "Symmetry unique" //c_null_char//"Cell"//c_null_char//c_null_char,&
                 w%geometry_atomtype)
           else
-             call iw_combo_simple("Atom types##atomtypeselectgeom","Species"//c_null_char//"Atoms"//c_null_char//&
+             call iw_combo_simple("Types##atomtypeselectgeom","Species"//c_null_char//"Atoms"//c_null_char//&
                 c_null_char,w%geometry_atomtype)
           end if
           call iw_tooltip("Group atoms by these categories",ttshown)
@@ -177,6 +200,14 @@ contains
              w%geometry_rgba = 0._c_float
           end if
 
+          ! if the order array is not allocated or if its size is wrong, force a sort
+          if (.not.allocated(w%iord)) then
+             forcesort = .true.
+          elseif (size(w%iord,1) /= ntype) then
+             forcesort = .true.
+             if (allocated(w%iord)) deallocate(w%iord)
+          end if
+
           ! whether to do the molecule column, wyckoff, nneq index
           domol = (w%geometry_atomtype == 2 .or. (w%geometry_atomtype == 1 .and. sys(isys)%c%ismolecule))
           dowyc = (w%geometry_atomtype == 1 .and..not.sys(isys)%c%ismolecule)
@@ -196,6 +227,7 @@ contains
           flags = ior(flags,ImGuiTableFlags_Borders)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           flags = ior(flags,ImGuiTableFlags_ScrollY)
+          flags = ior(flags,ImGuiTableFlags_Sortable)
           str1="##tableatomstyles" // c_null_char
           sz0%x = 0
           sz0%y = iw_calcheight(min(10,ntype)+1,0,.false.)
@@ -207,30 +239,36 @@ contains
              str2 = "Id" // c_null_char
              flags = ImGuiTableColumnFlags_None
              call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             icolsort(icol) = ic_id
 
              icol = icol + 1
              str2 = "Atom" // c_null_char
              flags = ImGuiTableColumnFlags_None
              call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             icolsort(icol) = ic_atom
 
              icol = icol + 1
              str2 = "Z " // c_null_char
              flags = ImGuiTableColumnFlags_None
              call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             icolsort(icol) = ic_zat
 
              if (domol) then
                 icol = icol + 1
                 str2 = "mol" // c_null_char
                 flags = ImGuiTableColumnFlags_None
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+                icolsort(icol) = ic_mol
              end if
 
              if (dowyc) then
                 icol = icol + 1
                 if (sys(isys)%c%havesym > 0 .and. sys(isys)%c%spgavail) then
                    str2 = "Wyc" // c_null_char
+                   icolsort(icol) = ic_wyc
                 else
                    str2 = "Mul" // c_null_char
+                   icolsort(icol) = ic_mul
                 end if
                 flags = ImGuiTableColumnFlags_None
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
@@ -241,6 +279,7 @@ contains
                 str2 = "idx" // c_null_char
                 flags = ImGuiTableColumnFlags_None
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+                icolsort(icol) = ic_idx
              end if
 
              if (w%geometry_atomtype > 0) then
@@ -252,6 +291,8 @@ contains
                 end if
                 flags = ImGuiTableColumnFlags_WidthStretch
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+                icolsort(icol) = ic_x
+
                 icol = icol + 1
                 if (sys(isys)%c%ismolecule) then
                    str2 = "y (Å)" // c_null_char
@@ -260,6 +301,8 @@ contains
                 end if
                 flags = ImGuiTableColumnFlags_WidthStretch
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+                icolsort(icol) = ic_y
+
                 icol = icol + 1
                 if (sys(isys)%c%ismolecule) then
                    str2 = "z (Å)" // c_null_char
@@ -268,12 +311,34 @@ contains
                 end if
                 flags = ImGuiTableColumnFlags_WidthStretch
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+                icolsort(icol) = ic_z
              end if
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
+
+             ! fetch the sort specs, sort the data if necessary
+             ptrc = igTableGetSortSpecs()
+             if (c_associated(ptrc)) then
+                call c_f_pointer(ptrc,sortspecs)
+                if (c_associated(sortspecs%Specs)) then
+                   call c_f_pointer(sortspecs%Specs,colspecs)
+                   w%geometry_sortcid = colspecs%ColumnUserID
+                   w%geometry_sortdir = colspecs%SortDirection
+                   if (sortspecs%SpecsDirty .and. ntype > 1) then
+                      forcesort = .true.
+                      sortspecs%SpecsDirty = .false.
+                   end if
+                else
+                   w%geometry_sortcid = 0
+                   w%geometry_sortdir = 1
+                end if
+             end if
 
              ! draw the header
              call igTableHeadersRow()
              call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+
+             ! sort
+             if (forcesort) call table_sort()
 
              ! start the clipper
              clipper = ImGuiListClipper_ImGuiListClipper()
@@ -304,7 +369,8 @@ contains
              ! draw the rows
              do while(ImGuiListClipper_Step(clipper))
                 call c_f_pointer(clipper,clipper_f)
-                do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                do ii = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                   i = w%iord(ii)
                    suffix = "_" // string(i)
                    icol = -1
 
@@ -399,7 +465,7 @@ contains
                       end if
                    end if
 
-                   ! multiplicity
+                   ! cell index
                    if (doidx) then
                       icol = icol + 1
                       ! i is cell index in this case
@@ -589,6 +655,128 @@ contains
       w%tied_to_tree = w%tied_to_tree .and. (w%isys == win(iwin_tree)%tree_selected)
 
     end subroutine change_system
+
+    subroutine table_sort()
+      use tools, only: mergesort
+      use interfaces_glfw, only: glfwGetTime
+      use types, only: vstring
+      integer :: ii, i, ispc
+      integer, allocatable :: ival(:), iperm(:)
+      real*8, allocatable :: rval(:)
+      type(vstring), allocatable :: sval(:)
+
+      ! update the time
+      w%timelast_geometry_sort = glfwGetTime()
+
+      ! reallocate the iord
+      if (ntype <= 1) then
+         if (allocated(w%iord)) deallocate(w%iord)
+         allocate(w%iord(1))
+         w%iord = 1
+         return
+      else
+         if (allocated(w%iord)) then
+            if (size(w%iord,1) /= ntype) deallocate(w%iord)
+         end if
+         if (.not.allocated(w%iord)) then
+            allocate(w%iord(ntype))
+            do i = 1, ntype
+               w%iord(i) = i
+            end do
+         end if
+      end if
+
+      ! carry out the sort
+      allocate(iperm(ntype))
+      do i = 1, ntype
+         iperm(i) = i
+      end do
+      if (icolsort(w%geometry_sortcid)==ic_id .or. icolsort(w%geometry_sortcid)==ic_zat .or.&
+         icolsort(w%geometry_sortcid)==ic_mol .or. icolsort(w%geometry_sortcid)==ic_mul .or.&
+         icolsort(w%geometry_sortcid)==ic_idx) then
+         ! integers
+         allocate(ival(ntype))
+         do ii = 1, ntype
+            i = w%iord(ii)
+            if (icolsort(w%geometry_sortcid) == ic_id) then
+               ival(ii) = i
+            elseif (icolsort(w%geometry_sortcid) == ic_zat) then
+               if (w%geometry_atomtype == 0) then ! species
+                  ispc = i
+               elseif (w%geometry_atomtype == 1) then ! nneq
+                  ispc = sys(isys)%c%at(i)%is
+               elseif (w%geometry_atomtype == 2) then ! ncel
+                  ispc = sys(isys)%c%atcel(i)%is
+               end if
+               ival(ii) = sys(isys)%c%spc(ispc)%z
+            elseif (icolsort(w%geometry_sortcid) == ic_mol) then
+               ival(ii) = sys(isys)%c%idatcelmol(1,i)
+            elseif (icolsort(w%geometry_sortcid) == ic_mul) then
+               ival(ii) = sys(isys)%c%at(i)%mult
+            elseif (icolsort(w%geometry_sortcid) == ic_idx) then
+               ival(ii) = sys(isys)%c%atcel(i)%idx
+            end if
+         end do
+         call mergesort(ival,iperm,1,ntype)
+         deallocate(ival)
+      elseif (icolsort(w%geometry_sortcid)==ic_x.or.icolsort(w%geometry_sortcid)==ic_y.or.&
+         icolsort(w%geometry_sortcid)==ic_z) then
+         ! real
+         allocate(rval(ntype))
+         do ii = 1, ntype
+            i = w%iord(ii)
+            if (sys(isys)%c%ismolecule) then
+               x0 = (sys(isys)%c%atcel(i)%r+sys(isys)%c%molx0) * dunit0(iunit_ang)
+            elseif (w%geometry_atomtype == 1) then
+               x0 = sys(isys)%c%at(i)%x
+            else
+               x0 = sys(isys)%c%atcel(i)%x
+            endif
+
+            if (icolsort(w%geometry_sortcid) == ic_x) then
+               rval(ii) = x0(1)
+            elseif (icolsort(w%geometry_sortcid) == ic_y) then
+               rval(ii) = x0(2)
+            elseif (icolsort(w%geometry_sortcid) == ic_z) then
+               rval(ii) = x0(3)
+            end if
+         end do
+         call mergesort(rval,iperm,1,ntype)
+         deallocate(rval)
+      else
+         ! strings
+         allocate(sval(ntype))
+         do ii = 1, ntype
+            i = w%iord(ii)
+            if (icolsort(w%geometry_sortcid) == ic_atom) then
+               if (w%geometry_atomtype == 0) then ! species
+                  sval(ii)%s = string(sys(isys)%c%spc(i)%name,2)
+               elseif (w%geometry_atomtype == 1) then ! nneq
+                  sval(ii)%s = trim(sys(isys)%c%at(i)%name)
+               elseif (w%geometry_atomtype == 2) then ! ncel
+                  sval(ii)%s = trim(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%name)
+               end if
+            elseif (icolsort(w%geometry_sortcid) == ic_wyc) then
+               sval(ii)%s = string(sys(isys)%c%at(i)%mult) // sys(isys)%c%at(i)%wyc
+            end if
+         end do
+         call mergesort(sval,iperm,1,ntype)
+         deallocate(sval)
+      end if
+
+      ! reverse if necessary
+      if (w%geometry_sortdir == 2) then
+         allocate(ival(ntype))
+         do i = 1, ntype
+            ival(i) = iperm(ntype-i+1)
+         end do
+         iperm = ival
+      end if
+
+      ! apply the permutation
+      w%iord = w%iord(iperm)
+
+    end subroutine table_sort
 
   end subroutine draw_geometry
 
