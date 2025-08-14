@@ -523,9 +523,9 @@ contains
     integer, allocatable :: eid(:), lvec_(:,:)
     real*8, allocatable :: dist_(:)
 
-    ! get just one atom
+    ! get just one atom or all sorted atoms up to distmax
     if (present(distmax)) then
-       call c%list_near_atoms(xp,icrd,.false.,nat,eid=eid,dist=dist_,lvec=lvec_,up2d=distmax,&
+       call c%list_near_atoms(xp,icrd,.true.,nat,eid=eid,dist=dist_,lvec=lvec_,up2d=distmax,&
           nid0=nid0,id0=id0,iz0=iz0,ispc0=ispc0,nozero=nozero)
     else
        call c%list_near_atoms(xp,icrd,.false.,nat,eid=eid,dist=dist_,lvec=lvec_,up2n=1,&
