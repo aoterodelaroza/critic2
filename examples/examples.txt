@@ -745,37 +745,6 @@ vacuum, caused by numerical noise, are discarded using the DISCARD
 option to YT. All ELF maxima are found, together with two spurious
 maxima that would probably disappear if one used a finer grid.
 
-* energy_components
-** Source: Quantum ESPRESSO.
-** System: urea molecular crystal.
-** Description
-
-The urea crystal was calculated at the experimental geometry with
-norm-conserving pseudopotentials and ecutrho = 4 * ecutwfc. Several
-grids were extracted from this calculation, including the density and
-various potentials and energy densities. We show how integrals over
-the unit cell of these grids and combinations therefor can be
-performed in critic2. 
-
-** crystal_voids.cri
-
-Find the volume and charge in the interstitial space of the urea
-crystal. The interstitial is (arbitrarily) defined as the region of
-the cell where the density is less than 0.01 atomic units. To do this,
-we load grids where the points with density less than this value are
-one, and the rest are zero. The same procedure can be applied to the
-promolecular or calculated densities.
-
-** energy_components.cri
-
-Calculate several components of the total energy in the urea crystal
-by integrating over the whole grid. These include the local
-pseudopotential energy, the kinetic energy, the Hartree energy, and
-the exchange-correlation energy. For the latter, we do it using both a
-cube calculated by QE and the libxc functional library (this requires
-that you compile critic2 against libxc, see the README). The ewald
-energy is calculated with the EWALD keyword.
-
 * visualization_cps
 ** Source: DFTB+ and Gaussian
 ** System: urea molecular crystal and the benzene molecule.
