@@ -21,6 +21,7 @@ submodule (crystalmod) env
 
   !xx! private procedures
   ! subroutine make_block_shell(c,n,nb,idb,dmax)
+  ! subroutine blocks_inscribed_sphere(c,x,rmax,i0,i1)
 
 contains
 
@@ -126,7 +127,7 @@ contains
 
     logical :: ok, nozero_, docycle, sorted_
     real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xdif(3), dsqrt
-    integer :: i, j, k, ix(3), nx(3), i0(3), i1(3), idx, nn
+    integer :: i, j, k, ix(3), i0(3), i1(3), idx, nn
     integer :: ib(3), ithis(3), nsafe, up2n_, nseen
     integer, allocatable :: at_id(:), at_lvec(:,:)
     real*8, allocatable :: at_dist(:), rshel(:)
@@ -349,21 +350,9 @@ contains
     else
        ! search atoms up to a given distance (up2d*) !!!
 
-       ! calculate the number of blocks in each direction required for satifying
-       ! that the largest sphere in the super-block has radius > dmax.
-       ! r = Vblock / 2 / max(cv(3)/n3,cv(2)/n2,cv(1)/n1)
-       nx = ceiling(c%blockcv / (0.5d0 * c%blockomega / max(dmax,1d-40)))
-
-       ! define the search space
-       do i = 1, 3
-          if (mod(nx(i),2) == 0) then
-             i0(i) = ix(i) - nx(i)/2
-             i1(i) = ix(i) + nx(i)/2
-          else
-             i0(i) = ix(i) - (nx(i)/2+1)
-             i1(i) = ix(i) + (nx(i)/2+1)
-          end if
-       end do
+       ! calculate the region of blocks in each direction that fits a
+       ! sphere with radius dmax
+       call blocks_inscribed_sphere(c,x,dmax,i0,i1)
 
        ! run over the atoms and compile the list
        do i = i0(1), i1(1)
@@ -535,21 +524,18 @@ contains
     real*8, allocatable :: dist_(:)
 
     ! get just one atom
-    call c%list_near_atoms(xp,icrd,.false.,nat,eid=eid,dist=dist_,lvec=lvec_,up2n=1,&
-       nid0=nid0,id0=id0,iz0=iz0,ispc0=ispc0,nozero=nozero)
+    if (present(distmax)) then
+       call c%list_near_atoms(xp,icrd,.false.,nat,eid=eid,dist=dist_,lvec=lvec_,up2d=distmax,&
+          nid0=nid0,id0=id0,iz0=iz0,ispc0=ispc0,nozero=nozero)
+    else
+       call c%list_near_atoms(xp,icrd,.false.,nat,eid=eid,dist=dist_,lvec=lvec_,up2n=1,&
+          nid0=nid0,id0=id0,iz0=iz0,ispc0=ispc0,nozero=nozero)
+    end if
 
     ! if no atoms in output, return
     nid = 0
     dist = huge(1d0)
     if (nat == 0) return
-
-    ! if the distance is higher than distmax, return
-    if (present(distmax)) then
-       if (dist_(1) > distmax) then
-          dist = distmax
-          return
-       end if
-    end if
 
     ! write and finish
     nid = eid(1)
@@ -1318,5 +1304,55 @@ contains
     dmax = 0.5d0 * c%blockomega / maxval(c%blockcv / real(n,8))
 
   end subroutine make_block_shell
+
+  !> Given a position in reduced crystallographic coordinates x,
+  !> calculate the region of blocks (between i0 and i1) required to
+  !> inscribe a sphere of radius rmax.
+  !>
+  !> Calculation of distance between point inside the block and its six
+  !> sides, assuming the corners of the block have (0,0,0) and (1,1,1)
+  !> coordinates:
+  !> d1l = |(x-x0) * (a x b)| / ||a x b|| = |x3|   * V / ||a x b||
+  !> d1u = |(x-x0) * (a x b)| / ||a x b|| = |x3-1| * V / ||a x b||
+  !> d2l = |(x-x0) * (b x c)| / ||b x c|| = |x1|   * V / ||b x c||
+  !> d2u = |(x-x0) * (b x c)| / ||b x c|| = |x1-1| * V / ||b x c||
+  !> d3l = |(x-x0) * (c x a)| / ||c x a|| = |x2|   * V / ||c x a||
+  !> d3u = |(x-x0) * (c x a)| / ||c x a|| = |x2-1| * V / ||c x a||
+  subroutine blocks_inscribed_sphere(c,x,rmax,i0,i1)
+    type(crystal), intent(in) :: c
+    real*8, intent(in) :: x(3)
+    real*8, intent(in) :: rmax
+    integer :: i0(3), i1(3)
+
+    integer :: ix(3), i
+    real*8 :: dist, xn(3)
+    logical :: again
+
+    ! find block coordinates and the home block
+    xn = x * c%nblock
+    ix = floor(xn)
+    i0 = ix
+    i1 = ix
+
+    ! expand the blocks in each direction until a sphere with radius rmax
+    ! fits in the region
+    again = .true.
+    do while (again)
+       again = .false.
+       do i = 1, 3
+          dist = (xn(i) - i0(i)) * c%blockomega / c%blockcv(i)
+          if (dist < rmax) then
+             i0(i) = i0(i) - 1
+             again = .true.
+          end if
+          dist = (i1(i) + 1 - xn(i)) * c%blockomega / c%blockcv(i)
+          if (dist < rmax) then
+             i1(i) = i1(i) + 1
+             again = .true.
+          end if
+       end do
+    end do
+
+  end subroutine blocks_inscribed_sphere
 
 end submodule env
