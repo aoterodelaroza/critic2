@@ -160,14 +160,6 @@ submodule (arithmetic) proc
   type(libxc_functional) :: ifun(maxfun)
 #endif
 
-  ! token type
-  type token
-     integer :: type = 0
-     real*8 :: fval = 0d0
-     integer :: ival = 0
-     character(len=:), allocatable :: sval
-     character*10 :: fder = ""
-  end type token
   integer, parameter :: token_undef = 0
   integer, parameter :: token_num = 1
   integer, parameter :: token_fun = 2
@@ -187,9 +179,10 @@ contains
   !> in iok (tue=success). If periodic is present and false, evaluate
   !> the expression at x0 considering the field as
   !> non-periodic. Otherwise, evaluate it as if in a periodic system.
-  !> sptr C pointer to the calling system. This routine is
-  !> thread-safe.
-  recursive module function eval(expr,errmsg,x0,sptr,periodic)
+  !> sptr C pointer to the calling system. toklistin = use the token
+  !> list provided by the user instead of the expression. This routine
+  !> is thread-safe.
+  recursive module function eval(expr,errmsg,x0,sptr,periodic,toklistin)
     use systemmod, only: system
     use iso_c_binding, only: c_ptr, c_f_pointer
     use hashmod, only: hash
@@ -199,6 +192,7 @@ contains
     real*8, intent(in), optional :: x0(3)
     type(c_ptr), intent(in), optional :: sptr
     logical, intent(in), optional :: periodic
+    type(token), intent(in), optional :: toklistin(:)
 
     integer :: i, ntok, lp
     integer :: c, s(100)
@@ -209,6 +203,7 @@ contains
     type(system), pointer :: syl
 
     errmsg = ""
+
     ! recover the system pointer
     syl => null()
     eval = 0d0
@@ -220,12 +215,17 @@ contains
        end if
     end if
 
-    ! tokenize the expression in input
-    lp = 1
-    ok = tokenize(expr,ntok,toklist,lp,syl)
-    if (.not.ok) then
-       errmsg = 'syntax error'
-       return
+    ! tokenize the expression or use the tokens in input
+    if (present(toklistin)) then
+       toklist = toklistin
+       ntok = size(toklistin,1)
+    else
+       lp = 1
+       ok = tokenize(expr,ntok,toklist,lp,syl)
+       if (.not.ok) then
+          errmsg = 'syntax error evaluating: ' // trim(expr)
+          return
+       end if
     end if
 
     ! initialize
@@ -722,6 +722,51 @@ contains
 #endif
 
   end subroutine listlibxc
+
+  !> Tokenize the expresion expr and return a list of tokens in
+  !> toklist. sptr C pointer to the calling system.
+  module subroutine pretokenize(expr,toklist,errmsg,sptr)
+    use systemmod, only: system
+    use iso_c_binding, only: c_ptr, c_f_pointer
+    character(*), intent(in) :: expr
+    type(token), intent(inout), allocatable :: toklist(:)
+    character(len=:), allocatable, intent(inout) :: errmsg
+    type(c_ptr), intent(in), optional :: sptr
+
+    type(system), pointer :: syl
+    integer :: ntok, lp
+    logical :: ok
+    type(token), allocatable :: aux(:)
+
+    ! initialize
+    errmsg = ""
+
+    ! recover the system pointer
+    syl => null()
+    if (present(sptr)) then
+       call c_f_pointer(sptr,syl)
+       if (.not.syl%isinit) then
+          errmsg = 'system not initialized'
+          return
+       end if
+    end if
+
+    ! tokenize the expression
+    lp = 1
+    ok = tokenize(expr,ntok,toklist,lp,syl)
+    if (.not.ok) then
+       errmsg = 'syntax error in expression: ' // trim(expr)
+       return
+    end if
+
+    ! reallocate
+    if (ntok /= size(toklist,1)) then
+       allocate(aux(ntok))
+       aux = toklist(1:ntok)
+       call move_alloc(aux,toklist)
+    end if
+
+  end subroutine pretokenize
 
   !xx! private procedures
 
@@ -1809,51 +1854,52 @@ contains
     if (c == fun_xc) then
        ! Functional from the xc library
 #ifdef HAVE_LIBXC
-       ia = nint(q(nq))
-       if (abs(q(nq) - ia) > 1d-13) then
-          errmsg = "need an integer for the functional ID"
-          return
-       end if
-
-       ! dirty trick for syncing the threads
-       if (.not.ifun(ia)%init) then
-          !$omp critical (ifuninit)
-          if (.not.ifun(ia)%init) then
-             ifun(ia)%id = ia
-             call xc_f03_func_init(ifun(ia)%conf, ifun(ia)%id, XC_UNPOLARIZED)
-             ifun(ia)%info = xc_f03_func_get_info(ifun(ia)%conf)
-             ifun(ia)%family = xc_f03_func_info_get_family(ifun(ia)%info)
-             ifun(ia)%init = .true.
-          end if
-          !$omp end critical (ifuninit)
-       endif
-
-       if (ifun(ia)%family == XC_FAMILY_LDA .and. nq <= 1.or.&
-          ifun(ia)%family == XC_FAMILY_GGA .and. nq <= 2.or.&
-          ifun(ia)%family == XC_FAMILY_MGGA .and. nq <= 4) then
-          errmsg = "insufficient argument list in xc"
-          return
-       endif
-
-       select case(ifun(ia)%family)
-       case (XC_FAMILY_LDA)
-          rho = q(nq-1)
-          call xc_f03_lda_exc(ifun(ia)%conf, 1_c_size_t, rho, zk)
-          nq = nq - 1
-       case (XC_FAMILY_GGA)
-          rho = q(nq-2)
-          grho = q(nq-1)*q(nq-1)
-          call xc_f03_gga_exc(ifun(ia)%conf, 1_c_size_t, rho, grho, zk)
-          nq = nq - 2
-       case (XC_FAMILY_MGGA)
-          rho = q(nq-4)
-          grho = q(nq-3)*q(nq-3)
-          lapl = q(nq-2)
-          tau = q(nq-1)
-          call xc_f03_mgga_exc(ifun(ia)%conf, 1_c_size_t, rho, grho, lapl, tau, zk)
-          nq = nq - 4
-       end select
-       q(nq) = zk(1) * rho(1)
+!       ia = nint(q(nq))
+!       if (abs(q(nq) - ia) > 1d-13) then
+!          errmsg = "need an integer for the functional ID"
+!          return
+!       end if
+!
+!       ! dirty trick for syncing the threads
+!       if (.not.ifun(ia)%init) then
+!          !$omp critical (ifuninit)
+!          if (.not.ifun(ia)%init) then
+!             ifun(ia)%id = ia
+!             call xc_f03_func_init(ifun(ia)%conf, ifun(ia)%id, XC_UNPOLARIZED)
+!             ifun(ia)%info = xc_f03_func_get_info(ifun(ia)%conf)
+!             ifun(ia)%family = xc_f03_func_info_get_family(ifun(ia)%info)
+!             ifun(ia)%init = .true.
+!          end if
+!          !$omp end critical (ifuninit)
+!       endif
+!
+!       if (ifun(ia)%family == XC_FAMILY_LDA .and. nq <= 1.or.&
+!          ifun(ia)%family == XC_FAMILY_GGA .and. nq <= 2.or.&
+!          ifun(ia)%family == XC_FAMILY_MGGA .and. nq <= 4) then
+!          errmsg = "insufficient argument list in xc"
+!          return
+!       endif
+!
+!       select case(ifun(ia)%family)
+!       case (XC_FAMILY_LDA)
+!          rho = q(nq-1)
+!          call xc_f03_lda_exc(ifun(ia)%conf, 1_c_size_t, rho, zk)
+!          nq = nq - 1
+!       case (XC_FAMILY_GGA)
+!          rho = q(nq-2)
+!          grho = q(nq-1)*q(nq-1)
+!          call xc_f03_gga_exc(ifun(ia)%conf, 1_c_size_t, rho, grho, zk)
+!          nq = nq - 2
+!       case (XC_FAMILY_MGGA)
+!          rho = q(nq-4)
+!          grho = q(nq-3)*q(nq-3)
+!          lapl = q(nq-2)
+!          tau = q(nq-1)
+!          call xc_f03_mgga_exc(ifun(ia)%conf, 1_c_size_t, rho, grho, lapl, tau, zk)
+!          nq = nq - 4
+!       end select
+!       q(nq) = zk(1) * rho(1)
+       q(nq) = 0d0
 #else
        errmsg = "critic2 was not compiled with libxc support"
        return

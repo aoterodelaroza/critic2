@@ -287,7 +287,7 @@ contains
     use iso_c_binding, only: c_loc
     use types, only: realloc
     use fieldseedmod, only: fieldseed
-    use arithmetic, only: eval
+    use arithmetic, only: eval, pretokenize, token
     use tools_io, only: equal, isinteger
     use param, only: ifformat_unknown, ifformat_wien, ifformat_elk, ifformat_pi,&
        ifformat_cube, ifformat_bincube, ifformat_abinit, ifformat_vasp,&
@@ -318,6 +318,7 @@ contains
     real*8, allocatable :: faux(:,:,:)
     logical :: ifail
     type(vstring) :: lerrmsg
+    type(token), allocatable :: toklist(:)
 
     errmsg = ""
     if (.not.c%isinit) then
@@ -565,6 +566,8 @@ contains
        n = seed%n
        call f%grid%new_eval(sptr,c_loc(c),n,seed%expr,c%m_x2c)
        if (.not.f%grid%isinit) then
+          ! This handles the cases with xc(.), structural variables,
+          ! chemfunctions or fields.
           call f%grid%end()
           f%grid%n = n
           allocate(f%grid%f(n(1),n(2),n(3)))
@@ -573,6 +576,9 @@ contains
              xdelta(:,i) = 0d0
              xdelta(i,i) = 1d0 / real(n(i),8)
           end do
+
+          ! tokenizing takes a while so let's do it here and use the token list later
+          call pretokenize(seed%expr,toklist,errmsg,sptr)
 
           ifail = .false.
           errmsg = ""
@@ -583,7 +589,7 @@ contains
                    if (ifail) cycle
                    x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
                    x = c%x2c(x)
-                   rho = eval(seed%expr,lerrmsg%s,x,sptr,.true.)
+                   rho = eval(seed%expr,lerrmsg%s,x,sptr,.true.,toklist)
                    !$omp critical(write)
                    if (len_trim(lerrmsg%s) > 0) then
                       errmsg = lerrmsg%s

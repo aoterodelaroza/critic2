@@ -337,8 +337,10 @@ submodule (grid3mod) proc
 contains
 
   !> Build a 3d grid of dimension n using an arithmetic expression
-  !> (expr). sptr = C pointer to the associated system. cptr = C pointer
-  !> to the crystal
+  !> (expr). sptr = C pointer to the associated system. cptr = C
+  !> pointer to the crystal. If the operation failed (can happen if
+  !> the expression has an xc function, structural variables,
+  !> chemfunctions, or a field), returns an unitialized grid.
   module subroutine new_eval(f,sptr,cptr,n,expr,x2c)
     use tools_math, only: matinv
     use arithmetic, only: eval_grid

@@ -18,7 +18,18 @@
 ! Evaluation of arithmetic expressions. This entire module is
 ! THREAD-SAFE (or should be, at least).
 module arithmetic
+  use iso_c_binding, only: c_ptr
   implicit none
+
+  ! token type
+  type token
+     integer :: type = 0 ! type of token (see list in implementation module)
+     real*8 :: fval = 0d0 ! associated real value
+     integer :: ival = 0 ! associated integer value
+     character(len=:), allocatable :: sval ! associated string
+     character*10 :: fder = "" ! associated modifier
+  end type token
+  public :: token
 
   public :: eval
   public :: eval_grid
@@ -29,22 +40,22 @@ module arithmetic
   public :: clearallvariables
   public :: listvariables
   public :: listlibxc
+  public :: pretokenize
 
   private
 
   ! module procedure interfaces
   interface
-     recursive module function eval(expr,errmsg,x0,sptr,periodic)
-       use iso_c_binding, only: c_ptr
+     recursive module function eval(expr,errmsg,x0,sptr,periodic,toklistin)
        real*8 :: eval
        character(*), intent(in) :: expr
        character(len=:), allocatable, intent(inout) :: errmsg
        real*8, intent(in), optional :: x0(3)
        type(c_ptr), intent(in), optional :: sptr
        logical, intent(in), optional :: periodic
+       type(token), intent(in), optional :: toklistin(:)
      end function eval
      module subroutine eval_grid(n,expr,sptr,f,iok)
-       use iso_c_binding, only: c_ptr
        integer, intent(in) :: n(3)
        character(*), intent(in) :: expr
        type(c_ptr), intent(in) :: sptr
@@ -52,7 +63,6 @@ module arithmetic
        logical, intent(out) :: iok
      end subroutine eval_grid
      module subroutine fields_in_eval(expr,errmsg,n,idlist,sptr)
-       use iso_c_binding, only: c_ptr
        use param, only: mlen
        character(*), intent(in) :: expr
        character(len=:), allocatable, intent(inout) :: errmsg
@@ -81,6 +91,12 @@ module arithmetic
        logical, intent(in) :: doname
        logical, intent(in) :: doflags
      end subroutine listlibxc
+     module subroutine pretokenize(expr,toklist,errmsg,sptr)
+       character(*), intent(in) :: expr
+       type(token), intent(inout), allocatable :: toklist(:)
+       character(len=:), allocatable, intent(inout) :: errmsg
+       type(c_ptr), intent(in), optional :: sptr
+     end subroutine pretokenize
   end interface
 
 end module arithmetic
