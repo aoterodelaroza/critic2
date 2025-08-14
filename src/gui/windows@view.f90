@@ -51,7 +51,7 @@ contains
        BIND_NAV_MEASURE, bindnames, get_bind_keyname,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use representations, only: reptype_atoms, reptype_unitcell,&
-       repflavor_atoms_basic, repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
+       repflavor_atoms_ballandstick, repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
        repflavor_unitcell_basic
     use scenes, only: style_phong, style_simple
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
@@ -522,7 +522,7 @@ contains
           ldum = iw_button("Add",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
           if (ok) then
              if (iw_menuitem("Ball and Stick",shortcut_text="Atoms")) then
-                call w%sc%add_representation(reptype_atoms,repflavor_atoms_basic)
+                call w%sc%add_representation(reptype_atoms,repflavor_atoms_ballandstick)
                 chbuild = .true.
              end if
              call iw_tooltip("Display atoms, bonds, and labels in the scene",ttshown)

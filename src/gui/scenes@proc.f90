@@ -161,9 +161,11 @@ contains
 
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
-    use representations, only: reptype_atoms, reptype_unitcell, repflavor_atoms_basic, &
+    use representations, only: reptype_atoms, reptype_unitcell,&
+       repflavor_atoms_ballandstick, repflavor_atoms_wireframe,&
        repflavor_unitcell_basic, repflavor_NUM
     use systems, only: sys, sysc, sys_ready, ok_system
+    use global, only: crsmall
     use gui_main, only: lockbehavior
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
@@ -212,7 +214,11 @@ contains
     s%iord = 0
 
     ! atoms
-    call s%add_representation(reptype_atoms,repflavor_atoms_basic)
+    if (sys(isys)%c%ncel <= crsmall) then
+       call s%add_representation(reptype_atoms,repflavor_atoms_ballandstick)
+    else
+       call s%add_representation(reptype_atoms,repflavor_atoms_wireframe)
+    end if
 
     ! unit cell
     if (.not.sys(isys)%c%ismolecule) &

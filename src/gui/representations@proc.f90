@@ -58,9 +58,6 @@ contains
     r%ncell = 1
     r%border = .true.
     r%onemotif = .false.
-    r%atoms_display = .true.
-    r%bonds_display = .true.
-    r%labels_display = .false.
     r%atom_radii_reset_type = 0
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
@@ -83,7 +80,6 @@ contains
 
     ! type-dependent settings
     if (itype == reptype_atoms) then
-       r%name = "Ball and Stick"
        r%isinit = .true.
        r%shown = .true.
        r%type = reptype_atoms
@@ -115,7 +111,22 @@ contains
     r%iord = icount(0)
 
     ! apply flavors, global options
-    if (flavor == repflavor_atoms_vdwcontacts) then
+    if (flavor == repflavor_atoms_ballandstick) then
+       r%name = "Ball and Stick"
+       r%atoms_display = .true.
+       r%bonds_display = .true.
+       r%labels_display = .false.
+    elseif (flavor == repflavor_atoms_wireframe) then
+       r%name = "Wireframe"
+       r%atoms_display = .false.
+       r%bonds_display = .true.
+       r%labels_display = .false.
+    elseif (flavor == repflavor_atoms_licorice) then
+       r%name = "Licorice"
+       r%atoms_display = .true.
+       r%bonds_display = .true.
+       r%labels_display = .false.
+    elseif (flavor == repflavor_atoms_vdwcontacts) then
        r%name = "VdW contacts"
        r%atoms_display = .false.
        r%bonds_display = .true.
@@ -149,9 +160,6 @@ contains
     r%ncell = 1
     r%border = .true.
     r%onemotif = .false.
-    r%atoms_display = .true.
-    r%bonds_display = .true.
-    r%labels_display = .false.
     r%atom_radii_reset_type = 0
     r%atom_radii_reset_scale = 0.7_c_float
     r%atom_color_reset_type = 0
@@ -183,7 +191,19 @@ contains
     end if
 
     ! apply flavors, global options
-    if (r%flavor == repflavor_atoms_vdwcontacts) then
+    if (r%flavor == repflavor_atoms_ballandstick) then
+       r%atoms_display = .true.
+       r%bonds_display = .true.
+       r%labels_display = .false.
+    elseif (r%flavor == repflavor_atoms_wireframe) then
+       r%atoms_display = .false.
+       r%bonds_display = .true.
+       r%labels_display = .false.
+    elseif (r%flavor == repflavor_atoms_licorice) then
+       r%atoms_display = .true.
+       r%bonds_display = .true.
+       r%labels_display = .false.
+    elseif (r%flavor == repflavor_atoms_vdwcontacts) then
        r%atoms_display = .false.
        r%bonds_display = .true.
        r%labels_display = .false.
@@ -1137,8 +1157,13 @@ contains
        d%order_g = 0
        call d%generate_neighstars(isys)
     else
-       ! default flavor
+       ! other flavors are default (track system bonds)
        d%isdef = .true.
+       if (flavor_ == repflavor_atoms_wireframe) then
+          ! wireframe: two colors and lighter borders
+          d%style_g = 1
+          d%border_g = 0.05_c_float
+       end if
        call d%copy_neighstars_from_system(isys)
     end if
 

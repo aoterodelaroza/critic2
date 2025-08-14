@@ -111,11 +111,13 @@ module representations
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
-  integer, parameter, public :: repflavor_atoms_basic = 1
-  integer, parameter, public :: repflavor_atoms_vdwcontacts = 2
-  integer, parameter, public :: repflavor_atoms_hbonds = 3
-  integer, parameter, public :: repflavor_unitcell_basic = 4
-  integer, parameter, public :: repflavor_NUM = 4
+  integer, parameter, public :: repflavor_atoms_ballandstick = 1
+  integer, parameter, public :: repflavor_atoms_wireframe = 2
+  integer, parameter, public :: repflavor_atoms_licorice = 3
+  integer, parameter, public :: repflavor_atoms_vdwcontacts = 4
+  integer, parameter, public :: repflavor_atoms_hbonds = 5
+  integer, parameter, public :: repflavor_unitcell_basic = 6
+  integer, parameter, public :: repflavor_NUM = 6
 
   !> Representation: objects to draw on the scene
   type representation

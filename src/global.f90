@@ -119,7 +119,7 @@ module global
   ! symmetry precision (spglib)
   real*8 :: symprec = 1d-2
 
-  ! A crystal is considered small if it has less than this number of
+  ! A structure is considered small if it has less than this number of
   ! atoms in the unit cell.
   integer :: crsmall = 2000
 
