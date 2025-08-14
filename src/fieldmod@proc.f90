@@ -877,10 +877,10 @@ contains
     wcr = f%c%xr2c(wxr)
 
     ! type selector
+    isgrid = .false.
     skipvalassign = .false.
     select case(f%type)
     case(type_grid)
-       isgrid = .false.
        if (nder == 0) then
           ! maybe we can get the grid point directly
           x = modulo(wx,1d0) * f%grid%n
@@ -990,10 +990,14 @@ contains
     ! if numerical, skip to here
 999 continue
 
-    ! If it's on a nucleus, nullify the gradient (may not be zero in
-    ! grid fields, for instance)
-    nid = f%c%identify_atom(wc,icrd_cart,distmax=1d-5)
-    res%isnuc = (nid > 0)
+    ! If it's on a nucleus and this is not a grid point, nullify the
+    ! gradient (may not be zero in grid fields, for instance)
+    if (isgrid) then
+       res%isnuc = .false.
+    else
+       nid = f%c%identify_atom(wc,icrd_cart,distmax=1d-5)
+       res%isnuc = (nid > 0)
+    end if
 
     ! gradient
     if (nder > 0) then
