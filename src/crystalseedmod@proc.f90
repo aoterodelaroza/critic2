@@ -5622,7 +5622,7 @@ contains
 
     case (isformat_r_gjf,isformat_r_pgout,isformat_r_wfn,isformat_r_wfx,&
        isformat_r_gaussian,isformat_r_fchk,isformat_r_molden,isformat_r_dat,&
-       isformat_r_orca,isformat_r_mol2,isformat_r_zmat,isformat_r_sdf)
+       isformat_r_orca,isformat_r_mol2,isformat_r_zmat,isformat_r_sdf,isformat_r_pdb)
        ismol = .true.
 
     case(isformat_r_xyz)
@@ -5650,20 +5650,6 @@ contains
              end do
           end if
        end if
-       call fclose(lu)
-
-    case(isformat_r_pdb)
-       ismol = .true.
-       lu = fopen_read(file,errstop=.false.,ti=ti)
-       if (lu < 0) return
-       do while(getline_raw(lu,line))
-          lp = 1
-          word = lgetword(line,lp)
-          if (equal(word,"scale1")) then
-             ismol = .false.
-             exit
-          end if
-       end do
        call fclose(lu)
 
     case(isformat_r_aimsout)
