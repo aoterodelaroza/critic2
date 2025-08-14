@@ -1854,52 +1854,51 @@ contains
     if (c == fun_xc) then
        ! Functional from the xc library
 #ifdef HAVE_LIBXC
-!       ia = nint(q(nq))
-!       if (abs(q(nq) - ia) > 1d-13) then
-!          errmsg = "need an integer for the functional ID"
-!          return
-!       end if
-!
-!       ! dirty trick for syncing the threads
-!       if (.not.ifun(ia)%init) then
-!          !$omp critical (ifuninit)
-!          if (.not.ifun(ia)%init) then
-!             ifun(ia)%id = ia
-!             call xc_f03_func_init(ifun(ia)%conf, ifun(ia)%id, XC_UNPOLARIZED)
-!             ifun(ia)%info = xc_f03_func_get_info(ifun(ia)%conf)
-!             ifun(ia)%family = xc_f03_func_info_get_family(ifun(ia)%info)
-!             ifun(ia)%init = .true.
-!          end if
-!          !$omp end critical (ifuninit)
-!       endif
-!
-!       if (ifun(ia)%family == XC_FAMILY_LDA .and. nq <= 1.or.&
-!          ifun(ia)%family == XC_FAMILY_GGA .and. nq <= 2.or.&
-!          ifun(ia)%family == XC_FAMILY_MGGA .and. nq <= 4) then
-!          errmsg = "insufficient argument list in xc"
-!          return
-!       endif
-!
-!       select case(ifun(ia)%family)
-!       case (XC_FAMILY_LDA)
-!          rho = q(nq-1)
-!          call xc_f03_lda_exc(ifun(ia)%conf, 1_c_size_t, rho, zk)
-!          nq = nq - 1
-!       case (XC_FAMILY_GGA)
-!          rho = q(nq-2)
-!          grho = q(nq-1)*q(nq-1)
-!          call xc_f03_gga_exc(ifun(ia)%conf, 1_c_size_t, rho, grho, zk)
-!          nq = nq - 2
-!       case (XC_FAMILY_MGGA)
-!          rho = q(nq-4)
-!          grho = q(nq-3)*q(nq-3)
-!          lapl = q(nq-2)
-!          tau = q(nq-1)
-!          call xc_f03_mgga_exc(ifun(ia)%conf, 1_c_size_t, rho, grho, lapl, tau, zk)
-!          nq = nq - 4
-!       end select
-!       q(nq) = zk(1) * rho(1)
-       q(nq) = 0d0
+       ia = nint(q(nq))
+       if (abs(q(nq) - ia) > 1d-13) then
+          errmsg = "need an integer for the functional ID"
+          return
+       end if
+
+       ! dirty trick for syncing the threads
+       if (.not.ifun(ia)%init) then
+          !$omp critical (ifuninit)
+          if (.not.ifun(ia)%init) then
+             ifun(ia)%id = ia
+             call xc_f03_func_init(ifun(ia)%conf, ifun(ia)%id, XC_UNPOLARIZED)
+             ifun(ia)%info = xc_f03_func_get_info(ifun(ia)%conf)
+             ifun(ia)%family = xc_f03_func_info_get_family(ifun(ia)%info)
+             ifun(ia)%init = .true.
+          end if
+          !$omp end critical (ifuninit)
+       endif
+
+       if (ifun(ia)%family == XC_FAMILY_LDA .and. nq <= 1.or.&
+          ifun(ia)%family == XC_FAMILY_GGA .and. nq <= 2.or.&
+          ifun(ia)%family == XC_FAMILY_MGGA .and. nq <= 4) then
+          errmsg = "insufficient argument list in xc"
+          return
+       endif
+
+       select case(ifun(ia)%family)
+       case (XC_FAMILY_LDA)
+          rho = q(nq-1)
+          call xc_f03_lda_exc(ifun(ia)%conf, 1_c_size_t, rho, zk)
+          nq = nq - 1
+       case (XC_FAMILY_GGA)
+          rho = q(nq-2)
+          grho = q(nq-1)*q(nq-1)
+          call xc_f03_gga_exc(ifun(ia)%conf, 1_c_size_t, rho, grho, zk)
+          nq = nq - 2
+       case (XC_FAMILY_MGGA)
+          rho = q(nq-4)
+          grho = q(nq-3)*q(nq-3)
+          lapl = q(nq-2)
+          tau = q(nq-1)
+          call xc_f03_mgga_exc(ifun(ia)%conf, 1_c_size_t, rho, grho, lapl, tau, zk)
+          nq = nq - 4
+       end select
+       q(nq) = zk(1) * rho(1)
 #else
        errmsg = "critic2 was not compiled with libxc support"
        return
