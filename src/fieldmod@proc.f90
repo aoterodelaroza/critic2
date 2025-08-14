@@ -1402,7 +1402,7 @@ contains
              (string(f%grid%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=3-min(3,f%grid%n(3)),2)
           write (uout,'("  Sum of elements... ",A)') string(sum(f%grid%f(:,:,:)),'e',decimal=12)
           write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%grid%f(:,:,:)**2),'e',decimal=12)
-          write (uout,'("  Cell integral (grid SUM) = ",A)') &
+          write (uout,'("  Cell integral (",A,") = ",A)') string(f%id),&
              string(sum(f%grid%f) * f%c%omega / real(product(n),8),'f',decimal=8)
           write (uout,'("  Min: ",A)') string(minval(f%grid%f),'e',decimal=8)
           write (uout,'("  Average: ",A)') string(sum(f%grid%f) / real(product(n),8),'e',decimal=8)
