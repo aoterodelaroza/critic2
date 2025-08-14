@@ -214,4 +214,4 @@ _atom_site_type_symbol
 _atom_site_fract_x
 _atom_site_fract_y
 _atom_site_fract_z
-Cu1   Cu    0.00000000000000 0.00000000000000 0.00000000000000
+Cu1   Cu    0.00000000000000 0.00000000000000 0.00000000000000 

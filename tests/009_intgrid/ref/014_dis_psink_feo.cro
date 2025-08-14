@@ -8,7 +8,7 @@
   Last elements... 2.891200000000E+00  4.104700000000E+00  7.154400000000E+00  
   Sum of elements... 6.437539477201E+04
   Sum of squares of elements... 2.847198298896E+09
-  Cell integral (grid SUM) = 189.24062005
+  Cell integral (1) = 189.24062005
   Min: 1.09970000E-02
   Average: 1.37978813E+00
   Max: 5.33560000E+04
@@ -32,7 +32,7 @@
   Last elements... 6.804558054365E-01  4.741987579667E-01  2.211650520331E-01  
   Sum of elements... 4.762484537371E+03
   Sum of squares of elements... 1.690248732566E+03
-  Cell integral (grid SUM) = 14.00000000
+  Cell integral (2) = 14.00000000
   Min: 5.83985143E-04
   Average: 1.02076572E-01
   Max: 1.02539137E+00
@@ -100,7 +100,7 @@
     2  fval      1  Pop    
     3  lval      1  Lap    
     4   f        2  $2    
-    5  dloc      2  $2#deloca  | Bloch overlaps, use_Sij_chk = No, use_Fa_chk = No  
+    5  dloc      2  $2#deloca  | Bloch overlaps, use_Sij_chk = No , use_Fa_chk = No  
 
 * Henkelman et al. integration 
   Please cite: 

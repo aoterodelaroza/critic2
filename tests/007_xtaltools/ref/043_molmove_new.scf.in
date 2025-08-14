@@ -6,8 +6,8 @@
 /
 &system
  ibrav=0,
- nat=   128,
- ntyp=  6,
+ nat=128,
+ ntyp=6,
  ecutwfc=60.0,
  ecutrho=600.0,
  xdm=.true.,

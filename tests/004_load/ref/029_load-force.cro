@@ -58,7 +58,7 @@
   Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
-  Cell integral (grid SUM) = 16.00000866
+  Cell integral (1) = 16.00000866
   Min: 3.40530000E-03
   Average: 6.77829564E-02
   Max: 3.25200000E-01
@@ -82,7 +82,7 @@
   Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
   Sum of elements... 4.941377519400E+03
   Sum of squares of elements... 7.857578527528E+02
-  Cell integral (grid SUM) = 16.00000866
+  Cell integral (1) = 16.00000866
   Min: 3.40530000E-03
   Average: 6.77829564E-02
   Max: 3.25200000E-01
@@ -106,7 +106,7 @@
   Last elements... 2.383387122030E-03  2.344224824658E-03  2.318373306775E-03  
   Sum of elements... 3.624016252190E+04
   Sum of squares of elements... 1.236641471262E+04
-  Cell integral (grid SUM) = 48.00000000
+  Cell integral (1) = 48.00000000
   Min: 1.11426372E-03
   Average: 6.29169488E-02
   Max: 9.31744835E-01
@@ -130,7 +130,7 @@
   Last elements... 5.018819587540E-01  5.621374430088E-01  6.012700890586E-01  
   Sum of elements... 1.670963778790E+04
   Sum of squares of elements... 5.859434364966E+03
-  Cell integral (grid SUM) = 79.99998748
+  Cell integral (1) = 79.99998748
   Min: 6.48112991E-03
   Average: 9.51487210E-02
   Max: 1.18857634E+00
@@ -154,7 +154,7 @@
   Last elements... 3.437300000000E-01  4.073800000000E-01  2.495100000000E-01  
   Sum of elements... 5.900819949140E+03
   Sum of squares of elements... 2.928589351186E+03
-  Cell integral (grid SUM) = 226.00873965
+  Cell integral (2) = 226.00873965
   Min: 3.10120000E-11
   Average: 2.68805573E-01
   Max: 8.42470000E-01
@@ -176,7 +176,7 @@
   Last elements... 8.402300000000E-03  6.951040000000E-03  6.134830000000E-03  
   Sum of elements... 4.941379332210E+03
   Sum of squares of elements... 7.857584921287E+02
-  Cell integral (grid SUM) = 16.00000051
+  Cell integral (1) = 16.00000051
   Min: 3.40531000E-03
   Average: 6.77829812E-02
   Max: 3.25198000E-01
@@ -272,7 +272,7 @@
   Last elements... 1.362638641149E-02  8.625842630863E-03  6.119867786765E-03  
   Sum of elements... 8.329161614450E+02
   Sum of squares of elements... 1.319324056544E+02
-  Cell integral (grid SUM) = 15.99998203
+  Cell integral (1) = 15.99998203
   Min: 3.09806108E-03
   Average: 6.77828907E-02
   Max: 3.15494269E-01
@@ -296,7 +296,7 @@
   Last elements... 5.563064109000E-03  5.272461826000E-03  5.111779283000E-03  
   Sum of elements... 2.030602211129E+04
   Sum of squares of elements... 5.355539599232E+05
-  Cell integral (grid SUM) = 177.58976486
+  Cell integral (1) = 177.58976486
   Min: 1.35665118E-03
   Average: 1.62448177E-01
   Max: 2.17740735E+02
@@ -339,7 +339,7 @@
   Last elements... 8.447964109769E-03  6.945933678349E-03  6.105829950960E-03  
   Sum of elements... 3.953102629449E+03
   Sum of squares of elements... 6.326270482264E+02
-  Cell integral (grid SUM) = 16.00000000
+  Cell integral (1) = 16.00000000
   Min: 3.37110488E-03
   Average: 6.77829669E-02
   Max: 3.26638252E-01

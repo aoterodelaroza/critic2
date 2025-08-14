@@ -8,7 +8,7 @@
   Last elements... 1.362638641149E-02  8.625842630863E-03  6.119867786765E-03  
   Sum of elements... 8.329161614450E+02
   Sum of squares of elements... 1.319324056544E+02
-  Cell integral (grid SUM) = 15.99998203
+  Cell integral (1) = 15.99998203
   Min: 3.09806108E-03
   Average: 6.77828907E-02
   Max: 3.15494269E-01
@@ -32,7 +32,7 @@
   Last elements... 1.362638641149E-02  8.625842630863E-03  6.119867786765E-03  
   Sum of elements... 1.249403708768E+03
   Sum of squares of elements... 1.060015155638E+03
-  Cell integral (grid SUM) = 24.00053908
+  Cell integral (2) = 24.00053908
   Min: 3.09806108E-03
   Average: 1.01676734E-01
   Max: 3.93613601E+00
@@ -54,7 +54,7 @@
   Last elements... -1.068929675967E-03  -1.201182531076E-04  3.740648389794E-04  
   Sum of elements... 1.354547084702E-04
   Sum of squares of elements... 1.578681024691E+00
-  Cell integral (grid SUM) = 0.00000260
+  Cell integral (3) = 0.00000260
   Min: -4.83983904E-02
   Average: 1.10233324E-08
   Max: 6.54369444E-02
@@ -76,7 +76,7 @@
   Last elements... 4.949633497745E-03  3.052817657590E-03  2.089084591717E-03  
   Sum of elements... 1.053996685417E+02
   Sum of squares of elements... 2.883164547187E+00
-  Cell integral (grid SUM) = 2.02468493
+  Cell integral (4) = 2.02468493
   Min: 6.87429292E-07
   Average: 8.57744698E-03
   Max: 1.05828919E-01
@@ -98,7 +98,7 @@
   Last elements... -6.419344544411E-01  -5.050554871559E-01  -4.250424206257E-01  
   Sum of elements... -1.737186430359E+04
   Sum of squares of elements... 4.532906697896E+04
-  Cell integral (grid SUM) = -333.70647549
+  Cell integral (5) = -333.70647549
   Min: -8.88974857E+00
   Average: -1.41372594E+00
   Max: -3.16935092E-01
@@ -120,7 +120,7 @@
   Last elements... -1.104660108685E-01  -7.280975580215E-02  -5.471925064921E-02  
   Sum of elements... -8.011507675126E+03
   Sum of squares of elements... 1.666640433205E+04
-  Cell integral (grid SUM) = -153.89781678
+  Cell integral (6) = -153.89781678
   Min: -6.28123426E+00
   Average: -6.51978164E-01
   Max: -4.63191494E-02

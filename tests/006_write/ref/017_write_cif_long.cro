@@ -191,7 +191,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 2.220446E-16
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 005f_taikanite.cif
 
@@ -386,7 +386,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 0.000000E+00
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 007g_dervillite.cif
 
@@ -401,7 +401,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 0.000000E+00
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 007h_dervillite.cif
 
@@ -656,7 +656,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 0.000000E+00
++ DIFF = 2.220446E-16
 
 * WRITE cif file: 009g_tilasite.cif
 
@@ -701,7 +701,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 0.000000E+00
++ DIFF = 2.220446E-16
 
 * WRITE cif file: 009j_tilasite.cif
 
@@ -761,7 +761,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 2.220446E-16
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 009n_tilasite.cif
 
@@ -791,7 +791,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 0.000000E+00
++ DIFF = 2.220446E-16
 
 * WRITE cif file: 009p_tilasite.cif
 
@@ -956,7 +956,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 1.110223E-16
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 012c_calaverite.cif
 
@@ -1001,7 +1001,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 0.000000E+00
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 012f_calaverite.cif
 
@@ -1526,7 +1526,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 2.220446E-16
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 015n_coesite.cif
 
@@ -1556,7 +1556,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 0.000000E+00
++ DIFF = 2.220446E-16
 
 * WRITE cif file: 015p_coesite.cif
 
@@ -6622,7 +6622,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 0.000000E+00
++ DIFF = 1.110223E-16
 
 * WRITE cif file: 156_pbi2.cif
 
@@ -6802,7 +6802,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 1.110223E-16
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 166a_cdcl2.cif
 
@@ -6922,7 +6922,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 0.000000E+00
++ DIFF = 2.220446E-16
 
 * WRITE cif file: 172_c8h4f6n4zn.cif
 
@@ -7222,7 +7222,7 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
   ... finished comparing patterns
-+ DIFF = 2.220446E-16
++ DIFF = 0.000000E+00
 
 * WRITE cif file: 192_beryl.cif
 
