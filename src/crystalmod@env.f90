@@ -127,14 +127,14 @@ contains
 
     logical :: ok, nozero_, docycle, sorted_
     real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xdif(3), dsqrt
-    integer :: i, j, k, ix(3), i0(3), i1(3), idx, nn
-    integer :: ib(3), ithis(3), nsafe, up2n_, nseen
+    integer :: i, j, k, ix(3), i0(3), i1(3), i0prev(3), i1prev(3), idx, nn
+    integer :: ib(3), ithis(3), nsafe, up2n_
     integer, allocatable :: at_id(:), at_lvec(:,:)
     real*8, allocatable :: at_dist(:), rshel(:)
     integer :: nb, nshellb
     integer, allocatable :: idb(:,:), iaux(:), iord(:)
     integer :: nshel
-    real*8 :: up2d_2
+    real*8 :: up2d_2, rcur
     real*8,allocatable :: up2dsp_2(:,:), up2dcidx_2(:)
 
     real*8, parameter :: eps = 1d-20
@@ -144,6 +144,7 @@ contains
     ! process input
     nozero_ = .false.
     sorted_ = sorted .or. present(up2n) .or. present(up2sh) .or. present(ishell0)
+    dmax = huge(1d0)
     if (present(nozero)) nozero_ = nozero
     if (present(up2d)) then
        dmax = up2d
@@ -214,82 +215,87 @@ contains
                 call add_shell_to_output_list()
           end do
        else
+          ! start with zero current distance
+          rcur = 0d0
+          i0prev = huge(1)
+          i1prev = -huge(1)+1
+
           ! Run over shells of nearby blocks and find atoms until we
           ! have at least the given number of shells
-          nseen = 0
-          nshellb = 0
           do while(.true.)
-             call make_block_shell(c,nshellb,nb,idb,dmax)
+             ! get the new region
+             rcur = rcur + 1d-5
+             call blocks_inscribed_sphere(c,x,rcur,i0,i1)
 
-             do i = 1, nb
-                ithis = idb(:,i) + ix
-
-                if (c%ismolecule) then
-                   if (ithis(1) < 0 .or. ithis(1) >= c%nblock(1) .or.&
-                      ithis(2) < 0 .or. ithis(2) >= c%nblock(2) .or.&
-                      ithis(3) < 0 .or. ithis(3) >= c%nblock(3)) cycle
-                   ib = ithis
-                   lvecx = 0
-                   xdif = -xorigc
-                else
-                   ib = (/modulo(ithis(1),c%nblock(1)), modulo(ithis(2),c%nblock(2)), modulo(ithis(3),c%nblock(3))/)
-                   lvecx = real((ithis - ib) / c%nblock,8)
-                   lvecx = matmul(c%m_xr2c,lvecx)
-                   xdif = lvecx - xorigc
-                end if
-
-                ! run over atoms in this block
-                idx = c%iblock0(ib(1),ib(2),ib(3))
-                do while (idx /= 0)
-                   ! increment the number of "seen" atoms
-                   nseen = nseen + 1
-
-                   ! apply filters
-                   docycle = .false.
-                   if (present(nid0)) &
-                      docycle = (c%atcel(idx)%idx /= nid0)
-                   if (present(ispc0)) &
-                      docycle = (c%atcel(idx)%is /= ispc0)
-                   if (present(id0)) &
-                      docycle = (idx /= id0)
-                   if (present(iz0)) &
-                      docycle = (c%spc(c%atcel(idx)%is)%z /= iz0)
-
-                   if (.not.docycle) then
-                      ! calculate distance
+             ! add the atoms in the selected blocks in the region not already explored
+             do i = i0(1), i1(1)
+                do j = i0(2), i1(2)
+                   do k = i0(3), i1(3)
+                      if (i>=i0prev(1) .and. i<=i1prev(1) .and. j>=i0prev(2) .and. j<=i1prev(2) .and.&
+                          k>=i0prev(3) .and. k<=i1prev(3)) cycle
                       if (c%ismolecule) then
-                         x = c%atcel(idx)%r
-                         dd = dot_product(x - xorigc,x - xorigc)
+                         if (i < 0 .or. i >= c%nblock(1) .or. j < 0 .or. j >= c%nblock(2) .or.&
+                            k < 0 .or. k >= c%nblock(3)) cycle
+                         ib = (/i, j, k/)
+                         lvecx = 0
+                         xdif = -xorigc
                       else
-                         dd = dot_product(c%atcel(idx)%rxc + xdif,c%atcel(idx)%rxc + xdif)
+                         ib = (/modulo(i,c%nblock(1)), modulo(j,c%nblock(2)), modulo(k,c%nblock(3))/)
+                         lvecx = matmul(c%m_xr2c,real(((/i,j,k/) - ib) / c%nblock,8))
+                         xdif = lvecx - xorigc
                       end if
 
-                      ! check if we should add the atom to the list
-                      ok = .true.
-                      if (nozero_ .and. dd < eps) then
-                         ok = .false.
-                         if (c%ismolecule) up2n_ = min(up2n,c%ncel-1)
-                      end if
-                      if (ok) then
-                         call add_atom_to_output_list()
-                         dsqrt = at_dist(nat)
-                         if (present(up2sh)) &
-                            call add_shell_to_output_list()
-                      end if
-                   end if
+                      ! run over atoms in this block
+                      idx = c%iblock0(ib(1),ib(2),ib(3))
+                      do while (idx /= 0)
+                         ! apply filters
+                         docycle = .false.
+                         if (present(nid0)) &
+                            docycle = (c%atcel(idx)%idx /= nid0)
+                         if (present(ispc0)) &
+                            docycle = (c%atcel(idx)%is /= ispc0)
+                         if (present(id0)) &
+                            docycle = (idx /= id0)
+                         if (present(iz0)) &
+                            docycle = (c%spc(c%atcel(idx)%is)%z /= iz0)
 
-                   ! next atom
-                   idx = c%atcel(idx)%inext
-                end do ! while idx
+                         if (.not.docycle) then
+                            ! calculate distance
+                            if (c%ismolecule) then
+                               x = c%atcel(idx)%r
+                               dd = dot_product(x  - xorigc,x - xorigc)
+                            else
+                               dd = dot_product(c%atcel(idx)%rxc + xdif,c%atcel(idx)%rxc + xdif)
+                            end if
+
+                            ! check if we should add the atom to the list
+                            ok = .true.
+                            if (nozero_ .and. dd < eps) then
+                               ok = .false.
+                               if (c%ismolecule) up2n_ = min(up2n,c%ncel-1)
+                            end if
+                            if (ok) then
+                               dsqrt = sqrt(dd)
+                               call add_atom_to_output_list()
+                               if (present(up2sh)) &
+                                  call add_shell_to_output_list()
+                            end if
+                         end if
+
+                         ! next atom
+                         idx = c%atcel(idx)%inext
+                      end do ! while idx
+                   end do
+                end do
              end do
 
              if (present(up2sh)) then
                 ! exit if we have enough shells
-                nsafe = count(rshel(1:nshel) <= dmax)
+                nsafe = count(rshel(1:nshel) < rcur)
                 if (nsafe >= up2sh) exit
              else
                 ! check if we have enough atoms
-                nsafe = count(at_dist(1:nat) <= dmax)
+                nsafe = count(at_dist(1:nat) < rcur)
                 if (nsafe >= up2n_) exit
              end if
 
@@ -300,7 +306,8 @@ contains
              end if
 
              ! next shell
-             nshellb = nshellb + 1
+             i0prev = i0
+             i1prev = i1
           end do ! while loop
        end if
 
@@ -329,11 +336,11 @@ contains
           end if
 
           ! filter out the unneeded atoms
-          nsafe = count(at_dist(1:nat) <= dmax)
+          nsafe = count(at_dist(1:nat) <= rcur)
           allocate(iaux(nsafe))
           nsafe = 0
           do i = 1, nat
-             if (at_dist(i) <= dmax) then
+             if (at_dist(i) <= rcur) then
                 nsafe = nsafe + 1
                 iaux(nsafe) = i
              end if
@@ -404,7 +411,10 @@ contains
                       elseif (present(up2dcidx)) then
                          ok = (dd <= up2dcidx_2(idx))
                       end if
-                      if (ok) call add_atom_to_output_list()
+                      if (ok) then
+                         dsqrt = sqrt(dd)
+                         call add_atom_to_output_list()
+                      end if
                    end if
 
                    ! next atom
@@ -466,7 +476,7 @@ contains
          call realloc(at_lvec,3,2*nat)
       end if
       at_id(nat) = idx
-      at_dist(nat) = sqrt(dd)
+      at_dist(nat) = dsqrt
       if (c%ismolecule) then
          at_lvec(:,nat) = 0
       else
@@ -1307,51 +1317,41 @@ contains
 
   !> Given a position in reduced crystallographic coordinates x,
   !> calculate the region of blocks (between i0 and i1) required to
-  !> inscribe a sphere of radius rmax.
+  !> inscribe a sphere of radius rmax centered on x. On output, rmax
+  !> is increased to the radius of the largest sphere centered on x
+  !> inscribed in i0 -> i1.
   !>
   !> Calculation of distance between point inside the block and its six
   !> sides, assuming the corners of the block have (0,0,0) and (1,1,1)
   !> coordinates:
-  !> d1l = |(x-x0) * (a x b)| / ||a x b|| = |x3|   * V / ||a x b||
-  !> d1u = |(x-x0) * (a x b)| / ||a x b|| = |x3-1| * V / ||a x b||
-  !> d2l = |(x-x0) * (b x c)| / ||b x c|| = |x1|   * V / ||b x c||
-  !> d2u = |(x-x0) * (b x c)| / ||b x c|| = |x1-1| * V / ||b x c||
-  !> d3l = |(x-x0) * (c x a)| / ||c x a|| = |x2|   * V / ||c x a||
-  !> d3u = |(x-x0) * (c x a)| / ||c x a|| = |x2-1| * V / ||c x a||
+  !>   d1l = |(x-x0) * (a x b)| / ||a x b|| = |x3|   * V / ||a x b||
+  !>   d1u = |(x-x0) * (a x b)| / ||a x b|| = |x3-1| * V / ||a x b||
+  !>   d2l = |(x-x0) * (b x c)| / ||b x c|| = |x1|   * V / ||b x c||
+  !>   d2u = |(x-x0) * (b x c)| / ||b x c|| = |x1-1| * V / ||b x c||
+  !>   d3l = |(x-x0) * (c x a)| / ||c x a|| = |x2|   * V / ||c x a||
+  !>   d3u = |(x-x0) * (c x a)| / ||c x a|| = |x2-1| * V / ||c x a||
+  !> which results in:
+  !>  dist = (xn(i) - i0(i)) * V / cv(i)
+  !>  dist = (i1(i) + 1 - xn(i)) * V / cv(i)
   subroutine blocks_inscribed_sphere(c,x,rmax,i0,i1)
     type(crystal), intent(in) :: c
     real*8, intent(in) :: x(3)
-    real*8, intent(in) :: rmax
+    real*8, intent(inout) :: rmax
     integer :: i0(3), i1(3)
 
-    integer :: ix(3), i
-    real*8 :: dist, xn(3)
-    logical :: again
+    real*8 :: xn(3), rmaxnew, fac(3)
 
-    ! find block coordinates and the home block
+    ! block coordinates of the  point
     xn = x * c%nblock
-    ix = floor(xn)
-    i0 = ix
-    i1 = ix
 
-    ! expand the blocks in each direction until a sphere with radius rmax
-    ! fits in the region
-    again = .true.
-    do while (again)
-       again = .false.
-       do i = 1, 3
-          dist = (xn(i) - i0(i)) * c%blockomega / c%blockcv(i)
-          if (dist < rmax) then
-             i0(i) = i0(i) - 1
-             again = .true.
-          end if
-          dist = (i1(i) + 1 - xn(i)) * c%blockomega / c%blockcv(i)
-          if (dist < rmax) then
-             i1(i) = i1(i) + 1
-             again = .true.
-          end if
-       end do
-    end do
+    ! calculate the region
+    fac = rmax * c%blockcv / c%blockomega
+    i0 = floor(xn - fac)
+    i1 = ceiling(xn - 1 + fac)
+
+    ! calculate the new rmax
+    rmax = minval((xn - i0) * c%blockomega / c%blockcv)
+    rmax = min(rmax,minval((i1 + 1 - xn) * c%blockomega / c%blockcv))
 
   end subroutine blocks_inscribed_sphere
 

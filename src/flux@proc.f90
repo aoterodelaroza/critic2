@@ -1449,7 +1449,7 @@ contains
 
   end subroutine flx_graph
 
-  !> xxxx experimental xxxx
+  !> (experimental)
   !> Find a vector thetavec of angles (radian) such that an uniform
   !> angular distribution of points on the boundary circle of radius
   !> R around a bcp with (negative) eigenvalues lx, ly transform to
