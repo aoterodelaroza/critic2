@@ -990,14 +990,10 @@ contains
     ! if numerical, skip to here
 999 continue
 
-    ! If it's on a nucleus and this is not a grid point, nullify the
-    ! gradient (may not be zero in grid fields, for instance)
-    if (isgrid) then
-       res%isnuc = .false.
-    else
-       nid = f%c%identify_atom(wc,icrd_cart,distmax=1d-5)
-       res%isnuc = (nid > 0)
-    end if
+    ! If it's on a nucleus, nullify the gradient (may not be zero in
+    ! grid fields, for instance)
+    nid = f%c%identify_atom(wc,icrd_cart,distmax=1d-5)
+    res%isnuc = (nid > 0)
 
     ! gradient
     if (nder > 0) then
