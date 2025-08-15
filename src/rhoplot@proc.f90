@@ -191,7 +191,7 @@ contains
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, equal,&
        isexpression_or_word, fopen_write, uout, string, fclose
-    use types, only: scalar_value
+    use types, only: scalar_value, vstring
     character*(*), intent(in) :: line
 
     integer :: lp, lp2, nti, id, luout, np
@@ -201,6 +201,7 @@ contains
     logical :: ok, iok
     integer :: i, j
     real*8, allocatable :: rhoout(:), lapout(:)
+    type(vstring) :: lerrmsg
 
     ! read the points
     lp = 1
@@ -313,7 +314,8 @@ contains
     allocate(rhoout(np),lapout(np))
     lapout = 0d0
 
-    !$omp parallel do private (xp,dist,res,iok,rhopt,lappt,errmsg)
+    lerrmsg%s = ""
+    !$omp parallel do private(xp,dist,res,iok,rhopt,lappt) firstprivate(lerrmsg)
     do i=1,np
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
        if (id >= 0) then
@@ -353,13 +355,15 @@ contains
              lappt = res%del2f
           end select
        else
-          rhopt = sy%eval(expr,errmsg,xp)
+          rhopt = sy%eval(expr,lerrmsg%s,xp)
           lappt = rhopt
        end if
 
        !$omp critical (iowrite)
        rhoout(i) = rhopt
        lapout(i) = lappt
+       if (len_trim(lerrmsg%s) > 0) &
+          call ferror('rhoplot_line',lerrmsg%s,faterr)
        !$omp end critical (iowrite)
     enddo
     !$omp end parallel do
@@ -402,7 +406,7 @@ contains
     use arithmetic, only: eval
     use tools_io, only: lgetword, faterr, ferror, equal, getword, &
        isexpression_or_word, uout, string, isinteger
-    use types, only: scalar_value
+    use types, only: scalar_value, vstring
     use param, only: eye
     use iso_c_binding, only: c_loc
     character*(*), intent(in) :: line
@@ -411,7 +415,7 @@ contains
     real*8 :: x0(3), x1(3), xp(3), lappt
     real*8 :: rgr, dd(3), xd(3,3)
     integer :: lp2, nder
-    character(len=:), allocatable :: word, outfile, expr, wext1, errmsg
+    character(len=:), allocatable :: word, outfile, expr, wext1
     type(scalar_value) :: res
     logical :: ok, doortho
     integer :: ix, iy, iz, i, ibnd, ik, inr(3), ispin
@@ -420,6 +424,7 @@ contains
     integer :: outform, ishift(3), dopsi
     type(grid3) :: faux
     complex*16, allocatable :: caux(:,:,:)
+    type(vstring) :: lerrmsg
 
     integer, parameter :: outform_cube = 1
     integer, parameter :: outform_bincube = 2
@@ -767,7 +772,8 @@ contains
           lf = faux%f
           call faux%end()
        else
-          !$omp parallel do private (xp,res,lappt,errmsg)
+          lerrmsg%s = ""
+          !$omp parallel do private(xp,res,lappt) firstprivate(lerrmsg)
           do iz = 0, nn(3)-1
              do iy = 0, nn(2)-1
                 do ix = 0, nn(1)-1
@@ -803,10 +809,12 @@ contains
                          lappt = res%del2f
                       end select
                    else
-                      lappt = sy%eval(expr,errmsg,xp)
+                      lappt = sy%eval(expr,lerrmsg%s,xp)
                    end if
                    !$omp critical (fieldwrite)
                    lf(ix+1,iy+1,iz+1) = lappt
+                   if (len_trim(lerrmsg%s) > 0) &
+                      call ferror('rhoplot_cube',lerrmsg%s,faterr)
                    !$omp end critical (fieldwrite)
                 end do
              end do
@@ -837,7 +845,7 @@ contains
        isexpression_or_word, fopen_write, uout, string, fclose
     use tools_math, only: plane_scale_extend, assign_ziso, niso_manual,&
        niso_lin, niso_log, niso_atan, niso_bader
-    use types, only: scalar_value, realloc
+    use types, only: scalar_value, realloc, vstring
     character*(*), intent(in) :: line
 
     integer :: lp2, lp, nti, id, luout, nx, ny, niso_type, niso, nn
@@ -845,11 +853,12 @@ contains
     real*8 :: uu(3), vv(3), fmin, fmax
     real*8 :: sx0, sy0, zx0, zx1, zy0, zy1, zmin, zmax, rdum
     logical :: docontour, dorelief, docolormap, fset
-    character(len=:), allocatable :: word, outfile, root0, expr, errmsg
+    character(len=:), allocatable :: word, outfile, root0, expr
     type(scalar_value) :: res
     logical :: ok
     integer :: ix, iy, cmopt, nder
     real*8, allocatable :: ff(:,:), ziso(:)
+    type(vstring) :: lerrmsg
 
     ! read the points
     lp = 1
@@ -1083,7 +1092,8 @@ contains
        nder = 2
     end if
 
-    !$omp parallel do private (xp,res,rhopt,errmsg)
+    lerrmsg%s = ""
+    !$omp parallel do private (xp,res,rhopt) firstprivate(lerrmsg)
     do ix = 1, nx
        do iy = 1, ny
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
@@ -1117,10 +1127,12 @@ contains
                 rhopt = res%del2f
              end select
           else
-             rhopt = sy%eval(expr,errmsg,xp)
+             rhopt = sy%eval(expr,lerrmsg%s,xp)
           endif
           !$omp critical (write)
           ff(ix,iy) = rhopt
+          if (len_trim(lerrmsg%s) > 0) &
+             call ferror('rhoplot_plane',lerrmsg%s,faterr)
           !$omp end critical (write)
        end do
     end do
