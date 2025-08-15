@@ -1490,7 +1490,7 @@ contains
     use tools_io, only: getword, equal, faterr, ferror, uout, string, ioj_center,&
        ioj_left, string, lower, lgetword, fopen_read, fclose, isreal,&
        file_read_xy
-    use types, only: realloc
+    use types, only: realloc, vstring
     use param, only: isformat_r_unknown, maxzat, pi
     type(system), intent(in) :: s
     character*(*), intent(in) :: line
@@ -1515,6 +1515,7 @@ contains
     character*1024, allocatable :: fname(:)
     type(crystalseed) :: seed
     integer, allocatable :: fname_type(:)
+    type(vstring) :: lerrmsg
 
     integer, parameter :: msg_counter = 50
 
@@ -1852,14 +1853,16 @@ contains
           if (epsreduce > 0d0) then
              if (irepeat(i) > 0) cycle
           end if
-          !$omp parallel do firstprivate(errmsg) private(xnorm2)
+
+          lerrmsg%s = ""
+          !$omp parallel do firstprivate(lerrmsg) private(xnorm2)
           do j = i+1, ns
              if (epsreduce > 0d0) then
                 if (irepeat(j) > 0) cycle
              end if
-             call crosscorr_gaussian(xp(i),xp(j),xrpd_alpha_def,sigma,xnorm2,errmsg,.false.)
+             call crosscorr_gaussian(xp(i),xp(j),xrpd_alpha_def,sigma,xnorm2,lerrmsg%s,.false.)
              !$omp critical (errmsg_)
-             if (len(errmsg) > 0) &
+             if (len(lerrmsg%s) > 0) &
                 call ferror("struct_compare","error calculating Gaussian crosscorrelation",faterr)
              !$omp end critical (errmsg_)
              diff(i,j) = max(1d0 - xnorm2 / xnorm(i) / xnorm(j),0d0)

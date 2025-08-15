@@ -225,7 +225,7 @@ contains
     use global, only: mesh_type, mesh_level
     use arithmetic, only: setvariable
     use tools_io, only: string, uout
-    use types, only: scalar_value
+    use types, only: scalar_value, vstring
     character*(*), intent(in) :: expr, savevar
 
     type(mesh) :: m
@@ -233,7 +233,7 @@ contains
     real*8 :: fval, fsum
     integer :: i
     logical :: ok
-    character(len=:), allocatable :: errmsg
+    type(vstring) :: lerrmsg
 
     call m%gen(sy%c,mesh_type,mesh_level)
 
@@ -241,10 +241,11 @@ contains
     write (uout,'("  Expression: ",A)') trim(expr)
     call m%report()
 
+    lerrmsg%s = ""
     allocate(ff(m%n))
-    !$omp parallel do private(fval,ok,errmsg)
+    !$omp parallel do private(fval,ok) firstprivate(lerrmsg)
     do i = 1, m%n
-       fval = sy%eval(expr,errmsg,m%x(:,i))
+       fval = sy%eval(expr,lerrmsg%s,m%x(:,i))
        !$omp critical (save)
        ff(i) = fval
        !$omp end critical (save)
