@@ -117,7 +117,7 @@ contains
        r%bonds_display = .true.
        r%labels_display = .false.
     elseif (flavor == repflavor_atoms_sticks) then
-       r%name = "Sticks"
+       r%name = "Bonds"
        r%atoms_display = .false.
        r%bonds_display = .true.
        r%labels_display = .false.
@@ -857,15 +857,21 @@ contains
 
   !> Reset atom style to defaults consistent with system isys, or empty
   !> if system is not ready.
-  module subroutine reset_atom_style(d,isys)
+  module subroutine reset_atom_style(d,isys,flavor)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sys_ready, ok_system
     use gui_main, only: ColorElement
     use param, only: atmcov
     class(draw_style_atom), intent(inout), target :: d
     integer, intent(in) :: isys
+    integer, intent(in), optional :: flavor
 
     integer :: i, ispc, iz
+    integer :: flavor_
+
+    ! optional arguments
+    flavor_ = repflavor_unknown
+    if (present(flavor)) flavor_ = flavor
 
     ! if not initialized, set type
     if (.not.d%isinit) d%type = 0
@@ -918,6 +924,11 @@ contains
     end if
     d%shown = .true.
     d%isinit = .true.
+
+    ! flavor-dependent changes
+    if (flavor_ == repflavor_atoms_licorice) then
+       d%rad(1:d%ntype) = bond_rad_def
+    end if
 
   end subroutine reset_atom_style
 
@@ -1163,6 +1174,8 @@ contains
           ! sticks: two colors and lighter borders
           d%style_g = 1
           d%border_g = 0.05_c_float
+       elseif (flavor_ == repflavor_atoms_licorice) then
+          ! licorice: atoms and bonds with the same radius
        end if
        call d%copy_neighstars_from_system(isys)
     end if

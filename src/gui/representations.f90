@@ -200,9 +200,10 @@ module representations
        class(representation), intent(inout), target :: r
      end subroutine reset_all_styles
      ! draw_style_atom
-     module subroutine reset_atom_style(d,isys)
+     module subroutine reset_atom_style(d,isys,flavor)
        class(draw_style_atom), intent(inout), target :: d
        integer, intent(in) :: isys
+       integer, intent(in), optional :: flavor
      end subroutine reset_atom_style
      module subroutine reset_colors_atom_style(d,isys)
        class(draw_style_atom), intent(inout), target :: d

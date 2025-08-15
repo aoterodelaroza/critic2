@@ -52,7 +52,7 @@ contains
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use representations, only: reptype_atoms, reptype_unitcell,&
        repflavor_atoms_ballandstick, repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
-       repflavor_unitcell_basic
+       repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic
     use scenes, only: style_phong, style_simple
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
        iw_setposx_fromend, iw_checkbox, iw_coloredit, iw_menuitem
@@ -525,19 +525,32 @@ contains
                 call w%sc%add_representation(reptype_atoms,repflavor_atoms_ballandstick)
                 chbuild = .true.
              end if
-             call iw_tooltip("Display atoms, bonds, and labels in the scene",ttshown)
+             call iw_tooltip("Draw atoms as balls and bonds as sticks, hide the labels",ttshown)
+
+             if (iw_menuitem("Bonds",shortcut_text="Atoms")) then
+                call w%sc%add_representation(reptype_atoms,repflavor_atoms_sticks)
+                chbuild = .true.
+             end if
+             call iw_tooltip("Draw bonds as sticks, hide atoms and labels",ttshown)
+
+             if (iw_menuitem("Licorice",shortcut_text="Atoms")) then
+                call w%sc%add_representation(reptype_atoms,repflavor_atoms_licorice)
+                chbuild = .true.
+             end if
+             call iw_tooltip("Draw atoms and bonds with the same radius, hide labels",ttshown)
 
              if (iw_menuitem("Van der Waals Contacts",shortcut_text="Atoms")) then
                 call w%sc%add_representation(reptype_atoms,repflavor_atoms_vdwcontacts)
                 chbuild = .true.
              end if
-             call iw_tooltip("Display intermolecular close contacts using van der Waals radii",ttshown)
+             call iw_tooltip("Display contacts between nonbonded atoms closer than the sum &
+                &of their van der Waals radii",ttshown)
 
              if (iw_menuitem("Hydrogen Bonds",shortcut_text="Atoms")) then
                 call w%sc%add_representation(reptype_atoms,repflavor_atoms_hbonds)
                 chbuild = .true.
              end if
-             call iw_tooltip("Display intermolecular close contacts using van der Waals radii",ttshown)
+             call iw_tooltip("Display contacts between hydrogen bonded atoms",ttshown)
 
              if (.not.sys(w%view_selected)%c%ismolecule) then
                 call igSeparator()
