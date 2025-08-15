@@ -60,6 +60,7 @@ contains
     r%onemotif = .false.
     r%atom_radii_reset_type = 0
     r%atom_radii_reset_scale = 0.7_c_float
+    r%atom_radii_reset_value = 1.0_c_float
     r%atom_color_reset_type = 0
     r%uc_radius = 0.15_c_float
     r%uc_radiusinner = 0.15_c_float
@@ -162,6 +163,7 @@ contains
     r%onemotif = .false.
     r%atom_radii_reset_type = 0
     r%atom_radii_reset_scale = 0.7_c_float
+    r%atom_radii_reset_value = 1.0_c_float
     r%atom_color_reset_type = 0
     r%uc_radius = 0.15_c_float
     r%uc_radiusinner = 0.15_c_float

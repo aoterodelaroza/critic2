@@ -143,8 +143,9 @@ module representations
      logical :: labels_display = .true. ! whether to draw the labels
      logical :: border = .true. ! draw atoms at the border of the unit cell
      logical :: onemotif = .false. ! draw connected molecules
-     integer(c_int) :: atom_radii_reset_type = 0 ! option to reset radii: 0=covalent, 1=vdw
+     integer(c_int) :: atom_radii_reset_type = 0 ! option to reset radii: 0=covalent,1=vdw,2=constant
      real(c_float) :: atom_radii_reset_scale = 0.7_c_float ! reset radii, scale factor
+     real(c_float) :: atom_radii_reset_value = 1.0_c_float ! reset radii, constant value
      integer(c_int) :: atom_color_reset_type = 0 ! option to reset colors: 0=current,1=jmlcol,2=jmlcol2
      type(draw_style_atom) :: atom_style ! atom styles
      type(draw_style_molecule) :: mol_style ! molecule styles

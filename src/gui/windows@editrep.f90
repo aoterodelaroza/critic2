@@ -166,7 +166,7 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&
        iw_highlight_selectable
-    use param, only: atmcov, atmvdw, newline, jmlcol, jmlcol2
+    use param, only: atmcov, atmvdw, newline, jmlcol, jmlcol2, bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical(c_bool) :: changed
@@ -178,7 +178,7 @@ contains
     real*8 :: x0(3)
     logical(c_bool) :: ch, ldum
     integer(c_int) :: nc(3), lst, flags, nspcpair
-    real(c_float) :: sqw
+    real(c_float) :: sqw, raux
     integer :: i, j, k, intable, nrow, is, ncol, ihighlight, highlight_type
     type(ImVec2) :: sz
     type(c_ptr), target :: clipper
@@ -387,37 +387,54 @@ contains
                 changed = .true.
              end if
              call iw_tooltip("Reset to the default settings for the atom representation")
-             call iw_combo_simple("Radii ##atomradiicombo","Covalent" // c_null_char // "Van der Waals" // c_null_char,&
-                w%rep%atom_radii_reset_type,changed=ch)
+             call iw_combo_simple("Radii ##atomradiicombo","Covalent"//c_null_char//"Van der Waals"//c_null_char//&
+                "Constant"//c_null_char,w%rep%atom_radii_reset_type,changed=ch)
              call iw_tooltip("Set atomic radii to the tabulated values of this type",ttshown)
 
              call igSameLine(0._c_float,-1._c_float)
              call igPushItemWidth(iw_calcwidth(5,1))
-             str2 = "Radii Scale##atomradiiscale" // c_null_char
-             str3 = "%.3f" // c_null_char
-             ch = ch .or. igDragFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
-                ImGuiSliderFlags_AlwaysClamp)
-             call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
-             call igPopItemWidth()
-             if (ch) then
-                do i = 1, w%rep%atom_style%ntype
-                   if (w%rep%atom_style%type == 0) then ! species
-                      ispc = i
-                   elseif (w%rep%atom_style%type == 1) then ! nneq
-                      ispc = sys(isys)%c%at(i)%is
-                   else ! ncel
-                      ispc = sys(isys)%c%atcel(i)%is
-                   end if
-                   iz = sys(isys)%c%spc(ispc)%z
-                   if (w%rep%atom_radii_reset_type == 0) then
-                      w%rep%atom_style%rad(i) = real(atmcov(iz),c_float)
-                   else
-                      w%rep%atom_style%rad(i) = real(atmvdw(iz),c_float)
-                   end if
-                   w%rep%atom_style%rad(i) = w%rep%atom_style%rad(i) * w%rep%atom_radii_reset_scale
-                end do
-                changed = .true.
+             if (w%rep%atom_radii_reset_type == 2) then
+                ! constant size
+                str2 = "Radii##atomradii" // c_null_char
+                str3 = "%.3f" // c_null_char
+                raux = w%rep%atom_radii_reset_value * bohrtoa
+                ch = ch .or. igDragFloat(c_loc(str2),raux,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
+                   ImGuiSliderFlags_AlwaysClamp)
+                call iw_tooltip("Atomic radii (Å)",ttshown)
+                if (ch) then
+                   w%rep%atom_radii_reset_value = raux / bohrtoa
+                   w%rep%atom_style%rad(1:w%rep%atom_style%ntype) =w%rep%atom_radii_reset_value
+                   changed = .true.
+                end if
+             else
+                ! variable size
+                str2 = "Radii Scale##atomradiiscale" // c_null_char
+                str3 = "%.3f" // c_null_char
+                ch = ch .or. igDragFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
+                   ImGuiSliderFlags_AlwaysClamp)
+                call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
+
+                if (ch) then
+                   do i = 1, w%rep%atom_style%ntype
+                      if (w%rep%atom_style%type == 0) then ! species
+                         ispc = i
+                      elseif (w%rep%atom_style%type == 1) then ! nneq
+                         ispc = sys(isys)%c%at(i)%is
+                      else ! ncel
+                         ispc = sys(isys)%c%atcel(i)%is
+                      end if
+                      iz = sys(isys)%c%spc(ispc)%z
+                      if (w%rep%atom_radii_reset_type == 0) then
+                         w%rep%atom_style%rad(i) = real(atmcov(iz),c_float)
+                      else
+                         w%rep%atom_style%rad(i) = real(atmvdw(iz),c_float)
+                      end if
+                      w%rep%atom_style%rad(i) = w%rep%atom_style%rad(i) * w%rep%atom_radii_reset_scale
+                   end do
+                   changed = .true.
+                end if
              end if
+             call igPopItemWidth()
 
              ! style buttons: set color
              call iw_combo_simple("Colors ##atomcolorselect","Current defaults" // c_null_char //&
