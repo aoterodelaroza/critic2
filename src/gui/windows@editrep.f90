@@ -395,7 +395,7 @@ contains
              call igPushItemWidth(iw_calcwidth(5,1))
              if (w%rep%atom_radii_reset_type == 2) then
                 ! constant size
-                str2 = "Radii##atomradii" // c_null_char
+                str2 = "Value##atomradii" // c_null_char
                 str3 = "%.3f" // c_null_char
                 raux = w%rep%atom_radii_reset_value * bohrtoa
                 ch = ch .or. igDragFloat(c_loc(str2),raux,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
@@ -408,7 +408,7 @@ contains
                 end if
              else
                 ! variable size
-                str2 = "Radii Scale##atomradiiscale" // c_null_char
+                str2 = "Scale##atomradiiscale" // c_null_char
                 str3 = "%.3f" // c_null_char
                 ch = ch .or. igDragFloat(c_loc(str2),w%rep%atom_radii_reset_scale,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
                    ImGuiSliderFlags_AlwaysClamp)
