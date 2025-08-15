@@ -162,7 +162,7 @@ contains
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
     use representations, only: reptype_atoms, reptype_unitcell,&
-       repflavor_atoms_ballandstick, repflavor_atoms_wireframe,&
+       repflavor_atoms_ballandstick, repflavor_atoms_sticks,&
        repflavor_unitcell_basic, repflavor_NUM
     use systems, only: sys, sysc, sys_ready, ok_system
     use global, only: crsmall
@@ -217,7 +217,7 @@ contains
     if (sys(isys)%c%ncel <= crsmall) then
        call s%add_representation(reptype_atoms,repflavor_atoms_ballandstick)
     else
-       call s%add_representation(reptype_atoms,repflavor_atoms_wireframe)
+       call s%add_representation(reptype_atoms,repflavor_atoms_sticks)
     end if
 
     ! unit cell

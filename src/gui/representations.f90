@@ -112,7 +112,7 @@ module representations
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
   integer, parameter, public :: repflavor_atoms_ballandstick = 1
-  integer, parameter, public :: repflavor_atoms_wireframe = 2
+  integer, parameter, public :: repflavor_atoms_sticks = 2
   integer, parameter, public :: repflavor_atoms_licorice = 3
   integer, parameter, public :: repflavor_atoms_vdwcontacts = 4
   integer, parameter, public :: repflavor_atoms_hbonds = 5

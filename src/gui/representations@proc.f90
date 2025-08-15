@@ -116,8 +116,8 @@ contains
        r%atoms_display = .true.
        r%bonds_display = .true.
        r%labels_display = .false.
-    elseif (flavor == repflavor_atoms_wireframe) then
-       r%name = "Wireframe"
+    elseif (flavor == repflavor_atoms_sticks) then
+       r%name = "Sticks"
        r%atoms_display = .false.
        r%bonds_display = .true.
        r%labels_display = .false.
@@ -195,7 +195,7 @@ contains
        r%atoms_display = .true.
        r%bonds_display = .true.
        r%labels_display = .false.
-    elseif (r%flavor == repflavor_atoms_wireframe) then
+    elseif (r%flavor == repflavor_atoms_sticks) then
        r%atoms_display = .false.
        r%bonds_display = .true.
        r%labels_display = .false.
@@ -1159,8 +1159,8 @@ contains
     else
        ! other flavors are default (track system bonds)
        d%isdef = .true.
-       if (flavor_ == repflavor_atoms_wireframe) then
-          ! wireframe: two colors and lighter borders
+       if (flavor_ == repflavor_atoms_sticks) then
+          ! sticks: two colors and lighter borders
           d%style_g = 1
           d%border_g = 0.05_c_float
        end if
