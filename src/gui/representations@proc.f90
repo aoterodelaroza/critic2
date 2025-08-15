@@ -59,8 +59,8 @@ contains
     r%border = .true.
     r%onemotif = .false.
     r%atom_radii_reset_type = 0
-    r%atom_radii_reset_scale = 0.7_c_float
-    r%atom_radii_reset_value = 1.0_c_float
+    r%atom_radii_reset_scale = atomcovradscale_def
+    r%atom_radii_reset_value = bondrad_def
     r%atom_color_reset_type = 0
     r%uc_radius = 0.15_c_float
     r%uc_radiusinner = 0.15_c_float
@@ -162,8 +162,8 @@ contains
     r%border = .true.
     r%onemotif = .false.
     r%atom_radii_reset_type = 0
-    r%atom_radii_reset_scale = 0.7_c_float
-    r%atom_radii_reset_value = 1.0_c_float
+    r%atom_radii_reset_scale = atomcovradscale_def
+    r%atom_radii_reset_value = bondrad_def
     r%atom_color_reset_type = 0
     r%uc_radius = 0.15_c_float
     r%uc_radiusinner = 0.15_c_float
@@ -253,12 +253,12 @@ contains
     ! atoms
     doreset = .not.r%atom_style%isinit
     doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%atom_style%timelastreset)
-    if (doreset) call r%atom_style%reset(r%id)
+    if (doreset) call r%atom_style%reset(r)
 
     ! bonds: if the geometry changed
     doreset = doreset .or. .not.r%bond_style%isinit
     doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%bond_style%timelastreset)
-    if (doreset) call r%bond_style%reset(r%id,r%flavor)
+    if (doreset) call r%bond_style%reset(r)
 
     ! bonds: if the system has been rebonded and this representation tracks
     ! the bonds in the system (%isdef), recalculate the bond style
@@ -268,12 +268,12 @@ contains
     ! molecules: if the geometry or the bonds changed
     doreset = .not.r%mol_style%isinit
     doreset = doreset .or. (sysc(r%id)%timelastchange_rebond > r%mol_style%timelastreset)
-    if (doreset) call r%mol_style%reset(r%id)
+    if (doreset) call r%mol_style%reset(r)
 
     ! labels
     doreset = .not.r%label_style%isinit
     doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%label_style%timelastreset)
-    if (doreset) call r%label_style%reset(r%id)
+    if (doreset) call r%label_style%reset(r)
 
   end subroutine update_structure
 
@@ -850,30 +850,24 @@ contains
   module subroutine reset_all_styles(r)
     class(representation), intent(inout), target :: r
 
-    call r%atom_style%reset(r%id)
-    call r%mol_style%reset(r%id)
-    call r%bond_style%reset(r%id,r%flavor)
-    call r%label_style%reset(r%id)
+    call r%atom_style%reset(r)
+    call r%mol_style%reset(r)
+    call r%bond_style%reset(r)
+    call r%label_style%reset(r)
 
   end subroutine reset_all_styles
 
-  !> Reset atom style to defaults consistent with system isys, or empty
-  !> if system is not ready.
-  module subroutine reset_atom_style(d,isys,flavor)
+  !> Reset atom style to defaults consistent with the representation
+  !> contents, or empty if system is not ready.
+  module subroutine reset_atom_style(d,r)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sys_ready, ok_system
     use gui_main, only: ColorElement
     use param, only: atmcov
     class(draw_style_atom), intent(inout), target :: d
-    integer, intent(in) :: isys
-    integer, intent(in), optional :: flavor
+    type(representation), intent(in) :: r
 
     integer :: i, ispc, iz
-    integer :: flavor_
-
-    ! optional arguments
-    flavor_ = repflavor_unknown
-    if (present(flavor)) flavor_ = flavor
 
     ! if not initialized, set type
     if (.not.d%isinit) d%type = 0
@@ -891,78 +885,73 @@ contains
     d%timelastreset = glfwGetTime()
 
     ! check the system is sane
-    if (.not.ok_system(isys,sys_ready)) return
+    if (.not.ok_system(r%id,sys_ready)) return
 
     ! fill according to the style
     if (d%type == 0) then ! species
-       d%ntype = sys(isys)%c%nspc
+       d%ntype = sys(r%id)%c%nspc
        allocate(d%shown(d%ntype),d%rgb(3,d%ntype))
        allocate(d%rad(d%ntype))
        do i = 1, d%ntype
-          iz = sys(isys)%c%spc(i)%z
+          iz = sys(r%id)%c%spc(i)%z
           d%rgb(:,i) = ColorElement(:,iz)
-          d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
+          d%rad(i) = atomcovradscale_def * real(atmcov(iz),c_float)
        end do
     elseif (d%type == 1) then ! nneq
-       d%ntype = sys(isys)%c%nneq
+       d%ntype = sys(r%id)%c%nneq
        allocate(d%shown(d%ntype),d%rgb(3,d%ntype))
        allocate(d%rad(d%ntype))
-       do i = 1, sys(isys)%c%nneq
-          ispc = sys(isys)%c%at(i)%is
-          iz = sys(isys)%c%spc(ispc)%z
+       do i = 1, sys(r%id)%c%nneq
+          ispc = sys(r%id)%c%at(i)%is
+          iz = sys(r%id)%c%spc(ispc)%z
           d%rgb(:,i) = ColorElement(:,iz)
-          d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
+          d%rad(i) = atomcovradscale_def * real(atmcov(iz),c_float)
        end do
     else ! ncel
-       d%ntype = sys(isys)%c%ncel
+       d%ntype = sys(r%id)%c%ncel
        allocate(d%shown(d%ntype),d%rgb(3,d%ntype))
        allocate(d%rad(d%ntype))
-       do i = 1, sys(isys)%c%ncel
-          ispc = sys(isys)%c%atcel(i)%is
-          iz = sys(isys)%c%spc(ispc)%z
+       do i = 1, sys(r%id)%c%ncel
+          ispc = sys(r%id)%c%atcel(i)%is
+          iz = sys(r%id)%c%spc(ispc)%z
           d%rgb(:,i) = ColorElement(:,iz)
-          d%rad(i) = 0.7_c_float * real(atmcov(iz),c_float)
+          d%rad(i) = atomcovradscale_def * real(atmcov(iz),c_float)
        end do
     end if
     d%shown = .true.
     d%isinit = .true.
 
-    ! flavor-dependent changes
-    if (flavor_ == repflavor_atoms_licorice) then
-       d%rad(1:d%ntype) = bond_rad_def
-    end if
-
   end subroutine reset_atom_style
 
   !> Reset colors in an atom style to defaults.
-  module subroutine reset_colors_atom_style(d,isys)
+  module subroutine reset_colors_atom_style(d,r)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sys_ready, ok_system
     use gui_main, only: ColorElement
     class(draw_style_atom), intent(inout), target :: d
-    integer, intent(in) :: isys
+    type(representation), intent(in) :: r
 
     integer :: i, ispc, iz
 
     ! check the system is sane
-    if (.not.ok_system(isys,sys_ready)) return
+    if (.not.ok_system(r%id,sys_ready)) return
 
     ! fill according to the style
     if (d%type == 0) then ! species
        do i = 1, d%ntype
-          iz = sys(isys)%c%spc(i)%z
+          iz = sys(r%id)%c%spc(i)%z
           d%rgb(:,i) = ColorElement(:,iz)
        end do
     elseif (d%type == 1) then ! nneq
-       do i = 1, sys(isys)%c%nneq
-          ispc = sys(isys)%c%at(i)%is
-          iz = sys(isys)%c%spc(ispc)%z
+       do i = 1, sys(r%id)%c%nneq
+          ispc = sys(r%id)%c%at(i)%is
+          iz = sys(r%id)%c%spc(ispc)%z
           d%rgb(:,i) = ColorElement(:,iz)
        end do
     else ! ncel
-       do i = 1, sys(isys)%c%ncel
-          ispc = sys(isys)%c%atcel(i)%is
-          iz = sys(isys)%c%spc(ispc)%z
+       do i = 1, sys(r%id)%c%ncel
+          ispc = sys(r%id)%c%atcel(i)%is
+          iz = sys(r%id)%c%spc(ispc)%z
           d%rgb(:,i) = ColorElement(:,iz)
        end do
     end if
@@ -970,12 +959,12 @@ contains
   end subroutine reset_colors_atom_style
 
   !> Reset molecule style with default values. Use the information in
-  !> system isys, or leave it empty if isys = 0.
-  module subroutine reset_mol_style(d,isys)
+  !> representation r, or leave it empty if system is uninitalized.
+  module subroutine reset_mol_style(d,r)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sys_ready, ok_system
     class(draw_style_molecule), intent(inout), target :: d
-    integer, intent(in) :: isys
+    type(representation), intent(in) :: r
 
     integer :: i
 
@@ -990,13 +979,13 @@ contains
     d%timelastreset = glfwGetTime()
 
     ! check the system is sane
-    if (.not.ok_system(isys,sys_ready)) return
+    if (.not.ok_system(r%id,sys_ready)) return
 
     ! fill
-    d%ntype = sys(isys)%c%nmol
+    d%ntype = sys(r%id)%c%nmol
     allocate(d%shown(d%ntype),d%tint_rgb(3,d%ntype))
     allocate(d%scale_rad(d%ntype))
-    do i = 1, sys(isys)%c%nmol
+    do i = 1, sys(r%id)%c%nmol
        d%tint_rgb(:,i) = 1._c_float
        d%scale_rad(i) = 1._c_float
     end do
@@ -1072,22 +1061,15 @@ contains
   end subroutine copy_neighstars_from_system
 
   !> Reset bond style with default values, according to the given
-  !> flavor. Use the information in system isys, or leave it empty if
-  !> isys = 0.
-  module subroutine reset_bond_style(d,isys,flavor)
+  !> representation.
+  module subroutine reset_bond_style(d,r)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor
     class(draw_style_bond), intent(inout), target :: d
-    integer, intent(in) :: isys
-    integer, intent(in), optional :: flavor
+    type(representation), intent(in) :: r
 
     integer :: i, j, iz
-    integer :: flavor_
-
-    ! optional arguments
-    flavor_ = repflavor_unknown
-    if (present(flavor)) flavor_ = flavor
 
     ! clear the bond style
     d%isinit = .false.
@@ -1099,11 +1081,11 @@ contains
     d%timelastreset = glfwGetTime()
 
     ! check the system is sane
-    if (.not.ok_system(isys,sys_ready)) return
+    if (.not.ok_system(r%id,sys_ready)) return
     d%isinit = .true.
 
     ! fill temp options
-    allocate(d%shown_g(sys(isys)%c%nspc,sys(isys)%c%nspc))
+    allocate(d%shown_g(sys(r%id)%c%nspc,sys(r%id)%c%nspc))
     d%distancetype_g = 0
     d%dmin_g = 0._c_float
     d%dmax_g = 0._c_float
@@ -1111,7 +1093,7 @@ contains
     d%bfmax_g = real(bondfactor,c_float)
     d%radtype_g = 0
     d%style_g = 0
-    d%rad_g = bond_rad_def
+    d%rad_g = bondrad_def
     d%border_g = atomborder_def
     d%rgbborder_g = 0._c_float
     d%rgb_g = 0._c_float
@@ -1121,7 +1103,7 @@ contains
     d%shown_g = .true.
 
     ! fill data according to flavor
-    if (flavor_ == repflavor_atoms_vdwcontacts) then
+    if (r%flavor == repflavor_atoms_vdwcontacts) then
        ! van der waals contacts
        d%isdef = .false.
        d%border_g = 0._c_float
@@ -1133,16 +1115,16 @@ contains
        d%radtype_g(2) = 1_c_int
        d%imol_g = 2_c_int
        d%rgb_g = (/0.51_c_float,0.83_c_float,0.11_c_float/)
-       do i = 1, sys(isys)%c%nspc
-          if (sys(isys)%c%spc(i)%z == 1) then
+       do i = 1, sys(r%id)%c%nspc
+          if (sys(r%id)%c%spc(i)%z == 1) then
              d%shown_g(i,:) = .false.
              d%shown_g(:,i) = .false.
           end if
        end do
        d%rad_g = 0.15_c_float
        d%order_g = 0
-       call d%generate_neighstars(isys)
-    elseif (flavor_ == repflavor_atoms_hbonds) then
+       call d%generate_neighstars(r%id)
+    elseif (r%flavor == repflavor_atoms_hbonds) then
        ! hydrogen bonds
        d%isdef = .false.
        d%border_g = 0._c_float
@@ -1156,10 +1138,10 @@ contains
        d%imol_g = 2_c_int
        d%rgb_g = (/0.11_c_float,0.44_c_float,0.83_c_float/)
        d%shown_g = .false.
-       do i = 1, sys(isys)%c%nspc
-          if (sys(isys)%c%spc(i)%z /= 1) cycle
-          do j = 1, sys(isys)%c%nspc
-             iz = sys(isys)%c%spc(j)%z
+       do i = 1, sys(r%id)%c%nspc
+          if (sys(r%id)%c%spc(i)%z /= 1) cycle
+          do j = 1, sys(r%id)%c%nspc
+             iz = sys(r%id)%c%spc(j)%z
              if (iz == 7 .or. iz == 8 .or. iz == 9 .or. iz == 16 .or. iz == 17) then
                 d%shown_g(i,j) = .true.
                 d%shown_g(j,i) = .true.
@@ -1168,30 +1150,31 @@ contains
        end do
        d%rad_g = 0.15_c_float
        d%order_g = 0
-       call d%generate_neighstars(isys)
+       call d%generate_neighstars(r%id)
     else
        ! other flavors are default (track system bonds)
        d%isdef = .true.
-       if (flavor_ == repflavor_atoms_sticks) then
+       if (r%flavor == repflavor_atoms_sticks) then
           ! sticks: two colors and lighter borders
           d%style_g = 1
           d%border_g = 0.05_c_float
-       elseif (flavor_ == repflavor_atoms_licorice) then
-          ! licorice: atoms and bonds with the same radius
+       elseif (r%flavor == repflavor_atoms_licorice) then
+          ! licorice: atoms and bonds with the same radius, bonds in two colors
+          d%style_g = 1
        end if
-       call d%copy_neighstars_from_system(isys)
+       call d%copy_neighstars_from_system(r%id)
     end if
 
   end subroutine reset_bond_style
 
   !> Reset label style with default values. Use the information in
-  !> system isys, or leave it empty if isys = 0.
-  module subroutine reset_label_style(d,isys)
+  !> representation r.
+  module subroutine reset_label_style(d,r)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sys_ready, ok_system
     use tools_io, only: nameguess, string
     class(draw_style_label), intent(inout), target :: d
-    integer, intent(in) :: isys
+    type(representation), intent(in) :: r
 
     integer :: i
 
@@ -1202,7 +1185,7 @@ contains
     d%timelastreset = glfwGetTime()
 
     ! check the system is sane
-    if (.not.ok_system(isys,sys_ready)) return
+    if (.not.ok_system(r%id,sys_ready)) return
 
     ! set the atom style to defaults
     d%isinit = .true.
@@ -1214,13 +1197,13 @@ contains
     ! fill according to the style
     select case(d%style)
     case (0,5,6)
-       d%ntype = sys(isys)%c%nspc
+       d%ntype = sys(r%id)%c%nspc
     case (2,3)
-       d%ntype = sys(isys)%c%ncel
+       d%ntype = sys(r%id)%c%ncel
     case (1,4,8)
-       d%ntype = sys(isys)%c%nneq
+       d%ntype = sys(r%id)%c%nneq
     case (7)
-       d%ntype = sys(isys)%c%nmol
+       d%ntype = sys(r%id)%c%nmol
     end select
     if (allocated(d%shown)) deallocate(d%shown)
     if (allocated(d%str)) deallocate(d%str)
@@ -1232,25 +1215,25 @@ contains
     do i = 1, d%ntype
        select case(d%style)
        case (0,5,6)
-          if (sys(isys)%c%spc(i)%z == 1) d%shown(i) = .false.
+          if (sys(r%id)%c%spc(i)%z == 1) d%shown(i) = .false.
        case (2,3)
-          if (sys(isys)%c%spc(sys(isys)%c%atcel(i)%is)%z == 1) d%shown(i) = .false.
+          if (sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z == 1) d%shown(i) = .false.
        case (1,4,8)
-          if (sys(isys)%c%spc(sys(isys)%c%at(i)%is)%z == 1) d%shown(i) = .false.
+          if (sys(r%id)%c%spc(sys(r%id)%c%at(i)%is)%z == 1) d%shown(i) = .false.
        end select
     end do
 
     ! fill text
     do i = 1, d%ntype
        if (d%style == 0) then ! 0 = atomic symbol
-          d%str(i) = trim(nameguess(sys(isys)%c%spc(i)%z,.true.))
+          d%str(i) = trim(nameguess(sys(r%id)%c%spc(i)%z,.true.))
        elseif (d%style == 1) then ! 1 = atom name
-          d%str(i) = trim(sys(isys)%c%at(i)%name)
+          d%str(i) = trim(sys(r%id)%c%at(i)%name)
        elseif (d%style == 6) then ! 6 = Z
-          d%str(i) = string(sys(isys)%c%spc(i)%z)
+          d%str(i) = string(sys(r%id)%c%spc(i)%z)
        elseif (d%style == 8) then ! 8 = wyckoff
-          d%str(i) = string(sys(isys)%c%at(i)%mult) //&
-             string(sys(isys)%c%at(i)%wyc)
+          d%str(i) = string(sys(r%id)%c%at(i)%mult) //&
+             string(sys(r%id)%c%at(i)%wyc)
        else
           d%str(i) = string(i)
        end if

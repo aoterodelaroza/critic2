@@ -24,9 +24,11 @@ module representations
 
   private
 
-  ! default bond radius and atom border
-  real(c_float), parameter, public :: bond_rad_def = 0.35_c_float
-  real(c_float), parameter, public :: atomborder_def = 0.1_c_float
+  ! default parameters for the representations (all distances in bohr)
+  real(c_float), parameter, public :: bondrad_def = 0.35_c_float ! bond radius
+  real(c_float), parameter, public :: atomborder_def = 0.1_c_float ! atom and bond border
+  real(c_float), parameter, public :: atomcovradscale_def = 0.7_c_float ! atomic radius scale factor (covalent)
+  real(c_float), parameter, public :: atomvdwradscale_def = 1.0_c_float ! atomic radius scale factor (vdw)
 
   !> Draw style for atoms
   type draw_style_atom
@@ -144,8 +146,8 @@ module representations
      logical :: border = .true. ! draw atoms at the border of the unit cell
      logical :: onemotif = .false. ! draw connected molecules
      integer(c_int) :: atom_radii_reset_type = 0 ! option to reset radii: 0=covalent,1=vdw,2=constant
-     real(c_float) :: atom_radii_reset_scale = 0.7_c_float ! reset radii, scale factor
-     real(c_float) :: atom_radii_reset_value = 1.0_c_float ! reset radii, constant value
+     real(c_float) :: atom_radii_reset_scale = atomcovradscale_def ! reset radii, scale factor
+     real(c_float) :: atom_radii_reset_value = bondrad_def ! reset radii, constant value (default: same as bond radius for licorice)
      integer(c_int) :: atom_color_reset_type = 0 ! option to reset colors: 0=current,1=jmlcol,2=jmlcol2
      type(draw_style_atom) :: atom_style ! atom styles
      type(draw_style_molecule) :: mol_style ! molecule styles
@@ -201,19 +203,18 @@ module representations
        class(representation), intent(inout), target :: r
      end subroutine reset_all_styles
      ! draw_style_atom
-     module subroutine reset_atom_style(d,isys,flavor)
+     module subroutine reset_atom_style(d,r)
        class(draw_style_atom), intent(inout), target :: d
-       integer, intent(in) :: isys
-       integer, intent(in), optional :: flavor
+       type(representation), intent(in) :: r
      end subroutine reset_atom_style
-     module subroutine reset_colors_atom_style(d,isys)
+     module subroutine reset_colors_atom_style(d,r)
        class(draw_style_atom), intent(inout), target :: d
-       integer, intent(in) :: isys
+       type(representation), intent(in) :: r
      end subroutine reset_colors_atom_style
      ! draw_style_molecule
-     module subroutine reset_mol_style(d,isys)
+     module subroutine reset_mol_style(d,r)
        class(draw_style_molecule), intent(inout), target :: d
-       integer, intent(in) :: isys
+       type(representation), intent(in) :: r
      end subroutine reset_mol_style
      ! draw_style_bond
      module subroutine generate_neighstars(d,isys)
@@ -224,15 +225,14 @@ module representations
        class(draw_style_bond), intent(inout), target :: d
        integer, intent(in) :: isys
      end subroutine copy_neighstars_from_system
-     module subroutine reset_bond_style(d,isys,flavor)
+     module subroutine reset_bond_style(d,r)
        class(draw_style_bond), intent(inout), target :: d
-       integer, intent(in) :: isys
-       integer, intent(in), optional :: flavor
+       type(representation), intent(in) :: r
      end subroutine reset_bond_style
      ! draw_style_label
-     module subroutine reset_label_style(d,isys)
+     module subroutine reset_label_style(d,r)
        class(draw_style_label), intent(inout), target :: d
-       integer, intent(in) :: isys
+       type(representation), intent(in) :: r
      end subroutine reset_label_style
   end interface
 

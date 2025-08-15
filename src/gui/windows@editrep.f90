@@ -383,7 +383,7 @@ contains
              call igAlignTextToFramePadding()
              call iw_text("Global Options",highlight=.true.)
              if (iw_button("Reset##resetglobalatoms",sameline=.true.,danger=.true.)) then
-                call w%rep%atom_style%reset(w%rep%id)
+                call w%rep%atom_style%reset(w%rep)
                 changed = .true.
              end if
              call iw_tooltip("Reset to the default settings for the atom representation")
@@ -397,12 +397,12 @@ contains
                 ! constant size
                 str2 = "Value##atomradii" // c_null_char
                 str3 = "%.3f" // c_null_char
-                raux = w%rep%atom_radii_reset_value * bohrtoa
+                raux = w%rep%atom_radii_reset_value * real(bohrtoa,c_float)
                 ch = ch .or. igDragFloat(c_loc(str2),raux,0.01_c_float,0._c_float,5._c_float,c_loc(str3),&
                    ImGuiSliderFlags_AlwaysClamp)
                 call iw_tooltip("Atomic radii (Å)",ttshown)
                 if (ch) then
-                   w%rep%atom_radii_reset_value = raux / bohrtoa
+                   w%rep%atom_radii_reset_value = raux / real(bohrtoa,c_float)
                    w%rep%atom_style%rad(1:w%rep%atom_style%ntype) =w%rep%atom_radii_reset_value
                    changed = .true.
                 end if
@@ -494,7 +494,7 @@ contains
              call igAlignTextToFramePadding()
              call iw_text("Global Options",highlight=.true.)
              if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
-                call w%rep%bond_style%reset(w%rep%id,w%rep%flavor)
+                call w%rep%bond_style%reset(w%rep)
                 changed = .true.
              end if
              call iw_tooltip("Reset to the covalent bonding for this system and the default settings")
@@ -759,7 +759,7 @@ contains
              call iw_text("Global Options",highlight=.true.)
              if (iw_button("Reset##resetglobal",sameline=.true.,danger=.true.)) then
                 w%rep%label_style%style = 0
-                call w%rep%label_style%reset(w%rep%id)
+                call w%rep%label_style%reset(w%rep)
                 changed = .true.
              end if
              call iw_tooltip("Reset to the labels to the default settings")
@@ -779,7 +779,7 @@ contains
                    "Wyckoff position"//c_null_char,&
                    w%rep%label_style%style,changed=ch)
              end if
-             if (ch) call w%rep%label_style%reset(w%rep%id)
+             if (ch) call w%rep%label_style%reset(w%rep)
              call iw_tooltip("Text to display in the atom labels",ttshown)
              changed = changed .or. ch
 
@@ -1200,7 +1200,7 @@ contains
     end if
     call iw_tooltip("Group atoms by these categories",ttshown)
     if (ch) then
-       call r%atom_style%reset(r%id)
+       call r%atom_style%reset(r)
        changed = .true.
     end if
 

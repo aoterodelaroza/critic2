@@ -187,7 +187,7 @@ contains
                       w%sc%rep(i)%labels_display = islabelsl
                       if (islabelsl) then
                          w%sc%rep(i)%label_style%style = islabels
-                         call w%sc%rep(i)%label_style%reset(w%sc%rep(i)%id)
+                         call w%sc%rep(i)%label_style%reset(w%sc%rep(i))
                       end if
                    end if
                 elseif (w%sc%rep(i)%type == reptype_unitcell) then
@@ -469,7 +469,7 @@ contains
                                else
                                   sysc(i)%sc%rep(j)%label_style%style = islabels
                                end if
-                               call sysc(i)%sc%rep(j)%label_style%reset(sysc(i)%sc%rep(j)%id)
+                               call sysc(i)%sc%rep(j)%label_style%reset(sysc(i)%sc%rep(j))
                             end if
                          elseif (sysc(i)%sc%rep(j)%type == reptype_unitcell.and.&
                             .not.sys(w%view_selected)%c%ismolecule) then

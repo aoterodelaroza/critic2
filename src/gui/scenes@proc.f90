@@ -329,7 +329,7 @@ contains
     if (.not.allocated(s%rep)) return
 
     do irep = 1, s%nrep
-       call s%rep(irep)%atom_style%reset_colors(s%id)
+       call s%rep(irep)%atom_style%reset_colors(s%rep(irep))
     end do
     s%forcebuildlists = .true.
 
