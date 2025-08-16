@@ -29,9 +29,12 @@ module representations
   real(c_float), parameter, public :: atomborder_def = 0.1_c_float ! atom border
   real(c_float), parameter, public :: atomcovradscale_def = 0.7_c_float ! atomic radius scale factor (covalent)
   real(c_float), parameter, public :: atomvdwradscale_def = 1.0_c_float ! atomic radius scale factor (vdw)
+  real(c_float), parameter, public :: atomrad_licorice_def = 0.23_c_float ! atomic radius value (licorice)
   !--> bonds
   real(c_float), parameter, public :: bondrad_def = 0.35_c_float ! bond radius
+  real(c_float), parameter, public :: bondrad_licorice_def = 0.50_c_float ! bond radius (licorice)
   real(c_float), parameter, public :: bondborder_def = 0.1_c_float ! bond border
+  real(c_float), parameter, public :: bondborder_stickflav_def = 0.05_c_float ! bond border (stick flavor)
   !--> unit cell
   real(c_float), parameter, public :: uc_radius_def = 0.15_c_float ! radius of sticks
   real(c_float), parameter, public :: uc_radiusinner_def = 0.15_c_float ! radius of inner sticks

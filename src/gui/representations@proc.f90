@@ -145,6 +145,10 @@ contains
        r%atom_color_type = 0
        r%atom_border_size = atomborder_def
        r%atom_border_rgb = (/0._c_float,0._c_float,0._c_float/)
+       if (r%flavor == repflavor_atoms_licorice) then
+          r%atom_radii_type = 2
+          r%atom_radii_value = atomrad_licorice_def
+       end if
     end if
 
     !--> bonds
@@ -156,13 +160,20 @@ contains
        r%bond_bfmax = real(bondfactor,c_float)
        r%bond_radtype = (/0_c_int,0_c_int/)
        r%bond_color_style = 0
-       r%bond_rad = bondrad_def
        r%bond_border_size = bondborder_def
+       r%bond_rad = bondrad_def
        r%bond_border_rgb = (/0._c_float,0._c_float,0._c_float/)
        r%bond_rgb = (/0._c_float,0._c_float,0._c_float/)
        r%bond_order = 1
        r%bond_imol = 0
        r%bond_bothends = .true.
+       if (r%flavor == repflavor_atoms_sticks) then
+          r%bond_color_style = 1
+          r%bond_border_size = bondborder_stickflav_def
+       elseif (r%flavor == repflavor_atoms_licorice) then
+          r%bond_color_style = 1
+          r%bond_rad = bondrad_licorice_def
+       end if
     end if
 
     !--> labels
@@ -851,7 +862,7 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sys_ready, ok_system
     use gui_main, only: ColorElement
-    use param, only: atmcov
+    use param, only: atmcov, atmvdw, jmlcol, jmlcol2
     class(atom_geom_style), intent(inout) :: d
     type(representation), intent(in) :: r
 
@@ -880,8 +891,20 @@ contains
        allocate(d%rad(d%ntype))
        do i = 1, d%ntype
           iz = sys(r%id)%c%spc(i)%z
-          d%rgb(:,i) = ColorElement(:,iz)
-          d%rad(i) = atomcovradscale_def * real(atmcov(iz),c_float)
+          if (r%atom_color_type == 0) then
+             d%rgb(:,i) = ColorElement(:,iz)
+          elseif (r%atom_color_type == 1) then
+             d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+          else
+             d%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
+          end if
+          if (r%atom_radii_type == 0) then
+             d%rad(i) = r%atom_radii_scale * real(atmcov(iz),c_float)
+          elseif (r%atom_radii_type == 1) then
+             d%rad(i) = r%atom_radii_scale * real(atmvdw(iz),c_float)
+          else
+             d%rad(i) = r%atom_radii_value
+          endif
        end do
     elseif (d%type == 1) then ! nneq
        d%ntype = sys(r%id)%c%nneq
@@ -890,8 +913,20 @@ contains
        do i = 1, sys(r%id)%c%nneq
           ispc = sys(r%id)%c%at(i)%is
           iz = sys(r%id)%c%spc(ispc)%z
-          d%rgb(:,i) = ColorElement(:,iz)
-          d%rad(i) = atomcovradscale_def * real(atmcov(iz),c_float)
+          if (r%atom_color_type == 0) then
+             d%rgb(:,i) = ColorElement(:,iz)
+          elseif (r%atom_color_type == 1) then
+             d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+          else
+             d%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
+          end if
+          if (r%atom_radii_type == 0) then
+             d%rad(i) = r%atom_radii_scale * real(atmcov(iz),c_float)
+          elseif (r%atom_radii_type == 1) then
+             d%rad(i) = r%atom_radii_scale * real(atmvdw(iz),c_float)
+          else
+             d%rad(i) = r%atom_radii_value
+          endif
        end do
     else ! ncel
        d%ntype = sys(r%id)%c%ncel
@@ -900,8 +935,20 @@ contains
        do i = 1, sys(r%id)%c%ncel
           ispc = sys(r%id)%c%atcel(i)%is
           iz = sys(r%id)%c%spc(ispc)%z
-          d%rgb(:,i) = ColorElement(:,iz)
-          d%rad(i) = atomcovradscale_def * real(atmcov(iz),c_float)
+          if (r%atom_color_type == 0) then
+             d%rgb(:,i) = ColorElement(:,iz)
+          elseif (r%atom_color_type == 1) then
+             d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+          else
+             d%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
+          end if
+          if (r%atom_radii_type == 0) then
+             d%rad(i) = r%atom_radii_scale * real(atmcov(iz),c_float)
+          elseif (r%atom_radii_type == 1) then
+             d%rad(i) = r%atom_radii_scale * real(atmvdw(iz),c_float)
+          else
+             d%rad(i) = r%atom_radii_value
+          endif
        end do
     end if
     d%shown = .true.
