@@ -140,7 +140,7 @@ contains
                 isatom = isatom .or. w%sc%rep(i)%atoms_display
                 isbond = isbond .or. w%sc%rep(i)%bonds_display
                 if (w%sc%rep(i)%labels_display) &
-                   islabels = w%sc%rep(i)%label_style%style
+                   islabels = w%sc%rep(i)%label_type
              elseif (w%sc%rep(i)%type == reptype_unitcell) then
                 isuc = isuc .or. w%sc%rep(i)%shown
              end if
@@ -186,7 +186,7 @@ contains
                    if (changedisplay(3)) then
                       w%sc%rep(i)%labels_display = islabelsl
                       if (islabelsl) then
-                         w%sc%rep(i)%label_style%style = islabels
+                         w%sc%rep(i)%label_type = islabels
                          call w%sc%rep(i)%label_style%reset(w%sc%rep(i))
                       end if
                    end if
@@ -465,9 +465,9 @@ contains
                             sysc(i)%sc%rep(j)%labels_display = islabelsl
                             if (islabelsl) then
                                if (sys(i)%c%ismolecule.and.islabels == 8) then
-                                  sysc(i)%sc%rep(j)%label_style%style = 0
+                                  sysc(i)%sc%rep(j)%label_type = 0
                                else
-                                  sysc(i)%sc%rep(j)%label_style%style = islabels
+                                  sysc(i)%sc%rep(j)%label_type = islabels
                                end if
                                call sysc(i)%sc%rep(j)%label_style%reset(sysc(i)%sc%rep(j))
                             end if
