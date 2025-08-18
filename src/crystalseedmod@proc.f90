@@ -28,7 +28,6 @@ submodule (crystalseedmod) proc
   ! subroutine read_all_log(nseed,seed,file,errmsg,ti)
   ! subroutine read_all_aimsout(nseed,seed,file,errmsg,ti)
   ! subroutine read_all_castep_geom(nseed,seed,file,errmsg,ti)
-  ! subroutine read_pdb_geometry(file,nat,x,z,name,errmsg,ti)
   ! subroutine read_zmat_geometry(file,nat,x,z,name,errmsg,ti)
   ! function which_out_format(file,ti)
   ! subroutine which_in_format(file,isformat,ti)
@@ -2867,7 +2866,7 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: i, n, ier
+    integer :: i, n, ier, ll
     real*8, allocatable :: x(:,:)
     integer, allocatable :: z(:)
     character*10, allocatable :: name(:)
@@ -2895,8 +2894,9 @@ contains
     n = 0
     allocate(x(3,10),z(10),name(10))
     main: do while (getline_raw(lu,line))
-       if (len(line) > 6) then
-          if (line(1:4) == "ATOM" .or. line(1:6) == "HETATM") then
+       ll = len(line)
+       if (ll > 6) then
+          if ((line(1:4) == "ATOM" .or. line(1:6) == "HETATM") .and. ll >= 78) then
              n = n + 1
              if (n > size(z,1)) then
                 call realloc(x,3,2*n)
@@ -5262,7 +5262,7 @@ contains
   !> Read the structure from a TINKER frac file (must have cell
   !> parameters in the second line).
   module subroutine read_tinkerfrac(seed,file,mol,errmsg,ti)
-    use tools_io, only: getline_raw, fopen_read, fclose, isinteger, isreal, zatguess, nameguess
+    use tools_io, only: getline_raw, fopen_read, fclose, isinteger, zatguess, nameguess
     use param, only: bohrtoa, maxzat, isformat_r_tinkerfrac
     use types, only: realloc
     class(crystalseed), intent(inout) :: seed !< Output crystal seed
@@ -5589,7 +5589,7 @@ contains
   !> (ismol=.true.)  or a crystal (.false.)
   module subroutine struct_detect_ismol(file,isformat,ismol,ti)
     use tools_io, only: fopen_read, fclose, getline, equali,&
-       getline_raw, lgetword, equal, lower
+       getline_raw, lgetword, equal, lower, isreal
     use param, only: isformat_r_cif, isformat_r_shelx, isformat_r_f21,&
        isformat_r_cube, isformat_r_bincube, isformat_r_struct, isformat_r_abinit, isformat_r_elk,&
        isformat_r_qein, isformat_r_qeout, isformat_r_crystal, isformat_r_fploout,&
@@ -5609,6 +5609,9 @@ contains
     integer :: lu, ios, lp, nat, idx, i
     character*1 :: isfrac
     logical :: ok
+    real*8 :: scalexx(3)
+
+    real*8, parameter :: eps = 1d-10
 
     ismol = .false.
     select case (isformat)
@@ -5622,7 +5625,7 @@ contains
 
     case (isformat_r_gjf,isformat_r_pgout,isformat_r_wfn,isformat_r_wfx,&
        isformat_r_gaussian,isformat_r_fchk,isformat_r_molden,isformat_r_dat,&
-       isformat_r_orca,isformat_r_mol2,isformat_r_zmat,isformat_r_sdf,isformat_r_pdb)
+       isformat_r_orca,isformat_r_mol2,isformat_r_zmat,isformat_r_sdf)
        ismol = .true.
 
     case(isformat_r_xyz)
@@ -5650,6 +5653,27 @@ contains
              end do
           end if
        end if
+       call fclose(lu)
+
+    case(isformat_r_pdb)
+       ismol = .true.
+       lu = fopen_read(file,errstop=.false.,ti=ti)
+       if (lu < 0) return
+       do while(getline_raw(lu,line))
+          lp = 1
+          word = lgetword(line,lp)
+          if (equal(word,"scale1")) then
+             ok = isreal(scalexx(1),line,lp)
+             ok = ok .and. isreal(scalexx(2),line,lp)
+             ok = ok .and. isreal(scalexx(3),line,lp)
+             if (ok) then
+                if (abs(scalexx(1)-1d0)>eps .or. abs(scalexx(2))>eps .or. abs(scalexx(1)-1d0)>eps) then
+                   ismol = .false.
+                end if
+             end if
+             exit
+          end if
+       end do
        call fclose(lu)
 
     case(isformat_r_aimsout)
