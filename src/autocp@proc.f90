@@ -887,20 +887,23 @@ contains
     use struct_drivers, only: struct_write
     use crystalseedmod, only: crystalseed
     use global, only: eval_next, prunedist, gcpchange
-    use tools_io, only: getword, equal, getword, ferror, faterr, nameguess, lower, string
+    use tools_io, only: getword, equal, getword, ferror, faterr, nameguess, lower, string,&
+       ioj_left, ioj_right
     use types, only: realloc, gpathp
     character*(*), intent(in) :: line
 
     integer :: lp, n, lp2
-    integer :: i, iup, nstep, ier, id
+    integer :: i, iup, nstep, ier, id, idx, i1
     character(len=:), allocatable :: file, word, wext, wroot
     character(len=:), allocatable :: line2, aux
     logical :: ok
-    logical :: agraph, writevmd
+    logical :: agraph, writevmdxyz, writevmdpdb
     type(crystalseed) :: seed
     type(system) :: syaux
     real*8 :: x(3), plen
     type(gpathp), allocatable :: xpath(:)
+    character*4 :: xzname
+    integer, allocatable :: ixzassign(:)
 
     ! Calculate the field at the nuclei, if deferred
     if (sy%f(sy%iref)%fcp_deferred) &
@@ -935,7 +938,8 @@ contains
           lp2 = 1
           line2 = ""
           agraph = .false.
-          writevmd = .false.
+          writevmdxyz = .false.
+          writevmdpdb = .false.
           n = 0
           do while (.true.)
              word = getword(line,lp2)
@@ -945,7 +949,11 @@ contains
                 n = n + 1
                 if (n == 1 .and. equal(wext,'vmd')) then
                    word = wroot // '.xyz'
-                   writevmd = .true.
+                   writevmdxyz = .true.
+                elseif (n == 1 .and. equal(wext,'vmdpdb')) then
+                   word = wroot // '.pdb'
+                   file = wroot // '.pdb'
+                   writevmdpdb = .true.
                 end if
                 aux = line2 // " " // trim(word)
                 line2 = aux
@@ -958,7 +966,7 @@ contains
           seed%isused = .true.
           seed%file = sy%c%file
           seed%isformat = sy%c%isformat
-          if (writevmd) then
+          if (writevmdxyz) then
              ! one species for every critical point
              seed%nspc = sy%c%nspc + (sy%f(sy%iref)%ncpcel - sy%c%ncel) + 1
              allocate(seed%spc(seed%nspc))
@@ -1006,7 +1014,7 @@ contains
              if (i <= sy%c%ncel) then
                 seed%is(i) = sy%c%atcel(i)%is
              else
-                if (writevmd) then
+                if (writevmdxyz) then
                    seed%is(i) = i - sy%c%ncel + sy%c%nspc
                 else
                    if (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == -3) then
@@ -1031,6 +1039,7 @@ contains
 
           ! calculate gradient paths and add them to the seed
           if (agraph) then
+             if (writevmdpdb) allocate(ixzassign(10))
              if (allocated(xpath)) deallocate(xpath)
              allocate(xpath(1))
              !$omp parallel do private(iup,x,nstep,ier,plen) firstprivate(xpath)
@@ -1045,6 +1054,21 @@ contains
                 end if
 
                 if (iup /= 0) then
+                   if (writevmdpdb) then
+                      idx = sy%f(sy%iref)%cpcel(i)%idx
+                      i1 = sy%f(sy%iref)%cp(idx)%ipath(1)
+                      if (i1 <= 0) then
+                         xzname(1:2) = "??"
+                      else
+                         xzname(1:2) = string(nameguess(sy%c%spc(sy%c%at(i1)%is)%z,.true.),2,ioj_right)
+                      end if
+                      i1 = sy%f(sy%iref)%cp(idx)%ipath(2)
+                      if (i1 <= 0) then
+                         xzname(3:4) = "??"
+                      else
+                         xzname(3:4) = string(nameguess(sy%c%spc(sy%c%at(i1)%is)%z,.true.),2,ioj_left)
+                      end if
+                   end if
                    x = sy%f(sy%iref)%cpcel(i)%r + 0.5d0 * gcpchange * sy%f(sy%iref)%cpcel(i)%brvec
                    call sy%f(sy%iref)%gradient(x,iup,nstep,ier,.false.,plen,xpath,prunedist,pathini=sy%f(sy%iref)%cpcel(i)%r)
                    !$omp critical (add)
@@ -1070,11 +1094,16 @@ contains
           ! write the structure to the external file
           call syaux%init()
           call syaux%c%struct_new(seed,.true.)
-          call struct_write(syaux,line2,.not.writevmd)
+          if (writevmdpdb) then
+             call syaux%c%write_pdb(file,cp=sy%f(sy%iref)%cp,cpcel=sy%f(sy%iref)%cpcel,&
+                ixzassign=ixzassign)
+          else
+             call struct_write(syaux,line2,.not.writevmdxyz)
+          end if
           call syaux%end()
 
           ! write the vmd script
-          if (writevmd) call write_vmd_cps(file)
+          if (writevmdxyz) call write_vmd_cps(file)
           return
        else
           exit
@@ -1095,12 +1124,21 @@ contains
       do i = 1, nstep
          n = n + 1
          seed%x(:,n) = xpath(i)%x
-         if (writevmd) then
+         if (writevmdxyz) then
             seed%is(n) = seed%nspc
          else
             seed%is(n) = sy%c%nspc+5
          end if
-         seed%atname(n) = seed%spc(seed%is(n))%name
+         if (writevmdpdb) then
+            seed%atname(n) = xzname
+         else
+            seed%atname(n) = seed%spc(seed%is(n))%name
+         end if
+
+         if (allocated(ixzassign)) then
+            if (n > size(ixzassign,1)) call realloc(ixzassign,2*n)
+            ixzassign(n) = idx
+         end if
       end do
       seed%nat = n
 

@@ -20,7 +20,7 @@
 ! Structure class and routines for basic crystallography computations
 module crystalmod
   use spglib, only: SpglibDataset
-  use types, only: neqatom, celatom, neighstar, species
+  use types, only: neqatom, celatom, neighstar, species, cp_type
   use fragmentmod, only: fragment
   use param, only: maxzat0, mlen
   use types, only: thread_info
@@ -1020,9 +1020,12 @@ module crystalmod
        character*(*), intent(in) :: file
        type(thread_info), intent(in), optional :: ti
      end subroutine write_tinkerfrac
-     module subroutine write_pdb(c,file,ti)
+     module subroutine write_pdb(c,file,cp,cpcel,ixzassign,ti)
        class(crystal), intent(in) :: c
        character*(*), intent(in) :: file
+       type(cp_type), intent(in), optional :: cp(:)
+       type(cp_type), intent(in), optional :: cpcel(:)
+       integer, intent(in), optional :: ixzassign(:)
        type(thread_info), intent(in), optional :: ti
      end subroutine write_pdb
      module subroutine write_castep_cell(c,file,rklength,ti)

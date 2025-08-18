@@ -2905,7 +2905,10 @@ contains
              end if
 
              z(n) = zatguess(line(77:78))
-             if (z(n) <= 0) goto 999
+             if (z(n) <= 0 .or. z(n) > 118) then
+                n = n - 1
+                cycle
+             end if
              if (ispc(z(n)) == 0) then
                 nspc = nspc + 1
                 ispc(z(n)) = nspc

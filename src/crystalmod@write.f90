@@ -2762,21 +2762,29 @@ contains
   end subroutine write_tinkerfrac
 
   !> Write a PDB file.
-  module subroutine write_pdb(c,file,ti)
-    use tools_io, only: fopen_write, string, fclose, upper, ioj_right, nameguess
+  module subroutine write_pdb(c,file,cp,cpcel,ixzassign,ti)
+    use tools_io, only: fopen_write, string, fclose, upper, ioj_right, ioj_left, nameguess
     use tools_math, only: gcd
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
+    type(cp_type), intent(in), optional :: cp(:)
+    type(cp_type), intent(in), optional :: cpcel(:)
+    integer, intent(in), optional :: ixzassign(:)
     type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     integer, allocatable :: nis(:)
-    integer :: i, icount
+    integer :: i, icount, iz, idx, i1, i2
     real*8 :: maxdv, x(3)
     character(len=:), allocatable :: str
+    character*1 :: sw, let
     character*2 :: atsym
+    character*4 :: name
     character*11 :: spg
+    integer, allocatable :: icountneq(:)
+
+    character(*), parameter :: letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
     ! open file
     lu = fopen_write(file,ti=ti)
@@ -2821,8 +2829,6 @@ contains
        write (lu,'("FORMUL   1  UNL ",A2," ",A51,"          ")') string(icount), str(i:min(i+50,len(str)))
     end do
 
-
-
     ! lattice parameters
     if (.not.c%ismolecule) then
        if (c%havesym > 0) then
@@ -2837,17 +2843,89 @@ contains
        write (lu,'("SCALE3    ",3(F10.6),"     ",F10.5,"                         ")') c%m_c2x(3,:) / bohrtoa, 0d0
     end if
 
-    ! coordinates
+    ! count equivalent CPs
+    allocate(icountneq(c%nneq))
+    icountneq = -1
+
+    ! atom entries
     do i = 1, c%ncel
        if (c%ismolecule) then
           x = (c%atcel(i)%r + c%molx0) * bohrtoa
        else
           x = c%atcel(i)%r * bohrtoa
        end if
-       atsym = adjustr(nameguess(c%spc(c%atcel(i)%is)%z,.true.))
-       write (lu,'("HETATM",A," ",A," UNL A    1   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
-          string(i,5,ioj_right), string(c%spc(c%atcel(i)%is)%name,4,ioj_right),&
-          x, 1d0, 1d0, atsym
+       iz = c%spc(c%atcel(i)%is)%z
+       atsym = adjustr(nameguess(iz,.true.))
+
+       if (iz < 123) then
+          if (present(cpcel)) then
+             idx = cpcel(i)%idx
+          else
+             idx = c%atcel(i)%idx
+          end if
+          icountneq(idx) = icountneq(idx) + 1
+          i1 = modulo(icountneq(idx),len(letters)) + 1
+          let = letters(i1:i1)
+       end if
+
+       if (iz <= 118) then
+          ! atom
+          write (lu,'("HETATM",A," ",A," UNL A",A,A,"   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
+             string(i,5,ioj_right), string(c%spc(c%atcel(i)%is)%name,4,ioj_left),&
+             string(idx,4,ioj_right), let, x, 1d0, 1d0, atsym
+       elseif (iz == 119) then
+          ! ncp
+          write (lu,'("HETATM",A," ",A," UNL N",A,A,"   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
+             string(i,5,ioj_right), string(c%spc(c%atcel(i)%is)%name,4,ioj_left),&
+             string(idx,4,ioj_right), let, x, 1d0, 1d0, atsym
+       elseif (iz == 120) then
+          ! bcp
+          i1 = cp(idx)%ipath(1)
+          i2 = cp(idx)%ipath(2)
+          if (i1 <= 0) then
+             name(1:2) = "??"
+          else
+             name(1:2) = string(nameguess(c%spc(c%at(i1)%is)%z,.true.),2,ioj_right)
+          end if
+          if (i2 <= 0) then
+             name(3:4) = "??"
+          else
+             name(3:4) = string(nameguess(c%spc(c%at(i2)%is)%z,.true.),2,ioj_left)
+          end if
+          if (cp(idx)%s%f > 0.1d0) then
+             sw = "S"
+          else
+             sw = "W"
+          end if
+          write (lu,'("HETATM",A," ",A,A,"UNL B",A,A,"   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
+             string(i,5,ioj_right), name, sw, string(idx,4,ioj_right), let, x, 1d0, 1d0, atsym
+       elseif (iz == 121) then
+          ! rcp
+          i1 = cp(idx)%ipath(1)
+          i2 = cp(idx)%ipath(2)
+          if (i1 <= 0) then
+             name(1:2) = "??"
+          else
+             name(1:2) = string(nameguess(c%spc(c%at(i1)%is)%z,.true.),2,ioj_right)
+          end if
+          if (i2 <= 0) then
+             name(3:4) = "??"
+          else
+             name(3:4) = string(nameguess(c%spc(c%at(i2)%is)%z,.true.),2,ioj_left)
+          end if
+          write (lu,'("HETATM",A," ",A," UNL R",A,A,"   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
+             string(i,5,ioj_right), name, string(idx,4,ioj_right), let, x, 1d0, 1d0, atsym
+       elseif (iz == 122) then
+          ! ccp
+          write (lu,'("HETATM",A," ",A," UNL C",A,A,"   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
+             string(i,5,ioj_right), string(c%spc(c%atcel(i)%is)%name,4,ioj_left),&
+             string(idx,4,ioj_right), let, x, 1d0, 1d0, atsym
+       elseif (iz == 123) then
+          ! xz (bond path)
+          write (lu,'("HETATM",A," ",A," UNL Z",A,A,"   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
+             string(i,5,ioj_right), string(c%at(i)%name,4), string(ixzassign(i),4,ioj_right),&
+             let, x, 1d0, 1d0, string(c%spc(c%atcel(i)%is)%name,2,ioj_left)
+       end if
     end do
     call fclose(lu)
 
