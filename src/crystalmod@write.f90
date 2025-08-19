@@ -2761,7 +2761,8 @@ contains
 
   end subroutine write_tinkerfrac
 
-  !> Write a PDB file.
+  !> Write a PDB file. The optional arguments cp, cpcel, ixzassign are
+  !> for the PDB writer including critical points and bond paths.
   module subroutine write_pdb(c,file,cp,cpcel,ixzassign,ti)
     use tools_io, only: fopen_write, string, fclose, upper, ioj_right, ioj_left, nameguess
     use tools_math, only: gcd
@@ -2901,20 +2902,9 @@ contains
              string(i,5,ioj_right), name, sw, string(idx,4,ioj_right), let, x, 1d0, 1d0, atsym
        elseif (iz == 121) then
           ! rcp
-          i1 = cp(idx)%ipath(1)
-          i2 = cp(idx)%ipath(2)
-          if (i1 <= 0) then
-             name(1:2) = "??"
-          else
-             name(1:2) = string(nameguess(c%spc(c%at(i1)%is)%z,.true.),2,ioj_right)
-          end if
-          if (i2 <= 0) then
-             name(3:4) = "??"
-          else
-             name(3:4) = string(nameguess(c%spc(c%at(i2)%is)%z,.true.),2,ioj_left)
-          end if
           write (lu,'("HETATM",A," ",A," UNL R",A,A,"   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
-             string(i,5,ioj_right), name, string(idx,4,ioj_right), let, x, 1d0, 1d0, atsym
+             string(i,5,ioj_right), string(c%spc(c%atcel(i)%is)%name,4,ioj_left),&
+             string(idx,4,ioj_right), let, x, 1d0, 1d0, atsym
        elseif (iz == 122) then
           ! ccp
           write (lu,'("HETATM",A," ",A," UNL C",A,A,"   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
