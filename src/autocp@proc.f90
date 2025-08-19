@@ -894,10 +894,10 @@ contains
 
     integer :: lp, n, lp2
     integer :: i, iup, nstep, ier, id, idx, i1
-    character(len=:), allocatable :: file, word, wext, wroot
+    character(len=:), allocatable :: file, filevmd, word, wext, wroot
     character(len=:), allocatable :: line2, aux
     logical :: ok
-    logical :: agraph, writevmdxyz, writevmdpdb
+    logical :: agraph, writevmd, dopdb
     type(crystalseed) :: seed
     type(system) :: syaux
     real*8 :: x(3), plen
@@ -938,22 +938,20 @@ contains
           lp2 = 1
           line2 = ""
           agraph = .false.
-          writevmdxyz = .false.
-          writevmdpdb = .false.
+          writevmd = .false.
+          dopdb = .false.
           n = 0
           do while (.true.)
              word = getword(line,lp2)
              if (equal(lower(word),'graph')) then
                 agraph = .true.
+             elseif (equal(lower(word),'pdb')) then
+                dopdb = .true.
              elseif (len_trim(word) > 0) then
                 n = n + 1
                 if (n == 1 .and. equal(wext,'vmd')) then
                    word = wroot // '.xyz'
-                   writevmdxyz = .true.
-                elseif (n == 1 .and. equal(wext,'vmdpdb')) then
-                   word = wroot // '.pdb'
-                   file = wroot // '.pdb'
-                   writevmdpdb = .true.
+                   writevmd = .true.
                 end if
                 aux = line2 // " " // trim(word)
                 line2 = aux
@@ -962,11 +960,17 @@ contains
              end if
           end do
 
+          ! vmd and pdb go their own way
+          if (writevmd .and. dopdb) then
+             file = wroot // '.pdb'
+             filevmd = wroot // '.vmd'
+          end if
+
           ! build the crystal structure containing the crystal points
           seed%isused = .true.
           seed%file = sy%c%file
           seed%isformat = sy%c%isformat
-          if (writevmdxyz) then
+          if (writevmd.and..not.dopdb) then
              ! one species for every critical point
              seed%nspc = sy%c%nspc + (sy%f(sy%iref)%ncpcel - sy%c%ncel) + 1
              allocate(seed%spc(seed%nspc))
@@ -1014,7 +1018,7 @@ contains
              if (i <= sy%c%ncel) then
                 seed%is(i) = sy%c%atcel(i)%is
              else
-                if (writevmdxyz) then
+                if (writevmd.and..not.dopdb) then
                    seed%is(i) = i - sy%c%ncel + sy%c%nspc
                 else
                    if (sy%f(sy%iref)%cp(sy%f(sy%iref)%cpcel(i)%idx)%typ == -3) then
@@ -1039,7 +1043,7 @@ contains
 
           ! calculate gradient paths and add them to the seed
           if (agraph) then
-             if (writevmdpdb) allocate(ixzassign(10))
+             if (writevmd.and.dopdb) allocate(ixzassign(10))
              if (allocated(xpath)) deallocate(xpath)
              allocate(xpath(1))
              !$omp parallel do private(iup,x,nstep,ier,plen) firstprivate(xpath)
@@ -1054,7 +1058,7 @@ contains
                 end if
 
                 if (iup /= 0) then
-                   if (writevmdpdb) then
+                   if (writevmd.and.dopdb) then
                       idx = sy%f(sy%iref)%cpcel(i)%idx
                       i1 = sy%f(sy%iref)%cp(idx)%ipath(1)
                       if (i1 <= 0) then
@@ -1094,16 +1098,22 @@ contains
           ! write the structure to the external file
           call syaux%init()
           call syaux%c%struct_new(seed,.true.)
-          if (writevmdpdb) then
+          if (writevmd.and.dopdb) then
              call syaux%c%write_pdb(file,cp=sy%f(sy%iref)%cp,cpcel=sy%f(sy%iref)%cpcel,&
                 ixzassign=ixzassign)
           else
-             call struct_write(syaux,line2,.not.writevmdxyz)
+             call struct_write(syaux,line2,.not.writevmd)
           end if
           call syaux%end()
 
           ! write the vmd script
-          if (writevmdxyz) call write_vmd_cps(file)
+          if (writevmd) then
+             if (dopdb) then
+                call write_vmd_cps_pdb(filevmd)
+             else
+                call write_vmd_cps(file)
+             end if
+          end if
           return
        else
           exit
@@ -1124,12 +1134,12 @@ contains
       do i = 1, nstep
          n = n + 1
          seed%x(:,n) = xpath(i)%x
-         if (writevmdxyz) then
+         if (writevmd.and..not.dopdb) then
             seed%is(n) = seed%nspc
          else
             seed%is(n) = sy%c%nspc+5
          end if
-         if (writevmdpdb) then
+         if (writevmd.and.dopdb) then
             seed%atname(n) = xzname
          else
             seed%atname(n) = seed%spc(seed%is(n))%name
@@ -2544,5 +2554,165 @@ contains
     call fclose(lu)
 
   end subroutine write_vmd_cps
+
+  !> Write a vmd file for visualizing the CPs in a pdb file.
+  subroutine write_vmd_cps_pdb(file)
+    use systemmod, only: sy
+    use tools_io, only: uout, fopen_write, fclose, string
+    use param, only: bohrtoa
+    character*(*), intent(in) :: file
+
+    integer :: lu, i, j
+    character(len=:), allocatable :: pdbfile
+    real*8 :: xx0(3), xx1(3)
+
+    real*8, parameter :: xlist0(3,12) = reshape((/&
+       0d0, 0d0, 0d0,&
+       0d0, 0d0, 0d0,&
+       0d0, 0d0, 0d0,&
+       0d0, 0d0, 1d0,&
+       0d0, 1d0, 1d0,&
+       0d0, 1d0, 0d0,&
+       1d0, 1d0, 0d0,&
+       1d0, 0d0, 0d0,&
+       1d0, 0d0, 1d0,&
+       1d0, 1d0, 1d0,&
+       1d0, 1d0, 1d0,&
+       1d0, 1d0, 1d0/),shape(xlist0))
+    real*8, parameter :: xlist1(3,12) = reshape((/&
+       1d0, 0d0, 0d0,&
+       0d0, 1d0, 0d0,&
+       0d0, 0d0, 1d0,&
+       0d0, 1d0, 1d0,&
+       0d0, 1d0, 0d0,&
+       1d0, 1d0, 0d0,&
+       1d0, 0d0, 0d0,&
+       1d0, 0d0, 1d0,&
+       0d0, 0d0, 1d0,&
+       0d0, 1d0, 1d0,&
+       1d0, 0d0, 1d0,&
+       1d0, 1d0, 0d0/),shape(xlist1))
+
+    ! open and header
+    write (uout,'("* Writing vmd script file : ",A/)') string(file)
+    lu = fopen_write(file)
+    write (lu,'("# Some display settings")')
+    write (lu,'("display projection Orthographic")')
+    write (lu,'("display nearclip set 0.000000")')
+    write (lu,'("light 0 on")')
+    write (lu,'("light 1 on")')
+    write (lu,'("color Element {H} silver")')
+    write (lu,'("color Element {C} black")')
+    write (lu,'("color Element {N} blue")')
+    write (lu,'("color Element {O} red")')
+    write (lu,'("color Element {F} green")')
+    write (lu,'("color Element {Ne} cyan")')
+    write (lu,'("color Element {Na} purple")')
+    write (lu,'("color Element {Al} iceblue")')
+    write (lu,'("color Element {Si} gray")')
+    write (lu,'("color Element {Bi} purple")')
+    write (lu,'("color Element {Se} orange3")')
+    write (lu,'("color Display {Background} white")')
+    write (lu,'("display depthcue off")')
+    write (lu,*)
+
+    ! the molecule
+    write (lu,'("# add molecule")')
+    write (lu,'("mol new ",A," type pdb autobonds 0")') file(:index(file,'.',.true.)-1) // ".pdb"
+    write (lu,*)
+
+    ! pbc box and vectors
+    if (.not.sy%c%ismolecule) then
+       write (lu,'("# unit cell")')
+       write (lu,'("pbc box")')
+    end if
+
+    ! define labels
+    write (lu,'("# labels")')
+    write (lu,'("set labx 0.05")')
+    write (lu,'("set laby 0.0")')
+    write (lu,'("label delete Atoms all")')
+    write (lu,'("color Labels Atoms blue")')
+    write (lu,'("label textthickness 2.5")')
+    write (lu,'("label textsize 0.75")')
+    write (lu,*)
+
+    ! set the atom types
+    write (lu,'("# list of chain IDs in the top molecule")')
+    write (lu,'("set sel [atomselect top ""all""]")')
+    write (lu,'("set presentChains [lsort -unique [$sel get chain]]")')
+    write (lu,'("$sel delete")')
+    write (lu,*)
+
+    ! type colors
+    write (lu,'("# color mapping")')
+    write (lu,'("array set chainColor {")')
+    write (lu,'("    N green2")')
+    write (lu,'("    R orange3")')
+    write (lu,'("    C cyan")')
+    write (lu,'("    B orange3")')
+    write (lu,'("    Z mauve")')
+    write (lu,'("}")')
+    write (lu,*)
+
+    write (lu,'("# loop over the mapping and apply only when the chain is present")')
+    write (lu,'("foreach ch [array names chainColor] {")')
+    write (lu,'("    if {[lsearch -exact $presentChains $ch] >= 0} {")')
+    write (lu,'("        color Chain $ch $chainColor($ch)")')
+    write (lu,'("    }")')
+    write (lu,'("}")')
+
+    ! representations
+    write (lu,'("# representations")')
+    write (lu,'("mol delrep 0 top")')
+    write (lu,'("mol representation CPK 0.300000 0.000000 12.000000 12.000000")')
+    write (lu,'("mol color Chain")')
+    write (lu,'("mol selection {chain N}")')
+    write (lu,'("mol material Opaque")')
+    write (lu,'("mol addrep top")')
+    write (lu,'("")')
+    write (lu,'("mol representation CPK 0.300000 0.000000 12.000000 12.000000")')
+    write (lu,'("mol color Chain")')
+    write (lu,'("mol selection {chain B}")')
+    write (lu,'("mol material Opaque")')
+    write (lu,'("mol addrep top")')
+    write (lu,'("")')
+    write (lu,'("mol representation CPK 0.300000 0.000000 12.000000 12.000000")')
+    write (lu,'("mol color Chain")')
+    write (lu,'("mol selection {chain R}")')
+    write (lu,'("mol material Opaque")')
+    write (lu,'("mol addrep top")')
+    write (lu,'("")')
+    write (lu,'("mol representation CPK 0.300000 0.000000 12.000000 12.000000")')
+    write (lu,'("mol color Chain")')
+    write (lu,'("mol selection {chain C}")')
+    write (lu,'("mol material Opaque")')
+    write (lu,'("mol addrep top")')
+    write (lu,'("")')
+    write (lu,'("mol representation CPK 0.100000 0.000000 12.000000 12.000000")')
+    write (lu,'("mol color Chain")')
+    write (lu,'("mol selection {chain Z}")')
+    write (lu,'("mol material Opaque")')
+    write (lu,'("mol addrep top")')
+    write (lu,'("")')
+    write (lu,'("mol representation CPK 1.000000 0.300000 12.000000 12.000000")')
+    write (lu,'("mol color Element")')
+    write (lu,'("mol selection {not (chain N B R C Z)}")')
+    write (lu,'("mol material Opaque")')
+    write (lu,'("mol addrep top")')
+
+    ! label atoms
+    write (lu,'("# labels")')
+    write (lu,'("set atomlist [[atomselect top ""not (chain N B R C Z)""] list]")')
+    write (lu,'("foreach {atom} $atomlist {")')
+    write (lu,'("  label add Atoms 0/$atom")')
+    write (lu,'("  label textformat Atoms $atom {%1i}")')
+    write (lu,'("  label textoffset Atoms $atom ""$labx $laby""")')
+    write (lu,'("}")')
+
+    ! wrap up
+    call fclose(lu)
+
+  end subroutine write_vmd_cps_pdb
 
 end submodule proc
