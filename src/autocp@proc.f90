@@ -2559,39 +2559,9 @@ contains
   subroutine write_vmd_cps_pdb(file)
     use systemmod, only: sy
     use tools_io, only: uout, fopen_write, fclose, string
-    use param, only: bohrtoa
     character*(*), intent(in) :: file
 
-    integer :: lu, i, j
-    character(len=:), allocatable :: pdbfile
-    real*8 :: xx0(3), xx1(3)
-
-    real*8, parameter :: xlist0(3,12) = reshape((/&
-       0d0, 0d0, 0d0,&
-       0d0, 0d0, 0d0,&
-       0d0, 0d0, 0d0,&
-       0d0, 0d0, 1d0,&
-       0d0, 1d0, 1d0,&
-       0d0, 1d0, 0d0,&
-       1d0, 1d0, 0d0,&
-       1d0, 0d0, 0d0,&
-       1d0, 0d0, 1d0,&
-       1d0, 1d0, 1d0,&
-       1d0, 1d0, 1d0,&
-       1d0, 1d0, 1d0/),shape(xlist0))
-    real*8, parameter :: xlist1(3,12) = reshape((/&
-       1d0, 0d0, 0d0,&
-       0d0, 1d0, 0d0,&
-       0d0, 0d0, 1d0,&
-       0d0, 1d0, 1d0,&
-       0d0, 1d0, 0d0,&
-       1d0, 1d0, 0d0,&
-       1d0, 0d0, 0d0,&
-       1d0, 0d0, 1d0,&
-       0d0, 0d0, 1d0,&
-       0d0, 1d0, 1d0,&
-       1d0, 0d0, 1d0,&
-       1d0, 1d0, 0d0/),shape(xlist1))
+    integer :: lu
 
     ! open and header
     write (uout,'("* Writing vmd script file : ",A/)') string(file)
