@@ -282,7 +282,7 @@ module types
      real*8, allocatable :: f(:,:,:) ! basin field
      ! integration results
      integer :: nattr ! number of attractors
-     real*8, allocatable :: xattr(:,:) ! coordinates of attractors (cryst. coords.a)
+     real*8, allocatable :: xattr(:,:) ! coordinates of attractors (cryst. coords.)
      integer, allocatable :: idg(:,:,:) ! attractor assignment of grid nodes
      integer, allocatable :: icp(:) ! identify of the attractors in the CP list
      integer :: luw ! YT weights generator, logical unit

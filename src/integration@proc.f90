@@ -46,6 +46,7 @@ submodule (integration) proc
   ! function quadpack_f(x,unit,xnuc) result(res)
   ! subroutine int_output_multipoles(bas,res)
   ! subroutine int_output_deloc(bas,res)
+  ! subroutine int_output_hirshfeld_overlap(bas,res)
   ! subroutine int_output_json(jsonfile,bas,res)
   ! subroutine assign_strings(i,icp,usesym,scp,sncp,sname,smult,sz)
   ! subroutine int_gridbasins(bas)
@@ -341,6 +342,9 @@ contains
 
     ! output localization and delocalization indices
     call int_output_deloc(bas,res)
+
+    ! output hirshfeld overlap populations
+    call int_output_hirshfeld_overlap(bas,res)
 
     ! write the json file
     if (len(jsonfile) > 0) then
@@ -1561,8 +1565,6 @@ contains
     integer, allocatable :: nid(:), lvec(:,:)
     real*8, allocatable :: dist(:), rcutmax(:,:)
 
-    return ! xxxx
-
     ! only for hirshfeld integration
     if (bas%imtype /= imtype_hirshfeld) return
 
@@ -1662,7 +1664,6 @@ contains
 
                 fac = fmap(i1,i2,i3) / (bas%f(i1,i2,i3) * bas%f(i1,i2,i3))
 
-                write (*,*) "grid point = ", i1, i2, i3, nat
                 do i = 1, nat
                    do j = 1, nat
                       lt = lvec(:,j) - lvec(:,i)
@@ -1694,13 +1695,10 @@ contains
           end do
        end do
 
-       do i = 1, bas%nattr
-          write (*,*) i, sum(res(l)%hirsh_op(i,:,:,:,:)) * sy%c%omega / product(bas%n)
-       end do
+       ! wrap up
+       res(l)%hirsh_op(:,:,:,:,:) = res(l)%hirsh_op(:,:,:,:,:) * sy%c%omega / product(bas%n)
 
-       write (*,*) "done!!"
-       stop 1
-
+       ! done
        res(l)%done = .true.
        res(l)%reason = ""
        res(l)%outmode = out_hirsh_ovpop
@@ -3833,6 +3831,107 @@ contains
     end do
 
   end subroutine int_output_deloc
+
+  !> Output the Hirshfeld overlap populations. bas = integration
+  !> driver data, res(1:npropi) = results.
+  subroutine int_output_hirshfeld_overlap(bas,res)
+    ! use crystalmod, only: crystal
+    ! use crystalseedmod, only: crystalseed
+    use global, only: iunit, iunitname0, dunit0
+    use tools, only: qcksort
+    use tools_io, only: uout, string
+    use tools_io, only: ioj_left, ioj_right
+    use types, only: basindat, int_result, out_hirsh_ovpop
+    type(basindat), intent(in) :: bas
+    type(int_result), intent(in) :: res(:)
+
+    integer :: i, j, k, l, m, n
+    integer :: fid !, nlat(3), nspin, nlattot
+    real*8, allocatable :: dist(:), ovout(:)
+    integer, allocatable :: io(:), ilvec(:,:), idat(:)
+    real*8 :: x1(3), x2(3), asum
+    integer :: ic, jc, kc ! , lvec1(3), lvec2(3), lvec3(3)
+    character(len=:), allocatable :: sncp, scp, sname, sz, smult
+
+    real*8, parameter :: epsthr = 1d-8 ! threshold for showing population
+
+    if (bas%imtype == imtype_isosurface) return
+
+    do l = 1, sy%npropi
+       if (.not.res(l)%done) cycle
+       if (res(l)%outmode /= out_hirsh_ovpop) cycle
+
+       write (uout,'("* Hirshfeld overlap populations (bond orders)")')
+
+       ! header
+       fid = sy%propi(l)%fid
+       write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
+
+       ! header
+       write (uout,'("  Each block gives information about a single atom in the main cell.")')
+       write (uout,'("  Each line gives the overlap population (bond order) with all atoms")')
+       write (uout,'("  in the environment that have a significant contribution (> ",A)') string(epsthr,'e',decimal=2)
+       write (uout,'("  Last line: sum of all overlaps, must equal the Hirshfeld population.")')
+       write (uout,'("  Distances are in ",A,".")') iunitname0(iunit)
+       write (uout,*)
+
+       n = bas%nattr * size(res(l)%hirsh_op,1) * size(res(l)%hirsh_op,2) * size(res(l)%hirsh_op,3)
+       allocate(dist(n),io(n),ovout(n),ilvec(3,n),idat(n))
+
+       ! two-body indices table
+       do i = 1, bas%nattr
+          if (.not.bas%docelatom(bas%icp(i))) cycle
+          call assign_strings(i,bas%icp(i),.false.,scp,sncp,sname,smult,sz)
+          write (uout,'("# Atom ",A," (cp=",A,", ncp=",A,", name=",A,", Z=",A,") at: ",3(A,"  "))') &
+             string(i), trim(scp), trim(sncp), trim(adjustl(sname)), trim(sz), (trim(string(bas%xattr(j,i),'f',12,7)),j=1,3)
+          write (uout,'("# Id   cp   ncp   Name  Z    Latt. vec.     &
+             &----  Cryst. coordinates ----       Distance        Overlap")')
+
+          ! Organize the data we will present in the table, for sorting
+          n = 0
+          do j = 1, bas%nattr
+             do ic = lbound(res(l)%hirsh_op,3), ubound(res(l)%hirsh_op,3)
+                do jc = lbound(res(l)%hirsh_op,4), ubound(res(l)%hirsh_op,4)
+                   do kc = lbound(res(l)%hirsh_op,5), ubound(res(l)%hirsh_op,5)
+                      if (res(l)%hirsh_op(i,j,ic,jc,kc) > epsthr) then
+                         n = n + 1
+                         x1 = bas%xattr(:,i)
+                         x2 = bas%xattr(:,j) + (/ic,jc,kc/)
+                         dist(n) = sy%c%distance(x1,x2)
+                         io(n) = n
+                         ovout(n) = res(l)%hirsh_op(i,j,ic,jc,kc)
+                         idat(n) = j
+                         ilvec(:,n) = (/ic,jc,kc/)
+                      end if
+                   end do
+                end do
+             end do
+          end do
+
+          ! sort by increasing distance and output for this atom
+          call qcksort(dist,io,1,n)
+
+          ! write the table
+          asum = 0d0
+          do m = 1, n
+             j = io(m)
+             if (.not.bas%docelatom(bas%icp(idat(j)))) cycle
+             call assign_strings(j,bas%icp(idat(j)),.false.,scp,sncp,sname,smult,sz)
+             x1 = bas%xattr(:,idat(j)) + ilvec(:,j)
+             write (uout,'("  ",99(A," "))') string(j,4,ioj_left), scp, sncp, sname, sz,&
+                (string(ilvec(k,j),3,ioj_right),k=1,3), (string(x1(k),'f',12,7,4),k=1,3),&
+                string(dist(j),'f',12,7,4), string(ovout(j),'f',12,8,4)
+             asum = asum + ovout(j)
+          end do
+          write (uout,'("  Total (Hirshfeld population)",61("."),A)') string(asum,'f',12,8,4)
+          write (uout,*)
+       end do ! i
+
+       ! clean up
+       deallocate(dist,io,ovout,ilvec,idat)
+    end do ! l
+
+  end subroutine int_output_hirshfeld_overlap
 
   !> Write a JSON file containing the structure, the reference
   !> field details, and the results of the YT/BADER integration.
