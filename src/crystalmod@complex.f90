@@ -22,12 +22,12 @@ submodule (crystalmod) complex
 contains
 
   !> Calculate real and reciprocal space sum cutoffs
-  module subroutine calculate_ewald_cutoffs(c,rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
+  module subroutine calculate_ewald_cutoffs(c,rcut,hcut,eta,qsum,lrmax,lhmax)
     use tools_io, only: ferror, faterr
     use param, only: pi, rad, sqpi, tpi
     class(crystal), intent(inout) :: c
 
-    real*8, intent(out) :: rcut, hcut, eta, qsum, q2sum
+    real*8, intent(out) :: rcut, hcut, eta, qsum
     integer, intent(out) :: lrmax(3), lhmax(3)
 
     real*8, parameter :: sgrow = 1.4d0
@@ -35,7 +35,7 @@ contains
     real*8, parameter :: eeps = 1d-12
 
     integer :: i
-    real*8 :: aux
+    real*8 :: aux, q2sum
     integer :: ia, ib, ic
     real*8 :: alrmax(3), qq
     real*8 :: rcut1, rcut2, err_real
@@ -133,17 +133,17 @@ contains
 
     real*8 :: x(3), pot
     integer :: i
-    real*8 :: rcut, hcut, eta, qsum, q2sum
+    real*8 :: rcut, hcut, eta, qsum
     integer :: lrmax(3), lhmax(3)
 
-    call c%calculate_ewald_cutoffs(rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
+    call c%calculate_ewald_cutoffs(rcut,hcut,eta,qsum,lrmax,lhmax)
 
     write (uout,'("+ Electrostatic potential at atomic positions")')
     write (uout,'("#id name mult    charge         Vel(Ha/e)")')
     ewe = 0d0
     do i = 1, c%nneq
        x = c%at(i)%x
-       pot = c%ewald_pot(x,rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
+       pot = c%ewald_pot(x,rcut,hcut,eta,qsum,lrmax,lhmax)
        ewe = ewe + c%at(i)%mult * c%spc(c%at(i)%is)%qat * pot
        write (uout,'(99(A," "))') string(i,4), string(c%at(i)%name,4),&
           string(c%at(i)%mult,4),&
@@ -157,11 +157,11 @@ contains
   !> Calculate the Ewald electrostatic potential at an arbitrary
   !> position x (crystallographic coords.)  If x is the nucleus j,
   !> return pot - q_j / |r-rj| at rj.
-  module function ewald_pot(c,x,rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
+  module function ewald_pot(c,x,rcut,hcut,eta,qsum,lrmax,lhmax)
     use param, only: tpi, pi, sqpi, icrd_crys
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x(3)
-    real*8, intent(out) :: rcut, hcut, eta, qsum, q2sum
+    real*8, intent(out) :: rcut, hcut, eta, qsum
     integer, intent(out) :: lrmax(3), lhmax(3)
     real*8 :: ewald_pot
 

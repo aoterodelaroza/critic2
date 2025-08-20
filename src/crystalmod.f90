@@ -634,19 +634,19 @@ module crystalmod
        type(fragment), intent(out), allocatable :: fr(:)
        logical, intent(out), allocatable :: isdiscrete(:)
      end subroutine listmolecules
-     module subroutine calculate_ewald_cutoffs(c,rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
+     module subroutine calculate_ewald_cutoffs(c,rcut,hcut,eta,qsum,lrmax,lhmax)
        class(crystal), intent(inout) :: c
-       real*8, intent(out) :: rcut, hcut, eta, qsum, q2sum
+       real*8, intent(out) :: rcut, hcut, eta, qsum
        integer, intent(out) :: lrmax(3), lhmax(3)
      end subroutine calculate_ewald_cutoffs
      module function ewald_energy(c) result(ewe)
        class(crystal), intent(inout) :: c
        real*8 :: ewe
      end function ewald_energy
-     module function ewald_pot(c,x,rcut,hcut,eta,qsum,q2sum,lrmax,lhmax)
+     module function ewald_pot(c,x,rcut,hcut,eta,qsum,lrmax,lhmax)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x(3)
-       real*8, intent(out) :: rcut, hcut, eta, qsum, q2sum
+       real*8, intent(out) :: rcut, hcut, eta, qsum
        integer, intent(out) :: lrmax(3), lhmax(3)
        real*8 :: ewald_pot
      end function ewald_pot

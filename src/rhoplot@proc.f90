@@ -196,7 +196,7 @@ contains
 
     integer :: lp, lp2, nti, id, luout, np
     real*8 :: x0(3), x1(3), xp(3), dist, rhopt, lappt, xout(3)
-    character(len=:), allocatable :: word, outfile, prop, expr, errmsg
+    character(len=:), allocatable :: word, outfile, prop, expr
     type(scalar_value) :: res
     logical :: ok, iok
     integer :: i, j

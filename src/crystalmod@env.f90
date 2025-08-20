@@ -128,11 +128,10 @@ contains
     logical :: ok, nozero_, docycle, sorted_
     real*8 :: x(3), xorigc(3), dmax, dd, lvecx(3), xdif(3), dsqrt
     integer :: i, j, k, ix(3), i0(3), i1(3), i0prev(3), i1prev(3), idx, nn
-    integer :: ib(3), ithis(3), nsafe, up2n_
+    integer :: ib(3), nsafe, up2n_
     integer, allocatable :: at_id(:), at_lvec(:,:)
     real*8, allocatable :: at_dist(:), rshel(:)
-    integer :: nb, nshellb
-    integer, allocatable :: idb(:,:), iaux(:), iord(:)
+    integer, allocatable :: iaux(:), iord(:)
     integer :: nshel
     real*8 :: up2d_2, rcur
     real*8,allocatable :: up2dsp_2(:,:), up2dcidx_2(:)
@@ -1339,7 +1338,7 @@ contains
     real*8, intent(inout) :: rmax
     integer :: i0(3), i1(3)
 
-    real*8 :: xn(3), rmaxnew, fac(3)
+    real*8 :: xn(3), fac(3)
 
     ! block coordinates of the  point
     xn = x * c%nblock
