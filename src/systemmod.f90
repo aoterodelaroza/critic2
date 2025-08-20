@@ -96,11 +96,11 @@ module systemmod
   integer, parameter, public :: itype_deloc_psink = 10
   integer, parameter, public :: itype_deloc_sijchk = 11
   integer, parameter, public :: itype_deloc_fachk = 12
-  integer, parameter, public :: itype_hirshfeld_bond_order = 13
+  integer, parameter, public :: itype_hirshfeld_ovpop = 13
   character*10, parameter, public :: itype_names(13) = (/&
      "Volume    ","Field     ","Field (v) ","Gradnt mod","Laplacian ",&
      "Laplcn (v)","Expression","Multipoles","Deloc indx","Deloc indx",&
-     "Deloc indx","Deloc indx","Bond order"/)
+     "Deloc indx","Deloc indx","Overlp pop"/)
 
   interface
      module subroutine systemmod_init(isy)

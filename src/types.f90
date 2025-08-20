@@ -293,6 +293,7 @@ module types
   integer, parameter, public :: out_field = 1
   integer, parameter, public :: out_mpoles = 2
   integer, parameter, public :: out_deloc = 3
+  integer, parameter, public :: out_hirsh_ovpop = 4
   integer, parameter, public :: sijtype_unknown = 0
   integer, parameter, public :: sijtype_wnr = 1
   integer, parameter, public :: sijtype_psink = 2
@@ -309,8 +310,9 @@ module types
      real*8, allocatable :: sij(:,:,:,:) ! Sij from molecular wavefunctions
      complex*16, allocatable :: sijc(:,:,:,:) ! Sij from wannier/psink
      integer, allocatable :: sij_wnr_imap(:,:) ! mapping for Sij translation (wannier)
-     real*8, allocatable :: fa(:,:,:,:) ! Fa integrals/Hirshfeld bond orders
+     real*8, allocatable :: fa(:,:,:,:) ! Fa integrals
      real*8, allocatable :: fa3(:,:,:,:,:,:) ! three-center DIs
+     real*8, allocatable :: hirsh_op(:,:,:,:,:) ! Hirshfeld overlap populations (bond orders)
   end type int_result
 
   !> Expressions for DISCARD in CP search

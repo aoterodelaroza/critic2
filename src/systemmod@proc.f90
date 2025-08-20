@@ -297,8 +297,8 @@ contains
           case(itype_deloc_fachk)
              sprop = "dloc"
              stradd = " | read Fa from checkpoint file: " // string(s%propi(i)%fachkfile)
-          case(itype_hirshfeld_bond_order)
-             sprop = "bo"
+          case(itype_hirshfeld_ovpop)
+             sprop = "ovlp"
           case default
              call ferror('report','unknown property',faterr)
           end select
@@ -1036,13 +1036,9 @@ contains
                    exit
                 end if
              end do
-          elseif (equal(word,"bondorder")) then
-             s%propi(s%npropi)%itype = itype_hirshfeld_bond_order
-             str = trim(str) // "#bondorder"
-             ok = isinteger(s%propi(s%npropi)%nscel(1),line,lp)
-             ok = ok .and. isinteger(s%propi(s%npropi)%nscel(2),line,lp)
-             ok = ok .and. isinteger(s%propi(s%npropi)%nscel(3),line,lp)
-             if (.not.ok) s%propi(s%npropi)%nscel = 1
+          elseif (equal(word,"overlap")) then
+             s%propi(s%npropi)%itype = itype_hirshfeld_ovpop
+             str = trim(str) // "#ovlp-pop"
 
           elseif (equal(word,"name")) then
              word = getword(line,lp)
