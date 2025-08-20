@@ -1549,7 +1549,7 @@ contains
     use systemmod, only: sy, itype_hirshfeld_ovpop
     use fieldmod, only: type_grid
     use global, only: cutrad
-    use tools_io, only: uout, string
+    use tools_io, only: uout, string, ferror, faterr
     use types, only: basindat, int_result, realloc, out_hirsh_ovpop
     use param, only: maxzat, icrd_crys
     type(basindat), intent(in) :: bas
@@ -1649,9 +1649,7 @@ contains
           if (agrid(iz)%isinit) then
              rcutmax(i,2) = min(cutrad(iz),agrid(iz)%rmax)
           else
-             rcutmax(i,2) = cutrad(iz)
-             write (*,*) "xxxx FIXME!! "
-             stop 1
+             call ferror('intgrid_hirshfeld_overlap','hirshfeld requires atomic grids',faterr)
           end if
        end do
 
@@ -1664,6 +1662,7 @@ contains
 
                 fac = fmap(i1,i2,i3) / (bas%f(i1,i2,i3) * bas%f(i1,i2,i3))
 
+                ! run over pairs of atoms in the environment
                 do i = 1, nat
                    do j = 1, nat
                       lt = lvec(:,j) - lvec(:,i)
@@ -1689,11 +1688,11 @@ contains
                       call agrid(sy%c%spc(sy%c%atcel(nid(j))%is)%z)%interp(dist(j),rhob,raux1,raux2)
                       res(l)%hirsh_op(nid(i),nid(j),lt(1),lt(2),lt(3)) = &
                          res(l)%hirsh_op(nid(i),nid(j),lt(1),lt(2),lt(3)) + fac * rhoa * rhob
-                   end do
-                end do
-             end do
-          end do
-       end do
+                   end do ! j
+                end do ! i
+             end do ! i1
+          end do ! i2
+       end do ! i3
 
        ! wrap up
        res(l)%hirsh_op(:,:,:,:,:) = res(l)%hirsh_op(:,:,:,:,:) * sy%c%omega / product(bas%n)
