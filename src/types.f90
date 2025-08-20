@@ -233,6 +233,8 @@ module types
      integer :: di3_atom2(4) = (/-1,0,0,0/) ! second atom for 3-body DI calculation
      character(len=mlen) :: sijchkfile = "" ! name of sijchk file
      character(len=mlen) :: fachkfile = ""  ! name of fachk file
+     ! integration of hirshfeld bond orders
+     integer :: nscel(3) = (/1,1,1/) ! supercell size for Hirshfeld bond orders
   end type integrable
 
   !> Information about a point-property field
@@ -307,7 +309,7 @@ module types
      real*8, allocatable :: sij(:,:,:,:) ! Sij from molecular wavefunctions
      complex*16, allocatable :: sijc(:,:,:,:) ! Sij from wannier/psink
      integer, allocatable :: sij_wnr_imap(:,:) ! mapping for Sij translation (wannier)
-     real*8, allocatable :: fa(:,:,:,:) ! Fa integrals
+     real*8, allocatable :: fa(:,:,:,:) ! Fa integrals/Hirshfeld bond orders
      real*8, allocatable :: fa3(:,:,:,:,:,:) ! three-center DIs
   end type int_result
 
