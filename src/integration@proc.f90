@@ -669,7 +669,11 @@ contains
        if (.not.res(i)%done) then
           label = "--inactive--"
           cini = "x "
-          saux = "Reason: " // string(res(i)%reason)
+          if (len_trim(res(i)%reason) > 0) then
+             saux = "Reason: " // string(res(i)%reason)
+          else
+             saux = ""
+          end if
        else
           label = sy%propi(i)%prop_name
           cini = "  "
@@ -1551,14 +1555,14 @@ contains
     use global, only: cutrad
     use tools_io, only: uout, string, ferror, faterr
     use types, only: basindat, int_result, realloc, out_hirsh_ovpop
-    use param, only: maxzat, icrd_crys
+    use param, only: maxzat, icrd_crys, VSMALL
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
 
     integer :: i, j, l, i1, i2, i3, iz, fid, nlat(3), nlattot
     logical :: ok, fillgrd
     real*8, allocatable :: fmap(:,:,:), aux(:,:,:,:,:)
-    real*8 :: x(3), x2(3), x0(3), xdelta(3,3), rhoa, rhob, raux1, raux2
+    real*8 :: x(3), x2(3), x0(3), xdelta(3,3), rhoa, rhob, raux1, raux2, tosum
     real*8 :: lprop(sy%npropi), fac
     integer :: lb(3), ub(3), lbn(3), ubn(3), nat, lt(3)
     logical :: plmask(sy%npropi)
@@ -1654,45 +1658,52 @@ contains
        end do
 
        ! run over grid points
+       !$omp parallel do private(x0,nat,fac,lt,rhoa,rhob,raux1,raux2,tosum) firstprivate(nid,dist,lvec)
        do i3 = 1, bas%n(3)
           do i2 = 1, bas%n(2)
              do i1 = 1, bas%n(1)
                 x0 = (i1-1) * xdelta(:,1) + (i2-1) * xdelta(:,2) + (i3-1) * xdelta(:,3)
                 call sy%c%list_near_atoms(x0,icrd_crys,.false.,nat,nid,dist,lvec,up2dsp=rcutmax)
 
-                fac = fmap(i1,i2,i3) / (bas%f(i1,i2,i3) * bas%f(i1,i2,i3))
+                fac = fmap(i1,i2,i3) / max(bas%f(i1,i2,i3) * bas%f(i1,i2,i3),VSMALL)
 
                 ! run over pairs of atoms in the environment
                 do i = 1, nat
-                   do j = 1, nat
+                   do j = i, nat
                       lt = lvec(:,j) - lvec(:,i)
-
-                      ! reallocate if necessary
-                      if (lt(1)<lb(1).or.lt(2)<lb(2).or.lt(3)<lb(3).or.&
-                          lt(1)>ub(1).or.lt(2)>ub(2).or.lt(3)>ub(3)) then
-                         lbn = min(lb,lt)
-                         lbn = min(lbn,-lt)
-                         ubn = max(ub,lt)
-                         ubn = max(ubn,-lt)
-                         allocate(aux(bas%nattr,bas%nattr,lbn(1):ubn(1),lbn(2):ubn(2),lbn(3):ubn(3)))
-                         aux = 0d0
-                         aux(bas%nattr,bas%nattr,lb(1):ub(1),lb(2):ub(2),lb(3):ub(3)) = &
-                            res(l)%hirsh_op(bas%nattr,bas%nattr,lb(1):ub(1),lb(2):ub(2),lb(3):ub(3))
-                         call move_alloc(aux,res(l)%hirsh_op)
-                         lb = lbn
-                         ub = ubn
-                      end if
 
                       ! calculate densities and accumulate
                       call agrid(sy%c%spc(sy%c%atcel(nid(i))%is)%z)%interp(dist(i),rhoa,raux1,raux2)
                       call agrid(sy%c%spc(sy%c%atcel(nid(j))%is)%z)%interp(dist(j),rhob,raux1,raux2)
+                      tosum = fac * rhoa * rhob
+
+                      !$omp critical (results)
+                      ! reallocate if necessary
+                      if (-abs(lt(1))<lb(1).or.-abs(lt(2))<lb(2).or.-abs(lt(3))<lb(3).or.&
+                         abs(lt(1))>ub(1).or.abs(lt(2))>ub(2).or.abs(lt(3))>ub(3)) then
+                         lbn = min(lb,-abs(lt))
+                         ubn = max(ub,abs(lt))
+                         allocate(aux(bas%nattr,bas%nattr,lbn(1):ubn(1),lbn(2):ubn(2),lbn(3):ubn(3)))
+                         aux = 0d0
+                         aux(:,:,lb(1):ub(1),lb(2):ub(2),lb(3):ub(3)) = res(l)%hirsh_op
+                         call move_alloc(aux,res(l)%hirsh_op)
+                         lb = lbn
+                         ub = ubn
+                      end if
+                      ! add result
                       res(l)%hirsh_op(nid(i),nid(j),lt(1),lt(2),lt(3)) = &
-                         res(l)%hirsh_op(nid(i),nid(j),lt(1),lt(2),lt(3)) + fac * rhoa * rhob
+                         res(l)%hirsh_op(nid(i),nid(j),lt(1),lt(2),lt(3)) + tosum
+                      if (i /= j) then
+                         res(l)%hirsh_op(nid(j),nid(i),-lt(1),-lt(2),-lt(3)) = &
+                            res(l)%hirsh_op(nid(j),nid(i),-lt(1),-lt(2),-lt(3)) + tosum
+                      end if
+                      !$omp end critical (results)
                    end do ! j
                 end do ! i
              end do ! i1
           end do ! i2
        end do ! i3
+       !$omp end parallel do
 
        ! wrap up
        res(l)%hirsh_op(:,:,:,:,:) = res(l)%hirsh_op(:,:,:,:,:) * sy%c%omega / product(bas%n)
