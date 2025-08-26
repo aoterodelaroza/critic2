@@ -261,8 +261,7 @@ contains
                          if (.not.docycle) then
                             ! calculate distance
                             if (c%ismolecule) then
-                               x = c%atcel(idx)%r
-                               dd = dot_product(x  - xorigc,x - xorigc)
+                               dd = dot_product(c%atcel(idx)%r  - xorigc,c%atcel(idx)%r - xorigc)
                             else
                                dd = dot_product(c%atcel(idx)%rxc + xdif,c%atcel(idx)%rxc + xdif)
                             end if
