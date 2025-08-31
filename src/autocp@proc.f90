@@ -2433,6 +2433,7 @@ contains
     write (uout,'("* Writing vmd script file : ",A/)') string(file)
     lu = fopen_write(file)
     write (lu,'("# Some display settings")')
+    write (lu,'("set DISABLE_VIZ 1")')
     write (lu,'("display projection Orthographic")')
     write (lu,'("display nearclip set 0.000000")')
     write (lu,'("light 0 on")')
@@ -2556,6 +2557,7 @@ contains
     write (lu,'("  label textformat Atoms $atom {%1i}")')
     write (lu,'("  label textoffset Atoms $atom ""$labx $laby""")')
     write (lu,'("}")')
+    write (lu,'("set DISABLE_VIZ 0")')
 
     ! wrap up
     call fclose(lu)
@@ -2574,6 +2576,7 @@ contains
     write (uout,'("* Writing vmd script file : ",A/)') string(file)
     lu = fopen_write(file)
     write (lu,'("# Some display settings")')
+    write (lu,'("set DISABLE_VIZ 1")')
     write (lu,'("display projection Orthographic")')
     write (lu,'("display nearclip set 0.000000")')
     write (lu,'("light 0 on")')
@@ -2686,6 +2689,7 @@ contains
     write (lu,'("  label textformat Atoms $atom {%1i}")')
     write (lu,'("  label textoffset Atoms $atom ""$labx $laby""")')
     write (lu,'("}")')
+    write (lu,'("set DISABLE_VIZ 0")')
 
     ! wrap up
     call fclose(lu)
