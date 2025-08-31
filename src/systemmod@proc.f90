@@ -983,6 +983,7 @@ contains
                 s%propi(s%npropi)%itype = itype_deloc_psink
              end if
 
+             ! default options
              str = trim(str) // "#deloca"
              s%propi(s%npropi)%useu = .true.
              s%propi(s%npropi)%sijchk = .true.
@@ -993,6 +994,7 @@ contains
              s%propi(s%npropi)%fachkfile = ""
              s%propi(s%npropi)%di3 = .false.
 
+             ! process user options
              do while (.true.)
                 lp2 = lp
                 word = lgetword(line,lp)
@@ -1039,6 +1041,29 @@ contains
           elseif (equal(word,"overlap")) then
              s%propi(s%npropi)%itype = itype_hirshfeld_ovpop
              str = trim(str) // "#ovlp-pop"
+
+             ! default options
+             s%propi(s%npropi)%hirsh_show_self_overlaps = .true.
+             s%propi(s%npropi)%hirsh_cutoff = 0d0
+
+             ! process user options
+             do while (.true.)
+                lp2 = lp
+                word = lgetword(line,lp)
+                if (equal(word,"hide_self_overlaps")) then
+                   s%propi(s%npropi)%hirsh_show_self_overlaps = .false.
+                else if (equal(word,"output_cutoff")) then
+                   ok = isreal(s%propi(s%npropi)%hirsh_cutoff,line,lp)
+                   if (.not.ok) then
+                      errmsg = "Wrong OUTPUT_CUTOFF value"
+                      s%npropi = s%npropi - 1
+                      return
+                   end if
+                else
+                   lp = lp2
+                   exit
+                end if
+             end do
 
           elseif (equal(word,"name")) then
              word = getword(line,lp)

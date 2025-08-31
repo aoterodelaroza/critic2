@@ -234,7 +234,8 @@ module types
      character(len=mlen) :: sijchkfile = "" ! name of sijchk file
      character(len=mlen) :: fachkfile = ""  ! name of fachk file
      ! integration of hirshfeld bond orders
-     integer :: nscel(3) = (/1,1,1/) ! supercell size for Hirshfeld bond orders
+     logical :: hirsh_show_self_overlaps = .true.
+     real*8 :: hirsh_cutoff = 0d0
   end type integrable
 
   !> Information about a point-property field

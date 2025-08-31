@@ -1559,7 +1559,7 @@ contains
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
 
-    integer :: i, j, l, i1, i2, i3, iz, fid, nlat(3), nlattot
+    integer :: i, j, l, i1, i2, i3, iz, fid
     logical :: ok, fillgrd
     real*8, allocatable :: fmap(:,:,:), aux(:,:,:,:,:)
     real*8 :: x(3), x2(3), x0(3), xdelta(3,3), rhoa, rhob, raux1, raux2, tosum
@@ -1629,8 +1629,6 @@ contains
        end if
 
        ! prepare the output array
-       nlat = max(sy%propi(l)%nscel,1)
-       nlattot = nlat(1)*nlat(2)*nlat(3)
        if (allocated(res(l)%hirsh_op)) deallocate(res(l)%hirsh_op)
        allocate(res(l)%hirsh_op(bas%nattr,bas%nattr,0:0,0:0,0:0))
        lb = 0
@@ -3845,8 +3843,6 @@ contains
   !> Output the Hirshfeld overlap populations. bas = integration
   !> driver data, res(1:npropi) = results.
   subroutine int_output_hirshfeld_overlap(bas,res)
-    ! use crystalmod, only: crystal
-    ! use crystalseedmod, only: crystalseed
     use global, only: iunit, iunitname0, dunit0
     use tools, only: qcksort
     use tools_io, only: uout, string
@@ -3856,12 +3852,13 @@ contains
     type(int_result), intent(in) :: res(:)
 
     integer :: i, j, k, l, m, n
-    integer :: fid !, nlat(3), nspin, nlattot
+    integer :: fid
     real*8, allocatable :: dist(:), ovout(:)
     integer, allocatable :: io(:), ilvec(:,:), idat(:)
     real*8 :: x1(3), x2(3), asum
-    integer :: ic, jc, kc ! , lvec1(3), lvec2(3), lvec3(3)
+    integer :: ic, jc, kc
     character(len=:), allocatable :: sncp, scp, sname, sz, smult
+    logical :: hascycled
 
     real*8, parameter :: epsthr = 1d-8 ! threshold for showing population
 
@@ -3922,9 +3919,18 @@ contains
           call qcksort(dist,io,1,n)
 
           ! write the table
+          hascycled = .false.
           asum = 0d0
           do m = 1, n
              j = io(m)
+             if (i == bas%icp(idat(j)).and..not.sy%propi(l)%hirsh_show_self_overlaps) then
+                hascycled = .true.
+                cycle
+             end if
+             if (ovout(j) < sy%propi(l)%hirsh_cutoff) then
+                hascycled = .true.
+                cycle
+             end if
              if (.not.bas%docelatom(bas%icp(idat(j)))) cycle
              call assign_strings(j,bas%icp(idat(j)),.false.,scp,sncp,sname,smult,sz)
              x1 = bas%xattr(:,idat(j)) + ilvec(:,j)
@@ -3933,7 +3939,8 @@ contains
                 string(dist(j),'f',12,7,4), string(ovout(j),'f',12,8,4)
              asum = asum + ovout(j)
           end do
-          write (uout,'("  Total (Hirshfeld population)",61("."),A)') string(asum,'f',12,8,4)
+          if (.not.hascycled) &
+             write (uout,'("  Total (Hirshfeld population)",61("."),A)') string(asum,'f',12,8,4)
           write (uout,*)
        end do ! i
 
