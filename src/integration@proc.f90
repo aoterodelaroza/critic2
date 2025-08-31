@@ -74,9 +74,9 @@ contains
     real*8, parameter :: ratom_def0 = 1d0
 
     character(len=:), allocatable :: word, jsonfile
-    integer :: n(3), ntot, idum
-    integer :: lp, lp2
-    logical :: ok, nonnm, noatoms
+    integer :: i, n(3), ntot, idum, idum2
+    integer :: lp, lp2, iprev
+    logical :: ok, nonnm, noatoms, setdocelatom
     real*8 :: ratom_def
     real*8, allocatable :: faux(:,:,:)
     type(int_result), allocatable :: res(:)
@@ -148,6 +148,8 @@ contains
     bas%ndrawbasin = -1
     bas%basinfmt = "obj"
     bas%expr = ""
+    setdocelatom = .false.
+    bas%docelatom = .false.
     do while(.true.)
        word = lgetword(line,lp)
        if (equal(word,"nnm") .and. (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt)) then
@@ -188,7 +190,7 @@ contains
              return
           end if
        elseif (equal(word,"only") .and. (bas%imtype /= imtype_isosurface)) then
-          bas%docelatom = .false.
+          setdocelatom = .true.
           do while (.true.)
              lp2 = lp
              ok = isinteger(idum,line,lp)
@@ -201,6 +203,21 @@ contains
                 return
              end if
              bas%docelatom(idum) = .true.
+          end do
+       elseif (equal(word,"only_range") .and. (bas%imtype /= imtype_isosurface)) then
+          setdocelatom = .true.
+          ok = isinteger(idum,line,lp)
+          ok = ok .and. isinteger(idum2,line,lp)
+          if (.not.ok) then
+             call ferror("intgrid_driver","Invalid syntax in ONLY_RANGE",faterr,line,syntax=.true.)
+             return
+          end if
+          if (idum < 0 .or. idum > sy%f(sy%iref)%ncpcel .or. idum2 < 0 .or. idum2 > sy%f(sy%iref)%ncpcel) then
+             call ferror("intgrid_driver","Invalid complete CP list nuclear ID",faterr,line,syntax=.true.)
+             return
+          end if
+          do i = idum, idum2
+             bas%docelatom(i) = .true.
           end do
        elseif (equal(word,"json") .and. (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt)) then
           jsonfile = getword(line,lp)
@@ -215,6 +232,9 @@ contains
           exit
        end if
     end do
+    if (.not.setdocelatom) then
+       bas%docelatom = .true.
+    end if
 
     ! field number of grid points
     bas%n = sy%f(sy%iref)%grid%n
