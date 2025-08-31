@@ -893,7 +893,7 @@ contains
     character*(*), intent(in) :: line
 
     integer :: lp, n, lp2
-    integer :: i, iup, nstep, ier, id, idx, i1
+    integer :: i, iup, nstep, ier, id, idx, i1, i2, iz1, iz2
     character(len=:), allocatable :: file, filevmd, word, wext, wroot
     character(len=:), allocatable :: line2, aux
     logical :: ok
@@ -903,6 +903,7 @@ contains
     real*8 :: x(3), plen, pdbstrong
     type(gpathp), allocatable :: xpath(:)
     character*4 :: xzname
+    character*2 :: s1, s2
     integer, allocatable :: ixzassign(:)
 
     real*8, parameter :: pdbstrong_default = 0.1d0
@@ -1068,16 +1069,23 @@ contains
                    if (writevmd.and.dopdb) then
                       idx = sy%f(sy%iref)%cpcel(i)%idx
                       i1 = sy%f(sy%iref)%cp(idx)%ipath(1)
+                      iz1 = sy%c%spc(sy%c%at(i1)%is)%z
+                      i2 = sy%f(sy%iref)%cp(idx)%ipath(2)
+                      iz2 = sy%c%spc(sy%c%at(i2)%is)%z
                       if (i1 <= 0) then
-                         xzname(1:2) = "??"
+                         s1 = "??"
                       else
-                         xzname(1:2) = string(nameguess(sy%c%spc(sy%c%at(i1)%is)%z,.true.),2,ioj_right)
+                         s1 = nameguess(iz1,.true.)
                       end if
-                      i1 = sy%f(sy%iref)%cp(idx)%ipath(2)
-                      if (i1 <= 0) then
-                         xzname(3:4) = "??"
+                      if (i2 <= 0) then
+                         s2 = "??"
                       else
-                         xzname(3:4) = string(nameguess(sy%c%spc(sy%c%at(i1)%is)%z,.true.),2,ioj_left)
+                         s2 = nameguess(iz2,.true.)
+                      end if
+                      if (iz1 > iz2) then
+                         xzname = adjustr(s1) // adjustl(s2)
+                      else
+                         xzname = adjustr(s2) // adjustl(s1)
                       end if
                    end if
                    x = sy%f(sy%iref)%cpcel(i)%r + 0.5d0 * gcpchange * sy%f(sy%iref)%cpcel(i)%brvec

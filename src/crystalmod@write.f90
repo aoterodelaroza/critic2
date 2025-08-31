@@ -2782,7 +2782,7 @@ contains
     character(len=:), allocatable :: str
     character*1 :: sw, let
     character*2 :: atsym, aux1, aux2
-    character*4 :: name
+    character*4 :: name, segid
     character*11 :: spg
     integer, allocatable :: icountneq(:)
 
@@ -2861,7 +2861,7 @@ contains
           x = c%atcel(i)%r * bohrtoa
        end if
        iz = c%spc(c%atcel(i)%is)%z
-       atsym = adjustr(nameguess(iz,.true.))
+       atsym = adjustl(nameguess(iz,.true.))
 
        if (iz < 123) then
           if (present(cpcel)) then
@@ -2875,10 +2875,13 @@ contains
        end if
 
        if (iz <= 118) then
+          i1 = modulo(c%idatcelmol(1,i) - 1,len(letters)) + 1
+          segid = string(letters(i1:i1),4,ioj_left)
+
           ! atom
-          write (lu,'("HETATM",A," ",A," UNL A",A,A,"   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
+          write (lu,'("HETATM",A," ",A," UNL A",A,A,"   ",3(F8.3),2(F6.2),"      ",A4,A2,"  ")') &
              string(i,5,ioj_right), string(c%spc(c%atcel(i)%is)%name,4,ioj_left),&
-             string(idx,4,ioj_right), let, x, 1d0, 1d0, atsym
+             string(idx,4,ioj_right), let, x, 1d0, 1d0, segid, atsym
        elseif (iz == 119) then
           ! ncp
           write (lu,'("HETATM",A," ",A," UNL N",A,A,"   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
@@ -2886,20 +2889,21 @@ contains
              string(idx,4,ioj_right), let, x, 1d0, 1d0, atsym
        elseif (iz == 120) then
           ! bcp
+          !! entry in the name field
           i1 = cp(idx)%ipath(1)
           i2 = cp(idx)%ipath(2)
           if (i1 <= 0) then
              iz1 = -1
              aux1 = "??"
           else
-             iz1 = c%spc(c%at(cp(idx)%ipath(1))%is)%z
+             iz1 = c%spc(c%at(i1)%is)%z
              aux1 = string(nameguess(iz1,.true.),2)
           end if
           if (i2 <= 0) then
              iz2 = -1
              aux2 = "??"
           else
-             iz2 = c%spc(c%at(cp(idx)%ipath(2))%is)%z
+             iz2 = c%spc(c%at(i2)%is)%z
              aux2 = string(nameguess(c%spc(c%at(i2)%is)%z,.true.),2)
           end if
           if (iz1 > iz2) then
@@ -2908,13 +2912,17 @@ contains
              name = adjustr(aux2) // adjustl(aux1)
           end if
 
+          !! entry in the segid field
+          segid = get_segid_field(i1,i2)
+
+          !! entry in the strong/weak field
           if (cp(idx)%s%f > pdbstrong_) then
              sw = "S"
           else
              sw = "W"
           end if
-          write (lu,'("HETATM",A," ",A,A,"UNL B",A,A,"   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
-             string(i,5,ioj_right), name, sw, string(idx,4,ioj_right), let, x, 1d0, 1d0, atsym
+          write (lu,'("HETATM",A," ",A,A,"UNL B",A,A,"   ",3(F8.3),2(F6.2),"      ",A4,A2,"  ")') &
+             string(i,5,ioj_right), adjustl(name), sw, string(idx,4,ioj_right), let, x, 1d0, 1d0, segid, atsym
        elseif (iz == 121) then
           ! rcp
           write (lu,'("HETATM",A," ",A," UNL R",A,A,"   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
@@ -2926,13 +2934,37 @@ contains
              string(i,5,ioj_right), string(c%spc(c%atcel(i)%is)%name,4,ioj_left),&
              string(idx,4,ioj_right), let, x, 1d0, 1d0, atsym
        elseif (iz == 123) then
+          !! entry in the segid field
+          segid = get_segid_field(cp(ixzassign(i))%ipath(1),cp(ixzassign(i))%ipath(2))
+
           ! xz (bond path)
-          write (lu,'("HETATM",A," ",A," UNL Z",A,A,"   ",3(F8.3),2(F6.2),"          ",A2,"  ")') &
-             string(i,5,ioj_right), string(c%at(i)%name,4), string(ixzassign(i),4,ioj_right),&
-             let, x, 1d0, 1d0, string(c%spc(c%atcel(i)%is)%name,2,ioj_left)
+          write (lu,'("HETATM",A," ",A," UNL Z",A,A,"   ",3(F8.3),2(F6.2),"      "A4,A2,"  ")') &
+             string(i,5,ioj_right), string(c%at(i)%name,4,ioj_left), string(ixzassign(i),4,ioj_right),&
+             let, x, 1d0, 1d0, segid, string(c%spc(c%atcel(i)%is)%name,2,ioj_left)
        end if
     end do
     call fclose(lu)
+
+  contains
+    function get_segid_field(i1in,i2in) result(segid)
+      integer, intent(in) :: i1in, i2in
+      character*4 :: segid
+
+      integer :: i1, i2, im1, im2, ix1, ix2
+
+      i1 = c%idatcelmol(1,i1in)
+      i2 = c%idatcelmol(1,i2in)
+      im1 = modulo(i1 - 1,len(letters)) + 1
+      im2 = modulo(i2 - 1,len(letters)) + 1
+      ix1 = modulo((i1-1) / len(letters),10)
+      ix2 = modulo((i2-1) / len(letters),10)
+      if (im1 > im2 .or. (im1 == im2 .and. ix1 > ix2)) then
+         segid = letters(im2:im2) // string(ix2) // letters(im1:im1) // string(ix1)
+      else
+         segid = letters(im1:im1) // string(ix1) // letters(im2:im2) // string(ix2)
+      end if
+
+    end function get_segid_field
 
   end subroutine write_pdb
 
