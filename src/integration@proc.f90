@@ -1384,27 +1384,33 @@ contains
   !> integration only. bas = integration driver data, res(1:npropi) =
   !> results.
   subroutine intgrid_fields_atomloop(bas,res)
+    use grid1mod, only: grid1, agrid
     use hirshfeld, only: hirsh_weights
     use systemmod, only: sy, itype_v, itype_f, itype_fval, itype_gmod, &
        itype_lap, itype_lapval, itype_mpoles, itype_expr
     use grid3mod, only: grid3
     use fieldmod, only: type_grid
+    use global, only: cutrad
     use tools_io, only: uout, string, ferror, faterr
     use types, only: basindat, int_result, out_field, realloc
-    use param, only: ifformat_as_ft_lap, ifformat_as_ft_grad
+    use param, only: ifformat_as_ft_lap, ifformat_as_ft_grad, icrd_crys, maxzat, VSMALL
     type(basindat), intent(in) :: bas
     type(int_result), intent(inout) :: res(:)
 
-    integer :: i, k, ntot, fid
+    integer :: i, k, l, ntot, fid
     real*8, allocatable :: w(:,:,:)
-    integer :: i1, i2, i3
+    integer :: i1, i2, i3, iz
     type(grid3) :: faux
     logical :: ok, fillgrd
     logical :: plmask(sy%npropi)
-    real*8 :: lprop(sy%npropi), x(3), x2(3)
+    real*8 :: lprop(sy%npropi), x(3), x2(3), x0(3), xdelta(3,3)
+    real*8 :: rhoa, raux1, raux2, fac, tosum
     integer :: nmap
     integer, allocatable :: idmap(:)
     real*8, allocatable :: fmap(:,:,:,:)
+    integer :: nat
+    integer, allocatable :: nid(:), lvec(:,:)
+    real*8, allocatable :: dist(:), rcutmax(:,:)
 
     if (bas%imtype /= imtype_hirshfeld) return
 
@@ -1417,8 +1423,7 @@ contains
     allocate(idmap(sy%npropi))
     idmap = 0
     do k = 1, sy%npropi
-       if (res(k)%done) cycle
-       if (.not.sy%propi(k)%used) cycle
+       if (res(k)%done.or..not.sy%propi(k)%used) cycle
        if (sy%propi(k)%itype == itype_v) then
           ! volume
           if (allocated(res(k)%psum)) deallocate(res(k)%psum)
@@ -1507,41 +1512,70 @@ contains
        else
           cycle
        end if
-
-       res(k)%done = .true.
-       res(k)%reason = ""
     end do
 
-    ! loop over atoms
-    do i = 1, bas%nattr
-       if (.not.bas%docelatom(bas%icp(i))) cycle
-
-       ! compute the weight
-       call hirsh_weights(sy,bas,i,w)
-
-       ! run over integrable properties
-       do k = 1, sy%npropi
-          if (.not.sy%propi(k)%used) cycle
-
-          if (sy%propi(k)%itype == itype_v) then
-             ! volume
-             res(k)%psum(i) = sum(w) * sy%c%omega / real(ntot,8)
-
-          elseif (sy%propi(k)%itype == itype_f.or.sy%propi(k)%itype == itype_fval.or.&
-             sy%propi(k)%itype == itype_gmod.or.sy%propi(k)%itype == itype_lap .or.&
-             sy%propi(k)%itype == itype_lapval.or.sy%propi(k)%itype == itype_expr) then
-             ! scalar fields other than volume, minus the multipoles
-             if (idmap(k) == 0) cycle
-             res(k)%psum(i) = sum(w * fmap(:,:,:,idmap(k))) * sy%c%omega / real(ntot,8)
-
-          else
-             ! none of the above
-             cycle
-          end if
-       end do
+    ! grid dimensions
+    do i = 1, 3
+       xdelta(:,i) = 0d0
+       xdelta(i,i) = 1d0 / real(bas%n(i),8)
     end do
 
-    deallocate(w)
+    ! calculate the cutoffs
+    if (allocated(rcutmax)) deallocate(rcutmax)
+    allocate(rcutmax(sy%c%nspc,2))
+    rcutmax = 0d0
+    do i = 1, sy%c%nspc
+       iz = sy%c%spc(i)%z
+       if (iz == 0 .or. iz > maxzat) cycle
+       if (agrid(iz)%isinit) then
+          rcutmax(i,2) = min(cutrad(iz),agrid(iz)%rmax)
+       else
+          call ferror('intgrid_hirshfeld_overlap','hirshfeld requires atomic grids',faterr)
+       end if
+    end do
+
+    ! run over grid points
+    !$omp parallel do private(x0,nat,fac,rhoa,raux1,raux2,tosum) firstprivate(nid,dist,lvec)
+    do i3 = 1, bas%n(3)
+       do i2 = 1, bas%n(2)
+          do i1 = 1, bas%n(1)
+             x0 = (i1-1) * xdelta(:,1) + (i2-1) * xdelta(:,2) + (i3-1) * xdelta(:,3)
+             call sy%c%list_near_atoms(x0,icrd_crys,.false.,nat,nid,dist,lvec,up2dsp=rcutmax)
+
+             fac = 1d0 / max(bas%f(i1,i2,i3),VSMALL)
+
+             ! run over atoms in the environment
+             do i = 1, nat
+                ! calculate density and accumulate
+                call agrid(sy%c%spc(sy%c%atcel(nid(i))%is)%z)%interp(dist(i),rhoa,raux1,raux2)
+                tosum = fac * rhoa
+
+                !$omp critical (results)
+                ! add result
+                do l = 1, sy%npropi
+                   if (res(l)%done.or..not.sy%propi(l)%used) cycle
+                   if (sy%propi(l)%itype == itype_v) then
+                      ! volume
+                      res(l)%psum(nid(i)) = res(l)%psum(nid(i)) + tosum
+                   elseif (idmap(l) > 0) then
+                      res(l)%psum(nid(i)) = res(l)%psum(nid(i)) + tosum * fmap(i1,i2,i3,idmap(l))
+                   end if
+                end do
+                !$omp end critical (results)
+             end do ! i
+          end do ! i1
+       end do ! i2
+    end do ! i3
+    !$omp end parallel do
+
+    ! wrap up
+    do l = 1, sy%npropi
+       if (res(l)%done.or..not.sy%propi(l)%used) cycle
+       res(l)%psum = res(l)%psum * sy%c%omega / product(bas%n)
+
+       res(l)%done = .true.
+       res(l)%reason = ""
+    end do
 
   end subroutine intgrid_fields_atomloop
 
