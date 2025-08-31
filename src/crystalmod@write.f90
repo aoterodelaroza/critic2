@@ -2777,11 +2777,11 @@ contains
 
     integer :: lu
     integer, allocatable :: nis(:)
-    integer :: i, icount, iz, idx, i1, i2
+    integer :: i, icount, iz, idx, i1, i2, iz1, iz2
     real*8 :: maxdv, x(3), pdbstrong_
     character(len=:), allocatable :: str
     character*1 :: sw, let
-    character*2 :: atsym
+    character*2 :: atsym, aux1, aux2
     character*4 :: name
     character*11 :: spg
     integer, allocatable :: icountneq(:)
@@ -2889,15 +2889,25 @@ contains
           i1 = cp(idx)%ipath(1)
           i2 = cp(idx)%ipath(2)
           if (i1 <= 0) then
-             name(1:2) = "??"
+             iz1 = -1
+             aux1 = "??"
           else
-             name(1:2) = string(nameguess(c%spc(c%at(i1)%is)%z,.true.),2,ioj_right)
+             iz1 = c%spc(c%at(cp(idx)%ipath(1))%is)%z
+             aux1 = string(nameguess(iz1,.true.),2)
           end if
           if (i2 <= 0) then
-             name(3:4) = "??"
+             iz2 = -1
+             aux2 = "??"
           else
-             name(3:4) = string(nameguess(c%spc(c%at(i2)%is)%z,.true.),2,ioj_left)
+             iz2 = c%spc(c%at(cp(idx)%ipath(2))%is)%z
+             aux2 = string(nameguess(c%spc(c%at(i2)%is)%z,.true.),2)
           end if
+          if (iz1 > iz2) then
+             name = adjustr(aux1) // adjustl(aux2)
+          else
+             name = adjustr(aux2) // adjustl(aux1)
+          end if
+
           if (cp(idx)%s%f > pdbstrong_) then
              sw = "S"
           else
