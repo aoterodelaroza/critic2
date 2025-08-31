@@ -506,6 +506,21 @@ contains
        !! phong !!
        ! set up the shader and the uniforms
        call useshader(shader_phong)
+
+       ! get all the uniforms
+       iunif(iu_world) = get_uniform_location("world")
+       iunif(iu_view) = get_uniform_location("view")
+       iunif(iu_projection) = get_uniform_location("projection")
+       iunif(iu_model) = get_uniform_location("model")
+       iunif(iu_object_type) = get_uniform_location("object_type")
+       iunif(iu_border) = get_uniform_location("rborder")
+       iunif(iu_bordercolor) = get_uniform_location("bordercolor")
+       iunif(iu_vcolor) = get_uniform_location("vColor")
+       iunif(iu_idx) = get_uniform_location("idx")
+       iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
+       iunif(iu_ndash_cyl) = get_uniform_location("ndash_cyl")
+
+       ! set the common uniforms
        call setuniform_int(1_c_int,"uselighting")
        call setuniform_vec3(s%lightpos,"lightPos")
        call setuniform_vec3(s%lightcolor,"lightColor")
@@ -513,13 +528,9 @@ contains
        call setuniform_float(s%diffuse,"diffuse")
        call setuniform_float(s%specular,"specular")
        call setuniform_int(s%shininess,"shininess")
-       call setuniform_mat4(s%world,"world")
-       call setuniform_mat4(s%view,"view")
-       call setuniform_mat4(s%projection,"projection")
-
-       ! get all the uniforms
-       iunif(iu_model) = get_uniform_location("model")
-       iunif(iu_vcolor) = get_uniform_location("vColor")
+       call setuniform_mat4(s%world,idxi=iunif(iu_world))
+       call setuniform_mat4(s%view,idxi=iunif(iu_view))
+       call setuniform_mat4(s%projection,idxi=iunif(iu_projection))
 
        ! draw the atoms
        if (s%obj%nsph > 0) then
@@ -925,7 +936,7 @@ contains
 
     if (style_ == style_phong) then
        !! phong !!
-       s%bgcolor = (/0.3_c_float,0.3_c_float,0.3_c_float/)
+       s%bgcolor = (/1.0_c_float,1.0_c_float,1.0_c_float/)
        s%lightpos = (/20._c_float,20._c_float,0._c_float/)
        s%lightcolor = (/1._c_float,1._c_float,1._c_float/)
        s%ambient = 0.2_c_float

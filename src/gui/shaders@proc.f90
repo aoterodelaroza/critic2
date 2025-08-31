@@ -145,7 +145,6 @@ contains
   !> Set an integer uniform.
   module subroutine setuniform_int(x,name,idxi)
     use interfaces_opengl3, only: glUniform1i, glGetUniformLocation
-    use tools_io, only: ferror, faterr
     integer(c_int), intent(in) :: x
     character*(*), intent(in), target, optional :: name
     integer(c_int), intent(in), optional :: idxi
@@ -155,11 +154,11 @@ contains
 
     if (present(idxi)) then
        idx = idxi
+       if (idx < 0) return
     elseif (present(name)) then
        str = trim(name) // c_null_char
        idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
-       if (idx == -1) &
-          call ferror('setuniform_int','error finding uniform location for ' // trim(name),faterr)
+       if (idx < 0) return
     end if
     call glUniform1i(idx,x)
 
@@ -168,7 +167,6 @@ contains
   !> Set a float uniform.
   module subroutine setuniform_float(x,name,idxi)
     use interfaces_opengl3, only: glUniform1f, glGetUniformLocation
-    use tools_io, only: ferror, faterr
     real(c_float), intent(in) :: x
     character*(*), intent(in), target, optional :: name
     integer(c_int), intent(in), optional :: idxi
@@ -178,11 +176,11 @@ contains
 
     if (present(idxi)) then
        idx = idxi
+       if (idx < 0) return
     elseif (present(name)) then
        str = trim(name) // c_null_char
        idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
-       if (idx == -1) &
-          call ferror('setuniform_int','error finding uniform location for ' // trim(name),faterr)
+       if (idx < 0) return
     end if
     call glUniform1f(idx,x)
 
@@ -191,7 +189,6 @@ contains
   !> Set a vec3 float uniform.
   module subroutine setuniform_vec3(x,name,idxi)
     use interfaces_opengl3, only: glUniform3fv, glGetUniformLocation
-    use tools_io, only: ferror, faterr
     real(c_float), intent(in), target :: x(3)
     character*(*), intent(in), target, optional :: name
     integer(c_int), intent(in), optional :: idxi
@@ -201,11 +198,11 @@ contains
 
     if (present(idxi)) then
        idx = idxi
+       if (idx < 0) return
     elseif (present(name)) then
        str = trim(name) // c_null_char
        idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
-       if (idx == -1) &
-          call ferror('setuniform_int','error finding uniform location for ' // trim(name),faterr)
+       if (idx < 0) return
     end if
     call glUniform3fv(idx,1,c_loc(x))
 
@@ -224,11 +221,11 @@ contains
 
     if (present(idxi)) then
        idx = idxi
+       if (idx < 0) return
     elseif (present(name)) then
        str = trim(name) // c_null_char
        idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
-       if (idx == -1) &
-          call ferror('setuniform_int','error finding uniform location for ' // trim(name),faterr)
+       if (idx < 0) return
     end if
     call glUniform4fv(idx,1,c_loc(x))
 
@@ -237,7 +234,6 @@ contains
   !> Set a mat3 float uniform
   module subroutine setuniform_mat3(x,name,idxi)
     use interfaces_opengl3, only: glUniformMatrix3fv, glGetUniformLocation, GL_FALSE
-    use tools_io, only: ferror, faterr
     real(c_float), intent(in), target :: x(3,3)
     character*(*), intent(in), target, optional :: name
     integer(c_int), intent(in), optional :: idxi
@@ -247,11 +243,11 @@ contains
 
     if (present(idxi)) then
        idx = idxi
+       if (idx < 0) return
     elseif (present(name)) then
        str = trim(name) // c_null_char
        idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
-       if (idx == -1) &
-          call ferror('setuniform_int','error finding uniform location for ' // trim(name),faterr)
+       if (idx < 0) return
     end if
     call glUniformMatrix3fv(idx, 1, int(GL_FALSE,c_signed_char), c_loc(x))
 
@@ -270,11 +266,11 @@ contains
 
     if (present(idxi)) then
        idx = idxi
+       if (idx < 0) return
     elseif (present(name)) then
        str = trim(name) // c_null_char
        idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
-       if (idx == -1) &
-          call ferror('setuniform_int','error finding uniform location for ' // trim(name),faterr)
+       if (idx < 0) return
     end if
     call glUniformMatrix4fv(idx, 1, int(GL_FALSE,c_signed_char), c_loc(x))
 
