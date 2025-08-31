@@ -2763,7 +2763,7 @@ contains
 
   !> Write a PDB file. The optional arguments cp, cpcel, ixzassign are
   !> for the PDB writer including critical points and bond paths.
-  module subroutine write_pdb(c,file,cp,cpcel,ixzassign,ti)
+  module subroutine write_pdb(c,file,cp,cpcel,ixzassign,pdbstrong,ti)
     use tools_io, only: fopen_write, string, fclose, upper, ioj_right, ioj_left, nameguess
     use tools_math, only: gcd
     use param, only: bohrtoa
@@ -2772,12 +2772,13 @@ contains
     type(cp_type), intent(in), optional :: cp(:)
     type(cp_type), intent(in), optional :: cpcel(:)
     integer, intent(in), optional :: ixzassign(:)
+    real*8, intent(in), optional :: pdbstrong
     type(thread_info), intent(in), optional :: ti
 
     integer :: lu
     integer, allocatable :: nis(:)
     integer :: i, icount, iz, idx, i1, i2
-    real*8 :: maxdv, x(3)
+    real*8 :: maxdv, x(3), pdbstrong_
     character(len=:), allocatable :: str
     character*1 :: sw, let
     character*2 :: atsym
@@ -2786,6 +2787,10 @@ contains
     integer, allocatable :: icountneq(:)
 
     character(*), parameter :: letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+    ! process options
+    pdbstrong_ = 0.1d0
+    if (present(pdbstrong)) pdbstrong_ = pdbstrong
 
     ! open file
     lu = fopen_write(file,ti=ti)
@@ -2893,7 +2898,7 @@ contains
           else
              name(3:4) = string(nameguess(c%spc(c%at(i2)%is)%z,.true.),2,ioj_left)
           end if
-          if (cp(idx)%s%f > 0.1d0) then
+          if (cp(idx)%s%f > pdbstrong_) then
              sw = "S"
           else
              sw = "W"

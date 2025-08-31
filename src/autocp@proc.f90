@@ -900,10 +900,12 @@ contains
     logical :: agraph, writevmd, dopdb
     type(crystalseed) :: seed
     type(system) :: syaux
-    real*8 :: x(3), plen
+    real*8 :: x(3), plen, pdbstrong
     type(gpathp), allocatable :: xpath(:)
     character*4 :: xzname
     integer, allocatable :: ixzassign(:)
+
+    real*8, parameter :: pdbstrong_default = 0.1d0
 
     ! Calculate the field at the nuclei, if deferred
     if (sy%f(sy%iref)%fcp_deferred) &
@@ -940,6 +942,7 @@ contains
           agraph = .false.
           writevmd = .false.
           dopdb = .false.
+          pdbstrong = pdbstrong_default
           n = 0
           do while (.true.)
              word = getword(line,lp2)
@@ -947,6 +950,10 @@ contains
                 agraph = .true.
              elseif (equal(lower(word),'pdb')) then
                 dopdb = .true.
+             elseif (equal(lower(word),'strong')) then
+                ok = eval_next(pdbstrong,line,lp2)
+                if (.not.ok) &
+                   call ferror("cpreport","unclassified critical point",faterr)
              elseif (len_trim(word) > 0) then
                 n = n + 1
                 if (n == 1 .and. equal(wext,'vmd')) then
@@ -1100,7 +1107,7 @@ contains
           call syaux%c%struct_new(seed,.true.)
           if (writevmd.and.dopdb) then
              call syaux%c%write_pdb(file,cp=sy%f(sy%iref)%cp,cpcel=sy%f(sy%iref)%cpcel,&
-                ixzassign=ixzassign)
+                ixzassign=ixzassign,pdbstrong=pdbstrong)
           else
              call struct_write(syaux,line2,.not.writevmd)
           end if
