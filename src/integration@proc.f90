@@ -1561,10 +1561,11 @@ contains
 
     integer :: i, j, l, i1, i2, i3, iz, fid
     logical :: ok, fillgrd
-    real*8, allocatable :: fmap(:,:,:), aux(:,:,:,:,:)
+    integer, allocatable :: idmap(:)
+    real*8, allocatable :: fmap(:,:,:,:), aux(:,:,:,:,:)
     real*8 :: x(3), x2(3), x0(3), xdelta(3,3), rhoa, rhob, raux1, raux2, tosum
     real*8 :: lprop(sy%npropi), fac
-    integer :: lb(3), ub(3), lbn(3), ubn(3), nat, lt(3)
+    integer :: lb(3), ub(3), lbn(3), ubn(3), nat, lt(3), nmap
     logical :: plmask(sy%npropi)
     integer, allocatable :: nid(:), lvec(:,:)
     real*8, allocatable :: dist(:), rcutmax(:,:)
@@ -1573,6 +1574,9 @@ contains
     if (bas%imtype /= imtype_hirshfeld) return
 
     ! prepare results of integrable properties
+    nmap = 0
+    allocate(idmap(sy%npropi))
+    idmap = 0
     do l = 1, sy%npropi
        if (res(l)%done) cycle
        if (.not.sy%propi(l)%used) cycle
@@ -1586,10 +1590,12 @@ contains
        end if
 
        ! create space for the grid
+       nmap = nmap + 1
+       idmap(l) = nmap
        if (.not.allocated(fmap)) then
-          allocate(fmap(bas%n(1),bas%n(2),bas%n(3)))
+          allocate(fmap(bas%n(1),bas%n(2),bas%n(3),1))
        else
-          call realloc(fmap,bas%n(1),bas%n(2),bas%n(3))
+          call realloc(fmap,bas%n(1),bas%n(2),bas%n(3),nmap)
        end if
 
        ! copy the grid if it is available
@@ -1598,7 +1604,7 @@ contains
        if (ok) ok = all(sy%f(fid)%grid%n == bas%n)
        if (ok) then
           if (.not.sy%f(fid)%usecore) then
-             fmap(:,:,:) = sy%f(fid)%grid%f
+             fmap(:,:,:,nmap) = sy%f(fid)%grid%f
           else
              fillgrd = .true.
           end if
@@ -1620,7 +1626,7 @@ contains
                    x2 = sy%c%x2c(x)
                    call sy%grdall(x2,lprop,plmask)
                    !$omp critical (write)
-                   fmap(i1,i2,i3) = lprop(l)
+                   fmap(i1,i2,i3,nmap) = lprop(l)
                    !$omp end critical (write)
                 end do
              end do
@@ -1631,89 +1637,105 @@ contains
        ! prepare the output array
        if (allocated(res(l)%hirsh_op)) deallocate(res(l)%hirsh_op)
        allocate(res(l)%hirsh_op(bas%nattr,bas%nattr,0:0,0:0,0:0))
-       lb = 0
-       ub = 0
        res(l)%hirsh_op = 0d0
        write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
+    end do
 
-       ! grid dimensions
-       do i = 1, 3
-          xdelta(:,i) = 0d0
-          xdelta(i,i) = 1d0 / real(bas%n(i),8)
-       end do
+    ! ! run the calculation
+    ! do l = 1, sy%npropi
+    !    if (res(l)%done) cycle
+    !    if (.not.sy%propi(l)%used) cycle
+    !    if (sy%propi(l)%itype /= itype_hirshfeld_ovpop) cycle
 
-       ! calculate the cutoffs
-       allocate(rcutmax(sy%c%nspc,2))
-       rcutmax = 0d0
-       do i = 1, sy%c%nspc
-          iz = sy%c%spc(i)%z
-          if (iz == 0 .or. iz > maxzat) cycle
-          if (agrid(iz)%isinit) then
-             rcutmax(i,2) = min(cutrad(iz),agrid(iz)%rmax)
-          else
-             call ferror('intgrid_hirshfeld_overlap','hirshfeld requires atomic grids',faterr)
-          end if
-       end do
+    ! prepare for output
+    lb = 0
+    ub = 0
 
-       ! run over grid points
-       !$omp parallel do private(x0,nat,fac,lt,rhoa,rhob,raux1,raux2,tosum) firstprivate(nid,dist,lvec)
-       do i3 = 1, bas%n(3)
-          do i2 = 1, bas%n(2)
-             do i1 = 1, bas%n(1)
-                x0 = (i1-1) * xdelta(:,1) + (i2-1) * xdelta(:,2) + (i3-1) * xdelta(:,3)
-                call sy%c%list_near_atoms(x0,icrd_crys,.false.,nat,nid,dist,lvec,up2dsp=rcutmax)
+    ! grid dimensions
+    do i = 1, 3
+       xdelta(:,i) = 0d0
+       xdelta(i,i) = 1d0 / real(bas%n(i),8)
+    end do
 
-                fac = fmap(i1,i2,i3) / max(bas%f(i1,i2,i3) * bas%f(i1,i2,i3),VSMALL)
+    ! calculate the cutoffs
+    if (allocated(rcutmax)) deallocate(rcutmax)
+    allocate(rcutmax(sy%c%nspc,2))
+    rcutmax = 0d0
+    do i = 1, sy%c%nspc
+       iz = sy%c%spc(i)%z
+       if (iz == 0 .or. iz > maxzat) cycle
+       if (agrid(iz)%isinit) then
+          rcutmax(i,2) = min(cutrad(iz),agrid(iz)%rmax)
+       else
+          call ferror('intgrid_hirshfeld_overlap','hirshfeld requires atomic grids',faterr)
+       end if
+    end do
 
-                ! run over pairs of atoms in the environment
-                do i = 1, nat
-                   do j = i, nat
-                      lt = lvec(:,j) - lvec(:,i)
+    ! run over grid points
+    !$omp parallel do private(x0,nat,fac,lt,rhoa,rhob,raux1,raux2,tosum) firstprivate(nid,dist,lvec)
+    do i3 = 1, bas%n(3)
+       do i2 = 1, bas%n(2)
+          do i1 = 1, bas%n(1)
+             x0 = (i1-1) * xdelta(:,1) + (i2-1) * xdelta(:,2) + (i3-1) * xdelta(:,3)
+             call sy%c%list_near_atoms(x0,icrd_crys,.false.,nat,nid,dist,lvec,up2dsp=rcutmax)
 
-                      ! calculate densities and accumulate
-                      call agrid(sy%c%spc(sy%c%atcel(nid(i))%is)%z)%interp(dist(i),rhoa,raux1,raux2)
-                      call agrid(sy%c%spc(sy%c%atcel(nid(j))%is)%z)%interp(dist(j),rhob,raux1,raux2)
-                      tosum = fac * rhoa * rhob
+             fac = 1d0 / max(bas%f(i1,i2,i3) * bas%f(i1,i2,i3),VSMALL)
 
-                      !$omp critical (results)
-                      ! reallocate if necessary
-                      if (-abs(lt(1))<lb(1).or.-abs(lt(2))<lb(2).or.-abs(lt(3))<lb(3).or.&
-                         abs(lt(1))>ub(1).or.abs(lt(2))>ub(2).or.abs(lt(3))>ub(3)) then
-                         lbn = min(lb,-abs(lt))
-                         ubn = max(ub,abs(lt))
+             ! run over pairs of atoms in the environment
+             do i = 1, nat
+                do j = i, nat
+                   lt = lvec(:,j) - lvec(:,i)
+
+                   ! calculate densities and accumulate
+                   call agrid(sy%c%spc(sy%c%atcel(nid(i))%is)%z)%interp(dist(i),rhoa,raux1,raux2)
+                   call agrid(sy%c%spc(sy%c%atcel(nid(j))%is)%z)%interp(dist(j),rhob,raux1,raux2)
+                   tosum = fac * rhoa * rhob
+
+                   !$omp critical (results)
+                   ! reallocate if necessary
+                   if (-abs(lt(1))<lb(1).or.-abs(lt(2))<lb(2).or.-abs(lt(3))<lb(3).or.&
+                      abs(lt(1))>ub(1).or.abs(lt(2))>ub(2).or.abs(lt(3))>ub(3)) then
+                      lbn = min(lb,-abs(lt))
+                      ubn = max(ub,abs(lt))
+                      do l = 1, sy%npropi
+                         if (idmap(l) == 0) cycle
                          allocate(aux(bas%nattr,bas%nattr,lbn(1):ubn(1),lbn(2):ubn(2),lbn(3):ubn(3)))
                          aux = 0d0
                          aux(:,:,lb(1):ub(1),lb(2):ub(2),lb(3):ub(3)) = res(l)%hirsh_op
                          call move_alloc(aux,res(l)%hirsh_op)
-                         lb = lbn
-                         ub = ubn
-                      end if
-                      ! add result
+                      end do
+                      lb = lbn
+                      ub = ubn
+                   end if
+                   ! add result
+                   do l = 1, sy%npropi
+                      if (idmap(l) == 0) cycle
                       res(l)%hirsh_op(nid(i),nid(j),lt(1),lt(2),lt(3)) = &
-                         res(l)%hirsh_op(nid(i),nid(j),lt(1),lt(2),lt(3)) + tosum
+                         res(l)%hirsh_op(nid(i),nid(j),lt(1),lt(2),lt(3)) + tosum * fmap(i1,i2,i3,idmap(l))
                       if (i /= j) then
                          res(l)%hirsh_op(nid(j),nid(i),-lt(1),-lt(2),-lt(3)) = &
-                            res(l)%hirsh_op(nid(j),nid(i),-lt(1),-lt(2),-lt(3)) + tosum
+                            res(l)%hirsh_op(nid(j),nid(i),-lt(1),-lt(2),-lt(3)) + tosum * fmap(i1,i2,i3,idmap(l))
                       end if
-                      !$omp end critical (results)
-                   end do ! j
-                end do ! i
-             end do ! i1
-          end do ! i2
-       end do ! i3
-       !$omp end parallel do
+                   end do
+                   !$omp end critical (results)
+                end do ! j
+             end do ! i
+          end do ! i1
+       end do ! i2
+    end do ! i3
+    !$omp end parallel do
 
-       ! wrap up
+    ! wrap up
+    do l = 1, sy%npropi
+       if (idmap(l) == 0) cycle
        res(l)%hirsh_op(:,:,:,:,:) = res(l)%hirsh_op(:,:,:,:,:) * sy%c%omega / product(bas%n)
 
-       ! done
        res(l)%done = .true.
        res(l)%reason = ""
        res(l)%outmode = out_hirsh_ovpop
     end do
 
   end subroutine intgrid_hirshfeld_overlap
-
 
   !> Calculate localization and delocalization indices using
   !> grids. bas = integration driver data, res(1:npropi) = results.
