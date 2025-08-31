@@ -1384,8 +1384,7 @@ contains
   !> integration only. bas = integration driver data, res(1:npropi) =
   !> results.
   subroutine intgrid_hirshfeld_fields(bas,res)
-    use grid1mod, only: grid1, agrid
-    use hirshfeld, only: hirsh_weights
+    use grid1mod, only: agrid
     use systemmod, only: sy, itype_v, itype_f, itype_fval, itype_gmod, &
        itype_lap, itype_lapval, itype_mpoles, itype_expr
     use grid3mod, only: grid3
@@ -1546,6 +1545,7 @@ contains
 
              ! run over atoms in the environment
              do i = 1, nat
+                if (.not.bas%docelatom(bas%icp(nid(i)))) cycle
                 ! calculate density and accumulate
                 call agrid(sy%c%spc(sy%c%atcel(nid(i))%is)%z)%interp(dist(i),rhoa,raux1,raux2)
                 tosum = fac * rhoa
@@ -1584,7 +1584,7 @@ contains
   !>   B_AB = int wA * wB * rho(r) dr
   !> Only for grids. bas = integration driver data, res(1:npropi) = results.
   subroutine intgrid_hirshfeld_overlap(bas,res)
-    use grid1mod, only: grid1, agrid
+    use grid1mod, only: agrid
     use systemmod, only: sy, itype_hirshfeld_ovpop
     use fieldmod, only: type_grid
     use global, only: cutrad
@@ -1719,6 +1719,7 @@ contains
              ! run over pairs of atoms in the environment
              do i = 1, nat
                 do j = i, nat
+                   if (.not.bas%docelatom(bas%icp(nid(i))).and..not.bas%docelatom(bas%icp(nid(j)))) cycle
                    lt = lvec(:,j) - lvec(:,i)
 
                    ! calculate densities and accumulate
