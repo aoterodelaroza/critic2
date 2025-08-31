@@ -2552,7 +2552,7 @@ contains
     ! label atoms
     write (lu,'("set atomlist [[atomselect top ""not (type 1 or type 2 or type 3 or type 4 or type 5)""] list]")')
     write (lu,'("foreach {atom} $atomlist {")')
-    write (lu,'("  label add Atoms 0/$atom")')
+    write (lu,'("  label add Atoms [molinfo top]/$atom")')
     write (lu,'("  label textformat Atoms $atom {%1i}")')
     write (lu,'("  label textoffset Atoms $atom ""$labx $laby""")')
     write (lu,'("}")')
@@ -2682,7 +2682,7 @@ contains
     write (lu,'("# labels")')
     write (lu,'("set atomlist [[atomselect top ""not (chain N B R C Z)""] list]")')
     write (lu,'("foreach {atom} $atomlist {")')
-    write (lu,'("  label add Atoms 0/$atom")')
+    write (lu,'("  label add Atoms [molinfo top]/$atom")')
     write (lu,'("  label textformat Atoms $atom {%1i}")')
     write (lu,'("  label textoffset Atoms $atom ""$labx $laby""")')
     write (lu,'("}")')
