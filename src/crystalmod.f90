@@ -1020,8 +1020,9 @@ module crystalmod
        character*(*), intent(in) :: file
        type(thread_info), intent(in), optional :: ti
      end subroutine write_tinkerfrac
-     module subroutine write_pdb(c,file,cp,cpcel,ixzassign,pdbstrong,ti)
+     module subroutine write_pdb(c,corig,file,cp,cpcel,ixzassign,pdbstrong,ti)
        class(crystal), intent(in) :: c
+       class(crystal), intent(in) :: corig
        character*(*), intent(in) :: file
        type(cp_type), intent(in), optional :: cp(:)
        type(cp_type), intent(in), optional :: cpcel(:)

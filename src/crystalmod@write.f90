@@ -805,7 +805,7 @@ contains
     elseif (isformat == isformat_w_tinkerfrac) then
        call c%write_tinkerfrac(file,ti=ti)
     elseif (isformat == isformat_w_pdb) then
-       call c%write_pdb(file,ti=ti)
+       call c%write_pdb(c,file,ti=ti)
     end if
 
   end subroutine write_any_file
@@ -2763,11 +2763,12 @@ contains
 
   !> Write a PDB file. The optional arguments cp, cpcel, ixzassign are
   !> for the PDB writer including critical points and bond paths.
-  module subroutine write_pdb(c,file,cp,cpcel,ixzassign,pdbstrong,ti)
+  module subroutine write_pdb(c,corig,file,cp,cpcel,ixzassign,pdbstrong,ti)
     use tools_io, only: fopen_write, string, fclose, upper, ioj_right, ioj_left, nameguess
     use tools_math, only: gcd
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
+    class(crystal), intent(in) :: corig
     character*(*), intent(in) :: file
     type(cp_type), intent(in), optional :: cp(:)
     type(cp_type), intent(in), optional :: cpcel(:)
@@ -2784,7 +2785,7 @@ contains
     character*2 :: atsym, aux1, aux2
     character*4 :: name, segid
     character*11 :: spg
-    integer, allocatable :: icountneq(:)
+    integer, allocatable :: icountneq(:), assignneq(:)
 
     character(*), parameter :: letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -2820,8 +2821,8 @@ contains
     ! empirical formula
     allocate(nis(c%nspc))
     nis = 0
-    do i = 1, c%nneq
-       nis(c%at(i)%is) = nis(c%at(i)%is) + c%at(i)%mult
+    do i = 1, corig%nneq
+       nis(corig%at(i)%is) = nis(corig%at(i)%is) + 1
     end do
     maxdv = gcd(nis,c%nspc)
     str = ""
@@ -2850,8 +2851,9 @@ contains
     end if
 
     ! count equivalent CPs
-    allocate(icountneq(c%nneq))
+    allocate(icountneq(c%nneq),assignneq(c%nneq))
     icountneq = -1
+    assignneq = -1
 
     ! atom entries
     do i = 1, c%ncel
@@ -2867,15 +2869,19 @@ contains
           if (present(cpcel)) then
              idx = cpcel(i)%idx
           else
-             idx = c%atcel(i)%idx
+             idx = corig%atcel(i)%idx
           end if
           icountneq(idx) = icountneq(idx) + 1
+          assignneq(i) = icountneq(idx)
           i1 = modulo(icountneq(idx),len(letters)) + 1
+          let = letters(i1:i1)
+       else
+          i1 = modulo(assignneq(ixzassign(i)),len(letters)) + 1
           let = letters(i1:i1)
        end if
 
        if (iz <= 118) then
-          i1 = modulo(c%idatcelmol(1,i) - 1,len(letters)) + 1
+          i1 = modulo(corig%idatcelmol(1,i) - 1,len(letters)) + 1
           segid = string(letters(i1:i1),4,ioj_left)
 
           ! atom
@@ -2896,15 +2902,15 @@ contains
              iz1 = -1
              aux1 = "??"
           else
-             iz1 = c%spc(c%at(i1)%is)%z
+             iz1 = corig%spc(corig%at(i1)%is)%z
              aux1 = string(nameguess(iz1,.true.),2)
           end if
           if (i2 <= 0) then
              iz2 = -1
              aux2 = "??"
           else
-             iz2 = c%spc(c%at(i2)%is)%z
-             aux2 = string(nameguess(c%spc(c%at(i2)%is)%z,.true.),2)
+             iz2 = corig%spc(corig%at(i2)%is)%z
+             aux2 = string(nameguess(corig%spc(corig%at(i2)%is)%z,.true.),2)
           end if
           if (iz1 > iz2) then
              name = adjustr(aux1) // adjustl(aux2)
@@ -2935,11 +2941,11 @@ contains
              string(idx,4,ioj_right), let, x, 1d0, 1d0, atsym
        elseif (iz == 123) then
           !! entry in the segid field
-          segid = get_segid_field(cp(ixzassign(i))%ipath(1),cp(ixzassign(i))%ipath(2))
+          segid = get_segid_field(cp(cpcel(ixzassign(i))%idx)%ipath(1),cp(cpcel(ixzassign(i))%idx)%ipath(2))
 
           ! xz (bond path)
           write (lu,'("HETATM",A," ",A," UNL Z",A,A,"   ",3(F8.3),2(F6.2),"      "A4,A2,"  ")') &
-             string(i,5,ioj_right), string(c%at(i)%name,4,ioj_left), string(ixzassign(i),4,ioj_right),&
+             string(i,5,ioj_right), string(c%at(i)%name,4,ioj_left), string(cpcel(ixzassign(i))%idx,4,ioj_right),&
              let, x, 1d0, 1d0, segid, string(c%spc(c%atcel(i)%is)%name,2,ioj_left)
        end if
     end do
@@ -2952,8 +2958,8 @@ contains
 
       integer :: i1, i2, im1, im2, ix1, ix2
 
-      i1 = c%idatcelmol(1,i1in)
-      i2 = c%idatcelmol(1,i2in)
+      i1 = corig%idatcelmol(1,i1in)
+      i2 = corig%idatcelmol(1,i2in)
       im1 = modulo(i1 - 1,len(letters)) + 1
       im2 = modulo(i2 - 1,len(letters)) + 1
       ix1 = modulo((i1-1) / len(letters),10)

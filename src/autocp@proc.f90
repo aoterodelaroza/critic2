@@ -1091,12 +1091,12 @@ contains
                    x = sy%f(sy%iref)%cpcel(i)%r + 0.5d0 * gcpchange * sy%f(sy%iref)%cpcel(i)%brvec
                    call sy%f(sy%iref)%gradient(x,iup,nstep,ier,.false.,plen,xpath,prunedist,pathini=sy%f(sy%iref)%cpcel(i)%r)
                    !$omp critical (add)
-                   call addpath(size(xpath,1),xpath)
+                   call addpath(size(xpath,1),xpath,i)
                    !$omp end critical (add)
                    x = sy%f(sy%iref)%cpcel(i)%r - 0.5d0 * gcpchange * sy%f(sy%iref)%cpcel(i)%brvec
                    call sy%f(sy%iref)%gradient(x,iup,nstep,ier,.false.,plen,xpath,prunedist,pathini=sy%f(sy%iref)%cpcel(i)%r)
                    !$omp critical (add)
-                   call addpath(size(xpath,1),xpath)
+                   call addpath(size(xpath,1),xpath,i)
                    !$omp end critical (add)
                 end if
              end do
@@ -1114,7 +1114,7 @@ contains
           call syaux%init()
           call syaux%c%struct_new(seed,.true.)
           if (writevmd.and.dopdb) then
-             call syaux%c%write_pdb(file,cp=sy%f(sy%iref)%cp,cpcel=sy%f(sy%iref)%cpcel,&
+             call syaux%c%write_pdb(sy%c,file,cp=sy%f(sy%iref)%cp,cpcel=sy%f(sy%iref)%cpcel,&
                 ixzassign=ixzassign,pdbstrong=pdbstrong)
           else
              call struct_write(syaux,line2,.not.writevmd)
@@ -1136,10 +1136,11 @@ contains
     end do
 
   contains
-    subroutine addpath(nstep,xpath)
+    subroutine addpath(nstep,xpath,icel)
       use types, only: realloc
       integer, intent(in) :: nstep
       type(gpathp), intent(in) :: xpath(nstep)
+      integer, intent(in) :: icel
       integer :: i, n
 
       call realloc(seed%x,3,seed%nat+nstep)
@@ -1162,7 +1163,7 @@ contains
 
          if (allocated(ixzassign)) then
             if (n > size(ixzassign,1)) call realloc(ixzassign,2*n)
-            ixzassign(n) = idx
+            ixzassign(n) = icel
          end if
       end do
       seed%nat = n

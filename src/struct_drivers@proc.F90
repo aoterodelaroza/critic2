@@ -875,7 +875,7 @@ contains
     elseif (equal(wext,'pdb')) then
        ! pdb
        write (uout,'("* WRITE PDB file: ",A)') string(file)
-       call s%c%write_pdb(file)
+       call s%c%write_pdb(s%c,file)
        ok = check_no_extra_word()
        if (.not.ok) return
     else
