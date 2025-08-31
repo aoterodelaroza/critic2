@@ -25,7 +25,7 @@ submodule (integration) proc
   ! subroutine int_output_fields(bas,res)
   ! subroutine int_reorder_gridout(ff,bas)
   ! subroutine intgrid_fields(bas,res)
-  ! subroutine intgrid_fields_atomloop(bas,res)
+  ! subroutine intgrid_hirshfeld_fields(bas,res)
   ! subroutine intgrid_hirshfeld_overlap(bas,res)
   ! subroutine intgrid_deloc(bas,res)
   ! subroutine write_sijchk(sijfname,nbnd,nbndw,nlat,nmo,nlattot,nspin,nattr,sijtype,kpt,occ,sij)
@@ -315,7 +315,7 @@ contains
 
     ! Integrate scalar fields and multipoles
     if (bas%imtype == imtype_hirshfeld) then
-       call intgrid_fields_atomloop(bas,res)
+       call intgrid_hirshfeld_fields(bas,res)
     else
        call intgrid_fields(bas,res)
     end if
@@ -1383,7 +1383,7 @@ contains
   !> over atoms instead of integrable properties, for hirshfeld
   !> integration only. bas = integration driver data, res(1:npropi) =
   !> results.
-  subroutine intgrid_fields_atomloop(bas,res)
+  subroutine intgrid_hirshfeld_fields(bas,res)
     use grid1mod, only: grid1, agrid
     use hirshfeld, only: hirsh_weights
     use systemmod, only: sy, itype_v, itype_f, itype_fval, itype_gmod, &
@@ -1434,7 +1434,7 @@ contains
 
        elseif (sy%propi(k)%itype == itype_mpoles) then
           ! multipoles (not implemented) yet
-          call ferror('intgrid_fields_atomloop','multipoles not implemented with hirshfeld',faterr)
+          call ferror('intgrid_hirshfeld_fields','multipoles not implemented with hirshfeld',faterr)
 
        elseif (sy%propi(k)%itype == itype_f.or.sy%propi(k)%itype == itype_fval.or.&
           sy%propi(k)%itype == itype_gmod.or.sy%propi(k)%itype == itype_lap .or.&
@@ -1577,7 +1577,7 @@ contains
        res(l)%reason = ""
     end do
 
-  end subroutine intgrid_fields_atomloop
+  end subroutine intgrid_hirshfeld_fields
 
   !> Calculate Hirshfeld overlap populations (bond orders):
   !>   B_AB = int wA * wB * rho(r) dr
@@ -3899,7 +3899,7 @@ contains
   !> Output the Hirshfeld overlap populations. bas = integration
   !> driver data, res(1:npropi) = results.
   subroutine int_output_hirshfeld_overlap(bas,res)
-    use global, only: iunit, iunitname0, dunit0
+    use global, only: iunit, iunitname0
     use tools, only: qcksort
     use tools_io, only: uout, string
     use tools_io, only: ioj_left, ioj_right

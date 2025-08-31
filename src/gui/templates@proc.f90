@@ -452,7 +452,7 @@ contains
   !> textinsert, insert the template into the console
   !> input. Otherwise, open the documentation.
   subroutine launch_keyword_action(textinsert,ikeyw)
-    use windows, only: win, fill_input_ci
+    use windows, only: fill_input_ci
     use interfaces_cimgui
     logical, intent(in) :: textinsert
     integer, intent(in) :: ikeyw

@@ -211,7 +211,6 @@ contains
   !> Set a vec4 float uniform.
   module subroutine setuniform_vec4(x,name,idxi)
     use interfaces_opengl3, only: glUniform4fv, glGetUniformLocation
-    use tools_io, only: ferror, faterr
     real(c_float), intent(in), target :: x(4)
     character*(*), intent(in), target, optional :: name
     integer(c_int), intent(in), optional :: idxi
@@ -256,7 +255,6 @@ contains
   !> Set a mat4 float uniform
   module subroutine setuniform_mat4(x,name,idxi)
     use interfaces_opengl3, only: glUniformMatrix4fv, glGetUniformLocation, GL_FALSE
-    use tools_io, only: ferror, faterr
     real(c_float), intent(in), target :: x(4,4)
     character*(*), intent(in), target, optional :: name
     integer(c_int), intent(in), optional :: idxi
