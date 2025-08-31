@@ -1571,6 +1571,7 @@ contains
     ! wrap up
     do l = 1, sy%npropi
        if (res(l)%done.or..not.sy%propi(l)%used) cycle
+       if (.not.allocated(res(l)%psum)) cycle
        res(l)%psum = res(l)%psum * sy%c%omega / product(bas%n)
 
        res(l)%done = .true.
