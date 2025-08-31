@@ -219,7 +219,7 @@ contains
           do i = idum, idum2
              bas%docelatom(i) = .true.
           end do
-       elseif (equal(word,"json") .and. (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt)) then
+       elseif (equal(word,"json") .and. (bas%imtype /= imtype_isosurface)) then
           jsonfile = getword(line,lp)
           if (len_trim(jsonfile) == 0) then
              call ferror("intgrid_driver","Invalid JSON file",faterr,line,syntax=.true.)
@@ -1549,7 +1549,7 @@ contains
        if (agrid(iz)%isinit) then
           rcutmax(i,2) = min(cutrad(iz),agrid(iz)%rmax)
        else
-          call ferror('intgrid_hirshfeld_overlap','hirshfeld requires atomic grids',faterr)
+          call ferror('intgrid_hirshfeld_fields','hirshfeld requires atomic grids',faterr)
        end if
     end do
 
@@ -1695,12 +1695,6 @@ contains
        res(l)%hirsh_op = 0d0
        write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
     end do
-
-    ! ! run the calculation
-    ! do l = 1, sy%npropi
-    !    if (res(l)%done) cycle
-    !    if (.not.sy%propi(l)%used) cycle
-    !    if (sy%propi(l)%itype /= itype_hirshfeld_ovpop) cycle
 
     ! prepare for output
     lb = 0
@@ -4066,6 +4060,10 @@ contains
        call json%add(o1,'type','yt')
     elseif (bas%imtype == imtype_bader) then
        call json%add(o1,'type','bader')
+    elseif (bas%imtype == imtype_hirshfeld) then
+       call json%add(o1,'type','hirshfeld')
+    elseif (bas%imtype == imtype_voronoi) then
+       call json%add(o1,'type','voronoi')
     end if
     call json%add(o1,'grid_npoints',bas%n)
 
