@@ -2898,14 +2898,14 @@ contains
           !! entry in the name field
           i1 = cp(idx)%ipath(1)
           i2 = cp(idx)%ipath(2)
-          if (i1 <= 0) then
+          if (i1 <= 0 .or. i1 > corig%nneq) then
              iz1 = -1
              aux1 = "??"
           else
              iz1 = corig%spc(corig%at(i1)%is)%z
              aux1 = string(nameguess(iz1,.true.),2)
           end if
-          if (i2 <= 0) then
+          if (i2 <= 0 .or. i2 > corig%nneq) then
              iz2 = -1
              aux2 = "??"
           else
@@ -2957,6 +2957,11 @@ contains
       character*4 :: segid
 
       integer :: i1, i2, im1, im2, ix1, ix2
+
+      if (i1 <= 0 .or. i2 <= 0 .or. i1 > corig%nneq .or. i2 > corig%nneq) then
+         segid = "????"
+         return
+      end if
 
       i1 = corig%idatcelmol(1,i1in)
       i2 = corig%idatcelmol(1,i2in)
