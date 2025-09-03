@@ -343,18 +343,18 @@ contains
     ! close the density file
     call fclose(lu)
 
-    ! check the normalization of the density file and output
-    r1 = 0
-    do i = 1, nn
-       r1 = r1 + (g%a * exp(g%b * (i-1)) - g%r(i))**2
-    end do
-    write (uout,'("+ Read density file: ", A)') string(file)
-    write (uout,'("  Log grid (r = a*e^(b*x)) with a = ",A,", b = ",A)') &
-       string(g%a,'e',length=10,decimal=4), string(g%b,'e',length=10,decimal=4)
-    write (uout,'("  Num. grid points = ",A,", rmax (bohr) = ",A)') &
-       string(g%ngrid), string(g%rmax,'f',decimal=7)
-    write (uout,'("  Integrated charge = ",A,X,A)') &
-       string(sum(g%f * g%r**3 * g%b * 4d0 * pi),'f',decimal=10), string(r1,'f',decimal=10)
+    ! ! check the normalization of the density file and output
+    ! r1 = 0
+    ! do i = 1, nn
+    !    r1 = r1 + (g%a * exp(g%b * (i-1)) - g%r(i))**2
+    ! end do
+    ! write (uout,'("+ Read density file: ", A)') string(file)
+    ! write (uout,'("  Log grid (r = a*e^(b*x)) with a = ",A,", b = ",A)') &
+    !    string(g%a,'e',length=10,decimal=4), string(g%b,'e',length=10,decimal=4)
+    ! write (uout,'("  Num. grid points = ",A,", rmax (bohr) = ",A)') &
+    !    string(g%ngrid), string(g%rmax,'f',decimal=7)
+    ! write (uout,'("  Integrated charge = ",A,X,A)') &
+    !    string(sum(g%f * g%r**3 * g%b * 4d0 * pi),'f',decimal=10), string(r1,'f',decimal=10)
 
     ! cleanup
     deallocate(rr,wfcin,wfcl,occ)
