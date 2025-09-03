@@ -215,9 +215,10 @@ contains
 
     integer :: i, j, lu, nn
     integer, allocatable :: occ(:)
+    real*8, allocatable :: enl(:)
     real*8, allocatable :: wfcin(:), rr(:,:)
     character*2, allocatable :: wfcl(:)
-    real*8 :: xmin, zz, dx, r, r1, r2, r3 ,r4, delta, delta2
+    real*8 :: r, r1, r2, r3 ,r4, delta, delta2
     integer :: ngrid, ns, ic
     logical :: exist
 
@@ -234,11 +235,12 @@ contains
     lu = fopen_read(file,abspath0=abspath,ti=ti)
     read (lu,*) nn
 
-    allocate(wfcin(nn),wfcl(nn),occ(nn))
+    allocate(wfcin(nn),wfcl(nn),occ(nn),enl(nn))
     occ = 0
     read (lu,*) (wfcl(i),i=1,nn)
     read (lu,*) (occ(i),i=1,nn)
-    read (lu,*) xmin, zz, dx, ngrid
+    read (lu,*) (enl(i),i=1,nn)
+    read (lu,*) ngrid
 
     if (sum(occ) /= n) then
        ns = 0
@@ -299,11 +301,11 @@ contains
 
     ! fill grid info
     g%isinit = .true.
-    g%a = exp(xmin) / zz
-    g%b = dx
     g%ngrid = ngrid
     g%rmax = g%r(ngrid)
     g%rmax2 = g%r(ngrid)**2
+    g%a = g%r(1)
+    g%b = log(g%r(2)/g%r(1))
 
     ! calculate derivatives
     allocate(g%f(ngrid),g%fp(ngrid),g%fpp(ngrid))
@@ -341,23 +343,18 @@ contains
     ! close the density file
     call fclose(lu)
 
-    ! ! check the normalization of the density file and output
-    ! if (verbose) then
-    !    econf = ""
-    !    do i = 1, nn
-    !       econf = econf // string(wfcl(i),2)
-    !       econf = econf // "(" // string(occ(i)) // ")"
-    !    end do
-
-    !    write (uout,'("+ Read density file: ", A)') string(file)
-    !    write (uout,'("  Log grid (r = a*e^(b*x)) with a = ",A,", b = ",A)') &
-    !       string(g%a,'e',length=10,decimal=4), string(g%b,'e',length=10,decimal=4)
-    !    write (uout,'("  Num. grid points = ",A,", rmax (bohr) = ",A)') &
-    !       string(g%ngrid), string(g%rmax,'f',decimal=7)
-    !    write (uout,'("  Integrated charge = ",A)') &
-    !       string(sum(g%f * g%r**3 * g%b * 4d0 * pi),'f',decimal=10)
-    !    write (uout,'("  El. conf.: ",A)') string(econf)
-    ! end if
+    ! check the normalization of the density file and output
+    r1 = 0
+    do i = 1, nn
+       r1 = r1 + (g%a * exp(g%b * (i-1)) - g%r(i))**2
+    end do
+    write (uout,'("+ Read density file: ", A)') string(file)
+    write (uout,'("  Log grid (r = a*e^(b*x)) with a = ",A,", b = ",A)') &
+       string(g%a,'e',length=10,decimal=4), string(g%b,'e',length=10,decimal=4)
+    write (uout,'("  Num. grid points = ",A,", rmax (bohr) = ",A)') &
+       string(g%ngrid), string(g%rmax,'f',decimal=7)
+    write (uout,'("  Integrated charge = ",A,X,A)') &
+       string(sum(g%f * g%r**3 * g%b * 4d0 * pi),'f',decimal=10), string(r1,'f',decimal=10)
 
     ! cleanup
     deallocate(rr,wfcin,wfcl,occ)
