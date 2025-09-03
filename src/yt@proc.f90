@@ -325,7 +325,7 @@ contains
           if (bas%nattr > size(bas%xattr,2)) then
              call realloc(bas%xattr,3,2*bas%nattr)
              call realloc(imap,2*bas%nattr)
-             imap(bas%nattr+1:) = 0
+             imap(bas%nattr:) = 0
           end if
           ibasin(ii) = bas%nattr
           bas%xattr(:,bas%nattr) = dv
