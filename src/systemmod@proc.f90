@@ -408,6 +408,64 @@ contains
 
   end subroutine aliasstring
 
+  !> Add field f to system s (with C pointer sptr). Returns the new
+  !> field ID and the error message (empty if no error).
+  module subroutine add_field(s,sptr,f,verbose,id,errmsg)
+    use iso_c_binding, only: c_loc
+    use tools_io, only: uout, string
+    use fieldmod, only: field
+    class(system), intent(inout) :: s
+    type(c_ptr), intent(in) :: sptr
+    type(field), intent(in) :: f
+    logical, intent(in) :: verbose
+    integer, intent(out) :: id
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    logical :: isnewref
+    integer :: nal
+    character(len=:), allocatable :: str
+
+    ! is the environment sane?
+    errmsg = ""
+    id = -1
+    if (.not.s%isinit) then
+       errmsg = "system not initialized"
+       return
+    end if
+    if (.not.s%c%isinit) then
+       errmsg = "crystal not initialized"
+       return
+    end if
+    if (.not.allocated(s%f)) then
+       errmsg = "memory for fields not allocated"
+       return
+    end if
+
+    ! add the new field
+    id = s%getfieldnum()
+    s%f(id) = f
+    s%f(id)%id = id
+    s%f(id)%sptr = sptr
+
+    ! set it as reference, if applicable
+    isnewref = .not.s%refset
+    call s%set_reference(id,.true.)
+
+    if (verbose) then
+       ! write some info
+       write (uout,'("+ Field number ",A)') string(id)
+       call s%f(id)%printinfo(.true.,.true.)
+       call s%aliasstring(id,nal,str)
+       if (nal > 0) &
+          write (uout,'("  Alias for this field (",A,"):",A)') string(nal), str
+       write (uout,*)
+       if (isnewref) then
+          write (uout,'("* Field number ",A," is now REFERENCE."/)') string(id)
+       end if
+    end if
+
+  end subroutine add_field
+
   !> Set up a new system using the information contained in a crystal
   !> seed.
   module subroutine new_from_seed(s,seed,ti)

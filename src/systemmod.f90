@@ -17,6 +17,7 @@
 
 ! system class and associated routines
 module systemmod
+  use iso_c_binding, only: c_ptr
   use grid1mod, only: grid1
   use hashmod, only: hash
   use types, only: integrable, pointpropable, discard_cp_expr
@@ -62,6 +63,7 @@ module systemmod
      procedure :: set_default_pointprop !< Reset to default point properties
      procedure :: report !< Write information about the system to the stdout
      procedure :: aliasstring !< A string containing the aliases of a given field
+     procedure :: add_field !< Add a field to the system, given as an argument
      procedure :: new_from_seed !< Build a system from a crystal seed
      procedure :: load_field_string !< Load a field using a command string
      procedure :: goodfield !< Returns true if the field is initialized
@@ -147,6 +149,14 @@ module systemmod
        integer, intent(out) :: nal
        character(len=:), allocatable, intent(out) :: str
      end subroutine aliasstring
+     module subroutine add_field(s,sptr,f,verbose,id,errmsg)
+       class(system), intent(inout) :: s
+       type(c_ptr), intent(in) :: sptr
+       type(field), intent(in) :: f
+       logical, intent(in) :: verbose
+       integer, intent(out) :: id
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine add_field
      module subroutine new_from_seed(s,seed,ti)
        use crystalseedmod, only: crystalseed
        class(system), intent(inout) :: s

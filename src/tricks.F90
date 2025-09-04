@@ -3185,6 +3185,7 @@ contains
   !   https://doi.org/10.1021/acs.jpcc.3c07677
   ! TRICK AEEPRO n1.i n2.i n3.i shift.r
   subroutine trick_average_electron_energy(line0)
+    use iso_c_binding, only: c_loc
     use fieldmod, only: field
     use systemmod, only: sy
     use grid1mod, only: agrid
@@ -3194,7 +3195,7 @@ contains
     character*(*), intent(in) :: line0
 
     logical :: ok
-    integer :: n(3), lp, i1, i2, i3, i, j, k, iz, is
+    integer :: n(3), lp, i1, i2, i3, i, j, k, iz, is, id
     real*8 :: shift, x(3), xdelta(3,3), asum, rhol, chil
     real*8, allocatable :: chi(:,:,:), rho(:,:,:)
     integer :: nat, nn
@@ -3202,6 +3203,7 @@ contains
     real*8, allocatable :: dist(:), rcutmax(:,:)
     real*8, allocatable :: chiat(:,:), rhoat(:,:)
     type(field) :: f
+    character(len=:), allocatable :: errmsg
 
     ! consistency checks
     if (.not.associated(sy)) &
@@ -3288,8 +3290,9 @@ contains
     chi = chi / max(rho,VSMALL)
     deallocate(rho)
 
-    ! load the new field
-    call f%load_grid_from_array3(sy%c,1,"blah",n,chi)
+    ! load the new field and add it to the system
+    call f%load_grid_from_array3(sy%c,1,"<generated>, average electron energy",n,chi)
+    call sy%add_field(c_loc(sy),f,.true.,id,errmsg)
 
   contains
 
