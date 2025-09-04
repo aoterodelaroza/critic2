@@ -57,18 +57,18 @@
   Coordinates (ang): 0.0000000  0.0000000  5.0219884  
 + Field: 1
   Type : (3,-3)
-  Field value (f): 1.225914885E+02
+  Field value (f): 1.225915343E+02
   Field value, valence (fval): 1.668825781E-01
-  Gradient (grad f): -8.246193640E+00  -1.374365606E+00  3.057567591E+01  
-  Gradient norm (|grad f|): 3.169795810E+01
+  Gradient (grad f): -8.246196846E+00  -1.374366140E+00  3.057568780E+01  
+  Gradient norm (|grad f|): 3.169797042E+01
   Gradient norm, valence: 0.000000000E+00
-  Laplacian (del2 f): -4.122446530E+06
+  Laplacian (del2 f): -4.122448100E+06
   Laplacian, valence (del2 fval): 4.340728490E+00
   Hessian:
-    -1.374320251E+06   7.595237266E+00  -1.620753029E+02  
-     7.595237266E+00  -1.374362384E+06  -2.701255046E+01  
-    -1.620753029E+02  -2.701255046E+01  -1.373763895E+06  
-  Hessian eigenvalues: -1.374364171E+06  -1.374363459E+06  -1.373718900E+06  
+    -1.374320783E+06   7.595610144E+00  -1.620835994E+02  
+     7.595610144E+00  -1.374362918E+06  -2.701393322E+01  
+    -1.620835994E+02  -2.701393322E+01  -1.373764399E+06  
+  Hessian eigenvalues: -1.374364705E+06  -1.374363993E+06  -1.373719402E+06  
 
 + Field number 1
   Name: rho.cube

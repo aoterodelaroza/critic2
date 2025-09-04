@@ -861,11 +861,11 @@
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -9.889864151500E-06  -1.787904058265E-04  -1.747737008262E-03  
   Last elements... -2.619170786950E-03  -2.598427240063E-04  6.947229587849E-04  
-  Sum of elements... -8.506687541876E-12
+  Sum of elements... -8.504901644057E-12
   Sum of squares of elements... 1.431162223277E-01
   Cell integral (34) = -0.00000000
   Min: -1.99924923E-02
-  Average: -1.82327837E-16
+  Average: -1.82289559E-16
   Max: 2.84589615E-02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F

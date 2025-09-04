@@ -159,7 +159,7 @@
 
 * Localization and delocalization indices
 + Integrated property (number 5): $2#deloca
-+ Localization indices
++ Localization (LI) and total population (N)
 # Id   cp   ncp   Name  Z       LI(A)           N(A)
   1    1    1      mg   12   0.01027196      0.34415633 
   2    2    2      o    8    6.93810176      7.65584367 

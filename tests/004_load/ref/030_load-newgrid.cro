@@ -28,14 +28,14 @@
   Type: grid
   Grid dimensions : 10  10  10  
   Max. length Voronoi-relevant vector (bohr):  1.26536  
-  First elements... 8.421968803926E-03  4.167008960859E-02  3.244625598983E-01  
-  Last elements... 2.518311910695E-01  2.518420579838E-01  3.865650862158E-02  
-  Sum of elements... 7.082218781463E+01
-  Sum of squares of elements... 1.067342316286E+01
-  Cell integral (2) = 16.71741215
-  Min: 6.84777357E-03
-  Average: 7.08221878E-02
-  Max: 3.24489493E-01
+  First elements... 8.421967652832E-03  4.167007282159E-02  3.244627178981E-01  
+  Last elements... 2.518313057749E-01  2.518421726978E-01  3.865649245213E-02  
+  Sum of elements... 7.082218762765E+01
+  Sum of squares of elements... 1.067342664600E+01
+  Cell integral (2) = 16.71741211
+  Min: 6.84777295E-03
+  Average: 7.08221876E-02
+  Max: 3.24489651E-01
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
@@ -50,14 +50,14 @@
   Type: grid
   Grid dimensions : 30  30  81  
   Max. length Voronoi-relevant vector (bohr):  0.15622  
-  First elements... 8.421968803926E-03  8.735887122400E-03  9.707380408189E-03  
-  Last elements... 1.138467075761E-02  9.675889685613E-03  8.710845862321E-03  
-  Sum of elements... 7.461555065336E+03
-  Sum of squares of elements... 4.845840331525E+04
-  Cell integral (3) = 24.16025596
-  Min: 6.50623508E-03
+  First elements... 8.421967652832E-03  8.735885801562E-03  9.707378549208E-03  
+  Last elements... 1.138466794255E-02  9.675887848093E-03  8.710844556590E-03  
+  Sum of elements... 7.461555090457E+03
+  Sum of squares of elements... 4.845842481369E+04
+  Cell integral (3) = 24.16025604
+  Min: 6.50623460E-03
   Average: 1.02353293E-01
-  Max: 8.05419680E+01
+  Max: 8.05419945E+01
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
@@ -72,14 +72,14 @@
   Type: grid
   Grid dimensions : 30  30  81  
   Max. length Voronoi-relevant vector (bohr):  0.15622  
-  First elements... -2.534068803926E-03  -2.580887122400E-03  -2.728880408189E-03  
-  Last elements... -2.982370757611E-03  -2.724889685613E-03  -2.576045862321E-03  
-  Sum of elements... -2.520177545936E+03
-  Sum of squares of elements... 4.678844613109E+04
-  Cell integral (4) = -8.16024730
-  Min: -8.03746980E+01
-  Average: -3.45703367E-02
-  Max: 9.34526360E-02
+  First elements... -2.534067652832E-03  -2.580885801562E-03  -2.728878549208E-03  
+  Last elements... -2.982367942547E-03  -2.724887848093E-03  -2.576044556590E-03  
+  Sum of elements... -2.520177571057E+03
+  Sum of squares of elements... 4.678846737549E+04
+  Cell integral (4) = -8.16024738
+  Min: -8.03747245E+01
+  Average: -3.45703371E-02
+  Max: 9.34526352E-02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F
@@ -107,12 +107,12 @@
   Grid dimensions : 10  10  10  
   Max. length Voronoi-relevant vector (bohr):  1.26536  
   First elements... 0.000000000000E+00  -1.249000902703E-16  0.000000000000E+00  
-  Last elements... 0.000000000000E+00  2.220446049250E-16  5.551115123126E-17  
-  Sum of elements... 1.317088799135E-14
-  Sum of squares of elements... 4.907101731745E-30
+  Last elements... 0.000000000000E+00  2.220446049250E-16  4.857225732735E-17  
+  Sum of elements... 1.293930240731E-14
+  Sum of squares of elements... 4.861948454662E-30
   Cell integral (6) = 0.00000000
   Min: -2.22044605E-16
-  Average: 1.31708880E-17
+  Average: 1.29393024E-17
   Max: 7.77156117E-16
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
@@ -128,14 +128,14 @@
   Type: grid
   Grid dimensions : 30  30  81  
   Max. length Voronoi-relevant vector (bohr):  0.15622  
-  First elements... 0.000000000000E+00  0.000000000000E+00  0.000000000000E+00  
-  Last elements... 1.734723475977E-17  1.734723475977E-18  1.214306433184E-17  
-  Sum of elements... -2.014955910457E-12
-  Sum of squares of elements... 5.944397685977E-25
+  First elements... 0.000000000000E+00  0.000000000000E+00  1.734723475977E-18  
+  Last elements... 1.387778780781E-17  3.469446951954E-18  1.040834085586E-17  
+  Sum of elements... -2.008817591437E-12
+  Sum of squares of elements... 5.989792425316E-25
   Cell integral (7) = -0.00000000
-  Min: -2.61124455E-13
-  Average: -2.76399988E-17
-  Max: 1.66977543E-13
+  Min: -2.62900812E-13
+  Average: -2.75557969E-17
+  Max: 1.70530257E-13
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
   Numerical derivatives? F

@@ -1,11 +1,11 @@
 * VDW
 + Requested relative std. deviation (sigma_{Vvdw}/Vvdw): 1.0000E-02
-+ Van der Waals volume (Vvdw): 2113.078930 +- 21.130789 bohr^3
-+ Interstitial volume (outside vdw spheres): 1086.103898 +- 21.130789 bohr^3
++ Van der Waals volume (Vvdw): 2124.358557 +- 21.243586 bohr^3
++ Interstitial volume (outside vdw spheres): 1074.824270 +- 21.243586 bohr^3
 + Cell volume: 3199.182827 bohr^3
-+ Packing ratio (%): 66.050584 +- 0.660506
++ Packing ratio (%): 66.403162 +- 0.664032
 
 * VDW
 + Requested relative std. deviation (sigma_{Vvdw}/Vvdw): 1.0000E-02
-+ Van der Waals volume (Vvdw): 79.551194 +- 0.795512 ang_^3
++ Van der Waals volume (Vvdw): 78.921728 +- 0.789217 ang_^3
 

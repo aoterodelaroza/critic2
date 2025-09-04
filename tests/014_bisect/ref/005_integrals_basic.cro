@@ -50,9 +50,9 @@
 # (See key above for interpretation of column headings.)
 # Integrable properties 1 to 3
 # Id   cp   ncp   Name  Z   mult     Volume            Pop             Lap       
-  1    1    1      Mg   12  4    4.00596754E+01  1.07920551E+01  3.37497622E-01 
+  1    1    1      Mg   12  4    4.00596754E+01  1.07920557E+01  3.37494536E-01 
 --------------------------------------------------------------------------------
-  Sum                            1.60238702E+02  4.31682203E+01  1.34999049E+00 
+  Sum                            1.60238702E+02  4.31682229E+01  1.34997814E+00 
 
 * Integration of basin properties by bisection
   Basins of the scalar field: 0
@@ -105,7 +105,7 @@
 # (See key above for interpretation of column headings.)
 # Integrable properties 1 to 3
 # Id   cp   ncp   Name  Z   mult     Volume            Pop             Lap       
-  1    1    1      Mg   12  4    2.35809354E+01  1.03413711E+01 -9.02644739E-01 
+  1    1    1      Mg   12  4    2.35809354E+01  1.03413715E+01 -9.02646804E-01 
 --------------------------------------------------------------------------------
-  Sum                            9.43237417E+01  4.13654843E+01 -3.61057896E+00 
+  Sum                            9.43237417E+01  4.13654859E+01 -3.61058722E+00 
 

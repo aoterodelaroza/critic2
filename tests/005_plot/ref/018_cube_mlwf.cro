@@ -811,7 +811,7 @@
   Type: grid
   Grid dimensions : 32  32  32  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
-  First elements... -4.482449122901E-06  -1.436693439541E-05  -3.719551547040E-05  
+  First elements... -4.482449122902E-06  -1.436693439541E-05  -3.719551547040E-05  
   Last elements... 9.718898042838E-04  -2.458711020529E-04  -1.277059785024E-03  
   Sum of elements... -2.580094525098E+01
   Sum of squares of elements... 3.644407666891E-01
@@ -835,11 +835,11 @@
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 2.401246513868E-04  2.956962011757E-04  3.416502911897E-04  
   Last elements... -3.937177640993E-05  1.479849010780E-05  7.816557980844E-05  
-  Sum of elements... 1.508516076811E-13
+  Sum of elements... 1.510250800286E-13
   Sum of squares of elements... 3.336753242043E-03
   Cell integral (34) = 0.00000000
   Min: -5.71498012E-03
-  Average: 4.60362572E-18
+  Average: 4.60891968E-18
   Max: 2.88544981E-03
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F

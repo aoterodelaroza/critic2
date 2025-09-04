@@ -80,6 +80,6 @@ WARNING (testrmt): Spurious CPs on the muffin tin surface!
     -2.288991172E-18   9.697062769E-03  -2.388135225E-03  
   Hessian eigenvalues: -4.185813235E-03  -2.342036629E-03  4.991991205E-02  
   Ellipticity (l_1/l_2 - 1): 7.872535311E-01
-  Field 0 (f,|grad|,lap): 1.308715168E-02  1.714205239E-02  3.951602082E-02  
+  Field 0 (f,|grad|,lap): 1.308715292E-02  1.714204861E-02  3.951599735E-02  
   Field 2 (f,|grad|,lap): 1.225930163E-02  2.192303089E-02  4.339206219E-02  
 

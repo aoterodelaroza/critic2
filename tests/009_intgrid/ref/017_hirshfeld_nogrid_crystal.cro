@@ -31,8 +31,8 @@
 # N_hirsh = atomic electron populations
 # V_hirsh = atomic volumes 
 #nneq mult name   N_hirsh          V_hirsh
- 1    4     B    5.1155940707    60.2991798092    
- 2    4     P   14.8872981904    98.3867485197    
+ 1    4     B    5.1155939196    60.2991732229    
+ 2    4     P   14.8872983415    98.3867551059    
 # total number of electrons: 8.0011569045E+01
 # total volume: 6.3474371332E+02
 
