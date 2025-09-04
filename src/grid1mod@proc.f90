@@ -213,13 +213,10 @@ contains
     logical, intent(in) :: abspath !< Absolute path?
     type(thread_info), intent(in), optional :: ti
 
-    integer :: i, j, lu, nn
-    integer, allocatable :: occ(:)
-    real*8, allocatable :: enl(:)
-    real*8, allocatable :: wfcin(:), rr(:,:)
-    character*2, allocatable :: wfcl(:)
+    integer :: i, j, lu
+    real*8, allocatable :: rr(:,:)
     real*8 :: r, r1, r2, r3 ,r4, delta, delta2
-    integer :: ngrid, ns, ic
+    integer :: ns, ic
     logical :: exist
 
     ! check that the file exists
@@ -233,86 +230,61 @@ contains
 
     ! Read header and allocate arrays
     lu = fopen_read(file,abspath0=abspath,ti=ti)
-    read (lu,*) nn
+    read (lu,*) g%norb
+    if (allocated(g%wfcl)) deallocate(g%wfcl)
+    if (allocated(g%occ)) deallocate(g%occ)
+    if (allocated(g%enl)) deallocate(g%enl)
+    if (allocated(g%psi)) deallocate(g%psi)
+    allocate(g%wfcl(g%norb),g%occ(g%norb),g%enl(g%norb))
+    read (lu,*) (g%wfcl(i),i=1,g%norb)
+    read (lu,*) (g%occ(i),i=1,g%norb)
+    read (lu,*) (g%enl(i),i=1,g%norb)
+    read (lu,*) g%ngrid
 
-    allocate(wfcin(nn),wfcl(nn),occ(nn),enl(nn))
-    occ = 0
-    read (lu,*) (wfcl(i),i=1,nn)
-    read (lu,*) (occ(i),i=1,nn)
-    read (lu,*) (enl(i),i=1,nn)
-    read (lu,*) ngrid
-
-    if (sum(occ) /= n) then
+    ! adjust the occupations if this is an ion
+    if (sum(g%occ) /= n) then
        ns = 0
-       do i = 1, nn
-          if (ns + occ(i) > n) then
-             occ(i) = n - ns
-             occ(i+1:nn) = 0
+       do i = 1, g%norb
+          if (ns + g%occ(i) > n) then
+             g%occ(i) = n - ns
+             g%occ(i+1:g%norb) = 0
              exit
           else
-             ns = ns + occ(i)
+             ns = ns + g%occ(i)
           end if
        end do
     end if
 
     ! Read the grid and build the density
-    allocate(g%r(ngrid),rr(ngrid,0:2))
+    allocate(g%psi(g%ngrid,g%norb),g%r(g%ngrid),rr(g%ngrid,0:2))
     rr = 0d0
-    do i = 1, ngrid
-       read (lu,*) r, (wfcin(j),j=1,nn)
+    do i = 1, g%ngrid
+       read (lu,*) r, (g%psi(i,j),j=1,g%norb)
        g%r(i) = r
-       rr(i,0) = dot_product(occ(1:nn),wfcin(1:nn)**2)
+       rr(i,0) = dot_product(g%occ(1:g%norb),g%psi(i,1:g%norb)**2)
        if (rr(i,0)/(4d0*pi*r**2) < core_cutdens .and. i > 1) then
-          ngrid = i
-          call realloc(g%r,ngrid)
+          g%ngrid = i
+          call realloc(g%r,g%ngrid)
+          call realloc(g%psi,g%ngrid,g%norb)
           exit
        end if
     end do
 
-    ! ! laplacian transformation
-    ! ! 1/r^2 * d/dr ( r^2 * df/dr)
-    ! do i = 1, ngrid
-    !    if (i <= 2) then
-    !       ic = 1
-    !    else if (i >= ngrid-2) then
-    !       ic = 3
-    !    else
-    !       ic = 2
-    !    end if
-    !    do j = 1, 6
-    !       rr(i,1) = rr(i,1) + coef1(j,ic) * rr(i+noef(j,ic),0)
-    !       rr(i,2) = rr(i,2) + coef2(j,ic) * rr(i+noef(j,ic),0)
-    !    end do
-    !    rr(i,1) = rr(i,1) * fac1
-    !    rr(i,2) = rr(i,2) * fac2
 
-    !    r = g%r(i)
-    !    r1 = 1d0 / r
-    !    r2 = r1 * r1
-    !    r3 = r2 * r1
-    !    r4 = r3 * r1
-    !    delta=1.d0/g%b
-    !    delta2=delta*delta
-
-    !    g%f(i) = rr(i,0) * r2
-    !    g%fp(i) = (rr(i,1) * delta - 2.d0 * rr(i,0)) * r3
-    !    g%fpp(i) = (rr(i,2) * delta2 - 5.d0 * rr(i,1) * delta + 6.d0 * rr(i,0)) * r4
-    ! end do
-
-    ! fill grid info
+    ! fill rest of grid info
     g%isinit = .true.
-    g%ngrid = ngrid
-    g%rmax = g%r(ngrid)
-    g%rmax2 = g%r(ngrid)**2
+    g%rmax = g%r(g%ngrid)
+    g%rmax2 = g%r(g%ngrid)**2
     g%a = g%r(1)
     g%b = log(g%r(2)/g%r(1))
 
     ! calculate derivatives
-    allocate(g%f(ngrid),g%fp(ngrid),g%fpp(ngrid))
-    do i = 1, ngrid
+    ! laplacian transformation: 1/r^2 * d/dr ( r^2 * df/dr)
+    allocate(g%f(g%ngrid),g%fp(g%ngrid),g%fpp(g%ngrid))
+    do i = 1, g%ngrid
        if (i <= 2) then
           ic = 1
-       else if (i >= ngrid-2) then
+       else if (i >= g%ngrid-2) then
           ic = 3
        else
           ic = 2
@@ -345,7 +317,7 @@ contains
 
     ! ! check the normalization of the density file and output
     ! r1 = 0
-    ! do i = 1, nn
+    ! do i = 1, g%norb
     !    r1 = r1 + (g%a * exp(g%b * (i-1)) - g%r(i))**2
     ! end do
     ! write (uout,'("+ Read density file: ", A)') string(file)
@@ -355,9 +327,6 @@ contains
     !    string(g%ngrid), string(g%rmax,'f',decimal=7)
     ! write (uout,'("  Integrated charge = ",A,X,A)') &
     !    string(sum(g%f * g%r**3 * g%b * 4d0 * pi),'f',decimal=10), string(r1,'f',decimal=10)
-
-    ! cleanup
-    deallocate(rr,wfcin,wfcl,occ)
 
   end subroutine read_critic
 

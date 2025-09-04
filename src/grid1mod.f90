@@ -34,8 +34,14 @@ module grid1mod
      real*8, allocatable :: f(:) !< Grid values, f = 4*pi*r^2*rho
      real*8, allocatable :: fp(:) !< First derivative of f
      real*8, allocatable :: fpp(:) !< Second derivative of f
-     integer :: z
-     integer :: qat
+     integer :: z ! atomic number
+     integer :: qat ! atomic charge
+     ! individual atomic orbitals
+     integer :: norb ! number of atomic orbitals
+     character*2, allocatable :: wfcl(:) ! orbital labels
+     real*8, allocatable :: occ(:) ! occupations
+     real*8, allocatable :: enl(:) ! orbital energies
+     real*8, allocatable :: psi(:,:) ! orbitals
    contains
      procedure :: read_db !< Read a one-dimesional grid from the density tables
      procedure :: interp !< Interpolate value and derivatives from the grid

@@ -33,6 +33,7 @@ module tricks
   private :: trick_compare_deformed
   private :: trick_check_valence
   private :: trick_force_constants
+  private :: trick_average_electron_energy
 
 contains
 
@@ -60,6 +61,8 @@ contains
        call trick_check_valence(line0(lp:))
     else if (equal(word,'force_constants')) then
        call trick_force_constants(line0(lp:))
+    else if (equal(word,'aeepro')) then
+       call trick_average_electron_energy(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -3176,5 +3179,42 @@ contains
     end subroutine test
 
   end subroutine trick_force_constants
+
+  ! Calculates the average electron energy for the promolecule.
+  !   Racioppi et al., J. Phys. Chem. C 128 (2024) 4009-4017.
+  !   https://doi.org/10.1021/acs.jpcc.3c07677
+  ! TRICK AEEPRO n1.i n2.i n3.i shift.r
+  subroutine trick_average_electron_energy(line0)
+    use systemmod, only: sy
+    use global, only: eval_next
+    use tools_io, only: ferror, faterr
+    character*(*), intent(in) :: line0
+
+    logical :: ok
+    integer :: n(3), lp
+    real*8 :: shift
+
+    ! consistency checks
+    if (.not.associated(sy)) &
+       call ferror('trick_force_constants','system not defined',faterr)
+    if (.not.allocated(sy%c)) &
+       call ferror('trick_force_constants','crystal structure not defined',faterr)
+    if (.not.sy%c%isinit) &
+       call ferror('trick_force_constants','crystal structure not initialized',faterr)
+    if (sy%c%ismolecule) &
+       call ferror('trick_force_constants','structure is a molecule',faterr)
+
+    ! read n(3) and shift
+    lp = 1
+    ok = eval_next(n(1),line0,lp)
+    ok = ok .and. eval_next(n(2),line0,lp)
+    ok = ok .and. eval_next(n(3),line0,lp)
+    ok = ok .and. eval_next(shift,line0,lp)
+
+    write (*,*) "bleh! ", ok, n, shift
+    stop 1
+
+
+  end subroutine trick_average_electron_energy
 
 end module tricks
