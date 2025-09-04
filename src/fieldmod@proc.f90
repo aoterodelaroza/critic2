@@ -760,6 +760,42 @@ contains
 
   end subroutine load_as_fftgrid
 
+  !> Load field as a 3d grid given in g with dimensions n. The
+  !> resulting field is returned in f. The crystal structure (c) is
+  !> used to inform the transformation. id and name are the numerical
+  !> id and name of the new field.
+  module subroutine load_grid_from_array3(f,c,id,name,n,g)
+    use iso_c_binding, only: c_loc
+    use grid3mod, only: grid3
+    use fragmentmod, only: fragment
+    use tools_io, only: ferror, faterr
+    use param, only: ifformat_as_resample
+    class(field), intent(inout) :: f !< Input/output field
+    type(crystal), intent(in), target :: c
+    integer, intent(in) :: id
+    character*(*), intent(in) :: name
+    integer, intent(in) :: n(3)
+    real*8, intent(in) :: g(:,:,:)
+
+    if (.not.c%isinit) return
+    call f%end()
+    f%c => c
+    f%id = id
+    f%isinit = .true.
+    f%type = type_grid
+    if (.not.allocated(f%grid)) allocate(f%grid)
+    call f%grid%from_array3(g,c%m_x2c,c_loc(c))
+    f%numerical = .false.
+    f%exact = .false.
+    f%name = adjustl(name)
+    f%file = ""
+    f%typnuc = -3
+    if (.not.allocated(f%zpsp)) allocate(f%zpsp(f%c%nspc))
+    f%zpsp = -1
+    call f%init_cplist()
+
+  end subroutine load_grid_from_array3
+
   !> Calculate the scalar field f at point v (Cartesian) and its
   !> derivatives up to nder. Return the results in res0. If periodic
   !> is present and false, consider the field is defined in a

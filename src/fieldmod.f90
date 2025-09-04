@@ -93,6 +93,7 @@ module fieldmod
      procedure :: field_new !< Creates a new field from a field seed.
      procedure :: load_promolecular !< Loads a promolecular density field
      procedure :: load_as_fftgrid !< Loads as a transformation of a 3d grid
+     procedure :: load_grid_from_array3 !< Loads a 3d grid field from a 3d array
      procedure :: load_ghost !< Loads a ghost field
      procedure :: grd !< Calculate field value and its derivatives at a point
      procedure :: grd0 !< Calculate only the field value at a given point
@@ -167,6 +168,14 @@ module fieldmod
        logical, intent(in), optional :: isry_
        integer, intent(in), optional :: n(3)
      end subroutine load_as_fftgrid
+     module subroutine load_grid_from_array3(f,c,id,name,n,g)
+       class(field), intent(inout) :: f
+       type(crystal), intent(in), target :: c
+       integer, intent(in) :: id
+       character*(*), intent(in) :: name
+       integer, intent(in) :: n(3)
+       real*8, intent(in) :: g(:,:,:)
+     end subroutine load_grid_from_array3
      recursive module subroutine grd(f,v,nder,res,fder,periodic)
        class(field), intent(inout) :: f
        real*8, intent(in) :: v(3)

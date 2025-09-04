@@ -3185,24 +3185,33 @@ contains
   !   https://doi.org/10.1021/acs.jpcc.3c07677
   ! TRICK AEEPRO n1.i n2.i n3.i shift.r
   subroutine trick_average_electron_energy(line0)
+    use fieldmod, only: field
     use systemmod, only: sy
-    use global, only: eval_next
+    use grid1mod, only: agrid
+    use global, only: eval_next, cutrad
     use tools_io, only: ferror, faterr
+    use param, only: maxzat, icrd_crys, pi, VSMALL
     character*(*), intent(in) :: line0
 
     logical :: ok
-    integer :: n(3), lp
-    real*8 :: shift
+    integer :: n(3), lp, i1, i2, i3, i, j, k, iz, is
+    real*8 :: shift, x(3), xdelta(3,3), asum, rhol, chil
+    real*8, allocatable :: chi(:,:,:), rho(:,:,:)
+    integer :: nat, nn
+    integer, allocatable :: nid(:), lvec(:,:)
+    real*8, allocatable :: dist(:), rcutmax(:,:)
+    real*8, allocatable :: chiat(:,:), rhoat(:,:)
+    type(field) :: f
 
     ! consistency checks
     if (.not.associated(sy)) &
-       call ferror('trick_force_constants','system not defined',faterr)
+       call ferror('trick_average_electron_energy','system not defined',faterr)
     if (.not.allocated(sy%c)) &
-       call ferror('trick_force_constants','crystal structure not defined',faterr)
+       call ferror('trick_average_electron_energy','crystal structure not defined',faterr)
     if (.not.sy%c%isinit) &
-       call ferror('trick_force_constants','crystal structure not initialized',faterr)
+       call ferror('trick_average_electron_energy','crystal structure not initialized',faterr)
     if (sy%c%ismolecule) &
-       call ferror('trick_force_constants','structure is a molecule',faterr)
+       call ferror('trick_average_electron_energy','structure is a molecule',faterr)
 
     ! read n(3) and shift
     lp = 1
@@ -3210,10 +3219,129 @@ contains
     ok = ok .and. eval_next(n(2),line0,lp)
     ok = ok .and. eval_next(n(3),line0,lp)
     ok = ok .and. eval_next(shift,line0,lp)
+    if (.not.ok) &
+       call ferror('trick_average_electron_energy','incorrect syntax in input',faterr)
+    if (any(n <= 0)) &
+       call ferror('trick_average_electron_energy','grid size must be three positive integers',faterr)
 
-    write (*,*) "bleh! ", ok, n, shift
-    stop 1
+    ! grid dimensions
+    do i = 1, 3
+       xdelta(:,i) = 0d0
+       xdelta(i,i) = 1d0 / real(n(i),8)
+    end do
 
+    ! calculate the cutoffs and number of points
+    if (allocated(rcutmax)) deallocate(rcutmax)
+    allocate(rcutmax(sy%c%nspc,2))
+    rcutmax = 0d0
+    nn = 0
+    do i = 1, sy%c%nspc
+       iz = sy%c%spc(i)%z
+       if (iz == 0 .or. iz > maxzat) cycle
+       if (agrid(iz)%isinit) then
+          rcutmax(i,2) = min(cutrad(iz),agrid(iz)%rmax)
+          nn = max(nn,agrid(iz)%ngrid)
+       else
+          call ferror('trick_average_electron_density','atomic grids are required',faterr)
+       end if
+    end do
+
+    ! fill the atomic 1D grids
+    allocate(chiat(nn,sy%c%nspc),rhoat(nn,sy%c%nspc))
+    chiat = 0d0
+    rhoat = 0d0
+    do i = 1, sy%c%nspc
+       iz = sy%c%spc(i)%z
+       rhoat(1:agrid(iz)%ngrid,i) = agrid(iz)%f(1:agrid(iz)%ngrid)
+       do j = 1, agrid(iz)%ngrid
+          asum = 0d0
+          do k = 1, agrid(iz)%norb
+             asum = asum - agrid(iz)%enl(k) * agrid(iz)%occ(k) * agrid(iz)%psi(j,k) * agrid(iz)%psi(j,k)
+          end do
+          chiat(j,i) = asum / (agrid(iz)%r(j) * agrid(iz)%r(j))
+       end do
+    end do
+    chiat = chiat / (4d0 * pi)
+
+    ! fill the grid
+    allocate(chi(n(1),n(2),n(3)),rho(n(1),n(2),n(3)))
+    chi = 0d0
+    rho = 0d0
+    do i3 = 1, n(3)
+       do i2 = 1, n(2)
+          do i1 = 1, n(1)
+             x = (i1-1) * xdelta(:,1) + (i2-1) * xdelta(:,2) + (i3-1) * xdelta(:,3)
+             call sy%c%list_near_atoms(x,icrd_crys,.false.,nat,nid,dist,lvec,up2dsp=rcutmax)
+
+             ! run over atoms in the environment and accumulate
+             do i = 1, nat
+                is = sy%c%atcel(nid(i))%is
+                call interp(dist(i),is,rhol,chil)
+                rho(i1,i2,i3) = rho(i1,i2,i3) + rhol
+                chi(i1,i2,i3) = chi(i1,i2,i3) + chil
+             end do ! i
+          end do ! i1
+       end do ! i2
+    end do ! i3
+
+    ! calculate actual chi value
+    chi = chi / max(rho,VSMALL)
+    deallocate(rho)
+
+    ! load the new field
+    call f%load_grid_from_array3(sy%c,1,"blah",n,chi)
+
+  contains
+
+    !> Interpolate the radial grids at distance r0, local version of grid1's interp.
+    subroutine interp(r0,is,rho,chi)
+      real*8, intent(in) :: r0 ! distance
+      integer :: is ! species
+      real*8, intent(out) :: rho, chi !< interpolated values
+
+      integer :: iz
+      integer :: ir, i, j, ii
+      real*8 :: r, prod, rr(4), dr1(4), x1dr12(4,4)
+
+      ! initialize
+      iz = sy%c%spc(is)%z
+      rho = 0d0
+      chi = 0d0
+      if (r0 >= agrid(iz)%rmax) return
+
+      ! careful with grid limits.
+      if (r0 <= agrid(iz)%r(1)) then
+         ir = 1
+         r = agrid(iz)%r(1)
+      else
+         ir = 1 + floor(log(r0/agrid(iz)%a)/agrid(iz)%b)
+         r = r0
+      end if
+
+      x1dr12 = 0d0
+      do i = 1, 4
+         ii = min(max(ir,2),agrid(iz)%ngrid-2) - 2 + i
+         rr(i) = agrid(iz)%r(ii)
+         dr1(i) = r - rr(i)
+         do j = 1, i-1
+            x1dr12(i,j) = 1d0 / (rr(i) - rr(j))
+            x1dr12(j,i) = -x1dr12(i,j)
+         end do
+      end do
+
+      ! interpolate, lagrange 3rd order, 4 nodes
+      do i = 1, 4
+         ii = min(max(ir,2),agrid(iz)%ngrid-2) - 2 + i
+         prod = 1.d0
+         do j = 1 ,4
+            if (i == j) cycle
+            prod = prod * dr1(j) * x1dr12(i,j)
+         end do
+         rho = rho + rhoat(ii,is) * prod
+         chi = chi + chiat(ii,is) * prod
+      end do
+
+    end subroutine interp
 
   end subroutine trick_average_electron_energy
 
