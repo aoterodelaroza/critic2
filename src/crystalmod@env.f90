@@ -530,9 +530,14 @@ contains
     integer :: nat
     integer, allocatable :: eid(:), lvec_(:,:)
     real*8, allocatable :: dist_(:)
+    logical :: dodist
+
+    ! whether to use the distance (cannot be too long)
+    dodist = present(distmax)
+    if (dodist) dodist = (distmax < 1d0)
 
     ! get just one atom or all sorted atoms up to distmax
-    if (present(distmax)) then
+    if (dodist) then
        call c%list_near_atoms(xp,icrd,.true.,nat,eid=eid,dist=dist_,lvec=lvec_,up2d=distmax,&
           nid0=nid0,id0=id0,iz0=iz0,ispc0=ispc0,nozero=nozero)
     else
@@ -544,6 +549,11 @@ contains
     nid = 0
     dist = huge(1d0)
     if (nat == 0) return
+
+    ! if distance is higher than distmax, return
+    if (present(distmax).and..not.dodist) then
+       if (dist_(1) > distmax) return
+    end if
 
     ! write and finish
     nid = eid(1)
