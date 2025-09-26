@@ -1755,7 +1755,7 @@ contains
        write (uout,'("# Using cross-correlated Gaussian powder diffraction patterns (GPWDF).")')
        write (uout,'("# Please cite:")')
        write (uout,'("#   Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (doi:10.1107/S1600576724007489)")')
-       write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
+       write (uout,'("# Two structures are exactly equal if their difference = 0.")')
        if (xend < 0d0) xend = xrpd_th2end_def
        difstr = "DIFF"
     elseif (imethod == imethod_powder) then
@@ -1763,19 +1763,19 @@ contains
        write (uout,'("# Please cite:")')
        write (uout,'("#   de Gelder et al., J. Comput. Chem., 22 (2001) 273")')
        write (uout,'("#       (10.1002/1096-987X(200102)22:3%3C273::AID-JCC1001%3E3.0.CO;2-0)")')
-       write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
+       write (uout,'("# Two structures are exactly equal if their difference = 0.")')
        if (xend < 0d0) xend = xrpd_th2end_def
        difstr = "DIFF"
     elseif (imethod == imethod_emd) then
        write (uout,'("# Using discrete powder diffraction patterns and the earth mover''s distance (EMD).")')
        write (uout,'("# Please cite:")')
        write (uout,'("#   Rubner et al., Int. J. Comput. Vis. 40.2 (2000) 99-121 (10.1023/A:1026543900054)")')
-       write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
+       write (uout,'("# Two structures are exactly equal if their difference = 0.")')
        if (xend < 0d0) xend = xrpd_th2end_def
        difstr = "DIFF"
     elseif (imethod == imethod_rdf) then
        write (uout,'("# Using cross-correlated radial distribution functions (RDF).")')
-       write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
+       write (uout,'("# Two structures are exactly equal if their difference = 0.")')
        if (xend < 0d0) xend = rend0
        difstr = "DIFF"
     elseif (imethod == imethod_amd) then
@@ -1783,7 +1783,7 @@ contains
        write (uout,'("# Please cite:")')
        write (uout,'("#   Widdowson et al., Match. Commun. Math. Comput. Chem., 87 (2022) 529")')
        write (uout,'("#       (doi:10.46793/match.87-3.529W)")')
-       write (uout,'("# Two structures are exactly equal if DIFF = 0.")')
+       write (uout,'("# Two structures are exactly equal if their difference = 0.")')
        if (xend < 0d0) xend = rend0
        difstr = "DIFF"
     else
@@ -1798,7 +1798,7 @@ contains
        difstr = "RMS"
     end if
     if (epsreduce > 0d0) then
-       write (uout,'("# REDUCE: Only repeated/unique structures will be listed, at DIFF level: ",A)') &
+       write (uout,'("# REDUCE: Only repeated/unique structures will be listed, at difference level: ",A)') &
           string(epsreduce,'e',10,4)
        allocate(irepeat(ns))
        irepeat = 0
