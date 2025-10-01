@@ -122,6 +122,7 @@ module crystalmod
      procedure :: calculate_thermo => vibrations_calculate_thermo !< calculate thermodynamic properties
      procedure :: trim_fc2 => vibrations_trim_fc2
      procedure :: zero_fc2 => vibrations_zero_fc2
+     procedure :: phonon_rattle => vibrations_phonon_rattle
   end type vibrations
   public :: vibrations
 
@@ -1148,6 +1149,13 @@ module crystalmod
        real*8, intent(in) :: eps0
        logical, intent(in), optional :: verbose
      end subroutine vibrations_zero_fc2
+     module subroutine vibrations_phonon_rattle(v,c,temp,seed)
+       use crystalseedmod, only: crystalseed
+       class(vibrations), intent(inout) :: v
+       type(crystal), intent(inout) :: c
+       real*8, intent(in) :: temp
+       type(crystalseed), intent(out) :: seed
+     end subroutine vibrations_phonon_rattle
      !xx! xrpd_peaklist type
      module subroutine xrpd_peaklist_end(p)
        class(xrpd_peaklist), intent(inout) :: p

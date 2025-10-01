@@ -3699,7 +3699,9 @@ contains
 
   !> Driver for operations on crystal or molecular vibrations.
   module subroutine struct_vibrations(s,line,verbose)
-    use global, only: eval_next, iunitname0, iunit, iunit_ang, dunit0
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed
+    use global, only: eval_next, iunitname0, iunit, iunit_ang, dunit0, fileroot
     use tools_io, only: uout, lgetword, getword, ferror, faterr, equal, isreal, isinteger,&
        uin, ucopy, getline, string, ioj_right, ioj_left
     use tools_math, only: good_lebedev, select_lebedev
@@ -3709,15 +3711,18 @@ contains
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
 
-    character(len=:), allocatable :: filename, word, mode, sline, errmsg
+    character(len=:), allocatable :: filename, word, mode, sline, errmsg, pre, post, root
+    integer :: idx, npad
     integer :: lp, lpo, idq, ifreq, npts, n(3)
     real*8 :: dist, eps, disteps, fc2eps, q(3), q1(3), q2(3), tini, tend, t
-    real*8 :: zpe, fvib, svib, cv, vs(3), fac, vsavg(3)
+    real*8 :: zpe, fvib, svib, cv, vs(3), fac, vsavg(3), temp
     logical :: ok, environ, cartesian
-    integer :: nq, i, j, k, fini, fend
+    integer :: nq, i, j, k, fini, fend, nstruct
     real*8, allocatable :: qlist(:,:), wlist(:)
     real*8, allocatable :: xleb(:), yleb(:), zleb(:), wleb(:)
     logical :: didlebedev, didother, calcavg
+    type(crystalseed) :: seed
+    type(crystal) :: caux
 
     ! header
     if (verbose) &
@@ -4049,6 +4054,33 @@ contains
        end if
        write (uout,*)
 
+    elseif (equal(word,'phonon_rattle')) then
+       ok = isinteger(nstruct,line,lp)
+       ok = isreal(temp,line,lp)
+       if (.not.ok) &
+          call ferror('struct_vibrations','Error reading options in PHONON_RATTLE',faterr,syntax=.true.)
+       if (nstruct <= 0) &
+          call ferror('struct_vibrations','Need positive NSTRUCT in PHONON_RATTLE',faterr,syntax=.true.)
+       if (temp < 0) &
+          call ferror('struct_vibrations','Need positive TEMP in PHONON_RATTLE',faterr,syntax=.true.)
+
+       ! naming
+       root = trim(fileroot) // "-*.scf.in"
+       idx = index(root,'*')
+       pre = root(:idx-1)
+       post = root(idx+1:)
+       npad = ceiling(log10(nstruct+0.1d0))
+
+       ! create nstruct structures
+       do i = 1, nstruct
+          call s%c%vib%phonon_rattle(s%c,temp,seed)
+
+          filename = pre // string(i,npad,pad0=.true.) // post
+          call caux%struct_new(seed,.true.)
+          call caux%write_any_file(filename,errmsg)
+          if (len_trim(errmsg) > 0) &
+             call ferror("struct_vibrations",errmsg,faterr)
+       end do
     end if
 
     ! wrap up

@@ -1003,6 +1003,38 @@ contains
 
   end subroutine vibrations_zero_fc2
 
+  !> Generate a phonon rattled structure based on the force constants
+  !> in v and the crystal structure in c using temperature
+  !> temp. The phonon rattled structure samples normal modes
+  !> according to a Boltzmann distribution based on the given
+  !> temperature. Returns the seed for the new crystal structure in seed.
+  module subroutine vibrations_phonon_rattle(v,c,temp,seed)
+    use crystalseedmod, only: crystalseed
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(inout) :: c
+    real*8, intent(in) :: temp
+    type(crystalseed), intent(out) :: seed
+
+    real*8, allocatable :: freq(:)
+    complex*16, allocatable :: vec(:,:)
+
+    ! return if no FC2 is available
+    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+
+    ! copy the seed from the given system to the output seed
+    call c%makeseed(seed,.false.)
+
+    ! get the frequencies and eigenvectors at Gamma
+    call v%calculate_q(c,(/0d0,0d0,0d0/),freq,vec)
+    ! pr = _PhononRattler(atoms.get_masses(), fc2, imag_freq_factor)
+    ! pr(atoms_tmp, temperature, QM_statistics)
+
+    write (*,*) "freq = ", freq
+    write (*,*) "bleh! ", temp
+    stop 1
+
+  end subroutine vibrations_phonon_rattle
+
   !xx! private procedures
 
   !> Detect the format for a file containing molecular or
