@@ -1014,6 +1014,8 @@ contains
   !> temp. The phonon rattled structure samples normal modes
   !> according to a Boltzmann distribution based on the given
   !> temperature. Returns the seed for the new crystal structure in seed.
+  !> Adapted from the hiphive code (https://hiphive.materialsmodeling.org/).
+  !> Originally from West and Estreicher, Physical Review Letters 96, 115504 (2006).
   module subroutine vibrations_phonon_rattle(v,c,temp,seed)
     use crystalseedmod, only: crystalseed
     use param, only: atmass
@@ -1056,15 +1058,15 @@ contains
        ! calculate the Boltzmann population
        nbe = 1d0 / (exp(ff * cminv_to_K / temp) - 1)
 
-       !! NEW
        ! random phase and amplitude
        call random_number(phase)
        call random_number(xx)
        amplitude = sqrt(-2d0 * log(1 - min(xx,1d0-epsilon(1d0))))
 
-       ! calculate the frequency term
+       ! calculate the frequency term (atomic units)
        fterm = sqrt(1d0 * (0.5d0 + nbe) / (ff * cminv_to_angfreq_au)) * amplitude * phase
 
+       ! calculate and add the deltas from this mode to all atoms
        n = 0
        do j = 1, seed%nat
           sqmfterm = fterm / sqrt(atmass(seed%spc(seed%is(j))%z) * amu_to_me)
