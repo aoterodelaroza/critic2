@@ -1026,7 +1026,7 @@ contains
 
     real*8, allocatable :: freq(:), xat(:,:)
     complex*16, allocatable :: vec(:,:)
-    real*8 :: nbe, ff, fterm, phase, amplitude, xx, sqmfterm
+    real*8 :: nbe, ff, ffrac, fterm, phase, amplitude, xx, sqmfterm
     integer :: i, j, k, n
 
     real*8, parameter :: thr = 1d-3 ! threshold for acoustic frequencies (cm-1)
@@ -1056,7 +1056,12 @@ contains
        ff = max(fcap,abs(freq(i)))
 
        ! calculate the Boltzmann population
-       nbe = 1d0 / (exp(ff * cminv_to_K / temp) - 1)
+       ffrac = ff * cminv_to_K / temp
+       if (ffrac < 300) then
+          nbe = 1d0 / (exp(ffrac) - 1)
+       else
+          nbe = 0d0
+       end if
 
        ! random phase and amplitude
        call random_number(phase)

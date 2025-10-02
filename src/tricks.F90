@@ -34,6 +34,7 @@ module tricks
   private :: trick_check_valence
   private :: trick_force_constants
   private :: trick_average_electron_energy
+  private :: trick_calculate_displacements
 
 contains
 
@@ -63,6 +64,8 @@ contains
        call trick_force_constants(line0(lp:))
     else if (equal(word,'aeepro')) then
        call trick_average_electron_energy(line0(lp:))
+    else if (equal(word,'displacements')) then
+       call trick_calculate_displacements(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -3347,5 +3350,113 @@ contains
     end subroutine interp
 
   end subroutine trick_average_electron_energy
+
+  ! Given two crystal structures with the same unit cell and the same
+  ! atomic order, calculate the atomic displacements of structure 2
+  ! relative to structure 1.
+  !   TRICK DISPLACEMENTS file1.s file2.s [GROUPBYZ]
+  ! If GROUP-BY-Z, average displacements by atomic number.
+  subroutine trick_calculate_displacements(line0)
+    use tools_io, only: getword, ferror, faterr, uout, string, lgetword, equal, nameguess,&
+       ioj_right
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed
+    use param, only: bohrtoa, maxzat
+    character*(*), intent(in) :: line0
+
+    character(len=:), allocatable :: file1, file2, errmsg, lword
+    integer :: i, j, lp, iz
+    real*8 :: x(3), nx
+    type(crystalseed) :: seed
+    type(crystal) :: c1, c2
+    logical :: groupbyz
+    integer, allocatable :: nat(:)
+    real*8, allocatable :: delta(:)
+
+    ! default options
+    groupbyz = .false.
+
+    ! read the files
+    lp = 1
+    file1 = getword(line0,lp)
+    file2 = getword(line0,lp)
+    if ((len_trim(file1) == 0) .or. (len_trim(file2) == 0)) &
+       call ferror('trick_calculate_displacements','Error: file not found',faterr)
+    do while (.true.)
+       lword = lgetword(line0,lp)
+       if (equal(lword,'groupbyz')) then
+          groupbyz = .true.
+       elseif (len_trim(lword) == 0) then
+          exit
+       else
+          call ferror('trick_calculate_displacements','Error: unknown keyword',&
+             faterr,line0,syntax=.true.)
+       end if
+    end do
+
+    ! read and build the crystal structures
+    call seed%read_any_file(file1,0,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('trick_calculate_displacements','Error file1: '//errmsg,faterr)
+    call c1%struct_new(seed,.true.)
+    call seed%read_any_file(file2,0,errmsg)
+    if (len_trim(errmsg) > 0) &
+       call ferror('trick_calculate_displacements','Error file2: '//errmsg,faterr)
+    call c2%struct_new(seed,.true.)
+
+    ! check that the cells are identical
+    if (any(abs(c1%m_x2c - c2%m_x2c) > 1d-5)) &
+       call ferror('trick_calculate_displacements','Unit cells are different',faterr)
+    ! check that the number of atoms and the order is the same
+    if (c1%ncel /= c2%ncel) &
+       call ferror('trick_calculate_displacements','Number of atoms is different',faterr)
+    do i = 1, c1%ncel
+       if (c1%atcel(i)%is /= c2%atcel(i)%is) &
+          call ferror('trick_calculate_displacements','Atomic order is different',faterr)
+    end do
+
+    ! allocate for grouping
+    if (groupbyz) then
+       allocate(nat(maxzat),delta(maxzat))
+       nat = 0
+       delta = 0d0
+    end if
+
+    ! calculate and output displacements
+    write (uout,'("* TRICK DISPLACEMENTS")')
+    write (uout,'("# Atomic displacements in angstrom.")')
+    write (uout,'("#     dx              dy              dz           norm(delta)")')
+    do i = 1, c1%ncel
+       x = c2%atcel(i)%x - c1%atcel(i)%x
+       x = x - nint(x)
+       x = c1%x2c(x) * bohrtoa
+       nx = norm2(x)
+       write (uout,'(4(A,X))') (string(x(j),'f',15,8,4),j=1,3), &
+          string(nx,'f',15,8,4)
+
+       if (groupbyz) then
+          iz = c1%spc(c1%atcel(i)%is)%z
+          if (iz > 0 .and. iz <= maxzat) then
+             nat(iz) = nat(iz) + 1
+             delta(iz) = delta(iz) + nx
+          end if
+       end if
+    end do
+    write (uout,*)
+
+    ! output groups
+    if (groupbyz) then
+       write (uout,'("# Average displacements, grouped by atomic number")')
+       write (uout,'("#at nat    avg-delta")')
+       do i = 1, maxzat
+          if (nat(i) > 0) then
+             write (uout,'(3(A,X))') string(nameguess(i,.true.),2), string(nat(i),4,ioj_right),&
+                string(delta(i) / nat(i),'f',15,8,4)
+          end if
+       end do
+       write (uout,*)
+    end if
+
+  end subroutine trick_calculate_displacements
 
 end module tricks
