@@ -1069,7 +1069,7 @@ contains
        amplitude = sqrt(-2d0 * log(1 - min(xx,1d0-epsilon(1d0))))
 
        ! calculate the frequency term (atomic units)
-       fterm = sqrt(1d0 * (0.5d0 + nbe) / (ff * cminv_to_angfreq_au)) * amplitude * phase
+       fterm = sqrt(1d0 * (0.5d0 + nbe) / (ff * cminv_to_angfreq_au)) * amplitude * cos(phase)
 
        ! calculate and add the deltas from this mode to all atoms
        n = 0
