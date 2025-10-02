@@ -23,7 +23,7 @@ contains
 
   !> Make a crystal seed (seed) from a crystal structure. If useabr,
   !> force the use of a particular value of useabr (1=aa and bb,
-  !> 2=x2c).
+  !> 2=x2c, default is 2).
   module subroutine makeseed(c,seed,copysym,useabr)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(in) :: c

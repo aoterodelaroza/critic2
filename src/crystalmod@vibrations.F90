@@ -23,6 +23,18 @@ submodule (crystalmod) vibrationsmod
   real*8, parameter :: der_coef1(3) = (/-1d0,  0d0, 1d0/)
   real*8, parameter :: der_coef2(3) = (/ 1d0, -2d0, 1d0/)
 
+  ! frequency conversion factor: sqrt(Hartree/bohr^2/amu) to cm-1
+  ! sqrt(Hartree / bohr^2 / amu) / 1e12 -> THz
+  ! sqrt(4.3597447222071e-18) / 5.29177210903e-11 / sqrt(1.66053906660e-27) /  2 / pi / c / 100
+  real*8, parameter :: freqfactor = 5140.487143715827d0
+
+  ! other conversion factors
+  real*8, parameter :: cminv_to_kJmol = 1.196265656955833d-02 ! c * h * NA / 10
+  real*8, parameter :: cminv_to_K = 1.438776959983815d0 ! c * h * 100 / kb
+  real*8, parameter :: cminv_to_hartree = 4.5563352529120d-8 ! CODATA2018
+  real*8, parameter :: amu_to_me = 1.66053906660e-27 / 9.1093837015e-31 ! CODATA2018
+  real*8, parameter :: cminv_to_angfreq_au = 4.556335252903557d-06 ! 100 * c * a0 * sqrt(me / Ha) * 2 * pi, using CODATA2018 values
+
   !xx! private procedures
   ! subroutine vibrations_detect_format(file,ivformat)
   ! subroutine read_matdyn_modes(v,c,file,ivformat,errmsg,ti)
@@ -551,10 +563,6 @@ contains
     complex*16, allocatable :: dm(:,:)
     logical :: varoutput
 
-    ! conversion factor
-    ! sqrt(Hartree / bohr^2 / amu) / 1e12 -> THz
-    ! sqrt(4.3597447222071e-18) / 5.29177210903e-11 / sqrt(1.66053906660e-27) /  2 / pi / c / 100
-    real*8, parameter :: factor = 5140.487143715827d0
     real*8, parameter :: epsgen = 1d-4
     real*8, parameter :: epsneigh = 1d-5
 
@@ -610,7 +618,7 @@ contains
     call eigherm(dm,c%ncel*3,eval)
 
     ! calculate the frequencies
-    freq = sign(sqrt(abs(eval)) * factor,eval)
+    freq = sign(sqrt(abs(eval)) * freqfactor,eval)
 
     ! save output
     if (varoutput) then
@@ -851,8 +859,6 @@ contains
     real*8 :: ym1
     real*8, parameter :: cutoff_frequency = 1d0 ! cutoff frequency, cm-1
 
-    real*8, parameter :: cminv_to_kJmol = 1.196265656955833d-02 ! c * h * NA / 10
-    real*8, parameter :: cminv_to_K = 1.438776959983815d0 ! c * h * 100 / kb
     real*8, parameter :: R = 8.314462618d0 ! molar gas constant (kB/NA, J/K/mol)
     real*8, parameter :: small1 = 50000d0 * cminv_to_K / huge(1d0) ! protection against zerodiv in nu/(kB*T)
     real*8, parameter :: small2 = 0.5d0 * log(huge(1d0)) ! protection against overflow in exp(nu/kB*T)**2
@@ -1010,13 +1016,19 @@ contains
   !> temperature. Returns the seed for the new crystal structure in seed.
   module subroutine vibrations_phonon_rattle(v,c,temp,seed)
     use crystalseedmod, only: crystalseed
+    use param, only: atmass
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: temp
     type(crystalseed), intent(out) :: seed
 
-    real*8, allocatable :: freq(:)
+    real*8, allocatable :: freq(:), xat(:,:)
     complex*16, allocatable :: vec(:,:)
+    real*8 :: nbe, ff, fterm, phase, amplitude, xx, sqmfterm
+    integer :: i, j, k, n
+
+    real*8, parameter :: thr = 1d-3 ! threshold for acoustic frequencies (cm-1)
+    real*8, parameter :: fcap = 50d0 ! lower bound for the frequencies (cm-1)
 
     ! return if no FC2 is available
     if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
@@ -1024,14 +1036,58 @@ contains
     ! copy the seed from the given system to the output seed
     call c%makeseed(seed,.false.)
 
-    ! get the frequencies and eigenvectors at Gamma
+    ! get the frequencies (cm-1) and eigenvectors at Gamma
     call v%calculate_q(c,(/0d0,0d0,0d0/),freq,vec)
-    ! pr = _PhononRattler(atoms.get_masses(), fc2, imag_freq_factor)
-    ! pr(atoms_tmp, temperature, QM_statistics)
 
-    write (*,*) "freq = ", freq
-    write (*,*) "bleh! ", temp
-    stop 1
+    ! prepare the atomic positions array in Cartesian coordinates
+    allocate(xat(3,c%ncel))
+    do j = 1, c%ncel
+       xat(:,j) = c%atcel(j)%r
+    end do
+
+    ! run over all modes
+    do i = 1, size(freq,1)
+       ! skip acoustic frequencies
+       if (abs(freq(i)) < thr) cycle
+
+       ! cap frequencies at some low value
+       ff = max(fcap,abs(freq(i)))
+
+       ! calculate the Boltzmann population
+       nbe = 1d0 / (exp(ff * cminv_to_K / temp) - 1)
+
+       !! NEW
+       ! random phase and amplitude
+       call random_number(phase)
+       call random_number(xx)
+       amplitude = sqrt(-2d0 * log(1 - min(xx,1d0-epsilon(1d0))))
+
+       ! calculate the frequency term
+       fterm = sqrt(1d0 * (0.5d0 + nbe) / (ff * cminv_to_angfreq_au)) * amplitude * phase
+
+       n = 0
+       do j = 1, seed%nat
+          sqmfterm = fterm / sqrt(atmass(seed%spc(seed%is(j))%z) * amu_to_me)
+          do k = 1, 3
+             n = n + 1
+             xat(k,j) = xat(k,j) + sqmfterm * real(vec(n,i),8)
+          end do
+       end do
+
+       !! OK !!
+       ! xx = sqrt(0.023421783d0 / (ff / freqfactor)) / sqrt(15.999d0) * 0.52917721d0
+
+       !! OK !!
+       ! xx = sqrt(0.023421783d0 * (0.5d0 + nbe) / (ff / freqfactor)) / sqrt(15.999d0) * 0.52917721d0
+
+       !! OK !!
+       ! xx = sqrt(1d0 * (0.5d0 + nbe) / (ff * cminv_to_angfreq_au)) / sqrt(15.999d0 * 1822.8885d0) * 0.52917721d0
+    end do
+
+    ! copy the new atomic positions into the seed
+    do j = 1, seed%nat
+       seed%x(:,j) = c%c2x(xat(:,j))
+    end do
 
   end subroutine vibrations_phonon_rattle
 
