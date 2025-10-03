@@ -1014,11 +1014,10 @@ contains
   !> temp. The phonon rattled structure samples normal modes
   !> according to a Boltzmann distribution based on the given
   !> temperature. Returns the seed for the new crystal structure in seed.
-  !> Adapted from the hiphive code (https://hiphive.materialsmodeling.org/).
-  !> Originally from West and Estreicher, Physical Review Letters 96, 115504 (2006).
+  !> Adapted from the alamode code (https://github.com/ttadano/alamode/).
   module subroutine vibrations_phonon_rattle(v,c,temp,seed)
     use crystalseedmod, only: crystalseed
-    use param, only: atmass
+    use param, only: atmass, pi, bohrtoa
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: temp
@@ -1026,7 +1025,8 @@ contains
 
     real*8, allocatable :: freq(:), xat(:,:)
     complex*16, allocatable :: vec(:,:)
-    real*8 :: nbe, ff, ffrac, fterm, phase, amplitude, xx, sqmfterm
+    real*8 :: nbe, ff, ffrac, fterm, phase, amplitude, xx(2), xn, sqmfterm
+    real*8 :: sigma
     integer :: i, j, k, n
 
     real*8, parameter :: thr = 1d-3 ! threshold for acoustic frequencies (cm-1)
@@ -1063,32 +1063,21 @@ contains
           nbe = 0d0
        end if
 
-       ! random phase and amplitude
-       call random_number(phase)
+       ! standard deviation of the normal distribution
+       sigma = sqrt((1d0 + 2d0 * nbe) / (2d0 * ff * cminv_to_angfreq_au))
+
+       ! sample normal distribution
        call random_number(xx)
-       amplitude = sqrt(-2d0 * log(1 - min(xx,1d0-epsilon(1d0))))
+       xn = sigma * sqrt(-2d0 * log(xx(1))) * cos(2d0 * pi * xx(2))
 
-       ! calculate the frequency term (atomic units)
-       fterm = sqrt(1d0 * (0.5d0 + nbe) / (ff * cminv_to_angfreq_au)) * amplitude * cos(phase)
-
-       ! calculate and add the deltas from this mode to all atoms
        n = 0
        do j = 1, seed%nat
-          sqmfterm = fterm / sqrt(atmass(seed%spc(seed%is(j))%z) * amu_to_me)
+          fterm = xn / sqrt(atmass(seed%spc(seed%is(j))%z) * amu_to_me)
           do k = 1, 3
              n = n + 1
-             xat(k,j) = xat(k,j) + sqmfterm * real(vec(n,i),8)
+             xat(k,j) = xat(k,j) + fterm * real(vec(n,i),8)
           end do
        end do
-
-       !! OK !!
-       ! xx = sqrt(0.023421783d0 / (ff / freqfactor)) / sqrt(15.999d0) * 0.52917721d0
-
-       !! OK !!
-       ! xx = sqrt(0.023421783d0 * (0.5d0 + nbe) / (ff / freqfactor)) / sqrt(15.999d0) * 0.52917721d0
-
-       !! OK !!
-       ! xx = sqrt(1d0 * (0.5d0 + nbe) / (ff * cminv_to_angfreq_au)) / sqrt(15.999d0 * 1822.8885d0) * 0.52917721d0
     end do
 
     ! copy the new atomic positions into the seed
@@ -1900,6 +1889,8 @@ contains
     word = lgetword(sline,lp)
     if (equal(word,"qe")) then
        fc2factor = 0.5d0
+    elseif (equal(word,"alamode")) then
+       fc2factor = bohrtoa**2 / hartoev
     elseif (equal(word,"vasp")) then
        write (*,*) "fixme: vasp in FC2 reader"
        stop 1

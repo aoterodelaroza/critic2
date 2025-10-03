@@ -3446,7 +3446,7 @@ contains
 
     ! output groups
     if (groupbyz) then
-       write (uout,'("# Average displacements, grouped by atomic number")')
+       write (uout,'("# Average displacements, grouped by atomic number (angstrom)")')
        write (uout,'("#at nat    avg-delta")')
        do i = 1, maxzat
           if (nat(i) > 0) then
