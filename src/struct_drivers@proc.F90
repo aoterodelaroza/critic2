@@ -5484,7 +5484,7 @@ contains
           call ferror('struct_xrpd',errmsg,faterr)
 
        ! write the profile to disk
-       file = fileroot // "_fit.dat"
+       file = trim(fileroot) // "_fit.dat"
        write (uout,'("  Writing original and fitted profile to file: ",A)') trim(file)
        lu = fopen_write(file)
        write (lu,'("## x yorig ycalc")')
@@ -5495,7 +5495,7 @@ contains
        call fclose(lu)
 
        ! final list of peaks to disk
-       file = fileroot // ".peaks"
+       file = trim(fileroot) // ".peaks"
        write (uout,'("+ List of peaks written to file: ",A)') file
        call p%write(file)
     elseif (equal(word,"refit")) then
@@ -5526,7 +5526,7 @@ contains
           yorig=y,ycalc=yfit)
 
        ! write the profile to disk
-       file = fileroot // "_fit.dat"
+       file = trim(fileroot) // "_fit.dat"
        write (uout,'("  Writing original and fitted profile to file: ",A)') trim(file)
        lu = fopen_write(file)
        write (lu,'("## x yorig ycalc")')
@@ -5537,7 +5537,7 @@ contains
        call fclose(lu)
 
        ! final list of peaks to disk
-       file = fileroot // ".peaks"
+       file = trim(fileroot) // ".peaks"
        write (uout,'("+ List of peaks written to file: fit.peaks")')
        call p%write(file)
     else

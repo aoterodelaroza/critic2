@@ -428,7 +428,7 @@ contains
              call ferror('critic2','need a string for root',faterr,line,syntax=.true.)
              cycle
           end if
-          fileroot = line(lp:)
+          fileroot = trim(line(lp:))
 
           ! ewald
        elseif (equal(word,'ewald')) then
