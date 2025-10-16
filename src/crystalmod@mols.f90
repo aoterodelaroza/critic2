@@ -289,11 +289,9 @@ contains
   end subroutine fill_molecular_fragments
 
   !> Calculate whether the crystal is a molecular crystal. If it is,
-  !> for each molecule, calculate whether it is contained as a whole
-  !> in the asymmetric unit (idxmol=-1) or not (idxmol >= 0). If it
-  !> is not, then the molecule can be symmetry-unique idxmol = 0 or
-  !> equivalent to the molecule with index idxmol>0. Fills ismol3d
-  !> and idxmol.
+  !> for each molecule, calculate whether it is symmetry-unique
+  !> (idxmol = 0) or equivalent to molecule with index idxmol > 0.
+  !> Fills ismol3d and idxmol in c.
   module subroutine calculate_molecular_equivalence(c)
     use tools, only: qcksort
     class(crystal), intent(inout) :: c
@@ -325,22 +323,12 @@ contains
              midx(j,i) = c%mol(i)%at(j)%idx
           end do
           call qcksort(midx(1:nat,i))
-
-          ! check if the molecule is fractional
-          do j = 1, c%mol(i)%nat-1
-             if (midx(j,i) == midx(j+1,i)) then
-                c%idxmol(i) = -1
-                exit
-             end if
-          end do
        end do
 
        ! assign idxmol based on the atomic sequence
        do i = 1, c%nmol
           nat = c%mol(i)%nat
-          if (c%idxmol(i) < 0) cycle
           do j = 1, i-1
-             if (c%idxmol(j) < 0) cycle
              if (all(midx(1:nat,i) == midx(1:nat,j))) then
                 c%idxmol(i) = j
                 exit

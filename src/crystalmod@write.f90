@@ -40,7 +40,7 @@ contains
     real*8 :: dens, mass, rnn2
     character(len=:), allocatable :: str1
     integer, allocatable :: nis(:)
-    integer :: izp0
+    real*8 :: zp
 
     character*1, parameter :: lvecname(3) = (/"a","b","c"/)
 
@@ -280,7 +280,7 @@ contains
 
           if (.not.c%ismolecule.and.c%ismol3d.and.allocated(c%idxmol)) then
              ! the table with the molecular equivalence integers
-             write (uout,'("# idx = 0 (molecule is symmetry-unique), n>0 (equivalent to molecule n), -1 (symmetric to self)")')
+             write (uout,'("# idx = 0 (molecule is symmetry-unique), n>0 (equivalent to molecule n)")')
              write (uout,'("# Id  nat           Center of mass            Discrete idx")')
              do i = 1, c%nmol
                 if (c%ismolecule) then
@@ -309,19 +309,13 @@ contains
              if (c%ismol3d .or. c%nlvac == 3) then
                 write (uout,'(/"+ This is a molecular crystal.")')
                 write (uout,'("  Number of molecules per cell (Z) = ",A)') string(c%nmol)
-                izp0 = 0
-                do i = 1, c%nmol
-                   if (c%idxmol(i) < 0) then
-                      izp0 = -1
-                      exit
-                   elseif (c%idxmol(i) == 0) then
-                      izp0 = izp0 + 1
-                   end if
-                end do
-                if (izp0 > 0) then
-                   write (uout,'("  Number of molecules in the asymmetric unit (Z'') = ",A)') string(izp0)
+
+                ! Z' = Z / multiplicity of the general position
+                zp = real(c%nmol,8) / real(c%neqv,8)
+                if (abs(zp - nint(zp)) < 1d-5) then
+                   write (uout,'("  Number of molecules in the asymmetric unit (Z'') = ",A)') string(nint(zp))
                 else
-                   write (uout,'("  Number of molecules in the asymmetric unit (Z'') < 1")')
+                   write (uout,'("  Number of molecules in the asymmetric unit (Z'') = ",A)') string(zp,'f',decimal=2)
                 end if
 
              else if (c%nlvac == 2) then
