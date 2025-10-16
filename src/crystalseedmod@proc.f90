@@ -5459,7 +5459,7 @@ contains
        isformat = isformat_r_shelx
     elseif (equal(wextdot,'21')) then
        isformat = isformat_r_f21
-    elseif (equal(wextdot,'cube')) then
+    elseif (equal(wextdot,'cube').or.equal(wextdot,'cub')) then
        isformat = isformat_r_cube
        alsofield_ = .true.
     elseif (equal(wextdot,'bincube')) then

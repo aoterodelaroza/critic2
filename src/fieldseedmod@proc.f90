@@ -100,7 +100,7 @@ contains
     elseif (equal(lfile,"pi")) then
        f%iff = ifformat_pi
        call read_next_as_file()
-    elseif (equal(lfile,"cube")) then
+    elseif (equal(lfile,"cube").or.equal(lfile,"cub")) then
        f%iff = ifformat_cube
        call read_next_as_file()
     elseif (equal(lfile,"bincube")) then
@@ -700,7 +700,7 @@ contains
        extdot2 = ""
     end if
 
-    if (equal(extdot,'cube')) then
+    if (equal(extdot,'cube').or.equal(extdot,'cub')) then
        field_detect_format = ifformat_cube
     elseif (equal(extdot,'bincube')) then
        field_detect_format = ifformat_bincube
