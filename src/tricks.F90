@@ -35,6 +35,7 @@ module tricks
   private :: trick_force_constants
   private :: trick_average_electron_energy
   private :: trick_calculate_displacements
+  private :: trick_voronoi
 
 contains
 
@@ -66,6 +67,8 @@ contains
        call trick_average_electron_energy(line0(lp:))
     else if (equal(word,'displacements')) then
        call trick_calculate_displacements(line0(lp:))
+    else if (equal(word,'voronoi')) then
+       call trick_voronoi(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -3458,5 +3461,159 @@ contains
     end if
 
   end subroutine trick_calculate_displacements
+
+  ! Calculate Voronoi polyhedra for each atom in the system. Can only
+  ! be used with crystals.
+  subroutine trick_voronoi(line0)
+    use iso_c_binding, only: c_ptr, c_int, c_double
+    use systemmod, only: sy
+    use tools_math, only: cross
+    use tools_io, only: ferror, faterr, ioj_center, ioj_left, uout, string, ioj_right
+    use types, only: realloc
+    use param, only: icrd_crys
+    character*(*), intent(in) :: line0
+
+    integer :: i, j, k, l, idx
+    integer :: nat
+    real*8 :: wsrad, x0(3), area, dist
+    real*8, allocatable :: xstar(:,:)
+    integer, allocatable :: nid(:), lvec(:,:), nneigh(:), idxneigh(:,:)
+    integer :: nf_ !< number of facets in the WS cell
+    integer :: nv_ !< number of vertices
+    integer :: mnfv_ !< maximum number of vertices per facet
+    type(c_ptr), target :: fid ! file handle
+    integer(c_int), allocatable :: ivws(:)
+    real(c_double), allocatable :: xvws(:,:)
+    integer, allocatable :: iside_(:,:) !< sides of the WS faces
+    integer, allocatable :: nside_(:) !< number of sides of WS faces
+    real*8 :: av(3), bary(3), rmat(3,4)
+    character(len=:), allocatable :: sncp, sname, sz, smult, str
+
+    interface
+       ! The definitions and documentation for these functions are in doqhull.c
+       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv,fid) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
+         integer(c_int), value :: n
+         real(c_double) :: xstar(3,n)
+         integer(c_int) :: nf, nv, mnfv
+         type(c_ptr) :: fid
+       end subroutine runqhull_voronoi_step1
+       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws,fid) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
+         integer(c_int), value :: nf, nv, mnfv
+         integer(c_int) :: ivws(nf)
+         real(c_double) :: xvws(3,nv)
+         integer(c_int) :: nfvws(mnfv)
+         integer(c_int) :: fvws(mnfv)
+         type(c_ptr), value :: fid
+       end subroutine runqhull_voronoi_step2
+    end interface
+
+    ! consistency checks
+    if (.not.associated(sy)) &
+       call ferror('trick_voronoi','system not defined',faterr)
+    if (.not.allocated(sy%c)) &
+       call ferror('trick_voronoi','crystal structure not defined',faterr)
+    if (.not.sy%c%isinit) &
+       call ferror('trick_voronoi','crystal structure not initialized',faterr)
+    if (sy%c%ismolecule) &
+       call ferror('trick_voronoi','structure is a molecule',faterr)
+
+    ! header
+    write (uout,'("* Calculation of Voronoi polyhedra")')
+
+    ! calculate the WS radius
+    wsrad = 0d0
+    do i = 1, sy%c%ws_nv
+       wsrad = max(wsrad,norm2(sy%c%x2c(sy%c%ws_x(:,i))))
+    enddo
+
+    ! allocate the summary table
+    allocate(nneigh(sy%c%nneq),idxneigh(20,sy%c%nneq))
+
+    ! run over non-equivalent atoms
+    do i = 1, sy%c%nneq
+       ! build the atom star
+       call sy%c%list_near_atoms(sy%c%at(i)%x,icrd_crys,.false.,nat,eid=nid,lvec=lvec,up2d=2d0*wsrad,nozero=.true.)
+       allocate(xstar(3,nat))
+       do j = 1, nat
+          xstar(:,j) = sy%c%x2c(sy%c%atcel(nid(j))%x + lvec(:,j) - sy%c%at(i)%x)
+       end do
+
+       ! run voronoi
+       call runqhull_voronoi_step1(nat,xstar,nf_,nv_,mnfv_,fid)
+       allocate(ivws(nf_),iside_(mnfv_,nf_),xvws(3,nv_),nside_(nf_))
+       nside_ = 0
+       call runqhull_voronoi_step2(nf_,nv_,mnfv_,ivws,xvws,nside_,iside_,fid)
+
+       ! write down the number of neighbors
+       nneigh(i) = nf_
+       if (nf_ > size(idxneigh,1)) &
+          call realloc(idxneigh,nf_*2,sy%c%nneq)
+
+       ! calculation and output of Voronoi coordination
+       sncp = string(i,4,ioj_left)
+       sname = string(sy%c%at(i)%name,6,ioj_center)
+       smult = string(sy%c%at(i)%mult,4,ioj_center)
+       sz = string(sy%c%spc(sy%c%at(i)%is)%z,2,ioj_left)
+       write (uout,'("+ Atom ",A," (ncp=",A,", name=",A,", Z=",A,") at: ",3(A,"  "))') &
+          string(i), trim(sncp), trim(adjustl(sname)), trim(sz), (trim(string(sy%c%at(i)%x(j),'f',12,7)),j=1,3)
+       write (uout,'("#id   atom at      lvec       ---------    position    -------     dist(bohr) area(bohr^2)")')
+       do j = 1, nf_
+          ! lattice point
+          bary = 0d0
+          do k = 1, nside_(j)
+             bary = bary + xvws(:,iside_(k,j))
+          end do
+          bary = 2d0 * bary / nside_(j)
+
+          ! area of a convex polygon
+          av = 0d0
+          do k = 1, nside_(j)
+             l = mod(k,nside_(j))+1
+             av = av + cross(xvws(:,iside_(k,j)),xvws(:,iside_(l,j)))
+          end do
+          area = 0.5d0 * abs(dot_product(bary,av) / norm2(bary))
+
+          ! distance to the atom
+          dist = norm2(xstar(:,ivws(j)))
+
+          ! output
+          idx = sy%c%atcel(nid(ivws(j)))%idx
+          x0 = sy%c%atcel(nid(ivws(j)))%x + lvec(:,ivws(j))
+          sname = string(sy%c%at(idx)%name,6,ioj_center)
+          write (uout,'(99(A,X))') string(j,4,ioj_left), sname,&
+             string(nid(ivws(j)),4,ioj_left), (string(lvec(k,ivws(j)),2,ioj_right),k=1,3),&
+             (string(x0(k),'f',12,8,4),k=1,3), string(dist,'f',12,7,ioj_right), string(area,'f',12,5,4)
+
+          ! indices of the atoms
+          idxneigh(j,i) = idx
+       end do
+       write (uout,*)
+
+       ! clean up
+       deallocate(ivws,iside_,xvws,nside_,xstar)
+    end do
+
+    ! summary table
+    write (uout,'("+ Summary of Voronoi coordination for non-equivalent atoms")')
+    write (uout,'("#id atom  Z  mult nneigh Atom-neighbors")')
+    do i = 1, sy%c%nneq
+       str = ""
+       do j = 1, nneigh(i)
+          str = str // " " // string(sy%c%at(idxneigh(j,i))%name)
+       end do
+       sname = string(sy%c%at(i)%name,6,ioj_center)
+       sz = string(sy%c%spc(sy%c%at(i)%is)%z,2,ioj_left)
+       smult = string(sy%c%at(i)%mult,4,ioj_left)
+       write (uout,'(99(A,X))') string(i,2,ioj_left), sname, sz, smult,&
+          string(nneigh(i),5,ioj_center), str
+    end do
+    write (uout,*)
+
+    ! clean up
+    deallocate(nneigh,idxneigh)
+
+  end subroutine trick_voronoi
 
 end module tricks
