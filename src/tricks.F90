@@ -3467,17 +3467,19 @@ contains
   subroutine trick_voronoi(line0)
     use iso_c_binding, only: c_ptr, c_int, c_double
     use systemmod, only: sy
-    use tools_math, only: cross
+    use tools_math, only: cross, mixed
     use tools_io, only: ferror, faterr, ioj_center, ioj_left, uout, string, ioj_right
     use types, only: realloc
-    use param, only: icrd_crys
+    use param, only: icrd_crys, bohrtoa, pi
     character*(*), intent(in) :: line0
 
-    integer :: i, j, k, l, idx
+    integer :: i, j, k, l, idx, ic, nn
     integer :: nat
-    real*8 :: wsrad, x0(3), area, dist
+    real*8 :: wsrad, x0(3), x1(3), x2(3), area, dist, dotp, delta_
+    real*8 :: nx0, nx1, nx2, vol, mix
     real*8, allocatable :: xstar(:,:)
     integer, allocatable :: nid(:), lvec(:,:), nneigh(:), idxneigh(:,:)
+    real*8, allocatable :: midx(:,:), normal(:,:), vrad(:), srad(:), ddist(:,:), delta(:,:)
     integer :: nf_ !< number of facets in the WS cell
     integer :: nv_ !< number of vertices
     integer :: mnfv_ !< maximum number of vertices per facet
@@ -3486,8 +3488,31 @@ contains
     real(c_double), allocatable :: xvws(:,:)
     integer, allocatable :: iside_(:,:) !< sides of the WS faces
     integer, allocatable :: nside_(:) !< number of sides of WS faces
-    real*8 :: av(3), bary(3), rmat(3,4)
-    character(len=:), allocatable :: sncp, sname, sz, smult, str
+    real*8 :: av(3), bary(3), rmat(3,4), midj(3), sang, saux
+    character(len=:), allocatable :: sncp, sname, sz, smult, str, sdir, scoord
+    logical :: isdirect, iscoord
+
+    real*8, parameter :: slater_radius(20) = (/ &
+       0.25d0, & !  1 H
+       0.31d0, & !  2 He
+       1.28d0, & !  3 Li
+       0.96d0, & !  4 Be
+       0.84d0, & !  5 B
+       0.76d0, & !  6 C
+       0.71d0, & !  7 N
+       0.66d0, & !  8 O
+       0.57d0, & !  9 F
+       0.58d0, & ! 10 Ne
+       1.66d0, & ! 11 Na
+       1.41d0, & ! 12 Mg
+       1.21d0, & ! 13 Al
+       1.11d0, & ! 14 Si
+       1.07d0, & ! 15 P
+       1.05d0, & ! 16 S
+       1.02d0, & ! 17 Cl
+       1.06d0, & ! 18 Ar
+       2.03d0, & ! 19 K
+       1.76d0/) / bohrtoa ! 20 Ca
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
@@ -3529,7 +3554,7 @@ contains
     enddo
 
     ! allocate the summary table
-    allocate(nneigh(sy%c%nneq),idxneigh(20,sy%c%nneq))
+    allocate(nneigh(sy%c%nneq),idxneigh(20,sy%c%nneq),ddist(20,sy%c%nneq),vrad(sy%c%nneq),srad(sy%c%nneq),delta(20,20))
 
     ! run over non-equivalent atoms
     do i = 1, sy%c%nneq
@@ -3547,19 +3572,42 @@ contains
        call runqhull_voronoi_step2(nf_,nv_,mnfv_,ivws,xvws,nside_,iside_,fid)
 
        ! write down the number of neighbors
-       nneigh(i) = nf_
-       if (nf_ > size(idxneigh,1)) &
+       if (nf_ > size(idxneigh,1)) then
           call realloc(idxneigh,nf_*2,sy%c%nneq)
+          call realloc(ddist,nf_*2,sy%c%nneq)
+       end if
+
+       ! save the midpoints and normals
+       allocate(midx(3,nf_),normal(3,nf_))
+       do j = 1, nf_
+          midx(:,j) = 0.5d0 * xstar(:,ivws(j))
+          normal(:,j) = xstar(:,ivws(j)) / norm2(xstar(:,ivws(j)))
+       end do
 
        ! calculation and output of Voronoi coordination
+       ic = 0
+       vol = 0d0
        sncp = string(i,4,ioj_left)
        sname = string(sy%c%at(i)%name,6,ioj_center)
        smult = string(sy%c%at(i)%mult,4,ioj_center)
        sz = string(sy%c%spc(sy%c%at(i)%is)%z,2,ioj_left)
        write (uout,'("+ Atom ",A," (ncp=",A,", name=",A,", Z=",A,") at: ",3(A,"  "))') &
           string(i), trim(sncp), trim(adjustl(sname)), trim(sz), (trim(string(sy%c%at(i)%x(j),'f',12,7)),j=1,3)
-       write (uout,'("#id   atom at      lvec       ---------    position    -------     dist(bohr) area(bohr^2)")')
-       do j = 1, nf_
+       write (uout,'("#id Dir? atom at      lvec       ---------    position&
+          &    -------     dist(bohr) area(bohr^2) S.Ang.(%)")')
+       main: do j = 1, nf_
+          ! calculate whether the point is direct or indirect; skip indirect points
+          midj = 0.5d0 * xstar(:,ivws(j))
+          isdirect = .true.
+          do k = 1, nf_
+             if (j == k) cycle
+             dotp = dot_product(midj - midx(:,k),normal(:,k))
+             if (dotp >= 0d0) then
+                isdirect = .false.
+                exit
+             end if
+          end do
+
           ! lattice point
           bary = 0d0
           do k = 1, nside_(j)
@@ -3573,41 +3621,98 @@ contains
              l = mod(k,nside_(j))+1
              av = av + cross(xvws(:,iside_(k,j)),xvws(:,iside_(l,j)))
           end do
-          area = 0.5d0 * abs(dot_product(bary,av) / norm2(bary))
+          area = 0.5d0 * abs(dot_product(bary,av) / norm2(bary)) * bohrtoa**2
+
+          ! solid angle percent, and contributions to the volume
+          sang = 0d0
+          x0 = xvws(:,iside_(1,j))
+          nx0 = norm2(x0)
+          do k = 2, nside_(j)-1
+             x1 = xvws(:,iside_(k,j))
+             x2 = xvws(:,iside_(k+1,j))
+             nx1 = norm2(x1)
+             nx2 = norm2(x2)
+
+             mix = abs(mixed(x0,x1,x2))
+             saux = mix / (nx0*nx1*nx2 + dot_product(x0,x1) * nx2 + &
+                dot_product(x0,x2) * nx1 + dot_product(x1,x2) * nx0)
+             saux = 2d0 * atan(saux)
+             sang = sang + saux
+             vol = vol + mix / 6d0
+          end do
+          sang = sang / (4d0 * pi) * 100d0
 
           ! distance to the atom
           dist = norm2(xstar(:,ivws(j)))
+
+          ! check whether this atom is coordinated
+          iscoord = isdirect .and. (sang > 1.5d0)
+
+          ! labels
+          if (isdirect) then
+             sdir = "D"
+          else
+             sdir = "I"
+          end if
+          if (iscoord) then
+             scoord = "*"
+          else
+             scoord = " "
+          end if
 
           ! output
           idx = sy%c%atcel(nid(ivws(j)))%idx
           x0 = sy%c%atcel(nid(ivws(j)))%x + lvec(:,ivws(j))
           sname = string(sy%c%at(idx)%name,6,ioj_center)
-          write (uout,'(99(A,X))') string(j,4,ioj_left), sname,&
+          write (uout,'(99(A,X))') string(j,4,ioj_left), sdir, scoord, sname,&
              string(nid(ivws(j)),4,ioj_left), (string(lvec(k,ivws(j)),2,ioj_right),k=1,3),&
-             (string(x0(k),'f',12,8,4),k=1,3), string(dist,'f',12,7,ioj_right), string(area,'f',12,5,4)
+             (string(x0(k),'f',12,8,4),k=1,3), string(dist * bohrtoa,'f',12,7,ioj_right), string(area,'f',12,5,4),&
+             string(sang,'f',12,5,4)
 
           ! indices of the atoms
-          idxneigh(j,i) = idx
-       end do
+          if (iscoord) then
+             ic = ic + 1
+             idxneigh(ic,i) = idx
+             ddist(ic,i) = dist
+             delta(sy%c%spc(sy%c%at(i)%is)%z,sy%c%spc(sy%c%at(idx)%is)%z) = &
+                max(delta(sy%c%spc(sy%c%at(i)%is)%z,sy%c%spc(sy%c%at(idx)%is)%z),dist)
+             delta(sy%c%spc(sy%c%at(idx)%is)%z,sy%c%spc(sy%c%at(i)%is)%z) = &
+                delta(sy%c%spc(sy%c%at(i)%is)%z,sy%c%spc(sy%c%at(idx)%is)%z)
+          end if
+       end do main
+       nneigh(i) = ic
+       vrad(i) = (3d0 * vol / 4d0 / pi)**(1d0/3d0)
+       srad(i) = slater_radius(sy%c%spc(sy%c%at(i)%is)%z)
+       write (uout,'("# Volume of the Voronoi polyhedron: ",A)') string(vol * bohrtoa**3,'f',decimal=5)
+       write (uout,'("# Average radius of the Voronoi polyhedron: ",A)') string(vrad(i) * bohrtoa,'f',decimal=5)
+       write (uout,'("# Slater radius: ",A)') string(srad(i) * bohrtoa,'f',decimal=5)
        write (uout,*)
 
        ! clean up
-       deallocate(ivws,iside_,xvws,nside_,xstar)
+       deallocate(ivws,iside_,xvws,nside_,xstar,normal,midx)
     end do
 
     ! summary table
     write (uout,'("+ Summary of Voronoi coordination for non-equivalent atoms")')
+    write (uout,'("# Only direct neighbors are shown.")')
     write (uout,'("#id atom  Z  mult nneigh Atom-neighbors")')
     do i = 1, sy%c%nneq
+       nn = 0
        str = ""
        do j = 1, nneigh(i)
-          str = str // " " // string(sy%c%at(idxneigh(j,i))%name)
+          delta_ = delta(sy%c%spc(sy%c%at(i)%is)%z,sy%c%spc(sy%c%at(idxneigh(j,i))%is)%z) / (srad(i) + srad(idxneigh(j,i))) - 1
+          write (*,*) "xx ", i, j, ddist(j,i), min(vrad(i) + vrad(idxneigh(j,i)),(srad(i) + srad(idxneigh(j,i))) * (1d0 + delta_)), delta_
+          if (ddist(j,i) < min(vrad(i) + vrad(idxneigh(j,i)),(srad(i) + srad(idxneigh(j,i))) * 1.25d0)) then
+             nn = nn + 1
+             str = str // " " // string(sy%c%at(idxneigh(j,i))%name)
+          end if
        end do
+
        sname = string(sy%c%at(i)%name,6,ioj_center)
        sz = string(sy%c%spc(sy%c%at(i)%is)%z,2,ioj_left)
        smult = string(sy%c%at(i)%mult,4,ioj_left)
        write (uout,'(99(A,X))') string(i,2,ioj_left), sname, sz, smult,&
-          string(nneigh(i),5,ioj_center), str
+          string(nn,5,ioj_center), str
     end do
     write (uout,*)
 
