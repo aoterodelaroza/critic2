@@ -6042,6 +6042,7 @@ contains
        call seed(1)%read_castep_cell(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_castepphonon) then
        call seed(1)%read_castep_phonon(file,mol,errmsg,ti=ti)
+       alsovib = .true.
     elseif (isformat == isformat_r_castepgeom) then
        call read_all_castep_geom(nseed,seed,file,errmsg,ti=ti)
     elseif (isformat == isformat_r_dmain) then

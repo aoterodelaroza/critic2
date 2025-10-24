@@ -173,6 +173,7 @@ module param
   integer, parameter, public :: ivformat_crystal_out = 8
   integer, parameter, public :: ivformat_gaussian_log = 9
   integer, parameter, public :: ivformat_gaussian_fchk = 10
+  integer, parameter, public :: ivformat_castep_phonon = 11
 
   ! Enumerate for field formats
   integer, parameter, public :: ifformat_unknown = 0
