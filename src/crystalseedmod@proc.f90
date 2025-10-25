@@ -1951,9 +1951,8 @@ contains
     integer :: lu
     integer :: i, j, nstep(3), nn, iz, it, ier
     real*8 :: x0(3), rmat(3,3), rdum, rx(3), rxt(3)
-    logical :: ismo, ok, molreal
+    logical :: ismo, ok
     character(len=:), allocatable :: line
-    real*8, allocatable :: xtemp(:,:)
 
     real*8, parameter :: eps = 1d-3
 
@@ -2000,27 +1999,32 @@ contains
     seed%nat = 0
     do i = 1, nn
        read (lu,*,err=999,end=999) iz, rdum, rx
-       if (iz > 0) then
-          seed%nat = seed%nat + 1
+       if (iz <= 0) cycle
+
+       seed%nat = seed%nat + 1
+       if (mol) then
           seed%x(:,seed%nat) = rx
-          it = 0
-          do j = 1, seed%nspc
-             if (seed%spc(j)%z == iz) then
-                it = j
-                exit
-             end if
-          end do
-          if (it == 0) then
-             seed%nspc = seed%nspc + 1
-             if (seed%nspc > size(seed%spc,1)) &
-                call realloc(seed%spc,2*seed%nspc)
-             seed%spc(seed%nspc)%z = iz
-             seed%spc(seed%nspc)%name = nameguess(iz,.true.)
-             it = seed%nspc
+       else
+          rx = matmul(rx - x0,rmat)
+          seed%x(:,seed%nat) = rx - floor(rx)
+       end if
+       it = 0
+       do j = 1, seed%nspc
+          if (seed%spc(j)%z == iz) then
+             it = j
+             exit
           end if
-          seed%is(seed%nat) = it
-          seed%atname(seed%nat) = seed%spc(it)%name
-       endif
+       end do
+       if (it == 0) then
+          seed%nspc = seed%nspc + 1
+          if (seed%nspc > size(seed%spc,1)) &
+             call realloc(seed%spc,2*seed%nspc)
+          seed%spc(seed%nspc)%z = iz
+          seed%spc(seed%nspc)%name = nameguess(iz,.true.)
+          it = seed%nspc
+       end if
+       seed%is(seed%nat) = it
+       seed%atname(seed%nat) = seed%spc(it)%name
     end do
     if (seed%nat /= nn) then
        call realloc(seed%x,3,seed%nat)
@@ -2033,32 +2037,9 @@ contains
 999 continue
     call fclose(lu)
 
-    ! Multiwfn writes cube files that are not periodic and where atoms
-    ! can be outside the grid. If we have one of these, it must be a molecule.
-
-    ! check whether atoms are outside the cell. If they are, treat
-    ! this as a molecule.
-    molreal = mol
-    if (.not.molreal) then
-       allocate(xtemp(3,seed%nat))
-       do i = 1, seed%nat
-          rx = seed%x(:,i) - x0
-          xtemp(:,i) = matmul(rx,rmat)
-          if (any(xtemp(:,i) < -eps) .or. any(xtemp(:,i) > 1d0+eps)) then
-             molreal = .true.
-             exit
-          end if
-       end do
-       if (.not.molreal) then
-          seed%x = xtemp
-          deallocate(xtemp)
-       end if
-    end if
-
-    if (molreal) then
+    if (mol) then
        ! treat this as a molecule
        seed%useabr = 0
-       seed%m_x2c = 0d0
        seed%border = rborder_def
     else
        ! treat it as a crystal
@@ -2072,7 +2053,7 @@ contains
     seed%findsym = -1
 
     ! molecule
-    seed%ismolecule = molreal
+    seed%ismolecule = mol
     seed%havex0 = .true.
     seed%molx0 = x0
 
