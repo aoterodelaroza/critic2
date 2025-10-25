@@ -1937,6 +1937,7 @@ contains
 
   !> Read the structure from a gaussian cube file
   module subroutine read_cube(seed,file,mol,errmsg,ti)
+    use global, only: rborder_def
     use tools_io, only: fopen_read, fclose, nameguess, getline_raw
     use tools_math, only: matinv
     use types, only: realloc
@@ -1950,8 +1951,11 @@ contains
     integer :: lu
     integer :: i, j, nstep(3), nn, iz, it, ier
     real*8 :: x0(3), rmat(3,3), rdum, rx(3), rxt(3)
-    logical :: ismo, ok
+    logical :: ismo, ok, molreal
     character(len=:), allocatable :: line
+    real*8, allocatable :: xtemp(:,:)
+
+    real*8, parameter :: eps = 1d-3
 
     call seed%end()
     errmsg = "Error reading file: " // trim(file)
@@ -1989,8 +1993,6 @@ contains
        goto 999
     end if
 
-    seed%useabr = 2
-
     ! Atomic positions.
     allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
     allocate(seed%spc(2))
@@ -2000,11 +2002,7 @@ contains
        read (lu,*,err=999,end=999) iz, rdum, rx
        if (iz > 0) then
           seed%nat = seed%nat + 1
-          !! intel compiler errors with
-          ! rx = matmul(rx - x0,rmat)
-          rxt = rx - x0
-          rx = matmul(rxt,rmat)
-          seed%x(:,seed%nat) = rx - floor(rx)
+          seed%x(:,seed%nat) = rx
           it = 0
           do j = 1, seed%nspc
              if (seed%spc(j)%z == iz) then
@@ -2035,20 +2033,52 @@ contains
 999 continue
     call fclose(lu)
 
+    ! Multiwfn writes cube files that are not periodic and where atoms
+    ! can be outside the grid. If we have one of these, it must be a molecule.
+
+    ! check whether atoms are outside the cell. If they are, treat
+    ! this as a molecule.
+    molreal = mol
+    if (.not.molreal) then
+       allocate(xtemp(3,seed%nat))
+       do i = 1, seed%nat
+          rx = seed%x(:,i) - x0
+          xtemp(:,i) = matmul(rx,rmat)
+          if (any(xtemp(:,i) < -eps) .or. any(xtemp(:,i) > 1d0+eps)) then
+             molreal = .true.
+             exit
+          end if
+       end do
+       if (.not.molreal) then
+          seed%x = xtemp
+          deallocate(xtemp)
+       end if
+    end if
+
+    if (molreal) then
+       ! treat this as a molecule
+       seed%useabr = 0
+       seed%m_x2c = 0d0
+       seed%border = rborder_def
+    else
+       ! treat it as a crystal
+       seed%useabr = 2
+       seed%border = 0d0
+    end if
+
     ! no symmetry
     seed%havesym = 0
     seed%checkrepeats = .false.
     seed%findsym = -1
 
     ! molecule
-    seed%ismolecule = mol
+    seed%ismolecule = molreal
     seed%havex0 = .true.
     seed%molx0 = x0
 
     ! rest of the seed information
     seed%isused = .true.
     seed%cubic = .false.
-    seed%border = 0d0
 
   end subroutine read_cube
 
