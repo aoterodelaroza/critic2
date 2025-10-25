@@ -14,7 +14,7 @@
 # Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
 # Please cite:
 #   Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (doi:10.1107/S1600576724007489)
-# Two structures are exactly equal if DIFF = 0.
+# Two structures are exactly equal if their difference = 0.
   ... calculating pattern 1 of 2.
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
@@ -27,7 +27,7 @@
 # Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
 # Please cite:
 #   Otero-de-la-Roza, J. Appl. Cryst. 57 (2024) 1401-1414 (doi:10.1107/S1600576724007489)
-# Two structures are exactly equal if DIFF = 0.
+# Two structures are exactly equal if their difference = 0.
   ... calculating pattern 1 of 2.
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
@@ -38,7 +38,7 @@
   Crystal 1 : <current>
   Crystal 2 : 018_compare_crystals_opts_gen.scf.in
 # Using cross-correlated radial distribution functions (RDF).
-# Two structures are exactly equal if DIFF = 0.
+# Two structures are exactly equal if their difference = 0.
   ... calculating pattern 1 of 2.
   ... finished calculating patterns
   ... comparing pattern 1 of 2.
@@ -52,6 +52,6 @@
 # Please cite:
 #   Widdowson et al., Match. Commun. Math. Comput. Chem., 87 (2022) 529
 #       (doi:10.46793/match.87-3.529W)
-# Two structures are exactly equal if DIFF = 0.
+# Two structures are exactly equal if their difference = 0.
 + DIFF = 1.847411E-13
 
