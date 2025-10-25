@@ -1217,6 +1217,11 @@ contains
           end select
           call syl%f(idx)%grd(x0,nder,res,fder=fder,periodic=periodic)
 
+          if (.not.res%valid) then
+             ! errmsg = 'evaluating field ' // string(fid) // ', invalid evaluation result'
+             fieldeval = 0d0
+             return
+          end if
           select case (trim(fderl))
           case ("")
              fieldeval = res%f
@@ -1303,7 +1308,6 @@ contains
     use grid1mod, only: agrid
     use global, only: dunit0, iunit
     use tools_io, only: string, isinteger, lower
-    use types, only: scalar_value
     use param, only: icrd_cart
     real*8 :: q
     integer, intent(in) :: svar
@@ -2275,17 +2279,20 @@ contains
        ! Thomas-Fermi kinetic energy density for the uniform electron gas
        ! See Yang and Parr, Density-Functional Theory of Atoms and Molecules
        call syl%f(idx)%grd(x0,0,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        q = ctf * res%f**(5d0/3d0)
     case (fun_vtf)
        ! Potential energy density calculated using fun_gtf and the local
        ! virial theorem (2g(r) + v(r) = 1/4*lap(r)).
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        q = ctf * res%f**(5d0/3d0)
        q = 0.25d0 * res%del2f - 2 * q
     case (fun_htf)
        ! Total energy density calculated using fun_gtf and the local
        ! virial theorem (h(r) + v(r) = 1/4*lap(r)).
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        q = ctf * res%f**(5d0/3d0)
        q = 0.25d0 * res%del2f - q
     case (fun_gtf_kir)
@@ -2298,6 +2305,7 @@ contains
        ! for more references and its use applied to experimental electron
        ! densities.
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
@@ -2305,6 +2313,7 @@ contains
        ! Potential energy density calculated using fun_gtf_kir and the
        ! local virial theorem (2g(r) + v(r) = 1/4*lap(r)).
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
@@ -2313,6 +2322,7 @@ contains
        ! Total energy density calculated using fun_gtf_kir and the
        ! local virial theorem (h(r) + v(r) = 1/4*lap(r)).
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
@@ -2320,6 +2330,7 @@ contains
     case (fun_gkin)
        ! G-kinetic energy density (sum grho * grho)
        call syl%f(idx)%grd(x0,1,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        if (.not.res%avail_gkin) then
           errmsg = "Tried to calculate GKIN with a field that cannot provide the kinetic energy density."
           return
@@ -2328,6 +2339,7 @@ contains
     case (fun_kkin)
        ! K-kinetic energy density (sum rho * laprho)
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        if (.not.res%avail_gkin) then
           errmsg = "Tried to calculate KKIN with a field that cannot provide the kinetic energy density."
           return
@@ -2336,11 +2348,13 @@ contains
     case (fun_l)
        ! Lagrangian density (-1/4 * lap)
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        q = - 0.25d0 * res%del2f
     case (fun_elf)
        ! Electron localization function
        ! Becke and Edgecombe J. Chem. Phys. (1990) 92, 5397-5403
        call syl%f(idx)%grd(x0,1,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        if (.not.res%avail_gkin) then
           errmsg = "Tried to calculate the ELF with a field that cannot provide the kinetic energy density."
           return
@@ -2358,6 +2372,7 @@ contains
        ! Electronic potential energy density (virial field)
        ! Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        if (.not.res%avail_vir) then
           errmsg = "Tried to calculate VIR with a field that cannot provide the virial."
           return
@@ -2367,6 +2382,7 @@ contains
        ! Energy density, fun_vir + fun_gkin
        !   Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        if (.not.res%avail_vir) then
           errmsg = "Tried to calculate HE with a field that cannot provide the kinetic energy density and/or the virial."
           return
@@ -2377,6 +2393,7 @@ contains
        !   Schmider and Becke, J. Mol. Struct. (Theochem) (2000) 527, 51-61
        !   Schmider and Becke, J. Chem. Phys. (2002) 116, 3184-3193.
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        if (.not.res%avail_vir) then
           errmsg = "Tried to calculate the LOL with a field that cannot provide the kinetic energy density."
           return
@@ -2387,6 +2404,7 @@ contains
        ! Localized-orbital locator using Kirzhnits k.e.d.
        !   Tsirelson and Stash, Acta Cryst. (2002) B58, 780.
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        f0 = max(res%f,1d-30)
        g0 = ctf * f0**(5d0/3d0)
        g = g0 + 1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
@@ -2404,6 +2422,7 @@ contains
        ! - dsigs: leading coefficient of the same-spin pair density
        ! (D_sigma).
        call syl%f(idx)%grd(x0,2,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        dohole = (c==fun_brhole_a1).or.(c==fun_brhole_a2).or.(c==fun_brhole_a).or.&
           (c==fun_brhole_b1).or.(c==fun_brhole_b2).or.(c==fun_brhole_b).or.&
           (c==fun_brhole_alf1).or.(c==fun_brhole_alf2).or.(c==fun_brhole_alf)
@@ -2493,6 +2512,7 @@ contains
        ! Reduced density gradient
        ! s = |gradrho| / (2 * (3*pi^2)^(1/3) * rho^(4/3))
        call syl%f(idx)%grd(x0,1,res,periodic=periodic)
+       if (.not.res%valid) goto 999
        if (res%f < 1d-30) then
           q = 0d0
        else
@@ -2500,6 +2520,14 @@ contains
           q = res%gfmod / (2d0 * (3d0*pi*pi)**(1d0/3d0) * f0**(4d0/3d0))
        end if
     end select
+
+    return
+
+    !! when the field evaluation is invalid
+999 continue
+    ! errmsg = "Scalar field evaluation gave invalid result"
+    q = 0d0
+    return
 
   contains
     subroutine assign_bhole_variables(rhos_,laps_,tau_,gfmod_,dohalf)

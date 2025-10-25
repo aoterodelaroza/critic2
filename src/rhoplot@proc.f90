@@ -2646,7 +2646,10 @@ contains
        !.Get the properties
        xp = sy%c%x2c(newcriticp(:,i))
        call sy%f(sy%iref)%grd(xp,2,res,periodic=.not.sy%c%ismolecule)
-       if (res%gfmod > grpcpeps) then
+       if (.not.res%valid) then
+          write (uout,'("  CP ",A," has an invalid value -> Rejected!")') string(i)
+          cycle
+       elseif (res%gfmod > grpcpeps) then
           write (uout,'("  CP ",A," has a large gradient: ",A," -> Rejected!")') &
              string(i), string(res%gfmod,'e',decimal=6)
           cycle

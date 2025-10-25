@@ -1393,7 +1393,6 @@ contains
   subroutine cp_short_report()
     use systemmod, only: sy
     use tools_io, only: uout, string, ioj_left, ioj_center, ioj_right
-    use types, only: scalar_value
     use global, only: iunit, iunitname0, dunit0
     integer :: i, j
     integer :: numclass(0:3), multclass(0:3)
@@ -1846,7 +1845,6 @@ contains
   subroutine cp_vlong_report()
     use systemmod, only: sy
     use tools_io, only: uout, string
-    use types, only: scalar_value
     use global, only: iunitname0, iunit
     use param, only: bohrtoa
     integer :: i, j

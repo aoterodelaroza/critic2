@@ -832,6 +832,7 @@ contains
     call res%clear()
     res%avail_der1 = (nder > 0)
     res%avail_der2 = (nder > 1)
+    res%valid = .true.
 
     ! check consistency
     if (nder < 0 .and. f%type /= type_wfn) &
@@ -2092,7 +2093,10 @@ contains
        wx = f%c%c2x(r)
        ! write (*,'("xx ",I4," ",3(F14.6," "),1p,3(E14.6," "))') it, wx, res%gfmod
 
-       if (res%gfmod < gfnormeps) then
+       if (.not.res%valid) then
+          ier = 1
+          return
+       elseif (res%gfmod < gfnormeps) then
           ier = 0
           return
        end if
@@ -2180,6 +2184,7 @@ contains
     ! apply type filter
     x1 = f%c%x2c(xc)
     call f%grd(x1,2,res)
+    if (.not.res%valid) goto 999
     if (res%gfmod >= gfnormeps) goto 999
     if (present(typeok)) then
        idx = (res%s+5)/2
@@ -2512,6 +2517,13 @@ contains
        xlast2 = xlast
        xlast = xpoint
        ok = adaptive_stepper(fid,xpoint,h0,hini,NAV_gradeps,res)
+
+       ! is it outside the molcell?
+       if (.not.res%valid) then
+          ! The gradient path exited due to invalid evaluation
+          ier = 3
+          goto 999
+       endif
 
        ! add to the trajectory angle history, terminate the gradient if the
        ! trajectory bounces around mhist times

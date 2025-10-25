@@ -25,6 +25,7 @@ contains
   module subroutine scalar_value_clear(s)
     class(scalar_value), intent(inout) :: s
 
+    s%valid = .false.
     s%f = 0d0
     s%fval = 0d0
     s%gf = 0d0
