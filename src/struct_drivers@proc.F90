@@ -44,7 +44,8 @@ contains
        isformat_r_pgout, isformat_r_orca, isformat_r_dmain, isformat_r_aimsin,&
        isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_castepcell,&
        isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb, isformat_r_zmat,&
-       isformat_r_sdf, isformat_r_magres, isformat_r_alamode, isformat_r_unknown
+       isformat_r_sdf, isformat_r_magres, isformat_r_alamode, isformat_r_castepphonon,&
+       isformat_r_unknown
     use crystalseedmod, only: crystalseed, struct_detect_read_format,&
        struct_detect_ismol
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
@@ -118,6 +119,8 @@ contains
        isformat = isformat_r_siesta
     elseif (equal(lword,'cell')) then
        isformat = isformat_r_castepcell
+    elseif (equal(lword,'phonon')) then
+       isformat = isformat_r_castepphonon
     elseif (equal(lword,'geom')) then
        isformat = isformat_r_castepgeom
     elseif (equal(lword,'xsf')) then
@@ -315,6 +318,9 @@ contains
 
     elseif (isformat == isformat_r_castepcell) then
        call seed%read_castep_cell(word,mol,errmsg)
+
+    elseif (isformat == isformat_r_castepphonon) then
+       call seed%read_castep_phonon(word,mol,errmsg)
 
     elseif (isformat == isformat_r_castepgeom) then
        call seed%read_castep_geom(word,mol,errmsg)
@@ -2530,7 +2536,7 @@ contains
        write (uout,'("+ Final structure written to ",A/)') trim(writefile)
 
        ! write diffraction patterns to output
-       word = fileroot // "-final.xy"
+       word = trim(fileroot) // "-final.xy"
        lu = fopen_write(word)
        call c1%powder(0,th2ini,th2end,lambda,xrpd_fpol_def,final_npts,&
           xrpd_sigma_def,.false.,t=t,ih=ih)

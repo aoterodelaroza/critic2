@@ -135,6 +135,8 @@ module types
 
   !> Result of the evaluation of a scalar field
   type scalar_value
+     ! whether the evaluation is valid
+     logical :: valid = .false.
      ! always available
      real*8 :: f = 0d0 ! field
      real*8 :: fval = 0d0 ! field (valence only)

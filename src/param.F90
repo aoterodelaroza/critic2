@@ -128,6 +128,7 @@ module param
   integer, parameter, public :: isformat_r_sdf = 41
   integer, parameter, public :: isformat_r_magres = 42
   integer, parameter, public :: isformat_r_alamode = 43
+  integer, parameter, public :: isformat_r_castepphonon = 44
 
   ! Enumerate for structure formats (writing)
   integer, parameter, public :: isformat_w_unknown = 0
@@ -172,6 +173,7 @@ module param
   integer, parameter, public :: ivformat_crystal_out = 8
   integer, parameter, public :: ivformat_gaussian_log = 9
   integer, parameter, public :: ivformat_gaussian_fchk = 10
+  integer, parameter, public :: ivformat_castep_phonon = 11
 
   ! Enumerate for field formats
   integer, parameter, public :: ifformat_unknown = 0

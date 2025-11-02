@@ -39,7 +39,7 @@
   Molecule 1 : <current>
   Molecule 2 : 020_compare_molecules_opts_gen.xyz
 # Using cross-correlated radial distribution functions (RDF).
-# Two structures are exactly equal if DIFF = 0.
+# Two structures are exactly equal if their difference = 0.
   ... calculating pattern 1 of 2.
   ... finished calculating patterns
   ... comparing pattern 1 of 2.

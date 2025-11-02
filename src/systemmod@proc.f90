@@ -1346,72 +1346,78 @@ contains
        call s%f(id)%grd(xp,2,res)
 
     if (verbose) then
-       if (res%isnuc) then
-          write (uout,'("  Type : nucleus")')
+       if (.not.res%valid) then
+          write (uout,'("  Point outside scalar field definition domain.")')
        else
-          write (uout,'("  Type : (",a,",",a,")")') string(res%r), string(res%s)
-       end if
-       write (uout,'("  Field value (f): ",A)') string(res%f,'e',decimal=9)
-       write (uout,'("  Field value, valence (fval): ",A)') string(res%fval,'e',decimal=9)
-       write (uout,'("  Gradient (grad f): ",3(A,"  "))') (string(res%gf(j),'e',decimal=9),j=1,3)
-       write (uout,'("  Gradient norm (|grad f|): ",A)') string(res%gfmod,'e',decimal=9)
-       write (uout,'("  Gradient norm, valence: ",A)') string(res%gfmodval,'e',decimal=9)
-       if (res%avail_gkin) then
-          write (uout,'("  Kinetic energy density (G,tau): ",A)') string(res%gkin,'e',decimal=9)
-       end if
-       write (uout,'("  Laplacian (del2 f): ",A)') string(res%del2f,'e',decimal=9)
-       write (uout,'("  Laplacian, valence (del2 fval): ",A)') string(res%del2fval,'e',decimal=9)
-       write (uout,'("  Hessian:")')
-       do j = 1, 3
-          write (uout,'("    ",1p,3(A,"  "))') (string(res%hf(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
-       end do
-       write (uout,'("  Hessian eigenvalues: ",3(A,"  "))') (string(res%hfeval(j),'e',decimal=9),j=1,3)
-       ! Write ellipticity, if it is a candidate for bond critical point
-       if (res%r == 3 .and. res%s == -1 .and..not.res%isnuc) then
-          write (uout,'("  Ellipticity (l_1/l_2 - 1): ",A)') string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9)
-       endif
-       if (res%avail_spin .and. res%spinpol) then
-          write (uout,'("  Spin up   field/gradient_norm/laplacian: ",3(A,"  "))') string(res%fspin(1),'e',decimal=9), &
-             string(res%gfmodspin(1),'e',decimal=9), string(res%lapspin(1),'e',decimal=9)
-          if (res%avail_gkin) then
-             write (uout,'("  Spin up   kinetic energy density (G): ",A)') string(res%gkinspin(1),'e',decimal=9)
-          end if
-          write (uout,'("  Spin down field/gradient_norm/laplacian: ",3(A,"  "))') string(res%fspin(2),'e',decimal=9), &
-             string(res%gfmodspin(2),'e',decimal=9), string(res%lapspin(2),'e',decimal=9)
-          if (res%avail_gkin) then
-             write (uout,'("  Spin down kinetic energy density (G): ",A)') string(res%gkinspin(2),'e',decimal=9)
-          end if
-       end if
-
-       ! properties at points defined by the user
-       do i = 1, s%npropp
-          if (s%propp(i)%ispecial == 0) then
-             ! ispecial=0 ... use the expression
-             fres = s%eval(s%propp(i)%expr,errmsg,xp)
-             if (len_trim(errmsg) > 0) &
-                call ferror("propty","Error evaluating expression: " // trim(errmsg),faterr)
-             write (uout,'("  ",A," (",A,"): ",A)') string(s%propp(i)%name),&
-                string(s%propp(i)%expr), string(fres,'e',decimal=9)
+          if (res%isnuc) then
+             write (uout,'("  Type : nucleus")')
           else
-             ! ispecial=1 ... schrodinger stress tensor
-             stvec = res%stress
-             call rsindex(stvec,stval,str,sts,CP_hdegen)
-             write (uout,'("  Stress tensor:")')
-             do j = 1, 3
-                write (uout,'("    ",1p,3(A,"  "))') (string(res%stress(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
-             end do
-             write (uout,'("  Stress tensor eigenvalues: ",3(A,"  "))') (string(stval(j),'e',decimal=9),j=1,3)
+             write (uout,'("  Type : (",a,",",a,")")') string(res%r), string(res%s)
+          end if
+          write (uout,'("  Field value (f): ",A)') string(res%f,'e',decimal=9)
+          write (uout,'("  Field value, valence (fval): ",A)') string(res%fval,'e',decimal=9)
+          write (uout,'("  Gradient (grad f): ",3(A,"  "))') (string(res%gf(j),'e',decimal=9),j=1,3)
+          write (uout,'("  Gradient norm (|grad f|): ",A)') string(res%gfmod,'e',decimal=9)
+          write (uout,'("  Gradient norm, valence: ",A)') string(res%gfmodval,'e',decimal=9)
+          if (res%avail_gkin) then
+             write (uout,'("  Kinetic energy density (G,tau): ",A)') string(res%gkin,'e',decimal=9)
+          end if
+          write (uout,'("  Laplacian (del2 f): ",A)') string(res%del2f,'e',decimal=9)
+          write (uout,'("  Laplacian, valence (del2 fval): ",A)') string(res%del2fval,'e',decimal=9)
+          write (uout,'("  Hessian:")')
+          do j = 1, 3
+             write (uout,'("    ",1p,3(A,"  "))') (string(res%hf(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
+          end do
+          write (uout,'("  Hessian eigenvalues: ",3(A,"  "))') (string(res%hfeval(j),'e',decimal=9),j=1,3)
+          ! Write ellipticity, if it is a candidate for bond critical point
+          if (res%r == 3 .and. res%s == -1 .and..not.res%isnuc) then
+             write (uout,'("  Ellipticity (l_1/l_2 - 1): ",A)') string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9)
           endif
-       end do
+          if (res%avail_spin .and. res%spinpol) then
+             write (uout,'("  Spin up   field/gradient_norm/laplacian: ",3(A,"  "))') string(res%fspin(1),'e',decimal=9), &
+                string(res%gfmodspin(1),'e',decimal=9), string(res%lapspin(1),'e',decimal=9)
+             if (res%avail_gkin) then
+                write (uout,'("  Spin up   kinetic energy density (G): ",A)') string(res%gkinspin(1),'e',decimal=9)
+             end if
+             write (uout,'("  Spin down field/gradient_norm/laplacian: ",3(A,"  "))') string(res%fspin(2),'e',decimal=9), &
+                string(res%gfmodspin(2),'e',decimal=9), string(res%lapspin(2),'e',decimal=9)
+             if (res%avail_gkin) then
+                write (uout,'("  Spin down kinetic energy density (G): ",A)') string(res%gkinspin(2),'e',decimal=9)
+             end if
+          end if
+
+          ! properties at points defined by the user
+          do i = 1, s%npropp
+             if (s%propp(i)%ispecial == 0) then
+                ! ispecial=0 ... use the expression
+                fres = s%eval(s%propp(i)%expr,errmsg,xp)
+                if (len_trim(errmsg) > 0) &
+                   call ferror("propty","Error evaluating expression: " // trim(errmsg),faterr)
+                write (uout,'("  ",A," (",A,"): ",A)') string(s%propp(i)%name),&
+                   string(s%propp(i)%expr), string(fres,'e',decimal=9)
+             else
+                ! ispecial=1 ... schrodinger stress tensor
+                stvec = res%stress
+                call rsindex(stvec,stval,str,sts,CP_hdegen)
+                write (uout,'("  Stress tensor:")')
+                do j = 1, 3
+                   write (uout,'("    ",1p,3(A,"  "))') (string(res%stress(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
+                end do
+                write (uout,'("  Stress tensor eigenvalues: ",3(A,"  "))') (string(stval(j),'e',decimal=9),j=1,3)
+             endif
+          end do
+       end if
 
        ! rest of fields
        if (allfields) then
           do i = 0, s%nf
              if (s%goodfield(i) .and. i/=id) then
                 call s%f(i)%grd(xp,2,res2)
-                write (uout,'("  Field ",A," (f,|grad|,lap): ",3(A,"  "))') string(i),&
-                   string(res2%f,'e',decimal=9), string(res2%gfmod,'e',decimal=9), &
-                   string(res2%del2f,'e',decimal=9)
+                if (res2%valid) then
+                   write (uout,'("  Field ",A," (f,|grad|,lap): ",3(A,"  "))') string(i),&
+                      string(res2%f,'e',decimal=9), string(res2%gfmod,'e',decimal=9), &
+                      string(res2%del2f,'e',decimal=9)
+                end if
              end if
           end do
        end if

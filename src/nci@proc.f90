@@ -587,7 +587,7 @@ contains
            do k = 0, nstep(3)-1
               x = x0 + i*xmat(:,1) + j*xmat(:,2) + k*xmat(:,3)
 
-              ! ! calculate properties at x
+              ! calculate properties at x
               inter = .true.
               if (nfrag > 0) then
                  inter = (sum(rhofrag(k,j,i,1:nfrag)) >= rhoparam2 * rhoat(k,j,i)) .and. &

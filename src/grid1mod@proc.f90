@@ -250,7 +250,7 @@ contains
              g%occ(i+1:g%norb) = 0
              exit
           else
-             ns = ns + g%occ(i)
+             ns = ns + nint(g%occ(i))
           end if
        end do
     end if

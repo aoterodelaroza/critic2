@@ -46,6 +46,7 @@ submodule (crystalmod) vibrationsmod
   ! subroutine read_crystal_out(v,c,file,errmsg,ti)
   ! subroutine read_gaussian_log(v,c,file,errmsg,ti)
   ! subroutine read_gaussian_fchk(v,c,file,errmsg,ti)
+  ! subroutine read_castep_phonon(v,c,file,errmsg,ti)
 
 contains
 
@@ -87,7 +88,7 @@ contains
     use param, only: ivformat_unknown, ivformat_matdynmodes, ivformat_matdyneig,&
        ivformat_qedyn, ivformat_phonopy_ascii, ivformat_phonopy_yaml, ivformat_phonopy_hdf5,&
        ivformat_crystal_out, ivformat_gaussian_log, ivformat_gaussian_fchk,&
-       ivformat_phonopy_fc2
+       ivformat_phonopy_fc2, ivformat_castep_phonon
     use types, only: realloc
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
@@ -131,6 +132,8 @@ contains
        call read_gaussian_log(v,c,file,errmsg,ti)
     elseif (ivf == ivformat_gaussian_fchk) then
        call read_gaussian_fchk(v,c,file,errmsg,ti)
+    elseif (ivf == ivformat_castep_phonon) then
+       call read_castep_phonon(v,c,file,errmsg,ti)
     else
        errmsg = "Unknown vibration file format: " // trim(file)
        return
@@ -154,7 +157,7 @@ contains
     use tools_io, only: uout, string, ioj_right
     use param, only: ivformat_matdynmodes, ivformat_matdyneig, ivformat_qedyn,&
        ivformat_phonopy_ascii, ivformat_phonopy_yaml, ivformat_phonopy_hdf5,&
-       ivformat_crystal_out, ivformat_gaussian_log,&
+       ivformat_crystal_out, ivformat_gaussian_log, ivformat_castep_phonon,&
        ivformat_gaussian_fchk
     class(vibrations), intent(inout) :: v
 
@@ -185,6 +188,8 @@ contains
           write (uout,'("  Format: Gaussian output file")')
        elseif (v%ivformat == ivformat_gaussian_fchk) then
           write (uout,'("  Format: Gaussian formatted checkpoint file")')
+       elseif (v%ivformat == ivformat_castep_phonon) then
+          write (uout,'("  Format: CASTEP phonon file")')
        end if
 
        write (uout,*)
@@ -1100,7 +1105,7 @@ contains
     use param, only: ivformat_unknown, ivformat_matdynmodes, ivformat_matdyneig,&
        ivformat_qedyn, ivformat_phonopy_ascii, ivformat_phonopy_yaml,&
        ivformat_phonopy_hdf5, ivformat_crystal_out, ivformat_gaussian_log,&
-       ivformat_gaussian_fchk, ivformat_phonopy_fc2, dirsep
+       ivformat_gaussian_fchk, ivformat_phonopy_fc2, ivformat_castep_phonon, dirsep
     use tools_io, only: equal, lower
     character*(*), intent(in) :: file
     integer, intent(out) :: ivformat
@@ -1134,6 +1139,8 @@ contains
        ivformat = ivformat_gaussian_log
     elseif (equal(lower(wextdot),'fchk')) then
        ivformat = ivformat_gaussian_fchk
+    elseif (equal(lower(wextdot),'phonon')) then
+       ivformat = ivformat_castep_phonon
     elseif (isdynfile(wextdot)) then
        ivformat = ivformat_qedyn
     elseif (index(basename,'FORCE_CONSTANTS') > 0) then
@@ -1178,8 +1185,8 @@ contains
     character(len=:), allocatable :: line
     integer :: iqpt, ifreq, iat, iz
     real*8 :: xdum(6), alat
-    ! integer :: jfreq ! checking normalization
-    ! complex*16 :: summ
+    integer :: jfreq ! checking normalization
+    complex*16 :: summ
 
     ! initialize
     errmsg = ""
@@ -1306,6 +1313,7 @@ contains
     !       end do
     !    end do
     ! end do
+    ! stop 1
 
     ! wrap up
     errmsg = ""
@@ -2107,7 +2115,7 @@ contains
     character(len=:), allocatable :: line
     integer :: lu, i, j, k, n0, n1, iz
     real*8 :: xdum(6)
-    ! integer :: jfreq, iqpt ! checking normalization
+    ! integer :: ifreq, jfreq, iqpt ! checking normalization
     ! complex*16 :: summ
 
     ! initialize
@@ -2193,6 +2201,7 @@ contains
     !       end do
     !    end do
     ! end do
+    ! stop 1
 
     ! wrap up
     v%hasvibs = .true.
@@ -2457,5 +2466,112 @@ contains
     if (lu >= 0) call fclose(lu)
 
   end subroutine read_gaussian_fchk
+
+  !> Read vibration data from a phonopy ascii file (ANIME keyword),
+  !> and return it in vib. If error, return non-zero errmsg.
+  subroutine read_castep_phonon(v,c,file,errmsg,ti)
+    use tools_io, only: fopen_read, fclose, getline_raw
+    use types, only: realloc
+    use param, only: atmass, ivformat_castep_phonon
+    type(vibrations), intent(inout) :: v
+    type(crystal), intent(in) :: c
+    character*(*), intent(in) :: file
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lu, i, idum, ifreq, iat
+    character(len=:), allocatable :: line
+    character*20 :: aux
+    real*8 :: xx(6)
+    ! integer :: jfreq, iqpt ! checking normalization
+    ! complex*16 :: summ
+
+    ! initialize
+    errmsg = "Error reading ascii file: " // trim(file)
+    lu = -1
+
+    ! open file
+    lu = fopen_read(file,ti=ti)
+    if (lu <= 0) then
+       errmsg = "File not found: " // trim(file)
+       goto 999
+    end if
+
+    ! prepare container for data
+    v%file = file
+    v%ivformat = ivformat_castep_phonon
+
+    ! allocate and initialize
+    v%nqpt = 0
+    v%nfreq = 3 * c%ncel
+    if (allocated(v%qpt)) deallocate(v%qpt)
+    allocate(v%qpt(3,10))
+    if (allocated(v%freq)) deallocate(v%freq)
+    allocate(v%freq(v%nfreq,10))
+    if (allocated(v%vec)) deallocate(v%vec)
+    allocate(v%vec(3,c%ncel,v%nfreq,10))
+
+    ! advance to the header
+    do while (getline_raw(lu,line,.false.))
+       if (len(line) >= 10) then
+          if (line(1:10) == "     q-pt=") then
+             v%nqpt = v%nqpt + 1
+             if (v%nqpt > size(v%qpt,2)) then
+                call realloc(v%qpt,3,2*v%nqpt)
+                call realloc(v%freq,v%nfreq,2*v%nqpt)
+                call realloc(v%vec,3,c%ncel,v%nfreq,2*v%nqpt)
+             end if
+             read (line,*,err=999,end=999) aux, idum, v%qpt(:,v%nqpt)
+             do i = 1, v%nfreq
+                read (lu,*,err=999,end=999) idum, v%freq(i,v%nqpt)
+             end do
+             read (lu,*)
+             read (lu,*)
+             do ifreq = 1, v%nfreq
+                do iat = 1, c%ncel
+                   read (lu,*,err=999,end=999) idum, idum, xx
+                   v%vec(1,iat,ifreq,v%nqpt) = cmplx(xx(1),xx(2),16)
+                   v%vec(2,iat,ifreq,v%nqpt) = cmplx(xx(3),xx(4),16)
+                   v%vec(3,iat,ifreq,v%nqpt) = cmplx(xx(5),xx(6),16)
+                end do
+             end do
+          end if
+       end if
+    end do
+    if (v%nqpt == 0) then
+       errmsg = "No q-points found"
+       goto 999
+    end if
+    call realloc(v%qpt,3,v%nqpt)
+    call realloc(v%freq,v%nfreq,v%nqpt)
+    call realloc(v%vec,3,c%ncel,v%nfreq,v%nqpt)
+
+    ! normalize
+    do i = 1, v%nfreq
+       v%vec(:,:,i,1) = v%vec(:,:,i,1) / sqrt(sum(v%vec(:,:,i,1)*conjg(v%vec(:,:,i,1))))
+    end do
+
+    ! ! checking normalization
+    ! write (*,*) "checking normalization..."
+    ! do iqpt = 1, v%nqpt
+    !    do ifreq = 1, v%nfreq
+    !       do jfreq = 1, v%nfreq
+    !          summ = sum(v%vec(:,:,ifreq,iqpt)*conjg(v%vec(:,:,jfreq,iqpt)))
+    !          write (*,*) ifreq, jfreq, summ
+    !       end do
+    !    end do
+    ! end do
+    ! stop 1
+
+    ! wrap up
+    errmsg = ""
+    v%hasvibs = .true.
+    call fclose(lu)
+
+    return
+999 continue
+    if (lu >= 0) call fclose(lu)
+
+  end subroutine read_castep_phonon
 
 end submodule vibrationsmod

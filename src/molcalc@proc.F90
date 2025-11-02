@@ -225,7 +225,7 @@ contains
     use global, only: mesh_type, mesh_level
     use arithmetic, only: setvariable
     use tools_io, only: string, uout
-    use types, only: scalar_value, vstring
+    use types, only: vstring
     character*(*), intent(in) :: expr, savevar
 
     type(mesh) :: m

@@ -815,7 +815,7 @@ contains
        isformat_r_pgout, isformat_r_orca, isformat_r_dmain, isformat_r_aimsin,&
        isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_gjf, isformat_r_zmat,&
        isformat_r_magres, isformat_r_alamode, isformat_r_sdf, isformat_r_castepcell,&
-       isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb
+       isformat_r_castepphonon, isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
@@ -916,6 +916,9 @@ contains
 
     elseif (isformat == isformat_r_castepcell) then
        call seed%read_castep_cell(file,mol,errmsg,ti=ti)
+
+    elseif (isformat == isformat_r_castepphonon) then
+       call seed%read_castep_phonon(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_r_castepgeom) then
        call seed%read_castep_geom(file,mol,errmsg,ti=ti)
@@ -1934,6 +1937,7 @@ contains
 
   !> Read the structure from a gaussian cube file
   module subroutine read_cube(seed,file,mol,errmsg,ti)
+    use global, only: rborder_def
     use tools_io, only: fopen_read, fclose, nameguess, getline_raw
     use tools_math, only: matinv
     use types, only: realloc
@@ -1949,6 +1953,8 @@ contains
     real*8 :: x0(3), rmat(3,3), rdum, rx(3), rxt(3)
     logical :: ismo, ok
     character(len=:), allocatable :: line
+
+    real*8, parameter :: eps = 1d-3
 
     call seed%end()
     errmsg = "Error reading file: " // trim(file)
@@ -1986,8 +1992,6 @@ contains
        goto 999
     end if
 
-    seed%useabr = 2
-
     ! Atomic positions.
     allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
     allocate(seed%spc(2))
@@ -1995,31 +1999,32 @@ contains
     seed%nat = 0
     do i = 1, nn
        read (lu,*,err=999,end=999) iz, rdum, rx
-       if (iz > 0) then
-          seed%nat = seed%nat + 1
-          !! intel compiler errors with
-          ! rx = matmul(rx - x0,rmat)
-          rxt = rx - x0
-          rx = matmul(rxt,rmat)
+       if (iz <= 0) cycle
+
+       seed%nat = seed%nat + 1
+       if (mol) then
+          seed%x(:,seed%nat) = rx
+       else
+          rx = matmul(rx - x0,rmat)
           seed%x(:,seed%nat) = rx - floor(rx)
-          it = 0
-          do j = 1, seed%nspc
-             if (seed%spc(j)%z == iz) then
-                it = j
-                exit
-             end if
-          end do
-          if (it == 0) then
-             seed%nspc = seed%nspc + 1
-             if (seed%nspc > size(seed%spc,1)) &
-                call realloc(seed%spc,2*seed%nspc)
-             seed%spc(seed%nspc)%z = iz
-             seed%spc(seed%nspc)%name = nameguess(iz,.true.)
-             it = seed%nspc
+       end if
+       it = 0
+       do j = 1, seed%nspc
+          if (seed%spc(j)%z == iz) then
+             it = j
+             exit
           end if
-          seed%is(seed%nat) = it
-          seed%atname(seed%nat) = seed%spc(it)%name
-       endif
+       end do
+       if (it == 0) then
+          seed%nspc = seed%nspc + 1
+          if (seed%nspc > size(seed%spc,1)) &
+             call realloc(seed%spc,2*seed%nspc)
+          seed%spc(seed%nspc)%z = iz
+          seed%spc(seed%nspc)%name = nameguess(iz,.true.)
+          it = seed%nspc
+       end if
+       seed%is(seed%nat) = it
+       seed%atname(seed%nat) = seed%spc(it)%name
     end do
     if (seed%nat /= nn) then
        call realloc(seed%x,3,seed%nat)
@@ -2031,6 +2036,16 @@ contains
     errmsg = ""
 999 continue
     call fclose(lu)
+
+    if (mol) then
+       ! treat this as a molecule
+       seed%useabr = 0
+       seed%border = rborder_def
+    else
+       ! treat it as a crystal
+       seed%useabr = 2
+       seed%border = 0d0
+    end if
 
     ! no symmetry
     seed%havesym = 0
@@ -2045,7 +2060,6 @@ contains
     ! rest of the seed information
     seed%isused = .true.
     seed%cubic = .false.
-    seed%border = 0d0
 
   end subroutine read_cube
 
@@ -4114,6 +4128,109 @@ contains
 
   end subroutine read_castep_geom
 
+  !> Read the structure from a CASTEP phonon file
+  module subroutine read_castep_phonon(seed,file,mol,errmsg,ti)
+    use tools_io, only: nameguess, zatguess, fopen_read, fclose, getline_raw
+    use param, only: isformat_r_castepphonon, maxzat, bohrtoa
+    class(crystalseed), intent(inout) :: seed !< Crystal seed output
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    character(len=:), allocatable :: line
+    integer :: lu, ll, i, idum, iz
+    character*20 :: strname
+    integer :: zuse(maxzat)
+
+    call seed%end()
+    errmsg = ""
+    ! open
+    lu = fopen_read(file,errstop=.false.,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file: " // trim(file)
+       return
+    end if
+    errmsg = "Error reading file: " // trim(file)
+
+    ! read the header
+    zuse = 0
+    seed%nat = 0
+    seed%nspc = 0
+    seed%useabr = 2
+    do while(getline_raw(lu,line))
+       ll = len(line)
+       if (ll >= 15) then
+          if (line(1:15) == " Number of ions") then
+             read(line(16:),*,end=999,err=999) seed%nat
+          end if
+       end if
+       if (ll >= 22) then
+          if (line(1:22) == " Unit cell vectors (A)") then
+             if (.not.getline_raw(lu,line)) goto 999
+             read(line,*,err=999,end=999) seed%m_x2c(:,1)
+             if (.not.getline_raw(lu,line)) goto 999
+             read(line,*,err=999,end=999) seed%m_x2c(:,2)
+             if (.not.getline_raw(lu,line)) goto 999
+             read(line,*,err=999,end=999) seed%m_x2c(:,3)
+          end if
+       end if
+       if (ll >= 24) then
+          if (line(1:24) == " Fractional Co-ordinates") then
+             if (seed%nat == 0) goto 999
+             allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
+             do i = 1, seed%nat
+                if (.not.getline_raw(lu,line)) goto 999
+                read(line,*,end=999,err=999) idum, seed%x(:,i), strname
+                iz = zatguess(strname)
+                if (iz <= 0) goto 999
+                seed%atname(i) = adjustl(strname)
+                if (zuse(iz) == 0) then
+                   seed%nspc = seed%nspc + 1
+                   zuse(iz) = seed%nspc
+                end if
+                seed%is(i) = zuse(iz)
+             end do
+          end if
+       end if
+    end do
+    if (seed%nat == 0) goto 999
+
+    ! fill the species
+    allocate(seed%spc(seed%nspc))
+    do i = 1, maxzat
+       if (zuse(i) > 0) then
+          seed%spc(zuse(i))%name = trim(nameguess(i,.true.))
+          seed%spc(zuse(i))%z = i
+          seed%spc(zuse(i))%qat = 0d0
+       end if
+    end do
+
+    ! wrap up
+    seed%m_x2c = seed%m_x2c / bohrtoa
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+    ! no symmetry
+    seed%havesym = 0
+    seed%findsym = -1
+    seed%checkrepeats = .false.
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%ismolecule = mol
+    seed%cubic = .false.
+    seed%border = 0d0
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    seed%file = file
+    seed%name = file
+    seed%isformat = isformat_r_castepphonon
+
+  end subroutine read_castep_phonon
+
   !> Read the structure from a DMACRYS input file (dmain)
   module subroutine read_dmain(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, lgetword, isreal,&
@@ -5416,7 +5533,8 @@ contains
        isformat_r_gaussian, isformat_r_siesta, isformat_r_xsf, isformat_r_gen,&
        isformat_r_vasp, isformat_r_pwc, isformat_r_axsf, isformat_r_dat, isformat_r_pgout,&
        isformat_r_dmain, isformat_r_aimsin, isformat_r_aimsout, isformat_r_tinkerfrac,&
-       isformat_r_castepcell, isformat_r_castepgeom, isformat_r_qein, isformat_r_qeout,&
+       isformat_r_castepcell, isformat_r_castepgeom, isformat_r_castepphonon,&
+       isformat_r_qein, isformat_r_qeout,&
        isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
@@ -5523,6 +5641,8 @@ contains
        isformat = isformat_r_siesta
     elseif (equal(wextdot,'cell')) then
        isformat = isformat_r_castepcell
+    elseif (equal(wextdot,'phonon')) then
+       isformat = isformat_r_castepphonon
     elseif (equal(wextdot,'geom')) then
        isformat = isformat_r_castepgeom
     elseif (equal(wextdot,'dmain')) then
@@ -5600,7 +5720,8 @@ contains
        isformat_r_wfx, isformat_r_fchk, isformat_r_molden, isformat_r_gaussian, isformat_r_siesta,&
        isformat_r_xsf, isformat_r_gen, isformat_r_vasp, isformat_r_pwc, isformat_r_axsf,&
        isformat_r_dat, isformat_r_pgout, isformat_r_orca, isformat_r_dmain, isformat_r_aimsin,&
-       isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_castepcell, isformat_r_castepgeom,&
+       isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_castepcell, isformat_r_castepphonon,&
+       isformat_r_castepgeom,&
        isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres,&
        isformat_r_alamode
     character*(*), intent(in) :: file
@@ -5622,8 +5743,8 @@ contains
        isformat_r_cube,isformat_r_bincube,isformat_r_struct,isformat_r_abinit,&
        isformat_r_elk,isformat_r_siesta,isformat_r_dmain,isformat_r_vasp,&
        isformat_r_axsf,isformat_r_tinkerfrac,isformat_r_qein,isformat_r_qeout,&
-       isformat_r_crystal,isformat_r_fploout,isformat_r_castepcell,isformat_r_castepgeom,&
-       isformat_r_magres,isformat_r_alamode)
+       isformat_r_crystal,isformat_r_fploout,isformat_r_castepcell,isformat_r_castepphonon,&
+       isformat_r_castepgeom,isformat_r_magres,isformat_r_alamode)
        ismol = .false.
 
     case (isformat_r_gjf,isformat_r_pgout,isformat_r_wfn,isformat_r_wfx,&
@@ -5819,7 +5940,7 @@ contains
        isformat_r_zmat, isformat_r_abinit, isformat_r_cif, isformat_r_pwc, isformat_r_fploout,&
        isformat_r_crystal, isformat_r_elk, isformat_r_gen, isformat_r_qein, isformat_r_qeout,&
        isformat_r_shelx, isformat_r_siesta, isformat_r_struct, isformat_r_vasp, isformat_r_axsf,&
-       isformat_r_xsf, isformat_r_castepcell, isformat_r_castepgeom,&
+       isformat_r_xsf, isformat_r_castepcell, isformat_r_castepphonon, isformat_r_castepgeom,&
        isformat_r_dat, isformat_r_f21, isformat_r_unknown, isformat_r_pgout, isformat_r_orca,&
        isformat_r_dmain, isformat_r_aimsin, isformat_r_aimsout, isformat_r_tinkerfrac,&
        isformat_r_mol2, isformat_r_sdf, isformat_r_pdb, isformat_r_magres, isformat_r_alamode
@@ -5930,6 +6051,9 @@ contains
        call seed(1)%read_siesta(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_castepcell) then
        call seed(1)%read_castep_cell(file,mol,errmsg,ti=ti)
+    elseif (isformat == isformat_r_castepphonon) then
+       call seed(1)%read_castep_phonon(file,mol,errmsg,ti=ti)
+       alsovib = .true.
     elseif (isformat == isformat_r_castepgeom) then
        call read_all_castep_geom(nseed,seed,file,errmsg,ti=ti)
     elseif (isformat == isformat_r_dmain) then
