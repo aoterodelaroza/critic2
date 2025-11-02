@@ -31,7 +31,7 @@ submodule (crystalmod) vibrationsmod
   ! other conversion factors
   real*8, parameter :: cminv_to_kJmol = 1.196265656955833d-02 ! c * h * NA / 10
   real*8, parameter :: cminv_to_K = 1.438776959983815d0 ! c * h * 100 / kb
-  real*8, parameter :: cminv_to_hartree = 4.5563352529120d-8 ! CODATA2018
+  real*8, parameter :: cminv_to_hartree = 4.5563352529120d-8 * 100d0 ! CODATA2018
   real*8, parameter :: amu_to_me = 1.66053906660e-27 / 9.1093837015e-31 ! CODATA2018
   real*8, parameter :: cminv_to_angfreq_au = 4.556335252903557d-06 ! 100 * c * a0 * sqrt(me / Ha) * 2 * pi, using CODATA2018 values
 
@@ -1017,6 +1017,7 @@ contains
   !> Adapted from the alamode code (https://github.com/ttadano/alamode/).
   module subroutine vibrations_phonon_rattle(v,c,temp,seed)
     use crystalseedmod, only: crystalseed
+    use tools, only: mergesort
     use param, only: atmass, pi, bohrtoa
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
@@ -1028,8 +1029,8 @@ contains
     real*8 :: nbe, ff, ffrac, fterm, phase, amplitude, xx(2), xn, sqmfterm
     real*8 :: sigma
     integer :: i, j, k, n
+    integer, allocatable :: idx(:)
 
-    real*8, parameter :: thr = 1d-3 ! threshold for acoustic frequencies (cm-1)
     real*8, parameter :: fcap = 50d0 ! lower bound for the frequencies (cm-1)
 
     ! return if no FC2 is available
@@ -1047,13 +1048,17 @@ contains
        xat(:,j) = c%atcel(j)%r
     end do
 
-    ! run over all modes
-    do i = 1, size(freq,1)
-       ! skip acoustic frequencies
-       if (abs(freq(i)) < thr) cycle
+    ! sort the frequencies by absolute value
+    allocate(idx(3*c%ncel))
+    do i = 1, 3*c%ncel
+       idx(i) = i
+    end do
+    call mergesort(abs(freq),idx,1,3*c%ncel)
 
+    ! run over all modes; skip the first three
+    do i = 4, size(freq,1)
        ! cap frequencies at some low value
-       ff = max(fcap,abs(freq(i)))
+       ff = max(fcap,abs(freq(idx(i))))
 
        ! calculate the Boltzmann population
        ffrac = ff * cminv_to_K / temp
@@ -1063,8 +1068,8 @@ contains
           nbe = 0d0
        end if
 
-       ! standard deviation of the normal distribution
-       sigma = sqrt((1d0 + 2d0 * nbe) / (2d0 * ff * cminv_to_angfreq_au))
+       ! standard deviation of the normal distribution (bohr * sqrt(amu))
+       sigma = sqrt((1d0 + 2d0 * nbe) / (2d0 * ff * cminv_to_hartree)) / sqrt(amu_to_me)
 
        ! sample normal distribution
        call random_number(xx)
@@ -1072,7 +1077,7 @@ contains
 
        n = 0
        do j = 1, seed%nat
-          fterm = xn / sqrt(atmass(seed%spc(seed%is(j))%z) * amu_to_me)
+          fterm = xn / sqrt(atmass(seed%spc(seed%is(j))%z))
           do k = 1, 3
              n = n + 1
              xat(k,j) = xat(k,j) + fterm * real(vec(n,i),8)
