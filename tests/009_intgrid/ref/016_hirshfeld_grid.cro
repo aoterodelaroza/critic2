@@ -2,12 +2,16 @@
   Name: rho.cube
   Source: ../zz_source/qe-6.5/mgo/rho.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 1.794300000000E-02  1.807000000000E-02  1.843900000000E-02  
   Last elements... 1.626600000000E-02  1.649800000000E-02  1.701700000000E-02  
   Sum of elements... 2.207003453430E+03
   Sum of squares of elements... 7.612467667693E+02
+  Grid domain/cell volume = 118.7782/118.7782
+  Grid domain integral (1) = 7.99999893
   Cell integral (1) = 7.99999893
   Min: 9.82830000E-04
   Average: 6.73524003E-02
@@ -64,5 +68,5 @@
   1    1    1      Mg   12  --   7.09806705E+01  1.70129038E+00  4.15842865E+00 
   2    2    2      O    8   --   4.77975600E+01  6.29870856E+00 -4.15842865E+00 
 --------------------------------------------------------------------------------
-  Sum                            1.18778231E+02  7.99999893E+00 -7.28306304E-14 
+  Sum                            1.18778231E+02  7.99999893E+00  1.62536651E-13 
 

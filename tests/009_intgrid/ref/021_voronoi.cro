@@ -2,12 +2,16 @@
   Name: quartz_o_DEN
   Source: ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 80  80  90  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.11608  
   First elements... 1.948846107675E-03  1.953716020392E-03  1.968105613498E-03  
   Last elements... 2.168114506346E-03  2.145192999582E-03  2.130839935212E-03  
   Sum of elements... 3.624016354025E+04
   Sum of squares of elements... 1.276442166217E+04
+  Grid domain/cell volume = 762.9105/762.9105
+  Grid domain integral (1) = 48.00000135
   Cell integral (1) = 48.00000135
   Min: -1.58090372E-02
   Average: 6.29169506E-02

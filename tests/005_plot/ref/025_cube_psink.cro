@@ -2,12 +2,16 @@
   Name: mgo.pwc
   Source: ../zz_source/qe-6.5/mgo/mgo.pwc
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 1.794311586968E-02  1.807041005910E-02  1.843898406895E-02  
   Last elements... 1.626582307228E-02  1.649780142866E-02  1.701714930579E-02  
   Sum of elements... 2.207000348926E+03
   Sum of squares of elements... 7.612419486289E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (1) = 8.00000000
   Cell integral (1) = 8.00000000
   Min: 9.82825692E-04
   Average: 6.73523056E-02
@@ -149,12 +153,16 @@
   Name: 025_cube_psink-1-01-r.cube
   Source: 025_cube_psink-1-01-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.535052782981E-02  4.551597054150E-02  4.593527180107E-02  
   Last elements... 4.330551458217E-02  4.371678757958E-02  4.435829398358E-02  
   Sum of elements... 2.173063916342E+03
   Sum of squares of elements... 2.271487854431E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (2) = 7.87698622
   Cell integral (2) = 7.87698622
   Min: 1.06793592E-02
   Average: 6.63166478E-02
@@ -171,12 +179,16 @@
   Name: 025_cube_psink-1-02-r.cube
   Source: 025_cube_psink-1-02-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.535052782981E-02  4.551597054150E-02  4.593527180107E-02  
   Last elements... 4.330551458217E-02  4.371678757958E-02  4.435829398358E-02  
   Sum of elements... 2.173063916342E+03
   Sum of squares of elements... 2.271487854431E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (3) = 7.87698622
   Cell integral (3) = 7.87698622
   Min: 1.06793592E-02
   Average: 6.63166478E-02
@@ -193,12 +205,16 @@
   Name: 025_cube_psink-1-03-r.cube
   Source: 025_cube_psink-1-03-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.535052782981E-02  4.551597054150E-02  4.593527180107E-02  
   Last elements... 4.330551458217E-02  4.371678757958E-02  4.435829398358E-02  
   Sum of elements... 2.173063916342E+03
   Sum of squares of elements... 2.271487854431E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (4) = 7.87698622
   Cell integral (4) = 7.87698622
   Min: 1.06793592E-02
   Average: 6.63166478E-02
@@ -215,12 +231,16 @@
   Name: 025_cube_psink-1-04-r.cube
   Source: 025_cube_psink-1-04-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.535052782981E-02  4.551597054150E-02  4.593527180107E-02  
   Last elements... 4.330551458217E-02  4.371678757958E-02  4.435829398358E-02  
   Sum of elements... 2.173063916342E+03
   Sum of squares of elements... 2.271487854431E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (5) = 7.87698622
   Cell integral (5) = 7.87698622
   Min: 1.06793592E-02
   Average: 6.63166478E-02
@@ -237,12 +257,16 @@
   Name: 025_cube_psink-1-05-r.cube
   Source: 025_cube_psink-1-05-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.535052782981E-02  4.551597054150E-02  4.593527180107E-02  
   Last elements... 4.330551458217E-02  4.371678757958E-02  4.435829398358E-02  
   Sum of elements... 2.173063916342E+03
   Sum of squares of elements... 2.271487854431E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (6) = 7.87698622
   Cell integral (6) = 7.87698622
   Min: 1.06793592E-02
   Average: 6.63166478E-02
@@ -259,12 +283,16 @@
   Name: 025_cube_psink-1-06-r.cube
   Source: 025_cube_psink-1-06-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.535052782981E-02  4.551597054150E-02  4.593527180107E-02  
   Last elements... 4.330551458217E-02  4.371678757958E-02  4.435829398358E-02  
   Sum of elements... 2.173063916342E+03
   Sum of squares of elements... 2.271487854431E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (7) = 7.87698622
   Cell integral (7) = 7.87698622
   Min: 1.06793592E-02
   Average: 6.63166478E-02
@@ -281,12 +309,16 @@
   Name: 025_cube_psink-1-07-r.cube
   Source: 025_cube_psink-1-07-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.535052782981E-02  4.551597054150E-02  4.593527180107E-02  
   Last elements... 4.330551458217E-02  4.371678757958E-02  4.435829398358E-02  
   Sum of elements... 2.173063916342E+03
   Sum of squares of elements... 2.271487854431E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (8) = 7.87698622
   Cell integral (8) = 7.87698622
   Min: 1.06793592E-02
   Average: 6.63166478E-02
@@ -303,12 +335,16 @@
   Name: 025_cube_psink-1-08-r.cube
   Source: 025_cube_psink-1-08-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.535052782981E-02  4.551597054150E-02  4.593527180107E-02  
   Last elements... 4.330551458217E-02  4.371678757958E-02  4.435829398358E-02  
   Sum of elements... 2.173063916342E+03
   Sum of squares of elements... 2.271487854431E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (9) = 7.87698622
   Cell integral (9) = 7.87698622
   Min: 1.06793592E-02
   Average: 6.63166478E-02
@@ -325,12 +361,16 @@
   Name: 025_cube_psink-1-01-i.cube
   Source: 025_cube_psink-1-01-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -2.100432196884E-02  -2.108094783184E-02  -2.127514941823E-02  
   Last elements... -2.005716333512E-02  -2.024764662632E-02  -2.054476379023E-02  
   Sum of elements... -1.006465336628E+03
   Sum of squares of elements... 4.872625817262E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (10) = -3.64826526
   Cell integral (10) = -3.64826526
   Min: -1.31626184E-01
   Average: -3.07148845E-02
@@ -347,12 +387,16 @@
   Name: 025_cube_psink-1-02-i.cube
   Source: 025_cube_psink-1-02-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -2.100432196884E-02  -2.108094783184E-02  -2.127514941823E-02  
   Last elements... -2.005716333512E-02  -2.024764662632E-02  -2.054476379023E-02  
   Sum of elements... -1.006465336628E+03
   Sum of squares of elements... 4.872625817262E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (11) = -3.64826526
   Cell integral (11) = -3.64826526
   Min: -1.31626184E-01
   Average: -3.07148845E-02
@@ -369,12 +413,16 @@
   Name: 025_cube_psink-1-03-i.cube
   Source: 025_cube_psink-1-03-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -2.100432196884E-02  -2.108094783184E-02  -2.127514941823E-02  
   Last elements... -2.005716333512E-02  -2.024764662632E-02  -2.054476379023E-02  
   Sum of elements... -1.006465336628E+03
   Sum of squares of elements... 4.872625817262E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (12) = -3.64826526
   Cell integral (12) = -3.64826526
   Min: -1.31626184E-01
   Average: -3.07148845E-02
@@ -391,12 +439,16 @@
   Name: 025_cube_psink-1-04-i.cube
   Source: 025_cube_psink-1-04-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -2.100432196884E-02  -2.108094783184E-02  -2.127514941823E-02  
   Last elements... -2.005716333512E-02  -2.024764662632E-02  -2.054476379023E-02  
   Sum of elements... -1.006465336628E+03
   Sum of squares of elements... 4.872625817262E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (13) = -3.64826526
   Cell integral (13) = -3.64826526
   Min: -1.31626184E-01
   Average: -3.07148845E-02
@@ -413,12 +465,16 @@
   Name: 025_cube_psink-1-05-i.cube
   Source: 025_cube_psink-1-05-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -2.100432196884E-02  -2.108094783184E-02  -2.127514941823E-02  
   Last elements... -2.005716333512E-02  -2.024764662632E-02  -2.054476379023E-02  
   Sum of elements... -1.006465336628E+03
   Sum of squares of elements... 4.872625817262E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (14) = -3.64826526
   Cell integral (14) = -3.64826526
   Min: -1.31626184E-01
   Average: -3.07148845E-02
@@ -435,12 +491,16 @@
   Name: 025_cube_psink-1-06-i.cube
   Source: 025_cube_psink-1-06-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -2.100432196884E-02  -2.108094783184E-02  -2.127514941823E-02  
   Last elements... -2.005716333512E-02  -2.024764662632E-02  -2.054476379023E-02  
   Sum of elements... -1.006465336628E+03
   Sum of squares of elements... 4.872625817262E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (15) = -3.64826526
   Cell integral (15) = -3.64826526
   Min: -1.31626184E-01
   Average: -3.07148845E-02
@@ -457,12 +517,16 @@
   Name: 025_cube_psink-1-07-i.cube
   Source: 025_cube_psink-1-07-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -2.100432196884E-02  -2.108094783184E-02  -2.127514941823E-02  
   Last elements... -2.005716333512E-02  -2.024764662632E-02  -2.054476379023E-02  
   Sum of elements... -1.006465336628E+03
   Sum of squares of elements... 4.872625817262E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (16) = -3.64826526
   Cell integral (16) = -3.64826526
   Min: -1.31626184E-01
   Average: -3.07148845E-02
@@ -479,12 +543,16 @@
   Name: 025_cube_psink-1-08-i.cube
   Source: 025_cube_psink-1-08-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -2.100432196884E-02  -2.108094783184E-02  -2.127514941823E-02  
   Last elements... -2.005716333512E-02  -2.024764662632E-02  -2.054476379023E-02  
   Sum of elements... -1.006465336628E+03
   Sum of squares of elements... 4.872625817262E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (17) = -3.64826526
   Cell integral (17) = -3.64826526
   Min: -1.31626184E-01
   Average: -3.07148845E-02
@@ -501,12 +569,16 @@
   Name: 025_cube_psink-2-01-r.cube
   Source: 025_cube_psink-2-01-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 3.175805814662E-11  -6.370442809312E-03  -1.251727848848E-02  
   Last elements... -1.336963659446E-02  -7.826002212104E-03  -1.984364685453E-03  
   Sum of elements... -2.039834119520E+03
   Sum of squares of elements... 2.757022761462E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (18) = -7.39405092
   Cell integral (18) = -7.39405092
   Min: -3.43516278E-01
   Average: -6.22507971E-02
@@ -523,12 +595,16 @@
   Name: 025_cube_psink-2-02-r.cube
   Source: 025_cube_psink-2-02-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 3.175805814662E-11  -6.370442809312E-03  -1.251727848848E-02  
   Last elements... -1.336963659446E-02  -7.826002212104E-03  -1.984364685453E-03  
   Sum of elements... -2.039834119520E+03
   Sum of squares of elements... 2.757022761462E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (19) = -7.39405092
   Cell integral (19) = -7.39405092
   Min: -3.43516278E-01
   Average: -6.22507971E-02
@@ -545,12 +621,16 @@
   Name: 025_cube_psink-2-03-r.cube
   Source: 025_cube_psink-2-03-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 3.175805814662E-11  -6.370442809312E-03  -1.251727848848E-02  
   Last elements... -1.336963659446E-02  -7.826002212104E-03  -1.984364685453E-03  
   Sum of elements... -2.039834119520E+03
   Sum of squares of elements... 2.757022761462E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (20) = -7.39405092
   Cell integral (20) = -7.39405092
   Min: -3.43516278E-01
   Average: -6.22507971E-02
@@ -567,12 +647,16 @@
   Name: 025_cube_psink-2-04-r.cube
   Source: 025_cube_psink-2-04-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -3.175805814662E-11  6.370442809312E-03  1.251727848848E-02  
   Last elements... 1.336963659446E-02  7.826002212104E-03  1.984364685453E-03  
   Sum of elements... 2.039834119520E+03
   Sum of squares of elements... 2.757022761462E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (21) = 7.39405092
   Cell integral (21) = 7.39405092
   Min: -3.00098537E-02
   Average: 6.22507971E-02
@@ -589,12 +673,16 @@
   Name: 025_cube_psink-2-05-r.cube
   Source: 025_cube_psink-2-05-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 3.175805814662E-11  -6.370442809312E-03  -1.251727848848E-02  
   Last elements... -1.336963659446E-02  -7.826002212104E-03  -1.984364685453E-03  
   Sum of elements... -2.039834119520E+03
   Sum of squares of elements... 2.757022761462E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (22) = -7.39405092
   Cell integral (22) = -7.39405092
   Min: -3.43516278E-01
   Average: -6.22507971E-02
@@ -611,12 +699,16 @@
   Name: 025_cube_psink-2-06-r.cube
   Source: 025_cube_psink-2-06-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -3.175805814662E-11  6.370442809312E-03  1.251727848848E-02  
   Last elements... 1.336963659446E-02  7.826002212104E-03  1.984364685453E-03  
   Sum of elements... 2.039834119520E+03
   Sum of squares of elements... 2.757022761462E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (23) = 7.39405092
   Cell integral (23) = 7.39405092
   Min: -3.00098537E-02
   Average: 6.22507971E-02
@@ -633,12 +725,16 @@
   Name: 025_cube_psink-2-07-r.cube
   Source: 025_cube_psink-2-07-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -3.175805814662E-11  6.370442809312E-03  1.251727848848E-02  
   Last elements... 1.336963659446E-02  7.826002212104E-03  1.984364685453E-03  
   Sum of elements... 2.039834119520E+03
   Sum of squares of elements... 2.757022761462E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (24) = 7.39405092
   Cell integral (24) = 7.39405092
   Min: -3.00098537E-02
   Average: 6.22507971E-02
@@ -655,12 +751,16 @@
   Name: 025_cube_psink-2-08-r.cube
   Source: 025_cube_psink-2-08-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -3.175805814662E-11  6.370442809312E-03  1.251727848848E-02  
   Last elements... 1.336963659446E-02  7.826002212104E-03  1.984364685453E-03  
   Sum of elements... 2.039834119520E+03
   Sum of squares of elements... 2.757022761462E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (25) = 7.39405092
   Cell integral (25) = 7.39405092
   Min: -3.00098537E-02
   Average: 6.22507971E-02
@@ -677,12 +777,16 @@
   Name: 025_cube_psink-2-01-i.cube
   Source: 025_cube_psink-2-01-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 1.228640387473E-13  1.594705285162E-04  3.133435254890E-04  
   Last elements... 3.346805049367E-04  1.959073719639E-04  4.967436231910E-05  
   Sum of elements... 5.106292189419E+01
   Sum of squares of elements... 1.727674694973E-01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (26) = 0.18509439
   Cell integral (26) = 0.18509439
   Min: -7.51233050E-04
   Average: 1.55831671E-03
@@ -699,12 +803,16 @@
   Name: 025_cube_psink-2-02-i.cube
   Source: 025_cube_psink-2-02-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 1.228640387473E-13  1.594705285162E-04  3.133435254890E-04  
   Last elements... 3.346805049366E-04  1.959073719639E-04  4.967436231910E-05  
   Sum of elements... 5.106292189419E+01
   Sum of squares of elements... 1.727674694973E-01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (27) = 0.18509439
   Cell integral (27) = 0.18509439
   Min: -7.51233050E-04
   Average: 1.55831671E-03
@@ -721,12 +829,16 @@
   Name: 025_cube_psink-2-03-i.cube
   Source: 025_cube_psink-2-03-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 1.228640387473E-13  1.594705285162E-04  3.133435254891E-04  
   Last elements... 3.346805049367E-04  1.959073719639E-04  4.967436231910E-05  
   Sum of elements... 5.106292189419E+01
   Sum of squares of elements... 1.727674694974E-01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (28) = 0.18509439
   Cell integral (28) = 0.18509439
   Min: -7.51233050E-04
   Average: 1.55831671E-03
@@ -743,12 +855,16 @@
   Name: 025_cube_psink-2-04-i.cube
   Source: 025_cube_psink-2-04-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -1.228640387473E-13  -1.594705285162E-04  -3.133435254890E-04  
   Last elements... -3.346805049366E-04  -1.959073719639E-04  -4.967436231910E-05  
   Sum of elements... -5.106292189418E+01
   Sum of squares of elements... 1.727674694973E-01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (29) = -0.18509439
   Cell integral (29) = -0.18509439
   Min: -8.59920163E-03
   Average: -1.55831671E-03
@@ -765,12 +881,16 @@
   Name: 025_cube_psink-2-05-i.cube
   Source: 025_cube_psink-2-05-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 1.228640387473E-13  1.594705285162E-04  3.133435254891E-04  
   Last elements... 3.346805049367E-04  1.959073719639E-04  4.967436231910E-05  
   Sum of elements... 5.106292189419E+01
   Sum of squares of elements... 1.727674694974E-01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (30) = 0.18509439
   Cell integral (30) = 0.18509439
   Min: -7.51233050E-04
   Average: 1.55831671E-03
@@ -787,12 +907,16 @@
   Name: 025_cube_psink-2-06-i.cube
   Source: 025_cube_psink-2-06-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -1.228640387473E-13  -1.594705285162E-04  -3.133435254890E-04  
   Last elements... -3.346805049366E-04  -1.959073719639E-04  -4.967436231910E-05  
   Sum of elements... -5.106292189418E+01
   Sum of squares of elements... 1.727674694973E-01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (31) = -0.18509439
   Cell integral (31) = -0.18509439
   Min: -8.59920163E-03
   Average: -1.55831671E-03
@@ -809,12 +933,16 @@
   Name: 025_cube_psink-2-07-i.cube
   Source: 025_cube_psink-2-07-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -1.228640387473E-13  -1.594705285162E-04  -3.133435254890E-04  
   Last elements... -3.346805049367E-04  -1.959073719639E-04  -4.967436231910E-05  
   Sum of elements... -5.106292189419E+01
   Sum of squares of elements... 1.727674694973E-01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (32) = -0.18509439
   Cell integral (32) = -0.18509439
   Min: -8.59920163E-03
   Average: -1.55831671E-03
@@ -831,12 +959,16 @@
   Name: 025_cube_psink-2-08-i.cube
   Source: 025_cube_psink-2-08-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -1.228640387473E-13  -1.594705285162E-04  -3.133435254890E-04  
   Last elements... -3.346805049367E-04  -1.959073719639E-04  -4.967436231910E-05  
   Sum of elements... -5.106292189419E+01
   Sum of squares of elements... 1.727674694973E-01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (33) = -0.18509439
   Cell integral (33) = -0.18509439
   Min: -8.59920163E-03
   Average: -1.55831671E-03
@@ -853,12 +985,16 @@
   Name: 025_cube_psink-3-01-r.cube
   Source: 025_cube_psink-3-01-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.313191401708E-10  -3.115913500824E-03  -6.473023084170E-03  
   Last elements... 1.661825356152E-02  1.478921917051E-02  1.234514934881E-02  
   Sum of elements... 3.122845651057E-06
   Sum of squares of elements... 2.556108804510E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (34) = 0.00000001
   Cell integral (34) = 0.00000001
   Min: -6.82501542E-01
   Average: 9.53016861E-11
@@ -875,12 +1011,16 @@
   Name: 025_cube_psink-3-02-r.cube
   Source: 025_cube_psink-3-02-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.313191401708E-10  -3.115913500824E-03  -6.473023084170E-03  
   Last elements... 1.661825356152E-02  1.478921917051E-02  1.234514934881E-02  
   Sum of elements... 3.122845651057E-06
   Sum of squares of elements... 2.556108804510E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (35) = 0.00000001
   Cell integral (35) = 0.00000001
   Min: -6.82501542E-01
   Average: 9.53016861E-11
@@ -897,12 +1037,16 @@
   Name: 025_cube_psink-3-03-r.cube
   Source: 025_cube_psink-3-03-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.313191401708E-10  -3.115913500824E-03  -6.473023084170E-03  
   Last elements... 1.661825356152E-02  1.478921917051E-02  1.234514934881E-02  
   Sum of elements... 3.122845651057E-06
   Sum of squares of elements... 2.556108804510E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (36) = 0.00000001
   Cell integral (36) = 0.00000001
   Min: -6.82501542E-01
   Average: 9.53016861E-11
@@ -919,12 +1063,16 @@
   Name: 025_cube_psink-3-04-r.cube
   Source: 025_cube_psink-3-04-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.313191401708E-10  -3.115913500824E-03  -6.473023084170E-03  
   Last elements... 1.661825356152E-02  1.478921917051E-02  1.234514934881E-02  
   Sum of elements... 3.122845651057E-06
   Sum of squares of elements... 2.556108804510E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (37) = 0.00000001
   Cell integral (37) = 0.00000001
   Min: -6.82501542E-01
   Average: 9.53016861E-11
@@ -941,12 +1089,16 @@
   Name: 025_cube_psink-3-05-r.cube
   Source: 025_cube_psink-3-05-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.313191401708E-10  -3.115913500824E-03  -6.473023084170E-03  
   Last elements... 1.661825356152E-02  1.478921917051E-02  1.234514934881E-02  
   Sum of elements... 3.122845651057E-06
   Sum of squares of elements... 2.556108804510E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (38) = 0.00000001
   Cell integral (38) = 0.00000001
   Min: -6.82501542E-01
   Average: 9.53016861E-11
@@ -963,12 +1115,16 @@
   Name: 025_cube_psink-3-06-r.cube
   Source: 025_cube_psink-3-06-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.313191401708E-10  -3.115913500824E-03  -6.473023084170E-03  
   Last elements... 1.661825356152E-02  1.478921917051E-02  1.234514934881E-02  
   Sum of elements... 3.122845651057E-06
   Sum of squares of elements... 2.556108804510E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (39) = 0.00000001
   Cell integral (39) = 0.00000001
   Min: -6.82501542E-01
   Average: 9.53016861E-11
@@ -985,12 +1141,16 @@
   Name: 025_cube_psink-3-07-r.cube
   Source: 025_cube_psink-3-07-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.313191401708E-10  -3.115913500824E-03  -6.473023084170E-03  
   Last elements... 1.661825356152E-02  1.478921917051E-02  1.234514934881E-02  
   Sum of elements... 3.122845651057E-06
   Sum of squares of elements... 2.556108804510E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (40) = 0.00000001
   Cell integral (40) = 0.00000001
   Min: -6.82501542E-01
   Average: 9.53016861E-11
@@ -1007,12 +1167,16 @@
   Name: 025_cube_psink-3-08-r.cube
   Source: 025_cube_psink-3-08-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.313191401708E-10  -3.115913500824E-03  -6.473023084170E-03  
   Last elements... 1.661825356152E-02  1.478921917051E-02  1.234514934881E-02  
   Sum of elements... 3.122845651057E-06
   Sum of squares of elements... 2.556108804510E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (41) = 0.00000001
   Cell integral (41) = 0.00000001
   Min: -6.82501542E-01
   Average: 9.53016861E-11
@@ -1029,12 +1193,16 @@
   Name: 025_cube_psink-3-01-i.cube
   Source: 025_cube_psink-3-01-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -1.870353665036E-09  -8.773265568410E-04  -1.822562704865E-03  
   Last elements... 4.679074657369E-03  4.164086911608E-03  3.475928244743E-03  
   Sum of elements... -1.290626808802E-05
   Sum of squares of elements... 2.026416316474E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (42) = -0.00000005
   Cell integral (42) = -0.00000005
   Min: -1.92166776E-01
   Average: -3.93868045E-10
@@ -1051,12 +1219,16 @@
   Name: 025_cube_psink-3-02-i.cube
   Source: 025_cube_psink-3-02-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -1.870353665036E-09  -8.773265568410E-04  -1.822562704865E-03  
   Last elements... 4.679074657369E-03  4.164086911608E-03  3.475928244743E-03  
   Sum of elements... -1.290626808802E-05
   Sum of squares of elements... 2.026416316474E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (43) = -0.00000005
   Cell integral (43) = -0.00000005
   Min: -1.92166776E-01
   Average: -3.93868045E-10
@@ -1073,12 +1245,16 @@
   Name: 025_cube_psink-3-03-i.cube
   Source: 025_cube_psink-3-03-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -1.870353665036E-09  -8.773265568410E-04  -1.822562704865E-03  
   Last elements... 4.679074657369E-03  4.164086911608E-03  3.475928244743E-03  
   Sum of elements... -1.290626808802E-05
   Sum of squares of elements... 2.026416316474E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (44) = -0.00000005
   Cell integral (44) = -0.00000005
   Min: -1.92166776E-01
   Average: -3.93868045E-10
@@ -1095,12 +1271,16 @@
   Name: 025_cube_psink-3-04-i.cube
   Source: 025_cube_psink-3-04-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -1.870353665036E-09  -8.773265568410E-04  -1.822562704865E-03  
   Last elements... 4.679074657369E-03  4.164086911608E-03  3.475928244743E-03  
   Sum of elements... -1.290626808802E-05
   Sum of squares of elements... 2.026416316474E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (45) = -0.00000005
   Cell integral (45) = -0.00000005
   Min: -1.92166776E-01
   Average: -3.93868045E-10
@@ -1117,12 +1297,16 @@
   Name: 025_cube_psink-3-05-i.cube
   Source: 025_cube_psink-3-05-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -1.870353665036E-09  -8.773265568410E-04  -1.822562704865E-03  
   Last elements... 4.679074657369E-03  4.164086911608E-03  3.475928244743E-03  
   Sum of elements... -1.290626808802E-05
   Sum of squares of elements... 2.026416316474E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (46) = -0.00000005
   Cell integral (46) = -0.00000005
   Min: -1.92166776E-01
   Average: -3.93868045E-10
@@ -1139,12 +1323,16 @@
   Name: 025_cube_psink-3-06-i.cube
   Source: 025_cube_psink-3-06-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -1.870353665036E-09  -8.773265568410E-04  -1.822562704865E-03  
   Last elements... 4.679074657369E-03  4.164086911608E-03  3.475928244743E-03  
   Sum of elements... -1.290626808802E-05
   Sum of squares of elements... 2.026416316474E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (47) = -0.00000005
   Cell integral (47) = -0.00000005
   Min: -1.92166776E-01
   Average: -3.93868045E-10
@@ -1161,12 +1349,16 @@
   Name: 025_cube_psink-3-07-i.cube
   Source: 025_cube_psink-3-07-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -1.870353665036E-09  -8.773265568410E-04  -1.822562704865E-03  
   Last elements... 4.679074657369E-03  4.164086911608E-03  3.475928244743E-03  
   Sum of elements... -1.290626808802E-05
   Sum of squares of elements... 2.026416316474E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (48) = -0.00000005
   Cell integral (48) = -0.00000005
   Min: -1.92166776E-01
   Average: -3.93868045E-10
@@ -1183,12 +1375,16 @@
   Name: 025_cube_psink-3-08-i.cube
   Source: 025_cube_psink-3-08-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... -1.870353665036E-09  -8.773265568410E-04  -1.822562704865E-03  
   Last elements... 4.679074657369E-03  4.164086911608E-03  3.475928244743E-03  
   Sum of elements... -1.290626808802E-05
   Sum of squares of elements... 2.026416316474E+01
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (49) = -0.00000005
   Cell integral (49) = -0.00000005
   Min: -1.92166776E-01
   Average: -3.93868045E-10
@@ -1205,12 +1401,16 @@
   Name: <generated>, grid: ($r11*$r11+$i11*$i11 + $r12*$r12+$i12*$i12 + $r13*$r13+$i13*$i13 + $r14*$r14+$i14*$i14 + $r15*$r15+$i15*$i15 + $r16*$r16+$i16*$i16 + $r17*$r17+$i17*$i17 + $r18*$r18+$i18*$i18)
   Source: <generated>
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 1.998281532651E-02  2.012887948659E-02  2.050144942565E-02  
   Last elements... 1.822125915423E-02  1.856899768146E-02  1.911796451464E-02  
   Sum of elements... 2.207000348926E+03
   Sum of squares of elements... 6.973998673533E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (50) = 8.00000000
   Cell integral (50) = 8.00000000
   Min: 1.10810872E-03
   Average: 6.73523056E-02
@@ -1227,12 +1427,16 @@
   Name: <generated>, grid: ($r21*$r21+$i21*$i21 + $r22*$r22+$i22*$i22 + $r23*$r23+$i23*$i23 + $r24*$r24+$i24*$i24 + $r25*$r25+$i25*$i25 + $r26*$r26+$i26*$i26 + $r27*$r27+$i27*$i27 + $r28*$r28+$i28*$i28)
   Source: <generated>
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 8.068714822528E-21  3.248637794895E-04  1.254243559385E-03  
   Last elements... 1.430873549666E-03  4.902775225779E-04  3.152136597717E-05  
   Sum of elements... 2.207000348926E+03
   Sum of squares of elements... 9.377387189698E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (51) = 8.00000000
   Cell integral (51) = 8.00000000
   Min: 8.23574471E-24
   Average: 6.73523056E-02
@@ -1249,12 +1453,16 @@
   Name: <generated>, grid: ($r31*$r31+$i31*$i31 + $r32*$r32+$i32*$i32 + $r33*$r33+$i33*$i33 + $r34*$r34+$i34*$i34 + $r35*$r35+$i35*$i35 + $r36*$r36+$i36*$i36 + $r37*$r37+$i37*$i37 + $r38*$r38+$i38*$i38)
   Source: <generated>
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 2.947407226392E-17  8.382895065563E-05  3.617741012909E-04  
   Last elements... 2.384480728674E-03  1.888484987847E-03  1.315878316857E-03  
   Sum of elements... 2.207000348926E+03
   Sum of squares of elements... 1.964776734622E+03
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (52) = 8.00000000
   Cell integral (52) = 8.00000000
   Min: 1.31703010E-17
   Average: 6.73523056E-02
@@ -1271,12 +1479,16 @@
   Name: <generated>, grid: ($r11*$r21+$i11*$i21 + $r12*$r22+$i12*$i22 + $r13*$r23+$i13*$i23 + $r14*$r24+$i14*$i24 + $r15*$r25+$i15*$i25 + $r16*$r26+$i16*$i26 + $r17*$r27+$i17*$i27 + $r18*$r28+$i18*$i28)
   Source: <generated>
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 2.822544318881E-27  -9.918755812348E-19  -7.004962473793E-19  
   Last elements... -6.174870185484E-19  -1.151964808266E-19  -5.717472393967E-21  
   Sum of elements... -3.124990269006E-13
   Sum of squares of elements... 2.001296232909E-29
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (53) = -0.00000000
   Cell integral (53) = -0.00000000
   Min: -2.22695126E-16
   Average: -9.53671347E-18
@@ -1293,12 +1505,16 @@
   Name: <generated>, grid: ($r11*$r31+$i11*$i31 + $r12*$r32+$i12*$i32 + $r13*$r33+$i13*$i33 + $r14*$r34+$i14*$i34 + $r15*$r35+$i15*$i35 + $r16*$r36+$i16*$i36 + $r17*$r37+$i17*$i37 + $r18*$r38+$i18*$i38)
   Source: <generated>
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 4.707684899669E-10  -9.866316138966E-04  -2.068518247007E-03  
   Last elements... 5.006504458230E-03  4.497793541101E-03  3.809581114767E-03  
   Sum of elements... 1.203833040198E-13
   Sum of squares of elements... 4.908906841974E+02
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (54) = 0.00000000
   Cell integral (54) = 0.00000000
   Min: -1.34925916E+00
   Average: 3.67380689E-18
@@ -1315,12 +1531,16 @@
   Name: <generated>, grid: ($r21*$r31+$i21*$i31 + $r22*$r32+$i22*$i32 + $r23*$r33+$i23*$i33 + $r24*$r34+$i24*$i34 + $r25*$r35+$i25*$i35 + $r26*$r36+$i26*$i36 + $r27*$r37+$i27*$i37 + $r28*$r38+$i28*$i38)
   Source: <generated>
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 32  32  32  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 2.080154803215E-34  -2.567568621365E-20  -1.112789534455E-19  
   Last elements... 1.753358200816E-19  4.446922973085E-21  1.299666178443E-20  
   Sum of elements... -3.727578704471E-15
   Sum of squares of elements... 1.333594999021E-29
+  Grid domain/cell volume = 118.7784/118.7784
+  Grid domain integral (55) = -0.00000000
   Cell integral (55) = -0.00000000
   Min: -3.83807569E-16
   Average: -1.13756674E-19

@@ -2,12 +2,16 @@
   Name: grid_dens.001
   Source: ../zz_source/fplo-22.00v62/quartz/grid_dens.001
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 31  31  31  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.32003  
   First elements... 3.348430108050E-03  3.436753978053E-03  3.665741270579E-03  
   Last elements... 3.665741270579E-03  3.436753978053E-03  3.348430108050E-03  
   Sum of elements... 4.409401995036E+03
   Sum of squares of elements... 7.463713441405E+04
+  Grid domain/cell volume = 679.2127/679.2127
+  Grid domain integral (1) = 100.53109310
   Cell integral (1) = 100.53109310
   Min: 1.60338298E-03
   Average: 1.48011211E-01

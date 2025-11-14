@@ -2,12 +2,16 @@
   Name: ldos.cube
   Source: ../zz_source/qe-6.5/alas110re/ldos.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 18  25  108  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.42000  
   First elements... 4.369700000000E-03  9.602800000000E-03  1.125900000000E-02  
   Last elements... 1.900200000000E-02  1.169800000000E-02  4.002000000000E-03  
   Sum of elements... 5.982283366818E+01
   Sum of squares of elements... 3.407947609541E-01
+  Grid domain/cell volume = 3472.8757/3472.8757
+  Grid domain integral (1) = 4.27484091
   Cell integral (1) = 4.27484091
   Min: 1.89270000E-08
   Average: 1.23092250E-03

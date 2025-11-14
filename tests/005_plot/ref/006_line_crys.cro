@@ -1262,12 +1262,16 @@
   Name: <generated>, grid: $0/2
   Source: <generated>
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 10  10  10  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.79576  
   First elements... 5.704422000954E+02  4.642469809066E-01  2.246719088632E-02  
   Last elements... 2.164332237315E-02  1.356992193051E-02  3.528666760960E-02  
   Sum of elements... 2.962353501099E+03
   Sum of squares of elements... 1.402136048773E+06
+  Grid domain/cell volume = 0.0000/503.9093
+  Grid domain integral (1) = 0.00000000
   Cell integral (1) = 1492.75733279
   Min: 9.76464472E-03
   Average: 2.96235350E+00

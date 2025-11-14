@@ -2,12 +2,16 @@
   Name: quartz_o_DEN
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 80  80  90  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.11608  
   First elements... 2.251720769675E-03  2.257469893580E-03  2.273780362964E-03  
   Last elements... 2.383387122030E-03  2.344224824658E-03  2.318373306775E-03  
   Sum of elements... 3.624016252190E+04
   Sum of squares of elements... 1.236641471262E+04
+  Grid domain/cell volume = 762.9105/762.9105
+  Grid domain integral (1) = 48.00000000
   Cell integral (1) = 48.00000000
   Min: 1.11426372E-03
   Average: 6.29169488E-02
@@ -26,12 +30,16 @@
   Name: quartz_o_GDEN1
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_GDEN1
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 80  80  90  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.11608  
   First elements... -1.052371348703E-04  -7.347832507920E-05  -8.236369446712E-05  
   Last elements... -3.697077542347E-04  -3.660138960065E-04  -3.801678395651E-04  
   Sum of elements... 5.500114252932E-14
   Sum of squares of elements... 1.476680466294E+04
+  Grid domain/cell volume = 762.9105/762.9105
+  Grid domain integral (2) = 0.00000000
   Cell integral (2) = 0.00000000
   Min: -1.73700919E+00
   Average: 9.54880947E-20
@@ -48,12 +56,16 @@
   Name: quartz_o_GDEN2
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_GDEN2
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 80  80  90  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.11608  
   First elements... -1.823050847193E-04  -2.414009311963E-04  -3.519948820639E-04  
   Last elements... -9.744024826114E-04  -8.536501420477E-04  -7.701766193822E-04  
   Sum of elements... 3.944126275579E-12
   Sum of squares of elements... 1.476680466295E+04
+  Grid domain/cell volume = 762.9105/762.9105
+  Grid domain integral (3) = 0.00000000
   Cell integral (3) = 0.00000000
   Min: -1.72311960E+00
   Average: 6.84744145E-18
@@ -70,12 +82,16 @@
   Name: quartz_o_GDEN3
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_GDEN3
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 80  80  90  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.11608  
   First elements... -4.440423168051E-10  9.988284970683E-05  1.836441128348E-04  
   Last elements... -3.893008553548E-04  -2.929764735620E-04  -1.572790841804E-04  
   Sum of elements... 4.169829238843E-11
   Sum of squares of elements... 1.473858773957E+04
+  Grid domain/cell volume = 762.9105/762.9105
+  Grid domain integral (4) = 0.00000000
   Cell integral (4) = 0.00000000
   Min: -1.68241668E+00
   Average: 7.23928687E-17
@@ -92,12 +108,16 @@
   Name: quartz_o_LDEN
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_LDEN
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 80  80  90  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.11608  
   First elements... 4.955873856369E-03  4.827159683734E-03  4.519183684946E-03  
   Last elements... 8.868983193108E-03  9.384181483951E-03  9.774526561554E-03  
   Sum of elements... -7.082445914464E-11
   Sum of squares of elements... 6.828597928697E+05
+  Grid domain/cell volume = 762.9105/762.9105
+  Grid domain integral (5) = -0.00000000
   Cell integral (5) = -0.00000000
   Min: -9.95655072E+00
   Average: -1.22959130E-16
@@ -114,12 +134,16 @@
   Name: quartz_o_POT
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_POT
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 80  80  90  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.11608  
   First elements... 2.099095320530E-01  2.104450665856E-01  2.116345810638E-01  
   Last elements... 2.078489885745E-01  2.071372161712E-01  2.064175444831E-01  
   Sum of elements... -2.085569582204E+05
   Sum of squares of elements... 6.742777706043E+05
+  Grid domain/cell volume = 762.9105/762.9105
+  Grid domain integral (6) = -276.23314295
   Cell integral (6) = -276.23314295
   Min: -9.17196199E+00
   Average: -3.62078052E-01
@@ -136,12 +160,16 @@
   Name: quartz_o_VCLMB
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VCLMB
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 80  80  90  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.11608  
   First elements... 3.734744989474E-01  3.741347244350E-01  3.756767905158E-01  
   Last elements... 3.742167940362E-01  3.726832208948E-01  3.714158083713E-01  
   Sum of elements... 2.566302725882E-11
   Sum of squares of elements... 4.429178699731E+05
+  Grid domain/cell volume = 762.9105/762.9105
+  Grid domain integral (7) = 0.00000000
   Cell integral (7) = 0.00000000
   Min: -7.55609071E+00
   Average: 4.45538668E-17
@@ -158,12 +186,16 @@
   Name: quartz_o_VHA
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VHA
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 80  80  90  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.11608  
   First elements... -1.143636874536E+00  -1.143438445621E+00  -1.142851923327E+00  
   Last elements... -1.120804316614E+00  -1.121311097593E+00  -1.121631483578E+00  
   Sum of elements... 2.730349280000E-11
   Sum of squares of elements... 4.818521802812E+05
+  Grid domain/cell volume = 762.9105/762.9105
+  Grid domain integral (8) = 0.00000000
   Cell integral (8) = 0.00000000
   Min: -1.21890554E+00
   Average: 4.74018972E-17
@@ -180,12 +212,16 @@
   Name: quartz_o_VHXC
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VHXC
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 80  80  90  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.11608  
   First elements... -1.307201841431E+00  -1.307128103470E+00  -1.306894132779E+00  
   Last elements... -1.287172122076E+00  -1.286857102316E+00  -1.286629747466E+00  
   Sum of elements... -2.085569582204E+05
   Sum of squares of elements... 3.836234789323E+05
+  Grid domain/cell volume = 762.9105/762.9105
+  Grid domain integral (9) = -276.23314295
   Cell integral (9) = -276.23314295
   Min: -1.36619959E+00
   Average: -3.62078052E-01
@@ -202,12 +238,16 @@
   Name: quartz_o_VPSP
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VPSP
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 80  80  90  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.11608  
   First elements... 1.517111373484E+00  1.517573170056E+00  1.518528713843E+00  
   Last elements... 1.495021110651E+00  1.493994318487E+00  1.493047291949E+00  
   Sum of elements... -2.002245036437E-10
   Sum of squares of elements... 1.506188005801E+06
+  Grid domain/cell volume = 762.9105/762.9105
+  Grid domain integral (10) = -0.00000000
   Cell integral (10) = -0.00000000
   Min: -1.11044951E+01
   Average: -3.47611985E-16
@@ -224,12 +264,16 @@
   Name: quartz_o_VXC
   Source: ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_VXC
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 80  80  90  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.11608  
   First elements... -1.635649668944E-01  -1.636896578494E-01  -1.640422094520E-01  
   Last elements... -1.663678054617E-01  -1.655460047236E-01  -1.649982638882E-01  
   Sum of elements... -2.085569582204E+05
   Sum of squares of elements... 9.584252332784E+04
+  Grid domain/cell volume = 762.9105/762.9105
+  Grid domain integral (11) = -276.23314295
   Cell integral (11) = -276.23314295
   Min: -1.68146489E+00
   Average: -3.62078052E-01
@@ -276,12 +320,16 @@
   Name: quartz_o_DEN
   Source: ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 80  80  90  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.11608  
   First elements... 1.948846107675E-03  1.953716020392E-03  1.968105613498E-03  
   Last elements... 2.168114506346E-03  2.145192999582E-03  2.130839935212E-03  
   Sum of elements... 3.624016354025E+04
   Sum of squares of elements... 1.276442166217E+04
+  Grid domain/cell volume = 762.9105/762.9105
+  Grid domain integral (1) = 48.00000135
   Cell integral (1) = 48.00000135
   Min: -1.58090372E-02
   Average: 6.29169506E-02
@@ -300,12 +348,16 @@
   Name: quartz_o_PAWDEN
   Source: ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_PAWDEN
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 80  80  90  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.11608  
   First elements... 1.948846107675E-03  1.953716020392E-03  1.968105613498E-03  
   Last elements... 2.168114506346E-03  2.145192999582E-03  2.130839935212E-03  
   Sum of elements... 3.623977007224E+04
   Sum of squares of elements... 1.320322985148E+04
+  Grid domain/cell volume = 762.9105/762.9105
+  Grid domain integral (2) = 47.99948020
   Cell integral (2) = 47.99948020
   Min: -8.54626236E-03
   Average: 6.29162675E-02

@@ -2,12 +2,16 @@
   Name: crystal.RHO
   Source: ../zz_source/siesta-4.1/graphite/crystal.RHO
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 16  16  48  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.29007  
   First elements... 5.446809809655E-03  6.246194243431E-03  8.832807652652E-03  
   Last elements... 1.362638641149E-02  8.625842630863E-03  6.119867786765E-03  
   Sum of elements... 8.329161614450E+02
   Sum of squares of elements... 1.319324056544E+02
+  Grid domain/cell volume = 236.0475/236.0475
+  Grid domain integral (1) = 15.99998203
   Cell integral (1) = 15.99998203
   Min: 3.09806108E-03
   Average: 6.77828907E-02
@@ -26,12 +30,16 @@
   Name: crystal.BADER
   Source: ../zz_source/siesta-4.1/graphite/crystal.BADER
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 16  16  48  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.29007  
   First elements... 5.446809809655E-03  6.246194243431E-03  8.832807652652E-03  
   Last elements... 1.362638641149E-02  8.625842630863E-03  6.119867786765E-03  
   Sum of elements... 1.249403708768E+03
   Sum of squares of elements... 1.060015155638E+03
+  Grid domain/cell volume = 236.0475/236.0475
+  Grid domain integral (2) = 24.00053908
   Cell integral (2) = 24.00053908
   Min: 3.09806108E-03
   Average: 1.01676734E-01
@@ -48,12 +56,16 @@
   Name: crystal.DRHO
   Source: ../zz_source/siesta-4.1/graphite/crystal.DRHO
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 16  16  48  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.29007  
   First elements... 5.193233373575E-04  3.967091906816E-04  -9.717827197164E-05  
   Last elements... -1.068929675967E-03  -1.201182531076E-04  3.740648389794E-04  
   Sum of elements... 1.354547084702E-04
   Sum of squares of elements... 1.578681024691E+00
+  Grid domain/cell volume = 236.0475/236.0475
+  Grid domain integral (3) = 0.00000260
   Cell integral (3) = 0.00000260
   Min: -4.83983904E-02
   Average: 1.10233324E-08
@@ -70,12 +82,16 @@
   Name: crystal.LDOS
   Source: ../zz_source/siesta-4.1/graphite/crystal.LDOS
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 16  16  48  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.29007  
   First elements... 1.812965492718E-03  2.123341429979E-03  3.134407103062E-03  
   Last elements... 4.949633497745E-03  3.052817657590E-03  2.089084591717E-03  
   Sum of elements... 1.053996685417E+02
   Sum of squares of elements... 2.883164547187E+00
+  Grid domain/cell volume = 236.0475/236.0475
+  Grid domain integral (4) = 2.02468493
   Cell integral (4) = 2.02468493
   Min: 6.87429292E-07
   Average: 8.57744698E-03
@@ -92,12 +108,16 @@
   Name: crystal.VT
   Source: ../zz_source/siesta-4.1/graphite/crystal.VT
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 16  16  48  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.29007  
   First elements... -4.014695882797E-01  -4.284884035587E-01  -5.134969949722E-01  
   Last elements... -6.419344544411E-01  -5.050554871559E-01  -4.250424206257E-01  
   Sum of elements... -1.737186430359E+04
   Sum of squares of elements... 4.532906697896E+04
+  Grid domain/cell volume = 236.0475/236.0475
+  Grid domain integral (5) = -333.70647549
   Cell integral (5) = -333.70647549
   Min: -8.88974857E+00
   Average: -1.41372594E+00
@@ -114,12 +134,16 @@
   Name: crystal.VH
   Source: ../zz_source/siesta-4.1/graphite/crystal.VH
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 16  16  48  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.29007  
   First elements... -4.972795024514E-02  -5.529231950641E-02  -7.413027435541E-02  
   Last elements... -1.104660108685E-01  -7.280975580215E-02  -5.471925064921E-02  
   Sum of elements... -8.011507675126E+03
   Sum of squares of elements... 1.666640433205E+04
+  Grid domain/cell volume = 236.0475/236.0475
+  Grid domain integral (6) = -153.89781678
   Cell integral (6) = -153.89781678
   Min: -6.28123426E+00
   Average: -6.51978164E-01

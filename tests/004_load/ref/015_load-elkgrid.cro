@@ -2,12 +2,16 @@
   Name: RHO3D.OUT
   Source: ../zz_source/elk-6.3.02/sbpo4/RHO3D.OUT
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 50  50  50  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.25787  
   First elements... 4.475214519000E-03  4.504281816000E-03  4.592648550000E-03  
   Last elements... 5.563064109000E-03  5.272461826000E-03  5.111779283000E-03  
   Sum of elements... 2.030602211129E+04
   Sum of squares of elements... 5.355539599232E+05
+  Grid domain/cell volume = 1093.2087/1093.2087
+  Grid domain integral (1) = 177.58976486
   Cell integral (1) = 177.58976486
   Min: 1.35665118E-03
   Average: 1.62448177E-01
@@ -26,12 +30,16 @@
   Name: ELF3D.OUT
   Source: ../zz_source/elk-6.3.02/sbpo4/ELF3D.OUT
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 150  150  150  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.08596  
   First elements... 1.583677544000E-02  1.584161149000E-02  1.585568079000E-02  
   Last elements... 1.653024425000E-02  1.634688263000E-02  1.617729116000E-02  
   Sum of elements... 9.990668131356E+05
   Sum of squares of elements... 5.473634214347E+05
+  Grid domain/cell volume = 1093.2087/1093.2087
+  Grid domain integral (2) = 323.61142524
   Cell integral (2) = 323.61142524
   Min: -4.02616522E-02
   Average: 2.96019796E-01

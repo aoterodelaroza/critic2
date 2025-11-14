@@ -2,12 +2,16 @@
   Name: feo.pwc
   Source: ../zz_source/qe-6.5/feo/feo.pwc
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... 3.995604191473E-04  9.900016917788E-03  1.158836131277E-01  
   Last elements... 7.011121538456E-01  4.986921915477E-01  2.383221642209E-01  
   Sum of elements... 4.762484537339E+03
   Sum of squares of elements... 1.708965784386E+03
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (1) = 14.00000000
   Cell integral (1) = 14.00000000
   Min: 3.99560419E-04
   Average: 1.02076572E-01
@@ -153,12 +157,16 @@
   Name: 021_cube_wannier_spin-1-1-i.cube
   Source: 021_cube_wannier_spin-1-1-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -5.603043878194E-07  8.038241369292E-03  2.806544788626E-02  
   Last elements... 1.098165776261E-02  5.744582461852E-03  1.356218460207E-03  
   Sum of elements... -1.255866026158E+02
   Sum of squares of elements... 1.532790922299E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (2) = -0.36917966
   Cell integral (2) = -0.36917966
   Min: -1.65854080E-01
   Average: -2.69175674E-03
@@ -175,12 +183,16 @@
   Name: 021_cube_wannier_spin-1-4-i.cube
   Source: 021_cube_wannier_spin-1-4-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... 1.860041521821E-07  -9.971502367779E-03  -3.480461313476E-02  
   Last elements... 2.320233377701E-01  1.968268046774E-01  1.299452364535E-01  
   Sum of elements... 3.767565780688E+02
   Sum of squares of elements... 2.130323003456E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (3) = 1.10752949
   Cell integral (3) = 1.10752949
   Min: -1.05772824E-01
   Average: 8.07520100E-03
@@ -197,12 +209,16 @@
   Name: 021_cube_wannier_spin-1-3-i.cube
   Source: 021_cube_wannier_spin-1-3-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... 1.860041521887E-07  -6.419246671971E-03  -2.241391706118E-02  
   Last elements... -6.852132913105E-02  -5.805704633271E-02  -3.826719978525E-02  
   Sum of elements... -1.255872747026E+02
   Sum of squares of elements... 1.707939129661E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (4) = -0.36918164
   Cell integral (4) = -0.36918164
   Min: -1.87336416E-01
   Average: -2.69177115E-03
@@ -219,12 +235,16 @@
   Name: 021_cube_wannier_spin-1-7-i.cube
   Source: 021_cube_wannier_spin-1-7-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... 1.860041522006E-07  -6.419272169926E-03  -2.241398291311E-02  
   Last elements... -9.772084104466E-03  2.256797444967E-03  1.213504382796E-02  
   Sum of elements... -1.255870323716E+02
   Sum of squares of elements... 1.583699942981E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (5) = -0.36918093
   Cell integral (5) = -0.36918093
   Min: -1.72505189E-01
   Average: -2.69176595E-03
@@ -241,12 +261,16 @@
   Name: 021_cube_wannier_spin-1-2-i.cube
   Source: 021_cube_wannier_spin-1-2-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... 1.860041521721E-07  -6.419337486776E-03  -2.241408848883E-02  
   Last elements... -3.489876879461E-02  -2.353996624051E-02  -9.421796669840E-03  
   Sum of elements... -1.255872943837E+02
   Sum of squares of elements... 1.522941858632E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (6) = -0.36918170
   Cell integral (6) = -0.36918170
   Min: -1.84507109E-01
   Average: -2.69177157E-03
@@ -263,12 +287,16 @@
   Name: 021_cube_wannier_spin-1-6-i.cube
   Source: 021_cube_wannier_spin-1-6-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... 1.860041521793E-07  -6.419283073551E-03  -2.241401913230E-02  
   Last elements... 2.385035098267E-02  3.677372002525E-02  4.098029171912E-02  
   Sum of elements... -1.255870126904E+02
   Sum of squares of elements... 1.759749613027E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (7) = -0.36918087
   Cell integral (7) = -0.36918087
   Min: -1.87336197E-01
   Average: -2.69176553E-03
@@ -285,12 +313,16 @@
   Name: 021_cube_wannier_spin-1-5-i.cube
   Source: 021_cube_wannier_spin-1-5-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... 1.860041521798E-07  2.164375903439E-02  7.555926819654E-02  
   Last elements... -2.930790226300E-03  1.589796290158E-02  2.914053802955E-02  
   Sum of elements... 3.767568400810E+02
   Sum of squares of elements... 2.318472863187E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (8) = 1.10753026
   Cell integral (8) = 1.10753026
   Min: -1.26895898E-01
   Average: 8.07520662E-03
@@ -307,12 +339,16 @@
   Name: 021_cube_wannier_spin-1-8-i.cube
   Source: 021_cube_wannier_spin-1-8-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -1.388257593415E-07  3.632955216025E-03  1.268818481250E-02  
   Last elements... 3.555744615391E-02  1.975973932200E-02  1.356045461377E-03  
   Sum of elements... -1.255864745829E+02
   Sum of squares of elements... 1.499020469627E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (9) = -0.36917929
   Cell integral (9) = -0.36917929
   Min: -1.65853963E-01
   Average: -2.69175400E-03
@@ -329,12 +365,16 @@
   Name: 021_cube_wannier_spin-1-1-r.cube
   Source: 021_cube_wannier_spin-1-1-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... 3.210386470266E-08  3.394035706366E-03  1.185112084853E-02  
   Last elements... -5.497141946684E-02  -5.728734011921E-02  -4.792228908676E-02  
   Sum of elements... -1.071281419854E+02
   Sum of squares of elements... 1.410440980469E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (10) = -0.31491840
   Cell integral (10) = -0.31491840
   Min: -2.77772807E-01
   Average: -2.29612787E-03
@@ -351,12 +391,16 @@
   Name: 021_cube_wannier_spin-1-4-r.cube
   Source: 021_cube_wannier_spin-1-4-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -2.684164182157E-08  -6.904084402298E-03  -2.409728734114E-02  
   Last elements... 9.708777856930E-02  7.829781780032E-02  4.759244153974E-02  
   Sum of elements... 3.213879234572E+02
   Sum of squares of elements... 3.969009724809E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (11) = 0.94476547
   Cell integral (11) = 0.94476547
   Min: -2.91404795E-01
   Average: 6.88845858E-03
@@ -373,12 +417,16 @@
   Name: 021_cube_wannier_spin-1-3-r.cube
   Source: 021_cube_wannier_spin-1-3-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -2.684164182122E-08  -8.319891750755E-03  -2.904774240059E-02  
   Last elements... -2.600623927485E-02  -1.077626131224E-02  4.275139907354E-03  
   Sum of elements... -1.071289858564E+02
   Sum of squares of elements... 2.880359504341E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (12) = -0.31492088
   Cell integral (12) = -0.31492088
   Min: -2.96759699E-01
   Average: -2.29614596E-03
@@ -395,12 +443,16 @@
   Name: 021_cube_wannier_spin-1-7-r.cube
   Source: 021_cube_wannier_spin-1-7-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -2.684164183285E-08  -8.319805299731E-03  -2.904760824808E-02  
   Last elements... 7.585963175411E-03  2.371052994770E-02  3.309455228048E-02  
   Sum of elements... -1.071299150143E+02
   Sum of squares of elements... 2.021551377486E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (13) = -0.31492361
   Cell integral (13) = -0.31492361
   Min: -3.14922904E-01
   Average: -2.29616587E-03
@@ -417,12 +469,16 @@
   Name: 021_cube_wannier_spin-1-2-r.cube
   Source: 021_cube_wannier_spin-1-2-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -2.684164182455E-08  -8.319957921226E-03  -2.904787404708E-02  
   Last elements... -1.812826578283E-01  -1.701835921249E-01  -1.289390476491E-01  
   Sum of elements... -1.071290267339E+02
   Sum of squares of elements... 1.746299808575E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (14) = -0.31492100
   Cell integral (14) = -0.31492100
   Min: -2.99579384E-01
   Average: -2.29614684E-03
@@ -439,12 +495,16 @@
   Name: 021_cube_wannier_spin-1-6-r.cube
   Source: 021_cube_wannier_spin-1-6-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -2.684164182478E-08  -8.319751205797E-03  -2.904751027634E-02  
   Last elements... -1.476906533270E-01  -1.356969503860E-01  -1.001197025100E-01  
   Sum of elements... -1.071298741367E+02
   Sum of squares of elements... 2.521828694762E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (15) = -0.31492349
   Cell integral (15) = -0.31492349
   Min: -3.04167801E-01
   Average: -2.29616500E-03
@@ -461,12 +521,16 @@
   Name: 021_cube_wannier_spin-1-5-r.cube
   Source: 021_cube_wannier_spin-1-5-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -2.684164181090E-08  1.117298967744E-02  3.900692213170E-02  
   Last elements... -3.725493111560E-02  -2.515404860683E-02  -1.004568298976E-02  
   Sum of elements... 3.213870351769E+02
   Sum of squares of elements... 3.797710285382E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (16) = 0.94476286
   Cell integral (16) = 0.94476286
   Min: -3.09526505E-01
   Average: 6.88843954E-03
@@ -483,12 +547,16 @@
   Name: 021_cube_wannier_spin-1-8-r.cube
   Source: 021_cube_wannier_spin-1-8-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -1.105233431382E-07  8.748480147187E-04  3.058499165093E-03  
   Last elements... -4.091958536386E-02  -4.927378574083E-02  -4.792228498962E-02  
   Sum of elements... -1.071306301231E+02
   Sum of squares of elements... 1.615608516581E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (17) = -0.31492571
   Cell integral (17) = -0.31492571
   Min: -3.14922903E-01
   Average: -2.29618120E-03
@@ -505,12 +573,16 @@
   Name: 021_cube_wannier_spin-2-1-i.cube
   Source: 021_cube_wannier_spin-2-1-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -7.370628084493E-03  -7.419498147089E-03  -7.687752085312E-03  
   Last elements... 9.256826588864E-03  8.087452396735E-03  7.374554666796E-03  
   Sum of elements... -1.831379677340E+01
   Sum of squares of elements... 5.185489613579E+00
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (18) = -0.05383601
   Cell integral (18) = -0.05383601
   Min: -5.34525266E-02
   Average: -3.92528223E-04
@@ -527,12 +599,16 @@
   Name: 021_cube_wannier_spin-2-4-i.cube
   Source: 021_cube_wannier_spin-2-4-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -1.076652805520E-09  -4.264811407315E-03  -1.491419422060E-02  
   Last elements... 3.140502291255E-02  2.398270724994E-02  1.309300957402E-02  
   Sum of elements... -2.799225325230E+01
   Sum of squares of elements... 1.149460859882E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (19) = -0.08228721
   Cell integral (19) = -0.08228721
   Min: -7.37858423E-02
   Average: -5.99971135E-04
@@ -549,12 +625,16 @@
   Name: 021_cube_wannier_spin-2-3-i.cube
   Source: 021_cube_wannier_spin-2-3-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -1.076652805816E-09  -3.136400763805E-04  -6.281465597140E-04  
   Last elements... 1.733821387293E-02  1.740331390585E-02  1.438890474880E-02  
   Sum of elements... -4.262290356028E+01
   Sum of squares of elements... 2.786477671292E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (20) = -0.12529608
   Cell integral (20) = -0.12529608
   Min: -1.38450367E-01
   Average: -9.13556746E-04
@@ -571,12 +651,16 @@
   Name: 021_cube_wannier_spin-2-7-i.cube
   Source: 021_cube_wannier_spin-2-7-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
-  First elements... -1.076652800780E-09  3.449234746778E-04  6.827876502041E-04  
+  First elements... -1.076652800687E-09  3.449234746778E-04  6.827876502041E-04  
   Last elements... -1.709423782530E-02  -1.717979789257E-02  -1.418650899651E-02  
   Sum of elements... 3.530744702338E+01
   Sum of squares of elements... 2.707537796479E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (21) = 0.10379126
   Cell integral (21) = 0.10379126
   Min: -1.41783640E-01
   Average: 7.56761124E-04
@@ -593,12 +677,16 @@
   Name: 021_cube_wannier_spin-2-2-i.cube
   Source: 021_cube_wannier_spin-2-2-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -1.076652805816E-09  3.452401814540E-04  6.833876070042E-04  
   Last elements... 1.477642585202E-02  1.546905030378E-02  1.309340922037E-02  
   Sum of elements... -2.799228322352E+01
   Sum of squares of elements... 1.324657706508E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (22) = -0.08228729
   Cell integral (22) = -0.08228729
   Min: -8.60679354E-02
   Average: -5.99971777E-04
@@ -615,12 +703,16 @@
   Name: 021_cube_wannier_spin-2-6-i.cube
   Source: 021_cube_wannier_spin-2-6-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -1.076652807594E-09  -3.133999818720E-04  -6.277060027898E-04  
   Last elements... -1.453099951907E-02  -1.524423834193E-02  -1.289004177413E-02  
   Sum of elements... 2.067682668661E+01
   Sum of squares of elements... 1.281304591635E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (23) = 0.06078247
   Cell integral (23) = 0.06078247
   Min: -8.94011218E-02
   Average: 4.43176155E-04
@@ -637,12 +729,16 @@
   Name: 021_cube_wannier_spin-2-5-i.cube
   Source: 021_cube_wannier_spin-2-5-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
-  First elements... -1.076652808779E-09  4.296350091374E-03  1.496932782950E-02  
+  First elements... -1.076652808483E-09  4.296350091374E-03  1.496932782950E-02  
   Last elements... -3.245986710595E-02  -2.504165865739E-02  -1.418609578424E-02  
   Sum of elements... 3.530747699459E+01
   Sum of squares of elements... 2.997077537405E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (24) = 0.10379135
   Cell integral (24) = 0.10379135
   Min: -1.54066089E-01
   Average: 7.56761767E-04
@@ -659,12 +755,16 @@
   Name: 021_cube_wannier_spin-2-8-i.cube
   Source: 021_cube_wannier_spin-2-8-i.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... 7.370452642152E-03  7.450868232986E-03  7.742731185920E-03  
   Last elements... -1.031174838509E-02  -9.146493540897E-03  -8.467744277424E-03  
   Sum of elements... 2.562923253292E+01
   Sum of squares of elements... 6.427567445653E+00
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (25) = 0.07534077
   Cell integral (25) = 0.07534077
   Min: -5.33367793E-02
   Average: 5.49323400E-04
@@ -681,12 +781,16 @@
   Name: 021_cube_wannier_spin-2-1-r.cube
   Source: 021_cube_wannier_spin-2-1-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -4.583256250299E-03  -4.114237264785E-03  -3.907500022882E-03  
   Last elements... 6.300855992701E-03  5.863350630568E-03  5.758000651940E-03  
   Sum of elements... -2.950010438190E+01
   Sum of squares of elements... 2.359725850961E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (26) = -0.08671975
   Cell integral (26) = -0.08671975
   Min: -1.47386084E-01
   Average: -6.32289617E-04
@@ -703,12 +807,16 @@
   Name: 021_cube_wannier_spin-2-4-r.cube
   Source: 021_cube_wannier_spin-2-4-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
-  First elements... -4.339430344400E-08  -2.152766325705E-03  -8.401682506297E-03  
+  First elements... -4.339430344370E-08  -2.152766325705E-03  -8.401682506297E-03  
   Last elements... 2.007404197811E-02  1.574800043584E-02  9.314005017596E-03  
   Sum of elements... -3.551955335938E+01
   Sum of squares of elements... 4.600276314839E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (27) = -0.10441477
   Cell integral (27) = -0.10441477
   Min: -2.05155518E-01
   Average: -7.61307299E-04
@@ -725,12 +833,16 @@
   Name: 021_cube_wannier_spin-2-3-r.cube
   Source: 021_cube_wannier_spin-2-3-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
-  First elements... -4.339430344711E-08  1.934959011426E-03  3.728292927760E-03  
+  First elements... -4.339430344710E-08  1.934959011426E-03  3.728292927760E-03  
   Last elements... 1.763698784909E-03  3.688443740199E-03  3.702038042223E-03  
   Sum of elements... 2.783125842041E+01
   Sum of squares of elements... 1.844894795795E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (28) = 0.08181394
   Cell integral (28) = 0.08181394
   Min: -1.32132650E-01
   Average: 5.96520457E-04
@@ -747,12 +859,16 @@
   Name: 021_cube_wannier_spin-2-7-r.cube
   Source: 021_cube_wannier_spin-2-7-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
-  First elements... -4.339430343970E-08  -9.166217947768E-04  -1.948100237916E-03  
+  First elements... -4.339430344000E-08  -9.166217947768E-04  -1.948100237916E-03  
   Last elements... -6.958816324366E-03  -8.235538723894E-03  -7.649916136326E-03  
   Sum of elements... 3.844167323358E+00
   Sum of squares of elements... 6.694579631649E+00
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (29) = 0.01130048
   Cell integral (29) = 0.01130048
   Min: -7.33635918E-02
   Average: 8.23938470E-05
@@ -769,12 +885,16 @@
   Name: 021_cube_wannier_spin-2-2-r.cube
   Source: 021_cube_wannier_spin-2-2-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -4.339430345066E-08  -9.167890756253E-04  -1.948403666576E-03  
   Last elements... 1.285946810360E-02  1.206675282984E-02  9.313835356586E-03  
   Sum of elements... -3.551945013154E+01
   Sum of squares of elements... 1.633810311937E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (30) = -0.10441447
   Cell integral (30) = -0.10441447
   Min: -8.11843115E-02
   Average: -7.61305087E-04
@@ -791,12 +911,16 @@
   Name: 021_cube_wannier_spin-2-6-r.cube
   Source: 021_cube_wannier_spin-2-6-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... -4.339430344385E-08  1.935149692540E-03  3.728635463692E-03  
   Last elements... -1.805477590503E-02  -1.661405363181E-02  -1.326188893941E-02  
   Sum of elements... 6.719487587530E+01
   Sum of squares of elements... 6.044681577019E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (31) = 0.19752889
   Cell integral (31) = 0.19752889
   Min: -2.18863350E-01
   Average: 1.44021939E-03
@@ -813,12 +937,16 @@
   Name: 021_cube_wannier_spin-2-5-r.cube
   Source: 021_cube_wannier_spin-2-5-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
-  First elements... -4.339430344370E-08  3.171152468436E-03  1.018195253024E-02  
+  First elements... -4.339430344355E-08  3.171152468436E-03  1.018195253024E-02  
   Last elements... -1.964185037035E-02  -1.473902665146E-02  -7.650311013190E-03  
   Sum of elements... 3.844064095511E+00
   Sum of squares of elements... 1.449196759895E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (32) = 0.01130017
   Cell integral (32) = 0.01130017
   Min: -1.25229888E-01
   Average: 8.23916344E-05
@@ -835,12 +963,16 @@
   Name: 021_cube_wannier_spin-2-8-r.cube
   Source: 021_cube_wannier_spin-2-8-r.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... 4.583717601325E-03  5.133155764934E-03  5.688259742096E-03  
   Last elements... -5.868322663048E-03  -4.853967625597E-03  -4.093840466426E-03  
   Sum of elements... -2.175703829342E+00
   Sum of squares of elements... 2.007881252540E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (33) = -0.00639579
   Cell integral (33) = -0.00639579
   Min: -1.47385721E-01
   Average: -4.66328839E-05
@@ -857,15 +989,19 @@
   Name: <generated>, grid: ($r11*$r21+$i11*$i21 + $r12*$r22+$i12*$i22 + $r13*$r23+$i13*$i23 + $r14*$r24+$i14*$i24 + $r15*$r25+$i15*$i25 + $r16*$r26+$i16*$i26 + $r17*$r27+$i17*$i27 + $r18*$r28+$i18*$i28)
   Source: <generated>
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... 2.452844327207E-09  1.264156071801E-04  1.997454590226E-03  
   Last elements... 8.044716379598E-03  3.687124692851E-03  2.420184613516E-04  
-  Sum of elements... 7.270280297927E-15
+  Sum of elements... 8.286828254850E-15
   Sum of squares of elements... 6.169027947977E-02
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (34) = 0.00000000
   Cell integral (34) = 0.00000000
   Min: -1.21424868E-02
-  Average: 1.55827338E-19
+  Average: 1.77615489E-19
   Max: 1.32304741E-02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F
@@ -879,12 +1015,16 @@
   Name: <generated>, grid: ($r11*$r11+$i11*$i11 + $r12*$r12+$i12*$i12 + $r13*$r13+$i13*$i13 + $r14*$r14+$i14*$i14 + $r15*$r15+$i15*$i15 + $r16*$r16+$i16*$i16 + $r17*$r17+$i17*$i17 + $r18*$r18+$i18*$i18)
   Source: <generated>
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 36  36  36  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... 5.583677761658E-13  1.272190360595E-03  1.550586786657E-02  
   Last elements... 1.327258155570E-01  1.052265881920E-01  5.584021253102E-02  
   Sum of elements... 3.401774669527E+02
   Sum of squares of elements... 1.876493576001E+01
+  Grid domain/cell volume = 137.1519/137.1519
+  Grid domain integral (35) = 1.00000000
   Cell integral (35) = 1.00000000
   Min: 4.91225567E-13
   Average: 7.29118371E-03

@@ -2,12 +2,16 @@
   Name: rhoae.cube
   Source: ../zz_source/qe-6.5/na_nosym/rhoae.cube
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 40  40  40  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.19960  
   First elements... 1.239600000000E+03  2.316600000000E+01  4.745300000000E+00  
   Last elements... 3.616100000000E+00  6.352200000000E+00  2.316600000000E+01  
   Sum of elements... 3.760370939900E+03
   Sum of squares of elements... 1.545933412309E+06
+  Grid domain/cell volume = 254.4747/254.4760
+  Grid domain integral (1) = 14.95186468
   Cell integral (1) = 14.95193722
   Min: 4.39080000E-03
   Average: 5.87557959E-02
@@ -26,12 +30,16 @@
   Name: na.pwc
   Source: ../zz_source/qe-6.5/na_nosym/na.pwc
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 40  40  40  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.19960  
   First elements... 4.488391653586E-04  4.927066995422E-04  6.162193640727E-04  
   Last elements... 7.046161186180E-04  5.627792868344E-04  4.927069077714E-04  
   Sum of elements... 2.514972398032E+02
   Sum of squares of elements... 1.026118568983E+00
+  Grid domain/cell volume = 254.4760/254.4760
+  Grid domain integral (2) = 1.00000000
   Cell integral (2) = 1.00000000
   Min: 4.48839165E-04
   Average: 3.92964437E-03

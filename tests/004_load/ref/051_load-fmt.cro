@@ -2,12 +2,16 @@
   Name: si2.den_fmt
   Source: ../zz_source/castep-22.11/si2/si2.den_fmt
   Type: grid
+  Spans the unit cell? Yes
   Grid dimensions : 16  15  15  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.65717  
   First elements... 1.562573388889E-02  5.218778611111E-03  2.535985000000E-03  
   Last elements... 2.624136111111E-03  3.612493055556E-03  2.593831666667E-03  
   Sum of elements... 8.000000003889E+00
   Sum of squares of elements... 2.759385767751E-02
+  Grid domain/cell volume = 287.6209/287.6209
+  Grid domain integral (1) = 0.63915760
   Cell integral (1) = 0.63915760
   Min: 2.33821389E-04
   Average: 2.22222222E-03
