@@ -60,7 +60,6 @@ contains
   !> bas%n.
   module subroutine hirsh_weights(s,bas,idb,w)
     use systemmod, only: system
-    use grid3mod, only: grid3
     use fragmentmod, only: fragment
     use types, only: basindat
     use param, only: VSMALL

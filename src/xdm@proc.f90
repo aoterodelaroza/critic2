@@ -1835,7 +1835,6 @@ contains
   subroutine taufromelf(ielf,irho,itau)
     use systemmod, only: sy
     use fieldmod, only: type_grid
-    use grid3mod, only: grid3
     use tools_io, only: ferror, faterr, string, fclose
     use param, only: ifformat_as_ft_grad
     integer, intent(in) :: ielf, irho, itau

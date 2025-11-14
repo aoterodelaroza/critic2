@@ -645,7 +645,6 @@ contains
   !> crystal structure, id = numerical ID of the new field. name =
   !> name of the new field. sptr = C pointer to the parent system.
   module subroutine load_ghost(f,c,id,name,expr,sptr)
-    use grid3mod, only: grid3
     use fragmentmod, only: fragment
     use hashmod, only: hash
     use iso_c_binding, only: c_ptr
@@ -766,7 +765,6 @@ contains
   !> id and name of the new field.
   module subroutine load_grid_from_array3(f,c,id,name,n,g)
     use iso_c_binding, only: c_loc
-    use grid3mod, only: grid3
     use fragmentmod, only: fragment
     use tools_io, only: ferror, faterr
     use param, only: ifformat_as_resample

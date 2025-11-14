@@ -63,7 +63,6 @@ contains
     use yt, only: yt_integrate, yt_isosurface, yt_weights, ytdata, ytdata_clean
     use systemmod, only: sy
     use fieldmod, only: type_grid
-    use grid3mod, only: grid3
     use global, only: eval_next, dunit0, iunit, iunitname0
     use tools_io, only: ferror, faterr, lgetword, equal, isexpression_or_word, uout,&
        string, fclose, isinteger, getword

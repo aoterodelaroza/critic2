@@ -89,7 +89,6 @@ contains
   !   use yt, only: yt_integrate, yt_weights
   !   use systemmod, only: sy
   !   use fieldmod, only: type_grid
-  !   use grid3mod, only: grid3
   !   use tools_math, only: select_lebedev, gauleg
   !   use tools_io, only: string
   !   use types, only: scalar_value_noalloc, realloc

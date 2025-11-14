@@ -699,6 +699,10 @@ contains
           call ferror('rhoplot_cube','CUBE MLWF/WANNIER/...: incorrect band number',faterr,syntax=.true.)
           return
        end if
+       if (sy%f(id)%grid%partial) then
+          call ferror('rhoplot_cube','CUBE MLWF/WANNIER/...: cannot be used with non-periodic grids',faterr,syntax=.true.)
+          return
+       end if
     end if
 
     ! convert to one-step vectors in each direction
