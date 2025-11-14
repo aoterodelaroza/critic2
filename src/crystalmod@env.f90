@@ -950,7 +950,7 @@ contains
   !> - lvec(3,nid) = lattice vector coordinates (crystallographic).
   !>
   !> This routine is thread-safe.
-  module subroutine list_near_lattice_points(c,xp,icrd,sorted,nat,dist,lvec,ndiv,&
+  module subroutine list_near_lattice_points(c,xp,icrd,sorted,nat,dist,lvec,x2c,ndiv,&
      up2d,up2n,nozero)
     use types, only: realloc
     use tools, only: mergesort, wscell
@@ -964,6 +964,7 @@ contains
     integer, intent(out) :: nat
     real*8, allocatable, intent(inout), optional :: dist(:)
     integer, allocatable, intent(inout), optional :: lvec(:,:)
+    real*8, intent(in), optional :: x2c(3,3)
     integer, intent(in), optional :: ndiv(3)
     real*8, intent(in), optional :: up2d
     integer, intent(in), optional :: up2n
@@ -978,7 +979,7 @@ contains
     integer, allocatable :: idb(:,:), iaux(:)
     integer, allocatable :: at_lvec(:,:), iord(:)
     real*8, allocatable :: at_dist(:)
-    real*8 :: x2c(3,3), x2xr(3,3), xr2x(3,3), xr2c(3,3), c2xr(3,3)
+    real*8 :: x2c_(3,3), x2xr(3,3), xr2x(3,3), xr2c(3,3), c2xr(3,3)
 
     real*8, parameter :: eps = 1d-20
 
@@ -994,12 +995,22 @@ contains
        call ferror("list_near_lattice_points","must give one of up2d or up2n",faterr)
     end if
 
-    if (present(ndiv)) then
+    if (present(x2c)) then
+       if (present(ndiv)) then
+          do i = 1, 3
+             x2c_(:,i) = x2c(:,i) / real(ndiv(i),8)
+          end do
+       else
+          x2c_ = x2c
+       end if
+       x0 = xp * ndiv
+       call wscell(x2c_,.true.,m_xr2x=xr2x,m_xr2c=xr2c,m_x2xr=x2xr,m_c2xr=c2xr)
+    elseif (present(ndiv)) then
        do i = 1, 3
-          x2c(:,i) = c%m_x2c(:,i) / real(ndiv(i),8)
+          x2c_(:,i) = c%m_x2c(:,i) / real(ndiv(i),8)
        end do
        x0 = xp * ndiv
-       call wscell(x2c,.true.,m_xr2x=xr2x,m_xr2c=xr2c,m_x2xr=x2xr,m_c2xr=c2xr)
+       call wscell(x2c_,.true.,m_xr2x=xr2x,m_xr2c=xr2c,m_x2xr=x2xr,m_c2xr=c2xr)
     else
        x0 = xp
        xr2c = c%m_xr2c

@@ -184,10 +184,11 @@ module fieldmod
        character*(*), intent(in), optional :: fder
        logical, intent(in), optional :: periodic
      end subroutine grd
-     recursive module function grd0(f,v,periodic)
+     recursive module function grd0(f,v,periodic,valid)
        class(field), intent(inout) :: f
        real*8, dimension(3), intent(in) :: v
        logical, intent(in), optional :: periodic
+       logical, intent(out), optional :: valid
        real*8 :: grd0
      end function grd0
      recursive module function der1i(f,dir,x,h,errcnv,pool,periodic)

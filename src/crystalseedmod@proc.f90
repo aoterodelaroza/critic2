@@ -1951,10 +1951,11 @@ contains
     integer :: lu
     integer :: i, j, nstep(3), nn, iz, it, ier
     real*8 :: x0(3), rmat(3,3), rdum, rx(3), rxt(3)
-    logical :: ismo, ok
+    logical :: ismo, ok, use0
     character(len=:), allocatable :: line
+    real*8, allocatable :: rxc(:,:)
 
-    real*8, parameter :: eps = 1d-3
+    real*8, parameter :: eps = 1d-5
 
     call seed%end()
     errmsg = "Error reading file: " // trim(file)
@@ -1994,7 +1995,7 @@ contains
 
     ! Atomic positions.
     allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
-    allocate(seed%spc(2))
+    allocate(seed%spc(2),rxc(3,seed%nat))
     nn = seed%nat
     seed%nat = 0
     do i = 1, nn
@@ -2002,12 +2003,8 @@ contains
        if (iz <= 0) cycle
 
        seed%nat = seed%nat + 1
-       if (mol) then
-          seed%x(:,seed%nat) = rx
-       else
-          rx = matmul(rx - x0,rmat)
-          seed%x(:,seed%nat) = rx - floor(rx)
-       end if
+       rxc(:,seed%nat) = rx
+       seed%x(:,seed%nat) = matmul(rx - x0,rmat)
        it = 0
        do j = 1, seed%nspc
           if (seed%spc(j)%z == iz) then
@@ -2037,10 +2034,29 @@ contains
 999 continue
     call fclose(lu)
 
+    ! if this is a molecule, and atoms are outside the cell, use our
+    ! own cell instead of the one provided by the cube
+    use0 = .false.
+    if (mol) then
+       do i = 1, seed%nat
+          if (any(seed%x(:,i) < -eps) .or. any(seed%x(:,i) > 1d0+eps)) then
+             use0 = .true.
+             exit
+          end if
+          seed%x(:,i) = min(max(seed%x(:,i),0d0),1d0)
+       end do
+    end if
+
     if (mol) then
        ! treat this as a molecule
-       seed%useabr = 0
-       seed%border = rborder_def
+       if (use0) then
+          seed%useabr = 0
+          seed%border = rborder_def
+          seed%x = rxc
+       else
+          seed%useabr = 2
+          seed%border = 0d0
+       end if
     else
        ! treat it as a crystal
        seed%useabr = 2

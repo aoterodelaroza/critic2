@@ -209,7 +209,7 @@ contains
              errmsg = "value for normalize keyword missing"
              return
           end if
-          call ff%grid%normalize(norm,ff%c%omega)
+          call ff%grid%normalize(norm)
        else if (equal(word,'zpsp')) then
           ff%usecore = .true.
           if (.not.allocated(ff%zpsp)) allocate(ff%zpsp(ff%c%nspc))
@@ -380,14 +380,14 @@ contains
     elseif (seed%iff == ifformat_cube) then
        if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
-       call f%grid%read_cube(c_loc(c),seed%file(1),c%m_x2c,errmsg,ti=ti)
+       call f%grid%read_cube(c_loc(c),seed%file(1),c%m_x2c,c%molx0,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
     elseif (seed%iff == ifformat_bincube) then
        if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
-       call f%grid%read_bincube(c_loc(c),seed%file(1),c%m_x2c,errmsg,ti=ti)
+       call f%grid%read_bincube(c_loc(c),seed%file(1),c%m_x2c,c%molx0,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 
@@ -820,7 +820,7 @@ contains
     real*8 :: rho, grad(3), h(3,3), rhox(3), rhov(3), gradx(3,3), gradv(3,3)
     real*8 :: hx(3,3,3), hv(3,3,3), gkinx(3)
     real*8 :: fval(-ndif_jmax:ndif_jmax,3), fzero
-    logical :: isgrid, per, skipvalassign
+    logical :: isgrid, per, skipvalassign, valid
     character(len=:), allocatable :: errmsg
 
     real*8, parameter :: hini = 1d-3, errcnv = 1d-8
@@ -849,7 +849,12 @@ contains
     res%isnuc = .false.
     if (f%numerical .and. nder >= 0) then
        wc = v
-       fzero = grd0(f,v,periodic)
+       fzero = grd0(f,v,periodic,valid)
+       if (.not.valid) then
+          res%valid = .false.
+          call res%clear()
+          return
+       end if
        res%f = fzero
        res%gf = 0d0
        res%hf = 0d0
@@ -907,6 +912,7 @@ contains
        if ((any(wx < -flooreps) .or. any(wx > 1d0+flooreps)) .and. &
           f%type == type_grid .or. f%type == type_wien .or. f%type == type_elk .or.&
           f%type == type_pi) then
+          res%valid = .false.
           return
        end if
     end if
@@ -930,7 +936,12 @@ contains
           res%gf = 0d0
           res%hf = 0d0
        else
-          call f%grid%interp(wx,res%f,res%gf,res%hf)
+          call f%grid%interp(wx,res%f,res%gf,res%hf,valid)
+          if (.not.valid) then
+             call res%clear()
+             res%valid = .false.
+             return
+          end if
        endif
 
     case(type_wien)
@@ -1051,7 +1062,7 @@ contains
   !> (v in Cartesian). If periodic is present and false, consider the
   !> field is defined in a non-periodic system. This routine is
   !> thread-safe.
-  recursive module function grd0(f,v,periodic)
+  recursive module function grd0(f,v,periodic,valid)
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr
     use param, only: icrd_cart
@@ -1059,13 +1070,14 @@ contains
     real*8, dimension(3), intent(in) :: v !< Target point in cartesian or spherical coordinates.
     real*8 :: grd0
     logical, intent(in), optional :: periodic !< Whether the system is to be considered periodic (molecules only)
+    logical, intent(out), optional :: valid !< whether the evaluation was inside the field domain
 
     real*8 :: wx(3), wxr(3), wc(3), wcr(3)
     integer :: i
     real*8 :: h(3,3), grad(3), rho, rhoaux, gkin, vir, stress(3,3)
     real*8 :: hx(3,3,3), hv(3,3,3), gradx(3,3), gradv(3,3)
     real*8 :: rhox(3), rhov(3), gkinx(3)
-    logical :: per
+    logical :: per, valid_
     character(len=:), allocatable :: errmsg
 
     ! initialize
@@ -1075,6 +1087,7 @@ contains
        per = .true.
     end if
     grd0 = 0d0
+    if (present(valid)) valid = .true.
 
     ! To the main cell. Add a small safe zone around the limits of the unit cell
     ! to prevent precision problems.
@@ -1104,7 +1117,11 @@ contains
     ! type selector
     select case(f%type)
     case(type_grid)
-       call f%grid%interp(wx,rho,grad,h)
+       call f%grid%interp(wx,rho,grad,h,valid_)
+       if (.not.valid_) then
+          rho = 0d0
+          if (present(valid)) valid = .false.
+       end if
     case(type_wien)
        call f%wien%rho2(wx,0,rho,grad,h)
     case(type_elk)
@@ -1403,16 +1420,18 @@ contains
     use wfn_private, only: molwfn, wfn_rhf, wfn_uhf, wfn_frac, &
        molden_type_orca, molden_type_psi4, molden_type_adf_sto
     use global, only: dunit0, iunit, iunitname0
+    use tools_math, only: det3
     use tools_io, only: uout, string, ferror, faterr, ioj_center, nameguess, &
        ioj_right
     use param, only: hartoev
     class(field), intent(in) :: f
     logical, intent(in) :: isload
     logical, intent(in) :: isset
-    real*8 :: fspin
+    real*8 :: fspin, omega
 
     character(len=:), allocatable :: str, aux
     integer :: i, is, j, k, n(3)
+    real*8 :: x0(3)
 
     ! header
     if (.not.f%isinit) then
@@ -1437,7 +1456,18 @@ contains
        ! grids
        n = f%grid%n
        if (isload) then
+          if (f%grid%partial) then
+             write (uout,'("  Spans the unit cell? No")')
+          else
+             write (uout,'("  Spans the unit cell? Yes")')
+          end if
           write (uout,'("  Grid dimensions : ",3(A,"  "))') (string(n(j)),j=1,3)
+          if (f%c%ismolecule) then
+             x0 = (f%c%x2c(f%grid%x0) + f%c%molx0) * dunit0(iunit)
+             write (uout,'("  Grid origin (",A,") : ",3(A,"  "))') iunitname0(iunit),&
+                (string(x0(j),'f',decimal=8),j=1,3)
+          end if
+          write (uout,'("  Grid origin (cryst. coords.) : ",3(A,"  "))') (string(f%grid%x0(j),'f',decimal=8),j=1,3)
           write (uout,'("  Max. length Voronoi-relevant vector (",A,"):  ",2(A,"  "))') iunitname0(iunit), &
              string(f%grid%dmax*dunit0(iunit),'f',decimal=5)
           write (uout,'("  First elements... ",3(A,"  "))') (string(f%grid%f(1,1,j),'e',decimal=12),j=1,min(3,f%grid%n(3)))
@@ -1445,6 +1475,11 @@ contains
              (string(f%grid%f(n(1),n(2),n(3)-2+j),'e',decimal=12),j=3-min(3,f%grid%n(3)),2)
           write (uout,'("  Sum of elements... ",A)') string(sum(f%grid%f(:,:,:)),'e',decimal=12)
           write (uout,'("  Sum of squares of elements... ",A)') string(sum(f%grid%f(:,:,:)**2),'e',decimal=12)
+
+          omega = det3(f%grid%x2cl)
+          write (uout,'("  Grid domain/cell volume = ",A,"/",A)') string(omega,'f',decimal=4), string(f%c%omega,'f',decimal=4)
+          write (uout,'("  Grid domain integral (",A,") = ",A)') string(f%id),&
+             string(sum(f%grid%f) * omega / real(product(n),8),'f',decimal=8)
           write (uout,'("  Cell integral (",A,") = ",A)') string(f%id),&
              string(sum(f%grid%f) * f%c%omega / real(product(n),8),'f',decimal=8)
           write (uout,'("  Min: ",A)') string(minval(f%grid%f),'e',decimal=8)

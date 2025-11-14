@@ -62,18 +62,25 @@ module grid3mod
      logical :: isinit = .false. !< is the grid initialized?
      logical :: isqe = .false. !< does it have qe ks states info?
      logical :: iswan = .false. !< does it have wannier info?
-     ! geometry of the grid and crystal
+     ! basic grid info
+     integer :: mode = mode_default !< interpolation mode
      integer :: n(3) !< number of grid points in each direction
+     type(c_ptr) :: cptr !< pointer to the crystal structure
+     ! information for partial grids (that do not span the whole cell)
+     logical :: partial = .false. !< true if the grid only spans a part of the cell
+     real*8 :: x0(3) !< origin of the grid (cryst. coords.)
+     real*8 :: x2cl(3,3) !< local x2c: lattice vectors for the grid domain
+     real*8 :: c2xl(3,3) !< grid Car. to cryst. matrix, inverse of x2cl
+     real*8 :: x2cg(3,3) !< grid step vectors: x2cl / n
+     ! geometry of the crystal (also of the grid, if partial = .false.)
      real*8 :: x2c(3,3) !< crystallographic to Cartesian matrix (crystal)
      real*8 :: c2x(3,3) !< Cartesian to crystallographic matrix (crystal)
-     real*8 :: x2cg(3,3) !< crystallographic to Cartesian matrix (grid)
-     real*8 :: dmax !< minimum and maximum grid steps
-     type(c_ptr) :: cptr !< pointer to the crystal structure
+     ! grid point neighbor topology
+     real*8 :: dmax !< largest grid step
      integer :: nvec !< number of neighbor grid points
      integer, allocatable :: vec(:,:) !< grid coordinates of neighbor grid points
      real*8, allocatable :: area(:) !< area of the Voronoi facets
-     ! basic grid variables
-     integer :: mode = mode_default !< interpolation mode
+     ! the actual grid data
      real*8, allocatable :: f(:,:,:) !< grid values
      ! trispline interpolation
      real*8, allocatable :: c2(:,:,:,:) !< cubic coefficients
@@ -106,7 +113,6 @@ module grid3mod
      procedure :: read_elk !< grid3 from elk file format
      procedure :: read_wannier_chk !< qe/wannier info from chk file
      procedure :: interp !< interpolate the grid at an arbitrary point
-     procedure :: grinterp_smr !< interpolate with the smoothrho method
      procedure :: fft !< grid3 as the FFT of another grid3
      procedure :: resample !< grid3 as a Fourier resampling of another grid3
      procedure :: rotate_qe_evc !< write U-rotated scratch files using QE evc file
@@ -134,9 +140,9 @@ module grid3mod
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: mode
      end subroutine setmode
-     module subroutine normalize(f,norm,omega)
+     module subroutine normalize(f,norm)
        class(grid3), intent(inout) :: f
-       real*8, intent(in) :: norm, omega
+       real*8, intent(in) :: norm
      end subroutine normalize
      module subroutine from_array3(f,g,x2c,cptr)
        class(grid3), intent(inout) :: f
@@ -144,19 +150,19 @@ module grid3mod
        real*8, intent(in) :: x2c(3,3)
        type(c_ptr), intent(in) :: cptr
      end subroutine from_array3
-     module subroutine read_cube(f,cptr,file,x2c,errmsg,ti)
+     module subroutine read_cube(f,cptr,file,x2c,molx0,errmsg,ti)
        class(grid3), intent(inout) :: f
        type(c_ptr), intent(in) :: cptr
        character*(*), intent(in) :: file
-       real*8, intent(in) :: x2c(3,3)
+       real*8, intent(in) :: x2c(3,3), molx0(3)
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_cube
-     module subroutine read_bincube(f,cptr,file,x2c,errmsg,ti)
+     module subroutine read_bincube(f,cptr,file,x2c,molx0,errmsg,ti)
        class(grid3), intent(inout) :: f
        type(c_ptr), intent(in) :: cptr
        character*(*), intent(in) :: file
-       real*8, intent(in) :: x2c(3,3)
+       real*8, intent(in) :: x2c(3,3), molx0(3)
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_bincube
@@ -253,20 +259,14 @@ module grid3mod
        character(len=:), allocatable, intent(out), optional :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_wannier_chk
-     module subroutine interp(f,xi,y,yp,ypp)
+     module subroutine interp(f,xi,y,yp,ypp,valid)
        class(grid3), intent(inout) :: f !< Grid to interpolate
        real*8, intent(in) :: xi(3) !< Target point (cryst. coords.)
        real*8, intent(out) :: y !< Interpolated value
        real*8, intent(out) :: yp(3) !< First derivative
        real*8, intent(out) :: ypp(3,3) !< Second derivative
+       logical, intent(out) :: valid !< whether the point was in the grid domain
      end subroutine interp
-     module subroutine grinterp_smr(f,xi,y,yp,ypp)
-       class(grid3), intent(inout), target :: f !< Input grid
-       real*8, intent(in) :: xi(3) !< Target point
-       real*8, intent(out) :: y !< Interpolated value
-       real*8, intent(out) :: yp(3) !< First derivative
-       real*8, intent(out) :: ypp(3,3) !< Second derivative
-     end subroutine grinterp_smr
      module subroutine fft(fnew,fold,iff)
        class(grid3), intent(inout) :: fnew
        type(grid3), intent(in) :: fold

@@ -565,7 +565,7 @@ module crystalmod
        real*8, intent(in), optional :: bondfac
        real*8, intent(in), optional :: rij(:,:,:)
      end subroutine find_asterisms
-     module subroutine list_near_lattice_points(c,xp,icrd,sorted,nat,dist,lvec,ndiv,&
+     module subroutine list_near_lattice_points(c,xp,icrd,sorted,nat,dist,lvec,x2c,ndiv,&
         up2d,up2n,nozero)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: xp(3)
@@ -574,6 +574,7 @@ module crystalmod
        integer, intent(out) :: nat
        real*8, allocatable, intent(inout), optional :: dist(:)
        integer, allocatable, intent(inout), optional :: lvec(:,:)
+       real*8, intent(in), optional :: x2c(3,3)
        integer, intent(in), optional :: ndiv(3)
        real*8, intent(in), optional :: up2d
        integer, intent(in), optional :: up2n

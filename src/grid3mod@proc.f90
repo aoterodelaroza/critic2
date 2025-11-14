@@ -23,8 +23,8 @@ submodule (grid3mod) proc
   ! subroutine grinterp_nearest(f,x0,y)
   ! subroutine grinterp_trilinear(f,x0,y,yp)
   ! subroutine grinterp_trispline(f,x0,y,yp,ypp)
-  ! subroutine grinterp_tricubic(f,xi,y,yp,ypp)
-  ! subroutine grinterp_smr(f,xi,y,yp,ypp,i0ref)
+  ! subroutine grinterp_tricubic(f,xi,y,yp,ypp,valid)
+  ! subroutine grinterp_smr(f,xi,y,yp,ypp,i0ref,valid)
   ! function grid_near(f,x) result(res)
   ! function grid_floor(f,x,main,shift)
   ! function grid_ceiling(f,x,main,shift)
@@ -356,7 +356,7 @@ contains
     logical :: iok
 
     call f%end()
-    call init_geometry(f,x2c,n,cptr)
+    call init_geometry(f,x2c,(/0d0,0d0,0d0/),x2c,n,cptr)
     f%mode = mode_default
     f%isinit = .true.
     allocate(f%f(n(1),n(2),n(3)))
@@ -390,10 +390,12 @@ contains
     if (allocated(f%qe%center)) deallocate(f%qe%center)
     if (allocated(f%qe%spread)) deallocate(f%qe%spread)
     if (allocated(f%qe%u)) deallocate(f%qe%u)
+    f%x0 = 0d0
+    f%x2cl = 0d0
 
   end subroutine grid_end
 
-  !> Set the interpolation mode. The possible modes arenearest,
+  !> Set the interpolation mode. The possible modes are nearest,
   !> trilinear, trispline, and tricubic (lowercase).
   module subroutine setmode(f,mode)
     use tools_io, only: equal, lower
@@ -429,20 +431,17 @@ contains
        f%mode = mode_default
     end if
 
-    ! if test interpolation, calculate the rho0 and derivatives here
+    ! If smoothrho interpolation, calculate the rho0 and derivatives here
     if (f%mode == mode_smr) then
        if (allocated(f%smr_rho0)) deallocate(f%smr_rho0)
        allocate(f%smr_rho0(f%n(1),f%n(2),f%n(3)))
 
-       do i = 1, 3
-          xdelta(:,i) = 0d0
-          xdelta(i,i) = 1d0 / real(f%n(i),8)
-       end do
+       xdelta = matmul(f%c2x,f%x2cg)
        !$omp parallel do private(x,rho,rhof,rhoff)
        do k = 1, f%n(3)
           do j = 1, f%n(2)
              do i = 1, f%n(1)
-                x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
+                x = f%x0 + (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
                 call crystalmod_promolecular(f%cptr,x,icrd_crys,rho,rhof,rhoff,0)
 
                 !$omp critical(write)
@@ -457,10 +456,14 @@ contains
   end subroutine setmode
 
   !> Normalize the grid to a given value. omega is the cell volume.
-  module subroutine normalize(f,norm,omega)
+  module subroutine normalize(f,norm)
+    use tools_math, only: det3
     class(grid3), intent(inout) :: f
-    real*8, intent(in) :: norm, omega
+    real*8, intent(in) :: norm
 
+    real*8 :: omega
+
+    omega = det3(f%x2cl)
     f%f = f%f / (sum(f%f) * omega / real(product(f%n),8)) * norm
     if (allocated(f%c2)) deallocate(f%c2)
 
@@ -483,7 +486,7 @@ contains
     f%iswan = .false.
     f%mode = mode_default
     n = ubound(g) - lbound(g) + 1
-    call init_geometry(f,x2c,n,cptr)
+    call init_geometry(f,x2c,(/0d0,0d0,0d0/),x2c,n,cptr)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) &
        call ferror('from_array3','Error allocating grid',faterr)
@@ -492,12 +495,13 @@ contains
   end subroutine from_array3
 
   !> Read a grid in Gaussian CUBE format
-  module subroutine read_cube(f,cptr,file,x2c,errmsg,ti)
+  module subroutine read_cube(f,cptr,file,x2c,molx0,errmsg,ti)
+    use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose
     class(grid3), intent(inout) :: f
     type(c_ptr), intent(in) :: cptr
     character*(*), intent(in) :: file !< Input file
-    real*8, intent(in) :: x2c(3,3)
+    real*8, intent(in) :: x2c(3,3), molx0(3)
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
@@ -505,6 +509,7 @@ contains
     integer :: nat
     integer :: istat, n(3), i, j, k
     logical :: ismo
+    real*8 :: x0(3), x2cl(3,3), c2x(3,3)
 
     errmsg = "Error reading file: " // trim(file)
     call f%end()
@@ -513,12 +518,18 @@ contains
 
     read (luc,*,err=999,end=999)
     read (luc,*,err=999,end=999)
-    read (luc,*,err=999,end=999) nat
+    read (luc,*,err=999,end=999) nat, x0
     ismo = (nat < 0)
     nat = abs(nat)
 
+    ! convert the x0 to crystallographic
+    c2x = x2c
+    call matinv(c2x,3)
+    x0 = matmul(c2x,x0 - molx0)
+
     do i = 1, 3
-       read (luc,*,err=999,end=999) n(i)
+       read (luc,*,err=999,end=999) n(i), x2cl(:,i)
+       x2cl(:,i) = x2cl(:,i) * n(i)
     end do
     do i = 1, nat
        read (luc,*,err=999,end=999)
@@ -530,7 +541,7 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    call init_geometry(f,x2c,n,cptr)
+    call init_geometry(f,x2c,x0,x2cl,n,cptr)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) then
        errmsg = "Error allocating grid"
@@ -547,13 +558,13 @@ contains
   end subroutine read_cube
 
   !> Read a grid in binary CUBE format
-  module subroutine read_bincube(f,cptr,file,x2c,errmsg,ti)
+  module subroutine read_bincube(f,cptr,file,x2c,molx0,errmsg,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, fclose
     class(grid3), intent(inout) :: f
     type(c_ptr), intent(in) :: cptr
     character*(*), intent(in) :: file !< Input file
-    real*8, intent(in) :: x2c(3,3)
+    real*8, intent(in) :: x2c(3,3), molx0(3)
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
@@ -561,27 +572,38 @@ contains
     integer :: nat
     integer :: istat, n(3), i, iz
     logical :: ismo
-    real*8 :: x0(3), xd(3,3), rdum
+    real*8 :: x0(3), xdum(3), x2cl(3,3), rdum, c2x(3,3)
 
     errmsg = "Error reading file: " // trim(file)
     call f%end()
     luc = fopen_read(file,form="unformatted",ti=ti)
     if (luc < 0) goto 999
 
+    ! read nat and grid origin
     read (luc,err=999,end=999) nat, x0
     ismo = (nat < 0)
     nat = abs(nat)
 
-    read (luc,err=999,end=999) n, xd
+    ! convert the x0 to crystallographic
+    c2x = x2c
+    call matinv(c2x,3)
+    x0 = matmul(c2x,x0 - molx0)
+
+    ! read grid dimensions and atoms
+    read (luc,err=999,end=999) n, x2cl
+    do i = 1, 3
+       x2cl(:,i) = x2cl(:,i) * n(i)
+    end do
     do i = 1, nat
-       read (luc,err=999,end=999) iz, rdum, x0
+       read (luc,err=999,end=999) iz, rdum, xdum
     end do
 
+    ! initialize and read the grid
     f%isinit = .true.
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    call init_geometry(f,x2c,n,cptr)
+    call init_geometry(f,x2c,x0,x2cl,n,cptr)
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) then
        errmsg = "Error allocating grid"
@@ -590,6 +612,7 @@ contains
     read(luc,err=999,end=999) f%f
     call fclose(luc)
 
+    ! wrap up
     errmsg = ""
     return
 999 continue
@@ -629,7 +652,9 @@ contains
     ! assume unformatted
     read (luc,err=999,end=999) r
     read (luc,err=999,end=999) n, nspin
-    call init_geometry(f,x2c,n,cptr)
+
+    ! in this format, assume the grid spans the cell always
+    call init_geometry(f,x2c,(/0d0,0d0,0d0/),x2c,n,cptr)
 
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) then
@@ -714,7 +739,9 @@ contains
        errmsg = "Number of grid points not found."
        goto 999
     end if
-    call init_geometry(f,x2c,n,cptr)
+
+    ! in this format, assume the grid spans the cell always
+    call init_geometry(f,x2c,(/0d0,0d0,0d0/),x2c,n,cptr)
 
     ! read the field and close
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
@@ -773,7 +800,10 @@ contains
     f%iswan = .false.
     f%mode = mode_default
     n = hdr%ngfft(:)
-    call init_geometry(f,x2c,n,cptr)
+
+    ! in this format, assume the grid spans the cell always
+    call init_geometry(f,x2c,(/0d0,0d0,0d0/),x2c,n,cptr)
+
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) goto 999
     allocate(g(n(1),n(2),n(3)))
@@ -830,7 +860,10 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    call init_geometry(f,x2c,n,cptr)
+
+    ! in this format, assume the grid spans the cell always
+    call init_geometry(f,x2c,(/0d0,0d0,0d0/),x2c,n,cptr)
+
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) then
        errmsg = "Error allocating grid"
@@ -894,7 +927,10 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    call init_geometry(f,x2c,n,cptr)
+
+    ! in this format, assume the grid spans the cell always
+    call init_geometry(f,x2c,(/0d0,0d0,0d0/),x2c,n,cptr)
+
     allocate(f%f(n(1),n(2),n(3)),stat=istat)
     if (istat /= 0) then
        errmsg = "Error allocating grid"
@@ -977,7 +1013,10 @@ contains
 
     ! grid dimension
     read (luc,*,err=999,end=999) n
-    call init_geometry(f,x2c,n-1,cptr)
+    f%n = n-1
+
+    ! in this format, assume the grid spans the cell always
+    call init_geometry(f,x2c,(/0d0,0d0,0d0/),x2c,f%n,cptr)
 
     ! origin and edge vectors
     read (luc,*,err=999,end=999) x0, x1, x2, x3
@@ -1058,7 +1097,9 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    call init_geometry(f,x2c,f%n,cptr)
+
+    ! in this format, assume the grid spans the cell always
+    call init_geometry(f,x2c,(/0d0,0d0,0d0/),x2c,f%n,cptr)
 
     errmsg = ""
     return
@@ -1157,7 +1198,9 @@ contains
     f%isqe = .false.
     f%iswan = .false.
     f%mode = mode_default
-    call init_geometry(f,x2c,f%n,cptr)
+
+    ! in this format, assume the grid spans the cell always
+    call init_geometry(f,x2c,(/0d0,0d0,0d0/),x2c,f%n,cptr)
 
     errmsg = ""
     return
@@ -1231,7 +1274,9 @@ contains
     read (luc,err=999,end=999) n
     read (luc,err=999,end=999) npwx, ngms
     nkstot = f%qe%nspin * f%qe%nks
-    call init_geometry(f,x2c,n,cptr)
+
+    ! in this format, assume the grid spans the cell always
+    call init_geometry(f,x2c,(/0d0,0d0,0d0/),x2c,n,cptr)
 
     ! read k-point info
     if (allocated(f%qe%kpt)) deallocate(f%qe%kpt)
@@ -1366,7 +1411,9 @@ contains
     ! grid dimension
     read (luc,*,err=999,end=999) n
 
-    call init_geometry(f,x2c,n,cptr)
+    ! in this format, assume the grid spans the cell always
+    call init_geometry(f,x2c,(/0d0,0d0,0d0/),x2c,n,cptr)
+
     allocate(f%f(n(1),n(2),n(3)),stat=ios)
     if (ios /= 0) goto 999
     do k = 1, n(3)
@@ -1568,22 +1615,42 @@ contains
   end subroutine read_wannier_chk
 
   !> Interpolate the function value, first and second derivative at
-  !> point x0 (crystallographic coords.) using the grid g.  This
+  !> point xi (crystallographic coords.) using the grid g.  This
   !> routine is thread-safe.
-  module subroutine interp(f,xi,y,yp,ypp)
+  module subroutine interp(f,xi,y,yp,ypp,valid)
     class(grid3), intent(inout) :: f !< Grid to interpolate
     real*8, intent(in) :: xi(3) !< Target point (cryst. coords.)
     real*8, intent(out) :: y !< Interpolated value
     real*8, intent(out) :: yp(3) !< First derivative
     real*8, intent(out) :: ypp(3,3) !< Second derivative
+    logical, intent(out) :: valid !< whether the point was in the grid domain
 
-    real*8 :: x0(3)
+    real*8 :: x0(3), nratio(3)
 
-    x0 = xi - floor(xi)
+    real*8, parameter :: eps = 1d-5
+
+    ! initialize
+    valid = .true.
     y = 0d0
     yp = 0d0
     ypp = 0d0
 
+    ! if partial, check the point is in the domain; if not, periodic wrap
+    if (.not.f%partial) then
+       x0 = modulo(xi,1d0)
+    else
+       ! transform input coordinates into coordinates local to the grid
+       nratio = real(f%n-1,8)/real(f%n,8)
+       x0 = matmul(f%c2xl,matmul(f%x2c,xi - f%x0))
+
+       if (any(x0 < -eps) .or. any(x0 > nratio+eps)) then
+          valid = .false.
+          return
+       end if
+       x0 = min(max(x0,0d0),nratio)
+    end if
+
+    ! interpolate
     if (f%mode == mode_nearest) then
        call grinterp_nearest(f,x0,y)
        yp = 0d0
@@ -1592,17 +1659,18 @@ contains
        call grinterp_trilinear(f,x0,y,yp)
        ypp = 0d0
     else if (f%mode == mode_trispline) then
-       call grinterp_trispline(f,x0,y,yp,ypp)
+       call grinterp_trispline(f,x0,y,yp,ypp,valid)
     else if (f%mode == mode_tricubic) then
-       call grinterp_tricubic(f,x0,y,yp,ypp)
+       call grinterp_tricubic(f,x0,y,yp,ypp,valid)
+       if (.not.valid) return
     else if (f%mode == mode_smr) then
-       call grinterp_smr(f,x0,y,yp,ypp)
+       call grinterp_smr(f,x0,xi,y,yp,ypp,valid)
     end if
 
     ! convert the gradient and Hessian to Cartesian coordinates
     if (f%mode /= mode_smr) then
-       yp = matmul(transpose(f%c2x),yp)
-       ypp = matmul(matmul(transpose(f%c2x),ypp),f%c2x)
+       yp = matmul(transpose(f%c2xl),yp)
+       ypp = matmul(matmul(transpose(f%c2xl),ypp),f%c2xl)
     end if
 
   end subroutine interp
@@ -1629,6 +1697,8 @@ contains
     call fnew%end()
     if (.not.fold%isinit) &
        call ferror('fft','no input grid',faterr)
+    if (fold%partial) &
+       call ferror('fft','for FFT operations, the input grid must span the periodic cell',faterr)
 
     n = fold%n
     call copy_geometry(fnew,fold)
@@ -1740,9 +1810,11 @@ contains
     call frs%end()
     if (.not.frho%isinit) &
        call ferror('resample','no density grid',faterr)
+    if (frho%partial) &
+       call ferror('resample','for FFT operations, the input grid must span the periodic cell',faterr)
 
     ! allocate slot
-    call init_geometry(frs,frho%x2c,n2,frho%cptr)
+    call init_geometry(frs,frho%x2c,frho%x0,frho%x2cl,n2,frho%cptr)
     frs%isinit = .true.
     frs%mode = mode_default
 
@@ -2164,8 +2236,7 @@ contains
     real*8 :: x(3)
     integer :: idx(3)
 
-    x = modulo(x0,1d0)
-    idx = grid_near(f,x)
+    idx = grid_near(f,x0)
     y = f%f(idx(1),idx(2),idx(3))
 
   end subroutine grinterp_nearest
@@ -2181,12 +2252,11 @@ contains
     real*8, intent(out) :: yp(3) !< First derivative
 
     integer :: idx(3), iidx(3), i, j, k
-    real*8 :: ff(0:2,0:2,0:2), r(3), s(3), x(3)
+    real*8 :: ff(0:2,0:2,0:2), r(3), s(3)
 
     ! compute value at the cube vertices
     ff = 0d0
-    x = modulo(x0,1d0)
-    idx = grid_floor(f,x)
+    idx = grid_floor(f,x0)
     do i = 0, 1
        do j = 0, 1
           do k = 0, 1
@@ -2197,7 +2267,7 @@ contains
     end do
 
     ! x and 1-x
-    r = f%n * x - idx + 1
+    r = f%n * x0 - idx + 1
     s = 1d0 - r
 
     ! trilinear interpolation
@@ -2232,14 +2302,15 @@ contains
   !> interpolate. xi is the point in crystallographic coordinates. y,
   !> yp, and ypp are the value, gradient, and Hessian at xi.  This
   !> routine is thread-safe.
-  subroutine grinterp_trispline(f,x0,y,yp,ypp)
+  subroutine grinterp_trispline(f,x0,y,yp,ypp,valid)
     class(grid3), intent(inout), target :: f !< Input grid
     real*8, intent(in) :: x0(3) !< Target point
     real*8, intent(out) :: y !< Interpolated value
     real*8, intent(out) :: yp(3) !< First derivative
     real*8, intent(out) :: ypp(3,3) !< Second derivative
+    logical, intent(out) :: valid !< whether the point was in the grid domain
 
-    integer :: i, ii, jj, kk, ll, nn, indx(3), oii, onn, omm
+    integer :: i, j, ii, jj, kk, ll, nn, indx(3), oii, onn, omm
     integer :: inii(4,3)
     real*8 :: bbb, ddu(2), hrh(2), hh(4,2), grd(4), lder(4)
     real*8 :: cof(2,3), ddstar(6), rhstar(6), sqder(6,4), sqvlr(6,4)
@@ -2255,10 +2326,14 @@ contains
     end if
     !$omp end critical (checkalloc)
 
+    ! initialize
+    y = 0d0
+    yp = 0d0
+    ypp = 0d0
+    valid = .true.
     nullify(ptddx,ptddy,ptddz,ptrho)
 
-    xx = modulo(x0,1d0)
-
+    xx = x0
     do i=1,3
        dix(i)=1d0/f%n(i)
     end do
@@ -2291,7 +2366,6 @@ contains
     ! determination of the values of density and of its second derivative
     ! at the "star" = constructed at vv with primitive directions
     ! To interpolation the values at the faces of the grid cell are needed
-
     rhstar(:)=0.d0
     sqder(:,:)=0.d0
     sqvlr(:,:)=0.d0
@@ -2305,7 +2379,6 @@ contains
     if (indx(3)==f%n(3)) omm=1-f%n(3)
 
     ! the values in the corners of the grid cell
-
     ptddx=>f%c2(indx(1):indx(1)+oii:oii,indx(2):indx(2)+onn:onn,indx(3):indx(3)+omm:omm,1)
     ptddy=>f%c2(indx(1):indx(1)+oii:oii,indx(2):indx(2)+onn:onn,indx(3):indx(3)+omm:omm,2)
     ptddz=>f%c2(indx(1):indx(1)+oii:oii,indx(2):indx(2)+onn:onn,indx(3):indx(3)+omm:omm,3)
@@ -2319,7 +2392,6 @@ contains
           if (jj==1) pom2sq(jj,ii)=-pom2sq(jj,ii)
        end do
     end do
-
 
     do ii=1,2
        do jj=1,2
@@ -2451,16 +2523,8 @@ contains
           grd(jj+3)=(indx(ii)+jj)*dix(ii)
        end do
 
-       !  write(6,'("hh: ",/,4F16.8,/,4F16.8)') ((hh(kk,jj),kk=1,4),jj=1,2)
-       !  write(6,'("grad: ",3F16.8)') (grad(kk),kk=1,3)
-       !  write(6,'("dix: ",3F16.8)') (dix(kk),kk=1,3)
-       !  write(6,'("grd: ",4F16.8)') (grd(kk),kk=1,4)
-       !  write(6,'("inii: ",4I4)') (inii(kk,ii),kk=1,4)
-
        do jj=1,2
-
           !   polynomial interpolation
-
           do kk=1,3
              do ll=4,kk+1,-1
                 hh(ll,jj)=(hh(ll,jj)-hh(ll-1,jj))/(grd(ll)-grd(ll-1))
@@ -2502,12 +2566,13 @@ contains
   !> grid field to interpolate. xi is the point in crystallographic
   !> coordinates. y, yp, and ypp are the value, gradient, and Hessian
   !> at xi.  This routine is thread-safe.
-  subroutine grinterp_tricubic(f,xi,y,yp,ypp)
+  subroutine grinterp_tricubic(f,xi,y,yp,ypp,valid)
     class(grid3), intent(inout), target :: f !< Input grid
     real*8, intent(in) :: xi(3) !< Target point
     real*8, intent(out) :: y !< Interpolated value
     real*8, intent(out) :: yp(3) !< First derivative
     real*8, intent(out) :: ypp(3,3) !< Second derivative
+    logical, intent(out) :: valid !< whether the evaluation is valid
 
     integer :: idx(3), iidx(3), i, j, k, l
     real*8 :: g(-1:2,-1:2,-1:2), x(3)
@@ -2519,10 +2584,17 @@ contains
     y = 0d0
     yp = 0d0
     ypp = 0d0
+    valid = .true.
 
     ! fetch values at the cube vertices
-    x = modulo(xi,1d0)
-    idx = grid_floor(f,x)
+    idx = grid_floor(f,xi)
+    if (f%partial) then
+       ! not valid if interpolation is not possible from a non-periodic grid
+       if (any(idx < 2) .or. any(idx > f%n-2)) then
+          valid = .false.
+          return
+       end if
+    end if
     do i = -1, 2
        do j = -1, 2
           do k = -1, 2
@@ -2617,7 +2689,7 @@ contains
     a = matmul(c,b)
 
     ! interpolation in integer coordinates
-    x = (x * f%n - (idx-1))
+    x = (xi * f%n - (idx-1))
 
     l = 1 ! packed coefficient vector index
     do k = 0, 3
@@ -2671,15 +2743,17 @@ contains
   !> Smoothrho interpolation. The grid f is interpolated at point xi
   !> (cryst. coords.). Returns the interpolated field (y), first (yp),
   !> and second (ypp) derivatives, all in Cartesian coordinates.
-  module subroutine grinterp_smr(f,xi,y,yp,ypp)
+  subroutine grinterp_smr(f,xi,xic,y,yp,ypp,valid)
     use tools_io, only: string
     use types, only: realloc
     use param, only: icrd_crys, VSMALL
     class(grid3), intent(inout), target :: f !< Input grid
     real*8, intent(in) :: xi(3) !< Target point
+    real*8, intent(in) :: xic(3) !< Target point (cryst. coords.)
     real*8, intent(out) :: y !< Interpolated value
     real*8, intent(out) :: yp(3) !< First derivative
     real*8, intent(out) :: ypp(3,3) !< Second derivative
+    logical, intent(out) :: valid !< whether the evaluation is valid
 
     integer :: i, j, k
     real*8 :: x1(3), xh(3)
@@ -2695,7 +2769,7 @@ contains
     real*8, allocatable :: ys(:), ysp(:,:), yspp(:,:,:)
     real*8, allocatable :: q(:), qp(:,:), qpp(:,:,:)
     real*8 :: u, up(3), upp(3,3)
-    real*8 :: x0(3), dfin, swei, sweip(3), sweipp(3,3)
+    real*8 :: dfin, swei, sweip(3), sweipp(3,3)
     integer :: nat, ii0
 
     !$omp critical (checkalloc)
@@ -2703,6 +2777,12 @@ contains
        call init_smr(f)
     end if
     !$omp end critical (checkalloc)
+
+    ! initialize
+    y = 0d0
+    yp = 0d0
+    ypp = 0d0
+    valid = .true.
 
     ! reserve memory
     allocate(flist(f%smr_nlist+4),w(f%smr_nlist+4),f0list(f%smr_nlist+4))
@@ -2721,11 +2801,25 @@ contains
        i0 = i0list(:,ii0)
 
        ! get the rho/rho0 values at the grid points
-       do i = 1, f%smr_nlist
-          ih = i0 + f%smr_ilist(:,i)
-          ih = modulo(ih,f%n) + 1
-          flist(i) = log(max(f%f(ih(1),ih(2),ih(3)),VSMALL)/f%smr_rho0(ih(1),ih(2),ih(3)))
-       end do
+       if (f%partial) then
+          do i = 1, f%smr_nlist
+             ih = i0 + f%smr_ilist(:,i)
+             if (any(ih < 0) .or. any(ih >= f%n)) then
+                ! xxxx !
+                valid = .false.
+                return
+             else
+                ih = ih + 1
+                flist(i) = log(max(f%f(ih(1),ih(2),ih(3)),VSMALL)/f%smr_rho0(ih(1),ih(2),ih(3)))
+             end if
+          end do
+       else
+          do i = 1, f%smr_nlist
+             ih = i0 + f%smr_ilist(:,i)
+             ih = modulo(ih,f%n) + 1
+             flist(i) = log(max(f%f(ih(1),ih(2),ih(3)),VSMALL)/f%smr_rho0(ih(1),ih(2),ih(3)))
+          end do
+       end if
        flist(f%smr_nlist+1:) = 0d0
 
        ! solve the system of equations
@@ -2760,7 +2854,7 @@ contains
        yp1(3) = yp1(3) + w(f%smr_nlist+4)
 
        ! the promolecular density & derivatives
-       call crystalmod_promolecular(f%cptr,xi,icrd_crys,ypro,yppro,ypppro,2)
+       call crystalmod_promolecular(f%cptr,xic,icrd_crys,ypro,yppro,ypppro,2)
 
        ! unroll the smoothing function
        if (ypro < 1d-40 .or. y1 > 100d0) then
@@ -2878,12 +2972,14 @@ contains
 
       type(crystal), pointer :: c
 
-      x0 = xi - floor(xi)
+      real*8 :: x0(3)
+
+      x0 = xi
       call c_f_pointer(f%cptr,c)
       if (f%smr_fdmax >= 1d0) then
          dfin = f%smr_fdmax * f%dmax
          call c%list_near_lattice_points(x0,icrd_crys,.true.,nat,dist=dist,&
-            lvec=lvec,ndiv=f%n,up2d=dfin)
+            lvec=lvec,x2c=f%x2cl,ndiv=f%n,up2d=dfin)
          allocate(i0list(3,nat),wei(nat),weip(nat),weipp(nat))
          do i = 1, nat
             i0list(:,i) = lvec(:,i)
@@ -2891,7 +2987,7 @@ contains
          end do
       else
          call c%list_near_lattice_points(x0,icrd_crys,.true.,nat,dist=dist,&
-            lvec=lvec,ndiv=f%n,up2n=1)
+            lvec=lvec,x2c=f%x2cl,ndiv=f%n,up2n=1)
          allocate(i0list(3,nat),wei(nat),weip(nat),weipp(nat))
          i0list(:,1) = lvec(:,i)
          wei(1) = 1d0
@@ -2930,7 +3026,7 @@ contains
 
   end function grid_near
 
-  !> Floor grid point of a point x in crystallographic coords. If
+  !> Floor grid point of a point x in grid-crystallographic coords. If
   !> shift, the first point in the grid has index 1 (for indexing
   !> arrays, default is .true.). If main, translate the point to the
   !> main cell (returns indices between 1 and n if shift is true,
@@ -2983,25 +3079,31 @@ contains
   !> Initialize the geometry variables and the environment for the
   !> calculation of distances from the x2c matrix of the crystal and
   !> the number of points in each direction. Sets the variables...
-  subroutine init_geometry(f,x2c,n,cptr)
+  subroutine init_geometry(f,x2c,x0,x2cl,n,cptr)
     use tools, only: wscell
     use tools_math, only: matinv
     class(grid3), intent(inout) :: f
-    real*8, intent(in) :: x2c(3,3)
+    real*8, intent(in) :: x2c(3,3), x0(3), x2cl(3,3)
     integer, intent(in) :: n(3)
     type(c_ptr), intent(in) :: cptr
 
     integer :: i
     real*8 :: xx(3)
 
+    real*8, parameter :: eps_partial = 1d-2
+
     ! number of point and crystal matrices
     f%n(:) = n
+    f%x0 = x0
     f%x2c = x2c
     f%c2x = x2c
     call matinv(f%c2x,3)
+    f%x2cl = x2cl
+    f%c2xl = x2cl
+    call matinv(f%c2xl,3)
 
     ! grid x2c matrix
-    f%x2cg = x2c
+    f%x2cg = x2cl
     do i = 1, 3
        f%x2cg(:,i) = f%x2cg(:,i) / f%n(i)
     end do
@@ -3016,7 +3118,13 @@ contains
        f%dmax = max(f%dmax,norm2(xx))
     end do
 
-    ! atom environment
+    ! Determine if the grid fills the unit cell or not. If the grid
+    ! fills the cell, assume it is periodic. There may be some mismatch
+    ! if the grid is the same as the cell but the sources are different,
+    ! so be a bit leninet with the threshold
+    f%partial = .not.(all(abs(f%x0) < eps_partial) .and. all(abs(f%x2cl - f%x2c) < eps_partial))
+
+    ! pointer to crystal
     f%cptr = cptr
 
   end subroutine init_geometry
@@ -3027,8 +3135,11 @@ contains
     class(grid3), intent(in) :: g
 
     f%n = g%n
+    f%x0 = g%x0
     f%x2c = g%x2c
+    f%x2cl = g%x2cl
     f%c2x = g%c2x
+    f%c2xl = g%c2xl
     f%x2cg = g%x2cg
     f%dmax = g%dmax
     f%cptr = g%cptr
@@ -3042,7 +3153,7 @@ contains
     class(grid3), intent(inout) :: f !< Input grid
 
     integer :: istat
-    integer :: d, nmax, i, i1, i2
+    integer :: d, nmax, i, i1, i2, j
     real*8, allocatable :: l(:,:), fg(:)
     real*8 :: fprev, fnext, fuse, fone
 
@@ -3068,6 +3179,9 @@ contains
     ! the x^2 coefficients of the cubic spline (array c2 / 2).
     ! L is a lower-triangular matrix, A = L * L^t
 
+    ! If the grid is non-periodic, the 1 in the top right and bottom
+    ! left corners are actually 0.
+
     ! direction x->y->z
     do d = 1, 3
        nmax = f%n(d)
@@ -3076,15 +3190,20 @@ contains
        l(2,1) = 1d0 / l(1,1)
        l(2,2) = sqrt(15d0) / 2d0
        l(3,2) = 1d0 / l(2,2)
-       l(nmax,1) = 0.5d0
-       l(nmax,2) = - 0.5d0 / sqrt(15d0)
+       if (.not.f%partial) then
+          l(nmax,1) = 0.5d0
+          l(nmax,2) = - 0.5d0 / sqrt(15d0)
+       end if
        do i = 3, nmax-1
           l(i,i) = sqrt(4d0 - 1d0 / l(i-1,i-1)**2)
           l(i+1,i) = 1d0 / l(i,i)
-          l(nmax,i) = - l(nmax,i-1) * l(i,i-1) / l(i,i)
+          if (.not.f%partial) then
+             l(nmax,i) = - l(nmax,i-1) * l(i,i-1) / l(i,i)
+          end if
        end do
-       l(nmax,nmax-1) = (1d0 - l(nmax,nmax-2)*l(nmax-1,nmax-2)) /&
-          l(nmax-1,nmax-1)
+       if (.not.f%partial) then
+          l(nmax,nmax-1) = (1d0 - l(nmax,nmax-2)*l(nmax-1,nmax-2)) / l(nmax-1,nmax-1)
+       end if
        l(nmax,nmax) = sqrt(4d0 - sum(l(nmax,1:nmax-1)**2))
        l = l / sqrt(6d0 * nmax**2)
 
@@ -3172,12 +3291,12 @@ contains
     ! calculate the stencil
     call c_f_pointer(f%cptr,c)
     call c%list_near_lattice_points((/0d0,0d0,0d0/),icrd_cart,.true.,nn,dist=dlist,&
-       lvec=lvec,ndiv=f%n,up2n=f%smr_nenv)
+       lvec=lvec,x2c=f%x2cl,ndiv=f%n,up2n=f%smr_nenv)
     f%smr_nlist = nn
     allocate(f%smr_xlist(3,nn),f%smr_ilist(3,nn))
     do i = 1, nn
        f%smr_ilist(:,i) = lvec(:,i)
-       f%smr_xlist(:,i) = matmul(c%m_x2c,real(lvec(:,i),8) / real(f%n,8))
+       f%smr_xlist(:,i) = lvec(1,i) * f%x2cg(:,1) + lvec(2,i) * f%x2cg(:,2) + lvec(3,i) * f%x2cg(:,3)
     end do
 
     ! calculate the inverse phi matrix
