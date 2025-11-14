@@ -1950,7 +1950,7 @@ contains
 
     integer :: lu
     integer :: i, j, nstep(3), nn, iz, it, ier
-    real*8 :: x0(3), rmat(3,3), rdum, rx(3), rxt(3)
+    real*8 :: x0(3), rmat(3,3), rdum, rx(3)
     logical :: ismo, ok, use0
     character(len=:), allocatable :: line
     real*8, allocatable :: rxc(:,:)
@@ -5745,7 +5745,7 @@ contains
     logical, intent(out) :: ismol
     type(thread_info), intent(in), optional :: ti
 
-    character(len=:), allocatable :: line, word
+    character(len=:), allocatable :: line, word, errmsg
     integer :: lu, ios, lp, nat, idx, i
     character*1 :: isfrac
     logical :: ok
@@ -5756,16 +5756,18 @@ contains
     ismol = .false.
     select case (isformat)
     case (isformat_r_cif,isformat_r_pwc,isformat_r_shelx,isformat_r_f21,&
-       isformat_r_cube,isformat_r_bincube,isformat_r_struct,isformat_r_abinit,&
+       isformat_r_struct,isformat_r_abinit,&
        isformat_r_elk,isformat_r_siesta,isformat_r_dmain,isformat_r_vasp,&
        isformat_r_axsf,isformat_r_tinkerfrac,isformat_r_qein,isformat_r_qeout,&
        isformat_r_crystal,isformat_r_fploout,isformat_r_castepcell,isformat_r_castepphonon,&
        isformat_r_castepgeom,isformat_r_magres,isformat_r_alamode)
+       ! these are always crystals
        ismol = .false.
 
     case (isformat_r_gjf,isformat_r_pgout,isformat_r_wfn,isformat_r_wfx,&
        isformat_r_gaussian,isformat_r_fchk,isformat_r_molden,isformat_r_dat,&
        isformat_r_orca,isformat_r_mol2,isformat_r_zmat,isformat_r_sdf)
+       ! these are always molecules
        ismol = .true.
 
     case(isformat_r_xyz)
@@ -5796,6 +5798,10 @@ contains
        call fclose(lu)
 
     case(isformat_r_pdb)
+       ! In a pdb file: we have a crystal if SCALE1 and the other
+       ! parameters are present. Unfortunately, these may appear in
+       ! the file but be bogus, which wrecks the geometry. So we do
+       ! not use them if they have unreasonable values.
        ismol = .true.
        lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) return
@@ -5817,6 +5823,8 @@ contains
        call fclose(lu)
 
     case(isformat_r_aimsout)
+       ! Detect from the FHI-aims output file whether this is a
+       ! molecule or a crystal.
        lu = fopen_read(file,errstop=.false.,ti=ti)
        ismol = .false.
        do while(getline_raw(lu,line))
@@ -5835,6 +5843,7 @@ contains
        call fclose(lu)
 
     case (isformat_r_aimsin)
+       ! FHIaims input: a crystal if we have lattice_vectors
        ismol = .true.
        lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) return
@@ -5849,6 +5858,8 @@ contains
        call fclose(lu)
 
     case (isformat_r_gen)
+       ! A gen file: this is a crystal if we have "F" and a molecule
+       ! if "C" in the first line.
        ismol = .false.
        lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) return
@@ -5866,6 +5877,7 @@ contains
        call fclose(lu)
 
     case (isformat_r_xsf)
+       ! xsf format: a molecule if the first entry is ATOMS
        ismol = .false.
        lu = fopen_read(file,errstop=.false.,ti=ti)
        if (lu < 0) return
@@ -5878,6 +5890,14 @@ contains
           ismol = .false.
        end if
        call fclose(lu)
+
+    case (isformat_r_cube)
+       ! cube format: a molecule if atoms are outside the box spanned by the grid
+       ismol = ismol_cube(file,.false.,errmsg,ti=ti)
+
+    case (isformat_r_bincube)
+       ! bincube format: a molecule if atoms are outside the box spanned by the grid
+       ismol = ismol_cube(file,.true.,errmsg,ti=ti)
 
     case default
        ismol = .false.
@@ -9350,5 +9370,85 @@ contains
     end subroutine replace
 
   end function string_to_symop
+
+  !> Detect whether a Gaussian cube (binary or text, according to
+  !> isbin) corresponds to a molecule or a crystal. If error, return
+  !> non-zero errmsg.
+  function ismol_cube(file,isbin,errmsg,ti)
+    use tools_io, only: fopen_read, fclose
+    use tools_math, only: matinv
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: isbin
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+    logical :: ismol_cube
+
+    integer :: lu, nat, nstep(3)
+    integer :: i, iz, ier
+    real*8 :: x0(3), rmat(3,3), rdum, rx(3)
+
+    real*8, parameter :: eps = 1d-2
+
+    ismol_cube = .false.
+    errmsg = "Error reading file: " // trim(file)
+    if (isbin) then
+       lu = fopen_read(file,form="unformatted",ti=ti)
+    else
+       lu = fopen_read(file,ti=ti)
+    end if
+    if (lu < 0) then
+       errmsg = "Error opening file: " // trim(file)
+       return
+    end if
+
+    ! ignore the title lines and read number of atoms and unit cell
+    if (isbin) then
+       read (lu,err=999,end=999)
+       read (lu,err=999,end=999)
+       read (lu,err=999,end=999) nat, x0
+    else
+       read (lu,*,err=999,end=999)
+       read (lu,*,err=999,end=999)
+       read (lu,*,err=999,end=999) nat, x0
+    end if
+    nat = abs(nat)
+
+    ! grid dimensions
+    if (isbin) then
+       read (lu,err=999,end=999) nstep, rmat
+    else
+       do i = 1, 3
+          read (lu,*,err=999,end=999) nstep(i), rmat(:,i)
+          rmat(:,i) = rmat(:,i) * nstep(i)
+       end do
+    end if
+    rmat = transpose(rmat)
+    call matinv(rmat,3,ier)
+    if (ier /= 0) then
+       errmsg = "Error inverting matrix"
+       goto 999
+    end if
+
+    ! atomic positions.
+    do i = 1, nat
+       if (isbin) then
+          read (lu,err=999,end=999) iz, rdum, rx
+       else
+          read (lu,*,err=999,end=999) iz, rdum, rx
+       end if
+       if (iz <= 0) cycle
+       rx = matmul(rx - x0,rmat)
+       if (any(rx < -eps) .or. any(rx > 1d0+eps)) then
+          ismol_cube = .true.
+          errmsg = ""
+          return
+       end if
+    end do
+
+    errmsg = ""
+999 continue
+    call fclose(lu)
+
+  end function ismol_cube
 
 end submodule proc
