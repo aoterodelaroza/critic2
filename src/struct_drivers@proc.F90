@@ -4061,6 +4061,7 @@ contains
        write (uout,*)
 
     elseif (equal(word,'phonon_rattle')) then
+       ! number of structures and temperature
        ok = isinteger(nstruct,line,lp)
        ok = isreal(temp,line,lp)
        if (.not.ok) &
@@ -4070,9 +4071,20 @@ contains
        if (temp < 0) &
           call ferror('struct_vibrations','Need positive TEMP in PHONON_RATTLE',faterr,syntax=.true.)
 
-       ! naming
+       ! optional parameters
        root = trim(fileroot) // "-*.scf.in"
        idx = index(root,'*')
+       word = lgetword(line,lp)
+       if (equal(word,"root")) then
+          root = getword(line,lp)
+          idx = index(root,'*')
+          if (idx == 0) then
+             call ferror('struct_vibrations','ROOT must contain a * character',faterr,line,syntax=.true.)
+             return
+          end if
+       end if
+
+       ! naming
        pre = root(:idx-1)
        post = root(idx+1:)
        npad = ceiling(log10(nstruct+0.1d0))
