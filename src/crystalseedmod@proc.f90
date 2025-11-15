@@ -814,7 +814,7 @@ contains
        isformat_r_vasp, isformat_r_pwc, isformat_r_axsf, isformat_r_dat,&
        isformat_r_pgout, isformat_r_orca, isformat_r_dmain, isformat_r_aimsin,&
        isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_gjf, isformat_r_zmat,&
-       isformat_r_magres, isformat_r_alamode, isformat_r_akaikkr,&
+       isformat_r_magres, isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband,&
        isformat_r_sdf, isformat_r_castepcell,&
        isformat_r_castepphonon, isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb
     class(crystalseed), intent(inout) :: seed
@@ -860,6 +860,9 @@ contains
 
     elseif (isformat == isformat_r_akaikkr) then
        call seed%read_akaikkr(file,mol,errmsg,ti=ti)
+
+    elseif (isformat == isformat_r_xband) then
+       call seed%read_xband(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_r_shelx) then
        call seed%read_shelx(file,mol,errmsg,ti=ti)
@@ -1787,7 +1790,7 @@ contains
     seed%file = file
     seed%name = file
     seed%isformat = isformat_r_akaikkr
-    errmsg = ""
+    errmsg = "Error reading file: " // trim(file)
     line = ""
     lp = 1
 
@@ -2213,6 +2216,171 @@ contains
     end subroutine calculate_x2c
 
   end subroutine read_akaikkr
+
+  !> Read the structure from an xband sys input file.
+  module subroutine read_xband(seed,file,mol,errmsg,ti)
+    use tools_math, only: matinv
+    use tools_io, only: fopen_read, fclose, equal, getline_raw, isinteger, isreal, getword
+    use param, only: isformat_r_xband
+    class(crystalseed), intent(inout)  :: seed !< Output crystal seed
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< Is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lp, lu, ll, i, iaux, id, idum, ier
+    real*8 :: a, rdum, c2x(3,3)
+    logical :: hada, hadx2c, hadnat, hadcoords, hadnspc, hadspc
+    logical :: ok
+    character(len=:), allocatable :: line, word
+
+    ! file and seed name
+    call seed%end()
+    seed%file = file
+    seed%name = file
+    seed%isformat = isformat_r_xband
+    errmsg = "Error reading file: " // trim(file)
+
+    ! initialize
+    a = 1d0
+    hada = .false.
+    hadx2c = .false.
+    hadnat = .false.
+    hadcoords = .false.
+    hadnspc = .false.
+    hadspc = .false.
+    seed%useabr = 2
+
+    ! open the file
+    lu = fopen_read(file,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file: " // trim(file)
+       return
+    end if
+
+    ! read all lines in one go
+    do while (getline_raw(lu,line,.false.))
+       ll = len(line)
+       if (ll >= 9) then
+          if (line(1:9) == "dimension") then
+             ok = getline_raw(lu,line,.false.)
+             if (.not.ok) goto 999
+             if (.not.equal(line,"3D")) then
+                errmsg = "cannot read non-3D structures from sys files"
+                goto 999
+             end if
+             cycle
+          end if
+       end if
+       if (ll >= 19) then
+          if (line(1:19) == "lattice parameter A") then
+             read (lu,*,end=999,err=999) a
+             hada = .true.
+             cycle
+          end if
+       end if
+       if (ll >= 36) then
+          if (line(1:36) == "primitive vectors     (cart. coord.)") then
+             do i = 1, 3
+                read (lu,*,end=999,err=999) seed%m_x2c(:,i)
+             end do
+             hadx2c = .true.
+             cycle
+          end if
+       end if
+       if (ll >= 18) then
+          if (line(1:18) == "number of sites NQ") then
+             read (lu,*,end=999,err=999) seed%nat
+             hadnat = .true.
+             allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
+             cycle
+          end if
+       end if
+       if (ll >= 44) then
+          if (line(1:44) == " IQ ICL     basis vectors     (cart. coord.)") then
+             if (.not.hadnat) goto 999
+             do i = 1, seed%nat
+                ok = getline_raw(lu,line,.false.)
+                if (.not.ok) goto 999
+                read (line,*,end=999,err=999) iaux, iaux, seed%x(:,i), rdum, idum, idum, seed%is(i)
+             end do
+             hadcoords = .true.
+             cycle
+          end if
+       end if
+       if (ll >= 23) then
+          if (line(1:23) == "number of atom types NT") then
+             read (lu,*,end=999,err=999) seed%nspc
+             allocate(seed%spc(seed%nspc))
+             hadnspc = .true.
+             cycle
+          end if
+       end if
+       if (ll >= 13) then
+          if (line(1:13) == " IT  ZT  TXTT") then
+             if (.not.hadnspc) goto 999
+             do i = 1, seed%nspc
+                ok = getline_raw(lu,line,.false.)
+                if (.not.ok) goto 999
+
+                lp = 1
+                word = getword(line,lp)
+                ok = isinteger(id,word)
+                word = getword(line,lp)
+                ok = ok .and. isinteger(seed%spc(id)%z,word)
+                seed%spc(id)%name = getword(line,lp)
+                if (.not.ok) goto 999
+                seed%spc(id)%qat = 0d0
+             end do
+             hadspc = .true.
+             cycle
+          end if
+       end if
+    end do
+    if (.not.hada.or..not.hadx2c.or..not.hadnat.or..not.hadcoords.or.&
+       .not.hadnspc.or..not.hadspc) goto 999
+
+    ! multiply by a and convert to crystallographic
+    seed%m_x2c = seed%m_x2c * a
+    seed%x = seed%x * a
+
+    ! convert to fractional coordinates
+    c2x = seed%m_x2c
+    call matinv(c2x,3,ier)
+    if (ier /= 0) goto 999
+    do i = 1, seed%nat
+       seed%x(:,i) = matmul(c2x,seed%x(:,i))
+    end do
+
+    ! assign atom names
+    do i = 1, seed%nat
+       seed%atname(i) = seed%spc(seed%is(i))%name
+    end do
+
+    ! wrap up
+    errmsg = ""
+    call fclose(lu)
+
+    ! no symmetry
+    seed%havesym = 0
+    seed%checkrepeats = .false.
+    seed%findsym = -1
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%ismolecule = mol
+    seed%cubic = .false.
+    seed%border = 0d0
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+
+    return
+
+999 continue
+    call fclose(lu)
+    seed%isused = .false.
+
+  end subroutine read_xband
 
   !> Read the structure from a fort.21 from neighcrys
   module subroutine read_f21(seed,file,mol,errmsg,ti)
@@ -4658,7 +4826,7 @@ contains
                 read(line,*,end=999,err=999) idum, seed%x(:,i), strname
                 iz = zatguess(strname)
                 if (iz <= 0) goto 999
-                seed%atname(i) = adjustl(strname)
+                seed%atname(i) = trim(adjustl(strname))
                 if (zuse(iz) == 0) then
                    seed%nspc = seed%nspc + 1
                    zuse(iz) = seed%nspc
@@ -6008,7 +6176,7 @@ contains
        isformat_r_vasp, isformat_r_pwc, isformat_r_axsf, isformat_r_dat, isformat_r_pgout,&
        isformat_r_dmain, isformat_r_aimsin, isformat_r_aimsout, isformat_r_tinkerfrac,&
        isformat_r_castepcell, isformat_r_castepgeom, isformat_r_castepphonon,&
-       isformat_r_qein, isformat_r_qeout,&
+       isformat_r_qein, isformat_r_qeout, isformat_r_xband, &
        isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
@@ -6080,6 +6248,8 @@ contains
     elseif (equal(wextdot2,'in.next_step')) then
        call which_in_format(file,isformat,ti=ti)
        if (isformat /= isformat_r_aimsin) goto 999
+    elseif (equal(wextdot,'sys')) then
+       isformat = isformat_r_xband
     elseif (equal(wextdot,'pwi')) then
        isformat = isformat_r_qein
     elseif (equal(wextdot,'pwo')) then
@@ -6197,7 +6367,7 @@ contains
        isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_castepcell, isformat_r_castepphonon,&
        isformat_r_castepgeom,&
        isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres,&
-       isformat_r_alamode, isformat_r_akaikkr
+       isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband
     character*(*), intent(in) :: file
     integer, intent(in) :: isformat
     logical, intent(out) :: ismol
@@ -6218,7 +6388,8 @@ contains
        isformat_r_elk,isformat_r_siesta,isformat_r_dmain,isformat_r_vasp,&
        isformat_r_axsf,isformat_r_tinkerfrac,isformat_r_qein,isformat_r_qeout,&
        isformat_r_crystal,isformat_r_fploout,isformat_r_castepcell,isformat_r_castepphonon,&
-       isformat_r_castepgeom,isformat_r_magres,isformat_r_alamode,isformat_r_akaikkr)
+       isformat_r_castepgeom,isformat_r_magres,isformat_r_alamode,isformat_r_akaikkr,&
+       isformat_r_xband)
        ! these are always crystals
        ismol = .false.
 
@@ -6438,7 +6609,7 @@ contains
        isformat_r_dat, isformat_r_f21, isformat_r_unknown, isformat_r_pgout, isformat_r_orca,&
        isformat_r_dmain, isformat_r_aimsin, isformat_r_aimsout, isformat_r_tinkerfrac,&
        isformat_r_mol2, isformat_r_sdf, isformat_r_pdb, isformat_r_magres,&
-       isformat_r_alamode, isformat_r_akaikkr
+       isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(in) :: isformat0
@@ -6506,6 +6677,8 @@ contains
        call seed(1)%read_alamode(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_akaikkr) then
        call seed(1)%read_akaikkr(file,mol,errmsg,ti=ti)
+    elseif (isformat == isformat_r_xband) then
+       call seed(1)%read_xband(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_pwc) then
        call seed(1)%read_pwc(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_shelx) then

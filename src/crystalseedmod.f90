@@ -78,6 +78,7 @@ module crystalseedmod
      procedure :: read_magres
      procedure :: read_alamode
      procedure :: read_akaikkr
+     procedure :: read_xband
      procedure :: read_f21
      procedure :: read_cube
      procedure :: read_bincube
@@ -215,6 +216,13 @@ module crystalseedmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_akaikkr
+     module subroutine read_xband(seed,file,mol,errmsg,ti)
+       class(crystalseed), intent(inout)  :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_xband
      module subroutine read_f21(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
