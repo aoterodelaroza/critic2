@@ -2232,7 +2232,7 @@ contains
     real*8 :: a, rdum, c2x(3,3)
     logical :: hada, hadx2c, hadnat, hadcoords, hadnspc, hadspc
     logical :: ok
-    character(len=:), allocatable :: line, word
+    character(len=:), allocatable :: line, word, word2, word3, word4
 
     ! file and seed name
     call seed%end()
@@ -2260,81 +2260,66 @@ contains
 
     ! read all lines in one go
     do while (getline_raw(lu,line,.false.))
-       ll = len(line)
-       if (ll >= 9) then
-          if (line(1:9) == "dimension") then
+       lp = 1
+       word = getword(line,lp)
+       word2 = getword(line,lp)
+       word3 = getword(line,lp)
+       word4 = getword(line,lp)
+
+       if (equal(word,"dimension")) then
+          ok = getline_raw(lu,line,.false.)
+          if (.not.ok) goto 999
+          if (.not.equal(line,"3D")) then
+             errmsg = "cannot read non-3D structures from sys files"
+             goto 999
+          end if
+          cycle
+       elseif (equal(word,"lattice").and.equal(word2,"parameter")) then
+          read (lu,*,end=999,err=999) a
+          hada = .true.
+          cycle
+       elseif (equal(word,"primitive")) then
+          do i = 1, 3
+             read (lu,*,end=999,err=999) seed%m_x2c(:,i)
+          end do
+          hadx2c = .true.
+          cycle
+       elseif (equal(word,"number").and.equal(word4,"NQ")) then
+          read (lu,*,end=999,err=999) seed%nat
+          hadnat = .true.
+          allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
+          cycle
+       elseif (equal(word,"IQ")) then
+          if (.not.hadnat) goto 999
+          do i = 1, seed%nat
              ok = getline_raw(lu,line,.false.)
              if (.not.ok) goto 999
-             if (.not.equal(line,"3D")) then
-                errmsg = "cannot read non-3D structures from sys files"
-                goto 999
-             end if
-             cycle
-          end if
-       end if
-       if (ll >= 19) then
-          if (line(1:19) == "lattice parameter A") then
-             read (lu,*,end=999,err=999) a
-             hada = .true.
-             cycle
-          end if
-       end if
-       if (ll >= 36) then
-          if (line(1:36) == "primitive vectors     (cart. coord.)") then
-             do i = 1, 3
-                read (lu,*,end=999,err=999) seed%m_x2c(:,i)
-             end do
-             hadx2c = .true.
-             cycle
-          end if
-       end if
-       if (ll >= 18) then
-          if (line(1:18) == "number of sites NQ") then
-             read (lu,*,end=999,err=999) seed%nat
-             hadnat = .true.
-             allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
-             cycle
-          end if
-       end if
-       if (ll >= 44) then
-          if (line(1:44) == " IQ ICL     basis vectors     (cart. coord.)") then
-             if (.not.hadnat) goto 999
-             do i = 1, seed%nat
-                ok = getline_raw(lu,line,.false.)
-                if (.not.ok) goto 999
-                read (line,*,end=999,err=999) iaux, iaux, seed%x(:,i), rdum, idum, idum, seed%is(i)
-             end do
-             hadcoords = .true.
-             cycle
-          end if
-       end if
-       if (ll >= 23) then
-          if (line(1:23) == "number of atom types NT") then
-             read (lu,*,end=999,err=999) seed%nspc
-             allocate(seed%spc(seed%nspc))
-             hadnspc = .true.
-             cycle
-          end if
-       end if
-       if (ll >= 13) then
-          if (line(1:13) == " IT  ZT  TXTT") then
-             if (.not.hadnspc) goto 999
-             do i = 1, seed%nspc
-                ok = getline_raw(lu,line,.false.)
-                if (.not.ok) goto 999
+             read (line,*,end=999,err=999) iaux, iaux, seed%x(:,i), rdum, idum, idum, seed%is(i)
+          end do
+          hadcoords = .true.
+          cycle
+       elseif (equal(word,"number").and.equal(word3,"atom")) then
+          read (lu,*,end=999,err=999) seed%nspc
+          allocate(seed%spc(seed%nspc))
+          hadnspc = .true.
+          cycle
+       elseif (equal(word,"IT")) then
+          if (.not.hadnspc) goto 999
+          do i = 1, seed%nspc
+             ok = getline_raw(lu,line,.false.)
+             if (.not.ok) goto 999
 
-                lp = 1
-                word = getword(line,lp)
-                ok = isinteger(id,word)
-                word = getword(line,lp)
-                ok = ok .and. isinteger(seed%spc(id)%z,word)
-                seed%spc(id)%name = getword(line,lp)
-                if (.not.ok) goto 999
-                seed%spc(id)%qat = 0d0
-             end do
-             hadspc = .true.
-             cycle
-          end if
+             lp = 1
+             word = getword(line,lp)
+             ok = isinteger(id,word)
+             word = getword(line,lp)
+             ok = ok .and. isinteger(seed%spc(id)%z,word)
+             seed%spc(id)%name = getword(line,lp)
+             if (.not.ok) goto 999
+             seed%spc(id)%qat = 0d0
+          end do
+          hadspc = .true.
+          cycle
        end if
     end do
     if (.not.hada.or..not.hadx2c.or..not.hadnat.or..not.hadcoords.or.&
