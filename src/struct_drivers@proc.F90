@@ -45,7 +45,7 @@ contains
        isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_castepcell,&
        isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb, isformat_r_zmat,&
        isformat_r_sdf, isformat_r_magres, isformat_r_alamode, isformat_r_castepphonon,&
-       isformat_r_unknown
+       isformat_r_akaikkr, isformat_r_unknown
     use crystalseedmod, only: crystalseed, struct_detect_read_format,&
        struct_detect_ismol
     use global, only: doguess, iunit, dunit0, rborder_def, eval_next
@@ -157,6 +157,8 @@ contains
        isformat = isformat_r_magres
     elseif (equal(lword,'alamode')) then
        isformat = isformat_r_alamode
+    elseif (equal(lword,'akaikkr')) then
+       isformat = isformat_r_akaikkr
     end if
     if (isformat /= isformat_r_unknown) then
        word = getword(line,lp)
@@ -225,6 +227,9 @@ contains
 
     elseif (isformat == isformat_r_alamode) then
        call seed%read_alamode(word,mol,errmsg)
+
+    elseif (isformat == isformat_r_akaikkr) then
+       call seed%read_akaikkr(word,mol,errmsg)
 
     elseif (isformat == isformat_r_shelx) then
        call seed%read_shelx(word,mol,errmsg)

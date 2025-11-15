@@ -183,13 +183,13 @@ module global
      module function eval_next_real(res,line,lp0)
        logical :: eval_next_real
        character*(*), intent(in) :: line
-       integer, intent(inout) :: lp0
+       integer, intent(inout), optional :: lp0
        real*8, intent(out) :: res
      end function eval_next_real
      module function eval_next_int(res,line,lp0)
        logical :: eval_next_int
        character*(*), intent(in) :: line
-       integer, intent(inout) :: lp0
+       integer, intent(inout), optional :: lp0
        integer, intent(out) :: res
      end function eval_next_int
      module subroutine list_radii()

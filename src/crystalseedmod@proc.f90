@@ -814,7 +814,8 @@ contains
        isformat_r_vasp, isformat_r_pwc, isformat_r_axsf, isformat_r_dat,&
        isformat_r_pgout, isformat_r_orca, isformat_r_dmain, isformat_r_aimsin,&
        isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_gjf, isformat_r_zmat,&
-       isformat_r_magres, isformat_r_alamode, isformat_r_sdf, isformat_r_castepcell,&
+       isformat_r_magres, isformat_r_alamode, isformat_r_akaikkr,&
+       isformat_r_sdf, isformat_r_castepcell,&
        isformat_r_castepphonon, isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
@@ -856,6 +857,9 @@ contains
 
     elseif (isformat == isformat_r_alamode) then
        call seed%read_alamode(file,mol,errmsg,ti=ti)
+
+    elseif (isformat == isformat_r_akaikkr) then
+       call seed%read_akaikkr(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_r_shelx) then
        call seed%read_shelx(file,mol,errmsg,ti=ti)
@@ -1550,7 +1554,7 @@ contains
 
   end subroutine read_magres
 
-  !> Read the structure from a magres file, for structural and NMR info.
+  !> Read the structure from an alamode input file.
   module subroutine read_alamode(seed,file,mol,errmsg,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, getline_raw, lower, fclose, lgetword, equal,&
@@ -1755,6 +1759,460 @@ contains
     seed%isused = .false.
 
   end subroutine read_alamode
+
+  !> Read the structure from an akaikkr input file.
+  module subroutine read_akaikkr(seed,file,mol,errmsg,ti)
+    use tools_math, only: matinv
+    use global, only: eval_next
+    use tools_io, only: fopen_read, fclose, getline_raw, getword, lower,&
+       isreal, isinteger
+    use param, only: isformat_r_akaikkr, pi
+    class(crystalseed), intent(inout)  :: seed !< Output crystal seed
+    character*(*), intent(in) :: file !< Input file name
+    logical, intent(in) :: mol !< Is this a molecule?
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: lu, lp, i, j, k, ll, ibrav, id, ier, ncmp
+    logical :: ok
+    character(len=:), allocatable :: line, token
+    character*3 :: brvtyp
+    real*8 :: a, coa, boa, alpha, beta, gamma, cw
+    real*8 :: theta, z, snrm, xc, c2x(3,3)
+
+    real*8, parameter :: eps = 1d-6
+
+    ! file and seed name
+    call seed%end()
+    seed%file = file
+    seed%name = file
+    seed%isformat = isformat_r_akaikkr
+    errmsg = ""
+    line = ""
+    lp = 1
+
+    ! open the file
+    lu = fopen_read(file,ti=ti)
+    if (lu < 0) then
+       errmsg = "Error opening file: " // trim(file)
+       return
+    end if
+
+    ! skip go and file
+    call read_next_token()
+    call read_next_token()
+
+    ! brvtyp and cell parameters
+    seed%useabr = 2
+    call read_next_token()
+    brvtyp = lower(token)
+    call read_next_token()
+    ok = isreal(a,token)
+    if (.not.ok) goto 999
+    call read_next_token()
+    ok = isreal(coa,token)
+    if (.not.ok) coa = 1d0
+    call read_next_token()
+    ok = isreal(boa,token)
+    if (.not.ok) boa = 1d0
+    call read_next_token()
+    ok = isreal(alpha,token)
+    if (.not.ok) alpha = 90d0
+    call read_next_token()
+    ok = isreal(beta,token)
+    if (.not.ok) beta = 90d0
+    call read_next_token()
+    ok = isreal(gamma,token)
+    if (.not.ok) gamma = 90d0
+
+    ! set the x2c from the Bravais type and the lattice parameters
+    if (brvtyp == "fcc") then
+       ibrav = 1
+       boa=1d0
+       coa=1d0
+       alpha=90d0
+       beta=90d0
+       gamma=90d0
+       call calculate_x2c()
+    elseif (brvtyp == "bcc") then
+       ibrav = 2
+       boa=1d0
+       coa=1d0
+       alpha=90d0
+       beta=90d0
+       gamma=90d0
+       call calculate_x2c()
+    elseif (brvtyp == "hcp" .or. brvtyp == "hex") then
+       ibrav = 3
+       boa=1d0
+       if(abs(coa) < eps) coa=sqrt(8d0/3d0)
+       alpha=90d0
+       beta=90d0
+       gamma=120d0
+       call calculate_x2c()
+    elseif (brvtyp == "sc ") then
+       ibrav = 4
+       boa=1d0
+       coa=1d0
+       alpha=90d0
+       beta=90d0
+       gamma=90d0
+       call calculate_x2c()
+    elseif (brvtyp == "bct") then
+       ibrav = 5
+       boa=1d0
+       if(abs(coa) < eps) coa=1d0
+       alpha=90d0
+       beta=90d0
+       gamma=90d0
+       call calculate_x2c()
+    elseif (brvtyp == "st ") then
+       ibrav = 6
+       boa=1d0
+       if(abs(coa) < eps) coa=1d0
+       alpha=90d0
+       beta=90d0
+       gamma=90d0
+       call calculate_x2c()
+    elseif (brvtyp == "fco") then
+       ibrav = 7
+       alpha=90d0
+       beta=90d0
+       gamma=90d0
+       if(abs(coa) < eps) coa=1d0
+       if(abs(boa) < eps) boa=1d0
+       call calculate_x2c()
+    elseif (brvtyp == "bco") then
+       ibrav = 8
+       alpha=90d0
+       beta=90d0
+       gamma=90d0
+       if(abs(coa) < eps) coa=1d0
+       if(abs(boa) < eps) boa=1d0
+       call calculate_x2c()
+    elseif (brvtyp == "bso") then
+       ibrav = 9
+       alpha=90d0
+       beta=90d0
+       gamma=90d0
+       if(abs(coa) < eps) coa=1d0
+       if(abs(boa) < eps) boa=1d0
+       call calculate_x2c()
+    elseif (brvtyp == "so ") then
+       ibrav = 10
+       alpha=90d0
+       beta=90d0
+       gamma=90d0
+       if(abs(coa) < eps) coa=1d0
+       if(abs(boa) < eps) boa=1d0
+       call calculate_x2c()
+    elseif (brvtyp == "bsm") then
+       ibrav = 11
+       alpha=90d0
+       gamma=90d0
+       if(abs(beta) < eps) beta=90d0
+       if(abs(coa) < eps) coa=1d0
+       if(abs(boa) < eps) boa=1d0
+       seed%m_x2c(1,1)=5d-1
+       seed%m_x2c(2,1)=-5d-1*boa
+       seed%m_x2c(3,1)=0d0
+       seed%m_x2c(1,2)=5d-1
+       seed%m_x2c(2,2)=5d-1*boa
+       seed%m_x2c(3,2)=0d0
+       seed%m_x2c(1,3)=cos(pi/180d0*beta)*coa
+       seed%m_x2c(2,3)=0d0
+       seed%m_x2c(3,3)=sqrt(1d0-(cos(pi/180d0*beta))**2)*coa
+    elseif (brvtyp == "sm ") then
+       ibrav = 12
+       alpha=90d0
+       gamma=90d0
+       if(abs(beta) < eps) beta=90d0
+       if(abs(coa) < eps) coa=1d0
+       if(abs(boa) < eps) boa=1d0
+       seed%m_x2c(1,1)=1d0
+       seed%m_x2c(2,1)=0d0
+       seed%m_x2c(3,1)=0d0
+       seed%m_x2c(1,2)=0d0
+       seed%m_x2c(2,2)=boa
+       seed%m_x2c(3,2)=0d0
+       seed%m_x2c(1,3)=cos(pi/180d0*beta)*coa
+       seed%m_x2c(2,3)=0d0
+       seed%m_x2c(3,3)=sqrt(1d0-(cos(pi/180d0*beta))**2)*coa
+    elseif (brvtyp == "trc") then
+       ibrav = 13
+       if(abs(alpha) < eps) alpha=90d0
+       if(abs(beta) < eps) beta=90d0
+       if(abs(gamma) < eps) gamma=90d0
+       if(abs(coa) < eps) coa=1d0
+       if(abs(boa) < eps) boa=1d0
+       cw=1d0-(cos(pi/180d0*alpha))**2-(cos(pi/180d0*beta))**2-&
+          (cos(pi/180d0*gamma))**2+2*cos(pi/180d0*alpha)*&
+          cos(pi/180d0*beta)*cos(pi/180d0*gamma)
+       seed%m_x2c(1,1)=1d0
+       seed%m_x2c(2,1)=0d0
+       seed%m_x2c(3,1)=0d0
+       seed%m_x2c(1,2)=cos(pi/180d0*gamma)*boa
+       seed%m_x2c(2,2)=sin(pi/180d0*gamma)*boa
+       seed%m_x2c(3,2)=0d0
+       seed%m_x2c(1,3)=cos(pi/180d0*beta)*coa
+       seed%m_x2c(2,3)=(cos(pi/180d0*alpha)-cos(pi/180d0*beta)*&
+          cos(pi/180d0*gamma))/sqrt(1d0-(cos(pi/180d0*gamma))**2)*coa
+       seed%m_x2c(3,3)=sqrt(cw)/sqrt(1d0-(cos(pi/180d0*gamma))**2)*coa
+    elseif (brvtyp == "rhb" .or. brvtyp == "trg") then
+       ibrav = 14
+       boa=1d0
+       coa=1d0
+       if(abs(alpha) < eps) alpha=60d0
+       beta=alpha
+       gamma=alpha
+       theta=2d0*pi*alpha/360d0
+       z=sqrt((5d-1+cos(theta))/(1d0-cos(theta)))
+       snrm=sqrt(1d0+z**2)
+       ! obverse setting (used in versions after 2015)
+       seed%m_x2c(1,1)=(sqrt(3d0)/2d0)/snrm
+       seed%m_x2c(2,1)=-(1d0/2d0)/snrm
+       seed%m_x2c(3,1)=z/snrm
+       seed%m_x2c(1,2)=0d0
+       seed%m_x2c(2,2)=1d0/snrm
+       seed%m_x2c(3,2)=z/snrm
+       seed%m_x2c(1,3)=-(sqrt(3d0)/2d0)/snrm
+       seed%m_x2c(2,3)=-(1d0/2d0)/snrm
+       seed%m_x2c(3,3)=z/snrm
+    elseif (brvtyp == "fct") then
+       ibrav = 15
+       boa=1d0
+       if(abs(coa) < eps) coa=1d0
+       alpha=90d0
+       beta=90d0
+       gamma=90d0
+       call calculate_x2c()
+    elseif (brvtyp == "aux" .or. brvtyp == "prv") then
+       errmsg = "Bravais types aux and prv not supported"
+       return
+    end if
+    seed%m_x2c = seed%m_x2c * a
+
+    ! continue reading the input file
+    ! edelt ... pmix
+    do i = 1, 10
+       call read_next_token()
+    end do
+
+    ! ntyp
+    call read_next_token()
+    ok = isinteger(seed%nspc,token)
+    if (.not.ok) goto 999
+    allocate(seed%spc(seed%nspc))
+
+    ! read the atomic species
+    do i = 1, seed%nspc
+       ! type, number of components
+       call read_next_token()
+       seed%spc(i)%name = token
+       call read_next_token()
+       ok = isinteger(ncmp,token)
+       if (.not.ok) goto 999
+       do j = 1, 3 ! rmt .. mxl
+          call read_next_token()
+       end do
+
+       ! use the first component as the representative
+       call read_next_token() ! anclr
+       ok = isinteger(seed%spc(i)%z,token)
+       if (.not.ok) goto 999
+       call read_next_token() ! conc
+
+       ! skip the rest of the components
+       do j = 1, ncmp-1
+          call read_next_token() ! conc
+          call read_next_token() ! conc
+       end do
+
+       ! wrap up
+       seed%spc(i)%qat = 0d0
+    end do
+
+    ! natm, number of atoms, alllocate atomic info
+    call read_next_token()
+    ok = isinteger(seed%nat,token)
+    if (.not.ok) goto 999
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
+    seed%x = 0d0
+
+    ! atmicx: atomic coordinates and types
+    do i = 1, seed%nat
+       do j = 1, 3
+          call read_next_token()
+          token = trim(adjustl(lower(token)))
+          ll = len(token)
+          if (token(ll:ll)=="a" .or. token(ll:ll)=="b" .or. token(ll:ll)=="c") then
+             if (token(ll:ll) == "a") then
+                id = 1
+             elseif (token(ll:ll) == "b") then
+                id = 2
+             else
+                id = 3
+             end if
+             if (ll == 1) then
+                xc = 1d0
+             else
+                ok = eval_next(xc,token(1:ll-1))
+                if (.not.ok) goto 999
+             end if
+             do k = 1, 3
+                seed%x(k,i) = seed%x(k,i) + xc * seed%m_x2c(k,id)
+             end do
+          elseif (token(ll:ll)=="x" .or. token(ll:ll)=="y" .or. token(ll:ll)=="z") then
+             if (ll == 1) then
+                xc = 1d0
+             else
+                ok = eval_next(xc,token(1:ll-1))
+                if (.not.ok) goto 999
+             end if
+             if (token(ll:ll) == "x") then
+                seed%x(id,i) = seed%x(id,i) + xc * a
+             elseif (token(ll:ll) == "y") then
+                seed%x(id,i) = seed%x(id,i) + xc * a * boa
+             else
+                seed%x(id,i) = seed%x(id,i) + xc * a * coa
+             end if
+          else
+             ok = eval_next(xc,token)
+             seed%x(j,i) = seed%x(j,i) + xc * a
+          end if
+       end do
+
+       ! read the atomic name and the species
+       call read_next_token()
+       seed%is(i) = 0
+       do j = 1, seed%nspc
+          if (seed%spc(j)%name == token) then
+             seed%is(i) = j
+             seed%atname(i) = token
+             exit
+          end if
+       end do
+       if (seed%is(i) == 0) goto 999
+    end do
+
+    ! convert to fractional coordinates
+    c2x = seed%m_x2c
+    call matinv(c2x,3,ier)
+    if (ier /= 0) goto 999
+    do i = 1, seed%nat
+       seed%x(:,i) = matmul(c2x,seed%x(:,i))
+    end do
+
+    ! wrap up
+    errmsg = ""
+    call fclose(lu)
+
+    ! no symmetry
+    seed%havesym = 0
+    seed%checkrepeats = .false.
+    seed%findsym = -1
+
+    ! rest of the seed information
+    seed%isused = .true.
+    seed%ismolecule = mol
+    seed%cubic = .false.
+    seed%border = 0d0
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    return
+
+999 continue
+    call fclose(lu)
+    seed%isused = .false.
+
+  contains
+    subroutine read_next_token()
+      logical :: ok, newl
+      integer :: i, wp, len0
+
+      token = ""
+      newl = (lp > len_trim(line))
+      if (.not.newl) newl = len_trim(line(lp:)) == 0
+
+      if (newl) then
+         do while(.true.)
+            ! read new line
+            ok = getline_raw(lu,line,.false.)
+            if (.not.ok) return
+            if (len_trim(line) == 0) cycle
+            if (line(1:1) == "c" .or. line(1:1) == "C") cycle
+            line = adjustl(line)
+            exit
+         end do
+         ! reset the line pointer
+         lp = 1
+      end if
+
+      ! read the next token, note there are commas
+      len0 = len(line)
+      token = ""
+
+      !! advance to next non-blank character; return a blank token if nothing left
+      i = lp
+      do while (line(i:i) == " ")
+         i = i+1
+         if (i > len0) then
+            lp = len0
+            return
+         end if
+      enddo
+
+      !! if it is a comma, return a blank token
+      if (line(i:i) == ",") then
+         lp = min(i + 1,len0)
+         return
+      end if
+
+      !! read the token; stop at blank or comma
+      wp = i
+      do while (i<len0 .and. line(i:i) /= " " .and. line(i:i) /= ",")
+         i = i+1
+      enddo
+      token = line(wp:i-1)
+      lp = i
+
+      !! if stopped at blank, advance to the next non-blank; skip the comma
+      do while (lp<len0 .and. line(lp:lp) == " ")
+         lp = lp + 1
+      end do
+      if (line(lp:lp) == ",") lp = lp + 1
+
+    end subroutine read_next_token
+
+    subroutine calculate_x2c()
+
+      real*8, parameter :: c0 = 0d0
+      real*8, parameter :: c1 = 0.5d0
+      real*8, parameter :: c2 = -0.5d0
+      real*8, parameter :: c3 = 1d0
+      real*8, parameter :: c5 = 8.660254037844386d-1
+      real*8, parameter :: c6 = -c5
+      real*8, parameter :: lats(3,3,15) = reshape((/&
+         c0,c1,c1, c1,c0,c1, c1,c1,c0,  c2,c1,c1, c1,c2,c1, c1,c1,c2,&
+         c1,c6,c0, c1,c5,c0, c0,c0,c3,  c3,c0,c0, c0,c3,c0, c0,c0,c3,&
+         c2,c1,c1, c1,c2,c1, c1,c1,c2,  c3,c0,c0, c0,c3,c0, c0,c0,c3,&
+         c0,c1,c1, c1,c0,c1, c1,c1,c0,  c2,c1,c1, c1,c2,c1, c1,c1,c2,&
+         c1,c2,c0, c1,c1,c0, c0,c0,c3,  c3,c0,c0, c0,c3,c0, c0,c0,c3,&
+         c1,c2,c0, c1,c1,c0, c0,c0,c3,  c3,c0,c0, c0,c3,c0, c0,c0,c3,&
+         c3,c0,c0, c0,c3,c0, c0,c0,c3,  c0,c0,c0, c0,c0,c0, c0,c0,c0,&
+         c0,c1,c1, c1,c0,c1, c1,c1,c0/),shape(lats))
+
+      integer :: i
+
+      do i = 1, 3
+         seed%m_x2c(1,i) = lats(1,i,ibrav)
+         seed%m_x2c(2,i) = lats(2,i,ibrav) * boa
+         seed%m_x2c(3,i) = lats(3,i,ibrav) * coa
+      end do
+
+    end subroutine calculate_x2c
+
+  end subroutine read_akaikkr
 
   !> Read the structure from a fort.21 from neighcrys
   module subroutine read_f21(seed,file,mol,errmsg,ti)
@@ -5739,7 +6197,7 @@ contains
        isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_castepcell, isformat_r_castepphonon,&
        isformat_r_castepgeom,&
        isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres,&
-       isformat_r_alamode
+       isformat_r_alamode, isformat_r_akaikkr
     character*(*), intent(in) :: file
     integer, intent(in) :: isformat
     logical, intent(out) :: ismol
@@ -5760,7 +6218,7 @@ contains
        isformat_r_elk,isformat_r_siesta,isformat_r_dmain,isformat_r_vasp,&
        isformat_r_axsf,isformat_r_tinkerfrac,isformat_r_qein,isformat_r_qeout,&
        isformat_r_crystal,isformat_r_fploout,isformat_r_castepcell,isformat_r_castepphonon,&
-       isformat_r_castepgeom,isformat_r_magres,isformat_r_alamode)
+       isformat_r_castepgeom,isformat_r_magres,isformat_r_alamode,isformat_r_akaikkr)
        ! these are always crystals
        ismol = .false.
 
@@ -5979,7 +6437,8 @@ contains
        isformat_r_xsf, isformat_r_castepcell, isformat_r_castepphonon, isformat_r_castepgeom,&
        isformat_r_dat, isformat_r_f21, isformat_r_unknown, isformat_r_pgout, isformat_r_orca,&
        isformat_r_dmain, isformat_r_aimsin, isformat_r_aimsout, isformat_r_tinkerfrac,&
-       isformat_r_mol2, isformat_r_sdf, isformat_r_pdb, isformat_r_magres, isformat_r_alamode
+       isformat_r_mol2, isformat_r_sdf, isformat_r_pdb, isformat_r_magres,&
+       isformat_r_alamode, isformat_r_akaikkr
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(in) :: isformat0
@@ -6045,6 +6504,8 @@ contains
        call seed(1)%read_magres(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_alamode) then
        call seed(1)%read_alamode(file,mol,errmsg,ti=ti)
+    elseif (isformat == isformat_r_akaikkr) then
+       call seed(1)%read_akaikkr(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_pwc) then
        call seed(1)%read_pwc(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_shelx) then
@@ -9241,7 +9702,8 @@ contains
   !> or a quantum espresso calculation.
   subroutine which_in_format(file,isformat,ti)
     use tools_io, only: fopen_read, fclose, getline_raw, equal, lgetword, lower
-    use param, only: isformat_r_qein, isformat_r_aimsin, isformat_r_alamode
+    use param, only: isformat_r_qein, isformat_r_aimsin, isformat_r_alamode,&
+       isformat_r_akaikkr
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: isformat
     type(thread_info), intent(in), optional :: ti
@@ -9270,6 +9732,10 @@ contains
        end if
        if (equal(word,"&general")) then
           isformat = isformat_r_alamode
+          exit
+       end if
+       if (equal(word,"go")) then
+          isformat = isformat_r_akaikkr
           exit
        end if
     end do

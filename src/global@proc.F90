@@ -1209,7 +1209,7 @@ contains
 
     logical :: eval_next_real
     character*(*), intent(in) :: line !< Input line
-    integer, intent(inout) :: lp0 !< Pointer to position on input line, updated after reading.
+    integer, intent(inout), optional :: lp0 !< Pointer to position on input line, updated after reading.
     real*8, intent(out) :: res
 
     integer :: lp
@@ -1217,13 +1217,14 @@ contains
     character(len=:), allocatable :: errmsg
 
     res = 0d0
-    lp = lp0
+    lp = 1
+    if (present(lp0)) lp = lp0
     word = ""
     eval_next_real = isexpression_or_word(word,line,lp)
     if (eval_next_real) then
        res = eval(string(word),errmsg)
        if (len_trim(errmsg) > 0) eval_next_real = .false.
-       if (eval_next_real) lp0 = lp
+       if (eval_next_real .and. present(lp0)) lp0 = lp
     endif
 
   end function eval_next_real
@@ -1235,7 +1236,7 @@ contains
 
     logical :: eval_next_int
     character*(*), intent(in) :: line !< Input line
-    integer, intent(inout) :: lp0 !< Pointer to position on input line, updated after reading.
+    integer, intent(inout), optional :: lp0 !< Pointer to position on input line, updated after reading.
     integer, intent(out) :: res
 
     character(len=:), allocatable :: word
@@ -1246,7 +1247,8 @@ contains
     real*8, parameter :: eps = 1d-20
 
     res = 0
-    lp = lp0
+    lp = 1
+    if (present(lp0)) lp = lp0
     word = ""
     eval_next_int = isexpression_or_word(word,line,lp)
     if (eval_next_int) then
@@ -1257,7 +1259,7 @@ contains
           return
        endif
        if (eval_next_int) then
-          lp0 = lp
+          if (present(lp0)) lp0 = lp
           res = nint(rdum)
        endif
     endif

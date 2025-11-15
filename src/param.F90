@@ -129,6 +129,7 @@ module param
   integer, parameter, public :: isformat_r_magres = 42
   integer, parameter, public :: isformat_r_alamode = 43
   integer, parameter, public :: isformat_r_castepphonon = 44
+  integer, parameter, public :: isformat_r_akaikkr = 45
 
   ! Enumerate for structure formats (writing)
   integer, parameter, public :: isformat_w_unknown = 0
