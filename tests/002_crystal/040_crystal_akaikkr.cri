@@ -1,0 +1,48 @@
+## delete: 040_crystal_akaikkr.cro
+## check: 040_crystal_akaikkr_gen_01.cri -a1e-10
+## check: 040_crystal_akaikkr_gen_02.cri -a1e-10
+## check: 040_crystal_akaikkr_gen_03.cri -a1e-10
+## check: 040_crystal_akaikkr_gen_04.cri -a1e-10
+## check: 040_crystal_akaikkr_gen_05.cri -a1e-10
+## check: 040_crystal_akaikkr_gen_06.cri -a1e-10
+## check: 040_crystal_akaikkr_gen_07.cri -a1e-10
+## check: 040_crystal_akaikkr_gen_08.cri -a1e-10
+## check: 040_crystal_akaikkr_gen_09.cri -a1e-10
+## check: 040_crystal_akaikkr_gen_10.cri -a1e-10
+## check: 040_crystal_akaikkr_gen_11.cri -a1e-10
+## check: 040_crystal_akaikkr_gen_12.cri -a1e-10
+## check: 040_crystal_akaikkr_gen_13.cri -a1e-10
+## check: 040_crystal_akaikkr_gen_14.cri -a1e-10
+## check: 040_crystal_akaikkr_gen_15.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/akaikkr_cpa2021v02/co.in
+write 040_crystal_akaikkr_gen_01.cri
+crystal ../zz_source/akaikkr_cpa2021v02/cras.in
+write 040_crystal_akaikkr_gen_02.cri
+crystal ../zz_source/akaikkr_cpa2021v02/fe2val.in
+write 040_crystal_akaikkr_gen_03.cri
+crystal ../zz_source/akaikkr_cpa2021v02/fe_h.in
+write 040_crystal_akaikkr_gen_04.cri
+crystal ../zz_source/akaikkr_cpa2021v02/fe.in
+write 040_crystal_akaikkr_gen_05.cri
+crystal ../zz_source/akaikkr_cpa2021v02/fe_latt.in
+write 040_crystal_akaikkr_gen_06.cri
+crystal ../zz_source/akaikkr_cpa2021v02/fe_lmd.in
+write 040_crystal_akaikkr_gen_07.cri
+crystal ../zz_source/akaikkr_cpa2021v02/fe_ru.in
+write 040_crystal_akaikkr_gen_08.cri
+crystal ../zz_source/akaikkr_cpa2021v02/gaas.in
+write 040_crystal_akaikkr_gen_09.cri
+crystal ../zz_source/akaikkr_cpa2021v02/licoo2.in
+write 040_crystal_akaikkr_gen_10.cri
+crystal ../zz_source/akaikkr_cpa2021v02/li.in
+write 040_crystal_akaikkr_gen_11.cri
+crystal ../zz_source/akaikkr_cpa2021v02/mgh2.in
+write 040_crystal_akaikkr_gen_12.cri
+crystal ../zz_source/akaikkr_cpa2021v02/mg.in
+write 040_crystal_akaikkr_gen_13.cri
+crystal ../zz_source/akaikkr_cpa2021v02/nife.in
+write 040_crystal_akaikkr_gen_14.cri
+crystal ../zz_source/akaikkr_cpa2021v02/ni.in
+write 040_crystal_akaikkr_gen_15.cri
+
