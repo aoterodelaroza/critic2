@@ -1,0 +1,12 @@
+## delete: 041_crystal_xband.cro
+## check: 041_crystal_xband_gen_1.cri -a1e-10
+## check: 041_crystal_xband_gen_2.cri -a1e-10
+## check: 041_crystal_xband_gen_3.cri -a1e-10
+## labels: regression quick
+crystal ../zz_source/xband-8.6/Co3Sn2S2.sys
+write 041_crystal_xband_gen_1.cri
+crystal ../zz_source/xband-8.6/TUT1.sys
+write 041_crystal_xband_gen_2.cri
+crystal ../zz_source/xband-8.6/TUT2.sys
+write 041_crystal_xband_gen_3.cri
+

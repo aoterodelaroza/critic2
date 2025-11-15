@@ -39,6 +39,7 @@ set(TESTS
   038_crystal_fploout      ## from an FPLO output file
   039_crystal_magres       ## from a magres file
   040_crystal_akaikkr      ## from an akaikkr input file
+  041_crystal_xband        ## from an xband sys file
   )
 
 runtests(${TESTS})
