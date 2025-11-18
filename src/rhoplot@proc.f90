@@ -429,7 +429,8 @@ contains
     integer, parameter :: outform_cube = 1
     integer, parameter :: outform_bincube = 2
     integer, parameter :: outform_vasp = 3
-    integer, parameter :: outform_xsf = 4
+    integer, parameter :: outform_vaspnov = 4
+    integer, parameter :: outform_xsf = 5
 
     integer, parameter :: psi_none = 0
     integer, parameter :: psi_mlwf = 1
@@ -576,6 +577,8 @@ contains
              outform = outform_bincube
           elseif (equal(wext1,'xsf')) then
              outform = outform_xsf
+          elseif (equal(wext1,'ELFCAR')) then
+             outform = outform_vaspnov
           else
              outform = outform_vasp
           end if
@@ -718,7 +721,9 @@ contains
        elseif (outform == outform_cube) then
           call sy%c%writegrid_cube(fake,outfile,.true.,.false.,xd,x0+sy%c%molx0)
        elseif (outform == outform_vasp) then
-          call sy%c%writegrid_vasp(fake,outfile,.true.)
+          call sy%c%writegrid_vasp(fake,outfile,.true.,.false.)
+       elseif (outform == outform_vaspnov) then
+          call sy%c%writegrid_vasp(fake,outfile,.true.,.true.)
        elseif (outform == outform_xsf) then
           call sy%c%writegrid_xsf(fake,outfile,.true.)
        endif
@@ -760,7 +765,9 @@ contains
        elseif (outform == outform_cube) then
           call sy%c%writegrid_cube(faux%f,outfile,.false.,.false.,xd0=xd,x00=x0+sy%c%molx0,ishift0=ishift)
        elseif (outform == outform_vasp) then
-          call sy%c%writegrid_vasp(faux%f,outfile,.false.)
+          call sy%c%writegrid_vasp(faux%f,outfile,.false.,.false.)
+       elseif (outform == outform_vaspnov) then
+          call sy%c%writegrid_vasp(faux%f,outfile,.false.,.true.)
        elseif (outform == outform_xsf) then
           call sy%c%writegrid_xsf(faux%f,outfile,.false.)
        endif
@@ -831,7 +838,9 @@ contains
        elseif (outform == outform_cube) then
           call sy%c%writegrid_cube(lf,outfile,.false.,.false.,xd,x0+sy%c%molx0)
        elseif (outform == outform_vasp) then
-          call sy%c%writegrid_vasp(lf,outfile,.false.)
+          call sy%c%writegrid_vasp(lf,outfile,.false.,.false.)
+       elseif (outform == outform_vaspnov) then
+          call sy%c%writegrid_vasp(lf,outfile,.false.,.true.)
        elseif (outform == outform_xsf) then
           call sy%c%writegrid_xsf(lf,outfile,.false.)
        endif

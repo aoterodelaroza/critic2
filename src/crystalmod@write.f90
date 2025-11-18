@@ -3172,13 +3172,14 @@ contains
   !> Write a grid to a VASP CHGCAR file. The input is the crystal (c),
   !> the grid in 3D array form (g), the filename (file), and whether
   !> to write the whole cube or only the header (onlyheader).
-  module subroutine writegrid_vasp(c,g,file,onlyheader,ishift0,ti)
+  module subroutine writegrid_vasp(c,g,file,onlyheader,nov,ishift0,ti)
     use tools_io, only: fopen_write, string, nameguess, fclose
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     real*8, intent(in), allocatable :: g(:,:,:)
     character*(*), intent(in) :: file
     logical, intent(in) :: onlyheader
+    logical, intent(in) :: nov
     integer, intent(in), optional :: ishift0(3)
     type(thread_info), intent(in), optional :: ti
 
@@ -3240,9 +3241,15 @@ contains
     write (lu,*)
     write (lu,'(3(I5," "))') n
     if (.not.onlyheader) then
-       write (lu,'(5(" ",e22.14))') &
-          (((g(modulo(ix+ishift(1),n(1))+1,modulo(iy+ishift(2),n(2))+1,modulo(iz+ishift(3),n(3))+1)*c%omega,&
-          ix=0,n(1)-1),iy=0,n(2)-1),iz=0,n(3)-1)
+       if (nov) then
+          write (lu,'(5(" ",e22.14))') &
+             (((g(modulo(ix+ishift(1),n(1))+1,modulo(iy+ishift(2),n(2))+1,modulo(iz+ishift(3),n(3))+1),&
+             ix=0,n(1)-1),iy=0,n(2)-1),iz=0,n(3)-1)
+       else
+          write (lu,'(5(" ",e22.14))') &
+             (((g(modulo(ix+ishift(1),n(1))+1,modulo(iy+ishift(2),n(2))+1,modulo(iz+ishift(3),n(3))+1)*c%omega,&
+             ix=0,n(1)-1),iy=0,n(2)-1),iz=0,n(3)-1)
+       end if
     end if
     call fclose(lu)
 

@@ -1054,11 +1054,12 @@ module crystalmod
        integer, intent(in), optional :: ishift0(3)
        type(thread_info), intent(in), optional :: ti
      end subroutine writegrid_cube
-     module subroutine writegrid_vasp(c,g,file,onlyheader,ishift0,ti)
+     module subroutine writegrid_vasp(c,g,file,onlyheader,nov,ishift0,ti)
        class(crystal), intent(in) :: c
        real*8, intent(in), allocatable :: g(:,:,:)
        character*(*), intent(in) :: file
        logical, intent(in) :: onlyheader
+       logical, intent(in) :: nov
        integer, intent(in), optional :: ishift0(3)
        type(thread_info), intent(in), optional :: ti
      end subroutine writegrid_vasp
