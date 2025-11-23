@@ -803,7 +803,8 @@ contains
     use global, only: CP_hdegen
     use tools_math, only: rsindex
     use tools_io, only: ferror, faterr
-    use types, only: fieldeval_category_f, fieldeval_category_fder1, fieldeval_category_fder2,&
+    use types, only: field_evaluation_avail, fieldeval_category_f, fieldeval_category_fder1, &
+       fieldeval_category_fder2,&
        fieldeval_category_gkin, fieldeval_category_stress, fieldeval_category_spin,&
        fieldeval_category_mo, fieldeval_category_mep, fieldeval_category_uslater,&
        fieldeval_category_nheff, fieldeval_category_xhole,&
