@@ -766,8 +766,6 @@ contains
   module subroutine load_grid_from_array3(f,c,id,name,n,g)
     use iso_c_binding, only: c_loc
     use fragmentmod, only: fragment
-    use tools_io, only: ferror, faterr
-    use param, only: ifformat_as_resample
     class(field), intent(inout) :: f !< Input/output field
     type(crystal), intent(in), target :: c
     integer, intent(in) :: id
@@ -809,8 +807,7 @@ contains
        fieldeval_category_gkin, fieldeval_category_stress, fieldeval_category_spin,&
        fieldeval_category_mo, fieldeval_category_mep, fieldeval_category_uslater,&
        fieldeval_category_nheff, fieldeval_category_xhole,&
-       fieldeval_category_NUM, id_mo_homo, id_mo_lumo, id_mo_ahomo,&
-       id_mo_alumo, id_mo_bhomo, id_mo_blumo, id_mo_a, id_mo_b, id_mo_id
+       fieldeval_category_NUM
     use param, only: icrd_cart
     class(field), intent(inout) :: f !< Input field
     real*8, intent(in) :: v(3) !< Target point in Cartesian coordinates
@@ -2524,7 +2521,7 @@ contains
     type(field_evaluation_avail) :: request
 
     ! initialization
-2   call request%field_nder2()
+    call request%field_nder2()
     ier = 0
     hini = abs(NAV_step) * iup
     h0 = hfirst * iup

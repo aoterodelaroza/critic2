@@ -2952,7 +2952,7 @@ contains
 
       integer :: i1, i2, im1, im2, ix1, ix2
 
-      if (i1 <= 0 .or. i2 <= 0 .or. i1 > corig%nneq .or. i2 > corig%nneq) then
+      if (i1in <= 0 .or. i2in <= 0 .or. i1in > corig%nneq .or. i2in > corig%nneq) then
          segid = "????"
          return
       end if

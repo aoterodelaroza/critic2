@@ -411,7 +411,7 @@ contains
     use tools_io, only: lgetword, faterr, ferror, equal, getword, &
        isexpression_or_word, uout, string, isinteger
     use types, only: scalar_value, vstring, field_evaluation_avail
-1   use param, only: eye
+    use param, only: eye
     use iso_c_binding, only: c_loc
     character*(*), intent(in) :: line
 

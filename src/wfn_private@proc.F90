@@ -2897,7 +2897,6 @@ contains
   !> Calculate the exchange hole at position xpos (Cartesian) and
   !> reference point xref (Cartesian). Return the value in xhole.
   module subroutine xhole(f,xpos,xref,xh,valid)
-    use tools_io, only: ferror, faterr
     class(molwfn), intent(in) :: f
     real*8, intent(in) :: xpos(3)
     real*8, intent(in) :: xref(3)
@@ -2934,7 +2933,7 @@ contains
   module subroutine calculate_mo(f,xpos,phi,id_mo,idx,errmsg)
     use iso_c_binding, only: c_f_pointer
     use crystalmod, only: crystal
-    use tools_io, only: lower, isinteger, ferror, faterr, string
+    use tools_io, only: lower, isinteger, string
     use param, only: icrd_cart
     use types, only: id_mo_homo, id_mo_lumo, id_mo_ahomo, id_mo_alumo,&
        id_mo_bhomo, id_mo_blumo, id_mo_a, id_mo_b, id_mo_id
@@ -2945,10 +2944,8 @@ contains
     integer, intent(in) :: idx !< index to go with the identifier
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: imo, lp
-    logical :: ok
+    integer :: imo
     real*8 :: phi_(1,1), rho, grad(3), hh(6)
-    character*10 :: fderl
     integer :: nenv
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)

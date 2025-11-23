@@ -1189,7 +1189,7 @@ contains
     logical, intent(in), optional :: periodic
     real*8 :: fieldeval
 
-    integer :: nder, idx
+    integer :: idx
     type(scalar_value) :: res
     character*10 :: fderl
     type(field_evaluation_avail) :: request
@@ -2289,27 +2289,26 @@ contains
   !> thread-safe.
   function chemfunction(c,sia,x0,args,syl,periodic,errmsg) result(q)
     use systemmod, only: system
-    use fieldmod, only: type_wfn
     use global, only: dunit0, iunit
     use tools_math, only: bhole
     use tools_io, only: string
     use types, only: scalar_value, field_evaluation_avail, fieldeval_category_f, fieldeval_category_fder1,&
        fieldeval_category_fder2, fieldeval_category_gkin, fieldeval_category_stress,&
-       fieldeval_category_spin, fieldeval_category_mo, fieldeval_category_mep,&
+       fieldeval_category_spin, fieldeval_category_mep,&
        fieldeval_category_uslater, fieldeval_category_xhole, fieldeval_category_nheff
     use param, only: pi
     integer, intent(in) :: c
     character*(*), intent(in) :: sia
     real*8, intent(in) :: x0(3)
     real*8, intent(in), allocatable :: args(:)
-    real*8 :: q, xref(3)
+    real*8 :: q
     logical, intent(in), optional :: periodic
     type(system), intent(inout), optional :: syl
     character(len=:), allocatable, intent(inout) :: errmsg
 
     type(scalar_value) :: res
     real*8 :: f0, ds, ds0, g, g0, dsigs, quads, tau, drhos2, rhos, laps
-    real*8 :: br_b, br_alf, br_a, raux(3), ux
+    real*8 :: br_b, br_alf, br_a, raux(3)
     integer :: idx
     logical :: dohole, use1, use2
     type(field_evaluation_avail) :: request

@@ -887,8 +887,7 @@ contains
     use struct_drivers, only: struct_write
     use crystalseedmod, only: crystalseed
     use global, only: eval_next, prunedist, gcpchange
-    use tools_io, only: getword, equal, getword, ferror, faterr, nameguess, lower, string,&
-       ioj_left, ioj_right
+    use tools_io, only: getword, equal, getword, ferror, faterr, nameguess, lower, string
     use types, only: realloc, gpathp
     character*(*), intent(in) :: line
 

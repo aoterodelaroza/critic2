@@ -2233,7 +2233,6 @@ contains
     real*8, intent(in) :: x0(3) !< Target point (cryst. coords.)
     real*8, intent(out) :: y !< Interpolated value
 
-    real*8 :: x(3)
     integer :: idx(3)
 
     idx = grid_near(f,x0)
@@ -2310,7 +2309,7 @@ contains
     real*8, intent(out) :: ypp(3,3) !< Second derivative
     logical, intent(out) :: valid !< whether the point was in the grid domain
 
-    integer :: i, j, ii, jj, kk, ll, nn, indx(3), oii, onn, omm
+    integer :: i, ii, jj, kk, ll, nn, indx(3), oii, onn, omm
     integer :: inii(4,3)
     real*8 :: bbb, ddu(2), hrh(2), hh(4,2), grd(4), lder(4)
     real*8 :: cof(2,3), ddstar(6), rhstar(6), sqder(6,4), sqvlr(6,4)
@@ -3153,7 +3152,7 @@ contains
     class(grid3), intent(inout) :: f !< Input grid
 
     integer :: istat
-    integer :: d, nmax, i, i1, i2, j
+    integer :: d, nmax, i, i1, i2
     real*8, allocatable :: l(:,:), fg(:)
     real*8 :: fprev, fnext, fuse, fone
 

@@ -2228,7 +2228,7 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lp, lu, ll, i, iaux, id, idum, ier
+    integer :: lp, lu, i, iaux, id, idum, ier
     real*8 :: a, rdum, c2x(3,3)
     logical :: hada, hadx2c, hadnat, hadcoords, hadnspc, hadspc
     logical :: ok

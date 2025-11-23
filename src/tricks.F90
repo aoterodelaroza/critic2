@@ -3487,7 +3487,7 @@ contains
     real(c_double), allocatable :: xvws(:,:)
     integer, allocatable :: iside_(:,:) !< sides of the WS faces
     integer, allocatable :: nside_(:) !< number of sides of WS faces
-    real*8 :: av(3), bary(3), rmat(3,4), midj(3), sang, saux
+    real*8 :: av(3), bary(3), midj(3), sang, saux
     character(len=:), allocatable :: sncp, sname, sz, smult, str, sdir, scoord
     logical :: isdirect, iscoord
 

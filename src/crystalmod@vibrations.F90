@@ -1023,7 +1023,7 @@ contains
   module subroutine vibrations_phonon_rattle(v,c,temp,seed)
     use crystalseedmod, only: crystalseed
     use tools, only: mergesort
-    use param, only: atmass, pi, bohrtoa
+    use param, only: atmass, pi
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: temp
@@ -1031,7 +1031,7 @@ contains
 
     real*8, allocatable :: freq(:), xat(:,:)
     complex*16, allocatable :: vec(:,:)
-    real*8 :: nbe, ff, ffrac, fterm, phase, amplitude, xx(2), xn, sqmfterm
+    real*8 :: nbe, ff, ffrac, fterm, xx(2), xn
     real*8 :: sigma
     integer :: i, j, k, n
     integer, allocatable :: idx(:)
@@ -1185,8 +1185,8 @@ contains
     character(len=:), allocatable :: line
     integer :: iqpt, ifreq, iat, iz
     real*8 :: xdum(6), alat
-    integer :: jfreq ! checking normalization
-    complex*16 :: summ
+    ! integer :: jfreq ! checking normalization
+    ! complex*16 :: summ
 
     ! initialize
     errmsg = ""
@@ -2472,7 +2472,7 @@ contains
   subroutine read_castep_phonon(v,c,file,errmsg,ti)
     use tools_io, only: fopen_read, fclose, getline_raw
     use types, only: realloc
-    use param, only: atmass, ivformat_castep_phonon
+    use param, only: ivformat_castep_phonon
     type(vibrations), intent(inout) :: v
     type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
