@@ -655,7 +655,7 @@
   Grid dimensions : 36  36  36  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
-  First elements... -1.076652800687E-09  3.449234746778E-04  6.827876502041E-04  
+  First elements... -1.076652800780E-09  3.449234746778E-04  6.827876502041E-04  
   Last elements... -1.709423782530E-02  -1.717979789257E-02  -1.418650899651E-02  
   Sum of elements... 3.530744702338E+01
   Sum of squares of elements... 2.707537796479E+01
@@ -733,7 +733,7 @@
   Grid dimensions : 36  36  36  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
-  First elements... -1.076652808483E-09  4.296350091374E-03  1.496932782950E-02  
+  First elements... -1.076652808779E-09  4.296350091374E-03  1.496932782950E-02  
   Last elements... -3.245986710595E-02  -2.504165865739E-02  -1.418609578424E-02  
   Sum of elements... 3.530747699459E+01
   Sum of squares of elements... 2.997077537405E+01
@@ -837,7 +837,7 @@
   Grid dimensions : 36  36  36  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
-  First elements... -4.339430344710E-08  1.934959011426E-03  3.728292927760E-03  
+  First elements... -4.339430344711E-08  1.934959011426E-03  3.728292927760E-03  
   Last elements... 1.763698784909E-03  3.688443740199E-03  3.702038042223E-03  
   Sum of elements... 2.783125842041E+01
   Sum of squares of elements... 1.844894795795E+01
@@ -863,7 +863,7 @@
   Grid dimensions : 36  36  36  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
-  First elements... -4.339430344000E-08  -9.166217947768E-04  -1.948100237916E-03  
+  First elements... -4.339430343970E-08  -9.166217947768E-04  -1.948100237916E-03  
   Last elements... -6.958816324366E-03  -8.235538723894E-03  -7.649916136326E-03  
   Sum of elements... 3.844167323358E+00
   Sum of squares of elements... 6.694579631649E+00
@@ -941,7 +941,7 @@
   Grid dimensions : 36  36  36  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.16079  
-  First elements... -4.339430344355E-08  3.171152468436E-03  1.018195253024E-02  
+  First elements... -4.339430344340E-08  3.171152468436E-03  1.018195253024E-02  
   Last elements... -1.964185037035E-02  -1.473902665146E-02  -7.650311013190E-03  
   Sum of elements... 3.844064095511E+00
   Sum of squares of elements... 1.449196759895E+01
@@ -995,13 +995,13 @@
   Max. length Voronoi-relevant vector (bohr):  0.16079  
   First elements... 2.452844327207E-09  1.264156071801E-04  1.997454590226E-03  
   Last elements... 8.044716379598E-03  3.687124692851E-03  2.420184613516E-04  
-  Sum of elements... 8.286828254850E-15
+  Sum of elements... 7.324056725683E-15
   Sum of squares of elements... 6.169027947977E-02
   Grid domain/cell volume = 137.1519/137.1519
   Grid domain integral (34) = 0.00000000
   Cell integral (34) = 0.00000000
   Min: -1.21424868E-02
-  Average: 1.77615489E-19
+  Average: 1.56979954E-19
   Max: 1.32304741E-02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F

@@ -266,7 +266,7 @@
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 1.466538038801E-03  1.015064955766E-03  4.966810307897E-04  
-  Last elements... -1.656068537949E-04  -4.715129501987E-05  5.210290754201E-06  
+  Last elements... -1.656068537949E-04  -4.715129501987E-05  5.210290754202E-06  
   Sum of elements... 1.449509350407E+01
   Sum of squares of elements... 1.209946114560E-01
   Grid domain/cell volume = 118.7784/118.7784
@@ -474,7 +474,7 @@
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 2.240120004771E-04  1.549746064711E-04  7.571472603364E-05  
-  Last elements... -2.528945211088E-05  -7.174942328742E-06  8.325031833093E-07  
+  Last elements... -2.528945211088E-05  -7.174942328742E-06  8.325031833095E-07  
   Sum of elements... 2.215895976708E+00
   Sum of squares of elements... 2.830090909361E-03
   Grid domain/cell volume = 118.7784/118.7784
@@ -941,7 +941,7 @@
   Grid dimensions : 32  32  32  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
-  First elements... -4.482449122901E-06  -1.436693439541E-05  -3.719551547040E-05  
+  First elements... -4.482449122902E-06  -1.436693439541E-05  -3.719551547040E-05  
   Last elements... 9.718898042838E-04  -2.458711020529E-04  -1.277059785024E-03  
   Sum of elements... -2.580094525098E+01
   Sum of squares of elements... 3.644407666891E-01
@@ -969,13 +969,13 @@
   Max. length Voronoi-relevant vector (bohr):  0.17243  
   First elements... 2.401246513868E-04  2.956962011757E-04  3.416502911897E-04  
   Last elements... -3.937177640993E-05  1.479849010780E-05  7.816557980844E-05  
-  Sum of elements... 1.516360821630E-13
+  Sum of elements... 1.510233453052E-13
   Sum of squares of elements... 3.336753242043E-03
   Grid domain/cell volume = 118.7784/118.7784
   Grid domain integral (34) = 0.00000000
   Cell integral (34) = 0.00000000
   Min: -5.71498012E-03
-  Average: 4.62756598E-18
+  Average: 4.60886674E-18
   Max: 2.88544981E-03
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F

@@ -7,6 +7,7 @@
   Number of MOs (occupied): 21
   Number of primitives (GTO): 564
   Number of EDFs: 0
+  Basis set info available? Yes
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -43,5 +44,9 @@
      4.563562421E-03   8.787083039E-02  -1.652991650E-02  
     -8.278821661E-03  -1.652991650E-02  -1.543826071E-02  
   Hessian eigenvalues: -1.857932904E-02  7.905102345E-02  9.337258757E-02  
+  Spin up   field/gradient_norm/laplacian: 1.373281933E-02  1.775176661E-02  7.692214099E-02  
+  Spin up   kinetic energy density (G): 1.798097845E-02
+  Spin down field/gradient_norm/laplacian: 1.373281933E-02  1.775176661E-02  7.692214099E-02  
+  Spin down kinetic energy density (G): 1.798097845E-02
   Field 0 (f,|grad|,lap): 4.645246299E-02  3.592370157E-02  1.208348758E-01  
 

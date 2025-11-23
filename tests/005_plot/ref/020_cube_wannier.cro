@@ -603,7 +603,7 @@
   Grid dimensions : 32  32  32  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
-  First elements... -3.437084395412E-09  -8.308699184914E-04  -1.707918838627E-03  
+  First elements... -3.437084394775E-09  -8.308699184914E-04  -1.707918838627E-03  
   Last elements... 9.665300837201E-03  7.491925762538E-03  5.460459534577E-03  
   Sum of elements... 9.501589214072E+01
   Sum of squares of elements... 1.656396896874E+01
@@ -629,7 +629,7 @@
   Grid dimensions : 32  32  32  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
-  First elements... -3.437084151563E-09  -2.005091468397E-03  -4.203362177538E-03  
+  First elements... -3.437084152200E-09  -2.005091468397E-03  -4.203362177538E-03  
   Last elements... 2.553463703853E-03  1.842448448285E-03  1.164266272770E-03  
   Sum of elements... -1.213929094854E+02
   Sum of squares of elements... 1.816497984289E+01
@@ -655,7 +655,7 @@
   Grid dimensions : 32  32  32  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
-  First elements... -3.437084192878E-09  -7.320550505756E-04  -1.352374650256E-03  
+  First elements... -3.437084192947E-09  -7.320550505756E-04  -1.352374650256E-03  
   Last elements... 7.788245889958E-03  6.752192067948E-03  5.460452168571E-03  
   Sum of elements... 9.501588255764E+01
   Sum of squares of elements... 1.658988946626E+01
@@ -681,7 +681,7 @@
   Grid dimensions : 32  32  32  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
-  First elements... -3.437084467357E-09  -1.791465555223E-03  -3.373040619701E-03  
+  First elements... -3.437084466720E-09  -1.791465555223E-03  -3.373040619701E-03  
   Last elements... 2.303731096718E-03  1.787685505272E-03  1.164273607168E-03  
   Sum of elements... -1.213928999023E+02
   Sum of squares of elements... 1.819380727294E+01
@@ -837,7 +837,7 @@
   Grid dimensions : 32  32  32  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
-  First elements... -2.322474668190E-10  1.356307475217E-04  6.947389176467E-05  
+  First elements... -2.322474674557E-10  1.356307475217E-04  6.947389176467E-05  
   Last elements... 5.737908368333E-03  4.890578898756E-03  3.991473062817E-03  
   Sum of elements... 1.383744326681E+02
   Sum of squares of elements... 1.449815810615E+01
@@ -863,7 +863,7 @@
   Grid dimensions : 32  32  32  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
-  First elements... -2.322474483553E-10  -1.229178752698E-03  -2.481259885983E-03  
+  First elements... -2.322474521753E-10  -1.229178752698E-03  -2.481259885983E-03  
   Last elements... -3.423575154633E-03  -2.453345882481E-03  -1.711415755591E-03  
   Sum of elements... -1.488932149799E+02
   Sum of squares of elements... 1.285721569363E+01
@@ -889,7 +889,7 @@
   Grid dimensions : 32  32  32  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
-  First elements... -2.322473159257E-10  3.695376384129E-04  9.967524440440E-04  
+  First elements... -2.322473171991E-10  3.695376384129E-04  9.967524440440E-04  
   Last elements... 6.584079416388E-03  5.284677249622E-03  3.991480516406E-03  
   Sum of elements... 1.383744429036E+02
   Sum of squares of elements... 1.450479389840E+01
@@ -967,15 +967,15 @@
   Grid dimensions : 32  32  32  
   Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
   Max. length Voronoi-relevant vector (bohr):  0.17243  
-  First elements... -2.946980785486E-10  -2.418233297687E-04  -4.742055373263E-04  
+  First elements... -2.946980784402E-10  -2.418233297687E-04  -4.742055373263E-04  
   Last elements... 6.341145698083E-04  4.589078120641E-04  2.594282573088E-04  
-  Sum of elements... 7.783530764360E-14
+  Sum of elements... 7.584698927948E-14
   Sum of squares of elements... 5.006518276259E-01
   Grid domain/cell volume = 118.7784/118.7784
   Grid domain integral (34) = 0.00000000
   Cell integral (34) = 0.00000000
   Min: -4.20351171E-02
-  Average: 2.37534508E-18
+  Average: 2.31466642E-18
   Max: 4.20351091E-02
   Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
   Use core densities? F

@@ -7,6 +7,7 @@
   Number of MOs (occupied): 21
   Number of primitives (GTO): 216
   Number of EDFs: 0
+  Basis set info available? Yes
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -20,5 +21,5 @@
 + Measure of overlap between orbitals in an excitation (PEACH). 
   Please cite: Peach et al., J. Chem. Phys. 128 (2008) 044118. (10.1063/1.2831900)
   Mesh size      0
-+ PEACH = 0.611   
++ PEACH = 0.625   
 

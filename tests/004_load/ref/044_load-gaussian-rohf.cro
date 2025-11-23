@@ -2,8 +2,13 @@
   Name: oh_rohf.wfn
   Source: ../zz_source/g16A.03/oh/oh_rohf.wfn
   Type: molecular wavefunction
+  Wavefunction type: restricted open
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of MOs (doubly-occupied): 4
   Number of primitives (GTO): 36
   Number of EDFs: 0
+  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -17,8 +22,13 @@
   Name: oh_rohf.wfx
   Source: ../zz_source/g16A.03/oh/oh_rohf.wfx
   Type: molecular wavefunction
+  Wavefunction type: restricted open
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of MOs (doubly-occupied): 4
   Number of primitives (GTO): 36
   Number of EDFs: 0
+  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -30,8 +40,13 @@
   Name: oh_rohf.fchk
   Source: ../zz_source/g16A.03/oh/oh_rohf.fchk
   Type: molecular wavefunction
+  Wavefunction type: restricted open
+  Number of MOs (total): 5
+  Number of MOs (occupied): 5
+  Number of MOs (doubly-occupied): 4
   Number of primitives (GTO): 36
   Number of EDFs: 0
+  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -81,6 +96,10 @@
      8.447619293E-01   4.834354535E+00   2.052254324E-01  
   Hessian eigenvalues: -3.637032800E+00  -1.708306721E+00  6.759799790E+00  
   Ellipticity (l_1/l_2 - 1): 1.129027975E+00
+  Spin up   field/gradient_norm/laplacian: 9.405008648E-01  1.719873040E+00  1.414460269E+00  
+  Spin up   kinetic energy density (G): 3.956693757E+00
+  Spin down field/gradient_norm/laplacian: 7.378437378E-01  1.813227313E+00  4.058356197E+00  
+  Spin down kinetic energy density (G): 3.496930786E+00
   Field 0 (f,|grad|,lap): 9.599060032E-01  1.869147732E+00  9.285215674E-01  
   Field 2 (f,|grad|,lap): 1.071903710E+00  1.911216334E+00  -2.106853588E+00  
   Field 3 (f,|grad|,lap): 9.405009941E-01  1.719872814E+00  1.414459740E+00  

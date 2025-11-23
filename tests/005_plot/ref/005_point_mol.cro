@@ -7,6 +7,7 @@
   Number of MOs (occupied): 21
   Number of primitives (GTO): 564
   Number of EDFs: 0
+  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -33,6 +34,10 @@
      4.563562429E-03   8.787083096E-02  -1.652991662E-02  
     -8.278821700E-03  -1.652991662E-02  -1.543826078E-02  
   Hessian eigenvalues: -1.857932914E-02  7.905102377E-02  9.337258810E-02  
+  Spin up   field/gradient_norm/laplacian: 1.373281939E-02  1.775176671E-02  7.692214137E-02  
+  Spin up   kinetic energy density (G): 1.798097855E-02
+  Spin down field/gradient_norm/laplacian: 1.373281939E-02  1.775176671E-02  7.692214137E-02  
+  Spin down kinetic energy density (G): 1.798097855E-02
 
 * POINT 0.5000000  0.9000000  0.2333800  
   Coordinates (ang): 0.5000000  0.9000000  0.2333800  
@@ -52,6 +57,10 @@
     -8.660469173E-02  -1.553174760E-01  -2.374229616E-01  
   Hessian eigenvalues: -4.818161051E-01  -1.080793322E-01  1.499737894E-01  
   Ellipticity (l_1/l_2 - 1): 3.457985585E+00
+  Spin up   field/gradient_norm/laplacian: 1.232470449E-01  1.265640457E-01  -2.199608240E-01  
+  Spin up   kinetic energy density (G): 5.615955949E-02
+  Spin down field/gradient_norm/laplacian: 1.232470449E-01  1.265640457E-01  -2.199608240E-01  
+  Spin down kinetic energy density (G): 5.615955949E-02
 
 * POINT -0.3000000  0.2000000  0.8000000  
   Coordinates (ang): -0.3000000  0.2000000  0.8000000  
@@ -70,6 +79,10 @@
      6.644467384E-05   3.317822914E-02  -1.737802362E-02  
      2.594055080E-02  -1.737802362E-02   1.288097187E-02  
   Hessian eigenvalues: -9.947214856E-03  3.307868063E-02  5.558930566E-02  
+  Spin up   field/gradient_norm/laplacian: 9.043444059E-03  1.514975621E-02  3.936038572E-02  
+  Spin up   kinetic energy density (G): 9.028683106E-03
+  Spin down field/gradient_norm/laplacian: 9.043444059E-03  1.514975621E-02  3.936038572E-02  
+  Spin down kinetic energy density (G): 9.028683106E-03
 
 * POINT 1.3000000  2.4000000  8.9000000  
   Coordinates (ang): 1.3000000  2.4000000  8.9000000  
@@ -88,4 +101,8 @@
     -1.285208216E-14  -2.874443982E-14   1.545444748E-13  
      8.570502778E-14   1.545444748E-13   1.645107016E-12  
   Hessian eigenvalues: -5.449352394E-14  -6.356366898E-15  1.663481581E-12  
+  Spin up   field/gradient_norm/laplacian: 1.950637979E-13  4.045726188E-13  8.013158452E-13  
+  Spin up   kinetic energy density (G): 1.132603032E-13
+  Spin down field/gradient_norm/laplacian: 1.950637979E-13  4.045726188E-13  8.013158452E-13  
+  Spin down kinetic energy density (G): 1.132603032E-13
 

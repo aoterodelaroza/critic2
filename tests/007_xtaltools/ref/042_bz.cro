@@ -1,7 +1,7 @@
 * BZ: calculate Brillouin-Zone geometry.
 + Reciprocal lattice vectors (bohr^-1)
     a*:    0.2314860930     0.1336485581    -0.0000000000  
-    b*:   -0.0000000000     0.2672971162    -0.0000000000  
+    b*:    0.0000000000     0.2672971162    -0.0000000000  
     c*:   -0.0000000000    -0.0000000000     0.1476375327  
   Reciprocal lattice parameters (bohr^-1): 0.267297  0.267297  0.147638  
   Reciprocal lattice angles (degrees): 90.000  90.000  60.000  
