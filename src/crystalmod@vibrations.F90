@@ -867,7 +867,7 @@ contains
     real*8, parameter :: R = 8.314462618d0 ! molar gas constant (kB/NA, J/K/mol)
     real*8, parameter :: small1 = 50000d0 * cminv_to_K / huge(1d0) ! protection against zerodiv in nu/(kB*T)
     real*8, parameter :: small2 = 0.5d0 * log(huge(1d0)) ! protection against overflow in exp(nu/kB*T)**2
-    real*8, parameter :: small3 = sqrt(1d0 / huge(1d0)) ! protection against 1/(e^(nu/kt)-1)^2 overflow
+    real*8, parameter :: small3 = 1d0 / sqrt(huge(1d0)) ! protection against 1/(e^(nu/kt)-1)^2 overflow
 
     ! calculate the thermodynamic properties
     zpe = 0d0
@@ -2530,9 +2530,9 @@ contains
              do ifreq = 1, v%nfreq
                 do iat = 1, c%ncel
                    read (lu,*,err=999,end=999) idum, idum, xx
-                   v%vec(1,iat,ifreq,v%nqpt) = cmplx(xx(1),xx(2),16)
-                   v%vec(2,iat,ifreq,v%nqpt) = cmplx(xx(3),xx(4),16)
-                   v%vec(3,iat,ifreq,v%nqpt) = cmplx(xx(5),xx(6),16)
+                   v%vec(1,iat,ifreq,v%nqpt) = cmplx(xx(1),xx(2),8)
+                   v%vec(2,iat,ifreq,v%nqpt) = cmplx(xx(3),xx(4),8)
+                   v%vec(3,iat,ifreq,v%nqpt) = cmplx(xx(5),xx(6),8)
                 end do
              end do
           end if

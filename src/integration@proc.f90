@@ -74,7 +74,7 @@ contains
 
     character(len=:), allocatable :: word, jsonfile
     integer :: i, n(3), ntot, idum, idum2
-    integer :: lp, lp2, iprev
+    integer :: lp, lp2
     logical :: ok, nonnm, noatoms, setdocelatom
     real*8 :: ratom_def
     real*8, allocatable :: faux(:,:,:)

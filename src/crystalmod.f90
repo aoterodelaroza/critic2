@@ -648,8 +648,8 @@ module crystalmod
      module function ewald_pot(c,x,rcut,hcut,eta,qsum,lrmax,lhmax)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x(3)
-       real*8, intent(out) :: rcut, hcut, eta, qsum
-       integer, intent(out) :: lrmax(3), lhmax(3)
+       real*8, intent(in) :: rcut, hcut, eta, qsum
+       integer, intent(in) :: lrmax(3), lhmax(3)
        real*8 :: ewald_pot
      end function ewald_pot
      module subroutine promolecular(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)

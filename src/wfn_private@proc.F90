@@ -2790,6 +2790,7 @@ contains
     m = vnuc - m
     valid = .true.
 #else
+    m = 0d0
     valid = .false.
 #endif
   end subroutine mep
@@ -2891,6 +2892,8 @@ contains
     valid = .true.
 #else
     valid = .false.
+    ux = 0d0
+    if (present(nheff)) nheff = 0d0
 #endif
   end subroutine uslater
 

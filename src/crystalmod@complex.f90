@@ -161,8 +161,8 @@ contains
     use param, only: tpi, pi, sqpi, icrd_crys
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: x(3)
-    real*8, intent(out) :: rcut, hcut, eta, qsum
-    integer, intent(out) :: lrmax(3), lhmax(3)
+    real*8, intent(in) :: rcut, hcut, eta, qsum
+    integer, intent(in) :: lrmax(3), lhmax(3)
     real*8 :: ewald_pot
 
     real*8 :: rcut2, qnuc
