@@ -438,7 +438,7 @@ contains
     use systemmod, only: sy
     use surface, only: minisurf
     use param, only: pi
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
     integer, intent(in) :: nuc
     real*8, intent(inout) :: rbeta
 
@@ -450,9 +450,11 @@ contains
     integer :: i
     logical :: accept
     type(scalar_value) :: res
+    type(field_evaluation_avail) :: request
 
     xnuc = sy%f(sy%iref)%cp(nuc)%x
     angle = cos(angdev * pi / 180d0)
+    call request%field_nder1()
 
     call srf%init(100,100)
     call srf%clean()
@@ -466,7 +468,8 @@ contains
              sin(srf%th(i)) * sin(srf%ph(i)),&
              cos(srf%th(i)) /)
           x = xnuc + unit * rbeta
-          call sy%f(sy%iref)%grd(x,1,res)
+
+          call sy%f(sy%iref)%grd(x,request,res)
           accept = accept .and. (dot_product(-res%gf/res%gfmod,unit) >= angle)
           if (.not.accept) then
              rbeta = rbeta * shrink

@@ -385,7 +385,9 @@ contains
     use fieldmod, only: field
     use tools_io, only: faterr, ferror
     use tools_math, only: bhole
-    use types, only: scalar_value, realloc
+    use types, only: scalar_value, realloc, field_evaluation_avail,&
+       fieldeval_category_f, fieldeval_category_fder1, fieldeval_category_fder2,&
+       fieldeval_category_gkin, fieldeval_category_mo, id_mo_id
     use param, only: im_volume, im_rho, im_gradrho, im_gkin, im_b, im_null
     class(mesh), intent(inout) :: m
     type(field), intent(inout) :: ff
@@ -396,6 +398,7 @@ contains
     integer :: i, j, n, nder
     real*8 :: fval, rhos, laps, tau, drhos2, dsigs, quads, br_b, br_alf, br_a
     character*10 :: fder
+    type(field_evaluation_avail) :: request, requestmo
 
     if (.not.ff%isinit) &
        call ferror("fillmesh","field not initialized",faterr)
@@ -406,27 +409,40 @@ contains
     else
        allocate(m%f(m%n,n))
     end if
+    call request%clear()
+    call requestmo%clear()
+    requestmo%avail(fieldeval_category_mo) = .true.
+    requestmo%moini = id_mo_id
 
-    ! calcualte the maximum derivative
+    ! calculate the maximum derivative
     nder = -1
     do j = 1, n
        select case(prop(j))
-       case(im_volume,im_null)
-          nder = -1
        case(im_rho)
-          nder = max(nder,0)
-       case(im_gradrho,im_gkin)
-          nder = max(nder,1)
+          nder = 0
+          request%avail(fieldeval_category_f) = .true.
+       case(im_gradrho)
+          nder = 1
+          request%avail(fieldeval_category_fder1) = .true.
+       case(im_gkin)
+          nder = 1
+          request%avail(fieldeval_category_gkin) = .true.
        case(im_b)
-          nder = max(nder,2)
+          nder = 2
+          request%avail(fieldeval_category_fder1) = .true.
+          request%avail(fieldeval_category_fder2) = .true.
+          request%avail(fieldeval_category_gkin) = .true.
        end select
     end do
 
     !$omp parallel do private(fval,res,fder,rhos,laps,tau,drhos2,dsigs,quads,br_b,br_alf,br_a)
     do i = 1, m%n
        if (nder >= 0) then
-          call ff%grd(m%x(:,i),nder,res,periodic=periodic)
+          call ff%grd(m%x(:,i),request,res,periodic=periodic)
+          if (.not.res%satisfied) &
+             call ferror("fillmesh","field unable to provide requested properties",faterr)
        end if
+
        do j = 1, n
           if (prop(j) == im_volume) then
              fval = 1d0
@@ -447,8 +463,10 @@ contains
              call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
              fval = br_b
           else if (prop(j) > 100) then
-             write (fder,'(I10)') prop(j) - 100
-             call ff%grd(m%x(:,i),-1,res,fder=fder,periodic=periodic)
+             requestmo%moend = prop(j) - 100
+             call ff%grd(m%x(:,i),requestmo,res,periodic=periodic)
+             if (.not.res%satisfied) &
+                call ferror("fillmesh","field unable to provide individual MO values",faterr)
              fval = res%fspc
           else if (prop(j) == im_null) then
              fval = 0d0

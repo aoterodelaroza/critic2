@@ -1177,25 +1177,30 @@ contains
     use systemmod, only: system
     use tools_math, only: det3sym
     use tools_io, only: string, isinteger, lower
-    use types, only: scalar_value
-    real*8 :: fieldeval
+    use types, only: scalar_value, field_evaluation_avail, fieldeval_category_f,&
+       fieldeval_category_spin, fieldeval_category_fder1, fieldeval_category_fder2,&
+       fieldeval_category_mo, id_mo_homo, id_mo_lumo, id_mo_ahomo, id_mo_alumo,&
+       id_mo_bhomo, id_mo_blumo, id_mo_a, id_mo_b, id_mo_id
     character*(*), intent(in) :: fid
     character*(*), intent(in) :: fder
     character(len=:), allocatable, intent(inout) :: errmsg
     real*8, intent(in), optional :: x0(3)
     type(system), intent(inout), optional :: syl
     logical, intent(in), optional :: periodic
+    real*8 :: fieldeval
 
     integer :: nder, idx
     type(scalar_value) :: res
     character*10 :: fderl
+    type(field_evaluation_avail) :: request
+    logical :: ok
 
     errmsg = ""
 
     ! recover the system pointer
     if (present(syl)) then
        if (.not.syl%isinit) then
-          errmsg = 'evaluating field ' // string(fid) // ', system not initialized'
+          errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - system not initialized'
           return
        end if
     end if
@@ -1203,25 +1208,73 @@ contains
     fieldeval = 0d0
     if (present(x0).and.present(syl)) then
        if (syl%goodfield(key=fid,idout=idx)) then
-          fderl = lower(fder)
-          select case (trim(fderl))
-          case ("","v","c","up","dn","sp")
-             nder = 0
+          ! request from the field
+          call request%clear()
+          fderl = lower(adjustl(fder))
+          select case (fderl)
+          case ("","v","c")
+             request%avail(fieldeval_category_f) = .true.
+          case("up","dn","sp")
+             request%avail(fieldeval_category_f) = .true.
+             request%avail(fieldeval_category_spin) = .true.
           case ("x","y","z","g")
-             nder = 1
+             request%avail(fieldeval_category_fder1) = .true.
           case ("xx","xy","xz","yx","yy","yz","zx","zy","zz","l","lv","lc","h1","h2","h3","hd","s","r")
-             nder = 2
+             request%avail(fieldeval_category_fder2) = .true.
           case default
-             ! let feval interpret fder - field-specific (e.g. a MO)
-             nder = -1
+             ! this must be a molecular orbital
+             request%avail(fieldeval_category_mo) = .true.
+             if (fderl == "homo") then
+                request%moini = id_mo_homo
+             elseif (fderl == "lumo") then
+                request%moini = id_mo_lumo
+             elseif (fderl == "ahomo") then
+                request%moini = id_mo_ahomo
+             elseif (fderl == "alumo") then
+                request%moini = id_mo_alumo
+             elseif (fderl == "bhomo") then
+                request%moini = id_mo_bhomo
+             elseif (fderl == "blumo") then
+                request%moini = id_mo_blumo
+             elseif (fderl(1:1) == "a") then
+                request%moini = id_mo_a
+                ok = isinteger(request%moend,fderl(2:))
+                if (.not.ok) then
+                   errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - wrong field modifier'
+                   return
+                end if
+             elseif (fderl(1:1) == "b") then
+                request%moini = id_mo_b
+                ok = isinteger(request%moend,fderl(2:))
+                if (.not.ok) then
+                   errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - wrong field modifier'
+                   return
+                end if
+             else
+                request%moini = id_mo_id
+                ok = isinteger(request%moend,fderl)
+                if (.not.ok) then
+                   errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - wrong field modifier'
+                   return
+                end if
+             end if
           end select
-          call syl%f(idx)%grd(x0,nder,res,fder=fder,periodic=periodic)
 
+          ! run the field evaluation
+          call syl%f(idx)%grd(x0,request,res,periodic=periodic)
           if (.not.res%valid) then
-             ! errmsg = 'evaluating field ' // string(fid) // ', invalid evaluation result'
+             errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - invalid evaluation result'
              fieldeval = 0d0
              return
           end if
+          if (.not.res%satisfied) then
+             errmsg = 'field ' // string(fid) // ':' // string(fder) //&
+                ' - cannot compute the property with this field type'
+             fieldeval = 0d0
+             return
+          end if
+
+          ! Unpack the result
           select case (trim(fderl))
           case ("")
              fieldeval = res%f
@@ -1231,22 +1284,10 @@ contains
              fieldeval = res%f - res%fval
           case ("up")
              fieldeval = res%fspin(1)
-             if (.not.res%avail_spin) then
-                errmsg = 'evaluating field ' // string(fid) // ', spin quantities not available'
-                return
-             end if
           case ("dn")
              fieldeval = res%fspin(2)
-             if (.not.res%avail_spin) then
-                errmsg = 'evaluating field ' // string(fid) // ', spin quantities not available'
-                return
-             end if
           case ("sp")
              fieldeval = res%fspin(1) - res%fspin(2)
-             if (.not.res%avail_spin) then
-                errmsg = 'evaluating field ' // string(fid) // ', spin quantities not available'
-                return
-             end if
           case ("x")
              fieldeval = res%gf(1)
           case ("y")
@@ -1291,11 +1332,11 @@ contains
        else if (isspecialfield(fid)) then
           fieldeval = specialfieldeval(fid,syl,x0)
        else
-          errmsg = 'wrong field (' // string(fid) // ')'
+          errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - unknown field'
           return
        end if
     else
-       errmsg = 'evaluating field ' // string(fid) // ' without point'
+       errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - no point for field evaluation'
        return
     end if
 
@@ -1696,6 +1737,8 @@ contains
           c = fun_lol
        case ("lol_kir")
           c = fun_lol_kir
+       case ("rdg")
+          c = fun_rdg
        case ("brhole_a1")
           c = fun_brhole_a1
        case ("brhole_a2")
@@ -1734,8 +1777,6 @@ contains
           c = fun_xhole
        case ("nheff")
           c = fun_nheff
-       case ("rdg")
-          c = fun_rdg
        case default
           lp = lpo
           return
@@ -2061,6 +2102,10 @@ contains
 
        ! Consume the extra arguments for this function
        if (iwantarg > 1) then
+          if (nq < iwantarg) then
+             errmsg = 'syntax error'
+             return
+          end if
           allocate(args(iwantarg-1))
           do i = 1, iwantarg-1
              args(i) = q(nq - (iwantarg-1) + i)
@@ -2248,7 +2293,10 @@ contains
     use global, only: dunit0, iunit
     use tools_math, only: bhole
     use tools_io, only: string
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail, fieldeval_category_f, fieldeval_category_fder1,&
+       fieldeval_category_fder2, fieldeval_category_gkin, fieldeval_category_stress,&
+       fieldeval_category_spin, fieldeval_category_mo, fieldeval_category_mep,&
+       fieldeval_category_uslater, fieldeval_category_xhole, fieldeval_category_nheff
     use param, only: pi
     integer, intent(in) :: c
     character*(*), intent(in) :: sia
@@ -2264,6 +2312,7 @@ contains
     real*8 :: br_b, br_alf, br_a, raux(3), ux
     integer :: idx
     logical :: dohole, use1, use2
+    type(field_evaluation_avail) :: request
 
     ! a constant
     real*8, parameter :: ctf = 2.8712340001881911d0 ! Thomas-Fermi k.e.d. constant, 3/10 * (3*pi^2)^(2/3)
@@ -2273,26 +2322,83 @@ contains
     if (.not.syl%isinit) return
 
     idx = syl%fieldname_to_idx(sia)
+    if (.not.syl%goodfield(id=idx)) then
+       errmsg = "Invalid field or incorrect number of arguments in expression."
+       return
+    end if
+
+    call request%clear()
+    request%avail(fieldeval_category_f) = .true.
+    if (c == fun_rdg) then
+       request%avail(fieldeval_category_fder1) = .true.
+    elseif (c == fun_vtf .or. c == fun_htf .or. c == fun_gtf_kir .or. c == fun_vtf_kir .or.&
+       c == fun_htf_kir .or. c == fun_l .or. c == fun_lol_kir) then
+       request%avail(fieldeval_category_fder1) = .true.
+       request%avail(fieldeval_category_fder2) = .true.
+    elseif (c == fun_gkin .or. c == fun_lol) then
+       request%avail(fieldeval_category_gkin) = .true.
+    elseif (c == fun_elf) then
+       request%avail(fieldeval_category_fder1) = .true.
+       request%avail(fieldeval_category_gkin) = .true.
+    elseif (c == fun_kkin .or. c == fun_brhole_a1 .or. c == fun_brhole_a2 .or. c == fun_brhole_a .or.&
+       c == fun_brhole_b1 .or. c == fun_brhole_b2 .or. c == fun_brhole_b .or. c == fun_brhole_alf1 .or.&
+       c == fun_brhole_alf2 .or. c == fun_brhole_alf .or. c == fun_xhcurv1 .or. c == fun_xhcurv2 .or.&
+       c == fun_xhcurv .or. c == fun_dsigs1 .or. c == fun_dsigs2 .or. c == fun_dsigs) then
+       request%avail(fieldeval_category_fder1) = .true.
+       request%avail(fieldeval_category_fder2) = .true.
+       request%avail(fieldeval_category_gkin) = .true.
+    elseif (c == fun_vir) then
+       request%avail(fieldeval_category_stress) = .true.
+    elseif (c == fun_he) then
+       request%avail(fieldeval_category_gkin) = .true.
+       request%avail(fieldeval_category_stress) = .true.
+    elseif (c == fun_mep) then
+       request%avail(fieldeval_category_mep) = .true.
+    elseif (c == fun_uslater) then
+       request%avail(fieldeval_category_uslater) = .true.
+    elseif (c == fun_nheff) then
+       request%avail(fieldeval_category_nheff) = .true.
+    elseif (c == fun_xhole) then
+       request%avail(fieldeval_category_xhole) = .true.
+       if (.not.allocated(args)) then
+          errmsg = "xhole requires arguments for the reference point."
+          return
+       end if
+       if (size(args,1) /= 3) then
+          errmsg = "xhole requires three arguments for the reference point."
+          return
+       end if
+       if (syl%c%ismolecule) then
+          request%xref = args / dunit0(iunit) - syl%c%molx0
+       else
+          request%xref = syl%c%x2c(args)
+       end if
+    end if
+
+    ! evaluate the field
+    call syl%f(idx)%grd(x0,request,res,periodic)
+    if (.not.res%valid) then
+       errmsg = "Arithmetic expression evaluated outside the field domain"
+       return
+    end if
+    if (.not.res%satisfied) then
+       errmsg = "The requested arithmetic expression cannot be evaluated with this field"
+       return
+    end if
 
     select case(c)
     case (fun_gtf)
        ! Thomas-Fermi kinetic energy density for the uniform electron gas
        ! See Yang and Parr, Density-Functional Theory of Atoms and Molecules
-       call syl%f(idx)%grd(x0,0,res,periodic=periodic)
-       if (.not.res%valid) goto 999
        q = ctf * res%f**(5d0/3d0)
     case (fun_vtf)
        ! Potential energy density calculated using fun_gtf and the local
        ! virial theorem (2g(r) + v(r) = 1/4*lap(r)).
-       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%valid) goto 999
        q = ctf * res%f**(5d0/3d0)
        q = 0.25d0 * res%del2f - 2 * q
     case (fun_htf)
        ! Total energy density calculated using fun_gtf and the local
        ! virial theorem (h(r) + v(r) = 1/4*lap(r)).
-       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%valid) goto 999
        q = ctf * res%f**(5d0/3d0)
        q = 0.25d0 * res%del2f - q
     case (fun_gtf_kir)
@@ -2304,16 +2410,12 @@ contains
        !   Zhurova and Tsirelson, Acta Cryst. B (2002) 58, 567-575.
        ! for more references and its use applied to experimental electron
        ! densities.
-       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%valid) goto 999
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
     case (fun_vtf_kir)
        ! Potential energy density calculated using fun_gtf_kir and the
        ! local virial theorem (2g(r) + v(r) = 1/4*lap(r)).
-       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%valid) goto 999
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
@@ -2321,44 +2423,22 @@ contains
     case (fun_htf_kir)
        ! Total energy density calculated using fun_gtf_kir and the
        ! local virial theorem (h(r) + v(r) = 1/4*lap(r)).
-       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%valid) goto 999
        f0 = max(res%f,1d-30)
        q = ctf * f0**(5d0/3d0) + &
           1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
        q = 0.25d0 * res%del2f - q
     case (fun_gkin)
        ! G-kinetic energy density (sum grho * grho)
-       call syl%f(idx)%grd(x0,1,res,periodic=periodic)
-       if (.not.res%valid) goto 999
-       if (.not.res%avail_gkin) then
-          errmsg = "Tried to calculate GKIN with a field that cannot provide the kinetic energy density."
-          return
-       end if
        q = res%gkin
     case (fun_kkin)
        ! K-kinetic energy density (sum rho * laprho)
-       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%valid) goto 999
-       if (.not.res%avail_gkin) then
-          errmsg = "Tried to calculate KKIN with a field that cannot provide the kinetic energy density."
-          return
-       end if
        q = res%gkin - 0.25d0 * res%del2f
     case (fun_l)
        ! Lagrangian density (-1/4 * lap)
-       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%valid) goto 999
        q = - 0.25d0 * res%del2f
     case (fun_elf)
        ! Electron localization function
        ! Becke and Edgecombe J. Chem. Phys. (1990) 92, 5397-5403
-       call syl%f(idx)%grd(x0,1,res,periodic=periodic)
-       if (.not.res%valid) goto 999
-       if (.not.res%avail_gkin) then
-          errmsg = "Tried to calculate the ELF with a field that cannot provide the kinetic energy density."
-          return
-       end if
        if (res%f < 1d-30) then
           q = 0d0
        else
@@ -2371,45 +2451,34 @@ contains
     case (fun_vir)
        ! Electronic potential energy density (virial field)
        ! Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
-       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%valid) goto 999
-       if (.not.res%avail_vir) then
-          errmsg = "Tried to calculate VIR with a field that cannot provide the virial."
-          return
-       end if
        q = res%vir
     case (fun_he)
        ! Energy density, fun_vir + fun_gkin
        !   Keith et al. Int. J. Quantum Chem. (1996) 57, 183-198.
-       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%valid) goto 999
-       if (.not.res%avail_vir) then
-          errmsg = "Tried to calculate HE with a field that cannot provide the kinetic energy density and/or the virial."
-          return
-       end if
        q = res%vir + res%gkin
     case (fun_lol)
        ! Localized-orbital locator
        !   Schmider and Becke, J. Mol. Struct. (Theochem) (2000) 527, 51-61
        !   Schmider and Becke, J. Chem. Phys. (2002) 116, 3184-3193.
-       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%valid) goto 999
-       if (.not.res%avail_vir) then
-          errmsg = "Tried to calculate the LOL with a field that cannot provide the kinetic energy density."
-          return
-       end if
        q = ctf * res%f**(5d0/3d0) / max(res%gkin,1d-30)
        q = q / (1d0+q)
     case (fun_lol_kir)
        ! Localized-orbital locator using Kirzhnits k.e.d.
        !   Tsirelson and Stash, Acta Cryst. (2002) B58, 780.
-       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%valid) goto 999
        f0 = max(res%f,1d-30)
        g0 = ctf * f0**(5d0/3d0)
        g = g0 + 1/72d0 * res%gfmod**2 / f0 + 1d0/6d0 * res%del2f
        q = g0 / g
        q = q / (1d0+q)
+    case (fun_rdg)
+       ! Reduced density gradient
+       ! s = |gradrho| / (2 * (3*pi^2)^(1/3) * rho^(4/3))
+       if (res%f < 1d-30) then
+          q = 0d0
+       else
+          f0 = max(res%f,1d-30)
+          q = res%gfmod / (2d0 * (3d0*pi*pi)**(1d0/3d0) * f0**(4d0/3d0))
+       end if
     case (fun_brhole_a1,fun_brhole_a2,fun_brhole_a,fun_brhole_b1,fun_brhole_b2,fun_brhole_b,&
           fun_brhole_alf1,fun_brhole_alf2,fun_brhole_alf,fun_xhcurv1,fun_xhcurv2,fun_xhcurv,&
           fun_dsigs1,fun_dsigs2,fun_dsigs)
@@ -2421,20 +2490,13 @@ contains
        ! hole at the reference point. (Q_sigma)
        ! - dsigs: leading coefficient of the same-spin pair density
        ! (D_sigma).
-       call syl%f(idx)%grd(x0,2,res,periodic=periodic)
-       if (.not.res%valid) goto 999
        dohole = (c==fun_brhole_a1).or.(c==fun_brhole_a2).or.(c==fun_brhole_a).or.&
           (c==fun_brhole_b1).or.(c==fun_brhole_b2).or.(c==fun_brhole_b).or.&
           (c==fun_brhole_alf1).or.(c==fun_brhole_alf2).or.(c==fun_brhole_alf)
        use1 = (c==fun_brhole_a1).or.(c==fun_brhole_b1).or.(c==fun_brhole_alf1).or.(c==fun_xhcurv1).or.(c==fun_dsigs1)
        use2 = (c==fun_brhole_a2).or.(c==fun_brhole_b2).or.(c==fun_brhole_alf2).or.(c==fun_xhcurv2).or.(c==fun_dsigs2)
 
-       if (dohole .and..not.res%avail_gkin) then
-          errmsg = "Tried to calculate BR hole with a field that cannot provide the kinetic energy density."
-          return
-       end if
-
-       if (res%avail_spin .and. res%spinpol) then
+       if (res%ev%avail(fieldeval_category_spin)) then
           if (use1) then
              call assign_bhole_variables(res%fspinval(1),res%lapspin(1),res%gkinspin(1),res%gfmodspinval(1),.false.)
              if (dohole) call bhole(rhos,quads,1d0,br_b,br_alf,br_a)
@@ -2476,58 +2538,8 @@ contains
           q = dsigs
        end if
     case (fun_mep,fun_uslater,fun_nheff,fun_xhole)
-       if (.not.syl%goodfield(id=idx)) then
-          errmsg = "Invalid field or incorrect number of arguments in expression."
-          return
-       end if
-       if (.not.syl%goodfield(id=idx,type=type_wfn)) then
-          errmsg = "Tried to calculate MEP/USLATER/etc. with a non-wavefunction field"
-          return
-       end if
-       if (c == fun_mep) then
-          q = syl%f(idx)%wfn%mep(x0)
-       else if (c == fun_uslater) then
-          call syl%f(idx)%wfn%uslater(x0,q)
-       else if (c == fun_nheff) then
-          call syl%f(idx)%wfn%uslater(x0,ux,nheff=q)
-       else if (c == fun_xhole) then
-          if (.not.allocated(args)) then
-             errmsg = "xhole requires arguments for the reference point."
-             return
-          end if
-          if (size(args,1) /= 3) then
-             errmsg = "xhole requires three arguments for the reference point."
-             return
-          end if
-
-          ! Transform units of the reference point
-          if (syl%c%ismolecule) then
-             xref = args / dunit0(iunit) - syl%c%molx0
-          else
-             xref = syl%c%x2c(args)
-          end if
-          call syl%f(idx)%wfn%xhole(x0,xref,q)
-       end if
-    case (fun_rdg)
-       ! Reduced density gradient
-       ! s = |gradrho| / (2 * (3*pi^2)^(1/3) * rho^(4/3))
-       call syl%f(idx)%grd(x0,1,res,periodic=periodic)
-       if (.not.res%valid) goto 999
-       if (res%f < 1d-30) then
-          q = 0d0
-       else
-          f0 = max(res%f,1d-30)
-          q = res%gfmod / (2d0 * (3d0*pi*pi)**(1d0/3d0) * f0**(4d0/3d0))
-       end if
+       q = res%fspc
     end select
-
-    return
-
-    !! when the field evaluation is invalid
-999 continue
-    ! errmsg = "Scalar field evaluation gave invalid result"
-    q = 0d0
-    return
 
   contains
     subroutine assign_bhole_variables(rhos_,laps_,tau_,gfmod_,dohalf)

@@ -1325,7 +1325,9 @@ contains
     use tools_math, only: rsindex
     use tools_io, only: uout, string, ferror, faterr
     use arithmetic, only: eval
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail, fieldeval_category_f,&
+       fieldeval_category_fder1, fieldeval_category_fder2, fieldeval_category_gkin,&
+       fieldeval_category_stress, fieldeval_category_spin
     class(system), intent(inout) :: s
     integer, intent(in) :: id
     real*8, dimension(:), intent(in) :: x0
@@ -1338,12 +1340,15 @@ contains
     integer :: str, sts
     integer :: i, j, k
     type(scalar_value) :: res2
+    type(field_evaluation_avail) :: request
     character(len=:), allocatable :: errmsg
 
     ! get the scalar field properties
     xp = s%c%x2c(x0)
-    if (.not.resinput) &
-       call s%f(id)%grd(xp,2,res)
+    if (.not.resinput) then
+       call request%all_basic()
+       call s%f(id)%grd(xp,request,res)
+    end if
 
     if (verbose) then
        if (.not.res%valid) then
@@ -1354,36 +1359,60 @@ contains
           else
              write (uout,'("  Type : (",a,",",a,")")') string(res%r), string(res%s)
           end if
-          write (uout,'("  Field value (f): ",A)') string(res%f,'e',decimal=9)
-          write (uout,'("  Field value, valence (fval): ",A)') string(res%fval,'e',decimal=9)
-          write (uout,'("  Gradient (grad f): ",3(A,"  "))') (string(res%gf(j),'e',decimal=9),j=1,3)
-          write (uout,'("  Gradient norm (|grad f|): ",A)') string(res%gfmod,'e',decimal=9)
-          write (uout,'("  Gradient norm, valence: ",A)') string(res%gfmodval,'e',decimal=9)
-          if (res%avail_gkin) then
+
+          if (res%ev%avail(fieldeval_category_f)) then
+             write (uout,'("  Field value (f): ",A)') string(res%f,'e',decimal=9)
+             write (uout,'("  Field value, valence (fval): ",A)') string(res%fval,'e',decimal=9)
+          end if
+
+          if (res%ev%avail(fieldeval_category_fder1)) then
+             write (uout,'("  Gradient (grad f): ",3(A,"  "))') (string(res%gf(j),'e',decimal=9),j=1,3)
+             write (uout,'("  Gradient norm (|grad f|): ",A)') string(res%gfmod,'e',decimal=9)
+             write (uout,'("  Gradient norm, valence: ",A)') string(res%gfmodval,'e',decimal=9)
+          end if
+
+          if (res%ev%avail(fieldeval_category_gkin)) then
              write (uout,'("  Kinetic energy density (G,tau): ",A)') string(res%gkin,'e',decimal=9)
           end if
-          write (uout,'("  Laplacian (del2 f): ",A)') string(res%del2f,'e',decimal=9)
-          write (uout,'("  Laplacian, valence (del2 fval): ",A)') string(res%del2fval,'e',decimal=9)
-          write (uout,'("  Hessian:")')
-          do j = 1, 3
-             write (uout,'("    ",1p,3(A,"  "))') (string(res%hf(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
-          end do
-          write (uout,'("  Hessian eigenvalues: ",3(A,"  "))') (string(res%hfeval(j),'e',decimal=9),j=1,3)
-          ! Write ellipticity, if it is a candidate for bond critical point
-          if (res%r == 3 .and. res%s == -1 .and..not.res%isnuc) then
-             write (uout,'("  Ellipticity (l_1/l_2 - 1): ",A)') string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9)
-          endif
-          if (res%avail_spin .and. res%spinpol) then
-             write (uout,'("  Spin up   field/gradient_norm/laplacian: ",3(A,"  "))') string(res%fspin(1),'e',decimal=9), &
-                string(res%gfmodspin(1),'e',decimal=9), string(res%lapspin(1),'e',decimal=9)
-             if (res%avail_gkin) then
+
+          if (res%ev%avail(fieldeval_category_fder2)) then
+             write (uout,'("  Laplacian (del2 f): ",A)') string(res%del2f,'e',decimal=9)
+             write (uout,'("  Laplacian, valence (del2 fval): ",A)') string(res%del2fval,'e',decimal=9)
+             write (uout,'("  Hessian:")')
+             do j = 1, 3
+                write (uout,'("    ",1p,3(A,"  "))') (string(res%hf(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
+             end do
+             write (uout,'("  Hessian eigenvalues: ",3(A,"  "))') (string(res%hfeval(j),'e',decimal=9),j=1,3)
+             ! Write ellipticity, if it is a candidate for bond critical point
+             if (res%r == 3 .and. res%s == -1 .and..not.res%isnuc) then
+                write (uout,'("  Ellipticity (l_1/l_2 - 1): ",A)') string(res%hfeval(1)/res%hfeval(2)-1.d0,'e',decimal=9)
+             endif
+          end if
+
+          if (res%ev%avail(fieldeval_category_spin)) then
+             if (res%ev%avail(fieldeval_category_fder2)) then
+                write (uout,'("  Spin up   field/gradient_norm/laplacian: ",3(A,"  "))') string(res%fspin(1),'e',decimal=9), &
+                   string(res%gfmodspin(1),'e',decimal=9), string(res%lapspin(1),'e',decimal=9)
+             elseif (res%ev%avail(fieldeval_category_fder1)) then
+                write (uout,'("  Spin up   field/gradient_norm: ",2(A,"  "))') string(res%fspin(1),'e',decimal=9), &
+                   string(res%gfmodspin(1),'e',decimal=9)
+             elseif (res%ev%avail(fieldeval_category_f)) then
+                write (uout,'("  Spin up   field: ",3(A,"  "))') string(res%fspin(1),'e',decimal=9)
+             end if
+             if (res%ev%avail(fieldeval_category_gkin)) &
                 write (uout,'("  Spin up   kinetic energy density (G): ",A)') string(res%gkinspin(1),'e',decimal=9)
+
+             if (res%ev%avail(fieldeval_category_fder2)) then
+                write (uout,'("  Spin down field/gradient_norm/laplacian: ",3(A,"  "))') string(res%fspin(2),'e',decimal=9), &
+                   string(res%gfmodspin(2),'e',decimal=9), string(res%lapspin(2),'e',decimal=9)
+             elseif (res%ev%avail(fieldeval_category_fder1)) then
+                write (uout,'("  Spin down field/gradient_norm: ",2(A,"  "))') string(res%fspin(2),'e',decimal=9), &
+                   string(res%gfmodspin(2),'e',decimal=9)
+             elseif (res%ev%avail(fieldeval_category_f)) then
+                write (uout,'("  Spin down field: ",3(A,"  "))') string(res%fspin(2),'e',decimal=9)
              end if
-             write (uout,'("  Spin down field/gradient_norm/laplacian: ",3(A,"  "))') string(res%fspin(2),'e',decimal=9), &
-                string(res%gfmodspin(2),'e',decimal=9), string(res%lapspin(2),'e',decimal=9)
-             if (res%avail_gkin) then
+             if (res%ev%avail(fieldeval_category_gkin)) &
                 write (uout,'("  Spin down kinetic energy density (G): ",A)') string(res%gkinspin(2),'e',decimal=9)
-             end if
           end if
 
           ! properties at points defined by the user
@@ -1397,22 +1426,27 @@ contains
                    string(s%propp(i)%expr), string(fres,'e',decimal=9)
              else
                 ! ispecial=1 ... schrodinger stress tensor
-                stvec = res%stress
-                call rsindex(stvec,stval,str,sts,CP_hdegen)
-                write (uout,'("  Stress tensor:")')
-                do j = 1, 3
-                   write (uout,'("    ",1p,3(A,"  "))') (string(res%stress(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
-                end do
-                write (uout,'("  Stress tensor eigenvalues: ",3(A,"  "))') (string(stval(j),'e',decimal=9),j=1,3)
-             endif
+                if (res%ev%avail(fieldeval_category_stress)) then
+                   stvec = res%stress
+                   call rsindex(stvec,stval,str,sts,CP_hdegen)
+                   write (uout,'("  Stress tensor:")')
+                   do j = 1, 3
+                      write (uout,'("    ",1p,3(A,"  "))') (string(res%stress(j,k),'e',decimal=9,length=16,justify=4), k = 1, 3)
+                   end do
+                   write (uout,'("  Stress tensor eigenvalues: ",3(A,"  "))') (string(stval(j),'e',decimal=9),j=1,3)
+                else
+                   call ferror("propty","Stress tensor cannot be calculated with this scalar field type",faterr)
+                endif
+             end if
           end do
        end if
 
        ! rest of fields
        if (allfields) then
+          call request%field_nder2()
           do i = 0, s%nf
              if (s%goodfield(i) .and. i/=id) then
-                call s%f(i)%grd(xp,2,res2)
+                call s%f(i)%grd(xp,request,res2)
                 if (res2%valid) then
                    write (uout,'("  Field ",A," (f,|grad|,lap): ",3(A,"  "))') string(i),&
                       string(res2%f,'e',decimal=9), string(res2%gfmod,'e',decimal=9), &
@@ -1428,7 +1462,7 @@ contains
   !> Calculate the value of all integrable properties at the given
   !> position xpos (Cartesian). This routine is thread-safe.
   module subroutine grdall(s,xpos,lprop,pmask)
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
     use tools_io, only: ferror, faterr
     class(system), intent(inout) :: s
     real*8, intent(in) :: xpos(3) !< Point (cartesian).
@@ -1439,6 +1473,7 @@ contains
     logical :: fdone(0:ubound(s%f,1)), pmask0(s%npropi)
     integer :: i, id
     character(len=:), allocatable :: errmsg
+    type(field_evaluation_avail) :: request
 
     if (present(pmask)) then
        pmask0 = pmask
@@ -1446,6 +1481,7 @@ contains
        pmask0 = .true.
     end if
 
+    call request%field_nder2()
     lprop = 0d0
     fdone = .false.
     do i = 1, s%npropi
@@ -1459,7 +1495,7 @@ contains
           id = s%propi(i)%fid
           if (.not.s%goodfield(id)) cycle
           if (.not.fdone(id).and.s%propi(i)%itype /= itype_v) then
-             call s%f(id)%grd(xpos,2,res(id))
+             call s%f(id)%grd(xpos,request,res(id))
              fdone(id) = .true.
           end if
 
@@ -1499,7 +1535,7 @@ contains
   !> if the corresponding element in typeok is true.
   module subroutine addcp(s,id,x0,discard,cpeps,nuceps,nucepsh,gfnormeps,itype,typeok)
     use tools_io, only: faterr, ferror
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
     class(system), intent(inout) :: s
     integer, intent(in) :: id
     real*8, intent(in) :: x0(3) !< Position of the CP, in Cartesian coordinates
@@ -1516,11 +1552,13 @@ contains
     character(len=:), allocatable :: errmsg
     type(scalar_value) :: res
     integer :: idx, i
+    type(field_evaluation_avail) :: request
 
     ! if discard expression is on
     if (allocated(discard)) then
        ! pre-filter by type here
-       call s%f(id)%grd(x0,2,res)
+       call request%field_nder2()
+       call s%f(id)%grd(x0,request,res)
        idx = (res%s+5)/2
        if (idx >= 1 .and. idx <= 4) then
           if (.not.typeok(idx)) return

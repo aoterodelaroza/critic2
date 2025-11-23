@@ -247,7 +247,7 @@ contains
        gradient_mode, qtree_ode_mode, color_allocate
     use qtree_gpaths, only: gradient_full, gradient_color, gradient_qtree
     use tools_io, only: uout, ferror, faterr
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
 
     integer, intent(in) :: base_t, iver(3), l
     integer(qtreei), intent(inout) :: trm(:,:)
@@ -263,6 +263,7 @@ contains
     integer :: nid, ode_save, base_to
     real*8 :: dist
     type(scalar_value) :: res
+    type(field_evaluation_avail) :: request
 
     if (color_allocate == 0) then
        base_to = 1
@@ -297,9 +298,17 @@ contains
        return
     end if
 
+    if (nder <= 0) then
+       call request%field_only()
+    elseif (nder == 1) then
+       call request%field_nder1()
+    else
+       call request%field_nder2()
+    end if
+
     ! value at point
     xp =sy%c%x2c(xp)
-    call sy%f(sy%iref)%grd(xp,nder,res)
+    call sy%f(sy%iref)%grd(xp,request,res)
     ngrd_term = ngrd_term + 1
     if (savefgr) fgr(idx,base_to) = res%fval
     if (savelapgr) lapgr(idx,base_to) = -res%del2fval
@@ -1286,7 +1295,7 @@ contains
     use qtree_basic, only: qtreer, qtreeidx, borig, bvec, maxl, nder, ngrd_int, nnuc,&
        savefgr, savelapgr, cindex, tvol, prop_mode, color_allocate
     use tools_io, only: ferror, faterr
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
 
     integer, intent(in) :: base_t
     integer, intent(in) :: iv(3,4)
@@ -1300,6 +1309,15 @@ contains
     real*8 :: lprop(sy%npropi), vfac, xp(3), lf(4), llap(4)
     integer(qtreeidx) :: idx(4)
     type(scalar_value) :: res
+    type(field_evaluation_avail) :: request
+
+    if (nder <= 0) then
+       call request%field_only()
+    elseif (nder == 1) then
+       call request%field_nder1()
+    else
+       call request%field_nder2()
+    end if
 
     if (color_allocate == 0) then
        base_to = 1
@@ -1325,7 +1343,7 @@ contains
              do j = 1, 3
                 xp = xp + bvec(:,j,base_t) * iv(j,i) * lrest
              end do
-             call sy%f(sy%iref)%grd(xp,nder,res)
+             call sy%f(sy%iref)%grd(xp,request,res)
              lf(i) = res%fval
              if (savefgr) then
                 fgr(idx(i),base_to) = res%fval
@@ -1415,7 +1433,7 @@ contains
     use qtree_basic, only: qtreei, qtreer, qtreeidx, borig, bvec, maxl, ngrd_int,&
        cindex, prop_mode, color_allocate
     use tools_io, only: ferror, faterr
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
 
     integer, intent(in) :: base_t
     integer(qtreei), intent(inout) :: trm(:,:)
@@ -1427,6 +1445,7 @@ contains
     integer :: ts, base_to
     integer(qtreeidx) :: idx
     type(scalar_value) :: res
+    type(field_evaluation_avail) :: request0, request2
 
     real*8, parameter :: vfac_low = 1d-15
 
@@ -1437,6 +1456,9 @@ contains
     end if
     l2 = 2**maxl
     lprop = 0d0
+
+    call request0%field_only()
+    call request2%field_nder2()
 
     do i = 0, l2
        do j = 0, l2-i
@@ -1456,12 +1478,13 @@ contains
                 xx = xx + bvec(:,1,base_t) * real(i,8)
                 xx = xx + bvec(:,2,base_t) * real(j,8)
                 xx = xx + bvec(:,3,base_t) * real(k,8)
+
                 if (prop_mode == 1) then
-                   call sy%f(sy%iref)%grd(xx,0,res)
+                   call sy%f(sy%iref)%grd(xx,request0,res)
                    ngrd_int = ngrd_int + 1
                    acum_atprop(ts,2) = acum_atprop(ts,2) + vfac * res%fval
                 else if (prop_mode == 2) then
-                   call sy%f(sy%iref)%grd(xx,2,res)
+                   call sy%f(sy%iref)%grd(xx,request2,res)
                    acum_atprop(ts,2) = acum_atprop(ts,2) + vfac * res%fval
                    acum_atprop(ts,3) = acum_atprop(ts,3) + vfac * res%del2fval
                    ngrd_int = ngrd_int + 1

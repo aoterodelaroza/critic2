@@ -29,7 +29,7 @@ contains
     use tools_math, only: cross
     use tools_io, only: ferror, faterr, uout, fopen_write, fclose, string, ioj_center,&
        isinteger, lgetword, equal
-    use types, only: scalar_value, realloc
+    use types, only: scalar_value, realloc, field_evaluation_avail
     use param, only: pi
 
     type(system), intent(inout) :: s
@@ -51,6 +51,7 @@ contains
     integer, allocatable :: iassign(:,:), uvmax(:,:), ival(:)
     character*(:), allocatable :: strrs, strss, word, filename, gnuname
     logical :: doit, changed, ok
+    type(field_evaluation_avail) :: request
 
     ! checks
     if (.not.s%c%ismolecule) &
@@ -64,6 +65,7 @@ contains
     filename = trim(fileroot) // "_sigmahole.dat"
     gnuname = trim(fileroot) // "_sigmahole.gnu"
 
+    call request%field_only()
     nu = 101
     nv = 101
     isoval = 1d-3
@@ -166,7 +168,7 @@ contains
           rfin = -1d0
           do while(rat < brak_max)
              xp = xx + rat * uvec
-             call s%f(s%iref)%grd(xp,0,res)
+             call s%f(s%iref)%grd(xp,request,res)
              if (res%f < isoval) then
                 if (rat == brak_init) &
                    call ferror('sigmahole_driver','failed bracketing: lower than isovalue at first point',faterr)
@@ -184,14 +186,16 @@ contains
           do while (abs(rfin-rini) > bisect_eps)
              rmid = 0.5d0 * (rini + rfin)
              xp = xx + rmid * uvec
-             call s%f(s%iref)%grd(xp,0,res)
+             call s%f(s%iref)%grd(xp,request,res)
              if (res%f > isoval) then
                 rini = rmid
              else
                 rfin = rmid
              end if
           end do
-          mep = s%f(s%iref)%wfn%mep(xp)
+          call s%f(s%iref)%wfn%mep(xp,mep,ok)
+          if (.not.ok) &
+             call ferror("sigmahole_driver","could not compute the MEP",faterr)
 
           !$omp critical (iowrite)
           rval(iu,iv) = rmid
@@ -310,7 +314,9 @@ contains
           rfin = -1d0
           do while(rat < range_max)
              xp = xx + rat * uvec
-             mep = s%f(s%iref)%wfn%mep(xp)
+             call s%f(s%iref)%wfn%mep(xp,mep,ok)
+             if (.not.ok) &
+                call ferror("sigmahole_driver","could not compute the MEP",faterr)
              if (mep < 0d0) then
                 rfin = rat
                 exit
@@ -326,7 +332,9 @@ contains
              do while (abs(rfin-rini) > bisect_eps)
                 rmid = 0.5d0 * (rini + rfin)
                 xp = xx + rmid * uvec
-                mep = s%f(s%iref)%wfn%mep(xp)
+                call s%f(s%iref)%wfn%mep(xp,mep,ok)
+                if (.not.ok) &
+                   call ferror("sigmahole_driver","could not compute the MEP",faterr)
                 if (mep > 0d0) then
                    rini = rmid
                 else

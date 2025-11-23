@@ -31,7 +31,7 @@ contains
        periodic, r_betagp, r_betaint, ode_fsal, nder, savefgr, savelapgr, neargp,&
        stepsize, ode_abserr, mpstep, qtreefac, killext, color_allocate
     use tools_io, only: ferror, faterr, uout
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
 
     real*8, intent(inout) :: xp(3)
     integer, intent(inout) :: base_t
@@ -60,6 +60,7 @@ contains
     integer(qtreeidx) :: istack(mstack), idx
     logical :: gridp, doproj
     integer :: base_to
+    type(field_evaluation_avail) :: request
 
     if (color_allocate == 0) then
        base_to = 1
@@ -88,8 +89,8 @@ contains
     bstack(1) = base_to
 
     do nstep = 1, mstep
-
        ! step
+       call request%field_nder1()
        if (ode_type == 0) then
           ! fixed-step
           grds = 0d0
@@ -101,7 +102,7 @@ contains
                 dy = dy + ode_a(i,j) * grds(:,j)
              end do
              xtemp = xp + h0 * dy
-             call sy%f(sy%iref)%grd(xtemp,1,res)
+             call sy%f(sy%iref)%grd(xtemp,request,res)
              grds(:,i) = res%gf / (res%gfmod+1d-80)
              ystp = ystp + ode_b(i) * grds(:,i)
           end do
@@ -119,8 +120,9 @@ contains
                 do j = 1, i-1
                    dy = dy + ode_a(j,i) * grds(:,j)
                 end do
+
                 xtemp = xp + h0 * dy
-                call sy%f(sy%iref)%grd(xtemp,1,res)
+                call sy%f(sy%iref)%grd(xtemp,request,res)
                 grds(:,i) = res%gf / (res%gfmod+1d-80)
                 ystp = ystp + ode_b(i) * grds(:,i)
                 xerr = xerr + (ode_b(i) - ode_b2(i)) * grds(:,i)
@@ -252,14 +254,20 @@ contains
 
        ! accept the new point and recalculate f, if applicable
        if (gridp .or. .not.ode_fsal) then
-          call sy%f(sy%iref)%grd(xp,nder,res)
+          if (nder == 0) then
+             call request%field_only()
+          elseif (nder == 1) then
+             call request%field_nder1()
+          elseif (nder == 2) then
+             call request%field_nder2()
+          end if
+          call sy%f(sy%iref)%grd(xp,request,res)
           ngrd_term = ngrd_term + 1
           if (gridp) then
              if (savefgr) fgr(idx,base_to) = res%fval
              if (savelapgr) lapgr(idx,base_to) = -res%del2fval
           end if
        end if
-
     end do
 
     ! ! if (debug > 0) then
@@ -287,7 +295,7 @@ contains
        qinv, q1inv, lrotm, cindex, ode_fsal, r_betagp, crys2convex, locate_tetrah,&
        stepsize, ode_abserr, ws_origin, killext, color_allocate
     use tools_io, only: ferror, faterr
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
 
     real*8, intent(inout) :: xp(3)
     integer, intent(inout) :: base_t
@@ -312,12 +320,14 @@ contains
     real*8 :: xerr(3), derr, xtemp(3)
     logical :: docolor
     integer :: base_to
+    type(field_evaluation_avail) :: request
 
     if (color_allocate == 0) then
        base_to = 1
     else
        base_to = base_t
     end if
+    call request%field_nder1()
 
     ! if starting at a cp, mark it as unassigned
     if (res%gfmod < eps) then
@@ -345,8 +355,9 @@ contains
              do j = 1, i-1
                 dy = dy + ode_a(i,j) * grds(:,j)
              end do
+
              xtemp = xp + h0 * dy
-             call sy%f(sy%iref)%grd(xtemp,1,res)
+             call sy%f(sy%iref)%grd(xtemp,request,res)
              grds(:,i) = res%gf / (res%gfmod+1d-80)
              ystp = ystp + ode_b(i) * grds(:,i)
           end do
@@ -365,7 +376,7 @@ contains
                    dy = dy + ode_a(j,i) * grds(:,j)
                 end do
                 xtemp = xp + h0 * dy
-                call sy%f(sy%iref)%grd(xtemp,1,res)
+                call sy%f(sy%iref)%grd(xtemp,request,res)
                 grds(:,i) = res%gf / (res%gfmod+1d-80)
                 ystp = ystp + ode_b(i) * grds(:,i)
                 xerr = xerr + (ode_b(i) - ode_b2(i)) * grds(:,i)
@@ -481,10 +492,9 @@ contains
 
        ! grd at point and next step
        if (.not.ode_fsal) then
-          call sy%f(sy%iref)%grd(xp,1,res)
+          call sy%f(sy%iref)%grd(xp,request,res)
           ngrd_term = ngrd_term + 1
        end if
-
     end do
 
     ! ! if (debug > 0) then
@@ -511,7 +521,7 @@ contains
        ode_b2, safety, qinv, q1inv, periodic, lrotm, r_betagp, ode_fsal,&
        crys2convex, locate_tetrah, stepsize, ode_abserr, ws_origin, killext
     use tools_io, only: ferror, faterr
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
 
     real*8, intent(inout) :: xp(3)
     integer, intent(inout) :: base_t
@@ -530,6 +540,7 @@ contains
     real*8 :: dy(3), grds(3,10), ystp(3), xp2(3)
     real*8 :: xerr(3), derr, xtemp(3), xnew(3)
     integer :: nbase, lrot
+    type(field_evaluation_avail) :: request
 
     ! if starting at a cp, mark it as unassigned
     if (res%gfmod < eps) then
@@ -537,6 +548,7 @@ contains
        return
     end if
 
+    call request%field_nder1()
     cpout = 0
     h0 = stepsize
     lrot = 1
@@ -553,8 +565,9 @@ contains
              do j = 1, i-1
                 dy = dy + ode_a(i,j) * grds(:,j)
              end do
+
              xtemp = xp + h0 * dy
-             call sy%f(sy%iref)%grd(xtemp,1,res)
+             call sy%f(sy%iref)%grd(xtemp,request,res)
              grds(:,i) = res%gf / (res%gfmod+1d-80)
              ystp = ystp + ode_b(i) * grds(:,i)
           end do
@@ -573,7 +586,8 @@ contains
                    dy = dy + ode_a(j,i) * grds(:,j)
                 end do
                 xtemp = xp + h0 * dy
-                call sy%f(sy%iref)%grd(xtemp,1,res)
+
+                call sy%f(sy%iref)%grd(xtemp,request,res)
                 grds(:,i) = res%gf / (res%gfmod+1d-80)
                 ystp = ystp + ode_b(i) * grds(:,i)
                 xerr = xerr + (ode_b(i) - ode_b2(i)) * grds(:,i)
@@ -635,10 +649,9 @@ contains
 
        ! grd at point and next step
        if (.not.ode_fsal) then
-          call sy%f(sy%iref)%grd(xp,1,res)
+          call sy%f(sy%iref)%grd(xp,request,res)
           ngrd_term = ngrd_term + 1
        end if
-
     end do
 
     cpout = nnuc+3

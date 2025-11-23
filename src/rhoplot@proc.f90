@@ -191,7 +191,7 @@ contains
     use arithmetic, only: eval
     use tools_io, only: ferror, faterr, lgetword, equal, getword, equal,&
        isexpression_or_word, fopen_write, uout, string, fclose
-    use types, only: scalar_value, vstring
+    use types, only: scalar_value, vstring, field_evaluation_avail
     character*(*), intent(in) :: line
 
     integer :: lp, lp2, nti, id, luout, np
@@ -202,6 +202,7 @@ contains
     integer :: i, j
     real*8, allocatable :: rhoout(:), lapout(:)
     type(vstring) :: lerrmsg
+    type(field_evaluation_avail) :: request
 
     ! read the points
     lp = 1
@@ -291,6 +292,15 @@ contains
        end if
     end do
 
+    ! request selector
+    if (nti == 0) then
+       call request%field_only()
+    elseif (nti >= 1 .and. nti <= 4) then
+       call request%field_nder1()
+    else
+       call request%field_nder2()
+    end if
+
     ! open the output
     if (len_trim(outfile) > 0) then
        luout = fopen_write(outfile)
@@ -319,13 +329,7 @@ contains
     do i=1,np
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
        if (id >= 0) then
-          if (nti == 0) then
-             call sy%f(id)%grd(xp,0,res,periodic=.not.sy%c%ismolecule)
-          elseif (nti >= 1 .and. nti <= 4) then
-             call sy%f(id)%grd(xp,1,res,periodic=.not.sy%c%ismolecule)
-          else
-             call sy%f(id)%grd(xp,2,res,periodic=.not.sy%c%ismolecule)
-          end if
+          call sy%f(id)%grd(xp,request,res,periodic=.not.sy%c%ismolecule)
 
           rhopt = res%f
           select case(nti)
@@ -406,15 +410,15 @@ contains
     use arithmetic, only: eval
     use tools_io, only: lgetword, faterr, ferror, equal, getword, &
        isexpression_or_word, uout, string, isinteger
-    use types, only: scalar_value, vstring
-    use param, only: eye
+    use types, only: scalar_value, vstring, field_evaluation_avail
+1   use param, only: eye
     use iso_c_binding, only: c_loc
     character*(*), intent(in) :: line
 
     integer :: lp, nti, id, nn(3)
     real*8 :: x0(3), x1(3), xp(3), lappt
     real*8 :: rgr, dd(3), xd(3,3)
-    integer :: lp2, nder
+    integer :: lp2
     character(len=:), allocatable :: word, outfile, expr, wext1
     type(scalar_value) :: res
     logical :: ok, doortho
@@ -425,6 +429,7 @@ contains
     type(grid3) :: faux
     complex*16, allocatable :: caux(:,:,:)
     type(vstring) :: lerrmsg
+    type(field_evaluation_avail) :: request
 
     integer, parameter :: outform_cube = 1
     integer, parameter :: outform_bincube = 2
@@ -555,9 +560,9 @@ contains
     end if
 
     ! read additional options
+    call request%field_only()
     ishift = 0
     nti = nti_none
-    nder = 0
     id = sy%iref
     useexpr = .false.
     outform = outform_cube
@@ -614,40 +619,40 @@ contains
           end if
        else if (equal(word,'f')) then
           nti = nti_f
-          nder = 0
+          call request%field_only()
        elseif (equal(word,'gx')) then
           nti = nti_gx
-          nder = 1
+          call request%field_nder1()
        else if (equal(word,'gy')) then
           nti = nti_gy
-          nder = 1
+          call request%field_nder1()
        else if (equal(word,'gz')) then
           nti = nti_gz
-          nder = 1
+          call request%field_nder1()
        else if (equal(word,'gmod')) then
           nti = nti_gmod
-          nder = 1
+          call request%field_nder1()
        else if (equal(word,'hxx')) then
           nti = nti_hxx
-          nder = 2
+          call request%field_nder2()
        else if (equal(word,'hxy') .or. equal(word,'hyx')) then
           nti = nti_hxy
-          nder = 2
+          call request%field_nder2()
        else if (equal(word,'hxz') .or. equal(word,'hzx')) then
           nti = nti_hxz
-          nder = 2
+          call request%field_nder2()
        else if (equal(word,'hyy')) then
           nti = nti_hyy
-          nder = 2
+          call request%field_nder2()
        else if (equal(word,'hyz') .or. equal(word,'hzy')) then
           nti = nti_hyz
-          nder = 2
+          call request%field_nder2()
        else if (equal(word,'hzz')) then
           nti = nti_hzz
-          nder = 2
+          call request%field_nder2()
        else if (equal(word,'lap')) then
           nti = nti_lap
-          nder = 2
+          call request%field_nder2()
        else if (equal(word,'real')) then
           nti = nti_real
        else if (equal(word,'imag')) then
@@ -790,9 +795,8 @@ contains
                 do ix = 0, nn(1)-1
                    xp = x0 + real(ix,8) * xd(:,1) + real(iy,8) * xd(:,2) &
                       + real(iz,8) * xd(:,3)
-
                    if (.not.useexpr) then
-                      call sy%f(id)%grd(xp,nder,res,periodic=.not.sy%c%ismolecule)
+                      call sy%f(id)%grd(xp,request,res,periodic=.not.sy%c%ismolecule)
                       select case(nti)
                       case (nti_none,nti_f)
                          lappt = res%f
@@ -858,7 +862,7 @@ contains
        isexpression_or_word, fopen_write, uout, string, fclose
     use tools_math, only: plane_scale_extend, assign_ziso, niso_manual,&
        niso_lin, niso_log, niso_atan, niso_bader
-    use types, only: scalar_value, realloc, vstring
+    use types, only: scalar_value, realloc, vstring, field_evaluation_avail
     character*(*), intent(in) :: line
 
     integer :: lp2, lp, nti, id, luout, nx, ny, niso_type, niso, nn
@@ -869,9 +873,10 @@ contains
     character(len=:), allocatable :: word, outfile, root0, expr
     type(scalar_value) :: res
     logical :: ok
-    integer :: ix, iy, cmopt, nder
+    integer :: ix, iy, cmopt
     real*8, allocatable :: ff(:,:), ziso(:)
     type(vstring) :: lerrmsg
+    type(field_evaluation_avail) :: request
 
     ! read the points
     lp = 1
@@ -1098,11 +1103,11 @@ contains
     ! allocate space for field values on the plane
     allocate(ff(nx,ny))
     if (nti == 0) then
-       nder = 0
+       call request%field_only()
     elseif (nti >= 1 .and. nti <= 4) then
-       nder = 1
+       call request%field_nder1()
     else
-       nder = 2
+       call request%field_nder2()
     end if
 
     lerrmsg%s = ""
@@ -1112,7 +1117,7 @@ contains
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
 
           if (id >= 0) then
-             call sy%f(id)%grd(xp,nder,res,periodic=.not.sy%c%ismolecule)
+             call sy%f(id)%grd(xp,request,res,periodic=.not.sy%c%ismolecule)
              select case(nti)
              case (0)
                 rhopt = res%f
@@ -1208,7 +1213,7 @@ contains
        faterr, ferror, string, ioj_right, fopen_write, getword, fclose
     use tools_math, only: plane_scale_extend, assign_ziso, &
        niso_manual, niso_atan, niso_lin, niso_log, niso_bader
-    use types, only: scalar_value, realloc
+    use types, only: scalar_value, realloc, field_evaluation_avail
     character(len=:), allocatable :: line, word, datafile, rootname
     integer :: lpold, lp, udat, ll, i, j
     integer :: updum, dndum, updum1, dndum1
@@ -1222,14 +1227,16 @@ contains
     real*8 :: sx0, sy0, zx0, zx1, zy0, zy1, rdum
     real*8 :: x0(3), uu(3), vv(3), fmin, fmax
     logical :: docontour, dograds, goodplane, fset
-    integer :: n1, n2, niso, nder
+    integer :: n1, n2, niso
     type(scalar_value) :: res
     real*8, allocatable :: ff(:,:), ziso(:)
+    type(field_evaluation_avail) :: request
 
     ! Header
     write (uout,'("* GRDVEC: gradient paths and contours in 2d")')
 
     ! Initialization
+    call request%field_nder2()
     grpcpeps = 1d-2
     grphcutoff = 1.0d-3
     grpproj = 1
@@ -1461,7 +1468,7 @@ contains
              ok = ok .and. eval_next (newcriticp(2,newncriticp), line, lp)
              ok = ok .and. eval_next (newcriticp(3,newncriticp), line, lp)
              q0 = sy%c%x2c(newcriticp(:,newncriticp))
-             call sy%f(sy%iref)%grd(q0,2,res,periodic=.not.sy%c%ismolecule)
+             call sy%f(sy%iref)%grd(q0,request,res,periodic=.not.sy%c%ismolecule)
              newtypcrit(newncriticp) = res%s
              q0 = sy%c%c2x(q0)
 
@@ -1630,17 +1637,17 @@ contains
        uu = sy%c%x2c((r1-r0) / real(n1-1,8))
        vv = sy%c%x2c((r2-r0) / real(n2-1,8))
        if (nfi == 0) then
-          nder = 0
+          call request%field_only()
        else if (nfi >= 1 .and. nfi <= 4) then
-          nder = 1
+          call request%field_nder1()
        else
-          nder = 2
+          call request%field_nder2()
        end if
        !$omp parallel do private(xp,res,rhopt)
        do ix = 1, n1
           do iy = 1, n2
              xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
-             call sy%f(sy%iref)%grd(xp,nder,res,periodic=.not.sy%c%ismolecule)
+             call sy%f(sy%iref)%grd(xp,request,res,periodic=.not.sy%c%ismolecule)
              select case(nfi)
              case (0)
                 rhopt = res%f
@@ -2288,7 +2295,7 @@ contains
     use tools_math, only: cross, matinv
     use tools_io, only: uout, string, ioj_right, ioj_left
     use param, only: pi
-    use types, only: scalar_value, gpathp
+    use types, only: scalar_value, gpathp, field_evaluation_avail
     integer, intent(in) :: udat
     logical, intent(in) :: autocheck
     real*8, dimension(3), intent(in) :: r0, r1, r2
@@ -2300,6 +2307,7 @@ contains
     integer :: ier
     type(scalar_value) :: res
     type(gpathp), allocatable :: xpath(:)
+    type(field_evaluation_avail) :: request
 
     ! plane metrics
     rp0 = sy%c%x2c(r0)
@@ -2383,6 +2391,7 @@ contains
     ! write the data file header
     write (udat,'("# Gradient path information")')
     write (udat,'("# u(",A,") v(",A,") x(",A,") y(",A,") z(",A,") color")') (trim(iunitname0(iunit)),j=1,5)
+    call request%field_nder2()
 
     write (uout,'("+ List of gradient paths traced")')
     write (uout,'("# i       xcrys        ycrys        zcrys        type    up down    pts")')
@@ -2436,7 +2445,7 @@ contains
        else
           ! A (3,-1) or (3,+3) critical point:
           xstart = grpx(:,iorig)
-          call sy%f(sy%iref)%grd(xstart,2,res,periodic=.not.sy%c%ismolecule)
+          call sy%f(sy%iref)%grd(xstart,request,res,periodic=.not.sy%c%ismolecule)
           if (res%r .eq. 3) then
              if (res%s .eq. -1) then
                 up1d = +1
@@ -2609,13 +2618,14 @@ contains
     use systemmod, only: sy
     use tools_io, only: uout, string, ioj_left, ioj_right, faterr, ferror
     use param, only: one
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
     integer :: i, j, k, l, ncopies
     integer :: iorde(2*indmax+1), indcell(3,(2*indmax+1)**3), iii, inum
     real*8  :: xp(3)
     real*8  :: x0(3), x1(3), uu, vv, hh, hmin
     type(scalar_value) :: res
     real*8 :: rp0(3)
+    type(field_evaluation_avail) :: request
 
     !
     write (uout,'("+ List of candidate in-plane CPs")')
@@ -2645,6 +2655,7 @@ contains
     enddo
 
     write (uout,'("+ Pruning actions on the in-plane CP list")')
+    call request%field_nder2()
     do i = 1, newncriticp
        xp = newcriticp(:,i)
 
@@ -2658,7 +2669,7 @@ contains
 
        !.Get the properties
        xp = sy%c%x2c(newcriticp(:,i))
-       call sy%f(sy%iref)%grd(xp,2,res,periodic=.not.sy%c%ismolecule)
+       call sy%f(sy%iref)%grd(xp,request,res,periodic=.not.sy%c%ismolecule)
        if (.not.res%valid) then
           write (uout,'("  CP ",A," has an invalid value -> Rejected!")') string(i)
           cycle

@@ -1947,7 +1947,8 @@ contains
   subroutine cp_json_report(json,p)
     use json_module, only: json_core, json_value
     use systemmod, only: sy
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail, fieldeval_category_gkin,&
+       fieldeval_category_spin
     use tools_math, only: rsindex
     use tools_io, only: ferror, faterr
     use global, only: cp_hdegen
@@ -1961,7 +1962,9 @@ contains
     type(scalar_value) :: res
     real*8 :: xp(3), fres, stvec(3,3), stval(3)
     character(len=:), allocatable :: errmsg
+    type(field_evaluation_avail) :: request
 
+    call request%all_basic()
     call json%create_object(s,'critical_points')
     call json%add(p,s)
 
@@ -1995,7 +1998,7 @@ contains
        call json%add(ap,'hessian',reshape(res%hf,(/9/)))
        call json%add(ap,'gradient_norm',res%gfmod)
        call json%add(ap,'gradient_norm_valence',res%gfmodval)
-       if (res%avail_gkin) then
+       if (res%ev%avail(fieldeval_category_gkin)) then
           call json%add(ap,'kinetic_energy_density',res%gkin)
        end if
        call json%add(ap,'laplacian',res%del2f)
@@ -2003,14 +2006,14 @@ contains
        call json%add(ap,'hessian_eigenvalues',res%hfeval)
 
        ! spin polarized quantities
-       if (res%avail_spin .and. res%spinpol) then
+       if (res%ev%avail(fieldeval_category_spin)) then
           call json%add(ap,'field_spin_up',res%fspin(1))
           call json%add(ap,'field_spin_down',res%fspin(2))
           call json%add(ap,'gradient_norm_spin_up',res%gfmodspin(1))
           call json%add(ap,'gradient_norm_spin_down',res%gfmodspin(2))
           call json%add(ap,'laplacian_norm_spin_up',res%lapspin(1))
           call json%add(ap,'laplacian_norm_spin_down',res%lapspin(2))
-          if (res%avail_gkin) then
+          if (res%ev%avail(fieldeval_category_gkin)) then
              call json%add(ap,'kinetic_energy_density_spin_up',res%gkinspin(1))
              call json%add(ap,'kinetic_energy_density_spin_down',res%gkinspin(2))
           end if
@@ -2035,7 +2038,7 @@ contains
                 call json%add(ap2,'value',fres)
              else
                 ! stress tensor
-                call sy%f(sy%iref)%grd(xp,2,res)
+                call sy%f(sy%iref)%grd(xp,request,res)
                 stvec = res%stress
                 call rsindex(stvec,stval,str,sts,CP_hdegen)
                 call json%add(ap2,'stress_tensor',reshape(res%stress,(/9/)))
@@ -2111,7 +2114,7 @@ contains
   subroutine makegraph()
     use systemmod, only: sy
     use tools_math, only: eigsym
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
     use param, only: pi
     integer :: i, j, k
     integer :: nstep
@@ -2126,6 +2129,9 @@ contains
     real*8, allocatable :: xdis(:,:,:), xplen(:,:)
 
     real*8, parameter :: change = 1d-2
+    type(field_evaluation_avail) :: request
+
+    call request%field_nder2()
 
     associate(f => sy%f(sy%iref), cr => sy%c)
 
@@ -2142,7 +2148,7 @@ contains
 
             ! diagonalize hessian at the bcp/rcp, calculate starting points
             ! the third component of the hessian is up/down direction
-            call f%grd(f%cp(i)%r,2,res)
+            call f%grd(f%cp(i)%r,request,res)
             evec = res%hf
             call eigsym(evec,3,reval)
             if (isbcp) then
@@ -2180,7 +2186,7 @@ contains
       do i = 1, f%ncpcel
          if (abs(f%cp(f%cpcel(i)%idx)%typ) == 1) then
             isbcp = (f%cp(f%cpcel(i)%idx)%typ == -1)
-            call f%grd(f%cpcel(i)%r,2,res)
+            call f%grd(f%cpcel(i)%r,request,res)
             evec = res%hf
             call eigsym(evec,3,reval)
             if (isbcp) then
@@ -2315,7 +2321,7 @@ contains
   subroutine write_test_cps(file)
     use systemmod, only: sy
     use tools_io, only: uout, fopen_write, fclose, string, ferror, faterr
-    use types, only: scalar_value
+    use types, only: scalar_value, fieldeval_category_gkin, fieldeval_category_spin
     character*(*), intent(in) :: file
 
     type(scalar_value) :: res
@@ -2346,7 +2352,7 @@ contains
           (string(res%gf(j),'e',decimal=14),j=1,3)
        write (lu,'("gradient_norm: ",A)') string(res%gfmod,'e',decimal=14)
        write (lu,'("gradient_norm_valence: ",A)') string(res%gfmodval,'e',decimal=14)
-       if (res%avail_gkin) then
+       if (res%ev%avail(fieldeval_category_gkin)) then
           write (lu,'("kinetic_energy_density: ",A)') string(res%gkin,'e',decimal=14)
        end if
        write (lu,'("laplacian: ",A)') string(res%del2f,'e',decimal=14)
@@ -2355,14 +2361,14 @@ contains
           (string(res%hfeval(j),'e',decimal=14),j=1,3)
 
        ! spin polarized quantities
-       if (res%avail_spin .and. res%spinpol) then
+       if (res%ev%avail(fieldeval_category_spin)) then
           write (lu,'("field_spin_up: ",A)') string(res%fspin(1),'e',decimal=14)
           write (lu,'("field_spin_down: ",A)') string(res%fspin(2),'e',decimal=14)
           write (lu,'("gradient_norm_spin_up: ",A)') string(res%gfmodspin(1),'e',decimal=14)
           write (lu,'("gradient_norm_spin_down: ",A)') string(res%gfmodspin(2),'e',decimal=14)
           write (lu,'("laplacian_spin_up: ",A)') string(res%lapspin(1),'e',decimal=14)
           write (lu,'("laplacian_spin_down: ",A)') string(res%lapspin(2),'e',decimal=14)
-          if (res%avail_gkin) then
+          if (res%ev%avail(fieldeval_category_gkin)) then
              write (lu,'("kinetic_energy_density_spin_up: ",A)') string(res%gkinspin(1),'e',decimal=14)
              write (lu,'("kinetic_energy_density_spin_down: ",A)') string(res%gkinspin(2),'e',decimal=14)
           end if

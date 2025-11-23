@@ -71,7 +71,7 @@ module wfn_private
   !
   !       occ. (a+b)           occ.(a)    virt.(a+b)
   ! | ..................... | .........|............|
-  ! 1                     nalpha     nmocc        nmoall
+  ! 1                     nalpha     nmoocc       nmoall
   !
   ! Unrestricted wavefunctions (wfntyp = wfn_uhf):
   !
@@ -305,28 +305,33 @@ module wfn_private
        real*8, intent(out) :: stress(3,3)
        real*8, allocatable, intent(out), optional :: xmo(:)
      end subroutine rho2
-     module function mep(f,xpos)
+     module subroutine mep(f,xpos,m,valid)
        class(molwfn), intent(in) :: f
        real*8, intent(in) :: xpos(3)
-       real*8 :: mep
-     end function mep
-     module subroutine uslater(f,xpos,ux,nheff)
+       real*8, intent(out) :: m
+       logical, intent(out) :: valid
+     end subroutine mep
+     module subroutine uslater(f,xpos,valid,ux,nheff)
        class(molwfn), intent(in) :: f
        real*8, intent(in) :: xpos(3)
+       logical, intent(out) :: valid
        real*8, intent(out) :: ux
        real*8, intent(out), optional :: nheff
      end subroutine uslater
-     module subroutine xhole(f,xpos,xref,xh)
+     module subroutine xhole(f,xpos,xref,xh,valid)
        class(molwfn), intent(in) :: f
        real*8, intent(in) :: xpos(3)
        real*8, intent(in) :: xref(3)
        real*8, intent(out) :: xh
+       logical, intent(out) :: valid
      end subroutine xhole
-     module subroutine calculate_mo(f,xpos,phi,fder)
+     module subroutine calculate_mo(f,xpos,phi,id_mo,idx,errmsg)
        class(molwfn), intent(in) :: f
        real*8, intent(in) :: xpos(3)
        real*8, intent(out) :: phi
-       character*(*), intent(in) :: fder
+       integer, intent(in) :: id_mo
+       integer, intent(in) :: idx
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine calculate_mo
   end interface
 

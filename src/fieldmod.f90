@@ -27,7 +27,7 @@ module fieldmod
   use wfn_private, only: molwfn
   use dftb_private, only: dftbwfn
   use param, only: maxzat0, mlen, mmlen
-  use types, only: cp_type, scalar_value, gpathp, thread_info
+  use types, only: cp_type, scalar_value, field_evaluation_avail, gpathp, thread_info
   use hashmod, only: hash
   use iso_c_binding, only: c_ptr, c_null_ptr
   implicit none
@@ -176,12 +176,11 @@ module fieldmod
        integer, intent(in) :: n(3)
        real*8, intent(in) :: g(:,:,:)
      end subroutine load_grid_from_array3
-     recursive module subroutine grd(f,v,nder,res,fder,periodic)
+     recursive module subroutine grd(f,v,request,res,periodic)
        class(field), intent(inout) :: f
        real*8, intent(in) :: v(3)
-       integer, intent(in) :: nder
+       type(field_evaluation_avail), intent(in) :: request
        type(scalar_value), intent(out) :: res
-       character*(*), intent(in), optional :: fder
        logical, intent(in), optional :: periodic
      end subroutine grd
      recursive module function grd0(f,v,periodic,valid)

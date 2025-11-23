@@ -29,6 +29,7 @@ module types
   public :: celatom
   public :: anyatom
   public :: cp_type
+  public :: field_evaluation_avail
   public :: scalar_value
   public :: integrable
   public :: pointpropable
@@ -133,21 +134,63 @@ module types
      integer :: inext = 0 !< next atom in the atomic environment block
   end type celatom
 
+  ! Field evaluation categories: these are used to ask for specific
+  ! properties calculated from the scalar field. Applied in
+  ! combination with the field_evaluation_avail type.
+  integer, parameter, public :: fieldeval_category_f       = 1
+  integer, parameter, public :: fieldeval_category_fder1   = 2
+  integer, parameter, public :: fieldeval_category_fder2   = 3
+  integer, parameter, public :: fieldeval_category_gkin    = 4
+  integer, parameter, public :: fieldeval_category_stress  = 5
+  integer, parameter, public :: fieldeval_category_spin    = 6
+  integer, parameter, public :: fieldeval_category_mo      = 7
+  integer, parameter, public :: fieldeval_category_mep     = 8
+  integer, parameter, public :: fieldeval_category_uslater = 9
+  integer, parameter, public :: fieldeval_category_xhole   = 10
+  integer, parameter, public :: fieldeval_category_nheff   = 11
+  integer, parameter, public :: fieldeval_category_NUM     = 11 ! equal to last entry
+
+  ! Identifiers for MO field modifiers (positive means MO range)
+  integer, parameter, public :: id_mo_homo = -1
+  integer, parameter, public :: id_mo_lumo = -2
+  integer, parameter, public :: id_mo_ahomo = -3
+  integer, parameter, public :: id_mo_alumo = -4
+  integer, parameter, public :: id_mo_bhomo = -5
+  integer, parameter, public :: id_mo_blumo = -6
+  integer, parameter, public :: id_mo_a = -7
+  integer, parameter, public :: id_mo_b = -8
+  integer, parameter, public :: id_mo_id = -9
+
+  !> Type to request the evaluation of properties from a scalar field,
+  !> and to report which properties are availabe in an evaluation.
+  type field_evaluation_avail
+     logical :: avail(fieldeval_category_NUM) !< request different categories
+     integer :: moini = 0 !< initial MO (0=no,-1=all,-2=occupied,>0=start of range)
+     integer :: moend = 0 !< final MO (combined with moini>0, gives an MO range)
+     real*8 :: xref(3) !< reference point (for, eg, xhole)
+   contains
+     procedure :: clear => field_evaluation_avail_clear
+     procedure :: all_basic => field_evaluation_avail_all_basic
+     procedure :: field_only => field_evaluation_avail_field_only
+     procedure :: field_nder1 => field_evaluation_avail_field_nder1
+     procedure :: field_nder2 => field_evaluation_avail_field_nder2
+  end type field_evaluation_avail
+
   !> Result of the evaluation of a scalar field
   type scalar_value
-     ! whether the evaluation is valid
+     ! whether the evaluation is valid and what has been evaluated
      logical :: valid = .false.
-     ! always available
+     logical :: satisfied = .false.
+     type(field_evaluation_avail) :: ev
+     ! the field value
      real*8 :: f = 0d0 ! field
      real*8 :: fval = 0d0 ! field (valence only)
      logical :: isnuc = .false. ! is it a nuclear position?
-     ! nder == 1
-     logical :: avail_der1 = .false. ! first derivatives of the scalar field are available
+     ! first derivatives of the field
      real*8 :: gf(3) = 0d0 ! field gradient
      real*8 :: gfmod = 0d0 ! field gradient norm
      real*8 :: gfmodval = 0d0 ! field gradient norm (valence only)
-     ! nder == 2
-     logical :: avail_der2 = .false. ! second derivatives of the scalar field are available
+     ! second derivatives of the field
      real*8 :: hf(3,3) = 0d0 ! field Hessian
      real*8 :: del2f = 0d0 ! field Laplacian
      real*8 :: del2fval = 0d0 ! field Laplacian (valence only)
@@ -155,17 +198,13 @@ module types
      real*8 :: hfeval(3) = 0d0 ! field Hessian eigenvalues (ascending order)
      integer :: r = 0 ! field Hessian rank
      integer :: s = 0 ! field Hessian signature
-     ! avail_gkin
-     logical :: avail_gkin = .false. ! kinetic energy density is available
+     ! kinetic energy density
      real*8 :: gkin = 0d0 ! kinetic energy density
-     ! avail_stress
-     logical :: avail_stress = .false. ! stress tensor is available
+     ! stress
      real*8 :: stress(3,3) = 0d0 ! schrodinger stress tensor
-     ! avail_vir
-     logical :: avail_vir = .false. ! virial field is available
+     ! virial
      real*8 :: vir = 0d0 ! electronic potential energy density, virial field
-     ! avail_spin (in combination with other selectors where applicable)
-     logical :: avail_spin = .false. ! spin quantities are available
+     ! spin properties (in combination with other selectors where applicable)
      logical :: spinpol = .false. ! whether this wavefuntion is spin-polarized
      real*8 :: fspin(2) ! density, spin up/dn
      real*8 :: fspinval(2) ! density, spin up/dn, valence only
@@ -174,8 +213,8 @@ module types
      real*8 :: lapspin(2) ! laplacian, spin up/dn
      real*8 :: lapspinval(2) ! laplacian, spin up/dn, valence only
      real*8 :: gkinspin(2) ! kinetic energy density, spin up/dn
-     ! nder < 0 (specialized return field)
-     real*8 :: fspc = 0d0 ! specialized return field (molecular orbital values, etc.)
+     ! specialized return field (single MO values, MEP, etc.)
+     real*8 :: fspc = 0d0
    contains
      procedure :: clear => scalar_value_clear
   end type scalar_value
@@ -328,6 +367,21 @@ module types
      module subroutine scalar_value_clear(s)
        class(scalar_value), intent(inout) :: s
      end subroutine scalar_value_clear
+     module subroutine field_evaluation_avail_clear(s)
+       class(field_evaluation_avail), intent(inout) :: s
+     end subroutine field_evaluation_avail_clear
+     module subroutine field_evaluation_avail_all_basic(s)
+       class(field_evaluation_avail), intent(inout) :: s
+     end subroutine field_evaluation_avail_all_basic
+     module subroutine field_evaluation_avail_field_only(s)
+       class(field_evaluation_avail), intent(inout) :: s
+     end subroutine field_evaluation_avail_field_only
+     module subroutine field_evaluation_avail_field_nder1(s)
+       class(field_evaluation_avail), intent(inout) :: s
+     end subroutine field_evaluation_avail_field_nder1
+     module subroutine field_evaluation_avail_field_nder2(s)
+       class(field_evaluation_avail), intent(inout) :: s
+     end subroutine field_evaluation_avail_field_nder2
      module subroutine realloc_vstring(a,nnew)
        type(vstring), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew

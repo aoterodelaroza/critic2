@@ -1110,7 +1110,7 @@ contains
     use tools_math, only: eigsym
     use tools_io, only: ferror, faterr
     use param, only: pi
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
 
     integer, intent(in) :: id, iup, npoints
     integer, intent(in) :: flxsym
@@ -1129,8 +1129,10 @@ contains
     real*8, dimension(npoints) :: thetavec
     integer :: ier, ircp, n
     type(scalar_value) :: res
+    type(field_evaluation_avail) :: request
 
     if (id <= 0 .or. id > sy%f(sy%iref)%ncpcel) call ferror('flx_bcp','CP identifier < 0 or > # of CPs',faterr)
+    call request%field_nder2()
 
     if (sy%f(sy%iref)%cpcel(id)%typ == -1) then
        ircp = 1
@@ -1146,7 +1148,7 @@ contains
     end if
     xini = xbcp
     xbcp = sy%c%x2c(xbcp)
-    call sy%f(sy%iref)%grd(xbcp,2,res)
+    call sy%f(sy%iref)%grd(xbcp,request,res)
     evec = res%hf
     call eigsym(evec,3,reval)
 

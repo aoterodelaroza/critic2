@@ -798,26 +798,31 @@ contains
   !> derivatives up to nder. Return the results in res0. If periodic
   !> is present and false, consider the field is defined in a
   !> non-periodic system. This routine is thread-safe.
-  recursive module subroutine grd(f,v,nder,res,fder,periodic)
+  recursive module subroutine grd(f,v,request,res,periodic)
     use wfn_private, only: wfn_uhf
     use arithmetic, only: eval
     use types, only: scalar_value
     use global, only: CP_hdegen
     use tools_math, only: rsindex
     use tools_io, only: ferror, faterr
+    use types, only: fieldeval_category_f, fieldeval_category_fder1, fieldeval_category_fder2,&
+       fieldeval_category_gkin, fieldeval_category_stress, fieldeval_category_spin,&
+       fieldeval_category_mo, fieldeval_category_mep, fieldeval_category_uslater,&
+       fieldeval_category_nheff, fieldeval_category_xhole,&
+       fieldeval_category_NUM, id_mo_homo, id_mo_lumo, id_mo_ahomo,&
+       id_mo_alumo, id_mo_bhomo, id_mo_blumo, id_mo_a, id_mo_b, id_mo_id
     use param, only: icrd_cart
     class(field), intent(inout) :: f !< Input field
     real*8, intent(in) :: v(3) !< Target point in Cartesian coordinates
-    integer, intent(in) :: nder !< Number of derivatives to calculate (or -1 for special field)
+    type(field_evaluation_avail), intent(in) :: request !< Requested properties to calculate
     type(scalar_value), intent(out) :: res !< Output density and related scalar properties
-    character*(*), intent(in), optional :: fder !< modifier for the special field
     logical, intent(in), optional :: periodic !< Whether the system is to be considered periodic (molecules only)
 
-    real*8 :: wx(3), wxr(3), wc(3), wcr(3), x(3)
-    integer :: i, nid, idx(3)
+    real*8 :: wx(3), wxr(3), wc(3), wcr(3), x(3), rdum
+    integer :: i, nid, idx(3), nder, nderl
     real*8 :: rho, grad(3), h(3,3), rhox(3), rhov(3), gradx(3,3), gradv(3,3)
     real*8 :: hx(3,3,3), hv(3,3,3), gkinx(3)
-    real*8 :: fval(-ndif_jmax:ndif_jmax,3), fzero
+    real*8 :: fval(-ndif_jmax:ndif_jmax,3), fzero, virx, stressx(3,3)
     logical :: isgrid, per, skipvalassign, valid
     character(len=:), allocatable :: errmsg
 
@@ -828,13 +833,19 @@ contains
 
     ! initialize output quantities
     call res%clear()
-    res%avail_der1 = (nder > 0)
-    res%avail_der2 = (nder > 1)
     res%valid = .true.
+    call res%ev%clear()
 
-    ! check consistency
-    if (nder < 0 .and. f%type /= type_wfn) &
-       call ferror("grd","MO values can only be calculated for molecular wavefunctions",faterr)
+    ! calculate the nder
+    if (request%avail(fieldeval_category_fder2)) then
+       nder = 2
+    elseif (request%avail(fieldeval_category_fder1)) then
+       nder = 1
+    elseif (request%avail(fieldeval_category_f)) then
+       nder = 0
+    else
+       nder = -1
+    end if
 
     ! initialize flags
     if (present(periodic)) then
@@ -843,7 +854,7 @@ contains
        per = .true.
     end if
 
-    ! numerical derivatives
+    ! if field or derivatives are requested and numerical is active, calculate them here
     res%isnuc = .false.
     if (f%numerical .and. nder >= 0) then
        wc = v
@@ -869,6 +880,7 @@ contains
           fval(:,3) = 0d0
           fval(0,3) = fzero
           res%gf(3) = f%der1i((/0d0,0d0,1d0/),v,hini,errcnv,fval(:,3),periodic)
+
           if (nder > 1) then
              ! xx, yy, zz
              res%hf(1,1) = f%der2ii((/1d0,0d0,0d0/),v,0.5d0*hini,errcnv,fval(:,1),periodic)
@@ -884,11 +896,17 @@ contains
              res%hf(3,2) = res%hf(2,3)
           end if
        end if
+
        ! valence quantities
        res%fval = res%f
        res%gfmodval = res%gfmod
        res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
-       goto 999
+
+       ! Do not calculate the field and its derivatives analytically
+       res%ev%avail(fieldeval_category_f) = .true.
+       res%ev%avail(fieldeval_category_fder1) = .true.
+       res%ev%avail(fieldeval_category_fder2) = .true.
+       nder = -1
     end if
 
     ! To the main cell. Add a small safe zone around the limits of the unit cell
@@ -918,10 +936,10 @@ contains
     wcr = f%c%xr2c(wxr)
 
     ! type selector
-    isgrid = .false.
     skipvalassign = .false.
     select case(f%type)
     case(type_grid)
+       isgrid = .false.
        if (nder == 0) then
           ! maybe we can get the grid point directly
           x = modulo(wx,1d0) * f%grid%n
@@ -933,13 +951,19 @@ contains
           res%f = f%grid%f(idx(1),idx(2),idx(3))
           res%gf = 0d0
           res%hf = 0d0
+          res%ev%avail(fieldeval_category_f) = .true.
        else
           call f%grid%interp(wx,res%f,res%gf,res%hf,valid)
+          ! transformation of gf and hf to Cartesian done internally
+
           if (.not.valid) then
              call res%clear()
              res%valid = .false.
              return
           end if
+          res%ev%avail(fieldeval_category_f) = .true.
+          res%ev%avail(fieldeval_category_fder1) = .true.
+          res%ev%avail(fieldeval_category_fder2) = .true.
        endif
 
     case(type_wien)
@@ -947,94 +971,170 @@ contains
        res%gf = matmul(transpose(f%c%m_c2x),res%gf)
        res%hf = matmul(matmul(transpose(f%c%m_c2x),res%hf),f%c%m_c2x)
 
+       if (nder >= 0) res%ev%avail(fieldeval_category_f) = .true.
+       if (nder >= 1) res%ev%avail(fieldeval_category_fder1) = .true.
+       if (nder >= 2) res%ev%avail(fieldeval_category_fder2) = .true.
+
     case(type_elk)
        call f%elk%rho2(wx,nder,res%f,res%gf,res%hf)
        res%gf = matmul(transpose(f%c%m_c2x),res%gf)
        res%hf = matmul(matmul(transpose(f%c%m_c2x),res%hf),f%c%m_c2x)
 
+       if (nder >= 0) res%ev%avail(fieldeval_category_f) = .true.
+       if (nder >= 1) res%ev%avail(fieldeval_category_fder1) = .true.
+       if (nder >= 2) res%ev%avail(fieldeval_category_fder2) = .true.
+
     case(type_pi)
        call f%pi%rho2(wcr,f%exact,res%f,res%gf,res%hf)
-       ! all work done in Cartesians in a finite environment.
+       ! transformation of gf and hf to Cartesian not needed
+
+       res%ev%avail(fieldeval_category_f) = .true.
+       res%ev%avail(fieldeval_category_fder1) = .true.
+       res%ev%avail(fieldeval_category_fder2) = .true.
 
     case(type_wfn)
-       if (nder >= 0) then
-          call f%wfn%rho2(wcr,nder,rhox,rhov,gradx,gradv,hx,hv,gkinx,res%vir,res%stress)
-          skipvalassign = .true.
+       ! local nder
+       nderl = nder
+       if (request%avail(fieldeval_category_gkin)) nderl = max(nderl,1)
+       if (request%avail(fieldeval_category_stress)) nderl = max(nderl,2)
+       if (nderl >= 0) then
+          call f%wfn%rho2(wcr,nderl,rhox,rhov,gradx,gradv,hx,hv,gkinx,virx,stressx)
+          ! transformation of gf and hf to Cartesian not needed
+
           ! arrange output values
+          skipvalassign = .true. ! valence and core assigned here
           res%f = rhox(1)
           res%fval = rhov(1)
           res%fspin = rhox(2:3)
           res%fspinval = rhov(2:3)
-
-          res%gf = gradx(:,1)
-          res%gfmodval = norm2(gradv(:,1))
-          res%gfmodspin(1) = norm2(gradx(:,2))
-          res%gfmodspin(2) = norm2(gradx(:,3))
-          res%gfmodspinval(1) = norm2(gradv(:,2))
-          res%gfmodspinval(2) = norm2(gradv(:,3))
-
-          res%gkin = gkinx(1)
-          res%gkinspin = gkinx(2:3)
-
-          res%hf = hx(:,:,1)
-          res%del2fval = hv(1,1,1)+hv(2,2,1)+hv(3,3,1)
-          res%lapspin(1) = hx(1,1,2) + hx(2,2,2) + hx(3,3,2)
-          res%lapspin(2) = hx(1,1,3) + hx(2,2,3) + hx(3,3,3)
-          res%lapspinval(1) = hv(1,1,2) + hv(2,2,2) + hv(3,3,2)
-          res%lapspinval(2) = hv(1,1,3) + hv(2,2,3) + hv(3,3,3)
-
-          res%avail_gkin = .true.
-          res%avail_stress = .true.
-          res%avail_vir = .true.
-          res%avail_spin = .true.
+          res%ev%avail(fieldeval_category_f) = .true.
+          res%ev%avail(fieldeval_category_spin) = .true.
           res%spinpol = (f%wfn%wfntyp == wfn_uhf)
-       else
-          call f%wfn%calculate_mo(wcr,res%fspc,fder)
-          return
+
+          if (nderl > 0) then
+             res%gf = gradx(:,1)
+             res%gfmodval = norm2(gradv(:,1))
+             res%gfmodspin(1) = norm2(gradx(:,2))
+             res%gfmodspin(2) = norm2(gradx(:,3))
+             res%gfmodspinval(1) = norm2(gradv(:,2))
+             res%gfmodspinval(2) = norm2(gradv(:,3))
+             res%ev%avail(fieldeval_category_fder1) = .true.
+
+             res%gkin = gkinx(1)
+             res%gkinspin = gkinx(2:3)
+             res%ev%avail(fieldeval_category_gkin) = .true.
+
+             if (nderl > 1) then
+                res%hf = hx(:,:,1)
+                res%del2fval = hv(1,1,1)+hv(2,2,1)+hv(3,3,1)
+                res%lapspin(1) = hx(1,1,2) + hx(2,2,2) + hx(3,3,2)
+                res%lapspin(2) = hx(1,1,3) + hx(2,2,3) + hx(3,3,3)
+                res%lapspinval(1) = hv(1,1,2) + hv(2,2,2) + hv(3,3,2)
+                res%lapspinval(2) = hv(1,1,3) + hv(2,2,3) + hv(3,3,3)
+                res%ev%avail(fieldeval_category_fder2) = .true.
+
+                res%stress = stressx
+                res%vir = virx
+                res%ev%avail(fieldeval_category_stress) = .true.
+             end if
+          end if
        end if
-       ! all work done in Cartesians in a finite environment.
+
+       ! calculate molecular orbitals and other special properties
+       if (request%avail(fieldeval_category_mo)) then
+          if (request%moini > 0) then
+             call ferror("grd","calculation of MO range not implemetned",faterr)
+          else
+             call f%wfn%calculate_mo(wcr,res%fspc,request%moini,request%moend,errmsg)
+             if (len(errmsg) == 0) &
+                res%ev%avail(fieldeval_category_mo) = .true.
+          end if
+       elseif (request%avail(fieldeval_category_mep)) then
+          call f%wfn%mep(wcr,res%fspc,valid)
+          if (valid) &
+             res%ev%avail(fieldeval_category_mep) = .true.
+       elseif (request%avail(fieldeval_category_uslater)) then
+          call f%wfn%uslater(wcr,valid,res%fspc)
+          if (valid) &
+             res%ev%avail(fieldeval_category_uslater) = .true.
+       elseif (request%avail(fieldeval_category_nheff)) then
+          call f%wfn%uslater(wcr,valid,rdum,nheff=res%fspc)
+          if (valid) &
+             res%ev%avail(fieldeval_category_nheff) = .true.
+       elseif (request%avail(fieldeval_category_xhole)) then
+          call f%wfn%xhole(wcr,request%xref,res%fspc,valid)
+          if (valid) &
+             res%ev%avail(fieldeval_category_xhole) = .true.
+       end if
 
     case(type_dftb)
-       call f%dftb%rho2(wcr,f%exact,nder,res%f,res%gf,res%hf,res%gkin)
-       res%avail_gkin = .true.
-       ! all work done in Cartesians in a finite environment.
+       nderl = nder
+       if (request%avail(fieldeval_category_gkin)) nderl = max(nderl,1)
+       if (nderl >= 0) then
+          call f%dftb%rho2(wcr,f%exact,nder,res%f,res%gf,res%hf,res%gkin)
+          ! transformation of gf and hf to Cartesian not needed
+
+          res%ev%avail(fieldeval_category_f) = .true.
+          if (nderl > 0) then
+             res%ev%avail(fieldeval_category_fder1) = .true.
+             res%ev%avail(fieldeval_category_gkin) = .true.
+             if (nderl > 1) then
+                res%ev%avail(fieldeval_category_fder2) = .true.
+             end if
+          end if
+       end if
 
     case(type_promol)
-       call f%c%promolecular_atom(wcr,icrd_cart,res%f,res%gf,res%hf,nder)
-       ! not needed because grd_atomic uses struct.
+       if (nder >= 0) then
+          call f%c%promolecular_atom(wcr,icrd_cart,res%f,res%gf,res%hf,nder)
+          ! transformation of gf and hf to Cartesian not needed
+
+          if (nder >= 0) res%ev%avail(fieldeval_category_f) = .true.
+          if (nder >= 1) res%ev%avail(fieldeval_category_fder1) = .true.
+          if (nder >= 2) res%ev%avail(fieldeval_category_fder2) = .true.
+       end if
 
     case(type_promol_frag)
        call f%c%promolecular_atom(wcr,icrd_cart,res%f,res%gf,res%hf,nder,fr=f%fr)
-       ! not needed because grd_atomic uses struct.
+       ! transformation of gf and hf to Cartesian not needed
+
+       if (nder >= 0) res%ev%avail(fieldeval_category_f) = .true.
+       if (nder >= 1) res%ev%avail(fieldeval_category_fder1) = .true.
+       if (nder >= 2) res%ev%avail(fieldeval_category_fder2) = .true.
 
     case(type_ghost)
-       res%f = eval(f%expr,errmsg,wc,f%sptr,periodic)
-       res%gf = 0d0
-       res%hf = 0d0
-       if (len_trim(errmsg) > 0) &
-          call ferror("grd",errmsg,faterr)
+       if (nder >= 0) then
+          res%f = eval(f%expr,errmsg,wc,f%sptr,periodic)
+          if (len_trim(errmsg) == 0) &
+             res%ev%avail(fieldeval_category_f) = .true.
+       end if
 
     case default
        call ferror("grd","unknown scalar field type",faterr)
     end select
 
+    ! save the valence-only value
     if (.not.skipvalassign) then
-       ! save the valence-only value
-       res%fval = res%f
-       res%gfmodval = res%gfmod
-       res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
+       if (request%avail(fieldeval_category_f)) &
+          res%fval = res%f
+       if (request%avail(fieldeval_category_fder1)) &
+          res%gfmodval = res%gfmod
+       if (request%avail(fieldeval_category_fder2)) &
+          res%del2fval = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
     end if
 
     ! augment with the core if applicable
     if (f%usecore .and. any(f%zpsp /= -1)) then
-       call f%c%promolecular_atom(wc,icrd_cart,rho,grad,h,nder,zpsp=f%zpsp)
-       res%f = res%f + rho
-       res%gf  = res%gf + grad
-       res%hf = res%hf + h
+       if (nder >= 0) then
+          call f%c%promolecular_atom(wc,icrd_cart,rho,grad,h,nder,zpsp=f%zpsp)
+          if (request%avail(fieldeval_category_f)) &
+             res%f = res%f + rho
+          if (request%avail(fieldeval_category_fder1)) &
+             res%gf  = res%gf + grad
+          if (request%avail(fieldeval_category_fder2)) &
+             res%hf = res%hf + h
+       end if
     end if
-
-    ! if numerical, skip to here
-999 continue
 
     ! If it's on a nucleus, nullify the gradient (may not be zero in
     ! grid fields, for instance)
@@ -1042,17 +1142,24 @@ contains
     res%isnuc = (nid > 0)
 
     ! gradient
-    if (nder > 0) then
+    if (request%avail(fieldeval_category_fder1)) then
        if (res%isnuc) res%gf = 0d0
        res%gfmod = norm2(res%gf)
     end if
 
     ! hessian
-    if (nder > 1) then
+    if (request%avail(fieldeval_category_fder2)) then
        res%del2f = res%hf(1,1) + res%hf(2,2) + res%hf(3,3)
        res%hfevec = res%hf
        call rsindex(res%hfevec,res%hfeval,res%r,res%s,CP_hdegen)
     end if
+
+    ! are we happy?
+    res%satisfied = .true.
+    do i = 1, fieldeval_category_NUM
+       if (request%avail(i)) &
+          res%satisfied = res%satisfied .and. res%ev%avail(i)
+    end do
 
   end subroutine grd
 
@@ -1415,7 +1522,7 @@ contains
   !> show flags for this field.
   module subroutine printinfo(f,isload,isset)
     use grid3mod, only: mode_smr
-    use wfn_private, only: molwfn, wfn_rhf, wfn_uhf, wfn_frac, &
+    use wfn_private, only: molwfn, wfn_rhf, wfn_rohf, wfn_uhf, wfn_frac, &
        molden_type_orca, molden_type_psi4, molden_type_adf_sto
     use global, only: dunit0, iunit, iunitname0
     use tools_math, only: det3
@@ -1545,6 +1652,11 @@ contains
              write (uout,'("  Wavefunction type: restricted")')
              write (uout,'("  Number of MOs (total): ",A)') string(f%wfn%nmoall)
              write (uout,'("  Number of MOs (occupied): ",A)') string(f%wfn%nmoocc)
+          elseif (f%wfn%wfntyp == wfn_rohf) then
+             write (uout,'("  Wavefunction type: restricted open")')
+             write (uout,'("  Number of MOs (total): ",A)') string(f%wfn%nmoall)
+             write (uout,'("  Number of MOs (occupied): ",A)') string(f%wfn%nmoocc)
+             write (uout,'("  Number of MOs (doubly-occupied): ",A)') string(f%wfn%nalpha)
           elseif (f%wfn%wfntyp == wfn_uhf) then
              write (uout,'("  Wavefunction type: unrestricted")')
              write (uout,'("  Number of MOs (total): ",A," (alpha=",A,",beta=",A,")")') &
@@ -1558,6 +1670,7 @@ contains
           end if
           write (uout,'("  Number of primitives ",A,": ",A)') str, string(f%wfn%npri)
           write (uout,'("  Number of EDFs: ",A)') string(f%wfn%nedf)
+          write (uout,'("  Basis set info available? ",A)') string(allocated(f%wfn%cint))
        end if
     elseif (f%type == type_dftb) then
        if (isload) then
@@ -1737,15 +1850,18 @@ contains
   !> deferred from init_cplist to avoid the slow down of field
   !> initalization it causes.
   module subroutine init_cplist_deferred(f)
+    use types, only: field_evaluation_avail
     class(field), intent(inout) :: f
 
+    type(field_evaluation_avail) :: request
     integer :: i
 
     if (.not.f%fcp_deferred) return
     f%fcp_deferred = .false.
 
+    call request%field_nder2()
     do i = 1, f%c%nneq
-       call f%grd(f%c%at(i)%r,2,f%cp(i)%s)
+       call f%grd(f%c%at(i)%r,request,f%cp(i)%s)
        f%cp(i)%s%r = 3
        f%cp(i)%s%s = f%typnuc
     end do
@@ -1838,7 +1954,7 @@ contains
   !> normal output.  ilvl = 2: verbose output.
   module subroutine testrmt(f,ilvl,errmsg,ti)
     use tools_io, only: uout, ferror, warning, string, fopen_write, fclose
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
     use param, only: pi
     class(field), intent(inout) :: f
     integer, intent(in) :: ilvl
@@ -1858,6 +1974,7 @@ contains
     logical :: ok
     real*8 :: epsm, epsp, mepsm, mepsp, dif, dosum, mindif, maxdif
     type(scalar_value) :: res
+    type(field_evaluation_avail) :: request
 
     real*8, parameter :: eps = 1d-3
 
@@ -1869,6 +1986,7 @@ contains
 
     write (uout,'("* Muffin-tin discontinuity test")')
 
+    call request%field_nder1()
     ntheta = 10
     nphi = 10
     do n = 1, f%c%nneq
@@ -1920,11 +2038,11 @@ contains
              dir(3) = 1d0 * cos(phi)
 
              xp = xnuc + (rmt+eps) * dir
-             call f%grd(xp,1,res)
+             call f%grd(xp,request,res)
              fout = res%f
              gfout = dot_product(res%gf,xp-xnuc) / (rmt+eps)
              xp = xnuc + (rmt-eps) * dir
-             call f%grd(xp,1,res)
+             call f%grd(xp,request,res)
              fin = res%f
              gfin = dot_product(res%gf,xp-xnuc) / (rmt-eps)
 
@@ -1958,9 +2076,10 @@ contains
                    do i = 0, 1000
                       r = 0.50d0 * rmt + (real(i,8) / 1000) * 4d0 * rmt
                       xp = xnuc + r * dir
-                      call f%grd(xp,1,res)
+                      call f%grd(xp,request,res)
                       write (luline,'(1p,3(E20.13," "))') r, res%f, dot_product(res%gf,xp-xnuc) / r
                    end do
+
                    call fclose(luline)
                 end if
                 epsm = 0d0
@@ -2010,7 +2129,7 @@ contains
   !> in the unit cell. Write the results to the standard output.
   module subroutine benchmark(f,npts)
     use tools_io, only: uout, string
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
     implicit none
     class(field), intent(inout) :: f
     integer, intent(in) :: npts
@@ -2022,10 +2141,12 @@ contains
     type(scalar_value) :: res
     logical :: inrmt
     integer, allocatable :: wpts(:)
+    type(field_evaluation_avail) :: request
 
     allocate(wpts(f%c%nneq+1))
     write (uout,'("* Benchmark of the field ")')
     write (uout,'("* Field : ",A)') string(f%id)
+    call request%field_only()
 
     if (f%type == type_wien .or. f%type == type_elk) then
        wpts = 0
@@ -2060,9 +2181,10 @@ contains
        do i = 1, f%c%nneq+1
           call system_clock(count=c1,count_rate=rate)
           do j = 1, npts
-             call f%grd(randn(:,j,i),0,res)
+             call f%grd(randn(:,j,i),request,res)
           end do
           call system_clock(count=c2)
+
           if (i <= f%c%nneq) then
              write (uout,'("* Atom : ",A)') string(i)
           else
@@ -2088,9 +2210,10 @@ contains
        write (uout,'("  Number of points : ",A)') string(npts)
        call system_clock(count=c1,count_rate=rate)
        do i = 1, npts
-          call f%grd(randn(:,i,1),0,res)
+          call f%grd(randn(:,i,1),request,res)
        end do
        call system_clock(count=c2)
+
        write (uout,'("  Total wall time : ",A)') trim(string(real(c2-c1,8) / rate,'f',12,6)) // " s"
        write (uout,'("  Avg. wall time per call : ",A)') &
           trim(string(real(c2-c1,8) / rate / real(npts,8) * 1d6,'f',12,4)) // " us"
@@ -2108,7 +2231,7 @@ contains
   !> (success), 1 (singular Hessian or inverse fail), and 2 (too many iterations).
   module subroutine newton(f,r,gfnormeps,ier)
     use tools_math, only: matinvsym
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
     class(field), intent(inout) :: f
     real*8, dimension(3), intent(inout) :: r
     integer, intent(out) :: ier
@@ -2117,12 +2240,14 @@ contains
     integer :: it
     real*8 :: wx(3)
     type(scalar_value) :: res
+    type(field_evaluation_avail) :: request
 
     integer, parameter :: maxit = 200
 
+    call request%field_nder2()
     do it = 1, maxit
        ! evaluate and stop criterion
-       call f%grd(r,2,res)
+       call f%grd(r,request,res)
        wx = f%c%c2x(r)
        ! write (*,'("xx ",I4," ",3(F14.6," "),1p,3(E14.6," "))') it, wx, res%gfmod
 
@@ -2159,7 +2284,7 @@ contains
     use tools_io, only: ferror, string
     use types, only: scalar_value, realloc
     use global, only: rbetadef
-    use types, only: realloc
+    use types, only: realloc, field_evaluation_avail
     use param, only: icrd_crys
     class(field), intent(inout) :: f
     real*8, intent(in) :: x0(3) !< Position of the CP, in Cartesian coordinates
@@ -2179,6 +2304,7 @@ contains
     integer :: lnuc, lshell
     character*(1), parameter :: smallnamecrit(0:3) =(/'n','b','r','c'/)
     type(scalar_value) :: res
+    type(field_evaluation_avail) :: request
 
     ! Transform to cryst. and main cell
     xc = f%c%c2x(x0)
@@ -2215,8 +2341,9 @@ contains
     ! density info
     ! verify that the gradient norm is higher than the eps
     ! apply type filter
+    call request%field_nder2()
     x1 = f%c%x2c(xc)
-    call f%grd(x1,2,res)
+    call f%grd(x1,request,res)
     if (.not.res%valid) goto 999
     if (res%gfmod >= gfnormeps) goto 999
     if (present(typeok)) then
@@ -2366,7 +2493,7 @@ contains
   !> present, initialize the output path with this point (Cartesian).
   module subroutine gradient(fid,xpoint,iup,nstep,ier,up2beta,plen,path,prune,pathini)
     use global, only: nav_step, nav_gradeps, rbetadef
-    use types, only: scalar_value, gpathp, realloc
+    use types, only: scalar_value, gpathp, realloc, field_evaluation_avail
     use param, only: icrd_crys
     class(field), intent(inout) :: fid
     real*8, dimension(3), intent(inout) :: xpoint
@@ -2394,8 +2521,10 @@ contains
     integer :: lvec(3)
     logical :: ok, incstep
     type(scalar_value) :: res, resaux
+    type(field_evaluation_avail) :: request
 
     ! initialization
+2   call request%field_nder2()
     ier = 0
     hini = abs(NAV_step) * iup
     h0 = hfirst * iup
@@ -2421,14 +2550,14 @@ contains
        xcaux = pathini
        xxaux = fid%c%c2x(xcaux)
        if (present(path)) then
-          call fid%grd(xcaux,2,resaux)
+          call fid%grd(xcaux,request,resaux)
           call addtopath(0,xcaux,xxaux,resaux)
        end if
        plen = norm2(xpoint - pathini)
     end if
 
     ! properties at point
-    call fid%grd(xpoint,2,res)
+    call fid%grd(xpoint,request,res)
 
     do nstep = 1, mstep
        ! point in cartesian and crystallographic. res contains evaluation at
@@ -2450,7 +2579,7 @@ contains
                    do while (dd > prune0)
                       xcaux = path(npath)%r + (xcart - path(npath)%r) * prune0 / dd
                       xxaux = fid%c%c2x(xcaux)
-                      call fid%grd(xcaux,2,resaux)
+                      call fid%grd(xcaux,request,resaux)
                       call addtopath(nstep,xcaux,xxaux,resaux)
                       dd = norm2(xcart - path(npath)%r)
                    end do
@@ -2510,7 +2639,7 @@ contains
           if (present(path)) then
              xcaux = xcp
              xxaux = xcpr
-             call fid%grd(xcaux,2,resaux)
+             call fid%grd(xcaux,request,resaux)
              call addtopath(nstep+1,xcaux,xxaux,resaux)
           end if
           goto 999
@@ -2539,7 +2668,7 @@ contains
              if (path(npath)%i /= nstep) then
                 xcaux = xpoint
                 xxaux = fid%c%c2x(xcaux)
-                call fid%grd(xcaux,2,resaux)
+                call fid%grd(xcaux,request,resaux)
                 call addtopath(nstep,xcaux,xxaux,resaux)
              end if
           end if
@@ -2602,7 +2731,7 @@ contains
   function adaptive_stepper(fid,xpoint,h0,maxstep,eps,res)
     use global, only: nav_stepper, nav_stepper_heun, nav_stepper_rkck, nav_stepper_dp,&
        nav_stepper_bs, nav_stepper_euler, nav_maxerr
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
     use param, only: vsmall
     logical :: adaptive_stepper
     type(field), intent(inout) :: fid
@@ -2616,9 +2745,11 @@ contains
     real*8 :: xtemp(3), escalar, xerrv(3)
     real*8 :: nerr
     logical :: ok, first
+    type(field_evaluation_avail) :: request
 
     real*8, parameter :: h0break = 1.d-10
 
+    call request%field_nder2()
     adaptive_stepper = .true.
     ier = 1
     grdt = res%gf / (res%gfmod + VSMALL)
@@ -2641,9 +2772,8 @@ contains
        end if
 
        ! FSAL for BS stepper
-       if (NAV_stepper /= NAV_stepper_bs) then
-          call fid%grd(xtemp,2,res)
-       end if
+       if (NAV_stepper /= NAV_stepper_bs) &
+          call fid%grd(xtemp,request,res)
        grdt = res%gf / (res%gfmod + VSMALL)
 
        ! poor man's adaptive step size in Euler
@@ -2706,7 +2836,7 @@ contains
 
   !> Heun stepper.
   subroutine stepper_heun(fid,xpoint,grdt,h0,xout,res)
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
     use param, only: vsmall
 
     type(field), intent(inout) :: fid
@@ -2715,10 +2845,12 @@ contains
     type(scalar_value), intent(inout) :: res
 
     real*8 :: ak2(3)
+    type(field_evaluation_avail) :: request
 
+    call request%field_nder2()
     xout = xpoint + h0 * grdt
 
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + 0.5d0 * h0 * (ak2 + grdt)
 
@@ -2726,7 +2858,7 @@ contains
 
   !> Bogacki-Shampine embedded 2(3) method, fsal
   subroutine stepper_bs(fid,xpoint,grdt,h0,xout,xerr,res)
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
     use param, only: vsmall
 
     type(field), intent(inout) :: fid
@@ -2735,19 +2867,21 @@ contains
     type(scalar_value), intent(inout) :: res
 
     real*8, dimension(3) :: ak1, ak2, ak3, ak4
+    type(field_evaluation_avail) :: request
 
+    call request%field_nder2()
     ak1 = grdt
 
     xout = xpoint + h0 * (0.5d0*ak1)
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak2 = res%gf / (res%gfmod+VSMALL)
 
     xout = xpoint + h0 * (0.75d0*ak2)
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak3 = res%gf / (res%gfmod+VSMALL)
 
     xout = xpoint + h0 * (2d0/9d0*ak1 + 1d0/3d0*ak2 + 4d0/9d0*ak3)
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak4 = res%gf / (res%gfmod+VSMALL)
 
     xerr = xpoint + h0 * (7d0/24d0*ak1 + 1d0/4d0*ak2 + 1d0/3d0*ak3 + 1d0/8d0*ak4) - xout
@@ -2756,7 +2890,7 @@ contains
 
   !> Runge-Kutta-Cash-Karp embedded 4(5)-order, local extrapolation.
   subroutine stepper_rkck(fid,xpoint,grdt,h0,xout,xerr,res)
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
     use param, only: vsmall
 
     type(field), intent(inout) :: fid
@@ -2772,26 +2906,28 @@ contains
          C1=37.d0/378.d0, C3=250.d0/621.d0, C4=125.d0/594.d0, C6=512.d0/1771.d0,&
          DC1=C1-2825.d0/27648.d0, DC3=C3-18575.d0/48384.d0, DC4=C4-13525.d0/55296.d0, DC5=-277.d0/14336.d0, DC6=C6-.25d0
     real*8, dimension(3) :: ak2, ak3, ak4, ak5, ak6
+    type(field_evaluation_avail) :: request
 
+    call request%field_nder2()
     xout = xpoint + h0*B21*grdt
 
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B31*grdt+B32*ak2)
 
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak3 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B41*grdt+B42*ak2+B43*ak3)
 
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak4 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B51*grdt+B52*ak2+B53*ak3+B54*ak4)
 
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak5 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(B61*grdt+B62*ak2+B63*ak3+B64*ak4+B65*ak5)
 
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak6 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(C1*grdt+C3*ak3+C4*ak4+C6*ak6)
     xerr = h0*(DC1*grdt+DC3*ak3+DC4*ak4+DC5*ak5+DC6*ak6)
@@ -2800,7 +2936,7 @@ contains
 
   !> Doermand-Prince embedded 4(5)-order, local extrapolation.
   subroutine stepper_dp(fid,xpoint,grdt,h0,xout,xerr,res)
-    use types, only: scalar_value
+    use types, only: scalar_value, field_evaluation_avail
     use param, only: vsmall
 
     type(field), intent(inout) :: fid
@@ -2823,30 +2959,32 @@ contains
        -2187d0/6784d0, 11d0/84d0, 0d0 /)
     real*8, parameter :: dp_c(7) = dp_b2 - dp_b
     real*8, dimension(3) :: ak2, ak3, ak4, ak5, ak6, ak7
+    type(field_evaluation_avail) :: request
 
+    call request%field_nder2()
     xout = xpoint + h0*dp_a(2,1)*grdt
 
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak2 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(3,1)*grdt+dp_a(3,2)*ak2)
 
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak3 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(4,1)*grdt+dp_a(4,2)*ak2+dp_a(4,3)*ak3)
 
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak4 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(5,1)*grdt+dp_a(5,2)*ak2+dp_a(5,3)*ak3+dp_a(5,4)*ak4)
 
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak5 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_a(6,1)*grdt+dp_a(6,2)*ak2+dp_a(6,3)*ak3+dp_a(6,4)*ak4+dp_a(6,5)*ak5)
 
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak6 = res%gf / (res%gfmod+VSMALL)
     xout = xpoint + h0*(dp_b(1)*grdt+dp_b(2)*ak2+dp_b(3)*ak3+dp_b(4)*ak4+dp_b(5)*ak5+dp_b(6)*ak6)
 
-    call fid%grd(xout,2,res)
+    call fid%grd(xout,request,res)
     ak7 = res%gf / (res%gfmod+VSMALL)
     xerr = h0*(dp_c(1)*grdt+dp_c(2)*ak2+dp_c(3)*ak3+dp_c(4)*ak4+dp_c(5)*ak5+dp_c(6)*ak6+dp_c(7)*ak7)
     xout = xout + xerr

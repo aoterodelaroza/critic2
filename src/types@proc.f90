@@ -26,6 +26,7 @@ contains
     class(scalar_value), intent(inout) :: s
 
     s%valid = .false.
+    s%satisfied = .false.
     s%f = 0d0
     s%fval = 0d0
     s%gf = 0d0
@@ -51,14 +52,69 @@ contains
     s%gkinspin = 0d0
     s%fspc = 0d0
     s%isnuc = .false.
-    s%avail_der1 = .false.
-    s%avail_der2 = .false.
-    s%avail_gkin = .false.
-    s%avail_stress = .false.
-    s%avail_vir = .false.
-    s%avail_spin = .false.
+    call s%ev%clear()
 
   end subroutine scalar_value_clear
+
+  !> Clear of values and flags of a field evaluation avail type.
+  module subroutine field_evaluation_avail_clear(s)
+    class(field_evaluation_avail), intent(inout) :: s
+
+    s%avail = .false.
+    s%moini = 0
+    s%moend = 0
+
+  end subroutine field_evaluation_avail_clear
+
+  !> Request all basic properties (all except MO, mep, uslater, xhole).
+  module subroutine field_evaluation_avail_all_basic(s)
+    class(field_evaluation_avail), intent(inout) :: s
+
+    s%avail = .true.
+    s%avail(fieldeval_category_mo) = .false.
+    s%avail(fieldeval_category_mep) = .false.
+    s%avail(fieldeval_category_uslater) = .false.
+    s%avail(fieldeval_category_xhole) = .false.
+    s%moini = 0
+    s%moend = 0
+
+  end subroutine field_evaluation_avail_all_basic
+
+  !> Request the field only.
+  module subroutine field_evaluation_avail_field_only(s)
+    class(field_evaluation_avail), intent(inout) :: s
+
+    s%avail = .false.
+    s%avail(fieldeval_category_f) = .true.
+    s%moini = 0
+    s%moend = 0
+
+  end subroutine field_evaluation_avail_field_only
+
+  !> Request the field and its first derivatives.
+  module subroutine field_evaluation_avail_field_nder1(s)
+    class(field_evaluation_avail), intent(inout) :: s
+
+    s%avail = .false.
+    s%avail(fieldeval_category_f) = .true.
+    s%avail(fieldeval_category_fder1) = .true.
+    s%moini = 0
+    s%moend = 0
+
+  end subroutine field_evaluation_avail_field_nder1
+
+  !> Request the field and its first and second derivatives.
+  module subroutine field_evaluation_avail_field_nder2(s)
+    class(field_evaluation_avail), intent(inout) :: s
+
+    s%avail = .false.
+    s%avail(fieldeval_category_f) = .true.
+    s%avail(fieldeval_category_fder1) = .true.
+    s%avail(fieldeval_category_fder2) = .true.
+    s%moini = 0
+    s%moend = 0
+
+  end subroutine field_evaluation_avail_field_nder2
 
   !> Adapt the size of an allocatable 1D type(vstring) array
   module subroutine realloc_vstring(a,nnew)

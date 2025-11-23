@@ -1835,7 +1835,7 @@ contains
 
     character(len=:), allocatable :: line, keyword, word, word1
     character(len=mlen) :: mword
-    logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto, isocc, isorca
+    logical :: is5d, is7f, is9g, isalpha, ok, issto, isgto, isocc, isorca, had1
     integer :: luwfn, ityp
     integer :: i, j, k, ni, nj, nc, ns, nm, nn, nl, ncar, nsph
     integer :: nat, nelec, nalpha, nalphamo, nbetamo, ncshel, nshel, nbascar, nbassph
@@ -1977,6 +1977,7 @@ contains
           end do
        elseif (trim(keyword) == "mo") then
           ! read the number of MOs, number of electrons, and number of alpha electrons
+          had1 = .false.
           nelec = 0
           nalpha = 0
           nalphamo = 0
@@ -2008,8 +2009,7 @@ contains
                    if (isalpha) then
                       nalpha = nalpha + 1
                    endif
-                   if (f%wfntyp < 0 .and. idum == 2) f%wfntyp = wfn_rhf
-                   if (idum == 1) f%wfntyp = wfn_uhf
+                   if (idum == 1) had1 = .true.
                 elseif (idum == 0) then
                    continue
                 else
@@ -2018,6 +2018,17 @@ contains
                 endif
              end if
           end do
+          ! decide whether this is rhf, uhf, or rohf
+          if (nbetamo > 0) then
+             f%wfntyp = wfn_uhf
+          elseif (had1) then
+             f%wfntyp = wfn_rohf
+             errmsg = "ROHF wavefunctions not supported yet for molden files."
+             goto 999
+          else
+             f%wfntyp = wfn_rhf
+          end if
+
        elseif (trim(keyword) == "5d" .or. trim(keyword) == "5d7f") then
           is5d = .true.
           is7f = .true.
@@ -2498,7 +2509,7 @@ contains
     integer :: i, j
     integer :: imo
     real*8 :: hh(6,3), aocc, rhosum, gradsum(3), gkinsum, hsum(6)
-    integer :: nenv, ierr
+    integer :: nenv
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
     real*8, allocatable :: phi(:,:)
@@ -2518,7 +2529,6 @@ contains
     stress = 0d0
     call c_f_pointer(f%cptr,c)
     call c%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,up2dcidx=f%spcutoff)
-    if (ierr > 0) return ! could happen if in a molecule and very far -> zero
 
     ! calculate the MO values and derivatives at the point
     allocate(phi(1:f%nmoocc,imax(nder)))
@@ -2700,15 +2710,15 @@ contains
   end subroutine rho2
 
   !> Calculate the molecular electrostatic potential at point xpos (Cartesian).
-  module function mep(f,xpos)
-    use tools_io, only: faterr, ferror
+  module subroutine mep(f,xpos,m,valid)
 #ifdef HAVE_CINT
     use iso_c_binding, only: c_f_pointer
     use crystalmod, only: crystal
 #endif
     class(molwfn), intent(in) :: f
     real*8, intent(in) :: xpos(3)
-    real*8 :: mep
+    real*8, intent(out) :: m
+    logical, intent(out) :: valid
 #ifdef HAVE_CINT
     integer :: i, j, is0
     integer :: nbast, ioff, di, joff, dj
@@ -2719,9 +2729,8 @@ contains
     integer, external :: CINTcgto_spheric, CINT1e_rinv_sph
     type(crystal), pointer :: c
 
-    if (.not.allocated(f%cint)) then
-       call ferror('mep','basis set data required for MEP calculation',faterr)
-    end if
+    valid = .false.
+    if (.not.allocated(f%cint)) return
 
     ! allocate space for the integrals, initialize with the 1-dm
     call c_f_pointer(f%cptr,c)
@@ -2769,7 +2778,7 @@ contains
        end do
        ioff = ioff + di
     end do
-    mep = sum(pmn * vmn)
+    m = sum(pmn * vmn)
 
     ! calculate the nuclear contribution
     vnuc = 0d0
@@ -2778,20 +2787,19 @@ contains
     end do
 
     ! final result
-    mep = vnuc - mep
-
+    m = vnuc - m
+    valid = .true.
 #else
-    mep = 0d0
-    call ferror('mep','MEP calculation requires compiling with the libCINT library',faterr)
+    valid = .false.
 #endif
-  end function mep
+  end subroutine mep
 
   !> Calculate the Slater potential at point xpos (Cartesian).
-  module subroutine uslater(f,xpos,ux,nheff)
+  module subroutine uslater(f,xpos,valid,ux,nheff)
     use tools_math, only: xlnorm
-    use tools_io, only: faterr, ferror
     class(molwfn), intent(in) :: f
     real*8, intent(in) :: xpos(3)
+    logical, intent(out) :: valid
     real*8, intent(out) :: ux
     real*8, intent(out), optional :: nheff
 #ifdef HAVE_CINT
@@ -2805,9 +2813,8 @@ contains
     real*8 :: rho(3), rhoval(3), grad(3,3), gradval(3,3), h(3,3,3), hval(3,3,3)
     real*8 :: gkin(3), vir, stress(3,3), rhos, drhos2, laps, dsigs, quads
 
-    if (.not.allocated(f%cint)) then
-       call ferror('uslater','basis set data required for USLATER calculation',faterr)
-    end if
+    valid = .false.
+    if (.not.allocated(f%cint)) return
 
     if (present(nheff)) then
        nder = 2
@@ -2881,29 +2888,30 @@ contains
        ux = 2d0 * ux
        call xlnorm(rhos,quads,ux,nheff)
     end if
+    valid = .true.
 #else
-    ux = 0d0
-    call ferror('mep','USLATER calculation requires compiling with the libCINT library',faterr)
+    valid = .false.
 #endif
   end subroutine uslater
 
   !> Calculate the exchange hole at position xpos (Cartesian) and
   !> reference point xref (Cartesian). Return the value in xhole.
-  module subroutine xhole(f,xpos,xref,xh)
+  module subroutine xhole(f,xpos,xref,xh,valid)
     use tools_io, only: ferror, faterr
     class(molwfn), intent(in) :: f
     real*8, intent(in) :: xpos(3)
     real*8, intent(in) :: xref(3)
     real*8, intent(out) :: xh
+    logical, intent(out) :: valid
 
     real*8 :: rho(3), rhoval(3), grad(3,3), gradval(3,3), h(3,3,3), hval(3,3,3)
     real*8 :: gkin(3), vir, stress(3,3), gam1
     real*8, allocatable :: xmor(:), xmop(:)
     integer :: imo
 
-    if (f%wfntyp /= wfn_rhf) then
-       call ferror("read_wfn","xhole: only rhf supported for now",faterr)
-    end if
+    ! only RHF supported for now
+    valid = .false.
+    if (f%wfntyp /= wfn_rhf) return
 
     ! calculate the density and the MO values at the position
     call f%rho2(xpos,0,rho,rhoval,grad,gradval,h,hval,gkin,vir,stress,xmop)
@@ -2917,106 +2925,109 @@ contains
        gam1 = gam1 + xmop(imo) * xmor(imo)
     end do
     xh = - (gam1*gam1) / max(rho(2),1d-40)
+    valid = .true.
 
   end subroutine xhole
 
   !> Calculate a particular MO values at position xpos (Cartesian) and
   !> returns it in phi. fder is the selector for the MO.
-  module subroutine calculate_mo(f,xpos,phi,fder)
+  module subroutine calculate_mo(f,xpos,phi,id_mo,idx,errmsg)
     use iso_c_binding, only: c_f_pointer
     use crystalmod, only: crystal
     use tools_io, only: lower, isinteger, ferror, faterr, string
     use param, only: icrd_cart
+    use types, only: id_mo_homo, id_mo_lumo, id_mo_ahomo, id_mo_alumo,&
+       id_mo_bhomo, id_mo_blumo, id_mo_a, id_mo_b, id_mo_id
     class(molwfn), intent(in) :: f !< Input field
     real*8, intent(in) :: xpos(3) !< Position in Cartesian
     real*8, intent(out) :: phi !< MO value
-    character*(*), intent(in) :: fder !< lower bound for phi
+    integer, intent(in) :: id_mo !< identifier for which MO to calculate
+    integer, intent(in) :: idx !< index to go with the identifier
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: imo, lp
     logical :: ok
     real*8 :: phi_(1,1), rho, grad(3), hh(6)
     character*10 :: fderl
-    integer :: nenv, ierr
+    integer :: nenv
     integer, allocatable :: eid(:)
     real*8, allocatable :: dist(:)
     type(crystal), pointer :: c
 
+    errmsg = ""
     imo = 0
-    lp = 1
-    ok = isinteger(imo,fder,lp)
-    if (.not.ok) then
-       fderl = lower(fder)
-       select case (trim(fderl))
-       case("homo")
-          if (f%wfntyp /= wfn_rhf) &
-             call ferror("calculate_mo","HOMO can only be used with RHF wavefunctions",faterr)
+    if (id_mo == id_mo_homo) then
+       if (f%wfntyp == wfn_rhf) then
           imo = f%nmoocc
-       case("lumo")
-          if (f%wfntyp /= wfn_rhf) &
-             call ferror("calculate_mo","LUMO can only be used with RHF wavefunctions",faterr)
-          if (.not.f%hasvirtual) &
-             call ferror("calculate_mo","LUMO requires READVIRTUAL",faterr)
+       end if
+    elseif (id_mo == id_mo_lumo) then
+       if (f%wfntyp == wfn_rhf) then
           imo = f%nmoocc + 1
-       case("ahomo")
-          if (f%wfntyp /= wfn_uhf) &
-             call ferror("calculate_mo","AHOMO can only be used with UHF wavefunctions",faterr)
+       end if
+    elseif (id_mo == id_mo_ahomo) then
+       if (f%wfntyp == wfn_rhf) then
+          imo = f%nmoocc
+       elseif (f%wfntyp == wfn_rohf) then
+          imo = f%nmoocc
+       elseif (f%wfntyp == wfn_uhf) then
           imo = f%nalpha
-       case("alumo")
-          if (f%wfntyp /= wfn_uhf) &
-             call ferror("calculate_mo","ALUMO can only be used with UHF wavefunctions",faterr)
-          if (.not.f%hasvirtual) &
-             call ferror("calculate_mo","LUMO requires READVIRTUAL",faterr)
+       end if
+    elseif (id_mo == id_mo_alumo) then
+       if (f%wfntyp == wfn_rhf) then
           imo = f%nmoocc + 1
-       case("bhomo")
-          if (f%wfntyp /= wfn_uhf) &
-             call ferror("calculate_mo","BHOMO can only be used with UHF wavefunctions",faterr)
+       elseif (f%wfntyp == wfn_rohf) then
+          imo = f%nmoocc + 1
+       elseif (f%wfntyp == wfn_uhf) then
+          imo = f%nmoocc + 1
+       end if
+    elseif (id_mo == id_mo_bhomo) then
+       if (f%wfntyp == wfn_rhf) then
           imo = f%nmoocc
-       case("blumo")
-          if (f%wfntyp /= wfn_uhf) &
-             call ferror("calculate_mo","BLUMO can only be used with UHF wavefunctions",faterr)
-          if (.not.f%hasvirtual) &
-             call ferror("calculate_mo","LUMO requires READVIRTUAL",faterr)
+       elseif (f%wfntyp == wfn_rohf) then
+          imo = f%nalpha
+       elseif (f%wfntyp == wfn_uhf) then
+          imo = f%nmoocc
+       end if
+    elseif (id_mo == id_mo_blumo) then
+       if (f%wfntyp == wfn_rhf) then
+          imo = f%nmoocc + 1
+       elseif (f%wfntyp == wfn_rohf) then
+          imo = f%nalpha+1
+       elseif (f%wfntyp == wfn_uhf) then
           imo = f%nmoocc + f%nalpha_virt + 1
-       case default
-          if (fderl(1:1) == "a") then
-             if (f%wfntyp /= wfn_uhf) &
-                call ferror("calculate_mo","A<n> can only be used with UHF wavefunctions",faterr)
-             lp = 2
-             ok = isinteger(imo,fder,lp)
-             if (.not.ok) goto 999
-             if (imo > f%nalpha) then
-                if (imo > f%nalpha + f%nalpha_virt) then
-                   imo = -1
-                else
-                   imo = f%nmoocc + (imo - f%nalpha)
-                end if
-             end if
-          elseif (fderl(1:1) == "b") then
-             if (f%wfntyp /= wfn_uhf) &
-                call ferror("calculate_mo","B<n> can only be used with UHF wavefunctions",faterr)
-             lp = 2
-             ok = isinteger(imo,fder,lp)
-             if (.not.ok) goto 999
-             if (imo > f%nmoocc - f%nalpha) then
-                imo = f%nalpha + f%nalpha_virt + imo
-                if (imo > f%nmoall) &
-                   imo = -1
-             else
-                imo = f%nalpha + imo
-             end if
-          else
-             goto 999
+       end if
+    elseif (id_mo == id_mo_a) then
+       if (f%wfntyp == wfn_rhf .or. f%wfntyp == wfn_rohf) then
+          imo = idx
+       elseif (f%wfntyp == wfn_uhf) then
+          if (idx <= f%nalpha) then
+             imo = idx
+          elseif (idx <= f%nalpha + f%nalpha_virt) then
+             imo = f%nmoocc + (idx - f%nalpha)
           end if
-       end select
+       end if
+    elseif (id_mo == id_mo_b) then
+       if (f%wfntyp == wfn_rhf .or. f%wfntyp == wfn_rohf) then
+          imo = idx
+       elseif (f%wfntyp == wfn_uhf) then
+          if (idx <= f%nmoocc - f%nalpha) then
+             imo = f%nalpha + idx
+          else
+             imo = f%nalpha_virt + f%nalpha + idx
+          end if
+       end if
+    elseif (id_mo == id_mo_id) then
+       ! no translation
+       imo = idx
     end if
-    if (imo < 1 .or. imo > f%nmoall) &
-       call ferror("calculate_mo","Invalid molecular orbital",faterr)
+    if (imo < 1 .or. imo > f%nmoall) imo = 0
+    if (imo == 0) then
+       errmsg = "invalid MO index or index not supported by current wavefunction"
+       return
+    end if
 
-    phi = 0d0
     call c_f_pointer(f%cptr,c)
     call c%list_near_atoms(xpos,icrd_cart,.false.,nenv,eid,dist,up2dcidx=f%spcutoff)
-    if (ierr > 0) return ! could happen if in a molecule and very far -> zero
-
     if (f%issto) then
        ! STO wavefunction
        call calculate_mo_sto(f,xpos,phi_,imo,imo,imo,0,nenv,eid,dist)
@@ -3025,10 +3036,6 @@ contains
        call calculate_mo_gto(f,xpos,phi_,rho,grad,hh,imo,imo,imo,0,nenv,eid,dist)
     end if
     phi = phi_(1,1)
-
-    return
-999 continue
-    call ferror("calculate_mo","Invalid MO identifier: " // string(fder),faterr)
 
   end subroutine calculate_mo
 

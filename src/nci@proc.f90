@@ -40,7 +40,7 @@ contains
     use tools_io, only: getline, lgetword, equal, uin, faterr, ferror, ucopy, &
        string, getword, uout, fopen_write, tictac, fclose
     use tools_math, only: eigsym, m_x2c_from_cellpar, matinv
-    use types, only: scalar_value, realloc
+    use types, only: scalar_value, realloc, field_evaluation_avail
     use param, only: pi, vsmall, bohrtoa, ifformat_as_ft_grad, ifformat_as_ft_xx,&
        ifformat_as_ft_yy, ifformat_as_ft_zz
     type(field) :: fgrho, fxx(3)
@@ -82,6 +82,7 @@ contains
     ! Cartesian matrix for the vmd coordinate system
     real*8 :: rchol(3,3), gg(3,3), aal(3), bbl(3), delta(3)
     logical :: isortho
+    type(field_evaluation_avail) :: request0, request2
 
     ! named constants
     real*8, parameter :: fthirds = 4d0/3d0
@@ -140,6 +141,8 @@ contains
     findlimits = -1
     ithres = -1
     istep = -1
+    call request0%field_only()
+    call request2%field_nder2()
 
     ! initialize fragments
     nfrag = 0
@@ -518,11 +521,11 @@ contains
 
                  ! calculate properties at x: rho and rdg
                  if (sy%f(sy%iref)%type == type_grid.and..not.usecore) then
-                    call sy%f(sy%iref)%grd(x,0,res)
-                    call fgrho%grd(x,0,resg)
+                    call sy%f(sy%iref)%grd(x,request0,res)
+                    call fgrho%grd(x,request0,resg)
                     dimgrad = resg%f / (const*max(res%f,vsmall)**fthirds)
                     do l = 1, 3
-                       call fxx(l)%grd(x,0,resg)
+                       call fxx(l)%grd(x,request0,resg)
                        ehess(l) = resg%f
                     end do
                     if (count(ehess > 0d0) >= 2) then
@@ -533,7 +536,7 @@ contains
                  else
                     ! strangely enough, eig takes about the same time as counting the signs
                     ! and using sylvester's law of inertia.
-                    call sy%f(sy%iref)%grd(x,2,res)
+                    call sy%f(sy%iref)%grd(x,request2,res)
                     call eigsym(res%hf,3,ehess)
                     dimgrad = res%gfmod / (const*max(res%f,vsmall)**fthirds)
                  end if
