@@ -1,8 +1,0 @@
-These files contain a simple hack to the elk code to produce ELF.OUT
-with the clm-style description of the elf. The patch applies to the
-6.3.2 version of elk, but it is easy to adapt to newer versions of the
-code. Use the new OUT files with critic2 like this:
-
-LOAD STATE.OUT GEOMETRY.OUT ELF.OUT
-
--- A.
