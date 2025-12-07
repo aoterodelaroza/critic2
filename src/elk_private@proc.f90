@@ -346,6 +346,11 @@ contains
 
   end subroutine elk_geometry
 
+  ! Read the electron density parameters and other LAPW information
+  ! from the STATE.OUT in filename.
+  ! The file format changes with time, so it needs to be checked
+  ! periodically.
+  ! LAST VERSION CHECKED: 10.6.11
   subroutine read_elk_state(f,cptr,filename,errmsg,ti)
     use tools, only: qcksort
     use tools_io, only: fopen_read, fclose
@@ -363,7 +368,7 @@ contains
     integer :: vdum(3)
     logical :: spin
     integer :: i1, i2, i3, j1, j2, j3, ig
-    real*8 :: v(3), t1
+    real*8 :: v(3), t1, rdum
     integer :: nspecies
     real*8, allocatable :: rhoktmp(:), rhotmp(:,:,:)
     real*8 :: bvec(3,3), omega
@@ -446,6 +451,9 @@ contains
     allocate(rhoktmp(ngrtot))
     if(isnewer(5,2,10)) then
        read(lu,err=999,end=999) idum ! xcgrad
+    end if
+    if (isnewer(9,5,14)) then
+       read(lu,err=999,end=999) rdum ! efermi
     end if
 
     ! read the density itself and close (there is more after this, ignored)
