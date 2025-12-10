@@ -1209,6 +1209,71 @@ contains
 
   end subroutine read_txt
 
+  !> Read a grid in CRYSTAL DAT format.
+  module subroutine read_dat(f,cptr,file,x2c,errmsg,ti)
+    use tools_math, only: matinv
+    use tools_io, only: fopen_read, getline_raw, lgetword, equal, fclose, isinteger
+    use types, only: realloc
+    class(grid3), intent(inout) :: f
+    type(c_ptr), intent(in) :: cptr
+    character*(*), intent(in) :: file !< Input file
+    real*8, intent(in) :: x2c(3,3)
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: luc
+    character(len=:), allocatable :: line
+    integer :: istat, i, j, k, n(3)
+    real*8, allocatable :: ggloc(:,:,:)
+    logical :: ok
+    integer :: idx, nc
+
+    errmsg = "Error reading file: " // trim(file)
+    call f%end()
+
+    ! open file for reading
+    luc = fopen_read(file,ti=ti)
+    if (luc < 0) goto 999
+
+    ! read the number of points in each direction
+    read(luc,*,err=999,end=999) n
+    allocate(ggloc(n(1),n(2),n(3)))
+
+    ! skip 3 lines
+    read(luc,*)
+    read(luc,*)
+    read(luc,*)
+
+    ! read the field
+    read(luc,*,err=999,end=999) (((ggloc(i,j,k),i=1,n(1)),j=1,n(2)),k=1,n(3))
+
+    ! copy the grid and trim the extra points at the end
+    f%n = n - 1
+    allocate(f%f(f%n(1),f%n(2),f%n(3)),stat=istat)
+    if (istat /= 0) then
+       errmsg = "error allocating grid"
+       goto 999
+    end if
+    f%f = ggloc(1:n(1)-1,1:n(2)-1,1:n(3)-1)
+    deallocate(ggloc)
+
+    ! wrap up
+    call fclose(luc)
+    f%isinit = .true.
+    f%isqe = .false.
+    f%iswan = .false.
+    f%mode = mode_default
+
+    ! in this format, assume the grid spans the cell always
+    call init_geometry(f,x2c,(/0d0,0d0,0d0/),x2c,f%n,cptr)
+
+    errmsg = ""
+    return
+999 continue
+    if (luc > 0) call fclose(luc)
+
+  end subroutine read_dat
+
   !> Read pwc file created by pw2critic.x in Quantum
   !> ESPRESSO. Contains the Bloch states, k-points, and structural
   !> info. Calculates the electron density from the Bloch states.

@@ -293,7 +293,7 @@ contains
        ifformat_cube, ifformat_bincube, ifformat_abinit, ifformat_vasp,&
        ifformat_vaspnov, ifformat_qub,&
        ifformat_xsf, ifformat_elkgrid, ifformat_siestagrid, ifformat_fplogrid,&
-       ifformat_dftb, ifformat_pwc, ifformat_fmt, ifformat_txt,&
+       ifformat_dftb, ifformat_pwc, ifformat_fmt, ifformat_txt, ifformat_dat,&
        ifformat_wfn, ifformat_wfx, ifformat_fchk, ifformat_molden, ifformat_as,&
        ifformat_as_promolecular, ifformat_as_core, ifformat_as_resample,&
        ifformat_as_ft_x,ifformat_as_ft_y,ifformat_as_ft_z,ifformat_as_ft_xx,&
@@ -431,6 +431,13 @@ contains
        if (.not.allocated(f%grid)) allocate(f%grid)
        call f%grid%end()
        call f%grid%read_txt(c_loc(c),seed%file(1),c%m_x2c,errmsg,ti=ti)
+       f%type = type_grid
+       f%file = seed%file(1)
+
+    elseif (seed%iff == ifformat_dat) then
+       if (.not.allocated(f%grid)) allocate(f%grid)
+       call f%grid%end()
+       call f%grid%read_dat(c_loc(c),seed%file(1),c%m_x2c,errmsg,ti=ti)
        f%type = type_grid
        f%file = seed%file(1)
 

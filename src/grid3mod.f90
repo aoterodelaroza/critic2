@@ -109,6 +109,7 @@ module grid3mod
      procedure :: read_xsf !< grid3 from xsf (xcrysden) file
      procedure :: read_fmt !< grid3 from fmt (CASTEP) file
      procedure :: read_txt !< grid3 from txt (BAND) file
+     procedure :: read_dat !< grid3 from DAT (CRYSTAL) file
      procedure :: read_pwc !< read a pwc file created by pw2critic.x
      procedure :: read_elk !< grid3 from elk file format
      procedure :: read_wannier_chk !< qe/wannier info from chk file
@@ -232,6 +233,14 @@ module grid3mod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_txt
+     module subroutine read_dat(f,cptr,file,x2c,errmsg,ti)
+       class(grid3), intent(inout) :: f
+       type(c_ptr), intent(in) :: cptr
+       character*(*), intent(in) :: file
+       real*8, intent(in) :: x2c(3,3)
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_dat
      module subroutine read_pwc(f,cptr,fpwc,ispin,ikpt,ibnd,emin,emax,x2c,errmsg,ti)
        class(grid3), intent(inout) :: f
        type(c_ptr), intent(in) :: cptr
