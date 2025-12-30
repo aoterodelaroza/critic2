@@ -3463,55 +3463,69 @@ contains
 
   ! Calculate Voronoi polyhedra for each atom in the system. Can only
   ! be used with crystals.
+  ! This is the AutoCN algorithm of ToposPro.
+  ! https://topospro.com/software/topospro/manual/details-of-the-autocn-algorithms/
   subroutine trick_voronoi(line0)
     use iso_c_binding, only: c_ptr, c_int, c_double
     use systemmod, only: sy
     use tools_math, only: cross, mixed
     use tools_io, only: ferror, faterr, ioj_center, ioj_left, uout, string, ioj_right
+    use tools, only: qcksort
     use types, only: realloc
-    use param, only: icrd_crys, bohrtoa, pi
+    use param, only: icrd_crys, bohrtoa, pi, maxzat0
     character*(*), intent(in) :: line0
 
-    integer :: i, j, k, l, idx, ic, nn
+    integer :: i, j, k, l, idx, ic, nn, iz, jz, kz
     integer :: nat
     real*8 :: wsrad, x0(3), x1(3), x2(3), area, dist, dotp, delta_
-    real*8 :: nx0, nx1, nx2, vol, mix
+    real*8 :: nx0, nx1, nx2, mix
     real*8, allocatable :: xstar(:,:)
     integer, allocatable :: nid(:), lvec(:,:), nneigh(:), idxneigh(:,:)
-    real*8, allocatable :: midx(:,:), normal(:,:), vrad(:), srad(:), ddist(:,:), delta(:,:)
+    real*8, allocatable :: midx(:,:), normal(:,:), vrad(:), srad(:), ddist(:,:)
+    real*8, allocatable :: dax(:,:), auxd(:), daxmax(:), vol(:)
     integer :: nf_ !< number of facets in the WS cell
     integer :: nv_ !< number of vertices
     integer :: mnfv_ !< maximum number of vertices per facet
     type(c_ptr), target :: fid ! file handle
     integer(c_int), allocatable :: ivws(:)
     real(c_double), allocatable :: xvws(:,:)
-    integer, allocatable :: iside_(:,:) !< sides of the WS faces
-    integer, allocatable :: nside_(:) !< number of sides of WS faces
-    real*8 :: av(3), bary(3), midj(3), sang, saux
+    integer, allocatable :: iside_(:,:), nside_(:), iord(:)
+    real*8 :: av(3), bary(3), midj(3), sang, saux, lastd, daxnew
     character(len=:), allocatable :: sncp, sname, sz, smult, str, sdir, scoord
-    logical :: isdirect, iscoord
+    logical :: isdirect, ok, isval
+    logical, allocatable :: ismetal(:), issmetal(:), ispmetal(:), lvalence(:,:)
+    logical, allocatable :: hasnonmetals(:), hasof(:)
+    integer :: ngroup
+    logical, allocatable :: ldone(:)
+    integer, allocatable :: igroup(:)
+    real*8, allocatable :: groupdmin(:), groupdmax(:)
 
-    real*8, parameter :: slater_radius(20) = (/ &
-       0.25d0, & !  1 H
-       0.31d0, & !  2 He
-       1.28d0, & !  3 Li
-       0.96d0, & !  4 Be
-       0.84d0, & !  5 B
-       0.76d0, & !  6 C
-       0.71d0, & !  7 N
-       0.66d0, & !  8 O
-       0.57d0, & !  9 F
-       0.58d0, & ! 10 Ne
-       1.66d0, & ! 11 Na
-       1.41d0, & ! 12 Mg
-       1.21d0, & ! 13 Al
-       1.11d0, & ! 14 Si
-       1.07d0, & ! 15 P
-       1.05d0, & ! 16 S
-       1.02d0, & ! 17 Cl
-       1.06d0, & ! 18 Ar
-       2.03d0, & ! 19 K
-       1.76d0/) / bohrtoa ! 20 Ca
+    ! Slater radii
+    ! J. C. Slater, J. Chem. Phys. 41, 3199–3204 (1964) doi:10.1063/1.1725697
+    real*8, parameter :: slater_radius(0:maxzat0) = (/&
+       0.60d0,& ! 0
+       0.25d0, 3.00d0, 1.45d0, 1.05d0, 0.85d0, 0.70d0, 0.65d0, 0.60d0, 0.50d0, 3.00d0,& ! 1-10
+       1.80d0, 1.50d0, 1.25d0, 1.10d0, 1.00d0, 1.00d0, 1.00d0, 3.00d0, 2.20d0, 1.80d0,& ! 11-20
+       1.60d0, 1.40d0, 1.35d0, 1.40d0, 1.40d0, 1.40d0, 1.35d0, 1.35d0, 1.35d0, 1.35d0,& ! 21-30
+       1.30d0, 1.25d0, 1.15d0, 1.15d0, 1.15d0, 3.00d0, 2.35d0, 2.00d0, 1.80d0, 1.55d0,& ! 31-40
+       1.45d0, 1.45d0, 1.35d0, 1.30d0, 1.35d0, 1.40d0, 1.60d0, 1.55d0, 1.55d0, 1.45d0,& ! 41-50
+       1.45d0, 1.40d0, 1.40d0, 3.00d0, 2.60d0, 2.15d0, 1.95d0, 1.85d0, 1.85d0, 1.85d0,& ! 51-60
+       1.85d0, 1.85d0, 1.85d0, 1.80d0, 1.75d0, 1.75d0, 1.75d0, 1.75d0, 1.75d0, 1.75d0,& ! 61-70
+       1.75d0, 1.55d0, 1.45d0, 1.35d0, 1.35d0, 1.30d0, 1.35d0, 1.35d0, 1.35d0, 1.50d0,& ! 71-80
+       1.90d0, 1.80d0, 1.60d0, 1.90d0, 3.00d0, 3.00d0, 3.00d0, 2.15d0, 1.95d0, 1.80d0,& ! 81-90
+       1.80d0, 1.75d0, 1.75d0, 1.75d0, 1.75d0, 3.00d0, 3.00d0, 3.00d0, 3.00d0, 3.00d0,& ! 91-100
+       3.00d0, 3.00d0, 3.00d0, 3.00d0, 3.00d0, 3.00d0, 3.00d0, 3.00d0, 3.00d0, 3.00d0,& ! 101-110
+       3.00d0, 3.00d0, 3.00d0, 3.00d0, 3.00d0, 3.00d0, 3.00d0, 3.00d0, 3.00d0, 3.00d0,& ! 111-120
+       3.00d0, 3.00d0, 3.00d0/) / bohrtoa ! 121-123
+
+    real*8, parameter :: minom = 1.5d0
+    real*8, parameter :: extradist = 0.25d0
+    real*8, parameter :: mininterval = 0.3d0 / bohrtoa
+    real*8, parameter :: daxeps = 1d-5
+
+    integer, parameter :: list_nonmetals(*) = (/1,2,5,6,7,8,9,10,14,15,16,17,18,33,34,35,36,52,53,54,85,86,118/)
+    integer, parameter :: smetals(*) = (/1,3,4,11,12,19,20,37,38,55,56,87,88/)
+    integer, parameter :: pmetals(*) = (/5,6,7,8,9,10,14,15,16,17,18,33,34,35,36,52,53,54,85,86,118/)
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
@@ -3544,7 +3558,11 @@ contains
        call ferror('trick_voronoi','structure is a molecule',faterr)
 
     ! header
-    write (uout,'("* Calculation of Voronoi polyhedra")')
+    write (uout,'("* Calculation of AutoCN/TOPOSPRO coordination numbers")')
+    write (uout,'("# Please cite:")')
+    write (uout,'("#   V. A. Blatov, Crystallogr. Rev. 10 (2004) 249–318 (doi:10.1080/08893110412331323170)")')
+    write (uout,'("#   V. A. Blatov et al., Cryst. Growth. Des. 14 (2014) 3576-3586 (doi:10.1021/cg500498k)")')
+    write (uout,*)
 
     ! calculate the WS radius
     wsrad = 0d0
@@ -3552,17 +3570,44 @@ contains
        wsrad = max(wsrad,norm2(sy%c%x2c(sy%c%ws_x(:,i))))
     enddo
 
+    ! Initialize the ismetal array
+    allocate(ismetal(0:maxzat0),issmetal(0:maxzat0),ispmetal(0:maxzat0))
+    ismetal = .true.
+    issmetal = .false.
+    ispmetal = .false.
+    do i = 1, size(list_nonmetals,1)
+       ismetal(list_nonmetals(i)) = .false.
+    end do
+    do i = 1, size(smetals,1)
+       issmetal(smetals(i)) = .true.
+    end do
+    do i = 1, size(pmetals,1)
+       ispmetal(pmetals(i)) = .true.
+    end do
+
     ! allocate the summary table
-    allocate(nneigh(sy%c%nneq),idxneigh(20,sy%c%nneq),ddist(20,sy%c%nneq),vrad(sy%c%nneq),srad(sy%c%nneq),delta(20,20))
+    allocate(nneigh(sy%c%nneq),vrad(sy%c%nneq),srad(sy%c%nneq),vol(sy%c%nneq))
+    allocate(idxneigh(20,sy%c%nneq),ddist(20,sy%c%nneq),lvalence(20,sy%c%nneq))
 
     ! run over non-equivalent atoms
+    write (uout,'("+ Calculation of the Voronoi-Dirichlet polyhedra")')
+    write (uout,'("# Each table lists the faces of the VDP and associated atoms.")')
+    write (uout,'("# Di: D = direct, I = indirect. Va: V = valence, N = non-valence")')
+    write (uout,'("# The valence/non-valence assignment considers only the solid angle criterion (MinOm).")')
+    write (uout,'("# and therefore this assignment corresponds to the ToposPro solid angle algorithm.")')
+    write (uout,'("# atom = neighbor atomic symbol. at = cell atom ID. lvec = lattice vector.")')
+    write (uout,'("# position = atomic position (fractional). dist = distance to central atom.")')
+    write (uout,'("# area = VDP face area. S.Ang. = solid angle subtended (percent of 4*pi).")')
     do i = 1, sy%c%nneq
-       ! build the atom star
+       ! build the atom star around this atom
        call sy%c%list_near_atoms(sy%c%at(i)%x,icrd_crys,.false.,nat,eid=nid,lvec=lvec,up2d=2d0*wsrad,nozero=.true.)
        allocate(xstar(3,nat))
        do j = 1, nat
           xstar(:,j) = sy%c%x2c(sy%c%atcel(nid(j))%x + lvec(:,j) - sy%c%at(i)%x)
        end do
+
+       ! STEP 1a. For each non-equivalent atom A its Voronoi-Dirichlet
+       ! polyhedron (VDP) is constructed...
 
        ! run voronoi
        call runqhull_voronoi_step1(nat,xstar,nf_,nv_,mnfv_,fid)
@@ -3570,10 +3615,23 @@ contains
        nside_ = 0
        call runqhull_voronoi_step2(nf_,nv_,mnfv_,ivws,xvws,nside_,iside_,fid)
 
-       ! write down the number of neighbors
+       ! sort neighbors by distance
+       allocate(auxd(nf_),iord(nf_))
+       do j = 1, nf_
+          auxd(j) = norm2(xstar(:,ivws(j)))
+          iord(j) = j
+       end do
+       call qcksort(auxd, iord, 1, nf_)
+       ivws = ivws(iord)
+       iside_ = iside_(:,iord)
+       nside_ = nside_(iord)
+       deallocate(auxd,iord)
+
+       ! make space for the new neighbor list
        if (nf_ > size(idxneigh,1)) then
-          call realloc(idxneigh,nf_*2,sy%c%nneq)
-          call realloc(ddist,nf_*2,sy%c%nneq)
+          call realloc(idxneigh,nf_,sy%c%nneq)
+          call realloc(ddist,nf_,sy%c%nneq)
+          call realloc(lvalence,nf_,sy%c%nneq)
        end if
 
        ! save the midpoints and normals
@@ -3592,10 +3650,14 @@ contains
        sz = string(sy%c%spc(sy%c%at(i)%is)%z,2,ioj_left)
        write (uout,'("+ Atom ",A," (ncp=",A,", name=",A,", Z=",A,") at: ",3(A,"  "))') &
           string(i), trim(sncp), trim(adjustl(sname)), trim(sz), (trim(string(sy%c%at(i)%x(j),'f',12,7)),j=1,3)
-       write (uout,'("#id Dir? atom at      lvec       ---------    position&
+       write (uout,'("#id Di Va atom at      lvec       ---------    position&
           &    -------     dist(bohr) area(bohr^2) S.Ang.(%)")')
        main: do j = 1, nf_
-          ! calculate whether the point is direct or indirect; skip indirect points
+          ! STEP 1b. ... and only the atoms X that are direct neighbors of
+          ! A (the lines connecting them with A cross the corresponding
+          ! VDP faces) are taken into account at the subsequent steps.
+
+          ! calculate whether the point is direct or indirect
           midj = 0.5d0 * xstar(:,ivws(j))
           isdirect = .true.
           do k = 1, nf_
@@ -3637,15 +3699,23 @@ contains
                 dot_product(x0,x2) * nx1 + dot_product(x1,x2) * nx0)
              saux = 2d0 * atan(saux)
              sang = sang + saux
-             vol = vol + mix / 6d0
+             vol(i) = vol(i) + mix / 6d0
           end do
           sang = sang / (4d0 * pi) * 100d0
 
           ! distance to the atom
           dist = norm2(xstar(:,ivws(j)))
 
-          ! check whether this atom is coordinated
-          iscoord = isdirect .and. (sang > 1.5d0)
+          ! STEP 2. For all contacts A-Xi the solid angles Ωi of pyramids with
+          ! the basal VP face corresponding to the A-Xi contact (Fig. 2) are
+          ! computed. If Ωi < MinOm (see the AutoCN parameters; default value is
+          ! 1.5% of the total solid angle 4π steradian) the contact is referred
+          ! to as non-valence and its classification to H bonds, halogen bonds,
+          ! or van der Waals interactions is performed according to additional
+          ! geometrical criteria.
+
+          ! check whether this atom is valence
+          isval = isdirect .and. (sang > minom)
 
           ! labels
           if (isdirect) then
@@ -3653,10 +3723,10 @@ contains
           else
              sdir = "I"
           end if
-          if (iscoord) then
-             scoord = "*"
+          if (isval) then
+             scoord = "V"
           else
-             scoord = " "
+             scoord = "N"
           end if
 
           ! output
@@ -3668,40 +3738,234 @@ contains
              (string(x0(k),'f',12,8,4),k=1,3), string(dist * bohrtoa,'f',12,7,ioj_right), string(area,'f',12,5,4),&
              string(sang,'f',12,5,4)
 
-          ! indices of the atoms
-          if (iscoord) then
+          ! save the info for the valence atoms only
+          if (isval) then
              ic = ic + 1
              idxneigh(ic,i) = idx
              ddist(ic,i) = dist
-             delta(sy%c%spc(sy%c%at(i)%is)%z,sy%c%spc(sy%c%at(idx)%is)%z) = &
-                max(delta(sy%c%spc(sy%c%at(i)%is)%z,sy%c%spc(sy%c%at(idx)%is)%z),dist)
-             delta(sy%c%spc(sy%c%at(idx)%is)%z,sy%c%spc(sy%c%at(i)%is)%z) = &
-                delta(sy%c%spc(sy%c%at(i)%is)%z,sy%c%spc(sy%c%at(idx)%is)%z)
+             lvalence(ic,i) = .true.
           end if
        end do main
        nneigh(i) = ic
-       vrad(i) = (3d0 * vol / 4d0 / pi)**(1d0/3d0)
+
+       ! STEP 3. For each atom type two kinds of radii are determined:
+       ! Slater's radius, rs, (it is a constant that is predetermined in the
+       ! ToposPro parameters) and averaged radius of spherical domain (Rsd,
+       ! the radius of a sphere of the VDP volume, averaged over all atoms of
+       ! a given sort in the structure). The former radius characterizes the
+       ! size of the atom accepted in crystal chemistry; the latter one
+       ! estimates the real size of a given atom depending on the atoms in
+       ! the particular structure.
+       vrad(i) = (3d0 * vol(i) / 4d0 / pi)**(1d0/3d0)
        srad(i) = slater_radius(sy%c%spc(sy%c%at(i)%is)%z)
-       write (uout,'("# Volume of the Voronoi polyhedron: ",A)') string(vol * bohrtoa**3,'f',decimal=5)
-       write (uout,'("# Average radius of the Voronoi polyhedron: ",A)') string(vrad(i) * bohrtoa,'f',decimal=5)
-       write (uout,'("# Slater radius: ",A)') string(srad(i) * bohrtoa,'f',decimal=5)
+       write (uout,'("# Volume of the Voronoi polyhedron: ",A)') string(vol(i) * bohrtoa**3,'f',decimal=5)
+       write (uout,'("# Average radius of the Voronoi polyhedron (Rsd): ",A)') string(vrad(i) * bohrtoa,'f',decimal=5)
+       write (uout,'("# Slater radius (rs): ",A)') string(srad(i) * bohrtoa,'f',decimal=5)
        write (uout,*)
 
        ! clean up
        deallocate(ivws,iside_,xvws,nside_,xstar,normal,midx)
     end do
+    if (allocated(nid)) deallocate(nid)
+    if (allocated(lvec)) deallocate(lvec)
 
-    ! summary table
-    write (uout,'("+ Summary of Voronoi coordination for non-equivalent atoms")')
-    write (uout,'("# Only direct neighbors are shown.")')
+    ! STEP 4. For each pair A-X the reference distance D(A-X) is
+    ! determined, which is equal to the minimum of two sums: Rsd(A) +
+    ! Rsd(X) or [rs(A) + rs(X)](1 + δ), where δ = 0.25 by default (it
+    ! can be changed in the ToposPro parameters; Extra
+    ! Dist. value). D(A-X) means the maximal distance, at which the
+    ! contact A-X should be considered as strong (valence) bond.
+    allocate(dax(maxval(nneigh(1:sy%c%nneq)),sy%c%nneq))
+    do i = 1, sy%c%nneq
+       iz = sy%c%spc(sy%c%at(i)%is)%z
+
+       ! Calculate the reference distances D(A-X)
+       do j = 1, nneigh(i)
+          dax(j,i) = min(vrad(i) + vrad(idxneigh(j,i)),(srad(i) + srad(idxneigh(j,i))) * (1d0+extradist))
+       end do
+    end do
+    deallocate(vrad,srad,vol)
+
+    ! Solid Angles: summary table before the D(A-X) are finessed
+    write (uout,'("+ AutoCN coordination numbers using the Solid Angles algorithm (for intermetallics)")')
     write (uout,'("#id atom  Z  mult nneigh Atom-neighbors")')
     do i = 1, sy%c%nneq
        nn = 0
        str = ""
        do j = 1, nneigh(i)
-          delta_ = delta(sy%c%spc(sy%c%at(i)%is)%z,sy%c%spc(sy%c%at(idxneigh(j,i))%is)%z) / (srad(i) + srad(idxneigh(j,i))) - 1
-          write (*,*) "xx ", i, j, ddist(j,i), min(vrad(i) + vrad(idxneigh(j,i)),(srad(i) + srad(idxneigh(j,i))) * (1d0 + delta_)), delta_
-          if (ddist(j,i) < min(vrad(i) + vrad(idxneigh(j,i)),(srad(i) + srad(idxneigh(j,i))) * 1.25d0)) then
+          if (ddist(j,i) < dax(j,i)) then
+             nn = nn + 1
+             str = str // " " // string(sy%c%at(idxneigh(j,i))%name)
+          end if
+       end do
+
+       sname = string(sy%c%at(i)%name,6,ioj_center)
+       sz = string(sy%c%spc(sy%c%at(i)%is)%z,2,ioj_left)
+       smult = string(sy%c%at(i)%mult,4,ioj_left)
+       write (uout,'(99(A,X))') string(i,2,ioj_left), sname, sz, smult,&
+          string(nn,5,ioj_center), str
+    end do
+    write (uout,*)
+
+    ! Finessing the D(A-X)
+    do i = 1, sy%c%nneq
+       iz = sy%c%spc(sy%c%at(i)%is)%z
+
+       ! STEP 5a. The D(A-X) values are modified to take into account
+       ! the features of the structure. For this purpose, if A is a
+       ! metal atom or both A and X are non-metals, all distances
+       ! d(A-X) are grouped if they do not differ more than the
+       ! Min. Interval value (see the AutoCN parameters; default value
+       ! is 0.3 Å).
+       ngroup = 0
+       allocate(ldone(nneigh(i)),igroup(nneigh(i)),groupdmin(nneigh(i)),groupdmax(nneigh(i)))
+       ldone = .false.
+       do j = 1, nneigh(i)
+          jz = sy%c%spc(sy%c%at(idxneigh(j,i))%is)%z
+          if (.not.ldone(j)) then
+             ngroup = ngroup + 1
+             igroup(j) = ngroup
+             ldone(j) = .true.
+             lastd = ddist(j,i)
+             groupdmin(ngroup) = ddist(j,i)
+             groupdmax(ngroup) = ddist(j,i)
+             do k = j+1, nneigh(i)
+                kz = sy%c%spc(sy%c%at(idxneigh(k,i))%is)%z
+                if (.not.ldone(k) .and. jz == kz .and. ddist(k,i) - lastd < mininterval) then
+                   igroup(k) = ngroup
+                   ldone(k) = .true.
+                   lastd = ddist(k,i)
+                   groupdmax(ngroup) = ddist(k,i)
+                end if
+             end do
+          end if
+       end do
+       deallocate(ldone)
+
+       ! STEP 5b. If after this the D(A-X) value falls within one of
+       ! the groups, it increases up to the maximal value of the
+       ! group. This operation allows to avoid the situation when the
+       ! contacts, whose distances are very close to but larger than
+       ! D(A-X), are not considered as bonds.
+       do j = 1, nneigh(i)
+          jz = sy%c%spc(sy%c%at(idxneigh(j,i))%is)%z
+          if (ismetal(iz).or..not.ismetal(jz)) then
+             do k = 1, ngroup
+                if (dax(j,i) >= groupdmin(k) .and. dax(j,i) <= groupdmax(k)) &
+                   dax(j,i) = max(dax(j,i),groupdmax(k))
+             end do
+          end if
+       end do
+
+       ! STEP 6. If A is a metal and with the D(A-X) values obtained
+       ! at the previous steps it does not form any valence bond, the
+       ! corresponding D(A-X) value is increased up to the maximal
+       ! distance value of the closest group of contacts. As a result
+       ! the closest contacts A-X will be considered as valence (the
+       ! metal atom cannot have zero coordination number).
+       if (ismetal(iz)) then
+          nn = 0
+          do j = 1, nneigh(i)
+             if (ddist(j,i) < dax(j,i)) &
+                nn = nn + 1
+          end do
+          if (nn == 0) then
+             jz = sy%c%spc(sy%c%at(idxneigh(1,i))%is)%z ! the Z of the first neighbor
+             daxnew = groupdmax(igroup(1)) !  the new D(A,X)
+
+             ! reset the D(A-X) of the atoms with the same Z as the closest neighbor
+             do k = 1, nneigh(i)
+                kz = sy%c%spc(sy%c%at(idxneigh(k,i))%is)%z
+                if (kz == jz) then
+                   dax(k,i) = daxnew
+                end if
+             end do
+          end if
+       end if
+       deallocate(igroup,groupdmin,groupdmax)
+    end do
+
+    ! Recalculate the valence atoms based on the current D(A-X)
+    ! (necessary for the next step?). Determine whether atoms are
+    ! coordinated to non-metal atoms.
+    allocate(hasnonmetals(sy%c%nneq),hasof(sy%c%nneq))
+    call recalculate_valence()
+
+    ! STEP 7. If both A and X are metals and at least one of them is s or p
+    ! metal then the valence contact between them can exist only if there
+    ! no valence bonds between them and non-metal atoms, otherwise D(A-X)
+    ! is specified to zero. This prevents s or p metal atoms from valence
+    ! bonds with other metals except the structures of intermetallic
+    ! compounds.
+    do i = 1, sy%c%nneq
+       iz = sy%c%spc(sy%c%at(i)%is)%z
+       if (.not.ismetal(iz)) cycle
+       do j = 1, nneigh(i)
+          jz = sy%c%spc(sy%c%at(idxneigh(j,i))%is)%z
+          if (.not.ismetal(jz)) cycle
+          if (issmetal(iz).or.ispmetal(iz).or.issmetal(jz).or.ispmetal(jz)) then
+             if (hasnonmetals(i).or.hasnonmetals(idxneigh(j,i))) then
+                dax(j,i) = 0d0
+             end if
+          end if
+       end do
+    end do
+    call recalculate_valence()
+
+    ! STEP 8. If A is a metal and X is a boron atom connected to O or F atoms
+    ! then the bond A-X (if any) is broken (D(A-X) = 0).
+    do i = 1, sy%c%nneq
+       iz = sy%c%spc(sy%c%at(i)%is)%z
+       if (.not.ismetal(iz)) cycle
+       do j = 1, nneigh(i)
+          jz = sy%c%spc(sy%c%at(idxneigh(j,i))%is)%z
+          if (jz /= 5) cycle
+
+          if (hasof(idxneigh(j,i))) &
+             dax(j,i) = 0d0
+       end do
+    end do
+    call recalculate_valence()
+
+    ! STEP 9. If there are several non-equivalent pairs (A, X) and, hence,
+    ! several Di(A-X) values have been chosen at the previous steps, then
+    ! the maximal Di(A-X) is chosen as the final reference distance for all
+    ! contacts of a particular A-X type.
+    allocate(daxmax(0:maxzat0))
+    do i = 1, sy%c%nneq
+       ! calculate the maximum D(A-X) for all atoms of a given type
+       daxmax = 0d0
+       do j = 1, nneigh(i)
+          jz = sy%c%spc(sy%c%at(idxneigh(j,i))%is)%z
+          daxmax(jz) = max(daxmax(jz),dax(j,i))
+       end do
+
+       ! reset all dax to the daxmax
+       do j = 1, nneigh(i)
+          jz = sy%c%spc(sy%c%at(idxneigh(j,i))%is)%z
+          dax(j,i) = daxmax(jz)
+       end do
+    end do
+    deallocate(daxmax)
+
+    ! STEP 10. All contacts A-X with d(A-X) < D(A-X) and with solid
+    ! angle of a pyramid with the basal VDP face corresponding to the
+    ! A-X contact (Fig. 2) Ωi > MinOm (see the AutoCN parameters;
+    ! default value is 1.5% of the total solid angle 4π steradian) are
+    ! considered as valence. Other contacts are assumed non-valence
+    ! and their classification to H bonds, halogen bonds, or van der
+    ! Waals interactions is performed according to additional
+    ! geometrical criteria.
+    call recalculate_valence()
+
+    ! Solid Angles: summary table before the D(A-X) are finessed
+    write (uout,'("+ AutoCN coordination numbers using the Domains algorithm (general compounds)")')
+    write (uout,'("#id atom  Z  mult nneigh Atom-neighbors")')
+    do i = 1, sy%c%nneq
+       nn = 0
+       str = ""
+       do j = 1, nneigh(i)
+          if (lvalence(j,i)) then
              nn = nn + 1
              str = str // " " // string(sy%c%at(idxneigh(j,i))%name)
           end if
@@ -3716,7 +3980,26 @@ contains
     write (uout,*)
 
     ! clean up
-    deallocate(nneigh,idxneigh)
+    deallocate(nneigh,idxneigh,ddist,dax,ismetal,issmetal,ispmetal,lvalence)
+    deallocate(hasnonmetals,hasof)
+
+  contains
+    subroutine recalculate_valence()
+
+      hasnonmetals = .false.
+      hasof = .false.
+      do i = 1, sy%c%nneq
+         do j = 1, nneigh(i)
+            jz = sy%c%spc(sy%c%at(idxneigh(j,i))%is)%z
+            lvalence(j,i) = (ddist(j,i) <= dax(j,i))
+            if (lvalence(j,i) .and..not.ismetal(jz)) &
+               hasnonmetals(i) = .true.
+            if (lvalence(j,i) .and. (jz == 8 .or. jz == 9)) &
+               hasof(i) = .true.
+         end do
+      end do
+
+    end subroutine recalculate_valence
 
   end subroutine trick_voronoi
 
