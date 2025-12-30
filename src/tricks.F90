@@ -3477,7 +3477,7 @@ contains
 
     integer :: i, j, k, l, idx, ic, nn, iz, jz, kz
     integer :: nat
-    real*8 :: wsrad, x0(3), x1(3), x2(3), area, dist, dotp, delta_
+    real*8 :: wsrad, x0(3), x1(3), x2(3), area, dist, dotp
     real*8 :: nx0, nx1, nx2, mix
     real*8, allocatable :: xstar(:,:)
     integer, allocatable :: nid(:), lvec(:,:), nneigh(:), idxneigh(:,:)
@@ -3492,7 +3492,7 @@ contains
     integer, allocatable :: iside_(:,:), nside_(:), iord(:)
     real*8 :: av(3), bary(3), midj(3), sang, saux, lastd, daxnew
     character(len=:), allocatable :: sncp, sname, sz, smult, str, sdir, scoord
-    logical :: isdirect, ok, isval
+    logical :: isdirect, isval
     logical, allocatable :: ismetal(:), issmetal(:), ispmetal(:), lvalence(:,:)
     logical, allocatable :: hasnonmetals(:), hasof(:)
     integer :: ngroup
@@ -3521,7 +3521,6 @@ contains
     real*8, parameter :: minom = 1.5d0
     real*8, parameter :: extradist = 0.25d0
     real*8, parameter :: mininterval = 0.3d0 / bohrtoa
-    real*8, parameter :: daxeps = 1d-5
 
     integer, parameter :: list_nonmetals(*) = (/1,2,5,6,7,8,9,10,14,15,16,17,18,33,34,35,36,52,53,54,85,86,118/)
     integer, parameter :: smetals(*) = (/1,3,4,11,12,19,20,37,38,55,56,87,88/)
