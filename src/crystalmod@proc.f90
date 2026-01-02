@@ -185,6 +185,8 @@ contains
     ! initialize the structure
     call c%init()
     c%ismolecule = seed%ismolecule
+    c%file = seed%file
+    c%isformat = seed%isformat
 
     !! first the cell, then the atoms !!
 
@@ -554,8 +556,6 @@ contains
     end if
 
     ! the initialization is done - this crystal is ready to use
-    c%file = seed%file
-    c%isformat = seed%isformat
     c%isinit = .true.
 
   end subroutine struct_new

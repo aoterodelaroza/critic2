@@ -538,11 +538,11 @@ contains
                          if (r%bond_bothends) then
                             ! skip if the atom has been represented already
                             ! (draws once, and only if both atoms are present)
-                            if (.not.lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
+                         if (.not.lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
                          else
                             ! skip if the atom has not been represented already
                             ! (draws once, only one of the atoms need be present)
-                            if (lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
+                         if (lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
                          end if
 
                          ! draw the bond, reallocate if necessary

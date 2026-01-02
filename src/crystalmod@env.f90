@@ -753,28 +753,49 @@ contains
   end subroutine promolecular_atom
 
   !> Find the covalent connectivity and return the bonds in the
-  !> c%nstar array. Two atoms i and j are bonded if their distance is
-  !> less than bondfac * (atmrad(i) + atmrad(j))
+  !> c%nstar array. Two atoms i and j are connected if:
+  !> a) Their distance is less than bondfac * (atmrad(i) + atmrad(j))
+  !> b) The distance is at most dbond (0.2 ang) higher than the minimum distance.
+  !> If i and j are metals, use b. If i and j are non-metals, use a.
+  !> If one is metal and the other non-metal, apply both.
   module subroutine find_asterisms(c,nstar,atmrad,bondfac,rij)
-    use tools_io, only: string, ferror, faterr
-    use types, only: realloc, celatom
     use param, only: maxzat0
+    use tools_io, only: uout, string, ferror, faterr
+    use tools, only: qcksort
+    use types, only: realloc
+    use param, only: icrd_crys, atmcov, bohrtoa
     class(crystal), intent(inout) :: c
     type(neighstar), allocatable, intent(inout) :: nstar(:)
     real*8, intent(in), optional :: atmrad(0:maxzat0)
     real*8, intent(in), optional :: bondfac
     real*8, intent(in), optional :: rij(:,:,:)
 
-    integer :: i, j, nx(3), i0shift(3), i1shift(3)
-    real*8 :: ri, rj, dmax, dd, xi(3), xj(3), xdelta(3)
+    integer :: i, j, iz, jz, jid
+    real*8 :: ri, rj, dmax, dd
+    real*8 :: dd
+    logical :: bonded, ism, jsm
     real*8, allocatable :: rij2(:,:,:)
-    integer :: iblock_stride, nconi, nconj
-    integer :: ix, iy, iz, jx, jy, jz, iid, jid, iidx(3), jidx(3)
-    integer :: iat, jat, iaux(3), lvecx(3)
-    logical :: sameblock
+    logical :: ismetal(0:maxzat0)
+
+    type atenv_type
+       integer :: nat
+       integer, allocatable :: eid(:)
+       integer, allocatable :: lvec(:,:)
+       real*8, allocatable :: dist(:)
+    end type atenv_type
+    type(atenv_type), allocatable :: atenv(:)
+
+    real*8 :: dbond = 0.2d0 / bohrtoa
+    integer, parameter :: lnonmetal(24) = (/0,1,2,5,6,7,8,9,10,14,15,16,17,18,33,34,35,36,52,53,54,85,86,118/)
 
     ! return if there are no atoms
     if (c%ncel == 0) return
+
+    ! initialize
+    ismetal = .true.
+    do i = 1, size(lnonmetal,1)
+       ismetal(lnonmetal(i)) = .false.
+    end do
 
     ! allocate the asterism arrays
     if (allocated(nstar)) deallocate(nstar)
@@ -790,7 +811,6 @@ contains
     ! pre-calculate the distance matrix
     allocate(rij2(c%nspc,2,c%nspc))
     rij2 = 0d0
-    dmax = 0d0
     if (present(atmrad).and.present(bondfac)) then
        ! from atmrad and bondfac
        do i = 1, c%nspc
@@ -804,7 +824,6 @@ contains
              rij2(j,1,i) = 0d0
              rij2(j,2,i) = rij2(j,2,i) * rij2(j,2,i)
              rij2(j,1,i) = rij2(j,1,i) * rij2(j,1,i)
-             dmax = max(dmax,(ri+rj) * bondfac)
           end do
        end do
     elseif (present(rij)) then
@@ -812,117 +831,63 @@ contains
        if (any(shape(rij) /= shape(rij2))) &
           call ferror('find_asterisms','error in rij shape',faterr)
        rij2 = rij * rij
-       dmax = maxval(rij)
     else
        call ferror('find_asterisms','error in input arguments',faterr)
     end if
+    rij2 = sqrt(rij2)
 
-    ! calculate the number of blocks in each direction required for satifying
-    ! that the largest sphere in the super-block has radius > dmax.
-    ! r = Vblock / 2 / max(cv(3)/n3,cv(2)/n2,cv(1)/n1)
-    nx = ceiling(c%blockcv / (0.5d0 * c%blockomega / max(dmax,1d-40)))
-
-    ! define the search space
-    do i = 1, 3
-       if (mod(nx(i),2) == 0) then
-          i0shift(i) = - nx(i)/2
-          i1shift(i) = nx(i)/2
-       else
-          i0shift(i) = - (nx(i)/2+1)
-          i1shift(i) = + (nx(i)/2+1)
-       end if
+    ! calculate the covalent radius
+    dmax = 0d0
+    do i = 1, c%nspc
+       if (c%spc(i)%z <= 0) cycle
+       dmax = max(atmcov(c%spc(i)%z),dmax)
     end do
 
-    iblock_stride = maxval(c%nblock) + maxval(abs(i1shift)) + maxval(abs(i0shift)) + 10
-
-    do ix = 0, c%nblock(1)-1
-       do iy = 0, c%nblock(2)-1
-          do iz = 0, c%nblock(3)-1
-             if (c%iblock0(ix,iy,iz) == 0) cycle
-             iid = (ix * iblock_stride + iy) * iblock_stride + iz
-             iidx = (/ix,iy,iz/)
-
-             do jx = ix + i0shift(1), ix + i1shift(1)
-                do jy = iy + i0shift(2), iy + i1shift(2)
-                   do jz = iz + i0shift(2), iz + i1shift(3)
-                      ! skip if this block pair has been considered already, or outside the region
-                      ! skip if there are no atoms
-                      if (jx >= 0 .and. jx < c%nblock(1) .and.&
-                          jy >= 0 .and. jy < c%nblock(2) .and.&
-                          jz >= 0 .and. jz < c%nblock(3)) then
-                         jid = (jx * iblock_stride + jy) * iblock_stride + jz
-                         if (jid < iid) cycle
-                         jidx = (/jx,jy,jz/)
-                         if (c%iblock0(jidx(1),jidx(2),jidx(3)) == 0) cycle
-                         xdelta = 0d0
-                      elseif (c%ismolecule) then
-                         cycle
-                      else
-                         iaux = (/jx,jy,jz/)
-                         jidx = (/modulo(jx,c%nblock(1)), modulo(jy,c%nblock(2)), modulo(jz,c%nblock(3))/)
-                         jid = (jidx(1) * iblock_stride + jidx(2)) * iblock_stride + jidx(3)
-                         if (jid < iid) cycle
-                         xdelta = real((iaux - jidx) / c%nblock,8)
-                         xdelta = matmul(c%m_xr2c,xdelta)
-                      end if
-                      if (c%iblock0(jidx(1),jidx(2),jidx(3)) == 0) cycle
-                      sameblock = (ix == jx) .and. (iy == jy) .and. (iz == jz)
-
-                      jat = c%iblock0(jidx(1),jidx(2),jidx(3))
-                      do while (jat /= 0)
-                         xj = c%atcel(jat)%rxc + xdelta
-
-                         if (sameblock) then
-                            iat = c%atcel(jat)%inext
-                         else
-                            iat = c%iblock0(iidx(1),iidx(2),iidx(3))
-                         end if
-                         do while (iat /= 0)
-                            xi = c%atcel(iat)%rxc
-
-                            dd = dot_product(xi-xj,xi-xj)
-                            if (dd > rij2(c%atcel(jat)%is,1,c%atcel(iat)%is) .and. &
-                               dd < rij2(c%atcel(jat)%is,2,c%atcel(iat)%is)) then
-                               ! add this atom
-                               nstar(iat)%ncon = nstar(iat)%ncon + 1
-                               nconi = nstar(iat)%ncon
-                               if (nconi > size(nstar(iat)%idcon,1)) then
-                                  call realloc(nstar(iat)%idcon,2*nconi)
-                                  call realloc(nstar(iat)%lcon,3,2*nconi)
-                               end if
-                               nstar(iat)%idcon(nconi) = jat
-
-                               nstar(jat)%ncon = nstar(jat)%ncon + 1
-                               nconj = nstar(jat)%ncon
-                               if (nconj > size(nstar(jat)%idcon,1)) then
-                                  call realloc(nstar(jat)%idcon,2*nconj)
-                                  call realloc(nstar(jat)%lcon,3,2*nconj)
-                               end if
-                               nstar(jat)%idcon(nconj) = iat
-                               if (c%ismolecule) then
-                                  nstar(iat)%lcon(:,nconi) = 0
-                                  nstar(jat)%lcon(:,nconj) = 0
-                               else
-                                  lvecx = nint(matmul(c%m_c2x,xj-xi) + c%atcel(iat)%x - c%atcel(jat)%x)
-                                  nstar(iat)%lcon(:,nconi) = lvecx
-                                  nstar(jat)%lcon(:,nconj) = -lvecx
-                               end if
-                            end if
-
-                            iat = c%atcel(iat)%inext
-                         end do
-                         jat = c%atcel(jat)%inext
-                      end do
-                   end do
-                end do
-             end do
-
-          end do
-       end do
-    end do
-
-    ! reallocate
+    ! calculate the atomic environments
+    allocate(atenv(c%ncel))
     do i = 1, c%ncel
+       iz = c%spc(c%atcel(i)%is)%z
+       call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,atenv(i)%nat,atenv(i)%eid,&
+          atenv(i)%dist,atenv(i)%lvec,up2d=(atmcov(iz) + dmax)*2d0,nozero=.true.)
+    end do
+
+    ! process the environments and generate the bonds
+    do i = 1, c%ncel
+       iz = c%spc(c%atcel(i)%is)%z
+       ism = ismetal(iz)
+
+       do j = 1, atenv(i)%nat
+          jid = atenv(i)%eid(j)
+          jz = c%spc(c%atcel(jid)%is)%z
+          jsm = ismetal(jz)
+          bonded = .false.
+
+          dd = atenv(i)%dist(j)
+          if (ism .and. jsm) then
+             bonded = (dd < atenv(i)%dist(1) + dbond) .or. (dd < atenv(jid)%dist(1) + dbond)
+          elseif (ism) then
+             bonded = (dd < atenv(i)%dist(1) + dbond) .or.&
+                (dd > rij2(c%atcel(jid)%is,1,c%atcel(i)%is) .and. dd < rij2(c%atcel(jid)%is,2,c%atcel(i)%is))
+          elseif (jsm) then
+             bonded = (dd < atenv(jid)%dist(1) + dbond) .or.&
+                (dd > rij2(c%atcel(jid)%is,1,c%atcel(i)%is) .and. dd < rij2(c%atcel(jid)%is,2,c%atcel(i)%is))
+          else
+             bonded = (dd > rij2(c%atcel(jid)%is,1,c%atcel(i)%is) .and. dd < rij2(c%atcel(jid)%is,2,c%atcel(i)%is))
+          end if
+
+          ! add the bonded atom
+          if (bonded) then
+             nstar(i)%ncon = nstar(i)%ncon + 1
+             if (nstar(i)%ncon > size(nstar(i)%idcon,1)) then
+                call realloc(nstar(i)%idcon,2*nstar(i)%ncon)
+                call realloc(nstar(i)%lcon,3,2*nstar(i)%ncon)
+             end if
+             nstar(i)%idcon(nstar(i)%ncon) = jid
+             nstar(i)%lcon(:,nstar(i)%ncon) = atenv(i)%lvec(:,j)
+          end if
+       end do
+
+       ! reallocate
        call realloc(nstar(i)%idcon,nstar(i)%ncon)
        call realloc(nstar(i)%lcon,3,nstar(i)%ncon)
     end do

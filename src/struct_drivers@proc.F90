@@ -2371,7 +2371,6 @@ contains
        gaussian_compare, xrpd_alpha_def, xrpd_lambda_def,&
        xrpd_th2ini_def, xrpd_th2end_def, xrpd_sigma_def
     use struct_drivers, only: struct_crystal_input
-    use tools, only: qcksort
     use tools_io, only: getword, tictac, lgetword, equal, string,&
        fopen_read, fclose, getline, isreal, isinteger, fopen_write, ioj_center
     use types, only: realloc
@@ -5112,7 +5111,6 @@ contains
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed
     use fragmentmod, only: fragment
-    use tools, only: qcksort
     use tools_math, only: rmsd_walker, umeyama_graph_matching
     use tools_io, only: getword, string, ferror, faterr, lower, equal, uout, string
     use types, only: realloc
@@ -5462,7 +5460,6 @@ contains
     use global, only: fileroot
     use tools_io, only: uout, getword, lgetword, equal, ferror, faterr, isinteger, string,&
        file_read_xy, fopen_write, fclose, isreal
-    use tools, only: mergesort, qcksort
     use types, only: realloc
     character*(*), intent(in) :: line0
 

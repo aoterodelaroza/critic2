@@ -244,7 +244,7 @@ contains
     ! apply the changes
     if (iw_button("Apply",sameline=.true.)) then
        ! find the atomic connectivity and the molecular fragments
-       call sys(isys)%c%find_asterisms(sys(isys)%c%nstar,sysc(isys)%atmcov,sysc(isys)%bondfactor)
+       call sys(isys)%c%find_asterisms(sys(isys)%c%nstar,sysc(i)%atmcov,sysc(i)%bondfactor)
        call sys(isys)%c%fill_molecular_fragments()
        call sys(isys)%c%calculate_molecular_equivalence()
        call sys(isys)%c%calculate_periodicity()
