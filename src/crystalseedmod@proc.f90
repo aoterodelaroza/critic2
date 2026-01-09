@@ -8284,7 +8284,7 @@ contains
           hasx = .true.
           hasis = .true.
 
-       elseif (line(1:15) == "CELL_PARAMETERS") then
+       elseif (index(line,"CELL_PARAMETERS") > 0) then
           cfac = 1d0
           if (index(line,"angstrom") > 0) then
              cfac = 1d0 / bohrtoa
@@ -8306,7 +8306,7 @@ contains
           m_x2c = transpose(r)
           hasr = .true.
 
-       elseif (line(1:16) == "ATOMIC_POSITIONS") then
+       elseif (index(line,"ATOMIC_POSITIONS") > 0) then
           rfac = 1d0
           if (index(line,"angstrom") > 0) then
              tox = .true.
@@ -8899,7 +8899,7 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, lp, nlat, i, j, idx, ier, iat, npad
+    integer :: lu, lp, nlat, i, j, idx, ier, iat, npad, ll
     logical :: is_file_mol, ok, isfinal
     character*1 :: cdum
     character*10 :: dum1, dum2, splbl
@@ -9068,8 +9068,14 @@ contains
        ok = getline_raw(lu,line)
        if (.not.ok) goto 999
        do while (getline_raw(lu,line))
-          if (line == "  Fractional coordinates:" .or. line(1:4) == "----") exit
-          if (len_trim(line) == 0) cycle
+          ll = len(line)
+          if (ll >= 25) then
+             if (line == "  Fractional coordinates:") exit
+          end if
+          if (ll >= 4) then
+             if (line(1:4) == "----") exit
+          end if
+          if (ll == 0) cycle
           lp = 1
           word = lgetword(line,lp)
           if (word == "lattice_vector") then
