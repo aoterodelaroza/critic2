@@ -8284,7 +8284,7 @@ contains
           hasx = .true.
           hasis = .true.
 
-       elseif (line(1:15) == "CELL_PARAMETERS") then
+       elseif (index(line,"CELL_PARAMETERS") > 0) then
           cfac = 1d0
           if (index(line,"angstrom") > 0) then
              cfac = 1d0 / bohrtoa
@@ -8306,7 +8306,7 @@ contains
           m_x2c = transpose(r)
           hasr = .true.
 
-       elseif (line(1:16) == "ATOMIC_POSITIONS") then
+       elseif (index(line,"ATOMIC_POSITIONS") > 0) then
           rfac = 1d0
           if (index(line,"angstrom") > 0) then
              tox = .true.
