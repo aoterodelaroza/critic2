@@ -55,7 +55,7 @@ contains
        repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic
     use scenes, only: style_phong, style_simple
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
-       iw_setposx_fromend, iw_checkbox, iw_coloredit, iw_menuitem
+       iw_setposx_fromend, iw_checkbox, iw_coloredit, iw_menuitem, iw_dragfloat
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
     use systems, only: sysc, sys, sys_init, nsys, ok_system, are_threads_running
@@ -365,11 +365,9 @@ contains
           call iw_tooltip("Align the camera along the Cartesian z axis ("//&
              trim(get_bind_keyname(BIND_VIEW_ALIGN_Z_AXIS)) // ").",ttshown)
           call igSameLine(0._c_float,-1._c_float)
-          str2 = "Reset Distance##resetdistance" // c_null_char
-          str3 = "%.2f" // c_null_char
           call igPushItemWidth(iw_calcwidth(5,1))
-          ch = igDragFloat(c_loc(str2),w%sc%camresetdist,&
-             0.01_c_float,0.1_c_float,8.0_c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+          ch = iw_dragfloat("Reset Distance##resetdistance",x1=w%sc%camresetdist,&
+             speed=0.01_c_float,min=0.1_c_float,max=8.0_c_float,sformat="%.2f",flags=ImGuiSliderFlags_AlwaysClamp)
           call igPopItemWidth()
           call iw_tooltip("Ratio controlling distance from object when resetting camera",ttshown)
 
@@ -404,29 +402,21 @@ contains
           if (w%sc%style == style_phong) then
              !! phong-specific options !!
              call igPushItemWidth(iw_calcwidth(15,3))
-             str2 = "Light Position" // c_null_char
-             str3 = "%.1f" // c_null_char
-             chrender = chrender .or. igDragFloat3(c_loc(str2),w%sc%lightpos,&
-                0.5_c_float,-FLT_MAX,FLT_MAX,c_loc(str3),ImGuiSliderFlags_None)
+             chrender = chrender .or. iw_dragfloat("Light Position",x3=w%sc%lightpos,&
+                speed=0.5_c_float,sformat="%.1f")
              call iw_tooltip("Change the position of the light",ttshown)
              call igPopItemWidth()
 
              call igPushItemWidth(iw_calcwidth(5,1))
-             str2 = "Ambient " // c_null_char
-             str3 = "%.3f" // c_null_char
-             chrender = chrender .or. igDragFloat(c_loc(str2),w%sc%ambient,&
-                0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+             chrender = chrender .or. iw_dragfloat("Ambient",x1=w%sc%ambient,speed=0.002_c_float,&
+                min=0._c_float,max=1._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the ambient light intensity",ttshown)
              call igSameLine(0._c_float,-1._c_float)
-             str2 = "Diffuse" // c_null_char
-             str3 = "%.3f" // c_null_char
-             chrender = chrender .or. igDragFloat(c_loc(str2),w%sc%diffuse,&
-                0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+             chrender = chrender .or. iw_dragfloat("Diffuse",x1=w%sc%diffuse,speed=0.002_c_float,&
+                min=0._c_float,max=1._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the diffuse light intensity",ttshown)
-             str2 = "Specular" // c_null_char
-             str3 = "%.3f" // c_null_char
-             chrender = chrender .or. igDragFloat(c_loc(str2),w%sc%specular,&
-                0.002_c_float,0._c_float,1._c_float,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+             chrender = chrender .or. iw_dragfloat("Specular",x1=w%sc%specular,&
+                speed=0.002_c_float,min=0._c_float,max=1._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the specular light intensity",ttshown)
              call igSameLine(0._c_float,-1._c_float)
              str2 = "Shininess" // c_null_char

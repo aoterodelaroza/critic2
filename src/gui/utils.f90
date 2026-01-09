@@ -24,6 +24,7 @@ module utils
   private
 
   !xx! proc submodule !xx!
+  public :: iw_dragfloat
   public :: iw_clamp_color3
   public :: iw_clamp_color4
   public :: iw_coloredit
@@ -57,6 +58,17 @@ module utils
   ! module procedure interfaces
   interface
      !xx! proc submodule !xx!
+     module function iw_dragfloat(str,x1,x2,x3,x4,speed,min,max,sformat,flags)
+       character(len=*,kind=c_char), intent(in) :: str
+       real(c_float), intent(inout), optional :: x1
+       real(c_float), intent(inout), optional :: x2(2)
+       real(c_float), intent(inout), optional :: x3(3)
+       real(c_float), intent(inout), optional :: x4(4)
+       real(c_float), intent(in), optional :: speed, min, max
+       character(len=*,kind=c_char), intent(in), optional :: sformat
+       integer(c_int), intent(in), optional :: flags
+       logical :: iw_dragfloat
+     end function iw_dragfloat
      module subroutine iw_clamp_color3(rgb)
        real(c_float), intent(inout) :: rgb(3)
      end subroutine iw_clamp_color3

@@ -34,7 +34,7 @@ contains
     use interfaces_cimgui
     use keybindings
     use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth, iw_clamp_color4,&
-       iw_checkbox, iw_coloredit
+       iw_checkbox, iw_coloredit, iw_dragfloat
     use param, only: maxzat0
     class(window), intent(inout), target :: w
 
@@ -111,10 +111,9 @@ contains
           call igSeparator()
 
           str = "Font scale" // c_null_char
-          str2 = "%.2f" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             ldum = igDragFloat(c_loc(str),io%FontGlobalScale,0.005_c_float,0.3_c_float,3.0_c_float,c_loc(str2),&
-                ImGuiSliderFlags_AlwaysClamp)
+             ldum = iw_dragfloat(str,x1=io%FontGlobalScale,speed=0.005_c_float,min=0.3_c_float,&
+                max=3.0_c_float,sformat="%.2f",flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Scale factor for the user interface font",ttshown)
           end if
 
@@ -125,18 +124,16 @@ contains
           end if
 
           str = "Tooltip delay (s)" // c_null_char
-          str2 = "%.1f" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             ldum = igDragFloat(c_loc(str),tooltip_delay,0.1_c_float,0._c_float,5._c_float,c_loc(str2),&
-                ImGuiSliderFlags_AlwaysClamp)
+             ldum = iw_dragfloat(str,x1=tooltip_delay,speed=0.1_c_float,min=0._c_float,&
+                max=5._c_float,sformat="%.1f",flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Delay for showing the tooltips",ttshown)
           end if
 
           str = "Tooltip maximum width (pixels)" // c_null_char
-          str2 = "%.1f" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
-             ldum = igDragFloat(c_loc(str),tooltip_wrap_factor,1._c_float,0._c_float,1000._c_float,&
-                c_loc(str2),ImGuiSliderFlags_AlwaysClamp)
+             ldum = iw_dragfloat(str,x1=tooltip_wrap_factor,speed=1._c_float,&
+                min=0._c_float,max=1000._c_float,sformat="%.1f",flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Width of the interface tooltips",ttshown)
           end if
 

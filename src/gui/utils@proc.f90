@@ -22,6 +22,52 @@ submodule (utils) proc
 
 contains
 
+  !> Drag float button for 1, 2, 3, and 4 floats (choose whichever x is appropriate).
+  !> The label is str. Speed is the step for the drag. Min and max control the minimum
+  !> and maximum values. sformat is the C format of the label. flags is a combination
+  !> of ImGuiSliderFlags_* flags.
+  module function iw_dragfloat(str,x1,x2,x3,x4,speed,min,max,sformat,flags)
+    use interfaces_cimgui
+    character(len=*,kind=c_char), intent(in) :: str
+    real(c_float), intent(inout), optional :: x1
+    real(c_float), intent(inout), optional :: x2(2)
+    real(c_float), intent(inout), optional :: x3(3)
+    real(c_float), intent(inout), optional :: x4(4)
+    real(c_float), intent(in), optional :: speed, min, max
+    character(len=*,kind=c_char), intent(in), optional :: sformat
+    integer(c_int), intent(in), optional :: flags
+    logical :: iw_dragfloat
+
+    real(c_float) :: speed_, min_, max_
+    character(len=:,kind=c_char), allocatable, target :: str_, sformat_
+    integer(c_int) :: flags_
+
+    str_ = trim(str) // c_null_char
+    speed_ = 1._c_float
+    if (present(speed)) speed_ = speed
+    min_ = -FLT_MAX
+    if (present(min)) min_ = min
+    max_ = FLT_MAX
+    if (present(max)) max_ = max
+    sformat_ = "%.3f" // c_null_char
+    if (present(sformat)) sformat_ = trim(sformat) // c_null_char
+    flags_ = 0_c_int
+    if (present(flags)) flags_ = flags
+
+    if (present(x1)) then
+       iw_dragfloat = igDragFloat(c_loc(str_),x1,speed_,min_,max_,c_loc(sformat_),flags_)
+    elseif (present(x2)) then
+       iw_dragfloat = igDragFloat2(c_loc(str_),x2,speed_,min_,max_,c_loc(sformat_),flags_)
+    elseif (present(x3)) then
+       iw_dragfloat = igDragFloat3(c_loc(str_),x3,speed_,min_,max_,c_loc(sformat_),flags_)
+    elseif (present(x4)) then
+       iw_dragfloat = igDragFloat4(c_loc(str_),x4,speed_,min_,max_,c_loc(sformat_),flags_)
+    else
+       iw_dragfloat = .false.
+    end if
+
+  end function iw_dragfloat
+
   !> Clamp a 3-color to the 0->1 interval
   module subroutine iw_clamp_color3(rgb)
     real(c_float), intent(inout) :: rgb(3)

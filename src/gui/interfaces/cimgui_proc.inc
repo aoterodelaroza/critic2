@@ -587,6 +587,17 @@ function igDragFloat3(label,v,v_speed,v_min,v_max,format_,flags) bind(c,name="ig
   logical(c_bool) :: igDragFloat3
 end function igDragFloat3
 !x! bool igDragFloat4(const char* label,float v[4],float v_speed,float v_min,float v_max,const char* format,ImGuiSliderFlags flags);
+function igDragFloat4(label,v,v_speed,v_min,v_max,format_,flags) bind(c,name="igDragFloat4")
+  import c_ptr, c_float, c_int, c_bool
+  type(c_ptr), intent(in), value :: label
+  real(c_float) :: v(4)
+  real(c_float), value :: v_speed
+  real(c_float), value :: v_min
+  real(c_float), value :: v_max
+  type(c_ptr), intent(in), value :: format_
+  integer(c_int), value :: flags
+  logical(c_bool) :: igDragFloat4
+end function igDragFloat4
 !x! bool igDragFloatRange2(const char* label,float* v_current_min,float* v_current_max,float v_speed,float v_min,float v_max,const char* format,const char* format_max,ImGuiSliderFlags flags);
 ! bool igDragInt(const char* label,int* v,float v_speed,int v_min,int v_max,const char* format,ImGuiSliderFlags flags);
 function igDragInt(label,v,v_speed,v_min,v_max,format_,flags) bind(c,name="igDragInt")

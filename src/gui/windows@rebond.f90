@@ -41,7 +41,8 @@ contains
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use systems, only: nsys, sysc, sys, sys_init, ok_system, lastchange_rebond
     use gui_main, only: g
-    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight
+    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight,&
+       iw_dragfloat
     use global, only: bondfactor_def
     use tools_io, only: string, nameguess
     use param, only: atmcov0, maxzat0, bohrtoa, newline
@@ -179,13 +180,11 @@ contains
 
           ! radius
           if (igTableSetColumnIndex(ic_radius)) then
-             str2 = "##tableradius" // string(i) // c_null_char
-             str3 = "%.3f" // c_null_char
              call igPushItemWidth(iw_calcwidth(5,1))
              mrad = max(mrad,sysc(isys)%atmcov(iz))
              rad = real(sysc(isys)%atmcov(iz) * bohrtoa,c_float)
-             ch = igDragFloat(c_loc(str2),rad,0.01_c_float,0._c_float,2.65_c_float,c_loc(str3),&
-                ImGuiSliderFlags_AlwaysClamp)
+             ch = iw_dragfloat("##tableradius" // string(i),x1=rad,speed=0.01_c_float,min=0._c_float,&
+                max=2.65_c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
              if (ch) sysc(isys)%atmcov(iz) = rad / bohrtoa
              call igPopItemWidth()
           end if
@@ -195,15 +194,14 @@ contains
 
     ! bond factor
     call iw_text("Bond factor",highlight=.true.)
-    str2 = "##bondfactor" // c_null_char
-    str3 = "%.4f" // c_null_char
     call igPushItemWidth(iw_calcwidth(6,1))
     bf = real(sysc(isys)%bondfactor,c_float)
     call igSameLine(0._c_float,-1._c_float)
     bfmin = 1.0_c_float
     bfmax = 2.0_c_float
 
-    ch = igDragFloat(c_loc(str2),bf,0.001_c_float,bfmin,bfmax,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
+    ch = iw_dragfloat("##bondfactor",x1=bf,speed=0.001_c_float,min=bfmin,max=bfmax,&
+       sformat="%.4f",flags=ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Bond factor parameter for connectivity calculation",ttshown)
     if (ch) sysc(isys)%bondfactor = bf
     call igPopItemWidth()
@@ -244,7 +242,7 @@ contains
     ! apply the changes
     if (iw_button("Apply",sameline=.true.)) then
        ! find the atomic connectivity and the molecular fragments
-       call sys(isys)%c%find_asterisms(sys(isys)%c%nstar,sysc(i)%atmcov,sysc(i)%bondfactor)
+       call sys(isys)%c%find_asterisms(sys(isys)%c%nstar,sysc(isys)%atmcov,sysc(isys)%bondfactor)
        call sys(isys)%c%fill_molecular_fragments()
        call sys(isys)%c%calculate_molecular_equivalence()
        call sys(isys)%c%calculate_periodicity()
