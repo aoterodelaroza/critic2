@@ -132,7 +132,7 @@ contains
   !> Get a uniform location
   module function get_uniform_location(name)
     use interfaces_opengl3, only: glGetUniformLocation
-    character*(*), intent(in), target :: name
+    character*(*), intent(in) :: name
     integer(c_int) :: get_uniform_location
 
     character(kind=c_char,len=:), allocatable, target :: str
@@ -146,7 +146,7 @@ contains
   module subroutine setuniform_int(x,name,idxi)
     use interfaces_opengl3, only: glUniform1i, glGetUniformLocation
     integer(c_int), intent(in) :: x
-    character*(*), intent(in), target, optional :: name
+    character*(*), intent(in), optional :: name
     integer(c_int), intent(in), optional :: idxi
 
     character(kind=c_char,len=:), allocatable, target :: str
@@ -164,11 +164,11 @@ contains
 
   end subroutine setuniform_int
 
-  !> Set a float uniform.
-  module subroutine setuniform_float(x,name,idxi)
+  !> Set a float uniform. Realc version.
+  module subroutine setuniform_float_realc(x,name,idxi)
     use interfaces_opengl3, only: glUniform1f, glGetUniformLocation
     real(c_float), intent(in) :: x
-    character*(*), intent(in), target, optional :: name
+    character*(*), intent(in), optional :: name
     integer(c_int), intent(in), optional :: idxi
 
     character(kind=c_char,len=:), allocatable, target :: str
@@ -184,17 +184,42 @@ contains
     end if
     call glUniform1f(idx,x)
 
-  end subroutine setuniform_float
+  end subroutine setuniform_float_realc
 
-  !> Set a vec3 float uniform.
-  module subroutine setuniform_vec3(x,name,idxi)
+  !> Set a float uniform. Real*8 version.
+  module subroutine setuniform_float_real8(x,name,idxi)
+    use interfaces_opengl3, only: glUniform1f, glGetUniformLocation
+    real*8, intent(in) :: x
+    character*(*), intent(in), optional :: name
+    integer(c_int), intent(in), optional :: idxi
+
+    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_int) :: idx
+    real(c_float), target :: x_
+
+    if (present(idxi)) then
+       idx = idxi
+       if (idx < 0) return
+    elseif (present(name)) then
+       str = trim(name) // c_null_char
+       idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+       if (idx < 0) return
+    end if
+    x_ = real(x,c_float)
+    call glUniform1f(idx,x_)
+
+  end subroutine setuniform_float_real8
+
+  !> Set a vec3 float uniform. Realc version.
+  module subroutine setuniform_vec3_realc(x,name,idxi)
     use interfaces_opengl3, only: glUniform3fv, glGetUniformLocation
-    real(c_float), intent(in), target :: x(3)
-    character*(*), intent(in), target, optional :: name
+    real(c_float), intent(in) :: x(3)
+    character*(*), intent(in), optional :: name
     integer(c_int), intent(in), optional :: idxi
 
     character(kind=c_char,len=:), allocatable, target :: str
     integer(c_int) :: idx
+    real(c_float), target :: x_(3)
 
     if (present(idxi)) then
        idx = idxi
@@ -204,19 +229,45 @@ contains
        idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
        if (idx < 0) return
     end if
-    call glUniform3fv(idx,1,c_loc(x))
+    x_ = x
+    call glUniform3fv(idx,1,c_loc(x_))
 
-  end subroutine setuniform_vec3
+  end subroutine setuniform_vec3_realc
 
-  !> Set a vec4 float uniform.
-  module subroutine setuniform_vec4(x,name,idxi)
+  !> Set a vec3 float uniform. Real*8 version.
+  module subroutine setuniform_vec3_real8(x,name,idxi)
+    use interfaces_opengl3, only: glUniform3fv, glGetUniformLocation
+    real*8, intent(in) :: x(3)
+    character*(*), intent(in), optional :: name
+    integer(c_int), intent(in), optional :: idxi
+
+    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_int) :: idx
+    real(c_float), target :: x_(3)
+
+    if (present(idxi)) then
+       idx = idxi
+       if (idx < 0) return
+    elseif (present(name)) then
+       str = trim(name) // c_null_char
+       idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+       if (idx < 0) return
+    end if
+    x_ = real(x,c_float)
+    call glUniform3fv(idx,1,c_loc(x_))
+
+  end subroutine setuniform_vec3_real8
+
+  !> Set a vec4 float uniform. Realc version.
+  module subroutine setuniform_vec4_realc(x,name,idxi)
     use interfaces_opengl3, only: glUniform4fv, glGetUniformLocation
-    real(c_float), intent(in), target :: x(4)
-    character*(*), intent(in), target, optional :: name
+    real(c_float), intent(in) :: x(4)
+    character*(*), intent(in), optional :: name
     integer(c_int), intent(in), optional :: idxi
 
     character(kind=c_char,len=:), allocatable, target :: str
     integer(c_int) :: idx
+    real(c_float), target :: x_(4)
 
     if (present(idxi)) then
        idx = idxi
@@ -226,19 +277,45 @@ contains
        idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
        if (idx < 0) return
     end if
-    call glUniform4fv(idx,1,c_loc(x))
+    x_ = x
+    call glUniform4fv(idx,1,c_loc(x_))
 
-  end subroutine setuniform_vec4
+  end subroutine setuniform_vec4_realc
 
-  !> Set a mat3 float uniform
-  module subroutine setuniform_mat3(x,name,idxi)
+  !> Set a vec4 float uniform. Real*8 version.
+  module subroutine setuniform_vec4_real8(x,name,idxi)
+    use interfaces_opengl3, only: glUniform4fv, glGetUniformLocation
+    real*8, intent(in) :: x(4)
+    character*(*), intent(in), optional :: name
+    integer(c_int), intent(in), optional :: idxi
+
+    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_int) :: idx
+    real(c_float), target :: x_(4)
+
+    if (present(idxi)) then
+       idx = idxi
+       if (idx < 0) return
+    elseif (present(name)) then
+       str = trim(name) // c_null_char
+       idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+       if (idx < 0) return
+    end if
+    x_ = real(x,c_float)
+    call glUniform4fv(idx,1,c_loc(x_))
+
+  end subroutine setuniform_vec4_real8
+
+  !> Set a mat3 float uniform. Realc version.
+  module subroutine setuniform_mat3_realc(x,name,idxi)
     use interfaces_opengl3, only: glUniformMatrix3fv, glGetUniformLocation, GL_FALSE
-    real(c_float), intent(in), target :: x(3,3)
-    character*(*), intent(in), target, optional :: name
+    real(c_float), intent(in) :: x(3,3)
+    character*(*), intent(in), optional :: name
     integer(c_int), intent(in), optional :: idxi
 
     character(kind=c_char,len=:), allocatable, target :: str
     integer(c_int) :: idx
+    real(c_float), target :: x_(3,3)
 
     if (present(idxi)) then
        idx = idxi
@@ -248,19 +325,45 @@ contains
        idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
        if (idx < 0) return
     end if
-    call glUniformMatrix3fv(idx, 1, int(GL_FALSE,c_signed_char), c_loc(x))
+    x_ = x
+    call glUniformMatrix3fv(idx, 1, int(GL_FALSE,c_signed_char), c_loc(x_))
 
-  end subroutine setuniform_mat3
+  end subroutine setuniform_mat3_realc
 
-  !> Set a mat4 float uniform
-  module subroutine setuniform_mat4(x,name,idxi)
+  !> Set a mat3 float uniform. Real*8 version.
+  module subroutine setuniform_mat3_real8(x,name,idxi)
+    use interfaces_opengl3, only: glUniformMatrix3fv, glGetUniformLocation, GL_FALSE
+    real*8, intent(in) :: x(3,3)
+    character*(*), intent(in), optional :: name
+    integer(c_int), intent(in), optional :: idxi
+
+    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_int) :: idx
+    real(c_float), target :: x_(3,3)
+
+    if (present(idxi)) then
+       idx = idxi
+       if (idx < 0) return
+    elseif (present(name)) then
+       str = trim(name) // c_null_char
+       idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+       if (idx < 0) return
+    end if
+    x_ = real(x,c_float)
+    call glUniformMatrix3fv(idx, 1, int(GL_FALSE,c_signed_char), c_loc(x_))
+
+  end subroutine setuniform_mat3_real8
+
+  !> Set a mat4 float uniform. Realc version.
+  module subroutine setuniform_mat4_realc(x,name,idxi)
     use interfaces_opengl3, only: glUniformMatrix4fv, glGetUniformLocation, GL_FALSE
-    real(c_float), intent(in), target :: x(4,4)
-    character*(*), intent(in), target, optional :: name
+    real(c_float), intent(in) :: x(4,4)
+    character*(*), intent(in), optional :: name
     integer(c_int), intent(in), optional :: idxi
 
     character(kind=c_char,len=:), allocatable, target :: str
     integer(c_int) :: idx
+    real(c_float), target :: x_(4,4)
 
     if (present(idxi)) then
        idx = idxi
@@ -270,8 +373,33 @@ contains
        idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
        if (idx < 0) return
     end if
-    call glUniformMatrix4fv(idx, 1, int(GL_FALSE,c_signed_char), c_loc(x))
+    x_ = x
+    call glUniformMatrix4fv(idx, 1, int(GL_FALSE,c_signed_char), c_loc(x_))
 
-  end subroutine setuniform_mat4
+  end subroutine setuniform_mat4_realc
+
+  !> Set a mat4 float uniform. Real*8 version.
+  module subroutine setuniform_mat4_real8(x,name,idxi)
+    use interfaces_opengl3, only: glUniformMatrix4fv, glGetUniformLocation, GL_FALSE
+    real*8, intent(in) :: x(4,4)
+    character*(*), intent(in), optional :: name
+    integer(c_int), intent(in), optional :: idxi
+
+    character(kind=c_char,len=:), allocatable, target :: str
+    integer(c_int) :: idx
+    real(c_float), target :: x_(4,4)
+
+    if (present(idxi)) then
+       idx = idxi
+       if (idx < 0) return
+    elseif (present(name)) then
+       str = trim(name) // c_null_char
+       idx = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
+       if (idx < 0) return
+    end if
+    x_ = real(x,c_float)
+    call glUniformMatrix4fv(idx, 1, int(GL_FALSE,c_signed_char), c_loc(x_))
+
+  end subroutine setuniform_mat4_real8
 
 end submodule proc

@@ -41,6 +41,27 @@ module shaders
   public :: setuniform_mat3
   public :: setuniform_mat4
 
+  interface setuniform_float
+     module procedure setuniform_float_realc
+     module procedure setuniform_float_real8
+  end interface setuniform_float
+  interface setuniform_vec3
+     module procedure setuniform_vec3_realc
+     module procedure setuniform_vec3_real8
+  end interface setuniform_vec3
+  interface setuniform_vec4
+     module procedure setuniform_vec4_realc
+     module procedure setuniform_vec4_real8
+  end interface setuniform_vec4
+  interface setuniform_mat3
+     module procedure setuniform_mat3_realc
+     module procedure setuniform_mat3_real8
+  end interface setuniform_mat3
+  interface setuniform_mat4
+     module procedure setuniform_mat4_realc
+     module procedure setuniform_mat4_real8
+  end interface setuniform_mat4
+
   ! module procedure interfaces
   interface
      module subroutine shaders_init()
@@ -51,39 +72,64 @@ module shaders
        integer, intent(in) :: id
      end subroutine useshader
      module function get_uniform_location(name)
-       character*(*), intent(in), target :: name
+       character*(*), intent(in) :: name
        integer(c_int) :: get_uniform_location
      end function get_uniform_location
      module subroutine setuniform_int(x,name,idxi)
        integer(c_int), intent(in) :: x
-       character*(*), intent(in), target, optional :: name
+       character*(*), intent(in), optional :: name
        integer(c_int), intent(in), optional :: idxi
      end subroutine setuniform_int
-     module subroutine setuniform_float(x,name,idxi)
+     module subroutine setuniform_float_realc(x,name,idxi)
        real(c_float), intent(in) :: x
-       character*(*), intent(in), target, optional :: name
+       character*(*), intent(in), optional :: name
        integer(c_int), intent(in), optional :: idxi
-     end subroutine setuniform_float
-     module subroutine setuniform_vec3(x,name,idxi)
-       real(c_float), intent(in), target :: x(3)
-       character*(*), intent(in), target, optional :: name
+     end subroutine setuniform_float_realc
+     module subroutine setuniform_float_real8(x,name,idxi)
+       real*8, intent(in) :: x
+       character*(*), intent(in), optional :: name
        integer(c_int), intent(in), optional :: idxi
-     end subroutine setuniform_vec3
-     module subroutine setuniform_vec4(x,name,idxi)
-       real(c_float), intent(in), target :: x(4)
-       character*(*), intent(in), target, optional :: name
+     end subroutine setuniform_float_real8
+     module subroutine setuniform_vec3_realc(x,name,idxi)
+       real(c_float), intent(in) :: x(3)
+       character*(*), intent(in), optional :: name
        integer(c_int), intent(in), optional :: idxi
-     end subroutine setuniform_vec4
-     module subroutine setuniform_mat3(x,name,idxi)
-       real(c_float), intent(in), target :: x(3,3)
-       character*(*), intent(in), target, optional :: name
+     end subroutine setuniform_vec3_realc
+     module subroutine setuniform_vec3_real8(x,name,idxi)
+       real*8, intent(in) :: x(3)
+       character*(*), intent(in), optional :: name
        integer(c_int), intent(in), optional :: idxi
-     end subroutine setuniform_mat3
-     module subroutine setuniform_mat4(x,name,idxi)
-       real(c_float), intent(in), target :: x(4,4)
-       character*(*), intent(in), target, optional :: name
+     end subroutine setuniform_vec3_real8
+     module subroutine setuniform_vec4_realc(x,name,idxi)
+       real(c_float), intent(in) :: x(4)
+       character*(*), intent(in), optional :: name
        integer(c_int), intent(in), optional :: idxi
-     end subroutine setuniform_mat4
+     end subroutine setuniform_vec4_realc
+     module subroutine setuniform_vec4_real8(x,name,idxi)
+       real*8, intent(in) :: x(4)
+       character*(*), intent(in), optional :: name
+       integer(c_int), intent(in), optional :: idxi
+     end subroutine setuniform_vec4_real8
+     module subroutine setuniform_mat3_realc(x,name,idxi)
+       real(c_float), intent(in) :: x(3,3)
+       character*(*), intent(in), optional :: name
+       integer(c_int), intent(in), optional :: idxi
+     end subroutine setuniform_mat3_realc
+     module subroutine setuniform_mat3_real8(x,name,idxi)
+       real*8, intent(in) :: x(3,3)
+       character*(*), intent(in), optional :: name
+       integer(c_int), intent(in), optional :: idxi
+     end subroutine setuniform_mat3_real8
+     module subroutine setuniform_mat4_realc(x,name,idxi)
+       real(c_float), intent(in) :: x(4,4)
+       character*(*), intent(in), optional :: name
+       integer(c_int), intent(in), optional :: idxi
+     end subroutine setuniform_mat4_realc
+     module subroutine setuniform_mat4_real8(x,name,idxi)
+       real*8, intent(in) :: x(4,4)
+       character*(*), intent(in), optional :: name
+       integer(c_int), intent(in), optional :: idxi
+     end subroutine setuniform_mat4_real8
   end interface
 
 end module shaders
