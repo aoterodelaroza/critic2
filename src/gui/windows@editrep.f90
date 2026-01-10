@@ -160,7 +160,8 @@ contains
   !> the scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_atoms(w,ttshown) result(changed)
     use representations, only: representation
-    use systems, only: sys, sysc
+    use systems, only: sys, sysc, atlisttype_species, atlisttype_ncel_ang, atlisttype_nmol,&
+       atlisttype_nneq
     use gui_main, only: g, ColorHighlightScene, ColorElement
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
@@ -194,7 +195,7 @@ contains
 
     ! initialize
     ihighlight = 0
-    highlight_type = 0
+    highlight_type = atlisttype_species
     changed = .false.
     isys = w%isys
 
@@ -358,7 +359,7 @@ contains
           call igPopItemWidth()
 
           ! draw the atom selection widget
-          changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,&
+          changed = changed .or. atom_selection_widget(isys,w%rep,&
              .true.,.false.,ihighlight,highlight_type)
 
           call igEndTabItem()
@@ -389,6 +390,7 @@ contains
                 ch = ch .or. iw_dragfloat_realc("Value##atomradii",x1=raux,speed=0.01_c_float,&
                    min=0._c_float,max=5._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
                 call iw_tooltip("Atomic radii (Å)",ttshown)
+
                 if (ch) then
                    w%rep%atom_radii_value = raux / real(bohrtoa,c_float)
                    w%rep%atom_style%rad(1:w%rep%atom_style%ntype) =w%rep%atom_radii_value
@@ -402,13 +404,7 @@ contains
 
                 if (ch) then
                    do i = 1, w%rep%atom_style%ntype
-                      if (w%rep%atom_style%type == 0) then ! species
-                         ispc = i
-                      elseif (w%rep%atom_style%type == 1) then ! nneq
-                         ispc = sys(isys)%c%at(i)%is
-                      else ! ncel
-                         ispc = sys(isys)%c%atcel(i)%is
-                      end if
+                      ispc = sysc(isys)%attype_species(w%rep%atom_style%type,i)
                       iz = sys(isys)%c%spc(ispc)%z
                       if (w%rep%atom_radii_type == 0) then
                          w%rep%atom_style%rad(i) = real(atmcov(iz),c_float)
@@ -429,13 +425,7 @@ contains
              call iw_tooltip("Set the color of all atoms to the tabulated values",ttshown)
              if (ch) then
                 do i = 1, w%rep%atom_style%ntype
-                   if (w%rep%atom_style%type == 0) then ! species
-                      ispc = i
-                   elseif (w%rep%atom_style%type == 1) then ! nneq
-                      ispc = sys(isys)%c%at(i)%is
-                   else ! ncel
-                      ispc = sys(isys)%c%atcel(i)%is
-                   end if
+                   ispc = sysc(isys)%attype_species(w%rep%atom_style%type,i)
                    iz = sys(isys)%c%spc(ispc)%z
                    if (w%rep%atom_color_type == 0) then
                       w%rep%atom_style%rgb(:,i) = ColorElement(:,iz)
@@ -460,7 +450,7 @@ contains
              call iw_tooltip("Color of the border for the atoms",ttshown)
 
              ! draw the atom selection widget
-             changed = changed .or. atom_selection_widget(sys(isys)%c,w%rep,&
+             changed = changed .or. atom_selection_widget(isys,w%rep,&
                 .false.,.true.,ihighlight,highlight_type)
 
              call igEndTabItem()
@@ -784,22 +774,22 @@ contains
              ! number of entries in the table
              select case(w%rep%label_type)
              case (0,5,6)
-                intable = 0 ! species
+                intable = atlisttype_species
                 nrow = sys(isys)%c%nspc
                 ncol = 5
                 call iw_text("(per species)",sameline=.true.)
              case (2,3)
-                intable = 1 ! complete cell list
+                intable = atlisttype_ncel_ang
                 nrow = sys(isys)%c%ncel
                 ncol = 5
                 call iw_text("(per atom)",sameline=.true.)
              case (1,4,8)
-                intable = 2 ! non-equivalent list
+                intable = atlisttype_nneq
                 nrow = sys(isys)%c%nneq
                 ncol = 5
                 call iw_text("(per symmetry-unique atom)",sameline=.true.)
              case (7)
-                intable = 3 ! molecules
+                intable = atlisttype_nmol
                 nrow = sys(isys)%c%nmol
                 ncol = 3
                 call iw_text("(per molecule)",sameline=.true.)
@@ -824,7 +814,7 @@ contains
                 flags = ImGuiTableColumnFlags_WidthFixed
                 call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,ncol)
 
-                if (intable < 3) then
+                if (intable /= atlisttype_nmol) then
                    str2 = "Atom" // c_null_char
                    ncol = ncol + 1
                    flags = ImGuiTableColumnFlags_WidthFixed
@@ -879,16 +869,10 @@ contains
                          end if
                       end if
 
-                      if (intable == 0) then ! species
-                         is = i
-                      elseif (intable == 1) then ! complete cell list
-                         is = sys(isys)%c%atcel(i)%is
-                      elseif (intable == 2) then ! non-equivalent list
-                         is = sys(isys)%c%at(i)%is
-                      end if
+                      is = sysc(isys)%attype_species(intable,i)
 
                       ! atom
-                      if (intable < 3) then
+                      if (intable /= atlisttype_nmol) then
                          ncol = ncol + 1
                          if (igTableSetColumnIndex(ncol)) &
                             call iw_text(trim(sys(isys)%c%spc(is)%name))
@@ -1105,8 +1089,10 @@ contains
   !> showselection = show the selection tab columns in the tables.
   !> showdrawopts = show the atoms tab columns (draw) in the tables.
   !> dohighlight = return true if highlight has been done
-  function atom_selection_widget(c,r,showselection,showdrawopts,ihighlight,highlight_type) &
+  function atom_selection_widget(isys,r,showselection,showdrawopts,ihighlight,highlight_type) &
      result(changed)
+    use systems, only: sys, sysc, atlisttype_species, atlisttype_nneq, atlisttype_ncel_ang,&
+       atlisttype_nmol, atlisttype_ncel_frac
     use representations, only: atom_geom_style, mol_geom_style
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
        iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit, iw_highlight_selectable,&
@@ -1114,7 +1100,7 @@ contains
     use crystalmod, only: crystal
     use global, only: iunit_ang, dunit0
     use tools_io, only: string, ioj_right
-    type(crystal), intent(in) :: c
+    integer, intent(in) :: isys
     type(representation), intent(inout) :: r
     logical, intent(in) :: showselection
     logical, intent(in) :: showdrawopts
@@ -1122,53 +1108,58 @@ contains
     integer, intent(out) :: highlight_type
     logical :: changed
 
-    logical :: domol
+    logical :: domol, docoord
     logical(c_bool) :: ch
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3, suffix
     real*8 :: x0(3)
     type(ImVec2) :: sz0, szero
-    integer :: ispc, i, iz, ncol, isys, icol
+    integer :: ispc, i, iz, ncol, icol
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
 
     logical, save :: ttshown = .false. ! tooltip flag
 
+    integer, parameter :: atlisttype_allowed_crys(3) = (/atlisttype_species,atlisttype_nneq,&
+       atlisttype_ncel_frac/)
+    integer, parameter :: atlisttype_allowed_mol(2) = (/atlisttype_species,atlisttype_ncel_ang/)
+    integer, allocatable :: atlisttype_allowed(:)
+
+    ! initialize
     ihighlight = 0
     highlight_type = 0
     szero%x = 0
     szero%y = 0
-    isys = r%id
     if (showselection) then
        call iw_text("Atom Selection",highlight=.true.)
     elseif (showdrawopts) then
        call iw_text("Atom Style",highlight=.true.)
     end if
+    if (sys(isys)%c%ismolecule) then
+       atlisttype_allowed = atlisttype_allowed_mol
+    else
+       atlisttype_allowed = atlisttype_allowed_crys
+    end if
 
     ! selector and reset
     changed = .false.
-    ch = .false.
-    if (.not.c%ismolecule) then
-       call iw_combo_simple("Atom types##atomtypeselection","Species"//c_null_char//&
-          "Symmetry unique" //c_null_char//"Cell"//c_null_char//c_null_char,&
-          r%atom_style%type,changed=ch)
-    else
-       call iw_combo_simple("Atom types##atomtypeselection","Species"//c_null_char//"Atoms"//c_null_char//&
-          c_null_char,r%atom_style%type,changed=ch)
-    end if
+    ch = sysc(isys)%attype_combo_simple("Atom types##atomtypeselection",r%atom_style%type,&
+       atlisttype_allowed,units=.false.)
     call iw_tooltip("Group atoms by these categories",ttshown)
     if (ch) then
        call r%atom_style%reset(r)
        changed = .true.
     end if
 
-    ! whether to do the molecule column
-    domol = (r%atom_style%type == 2 .or. (r%atom_style%type == 1 .and. c%ismolecule))
+    ! whether to do the molecule column and the coordinates
+    domol = (r%atom_style%type == atlisttype_ncel_ang)
+    docoord = (r%atom_style%type == atlisttype_nneq .or. r%atom_style%type == atlisttype_ncel_ang .or.&
+       r%atom_style%type == atlisttype_ncel_frac)
     ncol = 3
     if (showselection) ncol = ncol + 1 ! show
     if (showdrawopts) ncol = ncol + 2 ! col, radius
     if (domol) ncol = ncol + 1 ! mol
-    if (r%atom_style%type > 0) ncol = ncol + 1 ! coordinates
+    if (docoord) ncol = ncol + 1 ! coordinates
 
     ! atom style table, for atoms
     flags = ImGuiTableFlags_None
@@ -1226,9 +1217,9 @@ contains
           call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
        end if
 
-       if (r%atom_style%type > 0) then
+       if (docoord) then
           icol = icol + 1
-          if (c%ismolecule) then
+          if (r%atom_style%type == atlisttype_ncel_ang) then
              str2 = "Coordinates (Å)" // c_null_char
           else
              str2 = "Coordinates (fractional)" // c_null_char
@@ -1254,17 +1245,8 @@ contains
              icol = -1
 
              call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-             if (r%atom_style%type == 0) then
-                ! species
-                ispc = i
-             elseif (r%atom_style%type == 1) then
-                ! nneq
-                ispc = c%at(i)%is
-             elseif (r%atom_style%type == 2) then
-                ! ncel
-                ispc = c%atcel(i)%is
-             end if
-             iz = c%spc(ispc)%z
+             ispc = sysc(isys)%attype_species(r%atom_style%type,i)
+             iz = sys(isys)%c%spc(ispc)%z
 
              ! id
              icol = icol + 1
@@ -1281,7 +1263,7 @@ contains
 
              ! name
              icol = icol + 1
-             if (igTableSetColumnIndex(icol)) call iw_text(string(c%spc(ispc)%name))
+             if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%spc(ispc)%name))
 
              ! Z
              icol = icol + 1
@@ -1328,22 +1310,16 @@ contains
              if (domol) then
                 icol = icol + 1
                 ! i is a complete list index in this case
-                if (igTableSetColumnIndex(icol)) call iw_text(string(c%idatcelmol(1,i)))
+                if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%idatcelmol(1,i)))
              end if
 
              ! rest of info
-             if (r%atom_style%type > 0) then
+             if (docoord) then
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
                    s = ""
                    if (r%atom_style%type > 0) then
-                      if (c%ismolecule) then
-                         x0 = (c%atcel(i)%r+c%molx0) * dunit0(iunit_ang)
-                      elseif (r%atom_style%type == 1) then
-                         x0 = c%at(i)%x
-                      else
-                         x0 = c%atcel(i)%x
-                      endif
+                      x0 = sysc(isys)%attype_coordinates(r%atom_style%type,i)
                       s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
                          string(x0(3),'f',8,4,ioj_right)
                    end if
@@ -1438,7 +1414,7 @@ contains
           end if
 
           icol = icol + 1
-          if (c%ismolecule) then
+          if (sys(isys)%c%ismolecule) then
              str2 = "Center of mass (Å)" // c_null_char
           else
              str2 = "Center of mass (fractional)" // c_null_char
@@ -1471,13 +1447,13 @@ contains
                    ! the highlight selectable
                    if (iw_highlight_selectable("##selectableatomtable" // suffix)) then
                       ihighlight = i
-                      highlight_type = 3
+                      highlight_type = atlisttype_nmol
                    end if
                 end if
 
                 ! nat
                 icol = icol + 1
-                if (igTableSetColumnIndex(icol)) call iw_text(string(c%mol(i)%nat))
+                if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%mol(i)%nat))
 
                 ! shown
                 if (showselection) then
@@ -1520,11 +1496,11 @@ contains
                 ! rest of info
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
-                   x0 = c%mol(i)%cmass(.false.)
-                   if (c%ismolecule) then
-                      x0 = (x0+c%molx0) * dunit0(iunit_ang)
+                   x0 = sys(isys)%c%mol(i)%cmass(.false.)
+                   if (sys(isys)%c%ismolecule) then
+                      x0 = (x0+sys(isys)%c%molx0) * dunit0(iunit_ang)
                    else
-                      x0 = c%c2x(x0)
+                      x0 = sys(isys)%c%c2x(x0)
                    endif
                    s = string(x0(1),'f',8,4,ioj_right) //" "// string(x0(2),'f',8,4,ioj_right) //" "//&
                       string(x0(3),'f',8,4,ioj_right)

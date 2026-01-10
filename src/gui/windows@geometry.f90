@@ -63,7 +63,7 @@ contains
     real(c_float), allocatable :: irgba(:,:)
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
-    integer :: ii, i, j, isys, icol, ispc, iz, iview
+    integer :: ii, i, j, isys, icol, ispc, iz, iview, id
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, ldum, ok
@@ -180,7 +180,7 @@ contains
        flags = atompreflags
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
           ! group atom types
-          call sysc(isys)%attype_combo_simple("Types##atomtypeselectgeom",w%geometry_atomtype,atlisttype_allowed)
+          ldum = sysc(isys)%attype_combo_simple("Types##atomtypeselectgeom",w%geometry_atomtype,atlisttype_allowed)
           call iw_tooltip("Group atoms by these categories",ttshown)
           ntype = sysc(isys)%attype_number(w%geometry_atomtype)
 
@@ -384,25 +384,20 @@ contains
 
                    ! get the color from the first active atoms representation in the main view
                    havergb = .false.
-                   ! xxxxx !
-                   ! if (iview > 0) then
-                   !    do j = 1, win(iview)%sc%nrep
-                   !       if (win(iview)%sc%rep(j)%type == reptype_atoms.and.win(iview)%sc%rep(j)%isinit.and.&
-                   !          win(iview)%sc%rep(j)%shown) then
-                   !          if (win(iview)%sc%rep(j)%atom_style%type == 0) then ! color by species
-                   !             rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,ispc)
-                   !             havergb = .true.
-                   !          elseif (win(iview)%sc%rep(j)%atom_style%type == loc_atomtype) then ! color by nneq or ncel
-                   !             rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,i)
-                   !             havergb = .true.
-                   !          elseif (win(iview)%sc%rep(j)%atom_style%type == 1 .and. w%geometry_atomtype >= 2) then ! color by nneq, select by ncel
-                   !             rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,sys(isys)%c%atcel(i)%idx)
-                   !             havergb = .true.
-                   !          end if
-                   !          if (havergb) exit
-                   !       end if
-                   !    end do
-                   ! end if
+                   if (iview > 0) then
+                      do j = 1, win(iview)%sc%nrep
+                         if (win(iview)%sc%rep(j)%type == reptype_atoms.and.win(iview)%sc%rep(j)%isinit.and.&
+                            win(iview)%sc%rep(j)%shown) then
+
+                            id = sysc(isys)%attype_type_id_to_id(w%geometry_atomtype,i,win(iview)%sc%rep(j)%atom_style%type)
+                            if (id /= 0) then
+                               havergb = .true.
+                               rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,id)
+                            end if
+                            if (havergb) exit
+                         end if
+                      end do
+                   end if
 
                    ! background color for the table row
                    if (w%geometry_selected(i)) then

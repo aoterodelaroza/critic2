@@ -101,6 +101,8 @@ module systems
      procedure :: attype_coordinates
      procedure :: attype_coordinates_decimals
      procedure :: attype_celatom_mask
+     procedure :: attype_celatom_to_id
+     procedure :: attype_type_id_to_id
   end type sysconf
 
   ! system arrays
@@ -192,12 +194,14 @@ module systems
      module subroutine remove_highlighted_atoms(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine remove_highlighted_atoms
-     module subroutine attype_combo_simple(sysc,label,type,allowed)
+     module function attype_combo_simple(sysc,label,type,allowed,units)
        class(sysconf), intent(inout) :: sysc
        character(len=*), intent(in) :: label
        integer, intent(inout) :: type
        integer, intent(in) :: allowed(:)
-     end subroutine attype_combo_simple
+       logical, intent(in), optional :: units
+       logical :: attype_combo_simple
+     end function attype_combo_simple
      module function attype_number(sysc,type)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type
@@ -233,6 +237,19 @@ module systems
        logical, allocatable, intent(inout), optional :: mask(:)
        integer, allocatable, intent(inout), optional :: imask(:)
      end subroutine attype_celatom_mask
+     module function attype_celatom_to_id(sysc,type,id)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, intent(in) :: id
+       integer :: attype_celatom_to_id
+     end function attype_celatom_to_id
+     module function attype_type_id_to_id(sysc,typein,id,typeout)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: typein
+       integer, intent(in) :: id
+       integer, intent(in) :: typeout
+       integer :: attype_type_id_to_id
+     end function attype_type_id_to_id
   end interface
 
 end module systems

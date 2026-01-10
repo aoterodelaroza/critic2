@@ -274,7 +274,7 @@ contains
   !> of cells and the data from representation r. If doanim, use qpt
   !> iqpt and frequency ifreq to animate the representation.
   module subroutine add_draw_elements(r,nc,obj,doanim,iqpt,ifreq)
-    use systems, only: sys
+    use systems, only: sys, sysc
     use crystalmod, only: iperiod_vacthr
     use tools_io, only: string, nameguess
     use param, only: tpi, img, atmass
@@ -418,13 +418,7 @@ contains
           ! imol is the corresponding molecule
 
           ! skip hidden atoms
-          if (r%atom_style%type == 0) then ! species
-             id = sys(r%id)%c%atcel(i)%is
-          elseif (r%atom_style%type == 1) then ! nneq
-             id = sys(r%id)%c%atcel(i)%idx
-          else ! ncel
-             id = i
-          end if
+          id = sysc(r%id)%attype_celatom_to_id(r%atom_style%type,i)
           if (.not.r%atom_style%shown(id)) cycle
 
           ! skip hidden molecules
@@ -580,14 +574,7 @@ contains
                             obj%cyl(obj%ncyl)%border = r%bond_border_size
                             obj%cyl(obj%ncyl)%rgbborder = r%bond_border_rgb
                          else
-                            ! calculate the midpoint, taking into account the atomic radii
-                            if (r%atom_style%type == 0) then ! species
-                               idaux = sys(r%id)%c%atcel(ineigh)%is
-                            elseif (r%atom_style%type == 1) then ! nneq
-                               idaux = sys(r%id)%c%atcel(ineigh)%idx
-                            else ! ncel
-                               idaux = ineigh
-                            end if
+                            idaux = sysc(r%id)%attype_celatom_to_id(r%atom_style%type,ineigh)
                             rad2 = r%atom_style%rad(idaux) * r%mol_style%scale_rad(sys(r%id)%c%idatcelmol(1,ineigh))
                             dd = norm2(x2 - x1)
                             f1 = min(max((0.5d0 + 0.5d0 * (rad2 - rad1) / dd),0._c_float),1._c_float)
@@ -860,7 +847,7 @@ contains
   !> point at by representation r. Uses d%type to fill the arrays.
   module subroutine atom_style_reset(d,r)
     use interfaces_glfw, only: glfwGetTime
-    use systems, only: sys, sys_ready, ok_system
+    use systems, only: sys, sysc, sys_ready, ok_system, atlisttype_species
     use gui_main, only: ColorElement
     use param, only: atmcov, atmvdw, jmlcol, jmlcol2
     class(atom_geom_style), intent(inout) :: d
@@ -869,7 +856,7 @@ contains
     integer :: i, ispc, iz
 
     ! if not initialized, set type
-    if (.not.d%isinit) d%type = 0
+    if (.not.d%isinit) d%type = atlisttype_species
 
     ! set the atom style to zero
     d%ntype = 0
@@ -884,73 +871,27 @@ contains
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
 
-    ! fill according to the style
-    if (d%type == 0) then ! species
-       d%ntype = sys(r%id)%c%nspc
-       allocate(d%shown(d%ntype),d%rgb(3,d%ntype))
-       allocate(d%rad(d%ntype))
-       do i = 1, d%ntype
-          iz = sys(r%id)%c%spc(i)%z
-          if (r%atom_color_type == 0) then
-             d%rgb(:,i) = ColorElement(:,iz)
-          elseif (r%atom_color_type == 1) then
-             d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
-          else
-             d%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
-          end if
-          if (r%atom_radii_type == 0) then
-             d%rad(i) = r%atom_radii_scale * real(atmcov(iz),c_float)
-          elseif (r%atom_radii_type == 1) then
-             d%rad(i) = r%atom_radii_scale * real(atmvdw(iz),c_float)
-          else
-             d%rad(i) = r%atom_radii_value
-          endif
-       end do
-    elseif (d%type == 1) then ! nneq
-       d%ntype = sys(r%id)%c%nneq
-       allocate(d%shown(d%ntype),d%rgb(3,d%ntype))
-       allocate(d%rad(d%ntype))
-       do i = 1, sys(r%id)%c%nneq
-          ispc = sys(r%id)%c%at(i)%is
-          iz = sys(r%id)%c%spc(ispc)%z
-          if (r%atom_color_type == 0) then
-             d%rgb(:,i) = ColorElement(:,iz)
-          elseif (r%atom_color_type == 1) then
-             d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
-          else
-             d%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
-          end if
-          if (r%atom_radii_type == 0) then
-             d%rad(i) = r%atom_radii_scale * real(atmcov(iz),c_float)
-          elseif (r%atom_radii_type == 1) then
-             d%rad(i) = r%atom_radii_scale * real(atmvdw(iz),c_float)
-          else
-             d%rad(i) = r%atom_radii_value
-          endif
-       end do
-    else ! ncel
-       d%ntype = sys(r%id)%c%ncel
-       allocate(d%shown(d%ntype),d%rgb(3,d%ntype))
-       allocate(d%rad(d%ntype))
-       do i = 1, sys(r%id)%c%ncel
-          ispc = sys(r%id)%c%atcel(i)%is
-          iz = sys(r%id)%c%spc(ispc)%z
-          if (r%atom_color_type == 0) then
-             d%rgb(:,i) = ColorElement(:,iz)
-          elseif (r%atom_color_type == 1) then
-             d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
-          else
-             d%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
-          end if
-          if (r%atom_radii_type == 0) then
-             d%rad(i) = r%atom_radii_scale * real(atmcov(iz),c_float)
-          elseif (r%atom_radii_type == 1) then
-             d%rad(i) = r%atom_radii_scale * real(atmvdw(iz),c_float)
-          else
-             d%rad(i) = r%atom_radii_value
-          endif
-       end do
-    end if
+    ! fill data
+    d%ntype = sysc(r%id)%attype_number(d%type)
+    allocate(d%shown(d%ntype),d%rgb(3,d%ntype),d%rad(d%ntype))
+    do i = 1, d%ntype
+       ispc = sysc(r%id)%attype_species(d%type,i)
+       iz = sys(r%id)%c%spc(ispc)%z
+       if (r%atom_color_type == 0) then
+          d%rgb(:,i) = ColorElement(:,iz)
+       elseif (r%atom_color_type == 1) then
+          d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
+       else
+          d%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
+       end if
+       if (r%atom_radii_type == 0) then
+          d%rad(i) = r%atom_radii_scale * real(atmcov(iz),c_float)
+       elseif (r%atom_radii_type == 1) then
+          d%rad(i) = r%atom_radii_scale * real(atmvdw(iz),c_float)
+       else
+          d%rad(i) = r%atom_radii_value
+       endif
+    end do
     d%shown = .true.
     d%isinit = .true.
 
@@ -959,7 +900,7 @@ contains
   !> Reset colors in an atom style to defaults.
   module subroutine atom_style_reset_colors(d,r)
     use interfaces_glfw, only: glfwGetTime
-    use systems, only: sys, sys_ready, ok_system
+    use systems, only: sys, sysc, sys_ready, ok_system
     use gui_main, only: ColorElement
     class(atom_geom_style), intent(inout) :: d
     type(representation), intent(in) :: r
@@ -969,25 +910,11 @@ contains
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
 
-    ! fill according to the style
-    if (d%type == 0) then ! species
-       do i = 1, d%ntype
-          iz = sys(r%id)%c%spc(i)%z
-          d%rgb(:,i) = ColorElement(:,iz)
-       end do
-    elseif (d%type == 1) then ! nneq
-       do i = 1, sys(r%id)%c%nneq
-          ispc = sys(r%id)%c%at(i)%is
-          iz = sys(r%id)%c%spc(ispc)%z
-          d%rgb(:,i) = ColorElement(:,iz)
-       end do
-    else ! ncel
-       do i = 1, sys(r%id)%c%ncel
-          ispc = sys(r%id)%c%atcel(i)%is
-          iz = sys(r%id)%c%spc(ispc)%z
-          d%rgb(:,i) = ColorElement(:,iz)
-       end do
-    end if
+    do i = 1, d%ntype
+       ispc = sysc(r%id)%attype_species(d%type,i)
+       iz = sys(r%id)%c%spc(ispc)%z
+       d%rgb(:,i) = ColorElement(:,iz)
+    end do
 
   end subroutine atom_style_reset_colors
 

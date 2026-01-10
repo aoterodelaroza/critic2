@@ -764,21 +764,28 @@ contains
 
   ! Show a simple combo using the allowed atom types. Type is the
   ! initial and final atom type in the combo.
-  module subroutine attype_combo_simple(sysc,label,type,allowed)
+  module function attype_combo_simple(sysc,label,type,allowed,units)
     use utils, only: iw_combo_simple
     class(sysconf), intent(inout) :: sysc
     character(len=*), intent(in) :: label
     integer, intent(inout) :: type
     integer, intent(in) :: allowed(:)
+    logical, intent(in), optional :: units
+    logical :: attype_combo_simple
 
     character(len=:), allocatable :: strcombo
     logical :: allowedin(atlisttype_NUM)
     integer :: i, id, icombo, icount, itype
     integer :: decode(0:atlisttype_NUM-1)
+    logical(c_bool) :: ch
+    logical :: units_
 
-    ! consistency checks
+    ! consistency checks and initialize
+    attype_combo_simple = .false.
     id = sysc%id
     if (.not.ok_system(id,sys_init)) return
+    units_ = .true.
+    if (present(units)) units_ = units
 
     ! build the allowed mask
     allowedin = .false.
@@ -828,12 +835,42 @@ contains
     if (allowedin(atlisttype_species)) strcombo = strcombo // "Species" // c_null_char
     if (allowedin(atlisttype_nneq)) strcombo = strcombo // "Symmetry unique" // c_null_char
     if (sys(id)%c%ismolecule) then
-       if (allowedin(atlisttype_ncel_bohr)) strcombo = strcombo // "Atoms (bohr)" // c_null_char
-       if (allowedin(atlisttype_ncel_ang)) strcombo = strcombo // "Atoms (Å)" // c_null_char
+       if (allowedin(atlisttype_ncel_bohr)) then
+          if (units_) then
+             strcombo = strcombo // "Atoms (bohr)" // c_null_char
+          else
+             strcombo = strcombo // "Atoms" // c_null_char
+          end if
+       end if
+       if (allowedin(atlisttype_ncel_ang)) then
+          if (units_) then
+             strcombo = strcombo // "Atoms (Å)" // c_null_char
+          else
+             strcombo = strcombo // "Atoms" // c_null_char
+          end if
+       end if
     else
-       if (allowedin(atlisttype_ncel_frac)) strcombo = strcombo // "Cell (fractional)" // c_null_char
-       if (allowedin(atlisttype_ncel_bohr)) strcombo = strcombo // "Cell (bohr)" // c_null_char
-       if (allowedin(atlisttype_ncel_ang)) strcombo = strcombo // "Cell (Å)" // c_null_char
+       if (allowedin(atlisttype_ncel_frac)) then
+          if (units_) then
+             strcombo = strcombo // "Cell (fractional)" // c_null_char
+          else
+             strcombo = strcombo // "Cell" // c_null_char
+          end if
+       end if
+       if (allowedin(atlisttype_ncel_bohr)) then
+          if (units_) then
+             strcombo = strcombo // "Cell (bohr)" // c_null_char
+          else
+             strcombo = strcombo // "Cell" // c_null_char
+          end if
+       end if
+       if (allowedin(atlisttype_ncel_ang)) then
+          if (units_) then
+             strcombo = strcombo // "Cell (Å)" // c_null_char
+          else
+             strcombo = strcombo // "Cell" // c_null_char
+          end if
+       end if
     end if
     if (allowedin(atlisttype_nmol)) strcombo = strcombo // "Molecules" // c_null_char
     strcombo = strcombo // c_null_char // c_null_char
@@ -850,12 +887,13 @@ contains
     end do
 
     ! the actual combo
-    call iw_combo_simple(label,strcombo,icombo)
+    call iw_combo_simple(label,strcombo,icombo,changed=ch)
+    attype_combo_simple = ch
 
     ! decode the combo
     type = decode(icombo)
 
-  end subroutine attype_combo_simple
+  end function attype_combo_simple
 
   ! For the given atom type, return the number of entities (atoms,
   ! species, molecules, etc.)
@@ -884,7 +922,8 @@ contains
   end function attype_number
 
   ! For the given atom type, return the ID of the corresponding
-  ! atomic species.
+  ! atomic species. If this cannot be satisfied (e.g. type is nmol),
+  ! return zero.
   module function attype_species(sysc,type,id)
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: type
@@ -1043,6 +1082,67 @@ contains
     end do
 
   end subroutine attype_celatom_mask
+
+  ! Given the celatom number id, return the corresponding id
+  ! corresponding to the given type.
+  module function attype_celatom_to_id(sysc,type,id)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: id
+    integer :: attype_celatom_to_id
+
+    integer :: isys
+
+    ! initialize
+    attype_celatom_to_id = 0
+    isys = sysc%id
+    if (id < 1 .or. id > sys(isys)%c%ncel) return
+
+    if (type == atlisttype_species) then
+       attype_celatom_to_id = sys(isys)%c%atcel(id)%is
+    elseif (type == atlisttype_nneq) then
+       attype_celatom_to_id = sys(isys)%c%atcel(id)%idx
+    elseif (type == atlisttype_nmol) then
+       attype_celatom_to_id = sys(isys)%c%idatcelmol(1,id)
+    else
+       attype_celatom_to_id = id
+    end if
+
+  end function attype_celatom_to_id
+
+  ! Given the identifier id belonging to type typein, return the only
+  ! ID corresponding to type type that matches it. Example: if given
+  ! non-equivalent atom ID 3, return the species ID of the species
+  ! corresponding to that atom. If the result is ambiguous, return
+  ! 0. Example of ambiguous result: return the non-equivalent atom ID
+  ! corresponding to species 3.
+  module function attype_type_id_to_id(sysc,typein,id,typeout)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: typein
+    integer, intent(in) :: id
+    integer, intent(in) :: typeout
+    integer :: attype_type_id_to_id
+
+    ! initialize and return the same ID if the types are equal
+    attype_type_id_to_id = 0
+    if (typein == typeout) then
+       attype_type_id_to_id = id
+       return
+    end if
+    if (typeout == atlisttype_species) then
+       attype_type_id_to_id = sysc%attype_species(typein,id)
+    elseif (typein == atlisttype_ncel_frac.or.typein == atlisttype_ncel_bohr.or.&
+       typein == atlisttype_ncel_ang) then
+       if (typeout == atlisttype_nneq) then
+          attype_type_id_to_id = sys(sysc%id)%c%atcel(id)%idx
+       elseif (typeout == atlisttype_nmol) then
+          attype_type_id_to_id = sys(sysc%id)%c%idatcelmol(1,id)
+       else
+          attype_type_id_to_id = id
+       end if
+    end if
+
+  end function attype_type_id_to_id
 
   !xx! private procedures
 

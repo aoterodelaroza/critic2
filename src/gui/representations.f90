@@ -44,7 +44,7 @@ module representations
   type atom_geom_style
      logical :: isinit = .false. ! whether the style is intialized
      real*8 :: timelastreset = 0d0 ! time the style was last reset
-     integer :: type ! atom style type: 0=species,1=nneq,2=cell
+     integer :: type ! atom style type (attlisttype_* in systems module)
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
      logical, allocatable :: shown(:) ! whether it is shown (ntype)
      real(c_float), allocatable :: rgb(:,:) ! color (3,ntype)
