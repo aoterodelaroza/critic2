@@ -1144,6 +1144,52 @@ contains
 
   end function attype_type_id_to_id
 
+  ! For the atom identifier id corresponding to the given atom type,
+  ! set the atomic position(s) in the system.
+  module subroutine set_atom_position(sysc,type,id,x)
+    use global, only: iunit_bohr, iunit_fractional
+    use param, only: bohrtoa
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: id
+    real*8, intent(in) :: x(3)
+
+    integer :: isys
+    real*8 :: x_(3)
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! initialize
+    x_ = x
+
+    ! move the atom
+    if (type == atlisttype_nneq) then
+    !    attype_coordinates = sys(isys)%c%at(id)%x
+    elseif (type == atlisttype_ncel_frac) then
+       call sys(isys)%c%move_celatom(id,x_,iunit_fractional,.false.)
+    elseif (type == atlisttype_ncel_bohr) then
+       if (sys(isys)%c%ismolecule) &
+          x_ = x - sys(isys)%c%molx0
+       call sys(isys)%c%move_celatom(id,x_,iunit_bohr,.false.)
+    elseif (type == atlisttype_ncel_ang) then
+       if (sys(isys)%c%ismolecule) then
+          x_ = x/bohrtoa - sys(isys)%c%molx0
+       else
+          x_ = x/bohrtoa
+       end if
+       call sys(isys)%c%move_celatom(id,x_,iunit_bohr,.false.)
+    end if
+
+    ! reset fields
+    call sys(isys)%reset_fields()
+
+    ! the geometry has changed
+    call sysc%set_timelastchange(lastchange_geometry)
+
+  end subroutine set_atom_position
+
   !xx! private procedures
 
   ! Thread worker: run over all systems and initialize the ones that are not locked

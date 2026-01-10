@@ -925,7 +925,7 @@ contains
   !> Move atom with complete list ID idx to position x in units of
   !> iunit_l (see global). If dorelative, the movement is relative to
   !> its current position.
-  module subroutine move_atom(c,idx,x,iunit_l,dorelative,ti)
+  module subroutine move_celatom(c,idx,x,iunit_l,dorelative,ti)
     use crystalseedmod, only: crystalseed
     use global, only: iunit_ang, iunit_bohr
     use param, only: bohrtoa
@@ -961,7 +961,7 @@ contains
     ! build the new crystal
     call c%struct_new(seed,crashfail=.true.,ti=ti)
 
-  end subroutine move_atom
+  end subroutine move_celatom
 
   !> Modify the unit cell by changing the parameter given by iaxis:
   !> 1=a, 2=b, 3=c, -1=alpha, -2=beta, -3=gamma, 0=volume. The

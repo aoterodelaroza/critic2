@@ -46,12 +46,12 @@ contains
        atlisttype_ncel_ang
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
-       iw_combo_simple, iw_highlight_selectable, iw_coloredit
+       iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8
     use tools_io, only: string, nameguess, ioj_center
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, removehighlight
-    logical :: doquit, clicked, forcesort
+    logical :: doquit, clicked, forcesort, ch
     integer :: ihighlight, iclicked, nhigh, dec, icolsort(0:9)
     logical(c_bool) :: is_selected, redo_highlights
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
@@ -65,8 +65,8 @@ contains
     integer :: ii, i, j, isys, icol, ispc, iz, iview, id
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
-    logical :: havergb, ldum, ok
-    real*8 :: x0(3)
+    logical :: havergb, ldum, ok, ch
+    real*8 :: x0(3), xold(3)
     type(ImVec4) :: col4
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -87,6 +87,8 @@ contains
 
     integer, parameter :: atlisttype_allowed(5) = (/atlisttype_species,atlisttype_nneq,&
        atlisttype_ncel_frac,atlisttype_ncel_ang,atlisttype_ncel_bohr/)
+
+    real*8, parameter :: epsmoved = 1d-8
 
     ! initialize
     ihighlight = 0
@@ -465,13 +467,18 @@ contains
                    if (w%geometry_atomtype /= atlisttype_species) then
                       dec = sysc(isys)%attype_coordinates_decimals(w%geometry_atomtype)
                       x0 = sysc(isys)%attype_coordinates(w%geometry_atomtype,i)
+                      xold = x0
+                      ch = .false.
                       do j = 1, 3
                          icol = icol + 1
                          if (igTableSetColumnIndex(icol)) then
                             s = string(x0(j),'f',dec+4,dec,ioj_center)
-                            call iw_text(s)
+                            ch = ch .or. iw_dragfloat_real8("##x" // string(isys) // "_" // string(i) // "_" // string(j),&
+                               x1=x0(j),speed=0.001d0,sformat="%." // string(dec) // "f")
                          end if
                       end do
+                      if (ch .and. any(abs(x0-xold) > epsmoved)) &
+                         call sysc(isys)%set_atom_position(w%geometry_atomtype,i,x0)
                    end if
                 end do ! clipper indices
              end do ! clipper step

@@ -103,6 +103,8 @@ module systems
      procedure :: attype_celatom_mask
      procedure :: attype_celatom_to_id
      procedure :: attype_type_id_to_id
+     ! editing
+     procedure :: set_atom_position
   end type sysconf
 
   ! system arrays
@@ -250,6 +252,12 @@ module systems
        integer, intent(in) :: typeout
        integer :: attype_type_id_to_id
      end function attype_type_id_to_id
+     module subroutine set_atom_position(sysc,type,id,x)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, intent(in) :: id
+       real*8, intent(in) :: x(3)
+     end subroutine set_atom_position
   end interface
 
 end module systems
