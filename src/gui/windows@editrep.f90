@@ -552,8 +552,8 @@ contains
                 call iw_text("Between")
                 call igSameLine(0._c_float,-1._c_float)
                 call igPushItemWidth(iw_calcwidth(5,1))
-                ldum = iw_dragfloat_realc("##bondtableglobalbfmin",x1=w%rep%bond_bfmin,speed=0.01_c_float,min=0.0_c_float,&
-                   max=9.999_c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
+                ldum = iw_dragfloat_real8("##bondtableglobalbfmin",x1=w%rep%bond_bfmin,speed=0.01d0,min=0.0d0,&
+                   max=9.999d0,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
                 call igPopItemWidth()
                 call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
 
@@ -568,8 +568,8 @@ contains
                 call igSameLine(0._c_float,-1._c_float)
                 call igPushItemWidth(iw_calcwidth(5,1))
                 str2 = "##bondtableglobalbfmax" // c_null_char
-                ldum = iw_dragfloat_realc("##bondtableglobalbfmax",x1=w%rep%bond_bfmax,speed=0.01_c_float,min=0.0_c_float,&
-                   max=9.999_c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
+                ldum = iw_dragfloat_real8("##bondtableglobalbfmax",x1=w%rep%bond_bfmax,speed=0.01d0,min=0.0d0,&
+                   max=9.999d0,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
                 call igPopItemWidth()
                 call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
 
@@ -584,8 +584,8 @@ contains
                 call iw_text("Between")
                 call igSameLine(0._c_float,-1._c_float)
                 call igPushItemWidth(iw_calcwidth(5,1))
-                ldum = iw_dragfloat_realc("##bondtableglobaldmin",x1=w%rep%bond_dmin,speed=0.01_c_float,min=0.0_c_float,&
-                   max=9.999_c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
+                ldum = iw_dragfloat_real8("##bondtableglobaldmin",x1=w%rep%bond_dmin,speed=0.01d0,min=0.0d0,&
+                   max=9.999d0,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
                 call igPopItemWidth()
                 call iw_text("Å",sameline=.true.)
                 call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
@@ -594,8 +594,8 @@ contains
                 call iw_text("... and")
                 call igSameLine(0._c_float,-1._c_float)
                 call igPushItemWidth(iw_calcwidth(5,1))
-                ldum = iw_dragfloat_realc("##bondtableglobaldmax",x1=w%rep%bond_dmax,speed=0.01_c_float,min=0.0_c_float,&
-                   max=9.999_c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
+                ldum = iw_dragfloat_real8("##bondtableglobaldmax",x1=w%rep%bond_dmax,speed=0.01d0,min=0.0d0,&
+                   max=9.999d0,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
                 call igPopItemWidth()
                 call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
                 call iw_text("Å",sameline=.true.)

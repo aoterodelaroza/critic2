@@ -148,10 +148,10 @@ module representations
      logical :: bonds_display ! whether to draw the bonds
      type(bond_geom_style) :: bond_style ! bond styles
      integer(c_int) :: bond_distancetype ! selector for distance type (0=factor,1=range)
-     real(c_float) :: bond_dmin ! distance limits (angstrom)
-     real(c_float) :: bond_dmax ! distance limits (angstrom)
-     real(c_float) :: bond_bfmin ! bondfactor limits
-     real(c_float) :: bond_bfmax ! bondfactor limits
+     real*8 :: bond_dmin ! distance limits (angstrom)
+     real*8 :: bond_dmax ! distance limits (angstrom)
+     real*8 :: bond_bfmin ! bondfactor limits
+     real*8 :: bond_bfmax ! bondfactor limits
      integer(c_int) :: bond_radtype(2) ! radii type for min and max (0=covalent,1=vdw)
      integer(c_int) :: bond_color_style ! bond style (0=single color, 1=two colors)
      real(c_float) :: bond_rad ! radius

@@ -154,10 +154,10 @@ contains
     !--> bonds
     if (itype == 0 .or. itype == 2) then
        r%bond_distancetype = 0
-       r%bond_dmin = 0._c_float
-       r%bond_dmax = 0._c_float
-       r%bond_bfmin = 0._c_float
-       r%bond_bfmax = real(bondfactor,c_float)
+       r%bond_dmin = 0d0
+       r%bond_dmax = 0d0
+       r%bond_bfmin = 0d0
+       r%bond_bfmax = bondfactor
        r%bond_radtype = (/0_c_int,0_c_int/)
        r%bond_color_style = 0
        r%bond_border_size = bondborder_def
