@@ -567,8 +567,8 @@ contains
 
   !> Highlight atoms in the system. If transient, add the highlighted
   !> atom to the transient list and clear the list before adding. Add
-  !> atoms with indices idx of the given type (0=species,1=nneq,2=ncel,3=nmol)
-  !> and color rgba.
+  !> atoms with indices idx of the given type (atlisttype_*) and color
+  !> rgba.
   module subroutine highlight_atoms(sysc,transient,idx,type,rgba)
     class(sysconf), intent(inout) :: sysc
     logical, intent(in) :: transient
@@ -579,6 +579,7 @@ contains
     integer :: nat, i, id, iat
     real(c_float), allocatable :: highlight_aux(:,:)
     logical :: changed
+    integer, allocatable :: imask(:)
 
     ! input checks
     if (sysc%status < sys_init) return
@@ -618,26 +619,15 @@ contains
     if (transient) sysc%highlight_rgba_transient = -1
 
     ! highlight the atoms
+    call sysc%attype_celatom_mask(type,idx,imask=imask)
     do iat = 1, nat
-       if (type == 0) then ! species
-          id = sys(sysc%id)%c%atcel(iat)%is
-       elseif (type == 1) then ! nneq
-          id = sys(sysc%id)%c%atcel(iat)%idx
-       elseif (type == 2) then ! ncel
-          id = iat
-       else ! nmol
-          id = sys(sysc%id)%c%idatcelmol(1,iat)
-       end if
+       if (imask(iat) == 0) cycle
 
-       do i = 1, size(idx,1)
-          if (idx(i) == id) then
-             if (.not.transient) then
-                sysc%highlight_rgba(:,iat) = rgba(:,i)
-             else
-                sysc%highlight_rgba_transient(:,iat) = rgba(:,i)
-             end if
-          end if
-       end do
+       if (.not.transient) then
+          sysc%highlight_rgba(:,iat) = rgba(:,imask(iat))
+       else
+          sysc%highlight_rgba_transient(:,iat) = rgba(:,imask(iat))
+       end if
     end do
 
     ! set highlighted, the transient flag, and time for render if highlight has changed
@@ -992,6 +982,67 @@ contains
     end if
 
   end function attype_coordinates_decimals
+
+  ! If mask is present, return a logical mask of length equal to the
+  ! number of atoms in the cell, with .true. if the atom matches one
+  ! of the given ids for the corresponding atom type. If imask is
+  ! present, return a mask of length equal to the number of atoms in the
+  ! cell. For a given element i in the mask, imask(i) is zero if this is
+  ! not one of the atoms in ids for the corresponding type. If it is,
+  ! imask(i) has type ids(imask(i)).
+  module subroutine attype_celatom_mask(sysc,type,ids,mask,imask)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: ids(:)
+    logical, allocatable, intent(inout), optional :: mask(:)
+    integer, allocatable, intent(inout), optional :: imask(:)
+
+    integer :: nat, i, j, id
+    logical :: ok
+
+    ! initialize
+    if (present(mask)) then
+       if (allocated(mask)) deallocate(mask)
+    end if
+    if (present(imask)) then
+       if (allocated(imask)) deallocate(imask)
+    end if
+
+    ! consistency checks
+    id = sysc%id
+    if (.not.ok_system(id,sys_init)) return
+
+    ! initialize mask
+    nat = sys(id)%c%ncel
+    if (nat <= 0) return
+    if (present(mask)) then
+       allocate(mask(nat))
+       mask = .false.
+    end if
+    if (present(imask)) then
+       allocate(imask(nat))
+       imask = 0
+    end if
+
+    do i = 1, size(ids,1)
+       do j = 1, nat
+          if (type == atlisttype_species) then
+             ok = sys(id)%c%atcel(j)%is == ids(i)
+          elseif (type == atlisttype_nneq) then
+             ok = sys(id)%c%atcel(j)%idx == ids(i)
+          elseif (type == atlisttype_nmol) then
+             ok = sys(id)%c%idatcelmol(1,j) == ids(i)
+          else
+             ok = (j == ids(i))
+          end if
+          if (ok) then
+             if (present(mask)) mask(j) = .true.
+             if (present(imask)) imask(j) = i
+          end if
+       end do
+    end do
+
+  end subroutine attype_celatom_mask
 
   !xx! private procedures
 

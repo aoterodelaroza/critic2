@@ -384,7 +384,7 @@ contains
 
                    ! get the color from the first active atoms representation in the main view
                    havergb = .false.
-                   ! xxxxxxxxxx !
+                   ! xxxxx !
                    ! if (iview > 0) then
                    !    do j = 1, win(iview)%sc%nrep
                    !       if (win(iview)%sc%rep(j)%type == reptype_atoms.and.win(iview)%sc%rep(j)%isinit.and.&
@@ -573,12 +573,11 @@ contains
     end if
     call igEndGroup()
 
-    ! xxxxxxxxx !
-    ! ! hover highlight
-    ! if (ihighlight > 0) then
-    !    call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),loc_atomtype,&
-    !       reshape(ColorHighlightScene,(/4,1/)))
-    ! end if
+    ! hover highlight
+    if (ihighlight > 0) then
+       call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),w%geometry_atomtype,&
+          reshape(ColorHighlightScene,(/4,1/)))
+    end if
 
     ! process clicked
     if (iclicked > 0) then
@@ -587,22 +586,21 @@ contains
        redo_highlights = .true.
     end if
 
-    ! xxxxxxxxxx !
-    ! ! redo highlights
-    ! if (redo_highlights.and.allocated(w%geometry_selected).and.allocated(w%geometry_rgba)) then
-    !    call sysc(isys)%highlight_clear(.false.)
-    !    allocate(ihigh(count(w%geometry_selected)),irgba(4,count(w%geometry_selected)))
-    !    nhigh = 0
-    !    do i = 1, size(w%geometry_selected,1)
-    !       if (w%geometry_selected(i)) then
-    !          nhigh = nhigh + 1
-    !          ihigh(nhigh) = i
-    !          irgba(:,nhigh) = w%geometry_rgba(:,i)
-    !       end if
-    !    end do
-    !    call sysc(isys)%highlight_atoms(.false.,ihigh,loc_atomtype,irgba)
-    !    deallocate(ihigh,irgba)
-    ! end if
+    ! redo highlights
+    if (redo_highlights.and.allocated(w%geometry_selected).and.allocated(w%geometry_rgba)) then
+       call sysc(isys)%highlight_clear(.false.)
+       allocate(ihigh(count(w%geometry_selected)),irgba(4,count(w%geometry_selected)))
+       nhigh = 0
+       do i = 1, size(w%geometry_selected,1)
+          if (w%geometry_selected(i)) then
+             nhigh = nhigh + 1
+             ihigh(nhigh) = i
+             irgba(:,nhigh) = w%geometry_rgba(:,i)
+          end if
+       end do
+       call sysc(isys)%highlight_atoms(.false.,ihigh,w%geometry_atomtype,irgba)
+       deallocate(ihigh,irgba)
+    end if
 
     ! remove highlighted atoms
     removehighlight = removehighlight .or. (w%focused() .and. is_bind_event(BIND_EDITGEOM_REMOVE))

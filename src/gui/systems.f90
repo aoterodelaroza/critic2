@@ -100,6 +100,7 @@ module systems
      procedure :: attype_name
      procedure :: attype_coordinates
      procedure :: attype_coordinates_decimals
+     procedure :: attype_celatom_mask
   end type sysconf
 
   ! system arrays
@@ -225,6 +226,13 @@ module systems
        integer, intent(in) :: type
        integer :: attype_coordinates_decimals
      end function attype_coordinates_decimals
+     module subroutine attype_celatom_mask(sysc,type,ids,mask,imask)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, intent(in) :: ids(:)
+       logical, allocatable, intent(inout), optional :: mask(:)
+       integer, allocatable, intent(inout), optional :: imask(:)
+     end subroutine attype_celatom_mask
   end interface
 
 end module systems
