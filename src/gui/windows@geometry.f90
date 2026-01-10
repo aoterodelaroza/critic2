@@ -287,8 +287,8 @@ contains
 
              if (w%geometry_atomtype > 0) then
                 icol = icol + 1
-                if (sys(isys)%c%ismolecule) then
-                   str2 = "x (Å)" // c_null_char
+                if (sys(isys)%c%ismolecule .or. w%geometry_atomtype == 3) then
+                   str2 = "x/Å" // c_null_char
                 else
                    str2 = "x" // c_null_char
                 end if
@@ -297,8 +297,8 @@ contains
                 icolsort(icol) = ic_x
 
                 icol = icol + 1
-                if (sys(isys)%c%ismolecule) then
-                   str2 = "y (Å)" // c_null_char
+                if (sys(isys)%c%ismolecule .or. w%geometry_atomtype == 3) then
+                   str2 = "y/Å" // c_null_char
                 else
                    str2 = "y" // c_null_char
                 end if
@@ -307,8 +307,8 @@ contains
                 icolsort(icol) = ic_y
 
                 icol = icol + 1
-                if (sys(isys)%c%ismolecule) then
-                   str2 = "z (Å)" // c_null_char
+                if (sys(isys)%c%ismolecule .or. w%geometry_atomtype == 3) then
+                   str2 = "z/Å" // c_null_char
                 else
                    str2 = "z" // c_null_char
                 end if
