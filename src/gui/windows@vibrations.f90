@@ -31,7 +31,7 @@ contains
        launch_initialization_thread, ok_system
     use gui_main, only: g
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcheight, iw_calcwidth,&
-       iw_combo_simple, iw_radiobutton, iw_dragfloat
+       iw_combo_simple, iw_radiobutton, iw_dragfloat_realc
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
     use tools_math, only: rational_approx
@@ -340,7 +340,7 @@ contains
           if (.not.sys(isys)%c%ismolecule) then
              ! crystals
              call igPushItemWidth(iw_calcwidth(5,1))
-             if (iw_dragfloat("Amplitude##amplitude",x1=win(w%idparent)%sc%anim_amplitude,&
+             if (iw_dragfloat_realc("Amplitude##amplitude",x1=win(w%idparent)%sc%anim_amplitude,&
                 speed=0.01_c_float,min=0._c_float,max=anim_amplitude_max,sformat="%.2f",flags=ImGuiSliderFlags_AlwaysClamp))&
                 win(w%idparent)%forcerender = .true.
              call igPopItemWidth()
@@ -348,7 +348,7 @@ contains
 
              call igSameLine(0._c_float,-1._c_float)
              call igPushItemWidth(iw_calcwidth(6,1))
-             if (iw_dragfloat("Phase##phase",x1=win(w%idparent)%sc%anim_phase,speed=0.001_c_float,&
+             if (iw_dragfloat_realc("Phase##phase",x1=win(w%idparent)%sc%anim_phase,speed=0.001_c_float,&
                 min=-1._c_float,max=1._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)) &
                 win(w%idparent)%forcerender = .true.
              call igPopItemWidth()
@@ -356,7 +356,7 @@ contains
           else
              ! molecules
              call igPushItemWidth(iw_calcwidth(5,1))
-             if (iw_dragfloat("Displacement##amplitude",x1=win(w%idparent)%sc%anim_amplitude,&
+             if (iw_dragfloat_realc("Displacement##amplitude",x1=win(w%idparent)%sc%anim_amplitude,&
                 speed=0.01_c_float,min=-anim_amplitude_max,max=anim_amplitude_max,sformat="%.2f",&
                 flags=ImGuiSliderFlags_AlwaysClamp))&
                 win(w%idparent)%forcerender = .true.
@@ -379,14 +379,14 @@ contains
        elseif (win(w%idparent)%sc%animation == 2) then
           ! automatic
           call igPushItemWidth(iw_calcwidth(5,1))
-          ldum = iw_dragfloat("Amplitude##amplitude",x1=win(w%idparent)%sc%anim_amplitude,&
+          ldum = iw_dragfloat_realc("Amplitude##amplitude",x1=win(w%idparent)%sc%anim_amplitude,&
              speed=0.01_c_float,min=0._c_float,max=anim_amplitude_max,sformat="%.2f",flags=ImGuiSliderFlags_AlwaysClamp)
           call igPopItemWidth()
           call iw_tooltip("Amplitude of the atomic displacements",ttshown)
 
           call igSameLine(0._c_float,-1._c_float)
           call igPushItemWidth(iw_calcwidth(5,1))
-          if (iw_dragfloat("Speed##speed",x1=win(w%idparent)%sc%anim_speed,&
+          if (iw_dragfloat_realc("Speed##speed",x1=win(w%idparent)%sc%anim_speed,&
              speed=0.02_c_float,min=0.0_c_float,max=anim_speed_max,sformat="%.2f",flags=ImGuiSliderFlags_AlwaysClamp)) &
              win(w%idparent)%sc%timerefanimation = glfwGetTime()
           call igPopItemWidth()

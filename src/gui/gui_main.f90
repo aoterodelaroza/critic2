@@ -27,6 +27,22 @@ module gui_main
 
   private
 
+  ! DATA TYPES used in the critic2 GUI
+  ! + Real variables declared as c_float:
+  !   - Parameters associated with ImGui (scrolling step, tooltip delay, font sizes,...)
+  !   - Mouse positions and screen positions
+  !   - Colors
+  !   - Scene graphics parameters (atom scale and radii, border thickness, offsets,...)
+  !   - Transformation matrices and related variables (fov, reset distance,...)
+  !   - Lighting parameters (lightpos,...)
+  !   - Draw list variables (dl_sphere, dl_cylinder,...)
+  ! + Real variables declared as *8:
+  !   - Time flags for events
+  !   - System coordinates and distances (bond distance, bond factor,...)
+  ! + For now, c_int and integer are not distinguished, but should the need arise
+  ! this need to be looked into. At some point, the whole program should be converted
+  ! to variable type usage conforming to the Fortran standard.
+
   ! variables to GUI's structures & data
   type(ImGuiIO), pointer, public :: io ! pointer to ImGui's IO object
   type(ImFontAtlas), pointer, public :: fonts ! pointer to IO%Fonts

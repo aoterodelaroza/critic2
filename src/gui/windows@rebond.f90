@@ -42,7 +42,7 @@ contains
     use systems, only: nsys, sysc, sys, sys_init, ok_system, lastchange_rebond
     use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight,&
-       iw_dragfloat
+       iw_dragfloat_realc
     use global, only: bondfactor_def
     use tools_io, only: string, nameguess
     use param, only: atmcov0, maxzat0, bohrtoa, newline
@@ -183,7 +183,7 @@ contains
              call igPushItemWidth(iw_calcwidth(5,1))
              mrad = max(mrad,sysc(isys)%atmcov(iz))
              rad = real(sysc(isys)%atmcov(iz) * bohrtoa,c_float)
-             ch = iw_dragfloat("##tableradius" // string(i),x1=rad,speed=0.01_c_float,min=0._c_float,&
+             ch = iw_dragfloat_realc("##tableradius" // string(i),x1=rad,speed=0.01_c_float,min=0._c_float,&
                 max=2.65_c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
              if (ch) sysc(isys)%atmcov(iz) = rad / bohrtoa
              call igPopItemWidth()
@@ -200,7 +200,7 @@ contains
     bfmin = 1.0_c_float
     bfmax = 2.0_c_float
 
-    ch = iw_dragfloat("##bondfactor",x1=bf,speed=0.001_c_float,min=bfmin,max=bfmax,&
+    ch = iw_dragfloat_realc("##bondfactor",x1=bf,speed=0.001_c_float,min=bfmin,max=bfmax,&
        sformat="%.4f",flags=ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Bond factor parameter for connectivity calculation",ttshown)
     if (ch) sysc(isys)%bondfactor = bf

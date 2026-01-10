@@ -123,8 +123,8 @@ contains
        else
           r%ncell = 1
        end if
-       r%origin = 0._c_float
-       r%tshift = 0._c_float
+       r%origin = 0d0
+       r%tshift = 0d0
        ! atoms, bonds, labels
        r%filter = ""
        r%errfilter = ""
@@ -364,7 +364,7 @@ contains
        if (sys(r%id)%c%ismolecule) then
           uoriginc = r%origin / bohrtoa
        else
-          uoriginc = sys(r%id)%c%x2c(real(r%origin,8))
+          uoriginc = sys(r%id)%c%x2c(r%origin)
        end if
 
        ! whether we'll be doing bonds, allocate array to check whether

@@ -165,7 +165,7 @@ contains
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&
-       iw_highlight_selectable, iw_dragfloat
+       iw_highlight_selectable, iw_dragfloat_real8, iw_dragfloat_realc
     use param, only: atmcov, atmvdw, newline, jmlcol, jmlcol2, bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -346,13 +346,13 @@ contains
           call igPushItemWidth(iw_calcwidth(21,3))
           if (.not.sys(isys)%c%ismolecule) then
              ! origin translation
-             changed = changed .or. iw_dragfloat("Translate Origin (fractional)##originatom",x3=w%rep%origin,&
-                speed=0.001_c_float,sformat="%.5f")
+             changed = changed .or. iw_dragfloat_real8("Translate Origin (fractional)##originatom",x3=w%rep%origin,&
+                speed=0.001d0,sformat="%.5f")
              call iw_tooltip("Translation vector for the contents of the unit cell.",ttshown)
 
              ! origin shift
-             changed = changed .or. iw_dragfloat("Cell Origin Shift (fractional)##origincell",x3=w%rep%tshift,&
-                speed=0.001_c_float,sformat="%.5f")
+             changed = changed .or. iw_dragfloat_real8("Cell Origin Shift (fractional)##origincell",x3=w%rep%tshift,&
+                speed=0.001d0,sformat="%.5f")
              call iw_tooltip("Displace the origin of the cell being represented.",ttshown)
           end if
           call igPopItemWidth()
@@ -386,7 +386,7 @@ contains
              if (w%rep%atom_radii_type == 2) then
                 ! constant size
                 raux = w%rep%atom_radii_value * real(bohrtoa,c_float)
-                ch = ch .or. iw_dragfloat("Value##atomradii",x1=raux,speed=0.01_c_float,&
+                ch = ch .or. iw_dragfloat_realc("Value##atomradii",x1=raux,speed=0.01_c_float,&
                    min=0._c_float,max=5._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
                 call iw_tooltip("Atomic radii (Å)",ttshown)
                 if (ch) then
@@ -396,7 +396,7 @@ contains
                 end if
              else
                 ! variable size
-                ch = ch .or. iw_dragfloat("Scale##atomradiiscale",x1=w%rep%atom_radii_scale,speed=0.01_c_float,&
+                ch = ch .or. iw_dragfloat_realc("Scale##atomradiiscale",x1=w%rep%atom_radii_scale,speed=0.01_c_float,&
                    min=0._c_float,max=5._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
                 call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
 
@@ -450,7 +450,7 @@ contains
 
              ! border size
              call igPushItemWidth(iw_calcwidth(5,1))
-             changed = changed .or. iw_dragfloat("Border Size (Å)",x1=w%rep%atom_border_size,speed=0.002_c_float,&
+             changed = changed .or. iw_dragfloat_realc("Border Size (Å)",x1=w%rep%atom_border_size,speed=0.002_c_float,&
                 min=0._c_float,max=1._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the thickness of the atom borders",ttshown)
              call igPopItemWidth()
@@ -494,14 +494,14 @@ contains
              call iw_text(" Radius",sameline=.true.)
              call igPushItemWidth(iw_calcwidth(5,1))
              call igSameLine(0._c_float,-1._c_float)
-             ch = ch .or. iw_dragfloat("##radiusbondtableglobal",x1=w%rep%bond_rad,speed=0.005_c_float,&
+             ch = ch .or. iw_dragfloat_realc("##radiusbondtableglobal",x1=w%rep%bond_rad,speed=0.005_c_float,&
                 min=0._c_float,max=2._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
              call igPopItemWidth()
              call iw_tooltip("Radius of the bonds",ttshown)
 
              ! border size
              call igPushItemWidth(iw_calcwidth(5,1))
-             ch = ch .or. iw_dragfloat("Border Size (Å)",x1=w%rep%bond_border_size,speed=0.002_c_float,&
+             ch = ch .or. iw_dragfloat_realc("Border Size (Å)",x1=w%rep%bond_border_size,speed=0.002_c_float,&
                 min=0._c_float,max=1._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the thickness of the bond borders",ttshown)
              call igPopItemWidth()
@@ -552,7 +552,7 @@ contains
                 call iw_text("Between")
                 call igSameLine(0._c_float,-1._c_float)
                 call igPushItemWidth(iw_calcwidth(5,1))
-                ldum = iw_dragfloat("##bondtableglobalbfmin",x1=w%rep%bond_bfmin,speed=0.01_c_float,min=0.0_c_float,&
+                ldum = iw_dragfloat_realc("##bondtableglobalbfmin",x1=w%rep%bond_bfmin,speed=0.01_c_float,min=0.0_c_float,&
                    max=9.999_c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
                 call igPopItemWidth()
                 call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
@@ -568,7 +568,7 @@ contains
                 call igSameLine(0._c_float,-1._c_float)
                 call igPushItemWidth(iw_calcwidth(5,1))
                 str2 = "##bondtableglobalbfmax" // c_null_char
-                ldum = iw_dragfloat("##bondtableglobalbfmax",x1=w%rep%bond_bfmax,speed=0.01_c_float,min=0.0_c_float,&
+                ldum = iw_dragfloat_realc("##bondtableglobalbfmax",x1=w%rep%bond_bfmax,speed=0.01_c_float,min=0.0_c_float,&
                    max=9.999_c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
                 call igPopItemWidth()
                 call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
@@ -584,7 +584,7 @@ contains
                 call iw_text("Between")
                 call igSameLine(0._c_float,-1._c_float)
                 call igPushItemWidth(iw_calcwidth(5,1))
-                ldum = iw_dragfloat("##bondtableglobaldmin",x1=w%rep%bond_dmin,speed=0.01_c_float,min=0.0_c_float,&
+                ldum = iw_dragfloat_realc("##bondtableglobaldmin",x1=w%rep%bond_dmin,speed=0.01_c_float,min=0.0_c_float,&
                    max=9.999_c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
                 call igPopItemWidth()
                 call iw_text("Å",sameline=.true.)
@@ -594,7 +594,7 @@ contains
                 call iw_text("... and")
                 call igSameLine(0._c_float,-1._c_float)
                 call igPushItemWidth(iw_calcwidth(5,1))
-                ldum = iw_dragfloat("##bondtableglobaldmax",x1=w%rep%bond_dmax,speed=0.01_c_float,min=0.0_c_float,&
+                ldum = iw_dragfloat_realc("##bondtableglobaldmax",x1=w%rep%bond_dmax,speed=0.01_c_float,min=0.0_c_float,&
                    max=9.999_c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
                 call igPopItemWidth()
                 call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
@@ -758,7 +758,7 @@ contains
 
              ! scale, constant size, color
              call igPushItemWidth(iw_calcwidth(4,1))
-             changed = changed .or. iw_dragfloat("Scale##labelscale",x1=w%rep%label_scale,speed=0.01_c_float,&
+             changed = changed .or. iw_dragfloat_realc("Scale##labelscale",x1=w%rep%label_scale,speed=0.01_c_float,&
                 min=0._c_float,max=10._c_float,sformat="%.2f",flags=ImGuiSliderFlags_AlwaysClamp)
              call igPopItemWidth()
              call iw_tooltip("Scale factor for the atom labels",ttshown)
@@ -773,7 +773,7 @@ contains
 
              ! offset
              call igPushItemWidth(iw_calcwidth(21,3))
-             changed = changed .or. iw_dragfloat("Offset (Å)",x3=w%rep%label_offset,&
+             changed = changed .or. iw_dragfloat_realc("Offset (Å)",x3=w%rep%label_offset,&
                 speed=0.001_c_float,min=99.999_c_float,max=99.999_c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Offset the position of the labels relative to the atom center",ttshown)
              call igPopItemWidth()
@@ -965,7 +965,7 @@ contains
   module function draw_editrep_unitcell(w,ttshown) result(changed)
     use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_radiobutton, iw_button,&
-       iw_clamp_color3, iw_checkbox, iw_coloredit, iw_dragfloat
+       iw_clamp_color3, iw_checkbox, iw_coloredit, iw_dragfloat_realc, iw_dragfloat_real8
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical(c_bool) :: changed, ldum
@@ -1052,7 +1052,7 @@ contains
     call iw_tooltip("In systems with vacuum direction(s), do not show the unit cell in the vacuum region",ttshown)
 
     call igPushItemWidth(iw_calcwidth(5,1))
-    changed = changed .or. iw_dragfloat("Radius##outer",x1=w%rep%uc_radius,speed=0.005_c_float,&
+    changed = changed .or. iw_dragfloat_realc("Radius##outer",x1=w%rep%uc_radius,speed=0.005_c_float,&
        min=0._c_float,max=5._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
     call igPopItemWidth()
     call iw_tooltip("Radii of the unit cell edges",ttshown)
@@ -1071,7 +1071,7 @@ contains
     call iw_tooltip("Represent the inner divisions inside a supercell",ttshown)
     if (w%rep%uc_inner) then
        call igPushItemWidth(iw_calcwidth(5,1))
-       changed = changed .or. iw_dragfloat("Radius##inner",x1=w%rep%uc_radiusinner,speed=0.005_c_float,&
+       changed = changed .or. iw_dragfloat_realc("Radius##inner",x1=w%rep%uc_radiusinner,speed=0.005_c_float,&
           min=0._c_float,max=5._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
        call igPopItemWidth()
        call iw_tooltip("Radii of the inner unit cell edges",ttshown)
@@ -1081,7 +1081,7 @@ contains
 
        if (w%rep%uc_innerstipple) then
           call igPushItemWidth(iw_calcwidth(5,1))
-          changed = changed .or. iw_dragfloat("Dash length (Å)",x1=w%rep%uc_innersteplen,speed=0.1_c_float,&
+          changed = changed .or. iw_dragfloat_realc("Dash length (Å)",x1=w%rep%uc_innersteplen,speed=0.1_c_float,&
              min=0.001_c_float,max=100._c_float,sformat="%.1f",flags=ImGuiSliderFlags_AlwaysClamp)
           call igPopItemWidth()
           call iw_tooltip("Length of the dashed lines for the inner cell divisions (in Å)",ttshown)
@@ -1091,8 +1091,7 @@ contains
     ! origin of the unit cell
     call iw_text("Origin Shift",highlight=.true.)
     call igPushItemWidth(iw_calcwidth(21,3))
-    changed = changed .or. iw_dragfloat("##originucx",x3=w%rep%origin,&
-       speed=0.001_c_float,sformat="%.5f")
+    changed = changed .or. iw_dragfloat_real8("##originucx",x3=w%rep%origin,speed=0.001d0,sformat="%.5f")
     call iw_tooltip("Coordinates for the origin shift of the unit cell",ttshown)
     call igPopItemWidth()
 
@@ -1111,7 +1110,7 @@ contains
     use representations, only: atom_geom_style, mol_geom_style
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
        iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit, iw_highlight_selectable,&
-       iw_dragfloat
+       iw_dragfloat_realc
     use crystalmod, only: crystal
     use global, only: iunit_ang, dunit0
     use tools_io, only: string, ioj_right
@@ -1314,7 +1313,7 @@ contains
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
                    call igPushItemWidth(iw_calcwidth(5,1))
-                   ch = iw_dragfloat("##tableradius" // string(i),x1=r%atom_style%rad(i),speed=0.01_c_float,&
+                   ch = iw_dragfloat_realc("##tableradius" // string(i),x1=r%atom_style%rad(i),speed=0.01_c_float,&
                       min=0._c_float,max=5._c_float,sformat=str3,flags=ImGuiSliderFlags_AlwaysClamp)
                    call iw_tooltip("Radius of the sphere representing the atom",ttshown)
                    if (ch) then
@@ -1506,8 +1505,9 @@ contains
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
                       call igPushItemWidth(iw_calcwidth(5,1))
-                      ch = iw_dragfloat("##tablemolradius" // string(i),x1=r%mol_style%scale_rad(i),speed=0.005_c_float,&
-                         min=0._c_float,max=5._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
+                      ch = iw_dragfloat_realc("##tablemolradius" // string(i),x1=r%mol_style%scale_rad(i),&
+                         speed=0.005_c_float,min=0._c_float,max=5._c_float,&
+                         sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
                       call iw_tooltip("Scale factor for the atomic radii in this molecule",ttshown)
                       if (ch) then
                          r%mol_style%scale_rad(i) = max(r%mol_style%scale_rad(i),0._c_float)

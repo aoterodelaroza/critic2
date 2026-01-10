@@ -128,8 +128,8 @@ module representations
      ! global parameters
      integer(c_int) :: pertype ! periodicity control: 0=none, 1=auto, 2=manual
      integer(c_int) :: ncell(3) ! number of unit cells drawn
-     real(c_float) :: origin(3) ! unit cell, origin shift
-     real(c_float) :: tshift(3) ! origin of the unit cell display region
+     real*8 :: origin(3) ! unit cell, origin shift
+     real*8 :: tshift(3) ! origin of the unit cell display region
      ! atoms, bonds, labels
      character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
      character(kind=c_char,len=:), allocatable :: errfilter ! filter error
