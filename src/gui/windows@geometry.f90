@@ -47,7 +47,6 @@ contains
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit
-    use global, only: dunit0, iunit_ang
     use tools_io, only: string, nameguess, ioj_center
     class(window), intent(inout), target :: w
 

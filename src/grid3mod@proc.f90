@@ -1222,11 +1222,8 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     integer :: luc
-    character(len=:), allocatable :: line
     integer :: istat, i, j, k, n(3)
     real*8, allocatable :: ggloc(:,:,:)
-    logical :: ok
-    integer :: idx, nc
 
     errmsg = "Error reading file: " // trim(file)
     call f%end()

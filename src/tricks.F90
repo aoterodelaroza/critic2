@@ -3296,7 +3296,7 @@ contains
     deallocate(rho)
 
     ! load the new field and add it to the system
-    call f%load_grid_from_array3(sy%c,1,"<generated>, average electron energy",n,chi)
+    call f%load_grid_from_array3(sy%c,1,"<generated>, average electron energy",chi)
     call sy%add_field(c_loc(sy),f,.true.,id,errmsg)
 
   contains

@@ -770,14 +770,13 @@ contains
   !> resulting field is returned in f. The crystal structure (c) is
   !> used to inform the transformation. id and name are the numerical
   !> id and name of the new field.
-  module subroutine load_grid_from_array3(f,c,id,name,n,g)
+  module subroutine load_grid_from_array3(f,c,id,name,g)
     use iso_c_binding, only: c_loc
     use fragmentmod, only: fragment
     class(field), intent(inout) :: f !< Input/output field
     type(crystal), intent(in), target :: c
     integer, intent(in) :: id
     character*(*), intent(in) :: name
-    integer, intent(in) :: n(3)
     real*8, intent(in) :: g(:,:,:)
 
     if (.not.c%isinit) return

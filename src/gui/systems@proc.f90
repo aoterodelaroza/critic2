@@ -576,7 +576,7 @@ contains
     integer, intent(in) :: type
     real(c_float), intent(in) :: rgba(:,:)
 
-    integer :: nat, i, id, iat
+    integer :: nat, iat
     real(c_float), allocatable :: highlight_aux(:,:)
     logical :: changed
     integer, allocatable :: imask(:)

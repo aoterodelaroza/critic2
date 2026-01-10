@@ -760,7 +760,7 @@ contains
   !> If one is metal and the other non-metal, apply both.
   module subroutine find_asterisms(c,nstar,atmrad,bondfac,rij)
     use param, only: maxzat0
-    use tools_io, only: uout, string, ferror, faterr
+    use tools_io, only: string, ferror, faterr
     use tools, only: qcksort
     use types, only: realloc
     use param, only: icrd_crys, atmcov, bohrtoa

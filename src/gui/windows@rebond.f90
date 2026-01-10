@@ -54,7 +54,7 @@ contains
     integer(c_int) :: flags
     real(c_float) :: combowidth, rad, bf, bfmin, bfmax
     logical(c_bool) :: is_selected
-    character(len=:,kind=c_char), allocatable, target :: str1, str2, str3
+    character(len=:,kind=c_char), allocatable, target :: str1, str2
     integer, allocatable :: iat(:)
     logical :: atused(maxzat0)
     real*8 :: mrad
