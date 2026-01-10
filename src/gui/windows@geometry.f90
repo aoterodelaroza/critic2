@@ -41,7 +41,9 @@ contains
     use windows, only: iwin_view, iwin_tree
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITGEOM_REMOVE
-    use systems, only: nsys, sysc, sys, sys_init, ok_system, reread_system_from_file
+    use systems, only: nsys, sysc, sys, sys_init, ok_system, reread_system_from_file,&
+       atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac, atlisttype_ncel_bohr,&
+       atlisttype_ncel_ang
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit
@@ -49,18 +51,19 @@ contains
     use tools_io, only: string, nameguess, ioj_center
     class(window), intent(inout), target :: w
 
-    logical :: domol, dowyc, doidx, havesel, removehighlight
+    logical :: domol, dowyc, doidx, docoord, havesel, removehighlight
     logical :: doquit, clicked, forcesort
     integer :: ihighlight, iclicked, nhigh, dec, icolsort(0:9)
     logical(c_bool) :: is_selected, redo_highlights
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
+    character(kind=c_char,len=:), allocatable, target :: strx, stry, strz
     character(len=:), allocatable :: name
     integer, allocatable :: ihigh(:)
     real(c_float), allocatable :: irgba(:,:)
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
-    integer :: ii, i, j, isys, icol, ispc, iz, iview, loc_atomtype
+    integer :: ii, i, j, isys, icol, ispc, iz, iview
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, ldum, ok
@@ -83,6 +86,9 @@ contains
     integer, parameter :: ic_y = 8
     integer, parameter :: ic_z = 9
 
+    integer, parameter :: atlisttype_allowed(5) = (/atlisttype_species,atlisttype_nneq,&
+       atlisttype_ncel_frac,atlisttype_ncel_ang,atlisttype_ncel_bohr/)
+
     ! initialize
     ihighlight = 0
     iclicked = 0
@@ -95,7 +101,6 @@ contains
 
     ! first pass
     if (w%firstpass) then
-       w%geometry_atomtype = 1
        w%tied_to_tree = (w%isys == win(iwin_tree)%tree_selected)
        if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
        if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
@@ -104,7 +109,6 @@ contains
        w%geometry_sortdir = 1
        if (allocated(w%iord)) deallocate(w%iord)
     end if
-    loc_atomtype = min(w%geometry_atomtype,2) ! collapse 2 and 3 into the same value (for comparison with atom_style types)
 
     ! if tied to tree, update the isys
     if (w%tied_to_tree .and. (w%isys /= win(iwin_tree)%tree_selected)) &
@@ -117,6 +121,15 @@ contains
        return
     end if
     isys = w%isys
+
+    ! set the initial atomtype
+    if (w%firstpass) then
+       if (sys(isys)%c%ismolecule) then
+          w%geometry_atomtype = atlisttype_ncel_ang
+       else
+          w%geometry_atomtype = atlisttype_ncel_frac
+       end if
+    end if
 
     ! force sort if the system has been rebonded or changed geometry
     if (w%timelast_geometry_sort < sysc(isys)%timelastchange_rebond) then
@@ -167,24 +180,9 @@ contains
        flags = atompreflags
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
           ! group atom types
-          if (.not.sys(isys)%c%ismolecule) then
-             call iw_combo_simple("Types##atomtypeselectgeom","Species"//c_null_char//&
-                "Symmetry unique" //c_null_char//"Cell (fractional)"//c_null_char//&
-                "Cell (Cartesian)"//c_null_char//c_null_char,&
-                w%geometry_atomtype)
-          else
-             call iw_combo_simple("Types##atomtypeselectgeom","Species"//c_null_char//"Atoms"//c_null_char//&
-                c_null_char,w%geometry_atomtype)
-          end if
-          loc_atomtype = min(w%geometry_atomtype,2) ! collapse 2 and 3 into the same value (for comparison with atom_style types)
+          call sysc(isys)%attype_combo_simple("Types##atomtypeselectgeom",w%geometry_atomtype,atlisttype_allowed)
           call iw_tooltip("Group atoms by these categories",ttshown)
-          if (w%geometry_atomtype == 0) then
-             ntype = sys(isys)%c%nspc
-          elseif (w%geometry_atomtype == 1) then
-             ntype = sys(isys)%c%nneq
-          elseif (w%geometry_atomtype >= 2) then
-             ntype = sys(isys)%c%ncel
-          end if
+          ntype = sysc(isys)%attype_number(w%geometry_atomtype)
 
           ! reallocate if ntype has changed and redo highlights
           if (allocated(w%geometry_selected)) then
@@ -212,16 +210,19 @@ contains
           end if
 
           ! whether to do the molecule column, wyckoff, nneq index
-          domol = (w%geometry_atomtype >= 2 .or. (w%geometry_atomtype == 1 .and. sys(isys)%c%ismolecule))
-          dowyc = (w%geometry_atomtype == 1 .and..not.sys(isys)%c%ismolecule)
-          doidx = (w%geometry_atomtype >= 2 .and..not.sys(isys)%c%ismolecule)
+          domol = (w%geometry_atomtype == atlisttype_ncel_frac.or.w%geometry_atomtype == atlisttype_ncel_bohr.or.&
+             w%geometry_atomtype == atlisttype_ncel_ang)
+          dowyc = (w%geometry_atomtype == atlisttype_nneq .and..not.sys(isys)%c%ismolecule)
+          doidx = ((w%geometry_atomtype == atlisttype_ncel_frac.or.w%geometry_atomtype == atlisttype_ncel_bohr.or.&
+             w%geometry_atomtype == atlisttype_ncel_ang).and..not.sys(isys)%c%ismolecule)
+          docoord = w%geometry_atomtype /= atlisttype_species
 
           ! number of columns
           ncol = 3
           if (domol) ncol = ncol + 1 ! mol
           if (dowyc) ncol = ncol + 1 ! wyckoff/multiplicity
           if (doidx) ncol = ncol + 1 ! nneq idx
-          if (w%geometry_atomtype > 0) ncol = ncol + 3 ! coordinates
+          if (docoord) ncol = ncol + 3 ! coordinates
 
           ! atom style table, for atoms
           flags = ImGuiTableFlags_None
@@ -285,35 +286,33 @@ contains
                 icolsort(icol) = ic_idx
              end if
 
-             if (w%geometry_atomtype > 0) then
+             if (docoord) then
                 icol = icol + 1
-                if (sys(isys)%c%ismolecule .or. w%geometry_atomtype == 3) then
-                   str2 = "x/Å" // c_null_char
+                if (w%geometry_atomtype == atlisttype_ncel_ang) then
+                   strx = "x/Å" // c_null_char
+                   stry = "y/Å" // c_null_char
+                   strz = "z/Å" // c_null_char
+                elseif (w%geometry_atomtype == atlisttype_ncel_bohr) then
+                   strx = "x/bohr" // c_null_char
+                   stry = "y/bohr" // c_null_char
+                   strz = "z/bohr" // c_null_char
                 else
-                   str2 = "x" // c_null_char
+                   strx = "x" // c_null_char
+                   stry = "y" // c_null_char
+                   strz = "z" // c_null_char
                 end if
                 flags = ImGuiTableColumnFlags_WidthStretch
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+                call igTableSetupColumn(c_loc(strx),flags,0.0_c_float,icol)
                 icolsort(icol) = ic_x
 
                 icol = icol + 1
-                if (sys(isys)%c%ismolecule .or. w%geometry_atomtype == 3) then
-                   str2 = "y/Å" // c_null_char
-                else
-                   str2 = "y" // c_null_char
-                end if
                 flags = ImGuiTableColumnFlags_WidthStretch
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+                call igTableSetupColumn(c_loc(stry),flags,0.0_c_float,icol)
                 icolsort(icol) = ic_y
 
                 icol = icol + 1
-                if (sys(isys)%c%ismolecule .or. w%geometry_atomtype == 3) then
-                   str2 = "z/Å" // c_null_char
-                else
-                   str2 = "z" // c_null_char
-                end if
                 flags = ImGuiTableColumnFlags_WidthStretch
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+                call igTableSetupColumn(c_loc(strz),flags,0.0_c_float,icol)
                 icolsort(icol) = ic_z
              end if
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
@@ -379,38 +378,31 @@ contains
 
                    ! start the table and identify the species and Z
                    call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-                   if (w%geometry_atomtype == 0) then ! species
-                      ispc = i
-                      name = string(sys(isys)%c%spc(ispc)%name,2)
-                   elseif (w%geometry_atomtype == 1) then ! nneq
-                      ispc = sys(isys)%c%at(i)%is
-                      name = trim(sys(isys)%c%at(i)%name)
-                   elseif (w%geometry_atomtype >= 2) then ! ncel
-                      ispc = sys(isys)%c%atcel(i)%is
-                      name = trim(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%name)
-                   end if
+                   ispc = sysc(isys)%attype_species(w%geometry_atomtype,i)
+                   name = sysc(isys)%attype_name(w%geometry_atomtype,i)
                    iz = sys(isys)%c%spc(ispc)%z
 
                    ! get the color from the first active atoms representation in the main view
                    havergb = .false.
-                   if (iview > 0) then
-                      do j = 1, win(iview)%sc%nrep
-                         if (win(iview)%sc%rep(j)%type == reptype_atoms.and.win(iview)%sc%rep(j)%isinit.and.&
-                            win(iview)%sc%rep(j)%shown) then
-                            if (win(iview)%sc%rep(j)%atom_style%type == 0) then ! color by species
-                               rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,ispc)
-                               havergb = .true.
-                            elseif (win(iview)%sc%rep(j)%atom_style%type == loc_atomtype) then ! color by nneq or ncel
-                               rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,i)
-                               havergb = .true.
-                            elseif (win(iview)%sc%rep(j)%atom_style%type == 1 .and. w%geometry_atomtype >= 2) then ! color by nneq, select by ncel
-                               rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,sys(isys)%c%atcel(i)%idx)
-                               havergb = .true.
-                            end if
-                            if (havergb) exit
-                         end if
-                      end do
-                   end if
+                   ! xxxxxxxxxx !
+                   ! if (iview > 0) then
+                   !    do j = 1, win(iview)%sc%nrep
+                   !       if (win(iview)%sc%rep(j)%type == reptype_atoms.and.win(iview)%sc%rep(j)%isinit.and.&
+                   !          win(iview)%sc%rep(j)%shown) then
+                   !          if (win(iview)%sc%rep(j)%atom_style%type == 0) then ! color by species
+                   !             rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,ispc)
+                   !             havergb = .true.
+                   !          elseif (win(iview)%sc%rep(j)%atom_style%type == loc_atomtype) then ! color by nneq or ncel
+                   !             rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,i)
+                   !             havergb = .true.
+                   !          elseif (win(iview)%sc%rep(j)%atom_style%type == 1 .and. w%geometry_atomtype >= 2) then ! color by nneq, select by ncel
+                   !             rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,sys(isys)%c%atcel(i)%idx)
+                   !             havergb = .true.
+                   !          end if
+                   !          if (havergb) exit
+                   !       end if
+                   !    end do
+                   ! end if
 
                    ! background color for the table row
                    if (w%geometry_selected(i)) then
@@ -476,18 +468,9 @@ contains
                    end if
 
                    ! coordinates
-                   if (w%geometry_atomtype > 0) then
-                      dec = 6
-                      if (sys(isys)%c%ismolecule) then
-                         x0 = (sys(isys)%c%atcel(i)%r+sys(isys)%c%molx0) * dunit0(iunit_ang)
-                         dec = 4
-                      elseif (w%geometry_atomtype == 1) then
-                         x0 = sys(isys)%c%at(i)%x
-                      elseif (w%geometry_atomtype == 2) then
-                         x0 = sys(isys)%c%atcel(i)%x
-                      else
-                         x0 = sys(isys)%c%atcel(i)%r
-                      endif
+                   if (w%geometry_atomtype /= atlisttype_species) then
+                      dec = sysc(isys)%attype_coordinates_decimals(w%geometry_atomtype)
+                      x0 = sysc(isys)%attype_coordinates(w%geometry_atomtype,i)
                       do j = 1, 3
                          icol = icol + 1
                          if (igTableSetColumnIndex(icol)) then
@@ -590,11 +573,12 @@ contains
     end if
     call igEndGroup()
 
-    ! hover highlight
-    if (ihighlight > 0) then
-       call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),loc_atomtype,&
-          reshape(ColorHighlightScene,(/4,1/)))
-    end if
+    ! xxxxxxxxx !
+    ! ! hover highlight
+    ! if (ihighlight > 0) then
+    !    call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),loc_atomtype,&
+    !       reshape(ColorHighlightScene,(/4,1/)))
+    ! end if
 
     ! process clicked
     if (iclicked > 0) then
@@ -603,21 +587,22 @@ contains
        redo_highlights = .true.
     end if
 
-    ! redo highlights
-    if (redo_highlights.and.allocated(w%geometry_selected).and.allocated(w%geometry_rgba)) then
-       call sysc(isys)%highlight_clear(.false.)
-       allocate(ihigh(count(w%geometry_selected)),irgba(4,count(w%geometry_selected)))
-       nhigh = 0
-       do i = 1, size(w%geometry_selected,1)
-          if (w%geometry_selected(i)) then
-             nhigh = nhigh + 1
-             ihigh(nhigh) = i
-             irgba(:,nhigh) = w%geometry_rgba(:,i)
-          end if
-       end do
-       call sysc(isys)%highlight_atoms(.false.,ihigh,loc_atomtype,irgba)
-       deallocate(ihigh,irgba)
-    end if
+    ! xxxxxxxxxx !
+    ! ! redo highlights
+    ! if (redo_highlights.and.allocated(w%geometry_selected).and.allocated(w%geometry_rgba)) then
+    !    call sysc(isys)%highlight_clear(.false.)
+    !    allocate(ihigh(count(w%geometry_selected)),irgba(4,count(w%geometry_selected)))
+    !    nhigh = 0
+    !    do i = 1, size(w%geometry_selected,1)
+    !       if (w%geometry_selected(i)) then
+    !          nhigh = nhigh + 1
+    !          ihigh(nhigh) = i
+    !          irgba(:,nhigh) = w%geometry_rgba(:,i)
+    !       end if
+    !    end do
+    !    call sysc(isys)%highlight_atoms(.false.,ihigh,loc_atomtype,irgba)
+    !    deallocate(ihigh,irgba)
+    ! end if
 
     ! remove highlighted atoms
     removehighlight = removehighlight .or. (w%focused() .and. is_bind_event(BIND_EDITGEOM_REMOVE))
@@ -706,13 +691,7 @@ contains
             if (icolsort(w%geometry_sortcid) == ic_id) then
                ival(ii) = i
             elseif (icolsort(w%geometry_sortcid) == ic_zat) then
-               if (w%geometry_atomtype == 0) then ! species
-                  ispc = i
-               elseif (w%geometry_atomtype == 1) then ! nneq
-                  ispc = sys(isys)%c%at(i)%is
-               elseif (w%geometry_atomtype >= 2) then ! ncel
-                  ispc = sys(isys)%c%atcel(i)%is
-               end if
+               ispc = sysc(isys)%attype_species(w%geometry_atomtype,i)
                ival(ii) = sys(isys)%c%spc(ispc)%z
             elseif (icolsort(w%geometry_sortcid) == ic_mol) then
                ival(ii) = sys(isys)%c%idatcelmol(1,i)
@@ -730,15 +709,7 @@ contains
          allocate(rval(ntype))
          do ii = 1, ntype
             i = w%iord(ii)
-            if (sys(isys)%c%ismolecule) then
-               x0 = (sys(isys)%c%atcel(i)%r+sys(isys)%c%molx0) * dunit0(iunit_ang)
-            elseif (w%geometry_atomtype == 1) then
-               x0 = sys(isys)%c%at(i)%x
-            elseif (w%geometry_atomtype == 2) then
-               x0 = sys(isys)%c%atcel(i)%x
-            else
-               x0 = sys(isys)%c%atcel(i)%r
-            endif
+            x0 = sysc(isys)%attype_coordinates(w%geometry_atomtype,i)
 
             if (icolsort(w%geometry_sortcid) == ic_x) then
                rval(ii) = x0(1)
@@ -756,13 +727,7 @@ contains
          do ii = 1, ntype
             i = w%iord(ii)
             if (icolsort(w%geometry_sortcid) == ic_atom) then
-               if (w%geometry_atomtype == 0) then ! species
-                  sval(ii)%s = string(sys(isys)%c%spc(i)%name,2)
-               elseif (w%geometry_atomtype == 1) then ! nneq
-                  sval(ii)%s = trim(sys(isys)%c%at(i)%name)
-               elseif (w%geometry_atomtype >= 2) then ! ncel
-                  sval(ii)%s = trim(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%name)
-               end if
+               sval(ii)%s = sysc(isys)%attype_name(w%geometry_atomtype,i)
             elseif (icolsort(w%geometry_sortcid) == ic_wyc) then
                sval(ii)%s = string(sys(isys)%c%at(i)%mult) // sys(isys)%c%at(i)%wyc
             end if

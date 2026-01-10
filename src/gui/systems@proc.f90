@@ -549,6 +549,22 @@ contains
 
   end function ok_system
 
+  !> Set the time for last change at level level.
+  module subroutine set_timelastchange(sysc,level)
+    use interfaces_glfw, only: glfwGetTime
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: level
+
+    real*8 :: time
+
+    time = glfwGetTime()
+    if (level >= lastchange_render) sysc%timelastchange_render = time
+    if (level >= lastchange_buildlists) sysc%timelastchange_buildlists = time
+    if (level >= lastchange_rebond) sysc%timelastchange_rebond = time
+    if (level >= lastchange_geometry) sysc%timelastchange_geometry = time
+
+  end subroutine set_timelastchange
+
   !> Highlight atoms in the system. If transient, add the highlighted
   !> atom to the transient list and clear the list before adding. Add
   !> atoms with indices idx of the given type (0=species,1=nneq,2=ncel,3=nmol)
@@ -756,21 +772,226 @@ contains
 
   end subroutine remove_highlighted_atoms
 
-  !> Set the time for last change at level level.
-  module subroutine set_timelastchange(sysc,level)
-    use interfaces_glfw, only: glfwGetTime
+  ! Show a simple combo using the allowed atom types. Type is the
+  ! initial and final atom type in the combo.
+  module subroutine attype_combo_simple(sysc,label,type,allowed)
+    use utils, only: iw_combo_simple
     class(sysconf), intent(inout) :: sysc
-    integer, intent(in) :: level
+    character(len=*), intent(in) :: label
+    integer, intent(inout) :: type
+    integer, intent(in) :: allowed(:)
 
-    real*8 :: time
+    character(len=:), allocatable :: strcombo
+    logical :: allowedin(atlisttype_NUM)
+    integer :: i, id, icombo, icount, itype
+    integer :: decode(0:atlisttype_NUM-1)
 
-    time = glfwGetTime()
-    if (level >= lastchange_render) sysc%timelastchange_render = time
-    if (level >= lastchange_buildlists) sysc%timelastchange_buildlists = time
-    if (level >= lastchange_rebond) sysc%timelastchange_rebond = time
-    if (level >= lastchange_geometry) sysc%timelastchange_geometry = time
+    ! consistency checks
+    id = sysc%id
+    if (.not.ok_system(id,sys_init)) return
 
-  end subroutine set_timelastchange
+    ! build the allowed mask
+    allowedin = .false.
+    do i = 1, size(allowed,1)
+       allowedin(allowed(i)) = .true.
+    end do
+
+    ! deactivate the unallowed types
+    if (sys(id)%c%ismolecule) then
+       allowedin(atlisttype_nneq) = .false.
+       allowedin(atlisttype_ncel_frac) = .false.
+    end if
+
+    ! if the input type is not allowed, reset it
+    itype = -1
+    if (.not.allowedin(type)) then
+       if (sys(id)%c%ismolecule) then
+          if (allowedin(atlisttype_ncel_ang)) then
+             itype = atlisttype_ncel_ang
+          elseif (allowedin(atlisttype_ncel_bohr)) then
+             itype = atlisttype_nneq
+          end if
+       else
+          if (allowedin(atlisttype_ncel_frac)) then
+             itype = atlisttype_ncel_frac
+          elseif (allowedin(atlisttype_ncel_ang)) then
+             itype = atlisttype_ncel_ang
+          elseif (allowedin(atlisttype_ncel_ang)) then
+             itype = atlisttype_nneq
+          end if
+       end if
+    else
+       itype = type
+    end if
+    if (itype < 0) then
+       do i = 1, size(allowedin,1)
+          if (allowedin(i)) then
+             itype = i
+             exit
+          end if
+       end do
+    end if
+    if (itype < 0) return
+
+    ! build the combo string
+    strcombo = ""
+    if (allowedin(atlisttype_species)) strcombo = strcombo // "Species" // c_null_char
+    if (allowedin(atlisttype_nneq)) strcombo = strcombo // "Symmetry unique" // c_null_char
+    if (sys(id)%c%ismolecule) then
+       if (allowedin(atlisttype_ncel_bohr)) strcombo = strcombo // "Atoms (bohr)" // c_null_char
+       if (allowedin(atlisttype_ncel_ang)) strcombo = strcombo // "Atoms (Å)" // c_null_char
+    else
+       if (allowedin(atlisttype_ncel_frac)) strcombo = strcombo // "Cell (fractional)" // c_null_char
+       if (allowedin(atlisttype_ncel_bohr)) strcombo = strcombo // "Cell (bohr)" // c_null_char
+       if (allowedin(atlisttype_ncel_ang)) strcombo = strcombo // "Cell (Å)" // c_null_char
+    end if
+    if (allowedin(atlisttype_nmol)) strcombo = strcombo // "Molecules" // c_null_char
+    strcombo = strcombo // c_null_char // c_null_char
+
+    ! encode the combo
+    icombo = -1
+    icount = -1
+    do i = 1, size(allowedin,1)
+       if (allowedin(i)) then
+          icount = icount + 1
+          decode(icount) = i
+          if (itype == i) icombo = icount
+       end if
+    end do
+
+    ! the actual combo
+    call iw_combo_simple(label,strcombo,icombo)
+
+    ! decode the combo
+    type = decode(icombo)
+
+  end subroutine attype_combo_simple
+
+  ! For the given atom type, return the number of entities (atoms,
+  ! species, molecules, etc.)
+  module function attype_number(sysc,type)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer :: attype_number
+
+    integer :: isys
+
+    ! initialize
+    attype_number = 0
+    isys = sysc%id
+
+    ! get the atom number
+    if (type == atlisttype_species) then
+       attype_number = sys(isys)%c%nspc
+    elseif (type == atlisttype_nneq) then
+       attype_number = sys(isys)%c%nneq
+    elseif (type == atlisttype_nmol) then
+       attype_number = sys(isys)%c%nmol
+    else
+       attype_number = sys(isys)%c%ncel
+    end if
+
+  end function attype_number
+
+  ! For the given atom type, return the ID of the corresponding
+  ! atomic species.
+  module function attype_species(sysc,type,id)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: id
+    integer :: attype_species
+
+    integer :: isys
+
+    ! initialize
+    attype_species = 0
+    isys = sysc%id
+
+    ! get the species ID
+    if (type == atlisttype_species) then
+       attype_species = id
+    elseif (type == atlisttype_nneq) then
+       attype_species = sys(isys)%c%at(id)%is
+    elseif (type /= atlisttype_nmol) then
+       attype_species = sys(isys)%c%atcel(id)%is
+    end if
+
+  end function attype_species
+
+  ! For the given atom type, return the corresponding atom name.
+  module function attype_name(sysc,type,id)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: id
+    character(len=:), allocatable :: attype_name
+
+    integer :: isys
+
+    ! initialize
+    attype_name = ""
+    isys = sysc%id
+
+    ! get the atom name
+    if (type == atlisttype_species) then
+       attype_name = trim(sys(isys)%c%spc(id)%name)
+    elseif (type == atlisttype_nneq) then
+       attype_name = trim(sys(isys)%c%at(id)%name)
+    elseif (type /= atlisttype_nmol) then
+       attype_name = trim(sys(isys)%c%at(sys(isys)%c%atcel(id)%idx)%name)
+    end if
+
+  end function attype_name
+
+  ! For the given atom type, return the corresponding atomic
+  ! coordinates.
+  module function attype_coordinates(sysc,type,id)
+    use param, only: bohrtoa
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: id
+    real*8 :: attype_coordinates(3)
+
+    integer :: isys
+
+    ! initialize
+    attype_coordinates = 0d0
+    isys = sysc%id
+
+    ! get the atom name
+    if (type == atlisttype_nneq) then
+       attype_coordinates = sys(isys)%c%at(id)%x
+    elseif (type == atlisttype_ncel_frac) then
+       attype_coordinates = sys(isys)%c%atcel(id)%x
+    elseif (type == atlisttype_ncel_bohr) then
+       if (sys(isys)%c%ismolecule) then
+          attype_coordinates = sys(isys)%c%atcel(id)%r + sys(isys)%c%molx0
+       else
+          attype_coordinates = sys(isys)%c%atcel(id)%r
+       end if
+    elseif (type == atlisttype_ncel_ang) then
+       if (sys(isys)%c%ismolecule) then
+          attype_coordinates = (sys(isys)%c%atcel(id)%r + sys(isys)%c%molx0) * bohrtoa
+       else
+          attype_coordinates = sys(isys)%c%atcel(id)%r * bohrtoa
+       end if
+    end if
+
+  end function attype_coordinates
+
+  ! For the given atom type, return the decimals with which to
+  ! represent the atomic coordinates.
+  module function attype_coordinates_decimals(sysc,type)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer :: attype_coordinates_decimals
+
+    if (type == atlisttype_nneq .or. type == atlisttype_ncel_frac) then
+       attype_coordinates_decimals = 6
+    else
+       attype_coordinates_decimals = 4
+    end if
+
+  end function attype_coordinates_decimals
 
   !xx! private procedures
 

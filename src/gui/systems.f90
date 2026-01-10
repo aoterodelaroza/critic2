@@ -40,6 +40,21 @@ module systems
   integer, parameter, public :: sys_ready = 3 ! the data is ready but thread is still working, so not initialized yet
   integer, parameter, public :: sys_init = 4 ! the system is initialized
 
+  ! list of changes to the system, in order of severity
+  integer, parameter, public :: lastchange_render = 0     ! system needs a new render
+  integer, parameter, public :: lastchange_buildlists = 1 ! system needs building new lists
+  integer, parameter, public :: lastchange_rebond = 2     ! system has been rebonded
+  integer, parameter, public :: lastchange_geometry = 3   ! system geometry has changed
+
+  ! geometry lists
+  integer, parameter, public :: atlisttype_species = 1   ! chemical species (nspc)
+  integer, parameter, public :: atlisttype_nneq = 2      ! non-equivalent atoms (fractional)
+  integer, parameter, public :: atlisttype_ncel_frac = 3 ! cell atoms (fractional)
+  integer, parameter, public :: atlisttype_ncel_bohr = 4 ! cell atoms (Cartesian, bohr, shifted if molecule)
+  integer, parameter, public :: atlisttype_ncel_ang = 5  ! cell atoms (Cartesian, angstrom, shifted if molecule)
+  integer, parameter, public :: atlisttype_nmol = 6      ! molecules
+  integer, parameter, public :: atlisttype_NUM = 6 ! the number of atom list types
+
   ! system configuration type
   type :: sysconf
      ! system ID and properties
@@ -72,17 +87,20 @@ module systems
      real*8 :: timelastchange_buildlists = 0d0 ! time system last required a list rebuild
      real*8 :: timelastchange_render = 0d0     ! time system last required a render
    contains
+     ! time events
+     procedure :: set_timelastchange
+     ! highlights
      procedure :: highlight_atoms
      procedure :: highlight_clear
      procedure :: remove_highlighted_atoms
-     procedure :: set_timelastchange
+     ! atlysttype tools
+     procedure :: attype_combo_simple
+     procedure :: attype_number
+     procedure :: attype_species
+     procedure :: attype_name
+     procedure :: attype_coordinates
+     procedure :: attype_coordinates_decimals
   end type sysconf
-
-  ! list of changes to the system, in order of severity
-  integer, parameter, public :: lastchange_render = 0     ! system needs a new render
-  integer, parameter, public :: lastchange_buildlists = 1 ! system needs building new lists
-  integer, parameter, public :: lastchange_rebond = 2     ! system has been rebonded
-  integer, parameter, public :: lastchange_geometry = 3   ! system geometry has changed
 
   ! system arrays
   integer, public :: nsys = 0
@@ -153,6 +171,10 @@ module systems
        integer, intent(in) :: isys, level
        logical :: ok_system
      end function ok_system
+     module subroutine set_timelastchange(sysc,level)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: level
+     end subroutine set_timelastchange
      module subroutine highlight_atoms(sysc,transient,idx,type,rgba)
        class(sysconf), intent(inout) :: sysc
        logical, intent(in) :: transient
@@ -169,10 +191,40 @@ module systems
      module subroutine remove_highlighted_atoms(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine remove_highlighted_atoms
-     module subroutine set_timelastchange(sysc,level)
+     module subroutine attype_combo_simple(sysc,label,type,allowed)
        class(sysconf), intent(inout) :: sysc
-       integer, intent(in) :: level
-     end subroutine set_timelastchange
+       character(len=*), intent(in) :: label
+       integer, intent(inout) :: type
+       integer, intent(in) :: allowed(:)
+     end subroutine attype_combo_simple
+     module function attype_number(sysc,type)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer :: attype_number
+     end function attype_number
+     module function attype_species(sysc,type,id)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, intent(in) :: id
+       integer :: attype_species
+     end function attype_species
+     module function attype_name(sysc,type,id)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, intent(in) :: id
+       character(len=:), allocatable :: attype_name
+     end function attype_name
+     module function attype_coordinates(sysc,type,id)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, intent(in) :: id
+       real*8 :: attype_coordinates(3)
+     end function attype_coordinates
+     module function attype_coordinates_decimals(sysc,type)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer :: attype_coordinates_decimals
+     end function attype_coordinates_decimals
   end interface
 
 end module systems
