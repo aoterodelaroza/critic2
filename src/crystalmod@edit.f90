@@ -924,8 +924,8 @@ contains
 
   !> Move atom with complete list ID idx to position x in units of
   !> iunit_l (see global). If isnneq, move all atoms that are
-  !> equivalent by symmetry. If dorelative, the movement is relative
-  !> to its current position.
+  !> equivalent by symmetry. If dorelative, the movement is
+  !> relative to its current position.
   module subroutine move_atom(c,idx,x,iunit_l,isnneq,dorelative,ti)
     use crystalseedmod, only: crystalseed
     use global, only: iunit_ang, iunit_bohr
@@ -957,12 +957,10 @@ contains
     else
        xx = x
     end if
+    if (dorelative) xx = seed%x(:,idx) + xx
 
-    if (dorelative) then
-       seed%x(:,idx) = seed%x(:,idx) + xx
-    else
-       seed%x(:,idx) = xx
-    end if
+    ! the final new position
+    seed%x(:,idx) = xx
 
     ! build the new crystal
     call c%struct_new(seed,crashfail=.true.,ti=ti)

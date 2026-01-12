@@ -139,6 +139,7 @@ module windows
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
      ! geometry parameters
      integer(c_int) :: geometry_atomtype = 1 ! 0=spc, 1=nneq, 2=ncel(frac), 3=ncel(cart)
+     logical :: geometry_forcewyc = .true. ! force respecting symmetry when displacing nneq
      logical, allocatable :: geometry_selected(:) ! selected items in atoms table
      real(c_float), allocatable :: geometry_rgba(:,:) ! color highlights in atoms table
      real(c_float) :: geometry_select_rgba(4) ! highlight color

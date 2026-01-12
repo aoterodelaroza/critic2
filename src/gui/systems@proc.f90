@@ -1150,16 +1150,21 @@ contains
 
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
-  module subroutine set_atom_position(sysc,type,id,x)
+  module subroutine set_atom_position(sysc,type,id,x,forcewyc)
     use global, only: iunit_bohr, iunit_fractional
     use param, only: bohrtoa
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: type
     integer, intent(in) :: id
     real*8, intent(in) :: x(3)
+    logical, intent(in) :: forcewyc
 
-    integer :: isys
+    integer :: isys, leqv, i
     real*8 :: x_(3)
+    character*3 :: pg
+    real*8 :: xd(3), lrotm(3,3,48), ravg(3,3)
+
+    real*8, parameter :: tighteps = 1d-7
 
     ! consistency checks
     isys = sysc%id
@@ -1170,6 +1175,26 @@ contains
 
     ! move the atom
     if (type == atlisttype_nneq) then
+       if (forcewyc) then
+          ! calculate the symmetrizing matrix
+          pg = sys(isys)%c%sitesymm(sys(isys)%c%at(id)%x,tighteps,leqv,lrotm)
+          ravg = 0d0
+          do i = 1, leqv
+             ravg = ravg + lrotm(:,:,i)
+          end do
+          ravg = ravg / leqv
+
+          ! calculate and project the displacement vector (fractional) onto the symmetry element
+          xd = x - sys(isys)%c%at(id)%x
+          xd = xd - nint(xd)
+          xd = matmul(ravg,xd)
+          x_ = sys(isys)%c%at(id)%x + xd
+
+          ! if no displacements, do nothing
+          if (norm2(xd) < tighteps) return
+       end if
+
+       ! displace
        call sys(isys)%c%move_atom(id,x_,iunit_fractional,.true.,.false.)
     elseif (type == atlisttype_ncel_frac) then
        call sys(isys)%c%move_atom(id,x_,iunit_fractional,.false.,.false.)

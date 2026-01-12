@@ -252,11 +252,12 @@ module systems
        integer, intent(in) :: typeout
        integer :: attype_type_id_to_id
      end function attype_type_id_to_id
-     module subroutine set_atom_position(sysc,type,id,x)
+     module subroutine set_atom_position(sysc,type,id,x,forcewyc)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type
        integer, intent(in) :: id
        real*8, intent(in) :: x(3)
+       logical, intent(in) :: forcewyc
      end subroutine set_atom_position
   end interface
 

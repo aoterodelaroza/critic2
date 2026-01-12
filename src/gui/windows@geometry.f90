@@ -185,6 +185,15 @@ contains
           call iw_tooltip("Group atoms by these categories",ttshown)
           ntype = sysc(isys)%attype_number(w%geometry_atomtype)
 
+          if (.not.sys(isys)%c%ismolecule) then
+             call igSameLine(0._c_float,-1._c_float)
+             if (sys(isys)%c%spgavail) then
+                call iw_text("[" // trim(sys(isys)%c%spg%international_symbol) // "]")
+             else
+                call iw_text("[ no symmetry ]")
+             end if
+          end if
+
           ! reallocate if ntype has changed and redo highlights
           if (allocated(w%geometry_selected)) then
              if (size(w%geometry_selected,1) /= ntype) then
@@ -478,7 +487,7 @@ contains
                          end if
                       end do
                       if (ch .and. any(abs(x0-xold) > epsmoved)) &
-                         call sysc(isys)%set_atom_position(w%geometry_atomtype,i,x0)
+                         call sysc(isys)%set_atom_position(w%geometry_atomtype,i,x0,w%geometry_forcewyc)
                    end if
                 end do ! clipper indices
              end do ! clipper step
