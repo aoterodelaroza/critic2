@@ -3296,7 +3296,7 @@ contains
     integer :: lp
     integer :: idx, nat, i, iunit_l, iaxis
     integer, allocatable :: iat(:)
-    logical :: ok, dorelative, dofraction, changed
+    logical :: ok, dorelative, dofraction, changed, usesym
     real*8 :: x(3), rdum
 
     if (verbose) then
@@ -3395,11 +3395,14 @@ contains
           else
              iunit_l = iunit_fractional
           end if
+          usesym = .false.
           dorelative = .false.
           do while (.true.)
              word = lgetword(line,lp)
              if (equal(word,"relative")) then
                 dorelative = .true.
+             elseif (equal(word,"nneq")) then
+                usesym = .true.
              elseif (equal(word,"bohr")) then
                 iunit_l = iunit_bohr
              elseif (equal(word,"ang").or.equal(word,"angstrom")) then
@@ -3413,7 +3416,7 @@ contains
           end do
 
           ! transform
-          call s%c%move_atom(idx,x,iunit_l,.false.,dorelative)
+          call s%c%move_atom(idx,x,iunit_l,usesym,dorelative)
           changed = .true.
 
        elseif (equal(word,"cellmove")) then
