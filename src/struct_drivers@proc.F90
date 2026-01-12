@@ -3413,7 +3413,7 @@ contains
           end do
 
           ! transform
-          call s%c%move_celatom(idx,x,iunit_l,dorelative)
+          call s%c%move_atom(idx,x,iunit_l,.false.,dorelative)
           changed = .true.
 
        elseif (equal(word,"cellmove")) then

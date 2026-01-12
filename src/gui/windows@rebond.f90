@@ -234,7 +234,7 @@ contains
              call sys(i)%c%fill_molecular_fragments()
              call sys(i)%c%calculate_molecular_equivalence()
              call sys(i)%c%calculate_periodicity()
-             call sysc(i)%set_timelastchange(lastchange_rebond)
+             call sysc(i)%post_event(lastchange_rebond)
           end if
        end do
     end if
@@ -246,7 +246,7 @@ contains
        call sys(isys)%c%fill_molecular_fragments()
        call sys(isys)%c%calculate_molecular_equivalence()
        call sys(isys)%c%calculate_periodicity()
-       call sysc(isys)%set_timelastchange(lastchange_rebond)
+       call sysc(isys)%post_event(lastchange_rebond)
     end if
     call iw_tooltip("Recalculate the system bonds with the selected parameters",ttshown)
 

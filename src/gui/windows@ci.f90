@@ -225,7 +225,7 @@ contains
     if (reinit) call launch_initialization_thread()
 
     ! set the time to rebuild lists
-    call sysc(w%inpcon_selected)%set_timelastchange(lastchange_geometry)
+    call sysc(w%inpcon_selected)%post_event(lastchange_geometry)
 
     ! clean up
     call fclose(uin)

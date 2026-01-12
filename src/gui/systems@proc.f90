@@ -292,7 +292,7 @@ contains
        if (iseed == iavib_) sysc(idx)%has_vib = .true.
 
        ! redo everything
-       call sysc(idx)%set_timelastchange(lastchange_geometry)
+       call sysc(idx)%post_event(lastchange_geometry)
 
        ! set the covalent radii
        sysc(idx)%atmcov = atmcov0
@@ -373,7 +373,7 @@ contains
     sysc(idx)%status = sys_empty
     sysc(idx)%hidden = .false.
     sysc(idx)%showfields = .false.
-    call sysc(idx)%set_timelastchange(lastchange_geometry)
+    call sysc(idx)%post_event(lastchange_geometry)
 
     if (sysc(idx)%collapse == -1 .or. kdie) then
        ! kill all dependents if collapsed
@@ -550,7 +550,7 @@ contains
   end function ok_system
 
   !> Set the time for last change at level level.
-  module subroutine set_timelastchange(sysc,level)
+  module subroutine post_event(sysc,level)
     use interfaces_glfw, only: glfwGetTime
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: level
@@ -561,9 +561,14 @@ contains
     if (level >= lastchange_render) sysc%timelastchange_render = time
     if (level >= lastchange_buildlists) sysc%timelastchange_buildlists = time
     if (level >= lastchange_rebond) sysc%timelastchange_rebond = time
-    if (level >= lastchange_geometry) sysc%timelastchange_geometry = time
+    if (level >= lastchange_geometry) then
+       call sys(sysc%id)%reset_fields()
+       call sysc%highlight_clear(.true.)
+       call sysc%highlight_clear(.false.)
+       sysc%timelastchange_geometry = time
+    end if
 
-  end subroutine set_timelastchange
+  end subroutine post_event
 
   !> Highlight atoms in the system. If transient, add the highlighted
   !> atom to the transient list and clear the list before adding. Add
@@ -594,7 +599,7 @@ contains
        if (.not.allocated(sysc%highlight_rgba)) then
           allocate(sysc%highlight_rgba(4,nat))
           sysc%highlight_rgba = -1._c_float
-          call sysc%set_timelastchange(lastchange_render)
+          call sysc%post_event(lastchange_render)
        end if
     else
        if (allocated(sysc%highlight_rgba_transient)) then
@@ -603,7 +608,7 @@ contains
        if (.not.allocated(sysc%highlight_rgba_transient)) then
           allocate(sysc%highlight_rgba_transient(4,nat))
           sysc%highlight_rgba_transient = -1._c_float
-          call sysc%set_timelastchange(lastchange_render)
+          call sysc%post_event(lastchange_render)
        end if
     end if
 
@@ -638,7 +643,7 @@ contains
        changed = any(sysc%highlight_rgba /= highlight_aux)
     end if
     if (changed) then
-       call sysc%set_timelastchange(lastchange_render)
+       call sysc%post_event(lastchange_render)
     end if
 
   end subroutine highlight_atoms
@@ -670,7 +675,7 @@ contains
        if (.not.allocated(sysc%highlight_rgba)) then
           allocate(sysc%highlight_rgba(4,nat))
           sysc%highlight_rgba = -1._c_float
-          call sysc%set_timelastchange(lastchange_render)
+          call sysc%post_event(lastchange_render)
        end if
     else
        if (allocated(sysc%highlight_rgba_transient)) then
@@ -679,7 +684,7 @@ contains
        if (.not.allocated(sysc%highlight_rgba_transient)) then
           allocate(sysc%highlight_rgba_transient(4,nat))
           sysc%highlight_rgba_transient = -1._c_float
-          call sysc%set_timelastchange(lastchange_render)
+          call sysc%post_event(lastchange_render)
        end if
     end if
 
@@ -724,7 +729,7 @@ contains
 
     ! set highlighted and time for render
     if (changed) then
-       call sysc%set_timelastchange(lastchange_render)
+       call sysc%post_event(lastchange_render)
     end if
 
   end subroutine highlight_clear
@@ -755,10 +760,9 @@ contains
 
     ! remove the atoms, reset fields
     call sys(id)%c%delete_atoms(nat,iat(1:nat))
-    call sys(id)%reset_fields()
 
     ! the geometry has changed
-    call sysc%set_timelastchange(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry)
 
   end subroutine remove_highlighted_atoms
 
@@ -1166,27 +1170,24 @@ contains
 
     ! move the atom
     if (type == atlisttype_nneq) then
-    !    attype_coordinates = sys(isys)%c%at(id)%x
+       call sys(isys)%c%move_atom(id,x_,iunit_fractional,.true.,.false.)
     elseif (type == atlisttype_ncel_frac) then
-       call sys(isys)%c%move_celatom(id,x_,iunit_fractional,.false.)
+       call sys(isys)%c%move_atom(id,x_,iunit_fractional,.false.,.false.)
     elseif (type == atlisttype_ncel_bohr) then
        if (sys(isys)%c%ismolecule) &
           x_ = x - sys(isys)%c%molx0
-       call sys(isys)%c%move_celatom(id,x_,iunit_bohr,.false.)
+       call sys(isys)%c%move_atom(id,x_,iunit_bohr,.false.,.false.)
     elseif (type == atlisttype_ncel_ang) then
        if (sys(isys)%c%ismolecule) then
           x_ = x/bohrtoa - sys(isys)%c%molx0
        else
           x_ = x/bohrtoa
        end if
-       call sys(isys)%c%move_celatom(id,x_,iunit_bohr,.false.)
+       call sys(isys)%c%move_atom(id,x_,iunit_bohr,.false.,.false.)
     end if
 
-    ! reset fields
-    call sys(isys)%reset_fields()
-
     ! the geometry has changed
-    call sysc%set_timelastchange(lastchange_geometry)
+    call sysc%post_event(lastchange_geometry)
 
   end subroutine set_atom_position
 
@@ -1264,7 +1265,7 @@ contains
                 call sysc(i)%sc%init(i)
 
                 ! this system has been initialized
-                call sysc(i)%set_timelastchange(lastchange_geometry)
+                call sysc(i)%post_event(lastchange_geometry)
                 sysc(i)%status = sys_init
              end if
 

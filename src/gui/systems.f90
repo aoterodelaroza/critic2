@@ -88,7 +88,7 @@ module systems
      real*8 :: timelastchange_render = 0d0     ! time system last required a render
    contains
      ! time events
-     procedure :: set_timelastchange
+     procedure :: post_event
      ! highlights
      procedure :: highlight_atoms
      procedure :: highlight_clear
@@ -176,10 +176,10 @@ module systems
        integer, intent(in) :: isys, level
        logical :: ok_system
      end function ok_system
-     module subroutine set_timelastchange(sysc,level)
+     module subroutine post_event(sysc,level)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: level
-     end subroutine set_timelastchange
+     end subroutine post_event
      module subroutine highlight_atoms(sysc,transient,idx,type,rgba)
        class(sysconf), intent(inout) :: sysc
        logical, intent(in) :: transient
