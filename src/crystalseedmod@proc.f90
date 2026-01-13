@@ -815,7 +815,7 @@ contains
        isformat_r_pgout, isformat_r_orca, isformat_r_dmain, isformat_r_aimsin,&
        isformat_r_aimsout, isformat_r_tinkerfrac, isformat_r_gjf, isformat_r_zmat,&
        isformat_r_magres, isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband,&
-       isformat_r_sdf, isformat_r_castepcell, isformat_r_crystald3,&
+       isformat_r_sdf, isformat_r_castepcell,&
        isformat_r_castepphonon, isformat_r_castepgeom, isformat_r_mol2, isformat_r_pdb
     class(crystalseed), intent(inout) :: seed
     character*(*), intent(in) :: file
@@ -897,9 +897,6 @@ contains
 
     elseif (isformat == isformat_r_crystal) then
        call seed%read_crystalout(file,mol,errmsg,ti=ti)
-
-    elseif (isformat == isformat_r_crystald3) then
-       call seed%read_crystald3out(file,mol,errmsg,ti=ti)
 
     elseif (isformat == isformat_r_fploout) then
        call seed%read_fploout(file,mol,errmsg,ti=ti)
@@ -4132,166 +4129,6 @@ contains
 
   end subroutine read_crystalout
 
-  !> Read the structure from a CRYSTAL d3 output file (d3out).
-  module subroutine read_crystald3out(seed,file,mol,errmsg,ti)
-    use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
-       zatguess, nameguess, fclose
-    use tools_math, only: matinv
-    use param, only: maxzat, isformat_r_crystald3
-    use types, only: realloc
-    class(crystalseed), intent(inout) :: seed !< Output crystal seed
-    character*(*), intent(in) :: file !< Input file name
-    logical, intent(in) :: mol !< is this a molecule?
-    character(len=:), allocatable, intent(out) :: errmsg
-    type(thread_info), intent(in), optional :: ti
-
-!    integer :: lu, i, ll, ier
-!    character(len=:), allocatable :: line
-!    integer :: iz, lp, idum1, idum2, idum3
-!    logical :: ok, iscell, isatoms
-!    character*(10) :: ats
-!    integer :: usez(maxzat)
-!    real*8 :: r(3,3)
-
-    write (*,*) "bleh"
-    stop 1
-
-!    call seed%end()
-!    errmsg = ""
-!    lu = fopen_read(file,errstop=.false.,ti=ti)
-!    if (lu < 0) then
-!       errmsg = "Error opening file: " // trim(file)
-!       return
-!    end if
-!
-!    errmsg = "Error reading file: " // trim(file)
-!    iscell = .false.
-!    isatoms = .false.
-!    seed%nat = 0
-!    seed%nspc = 0
-!    ! rewind and read the correct structure
-!    do while (getline_raw(lu,line))
-!       ll = len(line)
-!       if (ll == 15) then
-!          if (line == "lattice vectors") then
-!             do i = 1, 3
-!                lp = 1
-!                ok = getline_raw(lu,line)
-!                line = line(12:)
-!                ok = ok .and. isreal(r(i,1),line,lp)
-!                ok = ok .and. isreal(r(i,2),line,lp)
-!                ok = ok .and. isreal(r(i,3),line,lp)
-!             end do
-!             if (.not.ok) then
-!                errmsg = "Error reading lattice vectors."
-!                goto 999
-!             end if
-!             iscell = .true.
-!          end if
-!       elseif (ll == 27) then
-!          if (line(18:27) == "Atom sites") then
-!             ! number of sites
-!             ok = getline_raw(lu,line)
-!             ok = ok .and. getline_raw(lu,line)
-!             ok = ok .and. isinteger(seed%nat,line(18:))
-!             do i = 1, 3
-!                ok = ok .and. getline_raw(lu,line)
-!             end do
-!             if (.not.ok) then
-!                errmsg = "Error reading number of sites."
-!                goto 999
-!             end if
-!
-!             ! sites
-!             seed%nspc = 0
-!             if (allocated(seed%x)) deallocate(seed%x)
-!             if (allocated(seed%is)) deallocate(seed%is)
-!             if (allocated(seed%atname)) deallocate(seed%atname)
-!             allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
-!             usez = 0
-!             do i = 1, seed%nat
-!                ok = getline_raw(lu,line)
-!                read (line,*) idum1, ats, idum2, idum3, seed%x(:,i)
-!                iz = zatguess(ats)
-!                if (iz < 1 .or. iz > maxzat) then
-!                   errmsg = "Unknown atomic species: " // ats // "."
-!                   goto 999
-!                end if
-!
-!                if (usez(iz) == 0) then
-!                   seed%nspc = seed%nspc + 1
-!                   usez(iz) = seed%nspc
-!                   seed%is(i) = seed%nspc
-!                else
-!                   seed%is(i) = usez(iz)
-!                end if
-!                seed%atname(i) = ats
-!             end do
-!
-!             ! species
-!             if (allocated(seed%spc)) deallocate(seed%spc)
-!             allocate(seed%spc(seed%nspc))
-!             do iz = 1, maxzat
-!                if (usez(iz) > 0) then
-!                   i = usez(iz)
-!                   seed%spc(i)%name = nameguess(iz,.true.)
-!                   seed%spc(i)%z = iz
-!                   seed%spc(i)%qat = 0d0
-!                end if
-!             end do
-!
-!             ! all done
-!             isatoms = (seed%nat > 0) .and. (seed%nspc > 0)
-!          end if
-!       end if
-!    end do
-!    if (.not.iscell) then
-!       errmsg = "No lattice parameters found."
-!       goto 999
-!    end if
-!    if (.not.isatoms) then
-!       errmsg = "No atoms found."
-!       goto 999
-!    end if
-!
-!    ! cell
-!    seed%m_x2c = transpose(r)
-!    r = seed%m_x2c
-!    call matinv(r,3,ier)
-!    if (ier /= 0) then
-!       errmsg = "Error inverting lattice parameter matrix"
-!       goto 999
-!    end if
-!    seed%useabr = 2
-!
-!    ! atoms
-!    do i = 1, seed%nat
-!       seed%x(:,i) = matmul(r,seed%x(:,i))
-!       seed%x(:,i) = seed%x(:,i) - floor(seed%x(:,i))
-!    end do
-!
-!    errmsg = ""
-!999 continue
-!    call fclose(lu)
-!
-!    ! no symmetry
-!    seed%havesym = 0
-!    seed%findsym = -1
-!    seed%checkrepeats = .false.
-!
-!    ! rest of the seed information
-!    seed%isused = .true.
-!    seed%ismolecule = mol
-!    seed%cubic = .false.
-!    seed%border = 0d0
-!    seed%havex0 = .false.
-!    seed%molx0 = 0d0
-!    seed%file = file
-!    seed%name = file
-!    seed%isformat = isformat_r_crystald3
-!
-  end subroutine read_crystald3out
-
   !> Read the structure from an FPLO output
   module subroutine read_fploout(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
@@ -6324,7 +6161,7 @@ contains
        isformat_r_vasp, isformat_r_pwc, isformat_r_axsf, isformat_r_dat, isformat_r_pgout,&
        isformat_r_dmain, isformat_r_aimsin, isformat_r_aimsout, isformat_r_tinkerfrac,&
        isformat_r_castepcell, isformat_r_castepgeom, isformat_r_castepphonon,&
-       isformat_r_qein, isformat_r_qeout, isformat_r_xband, &
+       isformat_r_qein, isformat_r_qeout, isformat_r_xband,&
        isformat_r_mol2, isformat_r_pdb, isformat_r_zmat, isformat_r_sdf, isformat_r_magres
     use tools_io, only: equal, fopen_read, fclose, lower, getline,&
        getline_raw, equali
@@ -6508,7 +6345,7 @@ contains
     use param, only: isformat_r_cif, isformat_r_shelx, isformat_r_f21,&
        isformat_r_cube, isformat_r_bincube, isformat_r_struct, isformat_r_abinit, isformat_r_elk,&
        isformat_r_qein, isformat_r_qeout, isformat_r_crystal, isformat_r_fploout,&
-       isformat_r_xyz, isformat_r_gjf, isformat_r_wfn, isformat_r_crystald3,&
+       isformat_r_xyz, isformat_r_gjf, isformat_r_wfn,&
        isformat_r_wfx, isformat_r_fchk, isformat_r_molden, isformat_r_gaussian, isformat_r_siesta,&
        isformat_r_xsf, isformat_r_gen, isformat_r_vasp, isformat_r_pwc, isformat_r_axsf,&
        isformat_r_dat, isformat_r_pgout, isformat_r_orca, isformat_r_dmain, isformat_r_aimsin,&
@@ -6537,7 +6374,7 @@ contains
        isformat_r_axsf,isformat_r_tinkerfrac,isformat_r_qein,isformat_r_qeout,&
        isformat_r_crystal,isformat_r_fploout,isformat_r_castepcell,isformat_r_castepphonon,&
        isformat_r_castepgeom,isformat_r_magres,isformat_r_alamode,isformat_r_akaikkr,&
-       isformat_r_xband,isformat_r_crystald3)
+       isformat_r_xband)
        ! these are always crystals
        ismol = .false.
 
@@ -6757,7 +6594,7 @@ contains
        isformat_r_dat, isformat_r_f21, isformat_r_unknown, isformat_r_pgout, isformat_r_orca,&
        isformat_r_dmain, isformat_r_aimsin, isformat_r_aimsout, isformat_r_tinkerfrac,&
        isformat_r_mol2, isformat_r_sdf, isformat_r_pdb, isformat_r_magres,&
-       isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband, isformat_r_crystald3
+       isformat_r_alamode, isformat_r_akaikkr, isformat_r_xband
     character*(*), intent(in) :: file
     integer, intent(in) :: mol0
     integer, intent(in) :: isformat0
@@ -6849,8 +6686,6 @@ contains
        call read_all_qeout(nseed,seed,file,mol,-1,errmsg,ti=ti)
     elseif (isformat == isformat_r_crystal) then
        call read_all_crystalout(file,mol,errmsg,nseed=nseed,mseed=seed,alsovib=alsovib,ti=ti)
-    elseif (isformat == isformat_r_crystald3) then
-       call seed(1)%read_crystald3out(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_fploout) then
        call seed(1)%read_fploout(file,mol,errmsg,ti=ti)
     elseif (isformat == isformat_r_qein) then

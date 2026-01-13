@@ -131,7 +131,6 @@ module param
   integer, parameter, public :: isformat_r_castepphonon = 44
   integer, parameter, public :: isformat_r_akaikkr = 45
   integer, parameter, public :: isformat_r_xband = 46
-  integer, parameter, public :: isformat_r_crystald3 = 47
 
   ! Enumerate for structure formats (writing)
   integer, parameter, public :: isformat_w_unknown = 0
