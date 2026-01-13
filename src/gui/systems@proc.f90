@@ -1159,10 +1159,10 @@ contains
     real*8, intent(in) :: x(3)
     logical, intent(in) :: forcewyc
 
-    integer :: isys, leqv, i
+    integer :: isys, leqv, i, ichange
     real*8 :: x_(3)
     character*3 :: pg
-    real*8 :: xd(3), lrotm(3,3,48), ravg(3,3)
+    real*8 :: xd(3), xdo(3), lrotm(3,3,48), ravg(3,3)
 
     real*8, parameter :: tighteps = 1d-7
 
@@ -1187,11 +1187,31 @@ contains
           ! calculate and project the displacement vector (fractional) onto the symmetry element
           xd = x - sys(isys)%c%at(id)%x
           xd = xd - nint(xd)
+
+          ! identify which coordinate has changed
+          ichange = -1
+          xdo = xd
+          if (count(abs(xdo) < tighteps) == 2) then
+             do i = 1, 3
+                if (abs(xdo(i)) > tighteps) then
+                   ichange = i
+                   exit
+                end if
+             end do
+          end if
+
+          ! calculate the transformed difference
           xd = matmul(ravg,xd)
-          x_ = sys(isys)%c%at(id)%x + xd
 
           ! if no displacements, do nothing
           if (norm2(xd) < tighteps) return
+
+          ! scale to have the correct number on the relevant coordinate
+          if (ichange > 0 .and. abs(xd(ichange)) > tighteps) &
+             xd = xd / xd(ichange) * xdo(ichange)
+
+          ! apply the displacement
+          x_ = sys(isys)%c%at(id)%x + xd
        end if
 
        ! displace
