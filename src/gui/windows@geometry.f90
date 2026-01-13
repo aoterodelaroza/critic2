@@ -46,7 +46,7 @@ contains
        atlisttype_ncel_ang
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
-       iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8
+       iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox
     use tools_io, only: string, nameguess, ioj_center
     class(window), intent(inout), target :: w
 
@@ -185,12 +185,17 @@ contains
           call iw_tooltip("Group atoms by these categories",ttshown)
           ntype = sysc(isys)%attype_number(w%geometry_atomtype)
 
+          if (w%geometry_atomtype == atlisttype_nneq) then
+             ldum = iw_checkbox("Keep Symm.",w%geometry_forcewyc,sameline=.true.)
+             call iw_tooltip("If checked, changes to the atomic coordinates force the atom to maintain &
+                &its current site symmetry (Wyckoff position)",ttshown)
+          end if
+
           if (.not.sys(isys)%c%ismolecule) then
-             call igSameLine(0._c_float,-1._c_float)
              if (sys(isys)%c%spgavail) then
-                call iw_text("[" // trim(sys(isys)%c%spg%international_symbol) // "]")
+                call iw_text("  Spg: " // trim(sys(isys)%c%spg%international_symbol),sameline=.true.)
              else
-                call iw_text("[ no symmetry ]")
+                call iw_text("  Spg: n/a",sameline=.true.)
              end if
           end if
 
