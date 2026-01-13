@@ -92,6 +92,7 @@ module crystalseedmod
      procedure :: read_qeout
      procedure :: read_qein
      procedure :: read_crystalout
+     procedure :: read_crystald3out
      procedure :: read_fploout
      procedure :: read_siesta
      procedure :: read_castep_cell
@@ -312,6 +313,13 @@ module crystalseedmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine read_crystalout
+     module subroutine read_crystald3out(seed,file,mol,errmsg,ti)
+       class(crystalseed), intent(inout) :: seed
+       character*(*), intent(in) :: file
+       logical, intent(in) :: mol
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine read_crystald3out
      module subroutine read_fploout(seed,file,mol,errmsg,ti)
        class(crystalseed), intent(inout) :: seed
        character*(*), intent(in) :: file
