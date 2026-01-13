@@ -155,7 +155,7 @@ contains
     use global, only: crsmall, atomeps_structnew, bondfactor
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det3, mnorm2
-    use tools_io, only: ferror, faterr, zatguess, string
+    use tools_io, only: ferror, faterr, zatguess, string, usegui
     use tools, only: wscell, qcksort
     use types, only: realloc
     use param, only: pi, eyet, eye, atmcov
@@ -488,7 +488,11 @@ contains
           ! this operation fills the symmetry info, at(i)%mult, and ncel/atcel
           call c%calcsym(.true.,errmsg,ti=ti)
           if (len_trim(errmsg) > 0) then
-             call ferror("struct_new","spglib: "//errmsg,faterr)
+             if (usegui) then
+                clearsym = .true.
+             else
+                call ferror("struct_new","spglib: "//errmsg,faterr)
+             end if
           else
              clearsym = .false.
           end if
