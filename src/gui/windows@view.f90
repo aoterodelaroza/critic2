@@ -78,6 +78,7 @@ contains
     integer(c_int) :: flags, nc(3), ires, viewtype, idum
     real(c_float) :: scal, width, sqw, depth, rgba(4)
     real*8 :: x0(3)
+    type(ImVec2) :: sz
     logical :: changedisplay(4) ! 1=atoms, 2=bonds, 3=labels, 4=cell
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -555,6 +556,17 @@ contains
           end if
           call iw_tooltip("Add a new object to the view",ttshown)
 
+          ! set table style
+          sz%x = 3._c_float
+          sz%y = 1._c_float
+          call igPushStyleVar_Vec2(ImGuiStyleVar_FramePadding,sz)
+          sz%x = 8._c_float
+          sz%y = 5._c_float
+          call igPushStyleVar_Vec2(ImGuiStyleVar_ItemSpacing,sz)
+          sz%x = 2._c_float
+          sz%y = 2._c_float
+          call igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding,sz)
+
           ! rest of the table
           str2 = "Objects##0,0" // c_null_char
           flags = ImGuiTableFlags_NoSavedSettings
@@ -596,6 +608,7 @@ contains
 
              call igEndTable()
           end if
+          call igPopStyleVar(3_c_int)
 
           call igEndPopup()
        end if

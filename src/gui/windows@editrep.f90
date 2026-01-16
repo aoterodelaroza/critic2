@@ -181,10 +181,10 @@ contains
     integer(c_int) :: nc(3), lst, flags, nspcpair
     real(c_float) :: sqw, raux
     integer :: i, j, k, intable, nrow, is, ncol, ihighlight, highlight_type
-    type(ImVec2) :: sz
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     integer, allocatable :: indi(:), indj(:)
+    type(ImVec2) :: sz
 
     integer(c_int), parameter :: lsttrans(0:7) = (/0,1,2,2,2,3,4,5/)
     integer(c_int), parameter :: lsttransi(0:5) = (/0,1,2,5,6,7/)
