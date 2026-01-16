@@ -51,7 +51,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, removehighlight
-    logical :: doquit, clicked, forcesort, ch
+    logical :: doquit, dorestore, clicked, forcesort, ch
     integer :: ihighlight, iclicked, nhigh, dec, icolsort(0:9)
     logical(c_bool) :: is_selected, redo_highlights
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
@@ -94,6 +94,7 @@ contains
     ihighlight = 0
     iclicked = 0
     doquit = .false.
+    dorestore = .false.
     szero%x = 0
     szero%y = 0
     redo_highlights = .false.
@@ -167,8 +168,7 @@ contains
 
     !! line of global buttons
     ! restore, only if system is independent or master
-    if (iw_button("Restore")) &
-       call reread_system_from_file(isys)
+    dorestore = iw_button("Restore",danger=.true.)
     call iw_tooltip("Restore the system to the original geometry it had when it was first opened",ttshown)
 
     ! show the tabs
@@ -638,6 +638,10 @@ contains
     ! quit the window
     if (doquit) &
        call w%end()
+
+    ! process events at the end
+    if (dorestore) &
+       call reread_system_from_file(isys)
 
   contains
     subroutine change_system(i)
