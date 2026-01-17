@@ -406,6 +406,7 @@ contains
   !> Re-read the system from file name of system idx
   module subroutine reread_system_from_file(idx)
     use crystalseedmod, only: crystalseed, read_seeds_from_file, realloc_crystalseed
+    use param, only: isformat_r_from_library
     integer, intent(in) :: idx
 
     character(len=:), allocatable :: file, errmsg
@@ -417,11 +418,6 @@ contains
 
     ! the seed is available
     if (.not.ok_system(idx,sys_loaded_not_init)) return
-
-    ! make sure the file exists
-    file = sysc(idx)%seed%file
-    inquire(file=file,exist=exist)
-    if (.not.exist) return
 
     ! save the seed info
     if (sysc(idx)%seed%ismolecule) then
@@ -435,6 +431,13 @@ contains
     icol = sysc(idx)%collapse
     ihid = sysc(idx)%hidden
 
+    ! make sure the file exists
+    file = sysc(idx)%seed%file
+    if (isformat /= isformat_r_from_library) then
+       inquire(file=file,exist=exist)
+       if (.not.exist) return
+    end if
+
     ! terminate the system
     call sys(idx)%end()
     call sysc(idx)%seed%end()
@@ -444,14 +447,18 @@ contains
     errmsg = ""
     nseed = 0
     allocate(seed(1))
-    call read_seeds_from_file(file,mol,isformat,.false.,nseed,seed,collapse,errmsg,&
-       iafield,iavib)
-    if (len_trim(errmsg) > 0 .or. nseed == 0) return
+    if (isformat == isformat_r_from_library) then
+       call seed(1)%read_library(file,exist)
+    else
+       call read_seeds_from_file(file,mol,isformat,.false.,nseed,seed,collapse,errmsg,&
+          iafield,iavib)
+       if (len_trim(errmsg) > 0 .or. nseed == 0) return
 
-    ! move the relevant seed to the first position
-    if (nseed > 1) then
-       seed(1) = seed(sysc(idx)%idseed)
-       call realloc_crystalseed(seed,1)
+       ! move the relevant seed to the first position
+       if (nseed > 1) then
+          seed(1) = seed(sysc(idx)%idseed)
+          call realloc_crystalseed(seed,1)
+       end if
     end if
 
     ! add the system again

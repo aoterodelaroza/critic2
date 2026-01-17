@@ -684,7 +684,7 @@ contains
        call ferror("read_library","error parsing the crystal/molecule keyword",faterr,syntax=.true.)
        return
     endif
-    seed%file = trim(line) // " (library)"
+    seed%file = trim(line)
     seed%name = trim(line) // " (library)"
     seed%isformat = isformat_r_from_library
 
