@@ -410,9 +410,8 @@ contains
     integer, intent(in) :: idx
 
     character(len=:), allocatable :: file, errmsg
-    logical :: exist, cubic
+    logical :: exist
     integer :: isformat, mol, iafield, iavib, nseed, icol
-    real*8 :: border
     type(crystalseed), allocatable :: seed(:)
     logical :: collapse, ihid
 
@@ -426,8 +425,6 @@ contains
        mol = 0
     end if
     isformat = sysc(idx)%seed%isformat
-    border = sysc(idx)%seed%border
-    cubic = sysc(idx)%seed%cubic
     icol = sysc(idx)%collapse
     ihid = sysc(idx)%hidden
 
@@ -449,6 +446,7 @@ contains
     allocate(seed(1))
     if (isformat == isformat_r_from_library) then
        call seed(1)%read_library(file,exist)
+       if (.not.exist) return
     else
        call read_seeds_from_file(file,mol,isformat,.false.,nseed,seed,collapse,errmsg,&
           iafield,iavib)
@@ -1242,6 +1240,63 @@ contains
     call sysc%post_event(lastchange_geometry)
 
   end subroutine set_atom_position
+
+  ! For the atom identifier id corresponding to the given atom type,
+  ! set the atomic position(s) in the system.
+  module subroutine reread_geometry_from_file(sysc)
+    use crystalseedmod, only: crystalseed, read_seeds_from_file, realloc_crystalseed
+    use param, only: isformat_r_from_library
+    class(sysconf), intent(inout) :: sysc
+
+    integer :: isys
+    character(len=:), allocatable :: file, errmsg
+    logical :: exist
+    integer :: isformat, mol, nseed
+    type(crystalseed), allocatable :: seed(:)
+    logical :: collapse
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! make sure the file exists
+    if (sysc%seed%ismolecule) then
+       mol = 1
+    else
+       mol = 0
+    end if
+    isformat = sysc%seed%isformat
+    file = sysc%seed%file
+    if (isformat /= isformat_r_from_library) then
+       inquire(file=file,exist=exist)
+       if (.not.exist) return
+    end if
+
+    ! re-read the seeds from file
+    errmsg = ""
+    nseed = 0
+    allocate(seed(1))
+    if (isformat == isformat_r_from_library) then
+       call seed(1)%read_library(file,exist)
+       if (.not.exist) return
+    else
+       call read_seeds_from_file(file,mol,isformat,.false.,nseed,seed,collapse,errmsg)
+       if (len_trim(errmsg) > 0 .or. nseed == 0) return
+
+       ! move the relevant seed to the first position
+       if (nseed > 1) then
+          seed(1) = seed(sysc%idseed)
+          call realloc_crystalseed(seed,1)
+       end if
+    end if
+
+    ! reset the geometry from the seed
+    call sys(isys)%c%struct_new(seed(1),crashfail=.true.)
+
+    ! the geometry has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine reread_geometry_from_file
 
   !xx! private procedures
 

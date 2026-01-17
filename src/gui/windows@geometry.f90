@@ -641,7 +641,7 @@ contains
 
     ! process events at the end
     if (dorestore) &
-       call reread_system_from_file(isys)
+       call sysc(isys)%reread_geometry_from_file()
 
   contains
     subroutine change_system(i)

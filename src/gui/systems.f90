@@ -93,7 +93,7 @@ module systems
      procedure :: highlight_atoms
      procedure :: highlight_clear
      procedure :: remove_highlighted_atoms
-     ! atlysttype tools
+     ! atlisttype tools
      procedure :: attype_combo_simple
      procedure :: attype_number
      procedure :: attype_species
@@ -105,6 +105,7 @@ module systems
      procedure :: attype_type_id_to_id
      ! editing
      procedure :: set_atom_position
+     procedure :: reread_geometry_from_file
   end type sysconf
 
   ! system arrays
@@ -259,6 +260,9 @@ module systems
        real*8, intent(in) :: x(3)
        logical, intent(in) :: forcewyc
      end subroutine set_atom_position
+     module subroutine reread_geometry_from_file(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine reread_geometry_from_file
   end interface
 
 end module systems
