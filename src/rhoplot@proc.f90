@@ -405,6 +405,7 @@ contains
   module subroutine rhoplot_cube(line)
     use systemmod, only: sy
     use fieldmod, only: type_grid
+    use crystalmod, only: crystal
     use grid3mod, only: grid3
     use global, only: eval_next, dunit0, iunit, fileroot
     use arithmetic, only: eval
@@ -416,20 +417,24 @@ contains
     character*(*), intent(in) :: line
 
     integer :: lp, nti, id, nn(3)
-    real*8 :: x0(3), x1(3), xp(3), lappt
+    real*8 :: x0(3), x1(3), xp(3), lappt, x00(3,3)
     real*8 :: rgr, dd(3), xd(3,3)
-    integer :: lp2
+    integer :: lp2, i1, i2, i3
     character(len=:), allocatable :: word, outfile, expr, wext1
     type(scalar_value) :: res
     logical :: ok, doortho
-    integer :: ix, iy, iz, i, ibnd, ik, inr(3), ispin
-    real*8, allocatable :: lf(:,:,:), fake(:,:,:), ff(:,:,:)
+    integer :: ix, iy, iz, i, j, k, ibnd, ik, inr(3), ispin
+    real*8, allocatable :: lf(:,:,:), fake(:,:,:), ff(:,:,:), ff2(:,:,:)
     logical :: dogrid, useexpr, doheader
     integer :: outform, ishift(3), dopsi
     type(grid3) :: faux
     complex*16, allocatable :: caux(:,:,:)
     type(vstring) :: lerrmsg
     type(field_evaluation_avail) :: request
+    integer :: ia(3), na(3)
+    logical :: iused(3)
+    type(crystal), pointer :: cr
+    type(crystal), target :: nc
 
     integer, parameter :: outform_cube = 1
     integer, parameter :: outform_bincube = 2
@@ -530,13 +535,6 @@ contains
        ispin = 1
     endif
 
-    ! calculate the distances
-    x0 = sy%c%x2c(x0)
-    do i = 1, 3
-       xd(:,i) = sy%c%x2c(xd(:,i))
-       dd(i) = norm2(xd(:,i))
-    end do
-
     if (.not.dogrid) then
        ! read number of points or grid resolution
        lp2 = lp
@@ -559,6 +557,9 @@ contains
        end if
     end if
 
+    ! the crystal pointer defaults to the current structure
+    cr => sy%c
+
     ! read additional options
     call request%field_only()
     ishift = 0
@@ -567,6 +568,8 @@ contains
     useexpr = .false.
     outform = outform_cube
     outfile = trim(fileroot) // ".cube"
+    ia = -1
+    na = -1
     do while (.true.)
        word = lgetword(line,lp)
        if (equal(word,'file')) then
@@ -669,12 +672,58 @@ contains
           ok = ok .and. isinteger(ishift(3),line,lp)
        else if (equal(word,'ortho')) then
           doortho = .true.
+       else if (equal(word,'newcell')) then
+          iused = .false.
+          do i = 1, 3
+             word = lgetword(line,lp)
+             if (equal(word,'a')) then
+                ia(i) = 1
+             elseif (equal(word,'b')) then
+                ia(i) = 2
+             elseif (equal(word,'c')) then
+                ia(i) = 3
+             else
+                call ferror('rhoplot_cube','error in axes passed to NEWCELL option',faterr,line,syntax=.true.)
+                return
+             end if
+             if (iused(ia(i))) then
+                call ferror('rhoplot_cube','repeated axes in NEWCELL option',faterr,line,syntax=.true.)
+                return
+             end if
+             iused(ia(i)) = .true.
+
+             ok = isinteger(na(i),line,lp)
+             if (.not.ok) then
+                call ferror('rhoplot_cube','error reading axis repetition in NEWCELL',faterr,line,syntax=.true.)
+                return
+             end if
+             if (na(i) < 1) then
+                call ferror('rhoplot_cube','error reading axis repetition in NEWCELL',faterr,line,syntax=.true.)
+                return
+             end if
+          end do
+
+          ! build the corresponding supercell
+          x00 = 0d0
+          do i = 1, 3
+             x00(ia(i),i) = na(i)
+          end do
+          nc = sy%c
+          call nc%newcell(x00,noenv=.true.)
+          cr => nc
        else if (len_trim(word) > 0) then
           call ferror('rhoplot_cube','Unknown keyword in CUBE',faterr,line,syntax=.true.)
           return
        else
           exit
        end if
+    end do
+
+    ! calculate the distances
+    x0 = cr%x2c(x0)
+    do i = 1, 3
+       xd(:,i) = cr%x2c(xd(:,i))
+       dd(i) = norm2(xd(:,i))
     end do
 
     ! re-do the lattice vectors if orthogonal vectors were requested
@@ -711,12 +760,27 @@ contains
           call ferror('rhoplot_cube','CUBE MLWF/WANNIER/...: cannot be used with non-periodic grids',faterr,syntax=.true.)
           return
        end if
+       if (any(na > 0) .and. dopsi /= psi_none) then
+          call ferror('rhoplot_cube','MLWF/WANNIER/...: incompatible with NEWCELL',faterr,syntax=.true.)
+          return
+       end if
+    else
+       if (any(na > 0)) then
+          call ferror('rhoplot_cube','NEWCELL can only be used with GRID',faterr,syntax=.true.)
+          return
+       end if
     end if
 
     ! convert to one-step vectors in each direction
-    do i = 1, 3
-       xd(:,i) = xd(:,i) / real(nn(i),8)
-    end do
+    if (any(na > 0)) then
+       do i = 1, 3
+          xd(:,i) = xd(:,i) / real(nn(ia(i)) * na(i),8)
+       end do
+    else
+       do i = 1, 3
+          xd(:,i) = xd(:,i) / real(nn(i),8)
+       end do
+    end if
 
     ! write cube header
     write (uout,'("* CUBE written to file: ",A/)') string(outfile)
@@ -724,13 +788,13 @@ contains
        if (outform == outform_bincube) then
           call ferror("rhoplot_cube","BINCUBE format is incompatible with HEADER",faterr)
        elseif (outform == outform_cube) then
-          call sy%c%writegrid_cube(fake,outfile,.true.,.false.,xd,x0+sy%c%molx0)
+          call cr%writegrid_cube(fake,outfile,.true.,.false.,xd,x0+cr%molx0)
        elseif (outform == outform_vasp) then
-          call sy%c%writegrid_vasp(fake,outfile,.true.,.false.)
+          call cr%writegrid_vasp(fake,outfile,.true.,.false.)
        elseif (outform == outform_vaspnov) then
-          call sy%c%writegrid_vasp(fake,outfile,.true.,.true.)
+          call cr%writegrid_vasp(fake,outfile,.true.,.true.)
        elseif (outform == outform_xsf) then
-          call sy%c%writegrid_xsf(fake,outfile,.true.)
+          call cr%writegrid_xsf(fake,outfile,.true.)
        endif
        return
     end if
@@ -738,14 +802,46 @@ contains
     ! calculate properties
     if (dogrid) then
        if (dopsi == psi_none) then
-          ! GRID keyword
-          if (sy%f(id)%usecore) then
-             call sy%c%promolecular_array3(ff,sy%f(id)%grid%n,sy%f(id)%zpsp)
-             call faux%from_array3(ff,sy%c%m_x2c,c_loc(sy%c))
-             deallocate(ff)
-             faux%f = faux%f + sy%f(id)%grid%f
+          if (any(na > 0)) then
+             ! GRID keyword, with NEWCELL -> rearrange grid
+             allocate(ff2(nn(ia(1)),nn(ia(2)),nn(ia(3))))
+             do k = 1, nn(3)
+                do j = 1, nn(2)
+                   if (ia(2) == 1 .and. ia(3) == 2) then     ! ia(1) == 3
+                      ff2(k,:,j) = sy%f(id)%grid%f(:,j,k)
+                   elseif (ia(2) == 1 .and. ia(3) == 3) then ! ia(1) == 2
+                      ff2(j,:,k) = sy%f(id)%grid%f(:,j,k)
+                   elseif (ia(2) == 2 .and. ia(3) == 1) then ! ia(1) == 3
+                      ff2(k,j,:) = sy%f(id)%grid%f(:,j,k)
+                   elseif (ia(2) == 2 .and. ia(3) == 3) then ! ia(1) == 1
+                      ff2(:,j,k) = sy%f(id)%grid%f(:,j,k)
+                   elseif (ia(2) == 3 .and. ia(3) == 1) then ! ia(1) == 2
+                      ff2(j,k,:) = sy%f(id)%grid%f(:,j,k)
+                   elseif (ia(2) == 3 .and. ia(3) == 2) then ! ia(1) == 1
+                      ff2(:,k,j) = sy%f(id)%grid%f(:,j,k)
+                   end if
+                end do
+             end do
+
+             ! multiply rearranged grid
+             allocate(ff(na(1)*nn(ia(1)),na(2)*nn(ia(2)),na(3)*nn(ia(3))))
+             do i1 = 1, na(1)
+                do i2 = 1, na(2)
+                   do i3 = 1, na(3)
+                      ff((i1-1)*nn(ia(1))+1:i1*nn(ia(1)),(i2-1)*nn(ia(2))+1:i2*nn(ia(2)),(i3-1)*nn(ia(3))+1:i3*nn(ia(3))) = ff2
+                   end do
+                end do
+             end do
+             call faux%from_array3(ff,cr%m_x2c,c_loc(cr))
+             deallocate(ff,ff2)
           else
+             ! GRID keyword, current cell
              faux = sy%f(id)%grid
+             if (sy%f(id)%usecore) then
+                call cr%promolecular_array3(ff,sy%f(id)%grid%n,sy%f(id)%zpsp)
+                faux%f = faux%f + ff
+                deallocate(ff)
+             end if
           end if
        else
           allocate(caux(nn(1),nn(2),nn(3)))
@@ -766,21 +862,21 @@ contains
        end if
 
        if (outform == outform_bincube) then
-          call sy%c%writegrid_cube(faux%f,outfile,.false.,.true.,xd0=xd,x00=x0+sy%c%molx0)
+          call cr%writegrid_cube(faux%f,outfile,.false.,.true.,xd0=xd,x00=x0+cr%molx0)
        elseif (outform == outform_cube) then
-          call sy%c%writegrid_cube(faux%f,outfile,.false.,.false.,xd0=xd,x00=x0+sy%c%molx0,ishift0=ishift)
+          call cr%writegrid_cube(faux%f,outfile,.false.,.false.,xd0=xd,x00=x0+cr%molx0,ishift0=ishift)
        elseif (outform == outform_vasp) then
-          call sy%c%writegrid_vasp(faux%f,outfile,.false.,.false.)
+          call cr%writegrid_vasp(faux%f,outfile,.false.,.false.)
        elseif (outform == outform_vaspnov) then
-          call sy%c%writegrid_vasp(faux%f,outfile,.false.,.true.)
+          call cr%writegrid_vasp(faux%f,outfile,.false.,.true.)
        elseif (outform == outform_xsf) then
-          call sy%c%writegrid_xsf(faux%f,outfile,.false.)
+          call cr%writegrid_xsf(faux%f,outfile,.false.)
        endif
     else
        ! no special keywords used
        ok = .false.
        if (useexpr) then
-          call faux%new_eval(c_loc(sy),c_loc(sy%c),nn,expr,sy%c%m_x2c)
+          call faux%new_eval(c_loc(sy),c_loc(cr),nn,expr,cr%m_x2c)
           ok = faux%isinit
        end if
        allocate(lf(nn(1),nn(2),nn(3)))
@@ -796,7 +892,7 @@ contains
                    xp = x0 + real(ix,8) * xd(:,1) + real(iy,8) * xd(:,2) &
                       + real(iz,8) * xd(:,3)
                    if (.not.useexpr) then
-                      call sy%f(id)%grd(xp,request,res,periodic=.not.sy%c%ismolecule)
+                      call sy%f(id)%grd(xp,request,res,periodic=.not.cr%ismolecule)
                       select case(nti)
                       case (nti_none,nti_f)
                          lappt = res%f
@@ -838,15 +934,15 @@ contains
        end if
        ! cube body
        if (outform == outform_bincube) then
-          call sy%c%writegrid_cube(lf,outfile,.false.,.true.,xd,x0+sy%c%molx0)
+          call cr%writegrid_cube(lf,outfile,.false.,.true.,xd,x0+cr%molx0)
        elseif (outform == outform_cube) then
-          call sy%c%writegrid_cube(lf,outfile,.false.,.false.,xd,x0+sy%c%molx0)
+          call cr%writegrid_cube(lf,outfile,.false.,.false.,xd,x0+cr%molx0)
        elseif (outform == outform_vasp) then
-          call sy%c%writegrid_vasp(lf,outfile,.false.,.false.)
+          call cr%writegrid_vasp(lf,outfile,.false.,.false.)
        elseif (outform == outform_vaspnov) then
-          call sy%c%writegrid_vasp(lf,outfile,.false.,.true.)
+          call cr%writegrid_vasp(lf,outfile,.false.,.true.)
        elseif (outform == outform_xsf) then
-          call sy%c%writegrid_xsf(lf,outfile,.false.)
+          call cr%writegrid_xsf(lf,outfile,.false.)
        endif
        if (allocated(lf)) deallocate(lf)
     end if
