@@ -772,7 +772,6 @@ contains
 
     integer :: i, j, iz, jz, jid
     real*8 :: ri, rj, dmax, dd
-    real*8 :: dd
     logical :: bonded, ism, jsm
     real*8, allocatable :: rij2(:,:,:)
     logical :: ismetal(0:maxzat0)
