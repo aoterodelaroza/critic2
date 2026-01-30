@@ -1844,7 +1844,7 @@ contains
   subroutine cp_vlong_report()
     use systemmod, only: sy
     use tools_io, only: uout, string
-    use global, only: iunitname0, iunit
+    use global, only: iunitname0, iunit, dunit0
     use param, only: bohrtoa
     integer :: i, j
     real*8 :: minden, maxbden, fness, xx(3)
@@ -1858,7 +1858,7 @@ contains
           write (uout,'("  Crystallographic coordinates: ",3(A," "))') &
              (string(sy%f(sy%iref)%cp(i)%x(j),'f',decimal=10),j=1,3)
           write (uout,'("  Cartesian coordinates (",A,"): ",3(A," "))') &
-             iunitname0(iunit), (string(sy%f(sy%iref)%cp(i)%r(j),'f',decimal=10),j=1,3)
+             iunitname0(iunit), (string(sy%f(sy%iref)%cp(i)%r(j)*dunit0(iunit),'f',decimal=10),j=1,3)
        else
           xx = (sy%f(sy%iref)%cp(i)%r + sy%c%molx0) * bohrtoa
           write (uout,'("  Coordinates (",A,"): ",3(A," "))') &
