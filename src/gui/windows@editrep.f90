@@ -485,7 +485,8 @@ contains
              call igPushItemWidth(iw_calcwidth(5,1))
              call igSameLine(0._c_float,-1._c_float)
              ch = ch .or. iw_dragfloat_realc("##radiusbondtableglobal",x1=w%rep%bond_rad,speed=0.005_c_float,&
-                min=0._c_float,max=2._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
+                min=0._c_float,max=2._c_float,scale=real(bohrtoa,c_float),sformat="%.3f",&
+                flags=ImGuiSliderFlags_AlwaysClamp)
              call igPopItemWidth()
              call iw_tooltip("Radius of the bonds",ttshown)
 
@@ -950,6 +951,7 @@ contains
     use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_radiobutton, iw_button,&
        iw_clamp_color3, iw_checkbox, iw_coloredit, iw_dragfloat_realc, iw_dragfloat_real8
+    use param, only: bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical(c_bool) :: changed, ldum
@@ -1036,8 +1038,8 @@ contains
     call iw_tooltip("In systems with vacuum direction(s), do not show the unit cell in the vacuum region",ttshown)
 
     call igPushItemWidth(iw_calcwidth(5,1))
-    changed = changed .or. iw_dragfloat_realc("Radius##outer",x1=w%rep%uc_radius,speed=0.005_c_float,&
-       min=0._c_float,max=5._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
+    changed = changed .or. iw_dragfloat_realc("Radius (Å)##outer",x1=w%rep%uc_radius,speed=0.005_c_float,&
+       min=0._c_float,max=5._c_float,scale=real(bohrtoa,c_float),sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
     call igPopItemWidth()
     call iw_tooltip("Radii of the unit cell edges",ttshown)
 
@@ -1055,8 +1057,8 @@ contains
     call iw_tooltip("Represent the inner divisions inside a supercell",ttshown)
     if (w%rep%uc_inner) then
        call igPushItemWidth(iw_calcwidth(5,1))
-       changed = changed .or. iw_dragfloat_realc("Radius##inner",x1=w%rep%uc_radiusinner,speed=0.005_c_float,&
-          min=0._c_float,max=5._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
+       changed = changed .or. iw_dragfloat_realc("Radius (Å)##inner",x1=w%rep%uc_radiusinner,speed=0.005_c_float,&
+          min=0._c_float,max=5._c_float,scale=real(bohrtoa,c_float),sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
        call igPopItemWidth()
        call iw_tooltip("Radii of the inner unit cell edges",ttshown)
 
@@ -1066,7 +1068,8 @@ contains
        if (w%rep%uc_innerstipple) then
           call igPushItemWidth(iw_calcwidth(5,1))
           changed = changed .or. iw_dragfloat_realc("Dash length (Å)",x1=w%rep%uc_innersteplen,speed=0.1_c_float,&
-             min=0.001_c_float,max=100._c_float,sformat="%.1f",flags=ImGuiSliderFlags_AlwaysClamp)
+             min=0.001_c_float,max=100._c_float,scale=real(bohrtoa,c_float),sformat="%.1f",&
+             flags=ImGuiSliderFlags_AlwaysClamp)
           call igPopItemWidth()
           call iw_tooltip("Length of the dashed lines for the inner cell divisions (in Å)",ttshown)
        end if
@@ -1100,6 +1103,7 @@ contains
     use crystalmod, only: crystal
     use global, only: iunit_ang, dunit0
     use tools_io, only: string, ioj_right
+    use param, only: bohrtoa
     integer, intent(in) :: isys
     type(representation), intent(inout) :: r
     logical, intent(in) :: showselection
@@ -1296,7 +1300,7 @@ contains
                 if (igTableSetColumnIndex(icol)) then
                    call igPushItemWidth(iw_calcwidth(5,1))
                    ch = iw_dragfloat_realc("##tableradius" // string(i),x1=r%atom_style%rad(i),speed=0.01_c_float,&
-                      min=0._c_float,max=5._c_float,sformat=str3,flags=ImGuiSliderFlags_AlwaysClamp)
+                      min=0._c_float,max=5._c_float,scale=real(bohrtoa,c_float),sformat=str3,flags=ImGuiSliderFlags_AlwaysClamp)
                    call iw_tooltip("Radius of the sphere representing the atom",ttshown)
                    if (ch) then
                       r%atom_style%rad(i) = max(r%atom_style%rad(i),0._c_float)
