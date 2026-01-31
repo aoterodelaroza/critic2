@@ -863,13 +863,19 @@ contains
 
           dd = atenv(i)%dist(j)
           if (ism .and. jsm) then
-             bonded = (dd < atenv(i)%dist(1) + dbond) .or. (dd < atenv(jid)%dist(1) + dbond)
+             if (atenv(i)%nat > 0 .and. atenv(jid)%nat > 0) then
+                bonded = (dd < atenv(i)%dist(1) + dbond) .or. (dd < atenv(jid)%dist(1) + dbond)
+             end if
           elseif (ism) then
-             bonded = (dd < atenv(i)%dist(1) + dbond) .or.&
-                (dd > rij2(c%atcel(jid)%is,1,c%atcel(i)%is) .and. dd < rij2(c%atcel(jid)%is,2,c%atcel(i)%is))
+             if (atenv(i)%nat > 0) then
+                bonded = (dd < atenv(i)%dist(1) + dbond) .or.&
+                   (dd > rij2(c%atcel(jid)%is,1,c%atcel(i)%is) .and. dd < rij2(c%atcel(jid)%is,2,c%atcel(i)%is))
+             end if
           elseif (jsm) then
-             bonded = (dd < atenv(jid)%dist(1) + dbond) .or.&
-                (dd > rij2(c%atcel(jid)%is,1,c%atcel(i)%is) .and. dd < rij2(c%atcel(jid)%is,2,c%atcel(i)%is))
+             if (atenv(jid)%nat > 0) then
+                bonded = (dd < atenv(jid)%dist(1) + dbond) .or.&
+                   (dd > rij2(c%atcel(jid)%is,1,c%atcel(i)%is) .and. dd < rij2(c%atcel(jid)%is,2,c%atcel(i)%is))
+             end if
           else
              bonded = (dd > rij2(c%atcel(jid)%is,1,c%atcel(i)%is) .and. dd < rij2(c%atcel(jid)%is,2,c%atcel(i)%is))
           end if
