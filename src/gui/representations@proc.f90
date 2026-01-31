@@ -75,6 +75,10 @@ contains
           r%name = "Critical Points"
           r%bonds_display = .false.
           r%labels_display = .true.
+       elseif (flavor == repflavor_atoms_gradientpaths) then
+          r%name = "Gradient Paths"
+          r%bonds_display = .false.
+          r%labels_display = .false.
        end if
     elseif (itype == reptype_unitcell) then
        r%isinit = .true.
@@ -156,6 +160,10 @@ contains
           r%atom_radii_type = 2
           r%atom_radii_value = atomrad_criticalpoints_def
           r%atom_border_size = atomborder_criticalpoints_def
+       elseif (r%flavor == repflavor_atoms_gradientpaths) then
+          r%atom_radii_type = 2
+          r%atom_radii_value = atomrad_gradientpaths_def
+          r%atom_border_size = atomborder_gradientpaths_def
        end if
     end if
 
@@ -913,6 +921,9 @@ contains
        if (r%flavor == repflavor_atoms_criticalpoints) then
           ! show only the critical point atoms
           if (iz <= maxzat .or. iz == maxzat0) d%shown(i) = .false.
+       elseif (r%flavor == repflavor_atoms_gradientpaths) then
+          ! show only the gradient paths
+          if (iz /= maxzat0) d%shown(i) = .false.
        else
           ! do not shown the critical point atoms
           if (iz > maxzat) d%shown(i) = .false.
@@ -1122,9 +1133,6 @@ contains
           end do
        end do
        call d%generate_neighstars(r)
-    elseif (r%flavor == repflavor_atoms_criticalpoints) then
-       ! critical points
-       d%use_sys_nstar = .false.
     else
        ! other flavors are default (track system bonds)
        d%use_sys_nstar = .true.

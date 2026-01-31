@@ -28,11 +28,13 @@ module representations
   ! default parameters for the representations (all distances in bohr)
   !--> atoms
   real(c_float), parameter, public :: atomborder_def = 0.05_c_float / bohrtoa ! atom border
-  real(c_float), parameter, public :: atomborder_criticalpoints_def = 0.03_c_float / bohrtoa ! atom border
+  real(c_float), parameter, public :: atomborder_criticalpoints_def = 0.03_c_float / bohrtoa ! atom border (critical points)
+  real(c_float), parameter, public :: atomborder_gradientpaths_def = 0.008_c_float / bohrtoa ! atom border (gradient paths)
   real(c_float), parameter, public :: atomcovradscale_def = 0.7_c_float ! atomic radius scale factor (covalent)
   real(c_float), parameter, public :: atomvdwradscale_def = 1.0_c_float ! atomic radius scale factor (vdw)
   real(c_float), parameter, public :: atomrad_licorice_def = 0.11_c_float / bohrtoa ! atomic radius value (licorice)
-  real(c_float), parameter, public :: atomrad_criticalpoints_def = 0.13_c_float / bohrtoa ! atomic radius value (licorice)
+  real(c_float), parameter, public :: atomrad_criticalpoints_def = 0.13_c_float / bohrtoa ! atomic radius value (critical points)
+  real(c_float), parameter, public :: atomrad_gradientpaths_def = 0.05_c_float / bohrtoa ! atomic radius value (gradient paths)
   !--> bonds
   real(c_float), parameter, public :: bondrad_def = 0.125_c_float / bohrtoa ! bond radius
   real(c_float), parameter, public :: bondrad_licorice_def = 0.25_c_float / bohrtoa ! bond radius (licorice)
@@ -115,8 +117,9 @@ module representations
   integer, parameter, public :: repflavor_atoms_vdwcontacts = 4
   integer, parameter, public :: repflavor_atoms_hbonds = 5
   integer, parameter, public :: repflavor_atoms_criticalpoints = 6
-  integer, parameter, public :: repflavor_unitcell_basic = 7
-  integer, parameter, public :: repflavor_NUM = 7
+  integer, parameter, public :: repflavor_atoms_gradientpaths = 7
+  integer, parameter, public :: repflavor_unitcell_basic = 8
+  integer, parameter, public :: repflavor_NUM = 8
 
   !> Representation: objects to draw on the scene
   type representation

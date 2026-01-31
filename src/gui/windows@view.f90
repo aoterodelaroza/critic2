@@ -51,7 +51,7 @@ contains
        BIND_NAV_MEASURE, bindnames, get_bind_keyname,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use representations, only: reptype_atoms, reptype_unitcell,&
-       repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints,&
+       repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
        repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
        repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic
     use scenes, only: style_phong, style_simple
@@ -141,7 +141,8 @@ contains
              if (w%sc%rep(i)%type == reptype_atoms) then
                 isatom = isatom .or. w%sc%rep(i)%atoms_display
                 isbond = isbond .or. w%sc%rep(i)%bonds_display
-                if (w%sc%rep(i)%labels_display) &
+                if (w%sc%rep(i)%labels_display .and. w%sc%rep(i)%flavor/=repflavor_atoms_criticalpoints .and.&
+                   w%sc%rep(i)%flavor/=repflavor_atoms_gradientpaths) &
                    islabels = w%sc%rep(i)%label_type
              elseif (w%sc%rep(i)%type == reptype_unitcell) then
                 isuc = isuc .or. w%sc%rep(i)%shown
@@ -185,7 +186,8 @@ contains
                 if (w%sc%rep(i)%type == reptype_atoms) then
                    if (changedisplay(1)) w%sc%rep(i)%atoms_display = isatom
                    if (changedisplay(2)) w%sc%rep(i)%bonds_display = isbond
-                   if (changedisplay(3)) then
+                   if (changedisplay(3) .and. w%sc%rep(i)%flavor/=repflavor_atoms_criticalpoints .and.&
+                      w%sc%rep(i)%flavor/=repflavor_atoms_gradientpaths) then
                       w%sc%rep(i)%labels_display = islabelsl
                       if (islabelsl) then
                          w%sc%rep(i)%label_type = islabels
@@ -548,7 +550,13 @@ contains
                 call w%sc%add_representation(reptype_atoms,repflavor_atoms_criticalpoints)
                 chbuild = .true.
              end if
-             call iw_tooltip("Draw dummy atoms representing critical points (Xn, Xb,...)",ttshown)
+             call iw_tooltip("Draw dummy atoms representing critical points (Xn, Xb,... atoms)",ttshown)
+
+             if (iw_menuitem("Gradient Paths",shortcut_text="Atoms")) then
+                call w%sc%add_representation(reptype_atoms,repflavor_atoms_gradientpaths)
+                chbuild = .true.
+             end if
+             call iw_tooltip("Draw dummy atoms representing gradient paths (Xz atoms)",ttshown)
 
              if (.not.sys(w%view_selected)%c%ismolecule) then
                 call igSeparator()

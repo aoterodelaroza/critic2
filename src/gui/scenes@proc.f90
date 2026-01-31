@@ -162,12 +162,12 @@ contains
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
     use representations, only: reptype_atoms, reptype_unitcell,&
-       repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_sticks,&
-       repflavor_unitcell_basic, repflavor_NUM
+       repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
+       repflavor_atoms_sticks, repflavor_unitcell_basic, repflavor_NUM
     use systems, only: sys, sysc, sys_ready, ok_system
     use global, only: crsmall
     use gui_main, only: lockbehavior
-    use param, only: maxzat
+    use param, only: maxzat, maxzat0
     class(scene), intent(inout), target :: s
     integer, intent(in) :: isys
 
@@ -228,6 +228,11 @@ contains
     ! critical points
     if (any(sys(isys)%c%spc(:)%z > maxzat)) then
        call s%add_representation(reptype_atoms,repflavor_atoms_criticalpoints)
+    end if
+
+    ! gradient paths
+    if (any(sys(isys)%c%spc(:)%z == maxzat0)) then
+       call s%add_representation(reptype_atoms,repflavor_atoms_gradientpaths)
     end if
 
     ! reset the camera later
