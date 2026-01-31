@@ -763,7 +763,7 @@ contains
     use tools_io, only: string, ferror, faterr
     use tools, only: qcksort
     use types, only: realloc
-    use param, only: icrd_crys, atmcov, bohrtoa
+    use param, only: icrd_crys, atmcov, bohrtoa, maxzat
     class(crystal), intent(inout) :: c
     type(neighstar), allocatable, intent(inout) :: nstar(:)
     real*8, intent(in), optional :: atmrad(0:maxzat0)
@@ -814,9 +814,11 @@ contains
        ! from atmrad and bondfac
        do i = 1, c%nspc
           if (c%spc(i)%z <= 0) cycle
+          if (c%spc(i)%z > maxzat) cycle ! CPs do not form bonds
           ri = atmrad(c%spc(i)%z)
           do j = 1, c%nspc
              if (c%spc(j)%z <= 0) cycle
+             if (c%spc(j)%z > maxzat) cycle ! CPs do not form bonds
              rj = atmrad(c%spc(j)%z)
 
              rij2(j,2,i) = (ri+rj) * bondfac
@@ -839,6 +841,7 @@ contains
     dmax = 0d0
     do i = 1, c%nspc
        if (c%spc(i)%z <= 0) cycle
+       if (c%spc(i)%z > maxzat) cycle
        dmax = max(atmcov(c%spc(i)%z),dmax)
     end do
 
@@ -846,6 +849,7 @@ contains
     allocate(atenv(c%ncel))
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z
+       if (iz > maxzat) cycle
        call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,atenv(i)%nat,atenv(i)%eid,&
           atenv(i)%dist,atenv(i)%lvec,up2d=(atmcov(iz) + dmax)*2d0,nozero=.true.)
     end do
@@ -853,11 +857,13 @@ contains
     ! process the environments and generate the bonds
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z
+       if (iz > maxzat) cycle
        ism = ismetal(iz)
 
        do j = 1, atenv(i)%nat
           jid = atenv(i)%eid(j)
           jz = c%spc(c%atcel(jid)%is)%z
+          if (jz > maxzat) cycle
           jsm = ismetal(jz)
           bonded = .false.
 
