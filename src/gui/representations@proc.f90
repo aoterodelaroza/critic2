@@ -153,9 +153,9 @@ contains
           r%atom_radii_type = 2
           r%atom_radii_value = atomrad_licorice_def
        elseif (r%flavor == repflavor_atoms_criticalpoints) then
-          r%atom_radii_type = 0
-          r%atom_radii_scale = 1d0
-          r%atom_border_size = atomborder_def
+          r%atom_radii_type = 2
+          r%atom_radii_value = atomrad_criticalpoints_def
+          r%atom_border_size = atomborder_criticalpoints_def
        end if
     end if
 
@@ -191,6 +191,11 @@ contains
        r%label_rgb = (/0._c_float,0._c_float,0._c_float/)
        r%label_const_size = .false.
        r%label_offset = (/0._c_float,0._c_float,0._c_float/)
+       if (r%flavor == repflavor_atoms_criticalpoints) then
+          r%label_type = 2 ! cell atom
+          r%label_scale = 0.3_c_float
+          r%label_offset = (/0._c_float,0.25_c_float,0._c_float/)
+       end if
     end if
 
     !--> molecules
@@ -857,7 +862,7 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc, sys_ready, ok_system, atlisttype_species
     use gui_main, only: ColorElement
-    use param, only: atmcov, atmvdw, jmlcol, jmlcol2, maxzat
+    use param, only: atmcov, atmvdw, jmlcol, jmlcol2, maxzat, maxzat0
     class(atom_geom_style), intent(inout) :: d
     type(representation), intent(in) :: r
 
@@ -905,9 +910,12 @@ contains
           d%rad(i) = r%atom_radii_value
        endif
 
-       ! do not shown the critical point atoms
-       if (iz > maxzat) then
-          d%shown(i) = .false.
+       if (r%flavor == repflavor_atoms_criticalpoints) then
+          ! show only the critical point atoms
+          if (iz <= maxzat .or. iz == maxzat0) d%shown(i) = .false.
+       else
+          ! do not shown the critical point atoms
+          if (iz > maxzat) d%shown(i) = .false.
        end if
     end do
     d%isinit = .true.

@@ -440,8 +440,9 @@ contains
 
              ! border size
              call igPushItemWidth(iw_calcwidth(5,1))
-             changed = changed .or. iw_dragfloat_realc("Border Size (Å)",x1=w%rep%atom_border_size,speed=0.002_c_float,&
-                min=0._c_float,max=1._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
+             changed = changed .or. iw_dragfloat_realc("Border Size (Å)",x1=w%rep%atom_border_size,&
+                speed=0.002_c_float,min=0._c_float,max=1._c_float,scale=real(bohrtoa,c_float),&
+                sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the thickness of the atom borders",ttshown)
              call igPopItemWidth()
 
