@@ -51,7 +51,8 @@ contains
        BIND_NAV_MEASURE, bindnames, get_bind_keyname,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use representations, only: reptype_atoms, reptype_unitcell,&
-       repflavor_atoms_ballandstick, repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
+       repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints,&
+       repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
        repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic
     use scenes, only: style_phong, style_simple
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
@@ -542,6 +543,12 @@ contains
                 chbuild = .true.
              end if
              call iw_tooltip("Display contacts between hydrogen bonded atoms",ttshown)
+
+             if (iw_menuitem("Critical Points",shortcut_text="Atoms")) then
+                call w%sc%add_representation(reptype_atoms,repflavor_atoms_criticalpoints)
+                chbuild = .true.
+             end if
+             call iw_tooltip("Draw dummy atoms representing critical points (Xn, Xb,...)",ttshown)
 
              if (.not.sys(w%view_selected)%c%ismolecule) then
                 call igSeparator()

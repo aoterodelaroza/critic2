@@ -42,7 +42,7 @@ contains
     use systems, only: nsys, sysc, sys, sys_init, ok_system, lastchange_rebond
     use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight,&
-       iw_dragfloat_realc
+       iw_dragfloat_real8
     use global, only: bondfactor_def
     use tools_io, only: string, nameguess
     use param, only: atmcov0, maxzat0, bohrtoa, newline
@@ -52,12 +52,11 @@ contains
     integer :: i, iz, isys, natused
     type(ImVec2) :: szavail, szero, sz0
     integer(c_int) :: flags
-    real(c_float) :: combowidth, rad, bf, bfmin, bfmax
+    real(c_float) :: combowidth
     logical(c_bool) :: is_selected
     character(len=:,kind=c_char), allocatable, target :: str1, str2
     integer, allocatable :: iat(:)
     logical :: atused(maxzat0)
-    real*8 :: mrad
 
     integer, parameter :: ic_name = 0
     integer, parameter :: ic_z = 1
@@ -129,7 +128,6 @@ contains
     end do
 
     ! the radii table
-    mrad = 0d0
     call iw_text("Atomic Radii",highlight=.true.)
     flags = ImGuiTableFlags_None
     flags = ior(flags,ImGuiTableFlags_RowBg)
@@ -181,11 +179,9 @@ contains
           ! radius
           if (igTableSetColumnIndex(ic_radius)) then
              call igPushItemWidth(iw_calcwidth(5,1))
-             mrad = max(mrad,sysc(isys)%atmcov(iz))
-             rad = real(sysc(isys)%atmcov(iz) * bohrtoa,c_float)
-             ch = iw_dragfloat_realc("##tableradius" // string(i),x1=rad,speed=0.01_c_float,min=0._c_float,&
-                max=2.65_c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
-             if (ch) sysc(isys)%atmcov(iz) = rad / bohrtoa
+             ch = iw_dragfloat_real8("##tableradius" // string(i),x1=sysc(isys)%atmcov(iz),speed=0.01d0,&
+                min=0d0,max=2.65d0,scale=bohrtoa,sformat="%.3f",&
+                flags=ImGuiSliderFlags_AlwaysClamp)
              call igPopItemWidth()
           end if
        end do
@@ -195,15 +191,11 @@ contains
     ! bond factor
     call iw_text("Bond factor",highlight=.true.)
     call igPushItemWidth(iw_calcwidth(6,1))
-    bf = real(sysc(isys)%bondfactor,c_float)
     call igSameLine(0._c_float,-1._c_float)
-    bfmin = 1.0_c_float
-    bfmax = 2.0_c_float
-
-    ch = iw_dragfloat_realc("##bondfactor",x1=bf,speed=0.001_c_float,min=bfmin,max=bfmax,&
+    ch = iw_dragfloat_real8("##bondfactor",x1=sysc(isys)%bondfactor,speed=0.001d0,min=1d0,max=2d0,&
        sformat="%.4f",flags=ImGuiSliderFlags_AlwaysClamp)
+    write (*,*) "xx bond = ", sysc(isys)%bondfactor
     call iw_tooltip("Bond factor parameter for connectivity calculation",ttshown)
-    if (ch) sysc(isys)%bondfactor = bf
     call igPopItemWidth()
 
     ! explanation message

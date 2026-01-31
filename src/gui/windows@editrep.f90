@@ -481,7 +481,7 @@ contains
                 "Single color"//c_null_char//"Two colors"//c_null_char,w%rep%bond_color_style,sameline=.true.,changed=ch)
              call iw_tooltip("Use a single color for the bond, or two colors from the bonded atoms",ttshown)
 
-             call iw_text(" Radius",sameline=.true.)
+             call iw_text(" Radius (Å)",sameline=.true.)
              call igPushItemWidth(iw_calcwidth(5,1))
              call igSameLine(0._c_float,-1._c_float)
              ch = ch .or. iw_dragfloat_realc("##radiusbondtableglobal",x1=w%rep%bond_rad,speed=0.005_c_float,&

@@ -66,11 +66,15 @@ contains
        elseif (flavor == repflavor_atoms_licorice) then
           r%name = "Licorice"
        elseif (flavor == repflavor_atoms_vdwcontacts) then
-          r%name = "VdW contacts"
+          r%name = "VdW Contacts"
           r%atoms_display = .false.
        elseif (flavor == repflavor_atoms_hbonds) then
-          r%name = "Hydrogen bonds"
+          r%name = "Hydrogen Bonds"
           r%atoms_display = .false.
+       elseif (flavor == repflavor_atoms_criticalpoints) then
+          r%name = "Critical Points"
+          r%bonds_display = .false.
+          r%labels_display = .true.
        end if
     elseif (itype == reptype_unitcell) then
        r%isinit = .true.
@@ -148,6 +152,10 @@ contains
        if (r%flavor == repflavor_atoms_licorice) then
           r%atom_radii_type = 2
           r%atom_radii_value = atomrad_licorice_def
+       elseif (r%flavor == repflavor_atoms_criticalpoints) then
+          r%atom_radii_type = 0
+          r%atom_radii_scale = 1d0
+          r%atom_border_size = atomborder_def
        end if
     end if
 
@@ -849,7 +857,7 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc, sys_ready, ok_system, atlisttype_species
     use gui_main, only: ColorElement
-    use param, only: atmcov, atmvdw, jmlcol, jmlcol2
+    use param, only: atmcov, atmvdw, jmlcol, jmlcol2, maxzat
     class(atom_geom_style), intent(inout) :: d
     type(representation), intent(in) :: r
 
@@ -874,9 +882,12 @@ contains
     ! fill data
     d%ntype = sysc(r%id)%attype_number(d%type)
     allocate(d%shown(d%ntype),d%rgb(3,d%ntype),d%rad(d%ntype))
+    d%shown = .true.
     do i = 1, d%ntype
        ispc = sysc(r%id)%attype_species(d%type,i)
        iz = sys(r%id)%c%spc(ispc)%z
+
+       ! color scheme or GUI colors
        if (r%atom_color_type == 0) then
           d%rgb(:,i) = ColorElement(:,iz)
        elseif (r%atom_color_type == 1) then
@@ -884,6 +895,8 @@ contains
        else
           d%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
        end if
+
+       ! scale covalent, vdw, or absolute value
        if (r%atom_radii_type == 0) then
           d%rad(i) = r%atom_radii_scale * real(atmcov(iz),c_float)
        elseif (r%atom_radii_type == 1) then
@@ -891,8 +904,12 @@ contains
        else
           d%rad(i) = r%atom_radii_value
        endif
+
+       ! do not shown the critical point atoms
+       if (iz > maxzat) then
+          d%shown(i) = .false.
+       end if
     end do
-    d%shown = .true.
     d%isinit = .true.
 
   end subroutine atom_style_reset
@@ -1097,6 +1114,9 @@ contains
           end do
        end do
        call d%generate_neighstars(r)
+    elseif (r%flavor == repflavor_atoms_criticalpoints) then
+       ! critical points
+       d%use_sys_nstar = .false.
     else
        ! other flavors are default (track system bonds)
        d%use_sys_nstar = .true.

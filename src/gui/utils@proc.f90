@@ -25,24 +25,26 @@ contains
   !> Drag float button for 1, 2, 3, and 4 floating point numbers. The
   !> number of buttons shown is determined by whether the x1, x2, x3,
   !> or x4 argument is passed.  Speed = step for the dragfloat. Min
-  !> and max = minimum and maximum values. sformat = C format of the
+  !> and max = minimum and maximum values. scale = scale the numbers
+  !> by this value before and after the drag. sformat = C format of the
   !> label. flags = combination of ImGuiSliderFlags_* flags. Version
   !> for real(c_float) type.
-  module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,sformat,flags)
+  module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,scale,sformat,flags)
     use interfaces_cimgui
     character(len=*,kind=c_char), intent(in) :: str
     real(c_float), intent(inout), optional :: x1
     real(c_float), intent(inout), optional :: x2(2)
     real(c_float), intent(inout), optional :: x3(3)
     real(c_float), intent(inout), optional :: x4(4)
-    real(c_float), intent(in), optional :: speed, min, max
+    real(c_float), intent(in), optional :: speed, min, max, scale
     character(len=*,kind=c_char), intent(in), optional :: sformat
     integer(c_int), intent(in), optional :: flags
     logical :: iw_dragfloat_realc
 
-    real(c_float) :: speed_, min_, max_
+    real(c_float) :: speed_, min_, max_, scale_
     character(len=:,kind=c_char), allocatable, target :: str_, sformat_
     integer(c_int) :: flags_
+    real(c_float) :: x1_, x2_(2), x3_(3), x4_(4)
 
     str_ = trim(str) // c_null_char
     speed_ = 1._c_float
@@ -51,19 +53,29 @@ contains
     if (present(min)) min_ = min
     max_ = FLT_MAX
     if (present(max)) max_ = max
+    scale_ = 1._c_float
+    if (present(scale)) scale_ = scale
     sformat_ = "%.3f" // c_null_char
     if (present(sformat)) sformat_ = trim(sformat) // c_null_char
     flags_ = 0_c_int
     if (present(flags)) flags_ = flags
 
     if (present(x1)) then
-       iw_dragfloat_realc = igDragFloat(c_loc(str_),x1,speed_,min_,max_,c_loc(sformat_),flags_)
+       x1_ = x1 * scale_
+       iw_dragfloat_realc = igDragFloat(c_loc(str_),x1_,speed_,min_,max_,c_loc(sformat_),flags_)
+       if (iw_dragfloat_realc) x1 = x1_ / scale_
     elseif (present(x2)) then
-       iw_dragfloat_realc = igDragFloat2(c_loc(str_),x2,speed_,min_,max_,c_loc(sformat_),flags_)
+       x2_ = x2 * scale_
+       iw_dragfloat_realc = igDragFloat2(c_loc(str_),x2_,speed_,min_,max_,c_loc(sformat_),flags_)
+       if (iw_dragfloat_realc) x2 = x2_ / scale_
     elseif (present(x3)) then
-       iw_dragfloat_realc = igDragFloat3(c_loc(str_),x3,speed_,min_,max_,c_loc(sformat_),flags_)
+       x3_ = x3 * scale_
+       iw_dragfloat_realc = igDragFloat3(c_loc(str_),x3_,speed_,min_,max_,c_loc(sformat_),flags_)
+       if (iw_dragfloat_realc) x3 = x3_ / scale_
     elseif (present(x4)) then
-       iw_dragfloat_realc = igDragFloat4(c_loc(str_),x4,speed_,min_,max_,c_loc(sformat_),flags_)
+       x4_ = x4 * scale_
+       iw_dragfloat_realc = igDragFloat4(c_loc(str_),x4_,speed_,min_,max_,c_loc(sformat_),flags_)
+       if (iw_dragfloat_realc) x4 = x4_ / scale_
     else
        iw_dragfloat_realc = .false.
     end if
@@ -73,22 +85,23 @@ contains
   !> Drag float button for 1, 2, 3, and 4 floating point numbers. The
   !> number of buttons shown is determined by whether the x1, x2, x3,
   !> or x4 argument is passed.  Speed = step for the dragfloat. Min
-  !> and max = minimum and maximum values. sformat = C format of the
+  !> and max = minimum and maximum values. scale = scale the numbers
+  !> by this value before and after the drag. sformat = C format of the
   !> label. flags = combination of ImGuiSliderFlags_* flags. Version
   !> for real*8 type.
-  module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,sformat,flags)
+  module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,sformat,flags)
     use interfaces_cimgui
     character(len=*,kind=c_char), intent(in) :: str
     real*8, intent(inout), optional :: x1
     real*8, intent(inout), optional :: x2(2)
     real*8, intent(inout), optional :: x3(3)
     real*8, intent(inout), optional :: x4(4)
-    real*8, intent(in), optional :: speed, min, max
+    real*8, intent(in), optional :: speed, min, max, scale
     character(len=*,kind=c_char), intent(in), optional :: sformat
     integer(c_int), intent(in), optional :: flags
     logical :: iw_dragfloat_real8
 
-    real(c_float) :: speed_, min_, max_, x1_, x2_(2), x3_(3), x4_(4)
+    real(c_float) :: speed_, min_, max_, scale_, x1_, x2_(2), x3_(3), x4_(4)
     character(len=:,kind=c_char), allocatable, target :: str_, sformat_
     integer(c_int) :: flags_
 
@@ -99,27 +112,29 @@ contains
     if (present(min)) min_ = real(min,c_float)
     max_ = FLT_MAX
     if (present(max)) max_ = real(max,c_float)
+    scale_ = 1._c_float
+    if (present(scale)) scale_ = scale
     sformat_ = "%.3f" // c_null_char
     if (present(sformat)) sformat_ = trim(sformat) // c_null_char
     flags_ = 0_c_int
     if (present(flags)) flags_ = flags
 
     if (present(x1)) then
-       x1_ = real(x1,c_float)
+       x1_ = real(x1 * scale_,c_float)
        iw_dragfloat_real8 = igDragFloat(c_loc(str_),x1_,speed_,min_,max_,c_loc(sformat_),flags_)
-       if (iw_dragfloat_real8) x1 = x1_
+       if (iw_dragfloat_real8) x1 = x1_ / scale_
     elseif (present(x2)) then
-       x2_ = real(x2,c_float)
+       x2_ = real(x2 * scale_,c_float)
        iw_dragfloat_real8 = igDragFloat2(c_loc(str_),x2_,speed_,min_,max_,c_loc(sformat_),flags_)
-       if (iw_dragfloat_real8) x2 = x2_
+       if (iw_dragfloat_real8) x2 = x2_ / scale_
     elseif (present(x3)) then
-       x3_ = real(x3,c_float)
+       x3_ = real(x3 * scale_,c_float)
        iw_dragfloat_real8 = igDragFloat3(c_loc(str_),x3_,speed_,min_,max_,c_loc(sformat_),flags_)
-       if (iw_dragfloat_real8) x3 = x3_
+       if (iw_dragfloat_real8) x3 = x3_ / scale_
     elseif (present(x4)) then
-       x4_ = real(x4,c_float)
+       x4_ = real(x4 * scale_,c_float)
        iw_dragfloat_real8 = igDragFloat4(c_loc(str_),x4_,speed_,min_,max_,c_loc(sformat_),flags_)
-       if (iw_dragfloat_real8) x4 = x4_
+       if (iw_dragfloat_real8) x4 = x4_ / scale_
     else
        iw_dragfloat_real8 = .false.
     end if
