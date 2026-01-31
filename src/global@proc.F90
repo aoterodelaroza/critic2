@@ -818,7 +818,7 @@ contains
     NAV_step = 0.3d0
     NAV_maxerr = 1d-4
     NAV_gradeps = 1d-7
-    prunedist = 0.1d0
+    prunedist = 0.2d0
 
     ! integration
     INT_radquad_type = INT_gauleg
