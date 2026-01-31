@@ -873,16 +873,17 @@ contains
   module subroutine scene_render_pick(s)
     use interfaces_cimgui
     use interfaces_opengl3
-    use systems, only: sysc, nsys
+    use systems, only: sysc, nsys, sys
     use shapes, only: sphVAO
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use shaders, only: shader_pickindex, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4, get_uniform_location
+    use param, only: maxzat0
     class(scene), intent(inout), target :: s
 
-    integer :: i, ifound
+    integer :: i, ifound, iz, idx
     real*8 :: time
 
     ! check that the scene and system are initialized
@@ -925,8 +926,12 @@ contains
     if (s%obj%nsph > 0) then
        call glBindVertexArray(sphVAO(s%atom_res))
        do i = 1, s%obj%nsph
-          ! draw the sphere
-          call draw_sphere(s%obj%sph(i)%x,s%obj%sph(i)%r,s%atom_res,idx=(/i,0,0,0/))
+          ! draw the sphere, no gradient paths
+          idx = s%obj%sph(i)%idx(1)
+          iz = sys(s%id)%c%spc(sys(s%id)%c%atcel(idx)%is)%z
+          if (iz < maxzat0) then
+             call draw_sphere(s%obj%sph(i)%x,s%obj%sph(i)%r,s%atom_res,idx=(/i,0,0,0/))
+          end if
        end do
        call glBindVertexArray(0)
     end if
