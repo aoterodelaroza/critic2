@@ -27,23 +27,24 @@ module representations
 
   ! default parameters for the representations (all distances in bohr)
   !--> atoms
-  real(c_float), parameter, public :: atomborder_def = 0.05_c_float / bohrtoa ! atom border
-  real(c_float), parameter, public :: atomborder_criticalpoints_def = 0.03_c_float / bohrtoa ! atom border (critical points)
-  real(c_float), parameter, public :: atomborder_gradientpaths_def = 0.008_c_float / bohrtoa ! atom border (gradient paths)
-  real(c_float), parameter, public :: atomcovradscale_def = 0.7_c_float ! atomic radius scale factor (covalent)
-  real(c_float), parameter, public :: atomvdwradscale_def = 1.0_c_float ! atomic radius scale factor (vdw)
-  real(c_float), parameter, public :: atomrad_licorice_def = 0.11_c_float / bohrtoa ! atomic radius value (licorice)
-  real(c_float), parameter, public :: atomrad_criticalpoints_def = 0.13_c_float / bohrtoa ! atomic radius value (critical points)
-  real(c_float), parameter, public :: atomrad_gradientpaths_def = 0.05_c_float / bohrtoa ! atomic radius value (gradient paths)
+  real*8, parameter, public :: atomborder_def = 0.05_c_float / bohrtoa ! atom border
+  real*8, parameter, public :: atomborder_criticalpoints_def = 0.03_c_float / bohrtoa ! atom border (critical points)
+  real*8, parameter, public :: atomborder_gradientpaths_def = 0.008_c_float / bohrtoa ! atom border (gradient paths)
+  real*8, parameter, public :: atomcovradscale_def = 0.7_c_float ! atomic radius scale factor (covalent)
+  real*8, parameter, public :: atomvdwradscale_def = 1.0_c_float ! atomic radius scale factor (vdw)
+  real*8, parameter, public :: atomconstantrad_def = 0.4_c_float / bohrtoa ! atomic radius scale factor (vdw)
+  real*8, parameter, public :: atomrad_licorice_def = 0.11_c_float / bohrtoa ! atomic radius value (licorice)
+  real*8, parameter, public :: atomrad_criticalpoints_def = 0.13_c_float / bohrtoa ! atomic radius value (critical points)
+  real*8, parameter, public :: atomrad_gradientpaths_def = 0.05_c_float / bohrtoa ! atomic radius value (gradient paths)
   !--> bonds
-  real(c_float), parameter, public :: bondrad_def = 0.125_c_float / bohrtoa ! bond radius
-  real(c_float), parameter, public :: bondrad_licorice_def = 0.25_c_float / bohrtoa ! bond radius (licorice)
-  real(c_float), parameter, public :: bondborder_def = 0.03_c_float / bohrtoa ! bond border
-  real(c_float), parameter, public :: bondborder_stickflav_def = 0.025_c_float / bohrtoa ! bond border (stick flavor)
+  real*8, parameter, public :: bondrad_def = 0.125d0 / bohrtoa ! bond radius
+  real*8, parameter, public :: bondrad_licorice_def = 0.25d0 / bohrtoa ! bond radius (licorice)
+  real*8, parameter, public :: bondborder_def = 0.03d0 / bohrtoa ! bond border
+  real*8, parameter, public :: bondborder_stickflav_def = 0.025d0 / bohrtoa ! bond border (stick flavor)
   !--> unit cell
-  real(c_float), parameter, public :: uc_radius_def = 0.08_c_float / bohrtoa ! radius of sticks
-  real(c_float), parameter, public :: uc_radiusinner_def = 0.08_c_float / bohrtoa ! radius of inner sticks
-  real(c_float), parameter, public :: uc_innersteplen_def = 1.0_c_float / bohrtoa ! length of stipple
+  real*8, parameter, public :: uc_radius_def = 0.08d0 / bohrtoa ! radius of sticks
+  real*8, parameter, public :: uc_radiusinner_def = 0.08d0 / bohrtoa ! radius of inner sticks
+  real*8, parameter, public :: uc_innersteplen_def = 1.0d0 / bohrtoa ! length of stipple
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
@@ -53,7 +54,7 @@ module representations
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
      logical, allocatable :: shown(:) ! whether it is shown (ntype)
      real(c_float), allocatable :: rgb(:,:) ! color (3,ntype)
-     real(c_float), allocatable :: rad(:) ! radius (ntype)
+     real*8, allocatable :: rad(:) ! radius (ntype)
    contains
      procedure :: reset => atom_style_reset
      procedure :: reset_colors => atom_style_reset_colors
@@ -146,10 +147,10 @@ module representations
      logical :: atoms_display ! whether to draw the atoms
      type(atom_geom_style) :: atom_style ! atom styles
      integer(c_int) :: atom_radii_type ! option to reset radii: 0=covalent,1=vdw,2=constant
-     real(c_float) :: atom_radii_scale ! reset radii, scale factor
-     real(c_float) :: atom_radii_value ! reset radii, constant value (default: same as bond radius for licorice)
+     real*8 :: atom_radii_scale ! reset radii, scale factor
+     real*8 :: atom_radii_value ! reset radii, constant value (default: same as bond radius for licorice)
      integer(c_int) :: atom_color_type ! option to reset colors: 0=current,1=jmlcol,2=jmlcol2
-     real(c_float) :: atom_border_size ! atom border size
+     real*8 :: atom_border_size ! atom border size
      real(c_float) :: atom_border_rgb(3) ! atom border color
      !--> bonds
      logical :: bonds_display ! whether to draw the bonds
@@ -161,8 +162,8 @@ module representations
      real*8 :: bond_bfmax ! bondfactor limits
      integer(c_int) :: bond_radtype(2) ! radii type for min and max (0=covalent,1=vdw)
      integer(c_int) :: bond_color_style ! bond style (0=single color, 1=two colors)
-     real(c_float) :: bond_rad ! radius
-     real(c_float) :: bond_border_size ! bond border size
+     real*8 :: bond_rad ! radius
+     real*8 :: bond_border_size ! bond border size
      real(c_float) :: bond_border_rgb(3) ! bond color
      real(c_float) :: bond_rgb(3) ! color
      integer(c_int) :: bond_order ! order (0=dashed,1=single,2=double,etc.)
@@ -172,20 +173,20 @@ module representations
      logical :: labels_display ! whether to draw the labels
      type(label_geom_style) :: label_style ! bond styles
      integer(c_int) :: label_type ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
-     real(c_float) :: label_scale ! scale for the labels
+     real*8 :: label_scale ! scale for the labels
      real(c_float) :: label_rgb(3) ! color of the labels
      logical :: label_const_size ! whether labels scale with objects or are constant size
-     real(c_float) :: label_offset(3) ! offset of the label
+     real*8 :: label_offset(3) ! offset of the label
      !--> molecules
      type(mol_geom_style) :: mol_style ! molecule styles
      ! unit cell
      logical :: uc_inner ! unit cell, display inner cylinders
      logical :: uc_coloraxes ! unit cell, color the axes (x=red,y=green,z=blue)
      logical :: uc_vaccutsticks ! unit cell, cut sticks in systems with vacuum
-     real(c_float) :: uc_radius ! unit cell cylinder radius
-     real(c_float) :: uc_radiusinner ! unit cell cylinder radius (inner)
+     real*8 :: uc_radius ! unit cell cylinder radius
+     real*8 :: uc_radiusinner ! unit cell cylinder radius (inner)
      real(c_float) :: uc_rgb(3) ! unit cell cylinder colors
-     real(c_float) :: uc_innersteplen ! number of subdivisions for the inner sticks
+     real*8 :: uc_innersteplen ! number of subdivisions for the inner sticks
      logical :: uc_innerstipple ! stippled lines for the inner lines
    contains
      procedure :: init => representation_init

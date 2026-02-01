@@ -149,7 +149,7 @@ contains
     if (itype == 0 .or. itype == 1) then
        r%atom_radii_type = 0
        r%atom_radii_scale = atomcovradscale_def
-       r%atom_radii_value = bondrad_def
+       r%atom_radii_value = atomconstantrad_def
        r%atom_color_type = 0
        r%atom_border_size = atomborder_def
        r%atom_border_rgb = (/0._c_float,0._c_float,0._c_float/)
@@ -195,14 +195,14 @@ contains
     !--> labels
     if (itype == 0 .or. itype == 3) then
        r%label_type = 0
-       r%label_scale = 0.5_c_float
+       r%label_scale = 0.5d0
        r%label_rgb = (/0._c_float,0._c_float,0._c_float/)
        r%label_const_size = .false.
-       r%label_offset = (/0._c_float,0._c_float,0._c_float/)
+       r%label_offset = (/0d0,0d0,0d0/)
        if (r%flavor == repflavor_atoms_criticalpoints) then
           r%label_type = 2 ! cell atom
-          r%label_scale = 0.3_c_float
-          r%label_offset = (/0._c_float,0.25_c_float,0._c_float/)
+          r%label_scale = 0.3d0
+          r%label_offset = (/0d0,0.25d0,0d0/)
        end if
     end if
 
@@ -527,7 +527,7 @@ contains
                       obj%sph(obj%nsph)%idx(1) = i
                       obj%sph(obj%nsph)%idx(2:4) = ix
                       obj%sph(obj%nsph)%xdelta = cmplx(xdelta1,kind=c_float_complex)
-                      obj%sph(obj%nsph)%border = r%atom_border_size
+                      obj%sph(obj%nsph)%border = real(r%atom_border_size,c_float)
                       obj%sph(obj%nsph)%rgbborder = r%atom_border_rgb
                    end if
 
@@ -589,10 +589,10 @@ contains
                             obj%cyl(obj%ncyl)%x1delta = cmplx(xdelta1,kind=c_float_complex)
                             obj%cyl(obj%ncyl)%x2 = real(x2,c_float)
                             obj%cyl(obj%ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
-                            obj%cyl(obj%ncyl)%r = r%bond_rad
+                            obj%cyl(obj%ncyl)%r = real(r%bond_rad,c_float)
                             obj%cyl(obj%ncyl)%rgb = r%bond_rgb
                             obj%cyl(obj%ncyl)%order = r%bond_order
-                            obj%cyl(obj%ncyl)%border = r%bond_border_size
+                            obj%cyl(obj%ncyl)%border = real(r%bond_border_size,c_float)
                             obj%cyl(obj%ncyl)%rgbborder = r%bond_border_rgb
                          else
                             idaux = sysc(r%id)%attype_celatom_to_id(r%atom_style%type,ineigh)
@@ -608,21 +608,21 @@ contains
                             obj%cyl(obj%ncyl-1)%x1delta = cmplx(xdelta1,kind=c_float_complex)
                             obj%cyl(obj%ncyl-1)%x2 = real(x0,c_float)
                             obj%cyl(obj%ncyl-1)%x2delta = cmplx(xdelta0,kind=c_float_complex)
-                            obj%cyl(obj%ncyl-1)%r = r%bond_rad
+                            obj%cyl(obj%ncyl-1)%r = real(r%bond_rad,c_float)
                             obj%cyl(obj%ncyl-1)%rgb = rgb
                             obj%cyl(obj%ncyl-1)%order = r%bond_order
-                            obj%cyl(obj%ncyl-1)%border = r%bond_border_size
+                            obj%cyl(obj%ncyl-1)%border = real(r%bond_border_size,c_float)
                             obj%cyl(obj%ncyl-1)%rgbborder = r%bond_border_rgb
 
                             obj%cyl(obj%ncyl)%x1 = real(x0,c_float)
                             obj%cyl(obj%ncyl)%x1delta = cmplx(xdelta0,kind=c_float_complex)
                             obj%cyl(obj%ncyl)%x2 = real(x2,c_float)
                             obj%cyl(obj%ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
-                            obj%cyl(obj%ncyl)%r = r%bond_rad
+                            obj%cyl(obj%ncyl)%r = real(r%bond_rad,c_float)
                             obj%cyl(obj%ncyl)%rgb = r%atom_style%rgb(:,idaux) * &
                                r%mol_style%tint_rgb(:,sys(r%id)%c%idatcelmol(1,ineigh))
                             obj%cyl(obj%ncyl)%order = r%bond_order
-                            obj%cyl(obj%ncyl)%border = r%bond_border_size
+                            obj%cyl(obj%ncyl)%border = real(r%bond_border_size,c_float)
                             obj%cyl(obj%ncyl)%rgbborder = r%bond_border_rgb
                          end if
                       end do ! ncon
@@ -654,11 +654,11 @@ contains
                          obj%string(obj%nstring)%r = real(rad1,c_float)
                          obj%string(obj%nstring)%rgb = r%label_rgb
                          if (r%label_const_size) then
-                            obj%string(obj%nstring)%scale = r%label_scale
+                            obj%string(obj%nstring)%scale = real(r%label_scale,c_float)
                          else
-                            obj%string(obj%nstring)%scale = -r%label_scale
+                            obj%string(obj%nstring)%scale = real(-r%label_scale,c_float)
                          end if
-                         obj%string(obj%nstring)%offset = r%label_offset
+                         obj%string(obj%nstring)%offset = real(r%label_offset,c_float)
                          obj%string(obj%nstring)%str = trim(r%label_style%str(idl))
                          if (r%label_type == 3) then
                             ! add the lattice vectors
@@ -703,7 +703,7 @@ contains
           call increase_ncylflat()
           obj%cylflat(obj%ncylflat)%x1 = real(x1,c_float)
           obj%cylflat(obj%ncylflat)%x2 = real(x2,c_float)
-          obj%cylflat(obj%ncylflat)%r = r%uc_radius
+          obj%cylflat(obj%ncylflat)%r = real(r%uc_radius,c_float)
           if (r%uc_coloraxes.and.i==1) then
              obj%cylflat(obj%ncylflat)%rgb = (/1._c_float,0._c_float,0._c_float/)
           elseif (r%uc_coloraxes.and.i==2) then
@@ -742,14 +742,14 @@ contains
                                real(x1 + real(2*j-1,8)/real(2*nstep,8) * (x2-x1) ,c_float)
                             obj%cylflat(obj%ncylflat)%x2 = &
                                real(x1 + real(2*j,8)/real(2*nstep,8) * (x2-x1) ,c_float)
-                            obj%cylflat(obj%ncylflat)%r = r%uc_radiusinner
+                            obj%cylflat(obj%ncylflat)%r = real(r%uc_radiusinner,c_float)
                             obj%cylflat(obj%ncylflat)%rgb = r%uc_rgb
                          end do
                       else
                          call increase_ncylflat()
                          obj%cylflat(obj%ncylflat)%x1 = real(x1 ,c_float)
                          obj%cylflat(obj%ncylflat)%x2 = real(x2 ,c_float)
-                         obj%cylflat(obj%ncylflat)%r = r%uc_radiusinner
+                         obj%cylflat(obj%ncylflat)%r = real(r%uc_radiusinner,c_float)
                          obj%cylflat(obj%ncylflat)%rgb = r%uc_rgb
                       end if
                    end do
@@ -911,9 +911,9 @@ contains
 
        ! scale covalent, vdw, or absolute value
        if (r%atom_radii_type == 0) then
-          d%rad(i) = r%atom_radii_scale * real(atmcov(iz),c_float)
+          d%rad(i) = r%atom_radii_scale * atmcov(iz)
        elseif (r%atom_radii_type == 1) then
-          d%rad(i) = r%atom_radii_scale * real(atmvdw(iz),c_float)
+          d%rad(i) = r%atom_radii_scale * atmvdw(iz)
        else
           d%rad(i) = r%atom_radii_value
        endif
