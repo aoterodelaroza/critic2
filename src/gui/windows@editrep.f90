@@ -166,7 +166,7 @@ contains
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&
-       iw_highlight_selectable, iw_dragfloat_real8, iw_dragfloat_realc
+       iw_highlight_selectable, iw_dragfloat_real8
     use param, only: atmcov, atmvdw, newline, jmlcol, jmlcol2, bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -947,7 +947,7 @@ contains
   module function draw_editrep_unitcell(w,ttshown) result(changed)
     use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_radiobutton, iw_button,&
-       iw_clamp_color3, iw_checkbox, iw_coloredit, iw_dragfloat_realc, iw_dragfloat_real8
+       iw_clamp_color3, iw_checkbox, iw_coloredit, iw_dragfloat_real8
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -1095,7 +1095,7 @@ contains
     use representations, only: atom_geom_style, mol_geom_style
     use utils, only: iw_text, iw_combo_simple, iw_tooltip, iw_calcheight, iw_checkbox,&
        iw_clamp_color3, iw_calcwidth, iw_button, iw_coloredit, iw_highlight_selectable,&
-       iw_dragfloat_realc, iw_dragfloat_real8
+       iw_dragfloat_real8
     use crystalmod, only: crystal
     use global, only: iunit_ang, dunit0
     use tools_io, only: string, ioj_right
@@ -1111,7 +1111,7 @@ contains
     logical :: domol, docoord
     logical(c_bool) :: ch
     integer(c_int) :: flags
-    character(kind=c_char,len=:), allocatable, target :: s, str1, str2, str3, suffix
+    character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
     real*8 :: x0(3)
     type(ImVec2) :: sz0, szero
     integer :: ispc, i, iz, ncol, icol
@@ -1296,7 +1296,7 @@ contains
                 if (igTableSetColumnIndex(icol)) then
                    call igPushItemWidth(iw_calcwidth(5,1))
                    ch = iw_dragfloat_real8("##tableradius" // string(i),x1=r%atom_style%rad(i),speed=0.01d0,&
-                      min=0d0,max=5d0,scale=bohrtoa,sformat=str3,flags=ImGuiSliderFlags_AlwaysClamp)
+                      min=0d0,max=5d0,scale=bohrtoa,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
                    call iw_tooltip("Radius of the sphere representing the atom",ttshown)
                    if (ch) then
                       r%atom_style%rad(i) = max(r%atom_style%rad(i),0d0)
@@ -1481,14 +1481,10 @@ contains
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
                       call igPushItemWidth(iw_calcwidth(5,1))
-                      ch = iw_dragfloat_realc("##tablemolradius" // string(i),x1=r%mol_style%scale_rad(i),&
-                         speed=0.005_c_float,min=0._c_float,max=5._c_float,&
-                         sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
+                      changed = changed .or. iw_dragfloat_real8("##tablemolradius" // string(i),&
+                         x1=r%mol_style%scale_rad(i),speed=0.005d0,min=0d0,max=5d0,sformat="%.3f",&
+                         flags=ImGuiSliderFlags_AlwaysClamp)
                       call iw_tooltip("Scale factor for the atomic radii in this molecule",ttshown)
-                      if (ch) then
-                         r%mol_style%scale_rad(i) = max(r%mol_style%scale_rad(i),0._c_float)
-                         changed = .true.
-                      end if
                       call igPopItemWidth()
                    end if
                 end if

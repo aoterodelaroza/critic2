@@ -995,7 +995,7 @@ contains
     allocate(d%scale_rad(d%ntype))
     do i = 1, sys(r%id)%c%nmol
        d%tint_rgb(:,i) = 1._c_float
-       d%scale_rad(i) = 1._c_float
+       d%scale_rad(i) = 1d0
     end do
     d%shown = .true.
     d%isinit = .true.

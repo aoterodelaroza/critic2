@@ -69,7 +69,7 @@ module representations
      integer :: ntype = 0 ! number of entries in the style type (atoms or molecules)
      logical, allocatable :: shown(:) ! whether it is shown (ntype)
      real(c_float), allocatable :: tint_rgb(:,:) ! tint color (3,ntype)
-     real(c_float), allocatable :: scale_rad(:) ! scale radius (ntype)
+     real*8, allocatable :: scale_rad(:) ! scale radius (ntype)
    contains
      procedure :: reset => mol_style_reset
      procedure :: end => mol_style_end
