@@ -8146,8 +8146,8 @@ contains
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    integer :: lu, ideq, i, j, is0, ier
-    character(len=:), allocatable :: line, str
+    integer :: lu, ideq, i, j, is0, ier, nee
+    character(len=:), allocatable :: line, str, enechar
     character*10 :: atn, sdum
     character*40 :: sene
     integer :: idum, npad, idx
@@ -8170,12 +8170,18 @@ contains
     end if
 
     ! first pass: read the number of structures
+    nee = 0
     nseed = 0
     do while (getline_raw(lu,line))
-       if (index(line,"!") == 1) then
-          nseed = nseed + 1
-       end if
+       if (index(line,"!") == 1) nseed = nseed + 1
+       if (index(line,"!!") == 1) nee = nee + 1 ! for hybrid functionals
     end do
+    if (nee > 0) then
+       nseed = nee
+       enechar = "!!"
+    else
+       enechar = "!"
+    end if
     if (nseed == 0) then
        errmsg = "No valid structures found."
        goto 999
@@ -8340,8 +8346,8 @@ contains
           end do
           x = x * rfac
           hasx = .true.
-       else if (index(line,"!") == 1) then
-          if (.not.hasx .or. nat == 0) then
+       else if (index(line,enechar) == 1) then
+          if (nat == 0 .or.(.not.hasx.and.is0 == 0)) then
              errmsg = "Missing atomic positions."
              goto 999
           end if
@@ -8357,8 +8363,7 @@ contains
              errmsg = "Missing cell dimensions."
              goto 999
           end if
-          is0 = is0 + 1
-          hasx = .false.
+          if (hasx) is0 = is0 + 1
 
           ! decide whether we want to keep this structure in a seed
           iuse = 0
@@ -8370,42 +8375,45 @@ contains
              iuse = 1
           end if
 
-          ! keep the seed
+          ! read the energy and maybe save the seed
           if (iuse > 0) then
-             seed(iuse)%nat = nat
-             seed(iuse)%nspc = nspc
-             seed(iuse)%spc = spc
-             seed(iuse)%x = x
-             seed(iuse)%is = is
-             seed(iuse)%atname = atname
-             seed(iuse)%m_x2c = m_x2c
+             if (hasx) then
+                ! keep the seed
+                seed(iuse)%nat = nat
+                seed(iuse)%nspc = nspc
+                seed(iuse)%spc = spc
+                seed(iuse)%x = x
+                seed(iuse)%is = is
+                seed(iuse)%atname = atname
+                seed(iuse)%m_x2c = m_x2c
 
-             seed(iuse)%useabr = 2
-             r = seed(iuse)%m_x2c
-             call matinv(r,3,ier)
-             if (ier /= 0) then
-                errmsg = "Error inverting matrix"
-                goto 999
-             end if
-
-             do i = 1, seed(iuse)%nat
-                if (tox) then
-                   seed(iuse)%x(:,i) = matmul(r,seed(iuse)%x(:,i))
+                seed(iuse)%useabr = 2
+                r = seed(iuse)%m_x2c
+                call matinv(r,3,ier)
+                if (ier /= 0) then
+                   errmsg = "Error inverting matrix"
+                   goto 999
                 end if
-                seed(iuse)%x(:,i) = seed(iuse)%x(:,i) - floor(seed(iuse)%x(:,i))
-             end do
 
-             seed(iuse)%havesym = 0
-             seed(iuse)%checkrepeats = .false.
-             seed(iuse)%findsym = -1
-             seed(iuse)%isused = .true.
-             seed(iuse)%ismolecule = mol
-             seed(iuse)%cubic = .false.
-             seed(iuse)%border = 0d0
-             seed(iuse)%havex0 = .false.
-             seed(iuse)%molx0 = 0d0
-             seed(iuse)%file = file
-             seed(iuse)%isformat = isformat_r_qeout
+                do i = 1, seed(iuse)%nat
+                   if (tox) then
+                      seed(iuse)%x(:,i) = matmul(r,seed(iuse)%x(:,i))
+                   end if
+                   seed(iuse)%x(:,i) = seed(iuse)%x(:,i) - floor(seed(iuse)%x(:,i))
+                end do
+
+                seed(iuse)%havesym = 0
+                seed(iuse)%checkrepeats = .false.
+                seed(iuse)%findsym = -1
+                seed(iuse)%isused = .true.
+                seed(iuse)%ismolecule = mol
+                seed(iuse)%cubic = .false.
+                seed(iuse)%border = 0d0
+                seed(iuse)%havex0 = .false.
+                seed(iuse)%molx0 = 0d0
+                seed(iuse)%file = file
+                seed(iuse)%isformat = isformat_r_qeout
+             end if ! hasx
 
              read (line,*,err=999,end=999) sdum, sdum, sdum, sdum, sene
              read (sene,*,err=999,end=999) rdum
@@ -8423,8 +8431,9 @@ contains
                 end if
              else
                 seed(iuse)%name = file
-             end if
-          end if
+             end if ! istruct < 0
+          end if ! iuse > 0
+          hasx = .false.
        else if (iuse > 0 .and. index(line,"total   stress") > 0) then
           ! add the pressure to the last seed, if available
           idx = index(line,'=')
