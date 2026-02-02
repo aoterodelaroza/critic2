@@ -177,9 +177,10 @@ module systems
        integer, intent(in) :: isys, level
        logical :: ok_system
      end function ok_system
-     module subroutine post_event(sysc,level)
+     module subroutine post_event(sysc,level,keepfields)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: level
+       logical, intent(in), optional :: keepfields
      end subroutine post_event
      module subroutine highlight_atoms(sysc,transient,idx,type,rgba)
        class(sysconf), intent(inout) :: sysc

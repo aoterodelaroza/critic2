@@ -554,20 +554,27 @@ contains
 
   end function ok_system
 
-  !> Set the time for last change at level level.
-  module subroutine post_event(sysc,level)
+  !> Set the time for last change at level level. If keepfields is
+  !> present and true, do not reset the associated fields.
+  module subroutine post_event(sysc,level,keepfields)
     use interfaces_glfw, only: glfwGetTime
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: level
+    logical, intent(in), optional :: keepfields
 
     real*8 :: time
+    logical :: keepfields_
+
+    keepfields_ = .false.
+    if (present(keepfields)) keepfields_ = keepfields
 
     time = glfwGetTime()
     if (level >= lastchange_render) sysc%timelastchange_render = time
     if (level >= lastchange_buildlists) sysc%timelastchange_buildlists = time
     if (level >= lastchange_rebond) sysc%timelastchange_rebond = time
     if (level >= lastchange_geometry) then
-       call sys(sysc%id)%reset_fields()
+       if (.not.keepfields_) &
+          call sys(sysc%id)%reset_fields()
        call sysc%highlight_clear(.true.)
        call sysc%highlight_clear(.false.)
        sysc%timelastchange_geometry = time
@@ -1372,7 +1379,7 @@ contains
                 call sysc(i)%sc%init(i)
 
                 ! this system has been initialized
-                call sysc(i)%post_event(lastchange_geometry)
+                call sysc(i)%post_event(lastchange_geometry,keepfields=.true.)
                 sysc(i)%status = sys_init
              end if
 
