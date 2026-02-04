@@ -5922,8 +5922,11 @@ contains
        ok = getline_raw(lu,line)
        if (.not.ok) goto 999
        do while (getline_raw(lu,line))
-          if (line == "  Fractional coordinates:" .or. line(1:4) == "----") exit
+          if (line == "  Fractional coordinates:") exit
           if (len_trim(line) == 0) cycle
+          if (len(line) >= 4) then
+             if (line(1:4) == "----") exit
+          end if
           lp = 1
           word = lgetword(line,lp)
           if (word == "lattice_vector") then
