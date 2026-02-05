@@ -104,7 +104,6 @@ contains
     sz%y = -igGetFrameHeightWithSpacing() - g%Style%ItemSpacing%y
     if (igBeginChild_Str(c_loc(str),sz,.false._c_bool,ImGuiWindowFlags_None)) then
 
-       call igPushItemWidth(6._c_float * fontsize%x)
        if (catid == 0) then
           !! Interface
           call iw_text("Interface",highlight=.true.)
@@ -337,7 +336,6 @@ contains
           end if
 
        end if
-       call igPopItemWidth()
     end if
     call igEndChild()
 

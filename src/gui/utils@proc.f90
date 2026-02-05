@@ -31,6 +31,7 @@ contains
   !> ImGuiSliderFlags_* flags. Version for real(c_float) type.
   module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,scale,decimal,flags)
     use interfaces_cimgui
+    use gui_main, only: g
     use tools_io, only: string
     character(len=*,kind=c_char), intent(in) :: str
     real(c_float), intent(inout), optional :: x1
@@ -46,7 +47,12 @@ contains
     character(len=:,kind=c_char), allocatable, target :: str_, sformat_
     integer(c_int) :: flags_
     real(c_float) :: x1_, x2_(2), x3_(3), x4_(4)
+    integer :: n
+    real(c_float) :: width
+    type(ImVec2) :: sz
+    character(len=:,kind=c_char), allocatable, target :: strc
 
+    ! process options
     str_ = trim(str) // c_null_char
     speed_ = 1._c_float
     if (present(speed)) speed_ = speed
@@ -61,6 +67,22 @@ contains
     flags_ = 0_c_int
     if (present(flags)) flags_ = flags
 
+    ! calculate width
+    strc = "0" // c_null_char
+    call igCalcTextSize(sz,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
+    if (present(x1)) then
+       n = 1
+    elseif (present(x2)) then
+       n = 2
+    elseif (present(x3)) then
+       n = 3
+    elseif (present(x4)) then
+       n = 4
+    end if
+    width = (4 + decimal) * sz%x * n + (n-1) * g%Style%ItemInnerSpacing%x
+
+    ! draw the float
+    call igPushItemWidth(width)
     if (present(x1)) then
        x1_ = x1 * scale_
        iw_dragfloat_realc = igDragFloat(c_loc(str_),x1_,speed_,min_,max_,c_loc(sformat_),flags_)
@@ -80,6 +102,7 @@ contains
     else
        iw_dragfloat_realc = .false.
     end if
+    call igPopItemWidth()
 
   end function iw_dragfloat_realc
 
@@ -92,6 +115,7 @@ contains
   !> for real*8 type.
   module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,decimal,flags)
     use interfaces_cimgui
+    use gui_main, only: g
     use tools_io, only: string
     character(len=*,kind=c_char), intent(in) :: str
     real*8, intent(inout), optional :: x1
@@ -107,7 +131,12 @@ contains
     real(c_float) :: speed_, min_, max_, x1_, x2_(2), x3_(3), x4_(4)
     character(len=:,kind=c_char), allocatable, target :: str_, sformat_
     integer(c_int) :: flags_
+    integer :: n
+    real(c_float) :: width
+    type(ImVec2) :: sz
+    character(len=:,kind=c_char), allocatable, target :: strc
 
+    ! process options
     str_ = trim(str) // c_null_char
     speed_ = 1._c_float
     if (present(speed)) speed_ = real(speed,c_float)
@@ -122,6 +151,22 @@ contains
     flags_ = 0_c_int
     if (present(flags)) flags_ = flags
 
+    ! calculate width
+    strc = "0" // c_null_char
+    call igCalcTextSize(sz,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
+    if (present(x1)) then
+       n = 1
+    elseif (present(x2)) then
+       n = 2
+    elseif (present(x3)) then
+       n = 3
+    elseif (present(x4)) then
+       n = 4
+    end if
+    width = (4 + decimal) * sz%x * n + (n-1) * g%Style%ItemInnerSpacing%x
+
+    ! draw the float
+    call igPushItemWidth(width)
     if (present(x1)) then
        x1_ = real(x1 * scale_,c_float)
        iw_dragfloat_real8 = igDragFloat(c_loc(str_),x1_,speed_,min_,max_,c_loc(sformat_),flags_)
@@ -141,6 +186,7 @@ contains
     else
        iw_dragfloat_real8 = .false.
     end if
+    call igPopItemWidth()
 
   end function iw_dragfloat_real8
 

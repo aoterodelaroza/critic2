@@ -178,10 +178,8 @@ contains
 
           ! radius
           if (igTableSetColumnIndex(ic_radius)) then
-             call igPushItemWidth(iw_calcwidth(5,1))
              ch = iw_dragfloat_real8("##tableradius" // string(i),x1=sysc(isys)%atmcov(iz),speed=0.01d0,&
                 min=0d0,max=2.65d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-             call igPopItemWidth()
           end if
        end do
        call igEndTable()
@@ -189,13 +187,11 @@ contains
 
     ! bond factor
     call iw_text("Bond factor",highlight=.true.)
-    call igPushItemWidth(iw_calcwidth(6,1))
     call igSameLine(0._c_float,-1._c_float)
     ch = iw_dragfloat_real8("##bondfactor",x1=sysc(isys)%bondfactor,speed=0.001d0,min=1d0,max=2d0,&
        decimal=4,flags=ImGuiSliderFlags_AlwaysClamp)
     write (*,*) "xx bond = ", sysc(isys)%bondfactor
     call iw_tooltip("Bond factor parameter for connectivity calculation",ttshown)
-    call igPopItemWidth()
 
     ! explanation message
     call iw_text("Atoms i and j are bonded if:"//newline//&
