@@ -256,27 +256,23 @@ contains
              ! header setup
              icol = icol + 1
              str2 = "Id" // c_null_char
-             flags = ImGuiTableColumnFlags_None
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
              icolsort(icol) = ic_id
 
              icol = icol + 1
              str2 = "Atom" // c_null_char
-             flags = ImGuiTableColumnFlags_None
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
              icolsort(icol) = ic_atom
 
              icol = icol + 1
              str2 = "Z " // c_null_char
-             flags = ImGuiTableColumnFlags_None
-             call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
              icolsort(icol) = ic_zat
 
              if (domol) then
                 icol = icol + 1
                 str2 = "mol" // c_null_char
-                flags = ImGuiTableColumnFlags_None
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
                 icolsort(icol) = ic_mol
              end if
 
@@ -289,15 +285,13 @@ contains
                    str2 = "Mul" // c_null_char
                    icolsort(icol) = ic_mul
                 end if
-                flags = ImGuiTableColumnFlags_None
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
              end if
 
              if (doidx) then
                 icol = icol + 1
                 str2 = "idx" // c_null_char
-                flags = ImGuiTableColumnFlags_None
-                call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
                 icolsort(icol) = ic_idx
              end if
 
@@ -316,18 +310,15 @@ contains
                    stry = "y" // c_null_char
                    strz = "z" // c_null_char
                 end if
-                flags = ImGuiTableColumnFlags_WidthStretch
-                call igTableSetupColumn(c_loc(strx),flags,0.0_c_float,icol)
+                call igTableSetupColumn(c_loc(strx),ImGuiTableColumnFlags_None,0.0_c_float,icol)
                 icolsort(icol) = ic_x
 
                 icol = icol + 1
-                flags = ImGuiTableColumnFlags_WidthStretch
-                call igTableSetupColumn(c_loc(stry),flags,0.0_c_float,icol)
+                call igTableSetupColumn(c_loc(stry),ImGuiTableColumnFlags_None,0.0_c_float,icol)
                 icolsort(icol) = ic_y
 
                 icol = icol + 1
-                flags = ImGuiTableColumnFlags_WidthStretch
-                call igTableSetupColumn(c_loc(strz),flags,0.0_c_float,icol)
+                call igTableSetupColumn(c_loc(strz),ImGuiTableColumnFlags_None,0.0_c_float,icol)
                 icolsort(icol) = ic_z
              end if
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
