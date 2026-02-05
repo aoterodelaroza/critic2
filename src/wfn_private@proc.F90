@@ -947,23 +947,25 @@ contains
     n = 0
     allocate(x(3,10),z(10),name(10))
     main: do while (getline_raw(lu,line))
-       if (line(1:33) == "CARTESIAN COORDINATES (ANGSTROEM)") then
-          n = 0
-          ok = getline_raw(lu,line)
-          do while (.true.)
+       if (len(line) >= 33) then
+          if (line(1:33) == "CARTESIAN COORDINATES (ANGSTROEM)") then
+             n = 0
              ok = getline_raw(lu,line)
-             if (.not.ok) goto 999
-             if (len_trim(line) == 0) exit
+             do while (.true.)
+                ok = getline_raw(lu,line)
+                if (.not.ok) goto 999
+                if (len_trim(line) == 0) exit
 
-             n = n + 1
-             if (n > size(z,1)) then
-                call realloc(x,3,2*n)
-                call realloc(z,2*n)
-                call realloc(name,2*n)
-             end if
-             read (line,*,err=999,end=999) name(n), x(1,n), x(2,n), x(3,n)
-             z(n) = zatguess(name(n))
-          end do
+                n = n + 1
+                if (n > size(z,1)) then
+                   call realloc(x,3,2*n)
+                   call realloc(z,2*n)
+                   call realloc(name,2*n)
+                end if
+                read (line,*,err=999,end=999) name(n), x(1,n), x(2,n), x(3,n)
+                z(n) = zatguess(name(n))
+             end do
+          end if
        end if
     end do main
 
