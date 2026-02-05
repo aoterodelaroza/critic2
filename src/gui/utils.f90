@@ -59,25 +59,25 @@ module utils
   ! module procedure interfaces
   interface
      !xx! proc submodule !xx!
-     module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,scale,sformat,flags)
+     module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,scale,decimal,flags)
        character(len=*,kind=c_char), intent(in) :: str
        real(c_float), intent(inout), optional :: x1
        real(c_float), intent(inout), optional :: x2(2)
        real(c_float), intent(inout), optional :: x3(3)
        real(c_float), intent(inout), optional :: x4(4)
        real(c_float), intent(in), optional :: speed, min, max, scale
-       character(len=*,kind=c_char), intent(in), optional :: sformat
+       integer, intent(in), optional :: decimal
        integer(c_int), intent(in), optional :: flags
        logical :: iw_dragfloat_realc
      end function iw_dragfloat_realc
-     module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,sformat,flags)
+     module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,decimal,flags)
        character(len=*,kind=c_char), intent(in) :: str
        real*8, intent(inout), optional :: x1
        real*8, intent(inout), optional :: x2(2)
        real*8, intent(inout), optional :: x3(3)
        real*8, intent(inout), optional :: x4(4)
        real*8, intent(in), optional :: speed, min, max, scale
-       character(len=*,kind=c_char), intent(in), optional :: sformat
+       integer, intent(in), optional :: decimal
        integer(c_int), intent(in), optional :: flags
        logical :: iw_dragfloat_real8
      end function iw_dragfloat_real8

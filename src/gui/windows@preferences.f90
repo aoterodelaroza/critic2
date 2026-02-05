@@ -113,7 +113,7 @@ contains
           str = "Font scale" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
              ldum = iw_dragfloat_realc(str,x1=io%FontGlobalScale,speed=0.005_c_float,min=0.3_c_float,&
-                max=3.0_c_float,sformat="%.2f",flags=ImGuiSliderFlags_AlwaysClamp)
+                max=3.0_c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Scale factor for the user interface font",ttshown)
           end if
 
@@ -126,14 +126,14 @@ contains
           str = "Tooltip delay (s)" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
              ldum = iw_dragfloat_realc(str,x1=tooltip_delay,speed=0.1_c_float,min=0._c_float,&
-                max=5._c_float,sformat="%.1f",flags=ImGuiSliderFlags_AlwaysClamp)
+                max=5._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Delay for showing the tooltips",ttshown)
           end if
 
           str = "Tooltip maximum width (pixels)" // c_null_char
           if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
              ldum = iw_dragfloat_realc(str,x1=tooltip_wrap_factor,speed=1._c_float,&
-                min=0._c_float,max=1000._c_float,sformat="%.1f",flags=ImGuiSliderFlags_AlwaysClamp)
+                min=0._c_float,max=1000._c_float,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Width of the interface tooltips",ttshown)
           end if
 

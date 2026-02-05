@@ -341,7 +341,7 @@ contains
              ! crystals
              call igPushItemWidth(iw_calcwidth(5,1))
              if (iw_dragfloat_real8("Amplitude##amplitude",x1=win(w%idparent)%sc%anim_amplitude,&
-                speed=0.01d0,min=0d0,max=anim_amplitude_max,sformat="%.2f",flags=ImGuiSliderFlags_AlwaysClamp))&
+                speed=0.01d0,min=0d0,max=anim_amplitude_max,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp))&
                 win(w%idparent)%forcerender = .true.
              call igPopItemWidth()
              call iw_tooltip("Amplitude of the atomic displacements",ttshown)
@@ -349,7 +349,7 @@ contains
              call igSameLine(0._c_float,-1._c_float)
              call igPushItemWidth(iw_calcwidth(6,1))
              if (iw_dragfloat_real8("Phase##phase",x1=win(w%idparent)%sc%anim_phase,speed=0.001d0,&
-                min=-1d0,max=1d0,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)) &
+                min=-1d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)) &
                 win(w%idparent)%forcerender = .true.
              call igPopItemWidth()
              call iw_tooltip("Phase for the atomic displacements along the chosen phonon normal mode",ttshown)
@@ -357,7 +357,7 @@ contains
              ! molecules
              call igPushItemWidth(iw_calcwidth(5,1))
              if (iw_dragfloat_real8("Displacement##amplitude",x1=win(w%idparent)%sc%anim_amplitude,&
-                speed=0.01d0,min=-anim_amplitude_max,max=anim_amplitude_max,sformat="%.2f",&
+                speed=0.01d0,min=-anim_amplitude_max,max=anim_amplitude_max,decimal=2,&
                 flags=ImGuiSliderFlags_AlwaysClamp))&
                 win(w%idparent)%forcerender = .true.
              call igPopItemWidth()
@@ -380,14 +380,14 @@ contains
           ! automatic
           call igPushItemWidth(iw_calcwidth(5,1))
           ldum = iw_dragfloat_real8("Amplitude##amplitude",x1=win(w%idparent)%sc%anim_amplitude,&
-             speed=0.01d0,min=0d0,max=anim_amplitude_max,sformat="%.2f",flags=ImGuiSliderFlags_AlwaysClamp)
+             speed=0.01d0,min=0d0,max=anim_amplitude_max,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
           call igPopItemWidth()
           call iw_tooltip("Amplitude of the atomic displacements",ttshown)
 
           call igSameLine(0._c_float,-1._c_float)
           call igPushItemWidth(iw_calcwidth(5,1))
           if (iw_dragfloat_real8("Speed##speed",x1=win(w%idparent)%sc%anim_speed,&
-             speed=0.02d0,min=0.0d0,max=anim_speed_max,sformat="%.2f",flags=ImGuiSliderFlags_AlwaysClamp)) &
+             speed=0.02d0,min=0.0d0,max=anim_speed_max,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)) &
              win(w%idparent)%sc%timerefanimation = glfwGetTime()
           call igPopItemWidth()
           call iw_tooltip("Speed of the atomic displacements",ttshown)

@@ -26,18 +26,19 @@ contains
   !> number of buttons shown is determined by whether the x1, x2, x3,
   !> or x4 argument is passed.  Speed = step for the dragfloat. Min
   !> and max = minimum and maximum values. scale = scale the numbers
-  !> by this value before and after the drag. sformat = C format of the
-  !> label. flags = combination of ImGuiSliderFlags_* flags. Version
-  !> for real(c_float) type.
-  module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,scale,sformat,flags)
+  !> by this value before and after the drag. decimal = the number of
+  !> decimal places on the label. flags = combination of
+  !> ImGuiSliderFlags_* flags. Version for real(c_float) type.
+  module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,scale,decimal,flags)
     use interfaces_cimgui
+    use tools_io, only: string
     character(len=*,kind=c_char), intent(in) :: str
     real(c_float), intent(inout), optional :: x1
     real(c_float), intent(inout), optional :: x2(2)
     real(c_float), intent(inout), optional :: x3(3)
     real(c_float), intent(inout), optional :: x4(4)
     real(c_float), intent(in), optional :: speed, min, max, scale
-    character(len=*,kind=c_char), intent(in), optional :: sformat
+    integer, intent(in), optional :: decimal
     integer(c_int), intent(in), optional :: flags
     logical :: iw_dragfloat_realc
 
@@ -56,7 +57,7 @@ contains
     scale_ = 1._c_float
     if (present(scale)) scale_ = scale
     sformat_ = "%.3f" // c_null_char
-    if (present(sformat)) sformat_ = trim(sformat) // c_null_char
+    if (present(decimal)) sformat_ = "%." // string(decimal) // "f" // c_null_char
     flags_ = 0_c_int
     if (present(flags)) flags_ = flags
 
@@ -89,19 +90,21 @@ contains
   !> by this value before and after the drag. sformat = C format of the
   !> label. flags = combination of ImGuiSliderFlags_* flags. Version
   !> for real*8 type.
-  module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,sformat,flags)
+  module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,decimal,flags)
     use interfaces_cimgui
+    use tools_io, only: string
     character(len=*,kind=c_char), intent(in) :: str
     real*8, intent(inout), optional :: x1
     real*8, intent(inout), optional :: x2(2)
     real*8, intent(inout), optional :: x3(3)
     real*8, intent(inout), optional :: x4(4)
     real*8, intent(in), optional :: speed, min, max, scale
-    character(len=*,kind=c_char), intent(in), optional :: sformat
+    integer, intent(in), optional :: decimal
     integer(c_int), intent(in), optional :: flags
     logical :: iw_dragfloat_real8
 
-    real(c_float) :: speed_, min_, max_, scale_, x1_, x2_(2), x3_(3), x4_(4)
+    real*8 :: scale_
+    real(c_float) :: speed_, min_, max_, x1_, x2_(2), x3_(3), x4_(4)
     character(len=:,kind=c_char), allocatable, target :: str_, sformat_
     integer(c_int) :: flags_
 
@@ -115,7 +118,7 @@ contains
     scale_ = 1._c_float
     if (present(scale)) scale_ = scale
     sformat_ = "%.3f" // c_null_char
-    if (present(sformat)) sformat_ = trim(sformat) // c_null_char
+    if (present(decimal)) sformat_ = "%." // string(decimal) // "f" // c_null_char
     flags_ = 0_c_int
     if (present(flags)) flags_ = flags
 

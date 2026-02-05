@@ -488,7 +488,7 @@ contains
                          if (igTableSetColumnIndex(icol)) then
                             s = string(x0(j),'f',dec+4,dec,ioj_center)
                             ch = ch .or. iw_dragfloat_real8("##x" // string(isys) // "_" // string(i) // "_" // string(j),&
-                               x1=x0(j),speed=0.001d0,sformat="%." // string(dec) // "f")
+                               x1=x0(j),speed=0.001d0,decimal=dec)
                          end if
                       end do
                       if (ch .and. any(abs(x0-xold) > epsmoved)) &

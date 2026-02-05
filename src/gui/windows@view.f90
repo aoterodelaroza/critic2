@@ -371,7 +371,7 @@ contains
           call igSameLine(0._c_float,-1._c_float)
           call igPushItemWidth(iw_calcwidth(5,1))
           ch = iw_dragfloat_realc("Reset Distance##resetdistance",x1=w%sc%camresetdist,&
-             speed=0.01_c_float,min=0.1_c_float,max=8.0_c_float,sformat="%.2f",flags=ImGuiSliderFlags_AlwaysClamp)
+             speed=0.01_c_float,min=0.1_c_float,max=8.0_c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
           call igPopItemWidth()
           call iw_tooltip("Ratio controlling distance from object when resetting camera",ttshown)
 
@@ -407,20 +407,20 @@ contains
              !! phong-specific options !!
              call igPushItemWidth(iw_calcwidth(15,3))
              chrender = chrender .or. iw_dragfloat_realc("Light Position",x3=w%sc%lightpos,&
-                speed=0.5_c_float,sformat="%.1f")
+                speed=0.5_c_float,decimal=1)
              call iw_tooltip("Change the position of the light",ttshown)
              call igPopItemWidth()
 
              call igPushItemWidth(iw_calcwidth(5,1))
              chrender = chrender .or. iw_dragfloat_realc("Ambient",x1=w%sc%ambient,speed=0.002_c_float,&
-                min=0._c_float,max=1._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
+                min=0._c_float,max=1._c_float,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the ambient light intensity",ttshown)
              call igSameLine(0._c_float,-1._c_float)
              chrender = chrender .or. iw_dragfloat_realc("Diffuse",x1=w%sc%diffuse,speed=0.002_c_float,&
-                min=0._c_float,max=1._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
+                min=0._c_float,max=1._c_float,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the diffuse light intensity",ttshown)
              chrender = chrender .or. iw_dragfloat_realc("Specular",x1=w%sc%specular,&
-                speed=0.002_c_float,min=0._c_float,max=1._c_float,sformat="%.3f",flags=ImGuiSliderFlags_AlwaysClamp)
+                speed=0.002_c_float,min=0._c_float,max=1._c_float,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the specular light intensity",ttshown)
              call igSameLine(0._c_float,-1._c_float)
              str2 = "Shininess" // c_null_char
