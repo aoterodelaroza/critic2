@@ -411,9 +411,10 @@ contains
 
     character(len=:), allocatable :: file, errmsg
     logical :: exist
-    integer :: isformat, mol, iafield, iavib, nseed, icol
+    integer :: isformat, mol, iafield, iavib, nseed, icol, idseed
     type(crystalseed), allocatable :: seed(:)
-    logical :: collapse, ihid
+    logical :: collapse, ihid, renamed
+    character(len=:), allocatable :: fullname
 
     ! the seed is available
     if (.not.ok_system(idx,sys_loaded_not_init)) return
@@ -427,6 +428,9 @@ contains
     isformat = sysc(idx)%seed%isformat
     icol = sysc(idx)%collapse
     ihid = sysc(idx)%hidden
+    renamed = sysc(idx)%renamed
+    fullname = sysc(idx)%fullname
+    idseed = sysc(idx)%idseed
 
     ! make sure the file exists
     file = sysc(idx)%seed%file
@@ -463,6 +467,9 @@ contains
     call add_systems_from_seeds(1,seed,.false.,iafield,iavib,idx)
     sysc(idx)%collapse = icol
     sysc(idx)%hidden = ihid
+    sysc(idx)%renamed = renamed
+    sysc(idx)%fullname = fullname
+    sysc(idx)%idseed = idseed
 
     ! initialize
     call launch_initialization_thread()
