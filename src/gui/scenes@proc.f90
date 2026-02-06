@@ -392,7 +392,7 @@ contains
     maxrad = 0._c_float
     do i = 1, s%nrep
        if (s%rep(i)%shown .and. s%rep(i)%type == reptype_atoms) &
-          maxrad = max(maxrad,maxval(s%rep(i)%atom_style%rad(1:s%rep(i)%atom_style%ntype)))
+          maxrad = max(maxrad,real(maxval(s%rep(i)%atom_style%rad(1:s%rep(i)%atom_style%ntype)),c_float))
     end do
     if (s%obj%nsph + s%obj%ncyl + s%obj%ncylflat + s%obj%nstring > 0) then
        do i = 1, 3
@@ -1425,7 +1425,7 @@ contains
     model(3,3) = rad
 
     ! border
-    border_ = atomborder_def
+    border_ = real(atomborder_def,c_float)
     if (present(border)) border_ = border
     call setuniform_float(border_,idxi=iunif(iu_border))
     rgbborder_ = 0._c_float

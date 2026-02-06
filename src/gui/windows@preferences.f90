@@ -26,7 +26,7 @@ contains
     use windows, only: nwin, win
     use tools_io, only: nameguess, string
     use gui_main, only: g, tooltip_enabled, tooltip_delay, tooltip_wrap_factor,&
-       tree_select_updates_inpcon, tree_select_updates_view, io, fontsize,&
+       tree_select_updates_inpcon, tree_select_updates_view, io,&
        set_default_ui_settings, ColorTableCellBg, ColorHighlightScene,&
        ColorHighlightSelectScene, ColorHighlightSelectScene, ColorMeasureSelect, &
        ColorElement
