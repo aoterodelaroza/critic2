@@ -187,10 +187,8 @@ contains
 
     ! bond factor
     call iw_text("Bond factor",highlight=.true.)
-    call igSameLine(0._c_float,-1._c_float)
     ch = iw_dragfloat_real8("##bondfactor",x1=sysc(isys)%bondfactor,speed=0.001d0,min=1d0,max=2d0,&
-       decimal=4,flags=ImGuiSliderFlags_AlwaysClamp)
-    write (*,*) "xx bond = ", sysc(isys)%bondfactor
+       decimal=4,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Bond factor parameter for connectivity calculation",ttshown)
 
     ! explanation message

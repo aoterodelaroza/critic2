@@ -368,9 +368,8 @@ contains
           end if
           call iw_tooltip("Align the camera along the Cartesian z axis ("//&
              trim(get_bind_keyname(BIND_VIEW_ALIGN_Z_AXIS)) // ").",ttshown)
-          call igSameLine(0._c_float,-1._c_float)
-          ch = iw_dragfloat_realc("Reset Distance##resetdistance",x1=w%sc%camresetdist,&
-             speed=0.01_c_float,min=0.1_c_float,max=8.0_c_float,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+          ch = iw_dragfloat_realc("Reset Distance##resetdistance",x1=w%sc%camresetdist,speed=0.01_c_float,&
+             min=0.1_c_float,max=8.0_c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Ratio controlling distance from object when resetting camera",ttshown)
 
           ! object resolution
@@ -410,9 +409,8 @@ contains
              chrender = chrender .or. iw_dragfloat_realc("Ambient",x1=w%sc%ambient,speed=0.002_c_float,&
                 min=0._c_float,max=1._c_float,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the ambient light intensity",ttshown)
-             call igSameLine(0._c_float,-1._c_float)
              chrender = chrender .or. iw_dragfloat_realc("Diffuse",x1=w%sc%diffuse,speed=0.002_c_float,&
-                min=0._c_float,max=1._c_float,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+                min=0._c_float,max=1._c_float,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Change the diffuse light intensity",ttshown)
              chrender = chrender .or. iw_dragfloat_realc("Specular",x1=w%sc%specular,&
                 speed=0.002_c_float,min=0._c_float,max=1._c_float,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)

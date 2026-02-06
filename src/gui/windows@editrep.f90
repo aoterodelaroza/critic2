@@ -380,11 +380,10 @@ contains
                 "Constant"//c_null_char,w%rep%atom_radii_type,changed=ch)
              call iw_tooltip("Set atomic radii to the tabulated values of this type",ttshown)
 
-             call igSameLine(0._c_float,-1._c_float)
              if (w%rep%atom_radii_type == 2) then
                 ! constant size
                 ch = ch .or. iw_dragfloat_real8("Value##atomradii",x1=w%rep%atom_radii_value,speed=0.01d0,&
-                   min=0d0,max=5d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+                   min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
                 call iw_tooltip("Atomic radii (Å)",ttshown)
 
                 if (ch) then
@@ -394,7 +393,7 @@ contains
              else
                 ! variable size
                 ch = ch .or. iw_dragfloat_real8("Scale##atomradiiscale",x1=w%rep%atom_radii_scale,speed=0.01d0,&
-                   min=0d0,max=5d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+                   min=0d0,max=5d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
                 call iw_tooltip("Scale factor for the tabulated atomic radii",ttshown)
 
                 if (ch) then
@@ -474,9 +473,8 @@ contains
              call iw_tooltip("Use a single color for the bond, or two colors from the bonded atoms",ttshown)
 
              call iw_text(" Radius (Å)",sameline=.true.)
-             call igSameLine(0._c_float,-1._c_float)
              ch = ch .or. iw_dragfloat_real8("##radiusbondtableglobal",x1=w%rep%bond_rad,speed=0.005d0,&
-                min=0d0,max=2d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+                min=0d0,max=2d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
              call iw_tooltip("Radius of the bonds",ttshown)
 
              ! border size
@@ -528,9 +526,8 @@ contains
                 ! factor
                 call igAlignTextToFramePadding()
                 call iw_text("Between")
-                call igSameLine(0._c_float,-1._c_float)
                 ldum = iw_dragfloat_real8("##bondtableglobalbfmin",x1=w%rep%bond_bfmin,speed=0.01d0,min=0.0d0,&
-                   max=9.999d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+                   max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
                 call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
 
                 call iw_text("times",sameline=.true.)
@@ -541,10 +538,8 @@ contains
 
                 call igAlignTextToFramePadding()
                 call iw_text("... and")
-                call igSameLine(0._c_float,-1._c_float)
-                str2 = "##bondtableglobalbfmax" // c_null_char
                 ldum = iw_dragfloat_real8("##bondtableglobalbfmax",x1=w%rep%bond_bfmax,speed=0.01d0,min=0.0d0,&
-                   max=9.999d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+                   max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
                 call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
 
                 call iw_text("times",sameline=.true.)
@@ -556,17 +551,15 @@ contains
                 ! range
                 call igAlignTextToFramePadding()
                 call iw_text("Between")
-                call igSameLine(0._c_float,-1._c_float)
                 ldum = iw_dragfloat_real8("##bondtableglobaldmin",x1=w%rep%bond_dmin,speed=0.01d0,min=0.0d0,&
-                   max=9.999d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+                   max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
                 call iw_text("Å",sameline=.true.)
                 call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
 
                 call igAlignTextToFramePadding()
                 call iw_text("... and")
-                call igSameLine(0._c_float,-1._c_float)
                 ldum = iw_dragfloat_real8("##bondtableglobaldmax",x1=w%rep%bond_dmax,speed=0.01d0,min=0.0d0,&
-                   max=9.999d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+                   max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
                 call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
                 call iw_text("Å",sameline=.true.)
              end if

@@ -344,9 +344,8 @@ contains
                 win(w%idparent)%forcerender = .true.
              call iw_tooltip("Amplitude of the atomic displacements",ttshown)
 
-             call igSameLine(0._c_float,-1._c_float)
              if (iw_dragfloat_real8("Phase##phase",x1=win(w%idparent)%sc%anim_phase,speed=0.001d0,&
-                min=-1d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)) &
+                min=-1d0,max=1d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) &
                 win(w%idparent)%forcerender = .true.
              call iw_tooltip("Phase for the atomic displacements along the chosen phonon normal mode",ttshown)
           else
@@ -376,9 +375,8 @@ contains
              speed=0.01d0,min=0d0,max=anim_amplitude_max,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Amplitude of the atomic displacements",ttshown)
 
-          call igSameLine(0._c_float,-1._c_float)
-          if (iw_dragfloat_real8("Speed##speed",x1=win(w%idparent)%sc%anim_speed,&
-             speed=0.02d0,min=0.0d0,max=anim_speed_max,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)) &
+          if (iw_dragfloat_real8("Speed##speed",x1=win(w%idparent)%sc%anim_speed,speed=0.02d0,min=0.0d0,&
+             max=anim_speed_max,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)) &
              win(w%idparent)%sc%timerefanimation = glfwGetTime()
           call iw_tooltip("Speed of the atomic displacements",ttshown)
        end if

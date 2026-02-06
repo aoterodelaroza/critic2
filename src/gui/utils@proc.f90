@@ -29,7 +29,8 @@ contains
   !> by this value before and after the drag. decimal = the number of
   !> decimal places on the label. flags = combination of
   !> ImGuiSliderFlags_* flags. Version for real(c_float) type.
-  module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,scale,decimal,flags)
+  module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&
+     sameline,flags)
     use interfaces_cimgui
     use gui_main, only: g
     use tools_io, only: string
@@ -40,6 +41,7 @@ contains
     real(c_float), intent(inout), optional :: x4(4)
     real(c_float), intent(in), optional :: speed, min, max, scale
     integer, intent(in), optional :: decimal
+    logical, intent(in), optional :: sameline
     integer(c_int), intent(in), optional :: flags
     logical :: iw_dragfloat_realc
 
@@ -50,6 +52,7 @@ contains
     integer :: n
     real(c_float) :: width
     type(ImVec2) :: sz
+    logical :: sameline_
     character(len=:,kind=c_char), allocatable, target :: strc
 
     ! process options
@@ -64,8 +67,14 @@ contains
     if (present(scale)) scale_ = scale
     sformat_ = "%.3f" // c_null_char
     if (present(decimal)) sformat_ = "%." // string(decimal) // "f" // c_null_char
+    sameline_ = .false.
+    if (present(sameline)) sameline_ = sameline
     flags_ = 0_c_int
     if (present(flags)) flags_ = flags
+
+    ! same line
+    if (sameline_) &
+       call igSameLine(0._c_float,-1._c_float)
 
     ! calculate width
     strc = "0" // c_null_char
@@ -113,7 +122,8 @@ contains
   !> by this value before and after the drag. sformat = C format of the
   !> label. flags = combination of ImGuiSliderFlags_* flags. Version
   !> for real*8 type.
-  module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,decimal,flags)
+  module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&
+     sameline,flags)
     use interfaces_cimgui
     use gui_main, only: g
     use tools_io, only: string
@@ -124,6 +134,7 @@ contains
     real*8, intent(inout), optional :: x4(4)
     real*8, intent(in), optional :: speed, min, max, scale
     integer, intent(in), optional :: decimal
+    logical, intent(in), optional :: sameline
     integer(c_int), intent(in), optional :: flags
     logical :: iw_dragfloat_real8
 
@@ -134,6 +145,7 @@ contains
     integer :: n
     real(c_float) :: width
     type(ImVec2) :: sz
+    logical :: sameline_
     character(len=:,kind=c_char), allocatable, target :: strc
 
     ! process options
@@ -148,8 +160,14 @@ contains
     if (present(scale)) scale_ = scale
     sformat_ = "%.3f" // c_null_char
     if (present(decimal)) sformat_ = "%." // string(decimal) // "f" // c_null_char
+    sameline_ = .false.
+    if (present(sameline)) sameline_ = sameline
     flags_ = 0_c_int
     if (present(flags)) flags_ = flags
+
+    ! same line
+    if (sameline_) &
+       call igSameLine(0._c_float,-1._c_float)
 
     ! calculate width
     strc = "0" // c_null_char
