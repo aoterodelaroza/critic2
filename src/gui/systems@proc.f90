@@ -994,6 +994,32 @@ contains
 
   end function attype_name
 
+  ! For the given atom type, set the corresponding atom name.
+  module subroutine set_attype_name(sysc,type,id,str)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: id
+    character(len=*), intent(in) :: str
+
+    integer :: isys
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    if (type == atlisttype_species) then
+       sys(isys)%c%spc(id)%name = str
+    elseif (type == atlisttype_nneq) then
+       sys(isys)%c%at(id)%name = str
+    elseif (type /= atlisttype_nmol) then
+       sys(isys)%c%at(sys(isys)%c%atcel(id)%idx)%name = str
+    end if
+
+    ! the geometry has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine set_attype_name
+
   ! For the given atom type, return the corresponding atomic
   ! coordinates.
   module function attype_coordinates(sysc,type,id)

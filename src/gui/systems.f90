@@ -98,6 +98,7 @@ module systems
      procedure :: attype_number
      procedure :: attype_species
      procedure :: attype_name
+     procedure :: set_attype_name
      procedure :: attype_coordinates
      procedure :: attype_coordinates_decimals
      procedure :: attype_celatom_mask
@@ -223,6 +224,12 @@ module systems
        integer, intent(in) :: id
        character(len=:), allocatable :: attype_name
      end function attype_name
+     module subroutine set_attype_name(sysc,type,id,str)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, intent(in) :: id
+       character(len=*), intent(in) :: str
+     end subroutine set_attype_name
      module function attype_coordinates(sysc,type,id)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type

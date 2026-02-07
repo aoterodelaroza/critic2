@@ -22,6 +22,58 @@ submodule (utils) proc
 
 contains
 
+  !> bleh
+  module function iw_inputtext(label,text,width,flags)
+    use interfaces_cimgui
+    character(len=*), intent(in) :: label
+    character(len=:), allocatable, intent(inout) :: text
+    integer, intent(in), optional :: width
+    integer(c_int), intent(in), optional :: flags
+    logical :: iw_inputtext
+
+    integer(c_int) :: flags_
+    integer(c_size_t) :: width_
+    character(kind=c_char,len=:), allocatable, target :: label_, text_
+    integer :: i, ll
+
+    ! process input options
+    flags_ = ImGuiInputTextFlags_None
+    if (present(flags)) flags_ = flags
+    if (present(width)) then
+       width_ = int(width,c_size_t)
+    else
+       width_ = int(len(text),c_size_t)
+    end if
+
+    ! set up the call and push the width
+    allocate(character(len=width_+1) :: text_)
+    label_ = trim(label) // c_null_char
+    ll = len(text)
+    do i = 1, width_
+       if (i <= ll) then
+          text_(i:i) = text(i:i)
+       else
+          text_(i:i) = c_null_char
+       end if
+    end do
+    text_(width_+1:width_+1) = c_null_char
+    if (present(width)) &
+       call igPushItemWidth(iw_calcwidth(width,0))
+
+    ! call inputtext
+    iw_inputtext = igInputText(c_loc(label_),c_loc(text_),width_,flags_,c_null_funptr,c_null_ptr)
+    if (iw_inputtext) then
+       ll = index(text_,c_null_char)-1
+       if (ll <= 0) ll = len(text_)
+       text = text_(1:ll)
+    end if
+
+    ! pop the width
+    if (present(width)) &
+       call igPopItemWidth()
+
+  end function iw_inputtext
+
   !> Drag float button for 1, 2, 3, and 4 floating point numbers. The
   !> number of buttons shown is determined by whether the x1, x2, x3,
   !> or x4 argument is passed.  Speed = step for the dragfloat. Min

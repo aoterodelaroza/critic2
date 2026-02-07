@@ -24,6 +24,7 @@ module utils
   private
 
   !xx! proc submodule !xx!
+  public :: iw_inputtext
   public :: iw_dragfloat_realc
   public :: iw_dragfloat_real8
   public :: iw_clamp_color3
@@ -59,6 +60,13 @@ module utils
   ! module procedure interfaces
   interface
      !xx! proc submodule !xx!
+     module function iw_inputtext(label,text,width,flags)
+       character(len=*), intent(in) :: label
+       character(len=:), allocatable, intent(inout) :: text
+       integer, intent(in), optional :: width
+       integer(c_int), intent(in), optional :: flags
+       logical :: iw_inputtext
+     end function iw_inputtext
      module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&
         sameline,flags)
        character(len=*,kind=c_char), intent(in) :: str

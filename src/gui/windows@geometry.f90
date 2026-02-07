@@ -46,7 +46,8 @@ contains
        atlisttype_ncel_ang
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
-       iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox
+       iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
+       iw_inputtext
     use tools_io, only: string, nameguess, ioj_center
     class(window), intent(inout), target :: w
 
@@ -54,7 +55,7 @@ contains
     logical :: doquit, dorestore, clicked, forcesort, ch
     integer :: ihighlight, iclicked, nhigh, dec, icolsort(0:9)
     logical(c_bool) :: is_selected, redo_highlights
-    integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
+    integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color, ll
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
     character(kind=c_char,len=:), allocatable, target :: strx, stry, strz
     character(len=:), allocatable :: name
@@ -431,10 +432,10 @@ contains
                    if (igTableSetColumnIndex(icol)) then
                       if (havergb) then
                          ldum = iw_coloredit("##tablecolorg" // suffix,rgb=rgb,nointeraction=.true.)
-                         call iw_text(name,sameline=.true.)
-                      else
-                         call iw_text(name)
+                         call igSameLine(0._c_float,-1._c_float)
                       end if
+                      if (iw_inputtext("##nametextinpux" // string(i),name,11,flags=ImGuiInputTextFlags_EnterReturnsTrue)) &
+                         call sysc(isys)%set_attype_name(w%geometry_atomtype,i,name)
                    end if
 
                    ! Z
