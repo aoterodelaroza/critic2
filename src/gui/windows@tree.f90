@@ -37,7 +37,7 @@ contains
     use windows, only: win
     use keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM_FIELD, BIND_TREE_MOVE_UP,&
        BIND_TREE_MOVE_DOWN
-    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button,&
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_inputtext,&
        iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem
     use systems, only: nsys, sys, sysc, sys_empty, sys_init, sys_ready,&
        sys_loaded_not_init, launch_initialization_thread,&
@@ -48,7 +48,7 @@ contains
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
-    use param, only: bohrtoa, ifformat_as_resample, ifformat_as_ft_x, ifformat_as_ft_y,&
+    use param, only: mlen, bohrtoa, ifformat_as_resample, ifformat_as_ft_x, ifformat_as_ft_y,&
        ifformat_as_ft_z, ifformat_as_ft_xx, ifformat_as_ft_xy, ifformat_as_ft_xz,&
        ifformat_as_ft_yy, ifformat_as_ft_yz, ifformat_as_ft_zz, ifformat_as_ft_grad,&
        ifformat_as_ft_lap, ifformat_as_ft_pot
@@ -556,15 +556,9 @@ contains
                             ! rename option (fields)
                             strpop = "Rename" // c_null_char
                             if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-                               strpop2 = "##inputrenamefield" // c_null_char
-                               txtinp = trim(adjustl(sys(i)%f(k)%name)) // c_null_char
-                               call igSetKeyboardFocusHere(0_c_int)
-                               flags = ImGuiInputTextFlags_EnterReturnsTrue
-                               if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_funptr,c_null_ptr)) then
-                                  ll = index(txtinp,c_null_char)
-                                  sys(i)%f(k)%name = txtinp(1:ll-1)
+                               if (iw_inputtext("##inputrenamefield",bufsize=mlen-1,textf=sys(i)%f(k)%name,grabfocus=.true.,&
+                                  flags=ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))) &
                                   call igCloseCurrentPopup()
-                               end if
                                call igEndMenu()
                             end if
                             call iw_tooltip("Rename this field",ttshown)
@@ -916,9 +910,10 @@ contains
     subroutine write_maybe_selectable(isys,tooltipstr)
       use systems, only: are_threads_running, duplicate_system, reread_system_from_file
       use keybindings, only: BIND_GEOMETRY
-      use utils, only: iw_text
+      use utils, only: iw_text, iw_inputtext
       use global, only: iunit, iunit_bohr, iunit_ang
       use tools_io, only: uout
+      use param, only: mlen
       integer, intent(in) :: isys
       character(kind=c_char,len=:), allocatable, intent(in) :: tooltipstr
 
@@ -1039,13 +1034,8 @@ contains
          ! rename option (system)
          strpop = "Rename" // c_null_char
          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-            strpop2 = "##inputrename" // c_null_char
-            txtinp = trim(adjustl(sysc(isys)%seed%name)) // c_null_char
-            call igSetKeyboardFocusHere(0_c_int)
-            flags = ImGuiInputTextFlags_EnterReturnsTrue
-            if (igInputText(c_loc(strpop2),c_loc(txtinp),1023_c_size_t,flags,c_null_funptr,c_null_ptr)) then
-               ll = index(txtinp,c_null_char)
-               sysc(isys)%seed%name = txtinp(1:ll-1)
+            if (iw_inputtext("##inputrename",bufsize=mlen-1,textf=sysc(isys)%seed%name,grabfocus=.true.,&
+               flags=ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))) then
                sysc(isys)%renamed = .true.
                call igCloseCurrentPopup()
             end if

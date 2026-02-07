@@ -33,7 +33,8 @@ contains
     use systems, only: add_systems_from_seeds, launch_initialization_thread,&
        system_shorten_names
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
-       iw_calcwidth, buffer_to_string_array, iw_radiobutton, iw_combo_simple, iw_checkbox
+       iw_calcwidth, buffer_to_string_array, iw_radiobutton, iw_combo_simple, iw_checkbox,&
+       iw_inputtext
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use global, only: rborder_def
     use tools_io, only: string, fopen_scratch, fclose, stripchar, deblank
@@ -57,8 +58,7 @@ contains
     character(kind=c_char,len=:), allocatable, target, save :: symopbuf
     integer(c_size_t), parameter :: maxlatvecbuf = 5000 !! lattice vectors buffer
     character(kind=c_char,len=:), allocatable, target, save :: latvecbuf
-    integer(c_size_t), parameter :: maxnamebuf = 1024 !! name buffer
-    character(len=:,kind=c_char), allocatable, target, save :: namebuf
+    character(len=:), allocatable, target, save :: namebuf
     logical, save :: ismolecule = .false. ! whether the system is a molecule or a crystal
     integer, save :: iunitat_c = 2 ! crystal atpos units (0 = bohr, 1 = angstrom, 2 = fractional)
     integer, save :: iunitat_m = 2 ! mol atpos units (0 = bohr, 1 = angstrom)
@@ -88,8 +88,7 @@ contains
 
     ! name
     call iw_text("Name",highlight=.true.)
-    str2 = "##name"
-    ldum = igInputText(c_loc(str2),c_loc(namebuf),maxnamebuf-1,ImGuiInputTextFlags_None,c_null_funptr,c_null_ptr)
+    ldum = iw_inputtext("##name",bufsize=1024,texta=namebuf)
 
     if (.not.ismolecule) then
        ! symmetry
@@ -299,8 +298,7 @@ contains
 
        ! load the system and initialize
        if (ok.and.seed_(1)%isused) then
-          idx = index(namebuf,c_null_char)
-          seed_(1)%name = namebuf(1:idx-1)
+          seed_(1)%name = trim(namebuf)
           call add_systems_from_seeds(1,seed_)
           call launch_initialization_thread()
           doquit = .true.
@@ -353,9 +351,7 @@ contains
       allocate(character(len=maxlatvecbuf+1) :: latvecbuf)
       latvecbuf(1:50) = "## Enter the three lattice vectors line by line" // newline // c_null_char
 
-      if (allocated(namebuf)) deallocate(namebuf)
-      allocate(character(len=maxnamebuf+1) :: namebuf)
-      namebuf(1:20) = "Input structure" // c_null_char
+      namebuf = "Input structure"
 
     end subroutine init_state
 

@@ -22,7 +22,11 @@ submodule (utils) proc
 
 contains
 
-  !> bleh
+  !> Create an input text widget with the given label and the given
+  !> width, and buffer size bufsize. The text is given as either texta
+  !> (allocatable string) or textf (fixed string). grabfocus = grab focus
+  !> when drawn. sameline = place in the same line as the previous widget.
+  !> flags = flags from ImGuiInputTextFlags_*.
   module function iw_inputtext(label,bufsize,texta,textf,width,grabfocus,sameline,flags)
     use interfaces_cimgui
     character(len=*), intent(in) :: label
