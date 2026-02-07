@@ -59,14 +59,13 @@ contains
     use systems, only: sysc, sys_init, ok_system
     use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
-       iw_calcheight, iw_checkbox
+       iw_calcheight, iw_checkbox, iw_inputtext
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
     integer :: isys, ll, itype
-    logical :: doquit, ok
+    logical :: doquit, ok, ldum
     logical(c_bool) :: changed
-    character(kind=c_char,len=:), allocatable, target :: str1
     character(kind=c_char,len=1024), target :: txtinp
     type(ImVec2) :: szavail
 
@@ -103,15 +102,7 @@ contains
        call iw_tooltip("Type of object",ttshown)
 
        ! name text input
-       str1 = "##nametextinput"
-       txtinp = trim(adjustl(w%rep%name)) // c_null_char
-       call igSameLine(0._c_float,-1._c_float)
-       call igPushItemWidth(iw_calcwidth(30,1))
-       if (igInputText(c_loc(str1),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_None,c_null_funptr,c_null_ptr)) then
-          ll = index(txtinp,c_null_char)
-          w%rep%name = txtinp(1:ll-1)
-       end if
-       call igPopItemWidth()
+       ldum = iw_inputtext("##nametextinput",w%rep%name,bufsize=1023,width=30,sameline=.true.)
        call iw_tooltip("Name of this object",ttshown)
 
        ! shown checkbox

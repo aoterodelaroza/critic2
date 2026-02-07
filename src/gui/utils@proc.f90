@@ -23,13 +23,14 @@ submodule (utils) proc
 contains
 
   !> bleh
-  module function iw_inputtext(label,text,bufsize,width,grabfocus,flags)
+  module function iw_inputtext(label,text,bufsize,width,grabfocus,sameline,flags)
     use interfaces_cimgui
     character(len=*), intent(in) :: label
     character(len=:), allocatable, intent(inout) :: text
     integer, intent(in) :: bufsize
     integer, intent(in), optional :: width
     logical, intent(in), optional :: grabfocus
+    logical, intent(in), optional :: sameline
     integer(c_int), intent(in), optional :: flags
     logical :: iw_inputtext
 
@@ -37,10 +38,17 @@ contains
     integer(c_size_t) :: width_
     character(kind=c_char,len=:), allocatable, target :: label_, text_
     integer :: i, ll
+    logical :: sameline_
 
     ! process input options
     flags_ = ImGuiInputTextFlags_None
     if (present(flags)) flags_ = flags
+    sameline_ = .false.
+    if (present(sameline)) sameline_ = sameline
+
+    ! same line
+    if (sameline_) &
+       call igSameLine(0._c_float,-1._c_float)
 
     ! set up the call and push the width
     allocate(character(len=bufsize+1) :: text_)
