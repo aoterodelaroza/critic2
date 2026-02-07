@@ -434,8 +434,9 @@ contains
                          ldum = iw_coloredit("##tablecolorg" // suffix,rgb=rgb,nointeraction=.true.)
                          call igSameLine(0._c_float,-1._c_float)
                       end if
-                      if (iw_inputtext("##nametextinpux" // string(i),name,11,flags=ImGuiInputTextFlags_EnterReturnsTrue)) &
+                      if (iw_inputtext("##nametextinpux" // string(i),name,bufsize=11,width=11)) then
                          call sysc(isys)%set_attype_name(w%geometry_atomtype,i,name)
+                      end if
                    end if
 
                    ! Z

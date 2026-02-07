@@ -1081,7 +1081,6 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical :: discol, doerase, ok
     type(ImVec2) :: szero
-    character(kind=c_char,len=1024), target :: txtinp
     integer, allocatable :: idx(:)
     integer(c_int) :: flags
 
@@ -1169,8 +1168,8 @@ contains
              ! rename
              str2 = "Rename" // c_null_char
              if (igBeginMenu(c_loc(str2),.true._c_bool)) then
-                if (iw_inputtext("##inputrenamerep",s%rep(i)%name,1023,grabfocus=.true.,&
-                   flags=ImGuiInputTextFlags_EnterReturnsTrue)) then
+                if (iw_inputtext("##inputrenamerep",s%rep(i)%name,width=30,bufsize=1023,grabfocus=.true.,&
+                   flags=ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))) then
                    call igCloseCurrentPopup()
                 end if
                 call igEndMenu()
