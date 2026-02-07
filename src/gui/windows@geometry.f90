@@ -47,7 +47,7 @@ contains
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
-       iw_inputtext
+       iw_inputtext, iw_periodictable
     use tools_io, only: string, nameguess, ioj_center
     class(window), intent(inout), target :: w
 
@@ -63,7 +63,7 @@ contains
     real(c_float), allocatable :: irgba(:,:)
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
-    integer :: ii, i, j, isys, icol, ispc, iz, iview, id
+    integer :: ii, i, j, isys, icol, ispc, iz, izout, iview, id
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, ldum, ok, ch
@@ -434,13 +434,23 @@ contains
                          ldum = iw_coloredit("##tablecolorg" // suffix,rgb=rgb,nointeraction=.true.)
                          call igSameLine(0._c_float,-1._c_float)
                       end if
-                      if (iw_inputtext("##nametextinpux" // string(i),bufsize=11,texta=name,width=11)) &
+                      if (iw_inputtext("##nametextinput" // string(i),bufsize=11,texta=name,width=max(3,len(name)))) &
                          call sysc(isys)%set_attype_name(w%geometry_atomtype,i,name)
                    end if
 
                    ! Z
                    icol = icol + 1
-                   if (igTableSetColumnIndex(icol)) call iw_text(string(iz))
+                   if (igTableSetColumnIndex(icol)) then
+                      ldum = iw_button(string(iz,3) // "##Z" // string(i),popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+                      if (ok) then
+                         izout = iw_periodictable()
+                         if (izout >= 0) then
+                            write (*,*) "xx selected = ", izout
+                            call igCloseCurrentPopup()
+                         end if
+                         call igEndPopup()
+                      end if
+                   end if
 
                    ! molecule
                    if (domol) then

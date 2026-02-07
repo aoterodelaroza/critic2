@@ -24,6 +24,7 @@ module utils
   private
 
   !xx! proc submodule !xx!
+  public :: iw_periodictable
   public :: iw_inputtext
   public :: iw_dragfloat_realc
   public :: iw_dragfloat_real8
@@ -60,6 +61,9 @@ module utils
   ! module procedure interfaces
   interface
      !xx! proc submodule !xx!
+     module function iw_periodictable()
+       integer :: iw_periodictable
+     end function iw_periodictable
      module function iw_inputtext(label,bufsize,texta,textf,width,grabfocus,sameline,flags)
        character(len=*), intent(in) :: label
        integer, intent(in) :: bufsize

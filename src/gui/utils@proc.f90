@@ -22,6 +22,71 @@ submodule (utils) proc
 
 contains
 
+  !> bleh.
+  module function iw_periodictable()
+    use interfaces_cimgui
+    use tools_io, only: nameguess
+    use gui_main, only: g, ColorElement
+    integer :: iw_periodictable
+
+    integer :: irow, icol, iz
+    real(c_float) :: width
+    type(ImVec2) :: szero
+    real(c_float) :: ssquare(2)
+    type(ImVec4) :: color = ImVec4(0.0, 0.0, 0.0, 1.0)
+
+    type(ImVec4), parameter :: black = ImVec4(0.0, 0.0, 0.0, 1.0)
+    integer, parameter :: ptable(18,9) = reshape((/&
+        1, -1, -1, -1, -1, -1, -1,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1,  2,&
+        3,  4, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  5,  6,  7,  8,  9, 10,&
+       11, 12, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 13, 14, 15, 16, 17, 18,&
+       19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,&
+       37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54,&
+       55, 56, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86,&
+       87, 88,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,&
+       -1, -1, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, -1, -1,&
+       -1, -1, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99,100,101,102, -1, -1 &
+       /),(/18,9/))
+
+    ! initialize
+    szero%x = 0._c_float
+    szero%y = 0._c_float
+    width = iw_calcwidth(2,1)
+    ssquare = width
+
+    ! set some padding variables to zero
+    call igPushStyleVar_Vec2(ImGuiStyleVar_FramePadding,szero)
+
+    ! draw the buttons
+    iw_periodictable = -1
+    do irow = 1, size(ptable,2)
+       do icol = 1, size(ptable,1)
+          iz = ptable(icol,irow)
+          if (iz >= 0) then
+             color%x = ColorElement(1,iz)
+             color%y = ColorElement(2,iz)
+             color%z = ColorElement(3,iz)
+             call igPushStyleColor_Vec4(ImGuiCol_Button,color)
+             call igPushStyleColor_Vec4(ImGuiCol_Text,black)
+
+             call igSameLine((icol-1)*width + g%Style%WindowPadding%y,1._c_float)
+             if (iw_button(nameguess(iz,.true.),siz=ssquare)) then
+                iw_periodictable = iz
+                call igPopStyleColor(2)
+                call igPopStyleVar(1_c_int)
+                return
+             end if
+             call igPopStyleColor(2)
+          end if
+       end do
+       call igNewLine()
+    end do
+
+    ! reset the padding
+    call igPopStyleVar(1_c_int)
+
+  end function iw_periodictable
+
   !> Create an input text widget with the given label and the given
   !> width, and buffer size bufsize. The text is given as either texta
   !> (allocatable string) or textf (fixed string). grabfocus = grab focus
@@ -75,7 +140,7 @@ contains
 
     ! push width
     if (present(width)) &
-       call igPushItemWidth(iw_calcwidth(width,0))
+       call igPushItemWidth(iw_calcwidth(width,1))
 
     ! same line
     if (sameline_) &
