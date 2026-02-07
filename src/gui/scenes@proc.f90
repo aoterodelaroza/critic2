@@ -1077,7 +1077,7 @@ contains
     integer(c_int), intent(in) :: idparent
     logical :: changed
 
-    integer :: i, ii, id, ll, idum
+    integer :: i, ii, id, idum
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
     logical :: discol, doerase, ok
     type(ImVec2) :: szero
@@ -1168,7 +1168,7 @@ contains
              ! rename
              str2 = "Rename" // c_null_char
              if (igBeginMenu(c_loc(str2),.true._c_bool)) then
-                if (iw_inputtext("##inputrenamerep",s%rep(i)%name,width=30,bufsize=1023,grabfocus=.true.,&
+                if (iw_inputtext("##inputrenamerep",bufsize=1023,texta=s%rep(i)%name,width=30,grabfocus=.true.,&
                    flags=ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))) then
                    call igCloseCurrentPopup()
                 end if

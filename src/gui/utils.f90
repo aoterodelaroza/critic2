@@ -60,10 +60,11 @@ module utils
   ! module procedure interfaces
   interface
      !xx! proc submodule !xx!
-     module function iw_inputtext(label,text,bufsize,width,grabfocus,sameline,flags)
+     module function iw_inputtext(label,bufsize,texta,textf,width,grabfocus,sameline,flags)
        character(len=*), intent(in) :: label
-       character(len=:), allocatable, intent(inout) :: text
        integer, intent(in) :: bufsize
+       character(len=:), allocatable, intent(inout), optional :: texta
+       character(len=*), intent(inout), optional :: textf
        integer, intent(in), optional :: width
        logical, intent(in), optional :: grabfocus
        logical, intent(in), optional :: sameline

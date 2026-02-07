@@ -102,7 +102,7 @@ contains
        call iw_tooltip("Type of object",ttshown)
 
        ! name text input
-       ldum = iw_inputtext("##nametextinput",w%rep%name,bufsize=1023,width=30,sameline=.true.)
+       ldum = iw_inputtext("##nametextinput",bufsize=1023,texta=w%rep%name,width=30,sameline=.true.)
        call iw_tooltip("Name of this object",ttshown)
 
        ! shown checkbox
@@ -157,15 +157,13 @@ contains
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&
-       iw_highlight_selectable, iw_dragfloat_real8
+       iw_highlight_selectable, iw_dragfloat_real8, iw_inputtext
     use param, only: atmcov, atmvdw, newline, jmlcol, jmlcol2, bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical(c_bool) :: changed
 
     integer :: ispc, isys, iz, ll, ipad
-    character(kind=c_char,len=1024), target :: txtinp
-    character(kind=c_char,len=33), target :: txtinp2
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, suffix
     real*8 :: x0(3)
     logical(c_bool) :: ch, ldum
@@ -230,13 +228,7 @@ contains
              &"The 'basic usage' and 'structural variables' sections are relevant.",ttshown)
 
           ! filter text input
-          str1 = "##filtertext" // c_null_char
-          txtinp = trim(adjustl(w%rep%filter)) // c_null_char
-          if (igInputText(c_loc(str1),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_EnterReturnsTrue,&
-             c_null_funptr,c_null_ptr)) then
-             ll = index(txtinp,c_null_char)
-             w%rep%filter = txtinp(1:ll-1)
-
+          if (iw_inputtext("##filtertext",bufsize=1023,texta=w%rep%filter,flags=ImGuiInputTextFlags_EnterReturnsTrue)) then
              ! test the filter
              if (sys(isys)%c%ncel > 0) then
                 x0 = sys(isys)%c%atcel(1)%r
@@ -348,8 +340,7 @@ contains
           end if
 
           ! draw the atom selection widget
-          changed = changed .or. atom_selection_widget(isys,w%rep,&
-             .true.,.false.,ihighlight,highlight_type)
+          changed = changed .or. atom_selection_widget(isys,w%rep,.true.,.false.,ihighlight,highlight_type)
 
           call igEndTabItem()
        end if ! begin tab item (selection)
@@ -853,16 +844,8 @@ contains
                       ! text
                       ncol = ncol + 1
                       if (igTableSetColumnIndex(ncol)) then
-                         str1 = "##labeltabletext" // suffix // c_null_char
-                         txtinp2 = trim(w%rep%label_style%str(i)) // c_null_char
-                         call igPushItemWidth(iw_calcwidth(15,1))
-                         if (igInputText(c_loc(str1),c_loc(txtinp2),32_c_size_t,ImGuiInputTextFlags_None,&
-                            c_null_funptr,c_null_ptr)) then
-                            ll = index(txtinp2,c_null_char)
-                            w%rep%label_style%str(i) = txtinp2(1:ll-1)
-                            changed = .true.
-                         end if
-                         call igPopItemWidth()
+                         changed = changed .or. iw_inputtext("##labeltabletext" // string(i),bufsize=32,&
+                            textf=w%rep%label_style%str(i),width=15)
                          call iw_tooltip("Text for the atomic labels",ttshown)
                       end if
                    end do ! table rows: clipper range

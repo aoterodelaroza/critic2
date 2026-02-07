@@ -55,7 +55,7 @@ contains
     logical :: doquit, dorestore, clicked, forcesort, ch
     integer :: ihighlight, iclicked, nhigh, dec, icolsort(0:9)
     logical(c_bool) :: is_selected, redo_highlights
-    integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color, ll
+    integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
     character(kind=c_char,len=:), allocatable, target :: strx, stry, strz
     character(len=:), allocatable :: name
@@ -434,9 +434,8 @@ contains
                          ldum = iw_coloredit("##tablecolorg" // suffix,rgb=rgb,nointeraction=.true.)
                          call igSameLine(0._c_float,-1._c_float)
                       end if
-                      if (iw_inputtext("##nametextinpux" // string(i),name,bufsize=11,width=11)) then
+                      if (iw_inputtext("##nametextinpux" // string(i),bufsize=11,texta=name,width=11)) &
                          call sysc(isys)%set_attype_name(w%geometry_atomtype,i,name)
-                      end if
                    end if
 
                    ! Z

@@ -23,11 +23,12 @@ submodule (utils) proc
 contains
 
   !> bleh
-  module function iw_inputtext(label,text,bufsize,width,grabfocus,sameline,flags)
+  module function iw_inputtext(label,bufsize,texta,textf,width,grabfocus,sameline,flags)
     use interfaces_cimgui
     character(len=*), intent(in) :: label
-    character(len=:), allocatable, intent(inout) :: text
     integer, intent(in) :: bufsize
+    character(len=:), allocatable, intent(inout), optional :: texta
+    character(len=*), intent(inout), optional :: textf
     integer, intent(in), optional :: width
     logical, intent(in), optional :: grabfocus
     logical, intent(in), optional :: sameline
@@ -35,7 +36,6 @@ contains
     logical :: iw_inputtext
 
     integer(c_int) :: flags_
-    integer(c_size_t) :: width_
     character(kind=c_char,len=:), allocatable, target :: label_, text_
     integer :: i, ll
     logical :: sameline_
@@ -46,24 +46,36 @@ contains
     sameline_ = .false.
     if (present(sameline)) sameline_ = sameline
 
-    ! same line
-    if (sameline_) &
-       call igSameLine(0._c_float,-1._c_float)
-
-    ! set up the call and push the width
+    ! set up the call
     allocate(character(len=bufsize+1) :: text_)
     label_ = trim(label) // c_null_char
-    ll = len(text)
+    if (present(texta)) then
+       ll = len_trim(texta)
+    elseif (present(textf)) then
+       ll = len_trim(textf)
+    else
+       return
+    end if
     do i = 1, bufsize
        if (i <= ll) then
-          text_(i:i) = text(i:i)
+          if (present(texta)) then
+             text_(i:i) = texta(i:i)
+          else
+             text_(i:i) = textf(i:i)
+          end if
        else
           text_(i:i) = c_null_char
        end if
     end do
     text_(bufsize+1:bufsize+1) = c_null_char
+
+    ! push width
     if (present(width)) &
        call igPushItemWidth(iw_calcwidth(width,0))
+
+    ! same line
+    if (sameline_) &
+       call igSameLine(0._c_float,-1._c_float)
 
     ! grab focus
     if (present(grabfocus)) then
@@ -75,7 +87,11 @@ contains
     if (iw_inputtext) then
        ll = index(text_,c_null_char)-1
        if (ll <= 0) ll = len(text_)
-       text = text_(1:ll)
+       if (present(texta)) then
+          texta = text_(1:ll)
+       else
+          textf = text_(1:ll)
+       end if
     end if
 
     ! pop the width
