@@ -1068,7 +1068,7 @@ contains
   module function representation_menu(s,idparent) result(changed)
     use interfaces_cimgui
     use representations, only: reptype_atoms, reptype_unitcell
-    use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem
+    use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext
     use windows, only: stack_create_window, wintype_editrep
     use gui_main, only: ColorDangerButton, g
     use tools_io, only: string
@@ -1169,13 +1169,8 @@ contains
              ! rename
              str2 = "Rename" // c_null_char
              if (igBeginMenu(c_loc(str2),.true._c_bool)) then
-                str3 = "##inputrenamerep" // c_null_char
-                txtinp = trim(adjustl(s%rep(i)%name)) // c_null_char
-                call igSetKeyboardFocusHere(0_c_int)
-                if (igInputText(c_loc(str3),c_loc(txtinp),1023_c_size_t,ImGuiInputTextFlags_EnterReturnsTrue,&
-                   c_null_funptr,c_null_ptr)) then
-                   ll = index(txtinp,c_null_char)
-                   s%rep(i)%name = txtinp(1:ll-1)
+                if (iw_inputtext("##inputrenamerep",s%rep(i)%name,1023,grabfocus=.true.,&
+                   flags=ImGuiInputTextFlags_EnterReturnsTrue)) then
                    call igCloseCurrentPopup()
                 end if
                 call igEndMenu()

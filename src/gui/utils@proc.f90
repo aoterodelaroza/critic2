@@ -23,11 +23,12 @@ submodule (utils) proc
 contains
 
   !> bleh
-  module function iw_inputtext(label,text,width,flags)
+  module function iw_inputtext(label,text,width,grabfocus,flags)
     use interfaces_cimgui
     character(len=*), intent(in) :: label
     character(len=:), allocatable, intent(inout) :: text
     integer, intent(in), optional :: width
+    logical, intent(in), optional :: grabfocus
     integer(c_int), intent(in), optional :: flags
     logical :: iw_inputtext
 
@@ -59,6 +60,11 @@ contains
     text_(width_+1:width_+1) = c_null_char
     if (present(width)) &
        call igPushItemWidth(iw_calcwidth(width,0))
+
+    ! grab focus
+    if (present(grabfocus)) then
+       if (grabfocus) call igSetKeyboardFocusHere(0_c_int)
+    end if
 
     ! call inputtext
     iw_inputtext = igInputText(c_loc(label_),c_loc(text_),width_,flags_,c_null_funptr,c_null_ptr)
