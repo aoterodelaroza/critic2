@@ -22,11 +22,12 @@ submodule (utils) proc
 
 contains
 
-  !> bleh.
+  !> Draw a periodic table and return the selected atomic number.
   module function iw_periodictable()
     use interfaces_cimgui
-    use tools_io, only: nameguess
+    use tools_io, only: nameguess, string
     use gui_main, only: g, ColorElement
+    use param, only: atmass
     integer :: iw_periodictable
 
     integer :: irow, icol, iz
@@ -77,6 +78,7 @@ contains
                 return
              end if
              call igPopStyleColor(2)
+             call iw_tooltip("Z = " // string(iz) // " Ar = " // string(atmass(iz),'f'))
           end if
        end do
        call igNewLine()
