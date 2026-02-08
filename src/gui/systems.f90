@@ -106,6 +106,7 @@ module systems
      procedure :: attype_type_id_to_id
      ! editing
      procedure :: set_atom_position
+     procedure :: set_atomic_number
      procedure :: reread_geometry_from_file
   end type sysconf
 
@@ -268,6 +269,12 @@ module systems
        real*8, intent(in) :: x(3)
        logical, intent(in) :: forcewyc
      end subroutine set_atom_position
+     module subroutine set_atomic_number(sysc,type,id,iz)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, intent(in) :: id
+       integer, intent(in) :: iz
+     end subroutine set_atomic_number
      module subroutine reread_geometry_from_file(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine reread_geometry_from_file

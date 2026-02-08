@@ -1282,6 +1282,29 @@ contains
   end subroutine set_atom_position
 
   ! For the atom identifier id corresponding to the given atom type,
+  ! set the atomic number of the corresponding species.
+  module subroutine set_atomic_number(sysc,type,id,iz)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: id
+    integer, intent(in) :: iz
+
+    integer :: isys, ispc
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! set the atomic number
+    ispc = sysc%attype_species(type,id)
+    sys(isys)%c%spc(ispc)%z = iz
+
+    ! the geometry has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine set_atomic_number
+
+  ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
   module subroutine reread_geometry_from_file(sysc)
     use crystalseedmod, only: crystalseed, read_seeds_from_file, realloc_crystalseed
