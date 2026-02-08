@@ -81,7 +81,7 @@ contains
     real*8 :: rthres, srhorange(2)
     ! Cartesian matrix for the vmd coordinate system
     real*8 :: rchol(3,3), gg(3,3), aal(3), bbl(3), delta(3)
-    logical :: isortho
+    logical :: isortho, fourierint
     type(field_evaluation_avail) :: request0, request2
 
     ! named constants
@@ -148,6 +148,7 @@ contains
     nfrag = 0
     allocate(fr(1))
 
+    ! more default values
     onlyneg = .false.
     usechk = .true.
     rho_void = -1d0
@@ -162,9 +163,12 @@ contains
     end if
     rthres = 2.d0
     domolmotif = .false.
+    srhorange = (/ -1d30, 1d30 /)
+
+    ! default is fourier interpolation if this is a grid without core contribution
     usecore = sy%f(sy%iref)%usecore
     if (usecore) usecore = any(sy%f(sy%iref)%zpsp /= -1)
-    srhorange = (/ -1d30, 1d30 /)
+    fourierint = (sy%f(sy%iref)%type == type_grid.and..not.usecore)
 
     do while(.true.)
        ok = getline(uin,line,.true.,ucopy)
@@ -335,6 +339,28 @@ contains
              if (len_trim(errmsg) > 0) call ferror('nciplot',errmsg,faterr)
           endif
 
+       elseif (equal(word,'interpolation')) then
+          if (sy%f(sy%iref)%type /= type_grid) then
+             call ferror('nciplot','interpolation keyword can only be used if the reference field is a grid',&
+                faterr,line,syntax=.true.)
+             return
+          end if
+
+          word = lgetword(line,lp)
+          if (equal(word,'fourier')) then
+             if (usecore) then
+                call ferror('nciplot','interpolation keyword cannot be used with reference fields&
+                   & that have a core contribution',faterr,line,syntax=.true.)
+                return
+             end if
+             fourierint = .true.
+          elseif (equal(word,'grid')) then
+             fourierint = .false.
+          else
+             call ferror('nciplot','wrong interpolation keyword',faterr,line,syntax=.true.)
+             return
+          end if
+
        elseif (equal(word,'endnciplot').or.equal(word,'end')) then
           ok = check_no_extra_word(line,lp,'nciplot')
           if (.not.ok) return
@@ -442,7 +468,7 @@ contains
        iunitname0(iunit), (string(xinc(j)*nstep(j)*dunit0(iunit),'f',decimal=4),j=1,3)
     if (nstep_from_grid) &
        write(uout,'("  Values of NSTEP derived from reference field grid dimensions.")')
-    if (sy%f(sy%iref)%type == type_grid.and..not.usecore) then
+    if (fourierint) then
        write(uout,'("  Using fast Fourier transform for derivative calculation.")')
     else
        write(uout,'("  Using scalar field differentiation for derivative calculation.")')
@@ -496,7 +522,7 @@ contains
 
      if (.not.lchk) then
         ! Initialize gradrho out of the omp loop
-        if (sy%f(sy%iref)%type == type_grid .and..not.usecore) then
+        if (fourierint) then
            call fgrho%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_ft_grad)
            call fxx(1)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_ft_xx)
            call fxx(2)%load_as_fftgrid(sy%c,-1,"",sy%f(sy%iref)%grid,ifformat_as_ft_yy)
@@ -520,7 +546,7 @@ contains
                  x = x0 + i*xmat(:,1) + j*xmat(:,2) + k*xmat(:,3)
 
                  ! calculate properties at x: rho and rdg
-                 if (sy%f(sy%iref)%type == type_grid.and..not.usecore) then
+                 if (fourierint) then
                     call sy%f(sy%iref)%grd(x,request0,res)
                     call fgrho%grd(x,request0,resg)
                     dimgrad = resg%f / (const*max(res%f,vsmall)**fthirds)
