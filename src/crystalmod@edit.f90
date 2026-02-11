@@ -922,6 +922,38 @@ contains
 
   end subroutine delete_atoms
 
+  !> Change the atoms with IDs in the array iat(1:nat) from their
+  !> current species to is, and reset the atom name to the
+  !> corresponding species name.
+  module subroutine change_atom_species(c,nat,iat,is,ti)
+    use crystalseedmod, only: crystalseed
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: nat
+    integer, intent(in) :: iat(nat)
+    integer, intent(in) :: is
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: seed
+    integer :: i
+
+    ! return if nothing to do
+    if (nat == 0) return
+    if (is < 1 .or. is > c%nspc) return
+
+    ! make seed from this crystal
+    call c%makeseed(seed,copysym=.false.)
+
+    ! apply the change
+    do i = 1, nat
+       seed%is(iat(i)) = is
+       seed%atname(iat(i)) = c%spc(is)%name
+    end do
+
+    ! build the new crystal
+    call c%struct_new(seed,crashfail=.true.,ti=ti)
+
+  end subroutine change_atom_species
+
   !> Move atom with complete list ID idx to position x in units of
   !> iunit_l (see global). If isnneq, move all atoms that are
   !> equivalent by symmetry. If dorelative, the movement is

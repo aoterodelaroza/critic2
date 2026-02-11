@@ -970,6 +970,46 @@ contains
 
   end function attype_species
 
+  ! For the given atom type, set the corresponding atomic species.
+  module subroutine set_attype_species(sysc,type,id,is)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: id
+    integer, intent(in) :: is
+
+    integer :: isys, i, nat
+    integer, allocatable :: iat(:)
+    logical :: ok
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! initialize
+    allocate(iat(sys(isys)%c%ncel))
+    nat = 0
+
+    ! pick the atoms
+    do i = 1, sys(isys)%c%ncel
+       if (type == atlisttype_nneq) then
+          ok = (sys(isys)%c%atcel(i)%idx == id)
+       elseif (type == atlisttype_ncel_frac .or. type == atlisttype_ncel_bohr .or. type == atlisttype_ncel_ang) then
+          ok = (i == id)
+       end if
+       if (ok) then
+          nat = nat + 1
+          iat(nat) = i
+       end if
+    end do
+
+    ! execute
+    call sys(isys)%c%change_atom_species(nat,iat,is)
+
+    ! the geometry has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine set_attype_species
+
   ! For the given atom type, return the corresponding atom name.
   module function attype_name(sysc,type,id)
     class(sysconf), intent(inout) :: sysc

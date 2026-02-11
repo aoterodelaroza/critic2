@@ -97,6 +97,7 @@ module systems
      procedure :: attype_combo_simple
      procedure :: attype_number
      procedure :: attype_species
+     procedure :: set_attype_species
      procedure :: attype_name
      procedure :: set_attype_name
      procedure :: attype_coordinates
@@ -219,6 +220,12 @@ module systems
        integer, intent(in) :: id
        integer :: attype_species
      end function attype_species
+     module subroutine set_attype_species(sysc,type,id,is)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, intent(in) :: id
+       integer, intent(in) :: is
+     end subroutine set_attype_species
      module function attype_name(sysc,type,id)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type

@@ -289,6 +289,7 @@ module crystalmod
      procedure :: reorder_atoms !< reorder the atoms in the crystal/molecule
      procedure :: wholemols !< Re-assign atomic types to have an asymmetric unit with whole molecules
      procedure :: delete_atoms !< Delete a list of atoms
+     procedure :: change_atom_species !< Change the species of atoms
      procedure :: move_atom !< Move an atom
      procedure :: move_cell !< Move the unit cell
 
@@ -746,6 +747,13 @@ module crystalmod
        integer, intent(in) :: iat(nat)
        type(thread_info), intent(in), optional :: ti
      end subroutine delete_atoms
+     module subroutine change_atom_species(c,nat,iat,is,ti)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: nat
+       integer, intent(in) :: iat(nat)
+       integer, intent(in) :: is
+       type(thread_info), intent(in), optional :: ti
+     end subroutine change_atom_species
      module subroutine move_atom(c,idx,x,iunit_l,isnneq,dorelative,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: idx

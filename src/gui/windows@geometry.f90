@@ -47,7 +47,8 @@ contains
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
-       iw_inputtext, iw_periodictable
+       iw_inputtext, iw_periodictable, iw_menuitem
+    use types, only: realloc
     use tools_io, only: string, nameguess, ioj_center
     class(window), intent(inout), target :: w
 
@@ -443,11 +444,27 @@ contains
                    if (igTableSetColumnIndex(icol)) then
                       ldum = iw_button(string(iz,3) // "##Z" // string(i),popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
                       if (ok) then
-                         izout = iw_periodictable()
-                         if (izout >= 0) then
-                            call sysc(isys)%set_atomic_number(w%geometry_atomtype,i,izout)
-                            call igCloseCurrentPopup()
+                         ldum = iw_menuitem("Species",enabled=.false.)
+                         call igSeparator()
+                         do j = 1, sys(isys)%c%nspc
+                            if (iw_menuitem(string(j) // ": " // trim(sys(isys)%c%spc(j)%name))) &
+                               call sysc(isys)%set_attype_species(w%geometry_atomtype,i,j)
+                         end do
+                         str1 = "New species" // c_null_char
+                         if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+                            izout = iw_periodictable()
+                            if (izout >= 0) then
+                               sys(isys)%c%nspc = sys(isys)%c%nspc + 1
+                               call realloc(sys(isys)%c%spc,sys(isys)%c%nspc)
+                               sys(isys)%c%spc(sys(isys)%c%nspc)%z = izout
+                               sys(isys)%c%spc(sys(isys)%c%nspc)%qat = 0d0
+                               sys(isys)%c%spc(sys(isys)%c%nspc)%name = nameguess(izout,.true.)
+                               call sysc(isys)%set_attype_species(w%geometry_atomtype,i,sys(isys)%c%nspc)
+                               call igCloseCurrentPopup()
+                           end if
+                           call igEndMenu()
                          end if
+                         call igSeparator()
                          call igEndPopup()
                       end if
                    end if
