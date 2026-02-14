@@ -1321,7 +1321,7 @@ contains
     end do
 
     call c%get_kpoints(rk,nk)
-    write (lu,'(/"K_POINTS automatic"/3(A," ")" 1 1 1"/)') (string(nk(i)),i=1,3)
+    write (lu,'(/"K_POINTS automatic"/3(A," ")," 1 1 1"/)') (string(nk(i)),i=1,3)
 
     write (lu,'("CELL_PARAMETERS bohr")')
     do i = 1, 3
