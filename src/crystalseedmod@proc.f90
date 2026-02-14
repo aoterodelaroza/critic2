@@ -7258,9 +7258,15 @@ contains
              if (indata) then
                 call fill_seed(seed)
                 if (present(nseed).and.present(mseed)) then
-                   nseed = nseed + 1
-                   if (nseed > size(mseed,1)) call realloc_crystalseed(mseed,2*nseed)
-                   mseed(nseed) = seed
+                   if (len(errmsg) == 0) then
+                      nseed = nseed + 1
+                      if (nseed > size(mseed,1)) call realloc_crystalseed(mseed,2*nseed)
+                      mseed(nseed) = seed
+                   else
+                      ! keep reading
+                      errmsg = ""
+                      call seed%end()
+                   end if
                 elseif (present(seed0)) then
                    seed0 = seed
                    return
@@ -7449,9 +7455,13 @@ contains
     ! fill the last seed
     call fill_seed(seed)
     if (present(nseed).and.present(mseed)) then
-       nseed = nseed + 1
-       call realloc_crystalseed(mseed,nseed)
-       mseed(nseed) = seed
+       if (len(errmsg) == 0) then
+          nseed = nseed + 1
+          call realloc_crystalseed(mseed,nseed)
+          mseed(nseed) = seed
+       end if
+       if (nseed == 0) &
+          errmsg = "Error reading cif file: no valid data blocks were found"
     elseif (present(seed0)) then
        seed0 = seed
     end if
