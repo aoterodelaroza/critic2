@@ -1322,8 +1322,9 @@ contains
   end subroutine set_atom_position
 
   ! For the atom identifier id corresponding to the given atom type,
-  ! set the atomic number of the corresponding species.
+  ! set the atomic number and the name of the corresponding species.
   module subroutine set_atomic_number(sysc,type,id,iz)
+    use tools_io, only: nameguess
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: type
     integer, intent(in) :: id
@@ -1338,6 +1339,7 @@ contains
     ! set the atomic number
     ispc = sysc%attype_species(type,id)
     sys(isys)%c%spc(ispc)%z = iz
+    sys(isys)%c%spc(ispc)%name = nameguess(iz,.true.)
 
     ! the geometry has changed
     call sysc%post_event(lastchange_geometry)

@@ -179,6 +179,262 @@ contains
     call igBeginGroup()
     if (igBeginTabBar(c_loc(str1),flags)) then
        !! atoms tab !!
+       str2 = "Species##drawgeometry_speciestab" // c_null_char
+       flags = ImGuiTabItemFlags_None
+       if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+          w%geometry_atomtype = atlisttype_species
+          ntype = sys(isys)%c%nspc
+
+          ! reallocate if ntype has changed and redo highlights
+          if (allocated(w%geometry_selected)) then
+             if (size(w%geometry_selected,1) /= ntype) then
+                deallocate(w%geometry_selected)
+                if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
+             end if
+          end if
+          if (.not.allocated(w%geometry_selected)) then
+             allocate(w%geometry_selected(ntype))
+             w%geometry_selected = .false.
+             redo_highlights = .true.
+          end if
+          if (.not.allocated(w%geometry_rgba)) then
+             allocate(w%geometry_rgba(4,ntype))
+             w%geometry_rgba = 0._c_float
+          end if
+
+          ! if the order array is not allocated or if its size is wrong, force a sort
+          if (.not.allocated(w%iord)) then
+             forcesort = .true.
+          elseif (size(w%iord,1) /= ntype) then
+             forcesort = .true.
+             if (allocated(w%iord)) deallocate(w%iord)
+          end if
+
+          ! number of columns
+          ncol = 3
+
+          ! atom style table, for atoms
+          flags = ImGuiTableFlags_None
+          flags = ior(flags,ImGuiTableFlags_Resizable)
+          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+          flags = ior(flags,ImGuiTableFlags_Borders)
+          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          flags = ior(flags,ImGuiTableFlags_ScrollY)
+          flags = ior(flags,ImGuiTableFlags_Sortable)
+          str1="##tableatomstyles" // c_null_char
+          sz0%x = 0
+          sz0%y = iw_calcheight(min(10,ntype+1)+1,0,.false.)
+          if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
+             icol = -1
+
+             ! header setup
+             icol = icol + 1
+             str2 = "Id" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             icolsort(icol) = ic_id
+
+             icol = icol + 1
+             str2 = "Atom" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             icolsort(icol) = ic_atom
+
+             icol = icol + 1
+             str2 = "Z " // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             icolsort(icol) = ic_zat
+
+             call igTableSetupScrollFreeze(0, 1) ! top row always visible
+
+             ! fetch the sort specs, sort the data if necessary
+             ptrc = igTableGetSortSpecs()
+             if (c_associated(ptrc)) then
+                call c_f_pointer(ptrc,sortspecs)
+                if (c_associated(sortspecs%Specs)) then
+                   call c_f_pointer(sortspecs%Specs,colspecs)
+                   w%geometry_sortcid = colspecs%ColumnUserID
+                   w%geometry_sortdir = colspecs%SortDirection
+                   if (sortspecs%SpecsDirty .and. ntype > 1) then
+                      forcesort = .true.
+                      sortspecs%SpecsDirty = .false.
+                   end if
+                else
+                   w%geometry_sortcid = 0
+                   w%geometry_sortdir = 1
+                end if
+             end if
+
+             ! draw the header
+             call igTableHeadersRow()
+             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+
+             ! sort
+             if (forcesort) call table_sort()
+
+             ! calculate the number of digits for output
+             ndigit = ceiling(log10(ntype+0.1d0))
+             ndigitm = 0
+             ndigitidx = 0
+
+             ! get the current view, if available
+             iview = 0
+             if (isys == win(iwin_view)%view_selected) then
+                iview = iwin_view
+             else
+                do j = 1, nwin
+                   if (.not.win(j)%isinit) cycle
+                   if (win(j)%type /= wintype_view.or..not.associated(win(j)%sc)) cycle
+                   if (isys == win(j)%view_selected) then
+                      iview = j
+                      exit
+                   end if
+                end do
+             end if
+
+             do ii = 1, ntype
+                i = w%iord(ii)
+                suffix = "_" // string(i)
+                icol = -1
+
+                ! start the table and identify the species and Z
+                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                ispc = sysc(isys)%attype_species(w%geometry_atomtype,i)
+                name = sysc(isys)%attype_name(w%geometry_atomtype,i)
+                iz = sys(isys)%c%spc(ispc)%z
+
+                ! get the color from the first active atoms representation in the main view
+                havergb = .false.
+                if (iview > 0) then
+                   do j = 1, win(iview)%sc%nrep
+                      if (win(iview)%sc%rep(j)%type == reptype_atoms.and.win(iview)%sc%rep(j)%isinit.and.&
+                         win(iview)%sc%rep(j)%shown) then
+
+                         id = sysc(isys)%attype_type_id_to_id(w%geometry_atomtype,i,win(iview)%sc%rep(j)%atom_style%type)
+                         if (id /= 0) then
+                            havergb = .true.
+                            rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,id)
+                         end if
+                         if (havergb) exit
+                      end if
+                   end do
+                end if
+
+                ! background color for the table row
+                if (w%geometry_selected(i)) then
+                   col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
+                      w%geometry_rgba(3,i),w%geometry_rgba(4,i))
+                   color = igGetColorU32_Vec4(col4)
+                   call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
+                end if
+
+                ! id
+                icol = icol + 1
+                if (igTableSetColumnIndex(icol)) then
+                   call igAlignTextToFramePadding()
+                   call iw_text(string(i,ndigit))
+
+                   ! the highlight selectable: hover and click
+                   clicked = .false.
+                   ok = iw_highlight_selectable("##selectablemoltable" // suffix,clicked=clicked)
+                   if (ok) ihighlight = i
+                   if (clicked) iclicked = i
+                end if
+
+                ! name
+                icol = icol + 1
+                if (igTableSetColumnIndex(icol)) then
+                   if (havergb) then
+                      ldum = iw_coloredit("##tablecolorg" // suffix,rgb=rgb,nointeraction=.true.)
+                      call igSameLine(0._c_float,-1._c_float)
+                   end if
+                   if (iw_inputtext("##nametextinput" // string(i),bufsize=11,texta=name,width=max(3,len(name)))) &
+                      call sysc(isys)%set_attype_name(w%geometry_atomtype,i,name)
+                end if
+
+                ! Z
+                icol = icol + 1
+                if (igTableSetColumnIndex(icol)) then
+                   ldum = iw_button(string(iz,3) // "##Z" // string(i),popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+                   if (ok) then
+                      izout = iw_periodictable()
+                      if (izout >= 0) then
+                         call sysc(isys)%set_atomic_number(w%geometry_atomtype,i,izout)
+                         call igCloseCurrentPopup()
+                      end if
+                      call igEndPopup()
+                   end if
+                end if
+             end do
+
+             ! last table row (new species)
+             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+             if (igTableSetColumnIndex(0)) then
+                ldum = iw_button("New",popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+                if (ok) then
+                   izout = iw_periodictable()
+                   if (izout >= 0) then
+                      sys(isys)%c%nspc = sys(isys)%c%nspc + 1
+                      call realloc(sys(isys)%c%spc,sys(isys)%c%nspc)
+                      sys(isys)%c%spc(sys(isys)%c%nspc)%z = izout
+                      sys(isys)%c%spc(sys(isys)%c%nspc)%qat = 0d0
+                      sys(isys)%c%spc(sys(isys)%c%nspc)%name = nameguess(izout,.true.)
+                      call sysc(isys)%post_event(3)
+                      call igCloseCurrentPopup()
+                   end if
+                   call igEndPopup()
+                end if
+             end if
+
+             ! end the table
+             call igEndTable()
+          end if
+
+          !! highlight/selection row
+          ! highlight color
+          call igAlignTextToFramePadding()
+          call iw_text("Selection",highlight=.true.)
+          call igSameLine(0._c_float,-1._c_float)
+          ldum = iw_coloredit("##drawgeometryhighlightcolor",rgba=w%geometry_select_rgba)
+          call iw_tooltip("Color used for highlighting atoms")
+
+          ! Highlight buttons: all, none, toggle
+          if (iw_button("All##highlightall",sameline=.true.)) then
+             w%geometry_selected = .true.
+             do i = 1, size(w%geometry_selected,1)
+                w%geometry_rgba(:,i) = w%geometry_select_rgba
+             end do
+             redo_highlights = .true.
+          end if
+          call iw_tooltip("Select all atoms in the system",ttshown)
+          if (iw_button("None##highlightnone",sameline=.true.)) then
+             w%geometry_selected = .false.
+             redo_highlights = .true.
+          end if
+          call iw_tooltip("Deselect all atoms",ttshown)
+          if (iw_button("Toggle##highlighttoggle",sameline=.true.)) then
+             w%geometry_selected = .not.w%geometry_selected
+             do i = 1, size(w%geometry_selected,1)
+                if (w%geometry_selected(i)) &
+                   w%geometry_rgba(:,i) = w%geometry_select_rgba
+             end do
+             redo_highlights = .true.
+          end if
+          call iw_tooltip("Toggle atomic selection",ttshown)
+
+          !! edit row
+          ! highlight color
+          call igAlignTextToFramePadding()
+          call iw_text("Edit",highlight=.true.)
+
+          ! Remove button
+          havesel = any(w%geometry_selected)
+          if (iw_button("Remove##removeselection",sameline=.true.,disabled=.not.havesel)) &
+             removehighlight = .true.
+          call iw_tooltip("Remove selected atoms (" // trim(get_bind_keyname(BIND_EDITGEOM_REMOVE)) // ")",ttshown)
+
+          call igEndTabItem()
+       end if
+
+       !! atoms tab !!
        str2 = "Atoms##drawgeometry_atomstab" // c_null_char
        flags = atompreflags
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
