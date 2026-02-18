@@ -372,12 +372,7 @@ contains
                 if (ok) then
                    izout = iw_periodictable()
                    if (izout >= 0) then
-                      sys(isys)%c%nspc = sys(isys)%c%nspc + 1
-                      call realloc(sys(isys)%c%spc,sys(isys)%c%nspc)
-                      sys(isys)%c%spc(sys(isys)%c%nspc)%z = izout
-                      sys(isys)%c%spc(sys(isys)%c%nspc)%qat = 0d0
-                      sys(isys)%c%spc(sys(isys)%c%nspc)%name = nameguess(izout,.true.)
-                      call sysc(isys)%post_event(3)
+                      call sysc(isys)%add_species(izout)
                       call igCloseCurrentPopup()
                    end if
                    call igEndPopup()

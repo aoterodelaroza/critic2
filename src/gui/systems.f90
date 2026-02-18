@@ -108,6 +108,7 @@ module systems
      ! editing
      procedure :: set_atom_position
      procedure :: set_atomic_number
+     procedure :: add_species
      procedure :: reread_geometry_from_file
   end type sysconf
 
@@ -283,6 +284,10 @@ module systems
        integer, intent(in) :: iz
        logical, intent(in), optional :: setatomnames
      end subroutine set_atomic_number
+     module subroutine add_species(sysc,iz)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: iz
+     end subroutine add_species
      module subroutine reread_geometry_from_file(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine reread_geometry_from_file

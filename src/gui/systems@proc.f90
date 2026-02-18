@@ -1361,6 +1361,32 @@ contains
 
   end subroutine set_atomic_number
 
+  !> Add atomic species with atomic number iz to the system.
+  module subroutine add_species(sysc,iz)
+    use tools_io, only: nameguess
+    use types, only: realloc
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: iz
+
+    integer :: ispc, isys
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! add the species
+    sys(isys)%c%nspc = sys(isys)%c%nspc + 1
+    call realloc(sys(isys)%c%spc,sys(isys)%c%nspc)
+    ispc = sys(isys)%c%nspc
+    sys(isys)%c%spc(ispc)%z = iz
+    sys(isys)%c%spc(ispc)%qat = 0d0
+    sys(isys)%c%spc(ispc)%name = nameguess(iz,.true.)
+
+    ! the geometry has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine add_species
+
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
   module subroutine reread_geometry_from_file(sysc)
