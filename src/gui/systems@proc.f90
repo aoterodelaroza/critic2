@@ -1323,23 +1323,38 @@ contains
 
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic number and the name of the corresponding species.
-  module subroutine set_atomic_number(sysc,type,id,iz)
+  module subroutine set_atomic_number(sysc,type,id,iz,setatomnames)
     use tools_io, only: nameguess
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: type
     integer, intent(in) :: id
     integer, intent(in) :: iz
+    logical, intent(in), optional :: setatomnames
 
-    integer :: isys, ispc
+    integer :: isys, ispc, i
+    logical :: setatomnames_
 
     ! consistency checks
     isys = sysc%id
     if (.not.ok_system(isys,sys_init)) return
 
+    ! optional arguments
+    setatomnames_ = .false.
+    if (present(setatomnames)) setatomnames_ = setatomnames
+
     ! set the atomic number
     ispc = sysc%attype_species(type,id)
     sys(isys)%c%spc(ispc)%z = iz
     sys(isys)%c%spc(ispc)%name = nameguess(iz,.true.)
+
+    ! reset the atom names
+    if (setatomnames_) then
+       do i = 1, sys(isys)%c%nneq
+          if (sys(isys)%c%at(i)%is == ispc) then
+             sys(isys)%c%at(i)%name = sys(isys)%c%spc(ispc)%name
+          end if
+       end do
+    end if
 
     ! the geometry has changed
     call sysc%post_event(lastchange_geometry)

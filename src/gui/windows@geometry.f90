@@ -357,7 +357,7 @@ contains
                    if (ok) then
                       izout = iw_periodictable()
                       if (izout >= 0) then
-                         call sysc(isys)%set_atomic_number(w%geometry_atomtype,i,izout)
+                         call sysc(isys)%set_atomic_number(w%geometry_atomtype,i,izout,setatomnames=.true.)
                          call igCloseCurrentPopup()
                       end if
                       call igEndPopup()

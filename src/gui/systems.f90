@@ -276,11 +276,12 @@ module systems
        real*8, intent(in) :: x(3)
        logical, intent(in) :: forcewyc
      end subroutine set_atom_position
-     module subroutine set_atomic_number(sysc,type,id,iz)
+     module subroutine set_atomic_number(sysc,type,id,iz,setatomnames)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type
        integer, intent(in) :: id
        integer, intent(in) :: iz
+       logical, intent(in), optional :: setatomnames
      end subroutine set_atomic_number
      module subroutine reread_geometry_from_file(sysc)
        class(sysconf), intent(inout) :: sysc
