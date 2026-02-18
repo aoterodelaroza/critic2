@@ -87,7 +87,7 @@ contains
     integer, parameter :: ic_y = 8
     integer, parameter :: ic_z = 9
 
-    integer, parameter :: atlisttype_allowed(5) = (/atlisttype_species,atlisttype_nneq,&
+    integer, parameter :: atlisttype_allowed(4) = (/atlisttype_nneq,&
        atlisttype_ncel_frac,atlisttype_ncel_ang,atlisttype_ncel_bohr/)
 
     real*8, parameter :: epsmoved = 1d-8
@@ -178,7 +178,7 @@ contains
     flags = ImGuiTabBarFlags_Reorderable
     call igBeginGroup()
     if (igBeginTabBar(c_loc(str1),flags)) then
-       !! atoms tab !!
+       !! species tab !!
        str2 = "Species##drawgeometry_speciestab" // c_null_char
        flags = ImGuiTabItemFlags_None
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
@@ -701,21 +701,6 @@ contains
                             if (iw_menuitem(string(j) // ": " // trim(sys(isys)%c%spc(j)%name))) &
                                call sysc(isys)%set_attype_species(w%geometry_atomtype,i,j)
                          end do
-                         str1 = "New species" // c_null_char
-                         if (igBeginMenu(c_loc(str1),.true._c_bool)) then
-                            izout = iw_periodictable()
-                            if (izout >= 0) then
-                               sys(isys)%c%nspc = sys(isys)%c%nspc + 1
-                               call realloc(sys(isys)%c%spc,sys(isys)%c%nspc)
-                               sys(isys)%c%spc(sys(isys)%c%nspc)%z = izout
-                               sys(isys)%c%spc(sys(isys)%c%nspc)%qat = 0d0
-                               sys(isys)%c%spc(sys(isys)%c%nspc)%name = nameguess(izout,.true.)
-                               call sysc(isys)%set_attype_species(w%geometry_atomtype,i,sys(isys)%c%nspc)
-                               call igCloseCurrentPopup()
-                           end if
-                           call igEndMenu()
-                         end if
-                         call igSeparator()
                          call igEndPopup()
                       end if
                    end if
