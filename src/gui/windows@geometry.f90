@@ -154,7 +154,11 @@ contains
     end if
 
     ! system combo
-    atompreflags = ImGuiTabItemFlags_None
+    if (w%firstpass) then
+       atompreflags = ImGuiTabItemFlags_SetSelected
+    else
+       atompreflags = ImGuiTabItemFlags_None
+    end if
     call iw_text("System",highlight=.true.)
     call igSameLine(0._c_float,-1._c_float)
     call igGetContentRegionAvail(szavail)
