@@ -74,6 +74,17 @@ contains
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
 
+    ! actions
+    integer :: iaction, iaction_i1, iaction_i2
+    real*8 :: iaction_x(3)
+    logical :: iaction_l
+    character(len=:), allocatable :: iaction_str
+    integer, parameter :: iaction_set_attype_name = 0
+    integer, parameter :: iaction_set_atomic_number = 1
+    integer, parameter :: iaction_add_species = 2
+    integer, parameter :: iaction_set_attype_species = 3
+    integer, parameter :: iaction_set_atom_position = 4
+
     logical, save :: ttshown = .false. ! tooltip flag
 
     integer, parameter :: ic_id = 0
@@ -102,6 +113,7 @@ contains
     redo_highlights = .false.
     removehighlight = .false.
     forcesort = .false.
+    iaction = -1
 
     ! first pass
     if (w%firstpass) then
@@ -346,8 +358,11 @@ contains
                       ldum = iw_coloredit("##tablecolorg" // suffix,rgb=rgb,nointeraction=.true.)
                       call igSameLine(0._c_float,-1._c_float)
                    end if
-                   if (iw_inputtext("##nametextinput" // string(i),bufsize=11,texta=name,width=max(3,len(name)))) &
-                      call sysc(isys)%set_attype_name(w%geometry_atomtype,i,name)
+                   if (iw_inputtext("##nametextinput" // string(i),bufsize=11,texta=name,width=max(3,len(name)))) then
+                      iaction = iaction_set_attype_name
+                      iaction_i1 = i
+                      iaction_str = name
+                   end if
                 end if
 
                 ! Z
@@ -357,7 +372,9 @@ contains
                    if (ok) then
                       izout = iw_periodictable()
                       if (izout >= 0) then
-                         call sysc(isys)%set_atomic_number(w%geometry_atomtype,i,izout,setatomnames=.true.)
+                         iaction = iaction_set_atomic_number
+                         iaction_i1 = i
+                         iaction_i2 = izout
                          call igCloseCurrentPopup()
                       end if
                       call igEndPopup()
@@ -372,7 +389,8 @@ contains
                 if (ok) then
                    izout = iw_periodictable()
                    if (izout >= 0) then
-                      call sysc(isys)%add_species(izout)
+                      iaction = iaction_add_species
+                      iaction_i1 = izout
                       call igCloseCurrentPopup()
                    end if
                    call igEndPopup()
@@ -686,8 +704,11 @@ contains
                          ldum = iw_coloredit("##tablecolorg" // suffix,rgb=rgb,nointeraction=.true.)
                          call igSameLine(0._c_float,-1._c_float)
                       end if
-                      if (iw_inputtext("##nametextinput" // string(i),bufsize=11,texta=name,width=max(3,len(name)))) &
-                         call sysc(isys)%set_attype_name(w%geometry_atomtype,i,name)
+                      if (iw_inputtext("##nametextinput" // string(i),bufsize=11,texta=name,width=max(3,len(name)))) then
+                         iaction = iaction_set_attype_name
+                         iaction_i1 = i
+                         iaction_str = name
+                      end if
                    end if
 
                    ! Z
@@ -698,8 +719,11 @@ contains
                          ldum = iw_menuitem("Species",enabled=.false.)
                          call igSeparator()
                          do j = 1, sys(isys)%c%nspc
-                            if (iw_menuitem(string(j) // ": " // trim(sys(isys)%c%spc(j)%name))) &
-                               call sysc(isys)%set_attype_species(w%geometry_atomtype,i,j)
+                            if (iw_menuitem(string(j) // ": " // trim(sys(isys)%c%spc(j)%name))) then
+                               iaction = iaction_set_attype_species
+                               iaction_i1 = i
+                               iaction_i2 = j
+                            end if
                          end do
                          call igEndPopup()
                       end if
@@ -746,8 +770,12 @@ contains
                                x1=x0(j),speed=0.001d0,decimal=dec)
                          end if
                       end do
-                      if (ch .and. any(abs(x0-xold) > epsmoved)) &
-                         call sysc(isys)%set_atom_position(w%geometry_atomtype,i,x0,w%geometry_forcewyc)
+                      if (ch .and. any(abs(x0-xold) > epsmoved)) then
+                         iaction = iaction_set_atom_position
+                         iaction_i1 = i
+                         iaction_x = x0
+                         iaction_l = w%geometry_forcewyc
+                      end if
                    end if
                 end do ! clipper indices
              end do ! clipper step
@@ -897,6 +925,17 @@ contains
     ! process events at the end
     if (dorestore) &
        call sysc(isys)%reread_geometry_from_file()
+    if (iaction == iaction_set_attype_name) then
+       call sysc(isys)%set_attype_name(w%geometry_atomtype,iaction_i1,iaction_str)
+    elseif (iaction == iaction_set_atomic_number) then
+       call sysc(isys)%set_atomic_number(w%geometry_atomtype,iaction_i1,iaction_i2,setatomnames=.true.)
+    elseif (iaction == iaction_add_species) then
+       call sysc(isys)%add_species(iaction_i1)
+    elseif (iaction == iaction_set_attype_species) then
+       call sysc(isys)%set_attype_species(w%geometry_atomtype,iaction_i1,iaction_i2)
+    elseif (iaction == iaction_set_atom_position) then
+       call sysc(isys)%set_atom_position(w%geometry_atomtype,iaction_i1,iaction_x,iaction_l)
+    end if
 
   contains
     subroutine change_system(i)
