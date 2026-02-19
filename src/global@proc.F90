@@ -68,8 +68,6 @@ contains
 #ifdef HAVE_LIBXC
     logical :: doref, doname, doflags
 #endif
-    ! xxxx
-    real*8 :: rho, wc(3)
 
     ! Start reading
     ncom = 1
@@ -574,13 +572,6 @@ contains
           ! clear
        elseif (equal(word,'clear')) then
           call critic_clearvariable(line(lp:))
-
-       elseif (equal(word,'temp')) then
-          ! xxxx
-          wc = (/0.5d0,0.2d0,0.3d0/)
-          rho = sy%f(3)%grd0(wc)
-          write (*,*) "rho = ", rho
-          stop 1
 
           ! list
        elseif (equal(word,'list')) then
