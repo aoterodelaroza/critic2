@@ -391,8 +391,11 @@ contains
     ! recalculate scene center and radius
     maxrad = 0._c_float
     do i = 1, s%nrep
-       if (s%rep(i)%shown .and. s%rep(i)%type == reptype_atoms) &
-          maxrad = max(maxrad,real(maxval(s%rep(i)%atom_style%rad(1:s%rep(i)%atom_style%ntype)),c_float))
+       if (s%rep(i)%shown .and. s%rep(i)%type == reptype_atoms) then
+          if (s%rep(i)%atom_style%ntype > 0) then
+             maxrad = max(maxrad,real(maxval(s%rep(i)%atom_style%rad(1:s%rep(i)%atom_style%ntype)),c_float))
+          end if
+       end if
     end do
     if (s%obj%nsph + s%obj%ncyl + s%obj%ncylflat + s%obj%nstring > 0) then
        do i = 1, 3
