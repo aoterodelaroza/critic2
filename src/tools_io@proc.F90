@@ -384,7 +384,7 @@ contains
        elseif (justify == ioj_center) then
           ialen = len_trim(s)
           i = (len(s) - ialen)/2 + 1
-          s(i:i+ialen) = trim(s)
+          s(i:min(i+ialen,len(s))) = trim(s)
           s(1:i-1) = ""
           s(i+ialen+1:) = ""
        elseif (justify > 0) then
