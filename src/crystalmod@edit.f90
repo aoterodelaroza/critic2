@@ -906,6 +906,7 @@ contains
        if (useatoms(i)) then
           seed%nat = seed%nat + 1
           seed%x(:,seed%nat) = c%atcel(i)%x
+          seed%atname(seed%nat) = c%at(c%atcel(i)%idx)%name
           seed%is(seed%nat) = usespcs(c%atcel(i)%is)
        end if
     end do
