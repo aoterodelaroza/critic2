@@ -50,6 +50,9 @@ module param
   real*8, parameter :: autogpa  =  29421.0108037190d0 !< hartree/bohr**3 to gpa
   real*8, parameter :: eva3togpa = 160.2176487028540d0 !< eV/ang**3 to gpa
   real*8, parameter :: pcamu = 1.660538782d-24 !< atomic mass unit [g] (nist2006)
+  real*8, parameter :: hplanck = 6.62607015d-34 !< Planck's constant [J.s] (CODATA 2018)
+  real*8, parameter :: hbar = hplanck / 2d0 / pi !< h/(2*pi) [J.s]
+  real*8, parameter :: clight = 299792458d0 ! speed of light in vacuum [m/s] (CODATA 2018)
   real*8, parameter :: cm1tothz = 2.99792458d-2 !< cm-1 to THz conversion factor (c*1e-10)
   real*8, parameter :: cm1tohz = 2.99792458d10 !< cm-1 to Hz conversion factor (c*100)
   real*8, parameter :: zero=0d0 !< 0

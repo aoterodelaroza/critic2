@@ -25,6 +25,7 @@ contains
   !> force the use of a particular value of useabr (1=aa and bb,
   !> 2=x2c, default is 2).
   module subroutine makeseed(c,seed,copysym,useabr)
+    use global, only: rborder_def
     use crystalseedmod, only: crystalseed
     class(crystal), intent(in) :: c
     type(crystalseed), intent(out) :: seed
@@ -108,7 +109,7 @@ contains
     seed%ismolecule = c%ismolecule
     seed%cubic = (abs(c%aa(1)-c%aa(2)) < 1d-5).and.(abs(c%aa(1)-c%aa(3)) < 1d-5).and.&
        all(abs(c%bb-90d0) < 1d-3)
-    seed%border = 0d0
+    seed%border = rborder_def
     seed%havex0 = .true.
     seed%molx0 = c%molx0
 

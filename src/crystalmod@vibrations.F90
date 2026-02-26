@@ -1014,13 +1014,14 @@ contains
 
   end subroutine vibrations_zero_fc2
 
-  !> Generate a phonon rattled structure based on the force constants
-  !> in v and the crystal structure in c using temperature
-  !> temp. The phonon rattled structure samples normal modes
-  !> according to a Boltzmann distribution based on the given
-  !> temperature. Returns the seed for the new crystal structure in seed.
-  !> Adapted from the alamode code (https://github.com/ttadano/alamode/).
-  module subroutine vibrations_phonon_rattle(v,c,temp,seed)
+  !> Generate a phonon rattled crystal structure based on the force
+  !> constants in v and the crystal structure in c using temperature
+  !> temp. The phonon rattled structure samples normal modes according
+  !> to a Boltzmann distribution based on the given
+  !> temperature. Returns the seed for the new crystal structure in
+  !> seed.  Adapted from the alamode code
+  !> (https://github.com/ttadano/alamode/).
+  module subroutine vibrations_cry_phonon_rattle(v,c,temp,seed)
     use crystalseedmod, only: crystalseed
     use tools, only: mergesort
     use param, only: atmass, pi
@@ -1095,7 +1096,70 @@ contains
        seed%x(:,j) = c%c2x(xat(:,j))
     end do
 
-  end subroutine vibrations_phonon_rattle
+  end subroutine vibrations_cry_phonon_rattle
+
+  !> Generate a rattled molecular structure based on the force
+  !> constants in v and the crystal structure in c using temperature
+  !> temp. The phonon rattled structure samples normal modes according
+  !> to a Boltzmann distribution based on the given
+  !> temperature. Returns the seed for the new crystal structure in
+  !> seed.  Adapted from the alamode code
+  !> (https://github.com/ttadano/alamode/).
+  module subroutine vibrations_mol_phonon_rattle(v,c,temp,seed)
+    use crystalseedmod, only: crystalseed
+    use tools, only: mergesort
+    use param, only: atmass, pi, hbar, clight, pcamu, bohrtom
+    class(vibrations), intent(inout) :: v
+    type(crystal), intent(inout) :: c
+    real*8, intent(in) :: temp
+    type(crystalseed), intent(out) :: seed
+
+    real*8, allocatable :: xat(:,:)
+    real*8 :: ff, fterm, xx(2), xn
+    real*8 :: qsq
+    integer :: i, j
+
+    real*8, parameter :: fcap = 50d0 ! lower bound for the frequencies (cm-1)
+
+    ! return if no FC2 is available
+    if (.not.v%hasvibs.or..not.allocated(v%vec)) return
+
+    ! copy the seed from the given system to the output seed
+    call c%makeseed(seed,.false.)
+
+    ! prepare the atomic positions array in Cartesian coordinates
+    allocate(xat(3,c%ncel))
+    do j = 1, c%ncel
+       xat(:,j) = c%atcel(j)%r + c%molx0
+    end do
+
+    ! run over all modes; skip the first three
+    do i = 1, v%nfreq
+       ! cap frequencies at some low value
+       ff = max(fcap,abs(v%freq(i,1)))
+
+       ! calculate the Boltzmann population
+       qsq = 0.5d0 * &
+          hbar / (2d0 * pi * clight * ff * 100d0) * (1e3 / pcamu) / bohrtom**2 / &
+          tanh(0.5d0 * ff * cminv_to_K / temp)
+
+       ! sample normal distribution
+       call random_number(xx)
+       xn = sqrt(-2d0 * log(xx(1))) * cos(2d0 * pi * xx(2))
+
+       do j = 1, seed%nat
+          fterm = xn / sqrt(atmass(seed%spc(seed%is(j))%z)) * sqrt(qsq)
+          xat(:,j) = xat(:,j) + fterm * real(v%vec(:,j,i,1),8)
+       end do
+    end do
+
+    ! copy the new atomic positions into the seed
+    seed%useabr = 0
+    do j = 1, seed%nat
+       seed%x(:,j) = xat(:,j)
+    end do
+
+  end subroutine vibrations_mol_phonon_rattle
 
   !xx! private procedures
 

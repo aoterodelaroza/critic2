@@ -4084,7 +4084,11 @@ contains
           call ferror('struct_vibrations','Need positive TEMP in PHONON_RATTLE',faterr,syntax=.true.)
 
        ! optional parameters
-       root = trim(fileroot) // "-*.scf.in"
+       if (s%c%ismolecule) then
+          root = trim(fileroot) // "-*.xyz"
+       else
+          root = trim(fileroot) // "-*.scf.in"
+       end if
        idx = index(root,'*')
        word = lgetword(line,lp)
        if (equal(word,"root")) then
@@ -4103,7 +4107,11 @@ contains
 
        ! create nstruct structures
        do i = 1, nstruct
-          call s%c%vib%phonon_rattle(s%c,temp,seed)
+          if (s%c%ismolecule) then
+             call s%c%vib%mol_phonon_rattle(s%c,temp,seed)
+          else
+             call s%c%vib%cry_phonon_rattle(s%c,temp,seed)
+          end if
 
           filename = pre // string(i,npad,pad0=.true.) // post
           call caux%struct_new(seed,.true.)
