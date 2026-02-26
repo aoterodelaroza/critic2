@@ -1381,7 +1381,7 @@ contains
   module subroutine read_magres(seed,file,mol,errmsg,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, getline_raw, lower, fclose, lgetword, equal,&
-       isreal, zatguess, nameguess, getword
+       isreal, zatguess, nameguess, getword, equalsub
     use types, only: realloc
     use param, only: isformat_r_magres, maxzat, bohrtoa
     class(crystalseed), intent(inout)  :: seed !< Output crystal seed
@@ -1413,11 +1413,9 @@ contains
     ok = .false.
     do while (getline_raw(lu,line,.false.))
        line = adjustl(lower(line))
-       if (len(line) >= 7) then
-          if (line(1:7) == "<atoms>" .or. line(1:7) == "[atoms]") then
-             ok = .true.
-             exit
-          end if
+       if (equalsub(line,1,7,"<atoms>") .or. equalsub(line,1,7,"[atoms]")) then
+          ok = .true.
+          exit
        end if
     end do
     if (.not.ok) then
@@ -1561,7 +1559,7 @@ contains
   module subroutine read_alamode(seed,file,mol,errmsg,ti)
     use tools_math, only: matinv
     use tools_io, only: fopen_read, getline_raw, lower, fclose, lgetword, equal,&
-       isreal, zatguess, nameguess, getword, isinteger, getline
+       isreal, zatguess, nameguess, getword, isinteger, getline, equalsub
     use types, only: realloc
     use param, only: isformat_r_alamode
     class(crystalseed), intent(inout)  :: seed !< Output crystal seed
@@ -1593,11 +1591,9 @@ contains
     ok = .false.
     do while (getline_raw(lu,line,.false.))
        line = adjustl(lower(line))
-       if (len(line) >= 8) then
-          if (line(1:8) == "&general") then
-             ok = .true.
-             exit
-          end if
+       if (equalsub(line,1,8,"&general")) then
+          ok = .true.
+          exit
        end if
     end do
     if (.not.ok) then
@@ -1664,49 +1660,45 @@ contains
     haveatoms = .false.
     do while (getline_raw(lu,line,.false.))
        line = adjustl(lower(line))
-       if (len(line) >= 5) then
-          if (line(1:5) == "&cell") then
-             ok = getline(lu,line)
-             ok = ok .and. isreal(unit,line)
-             if (.not.ok) goto 999
+       if (equalsub(line,1,5,"&cell")) then
+          ok = getline(lu,line)
+          ok = ok .and. isreal(unit,line)
+          if (.not.ok) goto 999
 
-             lp = 1
-             ok = getline(lu,line)
-             ok = ok .and. isreal(seed%m_x2c(1,1),line,lp)
-             ok = ok .and. isreal(seed%m_x2c(2,1),line,lp)
-             ok = ok .and. isreal(seed%m_x2c(3,1),line,lp)
-             if (.not.ok) goto 999
+          lp = 1
+          ok = getline(lu,line)
+          ok = ok .and. isreal(seed%m_x2c(1,1),line,lp)
+          ok = ok .and. isreal(seed%m_x2c(2,1),line,lp)
+          ok = ok .and. isreal(seed%m_x2c(3,1),line,lp)
+          if (.not.ok) goto 999
 
-             lp = 1
-             ok = getline(lu,line)
-             ok = ok .and. isreal(seed%m_x2c(1,2),line,lp)
-             ok = ok .and. isreal(seed%m_x2c(2,2),line,lp)
-             ok = ok .and. isreal(seed%m_x2c(3,2),line,lp)
-             if (.not.ok) goto 999
+          lp = 1
+          ok = getline(lu,line)
+          ok = ok .and. isreal(seed%m_x2c(1,2),line,lp)
+          ok = ok .and. isreal(seed%m_x2c(2,2),line,lp)
+          ok = ok .and. isreal(seed%m_x2c(3,2),line,lp)
+          if (.not.ok) goto 999
 
-             lp = 1
-             ok = getline(lu,line)
-             ok = ok .and. isreal(seed%m_x2c(1,3),line,lp)
-             ok = ok .and. isreal(seed%m_x2c(2,3),line,lp)
-             ok = ok .and. isreal(seed%m_x2c(3,3),line,lp)
-             if (.not.ok) goto 999
-             havelat = .true.
+          lp = 1
+          ok = getline(lu,line)
+          ok = ok .and. isreal(seed%m_x2c(1,3),line,lp)
+          ok = ok .and. isreal(seed%m_x2c(2,3),line,lp)
+          ok = ok .and. isreal(seed%m_x2c(3,3),line,lp)
+          if (.not.ok) goto 999
+          havelat = .true.
 
-             ! fill the cell metrics
-             seed%m_x2c = seed%m_x2c * unit
-             seed%useabr = 2
-          end if
+          ! fill the cell metrics
+          seed%m_x2c = seed%m_x2c * unit
+          seed%useabr = 2
        end if
-       if (len(line) >= 9) then
-          if (line(1:9) == "&position") then
-             do i = 1, nat
-                lp = 1
-                ok = getline(lu,line)
-                if (.not.ok) goto 999
-                read(line,*,err=999,end=999) seed%is(i), seed%x(:,i)
-             end do
-             haveatoms = .true.
-          end if
+       if (equalsub(line,1,9,"&position")) then
+          do i = 1, nat
+             lp = 1
+             ok = getline(lu,line)
+             if (.not.ok) goto 999
+             read(line,*,err=999,end=999) seed%is(i), seed%x(:,i)
+          end do
+          haveatoms = .true.
        end if
     end do
     if (.not.havelat) then
@@ -3497,7 +3489,7 @@ contains
   !> Read a pdb file and return a molecule or a crystal, depending
   !> on whether SCALEn is present or not.
   module subroutine read_pdb(seed,file,mol,errmsg,ti)
-    use tools_io, only: fopen_read, getline_raw, fclose, zatguess, nameguess
+    use tools_io, only: fopen_read, getline_raw, fclose, zatguess, nameguess, equalsub
     use tools_math, only: matinv
     use types, only: realloc
     use param, only: bohrtoa, isformat_r_pdb, maxzat0
@@ -3536,48 +3528,46 @@ contains
     allocate(x(3,10),z(10),name(10))
     main: do while (getline_raw(lu,line))
        ll = len(line)
-       if (ll > 6) then
-          if ((line(1:4) == "ATOM" .or. line(1:6) == "HETATM") .and. ll >= 78) then
-             n = n + 1
-             if (n > size(z,1)) then
-                call realloc(x,3,2*n)
-                call realloc(z,2*n)
-                call realloc(name,2*n)
-             end if
+       if ((equalsub(line,1,4,"ATOM") .or. equalsub(line,1,6,"HETATM")) .and. ll >= 78) then
+          n = n + 1
+          if (n > size(z,1)) then
+             call realloc(x,3,2*n)
+             call realloc(z,2*n)
+             call realloc(name,2*n)
+          end if
 
-             z(n) = zatguess(line(77:78))
-             if (z(n) <= 0 .or. z(n) > 118) then
-                n = n - 1
-                cycle
-             end if
-             if (ispc(z(n)) == 0) then
-                nspc = nspc + 1
-                ispc(z(n)) = nspc
-             end if
-             read (line(31:38),*,err=999,end=999) x(1,n)
-             read (line(39:46),*,err=999,end=999) x(2,n)
-             read (line(47:54),*,err=999,end=999) x(3,n)
-             name(n) = adjustl(line(13:16))
-          elseif (line(1:5) == "SCALE") then
-             if (line(6:6) == "1") then
-                readscale(1) = .true.
-                read(line(11:20),*) r(1,1)
-                read(line(21:30),*) r(1,2)
-                read(line(31:40),*) r(1,3)
-                read(line(46:55),*) x0(1)
-             elseif (line(6:6) == "2") then
-                readscale(2) = .true.
-                read(line(11:20),*) r(2,1)
-                read(line(21:30),*) r(2,2)
-                read(line(31:40),*) r(2,3)
-                read(line(46:55),*) x0(2)
-             elseif (line(6:6) == "3") then
-                readscale(3) = .true.
-                read(line(11:20),*) r(3,1)
-                read(line(21:30),*) r(3,2)
-                read(line(31:40),*) r(3,3)
-                read(line(46:55),*) x0(3)
-             end if
+          z(n) = zatguess(line(77:78))
+          if (z(n) <= 0 .or. z(n) > 118) then
+             n = n - 1
+             cycle
+          end if
+          if (ispc(z(n)) == 0) then
+             nspc = nspc + 1
+             ispc(z(n)) = nspc
+          end if
+          read (line(31:38),*,err=999,end=999) x(1,n)
+          read (line(39:46),*,err=999,end=999) x(2,n)
+          read (line(47:54),*,err=999,end=999) x(3,n)
+          name(n) = adjustl(line(13:16))
+       elseif (line(1:5) == "SCALE") then
+          if (line(6:6) == "1") then
+             readscale(1) = .true.
+             read(line(11:20),*) r(1,1)
+             read(line(21:30),*) r(1,2)
+             read(line(31:40),*) r(1,3)
+             read(line(46:55),*) x0(1)
+          elseif (line(6:6) == "2") then
+             readscale(2) = .true.
+             read(line(11:20),*) r(2,1)
+             read(line(21:30),*) r(2,2)
+             read(line(31:40),*) r(2,3)
+             read(line(46:55),*) x0(2)
+          elseif (line(6:6) == "3") then
+             readscale(3) = .true.
+             read(line(11:20),*) r(3,1)
+             read(line(21:30),*) r(3,2)
+             read(line(31:40),*) r(3,3)
+             read(line(46:55),*) x0(3)
           end if
        end if
     end do main
@@ -4132,7 +4122,7 @@ contains
   !> Read the structure from an FPLO output
   module subroutine read_fploout(seed,file,mol,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, isinteger, isreal,&
-       zatguess, nameguess, fclose
+       zatguess, nameguess, fclose, equalsub
     use tools_math, only: matinv
     use param, only: maxzat, isformat_r_fploout
     use types, only: realloc
@@ -4182,61 +4172,59 @@ contains
              end if
              iscell = .true.
           end if
-       elseif (ll == 27) then
-          if (line(18:27) == "Atom sites") then
-             ! number of sites
-             ok = getline_raw(lu,line)
+       elseif (equalsub(line,18,27,"Atom sites")) then
+          ! number of sites
+          ok = getline_raw(lu,line)
+          ok = ok .and. getline_raw(lu,line)
+          ok = ok .and. isinteger(seed%nat,line(18:))
+          do i = 1, 3
              ok = ok .and. getline_raw(lu,line)
-             ok = ok .and. isinteger(seed%nat,line(18:))
-             do i = 1, 3
-                ok = ok .and. getline_raw(lu,line)
-             end do
-             if (.not.ok) then
-                errmsg = "Error reading number of sites."
+          end do
+          if (.not.ok) then
+             errmsg = "Error reading number of sites."
+             goto 999
+          end if
+
+          ! sites
+          seed%nspc = 0
+          if (allocated(seed%x)) deallocate(seed%x)
+          if (allocated(seed%is)) deallocate(seed%is)
+          if (allocated(seed%atname)) deallocate(seed%atname)
+          allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
+          usez = 0
+          do i = 1, seed%nat
+             ok = getline_raw(lu,line)
+             read (line,*) idum1, ats, idum2, idum3, seed%x(:,i)
+             iz = zatguess(ats)
+             if (iz < 1 .or. iz > maxzat) then
+                errmsg = "Unknown atomic species: " // ats // "."
                 goto 999
              end if
 
-             ! sites
-             seed%nspc = 0
-             if (allocated(seed%x)) deallocate(seed%x)
-             if (allocated(seed%is)) deallocate(seed%is)
-             if (allocated(seed%atname)) deallocate(seed%atname)
-             allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
-             usez = 0
-             do i = 1, seed%nat
-                ok = getline_raw(lu,line)
-                read (line,*) idum1, ats, idum2, idum3, seed%x(:,i)
-                iz = zatguess(ats)
-                if (iz < 1 .or. iz > maxzat) then
-                   errmsg = "Unknown atomic species: " // ats // "."
-                   goto 999
-                end if
+             if (usez(iz) == 0) then
+                seed%nspc = seed%nspc + 1
+                usez(iz) = seed%nspc
+                seed%is(i) = seed%nspc
+             else
+                seed%is(i) = usez(iz)
+             end if
+             seed%atname(i) = ats
+          end do
 
-                if (usez(iz) == 0) then
-                   seed%nspc = seed%nspc + 1
-                   usez(iz) = seed%nspc
-                   seed%is(i) = seed%nspc
-                else
-                   seed%is(i) = usez(iz)
-                end if
-                seed%atname(i) = ats
-             end do
+          ! species
+          if (allocated(seed%spc)) deallocate(seed%spc)
+          allocate(seed%spc(seed%nspc))
+          do iz = 1, maxzat
+             if (usez(iz) > 0) then
+                i = usez(iz)
+                seed%spc(i)%name = nameguess(iz,.true.)
+                seed%spc(i)%z = iz
+                seed%spc(i)%qat = 0d0
+             end if
+          end do
 
-             ! species
-             if (allocated(seed%spc)) deallocate(seed%spc)
-             allocate(seed%spc(seed%nspc))
-             do iz = 1, maxzat
-                if (usez(iz) > 0) then
-                   i = usez(iz)
-                   seed%spc(i)%name = nameguess(iz,.true.)
-                   seed%spc(i)%z = iz
-                   seed%spc(i)%qat = 0d0
-                end if
-             end do
-
-             ! all done
-             isatoms = (seed%nat > 0) .and. (seed%nspc > 0)
-          end if
+          ! all done
+          isatoms = (seed%nat > 0) .and. (seed%nspc > 0)
        end if
     end do
     if (.not.iscell) then
@@ -4757,7 +4745,7 @@ contains
 
   !> Read the structure from a CASTEP phonon file
   module subroutine read_castep_phonon(seed,file,mol,errmsg,ti)
-    use tools_io, only: nameguess, zatguess, fopen_read, fclose, getline_raw
+    use tools_io, only: nameguess, zatguess, fopen_read, fclose, getline_raw, equalsub
     use param, only: isformat_r_castepphonon, maxzat, bohrtoa
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     character*(*), intent(in) :: file !< Input file name
@@ -4787,38 +4775,30 @@ contains
     seed%useabr = 2
     do while(getline_raw(lu,line))
        ll = len(line)
-       if (ll >= 15) then
-          if (line(1:15) == " Number of ions") then
-             read(line(16:),*,end=999,err=999) seed%nat
-          end if
-       end if
-       if (ll >= 22) then
-          if (line(1:22) == " Unit cell vectors (A)") then
+       if (equalsub(line,1,15," Number of ions")) then
+          read(line(16:),*,end=999,err=999) seed%nat
+       elseif (equalsub(line,1,22," Unit cell vectors (A)")) then
+          if (.not.getline_raw(lu,line)) goto 999
+          read(line,*,err=999,end=999) seed%m_x2c(:,1)
+          if (.not.getline_raw(lu,line)) goto 999
+          read(line,*,err=999,end=999) seed%m_x2c(:,2)
+          if (.not.getline_raw(lu,line)) goto 999
+          read(line,*,err=999,end=999) seed%m_x2c(:,3)
+       elseif (equalsub(line,1,24," Fractional Co-ordinates")) then
+          if (seed%nat == 0) goto 999
+          allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
+          do i = 1, seed%nat
              if (.not.getline_raw(lu,line)) goto 999
-             read(line,*,err=999,end=999) seed%m_x2c(:,1)
-             if (.not.getline_raw(lu,line)) goto 999
-             read(line,*,err=999,end=999) seed%m_x2c(:,2)
-             if (.not.getline_raw(lu,line)) goto 999
-             read(line,*,err=999,end=999) seed%m_x2c(:,3)
-          end if
-       end if
-       if (ll >= 24) then
-          if (line(1:24) == " Fractional Co-ordinates") then
-             if (seed%nat == 0) goto 999
-             allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
-             do i = 1, seed%nat
-                if (.not.getline_raw(lu,line)) goto 999
-                read(line,*,end=999,err=999) idum, seed%x(:,i), strname
-                iz = zatguess(strname)
-                if (iz <= 0) goto 999
-                seed%atname(i) = trim(adjustl(strname))
-                if (zuse(iz) == 0) then
-                   seed%nspc = seed%nspc + 1
-                   zuse(iz) = seed%nspc
-                end if
-                seed%is(i) = zuse(iz)
-             end do
-          end if
+             read(line,*,end=999,err=999) idum, seed%x(:,i), strname
+             iz = zatguess(strname)
+             if (iz <= 0) goto 999
+             seed%atname(i) = trim(adjustl(strname))
+             if (zuse(iz) == 0) then
+                seed%nspc = seed%nspc + 1
+                zuse(iz) = seed%nspc
+             end if
+             seed%is(i) = zuse(iz)
+          end do
        end if
     end do
     if (seed%nat == 0) goto 999
@@ -5762,7 +5742,7 @@ contains
   !> Read an FHI aims output file.
   module subroutine read_aimsout(seed,file,mol,rborder,docube,errmsg,ti)
     use tools_io, only: fopen_read, getline_raw, fclose, lgetword, equal, isreal, &
-       getword, zatguess
+       getword, zatguess, equalsub
     use tools_math, only: matinv
     use types, only: realloc
     use hashmod, only: hash
@@ -5924,9 +5904,7 @@ contains
        do while (getline_raw(lu,line))
           if (line == "  Fractional coordinates:") exit
           if (len_trim(line) == 0) cycle
-          if (len(line) >= 4) then
-             if (line(1:4) == "----") exit
-          end if
+          if (equalsub(line,1,4,"----")) exit
           lp = 1
           word = lgetword(line,lp)
           if (word == "lattice_vector") then
