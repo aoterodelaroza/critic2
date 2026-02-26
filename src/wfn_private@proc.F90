@@ -28,7 +28,6 @@ submodule (wfn_private) proc
   ! function wfx_read_integers(lu,n,errmsg) result(x)
   ! function wfx_read_reals1(lu,n,errmsg) result(x)
   ! subroutine complete_struct(f,cptr)
-  ! function equalstr(str1,ini,end,str2)
 
   ! double factorials minus one
   integer, parameter :: dfacm1(0:8) = (/1,1,1,2,3,8,15,48,105/)
@@ -401,7 +400,8 @@ contains
 
   !> Read the molecular geometry from a wfx file
   module subroutine wfn_read_wfx_geometry(file,n,x,z,name,errmsg,ti)
-    use tools_io, only: fopen_read, getline_raw, nameguess, zatguess, fclose
+    use tools_io, only: fopen_read, getline_raw, nameguess, zatguess, fclose,&
+       equalsub
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
     real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
@@ -430,7 +430,7 @@ contains
     errmsg = "Error reading file: " // trim(file)
     ! read the number of atoms
     do while (getline_raw(lu,line))
-       if (equalstr(line,1,1,"<") .and. equalstr(line,2,2,"/")) then
+       if (equalsub(line,1,1,"<") .and. equalsub(line,2,2,"/")) then
           if (trim(line) == "<Number of Nuclei>") then
              read (lu,*) n
              exit
@@ -451,7 +451,7 @@ contains
     do while (getline_raw(lu,line))
        line2 = adjustl(line)
        line = line2
-       if (equalstr(line,1,1,"<") .and. equalstr(line,2,2,"/")) then
+       if (equalsub(line,1,1,"<") .and. equalsub(line,2,2,"/")) then
           if (trim(line) == "<Atomic Numbers>") then
              atnumfound = .true.
              z = wfx_read_integers(lu,n,errmsg2)
@@ -501,7 +501,7 @@ contains
 
   !> Read the molecular geometry from a fchk file
   module subroutine wfn_read_fchk_geometry(file,n,x,z,name,errmsg,alsovib,ti)
-    use tools_io, only: fopen_read, getline_raw, isinteger, nameguess, fclose
+    use tools_io, only: fopen_read, getline_raw, isinteger, nameguess, fclose, equalsub
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
     real*8, allocatable, intent(inout) :: x(:,:) !< Coordinates (bohr)
@@ -537,7 +537,7 @@ contains
     do while (getline_raw(lu,line))
        ll = len(line)
        lp = 45
-       if (equalstr(line,1,15,"Number of atoms")) then
+       if (equalsub(line,1,15,"Number of atoms")) then
           ok = isinteger(n,line,lp)
           if (.not.ok) then
              errmsg = "Could not read number of atoms."
@@ -557,18 +557,18 @@ contains
     do while (getline_raw(lu,line))
        ll = len(line)
        lp = 45
-       if (equalstr(line,1,29,"Current cartesian coordinates")) then
+       if (equalsub(line,1,29,"Current cartesian coordinates")) then
           do i = 0, (3*n-1)/5
              read(lu,'(5E16.8)',err=999,end=999) (xat(5*i+j),j=1,min(5,3*n-5*i))
           enddo
        end if
-       if (equalstr(line,1,14,"Atomic numbers")) then
+       if (equalsub(line,1,14,"Atomic numbers")) then
           do i = 0, (n-1)/6
              read(lu,'(6I12)',err=999,end=999) (z(6*i+j),j=1,min(6,n-6*i))
           enddo
        endif
        if (present(alsovib)) then
-          if (equalstr(line,1,6,"Vib-E2")) then
+          if (equalsub(line,1,6,"Vib-E2")) then
              alsovib = .true.
           endif
        end if
@@ -846,7 +846,7 @@ contains
 
   !> Read the molecular geometry from a postg output file (.pgout).
   module subroutine wfn_read_pgout_geometry(file,n,x,z,name,errmsg,ti)
-    use tools_io, only: fopen_read, getline_raw, fclose, zatguess
+    use tools_io, only: fopen_read, getline_raw, fclose, zatguess, equalsub
     use types, only: realloc
     character*(*), intent(in) :: file !< Input file name
     integer, intent(out) :: n !< Number of atoms
@@ -876,11 +876,11 @@ contains
     n = 0
     allocate(x(3,10),z(10),name(10))
     main: do while (getline_raw(lu,line))
-       if (equalstr(line,1,7,"# n  At")) then
+       if (equalsub(line,1,7,"# n  At")) then
           do while (.true.)
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
-             if (equalstr(line,1,1,"#")) exit main
+             if (equalsub(line,1,1,"#")) exit main
 
              n = n + 1
              if (n > size(z,1)) then
@@ -909,7 +909,7 @@ contains
 
   !> Read the molecular geometry from an orca output file (.out).
   module subroutine wfn_read_orca_geometry(file,n,x,z,name,errmsg,ti)
-    use tools_io, only: fopen_read, getline_raw, fclose, zatguess
+    use tools_io, only: fopen_read, getline_raw, fclose, zatguess, equalsub
     use types, only: realloc
     use param, only: bohrtoa
     character*(*), intent(in) :: file
@@ -940,7 +940,7 @@ contains
     n = 0
     allocate(x(3,10),z(10),name(10))
     main: do while (getline_raw(lu,line))
-       if (equalstr(line,1,33,"CARTESIAN COORDINATES (ANGSTROEM)")) then
+       if (equalsub(line,1,33,"CARTESIAN COORDINATES (ANGSTROEM)")) then
           n = 0
           ok = getline_raw(lu,line)
           do while (.true.)
@@ -1118,7 +1118,7 @@ contains
 
   !> Read the wavefunction from a wfx file
   module subroutine read_wfx(f,cptr,file,errmsg,ti)
-    use tools_io, only: fopen_read, getline_raw, fclose
+    use tools_io, only: fopen_read, getline_raw, fclose, equalsub
     use param, only: mlen
     class(molwfn), intent(inout) :: f !< Output field
     type(c_ptr), intent(in) :: cptr
@@ -1148,7 +1148,7 @@ contains
     nalpha = 0
     do while (getline_raw(luwfn,line))
        line = adjustl(line)
-       if (equalstr(line,1,1,"<") .and. equalstr(line,2,2,"/")) then
+       if (equalsub(line,1,1,"<") .and. equalsub(line,2,2,"/")) then
           if (trim(line) == "<Number of Occupied Molecular Orbitals>") then
              read (luwfn,*,err=999,end=999) f%nmoocc
              f%nmoall = f%nmoocc
@@ -1194,7 +1194,7 @@ contains
        line = adjustl(mline)
        if (len_trim(line) < 2) then
           cycle
-       else if (equalstr(line,1,1,"<") .and. equalstr(line,2,2,"/")) then
+       else if (equalsub(line,1,1,"<") .and. equalsub(line,2,2,"/")) then
           if (trim(line) == "<Primitive Centers>") then
              f%icenter = wfx_read_integers(luwfn,f%npri,errmsg2)
           elseif (trim(line) == "<Primitive Types>") then
@@ -1283,7 +1283,7 @@ contains
 
   !> Read the wavefunction from a Gaussian formatted checkpoint file (fchk)
   module subroutine read_fchk(f,cptr,file,readvirtual,errmsg,ti)
-    use tools_io, only: fopen_read, getline_raw, isinteger, ferror, fclose
+    use tools_io, only: fopen_read, getline_raw, isinteger, ferror, fclose, equalsub
 #ifdef HAVE_CINT
     use tools_io, only: warning
     use iso_c_binding, only: c_f_pointer
@@ -1379,25 +1379,25 @@ contains
     nmoallb = 0
     do while (getline_raw(luwfn,line,.false.))
        lp = 50
-       if (equalstr(line,1,19,"Number of electrons")) then
+       if (equalsub(line,1,19,"Number of electrons")) then
           ok = isinteger(nelec,line,lp)
-       elseif (equalstr(line,1,25,"Number of alpha electrons")) then
+       elseif (equalsub(line,1,25,"Number of alpha electrons")) then
           ok = isinteger(nalpha,line,lp)
-       elseif (equalstr(line,1,25,"Number of beta electrons")) then
+       elseif (equalsub(line,1,25,"Number of beta electrons")) then
           ok = isinteger(nbeta,line,lp)
-       elseif (equalstr(line,1,25,"Number of basis functions")) then
+       elseif (equalsub(line,1,25,"Number of basis functions")) then
           ok = isinteger(nbassph,line,lp)
-       elseif (equalstr(line,1,24,"Number of beta electrons")) then
+       elseif (equalsub(line,1,24,"Number of beta electrons")) then
           ok = isinteger(nbeta,line,lp)
-       elseif (equalstr(line,1,27,"Number of contracted shells")) then
+       elseif (equalsub(line,1,27,"Number of contracted shells")) then
           ok = isinteger(ncshel,line,lp)
-       elseif (equalstr(line,1,26,"Number of primitive shells")) then
+       elseif (equalsub(line,1,26,"Number of primitive shells")) then
           ok = isinteger(nshel,line,lp)
-       elseif (equalstr(line,1,24,"Highest angular momentum")) then
+       elseif (equalsub(line,1,24,"Highest angular momentum")) then
           ok = isinteger(lmax,line,lp)
-       elseif (equalstr(line,1,22,"Alpha Orbital Energies")) then
+       elseif (equalsub(line,1,22,"Alpha Orbital Energies")) then
           ok = isinteger(nmoalla,line,lp)
-       elseif (equalstr(line,1,21,"Beta Orbital Energies")) then
+       elseif (equalsub(line,1,21,"Beta Orbital Energies")) then
           ok = isinteger(nmoallb,line,lp)
           f%wfntyp = wfn_uhf
        endif
@@ -1471,33 +1471,33 @@ contains
     allocate(motemp(nbassph*nmoread))
     do while (getline_raw(luwfn,line,.false.))
        lp = 45
-       if (equalstr(line,1,11,"Shell types")) then
+       if (equalsub(line,1,11,"Shell types")) then
           do i = 0, (ncshel-1)/6
              read(luwfn,'(6I12)',err=999,end=999) (ishlt(6*i+j),j=1,min(6,ncshel-6*i))
           enddo
-       elseif (equalstr(line,1,30,"Number of primitives per shell")) then
+       elseif (equalsub(line,1,30,"Number of primitives per shell")) then
           do i = 0, (ncshel-1)/6
              read(luwfn,'(6I12)',err=999,end=999) (ishlpri(6*i+j),j=1,min(6,ncshel-6*i))
           enddo
-       elseif (equalstr(line,1,30,"Shell to atom map")) then
+       elseif (equalsub(line,1,30,"Shell to atom map")) then
           do i = 0, (ncshel-1)/6
              read(luwfn,'(6I12)',err=999,end=999) (ishlat(6*i+j),j=1,min(6,ncshel-6*i))
           enddo
-       elseif (equalstr(line,1,19,"Primitive exponents")) then
+       elseif (equalsub(line,1,19,"Primitive exponents")) then
           do i = 0, (nshel-1)/5
              read(luwfn,'(5E16.8)',err=999,end=999) (exppri(5*i+j),j=1,min(5,nshel-5*i))
           enddo
-       elseif (equalstr(line,1,24,"Contraction coefficients")) then
+       elseif (equalsub(line,1,24,"Contraction coefficients")) then
           do i = 0, (nshel-1)/5
              read(luwfn,'(5E16.8)',err=999,end=999) (ccontr(5*i+j),j=1,min(5,nshel-5*i))
           enddo
-       elseif (equalstr(line,1,31,"P(S=P) Contraction coefficients")) then
+       elseif (equalsub(line,1,31,"P(S=P) Contraction coefficients")) then
           do i = 0, (nshel-1)/5
              read(luwfn,'(5E16.8)',err=999,end=999) (pccontr(5*i+j),j=1,min(5,nshel-5*i))
           enddo
-       elseif (equalstr(line,1,21,"Alpha MO coefficients")) then
+       elseif (equalsub(line,1,21,"Alpha MO coefficients")) then
           read(luwfn,'(5E16.8)',err=999,end=999) (motemp(i),i=1,namoread*nbassph)
-       elseif (equalstr(line,1,21,"Beta MO coefficients")) then
+       elseif (equalsub(line,1,21,"Beta MO coefficients")) then
           read(luwfn,'(5E16.8)',err=999,end=999) (motemp(i),i=namoread*nbassph+1,nmoread*nbassph)
        endif
     enddo
@@ -3539,7 +3539,7 @@ contains
 
   !> Read a list of n integers from a logical unit
   function wfx_read_integers(lu,n,errmsg) result(x)
-    use tools_io, only: getline_raw, isinteger, ferror, faterr
+    use tools_io, only: getline_raw, isinteger, ferror, faterr, equalsub
     integer, intent(in) :: lu, n
     character(len=:), allocatable, intent(out), optional :: errmsg
     integer :: x(n)
@@ -3557,11 +3557,11 @@ contains
     do while(.true.)
        if (.not.isinteger(idum,line,lp)) then
           line = adjustl(line(lp:))
-          if (equalstr(line,1,1,"<")) exit
+          if (equalsub(line,1,1,"<")) exit
           lp = 1
           ok = getline_raw(lu,line)
           line = adjustl(line)
-          if (.not.ok .or. equalstr(line,1,1,"<")) exit
+          if (.not.ok .or. equalsub(line,1,1,"<")) exit
        else
           kk = kk + 1
           if (kk > n) then
@@ -3582,7 +3582,7 @@ contains
 
   !> Read a list of n reals from a logical unit
   function wfx_read_reals1(lu,n,errmsg) result(x)
-    use tools_io, only: getline_raw, isreal, ferror, faterr
+    use tools_io, only: getline_raw, isreal, ferror, faterr, equalsub
     integer, intent(in) :: lu, n
     character(len=:), allocatable, intent(out), optional :: errmsg
     real*8 :: x(n)
@@ -3601,11 +3601,11 @@ contains
     do while(.true.)
        if (.not.isreal(rdum,line,lp)) then
           line = adjustl(line(lp:))
-          if (equalstr(line,1,1,"<")) exit
+          if (equalsub(line,1,1,"<")) exit
           lp = 1
           ok = getline_raw(lu,line)
           line = adjustl(line)
-          if (.not.ok .or. equalstr(line,1,1,"<")) exit
+          if (.not.ok .or. equalsub(line,1,1,"<")) exit
        else
           kk = kk + 1
           if (kk > n) then
@@ -3781,21 +3781,5 @@ contains
     f%cptr = cptr
 
   end subroutine complete_struct
-
-  !> Compares str(ini:end) to str2 and returns true if they are
-  !> equal.
-  function equalstr(str1,ini,end,str2)
-    character*(*), intent(in) :: str1, str2
-    integer, intent(in) :: ini, end
-    logical :: equalstr
-
-    integer :: ll
-
-    equalstr = .false.
-    ll = len(str1)
-    if (ini > ll .or. end > ll) return
-    equalstr = (str1(ini:end) == str2)
-
-  end function equalstr
 
 end submodule proc

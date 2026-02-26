@@ -155,6 +155,12 @@ module tools_io
        character*(*), intent(in) :: t
        logical :: equali
      end function equali
+     module function equalsub(s,ini,end,t)
+       character*(*), intent(in) :: s
+       integer, intent(in) :: ini, end
+       character*(*), intent(in) :: t
+       logical :: equalsub
+     end function equalsub
      module function getline(u,oline,eofstop,ucopy,nprompt)
        integer, intent(in) :: u
        character(len=:), allocatable, intent(out) :: oline

@@ -524,6 +524,23 @@ contains
 
   end function equali
 
+  !> Compare substring s(ini:end) to string t and return true if they
+  !> are equal.
+  module function equalsub(s,ini,end,t)
+    character*(*), intent(in) :: s
+    integer, intent(in) :: ini, end
+    character*(*), intent(in) :: t
+    logical :: equalsub
+
+    integer :: ll
+
+    equalsub = .false.
+    ll = len(s)
+    if (ini > ll .or. end > ll) return
+    equalsub = (s(ini:end) == t)
+
+  end function equalsub
+
   !> Read a line from logical unit u, and return true if read was
   !> successful. Continuation with "\", skip blank lines and comments.
   !> If eofstop is true, raise error on EOF. If ucopy (integer) exists

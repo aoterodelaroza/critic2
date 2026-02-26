@@ -53,7 +53,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, removehighlight
-    logical :: doquit, dorestore, clicked, forcesort, ch
+    logical :: doquit, dorestore, clicked, forcesort, forcedirty, ch
     integer :: ihighlight, iclicked, nhigh, dec, icolsort(0:9)
     logical(c_bool) :: is_selected, redo_highlights
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
@@ -113,6 +113,7 @@ contains
     redo_highlights = .false.
     removehighlight = .false.
     forcesort = .false.
+    forcedirty = .false.
     iaction = -1
 
     ! first pass
@@ -121,14 +122,13 @@ contains
        if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
        if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
        w%geometry_select_rgba = ColorHighlightSelectScene
-       w%geometry_sortcid = 0
-       w%geometry_sortdir = 1
-       if (allocated(w%iord)) deallocate(w%iord)
+       call reset_sort(.false.)
     end if
 
     ! if tied to tree, update the isys
-    if (w%tied_to_tree .and. (w%isys /= win(iwin_tree)%tree_selected)) &
+    if (w%tied_to_tree .and. (w%isys /= win(iwin_tree)%tree_selected)) then
        call change_system(win(iwin_tree)%tree_selected)
+    end if
 
     ! check if the system still exists
     if (.not.ok_system(w%isys,sys_init)) then
@@ -149,8 +149,7 @@ contains
 
     ! force sort if the system has been rebonded or changed geometry
     if (w%timelast_geometry_sort < sysc(isys)%timelastchange_rebond) then
-       if (allocated(w%iord)) deallocate(w%iord)
-       forcesort = .true.
+       call reset_sort(.true.)
     end if
 
     ! system combo
@@ -219,11 +218,11 @@ contains
           end if
 
           ! if the order array is not allocated or if its size is wrong, force a sort
+          ! but keep the columns
           if (.not.allocated(w%iord)) then
-             forcesort = .true.
+             call reset_sort(.true.)
           elseif (size(w%iord,1) /= ntype) then
-             forcesort = .true.
-             if (allocated(w%iord)) deallocate(w%iord)
+             call reset_sort(.true.)
           end if
 
           ! number of columns
@@ -267,11 +266,16 @@ contains
                 call c_f_pointer(ptrc,sortspecs)
                 if (c_associated(sortspecs%Specs)) then
                    call c_f_pointer(sortspecs%Specs,colspecs)
-                   w%geometry_sortcid = colspecs%ColumnUserID
-                   w%geometry_sortdir = colspecs%SortDirection
-                   if (sortspecs%SpecsDirty .and. ntype > 1) then
-                      forcesort = .true.
-                      sortspecs%SpecsDirty = .false.
+                   if (forcedirty) then
+                      colspecs%ColumnUserID = w%geometry_sortcid
+                      colspecs%SortDirection = w%geometry_sortdir
+                   else
+                      w%geometry_sortcid = colspecs%ColumnUserID
+                      w%geometry_sortdir = colspecs%SortDirection
+                      if (sortspecs%SpecsDirty .and. ntype > 1) then
+                         forcesort = .true.
+                         sortspecs%SpecsDirty = .false.
+                      end if
                    end if
                 else
                    w%geometry_sortcid = 0
@@ -492,11 +496,11 @@ contains
           end if
 
           ! if the order array is not allocated or if its size is wrong, force a sort
+          ! and keep the sort columns
           if (.not.allocated(w%iord)) then
-             forcesort = .true.
+             call reset_sort(.true.)
           elseif (size(w%iord,1) /= ntype) then
-             forcesort = .true.
-             if (allocated(w%iord)) deallocate(w%iord)
+             call reset_sort(.true.)
           end if
 
           ! whether to do the molecule column, wyckoff, nneq index
@@ -604,11 +608,17 @@ contains
                 call c_f_pointer(ptrc,sortspecs)
                 if (c_associated(sortspecs%Specs)) then
                    call c_f_pointer(sortspecs%Specs,colspecs)
-                   w%geometry_sortcid = colspecs%ColumnUserID
-                   w%geometry_sortdir = colspecs%SortDirection
-                   if (sortspecs%SpecsDirty .and. ntype > 1) then
-                      forcesort = .true.
-                      sortspecs%SpecsDirty = .false.
+                   if (forcedirty) then
+                      write (*,*) "forced dirty"
+                      colspecs%ColumnUserID = w%geometry_sortcid
+                      colspecs%SortDirection = w%geometry_sortdir
+                   else
+                      w%geometry_sortcid = colspecs%ColumnUserID
+                      w%geometry_sortdir = colspecs%SortDirection
+                      if (sortspecs%SpecsDirty .and. ntype > 1) then
+                         forcesort = .true.
+                         sortspecs%SpecsDirty = .false.
+                      end if
                    end if
                 else
                    w%geometry_sortcid = 0
@@ -621,7 +631,10 @@ contains
              call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
              ! sort
-             if (forcesort) call table_sort()
+             if (forcesort) then
+                write (*,*) "sorting! ",w%geometry_sortcid, w%geometry_sortdir
+                call table_sort()
+             end if
 
              ! start the clipper
              clipper = ImGuiListClipper_ImGuiListClipper()
@@ -951,15 +964,29 @@ contains
       ! clear the highlights for the current system
       call sysc(w%isys)%highlight_clear(.false.)
 
-      ! remove the selecion and highlights
+      ! remove the selecion, highlights, and reorder the table
       if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
       if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
+      call reset_sort(.false.)
 
       ! change the system
       w%isys = i
       w%tied_to_tree = w%tied_to_tree .and. (w%isys == win(iwin_tree)%tree_selected)
 
     end subroutine change_system
+
+    subroutine reset_sort(keepcol)
+      logical, intent(in) :: keepcol
+
+      if (.not.keepcol) then
+         w%geometry_sortcid = 0
+         w%geometry_sortdir = 1
+         forcedirty = .true.
+      end if
+      if (allocated(w%iord)) deallocate(w%iord)
+      forcesort = .true.
+
+    end subroutine reset_sort
 
     subroutine table_sort()
       use tools, only: mergesort
@@ -980,22 +1007,15 @@ contains
          w%iord = 1
          return
       else
-         if (allocated(w%iord)) then
-            if (size(w%iord,1) /= ntype) deallocate(w%iord)
-         end if
-         if (.not.allocated(w%iord)) then
-            allocate(w%iord(ntype))
-            do i = 1, ntype
-               w%iord(i) = i
-            end do
-         end if
+         if (allocated(w%iord)) deallocate(w%iord)
+         allocate(w%iord(ntype),iperm(ntype))
+         do i = 1, ntype
+            w%iord(i) = i
+            iperm(i) = i
+         end do
       end if
 
       ! carry out the sort
-      allocate(iperm(ntype))
-      do i = 1, ntype
-         iperm(i) = i
-      end do
       if (icolsort(w%geometry_sortcid)==ic_id .or. icolsort(w%geometry_sortcid)==ic_zat .or.&
          icolsort(w%geometry_sortcid)==ic_mol .or. icolsort(w%geometry_sortcid)==ic_mul .or.&
          icolsort(w%geometry_sortcid)==ic_idx) then
