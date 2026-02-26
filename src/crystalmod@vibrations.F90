@@ -2264,14 +2264,10 @@ contains
        ! advance to the next frequencies header
        ok = .false.
        do while (getline_raw(lu,line,.false.))
-          if (len(line) >= 30) then
-             if (index(line," Harmonic frequencies (cm**-1)") > 0) nread = 0
-          end if
-          if (len(line) >= 15) then
-             if (index(line," Frequencies --") > 0) then
-                ok = .true.
-                exit
-             end if
+          if (index(line," Harmonic frequencies (cm**-1)") > 0) nread = 0
+          if (index(line," Frequencies --") > 0) then
+             ok = .true.
+             exit
           end if
        end do
        if (.not.ok) exit
@@ -2286,9 +2282,10 @@ contains
        nn = count(okl)
 
        ! skip to the displacements
-       do i = 1, 4
+       do while(.true.)
           ok = getline_raw(lu,line,.false.)
           if (.not.ok) goto 999
+          if (index(line," Atom ") > 0) exit
        end do
 
        ! read the frequencies
