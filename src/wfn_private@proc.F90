@@ -28,6 +28,7 @@ submodule (wfn_private) proc
   ! function wfx_read_integers(lu,n,errmsg) result(x)
   ! function wfx_read_reals1(lu,n,errmsg) result(x)
   ! subroutine complete_struct(f,cptr)
+  ! function equalstr(str1,ini,end,str2)
 
   ! double factorials minus one
   integer, parameter :: dfacm1(0:8) = (/1,1,1,2,3,8,15,48,105/)
@@ -429,7 +430,7 @@ contains
     errmsg = "Error reading file: " // trim(file)
     ! read the number of atoms
     do while (getline_raw(lu,line))
-       if (line(1:1) == "<" .and. line(2:2) /= "/") then
+       if (equalstr(line,1,1,"<") .and. equalstr(line,2,2,"/")) then
           if (trim(line) == "<Number of Nuclei>") then
              read (lu,*) n
              exit
@@ -450,7 +451,7 @@ contains
     do while (getline_raw(lu,line))
        line2 = adjustl(line)
        line = line2
-       if (line(1:1) == "<" .and. line(2:2) /= "/") then
+       if (equalstr(line,1,1,"<") .and. equalstr(line,2,2,"/")) then
           if (trim(line) == "<Atomic Numbers>") then
              atnumfound = .true.
              z = wfx_read_integers(lu,n,errmsg2)
@@ -536,16 +537,14 @@ contains
     do while (getline_raw(lu,line))
        ll = len(line)
        lp = 45
-       if (ll >= 15) then
-          if (line(1:15) == "Number of atoms") then
-             ok = isinteger(n,line,lp)
-             if (.not.ok) then
-                errmsg = "Could not read number of atoms."
-                goto 999
-             end if
-             exit
-          endif
-       end if
+       if (equalstr(line,1,15,"Number of atoms")) then
+          ok = isinteger(n,line,lp)
+          if (.not.ok) then
+             errmsg = "Could not read number of atoms."
+             goto 999
+          end if
+          exit
+       endif
     enddo
     if (n == 0) then
        errmsg = "Error reading number of atoms."
@@ -558,26 +557,20 @@ contains
     do while (getline_raw(lu,line))
        ll = len(line)
        lp = 45
-       if (ll >= 29) then
-          if (line(1:29) == "Current cartesian coordinates") then
-             do i = 0, (3*n-1)/5
-                read(lu,'(5E16.8)',err=999,end=999) (xat(5*i+j),j=1,min(5,3*n-5*i))
-             enddo
-          end if
+       if (equalstr(line,1,29,"Current cartesian coordinates")) then
+          do i = 0, (3*n-1)/5
+             read(lu,'(5E16.8)',err=999,end=999) (xat(5*i+j),j=1,min(5,3*n-5*i))
+          enddo
        end if
-       if (ll >= 14) then
-          if (line(1:14) == "Atomic numbers") then
-             do i = 0, (n-1)/6
-                read(lu,'(6I12)',err=999,end=999) (z(6*i+j),j=1,min(6,n-6*i))
-             enddo
-          endif
-       end if
+       if (equalstr(line,1,14,"Atomic numbers")) then
+          do i = 0, (n-1)/6
+             read(lu,'(6I12)',err=999,end=999) (z(6*i+j),j=1,min(6,n-6*i))
+          enddo
+       endif
        if (present(alsovib)) then
-          if (ll >= 6) then
-             if (line(1:6) == "Vib-E2") then
-                alsovib = .true.
-             endif
-          end if
+          if (equalstr(line,1,6,"Vib-E2")) then
+             alsovib = .true.
+          endif
        end if
     enddo
     do i = 1, n
@@ -883,11 +876,11 @@ contains
     n = 0
     allocate(x(3,10),z(10),name(10))
     main: do while (getline_raw(lu,line))
-       if (line(1:7) == "# n  At") then
+       if (equalstr(line,1,7,"# n  At")) then
           do while (.true.)
              ok = getline_raw(lu,line)
              if (.not.ok) goto 999
-             if (line(1:1) == "#") exit main
+             if (equalstr(line,1,1,"#")) exit main
 
              n = n + 1
              if (n > size(z,1)) then
@@ -947,25 +940,23 @@ contains
     n = 0
     allocate(x(3,10),z(10),name(10))
     main: do while (getline_raw(lu,line))
-       if (len(line) >= 33) then
-          if (line(1:33) == "CARTESIAN COORDINATES (ANGSTROEM)") then
-             n = 0
+       if (equalstr(line,1,33,"CARTESIAN COORDINATES (ANGSTROEM)")) then
+          n = 0
+          ok = getline_raw(lu,line)
+          do while (.true.)
              ok = getline_raw(lu,line)
-             do while (.true.)
-                ok = getline_raw(lu,line)
-                if (.not.ok) goto 999
-                if (len_trim(line) == 0) exit
+             if (.not.ok) goto 999
+             if (len_trim(line) == 0) exit
 
-                n = n + 1
-                if (n > size(z,1)) then
-                   call realloc(x,3,2*n)
-                   call realloc(z,2*n)
-                   call realloc(name,2*n)
-                end if
-                read (line,*,err=999,end=999) name(n), x(1,n), x(2,n), x(3,n)
-                z(n) = zatguess(name(n))
-             end do
-          end if
+             n = n + 1
+             if (n > size(z,1)) then
+                call realloc(x,3,2*n)
+                call realloc(z,2*n)
+                call realloc(name,2*n)
+             end if
+             read (line,*,err=999,end=999) name(n), x(1,n), x(2,n), x(3,n)
+             z(n) = zatguess(name(n))
+          end do
        end if
     end do main
 
@@ -1157,7 +1148,7 @@ contains
     nalpha = 0
     do while (getline_raw(luwfn,line))
        line = adjustl(line)
-       if (line(1:1) == "<" .and. line(2:2) /= "/") then
+       if (equalstr(line,1,1,"<") .and. equalstr(line,2,2,"/")) then
           if (trim(line) == "<Number of Occupied Molecular Orbitals>") then
              read (luwfn,*,err=999,end=999) f%nmoocc
              f%nmoall = f%nmoocc
@@ -1203,7 +1194,7 @@ contains
        line = adjustl(mline)
        if (len_trim(line) < 2) then
           cycle
-       else if (line(1:1) == "<" .and. line(2:2) /= "/") then
+       else if (equalstr(line,1,1,"<") .and. equalstr(line,2,2,"/")) then
           if (trim(line) == "<Primitive Centers>") then
              f%icenter = wfx_read_integers(luwfn,f%npri,errmsg2)
           elseif (trim(line) == "<Primitive Types>") then
@@ -1388,25 +1379,25 @@ contains
     nmoallb = 0
     do while (getline_raw(luwfn,line,.false.))
        lp = 50
-       if (line(1:19) == "Number of electrons") then
+       if (equalstr(line,1,19,"Number of electrons")) then
           ok = isinteger(nelec,line,lp)
-       elseif (line(1:25) == "Number of alpha electrons") then
+       elseif (equalstr(line,1,25,"Number of alpha electrons")) then
           ok = isinteger(nalpha,line,lp)
-       elseif (line(1:25) == "Number of beta electrons") then
+       elseif (equalstr(line,1,25,"Number of beta electrons")) then
           ok = isinteger(nbeta,line,lp)
-       elseif (line(1:25) == "Number of basis functions") then
+       elseif (equalstr(line,1,25,"Number of basis functions")) then
           ok = isinteger(nbassph,line,lp)
-       elseif (line(1:24) == "Number of beta electrons") then
+       elseif (equalstr(line,1,24,"Number of beta electrons")) then
           ok = isinteger(nbeta,line,lp)
-       elseif (line(1:27) == "Number of contracted shells") then
+       elseif (equalstr(line,1,27,"Number of contracted shells")) then
           ok = isinteger(ncshel,line,lp)
-       elseif (line(1:26) == "Number of primitive shells") then
+       elseif (equalstr(line,1,26,"Number of primitive shells")) then
           ok = isinteger(nshel,line,lp)
-       elseif (line(1:24) == "Highest angular momentum") then
+       elseif (equalstr(line,1,24,"Highest angular momentum")) then
           ok = isinteger(lmax,line,lp)
-       elseif (line(1:22) == "Alpha Orbital Energies") then
+       elseif (equalstr(line,1,22,"Alpha Orbital Energies")) then
           ok = isinteger(nmoalla,line,lp)
-       elseif (line(1:21) == "Beta Orbital Energies") then
+       elseif (equalstr(line,1,21,"Beta Orbital Energies")) then
           ok = isinteger(nmoallb,line,lp)
           f%wfntyp = wfn_uhf
        endif
@@ -1480,33 +1471,33 @@ contains
     allocate(motemp(nbassph*nmoread))
     do while (getline_raw(luwfn,line,.false.))
        lp = 45
-       if (line(1:11) == "Shell types") then
+       if (equalstr(line,1,11,"Shell types")) then
           do i = 0, (ncshel-1)/6
              read(luwfn,'(6I12)',err=999,end=999) (ishlt(6*i+j),j=1,min(6,ncshel-6*i))
           enddo
-       elseif (line(1:30) == "Number of primitives per shell") then
+       elseif (equalstr(line,1,30,"Number of primitives per shell")) then
           do i = 0, (ncshel-1)/6
              read(luwfn,'(6I12)',err=999,end=999) (ishlpri(6*i+j),j=1,min(6,ncshel-6*i))
           enddo
-       elseif (line(1:30) == "Shell to atom map") then
+       elseif (equalstr(line,1,30,"Shell to atom map")) then
           do i = 0, (ncshel-1)/6
              read(luwfn,'(6I12)',err=999,end=999) (ishlat(6*i+j),j=1,min(6,ncshel-6*i))
           enddo
-       elseif (line(1:19) == "Primitive exponents") then
+       elseif (equalstr(line,1,19,"Primitive exponents")) then
           do i = 0, (nshel-1)/5
              read(luwfn,'(5E16.8)',err=999,end=999) (exppri(5*i+j),j=1,min(5,nshel-5*i))
           enddo
-       elseif (line(1:24) == "Contraction coefficients") then
+       elseif (equalstr(line,1,24,"Contraction coefficients")) then
           do i = 0, (nshel-1)/5
              read(luwfn,'(5E16.8)',err=999,end=999) (ccontr(5*i+j),j=1,min(5,nshel-5*i))
           enddo
-       elseif (line(1:31) == "P(S=P) Contraction coefficients") then
+       elseif (equalstr(line,1,31,"P(S=P) Contraction coefficients")) then
           do i = 0, (nshel-1)/5
              read(luwfn,'(5E16.8)',err=999,end=999) (pccontr(5*i+j),j=1,min(5,nshel-5*i))
           enddo
-       elseif (line(1:21) == "Alpha MO coefficients") then
+       elseif (equalstr(line,1,21,"Alpha MO coefficients")) then
           read(luwfn,'(5E16.8)',err=999,end=999) (motemp(i),i=1,namoread*nbassph)
-       elseif (line(1:21) == "Beta MO coefficients") then
+       elseif (equalstr(line,1,21,"Beta MO coefficients")) then
           read(luwfn,'(5E16.8)',err=999,end=999) (motemp(i),i=namoread*nbassph+1,nmoread*nbassph)
        endif
     enddo
@@ -3566,11 +3557,11 @@ contains
     do while(.true.)
        if (.not.isinteger(idum,line,lp)) then
           line = adjustl(line(lp:))
-          if (line(1:1) == "<") exit
+          if (equalstr(line,1,1,"<")) exit
           lp = 1
           ok = getline_raw(lu,line)
           line = adjustl(line)
-          if (.not.ok .or. line(1:1) == "<") exit
+          if (.not.ok .or. equalstr(line,1,1,"<")) exit
        else
           kk = kk + 1
           if (kk > n) then
@@ -3610,11 +3601,11 @@ contains
     do while(.true.)
        if (.not.isreal(rdum,line,lp)) then
           line = adjustl(line(lp:))
-          if (line(1:1) == "<") exit
+          if (equalstr(line,1,1,"<")) exit
           lp = 1
           ok = getline_raw(lu,line)
           line = adjustl(line)
-          if (.not.ok .or. line(1:1) == "<") exit
+          if (.not.ok .or. equalstr(line,1,1,"<")) exit
        else
           kk = kk + 1
           if (kk > n) then
@@ -3790,5 +3781,21 @@ contains
     f%cptr = cptr
 
   end subroutine complete_struct
+
+  !> Compares str(ini:end) to str2 and returns true if they are
+  !> equal.
+  function equalstr(str1,ini,end,str2)
+    character*(*), intent(in) :: str1, str2
+    integer, intent(in) :: ini, end
+    logical :: equalstr
+
+    integer :: ll
+
+    equalstr = .false.
+    ll = len(str1)
+    if (ini > ll .or. end > ll) return
+    equalstr = (str1(ini:end) == str2)
+
+  end function equalstr
 
 end submodule proc
