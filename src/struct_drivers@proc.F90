@@ -4107,11 +4107,7 @@ contains
 
        ! create nstruct structures
        do i = 1, nstruct
-          if (s%c%ismolecule) then
-             call s%c%vib%mol_phonon_rattle(s%c,temp,seed)
-          else
-             call s%c%vib%cry_phonon_rattle(s%c,temp,seed)
-          end if
+          call s%c%vib%phonon_rattle(s%c,temp,seed)
 
           filename = pre // string(i,npad,pad0=.true.) // post
           call caux%struct_new(seed,.true.)

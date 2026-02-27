@@ -1014,14 +1014,17 @@ contains
 
   end subroutine vibrations_zero_fc2
 
-  !> Generate a phonon rattled crystal structure based on the force
-  !> constants in v and the crystal structure in c using temperature
-  !> temp. The phonon rattled structure samples normal modes according
-  !> to a Boltzmann distribution based on the given
-  !> temperature. Returns the seed for the new crystal structure in
-  !> seed.  Adapted from the alamode code
+  !> Generate a rattled structure based on the vibrational frequencies
+  !> (at Gamma) in v and the molecular/crystal structure in c using
+  !> temperature temp. The phonon rattled structure samples normal
+  !> modes according to a Boltzmann distribution based on the given
+  !> temperature. Returns the seed for the new structure in
+  !> seed.
+  !> Sources: internal-documents/phonon_rattle,
+  !> https://arxiv.org/pdf/2210.03531 , Messiah (chap. 12). Equivalent
+  !> to the implementation in the alamode code
   !> (https://github.com/ttadano/alamode/).
-  module subroutine vibrations_cry_phonon_rattle(v,c,temp,seed)
+  module subroutine vibrations_phonon_rattle(v,c,temp,seed)
     use crystalseedmod, only: crystalseed
     use tools, only: mergesort
     use param, only: atmass, pi, hbar, clight, pcamu, bohrtom
@@ -1031,33 +1034,40 @@ contains
     type(crystalseed), intent(out) :: seed
 
     real*8, allocatable :: xat(:,:)
-    real*8 :: nbe, ff, ffrac, fterm, xx(2), xn
-    real*8 :: sigma, qsq
-    integer :: i, j, k, n, iqpt
+    real*8 :: ff, ffrac, fterm, xx(2), xn
+    real*8 :: qsq
+    integer :: i, j, iqpt, ini
     integer, allocatable :: idx(:)
 
     real*8, parameter :: fcap = 250d0 ! lower bound for the frequencies (cm-1)
 
-    ! try to find the gamma q-point
-    iqpt = -1
-    if (v%hasvibs.and.allocated(v%freq).and.allocated(v%qpt).and.allocated(v%vec)) then
-       do i = 1, v%nqpt
-          if (all(abs(v%qpt(:,i)) < 1d-5)) then
-             iqpt = i
-             exit
-          end if
-       end do
-    end if
+    if (c%ismolecule) then
+       ! use the first and only q-point
+       iqpt = 1
+       if (.not.v%hasvibs.or..not.allocated(v%freq).or..not.allocated(v%qpt).or.&
+          .not.allocated(v%vec)) return
+    else
+       ! try to find the gamma q-point
+       iqpt = -1
+       if (v%hasvibs.and.allocated(v%freq).and.allocated(v%qpt).and.allocated(v%vec)) then
+          do i = 1, v%nqpt
+             if (all(abs(v%qpt(:,i)) < 1d-5)) then
+                iqpt = i
+                exit
+             end if
+          end do
+       end if
 
-    ! if no gamma q-point is available, check if we have the FC2
-    if (iqpt < 0 .and. v%hasfc2 .and. allocated(v%fc2)) then
-       ! get the frequencies (cm-1) and eigenvectors at Gamma
-       call v%calculate_q(c,(/0d0,0d0,0d0/))
-       iqpt = v%nqpt
-    end if
+       ! if no gamma q-point is available, check if we have the FC2
+       if (iqpt < 0 .and. v%hasfc2 .and. allocated(v%fc2)) then
+          ! get the frequencies (cm-1) and eigenvectors at Gamma
+          call v%calculate_q(c,(/0d0,0d0,0d0/))
+          iqpt = v%nqpt
+       end if
 
-    ! could not figure out how to obtain the gamma frequencies and eigenvectors
-    if (iqpt < 0) return
+       ! could not figure out how to obtain the gamma frequencies and eigenvectors
+       if (iqpt < 0) return
+    end if
 
     ! copy the seed from the given system to the output seed
     call c%makeseed(seed,.false.)
@@ -1065,18 +1075,27 @@ contains
     ! prepare the atomic positions array in Cartesian coordinates
     allocate(xat(3,c%ncel))
     do j = 1, c%ncel
-       xat(:,j) = c%atcel(j)%r
+       if (c%ismolecule) then
+          xat(:,j) = c%atcel(j)%r + c%molx0
+       else
+          xat(:,j) = c%atcel(j)%r
+       end if
     end do
 
     ! sort the frequencies by absolute value
-    allocate(idx(3*c%ncel))
-    do i = 1, 3*c%ncel
+    allocate(idx(v%nfreq))
+    do i = 1, v%nfreq
        idx(i) = i
     end do
-    call mergesort(abs(v%freq(:,iqpt)),idx,1,v%nfreq)
+    if (.not.c%ismolecule) then
+       call mergesort(abs(v%freq(:,iqpt)),idx,1,v%nfreq)
+       ini = 4
+    else
+       ini = 1
+    end if
 
     ! run over all modes; skip the first three
-    do i = 4, size(v%freq,1)
+    do i = ini, v%nfreq
        ! cap frequencies at some low value
        ff = max(fcap,abs(v%freq(idx(i),iqpt)))
 
@@ -1096,74 +1115,16 @@ contains
     end do
 
     ! copy the new atomic positions into the seed
+    if (c%ismolecule) seed%useabr = 0
     do j = 1, seed%nat
-       seed%x(:,j) = c%c2x(xat(:,j))
+       if (c%ismolecule) then
+          seed%x(:,j) = xat(:,j)
+       else
+          seed%x(:,j) = c%c2x(xat(:,j))
+       end if
     end do
 
-  end subroutine vibrations_cry_phonon_rattle
-
-  !> Generate a rattled molecular structure based on the vibrational
-  !> frequencies in v and the molecular structure in c using temperature
-  !> temp. The phonon rattled structure samples normal modes according
-  !> to a Boltzmann distribution based on the given
-  !> temperature. Returns the seed for the new structure in
-  !> seed. Sources: internal-documents/phonon_rattle,
-  !> https://arxiv.org/pdf/2210.03531 , chap. 12 in Messiah.
-  module subroutine vibrations_mol_phonon_rattle(v,c,temp,seed)
-    use crystalseedmod, only: crystalseed
-    use tools, only: mergesort
-    use param, only: atmass, pi, hbar, clight, pcamu, bohrtom
-    class(vibrations), intent(inout) :: v
-    type(crystal), intent(inout) :: c
-    real*8, intent(in) :: temp
-    type(crystalseed), intent(out) :: seed
-
-    real*8, allocatable :: xat(:,:)
-    real*8 :: ff, fterm, xx(2), xn
-    real*8 :: qsq
-    integer :: i, j
-
-    real*8, parameter :: fcap = 250d0 ! lower bound for the frequencies (cm-1)
-
-    ! return if no FC2 is available
-    if (.not.v%hasvibs.or..not.allocated(v%vec)) return
-
-    ! copy the seed from the given system to the output seed
-    call c%makeseed(seed,.false.)
-
-    ! prepare the atomic positions array in Cartesian coordinates
-    allocate(xat(3,c%ncel))
-    do j = 1, c%ncel
-       xat(:,j) = c%atcel(j)%r + c%molx0
-    end do
-
-    ! run over all modes; skip the first three
-    do i = 1, v%nfreq
-       ! cap frequencies at some low value
-       ff = max(fcap,abs(v%freq(i,1)))
-
-       ! calculate the <q^2> according to the Boltzmann distribution
-       qsq = 0.5d0 * &
-          hbar / (2d0 * pi * clight * ff * 100d0) * (1e3 / pcamu) / bohrtom**2 / &
-          tanh(0.5d0 * ff * cminv_to_K / temp)
-
-       ! sample normal distribution
-       call random_number(xx)
-       xn = sqrt(qsq) * sqrt(-2d0 * log(xx(1))) * cos(2d0 * pi * xx(2))
-
-       do j = 1, seed%nat
-          fterm = xn / sqrt(atmass(seed%spc(seed%is(j))%z))
-          xat(:,j) = xat(:,j) + fterm * real(v%vec(:,j,i,1),8)
-       end do
-    end do
-
-    ! copy the new atomic positions into the seed
-    seed%useabr = 0
-    do j = 1, seed%nat
-       seed%x(:,j) = xat(:,j)
-    end do
-
-  end subroutine vibrations_mol_phonon_rattle
+  end subroutine vibrations_phonon_rattle
 
   !xx! private procedures
 
