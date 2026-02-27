@@ -1024,29 +1024,43 @@ contains
   module subroutine vibrations_cry_phonon_rattle(v,c,temp,seed)
     use crystalseedmod, only: crystalseed
     use tools, only: mergesort
-    use param, only: atmass, pi
+    use param, only: atmass, pi, hbar, clight, pcamu, bohrtom
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: temp
     type(crystalseed), intent(out) :: seed
 
-    real*8, allocatable :: freq(:), xat(:,:)
-    complex*16, allocatable :: vec(:,:)
+    real*8, allocatable :: xat(:,:)
     real*8 :: nbe, ff, ffrac, fterm, xx(2), xn
-    real*8 :: sigma
-    integer :: i, j, k, n
+    real*8 :: sigma, qsq
+    integer :: i, j, k, n, iqpt
     integer, allocatable :: idx(:)
 
-    real*8, parameter :: fcap = 50d0 ! lower bound for the frequencies (cm-1)
+    real*8, parameter :: fcap = 250d0 ! lower bound for the frequencies (cm-1)
 
-    ! return if no FC2 is available
-    if (.not.v%hasfc2.or..not.allocated(v%fc2)) return
+    ! try to find the gamma q-point
+    iqpt = -1
+    if (v%hasvibs.and.allocated(v%freq).and.allocated(v%qpt).and.allocated(v%vec)) then
+       do i = 1, v%nqpt
+          if (all(abs(v%qpt(:,i)) < 1d-5)) then
+             iqpt = i
+             exit
+          end if
+       end do
+    end if
+
+    ! if no gamma q-point is available, check if we have the FC2
+    if (iqpt < 0 .and. v%hasfc2 .and. allocated(v%fc2)) then
+       ! get the frequencies (cm-1) and eigenvectors at Gamma
+       call v%calculate_q(c,(/0d0,0d0,0d0/))
+       iqpt = v%nqpt
+    end if
+
+    ! could not figure out how to obtain the gamma frequencies and eigenvectors
+    if (iqpt < 0) return
 
     ! copy the seed from the given system to the output seed
     call c%makeseed(seed,.false.)
-
-    ! get the frequencies (cm-1) and eigenvectors at Gamma
-    call v%calculate_q(c,(/0d0,0d0,0d0/),freq,vec)
 
     ! prepare the atomic positions array in Cartesian coordinates
     allocate(xat(3,c%ncel))
@@ -1059,35 +1073,25 @@ contains
     do i = 1, 3*c%ncel
        idx(i) = i
     end do
-    call mergesort(abs(freq),idx,1,3*c%ncel)
+    call mergesort(abs(v%freq(:,iqpt)),idx,1,v%nfreq)
 
     ! run over all modes; skip the first three
-    do i = 4, size(freq,1)
+    do i = 4, size(v%freq,1)
        ! cap frequencies at some low value
-       ff = max(fcap,abs(freq(idx(i))))
+       ff = max(fcap,abs(v%freq(idx(i),iqpt)))
 
-       ! calculate the Boltzmann population
-       ffrac = ff * cminv_to_K / temp
-       if (ffrac < 300) then
-          nbe = 1d0 / (exp(ffrac) - 1)
-       else
-          nbe = 0d0
-       end if
-
-       ! standard deviation of the normal distribution (bohr * sqrt(amu))
-       sigma = sqrt((1d0 + 2d0 * nbe) / (2d0 * ff * cminv_to_hartree)) / sqrt(amu_to_me)
+       ! calculate the <q^2> according to the Boltzmann distribution
+       qsq = 0.5d0 * &
+          hbar / (2d0 * pi * clight * ff * 100d0) * (1e3 / pcamu) / bohrtom**2 / &
+          tanh(0.5d0 * ff * cminv_to_K / temp)
 
        ! sample normal distribution
        call random_number(xx)
-       xn = sigma * sqrt(-2d0 * log(xx(1))) * cos(2d0 * pi * xx(2))
+       xn = sqrt(qsq) * sqrt(-2d0 * log(xx(1))) * cos(2d0 * pi * xx(2))
 
-       n = 0
        do j = 1, seed%nat
           fterm = xn / sqrt(atmass(seed%spc(seed%is(j))%z))
-          do k = 1, 3
-             n = n + 1
-             xat(k,j) = xat(k,j) + fterm * real(vec(n,i),8)
-          end do
+          xat(:,j) = xat(:,j) + fterm * real(v%vec(:,j,idx(i),iqpt),8)
        end do
     end do
 
@@ -1138,17 +1142,17 @@ contains
        ! cap frequencies at some low value
        ff = max(fcap,abs(v%freq(i,1)))
 
-       ! calculate the Boltzmann population
+       ! calculate the <q^2> according to the Boltzmann distribution
        qsq = 0.5d0 * &
           hbar / (2d0 * pi * clight * ff * 100d0) * (1e3 / pcamu) / bohrtom**2 / &
           tanh(0.5d0 * ff * cminv_to_K / temp)
 
        ! sample normal distribution
        call random_number(xx)
-       xn = sqrt(-2d0 * log(xx(1))) * cos(2d0 * pi * xx(2))
+       xn = sqrt(qsq) * sqrt(-2d0 * log(xx(1))) * cos(2d0 * pi * xx(2))
 
        do j = 1, seed%nat
-          fterm = xn / sqrt(atmass(seed%spc(seed%is(j))%z)) * sqrt(qsq)
+          fterm = xn / sqrt(atmass(seed%spc(seed%is(j))%z))
           xat(:,j) = xat(:,j) + fterm * real(v%vec(:,j,i,1),8)
        end do
     end do

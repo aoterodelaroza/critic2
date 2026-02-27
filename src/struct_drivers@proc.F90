@@ -4087,7 +4087,7 @@ contains
        if (s%c%ismolecule) then
           root = trim(fileroot) // "-*.xyz"
        else
-          root = trim(fileroot) // "-*.scf.in"
+          root = trim(fileroot) // "-*.in"
        end if
        idx = index(root,'*')
        word = lgetword(line,lp)
