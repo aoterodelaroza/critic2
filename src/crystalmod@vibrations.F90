@@ -1098,13 +1098,13 @@ contains
 
   end subroutine vibrations_cry_phonon_rattle
 
-  !> Generate a rattled molecular structure based on the force
-  !> constants in v and the crystal structure in c using temperature
+  !> Generate a rattled molecular structure based on the vibrational
+  !> frequencies in v and the molecular structure in c using temperature
   !> temp. The phonon rattled structure samples normal modes according
   !> to a Boltzmann distribution based on the given
-  !> temperature. Returns the seed for the new crystal structure in
-  !> seed.  Adapted from the alamode code
-  !> (https://github.com/ttadano/alamode/).
+  !> temperature. Returns the seed for the new structure in
+  !> seed. Sources: internal-documents/phonon_rattle,
+  !> https://arxiv.org/pdf/2210.03531 , chap. 12 in Messiah.
   module subroutine vibrations_mol_phonon_rattle(v,c,temp,seed)
     use crystalseedmod, only: crystalseed
     use tools, only: mergesort
@@ -1119,7 +1119,7 @@ contains
     real*8 :: qsq
     integer :: i, j
 
-    real*8, parameter :: fcap = 50d0 ! lower bound for the frequencies (cm-1)
+    real*8, parameter :: fcap = 250d0 ! lower bound for the frequencies (cm-1)
 
     ! return if no FC2 is available
     if (.not.v%hasvibs.or..not.allocated(v%vec)) return
