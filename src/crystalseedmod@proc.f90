@@ -9593,7 +9593,7 @@ contains
 
     ! rearrange seeds if optimization
     if (present(nseed).and.present(mseed)) then
-       if (inopt) then
+       if (inopt .and. nseed > 1) then
           ! opt = last point is repeated, move to next-to-last structure but keep the energy
           energy = mseed(nseed-1)%energy
           mseed(nseed-1) = mseed(nseed)
