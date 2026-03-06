@@ -123,6 +123,7 @@ contains
        w%geometry_select_rgba = ColorHighlightSelectScene
        call reset_sort()
        w%lastselected = 0
+       w%tabselected = ""
     end if
 
     ! if tied to tree, update the isys
@@ -197,6 +198,9 @@ contains
        str2 = "Species##drawgeometry_speciestab" // c_null_char
        flags = ImGuiTabItemFlags_None
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+          ! check if the tab changed
+          call check_changed_tab("species")
+
           w%geometry_atomtype = atlisttype_species
           ntype = sys(isys)%c%nspc
 
@@ -363,6 +367,9 @@ contains
        str2 = "Atoms##drawgeometry_atomstab" // c_null_char
        flags = atompreflags
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+          ! check if the tab changed
+          call check_changed_tab("atoms")
+
           ! group atom types
           if (sysc(isys)%attype_combo_simple("Types##atomtypeselectgeom",w%geometry_atomtype,atlisttype_allowed)) then
              call reset_sort()
@@ -676,6 +683,9 @@ contains
           str2 = "Cell##drawgeometry_celltab" // c_null_char
           flags = ImGuiTabItemFlags_None
           if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+             ! check if the tab changed
+             call check_changed_tab("cell")
+
              call iw_text("blah")
              call igEndTabItem()
           end if
@@ -685,6 +695,9 @@ contains
        str2 = "Molecules##drawgeometry_molstab" // c_null_char
        flags = ImGuiTabItemFlags_None
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+          ! check if the tab changed
+          call check_changed_tab("molecules")
+
           call iw_text("blah")
           call igEndTabItem()
        end if
@@ -693,6 +706,9 @@ contains
        str2 = "Bonds##drawgeometry_bondstab" // c_null_char
        flags = ImGuiTabItemFlags_None
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+          ! check if the tab changed
+          call check_changed_tab("bonds")
+
           call iw_text("blah")
           call igEndTabItem()
        end if
@@ -702,6 +718,9 @@ contains
           str2 = "Symmetry##drawgeometry_symmetrytab" // c_null_char
           flags = ImGuiTabItemFlags_None
           if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+             ! check if the tab changed
+             call check_changed_tab("symmetry")
+
              call iw_text("blah")
              call igEndTabItem()
           end if
@@ -784,6 +803,7 @@ contains
     end if
 
   contains
+    ! change the system on which the geometry window operates
     subroutine change_system(i)
       integer, intent(in) :: i
 
@@ -805,6 +825,7 @@ contains
 
     end subroutine change_system
 
+    ! deallocate the sort array and force a sort of the table
     subroutine reset_sort()
 
       w%lastselected = 0
@@ -813,6 +834,7 @@ contains
 
     end subroutine reset_sort
 
+    ! calculate the w%iord to sort the table
     subroutine table_sort()
       use tools, only: mergesort
       use interfaces_glfw, only: glfwGetTime
@@ -911,7 +933,9 @@ contains
 
     end subroutine table_sort
 
+    ! calculate the highlight arrays are allocated and correct before the table
     subroutine check_highlight_allocs_before_table()
+
       if (allocated(w%geometry_selected)) then
          if (size(w%geometry_selected,1) /= ntype) then
             deallocate(w%geometry_selected)
@@ -928,9 +952,12 @@ contains
          allocate(w%geometry_rgba(4,ntype))
          w%geometry_rgba = 0._c_float
       end if
+
     end subroutine check_highlight_allocs_before_table
 
+    ! get the sort specs from the imgui table
     subroutine fetch_sort_specs()
+
       ptrc = igTableGetSortSpecs()
       if (c_associated(ptrc)) then
          call c_f_pointer(ptrc,sortspecs)
@@ -947,9 +974,12 @@ contains
             w%geometry_sortdir = 1
          end if
       end if
+
     end subroutine fetch_sort_specs
 
+    ! get the view associated with the currently selected system
     subroutine get_current_view()
+
       iview = 0
       if (isys == win(iwin_view)%view_selected) then
          iview = iwin_view
@@ -963,9 +993,12 @@ contains
             end if
          end do
       end if
+
     end subroutine get_current_view
 
+    ! get the color associated with atom type i from the current view
     subroutine get_color_from_view()
+
       havergb = .false.
       if (iview > 0) then
          do j = 1, win(iview)%sc%nrep
@@ -981,9 +1014,12 @@ contains
             end if
          end do
       end if
+
     end subroutine get_color_from_view
 
+    ! draw the row of buttons controlling the highlights
     subroutine draw_highlight_buttons()
+
       ! highlight color
       call igAlignTextToFramePadding()
       call iw_text("Selection",highlight=.true.)
@@ -1014,9 +1050,12 @@ contains
          redo_highlights = .true.
       end if
       call iw_tooltip("Toggle atomic selection",ttshown)
+
     end subroutine draw_highlight_buttons
 
+    ! draw the row of buttons controlling the edition of the system
     subroutine draw_edit_buttons()
+
       ! highlight color
       call igAlignTextToFramePadding()
       call iw_text("Edit",highlight=.true.)
@@ -1026,7 +1065,22 @@ contains
       if (iw_button("Remove##removeselection",sameline=.true.,disabled=.not.havesel)) &
          removehighlight = .true.
       call iw_tooltip("Remove selected atoms (" // trim(get_bind_keyname(BIND_EDITGEOM_REMOVE)) // ")",ttshown)
+
     end subroutine draw_edit_buttons
+
+    ! check whether the tab has changed: reset highlights and sort
+    subroutine check_changed_tab(tab)
+
+      character*(*) :: tab
+      if (tab /= w%tabselected) then
+         call sysc(w%isys)%highlight_clear(.false.)
+         if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
+         if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
+         call reset_sort()
+         w%tabselected = tab
+      end if
+
+    end subroutine check_changed_tab
 
   end subroutine draw_geometry
 

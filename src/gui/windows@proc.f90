@@ -423,6 +423,7 @@ contains
     w%forcerender = .true.
     if (allocated(w%iord)) deallocate(w%iord)
     w%lastselected = 0
+    w%tabselected = ""
     w%dialog_data%dptr = c_null_ptr
     w%dialog_data%mol = -1
     w%dialog_data%showhidden = .false._c_bool
@@ -546,6 +547,7 @@ contains
     w%name = "" // c_null_char
     if (allocated(w%iord)) deallocate(w%iord)
     w%lastselected = 0
+    w%tabselected = ""
     w%plotn = 0
     if (allocated(w%plotx)) deallocate(w%plotx)
     if (allocated(w%ploty)) deallocate(w%ploty)
