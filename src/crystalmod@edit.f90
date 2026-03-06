@@ -863,9 +863,9 @@ contains
 
   end subroutine wholemols
 
-  !> Delete or merge the atoms with IDs in the array iat(1:nat) from
+  !> Remove or merge the atoms with IDs in the array iat(1:nat) from
   !> the structure.
-  module subroutine delete_or_merge_atoms(c,nat,iat,merge,ti)
+  module subroutine remove_or_merge_atoms(c,nat,iat,merge,ti)
     use crystalseedmod, only: crystalseed
     use types, only: realloc
     class(crystal), intent(inout) :: c
@@ -982,7 +982,7 @@ contains
     ! build the new crystal
     call c%struct_new(seed,crashfail=.true.,ti=ti)
 
-  end subroutine delete_or_merge_atoms
+  end subroutine remove_or_merge_atoms
 
   !> Change the atoms with IDs in the array iat(1:nat) from their
   !> current species to is, and reset the atom name to the

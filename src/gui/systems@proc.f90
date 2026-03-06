@@ -779,7 +779,7 @@ contains
     if (nat == 0) return
 
     ! remove the atoms, reset fields
-    call sys(id)%c%delete_or_merge_atoms(nat,iat(1:nat),merge)
+    call sys(id)%c%remove_or_merge_atoms(nat,iat(1:nat),merge)
 
     ! the geometry has changed
     call sysc%post_event(lastchange_geometry)
