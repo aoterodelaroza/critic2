@@ -221,8 +221,9 @@ contains
           flags = ior(flags,ImGuiTableFlags_ScrollY)
           flags = ior(flags,ImGuiTableFlags_Sortable)
           str1="##tablespctyles_" // string(isys) // c_null_char
+          call igGetContentRegionAvail(sz0)
           sz0%x = 0
-          sz0%y = iw_calcheight(min(10,ntype+1)+1,0,.false.)
+          sz0%y = sz0%y - iw_calcheight(3,0,.true.)
           if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
              icol = -1
 
@@ -348,10 +349,10 @@ contains
              call igEndTable()
           end if
 
-          !! highlight/selection row
+          ! highlight/selection row
           call draw_highlight_buttons()
 
-          !! edit row
+          ! edit row
           call draw_edit_buttons()
 
           call igEndTabItem()
@@ -410,14 +411,15 @@ contains
           ! atom style table, for atoms
           flags = ImGuiTableFlags_None
           flags = ior(flags,ImGuiTableFlags_Resizable)
+          flags = ior(flags,ImGuiTableFlags_ScrollY)
           flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
           flags = ior(flags,ImGuiTableFlags_Borders)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-          flags = ior(flags,ImGuiTableFlags_ScrollY)
           flags = ior(flags,ImGuiTableFlags_Sortable)
           str1="##tableatomstyles_" // string(isys) // "_" // string(w%geometry_atomtype) // c_null_char
+          call igGetContentRegionAvail(sz0)
           sz0%x = 0
-          sz0%y = iw_calcheight(min(10,ntype)+1,0,.false.)
+          sz0%y = sz0%y - iw_calcheight(3,0,.true.)
           if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
              icol = -1
 
@@ -644,10 +646,10 @@ contains
              call igEndTable()
           end if
 
-          !! highlight/selection row
+          ! highlight/selection row
           call draw_highlight_buttons()
 
-          !! edit row
+          ! edit row
           call draw_edit_buttons()
 
           call igEndTabItem()
