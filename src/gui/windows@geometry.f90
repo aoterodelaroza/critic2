@@ -53,7 +53,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, removehighlight
-    logical :: doquit, dorestore, clicked, forcesort, forcedirty, ch
+    logical :: doquit, dorestore, clicked, forcesort, ch
     integer :: ihighlight, iclicked, nhigh, dec, icolsort(0:9)
     logical(c_bool) :: is_selected, redo_highlights
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
@@ -113,7 +113,6 @@ contains
     redo_highlights = .false.
     removehighlight = .false.
     forcesort = .false.
-    forcedirty = .false.
     iaction = -1
 
     ! first pass
@@ -122,7 +121,7 @@ contains
        if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
        if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
        w%geometry_select_rgba = ColorHighlightSelectScene
-       call reset_sort(.false.)
+       call reset_sort()
     end if
 
     ! if tied to tree, update the isys
@@ -149,7 +148,7 @@ contains
 
     ! force sort if the system has been rebonded or changed geometry
     if (w%timelast_geometry_sort < sysc(isys)%timelastchange_rebond) then
-       call reset_sort(.true.)
+       call reset_sort()
     end if
 
     ! system combo
@@ -218,11 +217,10 @@ contains
           end if
 
           ! if the order array is not allocated or if its size is wrong, force a sort
-          ! but keep the columns
           if (.not.allocated(w%iord)) then
-             call reset_sort(.true.)
+             call reset_sort()
           elseif (size(w%iord,1) /= ntype) then
-             call reset_sort(.true.)
+             call reset_sort()
           end if
 
           ! number of columns
@@ -236,7 +234,7 @@ contains
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           flags = ior(flags,ImGuiTableFlags_ScrollY)
           flags = ior(flags,ImGuiTableFlags_Sortable)
-          str1="##tableatomstyles" // c_null_char
+          str1="##tablespctyles_" // string(isys) // c_null_char
           sz0%x = 0
           sz0%y = iw_calcheight(min(10,ntype+1)+1,0,.false.)
           if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
@@ -266,16 +264,11 @@ contains
                 call c_f_pointer(ptrc,sortspecs)
                 if (c_associated(sortspecs%Specs)) then
                    call c_f_pointer(sortspecs%Specs,colspecs)
-                   if (forcedirty) then
-                      colspecs%ColumnUserID = w%geometry_sortcid
-                      colspecs%SortDirection = w%geometry_sortdir
-                   else
-                      w%geometry_sortcid = colspecs%ColumnUserID
-                      w%geometry_sortdir = colspecs%SortDirection
-                      if (sortspecs%SpecsDirty .and. ntype > 1) then
-                         forcesort = .true.
-                         sortspecs%SpecsDirty = .false.
-                      end if
+                   w%geometry_sortcid = colspecs%ColumnUserID
+                   w%geometry_sortdir = colspecs%SortDirection
+                   if (sortspecs%SpecsDirty .and. ntype > 1) then
+                      forcesort = .true.
+                      sortspecs%SpecsDirty = .false.
                    end if
                 else
                    w%geometry_sortcid = 0
@@ -460,7 +453,9 @@ contains
        flags = atompreflags
        if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
           ! group atom types
-          ldum = sysc(isys)%attype_combo_simple("Types##atomtypeselectgeom",w%geometry_atomtype,atlisttype_allowed)
+          if (sysc(isys)%attype_combo_simple("Types##atomtypeselectgeom",w%geometry_atomtype,atlisttype_allowed)) then
+             call reset_sort()
+          end if
           call iw_tooltip("Group atoms by these categories",ttshown)
           ntype = sysc(isys)%attype_number(w%geometry_atomtype)
 
@@ -498,9 +493,9 @@ contains
           ! if the order array is not allocated or if its size is wrong, force a sort
           ! and keep the sort columns
           if (.not.allocated(w%iord)) then
-             call reset_sort(.true.)
+             call reset_sort()
           elseif (size(w%iord,1) /= ntype) then
-             call reset_sort(.true.)
+             call reset_sort()
           end if
 
           ! whether to do the molecule column, wyckoff, nneq index
@@ -526,12 +521,13 @@ contains
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           flags = ior(flags,ImGuiTableFlags_ScrollY)
           flags = ior(flags,ImGuiTableFlags_Sortable)
-          str1="##tableatomstyles" // c_null_char
+          str1="##tableatomstyles_" // string(isys) // "_" // string(w%geometry_atomtype) // c_null_char
           sz0%x = 0
           sz0%y = iw_calcheight(min(10,ntype)+1,0,.false.)
           if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
              icol = -1
 
+             ! TableSetupColumn(const char* label, ImGuiTableColumnFlags flags = 0, float init_width_or_weight = 0.0f, ImGuiID user_id = 0);
              ! header setup
              icol = icol + 1
              str2 = "Id" // c_null_char
@@ -608,17 +604,11 @@ contains
                 call c_f_pointer(ptrc,sortspecs)
                 if (c_associated(sortspecs%Specs)) then
                    call c_f_pointer(sortspecs%Specs,colspecs)
-                   if (forcedirty) then
-                      write (*,*) "forced dirty"
-                      colspecs%ColumnUserID = w%geometry_sortcid
-                      colspecs%SortDirection = w%geometry_sortdir
-                   else
-                      w%geometry_sortcid = colspecs%ColumnUserID
-                      w%geometry_sortdir = colspecs%SortDirection
-                      if (sortspecs%SpecsDirty .and. ntype > 1) then
-                         forcesort = .true.
-                         sortspecs%SpecsDirty = .false.
-                      end if
+                   w%geometry_sortcid = colspecs%ColumnUserID
+                   w%geometry_sortdir = colspecs%SortDirection
+                   if (sortspecs%SpecsDirty .and. ntype > 1) then
+                      forcesort = .true.
+                      sortspecs%SpecsDirty = .false.
                    end if
                 else
                    w%geometry_sortcid = 0
@@ -632,7 +622,6 @@ contains
 
              ! sort
              if (forcesort) then
-                write (*,*) "sorting! ",w%geometry_sortcid, w%geometry_sortdir
                 call table_sort()
              end if
 
@@ -967,7 +956,7 @@ contains
       ! remove the selecion, highlights, and reorder the table
       if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
       if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
-      call reset_sort(.false.)
+      call reset_sort()
 
       ! change the system
       w%isys = i
@@ -975,14 +964,8 @@ contains
 
     end subroutine change_system
 
-    subroutine reset_sort(keepcol)
-      logical, intent(in) :: keepcol
+    subroutine reset_sort()
 
-      if (.not.keepcol) then
-         w%geometry_sortcid = 0
-         w%geometry_sortdir = 1
-         forcedirty = .true.
-      end if
       if (allocated(w%iord)) deallocate(w%iord)
       forcesort = .true.
 
