@@ -84,6 +84,7 @@ contains
     integer, parameter :: iaction_add_species = 2
     integer, parameter :: iaction_set_attype_species = 3
     integer, parameter :: iaction_set_atom_position = 4
+    integer, parameter :: iaction_add_species_change_atom = 5
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -610,6 +611,18 @@ contains
                                iaction_i2 = j
                             end if
                          end do
+                         call igSeparator()
+                         str1 = "New" // c_null_char
+                         if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+                            izout = iw_periodictable()
+                            if (izout >= 0) then
+                               iaction = iaction_add_species_change_atom
+                               iaction_i1 = izout
+                               iaction_i2 = i
+                               call igCloseCurrentPopup()
+                            end if
+                            call igEndMenu()
+                         end if
                          call igEndPopup()
                       end if
                    end if
@@ -803,6 +816,9 @@ contains
        call sysc(isys)%set_attype_species(w%geometry_atomtype,iaction_i1,iaction_i2)
     elseif (iaction == iaction_set_atom_position) then
        call sysc(isys)%set_atom_position(w%geometry_atomtype,iaction_i1,iaction_x,iaction_l)
+    elseif (iaction == iaction_add_species_change_atom) then
+       call sysc(isys)%add_species(iaction_i1)
+       call sysc(isys)%set_attype_species(w%geometry_atomtype,iaction_i2,sys(isys)%c%nspc)
     end if
 
   contains
