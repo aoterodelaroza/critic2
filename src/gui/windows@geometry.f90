@@ -52,7 +52,7 @@ contains
     use tools_io, only: string, nameguess, ioj_center
     class(window), intent(inout), target :: w
 
-    logical :: domol, dowyc, doidx, docoord, havesel, removehighlight
+    logical :: domol, dowyc, doidx, docoord, havesel, removehighlight, mergehighlight
     logical :: doquit, dorestore, clicked, forcesort, ch
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:9)
     logical(c_bool) :: is_selected, redo_highlights
@@ -112,6 +112,7 @@ contains
     szero%y = 0
     redo_highlights = .false.
     removehighlight = .false.
+    mergehighlight = .false.
     forcesort = .false.
     iaction = -1
 
@@ -765,10 +766,12 @@ contains
        deallocate(ihigh,irgba)
     end if
 
-    ! remove highlighted atoms
+    ! remove/merge highlighted atoms
     removehighlight = removehighlight .or. (w%focused() .and. is_bind_event(BIND_EDITGEOM_REMOVE))
     if (removehighlight) &
-       call sysc(isys)%remove_highlighted_atoms()
+       call sysc(isys)%remove_or_merge_highlighted_atoms(.false.)
+    if (mergehighlight) &
+       call sysc(isys)%remove_or_merge_highlighted_atoms(.true.)
 
     ! right-align and bottom-align for the rest of the contents
     call igGetContentRegionAvail(szavail)
@@ -1065,6 +1068,11 @@ contains
       if (iw_button("Remove##removeselection",sameline=.true.,disabled=.not.havesel)) &
          removehighlight = .true.
       call iw_tooltip("Remove selected atoms (" // trim(get_bind_keyname(BIND_EDITGEOM_REMOVE)) // ")",ttshown)
+
+      ! Merge button
+      if (iw_button("Merge##mergeselection",sameline=.true.,disabled=.not.havesel)) &
+         mergehighlight = .true.
+      call iw_tooltip("Merge selected atoms",ttshown)
 
     end subroutine draw_edit_buttons
 

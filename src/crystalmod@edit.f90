@@ -863,26 +863,68 @@ contains
 
   end subroutine wholemols
 
-  !> Delete the atoms with IDs in the array iat(1:nat) from the
-  !> structure.
-  module subroutine delete_atoms(c,nat,iat,ti)
+  !> Delete or merge the atoms with IDs in the array iat(1:nat) from
+  !> the structure.
+  module subroutine delete_or_merge_atoms(c,nat,iat,merge,ti)
     use crystalseedmod, only: crystalseed
     use types, only: realloc
     class(crystal), intent(inout) :: c
     integer, intent(in) :: nat
     integer, intent(in) :: iat(nat)
+    logical, intent(in) :: merge
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     logical, allocatable :: useatoms(:)
     integer, allocatable :: usespcs(:)
-    integer :: i, nnspc
+    integer :: i, isel, nnspc, izmax
+    integer :: mergespc
+    real*8 :: mergex(3), x0(3), xd(3), rdum, dd, dmin
 
     ! return if nothing to do
     if (nat == 0) return
 
     ! make seed from this crystal
     call c%makeseed(seed,copysym=.false.)
+
+    ! calculate the position of the merged atom: the heaviest atom in
+    ! the list at the average position
+    if (merge) then
+       ! first pass, calculate approximate average position based on atom 1
+       x0 = c%atcel(iat(1))%x
+       mergespc = c%atcel(iat(1))%is
+       izmax = c%spc(mergespc)%z
+       mergex = x0
+       do i = 2, nat
+          xd = c%atcel(iat(i))%x - x0
+          call c%shortest(xd,rdum)
+          mergex = mergex + (x0 + c%c2x(xd))
+          if (c%spc(c%atcel(iat(i))%is)%z > izmax) then
+             mergespc = c%atcel(iat(i))%is
+             izmax = c%spc(c%atcel(iat(i))%is)%z
+          end if
+       end do
+       mergex = mergex / real(nat,8)
+
+       ! pick the atom closest to the merge position from the first pass
+       isel = -1
+       dmin = 1d40
+       do i = 1, nat
+          dd = c%eql_distance(c%atcel(iat(i))%x,mergex)
+          if (dd < dmin) isel = i
+       end do
+
+       ! final calculation of the merge position
+       x0 = c%atcel(iat(isel))%x
+       mergex = x0
+       do i = 1, nat
+          if (i == isel) cycle
+          xd = c%atcel(iat(i))%x - x0
+          call c%shortest(xd,rdum)
+          mergex = mergex + (x0 + c%c2x(xd))
+       end do
+       mergex = mergex / real(nat,8)
+    end if
 
     ! flag the atoms and species to use
     allocate(useatoms(c%ncel),usespcs(c%nspc))
@@ -901,6 +943,14 @@ contains
        end if
     end do
 
+    ! if merging, make sure we do not lose the target species
+    if (merge) then
+       if (usespcs(mergespc) == 0) then
+          nnspc = nnspc + 1
+          usespcs(mergespc) = nnspc
+       end if
+    end if
+
     ! re-do the atom and species info
     seed%nat = 0
     do i = 1, c%ncel
@@ -911,6 +961,16 @@ contains
           seed%is(seed%nat) = usespcs(c%atcel(i)%is)
        end if
     end do
+
+    ! if merging, add the merged atom
+    if (merge) then
+       seed%nat = seed%nat + 1
+       seed%x(:,seed%nat) = mergex
+       seed%is(seed%nat) = usespcs(mergespc)
+       seed%atname(seed%nat) = c%spc(mergespc)%name
+    end if
+
+    ! finish the seed
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
     seed%nspc = nnspc
@@ -922,7 +982,7 @@ contains
     ! build the new crystal
     call c%struct_new(seed,crashfail=.true.,ti=ti)
 
-  end subroutine delete_atoms
+  end subroutine delete_or_merge_atoms
 
   !> Change the atoms with IDs in the array iat(1:nat) from their
   !> current species to is, and reset the atom name to the

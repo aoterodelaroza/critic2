@@ -3371,7 +3371,7 @@ contains
           end if
           if (nat > 0) then
              ! transform
-             call s%c%delete_atoms(nat,iat(1:nat))
+             call s%c%delete_or_merge_atoms(nat,iat(1:nat),.false.)
              changed = .true.
           end if
        elseif (equal(word,"move")) then
