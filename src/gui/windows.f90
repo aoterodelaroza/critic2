@@ -74,6 +74,7 @@ module windows
      real(c_float) :: pos(2) = (/0._c_float,0._c_float/) ! the position of the window's top left corner
      logical :: isdocked = .false. ! whether the window is docked
      integer, allocatable :: iord(:) ! table order (multiple windows)
+     integer :: lastselected = 0 ! selectable, last element selected (multiple windows)
      ! tree table parameters
      integer :: tree_selected = 1 ! the system selected in a table (input to iord)
      integer(c_int) :: tree_sortcid = 0 ! sort table by this column id

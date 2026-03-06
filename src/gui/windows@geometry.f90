@@ -54,7 +54,7 @@ contains
 
     logical :: domol, dowyc, doidx, docoord, havesel, removehighlight
     logical :: doquit, dorestore, clicked, forcesort, ch
-    integer :: ihighlight, iclicked, nhigh, dec, icolsort(0:9)
+    integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:9)
     logical(c_bool) :: is_selected, redo_highlights
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
@@ -122,6 +122,7 @@ contains
        if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
        w%geometry_select_rgba = ColorHighlightSelectScene
        call reset_sort()
+       w%lastselected = 0
     end if
 
     ! if tied to tree, update the isys
@@ -553,9 +554,24 @@ contains
 
                       ! the highlight selectable: hover and click
                       clicked = .false.
-                      ok = iw_highlight_selectable("##selectablemoltable" // suffix,clicked=clicked)
-                      if (ok) ihighlight = i
-                      if (clicked) iclicked = i
+                      if (iw_highlight_selectable("##selectablemoltable" // suffix,clicked=clicked)) &
+                         ihighlight = i
+                      if (clicked) then
+                         ! implement selection range with shift and control
+                         if (igIsKeyDown(ImGuiKey_ModShift).and.w%lastselected /= 0.and.w%lastselected /= i) then
+                            ! selecte a whole range
+                            iclicked = -1
+                            iclicked_ini = min(ii,w%lastselected)
+                            iclicked_end = max(ii,w%lastselected)
+                         elseif (igIsKeyDown(ImGuiKey_ModCtrl)) then
+                            iclicked = -1
+                            iclicked_ini = ii
+                            iclicked_end = ii
+                         else
+                            iclicked = i
+                            w%lastselected = ii
+                         end if
+                      end if
                    end if
 
                    ! name
@@ -706,6 +722,12 @@ contains
        w%geometry_selected(iclicked) = .not.w%geometry_selected(iclicked)
        w%geometry_rgba(:,iclicked) = w%geometry_select_rgba
        redo_highlights = .true.
+    elseif (iclicked == -1) then
+       do ii = iclicked_ini, iclicked_end
+          w%geometry_selected(w%iord(ii)) = .true.
+          w%geometry_rgba(:,w%iord(ii)) = w%geometry_select_rgba
+       end do
+       redo_highlights = .true.
     end if
 
     ! redo highlights
@@ -769,6 +791,7 @@ contains
       if (w%isys == i) return
 
       ! clear the highlights for the current system
+      w%lastselected = 0
       call sysc(w%isys)%highlight_clear(.false.)
 
       ! remove the selecion, highlights, and reorder the table
@@ -784,6 +807,7 @@ contains
 
     subroutine reset_sort()
 
+      w%lastselected = 0
       if (allocated(w%iord)) deallocate(w%iord)
       forcesort = .true.
 
@@ -800,6 +824,7 @@ contains
 
       ! update the time
       w%timelast_geometry_sort = glfwGetTime()
+      w%lastselected = 0
 
       ! reallocate the iord
       if (ntype <= 1) then
@@ -897,6 +922,7 @@ contains
          allocate(w%geometry_selected(ntype))
          w%geometry_selected = .false.
          redo_highlights = .true.
+         w%lastselected = 0
       end if
       if (.not.allocated(w%geometry_rgba)) then
          allocate(w%geometry_rgba(4,ntype))

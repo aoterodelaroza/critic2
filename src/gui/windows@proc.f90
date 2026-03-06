@@ -422,6 +422,7 @@ contains
     w%view_mousebehavior = MB_navigation
     w%forcerender = .true.
     if (allocated(w%iord)) deallocate(w%iord)
+    w%lastselected = 0
     w%dialog_data%dptr = c_null_ptr
     w%dialog_data%mol = -1
     w%dialog_data%showhidden = .false._c_bool
@@ -544,6 +545,7 @@ contains
     w%tied_to_tree = .false.
     w%name = "" // c_null_char
     if (allocated(w%iord)) deallocate(w%iord)
+    w%lastselected = 0
     w%plotn = 0
     if (allocated(w%plotx)) deallocate(w%plotx)
     if (allocated(w%ploty)) deallocate(w%ploty)

@@ -43,7 +43,7 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str, stropt
     logical(c_bool) :: ldum, doquit
-    logical :: ok, saveismol, doubleclicked, isset
+    logical :: ok, saveismol, doubleclicked
     type(ImVec2) :: szero, sz, szavail
     integer :: i, nseed, idum
     type(crystalseed) :: seed
@@ -55,7 +55,6 @@ contains
     integer, save :: nst = 0 ! number of library structures
     type(vstring), allocatable, save :: st(:) ! library structures
     logical(c_bool), allocatable, save :: lst(:) ! selected structures (1->nst)
-    integer, save :: lastselected = 0 ! last selected structure (for shift/ctrl selection)
     real(c_float), save :: rborder = rborder_def*bohrtoa
     logical, save :: molcubic = .false.
 
@@ -101,20 +100,19 @@ contains
     end if
 
     doubleclicked = .false.
-    isset = .false.
     if (igBeginListBox(c_loc(str),sz)) then
        do i = 1, nst
           str = st(i)%s // c_null_char
           if (igSelectable_Bool(c_loc(str), lst(i), ImGuiSelectableFlags_AllowDoubleClick, szero)) then
 
              ! implement selection range with shift and control
-             if (igIsKeyDown(ImGuiKey_ModShift).and.lastselected /= 0.and.lastselected /= i) then
+             if (igIsKeyDown(ImGuiKey_ModShift).and.w%lastselected /= 0.and.w%lastselected /= i) then
                 ! selecte a whole range
                 lst = .false.
-                if (lastselected > i) then
-                   lst(i:lastselected) = .true.
+                if (w%lastselected > i) then
+                   lst(i:w%lastselected) = .true.
                 else
-                   lst(lastselected:i) = .true.
+                   lst(w%lastselected:i) = .true.
                 end if
              elseif (igIsKeyDown(ImGuiKey_ModCtrl)) then
                 ! select and individual item and accumulate
@@ -123,9 +121,8 @@ contains
                 ! select one item, start range, remove all others
                 lst = .false.
                 lst(i) = .true.
-                lastselected = i
+                w%lastselected = i
                 doubleclicked = igIsMouseDoubleClicked(ImGuiPopupFlags_MouseButtonLeft)
-                isset = .true.
              end if
           end if
        end do
@@ -206,7 +203,7 @@ contains
        if (allocated(lst)) deallocate(lst)
        allocate(lst(nst))
        lst = .false.
-       lastselected = 0
+       w%lastselected = 0
        w%okfile_read = .false.
     end if
 
@@ -222,7 +219,7 @@ contains
       ttshown = .false.
       ismolecule = .false.
       nst = 0
-      lastselected = 0
+      w%lastselected = 0
       rborder = rborder_def*bohrtoa
       molcubic = .false.
       w%okfile = trim(clib_file)
