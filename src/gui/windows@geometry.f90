@@ -199,22 +199,8 @@ contains
           w%geometry_atomtype = atlisttype_species
           ntype = sys(isys)%c%nspc
 
-          ! reallocate if ntype has changed and redo highlights
-          if (allocated(w%geometry_selected)) then
-             if (size(w%geometry_selected,1) /= ntype) then
-                deallocate(w%geometry_selected)
-                if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
-             end if
-          end if
-          if (.not.allocated(w%geometry_selected)) then
-             allocate(w%geometry_selected(ntype))
-             w%geometry_selected = .false.
-             redo_highlights = .true.
-          end if
-          if (.not.allocated(w%geometry_rgba)) then
-             allocate(w%geometry_rgba(4,ntype))
-             w%geometry_rgba = 0._c_float
-          end if
+          ! reallocate the highlight allocs
+          call check_highlight_allocs_before_table()
 
           ! if the order array is not allocated or if its size is wrong, force a sort
           if (.not.allocated(w%iord)) then
@@ -259,22 +245,7 @@ contains
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
              ! fetch the sort specs, sort the data if necessary
-             ptrc = igTableGetSortSpecs()
-             if (c_associated(ptrc)) then
-                call c_f_pointer(ptrc,sortspecs)
-                if (c_associated(sortspecs%Specs)) then
-                   call c_f_pointer(sortspecs%Specs,colspecs)
-                   w%geometry_sortcid = colspecs%ColumnUserID
-                   w%geometry_sortdir = colspecs%SortDirection
-                   if (sortspecs%SpecsDirty .and. ntype > 1) then
-                      forcesort = .true.
-                      sortspecs%SpecsDirty = .false.
-                   end if
-                else
-                   w%geometry_sortcid = 0
-                   w%geometry_sortdir = 1
-                end if
-             end if
+             call fetch_sort_specs()
 
              ! draw the header
              call igTableHeadersRow()
@@ -289,20 +260,9 @@ contains
              ndigitidx = 0
 
              ! get the current view, if available
-             iview = 0
-             if (isys == win(iwin_view)%view_selected) then
-                iview = iwin_view
-             else
-                do j = 1, nwin
-                   if (.not.win(j)%isinit) cycle
-                   if (win(j)%type /= wintype_view.or..not.associated(win(j)%sc)) cycle
-                   if (isys == win(j)%view_selected) then
-                      iview = j
-                      exit
-                   end if
-                end do
-             end if
+             call get_current_view()
 
+             ! draw the rows
              do ii = 1, ntype
                 i = w%iord(ii)
                 suffix = "_" // string(i)
@@ -315,21 +275,7 @@ contains
                 iz = sys(isys)%c%spc(ispc)%z
 
                 ! get the color from the first active atoms representation in the main view
-                havergb = .false.
-                if (iview > 0) then
-                   do j = 1, win(iview)%sc%nrep
-                      if (win(iview)%sc%rep(j)%type == reptype_atoms.and.win(iview)%sc%rep(j)%isinit.and.&
-                         win(iview)%sc%rep(j)%shown) then
-
-                         id = sysc(isys)%attype_type_id_to_id(w%geometry_atomtype,i,win(iview)%sc%rep(j)%atom_style%type)
-                         if (id /= 0) then
-                            havergb = .true.
-                            rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,id)
-                         end if
-                         if (havergb) exit
-                      end if
-                   end do
-                end if
+                call get_color_from_view()
 
                 ! background color for the table row
                 if (w%geometry_selected(i)) then
@@ -403,47 +349,10 @@ contains
           end if
 
           !! highlight/selection row
-          ! highlight color
-          call igAlignTextToFramePadding()
-          call iw_text("Selection",highlight=.true.)
-          call igSameLine(0._c_float,-1._c_float)
-          ldum = iw_coloredit("##drawgeometryhighlightcolor",rgba=w%geometry_select_rgba)
-          call iw_tooltip("Color used for highlighting atoms")
-
-          ! Highlight buttons: all, none, toggle
-          if (iw_button("All##highlightall",sameline=.true.)) then
-             w%geometry_selected = .true.
-             do i = 1, size(w%geometry_selected,1)
-                w%geometry_rgba(:,i) = w%geometry_select_rgba
-             end do
-             redo_highlights = .true.
-          end if
-          call iw_tooltip("Select all atoms in the system",ttshown)
-          if (iw_button("None##highlightnone",sameline=.true.)) then
-             w%geometry_selected = .false.
-             redo_highlights = .true.
-          end if
-          call iw_tooltip("Deselect all atoms",ttshown)
-          if (iw_button("Toggle##highlighttoggle",sameline=.true.)) then
-             w%geometry_selected = .not.w%geometry_selected
-             do i = 1, size(w%geometry_selected,1)
-                if (w%geometry_selected(i)) &
-                   w%geometry_rgba(:,i) = w%geometry_select_rgba
-             end do
-             redo_highlights = .true.
-          end if
-          call iw_tooltip("Toggle atomic selection",ttshown)
+          call draw_highlight_buttons()
 
           !! edit row
-          ! highlight color
-          call igAlignTextToFramePadding()
-          call iw_text("Edit",highlight=.true.)
-
-          ! Remove button
-          havesel = any(w%geometry_selected)
-          if (iw_button("Remove##removeselection",sameline=.true.,disabled=.not.havesel)) &
-             removehighlight = .true.
-          call iw_tooltip("Remove selected atoms (" // trim(get_bind_keyname(BIND_EDITGEOM_REMOVE)) // ")",ttshown)
+          call draw_edit_buttons()
 
           call igEndTabItem()
        end if
@@ -473,25 +382,10 @@ contains
              end if
           end if
 
-          ! reallocate if ntype has changed and redo highlights
-          if (allocated(w%geometry_selected)) then
-             if (size(w%geometry_selected,1) /= ntype) then
-                deallocate(w%geometry_selected)
-                if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
-             end if
-          end if
-          if (.not.allocated(w%geometry_selected)) then
-             allocate(w%geometry_selected(ntype))
-             w%geometry_selected = .false.
-             redo_highlights = .true.
-          end if
-          if (.not.allocated(w%geometry_rgba)) then
-             allocate(w%geometry_rgba(4,ntype))
-             w%geometry_rgba = 0._c_float
-          end if
+          ! reallocate the highlight allocs
+          call check_highlight_allocs_before_table()
 
           ! if the order array is not allocated or if its size is wrong, force a sort
-          ! and keep the sort columns
           if (.not.allocated(w%iord)) then
              call reset_sort()
           elseif (size(w%iord,1) /= ntype) then
@@ -599,22 +493,7 @@ contains
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
              ! fetch the sort specs, sort the data if necessary
-             ptrc = igTableGetSortSpecs()
-             if (c_associated(ptrc)) then
-                call c_f_pointer(ptrc,sortspecs)
-                if (c_associated(sortspecs%Specs)) then
-                   call c_f_pointer(sortspecs%Specs,colspecs)
-                   w%geometry_sortcid = colspecs%ColumnUserID
-                   w%geometry_sortdir = colspecs%SortDirection
-                   if (sortspecs%SpecsDirty .and. ntype > 1) then
-                      forcesort = .true.
-                      sortspecs%SpecsDirty = .false.
-                   end if
-                else
-                   w%geometry_sortcid = 0
-                   w%geometry_sortdir = 1
-                end if
-             end if
+             call fetch_sort_specs()
 
              ! draw the header
              call igTableHeadersRow()
@@ -637,19 +516,7 @@ contains
              if (doidx) ndigitidx = ceiling(log10(sys(isys)%c%nneq+0.1d0))
 
              ! get the current view, if available
-             iview = 0
-             if (isys == win(iwin_view)%view_selected) then
-                iview = iwin_view
-             else
-                do j = 1, nwin
-                   if (.not.win(j)%isinit) cycle
-                   if (win(j)%type /= wintype_view.or..not.associated(win(j)%sc)) cycle
-                   if (isys == win(j)%view_selected) then
-                      iview = j
-                      exit
-                   end if
-                end do
-             end if
+             call get_current_view()
 
              ! draw the rows
              do while(ImGuiListClipper_Step(clipper))
@@ -666,21 +533,7 @@ contains
                    iz = sys(isys)%c%spc(ispc)%z
 
                    ! get the color from the first active atoms representation in the main view
-                   havergb = .false.
-                   if (iview > 0) then
-                      do j = 1, win(iview)%sc%nrep
-                         if (win(iview)%sc%rep(j)%type == reptype_atoms.and.win(iview)%sc%rep(j)%isinit.and.&
-                            win(iview)%sc%rep(j)%shown) then
-
-                            id = sysc(isys)%attype_type_id_to_id(w%geometry_atomtype,i,win(iview)%sc%rep(j)%atom_style%type)
-                            if (id /= 0) then
-                               havergb = .true.
-                               rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,id)
-                            end if
-                            if (havergb) exit
-                         end if
-                      end do
-                   end if
+                   call get_color_from_view()
 
                    ! background color for the table row
                    if (w%geometry_selected(i)) then
@@ -792,47 +645,10 @@ contains
           end if
 
           !! highlight/selection row
-          ! highlight color
-          call igAlignTextToFramePadding()
-          call iw_text("Selection",highlight=.true.)
-          call igSameLine(0._c_float,-1._c_float)
-          ldum = iw_coloredit("##drawgeometryhighlightcolor",rgba=w%geometry_select_rgba)
-          call iw_tooltip("Color used for highlighting atoms")
-
-          ! Highlight buttons: all, none, toggle
-          if (iw_button("All##highlightall",sameline=.true.)) then
-             w%geometry_selected = .true.
-             do i = 1, size(w%geometry_selected,1)
-                w%geometry_rgba(:,i) = w%geometry_select_rgba
-             end do
-             redo_highlights = .true.
-          end if
-          call iw_tooltip("Select all atoms in the system",ttshown)
-          if (iw_button("None##highlightnone",sameline=.true.)) then
-             w%geometry_selected = .false.
-             redo_highlights = .true.
-          end if
-          call iw_tooltip("Deselect all atoms",ttshown)
-          if (iw_button("Toggle##highlighttoggle",sameline=.true.)) then
-             w%geometry_selected = .not.w%geometry_selected
-             do i = 1, size(w%geometry_selected,1)
-                if (w%geometry_selected(i)) &
-                   w%geometry_rgba(:,i) = w%geometry_select_rgba
-             end do
-             redo_highlights = .true.
-          end if
-          call iw_tooltip("Toggle atomic selection",ttshown)
+          call draw_highlight_buttons()
 
           !! edit row
-          ! highlight color
-          call igAlignTextToFramePadding()
-          call iw_text("Edit",highlight=.true.)
-
-          ! Remove button
-          havesel = any(w%geometry_selected)
-          if (iw_button("Remove##removeselection",sameline=.true.,disabled=.not.havesel)) &
-             removehighlight = .true.
-          call iw_tooltip("Remove selected atoms (" // trim(get_bind_keyname(BIND_EDITGEOM_REMOVE)) // ")",ttshown)
+          call draw_edit_buttons()
 
           call igEndTabItem()
        end if
@@ -1067,6 +883,122 @@ contains
       w%iord = w%iord(iperm)
 
     end subroutine table_sort
+
+    subroutine check_highlight_allocs_before_table()
+      if (allocated(w%geometry_selected)) then
+         if (size(w%geometry_selected,1) /= ntype) then
+            deallocate(w%geometry_selected)
+            if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
+         end if
+      end if
+      if (.not.allocated(w%geometry_selected)) then
+         allocate(w%geometry_selected(ntype))
+         w%geometry_selected = .false.
+         redo_highlights = .true.
+      end if
+      if (.not.allocated(w%geometry_rgba)) then
+         allocate(w%geometry_rgba(4,ntype))
+         w%geometry_rgba = 0._c_float
+      end if
+    end subroutine check_highlight_allocs_before_table
+
+    subroutine fetch_sort_specs()
+      ptrc = igTableGetSortSpecs()
+      if (c_associated(ptrc)) then
+         call c_f_pointer(ptrc,sortspecs)
+         if (c_associated(sortspecs%Specs)) then
+            call c_f_pointer(sortspecs%Specs,colspecs)
+            w%geometry_sortcid = colspecs%ColumnUserID
+            w%geometry_sortdir = colspecs%SortDirection
+            if (sortspecs%SpecsDirty .and. ntype > 1) then
+               forcesort = .true.
+               sortspecs%SpecsDirty = .false.
+            end if
+         else
+            w%geometry_sortcid = 0
+            w%geometry_sortdir = 1
+         end if
+      end if
+    end subroutine fetch_sort_specs
+
+    subroutine get_current_view()
+      iview = 0
+      if (isys == win(iwin_view)%view_selected) then
+         iview = iwin_view
+      else
+         do j = 1, nwin
+            if (.not.win(j)%isinit) cycle
+            if (win(j)%type /= wintype_view.or..not.associated(win(j)%sc)) cycle
+            if (isys == win(j)%view_selected) then
+               iview = j
+               exit
+            end if
+         end do
+      end if
+    end subroutine get_current_view
+
+    subroutine get_color_from_view()
+      havergb = .false.
+      if (iview > 0) then
+         do j = 1, win(iview)%sc%nrep
+            if (win(iview)%sc%rep(j)%type == reptype_atoms.and.win(iview)%sc%rep(j)%isinit.and.&
+               win(iview)%sc%rep(j)%shown) then
+
+               id = sysc(isys)%attype_type_id_to_id(w%geometry_atomtype,i,win(iview)%sc%rep(j)%atom_style%type)
+               if (id /= 0) then
+                  havergb = .true.
+                  rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,id)
+               end if
+               if (havergb) exit
+            end if
+         end do
+      end if
+    end subroutine get_color_from_view
+
+    subroutine draw_highlight_buttons()
+      ! highlight color
+      call igAlignTextToFramePadding()
+      call iw_text("Selection",highlight=.true.)
+      call igSameLine(0._c_float,-1._c_float)
+      ldum = iw_coloredit("##drawgeometryhighlightcolor",rgba=w%geometry_select_rgba)
+      call iw_tooltip("Color used for highlighting atoms")
+
+      ! Highlight buttons: all, none, toggle
+      if (iw_button("All##highlightall",sameline=.true.)) then
+         w%geometry_selected = .true.
+         do i = 1, size(w%geometry_selected,1)
+            w%geometry_rgba(:,i) = w%geometry_select_rgba
+         end do
+         redo_highlights = .true.
+      end if
+      call iw_tooltip("Select all atoms in the system",ttshown)
+      if (iw_button("None##highlightnone",sameline=.true.)) then
+         w%geometry_selected = .false.
+         redo_highlights = .true.
+      end if
+      call iw_tooltip("Deselect all atoms",ttshown)
+      if (iw_button("Toggle##highlighttoggle",sameline=.true.)) then
+         w%geometry_selected = .not.w%geometry_selected
+         do i = 1, size(w%geometry_selected,1)
+            if (w%geometry_selected(i)) &
+               w%geometry_rgba(:,i) = w%geometry_select_rgba
+         end do
+         redo_highlights = .true.
+      end if
+      call iw_tooltip("Toggle atomic selection",ttshown)
+    end subroutine draw_highlight_buttons
+
+    subroutine draw_edit_buttons()
+      ! highlight color
+      call igAlignTextToFramePadding()
+      call iw_text("Edit",highlight=.true.)
+
+      ! Remove button
+      havesel = any(w%geometry_selected)
+      if (iw_button("Remove##removeselection",sameline=.true.,disabled=.not.havesel)) &
+         removehighlight = .true.
+      call iw_tooltip("Remove selected atoms (" // trim(get_bind_keyname(BIND_EDITGEOM_REMOVE)) // ")",ttshown)
+    end subroutine draw_edit_buttons
 
   end subroutine draw_geometry
 
