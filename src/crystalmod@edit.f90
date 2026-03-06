@@ -877,9 +877,9 @@ contains
     type(crystalseed) :: seed
     logical, allocatable :: useatoms(:)
     integer, allocatable :: usespcs(:)
-    integer :: i, isel, nnspc, izmax
+    integer :: i, nnspc, izmax
     integer :: mergespc
-    real*8 :: mergex(3), x0(3), xd(3), rdum, dd, dmin
+    real*8 :: mergex(3), x0(3), xd(3), rdum
 
     ! return if nothing to do
     if (nat == 0) return
@@ -903,25 +903,6 @@ contains
              mergespc = c%atcel(iat(i))%is
              izmax = c%spc(c%atcel(iat(i))%is)%z
           end if
-       end do
-       mergex = mergex / real(nat,8)
-
-       ! pick the atom closest to the merge position from the first pass
-       isel = -1
-       dmin = 1d40
-       do i = 1, nat
-          dd = c%eql_distance(c%atcel(iat(i))%x,mergex)
-          if (dd < dmin) isel = i
-       end do
-
-       ! final calculation of the merge position
-       x0 = c%atcel(iat(isel))%x
-       mergex = x0
-       do i = 1, nat
-          if (i == isel) cycle
-          xd = c%atcel(iat(i))%x - x0
-          call c%shortest(xd,rdum)
-          mergex = mergex + (x0 + c%c2x(xd))
        end do
        mergex = mergex / real(nat,8)
     end if
