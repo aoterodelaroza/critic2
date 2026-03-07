@@ -876,9 +876,9 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
-    logical, allocatable :: useatoms(:)
+    logical, allocatable :: useatoms(:), dupatoms(:)
     integer, allocatable :: usespcs(:)
-    integer :: i, ipres, nnspc, izmax, mergespc
+    integer :: i, ipres, nnspc, izmax, mergespc, natnew
     real*8 :: mergex(3), x0(3), xd(3), rdum
     logical :: remove_, merge_, duplicate_
 
@@ -930,8 +930,9 @@ contains
     end if
 
     ! flag the atoms and species to use
-    allocate(useatoms(c%ncel),usespcs(c%nspc))
+    allocate(useatoms(c%ncel),usespcs(c%nspc),dupatoms(c%ncel))
     useatoms = .true.
+    dupatoms = .false.
     if (merge_ .or. remove_) then
        do i = 1, nat
           useatoms(iat(i)) = .false.
@@ -951,6 +952,9 @@ contains
        do i = 1, nnspc
           usespcs(i) = i
        end do
+       do i = 1, nat
+          dupatoms(iat(i)) = .true.
+       end do
     end if
 
     ! if merging, make sure we do not lose the target species
@@ -961,6 +965,18 @@ contains
        end if
     end if
 
+    ! reallocate the seed arrays
+    if (remove_) then
+       natnew = count(useatoms)
+    elseif (merge_) then
+       natnew = count(useatoms) + 1
+    else
+       natnew = c%ncel + nat
+    end if
+    call realloc(seed%x,3,natnew)
+    call realloc(seed%is,natnew)
+    call realloc(seed%atname,natnew)
+
     ! re-do the atom and species info
     seed%nat = 0
     do i = 1, c%ncel
@@ -969,10 +985,16 @@ contains
           seed%x(:,seed%nat) = c%atcel(i)%x
           seed%atname(seed%nat) = c%at(c%atcel(i)%idx)%name
           seed%is(seed%nat) = usespcs(c%atcel(i)%is)
+          if (dupatoms(i)) then
+             seed%nat = seed%nat + 1
+             seed%x(:,seed%nat) = c%atcel(i)%x
+             seed%atname(seed%nat) = c%at(c%atcel(i)%idx)%name
+             seed%is(seed%nat) = usespcs(c%atcel(i)%is)
+          end if
        end if
     end do
 
-    ! if merging, add the merged atom
+    ! if merging, add the merged atom at the end
     if (merge_) then
        seed%nat = seed%nat + 1
        seed%x(:,seed%nat) = mergex
@@ -980,23 +1002,7 @@ contains
        seed%atname(seed%nat) = c%spc(mergespc)%name
     end if
 
-    ! if duplicating, add the duplicated atoms
-    if (duplicate_) then
-       call realloc(seed%x,3,seed%nat+nat)
-       call realloc(seed%is,seed%nat+nat)
-       call realloc(seed%atname,seed%nat+nat)
-       do i = 1, nat
-          seed%nat = seed%nat + 1
-          seed%x(:,seed%nat) = c%atcel(iat(i))%x
-          seed%atname(seed%nat) = c%at(c%atcel(iat(i))%idx)%name
-          seed%is(seed%nat) = c%atcel(iat(i))%is
-       end do
-    end if
-
     ! finish the seed
-    call realloc(seed%x,3,seed%nat)
-    call realloc(seed%is,seed%nat)
-    call realloc(seed%atname,seed%nat)
     seed%nspc = nnspc
     do i = 1, c%nspc
        if (usespcs(i) > 0) seed%spc(usespcs(i)) = c%spc(i)
