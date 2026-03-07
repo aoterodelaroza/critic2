@@ -147,7 +147,10 @@ module windows
      real(c_float) :: geometry_select_rgba(4) ! highlight color
      integer(c_int) :: geometry_sortcid = 0 ! sort table by this column id
      integer(c_int) :: geometry_sortdir = 1 ! sort table with this direction
+     real*8 :: geometry_input_coord(3) = 0d0 ! coordinates for the new atom in add button
+     integer :: geometry_input_species = 1 ! species for the new atom in add button
      real*8 :: timelast_geometry_sort = 0d0  ! time the geometry table was last sorted
+     real*8 :: timelast_geometry_clearhighlights = 0d0 ! time the highlights were last cleared
      ! preferences parameters
      logical :: color_preferences_reset_reps = .true. ! whether changing the element colors resets current representations
    contains

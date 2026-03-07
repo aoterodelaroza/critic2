@@ -86,6 +86,7 @@ contains
     integer, parameter :: iaction_set_attype_species = 3
     integer, parameter :: iaction_set_atom_position = 4
     integer, parameter :: iaction_add_species_change_atom = 5
+    integer, parameter :: iaction_add_atom = 6
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_none = 0
@@ -129,10 +130,9 @@ contains
     ! first pass
     if (w%firstpass) then
        w%tied_to_tree = (w%isys == win(iwin_tree)%tree_selected)
-       if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
-       if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
-       w%geometry_select_rgba = ColorHighlightSelectScene
+       call clear_highlights_table()
        call reset_sort()
+       w%geometry_select_rgba = ColorHighlightSelectScene
        w%lastselected = 0
        w%tabselected = ""
     end if
@@ -162,6 +162,9 @@ contains
     ! force sort if the system has been rebonded or changed geometry
     if (w%timelast_geometry_sort < sysc(isys)%timelastchange_rebond) then
        call reset_sort()
+    end if
+    if (w%timelast_geometry_clearhighlights < sysc(isys)%timelastchange_geometry) then
+       call clear_highlights_table()
     end if
 
     ! system combo
@@ -831,6 +834,8 @@ contains
     elseif (iaction == iaction_add_species_change_atom) then
        call sysc(isys)%add_species(iaction_i1)
        call sysc(isys)%set_attype_species(w%geometry_atomtype,iaction_i2,sys(isys)%c%nspc)
+    elseif (iaction == iaction_add_atom) then
+       call sysc(isys)%attype_add_atom(w%geometry_atomtype,iaction_i1,iaction_x)
     end if
 
   contains
@@ -864,6 +869,16 @@ contains
       forcesort = .true.
 
     end subroutine reset_sort
+
+    ! deallocate the highlights arrays, forcing a recalculation
+    subroutine clear_highlights_table()
+      use interfaces_glfw, only: glfwGetTime
+
+      w%timelast_geometry_clearhighlights = glfwGetTime()
+      if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
+      if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
+
+    end subroutine clear_highlights_table
 
     ! calculate the w%iord to sort the table
     subroutine table_sort()
@@ -1087,8 +1102,12 @@ contains
     ! draw the row of buttons controlling the edition of the system
     subroutine draw_edit_buttons()
 
+      integer, parameter :: mbuf = 128
+
       logical :: ldum, ok
       integer :: izout
+      real*8 :: xnew(3)
+      character(len=:), allocatable :: str
 
       ! highlight color
       call igAlignTextToFramePadding()
@@ -1104,8 +1123,52 @@ contains
                iaction_i1 = izout
                call igCloseCurrentPopup()
             end if
+         else
+            call igAlignTextToFramePadding()
+            call iw_text("Position")
+            ldum = iw_dragfloat_real8("##xaddcoord",x1=w%geometry_input_coord(1),speed=0.001d0,decimal=6,sameline=.true.)
+            ldum = iw_dragfloat_real8("##yaddcoord",x1=w%geometry_input_coord(2),speed=0.001d0,decimal=6,sameline=.true.)
+            ldum = iw_dragfloat_real8("##zaddcoord",x1=w%geometry_input_coord(3),speed=0.001d0,decimal=6,sameline=.true.)
+
+            call igAlignTextToFramePadding()
+            call iw_text("Species")
+            str = string(w%geometry_input_species) // ": " // trim(sys(isys)%c%spc(w%geometry_input_species)%name)
+            ldum = iw_button(str // "##speciesaddcoord",popupcontext=ok,&
+               popupflags=ImGuiPopupFlags_MouseButtonLeft,sameline=.true.)
+            if (ok) then
+               ldum = iw_menuitem("Species ",enabled=.false.)
+               call igSeparator()
+               do j = 1, sys(isys)%c%nspc
+                  if (iw_menuitem(string(j) // ": " // trim(sys(isys)%c%spc(j)%name))) then
+                     w%geometry_input_species = j
+                  end if
+               end do
+               call igSeparator()
+               str1 = "New" // c_null_char
+               if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+                  izout = iw_periodictable()
+                  if (izout >= 0) then
+                     iaction = iaction_add_species
+                     iaction_i1 = izout
+                     w%geometry_input_species = sys(isys)%c%nspc+1
+                     call igCloseCurrentPopup()
+                  end if
+                  call igEndMenu()
+               end if
+               call igEndPopup()
+            end if
+
+            if (iw_button("Add")) then
+               iaction = iaction_add_atom
+               iaction_i1 = w%geometry_input_species
+               iaction_x = w%geometry_input_coord
+               call igCloseCurrentPopup()
+            end if
          end if
          call igEndPopup()
+      else
+         w%geometry_input_coord = 0d0
+         w%geometry_input_species = 1
       end if
 
       ! Duplicate button

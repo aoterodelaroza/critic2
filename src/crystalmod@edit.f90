@@ -1180,4 +1180,52 @@ contains
 
   end subroutine move_cell
 
+  !> Add atom with species is and position x in units of iunit_l (see
+  !> global). If isnneq, replicate the atom by symmetry.
+  module subroutine add_atom(c,is,x,iunit_l,isnneq,ti)
+    use crystalseedmod, only: crystalseed
+    use types, only: realloc
+    use global, only: iunit_ang, iunit_bohr
+    use param, only: bohrtoa
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: is
+    real*8, intent(in) :: x(3)
+    integer, intent(in) :: iunit_l
+    logical, intent(in) :: isnneq
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: seed
+    real*8 :: xx(3)
+    logical :: copysym
+
+    ! whether to use symmetry
+    copysym = isnneq .and. .not.c%ismolecule .and. c%spgavail
+
+    ! make seed from this crystal
+    call c%makeseed(seed,copysym=copysym)
+
+    ! interpret units
+    if (iunit_l == iunit_ang) then
+       xx = x / bohrtoa
+       xx = c%c2x(xx)
+    elseif (iunit_l == iunit_bohr) then
+       xx = c%c2x(x)
+    else
+       xx = x
+    end if
+
+    ! add the atom
+    seed%nat = seed%nat + 1
+    call realloc(seed%x,3,seed%nat)
+    call realloc(seed%is,seed%nat)
+    call realloc(seed%atname,seed%nat)
+    seed%x(:,seed%nat) = x
+    seed%is(seed%nat) = is
+    seed%atname(seed%nat) = c%spc(is)%name
+
+    ! build the new crystal
+    call c%struct_new(seed,crashfail=.true.,ti=ti)
+
+  end subroutine add_atom
+
 end submodule edit

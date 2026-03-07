@@ -292,6 +292,7 @@ module crystalmod
      procedure :: change_atom_species !< Change the species of atoms
      procedure :: move_atom !< Move an atom
      procedure :: move_cell !< Move the unit cell
+     procedure :: add_atom !< Add an atom
 
      ! symmetry (symmetry)
      procedure :: sitesymm !< Determine the local-symmetry group symbol for a point
@@ -772,6 +773,14 @@ module crystalmod
        logical, intent(in) :: dorelative, dofraction
        type(thread_info), intent(in), optional :: ti
      end subroutine move_cell
+     module subroutine add_atom(c,is,x,iunit_l,isnneq,ti)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: is
+       real*8, intent(in) :: x(3)
+       integer, intent(in) :: iunit_l
+       logical, intent(in) :: isnneq
+       type(thread_info), intent(in), optional :: ti
+     end subroutine add_atom
      module function sitesymm(c,x0,eps0,leqv,lrotm)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3)

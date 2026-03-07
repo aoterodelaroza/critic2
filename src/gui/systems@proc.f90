@@ -1234,6 +1234,47 @@ contains
 
   end function attype_type_id_to_id
 
+  !> Add atom of the given atom type with species is and coordinates x.
+  module subroutine attype_add_atom(sysc,type,is,x)
+    use global, only: iunit_bohr, iunit_fractional
+    use param, only: bohrtoa
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: is
+    real*8, intent(in) :: x(3)
+
+    integer :: isys
+    real*8 :: x_(3)
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! initialize
+    x_ = x
+
+    ! add the atom
+    if (type == atlisttype_nneq) then
+       call sys(isys)%c%add_atom(is,x_,iunit_fractional,.true.)
+    elseif (type == atlisttype_ncel_frac) then
+       call sys(isys)%c%add_atom(is,x_,iunit_fractional,.false.)
+    elseif (type == atlisttype_ncel_bohr) then
+       if (sys(isys)%c%ismolecule) x_ = x - sys(isys)%c%molx0
+       call sys(isys)%c%add_atom(is,x_,iunit_bohr,.false.)
+    elseif (type == atlisttype_ncel_ang) then
+       if (sys(isys)%c%ismolecule) then
+          x_ = x/bohrtoa - sys(isys)%c%molx0
+       else
+          x_ = x/bohrtoa
+       end if
+       call sys(isys)%c%add_atom(is,x_,iunit_bohr,.false.)
+    end if
+
+    ! the geometry has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine attype_add_atom
+
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
   module subroutine set_atom_position(sysc,type,id,x,forcewyc)
