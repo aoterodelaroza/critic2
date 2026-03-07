@@ -1087,9 +1087,26 @@ contains
     ! draw the row of buttons controlling the edition of the system
     subroutine draw_edit_buttons()
 
+      logical :: ldum, ok
+      integer :: izout
+
       ! highlight color
       call igAlignTextToFramePadding()
       call iw_text("Edit",highlight=.true.)
+
+      ! Add button
+      ldum = iw_button("Add##addatom",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+      if (ok) then
+         if (w%geometry_atomtype == atlisttype_species) then
+            izout = iw_periodictable()
+            if (izout >= 0) then
+               iaction = iaction_add_species
+               iaction_i1 = izout
+               call igCloseCurrentPopup()
+            end if
+         end if
+         call igEndPopup()
+      end if
 
       ! Duplicate button
       havesel = any(w%geometry_selected)
@@ -1098,7 +1115,6 @@ contains
       call iw_tooltip("Duplicate selected atoms",ttshown)
 
       ! Remove button
-      havesel = any(w%geometry_selected)
       if (iw_button("Remove##removeselection",sameline=.true.,disabled=.not.havesel)) &
          edithighlight = edit_remove
       call iw_tooltip("Remove selected atoms (" // trim(get_bind_keyname(BIND_EDITGEOM_REMOVE)) // ")",ttshown)
