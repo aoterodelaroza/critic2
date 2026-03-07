@@ -753,19 +753,19 @@ contains
 
   end subroutine highlight_clear
 
-  !> Remove the highlighted atoms from the system.
-  module subroutine remove_or_merge_highlighted_atoms(sysc,merge)
+  !> Remove, merge or duplicate the highlighted atoms in the system.
+  module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate)
     class(sysconf), intent(inout) :: sysc
-    logical, intent(in) :: merge
+    logical, intent(in), optional :: remove, merge, duplicate
 
-    integer :: i, nat, id
+    integer :: i, nat, id, ipres
     integer, allocatable :: iat(:)
 
     ! consistency checks
     id = sysc%id
     if (.not.ok_system(id,sys_init)) return
 
-    ! build the list of atoms to remove/merge
+    ! build the list of atoms to remove/merge/duplicate
     allocate(iat(sys(id)%c%ncel))
     nat = 0
     do i = 1, sys(id)%c%ncel
@@ -778,13 +778,13 @@ contains
     ! return if nothing to do
     if (nat == 0) return
 
-    ! remove the atoms, reset fields
-    call sys(id)%c%remove_or_merge_atoms(nat,iat(1:nat),merge)
+    ! remove/merge/duplicate the atoms
+    call sys(id)%c%edit_atom_list(nat,iat(1:nat),remove,merge,duplicate)
 
     ! the geometry has changed
     call sysc%post_event(lastchange_geometry)
 
-  end subroutine remove_or_merge_highlighted_atoms
+  end subroutine edit_highlighted_atoms
 
   ! Show a simple combo using the allowed atom types. Type is the
   ! initial and final atom type in the combo.

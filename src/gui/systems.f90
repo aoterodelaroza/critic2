@@ -92,7 +92,7 @@ module systems
      ! highlights
      procedure :: highlight_atoms
      procedure :: highlight_clear
-     procedure :: remove_or_merge_highlighted_atoms
+     procedure :: edit_highlighted_atoms
      ! atlisttype tools
      procedure :: attype_combo_simple
      procedure :: attype_number
@@ -199,10 +199,10 @@ module systems
        integer, intent(in), optional :: idx(:)
        integer, intent(in), optional :: type
      end subroutine highlight_clear
-     module subroutine remove_or_merge_highlighted_atoms(sysc,merge)
+     module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate)
        class(sysconf), intent(inout) :: sysc
-       logical, intent(in) :: merge
-     end subroutine remove_or_merge_highlighted_atoms
+       logical, intent(in), optional :: remove, merge, duplicate
+     end subroutine edit_highlighted_atoms
      module function attype_combo_simple(sysc,label,type,allowed,units)
        class(sysconf), intent(inout) :: sysc
        character(len=*), intent(in) :: label

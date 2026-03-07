@@ -288,7 +288,7 @@ module crystalmod
      procedure :: cell_delaunay !< Transform to the Delaunay primitive cell
      procedure :: reorder_atoms !< reorder the atoms in the crystal/molecule
      procedure :: wholemols !< Re-assign atomic types to have an asymmetric unit with whole molecules
-     procedure :: remove_or_merge_atoms !< Remove or merge a list of atoms
+     procedure :: edit_atom_list !< Remove/merge/duplicate a list of atoms
      procedure :: change_atom_species !< Change the species of atoms
      procedure :: move_atom !< Move an atom
      procedure :: move_cell !< Move the unit cell
@@ -741,13 +741,13 @@ module crystalmod
        class(crystal), intent(inout) :: c
        type(thread_info), intent(in), optional :: ti
      end subroutine wholemols
-     module subroutine remove_or_merge_atoms(c,nat,iat,merge,ti)
+     module subroutine edit_atom_list(c,nat,iat,remove,merge,duplicate,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: nat
        integer, intent(in) :: iat(nat)
-       logical, intent(in) :: merge
+       logical, intent(in), optional :: remove, merge, duplicate
        type(thread_info), intent(in), optional :: ti
-     end subroutine remove_or_merge_atoms
+     end subroutine edit_atom_list
      module subroutine change_atom_species(c,nat,iat,is,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: nat

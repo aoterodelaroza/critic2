@@ -865,31 +865,53 @@ contains
 
   !> Remove or merge the atoms with IDs in the array iat(1:nat) from
   !> the structure.
-  module subroutine remove_or_merge_atoms(c,nat,iat,merge,ti)
+  module subroutine edit_atom_list(c,nat,iat,remove,merge,duplicate,ti)
     use crystalseedmod, only: crystalseed
     use types, only: realloc
+    use tools_io, only: ferror, faterr
     class(crystal), intent(inout) :: c
     integer, intent(in) :: nat
     integer, intent(in) :: iat(nat)
-    logical, intent(in) :: merge
+    logical, intent(in), optional :: remove, merge, duplicate
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     logical, allocatable :: useatoms(:)
     integer, allocatable :: usespcs(:)
-    integer :: i, nnspc, izmax
-    integer :: mergespc
+    integer :: i, ipres, nnspc, izmax, mergespc
     real*8 :: mergex(3), x0(3), xd(3), rdum
+    logical :: remove_, merge_, duplicate_
 
     ! return if nothing to do
     if (nat == 0) return
+
+    ! check input options
+    remove_ = .false.
+    merge_ = .false.
+    duplicate_ = .false.
+    ipres = 0
+    if (present(remove)) then
+       ipres = ipres + 1
+       remove_ = remove
+    end if
+    if (present(merge)) then
+       ipres = ipres + 1
+       merge_ = merge
+    end if
+    if (present(duplicate)) then
+       ipres = ipres + 1
+       duplicate_ = duplicate
+    end if
+    if (ipres == 0) return
+    if (ipres > 1) &
+       call ferror('edit_atom_list','more than one of merge/remove/duplicate',faterr)
 
     ! make seed from this crystal
     call c%makeseed(seed,copysym=.false.)
 
     ! calculate the position of the merged atom: the heaviest atom in
     ! the list at the average position
-    if (merge) then
+    if (merge_) then
        ! first pass, calculate approximate average position based on atom 1
        x0 = c%atcel(iat(1))%x
        mergespc = c%atcel(iat(1))%is
@@ -910,22 +932,29 @@ contains
     ! flag the atoms and species to use
     allocate(useatoms(c%ncel),usespcs(c%nspc))
     useatoms = .true.
-    do i = 1, nat
-       useatoms(iat(i)) = .false.
-    end do
-    usespcs = 0
-    nnspc = 0
-    do i = 1, c%ncel
-       if (useatoms(i)) then
-          if (usespcs(c%atcel(i)%is) == 0) then
-             nnspc = nnspc + 1
-             usespcs(c%atcel(i)%is) = nnspc
+    if (merge_ .or. remove_) then
+       do i = 1, nat
+          useatoms(iat(i)) = .false.
+       end do
+       usespcs = 0
+       nnspc = 0
+       do i = 1, c%ncel
+          if (useatoms(i)) then
+             if (usespcs(c%atcel(i)%is) == 0) then
+                nnspc = nnspc + 1
+                usespcs(c%atcel(i)%is) = nnspc
+             end if
           end if
-       end if
-    end do
+       end do
+    else
+       nnspc = c%nspc
+       do i = 1, nnspc
+          usespcs(i) = i
+       end do
+    end if
 
     ! if merging, make sure we do not lose the target species
-    if (merge) then
+    if (merge_) then
        if (usespcs(mergespc) == 0) then
           nnspc = nnspc + 1
           usespcs(mergespc) = nnspc
@@ -944,16 +973,30 @@ contains
     end do
 
     ! if merging, add the merged atom
-    if (merge) then
+    if (merge_) then
        seed%nat = seed%nat + 1
        seed%x(:,seed%nat) = mergex
        seed%is(seed%nat) = usespcs(mergespc)
        seed%atname(seed%nat) = c%spc(mergespc)%name
     end if
 
+    ! if duplicating, add the duplicated atoms
+    if (duplicate_) then
+       call realloc(seed%x,3,seed%nat+nat)
+       call realloc(seed%is,seed%nat+nat)
+       call realloc(seed%atname,seed%nat+nat)
+       do i = 1, nat
+          seed%nat = seed%nat + 1
+          seed%x(:,seed%nat) = c%atcel(iat(i))%x
+          seed%atname(seed%nat) = c%at(c%atcel(iat(i))%idx)%name
+          seed%is(seed%nat) = c%atcel(iat(i))%is
+       end do
+    end if
+
     ! finish the seed
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
+    call realloc(seed%atname,seed%nat)
     seed%nspc = nnspc
     do i = 1, c%nspc
        if (usespcs(i) > 0) seed%spc(usespcs(i)) = c%spc(i)
@@ -963,7 +1006,7 @@ contains
     ! build the new crystal
     call c%struct_new(seed,crashfail=.true.,ti=ti)
 
-  end subroutine remove_or_merge_atoms
+  end subroutine edit_atom_list
 
   !> Change the atoms with IDs in the array iat(1:nat) from their
   !> current species to is, and reset the atom name to the

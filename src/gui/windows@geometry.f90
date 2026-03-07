@@ -52,9 +52,10 @@ contains
     use tools_io, only: string, nameguess, ioj_center
     class(window), intent(inout), target :: w
 
-    logical :: domol, dowyc, doidx, docoord, havesel, removehighlight, mergehighlight
+    logical :: domol, dowyc, doidx, docoord, havesel
     logical :: doquit, dorestore, clicked, forcesort, ch
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:9)
+    integer :: edithighlight
     logical(c_bool) :: is_selected, redo_highlights
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
@@ -74,7 +75,7 @@ contains
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
 
-    ! actions
+    ! actions at the end of the window draw
     integer :: iaction, iaction_i1, iaction_i2
     real*8 :: iaction_x(3)
     logical :: iaction_l
@@ -86,8 +87,13 @@ contains
     integer, parameter :: iaction_set_atom_position = 4
     integer, parameter :: iaction_add_species_change_atom = 5
 
-    logical, save :: ttshown = .false. ! tooltip flag
+    ! edit actions on highglighted atoms
+    integer, parameter :: edit_none = 0
+    integer, parameter :: edit_remove = 1
+    integer, parameter :: edit_merge = 2
+    integer, parameter :: edit_duplicate = 3
 
+    ! table column IDs
     integer, parameter :: ic_id = 0
     integer, parameter :: ic_atom = 1
     integer, parameter :: ic_zat = 2
@@ -99,10 +105,14 @@ contains
     integer, parameter :: ic_y = 8
     integer, parameter :: ic_z = 9
 
+    ! allowed atom list types in tables
     integer, parameter :: atlisttype_allowed(4) = (/atlisttype_nneq,&
        atlisttype_ncel_frac,atlisttype_ncel_ang,atlisttype_ncel_bohr/)
 
+    ! threshold for resetting atom position
     real*8, parameter :: epsmoved = 1d-8
+
+    logical, save :: ttshown = .false. ! tooltip flag
 
     ! initialize
     ihighlight = 0
@@ -112,8 +122,7 @@ contains
     szero%x = 0
     szero%y = 0
     redo_highlights = .false.
-    removehighlight = .false.
-    mergehighlight = .false.
+    edithighlight = edit_none
     forcesort = .false.
     iaction = -1
 
@@ -780,11 +789,14 @@ contains
     end if
 
     ! remove/merge highlighted atoms
-    removehighlight = removehighlight .or. (w%focused() .and. is_bind_event(BIND_EDITGEOM_REMOVE))
-    if (removehighlight) &
-       call sysc(isys)%remove_or_merge_highlighted_atoms(.false.)
-    if (mergehighlight) &
-       call sysc(isys)%remove_or_merge_highlighted_atoms(.true.)
+    if (w%focused() .and. is_bind_event(BIND_EDITGEOM_REMOVE)) edithighlight = edit_remove
+    if (edithighlight == edit_remove) then
+       call sysc(isys)%edit_highlighted_atoms(remove=.true.)
+    elseif (edithighlight == edit_merge) then
+       call sysc(isys)%edit_highlighted_atoms(merge=.true.)
+    elseif (edithighlight == edit_duplicate) then
+       call sysc(isys)%edit_highlighted_atoms(duplicate=.true.)
+    end if
 
     ! right-align and bottom-align for the rest of the contents
     call igGetContentRegionAvail(szavail)
@@ -1079,15 +1091,21 @@ contains
       call igAlignTextToFramePadding()
       call iw_text("Edit",highlight=.true.)
 
+      ! Duplicate button
+      havesel = any(w%geometry_selected)
+      if (iw_button("Duplicate##duplicateselection",sameline=.true.,disabled=.not.havesel)) &
+         edithighlight = edit_duplicate
+      call iw_tooltip("Duplicate selected atoms",ttshown)
+
       ! Remove button
       havesel = any(w%geometry_selected)
       if (iw_button("Remove##removeselection",sameline=.true.,disabled=.not.havesel)) &
-         removehighlight = .true.
+         edithighlight = edit_remove
       call iw_tooltip("Remove selected atoms (" // trim(get_bind_keyname(BIND_EDITGEOM_REMOVE)) // ")",ttshown)
 
       ! Merge button
       if (iw_button("Merge##mergeselection",sameline=.true.,disabled=.not.havesel)) &
-         mergehighlight = .true.
+         edithighlight = edit_merge
       call iw_tooltip("Merge selected atoms",ttshown)
 
     end subroutine draw_edit_buttons
