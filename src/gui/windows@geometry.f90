@@ -105,6 +105,7 @@ contains
     integer, parameter :: ic_x = 7
     integer, parameter :: ic_y = 8
     integer, parameter :: ic_z = 9
+    integer, parameter :: ic_nat = 10
 
     ! allowed atom list types in tables
     integer, parameter :: atlisttype_allowed(4) = (/atlisttype_nneq,&
@@ -228,7 +229,7 @@ contains
           end if
 
           ! number of columns
-          ncol = 3
+          ncol = 4
 
           ! atom style table, for atoms
           flags = ImGuiTableFlags_None
@@ -260,6 +261,11 @@ contains
              str2 = "Z " // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
              icolsort(icol) = ic_zat
+
+             icol = icol + 1
+             str2 = "Num. Atoms" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             icolsort(icol) = ic_nat
 
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
@@ -345,6 +351,12 @@ contains
                       end if
                       call igEndPopup()
                    end if
+                end if
+
+                ! nat
+                icol = icol + 1
+                if (igTableSetColumnIndex(icol)) then
+                   call iw_text(string(count(sys(isys)%c%atcel(:)%is == i)))
                 end if
              end do
 
