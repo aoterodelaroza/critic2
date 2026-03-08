@@ -877,8 +877,7 @@ contains
 
     type(crystalseed) :: seed
     logical, allocatable :: useatoms(:), dupatoms(:)
-    integer, allocatable :: usespcs(:)
-    integer :: i, ipres, nnspc, izmax, mergespc, natnew
+    integer :: i, ipres, izmax, mergespc, natnew
     real*8 :: mergex(3), x0(3), xd(3), rdum
     logical :: remove_, merge_, duplicate_
 
@@ -891,16 +890,16 @@ contains
     duplicate_ = .false.
     ipres = 0
     if (present(remove)) then
-       ipres = ipres + 1
        remove_ = remove
+       if (remove_) ipres = ipres + 1
     end if
     if (present(merge)) then
-       ipres = ipres + 1
        merge_ = merge
+       if (merge_) ipres = ipres + 1
     end if
     if (present(duplicate)) then
-       ipres = ipres + 1
        duplicate_ = duplicate
+       if (duplicate_) ipres = ipres + 1
     end if
     if (ipres == 0) return
     if (ipres > 1) &
@@ -930,39 +929,17 @@ contains
     end if
 
     ! flag the atoms and species to use
-    allocate(useatoms(c%ncel),usespcs(c%nspc),dupatoms(c%ncel))
+    allocate(useatoms(c%ncel),dupatoms(c%ncel))
     useatoms = .true.
     dupatoms = .false.
     if (merge_ .or. remove_) then
        do i = 1, nat
           useatoms(iat(i)) = .false.
        end do
-       usespcs = 0
-       nnspc = 0
-       do i = 1, c%ncel
-          if (useatoms(i)) then
-             if (usespcs(c%atcel(i)%is) == 0) then
-                nnspc = nnspc + 1
-                usespcs(c%atcel(i)%is) = nnspc
-             end if
-          end if
-       end do
     else
-       nnspc = c%nspc
-       do i = 1, nnspc
-          usespcs(i) = i
-       end do
        do i = 1, nat
           dupatoms(iat(i)) = .true.
        end do
-    end if
-
-    ! if merging, make sure we do not lose the target species
-    if (merge_) then
-       if (usespcs(mergespc) == 0) then
-          nnspc = nnspc + 1
-          usespcs(mergespc) = nnspc
-       end if
     end if
 
     ! reallocate the seed arrays
@@ -984,12 +961,12 @@ contains
           seed%nat = seed%nat + 1
           seed%x(:,seed%nat) = c%atcel(i)%x
           seed%atname(seed%nat) = c%at(c%atcel(i)%idx)%name
-          seed%is(seed%nat) = usespcs(c%atcel(i)%is)
+          seed%is(seed%nat) = c%atcel(i)%is
           if (dupatoms(i)) then
              seed%nat = seed%nat + 1
              seed%x(:,seed%nat) = c%atcel(i)%x
              seed%atname(seed%nat) = c%at(c%atcel(i)%idx)%name
-             seed%is(seed%nat) = usespcs(c%atcel(i)%is)
+             seed%is(seed%nat) = c%atcel(i)%is
           end if
        end if
     end do
@@ -998,16 +975,9 @@ contains
     if (merge_) then
        seed%nat = seed%nat + 1
        seed%x(:,seed%nat) = mergex
-       seed%is(seed%nat) = usespcs(mergespc)
+       seed%is(seed%nat) = mergespc
        seed%atname(seed%nat) = c%spc(mergespc)%name
     end if
-
-    ! finish the seed
-    seed%nspc = nnspc
-    do i = 1, c%nspc
-       if (usespcs(i) > 0) seed%spc(usespcs(i)) = c%spc(i)
-    end do
-    call realloc(seed%spc,seed%nspc)
 
     ! build the new crystal
     call c%struct_new(seed,crashfail=.true.,ti=ti)

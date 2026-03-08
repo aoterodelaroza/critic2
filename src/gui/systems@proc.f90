@@ -758,7 +758,7 @@ contains
     class(sysconf), intent(inout) :: sysc
     logical, intent(in), optional :: remove, merge, duplicate
 
-    integer :: i, nat, id, ipres
+    integer :: i, nat, id
     integer, allocatable :: iat(:)
 
     ! consistency checks

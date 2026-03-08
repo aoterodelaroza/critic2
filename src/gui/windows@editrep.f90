@@ -63,7 +63,7 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: isys, ll, itype
+    integer :: isys, itype
     logical :: doquit, ok, ldum
     logical(c_bool) :: changed
     character(kind=c_char,len=1024), target :: txtinp
@@ -163,7 +163,7 @@ contains
     logical, intent(inout) :: ttshown
     logical(c_bool) :: changed
 
-    integer :: ispc, isys, iz, ll, ipad
+    integer :: ispc, isys, iz, ipad
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, suffix
     real*8 :: x0(3)
     logical(c_bool) :: ch, ldum

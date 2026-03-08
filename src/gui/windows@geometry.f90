@@ -55,7 +55,6 @@ contains
     logical :: domol, dowyc, doidx, docoord, havesel
     logical :: doquit, dorestore, clicked, forcesort, ch
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:9)
-    integer :: edithighlight
     logical(c_bool) :: is_selected, redo_highlights
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
@@ -87,6 +86,7 @@ contains
     integer, parameter :: iaction_set_atom_position = 4
     integer, parameter :: iaction_add_species_change_atom = 5
     integer, parameter :: iaction_add_atom = 6
+    integer, parameter :: iaction_edit_highlighted = 7
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_none = 0
@@ -123,7 +123,6 @@ contains
     szero%x = 0
     szero%y = 0
     redo_highlights = .false.
-    edithighlight = edit_none
     forcesort = .false.
     iaction = -1
 
@@ -792,13 +791,9 @@ contains
     end if
 
     ! remove/merge highlighted atoms
-    if (w%focused() .and. is_bind_event(BIND_EDITGEOM_REMOVE)) edithighlight = edit_remove
-    if (edithighlight == edit_remove) then
-       call sysc(isys)%edit_highlighted_atoms(remove=.true.)
-    elseif (edithighlight == edit_merge) then
-       call sysc(isys)%edit_highlighted_atoms(merge=.true.)
-    elseif (edithighlight == edit_duplicate) then
-       call sysc(isys)%edit_highlighted_atoms(duplicate=.true.)
+    if (w%focused() .and. is_bind_event(BIND_EDITGEOM_REMOVE)) then
+       iaction = iaction_edit_highlighted
+       iaction_i1 = edit_remove
     end if
 
     ! right-align and bottom-align for the rest of the contents
@@ -836,6 +831,22 @@ contains
        call sysc(isys)%set_attype_species(w%geometry_atomtype,iaction_i2,sys(isys)%c%nspc)
     elseif (iaction == iaction_add_atom) then
        call sysc(isys)%attype_add_atom(w%geometry_atomtype,iaction_i1,iaction_x)
+    elseif (iaction == iaction_edit_highlighted) then
+       if (w%geometry_atomtype == atlisttype_species) then
+          if (iaction_i1 == edit_remove) then
+             write (*,*) "remove species..."
+             stop 1
+          elseif (iaction_i1 == edit_merge) then
+             write (*,*) "merge species..."
+             stop 1
+          elseif (iaction_i1 == edit_duplicate) then
+             write (*,*) "delete species..."
+             stop 1
+          end if
+       else
+          call sysc(isys)%edit_highlighted_atoms(remove=(iaction_i1==edit_remove),&
+             merge=(iaction_i1==edit_merge),duplicate=(iaction_i1==edit_duplicate))
+       end if
     end if
 
   contains
@@ -1175,18 +1186,24 @@ contains
 
       ! Duplicate button
       havesel = any(w%geometry_selected)
-      if (iw_button("Duplicate##duplicateselection",sameline=.true.,disabled=.not.havesel)) &
-         edithighlight = edit_duplicate
+      if (iw_button("Duplicate##duplicateselection",sameline=.true.,disabled=.not.havesel)) then
+         iaction = iaction_edit_highlighted
+         iaction_i1 = edit_duplicate
+      end if
       call iw_tooltip("Duplicate selected atoms",ttshown)
 
       ! Remove button
-      if (iw_button("Remove##removeselection",sameline=.true.,disabled=.not.havesel)) &
-         edithighlight = edit_remove
+      if (iw_button("Remove##removeselection",sameline=.true.,disabled=.not.havesel)) then
+         iaction = iaction_edit_highlighted
+         iaction_i1 = edit_remove
+      end if
       call iw_tooltip("Remove selected atoms (" // trim(get_bind_keyname(BIND_EDITGEOM_REMOVE)) // ")",ttshown)
 
       ! Merge button
-      if (iw_button("Merge##mergeselection",sameline=.true.,disabled=.not.havesel)) &
-         edithighlight = edit_merge
+      if (iw_button("Merge##mergeselection",sameline=.true.,disabled=.not.havesel)) then
+         iaction = iaction_edit_highlighted
+         iaction_i1 = edit_merge
+      end if
       call iw_tooltip("Merge selected atoms",ttshown)
 
     end subroutine draw_edit_buttons
