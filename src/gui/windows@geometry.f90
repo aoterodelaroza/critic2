@@ -315,12 +315,7 @@ contains
                 if (igTableSetColumnIndex(icol)) then
                    call igAlignTextToFramePadding()
                    call iw_text(string(i,ndigit))
-
-                   ! the highlight selectable: hover and click
-                   clicked = .false.
-                   ok = iw_highlight_selectable("##selectablemoltable" // suffix,clicked=clicked)
-                   if (ok) ihighlight = i
-                   if (clicked) iclicked = i
+                   call process_selectable_clicks()
                 end if
 
                 ! name
@@ -583,27 +578,7 @@ contains
                    if (igTableSetColumnIndex(icol)) then
                       call igAlignTextToFramePadding()
                       call iw_text(string(i,ndigit))
-
-                      ! the highlight selectable: hover and click
-                      clicked = .false.
-                      if (iw_highlight_selectable("##selectablemoltable" // suffix,clicked=clicked)) &
-                         ihighlight = i
-                      if (clicked) then
-                         ! implement selection range with shift and control
-                         if (igIsKeyDown(ImGuiKey_ModShift).and.w%lastselected /= 0.and.w%lastselected /= i) then
-                            ! selecte a whole range
-                            iclicked = -1
-                            iclicked_ini = min(ii,w%lastselected)
-                            iclicked_end = max(ii,w%lastselected)
-                         elseif (igIsKeyDown(ImGuiKey_ModCtrl)) then
-                            iclicked = -1
-                            iclicked_ini = ii
-                            iclicked_end = ii
-                         else
-                            iclicked = i
-                            w%lastselected = ii
-                         end if
-                      end if
+                      call process_selectable_clicks()
                    end if
 
                    ! name
@@ -1225,6 +1200,32 @@ contains
       end if
 
     end subroutine check_changed_tab
+
+    ! add the selectable to a table row and process clicks
+    subroutine process_selectable_clicks()
+
+      ! the highlight selectable: hover and click
+      clicked = .false.
+      if (iw_highlight_selectable("##selectableintable" // suffix,clicked=clicked)) &
+         ihighlight = i
+      if (clicked) then
+         ! implement selection range with shift and control
+         if (igIsKeyDown(ImGuiKey_ModShift).and.w%lastselected /= 0.and.w%lastselected /= i) then
+            ! selecte a whole range
+            iclicked = -1
+            iclicked_ini = min(ii,w%lastselected)
+            iclicked_end = max(ii,w%lastselected)
+         elseif (igIsKeyDown(ImGuiKey_ModCtrl)) then
+            iclicked = -1
+            iclicked_ini = ii
+            iclicked_end = ii
+         else
+            iclicked = i
+            w%lastselected = ii
+         end if
+      end if
+
+    end subroutine process_selectable_clicks
 
   end subroutine draw_geometry
 
