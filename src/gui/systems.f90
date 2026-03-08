@@ -93,6 +93,7 @@ module systems
      procedure :: highlight_atoms
      procedure :: highlight_clear
      procedure :: edit_highlighted_atoms
+     procedure :: edit_highlighted_species
      ! atlisttype tools
      procedure :: attype_combo_simple
      procedure :: attype_number
@@ -204,6 +205,11 @@ module systems
        class(sysconf), intent(inout) :: sysc
        logical, intent(in), optional :: remove, merge, duplicate
      end subroutine edit_highlighted_atoms
+     module subroutine edit_highlighted_species(sysc,selected,remove,merge,duplicate)
+       class(sysconf), intent(inout) :: sysc
+       logical, intent(in) :: selected(:)
+       logical, intent(in), optional :: remove, merge, duplicate
+     end subroutine edit_highlighted_species
      module function attype_combo_simple(sysc,label,type,allowed,units)
        class(sysconf), intent(inout) :: sysc
        character(len=*), intent(in) :: label

@@ -833,16 +833,8 @@ contains
        call sysc(isys)%attype_add_atom(w%geometry_atomtype,iaction_i1,iaction_x)
     elseif (iaction == iaction_edit_highlighted) then
        if (w%geometry_atomtype == atlisttype_species) then
-          if (iaction_i1 == edit_remove) then
-             write (*,*) "remove species..."
-             stop 1
-          elseif (iaction_i1 == edit_merge) then
-             write (*,*) "merge species..."
-             stop 1
-          elseif (iaction_i1 == edit_duplicate) then
-             write (*,*) "delete species..."
-             stop 1
-          end if
+          call sysc(isys)%edit_highlighted_species(w%geometry_selected,remove=(iaction_i1==edit_remove),&
+             merge=(iaction_i1==edit_merge),duplicate=(iaction_i1==edit_duplicate))
        else
           call sysc(isys)%edit_highlighted_atoms(remove=(iaction_i1==edit_remove),&
              merge=(iaction_i1==edit_merge),duplicate=(iaction_i1==edit_duplicate))

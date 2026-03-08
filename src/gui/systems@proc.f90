@@ -786,6 +786,112 @@ contains
 
   end subroutine edit_highlighted_atoms
 
+  !> Remove, merge or duplicate the highlighted species in the system.
+  module subroutine edit_highlighted_species(sysc,selected,remove,merge,duplicate)
+    use crystalseedmod, only: crystalseed
+    use tools_io, only: ferror, faterr
+    use types, only: species
+    class(sysconf), intent(inout) :: sysc
+    logical, intent(in) :: selected(:)
+    logical, intent(in), optional :: remove, merge, duplicate
+
+    type(crystalseed) :: seed
+    integer :: i, nat, id, ipres, nspc
+    integer, allocatable :: iat(:), map(:)
+    logical :: remove_, merge_, duplicate_
+    type(species), allocatable :: spc(:)
+
+    ! check input options
+    remove_ = .false.
+    merge_ = .false.
+    duplicate_ = .false.
+    ipres = 0
+    if (present(remove)) then
+       remove_ = remove
+       if (remove_) ipres = ipres + 1
+    end if
+    if (present(merge)) then
+       merge_ = merge
+       if (merge_) ipres = ipres + 1
+    end if
+    if (present(duplicate)) then
+       duplicate_ = duplicate
+       if (duplicate_) ipres = ipres + 1
+    end if
+    if (ipres == 0) return
+    if (ipres > 1) &
+       call ferror('edit_atom_list','more than one of merge/remove/duplicate',faterr)
+
+    ! consistency checks
+    id = sysc%id
+    if (.not.ok_system(id,sys_init)) return
+    if (size(selected,1) /= sys(id)%c%nspc) return
+
+    ! remove/merge the highlighted atoms
+    if (remove_ .or. merge_) then
+       allocate(iat(sys(id)%c%ncel))
+       nat = 0
+       do i = 1, sys(id)%c%ncel
+          if (any(sysc%highlight_rgba(:,i) >= 0._c_float)) then
+             nat = nat + 1
+             iat(nat) = i
+          end if
+       end do
+
+       ! remove/merge/duplicate the atoms
+       if (nat > 0) then
+          call sys(id)%c%edit_atom_list(nat,iat(1:nat),remove,merge,duplicate)
+       end if
+    end if
+
+    if (remove_ .or. duplicate_) then
+       ! make seed from this crystal
+       call sys(id)%c%makeseed(seed,copysym=.false.)
+
+       if (remove_) then
+          ! remove the species
+          allocate(spc(count(.not.selected)),map(sys(id)%c%nspc))
+          map = 0
+          nspc = 0
+          do i = 1, sys(id)%c%nspc
+             if (.not.selected(i)) then
+                nspc = nspc + 1
+                spc(nspc) = sys(id)%c%spc(i)
+                map(i) = nspc
+             end if
+          end do
+       elseif (duplicate_) then
+          ! duplicate the species
+          allocate(spc(sys(id)%c%nspc+count(selected)),map(sys(id)%c%nspc))
+          map = 0
+          nspc = 0
+          do i = 1, sys(id)%c%nspc
+             nspc = nspc + 1
+             spc(nspc) = sys(id)%c%spc(i)
+             map(i) = nspc
+             if (selected(i)) then
+                nspc = nspc + 1
+                spc(nspc) = sys(id)%c%spc(i)
+             end if
+          end do
+       end if
+
+       ! remap the species in the seed
+       seed%nspc = nspc
+       seed%spc = spc
+       do i = 1, seed%nat
+          seed%is(i) = map(seed%is(i))
+       end do
+
+       ! build the new crystal
+       call sys(id)%c%struct_new(seed,crashfail=.true.)
+    end if
+
+    ! the geometry has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine edit_highlighted_species
+
   ! Show a simple combo using the allowed atom types. Type is the
   ! initial and final atom type in the combo.
   module function attype_combo_simple(sysc,label,type,allowed,units)
