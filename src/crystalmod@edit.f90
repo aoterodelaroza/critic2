@@ -1181,11 +1181,13 @@ contains
   end subroutine move_cell
 
   !> Add atom with species is and position x in units of iunit_l (see
-  !> global). If isnneq, replicate the atom by symmetry.
+  !> global). If is <= 0, add a new species with Z = abs(is) to the
+  !> system. If isnneq, replicate the atom by symmetry.
   module subroutine add_atom(c,is,x,iunit_l,isnneq,ti)
     use crystalseedmod, only: crystalseed
     use types, only: realloc
     use global, only: iunit_ang, iunit_bohr
+    use tools_io, only: nameguess
     use param, only: bohrtoa
     class(crystal), intent(inout) :: c
     integer, intent(in) :: is
@@ -1197,6 +1199,7 @@ contains
     type(crystalseed) :: seed
     real*8 :: xx(3)
     logical :: copysym
+    integer :: is_
 
     ! whether to use symmetry
     copysym = isnneq .and. .not.c%ismolecule .and. c%spgavail
@@ -1214,14 +1217,26 @@ contains
        xx = x
     end if
 
+    ! add the species
+    if (is <= 0) then
+       seed%nspc = seed%nspc + 1
+       call realloc(seed%spc,seed%nspc)
+       seed%spc(seed%nspc)%name = nameguess(abs(is),.true.)
+       seed%spc(seed%nspc)%z = abs(is)
+       seed%spc(seed%nspc)%qat = 0d0
+       is_ = seed%nspc
+    else
+       is_ = is
+    end if
+
     ! add the atom
     seed%nat = seed%nat + 1
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
     call realloc(seed%atname,seed%nat)
     seed%x(:,seed%nat) = x
-    seed%is(seed%nat) = is
-    seed%atname(seed%nat) = c%spc(is)%name
+    seed%is(seed%nat) = is_
+    seed%atname(seed%nat) = seed%spc(is_)%name
 
     ! build the new crystal
     call c%struct_new(seed,crashfail=.true.,ti=ti)

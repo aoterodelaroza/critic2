@@ -1132,7 +1132,11 @@ contains
 
             call igAlignTextToFramePadding()
             call iw_text("Species")
-            str = string(w%geometry_input_species) // ": " // trim(sys(isys)%c%spc(w%geometry_input_species)%name)
+            if (w%geometry_input_species > 0) then
+               str = string(w%geometry_input_species) // ": " // trim(sys(isys)%c%spc(w%geometry_input_species)%name)
+            else
+               str = trim(nameguess(abs(w%geometry_input_species),.true.))
+            end if
             ldum = iw_button(str // "##speciesaddcoord",popupcontext=ok,&
                popupflags=ImGuiPopupFlags_MouseButtonLeft,sameline=.true.)
             if (ok) then
@@ -1148,9 +1152,7 @@ contains
                if (igBeginMenu(c_loc(str1),.true._c_bool)) then
                   izout = iw_periodictable()
                   if (izout >= 0) then
-                     iaction = iaction_add_species
-                     iaction_i1 = izout
-                     w%geometry_input_species = sys(isys)%c%nspc+1
+                     w%geometry_input_species = -izout
                      call igCloseCurrentPopup()
                   end if
                   call igEndMenu()

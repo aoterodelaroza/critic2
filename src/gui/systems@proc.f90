@@ -1234,7 +1234,8 @@ contains
 
   end function attype_type_id_to_id
 
-  !> Add atom of the given atom type with species is and coordinates x.
+  !> Add atom of the given atom type with species is and coordinates
+  !> x. If is <= 0, add the species with Z = abs(is) to the system.
   module subroutine attype_add_atom(sysc,type,is,x)
     use global, only: iunit_bohr, iunit_fractional
     use param, only: bohrtoa

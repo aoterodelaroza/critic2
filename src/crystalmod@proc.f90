@@ -155,7 +155,7 @@ contains
     use global, only: crsmall, atomeps_structnew, bondfactor
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det3, mnorm2
-    use tools_io, only: ferror, faterr, zatguess, string, usegui
+    use tools_io, only: ferror, faterr, string, usegui
     use tools, only: wscell, qcksort
     use types, only: realloc
     use param, only: pi, eyet, eye, atmcov
