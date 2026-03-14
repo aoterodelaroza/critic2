@@ -1397,13 +1397,12 @@ contains
 
     ! reorder
     if (type == atlisttype_nneq) then
-       write (*,*) "here"
-       stop 1
+       call sys(isys)%c%reorder_atoms(iord,.true.)
     elseif (type == atlisttype_species) then
        write (*,*) "here2"
        stop 1
     else
-       call sys(isys)%c%reorder_atoms(iord)
+       call sys(isys)%c%reorder_atoms(iord,.false.)
     end if
 
     ! the geometry has changed

@@ -613,21 +613,25 @@ contains
   !> Create a new structure by reordering the atoms in the current
   !> structure. iperm is the permutation vector (atom i in the new
   !> structure is iperm(i) in the old structure).
-  module subroutine reorder_atoms(c,iperm,ti)
+  module subroutine reorder_atoms(c,iperm,isnneq,ti)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(inout) :: c
     integer, intent(in) :: iperm(:)
+    logical, intent(in) :: isnneq
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     real*8, allocatable :: x(:,:)
     integer, allocatable :: is(:)
     integer :: i
-
-    if (size(iperm,1) /= c%ncel) return
+    logical :: copysym
 
     ! make the new seed
-    call c%makeseed(seed,.false.)
+    copysym = isnneq .and. .not.c%ismolecule .and. c%spgavail
+    call c%makeseed(seed,copysym)
+
+    ! return if the permutation is not correct
+    if (size(iperm,1) /= seed%nat) return
 
     ! reorder the atoms
     allocate(x(3,seed%nat),is(seed%nat))

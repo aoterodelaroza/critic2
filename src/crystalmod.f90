@@ -733,9 +733,10 @@ module crystalmod
        type(thread_info), intent(in), optional :: ti
        real*8 :: x0(3,3)
      end function cell_delaunay
-     module subroutine reorder_atoms(c,iperm,ti)
+     module subroutine reorder_atoms(c,iperm,isnneq,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iperm(:)
+       logical, intent(in) :: isnneq
        type(thread_info), intent(in), optional :: ti
      end subroutine reorder_atoms
      module subroutine wholemols(c,ti)
