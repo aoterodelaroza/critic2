@@ -1382,6 +1382,35 @@ contains
 
   end subroutine attype_add_atom
 
+  !> Reorder the atoms in the system for the given atom types using
+  !> the permutation iord.
+  module subroutine attype_reorder(sysc,type,iord)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: iord(:)
+
+    integer :: isys
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! reorder
+    if (type == atlisttype_nneq) then
+       write (*,*) "here"
+       stop 1
+    elseif (type == atlisttype_species) then
+       write (*,*) "here2"
+       stop 1
+    else
+       call sys(isys)%c%reorder_atoms(iord)
+    end if
+
+    ! the geometry has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine attype_reorder
+
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
   module subroutine set_atom_position(sysc,type,id,x,forcewyc)

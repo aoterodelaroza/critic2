@@ -55,13 +55,12 @@ contains
     use c_interface_module
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=1024), target :: txtinp
     character(kind=c_char,len=:), allocatable, target :: str, strpop, strpop2, zeroc, ch
     character(kind=c_char,len=:), allocatable :: tooltipstr
     type(ImVec2) :: szero, sz
     type(ImVec4) :: col4
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, jsel, ll, id, iref, inext, iprev, ithis, nfreal, iaux
+    integer :: i, j, k, jsel, id, iref, inext, iprev, ithis, nfreal, iaux
     integer :: nshown, nshown_after_filter
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
@@ -919,12 +918,11 @@ contains
 
       integer :: k, idx, iaux
       real(c_float) :: pos
-      integer(c_int) :: flags, ll, isyscollapse, idum
+      integer(c_int) :: flags, isyscollapse, idum
       logical(c_bool) :: selected
       logical :: enabled, enabled_no_threads
       logical :: ok
-      character(kind=c_char,len=:), allocatable, target :: strl, strpop, strpop2
-      character(kind=c_char,len=1024), target :: txtinp
+      character(kind=c_char,len=:), allocatable, target :: strl, strpop
 
       if (hadenabledcolumn) return
 

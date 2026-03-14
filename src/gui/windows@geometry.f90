@@ -87,6 +87,7 @@ contains
     integer, parameter :: iaction_add_species_change_atom = 5
     integer, parameter :: iaction_add_atom = 6
     integer, parameter :: iaction_edit_highlighted = 7
+    integer, parameter :: iaction_reorder_highlighted = 8
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_none = 0
@@ -826,6 +827,8 @@ contains
           call sysc(isys)%edit_highlighted_atoms(remove=(iaction_i1==edit_remove),&
              merge=(iaction_i1==edit_merge),duplicate=(iaction_i1==edit_duplicate))
        end if
+    elseif (iaction == iaction_reorder_highlighted) then
+       call sysc(isys)%attype_reorder(w%geometry_atomtype,w%iord)
     end if
 
   contains
@@ -1184,6 +1187,12 @@ contains
          iaction_i1 = edit_merge
       end if
       call iw_tooltip("Merge selected atoms",ttshown)
+
+      ! Merge button
+      if (iw_button("Reorder##reorderselection",sameline=.true.)) then
+         iaction = iaction_reorder_highlighted
+      end if
+      call iw_tooltip("Relabel the atoms/species so their IDs are in the same order as shown in the table",ttshown)
 
     end subroutine draw_edit_buttons
 

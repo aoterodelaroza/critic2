@@ -107,6 +107,7 @@ module systems
      procedure :: attype_celatom_to_id
      procedure :: attype_type_id_to_id
      procedure :: attype_add_atom
+     procedure :: attype_reorder
      ! editing
      procedure :: set_atom_position
      procedure :: set_atomic_number
@@ -284,6 +285,11 @@ module systems
        integer, intent(in) :: is
        real*8, intent(in) :: x(3)
      end subroutine attype_add_atom
+     module subroutine attype_reorder(sysc,type,iord)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, intent(in) :: iord(:)
+     end subroutine attype_reorder
      module subroutine set_atom_position(sysc,type,id,x,forcewyc)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type

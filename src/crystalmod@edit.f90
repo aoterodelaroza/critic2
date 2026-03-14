@@ -624,6 +624,8 @@ contains
     integer, allocatable :: is(:)
     integer :: i
 
+    if (size(iperm,1) /= c%ncel) return
+
     ! make the new seed
     call c%makeseed(seed,.false.)
 
@@ -631,11 +633,11 @@ contains
     allocate(x(3,seed%nat),is(seed%nat))
     do i = 1, seed%nat
        x(:,i) = seed%x(:,iperm(i))
-       is(i) = seed%is(iperm(i))
     end do
     seed%x = x
-    seed%is = is
     deallocate(x,is)
+    seed%is = seed%is(iperm(:))
+    seed%atname = seed%atname(iperm(:))
 
     ! reload the crystal
     call c%struct_new(seed,.true.,ti=ti)
