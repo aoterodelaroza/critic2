@@ -1399,8 +1399,7 @@ contains
     if (type == atlisttype_nneq) then
        call sys(isys)%c%reorder_atoms(iord,.true.)
     elseif (type == atlisttype_species) then
-       write (*,*) "here2"
-       stop 1
+       call sys(isys)%c%reorder_species(iord)
     else
        call sys(isys)%c%reorder_atoms(iord,.false.)
     end if

@@ -648,6 +648,40 @@ contains
 
   end subroutine reorder_atoms
 
+  !> Create a new structure by reordering the species in the current
+  !> structure. iperm is the permutation vector (atom i in the new
+  !> structure is iperm(i) in the old structure).
+  module subroutine reorder_species(c,iperm,ti)
+    use crystalseedmod, only: crystalseed
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: iperm(:)
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: seed
+    integer :: i
+    integer, allocatable :: iiperm(:)
+
+    ! make the new seed
+    call c%makeseed(seed,.false.)
+
+    ! return if the permutation is not correct
+    if (size(iperm,1) /= seed%nspc) return
+    allocate(iiperm(size(iperm,1)))
+    do i = 1, size(iperm,1)
+       iiperm(iperm(i)) = i
+    end do
+
+    ! reorder the species
+    seed%spc = seed%spc(iperm(:))
+    do i = 1, seed%nat
+       seed%is(i) = iiperm(seed%is(i))
+    end do
+
+    ! reload the crystal
+    call c%struct_new(seed,.true.,ti=ti)
+
+  end subroutine reorder_species
+
   !> Re-assign atomic types to have an asymmetric unit with whole molecules
   module subroutine wholemols(c,ti)
     use crystalseedmod, only: crystalseed

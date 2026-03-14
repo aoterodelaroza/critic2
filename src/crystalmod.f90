@@ -287,6 +287,7 @@ module crystalmod
      procedure :: cell_niggli !< Transform to the Niggli primitive cell
      procedure :: cell_delaunay !< Transform to the Delaunay primitive cell
      procedure :: reorder_atoms !< reorder the atoms in the crystal/molecule
+     procedure :: reorder_species !< reorder the species in the crystal/molecule
      procedure :: wholemols !< Re-assign atomic types to have an asymmetric unit with whole molecules
      procedure :: edit_atom_list !< Remove/merge/duplicate a list of atoms
      procedure :: change_atom_species !< Change the species of atoms
@@ -739,6 +740,11 @@ module crystalmod
        logical, intent(in) :: isnneq
        type(thread_info), intent(in), optional :: ti
      end subroutine reorder_atoms
+     module subroutine reorder_species(c,iperm,ti)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: iperm(:)
+       type(thread_info), intent(in), optional :: ti
+     end subroutine reorder_species
      module subroutine wholemols(c,ti)
        class(crystal), intent(inout) :: c
        type(thread_info), intent(in), optional :: ti
