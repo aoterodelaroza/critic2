@@ -1450,20 +1450,8 @@ contains
        elseif (sys(i)%c%iperiod == iperiod_3d_molecular) then
           str = "A molecular crystal with Z=" // string(sys(i)%c%nmol)
           if (sys(i)%c%spgavail) then
-             izp0 = 0
-             do k = 1, sys(i)%c%nmol
-                if (sys(i)%c%idxmol(k) < 0) then
-                   izp0 = -1
-                   exit
-                elseif (sys(i)%c%idxmol(k) == 0) then
-                   izp0 = izp0 + 1
-                end if
-             end do
-             if (izp0 > 0) then
-                str = str // " and Z'=" // string(izp0)
-             else
-                str = str // " and Z'<1"
-             end if
+             izp0 = real(sys(i)%c%nmol,8) / real(sys(i)%c%neqv,8)
+             str = str // " and Z'=" // string(izp0)
           end if
        elseif (sys(i)%c%iperiod == iperiod_2d) then
           str = "A surface (2D periodic structure)"
