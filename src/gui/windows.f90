@@ -149,6 +149,9 @@ module windows
      integer(c_int) :: geometry_sortdir = 1 ! sort table with this direction
      real*8 :: geometry_input_coord(3) = 0d0 ! coordinates for the new atom in add button
      integer :: geometry_input_species = 1 ! species for the new atom in add button
+     character(len=:), allocatable :: geometry_expression ! expression for column in atoms table
+     logical :: geometry_expression_ok = .false. ! is the expression ok?
+     character(len=:), allocatable :: geometry_expr_error ! error for expression
      real*8 :: timelast_geometry_sort = 0d0  ! time the geometry table was last sorted
      real*8 :: timelast_geometry_clearhighlights = 0d0 ! time the highlights were last cleared
      ! preferences parameters

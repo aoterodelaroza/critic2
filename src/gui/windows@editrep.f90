@@ -219,13 +219,12 @@ contains
              "- '@x < 3' = all atoms with x lower than 3"//newline//&
              "- 'log($0) > 1' = log of the promolecular density higher than 1"//newline//&
              "- 'abs(@x) < 2 && abs(@y) < 2 && abs(@z) < 2' = atoms in the (-2,2) box"//newline//&
-             "Click on the Help button for more info.")
+             "Click the Help button for more info.")
           if (iw_button("Help##helpfilter",sameline=.true.)) then
              str3 = "https://aoterodelaroza.github.io/critic2/manual/arithmetics" // c_null_char
              call openLink(c_loc(str3))
           end if
-          call iw_tooltip("Open the manual page about arithmetic expressions."&
-             &"The 'basic usage' and 'structural variables' sections are relevant.",ttshown)
+          call iw_tooltip("Open the manual page regarding arithmetic expressions.",ttshown)
 
           ! filter text input
           if (iw_inputtext("##filtertext",bufsize=1023,texta=w%rep%filter,flags=ImGuiInputTextFlags_EnterReturnsTrue)) then

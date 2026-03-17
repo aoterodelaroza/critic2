@@ -50,9 +50,10 @@ contains
        iw_inputtext, iw_periodictable, iw_menuitem
     use types, only: realloc
     use tools_io, only: string, nameguess, ioj_center, isinteger
+    use param, only: newline
     class(window), intent(inout), target :: w
 
-    logical :: domol, dowyc, doidx, docoord, havesel
+    logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
     logical :: doquit, dorestore, clicked, forcesort, ch
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:9)
     logical(c_bool) :: is_selected, redo_highlights
@@ -68,7 +69,7 @@ contains
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, ldum, ok, ch
-    real*8 :: x0(3), xold(3)
+    real*8 :: x0(3), xold(3), res
     type(ImVec4) :: col4
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -108,6 +109,7 @@ contains
     integer, parameter :: ic_y = 8
     integer, parameter :: ic_z = 9
     integer, parameter :: ic_nat = 10
+    integer, parameter :: ic_expr = 11
 
     ! allowed atom list types in tables
     integer, parameter :: atlisttype_allowed(4) = (/atlisttype_nneq,&
@@ -137,6 +139,9 @@ contains
        w%geometry_select_rgba = ColorHighlightSelectScene
        w%lastselected = 0
        w%tabselected = ""
+       w%geometry_expression = ""
+       w%geometry_expression_ok = .false.
+       w%geometry_expr_error = ""
     end if
 
     ! if tied to tree, update the isys
@@ -175,6 +180,7 @@ contains
     else
        atompreflags = ImGuiTabItemFlags_None
     end if
+    call igAlignTextToFramePadding()
     call iw_text("System",highlight=.true.)
     call igSameLine(0._c_float,-1._c_float)
     call igGetContentRegionAvail(szavail)
@@ -244,7 +250,7 @@ contains
           str1="##tablespctyles_" // string(isys) // c_null_char
           call igGetContentRegionAvail(sz0)
           sz0%x = 0
-          sz0%y = sz0%y - iw_calcheight(3,0,.true.)
+          sz0%y = sz0%y - iw_calcheight(4,0,.true.)
           if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
              icol = -1
 
@@ -438,6 +444,11 @@ contains
           if (doidx) ncol = ncol + 1 ! nneq idx
           if (docoord) ncol = ncol + 3 ! coordinates
 
+          ! whether we have an expression
+          haveexpr = (w%geometry_expression_ok .and. len(w%geometry_expression) > 0 .and.&
+             len(w%geometry_expr_error) == 0)
+          if (haveexpr) ncol = ncol + 1
+
           ! atom style table, for atoms
           flags = ImGuiTableFlags_None
           flags = ior(flags,ImGuiTableFlags_Resizable)
@@ -449,7 +460,7 @@ contains
           str1="##tableatomstyles_" // string(isys) // "_" // string(w%geometry_atomtype) // c_null_char
           call igGetContentRegionAvail(sz0)
           sz0%x = 0
-          sz0%y = sz0%y - iw_calcheight(3,0,.true.)
+          sz0%y = sz0%y - iw_calcheight(5,0,.true.)
           if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
              icol = -1
 
@@ -521,6 +532,13 @@ contains
                 icol = icol + 1
                 call igTableSetupColumn(c_loc(strz),ImGuiTableColumnFlags_None,0.0_c_float,icol)
                 icolsort(icol) = ic_z
+             end if
+
+             if (haveexpr) then
+                icol = icol + 1
+                str2 = "Expression" // c_null_char
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+                icolsort(icol) = ic_expr
              end if
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
@@ -664,7 +682,7 @@ contains
                    end if
 
                    ! coordinates
-                   if (w%geometry_atomtype /= atlisttype_species) then
+                   if (docoord) then
                       dec = sysc(isys)%attype_coordinates_decimals(w%geometry_atomtype)
                       x0 = sysc(isys)%attype_coordinates(w%geometry_atomtype,i)
                       xold = x0
@@ -684,6 +702,22 @@ contains
                          iaction_l = w%geometry_forcewyc
                       end if
                    end if
+
+                   ! expression
+                   if (haveexpr) then
+                      icol = icol + 1
+                      if (igTableSetColumnIndex(icol)) then
+                         if (w%geometry_expression_ok) then
+                            x0 = sysc(isys)%attype_coordinates(w%geometry_atomtype,i)
+                            res = sys(isys)%eval(w%geometry_expression,w%geometry_expr_error,x0)
+                            if (len(w%geometry_expr_error) > 0) then
+                               w%geometry_expression_ok = .false.
+                            else
+                               call iw_text(string(res,'e',15,8))
+                            end if
+                         end if
+                      end if
+                   end if
                 end do ! clipper indices
              end do ! clipper step
 
@@ -698,6 +732,38 @@ contains
           ! edit row
           call draw_edit_buttons()
 
+          ! expression row
+          call igAlignTextToFramePadding()
+          call iw_text("Expression",highlight=.true.)
+
+          ! filter text input
+          call iw_text("(?)",sameline=.true.)
+          call iw_tooltip("Examples:"//newline//&
+             "- '@x < 3' = all atoms with Cartesian x lower than 3"//newline//&
+             "- 'log($0)' = log of the promolecular density"//newline//&
+             "- 'abs(@x) < 2 && abs(@y) < 2 && abs(@z) < 2' = atoms in the (-2,2) box"//newline//&
+             "Click the Help button for more info.")
+          call igSameLine(0._c_float,-1._c_float)
+          if (iw_inputtext("##filtertext",bufsize=1023,width=30,texta=w%geometry_expression,&
+             flags=ImGuiInputTextFlags_EnterReturnsTrue)) then
+             w%geometry_expression_ok = .true.
+             w%geometry_expr_error = ""
+          end if
+          call iw_tooltip("Show on the table the result of using this expression at the atomic positions.",ttshown)
+          if (iw_button("Help##helpfilter",sameline=.true.)) then
+             str2 = "https://aoterodelaroza.github.io/critic2/manual/arithmetics" // c_null_char
+             call openLink(c_loc(str2))
+          end if
+          call iw_tooltip("Open the manual page regarding arithmetic expressions.",ttshown)
+          if (iw_button("Clear",sameline=.true.)) then
+             w%geometry_expression_ok = .false.
+             w%geometry_expression = ""
+             w%geometry_expr_error = ""
+          end if
+          call iw_tooltip("Clear the expression",ttshown)
+          if (len_trim(w%geometry_expr_error) > 0) then
+             call iw_text("Error: " // trim(w%geometry_expr_error),danger=.true.)
+          end if
           call igEndTabItem()
        end if
 

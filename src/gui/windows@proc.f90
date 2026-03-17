@@ -438,6 +438,7 @@ contains
     if (present(idparent)) w%idparent = idparent
     if (present(itoken)) w%itoken = itoken
     if (present(purpose)) w%dialog_purpose = purpose
+    w%geometry_expression = ""
 
     ! type-specific initialization
     if (type == wintype_dialog) then
@@ -553,6 +554,9 @@ contains
     if (allocated(w%ploty)) deallocate(w%ploty)
     nullify(w%rep)
     w%irep = 0
+    w%geometry_expression = ""
+    w%geometry_expression_ok = .false.
+    w%geometry_expr_error = ""
 
   end subroutine window_end
 
@@ -729,8 +733,8 @@ contains
        elseif (w%type == wintype_geometry) then
           w%name = "View/Edit Geometry##"  // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 63 * fontsize%x
-          inisize%y = 32 * fontsize%y
+          inisize%x = 74 * fontsize%x
+          inisize%y = 33 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_preferences) then
           w%name = "Preferences##" // string(w%id)  // c_null_char
