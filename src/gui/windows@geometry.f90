@@ -537,7 +537,7 @@ contains
              if (haveexpr) then
                 icol = icol + 1
                 str2 = "Expression" // c_null_char
-                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_NoSort,0.0_c_float,icol)
                 icolsort(icol) = ic_expr
              end if
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
@@ -708,12 +708,16 @@ contains
                       icol = icol + 1
                       if (igTableSetColumnIndex(icol)) then
                          if (w%geometry_expression_ok) then
-                            x0 = sysc(isys)%attype_coordinates(w%geometry_atomtype,i)
+                            if (w%geometry_atomtype == atlisttype_nneq) then
+                               x0 = sys(isys)%c%at(i)%r
+                            else
+                               x0 = sys(isys)%c%atcel(i)%r
+                            end if
                             res = sys(isys)%eval(w%geometry_expression,w%geometry_expr_error,x0)
                             if (len(w%geometry_expr_error) > 0) then
                                w%geometry_expression_ok = .false.
                             else
-                               call iw_text(string(res,'e',15,8))
+                               call iw_text(string(res,'f',decimal=8))
                             end if
                          end if
                       end if
@@ -739,7 +743,7 @@ contains
           ! filter text input
           call iw_text("(?)",sameline=.true.)
           call iw_tooltip("Examples:"//newline//&
-             "- '@x < 3' = all atoms with Cartesian x lower than 3"//newline//&
+             "- '@dnuc:2' = distance to cell atom 2"//newline//&
              "- 'log($0)' = log of the promolecular density"//newline//&
              "- 'abs(@x) < 2 && abs(@y) < 2 && abs(@z) < 2' = atoms in the (-2,2) box"//newline//&
              "Click the Help button for more info.")
