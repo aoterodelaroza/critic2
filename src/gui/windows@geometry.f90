@@ -49,7 +49,7 @@ contains
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
        iw_inputtext, iw_periodictable, iw_menuitem
     use types, only: realloc
-    use tools_io, only: string, nameguess, ioj_center
+    use tools_io, only: string, nameguess, ioj_center, isinteger
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel
@@ -88,6 +88,7 @@ contains
     integer, parameter :: iaction_add_atom = 6
     integer, parameter :: iaction_edit_highlighted = 7
     integer, parameter :: iaction_reorder_highlighted = 8
+    integer, parameter :: iaction_swap_atom_ids = 9
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_none = 0
@@ -578,18 +579,27 @@ contains
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
                       call igAlignTextToFramePadding()
-                      call iw_text(string(i,ndigit))
+                      str1 = string(i,ndigit)
+                      if (iw_inputtext("##idinput" // suffix,bufsize=11,texta=str1,width=3,flags=ImGuiInputTextFlags_EnterReturnsTrue)) then
+                         if (isinteger(j,str1)) then
+                            if (j > 0 .and. j <= ntype) then
+                               iaction = iaction_swap_atom_ids
+                               iaction_i1 = i
+                               iaction_i2 = j
+                            end if
+                         end if
+                      end if
                       call process_selectable_clicks()
                    end if
 
-                   ! name
+                   ! atom name
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
                       if (havergb) then
                          ldum = iw_coloredit("##tablecolorg" // suffix,rgb=rgb,nointeraction=.true.)
                          call igSameLine(0._c_float,-1._c_float)
                       end if
-                      if (iw_inputtext("##nametextinput" // string(i),bufsize=11,texta=name,width=max(3,len(name)))) then
+                      if (iw_inputtext("##nametextinput" // suffix,bufsize=11,texta=name,width=max(3,len(name)))) then
                          iaction = iaction_set_attype_name
                          iaction_i1 = i
                          iaction_str = name
@@ -829,6 +839,8 @@ contains
        end if
     elseif (iaction == iaction_reorder_highlighted) then
        call sysc(isys)%attype_reorder(w%geometry_atomtype,w%iord)
+    elseif (iaction == iaction_swap_atom_ids) then
+       call sysc(isys)%attype_swap_atoms(w%geometry_atomtype,iaction_i1,iaction_i2)
     end if
 
   contains

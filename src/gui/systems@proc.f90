@@ -1409,6 +1409,38 @@ contains
 
   end subroutine attype_reorder
 
+  !> Swap two of the atoms in the system with IDs i1 and i2 for the
+  !> given atom type.
+  module subroutine attype_swap_atoms(sysc,type,i1,i2)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: i1, i2
+
+    integer :: isys, ntype, i
+    integer, allocatable :: iord(:)
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! get the number of entities
+    ntype = sysc%attype_number(type)
+    if (i1 < 1 .or. i1 > ntype .or. i2 < 1 .or. i2 > ntype) return
+
+    ! build the permutation
+    allocate(iord(ntype))
+    do i = 1, ntype
+       iord(i) = i
+    end do
+    iord(i2) = i1
+    iord(i1) = i2
+
+    ! reorder
+    call sysc%attype_reorder(type,iord)
+    deallocate(iord)
+
+  end subroutine attype_swap_atoms
+
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
   module subroutine set_atom_position(sysc,type,id,x,forcewyc)
