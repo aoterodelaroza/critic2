@@ -293,6 +293,7 @@ module crystalmod
      procedure :: change_atom_species !< Change the species of atoms
      procedure :: move_atom !< Move an atom
      procedure :: move_cell !< Move the unit cell
+     procedure :: move_cell_all !< Move the unit cell, specifying all lengths and angles
      procedure :: add_atom !< Add an atom
 
      ! symmetry (symmetry)
@@ -780,6 +781,11 @@ module crystalmod
        logical, intent(in) :: dorelative, dofraction
        type(thread_info), intent(in), optional :: ti
      end subroutine move_cell
+     module subroutine move_cell_all(c,aa,bb,ti)
+       class(crystal), intent(inout) :: c
+       real*8, intent(in) :: aa(3), bb(3)
+       type(thread_info), intent(in), optional :: ti
+     end subroutine move_cell_all
      module subroutine add_atom(c,is,x,iunit_l,isnneq,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: is

@@ -39,6 +39,7 @@ contains
   module subroutine draw_geometry(w)
     use representations, only: reptype_atoms
     use windows, only: iwin_view, iwin_tree
+    use crystalmod, only: holo_string, pointgroup_info
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITGEOM_REMOVE
     use systems, only: nsys, sysc, sys, sys_init, ok_system, reread_system_from_file,&
@@ -50,7 +51,7 @@ contains
        iw_inputtext, iw_periodictable, iw_menuitem
     use types, only: realloc
     use tools_io, only: string, nameguess, ioj_center, isinteger
-    use param, only: newline
+    use param, only: newline, bohrtoa
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
@@ -69,15 +70,17 @@ contains
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, ldum, ok, ch
-    real*8 :: x0(3), xold(3), res
+    real*8 :: x0(3), x6(6), xold(3), x6old(6), res
     type(ImVec4) :: col4
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
+    character(len=3) :: schpg
+    integer :: holo, laue
 
     ! actions at the end of the window draw
     integer :: iaction, iaction_i1, iaction_i2
-    real*8 :: iaction_x(3)
+    real*8 :: iaction_x(3), iaction_x6(6)
     logical :: iaction_l
     character(len=:), allocatable :: iaction_str
     integer, parameter :: iaction_set_attype_name = 0
@@ -90,6 +93,7 @@ contains
     integer, parameter :: iaction_edit_highlighted = 7
     integer, parameter :: iaction_reorder_highlighted = 8
     integer, parameter :: iaction_swap_atom_ids = 9
+    integer, parameter :: iaction_change_cell = 10
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_none = 0
@@ -779,7 +783,40 @@ contains
              ! check if the tab changed
              call check_changed_tab("cell")
 
-             call iw_text("blah")
+             ! keep symmetry and space group
+             ldum = iw_checkbox("Keep Symmetry",w%geometry_forcewyc)
+             call iw_tooltip("If checked, force system to maintain the current space group",ttshown)
+             if (sys(isys)%c%spgavail) then
+                call pointgroup_info(sys(isys)%c%spg%pointgroup_symbol,schpg,holo,laue)
+                call iw_text("  Spg: " // trim(sys(isys)%c%spg%international_symbol),sameline=.true.)
+                call iw_text("(" // string(holo_string(holo)) // ")",sameline=.true.)
+             else
+                call iw_text("  Spg: n/a",sameline=.true.)
+             end if
+
+             x6(1:3) = sys(isys)%c%aa
+             x6(4:6) = sys(isys)%c%bb
+             x6old = x6
+
+             call igAlignTextToFramePadding()
+             call iw_text("a/b/c (Å): ",highlight=.true.)
+             ch = .false.
+             ch = ch .or. iw_dragfloat_real8("##celllengthsa",x1=x6(1),speed=0.005d0,decimal=6,scale=bohrtoa,sameline=.true.)
+             ch = ch .or. iw_dragfloat_real8("##celllengthsb",x1=x6(2),speed=0.005d0,decimal=6,scale=bohrtoa,sameline=.true.)
+             ch = ch .or. iw_dragfloat_real8("##celllengthsc",x1=x6(3),speed=0.005d0,decimal=6,scale=bohrtoa,sameline=.true.)
+
+             call igAlignTextToFramePadding()
+             call iw_text("α/β/γ (°): ",highlight=.true.)
+             ch = ch .or. iw_dragfloat_real8("##cellangsa",x1=x6(4),speed=0.01d0,decimal=4,sameline=.true.)
+             ch = ch .or. iw_dragfloat_real8("##cellanbsb",x1=x6(5),speed=0.01d0,decimal=4,sameline=.true.)
+             ch = ch .or. iw_dragfloat_real8("##cellanbsc",x1=x6(6),speed=0.01d0,decimal=4,sameline=.true.)
+
+             if (ch .and. any(abs(x6-x6old) > epsmoved)) then
+                iaction = iaction_change_cell
+                iaction_x6 = x6
+                iaction_l = w%geometry_forcewyc
+             end if
+
              call igEndTabItem()
           end if
        end if
@@ -911,6 +948,8 @@ contains
        call sysc(isys)%attype_reorder(w%geometry_atomtype,w%iord)
     elseif (iaction == iaction_swap_atom_ids) then
        call sysc(isys)%attype_swap_atoms(w%geometry_atomtype,iaction_i1,iaction_i2)
+    elseif (iaction == iaction_change_cell) then
+       call sysc(isys)%move_cell(iaction_x6(1:3),iaction_x6(4:6),iaction_l)
     end if
 
   contains
@@ -1282,6 +1321,7 @@ contains
     subroutine check_changed_tab(tab)
 
       character*(*) :: tab
+
       if (tab /= w%tabselected) then
          call sysc(w%isys)%highlight_clear(.false.)
          if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)

@@ -1190,6 +1190,28 @@ contains
 
   end subroutine move_cell
 
+  !> Modify the unit cell by changing the cell lengths and axes to the
+  !> given values.
+  module subroutine move_cell_all(c,aa,bb,ti)
+    use crystalseedmod, only: crystalseed
+    class(crystal), intent(inout) :: c
+    real*8, intent(in) :: aa(3), bb(3)
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: seed
+
+    ! make seed from this crystal
+    call c%makeseed(seed,copysym=.false.,useabr=1)
+
+    ! set the new axes
+    seed%aa = aa
+    seed%bb = bb
+
+    ! build the new crystal
+    call c%struct_new(seed,crashfail=.true.,ti=ti)
+
+  end subroutine move_cell_all
+
   !> Add atom with species is and position x in units of iunit_l (see
   !> global). If is <= 0, add a new species with Z = abs(is) to the
   !> system. If isnneq, replicate the atom by symmetry.

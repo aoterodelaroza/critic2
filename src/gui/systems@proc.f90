@@ -1652,6 +1652,28 @@ contains
 
   end subroutine reread_geometry_from_file
 
+  ! Change the unit cell of the system to have cell lengths aa (bohr)
+  ! and angles bb (degree). If forcewyc, force the system to keep
+  ! symemtry.
+  module subroutine move_cell(sysc,aa,bb,forcewyc)
+    class(sysconf), intent(inout) :: sysc
+    real*8, intent(in) :: aa(3), bb(3)
+    logical, intent(in) :: forcewyc
+
+    integer :: isys
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! move the unit cell
+    call sys(isys)%c%move_cell_all(aa,bb)
+
+    ! the geometry has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine move_cell
+
   !xx! private procedures
 
   ! Thread worker: run over all systems and initialize the ones that are not locked

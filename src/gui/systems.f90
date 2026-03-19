@@ -114,6 +114,7 @@ module systems
      procedure :: set_atomic_number
      procedure :: add_species
      procedure :: reread_geometry_from_file
+     procedure :: move_cell
   end type sysconf
 
   ! system arrays
@@ -317,6 +318,11 @@ module systems
      module subroutine reread_geometry_from_file(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine reread_geometry_from_file
+     module subroutine move_cell(sysc,aa,bb,forcewyc)
+       class(sysconf), intent(inout) :: sysc
+       real*8, intent(in) :: aa(3), bb(3)
+       logical, intent(in) :: forcewyc
+     end subroutine move_cell
   end interface
 
 end module systems
