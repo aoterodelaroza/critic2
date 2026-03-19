@@ -1624,7 +1624,7 @@ contains
   !> files come along, this will change.
   subroutine read_phonopy_yaml(v,c,file,errmsg,ti)
     use types, only: realloc
-    use tools_io, only: fopen_read, fclose, getline_raw
+    use tools_io, only: fopen_read, fclose, getline_raw, string
     use param, only: ivformat_phonopy_yaml, cm1tothz
     type(vibrations), intent(inout) :: v
     type(crystal), intent(in) :: c
@@ -1717,10 +1717,16 @@ contains
           ! an eigenvector
           do i = 1, c%ncel
              ok = getline_raw(lu,line,.false.)
-             if (.not.ok) goto 999
+             if (.not.ok) then
+                errmsg = "error reading eigenvector " // string(i)
+                goto 999
+             end if
              do j = 1, 3
                 ok = getline_raw(lu,line,.false.)
-                if (.not.ok) goto 999
+                if (.not.ok) then
+                   errmsg = "error reading eigenvector " // string(i) // ", coord " // string(j)
+                   goto 999
+                end if
                 idx = index(line,"[")
                 line = line(idx+1:)
                 call strip(line)
