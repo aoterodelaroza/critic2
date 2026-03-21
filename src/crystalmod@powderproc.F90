@@ -1001,7 +1001,10 @@ contains
        write (uout,'("+ Reading the pattern from xy file: ",A)') trim(xyfile)
     call file_read_xy(xyfile,n,x,y,errmsg)
     if (len_trim(errmsg) > 0) return
+
+    ! make sure there are no negative points in the profile
     y = y - min(minval(y),0d0)
+
     yread = y
     minx = minval(x)
     maxx = maxval(x)
@@ -2327,7 +2330,9 @@ contains
     errmsg = ""
     nk = nknot0
     if (present(nknot)) nk = nknot
-    yback = min(minval(y) - 10d0,0d0)
+
+    ! baseline for the calculation
+    yback = min(minval(y) - 1d-30,0d0)
 
     allocate(xk(nk),yk(nk))
     do i = 1, nk
