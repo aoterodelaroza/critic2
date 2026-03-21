@@ -1656,18 +1656,87 @@ contains
   ! and angles bb (degree). If forcewyc, force the system to keep
   ! symemtry.
   module subroutine move_cell(sysc,aa,bb,forcewyc)
+    use crystalmod, only: holo_cub, pointgroup_info
+    use tools_math, only: m_x2c_from_cellpar
+    use param, only: pi
     class(sysconf), intent(inout) :: sysc
     real*8, intent(in) :: aa(3), bb(3)
     logical, intent(in) :: forcewyc
 
     integer :: isys
+    character(len=3) :: schpg
+    integer :: holo, laue, idx
+    real*8 :: aa_(3), bb_(3)
+    integer :: leqv, i, ichange, n
+    character*3 :: pg
+    real*8 :: g(3,3), gavg(3,3), ratio, da
+    real*8, allocatable :: rotm(:,:,:)
+
+    real*8, parameter :: tighteps = 1d-7
+    real*8, parameter :: epsconv = 1d-7
+    integer, parameter :: maxstep = 200
 
     ! consistency checks
     isys = sysc%id
     if (.not.ok_system(isys,sys_init)) return
+    if (sys(isys)%c%ismolecule) return
+
+    aa_ = aa
+    bb_ = bb
+    if (forcewyc .and. sys(isys)%c%spgavail) then
+       ! calculate the point group operations
+       call sys(isys)%c%pointgroup(leqv,rotm)
+
+       ! iteratively find a set of cell parameters that satisfies the user's input
+       n = 0
+       da = 1d30
+       do while (da > epsconv)
+          n = n + 1
+          if (n > maxstep) exit
+          g = m_x2c_from_cellpar(aa_,bb_)
+          g = matmul(transpose(g),g)
+
+          ! calculate the symmetrizing matrix
+          gavg = 0d0
+          do i = 1, leqv
+             gavg = gavg + matmul(transpose(rotm(:,:,i)),matmul(g,rotm(:,:,i)))
+          end do
+          gavg = gavg / leqv
+
+          do i = 1, 3
+             aa_(i) = sqrt(gavg(i,i))
+          end do
+          bb_(1) = acos(gavg(2,3) / aa_(2) / aa_(3)) * 180d0 / pi
+          bb_(2) = acos(gavg(1,3) / aa_(1) / aa_(3)) * 180d0 / pi
+          bb_(3) = acos(gavg(1,2) / aa_(1) / aa_(2)) * 180d0 / pi
+
+          if (abs(aa(1) - sys(isys)%c%aa(1)) > tighteps) then
+             da = abs(aa(1) - aa_(1))
+             aa_(1) = aa(1)
+          elseif (abs(aa(2) - sys(isys)%c%aa(2)) > tighteps) then
+             da = abs(aa(2) - aa_(2))
+             aa_(2) = aa(2)
+          elseif (abs(aa(3) - sys(isys)%c%aa(3)) > tighteps) then
+             da = abs(aa(3) - aa_(3))
+             aa_(3) = aa(3)
+          elseif (abs(bb(1) - sys(isys)%c%bb(1)) > tighteps) then
+             da = abs(bb(1) - bb_(1))
+             bb_(1) = bb(1)
+          elseif (abs(bb(2) - sys(isys)%c%bb(2)) > tighteps) then
+             da = abs(bb(2) - bb_(2))
+             bb_(2) = bb(2)
+          elseif (abs(bb(3) - sys(isys)%c%bb(3)) > tighteps) then
+             da = abs(bb(3) - bb_(3))
+             bb_(3) = bb(3)
+          end if
+       end do
+
+       ! do nothing if a cell could not be found
+       if (da > epsconv) return
+    end if
 
     ! move the unit cell
-    call sys(isys)%c%move_cell_all(aa,bb)
+    call sys(isys)%c%move_cell_all(aa_,bb_)
 
     ! the geometry has changed
     call sysc%post_event(lastchange_geometry)

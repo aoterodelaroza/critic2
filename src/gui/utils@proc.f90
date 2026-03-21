@@ -179,7 +179,7 @@ contains
   !> decimal places on the label. flags = combination of
   !> ImGuiSliderFlags_* flags. Version for real(c_float) type.
   module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&
-     sameline,flags)
+     sameline,acceptonenter,flags)
     use interfaces_cimgui
     use gui_main, only: g
     use tools_io, only: string
@@ -191,12 +191,14 @@ contains
     real(c_float), intent(in), optional :: speed, min, max, scale
     integer, intent(in), optional :: decimal
     logical, intent(in), optional :: sameline
+    logical, intent(in), optional :: acceptonenter
     integer(c_int), intent(in), optional :: flags
     logical :: iw_dragfloat_realc
 
     real(c_float) :: speed_, min_, max_, scale_
     character(len=:,kind=c_char), allocatable, target :: str_, sformat_
     integer(c_int) :: flags_
+    logical :: acceptonenter_
     real(c_float) :: x1_, x2_(2), x3_(3), x4_(4)
     integer :: n
     real(c_float) :: width
@@ -220,6 +222,8 @@ contains
     if (present(sameline)) sameline_ = sameline
     flags_ = 0_c_int
     if (present(flags)) flags_ = flags
+    acceptonenter_ = .false.
+    if (present(acceptonenter)) acceptonenter_ = acceptonenter
 
     ! same line
     if (sameline_) &
@@ -262,6 +266,11 @@ contains
     end if
     call igPopItemWidth()
 
+    if (acceptonenter_) then
+       if (iw_dragfloat_realc .and. igIsItemActive()) &
+          iw_dragfloat_realc = igIsMouseDragging(ImGuiMouseButton_Left,-1._c_float)
+    end if
+
   end function iw_dragfloat_realc
 
   !> Drag float button for 1, 2, 3, and 4 floating point numbers. The
@@ -272,7 +281,7 @@ contains
   !> label. flags = combination of ImGuiSliderFlags_* flags. Version
   !> for real*8 type.
   module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&
-     sameline,flags)
+     sameline,acceptonenter,flags)
     use interfaces_cimgui
     use gui_main, only: g
     use tools_io, only: string
@@ -284,6 +293,7 @@ contains
     real*8, intent(in), optional :: speed, min, max, scale
     integer, intent(in), optional :: decimal
     logical, intent(in), optional :: sameline
+    logical, intent(in), optional :: acceptonenter
     integer(c_int), intent(in), optional :: flags
     logical :: iw_dragfloat_real8
 
@@ -291,6 +301,7 @@ contains
     real(c_float) :: speed_, min_, max_, x1_, x2_(2), x3_(3), x4_(4)
     character(len=:,kind=c_char), allocatable, target :: str_, sformat_
     integer(c_int) :: flags_
+    logical :: acceptonenter_
     integer :: n
     real(c_float) :: width
     type(ImVec2) :: sz
@@ -313,6 +324,8 @@ contains
     if (present(sameline)) sameline_ = sameline
     flags_ = 0_c_int
     if (present(flags)) flags_ = flags
+    acceptonenter_ = .false.
+    if (present(acceptonenter)) acceptonenter_ = acceptonenter
 
     ! same line
     if (sameline_) &
@@ -354,6 +367,11 @@ contains
        iw_dragfloat_real8 = .false.
     end if
     call igPopItemWidth()
+
+    if (acceptonenter_) then
+       if (iw_dragfloat_real8 .and. igIsItemActive()) &
+          iw_dragfloat_real8 = igIsMouseDragging(ImGuiMouseButton_Left,-1._c_float)
+    end if
 
   end function iw_dragfloat_real8
 

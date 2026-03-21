@@ -1064,14 +1064,26 @@ end function igIsItemActive
 !x! bool igIsItemFocused(void);
 !x! bool igIsItemClicked(ImGuiMouseButton mouse_button);
 !x! bool igIsItemVisible(void);
-!x! bool igIsItemEdited(void);
+! bool igIsItemEdited(void);
+function igIsItemEdited() bind(c,name="igIsItemEdited")
+  import c_bool
+  logical(c_bool) :: igIsItemEdited
+end function igIsItemEdited
 ! bool igIsItemActivated(void);
 function igIsItemActivated() bind(c,name="igIsItemActivated")
   import c_bool
   logical(c_bool) :: igIsItemActivated
 end function igIsItemActivated
-!x! bool igIsItemDeactivated(void);
-!x! bool igIsItemDeactivatedAfterEdit(void);
+! bool igIsItemDeactivated(void);
+function igIsItemDeactivated() bind(c,name="igIsItemDeactivated")
+  import c_bool
+  logical(c_bool) :: igIsItemDeactivated
+end function igIsItemDeactivated
+! bool igIsItemDeactivatedAfterEdit(void);
+function igIsItemDeactivatedAfterEdit() bind(c,name="igIsItemDeactivatedAfterEdit")
+  import c_bool
+  logical(c_bool) :: igIsItemDeactivatedAfterEdit
+end function igIsItemDeactivatedAfterEdit
 !x! bool igIsItemToggledOpen(void);
 !x! bool igIsAnyItemHovered(void);
 !x! bool igIsAnyItemActive(void);
@@ -1191,7 +1203,13 @@ subroutine igGetMousePos(pOut) bind(c,name="igGetMousePos")
   type(ImVec2) :: pOut
 end subroutine igGetMousePos
 !x! void igGetMousePosOnOpeningCurrentPopup(ImVec2 *pOut);
-!x! bool igIsMouseDragging(ImGuiMouseButton button,float lock_threshold);
+! bool igIsMouseDragging(ImGuiMouseButton button,float lock_threshold);
+function igIsMouseDragging(button,lock_threshold) bind(c,name="igIsMouseDragging")
+  import c_bool, c_int, c_float
+  integer(c_int), value :: button
+  real(c_float), value :: lock_threshold
+  logical(c_bool) :: igIsMouseDragging
+end function igIsMouseDragging
 !x! void igGetMouseDragDelta(ImVec2 *pOut,ImGuiMouseButton button,float lock_threshold);
 !x! void igResetMouseDragDelta(ImGuiMouseButton button);
 !x! ImGuiMouseCursor igGetMouseCursor(void);

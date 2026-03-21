@@ -696,7 +696,7 @@ contains
                          if (igTableSetColumnIndex(icol)) then
                             s = string(x0(j),'f',dec+4,dec,ioj_center)
                             ch = ch .or. iw_dragfloat_real8("##x" // string(isys) // "_" // string(i) // "_" // string(j),&
-                               x1=x0(j),speed=0.001d0,decimal=dec)
+                               x1=x0(j),speed=0.001d0,decimal=dec,acceptonenter=.true.)
                          end if
                       end do
                       if (ch .and. any(abs(x0-xold) > epsmoved)) then
@@ -801,22 +801,27 @@ contains
              call igAlignTextToFramePadding()
              call iw_text("a/b/c (Å): ",highlight=.true.)
              ch = .false.
-             ch = ch .or. iw_dragfloat_real8("##celllengthsa",x1=x6(1),speed=0.005d0,decimal=6,scale=bohrtoa,sameline=.true.)
-             ch = ch .or. iw_dragfloat_real8("##celllengthsb",x1=x6(2),speed=0.005d0,decimal=6,scale=bohrtoa,sameline=.true.)
-             ch = ch .or. iw_dragfloat_real8("##celllengthsc",x1=x6(3),speed=0.005d0,decimal=6,scale=bohrtoa,sameline=.true.)
+             ch = ch .or. iw_dragfloat_real8("##celllengthsa",x1=x6(1),speed=0.005d0,decimal=6,scale=bohrtoa,&
+                acceptonenter=.true.,sameline=.true.)
+             ch = ch .or. iw_dragfloat_real8("##celllengthsb",x1=x6(2),speed=0.005d0,decimal=6,scale=bohrtoa,&
+                acceptonenter=.true.,sameline=.true.)
+             ch = ch .or. iw_dragfloat_real8("##celllengthsc",x1=x6(3),speed=0.005d0,decimal=6,scale=bohrtoa,&
+                acceptonenter=.true.,sameline=.true.)
 
              call igAlignTextToFramePadding()
              call iw_text("α/β/γ (°): ",highlight=.true.)
-             ch = ch .or. iw_dragfloat_real8("##cellangsa",x1=x6(4),speed=0.01d0,decimal=4,sameline=.true.)
-             ch = ch .or. iw_dragfloat_real8("##cellanbsb",x1=x6(5),speed=0.01d0,decimal=4,sameline=.true.)
-             ch = ch .or. iw_dragfloat_real8("##cellanbsc",x1=x6(6),speed=0.01d0,decimal=4,sameline=.true.)
+             ch = ch .or. iw_dragfloat_real8("##cellangsa",x1=x6(4),speed=0.01d0,decimal=4,sameline=.true.,&
+                acceptonenter=.true.)
+             ch = ch .or. iw_dragfloat_real8("##cellanbsb",x1=x6(5),speed=0.01d0,decimal=4,sameline=.true.,&
+                acceptonenter=.true.)
+             ch = ch .or. iw_dragfloat_real8("##cellanbsc",x1=x6(6),speed=0.01d0,decimal=4,sameline=.true.,&
+                acceptonenter=.true.)
 
              if (ch .and. any(abs(x6-x6old) > epsmoved)) then
                 iaction = iaction_change_cell
                 iaction_x6 = x6
                 iaction_l = w%geometry_forcewyc
              end if
-
              call igEndTabItem()
           end if
        end if
@@ -1240,9 +1245,12 @@ contains
          else
             call igAlignTextToFramePadding()
             call iw_text("Position")
-            ldum = iw_dragfloat_real8("##xaddcoord",x1=w%geometry_input_coord(1),speed=0.001d0,decimal=6,sameline=.true.)
-            ldum = iw_dragfloat_real8("##yaddcoord",x1=w%geometry_input_coord(2),speed=0.001d0,decimal=6,sameline=.true.)
-            ldum = iw_dragfloat_real8("##zaddcoord",x1=w%geometry_input_coord(3),speed=0.001d0,decimal=6,sameline=.true.)
+            ldum = iw_dragfloat_real8("##xaddcoord",x1=w%geometry_input_coord(1),speed=0.001d0,decimal=6,&
+               acceptonenter=.true.,sameline=.true.)
+            ldum = iw_dragfloat_real8("##yaddcoord",x1=w%geometry_input_coord(2),speed=0.001d0,decimal=6,&
+               acceptonenter=.true.,sameline=.true.)
+            ldum = iw_dragfloat_real8("##zaddcoord",x1=w%geometry_input_coord(3),speed=0.001d0,decimal=6,&
+               acceptonenter=.true.,sameline=.true.)
 
             call igAlignTextToFramePadding()
             call iw_text("Species")

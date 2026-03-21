@@ -297,6 +297,7 @@ module crystalmod
      procedure :: add_atom !< Add an atom
 
      ! symmetry (symmetry)
+     procedure :: pointgroup !< Returns the rotations in the crystal point group
      procedure :: sitesymm !< Determine the local-symmetry group symbol for a point
      procedure :: symeqv  !< Calculate the symmetry-equivalent positions of a point
      procedure :: get_mult !< Multiplicity of a point
@@ -794,6 +795,11 @@ module crystalmod
        logical, intent(in) :: isnneq
        type(thread_info), intent(in), optional :: ti
      end subroutine add_atom
+     module subroutine pointgroup(c,leqv,rotm)
+       class(crystal), intent(in) :: c
+       integer, intent(out) :: leqv
+       real*8, allocatable, intent(inout) :: rotm(:,:,:)
+     end subroutine pointgroup
      module function sitesymm(c,x0,eps0,leqv,lrotm)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3)

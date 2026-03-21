@@ -38,6 +38,48 @@ submodule (crystalmod) symmetry
 
 contains
 
+  !> Determine the rotations in the point group from the space group
+  !> information. The number of rotations is leqv and the rotation
+  !> matrices are rotm(3,3,leqv).
+  module subroutine pointgroup(c,leqv,rotm)
+    use param, only: eye
+    class(crystal), intent(in) :: c
+    integer, intent(out) :: leqv
+    real*8, allocatable, intent(inout) :: rotm(:,:,:)
+
+    integer :: i, j
+    logical :: found
+
+    real*8, parameter :: eps = 1d-5
+
+    ! initialize and check
+    leqv = 1
+    if (allocated(rotm)) deallocate(rotm)
+    if (.not.c%spgavail .or. c%neqv == 1) then
+       allocate(rotm(3,3,1))
+       rotm(:,:,1) = eye
+       return
+    else
+       allocate(rotm(3,3,c%neqv))
+       rotm(:,:,1) = eye
+    end if
+
+    do i = 1, c%neqv
+       found = .false.
+       do j = 1, leqv
+          if (all(abs(c%rotm(1:3,1:3,i) - rotm(:,:,j)) < eps)) then
+             found = .true.
+             exit
+          end if
+       end do
+       if (.not.found) then
+          leqv = leqv + 1
+          rotm(:,:,leqv) = c%rotm(1:3,1:3,i)
+       end if
+    end do
+
+  end subroutine pointgroup
+
   !> Determines the site symmetry for a point x0 in cryst. coords.
   !> Two points are the same if their distance is less than eps0.
   !> Returns the site symmetry group symbol (sitesymm), the
