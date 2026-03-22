@@ -1490,7 +1490,7 @@ contains
        if (s%propi(i)%itype == itype_expr) then
           lprop(i) = s%eval(s%propi(i)%expr,errmsg,xpos)
           if (len_trim(errmsg) > 0) &
-             call ferror("addcp","Error evaluating expression: " // trim(errmsg),faterr)
+             call ferror("grdall","Error evaluating expression: " // trim(errmsg),faterr)
        else
           id = s%propi(i)%fid
           if (.not.s%goodfield(id)) cycle
@@ -1568,8 +1568,7 @@ contains
        do i = 1, size(discard,1)
           if (discard(i)%typeok(idx)) then
              fval = s%eval(discard(i)%s,errmsg,x0)
-             if (len_trim(errmsg) > 0) &
-                call ferror("addcp","Invalid DISCARD expression: " // trim(errmsg),faterr)
+             if (len_trim(errmsg) > 0) return
              ok = (abs(fval) < 1d-30)
              if (.not.ok) return
           end if
