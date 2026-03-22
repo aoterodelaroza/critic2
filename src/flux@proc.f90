@@ -44,6 +44,7 @@ submodule (flux) proc
   real*8 :: flx_xpos(3,2)
   real*8 :: flx_cpos(3,2)
   real*8 :: flx_direction(3)
+  real*8 :: flx_dendpos
 
   ! output format
   character*3 :: outfmt
@@ -771,6 +772,8 @@ contains
        write (luout,'("# ---- end of the path ---- ")')
        write (luout,'("# name: ",A," ",A," ncp: ",A," ncpcel: ",A)') &
           string(cpname(2)), string(cptype(2)), string(cpid(2)), string(flx_cpcelid(2))
+       write (luout,'("# distance between nucleus and end of path (bohr): ",A)') &
+          string(flx_dendpos,'f',decimal=6)
        write (luout,'("# rho: ",A," grad: ",A," lap: ",A)') &
           string(flx_path(flx_n)%f,'e',decimal=9), string(norm2(flx_path(flx_n)%gf),'e',decimal=9), &
           string(flx_path(flx_n)%hf(1,1)+flx_path(flx_n)%hf(2,2)+flx_path(flx_n)%hf(3,3),'e',decimal=9)
@@ -929,20 +932,9 @@ contains
     real*8, intent(in) :: dir(3)
     integer :: icp
 
-    real*8 :: nn2, dist
+    real*8 :: nn2
 
-    real*8 :: nuceps, nucepsh
-    real*8 :: cpeps
-
-    ! calculate the eps (same as in autocp
-    if (sy%f(sy%iref)%type == type_grid) then
-       nuceps = 2d0 * maxval(sy%c%aa / sy%f(sy%iref)%grid%n)
-       nucepsh = 2d0 * maxval(sy%c%aa / sy%f(sy%iref)%grid%n)
-    else
-       nuceps = 1d-1
-       nucepsh = 2d-1
-    end if
-    cpeps = 1d-2
+    real*8, parameter :: cpeps = 1d-2
 
     ! fill the easy stuff
     flx_cpos(:,1) = x
@@ -961,17 +953,15 @@ contains
     ! detect if the final point in the path is a CP
     flx_cpcelid(2) = 0
     if (flx_n > 0) then
-       call sy%f(sy%iref)%nearest_cp(flx_path(flx_n)%x,flx_cpcelid(2),dist)
-       if (dist <= cpeps) goto 999
+       call sy%f(sy%iref)%nearest_cp(flx_path(flx_n)%x,flx_cpcelid(2),flx_dendpos)
+       if (flx_dendpos <= cpeps) goto 999
 
-       flx_cpcelid(2) = sy%c%identify_atom(flx_path(flx_n)%x,icrd_crys,dist=dist,distmax=max(nuceps,nucepsh))
-       if (flx_cpcelid(2) > 0) then
-          if (dist < nuceps) goto 999
-          if (sy%c%spc(sy%c%atcel(flx_cpcelid(2))%is)%z == 1 .and. dist < nucepsh) goto 999
-       end if
+       call sy%f(sy%iref)%nearest_cp(flx_path(flx_n)%x,flx_cpcelid(2),flx_dendpos,type=-3)
+       if (flx_cpcelid(2) > 0) goto 999
     end if
 
     ! final CP not found, use the last point in the path
+    flx_dendpos = 0d0
     flx_cpcelid(2) = 0
     flx_xpos(:,2) = flx_path(flx_n)%x
     flx_cpos(:,2) = flx_path(flx_n)%r
