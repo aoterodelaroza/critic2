@@ -7232,7 +7232,7 @@ contains
        ! data_
        if (leng >= 5) then
           if (lower(line(1:5)) == "data_") then
-             ! finalize the previous seeed
+             ! finalize the previous seed if we have all the info
              if (indata) then
                 call fill_seed(seed)
                 if (present(nseed).and.present(mseed)) then
@@ -7245,7 +7245,7 @@ contains
                       errmsg = ""
                       call seed%end()
                    end if
-                elseif (present(seed0)) then
+                elseif (present(seed0).and.len(errmsg) == 0) then
                    seed0 = seed
                    return
                 else
@@ -7253,6 +7253,7 @@ contains
                    return
                 end if
              end if
+             errmsg = ""
              spg = ""
              indata = .false.
              blockname = trim(line(6:))
@@ -7438,9 +7439,12 @@ contains
           call realloc_crystalseed(mseed,nseed)
           mseed(nseed) = seed
        end if
-       if (nseed == 0) &
+       if (nseed == 0) then
           errmsg = "Error reading cif file: no valid data blocks were found"
-    elseif (present(seed0)) then
+       else
+          errmsg = ""
+       end if
+    elseif (present(seed0).and.len(errmsg) == 0) then
        seed0 = seed
     end if
 
