@@ -217,7 +217,7 @@ contains
 
     ! show the tabs
     str1 = "##drawgeometry_tabbar" // c_null_char
-    flags = ImGuiTabBarFlags_Reorderable
+    flags = ImGuiTabBarFlags_None
     call igBeginGroup()
     if (igBeginTabBar(c_loc(str1),flags)) then
        !! species tab !!
