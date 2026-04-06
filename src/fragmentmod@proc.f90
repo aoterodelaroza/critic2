@@ -111,7 +111,9 @@ contains
     real*8 :: x(3)
     logical :: found, ok
 
-    if (.not.allocated(fr%at)) then
+    if (.not.allocated(fr%at) .or. .not.allocated(fr%spc) .or. fr%nspc == 0 .or. fr%nat == 0) then
+       if (allocated(fr%at)) deallocate(fr%at)
+       if (allocated(fr%spc)) deallocate(fr%spc)
        allocate(fr%at(fra%nat))
        allocate(fr%spc(fra%nspc))
        fr%nspc = fra%nspc
