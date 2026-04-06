@@ -7245,9 +7245,15 @@ contains
                       errmsg = ""
                       call seed%end()
                    end if
-                elseif (present(seed0).and.len(errmsg) == 0) then
-                   seed0 = seed
-                   return
+                elseif (present(seed0)) then
+                   if (len(errmsg) == 0) then
+                      seed0 = seed
+                      return
+                   else
+                      ! keep reading
+                      errmsg = ""
+                      call seed%end()
+                   end if
                 else
                    errmsg = "Error reading cif file (incorrect use of the interface)"
                    return
