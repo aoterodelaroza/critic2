@@ -36,10 +36,14 @@ submodule (windows) view
   integer, parameter :: ilock_scroll = 3
   integer, parameter :: ilock_middle = 4
 
+  ! minimum time elapsed between consecutive queries of the pick buffer (seconds)
+  integer, parameter :: pick_interval = 1d0 / 5d0
+
 contains
 
   !> Draw the view.
   module subroutine draw_view(w)
+    use interfaces_glfw, only: glfwGetTime
     use interfaces_opengl3
     use interfaces_cimgui
     use keybindings, only: is_bind_event, BIND_VIEW_INC_NCELL, BIND_VIEW_DEC_NCELL,&
@@ -78,7 +82,7 @@ contains
     logical(c_bool) :: ch
     integer(c_int) :: flags, nc(3), ires, viewtype, idum
     real(c_float) :: scal, width, sqw, depth, rgba(4)
-    real*8 :: x0(3)
+    real*8 :: x0(3), time
     type(ImVec2) :: sz
     logical :: changedisplay(4) ! 1=atoms, 2=bonds, 3=labels, 4=cell
 
@@ -92,6 +96,7 @@ contains
     integer(c_int), parameter :: ic_editbutton = 4
 
     ! initialize
+    time = glfwGetTime()
     szero%x = 0
     szero%y = 0
     chrender = .false.
@@ -824,7 +829,7 @@ contains
     ! get the ID of the atom under mouse
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
-    if (hover_and_moved) then
+    if (hover_and_moved .and. w%timelast_view_getpixel + pick_interval < time) then
        w%mousepos_idx = 0
        call w%mousepos_to_texpos(pos)
        call w%getpixel(pos,depth,rgba)
@@ -837,6 +842,7 @@ contains
        else
           w%mousepos_idx = 0
        end if
+       w%timelast_view_getpixel = time
     elseif (.not.hover) then
        w%mousepos_idx = 0
     end if
