@@ -96,6 +96,7 @@ contains
 
     ! clear the symmetry and re-write the non-equivalent atom list
     call s%c%clearsym(cel2neq=.true.)
+    call s%c%pg%clear()
 
     ! convert ncpcel to ncel for all fields
     do i = 0, s%nf

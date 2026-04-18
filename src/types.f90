@@ -29,6 +29,7 @@ module types
   public :: celatom
   public :: anyatom
   public :: cp_type
+  public :: molsymop
   public :: field_evaluation_avail
   public :: scalar_value
   public :: integrable
@@ -50,6 +51,7 @@ module types
      module procedure realloc_neqatom
      module procedure realloc_celatom
      module procedure realloc_anyatom
+     module procedure realloc_molsymop
      module procedure realloc_cp
      module procedure realloc_gpathp
      module procedure realloc1l
@@ -160,6 +162,25 @@ module types
   integer, parameter, public :: id_mo_a = -7
   integer, parameter, public :: id_mo_b = -8
   integer, parameter, public :: id_mo_id = -9
+
+  ! Molecular symmetry operations
+  type molsymop
+     real*8 :: m(3,3) ! the rotation matrix
+     integer :: type ! type of operation (rotation, plane,...)
+     integer :: opn ! the n in C_n^m or S_n^m
+     integer :: opm ! the m in C_n^m or S_n^m
+     logical :: proper ! whether this is a proper symmetry operation
+     real*8 :: axis(3) ! axis for rotations/normal for planes
+     character(len=:), allocatable :: sym ! symbol
+  end type molsymop
+
+  ! Identifiers for molecular symmetry operation types
+  integer, parameter, public :: molsymop_identity = 1
+  integer, parameter, public :: molsymop_inversion = 2
+  integer, parameter, public :: molsymop_rotation = 3
+  integer, parameter, public :: molsymop_plane = 4
+  integer, parameter, public :: molsymop_imp_rotation = 5
+  integer, parameter, public :: molsymop_unknown = 6
 
   !> Type to request the evaluation of properties from a scalar field,
   !> and to report which properties are availabe in an evaluation.
@@ -414,6 +435,10 @@ module types
        type(anyatom), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_anyatom
+     module subroutine realloc_molsymop(a,nnew)
+       type(molsymop), intent(inout), allocatable :: a(:)
+       integer, intent(in) :: nnew
+     end subroutine realloc_molsymop
      module subroutine realloc_cp(a,nnew)
        type(cp_type), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew

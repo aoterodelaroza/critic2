@@ -23,7 +23,7 @@ module crystalmod
   use types, only: neqatom, celatom, neighstar, species, cp_type
   use fragmentmod, only: fragment
   use param, only: maxzat0, mlen
-  use types, only: thread_info
+  use types, only: thread_info, molsymop
   implicit none
 
   private
@@ -126,6 +126,22 @@ module crystalmod
   end type vibrations
   public :: vibrations
 
+  ! The molecular point group class.
+  type point_group
+     logical :: avail = .false. ! the point group has been calculated
+     logical :: isatom ! whether the system is a single atom
+     logical :: islinear ! whether the system is a linear molecule
+     logical :: isplanar ! whether the system is a planar molecule
+     real*8 :: xcm(3) ! center of mass
+     integer :: nop ! number of symmetry operations
+     type(molsymop), allocatable :: op(:) ! symmetry operations
+     character(len=:), allocatable :: symbol ! symbol for the point group
+   contains
+     procedure :: clear => point_group_clear
+     procedure :: report => point_group_report
+     procedure :: init_as_c1 => point_group_init_as_c1
+  end type point_group
+
   !> The crystal class. A crystal contains the structural information for the
   !> system, and it can be an actual crystal (%ismolecule=.false.) or a molecule
   !> (%ismolecule=.true.) embedded in a large cell. When use in combination
@@ -179,6 +195,8 @@ module crystalmod
      integer :: ncv  !< number of centering vectors
      real*8, allocatable :: cen(:,:) !< centering vectors
      real*8 :: rotm(3,4,48) !< symmetry operations
+     ! molecular symmetry
+     type(point_group) :: pg
      ! variables for molecular systems
      logical :: ismolecule = .false. !< is it a molecule?
      real*8 :: molx0(3) !< centering vector for the molecule
@@ -854,8 +872,9 @@ module crystalmod
        integer, intent(out), optional :: ntetrag
        real*8, allocatable, intent(inout), optional :: tetrag(:,:,:)
      end subroutine getiws
-     module subroutine calcmolsym(c,errmsg)
+     module subroutine calcmolsym(c,pg,errmsg)
        class(crystal), intent(inout) :: c
+       type(point_group), intent(inout) :: pg
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine calcmolsym
      module subroutine powder(c,mode,th2ini0,th2end0,lambda0,fpol,npts,sigma,ishard,&
@@ -1201,6 +1220,16 @@ module crystalmod
        real*8, intent(in) :: temp
        type(crystalseed), intent(out) :: seed
      end subroutine vibrations_phonon_rattle
+     !xx! point_group type
+     module subroutine point_group_clear(p)
+       class(point_group), intent(inout) :: p
+     end subroutine point_group_clear
+     module subroutine point_group_report(p)
+       class(point_group), intent(inout) :: p
+     end subroutine point_group_report
+     module subroutine point_group_init_as_c1(p)
+       class(point_group), intent(inout) :: p
+     end subroutine point_group_init_as_c1
      !xx! xrpd_peaklist type
      module subroutine xrpd_peaklist_end(p)
        class(xrpd_peaklist), intent(inout) :: p

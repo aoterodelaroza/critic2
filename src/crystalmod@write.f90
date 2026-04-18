@@ -235,7 +235,11 @@ contains
        end if
 
        ! Write symmetry operations
-       if (.not.c%ismolecule) then
+       if (c%ismolecule) then
+          !! molecules !!
+          if (c%pg%avail) call c%pg%report()
+       else
+          !! crystals !!
           write(uout,'("+ List of symmetry operations (",A,"):")') string(c%neqv)
           do k = 1, c%neqv
              write (uout,'("  Operation ",A,":")') string(k)

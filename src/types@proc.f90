@@ -292,6 +292,27 @@ contains
 
   end subroutine realloc_anyatom
 
+  !> Adapt the size of an allocatable 1D type(molsymop) array
+  module subroutine realloc_molsymop(a,nnew)
+    type(molsymop), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(molsymop), allocatable :: temp(:)
+    integer :: nold
+
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
+    nold = size(a)
+    if (nold == nnew) return
+    allocate(temp(nnew))
+
+    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_molsymop
+
   !> Adapt the size of an allocatable 1D type(atom) array
   module subroutine realloc_cp(a,nnew)
     type(cp_type), intent(inout), allocatable :: a(:)

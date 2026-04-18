@@ -17,6 +17,8 @@
 
 ! Routines for handling molecular symmetry and related calculations
 submodule (crystalmod) molsym
+  use types, only: molsymop, molsymop_identity, molsymop_inversion, molsymop_rotation,&
+     molsymop_plane, molsymop_imp_rotation, molsymop_unknown
   use param, only: pi
   implicit none
 
@@ -39,50 +41,80 @@ submodule (crystalmod) molsym
 
   integer, parameter :: norder_inf = 4 ! order of the infinite group (Cinfv, Dinfh)
 
-  ! type for molecular symmetry operations
-  type molsymop
-     real*8 :: m(3,3) ! the rotation matrix
-     integer :: type ! type of operation (rotation, plane,...)
-     integer :: opn ! the n in C_n^m or S_n^m
-     integer :: opm ! the m in C_n^m or S_n^m
-     logical :: proper ! whether this is a proper symmetry operation
-     real*8 :: axis(3) ! axis for rotations/normal for planes
-     character(len=:), allocatable :: sym ! symbol
-  end type molsymop
-
-  ! identifiers for molecular symmetry operations
-  integer, parameter :: molsymop_identity = 1
-  integer, parameter :: molsymop_inversion = 2
-  integer, parameter :: molsymop_rotation = 3
-  integer, parameter :: molsymop_plane = 4
-  integer, parameter :: molsymop_imp_rotation = 5
-  integer, parameter :: molsymop_unknown = 6
-
   !xx! private procedures
 
 contains
 
+  !> Clear the information in a point group class.
+  module subroutine point_group_clear(p)
+    class(point_group), intent(inout) :: p
+
+    p%avail = .false.
+    p%isatom = .false.
+    p%islinear = .false.
+    p%isplanar = .false.
+    p%xcm = 0d0
+    p%nop = 0
+    if (allocated(p%op)) deallocate(p%op)
+    p%symbol = "??"
+
+  end subroutine point_group_clear
+
+  !> Print the point group operations to standard output.
+  module subroutine point_group_report(p)
+    use tools_io, only: uout, string, ioj_left
+    class(point_group), intent(inout) :: p
+
+    integer :: i, j
+
+    write (uout,'("+ Molecular point group: ",A)') trim(p%symbol)
+    write (uout,'("+ List of symmetry operations (",A,")")') string(p%nop)
+
+    write (uout,'("#id  symbol                 axis/normal vector")')
+    do i = 1, p%nop
+       write (uout,'(99(A,X))') string(i,4,ioj_left),&
+          string(p%op(i)%sym,10,ioj_left),&
+          (string(p%op(i)%axis(j),'f',13,8,5),j=1,3)
+    end do
+    write (uout,*)
+
+  end subroutine point_group_report
+
+  !> Initialize the point group as C1
+  module subroutine point_group_init_as_c1(p)
+    use param, only: eye
+    class(point_group), intent(inout) :: p
+
+    call p%clear()
+    p%nop = 0
+    allocate(p%op(1))
+    call add_symop(eye,p%nop,p%op)
+    p%symbol = 'C1'
+    p%avail = .true.
+
+  end subroutine point_group_init_as_c1
+
   ! Calculate the symmetry operations and point group of a molecule
-  module subroutine calcmolsym(c,errmsg)
+  module subroutine calcmolsym(c,pg,errmsg)
     use tools_math, only: cross
     use param, only: atmass
     class(crystal), intent(inout) :: c
+    type(point_group), intent(inout) :: pg
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: i, nat, iref, norbit
     real*8, allocatable :: x(:,:), w(:)
     integer, allocatable :: z(:), iorb(:)
-    real*8 :: xcm(3), xref(3), xthis(3)
+    real*8 :: xref(3), xthis(3)
     logical :: islinear, isplanar
     type(orbit), allocatable :: orb(:)
-    integer :: nrotm
-    type(molsymop), allocatable :: mrotm(:)
-    character(len=:), allocatable :: point_group
 
-    ! initialize
-    nrotm = 0
-    allocate(mrotm(10))
+    ! initialize; return if there are no atoms
     errmsg = ""
+    call pg%clear()
+    if (c%ncel == 0) return
+    pg%nop = 0
+    allocate(pg%op(10))
 
     ! allocate atomic positions and parameters
     nat = c%ncel
@@ -94,19 +126,22 @@ contains
     end do
 
     ! calculate the center of mass
-    xcm = 0d0
+    pg%xcm = 0d0
     do i = 1, nat
-       xcm = xcm + w(i) * x(:,i)
+       pg%xcm = pg%xcm + w(i) * x(:,i)
     end do
-    xcm = xcm / sum(w)
+    pg%xcm = pg%xcm / sum(w)
 
     ! center the molecule
     do i = 1, nat
-       x(:,i) = x(:,i) - xcm
+       x(:,i) = x(:,i) - pg%xcm
     end do
 
+    ! whether the molecule is an atom
+    pg%isatom = (nat == 1)
+
     ! whether the molecule is linear
-    islinear = .true.
+    pg%islinear = .true.
     iref = -1
     if (nat > 2) then
        xref = x(:,2) - x(:,1)
@@ -116,15 +151,15 @@ contains
           xthis = xthis / norm2(xthis)
           if (abs(abs(dot_product(xthis,xref)) - 1d0) > eps_linear) then
              iref = i
-             islinear = .false.
+             pg%islinear = .false.
              exit
           end if
        end do
     end if
 
     ! whether the molecule is planar
-    isplanar = .true.
-    if (.not.islinear .and. nat > 3 .and. iref > 0) then
+    pg%isplanar = .true.
+    if (.not.pg%islinear .and. nat > 3 .and. iref > 0) then
        ! vector normal to the plane
        xref = cross(x(:,2) - x(:,1), x(:,iref) - x(:,1))
        xref = xref / norm2(xref)
@@ -135,7 +170,7 @@ contains
           xthis = x(:,i) - x(:,1)
           xthis = xthis / norm2(xthis)
           if (abs(dot_product(xthis,xref)) > eps_planar) then
-             isplanar = .false.
+             pg%isplanar = .false.
              exit
           end if
        end do
@@ -145,19 +180,25 @@ contains
     call calculate_orbits(nat,x,z,iorb,norbit,orb)
 
     ! calculate the symmetry operations
-    if (islinear) then
-       call calcrotm_linear(nat,x,z,norbit,orb,nrotm,mrotm)
-    elseif (isplanar) then
-       call calcrotm_planar(nat,x,z,iorb,norbit,orb,nrotm,mrotm)
+    if (pg%isatom) then
+       call calcrotm_atom(pg%nop,pg%op)
+    elseif (pg%islinear) then
+       call calcrotm_linear(nat,x,z,norbit,orb,pg%nop,pg%op)
+    elseif (pg%isplanar) then
+       call calcrotm_planar(nat,x,z,iorb,norbit,orb,pg%nop,pg%op)
     else
-       call calcrotm_general(nat,x,z,iorb,norbit,orb,nrotm,mrotm)
+       call calcrotm_general(nat,x,z,iorb,norbit,orb,pg%nop,pg%op)
     end if
 
     ! get the point group name
-    call get_group_name(nrotm,mrotm,point_group)
+    if (pg%isatom) then
+       pg%symbol = 'O3'
+    else
+       call get_group_name(pg%nop,pg%op,pg%symbol)
+    end if
 
-    ! ! print the point group information
-    ! call print_group(point_group,nrotm,mrotm)
+    ! wrap up
+    pg%avail = .true.
 
   end subroutine calcmolsym
 
@@ -178,7 +219,6 @@ contains
 
     integer :: i, j
     real*8 :: dist
-    type(orbit), allocatable :: orbaux(:)
 
     ! initialize
     norbit = 0
@@ -203,11 +243,7 @@ contains
 
        ! this must be a new orbit
        norbit = norbit + 1
-       if (norbit > size(orb,1)) then
-          allocate(orbaux(2*norbit))
-          orbaux(1:size(orb,1)) = orb
-          call move_alloc(orbaux,orb)
-       end if
+       if (norbit > size(orb,1)) call realloc_orbit(2*norbit)
        orb(norbit)%nat = 1
        orb(norbit)%dist = dist
        orb(norbit)%z = z(i)
@@ -217,16 +253,38 @@ contains
     end do main
 
     ! reallocate
-    if (norbit /= size(orb,1)) then
-       allocate(orbaux(norbit))
-       orbaux = orb(norbit)
-       call move_alloc(orbaux,orb)
-    end if
+    if (norbit /= size(orb,1)) call realloc_orbit(norbit)
     do i = 1, norbit
        call realloc(orb(i)%id,orb(i)%nat)
     end do
 
+  contains
+    subroutine realloc_orbit(n)
+      integer, intent(in) :: n
+
+      type(orbit), allocatable :: orbaux(:)
+
+      allocate(orbaux(n))
+      orbaux(1:min(n,size(orb,1))) = orb(1:min(n,size(orb,1)))
+      call move_alloc(orbaux,orb)
+
+    end subroutine realloc_orbit
+
   end subroutine calculate_orbits
+
+  ! Calculate rotation matrices for an atom - just the identity and
+  ! exit.
+  subroutine calcrotm_atom(nrotm,mrotm)
+    use tools_math, only: cross
+    use param, only: eye, tpi
+    integer, intent(inout) :: nrotm
+    type(molsymop), intent(inout), allocatable :: mrotm(:)
+
+    ! initialize the symmetry matrices with the identity matrix
+    nrotm = 0
+    call add_symop(eye,nrotm,mrotm)
+
+  end subroutine calcrotm_atom
 
   ! Calculate rotation matrices of a linear molecule. The molecule is
   ! assumed to be centered at the origin. Input is the number of
@@ -441,11 +499,7 @@ contains
 
     ! reallocate if necessary and add the matrix
     nrotm = nrotm + 1
-    if (nrotm > size(mrotm,1)) then
-       allocate(aux(2*nrotm))
-       aux(1:size(mrotm,1)) = mrotm
-       call move_alloc(aux,mrotm)
-    end if
+    if (nrotm > size(mrotm,1)) call realloc(mrotm,2*nrotm)
     mrotm(nrotm)%m = mat
 
     ! trace and determinant of the operation
@@ -811,29 +865,5 @@ contains
     end if
 
   end subroutine get_group_name
-
-  ! Print the point group operations to standard output.
-  subroutine print_group(pg,nrotm,mrotm)
-    use tools_io, only: uout, string, ioj_left
-    character*(*), intent(in) :: pg
-    integer, intent(in) :: nrotm
-    type(molsymop), intent(in), allocatable :: mrotm(:)
-
-    integer :: i, j
-
-    write (uout,'("* Point group information")')
-    write (uout,'("+ Point group: ",A)') trim(pg)
-    write (uout,'("+ Number of symmetry operations: ",A)') string(nrotm)
-
-
-    write (uout,'("#id  symbol                 axis/normal vector")')
-    do i = 1, nrotm
-       write (uout,'(99(A,X))') string(i,4,ioj_left),&
-          string(mrotm(i)%sym,10,ioj_left),&
-          (string(mrotm(i)%axis(j),'f',13,8,5),j=1,3)
-    end do
-    write (uout,*)
-
-  end subroutine print_group
 
 end submodule molsym

@@ -60,6 +60,7 @@ contains
 
     ! no symmetry
     call c%clearsym()
+    call c%pg%clear()
 
     ! no molecule
     c%ismolecule = .false.
@@ -152,7 +153,7 @@ contains
   module subroutine struct_new(c,seed,crashfail,noenv,ti)
     use crystalseedmod, only: crystalseed
     use grid1mod, only: grid1_register_ae
-    use global, only: crsmall, atomeps_structnew, bondfactor
+    use global, only: crsmall, molsmall, atomeps_structnew, bondfactor
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det3, mnorm2
     use tools_io, only: ferror, faterr, string, usegui
@@ -518,14 +519,17 @@ contains
        call c%clearsym(neq2cel=.true.)
     end if
 
-    ! ! molecular symmetry
-    ! if (seed%ismolecule) then
-    !    ! xxxx !
-    !    call c%calcmolsym(errmsg)
-    ! end if
+    !! molecular symmetry !!
+    if (seed%ismolecule.and.haveatoms) then
+       if (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= molsmall) then
+          call c%calcmolsym(c%pg,errmsg)
+          if (len(errmsg) > 0) call c%pg%clear()
+       elseif (seed%findsym == -1) then
+          call c%pg%init_as_c1()
+       end if
+    end if
 
     !! environments !!
-
     doenv = .true.
     if (present(noenv)) then
        if (noenv) doenv = .false.

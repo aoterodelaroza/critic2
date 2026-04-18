@@ -119,9 +119,10 @@ module global
   ! symmetry precision (spglib)
   real*8 :: symprec = 1d-2
 
-  ! A structure is considered small if it has less than this number of
-  ! atoms in the unit cell.
+  ! A molecule/crystal is considered small if they have less than this
+  ! number of atoms in the cell (skips symmetry detection).
   integer :: crsmall = 2000
+  integer :: molsmall = 100
 
   ! navigation options
   real*8 :: NAV_step !< gradient path step length (bohr)
