@@ -384,7 +384,9 @@ contains
        c%at(i)%wyc = "?"
     end do
 
-    ! copy the symmetry information, if available
+    !! symmetry !!
+
+    ! crystals: copy the symmetry information, if available
     if (seed%havesym > 0 .and..not.seed%ismolecule) then
        c%havesym = 1
        c%neqv = seed%neqv
@@ -480,7 +482,7 @@ contains
        call c%clearsym()
     end if
 
-    ! symmetry from spglib
+    ! crystal symmetry from spglib
     clearsym = .true.
     if (.not.seed%ismolecule .and. seed%havesym == 0) then
        if ((seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall) .and. haveatoms) then
@@ -515,6 +517,14 @@ contains
        ! want symmetry - make a copy of at() to atcel() and set P1
        call c%clearsym(neq2cel=.true.)
     end if
+
+    ! ! molecular symmetry
+    ! if (seed%ismolecule) then
+    !    ! xxxx !
+    !    call c%calcmolsym(errmsg)
+    ! end if
+
+    !! environments !!
 
     doenv = .true.
     if (present(noenv)) then

@@ -307,6 +307,7 @@ module crystalmod
      procedure :: clearsym !< Clear symmetry info and transform to a P1
      procedure :: checkgroup !< Check that the space group operations are consistent
      procedure :: getiws !< Calculate the IWS and its tetrahedra partition around a point
+     procedure :: calcmolsym !< Calculate the molecular symmetry
 
      ! powder diffraction and related calcs (powderproc)
      procedure :: powder !< Calculate the powder diffraction pattern
@@ -853,6 +854,10 @@ module crystalmod
        integer, intent(out), optional :: ntetrag
        real*8, allocatable, intent(inout), optional :: tetrag(:,:,:)
      end subroutine getiws
+     module subroutine calcmolsym(c,errmsg)
+       class(crystal), intent(inout) :: c
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine calcmolsym
      module subroutine powder(c,mode,th2ini0,th2end0,lambda0,fpol,npts,sigma,ishard,&
         th2p,ip,hvecp,discardp,t,ih)
        class(crystal), intent(in) :: c
