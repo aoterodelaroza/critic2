@@ -106,7 +106,6 @@ contains
     real*8, allocatable :: x(:,:), w(:)
     integer, allocatable :: z(:), iorb(:)
     real*8 :: xref(3), xthis(3)
-    logical :: islinear, isplanar
     type(orbit), allocatable :: orb(:)
 
     ! initialize; return if there are no atoms
@@ -183,11 +182,11 @@ contains
     if (pg%isatom) then
        call calcrotm_atom(pg%nop,pg%op)
     elseif (pg%islinear) then
-       call calcrotm_linear(nat,x,z,norbit,orb,pg%nop,pg%op)
+       call calcrotm_linear(nat,x,norbit,orb,pg%nop,pg%op)
     elseif (pg%isplanar) then
-       call calcrotm_planar(nat,x,z,iorb,norbit,orb,pg%nop,pg%op)
+       call calcrotm_planar(nat,x,iorb,norbit,orb,pg%nop,pg%op)
     else
-       call calcrotm_general(nat,x,z,iorb,norbit,orb,pg%nop,pg%op)
+       call calcrotm_general(nat,x,iorb,norbit,orb,pg%nop,pg%op)
     end if
 
     ! get the point group name
@@ -276,7 +275,7 @@ contains
   ! exit.
   subroutine calcrotm_atom(nrotm,mrotm)
     use tools_math, only: cross
-    use param, only: eye, tpi
+    use param, only: eye
     integer, intent(inout) :: nrotm
     type(molsymop), intent(inout), allocatable :: mrotm(:)
 
@@ -290,12 +289,11 @@ contains
   ! assumed to be centered at the origin. Input is the number of
   ! atoms, coordinates, atomic numbers, and orbits. Outputs
   ! rotation matrices.
-  subroutine calcrotm_linear(nat,x,z,norbit,orb,nrotm,mrotm)
+  subroutine calcrotm_linear(nat,x,norbit,orb,nrotm,mrotm)
     use tools_math, only: cross
     use param, only: eye, tpi
     integer, intent(in) :: nat
     real*8, intent(in) :: x(3,nat)
-    integer, intent(in) :: z(nat)
     integer, intent(in) :: norbit
     type(orbit), intent(in) :: orb(norbit)
     integer, intent(inout) :: nrotm
@@ -334,12 +332,11 @@ contains
   ! assumed to be centered at the origin. Input is the number of
   ! atoms, coordinates, atomic numbers, and orbits. Outputs
   ! rotation matrices.
-  subroutine calcrotm_planar(nat,x,z,iorb,norbit,orb,nrotm,mrotm)
+  subroutine calcrotm_planar(nat,x,iorb,norbit,orb,nrotm,mrotm)
     use tools_math, only: cross, matinv, det3
     use param, only: eye
     integer, intent(in) :: nat
     real*8, intent(in) :: x(3,nat)
-    integer, intent(in) :: z(nat)
     integer, intent(in) :: iorb(nat)
     integer, intent(in) :: norbit
     type(orbit), intent(in) :: orb(norbit)
@@ -405,12 +402,11 @@ contains
   ! assumed to be centered at the origin. Input is the number of
   ! atoms, coordinates, atomic numbers, and orbits. Outputs rotation
   ! matrices.
-  subroutine calcrotm_general(nat,x,z,iorb,norbit,orb,nrotm,mrotm)
+  subroutine calcrotm_general(nat,x,iorb,norbit,orb,nrotm,mrotm)
     use tools_math, only: matinv, det3
     use param, only: eye
     integer, intent(in) :: nat
     real*8, intent(in) :: x(3,nat)
-    integer, intent(in) :: z(nat)
     integer, intent(in) :: iorb(nat)
     integer, intent(in) :: norbit
     type(orbit), intent(in) :: orb(norbit)
@@ -486,9 +482,8 @@ contains
     type(molsymop), intent(inout), allocatable :: mrotm(:)
 
     integer :: i
-    type(molsymop), allocatable :: aux(:)
     real*8 :: det, trace, angle, xx, xmin, xdif
-    real*8 :: vp(3,3), eval(3), evali(3), axis(3)
+    real*8 :: vp(3,3), eval(3), evali(3)
 
     ! skip if the matrix is already known
     do i = 1, nrotm
