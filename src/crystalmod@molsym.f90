@@ -32,7 +32,7 @@ submodule (crystalmod) molsym
   real*8, parameter :: eps_linear = 1d-5 ! check whether a molecule is linear
   real*8, parameter :: eps_planar = 1d-5 ! check whether a molecule is planar
   real*8, parameter :: eps_orbit = 1d-5 ! check to determine whether an atom is in an orbit
-  real*8, parameter :: eps_equalop = 1d-5 ! check whether two symmetry operations are equal
+  real*8, parameter :: eps_equalop = 1d-4 ! check whether two symmetry operations are equal
   real*8, parameter :: eps_pos = 1d-5 ! whether to atomic positions are equal
   real*8, parameter :: eps_planar_axis = 1d-5 ! eps to find the axis normal to a plane
   real*8, parameter :: eps_planar_det3 = 1d-5 ! eps to find whether triplet is planar
@@ -504,7 +504,7 @@ contains
 
     ! skip if the matrix is already known
     do i = 1, nrotm
-       if (all(abs(mat - mrotm(i)%m) < eps_equalop)) then
+       if (sum(abs(mat - mrotm(i)%m)) < eps_equalop) then
           return
        end if
     end do
