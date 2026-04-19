@@ -192,6 +192,14 @@ contains
     ! get the point group name
     if (pg%isatom) then
        pg%symbol = 'O3'
+    elseif (pg%islinear) then
+       pg%symbol = 'Cinfv'
+       do i = 1, pg%nop
+          if (pg%op(i)%type == molsymop_inversion) then
+             pg%symbol = 'Dinfh'
+             exit
+          end if
+       end do
     else
        call get_group_name(pg%nop,pg%op,pg%symbol)
     end if
@@ -453,9 +461,11 @@ contains
        mat(:,1) = x(:,j1)
        do j2 = 1, nat
           if (iorb(j2) /= iorb(oi2)) cycle
+          if (j2 == j1) cycle
           mat(:,2) = x(:,j2)
           do j3 = 1, nat
              if (iorb(j3) /= iorb(oi3)) cycle
+             if (j3 == j1 .or. j3 == j2) cycle
              mat(:,3) = x(:,j3)
 
              mop = matmul(mat,mi)
@@ -485,6 +495,13 @@ contains
     real*8 :: det, trace, angle, xx, xmin, xdif
     real*8 :: vp(3,3), eval(3), evali(3)
 
+    ! trace and determinant of the operation
+    trace = mat(1,1) + mat(2,2) + mat(3,3)
+    det = det3(mat)
+
+    ! skip if this is not a rotation
+    if (abs(abs(det)-1d0) > eps_isinteger) return
+
     ! skip if the matrix is already known
     do i = 1, nrotm
        if (all(abs(mat - mrotm(i)%m) < eps_equalop)) then
@@ -497,15 +514,8 @@ contains
     if (nrotm > size(mrotm,1)) call realloc(mrotm,2*nrotm)
     mrotm(nrotm)%m = mat
 
-    ! trace and determinant of the operation
-    trace = mat(1,1) + mat(2,2) + mat(3,3)
-    det = det3(mat)
-
-    ! whether the operation is proper
-    if (abs(abs(det)-1d0) > eps_isinteger) then
-       write (*,*) "error! (abs(abs(det)-1d0) > eps_isinteger)"
-       stop 1
-    elseif (det > 0d0) then
+    ! note whether the operation is proper/improper/wrong
+    if (det > 0d0) then
        mrotm(nrotm)%proper = .true.
     else
        mrotm(nrotm)%proper = .false.
