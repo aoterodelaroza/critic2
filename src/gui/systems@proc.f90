@@ -1656,7 +1656,7 @@ contains
   ! and angles bb (degree). If forcewyc, force the system to keep
   ! symemtry.
   module subroutine move_cell(sysc,aa,bb,forcewyc)
-    use crystalmod, only: holo_cub, pointgroup_info
+    use crystalmod, only: pointgroup_info
     use tools_math, only: m_x2c_from_cellpar
     use param, only: pi
     class(sysconf), intent(inout) :: sysc
@@ -1664,12 +1664,9 @@ contains
     logical, intent(in) :: forcewyc
 
     integer :: isys
-    character(len=3) :: schpg
-    integer :: holo, laue, idx
     real*8 :: aa_(3), bb_(3)
-    integer :: leqv, i, ichange, n
-    character*3 :: pg
-    real*8 :: g(3,3), gavg(3,3), ratio, da
+    integer :: leqv, i, n
+    real*8 :: g(3,3), gavg(3,3), da
     real*8, allocatable :: rotm(:,:,:)
 
     real*8, parameter :: tighteps = 1d-7
