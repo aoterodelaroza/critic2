@@ -317,7 +317,7 @@ contains
        flags = ImGuiTableColumnFlags_WidthStretch
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_name)
 
-       str = "spg##0" // c_null_char
+       str = "sym##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_spg)
 
@@ -719,11 +719,17 @@ contains
                 if (sysc(i)%status == sys_init) then
                    if (igTableSetColumnIndex(ic_tree_spg)) then ! spg
                       if (sys(i)%c%ismolecule) then
-                         str = "<mol>"
-                      elseif (.not.sys(i)%c%spgavail) then
-                         str = "n/a"
+                         if (sys(i)%c%pg%avail) then
+                            str = trim(sys(i)%c%pg%symbol)
+                         else
+                            str = "n/a"
+                         end if
                       else
-                         str = trim(sys(i)%c%spg%international_symbol)
+                         if (.not.sys(i)%c%spgavail) then
+                            str = "n/a"
+                         else
+                            str = trim(sys(i)%c%spg%international_symbol)
+                         end if
                       end if
                       call write_maybe_selectable(i,tooltipstr)
                       call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
@@ -1450,7 +1456,7 @@ contains
        elseif (sys(i)%c%iperiod == iperiod_3d_molecular) then
           str = "A molecular crystal with Z=" // string(sys(i)%c%nmol)
           if (sys(i)%c%spgavail) then
-             izp0 = real(sys(i)%c%nmol,8) / real(sys(i)%c%neqv,8)
+             izp0 = nint(real(sys(i)%c%nmol,8) / real(sys(i)%c%neqv,8))
              str = str // " and Z'=" // string(izp0)
           end if
        elseif (sys(i)%c%iperiod == iperiod_2d) then
