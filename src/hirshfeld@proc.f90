@@ -22,20 +22,16 @@ submodule (hirshfeld) proc
 
   integer, parameter :: mprops = 1
 
-  ! ----- Hirshfeld-I state (Bultinck 2007) -----
-  ! Cache of charged-atom radial densities, indexed (z, qoff+q). Allocated
-  ! lazily in hirsh_i_get_grid; supports q in [-hi_qoff, hi_qcap-hi_qoff].
+  ! ----- Hirshfeld-I module state (Bultinck 2007) -----
+  ! Per-integration SCF state (qlo, qhi, frac, qfinal, isactive) lives on
+  ! bas%hi_* in basindat (mirroring how bas%luw works for YT). Only the
+  ! shared (Z, q) -> grid1 memoisation cache stays module-level here: it
+  ! is conceptually like the agrid table in grid1mod and is safe to keep
+  ! warm across multiple HIRSHFELD_I invocations.
   integer, parameter :: hi_qoff = 5      ! how many anion charges we admit
   integer, parameter :: hi_qcap = 100    ! cation cap (oversized to be safe)
   type(grid1), allocatable, target :: hi_cache(:,:)
   logical, allocatable :: hi_cache_tried(:,:)
-  ! Per-cellatom state after each SCF iteration (sized to s%c%ncel).
-  integer, allocatable :: hi_qlo(:), hi_qhi(:)
-  real*8, allocatable :: hi_frac(:)
-  real*8, allocatable :: hi_qfinal(:)
-  ! Optional user-supplied directory of charged .wfc files
-  character(len=:), allocatable :: hi_wfcdir
-  logical :: hi_isactive = .false.
 
 contains
 
@@ -277,21 +273,15 @@ contains
 
     nca = s%c%ncel
 
-    ! allocate / reset state
-    call hirsh_i_cleanup()
-    allocate(hi_qlo(nca), hi_qhi(nca), hi_frac(nca), hi_qfinal(nca))
+    ! allocate / reset SCF state on bas (mirrors how YT stores bas%luw)
+    call hirsh_i_cleanup(bas)
+    allocate(bas%hi_qlo(nca), bas%hi_qhi(nca), bas%hi_frac(nca), bas%hi_qfinal(nca))
     allocate(nelec(nca), vat(nca), qprev(nca))
-    hi_qlo = 0
-    hi_qhi = 0
-    hi_frac = 0d0
-    hi_qfinal = 0d0
+    bas%hi_qlo = 0
+    bas%hi_qhi = 0
+    bas%hi_frac = 0d0
+    bas%hi_qfinal = 0d0
     qprev = 0d0
-
-    ! attach optional WFCDIR
-    if (allocated(hi_wfcdir)) deallocate(hi_wfcdir)
-    if (allocated(bas%hi_wfcdir)) then
-       if (len_trim(bas%hi_wfcdir) > 0) hi_wfcdir = trim(bas%hi_wfcdir)
-    end if
 
     ! grid step vectors
     do ii = 1, 3
@@ -321,8 +311,10 @@ contains
     write (uout,'("    J. Chem. Phys. 126, 144111 (2007). (10.1063/1.2715563)")')
     write (uout,'("+ Tolerance (max |dQ|): ",A)') string(bas%hi_tol,'e',decimal=2)
     write (uout,'("+ Max iterations: ",A)') string(bas%hi_maxit)
-    if (allocated(hi_wfcdir)) &
-       write (uout,'("+ User WFCDIR: ",A)') hi_wfcdir
+    if (allocated(bas%hi_wfcdir)) then
+       if (len_trim(bas%hi_wfcdir) > 0) &
+          write (uout,'("+ User WFCDIR: ",A)') trim(bas%hi_wfcdir)
+    end if
     write (uout,'("# iter  max|dQ|       sum(Q)        atom-charges")')
 
     converged = .false.
@@ -332,10 +324,10 @@ contains
 
        ! preload cache for all (z, qlo) and (z, qhi) needed this iter
        ! (must happen serially before the OMP sweep below)
-       call hirsh_i_preload(s)
+       call hirsh_i_preload(s,bas)
 
        ! activate evaluator so promol can be rebuilt using charged refs
-       hi_isactive = .true.
+       bas%hi_isactive = .true.
 
        ! single grid sweep: rebuild bas%f (promol) and accumulate per-atom N
        nelec = 0d0
@@ -350,7 +342,7 @@ contains
                 ! promol
                 rho_promol = 0d0
                 do ii = 1, nat
-                   call hirsh_i_eval(nid(ii),dist(ii),rho_i)
+                   call hirsh_i_eval(bas,nid(ii),dist(ii),rho_i)
                    rho_promol = rho_promol + rho_i
                 end do
                 bas%f(i1,i2,i3) = rho_promol
@@ -358,7 +350,7 @@ contains
                 ! per-atom Hirshfeld weight w_A = rho_A/promol; integrate
                 ! over reference density (only the population for now).
                 do ii = 1, nat
-                   call hirsh_i_eval(nid(ii),dist(ii),rho_i)
+                   call hirsh_i_eval(bas,nid(ii),dist(ii),rho_i)
                    nelec(nid(ii)) = nelec(nid(ii)) + fac * rho_i * s%f(s%iref)%grid%f(i1,i2,i3)
                    vat(nid(ii)) = vat(nid(ii)) + fac * rho_i
                 end do
@@ -373,17 +365,16 @@ contains
        dQmax = 0d0
        do iat = 1, nca
           iz = s%c%spc(s%c%atcel(iat)%is)%z
-          hi_qfinal(iat) = real(iz,8) - nelec(iat)
-          ! sanitize: clamp into the range our cache can support
+          bas%hi_qfinal(iat) = real(iz,8) - nelec(iat)
           ! clamp Q into [-hi_qoff, iz) so qlo/qhi stay in cache range.
           ! qhi may equal iz (fully-stripped ion); interp returns 0 there,
           ! which is the physically correct empty-density limit.
-          if (hi_qfinal(iat) < -dble(hi_qoff)) hi_qfinal(iat) = -dble(hi_qoff) + 1d-3
-          if (hi_qfinal(iat) > dble(iz) - 1d-3) hi_qfinal(iat) = dble(iz) - 1d-3
-          hi_qlo(iat) = floor(hi_qfinal(iat))
-          hi_qhi(iat) = hi_qlo(iat) + 1
-          hi_frac(iat) = hi_qfinal(iat) - dble(hi_qlo(iat))
-          dQ = abs(hi_qfinal(iat) - qprev(iat))
+          if (bas%hi_qfinal(iat) < -dble(hi_qoff)) bas%hi_qfinal(iat) = -dble(hi_qoff) + 1d-3
+          if (bas%hi_qfinal(iat) > dble(iz) - 1d-3) bas%hi_qfinal(iat) = dble(iz) - 1d-3
+          bas%hi_qlo(iat) = floor(bas%hi_qfinal(iat))
+          bas%hi_qhi(iat) = bas%hi_qlo(iat) + 1
+          bas%hi_frac(iat) = bas%hi_qfinal(iat) - dble(bas%hi_qlo(iat))
+          dQ = abs(bas%hi_qfinal(iat) - qprev(iat))
           if (dQ > dQmax) dQmax = dQ
        end do
 
@@ -391,15 +382,15 @@ contains
        write (uout,'(2X,A,2X,A,2X,A,2X,*(A," "))') &
           string(iter,length=4,justify=2), &
           string(dQmax,'e',decimal=3), &
-          string(sum(hi_qfinal),'f',decimal=5), &
-          (trim(string(hi_qfinal(iat),'f',decimal=4)), iat=1,nca)
+          string(sum(bas%hi_qfinal),'f',decimal=5), &
+          (trim(string(bas%hi_qfinal(iat),'f',decimal=4)), iat=1,nca)
 
        if (dQmax < bas%hi_tol) then
           converged = .true.
           exit
        end if
        if (iter >= bas%hi_maxit) exit
-       qprev = hi_qfinal
+       qprev = bas%hi_qfinal
     end do
 
     if (.not.converged) then
@@ -416,10 +407,12 @@ contains
   end subroutine hirsh_i_driver
 
   !> Evaluate the (interpolated) charged atomic density at distance r
-  !> from cell-atom idcel using the current SCF state.
-  module subroutine hirsh_i_eval(idcel,dist,rho)
+  !> from cell-atom idcel using the SCF state stored on bas.
+  module subroutine hirsh_i_eval(bas,idcel,dist,rho)
     use systemmod, only: sy
     use grid1mod, only: agrid
+    use types, only: basindat
+    type(basindat), intent(in) :: bas
     integer, intent(in) :: idcel
     real*8, intent(in) :: dist
     real*8, intent(out) :: rho
@@ -432,15 +425,15 @@ contains
     if (idcel <= 0) return
     iz = sy%c%spc(sy%c%atcel(idcel)%is)%z
 
-    if (.not.hi_isactive) then
+    if (.not.bas%hi_isactive) then
        ! fall back to neutral (used pre-SCF and when iterative is off)
        if (iz > 0) call agrid(iz)%interp(dist,rho,rdum1,rdum2)
        return
     end if
 
-    qlo = hi_qlo(idcel)
-    qhi = hi_qhi(idcel)
-    fr  = hi_frac(idcel)
+    qlo = bas%hi_qlo(idcel)
+    qhi = bas%hi_qhi(idcel)
+    fr  = bas%hi_frac(idcel)
 
     call hirsh_i_get_grid(iz,qlo,glo)
     call hirsh_i_get_grid(iz,qhi,ghi)
@@ -451,26 +444,20 @@ contains
 
   end subroutine hirsh_i_eval
 
-  !> Whether the Hirshfeld-I SCF state is loaded and the evaluator is
-  !> live (so the field integrator should call hirsh_i_eval instead of
-  !> falling back to agrid).
-  module function hirsh_i_active() result(ok)
-    logical :: ok
-    ok = hi_isactive
-  end function hirsh_i_active
-
-  !> Tear down the Hirshfeld-I state. Allocatable components inside
+  !> Tear down the Hirshfeld-I per-integration state on bas and the
+  !> shared (Z, q) memoisation cache. Allocatable components inside
   !> each cached grid1 are released by Fortran 2003+ deallocation
   !> semantics when the array is deallocated.
-  module subroutine hirsh_i_cleanup()
+  module subroutine hirsh_i_cleanup(bas)
+    use types, only: basindat
+    type(basindat), intent(inout) :: bas
     if (allocated(hi_cache)) deallocate(hi_cache)
     if (allocated(hi_cache_tried)) deallocate(hi_cache_tried)
-    if (allocated(hi_qlo)) deallocate(hi_qlo)
-    if (allocated(hi_qhi)) deallocate(hi_qhi)
-    if (allocated(hi_frac)) deallocate(hi_frac)
-    if (allocated(hi_qfinal)) deallocate(hi_qfinal)
-    if (allocated(hi_wfcdir)) deallocate(hi_wfcdir)
-    hi_isactive = .false.
+    if (allocated(bas%hi_qlo)) deallocate(bas%hi_qlo)
+    if (allocated(bas%hi_qhi)) deallocate(bas%hi_qhi)
+    if (allocated(bas%hi_frac)) deallocate(bas%hi_frac)
+    if (allocated(bas%hi_qfinal)) deallocate(bas%hi_qfinal)
+    bas%hi_isactive = .false.
   end subroutine hirsh_i_cleanup
 
   !> Thread-safe read-only lookup of a (z,q) radial density. Returns
@@ -508,16 +495,17 @@ contains
   !> sweep. Resolution order matches the documentation: (1) user WFCDIR
   !> file, (2) built-in cation table via read_db (q>=0), (3) anion
   !> extrapolation via read_db (q<0).
-  subroutine hirsh_i_preload(s)
+  subroutine hirsh_i_preload(s,bas)
     use systemmod, only: system
-    use grid1mod, only: agrid
+    use types, only: basindat
     use tools_io, only: lower, nameguess, ferror, warning, string
     use param, only: dirsep, maxzat
     type(system), intent(in) :: s
+    type(basindat), intent(in) :: bas
 
-    integer :: iat, iz, q
+    integer :: iat, iz
     character(len=:), allocatable :: fname
-    logical :: exist
+    logical :: exist, have_wfcdir
 
     if (.not.allocated(hi_cache)) then
        allocate(hi_cache(maxzat, -hi_qoff:hi_qcap))
@@ -525,11 +513,16 @@ contains
        hi_cache_tried = .false.
     end if
 
+    have_wfcdir = .false.
+    if (allocated(bas%hi_wfcdir)) then
+       if (len_trim(bas%hi_wfcdir) > 0) have_wfcdir = .true.
+    end if
+
     do iat = 1, s%c%ncel
        iz = s%c%spc(s%c%atcel(iat)%is)%z
        if (iz <= 0 .or. iz > maxzat) cycle
-       call load_one(iz, hi_qlo(iat))
-       call load_one(iz, hi_qhi(iat))
+       call load_one(iz, bas%hi_qlo(iat))
+       call load_one(iz, bas%hi_qhi(iat))
     end do
 
   contains
@@ -542,12 +535,12 @@ contains
       hi_cache_tried(iz,q) = .true.
 
       ! (1) WFCDIR/<elem>_q<+|->N.wfc
-      if (allocated(hi_wfcdir)) then
+      if (have_wfcdir) then
          if (q >= 0) then
-            fname = trim(hi_wfcdir) // dirsep // lower(nameguess(iz)) // &
+            fname = trim(bas%hi_wfcdir) // dirsep // lower(nameguess(iz)) // &
                     "_q+" // trim(string(q)) // ".wfc"
          else
-            fname = trim(hi_wfcdir) // dirsep // lower(nameguess(iz)) // &
+            fname = trim(bas%hi_wfcdir) // dirsep // lower(nameguess(iz)) // &
                     "_q" // trim(string(q)) // ".wfc"
          end if
          inquire(file=fname,exist=exist)

@@ -28,7 +28,6 @@ module hirshfeld
   ! iterative Hirshfeld (Hirshfeld-I, Bultinck 2007)
   public :: hirsh_i_driver
   public :: hirsh_i_eval
-  public :: hirsh_i_active
   public :: hirsh_i_cleanup
 
   interface
@@ -60,15 +59,16 @@ module hirshfeld
        type(system), intent(inout) :: s
        type(basindat), intent(inout) :: bas
      end subroutine hirsh_i_driver
-     module subroutine hirsh_i_eval(idcel,dist,rho)
+     module subroutine hirsh_i_eval(bas,idcel,dist,rho)
+       use types, only: basindat
+       type(basindat), intent(in) :: bas
        integer, intent(in) :: idcel
        real*8, intent(in) :: dist
        real*8, intent(out) :: rho
      end subroutine hirsh_i_eval
-     module function hirsh_i_active() result(ok)
-       logical :: ok
-     end function hirsh_i_active
-     module subroutine hirsh_i_cleanup()
+     module subroutine hirsh_i_cleanup(bas)
+       use types, only: basindat
+       type(basindat), intent(inout) :: bas
      end subroutine hirsh_i_cleanup
   end interface
 

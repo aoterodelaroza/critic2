@@ -402,7 +402,7 @@ contains
     if (bas%imtype == imtype_yt .and. bas%luw /= 0) then
        call fclose(bas%luw)
     endif
-    if (bas%imtype == imtype_hirshfeld_i) call hirsh_i_cleanup()
+    if (bas%imtype == imtype_hirshfeld_i) call hirsh_i_cleanup(bas)
     deallocate(res)
 
   end subroutine intgrid_driver
@@ -1433,7 +1433,7 @@ contains
   !> results.
   subroutine intgrid_hirshfeld_fields(bas,res)
     use grid1mod, only: agrid
-    use hirshfeld, only: hirsh_i_eval, hirsh_i_active
+    use hirshfeld, only: hirsh_i_eval
     use systemmod, only: sy, itype_v, itype_f, itype_fval, itype_gmod, &
        itype_lap, itype_lapval, itype_mpoles, itype_expr
     use grid3mod, only: grid3
@@ -1596,8 +1596,8 @@ contains
              do i = 1, nat
                 if (.not.bas%docelatom(bas%icp(nid(i)))) cycle
                 ! calculate (per-atom, possibly charged) density and accumulate
-                if (hirsh_i_active()) then
-                   call hirsh_i_eval(nid(i),dist(i),rhoa)
+                if (bas%hi_isactive) then
+                   call hirsh_i_eval(bas,nid(i),dist(i),rhoa)
                 else
                    call agrid(sy%c%spc(sy%c%atcel(nid(i))%is)%z)%interp(dist(i),rhoa,raux1,raux2)
                 end if
@@ -1638,7 +1638,7 @@ contains
   !> Only for grids. bas = integration driver data, res(1:npropi) = results.
   subroutine intgrid_hirshfeld_overlap(bas,res)
     use grid1mod, only: agrid
-    use hirshfeld, only: hirsh_i_eval, hirsh_i_active
+    use hirshfeld, only: hirsh_i_eval
     use systemmod, only: sy, itype_hirshfeld_ovpop
     use fieldmod, only: type_grid
     use global, only: cutrad
@@ -1771,9 +1771,9 @@ contains
                    lt = lvec(:,j) - lvec(:,i)
 
                    ! calculate densities and accumulate
-                   if (hirsh_i_active()) then
-                      call hirsh_i_eval(nid(i),dist(i),rhoa)
-                      call hirsh_i_eval(nid(j),dist(j),rhob)
+                   if (bas%hi_isactive) then
+                      call hirsh_i_eval(bas,nid(i),dist(i),rhoa)
+                      call hirsh_i_eval(bas,nid(j),dist(j),rhob)
                    else
                       call agrid(sy%c%spc(sy%c%atcel(nid(i))%is)%z)%interp(dist(i),rhoa,raux1,raux2)
                       call agrid(sy%c%spc(sy%c%atcel(nid(j))%is)%z)%interp(dist(j),rhob,raux1,raux2)

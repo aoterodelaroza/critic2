@@ -172,8 +172,13 @@ amplification over plain Hirshfeld.
   - `read_db` no longer rejects `q < 0`.
   - New public wrapper `grid1_read_file(g, file, z, q)` so a caller
     can load a `.wfc` from an absolute path (used by `WFCDIR`).
-* `src/types.f90` — `basindat` gained `hi_wfcdir`, `hi_tol`,
-  `hi_maxit`.
+* `src/types.f90` — `basindat` gained the input fields `hi_wfcdir`,
+  `hi_tol`, `hi_maxit` and the per-integration SCF state
+  `hi_isactive`, `hi_qlo`, `hi_qhi`, `hi_frac`, `hi_qfinal`. The state
+  lives on `bas` (mirroring how YT keeps `bas%luw`); only the shared
+  `(Z, q) → grid1` memoisation cache is module-level in
+  `hirshfeld@proc.f90`, where it can stay warm across multiple
+  HIRSHFELD_I invocations like the neutral `agrid` table.
 * `dat/helpdoc/hirshfeld_i.keyw` — keyword syntax shown by the GUI
   help.
 
