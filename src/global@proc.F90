@@ -388,10 +388,10 @@ contains
           if (.not.ok) cycle
           call qtree_driver(subline)
 
-          ! yt/bader/hirshfeld/voronoi/isosurface
+          ! yt/bader/hirshfeld/hirshfeld_i/voronoi/isosurface
        elseif (equal(word,'yt').or.equal(word,'bader').or.&
-          equal(word,'hirshfeld').or.equal(word,'voronoi').or.&
-          equal(word,'isosurface')) then
+          equal(word,'hirshfeld').or.equal(word,'hirshfeld_i').or.&
+          equal(word,'voronoi').or.equal(word,'isosurface')) then
           call check_structure_defined(ok)
           if (.not.ok) cycle
 

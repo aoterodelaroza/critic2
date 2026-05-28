@@ -17,9 +17,25 @@
 
 ! Hirshfeld integration
 submodule (hirshfeld) proc
+  use grid1mod, only: grid1
   implicit none
 
   integer, parameter :: mprops = 1
+
+  ! ----- Hirshfeld-I state (Bultinck 2007) -----
+  ! Cache of charged-atom radial densities, indexed (z, qoff+q). Allocated
+  ! lazily in hirsh_i_get_grid; supports q in [-hi_qoff, hi_qcap-hi_qoff].
+  integer, parameter :: hi_qoff = 5      ! how many anion charges we admit
+  integer, parameter :: hi_qcap = 100    ! cation cap (oversized to be safe)
+  type(grid1), allocatable, target :: hi_cache(:,:)
+  logical, allocatable :: hi_cache_tried(:,:)
+  ! Per-cellatom state after each SCF iteration (sized to s%c%ncel).
+  integer, allocatable :: hi_qlo(:), hi_qhi(:)
+  real*8, allocatable :: hi_frac(:)
+  real*8, allocatable :: hi_qfinal(:)
+  ! Optional user-supplied directory of charged .wfc files
+  character(len=:), allocatable :: hi_wfcdir
+  logical :: hi_isactive = .false.
 
 contains
 
@@ -231,5 +247,334 @@ contains
     write (uout,*)
 
   end subroutine hirsh_nogrid
+
+  !> Iterative Hirshfeld (Hirshfeld-I) SCF driver. On entry the
+  !> attractors are already set up by hirsh_grid and bas%f holds the
+  !> initial neutral promolecular density. On exit hirsh_isactive=.true.
+  !> and the per-cellatom (qlo, qhi, frac) state is ready for use by
+  !> hirsh_i_eval inside the field integrator.
+  module subroutine hirsh_i_driver(s,bas)
+    use systemmod, only: system
+    use types, only: basindat
+    use grid1mod, only: agrid
+    use global, only: cutrad
+    use tools_io, only: uout, string, ferror, faterr, warning
+    use param, only: VSMALL, maxzat, icrd_crys
+    type(system), intent(inout) :: s
+    type(basindat), intent(inout) :: bas
+
+    integer :: nca, iat, iter, i1, i2, i3, ii, iz, isp
+    integer :: nat
+    integer, allocatable :: nid(:), lvec(:,:)
+    real*8, allocatable :: dist(:), rcutmax(:,:)
+    real*8, allocatable :: nelec(:), vat(:), qprev(:)
+    real*8 :: x0(3), xdelta(3,3), rho_i, rho_promol, dQ, dQmax, fac
+    real*8 :: rho_lo, rho_hi
+    logical :: converged
+
+    if (.not.s%isinit) call ferror("hirsh_i_driver","system not initialized",faterr)
+    if (.not.allocated(s%c)) call ferror("hirsh_i_driver","no crystal",faterr)
+
+    nca = s%c%ncel
+
+    ! allocate / reset state
+    call hirsh_i_cleanup()
+    allocate(hi_qlo(nca), hi_qhi(nca), hi_frac(nca), hi_qfinal(nca))
+    allocate(nelec(nca), vat(nca), qprev(nca))
+    hi_qlo = 0
+    hi_qhi = 0
+    hi_frac = 0d0
+    hi_qfinal = 0d0
+    qprev = 0d0
+
+    ! attach optional WFCDIR
+    if (allocated(hi_wfcdir)) deallocate(hi_wfcdir)
+    if (allocated(bas%hi_wfcdir)) then
+       if (len_trim(bas%hi_wfcdir) > 0) hi_wfcdir = trim(bas%hi_wfcdir)
+    end if
+
+    ! grid step vectors
+    do ii = 1, 3
+       xdelta(:,ii) = 0d0
+       xdelta(ii,ii) = 1d0 / real(bas%n(ii),8)
+    end do
+
+    ! Cutoff per species using neutral grid extent (a reasonable bound:
+    ! anion grids are slightly more diffuse but typically still within
+    ! cutrad).
+    if (allocated(rcutmax)) deallocate(rcutmax)
+    allocate(rcutmax(s%c%nspc,2))
+    rcutmax = 0d0
+    do isp = 1, s%c%nspc
+       iz = s%c%spc(isp)%z
+       if (iz <= 0 .or. iz > maxzat) cycle
+       if (agrid(iz)%isinit) then
+          rcutmax(isp,2) = min(cutrad(iz),agrid(iz)%rmax)
+       else
+          call ferror('hirsh_i_driver','iterative hirshfeld requires atomic grids',faterr)
+       end if
+    end do
+
+    ! header
+    write (uout,'("* Hirshfeld-I (iterative Hirshfeld) SCF")')
+    write (uout,'("  Bultinck, Van Alsenoy, Ayers, Carbo-Dorca,")')
+    write (uout,'("    J. Chem. Phys. 126, 144111 (2007). (10.1063/1.2715563)")')
+    write (uout,'("+ Tolerance (max |dQ|): ",A)') string(bas%hi_tol,'e',decimal=2)
+    write (uout,'("+ Max iterations: ",A)') string(bas%hi_maxit)
+    if (allocated(hi_wfcdir)) &
+       write (uout,'("+ User WFCDIR: ",A)') hi_wfcdir
+    write (uout,'("# iter  max|dQ|       sum(Q)        atom-charges")')
+
+    converged = .false.
+    iter = 0
+    do
+       iter = iter + 1
+
+       ! preload cache for all (z, qlo) and (z, qhi) needed this iter
+       ! (must happen serially before the OMP sweep below)
+       call hirsh_i_preload(s)
+
+       ! activate evaluator so promol can be rebuilt using charged refs
+       hi_isactive = .true.
+
+       ! single grid sweep: rebuild bas%f (promol) and accumulate per-atom N
+       nelec = 0d0
+       vat = 0d0
+       !$omp parallel do private(x0,nat,rho_promol,rho_i,fac) firstprivate(nid,dist,lvec) &
+       !$omp& reduction(+:nelec,vat)
+       do i3 = 1, bas%n(3)
+          do i2 = 1, bas%n(2)
+             do i1 = 1, bas%n(1)
+                x0 = (i1-1)*xdelta(:,1) + (i2-1)*xdelta(:,2) + (i3-1)*xdelta(:,3)
+                call s%c%list_near_atoms(x0,icrd_crys,.false.,nat,nid,dist,lvec,up2dsp=rcutmax)
+                ! promol
+                rho_promol = 0d0
+                do ii = 1, nat
+                   call hirsh_i_eval(nid(ii),dist(ii),rho_i)
+                   rho_promol = rho_promol + rho_i
+                end do
+                bas%f(i1,i2,i3) = rho_promol
+                fac = 1d0 / max(rho_promol,VSMALL)
+                ! per-atom Hirshfeld weight w_A = rho_A/promol; integrate
+                ! over reference density (only the population for now).
+                do ii = 1, nat
+                   call hirsh_i_eval(nid(ii),dist(ii),rho_i)
+                   nelec(nid(ii)) = nelec(nid(ii)) + fac * rho_i * s%f(s%iref)%grid%f(i1,i2,i3)
+                   vat(nid(ii)) = vat(nid(ii)) + fac * rho_i
+                end do
+             end do
+          end do
+       end do
+       !$omp end parallel do
+       nelec = nelec * s%c%omega / product(bas%n)
+       vat = vat * s%c%omega / product(bas%n)
+
+       ! update per-cellatom Q and (qlo,qhi,frac)
+       dQmax = 0d0
+       do iat = 1, nca
+          iz = s%c%spc(s%c%atcel(iat)%is)%z
+          hi_qfinal(iat) = real(iz,8) - nelec(iat)
+          ! sanitize: clamp into the range our cache can support
+          ! clamp Q into [-hi_qoff, iz) so qlo/qhi stay in cache range.
+          ! qhi may equal iz (fully-stripped ion); interp returns 0 there,
+          ! which is the physically correct empty-density limit.
+          if (hi_qfinal(iat) < -dble(hi_qoff)) hi_qfinal(iat) = -dble(hi_qoff) + 1d-3
+          if (hi_qfinal(iat) > dble(iz) - 1d-3) hi_qfinal(iat) = dble(iz) - 1d-3
+          hi_qlo(iat) = floor(hi_qfinal(iat))
+          hi_qhi(iat) = hi_qlo(iat) + 1
+          hi_frac(iat) = hi_qfinal(iat) - dble(hi_qlo(iat))
+          dQ = abs(hi_qfinal(iat) - qprev(iat))
+          if (dQ > dQmax) dQmax = dQ
+       end do
+
+       ! status line
+       write (uout,'(2X,A,2X,A,2X,A,2X,*(A," "))') &
+          string(iter,length=4,justify=2), &
+          string(dQmax,'e',decimal=3), &
+          string(sum(hi_qfinal),'f',decimal=5), &
+          (trim(string(hi_qfinal(iat),'f',decimal=4)), iat=1,nca)
+
+       if (dQmax < bas%hi_tol) then
+          converged = .true.
+          exit
+       end if
+       if (iter >= bas%hi_maxit) exit
+       qprev = hi_qfinal
+    end do
+
+    if (.not.converged) then
+       call ferror('hirsh_i_driver', &
+          'Hirshfeld-I SCF did not converge within HIMAXIT iterations; using current state',warning)
+    else
+       write (uout,'("+ Hirshfeld-I SCF converged in ",A," iterations")') string(iter)
+    end if
+    write (uout,*)
+
+    deallocate(nelec,vat,qprev)
+    if (allocated(rcutmax)) deallocate(rcutmax)
+
+  end subroutine hirsh_i_driver
+
+  !> Evaluate the (interpolated) charged atomic density at distance r
+  !> from cell-atom idcel using the current SCF state.
+  module subroutine hirsh_i_eval(idcel,dist,rho)
+    use systemmod, only: sy
+    use grid1mod, only: agrid
+    integer, intent(in) :: idcel
+    real*8, intent(in) :: dist
+    real*8, intent(out) :: rho
+
+    integer :: iz, qlo, qhi
+    real*8 :: rlo, rhi, rdum1, rdum2, fr
+    type(grid1), pointer :: glo, ghi
+
+    rho = 0d0
+    if (idcel <= 0) return
+    iz = sy%c%spc(sy%c%atcel(idcel)%is)%z
+
+    if (.not.hi_isactive) then
+       ! fall back to neutral (used pre-SCF and when iterative is off)
+       if (iz > 0) call agrid(iz)%interp(dist,rho,rdum1,rdum2)
+       return
+    end if
+
+    qlo = hi_qlo(idcel)
+    qhi = hi_qhi(idcel)
+    fr  = hi_frac(idcel)
+
+    call hirsh_i_get_grid(iz,qlo,glo)
+    call hirsh_i_get_grid(iz,qhi,ghi)
+    rlo = 0d0; rhi = 0d0
+    if (associated(glo)) call glo%interp(dist,rlo,rdum1,rdum2)
+    if (associated(ghi)) call ghi%interp(dist,rhi,rdum1,rdum2)
+    rho = (1d0 - fr) * rlo + fr * rhi
+
+  end subroutine hirsh_i_eval
+
+  !> Whether the Hirshfeld-I SCF state is loaded and the evaluator is
+  !> live (so the field integrator should call hirsh_i_eval instead of
+  !> falling back to agrid).
+  module function hirsh_i_active() result(ok)
+    logical :: ok
+    ok = hi_isactive
+  end function hirsh_i_active
+
+  !> Tear down the Hirshfeld-I state. Allocatable components inside
+  !> each cached grid1 are released by Fortran 2003+ deallocation
+  !> semantics when the array is deallocated.
+  module subroutine hirsh_i_cleanup()
+    if (allocated(hi_cache)) deallocate(hi_cache)
+    if (allocated(hi_cache_tried)) deallocate(hi_cache_tried)
+    if (allocated(hi_qlo)) deallocate(hi_qlo)
+    if (allocated(hi_qhi)) deallocate(hi_qhi)
+    if (allocated(hi_frac)) deallocate(hi_frac)
+    if (allocated(hi_qfinal)) deallocate(hi_qfinal)
+    if (allocated(hi_wfcdir)) deallocate(hi_wfcdir)
+    hi_isactive = .false.
+  end subroutine hirsh_i_cleanup
+
+  !> Thread-safe read-only lookup of a (z,q) radial density. Returns
+  !> g => null() if the cache hasn't been populated yet (the caller can
+  !> handle that by calling hirsh_i_preload before parallel regions).
+  subroutine hirsh_i_get_grid(iz,q,g)
+    use grid1mod, only: agrid
+    use param, only: maxzat
+    integer, intent(in) :: iz, q
+    type(grid1), pointer :: g
+
+    g => null()
+    if (iz <= 0 .or. iz > maxzat) return
+
+    ! neutral: use the agrid table directly
+    if (q == 0) then
+       if (agrid(iz)%isinit) g => agrid(iz)
+       return
+    end if
+
+    if (.not.allocated(hi_cache)) return
+    if (q < lbound(hi_cache,2) .or. q > ubound(hi_cache,2)) return
+
+    if (hi_cache(iz,q)%isinit) then
+       g => hi_cache(iz,q)
+       return
+    end if
+
+    ! prior load failed or never attempted; fall back to neutral
+    if (agrid(iz)%isinit) g => agrid(iz)
+  end subroutine hirsh_i_get_grid
+
+  !> Serial preload of all (z, q) atomic-density grids needed by the
+  !> current SCF state. Must be called before any parallel evaluator
+  !> sweep. Resolution order matches the documentation: (1) user WFCDIR
+  !> file, (2) built-in cation table via read_db (q>=0), (3) anion
+  !> extrapolation via read_db (q<0).
+  subroutine hirsh_i_preload(s)
+    use systemmod, only: system
+    use grid1mod, only: agrid
+    use tools_io, only: lower, nameguess, ferror, warning, string
+    use param, only: dirsep, maxzat
+    type(system), intent(in) :: s
+
+    integer :: iat, iz, q
+    character(len=:), allocatable :: fname
+    logical :: exist
+
+    if (.not.allocated(hi_cache)) then
+       allocate(hi_cache(maxzat, -hi_qoff:hi_qcap))
+       allocate(hi_cache_tried(maxzat, -hi_qoff:hi_qcap))
+       hi_cache_tried = .false.
+    end if
+
+    do iat = 1, s%c%ncel
+       iz = s%c%spc(s%c%atcel(iat)%is)%z
+       if (iz <= 0 .or. iz > maxzat) cycle
+       call load_one(iz, hi_qlo(iat))
+       call load_one(iz, hi_qhi(iat))
+    end do
+
+  contains
+    subroutine load_one(iz,q)
+      integer, intent(in) :: iz, q
+      if (q == 0) return                                ! neutral lives in agrid
+      if (q < lbound(hi_cache,2) .or. q > ubound(hi_cache,2)) return
+      if (hi_cache(iz,q)%isinit) return
+      if (hi_cache_tried(iz,q)) return
+      hi_cache_tried(iz,q) = .true.
+
+      ! (1) WFCDIR/<elem>_q<+|->N.wfc
+      if (allocated(hi_wfcdir)) then
+         if (q >= 0) then
+            fname = trim(hi_wfcdir) // dirsep // lower(nameguess(iz)) // &
+                    "_q+" // trim(string(q)) // ".wfc"
+         else
+            fname = trim(hi_wfcdir) // dirsep // lower(nameguess(iz)) // &
+                    "_q" // trim(string(q)) // ".wfc"
+         end if
+         inquire(file=fname,exist=exist)
+         if (exist) then
+            call hirsh_i_load_userfile(hi_cache(iz,q),fname,iz,q)
+            if (hi_cache(iz,q)%isinit) return
+         end if
+      end if
+
+      ! (2),(3) Built-in tables / anion extrapolation via read_db.
+      call hi_cache(iz,q)%read_db(iz,q)
+      if (hi_cache(iz,q)%isinit) return
+
+      call ferror('hirsh_i_preload', &
+         'Could not load atomic density for z=' // trim(string(iz)) // &
+         ' q=' // trim(string(q)) // '; using neutral',warning)
+    end subroutine load_one
+  end subroutine hirsh_i_preload
+
+  !> Load a user-supplied .wfc file in critic2 format into a grid1
+  !> using the public grid1_read_file wrapper.
+  subroutine hirsh_i_load_userfile(g,fname,iz,q)
+    use grid1mod, only: grid1_read_file
+    type(grid1), intent(inout) :: g
+    character(len=*), intent(in) :: fname
+    integer, intent(in) :: iz, q
+    call grid1_read_file(g,fname,iz,q)
+  end subroutine hirsh_i_load_userfile
 
 end submodule proc

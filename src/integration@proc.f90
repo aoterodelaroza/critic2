@@ -58,7 +58,7 @@ contains
 
   !> Driver for the integration in grids
   module subroutine intgrid_driver(line)
-    use hirshfeld, only: hirsh_grid, voronoi_grid
+    use hirshfeld, only: hirsh_grid, voronoi_grid, hirsh_i_driver, hirsh_i_cleanup
     use bader, only: bader_integrate
     use yt, only: yt_integrate, yt_isosurface, yt_weights, ytdata, ytdata_clean
     use systemmod, only: sy
@@ -131,6 +131,8 @@ contains
        end if
     elseif (equal(word,"hirshfeld")) then
        bas%imtype = imtype_hirshfeld
+    elseif (equal(word,"hirshfeld_i")) then
+       bas%imtype = imtype_hirshfeld_i
     elseif (equal(word,"voronoi")) then
        bas%imtype = imtype_voronoi
     else
@@ -149,6 +151,9 @@ contains
     bas%expr = ""
     setdocelatom = .false.
     bas%docelatom = .false.
+    bas%hi_wfcdir = ""
+    bas%hi_tol = 1d-4
+    bas%hi_maxit = 60
     do while(.true.)
        word = lgetword(line,lp)
        if (equal(word,"nnm") .and. (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt)) then
@@ -165,7 +170,7 @@ contains
           ratom_def = ratom_def / dunit0(iunit)
        elseif (equal(word,"wcube") .and. bas%imtype /= imtype_voronoi) then
           bas%wcube = .true.
-       elseif (equal(word,"basins") .and. bas%imtype /= imtype_hirshfeld) then
+       elseif (equal(word,"basins") .and. bas%imtype /= imtype_hirshfeld .and. bas%imtype /= imtype_hirshfeld_i) then
           lp2 = lp
           word = lgetword(line,lp)
           if (equal(word,"obj")) then
@@ -224,6 +229,24 @@ contains
              call ferror("intgrid_driver","Invalid JSON file",faterr,line,syntax=.true.)
              return
           end if
+       elseif (equal(word,"wfcdir") .and. bas%imtype == imtype_hirshfeld_i) then
+          bas%hi_wfcdir = getword(line,lp)
+          if (len_trim(bas%hi_wfcdir) == 0) then
+             call ferror("intgrid_driver","WFCDIR must be followed by a directory path",faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,"hitol") .and. bas%imtype == imtype_hirshfeld_i) then
+          ok = eval_next(bas%hi_tol,line,lp)
+          if (.not.ok) then
+             call ferror("intgrid_driver","HITOL must be followed by a real number",faterr,line,syntax=.true.)
+             return
+          end if
+       elseif (equal(word,"himaxit") .and. bas%imtype == imtype_hirshfeld_i) then
+          ok = isinteger(bas%hi_maxit,line,lp)
+          if (.not.ok) then
+             call ferror("intgrid_driver","HIMAXIT must be followed by an integer",faterr,line,syntax=.true.)
+             return
+          end if
        elseif (len_trim(word) > 0) then
           call ferror("intgrid_driver","Unknown extra keyword: " // word,faterr,line,syntax=.true.)
           return
@@ -261,8 +284,9 @@ contains
        ! isosurface lower -> minus the reference field
        bas%f = -sy%f(sy%iref)%grid%f
        bas%isov = -bas%isov
-    elseif (bas%imtype == imtype_hirshfeld) then
-       ! hirshfeld -> the promolecular density
+    elseif (bas%imtype == imtype_hirshfeld .or. bas%imtype == imtype_hirshfeld_i) then
+       ! hirshfeld / hirshfeld_i -> initial promolecular density (neutral).
+       ! For hirshfeld_i this is overwritten by hirsh_i_driver after SCF.
        call sy%c%promolecular_array3(faux,sy%f(sy%iref)%grid%n)
        bas%f = faux
     else
@@ -310,6 +334,10 @@ contains
     elseif (bas%imtype == imtype_hirshfeld) then
        write (uout,'("* Hirshfeld integration ")')
        call hirsh_grid(sy,bas)
+    elseif (bas%imtype == imtype_hirshfeld_i) then
+       write (uout,'("* Hirshfeld-I (iterative Hirshfeld) integration ")')
+       call hirsh_grid(sy,bas)
+       call hirsh_i_driver(sy,bas)
     elseif (bas%imtype == imtype_voronoi) then
        write (uout,'("* Voronoi integration ")')
        call voronoi_grid(sy,bas)
@@ -333,7 +361,7 @@ contains
     write (uout,'("+ Integrating atomic properties"/)')
 
     ! Integrate scalar fields and multipoles
-    if (bas%imtype == imtype_hirshfeld) then
+    if (bas%imtype == imtype_hirshfeld .or. bas%imtype == imtype_hirshfeld_i) then
        call intgrid_hirshfeld_fields(bas,res)
     else
        call intgrid_fields(bas,res)
@@ -342,7 +370,7 @@ contains
     ! localization and delocalization indices
     if (bas%imtype == imtype_bader .or. bas%imtype == imtype_yt) then
        call intgrid_deloc(bas,res)
-    elseif (bas%imtype == imtype_hirshfeld) then
+    elseif (bas%imtype == imtype_hirshfeld .or. bas%imtype == imtype_hirshfeld_i) then
        call intgrid_hirshfeld_overlap(bas,res)
     end if
 
@@ -374,6 +402,7 @@ contains
     if (bas%imtype == imtype_yt .and. bas%luw /= 0) then
        call fclose(bas%luw)
     endif
+    if (bas%imtype == imtype_hirshfeld_i) call hirsh_i_cleanup()
     deallocate(res)
 
   end subroutine intgrid_driver
@@ -674,7 +703,7 @@ contains
     ! were rejected
     if (bas%imtype == imtype_isosurface) then
        write (uout,'("* List of properties integrated in the isosurface regions")')
-    elseif (bas%imtype == imtype_hirshfeld .or. bas%imtype == imtype_voronoi) then
+    elseif (bas%imtype == imtype_hirshfeld .or. bas%imtype == imtype_hirshfeld_i .or. bas%imtype == imtype_voronoi) then
        write (uout,'("* List of integrated atomic properties")')
     else
        write (uout,'("* List of properties integrated in the attractor basins")')
@@ -1048,8 +1077,8 @@ contains
        allocate(bas%icp(bas%nattr))
        bas%icp = 0
        return
-    elseif (bas%imtype == imtype_hirshfeld .or. bas%imtype == imtype_voronoi) then
-       ! hirshfeld and voronoi always associated to atoms
+    elseif (bas%imtype == imtype_hirshfeld .or. bas%imtype == imtype_hirshfeld_i .or. bas%imtype == imtype_voronoi) then
+       ! hirshfeld (incl. iterative) and voronoi always associated to atoms
        if (allocated(bas%icp)) deallocate(bas%icp)
        allocate(bas%icp(bas%nattr))
        do i = 1, bas%nattr
@@ -1404,6 +1433,7 @@ contains
   !> results.
   subroutine intgrid_hirshfeld_fields(bas,res)
     use grid1mod, only: agrid
+    use hirshfeld, only: hirsh_i_eval, hirsh_i_active
     use systemmod, only: sy, itype_v, itype_f, itype_fval, itype_gmod, &
        itype_lap, itype_lapval, itype_mpoles, itype_expr
     use grid3mod, only: grid3
@@ -1430,7 +1460,7 @@ contains
     integer, allocatable :: nid(:), lvec(:,:)
     real*8, allocatable :: dist(:), rcutmax(:,:)
 
-    if (bas%imtype /= imtype_hirshfeld) return
+    if (bas%imtype /= imtype_hirshfeld .and. bas%imtype /= imtype_hirshfeld_i) return
 
     ! initialize
     allocate(w(bas%n(1),bas%n(2),bas%n(3)))
@@ -1565,8 +1595,12 @@ contains
              ! run over atoms in the environment
              do i = 1, nat
                 if (.not.bas%docelatom(bas%icp(nid(i)))) cycle
-                ! calculate density and accumulate
-                call agrid(sy%c%spc(sy%c%atcel(nid(i))%is)%z)%interp(dist(i),rhoa,raux1,raux2)
+                ! calculate (per-atom, possibly charged) density and accumulate
+                if (hirsh_i_active()) then
+                   call hirsh_i_eval(nid(i),dist(i),rhoa)
+                else
+                   call agrid(sy%c%spc(sy%c%atcel(nid(i))%is)%z)%interp(dist(i),rhoa,raux1,raux2)
+                end if
                 tosum = fac * rhoa
 
                 !$omp critical (results)
@@ -1604,6 +1638,7 @@ contains
   !> Only for grids. bas = integration driver data, res(1:npropi) = results.
   subroutine intgrid_hirshfeld_overlap(bas,res)
     use grid1mod, only: agrid
+    use hirshfeld, only: hirsh_i_eval, hirsh_i_active
     use systemmod, only: sy, itype_hirshfeld_ovpop
     use fieldmod, only: type_grid
     use global, only: cutrad
@@ -1624,8 +1659,8 @@ contains
     integer, allocatable :: nid(:), lvec(:,:)
     real*8, allocatable :: dist(:), rcutmax(:,:)
 
-    ! only for hirshfeld integration
-    if (bas%imtype /= imtype_hirshfeld) return
+    ! only for hirshfeld and hirshfeld_i integration
+    if (bas%imtype /= imtype_hirshfeld .and. bas%imtype /= imtype_hirshfeld_i) return
 
     ! prepare results of integrable properties
     nmap = 0
@@ -1736,8 +1771,13 @@ contains
                    lt = lvec(:,j) - lvec(:,i)
 
                    ! calculate densities and accumulate
-                   call agrid(sy%c%spc(sy%c%atcel(nid(i))%is)%z)%interp(dist(i),rhoa,raux1,raux2)
-                   call agrid(sy%c%spc(sy%c%atcel(nid(j))%is)%z)%interp(dist(j),rhob,raux1,raux2)
+                   if (hirsh_i_active()) then
+                      call hirsh_i_eval(nid(i),dist(i),rhoa)
+                      call hirsh_i_eval(nid(j),dist(j),rhob)
+                   else
+                      call agrid(sy%c%spc(sy%c%atcel(nid(i))%is)%z)%interp(dist(i),rhoa,raux1,raux2)
+                      call agrid(sy%c%spc(sy%c%atcel(nid(j))%is)%z)%interp(dist(j),rhob,raux1,raux2)
+                   end if
                    tosum = fac * rhoa * rhob
 
                    !$omp critical (results)
@@ -4061,6 +4101,8 @@ contains
        call json%add(o1,'type','bader')
     elseif (bas%imtype == imtype_hirshfeld) then
        call json%add(o1,'type','hirshfeld')
+    elseif (bas%imtype == imtype_hirshfeld_i) then
+       call json%add(o1,'type','hirshfeld_i')
     elseif (bas%imtype == imtype_voronoi) then
        call json%add(o1,'type','voronoi')
     end if
@@ -4295,7 +4337,7 @@ contains
     end interface
 
     if (bas%ndrawbasin < 0) return
-    if (bas%imtype == imtype_hirshfeld) return
+    if (bas%imtype == imtype_hirshfeld .or. bas%imtype == imtype_hirshfeld_i) return
 
     ! prepare wigner-seitz tetrahedra
     do i = 1, 3
@@ -4436,7 +4478,7 @@ contains
     do i = 1, bas%nattr
        if (bas%imtype == imtype_yt) then
           call yt_weights(din=dat,idb=i,w=w)
-       elseif (bas%imtype == imtype_hirshfeld) then
+       elseif (bas%imtype == imtype_hirshfeld .or. bas%imtype == imtype_hirshfeld_i) then
           call hirsh_weights(sy,bas,i,w)
        else
           w = 0d0
@@ -4449,7 +4491,7 @@ contains
     end do
     write (uout,'("+ Weights written to ",A,"_wcube_*.cube"/)') trim(fileroot)
 
-    if (bas%imtype /= imtype_yt .and. bas%imtype /= imtype_hirshfeld) then
+    if (bas%imtype /= imtype_yt .and. bas%imtype /= imtype_hirshfeld .and. bas%imtype /= imtype_hirshfeld_i) then
        w = bas%idg
        file = trim(fileroot) // "_wcube_all.cube"
        call sy%c%writegrid_cube(w,file,.false.,.false.)
