@@ -206,6 +206,8 @@ module representations
      logical :: axes_labelconstsize ! whether the labels have constant size or scale with the arrowhead
      real(c_float) :: axes_labelrgb(3) ! color of the axis labels
      character(kind=c_char,len=32) :: axes_labelstr(3) ! text of the x, y, z axis labels
+     real*8 :: axes_labeldistance ! distance along the axis from the arrowhead to the label (all axes)
+     real*8 :: axes_labeloffset(3,3) ! per-axis (cartesian) offset of the label from that position
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults

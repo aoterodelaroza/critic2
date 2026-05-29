@@ -240,6 +240,8 @@ contains
        r%axes_showlabels = .true.
        r%axes_labelscale = 0.5d0
        r%axes_labelconstsize = .false.
+       r%axes_labeldistance = 0d0
+       r%axes_labeloffset = 0d0
        if (style == style_phong) then
           r%axes_labelrgb = 1._c_float
        else
@@ -844,7 +846,9 @@ contains
                 auxstr(1:size(obj%string,1)) = obj%string
                 call move_alloc(auxstr,obj%string)
              end if
-             obj%string(obj%nstring)%x = real(x2,c_float)
+             ! position: along the axis from the arrowhead tip (x2) by the
+             ! shared distance, plus the per-axis cartesian offset
+             obj%string(obj%nstring)%x = real(x2 + r%axes_labeldistance * x0 + r%axes_labeloffset(:,k),c_float)
              obj%string(obj%nstring)%xdelta = cmplx(0d0,0d0,kind=c_float_complex)
              obj%string(obj%nstring)%r = real(rad2,c_float)
              obj%string(obj%nstring)%rgb = r%axes_labelrgb

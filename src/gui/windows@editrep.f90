@@ -1077,6 +1077,19 @@ contains
        changed = changed .or. iw_inputtext("y##lbly",bufsize=31,textf=w%rep%axes_labelstr(2),width=5,sameline=.true.)
        changed = changed .or. iw_inputtext("z##lblz",bufsize=31,textf=w%rep%axes_labelstr(3),width=5,sameline=.true.)
        call iw_tooltip("Text shown for each axis label",ttshown)
+
+       changed = changed .or. iw_dragfloat_real8("Distance to arrow head (Å)",x1=w%rep%axes_labeldistance,&
+          speed=0.01d0,scale=bohrtoa,decimal=3)
+       call iw_tooltip("Distance from the arrowhead to the label, along the axis (all axes)",ttshown)
+       changed = changed .or. iw_dragfloat_real8("x-axis offset##axeslbloffx",x3=w%rep%axes_labeloffset(:,1),&
+          speed=0.01d0,scale=bohrtoa,decimal=3)
+       call iw_tooltip("Cartesian offset (Å) of the x-axis label from its position on the axis",ttshown)
+       changed = changed .or. iw_dragfloat_real8("y-axis offset##axeslbloffy",x3=w%rep%axes_labeloffset(:,2),&
+          speed=0.01d0,scale=bohrtoa,decimal=3)
+       call iw_tooltip("Cartesian offset (Å) of the y-axis label from its position on the axis",ttshown)
+       changed = changed .or. iw_dragfloat_real8("z-axis offset##axeslbloffz",x3=w%rep%axes_labeloffset(:,3),&
+          speed=0.01d0,scale=bohrtoa,decimal=3)
+       call iw_tooltip("Cartesian offset (Å) of the z-axis label from its position on the axis",ttshown)
     end if
 
     ! origin of the axes
