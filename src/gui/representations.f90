@@ -204,6 +204,7 @@ module representations
      logical :: axes_showlabels ! draw x/y/z labels at the axis tips
      real*8 :: axes_labelscale ! scale for the axis labels
      real(c_float) :: axes_labelrgb(3) ! color of the axis labels
+     character(kind=c_char,len=32) :: axes_labelstr(3) ! text of the x, y, z axis labels
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults

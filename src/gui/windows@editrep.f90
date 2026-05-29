@@ -1022,7 +1022,8 @@ contains
   !> Draw the editrep window, cartesian axes class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_axes(w,ttshown) result(changed)
-    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
+       iw_inputtext
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -1068,6 +1069,10 @@ contains
        call iw_tooltip("Scale of the axis labels",ttshown)
        changed = changed .or. iw_coloredit("Color##axeslabel",rgb=w%rep%axes_labelrgb,sameline=.true.)
        call iw_tooltip("Color of the axis labels",ttshown)
+       changed = changed .or. iw_inputtext("x##lblx",bufsize=31,textf=w%rep%axes_labelstr(1),width=5)
+       changed = changed .or. iw_inputtext("y##lbly",bufsize=31,textf=w%rep%axes_labelstr(2),width=5,sameline=.true.)
+       changed = changed .or. iw_inputtext("z##lblz",bufsize=31,textf=w%rep%axes_labelstr(3),width=5,sameline=.true.)
+       call iw_tooltip("Text shown for each axis label",ttshown)
     end if
 
     ! origin of the axes

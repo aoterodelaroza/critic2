@@ -244,6 +244,9 @@ contains
        else
           r%axes_labelrgb = 0._c_float
        end if
+       r%axes_labelstr(1) = "x"
+       r%axes_labelstr(2) = "y"
+       r%axes_labelstr(3) = "z"
     end if
 
     ! initialize the styles
@@ -846,13 +849,7 @@ contains
              obj%string(obj%nstring)%rgb = r%axes_labelrgb
              obj%string(obj%nstring)%scale = real(r%axes_labelscale,c_float)
              obj%string(obj%nstring)%offset = 0._c_float
-             if (k == 1) then
-                obj%string(obj%nstring)%str = "x"
-             elseif (k == 2) then
-                obj%string(obj%nstring)%str = "y"
-             else
-                obj%string(obj%nstring)%str = "z"
-             end if
+             obj%string(obj%nstring)%str = trim(r%axes_labelstr(k))
           end if
        end do
     end if ! reptype
