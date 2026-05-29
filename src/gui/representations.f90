@@ -203,6 +203,7 @@ module representations
      real(c_float) :: axes_rgb(3,3) ! color of the x, y, z axes
      logical :: axes_showlabels ! draw x/y/z labels at the axis tips
      real*8 :: axes_labelscale ! scale for the axis labels
+     logical :: axes_labelconstsize ! whether the labels have constant size or scale with the arrowhead
      real(c_float) :: axes_labelrgb(3) ! color of the axis labels
      character(kind=c_char,len=32) :: axes_labelstr(3) ! text of the x, y, z axis labels
    contains

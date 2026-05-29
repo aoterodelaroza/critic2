@@ -1069,6 +1069,10 @@ contains
        call iw_tooltip("Scale of the axis labels",ttshown)
        changed = changed .or. iw_coloredit("Color##axeslabel",rgb=w%rep%axes_labelrgb,sameline=.true.)
        call iw_tooltip("Color of the axis labels",ttshown)
+       changed = changed .or. iw_checkbox("Constant size##axeslabelconstsize",&
+          w%rep%axes_labelconstsize,sameline=.true.)
+       call iw_tooltip("Labels have constant size (on) or labels scale with the&
+          & size of the arrowhead (off)",ttshown)
        changed = changed .or. iw_inputtext("x##lblx",bufsize=31,textf=w%rep%axes_labelstr(1),width=5)
        changed = changed .or. iw_inputtext("y##lbly",bufsize=31,textf=w%rep%axes_labelstr(2),width=5,sameline=.true.)
        changed = changed .or. iw_inputtext("z##lblz",bufsize=31,textf=w%rep%axes_labelstr(3),width=5,sameline=.true.)

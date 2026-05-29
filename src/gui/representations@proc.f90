@@ -239,6 +239,7 @@ contains
        r%axes_rgb(:,3) = (/0._c_float,0._c_float,1._c_float/) ! z = blue
        r%axes_showlabels = .true.
        r%axes_labelscale = 0.5d0
+       r%axes_labelconstsize = .false.
        if (style == style_phong) then
           r%axes_labelrgb = 1._c_float
        else
@@ -847,7 +848,11 @@ contains
              obj%string(obj%nstring)%xdelta = cmplx(0d0,0d0,kind=c_float_complex)
              obj%string(obj%nstring)%r = real(rad2,c_float)
              obj%string(obj%nstring)%rgb = r%axes_labelrgb
-             obj%string(obj%nstring)%scale = real(r%axes_labelscale,c_float)
+             if (r%axes_labelconstsize) then
+                obj%string(obj%nstring)%scale = real(r%axes_labelscale,c_float)
+             else
+                obj%string(obj%nstring)%scale = real(-r%axes_labelscale,c_float)
+             end if
              obj%string(obj%nstring)%offset = 0._c_float
              obj%string(obj%nstring)%str = trim(r%axes_labelstr(k))
           end if
