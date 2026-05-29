@@ -52,7 +52,7 @@ contains
 
   !> Draw the edit represenatation window.
   module subroutine draw_editrep(w)
-    use representations, only: representation, reptype_atoms, reptype_unitcell
+    use representations, only: representation, reptype_atoms, reptype_unitcell, reptype_axes
     use windows, only: nwin, win, wintype_view
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
@@ -96,7 +96,8 @@ contains
 
        ! the representation type
        itype = w%rep%type - 1
-       call iw_combo_simple("##reptype","Atoms" // c_null_char // "Unit cell" // c_null_char,itype)
+       call iw_combo_simple("##reptype","Atoms" // c_null_char // "Unit cell" // c_null_char //&
+          "Cartesian axes" // c_null_char,itype)
        if (w%rep%type /= itype + 1) changed = .true.
        w%rep%type = itype + 1
        call iw_tooltip("Type of object",ttshown)
@@ -114,6 +115,8 @@ contains
           changed = changed .or. w%draw_editrep_atoms(ttshown)
        elseif (w%rep%type == reptype_unitcell) then
           changed = changed .or. w%draw_editrep_unitcell(ttshown)
+       elseif (w%rep%type == reptype_axes) then
+          changed = changed .or. w%draw_editrep_axes(ttshown)
        end if
 
        ! rebuild draw lists if necessary
@@ -1015,6 +1018,53 @@ contains
     call iw_tooltip("Coordinates for the origin shift of the unit cell",ttshown)
 
   end function draw_editrep_unitcell
+
+  !> Draw the editrep window, cartesian axes class. Returns true if the
+  !> scene needs rendering again. ttshown = the tooltip flag.
+  module function draw_editrep_axes(w,ttshown) result(changed)
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8
+    use param, only: bohrtoa
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical(c_bool) :: changed
+
+    ! initialize
+    changed = .false.
+
+    !! geometry
+    call iw_text("Geometry",highlight=.true.)
+    changed = changed .or. iw_dragfloat_real8("Length (Å)",x1=w%rep%axes_length,speed=0.01d0,&
+       min=0d0,max=100d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Length of each cartesian axis",ttshown)
+    changed = changed .or. iw_dragfloat_real8("Radius (Å)##axesradius",x1=w%rep%axes_radius,speed=0.005d0,&
+       min=0d0,max=5d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Radius of the axis shafts",ttshown)
+
+    !! colors
+    call iw_text("Colors",highlight=.true.)
+    changed = changed .or. iw_coloredit("x",rgb=w%rep%axes_rgb(:,1))
+    call iw_tooltip("Color of the x axis",ttshown)
+    changed = changed .or. iw_coloredit("y",rgb=w%rep%axes_rgb(:,2),sameline=.true.)
+    call iw_tooltip("Color of the y axis",ttshown)
+    changed = changed .or. iw_coloredit("z",rgb=w%rep%axes_rgb(:,3),sameline=.true.)
+    call iw_tooltip("Color of the z axis",ttshown)
+
+    !! labels
+    call iw_text("Labels",highlight=.true.)
+    changed = changed .or. iw_checkbox("Show x/y/z labels",w%rep%axes_showlabels)
+    call iw_tooltip("Draw the x/y/z labels at the axis tips",ttshown)
+    if (w%rep%axes_showlabels) then
+       changed = changed .or. iw_dragfloat_real8("Label size",x1=w%rep%axes_labelscale,speed=0.01d0,&
+          min=0.1d0,max=5d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Scale of the axis labels",ttshown)
+    end if
+
+    ! origin of the axes
+    call iw_text("Origin Shift",highlight=.true.)
+    changed = changed .or. iw_dragfloat_real8("##originaxes",x3=w%rep%origin,speed=0.001d0,decimal=5)
+    call iw_tooltip("Cartesian coordinates (Å) for the origin of the axes",ttshown)
+
+  end function draw_editrep_axes
 
   !xx! private procedures
 

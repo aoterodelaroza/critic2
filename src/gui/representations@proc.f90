@@ -84,6 +84,10 @@ contains
        r%isinit = .true.
        r%shown = .true.
        r%name = "Unit Cell"
+    elseif (itype == reptype_axes) then
+       r%isinit = .true.
+       r%shown = .true.
+       r%name = "Cartesian Axes"
     else
        r%isinit = .false.
        r%shown = .false.
@@ -224,6 +228,17 @@ contains
        r%uc_innerstipple = .true.
     end if
 
+    ! cartesian axes
+    if (itype == 0 .or. itype == 6) then
+       r%axes_length = axes_length_def
+       r%axes_radius = axes_radius_def
+       r%axes_rgb(:,1) = (/1._c_float,0._c_float,0._c_float/) ! x = red
+       r%axes_rgb(:,2) = (/0._c_float,1._c_float,0._c_float/) ! y = green
+       r%axes_rgb(:,3) = (/0._c_float,0._c_float,1._c_float/) ! z = blue
+       r%axes_showlabels = .true.
+       r%axes_labelscale = 0.5d0
+    end if
+
     ! initialize the styles
     call r%reset_all_styles(itype)
 
@@ -357,6 +372,10 @@ contains
     if (.not.allocated(obj%cylflat)) then
        allocate(obj%cylflat(100))
        obj%ncylflat = 0
+    end if
+    if (.not.allocated(obj%cone)) then
+       allocate(obj%cone(100))
+       obj%ncone = 0
     end if
     if (.not.allocated(obj%string)) then
        allocate(obj%string(100))
@@ -757,8 +776,91 @@ contains
              end do
           end do
        end if
+    elseif (r%type == reptype_axes) then
+       !!! cartesian axes representation !!!
+
+       ! origin shift (cartesian coordinates, in angstrom)
+       uoriginc = r%origin / bohrtoa
+
+       ! arrowhead geometry derived from the shaft radius (head length
+       ! capped so it never exceeds the total axis length)
+       rad1 = min(5d0 * r%axes_radius, 0.4d0 * r%axes_length) ! head length
+       rad2 = 2.5d0 * r%axes_radius ! head radius
+
+       do k = 1, 3
+          ! cartesian (lab-frame) unit direction for this axis
+          x0 = 0d0
+          x0(k) = 1d0
+
+          ! shaft (round, lit cylinder)
+          x1 = uoriginc
+          x2 = uoriginc + max(r%axes_length - rad1,0d0) * x0
+          obj%ncyl = obj%ncyl + 1
+          if (obj%ncyl > size(obj%cyl,1)) then
+             allocate(auxcyl(2*obj%ncyl))
+             auxcyl(1:size(obj%cyl,1)) = obj%cyl
+             call move_alloc(auxcyl,obj%cyl)
+          end if
+          obj%cyl(obj%ncyl)%x1 = real(x1,c_float)
+          obj%cyl(obj%ncyl)%x2 = real(x2,c_float)
+          obj%cyl(obj%ncyl)%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
+          obj%cyl(obj%ncyl)%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
+          obj%cyl(obj%ncyl)%r = real(r%axes_radius,c_float)
+          obj%cyl(obj%ncyl)%rgb = r%axes_rgb(:,k)
+          obj%cyl(obj%ncyl)%order = 1
+          obj%cyl(obj%ncyl)%border = 0._c_float
+          obj%cyl(obj%ncyl)%rgbborder = 0._c_float
+
+          ! arrowhead (cone) from the shaft end to the axis tip
+          x1 = x2
+          x2 = uoriginc + r%axes_length * x0
+          call increase_ncone()
+          obj%cone(obj%ncone)%x1 = real(x1,c_float)
+          obj%cone(obj%ncone)%x2 = real(x2,c_float)
+          obj%cone(obj%ncone)%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
+          obj%cone(obj%ncone)%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
+          obj%cone(obj%ncone)%r = real(rad2,c_float)
+          obj%cone(obj%ncone)%rgb = r%axes_rgb(:,k)
+          obj%cone(obj%ncone)%order = 1
+          obj%cone(obj%ncone)%border = 0._c_float
+          obj%cone(obj%ncone)%rgbborder = 0._c_float
+
+          ! label at the tip
+          if (r%axes_showlabels) then
+             obj%nstring = obj%nstring + 1
+             if (obj%nstring > size(obj%string,1)) then
+                allocate(auxstr(2*obj%nstring))
+                auxstr(1:size(obj%string,1)) = obj%string
+                call move_alloc(auxstr,obj%string)
+             end if
+             obj%string(obj%nstring)%x = real(x2,c_float)
+             obj%string(obj%nstring)%xdelta = cmplx(0d0,0d0,kind=c_float_complex)
+             obj%string(obj%nstring)%r = real(rad2,c_float)
+             obj%string(obj%nstring)%rgb = r%axes_rgb(:,k)
+             obj%string(obj%nstring)%scale = real(r%axes_labelscale,c_float)
+             obj%string(obj%nstring)%offset = 0._c_float
+             if (k == 1) then
+                obj%string(obj%nstring)%str = "x"
+             elseif (k == 2) then
+                obj%string(obj%nstring)%str = "y"
+             else
+                obj%string(obj%nstring)%str = "z"
+             end if
+          end if
+       end do
     end if ! reptype
   contains
+    subroutine increase_ncone()
+
+      obj%ncone = obj%ncone + 1
+      if (obj%ncone > size(obj%cone,1)) then
+         allocate(auxcyl(2*obj%ncone))
+         auxcyl(1:size(obj%cone,1)) = obj%cone
+         call move_alloc(auxcyl,obj%cone)
+      end if
+
+    end subroutine increase_ncone
+
     subroutine increase_ncylflat()
 
       obj%ncylflat = obj%ncylflat + 1

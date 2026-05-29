@@ -28,6 +28,10 @@ submodule (shapes) proc
   real(c_float), allocatable, target :: cylv(:,:) ! vertices (1:3) and normals (4:6)
   integer(c_int), allocatable, target :: cyli(:,:) ! faces
 
+  ! cones (arrowheads)
+  real(c_float), allocatable, target :: conv(:,:) ! vertices (1:3)
+  integer(c_int), allocatable, target :: coni(:,:) ! faces
+
 contains
 
   !> Create and initialize the buffers for the basic shapes
@@ -252,6 +256,72 @@ contains
     call glBindVertexArray(0)
     call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
+    ! allocate cone vertex and face arrays
+    if (allocated(conv)) deallocate(conv)
+    if (allocated(coni)) deallocate(coni)
+    allocate(conv(3,connveadd(nmaxcone)))
+    allocate(coni(3,conneladd(nmaxcone)))
+
+    ! vertices and faces of the cones (unit cone: base radius 0.5 at
+    ! z=-0.5, apex at z=+0.5)
+    do i = 1, nmaxcone
+       n = connveadd(i-1)
+       npt = connve(i) - 2
+
+       ! base center and apex
+       n = n + 1
+       conv(1:2,n) = 0._c_float
+       conv(3,n) = -0.5_c_float
+       n = n + 1
+       conv(1:2,n) = 0._c_float
+       conv(3,n) = 0.5_c_float
+
+       ! base ring
+       do l = 1, npt
+          angle = real(l-1,c_float) / real(npt,c_float) * 2._c_float * pic
+          ca = cos(angle)
+          sa = sin(angle)
+          n = n + 1
+          conv(1,n) = 0.5_c_float * ca
+          conv(2,n) = 0.5_c_float * sa
+          conv(3,n) = -0.5_c_float
+       end do
+
+       nface = conneladd(i-1)
+       shift1 = 2
+       ! base cap (center vertex 0 + base ring)
+       do j = 1, npt
+          nface = nface + 1
+          coni(:,nface) = (/0, mod(j,npt)+shift1, j+shift1-1/)
+       end do
+       ! sides (apex vertex 1 + base ring)
+       do j = 1, npt
+          nface = nface + 1
+          coni(:,nface) = (/1, j+shift1-1, mod(j,npt)+shift1/)
+       end do
+    end do
+
+    ! build the buffers for the cones
+    call glGenVertexArrays(nmaxcone, c_loc(coneVAO))
+    call glGenBuffers(nmaxcone, c_loc(coneVBO))
+    call glGenBuffers(nmaxcone, c_loc(coneEBO))
+
+    do i = 1, nmaxcone
+       call glBindBuffer(GL_ARRAY_BUFFER, coneVBO(i))
+       call glBufferData(GL_ARRAY_BUFFER, 3*connve(i)*c_sizeof(c_float_), c_loc(conv(1,connveadd(i-1)+1)), GL_STATIC_DRAW)
+       call glBindVertexArray(coneVAO(i))
+       call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, coneEBO(i))
+       call glBufferData(GL_ELEMENT_ARRAY_BUFFER,3*connel(i)*c_sizeof(c_int_), c_loc(coni(1,conneladd(i-1)+1)), GL_STATIC_DRAW)
+
+       call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(3*c_sizeof(c_float_),c_int),&
+          c_null_ptr)
+       call glEnableVertexAttribArray(0)
+    end do
+
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
+    call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+
     ! build the buffers for the text (direct)
     call glGenVertexArrays(1, c_loc(textVAO))
     call glGenBuffers(1, c_loc(textVBO))
@@ -317,6 +387,13 @@ contains
     call glDeleteBuffers(nmaxcyl, c_loc(cylEBO))
     if (allocated(cylv)) deallocate(cylv)
     if (allocated(cyli)) deallocate(cyli)
+
+    ! cones
+    call glDeleteVertexArrays(nmaxcone, c_loc(coneVAO))
+    call glDeleteBuffers(nmaxcone, c_loc(coneVBO))
+    call glDeleteBuffers(nmaxcone, c_loc(coneEBO))
+    if (allocated(conv)) deallocate(conv)
+    if (allocated(coni)) deallocate(coni)
 
   end subroutine shapes_end
 

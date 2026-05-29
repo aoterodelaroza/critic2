@@ -54,10 +54,11 @@ contains
        BIND_NAV_ROTATE, BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
        BIND_NAV_MEASURE, bindnames, get_bind_keyname,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use representations, only: reptype_atoms, reptype_unitcell,&
+    use representations, only: reptype_atoms, reptype_unitcell, reptype_axes,&
        repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
        repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
-       repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic
+       repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic,&
+       repflavor_axes_cartesian
     use scenes, only: style_phong, style_simple
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
        iw_setposx_fromend, iw_checkbox, iw_coloredit, iw_menuitem, iw_dragfloat_realc
@@ -563,6 +564,13 @@ contains
                 end if
                 call iw_tooltip("Display the unit cell",ttshown)
              end if
+
+             call igSeparator()
+             if (iw_menuitem("Cartesian Axes",shortcut_text="Axes")) then
+                call w%sc%add_representation(reptype_axes,repflavor_axes_cartesian)
+                chbuild = .true.
+             end if
+             call iw_tooltip("Display the cartesian (lab-frame) x/y/z axes",ttshown)
 
              call igEndPopup()
           end if

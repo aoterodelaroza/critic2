@@ -371,6 +371,9 @@ contains
     s%obj%ncylflat = 0
     if (allocated(s%obj%cylflat)) deallocate(s%obj%cylflat)
     allocate(s%obj%cylflat(10))
+    s%obj%ncone = 0
+    if (allocated(s%obj%cone)) deallocate(s%obj%cone)
+    allocate(s%obj%cone(10))
     s%obj%nstring = 0
     if (allocated(s%obj%string)) deallocate(s%obj%string)
     allocate(s%obj%string(10))
@@ -397,7 +400,7 @@ contains
           end if
        end if
     end do
-    if (s%obj%nsph + s%obj%ncyl + s%obj%ncylflat + s%obj%nstring > 0) then
+    if (s%obj%nsph + s%obj%ncyl + s%obj%ncylflat + s%obj%ncone + s%obj%nstring > 0) then
        do i = 1, 3
           xmin(i) = huge(1._c_float)
           xmax(i) = -huge(1._c_float)
@@ -407,6 +410,8 @@ contains
           xmin(i) = min(xmin(i),minval(s%obj%cyl(1:s%obj%ncyl)%x2(i)))
           xmin(i) = min(xmin(i),minval(s%obj%cylflat(1:s%obj%ncylflat)%x1(i)))
           xmin(i) = min(xmin(i),minval(s%obj%cylflat(1:s%obj%ncylflat)%x2(i)))
+          xmin(i) = min(xmin(i),minval(s%obj%cone(1:s%obj%ncone)%x1(i)))
+          xmin(i) = min(xmin(i),minval(s%obj%cone(1:s%obj%ncone)%x2(i)))
           xmin(i) = min(xmin(i),minval(s%obj%string(1:s%obj%nstring)%x(i)))
 
           xmax(i) = maxval(s%obj%sph(1:s%obj%nsph)%x(i)) + maxrad
@@ -414,6 +419,8 @@ contains
           xmax(i) = max(xmax(i),maxval(s%obj%cyl(1:s%obj%ncyl)%x2(i)))
           xmax(i) = max(xmax(i),maxval(s%obj%cylflat(1:s%obj%ncylflat)%x1(i)))
           xmax(i) = max(xmax(i),maxval(s%obj%cylflat(1:s%obj%ncylflat)%x2(i)))
+          xmax(i) = max(xmax(i),maxval(s%obj%cone(1:s%obj%ncone)%x1(i)))
+          xmax(i) = max(xmax(i),maxval(s%obj%cone(1:s%obj%ncone)%x2(i)))
           xmax(i) = max(xmax(i),maxval(s%obj%string(1:s%obj%nstring)%x(i)))
        end do
     else
@@ -447,7 +454,7 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use interfaces_cimgui
     use interfaces_opengl3
-    use shapes, only: sphVAO, cylVAO, textVAOos, textVBOos
+    use shapes, only: sphVAO, cylVAO, coneVAO, textVAOos, textVBOos
     use gui_main, only: fonts, fontbakesize_large, font_large
     use systems, only: sys, sysc, nsys
     use utils, only: ortho, project
@@ -558,6 +565,12 @@ contains
           call draw_all_cylinders()
        end if
 
+       ! draw the cones (arrowheads, lit)
+       if (s%obj%ncone > 0) then
+          call glBindVertexArray(coneVAO(s%bond_res))
+          call draw_all_cones()
+       end if
+
        ! draw the flat cylinders (unit cell)
        if (s%obj%ncylflat > 0) then
           call setuniform_int(0_c_int,"uselighting")
@@ -651,6 +664,15 @@ contains
        if (s%obj%ncyl > 0) then
           call glBindVertexArray(cylVAO(s%bond_res))
           call draw_all_cylinders()
+       end if
+       call setuniform_int(0_c_int,idxi=iunif(iu_ndash_cyl))
+       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
+
+       ! draw the cones (arrowheads)
+       call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
+       if (s%obj%ncone > 0) then
+          call glBindVertexArray(coneVAO(s%bond_res))
+          call draw_all_cones()
        end if
        call setuniform_int(0_c_int,idxi=iunif(iu_ndash_cyl))
        call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
@@ -760,6 +782,16 @@ contains
       end do
 
     end subroutine draw_all_cylinders
+
+    subroutine draw_all_cones()
+      integer :: i
+
+      do i = 1, s%obj%ncone
+         call draw_cone(s%obj%cone(i)%x1,s%obj%cone(i)%x2,&
+            s%obj%cone(i)%r,s%obj%cone(i)%rgb,s%bond_res)
+      end do
+
+    end subroutine draw_all_cones
 
     subroutine draw_all_flat_cylinders()
       integer :: i
@@ -1070,7 +1102,7 @@ contains
   !> if the scene needs to be rendered again.
   module function representation_menu(s,idparent) result(changed)
     use interfaces_cimgui
-    use representations, only: reptype_atoms, reptype_unitcell
+    use representations, only: reptype_atoms, reptype_unitcell, reptype_axes
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext
     use windows, only: stack_create_window, wintype_editrep
     use gui_main, only: ColorDangerButton, g
@@ -1196,6 +1228,8 @@ contains
              str3 = "atoms" // c_null_char
           elseif (s%rep(i)%type == reptype_unitcell) then
              str3 = "cell" // c_null_char
+          elseif (s%rep(i)%type == reptype_axes) then
+             str3 = "axes" // c_null_char
           else
              str3 = "???" // c_null_char
           end if
@@ -1556,6 +1590,72 @@ contains
     end if
 
   end subroutine draw_cylinder
+
+  !> Draw a cone from base x1 to apex x2 with base radius rad and color
+  !> rgb. ires = resolution. Requires having the cone VAO bound.
+  subroutine draw_cone(x1,x2,rad,rgb,ires)
+    use interfaces_opengl3
+    use tools_math, only: cross_cfloat
+    use shaders, only: setuniform_vec4, setuniform_mat4, setuniform_float, setuniform_vec3
+    use shapes, only: connel
+    real(c_float), intent(in) :: x1(3)
+    real(c_float), intent(in) :: x2(3)
+    real(c_float), intent(in) :: rad
+    real(c_float), intent(in) :: rgb(3)
+    integer(c_int), intent(in) :: ires
+
+    real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
+    real(c_float) :: a, ca, sa, axis(3), temp(3), rgb_(4), zero3(3)
+
+    ! some calculations for the model matrix
+    xmid = 0.5_c_float * (x1 + x2)
+    xdif = x2 - x1
+    blen = norm2(xdif)
+    if (blen < 1e-4_c_float) return
+    xdif = xdif / blen
+    up = (/0._c_float,0._c_float,1._c_float/)
+    crs = cross_cfloat(up,xdif)
+
+    ! the model matrix
+    model = eye4
+    model(1:3,4) = xmid
+    if (dot_product(crs,crs) > 1e-14_c_float) then
+       a = acos(dot_product(xdif,up))
+       ca = cos(a)
+       sa = sin(a)
+       axis = crs / norm2(crs)
+       temp = (1._c_float - ca) * axis
+
+       model(1,1) = ca + temp(1) * axis(1)
+       model(2,1) = temp(1) * axis(2) + sa * axis(3)
+       model(3,1) = temp(1) * axis(3) - sa * axis(2)
+
+       model(1,2) = temp(2) * axis(1) - sa * axis(3)
+       model(2,2) = ca + temp(2) * axis(2)
+       model(3,2) = temp(2) * axis(3) + sa * axis(1)
+
+       model(1,3) = temp(3) * axis(1) + sa * axis(2)
+       model(2,3) = temp(3) * axis(2) - sa * axis(1)
+       model(3,3) = ca + temp(3) * axis(3)
+    end if
+    model(:,1) = model(:,1) * rad
+    model(:,2) = model(:,2) * rad
+    model(:,3) = model(:,3) * blen
+
+    ! set the uniforms (no border on arrowheads)
+    zero3 = 0._c_float
+    call setuniform_float(0._c_float,idxi=iunif(iu_border))
+    call setuniform_vec3(zero3,idxi=iunif(iu_bordercolor))
+    call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
+    rgb_(1:3) = rgb
+    rgb_(4) = 1._c_float
+    call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
+    call setuniform_mat4(model,idxi=iunif(iu_model))
+
+    ! draw
+    call glDrawElements(GL_TRIANGLES, int(3*connel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+
+  end subroutine draw_cone
 
   !> Calculate the vertices for the given text and adds them to
   !> nvert/vert, direct version. (x0,y0) = position of top-left corner

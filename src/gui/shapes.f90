@@ -48,6 +48,18 @@ module shapes
   integer(c_int), parameter, public :: cylnel(nmaxcyl) = (/24,48,72/)
   integer(c_int), parameter, public :: cylneladd(0:nmaxcyl) = (/0,24,72,144/)
 
+  ! cone objects (arrowheads)
+  integer, parameter, public :: nmaxcone = 3
+  integer(c_int), target, public :: coneVAO(nmaxcone) ! cone: vertex array object
+  integer(c_int), target, public :: coneVBO(nmaxcone) ! cone: vertex buffer object
+  integer(c_int), target, public :: coneEBO(nmaxcone) ! cone: element buffer object
+
+  ! cone dimensions (apex + base center + base ring of 6/12/18 vertices)
+  integer(c_int), parameter, public :: connve(nmaxcone) = (/8,14,20/)
+  integer(c_int), parameter, public :: connveadd(0:nmaxcone) = (/0,8,22,42/)
+  integer(c_int), parameter, public :: connel(nmaxcone) = (/12,24,36/)
+  integer(c_int), parameter, public :: conneladd(0:nmaxcone) = (/0,12,36,72/)
+
   ! text objects
   integer(c_int), target, public :: textVAO
   integer(c_int), target, public :: textVBO
@@ -102,6 +114,8 @@ module shapes
      type(dl_cylinder), allocatable :: cyl(:) ! cylinder draw list
      integer :: ncylflat ! number of flat cylinders
      type(dl_cylinder), allocatable :: cylflat(:) ! flat cylinder draw list
+     integer :: ncone ! number of cones (arrowheads)
+     type(dl_cylinder), allocatable :: cone(:) ! cone draw list (x1=base, x2=apex)
      integer :: nstring ! number of strings
      type(dl_string), allocatable :: string(:) ! flat cylinder draw list
   end type scene_objects
