@@ -48,6 +48,8 @@ module representations
   !--> cartesian axes
   real*8, parameter, public :: axes_length_def = 2.0d0 / bohrtoa ! length of each axis
   real*8, parameter, public :: axes_radius_def = 0.06d0 / bohrtoa ! radius of the axis shafts
+  real*8, parameter, public :: axes_conelength_def = 0.30d0 / bohrtoa ! length of the arrowhead cones
+  real*8, parameter, public :: axes_coneradius_def = 0.15d0 / bohrtoa ! base radius of the arrowhead cones
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
@@ -196,9 +198,12 @@ module representations
      ! cartesian axes
      real*8 :: axes_length ! length of each cartesian axis
      real*8 :: axes_radius ! radius of the axis shafts
+     real*8 :: axes_conelength ! length of the arrowhead cones
+     real*8 :: axes_coneradius ! base radius of the arrowhead cones
      real(c_float) :: axes_rgb(3,3) ! color of the x, y, z axes
      logical :: axes_showlabels ! draw x/y/z labels at the axis tips
      real*8 :: axes_labelscale ! scale for the axis labels
+     real(c_float) :: axes_labelrgb(3) ! color of the axis labels
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults

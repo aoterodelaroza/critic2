@@ -1032,13 +1032,22 @@ contains
     changed = .false.
 
     !! geometry
-    call iw_text("Geometry",highlight=.true.)
+    call iw_text("Arrow shaft",highlight=.true.)
     changed = changed .or. iw_dragfloat_real8("Length (Å)",x1=w%rep%axes_length,speed=0.01d0,&
        min=0d0,max=100d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Length of each cartesian axis",ttshown)
     changed = changed .or. iw_dragfloat_real8("Radius (Å)##axesradius",x1=w%rep%axes_radius,speed=0.005d0,&
-       min=0d0,max=5d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+       min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Radius of the axis shafts",ttshown)
+
+    !! arrowheads
+    call iw_text("Arrow head",highlight=.true.)
+    changed = changed .or. iw_dragfloat_real8("Length (Å)",x1=w%rep%axes_conelength,speed=0.005d0,&
+       min=0d0,max=10d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Length of the arrowhead cones (controls how pointy the arrows are)",ttshown)
+    changed = changed .or. iw_dragfloat_real8("Radius (Å)##conerad",x1=w%rep%axes_coneradius,speed=0.005d0,&
+       min=0d0,max=5d0,scale=bohrtoa,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Base radius of the arrowhead cones (controls how wide the arrows are)",ttshown)
 
     !! colors
     call iw_text("Colors",highlight=.true.)
@@ -1057,6 +1066,8 @@ contains
        changed = changed .or. iw_dragfloat_real8("Label size",x1=w%rep%axes_labelscale,speed=0.01d0,&
           min=0.1d0,max=5d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
        call iw_tooltip("Scale of the axis labels",ttshown)
+       changed = changed .or. iw_coloredit("Color##axeslabel",rgb=w%rep%axes_labelrgb,sameline=.true.)
+       call iw_tooltip("Color of the axis labels",ttshown)
     end if
 
     ! origin of the axes

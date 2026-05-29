@@ -232,11 +232,18 @@ contains
     if (itype == 0 .or. itype == 6) then
        r%axes_length = axes_length_def
        r%axes_radius = axes_radius_def
+       r%axes_conelength = axes_conelength_def
+       r%axes_coneradius = axes_coneradius_def
        r%axes_rgb(:,1) = (/1._c_float,0._c_float,0._c_float/) ! x = red
        r%axes_rgb(:,2) = (/0._c_float,1._c_float,0._c_float/) ! y = green
        r%axes_rgb(:,3) = (/0._c_float,0._c_float,1._c_float/) ! z = blue
        r%axes_showlabels = .true.
        r%axes_labelscale = 0.5d0
+       if (style == style_phong) then
+          r%axes_labelrgb = 1._c_float
+       else
+          r%axes_labelrgb = 0._c_float
+       end if
     end if
 
     ! initialize the styles
@@ -782,10 +789,10 @@ contains
        ! origin shift (cartesian coordinates, in angstrom)
        uoriginc = r%origin / bohrtoa
 
-       ! arrowhead geometry derived from the shaft radius (head length
-       ! capped so it never exceeds the total axis length)
-       rad1 = min(5d0 * r%axes_radius, 0.4d0 * r%axes_length) ! head length
-       rad2 = 2.5d0 * r%axes_radius ! head radius
+       ! arrowhead geometry (head length capped so it never exceeds the
+       ! total axis length)
+       rad1 = min(r%axes_conelength, r%axes_length) ! head length
+       rad2 = r%axes_coneradius ! head radius
 
        do k = 1, 3
           ! cartesian (lab-frame) unit direction for this axis
@@ -836,7 +843,7 @@ contains
              obj%string(obj%nstring)%x = real(x2,c_float)
              obj%string(obj%nstring)%xdelta = cmplx(0d0,0d0,kind=c_float_complex)
              obj%string(obj%nstring)%r = real(rad2,c_float)
-             obj%string(obj%nstring)%rgb = r%axes_rgb(:,k)
+             obj%string(obj%nstring)%rgb = r%axes_labelrgb
              obj%string(obj%nstring)%scale = real(r%axes_labelscale,c_float)
              obj%string(obj%nstring)%offset = 0._c_float
              if (k == 1) then
