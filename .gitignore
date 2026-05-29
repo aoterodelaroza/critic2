@@ -67,3 +67,6 @@ compile_commands.json
 # tests (source tree)
 tests/zz_source.tar.xz
 tests/zz_source/
+
+# AI (claude)
+CLAUDE.md
