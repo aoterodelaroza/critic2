@@ -768,6 +768,10 @@ contains
     sz1%x = 1._c_float - sz0%x
     sz1%y = 1._c_float - sz0%y
 
+    ! record the visible (cropped) region so the scene can place
+    ! window-anchored objects (e.g. the axes gizmo) relative to it
+    if (associated(w%sc)) w%sc%viewuv0 = (/sz0%x,sz0%y/)
+
     !!! The camratio is used for resetting the camera. The problem with this
     !!! is that in the first render the window dimensions are still changing
     !!! and the camratio of the first view rendered is different from the rest.

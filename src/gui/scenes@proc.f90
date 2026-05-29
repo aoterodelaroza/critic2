@@ -377,6 +377,17 @@ contains
     s%obj%nstring = 0
     if (allocated(s%obj%string)) deallocate(s%obj%string)
     allocate(s%obj%string(10))
+    ! window-anchored axes gizmo lists (kept out of the scene bounding box)
+    s%obj%ncylgiz = 0
+    if (allocated(s%obj%cylgiz)) deallocate(s%obj%cylgiz)
+    allocate(s%obj%cylgiz(10))
+    s%obj%nconegiz = 0
+    if (allocated(s%obj%conegiz)) deallocate(s%obj%conegiz)
+    allocate(s%obj%conegiz(10))
+    s%obj%nstringgiz = 0
+    if (allocated(s%obj%stringgiz)) deallocate(s%obj%stringgiz)
+    allocate(s%obj%stringgiz(10))
+    s%obj%gizwinpos = (/0.1_c_float,0.1_c_float/)
 
     ! add the items by representation
     do i = 1, s%nrep
@@ -739,6 +750,10 @@ contains
        call glDisable(GL_BLEND)
     end if
 
+    ! window-anchored axes gizmo, drawn on top of the scene
+    if (s%obj%ncylgiz + s%obj%nconegiz + s%obj%nstringgiz > 0) &
+       call render_axes_gizmo()
+
     ! pop the large font
     call igPopFont()
 
@@ -792,6 +807,164 @@ contains
       end do
 
     end subroutine draw_all_cones
+
+    !> Render the window-anchored axes gizmo. The gizmo geometry is
+    !> built around the local origin; here it is positioned so its
+    !> origin projects to the requested window position, rotated with
+    !> the scene, and drawn on top of everything else.
+    subroutine render_axes_gizmo()
+      real(c_float) :: vp(4,4), vpinv(4,4), corner(4), ph(4), wgiz(4,4)
+      real(c_float) :: nx, ny, spanx, spany
+
+      ! world matrix for the gizmo: rotation = scene rotation, and the
+      ! translation is the (post-world) point that projects to the
+      ! requested window position
+      vp = matmul(s%projection,s%view)
+      vpinv = vp
+      call matinv_cfloat(vpinv,4)
+
+      ! the requested position (gizwinpos) is given as fractions of the
+      ! visible part of the render buffer (the window), measured from the
+      ! left and from the bottom; map it to the NDC of the full render
+      ! texture, accounting for the cropped region (viewuv0) and the
+      ! vertical flip between the render buffer and the displayed image
+      spanx = 1._c_float - 2._c_float * s%viewuv0(1)
+      spany = 1._c_float - 2._c_float * s%viewuv0(2)
+      nx = spanx * (2._c_float * s%obj%gizwinpos(1) - 1._c_float)
+      ny = spany * (1._c_float - 2._c_float * s%obj%gizwinpos(2))
+      corner = (/nx,ny,0._c_float,1._c_float/)
+      ph = matmul(vpinv,corner)
+      wgiz = 0._c_float
+      wgiz(1:3,1:3) = s%world(1:3,1:3)
+      wgiz(1:3,4) = ph(1:3) / ph(4)
+      wgiz(4,4) = 1._c_float
+
+      ! clear the depth buffer so the gizmo always draws on top
+      call glClear(GL_DEPTH_BUFFER_BIT)
+
+      ! set up the shader and uniforms (reuse the scene matrices, but the
+      ! gizmo world matrix)
+      if (s%style == style_phong) then
+         call useshader(shader_phong)
+         iunif(iu_world) = get_uniform_location("world")
+         iunif(iu_view) = get_uniform_location("view")
+         iunif(iu_projection) = get_uniform_location("projection")
+         iunif(iu_model) = get_uniform_location("model")
+         iunif(iu_object_type) = get_uniform_location("object_type")
+         iunif(iu_border) = get_uniform_location("rborder")
+         iunif(iu_bordercolor) = get_uniform_location("bordercolor")
+         iunif(iu_vcolor) = get_uniform_location("vColor")
+         iunif(iu_idx) = get_uniform_location("idx")
+         iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
+         iunif(iu_ndash_cyl) = get_uniform_location("ndash_cyl")
+         call setuniform_int(1_c_int,"uselighting")
+         call setuniform_vec3(s%lightpos,"lightPos")
+         call setuniform_vec3(s%lightcolor,"lightColor")
+         call setuniform_float(s%ambient,"ambient")
+         call setuniform_float(s%diffuse,"diffuse")
+         call setuniform_float(s%specular,"specular")
+         call setuniform_int(s%shininess,"shininess")
+      else
+         call useshader(shader_simple)
+         iunif(iu_world) = get_uniform_location("world")
+         iunif(iu_view) = get_uniform_location("view")
+         iunif(iu_projection) = get_uniform_location("projection")
+         iunif(iu_model) = get_uniform_location("model")
+         iunif(iu_object_type) = get_uniform_location("object_type")
+         iunif(iu_border) = get_uniform_location("rborder")
+         iunif(iu_bordercolor) = get_uniform_location("bordercolor")
+         iunif(iu_vcolor) = get_uniform_location("vColor")
+         iunif(iu_idx) = get_uniform_location("idx")
+         iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
+         iunif(iu_ndash_cyl) = get_uniform_location("ndash_cyl")
+         call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
+         call setuniform_float(0._c_float,idxi=iunif(iu_border))
+      end if
+      call setuniform_mat4(wgiz,idxi=iunif(iu_world))
+      call setuniform_mat4(s%view,idxi=iunif(iu_view))
+      call setuniform_mat4(s%projection,idxi=iunif(iu_projection))
+
+      ! shafts and arrowheads
+      if (s%obj%ncylgiz > 0) then
+         call glBindVertexArray(cylVAO(s%bond_res))
+         call draw_all_cylgiz()
+      end if
+      if (s%obj%nconegiz > 0) then
+         call glBindVertexArray(coneVAO(s%bond_res))
+         call draw_all_conegiz()
+      end if
+
+      ! labels
+      if (s%obj%nstringgiz > 0) then
+         call useshader(shader_text_onscene)
+         call setuniform_mat4(wgiz,"world")
+         call setuniform_mat4(s%view,"view")
+         call setuniform_mat4(s%projection,"projection")
+         call glDisable(GL_MULTISAMPLE)
+         call glEnable(GL_BLEND)
+         call glBlendEquation(GL_FUNC_ADD)
+         call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+         call glActiveTexture(GL_TEXTURE0)
+         call glBindVertexArray(textVAOos)
+         call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
+         call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
+         call draw_all_text_giz()
+         call glEnable(GL_MULTISAMPLE)
+         call glDisable(GL_BLEND)
+      end if
+
+    end subroutine render_axes_gizmo
+
+    subroutine draw_all_cylgiz()
+      integer :: i
+
+      do i = 1, s%obj%ncylgiz
+         call draw_cylinder(s%obj%cylgiz(i)%x1,s%obj%cylgiz(i)%x2,s%obj%cylgiz(i)%r,&
+            s%obj%cylgiz(i)%rgb,s%bond_res,s%obj%cylgiz(i)%order,s%obj%cylgiz(i)%border,&
+            s%obj%cylgiz(i)%rgbborder)
+      end do
+
+    end subroutine draw_all_cylgiz
+
+    subroutine draw_all_conegiz()
+      integer :: i
+
+      do i = 1, s%obj%nconegiz
+         call draw_cone(s%obj%conegiz(i)%x1,s%obj%conegiz(i)%x2,&
+            s%obj%conegiz(i)%r,s%obj%conegiz(i)%rgb,s%bond_res)
+      end do
+
+    end subroutine draw_all_conegiz
+
+    subroutine draw_all_text_giz()
+      integer :: i
+      real(c_float) :: hside, siz, x(3)
+      integer(c_int) :: nvert
+      real(c_float), allocatable, target :: vert(:,:)
+      integer :: iu
+
+      iu = get_uniform_location("textColor")
+
+      do i = 1, s%obj%nstringgiz
+         call setuniform_vec3(s%obj%stringgiz(i)%rgb,idxi=iu)
+         nvert = 0
+         if (s%obj%stringgiz(i)%scale > 0._c_float) then
+            hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
+            hside = hside * s%camratio
+            hside = max(hside,3._c_float)
+            siz = 2 * s%obj%stringgiz(i)%scale / fontbakesize_large / hside
+         else
+            siz = 2 * abs(s%obj%stringgiz(i)%scale) * s%projection(1,1) / fontbakesize_large
+         end if
+         x = s%obj%stringgiz(i)%x
+
+         call calc_text_onscene_vertices(s%obj%stringgiz(i)%str,x,s%obj%stringgiz(i)%r,&
+            siz,nvert,vert,shift=s%obj%stringgiz(i)%offset,centered=.true.)
+         call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*10*c_sizeof(c_float), c_loc(vert))
+         call glDrawArrays(GL_TRIANGLES, 0, nvert)
+      end do
+
+    end subroutine draw_all_text_giz
 
     subroutine draw_all_flat_cylinders()
       integer :: i

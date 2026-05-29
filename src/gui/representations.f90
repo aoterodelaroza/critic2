@@ -196,6 +196,9 @@ module representations
      real*8 :: uc_innersteplen ! number of subdivisions for the inner sticks
      logical :: uc_innerstipple ! stippled lines for the inner lines
      ! cartesian axes
+     integer(c_int) :: axes_placement ! 0 = at the origin, 1 = anchored at a fixed window position
+     integer(c_int) :: axes_coordtype ! origin coordinates: 0 = crystallographic, 1 = cartesian (angstrom), 2 = cartesian (bohr)
+     real*8 :: axes_winpos(2) ! window position (fractions from left and bottom) when anchored
      real*8 :: axes_length ! length of each cartesian axis
      real*8 :: axes_radius ! radius of the axis shafts
      real*8 :: axes_conelength ! length of the arrowhead cones

@@ -1023,14 +1023,51 @@ contains
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_axes(w,ttshown) result(changed)
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
-       iw_inputtext
+       iw_inputtext, iw_radiobutton, iw_combo_simple
+    use systems, only: sys
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical(c_bool) :: changed
 
+    logical(c_bool) :: ch
+    integer :: icoord
+
     ! initialize
     changed = .false.
+
+    !! position
+    call iw_text("Position",highlight=.true.)
+    changed = changed .or. iw_radiobutton("Fixed in window",int=w%rep%axes_placement,intval=1_c_int)
+    call iw_tooltip("Anchor the axes at a fixed position in the window",ttshown)
+    changed = changed .or. iw_radiobutton("At origin",int=w%rep%axes_placement,intval=0_c_int,sameline=.true.)
+    call iw_tooltip("Place the axes at the cartesian origin",ttshown)
+    if (w%rep%axes_placement == 0) then
+       if (sys(w%isys)%c%ismolecule) then
+          ! molecules: only cartesian options, referred to the molecular center
+          icoord = max(w%rep%axes_coordtype,1) - 1
+          call iw_combo_simple("Coordinates##axescoord","Cartesian (Å)" // c_null_char // &
+             "Cartesian (bohr)" // c_null_char,icoord,changed=ch)
+          if (ch .or. (icoord+1) /= w%rep%axes_coordtype) changed = .true.
+          w%rep%axes_coordtype = icoord + 1
+       else
+          icoord = w%rep%axes_coordtype
+          call iw_combo_simple("Coordinates##axescoord","Crystallographic" // c_null_char // &
+             "Cartesian (Å)" // c_null_char // "Cartesian (bohr)" // c_null_char,icoord,changed=ch)
+          if (ch .or. icoord /= w%rep%axes_coordtype) changed = .true.
+          w%rep%axes_coordtype = icoord
+       end if
+       call iw_tooltip("Coordinate system in which the origin is given",ttshown)
+       changed = changed .or. iw_dragfloat_real8("##originaxes",x3=w%rep%origin,speed=0.001d0,decimal=5)
+       call iw_tooltip("Coordinates for the origin of the axes",ttshown)
+    else
+       changed = changed .or. iw_dragfloat_real8("from left##axeswinx",x1=w%rep%axes_winpos(1),speed=0.005d0,&
+          min=0d0,max=1d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Horizontal position of the axes, as a fraction of the window width from the left",ttshown)
+       changed = changed .or. iw_dragfloat_real8("from bottom##axeswiny",x1=w%rep%axes_winpos(2),speed=0.005d0,&
+          min=0d0,max=1d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Vertical position of the axes, as a fraction of the window height from the bottom",ttshown)
+    end if
 
     !! geometry
     call iw_text("Arrow shaft",highlight=.true.)
@@ -1091,11 +1128,6 @@ contains
           speed=0.01d0,scale=bohrtoa,decimal=3)
        call iw_tooltip("Cartesian offset (Å) of the z-axis label from its position on the axis",ttshown)
     end if
-
-    ! origin of the axes
-    call iw_text("Origin Shift",highlight=.true.)
-    changed = changed .or. iw_dragfloat_real8("##originaxes",x3=w%rep%origin,speed=0.001d0,decimal=5)
-    call iw_tooltip("Cartesian coordinates (Å) for the origin of the axes",ttshown)
 
   end function draw_editrep_axes
 

@@ -118,6 +118,14 @@ module shapes
      type(dl_cylinder), allocatable :: cone(:) ! cone draw list (x1=base, x2=apex)
      integer :: nstring ! number of strings
      type(dl_string), allocatable :: string(:) ! flat cylinder draw list
+     ! window-anchored axes gizmo (drawn in a separate overlay pass)
+     integer :: ncylgiz ! number of gizmo cylinders (axis shafts)
+     type(dl_cylinder), allocatable :: cylgiz(:) ! gizmo cylinder draw list
+     integer :: nconegiz ! number of gizmo cones (arrowheads)
+     type(dl_cylinder), allocatable :: conegiz(:) ! gizmo cone draw list
+     integer :: nstringgiz ! number of gizmo strings (axis labels)
+     type(dl_string), allocatable :: stringgiz(:) ! gizmo string draw list
+     real(c_float) :: gizwinpos(2) ! window position (fractions) for the gizmo
   end type scene_objects
   public :: scene_objects
 

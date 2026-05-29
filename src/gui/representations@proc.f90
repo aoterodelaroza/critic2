@@ -230,6 +230,13 @@ contains
 
     ! cartesian axes
     if (itype == 0 .or. itype == 6) then
+       r%axes_placement = 1
+       if (sys(isys)%c%ismolecule) then
+          r%axes_coordtype = 1 ! cartesian (angstrom)
+       else
+          r%axes_coordtype = 0 ! crystallographic
+       end if
+       r%axes_winpos = (/0.1d0,0.1d0/)
        r%axes_length = axes_length_def
        r%axes_radius = axes_radius_def
        r%axes_conelength = axes_conelength_def
@@ -347,6 +354,9 @@ contains
     type(dl_sphere), allocatable :: auxsph(:)
     type(dl_cylinder), allocatable :: auxcyl(:)
     type(dl_string), allocatable :: auxstr(:)
+    type(dl_cylinder) :: dcyl
+    type(dl_string) :: dstr
+    logical :: fixed
     character(len=:), allocatable :: errmsg
 
     real*8, parameter :: rthr = 0.01d0
@@ -389,6 +399,18 @@ contains
     if (.not.allocated(obj%cone)) then
        allocate(obj%cone(100))
        obj%ncone = 0
+    end if
+    if (.not.allocated(obj%cylgiz)) then
+       allocate(obj%cylgiz(10))
+       obj%ncylgiz = 0
+    end if
+    if (.not.allocated(obj%conegiz)) then
+       allocate(obj%conegiz(10))
+       obj%nconegiz = 0
+    end if
+    if (.not.allocated(obj%stringgiz)) then
+       allocate(obj%stringgiz(10))
+       obj%nstringgiz = 0
     end if
     if (.not.allocated(obj%string)) then
        allocate(obj%string(100))
@@ -792,8 +814,27 @@ contains
     elseif (r%type == reptype_axes) then
        !!! cartesian axes representation !!!
 
-       ! origin shift (cartesian coordinates, in angstrom)
-       uoriginc = r%origin / bohrtoa
+       ! placement: at the cartesian origin (+shift), or anchored to a
+       ! fixed window position. In the latter case the geometry is built
+       ! around the local origin and positioned at render time; record
+       ! the requested window position in the gizmo draw list.
+       fixed = (r%axes_placement == 1)
+       if (fixed) then
+          uoriginc = 0d0
+          obj%gizwinpos = r%axes_winpos
+       else
+          ! origin in the requested coordinate system, converted to
+          ! cartesian (bohr)
+          if (r%axes_coordtype == 2) then
+             uoriginc = r%origin ! cartesian (bohr)
+          elseif (r%axes_coordtype == 0 .and. .not.sys(r%id)%c%ismolecule) then
+             uoriginc = sys(r%id)%c%x2c(r%origin) ! crystallographic
+          else
+             uoriginc = r%origin / bohrtoa ! cartesian (angstrom)
+          end if
+          ! for molecules, cartesian coordinates are referred to the molecular center
+          if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
+       end if
 
        ! arrowhead geometry (head length capped so it never exceeds the
        ! total axis length)
@@ -808,57 +849,50 @@ contains
           ! shaft (round, lit cylinder)
           x1 = uoriginc
           x2 = uoriginc + max(r%axes_length - rad1,0d0) * x0
-          obj%ncyl = obj%ncyl + 1
-          if (obj%ncyl > size(obj%cyl,1)) then
-             allocate(auxcyl(2*obj%ncyl))
-             auxcyl(1:size(obj%cyl,1)) = obj%cyl
-             call move_alloc(auxcyl,obj%cyl)
+          dcyl%x1 = real(x1,c_float)
+          dcyl%x2 = real(x2,c_float)
+          dcyl%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
+          dcyl%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
+          dcyl%r = real(r%axes_radius,c_float)
+          dcyl%rgb = r%axes_rgb(:,k)
+          dcyl%order = 1
+          dcyl%border = 0._c_float
+          dcyl%rgbborder = 0._c_float
+          if (fixed) then
+             call append_cyl(obj%cylgiz,obj%ncylgiz,dcyl)
+          else
+             call append_cyl(obj%cyl,obj%ncyl,dcyl)
           end if
-          obj%cyl(obj%ncyl)%x1 = real(x1,c_float)
-          obj%cyl(obj%ncyl)%x2 = real(x2,c_float)
-          obj%cyl(obj%ncyl)%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
-          obj%cyl(obj%ncyl)%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
-          obj%cyl(obj%ncyl)%r = real(r%axes_radius,c_float)
-          obj%cyl(obj%ncyl)%rgb = r%axes_rgb(:,k)
-          obj%cyl(obj%ncyl)%order = 1
-          obj%cyl(obj%ncyl)%border = 0._c_float
-          obj%cyl(obj%ncyl)%rgbborder = 0._c_float
 
           ! arrowhead (cone) from the shaft end to the axis tip
-          x1 = x2
-          x2 = uoriginc + r%axes_length * x0
-          call increase_ncone()
-          obj%cone(obj%ncone)%x1 = real(x1,c_float)
-          obj%cone(obj%ncone)%x2 = real(x2,c_float)
-          obj%cone(obj%ncone)%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
-          obj%cone(obj%ncone)%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
-          obj%cone(obj%ncone)%r = real(rad2,c_float)
-          obj%cone(obj%ncone)%rgb = r%axes_rgb(:,k)
-          obj%cone(obj%ncone)%order = 1
-          obj%cone(obj%ncone)%border = 0._c_float
-          obj%cone(obj%ncone)%rgbborder = 0._c_float
+          dcyl%x1 = real(x2,c_float)
+          dcyl%x2 = real(uoriginc + r%axes_length * x0,c_float)
+          dcyl%r = real(rad2,c_float)
+          if (fixed) then
+             call append_cyl(obj%conegiz,obj%nconegiz,dcyl)
+          else
+             call append_cyl(obj%cone,obj%ncone,dcyl)
+          end if
 
-          ! label at the tip
+          ! label: along the axis from the arrowhead tip by the shared
+          ! distance, plus the per-axis cartesian offset
           if (r%axes_showlabels) then
-             obj%nstring = obj%nstring + 1
-             if (obj%nstring > size(obj%string,1)) then
-                allocate(auxstr(2*obj%nstring))
-                auxstr(1:size(obj%string,1)) = obj%string
-                call move_alloc(auxstr,obj%string)
-             end if
-             ! position: along the axis from the arrowhead tip (x2) by the
-             ! shared distance, plus the per-axis cartesian offset
-             obj%string(obj%nstring)%x = real(x2 + r%axes_labeldistance * x0 + r%axes_labeloffset(:,k),c_float)
-             obj%string(obj%nstring)%xdelta = cmplx(0d0,0d0,kind=c_float_complex)
-             obj%string(obj%nstring)%r = real(rad2,c_float)
-             obj%string(obj%nstring)%rgb = r%axes_labelrgb
+             dstr%x = real(uoriginc + (r%axes_length + r%axes_labeldistance) * x0 + r%axes_labeloffset(:,k),c_float)
+             dstr%xdelta = cmplx(0d0,0d0,kind=c_float_complex)
+             dstr%r = real(rad2,c_float)
+             dstr%rgb = r%axes_labelrgb
              if (r%axes_labelconstsize) then
-                obj%string(obj%nstring)%scale = real(r%axes_labelscale,c_float)
+                dstr%scale = real(r%axes_labelscale,c_float)
              else
-                obj%string(obj%nstring)%scale = real(-r%axes_labelscale,c_float)
+                dstr%scale = real(-r%axes_labelscale,c_float)
              end if
-             obj%string(obj%nstring)%offset = 0._c_float
-             obj%string(obj%nstring)%str = trim(r%axes_labelstr(k))
+             dstr%offset = 0._c_float
+             dstr%str = trim(r%axes_labelstr(k))
+             if (fixed) then
+                call append_str(obj%stringgiz,obj%nstringgiz,dstr)
+             else
+                call append_str(obj%string,obj%nstring,dstr)
+             end if
           end if
        end do
     end if ! reptype
@@ -873,6 +907,42 @@ contains
       end if
 
     end subroutine increase_ncone
+
+    !> Append a cylinder record to an allocatable cylinder list,
+    !> reallocating if necessary.
+    subroutine append_cyl(lst,n,it)
+      type(dl_cylinder), allocatable, intent(inout) :: lst(:)
+      integer, intent(inout) :: n
+      type(dl_cylinder), intent(in) :: it
+      type(dl_cylinder), allocatable :: aux(:)
+
+      n = n + 1
+      if (n > size(lst,1)) then
+         allocate(aux(2*n))
+         aux(1:size(lst,1)) = lst
+         call move_alloc(aux,lst)
+      end if
+      lst(n) = it
+
+    end subroutine append_cyl
+
+    !> Append a string record to an allocatable string list,
+    !> reallocating if necessary.
+    subroutine append_str(lst,n,it)
+      type(dl_string), allocatable, intent(inout) :: lst(:)
+      integer, intent(inout) :: n
+      type(dl_string), intent(in) :: it
+      type(dl_string), allocatable :: aux(:)
+
+      n = n + 1
+      if (n > size(lst,1)) then
+         allocate(aux(2*n))
+         aux(1:size(lst,1)) = lst
+         call move_alloc(aux,lst)
+      end if
+      lst(n) = it
+
+    end subroutine append_str
 
     subroutine increase_ncylflat()
 
