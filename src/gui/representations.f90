@@ -53,6 +53,7 @@ module representations
   real*8, parameter, public :: axes_winpos_def(2) = (/0.10d0,0.15d0/) ! default axes position relative to window borders
   real*8, parameter, public :: axes_labeldistance_def = 0.2d0 / bohrtoa ! distance between label and arrow head
   real*8, parameter, public :: axes_labelscale_def = 0.3d0 ! label size
+  real*8, parameter, public :: axes_winfrac_def = 0.15d0 ! target on-screen length of the window-anchored axes (fraction of the half-window)
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style

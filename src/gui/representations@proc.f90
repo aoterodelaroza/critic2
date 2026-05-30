@@ -120,7 +120,8 @@ contains
     integer, intent(in) :: style
     integer, intent(in) :: itype
 
-    integer :: isys
+    integer :: isys, i, j, k
+    real*8 :: xmin(3), xmax(3), xc(3), dd, hside
 
     ! check the system is sane
     isys = r%id
@@ -250,8 +251,38 @@ contains
        r%axes_labelconstsize = .false.
        r%axes_labeldistance = axes_labeldistance_def
        r%axes_labeloffset = 0d0
-       r%axes_scale = 1d0
        r%axes_scalewithzoom = .false.
+       ! global scale. For the window-anchored placement, the axes are
+       ! drawn in real-space (bohr) units, so for large systems they look
+       ! small relative to the window. Pick a default scale that makes them
+       ! occupy a roughly constant fraction of the window regardless of the
+       ! system size, estimating the scene size from the structure.
+       if (r%axes_placement == 1) then
+          xmin = huge(1d0)
+          xmax = -huge(1d0)
+          do i = 1, sys(isys)%c%ncel
+             xmin = min(xmin,sys(isys)%c%atcel(i)%r)
+             xmax = max(xmax,sys(isys)%c%atcel(i)%r)
+          end do
+          if (.not.sys(isys)%c%ismolecule) then
+             ! include the unit cell corners
+             do i = 0, 1
+                do j = 0, 1
+                   do k = 0, 1
+                      xc = sys(isys)%c%x2c(real((/i,j,k/),8))
+                      xmin = min(xmin,xc)
+                      xmax = max(xmax,xc)
+                   end do
+                end do
+             end do
+          end if
+          dd = max(xmax(1)-xmin(1),xmax(2)-xmin(2))
+          ! mirror the half-window size used at camera reset (scenes_reset)
+          hside = max(1.5d0 * 0.5d0 * dd * 1.5d0,3d0)
+          r%axes_scale = axes_winfrac_def * hside / max(r%axes_length,1d-10)
+       else
+          r%axes_scale = 1d0
+       end if
        if (style == style_phong) then
           r%axes_labelrgb = 1._c_float
        else
