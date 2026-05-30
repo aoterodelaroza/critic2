@@ -46,10 +46,11 @@ module representations
   real*8, parameter, public :: uc_radiusinner_def = 0.08d0 / bohrtoa ! radius of inner sticks
   real*8, parameter, public :: uc_innersteplen_def = 1.0d0 / bohrtoa ! length of stipple
   !--> cartesian axes
-  real*8, parameter, public :: axes_length_def = 2.0d0 / bohrtoa ! length of each axis
+  real*8, parameter, public :: axes_length_def = 1.0d0 / bohrtoa ! length of each axis
   real*8, parameter, public :: axes_radius_def = 0.06d0 / bohrtoa ! radius of the axis shafts
-  real*8, parameter, public :: axes_conelength_def = 0.30d0 / bohrtoa ! length of the arrowhead cones
-  real*8, parameter, public :: axes_coneradius_def = 0.15d0 / bohrtoa ! base radius of the arrowhead cones
+  real*8, parameter, public :: axes_conelength_def = 0.30d0 / bohrtoa ! length of the arrow head
+  real*8, parameter, public :: axes_coneradius_def = 0.15d0 / bohrtoa ! base radius of the arrow head
+  real*8, parameter, public :: axes_labeldistance_def = 0.2d0 / bohrtoa ! distance between label and arrow head
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style

@@ -247,7 +247,7 @@ contains
        r%axes_showlabels = .true.
        r%axes_labelscale = 0.5d0
        r%axes_labelconstsize = .false.
-       r%axes_labeldistance = 0d0
+       r%axes_labeldistance = axes_labeldistance_def
        r%axes_labeloffset = 0d0
        r%axes_scale = 1d0
        r%axes_scalewithzoom = .false.
