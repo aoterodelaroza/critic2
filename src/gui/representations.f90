@@ -50,7 +50,9 @@ module representations
   real*8, parameter, public :: axes_radius_def = 0.06d0 / bohrtoa ! radius of the axis shafts
   real*8, parameter, public :: axes_conelength_def = 0.30d0 / bohrtoa ! length of the arrow head
   real*8, parameter, public :: axes_coneradius_def = 0.15d0 / bohrtoa ! base radius of the arrow head
+  real*8, parameter, public :: axes_winpos_def(2) = (/0.10d0,0.15d0/) ! default axes position relative to window borders
   real*8, parameter, public :: axes_labeldistance_def = 0.2d0 / bohrtoa ! distance between label and arrow head
+  real*8, parameter, public :: axes_labelscale_def = 0.3d0 ! label size
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style

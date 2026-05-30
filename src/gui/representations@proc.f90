@@ -236,7 +236,7 @@ contains
        else
           r%axes_coordtype = 0 ! crystallographic
        end if
-       r%axes_winpos = (/0.1d0,0.1d0/)
+       r%axes_winpos = axes_winpos_def
        r%axes_length = axes_length_def
        r%axes_radius = axes_radius_def
        r%axes_conelength = axes_conelength_def
@@ -245,7 +245,7 @@ contains
        r%axes_rgb(:,2) = (/0._c_float,1._c_float,0._c_float/) ! y = green
        r%axes_rgb(:,3) = (/0._c_float,0._c_float,1._c_float/) ! z = blue
        r%axes_showlabels = .true.
-       r%axes_labelscale = 0.5d0
+       r%axes_labelscale = axes_labelscale_def
        r%axes_labelconstsize = .false.
        r%axes_labeldistance = axes_labeldistance_def
        r%axes_labeloffset = 0d0
