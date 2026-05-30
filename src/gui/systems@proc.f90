@@ -1740,6 +1740,95 @@ contains
 
   end subroutine move_cell
 
+  !> Transform the unit cell to a standardized/reduced cell. mode is one
+  !> of the celltransform_* constants (standard, primitive, primstd,
+  !> niggli, delaunay). refine applies only to the standardized cells and
+  !> refines the atomic positions to their ideal symmetric locations.
+  module subroutine transform_cell(sysc,mode,refine)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: mode
+    logical, intent(in) :: refine
+
+    integer :: isys
+    real*8 :: x0(3,3)
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (sys(isys)%c%ismolecule) return
+
+    ! apply the transformation
+    x0 = 0d0
+    select case (mode)
+    case (celltransform_standard)
+       x0 = sys(isys)%c%cell_standard(.false.,.false.,refine)
+    case (celltransform_primitive)
+       x0 = sys(isys)%c%cell_standard(.true.,.false.,refine)
+    case (celltransform_primstd)
+       x0 = sys(isys)%c%cell_standard(.true.,.true.,refine)
+    case (celltransform_niggli)
+       x0 = sys(isys)%c%cell_niggli()
+    case (celltransform_delaunay)
+       x0 = sys(isys)%c%cell_delaunay()
+    case default
+       return
+    end select
+
+    ! the geometry has changed (only if the cell actually changed)
+    if (any(abs(x0) > 1d-5)) &
+       call sysc%post_event(lastchange_geometry)
+
+  end subroutine transform_cell
+
+  !> Transform the unit cell using an arbitrary 3x3 transformation matrix
+  !> x0 (lattice vectors of the new cell in the old setting, crystallographic
+  !> coordinates) and origin shift t0 (fractional). If doinv, use the inverse
+  !> of x0 as the transformation matrix.
+  module subroutine transform_cell_matrix(sysc,x0,t0,doinv)
+    use tools_math, only: matinv
+    class(sysconf), intent(inout) :: sysc
+    real*8, intent(in) :: x0(3,3), t0(3)
+    logical, intent(in) :: doinv
+
+    integer :: isys
+    real*8 :: x0_(3,3)
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (sys(isys)%c%ismolecule) return
+
+    x0_ = x0
+    if (doinv) call matinv(x0_,3)
+
+    ! apply the transformation
+    call sys(isys)%c%newcell(x0_,t0)
+
+    ! the geometry has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine transform_cell_matrix
+
+  !> Read-only passthrough to crystal%cell_nice_list: search for nice
+  !> supercells of increasing size up to inice times the input cell and
+  !> return the inscribed-sphere radii (rmax) and transformation matrices
+  !> (mmax) for the nicest cell of each size.
+  module subroutine cell_nice_list(sysc,inice,rmax,mmax)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: inice
+    real*8, allocatable, intent(out) :: rmax(:)
+    real*8, allocatable, intent(out) :: mmax(:,:,:)
+
+    integer :: isys
+
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (sys(isys)%c%ismolecule) return
+
+    call sys(isys)%c%cell_nice_list(inice,rmax,mmax)
+
+  end subroutine cell_nice_list
+
   !xx! private procedures
 
   ! Thread worker: run over all systems and initialize the ones that are not locked

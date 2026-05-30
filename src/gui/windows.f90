@@ -155,6 +155,14 @@ module windows
      character(len=:), allocatable :: geometry_expr_error ! error for expression
      real*8 :: timelast_geometry_sort = 0d0  ! time the geometry table was last sorted
      real*8 :: timelast_geometry_clearhighlights = 0d0 ! time the highlights were last cleared
+     ! cell tab: cell transformation tools
+     logical :: geometry_cell_refine = .false. ! refine atomic positions in standard/primitive transforms
+     real*8 :: geometry_cell_matrix(3,3) = reshape((/1d0,0d0,0d0,0d0,1d0,0d0,0d0,0d0,1d0/),(/3,3/)) ! transformation matrix
+     real*8 :: geometry_cell_origin(3) = 0d0 ! origin shift for the matrix transformation
+     logical :: geometry_cell_inv = .false. ! invert the transformation matrix before applying
+     integer(c_int) :: geometry_cell_inice = 64 ! maximum supercell size for the nice cell search
+     real*8, allocatable :: geometry_cell_nice_rmax(:) ! inscribed-sphere radii from the nice search
+     real*8, allocatable :: geometry_cell_nice_mmax(:,:,:) ! transformation matrices from the nice search
      ! preferences parameters
      logical :: color_preferences_reset_reps = .true. ! whether changing the element colors resets current representations
    contains

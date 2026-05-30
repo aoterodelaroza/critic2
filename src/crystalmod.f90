@@ -304,6 +304,7 @@ module crystalmod
      procedure :: cell_standard !< Transform the the standard cell (possibly primitive)
      procedure :: cell_niggli !< Transform to the Niggli primitive cell
      procedure :: cell_delaunay !< Transform to the Delaunay primitive cell
+     procedure :: cell_nice_list !< Search for nice supercells of increasing size
      procedure :: reorder_atoms !< reorder the atoms in the crystal/molecule
      procedure :: reorder_species !< reorder the species in the crystal/molecule
      procedure :: wholemols !< Re-assign atomic types to have an asymmetric unit with whole molecules
@@ -755,6 +756,13 @@ module crystalmod
        type(thread_info), intent(in), optional :: ti
        real*8 :: x0(3,3)
      end function cell_delaunay
+     module subroutine cell_nice_list(c,inice,rmax,mmax,ti)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: inice
+       real*8, allocatable, intent(out) :: rmax(:)
+       real*8, allocatable, intent(out) :: mmax(:,:,:)
+       type(thread_info), intent(in), optional :: ti
+     end subroutine cell_nice_list
      module subroutine reorder_atoms(c,iperm,isnneq,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iperm(:)

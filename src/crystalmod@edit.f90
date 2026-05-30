@@ -610,6 +610,64 @@ contains
 
   end function cell_delaunay
 
+  !> Search for "nice" supercells of the current cell, of increasing
+  !> size from 1 up to inice times the input cell. For each size n,
+  !> return in rmax(n) the radius of the largest sphere that fits in
+  !> the nicest supercell of that size, and in mmax(:,:,n) the
+  !> corresponding NEWCELL transformation matrix (lattice vectors of
+  !> the supercell in the old setting, crystallographic coordinates).
+  !> rmax(n) is zero if no supercell of that size was found.
+  module subroutine cell_nice_list(c,inice,rmax,mmax,ti)
+    use tools_math, only: cross, det3
+    use param, only: icrd_crys
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: inice
+    real*8, allocatable, intent(out) :: rmax(:)
+    real*8, allocatable, intent(out) :: mmax(:,:,:)
+    type(thread_info), intent(in), optional :: ti
+
+    integer :: i, j, k, n, nat
+    real*8 :: dmax0, mm(3,3), dd, x2c(3,3), r
+    integer, allocatable :: lvec(:,:)
+
+    allocate(rmax(inice),mmax(3,3,inice))
+    rmax = 0d0
+    mmax = 0d0
+    if (c%ismolecule) return
+
+    dmax0 = 1.2d0 * real(inice,8)**(1d0/3d0) * max(norm2(c%m_xr2c(:,1)),norm2(c%m_xr2c(:,2)),&
+       norm2(c%m_xr2c(:,3))) + 1d-1
+    call c%list_near_lattice_points((/0d0,0d0,0d0/),icrd_crys,.true.,nat,&
+       lvec=lvec,up2d=dmax0,nozero=.true.)
+
+    do i = 1, nat
+       mm(:,1) = lvec(:,i)
+       do j = i+1, nat
+          mm(:,2) = lvec(:,j)
+          do k = j+1, nat
+             mm(:,3) = lvec(:,k)
+
+             dd = det3(mm)
+             if (dd < 0d0) mm = -mm
+             dd = abs(dd)
+             if (dd < 1d-2 .or. dd > (inice+0.5d0)) cycle
+             n = nint(dd)
+             if (n > inice) cycle
+
+             x2c = matmul(c%m_x2c,mm)
+
+             r = 0.5d0 * n * c%omega / max(norm2(cross(x2c(:,1),x2c(:,2))),&
+                norm2(cross(x2c(:,1),x2c(:,3))),norm2(cross(x2c(:,2),x2c(:,3))))
+             if (r > rmax(n)) then
+                rmax(n) = r
+                mmax(:,:,n) = mm
+             end if
+          end do
+       end do
+    end do
+
+  end subroutine cell_nice_list
+
   !> Create a new structure by reordering the atoms in the current
   !> structure. iperm is the permutation vector (atom i in the new
   !> structure is iperm(i) in the old structure).

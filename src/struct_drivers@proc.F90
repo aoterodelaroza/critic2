@@ -3498,24 +3498,20 @@ contains
   !> Build a new crystal from the current crystal by cell transformation
   module subroutine struct_newcell(s,line,verbose)
     use systemmod, only: system
-    use tools_math, only: matinv, cross, det3
+    use tools_math, only: matinv
     use global, only: iunitname0, dunit0, iunit, eval_next
     use tools_io, only: uout, ferror, faterr, lgetword, equal, string, isinteger, ioj_left,&
        ioj_right
     use tools, only: delaunay_reduction
-    use param, only: icrd_crys
     type(system), intent(inout) :: s
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
 
     character(len=:), allocatable :: word
     logical :: ok, doprim, doforce, donice, changed
-    integer :: lp, lp2, dotyp, i, j, k, n, inice
-    real*8 :: x0(3,3), t0(3), rdum(4), x2c(3,3), dd
-    real*8 :: r, mm(3,3), dmax0
+    integer :: lp, lp2, dotyp, i, j, k, inice
+    real*8 :: x0(3,3), t0(3), rdum(4)
     logical :: doinv, dorefine
-    integer :: nat
-    integer, allocatable :: lvec(:,:)
     real*8, allocatable :: rmax(:), mmax(:,:,:)
 
     integer, parameter :: inice_def = 64
@@ -3572,40 +3568,7 @@ contains
 
     ! search for a nice cell
     if (donice) then
-       allocate(rmax(inice),mmax(3,3,inice))
-
-       dmax0 = 1.2d0 * real(inice,8)**(1d0/3d0) * max(norm2(s%c%m_xr2c(:,1)),norm2(s%c%m_xr2c(:,2)),&
-          norm2(s%c%m_xr2c(:,3))) + 1d-1
-       call s%c%list_near_lattice_points((/0d0,0d0,0d0/),icrd_crys,.true.,nat,&
-          lvec=lvec,up2d=dmax0,nozero=.true.)
-
-       rmax = 0d0
-       mmax = 0d0
-       do i = 1, nat
-          mm(:,1) = lvec(:,i)
-          do j = i+1, nat
-             mm(:,2) = lvec(:,j)
-             do k = j+1, nat
-                mm(:,3) = lvec(:,k)
-
-                dd = det3(mm)
-                if (dd < 0d0) mm = -mm
-                dd = abs(dd)
-                if (dd < 1d-2 .or. dd > (inice+0.5d0)) cycle
-                n = nint(dd)
-                if (n > inice) cycle
-
-                x2c = matmul(s%c%m_x2c,mm)
-
-                r = 0.5d0 * n * s%c%omega / max(norm2(cross(x2c(:,1),x2c(:,2))),&
-                   norm2(cross(x2c(:,1),x2c(:,3))),norm2(cross(x2c(:,2),x2c(:,3))))
-                if (r > rmax(n)) then
-                   rmax(n) = r
-                   mmax(:,:,n) = mm
-                end if
-             end do
-          end do
-       end do
+       call s%c%cell_nice_list(inice,rmax,mmax)
 
        write (uout,'("+ List of nice cells with increasing size")')
        write (uout,'("# n = size of the supercell is n times the input cell.")')

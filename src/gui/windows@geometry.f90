@@ -44,13 +44,14 @@ contains
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITGEOM_REMOVE
     use systems, only: nsys, sysc, sys, sys_init, ok_system, reread_system_from_file,&
        atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac, atlisttype_ncel_bohr,&
-       atlisttype_ncel_ang
+       atlisttype_ncel_ang, celltransform_standard, celltransform_primitive,&
+       celltransform_primstd, celltransform_niggli, celltransform_delaunay
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
        iw_inputtext, iw_periodictable, iw_menuitem
     use types, only: realloc
-    use tools_io, only: string, nameguess, ioj_center, isinteger
+    use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger
     use param, only: newline, bohrtoa
     class(window), intent(inout), target :: w
 
@@ -66,10 +67,10 @@ contains
     real(c_float), allocatable :: irgba(:,:)
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
-    integer :: ii, i, j, isys, icol, ispc, iz, izout, iview, id
+    integer :: ii, i, j, isys, icol, ispc, iz, izout, iview, id, im, jm
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
-    logical :: havergb, ldum, ok, ch
+    logical :: havergb, ldum, ok
     real*8 :: x0(3), x6(6), xold(3), x6old(6), res
     type(ImVec4) :: col4
     type(c_ptr) :: ptrc
@@ -80,7 +81,7 @@ contains
 
     ! actions at the end of the window draw
     integer :: iaction, iaction_i1, iaction_i2
-    real*8 :: iaction_x(3), iaction_x6(6)
+    real*8 :: iaction_x(3), iaction_x6(6), iaction_m(3,3)
     logical :: iaction_l
     character(len=:), allocatable :: iaction_str
     integer, parameter :: iaction_set_attype_name = 0
@@ -94,6 +95,8 @@ contains
     integer, parameter :: iaction_reorder_highlighted = 8
     integer, parameter :: iaction_swap_atom_ids = 9
     integer, parameter :: iaction_change_cell = 10
+    integer, parameter :: iaction_transform_cell = 11
+    integer, parameter :: iaction_transform_matrix = 12
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_none = 0
@@ -822,6 +825,152 @@ contains
                 iaction_x6 = x6
                 iaction_l = w%geometry_forcewyc
              end if
+
+             !! cell transformation tools (NEWCELL) !!
+             call igSeparator()
+
+             ! standardization and reduction of the cell
+             call iw_text("Standardize / reduce:",highlight=.true.)
+             if (iw_button("Standard##celltransfstd",sameline=.true.)) then
+                iaction = iaction_transform_cell
+                iaction_i1 = celltransform_standard
+                iaction_l = w%geometry_cell_refine
+             end if
+             call iw_tooltip("Transform to the standard conventional cell (spglib)",ttshown)
+             if (iw_button("Primitive##celltransfprim",sameline=.true.)) then
+                iaction = iaction_transform_cell
+                iaction_i1 = celltransform_primitive
+                iaction_l = w%geometry_cell_refine
+             end if
+             call iw_tooltip("Transform to the standard primitive cell, if it is smaller than the current cell (spglib)",ttshown)
+             if (iw_button("Primitive (forced)##celltransfprimstd",sameline=.true.)) then
+                iaction = iaction_transform_cell
+                iaction_i1 = celltransform_primstd
+                iaction_l = w%geometry_cell_refine
+             end if
+             call iw_tooltip("Transform to the standard primitive cell, even if it is larger than the current cell (spglib)",ttshown)
+             if (iw_button("Niggli##celltransfnig",sameline=.true.)) then
+                iaction = iaction_transform_cell
+                iaction_i1 = celltransform_niggli
+                iaction_l = w%geometry_cell_refine
+             end if
+             call iw_tooltip("Reduce to the Niggli cell (spglib)",ttshown)
+             if (iw_button("Delaunay##celltransfdel",sameline=.true.)) then
+                iaction = iaction_transform_cell
+                iaction_i1 = celltransform_delaunay
+                iaction_l = w%geometry_cell_refine
+             end if
+             call iw_tooltip("Reduce to the Delaunay cell (spglib)",ttshown)
+             ldum = iw_checkbox("Refine atomic positions",w%geometry_cell_refine)
+             call iw_tooltip("If checked, refine the atomic positions to their ideal symmetric&
+                & locations in the Standard/Primitive transformations",ttshown)
+
+             ! arbitrary transformation matrix
+             call igSeparator()
+             call iw_text("Transformation matrix:",highlight=.true.)
+             call iw_tooltip("Each row is a lattice vector of the new cell, written in&
+                & crystallographic coordinates of the current cell",ttshown)
+             do im = 1, 3
+                call igAlignTextToFramePadding()
+                if (im == 1) then
+                   call iw_text("a' ")
+                elseif (im == 2) then
+                   call iw_text("b' ")
+                else
+                   call iw_text("c' ")
+                end if
+                do jm = 1, 3
+                   ldum = iw_dragfloat_real8("##cellmat" // string(im) // string(jm),&
+                      x1=w%geometry_cell_matrix(jm,im),speed=0.1d0,decimal=4,sameline=.true.,&
+                      acceptonenter=.true.)
+                end do
+             end do
+             call igAlignTextToFramePadding()
+             call iw_text("Origin")
+             do jm = 1, 3
+                ldum = iw_dragfloat_real8("##cellorigin" // string(jm),&
+                   x1=w%geometry_cell_origin(jm),speed=0.01d0,decimal=4,sameline=.true.,&
+                   acceptonenter=.true.)
+             end do
+             ldum = iw_checkbox("Invert matrix",w%geometry_cell_inv)
+             call iw_tooltip("If checked, apply the inverse of the transformation matrix",ttshown)
+             if (iw_button("Apply##celltransfmatrix",sameline=.true.)) then
+                iaction = iaction_transform_matrix
+                iaction_m = w%geometry_cell_matrix
+                iaction_x = w%geometry_cell_origin
+                iaction_l = w%geometry_cell_inv
+             end if
+
+             ! nice supercell search
+             call igSeparator()
+             call iw_text("Nice supercells:",highlight=.true.)
+             call iw_tooltip("Search for the most cube-like supercells up to the given size&
+                & (number of times the current cell). Click a row to transform to that supercell.",ttshown)
+             call igAlignTextToFramePadding()
+             call iw_text("Max. size")
+             call igSameLine(0._c_float,-1._c_float)
+             call igSetNextItemWidth(iw_calcwidth(6,1))
+             str2 = "##cellnicesize" // c_null_char
+             ldum = igInputInt(c_loc(str2),w%geometry_cell_inice,1_c_int,10_c_int,&
+                ImGuiInputTextFlags_EnterReturnsTrue)
+             if (iw_button("Search##cellnicesearch",sameline=.true.)) then
+                w%geometry_cell_inice = max(w%geometry_cell_inice,1_c_int)
+                call sysc(isys)%cell_nice_list(int(w%geometry_cell_inice),&
+                   w%geometry_cell_nice_rmax,w%geometry_cell_nice_mmax)
+             end if
+
+             if (allocated(w%geometry_cell_nice_rmax)) then
+                flags = ImGuiTableFlags_RowBg
+                flags = ior(flags,ImGuiTableFlags_Borders)
+                flags = ior(flags,ImGuiTableFlags_ScrollY)
+                str1 = "##cellnicetable" // c_null_char
+                sz0%x = 0
+                sz0%y = iw_calcheight(10,0,.false.)
+                if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
+                   str2 = "n" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
+                   str2 = "rmax (Å)" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
+                   str2 = "niceness" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
+                   str2 = "transformation" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,3)
+                   call igTableSetupScrollFreeze(0,1)
+                   call igTableHeadersRow()
+
+                   do i = 1, size(w%geometry_cell_nice_rmax,1)
+                      if (w%geometry_cell_nice_rmax(i) <= 0d0) cycle
+                      call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+
+                      ! clickable row spanning all columns: apply this supercell
+                      if (igTableSetColumnIndex(0)) then
+                         str2 = string(i) // "##cellnicerow" // string(i) // c_null_char
+                         if (igSelectable_Bool(c_loc(str2),logical(.false.,c_bool),&
+                            ImGuiSelectableFlags_SpanAllColumns,szero)) then
+                            iaction = iaction_transform_matrix
+                            iaction_m = w%geometry_cell_nice_mmax(:,:,i)
+                            iaction_x = 0d0
+                            iaction_l = .false.
+                         end if
+                      end if
+                      if (igTableSetColumnIndex(1)) &
+                         call iw_text(string(w%geometry_cell_nice_rmax(i)*bohrtoa,'f',7,3))
+                      if (igTableSetColumnIndex(2)) &
+                         call iw_text(string(8d0*w%geometry_cell_nice_rmax(i)**3/(i*sys(isys)%c%omega),'f',7,5))
+                      if (igTableSetColumnIndex(3)) then
+                         s = ""
+                         do im = 1, 3
+                            do jm = 1, 3
+                               s = s // string(nint(w%geometry_cell_nice_mmax(jm,im,i)),length=3,justify=ioj_right)
+                            end do
+                         end do
+                         call iw_text(s)
+                      end if
+                   end do
+                   call igEndTable()
+                end if
+             end if
+
              call igEndTabItem()
           end if
        end if
@@ -955,6 +1104,14 @@ contains
        call sysc(isys)%attype_swap_atoms(w%geometry_atomtype,iaction_i1,iaction_i2)
     elseif (iaction == iaction_change_cell) then
        call sysc(isys)%move_cell(iaction_x6(1:3),iaction_x6(4:6),iaction_l)
+    elseif (iaction == iaction_transform_cell) then
+       call sysc(isys)%transform_cell(iaction_i1,iaction_l)
+       if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
+       if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
+    elseif (iaction == iaction_transform_matrix) then
+       call sysc(isys)%transform_cell_matrix(iaction_m,iaction_x,iaction_l)
+       if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
+       if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
     end if
 
   contains
@@ -972,6 +1129,8 @@ contains
       ! remove the selecion, highlights, and reorder the table
       if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
       if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
+      if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
+      if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
       call reset_sort()
 
       ! change the system

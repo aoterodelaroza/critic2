@@ -55,6 +55,13 @@ module systems
   integer, parameter, public :: atlisttype_nmol = 6      ! molecules
   integer, parameter, public :: atlisttype_NUM = 6 ! the number of atom list types
 
+  ! cell transformation modes (for transform_cell)
+  integer, parameter, public :: celltransform_standard = 1 ! standardized conventional cell
+  integer, parameter, public :: celltransform_primitive = 2 ! standardized primitive cell (if smaller)
+  integer, parameter, public :: celltransform_primstd = 3 ! standardized primitive cell (forced)
+  integer, parameter, public :: celltransform_niggli = 4 ! Niggli-reduced cell
+  integer, parameter, public :: celltransform_delaunay = 5 ! Delaunay-reduced cell
+
   ! system configuration type
   type :: sysconf
      ! system ID and properties
@@ -115,6 +122,9 @@ module systems
      procedure :: add_species
      procedure :: reread_geometry_from_file
      procedure :: move_cell
+     procedure :: transform_cell
+     procedure :: transform_cell_matrix
+     procedure :: cell_nice_list
   end type sysconf
 
   ! system arrays
@@ -323,6 +333,22 @@ module systems
        real*8, intent(in) :: aa(3), bb(3)
        logical, intent(in) :: forcewyc
      end subroutine move_cell
+     module subroutine transform_cell(sysc,mode,refine)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: mode
+       logical, intent(in) :: refine
+     end subroutine transform_cell
+     module subroutine transform_cell_matrix(sysc,x0,t0,doinv)
+       class(sysconf), intent(inout) :: sysc
+       real*8, intent(in) :: x0(3,3), t0(3)
+       logical, intent(in) :: doinv
+     end subroutine transform_cell_matrix
+     module subroutine cell_nice_list(sysc,inice,rmax,mmax)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: inice
+       real*8, allocatable, intent(out) :: rmax(:)
+       real*8, allocatable, intent(out) :: mmax(:,:,:)
+     end subroutine cell_nice_list
   end interface
 
 end module systems
