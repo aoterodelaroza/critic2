@@ -249,6 +249,8 @@ contains
        r%axes_labelconstsize = .false.
        r%axes_labeldistance = 0d0
        r%axes_labeloffset = 0d0
+       r%axes_scale = 1d0
+       r%axes_scalewithzoom = .false.
        if (style == style_phong) then
           r%axes_labelrgb = 1._c_float
        else
@@ -347,7 +349,7 @@ contains
     integer :: i1, i2, i3, ix(3), idl
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3)
     real(c_float) :: rgb(3)
-    real*8 :: rad1, rad2, dd, f1, f2
+    real*8 :: rad1, rad2, dd, f1, f2, axsc
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), phase, mass
     real*8 :: ucini(3), ucend(3)
     complex*16 :: xdelta0(3), xdelta1(3), xdelta2(3)
@@ -822,6 +824,7 @@ contains
        if (fixed) then
           uoriginc = 0d0
           obj%gizwinpos = r%axes_winpos
+          obj%gizscalewithzoom = r%axes_scalewithzoom
        else
           ! origin in the requested coordinate system, converted to
           ! cartesian (bohr)
@@ -836,10 +839,13 @@ contains
           if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
        end if
 
+       ! global scale factor applied to the whole gizmo (arrows and labels)
+       axsc = r%axes_scale
+
        ! arrowhead geometry (head length capped so it never exceeds the
        ! total axis length)
-       rad1 = min(r%axes_conelength, r%axes_length) ! head length
-       rad2 = r%axes_coneradius ! head radius
+       rad1 = min(r%axes_conelength, r%axes_length) * axsc ! head length
+       rad2 = r%axes_coneradius * axsc ! head radius
 
        do k = 1, 3
           ! cartesian (lab-frame) unit direction for this axis
@@ -848,12 +854,12 @@ contains
 
           ! shaft (round, lit cylinder)
           x1 = uoriginc
-          x2 = uoriginc + max(r%axes_length - rad1,0d0) * x0
+          x2 = uoriginc + max(r%axes_length * axsc - rad1,0d0) * x0
           dcyl%x1 = real(x1,c_float)
           dcyl%x2 = real(x2,c_float)
           dcyl%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
           dcyl%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
-          dcyl%r = real(r%axes_radius,c_float)
+          dcyl%r = real(r%axes_radius * axsc,c_float)
           dcyl%rgb = r%axes_rgb(:,k)
           dcyl%order = 1
           dcyl%border = 0._c_float
@@ -866,7 +872,7 @@ contains
 
           ! arrowhead (cone) from the shaft end to the axis tip
           dcyl%x1 = real(x2,c_float)
-          dcyl%x2 = real(uoriginc + r%axes_length * x0,c_float)
+          dcyl%x2 = real(uoriginc + r%axes_length * axsc * x0,c_float)
           dcyl%r = real(rad2,c_float)
           if (fixed) then
              call append_cyl(obj%conegiz,obj%nconegiz,dcyl)
@@ -877,14 +883,15 @@ contains
           ! label: along the axis from the arrowhead tip by the shared
           ! distance, plus the per-axis cartesian offset
           if (r%axes_showlabels) then
-             dstr%x = real(uoriginc + (r%axes_length + r%axes_labeldistance) * x0 + r%axes_labeloffset(:,k),c_float)
+             dstr%x = real(uoriginc + (r%axes_length + r%axes_labeldistance) * axsc * x0 + &
+                r%axes_labeloffset(:,k) * axsc,c_float)
              dstr%xdelta = cmplx(0d0,0d0,kind=c_float_complex)
              dstr%r = real(rad2,c_float)
              dstr%rgb = r%axes_labelrgb
              if (r%axes_labelconstsize) then
-                dstr%scale = real(r%axes_labelscale,c_float)
+                dstr%scale = real(r%axes_labelscale * axsc,c_float)
              else
-                dstr%scale = real(-r%axes_labelscale,c_float)
+                dstr%scale = real(-r%axes_labelscale * axsc,c_float)
              end if
              dstr%offset = 0._c_float
              dstr%str = trim(r%axes_labelstr(k))

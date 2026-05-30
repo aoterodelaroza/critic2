@@ -126,6 +126,7 @@ module shapes
      integer :: nstringgiz ! number of gizmo strings (axis labels)
      type(dl_string), allocatable :: stringgiz(:) ! gizmo string draw list
      real(c_float) :: gizwinpos(2) ! window position (fractions) for the gizmo
+     logical :: gizscalewithzoom ! whether the gizmo scales when the scene is zoomed
   end type scene_objects
   public :: scene_objects
 

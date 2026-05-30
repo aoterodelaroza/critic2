@@ -1067,11 +1067,20 @@ contains
        changed = changed .or. iw_dragfloat_real8("from bottom##axeswiny",x1=w%rep%axes_winpos(2),speed=0.005d0,&
           min=0d0,max=1d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
        call iw_tooltip("Vertical position of the axes, as a fraction of the window height from the bottom",ttshown)
+       changed = changed .or. iw_checkbox("Scale with zoom##axesscalewithzoom",w%rep%axes_scalewithzoom)
+       call iw_tooltip("Let the gizmo grow and shrink as the scene is zoomed in and out (on), or keep&
+          & it at a constant size on the window (off)",ttshown)
     end if
+
+    !! global scale
+    call iw_text("Scale",highlight=.true.)
+    changed = changed .or. iw_dragfloat_real8("Scale##axesscale",x1=w%rep%axes_scale,speed=0.01d0,&
+       min=0.01d0,max=100d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Global scale factor applied to the whole gizmo (arrows and labels)",ttshown)
 
     !! geometry
     call iw_text("Arrow shaft",highlight=.true.)
-    changed = changed .or. iw_dragfloat_real8("Length (Å)",x1=w%rep%axes_length,speed=0.01d0,&
+    changed = changed .or. iw_dragfloat_real8("Length (Å)##arrowshaftlength",x1=w%rep%axes_length,speed=0.01d0,&
        min=0d0,max=100d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Length of each cartesian axis",ttshown)
     changed = changed .or. iw_dragfloat_real8("Radius (Å)##axesradius",x1=w%rep%axes_radius,speed=0.005d0,&
@@ -1080,7 +1089,7 @@ contains
 
     !! arrowheads
     call iw_text("Arrow head",highlight=.true.)
-    changed = changed .or. iw_dragfloat_real8("Length (Å)",x1=w%rep%axes_conelength,speed=0.005d0,&
+    changed = changed .or. iw_dragfloat_real8("Length (Å)##arrowheadlength",x1=w%rep%axes_conelength,speed=0.005d0,&
        min=0d0,max=10d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Length of the arrowhead cones (controls how pointy the arrows are)",ttshown)
     changed = changed .or. iw_dragfloat_real8("Radius (Å)##conerad",x1=w%rep%axes_coneradius,speed=0.005d0,&
@@ -1106,10 +1115,14 @@ contains
        call iw_tooltip("Scale of the axis labels",ttshown)
        changed = changed .or. iw_coloredit("Color##axeslabel",rgb=w%rep%axes_labelrgb,sameline=.true.)
        call iw_tooltip("Color of the axis labels",ttshown)
-       changed = changed .or. iw_checkbox("Constant size##axeslabelconstsize",&
-          w%rep%axes_labelconstsize,sameline=.true.)
-       call iw_tooltip("Labels have constant size (on) or labels scale with the&
-          & size of the arrowhead (off)",ttshown)
+       if (w%rep%axes_placement == 0) then
+          ! for the window-anchored gizmo the label zoom behavior follows the
+          ! "Scale with zoom" option above
+          changed = changed .or. iw_checkbox("Constant size##axeslabelconstsize",&
+             w%rep%axes_labelconstsize,sameline=.true.)
+          call iw_tooltip("Labels have constant size (on) or labels scale with the&
+             & size of the arrowhead (off)",ttshown)
+       end if
        changed = changed .or. iw_inputtext("x##lblx",bufsize=31,textf=w%rep%axes_labelstr(1),width=5)
        changed = changed .or. iw_inputtext("y##lbly",bufsize=31,textf=w%rep%axes_labelstr(2),width=5,sameline=.true.)
        changed = changed .or. iw_inputtext("z##lblz",bufsize=31,textf=w%rep%axes_labelstr(3),width=5,sameline=.true.)

@@ -211,6 +211,8 @@ module representations
      character(kind=c_char,len=32) :: axes_labelstr(3) ! text of the x, y, z axis labels
      real*8 :: axes_labeldistance ! distance along the axis from the arrowhead to the label (all axes)
      real*8 :: axes_labeloffset(3,3) ! per-axis (cartesian) offset of the label from that position
+     real*8 :: axes_scale ! global scale factor applied to the whole gizmo (arrows and labels)
+     logical :: axes_scalewithzoom ! whether the window-anchored gizmo scales when the scene is zoomed
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults

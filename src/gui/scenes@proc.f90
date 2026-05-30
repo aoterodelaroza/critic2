@@ -388,6 +388,7 @@ contains
     if (allocated(s%obj%stringgiz)) deallocate(s%obj%stringgiz)
     allocate(s%obj%stringgiz(10))
     s%obj%gizwinpos = (/0.1_c_float,0.1_c_float/)
+    s%obj%gizscalewithzoom = .false.
 
     ! add the items by representation
     do i = 1, s%nrep
@@ -814,7 +815,7 @@ contains
     !> the scene, and drawn on top of everything else.
     subroutine render_axes_gizmo()
       real(c_float) :: vp(4,4), vpinv(4,4), corner(4), ph(4), wgiz(4,4)
-      real(c_float) :: nx, ny, spanx, spany
+      real(c_float) :: nx, ny, spanx, spany, gizf, hside
 
       ! world matrix for the gizmo: rotation = scene rotation, and the
       ! translation is the (post-world) point that projects to the
@@ -834,8 +835,22 @@ contains
       ny = spany * (1._c_float - 2._c_float * s%obj%gizwinpos(2))
       corner = (/nx,ny,0._c_float,1._c_float/)
       ph = matmul(vpinv,corner)
+      ! zoom-compensation factor for the gizmo geometry: when the gizmo
+      ! should not scale with zoom, shrink/grow the world geometry so that
+      ! the orthographic projection (proj(1,1) = 1/hw2) leaves its on-screen
+      ! size constant. hside is the half-window size at the reset zoom, so
+      ! at that zoom both modes coincide (no jump when toggling).
+      if (s%obj%gizscalewithzoom) then
+         gizf = 1._c_float
+      else
+         hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
+         hside = hside * s%camratio
+         hside = max(hside,3._c_float)
+         gizf = 1._c_float / (s%projection(1,1) * hside)
+      end if
+
       wgiz = 0._c_float
-      wgiz(1:3,1:3) = s%world(1:3,1:3)
+      wgiz(1:3,1:3) = s%world(1:3,1:3) * gizf
       wgiz(1:3,4) = ph(1:3) / ph(4)
       wgiz(4,4) = 1._c_float
 
@@ -948,11 +963,14 @@ contains
       do i = 1, s%obj%nstringgiz
          call setuniform_vec3(s%obj%stringgiz(i)%rgb,idxi=iu)
          nvert = 0
-         if (s%obj%stringgiz(i)%scale > 0._c_float) then
+         ! the label tracks the same zoom behavior as the arrows: constant
+         ! on-screen size when the gizmo does not scale with zoom, or scaling
+         ! with the orthographic projection otherwise
+         if (.not.s%obj%gizscalewithzoom) then
             hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
             hside = hside * s%camratio
             hside = max(hside,3._c_float)
-            siz = 2 * s%obj%stringgiz(i)%scale / fontbakesize_large / hside
+            siz = 2 * abs(s%obj%stringgiz(i)%scale) / fontbakesize_large / hside
          else
             siz = 2 * abs(s%obj%stringgiz(i)%scale) * s%projection(1,1) / fontbakesize_large
          end if
