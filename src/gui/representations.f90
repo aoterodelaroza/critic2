@@ -45,7 +45,7 @@ module representations
   real*8, parameter, public :: uc_radius_def = 0.08d0 / bohrtoa ! radius of sticks
   real*8, parameter, public :: uc_radiusinner_def = 0.08d0 / bohrtoa ! radius of inner sticks
   real*8, parameter, public :: uc_innersteplen_def = 1.0d0 / bohrtoa ! length of stipple
-  !--> cartesian axes
+  !--> axes
   real*8, parameter, public :: axes_length_def = 1.0d0 / bohrtoa ! length of each axis
   real*8, parameter, public :: axes_radius_def = 0.06d0 / bohrtoa ! radius of the axis shafts
   real*8, parameter, public :: axes_conelength_def = 0.30d0 / bohrtoa ! length of the arrow head
@@ -53,7 +53,7 @@ module representations
   real*8, parameter, public :: axes_winpos_def(2) = (/0.10d0,0.15d0/) ! default axes position relative to window borders
   real*8, parameter, public :: axes_labeldistance_def = 0.2d0 / bohrtoa ! distance between label and arrow head
   real*8, parameter, public :: axes_labelscale_def = 0.3d0 ! label size
-  real*8, parameter, public :: axes_winfrac_def = 0.15d0 ! target on-screen length of the window-anchored axes (fraction of the half-window)
+  real*8, parameter, public :: axes_winfrac_def = 0.15d0 ! window-anchored axes length as a fraction of the scene radius (auto-scale tuning knob)
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
@@ -130,7 +130,7 @@ module representations
   integer, parameter, public :: repflavor_atoms_criticalpoints = 6
   integer, parameter, public :: repflavor_atoms_gradientpaths = 7
   integer, parameter, public :: repflavor_unitcell_basic = 8
-  integer, parameter, public :: repflavor_axes_cartesian = 9
+  integer, parameter, public :: repflavor_axes = 9
   integer, parameter, public :: repflavor_NUM = 9
 
   !> Representation: objects to draw on the scene
@@ -200,11 +200,11 @@ module representations
      real*8 :: uc_innersteplen ! number of subdivisions for the inner sticks
      logical :: uc_innerstipple ! stippled lines for the inner lines
      ! cartesian/crystallographic axes
-     integer(c_int) :: axes_kind ! 0 = cartesian (x/y/z), 1 = crystallographic (a/b/c lattice vectors)
+     integer(c_int) :: axes_kind ! 0 = cartesian, 1 = crystallographic
      integer(c_int) :: axes_placement ! 0 = at the origin, 1 = anchored at a fixed window position
      integer(c_int) :: axes_coordtype ! origin coordinates: 0 = crystallographic, 1 = cartesian (angstrom), 2 = cartesian (bohr)
-     real*8 :: axes_winpos(2) ! window position (fractions from left and bottom) when anchored
-     real*8 :: axes_length ! length of each cartesian axis
+     real*8 :: axes_winpos(2) ! window position (fractions from left and bottom) when window-anchored
+     real*8 :: axes_length ! length of each axis
      real*8 :: axes_radius ! radius of the axis shafts
      real*8 :: axes_conelength ! length of the arrowhead cones
      real*8 :: axes_coneradius ! base radius of the arrowhead cones
@@ -217,6 +217,7 @@ module representations
      real*8 :: axes_labeldistance ! distance along the axis from the arrowhead to the label (all axes)
      real*8 :: axes_labeloffset(3,3) ! per-axis (cartesian) offset of the label from that position
      real*8 :: axes_scale ! global scale factor applied to the whole gizmo (arrows and labels)
+     logical :: axes_scale_auto ! auto-size the window-anchored gizmo from the scene radius
      logical :: axes_scalewithzoom ! whether the window-anchored gizmo scales when the scene is zoomed
    contains
      procedure :: init => representation_init

@@ -1061,7 +1061,9 @@ contains
 
     !! position
     call iw_text("Position",highlight=.true.)
-    changed = changed .or. iw_radiobutton("Fixed in Window",int=w%rep%axes_placement,intval=1_c_int)
+    ch = iw_radiobutton("Fixed in Window",int=w%rep%axes_placement,intval=1_c_int)
+    if (ch) w%rep%axes_scale_auto = .true. ! re-size the gizmo for the scene
+    changed = changed .or. ch
     call iw_tooltip("Anchor the axes at a fixed position in the window",ttshown)
     changed = changed .or. iw_radiobutton("At Position",int=w%rep%axes_placement,intval=0_c_int,sameline=.true.)
     call iw_tooltip("Place the axes at the cartesian origin",ttshown)
@@ -1097,8 +1099,10 @@ contains
 
     !! global scale
     call iw_text("Scale",highlight=.true.)
-    changed = changed .or. iw_dragfloat_real8("Scale##axesscale",x1=w%rep%axes_scale,speed=0.01d0,&
+    ch = iw_dragfloat_real8("Scale##axesscale",x1=w%rep%axes_scale,speed=0.01d0,&
        min=0.01d0,max=100d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+    if (ch) w%rep%axes_scale_auto = .false. ! a manual edit disables auto-sizing
+    changed = changed .or. ch
     call iw_tooltip("Global scale factor applied to the whole gizmo (arrows and labels)",ttshown)
 
     !! geometry

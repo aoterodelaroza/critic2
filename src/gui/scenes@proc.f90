@@ -163,7 +163,7 @@ contains
   module subroutine scene_init(s,isys)
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes,&
        repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
-       repflavor_atoms_sticks, repflavor_unitcell_basic, repflavor_axes_cartesian, repflavor_NUM
+       repflavor_atoms_sticks, repflavor_unitcell_basic, repflavor_axes, repflavor_NUM
     use systems, only: sys, sysc, sys_ready, ok_system
     use global, only: crsmall
     use gui_main, only: lockbehavior
@@ -227,7 +227,7 @@ contains
 
     ! cartesian axes (shown by default for molecules)
     if (sys(isys)%c%ismolecule) &
-       call s%add_representation(reptype_axes,repflavor_axes_cartesian)
+       call s%add_representation(reptype_axes,repflavor_axes)
 
     ! critical points
     if (any(sys(isys)%c%spc(:)%z > maxzat)) then
@@ -352,7 +352,7 @@ contains
 
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
-    use representations, only: reptype_atoms
+    use representations, only: reptype_atoms, reptype_axes, axes_winfrac_def
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
     use systems, only: sys_ready, ok_system
@@ -394,18 +394,17 @@ contains
     s%obj%gizwinpos = (/0.1_c_float,0.1_c_float/)
     s%obj%gizscalewithzoom = .false.
 
-    ! add the items by representation
+    ! add the items by representation. Window-anchored axes are deferred: they
+    ! need the scene radius (computed below) to auto-size, and they live in the
+    ! gizmo draw lists, which are excluded from the scene bounding box anyway.
     do i = 1, s%nrep
        ! update to reflect changes in the number of atoms or molecules
        call s%rep(i)%update()
 
-       ! add draw elements
+       ! add draw elements (except window-anchored axes, done below)
+       if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes_placement == 1) cycle
        call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
     end do
-
-    ! flag whether any object is anchored to the window borders (the view
-    ! window uses this to re-render when the window geometry changes)
-    s%hasanchoredobj = (s%obj%ncylgiz > 0 .or. s%obj%nconegiz > 0 .or. s%obj%nstringgiz > 0)
 
     ! reset the measure selection
     s%nmsel = 0
@@ -461,6 +460,26 @@ contains
     ! translate the scene so the center position remains unchanged
     if (s%iscaminit) &
        call translate(s%world,-xc)
+
+    ! now that the scene radius is known, build the deferred window-anchored
+    ! axes. Auto-size the gizmo from the scene radius so it occupies a roughly
+    ! constant fraction of the window regardless of the system size (and of how
+    ! many cells are drawn). This is done only once, the first time the lists
+    ! are built (or after the gizmo is re-anchored); the auto flag is then
+    ! cleared so manual edits and later rebuilds keep the value.
+    do i = 1, s%nrep
+       if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes_placement == 1) then
+          if (s%rep(i)%axes_scale_auto) then
+             s%rep(i)%axes_scale = axes_winfrac_def * real(s%scenerad,8) / max(s%rep(i)%axes_length,1d-10)
+             s%rep(i)%axes_scale_auto = .false.
+          end if
+          call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
+       end if
+    end do
+
+    ! flag whether any object is anchored to the window borders (the view
+    ! window uses this to re-render when the window geometry changes)
+    s%hasanchoredobj = (s%obj%ncylgiz > 0 .or. s%obj%nconegiz > 0 .or. s%obj%nstringgiz > 0)
 
     ! rebuilding lists is done
     s%forcebuildlists = .false.
