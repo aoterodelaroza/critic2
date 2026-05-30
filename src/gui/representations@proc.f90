@@ -87,7 +87,7 @@ contains
     elseif (itype == reptype_axes) then
        r%isinit = .true.
        r%shown = .true.
-       r%name = "Cartesian Axes"
+       r%name = "Axes"
     else
        r%isinit = .false.
        r%shown = .false.
@@ -230,6 +230,7 @@ contains
 
     ! cartesian axes
     if (itype == 0 .or. itype == 6) then
+       r%axes_kind = 0 ! cartesian
        r%axes_placement = 1
        if (sys(isys)%c%ismolecule) then
           r%axes_coordtype = 1 ! cartesian (angstrom)
@@ -848,9 +849,15 @@ contains
        rad2 = r%axes_coneradius * axsc ! head radius
 
        do k = 1, 3
-          ! cartesian (lab-frame) unit direction for this axis
-          x0 = 0d0
-          x0(k) = 1d0
+          ! unit direction for this axis: cartesian (lab-frame) or along
+          ! the crystallographic lattice vector
+          if (r%axes_kind == 1 .and. .not.sys(r%id)%c%ismolecule) then
+             x0 = sys(r%id)%c%m_x2c(:,k)
+             x0 = x0 / norm2(x0)
+          else
+             x0 = 0d0
+             x0(k) = 1d0
+          end if
 
           ! shaft (round, lit cylinder)
           x1 = uoriginc

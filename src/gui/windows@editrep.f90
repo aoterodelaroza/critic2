@@ -1036,6 +1036,29 @@ contains
     ! initialize
     changed = .false.
 
+    !! axes kind: cartesian (x/y/z) or crystallographic (a/b/c). Only
+    !! meaningful for crystals (molecules have no lattice vectors).
+    if (.not.sys(w%isys)%c%ismolecule) then
+       call iw_text("Type",highlight=.true.)
+       icoord = w%rep%axes_kind
+       call iw_combo_simple("##axeskind","Cartesian" // c_null_char // &
+          "Crystallographic" // c_null_char,icoord,changed=ch)
+       call iw_tooltip("Represent the cartesian (x/y/z) or crystallographic (a/b/c) axes",ttshown)
+       if (ch) then
+          w%rep%axes_kind = icoord
+          if (icoord == 0) then
+             w%rep%axes_labelstr(1) = "x"
+             w%rep%axes_labelstr(2) = "y"
+             w%rep%axes_labelstr(3) = "z"
+          else
+             w%rep%axes_labelstr(1) = "a"
+             w%rep%axes_labelstr(2) = "b"
+             w%rep%axes_labelstr(3) = "c"
+          end if
+          changed = .true.
+       end if
+    end if
+
     !! position
     call iw_text("Position",highlight=.true.)
     changed = changed .or. iw_radiobutton("Fixed in Window",int=w%rep%axes_placement,intval=1_c_int)
