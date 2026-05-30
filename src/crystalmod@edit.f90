@@ -617,14 +617,13 @@ contains
   !> corresponding NEWCELL transformation matrix (lattice vectors of
   !> the supercell in the old setting, crystallographic coordinates).
   !> rmax(n) is zero if no supercell of that size was found.
-  module subroutine cell_nice_list(c,inice,rmax,mmax,ti)
+  module subroutine cell_nice_list(c,inice,rmax,mmax)
     use tools_math, only: cross, det3
     use param, only: icrd_crys
     class(crystal), intent(inout) :: c
     integer, intent(in) :: inice
     real*8, allocatable, intent(out) :: rmax(:)
     real*8, allocatable, intent(out) :: mmax(:,:,:)
-    type(thread_info), intent(in), optional :: ti
 
     integer :: i, j, k, n, nat
     real*8 :: dmax0, mm(3,3), dd, x2c(3,3), r

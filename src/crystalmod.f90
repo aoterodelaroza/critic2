@@ -756,12 +756,11 @@ module crystalmod
        type(thread_info), intent(in), optional :: ti
        real*8 :: x0(3,3)
      end function cell_delaunay
-     module subroutine cell_nice_list(c,inice,rmax,mmax,ti)
+     module subroutine cell_nice_list(c,inice,rmax,mmax)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: inice
        real*8, allocatable, intent(out) :: rmax(:)
        real*8, allocatable, intent(out) :: mmax(:,:,:)
-       type(thread_info), intent(in), optional :: ti
      end subroutine cell_nice_list
      module subroutine reorder_atoms(c,iperm,isnneq,ti)
        class(crystal), intent(inout) :: c
