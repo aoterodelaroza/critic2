@@ -49,7 +49,7 @@ contains
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
-       iw_inputtext, iw_periodictable, iw_menuitem
+       iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton
     use types, only: realloc
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger
     use param, only: newline, bohrtoa
@@ -865,40 +865,71 @@ contains
              call iw_tooltip("If checked, refine the atomic positions to their ideal symmetric&
                 & locations in the Standard/Primitive transformations",ttshown)
 
-             ! arbitrary transformation matrix
+             ! cell transformation (simple supercell or general matrix)
              call igSeparator()
-             call iw_text("Transformation matrix:",highlight=.true.)
-             call iw_tooltip("Each row is a lattice vector of the new cell, written in&
-                & crystallographic coordinates of the current cell",ttshown)
-             do im = 1, 3
+             call iw_text("Transformation:",highlight=.true.)
+             ldum = iw_radiobutton("Simple",bool=w%geometry_cell_simple,boolval=.true.,sameline=.true.)
+             call iw_tooltip("Build a supercell by repeating the cell an integer number of&
+                & times along each lattice vector",ttshown)
+             ldum = iw_radiobutton("Full",bool=w%geometry_cell_simple,boolval=.false.,sameline=.true.)
+             call iw_tooltip("General transformation: each row is a lattice vector of the new&
+                & cell, written in crystallographic coordinates of the current cell",ttshown)
+
+             if (w%geometry_cell_simple) then
+                ! simple transformation: integer multiples of the a, b, c axes
                 call igAlignTextToFramePadding()
-                if (im == 1) then
-                   call iw_text("a' ")
-                elseif (im == 2) then
-                   call iw_text("b' ")
-                else
-                   call iw_text("c' ")
-                end if
+                call iw_text("na/nb/nc ")
                 do jm = 1, 3
-                   ldum = iw_dragfloat_real8("##cellmat" // string(im) // string(jm),&
-                      x1=w%geometry_cell_matrix(jm,im),speed=0.1d0,decimal=4,sameline=.true.,&
+                   call igSameLine(0._c_float,-1._c_float)
+                   call igSetNextItemWidth(iw_calcwidth(4,1))
+                   str2 = "##cellnrep" // string(jm) // c_null_char
+                   ldum = igInputInt(c_loc(str2),w%geometry_cell_nrep(jm),0_c_int,0_c_int,&
+                      ImGuiInputTextFlags_EnterReturnsTrue)
+                   w%geometry_cell_nrep(jm) = max(w%geometry_cell_nrep(jm),1_c_int)
+                end do
+                call iw_tooltip("Number of times the cell is repeated along the a, b, and c&
+                   & lattice vectors",ttshown)
+             else
+                ! arbitrary transformation matrix
+                do im = 1, 3
+                   call igAlignTextToFramePadding()
+                   if (im == 1) then
+                      call iw_text("a' ")
+                   elseif (im == 2) then
+                      call iw_text("b' ")
+                   else
+                      call iw_text("c' ")
+                   end if
+                   do jm = 1, 3
+                      ldum = iw_dragfloat_real8("##cellmat" // string(im) // string(jm),&
+                         x1=w%geometry_cell_matrix(jm,im),speed=0.1d0,decimal=4,sameline=.true.,&
+                         acceptonenter=.true.)
+                   end do
+                end do
+                call igAlignTextToFramePadding()
+                call iw_text("Origin")
+                do jm = 1, 3
+                   ldum = iw_dragfloat_real8("##cellorigin" // string(jm),&
+                      x1=w%geometry_cell_origin(jm),speed=0.01d0,decimal=4,sameline=.true.,&
                       acceptonenter=.true.)
                 end do
-             end do
-             call igAlignTextToFramePadding()
-             call iw_text("Origin")
-             do jm = 1, 3
-                ldum = iw_dragfloat_real8("##cellorigin" // string(jm),&
-                   x1=w%geometry_cell_origin(jm),speed=0.01d0,decimal=4,sameline=.true.,&
-                   acceptonenter=.true.)
-             end do
-             ldum = iw_checkbox("Invert matrix",w%geometry_cell_inv)
-             call iw_tooltip("If checked, apply the inverse of the transformation matrix",ttshown)
-             if (iw_button("Apply##celltransfmatrix",sameline=.true.)) then
+                ldum = iw_checkbox("Invert matrix",w%geometry_cell_inv)
+                call iw_tooltip("If checked, apply the inverse of the transformation matrix",ttshown)
+             end if
+             if (iw_button("Apply##celltransfmatrix")) then
                 iaction = iaction_transform_matrix
-                iaction_m = w%geometry_cell_matrix
-                iaction_x = w%geometry_cell_origin
-                iaction_l = w%geometry_cell_inv
+                if (w%geometry_cell_simple) then
+                   iaction_m = 0d0
+                   iaction_m(1,1) = real(w%geometry_cell_nrep(1),8)
+                   iaction_m(2,2) = real(w%geometry_cell_nrep(2),8)
+                   iaction_m(3,3) = real(w%geometry_cell_nrep(3),8)
+                   iaction_x = 0d0
+                   iaction_l = .false.
+                else
+                   iaction_m = w%geometry_cell_matrix
+                   iaction_x = w%geometry_cell_origin
+                   iaction_l = w%geometry_cell_inv
+                end if
              end if
 
              ! nice supercell search

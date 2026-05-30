@@ -157,6 +157,8 @@ module windows
      real*8 :: timelast_geometry_clearhighlights = 0d0 ! time the highlights were last cleared
      ! cell tab: cell transformation tools
      logical :: geometry_cell_refine = .false. ! refine atomic positions in standard/primitive transforms
+     logical :: geometry_cell_simple = .true. ! simple (integer multiples of a/b/c) vs. full matrix transformation
+     integer(c_int) :: geometry_cell_nrep(3) = (/1_c_int,1_c_int,1_c_int/) ! a/b/c multiples for the simple transformation
      real*8 :: geometry_cell_matrix(3,3) = reshape((/1d0,0d0,0d0,0d0,1d0,0d0,0d0,0d0,1d0/),(/3,3/)) ! transformation matrix
      real*8 :: geometry_cell_origin(3) = 0d0 ! origin shift for the matrix transformation
      logical :: geometry_cell_inv = .false. ! invert the transformation matrix before applying
