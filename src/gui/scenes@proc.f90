@@ -161,9 +161,9 @@ contains
 
   !> Initialize a scene object associated with system isys.
   module subroutine scene_init(s,isys)
-    use representations, only: reptype_atoms, reptype_unitcell,&
+    use representations, only: reptype_atoms, reptype_unitcell, reptype_axes,&
        repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
-       repflavor_atoms_sticks, repflavor_unitcell_basic, repflavor_NUM
+       repflavor_atoms_sticks, repflavor_unitcell_basic, repflavor_axes_cartesian, repflavor_NUM
     use systems, only: sys, sysc, sys_ready, ok_system
     use global, only: crsmall
     use gui_main, only: lockbehavior
@@ -224,6 +224,10 @@ contains
     ! unit cell
     if (.not.sys(isys)%c%ismolecule) &
        call s%add_representation(reptype_unitcell,repflavor_unitcell_basic)
+
+    ! cartesian axes (shown by default for molecules)
+    if (sys(isys)%c%ismolecule) &
+       call s%add_representation(reptype_axes,repflavor_axes_cartesian)
 
     ! critical points
     if (any(sys(isys)%c%spc(:)%z > maxzat)) then

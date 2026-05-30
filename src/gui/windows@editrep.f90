@@ -1038,9 +1038,9 @@ contains
 
     !! position
     call iw_text("Position",highlight=.true.)
-    changed = changed .or. iw_radiobutton("Fixed in window",int=w%rep%axes_placement,intval=1_c_int)
+    changed = changed .or. iw_radiobutton("Fixed in Window",int=w%rep%axes_placement,intval=1_c_int)
     call iw_tooltip("Anchor the axes at a fixed position in the window",ttshown)
-    changed = changed .or. iw_radiobutton("At origin",int=w%rep%axes_placement,intval=0_c_int,sameline=.true.)
+    changed = changed .or. iw_radiobutton("At Position",int=w%rep%axes_placement,intval=0_c_int,sameline=.true.)
     call iw_tooltip("Place the axes at the cartesian origin",ttshown)
     if (w%rep%axes_placement == 0) then
        if (sys(w%isys)%c%ismolecule) then
