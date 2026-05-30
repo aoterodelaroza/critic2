@@ -59,8 +59,8 @@ module systems
   integer, parameter, public :: celltransform_standard = 1 ! standardized conventional cell
   integer, parameter, public :: celltransform_primitive = 2 ! standardized primitive cell (if smaller)
   integer, parameter, public :: celltransform_primstd = 3 ! standardized primitive cell (forced)
-  integer, parameter, public :: celltransform_niggli = 4 ! Niggli-reduced cell
-  integer, parameter, public :: celltransform_delaunay = 5 ! Delaunay-reduced cell
+  integer, parameter, public :: celltransform_niggli = 4 ! Niggli-reduced primitive cell
+  integer, parameter, public :: celltransform_delaunay = 5 ! Delaunay-reduced primitive cell
 
   ! system configuration type
   type :: sysconf

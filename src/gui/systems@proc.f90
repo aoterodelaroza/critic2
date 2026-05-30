@@ -1767,8 +1767,10 @@ contains
     case (celltransform_primstd)
        x0 = sys(isys)%c%cell_standard(.true.,.true.,refine)
     case (celltransform_niggli)
+       x0 = sys(isys)%c%cell_standard(.true.,.true.,.false.)
        x0 = sys(isys)%c%cell_niggli()
     case (celltransform_delaunay)
+       x0 = sys(isys)%c%cell_standard(.true.,.true.,.false.)
        x0 = sys(isys)%c%cell_delaunay()
     case default
        return

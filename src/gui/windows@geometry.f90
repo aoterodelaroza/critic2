@@ -52,7 +52,7 @@ contains
        iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton
     use types, only: realloc
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger
-    use param, only: newline, bohrtoa
+    use param, only: newline, bohrtoa, eye
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
@@ -70,7 +70,7 @@ contains
     integer :: ii, i, j, isys, icol, ispc, iz, izout, iview, id, im, jm
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
-    logical :: havergb, ldum, ok
+    logical :: havergb, ldum, ok, oki
     real*8 :: x0(3), x6(6), xold(3), x6old(6), res
     type(ImVec4) :: col4
     type(c_ptr) :: ptrc
@@ -786,6 +786,8 @@ contains
              ! check if the tab changed
              call check_changed_tab("cell")
 
+             call iw_text("Lattice Parameters",highlight=.true.)
+
              ! keep symmetry and space group
              ldum = iw_checkbox("Keep Symmetry",w%geometry_forcewyc)
              call iw_tooltip("If checked, force system to maintain the current space group",ttshown)
@@ -802,7 +804,7 @@ contains
              x6old = x6
 
              call igAlignTextToFramePadding()
-             call iw_text("a/b/c (Å): ",highlight=.true.)
+             call iw_text("a/b/c (Å): ")
              ch = .false.
              ch = ch .or. iw_dragfloat_real8("##celllengthsa",x1=x6(1),speed=0.005d0,decimal=6,scale=bohrtoa,&
                 acceptonenter=.true.,sameline=.true.)
@@ -812,7 +814,7 @@ contains
                 acceptonenter=.true.,sameline=.true.)
 
              call igAlignTextToFramePadding()
-             call iw_text("α/β/γ (°): ",highlight=.true.)
+             call iw_text("α/β/γ (°): ")
              ch = ch .or. iw_dragfloat_real8("##cellangsa",x1=x6(4),speed=0.01d0,decimal=4,sameline=.true.,&
                 acceptonenter=.true.)
              ch = ch .or. iw_dragfloat_real8("##cellanbsb",x1=x6(5),speed=0.01d0,decimal=4,sameline=.true.,&
@@ -826,48 +828,52 @@ contains
                 iaction_l = w%geometry_forcewyc
              end if
 
-             !! cell transformation tools (NEWCELL) !!
-             call igSeparator()
-
              ! standardization and reduction of the cell
-             call iw_text("Standardize / reduce:",highlight=.true.)
-             if (iw_button("Standard##celltransfstd",sameline=.true.)) then
+             call iw_text("Cell Transformations",highlight=.true.)
+             if (iw_button("Conventional##celltransfstd")) then
                 iaction = iaction_transform_cell
                 iaction_i1 = celltransform_standard
-                iaction_l = w%geometry_cell_refine
+                iaction_l = .false.
              end if
-             call iw_tooltip("Transform to the standard conventional cell (spglib)",ttshown)
-             if (iw_button("Primitive##celltransfprim",sameline=.true.)) then
+             call iw_tooltip("Transform to the conventional cell",ttshown)
+             if (iw_button("Conventional+Refine##celltransfstd",sameline=.true.)) then
                 iaction = iaction_transform_cell
-                iaction_i1 = celltransform_primitive
-                iaction_l = w%geometry_cell_refine
+                iaction_i1 = celltransform_standard
+                iaction_l = .true.
              end if
-             call iw_tooltip("Transform to the standard primitive cell, if it is smaller than the current cell (spglib)",ttshown)
-             if (iw_button("Primitive (forced)##celltransfprimstd",sameline=.true.)) then
+             call iw_tooltip("Transform to the conventional cell and refine the atoms to &
+                &their ideal symmetry positions",ttshown)
+
+             if (iw_button("Primitive##celltransfprim")) then
                 iaction = iaction_transform_cell
                 iaction_i1 = celltransform_primstd
-                iaction_l = w%geometry_cell_refine
+                iaction_l = .false.
              end if
-             call iw_tooltip("Transform to the standard primitive cell, even if it is larger than the current cell (spglib)",ttshown)
+             call iw_tooltip("Transform to the standard primitive cell",ttshown)
+             if (iw_button("Primitive+Refine##celltransfprim",sameline=.true.)) then
+                iaction = iaction_transform_cell
+                iaction_i1 = celltransform_primstd
+                iaction_l = .false.
+             end if
+             call iw_tooltip("Transform to the primitive cell and refine the atoms to &
+                &their ideal symmetry positions",ttshown)
+
              if (iw_button("Niggli##celltransfnig",sameline=.true.)) then
                 iaction = iaction_transform_cell
                 iaction_i1 = celltransform_niggli
-                iaction_l = w%geometry_cell_refine
+                iaction_l = .false.
              end if
-             call iw_tooltip("Reduce to the Niggli cell (spglib)",ttshown)
+             call iw_tooltip("Transform to the primitive Niggli cell",ttshown)
              if (iw_button("Delaunay##celltransfdel",sameline=.true.)) then
                 iaction = iaction_transform_cell
                 iaction_i1 = celltransform_delaunay
-                iaction_l = w%geometry_cell_refine
+                iaction_l = .false.
              end if
-             call iw_tooltip("Reduce to the Delaunay cell (spglib)",ttshown)
-             ldum = iw_checkbox("Refine atomic positions",w%geometry_cell_refine)
-             call iw_tooltip("If checked, refine the atomic positions to their ideal symmetric&
-                & locations in the Standard/Primitive transformations",ttshown)
+             call iw_tooltip("Transform to the primitive Delaunay cell",ttshown)
 
              ! cell transformation (simple supercell or general matrix)
-             call igSeparator()
-             call iw_text("Transformation:",highlight=.true.)
+             call igAlignTextToFramePadding()
+             call iw_text("Supercells",highlight=.true.)
              ldum = iw_radiobutton("Simple",bool=w%geometry_cell_simple,boolval=.true.,sameline=.true.)
              call iw_tooltip("Build a supercell by repeating the cell an integer number of&
                 & times along each lattice vector",ttshown)
@@ -878,17 +884,27 @@ contains
              if (w%geometry_cell_simple) then
                 ! simple transformation: integer multiples of the a, b, c axes
                 call igAlignTextToFramePadding()
-                call iw_text("na/nb/nc ")
+                call iw_text("na/nb/nc: ")
                 do jm = 1, 3
                    call igSameLine(0._c_float,-1._c_float)
-                   call igSetNextItemWidth(iw_calcwidth(4,1))
+                   call igSetNextItemWidth(iw_calcwidth(2,1))
                    str2 = "##cellnrep" // string(jm) // c_null_char
-                   ldum = igInputInt(c_loc(str2),w%geometry_cell_nrep(jm),0_c_int,0_c_int,&
-                      ImGuiInputTextFlags_EnterReturnsTrue)
+                   ldum = igInputInt(c_loc(str2),w%geometry_cell_nrep(jm),0_c_int,0_c_int,ImGuiInputTextFlags_None)
                    w%geometry_cell_nrep(jm) = max(w%geometry_cell_nrep(jm),1_c_int)
                 end do
                 call iw_tooltip("Number of times the cell is repeated along the a, b, and c&
                    & lattice vectors",ttshown)
+
+                if (iw_button("Reset##cellresettransf",sameline=.true.)) then
+                   if (w%geometry_cell_simple) then
+                      w%geometry_cell_nrep = 1
+                   else
+                      w%geometry_cell_matrix = eye
+                      iaction_x = 0d0
+                      iaction_l = .false.
+                   end if
+                end if
+                call iw_tooltip("Reset the supercell transformation",ttshown)
              else
                 ! arbitrary transformation matrix
                 do im = 1, 3
@@ -913,10 +929,12 @@ contains
                       x1=w%geometry_cell_origin(jm),speed=0.01d0,decimal=4,sameline=.true.,&
                       acceptonenter=.true.)
                 end do
-                ldum = iw_checkbox("Invert matrix",w%geometry_cell_inv)
-                call iw_tooltip("If checked, apply the inverse of the transformation matrix",ttshown)
              end if
-             if (iw_button("Apply##celltransfmatrix")) then
+             ok = iw_button("Apply##celltransfapply")
+             call iw_tooltip("Apply the supercell transformation",ttshown)
+             oki = iw_button("Apply Inverse##celltransfapplyinv",sameline=.true.)
+             call iw_tooltip("Apply the inverse of the supercell transformation",ttshown)
+             if (ok .or. oki) then
                 iaction = iaction_transform_matrix
                 if (w%geometry_cell_simple) then
                    iaction_m = 0d0
@@ -924,17 +942,16 @@ contains
                    iaction_m(2,2) = real(w%geometry_cell_nrep(2),8)
                    iaction_m(3,3) = real(w%geometry_cell_nrep(3),8)
                    iaction_x = 0d0
-                   iaction_l = .false.
+                   iaction_l = oki
                 else
                    iaction_m = w%geometry_cell_matrix
                    iaction_x = w%geometry_cell_origin
-                   iaction_l = w%geometry_cell_inv
+                   iaction_l = oki
                 end if
              end if
 
              ! nice supercell search
-             call igSeparator()
-             call iw_text("Nice supercells:",highlight=.true.)
+             call iw_text("Nice supercells",highlight=.true.)
              call iw_tooltip("Search for the most cube-like supercells up to the given size&
                 & (number of times the current cell). Click a row to transform to that supercell.",ttshown)
              call igAlignTextToFramePadding()
@@ -942,8 +959,7 @@ contains
              call igSameLine(0._c_float,-1._c_float)
              call igSetNextItemWidth(iw_calcwidth(6,1))
              str2 = "##cellnicesize" // c_null_char
-             ldum = igInputInt(c_loc(str2),w%geometry_cell_inice,1_c_int,10_c_int,&
-                ImGuiInputTextFlags_EnterReturnsTrue)
+             ldum = igInputInt(c_loc(str2),w%geometry_cell_inice,1_c_int,10_c_int,ImGuiInputTextFlags_None)
              if (iw_button("Search##cellnicesearch",sameline=.true.)) then
                 w%geometry_cell_inice = max(w%geometry_cell_inice,1_c_int)
                 call sysc(isys)%cell_nice_list(int(w%geometry_cell_inice),&
