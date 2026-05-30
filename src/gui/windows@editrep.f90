@@ -97,7 +97,7 @@ contains
        ! the representation type
        itype = w%rep%type - 1
        call iw_combo_simple("##reptype","Atoms" // c_null_char // "Unit cell" // c_null_char //&
-          "Cartesian axes" // c_null_char,itype)
+          "Axes" // c_null_char,itype)
        if (w%rep%type /= itype + 1) changed = .true.
        w%rep%type = itype + 1
        call iw_tooltip("Type of object",ttshown)

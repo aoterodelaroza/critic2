@@ -566,7 +566,7 @@ contains
              end if
 
              call igSeparator()
-             if (iw_menuitem("Cartesian Axes",shortcut_text="Axes")) then
+             if (iw_menuitem("Axes",shortcut_text="Axes")) then
                 call w%sc%add_representation(reptype_axes,repflavor_axes_cartesian)
                 chbuild = .true.
              end if
