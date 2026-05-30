@@ -83,6 +83,7 @@ module scenes
      real(c_float) :: view(4,4) ! view transform matrix
      real(c_float) :: projection(4,4) ! projection transform matrix
      real(c_float) :: viewuv0(2) = 0._c_float ! texture UV of the lower corner of the visible (cropped) region
+     logical :: hasanchoredobj = .false. ! true if any object is anchored to the window borders (needs re-render on resize)
      integer :: lockedcam = 0 ! 0=no, -1=global locking group, n=locking group n (same as first system in the lock group)
      ! list of representations
      integer :: nrep = 0 ! number of representation

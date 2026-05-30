@@ -403,6 +403,10 @@ contains
        call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
     end do
 
+    ! flag whether any object is anchored to the window borders (the view
+    ! window uses this to re-render when the window geometry changes)
+    s%hasanchoredobj = (s%obj%ncylgiz > 0 .or. s%obj%nconegiz > 0 .or. s%obj%nstringgiz > 0)
+
     ! reset the measure selection
     s%nmsel = 0
     s%msel = 0

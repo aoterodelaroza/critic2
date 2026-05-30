@@ -769,8 +769,15 @@ contains
     sz1%y = 1._c_float - sz0%y
 
     ! record the visible (cropped) region so the scene can place
-    ! window-anchored objects (e.g. the axes gizmo) relative to it
-    if (associated(w%sc)) w%sc%viewuv0 = (/sz0%x,sz0%y/)
+    ! window-anchored objects (e.g. the axes gizmo) relative to it. If the
+    ! visible region changed and the scene has window-anchored objects,
+    ! force a re-render so they track the new window geometry.
+    if (associated(w%sc)) then
+       if (w%sc%hasanchoredobj .and. &
+          (abs(sz0%x - w%sc%viewuv0(1)) > 1e-6_c_float .or. abs(sz0%y - w%sc%viewuv0(2)) > 1e-6_c_float)) &
+          w%forcerender = .true.
+       w%sc%viewuv0 = (/sz0%x,sz0%y/)
+    end if
 
     !!! The camratio is used for resetting the camera. The problem with this
     !!! is that in the first render the window dimensions are still changing
