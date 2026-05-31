@@ -160,7 +160,7 @@ contains
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&
-       iw_highlight_selectable, iw_dragfloat_real8, iw_inputtext
+       iw_highlight_selectable, iw_dragfloat_real8, iw_inputtext, iw_inputint
     use param, only: atmcov, atmvdw, newline, jmlcol, jmlcol2, bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -278,10 +278,7 @@ contains
                 call igSameLine(0._c_float,0._c_float)
                 if (iw_button("-##aaxis")) w%rep%ncell(1) = max(w%rep%ncell(1)-1,1)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                str2 = "##aaxis" // c_null_char
-                call igPushItemWidth(iw_calcwidth(ipad,1))
-                ldum = igInputInt(c_loc(str2),w%rep%ncell(1),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
-                call igPopItemWidth()
+                ldum = iw_inputint("##aaxis",w%rep%ncell(1),width=ipad,acceptonenter=.true.)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
                 if (iw_button("+##aaxis")) w%rep%ncell(1) = w%rep%ncell(1)+1
 
@@ -290,10 +287,7 @@ contains
                 call igSameLine(0._c_float,0._c_float)
                 if (iw_button("-##baxis")) w%rep%ncell(2) = max(w%rep%ncell(2)-1,1)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                str2 = "##baxis" // c_null_char
-                call igPushItemWidth(iw_calcwidth(ipad,1))
-                ldum = igInputInt(c_loc(str2),w%rep%ncell(2),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
-                call igPopItemWidth()
+                ldum = iw_inputint("##baxis",w%rep%ncell(2),width=ipad,acceptonenter=.true.)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
                 if (iw_button("+##baxis")) w%rep%ncell(2) = w%rep%ncell(2)+1
 
@@ -302,10 +296,7 @@ contains
                 call igSameLine(0._c_float,0._c_float)
                 if (iw_button("-##caxis")) w%rep%ncell(3) = max(w%rep%ncell(3)-1,1)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                str2 = "##caxis" // c_null_char
-                call igPushItemWidth(iw_calcwidth(ipad,1))
-                ldum = igInputInt(c_loc(str2),w%rep%ncell(3),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
-                call igPopItemWidth()
+                ldum = iw_inputint("##caxis",w%rep%ncell(3),width=ipad,acceptonenter=.true.)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
                 if (iw_button("+##caxis")) w%rep%ncell(3) = w%rep%ncell(3)+1
                 w%rep%ncell = max(w%rep%ncell,1)
@@ -893,7 +884,7 @@ contains
   module function draw_editrep_unitcell(w,ttshown) result(changed)
     use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_radiobutton, iw_button,&
-       iw_clamp_color3, iw_checkbox, iw_coloredit, iw_dragfloat_real8
+       iw_clamp_color3, iw_checkbox, iw_coloredit, iw_dragfloat_real8, iw_inputint
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
@@ -933,10 +924,7 @@ contains
        call igSameLine(0._c_float,0._c_float)
        if (iw_button("-##aaxis")) w%rep%ncell(1) = max(w%rep%ncell(1)-1,1)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       str2 = "##aaxis" // c_null_char
-       call igPushItemWidth(iw_calcwidth(ipad,1))
-       ldum = igInputInt(c_loc(str2),w%rep%ncell(1),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
-       call igPopItemWidth()
+       ldum = iw_inputint("##aaxis",w%rep%ncell(1),width=ipad,acceptonenter=.true.)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
        if (iw_button("+##aaxis")) w%rep%ncell(1) = w%rep%ncell(1)+1
 
@@ -945,10 +933,7 @@ contains
        call igSameLine(0._c_float,0._c_float)
        if (iw_button("-##baxis")) w%rep%ncell(2) = max(w%rep%ncell(2)-1,1)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       str2 = "##baxis" // c_null_char
-       call igPushItemWidth(iw_calcwidth(ipad,1))
-       ldum = igInputInt(c_loc(str2),w%rep%ncell(2),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
-       call igPopItemWidth()
+       ldum = iw_inputint("##baxis",w%rep%ncell(2),width=ipad,acceptonenter=.true.)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
        if (iw_button("+##baxis")) w%rep%ncell(2) = w%rep%ncell(2)+1
 
@@ -957,10 +942,7 @@ contains
        call igSameLine(0._c_float,0._c_float)
        if (iw_button("-##caxis")) w%rep%ncell(3) = max(w%rep%ncell(3)-1,1)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       str2 = "##caxis" // c_null_char
-       call igPushItemWidth(iw_calcwidth(ipad,1))
-       ldum = igInputInt(c_loc(str2),w%rep%ncell(3),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
-       call igPopItemWidth()
+       ldum = iw_inputint("##caxis",w%rep%ncell(3),width=ipad,acceptonenter=.true.)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
        if (iw_button("+##caxis")) w%rep%ncell(3) = w%rep%ncell(3)+1
        w%rep%ncell = max(w%rep%ncell,1)
