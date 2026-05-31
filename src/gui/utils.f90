@@ -152,7 +152,7 @@ module utils
        logical, intent(in), optional :: sameline
        logical :: iw_radiobutton
      end function iw_radiobutton
-     module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,entertrue)
+     module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,entertrue,tooltip)
        character(len=*,kind=c_char), intent(in) :: str
        integer(c_int), intent(inout) :: ival
        character(len=*,kind=c_char), intent(in), optional :: label
@@ -160,6 +160,7 @@ module utils
        integer, intent(in), optional :: ndigit
        logical, intent(in), optional :: sameline
        logical, intent(in), optional :: entertrue
+       character(len=*,kind=c_char), intent(in), optional :: tooltip
        logical :: iw_intstepper
      end function iw_intstepper
      module function iw_checkbox(str,bool,sameline,highlight)

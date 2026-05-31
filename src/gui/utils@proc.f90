@@ -656,9 +656,10 @@ contains
   !> the number of digits (ndigit, or computed from ival if absent). The
   !> value is clamped to [minval,maxval] (whichever is present). sameline
   !> draws the widget in the same line as the previous one. If entertrue
-  !> is present and true, the input commits only on Enter. Returns
-  !> .true. if the value changed.
-  module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,entertrue)
+  !> is present and true, the input commits only on Enter. If tooltip is
+  !> present, it is shown when hovering over the input field or either
+  !> button. Returns .true. if the value changed.
+  module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,entertrue,tooltip)
     use interfaces_cimgui
     use gui_main, only: g
     character(len=*,kind=c_char), intent(in) :: str
@@ -668,12 +669,14 @@ contains
     integer, intent(in), optional :: ndigit
     logical, intent(in), optional :: sameline
     logical, intent(in), optional :: entertrue
+    character(len=*,kind=c_char), intent(in), optional :: tooltip
     logical :: iw_intstepper
 
     character(len=:,kind=c_char), allocatable, target :: str1
     logical :: sameline_, ldum
     integer :: nd
     integer(c_int) :: flags, old
+    logical, save :: ttshown = .false.
 
     old = ival
     sameline_ = .false.
@@ -703,13 +706,16 @@ contains
     ! "-" button / input field / "+" button (buttons auto-repeat when held)
     call igPushButtonRepeat(.true._c_bool)
     if (iw_button("-##" // str)) ival = ival - 1
+    if (present(tooltip)) call iw_tooltip(tooltip,ttshown)
     call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
     str1 = "##" // str // c_null_char
     call igPushItemWidth(iw_calcwidth(nd,1))
     ldum = igInputInt(c_loc(str1),ival,-1_c_int,-100_c_int,flags)
     call igPopItemWidth()
+    if (present(tooltip)) call iw_tooltip(tooltip,ttshown)
     call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
     if (iw_button("+##" // str)) ival = ival + 1
+    if (present(tooltip)) call iw_tooltip(tooltip,ttshown)
     call igPopButtonRepeat()
 
     ! clamp and report change

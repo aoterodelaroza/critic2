@@ -211,7 +211,7 @@ contains
        end do
        call igEndCombo()
     end if
-    call iw_tooltip("Recalculate the bonds in this system",ttshown)
+    call iw_tooltip("View and edit the geometry in this system",ttshown)
 
     !! line of global buttons
     ! restore, only if system is independent or master
@@ -887,10 +887,9 @@ contains
                 call iw_text("na/nb/nc: ")
                 do jm = 1, 3
                    ldum = iw_intstepper("cellnrep" // string(jm),w%geometry_cell_nrep(jm),&
-                      minval=1_c_int,sameline=.true.)
+                      minval=1_c_int,sameline=.true.,&
+                      tooltip="Number of times the cell is repeated along the a, b, and c lattice vectors")
                 end do
-                call iw_tooltip("Number of times the cell is repeated along the a, b, and c&
-                   & lattice vectors",ttshown)
 
                 if (iw_button("Reset##cellresettransf",sameline=.true.)) then
                    if (w%geometry_cell_simple) then
@@ -951,7 +950,8 @@ contains
              call iw_text("Nice supercells",highlight=.true.)
              call iw_tooltip("Search for the most cube-like supercells up to the given size&
                 & (number of times the current cell). Click a row to transform to that supercell.",ttshown)
-             ldum = iw_intstepper("cellnicesize",w%geometry_cell_inice,label="Max. size",minval=1_c_int)
+             ldum = iw_intstepper("cellnicesize",w%geometry_cell_inice,label="Max. size",minval=1_c_int,&
+                tooltip="Maximum supercell size (number of times the current cell) to consider in the search")
              if (iw_button("Search##cellnicesearch",sameline=.true.)) then
                 w%geometry_cell_inice = max(w%geometry_cell_inice,1_c_int)
                 call sysc(isys)%cell_nice_list(int(w%geometry_cell_inice),&

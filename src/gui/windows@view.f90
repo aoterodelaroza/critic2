@@ -285,9 +285,12 @@ contains
 
              ! number of cells in each direction (shared digit width)
              nc = w%sc%nc
-             ldum = iw_intstepper("aaxis",nc(1),label="a:",minval=1_c_int,entertrue=.true.)
-             ldum = iw_intstepper("baxis",nc(2),label="b:",minval=1_c_int,sameline=.true.,entertrue=.true.)
-             ldum = iw_intstepper("caxis",nc(3),label="c:",minval=1_c_int,sameline=.true.,entertrue=.true.)
+             ldum = iw_intstepper("aaxis",nc(1),label="a:",minval=1_c_int,entertrue=.true.,&
+                tooltip="Number of cells represented along the a crystallographic axis")
+             ldum = iw_intstepper("baxis",nc(2),label="b:",minval=1_c_int,sameline=.true.,entertrue=.true.,&
+                tooltip="Number of cells represented along the b crystallographic axis")
+             ldum = iw_intstepper("caxis",nc(3),label="c:",minval=1_c_int,sameline=.true.,entertrue=.true.,&
+                tooltip="Number of cells represented along the c crystallographic axis")
              if (any(nc /= w%sc%nc)) then
                 w%sc%nc = nc
                 chbuild = .true.
