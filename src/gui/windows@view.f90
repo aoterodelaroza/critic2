@@ -44,7 +44,7 @@ submodule (windows) view
   ! manipulates the camera the scene is rendered at interactive_texture_side to
   ! keep interaction fast regardless of window size.
   integer(c_int), parameter :: min_texture_side = 1024_c_int
-  integer(c_int), parameter :: max_texture_side = 2048_c_int
+  integer(c_int), parameter :: max_texture_side = 4096_c_int
   integer(c_int), parameter :: interactive_texture_side = 1024_c_int
   integer(c_int), parameter :: texture_side_bucket = 256_c_int
 
@@ -775,8 +775,10 @@ contains
 
     ! during interactive low-res rendering the scene is rasterized into the
     ! lower-left rscale-fraction of the texture, so sample only that sub-region.
-    sz0%x = rscale * sz0%x ; sz0%y = rscale * sz0%y
-    sz1%x = rscale * sz1%x ; sz1%y = rscale * sz1%y
+    sz0%x = rscale * sz0%x
+    sz0%y = rscale * sz0%y
+    sz1%x = rscale * sz1%x
+    sz1%y = rscale * sz1%y
 
     !!! The camratio is used for resetting the camera. The problem with this
     !!! is that in the first render the window dimensions are still changing
