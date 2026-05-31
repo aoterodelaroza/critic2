@@ -3371,7 +3371,8 @@ contains
           end if
           if (nat > 0) then
              ! transform
-             call s%c%edit_atom_list(nat,iat(1:nat),remove=.true.)
+             call s%c%edit_atom_list(nat,iat(1:nat),remove=.true.,errmsg=errmsg)
+             if (len_trim(errmsg) > 0) goto 999
              changed = .true.
           end if
        elseif (equal(word,"move")) then
@@ -3507,7 +3508,7 @@ contains
     character*(*), intent(in) :: line
     logical, intent(in) :: verbose
 
-    character(len=:), allocatable :: word
+    character(len=:), allocatable :: word, errmsg
     logical :: ok, doprim, doforce, donice, changed
     integer :: lp, lp2, dotyp, i, j, k, inice
     real*8 :: x0(3,3), t0(3), rdum(4)
@@ -3589,14 +3590,15 @@ contains
     ! process the cell transformation
     t0 = 0d0
     x0 = 0d0
+    errmsg = ""
     if (dotyp == 1) then
-       x0 = s%c%cell_standard(doprim,doforce,dorefine)
+       x0 = s%c%cell_standard(doprim,doforce,dorefine,errmsg=errmsg)
        changed = any(abs(x0) > 1d-5)
     elseif (dotyp == 2) then
-       x0 = s%c%cell_niggli()
+       x0 = s%c%cell_niggli(errmsg=errmsg)
        changed = any(abs(x0) > 1d-5)
     elseif (dotyp == 3) then
-       x0 = s%c%cell_delaunay()
+       x0 = s%c%cell_delaunay(errmsg=errmsg)
        changed = any(abs(x0) > 1d-5)
     else
        ! read the vectors from the input
@@ -3652,8 +3654,14 @@ contains
        if (doinv) call matinv(x0,3)
 
        ! transform to the new crystal
-       call s%c%newcell(x0,t0)
+       call s%c%newcell(x0,t0,errmsg=errmsg)
        changed = .true.
+    end if
+
+    ! report any error from the cell transformation
+    if (len_trim(errmsg) > 0) then
+       call ferror("struct_newcell",errmsg,faterr,line,syntax=.true.)
+       return
     end if
 
     if (changed) then

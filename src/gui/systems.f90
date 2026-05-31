@@ -214,14 +214,16 @@ module systems
        integer, intent(in), optional :: idx(:)
        integer, intent(in), optional :: type
      end subroutine highlight_clear
-     module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate)
+     module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate,errmsg)
        class(sysconf), intent(inout) :: sysc
        logical, intent(in), optional :: remove, merge, duplicate
+       character(len=:), allocatable, intent(inout), optional :: errmsg
      end subroutine edit_highlighted_atoms
-     module subroutine edit_highlighted_species(sysc,selected,remove,merge,duplicate)
+     module subroutine edit_highlighted_species(sysc,selected,remove,merge,duplicate,errmsg)
        class(sysconf), intent(inout) :: sysc
        logical, intent(in) :: selected(:)
        logical, intent(in), optional :: remove, merge, duplicate
+       character(len=:), allocatable, intent(inout), optional :: errmsg
      end subroutine edit_highlighted_species
      module function attype_combo_simple(sysc,label,type,allowed,units)
        class(sysconf), intent(inout) :: sysc
@@ -333,15 +335,17 @@ module systems
        real*8, intent(in) :: aa(3), bb(3)
        logical, intent(in) :: forcewyc
      end subroutine move_cell
-     module subroutine transform_cell(sysc,mode,refine)
+     module subroutine transform_cell(sysc,mode,refine,errmsg)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: mode
        logical, intent(in) :: refine
+       character(len=:), allocatable, intent(inout), optional :: errmsg
      end subroutine transform_cell
-     module subroutine transform_cell_matrix(sysc,x0,t0,doinv)
+     module subroutine transform_cell_matrix(sysc,x0,t0,doinv,errmsg)
        class(sysconf), intent(inout) :: sysc
        real*8, intent(in) :: x0(3,3), t0(3)
        logical, intent(in) :: doinv
+       character(len=:), allocatable, intent(inout), optional :: errmsg
      end subroutine transform_cell_matrix
      module subroutine cell_nice_list(sysc,inice,rmax,mmax)
        class(sysconf), intent(inout) :: sysc

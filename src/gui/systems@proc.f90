@@ -561,6 +561,16 @@ contains
 
   end function ok_system
 
+  !> Return .true. if the (optional) errmsg is present and non-empty.
+  function has_errmsg(errmsg)
+    character(len=:), allocatable, intent(in), optional :: errmsg
+    logical :: has_errmsg
+
+    has_errmsg = .false.
+    if (present(errmsg)) has_errmsg = (len_trim(errmsg) > 0)
+
+  end function has_errmsg
+
   !> Set the time for last change at level level. If keepfields is
   !> present and true, do not reset the associated fields.
   module subroutine post_event(sysc,level,keepfields)
@@ -754,12 +764,15 @@ contains
   end subroutine highlight_clear
 
   !> Remove, merge or duplicate the highlighted atoms in the system.
-  module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate)
+  module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate,errmsg)
     class(sysconf), intent(inout) :: sysc
     logical, intent(in), optional :: remove, merge, duplicate
+    character(len=:), allocatable, intent(inout), optional :: errmsg
 
     integer :: i, nat, id
     integer, allocatable :: iat(:)
+
+    if (present(errmsg)) errmsg = ""
 
     ! consistency checks
     id = sysc%id
@@ -779,7 +792,8 @@ contains
     if (nat == 0) return
 
     ! remove/merge/duplicate the atoms
-    call sys(id)%c%edit_atom_list(nat,iat(1:nat),remove,merge,duplicate)
+    call sys(id)%c%edit_atom_list(nat,iat(1:nat),remove,merge,duplicate,errmsg=errmsg)
+    if (has_errmsg(errmsg)) return
 
     ! the geometry has changed
     call sysc%post_event(lastchange_geometry)
@@ -787,19 +801,22 @@ contains
   end subroutine edit_highlighted_atoms
 
   !> Remove, merge or duplicate the highlighted species in the system.
-  module subroutine edit_highlighted_species(sysc,selected,remove,merge,duplicate)
+  module subroutine edit_highlighted_species(sysc,selected,remove,merge,duplicate,errmsg)
     use crystalseedmod, only: crystalseed
     use tools_io, only: ferror, faterr
     use types, only: species
     class(sysconf), intent(inout) :: sysc
     logical, intent(in) :: selected(:)
     logical, intent(in), optional :: remove, merge, duplicate
+    character(len=:), allocatable, intent(inout), optional :: errmsg
 
     type(crystalseed) :: seed
     integer :: i, nat, id, ipres, nspc
     integer, allocatable :: iat(:), map(:)
     logical :: remove_, merge_, duplicate_
     type(species), allocatable :: spc(:)
+
+    if (present(errmsg)) errmsg = ""
 
     ! check input options
     remove_ = .false.
@@ -819,8 +836,14 @@ contains
        if (duplicate_) ipres = ipres + 1
     end if
     if (ipres == 0) return
-    if (ipres > 1) &
-       call ferror('edit_atom_list','more than one of merge/remove/duplicate',faterr)
+    if (ipres > 1) then
+       if (present(errmsg)) then
+          errmsg = 'more than one of merge/remove/duplicate'
+          return
+       else
+          call ferror('edit_highlighted_species','more than one of merge/remove/duplicate',faterr)
+       end if
+    end if
 
     ! consistency checks
     id = sysc%id
@@ -840,7 +863,8 @@ contains
 
        ! remove/merge/duplicate the atoms
        if (nat > 0) then
-          call sys(id)%c%edit_atom_list(nat,iat(1:nat),remove,merge,duplicate)
+          call sys(id)%c%edit_atom_list(nat,iat(1:nat),remove,merge,duplicate,errmsg=errmsg)
+          if (has_errmsg(errmsg)) return
        end if
     end if
 
@@ -884,7 +908,13 @@ contains
        end do
 
        ! build the new crystal
-       call sys(id)%c%struct_new(seed,crashfail=.true.)
+       call sys(id)%c%struct_new(seed,crashfail=.not.present(errmsg))
+       if (present(errmsg)) then
+          if (.not.sys(id)%c%isinit) then
+             errmsg = "Could not rebuild the structure after editing the species"
+             return
+          end if
+       end if
     end if
 
     ! the geometry has changed
@@ -1744,13 +1774,16 @@ contains
   !> of the celltransform_* constants (standard, primitive, primstd,
   !> niggli, delaunay). refine applies only to the standardized cells and
   !> refines the atomic positions to their ideal symmetric locations.
-  module subroutine transform_cell(sysc,mode,refine)
+  module subroutine transform_cell(sysc,mode,refine,errmsg)
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: mode
     logical, intent(in) :: refine
+    character(len=:), allocatable, intent(inout), optional :: errmsg
 
     integer :: isys
     real*8 :: x0(3,3)
+
+    if (present(errmsg)) errmsg = ""
 
     ! consistency checks
     isys = sysc%id
@@ -1761,20 +1794,21 @@ contains
     x0 = 0d0
     select case (mode)
     case (celltransform_standard)
-       x0 = sys(isys)%c%cell_standard(.false.,.false.,refine)
+       x0 = sys(isys)%c%cell_standard(.false.,.false.,refine,errmsg=errmsg)
     case (celltransform_primitive)
-       x0 = sys(isys)%c%cell_standard(.true.,.false.,refine)
+       x0 = sys(isys)%c%cell_standard(.true.,.false.,refine,errmsg=errmsg)
     case (celltransform_primstd)
-       x0 = sys(isys)%c%cell_standard(.true.,.true.,refine)
+       x0 = sys(isys)%c%cell_standard(.true.,.true.,refine,errmsg=errmsg)
     case (celltransform_niggli)
-       x0 = sys(isys)%c%cell_standard(.true.,.true.,.false.)
-       x0 = sys(isys)%c%cell_niggli()
+       x0 = sys(isys)%c%cell_standard(.true.,.true.,.false.,errmsg=errmsg)
+       if (.not.has_errmsg(errmsg)) x0 = sys(isys)%c%cell_niggli(errmsg=errmsg)
     case (celltransform_delaunay)
-       x0 = sys(isys)%c%cell_standard(.true.,.true.,.false.)
-       x0 = sys(isys)%c%cell_delaunay()
+       x0 = sys(isys)%c%cell_standard(.true.,.true.,.false.,errmsg=errmsg)
+       if (.not.has_errmsg(errmsg)) x0 = sys(isys)%c%cell_delaunay(errmsg=errmsg)
     case default
        return
     end select
+    if (has_errmsg(errmsg)) return
 
     ! the geometry has changed (only if the cell actually changed)
     if (any(abs(x0) > 1d-5)) &
@@ -1786,14 +1820,17 @@ contains
   !> x0 (lattice vectors of the new cell in the old setting, crystallographic
   !> coordinates) and origin shift t0 (fractional). If doinv, use the inverse
   !> of x0 as the transformation matrix.
-  module subroutine transform_cell_matrix(sysc,x0,t0,doinv)
+  module subroutine transform_cell_matrix(sysc,x0,t0,doinv,errmsg)
     use tools_math, only: matinv
     class(sysconf), intent(inout) :: sysc
     real*8, intent(in) :: x0(3,3), t0(3)
     logical, intent(in) :: doinv
+    character(len=:), allocatable, intent(inout), optional :: errmsg
 
     integer :: isys
     real*8 :: x0_(3,3)
+
+    if (present(errmsg)) errmsg = ""
 
     ! consistency checks
     isys = sysc%id
@@ -1804,7 +1841,8 @@ contains
     if (doinv) call matinv(x0_,3)
 
     ! apply the transformation
-    call sys(isys)%c%newcell(x0_,t0)
+    call sys(isys)%c%newcell(x0_,t0,errmsg=errmsg)
+    if (has_errmsg(errmsg)) return
 
     ! the geometry has changed
     call sysc%post_event(lastchange_geometry)

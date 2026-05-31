@@ -1092,6 +1092,11 @@ contains
 
        call igEndTabBar()
     end if
+
+    ! error message from the last edit action
+    if (len_trim(w%errmsg) > 0) &
+       call iw_text(w%errmsg,danger=.true.)
+
     call igEndGroup()
 
     ! hover highlight
@@ -1152,7 +1157,8 @@ contains
     if (doquit) &
        call w%end()
 
-    ! process events at the end
+    ! process events at the end; clear any previous error when a new action runs
+    if (iaction /= -1 .or. dorestore) w%errmsg = ""
     if (dorestore) &
        call sysc(isys)%reread_geometry_from_file()
     if (iaction == iaction_set_attype_name) then
@@ -1173,10 +1179,10 @@ contains
     elseif (iaction == iaction_edit_highlighted) then
        if (w%geometry_atomtype == atlisttype_species) then
           call sysc(isys)%edit_highlighted_species(w%geometry_selected,remove=(iaction_i1==edit_remove),&
-             merge=(iaction_i1==edit_merge),duplicate=(iaction_i1==edit_duplicate))
+             merge=(iaction_i1==edit_merge),duplicate=(iaction_i1==edit_duplicate),errmsg=w%errmsg)
        else
           call sysc(isys)%edit_highlighted_atoms(remove=(iaction_i1==edit_remove),&
-             merge=(iaction_i1==edit_merge),duplicate=(iaction_i1==edit_duplicate))
+             merge=(iaction_i1==edit_merge),duplicate=(iaction_i1==edit_duplicate),errmsg=w%errmsg)
        end if
     elseif (iaction == iaction_reorder_highlighted) then
        call sysc(isys)%attype_reorder(w%geometry_atomtype,w%iord)
@@ -1185,11 +1191,11 @@ contains
     elseif (iaction == iaction_change_cell) then
        call sysc(isys)%move_cell(iaction_x6(1:3),iaction_x6(4:6),iaction_l)
     elseif (iaction == iaction_transform_cell) then
-       call sysc(isys)%transform_cell(iaction_i1,iaction_l)
+       call sysc(isys)%transform_cell(iaction_i1,iaction_l,errmsg=w%errmsg)
        if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
        if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
     elseif (iaction == iaction_transform_matrix) then
-       call sysc(isys)%transform_cell_matrix(iaction_m,iaction_x,iaction_l)
+       call sysc(isys)%transform_cell_matrix(iaction_m,iaction_x,iaction_l,errmsg=w%errmsg)
        if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
        if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
     end if
