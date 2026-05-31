@@ -66,7 +66,7 @@ contains
     use global, only: dunit0, iunit_ang
     use systems, only: sysc, sys, sys_init, nsys, ok_system, are_threads_running
     use gui_main, only: g, fontsize, lockbehavior, tree_select_updates_view
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_intstepper
     use tools_io, only: string
     use param, only: newline
     class(window), intent(inout), target :: w
@@ -82,7 +82,7 @@ contains
     integer :: islabels
     logical(c_bool) :: ch
     integer(c_int) :: flags, nc(3), ires, viewtype, idum
-    real(c_float) :: scal, width, sqw, depth, rgba(4)
+    real(c_float) :: scal, width, depth, rgba(4)
     real*8 :: x0(3), time
     type(ImVec2) :: sz
     logical :: changedisplay(4) ! 1=atoms, 2=bonds, 3=labels, 4=cell
@@ -283,55 +283,16 @@ contains
              end if
              call iw_tooltip("Reset the number of cells to one",ttshown)
 
-             ! number of cells in each direction
-             ! calculate widths
-             ipad = ceiling(log10(max(maxval(w%sc%nc),1) + 0.1))
-             sqw = max(iw_calcwidth(1,1),igGetTextLineHeightWithSpacing())
-             call igPushItemWidth(sqw)
-
+             ! number of cells in each direction (shared digit width)
              nc = w%sc%nc
-             call igAlignTextToFramePadding()
-             call iw_text("a:")
-             call igSameLine(0._c_float,0._c_float)
-             if (iw_button("-##aaxis")) nc(1) = max(nc(1)-1,1)
-             call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-             str2 = "##aaxis" // c_null_char
-             call igPushItemWidth(iw_calcwidth(ipad,1))
-             ldum = igInputInt(c_loc(str2),nc(1),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
-             call igPopItemWidth()
-             call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-             if (iw_button("+##aaxis")) nc(1) = nc(1)+1
-
-             call igSameLine(0._c_float,-1._c_float)
-             call iw_text("b:")
-             call igSameLine(0._c_float,0._c_float)
-             if (iw_button("-##baxis")) nc(2) = max(nc(2)-1,1)
-             call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-             str2 = "##baxis" // c_null_char
-             call igPushItemWidth(iw_calcwidth(ipad,1))
-             ldum = igInputInt(c_loc(str2),nc(2),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
-             call igPopItemWidth()
-             call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-             if (iw_button("+##baxis")) nc(2) = nc(2)+1
-
-             call igSameLine(0._c_float,-1._c_float)
-             call iw_text("c:")
-             call igSameLine(0._c_float,0._c_float)
-             if (iw_button("-##caxis")) nc(3) = max(nc(3)-1,1)
-             call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-             str2 = "##caxis" // c_null_char
-             call igPushItemWidth(iw_calcwidth(ipad,1))
-             ldum = igInputInt(c_loc(str2),nc(3),-1_c_int,-100_c_int,ImGuiInputTextFlags_EnterReturnsTrue)
-             call igPopItemWidth()
-             call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-             if (iw_button("+##caxis")) nc(3) = nc(3)+1
-
-             nc = max(nc,1)
+             ipad = ceiling(log10(max(maxval(nc),1) + 0.1))
+             ldum = iw_intstepper("aaxis",nc(1),label="a:",minval=1_c_int,ndigit=ipad,entertrue=.true.)
+             ldum = iw_intstepper("baxis",nc(2),label="b:",minval=1_c_int,ndigit=ipad,sameline=.true.,entertrue=.true.)
+             ldum = iw_intstepper("caxis",nc(3),label="c:",minval=1_c_int,ndigit=ipad,sameline=.true.,entertrue=.true.)
              if (any(nc /= w%sc%nc)) then
                 w%sc%nc = nc
                 chbuild = .true.
              end if
-             call igPopItemWidth()
           end if
 
           ! camera position: align view axis

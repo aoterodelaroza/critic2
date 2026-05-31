@@ -36,6 +36,7 @@ module utils
   public :: iw_calcwidth
   public :: iw_combo_simple
   public :: iw_radiobutton
+  public :: iw_intstepper
   public :: iw_checkbox
   public :: iw_text
   public :: iw_button
@@ -151,6 +152,16 @@ module utils
        logical, intent(in), optional :: sameline
        logical :: iw_radiobutton
      end function iw_radiobutton
+     module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,entertrue)
+       character(len=*,kind=c_char), intent(in) :: str
+       integer(c_int), intent(inout) :: ival
+       character(len=*,kind=c_char), intent(in), optional :: label
+       integer(c_int), intent(in), optional :: minval, maxval
+       integer, intent(in), optional :: ndigit
+       logical, intent(in), optional :: sameline
+       logical, intent(in), optional :: entertrue
+       logical :: iw_intstepper
+     end function iw_intstepper
      module function iw_checkbox(str,bool,sameline,highlight)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(inout) :: bool

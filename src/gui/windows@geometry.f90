@@ -49,7 +49,7 @@ contains
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
-       iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton
+       iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper
     use types, only: realloc
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger
     use param, only: newline, bohrtoa, eye
@@ -954,12 +954,8 @@ contains
              call iw_text("Nice supercells",highlight=.true.)
              call iw_tooltip("Search for the most cube-like supercells up to the given size&
                 & (number of times the current cell). Click a row to transform to that supercell.",ttshown)
-             call igAlignTextToFramePadding()
-             call iw_text("Max. size")
-             call igSameLine(0._c_float,-1._c_float)
-             call igSetNextItemWidth(iw_calcwidth(6,1))
-             str2 = "##cellnicesize" // c_null_char
-             ldum = igInputInt(c_loc(str2),w%geometry_cell_inice,1_c_int,10_c_int,ImGuiInputTextFlags_None)
+             ldum = iw_intstepper("cellnicesize",w%geometry_cell_inice,label="Max. size",&
+                minval=1_c_int,entertrue=.true.)
              if (iw_button("Search##cellnicesearch",sameline=.true.)) then
                 w%geometry_cell_inice = max(w%geometry_cell_inice,1_c_int)
                 call sysc(isys)%cell_nice_list(int(w%geometry_cell_inice),&

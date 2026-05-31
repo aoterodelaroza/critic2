@@ -649,6 +649,74 @@ contains
 
   end function iw_radiobutton
 
+  !> Draw an integer stepper widget: an optional left label, a "-"
+  !> button (decrement by one), an integer input field, and a "+" button
+  !> (increment by one). ival is the value, modified in place. The
+  !> built-in input steppers are suppressed; the field width is sized to
+  !> the number of digits (ndigit, or computed from ival if absent). The
+  !> value is clamped to [minval,maxval] (whichever is present). sameline
+  !> draws the widget in the same line as the previous one. If entertrue
+  !> is present and true, the input commits only on Enter. Returns
+  !> .true. if the value changed.
+  module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,entertrue)
+    use interfaces_cimgui
+    use gui_main, only: g
+    character(len=*,kind=c_char), intent(in) :: str
+    integer(c_int), intent(inout) :: ival
+    character(len=*,kind=c_char), intent(in), optional :: label
+    integer(c_int), intent(in), optional :: minval, maxval
+    integer, intent(in), optional :: ndigit
+    logical, intent(in), optional :: sameline
+    logical, intent(in), optional :: entertrue
+    logical :: iw_intstepper
+
+    character(len=:,kind=c_char), allocatable, target :: str1
+    logical :: sameline_, ldum
+    integer :: nd
+    integer(c_int) :: flags, old
+
+    old = ival
+    sameline_ = .false.
+    if (present(sameline)) sameline_ = sameline
+
+    ! field width (number of digits)
+    if (present(ndigit)) then
+       nd = ndigit
+    else
+       nd = ceiling(log10(max(ival,1_c_int) + 0.1))
+    end if
+
+    ! commit-on-enter flag
+    flags = 0_c_int
+    if (present(entertrue)) then
+       if (entertrue) flags = ImGuiInputTextFlags_EnterReturnsTrue
+    end if
+
+    ! optional left label (tight against the "-" button)
+    if (sameline_) call igSameLine(0._c_float,-1._c_float)
+    if (present(label)) then
+       call igAlignTextToFramePadding()
+       call iw_text(label)
+       call igSameLine(0._c_float,0._c_float)
+    end if
+
+    ! "-" button / input field / "+" button
+    if (iw_button("-##" // str)) ival = ival - 1
+    call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+    str1 = "##" // str // c_null_char
+    call igPushItemWidth(iw_calcwidth(nd,1))
+    ldum = igInputInt(c_loc(str1),ival,-1_c_int,-100_c_int,flags)
+    call igPopItemWidth()
+    call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
+    if (iw_button("+##" // str)) ival = ival + 1
+
+    ! clamp and report change
+    if (present(minval)) ival = max(ival,minval)
+    if (present(maxval)) ival = min(ival,maxval)
+    iw_intstepper = (ival /= old)
+
+  end function iw_intstepper
+
   !> Draw a checkbox with title str. The value of the checkbox is
   !> associated with bool. sameline = draw it in the same line as the
   !> previous widget.
