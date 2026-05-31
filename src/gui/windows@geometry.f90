@@ -49,7 +49,7 @@ contains
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
-       iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper
+       iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper, iw_inputint
     use types, only: realloc
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger
     use param, only: newline, bohrtoa
@@ -936,11 +936,8 @@ contains
                       call iw_text("c' ")
                    end if
                    do jm = 1, 3
-                      call igSameLine(0._c_float,-1._c_float)
-                      call igSetNextItemWidth(iw_calcwidth(3,1))
-                      str2 = "##cellmat" // string(im) // string(jm) // c_null_char
-                      ch = ch .or. logical(igInputInt(c_loc(str2),w%geometry_cell_intmat(jm,im),0_c_int,0_c_int,&
-                         ImGuiInputTextFlags_EnterReturnsTrue))
+                      ch = ch .or. iw_inputint("##cellmat" // string(im) // string(jm),&
+                         w%geometry_cell_intmat(jm,im),width=3,sameline=.true.,acceptonenter=.true.)
                    end do
                    if (sys(isys)%c%ncv > 1) then
                       call iw_text(" + ",sameline=.true.)

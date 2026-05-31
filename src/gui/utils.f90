@@ -28,6 +28,7 @@ module utils
   public :: iw_inputtext
   public :: iw_dragfloat_realc
   public :: iw_dragfloat_real8
+  public :: iw_inputint
   public :: iw_clamp_color3
   public :: iw_clamp_color4
   public :: iw_coloredit
@@ -44,6 +45,7 @@ module utils
   public :: iw_tooltip
   public :: iw_helpermark
   public :: iw_highlight_selectable
+  public :: iw_item_committed
   public :: igIsItemHovered_delayed
   public :: get_time_string
   public :: buffer_to_string_array
@@ -105,6 +107,15 @@ module utils
        integer(c_int), intent(in), optional :: flags
        logical :: iw_dragfloat_real8
      end function iw_dragfloat_real8
+     module function iw_inputint(str,ival,step,step_fast,width,sameline,acceptonenter)
+       character(len=*,kind=c_char), intent(in) :: str
+       integer(c_int), intent(inout) :: ival
+       integer(c_int), intent(in), optional :: step, step_fast
+       integer, intent(in), optional :: width
+       logical, intent(in), optional :: sameline
+       logical, intent(in), optional :: acceptonenter
+       logical :: iw_inputint
+     end function iw_inputint
      module subroutine iw_clamp_color3(rgb)
        real(c_float), intent(inout) :: rgb(3)
      end subroutine iw_clamp_color3
@@ -220,6 +231,9 @@ module utils
        logical, intent(out), optional :: clicked
        logical :: iw_highlight_selectable
      end function iw_highlight_selectable
+     module function iw_item_committed()
+       logical :: iw_item_committed
+     end function iw_item_committed
      module function igIsItemHovered_delayed(flags,thr,already_shown)
        integer(c_int), value :: flags
        real(c_float), intent(in) :: thr
