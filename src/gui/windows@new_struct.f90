@@ -32,7 +32,7 @@ contains
     use gui_main, only: g
     use systems, only: add_systems_from_seeds, launch_initialization_thread,&
        system_shorten_names
-    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_helpermark, iw_button, iw_text, iw_calcheight,&
        iw_calcwidth, buffer_to_string_array, iw_radiobutton, iw_combo_simple, iw_checkbox,&
        iw_inputtext
     use crystalseedmod, only: crystalseed, realloc_crystalseed
@@ -168,8 +168,7 @@ contains
 
     ! atomic positions: header
     call iw_text("Atomic positions",highlight=.true.) ! molecule
-    call iw_text("(?)",sameline=.true.)
-    call iw_tooltip("Give the atomic positions for this system as:" // newline //&
+    call iw_helpermark("Give the atomic positions for this system as:" // newline //&
        "  <Sy> <x> <y> <z>" // newline //&
        "where Sy is the atomic symbol and x,y,z are the atomic coordinates.")
 

@@ -990,6 +990,22 @@ contains
     end subroutine show_tooltip
   end subroutine iw_tooltip
 
+  !> Draw a "(?)" help marker (in the same line as the previous widget
+  !> unless sameline is present and false) and attach the tooltip str to
+  !> it. The tooltip has no delay (it is shown without a ttshown timer).
+  module subroutine iw_helpermark(str,sameline)
+    character(len=*,kind=c_char), intent(in) :: str
+    logical, intent(in), optional :: sameline
+
+    logical :: sameline_
+
+    sameline_ = .true.
+    if (present(sameline)) sameline_ = sameline
+    call iw_text("(?)",sameline=sameline_)
+    call iw_tooltip(str)
+
+  end subroutine iw_helpermark
+
   !> Create a selectable that highlights the current row. Return true
   !> if the selectable is hovered. If clicked is present, return .true.
   !> if clicked.

@@ -42,6 +42,7 @@ module utils
   public :: iw_button
   public :: iw_menuitem
   public :: iw_tooltip
+  public :: iw_helpermark
   public :: iw_highlight_selectable
   public :: igIsItemHovered_delayed
   public :: get_time_string
@@ -209,6 +210,10 @@ module utils
        real(c_float), intent(in), optional :: rgba(4)
        logical, intent(in), optional :: nowrap
      end subroutine iw_tooltip
+     module subroutine iw_helpermark(str,sameline)
+       character(len=*,kind=c_char), intent(in) :: str
+       logical, intent(in), optional :: sameline
+     end subroutine iw_helpermark
      module function iw_highlight_selectable(str,clicked)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(out), optional :: clicked

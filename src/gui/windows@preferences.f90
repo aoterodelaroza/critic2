@@ -33,7 +33,7 @@ contains
     use systems, only: nsys, sysc
     use interfaces_cimgui
     use keybindings
-    use utils, only: iw_tooltip, iw_button, iw_text, iw_calcwidth, iw_clamp_color4,&
+    use utils, only: iw_tooltip, iw_helpermark, iw_button, iw_text, iw_calcwidth, iw_clamp_color4,&
        iw_checkbox, iw_coloredit, iw_dragfloat_realc
     use param, only: maxzat0
     class(window), intent(inout), target :: w
@@ -153,8 +153,7 @@ contains
           do igroup = 1, group_NUM
              call iw_text(trim(groupnames(igroup)),highlight=.true.)
              if (igroup == 1) then
-                call iw_text("(?)",sameline=.true.)
-                call iw_tooltip("Left click to assign a new binding. Right-click to toggle double click behavior&
+                call iw_helpermark("Left click to assign a new binding. Right-click to toggle double click behavior&
                    & (only for mouse input). Middle click to erase the binding.")
              end if
              call igSeparator()

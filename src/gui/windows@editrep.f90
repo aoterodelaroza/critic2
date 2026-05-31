@@ -158,7 +158,7 @@ contains
        atlisttype_nneq
     use gui_main, only: g, ColorHighlightScene, ColorElement
     use tools_io, only: string
-    use utils, only: iw_text, iw_tooltip, iw_combo_simple, iw_button, iw_calcwidth,&
+    use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&
        iw_highlight_selectable, iw_dragfloat_real8, iw_inputtext
     use param, only: atmcov, atmvdw, newline, jmlcol, jmlcol2, bohrtoa
@@ -216,8 +216,7 @@ contains
           ! filter
           call igAlignTextToFramePadding()
           call iw_text("Filter",highlight=.true.)
-          call iw_text("(?)",sameline=.true.)
-          call iw_tooltip("Show the atom if the filter expression evaluates to non-zero (true) at the atomic position. &
+          call iw_helpermark("Show the atom if the filter expression evaluates to non-zero (true) at the atomic position. &
              &Structural variables are very useful for filters. Examples:"//newline//&
              "- '@x < 3' = all atoms with x lower than 3"//newline//&
              "- 'log($0) > 1' = log of the promolecular density higher than 1"//newline//&

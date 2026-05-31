@@ -47,7 +47,7 @@ contains
        atlisttype_ncel_ang, celltransform_standard, celltransform_primitive,&
        celltransform_primstd, celltransform_niggli, celltransform_delaunay
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
-    use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
+    use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
        iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper
     use types, only: realloc
@@ -748,8 +748,7 @@ contains
           call iw_text("Expression",highlight=.true.)
 
           ! filter text input
-          call iw_text("(?)",sameline=.true.)
-          call iw_tooltip("Examples:"//newline//&
+          call iw_helpermark("Examples:"//newline//&
              "- '@dnuc:2' = distance to cell atom 2"//newline//&
              "- 'log($0)' = log of the promolecular density"//newline//&
              "- 'abs(@x) < 2 && abs(@y) < 2 && abs(@z) < 2' = atoms in the (-2,2) box"//newline//&
