@@ -37,7 +37,7 @@ submodule (windows) view
   integer, parameter :: ilock_middle = 4
 
   ! minimum time elapsed between consecutive queries of the pick buffer (seconds)
-  integer, parameter :: pick_interval = 1d0 / 5d0
+  real*8, parameter :: pick_interval = 1d0 / 10d0
 
   ! render-texture sizing (pixels). The texture is sized up to the view window
   ! (snapped to a bucket, capped) so the still image stays sharp; while the user
@@ -87,12 +87,12 @@ contains
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
-    logical :: isuc, islabelsl, hover_and_moved, enabled
+    logical :: isuc, islabelsl, hover_and_moved, enabled, ismeasure
     integer :: islabels
     logical :: ch
     integer(c_int) :: flags, nc(3), ires, viewtype, idum
     integer(c_int) :: newside, vside
-    real(c_float) :: scal, width, depth, rgba(4)
+    real(c_float) :: scal, width, rgba(4)
     real(c_float) :: rscale
     logical :: interacting
     real*8 :: x0(3), time
@@ -847,20 +847,24 @@ contains
     hover = goodsys .and. w%ilock == ilock_no
     if (hover) hover = igIsItemHovered(ImGuiHoveredFlags_None)
     hover_and_moved = .false.
+    ismeasure = .false.
     if (hover) then
        call igGetMousePos(pos)
        hover_and_moved = (abs(w%mousepos_lastframe%x-pos%x) > 1e-4.or.abs(w%mousepos_lastframe%y-pos%y) > 1e-4)
-       hover_and_moved = hover_and_moved.or.(w%view_mousebehavior == MB_Navigation.and.is_bind_event(BIND_NAV_MEASURE))
+       ismeasure = (w%view_mousebehavior == MB_Navigation.and.is_bind_event(BIND_NAV_MEASURE))
+       hover_and_moved = hover_and_moved.or.ismeasure
        w%mousepos_lastframe = pos
     end if
 
-    ! get the ID of the atom under mouse
+    ! get the ID of the atom under mouse. Throttle hover picking to pick_interval
+    ! (the glReadPixels in getpixel is a blocking GPU sync), but always pick
+    ! immediately on an explicit measure click so it does not get dropped.
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
-    if (hover_and_moved .and. w%timelast_view_getpixel + pick_interval < time) then
+    if ((hover_and_moved .and. w%timelast_view_getpixel + pick_interval < time) .or. ismeasure) then
        w%mousepos_idx = 0
        call w%mousepos_to_texpos(pos)
-       call w%getpixel(pos,depth,rgba)
+       call w%getpixel(pos,rgba=rgba)
 
        ! transform to atom cell ID and lattice vector
        w%mousepos_idx(1:4) = transfer(rgba,w%mousepos_idx(1:4))
