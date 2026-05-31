@@ -45,7 +45,6 @@ module utils
   public :: iw_tooltip
   public :: iw_helpermark
   public :: iw_highlight_selectable
-  public :: iw_item_committed
   public :: igIsItemHovered_delayed
   public :: get_time_string
   public :: buffer_to_string_array
@@ -231,9 +230,6 @@ module utils
        logical, intent(out), optional :: clicked
        logical :: iw_highlight_selectable
      end function iw_highlight_selectable
-     module function iw_item_committed()
-       logical :: iw_item_committed
-     end function iw_item_committed
      module function igIsItemHovered_delayed(flags,thr,already_shown)
        integer(c_int), value :: flags
        real(c_float), intent(in) :: thr

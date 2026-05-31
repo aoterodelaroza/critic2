@@ -20,6 +20,11 @@ submodule (utils) proc
   use iso_c_binding
   implicit none
 
+  ! deferred-commit state for iw_inputint(acceptonenter): the ImGui ID and in-progress
+  ! value of the integer input currently being edited (only one item is active at a time)
+  integer(c_int) :: inputint_editid = 0_c_int
+  integer(c_int) :: inputint_editbuf = 0_c_int
+
 contains
 
   !> Draw a periodic table and return the selected atomic number.
@@ -109,13 +114,17 @@ contains
     integer(c_int) :: flags_
     character(kind=c_char,len=:), allocatable, target :: label_, text_
     integer :: i, ll
-    logical :: sameline_
+    logical :: sameline_, wantcommit
 
     ! process input options
     flags_ = ImGuiInputTextFlags_None
     if (present(flags)) flags_ = flags
     sameline_ = .false.
     if (present(sameline)) sameline_ = sameline
+    ! commit-on-enter intent: strip EnterReturnsTrue before the call so the buffer is written
+    ! live (not discarded on Tab/click); the commit is detected with igIsItemDeactivatedAfterEdit
+    wantcommit = (iand(flags_,ImGuiInputTextFlags_EnterReturnsTrue) /= 0)
+    if (wantcommit) flags_ = iand(flags_,not(ImGuiInputTextFlags_EnterReturnsTrue))
 
     ! set up the call
     allocate(character(len=bufsize+1) :: text_)
@@ -155,9 +164,10 @@ contains
 
     ! call inputtext
     iw_inputtext = igInputText(c_loc(label_),c_loc(text_),int(bufsize,c_size_t),flags_,c_null_funptr,c_null_ptr)
-    ! with commit-on-enter, also commit when the user leaves the field by Tab or click-away
-    if (iand(flags_,ImGuiInputTextFlags_EnterReturnsTrue) /= 0) &
-       iw_inputtext = iw_inputtext .or. iw_item_committed()
+    ! with commit-on-enter, return .true. only when the value is committed (Enter, Tab, or
+    ! click-away); the live buffer (text_) is then copied out below
+    if (wantcommit) &
+       iw_inputtext = logical(igIsItemDeactivatedAfterEdit())
     if (iw_inputtext) then
        ll = index(text_,c_null_char)-1
        if (ll <= 0) ll = len(text_)
@@ -273,7 +283,7 @@ contains
        if (iw_dragfloat_realc .and. igIsItemActive()) &
           iw_dragfloat_realc = igIsMouseDragging(ImGuiMouseButton_Left,-1._c_float)
        ! also commit when the user leaves the field by Enter, Tab, or click-away
-       iw_dragfloat_realc = iw_dragfloat_realc .or. iw_item_committed()
+       iw_dragfloat_realc = iw_dragfloat_realc .or. logical(igIsItemDeactivatedAfterEdit())
     end if
 
   end function iw_dragfloat_realc
@@ -377,7 +387,7 @@ contains
        if (iw_dragfloat_real8 .and. igIsItemActive()) &
           iw_dragfloat_real8 = igIsMouseDragging(ImGuiMouseButton_Left,-1._c_float)
        ! also commit when the user leaves the field by Enter, Tab, or click-away
-       iw_dragfloat_real8 = iw_dragfloat_real8 .or. iw_item_committed()
+       iw_dragfloat_real8 = iw_dragfloat_real8 .or. logical(igIsItemDeactivatedAfterEdit())
     end if
 
   end function iw_dragfloat_real8
@@ -399,7 +409,7 @@ contains
     logical :: iw_inputint
 
     character(len=:,kind=c_char), allocatable, target :: str_
-    integer(c_int) :: flags_, step_, step_fast_
+    integer(c_int) :: flags_, step_, step_fast_, v, myid
     logical :: sameline_, acceptonenter_
 
     ! process options
@@ -413,7 +423,6 @@ contains
     flags_ = 0_c_int
     acceptonenter_ = .false.
     if (present(acceptonenter)) acceptonenter_ = acceptonenter
-    if (acceptonenter_) flags_ = ImGuiInputTextFlags_EnterReturnsTrue
 
     ! same line
     if (sameline_) &
@@ -423,15 +432,34 @@ contains
     if (present(width)) &
        call igPushItemWidth(iw_calcwidth(width,1))
 
-    ! draw the input box
-    iw_inputint = logical(igInputInt(c_loc(str_),ival,step_,step_fast_,flags_))
-
-    if (present(width)) &
-       call igPopItemWidth()
-
-    ! with commit-on-enter, also commit when the user leaves the field by Tab or click-away
-    if (acceptonenter_) &
-       iw_inputint = iw_inputint .or. iw_item_committed()
+    if (acceptonenter_) then
+       ! deferred commit: edit a persistent buffer so ival is left untouched while typing and
+       ! only updated when the value is committed (Enter, Tab, or click-away). Only one input
+       ! is being edited at any time, so a single (id,buffer) pair is enough. We do not use
+       ! ImGuiInputTextFlags_EnterReturnsTrue, which would discard the typed value on Tab/click.
+       myid = igGetID_Str(c_loc(str_))
+       if (myid == inputint_editid) then
+          v = inputint_editbuf
+       else
+          v = ival
+       end if
+       iw_inputint = logical(igInputInt(c_loc(str_),v,step_,step_fast_,flags_))
+       if (present(width)) &
+          call igPopItemWidth()
+       if (logical(igIsItemActivated())) inputint_editid = myid
+       if (myid == inputint_editid) inputint_editbuf = v
+       iw_inputint = .false.
+       if (logical(igIsItemDeactivatedAfterEdit()) .and. myid == inputint_editid) then
+          ival = v
+          inputint_editid = 0_c_int
+          iw_inputint = .true.
+       end if
+    else
+       ! live: ival updates on every change
+       iw_inputint = logical(igInputInt(c_loc(str_),ival,step_,step_fast_,flags_))
+       if (present(width)) &
+          call igPopItemWidth()
+    end if
 
   end function iw_inputint
 
@@ -1113,18 +1141,6 @@ contains
     call igPopStyleVar(1_c_int)
 
   end function iw_highlight_selectable
-
-  !> Return .true. if the item just drawn was committed by the user, i.e.
-  !> it was deactivated after an edit (Enter, Tab to the next item, or
-  !> clicking/focusing away). Used to make commit-on-Enter inputs also
-  !> commit on Tab.
-  module function iw_item_committed()
-    use interfaces_cimgui, only: igIsItemDeactivatedAfterEdit
-    logical :: iw_item_committed
-
-    iw_item_committed = logical(igIsItemDeactivatedAfterEdit())
-
-  end function iw_item_committed
 
   ! Returns true if the last item has been hovered for at least thr
   ! seconds. If already_shown (the tooltip has already been displayed),
