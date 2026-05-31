@@ -974,6 +974,8 @@ contains
                 end if
                 iaction_l = .false.
              end if
+             if (len_trim(w%errmsg) > 0) &
+                call iw_text(w%errmsg,danger=.true.,sameline=.true.)
 
              ! nice supercell search
              call iw_text("Nice supercells",highlight=.true.)
@@ -1092,10 +1094,6 @@ contains
 
        call igEndTabBar()
     end if
-
-    ! error message from the last edit action
-    if (len_trim(w%errmsg) > 0) &
-       call iw_text(w%errmsg,danger=.true.)
 
     call igEndGroup()
 
