@@ -34,7 +34,7 @@ contains
        system_shorten_names
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_helpermark, iw_button, iw_text, iw_calcheight,&
        iw_calcwidth, buffer_to_string_array, iw_radiobutton, iw_combo_simple, iw_checkbox,&
-       iw_inputtext
+       iw_inputtext, iw_inputfloat, iw_inputfloat3
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use global, only: rborder_def
     use tools_io, only: string, fopen_scratch, fclose, stripchar, deblank
@@ -128,33 +128,19 @@ contains
              iunitcel,sameline=.true.)
           call iw_tooltip("Units for the cell parameters/lattice vectors",ttshown)
 
-          call igSameLine(0._c_float,-1._c_float)
-          str = "Scale" // c_null_char
-          stropt = "%.3f" // c_null_char
-          call igPushItemWidth(iw_calcwidth(7,1))
-          ldum = igInputFloat(c_loc(str),scale,0._c_float,0._c_float,&
-             c_loc(stropt),ImGuiInputTextFlags_None)
+          ldum = iw_inputfloat("Scale",scale,width=7,sameline=.true.)
           call iw_tooltip("Scale factor to multiply the lattice vectors",ttshown)
-          call igPopItemWidth()
        end if
 
        ! lattice: body
        if (cellopt == 1) then
           ! cell lengths
           call iw_text("Cell lengths (Å): ")
-          call igSameLine(0._c_float,-1._c_float)
-          str = "##celllength3" // c_null_char
-          stropt = "%.3f" // c_null_char
-          call igPushItemWidth(iw_calcwidth(3*8,2))
-          ldum = igInputFloat3(c_loc(str),aa,c_loc(stropt),ImGuiInputTextFlags_None)
+          ldum = iw_inputfloat3("##celllength3",aa,width=3*8,sameline=.true.)
 
           ! cell angles
           call iw_text("Cell angles (°):  ")
-          call igSameLine(0._c_float,-1._c_float)
-          str = "##cellangle3" // c_null_char
-          stropt = "%.3f" // c_null_char
-          call igPushItemWidth(iw_calcwidth(3*8,2))
-          ldum = igInputFloat3(c_loc(str),bb,c_loc(stropt),ImGuiInputTextFlags_None)
+          ldum = iw_inputfloat3("##cellangle3",bb,width=3*8,sameline=.true.)
        else
           ! lattice vectors
           call igGetContentRegionAvail(szavail)
@@ -205,12 +191,8 @@ contains
        ! cell border
        call igIndent(0._c_float)
        str = "Cell border (Å)" // c_null_char
-       stropt = "%.3f" // c_null_char
-       call igPushItemWidth(iw_calcwidth(7,1))
-       ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
-          c_loc(stropt),ImGuiInputTextFlags_None)
+       ldum = iw_inputfloat(str,rborder,width=7)
        call iw_tooltip("Size of the periodic cell border around a new molecule",ttshown)
-       call igPopItemWidth()
        call igSameLine(0._c_float,-1._c_float)
 
        ! cubic cell

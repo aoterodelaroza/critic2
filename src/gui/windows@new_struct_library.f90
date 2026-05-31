@@ -32,7 +32,7 @@ contains
     use gui_main, only: g
     use systems, only: add_systems_from_seeds, launch_initialization_thread, system_shorten_names
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_text, iw_calcheight,&
-       iw_calcwidth, iw_radiobutton, iw_checkbox
+       iw_calcwidth, iw_radiobutton, iw_checkbox, iw_inputfloat
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use spglib, only: SpglibSpaceGroupType, spg_get_spacegroup_type
     use global, only: clib_file, mlib_file, rborder_def
@@ -136,12 +136,8 @@ contains
        ! cell border
        call igIndent(0._c_float)
        str = "Cell border (Å)" // c_null_char
-       stropt = "%.3f" // c_null_char
-       call igPushItemWidth(iw_calcwidth(7,1))
-       ldum = igInputFloat(c_loc(str),rborder,0._c_float,0._c_float,&
-          c_loc(stropt),ImGuiInputTextFlags_None)
+       ldum = iw_inputfloat(str,rborder,width=7)
        call iw_tooltip("Size of the periodic cell border around a new molecule",ttshown)
-       call igPopItemWidth()
        call igSameLine(0._c_float,-1._c_float)
 
        ! cubic cell

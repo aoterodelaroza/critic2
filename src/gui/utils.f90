@@ -30,6 +30,8 @@ module utils
   public :: iw_dragfloat_real8
   public :: iw_inputint
   public :: iw_inputint3
+  public :: iw_inputfloat
+  public :: iw_inputfloat3
   public :: iw_clamp_color3
   public :: iw_clamp_color4
   public :: iw_coloredit
@@ -127,6 +129,27 @@ module utils
        integer(c_int), intent(in), optional :: flags
        logical :: iw_inputint3
      end function iw_inputint3
+     module function iw_inputfloat(str,val,step,step_fast,decimal,width,sameline,notlive,flags)
+       character(len=*,kind=c_char), intent(in) :: str
+       real(c_float), intent(inout) :: val
+       real(c_float), intent(in), optional :: step, step_fast
+       integer, intent(in), optional :: decimal
+       integer, intent(in), optional :: width
+       logical, intent(in), optional :: sameline
+       logical, intent(in), optional :: notlive
+       integer(c_int), intent(in), optional :: flags
+       logical :: iw_inputfloat
+     end function iw_inputfloat
+     module function iw_inputfloat3(str,val,decimal,width,sameline,notlive,flags)
+       character(len=*,kind=c_char), intent(in) :: str
+       real(c_float), intent(inout) :: val(3)
+       integer, intent(in), optional :: decimal
+       integer, intent(in), optional :: width
+       logical, intent(in), optional :: sameline
+       logical, intent(in), optional :: notlive
+       integer(c_int), intent(in), optional :: flags
+       logical :: iw_inputfloat3
+     end function iw_inputfloat3
      module subroutine iw_clamp_color3(rgb)
        real(c_float), intent(inout) :: rgb(3)
      end subroutine iw_clamp_color3

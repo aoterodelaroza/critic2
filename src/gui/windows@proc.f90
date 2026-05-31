@@ -842,7 +842,7 @@ contains
   subroutine dialog_user_callback(vFilter, vUserData, vCantContinue)
     use gui_main, only: g
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_radiobutton,&
-       iw_combo_simple, iw_checkbox
+       iw_combo_simple, iw_checkbox, iw_inputfloat
     use interfaces_cimgui
     use tools_io, only: string
     type(c_ptr), intent(in), value :: vFilter ! const char *
@@ -899,8 +899,7 @@ contains
        strex = string(data%rborder,'f',decimal=3) // c_null_char
        call igCalcTextSize(sz,c_loc(strex),c_null_ptr,.false._c_bool,-1._c_float)
        call igPushItemWidth(sz%x + 2 * g%Style%FramePadding%x)
-       ldum = igInputFloat(c_loc(str),data%rborder,0._c_float,0._c_float,&
-          c_loc(stropt),ImGuiInputTextFlags_None)
+       ldum = iw_inputfloat(str,data%rborder)
        call iw_tooltip("Size of the periodic cell border around new molecules",ttshown)
        call igPopItemWidth()
 
