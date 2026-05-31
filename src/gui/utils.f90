@@ -67,7 +67,7 @@ module utils
      module function iw_periodictable()
        integer :: iw_periodictable
      end function iw_periodictable
-     module function iw_inputtext(label,bufsize,texta,textf,width,grabfocus,sameline,flags)
+     module function iw_inputtext(label,bufsize,texta,textf,width,grabfocus,sameline,notlive,flags)
        character(len=*), intent(in) :: label
        integer, intent(in) :: bufsize
        character(len=:), allocatable, intent(inout), optional :: texta
@@ -75,11 +75,12 @@ module utils
        integer, intent(in), optional :: width
        logical, intent(in), optional :: grabfocus
        logical, intent(in), optional :: sameline
+       logical, intent(in), optional :: notlive
        integer(c_int), intent(in), optional :: flags
        logical :: iw_inputtext
      end function iw_inputtext
      module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&
-        sameline,acceptonenter,flags)
+        sameline,notlive,flags)
        character(len=*,kind=c_char), intent(in) :: str
        real(c_float), intent(inout), optional :: x1
        real(c_float), intent(inout), optional :: x2(2)
@@ -88,12 +89,12 @@ module utils
        real(c_float), intent(in), optional :: speed, min, max, scale
        integer, intent(in), optional :: decimal
        logical, intent(in), optional :: sameline
-       logical, intent(in), optional :: acceptonenter
+       logical, intent(in), optional :: notlive
        integer(c_int), intent(in), optional :: flags
        logical :: iw_dragfloat_realc
      end function iw_dragfloat_realc
      module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&
-        sameline,acceptonenter,flags)
+        sameline,notlive,flags)
        character(len=*,kind=c_char), intent(in) :: str
        real*8, intent(inout), optional :: x1
        real*8, intent(inout), optional :: x2(2)
@@ -102,17 +103,18 @@ module utils
        real*8, intent(in), optional :: speed, min, max, scale
        integer, intent(in), optional :: decimal
        logical, intent(in), optional :: sameline
-       logical, intent(in), optional :: acceptonenter
+       logical, intent(in), optional :: notlive
        integer(c_int), intent(in), optional :: flags
        logical :: iw_dragfloat_real8
      end function iw_dragfloat_real8
-     module function iw_inputint(str,ival,step,step_fast,width,sameline,acceptonenter)
+     module function iw_inputint(str,ival,step,step_fast,width,sameline,notlive,flags)
        character(len=*,kind=c_char), intent(in) :: str
        integer(c_int), intent(inout) :: ival
        integer(c_int), intent(in), optional :: step, step_fast
        integer, intent(in), optional :: width
        logical, intent(in), optional :: sameline
-       logical, intent(in), optional :: acceptonenter
+       logical, intent(in), optional :: notlive
+       integer(c_int), intent(in), optional :: flags
        logical :: iw_inputint
      end function iw_inputint
      module subroutine iw_clamp_color3(rgb)
@@ -164,14 +166,15 @@ module utils
        logical, intent(in), optional :: sameline
        logical :: iw_radiobutton
      end function iw_radiobutton
-     module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,acceptonenter,tooltip)
+     module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,notlive,flags,tooltip)
        character(len=*,kind=c_char), intent(in) :: str
        integer(c_int), intent(inout) :: ival
        character(len=*,kind=c_char), intent(in), optional :: label
        integer(c_int), intent(in), optional :: minval, maxval
        integer, intent(in), optional :: ndigit
        logical, intent(in), optional :: sameline
-       logical, intent(in), optional :: acceptonenter
+       logical, intent(in), optional :: notlive
+       integer(c_int), intent(in), optional :: flags
        character(len=*,kind=c_char), intent(in), optional :: tooltip
        logical :: iw_intstepper
      end function iw_intstepper

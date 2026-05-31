@@ -1422,7 +1422,7 @@ contains
              str2 = "Rename" // c_null_char
              if (igBeginMenu(c_loc(str2),.true._c_bool)) then
                 if (iw_inputtext("##inputrenamerep",bufsize=1023,texta=s%rep(i)%name,width=30,grabfocus=.true.,&
-                   flags=ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))) then
+                   notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)) then
                    call igCloseCurrentPopup()
                 end if
                 call igEndMenu()

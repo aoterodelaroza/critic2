@@ -556,7 +556,7 @@ contains
                             strpop = "Rename" // c_null_char
                             if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
                                if (iw_inputtext("##inputrenamefield",bufsize=mlen-1,textf=sys(i)%f(k)%name,grabfocus=.true.,&
-                                  flags=ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))) &
+                                  notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)) &
                                   call igCloseCurrentPopup()
                                call igEndMenu()
                             end if
@@ -1039,7 +1039,7 @@ contains
          strpop = "Rename" // c_null_char
          if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
             if (iw_inputtext("##inputrename",bufsize=mlen-1,textf=sysc(isys)%seed%name,grabfocus=.true.,&
-               flags=ior(ImGuiInputTextFlags_EnterReturnsTrue,ImGuiInputTextFlags_AutoSelectAll))) then
+               notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)) then
                sysc(isys)%renamed = .true.
                call igCloseCurrentPopup()
             end if

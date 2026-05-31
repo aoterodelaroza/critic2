@@ -20,7 +20,7 @@ submodule (utils) proc
   use iso_c_binding
   implicit none
 
-  ! deferred-commit state for iw_inputint(acceptonenter): the ImGui ID and in-progress
+  ! deferred-commit state for iw_inputint(notlive): the ImGui ID and in-progress
   ! value of the integer input currently being edited (only one item is active at a time)
   integer(c_int) :: inputint_editid = 0_c_int
   integer(c_int) :: inputint_editbuf = 0_c_int
@@ -99,7 +99,7 @@ contains
   !> (allocatable string) or textf (fixed string). grabfocus = grab focus
   !> when drawn. sameline = place in the same line as the previous widget.
   !> flags = flags from ImGuiInputTextFlags_*.
-  module function iw_inputtext(label,bufsize,texta,textf,width,grabfocus,sameline,flags)
+  module function iw_inputtext(label,bufsize,texta,textf,width,grabfocus,sameline,notlive,flags)
     use interfaces_cimgui
     character(len=*), intent(in) :: label
     integer, intent(in) :: bufsize
@@ -108,6 +108,7 @@ contains
     integer, intent(in), optional :: width
     logical, intent(in), optional :: grabfocus
     logical, intent(in), optional :: sameline
+    logical, intent(in), optional :: notlive
     integer(c_int), intent(in), optional :: flags
     logical :: iw_inputtext
 
@@ -121,10 +122,11 @@ contains
     if (present(flags)) flags_ = flags
     sameline_ = .false.
     if (present(sameline)) sameline_ = sameline
-    ! commit-on-enter intent: strip EnterReturnsTrue before the call so the buffer is written
-    ! live (not discarded on Tab/click); the commit is detected with igIsItemDeactivatedAfterEdit
-    wantcommit = (iand(flags_,ImGuiInputTextFlags_EnterReturnsTrue) /= 0)
-    if (wantcommit) flags_ = iand(flags_,not(ImGuiInputTextFlags_EnterReturnsTrue))
+    ! if notlive, return .true. (and write the value out) only when the field is committed
+    ! (Enter, Tab, or click-away), not on every keystroke. We deliberately do NOT use
+    ! ImGuiInputTextFlags_EnterReturnsTrue, which would discard the typed text on Tab/click.
+    wantcommit = .false.
+    if (present(notlive)) wantcommit = notlive
 
     ! set up the call
     allocate(character(len=bufsize+1) :: text_)
@@ -192,7 +194,7 @@ contains
   !> decimal places on the label. flags = combination of
   !> ImGuiSliderFlags_* flags. Version for real(c_float) type.
   module function iw_dragfloat_realc(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&
-     sameline,acceptonenter,flags)
+     sameline,notlive,flags)
     use interfaces_cimgui
     use gui_main, only: g
     use tools_io, only: string
@@ -204,14 +206,14 @@ contains
     real(c_float), intent(in), optional :: speed, min, max, scale
     integer, intent(in), optional :: decimal
     logical, intent(in), optional :: sameline
-    logical, intent(in), optional :: acceptonenter
+    logical, intent(in), optional :: notlive
     integer(c_int), intent(in), optional :: flags
     logical :: iw_dragfloat_realc
 
     real(c_float) :: speed_, min_, max_, scale_
     character(len=:,kind=c_char), allocatable, target :: str_, sformat_
     integer(c_int) :: flags_
-    logical :: acceptonenter_
+    logical :: notlive_
     real(c_float) :: x1_, x2_(2), x3_(3), x4_(4)
     integer :: n
     real(c_float) :: width
@@ -235,8 +237,8 @@ contains
     if (present(sameline)) sameline_ = sameline
     flags_ = 0_c_int
     if (present(flags)) flags_ = flags
-    acceptonenter_ = .false.
-    if (present(acceptonenter)) acceptonenter_ = acceptonenter
+    notlive_ = .false.
+    if (present(notlive)) notlive_ = notlive
 
     ! same line
     if (sameline_) &
@@ -279,7 +281,7 @@ contains
     end if
     call igPopItemWidth()
 
-    if (acceptonenter_) then
+    if (notlive_) then
        if (iw_dragfloat_realc .and. igIsItemActive()) &
           iw_dragfloat_realc = igIsMouseDragging(ImGuiMouseButton_Left,-1._c_float)
        ! also commit when the user leaves the field by Enter, Tab, or click-away
@@ -296,7 +298,7 @@ contains
   !> label. flags = combination of ImGuiSliderFlags_* flags. Version
   !> for real*8 type.
   module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&
-     sameline,acceptonenter,flags)
+     sameline,notlive,flags)
     use interfaces_cimgui
     use gui_main, only: g
     use tools_io, only: string
@@ -308,7 +310,7 @@ contains
     real*8, intent(in), optional :: speed, min, max, scale
     integer, intent(in), optional :: decimal
     logical, intent(in), optional :: sameline
-    logical, intent(in), optional :: acceptonenter
+    logical, intent(in), optional :: notlive
     integer(c_int), intent(in), optional :: flags
     logical :: iw_dragfloat_real8
 
@@ -316,7 +318,7 @@ contains
     real(c_float) :: speed_, min_, max_, x1_, x2_(2), x3_(3), x4_(4)
     character(len=:,kind=c_char), allocatable, target :: str_, sformat_
     integer(c_int) :: flags_
-    logical :: acceptonenter_
+    logical :: notlive_
     integer :: n
     real(c_float) :: width
     type(ImVec2) :: sz
@@ -339,8 +341,8 @@ contains
     if (present(sameline)) sameline_ = sameline
     flags_ = 0_c_int
     if (present(flags)) flags_ = flags
-    acceptonenter_ = .false.
-    if (present(acceptonenter)) acceptonenter_ = acceptonenter
+    notlive_ = .false.
+    if (present(notlive)) notlive_ = notlive
 
     ! same line
     if (sameline_) &
@@ -383,7 +385,7 @@ contains
     end if
     call igPopItemWidth()
 
-    if (acceptonenter_) then
+    if (notlive_) then
        if (iw_dragfloat_real8 .and. igIsItemActive()) &
           iw_dragfloat_real8 = igIsMouseDragging(ImGuiMouseButton_Left,-1._c_float)
        ! also commit when the user leaves the field by Enter, Tab, or click-away
@@ -396,21 +398,22 @@ contains
   !> increments for the +/- buttons (default 0 = hide the buttons).
   !> width = field width in number of characters. sameline = draw in the
   !> same line as the previous widget. flags = ImGuiInputTextFlags_*. If
-  !> acceptonenter, return .true. only when the value is committed (Enter,
+  !> notlive, return .true. only when the value is committed (Enter,
   !> Tab to the next item, or clicking away), instead of on every keystroke.
-  module function iw_inputint(str,ival,step,step_fast,width,sameline,acceptonenter)
+  module function iw_inputint(str,ival,step,step_fast,width,sameline,notlive,flags)
     use interfaces_cimgui
     character(len=*,kind=c_char), intent(in) :: str
     integer(c_int), intent(inout) :: ival
     integer(c_int), intent(in), optional :: step, step_fast
     integer, intent(in), optional :: width
     logical, intent(in), optional :: sameline
-    logical, intent(in), optional :: acceptonenter
+    logical, intent(in), optional :: notlive
+    integer(c_int), intent(in), optional :: flags
     logical :: iw_inputint
 
     character(len=:,kind=c_char), allocatable, target :: str_
     integer(c_int) :: flags_, step_, step_fast_, v, myid
-    logical :: sameline_, acceptonenter_
+    logical :: sameline_, notlive_
 
     ! process options
     str_ = trim(str) // c_null_char
@@ -421,8 +424,9 @@ contains
     sameline_ = .false.
     if (present(sameline)) sameline_ = sameline
     flags_ = 0_c_int
-    acceptonenter_ = .false.
-    if (present(acceptonenter)) acceptonenter_ = acceptonenter
+    if (present(flags)) flags_ = flags
+    notlive_ = .false.
+    if (present(notlive)) notlive_ = notlive
 
     ! same line
     if (sameline_) &
@@ -432,7 +436,7 @@ contains
     if (present(width)) &
        call igPushItemWidth(iw_calcwidth(width,1))
 
-    if (acceptonenter_) then
+    if (notlive_) then
        ! deferred commit: edit a persistent buffer so ival is left untouched while typing and
        ! only updated when the value is committed (Enter, Tab, or click-away). Only one input
        ! is being edited at any time, so a single (id,buffer) pair is enough. We do not use
@@ -750,11 +754,11 @@ contains
   !> built-in input steppers are suppressed; the field width is sized to
   !> the number of digits (ndigit, or computed from ival if absent). The
   !> value is clamped to [minval,maxval] (whichever is present). sameline
-  !> draws the widget in the same line as the previous one. If acceptonenter
+  !> draws the widget in the same line as the previous one. If notlive
   !> is present and true, the input commits only on Enter. If tooltip is
   !> present, it is shown when hovering over the input field or either
   !> button. Returns .true. if the value changed.
-  module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,acceptonenter,tooltip)
+  module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,notlive,flags,tooltip)
     use interfaces_cimgui
     use gui_main, only: g
     character(len=*,kind=c_char), intent(in) :: str
@@ -763,14 +767,14 @@ contains
     integer(c_int), intent(in), optional :: minval, maxval
     integer, intent(in), optional :: ndigit
     logical, intent(in), optional :: sameline
-    logical, intent(in), optional :: acceptonenter
+    logical, intent(in), optional :: notlive
+    integer(c_int), intent(in), optional :: flags
     character(len=*,kind=c_char), intent(in), optional :: tooltip
     logical :: iw_intstepper
 
-    character(len=:,kind=c_char), allocatable, target :: str1
     logical :: sameline_, ldum
     integer :: nd
-    integer(c_int) :: flags, old
+    integer(c_int) :: old
     logical, save :: ttshown = .false.
 
     old = ival
@@ -784,12 +788,6 @@ contains
        nd = ceiling(log10(max(ival,1_c_int) + 0.1))
     end if
 
-    ! commit-on-enter flag
-    flags = 0_c_int
-    if (present(acceptonenter)) then
-       if (acceptonenter) flags = ImGuiInputTextFlags_EnterReturnsTrue
-    end if
-
     ! optional left label (tight against the "-" button)
     if (sameline_) call igSameLine(0._c_float,-1._c_float)
     if (present(label)) then
@@ -798,15 +796,13 @@ contains
        call igSameLine(0._c_float,g%Style%FramePadding%x)
     end if
 
-    ! "-" button / input field / "+" button (buttons auto-repeat when held)
+    ! "-" button / input field / "+" button (buttons auto-repeat when held). The input field
+    ! reuses iw_inputint so it inherits the notlive/flags handling (and its no-loss commit).
     call igPushButtonRepeat(.true._c_bool)
     if (iw_button("-##" // str)) ival = ival - 1
     if (present(tooltip)) call iw_tooltip(tooltip,ttshown)
     call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-    str1 = "##" // str // c_null_char
-    call igPushItemWidth(iw_calcwidth(nd,1))
-    ldum = igInputInt(c_loc(str1),ival,-1_c_int,-100_c_int,flags)
-    call igPopItemWidth()
+    ldum = iw_inputint("##" // str,ival,width=nd,notlive=notlive,flags=flags)
     if (present(tooltip)) call iw_tooltip(tooltip,ttshown)
     call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
     if (iw_button("+##" // str)) ival = ival + 1

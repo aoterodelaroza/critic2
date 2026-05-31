@@ -229,7 +229,7 @@ contains
           call iw_tooltip("Open the manual page regarding arithmetic expressions.",ttshown)
 
           ! filter text input
-          if (iw_inputtext("##filtertext",bufsize=1023,texta=w%rep%filter,flags=ImGuiInputTextFlags_EnterReturnsTrue)) then
+          if (iw_inputtext("##filtertext",bufsize=1023,texta=w%rep%filter,notlive=.true.)) then
              ! test the filter
              if (sys(isys)%c%ncel > 0) then
                 x0 = sys(isys)%c%atcel(1)%r
@@ -278,7 +278,7 @@ contains
                 call igSameLine(0._c_float,0._c_float)
                 if (iw_button("-##aaxis")) w%rep%ncell(1) = max(w%rep%ncell(1)-1,1)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                ldum = iw_inputint("##aaxis",w%rep%ncell(1),width=ipad,acceptonenter=.true.)
+                ldum = iw_inputint("##aaxis",w%rep%ncell(1),width=ipad,notlive=.true.)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
                 if (iw_button("+##aaxis")) w%rep%ncell(1) = w%rep%ncell(1)+1
 
@@ -287,7 +287,7 @@ contains
                 call igSameLine(0._c_float,0._c_float)
                 if (iw_button("-##baxis")) w%rep%ncell(2) = max(w%rep%ncell(2)-1,1)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                ldum = iw_inputint("##baxis",w%rep%ncell(2),width=ipad,acceptonenter=.true.)
+                ldum = iw_inputint("##baxis",w%rep%ncell(2),width=ipad,notlive=.true.)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
                 if (iw_button("+##baxis")) w%rep%ncell(2) = w%rep%ncell(2)+1
 
@@ -296,7 +296,7 @@ contains
                 call igSameLine(0._c_float,0._c_float)
                 if (iw_button("-##caxis")) w%rep%ncell(3) = max(w%rep%ncell(3)-1,1)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                ldum = iw_inputint("##caxis",w%rep%ncell(3),width=ipad,acceptonenter=.true.)
+                ldum = iw_inputint("##caxis",w%rep%ncell(3),width=ipad,notlive=.true.)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
                 if (iw_button("+##caxis")) w%rep%ncell(3) = w%rep%ncell(3)+1
                 w%rep%ncell = max(w%rep%ncell,1)
@@ -924,7 +924,7 @@ contains
        call igSameLine(0._c_float,0._c_float)
        if (iw_button("-##aaxis")) w%rep%ncell(1) = max(w%rep%ncell(1)-1,1)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       ldum = iw_inputint("##aaxis",w%rep%ncell(1),width=ipad,acceptonenter=.true.)
+       ldum = iw_inputint("##aaxis",w%rep%ncell(1),width=ipad,notlive=.true.)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
        if (iw_button("+##aaxis")) w%rep%ncell(1) = w%rep%ncell(1)+1
 
@@ -933,7 +933,7 @@ contains
        call igSameLine(0._c_float,0._c_float)
        if (iw_button("-##baxis")) w%rep%ncell(2) = max(w%rep%ncell(2)-1,1)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       ldum = iw_inputint("##baxis",w%rep%ncell(2),width=ipad,acceptonenter=.true.)
+       ldum = iw_inputint("##baxis",w%rep%ncell(2),width=ipad,notlive=.true.)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
        if (iw_button("+##baxis")) w%rep%ncell(2) = w%rep%ncell(2)+1
 
@@ -942,7 +942,7 @@ contains
        call igSameLine(0._c_float,0._c_float)
        if (iw_button("-##caxis")) w%rep%ncell(3) = max(w%rep%ncell(3)-1,1)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       ldum = iw_inputint("##caxis",w%rep%ncell(3),width=ipad,acceptonenter=.true.)
+       ldum = iw_inputint("##caxis",w%rep%ncell(3),width=ipad,notlive=.true.)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
        if (iw_button("+##caxis")) w%rep%ncell(3) = w%rep%ncell(3)+1
        w%rep%ncell = max(w%rep%ncell,1)

@@ -619,7 +619,7 @@ contains
                    if (igTableSetColumnIndex(icol)) then
                       call igAlignTextToFramePadding()
                       str1 = string(i,ndigit)
-                      if (iw_inputtext("##idinput" // suffix,bufsize=11,texta=str1,width=3,flags=ImGuiInputTextFlags_EnterReturnsTrue)) then
+                      if (iw_inputtext("##idinput" // suffix,bufsize=11,texta=str1,width=3,notlive=.true.)) then
                          if (isinteger(j,str1)) then
                             if (j > 0 .and. j <= ntype) then
                                iaction = iaction_swap_atom_ids
@@ -713,7 +713,7 @@ contains
                          if (igTableSetColumnIndex(icol)) then
                             s = string(x0(j),'f',dec+4,dec,ioj_center)
                             ch = ch .or. iw_dragfloat_real8("##x" // string(isys) // "_" // string(i) // "_" // string(j),&
-                               x1=x0(j),speed=0.001d0,decimal=dec,acceptonenter=.true.)
+                               x1=x0(j),speed=0.001d0,decimal=dec,notlive=.true.)
                          end if
                       end do
                       if (ch .and. any(abs(x0-xold) > epsmoved)) then
@@ -769,7 +769,7 @@ contains
              "Click the Help button for more info.")
           call igSameLine(0._c_float,-1._c_float)
           if (iw_inputtext("##filtertext",bufsize=1023,width=30,texta=w%geometry_expression,&
-             flags=ImGuiInputTextFlags_EnterReturnsTrue)) then
+             notlive=.true.)) then
              w%geometry_expression_ok = .true.
              w%geometry_expr_error = ""
           end if
@@ -820,20 +820,20 @@ contains
              call iw_text("a/b/c (Å): ")
              ch = .false.
              ch = ch .or. iw_dragfloat_real8("##celllengthsa",x1=x6(1),speed=0.005d0,decimal=6,scale=bohrtoa,&
-                acceptonenter=.true.,sameline=.true.)
+                notlive=.true.,sameline=.true.)
              ch = ch .or. iw_dragfloat_real8("##celllengthsb",x1=x6(2),speed=0.005d0,decimal=6,scale=bohrtoa,&
-                acceptonenter=.true.,sameline=.true.)
+                notlive=.true.,sameline=.true.)
              ch = ch .or. iw_dragfloat_real8("##celllengthsc",x1=x6(3),speed=0.005d0,decimal=6,scale=bohrtoa,&
-                acceptonenter=.true.,sameline=.true.)
+                notlive=.true.,sameline=.true.)
 
              call igAlignTextToFramePadding()
              call iw_text("α/β/γ (°): ")
              ch = ch .or. iw_dragfloat_real8("##cellangsa",x1=x6(4),speed=0.01d0,decimal=4,sameline=.true.,&
-                acceptonenter=.true.)
+                notlive=.true.)
              ch = ch .or. iw_dragfloat_real8("##cellanbsb",x1=x6(5),speed=0.01d0,decimal=4,sameline=.true.,&
-                acceptonenter=.true.)
+                notlive=.true.)
              ch = ch .or. iw_dragfloat_real8("##cellanbsc",x1=x6(6),speed=0.01d0,decimal=4,sameline=.true.,&
-                acceptonenter=.true.)
+                notlive=.true.)
 
              if (ch .and. any(abs(x6-x6old) > epsmoved)) then
                 iaction = iaction_change_cell
@@ -937,7 +937,7 @@ contains
                    end if
                    do jm = 1, 3
                       ch = ch .or. iw_inputint("##cellmat" // string(im) // string(jm),&
-                         w%geometry_cell_intmat(jm,im),width=3,sameline=.true.,acceptonenter=.true.)
+                         w%geometry_cell_intmat(jm,im),width=3,sameline=.true.,notlive=.true.)
                    end do
                    if (sys(isys)%c%ncv > 1) then
                       call iw_text(" + ",sameline=.true.)
@@ -952,7 +952,7 @@ contains
                 do jm = 1, 3
                    ch = ch .or. iw_dragfloat_real8("##cellorigin" // string(jm),&
                       x1=w%geometry_cell_origin(jm),speed=0.01d0,decimal=4,sameline=.true.,&
-                      acceptonenter=.true.)
+                      notlive=.true.)
                 end do
                 ! if the user changed the matrix or the origin, clear the error message
                 if (ch) w%errmsg = ""
@@ -1528,11 +1528,11 @@ contains
             call igAlignTextToFramePadding()
             call iw_text("Position")
             ldum = iw_dragfloat_real8("##xaddcoord",x1=w%geometry_input_coord(1),speed=0.001d0,decimal=6,&
-               acceptonenter=.true.,sameline=.true.)
+               notlive=.true.,sameline=.true.)
             ldum = iw_dragfloat_real8("##yaddcoord",x1=w%geometry_input_coord(2),speed=0.001d0,decimal=6,&
-               acceptonenter=.true.,sameline=.true.)
+               notlive=.true.,sameline=.true.)
             ldum = iw_dragfloat_real8("##zaddcoord",x1=w%geometry_input_coord(3),speed=0.001d0,decimal=6,&
-               acceptonenter=.true.,sameline=.true.)
+               notlive=.true.,sameline=.true.)
 
             call igAlignTextToFramePadding()
             call iw_text("Species")
