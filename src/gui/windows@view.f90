@@ -80,7 +80,7 @@ contains
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
     logical :: isuc, islabelsl, hover_and_moved, enabled
     integer :: islabels
-    logical(c_bool) :: ch
+    logical :: ch
     integer(c_int) :: flags, nc(3), ires, viewtype, idum
     real(c_float) :: scal, width, depth, rgba(4)
     real*8 :: x0(3), time

@@ -56,7 +56,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
-    logical :: doquit, dorestore, clicked, forcesort, ch
+    logical :: doquit, dorestore, clicked, forcesort, ch, lch
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:9)
     logical(c_bool) :: is_selected, redo_highlights
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
@@ -924,6 +924,8 @@ contains
                       stropt = stropt // cell_cen_label(sys(isys)%c%cen(:,j)) // c_null_char
                    end do
                 end if
+                ! track changes to the vectors/origin to clear a stale error message
+                ch = .false.
                 do im = 1, 3
                    call igAlignTextToFramePadding()
                    if (im == 1) then
@@ -937,23 +939,26 @@ contains
                       call igSameLine(0._c_float,-1._c_float)
                       call igSetNextItemWidth(iw_calcwidth(3,1))
                       str2 = "##cellmat" // string(im) // string(jm) // c_null_char
-                      ldum = igInputInt(c_loc(str2),w%geometry_cell_intmat(jm,im),0_c_int,0_c_int,&
-                         ImGuiInputTextFlags_EnterReturnsTrue)
+                      ch = ch .or. logical(igInputInt(c_loc(str2),w%geometry_cell_intmat(jm,im),0_c_int,0_c_int,&
+                         ImGuiInputTextFlags_EnterReturnsTrue))
                    end do
                    if (sys(isys)%c%ncv > 1) then
                       call iw_text(" + ",sameline=.true.)
                       call iw_combo_simple("##cellcen" // string(im),stropt,w%geometry_cell_cen(im),&
-                         sameline=.true.,startsatone=.true.)
+                         changed=lch,sameline=.true.,startsatone=.true.)
+                      ch = ch .or. lch
                       call iw_tooltip("Centering vector added to this lattice vector",ttshown)
                    end if
                 end do
                 call igAlignTextToFramePadding()
                 call iw_text("Origin")
                 do jm = 1, 3
-                   ldum = iw_dragfloat_real8("##cellorigin" // string(jm),&
+                   ch = ch .or. iw_dragfloat_real8("##cellorigin" // string(jm),&
                       x1=w%geometry_cell_origin(jm),speed=0.01d0,decimal=4,sameline=.true.,&
                       acceptonenter=.true.)
                 end do
+                ! if the user changed the matrix or the origin, clear the error message
+                if (ch) w%errmsg = ""
              end if
              ok = iw_button("Apply##celltransfapply")
              call iw_tooltip("Apply the supercell transformation",ttshown)

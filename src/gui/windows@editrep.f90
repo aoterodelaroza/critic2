@@ -65,7 +65,7 @@ contains
 
     integer :: isys, itype
     logical :: doquit, ok, ldum
-    logical(c_bool) :: changed
+    logical :: changed
     character(kind=c_char,len=1024), target :: txtinp
     type(ImVec2) :: szavail
 
@@ -164,12 +164,12 @@ contains
     use param, only: atmcov, atmvdw, newline, jmlcol, jmlcol2, bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
-    logical(c_bool) :: changed
+    logical :: changed
 
     integer :: ispc, isys, iz, ipad
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3, suffix
     real*8 :: x0(3)
-    logical(c_bool) :: ch, ldum
+    logical :: ch, ldum
     integer(c_int) :: nc(3), lst, flags, nspcpair
     real(c_float) :: sqw
     integer :: i, j, k, intable, nrow, is, ncol, ihighlight, highlight_type
@@ -897,7 +897,7 @@ contains
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
-    logical(c_bool) :: changed, ldum
+    logical :: changed, ldum
     integer :: ipad
     real(c_float) :: sqw
     integer(c_int) :: nc(3)
@@ -1027,9 +1027,9 @@ contains
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
-    logical(c_bool) :: changed
+    logical :: changed
 
-    logical(c_bool) :: ch
+    logical :: ch
     integer :: icoord
 
     ! initialize
@@ -1199,7 +1199,7 @@ contains
     logical :: changed
 
     logical :: domol, docoord
-    logical(c_bool) :: ch
+    logical :: ch
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
     real*8 :: x0(3)

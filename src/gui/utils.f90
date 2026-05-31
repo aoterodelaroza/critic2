@@ -141,7 +141,7 @@ module utils
        integer, intent(inout) :: ival
        logical, intent(in), optional :: sameline
        logical, intent(in), optional :: sameline_nospace
-       logical(c_bool), intent(out), optional :: changed
+       logical, intent(out), optional :: changed
        logical, intent(in), optional :: noarrow
        logical, intent(in), optional :: startsatone
      end subroutine iw_combo_simple

@@ -511,17 +511,17 @@ module windows
      module function draw_editrep_atoms(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown
-       logical(c_bool) :: changed
+       logical :: changed
      end function draw_editrep_atoms
      module function draw_editrep_unitcell(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown
-       logical(c_bool) :: changed
+       logical :: changed
      end function draw_editrep_unitcell
      module function draw_editrep_axes(w,ttshown) result(changed)
        class(window), intent(inout), target :: w
        logical, intent(inout) :: ttshown
-       logical(c_bool) :: changed
+       logical :: changed
      end function draw_editrep_axes
      !xx! exportimage submodule !xx!
      module subroutine draw_exportimage(w)

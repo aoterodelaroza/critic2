@@ -930,7 +930,6 @@ contains
     logical :: allowedin(atlisttype_NUM)
     integer :: i, id, icombo, icount, itype
     integer :: decode(0:atlisttype_NUM-1)
-    logical(c_bool) :: ch
     logical :: units_
 
     ! consistency checks and initialize
@@ -1040,8 +1039,7 @@ contains
     end do
 
     ! the actual combo
-    call iw_combo_simple(label,strcombo,icombo,changed=ch)
-    attype_combo_simple = ch
+    call iw_combo_simple(label,strcombo,icombo,changed=attype_combo_simple)
 
     ! decode the combo
     type = decode(icombo)

@@ -40,7 +40,7 @@ contains
     real*8 :: valx, valy
     character(len=:,kind=c_char), allocatable, target :: str1, str2
     type(ImVec4) :: auto
-    logical(c_bool) :: ch, forceupdate
+    logical :: ch, forceupdate
 
     integer, save :: ic_plotx = 0, ic_ploty = 0
     logical, save :: ttshown = .false. ! tooltip flag
