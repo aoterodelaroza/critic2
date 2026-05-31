@@ -52,7 +52,7 @@ contains
        iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper
     use types, only: realloc
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger
-    use param, only: newline, bohrtoa, eye
+    use param, only: newline, bohrtoa
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
@@ -61,7 +61,7 @@ contains
     logical(c_bool) :: is_selected, redo_highlights
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
-    character(kind=c_char,len=:), allocatable, target :: strx, stry, strz
+    character(kind=c_char,len=:), allocatable, target :: strx, stry, strz, stropt
     character(len=:), allocatable :: name
     integer, allocatable :: ihigh(:)
     real(c_float), allocatable :: irgba(:,:)
@@ -70,7 +70,7 @@ contains
     integer :: ii, i, j, isys, icol, ispc, iz, izout, iview, id, im, jm
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
-    logical :: havergb, ldum, ok, oki
+    logical :: havergb, ldum, ok
     real*8 :: x0(3), x6(6), xold(3), x6old(6), res
     type(ImVec4) :: col4
     type(c_ptr) :: ptrc
@@ -149,6 +149,20 @@ contains
        w%geometry_expression = ""
        w%geometry_expression_ok = .false.
        w%geometry_expr_error = ""
+       w%geometry_atomtype = 1
+       w%geometry_forcewyc = .true.
+       w%geometry_sortcid = 0
+       w%geometry_sortdir = 1
+       w%geometry_input_coord = 0d0
+       w%geometry_input_species = 1
+       w%geometry_cell_simple = .true.
+       w%geometry_cell_nrep = 1_c_int
+       w%geometry_cell_intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
+       w%geometry_cell_cen = 1
+       w%geometry_cell_origin = 0d0
+       w%geometry_cell_inice = 10
+       if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
+       if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
     end if
 
     ! if tied to tree, update the isys
@@ -894,14 +908,22 @@ contains
                    if (w%geometry_cell_simple) then
                       w%geometry_cell_nrep = 1
                    else
-                      w%geometry_cell_matrix = eye
-                      iaction_x = 0d0
-                      iaction_l = .false.
+                      w%geometry_cell_intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
+                      w%geometry_cell_cen = 1
                    end if
                 end if
                 call iw_tooltip("Reset the supercell transformation",ttshown)
              else
-                ! arbitrary transformation matrix
+                ! arbitrary transformation matrix: each row is a lattice vector of the new
+                ! cell = integer triplet + (for centered cells) a centering vector
+                w%geometry_cell_cen = min(max(w%geometry_cell_cen,1),max(sys(isys)%c%ncv,1))
+                if (sys(isys)%c%ncv > 1) then
+                   ! build the centering options once
+                   stropt = ""
+                   do j = 1, sys(isys)%c%ncv
+                      stropt = stropt // cell_cen_label(sys(isys)%c%cen(:,j)) // c_null_char
+                   end do
+                end if
                 do im = 1, 3
                    call igAlignTextToFramePadding()
                    if (im == 1) then
@@ -912,10 +934,17 @@ contains
                       call iw_text("c' ")
                    end if
                    do jm = 1, 3
-                      ldum = iw_dragfloat_real8("##cellmat" // string(im) // string(jm),&
-                         x1=w%geometry_cell_matrix(jm,im),speed=0.1d0,decimal=4,sameline=.true.,&
-                         acceptonenter=.true.)
+                      call igSameLine(0._c_float,-1._c_float)
+                      call igSetNextItemWidth(iw_calcwidth(3,1))
+                      str2 = "##cellmat" // string(im) // string(jm) // c_null_char
+                      ldum = igInputInt(c_loc(str2),w%geometry_cell_intmat(jm,im),0_c_int,0_c_int,&
+                         ImGuiInputTextFlags_EnterReturnsTrue)
                    end do
+                   if (sys(isys)%c%ncv > 1) then
+                      call iw_text(" + ",sameline=.true.)
+                      call iw_combo_simple("##cellcen" // string(im),stropt,w%geometry_cell_cen(im),sameline=.true.)
+                      call iw_tooltip("Centering vector added to this lattice vector",ttshown)
+                   end if
                 end do
                 call igAlignTextToFramePadding()
                 call iw_text("Origin")
@@ -927,9 +956,7 @@ contains
              end if
              ok = iw_button("Apply##celltransfapply")
              call iw_tooltip("Apply the supercell transformation",ttshown)
-             oki = iw_button("Apply Inverse##celltransfapplyinv",sameline=.true.)
-             call iw_tooltip("Apply the inverse of the supercell transformation",ttshown)
-             if (ok .or. oki) then
+             if (ok) then
                 iaction = iaction_transform_matrix
                 if (w%geometry_cell_simple) then
                    iaction_m = 0d0
@@ -937,19 +964,21 @@ contains
                    iaction_m(2,2) = real(w%geometry_cell_nrep(2),8)
                    iaction_m(3,3) = real(w%geometry_cell_nrep(3),8)
                    iaction_x = 0d0
-                   iaction_l = oki
                 else
-                   iaction_m = w%geometry_cell_matrix
+                   do im = 1, 3
+                      iaction_m(:,im) = real(w%geometry_cell_intmat(:,im),8) + &
+                         sys(isys)%c%cen(:,w%geometry_cell_cen(im))
+                   end do
                    iaction_x = w%geometry_cell_origin
-                   iaction_l = oki
                 end if
+                iaction_l = .false.
              end if
 
              ! nice supercell search
              call iw_text("Nice supercells",highlight=.true.)
              call iw_helpermark(&
                 "For a given n, search for the supercell containing n primitive cells that "//&
-                "fits inside the largest possible sphere. The niceness is defined as the "//&
+                "fits inside the largest possible sphere (with radius rmax). The niceness is defined as the "//&
                 "ratio between the radius of the inscribed sphere and the maximum possible "//&
                 "ratio, equal to that of a cubic cell. Select the maximum value of n "//&
                 "and click search to find all the transformations (expensive for large maximum "//&
@@ -1165,6 +1194,37 @@ contains
     end if
 
   contains
+    ! format a centering vector as "(f1,f2,f3)" with common fractions
+    function cell_cen_label(x) result(str)
+      real*8, intent(in) :: x(3)
+      character(len=:,kind=c_char), allocatable :: str
+      str = "(" // frac_str(x(1)) // "," // frac_str(x(2)) // "," // frac_str(x(3)) // ")"
+    end function cell_cen_label
+
+    ! format a fractional coordinate in [0,1) as a small fraction when possible
+    function frac_str(v) result(str)
+      real*8, intent(in) :: v
+      character(len=:,kind=c_char), allocatable :: str
+      real*8 :: w
+      real*8, parameter :: eps = 1d-4
+      w = v - floor(v)
+      if (abs(w) < eps .or. abs(w-1d0) < eps) then
+         str = "0"
+      elseif (abs(w-0.5d0) < eps) then
+         str = "1/2"
+      elseif (abs(w-1d0/3d0) < eps) then
+         str = "1/3"
+      elseif (abs(w-2d0/3d0) < eps) then
+         str = "2/3"
+      elseif (abs(w-0.25d0) < eps) then
+         str = "1/4"
+      elseif (abs(w-0.75d0) < eps) then
+         str = "3/4"
+      else
+         str = string(w,'f',decimal=3)
+      end if
+    end function frac_str
+
     ! change the system on which the geometry window operates
     subroutine change_system(i)
       integer, intent(in) :: i
@@ -1182,6 +1242,12 @@ contains
       if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
       if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
       call reset_sort()
+
+      ! clear the cell transformations
+      w%geometry_cell_nrep = 1_c_int
+      w%geometry_cell_intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
+      w%geometry_cell_cen = 1
+      w%geometry_cell_origin = 0d0
 
       ! change the system
       w%isys = i

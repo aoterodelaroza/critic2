@@ -155,10 +155,10 @@ module windows
      character(len=:), allocatable :: geometry_expr_error ! error for expression
      real*8 :: timelast_geometry_sort = 0d0  ! time the geometry table was last sorted
      real*8 :: timelast_geometry_clearhighlights = 0d0 ! time the highlights were last cleared
-     ! cell tab: cell transformation tools
      logical :: geometry_cell_simple = .true. ! simple (integer multiples of a/b/c) vs. full matrix transformation
      integer(c_int) :: geometry_cell_nrep(3) = (/1_c_int,1_c_int,1_c_int/) ! a/b/c multiples for the simple transformation
-     real*8 :: geometry_cell_matrix(3,3) = eye
+     integer(c_int) :: geometry_cell_intmat(3,3) = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/)) ! integer part of the full transformation matrix
+     integer :: geometry_cell_cen(3) = 1 ! per-row centering index added to the full transformation matrix (1 = zero centering)
      real*8 :: geometry_cell_origin(3) = 0d0 ! origin shift for the matrix transformation
      integer(c_int) :: geometry_cell_inice = 10 ! maximum supercell size for the nice cell search
      real*8, allocatable :: geometry_cell_nice_rmax(:) ! inscribed-sphere radii from the nice search
