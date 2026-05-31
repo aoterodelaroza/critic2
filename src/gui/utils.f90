@@ -29,6 +29,7 @@ module utils
   public :: iw_dragfloat_realc
   public :: iw_dragfloat_real8
   public :: iw_inputint
+  public :: iw_inputint3
   public :: iw_clamp_color3
   public :: iw_clamp_color4
   public :: iw_coloredit
@@ -117,6 +118,15 @@ module utils
        integer(c_int), intent(in), optional :: flags
        logical :: iw_inputint
      end function iw_inputint
+     module function iw_inputint3(str,ival,width,sameline,notlive,flags)
+       character(len=*,kind=c_char), intent(in) :: str
+       integer(c_int), intent(inout) :: ival(3)
+       integer, intent(in), optional :: width
+       logical, intent(in), optional :: sameline
+       logical, intent(in), optional :: notlive
+       integer(c_int), intent(in), optional :: flags
+       logical :: iw_inputint3
+     end function iw_inputint3
      module subroutine iw_clamp_color3(rgb)
        real(c_float), intent(inout) :: rgb(3)
      end subroutine iw_clamp_color3

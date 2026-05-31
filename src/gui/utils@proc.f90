@@ -20,10 +20,12 @@ submodule (utils) proc
   use iso_c_binding
   implicit none
 
-  ! deferred-commit state for iw_inputint(notlive): the ImGui ID and in-progress
-  ! value of the integer input currently being edited (only one item is active at a time)
+  ! deferred-commit state for iw_inputint/iw_inputint3 (notlive): the ImGui ID and
+  ! in-progress value of the integer input currently being edited. Only one item is
+  ! active at a time, so the edit ID is shared; only the value buffer differs by type.
   integer(c_int) :: inputint_editid = 0_c_int
   integer(c_int) :: inputint_editbuf = 0_c_int
+  integer(c_int) :: inputint3_editbuf(3) = 0_c_int
 
 contains
 
@@ -466,6 +468,72 @@ contains
     end if
 
   end function iw_inputint
+
+  !> Input box for three integers, wrapping igInputInt3. width = field width
+  !> in number of characters. sameline = draw in the same line as the previous
+  !> widget. flags = ImGuiInputTextFlags_*. If notlive, ival is left untouched
+  !> while typing and updated (and .true. returned) only when the value is
+  !> committed (Enter, Tab, or click-away), instead of on every keystroke.
+  module function iw_inputint3(str,ival,width,sameline,notlive,flags)
+    use interfaces_cimgui
+    character(len=*,kind=c_char), intent(in) :: str
+    integer(c_int), intent(inout) :: ival(3)
+    integer, intent(in), optional :: width
+    logical, intent(in), optional :: sameline
+    logical, intent(in), optional :: notlive
+    integer(c_int), intent(in), optional :: flags
+    logical :: iw_inputint3
+
+    character(len=:,kind=c_char), allocatable, target :: str_
+    integer(c_int) :: flags_, v(3), myid
+    logical :: sameline_, notlive_
+
+    ! process options
+    str_ = trim(str) // c_null_char
+    sameline_ = .false.
+    if (present(sameline)) sameline_ = sameline
+    flags_ = 0_c_int
+    if (present(flags)) flags_ = flags
+    notlive_ = .false.
+    if (present(notlive)) notlive_ = notlive
+
+    ! same line
+    if (sameline_) &
+       call igSameLine(0._c_float,-1._c_float)
+
+    ! width
+    if (present(width)) &
+       call igPushItemWidth(iw_calcwidth(width,1))
+
+    if (notlive_) then
+       ! deferred commit: edit a persistent buffer so ival is left untouched while typing and
+       ! only updated when the value is committed (Enter, Tab, or click-away). Only one input
+       ! is being edited at any time, so a single (id,buffer) pair is enough.
+       myid = igGetID_Str(c_loc(str_))
+       if (myid == inputint_editid) then
+          v = inputint3_editbuf
+       else
+          v = ival
+       end if
+       iw_inputint3 = logical(igInputInt3(c_loc(str_),v,flags_))
+       if (present(width)) &
+          call igPopItemWidth()
+       if (logical(igIsItemActivated())) inputint_editid = myid
+       if (myid == inputint_editid) inputint3_editbuf = v
+       iw_inputint3 = .false.
+       if (logical(igIsItemDeactivatedAfterEdit()) .and. myid == inputint_editid) then
+          ival = v
+          inputint_editid = 0_c_int
+          iw_inputint3 = .true.
+       end if
+    else
+       ! live: ival updates on every change
+       iw_inputint3 = logical(igInputInt3(c_loc(str_),ival,flags_))
+       if (present(width)) &
+          call igPopItemWidth()
+    end if
+
+  end function iw_inputint3
 
   !> Clamp a 3-color to the 0->1 interval
   module subroutine iw_clamp_color3(rgb)

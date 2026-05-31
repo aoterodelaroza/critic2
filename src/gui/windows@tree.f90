@@ -38,7 +38,7 @@ contains
     use keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM_FIELD, BIND_TREE_MOVE_UP,&
        BIND_TREE_MOVE_DOWN
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_inputtext,&
-       iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem
+       iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem, iw_inputint3
     use systems, only: nsys, sys, sysc, sys_empty, sys_init, sys_ready,&
        sys_loaded_not_init, launch_initialization_thread,&
        kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
@@ -672,10 +672,7 @@ contains
 
                                strpop = "Load Resampled Grid" // c_null_char
                                if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-                                  flags = ImGuiInputTextFlags_None
-                                  strpop2 = "New Size##resamplefieldmenunewsize" // c_null_char
-                                  call igSetNextItemWidth(iw_calcwidth(4*3,2))
-                                  ldum = igInputInt3(c_loc(strpop2),iresample,flags)
+                                  ldum = iw_inputint3("New Size##resamplefieldmenunewsize",iresample,width=4*3)
 
                                   if (iw_menuitem("OK##resamplefieldmenuok")) then
                                      id = sys(i)%getfieldnum()
