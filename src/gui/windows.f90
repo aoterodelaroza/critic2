@@ -98,6 +98,7 @@ module windows
      type(ImVec2) :: v_rmin, v_rmax ! view image rectangle
      integer :: view_selected = 1 ! the system selected in the view window
      logical :: forcerender = .true. ! force render of the scene
+     logical :: lowresrender = .false. ! last render was at reduced (interactive) resolution
      integer :: view_mousebehavior = MB_navigation ! mouse behavior in the view
      type(ImVec2) :: mousepos_lastframe ! save mouse position
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position

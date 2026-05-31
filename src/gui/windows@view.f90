@@ -39,6 +39,15 @@ submodule (windows) view
   ! minimum time elapsed between consecutive queries of the pick buffer (seconds)
   integer, parameter :: pick_interval = 1d0 / 5d0
 
+  ! render-texture sizing (pixels). The texture is sized up to the view window
+  ! (snapped to a bucket, capped) so the still image stays sharp; while the user
+  ! manipulates the camera the scene is rendered at interactive_texture_side to
+  ! keep interaction fast regardless of window size.
+  integer(c_int), parameter :: min_texture_side = 1024_c_int
+  integer(c_int), parameter :: max_texture_side = 2048_c_int
+  integer(c_int), parameter :: interactive_texture_side = 1024_c_int
+  integer(c_int), parameter :: texture_side_bucket = 256_c_int
+
 contains
 
   !> Draw the view.
@@ -82,7 +91,10 @@ contains
     integer :: islabels
     logical :: ch
     integer(c_int) :: flags, nc(3), ires, viewtype, idum
+    integer(c_int) :: newside, vside
     real(c_float) :: scal, width, depth, rgba(4)
+    real(c_float) :: rscale
+    logical :: interacting
     real*8 :: x0(3), time
     type(ImVec2) :: sz
     logical :: changedisplay(4) ! 1=atoms, 2=bonds, 3=labels, 4=cell
@@ -713,15 +725,33 @@ contains
     call igGetContentRegionAvail(szavail)
     szavail%y = szavail%y - igGetTextLineHeightWithSpacing() - g%Style%WindowPadding%y
 
-    ! ! resize the render texture if not large enough
-    !!! integer(c_int) :: amax
-    ! amax = max(ceiling(max(szavail%x,szavail%y)),1)
-    ! if (amax > w%FBOside) then
-    !    amax = max(ceiling(1.2 * ceiling(max(szavail%x,szavail%y))),1)
-    !    call w%delete_texture_view()
-    !    call w%create_texture_view(amax)
-    !    w%forcerender = .true.
-    ! end if
+    ! resize the render texture to the window (snapped to a bucket and capped),
+    ! so the still image stays sharp without pixelation on large windows. Only
+    ! reallocate when the bucketed side changes, to avoid churn during resize.
+    newside = max(ceiling(max(szavail%x,szavail%y)),1)
+    newside = ((newside + texture_side_bucket - 1) / texture_side_bucket) * texture_side_bucket
+    newside = min(max(newside, min_texture_side), max_texture_side)
+    if (newside /= w%FBOside) then
+       call w%delete_texture_view()
+       call w%create_texture_view(newside)
+       w%forcerender = .true.
+    end if
+
+    ! Adaptive resolution: while the camera is being manipulated, render at a
+    ! reduced (interactive) resolution to stay responsive on large windows. When
+    ! the user stops, snap back to a full-resolution render. Whenever the desired
+    ! render scale (interacting) differs from what the texture currently holds
+    ! (lowresrender), force a render this frame so the displayed sub-region (the
+    ! UVs below, scaled by rscale) always matches the texture content. Otherwise
+    ! a press that switches to low-res before any motion would sample the
+    ! sub-region of a full-region render (scene out of position).
+    interacting = associated(w%sc) .and. (w%ilock /= ilock_no)
+    if (interacting .neqv. w%lowresrender) w%forcerender = .true.
+    if (interacting) then
+       rscale = real(min(w%FBOside,interactive_texture_side),c_float) / real(w%FBOside,c_float)
+    else
+       rscale = 1._c_float
+    end if
 
     ! draw the texture, largest region with the same shape as the available region
     ! that fits into the texture square
@@ -732,15 +762,21 @@ contains
     sz1%y = 1._c_float - sz0%y
 
     ! record the visible (cropped) region so the scene can place
-    ! window-anchored objects (e.g. the axes gizmo) relative to it. If the
-    ! visible region changed and the scene has window-anchored objects,
-    ! force a re-render so they track the new window geometry.
+    ! window-anchored objects (e.g. the axes gizmo) relative to it. This uses the
+    ! unscaled crop (relative to the full square render). If the visible region
+    ! changed and the scene has window-anchored objects, force a re-render so
+    ! they track the new window geometry.
     if (associated(w%sc)) then
        if (w%sc%hasanchoredobj .and. &
           (abs(sz0%x - w%sc%viewuv0(1)) > 1e-6_c_float .or. abs(sz0%y - w%sc%viewuv0(2)) > 1e-6_c_float)) &
           w%forcerender = .true.
        w%sc%viewuv0 = (/sz0%x,sz0%y/)
     end if
+
+    ! during interactive low-res rendering the scene is rasterized into the
+    ! lower-left rscale-fraction of the texture, so sample only that sub-region.
+    sz0%x = rscale * sz0%x ; sz0%y = rscale * sz0%y
+    sz1%x = rscale * sz1%x ; sz1%y = rscale * sz1%y
 
     !!! The camratio is used for resetting the camera. The problem with this
     !!! is that in the first render the window dimensions are still changing
@@ -757,9 +793,12 @@ contains
 
     ! render the image to the texture, if requested
     if (w%forcerender) then
+       ! viewport side: full texture, or the interactive sub-square (lower-left)
+       vside = max(nint(rscale * w%FBOside),1)
+
        ! render to the draw framebuffer
        call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
-       call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
+       call glViewport(0_c_int,0_c_int,vside,vside)
        if (associated(w%sc)) then
           call glClearColor(w%sc%bgcolor(1),w%sc%bgcolor(2),&
              w%sc%bgcolor(3),1._c_float)
@@ -770,14 +809,19 @@ contains
        if (associated(w%sc)) call w%sc%render()
        call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
-       ! render to the pick frame buffer
-       call glBindFramebuffer(GL_FRAMEBUFFER, w%FBOpick)
-       call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
-       call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
-       call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
-       if (associated(w%sc)) call w%sc%renderpick()
-       call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+       ! render to the pick frame buffer. Skip this (heavy RGBA32F) pass while
+       ! interacting: picking is only queried when the view is idle, and the
+       ! mouse-to-texture mapping assumes the full-resolution pick buffer.
+       if (.not.interacting) then
+          call glBindFramebuffer(GL_FRAMEBUFFER, w%FBOpick)
+          call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
+          call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
+          call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
+          if (associated(w%sc)) call w%sc%renderpick()
+          call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+       end if
 
+       w%lowresrender = interacting
        w%forcerender = .false.
     end if
 

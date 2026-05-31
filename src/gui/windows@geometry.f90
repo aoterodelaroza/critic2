@@ -49,7 +49,8 @@ contains
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
-       iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper, iw_inputint
+       iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper, iw_inputint,&
+       iw_inputint3
     use types, only: realloc
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger
     use param, only: newline, bohrtoa
@@ -935,10 +936,8 @@ contains
                    else
                       call iw_text("c' ")
                    end if
-                   do jm = 1, 3
-                      ch = ch .or. iw_inputint("##cellmat" // string(im) // string(jm),&
-                         w%geometry_cell_intmat(jm,im),width=3,sameline=.true.,notlive=.true.)
-                   end do
+                   ch = ch .or. iw_inputint3("##cellmat" // string(im),&
+                      w%geometry_cell_intmat(:,im),width=3*3,sameline=.true.,notlive=.true.)
                    if (sys(isys)%c%ncv > 1) then
                       call iw_text(" + ",sameline=.true.)
                       call iw_combo_simple("##cellcen" // string(im),stropt,w%geometry_cell_cen(im),&
