@@ -67,7 +67,7 @@ contains
     real(c_float), allocatable :: irgba(:,:)
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
-    integer :: ii, i, j, isys, icol, ispc, iz, izout, iview, id, im, jm, ipad
+    integer :: ii, i, j, isys, icol, ispc, iz, izout, iview, id, im, jm
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, ldum, ok, oki
@@ -885,10 +885,9 @@ contains
                 ! simple transformation: integer multiples of the a, b, c axes
                 call igAlignTextToFramePadding()
                 call iw_text("na/nb/nc: ")
-                ipad = ceiling(log10(max(maxval(w%geometry_cell_nrep),1_c_int) + 0.1))
                 do jm = 1, 3
                    ldum = iw_intstepper("cellnrep" // string(jm),w%geometry_cell_nrep(jm),&
-                      minval=1_c_int,ndigit=ipad,sameline=.true.,entertrue=.true.)
+                      minval=1_c_int,sameline=.true.)
                 end do
                 call iw_tooltip("Number of times the cell is repeated along the a, b, and c&
                    & lattice vectors",ttshown)
@@ -952,8 +951,7 @@ contains
              call iw_text("Nice supercells",highlight=.true.)
              call iw_tooltip("Search for the most cube-like supercells up to the given size&
                 & (number of times the current cell). Click a row to transform to that supercell.",ttshown)
-             ldum = iw_intstepper("cellnicesize",w%geometry_cell_inice,label="Max. size",&
-                minval=1_c_int,entertrue=.true.)
+             ldum = iw_intstepper("cellnicesize",w%geometry_cell_inice,label="Max. size",minval=1_c_int)
              if (iw_button("Search##cellnicesearch",sameline=.true.)) then
                 w%geometry_cell_inice = max(w%geometry_cell_inice,1_c_int)
                 call sysc(isys)%cell_nice_list(int(w%geometry_cell_inice),&

@@ -71,7 +71,7 @@ contains
     use param, only: newline
     class(window), intent(inout), target :: w
 
-    integer :: i, j, k, nrep, ipad, is, icel, ineq, iaux
+    integer :: i, j, k, nrep, is, icel, ineq, iaux
     type(ImVec2) :: szavail, sz0, sz1, szero, pos
     type(ImVec4) :: tintcol, bgcol
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
@@ -285,10 +285,9 @@ contains
 
              ! number of cells in each direction (shared digit width)
              nc = w%sc%nc
-             ipad = ceiling(log10(max(maxval(nc),1) + 0.1))
-             ldum = iw_intstepper("aaxis",nc(1),label="a:",minval=1_c_int,ndigit=ipad,entertrue=.true.)
-             ldum = iw_intstepper("baxis",nc(2),label="b:",minval=1_c_int,ndigit=ipad,sameline=.true.,entertrue=.true.)
-             ldum = iw_intstepper("caxis",nc(3),label="c:",minval=1_c_int,ndigit=ipad,sameline=.true.,entertrue=.true.)
+             ldum = iw_intstepper("aaxis",nc(1),label="a:",minval=1_c_int,entertrue=.true.)
+             ldum = iw_intstepper("baxis",nc(2),label="b:",minval=1_c_int,sameline=.true.,entertrue=.true.)
+             ldum = iw_intstepper("caxis",nc(3),label="c:",minval=1_c_int,sameline=.true.,entertrue=.true.)
              if (any(nc /= w%sc%nc)) then
                 w%sc%nc = nc
                 chbuild = .true.

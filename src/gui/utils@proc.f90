@@ -697,7 +697,7 @@ contains
     if (present(label)) then
        call igAlignTextToFramePadding()
        call iw_text(label)
-       call igSameLine(0._c_float,0._c_float)
+       call igSameLine(0._c_float,g%Style%FramePadding%x)
     end if
 
     ! "-" button / input field / "+" button (buttons auto-repeat when held)
