@@ -393,7 +393,11 @@ function igGetTextLineHeightWithSpacing() bind(c,name="igGetTextLineHeightWithSp
   import c_float
   real(c_float) :: igGetTextLineHeightWithSpacing
 end function igGetTextLineHeightWithSpacing
-!x! float igGetFrameHeight(void);
+! float igGetFrameHeight(void);
+function igGetFrameHeight() bind(c,name="igGetFrameHeight")
+  import c_float
+  real(c_float) :: igGetFrameHeight
+end function igGetFrameHeight
 ! float igGetFrameHeightWithSpacing(void);
 function igGetFrameHeightWithSpacing() bind(c,name="igGetFrameHeightWithSpacing")
   import c_float
