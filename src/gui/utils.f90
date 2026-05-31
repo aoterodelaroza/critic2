@@ -135,7 +135,7 @@ module utils
        real(c_float) :: iw_calcwidth
      end function iw_calcwidth
      module subroutine iw_combo_simple(str,stropt,ival,sameline,sameline_nospace,changed,&
-        noarrow)
+        noarrow,startsatone)
        character(len=*,kind=c_char), intent(in) :: str
        character(len=*,kind=c_char), intent(in) :: stropt
        integer, intent(inout) :: ival
@@ -143,6 +143,7 @@ module utils
        logical, intent(in), optional :: sameline_nospace
        logical(c_bool), intent(out), optional :: changed
        logical, intent(in), optional :: noarrow
+       logical, intent(in), optional :: startsatone
      end subroutine iw_combo_simple
      module function iw_radiobutton(str,bool,boolval,int,intval,sameline)
        character(len=*,kind=c_char), intent(in) :: str

@@ -526,7 +526,7 @@ contains
   !> item. samline_nospace = like sameline, but no extra
   !> space. changed = returns true if the combo option
   !> changed. noarrow = hide the arrow on the right of the combo.
-  module subroutine iw_combo_simple(str,stropt,ival,sameline,sameline_nospace,changed,noarrow)
+  module subroutine iw_combo_simple(str,stropt,ival,sameline,sameline_nospace,changed,noarrow,startsatone)
     use interfaces_cimgui
     use types, only: realloc
     character(len=*,kind=c_char), intent(in) :: str
@@ -536,12 +536,13 @@ contains
     logical, intent(in), optional :: sameline_nospace
     logical(c_bool), intent(out), optional :: changed
     logical, intent(in), optional :: noarrow
+    logical, intent(in), optional :: startsatone
 
     type(ImVec2) :: szero
     character(len=:,kind=c_char), allocatable, target :: str1, str2, preview
     character(len=:,kind=c_char), allocatable, target :: stropt1
     logical :: sameline_, sameline_nospace_, noarrow_
-    integer :: ll, maxlen, nword, i, iselect
+    integer :: ll, maxlen, nword, i, iselect, off, ival0
     integer(c_int) :: flags
     integer, allocatable :: idx(:)
     logical(c_bool) :: selected
@@ -549,6 +550,12 @@ contains
     ! process input options
     noarrow_ = .false.
     if (present(noarrow)) noarrow_ = noarrow
+    ! offset for 1-based indexing (ival=1 selects the first element); work internally with 0-based ival0
+    off = 0
+    if (present(startsatone)) then
+       if (startsatone) off = 1
+    end if
+    ival0 = ival - off
     sameline_ = .false.
     if (present(sameline)) sameline_ = sameline
     sameline_nospace_ = .false.
@@ -580,7 +587,7 @@ contains
           nword = nword + 1
           if (nword+1 > size(idx,1)) call realloc(idx,2*nword)
           idx(nword+1) = i
-          if (ival+1 == nword) preview = stropt1(idx(nword)+1:i-1) // c_null_char
+          if (ival0+1 == nword) preview = stropt1(idx(nword)+1:i-1) // c_null_char
           maxlen = max(maxlen,i-1-idx(nword))
        end if
     end do
@@ -595,13 +602,13 @@ contains
     else
        call igSetNextItemWidth(iw_calcwidth(maxlen+4,0))
     end if
-    iselect = ival
+    iselect = ival0
     flags = ImGuiComboFlags_None
     if (noarrow_) flags = ior(flags,ImGuiComboFlags_NoArrowButton)
     if (igBeginCombo(c_loc(str1),c_loc(preview),flags)) then
        do i = 1, nword
           str2 = stropt1(idx(i)+1:idx(i+1)-1) // c_null_char
-          selected = (i == ival+1)
+          selected = (i == ival0+1)
           if (igSelectable_Bool(c_loc(str2),selected,ImGuiSelectableFlags_None,szero)) &
              iselect = i-1
           if (selected) &
@@ -609,8 +616,8 @@ contains
        end do
        call igEndCombo()
     end if
-    if (present(changed)) changed = (ival /= iselect)
-    ival = iselect
+    if (present(changed)) changed = (ival0 /= iselect)
+    ival = iselect + off
 
   end subroutine iw_combo_simple
 

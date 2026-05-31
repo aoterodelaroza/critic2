@@ -942,7 +942,8 @@ contains
                    end do
                    if (sys(isys)%c%ncv > 1) then
                       call iw_text(" + ",sameline=.true.)
-                      call iw_combo_simple("##cellcen" // string(im),stropt,w%geometry_cell_cen(im),sameline=.true.)
+                      call iw_combo_simple("##cellcen" // string(im),stropt,w%geometry_cell_cen(im),&
+                         sameline=.true.,startsatone=.true.)
                       call iw_tooltip("Centering vector added to this lattice vector",ttshown)
                    end if
                 end do
