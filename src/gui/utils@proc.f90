@@ -722,11 +722,11 @@ contains
   !> built-in input steppers are suppressed; the field width is sized to
   !> the number of digits (ndigit, or computed from ival if absent). The
   !> value is clamped to [minval,maxval] (whichever is present). sameline
-  !> draws the widget in the same line as the previous one. If entertrue
+  !> draws the widget in the same line as the previous one. If acceptonenter
   !> is present and true, the input commits only on Enter. If tooltip is
   !> present, it is shown when hovering over the input field or either
   !> button. Returns .true. if the value changed.
-  module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,entertrue,tooltip)
+  module function iw_intstepper(str,ival,label,minval,maxval,ndigit,sameline,acceptonenter,tooltip)
     use interfaces_cimgui
     use gui_main, only: g
     character(len=*,kind=c_char), intent(in) :: str
@@ -735,7 +735,7 @@ contains
     integer(c_int), intent(in), optional :: minval, maxval
     integer, intent(in), optional :: ndigit
     logical, intent(in), optional :: sameline
-    logical, intent(in), optional :: entertrue
+    logical, intent(in), optional :: acceptonenter
     character(len=*,kind=c_char), intent(in), optional :: tooltip
     logical :: iw_intstepper
 
@@ -758,8 +758,8 @@ contains
 
     ! commit-on-enter flag
     flags = 0_c_int
-    if (present(entertrue)) then
-       if (entertrue) flags = ImGuiInputTextFlags_EnterReturnsTrue
+    if (present(acceptonenter)) then
+       if (acceptonenter) flags = ImGuiInputTextFlags_EnterReturnsTrue
     end if
 
     ! optional left label (tight against the "-" button)
