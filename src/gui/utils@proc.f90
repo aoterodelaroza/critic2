@@ -700,7 +700,8 @@ contains
        call igSameLine(0._c_float,0._c_float)
     end if
 
-    ! "-" button / input field / "+" button
+    ! "-" button / input field / "+" button (buttons auto-repeat when held)
+    call igPushButtonRepeat(.true._c_bool)
     if (iw_button("-##" // str)) ival = ival - 1
     call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
     str1 = "##" // str // c_null_char
@@ -709,6 +710,7 @@ contains
     call igPopItemWidth()
     call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
     if (iw_button("+##" // str)) ival = ival + 1
+    call igPopButtonRepeat()
 
     ! clamp and report change
     if (present(minval)) ival = max(ival,minval)

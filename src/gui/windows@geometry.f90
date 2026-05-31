@@ -67,7 +67,7 @@ contains
     real(c_float), allocatable :: irgba(:,:)
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
-    integer :: ii, i, j, isys, icol, ispc, iz, izout, iview, id, im, jm
+    integer :: ii, i, j, isys, icol, ispc, iz, izout, iview, id, im, jm, ipad
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, ldum, ok, oki
@@ -885,12 +885,10 @@ contains
                 ! simple transformation: integer multiples of the a, b, c axes
                 call igAlignTextToFramePadding()
                 call iw_text("na/nb/nc: ")
+                ipad = ceiling(log10(max(maxval(w%geometry_cell_nrep),1_c_int) + 0.1))
                 do jm = 1, 3
-                   call igSameLine(0._c_float,-1._c_float)
-                   call igSetNextItemWidth(iw_calcwidth(2,1))
-                   str2 = "##cellnrep" // string(jm) // c_null_char
-                   ldum = igInputInt(c_loc(str2),w%geometry_cell_nrep(jm),0_c_int,0_c_int,ImGuiInputTextFlags_None)
-                   w%geometry_cell_nrep(jm) = max(w%geometry_cell_nrep(jm),1_c_int)
+                   ldum = iw_intstepper("cellnrep" // string(jm),w%geometry_cell_nrep(jm),&
+                      minval=1_c_int,ndigit=ipad,sameline=.true.,entertrue=.true.)
                 end do
                 call iw_tooltip("Number of times the cell is repeated along the a, b, and c&
                    & lattice vectors",ttshown)

@@ -262,8 +262,14 @@ subroutine igPopStyleVar(count) bind(c,name="igPopStyleVar")
 end subroutine igPopStyleVar
 !x! void igPushAllowKeyboardFocus(bool allow_keyboard_focus);
 !x! void igPopAllowKeyboardFocus(void);
-!x! void igPushButtonRepeat(bool repeat);
-!x! void igPopButtonRepeat(void);
+! void igPushButtonRepeat(bool repeat);
+subroutine igPushButtonRepeat(repeat) bind(c,name="igPushButtonRepeat")
+  import c_bool
+  logical(c_bool), value :: repeat
+end subroutine igPushButtonRepeat
+! void igPopButtonRepeat(void);
+subroutine igPopButtonRepeat() bind(c,name="igPopButtonRepeat")
+end subroutine igPopButtonRepeat
 ! void igPushItemWidth(float item_width);
 subroutine igPushItemWidth(item_width) bind(c,name="igPushItemWidth")
   import c_float
