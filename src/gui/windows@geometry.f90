@@ -947,6 +947,13 @@ contains
 
              ! nice supercell search
              call iw_text("Nice supercells",highlight=.true.)
+             call iw_helpermark(&
+                "For a given n, search for the supercell containing n primitive cells that "//&
+                "fits inside the largest possible sphere. The niceness is defined as the "//&
+                "ratio between the radius of the inscribed sphere and the maximum possible "//&
+                "ratio, equal to that of a cubic cell. Select the maximum value of n "//&
+                "and click search to find all the transformations (expensive for large maximum "//&
+                "values). Click on any of the table rows to effect the transformation.")
              call iw_tooltip("Search for the most cube-like supercells up to the given size&
                 & (number of times the current cell). Click a row to transform to that supercell.",ttshown)
              ldum = iw_intstepper("cellnicesize",w%geometry_cell_inice,label="Max. size",minval=1_c_int,&
@@ -956,6 +963,8 @@ contains
                 call sysc(isys)%cell_nice_list(int(w%geometry_cell_inice),&
                    w%geometry_cell_nice_rmax,w%geometry_cell_nice_mmax)
              end if
+             call iw_tooltip("Search for the nicest shells up to the indicated&
+                & maximum size (can be expensive)",ttshown)
 
              if (allocated(w%geometry_cell_nice_rmax)) then
                 flags = ImGuiTableFlags_RowBg
