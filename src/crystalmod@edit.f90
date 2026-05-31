@@ -222,7 +222,7 @@ contains
   module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv,errmsg,ti)
     use crystalseedmod, only: crystalseed
     use tools_math, only: det3, matinv, mnorm2
-    use tools_io, only: ferror, faterr, string, uout
+    use tools_io, only: string, uout
     use types, only: realloc
     use param, only: icrd_crys
     class(crystal), intent(inout) :: c
@@ -232,7 +232,7 @@ contains
     real*8, intent(in), optional :: xnew(:,:)
     integer, intent(in), optional :: isnew(:)
     logical, intent(in), optional :: noenv
-    character(len=:), allocatable, intent(out), optional :: errmsg
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: ncseed
@@ -250,7 +250,7 @@ contains
     real*8, parameter :: eps = 1d-2
     real*8, parameter :: eps2 = eps * eps
 
-    if (present(errmsg)) errmsg = ""
+    errmsg = ""
     if (c%ismolecule) then
        errmsg_ = 'NEWCELL incompatible with molecules'
        goto 999
@@ -456,20 +456,14 @@ contains
     ncseed%ismolecule = .false.
 
     ! initialize the structure
-    call c%struct_new(ncseed,.not.present(errmsg),noenv,ti=ti)
-    if (present(errmsg)) then
-       if (.not.c%isinit) errmsg = "Could not create the new crystal structure"
-    end if
+    call c%struct_new(ncseed,.false.,noenv,ti=ti)
+    if (.not.c%isinit) errmsg = "Could not create the new crystal structure"
 
     return
 
-    ! error handling: report via errmsg if requested, else crash
+    ! error handling: report via errmsg
 999 continue
-    if (present(errmsg)) then
-       errmsg = errmsg_
-    else
-       call ferror("newcell",errmsg_,faterr)
-    end if
+    errmsg = errmsg_
 
   end subroutine newcell
 
@@ -484,7 +478,6 @@ contains
     use spglib, only: spg_standardize_cell
     use global, only: symprec
     use tools_math, only: det3, matinv
-    use tools_io, only: ferror, faterr
     use types, only: realloc
     use param, only: eye
     class(crystal), intent(inout) :: c
@@ -492,7 +485,7 @@ contains
     logical, intent(in) :: doforce
     logical, intent(in) :: refine
     logical, intent(in), optional :: noenv
-    character(len=:), allocatable, intent(out), optional :: errmsg
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
     real*8 :: x0(3,3)
 
@@ -503,7 +496,7 @@ contains
     real*8 :: rmat(3,3)
 
     x0 = 0d0
-    if (present(errmsg)) errmsg = ""
+    errmsg = ""
 
     ! ignore molecules
     if (c%ismolecule) return
@@ -526,12 +519,8 @@ contains
 
     nnew = spg_standardize_cell(rmat,x,types_,nat,iprim,inorefine,symprec)
     if (nnew == 0) then
-       if (present(errmsg)) then
-          errmsg = "Could not find primitive cell"
-          return
-       else
-          call ferror("cell_standard","could not find primitive cell",faterr)
-       end if
+       errmsg = "Could not find primitive cell"
+       return
     end if
     call realloc(x,3,nnew)
     call realloc(types_,nnew)
@@ -552,9 +541,7 @@ contains
        if (toprim .and. .not.(det3(rmat) < 1d0-symprec) .and..not.doforce) return
        call c%newcell(rmat,noenv=noenv,ti=ti,errmsg=errmsg)
     end if
-    if (present(errmsg)) then
-       if (len_trim(errmsg) > 0) return
-    end if
+    if (len_trim(errmsg) > 0) return
     x0 = rmat
 
   end function cell_standard
@@ -564,12 +551,11 @@ contains
   module function cell_niggli(c,noenv,errmsg,ti) result(x0)
     use spglib, only: spg_niggli_reduce
     use global, only: symprec
-    use tools_io, only: ferror, faterr
     use tools_math, only: det3
     use param, only: eye
     class(crystal), intent(inout) :: c
     logical, intent(in), optional :: noenv
-    character(len=:), allocatable, intent(out), optional :: errmsg
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
     real*8 :: x0(3,3)
 
@@ -577,7 +563,7 @@ contains
     integer :: id, i
 
     x0 = 0d0
-    if (present(errmsg)) errmsg = ""
+    errmsg = ""
 
     ! ignore molecules
     if (c%ismolecule) return
@@ -586,12 +572,8 @@ contains
     rmat = transpose(c%m_x2c)
     id = spg_niggli_reduce(rmat,symprec)
     if (id == 0) then
-       if (present(errmsg)) then
-          errmsg = "Could not find Niggli reduction"
-          return
-       else
-          call ferror("cell_niggli","could not find Niggli reduction",faterr)
-       end if
+       errmsg = "Could not find Niggli reduction"
+       return
     end if
     rmat = transpose(rmat)
     do i = 1, 3
@@ -604,9 +586,7 @@ contains
     ! transform
     if (any(abs(rmat - eye) > symprec)) then
        call c%newcell(rmat,noenv=noenv,ti=ti,errmsg=errmsg)
-       if (present(errmsg)) then
-          if (len_trim(errmsg) > 0) return
-       end if
+       if (len_trim(errmsg) > 0) return
        x0 = rmat
     end if
 
@@ -617,12 +597,11 @@ contains
   module function cell_delaunay(c,noenv,errmsg,ti) result(x0)
     use spglib, only: spg_delaunay_reduce
     use global, only: symprec
-    use tools_io, only: ferror, faterr
     use tools_math, only: det3
     use param, only: eye
     class(crystal), intent(inout) :: c
     logical, intent(in), optional :: noenv
-    character(len=:), allocatable, intent(out), optional :: errmsg
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
     real*8 :: x0(3,3)
 
@@ -630,7 +609,7 @@ contains
     integer :: id, i
 
     x0 = 0d0
-    if (present(errmsg)) errmsg = ""
+    errmsg = ""
 
     ! ignore molecules
     if (c%ismolecule) return
@@ -639,12 +618,8 @@ contains
     rmat = transpose(c%m_x2c)
     id = spg_delaunay_reduce(rmat,symprec)
     if (id == 0) then
-       if (present(errmsg)) then
-          errmsg = "Could not find Delaunay reduction"
-          return
-       else
-          call ferror("cell_delaunay","could not find Delaunay reduction",faterr)
-       end if
+       errmsg = "Could not find Delaunay reduction"
+       return
     end if
     rmat = transpose(rmat)
     do i = 1, 3
@@ -657,9 +632,7 @@ contains
     ! transform
     if (any(abs(rmat - eye) > symprec)) then
        call c%newcell(rmat,noenv=noenv,ti=ti,errmsg=errmsg)
-       if (present(errmsg)) then
-          if (len_trim(errmsg) > 0) return
-       end if
+       if (len_trim(errmsg) > 0) return
        x0 = rmat
     end if
 
@@ -1020,12 +993,11 @@ contains
   module subroutine edit_atom_list(c,nat,iat,remove,merge,duplicate,errmsg,ti)
     use crystalseedmod, only: crystalseed
     use types, only: realloc
-    use tools_io, only: ferror, faterr
     class(crystal), intent(inout) :: c
     integer, intent(in) :: nat
     integer, intent(in) :: iat(nat)
     logical, intent(in), optional :: remove, merge, duplicate
-    character(len=:), allocatable, intent(out), optional :: errmsg
+    character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
@@ -1034,7 +1006,7 @@ contains
     real*8 :: mergex(3), x0(3), xd(3), rdum
     logical :: remove_, merge_, duplicate_
 
-    if (present(errmsg)) errmsg = ""
+    errmsg = ""
 
     ! return if nothing to do
     if (nat == 0) return
@@ -1058,12 +1030,8 @@ contains
     end if
     if (ipres == 0) return
     if (ipres > 1) then
-       if (present(errmsg)) then
-          errmsg = 'More than one of merge/remove/duplicate'
-          return
-       else
-          call ferror('edit_atom_list','more than one of merge/remove/duplicate',faterr)
-       end if
+       errmsg = 'More than one of merge/remove/duplicate'
+       return
     end if
 
     ! make seed from this crystal
@@ -1141,10 +1109,8 @@ contains
     end if
 
     ! build the new crystal
-    call c%struct_new(seed,crashfail=.not.present(errmsg),ti=ti)
-    if (present(errmsg)) then
-       if (.not.c%isinit) errmsg = "Could not rebuild the structure after editing the atoms"
-    end if
+    call c%struct_new(seed,crashfail=.false.,ti=ti)
+    if (.not.c%isinit) errmsg = "Could not rebuild the structure after editing the atoms"
 
   end subroutine edit_atom_list
 

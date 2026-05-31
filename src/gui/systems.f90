@@ -217,13 +217,13 @@ module systems
      module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate,errmsg)
        class(sysconf), intent(inout) :: sysc
        logical, intent(in), optional :: remove, merge, duplicate
-       character(len=:), allocatable, intent(inout), optional :: errmsg
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine edit_highlighted_atoms
      module subroutine edit_highlighted_species(sysc,selected,remove,merge,duplicate,errmsg)
        class(sysconf), intent(inout) :: sysc
        logical, intent(in) :: selected(:)
        logical, intent(in), optional :: remove, merge, duplicate
-       character(len=:), allocatable, intent(inout), optional :: errmsg
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine edit_highlighted_species
      module function attype_combo_simple(sysc,label,type,allowed,units)
        class(sysconf), intent(inout) :: sysc
@@ -339,13 +339,13 @@ module systems
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: mode
        logical, intent(in) :: refine
-       character(len=:), allocatable, intent(inout), optional :: errmsg
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine transform_cell
      module subroutine transform_cell_matrix(sysc,x0,t0,doinv,errmsg)
        class(sysconf), intent(inout) :: sysc
        real*8, intent(in) :: x0(3,3), t0(3)
        logical, intent(in) :: doinv
-       character(len=:), allocatable, intent(inout), optional :: errmsg
+       character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine transform_cell_matrix
      module subroutine cell_nice_list(sysc,inice,rmax,mmax)
        class(sysconf), intent(inout) :: sysc

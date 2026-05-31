@@ -767,12 +767,12 @@ contains
   module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate,errmsg)
     class(sysconf), intent(inout) :: sysc
     logical, intent(in), optional :: remove, merge, duplicate
-    character(len=:), allocatable, intent(inout), optional :: errmsg
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: i, nat, id
     integer, allocatable :: iat(:)
 
-    if (present(errmsg)) errmsg = ""
+    errmsg = ""
 
     ! consistency checks
     id = sysc%id
@@ -803,12 +803,11 @@ contains
   !> Remove, merge or duplicate the highlighted species in the system.
   module subroutine edit_highlighted_species(sysc,selected,remove,merge,duplicate,errmsg)
     use crystalseedmod, only: crystalseed
-    use tools_io, only: ferror, faterr
     use types, only: species
     class(sysconf), intent(inout) :: sysc
     logical, intent(in) :: selected(:)
     logical, intent(in), optional :: remove, merge, duplicate
-    character(len=:), allocatable, intent(inout), optional :: errmsg
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     type(crystalseed) :: seed
     integer :: i, nat, id, ipres, nspc
@@ -816,7 +815,7 @@ contains
     logical :: remove_, merge_, duplicate_
     type(species), allocatable :: spc(:)
 
-    if (present(errmsg)) errmsg = ""
+    errmsg = ""
 
     ! check input options
     remove_ = .false.
@@ -837,12 +836,8 @@ contains
     end if
     if (ipres == 0) return
     if (ipres > 1) then
-       if (present(errmsg)) then
-          errmsg = 'more than one of merge/remove/duplicate'
-          return
-       else
-          call ferror('edit_highlighted_species','more than one of merge/remove/duplicate',faterr)
-       end if
+       errmsg = 'more than one of merge/remove/duplicate'
+       return
     end if
 
     ! consistency checks
@@ -908,12 +903,10 @@ contains
        end do
 
        ! build the new crystal
-       call sys(id)%c%struct_new(seed,crashfail=.not.present(errmsg))
-       if (present(errmsg)) then
-          if (.not.sys(id)%c%isinit) then
-             errmsg = "Could not rebuild the structure after editing the species"
-             return
-          end if
+       call sys(id)%c%struct_new(seed,crashfail=.false.)
+       if (.not.sys(id)%c%isinit) then
+          errmsg = "Could not rebuild the structure after editing the species"
+          return
        end if
     end if
 
@@ -1778,12 +1771,12 @@ contains
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: mode
     logical, intent(in) :: refine
-    character(len=:), allocatable, intent(inout), optional :: errmsg
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: isys
     real*8 :: x0(3,3)
 
-    if (present(errmsg)) errmsg = ""
+    errmsg = ""
 
     ! consistency checks
     isys = sysc%id
@@ -1825,12 +1818,12 @@ contains
     class(sysconf), intent(inout) :: sysc
     real*8, intent(in) :: x0(3,3), t0(3)
     logical, intent(in) :: doinv
-    character(len=:), allocatable, intent(inout), optional :: errmsg
+    character(len=:), allocatable, intent(inout) :: errmsg
 
     integer :: isys
     real*8 :: x0_(3,3)
 
-    if (present(errmsg)) errmsg = ""
+    errmsg = ""
 
     ! consistency checks
     isys = sysc%id

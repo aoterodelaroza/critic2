@@ -1847,7 +1847,7 @@ contains
 
   !> Write a simple d12 file
   module subroutine write_d12(c,file,dosym,doexternal,ti)
-    use tools_io, only: fopen_write, fclose, string
+    use tools_io, only: fopen_write, fclose, string, ferror, faterr
     use param, only: bohrtoa
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
@@ -1855,7 +1855,7 @@ contains
     logical, intent(in) :: doexternal
     type(thread_info), intent(in), optional :: ti
 
-    character(len=:), allocatable :: file34
+    character(len=:), allocatable :: file34, errmsg
     character(len=3) :: schpg
     integer :: lu, holo, laue
     integer :: i, j, k, l, num, idang
@@ -1889,7 +1889,8 @@ contains
        end do
     else
        caux = c
-       dum = caux%cell_standard(.false.,.false.,.true.)
+       dum = caux%cell_standard(.false.,.false.,.true.,errmsg=errmsg)
+       if (len_trim(errmsg) > 0) call ferror('write_d12',errmsg,faterr)
 
        write (lu,'("CRYSTAL")')
        write (lu,'("0 0 0")')

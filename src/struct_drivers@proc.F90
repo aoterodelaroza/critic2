@@ -495,7 +495,11 @@ contains
        return ! do not clear the fields or re-write the structure
 
     elseif (equal(word,'refine')) then
-       x0 = s%c%cell_standard(.false.,.false.,.true.)
+       x0 = s%c%cell_standard(.false.,.false.,.true.,errmsg=errmsg)
+       if (len_trim(errmsg) > 0) then
+          call ferror('struct_sym',errmsg,faterr,line,syntax=.true.)
+          return
+       end if
 
     elseif (equal(word,'wholemols')) then
        if (.not.s%c%ismol3d) then

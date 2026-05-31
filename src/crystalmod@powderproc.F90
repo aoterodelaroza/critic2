@@ -1687,12 +1687,16 @@ contains
     end if
 
     ! get the Delaunay cell of both cells
-    x0std1 = c1_%cell_standard(.true.,.false.,.false.,noenv=.true.)
-    x0del1 = c1_%cell_niggli(noenv=.true.)
+    x0std1 = c1_%cell_standard(.true.,.false.,.false.,noenv=.true.,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) return
+    x0del1 = c1_%cell_niggli(noenv=.true.,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) return
     if (all(abs(x0std1) < eye_thr)) x0std1 = eye
     if (all(abs(x0del1) < eye_thr)) x0del1 = eye
-    x0std2 = c2_%cell_standard(.true.,.false.,.false.,noenv=.true.)
-    x0del2 = c2_%cell_niggli(noenv=.true.)
+    x0std2 = c2_%cell_standard(.true.,.false.,.false.,noenv=.true.,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) return
+    x0del2 = c2_%cell_niggli(noenv=.true.,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) return
     if (all(abs(x0std2) < eye_thr)) x0std2 = eye
     if (all(abs(x0del2) < eye_thr)) x0del2 = eye
 
@@ -1902,7 +1906,8 @@ contains
 
              ! make the new crystal and check the volume
              c2del = c2_
-             call c2del%newcell(xd2,noenv=.true.)
+             call c2del%newcell(xd2,noenv=.true.,errmsg=errmsg)
+             if (len_trim(errmsg) > 0) return
              if (abs(c2del%omega-vtarget) / vtarget > max_vol_) then
                 if (verbose_) then
                    write (uout,'(99(A," "))') string(irange(i1,1),2,ioj_right), string(irange(i2,2),2,ioj_right),&
@@ -1965,7 +1970,8 @@ contains
     ! output structures
     if (present(c2out)) then
        c2out = c2_
-       call c2out%newcell(xd2min)
+       call c2out%newcell(xd2min,errmsg=errmsg)
+       if (len_trim(errmsg) > 0) return
        call c2out%makeseed(seedout,.false.)
        seedout%useabr = 1
        seedout%aa = targetaa

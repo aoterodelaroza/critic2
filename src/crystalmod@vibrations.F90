@@ -1976,7 +1976,8 @@ contains
        end if
        ! create the supercell
        sc = c
-       call sc%newcell(x0)
+       call sc%newcell(x0,errmsg=errmsg)
+       if (len_trim(errmsg) > 0) return
     else
        lp = lp2
        word = getword(sline,lp)

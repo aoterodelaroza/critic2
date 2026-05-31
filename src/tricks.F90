@@ -1390,7 +1390,7 @@ contains
     logical :: usesym, ok
     integer :: i, j, idx, lu, natmol, is, irank
     integer, allocatable :: atc(:,:)
-    character(len=:), allocatable :: str, hmpg, file
+    character(len=:), allocatable :: str, hmpg, file, errmsg
     character*2 :: sym
     character*12 :: holo
     real*8 :: matdum(3,3)
@@ -1420,7 +1420,8 @@ contains
     !    call ferror('trick_makecif_ccdc','structure is not a molecular crystal',faterr)
 
     ! transform to the standard cell
-    matdum = sy%c%cell_standard(.false.,.false.,.true.)
+    matdum = sy%c%cell_standard(.false.,.false.,.true.,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) call ferror('trick_makecif_ccdc',errmsg,faterr)
 
     ! use symmetry?
     usesym = sy%c%spgavail
@@ -2344,16 +2345,20 @@ contains
        call ferror('trick_compare_defomred','structure 2 is a molecule',faterr)
 
     ! get the Delaunay cell of both cells
-    x0std1 = c1%cell_standard(.true.,.false.,.false.,noenv=.true.)
+    x0std1 = c1%cell_standard(.true.,.false.,.false.,noenv=.true.,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) call ferror('trick_compare_deformed',errmsg,faterr)
     !x0del1 = c1%cell_delaunay(noenv=.true.)
-    x0del1 = c1%cell_niggli(noenv=.true.)
+    x0del1 = c1%cell_niggli(noenv=.true.,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) call ferror('trick_compare_deformed',errmsg,faterr)
     if (all(abs(x0std1) < 1d-5)) x0std1 = eye
     if (all(abs(x0del1) < 1d-5)) x0del1 = eye
 
     if (.not.usexy) then
-       x0std2 = c2%cell_standard(.true.,.false.,.false.,noenv=.true.)
+       x0std2 = c2%cell_standard(.true.,.false.,.false.,noenv=.true.,errmsg=errmsg)
+       if (len_trim(errmsg) > 0) call ferror('trick_compare_deformed',errmsg,faterr)
        !x0del2 = c2%cell_delaunay(noenv=.true.)
-       x0del2 = c2%cell_niggli(noenv=.true.)
+       x0del2 = c2%cell_niggli(noenv=.true.,errmsg=errmsg)
+       if (len_trim(errmsg) > 0) call ferror('trick_compare_deformed',errmsg,faterr)
        if (all(abs(x0std2) < 1d-5)) x0std2 = eye
        if (all(abs(x0del2) < 1d-5)) x0del2 = eye
     end if
@@ -2598,7 +2603,8 @@ contains
              if (useamd) then
                 !! AMD
                 c2del = c2
-                call c2del%newcell(xd2,noenv=.true.)
+                call c2del%newcell(xd2,noenv=.true.,errmsg=errmsg)
+                if (len_trim(errmsg) > 0) call ferror('trick_compare_deformed',errmsg,faterr)
                 call c2del%makeseed(c2seed,.false.)
                 c2seed%useabr = 2
                 c2seed%m_x2c = m_x2c_from_cellpar(targetaa,targetbb)
@@ -2613,7 +2619,8 @@ contains
                 !! powder diffraction
                 ! make the new crystal
                 c2del = c2
-                call c2del%newcell(xd2,noenv=.true.)
+                call c2del%newcell(xd2,noenv=.true.,errmsg=errmsg)
+                if (len_trim(errmsg) > 0) call ferror('trick_compare_deformed',errmsg,faterr)
                 c2del%aa = targetaa
                 c2del%bb = targetbb
                 c2del%m_x2c = m_x2c_from_cellpar(c2del%aa,c2del%bb)
@@ -2660,7 +2667,8 @@ contains
     if (dowrite) then
        ! make the minimum-powdiff structure 2
        c2del = c2
-       call c2del%newcell(xd2min)
+       call c2del%newcell(xd2min,errmsg=errmsg)
+       if (len_trim(errmsg) > 0) call ferror('trick_compare_deformed',errmsg,faterr)
        call c2del%makeseed(seed,.false.)
        seed%useabr = 1
        seed%aa = targetaa

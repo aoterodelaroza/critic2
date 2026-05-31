@@ -733,7 +733,7 @@ module crystalmod
        real*8, intent(in), optional :: xnew(:,:)
        integer, intent(in), optional :: isnew(:)
        logical, intent(in), optional :: noenv
-       character(len=:), allocatable, intent(out), optional :: errmsg
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine newcell
      module function cell_standard(c,toprim,doforce,refine,noenv,errmsg,ti) result(x0)
@@ -742,21 +742,21 @@ module crystalmod
        logical, intent(in) :: doforce
        logical, intent(in) :: refine
        logical, intent(in), optional :: noenv
-       character(len=:), allocatable, intent(out), optional :: errmsg
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
        real*8 :: x0(3,3)
      end function cell_standard
      module function cell_niggli(c,noenv,errmsg,ti) result(x0)
        class(crystal), intent(inout) :: c
        logical, intent(in), optional :: noenv
-       character(len=:), allocatable, intent(out), optional :: errmsg
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
        real*8 :: x0(3,3)
      end function cell_niggli
      module function cell_delaunay(c,noenv,errmsg,ti) result(x0)
        class(crystal), intent(inout) :: c
        logical, intent(in), optional :: noenv
-       character(len=:), allocatable, intent(out), optional :: errmsg
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
        real*8 :: x0(3,3)
      end function cell_delaunay
@@ -786,7 +786,7 @@ module crystalmod
        integer, intent(in) :: nat
        integer, intent(in) :: iat(nat)
        logical, intent(in), optional :: remove, merge, duplicate
-       character(len=:), allocatable, intent(out), optional :: errmsg
+       character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine edit_atom_list
      module subroutine change_atom_species(c,nat,iat,is,ti)

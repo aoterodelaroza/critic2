@@ -420,7 +420,7 @@ contains
     real*8 :: x0(3), x1(3), xp(3), lappt, x00(3,3)
     real*8 :: rgr, dd(3), xd(3,3)
     integer :: lp2, i1, i2, i3
-    character(len=:), allocatable :: word, outfile, expr, wext1
+    character(len=:), allocatable :: word, outfile, expr, wext1, errmsg
     type(scalar_value) :: res
     logical :: ok, doortho
     integer :: ix, iy, iz, i, j, k, ibnd, ik, inr(3), ispin
@@ -709,7 +709,11 @@ contains
              x00(ia(i),i) = na(i)
           end do
           nc = sy%c
-          call nc%newcell(x00,noenv=.true.)
+          call nc%newcell(x00,noenv=.true.,errmsg=errmsg)
+          if (len_trim(errmsg) > 0) then
+             call ferror('rhoplot_cube',errmsg,faterr,line,syntax=.true.)
+             return
+          end if
           cr => nc
        else if (len_trim(word) > 0) then
           call ferror('rhoplot_cube','Unknown keyword in CUBE',faterr,line,syntax=.true.)
