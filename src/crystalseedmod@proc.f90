@@ -8089,9 +8089,11 @@ contains
        ! chemdraw doesn't write the $$$$ at the end (?)
        if (.not.havedollars) then
           do while (getline_raw(lu,line))
-             if (line(1:4) == "$$$$") then
-                havedollars = .true.
-                exit
+             if (len(line) >= 4) then
+                if (line(1:4) == "$$$$") then
+                   havedollars = .true.
+                   exit
+                end if
              end if
           end do
        end if
