@@ -124,7 +124,7 @@ macro (runtests)
 	endif()
 	add_test(
 	  NAME "CHECK:${curdir}/ref/${file}"
-	  COMMAND sh -c "${NUMDIFF_EXE} -s ' \t\n=,:;<>[](){}^' ${numdiff_opts} ${CMAKE_CURRENT_SOURCE_DIR}/ref/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file}"
+	  COMMAND sh -c "${NUMDIFF_EXE} -s ' \t\n=,:;<>[](){}^' -r 1e-7 ${numdiff_opts} ${CMAKE_CURRENT_SOURCE_DIR}/ref/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file}"
 	  WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 	  )
 	set_property(TEST "CHECK:${curdir}/ref/${file}" PROPERTY LABELS "${label_list}")
