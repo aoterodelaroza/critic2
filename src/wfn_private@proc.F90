@@ -430,7 +430,7 @@ contains
     errmsg = "Error reading file: " // trim(file)
     ! read the number of atoms
     do while (getline_raw(lu,line))
-       if (equalsub(line,1,1,"<") .and. equalsub(line,2,2,"/")) then
+       if (equalsub(line,1,1,"<") .and. .not.equalsub(line,2,2,"/")) then
           if (trim(line) == "<Number of Nuclei>") then
              read (lu,*) n
              exit
@@ -451,7 +451,7 @@ contains
     do while (getline_raw(lu,line))
        line2 = adjustl(line)
        line = line2
-       if (equalsub(line,1,1,"<") .and. equalsub(line,2,2,"/")) then
+       if (equalsub(line,1,1,"<") .and. .not.equalsub(line,2,2,"/")) then
           if (trim(line) == "<Atomic Numbers>") then
              atnumfound = .true.
              z = wfx_read_integers(lu,n,errmsg2)
@@ -1148,7 +1148,7 @@ contains
     nalpha = 0
     do while (getline_raw(luwfn,line))
        line = adjustl(line)
-       if (equalsub(line,1,1,"<") .and. equalsub(line,2,2,"/")) then
+       if (equalsub(line,1,1,"<") .and. .not.equalsub(line,2,2,"/")) then
           if (trim(line) == "<Number of Occupied Molecular Orbitals>") then
              read (luwfn,*,err=999,end=999) f%nmoocc
              f%nmoall = f%nmoocc
@@ -1194,7 +1194,7 @@ contains
        line = adjustl(mline)
        if (len_trim(line) < 2) then
           cycle
-       else if (equalsub(line,1,1,"<") .and. equalsub(line,2,2,"/")) then
+       else if (equalsub(line,1,1,"<") .and. .not.equalsub(line,2,2,"/")) then
           if (trim(line) == "<Primitive Centers>") then
              f%icenter = wfx_read_integers(luwfn,f%npri,errmsg2)
           elseif (trim(line) == "<Primitive Types>") then
