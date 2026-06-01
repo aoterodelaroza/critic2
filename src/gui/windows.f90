@@ -142,7 +142,8 @@ module windows
      integer(c_int) :: ifrequnit = 0 ! frequency unit (0 = cm-1, 1 = THz)
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
      ! geometry parameters
-     integer(c_int) :: geometry_atomtype = 1 ! 0=spc, 1=nneq, 2=ncel(frac), 3=ncel(cart)
+     integer(c_int) :: geometry_atomtype = 1 ! coord type for atoms [0=spc, 1=nneq, 2=ncel(frac), 3=ncel(cart)]
+     integer(c_int) :: geometry_moltype = 3 ! coord type for molecules [0=spc, 1=nneq, 2=ncel(frac), 3=ncel(cart)]
      logical :: geometry_forcewyc = .true. ! force respecting symmetry when displacing nneq
      logical, allocatable :: geometry_selected(:) ! selected items in atoms table
      real(c_float), allocatable :: geometry_rgba(:,:) ! color highlights in atoms table

@@ -44,7 +44,7 @@ contains
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITGEOM_REMOVE
     use systems, only: nsys, sysc, sys, sys_init, ok_system, reread_system_from_file,&
        atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac, atlisttype_ncel_bohr,&
-       atlisttype_ncel_ang, celltransform_standard, celltransform_primitive,&
+       atlisttype_ncel_ang, atlisttype_nmol, celltransform_standard, celltransform_primitive,&
        celltransform_primstd, celltransform_niggli, celltransform_delaunay
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
@@ -59,6 +59,7 @@ contains
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
     logical :: doquit, dorestore, clicked, forcesort, ch, lch
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:9)
+    integer :: hltype
     logical(c_bool) :: is_selected, redo_highlights
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
@@ -123,6 +124,10 @@ contains
     integer, parameter :: atlisttype_allowed(4) = (/atlisttype_nneq,&
        atlisttype_ncel_frac,atlisttype_ncel_ang,atlisttype_ncel_bohr/)
 
+    ! allowed coordinate types for the molecular center of mass combo
+    integer, parameter :: atlisttype_coord_allowed(3) = (/atlisttype_ncel_frac,&
+       atlisttype_ncel_bohr,atlisttype_ncel_ang/)
+
     ! threshold for resetting atom position
     real*8, parameter :: epsmoved = 1d-8
 
@@ -138,6 +143,7 @@ contains
     redo_highlights = .false.
     forcesort = .false.
     iaction = -1
+    hltype = w%geometry_atomtype
 
     ! first pass
     if (w%firstpass) then
@@ -151,6 +157,7 @@ contains
        w%geometry_expression_ok = .false.
        w%geometry_expr_error = ""
        w%geometry_atomtype = 1
+       w%geometry_moltype = atlisttype_ncel_frac
        w%geometry_forcewyc = .true.
        w%geometry_sortcid = 0
        w%geometry_sortdir = 1
@@ -1065,7 +1072,163 @@ contains
           ! check if the tab changed
           call check_changed_tab("molecules")
 
-          call iw_text("blah")
+          ! the selection/highlights in this tab refer to molecules
+          hltype = atlisttype_nmol
+
+          ! coordinate type for the center of mass
+          ldum = sysc(isys)%attype_combo_simple("Center of mass##molcoordselectgeom",&
+             w%geometry_moltype,atlisttype_coord_allowed)
+          call iw_tooltip("Coordinate system for the molecular center of mass",ttshown)
+
+          ntype = sys(isys)%c%nmol
+
+          ! reallocate the highlight arrays (sized to the number of molecules)
+          call check_highlight_allocs_before_table()
+
+          ! identity ordering (the molecules table is not sortable)
+          if (allocated(w%iord)) then
+             if (size(w%iord,1) /= ntype) deallocate(w%iord)
+          end if
+          if (.not.allocated(w%iord)) then
+             allocate(w%iord(max(ntype,1)))
+             do i = 1, ntype
+                w%iord(i) = i
+             end do
+          end if
+
+          ! whether to show the idx (symmetry-equivalence) column
+          doidx = (.not.sys(isys)%c%ismolecule .and. allocated(sys(isys)%c%idxmol))
+
+          ! number of columns
+          ncol = 2 ! id, nat
+          if (doidx) ncol = ncol + 1 ! idx
+          ncol = ncol + 3 ! center of mass
+
+          ! molecule table
+          flags = ImGuiTableFlags_None
+          flags = ior(flags,ImGuiTableFlags_Resizable)
+          flags = ior(flags,ImGuiTableFlags_ScrollY)
+          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+          flags = ior(flags,ImGuiTableFlags_Borders)
+          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          str1="##tablemolecules_" // string(isys) // "_" // string(w%geometry_moltype) // c_null_char
+          call igGetContentRegionAvail(sz0)
+          sz0%x = 0
+          sz0%y = sz0%y - iw_calcheight(5,0,.true.)
+          if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
+             icol = -1
+
+             ! header setup
+             icol = icol + 1
+             str2 = "Id" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+
+             icol = icol + 1
+             str2 = "nat" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+
+             if (doidx) then
+                icol = icol + 1
+                str2 = "idx" // c_null_char
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             end if
+
+             icol = icol + 1
+             if (w%geometry_moltype == atlisttype_ncel_ang) then
+                strx = "x/Å" // c_null_char
+                stry = "y/Å" // c_null_char
+                strz = "z/Å" // c_null_char
+             elseif (w%geometry_moltype == atlisttype_ncel_bohr) then
+                strx = "x/bohr" // c_null_char
+                stry = "y/bohr" // c_null_char
+                strz = "z/bohr" // c_null_char
+             else
+                strx = "x" // c_null_char
+                stry = "y" // c_null_char
+                strz = "z" // c_null_char
+             end if
+             call igTableSetupColumn(c_loc(strx),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             icol = icol + 1
+             call igTableSetupColumn(c_loc(stry),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             icol = icol + 1
+             call igTableSetupColumn(c_loc(strz),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             call igTableSetupScrollFreeze(0, 1) ! top row always visible
+
+             ! draw the header
+             call igTableHeadersRow()
+             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+
+             ! start the clipper
+             clipper = ImGuiListClipper_ImGuiListClipper()
+             call ImGuiListClipper_Begin(clipper,ntype,-1._c_float)
+
+             ! number of digits for the id output
+             ndigit = ceiling(log10(ntype+0.1d0))
+
+             ! decimals for the coordinate output
+             if (w%geometry_moltype == atlisttype_ncel_frac) then
+                dec = 6
+             else
+                dec = 4
+             end if
+
+             ! draw the rows
+             do while(ImGuiListClipper_Step(clipper))
+                call c_f_pointer(clipper,clipper_f)
+                do ii = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                   i = w%iord(ii)
+                   suffix = "_" // string(i)
+                   icol = -1
+
+                   call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+
+                   ! background color for the table row
+                   if (w%geometry_selected(i)) then
+                      col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
+                         w%geometry_rgba(3,i),w%geometry_rgba(4,i))
+                      color = igGetColorU32_Vec4(col4)
+                      call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
+                   end if
+
+                   ! id
+                   icol = icol + 1
+                   if (igTableSetColumnIndex(icol)) then
+                      call igAlignTextToFramePadding()
+                      call iw_text(string(i,ndigit))
+                      call process_selectable_clicks()
+                   end if
+
+                   ! number of atoms
+                   icol = icol + 1
+                   if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%mol(i)%nat))
+
+                   ! idx (symmetry equivalence)
+                   if (doidx) then
+                      icol = icol + 1
+                      if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%idxmol(i)))
+                   end if
+
+                   ! center of mass (Cartesian, bohr), converted to the chosen coordinate type
+                   x0 = sys(isys)%c%mol(i)%cmass()
+                   if (w%geometry_moltype == atlisttype_ncel_frac) then
+                      x0 = sys(isys)%c%c2x(x0)
+                   else
+                      if (sys(isys)%c%ismolecule) x0 = x0 + sys(isys)%c%molx0
+                      if (w%geometry_moltype == atlisttype_ncel_ang) x0 = x0 * bohrtoa
+                   end if
+                   do j = 1, 3
+                      icol = icol + 1
+                      if (igTableSetColumnIndex(icol)) &
+                         call iw_text(string(x0(j),'f',dec+4,dec,ioj_center))
+                   end do
+                end do
+             end do
+             call igEndTable()
+          end if
+
+          ! highlight/selection row
+          call draw_highlight_buttons()
+
           call igEndTabItem()
        end if
 
@@ -1100,7 +1263,7 @@ contains
 
     ! hover highlight
     if (ihighlight > 0) then
-       call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),w%geometry_atomtype,&
+       call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),hltype,&
           reshape(ColorHighlightScene,(/4,1/)))
     end if
 
@@ -1129,7 +1292,7 @@ contains
              irgba(:,nhigh) = w%geometry_rgba(:,i)
           end if
        end do
-       call sysc(isys)%highlight_atoms(.false.,ihigh,w%geometry_atomtype,irgba)
+       call sysc(isys)%highlight_atoms(.false.,ihigh,hltype,irgba)
        deallocate(ihigh,irgba)
     end if
 
