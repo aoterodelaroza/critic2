@@ -59,7 +59,7 @@ contains
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
     logical :: doquit, dorestore, clicked, forcesort, ch, lch
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:9)
-    integer :: hltype
+    integer :: table_hltype
     logical(c_bool) :: is_selected, redo_highlights
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
@@ -143,7 +143,7 @@ contains
     redo_highlights = .false.
     forcesort = .false.
     iaction = -1
-    hltype = w%geometry_atomtype
+    table_hltype = w%geometry_atomtype
 
     ! first pass
     if (w%firstpass) then
@@ -1073,7 +1073,7 @@ contains
           call check_changed_tab("molecules")
 
           ! the selection/highlights in this tab refer to molecules
-          hltype = atlisttype_nmol
+          table_hltype = atlisttype_nmol
 
           ! coordinate type for the center of mass
           ldum = sysc(isys)%attype_combo_simple("Center of mass##molcoordselectgeom",&
@@ -1085,15 +1085,11 @@ contains
           ! reallocate the highlight arrays (sized to the number of molecules)
           call check_highlight_allocs_before_table()
 
-          ! identity ordering (the molecules table is not sortable)
-          if (allocated(w%iord)) then
-             if (size(w%iord,1) /= ntype) deallocate(w%iord)
-          end if
+          ! if the order array is not allocated or if its size is wrong, force a sort
           if (.not.allocated(w%iord)) then
-             allocate(w%iord(max(ntype,1)))
-             do i = 1, ntype
-                w%iord(i) = i
-             end do
+             call reset_sort()
+          elseif (size(w%iord,1) /= ntype) then
+             call reset_sort()
           end if
 
           ! whether to show the idx (symmetry-equivalence) column
@@ -1111,6 +1107,7 @@ contains
           flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
           flags = ior(flags,ImGuiTableFlags_Borders)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          flags = ior(flags,ImGuiTableFlags_Sortable)
           str1="##tablemolecules_" // string(isys) // "_" // string(w%geometry_moltype) // c_null_char
           call igGetContentRegionAvail(sz0)
           sz0%x = 0
@@ -1122,15 +1119,18 @@ contains
              icol = icol + 1
              str2 = "Id" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             icolsort(icol) = ic_id
 
              icol = icol + 1
              str2 = "nat" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             icolsort(icol) = ic_nat
 
              if (doidx) then
                 icol = icol + 1
                 str2 = "idx" // c_null_char
                 call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+                icolsort(icol) = ic_idx
              end if
 
              icol = icol + 1
@@ -1148,15 +1148,24 @@ contains
                 strz = "z" // c_null_char
              end if
              call igTableSetupColumn(c_loc(strx),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             icolsort(icol) = ic_x
              icol = icol + 1
              call igTableSetupColumn(c_loc(stry),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             icolsort(icol) = ic_y
              icol = icol + 1
              call igTableSetupColumn(c_loc(strz),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             icolsort(icol) = ic_z
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
+
+             ! fetch the sort specs, sort the data if necessary
+             call fetch_sort_specs()
 
              ! draw the header
              call igTableHeadersRow()
              call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+
+             ! sort
+             if (forcesort) call table_sort()
 
              ! start the clipper
              clipper = ImGuiListClipper_ImGuiListClipper()
@@ -1208,14 +1217,8 @@ contains
                       if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%idxmol(i)))
                    end if
 
-                   ! center of mass (Cartesian, bohr), converted to the chosen coordinate type
-                   x0 = sys(isys)%c%mol(i)%cmass()
-                   if (w%geometry_moltype == atlisttype_ncel_frac) then
-                      x0 = sys(isys)%c%c2x(x0)
-                   else
-                      if (sys(isys)%c%ismolecule) x0 = x0 + sys(isys)%c%molx0
-                      if (w%geometry_moltype == atlisttype_ncel_ang) x0 = x0 * bohrtoa
-                   end if
+                   ! center of mass, converted to the chosen coordinate type
+                   x0 = mol_com_coords(i)
                    do j = 1, 3
                       icol = icol + 1
                       if (igTableSetColumnIndex(icol)) &
@@ -1263,7 +1266,7 @@ contains
 
     ! hover highlight
     if (ihighlight > 0) then
-       call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),hltype,&
+       call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),table_hltype,&
           reshape(ColorHighlightScene,(/4,1/)))
     end if
 
@@ -1292,7 +1295,7 @@ contains
              irgba(:,nhigh) = w%geometry_rgba(:,i)
           end if
        end do
-       call sysc(isys)%highlight_atoms(.false.,ihigh,hltype,irgba)
+       call sysc(isys)%highlight_atoms(.false.,ihigh,table_hltype,irgba)
        deallocate(ihigh,irgba)
     end if
 
@@ -1443,6 +1446,21 @@ contains
 
     end subroutine clear_highlights_table
 
+    ! center of mass of molecule imol, in the currently selected coordinate type
+    function mol_com_coords(imol) result(x0)
+      integer, intent(in) :: imol
+      real*8 :: x0(3)
+
+      x0 = sys(isys)%c%mol(imol)%cmass()
+      if (w%geometry_moltype == atlisttype_ncel_frac) then
+         x0 = sys(isys)%c%c2x(x0)
+      else
+         if (sys(isys)%c%ismolecule) x0 = x0 + sys(isys)%c%molx0
+         if (w%geometry_moltype == atlisttype_ncel_ang) x0 = x0 * bohrtoa
+      end if
+
+    end function mol_com_coords
+
     ! calculate the w%iord to sort the table
     subroutine table_sort()
       use tools, only: mergesort
@@ -1475,22 +1493,32 @@ contains
       ! carry out the sort
       if (icolsort(w%geometry_sortcid)==ic_id .or. icolsort(w%geometry_sortcid)==ic_zat .or.&
          icolsort(w%geometry_sortcid)==ic_mol .or. icolsort(w%geometry_sortcid)==ic_mul .or.&
-         icolsort(w%geometry_sortcid)==ic_idx) then
+         icolsort(w%geometry_sortcid)==ic_idx .or. icolsort(w%geometry_sortcid)==ic_nat) then
          ! integers
          allocate(ival(ntype))
          do ii = 1, ntype
             i = w%iord(ii)
-            if (icolsort(w%geometry_sortcid) == ic_id) then
-               ival(ii) = i
-            elseif (icolsort(w%geometry_sortcid) == ic_zat) then
-               ispc = sysc(isys)%attype_species(w%geometry_atomtype,i)
-               ival(ii) = sys(isys)%c%spc(ispc)%z
-            elseif (icolsort(w%geometry_sortcid) == ic_mol) then
-               ival(ii) = sys(isys)%c%idatcelmol(1,i)
-            elseif (icolsort(w%geometry_sortcid) == ic_mul) then
-               ival(ii) = sys(isys)%c%at(i)%mult
-            elseif (icolsort(w%geometry_sortcid) == ic_idx) then
-               ival(ii) = sys(isys)%c%atcel(i)%idx
+            if (table_hltype == atlisttype_nmol) then
+               if (icolsort(w%geometry_sortcid) == ic_id) then
+                  ival(ii) = i
+               elseif (icolsort(w%geometry_sortcid) == ic_nat) then
+                  ival(ii) = sys(isys)%c%mol(i)%nat
+               elseif (icolsort(w%geometry_sortcid) == ic_idx) then
+                  ival(ii) = sys(isys)%c%idxmol(i)
+               end if
+            else
+               if (icolsort(w%geometry_sortcid) == ic_id) then
+                  ival(ii) = i
+               elseif (icolsort(w%geometry_sortcid) == ic_zat) then
+                  ispc = sysc(isys)%attype_species(w%geometry_atomtype,i)
+                  ival(ii) = sys(isys)%c%spc(ispc)%z
+               elseif (icolsort(w%geometry_sortcid) == ic_mol) then
+                  ival(ii) = sys(isys)%c%idatcelmol(1,i)
+               elseif (icolsort(w%geometry_sortcid) == ic_mul) then
+                  ival(ii) = sys(isys)%c%at(i)%mult
+               elseif (icolsort(w%geometry_sortcid) == ic_idx) then
+                  ival(ii) = sys(isys)%c%atcel(i)%idx
+               end if
             end if
          end do
          call mergesort(ival,iperm,1,ntype)
@@ -1501,7 +1529,11 @@ contains
          allocate(rval(ntype))
          do ii = 1, ntype
             i = w%iord(ii)
-            x0 = sysc(isys)%attype_coordinates(w%geometry_atomtype,i)
+            if (table_hltype == atlisttype_nmol) then
+               x0 = mol_com_coords(i)
+            else
+               x0 = sysc(isys)%attype_coordinates(w%geometry_atomtype,i)
+            end if
 
             if (icolsort(w%geometry_sortcid) == ic_x) then
                rval(ii) = x0(1)
