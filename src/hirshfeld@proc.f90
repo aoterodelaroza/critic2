@@ -62,7 +62,7 @@ contains
     use systemmod, only: system
     use fragmentmod, only: fragment
     use types, only: basindat
-    use param, only: VSMALL
+    use param, only: VSMALL, icrd_crys
     type(system), intent(inout) :: s
     type(basindat), intent(in) :: bas
     integer, intent(in) :: idb
@@ -73,18 +73,10 @@ contains
 
     ! initialize
     w = 0d0
-    fr%nat = 1
-    fr%nspc = 1
-    allocate(fr%at(1),fr%spc(1))
 
     ! Prepare a fragment with this atom
-    fr%at(1)%x = s%c%atcel(idb)%x
-    fr%at(1)%r = s%c%atcel(idb)%r
-    fr%at(1)%is = 1
-    fr%at(1)%cidx = idb
-    fr%at(1)%idx = s%c%atcel(idb)%idx
-    fr%at(1)%lvec = 0
-    fr%spc(1) = s%c%spc(s%c%atcel(idb)%is)
+    call fr%build_atom(s%c%spc(s%c%atcel(idb)%is),s%c%atcel(idb)%x,icrd_crys,&
+       s%c%atcel(idb)%idx,idb,s%c%m_x2c)
 
     ! Calculate grid with the atomic density. The sum over cells
     ! turns into a sum over periodic copies of the atom.  call
@@ -137,7 +129,7 @@ contains
     use fragmentmod, only: fragment
     use systemmod, only: sy
     use tools_io, only: uout, string, ioj_center
-    use param, only: VSMALL, im_rho
+    use param, only: VSMALL, im_rho, icrd_crys
 
     type(field) :: fat
     type(mesh) :: m0, mat, mrho
@@ -166,9 +158,6 @@ contains
     vtotal = 0d0
     nat = 0d0
     vat = 0d0
-    fr%nat = 1
-    fr%nspc = 1
-    allocate(fr%at(1),fr%spc(1))
 
     ! calculate the density and promolecular density on the mesh
     prop(1) = im_rho
@@ -186,13 +175,8 @@ contains
        end do
 
        ! Prepare a fragment with this atom
-       fr%at(1)%x = sy%c%atcel(cidx)%x
-       fr%at(1)%r = sy%c%atcel(cidx)%r
-       fr%at(1)%is = 1
-       fr%at(1)%idx = iat
-       fr%at(1)%cidx = cidx
-       fr%at(1)%lvec = 0
-       fr%spc(1) = sy%c%spc(sy%c%at(iat)%is)
+       call fr%build_atom(sy%c%spc(sy%c%at(iat)%is),sy%c%atcel(cidx)%x,icrd_crys,&
+          iat,cidx,sy%c%m_x2c)
 
        ! Load the promolecular field with that fragment
        call fat%load_promolecular(sy%c,-1,"",fr)

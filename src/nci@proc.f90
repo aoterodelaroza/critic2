@@ -42,7 +42,7 @@ contains
     use tools_math, only: eigsym, m_x2c_from_cellpar, matinv
     use types, only: scalar_value, realloc, field_evaluation_avail
     use param, only: pi, vsmall, bohrtoa, ifformat_as_ft_grad, ifformat_as_ft_xx,&
-       ifformat_as_ft_yy, ifformat_as_ft_zz
+       ifformat_as_ft_yy, ifformat_as_ft_zz, icrd_crys
     type(field) :: fgrho, fxx(3)
     type(scalar_value) :: res, resg
     character(len=:), allocatable :: line, word, oname, file, errmsg
@@ -63,9 +63,11 @@ contains
     ! chk
     logical :: usechk, dopromol
     ! fragments
-    integer :: nfrag
+    integer :: nfrag, nat0
     type(fragment), allocatable :: fr(:)
     type(fragment) :: fr0
+    real*8, allocatable :: fx(:,:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:), flvec(:,:)
     ! voids
     real*8 :: rho_void
     ! cube limits
@@ -675,15 +677,14 @@ contains
            end if
            if (allocated(isdiscrete)) deallocate(isdiscrete)
         else
-           call fr0%init()
-           fr0%nspc = sy%c%nspc
-           call realloc(fr0%spc,fr0%nspc)
-           fr0%spc = sy%c%spc
-
            xx0 = sy%c%c2x(x0 - rthres_xyz)
            xx1 = sy%c%c2x(x1 + rthres_xyz)
            imin = floor(min(xx0,xx1)) - 1
            imax = ceiling(max(xx0,xx1)) + 1
+
+           ! gather the atoms inside the box
+           nat0 = 0
+           allocate(fx(3,10),fis(10),fidx(10),fcidx(10),flvec(3,10))
            do i = imin(1), imax(1)
               do j = imin(2), imax(2)
                  do k = imin(3), imax(3)
@@ -692,21 +693,28 @@ contains
                        if (x(1) > x0(1) .and. x(1) < x1(1) .and.&
                            x(2) > x0(2) .and. x(2) < x1(2) .and.&
                            x(3) > x0(3) .and. x(3) < x1(3)) then
-                          fr0%nat = fr0%nat + 1
-                          if (fr0%nat > size(fr0%at)) call realloc(fr0%at,2*fr0%nat)
-                          fr0%at(fr0%nat)%r = x
-                          fr0%at(fr0%nat)%x = sy%c%c2x(x)
-                          fr0%at(fr0%nat)%cidx = l
-                          fr0%at(fr0%nat)%idx = sy%c%atcel(l)%idx
-                          fr0%at(fr0%nat)%lvec = (/i,j,k/)
-                          fr0%at(fr0%nat)%is = sy%c%atcel(l)%is
+                          nat0 = nat0 + 1
+                          if (nat0 > size(fis)) then
+                             call realloc(fx,3,2*nat0)
+                             call realloc(fis,2*nat0)
+                             call realloc(fidx,2*nat0)
+                             call realloc(fcidx,2*nat0)
+                             call realloc(flvec,3,2*nat0)
+                          end if
+                          fx(:,nat0) = sy%c%atcel(l)%x + real((/i,j,k/),8)
+                          fcidx(nat0) = l
+                          fidx(nat0) = sy%c%atcel(l)%idx
+                          flvec(:,nat0) = (/i,j,k/)
+                          fis(nat0) = sy%c%atcel(l)%is
                        end if
                     end do
                  end do
               end do
            end do
+           call fr0%build(sy%c%nspc,sy%c%spc,nat0,fx(:,1:nat0),icrd_crys,fis(1:nat0),&
+              fidx(1:nat0),fcidx(1:nat0),sy%c%m_x2c,flvec(:,1:nat0))
+           deallocate(fx,fis,fidx,fcidx,flvec)
         end if
-        call realloc(fr0%at,fr0%nat)
      else
         call fr0%merge_array(fr(1:nfrag),.false.)
      end if
@@ -955,17 +963,15 @@ contains
     integer, intent(in) :: lu
 
     character(len=:), allocatable :: line, word
-    integer :: lp, id
+    integer :: lp, id, n, i
     logical :: ok
     real*8 :: x(3)
+    real*8, allocatable :: fx(:,:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:)
 
-    fr%nat = 0
-    allocate(fr%at(10))
-    fr%nspc = sy%c%nspc
-    allocate(fr%spc(fr%nspc))
-    fr%spc = sy%c%spc
-
-    ! create a fragment from input
+    ! gather and identify the atoms given in the input
+    n = 0
+    allocate(fx(3,10),fis(10),fidx(10),fcidx(10))
     do while (.true.)
        if (lu == uin) then
           ok = getline(lu,line,.true.,ucopy)
@@ -984,20 +990,29 @@ contains
           id = sy%c%identify_atom(x,icrd_cart)
 
           if (id > 0) then
-             fr%nat = fr%nat + 1
-             if (fr%nat > size(fr%at)) call realloc(fr%at,2*fr%nat)
-             fr%at(fr%nat)%r = x
-             fr%at(fr%nat)%x = sy%c%c2x(x)
-             fr%at(fr%nat)%cidx = id
-             fr%at(fr%nat)%idx = sy%c%atcel(id)%idx
-             fr%at(fr%nat)%lvec = nint(fr%at(fr%nat)%x - sy%c%atcel(id)%x)
-             fr%at(fr%nat)%is = sy%c%atcel(id)%is
+             n = n + 1
+             if (n > size(fis)) then
+                call realloc(fx,3,2*n)
+                call realloc(fis,2*n)
+                call realloc(fidx,2*n)
+                call realloc(fcidx,2*n)
+             end if
+             fx(:,n) = x
+             fcidx(n) = id
+             fidx(n) = sy%c%atcel(id)%idx
+             fis(n) = sy%c%atcel(id)%is
           end if
        else
           exit
        end if
     end do
-    call realloc(fr%at,fr%nat)
+
+    ! build the fragment and assign the lattice vectors to the cell atoms
+    call fr%build(sy%c%nspc,sy%c%spc,n,fx(:,1:n),icrd_cart,fis(1:n),fidx(1:n),fcidx(1:n),sy%c%m_x2c)
+    do i = 1, fr%nat
+       fr%at(i)%lvec = nint(fr%at(i)%x - sy%c%atcel(fr%at(i)%cidx)%x)
+    end do
+    deallocate(fx,fis,fidx,fcidx)
 
   end function read_fragment
 

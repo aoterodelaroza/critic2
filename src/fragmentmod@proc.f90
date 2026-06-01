@@ -34,6 +34,157 @@ contains
 
   end subroutine fragment_init
 
+  !> Build a fragment from atomic data. nspc/spc give the atomic
+  !> species. nat is the number of atoms, with coordinates xyz(3,nat)
+  !> given in the system indicated by icrd (icrd_cart for Cartesian or
+  !> icrd_crys for crystallographic); the complementary set of
+  !> coordinates is computed using the crystallographic -> Cartesian
+  !> matrix m_x2c. is(nat) are the species and idx(nat)/cidx(nat) the
+  !> non-equivalent/complete atom-list indices. Optionally, lvec(3,nat)
+  !> are the lattice vectors to each atom in the complete atom list
+  !> (default: zero); discrete flags whether the fragment is discrete
+  !> (default: .true.); and, for non-discrete fragments, nlvec/mollvec
+  !> give the number and list of connecting lattice vectors.
+  module subroutine fragment_build(fr,nspc,spc,nat,xyz,icrd,is,idx,cidx,m_x2c,&
+     lvec,discrete,nlvec,mollvec)
+    use tools_math, only: matinv
+    use tools_io, only: ferror, faterr
+    use param, only: icrd_cart, icrd_crys
+    class(fragment), intent(inout) :: fr
+    integer, intent(in) :: nspc
+    type(species), intent(in) :: spc(nspc)
+    integer, intent(in) :: nat
+    real*8, intent(in) :: xyz(3,nat)
+    integer, intent(in) :: icrd
+    integer, intent(in) :: is(nat)
+    integer, intent(in) :: idx(nat)
+    integer, intent(in) :: cidx(nat)
+    real*8, intent(in) :: m_x2c(3,3)
+    integer, intent(in), optional :: lvec(3,nat)
+    logical, intent(in), optional :: discrete
+    integer, intent(in), optional :: nlvec
+    integer, intent(in), optional :: mollvec(:,:)
+
+    integer :: i
+    real*8 :: m_c2x(3,3)
+
+    ! crystallographic -> Cartesian matrix
+    fr%m_x2c = m_x2c
+    if (icrd == icrd_cart) then
+       m_c2x = m_x2c
+       call matinv(m_c2x,3)
+    elseif (icrd /= icrd_crys) then
+       call ferror("fragment_build","unsupported coordinate system",faterr)
+    end if
+
+    ! atomic species
+    fr%nspc = nspc
+    if (allocated(fr%spc)) deallocate(fr%spc)
+    allocate(fr%spc(nspc))
+    fr%spc = spc(1:nspc)
+
+    ! atoms
+    fr%nat = nat
+    if (allocated(fr%at)) deallocate(fr%at)
+    allocate(fr%at(nat))
+    do i = 1, nat
+       if (icrd == icrd_cart) then
+          fr%at(i)%r = xyz(:,i)
+          fr%at(i)%x = matmul(m_c2x,xyz(:,i))
+       else
+          fr%at(i)%x = xyz(:,i)
+          fr%at(i)%r = matmul(m_x2c,xyz(:,i))
+       end if
+       fr%at(i)%is = is(i)
+       fr%at(i)%idx = idx(i)
+       fr%at(i)%cidx = cidx(i)
+       if (present(lvec)) then
+          fr%at(i)%lvec = lvec(:,i)
+       else
+          fr%at(i)%lvec = 0
+       end if
+    end do
+
+    ! discreteness and connecting lattice vectors
+    fr%discrete = .true.
+    if (present(discrete)) fr%discrete = discrete
+    if (allocated(fr%lvec)) deallocate(fr%lvec)
+    fr%nlvec = 0
+    if (.not.fr%discrete) then
+       if (present(nlvec)) fr%nlvec = nlvec
+       if (fr%nlvec > 0) then
+          if (.not.present(mollvec)) &
+             call ferror("fragment_build","non-discrete fragment without connecting lattice vectors",faterr)
+          allocate(fr%lvec(3,fr%nlvec))
+          fr%lvec = mollvec(:,1:fr%nlvec)
+       end if
+    end if
+
+  end subroutine fragment_build
+
+  !> Build a fragment containing a single atom of species spc, located
+  !> at coordinates xyz given in the system indicated by icrd
+  !> (icrd_cart or icrd_crys). idx/cidx are the non-equivalent/complete
+  !> atom-list indices and m_x2c the crystallographic -> Cartesian
+  !> matrix. The fragment has a single species, so the atom species
+  !> index is 1 and its lattice vector is zero.
+  module subroutine fragment_build_atom(fr,spc,xyz,icrd,idx,cidx,m_x2c)
+    class(fragment), intent(inout) :: fr
+    type(species), intent(in) :: spc
+    real*8, intent(in) :: xyz(3)
+    integer, intent(in) :: icrd
+    integer, intent(in) :: idx
+    integer, intent(in) :: cidx
+    real*8, intent(in) :: m_x2c(3,3)
+
+    call fr%build(1,(/spc/),1,reshape(xyz,(/3,1/)),icrd,(/1/),(/idx/),(/cidx/),m_x2c)
+
+  end subroutine fragment_build_atom
+
+  !> Translate the fragment by the lattice vector lvec (crystallographic
+  !> coordinates). Uses the crystallographic -> Cartesian matrix (m_x2c)
+  !> saved at build time.
+  module subroutine fragment_translate(fr,lvec)
+    class(fragment), intent(inout) :: fr
+    integer, intent(in) :: lvec(3)
+
+    integer :: j
+
+    do j = 1, fr%nat
+       fr%at(j)%x = fr%at(j)%x + lvec
+       fr%at(j)%r = matmul(fr%m_x2c,fr%at(j)%x)
+       fr%at(j)%lvec = fr%at(j)%lvec + lvec
+    end do
+
+  end subroutine fragment_translate
+
+  !> Translate the fragment so that its center of mass lies in the main
+  !> cell (crystallographic coordinates between 0 and 1). Uses the
+  !> crystallographic -> Cartesian matrix (m_x2c) saved at build time.
+  module subroutine fragment_translate_to_main_cell(fr)
+    use tools_math, only: matinv
+    class(fragment), intent(inout) :: fr
+
+    integer :: j, newl(3)
+    real*8 :: xcm(3), m_c2x(3,3)
+
+    ! Cartesian -> crystallographic matrix
+    m_c2x = fr%m_x2c
+    call matinv(m_c2x,3)
+
+    ! lattice translation that brings the center of mass into the main cell
+    xcm = fr%cmass()
+    newl = floor(matmul(m_c2x,xcm))
+
+    ! apply it to all atoms
+    do j = 1, fr%nat
+       fr%at(j)%x = fr%at(j)%x - newl
+       fr%at(j)%r = matmul(fr%m_x2c,fr%at(j)%x)
+       fr%at(j)%lvec = fr%at(j)%lvec - newl
+    end do
+
+  end subroutine fragment_translate_to_main_cell
+
   !> Merge two or more fragments, delete repeated atoms. If fr already
   !> has a fragment, then add to it if add = .true. (default: .true.).
   !> Assumes all fragments have the same atomic species.

@@ -35,8 +35,13 @@ module fragmentmod
      logical :: discrete = .true. !< is this fragment discrete?
      integer :: nlvec = 0 !< number of connecting lattice vectors for non-discrete fragments
      integer, allocatable :: lvec(:,:) !< connecting lattice vectors
+     real*8 :: m_x2c(3,3) = 0d0 !< crystallographic -> Cartesian matrix (saved at build time)
    contains
      procedure :: init => fragment_init ! initialize a fragment
+     procedure :: build => fragment_build ! build a fragment from atomic data
+     procedure :: build_atom => fragment_build_atom ! build a fragment from a single atom
+     procedure :: translate => fragment_translate ! translate the fragment by a lattice vector
+     procedure :: translate_to_main_cell => fragment_translate_to_main_cell ! move the fragment to the main cell
      procedure :: append ! append a fragment to this fragment
      procedure :: merge_array ! merge several fragments
      procedure :: cmass ! calculate center of mass
@@ -49,6 +54,39 @@ module fragmentmod
      module subroutine fragment_init(fr)
        class(fragment), intent(inout) :: fr
      end subroutine fragment_init
+     module subroutine fragment_build(fr,nspc,spc,nat,xyz,icrd,is,idx,cidx,m_x2c,&
+        lvec,discrete,nlvec,mollvec)
+       class(fragment), intent(inout) :: fr
+       integer, intent(in) :: nspc
+       type(species), intent(in) :: spc(nspc)
+       integer, intent(in) :: nat
+       real*8, intent(in) :: xyz(3,nat)
+       integer, intent(in) :: icrd
+       integer, intent(in) :: is(nat)
+       integer, intent(in) :: idx(nat)
+       integer, intent(in) :: cidx(nat)
+       real*8, intent(in) :: m_x2c(3,3)
+       integer, intent(in), optional :: lvec(3,nat)
+       logical, intent(in), optional :: discrete
+       integer, intent(in), optional :: nlvec
+       integer, intent(in), optional :: mollvec(:,:)
+     end subroutine fragment_build
+     module subroutine fragment_build_atom(fr,spc,xyz,icrd,idx,cidx,m_x2c)
+       class(fragment), intent(inout) :: fr
+       type(species), intent(in) :: spc
+       real*8, intent(in) :: xyz(3)
+       integer, intent(in) :: icrd
+       integer, intent(in) :: idx
+       integer, intent(in) :: cidx
+       real*8, intent(in) :: m_x2c(3,3)
+     end subroutine fragment_build_atom
+     module subroutine fragment_translate(fr,lvec)
+       class(fragment), intent(inout) :: fr
+       integer, intent(in) :: lvec(3)
+     end subroutine fragment_translate
+     module subroutine fragment_translate_to_main_cell(fr)
+       class(fragment), intent(inout) :: fr
+     end subroutine fragment_translate_to_main_cell
      module subroutine merge_array(fr,fra,add)
        class(fragment), intent(inout) :: fr
        type(fragment), intent(in) :: fra(:)

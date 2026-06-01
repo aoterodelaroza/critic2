@@ -24,7 +24,6 @@ contains
   !> Identify a fragment in the unit cell. Input: cartesian coords. Output:
   !> A fragment object. This routine is thread-safe.
   module function identify_fragment(c,nat,x0) result(fr)
-    use types, only: realloc
     use param, only: icrd_cart
     class(crystal), intent(inout) :: c
     integer, intent(in) :: nat
@@ -32,28 +31,29 @@ contains
     type(fragment) :: fr
 
     integer :: id, i, n
+    real*8, allocatable :: fx(:,:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:)
 
-    fr%nat = nat
-    allocate(fr%at(nat))
-    fr%nspc = c%nspc
-    allocate(fr%spc(c%nspc))
-    fr%spc = c%spc
-
+    ! gather the atoms that can be identified in the cell
+    allocate(fx(3,nat),fis(nat),fidx(nat),fcidx(nat))
     n = 0
     do i = 1, nat
        id = c%identify_atom(x0(:,i),icrd_cart)
        if (id > 0) then
           n = n + 1
-          fr%at(n)%r = x0(:,i)
-          fr%at(n)%x = c%c2x(x0(:,i))
-          fr%at(n)%cidx = id
-          fr%at(n)%idx = c%atcel(id)%idx
-          fr%at(n)%lvec = nint(fr%at(n)%x - c%atcel(id)%x)
-          fr%at(n)%is = c%atcel(id)%is
+          fx(:,n) = x0(:,i)
+          fcidx(n) = id
+          fidx(n) = c%atcel(id)%idx
+          fis(n) = c%atcel(id)%is
        end if
     end do
-    fr%nat = n
-    call realloc(fr%at,n)
+
+    ! build the fragment and assign the lattice vectors to the cell atoms
+    call fr%build(c%nspc,c%spc,n,fx(:,1:n),icrd_cart,fis(1:n),fidx(1:n),fcidx(1:n),c%m_x2c)
+    do i = 1, fr%nat
+       fr%at(i)%lvec = nint(fr%at(i)%x - c%atcel(fr%at(i)%cidx)%x)
+    end do
+    deallocate(fx,fis,fidx,fcidx)
 
   end function identify_fragment
 
@@ -63,7 +63,6 @@ contains
   module function identify_fragment_from_xyz(c,file,errmsg,ti) result(fr)
     use tools_io, only: fopen_read, string, fclose
     use param, only: bohrtoa, icrd_cart, mlen
-    use types, only: realloc
 
     class(crystal), intent(inout) :: c
     character*(*) :: file
@@ -74,7 +73,13 @@ contains
     integer :: lu, nat
     integer :: id, i
     real*8 :: x0(3)
+    real*8, allocatable :: fx(:,:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:)
     character(len=mlen) :: word
+
+    ! leave an empty fragment in case of error
+    fr%nat = 0
+    fr%nspc = 0
 
     errmsg = "Error reading xyz file"
     lu = fopen_read(file,ti=ti)
@@ -82,32 +87,29 @@ contains
     read(lu,*,err=999,end=999) nat
     read(lu,*,err=999,end=999)
 
-    fr%nat = nat
-    allocate(fr%at(nat))
-    fr%nspc = c%nspc
-    allocate(fr%spc(fr%nspc))
-    fr%spc = c%spc
+    ! gather and identify all the atoms in the xyz file
+    allocate(fx(3,nat),fis(nat),fidx(nat),fcidx(nat))
     do i = 1, nat
        read(lu,*,err=999,end=999) word, x0
        x0 = x0 / bohrtoa - c%molx0
        id = c%identify_atom(x0,icrd_cart)
        if (id == 0) then
-          fr%nat = 0
-          deallocate(fr%at)
-          fr%nspc = 0
-          deallocate(fr%spc)
           errmsg = "Could not identify fragment from xyz file: " // trim(file)
+          call fclose(lu)
           return
        endif
-       fr%at(i)%r = x0
-       fr%at(i)%x = c%c2x(x0)
-       fr%at(i)%cidx = id
-       fr%at(i)%idx = c%atcel(id)%idx
-       fr%at(i)%lvec = nint(fr%at(i)%x - c%atcel(id)%x)
-       fr%at(i)%is = c%atcel(id)%is
+       fx(:,i) = x0
+       fcidx(i) = id
+       fidx(i) = c%atcel(id)%idx
+       fis(i) = c%atcel(id)%is
     end do
     call fclose(lu)
-    call realloc(fr%at,fr%nat)
+
+    ! build the fragment and assign the lattice vectors to the cell atoms
+    call fr%build(c%nspc,c%spc,nat,fx,icrd_cart,fis,fidx,fcidx,c%m_x2c)
+    do i = 1, fr%nat
+       fr%at(i)%lvec = nint(fr%at(i)%x - c%atcel(fr%at(i)%cidx)%x)
+    end do
 
     errmsg = ""
     return
@@ -126,14 +128,16 @@ contains
     use tools_io, only: ferror, faterr
     use tools, only: qcksort
     use types, only: realloc
+    use param, only: icrd_crys
     class(crystal), intent(inout) :: c
 
-    integer :: i, j, k, id, newl(3)
+    integer :: i, j, k, nat
     integer :: nlvec, lwork, info
     integer, allocatable :: lvec(:,:), lmol(:,:), nlmol(:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:), flvec(:,:)
     logical, allocatable :: isdiscrete(:)
     real*8, allocatable :: rlvec(:,:), sigma(:), uvec(:,:), vvec(:,:), work(:)
-    real*8 :: xcm(3)
+    real*8, allocatable :: fx(:,:)
 
     ! initialize
     c%nmol = 0
@@ -164,50 +168,37 @@ contains
        call explore_node(i,c%nmol,(/0,0,0/))
     end do
 
-    ! fill molecules
+    ! build the fragment for each molecule by collecting its atoms from
+    ! the complete atom list (work arrays sized to fit any molecule)
     allocate(c%mol(c%nmol))
+    allocate(fx(3,c%ncel),fis(c%ncel),fidx(c%ncel),fcidx(c%ncel),flvec(3,c%ncel))
     do i = 1, c%nmol
-       c%mol(i)%nspc = c%nspc
-       c%mol(i)%spc = c%spc
-       c%mol(i)%nat = 0
-       c%mol(i)%discrete = isdiscrete(i)
-       allocate(c%mol(i)%at(count(c%idatcelmol(1,:) == i)))
-       if (c%mol(i)%discrete) then
-          c%mol(i)%nlvec = 0
-       else
-          c%mol(i)%nlvec = nlmol(i)
-          c%mol(i)%lvec = lmol(:,1:nlmol(i))
-       end if
+       nat = 0
+       do k = 1, c%ncel
+          if (c%idatcelmol(1,k) /= i) cycle
+          nat = nat + 1
+          c%idatcelmol(2,k) = nat
+          if (isdiscrete(i)) then
+             fx(:,nat) = c%atcel(k)%x + lvec(:,k)
+             flvec(:,nat) = lvec(:,k)
+          else
+             fx(:,nat) = c%atcel(k)%x
+             flvec(:,nat) = 0
+          end if
+          fis(nat) = c%atcel(k)%is
+          fidx(nat) = c%atcel(k)%idx
+          fcidx(nat) = k
+       end do
+       call c%mol(i)%build(c%nspc,c%spc,nat,fx(:,1:nat),icrd_crys,fis(1:nat),&
+          fidx(1:nat),fcidx(1:nat),c%m_x2c,flvec(:,1:nat),&
+          isdiscrete(i),nlmol(i),lmol(:,1:nlmol(i)))
     end do
-    deallocate(nlmol,lmol,isdiscrete)
-    do i = 1, c%ncel
-       id = c%idatcelmol(1,i)
-       c%mol(id)%nat = c%mol(id)%nat + 1
-       c%idatcelmol(2,i) = c%mol(id)%nat
-       if (c%mol(id)%discrete) then
-          c%mol(id)%at(c%mol(id)%nat)%x = c%atcel(i)%x + lvec(:,i)
-          c%mol(id)%at(c%mol(id)%nat)%lvec = lvec(:,i)
-       else
-          c%mol(id)%at(c%mol(id)%nat)%x = c%atcel(i)%x
-          c%mol(id)%at(c%mol(id)%nat)%lvec = 0
-       end if
-       c%mol(id)%at(c%mol(id)%nat)%r = c%x2c(c%mol(id)%at(c%mol(id)%nat)%x)
-       c%mol(id)%at(c%mol(id)%nat)%cidx = i
-       c%mol(id)%at(c%mol(id)%nat)%idx = c%atcel(i)%idx
-       c%mol(id)%at(c%mol(id)%nat)%is = c%atcel(i)%is
-    end do
-    deallocate(lvec)
+    deallocate(nlmol,lmol,isdiscrete,lvec,fx,fis,fidx,fcidx,flvec)
 
     ! translate all fragments to the main cell
     if (.not.c%ismolecule) then
        do i = 1, c%nmol
-          xcm = c%mol(i)%cmass()
-          newl = floor(c%c2x(xcm))
-          do j = 1, c%mol(i)%nat
-             c%mol(i)%at(j)%x = c%mol(i)%at(j)%x - newl
-             c%mol(i)%at(j)%r = c%x2c(c%mol(i)%at(j)%x)
-             c%mol(i)%at(j)%lvec = c%mol(i)%at(j)%lvec - newl
-          end do
+          call c%mol(i)%translate_to_main_cell()
        end do
     end if
 
@@ -378,7 +369,7 @@ contains
   !> List atoms in a number of cells around the main cell (nx cells),
   !> possibly with border (doborder).
   module function listatoms_cells(c,nx,doborder) result(fr)
-    use types, only: realloc
+    use param, only: icrd_crys
     class(crystal), intent(in) :: c
     integer, intent(in) :: nx(3)
     logical, intent(in) :: doborder
@@ -387,29 +378,31 @@ contains
     real*8, parameter :: rthr = 0.01d0
     real*8, parameter :: rthr1 = 1-rthr
 
-    integer :: ix, iy, iz, i
+    integer :: ix, iy, iz, i, n, nmax
     logical :: if1
+    real*8, allocatable :: fx(:,:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:), flvec(:,:)
 
-    fr%nspc = c%nspc
-    allocate(fr%spc(c%nspc))
-    fr%spc(1:fr%nspc) = c%spc(1:c%nspc)
-    allocate(fr%at(1))
-    fr%nat = 0
+    ! work arrays large enough to fit all the atoms (with border)
+    if (doborder) then
+       nmax = (nx(1)+2)*(nx(2)+2)*(nx(3)+2)*c%ncel
+    else
+       nmax = nx(1)*nx(2)*nx(3)*c%ncel
+    end if
+    allocate(fx(3,nmax),fis(nmax),fidx(nmax),fcidx(nmax),flvec(3,nmax))
 
     ! All atoms in these cells
-    fr%nat = 0
+    n = 0
     do ix = 0,nx(1)-1
        do iy = 0,nx(2)-1
           do iz = 0,nx(3)-1
              do i = 1, c%ncel
-                fr%nat = fr%nat + 1
-                if (fr%nat > size(fr%at)) call realloc(fr%at,2*fr%nat)
-                fr%at(fr%nat)%x = c%atcel(i)%x + (/ix,iy,iz/)
-                fr%at(fr%nat)%r = c%x2c(fr%at(fr%nat)%x)
-                fr%at(fr%nat)%cidx = i
-                fr%at(fr%nat)%idx = c%atcel(i)%idx
-                fr%at(fr%nat)%lvec = (/ix,iy,iz/)
-                fr%at(fr%nat)%is = c%atcel(i)%is
+                n = n + 1
+                fx(:,n) = c%atcel(i)%x + (/ix,iy,iz/)
+                fcidx(n) = i
+                fidx(n) = c%atcel(i)%idx
+                flvec(:,n) = (/ix,iy,iz/)
+                fis(n) = c%atcel(i)%is
              end do
           end do
        end do
@@ -431,14 +424,12 @@ contains
                       iz == -1 .and. c%atcel(i)%x(3)<rthr1 .or. &
                       iz == nx(3) .and. c%atcel(i)%x(3)>rthr)
                    if (.not.if1) then
-                      fr%nat = fr%nat + 1
-                      if (fr%nat > size(fr%at)) call realloc(fr%at,2*fr%nat)
-                      fr%at(fr%nat)%x = c%atcel(i)%x + (/ix,iy,iz/)
-                      fr%at(fr%nat)%r = c%x2c(fr%at(fr%nat)%x)
-                      fr%at(fr%nat)%cidx = i
-                      fr%at(fr%nat)%idx = c%atcel(i)%idx
-                      fr%at(fr%nat)%lvec = (/ix,iy,iz/)
-                      fr%at(fr%nat)%is = c%atcel(i)%is
+                      n = n + 1
+                      fx(:,n) = c%atcel(i)%x + (/ix,iy,iz/)
+                      fcidx(n) = i
+                      fidx(n) = c%atcel(i)%idx
+                      flvec(:,n) = (/ix,iy,iz/)
+                      fis(n) = c%atcel(i)%is
                       cycle
                    end if
                 end do
@@ -446,7 +437,9 @@ contains
           end do
        end do
     end if
-    call realloc(fr%at,fr%nat)
+
+    call fr%build(c%nspc,c%spc,n,fx(:,1:n),icrd_crys,fis(1:n),fidx(1:n),fcidx(1:n),c%m_x2c,flvec(:,1:n))
+    deallocate(fx,fis,fidx,fcidx,flvec)
 
   end function listatoms_cells
 
@@ -457,24 +450,24 @@ contains
   module function listatoms_sphcub(c,rsph,xsph,rcub,xcub) result(fr)
     use tools_io, only: ferror, faterr
     use types, only: realloc
+    use param, only: icrd_crys
     class(crystal), intent(in) :: c
     real*8, intent(in), optional :: rsph, xsph(3)
     real*8, intent(in), optional :: rcub, xcub(3)
     type(fragment) :: fr
 
-    integer :: ix, iy, iz, i, nn
+    integer :: ix, iy, iz, i, nn, n
     real*8 :: x0(3), d
     logical :: doagain, dosph
+    real*8, allocatable :: fx(:,:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:), flvec(:,:)
 
     if (.not.(present(rsph).and.present(xsph)).and..not.(present(rcub).and.present(xcub))) &
        call ferror("listatoms_sphcub","Need sphere or cube input",faterr)
     dosph = present(rsph)
 
-    allocate(fr%at(1))
-    fr%nat = 0
-    allocate(fr%spc(c%nspc))
-    fr%nspc = c%nspc
-    fr%spc = c%spc
+    n = 0
+    allocate(fx(3,10),fis(10),fidx(10),fcidx(10),flvec(3,10))
 
     ! all atoms in a sphere
     doagain = .true.
@@ -498,21 +491,28 @@ contains
                    endif
 
                    ! add this atom
-                   fr%nat = fr%nat + 1
-                   if (fr%nat > size(fr%at)) call realloc(fr%at,2*fr%nat)
-                   fr%at(fr%nat)%x = c%atcel(i)%x + (/ix,iy,iz/)
-                   fr%at(fr%nat)%r = c%x2c(fr%at(fr%nat)%x)
-                   fr%at(fr%nat)%cidx = i
-                   fr%at(fr%nat)%idx = c%atcel(i)%idx
-                   fr%at(fr%nat)%lvec = (/ix,iy,iz/)
-                   fr%at(fr%nat)%is = c%atcel(i)%is
+                   n = n + 1
+                   if (n > size(fis)) then
+                      call realloc(fx,3,2*n)
+                      call realloc(fis,2*n)
+                      call realloc(fidx,2*n)
+                      call realloc(fcidx,2*n)
+                      call realloc(flvec,3,2*n)
+                   end if
+                   fx(:,n) = c%atcel(i)%x + (/ix,iy,iz/)
+                   fcidx(n) = i
+                   fidx(n) = c%atcel(i)%idx
+                   flvec(:,n) = (/ix,iy,iz/)
+                   fis(n) = c%atcel(i)%is
                    doagain = .true.
                 end do
              end do
           end do
        end do
     end do
-    call realloc(fr%at,fr%nat)
+
+    call fr%build(c%nspc,c%spc,n,fx(:,1:n),icrd_crys,fis(1:n),fidx(1:n),fcidx(1:n),c%m_x2c,flvec(:,1:n))
+    deallocate(fx,fis,fidx,fcidx,flvec)
 
   end function listatoms_sphcub
 
@@ -524,6 +524,7 @@ contains
   module subroutine listmolecules(c,fri,nfrag,fr,isdiscrete)
     use fragmentmod, only: realloc_fragment
     use types, only: realloc
+    use param, only: icrd_crys
     class(crystal), intent(inout) :: c
     type(fragment), intent(in) :: fri
     integer, intent(out) :: nfrag
@@ -533,6 +534,8 @@ contains
     integer :: i, j, k, l, newid, newl(3), jid
     integer :: nat
     integer, allocatable :: id(:), lvec(:,:)
+    integer, allocatable :: fis(:), fidx(:), fcidx(:)
+    real*8, allocatable :: fx(:,:)
     logical, allocatable :: ldone(:)
     logical :: found, ldist
     integer :: nseed
@@ -619,23 +622,18 @@ contains
           call realloc_fragment(fr,2*nfrag)
           call realloc(isdiscrete,2*nfrag)
        end if
-       fr(nfrag)%nat = nat
-       allocate(fr(nfrag)%at(nat))
-       if (allocated(fr(nfrag)%spc)) deallocate(fr(nfrag)%spc)
-       fr(nfrag)%nspc = c%nspc
-       allocate(fr(nfrag)%spc(c%nspc))
-       fr(nfrag)%spc = c%spc
        isdiscrete(nfrag) = ldist
+       allocate(fx(3,nat),fis(nat),fidx(nat),fcidx(nat))
        do j = 1, nat
           ! if not a discrete fragment, do not translate
           if (.not.ldist) lvec(:,j) = 0
-          fr(nfrag)%at(j)%x = c%atcel(id(j))%x + lvec(:,j)
-          fr(nfrag)%at(j)%r = c%x2c(fr(nfrag)%at(j)%x)
-          fr(nfrag)%at(j)%cidx = id(j)
-          fr(nfrag)%at(j)%idx = c%atcel(id(j))%idx
-          fr(nfrag)%at(j)%lvec = lvec(:,j)
-          fr(nfrag)%at(j)%is = c%atcel(id(j))%is
+          fx(:,j) = c%atcel(id(j))%x + lvec(:,j)
+          fcidx(j) = id(j)
+          fidx(j) = c%atcel(id(j))%idx
+          fis(j) = c%atcel(id(j))%is
        end do
+       call fr(nfrag)%build(c%nspc,c%spc,nat,fx,icrd_crys,fis,fidx,fcidx,c%m_x2c,lvec(:,1:nat))
+       deallocate(fx,fis,fidx,fcidx)
 
        ! run over all atoms in the new fragment and mark those atoms in the seed
        do j = 1, nat

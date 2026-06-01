@@ -846,7 +846,7 @@ contains
     type(fragment) :: fr
     type(fragment), allocatable :: fr0(:)
     logical, allocatable :: isdiscrete(:)
-    integer :: i, j, k, l, m, nmol, icel, lvec(3), ncm
+    integer :: i, j, k, l, nmol, icel, lvec(3), ncm
     integer :: ncomb, nlimi, nlimj, icount
     integer, allocatable :: icomb(:), origmol(:)
     character(len=:), allocatable :: wroot, file0, aux
@@ -938,11 +938,7 @@ contains
                          end if
                          cmlist(:,ncm) = xcm
                          fr0(ncm) = c%mol(l)
-                         do m = 1, fr0(ncm)%nat
-                            fr0(ncm)%at(m)%x = fr0(ncm)%at(m)%x + lvec
-                            fr0(ncm)%at(m)%r = c%x2c(fr0(ncm)%at(m)%x)
-                            fr0(ncm)%at(m)%lvec = fr0(ncm)%at(m)%lvec + lvec
-                         end do
+                         call fr0(ncm)%translate(lvec)
                          origmol(ncm) = l
                          doagain = .true.
                       end if
