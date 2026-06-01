@@ -4641,16 +4641,18 @@ contains
        n = n + 1
        line = trim(adjustl(line))
        ll = len(line)
-       if (line(ll-4:ll) == "<-- E") then
-          nlast = n
-          nat = 0
-       elseif (line(ll-4:ll) == "<-- R") then
-          nat = nat + 1
-          lp = 1
-          word = lgetword(line,lp)
-          if (.not.usen%iskey(word)) then
-             nspc = nspc + 1
-             call usen%put(word,nspc)
+       if (ll > 4) then
+          if (line(ll-4:ll) == "<-- E") then
+             nlast = n
+             nat = 0
+          elseif (line(ll-4:ll) == "<-- R") then
+             nat = nat + 1
+             lp = 1
+             word = lgetword(line,lp)
+             if (.not.usen%iskey(word)) then
+                nspc = nspc + 1
+                call usen%put(word,nspc)
+             end if
           end if
        end if
     end do
@@ -4671,41 +4673,43 @@ contains
     do while(getline_raw(lu,line))
        line = trim(adjustl(line))
        ll = len(line)
-       if (line(ll-4:ll) == "<-- E") then
-          read(line,*,err=999,end=999) seed%energy
-       elseif (line(ll-4:ll) == "<-- h") then
-          read(line,*,err=999,end=999) seed%m_x2c(:,1)
-          if (.not.getline_raw(lu,line)) goto 999
-          read(line,*,err=999,end=999) seed%m_x2c(:,2)
-          if (.not.getline_raw(lu,line)) goto 999
-          read(line,*,err=999,end=999) seed%m_x2c(:,3)
-       elseif (line(ll-4:ll) == "<-- R") then
-          nat = nat + 1
-          lp = 1
-          word = getword(line,lp)
-          lword = lower(word)
-          ok = isinteger(idum,line,lp)
-          ok = ok .and. isreal(seed%x(1,nat),line,lp)
-          ok = ok .and. isreal(seed%x(2,nat),line,lp)
-          ok = ok .and. isreal(seed%x(3,nat),line,lp)
-          if (.not.ok) goto 999
-          seed%atname(nat) = word
+       if (ll > 4) then
+          if (line(ll-4:ll) == "<-- E") then
+             read(line,*,err=999,end=999) seed%energy
+          elseif (line(ll-4:ll) == "<-- h") then
+             read(line,*,err=999,end=999) seed%m_x2c(:,1)
+             if (.not.getline_raw(lu,line)) goto 999
+             read(line,*,err=999,end=999) seed%m_x2c(:,2)
+             if (.not.getline_raw(lu,line)) goto 999
+             read(line,*,err=999,end=999) seed%m_x2c(:,3)
+          elseif (line(ll-4:ll) == "<-- R") then
+             nat = nat + 1
+             lp = 1
+             word = getword(line,lp)
+             lword = lower(word)
+             ok = isinteger(idum,line,lp)
+             ok = ok .and. isreal(seed%x(1,nat),line,lp)
+             ok = ok .and. isreal(seed%x(2,nat),line,lp)
+             ok = ok .and. isreal(seed%x(3,nat),line,lp)
+             if (.not.ok) goto 999
+             seed%atname(nat) = word
 
-          is = usen%get(lword,1)
-          seed%is(nat) = is
-          if (.not.usespc(is)) then
-             seed%spc(is)%name = trim(word)
-             seed%spc(is)%qat = 0d0
-             if (isinteger(idum,word)) then
-                seed%spc(is)%z = idum
-             else
-                seed%spc(is)%z = zatguess(word)
-                if (seed%spc(is)%z < 0) then
-                   errmsg = "Unknown atomic symbol: " // word
-                   goto 999
+             is = usen%get(lword,1)
+             seed%is(nat) = is
+             if (.not.usespc(is)) then
+                seed%spc(is)%name = trim(word)
+                seed%spc(is)%qat = 0d0
+                if (isinteger(idum,word)) then
+                   seed%spc(is)%z = idum
+                else
+                   seed%spc(is)%z = zatguess(word)
+                   if (seed%spc(is)%z < 0) then
+                      errmsg = "Unknown atomic symbol: " // word
+                      goto 999
+                   end if
                 end if
+                usespc(is) = .true.
              end if
-             usespc(is) = .true.
           end if
        end if
     end do
