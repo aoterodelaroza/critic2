@@ -100,7 +100,7 @@ module windows
      logical :: forcerender = .true. ! force render of the scene
      logical :: lowresrender = .false. ! last render was at reduced (interactive) resolution
      integer :: view_mousebehavior = MB_navigation ! mouse behavior in the view
-     type(ImVec2) :: mousepos_lastframe ! save mouse position
+     type(ImVec2) :: mousepos_lastpick ! mouse position at the last atom pick
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
      type(ImVec2) :: mposlast ! mouse parameters ----v
      real(c_float) :: mpos0_r(3), mpos0_l(3), mpos0_m(3), cpos0_l(3), cpos0_m(3)

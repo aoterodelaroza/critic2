@@ -87,7 +87,7 @@ contains
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
-    logical :: isuc, islabelsl, hover_and_moved, enabled, ismeasure
+    logical :: isuc, islabelsl, needpick, enabled, ismeasure
     integer :: islabels
     logical :: ch
     integer(c_int) :: flags, nc(3), ires, viewtype, idum
@@ -115,8 +115,8 @@ contains
     chrender = .false.
     chbuild = .false.
     if (w%firstpass) then
-       w%mousepos_lastframe%x = 0._c_float
-       w%mousepos_lastframe%y = 0._c_float
+       w%mousepos_lastpick%x = 0._c_float
+       w%mousepos_lastpick%y = 0._c_float
     end if
 
     !! update the tree based on time signals between dependent windows
@@ -843,17 +843,19 @@ contains
     ldum = igImageButtonEx(igGetID_Str(c_loc(str1)),w%FBOtex, szavail, sz0, sz1, szero, bgcol, tintcol)
     call igPopStyleColor(3)
 
-    ! get hover, hover_and_moved, image rectangle coordinates, and atom idx
+    ! get hover, needpick, image rectangle coordinates, and atom idx
     hover = goodsys .and. w%ilock == ilock_no
     if (hover) hover = igIsItemHovered(ImGuiHoveredFlags_None)
-    hover_and_moved = .false.
+    needpick = .false.
     ismeasure = .false.
     if (hover) then
        call igGetMousePos(pos)
-       hover_and_moved = (abs(w%mousepos_lastframe%x-pos%x) > 1e-4.or.abs(w%mousepos_lastframe%y-pos%y) > 1e-4)
+       ! a pick is needed if the mouse moved since the last pick (compared to the
+       ! position at the last pick, not the last frame, so a final pick still
+       ! happens at the resting position after motion stops) or on a measure click
+       needpick = (abs(w%mousepos_lastpick%x-pos%x) > 1e-4.or.abs(w%mousepos_lastpick%y-pos%y) > 1e-4)
        ismeasure = (w%view_mousebehavior == MB_Navigation.and.is_bind_event(BIND_NAV_MEASURE))
-       hover_and_moved = hover_and_moved.or.ismeasure
-       w%mousepos_lastframe = pos
+       needpick = needpick.or.ismeasure
     end if
 
     ! get the ID of the atom under mouse. Throttle hover picking to pick_interval
@@ -861,8 +863,9 @@ contains
     ! immediately on an explicit measure click so it does not get dropped.
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
-    if ((hover_and_moved .and. w%timelast_view_getpixel + pick_interval < time) .or. ismeasure) then
+    if ((needpick .and. w%timelast_view_getpixel + pick_interval < time) .or. ismeasure) then
        w%mousepos_idx = 0
+       w%mousepos_lastpick = pos
        call w%mousepos_to_texpos(pos)
        call w%getpixel(pos,rgba=rgba)
 
@@ -1099,8 +1102,8 @@ contains
 
     ! reset the mouse variables
     w%ilock = ilock_no
-    w%mousepos_lastframe%x = 0._c_float
-    w%mousepos_lastframe%y = 0._c_float
+    w%mousepos_lastpick%x = 0._c_float
+    w%mousepos_lastpick%y = 0._c_float
     w%mousepos_idx = 0
 
     ! set the time
