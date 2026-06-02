@@ -43,11 +43,18 @@ set(TESTS
   042_bz                     ## bz keyword
   043_molmove                ## molmove keyword
   044_amd_basic              ## amd keyword
-  045_comparevc              ## comparevc keyword
   046_newcell_nice           ## newcell nice keyword
-  047_xrpd                   ## xrpd keyword
   048_compare_methods        ## compare keyword, gpwdf/powder/emd methods
-  049_comparevc_methods      ## comparevc keyword, vcpwdf/vcgpwdf methods
   )
+
+## these tests use the variable-cell comparison (COMPAREVC/vcgpwdf) and XRPD
+## peak fitting, which require the NLOPT library
+if (NLOPT_FOUND)
+  set(TESTS ${TESTS}
+    045_comparevc            ## comparevc keyword (vcgpwdf, needs nlopt)
+    047_xrpd                 ## xrpd keyword (peak fitting, needs nlopt)
+    049_comparevc_methods    ## comparevc keyword, vcpwdf/vcgpwdf (needs nlopt)
+    )
+endif()
 
 runtests(${TESTS})
