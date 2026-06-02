@@ -601,7 +601,7 @@ contains
           end do
        end if
        write (luout,'("  ",A)') "endsymmatrix"
-       write (luout,'("  ",A,6(F10.6" "))') "cell", sy%c%aa, sy%c%bb
+       write (luout,'("  ",A,6(F10.6," "))') "cell", sy%c%aa, sy%c%bb
        write (luout,'("  ",A)') "crystalbox  -2.30 -2.30 -2.30 2.30 2.30 2.30"
        write (luout,'("  ",A,6(F6.3," "))') "clippingbox ",-0.02,-0.02,-0.02,+1.02,+1.02,+1.02
        if (nosym) then
