@@ -7,7 +7,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? Yes
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -26,7 +25,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -43,7 +41,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -60,7 +57,6 @@
   Number of MOs (occupied): 10 (alpha=6,beta=4)
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -77,7 +73,6 @@
   Number of MOs (occupied): 10 (alpha=6,beta=4)
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -94,7 +89,6 @@
   Number of MOs (occupied): 10 (alpha=6,beta=4)
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -112,7 +106,6 @@
   Number of MOs (doubly-occupied): 4
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -130,7 +123,6 @@
   Number of MOs (doubly-occupied): 4
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -148,7 +140,6 @@
   Number of MOs (doubly-occupied): 4
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -165,7 +156,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? Yes
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -182,7 +172,6 @@
   Number of electrons: 10
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -199,7 +188,6 @@
   Number of electrons: 10
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -216,7 +204,6 @@
   Number of MOs (occupied): 10 (alpha=6,beta=4)
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -233,7 +220,6 @@
   Number of electrons: 10
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -250,7 +236,6 @@
   Number of electrons: 10
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -448,7 +433,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -467,7 +451,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -485,7 +468,6 @@
   Number of MOs (occupied): 10 (alpha=6,beta=4)
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -503,7 +485,6 @@
   Number of MOs (doubly-occupied): 4
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -521,7 +502,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -538,7 +518,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -556,7 +535,6 @@
   Number of MOs (occupied): 10 (alpha=6,beta=4)
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -658,7 +636,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -677,7 +654,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -694,7 +670,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -712,7 +687,6 @@
   Number of MOs (occupied): 10 (alpha=6,beta=4)
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -729,7 +703,6 @@
   Number of MOs (occupied): 10 (alpha=6,beta=4)
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -746,7 +719,6 @@
   Number of MOs (occupied): 10 (alpha=6,beta=4)
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -764,7 +736,6 @@
   Number of MOs (doubly-occupied): 4
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -782,7 +753,6 @@
   Number of MOs (doubly-occupied): 4
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -800,7 +770,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -817,7 +786,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -834,7 +802,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -852,7 +819,6 @@
   Number of MOs (occupied): 10 (alpha=6,beta=4)
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -869,7 +835,6 @@
   Number of MOs (occupied): 10 (alpha=6,beta=4)
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -886,7 +851,6 @@
   Number of MOs (occupied): 10 (alpha=6,beta=4)
   Number of primitives (GTO): 67
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -1072,7 +1036,6 @@
   Number of MOs (occupied): 5
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -1092,7 +1055,6 @@
   Number of MOs (occupied): 10 (alpha=6,beta=4)
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
@@ -1110,7 +1072,6 @@
   Number of MOs (occupied): 10 (alpha=6,beta=4)
   Number of primitives (GTO): 168
   Number of EDFs: 0
-  Basis set info available? No 
   Use core densities? F
   Numerical derivatives? F
   Nuclear CP signature: -3
