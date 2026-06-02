@@ -1,3 +1,4 @@
+## grep: 049_comparevc_methods.cro '^\+ DIFF'
 ## check: 049_comparevc_methods.cro -a1e-10
 ## delete: 049_comparevc_methods_gen.scf.in
 ## labels: regression quick nodata
