@@ -418,7 +418,7 @@ contains
 
     integer :: lp, nti, id, nn(3)
     real*8 :: x0(3), x1(3), xp(3), lappt, x00(3,3)
-    real*8 :: rgr, dd(3), xd(3,3)
+    real*8 :: rgr, xd(3,3)
     integer :: lp2, i1, i2, i3
     character(len=:), allocatable :: word, outfile, expr, wext1, errmsg
     type(scalar_value) :: res
@@ -549,7 +549,10 @@ contains
              return
           end if
           rgr = rgr / dunit0(iunit)
-          nn = nint(dd / rgr) + 1
+          ! calculate the axis lengths to convert resolution into number of points
+          do i = 1, 3
+             nn(i) = nint(norm2(sy%c%x2c(xd(:,i))) / rgr) + 1
+          end do
        else
           do i = 1, 3
              nn(i) = max(nn(i),2)
@@ -727,7 +730,6 @@ contains
     x0 = cr%x2c(x0)
     do i = 1, 3
        xd(:,i) = cr%x2c(xd(:,i))
-       dd(i) = norm2(xd(:,i))
     end do
 
     ! re-do the lattice vectors if orthogonal vectors were requested
