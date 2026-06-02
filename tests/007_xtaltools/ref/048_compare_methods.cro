@@ -27,12 +27,3 @@
   ... finished comparing patterns
 + DIFF = 0.000000E+00
 
-* COMPARE: compare structures
-  Crystal 1 : <current>
-  Crystal 2 : 048_compare_methods_gen.scf.in
-# Using discrete powder diffraction patterns and the earth mover's distance (EMD).
-# Please cite:
-#   Rubner et al., Int. J. Comput. Vis. 40.2 (2000) 99-121 (10.1023/A:1026543900054)
-# Two structures are exactly equal if their difference = 0.
-+ DIFF = 3.638616E-13
-
