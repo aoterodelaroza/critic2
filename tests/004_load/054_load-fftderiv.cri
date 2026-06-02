@@ -1,0 +1,17 @@
+## check: 054_load-fftderiv.cro -a1e-10
+## labels: regression quick
+
+# build the gradient and Hessian components of a grid field via FFT
+crystal ../zz_source/qe-6.1/graphite/rho.cube
+load ../zz_source/qe-6.1/graphite/rho.cube
+
+load as fft gx 1
+load as fft gy 1
+load as fft gz 1
+load as fft hxx 1
+load as fft hxy 1
+load as fft hxz 1
+load as fft hyy 1
+load as fft hyz 1
+load as fft hzz 1
+point 0.1 0.2 0.3 all

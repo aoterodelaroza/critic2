@@ -1,0 +1,8 @@
+## check: 030_pointprop_rdg.cro -a1e-10
+## labels: regression quick
+
+# reduced density gradient as a point property
+crystal ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
+load ../zz_source/abinit-8.10.3/quartz-nc/quartz_o_DEN
+pointprop rdg
+point 0.1 0.2 0.3

@@ -1,0 +1,16 @@
+## check: 009_stm_options.cro -a1e-10
+## check: 009_stm_options_a_stm.dat -a1e-10
+## check: 009_stm_options_a_stm.gnu -a1e-10
+## check: 009_stm_options_b_stm_line.dat -a1e-10
+## labels: regression quick
+
+crystal ../zz_source/qe-6.5/alas110re/ldos.cube
+load ../zz_source/qe-6.5/alas110re/ldos.cube
+
+# constant current with explicit point grid (npts) and top reference
+root 009_stm_options_a
+stm current 0.00005 npts 16 16 top 0.5
+
+# constant height, line profile across the plane
+root 009_stm_options_b
+stm height 0.542 line 0.0 0.0 0.5 0.5 20

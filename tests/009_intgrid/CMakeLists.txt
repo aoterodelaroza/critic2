@@ -18,6 +18,8 @@ set(TESTS
   019_isosurface           ## isosurface keyword
   020_grid_only            ## only option in YT, BADER
   021_voronoi              ## voronoi keyword, basic
+  022_integrable_lap_overlap ## integrable keyword, lap and overlap
+  023_integrable_deloc_di3 ## integrable keyword, deloc with di3 (3-center)
   )
 
 runtests(${TESTS})

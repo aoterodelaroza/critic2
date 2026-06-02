@@ -35,6 +35,7 @@ set(TESTDIRS
   014_bisect    ## bisection keywords
   015_grdplot   ## gradient path tracing plots
   016_qtree     ## qtree keyword
+  017_edit      ## structure editing (EDIT)
   )
 
 ## Build the filter pipeline (grep and/or sed) for a checked file, given the

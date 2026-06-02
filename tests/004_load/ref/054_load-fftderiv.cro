@@ -1,0 +1,291 @@
++ Field number 1
+  Name: rho.cube
+  Source: ../zz_source/qe-6.1/graphite/rho.cube
+  Type: grid
+  Spans the unit cell? Yes
+  Grid dimensions : 30  30  81  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 5.887900000000E-03  6.155000000000E-03  6.978500000000E-03  
+  Last elements... 8.402300000000E-03  6.951000000000E-03  6.134800000000E-03  
+  Sum of elements... 4.941377519400E+03
+  Sum of squares of elements... 7.857578527528E+02
+  Grid domain/cell volume = 236.0477/236.0477
+  Grid domain integral (1) = 16.00000866
+  Cell integral (1) = 16.00000866
+  Min: 3.40530000E-03
+  Average: 6.77829564E-02
+  Max: 3.25200000E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $1
+
+* Field number 1 is now REFERENCE.
+
++ Field number 2
+  Name: <generated>, x-derivative of $1
+  Source: <generated>
+  Type: grid
+  Spans the unit cell? Yes
+  Grid dimensions : 30  30  81  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 4.100341165897E-18  -6.121776643773E-18  -1.221775005282E-17  
+  Last elements... 2.156566071827E-04  1.630977544223E-04  1.382699946139E-04  
+  Sum of elements... 1.336864646762E-14
+  Sum of squares of elements... 2.369308056778E+02
+  Grid domain/cell volume = 236.0477/236.0477
+  Grid domain integral (2) = 0.00000000
+  Cell integral (2) = 0.00000000
+  Min: -2.75677955E-01
+  Average: 1.83383353E-19
+  Max: 2.75677955E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $2
+
++ Field number 3
+  Name: <generated>, y-derivative of $1
+  Source: <generated>
+  Type: grid
+  Spans the unit cell? Yes
+  Grid dimensions : 30  30  81  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 4.770284023315E-18  -8.386582097018E-18  3.574779836571E-18  
+  Last elements... 4.533353087203E-04  3.126336132016E-04  2.510661101500E-04  
+  Sum of elements... 1.459271072035E-14
+  Sum of squares of elements... 2.369319704970E+02
+  Grid domain/cell volume = 236.0477/236.0477
+  Grid domain integral (3) = 0.00000000
+  Cell integral (3) = 0.00000000
+  Min: -3.05106011E-01
+  Average: 2.00174358E-19
+  Max: 3.05106011E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $3
+
++ Field number 4
+  Name: <generated>, z-derivative of $1
+  Source: <generated>
+  Type: grid
+  Spans the unit cell? Yes
+  Grid dimensions : 30  30  81  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 9.974464782580E-17  3.435367157688E-03  7.206631740149E-03  
+  Last elements... -1.160190970448E-02  -7.133177952484E-03  -3.408563273954E-03  
+  Sum of elements... 1.339955923996E-12
+  Sum of squares of elements... 5.280940895278E+02
+  Grid domain/cell volume = 236.0477/236.0477
+  Grid domain integral (4) = 0.00000000
+  Cell integral (4) = 0.00000000
+  Min: -2.45485683E-01
+  Average: 1.83807397E-17
+  Max: 2.45485683E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $4
+
++ Field number 5
+  Name: <generated>, xx-derivative of $1
+  Source: <generated>
+  Type: grid
+  Spans the unit cell? Yes
+  Grid dimensions : 30  30  81  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... -1.217102196210E-03  -1.461308348299E-03  -2.322525749279E-03  
+  Last elements... -2.562796700059E-03  -2.104836085665E-03  -1.874127811834E-03  
+  Sum of elements... 9.105823733924E-14
+  Sum of squares of elements... 1.274527408637E+03
+  Grid domain/cell volume = 236.0477/236.0477
+  Grid domain integral (5) = 0.00000000
+  Cell integral (5) = 0.00000000
+  Min: -1.00720551E+00
+  Average: 1.24908419E-18
+  Max: 1.35309270E+00
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $5
+
++ Field number 6
+  Name: <generated>, xy-derivative of $1
+  Source: <generated>
+  Type: grid
+  Spans the unit cell? Yes
+  Grid dimensions : 30  30  81  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 1.069108591752E-05  -8.541878316926E-06  -8.598689389093E-06  
+  Last elements... 7.154963601699E-04  1.577072574345E-04  -1.616834265705E-04  
+  Sum of elements... 2.259997744503E-14
+  Sum of squares of elements... 4.248474324152E+02
+  Grid domain/cell volume = 236.0477/236.0477
+  Grid domain integral (6) = 0.00000000
+  Cell integral (6) = 0.00000000
+  Min: -7.82838208E-01
+  Average: 3.10013408E-19
+  Max: 7.82155104E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $6
+
++ Field number 7
+  Name: <generated>, xz-derivative of $1
+  Source: <generated>
+  Type: grid
+  Spans the unit cell? Yes
+  Grid dimensions : 30  30  81  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 1.714055872064E-17  -6.963077069120E-17  8.336078496095E-18  
+  Last elements... -5.335078327718E-04  -1.395565839689E-04  -1.885137991465E-04  
+  Sum of elements... 2.287666583944E-15
+  Sum of squares of elements... 3.282693368080E+02
+  Grid domain/cell volume = 236.0477/236.0477
+  Grid domain integral (7) = 0.00000000
+  Cell integral (7) = 0.00000000
+  Min: -5.08216395E-01
+  Average: 3.13808859E-20
+  Max: 5.08216395E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $7
+
++ Field number 8
+  Name: <generated>, yy-derivative of $1
+  Source: <generated>
+  Type: grid
+  Spans the unit cell? Yes
+  Grid dimensions : 30  30  81  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... -1.204763088593E-03  -1.471178797739E-03  -2.332465991233E-03  
+  Last elements... -2.907818536343E-03  -2.459616570359E-03  -2.311835383147E-03  
+  Sum of elements... 2.591503400762E-14
+  Sum of squares of elements... 1.274550281544E+03
+  Grid domain/cell volume = 236.0477/236.0477
+  Grid domain integral (8) = 0.00000000
+  Cell integral (8) = 0.00000000
+  Min: -1.02245183E+00
+  Average: 3.55487435E-19
+  Max: 1.35258496E+00
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $8
+
++ Field number 9
+  Name: <generated>, yz-derivative of $1
+  Source: <generated>
+  Type: grid
+  Spans the unit cell? Yes
+  Grid dimensions : 30  30  81  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... -1.994588949030E-15  1.888003472891E-15  -1.869242540142E-15  
+  Last elements... -1.045867215739E-03  -6.851181900454E-04  -1.692848220591E-04  
+  Sum of elements... -1.050288328530E-14
+  Sum of squares of elements... 3.282723793231E+02
+  Grid domain/cell volume = 236.0477/236.0477
+  Grid domain integral (9) = -0.00000000
+  Cell integral (9) = -0.00000000
+  Min: -5.47092777E-01
+  Average: -1.44072473E-19
+  Max: 5.45194588E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $9
+
++ Field number 10
+  Name: <generated>, zz-derivative of $1
+  Source: <generated>
+  Type: grid
+  Spans the unit cell? Yes
+  Grid dimensions : 30  30  81  
+  Grid origin (cryst. coords.) : 0.00000000  0.00000000  0.00000000  
+  Max. length Voronoi-relevant vector (bohr):  0.15622  
+  First elements... 2.182145139727E-02  2.250321809440E-02  2.623929031900E-02  
+  Last elements... 3.181974236198E-02  2.584123387480E-02  2.233261718052E-02  
+  Sum of elements... 2.605271554046E-11
+  Sum of squares of elements... 1.406574888996E+03
+  Grid domain/cell volume = 236.0477/236.0477
+  Grid domain integral (10) = 0.00000000
+  Cell integral (10) = 0.00000000
+  Min: -7.24620501E-01
+  Average: 3.57376071E-16
+  Max: 7.13881418E-01
+  Interpolation mode (1=nearest,2=linear,3=spline,4=tricubic,5=smoothrho): 4
+  Use core densities? F
+  Numerical derivatives? F
+  Nuclear CP signature: -3
+  Number of non-equivalent critical points: 2
+  Number of critical points in the unit cell: 4
+  Alias for this field (1): $10
+
+* POINT 0.1000000  0.2000000  0.3000000  
+  Coordinates (bohr): -0.0000000  0.8038740  3.7960731  
+  Coordinates (ang): -0.0000000  0.4253918  2.0087954  
++ Field: 1
+  Type : (3,-1)
+  Field value (f): 1.865804650E-01
+  Field value, valence (fval): 1.865804650E-01
+  Gradient (grad f): -7.680457522E-18  -1.554649796E-01  -1.678104816E-01  
+  Gradient norm (|grad f|): 2.287568963E-01
+  Gradient norm, valence: 0.000000000E+00
+  Laplacian (del2 f): -3.633681496E-01
+  Laplacian, valence (del2 fval): -3.633681496E-01
+  Hessian:
+     1.373298386E-01   1.474446438E-02   2.462889281E-17  
+     1.474446438E-02  -3.356004183E-01   9.290940370E-02  
+     2.462889281E-17   9.290940370E-02  -1.650975698E-01  
+  Hessian eigenvalues: -3.767985113E-01  -1.243881001E-01  1.378184618E-01  
+  Ellipticity (l_1/l_2 - 1): 2.029216709E+00
+  Field 0 (f,|grad|,lap): 1.951971820E-01  2.373941796E-01  -3.629824961E-01  
+  Field 2 (f,|grad|,lap): -9.509208235E-17  1.084612181E-01  5.460808717E-01  
+  Field 3 (f,|grad|,lap): -1.588392710E-01  2.305000459E-01  1.621519990E+00  
+  Field 4 (f,|grad|,lap): -1.670452309E-01  1.545281777E-01  1.183998191E+00  
+  Field 5 (f,|grad|,lap): 1.162985062E-01  3.657656242E-01  -1.181153646E+00  
+  Field 6 (f,|grad|,lap): -1.755323885E-04  7.374475409E-02  -1.934207031E+00  
+  Field 7 (f,|grad|,lap): -1.727456926E-15  3.270077479E-01  -2.136494088E+00  
+  Field 8 (f,|grad|,lap): -2.067692318E-01  1.335088213E+00  3.303097640E-01  
+  Field 9 (f,|grad|,lap): 9.920611305E-02  7.655062969E-01  -3.795542043E+00  
+  Field 10 (f,|grad|,lap): -1.260154259E-01  7.581467773E-01  -1.457988817E+00  
+

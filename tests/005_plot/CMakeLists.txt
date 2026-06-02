@@ -28,6 +28,7 @@ set(TESTS
   027_cube_psink_spin   ## cube: psink keyword, with spinpolarization
   028_cube_psink_metal  ## cube: psink keyword, in a metal
   029_cube_precise      ## precisecube and standardcube
+  030_pointprop_rdg     ## pointprop: reduced density gradient (rdg)
   )
 
 runtests(${TESTS})

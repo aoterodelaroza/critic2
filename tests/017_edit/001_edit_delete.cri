@@ -1,0 +1,26 @@
+## check: 001_edit_delete_atom.incritic -a1e-10
+## check: 001_edit_delete_mol.incritic -a1e-10
+## check: 001_edit_delete_h.incritic -a1e-10
+## delete: 001_edit_delete.cro
+## labels: regression quick nodata
+
+# delete a single atom from the cell
+crystal library urea
+edit
+ delete atoms 1
+end
+write 001_edit_delete_atom.incritic
+
+# delete a whole molecule
+crystal library urea
+edit
+ delete molecules 1
+end
+write 001_edit_delete_mol.incritic
+
+# delete all hydrogen atoms
+crystal library urea
+edit
+ delete hydrogens
+end
+write 001_edit_delete_h.incritic

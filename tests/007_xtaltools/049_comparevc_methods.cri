@@ -1,0 +1,10 @@
+## check: 049_comparevc_methods.cro -a1e-10
+## delete: 049_comparevc_methods_gen.scf.in
+## labels: regression quick nodata
+
+# variable-cell comparison of a crystal against itself
+crystal library diamond
+write 049_comparevc_methods_gen.scf.in
+
+comparevc vcpwdf . 049_comparevc_methods_gen.scf.in
+comparevc vcgpwdf . 049_comparevc_methods_gen.scf.in

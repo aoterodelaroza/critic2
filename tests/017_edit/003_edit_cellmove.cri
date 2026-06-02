@@ -1,0 +1,26 @@
+## check: 003_edit_cellmove_a.incritic -a1e-10
+## check: 003_edit_cellmove_gamma.incritic -a1e-10
+## check: 003_edit_cellmove_vol.incritic -a1e-10
+## delete: 003_edit_cellmove.cro
+## labels: regression quick nodata
+
+# change cell length a (relative, in bohr)
+crystal library urea
+edit
+ cellmove a 0.5 relative
+end
+write 003_edit_cellmove_a.incritic
+
+# change cell angle gamma (relative, in degrees)
+crystal library urea
+edit
+ cellmove gamma 5.0 relative
+end
+write 003_edit_cellmove_gamma.incritic
+
+# scale the cell volume by a fraction
+crystal library urea
+edit
+ cellmove volume 1.1 fraction
+end
+write 003_edit_cellmove_vol.incritic

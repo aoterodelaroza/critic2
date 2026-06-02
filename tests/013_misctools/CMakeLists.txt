@@ -14,6 +14,7 @@ set(TESTS
   006_xdm_wfn      ## xdm, wavefunction calculation
   007_xdm_grid     ## xdm, grid keyword
   008_makemolsnc   ## makemols for neighcrys
+  009_stm_options  ## stm, top/npts/line options
   )
 
 runtests(${TESTS})

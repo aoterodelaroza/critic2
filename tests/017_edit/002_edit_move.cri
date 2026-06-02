@@ -1,0 +1,34 @@
+## check: 002_edit_move_rel.incritic -a1e-10
+## check: 002_edit_move_abs.incritic -a1e-10
+## check: 002_edit_move_bohr.incritic -a1e-10
+## check: 002_edit_move_nneq.incritic -a1e-10
+## delete: 002_edit_move.cro
+## labels: regression quick nodata
+
+# relative shift in fractional coordinates
+crystal library urea
+edit
+ move 1 0.1 0.1 0.1 relative
+end
+write 002_edit_move_rel.incritic
+
+# absolute fractional position
+crystal library urea
+edit
+ move 1 0.3 0.3 0.3
+end
+write 002_edit_move_abs.incritic
+
+# relative shift given in bohr
+crystal library urea
+edit
+ move 1 0.5 0.0 0.0 bohr relative
+end
+write 002_edit_move_bohr.incritic
+
+# relative shift applied to the symmetry-equivalent atoms (nneq)
+crystal library urea
+edit
+ move 1 0.05 0.0 0.0 relative nneq
+end
+write 002_edit_move_nneq.incritic

@@ -1,0 +1,11 @@
+## check: 048_compare_methods.cro -a1e-10
+## delete: 048_compare_methods_gen.scf.in
+## labels: regression quick nodata
+
+# compare a crystal against itself with the powder-based methods
+crystal library uracil
+write 048_compare_methods_gen.scf.in
+
+compare . 048_compare_methods_gen.scf.in gpwdf
+compare . 048_compare_methods_gen.scf.in powder
+compare . 048_compare_methods_gen.scf.in emd

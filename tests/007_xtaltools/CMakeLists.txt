@@ -46,6 +46,8 @@ set(TESTS
   045_comparevc              ## comparevc keyword
   046_newcell_nice           ## newcell nice keyword
   047_xrpd                   ## xrpd keyword
+  048_compare_methods        ## compare keyword, gpwdf/powder/emd methods
+  049_comparevc_methods      ## comparevc keyword, vcpwdf/vcgpwdf methods
   )
 
 runtests(${TESTS})
