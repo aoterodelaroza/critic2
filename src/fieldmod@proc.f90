@@ -1674,7 +1674,6 @@ contains
           end if
           write (uout,'("  Number of primitives ",A,": ",A)') str, string(f%wfn%npri)
           write (uout,'("  Number of EDFs: ",A)') string(f%wfn%nedf)
-          write (uout,'("  Basis set info available? ",A)') string(allocated(f%wfn%cint))
        end if
     elseif (f%type == type_dftb) then
        if (isload) then
