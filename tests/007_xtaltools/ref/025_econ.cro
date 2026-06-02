@@ -19,6 +19,13 @@
    2 -> 1           O -> Mg          6.0000     6.0000     3.9788     3.9788 
    2 -> 2           O -> O          12.0192    12.0191     5.6280     5.6280 
 
++ Integer coordination numbers from ECON
+# Id/Name = non-equivalent atom. nd = mean weighted distance (bohr)
+# CN = coordination number. The CN atoms in the environment at the end.
+# Id      Name       nd     CN    Coordination environment
+   1        Mg     3.9819    6   O O O O O O
+   2         O     3.9819    6   Mg Mg Mg Mg Mg Mg
+
 * ECON
 + Effective Coordination Number (ECoN), per-species
 # Please cite:
@@ -39,4 +46,11 @@
    2 -> *           F -> *           8.2026     7.5716     4.7175     4.6611 
    2 -> 1           F -> Ca          4.0000     4.0000     4.4703     4.4703 
    2 -> 2           F -> F           6.0394     6.0385     5.1659     5.1658 
+
++ Integer coordination numbers from ECON
+# Id/Name = non-equivalent atom. nd = mean weighted distance (bohr)
+# CN = coordination number. The CN atoms in the environment at the end.
+# Id      Name       nd     CN    Coordination environment
+   1        Ca     4.4703    8   F F F F F F F F
+   2         F     4.7175    4   Ca Ca Ca Ca
 

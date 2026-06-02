@@ -22,9 +22,9 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 3.
   ... finished comparing patterns
-    Crystal     uracil (library) 017_compare_crystals_gen.scf.in 017_compare_crystals_gen.cif 
+    Crystal         uracil      017_compare_crystals_gen.scf.in 017_compare_crystals_gen.cif 
      DIFF              1               2               3        
-  uracil (library)  0.0000000       0.0000000       0.0000000      
+  uracil           0.0000000       0.0000000       0.0000000      
   017_compare_crystals_gen.scf.in  0.0000000       0.0000000       0.0000000      
   017_compare_crystals_gen.cif  0.0000000       0.0000000       0.0000000      
 

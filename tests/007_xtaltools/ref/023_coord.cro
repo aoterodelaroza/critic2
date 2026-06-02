@@ -1,6 +1,6 @@
 * COORD: calculation of coordination numbers
 + Atomic radii for all species
-# Atoms i and j are coordinated if distance(i,j) <= fac*(radi+radj), fac = 1.30 
+# Atoms i and j are coordinated if distance(i,j) <= fac*(radi+radj), fac = 1.25 
 # spc  Z   name    rad  
    1   6     C     1.42 
    2   8     O     1.19 

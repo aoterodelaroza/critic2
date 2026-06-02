@@ -11,9 +11,9 @@
   ... finished calculating patterns
   ... comparing pattern 1 of 5.
   ... finished comparing patterns
-   Molecule     neopentane (library) ../zz_source/g16A.03/benzene/benzene.wfn ../zz_source/g16A.03/benzene/benzene.wfx ../zz_source/g16A.03/benzene/benzene.fchk ../zz_source/g16A.03/benzene/benzene.log 
+   Molecule       neopentane    ../zz_source/g16A.03/benzene/benzene.wfn ../zz_source/g16A.03/benzene/benzene.wfx ../zz_source/g16A.03/benzene/benzene.fchk ../zz_source/g16A.03/benzene/benzene.log 
      DIFF              1               2               3               4               5        
-  neopentane (library) not-calculated   0.1028311       0.1028311       0.1028311       0.1028314      
+  neopentane      not-calculated   0.1028311       0.1028311       0.1028311       0.1028314      
   ../zz_source/g16A.03/benzene/benzene.wfn  0.1028311      not-calculated  not-calculated  not-calculated  not-calculated  
   ../zz_source/g16A.03/benzene/benzene.wfx  0.1028311      not-calculated  not-calculated  not-calculated  not-calculated  
   ../zz_source/g16A.03/benzene/benzene.fchk  0.1028311      not-calculated  not-calculated  not-calculated  not-calculated  
@@ -21,7 +21,7 @@
 
 
 + List of unique structures (2): 
-1: neopentane (library) with multiplicity 1
+1: neopentane with multiplicity 1
 2: ../zz_source/g16A.03/benzene/benzene.wfn with multiplicity 4
 
 + List of repeated structures (3): 

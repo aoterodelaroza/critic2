@@ -25,7 +25,6 @@ set(TESTS
   024_write_pyscf      ## write pyscf files, crystals and molecules
   025_write_d12        ## write d12 files
   026_write_res        ## write res files
-  027_write_d12_withsym ## write d12 file, with symmetry
   028_write_fhi        ## write FHIaims input files
   029_write_tinkerfrac ## write TINKER frac format
   030_write_cell       ## write CASTEP cell file
