@@ -732,7 +732,7 @@ contains
        elseif (w%type == wintype_geometry) then
           w%name = "View/Edit Geometry##"  // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 74 * fontsize%x
+          inisize%x = 83 * fontsize%x
           inisize%y = 33 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_preferences) then
