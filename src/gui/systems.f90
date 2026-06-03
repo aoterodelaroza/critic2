@@ -116,6 +116,7 @@ module systems
      procedure :: attype_add_atom
      procedure :: attype_reorder
      procedure :: attype_swap_atoms
+     procedure :: swap_molecules
      ! editing
      procedure :: set_atom_position
      procedure :: set_atomic_number
@@ -309,6 +310,10 @@ module systems
        integer, intent(in) :: type
        integer, intent(in) :: i1, i2
      end subroutine attype_swap_atoms
+     module subroutine swap_molecules(sysc,i1,i2)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: i1, i2
+     end subroutine swap_molecules
      module subroutine set_atom_position(sysc,type,id,x,forcewyc)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type

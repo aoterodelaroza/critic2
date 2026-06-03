@@ -306,6 +306,7 @@ module crystalmod
      procedure :: cell_delaunay !< Transform to the Delaunay primitive cell
      procedure :: cell_nice_list !< Search for nice supercells of increasing size
      procedure :: reorder_atoms !< reorder the atoms in the crystal/molecule
+     procedure :: reorder_molecules !< reorder the molecular fragments in the crystal/molecule
      procedure :: reorder_species !< reorder the species in the crystal/molecule
      procedure :: wholemols !< Re-assign atomic types to have an asymmetric unit with whole molecules
      procedure :: edit_atom_list !< Remove/merge/duplicate a list of atoms
@@ -772,6 +773,11 @@ module crystalmod
        logical, intent(in) :: isnneq
        type(thread_info), intent(in), optional :: ti
      end subroutine reorder_atoms
+     module subroutine reorder_molecules(c,iperm,ti)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: iperm(:)
+       type(thread_info), intent(in), optional :: ti
+     end subroutine reorder_molecules
      module subroutine reorder_species(c,iperm,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iperm(:)

@@ -1445,6 +1445,37 @@ contains
 
   end subroutine attype_swap_atoms
 
+  !> Swap the two molecular fragments in the system with IDs i1 and i2.
+  module subroutine swap_molecules(sysc,i1,i2)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: i1, i2
+
+    integer :: isys, nmol, i
+    integer, allocatable :: iperm(:)
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! check the molecule IDs are in range
+    nmol = sys(isys)%c%nmol
+    if (i1 < 1 .or. i1 > nmol .or. i2 < 1 .or. i2 > nmol) return
+
+    ! build the permutation that swaps the two molecules
+    allocate(iperm(nmol))
+    do i = 1, nmol
+       iperm(i) = i
+    end do
+    iperm(i2) = i1
+    iperm(i1) = i2
+
+    ! reorder the molecules and signal the geometry change
+    call sys(isys)%c%reorder_molecules(iperm)
+    deallocate(iperm)
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine swap_molecules
+
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
   module subroutine set_atom_position(sysc,type,id,x,forcewyc)

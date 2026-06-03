@@ -106,6 +106,7 @@ contains
     integer, parameter :: iaction_change_cell = 10
     integer, parameter :: iaction_transform_cell = 11
     integer, parameter :: iaction_transform_matrix = 12
+    integer, parameter :: iaction_swap_mol_ids = 13
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_none = 0
@@ -1257,7 +1258,16 @@ contains
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
                       call igAlignTextToFramePadding()
-                      call iw_text(string(i,ndigit))
+                      str1 = string(i,ndigit)
+                      if (iw_inputtext("##idinput" // suffix,bufsize=11,texta=str1,width=3,notlive=.true.)) then
+                         if (isinteger(j,str1)) then
+                            if (j > 0 .and. j <= ntype) then
+                               iaction = iaction_swap_mol_ids
+                               iaction_i1 = i
+                               iaction_i2 = j
+                            end if
+                         end if
+                      end if
                       call process_selectable_clicks()
                    end if
 
@@ -1438,6 +1448,8 @@ contains
        call sysc(isys)%attype_reorder(w%geometry_atomtype,w%iord)
     elseif (iaction == iaction_swap_atom_ids) then
        call sysc(isys)%attype_swap_atoms(w%geometry_atomtype,iaction_i1,iaction_i2)
+    elseif (iaction == iaction_swap_mol_ids) then
+       call sysc(isys)%swap_molecules(iaction_i1,iaction_i2)
     elseif (iaction == iaction_change_cell) then
        call sysc(isys)%move_cell(iaction_x6(1:3),iaction_x6(4:6),iaction_l)
     elseif (iaction == iaction_transform_cell) then

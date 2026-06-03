@@ -733,6 +733,63 @@ contains
 
   end subroutine reorder_atoms
 
+  !> Create a new structure by reordering the molecular fragments in the
+  !> current structure. iperm is the permutation vector (molecule i in
+  !> the new structure is iperm(i) in the old structure). The atoms are
+  !> relabeled so that the cell atoms are grouped by molecule and the
+  !> molecules appear in the new order; molecular numbering follows the
+  !> order of the atoms, so the reloaded structure has the requested
+  !> molecular order.
+  module subroutine reorder_molecules(c,iperm,ti)
+    use crystalseedmod, only: crystalseed
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: iperm(:)
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: seed
+    real*8, allocatable :: x(:,:)
+    integer, allocatable :: atperm(:)
+    integer :: i, k, im, nat
+
+    ! the molecular decomposition must be available and the permutation valid
+    if (c%nmol == 0 .or. .not.allocated(c%idatcelmol)) return
+    if (size(iperm,1) /= c%nmol) return
+
+    ! make the new seed (no symmetry, so seed atoms follow the cell-atom order)
+    call c%makeseed(seed,.false.)
+    if (seed%nat /= c%ncel) return
+
+    ! build the atom permutation: visit molecules in the new order and, for
+    ! each, append its cell atoms keeping their original relative order
+    allocate(atperm(c%ncel))
+    nat = 0
+    do i = 1, c%nmol
+       im = iperm(i)
+       if (im < 1 .or. im > c%nmol) return
+       do k = 1, c%ncel
+          if (c%idatcelmol(1,k) == im) then
+             nat = nat + 1
+             atperm(nat) = k
+          end if
+       end do
+    end do
+    if (nat /= c%ncel) return
+
+    ! reorder the atoms
+    allocate(x(3,seed%nat))
+    do i = 1, seed%nat
+       x(:,i) = seed%x(:,atperm(i))
+    end do
+    seed%x = x
+    deallocate(x)
+    seed%is = seed%is(atperm(:))
+    seed%atname = seed%atname(atperm(:))
+
+    ! reload the crystal
+    call c%struct_new(seed,.true.,ti=ti)
+
+  end subroutine reorder_molecules
+
   !> Create a new structure by reordering the species in the current
   !> structure. iperm is the permutation vector (atom i in the new
   !> structure is iperm(i) in the old structure).
