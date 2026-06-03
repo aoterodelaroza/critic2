@@ -107,6 +107,7 @@ contains
     integer, parameter :: iaction_transform_cell = 11
     integer, parameter :: iaction_transform_matrix = 12
     integer, parameter :: iaction_swap_mol_ids = 13
+    integer, parameter :: iaction_set_molecule_position = 14
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_none = 0
@@ -1291,13 +1292,22 @@ contains
                       if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%idxmol(i)))
                    end if
 
-                   ! center of mass, converted to the chosen coordinate type
+                   ! center of mass, converted to the chosen coordinate type (editable)
                    x0 = mol_com_coords(i)
+                   xold = x0
+                   ch = .false.
                    do j = 1, 3
                       icol = icol + 1
-                      if (igTableSetColumnIndex(icol)) &
-                         call iw_text(string(x0(j),'f',dec+4,dec,ioj_right))
+                      if (igTableSetColumnIndex(icol)) then
+                         ch = ch .or. iw_dragfloat_real8("##com" // string(isys) // "_" // string(i) // "_" // string(j),&
+                            x1=x0(j),speed=0.001d0,decimal=dec,notlive=.true.)
+                      end if
                    end do
+                   if (ch .and. any(abs(x0-xold) > epsmoved)) then
+                      iaction = iaction_set_molecule_position
+                      iaction_i1 = i
+                      iaction_x = x0
+                   end if
 
                    ! Euler angles (ZYZ, degrees) of the standard orientation
                    x0 = mol_euler_angles(i)
@@ -1450,6 +1460,8 @@ contains
        call sysc(isys)%attype_swap_atoms(w%geometry_atomtype,iaction_i1,iaction_i2)
     elseif (iaction == iaction_swap_mol_ids) then
        call sysc(isys)%swap_molecules(iaction_i1,iaction_i2)
+    elseif (iaction == iaction_set_molecule_position) then
+       call sysc(isys)%set_molecule_position(w%geometry_moltype,iaction_i1,iaction_x)
     elseif (iaction == iaction_change_cell) then
        call sysc(isys)%move_cell(iaction_x6(1:3),iaction_x6(4:6),iaction_l)
     elseif (iaction == iaction_transform_cell) then

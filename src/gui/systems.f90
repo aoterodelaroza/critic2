@@ -119,6 +119,7 @@ module systems
      procedure :: swap_molecules
      ! editing
      procedure :: set_atom_position
+     procedure :: set_molecule_position
      procedure :: set_atomic_number
      procedure :: add_species
      procedure :: reread_geometry_from_file
@@ -321,6 +322,12 @@ module systems
        real*8, intent(in) :: x(3)
        logical, intent(in) :: forcewyc
      end subroutine set_atom_position
+     module subroutine set_molecule_position(sysc,type,id,x)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, intent(in) :: id
+       real*8, intent(in) :: x(3)
+     end subroutine set_molecule_position
      module subroutine set_atomic_number(sysc,type,id,iz,setatomnames)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type

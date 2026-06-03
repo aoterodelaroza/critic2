@@ -1248,6 +1248,60 @@ contains
 
   end subroutine move_atom
 
+  !> Rigidly translate the molecular fragment imol so that its center
+  !> of mass is at position x in units of iunit_l (see global). If
+  !> dorelative, x is interpreted as a displacement of the center of
+  !> mass relative to its current position. All atoms in the fragment
+  !> are translated by the same vector; symmetry is not preserved (P1).
+  module subroutine move_molecule(c,imol,x,iunit_l,dorelative,ti)
+    use crystalseedmod, only: crystalseed
+    use global, only: iunit_ang, iunit_bohr
+    use param, only: bohrtoa
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: imol
+    real*8, intent(in) :: x(3)
+    integer, intent(in) :: iunit_l
+    logical, intent(in) :: dorelative
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: seed
+    real*8 :: xx(3), dx(3)
+    integer :: k
+
+    ! consistency checks
+    if (imol < 1 .or. imol > c%nmol .or. .not.allocated(c%idatcelmol)) return
+
+    ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom order)
+    call c%makeseed(seed,copysym=.false.)
+    if (seed%nat /= c%ncel) return
+
+    ! interpret units: target/displacement in fractional coordinates
+    if (iunit_l == iunit_ang) then
+       xx = c%c2x(x / bohrtoa)
+    elseif (iunit_l == iunit_bohr) then
+       xx = c%c2x(x)
+    else
+       xx = x
+    end if
+
+    ! displacement (fractional) to apply to every atom in the fragment
+    if (dorelative) then
+       dx = xx
+    else
+       dx = xx - c%c2x(c%mol(imol)%cmass())
+    end if
+
+    ! translate the atoms belonging to this fragment
+    do k = 1, c%ncel
+       if (c%idatcelmol(1,k) == imol) &
+          seed%x(:,k) = seed%x(:,k) + dx
+    end do
+
+    ! build the new crystal
+    call c%struct_new(seed,crashfail=.true.,ti=ti)
+
+  end subroutine move_molecule
+
   !> Modify the unit cell by changing the parameter given by iaxis:
   !> 1=a, 2=b, 3=c, -1=alpha, -2=beta, -3=gamma, 0=volume. The
   !> parameter is changed to x in units of iunit_l. If dorelative, the

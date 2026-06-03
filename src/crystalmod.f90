@@ -312,6 +312,7 @@ module crystalmod
      procedure :: edit_atom_list !< Remove/merge/duplicate a list of atoms
      procedure :: change_atom_species !< Change the species of atoms
      procedure :: move_atom !< Move an atom
+     procedure :: move_molecule !< Move a molecular fragment (rigid translation)
      procedure :: move_cell !< Move the unit cell
      procedure :: move_cell_all !< Move the unit cell, specifying all lengths and angles
      procedure :: add_atom !< Add an atom
@@ -811,6 +812,14 @@ module crystalmod
        logical, intent(in) :: dorelative
        type(thread_info), intent(in), optional :: ti
      end subroutine move_atom
+     module subroutine move_molecule(c,imol,x,iunit_l,dorelative,ti)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: imol
+       real*8, intent(in) :: x(3)
+       integer, intent(in) :: iunit_l
+       logical, intent(in) :: dorelative
+       type(thread_info), intent(in), optional :: ti
+     end subroutine move_molecule
      module subroutine move_cell(c,iaxis,x,iunit_l,dorelative,dofraction,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iaxis

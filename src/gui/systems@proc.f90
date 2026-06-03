@@ -1564,6 +1564,46 @@ contains
 
   end subroutine set_atom_position
 
+  ! For the molecule identifier id corresponding to the given molecule
+  ! coordinate type, rigidly translate the fragment so that its center
+  ! of mass is at position x.
+  module subroutine set_molecule_position(sysc,type,id,x)
+    use global, only: iunit_bohr, iunit_fractional
+    use param, only: bohrtoa
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: id
+    real*8, intent(in) :: x(3)
+
+    integer :: isys
+    real*8 :: x_(3)
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! move the molecule (units interpreted in the internal frame, as for move_atom)
+    x_ = x
+    if (type == atlisttype_ncel_frac) then
+       call sys(isys)%c%move_molecule(id,x_,iunit_fractional,.false.)
+    elseif (type == atlisttype_ncel_bohr) then
+       if (sys(isys)%c%ismolecule) &
+          x_ = x - sys(isys)%c%molx0
+       call sys(isys)%c%move_molecule(id,x_,iunit_bohr,.false.)
+    elseif (type == atlisttype_ncel_ang) then
+       if (sys(isys)%c%ismolecule) then
+          x_ = x/bohrtoa - sys(isys)%c%molx0
+       else
+          x_ = x/bohrtoa
+       end if
+       call sys(isys)%c%move_molecule(id,x_,iunit_bohr,.false.)
+    end if
+
+    ! the geometry has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine set_molecule_position
+
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic number and the name of the corresponding species.
   module subroutine set_atomic_number(sysc,type,id,iz,setatomnames)
