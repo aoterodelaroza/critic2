@@ -28,7 +28,7 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   stm@proc.f90 struct_drivers.f90 struct_drivers@proc.F90
   surface.f90 surface@proc.f90 systemmod.f90
   systemmod@proc.f90 tools.f90 tools_io.f90 tools_math.f90
-  tools_math@lebedev.f90 tools_math@proc.f90 tools_math@sobol.f90
+  tools_math@lebedev.f90 tools_math@proc.f90 tools_math@rotations.f90 tools_math@sobol.f90
   tools@proc.f90
   tricks.F90 types.f90 types@proc.f90 wfn_private.f90
   wien_private.f90 wien_private@proc.f90 xdm.f90
