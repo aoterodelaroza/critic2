@@ -49,6 +49,8 @@ module tools_math
   public :: mnorm2
   public :: det3sym
   public :: det3
+  public :: mat2quat
+  public :: quat2mat
   public :: matinv
   public :: matinv_cfloat
   public :: matinvsym
@@ -272,6 +274,14 @@ module tools_math
        real*8, intent(in) :: m(3,3)
        real*8 :: det3
      end function det3
+     module function mat2quat(r) result(q)
+       real*8, intent(in) :: r(3,3)
+       real*8 :: q(4)
+     end function mat2quat
+     module function quat2mat(q) result(r)
+       real*8, intent(in) :: q(4)
+       real*8 :: r(3,3)
+     end function quat2mat
      module subroutine matinv(m,n0,ier)
        integer, intent(in) :: n0
        real*8, intent(inout) :: m(n0,n0)

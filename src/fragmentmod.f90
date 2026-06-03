@@ -44,6 +44,7 @@ module fragmentmod
      real*8 :: xcm(3) = 0d0 !< center of mass (Cartesian)
      real*8 :: inertia(3) = 0d0 !< principal moments of inertia (ascending)
      real*8 :: m_std(3,3) = 0d0 !< standard orientation (det=+1); columns are the principal axes in Cartesian coordinates; canonical coords: matmul(transpose(m_std),at(k)%r-xcm)
+     real*8 :: q_std(4) = (/1d0,0d0,0d0,0d0/) !< unit quaternion (w,x,y,z) of the standard orientation = mat2quat(m_std)
    contains
      procedure :: init => fragment_init ! initialize a fragment
      procedure :: build => fragment_build ! build a fragment from atomic data
@@ -97,7 +98,7 @@ module fragmentmod
      module subroutine fragment_translate_to_main_cell(fr)
        class(fragment), intent(inout) :: fr
      end subroutine fragment_translate_to_main_cell
-     module subroutine fragment_standard_axes(fr,m_std,inertia,xcm,isatom,islinear,isplanar)
+     module subroutine fragment_standard_axes(fr,m_std,inertia,xcm,isatom,islinear,isplanar,quat)
        class(fragment), intent(inout) :: fr
        real*8, intent(out), optional :: m_std(3,3)
        real*8, intent(out), optional :: inertia(3)
@@ -105,6 +106,7 @@ module fragmentmod
        logical, intent(out), optional :: isatom
        logical, intent(out), optional :: islinear
        logical, intent(out), optional :: isplanar
+       real*8, intent(out), optional :: quat(4)
      end subroutine fragment_standard_axes
      module subroutine fragment_compute_std(fr)
        class(fragment), intent(inout) :: fr

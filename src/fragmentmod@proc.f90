@@ -201,11 +201,13 @@ contains
   !> fragment_compute_std) and returns the requested quantities: the
   !> rotation matrix m_std (columns are the principal axes in Cartesian
   !> coordinates; a proper rotation), the principal moments of inertia
-  !> (ascending), the center of mass xcm (Cartesian), and the
-  !> single-atom/linear/planar classification flags. This is the entry
+  !> (ascending), the center of mass xcm (Cartesian), the
+  !> single-atom/linear/planar classification flags, and the unit
+  !> quaternion quat = (w,x,y,z) of the standard orientation (= m_std as
+  !> a quaternion; the orientation standard->current). This is the entry
   !> point for code that needs the canonical molecular frame (e.g. a
   !> future routine that rotates a molecule inside a crystal).
-  module subroutine fragment_standard_axes(fr,m_std,inertia,xcm,isatom,islinear,isplanar)
+  module subroutine fragment_standard_axes(fr,m_std,inertia,xcm,isatom,islinear,isplanar,quat)
     class(fragment), intent(inout) :: fr
     real*8, intent(out), optional :: m_std(3,3)
     real*8, intent(out), optional :: inertia(3)
@@ -213,6 +215,7 @@ contains
     logical, intent(out), optional :: isatom
     logical, intent(out), optional :: islinear
     logical, intent(out), optional :: isplanar
+    real*8, intent(out), optional :: quat(4)
 
     if (.not.fr%axes_computed) call fr%compute_std()
 
@@ -222,6 +225,7 @@ contains
     if (present(isatom)) isatom = fr%isatom
     if (present(islinear)) islinear = fr%islinear
     if (present(isplanar)) isplanar = fr%isplanar
+    if (present(quat)) quat = fr%q_std
 
   end subroutine fragment_standard_axes
 
@@ -244,7 +248,7 @@ contains
   !> continuous symmetries (single atom, linear molecule) the unconstrained
   !> axes are physically arbitrary and left as returned by the eigensolver.
   module subroutine fragment_compute_std(fr)
-    use tools_math, only: eigsym, cross
+    use tools_math, only: eigsym, cross, mat2quat
     use param, only: atmass, eye
     class(fragment), intent(inout) :: fr
 
@@ -266,6 +270,7 @@ contains
     fr%inertia = 0d0
     fr%xcm = 0d0
     fr%m_std = eye
+    fr%q_std = (/1d0,0d0,0d0,0d0/)
 
     ! empty fragment: nothing to do
     if (fr%nat == 0) return
@@ -349,6 +354,7 @@ contains
     ax(:,3) = cross(ax(:,1),ax(:,2))
 
     fr%m_std = ax
+    fr%q_std = mat2quat(fr%m_std)
     deallocate(m,pcart)
 
   contains
