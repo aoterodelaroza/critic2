@@ -68,6 +68,9 @@ contains
     integer :: i
     real*8 :: m_c2x(3,3)
 
+    ! the standard frame is recomputed lazily on first access
+    fr%axes_computed = .false.
+
     ! crystallographic -> Cartesian matrix
     fr%m_x2c = m_x2c
     if (icrd == icrd_cart) then
@@ -155,6 +158,7 @@ contains
        fr%at(j)%r = matmul(fr%m_x2c,fr%at(j)%x)
        fr%at(j)%lvec = fr%at(j)%lvec + lvec
     end do
+    fr%axes_computed = .false.
 
   end subroutine fragment_translate
 
@@ -182,8 +186,285 @@ contains
        fr%at(j)%r = matmul(fr%m_x2c,fr%at(j)%x)
        fr%at(j)%lvec = fr%at(j)%lvec - newl
     end do
+    fr%axes_computed = .false.
 
   end subroutine fragment_translate_to_main_cell
+
+  !> Accessor for the standard (canonical) orientation of the fragment.
+  !> Ensures the body frame has been computed (lazily, see
+  !> fragment_compute_std) and returns the requested quantities: the
+  !> rotation matrix m_std (columns are the principal axes in Cartesian
+  !> coordinates; a proper rotation), the principal moments of inertia
+  !> (ascending), the center of mass xcm (Cartesian), and the
+  !> single-atom/linear/planar classification flags. This is the entry
+  !> point for code that needs the canonical molecular frame (e.g. a
+  !> future routine that rotates a molecule inside a crystal).
+  module subroutine fragment_standard_axes(fr,m_std,inertia,xcm,isatom,islinear,isplanar)
+    class(fragment), intent(inout) :: fr
+    real*8, intent(out), optional :: m_std(3,3)
+    real*8, intent(out), optional :: inertia(3)
+    real*8, intent(out), optional :: xcm(3)
+    logical, intent(out), optional :: isatom
+    logical, intent(out), optional :: islinear
+    logical, intent(out), optional :: isplanar
+
+    if (.not.fr%axes_computed) call fr%compute_std()
+
+    if (present(m_std)) m_std = fr%m_std
+    if (present(inertia)) inertia = fr%inertia
+    if (present(xcm)) xcm = fr%xcm
+    if (present(isatom)) isatom = fr%isatom
+    if (present(islinear)) islinear = fr%islinear
+    if (present(isplanar)) isplanar = fr%isplanar
+
+  end subroutine fragment_standard_axes
+
+  !> Compute and cache the standard (canonical) body frame of the
+  !> fragment from its moment-of-inertia tensor. The principal axes
+  !> (eigenvectors of the inertia tensor) are stored as the columns of
+  !> m_std, with all the ambiguities of that construction resolved
+  !> deterministically:
+  !>  - Eigenvector signs are fixed by the signed third moment along each
+  !>    axis (with an atom-ordering tie-break for symmetric distributions);
+  !>  - Degenerate eigenvalues (symmetric/spherical tops, linear molecules)
+  !>    leave the axes inside their eigenspace undetermined by the inertia;
+  !>    these are anchored to specific atoms (the largest in-plane/distance
+  !>    projection, lowest index on ties);
+  !>  - Handedness is forced to a proper rotation (det=+1) via e3 = e1 x e2.
+  !> Also sets the isatom/islinear/isplanar classification flags, the
+  !> principal moments (inertia, ascending) and the center of mass (xcm).
+  !> All quantities are built from atom projections, hence covariant under
+  !> rotation, which is what makes the frame reproducible. For genuinely
+  !> continuous symmetries (single atom, linear molecule) the unconstrained
+  !> axes are physically arbitrary and left as returned by the eigensolver.
+  module subroutine fragment_compute_std(fr)
+    use tools_math, only: eigsym, cross
+    use param, only: atmass, eye
+    class(fragment), intent(inout) :: fr
+
+    ! relative tolerance for eigenvalue degeneracy/zero (wrt largest moment)
+    real*8, parameter :: reltol = 1d-5
+    ! relative threshold for "non-vanishing" higher moments
+    real*8, parameter :: momtol = 1d-6
+
+    integer :: i, j, k, gs, ge, d
+    real*8 :: mass, mtot, pp, tol
+    real*8 :: itens(3,3), eval(3), ax(3,3)
+    real*8, allocatable :: m(:), pcart(:,:)
+
+    ! defaults: identity frame, no classification
+    fr%axes_computed = .true.
+    fr%isatom = .false.
+    fr%islinear = .false.
+    fr%isplanar = .false.
+    fr%inertia = 0d0
+    fr%xcm = 0d0
+    fr%m_std = eye
+
+    ! empty fragment: nothing to do
+    if (fr%nat == 0) return
+
+    ! center of mass, per-atom masses and centered Cartesian coordinates
+    fr%xcm = fr%cmass()
+    allocate(m(fr%nat),pcart(3,fr%nat))
+    mtot = 0d0
+    do i = 1, fr%nat
+       mass = 0d0
+       if (fr%spc(fr%at(i)%is)%z > 0) mass = atmass(fr%spc(fr%at(i)%is)%z)
+       m(i) = mass
+       mtot = mtot + mass
+       pcart(:,i) = fr%at(i)%r - fr%xcm
+    end do
+    ! ghost-only fragment: fall back to unit masses
+    if (mtot < 1d-40) then
+       m = 1d0
+       mtot = real(fr%nat,8)
+    end if
+
+    ! single atom: no orientation to define
+    if (fr%nat == 1) then
+       fr%isatom = .true.
+       fr%islinear = .true.
+       fr%isplanar = .true.
+       return
+    end if
+
+    ! moment-of-inertia tensor (symmetric): I_jk = sum_i m_i (|p_i|^2 d_jk - p_ij p_ik)
+    itens = 0d0
+    do i = 1, fr%nat
+       pp = dot_product(pcart(:,i),pcart(:,i))
+       do j = 1, 3
+          itens(j,j) = itens(j,j) + m(i) * pp
+          do k = 1, 3
+             itens(j,k) = itens(j,k) - m(i) * pcart(j,i) * pcart(k,i)
+          end do
+       end do
+    end do
+
+    ! principal moments (ascending) and principal axes (columns)
+    call eigsym(itens,3,eval)
+    fr%inertia = eval
+    ax = itens
+
+    ! tolerance for degeneracy and zero moments (relative to the largest)
+    tol = reltol * max(eval(3),1d-40)
+
+    ! classification flags
+    if (eval(1) <= tol .and. abs(eval(3)-eval(2)) <= tol) then
+       fr%islinear = .true.
+       fr%isplanar = .true.
+    else if (abs(eval(3)-eval(1)-eval(2)) <= tol) then
+       fr%isplanar = .true.
+    end if
+
+    ! resolve degenerate eigenspaces (contiguous groups of equal eigenvalues)
+    gs = 1
+    do while (gs <= 3)
+       ge = gs
+       do while (ge < 3)
+          if (abs(eval(ge+1)-eval(gs)) <= tol) then
+             ge = ge + 1
+          else
+             exit
+          end if
+       end do
+       d = ge - gs + 1
+       if (d == 2) then
+          call resolve_plane(ax(:,gs),ax(:,ge))
+       else if (d == 3) then
+          call resolve_3d(ax(:,1),ax(:,2),ax(:,3))
+       end if
+       gs = ge + 1
+    end do
+
+    ! fix the signs of the first two axes, force a right-handed frame
+    call fix_sign(ax(:,1))
+    call fix_sign(ax(:,2))
+    ax(:,3) = cross(ax(:,1),ax(:,2))
+
+    fr%m_std = ax
+    deallocate(m,pcart)
+
+  contains
+
+    !> Fix the sign of axis e from the signed third moment of the mass
+    !> distribution along it; tie-break (symmetric case) by the canonical
+    !> atom with the largest projection magnitude (lowest index on ties).
+    subroutine fix_sign(e)
+      real*8, intent(inout) :: e(3)
+      integer :: ii, ibest
+      real*8 :: s, sref, proj, best
+
+      s = 0d0
+      sref = 0d0
+      do ii = 1, fr%nat
+         proj = dot_product(pcart(:,ii),e)
+         s = s + m(ii) * proj**3
+         sref = sref + m(ii) * abs(proj)**3
+      end do
+      if (abs(s) > momtol * max(sref,1d-40)) then
+         if (s < 0d0) e = -e
+         return
+      end if
+
+      ! symmetric along e: orient toward the canonical reference atom
+      best = -1d0
+      ibest = 0
+      do ii = 1, fr%nat
+         proj = abs(dot_product(pcart(:,ii),e))
+         if (proj > best + 1d-10) then
+            best = proj
+            ibest = ii
+         end if
+      end do
+      if (ibest > 0) then
+         proj = dot_product(pcart(:,ibest),e)
+         if (proj < 0d0) e = -e
+      end if
+
+    end subroutine fix_sign
+
+    !> Resolve the orientation within the 2D eigenspace spanned by the
+    !> orthonormal axes u1,u2. The inertia gives no preferred direction
+    !> inside a degenerate eigenspace, so the first axis is anchored to
+    !> the atom with the largest projection onto the plane (lowest index
+    !> on ties). This is covariant under rotation and tied to a specific
+    !> atom, hence reproducible atom-by-atom even for n-fold symmetric
+    !> arrangements (where the principal-axis angle would only be defined
+    !> modulo the symmetry). The second axis completes a right-handed
+    !> frame with the plane normal. If no atom has a significant in-plane
+    !> projection (continuous symmetry, e.g. a linear molecule's
+    !> perpendicular plane) the axes are left unchanged, which is
+    !> physically harmless.
+    subroutine resolve_plane(u1,u2)
+      real*8, intent(inout) :: u1(3), u2(3)
+      integer :: ii, iref
+      real*8 :: nrm(3), pin(3), rad, bestrad, pref(3), ea(3), eb(3)
+
+      nrm = cross(u1,u2)
+      iref = 0
+      bestrad = -1d0
+      pref = 0d0
+      do ii = 1, fr%nat
+         pin = pcart(:,ii) - dot_product(pcart(:,ii),nrm)*nrm
+         rad = sqrt(dot_product(pin,pin))
+         if (rad > bestrad + 1d-10) then
+            bestrad = rad
+            iref = ii
+            pref = pin
+         end if
+      end do
+      if (iref == 0 .or. bestrad <= 1d-10) return
+
+      ea = pref / bestrad
+      eb = cross(nrm,ea)
+      u1 = ea
+      u2 = eb
+
+    end subroutine resolve_plane
+
+    !> Resolve a fully degenerate 3D eigenspace (spherical top). The first
+    !> axis is anchored to the atom farthest from the center of mass
+    !> (lowest index on ties); the perpendicular plane is then resolved by
+    !> resolve_plane.
+    subroutine resolve_3d(u1,u2,u3)
+      real*8, intent(inout) :: u1(3), u2(3), u3(3)
+      integer :: ii, iseed
+      real*8 :: rad, bestrad, e1(3), e2(3), e3(3)
+
+      iseed = 0
+      bestrad = -1d0
+      do ii = 1, fr%nat
+         rad = sqrt(dot_product(pcart(:,ii),pcart(:,ii)))
+         if (rad > bestrad + 1d-10) then
+            bestrad = rad
+            iseed = ii
+         end if
+      end do
+      if (iseed == 0 .or. bestrad <= 1d-10) return
+
+      ! first axis toward the seed atom
+      e1 = pcart(:,iseed) / bestrad
+
+      ! complete an orthonormal frame, then orient the perpendicular plane
+      if (abs(e1(1)) <= abs(e1(2)) .and. abs(e1(1)) <= abs(e1(3))) then
+         e2 = (/0d0,-e1(3),e1(2)/)
+      else if (abs(e1(2)) <= abs(e1(3))) then
+         e2 = (/-e1(3),0d0,e1(1)/)
+      else
+         e2 = (/-e1(2),e1(1),0d0/)
+      end if
+      e2 = e2 / sqrt(dot_product(e2,e2))
+      e3 = cross(e1,e2)
+
+      call resolve_plane(e2,e3)
+      u1 = e1
+      u2 = e2
+      u3 = e3
+
+    end subroutine resolve_3d
+
+  end subroutine fragment_compute_std
 
   !> Merge two or more fragments, delete repeated atoms. If fr already
   !> has a fragment, then add to it if add = .true. (default: .true.).
@@ -246,6 +527,7 @@ contains
        fr%nat = nat0
     end do
     call realloc(fr%at,fr%nat)
+    fr%axes_computed = .false.
 
   end subroutine merge_array
 
@@ -299,6 +581,7 @@ contains
     end do
     fr%nat = nat0
     call realloc(fr%at,fr%nat)
+    fr%axes_computed = .false.
 
   end subroutine append
 

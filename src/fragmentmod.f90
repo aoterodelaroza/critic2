@@ -36,12 +36,22 @@ module fragmentmod
      integer :: nlvec = 0 !< number of connecting lattice vectors for non-discrete fragments
      integer, allocatable :: lvec(:,:) !< connecting lattice vectors
      real*8 :: m_x2c(3,3) = 0d0 !< crystallographic -> Cartesian matrix (saved at build time)
+     ! standard orientation (canonical body frame), computed lazily; see fragment_compute_std
+     logical :: axes_computed = .false. !< whether the standard frame has been computed/cached
+     logical :: isatom = .false.   !< whether this is... a single atom
+     logical :: islinear = .false. !< ... a linear molecule
+     logical :: isplanar = .false. !< ... a planar molecule
+     real*8 :: xcm(3) = 0d0 !< center of mass (Cartesian)
+     real*8 :: inertia(3) = 0d0 !< principal moments of inertia (ascending)
+     real*8 :: m_std(3,3) = 0d0 !< standard orientation (det=+1); columns are the principal axes in Cartesian coordinates; canonical coords: matmul(transpose(m_std),at(k)%r-xcm)
    contains
      procedure :: init => fragment_init ! initialize a fragment
      procedure :: build => fragment_build ! build a fragment from atomic data
      procedure :: build_atom => fragment_build_atom ! build a fragment from a single atom
      procedure :: translate => fragment_translate ! translate the fragment by a lattice vector
      procedure :: translate_to_main_cell => fragment_translate_to_main_cell ! move the fragment to the main cell
+     procedure :: standard_axes => fragment_standard_axes ! accessor for the standard (canonical) frame
+     procedure :: compute_std => fragment_compute_std ! compute and cache the standard frame
      procedure :: append ! append a fragment to this fragment
      procedure :: merge_array ! merge several fragments
      procedure :: cmass ! calculate center of mass
@@ -87,6 +97,18 @@ module fragmentmod
      module subroutine fragment_translate_to_main_cell(fr)
        class(fragment), intent(inout) :: fr
      end subroutine fragment_translate_to_main_cell
+     module subroutine fragment_standard_axes(fr,m_std,inertia,xcm,isatom,islinear,isplanar)
+       class(fragment), intent(inout) :: fr
+       real*8, intent(out), optional :: m_std(3,3)
+       real*8, intent(out), optional :: inertia(3)
+       real*8, intent(out), optional :: xcm(3)
+       logical, intent(out), optional :: isatom
+       logical, intent(out), optional :: islinear
+       logical, intent(out), optional :: isplanar
+     end subroutine fragment_standard_axes
+     module subroutine fragment_compute_std(fr)
+       class(fragment), intent(inout) :: fr
+     end subroutine fragment_compute_std
      module subroutine merge_array(fr,fra,add)
        class(fragment), intent(inout) :: fr
        type(fragment), intent(in) :: fra(:)
