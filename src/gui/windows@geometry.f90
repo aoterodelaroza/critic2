@@ -60,7 +60,7 @@ contains
     logical :: doquit, dorestore, clicked, forcesort, ch, lch
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:9)
     integer :: table_hltype
-    logical(c_bool) :: is_selected, redo_highlights
+    logical(c_bool) :: is_selected
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
     character(kind=c_char,len=:), allocatable, target :: strx, stry, strz, stropt
@@ -140,7 +140,6 @@ contains
     dorestore = .false.
     szero%x = 0
     szero%y = 0
-    redo_highlights = .false.
     forcesort = .false.
     iaction = -1
     table_hltype = w%geometry_atomtype
@@ -200,6 +199,9 @@ contains
        call reset_sort()
     end if
     if (w%timelast_geometry_clearhighlights < sysc(isys)%timelastchange_geometry) then
+       ! the geometry changed: cell-atom indices are stale, so clear the
+       ! system selection and force the window cache to be rebuilt
+       call sysc(isys)%highlight_clear(.false.)
        call clear_highlights_table()
     end if
 
@@ -253,10 +255,11 @@ contains
           call check_changed_tab("species")
 
           w%geometry_atomtype = atlisttype_species
+          table_hltype = atlisttype_species
           ntype = sys(isys)%c%nspc
 
-          ! reallocate the highlight allocs
-          call check_highlight_allocs_before_table()
+          ! rebuild the selection cache from the system highlight
+          call rebuild_selection_cache()
 
           ! if the order array is not allocated or if its size is wrong, force a sort
           if (.not.allocated(w%iord)) then
@@ -339,10 +342,15 @@ contains
                 ! get the color from the first active atoms representation in the main view
                 call get_color_from_view()
 
-                ! background color for the table row
-                if (w%geometry_selected(i)) then
+                ! background color for the table row (full or partial selection)
+                if (w%geometry_selected(i) == 2) then
                    col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
                       w%geometry_rgba(3,i),w%geometry_rgba(4,i))
+                   color = igGetColorU32_Vec4(col4)
+                   call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
+                elseif (w%geometry_selected(i) == 1) then
+                   col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
+                      w%geometry_rgba(3,i),0.4_c_float*w%geometry_rgba(4,i))
                    color = igGetColorU32_Vec4(col4)
                    call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
                 end if
@@ -432,6 +440,7 @@ contains
              call reset_sort()
           end if
           call iw_tooltip("Group atoms by these categories",ttshown)
+          table_hltype = w%geometry_atomtype
           ntype = sysc(isys)%attype_number(w%geometry_atomtype)
 
           if (w%geometry_atomtype == atlisttype_nneq) then
@@ -448,8 +457,8 @@ contains
              end if
           end if
 
-          ! reallocate the highlight allocs
-          call check_highlight_allocs_before_table()
+          ! rebuild the selection cache from the system highlight
+          call rebuild_selection_cache()
 
           ! if the order array is not allocated or if its size is wrong, force a sort
           if (.not.allocated(w%iord)) then
@@ -614,10 +623,15 @@ contains
                    ! get the color from the first active atoms representation in the main view
                    call get_color_from_view()
 
-                   ! background color for the table row
-                   if (w%geometry_selected(i)) then
+                   ! background color for the table row (full or partial selection)
+                   if (w%geometry_selected(i) == 2) then
                       col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
                          w%geometry_rgba(3,i),w%geometry_rgba(4,i))
+                      color = igGetColorU32_Vec4(col4)
+                      call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
+                   elseif (w%geometry_selected(i) == 1) then
+                      col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
+                         w%geometry_rgba(3,i),0.4_c_float*w%geometry_rgba(4,i))
                       color = igGetColorU32_Vec4(col4)
                       call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
                    end if
@@ -1082,8 +1096,8 @@ contains
 
           ntype = sys(isys)%c%nmol
 
-          ! reallocate the highlight arrays (sized to the number of molecules)
-          call check_highlight_allocs_before_table()
+          ! rebuild the selection cache from the system highlight
+          call rebuild_selection_cache()
 
           ! if the order array is not allocated or if its size is wrong, force a sort
           if (.not.allocated(w%iord)) then
@@ -1191,10 +1205,15 @@ contains
 
                    call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
 
-                   ! background color for the table row
-                   if (w%geometry_selected(i)) then
+                   ! background color for the table row (full or partial selection)
+                   if (w%geometry_selected(i) == 2) then
                       col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
                          w%geometry_rgba(3,i),w%geometry_rgba(4,i))
+                      color = igGetColorU32_Vec4(col4)
+                      call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
+                   elseif (w%geometry_selected(i) == 1) then
+                      col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
+                         w%geometry_rgba(3,i),0.4_c_float*w%geometry_rgba(4,i))
                       color = igGetColorU32_Vec4(col4)
                       call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
                    end if
@@ -1270,30 +1289,25 @@ contains
           reshape(ColorHighlightScene,(/4,1/)))
     end if
 
-    ! process clicked
+    ! process clicked: write the selection directly to the system
     if (iclicked > 0) then
-       w%geometry_selected(iclicked) = .not.w%geometry_selected(iclicked)
-       w%geometry_rgba(:,iclicked) = w%geometry_select_rgba
-       redo_highlights = .true.
+       ! single click: toggle all cell atoms of this row (a fully selected row
+       ! is cleared; a partial or unselected row is fully selected)
+       if (w%geometry_selected(iclicked) == 2) then
+          call sysc(isys)%highlight_clear(.false.,(/iclicked/),table_hltype)
+       else
+          call sysc(isys)%highlight_atoms(.false.,(/iclicked/),table_hltype,&
+             reshape(w%geometry_select_rgba,(/4,1/)))
+       end if
     elseif (iclicked == -1) then
-       do ii = iclicked_ini, iclicked_end
-          w%geometry_selected(w%iord(ii)) = .true.
-          w%geometry_rgba(:,w%iord(ii)) = w%geometry_select_rgba
-       end do
-       redo_highlights = .true.
-    end if
-
-    ! redo highlights
-    if (redo_highlights.and.allocated(w%geometry_selected).and.allocated(w%geometry_rgba)) then
-       call sysc(isys)%highlight_clear(.false.)
-       allocate(ihigh(count(w%geometry_selected)),irgba(4,count(w%geometry_selected)))
+       ! range (shift) or single (ctrl) selection: select the rows
+       nhigh = iclicked_end - iclicked_ini + 1
+       allocate(ihigh(nhigh),irgba(4,nhigh))
        nhigh = 0
-       do i = 1, size(w%geometry_selected,1)
-          if (w%geometry_selected(i)) then
-             nhigh = nhigh + 1
-             ihigh(nhigh) = i
-             irgba(:,nhigh) = w%geometry_rgba(:,i)
-          end if
+       do ii = iclicked_ini, iclicked_end
+          nhigh = nhigh + 1
+          ihigh(nhigh) = w%iord(ii)
+          irgba(:,nhigh) = w%geometry_select_rgba
        end do
        call sysc(isys)%highlight_atoms(.false.,ihigh,table_hltype,irgba)
        deallocate(ihigh,irgba)
@@ -1343,7 +1357,7 @@ contains
        call sysc(isys)%attype_add_atom(w%geometry_atomtype,iaction_i1,iaction_x)
     elseif (iaction == iaction_edit_highlighted) then
        if (w%geometry_atomtype == atlisttype_species) then
-          call sysc(isys)%edit_highlighted_species(w%geometry_selected,remove=(iaction_i1==edit_remove),&
+          call sysc(isys)%edit_highlighted_species(w%geometry_selected == 2,remove=(iaction_i1==edit_remove),&
              merge=(iaction_i1==edit_merge),duplicate=(iaction_i1==edit_duplicate),errmsg=w%errmsg)
        else
           call sysc(isys)%edit_highlighted_atoms(remove=(iaction_i1==edit_remove),&
@@ -1404,13 +1418,10 @@ contains
       ! do nothing if we are already in the same system
       if (w%isys == i) return
 
-      ! clear the highlights for the current system
+      ! reset the last-selected row and the table sort
       w%lastselected = 0
-      call sysc(w%isys)%highlight_clear(.false.)
 
-      ! remove the selecion, highlights, and reorder the table
-      if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
-      if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
+      ! remove the cached cell-transformation data and reorder the table
       if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
       if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
       call reset_sort()
@@ -1436,7 +1447,8 @@ contains
 
     end subroutine reset_sort
 
-    ! deallocate the highlights arrays, forcing a recalculation
+    ! deallocate the window-side selection cache, forcing it to be rebuilt
+    ! from the system highlight before the next table
     subroutine clear_highlights_table()
       use interfaces_glfw, only: glfwGetTime
 
@@ -1574,27 +1586,61 @@ contains
 
     end subroutine table_sort
 
-    ! calculate the highlight arrays are allocated and correct before the table
-    subroutine check_highlight_allocs_before_table()
+    ! Rebuild the window-side selection cache (geometry_selected,
+    ! geometry_rgba), indexed by table row, from the system-wide
+    ! per-cell-atom selection (sysc%highlight_rgba). This makes the system
+    ! the single source of truth: the cache is regenerated every frame for
+    ! the current table type (table_hltype) and is never used as the source
+    ! of truth. The selection state of a row is 2 (selected) if all its cell
+    ! atoms are highlighted, 1 (partial) if only some are, 0 otherwise.
+    subroutine rebuild_selection_cache()
+      integer :: i, j, nat
+      integer, allocatable :: ntotal(:), nselrow(:)
 
+      ! (re)allocate the cache arrays to the current number of rows
       if (allocated(w%geometry_selected)) then
          if (size(w%geometry_selected,1) /= ntype) then
             deallocate(w%geometry_selected)
             if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
+            w%lastselected = 0
          end if
       end if
-      if (.not.allocated(w%geometry_selected)) then
-         allocate(w%geometry_selected(ntype))
-         w%geometry_selected = .false.
-         redo_highlights = .true.
-         w%lastselected = 0
-      end if
-      if (.not.allocated(w%geometry_rgba)) then
-         allocate(w%geometry_rgba(4,ntype))
-         w%geometry_rgba = 0._c_float
-      end if
+      if (.not.allocated(w%geometry_selected)) allocate(w%geometry_selected(ntype))
+      if (.not.allocated(w%geometry_rgba)) allocate(w%geometry_rgba(4,ntype))
+      w%geometry_selected = 0
+      w%geometry_rgba = 0._c_float
 
-    end subroutine check_highlight_allocs_before_table
+      ! nothing to do if there is no selection for this system
+      if (.not.allocated(sysc(isys)%highlight_rgba)) return
+      nat = sys(isys)%c%ncel
+      if (nat <= 0) return
+      if (size(sysc(isys)%highlight_rgba,2) /= nat) return
+
+      ! count selected vs. total cell atoms per row, and pick up the color.
+      ! Each cell atom maps to its row in the current table type (O(ncel)).
+      allocate(ntotal(ntype),nselrow(ntype))
+      ntotal = 0
+      nselrow = 0
+      do j = 1, nat
+         i = sysc(isys)%attype_celatom_to_id(table_hltype,j)
+         if (i < 1 .or. i > ntype) cycle
+         ntotal(i) = ntotal(i) + 1
+         if (any(sysc(isys)%highlight_rgba(:,j) >= 0._c_float)) then
+            nselrow(i) = nselrow(i) + 1
+            w%geometry_rgba(:,i) = sysc(isys)%highlight_rgba(:,j)
+         end if
+      end do
+
+      ! classify each row: 2 = fully selected, 1 = partially selected, 0 = unselected
+      do i = 1, ntype
+         if (ntotal(i) > 0 .and. nselrow(i) == ntotal(i)) then
+            w%geometry_selected(i) = 2
+         elseif (nselrow(i) > 0) then
+            w%geometry_selected(i) = 1
+         end if
+      end do
+
+    end subroutine rebuild_selection_cache
 
     ! get the sort specs from the imgui table
     subroutine fetch_sort_specs()
@@ -1668,27 +1714,51 @@ contains
       ldum = iw_coloredit("##drawgeometryhighlightcolor",rgba=w%geometry_select_rgba)
       call iw_tooltip("Color used for highlighting atoms")
 
-      ! Highlight buttons: all, none, toggle
+      ! Highlight buttons: all, none, toggle.
       if (iw_button("All##highlightall",sameline=.true.)) then
-         w%geometry_selected = .true.
-         do i = 1, size(w%geometry_selected,1)
-            w%geometry_rgba(:,i) = w%geometry_select_rgba
+         allocate(ihigh(ntype),irgba(4,ntype))
+         do i = 1, ntype
+            ihigh(i) = i
+            irgba(:,i) = w%geometry_select_rgba
          end do
-         redo_highlights = .true.
+         call sysc(isys)%highlight_atoms(.false.,ihigh,table_hltype,irgba)
+         deallocate(ihigh,irgba)
       end if
       call iw_tooltip("Select all atoms in the system",ttshown)
       if (iw_button("None##highlightnone",sameline=.true.)) then
-         w%geometry_selected = .false.
-         redo_highlights = .true.
+         call sysc(isys)%highlight_clear(.false.)
       end if
       call iw_tooltip("Deselect all atoms",ttshown)
       if (iw_button("Toggle##highlighttoggle",sameline=.true.)) then
-         w%geometry_selected = .not.w%geometry_selected
-         do i = 1, size(w%geometry_selected,1)
-            if (w%geometry_selected(i)) &
-               w%geometry_rgba(:,i) = w%geometry_select_rgba
-         end do
-         redo_highlights = .true.
+         ! select the rows that are not fully selected
+         nhigh = count(w%geometry_selected /= 2)
+         if (nhigh > 0) then
+            allocate(ihigh(nhigh),irgba(4,nhigh))
+            nhigh = 0
+            do i = 1, ntype
+               if (w%geometry_selected(i) /= 2) then
+                  nhigh = nhigh + 1
+                  ihigh(nhigh) = i
+                  irgba(:,nhigh) = w%geometry_select_rgba
+               end if
+            end do
+            call sysc(isys)%highlight_atoms(.false.,ihigh,table_hltype,irgba)
+            deallocate(ihigh,irgba)
+         end if
+         ! clear the rows that were fully selected
+         nhigh = count(w%geometry_selected == 2)
+         if (nhigh > 0) then
+            allocate(ihigh(nhigh))
+            nhigh = 0
+            do i = 1, ntype
+               if (w%geometry_selected(i) == 2) then
+                  nhigh = nhigh + 1
+                  ihigh(nhigh) = i
+               end if
+            end do
+            call sysc(isys)%highlight_clear(.false.,ihigh,table_hltype)
+            deallocate(ihigh)
+         end if
       end if
       call iw_tooltip("Toggle atomic selection",ttshown)
 
@@ -1772,7 +1842,7 @@ contains
       end if
 
       ! Duplicate button
-      havesel = any(w%geometry_selected)
+      havesel = any(w%geometry_selected /= 0)
       if (iw_button("Duplicate##duplicateselection",sameline=.true.,disabled=.not.havesel)) then
          iaction = iaction_edit_highlighted
          iaction_i1 = edit_duplicate
@@ -1807,9 +1877,8 @@ contains
       character*(*) :: tab
 
       if (tab /= w%tabselected) then
-         call sysc(w%isys)%highlight_clear(.false.)
-         if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
-         if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
+         ! the selection persists across tabs (it lives on the system, indexed
+         ! by cell atom); the window cache is rebuilt from it for the new tab
          call reset_sort()
          w%tabselected = tab
       end if

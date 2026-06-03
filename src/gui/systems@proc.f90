@@ -679,17 +679,17 @@ contains
 
   !> Clear highlights in the system. If transient, clear the
   !> highlighted atoms in the transient list. If idx and type are
-  !> present, clear atoms with indices idx of the given type
-  !> (0=species,1=nneq,2=ncel,3=nmol).
+  !> present, clear atoms with indices idx of the given atlisttype.
   module subroutine highlight_clear(sysc,transient,idx,type)
     class(sysconf), intent(inout) :: sysc
     logical, intent(in) :: transient
     integer, intent(in), optional :: idx(:)
     integer, intent(in), optional :: type
 
-    integer :: nat, iat, id, i
+    integer :: nat, iat
     logical :: changed
     real(c_float), allocatable :: highlight_aux(:,:)
+    integer, allocatable :: imask(:)
 
     ! input checks
     if (sysc%status < sys_init) return
@@ -727,27 +727,10 @@ contains
           allocate(highlight_aux(4,nat))
           highlight_aux = sysc%highlight_rgba
 
-          ! highlight the atoms
+          ! clear the highlight for the atoms with the given ids/type
+          call sysc%attype_celatom_mask(type,idx,imask=imask)
           do iat = 1, nat
-             if (type == 0) then ! species
-                id = sys(sysc%id)%c%atcel(iat)%is
-             elseif (type == 1) then ! nneq
-                id = sys(sysc%id)%c%atcel(iat)%idx
-             elseif (type == 2) then ! ncel
-                id = iat
-             else ! nmol
-                id = sys(sysc%id)%c%idatcelmol(1,iat)
-             end if
-
-             do i = 1, size(idx,1)
-                if (idx(i) == id) then
-                   if (.not.transient) then
-                      sysc%highlight_rgba(:,iat) = -1._c_float
-                   else
-                      sysc%highlight_rgba_transient(:,iat) = -1._c_float
-                   end if
-                end if
-             end do
+             if (imask(iat) /= 0) sysc%highlight_rgba(:,iat) = -1._c_float
           end do
           changed = any(sysc%highlight_rgba /= highlight_aux)
        else
