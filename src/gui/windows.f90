@@ -145,8 +145,6 @@ module windows
      integer(c_int) :: geometry_atomtype = 1 ! coord type for atoms [0=spc, 1=nneq, 2=ncel(frac), 3=ncel(cart)]
      integer(c_int) :: geometry_moltype = 3 ! coord type for molecules [0=spc, 1=nneq, 2=ncel(frac), 3=ncel(cart)]
      logical :: geometry_forcewyc = .true. ! force respecting symmetry when displacing nneq
-     integer, allocatable :: geometry_selected(:) ! selection state of items in atoms table (0 = not selected, 1 = partial, 2 = selected)
-     real(c_float), allocatable :: geometry_rgba(:,:) ! color highlights in atoms table
      real(c_float) :: geometry_select_rgba(4) ! highlight color
      integer(c_int) :: geometry_sortcid = 0 ! sort table by this column id
      integer(c_int) :: geometry_sortdir = 1 ! sort table with this direction

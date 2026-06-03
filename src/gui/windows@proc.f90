@@ -529,7 +529,6 @@ contains
           end if
        elseif (w%type == wintype_geometry) then
           ! remove all highlights
-          if (allocated(w%geometry_selected)) w%geometry_selected = .false.
           if (ok_system(w%isys,sys_init)) &
              call sysc(w%isys)%highlight_clear(.false.)
        end if

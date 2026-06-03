@@ -67,6 +67,12 @@ contains
     character(len=:), allocatable :: name
     integer, allocatable :: ihigh(:)
     real(c_float), allocatable :: irgba(:,:)
+    ! per-frame selection state for the aggregate views (species/nneq); not persisted
+    integer, allocatable :: rowstate(:) ! 0 = not selected, 1 = partial, 2 = selected
+    integer, allocatable :: rowntot(:)  ! number of cell atoms in each row
+    real(c_float), allocatable :: rowrgba(:,:) ! highlight color of each row
+    integer :: istate ! scratch selection state
+    real(c_float) :: rrgba(4) ! scratch highlight color
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3)
     integer :: ii, i, j, isys, icol, ispc, iz, izout, iview, id, im, jm
@@ -258,8 +264,8 @@ contains
           table_hltype = atlisttype_species
           ntype = sys(isys)%c%nspc
 
-          ! rebuild the selection cache from the system highlight
-          call rebuild_selection_cache()
+          ! build the per-row selection state (aggregate view: needs one pass)
+          call build_aggregate_state()
 
           ! if the order array is not allocated or if its size is wrong, force a sort
           if (.not.allocated(w%iord)) then
@@ -343,14 +349,13 @@ contains
                 call get_color_from_view()
 
                 ! background color for the table row (full or partial selection)
-                if (w%geometry_selected(i) == 2) then
-                   col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
-                      w%geometry_rgba(3,i),w%geometry_rgba(4,i))
+                call current_row_state(i,istate,rrgba)
+                if (istate == 2) then
+                   col4 = ImVec4(rrgba(1),rrgba(2),rrgba(3),rrgba(4))
                    color = igGetColorU32_Vec4(col4)
                    call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
-                elseif (w%geometry_selected(i) == 1) then
-                   col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
-                      w%geometry_rgba(3,i),0.4_c_float*w%geometry_rgba(4,i))
+                elseif (istate == 1) then
+                   col4 = ImVec4(rrgba(1),rrgba(2),rrgba(3),0.4_c_float*rrgba(4))
                    color = igGetColorU32_Vec4(col4)
                    call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
                 end if
@@ -393,10 +398,10 @@ contains
                    end if
                 end if
 
-                ! nat
+                ! nat (reuse the count from the aggregate pass)
                 icol = icol + 1
                 if (igTableSetColumnIndex(icol)) then
-                   call iw_text(string(count(sys(isys)%c%atcel(:)%is == i)))
+                   call iw_text(string(rowntot(i)))
                 end if
              end do
 
@@ -457,8 +462,13 @@ contains
              end if
           end if
 
-          ! rebuild the selection cache from the system highlight
-          call rebuild_selection_cache()
+          ! nneq is an aggregate view (needs one pass); cell views compute the
+          ! selection state inline per visible row
+          if (w%geometry_atomtype == atlisttype_nneq) then
+             call build_aggregate_state()
+          else
+             call clear_aggregate_state()
+          end if
 
           ! if the order array is not allocated or if its size is wrong, force a sort
           if (.not.allocated(w%iord)) then
@@ -624,14 +634,13 @@ contains
                    call get_color_from_view()
 
                    ! background color for the table row (full or partial selection)
-                   if (w%geometry_selected(i) == 2) then
-                      col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
-                         w%geometry_rgba(3,i),w%geometry_rgba(4,i))
+                   call current_row_state(i,istate,rrgba)
+                   if (istate == 2) then
+                      col4 = ImVec4(rrgba(1),rrgba(2),rrgba(3),rrgba(4))
                       color = igGetColorU32_Vec4(col4)
                       call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
-                   elseif (w%geometry_selected(i) == 1) then
-                      col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
-                         w%geometry_rgba(3,i),0.4_c_float*w%geometry_rgba(4,i))
+                   elseif (istate == 1) then
+                      col4 = ImVec4(rrgba(1),rrgba(2),rrgba(3),0.4_c_float*rrgba(4))
                       color = igGetColorU32_Vec4(col4)
                       call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
                    end if
@@ -1096,8 +1105,8 @@ contains
 
           ntype = sys(isys)%c%nmol
 
-          ! rebuild the selection cache from the system highlight
-          call rebuild_selection_cache()
+          ! molecules compute the selection state inline per visible row
+          call clear_aggregate_state()
 
           ! if the order array is not allocated or if its size is wrong, force a sort
           if (.not.allocated(w%iord)) then
@@ -1206,14 +1215,13 @@ contains
                    call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
 
                    ! background color for the table row (full or partial selection)
-                   if (w%geometry_selected(i) == 2) then
-                      col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
-                         w%geometry_rgba(3,i),w%geometry_rgba(4,i))
+                   call current_row_state(i,istate,rrgba)
+                   if (istate == 2) then
+                      col4 = ImVec4(rrgba(1),rrgba(2),rrgba(3),rrgba(4))
                       color = igGetColorU32_Vec4(col4)
                       call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
-                   elseif (w%geometry_selected(i) == 1) then
-                      col4 = ImVec4(w%geometry_rgba(1,i),w%geometry_rgba(2,i),&
-                         w%geometry_rgba(3,i),0.4_c_float*w%geometry_rgba(4,i))
+                   elseif (istate == 1) then
+                      col4 = ImVec4(rrgba(1),rrgba(2),rrgba(3),0.4_c_float*rrgba(4))
                       color = igGetColorU32_Vec4(col4)
                       call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, icol)
                    end if
@@ -1293,7 +1301,8 @@ contains
     if (iclicked > 0) then
        ! single click: toggle all cell atoms of this row (a fully selected row
        ! is cleared; a partial or unselected row is fully selected)
-       if (w%geometry_selected(iclicked) == 2) then
+       call current_row_state(iclicked,istate,rrgba)
+       if (istate == 2) then
           call sysc(isys)%highlight_clear(.false.,(/iclicked/),table_hltype)
        else
           call sysc(isys)%highlight_atoms(.false.,(/iclicked/),table_hltype,&
@@ -1357,7 +1366,9 @@ contains
        call sysc(isys)%attype_add_atom(w%geometry_atomtype,iaction_i1,iaction_x)
     elseif (iaction == iaction_edit_highlighted) then
        if (w%geometry_atomtype == atlisttype_species) then
-          call sysc(isys)%edit_highlighted_species(w%geometry_selected == 2,remove=(iaction_i1==edit_remove),&
+          ! rowstate is the per-species selection state built this frame in the
+          ! species tab (size nspc); fully selected species have rowstate == 2
+          call sysc(isys)%edit_highlighted_species(rowstate == 2,remove=(iaction_i1==edit_remove),&
              merge=(iaction_i1==edit_merge),duplicate=(iaction_i1==edit_duplicate),errmsg=w%errmsg)
        else
           call sysc(isys)%edit_highlighted_atoms(remove=(iaction_i1==edit_remove),&
@@ -1447,14 +1458,12 @@ contains
 
     end subroutine reset_sort
 
-    ! deallocate the window-side selection cache, forcing it to be rebuilt
-    ! from the system highlight before the next table
+    ! record the time the selection was last cleared (used to detect geometry
+    ! changes that invalidate the system selection)
     subroutine clear_highlights_table()
       use interfaces_glfw, only: glfwGetTime
 
       w%timelast_geometry_clearhighlights = glfwGetTime()
-      if (allocated(w%geometry_selected)) deallocate(w%geometry_selected)
-      if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
 
     end subroutine clear_highlights_table
 
@@ -1586,61 +1595,156 @@ contains
 
     end subroutine table_sort
 
-    ! Rebuild the window-side selection cache (geometry_selected,
-    ! geometry_rgba), indexed by table row, from the system-wide
-    ! per-cell-atom selection (sysc%highlight_rgba). This makes the system
-    ! the single source of truth: the cache is regenerated every frame for
-    ! the current table type (table_hltype) and is never used as the source
-    ! of truth. The selection state of a row is 2 (selected) if all its cell
-    ! atoms are highlighted, 1 (partial) if only some are, 0 otherwise.
-    subroutine rebuild_selection_cache()
+    ! Build the per-row selection state (rowstate = 0/1/2) and color (rowrgba)
+    ! and the per-row cell-atom count (rowntot) for the current aggregate view
+    ! (species or nneq), from the system-wide per-cell-atom selection
+    ! (sysc%highlight_rgba). This is the only case that needs a full O(ncel)
+    ! pass per frame, because species/nneq rows have no reverse map (row ->
+    ! cell atoms). Cell and molecule views compute their state inline per
+    ! visible row instead (see row_select_state). A row is 2 (selected) if all
+    ! its cell atoms are highlighted, 1 (partial) if only some are, 0 otherwise.
+    subroutine build_aggregate_state()
       integer :: i, j, nat
-      integer, allocatable :: ntotal(:), nselrow(:)
+      integer, allocatable :: nselrow(:)
 
-      ! (re)allocate the cache arrays to the current number of rows
-      if (allocated(w%geometry_selected)) then
-         if (size(w%geometry_selected,1) /= ntype) then
-            deallocate(w%geometry_selected)
-            if (allocated(w%geometry_rgba)) deallocate(w%geometry_rgba)
+      ! (re)allocate the per-row arrays to the current number of rows
+      if (allocated(rowstate)) then
+         if (size(rowstate,1) /= ntype) then
+            deallocate(rowstate)
+            if (allocated(rowrgba)) deallocate(rowrgba)
+            if (allocated(rowntot)) deallocate(rowntot)
             w%lastselected = 0
          end if
       end if
-      if (.not.allocated(w%geometry_selected)) allocate(w%geometry_selected(ntype))
-      if (.not.allocated(w%geometry_rgba)) allocate(w%geometry_rgba(4,ntype))
-      w%geometry_selected = 0
-      w%geometry_rgba = 0._c_float
+      if (.not.allocated(rowstate)) allocate(rowstate(ntype))
+      if (.not.allocated(rowrgba)) allocate(rowrgba(4,ntype))
+      if (.not.allocated(rowntot)) allocate(rowntot(ntype))
+      rowstate = 0
+      rowrgba = 0._c_float
+      rowntot = 0
 
       ! nothing to do if there is no selection for this system
-      if (.not.allocated(sysc(isys)%highlight_rgba)) return
       nat = sys(isys)%c%ncel
       if (nat <= 0) return
-      if (size(sysc(isys)%highlight_rgba,2) /= nat) return
 
       ! count selected vs. total cell atoms per row, and pick up the color.
       ! Each cell atom maps to its row in the current table type (O(ncel)).
-      allocate(ntotal(ntype),nselrow(ntype))
-      ntotal = 0
+      allocate(nselrow(ntype))
       nselrow = 0
       do j = 1, nat
          i = sysc(isys)%attype_celatom_to_id(table_hltype,j)
          if (i < 1 .or. i > ntype) cycle
-         ntotal(i) = ntotal(i) + 1
-         if (any(sysc(isys)%highlight_rgba(:,j) >= 0._c_float)) then
-            nselrow(i) = nselrow(i) + 1
-            w%geometry_rgba(:,i) = sysc(isys)%highlight_rgba(:,j)
+         rowntot(i) = rowntot(i) + 1
+         if (allocated(sysc(isys)%highlight_rgba)) then
+            if (any(sysc(isys)%highlight_rgba(:,j) >= 0._c_float)) then
+               nselrow(i) = nselrow(i) + 1
+               rowrgba(:,i) = sysc(isys)%highlight_rgba(:,j)
+            end if
          end if
       end do
 
       ! classify each row: 2 = fully selected, 1 = partially selected, 0 = unselected
       do i = 1, ntype
-         if (ntotal(i) > 0 .and. nselrow(i) == ntotal(i)) then
-            w%geometry_selected(i) = 2
+         if (rowntot(i) > 0 .and. nselrow(i) == rowntot(i)) then
+            rowstate(i) = 2
          elseif (nselrow(i) > 0) then
-            w%geometry_selected(i) = 1
+            rowstate(i) = 1
          end if
       end do
 
-    end subroutine rebuild_selection_cache
+    end subroutine build_aggregate_state
+
+    ! deallocate the aggregate per-row arrays, so current_row_state falls back
+    ! to the inline (cell/molecule) computation
+    subroutine clear_aggregate_state()
+
+      if (allocated(rowstate)) deallocate(rowstate)
+      if (allocated(rowrgba)) deallocate(rowrgba)
+      if (allocated(rowntot)) deallocate(rowntot)
+
+    end subroutine clear_aggregate_state
+
+    ! Compute the selection state (0/1/2) and highlight color of a single row
+    ! id of the given table type, directly from sysc%highlight_rgba. Cell views
+    ! are O(1); molecules iterate their fragment members (O(molecule size));
+    ! species/nneq scan the cell atoms (O(ncel), only used for single-row
+    ! queries such as a click, never per visible row in the draw loop).
+    subroutine row_select_state(type,id,state,rgba)
+      use systems, only: atlisttype_ncel_frac, atlisttype_ncel_bohr,&
+         atlisttype_ncel_ang, atlisttype_nmol
+      integer, intent(in) :: type, id
+      integer, intent(out) :: state
+      real(c_float), intent(out) :: rgba(4)
+
+      integer :: j, k, cidx, nsel, ntot
+
+      state = 0
+      rgba = 0._c_float
+      if (.not.allocated(sysc(isys)%highlight_rgba)) return
+
+      if (type == atlisttype_ncel_frac .or. type == atlisttype_ncel_bohr .or.&
+         type == atlisttype_ncel_ang) then
+         ! cell views: the row is a single cell atom
+         if (id >= 1 .and. id <= sys(isys)%c%ncel) then
+            if (any(sysc(isys)%highlight_rgba(:,id) >= 0._c_float)) then
+               state = 2
+               rgba = sysc(isys)%highlight_rgba(:,id)
+            end if
+         end if
+      elseif (type == atlisttype_nmol) then
+         ! molecules: iterate the fragment members via their cell-atom index
+         nsel = 0
+         ntot = sys(isys)%c%mol(id)%nat
+         do k = 1, ntot
+            cidx = sys(isys)%c%mol(id)%at(k)%cidx
+            if (cidx < 1 .or. cidx > sys(isys)%c%ncel) cycle
+            if (any(sysc(isys)%highlight_rgba(:,cidx) >= 0._c_float)) then
+               nsel = nsel + 1
+               rgba = sysc(isys)%highlight_rgba(:,cidx)
+            end if
+         end do
+         if (ntot > 0 .and. nsel == ntot) then
+            state = 2
+         elseif (nsel > 0) then
+            state = 1
+         end if
+      else
+         ! species/nneq: scan the cell atoms mapping to this row
+         nsel = 0
+         ntot = 0
+         do j = 1, sys(isys)%c%ncel
+            if (sysc(isys)%attype_celatom_to_id(type,j) /= id) cycle
+            ntot = ntot + 1
+            if (any(sysc(isys)%highlight_rgba(:,j) >= 0._c_float)) then
+               nsel = nsel + 1
+               rgba = sysc(isys)%highlight_rgba(:,j)
+            end if
+         end do
+         if (ntot > 0 .and. nsel == ntot) then
+            state = 2
+         elseif (nsel > 0) then
+            state = 1
+         end if
+      end if
+
+    end subroutine row_select_state
+
+    ! Selection state (0/1/2) and color of row i in the current table. Uses the
+    ! per-frame aggregate arrays if present (species/nneq), otherwise computes
+    ! inline for the current table type (cell/molecule).
+    subroutine current_row_state(i,state,rgba)
+      integer, intent(in) :: i
+      integer, intent(out) :: state
+      real(c_float), intent(out) :: rgba(4)
+
+      if (allocated(rowstate)) then
+         state = rowstate(i)
+         rgba = rowrgba(:,i)
+      else
+         call row_select_state(table_hltype,i,state,rgba)
+      end if
+
+    end subroutine current_row_state
 
     ! get the sort specs from the imgui table
     subroutine fetch_sort_specs()
@@ -1706,6 +1810,7 @@ contains
 
     ! draw the row of buttons controlling the highlights
     subroutine draw_highlight_buttons()
+      integer, allocatable :: tstate(:)
 
       ! highlight color
       call igAlignTextToFramePadding()
@@ -1730,13 +1835,18 @@ contains
       end if
       call iw_tooltip("Deselect all atoms",ttshown)
       if (iw_button("Toggle##highlighttoggle",sameline=.true.)) then
+         ! compute the per-row selection state once
+         allocate(tstate(ntype))
+         do i = 1, ntype
+            call current_row_state(i,tstate(i),rrgba)
+         end do
          ! select the rows that are not fully selected
-         nhigh = count(w%geometry_selected /= 2)
+         nhigh = count(tstate /= 2)
          if (nhigh > 0) then
             allocate(ihigh(nhigh),irgba(4,nhigh))
             nhigh = 0
             do i = 1, ntype
-               if (w%geometry_selected(i) /= 2) then
+               if (tstate(i) /= 2) then
                   nhigh = nhigh + 1
                   ihigh(nhigh) = i
                   irgba(:,nhigh) = w%geometry_select_rgba
@@ -1746,12 +1856,12 @@ contains
             deallocate(ihigh,irgba)
          end if
          ! clear the rows that were fully selected
-         nhigh = count(w%geometry_selected == 2)
+         nhigh = count(tstate == 2)
          if (nhigh > 0) then
             allocate(ihigh(nhigh))
             nhigh = 0
             do i = 1, ntype
-               if (w%geometry_selected(i) == 2) then
+               if (tstate(i) == 2) then
                   nhigh = nhigh + 1
                   ihigh(nhigh) = i
                end if
@@ -1759,6 +1869,7 @@ contains
             call sysc(isys)%highlight_clear(.false.,ihigh,table_hltype)
             deallocate(ihigh)
          end if
+         deallocate(tstate)
       end if
       call iw_tooltip("Toggle atomic selection",ttshown)
 
@@ -1842,7 +1953,9 @@ contains
       end if
 
       ! Duplicate button
-      havesel = any(w%geometry_selected /= 0)
+      havesel = .false.
+      if (allocated(sysc(isys)%highlight_rgba)) &
+         havesel = any(sysc(isys)%highlight_rgba >= 0._c_float)
       if (iw_button("Duplicate##duplicateselection",sameline=.true.,disabled=.not.havesel)) then
          iaction = iaction_edit_highlighted
          iaction_i1 = edit_duplicate
