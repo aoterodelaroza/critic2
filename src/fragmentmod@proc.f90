@@ -158,7 +158,10 @@ contains
        fr%at(j)%r = matmul(fr%m_x2c,fr%at(j)%x)
        fr%at(j)%lvec = fr%at(j)%lvec + lvec
     end do
-    fr%axes_computed = .false.
+
+    ! A pure translation leaves the standard frame, inertia and flags
+    ! unchanged; only the center of mass shifts (update the cache if present)
+    if (fr%axes_computed) fr%xcm = fr%xcm + matmul(fr%m_x2c,real(lvec,8))
 
   end subroutine fragment_translate
 
@@ -186,7 +189,10 @@ contains
        fr%at(j)%r = matmul(fr%m_x2c,fr%at(j)%x)
        fr%at(j)%lvec = fr%at(j)%lvec - newl
     end do
-    fr%axes_computed = .false.
+
+    ! A pure translation leaves the standard frame, inertia and flags
+    ! unchanged; only the center of mass shifts (update the cache if present)
+    if (fr%axes_computed) fr%xcm = fr%xcm - matmul(fr%m_x2c,real(newl,8))
 
   end subroutine fragment_translate_to_main_cell
 
