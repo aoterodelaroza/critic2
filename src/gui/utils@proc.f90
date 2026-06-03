@@ -20,15 +20,16 @@ submodule (utils) proc
   use iso_c_binding
   implicit none
 
-  ! deferred-commit state for the iw_inputint/iw_inputint3/iw_inputfloat/iw_inputfloat3
-  ! widgets (notlive): the ImGui ID and in-progress value of the input currently being
-  ! edited. Only one item is active at a time, so the edit ID is shared across all of
-  ! them; only the value buffer differs by type.
+  ! deferred-commit state for the iw_inputtext/iw_inputint/iw_inputint3/iw_inputfloat/
+  ! iw_inputfloat3 widgets (notlive): the ImGui ID and in-progress value of the input
+  ! currently being edited. Only one item is active at a time, so the edit ID is shared
+  ! across all of them; only the value buffer differs by type.
   integer(c_int) :: input_editid = 0_c_int
   integer(c_int) :: inputint_editbuf = 0_c_int
   integer(c_int) :: inputint3_editbuf(3) = 0_c_int
   real(c_float) :: inputfloat_editbuf = 0._c_float
   real(c_float) :: inputfloat3_editbuf(3) = 0._c_float
+  character(kind=c_char,len=:), allocatable :: inputtext_editbuf
 
 contains
 
@@ -117,39 +118,42 @@ contains
     integer(c_int), intent(in), optional :: flags
     logical :: iw_inputtext
 
-    integer(c_int) :: flags_
+    integer(c_int) :: flags_, myid
     character(kind=c_char,len=:), allocatable, target :: label_, text_
+    character(kind=c_char,len=:), allocatable :: src
     integer :: i, ll
-    logical :: sameline_, wantcommit
+    logical :: sameline_, notlive_
 
     ! process input options
     flags_ = ImGuiInputTextFlags_None
     if (present(flags)) flags_ = flags
     sameline_ = .false.
     if (present(sameline)) sameline_ = sameline
-    ! if notlive, return .true. (and write the value out) only when the field is committed
-    ! (Enter, Tab, or click-away), not on every keystroke. We deliberately do NOT use
-    ! ImGuiInputTextFlags_EnterReturnsTrue, which would discard the typed text on Tab/click.
-    wantcommit = .false.
-    if (present(notlive)) wantcommit = notlive
+    notlive_ = .false.
+    if (present(notlive)) notlive_ = notlive
 
-    ! set up the call
-    allocate(character(len=bufsize+1) :: text_)
+    ! must have exactly one of the text outputs
+    if (.not.present(texta) .and. .not.present(textf)) return
     label_ = trim(label) // c_null_char
-    if (present(texta)) then
-       ll = len_trim(texta)
-    elseif (present(textf)) then
-       ll = len_trim(textf)
+    myid = igGetID_Str(c_loc(label_))
+
+    ! choose the source string used to fill the edit buffer this frame. With deferred
+    ! commit, keep editing a persistent buffer for the active item so texta/textf are
+    ! left untouched while typing and only updated when the value is committed.
+    if (notlive_ .and. myid == input_editid) then
+       src = inputtext_editbuf
+    elseif (present(texta)) then
+       src = texta
     else
-       return
+       src = trim(textf)
     end if
+
+    ! set up the C buffer from the source string
+    allocate(character(len=bufsize+1) :: text_)
+    ll = len(src)
     do i = 1, bufsize
        if (i <= ll) then
-          if (present(texta)) then
-             text_(i:i) = texta(i:i)
-          else
-             text_(i:i) = textf(i:i)
-          end if
+          text_(i:i) = src(i:i)
        else
           text_(i:i) = c_null_char
        end if
@@ -170,24 +174,47 @@ contains
     end if
 
     ! call inputtext
-    iw_inputtext = igInputText(c_loc(label_),c_loc(text_),int(bufsize,c_size_t),flags_,c_null_funptr,c_null_ptr)
-    ! with commit-on-enter, return .true. only when the value is committed (Enter, Tab, or
-    ! click-away); the live buffer (text_) is then copied out below
-    if (wantcommit) &
-       iw_inputtext = logical(igIsItemDeactivatedAfterEdit())
-    if (iw_inputtext) then
-       ll = index(text_,c_null_char)-1
-       if (ll <= 0) ll = len(text_)
-       if (present(texta)) then
-          texta = text_(1:ll)
-       else
-          textf = text_(1:ll)
-       end if
-    end if
+    iw_inputtext = logical(igInputText(c_loc(label_),c_loc(text_),int(bufsize,c_size_t),flags_,c_null_funptr,c_null_ptr))
 
     ! pop the width
     if (present(width)) &
        call igPopItemWidth()
+
+    if (notlive_) then
+       ! deferred commit: edit a persistent buffer so texta/textf are left untouched while
+       ! typing and only updated when the value is committed (Enter, Tab, or click-away). Only
+       ! one input is being edited at any time, so a single (id,buffer) pair is enough. We do
+       ! not use ImGuiInputTextFlags_EnterReturnsTrue, which would discard the text on Tab/click.
+       if (logical(igIsItemActivated())) input_editid = myid
+       if (myid == input_editid) then
+          ll = index(text_,c_null_char)-1
+          if (ll < 0) ll = len(text_)
+          inputtext_editbuf = text_(1:ll)
+       end if
+       iw_inputtext = .false.
+       if (logical(igIsItemDeactivatedAfterEdit()) .and. myid == input_editid) then
+          ll = index(text_,c_null_char)-1
+          if (ll < 0) ll = len(text_)
+          if (present(texta)) then
+             texta = text_(1:ll)
+          else
+             textf = text_(1:ll)
+          end if
+          input_editid = 0_c_int
+          iw_inputtext = .true.
+       end if
+    else
+       ! live: texta/textf update on every change
+       if (iw_inputtext) then
+          ll = index(text_,c_null_char)-1
+          if (ll <= 0) ll = len(text_)
+          if (present(texta)) then
+             texta = text_(1:ll)
+          else
+             textf = text_(1:ll)
+          end if
+       end if
+    end if
 
   end function iw_inputtext
 
