@@ -51,6 +51,8 @@ module tools_math
   public :: det3
   public :: mat2quat
   public :: quat2mat
+  public :: mat2euler
+  public :: euler2mat
   public :: matinv
   public :: matinv_cfloat
   public :: matinvsym
@@ -282,6 +284,14 @@ module tools_math
        real*8, intent(in) :: q(4)
        real*8 :: r(3,3)
      end function quat2mat
+     module function mat2euler(r) result(e)
+       real*8, intent(in) :: r(3,3)
+       real*8 :: e(3)
+     end function mat2euler
+     module function euler2mat(e) result(r)
+       real*8, intent(in) :: e(3)
+       real*8 :: r(3,3)
+     end function euler2mat
      module subroutine matinv(m,n0,ier)
        integer, intent(in) :: n0
        real*8, intent(inout) :: m(n0,n0)

@@ -111,4 +111,59 @@ contains
 
   end function quat2mat
 
+  !> Convert a proper rotation matrix r (det=+1) into the ZYZ intrinsic
+  !> Euler angles e = (alpha,beta,gamma) in radians, such that
+  !> r = Rz(alpha) Ry(beta) Rz(gamma) (active, right-handed rotations).
+  !> The ranges are alpha,gamma in (-pi,pi] and beta in [0,pi]. At the
+  !> gimbal-lock poles (beta = 0 or pi, where only alpha+/-gamma is
+  !> determined) the convention is gamma = 0. Inverse of euler2mat.
+  module function mat2euler(r) result(e)
+    real*8, intent(in) :: r(3,3)
+    real*8 :: e(3)
+
+    real*8, parameter :: eps = 1d-12
+    real*8 :: sb
+
+    sb = sqrt(r(1,3)*r(1,3) + r(2,3)*r(2,3))   ! |sin(beta)|
+    e(2) = atan2(sb, r(3,3))                    ! beta in [0,pi]
+    if (sb > eps) then
+       e(1) = atan2(r(2,3), r(1,3))             ! alpha
+       e(3) = atan2(r(3,2), -r(3,1))            ! gamma
+    else
+       ! gimbal lock: beta = 0 or pi, only alpha (+/-) gamma is defined
+       e(3) = 0d0
+       if (r(3,3) > 0d0) then
+          e(1) = atan2(r(2,1), r(1,1))          ! beta = 0:  R = Rz(alpha)
+       else
+          e(1) = atan2(-r(2,1), -r(1,1))        ! beta = pi: R = Rz(alpha) Ry(pi)
+       end if
+    end if
+
+  end function mat2euler
+
+  !> Convert ZYZ intrinsic Euler angles e = (alpha,beta,gamma) (radians)
+  !> into the corresponding rotation matrix r = Rz(alpha) Ry(beta)
+  !> Rz(gamma) (active, right-handed). Inverse of mat2euler.
+  module function euler2mat(e) result(r)
+    real*8, intent(in) :: e(3)
+    real*8 :: r(3,3)
+
+    real*8 :: ca, sa, cb, sb, cg, sg
+
+    ca = cos(e(1)); sa = sin(e(1))
+    cb = cos(e(2)); sb = sin(e(2))
+    cg = cos(e(3)); sg = sin(e(3))
+
+    r(1,1) = ca*cb*cg - sa*sg
+    r(1,2) = -ca*cb*sg - sa*cg
+    r(1,3) = ca*sb
+    r(2,1) = sa*cb*cg + ca*sg
+    r(2,2) = -sa*cb*sg + ca*cg
+    r(2,3) = sa*sb
+    r(3,1) = -sb*cg
+    r(3,2) = sb*sg
+    r(3,3) = cb
+
+  end function euler2mat
+
 end submodule rotations

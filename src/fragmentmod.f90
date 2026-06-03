@@ -98,7 +98,7 @@ module fragmentmod
      module subroutine fragment_translate_to_main_cell(fr)
        class(fragment), intent(inout) :: fr
      end subroutine fragment_translate_to_main_cell
-     module subroutine fragment_standard_axes(fr,m_std,inertia,xcm,isatom,islinear,isplanar,quat)
+     module subroutine fragment_standard_axes(fr,m_std,inertia,xcm,isatom,islinear,isplanar,quat,euler)
        class(fragment), intent(inout) :: fr
        real*8, intent(out), optional :: m_std(3,3)
        real*8, intent(out), optional :: inertia(3)
@@ -107,6 +107,7 @@ module fragmentmod
        logical, intent(out), optional :: islinear
        logical, intent(out), optional :: isplanar
        real*8, intent(out), optional :: quat(4)
+       real*8, intent(out), optional :: euler(3)
      end subroutine fragment_standard_axes
      module subroutine fragment_compute_std(fr)
        class(fragment), intent(inout) :: fr

@@ -202,12 +202,13 @@ contains
   !> rotation matrix m_std (columns are the principal axes in Cartesian
   !> coordinates; a proper rotation), the principal moments of inertia
   !> (ascending), the center of mass xcm (Cartesian), the
-  !> single-atom/linear/planar classification flags, and the unit
-  !> quaternion quat = (w,x,y,z) of the standard orientation (= m_std as
-  !> a quaternion; the orientation standard->current). This is the entry
-  !> point for code that needs the canonical molecular frame (e.g. a
-  !> future routine that rotates a molecule inside a crystal).
-  module subroutine fragment_standard_axes(fr,m_std,inertia,xcm,isatom,islinear,isplanar,quat)
+  !> single-atom/linear/planar classification flags, the unit quaternion
+  !> quat = (w,x,y,z) of the standard orientation (= m_std as a
+  !> quaternion; the orientation standard->current), and the ZYZ Euler
+  !> angles euler = (alpha,beta,gamma) in radians of the same orientation
+  !> relative to the Cartesian axes.
+  module subroutine fragment_standard_axes(fr,m_std,inertia,xcm,isatom,islinear,isplanar,quat,euler)
+    use tools_math, only: mat2euler
     class(fragment), intent(inout) :: fr
     real*8, intent(out), optional :: m_std(3,3)
     real*8, intent(out), optional :: inertia(3)
@@ -216,6 +217,7 @@ contains
     logical, intent(out), optional :: islinear
     logical, intent(out), optional :: isplanar
     real*8, intent(out), optional :: quat(4)
+    real*8, intent(out), optional :: euler(3)
 
     if (.not.fr%axes_computed) call fr%compute_std()
 
@@ -226,6 +228,7 @@ contains
     if (present(islinear)) islinear = fr%islinear
     if (present(isplanar)) isplanar = fr%isplanar
     if (present(quat)) quat = fr%q_std
+    if (present(euler)) euler = mat2euler(fr%m_std)
 
   end subroutine fragment_standard_axes
 
