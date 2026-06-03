@@ -1327,7 +1327,7 @@ contains
 
     ! hovering a molecule row: show its standard-orientation axes at the COM
     if (ihighlight > 0 .and. table_hltype == atlisttype_nmol) then
-       if (sysc(isys)%sc%isinit /= 0) then
+       if (sysc(isys)%sc%isinit /= 0 .and. sys(isys)%c%mol(ihighlight)%discrete) then
           call sys(isys)%c%mol(ihighlight)%standard_axes(m_std=stdrot,xcm=stdcom)
           ! axis length scaled to the molecule's size (floor for tiny ones)
           stdext = 0d0
