@@ -129,6 +129,7 @@ contains
     integer, parameter :: ic_ea = 12 ! Euler angle alpha (molecules tab)
     integer, parameter :: ic_eb = 13 ! Euler angle beta
     integer, parameter :: ic_eg = 14 ! Euler angle gamma
+    integer, parameter :: ic_disc = 15 ! discrete? (molecules tab)
 
     ! allowed atom list types in tables
     integer, parameter :: atlisttype_allowed(4) = (/atlisttype_nneq,&
@@ -1124,6 +1125,7 @@ contains
 
           ! number of columns
           ncol = 2 ! id, nat
+          ncol = ncol + 1 ! discrete?
           if (doidx) ncol = ncol + 1 ! idx
           ncol = ncol + 3 ! center of mass
           ncol = ncol + 3 ! euler angles
@@ -1153,6 +1155,11 @@ contains
              str2 = "nat" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
              icolsort(icol) = ic_nat
+
+             icol = icol + 1
+             str2 = "Dscrt" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_NoSort,0.0_c_float,icol)
+             icolsort(icol) = ic_disc
 
              if (doidx) then
                 icol = icol + 1
@@ -1257,6 +1264,16 @@ contains
                    ! number of atoms
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%mol(i)%nat))
+
+                   ! discrete?
+                   icol = icol + 1
+                   if (igTableSetColumnIndex(icol)) then
+                      if (sys(isys)%c%mol(i)%discrete) then
+                         call iw_text("Yes")
+                      else
+                         call iw_text("No")
+                      end if
+                   end if
 
                    ! idx (symmetry equivalence)
                    if (doidx) then
