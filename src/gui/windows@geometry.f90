@@ -53,7 +53,7 @@ contains
        iw_inputint3
     use types, only: realloc
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger
-    use param, only: newline, bohrtoa
+    use param, only: newline, bohrtoa, pi
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
@@ -125,6 +125,9 @@ contains
     integer, parameter :: ic_z = 9
     integer, parameter :: ic_nat = 10
     integer, parameter :: ic_expr = 11
+    integer, parameter :: ic_ea = 12 ! Euler angle alpha (molecules tab)
+    integer, parameter :: ic_eb = 13 ! Euler angle beta
+    integer, parameter :: ic_eg = 14 ! Euler angle gamma
 
     ! allowed atom list types in tables
     integer, parameter :: atlisttype_allowed(4) = (/atlisttype_nneq,&
@@ -1122,6 +1125,7 @@ contains
           ncol = 2 ! id, nat
           if (doidx) ncol = ncol + 1 ! idx
           ncol = ncol + 3 ! center of mass
+          ncol = ncol + 3 ! euler angles
 
           ! molecule table
           flags = ImGuiTableFlags_None
@@ -1178,6 +1182,21 @@ contains
              icol = icol + 1
              call igTableSetupColumn(c_loc(strz),ImGuiTableColumnFlags_None,0.0_c_float,icol)
              icolsort(icol) = ic_z
+
+             ! Euler angles (ZYZ, degrees) of the standard orientation
+             icol = icol + 1
+             str2 = "α/°" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             icolsort(icol) = ic_ea
+             icol = icol + 1
+             str2 = "β/°" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             icolsort(icol) = ic_eb
+             icol = icol + 1
+             str2 = "γ/°" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+             icolsort(icol) = ic_eg
+
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
 
              ! fetch the sort specs, sort the data if necessary
@@ -1250,6 +1269,14 @@ contains
                       icol = icol + 1
                       if (igTableSetColumnIndex(icol)) &
                          call iw_text(string(x0(j),'f',dec+4,dec,ioj_center))
+                   end do
+
+                   ! Euler angles (ZYZ, degrees) of the standard orientation
+                   x0 = mol_euler_angles(i)
+                   do j = 1, 3
+                      icol = icol + 1
+                      if (igTableSetColumnIndex(icol)) &
+                         call iw_text(string(x0(j),'f',6,2,ioj_center))
                    end do
                 end do
              end do
@@ -1482,6 +1509,17 @@ contains
 
     end function mol_com_coords
 
+    ! Euler angles (ZYZ convention, in degrees) of the standard
+    ! orientation of molecule imol, relative to the Cartesian axes.
+    function mol_euler_angles(imol) result(eul)
+      integer, intent(in) :: imol
+      real*8 :: eul(3)
+
+      call sys(isys)%c%mol(imol)%standard_axes(euler=eul)
+      eul = eul * (180d0 / pi)
+
+    end function mol_euler_angles
+
     ! calculate the w%iord to sort the table
     subroutine table_sort()
       use tools, only: mergesort
@@ -1545,23 +1583,37 @@ contains
          call mergesort(ival,iperm,1,ntype)
          deallocate(ival)
       elseif (icolsort(w%geometry_sortcid)==ic_x.or.icolsort(w%geometry_sortcid)==ic_y.or.&
-         icolsort(w%geometry_sortcid)==ic_z) then
+         icolsort(w%geometry_sortcid)==ic_z.or.icolsort(w%geometry_sortcid)==ic_ea.or.&
+         icolsort(w%geometry_sortcid)==ic_eb.or.icolsort(w%geometry_sortcid)==ic_eg) then
          ! real
          allocate(rval(ntype))
          do ii = 1, ntype
             i = w%iord(ii)
-            if (table_hltype == atlisttype_nmol) then
-               x0 = mol_com_coords(i)
+            if (icolsort(w%geometry_sortcid)==ic_ea.or.icolsort(w%geometry_sortcid)==ic_eb.or.&
+               icolsort(w%geometry_sortcid)==ic_eg) then
+               ! Euler angles (molecules tab)
+               x0 = mol_euler_angles(i)
+               if (icolsort(w%geometry_sortcid) == ic_ea) then
+                  rval(ii) = x0(1)
+               elseif (icolsort(w%geometry_sortcid) == ic_eb) then
+                  rval(ii) = x0(2)
+               else
+                  rval(ii) = x0(3)
+               end if
             else
-               x0 = sysc(isys)%attype_coordinates(w%geometry_atomtype,i)
-            end if
+               if (table_hltype == atlisttype_nmol) then
+                  x0 = mol_com_coords(i)
+               else
+                  x0 = sysc(isys)%attype_coordinates(w%geometry_atomtype,i)
+               end if
 
-            if (icolsort(w%geometry_sortcid) == ic_x) then
-               rval(ii) = x0(1)
-            elseif (icolsort(w%geometry_sortcid) == ic_y) then
-               rval(ii) = x0(2)
-            elseif (icolsort(w%geometry_sortcid) == ic_z) then
-               rval(ii) = x0(3)
+               if (icolsort(w%geometry_sortcid) == ic_x) then
+                  rval(ii) = x0(1)
+               elseif (icolsort(w%geometry_sortcid) == ic_y) then
+                  rval(ii) = x0(2)
+               elseif (icolsort(w%geometry_sortcid) == ic_z) then
+                  rval(ii) = x0(3)
+               end if
             end if
          end do
          call mergesort(rval,iperm,1,ntype)
