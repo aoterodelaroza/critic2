@@ -1157,7 +1157,7 @@ contains
              icolsort(icol) = ic_nat
 
              icol = icol + 1
-             str2 = "Dscrt" // c_null_char
+             str2 = "Discrete" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_NoSort,0.0_c_float,icol)
              icolsort(icol) = ic_disc
 
@@ -1286,7 +1286,7 @@ contains
                    do j = 1, 3
                       icol = icol + 1
                       if (igTableSetColumnIndex(icol)) &
-                         call iw_text(string(x0(j),'f',dec+4,dec,ioj_center))
+                         call iw_text(string(x0(j),'f',dec+4,dec,ioj_right))
                    end do
 
                    ! Euler angles (ZYZ, degrees) of the standard orientation
@@ -1294,7 +1294,7 @@ contains
                    do j = 1, 3
                       icol = icol + 1
                       if (igTableSetColumnIndex(icol)) &
-                         call iw_text(string(x0(j),'f',6,2,ioj_center))
+                         call iw_text(string(x0(j),'f',6,2,ioj_right))
                    end do
                 end do
              end do
