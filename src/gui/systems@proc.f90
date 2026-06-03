@@ -1566,14 +1566,18 @@ contains
 
   ! For the molecule identifier id corresponding to the given molecule
   ! coordinate type, rigidly translate the fragment so that its center
-  ! of mass is at position x.
-  module subroutine set_molecule_position(sysc,type,id,x)
+  ! of mass is at position x. If norebond, do an in-place shift without
+  ! recomputing bonds (for interactive dragging); the lighter buildlists
+  ! event is posted so the scene refreshes without resetting fields or
+  ! styles. A final norebond=.false. call rebonds and cleans up.
+  module subroutine set_molecule_position(sysc,type,id,x,norebond)
     use global, only: iunit_bohr, iunit_fractional
     use param, only: bohrtoa
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: type
     integer, intent(in) :: id
     real*8, intent(in) :: x(3)
+    logical, intent(in) :: norebond
 
     integer :: isys
     real*8 :: x_(3)
@@ -1585,22 +1589,27 @@ contains
     ! move the molecule (units interpreted in the internal frame, as for move_atom)
     x_ = x
     if (type == atlisttype_ncel_frac) then
-       call sys(isys)%c%move_molecule(id,x_,iunit_fractional,.false.)
+       call sys(isys)%c%move_molecule(id,x_,iunit_fractional,.false.,norebond)
     elseif (type == atlisttype_ncel_bohr) then
        if (sys(isys)%c%ismolecule) &
           x_ = x - sys(isys)%c%molx0
-       call sys(isys)%c%move_molecule(id,x_,iunit_bohr,.false.)
+       call sys(isys)%c%move_molecule(id,x_,iunit_bohr,.false.,norebond)
     elseif (type == atlisttype_ncel_ang) then
        if (sys(isys)%c%ismolecule) then
           x_ = x/bohrtoa - sys(isys)%c%molx0
        else
           x_ = x/bohrtoa
        end if
-       call sys(isys)%c%move_molecule(id,x_,iunit_bohr,.false.)
+       call sys(isys)%c%move_molecule(id,x_,iunit_bohr,.false.,norebond)
     end if
 
-    ! the geometry has changed
-    call sysc%post_event(lastchange_geometry)
+    ! during dragging (norebond), only the draw lists need rebuilding; on the
+    ! final move, signal a full geometry change (rebonded, reset fields, etc.)
+    if (norebond) then
+       call sysc%post_event(lastchange_buildlists)
+    else
+       call sysc%post_event(lastchange_geometry)
+    end if
 
   end subroutine set_molecule_position
 

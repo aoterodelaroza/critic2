@@ -330,7 +330,7 @@ contains
   !> label. flags = combination of ImGuiSliderFlags_* flags. Version
   !> for real*8 type.
   module function iw_dragfloat_real8(str,x1,x2,x3,x4,speed,min,max,scale,decimal,&
-     sameline,notlive,flags)
+     sameline,notlive,committed,flags)
     use interfaces_cimgui
     use gui_main, only: g
     use tools_io, only: string
@@ -343,6 +343,7 @@ contains
     integer, intent(in), optional :: decimal
     logical, intent(in), optional :: sameline
     logical, intent(in), optional :: notlive
+    logical, intent(out), optional :: committed
     integer(c_int), intent(in), optional :: flags
     logical :: iw_dragfloat_real8
 
@@ -417,10 +418,14 @@ contains
     end if
     call igPopItemWidth()
 
+    if (present(committed)) committed = .false.
     if (notlive_) then
        if (iw_dragfloat_real8 .and. igIsItemActive()) &
           iw_dragfloat_real8 = igIsMouseDragging(ImGuiMouseButton_Left,-1._c_float)
-       ! also commit when the user leaves the field by Enter, Tab, or click-away
+       ! also commit when the user leaves the field by Enter, Tab, or click-away;
+       ! report that final commit separately so callers can distinguish it from a
+       ! drag still in progress
+       if (present(committed)) committed = logical(igIsItemDeactivatedAfterEdit())
        iw_dragfloat_real8 = iw_dragfloat_real8 .or. logical(igIsItemDeactivatedAfterEdit())
     end if
 

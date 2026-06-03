@@ -1296,17 +1296,28 @@ contains
                    x0 = mol_com_coords(i)
                    xold = x0
                    ch = .false.
+                   lch = .false.
                    do j = 1, 3
                       icol = icol + 1
                       if (igTableSetColumnIndex(icol)) then
                          ch = ch .or. iw_dragfloat_real8("##com" // string(isys) // "_" // string(i) // "_" // string(j),&
-                            x1=x0(j),speed=0.001d0,decimal=dec,notlive=.true.)
+                            x1=x0(j),speed=0.001d0,decimal=dec,notlive=.true.,committed=ok)
+                         lch = lch .or. ok
                       end if
                    end do
-                   if (ch .and. any(abs(x0-xold) > epsmoved)) then
+                   ! while dragging, move in place without rebonding; on release
+                   ! (commit), finalize with a full rebond even if the value is
+                   ! unchanged this frame, so the bonds are recomputed once
+                   if (lch) then
                       iaction = iaction_set_molecule_position
                       iaction_i1 = i
                       iaction_x = x0
+                      iaction_l = .false.
+                   elseif (ch .and. any(abs(x0-xold) > epsmoved)) then
+                      iaction = iaction_set_molecule_position
+                      iaction_i1 = i
+                      iaction_x = x0
+                      iaction_l = .true.
                    end if
 
                    ! Euler angles (ZYZ, degrees) of the standard orientation
@@ -1461,7 +1472,7 @@ contains
     elseif (iaction == iaction_swap_mol_ids) then
        call sysc(isys)%swap_molecules(iaction_i1,iaction_i2)
     elseif (iaction == iaction_set_molecule_position) then
-       call sysc(isys)%set_molecule_position(w%geometry_moltype,iaction_i1,iaction_x)
+       call sysc(isys)%set_molecule_position(w%geometry_moltype,iaction_i1,iaction_x,iaction_l)
     elseif (iaction == iaction_change_cell) then
        call sysc(isys)%move_cell(iaction_x6(1:3),iaction_x6(4:6),iaction_l)
     elseif (iaction == iaction_transform_cell) then

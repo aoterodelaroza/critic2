@@ -812,12 +812,13 @@ module crystalmod
        logical, intent(in) :: dorelative
        type(thread_info), intent(in), optional :: ti
      end subroutine move_atom
-     module subroutine move_molecule(c,imol,x,iunit_l,dorelative,ti)
+     module subroutine move_molecule(c,imol,x,iunit_l,dorelative,norebond,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: imol
        real*8, intent(in) :: x(3)
        integer, intent(in) :: iunit_l
        logical, intent(in) :: dorelative
+       logical, intent(in), optional :: norebond
        type(thread_info), intent(in), optional :: ti
      end subroutine move_molecule
      module subroutine move_cell(c,iaxis,x,iunit_l,dorelative,dofraction,ti)

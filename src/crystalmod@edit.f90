@@ -1253,7 +1253,10 @@ contains
   !> dorelative, x is interpreted as a displacement of the center of
   !> mass relative to its current position. All atoms in the fragment
   !> are translated by the same vector; symmetry is not preserved (P1).
-  module subroutine move_molecule(c,imol,x,iunit_l,dorelative,ti)
+  !> If norebond, do not rebuild the structure (no rebonding): shift the
+  !> cell atoms and the cached fragment in place, leaving the neighbor
+  !> star and the molecular decomposition untouched.
+  module subroutine move_molecule(c,imol,x,iunit_l,dorelative,norebond,ti)
     use crystalseedmod, only: crystalseed
     use global, only: iunit_ang, iunit_bohr
     use param, only: bohrtoa
@@ -1262,18 +1265,18 @@ contains
     real*8, intent(in) :: x(3)
     integer, intent(in) :: iunit_l
     logical, intent(in) :: dorelative
+    logical, intent(in), optional :: norebond
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
-    real*8 :: xx(3), dx(3)
-    integer :: k
+    real*8 :: xx(3), dx(3), dxc(3)
+    integer :: j, k
+    logical :: norebond_
 
     ! consistency checks
     if (imol < 1 .or. imol > c%nmol .or. .not.allocated(c%idatcelmol)) return
-
-    ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom order)
-    call c%makeseed(seed,copysym=.false.)
-    if (seed%nat /= c%ncel) return
+    norebond_ = .false.
+    if (present(norebond)) norebond_ = norebond
 
     ! interpret units: target/displacement in fractional coordinates
     if (iunit_l == iunit_ang) then
@@ -1290,6 +1293,29 @@ contains
     else
        dx = xx - c%c2x(c%mol(imol)%cmass())
     end if
+
+    if (norebond_) then
+       ! in-place rigid shift: move the cell atoms and the cached fragment, but
+       ! leave c%nstar, the molecular decomposition, and c%at untouched (no
+       ! rebonding). c%at and c%nstar are reconciled by the next full move.
+       dxc = c%x2c(dx)
+       do k = 1, c%ncel
+          if (c%idatcelmol(1,k) /= imol) cycle
+          c%atcel(k)%x = c%atcel(k)%x + dx
+          c%atcel(k)%r = c%atcel(k)%r + dxc
+       end do
+       do j = 1, c%mol(imol)%nat
+          c%mol(imol)%at(j)%x = c%mol(imol)%at(j)%x + dx
+          c%mol(imol)%at(j)%r = c%mol(imol)%at(j)%r + dxc
+       end do
+       if (c%mol(imol)%axes_computed) &
+          c%mol(imol)%xcm = c%mol(imol)%xcm + dxc
+       return
+    end if
+
+    ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom order)
+    call c%makeseed(seed,copysym=.false.)
+    if (seed%nat /= c%ncel) return
 
     ! translate the atoms belonging to this fragment
     do k = 1, c%ncel
