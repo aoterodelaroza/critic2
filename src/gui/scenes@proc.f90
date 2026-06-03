@@ -214,6 +214,12 @@ contains
     allocate(s%iord(20))
     s%iord = 0
 
+    ! transient representations (none on init)
+    if (allocated(s%reptrans)) deallocate(s%reptrans)
+    s%nreptrans = 0
+    s%reptrans_set = .false.
+    s%reptrans_tag = -1
+
     ! atoms
     if (sys(isys)%c%ncel <= crsmall) then
        call s%add_representation(reptype_atoms,repflavor_atoms_ballandstick)
@@ -277,6 +283,10 @@ contains
     if (allocated(s%rep)) deallocate(s%rep)
     if (allocated(s%icount)) deallocate(s%icount)
     if (allocated(s%iord)) deallocate(s%iord)
+    if (allocated(s%reptrans)) deallocate(s%reptrans)
+    s%nreptrans = 0
+    s%reptrans_set = .false.
+    s%reptrans_tag = -1
     s%nrep = 0
     s%iqpt_selected = 0
     s%ifreq_selected = 0
@@ -475,6 +485,12 @@ contains
           end if
           call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
        end if
+    end do
+
+    ! transient representations (e.g. hover hints): built last, after the scene
+    ! bounding box is known, so they never perturb the camera or scene size
+    do i = 1, s%nreptrans
+       call s%reptrans(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
     end do
 
     ! flag whether any object is anchored to the window borders (the view
@@ -1643,6 +1659,105 @@ contains
     s%forcebuildlists = .true.
 
   end subroutine add_representation
+
+  !> Add a transient representation (type itype, flavor) to the scene and
+  !> return its id so the caller can configure it. Transient
+  !> representations live in a separate list from the user representations:
+  !> they are drawn in the scene but never appear in the object menu and
+  !> are not user-controllable. They are cleared automatically each frame
+  !> unless re-armed (see scene_clear_transient_representations and the
+  !> per-frame logic in the main loop). A throwaway name counter is used so
+  !> the scene's user-representation counters are untouched.
+  module function scene_add_transient_representation(s,itype,flavor) result(id)
+    use representations, only: repflavor_NUM
+    use systems, only: sysc, lastchange_render
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: itype
+    integer, intent(in) :: flavor
+    integer :: id
+
+    type(representation), allocatable :: aux(:)
+    integer :: dummycount(0:repflavor_NUM)
+
+    ! grow the transient list
+    s%nreptrans = s%nreptrans + 1
+    if (.not.allocated(s%reptrans)) allocate(s%reptrans(4))
+    if (s%nreptrans > size(s%reptrans,1)) then
+       allocate(aux(2*s%nreptrans))
+       aux(1:size(s%reptrans,1)) = s%reptrans
+       call move_alloc(aux,s%reptrans)
+    end if
+    id = s%nreptrans
+
+    ! initialize the representation (throwaway counter, not s%icount)
+    dummycount = 0
+    call s%reptrans(id)%init(s%id,id,itype,s%style,flavor,dummycount)
+
+    ! trigger a rebuild + re-render and keep the transient set alive this frame
+    s%forcebuildlists = .true.
+    s%reptrans_set = .true.
+    if (s%id > 0) call sysc(s%id)%post_event(lastchange_render)
+
+  end function scene_add_transient_representation
+
+  !> Clear all transient representations from the scene. Triggers a rebuild
+  !> of the draw lists (and a re-render) only when there was something to
+  !> remove, so it is cheap to call every frame.
+  module subroutine scene_clear_transient_representations(s)
+    use systems, only: sysc, lastchange_render
+    class(scene), intent(inout), target :: s
+
+    integer :: i
+
+    if (s%nreptrans <= 0) return
+    do i = 1, s%nreptrans
+       call s%reptrans(i)%end()
+    end do
+    s%nreptrans = 0
+    s%reptrans_tag = -1
+    s%forcebuildlists = .true.
+    if (s%id > 0) call sysc(s%id)%post_event(lastchange_render)
+
+  end subroutine scene_clear_transient_representations
+
+  !> Show a transient set of standard-orientation axes at the Cartesian
+  !> (bohr) point xcom, oriented by the rotation matrix rot (columns are
+  !> the axis directions), with each axis of length axlen. tag identifies
+  !> the content (e.g. the molecule index) so that re-hovering the same
+  !> item just keeps the axes alive without rebuilding the draw lists.
+  module subroutine scene_show_transient_axes(s,tag,xcom,rot,axlen)
+    use representations, only: reptype_axes, repflavor_axes
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: tag
+    real*8, intent(in) :: xcom(3)
+    real*8, intent(in) :: rot(3,3)
+    real*8, intent(in) :: axlen
+
+    integer :: id
+
+    ! same content already shown: just keep it alive (no rebuild)
+    if (s%reptrans_tag == tag .and. s%nreptrans > 0) then
+       s%reptrans_set = .true.
+       return
+    end if
+
+    ! (re)build the transient axes
+    call s%clear_transient_representations()
+    id = s%add_transient_representation(reptype_axes,repflavor_axes)
+    if (id <= 0) return
+    if (.not.s%reptrans(id)%isinit) return
+
+    s%reptrans(id)%axes_placement = 0 ! drawn in world space (not a window gizmo)
+    s%reptrans(id)%axes_coordtype = 2 ! origin in cartesian (bohr)
+    s%reptrans(id)%origin = xcom
+    s%reptrans(id)%axes_kind = 0 ! cartesian base directions, reoriented by axes_rot
+    s%reptrans(id)%axes_rot = rot ! orient along the molecule's principal axes
+    s%reptrans(id)%axes_showlabels = .false.
+    s%reptrans(id)%axes_scale = axlen / max(s%reptrans(id)%axes_length,1d-10)
+    s%reptrans(id)%axes_scale_auto = .false.
+    s%reptrans_tag = tag
+
+  end subroutine scene_show_transient_axes
 
   !xx! private procedures: low-level draws
 

@@ -249,6 +249,7 @@ contains
 
        ! set the transient flags to false
        sysc(1:nsys)%highlight_transient_set = .false.
+       sysc(1:nsys)%sc%reptrans_set = .false.
 
        ! show main menu
        call show_main_menu()
@@ -324,10 +325,12 @@ contains
           force_run_commands = 0
        end if
 
-       ! if the transient flag is false, clear the transient highlight
+       ! if the transient flag is false, clear the transient highlight and representations
        do i = 1, nsys
           if (.not.sysc(i)%highlight_transient_set) &
              call sysc(i)%highlight_clear(.true.)
+          if (sysc(i)%sc%isinit /= 0 .and. .not.sysc(i)%sc%reptrans_set) &
+             call sysc(i)%sc%clear_transient_representations()
        end do
 
        firstpass = .false.

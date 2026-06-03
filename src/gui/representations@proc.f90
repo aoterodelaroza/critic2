@@ -231,6 +231,7 @@ contains
     ! cartesian axes
     if (itype == 0 .or. itype == 6) then
        r%axes_kind = 0 ! cartesian
+       r%axes_rot = eye ! no extra orientation by default
        r%axes_placement = 1
        if (sys(isys)%c%ismolecule) then
           r%axes_coordtype = 1 ! cartesian (angstrom)
@@ -864,6 +865,8 @@ contains
              x0 = 0d0
              x0(k) = 1d0
           end if
+          ! reorient the axis directions (identity unless a frame was requested)
+          x0 = matmul(r%axes_rot,x0)
 
           ! shaft (round, lit cylinder)
           x1 = uoriginc

@@ -80,6 +80,7 @@ contains
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, ldum, ok
     real*8 :: x0(3), x6(6), xold(3), x6old(6), res
+    real*8 :: stdrot(3,3), stdcom(3), stdext, stdaxlen ! transient std-orientation axes
     type(ImVec4) :: col4
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -1322,6 +1323,21 @@ contains
     if (ihighlight > 0) then
        call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),table_hltype,&
           reshape(ColorHighlightScene,(/4,1/)))
+    end if
+
+    ! hovering a molecule row: show its standard-orientation axes at the COM
+    if (ihighlight > 0 .and. table_hltype == atlisttype_nmol) then
+       if (sysc(isys)%sc%isinit /= 0) then
+          call sys(isys)%c%mol(ihighlight)%standard_axes(m_std=stdrot,xcm=stdcom)
+          ! axis length scaled to the molecule's size (floor for tiny ones)
+          stdext = 0d0
+          do jm = 1, sys(isys)%c%mol(ihighlight)%nat
+             stdext = max(stdext,norm2(sys(isys)%c%mol(ihighlight)%at(jm)%r - stdcom))
+          end do
+          stdaxlen = max(0.5d0 * stdext, 1.5d0)
+          stdcom = stdcom + sys(isys)%c%molx0
+          call sysc(isys)%sc%show_transient_axes(ihighlight,stdcom,stdrot,stdaxlen)
+       end if
     end if
 
     ! process clicked: write the selection directly to the system

@@ -89,6 +89,11 @@ module scenes
      integer :: nrep = 0 ! number of representation
      type(representation), allocatable :: rep(:) ! representations
      integer, allocatable :: icount(:) ! last rep counter, for unique names
+     ! transient representations: set per-frame by other windows, drawn, not user controllable, auto-cleared each frame
+     integer :: nreptrans = 0 ! number of transient representations
+     type(representation), allocatable :: reptrans(:) ! transient representations
+     logical :: reptrans_set = .false. ! re-armed each frame a producer wants them kept
+     integer :: reptrans_tag = -1 ! content id for dedup (e.g. the hovered molecule)
      ! measure atom sets
      integer :: nmsel
      integer :: msel(5,4) ! 1 is atom cell ID, 2:4 is lattice vector, 5 is sphere ID
@@ -122,6 +127,9 @@ module scenes
      procedure :: align_view_axis
      procedure :: select_atom
      procedure :: add_representation
+     procedure :: add_transient_representation => scene_add_transient_representation
+     procedure :: clear_transient_representations => scene_clear_transient_representations
+     procedure :: show_transient_axes => scene_show_transient_axes
   end type scene
   public :: scene
 
@@ -202,6 +210,22 @@ module scenes
        integer, intent(in) :: itype
        integer, intent(in) :: flavor
      end subroutine add_representation
+     module function scene_add_transient_representation(s,itype,flavor) result(id)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: itype
+       integer, intent(in) :: flavor
+       integer :: id
+     end function scene_add_transient_representation
+     module subroutine scene_clear_transient_representations(s)
+       class(scene), intent(inout), target :: s
+     end subroutine scene_clear_transient_representations
+     module subroutine scene_show_transient_axes(s,tag,xcom,rot,axlen)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: tag
+       real*8, intent(in) :: xcom(3)
+       real*8, intent(in) :: rot(3,3)
+       real*8, intent(in) :: axlen
+     end subroutine scene_show_transient_axes
   end interface
 
 end module scenes

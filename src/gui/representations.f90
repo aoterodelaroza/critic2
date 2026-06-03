@@ -20,7 +20,7 @@ module representations
   use iso_c_binding
   use types, only: neighstar
   use shapes, only: dl_sphere, dl_cylinder, dl_string, scene_objects
-  use param, only: bohrtoa
+  use param, only: bohrtoa, eye
   implicit none
 
   private
@@ -201,6 +201,7 @@ module representations
      logical :: uc_innerstipple ! stippled lines for the inner lines
      ! cartesian/crystallographic axes
      integer(c_int) :: axes_kind ! 0 = cartesian, 1 = crystallographic
+     real*8 :: axes_rot(3,3) = eye ! orientation applied to the axis directions (columns are the axes); identity by default
      integer(c_int) :: axes_placement ! 0 = at the origin, 1 = anchored at a fixed window position
      integer(c_int) :: axes_coordtype ! origin coordinates: 0 = crystallographic, 1 = cartesian (angstrom), 2 = cartesian (bohr)
      real*8 :: axes_winpos(2) ! window position (fractions from left and bottom) when window-anchored
