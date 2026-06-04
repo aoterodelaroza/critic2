@@ -44,7 +44,8 @@ module fragmentmod
      real*8 :: xcm(3) = 0d0 !< center of mass (Cartesian)
      real*8 :: inertia(3) = 0d0 !< principal moments of inertia (ascending)
      real*8 :: m_std(3,3) = 0d0 !< standard orientation (det=+1); columns are the principal axes in Cartesian coordinates; canonical coords: matmul(transpose(m_std),at(k)%r-xcm)
-     real*8 :: q_std(4) = (/1d0,0d0,0d0,0d0/) !< unit quaternion (w,x,y,z) of the standard orientation = mat2quat(m_std)
+     real*8 :: quat_std(4) = (/1d0,0d0,0d0,0d0/) !< unit quaternion (w,x,y,z) of the standard orientation = mat2quat(m_std)
+     real*8 :: euler_std(3) = 0d0 !< ZYZ Euler angles (alpha,beta,gamma, radians) of the standard orientation = mat2euler(m_std)
    contains
      procedure :: init => fragment_init ! initialize a fragment
      procedure :: build => fragment_build ! build a fragment from atomic data

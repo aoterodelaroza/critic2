@@ -208,7 +208,6 @@ contains
   !> angles euler = (alpha,beta,gamma) in radians of the same orientation
   !> relative to the Cartesian axes.
   module subroutine fragment_standard_axes(fr,m_std,inertia,xcm,isatom,islinear,isplanar,quat,euler)
-    use tools_math, only: mat2euler
     class(fragment), intent(inout) :: fr
     real*8, intent(out), optional :: m_std(3,3)
     real*8, intent(out), optional :: inertia(3)
@@ -227,8 +226,8 @@ contains
     if (present(isatom)) isatom = fr%isatom
     if (present(islinear)) islinear = fr%islinear
     if (present(isplanar)) isplanar = fr%isplanar
-    if (present(quat)) quat = fr%q_std
-    if (present(euler)) euler = mat2euler(fr%m_std)
+    if (present(quat)) quat = fr%quat_std
+    if (present(euler)) euler = fr%euler_std
 
   end subroutine fragment_standard_axes
 
@@ -251,7 +250,7 @@ contains
   !> continuous symmetries (single atom, linear molecule) the unconstrained
   !> axes are physically arbitrary and left as returned by the eigensolver.
   module subroutine fragment_compute_std(fr)
-    use tools_math, only: eigsym, cross, mat2quat
+    use tools_math, only: eigsym, cross, mat2quat, mat2euler
     use param, only: atmass, eye
     class(fragment), intent(inout) :: fr
 
@@ -273,7 +272,8 @@ contains
     fr%inertia = 0d0
     fr%xcm = 0d0
     fr%m_std = eye
-    fr%q_std = (/1d0,0d0,0d0,0d0/)
+    fr%quat_std = (/1d0,0d0,0d0,0d0/)
+    fr%euler_std = 0d0
 
     ! empty fragment: nothing to do
     if (fr%nat == 0) return
@@ -357,7 +357,8 @@ contains
     ax(:,3) = cross(ax(:,1),ax(:,2))
 
     fr%m_std = ax
-    fr%q_std = mat2quat(fr%m_std)
+    fr%quat_std = mat2quat(fr%m_std)
+    fr%euler_std = mat2euler(fr%m_std)
     deallocate(m,pcart)
 
   contains
