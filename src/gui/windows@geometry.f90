@@ -1391,6 +1391,13 @@ contains
                          w%geometry_euler_dragmol = i
                          w%geometry_euler_drag = x0
                       end if
+                   elseif (.not.sys(isys)%c%mol(i)%discrete) then
+                      ! non-discrete fragment: the standard orientation (and its
+                      ! Euler angles) are not meaningful, so do not show them
+                      do j = 1, 3
+                         icol = icol + 1
+                         if (igTableSetColumnIndex(icol)) call iw_text("--")
+                      end do
                    else
                       do j = 1, 3
                          icol = icol + 1
