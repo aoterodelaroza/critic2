@@ -241,20 +241,51 @@ contains
     end if
 
   contains
-    recursive subroutine explore_node(i,nmol,lveci)
-      integer, intent(in) :: i
+    subroutine explore_node(istart,nmol,lvecstart)
+      integer, intent(in) :: istart
       integer, intent(in) :: nmol
-      integer, intent(in) :: lveci(3)
+      integer, intent(in) :: lvecstart(3)
 
-      integer :: k, newid, lnew(3), m
+      integer :: k, newid, lnew(3), m, i, sp
+      integer :: lveci(3)
       logical :: found
+      ! explicit DFS stack (replaces recursion to avoid stack overflow
+      ! in large molecules); stores node, neighbor cursor, lattice
+      ! vector
+      integer, allocatable :: stk_i(:), stk_k(:), stk_lvec(:,:)
 
-      c%idatcelmol(1,i) = nmol
-      lvec(:,i) = lveci
-      do k = 1, c%nstar(i)%ncon
+      allocate(stk_i(64),stk_k(64),stk_lvec(3,64))
+      sp = 1
+      stk_i(1) = istart
+      stk_k(1) = 0
+      stk_lvec(:,1) = lvecstart
+      c%idatcelmol(1,istart) = nmol
+      lvec(:,istart) = lvecstart
+
+      do while (sp > 0)
+         i = stk_i(sp)
+         lveci = stk_lvec(:,sp)
+         stk_k(sp) = stk_k(sp) + 1
+         k = stk_k(sp)
+         if (k > c%nstar(i)%ncon) then
+            sp = sp - 1    ! exhausted this node, pop
+            cycle
+         end if
+
          newid = c%nstar(i)%idcon(k)
          if (c%idatcelmol(1,newid) == 0) then
-            call explore_node(newid,nmol,lveci+c%nstar(i)%lcon(:,k))
+            ! discover newid, then descend into it (push)
+            c%idatcelmol(1,newid) = nmol
+            lvec(:,newid) = lveci + c%nstar(i)%lcon(:,k)
+            sp = sp + 1
+            if (sp > size(stk_i,1)) then
+               call realloc(stk_i,2*sp)
+               call realloc(stk_k,2*sp)
+               call realloc(stk_lvec,3,2*sp)
+            end if
+            stk_i(sp) = newid
+            stk_k(sp) = 0
+            stk_lvec(:,sp) = lvec(:,newid)
          else
             lnew = abs(lveci + c%nstar(i)%lcon(:,k) - lvec(:,newid))
             if (any(lnew /= 0)) then
@@ -275,6 +306,7 @@ contains
          end if
       end do
 
+      deallocate(stk_i,stk_k,stk_lvec)
     end subroutine explore_node
 
   end subroutine fill_molecular_fragments

@@ -488,6 +488,7 @@ contains
   !> (the whole molecule, with lattice translations applied) and cached.
   module function fragment_pgsymbol(fr) result(symbol)
     use molsymmod, only: calc_point_group
+    use global, only: molsmall
     class(fragment), intent(inout) :: fr
     character(len=:), allocatable :: symbol
 
@@ -497,12 +498,17 @@ contains
     character(len=:), allocatable :: errmsg
 
     if (.not.fr%pg_computed) then
-       allocate(x(3,fr%nat),z(fr%nat))
-       do i = 1, fr%nat
-          x(:,i) = fr%at(i)%r
-          z(i) = fr%spc(fr%at(i)%is)%z
-       end do
-       call calc_point_group(fr%nat,x,z,fr%pg,errmsg)
+       if (fr%nat <= molsmall) then
+          allocate(x(3,fr%nat),z(fr%nat))
+          do i = 1, fr%nat
+             x(:,i) = fr%at(i)%r
+             z(i) = fr%spc(fr%at(i)%is)%z
+          end do
+          call calc_point_group(fr%nat,x,z,fr%pg,errmsg)
+       else
+          ! fragment too large: do not calculate the point group
+          call fr%pg%clear()
+       end if
        fr%pg_computed = .true.
     end if
 
