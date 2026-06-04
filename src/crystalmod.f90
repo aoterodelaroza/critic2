@@ -313,6 +313,7 @@ module crystalmod
      procedure :: change_atom_species !< Change the species of atoms
      procedure :: move_atom !< Move an atom
      procedure :: move_molecule !< Move a molecular fragment (rigid translation)
+     procedure :: rotate_molecule !< Rotate a molecular fragment (rigid rotation about its COM)
      procedure :: move_cell !< Move the unit cell
      procedure :: move_cell_all !< Move the unit cell, specifying all lengths and angles
      procedure :: add_atom !< Add an atom
@@ -821,6 +822,13 @@ module crystalmod
        logical, intent(in), optional :: norebond
        type(thread_info), intent(in), optional :: ti
      end subroutine move_molecule
+     module subroutine rotate_molecule(c,imol,euler,norebond,ti)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: imol
+       real*8, intent(in) :: euler(3)
+       logical, intent(in), optional :: norebond
+       type(thread_info), intent(in), optional :: ti
+     end subroutine rotate_molecule
      module subroutine move_cell(c,iaxis,x,iunit_l,dorelative,dofraction,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iaxis

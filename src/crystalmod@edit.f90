@@ -1328,6 +1328,81 @@ contains
 
   end subroutine move_molecule
 
+  !> Rigidly rotate the molecular fragment imol about its center of mass
+  !> so that the Euler angles (ZYZ, radians) of its standard orientation
+  !> become euler. The rotation uses the fragment atoms (whole molecule,
+  !> with lattice translations applied), not the cell atoms, so it stays
+  !> rigid even when the molecule is split across cell boundaries. Only
+  !> applies to discrete fragments. If norebond, shift the cell atoms and
+  !> the cached fragment in place without recomputing bonds (for
+  !> interactive dragging); a final norebond=.false. call rebonds and
+  !> cleans up. Symmetry is not preserved (P1).
+  module subroutine rotate_molecule(c,imol,euler,norebond,ti)
+    use crystalseedmod, only: crystalseed
+    use tools_math, only: euler2mat, mat2euler, mat2quat
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: imol
+    real*8, intent(in) :: euler(3)
+    logical, intent(in), optional :: norebond
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: seed
+    real*8 :: rnew(3), rmat(3,3), rrot(3,3), xcm(3), roff(3)
+    integer :: j, k
+    logical :: norebond_
+
+    ! consistency checks
+    if (imol < 1 .or. imol > c%nmol .or. .not.allocated(c%idatcelmol)) return
+    if (.not.c%mol(imol)%discrete) return
+    norebond_ = .false.
+    if (present(norebond)) norebond_ = norebond
+
+    ! make sure the standard frame is available
+    if (.not.c%mol(imol)%axes_computed) call c%mol(imol)%compute_std()
+
+    ! rigid rotation that brings the current standard frame to the target
+    rmat = euler2mat(euler)
+    rrot = matmul(rmat,transpose(c%mol(imol)%m_std))
+    xcm = c%mol(imol)%xcm
+
+    if (norebond_) then
+       ! in-place rigid rotation: rotate the cached fragment (whole molecule) and
+       ! move the cell atoms keeping their image offset (so the cached bonds still
+       ! render correctly), leaving c%nstar, the molecular decomposition, and c%at
+       ! untouched (no rebonding). These are reconciled by the next full move.
+       do j = 1, c%mol(imol)%nat
+          k = c%mol(imol)%at(j)%cidx
+          roff = c%atcel(k)%r - c%mol(imol)%at(j)%r
+          rnew = xcm + matmul(rrot,c%mol(imol)%at(j)%r - xcm)
+          c%mol(imol)%at(j)%r = rnew
+          c%mol(imol)%at(j)%x = c%c2x(rnew)
+          c%atcel(k)%r = rnew + roff
+          c%atcel(k)%x = c%c2x(c%atcel(k)%r)
+       end do
+       ! the rotation about the COM leaves the COM and inertia unchanged; update
+       ! the cached standard frame directly (= the target orientation)
+       c%mol(imol)%m_std = rmat
+       c%mol(imol)%quat_std = mat2quat(rmat)
+       c%mol(imol)%euler_std = mat2euler(rmat)
+       return
+    end if
+
+    ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom order)
+    call c%makeseed(seed,copysym=.false.)
+    if (seed%nat /= c%ncel) return
+
+    ! rotate the fragment atoms (whole molecule) and write them to the seed
+    do j = 1, c%mol(imol)%nat
+       k = c%mol(imol)%at(j)%cidx
+       rnew = xcm + matmul(rrot,c%mol(imol)%at(j)%r - xcm)
+       seed%x(:,k) = c%c2x(rnew)
+    end do
+
+    ! build the new crystal
+    call c%struct_new(seed,crashfail=.true.,ti=ti)
+
+  end subroutine rotate_molecule
+
   !> Modify the unit cell by changing the parameter given by iaxis:
   !> 1=a, 2=b, 3=c, -1=alpha, -2=beta, -3=gamma, 0=volume. The
   !> parameter is changed to x in units of iunit_l. If dorelative, the

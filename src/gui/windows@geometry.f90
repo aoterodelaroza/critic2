@@ -108,6 +108,7 @@ contains
     integer, parameter :: iaction_transform_matrix = 12
     integer, parameter :: iaction_swap_mol_ids = 13
     integer, parameter :: iaction_set_molecule_position = 14
+    integer, parameter :: iaction_set_molecule_rotation = 15
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_none = 0
@@ -1320,13 +1321,51 @@ contains
                       iaction_l = .true.
                    end if
 
-                   ! Euler angles (ZYZ, degrees) of the standard orientation
+                   ! Euler angles (ZYZ, degrees) of the standard orientation;
+                   ! editable (rigid rotation) for discrete molecules with >1 atom
                    x0 = mol_euler_angles(i)
-                   do j = 1, 3
-                      icol = icol + 1
-                      if (igTableSetColumnIndex(icol)) &
-                         call iw_text(string(x0(j),'f',6,2,ioj_right))
-                   end do
+                   if (sys(isys)%c%mol(i)%discrete .and. sys(isys)%c%mol(i)%nat > 1) then
+                      ! while a drag on this molecule is in progress, use the
+                      ! continuous (un-canonicalized) buffer instead of the
+                      ! canonical mat2euler value, so the rotation is smooth as
+                      ! beta crosses the gimbal-lock pole at zero
+                      if (w%geometry_euler_dragmol == i) x0 = w%geometry_euler_drag
+                      xold = x0
+                      ch = .false.
+                      lch = .false.
+                      do j = 1, 3
+                         icol = icol + 1
+                         if (igTableSetColumnIndex(icol)) then
+                            ch = ch .or. iw_dragfloat_real8("##euler" // string(isys) // "_" // string(i) // "_" // string(j),&
+                               x1=x0(j),speed=0.5d0,decimal=2,notlive=.true.,committed=ok)
+                            lch = lch .or. ok
+                         end if
+                      end do
+                      ! while dragging, rotate in place without rebonding and keep
+                      ! the continuous buffer alive; on release (commit), finalize
+                      ! with a full rebond and clear the buffer so the display
+                      ! returns to the canonical Euler labelling
+                      if (lch) then
+                         iaction = iaction_set_molecule_rotation
+                         iaction_i1 = i
+                         iaction_x = x0 * (pi / 180d0)
+                         iaction_l = .false.
+                         w%geometry_euler_dragmol = 0
+                      elseif (ch .and. any(abs(x0-xold) > epsmoved)) then
+                         iaction = iaction_set_molecule_rotation
+                         iaction_i1 = i
+                         iaction_x = x0 * (pi / 180d0)
+                         iaction_l = .true.
+                         w%geometry_euler_dragmol = i
+                         w%geometry_euler_drag = x0
+                      end if
+                   else
+                      do j = 1, 3
+                         icol = icol + 1
+                         if (igTableSetColumnIndex(icol)) &
+                            call iw_text(string(x0(j),'f',6,2,ioj_right))
+                      end do
+                   end if
                 end do
              end do
              call igEndTable()
@@ -1473,6 +1512,8 @@ contains
        call sysc(isys)%swap_molecules(iaction_i1,iaction_i2)
     elseif (iaction == iaction_set_molecule_position) then
        call sysc(isys)%set_molecule_position(w%geometry_moltype,iaction_i1,iaction_x,iaction_l)
+    elseif (iaction == iaction_set_molecule_rotation) then
+       call sysc(isys)%set_molecule_rotation(iaction_i1,iaction_x,iaction_l)
     elseif (iaction == iaction_change_cell) then
        call sysc(isys)%move_cell(iaction_x6(1:3),iaction_x6(4:6),iaction_l)
     elseif (iaction == iaction_transform_cell) then

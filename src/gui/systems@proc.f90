@@ -1613,6 +1613,37 @@ contains
 
   end subroutine set_molecule_position
 
+  ! Rigidly rotate molecule id about its center of mass so that the
+  ! Euler angles (ZYZ, radians) of its standard orientation become euler.
+  ! If norebond, do an in-place rotation without recomputing bonds (for
+  ! interactive dragging); the lighter buildlists event is posted so the
+  ! scene refreshes without resetting fields or styles. A final
+  ! norebond=.false. call rebonds and cleans up.
+  module subroutine set_molecule_rotation(sysc,id,euler,norebond)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: id
+    real*8, intent(in) :: euler(3)
+    logical, intent(in) :: norebond
+
+    integer :: isys
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! rotate the molecule
+    call sys(isys)%c%rotate_molecule(id,euler,norebond)
+
+    ! during dragging (norebond), only the draw lists need rebuilding; on the
+    ! final rotation, signal a full geometry change (rebonded, reset fields, etc.)
+    if (norebond) then
+       call sysc%post_event(lastchange_buildlists)
+    else
+       call sysc%post_event(lastchange_geometry)
+    end if
+
+  end subroutine set_molecule_rotation
+
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic number and the name of the corresponding species.
   module subroutine set_atomic_number(sysc,type,id,iz,setatomnames)
