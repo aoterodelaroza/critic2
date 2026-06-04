@@ -58,7 +58,7 @@ contains
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
     logical :: doquit, dorestore, clicked, forcesort, ch, lch
-    integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:9)
+    integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:16)
     integer :: table_hltype
     logical(c_bool) :: is_selected
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
