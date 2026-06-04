@@ -1235,4 +1235,27 @@ contains
 
   end subroutine pointgroup_info
 
+  ! Calculate the symmetry operations and point group of the crystal
+  ! (treated as a molecule, using the complete atom list). This is a thin
+  ! wrapper around molsymmod's calc_point_group.
+  module subroutine calcmolsym(c,pg,errmsg)
+    use molsymmod, only: calc_point_group
+    class(crystal), intent(inout) :: c
+    type(point_group), intent(inout) :: pg
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i, nat
+    real*8, allocatable :: x(:,:)
+    integer, allocatable :: z(:)
+
+    nat = c%ncel
+    allocate(x(3,nat),z(nat))
+    do i = 1, nat
+       x(:,i) = c%atcel(i)%r
+       z(i) = c%spc(c%atcel(i)%is)%z
+    end do
+    call calc_point_group(nat,x,z,pg,errmsg)
+
+  end subroutine calcmolsym
+
 end submodule symmetry

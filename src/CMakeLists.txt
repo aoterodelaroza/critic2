@@ -3,7 +3,7 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   autocp@proc.f90 bader.f90 bader@proc.f90 bisect.f90 bisect@proc.f90
   cfftnd.f90 c_interface_module.f90 config.f90
   crystalmod.f90 crystalmod@complex.f90 crystalmod@edit.f90 crystalmod@env.f90
-  crystalmod@vibrations.F90 crystalmod@mols.f90 crystalmod@molsym.f90
+  crystalmod@vibrations.F90 crystalmod@mols.f90
   crystalmod@proc.f90 crystalmod@powderproc.F90 crystalmod@symmetry.f90
   crystalmod@write.f90 crystalseedmod.f90
   crystalseedmod@proc.f90 dftb_private.f90
@@ -16,7 +16,7 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   hashmod.f90 hashmod@proc.f90
   hirshfeld.f90 hirshfeld@proc.f90 integration.f90
   integration@proc.f90 keast.f90 meshmod.f90
-  meshmod@proc.f90 molcalc.f90 nci.f90 nci@proc.f90
+  meshmod@proc.f90 molcalc.f90 molsymmod.f90 molsymmod@proc.f90 nci.f90 nci@proc.f90
   pi_private.f90 pi_private@proc.f90 qe_private.f90
   qe_private@proc.f90 qtree_basic.f90
   qtree_basic@proc.f90 qtree.f90 qtree_gpaths.f90

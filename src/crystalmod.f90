@@ -22,8 +22,9 @@ module crystalmod
   use spglib, only: SpglibDataset
   use types, only: neqatom, celatom, neighstar, species, cp_type
   use fragmentmod, only: fragment
+  use molsymmod, only: point_group
   use param, only: maxzat0, mlen
-  use types, only: thread_info, molsymop
+  use types, only: thread_info
   implicit none
 
   private
@@ -127,20 +128,6 @@ module crystalmod
   public :: vibrations
 
   ! The molecular point group class.
-  type point_group
-     logical :: avail = .false. ! the point group has been calculated
-     logical :: isatom ! whether the system is a single atom
-     logical :: islinear ! whether the system is a linear molecule
-     logical :: isplanar ! whether the system is a planar molecule
-     real*8 :: xcm(3) ! center of mass
-     integer :: nop ! number of symmetry operations
-     type(molsymop), allocatable :: op(:) ! symmetry operations
-     character(len=:), allocatable :: symbol ! symbol for the point group
-   contains
-     procedure :: clear => point_group_clear
-     procedure :: report => point_group_report
-     procedure :: init_as_c1 => point_group_init_as_c1
-  end type point_group
 
   !> The crystal class. A crystal contains the structural information for the
   !> system, and it can be an actual crystal (%ismolecule=.false.) or a molecule
@@ -1256,16 +1243,6 @@ module crystalmod
        real*8, intent(in) :: temp
        type(crystalseed), intent(out) :: seed
      end subroutine vibrations_phonon_rattle
-     !xx! point_group type
-     module subroutine point_group_clear(p)
-       class(point_group), intent(inout) :: p
-     end subroutine point_group_clear
-     module subroutine point_group_report(p)
-       class(point_group), intent(inout) :: p
-     end subroutine point_group_report
-     module subroutine point_group_init_as_c1(p)
-       class(point_group), intent(inout) :: p
-     end subroutine point_group_init_as_c1
      !xx! xrpd_peaklist type
      module subroutine xrpd_peaklist_end(p)
        class(xrpd_peaklist), intent(inout) :: p

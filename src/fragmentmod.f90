@@ -20,6 +20,7 @@
 ! Molecular fragment class.
 module fragmentmod
   use types, only: anyatom, species, thread_info
+  use molsymmod, only: point_group
   implicit none
 
   private
@@ -46,6 +47,9 @@ module fragmentmod
      real*8 :: m_std(3,3) = 0d0 !< standard orientation (det=+1); columns are the principal axes in Cartesian coordinates; canonical coords: matmul(transpose(m_std),at(k)%r-xcm)
      real*8 :: quat_std(4) = (/1d0,0d0,0d0,0d0/) !< unit quaternion (w,x,y,z) of the standard orientation = mat2quat(m_std)
      real*8 :: euler_std(3) = 0d0 !< ZYZ Euler angles (alpha,beta,gamma, radians) of the standard orientation = mat2euler(m_std)
+     ! molecular point group, computed lazily; see fragment_pgsymbol
+     logical :: pg_computed = .false. !< whether the point group has been computed/cached
+     type(point_group) :: pg !< molecular point group of the fragment
    contains
      procedure :: init => fragment_init ! initialize a fragment
      procedure :: build => fragment_build ! build a fragment from atomic data
@@ -54,6 +58,7 @@ module fragmentmod
      procedure :: translate_to_main_cell => fragment_translate_to_main_cell ! move the fragment to the main cell
      procedure :: standard_axes => fragment_standard_axes ! accessor for the standard (canonical) frame
      procedure :: compute_std => fragment_compute_std ! compute and cache the standard frame
+     procedure :: pgsymbol => fragment_pgsymbol ! accessor for the point-group symbol (lazy)
      procedure :: append ! append a fragment to this fragment
      procedure :: merge_array ! merge several fragments
      procedure :: cmass ! calculate center of mass
@@ -113,6 +118,10 @@ module fragmentmod
      module subroutine fragment_compute_std(fr)
        class(fragment), intent(inout) :: fr
      end subroutine fragment_compute_std
+     module function fragment_pgsymbol(fr) result(symbol)
+       class(fragment), intent(inout) :: fr
+       character(len=:), allocatable :: symbol
+     end function fragment_pgsymbol
      module subroutine merge_array(fr,fra,add)
        class(fragment), intent(inout) :: fr
        type(fragment), intent(in) :: fra(:)

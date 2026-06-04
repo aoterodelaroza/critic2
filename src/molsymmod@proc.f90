@@ -16,7 +16,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Routines for handling molecular symmetry and related calculations
-submodule (crystalmod) molsym
+submodule (molsymmod) proc
   use types, only: molsymop, molsymop_identity, molsymop_inversion, molsymop_rotation,&
      molsymop_plane, molsymop_imp_rotation, molsymop_unknown
   use param, only: pi
@@ -94,33 +94,36 @@ contains
 
   end subroutine point_group_init_as_c1
 
-  ! Calculate the symmetry operations and point group of a molecule
-  module subroutine calcmolsym(c,pg,errmsg)
+  ! Calculate the symmetry operations and point group of a molecule given
+  ! by nat atoms with Cartesian coordinates xin(3,nat) and atomic numbers
+  ! z(nat). The result (operations and point-group symbol) is returned in
+  ! pg; errmsg is non-empty on error.
+  module subroutine calc_point_group(nat,xin,z,pg,errmsg)
     use tools_math, only: cross
     use param, only: atmass
-    class(crystal), intent(inout) :: c
+    integer, intent(in) :: nat
+    real*8, intent(in) :: xin(3,nat)
+    integer, intent(in) :: z(nat)
     type(point_group), intent(inout) :: pg
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: i, nat, iref, norbit
+    integer :: i, iref, norbit
     real*8, allocatable :: x(:,:), w(:)
-    integer, allocatable :: z(:), iorb(:)
+    integer, allocatable :: iorb(:)
     real*8 :: xref(3), xthis(3)
     type(orbit), allocatable :: orb(:)
 
     ! initialize; return if there are no atoms
     errmsg = ""
     call pg%clear()
-    if (c%ncel == 0) return
+    if (nat == 0) return
     pg%nop = 0
     allocate(pg%op(10))
 
-    ! allocate atomic positions and parameters
-    nat = c%ncel
-    allocate(x(3,nat),w(nat),z(nat))
+    ! local (mutable) copy of the positions and atomic weights
+    allocate(x(3,nat),w(nat))
     do i = 1, nat
-       x(:,i) = c%atcel(i)%r
-       z(i) = c%spc(c%atcel(i)%is)%z
+       x(:,i) = xin(:,i)
        w(i) = atmass(z(i))
     end do
 
@@ -207,7 +210,7 @@ contains
     ! wrap up
     pg%avail = .true.
 
-  end subroutine calcmolsym
+  end subroutine calc_point_group
 
   !xx! private procedures
 
@@ -871,4 +874,4 @@ contains
 
   end subroutine get_group_name
 
-end submodule molsym
+end submodule proc

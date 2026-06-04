@@ -68,8 +68,9 @@ contains
     integer :: i
     real*8 :: m_c2x(3,3)
 
-    ! the standard frame is recomputed lazily on first access
+    ! the standard frame and point group are recomputed lazily on first access
     fr%axes_computed = .false.
+    fr%pg_computed = .false.
 
     ! crystallographic -> Cartesian matrix
     fr%m_x2c = m_x2c
@@ -481,6 +482,37 @@ contains
     end subroutine resolve_3d
 
   end subroutine fragment_compute_std
+
+  !> Return the molecular point-group symbol of the fragment. The point
+  !> group is computed lazily on first access from the fragment atoms
+  !> (the whole molecule, with lattice translations applied) and cached.
+  module function fragment_pgsymbol(fr) result(symbol)
+    use molsymmod, only: calc_point_group
+    class(fragment), intent(inout) :: fr
+    character(len=:), allocatable :: symbol
+
+    integer :: i
+    real*8, allocatable :: x(:,:)
+    integer, allocatable :: z(:)
+    character(len=:), allocatable :: errmsg
+
+    if (.not.fr%pg_computed) then
+       allocate(x(3,fr%nat),z(fr%nat))
+       do i = 1, fr%nat
+          x(:,i) = fr%at(i)%r
+          z(i) = fr%spc(fr%at(i)%is)%z
+       end do
+       call calc_point_group(fr%nat,x,z,fr%pg,errmsg)
+       fr%pg_computed = .true.
+    end if
+
+    if (fr%pg%avail) then
+       symbol = trim(fr%pg%symbol)
+    else
+       symbol = "??"
+    end if
+
+  end function fragment_pgsymbol
 
   !> Merge two or more fragments, delete repeated atoms. If fr already
   !> has a fragment, then add to it if add = .true. (default: .true.).
