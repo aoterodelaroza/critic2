@@ -1293,32 +1293,44 @@ contains
                       if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%idxmol(i)))
                    end if
 
-                   ! center of mass, converted to the chosen coordinate type (editable)
+                   ! center of mass, converted to the chosen coordinate type;
+                   ! editable (translation) only for discrete fragments
                    x0 = mol_com_coords(i)
-                   xold = x0
-                   ch = .false.
-                   lch = .false.
-                   do j = 1, 3
-                      icol = icol + 1
-                      if (igTableSetColumnIndex(icol)) then
-                         ch = ch .or. iw_dragfloat_real8("##com" // string(isys) // "_" // string(i) // "_" // string(j),&
-                            x1=x0(j),speed=0.001d0,decimal=dec,notlive=.true.,committed=ok)
-                         lch = lch .or. ok
+                   if (sys(isys)%c%mol(i)%discrete) then
+                      xold = x0
+                      ch = .false.
+                      lch = .false.
+                      do j = 1, 3
+                         icol = icol + 1
+                         if (igTableSetColumnIndex(icol)) then
+                            ch = ch .or. iw_dragfloat_real8("##com" // string(isys) // "_" // string(i) // "_" // string(j),&
+                               x1=x0(j),speed=0.001d0,decimal=dec,notlive=.true.,committed=ok)
+                            lch = lch .or. ok
+                            ! keep the molecule highlighted (and its axes shown)
+                            ! while its center of mass is being dragged
+                            if (logical(igIsItemActive())) ihighlight = i
+                         end if
+                      end do
+                      ! while dragging, move in place without rebonding; on release
+                      ! (commit), finalize with a full rebond even if the value is
+                      ! unchanged this frame, so the bonds are recomputed once
+                      if (lch) then
+                         iaction = iaction_set_molecule_position
+                         iaction_i1 = i
+                         iaction_x = x0
+                         iaction_l = .false.
+                      elseif (ch .and. any(abs(x0-xold) > epsmoved)) then
+                         iaction = iaction_set_molecule_position
+                         iaction_i1 = i
+                         iaction_x = x0
+                         iaction_l = .true.
                       end if
-                   end do
-                   ! while dragging, move in place without rebonding; on release
-                   ! (commit), finalize with a full rebond even if the value is
-                   ! unchanged this frame, so the bonds are recomputed once
-                   if (lch) then
-                      iaction = iaction_set_molecule_position
-                      iaction_i1 = i
-                      iaction_x = x0
-                      iaction_l = .false.
-                   elseif (ch .and. any(abs(x0-xold) > epsmoved)) then
-                      iaction = iaction_set_molecule_position
-                      iaction_i1 = i
-                      iaction_x = x0
-                      iaction_l = .true.
+                   else
+                      do j = 1, 3
+                         icol = icol + 1
+                         if (igTableSetColumnIndex(icol)) &
+                            call iw_text(string(x0(j),'f',dec+4,dec,ioj_right))
+                      end do
                    end if
 
                    ! Euler angles (ZYZ, degrees) of the standard orientation;
@@ -1339,6 +1351,9 @@ contains
                             ch = ch .or. iw_dragfloat_real8("##euler" // string(isys) // "_" // string(i) // "_" // string(j),&
                                x1=x0(j),speed=0.5d0,decimal=2,notlive=.true.,committed=ok)
                             lch = lch .or. ok
+                            ! keep the molecule highlighted (and its axes shown)
+                            ! while its Euler angles are being dragged
+                            if (logical(igIsItemActive())) ihighlight = i
                          end if
                       end do
                       ! while dragging, rotate in place without rebonding and keep
