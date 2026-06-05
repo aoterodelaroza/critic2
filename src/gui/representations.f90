@@ -181,7 +181,7 @@ module representations
      real*8 :: bond_border_size ! bond border size
      real(c_float) :: bond_border_rgb(3) ! bond color
      real(c_float) :: bond_rgb(3) ! color
-     integer(c_int) :: bond_order ! order (0=dashed,1=single,2=double,etc.)
+     integer(c_int) :: bond_order ! order (0=dashed,1=single,2=double,3=triple,4=ordcon value)
      integer(c_int) :: bond_imol ! molecular connections (0=any,1=intramol,2=intermol)
      logical :: bond_bothends ! if true, both atoms need to be drawn to draw the bond
      !--> labels

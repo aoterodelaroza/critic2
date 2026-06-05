@@ -469,10 +469,12 @@ contains
              ! order
              call iw_text(" Order",sameline=.true.)
              call iw_combo_simple("##tablebondorderselectglobal",&
-                "Dashed"//c_null_char//"Single"//c_null_char//"Double"//c_null_char//"Triple"//c_null_char,&
+                "Dashed"//c_null_char//"Single"//c_null_char//"Double"//c_null_char//"Triple"//c_null_char//&
+                "Calculated"//c_null_char,&
                 w%rep%bond_order,sameline=.true.,changed=ldum)
              ch = ch .or. ldum
-             call iw_tooltip("Bond order (dashed, single, double, etc.)",ttshown)
+             call iw_tooltip("Bond order: a fixed order for all bonds (dashed, single, double, triple) or the&
+                & order determined by critic2 for each bond (calculated)",ttshown)
 
              ! both atoms
              call iw_text(" Both Atoms",sameline=.true.)

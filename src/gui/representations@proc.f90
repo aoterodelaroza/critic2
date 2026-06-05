@@ -188,7 +188,7 @@ contains
        r%bond_rad = bondrad_def
        r%bond_border_rgb = (/0._c_float,0._c_float,0._c_float/)
        r%bond_rgb = (/0._c_float,0._c_float,0._c_float/)
-       r%bond_order = 1
+       r%bond_order = 4 ! calculated (value from ordcon)
        r%bond_imol = 0
        r%bond_bothends = .true.
        if (r%flavor == repflavor_atoms_sticks) then
@@ -367,7 +367,7 @@ contains
     logical :: isvacdir, docycle, dovac(3)
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3)
     integer :: i1, i2, i3, ix(3), idl
-    integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3)
+    integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3), iord
     real(c_float) :: rgb(3)
     real*8 :: rad1, rad2, dd, f1, f2, axsc
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), phase, mass
@@ -636,6 +636,14 @@ contains
                          if (lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
                          end if
 
+                         ! per-bond order: in "Calculated" mode (4) use the order
+                         ! stored in the connectivity (ordcon); otherwise use the fixed order
+                         if (r%bond_order == 4) then
+                            iord = r%bond_style%nstar(i)%ordcon(ib)
+                         else
+                            iord = r%bond_order
+                         end if
+
                          ! draw the bond, reallocate if necessary
                          if (r%bond_color_style == 0) then
                             obj%ncyl = obj%ncyl + 1
@@ -667,7 +675,7 @@ contains
                             obj%cyl(obj%ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
                             obj%cyl(obj%ncyl)%r = real(r%bond_rad,c_float)
                             obj%cyl(obj%ncyl)%rgb = r%bond_rgb
-                            obj%cyl(obj%ncyl)%order = r%bond_order
+                            obj%cyl(obj%ncyl)%order = iord
                             obj%cyl(obj%ncyl)%border = real(r%bond_border_size,c_float)
                             obj%cyl(obj%ncyl)%rgbborder = r%bond_border_rgb
                          else
@@ -686,7 +694,7 @@ contains
                             obj%cyl(obj%ncyl-1)%x2delta = cmplx(xdelta0,kind=c_float_complex)
                             obj%cyl(obj%ncyl-1)%r = real(r%bond_rad,c_float)
                             obj%cyl(obj%ncyl-1)%rgb = rgb
-                            obj%cyl(obj%ncyl-1)%order = r%bond_order
+                            obj%cyl(obj%ncyl-1)%order = iord
                             obj%cyl(obj%ncyl-1)%border = real(r%bond_border_size,c_float)
                             obj%cyl(obj%ncyl-1)%rgbborder = r%bond_border_rgb
 
@@ -697,7 +705,7 @@ contains
                             obj%cyl(obj%ncyl)%r = real(r%bond_rad,c_float)
                             obj%cyl(obj%ncyl)%rgb = r%atom_style%rgb(:,idaux) * &
                                r%mol_style%tint_rgb(:,sys(r%id)%c%idatcelmol(1,ineigh))
-                            obj%cyl(obj%ncyl)%order = r%bond_order
+                            obj%cyl(obj%ncyl)%order = iord
                             obj%cyl(obj%ncyl)%border = real(r%bond_border_size,c_float)
                             obj%cyl(obj%ncyl)%rgbborder = r%bond_border_rgb
                          end if
