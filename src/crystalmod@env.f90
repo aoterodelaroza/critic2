@@ -898,7 +898,7 @@ contains
              end if
              nstar(i)%idcon(nstar(i)%ncon) = jid
              nstar(i)%lcon(:,nstar(i)%ncon) = atenv(i)%lvec(:,j)
-             nstar(i)%ordcon(nstar(i)%ncon) = 1 ! single bond by default
+             nstar(i)%ordcon(nstar(i)%ncon) = 1
           end if
        end do
 

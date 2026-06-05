@@ -1425,7 +1425,11 @@ contains
           call check_changed_tab("bonds")
 
           ! blue header
-          call iw_text("Bonds",highlight=.true.)
+          call iw_text("System Bonds",highlight=.true.)
+          call iw_helpermark("This table shows the bonds in the current system. The bonds drawn on the view window &
+             &are usually the ones in this list. However, the user can choose to draw different bonding arrangements &
+             &using the Bonds tab in the atoms object (Recalculate Bonds). In that case, adding or removing bonds &
+             &will not affect what is shown on the view.",sameline=.true.)
 
           ! number of cell atoms and digits for the Id column
           ntype = sys(isys)%c%ncel
