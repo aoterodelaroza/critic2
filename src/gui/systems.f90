@@ -124,6 +124,7 @@ module systems
      procedure :: set_atomic_number
      procedure :: add_species
      procedure :: remove_bond
+     procedure :: set_bond_order
      procedure :: reread_geometry_from_file
      procedure :: move_cell
      procedure :: transform_cell
@@ -353,6 +354,12 @@ module systems
        integer, intent(in) :: iat1, iat2
        integer, intent(in) :: lvec(3)
      end subroutine remove_bond
+     module subroutine set_bond_order(sysc,iat1,iat2,lvec,order)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: iat1, iat2
+       integer, intent(in) :: lvec(3)
+       integer, intent(in) :: order
+     end subroutine set_bond_order
      module subroutine reread_geometry_from_file(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine reread_geometry_from_file

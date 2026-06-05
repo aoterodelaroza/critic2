@@ -1947,12 +1947,14 @@ contains
        call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
     elseif (order == 1) then
        ! single
+       call setuniform_int(0,idxi=iunif(iu_ndash_cyl))
        call setuniform_float(border,idxi=iunif(iu_border))
        call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
        call setuniform_float(0._c_float*rad,idxi=iunif(iu_delta_cyl))
        call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
     elseif (order == 2) then
        ! double
+       call setuniform_int(0,idxi=iunif(iu_ndash_cyl))
        call setuniform_float(border,idxi=iunif(iu_border))
        call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
        call setuniform_float(0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
@@ -1961,6 +1963,7 @@ contains
        call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
     elseif (order == 3) then
        ! triple
+       call setuniform_int(0,idxi=iunif(iu_ndash_cyl))
        call setuniform_float(border,idxi=iunif(iu_border))
        call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
        call setuniform_float(1.35_c_float*rad,idxi=iunif(iu_delta_cyl))

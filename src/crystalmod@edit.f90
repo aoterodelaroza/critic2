@@ -1771,4 +1771,32 @@ contains
     end subroutine remove_one
   end subroutine remove_bond
 
+  ! Set the bond order (ordcon) of the bond between cell atoms iat1 and iat2
+  ! (iat2 at lattice vector lvec relative to iat1). Updates both reciprocal
+  ! entries in the neighbor stars in place; does not change the connectivity.
+  ! Order convention: 0=dashed, 1=single, 2=double, 3=triple.
+  module subroutine set_bond_order(c,iat1,iat2,lvec,order)
+    use types, only: neighstar
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: iat1, iat2
+    integer, intent(in) :: lvec(3)
+    integer, intent(in) :: order
+
+    if (.not.allocated(c%nstar)) return
+    if (iat1 < 1 .or. iat1 > c%ncel .or. iat2 < 1 .or. iat2 > c%ncel) return
+
+    call set_one(c%nstar(iat1),iat2,lvec)
+    call set_one(c%nstar(iat2),iat1,-lvec)
+
+  contains
+    subroutine set_one(ns,id,lv)
+      type(neighstar), intent(inout) :: ns
+      integer, intent(in) :: id, lv(3)
+      integer :: k
+      do k = 1, ns%ncon
+         if (ns%idcon(k) == id .and. all(ns%lcon(:,k) == lv)) ns%ordcon(k) = order
+      end do
+    end subroutine set_one
+  end subroutine set_bond_order
+
 end submodule edit

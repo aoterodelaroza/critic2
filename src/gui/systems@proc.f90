@@ -1710,6 +1710,27 @@ contains
 
   end subroutine remove_bond
 
+  ! Set the bond order (0=dashed, 1=single, 2=double, 3=triple) of the bond
+  ! between cell atoms iat1 and iat2 (iat2 at lattice vector lvec relative to
+  ! iat1). Posts a rebond event (not a geometry change).
+  module subroutine set_bond_order(sysc,iat1,iat2,lvec,order)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: iat1, iat2
+    integer, intent(in) :: lvec(3)
+    integer, intent(in) :: order
+
+    integer :: isys
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! set the bond order in the connectivity and signal a rebond
+    call sys(isys)%c%set_bond_order(iat1,iat2,lvec,order)
+    call sysc%post_event(lastchange_rebond)
+
+  end subroutine set_bond_order
+
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
   module subroutine reread_geometry_from_file(sysc)

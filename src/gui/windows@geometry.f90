@@ -61,6 +61,7 @@ contains
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:16)
     integer :: ihlbond, ihlbtn ! bonds tab: hovered central atom and hovered neighbor button (cell ids)
     integer :: ibrm1, ibrm2, lbrm(3) ! bonds tab: deferred bond removal (cell ids + lattice vector)
+    integer :: ibord1, ibord2, lbord(3), ibordval ! bonds tab: deferred bond-order change (cell ids + lvec + order)
     integer :: table_hltype
     logical(c_bool) :: is_selected
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
@@ -158,6 +159,7 @@ contains
     ihlbond = 0
     ihlbtn = 0
     ibrm1 = 0
+    ibord1 = 0
     ieuler_drag = 0
     iclicked = 0
     doquit = .false.
@@ -1511,23 +1513,48 @@ contains
                             call igPushStyleColor_Vec4(ImGuiCol_Text,col4)
                          end if
 
-                         ! clicking a button removes that bond (deferred: do not
-                         ! mutate nstar while iterating it)
-                         if (iw_button(string(jj) // " " // name(1:min(3,len_trim(name))) //&
-                            "##bond" // suffix // "_" // string(j),sameline=(j>1))) then
-                            ibrm1 = i
-                            ibrm2 = jj
-                            lbrm = sys(isys)%c%nstar(i)%lcon(:,j)
-                         end if
+                         ! the button (colored by the bonded atom). Left-click
+                         ! opens a menu, right-click removes the bond.
+                         ldum = iw_button(string(jj) // " " // name(1:min(3,len_trim(name))) //&
+                            "##bond" // suffix // "_" // string(j),sameline=(j>1))
+                         if (havergb_) call igPopStyleColor(4)
 
-                         ! hovering a button highlights the row's atom and marks
-                         ! this neighbor for a lighter highlight color
+                         ! hovering highlights the row's atom and marks this
+                         ! neighbor; right-click removes the bond (deferred)
                          if (igIsItemHovered(ImGuiHoveredFlags_None)) then
                             ihlbond = i
                             ihlbtn = jj
+                            if (igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool)) then
+                               ibrm1 = i
+                               ibrm2 = jj
+                               lbrm = sys(isys)%c%nstar(i)%lcon(:,j)
+                            end if
                          end if
 
-                         if (havergb_) call igPopStyleColor(4)
+                         ! left-click opens the bond menu (Order submenu + Remove)
+                         str2 = "##bondmenu" // suffix // "_" // string(j) // c_null_char
+                         if (ldum) call igOpenPopup_Str(c_loc(str2),ImGuiPopupFlags_None)
+                         if (igBeginPopup(c_loc(str2),ImGuiWindowFlags_None)) then
+                            str1 = "Order" // c_null_char
+                            if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+                               ! tick marks the current ordcon value for this bond
+                               if (iw_menuitem("Single",selected=(sys(isys)%c%nstar(i)%ordcon(j)==1)))&
+                                  call defer_setorder(1)
+                               if (iw_menuitem("Double",selected=(sys(isys)%c%nstar(i)%ordcon(j)==2)))&
+                                  call defer_setorder(2)
+                               if (iw_menuitem("Triple",selected=(sys(isys)%c%nstar(i)%ordcon(j)==3)))&
+                                  call defer_setorder(3)
+                               if (iw_menuitem("Dashed",selected=(sys(isys)%c%nstar(i)%ordcon(j)==0)))&
+                                  call defer_setorder(0)
+                               call igEndMenu()
+                            end if
+                            if (iw_menuitem("Remove")) then
+                               ibrm1 = i
+                               ibrm2 = jj
+                               lbrm = sys(isys)%c%nstar(i)%lcon(:,j)
+                            end if
+                            call igEndPopup()
+                         end if
                       end do
                    end if
                 end do
@@ -1535,9 +1562,10 @@ contains
              call igEndTable()
           end if
 
-          ! perform a deferred bond removal (after the table loop, so nstar is
-          ! not edited while being iterated)
+          ! perform deferred bond edits (after the table loop, so nstar is not
+          ! edited while being iterated)
           if (ibrm1 > 0) call sysc(isys)%remove_bond(ibrm1,ibrm2,lbrm)
+          if (ibord1 > 0) call sysc(isys)%set_bond_order(ibord1,ibord2,lbord,ibordval)
 
           call igEndTabItem()
        end if
@@ -2177,6 +2205,16 @@ contains
       end if
 
     end function color_from_view
+
+    ! record a deferred bond-order change for the current bonds-tab bond
+    ! (cell atom i, neighbor jj, neighbor-star entry j) to order val
+    subroutine defer_setorder(val)
+      integer, intent(in) :: val
+      ibord1 = i
+      ibord2 = jj
+      lbord = sys(isys)%c%nstar(i)%lcon(:,j)
+      ibordval = val
+    end subroutine defer_setorder
 
     ! draw the row of buttons controlling the highlights
     subroutine draw_highlight_buttons()
