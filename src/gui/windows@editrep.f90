@@ -480,71 +480,6 @@ contains
              call iw_tooltip("Represent a bond if both end-atoms are in the scene (checked) or if only &
                 &one end-atom is in the scene (unchecked)",ttshown)
 
-             !! distance block !!
-             call igAlignTextToFramePadding()
-             call iw_text("Distances",highlight=.true.)
-             call iw_text(" (",highlight=.true.,sameline_nospace=.true.)
-             call iw_combo_simple("##tablebondglobaldistcombo","Factor"//c_null_char//"Range"//c_null_char,&
-                w%rep%bond_distancetype,sameline_nospace=.true.)
-             call iw_tooltip("Draw bonds whose lengths are a factor of the sum of atomic&
-                & radii (Factor) or give bond distance range (Range)",ttshown)
-             call iw_text(")",highlight=.true.,sameline_nospace=.true.)
-             if (iw_button("Apply##applyglobal",sameline=.true.,danger=.true.)) then
-                call w%rep%bond_style%generate_neighstars(w%rep)
-                w%rep%bond_style%use_sys_nstar = .false.
-                changed = .true.
-             end if
-             call iw_tooltip("Recalculate and draw bonds using the selected distance criteria",ttshown)
-
-             if (w%rep%bond_distancetype == 0) then
-                ! factor
-                call igAlignTextToFramePadding()
-                call iw_text("Between")
-                ldum = iw_dragfloat_real8("##bondtableglobalbfmin",x1=w%rep%bond_bfmin,speed=0.01d0,min=0.0d0,&
-                   max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-                call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
-
-                call iw_text("times",sameline=.true.)
-                call iw_combo_simple("##bondtableglobalradtypemin","cov."//c_null_char//"vdw"//c_null_char,&
-                   w%rep%bond_radtype(1),sameline=.true.)
-                call iw_tooltip("Choose the atomic radii (covalent or van der Waals)",ttshown)
-                call iw_text("radii",sameline=.true.)
-
-                call igAlignTextToFramePadding()
-                call iw_text("... and")
-                ldum = iw_dragfloat_real8("##bondtableglobalbfmax",x1=w%rep%bond_bfmax,speed=0.01d0,min=0.0d0,&
-                   max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-                call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
-
-                call iw_text("times",sameline=.true.)
-                call iw_combo_simple("##bondtableglobalradtypemax","cov."//c_null_char//"vdw"//c_null_char,&
-                   w%rep%bond_radtype(2),sameline=.true.)
-                call iw_tooltip("Choose the atomic radii (covalent or van der Waals)",ttshown)
-                call iw_text("radii",sameline=.true.)
-             else
-                ! range
-                call igAlignTextToFramePadding()
-                call iw_text("Between")
-                ldum = iw_dragfloat_real8("##bondtableglobaldmin",x1=w%rep%bond_dmin,speed=0.01d0,min=0.0d0,&
-                   max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-                call iw_text("Å",sameline=.true.)
-                call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
-
-                call igAlignTextToFramePadding()
-                call iw_text("... and")
-                ldum = iw_dragfloat_real8("##bondtableglobaldmax",x1=w%rep%bond_dmax,speed=0.01d0,min=0.0d0,&
-                   max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-                call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
-                call iw_text("Å",sameline=.true.)
-             end if
-             call igAlignTextToFramePadding()
-             call iw_text("Intra/Inter-molecular")
-             call iw_combo_simple("##tablebondimolselectglobal",&
-                "any"//c_null_char//"intra"//c_null_char//"inter"//c_null_char,&
-                w%rep%bond_imol,sameline=.true.)
-             call iw_tooltip("Draw any bonds (any), only intramolecular (intra), or only intermolecular (inter)",&
-                ttshown)
-
              !! atom selection block !!
              call iw_text("Atom Pair Selection",highlight=.true.)
 
@@ -648,6 +583,71 @@ contains
                 ch = .true.
              end if
              call iw_tooltip("Toggle the show/hide status for all bonds",ttshown)
+
+             !! recalculate bonds block !!
+             call igAlignTextToFramePadding()
+             call iw_text("Recalculate Bonds",highlight=.true.)
+             if (iw_button("Apply##applyglobal",sameline=.true.,danger=.true.)) then
+                call w%rep%bond_style%generate_neighstars(w%rep)
+                w%rep%bond_style%use_sys_nstar = .false.
+                changed = .true.
+             end if
+             call iw_tooltip("Recalculate and draw bonds using the selected distance criteria",ttshown)
+             call igAlignTextToFramePadding()
+             call iw_text("Distances ")
+             call iw_combo_simple("##tablebondglobaldistcombo","Factor"//c_null_char//"Range"//c_null_char,&
+                w%rep%bond_distancetype,sameline_nospace=.true.)
+             call iw_tooltip("Draw bonds whose lengths are a factor of the sum of atomic&
+                & radii (Factor) or give bond distance range (Range)",ttshown)
+
+             if (w%rep%bond_distancetype == 0) then
+                ! factor
+                call igAlignTextToFramePadding()
+                call iw_text("Between")
+                ldum = iw_dragfloat_real8("##bondtableglobalbfmin",x1=w%rep%bond_bfmin,speed=0.01d0,min=0.0d0,&
+                   max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+                call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
+
+                call iw_text("times",sameline=.true.)
+                call iw_combo_simple("##bondtableglobalradtypemin","cov."//c_null_char//"vdw"//c_null_char,&
+                   w%rep%bond_radtype(1),sameline=.true.)
+                call iw_tooltip("Choose the atomic radii (covalent or van der Waals)",ttshown)
+                call iw_text("radii",sameline=.true.)
+
+                call igAlignTextToFramePadding()
+                call iw_text("... and")
+                ldum = iw_dragfloat_real8("##bondtableglobalbfmax",x1=w%rep%bond_bfmax,speed=0.01d0,min=0.0d0,&
+                   max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+                call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
+
+                call iw_text("times",sameline=.true.)
+                call iw_combo_simple("##bondtableglobalradtypemax","cov."//c_null_char//"vdw"//c_null_char,&
+                   w%rep%bond_radtype(2),sameline=.true.)
+                call iw_tooltip("Choose the atomic radii (covalent or van der Waals)",ttshown)
+                call iw_text("radii",sameline=.true.)
+             else
+                ! range
+                call igAlignTextToFramePadding()
+                call iw_text("Between")
+                ldum = iw_dragfloat_real8("##bondtableglobaldmin",x1=w%rep%bond_dmin,speed=0.01d0,min=0.0d0,&
+                   max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+                call iw_text("Å",sameline=.true.)
+                call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
+
+                call igAlignTextToFramePadding()
+                call iw_text("... and")
+                ldum = iw_dragfloat_real8("##bondtableglobaldmax",x1=w%rep%bond_dmax,speed=0.01d0,min=0.0d0,&
+                   max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+                call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
+                call iw_text("Å",sameline=.true.)
+             end if
+             call igAlignTextToFramePadding()
+             call iw_text("Intra/Inter-molecular")
+             call iw_combo_simple("##tablebondimolselectglobal",&
+                "any"//c_null_char//"intra"//c_null_char//"inter"//c_null_char,&
+                w%rep%bond_imol,sameline=.true.)
+             call iw_tooltip("Draw any bonds (any), only intramolecular (intra), or only intermolecular (inter)",&
+                ttshown)
 
              ! immediately update if non-distances have changed
              if (ch) changed = .true.
