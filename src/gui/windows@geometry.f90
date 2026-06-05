@@ -109,6 +109,8 @@ contains
     integer, parameter :: iaction_swap_mol_ids = 13
     integer, parameter :: iaction_set_molecule_position = 14
     integer, parameter :: iaction_set_molecule_rotation = 15
+    integer, parameter :: iaction_remove_molecules = 16
+    integer, parameter :: iaction_reorder_molecules = 17
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_none = 0
@@ -1397,6 +1399,9 @@ contains
           ! highlight/selection row
           call draw_highlight_buttons()
 
+          ! edit row (remove/reorder molecules)
+          call draw_mol_edit_buttons()
+
           call igEndTabItem()
        end if
 
@@ -1537,6 +1542,12 @@ contains
        call sysc(isys)%set_molecule_position(w%geometry_moltype,iaction_i1,iaction_x,iaction_l)
     elseif (iaction == iaction_set_molecule_rotation) then
        call sysc(isys)%set_molecule_rotation(iaction_i1,iaction_x,iaction_l)
+    elseif (iaction == iaction_remove_molecules) then
+       ! selecting a molecule highlights its cell atoms, so removing the
+       ! highlighted atoms removes the selected molecules
+       call sysc(isys)%edit_highlighted_atoms(remove=.true.,errmsg=w%errmsg)
+    elseif (iaction == iaction_reorder_molecules) then
+       call sysc(isys)%attype_reorder(atlisttype_nmol,w%iord)
     elseif (iaction == iaction_change_cell) then
        call sysc(isys)%move_cell(iaction_x6(1:3),iaction_x6(4:6),iaction_l)
     elseif (iaction == iaction_transform_cell) then
@@ -2167,6 +2178,32 @@ contains
       call iw_tooltip("Relabel the atoms/species so their IDs are in the same order as shown in the table",ttshown)
 
     end subroutine draw_edit_buttons
+
+    ! draw the row of buttons for editing the molecules (molecules tab)
+    subroutine draw_mol_edit_buttons()
+
+      ! Edit label
+      call igAlignTextToFramePadding()
+      call iw_text("Edit",highlight=.true.)
+
+      ! is there a selection?
+      havesel = .false.
+      if (allocated(sysc(isys)%highlight_rgba)) &
+         havesel = any(sysc(isys)%highlight_rgba >= 0._c_float)
+
+      ! Remove button: remove the cell atoms of the selected molecules
+      if (iw_button("Remove##removemol",sameline=.true.,disabled=.not.havesel)) then
+         iaction = iaction_remove_molecules
+      end if
+      call iw_tooltip("Remove the selected molecules",ttshown)
+
+      ! Reorder button: relabel so the molecule IDs follow the table order
+      if (iw_button("Reorder##reordermol",sameline=.true.)) then
+         iaction = iaction_reorder_molecules
+      end if
+      call iw_tooltip("Relabel the molecules so their IDs are in the same order as shown in the table",ttshown)
+
+    end subroutine draw_mol_edit_buttons
 
     ! check whether the tab has changed: reset highlights and sort
     subroutine check_changed_tab(tab)

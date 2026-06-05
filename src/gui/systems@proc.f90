@@ -1404,6 +1404,8 @@ contains
        call sys(isys)%c%reorder_atoms(iord,.true.)
     elseif (type == atlisttype_species) then
        call sys(isys)%c%reorder_species(iord)
+    elseif (type == atlisttype_nmol) then
+       call sys(isys)%c%reorder_molecules(iord)
     else
        call sys(isys)%c%reorder_atoms(iord,.false.)
     end if
