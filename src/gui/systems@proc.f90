@@ -969,42 +969,20 @@ contains
     strcombo = ""
     if (allowedin(atlisttype_species)) strcombo = strcombo // "Species" // c_null_char
     if (allowedin(atlisttype_nneq)) strcombo = strcombo // "Symmetry unique" // c_null_char
-    if (sys(id)%c%ismolecule) then
-       if (allowedin(atlisttype_ncel_bohr)) then
-          if (units_) then
-             strcombo = strcombo // "Atoms (bohr)" // c_null_char
-          else
-             strcombo = strcombo // "Atoms" // c_null_char
-          end if
+    if (.not.sys(id)%c%ismolecule .and. allowedin(atlisttype_ncel_frac)) &
+       strcombo = strcombo // "Fractional" // c_null_char
+    if (allowedin(atlisttype_ncel_bohr)) then
+       if (units_) then
+          strcombo = strcombo // "Cartesian (bohr)" // c_null_char
+       else
+          strcombo = strcombo // "Cartesian" // c_null_char
        end if
-       if (allowedin(atlisttype_ncel_ang)) then
-          if (units_) then
-             strcombo = strcombo // "Atoms (Å)" // c_null_char
-          else
-             strcombo = strcombo // "Atoms" // c_null_char
-          end if
-       end if
-    else
-       if (allowedin(atlisttype_ncel_frac)) then
-          if (units_) then
-             strcombo = strcombo // "Cell (fractional)" // c_null_char
-          else
-             strcombo = strcombo // "Cell" // c_null_char
-          end if
-       end if
-       if (allowedin(atlisttype_ncel_bohr)) then
-          if (units_) then
-             strcombo = strcombo // "Cell (bohr)" // c_null_char
-          else
-             strcombo = strcombo // "Cell" // c_null_char
-          end if
-       end if
-       if (allowedin(atlisttype_ncel_ang)) then
-          if (units_) then
-             strcombo = strcombo // "Cell (Å)" // c_null_char
-          else
-             strcombo = strcombo // "Cell" // c_null_char
-          end if
+    end if
+    if (allowedin(atlisttype_ncel_ang)) then
+       if (units_) then
+          strcombo = strcombo // "Cartesian (Å)" // c_null_char
+       else
+          strcombo = strcombo // "Cartesian" // c_null_char
        end if
     end if
     if (allowedin(atlisttype_nmol)) strcombo = strcombo // "Molecules" // c_null_char
