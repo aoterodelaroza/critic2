@@ -1690,6 +1690,26 @@ contains
 
   end subroutine add_species
 
+  ! Remove the bond between cell atoms iat1 and iat2 (iat2 at lattice vector
+  ! lvec relative to iat1) by editing the connectivity in place. Posts a rebond
+  ! event (not a geometry change), so fields and selections remain valid.
+  module subroutine remove_bond(sysc,iat1,iat2,lvec)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: iat1, iat2
+    integer, intent(in) :: lvec(3)
+
+    integer :: isys
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! remove the bond from the connectivity and signal a rebond
+    call sys(isys)%c%remove_bond(iat1,iat2,lvec)
+    call sysc%post_event(lastchange_rebond)
+
+  end subroutine remove_bond
+
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
   module subroutine reread_geometry_from_file(sysc)

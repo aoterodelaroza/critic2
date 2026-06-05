@@ -306,6 +306,7 @@ module crystalmod
      procedure :: move_cell !< Move the unit cell
      procedure :: move_cell_all !< Move the unit cell, specifying all lengths and angles
      procedure :: add_atom !< Add an atom
+     procedure :: remove_bond !< Remove a single bond between two cell atoms
 
      ! symmetry (symmetry)
      procedure :: pointgroup !< Returns the rotations in the crystal point group
@@ -845,6 +846,11 @@ module crystalmod
        logical, intent(in) :: isnneq
        type(thread_info), intent(in), optional :: ti
      end subroutine add_atom
+     module subroutine remove_bond(c,iat1,iat2,lvec)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: iat1, iat2
+       integer, intent(in) :: lvec(3)
+     end subroutine remove_bond
      module subroutine pointgroup(c,leqv,rotm)
        class(crystal), intent(in) :: c
        integer, intent(out) :: leqv

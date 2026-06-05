@@ -1723,4 +1723,50 @@ contains
 
   end subroutine add_atom
 
+  ! Remove the bond between cell atoms iat1 and iat2 (iat2 at lattice vector
+  ! lvec relative to iat1) by editing the neighbor stars in place. Removes both
+  ! reciprocal entries (iat2 at lvec from iat1, iat1 at -lvec from iat2) and
+  ! recomputes the molecular-fragment data; does NOT rebuild the structure.
+  module subroutine remove_bond(c,iat1,iat2,lvec)
+    use types, only: neighstar, realloc
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: iat1, iat2
+    integer, intent(in) :: lvec(3)
+
+    if (.not.allocated(c%nstar)) return
+    if (iat1 < 1 .or. iat1 > c%ncel .or. iat2 < 1 .or. iat2 > c%ncel) return
+
+    ! remove iat2 (at lvec) from iat1's star and the reciprocal iat1 (at -lvec)
+    ! from iat2's star
+    call remove_one(c%nstar(iat1),iat2,lvec)
+    call remove_one(c%nstar(iat2),iat1,-lvec)
+
+    ! keep molecular fragments consistent with the new connectivity (lightweight;
+    ! same post-asterism steps the rebond window runs, no struct_new)
+    call c%fill_molecular_fragments()
+    call c%calculate_molecular_equivalence()
+    call c%calculate_periodicity()
+
+  contains
+    subroutine remove_one(ns,id,lv)
+      type(neighstar), intent(inout) :: ns
+      integer, intent(in) :: id, lv(3)
+      integer :: k, knew
+      knew = 0
+      do k = 1, ns%ncon
+         if (ns%idcon(k) == id .and. all(ns%lcon(:,k) == lv)) cycle
+         knew = knew + 1
+         if (knew /= k) then
+            ns%idcon(knew) = ns%idcon(k)
+            ns%lcon(:,knew) = ns%lcon(:,k)
+         end if
+      end do
+      if (knew /= ns%ncon) then
+         ns%ncon = knew
+         call realloc(ns%idcon,knew)
+         call realloc(ns%lcon,3,knew)
+      end if
+    end subroutine remove_one
+  end subroutine remove_bond
+
 end submodule edit

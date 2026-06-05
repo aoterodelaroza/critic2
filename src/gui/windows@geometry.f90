@@ -60,6 +60,7 @@ contains
     logical :: doquit, dorestore, clicked, forcesort, ch, lch
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:16)
     integer :: ihlbond, ihlbtn ! bonds tab: hovered central atom and hovered neighbor button (cell ids)
+    integer :: ibrm1, ibrm2, lbrm(3) ! bonds tab: deferred bond removal (cell ids + lattice vector)
     integer :: table_hltype
     logical(c_bool) :: is_selected
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
@@ -156,6 +157,7 @@ contains
     ihighlight = 0
     ihlbond = 0
     ihlbtn = 0
+    ibrm1 = 0
     ieuler_drag = 0
     iclicked = 0
     doquit = .false.
@@ -1505,8 +1507,14 @@ contains
                             call igPushStyleColor_Vec4(ImGuiCol_Text,col4)
                          end if
 
-                         ldum = iw_button(string(jj) // " " // name(1:min(3,len_trim(name))) //&
-                            "##bond" // suffix // "_" // string(j),sameline=(j>1))
+                         ! clicking a button removes that bond (deferred: do not
+                         ! mutate nstar while iterating it)
+                         if (iw_button(string(jj) // " " // name(1:min(3,len_trim(name))) //&
+                            "##bond" // suffix // "_" // string(j),sameline=(j>1))) then
+                            ibrm1 = i
+                            ibrm2 = jj
+                            lbrm = sys(isys)%c%nstar(i)%lcon(:,j)
+                         end if
 
                          ! hovering a button highlights the row's atom and marks
                          ! this neighbor for a lighter highlight color
@@ -1522,6 +1530,10 @@ contains
              end do
              call igEndTable()
           end if
+
+          ! perform a deferred bond removal (after the table loop, so nstar is
+          ! not edited while being iterated)
+          if (ibrm1 > 0) call sysc(isys)%remove_bond(ibrm1,ibrm2,lbrm)
 
           call igEndTabItem()
        end if

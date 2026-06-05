@@ -123,6 +123,7 @@ module systems
      procedure :: set_molecule_rotation
      procedure :: set_atomic_number
      procedure :: add_species
+     procedure :: remove_bond
      procedure :: reread_geometry_from_file
      procedure :: move_cell
      procedure :: transform_cell
@@ -347,6 +348,11 @@ module systems
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: iz
      end subroutine add_species
+     module subroutine remove_bond(sysc,iat1,iat2,lvec)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: iat1, iat2
+       integer, intent(in) :: lvec(3)
+     end subroutine remove_bond
      module subroutine reread_geometry_from_file(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine reread_geometry_from_file
