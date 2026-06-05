@@ -81,6 +81,8 @@ contains
     logical :: havergb, ldum, ok
     real*8 :: x0(3), x6(6), xold(3), x6old(6), res
     real*8 :: stdrot(3,3), stdcom(3), stdext, stdaxlen ! transient std-orientation axes
+    integer :: ieuler_drag ! which Euler angle (1/2/3) is being dragged (0 = none)
+    real*8 :: rotdir(3), rotlen ! transient rotation-axis direction and half-length
     type(ImVec4) :: col4
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -151,6 +153,7 @@ contains
 
     ! initialize
     ihighlight = 0
+    ieuler_drag = 0
     iclicked = 0
     doquit = .false.
     dorestore = .false.
@@ -1355,8 +1358,12 @@ contains
                                x1=x0(j),speed=0.5d0,decimal=2,notlive=.true.,committed=ok)
                             lch = lch .or. ok
                             ! keep the molecule highlighted (and its axes shown)
-                            ! while its Euler angles are being dragged
-                            if (logical(igIsItemActive())) ihighlight = i
+                            ! while its Euler angles are being dragged; record
+                            ! which angle, to show its rotation axis
+                            if (logical(igIsItemActive())) then
+                               ihighlight = i
+                               ieuler_drag = j
+                            end if
                          end if
                       end do
                       ! while dragging, rotate in place without rebonding and keep
@@ -1451,7 +1458,29 @@ contains
           end do
           stdaxlen = max(0.5d0 * stdext, 1.5d0)
           stdcom = stdcom + sys(isys)%c%molx0
+
+          ! standard-orientation axes
           call sysc(isys)%sc%show_transient_axes(ihighlight,stdcom,stdrot,stdaxlen)
+
+          if (ieuler_drag /= 0) then
+             ! dragging a Euler angle: also show the rotation axis for that angle
+             ! (ZYZ convention, in the scene/lab cartesian frame):
+             !   1 (alpha) -> lab Z; 2 (beta) -> line of nodes; 3 (gamma) -> body Z
+             if (ieuler_drag == 1) then
+                rotdir = (/0d0,0d0,1d0/)
+             elseif (ieuler_drag == 2) then
+                rotdir = (/-stdrot(2,3),stdrot(1,3),0d0/) ! zlab x bodyZ
+                if (norm2(rotdir) < 1d-6) then
+                   rotdir = (/0d0,1d0,0d0/) ! gimbal pole: line of nodes undefined
+                else
+                   rotdir = rotdir / norm2(rotdir)
+                end if
+             else
+                rotdir = stdrot(:,3) ! molecule body Z (already a unit vector)
+             end if
+             rotlen = max(stdext,1.5d0) * 1.2d0
+             call sysc(isys)%sc%show_transient_rotaxis(-(ihighlight*4+ieuler_drag),stdcom,rotdir,rotlen)
+          end if
        end if
     end if
 

@@ -88,6 +88,10 @@ contains
        r%isinit = .true.
        r%shown = .true.
        r%name = "Axes"
+    elseif (itype == reptype_rotaxis) then
+       r%isinit = .true.
+       r%shown = .true.
+       r%name = "Rotation axis"
     else
        r%isinit = .false.
        r%shown = .false.
@@ -267,6 +271,14 @@ contains
        r%axes_labelstr(1) = "x"
        r%axes_labelstr(2) = "y"
        r%axes_labelstr(3) = "z"
+    end if
+
+    ! rotation axis
+    if (itype == 0 .or. itype == 7) then
+       r%rotaxis_dir = (/0d0,0d0,1d0/)
+       r%rotaxis_length = 0d0
+       r%rotaxis_radius = rotaxis_radius_def
+       r%rotaxis_rgb = (/0._c_float,0._c_float,0._c_float/) ! black
     end if
 
     ! initialize the styles
@@ -918,6 +930,25 @@ contains
              end if
           end if
        end do
+    elseif (r%type == reptype_rotaxis) then
+       !!! rotation-axis representation (single black cylinder through the origin) !!!
+
+       ! origin in cartesian (bohr); for molecules referred to the molecular center
+       uoriginc = r%origin
+       if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
+
+       ! double-ended cylinder (the axis line): origin +/- length*dir
+       x0 = r%rotaxis_dir / max(norm2(r%rotaxis_dir),1d-10)
+       dcyl%x1 = real(uoriginc - r%rotaxis_length * x0,c_float)
+       dcyl%x2 = real(uoriginc + r%rotaxis_length * x0,c_float)
+       dcyl%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
+       dcyl%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
+       dcyl%r = real(r%rotaxis_radius,c_float)
+       dcyl%rgb = r%rotaxis_rgb
+       dcyl%order = 1
+       dcyl%border = 0._c_float
+       dcyl%rgbborder = 0._c_float
+       call append_cyl(obj%cyl,obj%ncyl,dcyl)
     end if ! reptype
   contains
     subroutine increase_ncone()

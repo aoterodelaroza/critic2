@@ -130,6 +130,7 @@ module scenes
      procedure :: add_transient_representation => scene_add_transient_representation
      procedure :: clear_transient_representations => scene_clear_transient_representations
      procedure :: show_transient_axes => scene_show_transient_axes
+     procedure :: show_transient_rotaxis => scene_show_transient_rotaxis
   end type scene
   public :: scene
 
@@ -226,6 +227,13 @@ module scenes
        real*8, intent(in) :: rot(3,3)
        real*8, intent(in) :: axlen
      end subroutine scene_show_transient_axes
+     module subroutine scene_show_transient_rotaxis(s,tag,xcom,rotdir,rotlen)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: tag
+       real*8, intent(in) :: xcom(3)
+       real*8, intent(in) :: rotdir(3)
+       real*8, intent(in) :: rotlen
+     end subroutine scene_show_transient_rotaxis
   end interface
 
 end module scenes

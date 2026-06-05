@@ -1768,6 +1768,46 @@ contains
 
   end subroutine scene_show_transient_axes
 
+  !> Show a (transient) black cylinder marking the rotation axis
+  !> rotdir (cartesian unit vector, bohr) through the center of mass
+  !> xcom, with half-length rotlen.
+  module subroutine scene_show_transient_rotaxis(s,tag,xcom,rotdir,rotlen)
+    use representations, only: reptype_axes, repflavor_axes, reptype_rotaxis, repflavor_rotaxis
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: tag
+    real*8, intent(in) :: xcom(3)
+    real*8, intent(in) :: rotdir(3)
+    real*8, intent(in) :: rotlen
+
+    integer :: id
+
+    ! already shown for this tag: keep the geometry but refresh the transforms,
+    ! so both gizmos track the molecule as it is dragged (rotated)
+    if (s%reptrans_tag == tag .and. s%nreptrans > 0) then
+       do id = 1, s%nreptrans
+          if (s%reptrans(id)%type == reptype_rotaxis) then
+             s%reptrans(id)%origin = xcom
+             s%reptrans(id)%rotaxis_dir = rotdir
+             s%reptrans(id)%rotaxis_length = rotlen
+          end if
+       end do
+       s%reptrans_set = .true.
+       return
+    end if
+
+    ! rebuild: the rotation-axis cylinder (black, through the COM)
+    id = s%add_transient_representation(reptype_rotaxis,repflavor_rotaxis)
+    if (id > 0) then
+       if (s%reptrans(id)%isinit) then
+          s%reptrans(id)%origin = xcom
+          s%reptrans(id)%rotaxis_dir = rotdir
+          s%reptrans(id)%rotaxis_length = rotlen
+       end if
+    end if
+    s%reptrans_tag = tag
+
+  end subroutine scene_show_transient_rotaxis
+
   !xx! private procedures: low-level draws
 
   !> Draw a sphere with center x0, radius rad and color rgb. Requires

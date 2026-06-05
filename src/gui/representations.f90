@@ -54,6 +54,8 @@ module representations
   real*8, parameter, public :: axes_labeldistance_def = 0.2d0 / bohrtoa ! distance between label and arrow head
   real*8, parameter, public :: axes_labelscale_def = 0.3d0 ! label size
   real*8, parameter, public :: axes_winfrac_def = 0.15d0 ! window-anchored axes length as a fraction of the scene radius (auto-scale tuning knob)
+  !--> rotation axis
+  real*8, parameter, public :: rotaxis_radius_def = 0.05d0 / bohrtoa ! radius of the rotation-axis cylinder
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
@@ -118,7 +120,8 @@ module representations
   integer, parameter, public :: reptype_atoms = 1
   integer, parameter, public :: reptype_unitcell = 2
   integer, parameter, public :: reptype_axes = 3
-  integer, parameter, public :: reptype_NUM = 3
+  integer, parameter, public :: reptype_rotaxis = 4
+  integer, parameter, public :: reptype_NUM = 4
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -131,7 +134,8 @@ module representations
   integer, parameter, public :: repflavor_atoms_gradientpaths = 7
   integer, parameter, public :: repflavor_unitcell_basic = 8
   integer, parameter, public :: repflavor_axes = 9
-  integer, parameter, public :: repflavor_NUM = 9
+  integer, parameter, public :: repflavor_rotaxis = 10
+  integer, parameter, public :: repflavor_NUM = 10
 
   !> Representation: objects to draw on the scene
   type representation
@@ -147,7 +151,7 @@ module representations
      ! global parameters
      integer(c_int) :: pertype ! periodicity control: 0=none, 1=auto, 2=manual
      integer(c_int) :: ncell(3) ! number of unit cells drawn
-     real*8 :: origin(3) ! unit cell, origin shift
+     real*8 :: origin(3) ! origin of the representation
      real*8 :: tshift(3) ! origin of the unit cell display region
      ! atoms, bonds, labels
      character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
@@ -220,6 +224,11 @@ module representations
      real*8 :: axes_scale ! global scale factor applied to the whole gizmo (arrows and labels)
      logical :: axes_scale_auto ! auto-size the window-anchored gizmo from the scene radius
      logical :: axes_scalewithzoom ! whether the window-anchored gizmo scales when the scene is zoomed
+     ! rotation axis
+     real*8 :: rotaxis_dir(3) = (/0d0,0d0,1d0/) ! unit direction in cartesian (bohr); the axis line passes through origin
+     real*8 :: rotaxis_length = 0d0 ! half-length: the cylinder spans origin +/- length*rotaxis_dir
+     real*8 :: rotaxis_radius = rotaxis_radius_def ! radius of the rotation-axis cylinder
+     real(c_float) :: rotaxis_rgb(3) = 0._c_float ! color of the rotation-axis cylinder
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults
