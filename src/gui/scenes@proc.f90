@@ -1735,8 +1735,17 @@ contains
 
     integer :: id
 
-    ! same content already shown: just keep it alive (no rebuild)
+    ! already shown for this tag (same molecule): keep the axis geometry but
+    ! refresh its transform, so the axes track the molecule as it is dragged
+    ! (rotated/translated)
     if (s%reptrans_tag == tag .and. s%nreptrans > 0) then
+       do id = 1, s%nreptrans
+          if (s%reptrans(id)%type == reptype_axes) then
+             s%reptrans(id)%origin = xcom
+             s%reptrans(id)%axes_rot = rot
+             s%reptrans(id)%axes_scale = axlen / max(s%reptrans(id)%axes_length,1d-10)
+          end if
+       end do
        s%reptrans_set = .true.
        return
     end if
