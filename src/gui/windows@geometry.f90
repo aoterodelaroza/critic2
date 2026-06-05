@@ -46,7 +46,7 @@ contains
        atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac, atlisttype_ncel_bohr,&
        atlisttype_ncel_ang, atlisttype_nmol, celltransform_standard, celltransform_primitive,&
        celltransform_primstd, celltransform_niggli, celltransform_delaunay
-    use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene
+    use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene, ColorHighlightBondScene
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
        iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper, iw_inputint,&
@@ -59,6 +59,7 @@ contains
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
     logical :: doquit, dorestore, clicked, forcesort, ch, lch
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:16)
+    integer :: ihlbond, ihlbtn ! bonds tab: hovered central atom and hovered neighbor button (cell ids)
     integer :: table_hltype
     logical(c_bool) :: is_selected
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
@@ -153,6 +154,8 @@ contains
 
     ! initialize
     ihighlight = 0
+    ihlbond = 0
+    ihlbtn = 0
     ieuler_drag = 0
     iclicked = 0
     doquit = .false.
@@ -1425,6 +1428,7 @@ contains
           ! number of cell atoms and digits for the Id column
           ntype = sys(isys)%c%ncel
           ndigit = ceiling(log10(ntype+0.1d0))
+          table_hltype = atlisttype_ncel_frac
 
           ! locate the view holding the atom colors for the bonded-atom buttons
           call get_current_view()
@@ -1460,12 +1464,18 @@ contains
                    suffix = "_" // string(i)
                    call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
 
-                   ! id
-                   if (igTableSetColumnIndex(0)) call iw_text(string(i,ndigit))
+                   ! id (with a row-spanning selectable to detect hover)
+                   if (igTableSetColumnIndex(0)) then
+                      call igAlignTextToFramePadding()
+                      call iw_text(string(i,ndigit))
+                      if (iw_highlight_selectable("##bondselect" // suffix)) ihlbond = i
+                   end if
 
                    ! atom name
-                   if (igTableSetColumnIndex(1)) &
+                   if (igTableSetColumnIndex(1)) then
+                      call igAlignTextToFramePadding()
                       call iw_text(trim(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%name))
+                   end if
 
                    ! bonded atoms (one colored button per neighbor)
                    if (igTableSetColumnIndex(2)) then
@@ -1498,6 +1508,13 @@ contains
                          ldum = iw_button(string(jj) // " " // name(1:min(3,len_trim(name))) //&
                             "##bond" // suffix // "_" // string(j),sameline=(j>1))
 
+                         ! hovering a button highlights the row's atom and marks
+                         ! this neighbor for a lighter highlight color
+                         if (igIsItemHovered(ImGuiHoveredFlags_None)) then
+                            ihlbond = i
+                            ihlbtn = jj
+                         end if
+
                          if (havergb_) call igPopStyleColor(4)
                       end do
                    end if
@@ -1528,7 +1545,27 @@ contains
     call igEndGroup()
 
     ! hover highlight
-    if (ihighlight > 0) then
+    if (ihlbond > 0) then
+       ! bonds tab: highlight the hovered atom (central color) and its bonded
+       ! neighbors (a different color; lighter for a hovered neighbor button)
+       ncon = 0
+       if (allocated(sys(isys)%c%nstar)) ncon = sys(isys)%c%nstar(ihlbond)%ncon
+       allocate(ihigh(1+ncon),irgba(4,1+ncon))
+       ihigh(1) = ihlbond
+       irgba(:,1) = ColorHighlightScene
+       do j = 1, ncon
+          jj = sys(isys)%c%nstar(ihlbond)%idcon(j)
+          ihigh(1+j) = jj
+          if (jj == ihlbtn) then
+             irgba(1:3,1+j) = min(ColorHighlightBondScene(1:3)*1.2_c_float,1._c_float)
+             irgba(4,1+j) = ColorHighlightBondScene(4)
+          else
+             irgba(:,1+j) = ColorHighlightBondScene
+          end if
+       end do
+       call sysc(isys)%highlight_atoms(.true.,ihigh,atlisttype_ncel_frac,irgba)
+       deallocate(ihigh,irgba)
+    elseif (ihighlight > 0) then
        call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),table_hltype,&
           reshape(ColorHighlightScene,(/4,1/)))
     end if

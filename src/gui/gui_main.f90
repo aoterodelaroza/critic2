@@ -78,6 +78,7 @@ module gui_main
      shape(ColorTableCellBg_def))
   real(c_float), parameter, public :: ColorHighlightScene_def(4) = (/1.0_c_float,1.0_c_float,0.5_c_float,0.7_c_float/) ! hover highlight of atoms in view
   real(c_float), parameter, public :: ColorHighlightSelectScene_def(4) = (/0.2_c_float,0.64_c_float,0.9_c_float,0.7_c_float/) ! edit geometry selection color
+  real(c_float), parameter, public :: ColorHighlightBondScene(4) = (/0.3_c_float,0.85_c_float,0.3_c_float,0.7_c_float/) ! bonds tab: bonded-neighbor highlight
   real(c_float), parameter, public :: ColorMeasureSelect_def(4,4) = reshape((/&
      1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
      0.4_c_float, 1._c_float,  0.4_c_float, 0.5_c_float,&
