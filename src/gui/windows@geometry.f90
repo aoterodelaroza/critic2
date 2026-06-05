@@ -74,11 +74,11 @@ contains
     integer :: istate ! scratch selection state
     real(c_float) :: rrgba(4) ! scratch highlight color
     type(ImVec2) :: szavail, szero, sz0
-    real(c_float) :: combowidth, rgb(3)
-    integer :: ii, i, j, isys, icol, ispc, iz, izout, iview, id, im, jm
+    real(c_float) :: combowidth, rgb(3), lum
+    integer :: ii, i, j, jj, isys, icol, ispc, iz, izout, iview, im, jm, ncon
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
-    logical :: havergb, ldum, ok
+    logical :: havergb, havergb_, ldum, ok
     real*8 :: x0(3), x6(6), xold(3), x6old(6), res
     real*8 :: stdrot(3,3), stdcom(3), stdext, stdaxlen ! transient std-orientation axes
     integer :: ieuler_drag ! which Euler angle (1/2/3) is being dragged (0 = none)
@@ -359,7 +359,7 @@ contains
                 iz = sys(isys)%c%spc(ispc)%z
 
                 ! get the color from the first active atoms representation in the main view
-                call get_color_from_view()
+                havergb = color_from_view(w%geometry_atomtype,i,rgb)
 
                 ! background color for the table row (full or partial selection)
                 call current_row_state(i,istate,rrgba)
@@ -644,7 +644,7 @@ contains
                    iz = sys(isys)%c%spc(ispc)%z
 
                    ! get the color from the first active atoms representation in the main view
-                   call get_color_from_view()
+                   havergb = color_from_view(w%geometry_atomtype,i,rgb)
 
                    ! background color for the table row (full or partial selection)
                    call current_row_state(i,istate,rrgba)
@@ -1419,7 +1419,93 @@ contains
           ! check if the tab changed
           call check_changed_tab("bonds")
 
-          call iw_text("blah")
+          ! blue header
+          call iw_text("Bonds",highlight=.true.)
+
+          ! number of cell atoms and digits for the Id column
+          ntype = sys(isys)%c%ncel
+          ndigit = ceiling(log10(ntype+0.1d0))
+
+          ! locate the view holding the atom colors for the bonded-atom buttons
+          call get_current_view()
+
+          ! bonds table
+          flags = ImGuiTableFlags_None
+          flags = ior(flags,ImGuiTableFlags_Resizable)
+          flags = ior(flags,ImGuiTableFlags_ScrollY)
+          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+          flags = ior(flags,ImGuiTableFlags_Borders)
+          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          str1 = "##tablebonds_" // string(isys) // c_null_char
+          call igGetContentRegionAvail(sz0)
+          sz0%x = 0
+          sz0%y = sz0%y - iw_calcheight(1,0,.true.)
+          if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
+             ! header setup: Id and Atom fixed, Bonded atoms fills the rest of the row
+             str2 = "Id" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0.0_c_float,0)
+             str2 = "Atom" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0.0_c_float,1)
+             str2 = "Bonded atoms" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthStretch,0.0_c_float,2)
+             call igTableSetupScrollFreeze(0, 1) ! top row always visible
+             call igTableHeadersRow()
+
+             ! draw the rows (clipped for performance)
+             clipper = ImGuiListClipper_ImGuiListClipper()
+             call ImGuiListClipper_Begin(clipper,ntype,-1._c_float)
+             do while(ImGuiListClipper_Step(clipper))
+                call c_f_pointer(clipper,clipper_f)
+                do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
+                   suffix = "_" // string(i)
+                   call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+
+                   ! id
+                   if (igTableSetColumnIndex(0)) call iw_text(string(i,ndigit))
+
+                   ! atom name
+                   if (igTableSetColumnIndex(1)) &
+                      call iw_text(trim(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%name))
+
+                   ! bonded atoms (one colored button per neighbor)
+                   if (igTableSetColumnIndex(2)) then
+                      ncon = 0
+                      if (allocated(sys(isys)%c%nstar)) ncon = sys(isys)%c%nstar(i)%ncon
+                      do j = 1, ncon
+                         jj = sys(isys)%c%nstar(i)%idcon(j)
+                         name = trim(sys(isys)%c%at(sys(isys)%c%atcel(jj)%idx)%name)
+
+                         ! color the button with the bonded atom's color from the view
+                         havergb_ = color_from_view(atlisttype_ncel_frac,jj,rgb)
+                         if (havergb_) then
+                            col4 = ImVec4(rgb(1),rgb(2),rgb(3),1._c_float)
+                            call igPushStyleColor_Vec4(ImGuiCol_Button,col4)
+                            col4 = ImVec4(min(rgb(1)*1.2_c_float,1._c_float),&
+                               min(rgb(2)*1.2_c_float,1._c_float),min(rgb(3)*1.2_c_float,1._c_float),1._c_float)
+                            call igPushStyleColor_Vec4(ImGuiCol_ButtonHovered,col4)
+                            col4 = ImVec4(rgb(1)*0.8_c_float,rgb(2)*0.8_c_float,rgb(3)*0.8_c_float,1._c_float)
+                            call igPushStyleColor_Vec4(ImGuiCol_ButtonActive,col4)
+                            ! readable label: black on light atoms, white on dark ones
+                            lum = 0.299_c_float*rgb(1)+0.587_c_float*rgb(2)+0.114_c_float*rgb(3)
+                            if (lum > 0.5_c_float) then
+                               col4 = ImVec4(0._c_float,0._c_float,0._c_float,1._c_float)
+                            else
+                               col4 = ImVec4(1._c_float,1._c_float,1._c_float,1._c_float)
+                            end if
+                            call igPushStyleColor_Vec4(ImGuiCol_Text,col4)
+                         end if
+
+                         ldum = iw_button(string(jj) // " " // name(1:min(3,len_trim(name))) //&
+                            "##bond" // suffix // "_" // string(j),sameline=(j>1))
+
+                         if (havergb_) call igPopStyleColor(4)
+                      end do
+                   end if
+                end do
+             end do
+             call igEndTable()
+          end if
+
           call igEndTabItem()
        end if
 
@@ -2011,26 +2097,33 @@ contains
 
     end subroutine get_current_view
 
-    ! get the color associated with atom type i from the current view
-    subroutine get_color_from_view()
+    ! color of atom iat (of atom-list type itype) from the first shown atoms
+    ! representation in the current view (iview); returns .true. and fills rgbo
+    ! when a color is found, .false. otherwise
+    function color_from_view(itype,iat,rgbo) result(have)
+      integer, intent(in) :: itype, iat
+      real(c_float), intent(out) :: rgbo(3)
+      logical :: have
 
-      havergb = .false.
+      integer :: jrep, idd
+
+      have = .false.
+      rgbo = 0._c_float
       if (iview > 0) then
-         do j = 1, win(iview)%sc%nrep
-            if (win(iview)%sc%rep(j)%type == reptype_atoms.and.win(iview)%sc%rep(j)%isinit.and.&
-               win(iview)%sc%rep(j)%shown) then
-
-               id = sysc(isys)%attype_type_id_to_id(w%geometry_atomtype,i,win(iview)%sc%rep(j)%atom_style%type)
-               if (id /= 0) then
-                  havergb = .true.
-                  rgb = win(iview)%sc%rep(j)%atom_style%rgb(:,id)
+         do jrep = 1, win(iview)%sc%nrep
+            if (win(iview)%sc%rep(jrep)%type == reptype_atoms.and.win(iview)%sc%rep(jrep)%isinit.and.&
+               win(iview)%sc%rep(jrep)%shown) then
+               idd = sysc(isys)%attype_type_id_to_id(itype,iat,win(iview)%sc%rep(jrep)%atom_style%type)
+               if (idd /= 0) then
+                  have = .true.
+                  rgbo = win(iview)%sc%rep(jrep)%atom_style%rgb(:,idd)
+                  exit
                end if
-               if (havergb) exit
             end if
          end do
       end if
 
-    end subroutine get_color_from_view
+    end function color_from_view
 
     ! draw the row of buttons controlling the highlights
     subroutine draw_highlight_buttons()
