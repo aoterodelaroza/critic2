@@ -803,8 +803,10 @@ contains
        nstar(i)%ncon = 0
        if (allocated(nstar(i)%idcon)) deallocate(nstar(i)%idcon)
        if (allocated(nstar(i)%lcon)) deallocate(nstar(i)%lcon)
+       if (allocated(nstar(i)%ordcon)) deallocate(nstar(i)%ordcon)
        allocate(nstar(i)%idcon(20))
        allocate(nstar(i)%lcon(3,20))
+       allocate(nstar(i)%ordcon(20))
     end do
 
     ! pre-calculate the distance matrix
@@ -892,15 +894,18 @@ contains
              if (nstar(i)%ncon > size(nstar(i)%idcon,1)) then
                 call realloc(nstar(i)%idcon,2*nstar(i)%ncon)
                 call realloc(nstar(i)%lcon,3,2*nstar(i)%ncon)
+                call realloc(nstar(i)%ordcon,2*nstar(i)%ncon)
              end if
              nstar(i)%idcon(nstar(i)%ncon) = jid
              nstar(i)%lcon(:,nstar(i)%ncon) = atenv(i)%lvec(:,j)
+             nstar(i)%ordcon(nstar(i)%ncon) = 1 ! single bond by default
           end if
        end do
 
        ! reallocate
        call realloc(nstar(i)%idcon,nstar(i)%ncon)
        call realloc(nstar(i)%lcon,3,nstar(i)%ncon)
+       call realloc(nstar(i)%ordcon,nstar(i)%ncon)
     end do
 
   end subroutine find_asterisms

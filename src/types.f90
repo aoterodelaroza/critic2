@@ -314,6 +314,7 @@ module types
      integer :: ncon = 0 !< number of neighbor for this atom
      integer, allocatable :: idcon(:) !< id (atcel) of the connected atom
      integer, allocatable :: lcon(:,:) !< lattice vector of the connected atom
+     integer, allocatable :: ordcon(:) !< bond order of the connected atom (1=single, 2=double, ...)
   end type neighstar
 
   !> Point along a gradient path

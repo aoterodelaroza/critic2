@@ -1763,7 +1763,7 @@ contains
          end if
       end do
       if (knew /= ns%ncon) then
-         ns%ncon = knew
+         call realloc(nsn,
          call realloc(ns%idcon,knew)
          call realloc(ns%lcon,3,knew)
          call realloc(ns%ordcon,knew)
