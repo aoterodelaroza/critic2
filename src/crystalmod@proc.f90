@@ -157,7 +157,7 @@ contains
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det3, mnorm2
     use tools_io, only: ferror, faterr, string, usegui
-    use tools, only: wscell, qcksort
+    use tools, only: wscell
     use types, only: realloc
     use param, only: pi, eyet, eye, atmcov
     class(crystal), intent(inout) :: c
@@ -166,11 +166,11 @@ contains
     logical, intent(in), optional :: noenv
     type(thread_info), intent(in), optional :: ti
 
-    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3), dx
+    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3)
     logical :: good, good2, clearsym, doenv
     integer :: i, j, k, l, iat, newmult
-    real*8, allocatable :: atpos(:,:), area(:), xcoord(:)
-    integer, allocatable :: irotm(:), icenv(:), iord(:)
+    real*8, allocatable :: atpos(:,:), area(:)
+    integer, allocatable :: irotm(:), icenv(:)
     logical, allocatable :: useatom(:)
     character(len=:), allocatable :: errmsg
     logical :: haveatoms
@@ -378,9 +378,11 @@ contains
     end if
 
     ! move the crystallographic coordinates to the main cell, calculate the
-    ! Cartesian coordinates. Set the default wyckoff letter.
+    ! Cartesian coordinates. Set the default wyckoff letter. Molecules are not
+    ! wrapped: the cell is only a bounding box and wrapping would tear the
+    ! molecule apart (e.g. when an atom rotates past a cell face).
     do i = 1, c%nneq
-       c%at(i)%x = c%at(i)%x - floor(c%at(i)%x)
+       if (.not.seed%ismolecule) c%at(i)%x = c%at(i)%x - floor(c%at(i)%x)
        c%at(i)%r = c%x2c(c%at(i)%x)
        c%at(i)%wyc = "?"
     end do
@@ -545,26 +547,7 @@ contains
        call c%build_env()
 
        ! calculate vacuum lengths
-       allocate(xcoord(2*c%ncel),iord(2*c%ncel))
-       do i = 1, 3
-          do j = 1, c%ncel
-             xcoord(j) = (c%atcel(j)%x(i) - floor(c%atcel(j)%x(i))) * c%aa(i)
-             xcoord(c%ncel+j) = xcoord(j) + c%aa(i)
-             iord(j) = j
-             iord(c%ncel+j) = c%ncel + j
-          end do
-          call qcksort(xcoord,iord,1,2*c%ncel)
-          c%vaclength(i) = 0d0
-          do j = 2, 2*c%ncel
-             dx = xcoord(iord(j))-xcoord(iord(j-1))
-             if (dx > c%vaclength(i)) then
-                c%vaclength(i) = dx
-                c%vactop(i) = xcoord(iord(j)) / c%aa(i)
-                c%vacbot(i) = xcoord(iord(j-1)) / c%aa(i)
-             end if
-          end do
-       end do
-       deallocate(xcoord,iord)
+       call c%calc_vacuum_lengths()
 
        ! find atomic connectivity and molecular fragments
        call c%find_asterisms(c%nstar,atmcov,bondfactor)
@@ -577,6 +560,43 @@ contains
     c%isinit = .true.
 
   end subroutine struct_new
+
+  !> Calculate the vacuum lengths (c%vaclength) and the limits of the
+  !> largest empty slab in each direction (c%vactop, c%vacbot), in
+  !> fractional coordinates. Used to detect vacuum directions and to
+  !> render isolated/slab systems on the side of the atoms in the GUI.
+  module subroutine calc_vacuum_lengths(c)
+    use tools, only: qcksort
+    class(crystal), intent(inout) :: c
+
+    integer :: i, j
+    real*8 :: dx
+    real*8, allocatable :: xcoord(:)
+    integer, allocatable :: iord(:)
+
+    if (c%ncel == 0) return
+    allocate(xcoord(2*c%ncel),iord(2*c%ncel))
+    do i = 1, 3
+       do j = 1, c%ncel
+          xcoord(j) = (c%atcel(j)%x(i) - floor(c%atcel(j)%x(i))) * c%aa(i)
+          xcoord(c%ncel+j) = xcoord(j) + c%aa(i)
+          iord(j) = j
+          iord(c%ncel+j) = c%ncel + j
+       end do
+       call qcksort(xcoord,iord,1,2*c%ncel)
+       c%vaclength(i) = 0d0
+       do j = 2, 2*c%ncel
+          dx = xcoord(iord(j))-xcoord(iord(j-1))
+          if (dx > c%vaclength(i)) then
+             c%vaclength(i) = dx
+             c%vactop(i) = xcoord(iord(j)) / c%aa(i)
+             c%vacbot(i) = xcoord(iord(j-1)) / c%aa(i)
+          end if
+       end do
+    end do
+    deallocate(xcoord,iord)
+
+  end subroutine calc_vacuum_lengths
 
   !> Convert input cryst. -> cartesian. This routine is thread-safe.
   pure module function x2c(c,xx) result(res)

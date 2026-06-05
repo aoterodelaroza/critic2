@@ -132,8 +132,7 @@ contains
     integer, parameter :: ic_ea = 12 ! Euler angle alpha (molecules tab)
     integer, parameter :: ic_eb = 13 ! Euler angle beta
     integer, parameter :: ic_eg = 14 ! Euler angle gamma
-    integer, parameter :: ic_disc = 15 ! discrete? (molecules tab)
-    integer, parameter :: ic_sym = 16 ! point-group symbol (molecules tab)
+    integer, parameter :: ic_sym = 15 ! point-group symbol (molecules tab)
 
     ! allowed atom list types in tables
     integer, parameter :: atlisttype_allowed(4) = (/atlisttype_nneq,&
@@ -1111,6 +1110,7 @@ contains
           ldum = sysc(isys)%attype_combo_simple("Center of mass##molcoordselectgeom",&
              w%geometry_moltype,atlisttype_coord_allowed)
           call iw_tooltip("Coordinate system for the molecular center of mass",ttshown)
+          call iw_text("(Sym./angles for discrete molecules only)",sameline=.true.)
 
           ntype = sys(isys)%c%nmol
 
@@ -1129,7 +1129,6 @@ contains
 
           ! number of columns
           ncol = 2 ! id, nat
-          ncol = ncol + 1 ! discrete?
           ncol = ncol + 1 ! point-group symbol
           if (doidx) ncol = ncol + 1 ! idx
           ncol = ncol + 3 ! center of mass
@@ -1160,11 +1159,6 @@ contains
              str2 = "nat" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
              icolsort(icol) = ic_nat
-
-             icol = icol + 1
-             str2 = "Discrete" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_NoSort,0.0_c_float,icol)
-             icolsort(icol) = ic_disc
 
              icol = icol + 1
              str2 = "Sym." // c_null_char
@@ -1283,16 +1277,6 @@ contains
                    ! number of atoms
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%mol(i)%nat))
-
-                   ! discrete?
-                   icol = icol + 1
-                   if (igTableSetColumnIndex(icol)) then
-                      if (sys(isys)%c%mol(i)%discrete) then
-                         call iw_text("Yes")
-                      else
-                         call iw_text("No")
-                      end if
-                   end if
 
                    ! point-group symbol (only meaningful for discrete fragments)
                    icol = icol + 1

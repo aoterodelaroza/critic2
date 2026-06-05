@@ -60,7 +60,14 @@ contains
        seed%nat = c%ncel
        allocate(seed%x(3,c%ncel),seed%is(c%ncel),seed%atname(c%ncel))
        do i = 1, c%ncel
-          seed%x(:,i) = c%atcel(i)%x
+          if (useabr_ == 0 .and. c%ismolecule) then
+             ! molecule + useabr==0: struct_new expects absolute Cartesian (bohr)
+             ! coordinates here, not crystallographic; +molx0 keeps the absolute
+             ! positions invariant through the rebuild (struct_new recomputes molx0)
+             seed%x(:,i) = c%atcel(i)%r + c%molx0
+          else
+             seed%x(:,i) = c%atcel(i)%x
+          end if
           seed%is(i) = c%atcel(i)%is
           seed%atname(i) = c%at(c%atcel(i)%idx)%name
        end do
@@ -1226,27 +1233,132 @@ contains
     ! whether to use symmetry
     copysym = isnneq .and. .not.c%ismolecule .and. c%spgavail
 
-    ! make seed from this crystal
-    call c%makeseed(seed,copysym=copysym)
+    ! make seed from this crystal. For a molecule, use an absolute-Cartesian
+    ! seed (useabr=0) so struct_new re-fits the encompassing cell to the moved
+    ! atom instead of wrapping it into the old cell.
+    if (c%ismolecule) then
+       call c%makeseed(seed,copysym=.false.,useabr=0)
+    else
+       call c%makeseed(seed,copysym=copysym)
+    end if
 
-    ! interpret units
+    ! interpret units. For a molecule, xx is kept as an internal Cartesian
+    ! position (bohr); otherwise it is converted to crystallographic.
     if (iunit_l == iunit_ang) then
        xx = x / bohrtoa
-       xx = c%c2x(xx)
+       if (.not.c%ismolecule) xx = c%c2x(xx)
     elseif (iunit_l == iunit_bohr) then
-       xx = c%c2x(x)
+       if (c%ismolecule) then
+          xx = x
+       else
+          xx = c%c2x(x)
+       end if
     else
-       xx = x
+       if (c%ismolecule) then
+          xx = c%x2c(x)
+       else
+          xx = x
+       end if
     end if
-    if (dorelative) xx = seed%x(:,idx) + xx
+    if (dorelative) then
+       if (c%ismolecule) then
+          xx = c%atcel(idx)%r + xx
+       else
+          xx = seed%x(:,idx) + xx
+       end if
+    end if
 
-    ! the final new position
-    seed%x(:,idx) = xx
+    ! the final new position (absolute Cartesian for molecules)
+    if (c%ismolecule) then
+       seed%x(:,idx) = xx + c%molx0
+    else
+       seed%x(:,idx) = xx
+    end if
 
     ! build the new crystal
     call c%struct_new(seed,crashfail=.true.,ti=ti)
 
   end subroutine move_atom
+
+  !> Recalculate the unit cell of a molecule to fit the current atomic
+  !> positions, growing it as needed so the molecule (e.g. after a
+  !> rigid rotation or translation in place) stays inside the
+  !> cell. The absolute atomic positions (Cartesian + molx0) are
+  !> preserved, so the rendered scene in the GUI does not move. The
+  !> molecular cell (molborder) and the vacuum descriptors are
+  !> recalculated. The neighbor star, molecular decomposition, and
+  !> Wigner-Seitz data are NOT recomputed (no rebonding); they are
+  !> reconciled by the next full rebuild (struct_new). This routine is
+  !> only used for molecules, and only by the GUI (move_molecule and
+  !> rotate_molecule with no rebonding).
+  module subroutine recompute_molecular_cell(c)
+    use tools_math, only: m_x2c_from_cellpar, matinv
+    use global, only: rborder_def
+    class(crystal), intent(inout) :: c
+
+    integer :: i, j, k
+    real*8 :: smin(3), smax(3), border, sh(3), saux(3)
+
+    if (.not.c%ismolecule .or. c%ncel == 0) return
+
+    ! bounding box of the absolute atomic positions (r + molx0), padded with
+    ! the default border (same construction as struct_new's molecule branch)
+    border = max(rborder_def,1d-6)
+    smin = c%atcel(1)%r + c%molx0
+    smax = smin
+    do k = 2, c%ncel
+       saux = c%atcel(k)%r + c%molx0
+       do j = 1, 3
+          smin(j) = min(smin(j),saux(j))
+          smax(j) = max(smax(j),saux(j))
+       end do
+    end do
+    smin = smin - border
+    smax = smax + border
+
+    ! new orthogonal cell. The cell origin (molx0) sits at the lower padded
+    ! corner, so the absolute positions (r + molx0) are left unchanged; sh is
+    ! the uniform Cartesian shift applied to every internal Cartesian coordinate.
+    sh = c%molx0 - smin
+    c%aa = smax - smin
+    c%bb = 90d0
+    c%m_x2c = m_x2c_from_cellpar(c%aa,c%bb)
+    c%m_c2x = c%m_x2c
+    call matinv(c%m_c2x,3)
+    c%molx0 = smin
+
+    ! molecular cell used for display (same formula as struct_new)
+    c%molborder = max(border - max(2d0,0.8d0 * border),0d0) / c%aa
+
+    ! shift the cell atoms (and the matching non-equivalent atoms): the
+    ! Cartesian positions move rigidly by sh, the fractional ones are
+    ! recomputed in the new cell
+    do k = 1, c%ncel
+       c%atcel(k)%r = c%atcel(k)%r + sh
+       c%atcel(k)%x = c%c2x(c%atcel(k)%r)
+       i = c%atcel(k)%idx
+       if (i >= 1 .and. i <= c%nneq) then
+          c%at(i)%r = c%atcel(k)%r
+          c%at(i)%x = c%atcel(k)%x
+       end if
+    end do
+
+    ! shift the cached molecular fragments to keep them consistent
+    if (allocated(c%mol)) then
+       do i = 1, c%nmol
+          c%mol(i)%m_x2c = c%m_x2c
+          do j = 1, c%mol(i)%nat
+             c%mol(i)%at(j)%r = c%mol(i)%at(j)%r + sh
+             c%mol(i)%at(j)%x = c%c2x(c%mol(i)%at(j)%r)
+          end do
+          if (c%mol(i)%axes_computed) c%mol(i)%xcm = c%mol(i)%xcm + sh
+       end do
+    end if
+
+    ! recompute the vacuum descriptors for the new cell
+    call c%calc_vacuum_lengths()
+
+  end subroutine recompute_molecular_cell
 
   !> Rigidly translate the molecular fragment imol so that its center
   !> of mass is at position x in units of iunit_l (see global). If
@@ -1310,18 +1422,37 @@ contains
        end do
        if (c%mol(imol)%axes_computed) &
           c%mol(imol)%xcm = c%mol(imol)%xcm + dxc
+
+       ! for an isolated molecule, change the cell so the translated
+       ! molecule stays inside it (avoids the GUI wrapping atoms).
+       if (c%ismolecule) call c%recompute_molecular_cell()
        return
     end if
 
-    ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom order)
-    call c%makeseed(seed,copysym=.false.)
+    ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom
+    ! order). For a molecule, use an absolute-Cartesian seed (useabr=0) so
+    ! struct_new re-fits the encompassing cell to the moved molecule.
+    if (c%ismolecule) then
+       call c%makeseed(seed,copysym=.false.,useabr=0)
+    else
+       call c%makeseed(seed,copysym=.false.)
+    end if
     if (seed%nat /= c%ncel) return
 
-    ! translate the atoms belonging to this fragment
-    do k = 1, c%ncel
-       if (c%idatcelmol(1,k) == imol) &
-          seed%x(:,k) = seed%x(:,k) + dx
-    end do
+    ! translate the atoms belonging to this fragment (Cartesian for molecules,
+    ! crystallographic otherwise, matching the seed coordinate convention)
+    if (c%ismolecule) then
+       dxc = c%x2c(dx)
+       do k = 1, c%ncel
+          if (c%idatcelmol(1,k) == imol) &
+             seed%x(:,k) = seed%x(:,k) + dxc
+       end do
+    else
+       do k = 1, c%ncel
+          if (c%idatcelmol(1,k) == imol) &
+             seed%x(:,k) = seed%x(:,k) + dx
+       end do
+    end if
 
     ! build the new crystal
     call c%struct_new(seed,crashfail=.true.,ti=ti)
@@ -1384,18 +1515,33 @@ contains
        c%mol(imol)%m_std = rmat
        c%mol(imol)%quat_std = mat2quat(rmat)
        c%mol(imol)%euler_std = mat2euler(rmat)
+
+       ! for an isolated molecule, change the cell so the translated
+       ! molecule stays inside it (avoids the GUI wrapping atoms).
+       if (c%ismolecule) call c%recompute_molecular_cell()
        return
     end if
 
-    ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom order)
-    call c%makeseed(seed,copysym=.false.)
+    ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom
+    ! order). For a molecule, use an absolute-Cartesian seed (useabr=0) so
+    ! struct_new re-fits the encompassing cell to the rotated molecule instead
+    ! of wrapping atoms into the old cell.
+    if (c%ismolecule) then
+       call c%makeseed(seed,copysym=.false.,useabr=0)
+    else
+       call c%makeseed(seed,copysym=.false.)
+    end if
     if (seed%nat /= c%ncel) return
 
     ! rotate the fragment atoms (whole molecule) and write them to the seed
     do j = 1, c%mol(imol)%nat
        k = c%mol(imol)%at(j)%cidx
        rnew = xcm + matmul(rrot,c%mol(imol)%at(j)%r - xcm)
-       seed%x(:,k) = c%c2x(rnew)
+       if (c%ismolecule) then
+          seed%x(:,k) = rnew + c%molx0      ! absolute Cartesian
+       else
+          seed%x(:,k) = c%c2x(rnew)         ! crystallographic
+       end if
     end do
 
     ! build the new crystal

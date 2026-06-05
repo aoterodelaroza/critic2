@@ -234,6 +234,8 @@ module crystalmod
      procedure :: init => struct_init !< Allocate arrays and nullify variables
      procedure :: end => struct_end !< Deallocate arrays and nullify variables
      procedure :: struct_new !< Initialize the structure from a crystal seed
+     procedure :: calc_vacuum_lengths !< Calculate the vacuum lengths and slab limits
+     procedure :: recompute_molecular_cell !< Re-fit the molecular cell to the current atoms (molecules)
 
      ! basic crystallographic operations (proc)
      procedure :: x2c !< Convert input cryst. -> cartesian
@@ -419,6 +421,12 @@ module crystalmod
        logical, intent(in), optional :: noenv
        type(thread_info), intent(in), optional :: ti
      end subroutine struct_new
+     module subroutine calc_vacuum_lengths(c)
+       class(crystal), intent(inout) :: c
+     end subroutine calc_vacuum_lengths
+     module subroutine recompute_molecular_cell(c)
+       class(crystal), intent(inout) :: c
+     end subroutine recompute_molecular_cell
      pure module function x2c(c,xx) result(res)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: xx(3)
