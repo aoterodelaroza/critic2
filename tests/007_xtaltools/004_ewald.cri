@@ -9,8 +9,7 @@ crystal
  na 0 0 0
  cl 1/2 1/2 1/2
 endcrystal
-q na +1 cl -1
-ewald
+ewald na +1 cl -1
 
 ## cscl
 a = 10
@@ -20,6 +19,5 @@ crystal
  na 0 0 0
  cl 1/2 1/2 1/2
 endcrystal
-qat na +1 cl -1
-ewald
+ewald na +1 cl -1
 

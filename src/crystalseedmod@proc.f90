@@ -294,7 +294,6 @@ contains
                 call ferror('parse_crystal_env','Unknown atomic symbol in atom input',faterr,line,syntax=.true.)
                 return
              end if
-             seed%spc(it)%qat = 0d0
           end if
           seed%is(seed%nat) = it
 
@@ -527,7 +526,6 @@ contains
                 call ferror('parse_molecule_env','Unknown atomic symbol in atom input',faterr,line,syntax=.true.)
                 return
              end if
-             seed%spc(it)%qat = 0d0
           end if
           seed%is(seed%nat) = it
 
@@ -1515,7 +1513,6 @@ contains
        if (usedz(i) > 0) then
           seed%spc(usedz(i))%name = nameguess(i,.true.)
           seed%spc(usedz(i))%z = i
-          seed%spc(usedz(i))%qat = 0d0
        end if
     end do
 
@@ -1722,7 +1719,6 @@ contains
           errmsg = "unknown atom: " // word
           goto 999
        end if
-       seed%spc(i)%qat = 0d0
     end do
 
     ! assign atom names
@@ -2024,7 +2020,6 @@ contains
        end do
 
        ! wrap up
-       seed%spc(i)%qat = 0d0
     end do
 
     ! natm, number of atoms, alllocate atomic info
@@ -2308,7 +2303,6 @@ contains
              ok = ok .and. isinteger(seed%spc(id)%z,word)
              seed%spc(id)%name = getword(line,lp)
              if (.not.ok) goto 999
-             seed%spc(id)%qat = 0d0
           end do
           hadspc = .true.
           cycle
@@ -3613,7 +3607,6 @@ contains
        if (ispc(i) > 0) then
           seed%spc(ispc(i))%name = nameguess(i,.true.)
           seed%spc(ispc(i))%z = i
-          seed%spc(ispc(i))%qat = 0d0
        end if
     end do
 
@@ -4219,7 +4212,6 @@ contains
                 i = usez(iz)
                 seed%spc(i)%name = nameguess(iz,.true.)
                 seed%spc(i)%z = iz
-                seed%spc(i)%qat = 0d0
              end if
           end do
 
@@ -4457,7 +4449,6 @@ contains
                          goto 999
                       end if
                    end if
-                   seed%spc(seed%nspc)%qat = 0d0
                    call usen%put(lword,seed%nspc)
                    seed%is(seed%nat) = seed%nspc
                 end if
@@ -4698,7 +4689,6 @@ contains
              seed%is(nat) = is
              if (.not.usespc(is)) then
                 seed%spc(is)%name = trim(word)
-                seed%spc(is)%qat = 0d0
                 if (isinteger(idum,word)) then
                    seed%spc(is)%z = idum
                 else
@@ -4813,7 +4803,6 @@ contains
        if (zuse(i) > 0) then
           seed%spc(zuse(i))%name = trim(nameguess(i,.true.))
           seed%spc(zuse(i))%z = i
-          seed%spc(zuse(i))%qat = 0d0
        end if
     end do
 
@@ -5262,7 +5251,6 @@ contains
                    call realloc(seed%spc,2*seed%nspc)
                 seed%spc(seed%nspc)%name = trim(atn)
                 seed%spc(seed%nspc)%z = iz
-                seed%spc(seed%nspc)%qat = 0d0
                 call usen%put(latn,seed%nspc)
                 seed%is(seed%nat) = seed%nspc
              end if
@@ -6049,7 +6037,6 @@ contains
           if (seed%nspc > size(seed%spc,1)) call realloc(seed%spc,2*seed%nspc)
           seed%spc(seed%nspc)%name = nameguess(iz,.true.)
           seed%spc(seed%nspc)%z = iz
-          seed%spc(seed%nspc)%qat = 0d0
           imap(iz) = seed%nspc
        endif
        seed%is(i) = imap(iz)
@@ -8580,7 +8567,6 @@ contains
                 call realloc(seed(nseed)%spc,2*seed(nseed)%nspc)
              seed(nseed)%spc(seed(nseed)%nspc)%name = trim(atn)
              seed(nseed)%spc(seed(nseed)%nspc)%z = iz
-             seed(nseed)%spc(seed(nseed)%nspc)%qat = 0d0
              call usen%put(latn,seed(nseed)%nspc)
              seed(nseed)%is(i) = seed(nseed)%nspc
           end if
@@ -8802,7 +8788,6 @@ contains
           nspc = nspc + 1
           spc(nspc)%z = i
           spc(nspc)%name = nameguess(i,.true.)
-          spc(nspc)%qat = 0d0
           usez(i) = nspc
        end if
     end do
@@ -9289,7 +9274,6 @@ contains
           seed(nseed)%is(nat) = is
           if (.not.usespc(is)) then
              seed(1)%spc(is)%name = trim(word)
-             seed(1)%spc(is)%qat = 0d0
              if (isinteger(idum,word)) then
                 seed(1)%spc(is)%z = idum
              else

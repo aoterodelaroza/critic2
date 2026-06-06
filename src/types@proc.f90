@@ -203,7 +203,6 @@ contains
     do i = nold+1,nnew
        a(i)%name = ""
        a(i)%z = 0
-       a(i)%qat = 0d0
     end do
 
   end subroutine realloc_species

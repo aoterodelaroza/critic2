@@ -21,12 +21,14 @@ submodule (crystalmod) complex
 
 contains
 
-  !> Calculate real and reciprocal space sum cutoffs
-  module subroutine calculate_ewald_cutoffs(c,rcut,hcut,eta,qsum,lrmax,lhmax)
+  !> Calculate real and reciprocal space sum cutoffs. qfrac contains the
+  !> atomic charges (one per species).
+  module subroutine calculate_ewald_cutoffs(c,qfrac,rcut,hcut,eta,qsum,lrmax,lhmax)
     use tools_io, only: ferror, faterr
     use param, only: pi, rad, sqpi, tpi
     class(crystal), intent(inout) :: c
 
+    real*8, intent(in) :: qfrac(:)
     real*8, intent(out) :: rcut, hcut, eta, qsum
     integer, intent(out) :: lrmax(3), lhmax(3)
 
@@ -45,7 +47,7 @@ contains
     qsum = 0d0
     q2sum = 0d0
     do i = 1, c%nneq
-       qq = c%spc(c%at(i)%is)%qat
+       qq = qfrac(c%at(i)%is)
        if (abs(qq) < 1d-6) &
           call ferror('calculate_ewald_cutoffs','Some of the charges are 0',faterr)
        qsum = qsum + real(c%at(i)%mult * qq,8)
@@ -125,10 +127,12 @@ contains
 
   end subroutine calculate_ewald_cutoffs
 
-  !> Calculates the Ewald electrostatic energy, using the input charges.
-  module function ewald_energy(c) result(ewe)
+  !> Calculates the Ewald electrostatic energy, using the input charges
+  !> qfrac (one per species).
+  module function ewald_energy(c,qfrac) result(ewe)
     use tools_io, only: uout, string
     class(crystal), intent(inout) :: c
+    real*8, intent(in) :: qfrac(:)
     real*8 :: ewe
 
     real*8 :: x(3), pot
@@ -136,18 +140,18 @@ contains
     real*8 :: rcut, hcut, eta, qsum
     integer :: lrmax(3), lhmax(3)
 
-    call c%calculate_ewald_cutoffs(rcut,hcut,eta,qsum,lrmax,lhmax)
+    call c%calculate_ewald_cutoffs(qfrac,rcut,hcut,eta,qsum,lrmax,lhmax)
 
     write (uout,'("+ Electrostatic potential at atomic positions")')
     write (uout,'("#id name mult    charge         Vel(Ha/e)")')
     ewe = 0d0
     do i = 1, c%nneq
        x = c%at(i)%x
-       pot = c%ewald_pot(x,rcut,hcut,eta,qsum,lrmax,lhmax)
-       ewe = ewe + c%at(i)%mult * c%spc(c%at(i)%is)%qat * pot
+       pot = c%ewald_pot(qfrac,x,rcut,hcut,eta,qsum,lrmax,lhmax)
+       ewe = ewe + c%at(i)%mult * qfrac(c%at(i)%is) * pot
        write (uout,'(99(A," "))') string(i,4), string(c%at(i)%name,4),&
           string(c%at(i)%mult,4),&
-          string(c%spc(c%at(i)%is)%qat,'e',14,6,3), string(pot,'e',18,10,3)
+          string(qfrac(c%at(i)%is),'e',14,6,3), string(pot,'e',18,10,3)
     end do
     write (uout,*)
     ewe = ewe / 2d0
@@ -157,9 +161,10 @@ contains
   !> Calculate the Ewald electrostatic potential at an arbitrary
   !> position x (crystallographic coords.)  If x is the nucleus j,
   !> return pot - q_j / |r-rj| at rj.
-  module function ewald_pot(c,x,rcut,hcut,eta,qsum,lrmax,lhmax)
+  module function ewald_pot(c,qfrac,x,rcut,hcut,eta,qsum,lrmax,lhmax)
     use param, only: tpi, pi, sqpi, icrd_crys
     class(crystal), intent(inout) :: c
+    real*8, intent(in) :: qfrac(:)
     real*8, intent(in) :: x(3)
     real*8, intent(in) :: rcut, hcut, eta, qsum
     integer, intent(in) :: lrmax(3), lhmax(3)
@@ -174,7 +179,7 @@ contains
     ! is this a nuclear position? -> get charge
     idnuc = c%identify_atom(x,icrd_crys)
     if (idnuc > 0) then
-       qnuc = c%spc(c%atcel(idnuc)%is)%qat
+       qnuc = qfrac(c%atcel(idnuc)%is)
     else
        qnuc = 0d0
     endif
@@ -191,7 +196,7 @@ contains
                 d2 = dot_product(px,matmul(c%gtensor,px))
                 if (d2 < 1d-12 .or. d2 > rcut2) cycle
                 d = sqrt(d2) / eta
-                sum_real = sum_real + c%spc(c%atcel(i)%is)%qat * erfc(d) / d
+                sum_real = sum_real + qfrac(c%atcel(i)%is) * erfc(d) / d
              end do
           end do
        end do
@@ -210,7 +215,7 @@ contains
 
              sfac_c = 0
              do i = 1, c%ncel
-                sfac_c = sfac_c + c%spc(c%atcel(i)%is)%qat * &
+                sfac_c = sfac_c + qfrac(c%atcel(i)%is) * &
                    cos(dot_product(lvec,x-c%atcel(i)%x))
              end do
              sfacp = 2d0 * sfac_c

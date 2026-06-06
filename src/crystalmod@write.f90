@@ -24,7 +24,7 @@ submodule (crystalmod) write
 contains
 
   !> Write information about the crystal structure to the output. lcrys =
-  !> information about the structure. lq = charges.
+  !> information about the structure. lq = list of atomic species.
   module subroutine struct_report(c,lcrys,lq)
     use global, only: iunitname0, dunit0, iunit
     use tools_math, only: gcd
@@ -117,14 +117,11 @@ contains
     if (lq) then
        write (uout,'("+ List of atomic species: ")')
        write (uout,'("# spc = atomic species. Z = atomic number. name = atomic name (symbol).")')
-       write (uout,'("# Q = charge.")')
        write (uout,'("# ",99(A," "))') string("spc",3,ioj_center), &
-          string("Z",3,ioj_center), string("name",7,ioj_center),&
-          string("Q",length=7,justify=ioj_center)
+          string("Z",3,ioj_center), string("name",7,ioj_center)
        do i = 1, c%nspc
           write (uout,'("  ",99(A," "))') string(i,3,ioj_center), &
-             string(c%spc(i)%z,3,ioj_center), string(c%spc(i)%name,7,ioj_center),&
-             string(c%spc(i)%qat,'f',length=7,decimal=4,justify=ioj_right)
+             string(c%spc(i)%z,3,ioj_center), string(c%spc(i)%name,7,ioj_center)
        end do
        write (uout,*)
     end if

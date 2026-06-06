@@ -522,52 +522,6 @@ contains
 
   end subroutine struct_sym
 
-  !> Change the charges and pseudopotential charges in the system.
-  module subroutine struct_charges(s,line,oksyn)
-    use systemmod, only: system
-    use grid1mod, only: grid1_register_core
-    use global, only: eval_next
-    use tools_io, only: lgetword, equal, ferror, faterr, getword, zatguess
-    type(system), intent(inout) :: s
-    character*(*), intent(in) :: line
-    logical, intent(out) :: oksyn
-
-    character(len=:), allocatable :: word
-    integer :: lp, nn, i
-    logical :: ok
-    real*8 :: xx
-
-    oksyn = .false.
-    lp = 1
-    word = lgetword(line,lp)
-    if (equal(word,'q') .or. equal(word,'qat')) then
-       do while (.true.)
-          word = getword(line,lp)
-          if (len_trim(word) < 1) exit
-          nn = zatguess(word)
-          if (nn == -1) then
-             call ferror('struct_charges','Unknown atomic symbol in Q/QAT',faterr,line,syntax=.true.)
-             return
-          end if
-          ok = eval_next(xx,line,lp)
-          if (.not.ok) then
-             call ferror('struct_charges','Incorrect Q/QAT syntax',faterr,line,syntax=.true.)
-             return
-          end if
-          do i = 1, s%c%nspc
-             if (s%c%spc(i)%z == nn) &
-                s%c%spc(i)%qat = xx
-          end do
-       end do
-    endif
-    oksyn = .true.
-
-    ! report the charges
-    call s%c%report(.false.,.true.)
-    call s%report(.false.,.false.,.false.,.false.,.false.,.true.,.false.)
-
-  end subroutine struct_charges
-
   ! Write the crystal structure to a file. If usexyznames, use the
   ! atom names when writing an xyz file.
   module subroutine struct_write(s,line,usexyznames)
@@ -1112,7 +1066,6 @@ contains
              call realloc(spc,2*nspc)
           spc(nspc)%name = trim(aux)
           spc(nspc)%z = s%c%spc(s%c%at(i)%is)%z
-          spc(nspc)%qat = s%c%spc(s%c%at(i)%is)%qat
           is(i) = nspc
        end if
     end do

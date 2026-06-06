@@ -1682,7 +1682,6 @@ contains
     call realloc(sys(isys)%c%spc,sys(isys)%c%nspc)
     ispc = sys(isys)%c%nspc
     sys(isys)%c%spc(ispc)%z = iz
-    sys(isys)%c%spc(ispc)%qat = 0d0
     sys(isys)%c%spc(ispc)%name = nameguess(iz,.true.)
 
     ! the geometry has changed

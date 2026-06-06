@@ -27,7 +27,6 @@ module struct_drivers
   private
   public :: struct_crystal_input
   public :: struct_sym
-  public :: struct_charges
   public :: struct_write
   public :: struct_write_bulk
   public :: struct_atomlabel
@@ -69,11 +68,6 @@ module struct_drivers
        character*(*), intent(in) :: line
        logical, intent(in) :: verbose
      end subroutine struct_sym
-     module subroutine struct_charges(s,line,oksyn)
-       type(system), intent(inout) :: s
-       character*(*), intent(in) :: line
-       logical, intent(out) :: oksyn
-     end subroutine struct_charges
      module subroutine struct_write(s,line,usexyznames)
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line

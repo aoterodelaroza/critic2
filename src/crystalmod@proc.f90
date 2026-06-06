@@ -84,7 +84,6 @@ contains
     do i = 1, mspc0
        c%spc(i)%name = ""
        c%spc(i)%z = 0
-       c%spc(i)%qat = 0d0
     end do
 
     ! no molecular fragments

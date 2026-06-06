@@ -41,7 +41,7 @@ contains
        rhoplot_grdvec
     use fieldmod, only: type_grid
     use struct_drivers, only: struct_crystal_input, struct_molcell,&
-       struct_atomlabel, struct_sym, struct_sym, struct_charges, struct_write, struct_write_bulk,&
+       struct_atomlabel, struct_sym, struct_sym, struct_write, struct_write_bulk,&
        struct_powder, struct_rdf, struct_compare, struct_comparevc, struct_environ,&
        struct_econ, struct_edit,&
        struct_coord, struct_polyhedra, struct_packing, struct_vdw, struct_identify,&
@@ -53,7 +53,7 @@ contains
     use arithmetic, only: listvariables, listlibxc
     use tools_math, only: emd
     use tools_io, only: ferror, faterr, uin, ucopy, uout, getword, lgetword, getline,&
-       equal, isinteger, isreal, string, usegui
+       equal, isinteger, isreal, string, usegui, zatguess
     use param, only: param_init
 
     ! parsing
@@ -65,6 +65,7 @@ contains
     integer :: i, nn, ismoli, ncom
     logical :: ok
     real*8 :: rdum
+    real*8, allocatable :: qfrac(:)
 #ifdef HAVE_LIBXC
     logical :: doref, doname, doflags
 #endif
@@ -139,12 +140,6 @@ contains
                 call struct_sym(sy,subline,.not.quiet)
              end if
           end if
-
-          ! q/qat, zpsp, nocore
-       elseif (equal(word,'q') .or. equal(word,'qat')) then
-          call check_structure_defined(ok)
-          if (.not.ok) cycle
-          call struct_charges(sy,line,ok)
 
           ! atomlabel
        elseif (equal(word,'atomlabel')) then
@@ -434,14 +429,40 @@ contains
        elseif (equal(word,'ewald')) then
           call check_structure_defined(ok)
           if (.not.ok) cycle
-          call check_no_extra_word(ok)
-          if (.not.ok) cycle
           if (sy%c%ismolecule) then
              call ferror("critic2","EWALD can not be used with molecules",faterr)
              cycle
           end if
 
-          rdum = sy%c%ewald_energy()
+          ! read the atomic charges (one or more atomic-symbol/charge pairs, required)
+          if (allocated(qfrac)) deallocate(qfrac)
+          allocate(qfrac(sy%c%nspc))
+          qfrac = 0d0
+          nn = 0
+          do while (.true.)
+             word2 = getword(line,lp)
+             if (len_trim(word2) < 1) exit
+             id = zatguess(word2)
+             if (id == -1) then
+                call ferror('critic2','Unknown atomic symbol in EWALD',faterr,line,syntax=.true.)
+                cycle main
+             end if
+             if (.not.eval_next(rdum,line,lp)) then
+                call ferror('critic2','Incorrect EWALD syntax',faterr,line,syntax=.true.)
+                cycle main
+             end if
+             do i = 1, sy%c%nspc
+                if (sy%c%spc(i)%z == id) qfrac(i) = rdum
+             end do
+             nn = nn + 1
+          end do
+          if (nn == 0) then
+             call ferror('critic2','EWALD requires the atomic charges (e.g. EWALD na +1 cl -1)',&
+                faterr,line,syntax=.true.)
+             cycle main
+          end if
+
+          rdum = sy%c%ewald_energy(qfrac)
           write (uout,'("* Ewald electrostatic energy (Hartree) = ",A/)') &
              string(rdum,'e',decimal=12)
 

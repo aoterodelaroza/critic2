@@ -1703,7 +1703,6 @@ contains
        call realloc(seed%spc,seed%nspc)
        seed%spc(seed%nspc)%name = nameguess(abs(is),.true.)
        seed%spc(seed%nspc)%z = abs(is)
-       seed%spc(seed%nspc)%qat = 0d0
        is_ = seed%nspc
     else
        is_ = is

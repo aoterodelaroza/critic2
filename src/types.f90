@@ -92,7 +92,6 @@ module types
   type species
      character*(10) :: name = "" !< name
      integer :: z = 0 !< atomic number
-     real*8 :: qat = 0d0 !< ionic charge for promolecular densities (integer) and Ewald (fractional)
   end type species
 
   !> The most basic atom possible

@@ -60,7 +60,7 @@ submodule (templates) proc
   integer, parameter :: ikeyw_molcell = 30         ! MOLCELL
   integer, parameter :: ikeyw_root = 31            ! ROOT
   integer, parameter :: ikeyw_units = 32           ! UNITS
-  integer, parameter :: ikeyw_zpsp = 33            ! ZPSP/Q/QAT/NOCORE
+  integer, parameter :: ikeyw_zpsp = 33            ! ZPSP/NOCORE
   integer, parameter :: ikeyw_addopts = 34         ! additional options
   !- variables
   integer, parameter :: ikeyw_clear = 35           ! CLEAR
@@ -149,7 +149,7 @@ submodule (templates) proc
      isection_misc,&             ! MOLCELL
      isection_misc,&             ! ROOT
      isection_misc,&             ! UNITS
-     isection_misc,&             ! ZPSP/Q/QAT/NOCORE
+     isection_misc,&             ! ZPSP/NOCORE
      isection_misc,&             ! additional options
      isection_variables,&        ! CLEAR
      isection_variables,&        ! LIST
@@ -214,7 +214,7 @@ submodule (templates) proc
      "MOLCELL (change molecular cell)             ",& ! MOLCELL
      "ROOT (change new files prefix)              ",& ! ROOT
      "UNITS (change distance units in output)     ",& ! UNITS
-     "ZPSP/Q (atomic & pseudo charges)            ",& ! ZPSP/Q/QAT/NOCORE
+     "ZPSP (pseudopotential charges)              ",& ! ZPSP/NOCORE
      "Additional critic2 options                  ",& ! Additional options
      "CLEAR (clear variables)                     ",& ! CLEAR
      "LIST (list variables)                       ",& ! LIST
@@ -313,7 +313,7 @@ submodule (templates) proc
      "molcell        ",& ! MOLCELL
      "root           ",& ! ROOT
      "units          ",& ! UNITS
-     "zpsp           ",& ! ZPSP/Q/QAT/NOCORE
+     "zpsp           ",& ! ZPSP/NOCORE
      "addopts        ",& ! additional options
      "clear          ",& ! CLEAR
      "list           ",& ! LIST
@@ -378,7 +378,7 @@ submodule (templates) proc
      "molecule/#c2-molcell      ",& ! MOLCELL
      "misc/#c2-root             ",& ! ROOT
      "inputoutput/#c2-units     ",& ! UNITS
-     "crystal/#c2-charge        ",& ! ZPSP/Q/QAT/NOCORE
+     "crystal/#c2-charge        ",& ! ZPSP/NOCORE
      "misc/#c2-control          ",& ! additional options
      "arithmetics/#c2-clear     ",& ! CLEAR
      "arithmetics/#c2-list      ",& ! LIST

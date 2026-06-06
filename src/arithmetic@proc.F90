@@ -28,7 +28,6 @@ submodule (arithmetic) proc
   ! function iprec(c)
   ! function iassoc(c)
   ! function istype(c,type,iwantarg)
-  ! function isspecialfield(fid)
   ! function isstructvar(fid,c,fder)
   ! recursive function fieldeval(fid,fder,errmsg,x0,sptr,periodic)
   ! function structvareval(svar,x0,syl,periodic) result(q)
@@ -39,7 +38,6 @@ submodule (arithmetic) proc
   ! subroutine pop(q,nq,s,ns,x0,sptr,periodic,errmsg)
   ! subroutine pop_grid(q,nq,s,ns,fail)
   ! function chemfunction(c,sia,x0,args,sptr,periodic,errmsg) result(q)
-  ! function specialfieldeval(fid,syl,x0) result(res)
 
   ! enum for operators and functions
   integer, parameter :: fun_unknown     = 0  !< unknown operator
@@ -504,7 +502,7 @@ contains
     ! return the ids of the fields in an array
     n = 0
     do i = 1, ntok
-       if (toklist(i)%type == token_field .and..not.isspecialfield(toklist(i)%sval)) then
+       if (toklist(i)%type == token_field) then
           n = n + 1
           if (n > size(idlist)) call realloc(idlist,2*n)
           idlist(n) = trim(toklist(i)%sval)
@@ -878,13 +876,7 @@ contains
           ok = isinteger(id,str,lp2)
           if (present(syl)) ok = ok .or. syl%fh%iskey(trim(str))
 
-          if (.not.ok) then
-             ! a special field
-             str = lower(str)
-             ok = isspecialfield(trim(str))
-             if (.not.ok) goto 999
-             fder = ""
-          end if
+          if (.not.ok) goto 999
           if (.not.inchem) then
              ! normal interpretation
              call addtok(token_field,sval=str,fder=fder)
@@ -1079,17 +1071,6 @@ contains
     endif
 
   endfunction istype
-
-  !> Does this identifier correspond to a special field. This routine
-  !> is thread-safe.
-  function isspecialfield(fid)
-    use tools_io, only: lower
-    character*(*), intent(in) :: fid
-    logical :: isspecialfield
-
-    isspecialfield = (trim(fid) == "ewald")
-
-  end function isspecialfield
 
   !> If this identifier corresponds to a structural variable, return
   !> .true. and the integer ID for the variable in c. Otherwise,
@@ -1329,8 +1310,6 @@ contains
           case default
              fieldeval = res%fspc
           end select
-       else if (isspecialfield(fid)) then
-          fieldeval = specialfieldeval(fid,syl,x0)
        else
           errmsg = 'field ' // string(fid) // ':' // string(fder) // ' - unknown field'
           return
@@ -2562,27 +2541,5 @@ contains
 
     end subroutine assign_bhole_variables
   end function chemfunction
-
-  !> Evaluate a special field (id string fid) at point x0 (cryst. coords.)
-  !> using system syl
-  function specialfieldeval(fid,syl,x0) result(res)
-    use systemmod, only: system
-    character*(*), intent(in) :: fid
-    type(system), intent(inout) :: syl
-    real*8, intent(in) :: x0(3)
-    real*8 :: res
-
-    real*8 :: xp(3)
-    real*8 :: rcut, hcut, eta, qsum
-    integer :: lrmax(3), lhmax(3)
-
-    if (trim(fid) == "ewald") then
-       ! Ewald potential at point x0
-       xp = syl%c%c2x(x0)
-       call syl%c%calculate_ewald_cutoffs(rcut,hcut,eta,qsum,lrmax,lhmax)
-       res = syl%c%ewald_pot(xp,rcut,hcut,eta,qsum,lrmax,lhmax)
-    end if
-
-  end function specialfieldeval
 
 end submodule proc
