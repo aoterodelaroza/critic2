@@ -416,6 +416,7 @@ contains
     logical :: atnumfound, atnamefound, coordsfound
 
     errmsg = ""
+    errmsg2 = ""
     ! deallocate
     if (allocated(x)) deallocate(x)
     if (allocated(z)) deallocate(z)
@@ -1132,6 +1133,7 @@ contains
     logical :: isfrac
 
     errmsg = "Error reading file: " // trim(file)
+    errmsg2 = ""
     f%molden_type = molden_type_unknown
     f%useecp = .false.
     f%issto = .false.
