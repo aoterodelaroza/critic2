@@ -82,150 +82,150 @@ module param
   integer, parameter :: mmlen = 2048 ! long length for fixed-length strings
 
   ! Enumerate for coordinate types
-  integer, parameter, public :: icrd_cart = 0 ! Cartesian
-  integer, parameter, public :: icrd_crys = 1 ! Crystallographic
-  integer, parameter, public :: icrd_rcrys = 2 ! Reduced crystallographic
+  integer, parameter :: icrd_cart = 0 ! Cartesian
+  integer, parameter :: icrd_crys = 1 ! Crystallographic
+  integer, parameter :: icrd_rcrys = 2 ! Reduced crystallographic
 
   ! Enumerate for structure formats (reading)
-  integer, parameter, public :: isformat_r_unknown = 0
-  integer, parameter, public :: isformat_r_from_input = 1
-  integer, parameter, public :: isformat_r_from_library = 2
-  integer, parameter, public :: isformat_r_derived = 3
-  integer, parameter, public :: isformat_r_cif = 4
-  integer, parameter, public :: isformat_r_shelx = 5
-  integer, parameter, public :: isformat_r_f21 = 6
-  integer, parameter, public :: isformat_r_cube = 7
-  integer, parameter, public :: isformat_r_bincube = 8
-  integer, parameter, public :: isformat_r_struct = 9
-  integer, parameter, public :: isformat_r_abinit = 10
-  integer, parameter, public :: isformat_r_elk = 11
-  integer, parameter, public :: isformat_r_qein = 12
-  integer, parameter, public :: isformat_r_qeout = 13
-  integer, parameter, public :: isformat_r_crystal = 14
-  integer, parameter, public :: isformat_r_fploout = 15
-  integer, parameter, public :: isformat_r_xyz = 16
-  integer, parameter, public :: isformat_r_wfn = 17
-  integer, parameter, public :: isformat_r_wfx = 18
-  integer, parameter, public :: isformat_r_fchk = 19
-  integer, parameter, public :: isformat_r_molden = 20
-  integer, parameter, public :: isformat_r_gaussian = 21
-  integer, parameter, public :: isformat_r_siesta = 22
-  integer, parameter, public :: isformat_r_xsf = 23
-  integer, parameter, public :: isformat_r_gen = 24
-  integer, parameter, public :: isformat_r_vasp = 25
-  integer, parameter, public :: isformat_r_pwc = 26
-  integer, parameter, public :: isformat_r_axsf = 27
-  integer, parameter, public :: isformat_r_dat = 28
-  integer, parameter, public :: isformat_r_pgout = 29
-  integer, parameter, public :: isformat_r_orca = 30
-  integer, parameter, public :: isformat_r_dmain = 31
-  integer, parameter, public :: isformat_r_aimsin = 32
-  integer, parameter, public :: isformat_r_aimsout = 33
-  integer, parameter, public :: isformat_r_tinkerfrac = 34
-  integer, parameter, public :: isformat_r_gjf = 35
-  integer, parameter, public :: isformat_r_castepcell = 36
-  integer, parameter, public :: isformat_r_castepgeom = 37
-  integer, parameter, public :: isformat_r_mol2 = 38
-  integer, parameter, public :: isformat_r_pdb = 39
-  integer, parameter, public :: isformat_r_zmat = 40
-  integer, parameter, public :: isformat_r_sdf = 41
-  integer, parameter, public :: isformat_r_magres = 42
-  integer, parameter, public :: isformat_r_alamode = 43
-  integer, parameter, public :: isformat_r_castepphonon = 44
-  integer, parameter, public :: isformat_r_akaikkr = 45
-  integer, parameter, public :: isformat_r_xband = 46
+  integer, parameter :: isformat_r_unknown = 0
+  integer, parameter :: isformat_r_from_input = 1
+  integer, parameter :: isformat_r_from_library = 2
+  integer, parameter :: isformat_r_derived = 3
+  integer, parameter :: isformat_r_cif = 4
+  integer, parameter :: isformat_r_shelx = 5
+  integer, parameter :: isformat_r_f21 = 6
+  integer, parameter :: isformat_r_cube = 7
+  integer, parameter :: isformat_r_bincube = 8
+  integer, parameter :: isformat_r_struct = 9
+  integer, parameter :: isformat_r_abinit = 10
+  integer, parameter :: isformat_r_elk = 11
+  integer, parameter :: isformat_r_qein = 12
+  integer, parameter :: isformat_r_qeout = 13
+  integer, parameter :: isformat_r_crystal = 14
+  integer, parameter :: isformat_r_fploout = 15
+  integer, parameter :: isformat_r_xyz = 16
+  integer, parameter :: isformat_r_wfn = 17
+  integer, parameter :: isformat_r_wfx = 18
+  integer, parameter :: isformat_r_fchk = 19
+  integer, parameter :: isformat_r_molden = 20
+  integer, parameter :: isformat_r_gaussian = 21
+  integer, parameter :: isformat_r_siesta = 22
+  integer, parameter :: isformat_r_xsf = 23
+  integer, parameter :: isformat_r_gen = 24
+  integer, parameter :: isformat_r_vasp = 25
+  integer, parameter :: isformat_r_pwc = 26
+  integer, parameter :: isformat_r_axsf = 27
+  integer, parameter :: isformat_r_dat = 28
+  integer, parameter :: isformat_r_pgout = 29
+  integer, parameter :: isformat_r_orca = 30
+  integer, parameter :: isformat_r_dmain = 31
+  integer, parameter :: isformat_r_aimsin = 32
+  integer, parameter :: isformat_r_aimsout = 33
+  integer, parameter :: isformat_r_tinkerfrac = 34
+  integer, parameter :: isformat_r_gjf = 35
+  integer, parameter :: isformat_r_castepcell = 36
+  integer, parameter :: isformat_r_castepgeom = 37
+  integer, parameter :: isformat_r_mol2 = 38
+  integer, parameter :: isformat_r_pdb = 39
+  integer, parameter :: isformat_r_zmat = 40
+  integer, parameter :: isformat_r_sdf = 41
+  integer, parameter :: isformat_r_magres = 42
+  integer, parameter :: isformat_r_alamode = 43
+  integer, parameter :: isformat_r_castepphonon = 44
+  integer, parameter :: isformat_r_akaikkr = 45
+  integer, parameter :: isformat_r_xband = 46
 
   ! Enumerate for structure formats (writing)
-  integer, parameter, public :: isformat_w_unknown = 0
-  integer, parameter, public :: isformat_w_xyz = 1
-  integer, parameter, public :: isformat_w_gjf = 2
-  integer, parameter, public :: isformat_w_cml = 3
-  integer, parameter, public :: isformat_w_obj = 4
-  integer, parameter, public :: isformat_w_ply = 5
-  integer, parameter, public :: isformat_w_off = 6
-  integer, parameter, public :: isformat_w_gaussian_periodic = 7
-  integer, parameter, public :: isformat_w_qein = 8
-  integer, parameter, public :: isformat_w_aimsin = 9
-  integer, parameter, public :: isformat_w_vasp = 10
-  integer, parameter, public :: isformat_w_abinit = 11
-  integer, parameter, public :: isformat_w_elk = 12
-  integer, parameter, public :: isformat_w_tessel = 13
-  integer, parameter, public :: isformat_w_critic = 14
-  integer, parameter, public :: isformat_w_cif = 15
-  integer, parameter, public :: isformat_w_crystal = 16
-  integer, parameter, public :: isformat_w_shelx = 17
-  integer, parameter, public :: isformat_w_octave = 18
-  integer, parameter, public :: isformat_w_dcpdb = 19
-  integer, parameter, public :: isformat_w_gulp = 20
-  integer, parameter, public :: isformat_w_lammps = 21
-  integer, parameter, public :: isformat_w_siesta_fdf = 22
-  integer, parameter, public :: isformat_w_siesta_struct = 23
-  integer, parameter, public :: isformat_w_dftbp_hsd = 24
-  integer, parameter, public :: isformat_w_dftbp_gen = 25
-  integer, parameter, public :: isformat_w_pyscf = 26
-  integer, parameter, public :: isformat_w_tinkerfrac = 27
-  integer, parameter, public :: isformat_w_pdb = 28
+  integer, parameter :: isformat_w_unknown = 0
+  integer, parameter :: isformat_w_xyz = 1
+  integer, parameter :: isformat_w_gjf = 2
+  integer, parameter :: isformat_w_cml = 3
+  integer, parameter :: isformat_w_obj = 4
+  integer, parameter :: isformat_w_ply = 5
+  integer, parameter :: isformat_w_off = 6
+  integer, parameter :: isformat_w_gaussian_periodic = 7
+  integer, parameter :: isformat_w_qein = 8
+  integer, parameter :: isformat_w_aimsin = 9
+  integer, parameter :: isformat_w_vasp = 10
+  integer, parameter :: isformat_w_abinit = 11
+  integer, parameter :: isformat_w_elk = 12
+  integer, parameter :: isformat_w_tessel = 13
+  integer, parameter :: isformat_w_critic = 14
+  integer, parameter :: isformat_w_cif = 15
+  integer, parameter :: isformat_w_crystal = 16
+  integer, parameter :: isformat_w_shelx = 17
+  integer, parameter :: isformat_w_octave = 18
+  integer, parameter :: isformat_w_dcpdb = 19
+  integer, parameter :: isformat_w_gulp = 20
+  integer, parameter :: isformat_w_lammps = 21
+  integer, parameter :: isformat_w_siesta_fdf = 22
+  integer, parameter :: isformat_w_siesta_struct = 23
+  integer, parameter :: isformat_w_dftbp_hsd = 24
+  integer, parameter :: isformat_w_dftbp_gen = 25
+  integer, parameter :: isformat_w_pyscf = 26
+  integer, parameter :: isformat_w_tinkerfrac = 27
+  integer, parameter :: isformat_w_pdb = 28
 
   ! Enumerate for vibration data formats
-  integer, parameter, public :: ivformat_unknown = 0
-  integer, parameter, public :: ivformat_matdynmodes = 1
-  integer, parameter, public :: ivformat_matdyneig = 2
-  integer, parameter, public :: ivformat_qedyn = 3
-  integer, parameter, public :: ivformat_phonopy_ascii = 4
-  integer, parameter, public :: ivformat_phonopy_yaml = 5
-  integer, parameter, public :: ivformat_phonopy_hdf5 = 6
-  integer, parameter, public :: ivformat_phonopy_fc2 = 7
-  integer, parameter, public :: ivformat_crystal_out = 8
-  integer, parameter, public :: ivformat_gaussian_log = 9
-  integer, parameter, public :: ivformat_gaussian_fchk = 10
-  integer, parameter, public :: ivformat_castep_phonon = 11
+  integer, parameter :: ivformat_unknown = 0
+  integer, parameter :: ivformat_matdynmodes = 1
+  integer, parameter :: ivformat_matdyneig = 2
+  integer, parameter :: ivformat_qedyn = 3
+  integer, parameter :: ivformat_phonopy_ascii = 4
+  integer, parameter :: ivformat_phonopy_yaml = 5
+  integer, parameter :: ivformat_phonopy_hdf5 = 6
+  integer, parameter :: ivformat_phonopy_fc2 = 7
+  integer, parameter :: ivformat_crystal_out = 8
+  integer, parameter :: ivformat_gaussian_log = 9
+  integer, parameter :: ivformat_gaussian_fchk = 10
+  integer, parameter :: ivformat_castep_phonon = 11
 
   ! Enumerate for field formats
-  integer, parameter, public :: ifformat_unknown = 0
-  integer, parameter, public :: ifformat_wien = 1
-  integer, parameter, public :: ifformat_elk = 2
-  integer, parameter, public :: ifformat_pi = 3
-  integer, parameter, public :: ifformat_cube = 4
-  integer, parameter, public :: ifformat_bincube = 5
-  integer, parameter, public :: ifformat_abinit = 6
-  integer, parameter, public :: ifformat_vasp = 7
-  integer, parameter, public :: ifformat_vaspnov = 8
-  integer, parameter, public :: ifformat_qub = 9
-  integer, parameter, public :: ifformat_xsf = 10
-  integer, parameter, public :: ifformat_elkgrid = 11
-  integer, parameter, public :: ifformat_siestagrid = 12
-  integer, parameter, public :: ifformat_fplogrid = 13
-  integer, parameter, public :: ifformat_dftb = 14
-  integer, parameter, public :: ifformat_pwc = 15
-  integer, parameter, public :: ifformat_wfn = 16
-  integer, parameter, public :: ifformat_wfx = 17
-  integer, parameter, public :: ifformat_fchk = 18
-  integer, parameter, public :: ifformat_molden = 19
-  integer, parameter, public :: ifformat_fmt = 20
-  integer, parameter, public :: ifformat_txt = 21
-  integer, parameter, public :: ifformat_dat = 22
-  integer, parameter, public :: ifformat_as = 23
-  integer, parameter, public :: ifformat_as_promolecular = 24
-  integer, parameter, public :: ifformat_as_core = 25
-  integer, parameter, public :: ifformat_as_resample = 26
-  integer, parameter, public :: ifformat_as_clm = 27
-  integer, parameter, public :: ifformat_as_clm_sub = 28
-  integer, parameter, public :: ifformat_as_ghost = 29
-  integer, parameter, public :: ifformat_copy = 30
-  integer, parameter, public :: ifformat_promolecular = 31
-  integer, parameter, public :: ifformat_promolecular_fragment = 32
-  integer, parameter, public :: ifformat_as_ft_x = 33
-  integer, parameter, public :: ifformat_as_ft_y = 34
-  integer, parameter, public :: ifformat_as_ft_z = 35
-  integer, parameter, public :: ifformat_as_ft_xx = 36
-  integer, parameter, public :: ifformat_as_ft_xy = 37
-  integer, parameter, public :: ifformat_as_ft_xz = 38
-  integer, parameter, public :: ifformat_as_ft_yy = 39
-  integer, parameter, public :: ifformat_as_ft_yz = 40
-  integer, parameter, public :: ifformat_as_ft_zz = 41
-  integer, parameter, public :: ifformat_as_ft_grad = 42
-  integer, parameter, public :: ifformat_as_ft_lap = 43
-  integer, parameter, public :: ifformat_as_ft_pot = 44
+  integer, parameter :: ifformat_unknown = 0
+  integer, parameter :: ifformat_wien = 1
+  integer, parameter :: ifformat_elk = 2
+  integer, parameter :: ifformat_pi = 3
+  integer, parameter :: ifformat_cube = 4
+  integer, parameter :: ifformat_bincube = 5
+  integer, parameter :: ifformat_abinit = 6
+  integer, parameter :: ifformat_vasp = 7
+  integer, parameter :: ifformat_vaspnov = 8
+  integer, parameter :: ifformat_qub = 9
+  integer, parameter :: ifformat_xsf = 10
+  integer, parameter :: ifformat_elkgrid = 11
+  integer, parameter :: ifformat_siestagrid = 12
+  integer, parameter :: ifformat_fplogrid = 13
+  integer, parameter :: ifformat_dftb = 14
+  integer, parameter :: ifformat_pwc = 15
+  integer, parameter :: ifformat_wfn = 16
+  integer, parameter :: ifformat_wfx = 17
+  integer, parameter :: ifformat_fchk = 18
+  integer, parameter :: ifformat_molden = 19
+  integer, parameter :: ifformat_fmt = 20
+  integer, parameter :: ifformat_txt = 21
+  integer, parameter :: ifformat_dat = 22
+  integer, parameter :: ifformat_as = 23
+  integer, parameter :: ifformat_as_promolecular = 24
+  integer, parameter :: ifformat_as_core = 25
+  integer, parameter :: ifformat_as_resample = 26
+  integer, parameter :: ifformat_as_clm = 27
+  integer, parameter :: ifformat_as_clm_sub = 28
+  integer, parameter :: ifformat_as_ghost = 29
+  integer, parameter :: ifformat_copy = 30
+  integer, parameter :: ifformat_promolecular = 31
+  integer, parameter :: ifformat_promolecular_fragment = 32
+  integer, parameter :: ifformat_as_ft_x = 33
+  integer, parameter :: ifformat_as_ft_y = 34
+  integer, parameter :: ifformat_as_ft_z = 35
+  integer, parameter :: ifformat_as_ft_xx = 36
+  integer, parameter :: ifformat_as_ft_xy = 37
+  integer, parameter :: ifformat_as_ft_xz = 38
+  integer, parameter :: ifformat_as_ft_yy = 39
+  integer, parameter :: ifformat_as_ft_yz = 40
+  integer, parameter :: ifformat_as_ft_zz = 41
+  integer, parameter :: ifformat_as_ft_grad = 42
+  integer, parameter :: ifformat_as_ft_lap = 43
+  integer, parameter :: ifformat_as_ft_pot = 44
 
   ! Enumerate for molecular and crystal properties. These are used
   ! throughout the code as flags for the calculation of scalar fields.
@@ -395,6 +395,24 @@ module param
       2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 2.00d0, 0.25d0, 0.25d0,& ! 111-120
       0.25d0, 0.25d0, 0.10d0/) / bohrtoa                                               ! 121-123
   real*8 :: atmvdw(0:maxzat0) = atmvdw0
+
+  ! Pauling electronegativities
+  real*8, parameter :: atmeneg(0:118) = (/&
+      0.0000d0,2.2000d0,0.0000d0,0.9800d0,1.5700d0,2.0400d0,2.5500d0,3.0400d0,&
+      3.4400d0,3.9800d0,0.0000d0,0.9300d0,1.3100d0,1.6100d0,1.9000d0,2.1900d0,&
+      2.5800d0,3.1600d0,0.0000d0,0.8200d0,1.0000d0,1.3600d0,1.5400d0,1.6300d0,&
+      1.6600d0,1.5500d0,1.8300d0,1.8800d0,1.9100d0,1.9000d0,1.6500d0,1.8100d0,&
+      2.0100d0,2.1800d0,2.5500d0,2.9600d0,3.0000d0,0.8200d0,0.9500d0,1.2200d0,&
+      1.3300d0,1.6000d0,2.1600d0,1.9000d0,2.2000d0,2.2800d0,2.2000d0,1.9300d0,&
+      1.6900d0,1.7800d0,1.9600d0,2.0500d0,2.1000d0,2.6600d0,2.6000d0,0.7900d0,&
+      0.8900d0,1.1000d0,1.1200d0,1.1300d0,1.1400d0,0.0000d0,1.1700d0,1.2000d0,&
+      1.2000d0,1.2000d0,1.2200d0,1.2300d0,1.2400d0,1.2500d0,1.1000d0,1.2700d0,&
+      1.3000d0,1.5000d0,2.3600d0,1.9000d0,2.2000d0,2.2000d0,2.2800d0,2.5400d0,&
+      2.0000d0,1.6200d0,2.3300d0,2.0200d0,2.0000d0,2.2000d0,2.2000d0,0.7000d0,&
+      0.9000d0,1.1000d0,1.3000d0,1.5000d0,1.3800d0,1.3600d0,1.2800d0,1.1300d0,&
+      1.2800d0,1.3000d0,1.3000d0,1.3000d0,1.3000d0,1.3000d0,1.3000d0,0.0000d0,&
+      0.0000d0,0.0000d0,0.0000d0,0.0000d0,0.0000d0,0.0000d0,0.0000d0,0.0000d0,&
+      0.0000d0,0.0000d0,0.0000d0,0.0000d0,0.0000d0,0.0000d0,0.0000d0/)
 
   ! standard atomic weights
   real*8, parameter :: atmass(0:maxzat0) = (/&
