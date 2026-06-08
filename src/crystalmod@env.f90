@@ -908,6 +908,9 @@ contains
        call realloc(nstar(i)%ordcon,nstar(i)%ncon)
     end do
 
+    ! perceive bond orders for the organic subgraph
+    call perceive_bond_orders(c,nstar)
+
   end subroutine find_asterisms
 
   !> Given the point xp (in icrd coordinates), calculate the list of
@@ -1354,5 +1357,524 @@ contains
     rmax = min(rmax,minval((i1 + 1 - xn) * c%blockomega / c%blockcv))
 
   end subroutine blocks_inscribed_sphere
+
+  !> Perceive integer bond orders from the molecular geometry and
+  !> store them in nstar(:)%ordcon. Uses a rule-based algorithm
+  !> heavily adapted from:
+  !>   Zhang et al., J. Cheminform. 4 (2012) 26, doi:10.1186/1758-2946-4-26
+  !> The initial connectivity is derived from critic2's own rules.
+  subroutine perceive_bond_orders(c,nstar)
+    use types, only: neighstar
+    use tools, only: qcksort
+    use tools_math, only: cross
+    use param, only: bohrtoa
+    class(crystal), intent(inout) :: c
+    type(neighstar), intent(inout) :: nstar(:)
+
+    integer :: i, k, ia, ib, nb, mb, maxdeg, za, zb, ncand
+    integer, allocatable :: bia(:), bib(:), blv(:,:), bord(:)
+    logical, allocatable :: bfix(:)
+    real*8, allocatable :: bdist(:)
+    integer, allocatable :: deg(:), cap(:), iopen(:), nincid(:), incid(:,:)
+    integer, allocatable :: cand(:), iord(:)
+    real*8, allocatable :: ckey(:)
+    real*8 :: r1, r2, r3, pyr
+    logical :: islin
+    ! maximum-weight matching workspace (shared with the contained solver)
+    integer, allocatable :: ca(:), cb(:), cbond(:), wopen(:)
+    logical, allocatable :: cursel(:), bestsel(:)
+    real*8, allocatable :: cw(:), remw(:)
+    real*8 :: bestscore
+    integer :: nodecount
+
+    ! recursive double-bond search
+    integer, parameter :: maxnode = 2000000 ! maximum node count
+    integer, parameter :: ncand_max = 300 ! maximum number of candidates (otherwise, greedy)
+
+    if (c%ncel == 0) return
+
+    ! per-atom capacity (max valence) of the supported elements; <0 = out of
+    ! scope (metals, unsupported elements) -> their bonds are left single
+    ! supported elements: H, C, N, O, F, P, S, Cl, Br, I
+    allocate(cap(c%ncel),deg(c%ncel))
+    cap = -1
+    deg = 0
+    do ia = 1, c%ncel
+       cap(ia) = zhang_maxval(c%spc(c%atcel(ia)%is)%z)
+    end do
+
+    ! count neighbors (degree) and total bonds; return if no bonds
+    nb = 0
+    do ia = 1, c%ncel
+       if (cap(ia) < 0) cycle
+       do k = 1, nstar(ia)%ncon
+          ib = nstar(ia)%idcon(k)
+          if (cap(ib) < 0) cycle
+          if (ib == ia) cycle ! skip self-image bonds (left single, see below)
+          deg(ia) = deg(ia) + 1
+          if (ia < ib) nb = nb + 1
+       end do
+    end do
+    if (nb == 0) return
+    maxdeg = maxval(deg)
+
+    ! build the unique bond list and the per-atom incidence list
+    allocate(bia(nb),bib(nb),blv(3,nb),bdist(nb),bord(nb),bfix(nb))
+    allocate(nincid(c%ncel),incid(maxdeg,c%ncel))
+    bord = 1
+    bfix = .false.
+    nincid = 0
+    mb = 0
+    do ia = 1, c%ncel
+       if (cap(ia) < 0) cycle
+       do k = 1, nstar(ia)%ncon
+          ib = nstar(ia)%idcon(k)
+          if (cap(ib) < 0) cycle
+          if (ib <= ia) cycle ! count each bond once; skip self-image bonds
+          mb = mb + 1
+          bia(mb) = ia
+          bib(mb) = ib
+          blv(:,mb) = nstar(ia)%lcon(:,k)
+          bdist(mb) = norm2(c%x2c(c%atcel(ib)%x + real(blv(:,mb),8) - c%atcel(ia)%x))
+          nincid(ia) = nincid(ia) + 1
+          incid(nincid(ia),ia) = mb
+          nincid(ib) = nincid(ib) + 1
+          incid(nincid(ib),ib) = mb
+       end do
+    end do
+
+    ! Open valence available for upgrading bonds beyond single (cap - degree)
+    ! No over-connected correction: bonds are controlled by the user
+    allocate(iopen(c%ncel))
+    iopen = 0
+    do ia = 1, c%ncel
+       if (cap(ia) < 0) cycle
+       iopen(ia) = max(cap(ia) - deg(ia),0)
+    end do
+
+    ! Hard rule 3.3 (reinterpretation): pyramidal carbons cannot form
+    ! multiple bonds. The planarity criterion is different from the
+    ! article.
+    do ia = 1, c%ncel
+       if (cap(ia) < 0) cycle
+       if (deg(ia) == 3 .and. c%spc(c%atcel(ia)%is)%z == 6) then
+          pyr = pyramidality(ia)
+          if (pyr > 0.4d0) iopen(ia) = 0
+       end if
+    end do
+
+    ! Hard rule 2.3, triple bonds (reintrepretation): detected by a
+    ! combination of length and linearity, rather than the paper's
+    ! heuristic.
+    do i = 1, nb
+       if (bfix(i)) cycle
+       ia = bia(i)
+       ib = bib(i)
+       if (iopen(ia) < 2 .or. iopen(ib) < 2) cycle
+       if (deg(ia) > 2 .or. deg(ib) > 2) cycle
+       za = c%spc(c%atcel(ia)%is)%z
+       zb = c%spc(c%atcel(ib)%is)%z
+       call zhang_refbond(za,zb,r1,r2,r3)
+       if (r3 < 0d0) cycle
+       if (bdist(i) >= r3 + 0.1d0/bohrtoa) cycle
+       islin = .true.
+       if (deg(ia) == 2) islin = islin .and. (atom_angle(ia) > 155d0)
+       if (deg(ib) == 2) islin = islin .and. (atom_angle(ib) > 155d0)
+       if (.not.islin) cycle
+       bord(i) = 3
+       bfix(i) = .true.
+       iopen(ia) = iopen(ia) - 2
+       iopen(ib) = iopen(ib) - 2
+    end do
+
+    ! Hard rule: oxyacid groups (N/P/S/Cl/Br/I with terminal O; Zhang rules
+    ! 3.1/3.2/4.2). Assign localized X=O double bonds (nitro/nitrate, phosphate,
+    ! sulfate, perchlorate/chlorate/iodate, ...)
+    do ia = 1, c%ncel
+       za = -1
+       if (cap(ia) >= 0) za = c%spc(c%atcel(ia)%is)%z
+       if (za /= 7 .and. za /= 15 .and. za /= 16 .and. za /= 17 .and. za /= 35 .and. za /= 53) cycle
+       call assign_oxyacid(ia,za)
+    end do
+
+    ! length rule (reinterpreted): a candidate bond is unfixed, both
+    ! ends are still open, and it is shorter than the single bond
+    ! reference. Write down the bonds that are candidates for
+    ! promotion to double in cand(.). ckey(.) is the bond distance
+    ! minus the reference single-bond distance (>0).
+    allocate(cand(nb),ckey(nb))
+    ncand = 0
+    do i = 1, nb
+       if (bfix(i)) cycle
+       ia = bia(i)
+       ib = bib(i)
+       if (iopen(ia) < 1 .or. iopen(ib) < 1) cycle
+       za = c%spc(c%atcel(ia)%is)%z
+       zb = c%spc(c%atcel(ib)%is)%z
+       call zhang_refbond(za,zb,r1,r2,r3)
+       if (r2 < 0d0) cycle
+       if (bdist(i) >= r1) cycle
+       ncand = ncand + 1
+       cand(ncand) = i
+       ckey(ncand) = bdist(i) - r1 ! <=0; ascending = shortest (most double) first
+    end do
+
+    if (ncand > 0) then
+       ! sort candidates by distance, from most to least double-like
+       allocate(iord(ncand))
+       do k = 1, ncand
+          iord(k) = k
+       end do
+       call qcksort(ckey(1:ncand),iord,1,ncand)
+
+       ! Write down information for the candidates: which bond
+       ! (cbond), endpoints (ca, cb), and weight (r - single_ref > 0).
+       ! The first candidate has the shortest (most different) bond
+       ! relative to the reference.
+       ! remw is an accumulated deviation wrt reference:
+       !   remw(k) = sum_{i = k}^ncand (ref_i - dist_i) > 0
+       allocate(ca(ncand),cb(ncand),cbond(ncand),cw(ncand),remw(ncand+1))
+       do k = 1, ncand
+          cbond(k) = cand(iord(k))
+          ca(k) = bia(cbond(k))
+          cb(k) = bib(cbond(k))
+          cw(k) = -ckey(iord(k)) ! = r1 - dist > 0, larger for shorter bonds
+       end do
+       remw(ncand+1) = 0d0
+       do k = ncand, 1, -1
+          remw(k) = remw(k+1) + cw(k)
+       end do
+
+       ! Greedy baseline: assign all double bonds that are currently
+       ! possible in order from higest score (most different from the
+       ! single reference) to lowest. This is also the fallback if
+       ! the search is truncated.
+       ! wopen = working iopen
+       ! cursel = currently selected candidates
+       ! bestsel = currently best set of selected candidates in the search
+       allocate(cursel(ncand),bestsel(ncand),wopen(c%ncel))
+       wopen = iopen
+       cursel = .false.
+       bestscore = 0d0
+       do k = 1, ncand
+          if (wopen(ca(k)) >= 1 .and. wopen(cb(k)) >= 1) then
+             cursel(k) = .true.
+             wopen(ca(k)) = wopen(ca(k)) - 1
+             wopen(cb(k)) = wopen(cb(k)) - 1
+             bestscore = bestscore + cw(k)
+          end if
+       end do
+       bestsel = cursel
+
+       ! branch-and-bound improvement over the greedy seed (bounded in both
+       ! recursion depth and node count; the greedy result is kept otherwise)
+       if (ncand <= ncand_max) then
+          nodecount = 0
+          wopen = iopen
+          cursel = .false.
+          call solve(1,0d0)
+       end if
+
+       ! apply the best matching found
+       do k = 1, ncand
+          if (bestsel(k)) then
+             i = cbond(k)
+             bord(i) = 2
+             bfix(i) = .true.
+             iopen(ca(k)) = iopen(ca(k)) - 1
+             iopen(cb(k)) = iopen(cb(k)) - 1
+          end if
+       end do
+       deallocate(iord,ca,cb,cbond,cw,remw,cursel,bestsel,wopen)
+    end if
+
+    ! write the perceived orders back into both reciprocal nstar entries
+    do i = 1, nb
+       call set_order(bia(i),bib(i),blv(:,i),bord(i))
+       call set_order(bib(i),bia(i),-blv(:,i),bord(i))
+    end do
+
+    deallocate(bia,bib,blv,bdist,bord,bfix)
+    deallocate(cap,deg,iopen,nincid,incid,cand,ckey)
+
+  contains
+
+    !> True if the bond (ia -> ib at lattice vector lv) should be counted from
+    !> ia's side, i.e. exactly once over the doubly-stored neighbor lists.
+    !> Outward Cartesian vector from atom ja along bond ibnd.
+    function out_vector(ja,ibnd) result(v)
+      integer, intent(in) :: ja, ibnd
+      real*8 :: v(3)
+      if (bia(ibnd) == ja) then
+         v = c%x2c(c%atcel(bib(ibnd))%x + real(blv(:,ibnd),8) - c%atcel(ja)%x)
+      else
+         v = c%x2c(c%atcel(bia(ibnd))%x - real(blv(:,ibnd),8) - c%atcel(ja)%x)
+      end if
+    end function out_vector
+
+    !> Largest bond angle (degrees) at a degree-2 atom (its two incident bonds).
+    function atom_angle(ja) result(ang)
+      integer, intent(in) :: ja
+      real*8 :: ang, v1(3), v2(3), n1, n2, ca
+      ang = 0d0
+      if (nincid(ja) < 2) return
+      v1 = out_vector(ja,incid(1,ja))
+      v2 = out_vector(ja,incid(2,ja))
+      n1 = norm2(v1)
+      n2 = norm2(v2)
+      if (n1 < 1d-10 .or. n2 < 1d-10) return
+      ca = dot_product(v1,v2) / (n1*n2)
+      ca = max(min(ca,1d0),-1d0)
+      ang = acos(ca) * 180d0 / acos(-1d0)
+    end function atom_angle
+
+    !> Pyramidality of a degree-3 atom: |triple product| of its three unit
+    !> bond vectors. 0 for a planar (sp2) center, ~0.77 for ideal sp3.
+    function pyramidality(ja) result(pyr)
+      integer, intent(in) :: ja
+      real*8 :: pyr, u1(3), u2(3), u3(3), nn
+      pyr = 0d0
+      if (nincid(ja) /= 3) return
+      u1 = out_vector(ja,incid(1,ja))
+      u2 = out_vector(ja,incid(2,ja))
+      u3 = out_vector(ja,incid(3,ja))
+      nn = norm2(u1)
+      if (nn < 1d-10) return
+      u1 = u1 / nn
+      nn = norm2(u2)
+      if (nn < 1d-10) return
+      u2 = u2 / nn
+      nn = norm2(u3)
+      if (nn < 1d-10) return
+      u3 = u3 / nn
+      pyr = abs(dot_product(u1,cross(u2,u3)))
+    end function pyramidality
+
+    !> Assign localized X=O double bonds for an oxyacid center ia (X=N,P,S)
+    !> with terminal (degree-1) oxygen neighbors.
+    subroutine assign_oxyacid(ia,za)
+      integer, intent(in) :: ia, za
+      integer :: j, jb, no, kkk, ndbl
+      integer, allocatable :: obnd(:), ord2(:)
+      real*8, allocatable :: odist(:)
+
+      ! List unfixed terminal-O bonds at this center.
+      ! no = terminal unfixed O atoms, obnd(.) = bond ID, odist(.) = distance
+      no = 0
+      allocate(obnd(nincid(ia)),odist(nincid(ia)))
+      do j = 1, nincid(ia)
+         jb = incid(j,ia)
+         if (bfix(jb)) cycle
+         if (bia(jb) == ia) then
+            if (c%spc(c%atcel(bib(jb))%is)%z /= 8) cycle
+            if (deg(bib(jb)) /= 1) cycle
+         else
+            if (c%spc(c%atcel(bia(jb))%is)%z /= 8) cycle
+            if (deg(bia(jb)) /= 1) cycle
+         end if
+         no = no + 1
+         obnd(no) = jb
+         odist(no) = bdist(jb)
+      end do
+      if (no == 0) then
+         deallocate(obnd,odist)
+         return
+      end if
+
+      ! ndbl: number of X=O double bonds to assign.
+      if (za == 7) then
+         ndbl = 1 ! nitro / nitrate: one localized N=O
+      elseif (za == 17 .or. za == 35 .or. za == 53) then
+         ! perhalate series: one X-O stays single (formal charge), rest double
+         ! -> perchlorate 3, chlorate 2, chlorite 1, hypochlorite 0
+         ndbl = min(no - 1,max(cap(ia) - deg(ia),0))
+      else
+         ndbl = max(cap(ia) - deg(ia),0) ! phosphate, sulfate
+      end if
+      ndbl = min(ndbl,no,max(iopen(ia),merge(1,0,za==7)))
+      if (ndbl <= 0) return
+
+      ! assign the double bonds to the shortest terminal-O bonds
+      allocate(ord2(no))
+      do j = 1, no
+         ord2(j) = j
+      end do
+      call qcksort(odist(1:no),ord2,1,no)
+      do kkk = 1, ndbl
+         jb = obnd(ord2(kkk))
+         bord(jb) = 2
+         bfix(jb) = .true.
+         if (bia(jb) == ia) then
+            iopen(bib(jb)) = max(iopen(bib(jb))-1,0)
+         else
+            iopen(bia(jb)) = max(iopen(bia(jb))-1,0)
+         end if
+      end do
+      iopen(ia) = max(iopen(ia)-ndbl,0)
+
+    end subroutine assign_oxyacid
+
+    !> Set ordcon for the entry of atom ja pointing to jb at lattice vector lv.
+    subroutine set_order(ja,jb,lv,ord)
+      integer, intent(in) :: ja, jb, lv(3), ord
+      integer :: kkk
+      do kkk = 1, nstar(ja)%ncon
+         if (nstar(ja)%idcon(kkk) == jb .and. all(nstar(ja)%lcon(:,kkk) == lv)) then
+            nstar(ja)%ordcon(kkk) = ord
+            return
+         end if
+      end do
+    end subroutine set_order
+
+    !> Branch-and-bound search for the maximum-weight set of double
+    !> bonds (candidate index idx onwards) that respects the valences
+    !> in wopen. Updates bestscore/bestsel with the best assignment
+    !> found.
+    recursive subroutine solve(idx,score)
+      integer, intent(in) :: idx
+      real*8, intent(in) :: score
+      integer :: pa, pb
+
+      ! stop if the search is taking too long
+      nodecount = nodecount + 1
+      if (nodecount > maxnode) return
+
+      ! stop if we are out of candidates; write it down if it is an improvement
+      if (idx > ncand) then
+         if (score > bestscore + 1d-12) then
+            bestscore = score
+            bestsel = cursel
+         end if
+         return
+      end if
+
+      ! return if even taking all remaining candidates cannot beat the best
+      if (score + remw(idx) <= bestscore + 1d-12) return
+
+      ! branch 1: make this bond a double (if capacity allows)
+      pa = ca(idx)
+      pb = cb(idx)
+      if (wopen(pa) >= 1 .and. wopen(pb) >= 1) then
+         wopen(pa) = wopen(pa) - 1
+         wopen(pb) = wopen(pb) - 1
+         cursel(idx) = .true.
+         call solve(idx+1,score+cw(idx))
+         wopen(pa) = wopen(pa) + 1
+         wopen(pb) = wopen(pb) + 1
+      end if
+
+      ! branch 2: leave this bond single
+      cursel(idx) = .false.
+      call solve(idx+1,score)
+
+    end subroutine solve
+
+  end subroutine perceive_bond_orders
+
+  !> Maximum valence (capacity) for the supported organic elements; returns
+  !> a negative value for unsupported elements (metals, etc.).
+  function zhang_maxval(z) result(mv)
+    integer, intent(in) :: z
+    integer :: mv
+    select case (z)
+    case (1)  ! H
+       mv = 1
+    case (6)  ! C
+       mv = 4
+    case (7)  ! N
+       mv = 3
+    case (8)  ! O
+       mv = 2
+    case (9)  ! F
+       mv = 1
+    case (15) ! P
+       mv = 5
+    case (16) ! S
+       mv = 6
+    case (17) ! Cl
+       mv = 7
+    case (35) ! Br
+       mv = 7
+    case (53) ! I
+       mv = 7
+    case default
+       mv = -1
+    end select
+    ! Note: Cl/Br/I are given their hypervalent (oxyacid) capacity 7 rather than
+    ! the halide valence 1. This is safe because there are no halogen
+    ! multiple-bond references in zhang_refbond, so the triple/matching stages
+    ! never form a halogen multiple bond; the only consumer of this capacity is
+    ! the acid model (assign_oxyacid), so an ordinary halide (C-Cl, ...) still
+    ! stays single. F (mv=1) is never hypervalent.
+    ! The capacities here are standard textbook valences, NOT from Zhang et al.;
+    ! the paper only specifies max connections = 4 for C/N/P/S and refers to a
+    ! "maximum valence" (Eq 7) without tabulating values.
+  end function zhang_maxval
+
+  !> Reference single (r1), double (r2) and triple (r3) bond lengths (bohr) for
+  !> an element pair. A negative value means no reference for that order.
+  !> Sources (values in angstrom in the code, converted to bohr at the end):
+  !>  - The six single/double pairs C-C, C-N, C-O, C-S, N-N, N-O are from
+  !>    Zhang et al., J. Cheminform. 2012, 4:26, Table 3.
+  !>  - Triple bonds and the C-P, N-S pairs are sums of Pyykko & Atsumi additive
+  !>    covalent radii (single/double: Chem. Eur. J. 2009, 15, 186 and 12770;
+  !>    triple: Pyykko, Riedel, Patzschke, Chem. Eur. J. 2005, 11, 3511), in pm:
+  !>    C 75/67/60, N 71/60/54, O 63/57/53, P 111/102/94, S 103/94/95.
+  !>  - O-O, O-S, O-P use observed values (additive radii deviate for these
+  !>    polar/pi bonds): O2 1.208 / H2O2 1.475; sulfone S=O ~1.44, S-O ~1.57;
+  !>    phosphate P-O ~1.62, P=O ~1.50.
+  subroutine zhang_refbond(z1,z2,r1,r2,r3)
+    use param, only: bohrtoa
+    integer, intent(in) :: z1, z2
+    real*8, intent(out) :: r1, r2, r3
+    integer :: za, zb
+
+    za = min(z1,z2)
+    zb = max(z1,z2)
+    r1 = -1d0
+    r2 = -1d0
+    r3 = -1d0
+    if (za == 6 .and. zb == 6) then       ! C-C
+       r1 = 1.49d0
+       r2 = 1.33d0
+       r3 = 1.20d0 ! Pyykko (0.60+0.60)
+    elseif (za == 6 .and. zb == 7) then   ! C-N
+       r1 = 1.43d0
+       r2 = 1.29d0
+       r3 = 1.14d0 ! Pyykko (0.60+0.54)
+    elseif (za == 6 .and. zb == 8) then   ! C-O
+       r1 = 1.41d0
+       r2 = 1.28d0
+       r3 = 1.13d0 ! Pyykko (0.60+0.53)
+    elseif (za == 6 .and. zb == 16) then  ! C-S
+       r1 = 1.80d0
+       r2 = 1.72d0
+    elseif (za == 6 .and. zb == 15) then  ! C-P
+       r1 = 1.86d0 ! Pyykko (0.75+1.11)
+       r2 = 1.69d0 ! Pyykko (0.67+1.02)
+    elseif (za == 7 .and. zb == 7) then   ! N-N
+       r1 = 1.38d0
+       r2 = 1.29d0
+       r3 = 1.08d0 ! Pyykko (0.54+0.54)
+    elseif (za == 7 .and. zb == 8) then   ! N-O
+       r1 = 1.39d0
+       r2 = 1.24d0
+    elseif (za == 8 .and. zb == 8) then   ! O-O
+       r1 = 1.48d0 ! obs, H2O2 peroxide
+       r2 = 1.21d0 ! obs, O2
+    elseif (za == 8 .and. zb == 16) then  ! O-S
+       r1 = 1.57d0 ! obs, S-O single
+       r2 = 1.44d0 ! obs, sulfone S=O
+    elseif (za == 8 .and. zb == 15) then  ! O-P
+       r1 = 1.62d0 ! obs, phosphate P-O
+       r2 = 1.50d0 ! obs, P=O
+    elseif (za == 7 .and. zb == 16) then  ! N-S
+       r1 = 1.74d0 ! Pyykko (0.71+1.03)
+       r2 = 1.54d0 ! Pyykko (0.60+0.94)
+    end if
+    if (r1 > 0d0) r1 = r1 / bohrtoa
+    if (r2 > 0d0) r2 = r2 / bohrtoa
+    if (r3 > 0d0) r3 = r3 / bohrtoa
+  end subroutine zhang_refbond
 
 end submodule env
