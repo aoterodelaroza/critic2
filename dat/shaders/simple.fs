@@ -4,7 +4,6 @@ uniform int object_type; // 0=sphere, 1=cyl, 2=cyl_flat
 uniform float rborder; // border of the object
 uniform vec3 bordercolor; // color of the border
 uniform vec4 vColor; // color of the object
-uniform int ndash_cyl; // number of dashes in the cylinder
 
 in vec3 center;
 in vec3 vertex;
@@ -33,8 +32,7 @@ void main(){
   } else if (object_type == 1) {
     // cylinder //
 
-    // calculate half-height and radius of the cylinder in view coordinates
-    float hheight = length(up-center);
+    // radius of the cylinder in view coordinates
     float radius = length(side-center);
 
     // up vector = along the cylinder, ncam = towards the camera
@@ -44,21 +42,15 @@ void main(){
     // vperp is perpendicular to upn and ncam
     vec3 vperp = normalize(cross(ncam,upn));
 
-    // calculate the distance along the cylinder (-hheight to hheight) and project out the up
+    // project out the component along the cylinder axis
     vec3 vx = vertex-center;
-    float ralong = dot(vx,upn);
-    vx = vx - ralong * upn;
+    vx = vx - dot(vx,upn) * upn;
 
-    // discard to make dashed
-    if (ndash_cyl > 0 && mod(trunc(0.5 * (hheight + ralong) / hheight * ndash_cyl),2) == 1){
-      discard;
-    } else {
-      // border
-      if (ndash_cyl == 0 && radius - radius * abs(dot(normalize(vx),vperp)) < rborder)
-	outputColor = vec4(bordercolor,vColor.a);
-      else
-	outputColor = vColor;
-    }
+    // border
+    if (radius - radius * abs(dot(normalize(vx),vperp)) < rborder)
+      outputColor = vec4(bordercolor,vColor.a);
+    else
+      outputColor = vColor;
   } else if (object_type == 2) {
     // flat cylinder //
     outputColor = vColor;

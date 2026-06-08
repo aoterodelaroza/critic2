@@ -145,9 +145,8 @@ submodule (scenes) proc
   integer, parameter :: iu_vcolor = 8
   integer, parameter :: iu_idx = 9
   integer, parameter :: iu_delta_cyl = 10
-  integer, parameter :: iu_ndash_cyl = 11
-  integer, parameter :: iu_bond_outward = 12
-  integer, parameter :: iu_NUM = 13
+  integer, parameter :: iu_bond_outward = 11
+  integer, parameter :: iu_NUM = 12
   integer(c_int) :: iunif(iu_NUM)
 
   !xx! private procedures: low-level draws
@@ -595,7 +594,6 @@ contains
        iunif(iu_vcolor) = get_uniform_location("vColor")
        iunif(iu_idx) = get_uniform_location("idx")
        iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
-       iunif(iu_ndash_cyl) = get_uniform_location("ndash_cyl")
        iunif(iu_bond_outward) = get_uniform_location("bond_outward")
 
        ! set the common uniforms
@@ -702,7 +700,6 @@ contains
        iunif(iu_vcolor) = get_uniform_location("vColor")
        iunif(iu_idx) = get_uniform_location("idx")
        iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
-       iunif(iu_ndash_cyl) = get_uniform_location("ndash_cyl")
        iunif(iu_bond_outward) = get_uniform_location("bond_outward")
 
        ! set the common uniforms
@@ -723,7 +720,6 @@ contains
           call glBindVertexArray(cylVAO(s%bond_res))
           call draw_all_cylinders()
        end if
-       call setuniform_int(0_c_int,idxi=iunif(iu_ndash_cyl))
        call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
 
        ! draw the cones (arrowheads)
@@ -732,7 +728,6 @@ contains
           call glBindVertexArray(coneVAO(s%bond_res))
           call draw_all_cones()
        end if
-       call setuniform_int(0_c_int,idxi=iunif(iu_ndash_cyl))
        call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
 
        ! draw the flat cylinders for the unit cell
@@ -742,7 +737,6 @@ contains
           call glBindVertexArray(cylVAO(s%uc_res))
           call draw_all_flat_cylinders()
        end if
-       call setuniform_int(0_c_int,idxi=iunif(iu_ndash_cyl))
        call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
 
        ! draw the measure selection atoms
@@ -918,7 +912,6 @@ contains
          iunif(iu_vcolor) = get_uniform_location("vColor")
          iunif(iu_idx) = get_uniform_location("idx")
          iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
-         iunif(iu_ndash_cyl) = get_uniform_location("ndash_cyl")
          iunif(iu_bond_outward) = get_uniform_location("bond_outward")
          call setuniform_int(1_c_int,"uselighting")
          call setuniform_vec3(s%lightpos,"lightPos")
@@ -939,7 +932,6 @@ contains
          iunif(iu_vcolor) = get_uniform_location("vColor")
          iunif(iu_idx) = get_uniform_location("idx")
          iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
-         iunif(iu_ndash_cyl) = get_uniform_location("ndash_cyl")
          iunif(iu_bond_outward) = get_uniform_location("bond_outward")
          call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
          call setuniform_float(0._c_float,idxi=iunif(iu_border))
@@ -1890,11 +1882,11 @@ contains
     real(c_float), intent(in), optional :: rgbborder(3)
     real(c_float), intent(in), optional :: arvec(3)
 
-    real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
+    real(c_float) :: xmid(3), xdif(3), up(3), crs(3), blen
     real(c_float) :: a, ca, sa, axis(3), temp(3), rgb_(4), rgbborder_(3)
-    integer(c_int) :: ndash
+    real(c_float) :: crot1(3), crot2(3)
 
-    real(c_float), parameter :: dash_length = 0.4 ! length of the dashes
+    real(c_float), parameter :: dash_length = 0.4 ! length (period) of the dashes
 
     ! color of the border
     rgbborder_ = 0._c_float
@@ -1917,89 +1909,103 @@ contains
     up = (/0._c_float,0._c_float,1._c_float/)
     crs = cross_cfloat(up,xdif)
 
-    ! the model matrix
-    model = eye4
-    model(1:3,4) = xmid ! translate(m_model,xmid);
+    ! the rotation columns of the model matrix (rotate the unit cylinder, whose
+    ! axis is +z, onto the bond direction xdif); the third column is xdif
+    crot1 = (/1._c_float,0._c_float,0._c_float/)
+    crot2 = (/0._c_float,1._c_float,0._c_float/)
     if (dot_product(crs,crs) > 1e-14_c_float) then
-       ! m_model = m_model * rotate(acos(dot(xdif,up)),crs);
+       ! rotate(acos(dot(xdif,up)),crs)
        a = acos(dot_product(xdif,up))
        ca = cos(a)
        sa = sin(a)
        axis = crs / norm2(crs)
        temp = (1._c_float - ca) * axis
 
-       model(1,1) = ca + temp(1) * axis(1)
-       model(2,1) = temp(1) * axis(2) + sa * axis(3)
-       model(3,1) = temp(1) * axis(3) - sa * axis(2)
+       crot1(1) = ca + temp(1) * axis(1)
+       crot1(2) = temp(1) * axis(2) + sa * axis(3)
+       crot1(3) = temp(1) * axis(3) - sa * axis(2)
 
-       model(1,2) = temp(2) * axis(1) - sa * axis(3)
-       model(2,2) = ca + temp(2) * axis(2)
-       model(3,2) = temp(2) * axis(3) + sa * axis(1)
-
-       model(1,3) = temp(3) * axis(1) + sa * axis(2)
-       model(2,3) = temp(3) * axis(2) - sa * axis(1)
-       model(3,3) = ca + temp(3) * axis(3)
+       crot2(1) = temp(2) * axis(1) - sa * axis(3)
+       crot2(2) = ca + temp(2) * axis(2)
+       crot2(3) = temp(2) * axis(3) + sa * axis(1)
     end if
-    ! m_model = scale(m_model,glm::vec3(rad,rad,blen));
-    model(:,1) = model(:,1) * rad
-    model(:,2) = model(:,2) * rad
-    model(:,3) = model(:,3) * blen
 
-    ! set the uniforms
+    ! common uniforms (color and border)
     rgb_(1:3) = rgb
     rgb_(4) = 1._c_float
     call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
-    call setuniform_mat4(model,idxi=iunif(iu_model))
+    call setuniform_float(border,idxi=iunif(iu_border))
+    call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
 
-    ! draw
+    ! draw. dashed bonds are drawn as a string of short solid cylinders so they
+    ! get the same caps and silhouette border as solid bonds.
     if (order == -1) then
-       ! aromatic (order 1.5): one solid + one dashed cylinder, side by side
-       call setuniform_int(0,idxi=iunif(iu_ndash_cyl))
-       call setuniform_float(border,idxi=iunif(iu_border))
-       call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
+       ! aromatic (order 1.5): solid (ring exterior) + dashed (ring interior)
        call setuniform_float(0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
-       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
-       ndash = nint(blen / dash_length)
-       call setuniform_int(ndash,idxi=iunif(iu_ndash_cyl))
+       call draw_seg(xmid,blen)
        call setuniform_float(-0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
-       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+       call draw_dashes()
     elseif (order < 0) then
        ! flat cylinder
-       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
+       call draw_seg(xmid,blen)
     elseif (order == 0) then
        ! dashed
-       ndash = nint(blen / dash_length)
-       call setuniform_int(ndash,idxi=iunif(iu_ndash_cyl))
-       call setuniform_float(0._c_float*rad,idxi=iunif(iu_delta_cyl))
-       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
+       call draw_dashes()
     elseif (order == 1) then
        ! single
-       call setuniform_int(0,idxi=iunif(iu_ndash_cyl))
-       call setuniform_float(border,idxi=iunif(iu_border))
-       call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
-       call setuniform_float(0._c_float*rad,idxi=iunif(iu_delta_cyl))
-       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
+       call draw_seg(xmid,blen)
     elseif (order == 2) then
        ! double
-       call setuniform_int(0,idxi=iunif(iu_ndash_cyl))
-       call setuniform_float(border,idxi=iunif(iu_border))
-       call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
        call setuniform_float(0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
-       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+       call draw_seg(xmid,blen)
        call setuniform_float(-0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
-       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+       call draw_seg(xmid,blen)
     elseif (order == 3) then
        ! triple
-       call setuniform_int(0,idxi=iunif(iu_ndash_cyl))
-       call setuniform_float(border,idxi=iunif(iu_border))
-       call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
        call setuniform_float(1.35_c_float*rad,idxi=iunif(iu_delta_cyl))
-       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+       call draw_seg(xmid,blen)
        call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
-       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+       call draw_seg(xmid,blen)
        call setuniform_float(-1.35_c_float*rad,idxi=iunif(iu_delta_cyl))
-       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+       call draw_seg(xmid,blen)
     end if
+
+  contains
+
+    ! draw a single solid cylinder centered at xc with axial length seglen,
+    ! oriented along xdif with radius rad (uses host-associated crot1/crot2)
+    subroutine draw_seg(xc,seglen)
+      real(c_float), intent(in) :: xc(3)
+      real(c_float), intent(in) :: seglen
+      real(c_float) :: m(4,4)
+
+      m = 0._c_float
+      m(4,4) = 1._c_float
+      m(1:3,1) = crot1 * rad
+      m(1:3,2) = crot2 * rad
+      m(1:3,3) = xdif * seglen
+      m(1:3,4) = xc
+      call setuniform_mat4(m,idxi=iunif(iu_model))
+      call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+    end subroutine draw_seg
+
+    ! draw the bond as a string of short solid cylinders (dashes)
+    subroutine draw_dashes()
+      integer(c_int) :: k, nd
+      real(c_float) :: p, tc
+      real(c_float), parameter :: fill = 0.5_c_float ! dash on-fraction of the period
+
+      nd = max(1_c_int,nint(blen / dash_length,c_int))
+      if (nd > 64) nd = 64 ! cap the number of dashes (and draw calls)
+      p = blen / real(nd,c_float)
+      do k = 0, nd-1
+         tc = (real(k,c_float) + 0.5_c_float) * p
+         call draw_seg(x1 + xdif * tc, fill * p)
+      end do
+    end subroutine draw_dashes
 
   end subroutine draw_cylinder
 
