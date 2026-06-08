@@ -314,6 +314,7 @@ module types
      integer, allocatable :: idcon(:) !< id (atcel) of the connected atom
      integer, allocatable :: lcon(:,:) !< lattice vector of the connected atom
      integer, allocatable :: ordcon(:) !< bond order of the connected atom (0=dashed,1=single,2=double,...)
+     logical :: isaromatic = .false. !< .true. if this atom is in an aromatic ring
   end type neighstar
 
   !> Point along a gradient path

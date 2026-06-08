@@ -1380,6 +1380,7 @@ contains
     real*8, allocatable :: ckey(:)
     real*8 :: r1, r2, r3, pyr
     logical :: islin
+    logical, allocatable :: arom(:) ! per-atom aromaticity flag
     ! maximum-weight matching workspace (shared with the contained solver)
     integer, allocatable :: ca(:), cb(:), cbond(:), wopen(:)
     logical, allocatable :: cursel(:), bestsel(:)
@@ -1588,14 +1589,24 @@ contains
        deallocate(iord,ca,cb,cbond,cw,remw,cursel,bestsel,wopen)
     end if
 
-    ! write the perceived orders back into both reciprocal nstar entries
+    ! flag aromatic atoms: those in a planar, conjugated sp2 ring of size 5-7.
+    ! This is a geometric + Kekule criterion (not a Huckel 4n+2 electron count).
+    allocate(arom(c%ncel))
+    arom = .false.
+    call flag_aromatic(arom)
+
+    ! write the perceived orders back into both reciprocal nstar entries, and
+    ! store the per-atom aromaticity flag
     do i = 1, nb
        call set_order(bia(i),bib(i),blv(:,i),bord(i))
        call set_order(bib(i),bia(i),-blv(:,i),bord(i))
     end do
+    do ia = 1, c%ncel
+       nstar(ia)%isaromatic = arom(ia)
+    end do
 
     deallocate(bia,bib,blv,bdist,bord,bfix)
-    deallocate(cap,deg,iopen,nincid,incid,cand,ckey)
+    deallocate(cap,deg,iopen,nincid,incid,cand,ckey,arom)
 
   contains
 
@@ -1768,6 +1779,187 @@ contains
       call solve(idx+1,score)
 
     end subroutine solve
+
+    !> Flag atoms that belong to a planar, conjugated sp2 ring of size 5-7.
+    !> For each bond, the smallest ring through it is found by a periodic-aware
+    !> BFS (the ring must close in real space, net lattice vector zero), then
+    !> tested: every ring atom must be planar and sp2/conjugated. Sets arom(a)
+    !> for all atoms of every aromatic ring found.
+    subroutine flag_aromatic(arom)
+      logical, intent(inout) :: arom(:)
+
+      integer, parameter :: maxring = 7    ! largest ring size tested
+      integer, parameter :: maxq = 50000   ! BFS state cap (safety guard)
+      integer :: ib0, u, v, e, j, p, q, head, nq, m, kk
+      integer :: lb(3), nl(3)
+      integer, allocatable :: qat(:), qlv(:,:), qpar(:), qdep(:)
+      integer, allocatable :: ratom(:), rlv(:,:)
+      logical :: found, seen
+
+      ! Up to maxq atoms in the queue
+      ! qat = atom identifier
+      ! qlv = accumulated lattice vector qlv
+      ! qpar = parent index (root has qpar = 0)
+      ! qdep = depth, number of bonds traversed
+      allocate(qat(maxq),qlv(3,maxq),qpar(maxq),qdep(maxq))
+      allocate(ratom(maxring),rlv(3,maxring))
+
+      ! run over bonds
+      do ib0 = 1, nb
+         u = bia(ib0)
+         v = bib(ib0)
+         lb = blv(:,ib0)
+
+         ! BFS from (u,0) seeking (v,lb) over bonds /= ib0, ring size <= maxring
+         nq = 1
+         qat(1) = u
+         qlv(:,1) = 0
+         qpar(1) = 0
+         qdep(1) = 0
+         head = 0
+         found = .false.
+
+         ! run until the queue is exhausted or a ring is found
+         do while (head < nq .and. .not.found)
+            ! next item in the queue
+            head = head + 1
+
+            ! do not exceed max ring depth
+            if (qdep(head) >= maxring-1) cycle
+
+            ! consider all bonds incident to p, different from ib0
+            p = qat(head)
+            do j = 1, nincid(p)
+               e = incid(j,p)
+               if (e == ib0) cycle
+
+               ! consider the atom at the other end, and calculate accum. lattice vector
+               if (bia(e) == p) then
+                  q = bib(e)
+                  nl = qlv(:,head) + blv(:,e)
+               else
+                  q = bia(e)
+                  nl = qlv(:,head) - blv(:,e)
+               end if
+
+               ! ring closes back to the other end of ib0? -> found! exit
+               if (q == v .and. all(nl == lb)) then
+                  found = .true.
+                  exit
+               end if
+
+               ! enqueue (q,nl) if not already visited
+               seen = .false.
+               do kk = 1, nq
+                  if (qat(kk) == q .and. all(qlv(:,kk) == nl)) then
+                     seen = .true.
+                     exit
+                  end if
+               end do
+               if (.not.seen) then
+                  if (nq >= maxq) cycle ! give up enqueuing (safety)
+                  nq = nq + 1
+                  qat(nq) = q
+                  qlv(:,nq) = nl
+                  qpar(nq) = head
+                  qdep(nq) = qdep(head) + 1
+               end if
+            end do
+         end do
+         if (.not.found) cycle
+
+         ! found: reconstruct the ring atoms, parent chain (p..u) reversed, then v
+         ! only if 5-7 ring
+         m = qdep(head) + 2
+         if (m < 5 .or. m > maxring) cycle
+         kk = m - 1
+         p = head
+         do while (p > 0)
+            ratom(kk) = qat(p)
+            rlv(:,kk) = qlv(:,p)
+            kk = kk - 1
+            p = qpar(p)
+         end do
+         ratom(m) = v
+         rlv(:,m) = lb
+
+         if (ring_is_aromatic(ratom,rlv,m)) then
+            do kk = 1, m
+               arom(ratom(kk)) = .true.
+            end do
+         end if
+      end do
+
+      deallocate(qat,qlv,qpar,qdep,ratom,rlv)
+    end subroutine flag_aromatic
+
+    !> Test whether the ring with m atoms ratom(1:m) at lvecs rlv(:,1:m) is
+    !> aromatic: planar (all atoms near the mean ring plane) and every atom sp2
+    !> and contributing to the pi system (a double bond, or a lone-pair donor
+    !> heteroatom: pyrrole-type N deg 3, or furan/thiophene O/S deg 2).
+    function ring_is_aromatic(ratom,rlv,m) result(arom1)
+      use tools_math, only: cross
+      use param, only: bohrtoa
+      integer, intent(in) :: m, ratom(m), rlv(3,m)
+      logical :: arom1
+
+      real*8, parameter :: dplane = 0.35d0 / bohrtoa ! max out-of-plane deviation (ang)
+      real*8 :: pos(3,m), cen(3), nor(3), e1(3), e2(3), nn, dev
+      integer :: k, kp, kn, j, a, z
+      logical :: hasdbl
+
+      arom1 = .false.
+
+      ! Cartesian positions of the ring atom images and their centroid
+      do k = 1, m
+         pos(:,k) = c%x2c(c%atcel(ratom(k))%x + real(rlv(:,k),8))
+      end do
+      cen = 0d0
+      do k = 1, m
+         cen = cen + pos(:,k)
+      end do
+      cen = cen / real(m,8)
+
+      ! mean-plane normal = sum of cross products of consecutive ring edges
+      nor = 0d0
+      do k = 1, m
+         kp = k - 1
+         if (kp < 1) kp = m
+         kn = k + 1
+         if (kn > m) kn = 1
+         e1 = pos(:,k) - pos(:,kp)
+         e2 = pos(:,kn) - pos(:,k)
+         nor = nor + cross(e1,e2)
+      end do
+      nn = norm2(nor)
+      if (nn < 1d-10) return
+      nor = nor / nn
+
+      ! planarity: every atom close to the mean plane
+      do k = 1, m
+         dev = abs(dot_product(pos(:,k)-cen,nor))
+         if (dev > dplane) return
+      end do
+
+      ! conjugation: every ring atom must be sp2 / contribute to the pi system
+      do k = 1, m
+         a = ratom(k)
+         hasdbl = .false.
+         do j = 1, nincid(a)
+            if (bord(incid(j,a)) == 2) then
+               hasdbl = .true.
+               exit
+            end if
+         end do
+         if (hasdbl) cycle
+         z = c%spc(c%atcel(a)%is)%z
+         if (z == 7 .and. deg(a) == 3) cycle             ! pyrrole-type N
+         if ((z == 8 .or. z == 16) .and. deg(a) == 2) cycle ! furan O / thiophene S
+         return ! this atom is not part of a closed pi system -> not aromatic
+      end do
+
+      arom1 = .true.
+    end function ring_is_aromatic
 
   end subroutine perceive_bond_orders
 
