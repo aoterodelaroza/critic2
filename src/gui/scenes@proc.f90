@@ -1032,7 +1032,7 @@ contains
 
       do i = 1, s%obj%ncylflat
          call draw_cylinder(s%obj%cylflat(i)%x1,s%obj%cylflat(i)%x2,&
-            s%obj%cylflat(i)%r,s%obj%cylflat(i)%rgb,s%uc_res,-1,0._c_float)
+            s%obj%cylflat(i)%r,s%obj%cylflat(i)%rgb,s%uc_res,-2,0._c_float)
       end do
 
     end subroutine draw_all_flat_cylinders
@@ -1864,9 +1864,10 @@ contains
   end subroutine draw_sphere
 
   !> Draw a cylinder from x1 to x2 with radius rad and color rgb. ires
-  !> = resolution. order = order of the bond or flat cylinder if order
-  !> < 0. border = size of the border. Requires having the cylinder
-  !> VAO bound.
+  !> = resolution. order = order of the bond (0=dashed, 1=single, 2=double,
+  !> 3=triple, -1=aromatic/1.5 drawn as solid+dashed); order < -1 (e.g. -2)
+  !> draws a plain flat cylinder. border = size of the border. Requires having
+  !> the cylinder VAO bound.
   subroutine draw_cylinder(x1,x2,rad,rgb,ires,order,border,rgbborder)
     use interfaces_opengl3
     use tools_math, only: cross_cfloat
@@ -1936,7 +1937,18 @@ contains
     call setuniform_mat4(model,idxi=iunif(iu_model))
 
     ! draw
-    if (order < 0) then
+    if (order == -1) then
+       ! aromatic (order 1.5): one solid + one dashed cylinder, side by side
+       call setuniform_int(0,idxi=iunif(iu_ndash_cyl))
+       call setuniform_float(border,idxi=iunif(iu_border))
+       call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
+       call setuniform_float(0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
+       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+       ndash = nint(blen / dash_length)
+       call setuniform_int(ndash,idxi=iunif(iu_ndash_cyl))
+       call setuniform_float(-0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
+       call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+    elseif (order < 0) then
        ! flat cylinder
        call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
     elseif (order == 0) then

@@ -313,7 +313,7 @@ module types
      integer :: ncon = 0 !< number of neighbor for this atom
      integer, allocatable :: idcon(:) !< id (atcel) of the connected atom
      integer, allocatable :: lcon(:,:) !< lattice vector of the connected atom
-     integer, allocatable :: ordcon(:) !< bond order of the connected atom (0=dashed,1=single,2=double,...)
+     integer, allocatable :: ordcon(:) !< bond order of the connected atom (-1=aromatic/1.5,0=dashed,1=single,2=double,3=triple)
      logical :: isaromatic = .false. !< .true. if this atom is in an aromatic ring
   end type neighstar
 

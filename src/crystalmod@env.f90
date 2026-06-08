@@ -1379,8 +1379,10 @@ contains
     integer, allocatable :: cand(:), iord(:)
     real*8, allocatable :: ckey(:)
     real*8 :: r1, r2, r3, pyr
+    integer :: o
     logical :: islin
-    logical, allocatable :: arom(:) ! per-atom aromaticity flag
+    logical, allocatable :: arom(:)  ! per-atom aromaticity flag
+    logical, allocatable :: barom(:) ! per-bond aromatic-ring flag
     ! maximum-weight matching workspace (shared with the contained solver)
     integer, allocatable :: ca(:), cb(:), cbond(:), wopen(:)
     logical, allocatable :: cursel(:), bestsel(:)
@@ -1589,23 +1591,27 @@ contains
        deallocate(iord,ca,cb,cbond,cw,remw,cursel,bestsel,wopen)
     end if
 
-    ! flag aromatic atoms: those in a planar, conjugated sp2 ring of size 5-7.
-    ! This is a geometric + Kekule criterion (not a Huckel 4n+2 electron count).
-    allocate(arom(c%ncel))
+    ! flag aromatic atoms and bonds: those in a planar, conjugated sp2 ring of
+    ! size 5-7. Geometric + Kekule criterion (not a Huckel 4n+2 electron count).
+    allocate(arom(c%ncel),barom(nb))
     arom = .false.
-    call flag_aromatic(arom)
+    barom = .false.
+    call flag_aromatic(arom,barom)
 
-    ! write the perceived orders back into both reciprocal nstar entries, and
-    ! store the per-atom aromaticity flag
+    ! write the perceived orders back into both reciprocal nstar entries (using
+    ! -1 = aromatic/1.5 for bonds inside an aromatic ring), and store the
+    ! per-atom aromaticity flag
     do i = 1, nb
-       call set_order(bia(i),bib(i),blv(:,i),bord(i))
-       call set_order(bib(i),bia(i),-blv(:,i),bord(i))
+       o = bord(i)
+       if (barom(i)) o = -1
+       call set_order(bia(i),bib(i),blv(:,i),o)
+       call set_order(bib(i),bia(i),-blv(:,i),o)
     end do
     do ia = 1, c%ncel
        nstar(ia)%isaromatic = arom(ia)
     end do
 
-    deallocate(bia,bib,blv,bdist,bord,bfix)
+    deallocate(bia,bib,blv,bdist,bord,bfix,barom)
     deallocate(cap,deg,iopen,nincid,incid,cand,ckey,arom)
 
   contains
@@ -1780,20 +1786,21 @@ contains
 
     end subroutine solve
 
-    !> Flag atoms that belong to a planar, conjugated sp2 ring of size 5-7.
-    !> For each bond, the smallest ring through it is found by a periodic-aware
-    !> BFS (the ring must close in real space, net lattice vector zero), then
-    !> tested: every ring atom must be planar and sp2/conjugated. Sets arom(a)
-    !> for all atoms of every aromatic ring found.
-    subroutine flag_aromatic(arom)
+    !> Flag atoms and bonds that belong to a planar, conjugated sp2 ring of
+    !> size 5-7. For each bond, the smallest ring through it is found by a
+    !> periodic-aware BFS (the ring must close in real space, net lattice vector
+    !> zero), then tested: every ring atom must be planar and sp2/conjugated.
+    !> Sets arom(a) for the ring atoms and barom(e) for the ring bonds.
+    subroutine flag_aromatic(arom,barom)
       logical, intent(inout) :: arom(:)
+      logical, intent(inout) :: barom(:)
 
       integer, parameter :: maxring = 7    ! largest ring size tested
       integer, parameter :: maxq = 50000   ! BFS state cap (safety guard)
-      integer :: ib0, u, v, e, j, p, q, head, nq, m, kk
+      integer :: ib0, u, v, e, j, p, q, head, nq, m, kk, egoal, ne
       integer :: lb(3), nl(3)
-      integer, allocatable :: qat(:), qlv(:,:), qpar(:), qdep(:)
-      integer, allocatable :: ratom(:), rlv(:,:)
+      integer, allocatable :: qat(:), qlv(:,:), qpar(:), qdep(:), qedge(:)
+      integer, allocatable :: ratom(:), rlv(:,:), redge(:)
       logical :: found, seen
 
       ! Up to maxq atoms in the queue
@@ -1801,8 +1808,9 @@ contains
       ! qlv = accumulated lattice vector qlv
       ! qpar = parent index (root has qpar = 0)
       ! qdep = depth, number of bonds traversed
-      allocate(qat(maxq),qlv(3,maxq),qpar(maxq),qdep(maxq))
-      allocate(ratom(maxring),rlv(3,maxring))
+      ! qedge = bond index used to reach this state (root: undefined)
+      allocate(qat(maxq),qlv(3,maxq),qpar(maxq),qdep(maxq),qedge(maxq))
+      allocate(ratom(maxring),rlv(3,maxring),redge(maxring))
 
       ! run over bonds
       do ib0 = 1, nb
@@ -1827,11 +1835,15 @@ contains
             ! do not exceed max ring depth
             if (qdep(head) >= maxring-1) cycle
 
-            ! consider all bonds incident to p, different from ib0
+            ! consider all bonds incident to p. Skip the starting bond ib0 only
+            ! at the root (u,0): that excludes the specific edge instance being
+            ! closed, but still allows the same bond *index* at other periodic
+            ! images (a periodic ring, e.g. a graphene hexagon, traverses the
+            ! same translational bond twice).
             p = qat(head)
             do j = 1, nincid(p)
                e = incid(j,p)
-               if (e == ib0) cycle
+               if (e == ib0 .and. qdep(head) == 0) cycle
 
                ! consider the atom at the other end, and calculate accum. lattice vector
                if (bia(e) == p) then
@@ -1845,6 +1857,7 @@ contains
                ! ring closes back to the other end of ib0? -> found! exit
                if (q == v .and. all(nl == lb)) then
                   found = .true.
+                  egoal = e
                   exit
                end if
 
@@ -1863,6 +1876,7 @@ contains
                   qlv(:,nq) = nl
                   qpar(nq) = head
                   qdep(nq) = qdep(head) + 1
+                  qedge(nq) = e
                end if
             end do
          end do
@@ -1873,24 +1887,36 @@ contains
          m = qdep(head) + 2
          if (m < 5 .or. m > maxring) cycle
          kk = m - 1
+         ne = 0
          p = head
          do while (p > 0)
             ratom(kk) = qat(p)
             rlv(:,kk) = qlv(:,p)
             kk = kk - 1
+            if (qpar(p) > 0) then ! edge from parent into p (root has none)
+               ne = ne + 1
+               redge(ne) = qedge(p)
+            end if
             p = qpar(p)
          end do
          ratom(m) = v
          rlv(:,m) = lb
+         ne = ne + 1
+         redge(ne) = egoal ! closing edge p -> v
+         ne = ne + 1
+         redge(ne) = ib0   ! the bond we started from (v -> u)
 
          if (ring_is_aromatic(ratom,rlv,m)) then
             do kk = 1, m
                arom(ratom(kk)) = .true.
             end do
+            do kk = 1, ne
+               barom(redge(kk)) = .true.
+            end do
          end if
       end do
 
-      deallocate(qat,qlv,qpar,qdep,ratom,rlv)
+      deallocate(qat,qlv,qpar,qdep,qedge,ratom,rlv,redge)
     end subroutine flag_aromatic
 
     !> Test whether the ring with m atoms ratom(1:m) at lvecs rlv(:,1:m) is
@@ -1903,7 +1929,7 @@ contains
       integer, intent(in) :: m, ratom(m), rlv(3,m)
       logical :: arom1
 
-      real*8, parameter :: dplane = 0.35d0 / bohrtoa ! max out-of-plane deviation (ang)
+      real*8, parameter :: dplane = 0.20d0 / bohrtoa ! max out-of-plane deviation (ang)
       real*8 :: pos(3,m), cen(3), nor(3), e1(3), e2(3), nn, dev
       integer :: k, kp, kn, j, a, z
       logical :: hasdbl
