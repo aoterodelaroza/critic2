@@ -79,6 +79,9 @@ contains
     type(ImVec2) :: szavail, szero, sz0
     real(c_float) :: combowidth, rgb(3), lum
     integer :: ii, i, j, jj, isys, icol, ispc, iz, izout, iview, im, jm, ncon
+    integer :: ord, zi, zj ! bonds tab: bond order and atomic numbers of the two bonded atoms
+    real*8 :: dbond
+    character(len=:), allocatable :: bondglyph, bondword ! bonds tab: bond-type glyph and word
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, havergb_, ldum, ok
@@ -1433,6 +1436,9 @@ contains
              &using the Bonds tab in the atoms object (Recalculate Bonds). In that case, adding or removing bonds in this table &
              &will not affect what is shown on the view.",sameline=.true.)
 
+          ! legend for the bond-type glyphs used in the Bonded atoms column
+          call iw_text("Bond types: ─ single, ═ double, ≡ triple, ○ aromatic, ┄ dashed")
+
           ! number of cell atoms and digits for the Id column
           ntype = sys(isys)%c%ncel
           ndigit = ceiling(log10(ntype+0.1d0))
@@ -1493,6 +1499,29 @@ contains
                          jj = sys(isys)%c%nstar(i)%idcon(j)
                          name = trim(sys(isys)%c%at(sys(isys)%c%atcel(jj)%idx)%name)
 
+                         ! bond order -> glyph that visually depicts the bond, and word
+                         ord = sys(isys)%c%nstar(i)%ordcon(j)
+                         select case (ord)
+                         case (-1) ! aromatic (1.5)
+                            bondglyph = "○"
+                            bondword = "aromatic"
+                         case (0) ! dashed (drawing only)
+                            bondglyph = "┄"
+                            bondword = "dashed"
+                         case (1) ! single
+                            bondglyph = "─"
+                            bondword = "single"
+                         case (2) ! double
+                            bondglyph = "═"
+                            bondword = "double"
+                         case (3) ! triple
+                            bondglyph = "≡"
+                            bondword = "triple"
+                         case default
+                            bondglyph = "?"
+                            bondword = "unknown"
+                         end select
+
                          ! color the button with the bonded atom's color from the view
                          havergb_ = color_from_view(atlisttype_ncel_frac,jj,rgb)
                          if (havergb_) then
@@ -1513,17 +1542,26 @@ contains
                             call igPushStyleColor_Vec4(ImGuiCol_Text,col4)
                          end if
 
-                         ! the button (colored by the bonded atom). Left-click
-                         ! opens a menu, right-click removes the bond.
-                         ldum = iw_button(string(jj) // " " // name(1:min(3,len_trim(name))) //&
+                         ! the button (colored by the bonded atom, prefixed by
+                         ! the bond-type glyph). Left-click opens a menu,
+                         ! right-click removes the bond.
+                         ldum = iw_button(bondglyph // " " // string(jj) //&
                             "##bond" // suffix // "_" // string(j),sameline=(j>1))
                          if (havergb_) call igPopStyleColor(4)
 
                          ! hovering highlights the row's atom and marks this
-                         ! neighbor; right-click removes the bond (deferred)
+                         ! neighbor, and shows a tooltip with the bond details;
+                         ! right-click removes the bond (deferred)
                          if (igIsItemHovered(ImGuiHoveredFlags_None)) then
                             ihlbond = i
                             ihlbtn = jj
+                            ! bond distance and sum of covalent radii (in angstrom)
+                            dbond = norm2(sys(isys)%c%atcel(jj)%r + sys(isys)%c%x2c(dble(sys(isys)%c%nstar(i)%lcon(:,j))) -&
+                               sys(isys)%c%atcel(i)%r)
+                            zi = sys(isys)%c%spc(sys(isys)%c%atcel(i)%is)%z
+                            zj = sys(isys)%c%spc(sys(isys)%c%atcel(jj)%is)%z
+                            call iw_tooltip(trim(name) // " (cell id " // string(jj) // "), " // bondword // " bond" // newline //&
+                               "Bond length: " // string(dbond*bohrtoa,'f',decimal=4) // " Å")
                             if (igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool)) then
                                ibrm1 = i
                                ibrm2 = jj
