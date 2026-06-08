@@ -91,6 +91,7 @@ module shapes
      integer(c_int) :: order ! order of the bond (-1=aromatic/1.5,0=dashed,1=single,2=double,3=triple); < -1 = flat cylinder
      real(c_float) :: border ! border size
      real(c_float) :: rgbborder(3) ! border color
+     real(c_float) :: arvec(3) = 0._c_float ! aromatic bonds: outward (ring-exterior) direction; 0 otherwise
   end type dl_cylinder
   public :: dl_cylinder
 

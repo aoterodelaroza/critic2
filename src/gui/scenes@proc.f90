@@ -146,7 +146,8 @@ submodule (scenes) proc
   integer, parameter :: iu_idx = 9
   integer, parameter :: iu_delta_cyl = 10
   integer, parameter :: iu_ndash_cyl = 11
-  integer, parameter :: iu_NUM = 12
+  integer, parameter :: iu_bond_outward = 12
+  integer, parameter :: iu_NUM = 13
   integer(c_int) :: iunif(iu_NUM)
 
   !xx! private procedures: low-level draws
@@ -595,6 +596,7 @@ contains
        iunif(iu_idx) = get_uniform_location("idx")
        iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
        iunif(iu_ndash_cyl) = get_uniform_location("ndash_cyl")
+       iunif(iu_bond_outward) = get_uniform_location("bond_outward")
 
        ! set the common uniforms
        call setuniform_int(1_c_int,"uselighting")
@@ -701,6 +703,7 @@ contains
        iunif(iu_idx) = get_uniform_location("idx")
        iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
        iunif(iu_ndash_cyl) = get_uniform_location("ndash_cyl")
+       iunif(iu_bond_outward) = get_uniform_location("bond_outward")
 
        ! set the common uniforms
        call setuniform_mat4(s%world,idxi=iunif(iu_world))
@@ -837,7 +840,8 @@ contains
             x2 = x2 + real(displ * s%obj%cyl(i)%x2delta,c_float)
          end if
          call draw_cylinder(x1,x2,s%obj%cyl(i)%r,s%obj%cyl(i)%rgb,s%bond_res,&
-            s%obj%cyl(i)%order,s%obj%cyl(i)%border,s%obj%cyl(i)%rgbborder)
+            s%obj%cyl(i)%order,s%obj%cyl(i)%border,s%obj%cyl(i)%rgbborder,&
+            arvec=s%obj%cyl(i)%arvec)
       end do
 
     end subroutine draw_all_cylinders
@@ -915,6 +919,7 @@ contains
          iunif(iu_idx) = get_uniform_location("idx")
          iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
          iunif(iu_ndash_cyl) = get_uniform_location("ndash_cyl")
+         iunif(iu_bond_outward) = get_uniform_location("bond_outward")
          call setuniform_int(1_c_int,"uselighting")
          call setuniform_vec3(s%lightpos,"lightPos")
          call setuniform_vec3(s%lightcolor,"lightColor")
@@ -935,6 +940,7 @@ contains
          iunif(iu_idx) = get_uniform_location("idx")
          iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
          iunif(iu_ndash_cyl) = get_uniform_location("ndash_cyl")
+         iunif(iu_bond_outward) = get_uniform_location("bond_outward")
          call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
          call setuniform_float(0._c_float,idxi=iunif(iu_border))
       end if
@@ -1868,7 +1874,7 @@ contains
   !> 3=triple, -1=aromatic/1.5 drawn as solid+dashed); order < -1 (e.g. -2)
   !> draws a plain flat cylinder. border = size of the border. Requires having
   !> the cylinder VAO bound.
-  subroutine draw_cylinder(x1,x2,rad,rgb,ires,order,border,rgbborder)
+  subroutine draw_cylinder(x1,x2,rad,rgb,ires,order,border,rgbborder,arvec)
     use interfaces_opengl3
     use tools_math, only: cross_cfloat
     use shaders, only: setuniform_vec4, setuniform_mat4, setuniform_int, setuniform_float,&
@@ -1882,6 +1888,7 @@ contains
     integer(c_int), intent(in) :: order
     real(c_float), intent(in) :: border
     real(c_float), intent(in), optional :: rgbborder(3)
+    real(c_float), intent(in), optional :: arvec(3)
 
     real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
     real(c_float) :: a, ca, sa, axis(3), temp(3), rgb_(4), rgbborder_(3)
@@ -1892,6 +1899,14 @@ contains
     ! color of the border
     rgbborder_ = 0._c_float
     if (present(rgbborder)) rgbborder_ = rgbborder
+
+    ! aromatic outward direction (orients the dashed sub-bond toward the ring
+    ! interior); zero for all non-aromatic cylinders
+    if (present(arvec)) then
+       call setuniform_vec3(arvec,idxi=iunif(iu_bond_outward))
+    else
+       call setuniform_vec3((/0._c_float,0._c_float,0._c_float/),idxi=iunif(iu_bond_outward))
+    end if
 
     ! some calculations for the model matrix
     xmid = 0.5_c_float * (x1 + x2)

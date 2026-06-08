@@ -678,6 +678,7 @@ contains
                             obj%cyl(obj%ncyl)%order = iord
                             obj%cyl(obj%ncyl)%border = real(r%bond_border_size,c_float)
                             obj%cyl(obj%ncyl)%rgbborder = r%bond_border_rgb
+                            obj%cyl(obj%ncyl)%arvec = real(r%bond_style%nstar(i)%aromdir(:,ib),c_float)
                          else
                             idaux = sysc(r%id)%attype_celatom_to_id(r%atom_style%type,ineigh)
                             rad2 = r%atom_style%rad(idaux) * r%mol_style%scale_rad(sys(r%id)%c%idatcelmol(1,ineigh))
@@ -697,6 +698,7 @@ contains
                             obj%cyl(obj%ncyl-1)%order = iord
                             obj%cyl(obj%ncyl-1)%border = real(r%bond_border_size,c_float)
                             obj%cyl(obj%ncyl-1)%rgbborder = r%bond_border_rgb
+                            obj%cyl(obj%ncyl-1)%arvec = real(r%bond_style%nstar(i)%aromdir(:,ib),c_float)
 
                             obj%cyl(obj%ncyl)%x1 = real(x0,c_float)
                             obj%cyl(obj%ncyl)%x1delta = cmplx(xdelta0,kind=c_float_complex)
@@ -708,6 +710,7 @@ contains
                             obj%cyl(obj%ncyl)%order = iord
                             obj%cyl(obj%ncyl)%border = real(r%bond_border_size,c_float)
                             obj%cyl(obj%ncyl)%rgbborder = r%bond_border_rgb
+                            obj%cyl(obj%ncyl)%arvec = real(r%bond_style%nstar(i)%aromdir(:,ib),c_float)
                          end if
                       end do ! ncon
                    end if

@@ -804,9 +804,11 @@ contains
        if (allocated(nstar(i)%idcon)) deallocate(nstar(i)%idcon)
        if (allocated(nstar(i)%lcon)) deallocate(nstar(i)%lcon)
        if (allocated(nstar(i)%ordcon)) deallocate(nstar(i)%ordcon)
+       if (allocated(nstar(i)%aromdir)) deallocate(nstar(i)%aromdir)
        allocate(nstar(i)%idcon(20))
        allocate(nstar(i)%lcon(3,20))
        allocate(nstar(i)%ordcon(20))
+       allocate(nstar(i)%aromdir(3,20))
     end do
 
     ! pre-calculate the distance matrix
@@ -895,10 +897,12 @@ contains
                 call realloc(nstar(i)%idcon,2*nstar(i)%ncon)
                 call realloc(nstar(i)%lcon,3,2*nstar(i)%ncon)
                 call realloc(nstar(i)%ordcon,2*nstar(i)%ncon)
+                call realloc(nstar(i)%aromdir,3,2*nstar(i)%ncon)
              end if
              nstar(i)%idcon(nstar(i)%ncon) = jid
              nstar(i)%lcon(:,nstar(i)%ncon) = atenv(i)%lvec(:,j)
              nstar(i)%ordcon(nstar(i)%ncon) = 1
+             nstar(i)%aromdir(:,nstar(i)%ncon) = 0d0
           end if
        end do
 
@@ -906,6 +910,7 @@ contains
        call realloc(nstar(i)%idcon,nstar(i)%ncon)
        call realloc(nstar(i)%lcon,3,nstar(i)%ncon)
        call realloc(nstar(i)%ordcon,nstar(i)%ncon)
+       call realloc(nstar(i)%aromdir,3,nstar(i)%ncon)
     end do
 
     ! perceive bond orders for the organic subgraph
@@ -1383,6 +1388,7 @@ contains
     logical :: islin
     logical, allocatable :: arom(:)  ! per-atom aromaticity flag
     logical, allocatable :: barom(:) ! per-bond aromatic-ring flag
+    real*8, allocatable :: bdir(:,:) ! per-bond outward (ring-exterior) direction
     ! maximum-weight matching workspace (shared with the contained solver)
     integer, allocatable :: ca(:), cb(:), cbond(:), wopen(:)
     logical, allocatable :: cursel(:), bestsel(:)
@@ -1593,10 +1599,11 @@ contains
 
     ! flag aromatic atoms and bonds: those in a planar, conjugated sp2 ring of
     ! size 5-7. Geometric + Kekule criterion (not a Huckel 4n+2 electron count).
-    allocate(arom(c%ncel),barom(nb))
+    allocate(arom(c%ncel),barom(nb),bdir(3,nb))
     arom = .false.
     barom = .false.
-    call flag_aromatic(arom,barom)
+    bdir = 0d0
+    call flag_aromatic(arom,barom,bdir)
 
     ! write the perceived orders back into both reciprocal nstar entries (using
     ! -1 = aromatic/1.5 for bonds inside an aromatic ring), and store the
@@ -1606,12 +1613,14 @@ contains
        if (barom(i)) o = -1
        call set_order(bia(i),bib(i),blv(:,i),o)
        call set_order(bib(i),bia(i),-blv(:,i),o)
+       call set_aromdir(bia(i),bib(i),blv(:,i),bdir(:,i))
+       call set_aromdir(bib(i),bia(i),-blv(:,i),bdir(:,i))
     end do
     do ia = 1, c%ncel
        nstar(ia)%isaromatic = arom(ia)
     end do
 
-    deallocate(bia,bib,blv,bdist,bord,bfix,barom)
+    deallocate(bia,bib,blv,bdist,bord,bfix,barom,bdir)
     deallocate(cap,deg,iopen,nincid,incid,cand,ckey,arom)
 
   contains
@@ -1743,6 +1752,20 @@ contains
       end do
     end subroutine set_order
 
+    !> Set the aromatic outward direction for the entry of atom ja pointing
+    !> to jb at lattice vector lv.
+    subroutine set_aromdir(ja,jb,lv,vec)
+      integer, intent(in) :: ja, jb, lv(3)
+      real*8, intent(in) :: vec(3)
+      integer :: kkk
+      do kkk = 1, nstar(ja)%ncon
+         if (nstar(ja)%idcon(kkk) == jb .and. all(nstar(ja)%lcon(:,kkk) == lv)) then
+            nstar(ja)%aromdir(:,kkk) = vec
+            return
+         end if
+      end do
+    end subroutine set_aromdir
+
     !> Branch-and-bound search for the maximum-weight set of double
     !> bonds (candidate index idx onwards) that respects the valences
     !> in wopen. Updates bestscore/bestsel with the best assignment
@@ -1790,17 +1813,21 @@ contains
     !> size 5-7. For each bond, the smallest ring through it is found by a
     !> periodic-aware BFS (the ring must close in real space, net lattice vector
     !> zero), then tested: every ring atom must be planar and sp2/conjugated.
-    !> Sets arom(a) for the ring atoms and barom(e) for the ring bonds.
-    subroutine flag_aromatic(arom,barom)
+    !> Sets arom(a) for the ring atoms, barom(e) for the ring bonds, and
+    !> bdir(:,e) the outward (ring-exterior) cartesian direction for each ring
+    !> bond (used to draw the dashed sub-bond on the inside of the ring).
+    subroutine flag_aromatic(arom,barom,bdir)
       logical, intent(inout) :: arom(:)
       logical, intent(inout) :: barom(:)
+      real*8, intent(inout) :: bdir(:,:)
 
       integer, parameter :: maxring = 7    ! largest ring size tested
       integer, parameter :: maxq = 50000   ! BFS state cap (safety guard)
-      integer :: ib0, u, v, e, j, p, q, head, nq, m, kk, egoal, ne
+      integer :: ib0, u, v, e, j, p, q, head, nq, m, kk, egoal, ne, kn, eb
       integer :: lb(3), nl(3)
       integer, allocatable :: qat(:), qlv(:,:), qpar(:), qdep(:), qedge(:)
       integer, allocatable :: ratom(:), rlv(:,:), redge(:)
+      real*8 :: cen(3), rpos(3,maxring), mid(3), ax(3), out(3), an
       logical :: found, seen
 
       ! Up to maxq atoms in the queue
@@ -1907,17 +1934,65 @@ contains
          redge(ne) = ib0   ! the bond we started from (v -> u)
 
          if (ring_is_aromatic(ratom,rlv,m)) then
+            ! ring atom cartesian positions and centroid
+            cen = 0d0
+            do kk = 1, m
+               rpos(:,kk) = c%x2c(c%atcel(ratom(kk))%x + real(rlv(:,kk),8))
+               cen = cen + rpos(:,kk)
+            end do
+            cen = cen / real(m,8)
+
             do kk = 1, m
                arom(ratom(kk)) = .true.
             end do
             do kk = 1, ne
                barom(redge(kk)) = .true.
             end do
+
+            ! outward (ring-exterior) in-plane direction for each ring bond
+            ! (consecutive ring atoms, cyclic); keep the first one assigned so
+            ! a bond shared by two fused rings is not overwritten
+            do kk = 1, m
+               kn = kk + 1
+               if (kn > m) kn = 1
+               mid = 0.5d0 * (rpos(:,kk) + rpos(:,kn))
+               ax = rpos(:,kn) - rpos(:,kk)
+               an = norm2(ax)
+               if (an < 1d-10) cycle
+               ax = ax / an
+               out = mid - cen
+               out = out - dot_product(out,ax) * ax ! perpendicular to the bond
+               an = norm2(out)
+               if (an < 1d-10) cycle
+               out = out / an
+               eb = bond_between(ratom(kk),ratom(kn),rlv(:,kn)-rlv(:,kk))
+               if (eb > 0) then
+                  if (norm2(bdir(:,eb)) < 1d-10) bdir(:,eb) = out
+               end if
+            end do
          end if
       end do
 
       deallocate(qat,qlv,qpar,qdep,qedge,ratom,rlv,redge)
     end subroutine flag_aromatic
+
+    !> Return the local bond-list index connecting cell atoms a and b with
+    !> relative lattice vector dl (b at lattice vector dl from a), or 0 if none.
+    function bond_between(a,b,dl) result(eb)
+      integer, intent(in) :: a, b, dl(3)
+      integer :: eb, j, e
+      eb = 0
+      do j = 1, nincid(a)
+         e = incid(j,a)
+         if (bia(e) == a .and. bib(e) == b .and. all(blv(:,e) == dl)) then
+            eb = e
+            return
+         elseif (bib(e) == a .and. bia(e) == b .and. all(blv(:,e) == -dl)) then
+            eb = e
+            return
+         end if
+      end do
+    end function bond_between
 
     !> Test whether the ring with m atoms ratom(1:m) at lvecs rlv(:,1:m) is
     !> aromatic: planar (all atoms near the mean ring plane) and every atom sp2

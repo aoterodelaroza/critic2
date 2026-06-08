@@ -314,6 +314,7 @@ module types
      integer, allocatable :: idcon(:) !< id (atcel) of the connected atom
      integer, allocatable :: lcon(:,:) !< lattice vector of the connected atom
      integer, allocatable :: ordcon(:) !< bond order of the connected atom (-1=aromatic/1.5,0=dashed,1=single,2=double,3=triple)
+     real*8, allocatable :: aromdir(:,:) !< aromatic bonds: outward (ring-exterior) cartesian direction; (0,0,0) otherwise
      logical :: isaromatic = .false. !< .true. if this atom is in an aromatic ring
   end type neighstar
 

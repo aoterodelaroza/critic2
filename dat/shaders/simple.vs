@@ -9,6 +9,7 @@ uniform int object_type; // 0=sphere, 1=cyl, 2=cyl_flat
 uniform float rborder; // border of the object
 uniform vec3 bordercolor; // color of the border
 uniform float delta_cyl; // displacement for the cylinder along screen plane
+uniform vec3 bond_outward; // aromatic bonds: outward (ring-exterior) direction; 0 otherwise
 
 // coordinates of the vertex
 layout (location = 0) in vec3 inPosition;
@@ -40,7 +41,14 @@ void main(){
       vec3 ncam = vec3(0.,0.,-1.);
       vec3 vperp = normalize(cross(ncam,upn));
 
-      vertex4 = vec4(vertex + delta_cyl * vperp,1.0);
+      float dd = delta_cyl;
+      // aromatic bonds: orient the offset so +delta is on the ring-exterior
+      // side (i.e. the inner, -delta sub-bond is the dashed one)
+      if (dot(bond_outward,bond_outward) > 1e-10) {
+        vec3 outv = mat3(view*world) * bond_outward;
+        if (dot(outv,vperp) < 0.) dd = -dd;
+      }
+      vertex4 = vec4(vertex + dd * vperp,1.0);
     }
   } else {
     // flat cylinder

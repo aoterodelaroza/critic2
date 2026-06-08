@@ -1759,6 +1759,7 @@ contains
             ns%idcon(knew) = ns%idcon(k)
             ns%lcon(:,knew) = ns%lcon(:,k)
             ns%ordcon(knew) = ns%ordcon(k)
+            ns%aromdir(:,knew) = ns%aromdir(:,k)
          end if
       end do
       if (knew /= ns%ncon) then
@@ -1766,6 +1767,7 @@ contains
          call realloc(ns%idcon,knew)
          call realloc(ns%lcon,3,knew)
          call realloc(ns%ordcon,knew)
+         call realloc(ns%aromdir,3,knew)
       end if
     end subroutine remove_one
   end subroutine remove_bond
