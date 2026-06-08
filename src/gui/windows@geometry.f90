@@ -1546,6 +1546,8 @@ contains
                                   call defer_setorder(3)
                                if (iw_menuitem("Dashed",selected=(sys(isys)%c%nstar(i)%ordcon(j)==0)))&
                                   call defer_setorder(0)
+                               if (iw_menuitem("Aromatic",selected=(sys(isys)%c%nstar(i)%ordcon(j)==-1)))&
+                                  call defer_setorder(-1)
                                call igEndMenu()
                             end if
                             if (iw_menuitem("Remove")) then
