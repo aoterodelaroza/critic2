@@ -1611,10 +1611,8 @@ contains
     do i = 1, nb
        o = bord(i)
        if (barom(i)) o = -1
-       call set_order(bia(i),bib(i),blv(:,i),o)
-       call set_order(bib(i),bia(i),-blv(:,i),o)
-       call set_aromdir(bia(i),bib(i),blv(:,i),bdir(:,i))
-       call set_aromdir(bib(i),bia(i),-blv(:,i),bdir(:,i))
+       call set_bond_data(bia(i),bib(i),blv(:,i),o,bdir(:,i))
+       call set_bond_data(bib(i),bia(i),-blv(:,i),o,bdir(:,i))
     end do
     do ia = 1, c%ncel
        nstar(ia)%isaromatic = arom(ia)
@@ -1740,31 +1738,20 @@ contains
 
     end subroutine assign_oxyacid
 
-    !> Set ordcon for the entry of atom ja pointing to jb at lattice vector lv.
-    subroutine set_order(ja,jb,lv,ord)
+    !> Set the bond order (ord) and aromatic outward direction (vec) for the
+    !> entry of atom ja pointing to jb at lattice vector lv.
+    subroutine set_bond_data(ja,jb,lv,ord,vec)
       integer, intent(in) :: ja, jb, lv(3), ord
-      integer :: kkk
-      do kkk = 1, nstar(ja)%ncon
-         if (nstar(ja)%idcon(kkk) == jb .and. all(nstar(ja)%lcon(:,kkk) == lv)) then
-            nstar(ja)%ordcon(kkk) = ord
-            return
-         end if
-      end do
-    end subroutine set_order
-
-    !> Set the aromatic outward direction for the entry of atom ja pointing
-    !> to jb at lattice vector lv.
-    subroutine set_aromdir(ja,jb,lv,vec)
-      integer, intent(in) :: ja, jb, lv(3)
       real*8, intent(in) :: vec(3)
       integer :: kkk
       do kkk = 1, nstar(ja)%ncon
          if (nstar(ja)%idcon(kkk) == jb .and. all(nstar(ja)%lcon(:,kkk) == lv)) then
+            nstar(ja)%ordcon(kkk) = ord
             nstar(ja)%aromdir(:,kkk) = vec
             return
          end if
       end do
-    end subroutine set_aromdir
+    end subroutine set_bond_data
 
     !> Branch-and-bound search for the maximum-weight set of double
     !> bonds (candidate index idx onwards) that respects the valences
