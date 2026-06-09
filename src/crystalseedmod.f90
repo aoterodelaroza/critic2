@@ -132,15 +132,17 @@ module crystalseedmod
      module subroutine seed_end(seed)
        class(crystalseed), intent(inout) :: seed !< Crystal seed output
      end subroutine seed_end
-     module subroutine parse_crystal_env(seed,lu,oksyn)
+     module subroutine parse_crystal_env(seed,lu,oksyn,fromlib)
        class(crystalseed), intent(inout) :: seed
        integer, intent(in) :: lu
        logical, intent(out) :: oksyn
+       logical, intent(in), optional :: fromlib
      end subroutine parse_crystal_env
-     module subroutine parse_molecule_env(seed,lu,oksyn)
+     module subroutine parse_molecule_env(seed,lu,oksyn,fromlib)
        class(crystalseed), intent(inout) :: seed
        integer, intent(in) :: lu
        logical, intent(out) :: oksyn
+       logical, intent(in), optional :: fromlib
      end subroutine parse_molecule_env
      module subroutine read_library(seed,line,oksyn,mol,file,ti)
        class(crystalseed), intent(inout) :: seed

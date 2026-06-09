@@ -71,7 +71,7 @@ contains
   end subroutine seed_end
 
   !> Parse a crystal environment
-  module subroutine parse_crystal_env(seed,lu,oksyn)
+  module subroutine parse_crystal_env(seed,lu,oksyn,fromlib)
     use spglib, only: spg_get_hall_number_from_symbol, spg_get_symmetry_from_database
     use global, only: eval_next, dunit0, iunit, iunit_isdef, iunit_bohr
     use tools_math, only: matinv
@@ -83,18 +83,22 @@ contains
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     integer, intent(in) :: lu !< Logical unit for input
     logical, intent(out) :: oksyn !< Was there a syntax error?
+    logical, intent(in), optional :: fromlib !< from library (use native units, ignore UNITS)
 
     character(len=:), allocatable :: word, aux, line, uword, name, errmsg
     character*255, allocatable :: sline(:)
     integer :: i, j, k, lp, nsline, luout, iat, lp2, iunit0, it
     integer :: hnum, ier
     real*8 :: rmat(3,3), scal, ascal, x(3), xdif(3)
-    logical :: ok, goodspg
+    logical :: ok, goodspg, islib
     logical :: isset
     real*8 :: rot(3,4)
 
     call seed%end()
-    if (iunit_isdef) then
+    ! library structures are stored in bohr; ignore the user's UNITS setting
+    islib = .false.
+    if (present(fromlib)) islib = fromlib
+    if (iunit_isdef .or. islib) then
        iunit0 = iunit_bohr
     else
        iunit0 = iunit
@@ -148,7 +152,7 @@ contains
        else if (equal (word,'cartesian')) then
           ok = eval_next(scal,line,lp)
           if (.not.ok) scal = 1d0
-          ascal = 1d0/dunit0(iunit)
+          ascal = 1d0/dunit0(iunit0)
           aux = getword(line,lp)
           if (len_trim(aux) > 0) then
              call ferror('parse_crystal_env','Unknown extra keyword in lattice vectors (CARTESIAN)',faterr,line,syntax=.true.)
@@ -405,7 +409,7 @@ contains
   end subroutine parse_crystal_env
 
   !> Parse a molecule environment
-  module subroutine parse_molecule_env(seed,lu,oksyn)
+  module subroutine parse_molecule_env(seed,lu,oksyn,fromlib)
     use global, only: rborder_def, eval_next, dunit0, iunit, iunit_ang, iunit_isdef
     use tools_io, only: uin, ucopy, getline, lgetword, equal, ferror, faterr,&
        string, isinteger, nameguess, getword, zatguess, equali, lower
@@ -415,14 +419,18 @@ contains
     class(crystalseed), intent(inout) :: seed !< Crystal seed output
     integer, intent(in) :: lu !< Logical unit for input
     logical, intent(out) :: oksyn !< Was there a syntax error?
+    logical, intent(in), optional :: fromlib !< from library (use native units, ignore UNITS)
 
     character(len=:), allocatable :: uword, word, aux, line, name
     integer :: lp, lp2, luout, iat, iunit0, it, i
     real*8 :: rborder
-    logical :: ok, docube, isset
+    logical :: ok, docube, isset, islib
 
     call seed%end()
-    if (iunit_isdef) then
+    ! library molecules are stored in angstrom; ignore the user's UNITS setting
+    islib = .false.
+    if (present(fromlib)) islib = fromlib
+    if (iunit_isdef .or. islib) then
        iunit0 = iunit_ang
     else
        iunit0 = iunit
@@ -676,9 +684,9 @@ contains
     lp = 1
     word = lgetword(l2,lp)
     if (equal(word,"crystal")) then
-       call seed%parse_crystal_env(lu,ok)
+       call seed%parse_crystal_env(lu,ok,fromlib=.true.)
     elseif (equal(word,"molecule")) then
-       call seed%parse_molecule_env(lu,ok)
+       call seed%parse_molecule_env(lu,ok,fromlib=.true.)
     else
        call fclose(lu)
        call ferror("read_library","error parsing the crystal/molecule keyword",faterr,syntax=.true.)
