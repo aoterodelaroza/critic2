@@ -392,7 +392,7 @@ contains
           c%at(i)%x = c%at(i)%x + delta
           if (copybonds) deltasave(:,i) = delta
        else
-          deltasave(:,i) = 0d0
+          if (copybonds) deltasave(:,i) = 0d0
        end if
        c%at(i)%r = c%x2c(c%at(i)%x)
        c%at(i)%wyc = "?"
