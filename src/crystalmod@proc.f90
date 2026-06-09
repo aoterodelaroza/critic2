@@ -165,10 +165,10 @@ contains
     logical, intent(in), optional :: noenv
     type(thread_info), intent(in), optional :: ti
 
-    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3)
-    logical :: good, good2, clearsym, doenv, ok
+    real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3), delta(3)
+    logical :: good, good2, clearsym, doenv, copybonds
     integer :: i, j, k, l, iat, newmult
-    real*8, allocatable :: atpos(:,:), area(:)
+    real*8, allocatable :: atpos(:,:), area(:), deltasave(:,:)
     integer, allocatable :: irotm(:), icenv(:)
     logical, allocatable :: useatom(:)
     character(len=:), allocatable :: errmsg
@@ -183,6 +183,7 @@ contains
     end if
     if (seed%havebonds .and. seed%havesym > 0) &
        call ferror("struct_new","incompatible fields in seed: bonds and symmetry",faterr)
+    copybonds = seed%havebonds .and. seed%havesym <= 0 .and. allocated(seed%nstar)
 
     ! initialize the structure
     call c%init()
@@ -381,9 +382,18 @@ contains
     ! move the crystallographic coordinates to the main cell, calculate the
     ! Cartesian coordinates. Set the default wyckoff letter. Molecules are not
     ! wrapped: the cell is only a bounding box and wrapping would tear the
-    ! molecule apart (e.g. when an atom rotates past a cell face).
+    ! molecule apart. If the system has bonding info, update the lattice vector
+    ! in the neighbor star.
+    if (copybonds) copybonds = (size(seed%nstar,1) == c%nneq)
+    if (copybonds) allocate(deltasave(3,c%nneq))
     do i = 1, c%nneq
-       if (.not.seed%ismolecule) c%at(i)%x = c%at(i)%x - floor(c%at(i)%x)
+       if (.not.seed%ismolecule) then
+          delta = -floor(c%at(i)%x)
+          c%at(i)%x = c%at(i)%x + delta
+          if (copybonds) deltasave(:,i) = delta
+       else
+          deltasave(:,i) = 0d0
+       end if
        c%at(i)%r = c%x2c(c%at(i)%x)
        c%at(i)%wyc = "?"
     end do
@@ -553,10 +563,14 @@ contains
        ! Find atomic connectivity and molecular fragments, or copy from seed.
        ! Only copy if the seed had no symmetry information (otherwise the
        ! atoms in the seed are taken as the neq-list and reordered).
-       ok = (seed%havebonds .and. seed%havesym <= 0 .and. allocated(seed%nstar))
-       if (ok) ok = (size(seed%nstar,1) == c%ncel)
-       if (ok) then
+       if (copybonds) then
           c%nstar = seed%nstar
+          do i = 1, c%ncel
+             do j = 1, c%nstar(i)%ncon
+                c%nstar(i)%lcon(:,j) = c%nstar(i)%lcon(:,j) - deltasave(:,c%nstar(i)%idcon(j)) + deltasave(:,i)
+             end do
+          end do
+          deallocate(deltasave)
        else
           call c%find_asterisms(c%nstar,atmcov,bondfactor)
        end if

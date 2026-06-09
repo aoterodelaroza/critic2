@@ -1060,19 +1060,22 @@ contains
   end function attype_species
 
   ! For the given atom type, set the corresponding atomic species.
-  module subroutine set_attype_species(sysc,type,id,is)
+  module subroutine set_attype_species(sysc,type,id,is,copybonding)
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: type
     integer, intent(in) :: id
     integer, intent(in) :: is
+    logical, intent(in), optional :: copybonding
 
     integer :: isys, i, nat
     integer, allocatable :: iat(:)
-    logical :: ok
+    logical :: ok, copybonding_
 
     ! consistency checks
     isys = sysc%id
     if (.not.ok_system(isys,sys_init)) return
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
 
     ! initialize
     allocate(iat(sys(isys)%c%ncel))
@@ -1092,7 +1095,7 @@ contains
     end do
 
     ! execute
-    call sys(isys)%c%change_atom_species(nat,iat,is)
+    call sys(isys)%c%change_atom_species(nat,iat,is,copybonding=copybonding_)
 
     ! the geometry has changed
     call sysc%post_event(lastchange_geometry)
@@ -1458,7 +1461,7 @@ contains
 
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
-  module subroutine set_atom_position(sysc,type,id,x,forcewyc)
+  module subroutine set_atom_position(sysc,type,id,x,forcewyc,copybonding)
     use global, only: iunit_bohr, iunit_fractional
     use param, only: bohrtoa
     class(sysconf), intent(inout) :: sysc
@@ -1466,11 +1469,13 @@ contains
     integer, intent(in) :: id
     real*8, intent(in) :: x(3)
     logical, intent(in) :: forcewyc
+    logical, intent(in), optional :: copybonding
 
     integer :: isys, leqv, i, ichange
     real*8 :: x_(3)
     character*3 :: pg
     real*8 :: xd(3), xdo(3), lrotm(3,3,48), ravg(3,3)
+    logical :: copybonding_
 
     real*8, parameter :: tighteps = 1d-7
 
@@ -1480,6 +1485,8 @@ contains
 
     ! initialize
     x_ = x
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
 
     ! move the atom
     if (type == atlisttype_nneq) then
@@ -1523,20 +1530,20 @@ contains
        end if
 
        ! displace
-       call sys(isys)%c%move_atom(id,x_,iunit_fractional,.true.,.false.)
+       call sys(isys)%c%move_atom(id,x_,iunit_fractional,.true.,.false.,copybonding=copybonding_)
     elseif (type == atlisttype_ncel_frac) then
-       call sys(isys)%c%move_atom(id,x_,iunit_fractional,.false.,.false.)
+       call sys(isys)%c%move_atom(id,x_,iunit_fractional,.false.,.false.,copybonding=copybonding_)
     elseif (type == atlisttype_ncel_bohr) then
        if (sys(isys)%c%ismolecule) &
           x_ = x - sys(isys)%c%molx0
-       call sys(isys)%c%move_atom(id,x_,iunit_bohr,.false.,.false.)
+       call sys(isys)%c%move_atom(id,x_,iunit_bohr,.false.,.false.,copybonding=copybonding_)
     elseif (type == atlisttype_ncel_ang) then
        if (sys(isys)%c%ismolecule) then
           x_ = x/bohrtoa - sys(isys)%c%molx0
        else
           x_ = x/bohrtoa
        end if
-       call sys(isys)%c%move_atom(id,x_,iunit_bohr,.false.,.false.)
+       call sys(isys)%c%move_atom(id,x_,iunit_bohr,.false.,.false.,copybonding=copybonding_)
     end if
 
     ! the geometry has changed
@@ -1546,21 +1553,19 @@ contains
 
   ! For the molecule identifier id corresponding to the given molecule
   ! coordinate type, rigidly translate the fragment so that its center
-  ! of mass is at position x. If norebond, do an in-place shift without
-  ! recomputing bonds (for interactive dragging); the lighter buildlists
-  ! event is posted so the scene refreshes without resetting fields or
-  ! styles. A final norebond=.false. call rebonds and cleans up.
-  module subroutine set_molecule_position(sysc,type,id,x,norebond)
+  ! of mass is at position x. If 
+  module subroutine set_molecule_position(sysc,type,id,x,copybonding)
     use global, only: iunit_bohr, iunit_fractional
     use param, only: bohrtoa
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: type
     integer, intent(in) :: id
     real*8, intent(in) :: x(3)
-    logical, intent(in) :: norebond
+    logical, intent(in), optional :: copybonding
 
     integer :: isys
     real*8 :: x_(3)
+    logical :: copybonding_
 
     ! consistency checks
     isys = sysc%id
@@ -1568,59 +1573,50 @@ contains
 
     ! move the molecule (units interpreted in the internal frame, as for move_atom)
     x_ = x
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
     if (type == atlisttype_ncel_frac) then
-       call sys(isys)%c%move_molecule(id,x_,iunit_fractional,.false.,norebond)
+       call sys(isys)%c%move_molecule(id,x_,iunit_fractional,.false.,copybonding=copybonding_)
     elseif (type == atlisttype_ncel_bohr) then
        if (sys(isys)%c%ismolecule) &
           x_ = x - sys(isys)%c%molx0
-       call sys(isys)%c%move_molecule(id,x_,iunit_bohr,.false.,norebond)
+       call sys(isys)%c%move_molecule(id,x_,iunit_bohr,.false.,copybonding=copybonding_)
     elseif (type == atlisttype_ncel_ang) then
        if (sys(isys)%c%ismolecule) then
           x_ = x/bohrtoa - sys(isys)%c%molx0
        else
           x_ = x/bohrtoa
        end if
-       call sys(isys)%c%move_molecule(id,x_,iunit_bohr,.false.,norebond)
+       call sys(isys)%c%move_molecule(id,x_,iunit_bohr,.false.,copybonding=copybonding_)
     end if
 
-    ! during dragging (norebond), only the draw lists need rebuilding; on the
-    ! final move, signal a full geometry change (rebonded, reset fields, etc.)
-    if (norebond) then
-       call sysc%post_event(lastchange_buildlists)
-    else
-       call sysc%post_event(lastchange_geometry)
-    end if
+    ! the geometry changed
+    call sysc%post_event(lastchange_geometry)
 
   end subroutine set_molecule_position
 
   ! Rigidly rotate molecule id about its center of mass so that the
   ! Euler angles (ZYZ, radians) of its standard orientation become euler.
-  ! If norebond, do an in-place rotation without recomputing bonds (for
-  ! interactive dragging); the lighter buildlists event is posted so the
-  ! scene refreshes without resetting fields or styles. A final
-  ! norebond=.false. call rebonds and cleans up.
-  module subroutine set_molecule_rotation(sysc,id,euler,norebond)
+  module subroutine set_molecule_rotation(sysc,id,euler,copybonding)
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: id
     real*8, intent(in) :: euler(3)
-    logical, intent(in) :: norebond
+    logical, intent(in), optional :: copybonding
 
     integer :: isys
+    logical :: copybonding_
 
     ! consistency checks
     isys = sysc%id
     if (.not.ok_system(isys,sys_init)) return
 
     ! rotate the molecule
-    call sys(isys)%c%rotate_molecule(id,euler,norebond)
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
+    call sys(isys)%c%rotate_molecule(id,euler,copybonding=copybonding_)
 
-    ! during dragging (norebond), only the draw lists need rebuilding; on the
-    ! final rotation, signal a full geometry change (rebonded, reset fields, etc.)
-    if (norebond) then
-       call sysc%post_event(lastchange_buildlists)
-    else
-       call sysc%post_event(lastchange_geometry)
-    end if
+    ! the geometry has changed
+    call sysc%post_event(lastchange_geometry)
 
   end subroutine set_molecule_rotation
 
@@ -1790,16 +1786,18 @@ contains
   ! Change the unit cell of the system to have cell lengths aa (bohr)
   ! and angles bb (degree). If forcewyc, force the system to keep
   ! symemtry.
-  module subroutine move_cell(sysc,aa,bb,forcewyc)
+  module subroutine move_cell(sysc,aa,bb,forcewyc,copybonding)
     use crystalmod, only: pointgroup_info
     use tools_math, only: m_x2c_from_cellpar
     use param, only: pi
     class(sysconf), intent(inout) :: sysc
     real*8, intent(in) :: aa(3), bb(3)
     logical, intent(in) :: forcewyc
+    logical, intent(in), optional :: copybonding
 
     integer :: isys
     real*8 :: aa_(3), bb_(3)
+    logical :: copybonding_
     integer :: leqv, i, n
     real*8 :: g(3,3), gavg(3,3), da
     real*8, allocatable :: rotm(:,:,:)
@@ -1868,7 +1866,9 @@ contains
     end if
 
     ! move the unit cell
-    call sys(isys)%c%move_cell_all(aa_,bb_)
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
+    call sys(isys)%c%move_cell_all(aa_,bb_,copybonding=copybonding_)
 
     ! the geometry has changed
     call sysc%post_event(lastchange_geometry)

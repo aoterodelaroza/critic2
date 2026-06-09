@@ -249,11 +249,12 @@ module systems
        integer, intent(in) :: id
        integer :: attype_species
      end function attype_species
-     module subroutine set_attype_species(sysc,type,id,is)
+     module subroutine set_attype_species(sysc,type,id,is,copybonding)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type
        integer, intent(in) :: id
        integer, intent(in) :: is
+       logical, intent(in), optional :: copybonding
      end subroutine set_attype_species
      module function attype_name(sysc,type,id)
        class(sysconf), intent(inout) :: sysc
@@ -318,25 +319,26 @@ module systems
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: i1, i2
      end subroutine swap_molecules
-     module subroutine set_atom_position(sysc,type,id,x,forcewyc)
+     module subroutine set_atom_position(sysc,type,id,x,forcewyc,copybonding)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type
        integer, intent(in) :: id
        real*8, intent(in) :: x(3)
        logical, intent(in) :: forcewyc
+       logical, intent(in), optional :: copybonding
      end subroutine set_atom_position
-     module subroutine set_molecule_position(sysc,type,id,x,norebond)
+     module subroutine set_molecule_position(sysc,type,id,x,copybonding)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type
        integer, intent(in) :: id
        real*8, intent(in) :: x(3)
-       logical, intent(in) :: norebond
+       logical, intent(in), optional :: copybonding
      end subroutine set_molecule_position
-     module subroutine set_molecule_rotation(sysc,id,euler,norebond)
+     module subroutine set_molecule_rotation(sysc,id,euler,copybonding)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: id
        real*8, intent(in) :: euler(3)
-       logical, intent(in) :: norebond
+       logical, intent(in), optional :: copybonding
      end subroutine set_molecule_rotation
      module subroutine set_atomic_number(sysc,type,id,iz,setatomnames)
        class(sysconf), intent(inout) :: sysc
@@ -363,10 +365,11 @@ module systems
      module subroutine reread_geometry_from_file(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine reread_geometry_from_file
-     module subroutine move_cell(sysc,aa,bb,forcewyc)
+     module subroutine move_cell(sysc,aa,bb,forcewyc,copybonding)
        class(sysconf), intent(inout) :: sysc
        real*8, intent(in) :: aa(3), bb(3)
        logical, intent(in) :: forcewyc
+       logical, intent(in), optional :: copybonding
      end subroutine move_cell
      module subroutine transform_cell(sysc,mode,refine,errmsg)
        class(sysconf), intent(inout) :: sysc

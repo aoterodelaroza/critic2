@@ -1199,23 +1199,27 @@ contains
   !> Change the atoms with IDs in the array iat(1:nat) from their
   !> current species to is, and reset the atom name to the
   !> corresponding species name.
-  module subroutine change_atom_species(c,nat,iat,is,ti)
+  module subroutine change_atom_species(c,nat,iat,is,copybonding,ti)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(inout) :: c
     integer, intent(in) :: nat
     integer, intent(in) :: iat(nat)
     integer, intent(in) :: is
+    logical, intent(in), optional :: copybonding
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     integer :: i
+    logical :: copybonding_
 
     ! return if nothing to do
     if (nat == 0) return
     if (is < 1 .or. is > c%nspc) return
 
-    ! make seed from this crystal
-    call c%makeseed(seed,copysym=.false.)
+    ! make seed from this crystal, preserving bonding if requested
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
+    call c%makeseed(seed,copysym=.false.,copybonding=copybonding_)
 
     ! apply the change
     do i = 1, nat
@@ -1232,7 +1236,7 @@ contains
   !> iunit_l (see global). If isnneq, move all atoms that are
   !> equivalent by symmetry. If dorelative, the movement is
   !> relative to its current position.
-  module subroutine move_atom(c,idx,x,iunit_l,isnneq,dorelative,ti)
+  module subroutine move_atom(c,idx,x,iunit_l,isnneq,dorelative,copybonding,ti)
     use crystalseedmod, only: crystalseed
     use global, only: iunit_ang, iunit_bohr
     use param, only: bohrtoa
@@ -1242,22 +1246,26 @@ contains
     integer, intent(in) :: iunit_l
     logical, intent(in) :: isnneq
     logical, intent(in) :: dorelative
+    logical, intent(in), optional :: copybonding
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     real*8 :: xx(3)
-    logical :: copysym
+    logical :: copysym, copybonding_
 
     ! whether to use symmetry
     copysym = isnneq .and. .not.c%ismolecule .and. c%spgavail
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
 
-    ! make seed from this crystal. For a molecule, use an absolute-Cartesian
-    ! seed (useabr=0) so struct_new re-fits the encompassing cell to the moved
-    ! atom instead of wrapping it into the old cell.
+    ! make seed from this crystal, preserving bonding if requested. For a
+    ! molecule, use an absolute-Cartesian seed (useabr=0) so struct_new re-fits
+    ! the encompassing cell to the moved atom instead of wrapping it into the
+    ! old cell. copybonding is incompatible with copysym (nneq-indexed seed).
     if (c%ismolecule) then
-       call c%makeseed(seed,copysym=.false.,useabr=0)
+       call c%makeseed(seed,copysym=.false.,useabr=0,copybonding=copybonding_)
     else
-       call c%makeseed(seed,copysym=copysym)
+       call c%makeseed(seed,copysym=copysym,copybonding=(copybonding_ .and. .not.copysym))
     end if
 
     ! interpret units. For a molecule, xx is kept as an internal Cartesian
@@ -1383,10 +1391,7 @@ contains
   !> dorelative, x is interpreted as a displacement of the center of
   !> mass relative to its current position. All atoms in the fragment
   !> are translated by the same vector; symmetry is not preserved (P1).
-  !> If norebond, do not rebuild the structure (no rebonding): shift the
-  !> cell atoms and the cached fragment in place, leaving the neighbor
-  !> star and the molecular decomposition untouched.
-  module subroutine move_molecule(c,imol,x,iunit_l,dorelative,norebond,ti)
+  module subroutine move_molecule(c,imol,x,iunit_l,dorelative,copybonding,ti)
     use crystalseedmod, only: crystalseed
     use global, only: iunit_ang, iunit_bohr
     use param, only: bohrtoa
@@ -1395,18 +1400,18 @@ contains
     real*8, intent(in) :: x(3)
     integer, intent(in) :: iunit_l
     logical, intent(in) :: dorelative
-    logical, intent(in), optional :: norebond
+    logical, intent(in), optional :: copybonding
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     real*8 :: xx(3), dx(3), dxc(3)
     integer :: j, k
-    logical :: norebond_
+    logical :: copybonding_
 
     ! consistency checks
     if (imol < 1 .or. imol > c%nmol .or. .not.allocated(c%idatcelmol)) return
-    norebond_ = .false.
-    if (present(norebond)) norebond_ = norebond
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
 
     ! interpret units: target/displacement in fractional coordinates
     if (iunit_l == iunit_ang) then
@@ -1424,36 +1429,14 @@ contains
        dx = xx - c%c2x(c%mol(imol)%cmass())
     end if
 
-    if (norebond_) then
-       ! in-place rigid shift: move the cell atoms and the cached fragment, but
-       ! leave c%nstar, the molecular decomposition, and c%at untouched (no
-       ! rebonding). c%at and c%nstar are reconciled by the next full move.
-       dxc = c%x2c(dx)
-       do k = 1, c%ncel
-          if (c%idatcelmol(1,k) /= imol) cycle
-          c%atcel(k)%x = c%atcel(k)%x + dx
-          c%atcel(k)%r = c%atcel(k)%r + dxc
-       end do
-       do j = 1, c%mol(imol)%nat
-          c%mol(imol)%at(j)%x = c%mol(imol)%at(j)%x + dx
-          c%mol(imol)%at(j)%r = c%mol(imol)%at(j)%r + dxc
-       end do
-       if (c%mol(imol)%axes_computed) &
-          c%mol(imol)%xcm = c%mol(imol)%xcm + dxc
-
-       ! for an isolated molecule, change the cell so the translated
-       ! molecule stays inside it (avoids the GUI wrapping atoms).
-       if (c%ismolecule) call c%recompute_molecular_cell()
-       return
-    end if
-
     ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom
-    ! order). For a molecule, use an absolute-Cartesian seed (useabr=0) so
-    ! struct_new re-fits the encompassing cell to the moved molecule.
+    ! order), preserving bonding if requested. For a molecule, use an
+    ! absolute-Cartesian seed (useabr=0) so struct_new re-fits the encompassing
+    ! cell to the moved molecule.
     if (c%ismolecule) then
-       call c%makeseed(seed,copysym=.false.,useabr=0)
+       call c%makeseed(seed,copysym=.false.,useabr=0,copybonding=copybonding_)
     else
-       call c%makeseed(seed,copysym=.false.)
+       call c%makeseed(seed,copysym=.false.,copybonding=copybonding_)
     end if
     if (seed%nat /= c%ncel) return
 
@@ -1482,29 +1465,26 @@ contains
   !> become euler. The rotation uses the fragment atoms (whole molecule,
   !> with lattice translations applied), not the cell atoms, so it stays
   !> rigid even when the molecule is split across cell boundaries. Only
-  !> applies to discrete fragments. If norebond, shift the cell atoms and
-  !> the cached fragment in place without recomputing bonds (for
-  !> interactive dragging); a final norebond=.false. call rebonds and
-  !> cleans up. Symmetry is not preserved (P1).
-  module subroutine rotate_molecule(c,imol,euler,norebond,ti)
+  !> applies to discrete fragments. Symmetry is not preserved (P1).
+  module subroutine rotate_molecule(c,imol,euler,copybonding,ti)
     use crystalseedmod, only: crystalseed
     use tools_math, only: euler2mat, mat2euler, mat2quat
     class(crystal), intent(inout) :: c
     integer, intent(in) :: imol
     real*8, intent(in) :: euler(3)
-    logical, intent(in), optional :: norebond
+    logical, intent(in), optional :: copybonding
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     real*8 :: rnew(3), rmat(3,3), rrot(3,3), xcm(3), roff(3)
-    integer :: j, k
-    logical :: norebond_
+    integer :: j, k, lvec(3)
+    logical :: copybonding_
 
     ! consistency checks
     if (imol < 1 .or. imol > c%nmol .or. .not.allocated(c%idatcelmol)) return
     if (.not.c%mol(imol)%discrete) return
-    norebond_ = .false.
-    if (present(norebond)) norebond_ = norebond
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
 
     ! make sure the standard frame is available
     if (.not.c%mol(imol)%axes_computed) call c%mol(imol)%compute_std()
@@ -1514,51 +1494,26 @@ contains
     rrot = matmul(rmat,transpose(c%mol(imol)%m_std))
     xcm = c%mol(imol)%xcm
 
-    if (norebond_) then
-       ! in-place rigid rotation: rotate the cached fragment (whole molecule) and
-       ! move the cell atoms keeping their image offset (so the cached bonds still
-       ! render correctly), leaving c%nstar, the molecular decomposition, and c%at
-       ! untouched (no rebonding). These are reconciled by the next full move.
-       do j = 1, c%mol(imol)%nat
-          k = c%mol(imol)%at(j)%cidx
-          roff = c%atcel(k)%r - c%mol(imol)%at(j)%r
-          rnew = xcm + matmul(rrot,c%mol(imol)%at(j)%r - xcm)
-          c%mol(imol)%at(j)%r = rnew
-          c%mol(imol)%at(j)%x = c%c2x(rnew)
-          c%atcel(k)%r = rnew + roff
-          c%atcel(k)%x = c%c2x(c%atcel(k)%r)
-       end do
-       ! the rotation about the COM leaves the COM and inertia unchanged; update
-       ! the cached standard frame directly (= the target orientation)
-       c%mol(imol)%m_std = rmat
-       c%mol(imol)%quat_std = mat2quat(rmat)
-       c%mol(imol)%euler_std = mat2euler(rmat)
-
-       ! for an isolated molecule, change the cell so the translated
-       ! molecule stays inside it (avoids the GUI wrapping atoms).
-       if (c%ismolecule) call c%recompute_molecular_cell()
-       return
-    end if
-
     ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom
-    ! order). For a molecule, use an absolute-Cartesian seed (useabr=0) so
-    ! struct_new re-fits the encompassing cell to the rotated molecule instead
-    ! of wrapping atoms into the old cell.
+    ! order), preserving bonding if requested. For a molecule, use an
+    ! absolute-Cartesian seed (useabr=0) so struct_new re-fits the encompassing
+    ! cell to the rotated molecule instead of wrapping atoms into the old cell.
     if (c%ismolecule) then
-       call c%makeseed(seed,copysym=.false.,useabr=0)
+       call c%makeseed(seed,copysym=.false.,useabr=0,copybonding=copybonding_)
     else
-       call c%makeseed(seed,copysym=.false.)
+       call c%makeseed(seed,copysym=.false.,copybonding=copybonding_)
     end if
     if (seed%nat /= c%ncel) return
 
     ! rotate the fragment atoms (whole molecule) and write them to the seed
     do j = 1, c%mol(imol)%nat
        k = c%mol(imol)%at(j)%cidx
-       rnew = xcm + matmul(rrot,c%mol(imol)%at(j)%r - xcm)
        if (c%ismolecule) then
-          seed%x(:,k) = rnew + c%molx0      ! absolute Cartesian
+          seed%x(:,k) = c%molx0 + matmul(rrot,c%mol(imol)%at(j)%r - xcm) ! cartesian
        else
-          seed%x(:,k) = c%c2x(rnew)         ! crystallographic
+          lvec = nint(seed%x(:,k) - c%c2x(c%mol(imol)%at(j)%r))
+          rnew = xcm + matmul(rrot,c%mol(imol)%at(j)%r - xcm)
+          seed%x(:,k) = c%c2x(rnew) + lvec ! crystallographic
        end if
     end do
 
@@ -1658,16 +1613,20 @@ contains
 
   !> Modify the unit cell by changing the cell lengths and axes to the
   !> given values.
-  module subroutine move_cell_all(c,aa,bb,ti)
+  module subroutine move_cell_all(c,aa,bb,copybonding,ti)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: aa(3), bb(3)
+    logical, intent(in), optional :: copybonding
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    logical :: copybonding_
 
-    ! make seed from this crystal
-    call c%makeseed(seed,copysym=.false.,useabr=1)
+    ! make seed from this crystal, preserving bonding if requested
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
+    call c%makeseed(seed,copysym=.false.,useabr=1,copybonding=copybonding_)
 
     ! set the new axes
     seed%aa = aa

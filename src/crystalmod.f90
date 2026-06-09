@@ -798,36 +798,38 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine edit_atom_list
-     module subroutine change_atom_species(c,nat,iat,is,ti)
+     module subroutine change_atom_species(c,nat,iat,is,copybonding,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: nat
        integer, intent(in) :: iat(nat)
        integer, intent(in) :: is
+       logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine change_atom_species
-     module subroutine move_atom(c,idx,x,iunit_l,isnneq,dorelative,ti)
+     module subroutine move_atom(c,idx,x,iunit_l,isnneq,dorelative,copybonding,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: idx
        real*8, intent(in) :: x(3)
        integer, intent(in) :: iunit_l
        logical, intent(in) :: isnneq
        logical, intent(in) :: dorelative
+       logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine move_atom
-     module subroutine move_molecule(c,imol,x,iunit_l,dorelative,norebond,ti)
+     module subroutine move_molecule(c,imol,x,iunit_l,dorelative,copybonding,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: imol
        real*8, intent(in) :: x(3)
        integer, intent(in) :: iunit_l
        logical, intent(in) :: dorelative
-       logical, intent(in), optional :: norebond
+       logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine move_molecule
-     module subroutine rotate_molecule(c,imol,euler,norebond,ti)
+     module subroutine rotate_molecule(c,imol,euler,copybonding,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: imol
        real*8, intent(in) :: euler(3)
-       logical, intent(in), optional :: norebond
+       logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine rotate_molecule
      module subroutine move_cell(c,iaxis,x,iunit_l,dorelative,dofraction,ti)
@@ -838,9 +840,10 @@ module crystalmod
        logical, intent(in) :: dorelative, dofraction
        type(thread_info), intent(in), optional :: ti
      end subroutine move_cell
-     module subroutine move_cell_all(c,aa,bb,ti)
+     module subroutine move_cell_all(c,aa,bb,copybonding,ti)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: aa(3), bb(3)
+       logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine move_cell_all
      module subroutine add_atom(c,is,x,iunit_l,isnneq,ti)

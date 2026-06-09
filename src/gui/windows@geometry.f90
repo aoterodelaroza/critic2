@@ -270,6 +270,9 @@ contains
     ! restore, only if system is independent or master
     dorestore = iw_button("Restore",danger=.true.)
     call iw_tooltip("Restore the system to the original geometry it had when it was first opened",ttshown)
+    ldum = iw_checkbox("Keep bonding",w%geometry_keepbonding,sameline=.true.)
+    call iw_tooltip("Preserve the current bonding when moving atoms or molecules, changing the cell "//&
+       "parameters, or changing atom species, instead of recomputing it from the new geometry",ttshown)
 
     ! show the tabs
     str1 = "##drawgeometry_tabbar" // c_null_char
@@ -1315,31 +1318,20 @@ contains
                    if (sys(isys)%c%mol(i)%discrete) then
                       xold = x0
                       ch = .false.
-                      lch = .false.
                       do j = 1, 3
                          icol = icol + 1
                          if (igTableSetColumnIndex(icol)) then
                             ch = ch .or. iw_dragfloat_real8("##com" // string(isys) // "_" // string(i) // "_" // string(j),&
-                               x1=x0(j),speed=0.001d0,decimal=dec,notlive=.true.,committed=ok)
-                            lch = lch .or. ok
+                               x1=x0(j),speed=0.001d0,decimal=dec,notlive=.true.)
                             ! keep the molecule highlighted (and its axes shown)
                             ! while its center of mass is being dragged
                             if (logical(igIsItemActive())) ihighlight = i
                          end if
                       end do
-                      ! while dragging, move in place without rebonding; on release
-                      ! (commit), finalize with a full rebond even if the value is
-                      ! unchanged this frame, so the bonds are recomputed once
-                      if (lch) then
+                      if (ch .and. any(abs(x0-xold) > epsmoved)) then
                          iaction = iaction_set_molecule_position
                          iaction_i1 = i
                          iaction_x = x0
-                         iaction_l = .false.
-                      elseif (ch .and. any(abs(x0-xold) > epsmoved)) then
-                         iaction = iaction_set_molecule_position
-                         iaction_i1 = i
-                         iaction_x = x0
-                         iaction_l = .true.
                       end if
                    else
                       do j = 1, 3
@@ -1353,46 +1345,24 @@ contains
                    ! editable (rigid rotation) for discrete molecules with >1 atom
                    x0 = mol_euler_angles(i)
                    if (sys(isys)%c%mol(i)%discrete .and. sys(isys)%c%mol(i)%nat > 1) then
-                      ! while a drag on this molecule is in progress, use the
-                      ! continuous (un-canonicalized) buffer instead of the
-                      ! canonical mat2euler value, so the rotation is smooth as
-                      ! beta crosses the gimbal-lock pole at zero
-                      if (w%geometry_euler_dragmol == i) x0 = w%geometry_euler_drag
                       xold = x0
                       ch = .false.
-                      lch = .false.
                       do j = 1, 3
                          icol = icol + 1
                          if (igTableSetColumnIndex(icol)) then
                             ch = ch .or. iw_dragfloat_real8("##euler" // string(isys) // "_" // string(i) // "_" // string(j),&
-                               x1=x0(j),speed=0.5d0,decimal=2,notlive=.true.,committed=ok)
-                            lch = lch .or. ok
-                            ! keep the molecule highlighted (and its axes shown)
-                            ! while its Euler angles are being dragged; record
-                            ! which angle, to show its rotation axis
+                               x1=x0(j),speed=0.5d0,decimal=2,notlive=.true.)
+                            ! keep the molecule highlighted, axes shown while dragging
                             if (logical(igIsItemActive())) then
                                ihighlight = i
                                ieuler_drag = j
                             end if
                          end if
                       end do
-                      ! while dragging, rotate in place without rebonding and keep
-                      ! the continuous buffer alive; on release (commit), finalize
-                      ! with a full rebond and clear the buffer so the display
-                      ! returns to the canonical Euler labelling
-                      if (lch) then
+                      if (ch .and. any(abs(x0-xold) > epsmoved)) then
                          iaction = iaction_set_molecule_rotation
                          iaction_i1 = i
                          iaction_x = x0 * (pi / 180d0)
-                         iaction_l = .false.
-                         w%geometry_euler_dragmol = 0
-                      elseif (ch .and. any(abs(x0-xold) > epsmoved)) then
-                         iaction = iaction_set_molecule_rotation
-                         iaction_i1 = i
-                         iaction_x = x0 * (pi / 180d0)
-                         iaction_l = .true.
-                         w%geometry_euler_dragmol = i
-                         w%geometry_euler_drag = x0
                       end if
                    elseif (.not.sys(isys)%c%mol(i)%discrete) then
                       ! non-discrete fragment: the standard orientation (and its
@@ -1750,12 +1720,15 @@ contains
     elseif (iaction == iaction_add_species) then
        call sysc(isys)%add_species(iaction_i1)
     elseif (iaction == iaction_set_attype_species) then
-       call sysc(isys)%set_attype_species(w%geometry_atomtype,iaction_i1,iaction_i2)
+       call sysc(isys)%set_attype_species(w%geometry_atomtype,iaction_i1,iaction_i2,&
+          copybonding=w%geometry_keepbonding)
     elseif (iaction == iaction_set_atom_position) then
-       call sysc(isys)%set_atom_position(w%geometry_atomtype,iaction_i1,iaction_x,iaction_l)
+       call sysc(isys)%set_atom_position(w%geometry_atomtype,iaction_i1,iaction_x,iaction_l,&
+          copybonding=w%geometry_keepbonding)
     elseif (iaction == iaction_add_species_change_atom) then
        call sysc(isys)%add_species(iaction_i1)
-       call sysc(isys)%set_attype_species(w%geometry_atomtype,iaction_i2,sys(isys)%c%nspc)
+       call sysc(isys)%set_attype_species(w%geometry_atomtype,iaction_i2,sys(isys)%c%nspc,&
+          copybonding=w%geometry_keepbonding)
     elseif (iaction == iaction_add_atom) then
        call sysc(isys)%attype_add_atom(w%geometry_atomtype,iaction_i1,iaction_x)
     elseif (iaction == iaction_edit_highlighted) then
@@ -1775,17 +1748,17 @@ contains
     elseif (iaction == iaction_swap_mol_ids) then
        call sysc(isys)%swap_molecules(iaction_i1,iaction_i2)
     elseif (iaction == iaction_set_molecule_position) then
-       call sysc(isys)%set_molecule_position(w%geometry_moltype,iaction_i1,iaction_x,iaction_l)
+       call sysc(isys)%set_molecule_position(w%geometry_moltype,iaction_i1,iaction_x,&
+          copybonding=w%geometry_keepbonding)
     elseif (iaction == iaction_set_molecule_rotation) then
-       call sysc(isys)%set_molecule_rotation(iaction_i1,iaction_x,iaction_l)
+       call sysc(isys)%set_molecule_rotation(iaction_i1,iaction_x,copybonding=w%geometry_keepbonding)
     elseif (iaction == iaction_remove_molecules) then
-       ! selecting a molecule highlights its cell atoms, so removing the
-       ! highlighted atoms removes the selected molecules
        call sysc(isys)%edit_highlighted_atoms(remove=.true.,errmsg=w%errmsg)
     elseif (iaction == iaction_reorder_molecules) then
        call sysc(isys)%attype_reorder(atlisttype_nmol,w%iord)
     elseif (iaction == iaction_change_cell) then
-       call sysc(isys)%move_cell(iaction_x6(1:3),iaction_x6(4:6),iaction_l)
+       call sysc(isys)%move_cell(iaction_x6(1:3),iaction_x6(4:6),iaction_l,&
+          copybonding=w%geometry_keepbonding)
     elseif (iaction == iaction_transform_cell) then
        call sysc(isys)%transform_cell(iaction_i1,iaction_l,errmsg=w%errmsg)
        if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
