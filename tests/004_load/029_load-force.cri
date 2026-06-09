@@ -1,5 +1,5 @@
 ## check: 029_load-force.cro -a1e-10
-## labels: regression quick
+## labels: regression
 
 molecule ../zz_source/g16A.03/benzene/benzene.wfn
 load wfn ../zz_source/g16A.03/benzene/benzene.wfn

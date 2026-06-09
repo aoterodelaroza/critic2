@@ -1,7 +1,7 @@
 ## check: 001_sigmahole.cro -a1e-10
 ## check: 001_sigmahole_sigmahole.gnu -a1e-10
 ## check: 001_sigmahole_sigmahole.dat -a1e-10
-## labels: regression quick
+## labels: regression
 
 molecule ../zz_source/g16A.03/phbr/phbr.fchk
 load ../zz_source/g16A.03/phbr/phbr.fchk

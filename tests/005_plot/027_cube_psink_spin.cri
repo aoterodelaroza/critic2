@@ -47,7 +47,7 @@
 ## delete: 027_cube_psink_spin-3-07-r.cube
 ## delete: 027_cube_psink_spin-3-08-i.cube
 ## delete: 027_cube_psink_spin-3-08-r.cube
-## labels: regression quick
+## labels: regression
 
 crystal ../zz_source/qe-6.5/feo/feo_sym.pwc
 

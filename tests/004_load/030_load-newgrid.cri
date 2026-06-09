@@ -1,5 +1,5 @@
 ## check: 030_load-newgrid.cro -a1e-10
-## labels: regression quick
+## labels: regression
 crystal ../zz_source/qe-6.1/graphite/rho.cube
 
 load ../zz_source/qe-6.1/graphite/rho.cube id rho  # 1

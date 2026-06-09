@@ -1,6 +1,6 @@
 ## check: 030_sym_large.cro -a1e-10
 ## delete: 030_sym_large_gen.scf.in
-## labels: regression nodata
+## labels: regression quick nodata
 
 sym -1
 crystal

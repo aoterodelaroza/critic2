@@ -1,5 +1,5 @@
 ## check: 002_molcalc_libxc.cro -a1e-10
-## labels: regression quick
+## labels: regression
 
 molecule ../zz_source/g16A.03/h2o/h2o_hf.wfx
 load ../zz_source/g16A.03/h2o/h2o_hf.wfx

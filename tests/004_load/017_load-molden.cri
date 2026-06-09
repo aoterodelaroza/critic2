@@ -1,7 +1,7 @@
 ## check: 017_load-molden.cro -a1e-10
 ## check: 017_load-molden.line1 -a1e-10
 ## check: 017_load-molden.line2 -a1e-10
-## labels: regression quick
+## labels: regression
 molecule ../zz_source/psi4-1.4/benzene/benzene_occ.molden
 load ../zz_source/psi4-1.4/benzene/benzene_occ.molden
 line 0 -4 0 0 4 0 101 file 017_load-molden.line1 field 1

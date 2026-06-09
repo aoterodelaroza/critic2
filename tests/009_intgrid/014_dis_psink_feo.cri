@@ -1,5 +1,5 @@
 ## check: 014_dis_psink_feo.cro -a1e-10
-## labels: regression
+## labels: regression quick
 
 crystal ../zz_source/qe-6.5/feo_nosym/feo.pwc
 load ../zz_source/qe-6.5/feo_nosym/rhoae.cube

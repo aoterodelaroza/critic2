@@ -1,5 +1,5 @@
 ## check: 020_grid_only.cro -a1e-10
-## labels: regression quick
+## labels: regression
 
 crystal ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
 

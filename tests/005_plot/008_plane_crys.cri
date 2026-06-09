@@ -13,7 +13,7 @@
 ## check: 008_plane_crys.plane11 -a1e-10
 ## check: 008_plane_crys.plane12 -a1e-10
 ## check: 008_plane_crys.plane13 -a1e-10
-## labels: regression quick nodata
+## labels: regression nodata
 crystal library mgo
 
 plane 0 0 0 1 0 0 0 1 0 101 101

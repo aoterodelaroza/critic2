@@ -1,5 +1,5 @@
 ## check: 024_load-molden_virtuals.cro -a1e-10
-## labels: regression quick
+## labels: regression
 molecule ../zz_source/psi4-1.4/benzene/benzene_all.molden
 load ../zz_source/psi4-1.4/benzene/benzene_all.molden readvirtual
 molcalc "($1:1)^2"

@@ -47,7 +47,7 @@
 ## delete: 028_cube_psink_metal-3-07-r.cube
 ## delete: 028_cube_psink_metal-3-08-i.cube
 ## delete: 028_cube_psink_metal-3-08-r.cube
-## labels: regression quick
+## labels: regression
 
 crystal ../zz_source/qe-6.5/na/na.pwc
 

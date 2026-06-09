@@ -1,5 +1,6 @@
 #crystal ../zz_source/wien14.2/bp/bp.struct
 #load ../zz_source/wien14.2/bp/bp.clmsum ../zz_source/wien14.2/bp/bp.struct
+## labels: regression quick nodata
 
 crystal library mgo
 

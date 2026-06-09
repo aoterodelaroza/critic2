@@ -1,4 +1,4 @@
-## labels: regression
+## labels: regression quick
 ## check: 045_comparevc-final.res -a1e-5
 ## check: 045_comparevc-final.xy -a1e-5
 

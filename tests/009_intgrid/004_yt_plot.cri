@@ -17,7 +17,7 @@
 ## delete: 004_yt_plot_basins-cell.obj
 ## delete: 004_yt_plot_basins-cell.off
 ## delete: 004_yt_plot_basins-cell.ply
-## labels: regression quick
+## labels: regression
 
 crystal ../zz_source/abinit-8.10.3/quartz-paw/quartz_o_DEN
 

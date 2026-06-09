@@ -1,5 +1,5 @@
 ## check: 034_load-wiencalc.cro -a1e-10
-## labels: regression quick
+## labels: regression
 crystal ../zz_source/wien14.2/zno/zno.struct
 
 load ../zz_source/wien14.2/zno/zno.clmsum ../zz_source/wien14.2/zno/zno.struct id tot

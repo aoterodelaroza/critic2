@@ -1,6 +1,6 @@
 ## check: 001_load-wfn.cro -a1e-10
 ## check: 001_load-wfn.line -a1e-10
-## labels: regression quick
+## labels: regression
 molecule ../zz_source/g16A.03/benzene/benzene.wfn
 load ../zz_source/g16A.03/benzene/benzene.wfn
 line 0 -4 0 0 4 0 101 file 001_load-wfn.line

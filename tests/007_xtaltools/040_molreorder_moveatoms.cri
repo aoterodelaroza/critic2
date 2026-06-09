@@ -7,7 +7,6 @@
 ## delete: 040_molreorder_moveatoms_ordered.res
 ## labels: regression quick
 
-## labels: regression quick
 
 crystal ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_01.res
 write 040_molreorder_moveatoms_gen.xyz onemotif nmer 1
