@@ -1714,22 +1714,31 @@ contains
        call sysc(isys)%reread_geometry_from_file()
     if (iaction == iaction_set_attype_name) then
        call sysc(isys)%set_attype_name(w%geometry_atomtype,iaction_i1,iaction_str)
+
     elseif (iaction == iaction_set_atomic_number) then
        call sysc(isys)%set_atomic_number(w%geometry_atomtype,iaction_i1,iaction_i2,setatomnames=.true.)
+
     elseif (iaction == iaction_add_species) then
        call sysc(isys)%add_species(iaction_i1)
+
     elseif (iaction == iaction_set_attype_species) then
        call sysc(isys)%set_attype_species(w%geometry_atomtype,iaction_i1,iaction_i2,&
           copybonding=w%geometry_keepbonding)
+
     elseif (iaction == iaction_set_atom_position) then
        call sysc(isys)%set_atom_position(w%geometry_atomtype,iaction_i1,iaction_x,iaction_l,&
           copybonding=w%geometry_keepbonding)
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
     elseif (iaction == iaction_add_species_change_atom) then
        call sysc(isys)%add_species(iaction_i1)
        call sysc(isys)%set_attype_species(w%geometry_atomtype,iaction_i2,sys(isys)%c%nspc,&
           copybonding=w%geometry_keepbonding)
+
     elseif (iaction == iaction_add_atom) then
        call sysc(isys)%attype_add_atom(w%geometry_atomtype,iaction_i1,iaction_x)
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
     elseif (iaction == iaction_edit_highlighted) then
        if (w%geometry_atomtype == atlisttype_species) then
           ! rowstate is the per-species selection state built this frame in the
@@ -1740,32 +1749,50 @@ contains
           call sysc(isys)%edit_highlighted_atoms(remove=(iaction_i1==edit_remove),&
              merge=(iaction_i1==edit_merge),duplicate=(iaction_i1==edit_duplicate),errmsg=w%errmsg)
        end if
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
     elseif (iaction == iaction_reorder_highlighted) then
        call sysc(isys)%attype_reorder(w%geometry_atomtype,w%iord)
+
     elseif (iaction == iaction_swap_atom_ids) then
        call sysc(isys)%attype_swap_atoms(w%geometry_atomtype,iaction_i1,iaction_i2)
+
     elseif (iaction == iaction_swap_mol_ids) then
        call sysc(isys)%swap_molecules(iaction_i1,iaction_i2)
+
     elseif (iaction == iaction_set_molecule_position) then
        call sysc(isys)%set_molecule_position(w%geometry_moltype,iaction_i1,iaction_x,&
           copybonding=w%geometry_keepbonding)
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
     elseif (iaction == iaction_set_molecule_rotation) then
        call sysc(isys)%set_molecule_rotation(iaction_i1,iaction_x,copybonding=w%geometry_keepbonding)
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
     elseif (iaction == iaction_remove_molecules) then
        call sysc(isys)%edit_highlighted_atoms(remove=.true.,errmsg=w%errmsg)
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
     elseif (iaction == iaction_reorder_molecules) then
        call sysc(isys)%attype_reorder(atlisttype_nmol,w%iord)
+
     elseif (iaction == iaction_change_cell) then
        call sysc(isys)%move_cell(iaction_x6(1:3),iaction_x6(4:6),iaction_l,&
           copybonding=w%geometry_keepbonding)
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
     elseif (iaction == iaction_transform_cell) then
        call sysc(isys)%transform_cell(iaction_i1,iaction_l,errmsg=w%errmsg)
        if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
        if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
     elseif (iaction == iaction_transform_matrix) then
        call sysc(isys)%transform_cell_matrix(iaction_m,iaction_x,iaction_l,errmsg=w%errmsg)
        if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
        if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
     end if
 
   contains

@@ -47,6 +47,7 @@ module scenes
      logical :: forcesort = .false. ! force sort the representations
      logical :: forceresetcam = .false. ! force reset of the camera
      logical :: forcebuildlists ! force rebuild of lists
+     logical :: nextbuildlists_fixcam = .false. ! if true, next build_lists skips camera translation
      real*8 :: timelastrender = 0d0 ! time when the view was last rendered
      real*8 :: timelastbuild = 0d0 ! time of the last build
      real*8 :: timelastcamchange = 0d0 ! time the camera was last changed

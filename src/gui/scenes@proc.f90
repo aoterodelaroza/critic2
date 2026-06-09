@@ -468,10 +468,11 @@ contains
     s%scenexmax = xmax
 
     ! translate the scene so the center position remains unchanged
-    if (s%iscaminit) &
+    if (s%iscaminit .and. .not.s%nextbuildlists_fixcam) &
        call translate(s%world,-xc)
+    s%nextbuildlists_fixcam = .false.
 
-    ! now that the scene radius is known, build the deferred window-anchored
+    ! Now that the scene radius is known, build the deferred window-anchored
     ! axes. Auto-size the gizmo from the scene radius so it occupies a roughly
     ! constant fraction of the window regardless of the system size (and of how
     ! many cells are drawn). This is done only once, the first time the lists

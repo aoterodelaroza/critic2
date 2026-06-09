@@ -780,19 +780,6 @@ contains
     sz1%x = rscale * sz1%x
     sz1%y = rscale * sz1%y
 
-    !!! The camratio is used for resetting the camera. The problem with this
-    !!! is that in the first render the window dimensions are still changing
-    !!! and the camratio of the first view rendered is different from the rest.
-    !!! Therefore, set to a constant of 1.5 in scene_init for the time being.
-    ! if (szavail%x > szavail%y) then
-    !    ratio = szavail%x / max(szavail%y,1._c_float)
-    ! else
-    !    ratio = szavail%y / max(szavail%x,1._c_float)
-    ! end if
-    ! if (associated(w%sc)) then
-    !    w%sc%camratio = min(ratio,2.5_c_float)
-    ! end if
-
     ! render the image to the texture, if requested
     if (w%forcerender) then
        ! viewport side: full texture, or the interactive sub-square (lower-left)
