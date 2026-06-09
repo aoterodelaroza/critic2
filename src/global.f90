@@ -110,6 +110,10 @@ module global
   real*8 :: bondfactor
   real*8, parameter :: bondfactor_def = 1.25d0
 
+  ! bond delta (distance tolerance for metal-atom bonding)
+  real*8 :: bonddelta
+  real*8, parameter :: bonddelta_def = 0.2d0 / bohrtoa
+
   ! default border for a molecular unit cell
   real*8, parameter :: rborder_def = 10d0 / bohrtoa
 

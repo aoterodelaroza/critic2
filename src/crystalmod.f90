@@ -582,13 +582,14 @@ module crystalmod
        integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular_atom
-     module subroutine find_asterisms(c,nstar,atmrad,bondfac,rij)
+     module subroutine find_asterisms(c,nstar,atmrad,bondfac,rij,bonddelta)
        use param, only: maxzat0
        class(crystal), intent(inout) :: c
        type(neighstar), allocatable, intent(inout) :: nstar(:)
        real*8, intent(in), optional :: atmrad(0:maxzat0)
        real*8, intent(in), optional :: bondfac
        real*8, intent(in), optional :: rij(:,:,:)
+       real*8, intent(in), optional :: bonddelta
      end subroutine find_asterisms
      module subroutine list_near_lattice_points(c,xp,icrd,sorted,nat,dist,lvec,x2c,ndiv,&
         up2d,up2n,nozero)

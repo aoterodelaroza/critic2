@@ -43,7 +43,7 @@ contains
     use gui_main, only: g
     use utils, only: iw_text, iw_tooltip, iw_calcwidth, iw_button, iw_calcheight,&
        iw_dragfloat_real8
-    use global, only: bondfactor_def
+    use global, only: bondfactor_def, bonddelta_def
     use tools_io, only: string, nameguess
     use param, only: atmcov0, maxzat0, bohrtoa, newline
     class(window), intent(inout), target :: w
@@ -191,10 +191,17 @@ contains
        decimal=4,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Bond factor parameter for connectivity calculation",ttshown)
 
+    ! bond delta
+    call iw_text("Bond delta",highlight=.true.)
+    ch = iw_dragfloat_real8("##bonddelta",x1=sysc(isys)%bonddelta,speed=0.001d0,min=0d0,max=1d0,&
+       scale=bohrtoa,decimal=4,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Bond delta parameter (Å): distance tolerance for metal-atom bonding",ttshown)
+
     ! explanation message
     call iw_text("Atoms i and j are bonded if:"//newline//&
-       "  d < (ri+rj)*(bond factor)"//newline//&
-       "where d = atom distance; ri, rj = atom radii")
+       "  non-metals: d < (ri+rj)*(bond factor)"//newline//&
+       "  metals: d < dmin + (bond delta)"//newline//&
+       "where d = distance; ri, rj = radii; dmin = nearest-neighbor distance")
 
     ! right-align and bottom-align for the rest of the contents
     call igGetContentRegionAvail(szavail)
@@ -206,6 +213,7 @@ contains
     if (iw_button("Reset",danger=.true.)) then
        sysc(isys)%atmcov = atmcov0
        sysc(isys)%bondfactor = bondfactor_def
+       sysc(isys)%bonddelta = bonddelta_def
     end if
     call iw_tooltip("Reset the default bonding parameters and recalculate the system bonds",ttshown)
 
@@ -215,7 +223,9 @@ contains
           if (sysc(i)%status >= sys_init) then
              sysc(i)%atmcov = sysc(isys)%atmcov
              sysc(i)%bondfactor = sysc(isys)%bondfactor
-             call sys(i)%c%find_asterisms(sys(i)%c%nstar,sysc(i)%atmcov,sysc(i)%bondfactor)
+             sysc(i)%bonddelta = sysc(isys)%bonddelta
+             call sys(i)%c%find_asterisms(sys(i)%c%nstar,sysc(i)%atmcov,sysc(i)%bondfactor,&
+                bonddelta=sysc(i)%bonddelta)
              call sys(i)%c%fill_molecular_fragments()
              call sys(i)%c%calculate_molecular_equivalence()
              call sys(i)%c%calculate_periodicity()
@@ -227,7 +237,8 @@ contains
     ! apply the changes
     if (iw_button("Apply",sameline=.true.)) then
        ! find the atomic connectivity and the molecular fragments
-       call sys(isys)%c%find_asterisms(sys(isys)%c%nstar,sysc(isys)%atmcov,sysc(isys)%bondfactor)
+       call sys(isys)%c%find_asterisms(sys(isys)%c%nstar,sysc(isys)%atmcov,sysc(isys)%bondfactor,&
+          bonddelta=sysc(isys)%bonddelta)
        call sys(isys)%c%fill_molecular_fragments()
        call sys(isys)%c%calculate_molecular_equivalence()
        call sys(isys)%c%calculate_periodicity()

@@ -816,6 +816,7 @@ contains
 
     ! bond factor
     bondfactor = bondfactor_def
+    bonddelta = bonddelta_def
 
     ! symmetry
     doguess = -1
@@ -986,7 +987,7 @@ contains
        ok = isreal(bondfactor,line,lp)
        if (.not.ok) &
           call ferror('critic_setvariables','Wrong bondfactor',faterr,line,syntax=.true.)
-       bondfactor = min(bondfactor,2.0d0)
+       bondfactor = min(bondfactor,4.0d0)
        call check_no_extra_word(ok)
     else if (equal(word,'ode_mode')) then
        do while (.true.)

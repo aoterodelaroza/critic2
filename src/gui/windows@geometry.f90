@@ -42,10 +42,11 @@ contains
     use crystalmod, only: holo_string, pointgroup_info
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITGEOM_REMOVE
+    use global, only: bondfactor_def, bonddelta_def
     use systems, only: nsys, sysc, sys, sys_init, ok_system, reread_system_from_file,&
        atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac, atlisttype_ncel_bohr,&
        atlisttype_ncel_ang, atlisttype_nmol, celltransform_standard, celltransform_primitive,&
-       celltransform_primstd, celltransform_niggli, celltransform_delaunay
+       celltransform_primstd, celltransform_niggli, celltransform_delaunay, lastchange_rebond
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene, ColorHighlightBondScene
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
@@ -53,7 +54,7 @@ contains
        iw_inputint3
     use types, only: realloc
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger
-    use param, only: newline, bohrtoa, pi
+    use param, only: newline, bohrtoa, pi, atmcov0, maxzat0
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
@@ -80,6 +81,9 @@ contains
     real(c_float) :: combowidth, rgb(3), lum
     integer :: ii, i, j, jj, isys, icol, ispc, iz, izout, iview, im, jm, ncon
     integer :: ord, zi, zj ! bonds tab: bond order and atomic numbers of the two bonded atoms
+    integer :: natused_bonds ! bonds tab: number of distinct atomic species present
+    integer, allocatable :: iat_bonds(:) ! bonds tab: Z values of distinct species
+    logical :: atused_bonds(maxzat0) ! bonds tab: species presence flags
     real*8 :: dbond
     character(len=:), allocatable :: bondglyph, bondword ! bonds tab: bond-type glyph and word
     type(c_ptr), target :: clipper
@@ -1413,10 +1417,25 @@ contains
           ndigit = ceiling(log10(ntype+0.1d0))
           table_hltype = atlisttype_ncel_frac
 
+          ! determine which atomic species are present (needed for rebond radii table height)
+          atused_bonds = .false.
+          do i = 1, sys(isys)%c%nspc
+             atused_bonds(sys(isys)%c%spc(i)%z) = .true.
+          end do
+          natused_bonds = count(atused_bonds)
+          allocate(iat_bonds(natused_bonds))
+          natused_bonds = 0
+          do i = 1, maxzat0
+             if (atused_bonds(i)) then
+                natused_bonds = natused_bonds + 1
+                iat_bonds(natused_bonds) = i
+             end if
+          end do
+
           ! locate the view holding the atom colors for the bonded-atom buttons
           call get_current_view()
 
-          ! bonds table
+          ! bonds table (height leaves room for rebond controls below)
           flags = ImGuiTableFlags_None
           flags = ior(flags,ImGuiTableFlags_Resizable)
           flags = ior(flags,ImGuiTableFlags_ScrollY)
@@ -1426,7 +1445,9 @@ contains
           str1 = "##tablebonds_" // string(isys) // c_null_char
           call igGetContentRegionAvail(sz0)
           sz0%x = 0
-          sz0%y = sz0%y - iw_calcheight(1,0,.true.)
+          sz0%y = sz0%y - iw_calcheight(1,0,.true.) &
+             - iw_calcheight(3,4,.false.) &
+             - iw_calcheight(min(5,natused_bonds)+1,0,.false.)
           if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
              ! header setup: Id and Atom fixed, Bonded atoms fills the rest of the row
              str2 = "Id" // c_null_char
@@ -1575,6 +1596,87 @@ contains
           ! edited while being iterated)
           if (ibrm1 > 0) call sysc(isys)%remove_bond(ibrm1,ibrm2,lbrm)
           if (ibord1 > 0) call sysc(isys)%set_bond_order(ibord1,ibord2,lbord,ibordval)
+
+          ! separator + recalculate bonds section
+          call igSeparator()
+          call iw_text("Recalculate Bonds",highlight=.true.)
+          call iw_text("Atoms A and B are bonded if:",sameline=.true.)
+          call iw_text("  A and B non-metals: d < (r_cov(i)+r_cov(j))*f"//newline//&
+             "  A or B metal:       d < d_NN + δ"//newline//&
+             "r_cov = covalent radius. d_NN = nearest-neighbor distance.")
+
+          ! atomic radii table
+          flags = ImGuiTableFlags_None
+          flags = ior(flags,ImGuiTableFlags_RowBg)
+          flags = ior(flags,ImGuiTableFlags_Resizable)
+          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+          flags = ior(flags,ImGuiTableFlags_Borders)
+          flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+          flags = ior(flags,ImGuiTableFlags_ScrollY)
+          str1 = "##tableatomrcov_geom" // c_null_char
+          sz0%x = 0
+          sz0%y = iw_calcheight(min(5,natused_bonds)+1,0,.false.)
+          if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
+             str2 = "Atom" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,0)
+             str2 = "Z" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,1)
+             str2 = "Radius (Å)" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthStretch,0.0_c_float,2)
+             call igTableSetupScrollFreeze(0,1)
+             call igTableHeadersRow()
+             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+             do i = 1, natused_bonds
+                call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                iz = iat_bonds(i)
+                if (igTableSetColumnIndex(0)) then
+                   call igAlignTextToFramePadding()
+                   call iw_text(string(nameguess(iz,.true.)))
+                end if
+                if (igTableSetColumnIndex(1)) then
+                   call igAlignTextToFramePadding()
+                   call iw_text(string(iz))
+                end if
+                if (igTableSetColumnIndex(2)) then
+                   ldum = iw_dragfloat_real8("##tableradius_geom" // string(i),x1=sysc(isys)%atmcov(iz),&
+                      speed=0.01d0,min=0d0,max=2.65d0,scale=bohrtoa,decimal=3,&
+                      flags=ImGuiSliderFlags_AlwaysClamp)
+                end if
+             end do
+             call igEndTable()
+          end if
+          if (allocated(iat_bonds)) deallocate(iat_bonds)
+
+          ! bond factor drag
+          call igAlignTextToFramePadding()
+          ldum = iw_dragfloat_real8("Bond factor (f)##bondfactor_geom",x1=sysc(isys)%bondfactor,speed=0.001d0,&
+             min=1d0,max=4d0,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Bond factor parameter (multiplicative) for non-metal bonding (see formula above)",ttshown)
+          call iw_text(" ",sameline=.true.)
+
+          ! bond delta drag
+          ldum = iw_dragfloat_real8("Bond delta δ (Å)##bonddelta_geom",x1=sysc(isys)%bonddelta,speed=0.001d0,&
+             min=0d0,max=2d0,scale=bohrtoa,decimal=4,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Distance tolerance (additive) for metal-non-metal bonding (see formula above)",ttshown)
+
+          ! Reset button
+          if (iw_button("Reset",sameline=.true.)) then
+             sysc(isys)%atmcov = atmcov0
+             sysc(isys)%bondfactor = bondfactor_def
+             sysc(isys)%bonddelta = bonddelta_def
+          end if
+          call iw_tooltip("Reset atomic radii, bond factor, and bond delta to defaults",ttshown)
+
+          ! reset + apply buttons
+          if (iw_button("Apply",danger=.true.)) then
+             call sys(isys)%c%find_asterisms(sys(isys)%c%nstar,sysc(isys)%atmcov,sysc(isys)%bondfactor,&
+                bonddelta=sysc(isys)%bonddelta)
+             call sys(isys)%c%fill_molecular_fragments()
+             call sys(isys)%c%calculate_molecular_equivalence()
+             call sys(isys)%c%calculate_periodicity()
+             call sysc(isys)%post_event(lastchange_rebond)
+          end if
+          call iw_tooltip("Recalculate bonds with the parameters above",ttshown)
 
           call igEndTabItem()
        end if

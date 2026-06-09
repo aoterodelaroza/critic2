@@ -21,7 +21,7 @@ module systems
   use scenes, only: scene
   use systemmod, only: system
   use crystalseedmod, only: crystalseed
-  use global, only: bondfactor_def
+  use global, only: bondfactor_def, bonddelta_def
   use types, only: thread_info
   use param, only: maxzat0, atmcov0
   implicit none
@@ -84,6 +84,7 @@ module systems
      ! bonding
      real*8 :: atmcov(0:maxzat0) = atmcov0 ! covalent radii for bonding
      real*8 :: bondfactor = bondfactor_def ! bond factor for bonding calculation
+     real*8 :: bonddelta = bonddelta_def ! bond delta for metal bonding calculation
      ! highlights
      real(c_float), allocatable :: highlight_rgba(:,:) ! highlight colors
      real(c_float), allocatable :: highlight_rgba_transient(:,:) ! transient highlight colors

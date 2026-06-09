@@ -758,7 +758,8 @@ contains
   !> b) The distance is at most dbond (0.2 ang) higher than the minimum distance.
   !> If i and j are metals, use b. If i and j are non-metals, use a.
   !> If one is metal and the other non-metal, apply both.
-  module subroutine find_asterisms(c,nstar,atmrad,bondfac,rij)
+  module subroutine find_asterisms(c,nstar,atmrad,bondfac,rij,bonddelta)
+    use global, only: bonddelta_def
     use param, only: maxzat0
     use tools_io, only: string, ferror, faterr
     use tools, only: qcksort
@@ -769,12 +770,14 @@ contains
     real*8, intent(in), optional :: atmrad(0:maxzat0)
     real*8, intent(in), optional :: bondfac
     real*8, intent(in), optional :: rij(:,:,:)
+    real*8, intent(in), optional :: bonddelta
 
     integer :: i, j, iz, jz, jid
     real*8 :: ri, rj, dmax, dd
     logical :: bonded, ism, jsm
     real*8, allocatable :: rij2(:,:,:)
     logical :: ismetal(0:maxzat0)
+    real*8 :: dbond
 
     type atenv_type
        integer :: nat
@@ -783,14 +786,17 @@ contains
        real*8, allocatable :: dist(:)
     end type atenv_type
     type(atenv_type), allocatable :: atenv(:)
-
-    real*8 :: dbond = 0.2d0 / bohrtoa
     integer, parameter :: lnonmetal(24) = (/0,1,2,5,6,7,8,9,10,14,15,16,17,18,33,34,35,36,52,53,54,85,86,118/)
 
     ! return if there are no atoms
     if (c%ncel == 0) return
 
     ! initialize
+    if (present(bonddelta)) then
+       dbond = bonddelta
+    else
+       dbond = bonddelta_def
+    end if
     ismetal = .true.
     do i = 1, size(lnonmetal,1)
        ismetal(lnonmetal(i)) = .false.
