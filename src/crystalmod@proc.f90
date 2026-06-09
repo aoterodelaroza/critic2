@@ -166,7 +166,7 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3)
-    logical :: good, good2, clearsym, doenv
+    logical :: good, good2, clearsym, doenv, ok
     integer :: i, j, k, l, iat, newmult
     real*8, allocatable :: atpos(:,:), area(:)
     integer, allocatable :: irotm(:), icenv(:)
@@ -181,6 +181,8 @@ contains
           return
        end if
     end if
+    if (seed%havebonds .and. seed%havesym > 0) &
+       call ferror("struct_new","incompatible fields in seed: bonds and symmetry",faterr)
 
     ! initialize the structure
     call c%init()
@@ -548,8 +550,18 @@ contains
        ! calculate vacuum lengths
        call c%calc_vacuum_lengths()
 
-       ! find atomic connectivity and molecular fragments
-       call c%find_asterisms(c%nstar,atmcov,bondfactor)
+       ! Find atomic connectivity and molecular fragments, or copy from seed.
+       ! Only copy if the seed had no symmetry information (otherwise the
+       ! atoms in the seed are taken as the neq-list and reordered).
+       ok = (seed%havebonds .and. seed%havesym <= 0 .and. allocated(seed%nstar))
+       if (ok) ok = (size(seed%nstar,1) == c%ncel)
+       if (ok) then
+          c%nstar = seed%nstar
+       else
+          call c%find_asterisms(c%nstar,atmcov,bondfactor)
+       end if
+
+       ! find fragments, molecular equivalence, and periodicity
        call c%fill_molecular_fragments()
        call c%calculate_molecular_equivalence()
        call c%calculate_periodicity()
