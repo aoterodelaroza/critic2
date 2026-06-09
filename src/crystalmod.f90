@@ -713,12 +713,13 @@ module crystalmod
        real*8, intent(in) :: rk
        integer, intent(out) :: nk(3)
      end subroutine get_kpoints
-     module subroutine makeseed(c,seed,copysym,useabr)
+     module subroutine makeseed(c,seed,copysym,useabr,copybonding)
        use crystalseedmod, only: crystalseed
        class(crystal), intent(in) :: c
        type(crystalseed), intent(out) :: seed
        logical, intent(in) :: copysym
        integer, intent(in), optional :: useabr
+       logical, intent(in), optional :: copybonding
      end subroutine makeseed
      module subroutine makeseed_nudged(c,seed,qpt,evec,amplitude,phase)
        use crystalseedmod, only: crystalseed

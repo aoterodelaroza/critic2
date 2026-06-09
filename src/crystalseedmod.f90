@@ -20,7 +20,7 @@
 ! Crystal seed class, contains the structure file readers.
 module crystalseedmod
   use fragmentmod, only: fragment
-  use types, only: species, thread_info
+  use types, only: species, thread_info, neighstar
   use param, only: mlen
   implicit none
 
@@ -54,6 +54,9 @@ module crystalseedmod
      integer :: ncv = 0 !< Number ofcentering vectors
      real*8, allocatable :: cen(:,:) !< Centering vectors
      real*8, allocatable :: rotm(:,:,:) !< Space group operations
+     ! bonding / connectivity
+     logical :: havebonds = .false. !< Have connectivity (nstar)? .false. = no
+     type(neighstar), allocatable :: nstar(:) !< Neighbor stars (indexed by nat == ncel)
      ! molecular fields
      logical :: ismolecule = .false. !< Is this a molecule?
      logical :: cubic = .false. !< Use a cubic cell for the molecule

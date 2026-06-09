@@ -58,6 +58,8 @@ contains
     seed%ncv = 0
     if (allocated(seed%cen)) deallocate(seed%cen)
     if (allocated(seed%rotm)) deallocate(seed%rotm)
+    seed%havebonds = .false.
+    if (allocated(seed%nstar)) deallocate(seed%nstar)
     seed%ismolecule = .false.
     seed%cubic = .false.
     seed%border = 0d0
@@ -6859,6 +6861,12 @@ contains
        to%rotm = from%rotm
     else
        if (allocated(to%rotm)) deallocate(to%rotm)
+    end if
+    to%havebonds = from%havebonds
+    if (allocated(from%nstar)) then
+       to%nstar = from%nstar
+    else
+       if (allocated(to%nstar)) deallocate(to%nstar)
     end if
     to%ismolecule = from%ismolecule
     to%cubic = from%cubic

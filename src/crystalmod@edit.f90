@@ -24,20 +24,29 @@ contains
   !> Make a crystal seed (seed) from a crystal structure. If useabr,
   !> force the use of a particular value of useabr (1=aa and bb,
   !> 2=x2c, default is 2).
-  module subroutine makeseed(c,seed,copysym,useabr)
+  module subroutine makeseed(c,seed,copysym,useabr,copybonding)
     use global, only: rborder_def
     use crystalseedmod, only: crystalseed
+    use tools_io, only: ferror, faterr
     class(crystal), intent(in) :: c
     type(crystalseed), intent(out) :: seed
     logical, intent(in) :: copysym
     integer, intent(in), optional :: useabr
+    logical, intent(in), optional :: copybonding
 
     integer :: i
     integer :: useabr_
+    logical :: copybonding_
 
     ! initialize
     useabr_ = 2
     if (present(useabr)) useabr_ = useabr
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
+
+    ! copybonding and copysym are not compatible
+    if (copybonding_ .and. copysym) &
+       call ferror('makeseed','copybonding and copysym are incompatible',faterr)
 
     ! general
     seed%isused = .true.
@@ -71,6 +80,15 @@ contains
           seed%is(i) = c%atcel(i)%is
           seed%atname(i) = c%at(c%atcel(i)%idx)%name
        end do
+    end if
+
+    ! bonding (nstar is indexed by ncel)
+    if (copybonding_ .and. allocated(c%nstar)) then
+       seed%havebonds = .true.
+       seed%nstar = c%nstar
+    else
+       seed%havebonds = .false.
+       if (allocated(seed%nstar)) deallocate(seed%nstar)
     end if
 
     ! species
