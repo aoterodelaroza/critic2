@@ -638,6 +638,10 @@ contains
              exit
           end if
        end do
+       if ((onemotif.and.environ).or.(onemotif.and.molmotif).or.(molmotif.and.environ)) then
+          call ferror('struct_write','Only one of onemotif, molmotif, environ is allowed',&
+             faterr,line,syntax=.true.)
+       end if
 
        if (.not.lnmer) then
           write (uout,'("* WRITE ",A," file: ",A)') trim(wext), string(file)
