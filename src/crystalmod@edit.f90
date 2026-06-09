@@ -1476,7 +1476,7 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
-    real*8 :: rnew(3), rmat(3,3), rrot(3,3), xcm(3), roff(3)
+    real*8 :: rnew(3), rmat(3,3), rrot(3,3), xcm(3), roff(3), eul(3)
     integer :: j, k, lvec(3)
     logical :: copybonding_
 
@@ -1519,6 +1519,10 @@ contains
 
     ! build the new crystal
     call c%struct_new(seed,crashfail=.true.,ti=ti)
+
+    ! set the Euler angles explicitly (useful for continuous drag in the GUI)
+    call c%mol(imol)%compute_std()
+    c%mol(imol)%euler_std = euler
 
   end subroutine rotate_molecule
 

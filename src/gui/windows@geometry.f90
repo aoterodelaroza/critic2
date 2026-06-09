@@ -270,9 +270,8 @@ contains
     ! restore, only if system is independent or master
     dorestore = iw_button("Restore",danger=.true.)
     call iw_tooltip("Restore the system to the original geometry it had when it was first opened",ttshown)
-    ldum = iw_checkbox("Keep bonding",w%geometry_keepbonding,sameline=.true.)
-    call iw_tooltip("Preserve the current bonding when moving atoms or molecules, changing the cell "//&
-       "parameters, or changing atom species, instead of recomputing it from the new geometry",ttshown)
+    ldum = iw_checkbox("Keep Bonding",w%geometry_keepbonding,sameline=.true.)
+    call iw_tooltip("Preserve bonding when the system geometry changes",ttshown)
 
     ! show the tabs
     str1 = "##drawgeometry_tabbar" // c_null_char
