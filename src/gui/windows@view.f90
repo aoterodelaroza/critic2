@@ -1096,12 +1096,12 @@ contains
 
     ! if the viewmode is forced by another window, check that window is still valid
     if (w%viewmode_volatility == vmv_normal) then
-       id = w%viewmode_wf_owner
+       id = w%vmdata%owner
        ok = (id > 0 .and. id <= nwin)
        if (ok) ok = win(id)%isinit
        if (.not.ok) then
           w%viewmode_volatility = vmv_normal
-          w%viewmode_wf_owner = 0
+          w%vmdata%owner = 0
        end if
     end if
 
@@ -1130,9 +1130,9 @@ contains
     integer, intent(in) :: idcaller
 
     w%viewmode_volatility = vmv_window_forced
-    w%viewmode_wf_owner = idcaller
-    w%viewmode_wf_msg = trim(message)
-    w%viewmode_wf_idx = 0
+    w%vmdata%owner = idcaller
+    w%vmdata%msg = trim(message)
+    w%vmdata%idx = 0
 
   end subroutine viewmode_set_forced
 
@@ -1164,8 +1164,8 @@ contains
        if (iforced /= ipickatom) then
           w%viewmode_volatility = vmv_normal
           w%viewmode = iforced
-       elseif (allocated(w%viewmode_wf_msg)) then
-          call iw_text(w%viewmode_wf_msg,highlight=.true.,sameline=.true.)
+       elseif (allocated(w%vmdata%msg)) then
+          call iw_text(w%vmdata%msg,highlight=.true.,sameline=.true.)
        end if
     else
        ! The usual combo box; if the user selects the mode explicitly, it is not transient
@@ -1264,23 +1264,23 @@ contains
     ! scene-validity guards so the mode can always exit.
     if (w%viewmode_volatility == vmv_window_forced) then
        ! check the commanding window is still active
-       ok = (w%viewmode_wf_owner >= 1 .and. w%viewmode_wf_owner <= nwin)
-       if (ok) ok = win(w%viewmode_wf_owner)%isinit .and. win(w%viewmode_wf_owner)%isopen
+       ok = (w%vmdata%owner >= 1 .and. w%vmdata%owner <= nwin)
+       if (ok) ok = win(w%vmdata%owner)%isinit .and. win(w%vmdata%owner)%isopen
        if (.not.ok) then
-          w%viewmode_wf_idx = 0
+          w%vmdata%idx = 0
           w%viewmode_volatility = vmv_normal
           return
        end if
 
        if (hover .and. any_mouse_clicked()) then
           ! pick the atom under the mouse, if any, and exit
-          w%viewmode_wf_idx = 0
-          if (w%mousepos_idx(1) > 0) w%viewmode_wf_idx = w%mousepos_idx
+          w%vmdata%idx = 0
+          if (w%mousepos_idx(1) > 0) w%vmdata%idx = w%mousepos_idx
           w%viewmode_volatility = vmv_normal
        elseif (.not.io%WantTextInput .and. any_key_pressed()) then
           ! cancelled; the result stays zero
           w%viewmode_volatility = vmv_normal
-          w%viewmode_wf_idx = 0
+          w%vmdata%idx = 0
        end if
        return
     end if

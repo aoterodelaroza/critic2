@@ -46,6 +46,12 @@ module windows
   integer, parameter, public :: vmv_transient = 1 ! transient: resets every frame
   integer, parameter, public :: vmv_window_forced = 2 ! window-forced: lasts until deactivated by trigger
 
+  ! view mode data structure for window_forced modes
+  type viewmode_data
+     character(len=:), allocatable :: msg ! message shown in the view bar
+     integer(c_int) :: idx(5) ! atom identifier under mouse position
+     integer :: owner ! owner window ID
+  end type viewmode_data
 
   ! user data for the file open dialog
   type :: dialog_userdata
@@ -108,9 +114,7 @@ module windows
      logical :: lowresrender = .false. ! last render was at reduced (interactive) resolution
      integer :: viewmode = vm_navigate ! view mode (see vm_* above)
      integer :: viewmode_volatility = vmv_normal ! view mode volatility (see vmv_* above)
-     integer :: viewmode_wf_owner = 0 ! window ID (win(:)) of the routine that set the window_forced mode
-     character(len=:), allocatable :: viewmode_wf_msg ! message shown in the bar while in window_forced mode
-     integer(c_int) :: viewmode_wf_idx(5) = 0 ! window_forced-mode pick result, mousepos_idx layout (0 = none/cancelled)
+     type(viewmode_data) :: vmdata ! data associated with window_forced view modes
      type(ImVec2) :: mousepos_lastpick ! mouse position at the last atom pick
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
      type(ImVec2) :: mposlast ! mouse parameters ----v

@@ -229,23 +229,23 @@ contains
        oksys = (iview >= 1 .and. iview <= nwin)
        if (oksys) oksys = win(iview)%isinit .and. win(iview)%isopen .and. win(iview)%type == wintype_view
        ok = oksys
-       if (ok) ok = win(iview)%view_selected == isys .and. win(iview)%viewmode_wf_owner == w%id .and.&
+       if (ok) ok = win(iview)%view_selected == isys .and. win(iview)%vmdata%owner == w%id .and.&
           sysc(isys)%timelastchange_geometry < w%geometry_addbond_time
        if (.not.ok) then
           ! the view is gone, shows another system, another window took over
           ! the pick, or the geometry changed (stale cell-atom ids): cancel
           if (oksys) then
-             if (win(iview)%viewmode_wf_owner == w%id) win(iview)%viewmode_volatility = vmv_normal
+             if (win(iview)%vmdata%owner == w%id) win(iview)%viewmode_volatility = vmv_normal
           end if
           w%geometry_addbond_iat = 0
           w%geometry_addbond_iview = 0
        elseif (win(iview)%viewmode_volatility /= vmv_window_forced) then
           ! the pick finished: add a single bond if a valid atom was clicked
           ! (self-bonds and duplicates are rejected by add_bond)
-          if (win(iview)%viewmode_wf_idx(1) > 0) &
-             call sysc(isys)%add_bond(w%geometry_addbond_iat,win(iview)%viewmode_wf_idx(1),&
-                win(iview)%viewmode_wf_idx(2:4),1)
-          win(iview)%viewmode_wf_idx = 0
+          if (win(iview)%vmdata%idx(1) > 0) &
+             call sysc(isys)%add_bond(w%geometry_addbond_iat,win(iview)%vmdata%idx(1),&
+                win(iview)%vmdata%idx(2:4),1)
+          win(iview)%vmdata%idx = 0
           w%geometry_addbond_iat = 0
           w%geometry_addbond_iview = 0
        else
