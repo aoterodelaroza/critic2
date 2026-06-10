@@ -1726,6 +1726,27 @@ contains
 
   end subroutine set_bond_order
 
+  ! Add a bond between cell atoms iat1 and iat2 + lvec with the given
+  ! bond order by editing the connectivity in place. Posts a rebond
+  ! event.
+  module subroutine add_bond(sysc,iat1,iat2,lvec,order)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: iat1, iat2
+    integer, intent(in) :: lvec(3)
+    integer, intent(in) :: order
+
+    integer :: isys
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    ! add the bond to the connectivity and signal a rebond
+    call sys(isys)%c%add_bond(iat1,iat2,lvec,order)
+    call sysc%post_event(lastchange_rebond)
+
+  end subroutine add_bond
+
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
   module subroutine reread_geometry_from_file(sysc)

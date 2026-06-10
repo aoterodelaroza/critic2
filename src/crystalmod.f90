@@ -308,6 +308,7 @@ module crystalmod
      procedure :: add_atom !< Add an atom
      procedure :: remove_bond !< Remove a single bond between two cell atoms
      procedure :: set_bond_order !< Set the bond order of a single bond between two cell atoms
+     procedure :: add_bond !< Add a single bond between two cell atoms
 
      ! symmetry (symmetry)
      procedure :: pointgroup !< Returns the rotations in the crystal point group
@@ -866,6 +867,12 @@ module crystalmod
        integer, intent(in) :: lvec(3)
        integer, intent(in) :: order
      end subroutine set_bond_order
+     module subroutine add_bond(c,iat1,iat2,lvec,order)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: iat1, iat2
+       integer, intent(in) :: lvec(3)
+       integer, intent(in) :: order
+     end subroutine add_bond
      module subroutine pointgroup(c,leqv,rotm)
        class(crystal), intent(in) :: c
        integer, intent(out) :: leqv

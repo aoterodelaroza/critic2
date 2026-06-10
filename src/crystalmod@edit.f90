@@ -1781,4 +1781,60 @@ contains
     end subroutine set_one
   end subroutine set_bond_order
 
+  ! Add a bond between cell atoms iat1 and iat2 + lvec with the given
+  ! bond order by editing the neighbor stars in place. Adds both
+  ! reciprocal entries (iat2 at lvec from iat1, iat1 at -lvec from
+  ! iat2) and recomputes the molecular-fragment data; does NOT rebuild
+  ! the structure. Self-bonds and already-existing bonds are ignored.
+  module subroutine add_bond(c,iat1,iat2,lvec,order)
+    use types, only: neighstar, realloc
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: iat1, iat2
+    integer, intent(in) :: lvec(3)
+    integer, intent(in) :: order
+
+    integer :: k
+
+    if (iat1 < 1 .or. iat1 > c%ncel .or. iat2 < 1 .or. iat2 > c%ncel) return
+    if (iat1 == iat2 .and. all(lvec == 0)) return
+    if (.not.allocated(c%nstar)) allocate(c%nstar(c%ncel))
+
+    ! ignore the bond if it is already there
+    do k = 1, c%nstar(iat1)%ncon
+       if (c%nstar(iat1)%idcon(k) == iat2 .and. all(c%nstar(iat1)%lcon(:,k) == lvec)) return
+    end do
+
+    ! add iat2 (at lvec) to iat1's star and the reciprocal iat1 (at -lvec)
+    ! to iat2's star
+    call add_one(c%nstar(iat1),iat2,lvec)
+    call add_one(c%nstar(iat2),iat1,-lvec)
+
+    ! keep molecular fragments consistent with the new connectivity (lightweight;
+    ! same post-asterism steps the rebond window runs, no struct_new)
+    call c%fill_molecular_fragments()
+    call c%calculate_molecular_equivalence()
+    call c%calculate_periodicity()
+
+  contains
+    subroutine add_one(ns,id,lv)
+      type(neighstar), intent(inout) :: ns
+      integer, intent(in) :: id, lv(3)
+      integer :: n
+      n = ns%ncon + 1
+      if (.not.allocated(ns%idcon)) then
+         allocate(ns%idcon(n),ns%lcon(3,n),ns%ordcon(n),ns%aromdir(3,n))
+      elseif (n > size(ns%idcon,1)) then
+         call realloc(ns%idcon,n)
+         call realloc(ns%lcon,3,n)
+         call realloc(ns%ordcon,n)
+         call realloc(ns%aromdir,3,n)
+      end if
+      ns%idcon(n) = id
+      ns%lcon(:,n) = lv
+      ns%ordcon(n) = order
+      ns%aromdir(:,n) = 0d0
+      ns%ncon = n
+    end subroutine add_one
+  end subroutine add_bond
+
 end submodule edit

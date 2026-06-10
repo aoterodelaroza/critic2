@@ -126,6 +126,7 @@ module systems
      procedure :: add_species
      procedure :: remove_bond
      procedure :: set_bond_order
+     procedure :: add_bond
      procedure :: reread_geometry_from_file
      procedure :: move_cell
      procedure :: transform_cell
@@ -363,6 +364,12 @@ module systems
        integer, intent(in) :: lvec(3)
        integer, intent(in) :: order
      end subroutine set_bond_order
+     module subroutine add_bond(sysc,iat1,iat2,lvec,order)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: iat1, iat2
+       integer, intent(in) :: lvec(3)
+       integer, intent(in) :: order
+     end subroutine add_bond
      module subroutine reread_geometry_from_file(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine reread_geometry_from_file
