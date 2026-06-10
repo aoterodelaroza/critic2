@@ -1410,7 +1410,7 @@ contains
              &will not affect what is shown on the view.",sameline=.true.)
 
           ! legend for the bond-type glyphs used in the Bonded atoms column
-          call iw_text("Bond types: ─ single, ═ double, ≡ triple, ○ aromatic, ┄ dashed")
+          call iw_text("─ single   ═ double   ≡ triple   ○ aromatic   ┄ dashed",sameline=.true.)
 
           ! number of cell atoms and digits for the Id column
           ntype = sys(isys)%c%ncel
@@ -1420,6 +1420,7 @@ contains
           ! determine which atomic species are present (needed for rebond radii table height)
           atused_bonds = .false.
           do i = 1, sys(isys)%c%nspc
+             if (sys(isys)%c%spc(i)%z <= 0) cycle
              atused_bonds(sys(isys)%c%spc(i)%z) = .true.
           end do
           natused_bonds = count(atused_bonds)
@@ -1439,6 +1440,7 @@ contains
           flags = ImGuiTableFlags_None
           flags = ior(flags,ImGuiTableFlags_Resizable)
           flags = ior(flags,ImGuiTableFlags_ScrollY)
+          flags = ior(flags,ImGuiTableFlags_ScrollX)
           flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
           flags = ior(flags,ImGuiTableFlags_Borders)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
@@ -1449,13 +1451,13 @@ contains
              - iw_calcheight(3,4,.false.) &
              - iw_calcheight(min(5,natused_bonds)+1,0,.false.)
           if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
-             ! header setup: Id and Atom fixed, Bonded atoms fills the rest of the row
+             ! header setup: Id and Atom auto-fixed; Bonded atoms fixed at ~window width
              str2 = "Id" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0.0_c_float,0)
              str2 = "Atom" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0.0_c_float,1)
              str2 = "Bonded atoms" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthStretch,0.0_c_float,2)
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
              call igTableHeadersRow()
 
@@ -1622,7 +1624,7 @@ contains
              str2 = "Z" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,1)
              str2 = "Radius (Å)" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthStretch,0.0_c_float,2)
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,2)
              call igTableSetupScrollFreeze(0,1)
              call igTableHeadersRow()
              call igTableSetColumnWidthAutoAll(igGetCurrentTable())
@@ -1645,7 +1647,7 @@ contains
              end do
              call igEndTable()
           end if
-          if (allocated(iat_bonds)) deallocate(iat_bonds)
+          deallocate(iat_bonds)
 
           ! bond factor drag
           call igAlignTextToFramePadding()
@@ -1658,6 +1660,7 @@ contains
           ldum = iw_dragfloat_real8("Bond delta δ (Å)##bonddelta_geom",x1=sysc(isys)%bonddelta,speed=0.001d0,&
              min=0d0,max=2d0,scale=bohrtoa,decimal=4,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Distance tolerance (additive) for metal-non-metal bonding (see formula above)",ttshown)
+          call iw_text(" ",sameline=.true.)
 
           ! Reset button
           if (iw_button("Reset",sameline=.true.)) then

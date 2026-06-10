@@ -116,6 +116,7 @@ contains
     ! determine which atoms are to be used
     atused = .false.
     do i = 1, sys(isys)%c%nspc
+       if (sys(isys)%c%spc(i)%z <= 0) cycle
        atused(sys(isys)%c%spc(i)%z) = .true.
     end do
     allocate(iat(count(atused)))
@@ -187,13 +188,13 @@ contains
 
     ! bond factor
     call iw_text("Bond factor",highlight=.true.)
-    ch = iw_dragfloat_real8("##bondfactor",x1=sysc(isys)%bondfactor,speed=0.001d0,min=1d0,max=2d0,&
+    ch = iw_dragfloat_real8("##bondfactor",x1=sysc(isys)%bondfactor,speed=0.001d0,min=1d0,max=4d0,&
        decimal=4,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Bond factor parameter for connectivity calculation",ttshown)
 
     ! bond delta
     call iw_text("Bond delta",highlight=.true.)
-    ch = iw_dragfloat_real8("##bonddelta",x1=sysc(isys)%bonddelta,speed=0.001d0,min=0d0,max=1d0,&
+    ch = iw_dragfloat_real8("##bonddelta",x1=sysc(isys)%bonddelta,speed=0.001d0,min=0d0,max=2d0,&
        scale=bohrtoa,decimal=4,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
     call iw_tooltip("Bond delta parameter (Å): distance tolerance for metal-atom bonding",ttshown)
 
