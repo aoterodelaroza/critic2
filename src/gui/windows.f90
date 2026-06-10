@@ -184,6 +184,7 @@ module windows
      procedure :: draw_view
      procedure :: create_texture_view ! create the texture for the view
      procedure :: delete_texture_view ! delete the texture for the view
+     procedure :: viewmode_set_mode ! set the viewmode based on user keypresses
      procedure :: viewmode_bar_display ! bar display for the current view mode
      procedure :: viewmode_activate_picking ! activate picking by view mode
      procedure :: viewmode_process_events ! process mouse events according to view mode
@@ -389,6 +390,9 @@ module windows
        class(window), intent(inout), target :: w
        integer, intent(in) :: isys
      end subroutine select_view
+     module subroutine viewmode_set_mode(w)
+       class(window), intent(inout), target :: w
+     end subroutine viewmode_set_mode
      module subroutine viewmode_bar_display(w)
        class(window), intent(inout), target :: w
      end subroutine viewmode_bar_display

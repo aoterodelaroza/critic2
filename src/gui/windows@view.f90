@@ -74,7 +74,7 @@ contains
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
     use systems, only: sysc, sys, sys_init, nsys, ok_system, are_threads_running
-    use gui_main, only: g, fontsize, lockbehavior, tree_select_updates_view, io
+    use gui_main, only: g, fontsize, lockbehavior, tree_select_updates_view
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -831,14 +831,8 @@ contains
     call igGetItemRectMax(w%v_rmax)
     call igGetMousePos(pos)
 
-    ! shift key enters select mode transiently (igIsKeyPressed fires once per
-    ! press, so an explicit combo change while shift is held is not overridden)
-    if (goodsys) then
-       if (igIsKeyDown(ImGuiKey_ModShift).and..not.io%WantTextInput) then
-          w%viewmode = vm_select
-          w%viewmode_transient = .true.
-       end if
-    end if
+    ! set view modes based on user's key presses
+    if (goodsys) call w%viewmode_set_mode()
 
     ! get hover and needpick
     hover = goodsys .and. w%ilock == ilock_no
@@ -1087,6 +1081,18 @@ contains
     w%timelast_view_assign = glfwGetTime()
 
   end subroutine select_view
+
+  !> Process the user keybindings that set the viewmode
+  module subroutine viewmode_set_mode(w)
+    use gui_main, only: io
+    class(window), intent(inout), target :: w
+
+    if (igIsKeyDown(ImGuiKey_ModShift).and..not.io%WantTextInput) then
+       w%viewmode = vm_select
+       w%viewmode_transient = .true.
+    end if
+
+  end subroutine viewmode_set_mode
 
   !> Returns the tooltip message for the current viewmode
   module subroutine viewmode_bar_display(w)
