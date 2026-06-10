@@ -30,6 +30,7 @@ module keybindings
   public :: is_bind_event
   public :: get_bind_keyname
   public :: is_bind_mousescroll
+  public :: is_mod_key
 
   ! global flag for keybinding use
   logical, public :: use_keybindings = .true.
@@ -257,6 +258,10 @@ module keybindings
        integer, intent(in) :: bind
        logical :: is_bind_mousescroll
      end function is_bind_mousescroll
+     module function is_mod_key(key)
+       integer, intent(in) :: key
+       logical :: is_mod_key
+     end function is_mod_key
   end interface
 
 end module keybindings

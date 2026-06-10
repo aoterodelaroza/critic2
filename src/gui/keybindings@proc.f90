@@ -141,10 +141,7 @@ contains
     ! get the key
     key = -1
     do i = ImGuiKey_NamedKey_BEGIN, ImGuiKey_NamedKey_END-1
-       if ((i==ImGuiKey_ModCtrl).or.(i==ImGuiKey_ModShift).or.(i==ImGuiKey_ModAlt).or.&
-          (i==ImGuiKey_ModSuper).or.(i==ImGuiKey_LeftCtrl).or.(i==ImGuiKey_LeftShift).or.&
-          (i==ImGuiKey_LeftAlt).or.(i==ImGuiKey_LeftSuper).or.(i==ImGuiKey_RightCtrl).or.&
-          (i==ImGuiKey_RightShift).or.(i==ImGuiKey_RightAlt).or.(i==ImGuiKey_RightSuper)) cycle
+       if (is_mod_key(i)) cycle
        if (igIsKeyDown(i)) then
           key = i
           exit
@@ -164,6 +161,19 @@ contains
     end if
 
   end function set_bind_from_user_input
+
+  ! Whether the given ImGui key is a modifier key (ctrl/shift/alt/super)
+  module function is_mod_key(key)
+    use interfaces_cimgui
+    integer, intent(in) :: key
+    logical :: is_mod_key
+
+    is_mod_key = (key==ImGuiKey_ModCtrl).or.(key==ImGuiKey_ModShift).or.(key==ImGuiKey_ModAlt).or.&
+       (key==ImGuiKey_ModSuper).or.(key==ImGuiKey_LeftCtrl).or.(key==ImGuiKey_LeftShift).or.&
+       (key==ImGuiKey_LeftAlt).or.(key==ImGuiKey_LeftSuper).or.(key==ImGuiKey_RightCtrl).or.&
+       (key==ImGuiKey_RightShift).or.(key==ImGuiKey_RightAlt).or.(key==ImGuiKey_RightSuper)
+
+  end function is_mod_key
 
   module subroutine set_default_keybindings()
     use interfaces_cimgui
