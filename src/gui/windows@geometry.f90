@@ -48,7 +48,8 @@ contains
        atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac, atlisttype_ncel_bohr,&
        atlisttype_ncel_ang, atlisttype_nmol, celltransform_standard,&
        celltransform_primstd, celltransform_niggli, celltransform_delaunay, lastchange_rebond
-    use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene, ColorHighlightBondScene
+    use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene, ColorHighlightBondScene,&
+       ColorTableHighlightRow
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
        iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper, iw_inputint,&
@@ -1596,6 +1597,9 @@ contains
                          if (igIsItemHovered(ImGuiHoveredFlags_None)) then
                             ihlbond = i
                             ihlbtn = jj
+                            ! highlight the row in the table
+                            color = igGetColorU32_Vec4(ColorTableHighlightRow)
+                            call igTableSetBgColor(ImGuiTableBgTarget_RowBg0, color, -1)
                             ! bond distance and sum of covalent radii (in angstrom)
                             dbond = norm2(sys(isys)%c%atcel(jj)%r + sys(isys)%c%x2c(dble(sys(isys)%c%nstar(i)%lcon(:,j))) -&
                                sys(isys)%c%atcel(i)%r)
