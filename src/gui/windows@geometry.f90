@@ -1684,16 +1684,14 @@ contains
        end if
 
        !! symmetry tab !!
-       if (.not.sys(isys)%c%ismolecule) then
-          str2 = "Symmetry##drawgeometry_symmetrytab" // c_null_char
-          flags = ImGuiTabItemFlags_None
-          if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
-             ! check if the tab changed
-             call check_changed_tab("symmetry")
+       str2 = "Symmetry##drawgeometry_symmetrytab" // c_null_char
+       flags = ImGuiTabItemFlags_None
+       if (igBeginTabItem(c_loc(str2),c_null_ptr,flags)) then
+          ! check if the tab changed
+          call check_changed_tab("symmetry")
 
-             call iw_text("blah")
-             call igEndTabItem()
-          end if
+          call iw_text("blah")
+          call igEndTabItem()
        end if
 
        call igEndTabBar()
