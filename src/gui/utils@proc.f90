@@ -89,7 +89,7 @@ contains
                 return
              end if
              call igPopStyleColor(2)
-             call iw_tooltip("Z = " // string(iz) // " Ar = " // string(atmass(iz),'f'))
+             call iw_tooltip("Z = " // string(iz) // "  A = " // string(atmass(iz),'f'))
           end if
        end do
        call igNewLine()
