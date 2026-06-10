@@ -1521,8 +1521,11 @@ contains
     call c%struct_new(seed,crashfail=.true.,ti=ti)
 
     ! set the Euler angles explicitly (useful for continuous drag in the GUI)
-    call c%mol(imol)%compute_std()
-    c%mol(imol)%euler_std = euler
+    ! only if the bonding is preserved - otherwise the molecules may change
+    if (copybonding_) then
+       call c%mol(imol)%compute_std()
+       c%mol(imol)%euler_std = euler
+    end if
 
   end subroutine rotate_molecule
 
