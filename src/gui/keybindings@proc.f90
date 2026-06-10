@@ -60,7 +60,6 @@ submodule (keybindings) proc
   !xx! private procedures
   ! function hkey(key,mod,group)
   ! function get_current_mod() result(mod)
-  ! function mod_to_imgui(mod) result(imod)
 
 contains
 
@@ -108,14 +107,15 @@ contains
     end if
     ! unbind the previous owner of this key+mod combination in this group...
     call erase_bind(key,mod,group)
-    if (group == group_global) then
+    if (group == group_global .or. group == group_viewmode) then
        ! unbind in all other groups
        do i = 2, group_NUM
           call erase_bind(key,mod,i)
        end do
     else
-       ! unbind from the global group
+       ! unbind from the global and mouse interaction groups
        call erase_bind(key,mod,group_global)
+       call erase_bind(key,mod,group_viewmode)
     end if
 
     ! make the new bind
@@ -286,15 +286,17 @@ contains
     integer, intent(in) :: bind
     character(len=128) :: get_bind_keyname
 
-    integer :: group
+    integer :: group, ll
     integer(c_int) :: key, mod
+    logical :: full
 
     get_bind_keyname = ""
     group = groupbind(bind)
     key = keybind(bind)
     mod = modbind(bind)
+    full = bindfull(bind)
 
-    if (key /= ImGuiKey_None) then
+    if (key /= ImGuiKey_None .or. .not.full) then
        get_bind_keyname = ""
        if (iand(mod,mod_ctrl)/=0)  get_bind_keyname = trim(get_bind_keyname) // "Ctrl+"
        if (iand(mod,mod_alt)/=0)   get_bind_keyname = trim(get_bind_keyname) // "Alt+"
@@ -315,8 +317,18 @@ contains
           get_bind_keyname = trim(get_bind_keyname) // "Double Middle Mouse"
        elseif (key == ImGuiKey_MouseScroll) then
           get_bind_keyname = trim(get_bind_keyname) // "Mouse Wheel"
-       else
+       elseif (key /= ImGuiKey_None) then
           get_bind_keyname = trim(get_bind_keyname) // trim(keynames(key - ImGuiKey_NamedKey_BEGIN + 1))
+       end if
+
+       ! take out the final + if this is a partial bind
+       if (.not.full) then
+          ll = len_trim(get_bind_keyname)
+          if (ll > 0) then
+             if (get_bind_keyname(ll:ll) == "+") get_bind_keyname = get_bind_keyname(1:ll-1)
+          else
+             get_bind_keyname = "<not bound>"
+          end if
        end if
     else
        get_bind_keyname = "<not bound>"
