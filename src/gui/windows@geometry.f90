@@ -1064,7 +1064,6 @@ contains
                 flags = ior(flags,ImGuiTableFlags_ScrollY)
                 flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
                 str1 = "##cellnicetable" // c_null_char
-                ! fit the table to the width of its columns (do not stretch); show 10 rows + scroll
                 sz0%x = iw_calcwidth(2,1) + iw_calcwidth(8,1) + iw_calcwidth(8,1) + iw_calcwidth(27,1) +&
                    g%Style%ScrollbarSize + 4._c_float
                 sz0%y = igGetFrameHeight() + 11._c_float * (igGetTextLineHeight() + 2._c_float*g%Style%CellPadding%y)
@@ -1439,9 +1438,9 @@ contains
           ! bonds table (height leaves room for rebond controls below)
           flags = ImGuiTableFlags_None
           flags = ior(flags,ImGuiTableFlags_Resizable)
+          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
           flags = ior(flags,ImGuiTableFlags_ScrollY)
           flags = ior(flags,ImGuiTableFlags_ScrollX)
-          flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
           flags = ior(flags,ImGuiTableFlags_Borders)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
           str1 = "##tablebonds_" // string(isys) // c_null_char
@@ -1451,15 +1450,15 @@ contains
              - iw_calcheight(3,4,.false.) &
              - iw_calcheight(min(5,natused_bonds)+1,0,.false.)
           if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
-             ! header setup: Id and Atom auto-fixed; Bonded atoms fixed at ~window width
              str2 = "Id" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0.0_c_float,0)
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
              str2 = "Atom" // c_null_char
-             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0.0_c_float,1)
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
              str2 = "Bonded atoms" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
              call igTableSetupScrollFreeze(0, 1) ! top row always visible
              call igTableHeadersRow()
+             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
 
              ! draw the rows (clipped for performance)
              clipper = ImGuiListClipper_ImGuiListClipper()
@@ -1609,12 +1608,12 @@ contains
 
           ! atomic radii table
           flags = ImGuiTableFlags_None
-          flags = ior(flags,ImGuiTableFlags_RowBg)
           flags = ior(flags,ImGuiTableFlags_Resizable)
           flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+          flags = ior(flags,ImGuiTableFlags_ScrollY)
+          flags = ior(flags,ImGuiTableFlags_ScrollX)
           flags = ior(flags,ImGuiTableFlags_Borders)
           flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-          flags = ior(flags,ImGuiTableFlags_ScrollY)
           str1 = "##tableatomrcov_geom" // c_null_char
           sz0%x = 0
           sz0%y = iw_calcheight(min(5,natused_bonds)+1,0,.false.)
@@ -1627,7 +1626,7 @@ contains
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,2)
              call igTableSetupScrollFreeze(0,1)
              call igTableHeadersRow()
-             call igTableSetColumnWidthAutoAll(igGetCurrentTable())
+
              do i = 1, natused_bonds
                 call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
                 iz = iat_bonds(i)
