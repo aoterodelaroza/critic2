@@ -55,7 +55,7 @@ contains
     use c_interface_module
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str, strpop, strpop2, zeroc, ch
+    character(kind=c_char,len=:), allocatable, target :: str, strpop, zeroc, ch
     character(kind=c_char,len=:), allocatable :: tooltipstr
     type(ImVec2) :: szero, sz
     type(ImVec4) :: col4

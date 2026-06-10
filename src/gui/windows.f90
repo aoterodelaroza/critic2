@@ -37,8 +37,9 @@ module windows
   character(kind=c_char,len=:), allocatable, target :: inputb
   integer(c_size_t), parameter :: maxlib = 40000
 
-  ! view mouse behavior parameters
-  integer, parameter :: MB_navigation = 1
+  ! view modes
+  integer, parameter, public :: vm_navigate = 0
+  integer, parameter, public :: vm_select   = 1
 
   ! user data for the file open dialog
   type :: dialog_userdata
@@ -99,7 +100,8 @@ module windows
      integer :: view_selected = 1 ! the system selected in the view window
      logical :: forcerender = .true. ! force render of the scene
      logical :: lowresrender = .false. ! last render was at reduced (interactive) resolution
-     integer :: view_mousebehavior = MB_navigation ! mouse behavior in the view
+     integer :: viewmode = vm_navigate ! persistent view mode (navigate/select/remove)
+     logical :: viewmode_transient = .false. ! transient view mode; reset to false each frame
      type(ImVec2) :: mousepos_lastpick ! mouse position at the last atom pick
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
      type(ImVec2) :: mposlast ! mouse parameters ----v

@@ -418,7 +418,8 @@ contains
     w%okfile_read = .false. ! whether the structure list should be re-read from the lib
     w%view_selected = 1
     nullify(w%sc)
-    w%view_mousebehavior = MB_navigation
+    w%viewmode = vm_navigate
+    w%viewmode_transient = .false.
     w%forcerender = .true.
     if (allocated(w%iord)) deallocate(w%iord)
     w%lastselected = 0

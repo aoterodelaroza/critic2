@@ -90,7 +90,7 @@ contains
     logical :: isuc, islabelsl, needpick, enabled, ismeasure
     integer :: islabels
     logical :: ch
-    integer(c_int) :: flags, nc(3), ires, viewtype, idum
+    integer(c_int) :: flags, nc(3), ires, idum
     integer(c_int) :: newside, vside
     real(c_float) :: scal, width, rgba(4)
     real(c_float) :: rscale
@@ -117,6 +117,8 @@ contains
     if (w%firstpass) then
        w%mousepos_lastpick%x = 0._c_float
        w%mousepos_lastpick%y = 0._c_float
+       w%viewmode = vm_navigate
+       w%viewmode_transient = .false.
     end if
 
     !! update the tree based on time signals between dependent windows
@@ -837,7 +839,7 @@ contains
        ! position at the last pick, not the last frame, so a final pick still
        ! happens at the resting position after motion stops) or on a measure click
        needpick = (abs(w%mousepos_lastpick%x-pos%x) > 1e-4.or.abs(w%mousepos_lastpick%y-pos%y) > 1e-4)
-       ismeasure = (w%view_mousebehavior == MB_Navigation.and.is_bind_event(BIND_NAV_MEASURE))
+       ismeasure = (w%viewmode == vm_navigate.and.is_bind_event(BIND_NAV_MEASURE))
        needpick = needpick.or.ismeasure
     end if
 
@@ -866,8 +868,7 @@ contains
     end if
 
     ! mode selection
-    viewtype = 0
-    call iw_combo_simple("##viewmode","Navigate" // c_null_char,viewtype)
+    call iw_combo_simple("##viewmode","Navigate"//c_null_char//"Select"//c_null_char,w%viewmode)
     msg = trim(get_bind_keyname(BIND_NAV_ROTATE)) // ": " // trim(bindnames(BIND_NAV_ROTATE)) // newline
     msg = msg // trim(get_bind_keyname(BIND_NAV_ROTATE_PERP)) // ": " // trim(bindnames(BIND_NAV_ROTATE_PERP)) // newline
     msg = msg // trim(get_bind_keyname(BIND_NAV_TRANSLATE)) // ": " // trim(bindnames(BIND_NAV_TRANSLATE)) // newline
@@ -1136,7 +1137,7 @@ contains
     if (w%sc%isinit < 2) return
 
     ! process mode-specific events
-    if (w%view_mousebehavior == MB_Navigation) then
+    if (w%viewmode == vm_navigate) then
        call igGetMousePos(mousepos)
        texpos = mousepos
 
