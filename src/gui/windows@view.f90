@@ -116,7 +116,7 @@ contains
        w%mousepos_lastpick%x = 0._c_float
        w%mousepos_lastpick%y = 0._c_float
        w%viewmode = vm_navigate
-       w%viewmode_volatility = vmv_normal
+       w%viewmode_transient = .false.
     end if
 
     !! update the tree based on time signals between dependent windows
@@ -1079,7 +1079,7 @@ contains
 
     ! reset the viewmodes
     w%viewmode = vm_navigate
-    w%viewmode_volatility = vmv_normal
+    w%viewmode_transient = .false.
 
     ! set the time
     w%timelast_view_assign = glfwGetTime()
@@ -1095,23 +1095,24 @@ contains
     integer :: id
 
     ! if the viewmode is forced by another window, check that window is still valid
-    if (w%viewmode_volatility == vmv_normal) then
+    if (w%viewmode < 0) then
        id = w%vmdata%owner
        ok = (id > 0 .and. id <= nwin)
        if (ok) ok = win(id)%isinit
        if (.not.ok) then
-          w%viewmode_volatility = vmv_normal
+          w%viewmode = vm_navigate
+          w%viewmode_transient = .false.
           w%vmdata%owner = 0
        end if
     end if
 
     ! the window_forced view mode cannot be overridden by keybindings
-    if (w%viewmode_volatility == vmv_window_forced) return
+    if (w%viewmode < 0) return
 
     if (is_bind_event(BIND_VIEWMODE_SELECT,held=.true.)) then
     ! if (igIsKeyDown(ImGuiKey_ModShift).and..not.io%WantTextInput) then
        w%viewmode = vm_select
-       w%viewmode_volatility = vmv_transient
+       w%viewmode_transient = .true.
     end if
 
   end subroutine viewmode_set_mode
@@ -1124,12 +1125,13 @@ contains
   !> routine that set the mode; otherwise the result is zero. idcaller
   !> is the window ID (win(:)) of the caller, used by the caller to verify
   !> it owns the pick result.
-  module subroutine viewmode_set_forced(w,message,idcaller)
+  module subroutine viewmode_set_forced(w,mode,message,idcaller)
     class(window), intent(inout), target :: w
+    integer, intent(in) :: mode
     character(len=*), intent(in) :: message
     integer, intent(in) :: idcaller
 
-    w%viewmode_volatility = vmv_window_forced
+    w%viewmode = mode
     w%vmdata%owner = idcaller
     w%vmdata%msg = trim(message)
     w%vmdata%idx = 0
@@ -1155,15 +1157,15 @@ contains
     character(len=*), parameter :: viewmode_items = "Navigate"//c_null_char//"Select"//c_null_char
     integer, parameter :: ipickatom = vm_select + 1 ! index of the Pick Atom combo entry (forced mode)
 
-    if (w%viewmode_volatility == vmv_window_forced) then
+    if (w%viewmode < 0) then
        ! In window_forced mode, the combo shows Pick Atom and the
        ! caller-provided message follows; selecting another mode
        ! explicitly cancels the pick
        iforced = ipickatom
        call iw_combo_simple("##viewmode",viewmode_items//"Pick Atom"//c_null_char,iforced)
        if (iforced /= ipickatom) then
-          w%viewmode_volatility = vmv_normal
           w%viewmode = iforced
+          w%viewmode_transient = .false.
        elseif (allocated(w%vmdata%msg)) then
           call iw_text(w%vmdata%msg,highlight=.true.,sameline=.true.)
        end if
@@ -1171,7 +1173,8 @@ contains
        ! The usual combo box; if the user selects the mode explicitly, it is not transient
        viewmode_before = w%viewmode
        call iw_combo_simple("##viewmode",viewmode_items,w%viewmode)
-       if (w%viewmode /= viewmode_before) w%viewmode_volatility = vmv_normal
+       if (w%viewmode /= viewmode_before) &
+          w%viewmode_transient = .false.
 
        if (w%viewmode == vm_navigate) then
           ll = 0
@@ -1209,7 +1212,7 @@ contains
     viewmode_activate_picking = .false.
     if (.not.hover) return
 
-    if (w%viewmode_volatility == vmv_window_forced) then
+    if (w%viewmode < 0) then
        ! in window_forced mode, any click requires picking
        viewmode_activate_picking = any_mouse_clicked()
     elseif (w%viewmode == vm_navigate) then
@@ -1262,13 +1265,14 @@ contains
     ! when clicked, save it as the pick result. Also exits if the
     ! window that commanded the mode is gone. Processed before the
     ! scene-validity guards so the mode can always exit.
-    if (w%viewmode_volatility == vmv_window_forced) then
+    if (w%viewmode < 0) then
        ! check the commanding window is still active
        ok = (w%vmdata%owner >= 1 .and. w%vmdata%owner <= nwin)
        if (ok) ok = win(w%vmdata%owner)%isinit .and. win(w%vmdata%owner)%isopen
        if (.not.ok) then
           w%vmdata%idx = 0
-          w%viewmode_volatility = vmv_normal
+          w%viewmode = vm_navigate
+          w%viewmode_transient = .false.
           return
        end if
 
@@ -1276,10 +1280,12 @@ contains
           ! pick the atom under the mouse, if any, and exit
           w%vmdata%idx = 0
           if (w%mousepos_idx(1) > 0) w%vmdata%idx = w%mousepos_idx
-          w%viewmode_volatility = vmv_normal
+          w%viewmode = vm_navigate
+          w%viewmode_transient = .false.
        elseif (.not.io%WantTextInput .and. any_key_pressed()) then
           ! cancelled; the result stays zero
-          w%viewmode_volatility = vmv_normal
+          w%viewmode = vm_navigate
+          w%viewmode_transient = .false.
           w%vmdata%idx = 0
        end if
        return
@@ -1440,9 +1446,9 @@ contains
     end if
 
     ! if this is a transient view mode, reset to default (navigation)
-    if (w%viewmode_volatility == vmv_transient) then
+    if (w%viewmode_transient) then
        w%viewmode = vm_navigate
-       w%viewmode_volatility = vmv_normal
+       w%viewmode_transient = .false.
     end if
 
   contains

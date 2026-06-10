@@ -37,14 +37,10 @@ module windows
   character(kind=c_char,len=:), allocatable, target :: inputb
   integer(c_size_t), parameter :: maxlib = 40000
 
-  ! view modes
-  integer, parameter, public :: vm_navigate = 0
-  integer, parameter, public :: vm_select   = 1
-
-  ! view mode volatility
-  integer, parameter, public :: vmv_normal = 0 ! permanent until changed
-  integer, parameter, public :: vmv_transient = 1 ! transient: resets every frame
-  integer, parameter, public :: vmv_window_forced = 2 ! window-forced: lasts until deactivated by trigger
+  ! view modes (positive = normal; negative = forced by a window)
+  integer, parameter, public :: vm_pick_atom = -1
+  integer, parameter, public :: vm_navigate  = 0
+  integer, parameter, public :: vm_select    = 1
 
   ! view mode data structure for window_forced modes
   type viewmode_data
@@ -113,7 +109,7 @@ module windows
      logical :: forcerender = .true. ! force render of the scene
      logical :: lowresrender = .false. ! last render was at reduced (interactive) resolution
      integer :: viewmode = vm_navigate ! view mode (see vm_* above)
-     integer :: viewmode_volatility = vmv_normal ! view mode volatility (see vmv_* above)
+     logical :: viewmode_transient = .false. ! true if view mode is transient (resets every frame)
      type(viewmode_data) :: vmdata ! data associated with window_forced view modes
      type(ImVec2) :: mousepos_lastpick ! mouse position at the last atom pick
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
@@ -410,8 +406,9 @@ module windows
      module subroutine viewmode_set_mode(w)
        class(window), intent(inout), target :: w
      end subroutine viewmode_set_mode
-     module subroutine viewmode_set_forced(w,message,idcaller)
+     module subroutine viewmode_set_forced(w,mode,message,idcaller)
        class(window), intent(inout), target :: w
+       integer, intent(in) :: mode
        character(len=*), intent(in) :: message
        integer, intent(in) :: idcaller
      end subroutine viewmode_set_forced

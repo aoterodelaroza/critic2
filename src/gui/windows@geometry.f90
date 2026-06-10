@@ -235,11 +235,14 @@ contains
           ! the view is gone, shows another system, another window took over
           ! the pick, or the geometry changed (stale cell-atom ids): cancel
           if (oksys) then
-             if (win(iview)%vmdata%owner == w%id) win(iview)%viewmode_volatility = vmv_normal
+             if (win(iview)%vmdata%owner == w%id) then
+                win(iview)%viewmode = vm_navigate
+                win(iview)%viewmode_transient = .false.
+             end if
           end if
           w%geometry_addbond_iat = 0
           w%geometry_addbond_iview = 0
-       elseif (win(iview)%viewmode_volatility /= vmv_window_forced) then
+       elseif (win(iview)%viewmode >= 0) then
           ! the pick finished: add a single bond if a valid atom was clicked
           ! (self-bonds and duplicates are rejected by add_bond)
           if (win(iview)%vmdata%idx(1) > 0) &
@@ -1526,8 +1529,8 @@ contains
                          w%geometry_addbond_iat = i
                          w%geometry_addbond_iview = iview
                          w%geometry_addbond_time = glfwGetTime()
-                         call win(iview)%viewmode_set_forced("Please pick an atom to bond to atom "//&
-                            string(i) // "...",w%id)
+                         call win(iview)%viewmode_set_forced(vm_pick_atom,&
+                            "Please pick an atom to bond to atom " // string(i) // "...",w%id)
                       end if
                       call iw_tooltip("Add a bond to this atom: click, then pick an atom in the view window",ttshown)
 

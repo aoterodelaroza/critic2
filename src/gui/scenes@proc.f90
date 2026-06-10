@@ -1771,7 +1771,7 @@ contains
   !> rotdir (cartesian unit vector, bohr) through the center of mass
   !> xcom, with half-length rotlen.
   module subroutine scene_show_transient_rotaxis(s,tag,xcom,rotdir,rotlen)
-    use representations, only: reptype_axes, repflavor_axes, reptype_rotaxis, repflavor_rotaxis
+    use representations, only: reptype_axes, reptype_rotaxis, repflavor_rotaxis
     class(scene), intent(inout), target :: s
     integer, intent(in) :: tag
     real*8, intent(in) :: xcom(3)

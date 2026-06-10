@@ -547,7 +547,8 @@ contains
     if (allocated(w%ploty)) deallocate(w%ploty)
     nullify(w%rep)
     w%irep = 0
-    w%viewmode_volatility = vmv_normal
+    w%viewmode = vm_navigate
+    w%viewmode_transient = .false.
     w%geometry_expression = ""
     w%geometry_expression_ok = .false.
     w%geometry_expr_error = ""
