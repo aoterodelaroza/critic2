@@ -184,7 +184,9 @@ module windows
      procedure :: draw_view
      procedure :: create_texture_view ! create the texture for the view
      procedure :: delete_texture_view ! delete the texture for the view
-     procedure :: process_events_view ! process the mouse events in the view
+     procedure :: viewmode_bar_display ! bar display for the current view mode
+     procedure :: viewmode_activate_picking ! activate picking by view mode
+     procedure :: viewmode_process_events ! process mouse events according to view mode
      procedure :: select_view ! select the system to show in a view
      procedure :: draw_selection_tooltip ! draw the measure selection tooltip
      procedure :: mousepos_to_texpos ! mouse position to texture position
@@ -387,11 +389,18 @@ module windows
        class(window), intent(inout), target :: w
        integer, intent(in) :: isys
      end subroutine select_view
-     module subroutine process_events_view(w,hover,idx)
+     module subroutine viewmode_bar_display(w)
+       class(window), intent(inout), target :: w
+     end subroutine viewmode_bar_display
+     module function viewmode_activate_picking(w,hover)
        class(window), intent(inout), target :: w
        logical, intent(in) :: hover
-       integer(c_int), intent(in) :: idx(5)
-     end subroutine process_events_view
+       logical :: viewmode_activate_picking
+     end function viewmode_activate_picking
+     module subroutine viewmode_process_events(w,hover)
+       class(window), intent(inout), target :: w
+       logical, intent(in) :: hover
+     end subroutine viewmode_process_events
      module subroutine draw_selection_tooltip(w,idx)
        class(window), intent(inout), target :: w
        integer(c_int), intent(in) :: idx(5)

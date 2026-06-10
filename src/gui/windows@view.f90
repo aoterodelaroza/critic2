@@ -60,8 +60,7 @@ contains
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS,&
        BIND_VIEW_TOGGLE_ATOMS, BIND_VIEW_TOGGLE_BONDS, BIND_VIEW_CYCLE_LABELS,&
        BIND_VIEW_TOGGLE_CELL,&
-       BIND_NAV_ROTATE, BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
-       BIND_NAV_MEASURE, bindnames, get_bind_keyname,&
+       get_bind_keyname,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes,&
        repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
@@ -70,14 +69,13 @@ contains
        repflavor_axes
     use scenes, only: style_phong, style_simple
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
-       iw_setposx_fromend, iw_checkbox, iw_coloredit, iw_menuitem, iw_dragfloat_realc
+       iw_setposx_fromend, iw_checkbox, iw_coloredit, iw_menuitem, iw_dragfloat_realc,&
+       iw_text, iw_button, iw_tooltip, iw_intstepper
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
     use systems, only: sysc, sys, sys_init, nsys, ok_system, are_threads_running
     use gui_main, only: g, fontsize, lockbehavior, tree_select_updates_view
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_intstepper
     use tools_io, only: string
-    use param, only: newline
     class(window), intent(inout), target :: w
 
     integer :: i, j, k, nrep, is, icel, ineq, iaux
@@ -87,7 +85,7 @@ contains
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
-    logical :: isuc, islabelsl, needpick, enabled, ismeasure
+    logical :: isuc, islabelsl, needpick, enabled
     integer :: islabels
     logical :: ch
     integer(c_int) :: flags, nc(3), ires, idum
@@ -828,27 +826,19 @@ contains
     ldum = igImageButtonEx(igGetID_Str(c_loc(str1)),w%FBOtex, szavail, sz0, sz1, szero, bgcol, tintcol)
     call igPopStyleColor(3)
 
-    ! get hover, needpick, image rectangle coordinates, and atom idx
-    hover = goodsys .and. w%ilock == ilock_no
-    if (hover) hover = igIsItemHovered(ImGuiHoveredFlags_None)
-    needpick = .false.
-    ismeasure = .false.
-    if (hover) then
-       call igGetMousePos(pos)
-       ! a pick is needed if the mouse moved since the last pick (compared to the
-       ! position at the last pick, not the last frame, so a final pick still
-       ! happens at the resting position after motion stops) or on a measure click
-       needpick = (abs(w%mousepos_lastpick%x-pos%x) > 1e-4.or.abs(w%mousepos_lastpick%y-pos%y) > 1e-4)
-       ismeasure = (w%viewmode == vm_navigate.and.is_bind_event(BIND_NAV_MEASURE))
-       needpick = needpick.or.ismeasure
-    end if
-
-    ! get the ID of the atom under mouse. Throttle hover picking to pick_interval
-    ! (the glReadPixels in getpixel is a blocking GPU sync), but always pick
-    ! immediately on an explicit measure click so it does not get dropped.
+    ! get view geometry (for mouse to texture coordinate transformation)
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
-    if ((needpick .and. w%timelast_view_getpixel + pick_interval < time) .or. ismeasure) then
+
+    ! get hover and needpick
+    hover = goodsys .and. w%ilock == ilock_no
+    if (hover) hover = igIsItemHovered(ImGuiHoveredFlags_None)
+    needpick = hover .and. (abs(w%mousepos_lastpick%x-pos%x) > 1e-4.or.abs(w%mousepos_lastpick%y-pos%y) > 1e-4) .and.&
+       (w%timelast_view_getpixel + pick_interval < time)
+    needpick = needpick .or. w%viewmode_activate_picking(hover)
+
+    ! get the ID of the atom under mouse
+    if (needpick) then
        w%mousepos_idx = 0
        w%mousepos_lastpick = pos
        call w%mousepos_to_texpos(pos)
@@ -867,15 +857,8 @@ contains
        w%mousepos_idx = 0
     end if
 
-    ! mode selection
-    call iw_combo_simple("##viewmode","Navigate"//c_null_char//"Select"//c_null_char,w%viewmode)
-    msg = trim(get_bind_keyname(BIND_NAV_ROTATE)) // ": " // trim(bindnames(BIND_NAV_ROTATE)) // newline
-    msg = msg // trim(get_bind_keyname(BIND_NAV_ROTATE_PERP)) // ": " // trim(bindnames(BIND_NAV_ROTATE_PERP)) // newline
-    msg = msg // trim(get_bind_keyname(BIND_NAV_TRANSLATE)) // ": " // trim(bindnames(BIND_NAV_TRANSLATE)) // newline
-    msg = msg // trim(get_bind_keyname(BIND_NAV_ZOOM)) // ": " // trim(bindnames(BIND_NAV_ZOOM)) // newline
-    msg = msg // trim(get_bind_keyname(BIND_NAV_RESET)) // ": " // trim(bindnames(BIND_NAV_RESET)) // newline
-    msg = msg // trim(get_bind_keyname(BIND_NAV_MEASURE)) // ": " // trim(bindnames(BIND_NAV_MEASURE)) // newline
-    call iw_tooltip(msg)
+    ! the viewmode display on the bar
+    call w%viewmode_bar_display()
 
     ! atom hover message
     if (hover .and. w%mousepos_idx(1) > 0) then
@@ -915,7 +898,7 @@ contains
        call w%draw_selection_tooltip(w%mousepos_idx)
 
     ! Process mouse events
-    call w%process_events_view(hover,w%mousepos_idx)
+    call w%viewmode_process_events(hover)
 
     ! process keybindings
     !! increase and decrease the number of cells in main view
@@ -1095,8 +1078,51 @@ contains
 
   end subroutine select_view
 
-  !> Process the mouse events in the view window
-  module subroutine process_events_view(w,hover,idx)
+  !> Returns the tooltip message for the current viewmode
+  module subroutine viewmode_bar_display(w)
+    use keybindings, only: get_bind_keyname, bindnames, BIND_NAV_ROTATE, &
+       BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
+       BIND_NAV_MEASURE
+    use utils, only: iw_combo_simple, iw_tooltip
+    use param, only: newline
+    class(window), intent(inout), target :: w
+
+    character(len=:), allocatable, target :: msg
+
+    call iw_combo_simple("##viewmode","Navigate"//c_null_char//"Select"//c_null_char,w%viewmode)
+
+    msg = trim(get_bind_keyname(BIND_NAV_ROTATE)) // ": " // trim(bindnames(BIND_NAV_ROTATE)) // newline
+    msg = msg // trim(get_bind_keyname(BIND_NAV_ROTATE_PERP)) // ": " // trim(bindnames(BIND_NAV_ROTATE_PERP)) // newline
+    msg = msg // trim(get_bind_keyname(BIND_NAV_TRANSLATE)) // ": " // trim(bindnames(BIND_NAV_TRANSLATE)) // newline
+    msg = msg // trim(get_bind_keyname(BIND_NAV_ZOOM)) // ": " // trim(bindnames(BIND_NAV_ZOOM)) // newline
+    msg = msg // trim(get_bind_keyname(BIND_NAV_RESET)) // ": " // trim(bindnames(BIND_NAV_RESET)) // newline
+    msg = msg // trim(get_bind_keyname(BIND_NAV_MEASURE)) // ": " // trim(bindnames(BIND_NAV_MEASURE)) // newline
+    call iw_tooltip(msg)
+
+  end subroutine viewmode_bar_display
+
+  !> Returns whether a pixel should be read from the picking baffer
+  !> according to the current view mode and window state.  hover =
+  !> whether the view is active and being hovered.
+  module function viewmode_activate_picking(w,hover)
+    use keybindings, only: is_bind_event, BIND_NAV_MEASURE
+    class(window), intent(inout), target :: w
+    logical, intent(in) :: hover
+    logical :: viewmode_activate_picking
+
+    viewmode_activate_picking = .false.
+    if (.not.hover) return
+
+    if (w%viewmode == vm_navigate) then
+       viewmode_activate_picking = is_bind_event(BIND_NAV_MEASURE)
+    end if
+
+  end function viewmode_activate_picking
+
+  !> Process the mouse events in the view window, according to the
+  !> different view modes. hover = whether the view is active and
+  !> being hovered.
+  module subroutine viewmode_process_events(w,hover)
     use interfaces_cimgui
     use scenes, only: scene
     use utils, only: translate, rotate, mult, invmult
@@ -1109,7 +1135,6 @@ contains
     use gui_main, only: io
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
-    integer(c_int), intent(in) :: idx(5)
 
     type(ImVec2) :: texpos, mousepos
     real(c_float) :: ratio, pos3(3), vnew(3), vold(3), axis(3)
@@ -1276,7 +1301,7 @@ contains
 
        ! atom selection
        if (hover .and. is_bind_event(BIND_NAV_MEASURE)) then
-          call w%sc%select_atom(idx)
+          call w%sc%select_atom(w%mousepos_idx)
           w%forcerender = .true.
        end if
        if (hover .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) then
@@ -1285,7 +1310,7 @@ contains
        end if
     end if
 
-  end subroutine process_events_view
+  end subroutine viewmode_process_events
 
   module subroutine draw_selection_tooltip(w,idx)
     use interfaces_cimgui
