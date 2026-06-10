@@ -137,7 +137,6 @@ module windows
      logical :: exportview ! export viewport or whole texture
      integer(c_int) :: npixel ! number of pixels in the export buffer
      logical :: transparentbg ! transparent background
-     ! rebond parameters
      ! vibrations parameters
      integer(c_int) :: ifrequnit = 0 ! frequency unit (0 = cm-1, 1 = THz)
      integer(c_int) :: iqptunit = 0 ! qpt unit (0 = fract, 1 = Cartesian (1/bohr), 2 = Cartesian (1/ang))
@@ -226,9 +225,6 @@ module windows
      procedure :: draw_exportimage
      ! vibrations
      procedure :: draw_vibrations
-     ! rebond
-     procedure :: update_rebond
-     procedure :: draw_rebond
      ! geometry
      procedure :: update_geometry
      procedure :: draw_geometry
@@ -264,11 +260,10 @@ module windows
   integer, parameter, public :: wintype_exportimage = 11
   integer, parameter, public :: wintype_vibrations = 12
   integer, parameter, public :: wintype_about = 13
-  integer, parameter, public :: wintype_rebond = 14
-  integer, parameter, public :: wintype_preferences = 15
-  integer, parameter, public :: wintype_treeplot = 16
-  integer, parameter, public :: wintype_geometry = 17
-  integer, parameter, public :: wintype_builder = 18
+  integer, parameter, public :: wintype_preferences = 14
+  integer, parameter, public :: wintype_treeplot = 15
+  integer, parameter, public :: wintype_geometry = 16
+  integer, parameter, public :: wintype_builder = 17
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -532,13 +527,6 @@ module windows
      module subroutine draw_vibrations(w)
        class(window), intent(inout), target :: w
      end subroutine draw_vibrations
-     !xx! rebond submodule !xx!
-     module subroutine update_rebond(w)
-       class(window), intent(inout), target :: w
-     end subroutine update_rebond
-     module subroutine draw_rebond(w)
-       class(window), intent(inout), target :: w
-     end subroutine draw_rebond
      !xx! geometry submodule !xx!
      module subroutine update_geometry(w)
        class(window), intent(inout), target :: w

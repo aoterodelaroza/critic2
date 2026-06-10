@@ -995,11 +995,6 @@ contains
             end if
             call iw_tooltip("Print a detailed description of this system in the output console",ttshown)
 
-            ! rebond
-            if (iw_menuitem("Recalculate Bonds...",enabled=enabled_no_threads)) &
-               idum = stack_create_window(wintype_rebond,.true.,isys=isys,orraise=-1)
-            call iw_tooltip("Recalculate the bonds in this system",ttshown)
-
             call igEndMenu()
          end if
 

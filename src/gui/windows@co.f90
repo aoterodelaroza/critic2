@@ -22,7 +22,7 @@ submodule (windows) co
 
 contains
 
-  !> Update tasks for the rebond window, before the window is
+  !> Update tasks for the console output window, before the window is
   !> created.
   module subroutine update_co(w)
     use tools_io, only: string

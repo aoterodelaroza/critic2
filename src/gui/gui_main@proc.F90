@@ -460,7 +460,7 @@ contains
        iwin_console_output, iwin_builder, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
-       wintype_about, wintype_geometry, wintype_rebond, wintype_vibrations, wintype_exportimage
+       wintype_about, wintype_geometry, wintype_vibrations, wintype_exportimage
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, get_bind_keyname, is_bind_event
@@ -645,10 +645,6 @@ contains
           launch(d_geometry) = launch(d_geometry) .or. &
              iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=isysvok)
           call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
-
-          if (iw_menuitem("Recalculate Bonds...",enabled=isysvok.and..not.are_threads_running())) &
-             idum = stack_create_window(wintype_rebond,.true.,isys=isysv,orraise=-1)
-          call iw_tooltip("Recalculate the bonds in the current system",ttshown)
 
           if (iw_menuitem("Vibrations...",enabled=isysvok)) &
              idum = stack_create_window(wintype_vibrations,.true.,idparent=iwin_view,orraise=-1)

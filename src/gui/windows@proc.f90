@@ -311,7 +311,6 @@ contains
              end if
              if (ok.and.type == wintype_scfplot.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok.and.type == wintype_geometry.and.present(isys)) ok = (win(i)%isys == isys)
-             if (ok.and.type == wintype_rebond.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok) then
                 raiseid = i
                 exit
@@ -488,10 +487,6 @@ contains
           call ferror('window_init','unknown view purpose',faterr)
        end if
        call w%create_texture_view(initial_texture_side)
-    elseif (type == wintype_rebond) then
-       ! recalculate bonds window
-       if (.not.present(isys)) &
-          call ferror('window_init','rebond requires isys',faterr)
     elseif (type == wintype_geometry) then
        ! geometry window
        if (.not.present(isys)) &
@@ -723,12 +718,6 @@ contains
           inisize%x = 62 * fontsize%x
           inisize%y = 25 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
-       elseif (w%type == wintype_rebond) then
-          w%name = "Recalculate Bonds###rebond"  // string(w%id) // c_null_char
-          w%flags = ImGuiWindowFlags_None
-          inisize%x = 55 * fontsize%x
-          inisize%y = 23 * fontsize%y
-          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_geometry) then
           w%name = "View/Edit Geometry##"  // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
@@ -766,8 +755,6 @@ contains
           call w%update_editrep()
        elseif (w%type == wintype_geometry) then
           call w%update_geometry()
-       elseif (w%type == wintype_rebond) then
-          call w%update_rebond()
        elseif (w%type == wintype_console_output) then
           call w%update_co()
        end if
@@ -806,8 +793,6 @@ contains
                 call w%draw_exportimage()
              elseif (w%type == wintype_vibrations) then
                 call w%draw_vibrations()
-             elseif (w%type == wintype_rebond) then
-                call w%draw_rebond()
              elseif (w%type == wintype_geometry) then
                 call w%draw_geometry()
              elseif (w%type == wintype_preferences) then

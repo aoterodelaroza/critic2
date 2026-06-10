@@ -640,10 +640,6 @@ contains
           iaux = stack_create_window(wintype_geometry,.true.,isys=w%view_selected,orraise=-1)
        call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
 
-       if (iw_menuitem("Recalculate Bonds...",enabled=enabled.and..not.are_threads_running())) &
-          idum = stack_create_window(wintype_rebond,.true.,isys=w%view_selected,orraise=-1)
-       call iw_tooltip("Recalculate the bonds in the current system",ttshown)
-
        if (iw_menuitem("Vibrations...",enabled=enabled)) &
           iaux = stack_create_window(wintype_vibrations,.true.,idparent=w%id,orraise=-1)
        call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
