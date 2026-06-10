@@ -55,30 +55,31 @@ module keybindings
   integer, parameter, public :: BIND_CLOSE_ALL_DIALOGS = 9 ! close all open dialogs
   integer, parameter, public :: BIND_CLOSE_FOCUSED_DIALOG = 10 ! close focused dialog
   integer, parameter, public :: BIND_OK_FOCUSED_DIALOG = 11 ! OK focused dialog
-  integer, parameter, public :: BIND_TREE_REMOVE_SYSTEM_FIELD = 12 ! tree: remove system or field
-  integer, parameter, public :: BIND_TREE_MOVE_UP = 13 ! tree: move selection up
-  integer, parameter, public :: BIND_TREE_MOVE_DOWN = 14 ! tree: move selection down
-  integer, parameter, public :: BIND_INPCON_RUN = 15 ! tree: remove system
-  integer, parameter, public :: BIND_VIEW_INC_NCELL = 16 ! view: increase number of cells
-  integer, parameter, public :: BIND_VIEW_DEC_NCELL = 17 ! view: decrease number of cells
-  integer, parameter, public :: BIND_VIEW_ALIGN_A_AXIS = 18 ! view: align view with a axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_B_AXIS = 19 ! view: align view with b axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_C_AXIS = 20 ! view: align view with c axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_X_AXIS = 21 ! view: align view with x axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_Y_AXIS = 22 ! view: align view with y axis
-  integer, parameter, public :: BIND_VIEW_ALIGN_Z_AXIS = 23 ! view: align view with z axis
-  integer, parameter, public :: BIND_VIEW_TOGGLE_ATOMS = 24 ! view: toggle atoms in the first rep
-  integer, parameter, public :: BIND_VIEW_TOGGLE_BONDS = 25 ! view: toggle bonds in the first rep
-  integer, parameter, public :: BIND_VIEW_CYCLE_LABELS = 26 ! view: cycle labels in the first rep
-  integer, parameter, public :: BIND_VIEW_TOGGLE_CELL = 27 ! view: toggle cell in the first rep
-  integer, parameter, public :: BIND_NAV_ROTATE = 28 ! view: rotate the view
-  integer, parameter, public :: BIND_NAV_ROTATE_PERP = 29 ! view: rotate around axis perp. to screen
-  integer, parameter, public :: BIND_NAV_TRANSLATE = 30 ! view: translate the view
-  integer, parameter, public :: BIND_NAV_ZOOM = 31 ! view: zoom the view
-  integer, parameter, public :: BIND_NAV_RESET = 32 ! view: reset the view
-  integer, parameter, public :: BIND_NAV_MEASURE = 33 ! view: reset the view
-  integer, parameter, public :: BIND_EDITGEOM_REMOVE = 34 ! edit geometry: remove atoms
-  integer, parameter, public :: BIND_NUM = 34 ! total number of binds
+  integer, parameter, public :: BIND_VIEWMODE_SELECT = 12 ! tree: remove system or field
+  integer, parameter, public :: BIND_TREE_REMOVE_SYSTEM_FIELD = 13 ! tree: remove system or field
+  integer, parameter, public :: BIND_TREE_MOVE_UP = 14 ! tree: move selection up
+  integer, parameter, public :: BIND_TREE_MOVE_DOWN = 15 ! tree: move selection down
+  integer, parameter, public :: BIND_INPCON_RUN = 16 ! tree: remove system
+  integer, parameter, public :: BIND_VIEW_INC_NCELL = 17 ! view: increase number of cells
+  integer, parameter, public :: BIND_VIEW_DEC_NCELL = 18 ! view: decrease number of cells
+  integer, parameter, public :: BIND_VIEW_ALIGN_A_AXIS = 19 ! view: align view with a axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_B_AXIS = 20 ! view: align view with b axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_C_AXIS = 21 ! view: align view with c axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_X_AXIS = 22 ! view: align view with x axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_Y_AXIS = 23 ! view: align view with y axis
+  integer, parameter, public :: BIND_VIEW_ALIGN_Z_AXIS = 24 ! view: align view with z axis
+  integer, parameter, public :: BIND_VIEW_TOGGLE_ATOMS = 25 ! view: toggle atoms in the first rep
+  integer, parameter, public :: BIND_VIEW_TOGGLE_BONDS = 26 ! view: toggle bonds in the first rep
+  integer, parameter, public :: BIND_VIEW_CYCLE_LABELS = 27 ! view: cycle labels in the first rep
+  integer, parameter, public :: BIND_VIEW_TOGGLE_CELL = 28 ! view: toggle cell in the first rep
+  integer, parameter, public :: BIND_NAV_ROTATE = 29 ! view: rotate the view
+  integer, parameter, public :: BIND_NAV_ROTATE_PERP = 30 ! view: rotate around axis perp. to screen
+  integer, parameter, public :: BIND_NAV_TRANSLATE = 31 ! view: translate the view
+  integer, parameter, public :: BIND_NAV_ZOOM = 32 ! view: zoom the view
+  integer, parameter, public :: BIND_NAV_RESET = 33 ! view: reset the view
+  integer, parameter, public :: BIND_NAV_MEASURE = 34 ! view: reset the view
+  integer, parameter, public :: BIND_EDITGEOM_REMOVE = 35 ! edit geometry: remove atoms
+  integer, parameter, public :: BIND_NUM = 35 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -93,6 +94,7 @@ module keybindings
      "Close all dialogs               ",& ! BIND_CLOSE_ALL_DIALOGS
      "Close focused dialog            ",& ! BIND_CLOSE_FOCUSED_DIALOG
      "OK in focused dialog            ",& ! BIND_OK_FOCUSED_DIALOG
+     "Select                          ",& ! BIND_VIEWMODE_SELECT
      "Remove selected system or field ",& ! BIND_TREE_REMOVE_SYSTEM_FIELD
      "Select previous system in tree  ",& ! BIND_TREE_MOVE_UP
      "Select next system in tree      ",& ! BIND_TREE_MOVE_DOWN
@@ -131,21 +133,23 @@ module keybindings
 
   ! The keybinding groups. The first group (1) must be the global.
   integer, parameter, public :: group_global = 1   ! keybindings that apply everywhere
-  integer, parameter, public :: group_tree = 2     ! if the tree is active
-  integer, parameter, public :: group_inpcon = 3   ! the input console is active
-  integer, parameter, public :: group_dialog = 4   ! a dialog is active
-  integer, parameter, public :: group_view = 5     ! if the view is active
-  integer, parameter, public :: group_editgeom = 6 ! if the edit geometry window is active
-  integer, parameter, public :: group_NUM = 6 ! total number of groups
+  integer, parameter, public :: group_viewmode = 2 ! view mouse interaction modes
+  integer, parameter, public :: group_tree = 3     ! if the tree is active
+  integer, parameter, public :: group_inpcon = 4   ! the input console is active
+  integer, parameter, public :: group_dialog = 5   ! a dialog is active
+  integer, parameter, public :: group_view = 6     ! if the view is active
+  integer, parameter, public :: group_editgeom = 7 ! if the edit geometry window is active
+  integer, parameter, public :: group_NUM = 7 ! total number of groups
 
   ! Names of the keybinding groups
-  character(len=18), parameter, public :: groupnames(group_NUM) = (/&
-     "Global            ",&
-     "Tree Window       ",&
-     "Input Window      ",&
-     "Dialogs           ",&
-     "View Window       ",&
-     "View/Edit Geometry"/)
+  character(len=28), parameter, public :: groupnames(group_NUM) = (/&
+     "Global                      ",&
+     "View Mouse Interaction Modes",&
+     "Tree Window                 ",&
+     "Input Window                ",&
+     "Dialogs                     ",&
+     "View Window                 ",&
+     "View/Edit Geometry          "/)
 
   ! Bind groups assignment
   integer, parameter, public :: groupbind(BIND_NUM) = (/&
@@ -160,6 +164,7 @@ module keybindings
      group_global,&   ! BIND_CLOSE_ALL_DIALOGS
      group_dialog,&   ! BIND_CLOSE_FOCUSED_DIALOG
      group_dialog,&   ! BIND_OK_FOCUSED_DIALOG
+     group_viewmode,& ! BIND_VIEWMODE_SELECT
      group_tree,&     ! BIND_TREE_REMOVE_SYSTEM_FIELD
      group_tree,&     ! BIND_TREE_MOVE_UP
      group_tree,&     ! BIND_TREE_MOVE_DOWN
@@ -183,6 +188,45 @@ module keybindings
      group_view,&     ! BIND_NAV_RESET
      group_view,&     ! BIND_NAV_MEASURE
      group_editgeom/) ! BIND_EDITGEOM_REMOVE
+
+  ! Full binding. If true, requires pressing a key (not just a
+  ! modified) to trigger.
+  logical, parameter, public :: bindfull(BIND_NUM) = (/&
+     .true.,&  ! BIND_QUIT
+     .true.,&  ! BIND_NEW
+     .true.,&  ! BIND_OPEN
+     .true.,&  ! BIND_CLOSE
+     .true.,&  ! BIND_REOPEN
+     .true.,&  ! BIND_GEOMETRY
+     .true.,&  ! BIND_SAVE
+     .true.,&  ! BIND_EXPORT_NOW
+     .true.,&  ! BIND_CLOSE_ALL_DIALOGS
+     .true.,&  ! BIND_CLOSE_FOCUSED_DIALOG
+     .true.,&  ! BIND_OK_FOCUSED_DIALOG
+     .false.,& ! BOND_VIEWMODE_SELECT
+     .true.,&  ! BIND_TREE_REMOVE_SYSTEM_FIELD
+     .true.,&  ! BIND_TREE_MOVE_UP
+     .true.,&  ! BIND_TREE_MOVE_DOWN
+     .true.,&  ! BIND_INPCON_RUN
+     .true.,&  ! BIND_VIEW_INC_NCELL
+     .true.,&  ! BIND_VIEW_DEC_NCELL
+     .true.,&  ! BIND_VIEW_ALIGN_A_AXIS
+     .true.,&  ! BIND_VIEW_ALIGN_B_AXIS
+     .true.,&  ! BIND_VIEW_ALIGN_C_AXIS
+     .true.,&  ! BIND_VIEW_ALIGN_X_AXIS
+     .true.,&  ! BIND_VIEW_ALIGN_Y_AXIS
+     .true.,&  ! BIND_VIEW_ALIGN_Z_AXIS
+     .true.,&  ! BIND_VIEW_TOGGLE_ATOMS
+     .true.,&  ! BIND_VIEW_TOGGLE_BONDS
+     .true.,&  ! BIND_VIEW_CYCLE_LABELS
+     .true.,&  ! BIND_VIEW_TOGGLE_CELL
+     .true.,&  ! BIND_NAV_ROTATE
+     .true.,&  ! BIND_NAV_ROTATE_PERP
+     .true.,&  ! BIND_NAV_TRANSLATE
+     .true.,&  ! BIND_NAV_ZOOM
+     .true.,&  ! BIND_NAV_RESET
+     .true.,&  ! BIND_NAV_MEASURE
+     .true./)  ! BIND_EDITGEOM_REMOVE
 
   ! module procedure interfaces
   interface

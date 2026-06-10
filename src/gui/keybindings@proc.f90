@@ -60,6 +60,7 @@ submodule (keybindings) proc
   !xx! private procedures
   ! function hkey(key,mod,group)
   ! function get_current_mod() result(mod)
+  ! function mod_to_imgui(mod) result(imod)
 
 contains
 
@@ -185,6 +186,7 @@ contains
     call set_bind(BIND_CLOSE_ALL_DIALOGS,ImGuiKey_Backspace,mod_none)
     call set_bind(BIND_CLOSE_FOCUSED_DIALOG,ImGuiKey_Escape,mod_none)
     call set_bind(BIND_OK_FOCUSED_DIALOG,ImGuiKey_Enter,mod_ctrl)
+    call set_bind(BIND_VIEWMODE_SELECT,ImGuiKey_None,mod_shift)
     call set_bind(BIND_TREE_REMOVE_SYSTEM_FIELD,ImGuiKey_Delete,mod_none)
     call set_bind(BIND_TREE_MOVE_UP,ImGuiKey_K,mod_none)
     call set_bind(BIND_TREE_MOVE_DOWN,ImGuiKey_J,mod_none)
@@ -242,9 +244,9 @@ contains
     oktext = (modnow >= 2) .or. .not.io%WantTextInput
 
     ! check if any bind is triggered
-    if (key == ImGuiKey_None .or. mod /= modnow) then
-       ! no key or the mod is not correct
-       return
+    if (key == ImGuiKey_None) then
+       ! no key or the mod is not correct -> only trigger if partial bind, mod matches, and held_
+       is_bind_event = .not.bindfull(bind) .and. mod == modnow .and. held_
     elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END .and.oktext) then
        ! correct key ID and not keyboard captured or inputing text
        if (held_) then

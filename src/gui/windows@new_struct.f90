@@ -42,11 +42,11 @@ contains
     use param, only: newline, bohrtoa
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str, str2, stropt
+    character(kind=c_char,len=:), allocatable, target :: str
     logical(c_bool) :: ldum, doquit
     logical :: ok
     type(ImVec2) :: szero, sz, szavail
-    integer :: i, idx, lu
+    integer :: i, lu
     type(crystalseed), allocatable :: seed_(:)
     integer(c_int) :: iunitat
 

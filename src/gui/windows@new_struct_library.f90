@@ -41,7 +41,7 @@ contains
     use param, only: bohrtoa
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str, stropt
+    character(kind=c_char,len=:), allocatable, target :: str
     logical(c_bool) :: ldum, doquit
     logical :: ok, saveismol, doubleclicked
     type(ImVec2) :: szero, sz, szavail

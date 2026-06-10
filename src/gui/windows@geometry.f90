@@ -45,7 +45,7 @@ contains
     use global, only: bondfactor_def, bonddelta_def
     use systems, only: nsys, sysc, sys, sys_init, ok_system, reread_system_from_file,&
        atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac, atlisttype_ncel_bohr,&
-       atlisttype_ncel_ang, atlisttype_nmol, celltransform_standard, celltransform_primitive,&
+       atlisttype_ncel_ang, atlisttype_nmol, celltransform_standard,&
        celltransform_primstd, celltransform_niggli, celltransform_delaunay, lastchange_rebond
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene, ColorHighlightBondScene
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
@@ -125,7 +125,6 @@ contains
     integer, parameter :: iaction_reorder_molecules = 17
 
     ! edit actions on highglighted atoms
-    integer, parameter :: edit_none = 0
     integer, parameter :: edit_remove = 1
     integer, parameter :: edit_merge = 2
     integer, parameter :: edit_duplicate = 3
@@ -2427,11 +2426,8 @@ contains
     ! draw the row of buttons controlling the edition of the system
     subroutine draw_edit_buttons()
 
-      integer, parameter :: mbuf = 128
-
       logical :: ldum, ok
       integer :: izout
-      real*8 :: xnew(3)
       character(len=:), allocatable :: str
 
       ! highlight color

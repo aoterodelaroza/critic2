@@ -1084,10 +1084,12 @@ contains
 
   !> Process the user keybindings that set the viewmode
   module subroutine viewmode_set_mode(w)
+    use keybindings, only: is_bind_event, BIND_VIEWMODE_SELECT
     use gui_main, only: io
     class(window), intent(inout), target :: w
 
-    if (igIsKeyDown(ImGuiKey_ModShift).and..not.io%WantTextInput) then
+    if (is_bind_event(BIND_VIEWMODE_SELECT,held=.true.)) then
+    ! if (igIsKeyDown(ImGuiKey_ModShift).and..not.io%WantTextInput) then
        w%viewmode = vm_select
        w%viewmode_transient = .true.
     end if
@@ -1096,16 +1098,14 @@ contains
 
   !> Returns the tooltip message for the current viewmode
   module subroutine viewmode_bar_display(w)
-    use gui_main, only: ColorHighlightText, tooltip_delay, g
+    use gui_main, only: tooltip_delay, g
     use keybindings, only: get_bind_keyname, bindnames, BIND_NAV_ROTATE, &
        BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
        BIND_NAV_MEASURE
     use utils, only: iw_combo_simple, iw_tooltip, igIsItemHovered_delayed, iw_text
     use tools_io, only: string
-    use param, only: newline
     class(window), intent(inout), target :: w
 
-    real(c_float) :: rgba(4)
     integer :: ll, i, viewmode_before
 
     logical, save :: ttshown = .false. ! tooltip flag

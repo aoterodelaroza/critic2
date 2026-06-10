@@ -66,7 +66,6 @@ contains
     integer :: isys, itype
     logical :: doquit, ok, ldum
     logical :: changed
-    character(kind=c_char,len=1024), target :: txtinp
     type(ImVec2) :: szavail
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -907,7 +906,6 @@ contains
     real(c_float) :: sqw
     integer(c_int) :: nc(3)
 
-    character(kind=c_char,len=:), allocatable, target :: str2
     logical :: ch
 
     ! initialize
