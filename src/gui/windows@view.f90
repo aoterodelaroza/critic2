@@ -74,7 +74,7 @@ contains
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
     use systems, only: sysc, sys, sys_init, nsys, ok_system, are_threads_running
-    use gui_main, only: g, fontsize, lockbehavior, tree_select_updates_view
+    use gui_main, only: g, fontsize, lockbehavior, tree_select_updates_view, io
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -831,6 +831,15 @@ contains
     call igGetItemRectMax(w%v_rmax)
     call igGetMousePos(pos)
 
+    ! shift key enters select mode transiently (igIsKeyPressed fires once per
+    ! press, so an explicit combo change while shift is held is not overridden)
+    if (goodsys) then
+       if (igIsKeyDown(ImGuiKey_ModShift).and..not.io%WantTextInput) then
+          w%viewmode = vm_select
+          w%viewmode_transient = .true.
+       end if
+    end if
+
     ! get hover and needpick
     hover = goodsys .and. w%ilock == ilock_no
     if (hover) hover = igIsItemHovered(ImGuiHoveredFlags_None)
@@ -1091,14 +1100,17 @@ contains
     class(window), intent(inout), target :: w
 
     real(c_float) :: rgba(4)
-    integer :: ll, i
+    integer :: ll, i, viewmode_before
 
     logical, save :: ttshown = .false. ! tooltip flag
 
     integer, parameter :: navigate_tips(*) = (/BIND_NAV_ROTATE, BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE,&
        BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE/)
 
+    ! the combo box; if the user selects the mode explicitly, it is never transient
+    viewmode_before = w%viewmode
     call iw_combo_simple("##viewmode","Navigate"//c_null_char//"Select"//c_null_char,w%viewmode)
+    if (w%viewmode /= viewmode_before) w%viewmode_transient = .false.
 
     if (w%viewmode == vm_navigate) then
        ll = 0
@@ -1330,6 +1342,12 @@ contains
           call w%sc%select_atom((/0,0,0,0,0/))
           w%forcerender = .true.
        end if
+    end if
+
+    ! if this is a transient view mode, reset to default (navigation)
+    if (w%viewmode_transient) then
+       w%viewmode = vm_navigate
+       w%viewmode_transient = .false.
     end if
 
   end subroutine viewmode_process_events
