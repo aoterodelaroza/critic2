@@ -41,6 +41,12 @@ module windows
   integer, parameter, public :: vm_navigate = 0
   integer, parameter, public :: vm_select   = 1
 
+  ! view mode volatility
+  integer, parameter, public :: vmv_normal = 0 ! permanent until changed
+  integer, parameter, public :: vmv_transient = 1 ! transient: resets every frame
+  integer, parameter, public :: vmv_window_forced = 2 ! window-forced: lasts until deactivated by trigger
+
+
   ! user data for the file open dialog
   type :: dialog_userdata
      type(c_ptr) :: dptr = c_null_ptr ! the pointer for the file dialog
@@ -100,8 +106,11 @@ module windows
      integer :: view_selected = 1 ! the system selected in the view window
      logical :: forcerender = .true. ! force render of the scene
      logical :: lowresrender = .false. ! last render was at reduced (interactive) resolution
-     integer :: viewmode = vm_navigate ! persistent view mode (navigate/select/remove)
-     logical :: viewmode_transient = .false. ! transient view mode; reset to false each frame
+     integer :: viewmode = vm_navigate ! view mode (see vm_* above)
+     integer :: viewmode_volatility = vmv_normal ! view mode volatility (see vmv_* above)
+     integer :: viewmode_wf_owner = 0 ! window ID (win(:)) of the routine that set the window_forced mode
+     character(len=:), allocatable :: viewmode_wf_msg ! message shown in the bar while in window_forced mode
+     integer(c_int) :: viewmode_wf_idx(5) = 0 ! window_forced-mode pick result, mousepos_idx layout (0 = none/cancelled)
      type(ImVec2) :: mousepos_lastpick ! mouse position at the last atom pick
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
      type(ImVec2) :: mposlast ! mouse parameters ----v
@@ -152,6 +161,9 @@ module windows
      integer(c_int) :: geometry_sortdir = 1 ! sort table with this direction
      real*8 :: geometry_input_coord(3) = 0d0 ! coordinates for the new atom in add button
      integer :: geometry_input_species = 1 ! species for the new atom in add button
+     integer :: geometry_addbond_iat = 0 ! cell atom waiting for an add-bond pick (0 = idle)
+     integer :: geometry_addbond_iview = 0 ! view window commanded for the add-bond pick
+     real*8 :: geometry_addbond_time = 0d0 ! time the add-bond pick was commanded (to detect stale ids)
      character(len=:), allocatable :: geometry_expression ! expression for column in atoms table
      logical :: geometry_expression_ok = .false. ! is the expression ok?
      character(len=:), allocatable :: geometry_expr_error ! error for expression
@@ -185,6 +197,7 @@ module windows
      procedure :: create_texture_view ! create the texture for the view
      procedure :: delete_texture_view ! delete the texture for the view
      procedure :: viewmode_set_mode ! set the viewmode based on user keypresses
+     procedure :: viewmode_set_forced ! enter the forced transient view mode (pick an atom)
      procedure :: viewmode_bar_display ! bar display for the current view mode
      procedure :: viewmode_activate_picking ! activate picking by view mode
      procedure :: viewmode_process_events ! process mouse events according to view mode
@@ -393,6 +406,11 @@ module windows
      module subroutine viewmode_set_mode(w)
        class(window), intent(inout), target :: w
      end subroutine viewmode_set_mode
+     module subroutine viewmode_set_forced(w,message,idcaller)
+       class(window), intent(inout), target :: w
+       character(len=*), intent(in) :: message
+       integer, intent(in) :: idcaller
+     end subroutine viewmode_set_forced
      module subroutine viewmode_bar_display(w)
        class(window), intent(inout), target :: w
      end subroutine viewmode_bar_display

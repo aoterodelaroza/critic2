@@ -39,6 +39,7 @@ contains
   module subroutine draw_geometry(w)
     use representations, only: reptype_atoms
     use windows, only: iwin_view, iwin_tree
+    use interfaces_glfw, only: glfwGetTime
     use crystalmod, only: holo_string, pointgroup_info
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITGEOM_REMOVE
@@ -61,6 +62,7 @@ contains
     logical :: doquit, dorestore, clicked, forcesort, ch, lch
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:16)
     integer :: ihlbond, ihlbtn ! bonds tab: hovered central atom and hovered neighbor button (cell ids)
+    integer :: ipickhl ! cell id of the atom awaiting an add-bond pick (0 = none), highlighted
     integer :: ibrm1, ibrm2, lbrm(3) ! bonds tab: deferred bond removal (cell ids + lattice vector)
     integer :: ibord1, ibord2, lbord(3), ibordval ! bonds tab: deferred bond-order change (cell ids + lvec + order)
     integer :: table_hltype
@@ -88,7 +90,7 @@ contains
     character(len=:), allocatable :: bondglyph, bondword ! bonds tab: bond-type glyph and word
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
-    logical :: havergb, havergb_, ldum, ok
+    logical :: havergb, havergb_, ldum, ok, oksys
     real*8 :: x0(3), x6(6), xold(3), x6old(6), res
     real*8 :: stdrot(3,3), stdcom(3), stdext, stdaxlen ! transient std-orientation axes
     integer :: ieuler_drag ! which Euler angle (1/2/3) is being dragged (0 = none)
@@ -194,6 +196,9 @@ contains
        w%geometry_sortdir = 1
        w%geometry_input_coord = 0d0
        w%geometry_input_species = 1
+       w%geometry_addbond_iat = 0
+       w%geometry_addbond_iview = 0
+       w%geometry_addbond_time = 0d0
        w%geometry_cell_simple = .true.
        w%geometry_cell_nrep = 1_c_int
        w%geometry_cell_intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
@@ -216,6 +221,39 @@ contains
        return
     end if
     isys = w%isys
+
+    ! handle a pending add-bond pick commanded to a view window
+    ipickhl = 0
+    if (w%geometry_addbond_iat > 0) then
+       iview = w%geometry_addbond_iview
+       oksys = (iview >= 1 .and. iview <= nwin)
+       if (oksys) oksys = win(iview)%isinit .and. win(iview)%isopen .and. win(iview)%type == wintype_view
+       ok = oksys
+       if (ok) ok = win(iview)%view_selected == isys .and. win(iview)%viewmode_wf_owner == w%id .and.&
+          sysc(isys)%timelastchange_geometry < w%geometry_addbond_time
+       if (.not.ok) then
+          ! the view is gone, shows another system, another window took over
+          ! the pick, or the geometry changed (stale cell-atom ids): cancel
+          if (oksys) then
+             if (win(iview)%viewmode_wf_owner == w%id) win(iview)%viewmode_volatility = vmv_normal
+          end if
+          w%geometry_addbond_iat = 0
+          w%geometry_addbond_iview = 0
+       elseif (win(iview)%viewmode_volatility /= vmv_window_forced) then
+          ! the pick finished: add a single bond if a valid atom was clicked
+          ! (self-bonds and duplicates are rejected by add_bond)
+          if (win(iview)%viewmode_wf_idx(1) > 0) &
+             call sysc(isys)%add_bond(w%geometry_addbond_iat,win(iview)%viewmode_wf_idx(1),&
+                win(iview)%viewmode_wf_idx(2:4),1)
+          win(iview)%viewmode_wf_idx = 0
+          w%geometry_addbond_iat = 0
+          w%geometry_addbond_iview = 0
+       else
+          ! the pick is in progress: highlight the atom receiving the bond
+          ! (applied in the hover-highlight section at the end of the draw)
+          ipickhl = w%geometry_addbond_iat
+       end if
+    end if
 
     ! set the initial atomtype
     if (w%firstpass) then
@@ -1483,6 +1521,16 @@ contains
 
                    ! bonded atoms (one colored button per neighbor)
                    if (igTableSetColumnIndex(2)) then
+                      ! "+" button: pick an atom in the view to add a bond to this atom
+                      if (iw_button("+##addbond" // suffix,disabled=(iview == 0))) then
+                         w%geometry_addbond_iat = i
+                         w%geometry_addbond_iview = iview
+                         w%geometry_addbond_time = glfwGetTime()
+                         call win(iview)%viewmode_set_forced("Please pick an atom to bond to atom "//&
+                            string(i) // "...",w%id)
+                      end if
+                      call iw_tooltip("Add a bond to this atom: click, then pick an atom in the view window",ttshown)
+
                       ncon = 0
                       if (allocated(sys(isys)%c%nstar)) ncon = sys(isys)%c%nstar(i)%ncon
                       do j = 1, ncon
@@ -1536,7 +1584,7 @@ contains
                          ! the bond-type glyph). Left-click opens a menu,
                          ! right-click removes the bond.
                          ldum = iw_button(bondglyph // " " // string(jj) //&
-                            "##bond" // suffix // "_" // string(j),sameline=(j>1))
+                            "##bond" // suffix // "_" // string(j),sameline=.true.)
                          if (havergb_) call igPopStyleColor(4)
 
                          ! hovering highlights the row's atom and marks this
@@ -1698,13 +1746,14 @@ contains
 
     call igEndGroup()
 
-    ! hover highlight
+    ! hover highlight, plus the atom awaiting an add-bond pick (transient
+    ! highlights clear each frame, so they must go in a single call)
     if (ihlbond > 0) then
        ! bonds tab: highlight the hovered atom (central color) and its bonded
        ! neighbors (a different color; lighter for a hovered neighbor button)
        ncon = 0
        if (allocated(sys(isys)%c%nstar)) ncon = sys(isys)%c%nstar(ihlbond)%ncon
-       allocate(ihigh(1+ncon),irgba(4,1+ncon))
+       allocate(ihigh(2+ncon),irgba(4,2+ncon))
        ihigh(1) = ihlbond
        irgba(:,1) = ColorHighlightScene
        do j = 1, ncon
@@ -1717,10 +1766,19 @@ contains
              irgba(:,1+j) = ColorHighlightBondScene
           end if
        end do
-       call sysc(isys)%highlight_atoms(.true.,ihigh,atlisttype_ncel_frac,irgba)
+       nhigh = 1 + ncon
+       if (ipickhl > 0) then
+          nhigh = nhigh + 1
+          ihigh(nhigh) = ipickhl
+          irgba(:,nhigh) = ColorHighlightScene
+       end if
+       call sysc(isys)%highlight_atoms(.true.,ihigh(1:nhigh),atlisttype_ncel_frac,irgba(:,1:nhigh))
        deallocate(ihigh,irgba)
-    elseif (ihighlight > 0) then
+    elseif (ihighlight > 0 .and. ipickhl == 0) then
        call sysc(isys)%highlight_atoms(.true.,(/ihighlight/),table_hltype,&
+          reshape(ColorHighlightScene,(/4,1/)))
+    elseif (ipickhl > 0) then
+       call sysc(isys)%highlight_atoms(.true.,(/ipickhl/),atlisttype_ncel_frac,&
           reshape(ColorHighlightScene,(/4,1/)))
     end if
 

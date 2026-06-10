@@ -1405,7 +1405,7 @@ contains
 
     type(crystalseed) :: seed
     real*8 :: xx(3), dx(3), dxc(3)
-    integer :: j, k
+    integer :: k
     logical :: copybonding_
 
     ! consistency checks
@@ -1476,7 +1476,7 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
-    real*8 :: rnew(3), rmat(3,3), rrot(3,3), xcm(3), roff(3), eul(3)
+    real*8 :: rnew(3), rmat(3,3), rrot(3,3), xcm(3)
     integer :: j, k, lvec(3)
     logical :: copybonding_
 
