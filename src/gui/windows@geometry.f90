@@ -1509,22 +1509,26 @@ contains
                 do i = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
                    suffix = "_" // string(i)
                    call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                   icol = -1
 
                    ! id (with a row-spanning selectable to detect hover)
-                   if (igTableSetColumnIndex(0)) then
+                   icol = icol + 1
+                   if (igTableSetColumnIndex(icol)) then
                       call igAlignTextToFramePadding()
                       call iw_text(string(i,ndigit))
                       if (iw_highlight_selectable("##bondselect" // suffix)) ihlbond = i
                    end if
 
                    ! atom name
-                   if (igTableSetColumnIndex(1)) then
+                   icol = icol + 1
+                   if (igTableSetColumnIndex(icol)) then
                       call igAlignTextToFramePadding()
                       call iw_text(trim(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%name))
                    end if
 
                    ! bonded atoms (one colored button per neighbor)
-                   if (igTableSetColumnIndex(2)) then
+                   icol = icol + 1
+                   if (igTableSetColumnIndex(icol)) then
                       ! "+" button: pick an atom in the view to add a bond to this atom
                       if (iw_button("+##addbond" // suffix,disabled=(iview == 0))) then
                          w%geometry_addbond_iat = i
