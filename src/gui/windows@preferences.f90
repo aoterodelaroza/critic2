@@ -232,7 +232,11 @@ contains
              flags = ior(flags,ImGuiWindowFlags_NoMove)
              call igOpenPopup_Str(c_loc(str2),ImGuiPopupFlags_None)
              if (igBeginPopupModal(c_loc(str2),logical(.true.,c_bool),flags)) then
-                call iw_text("Please press a key or mouse button.")
+                if (bindfull(getbind)) then
+                   call iw_text("Please press a key or mouse button.")
+                else
+                   call iw_text("Please press a key, mouse button, or modifier combination followed by SPACE to accept.")
+                end if
                 if (set_bind_from_user_input(getbind)) then
                    getbind = -1
                    use_keybindings = .true.

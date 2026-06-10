@@ -101,7 +101,7 @@ contains
     ! erase the key+mod combination for this bind from the keymap
     oldkey = keybind(bind)
     oldmod = modbind(bind)
-    if (oldkey /= ImGuiKey_None) then
+    if (oldkey /= ImGuiKey_None .or. oldmod /= mod_none) then
        hk = hkey(oldkey,oldmod,group)
        if (keymap%iskey(hk)) call keymap%delkey(hk)
     end if
@@ -155,6 +155,8 @@ contains
     if (igIsMouseDown(ImGuiMouseButton_Middle)) key = ImGuiKey_MouseMiddle
     if (abs(io%MouseWheel) > 1e-8_c_float) key = ImGuiKey_MouseScroll
     if (key /= -1) then
+       if (.not.bindfull(bind).and.key==ImGuiKey_Space) &
+          key = ImGuiKey_None
        set_bind_from_user_input = .true.
        call set_bind(bind,key,mod)
     else
