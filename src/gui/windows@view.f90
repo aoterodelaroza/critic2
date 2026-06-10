@@ -1080,24 +1080,37 @@ contains
 
   !> Returns the tooltip message for the current viewmode
   module subroutine viewmode_bar_display(w)
+    use gui_main, only: ColorHighlightText
     use keybindings, only: get_bind_keyname, bindnames, BIND_NAV_ROTATE, &
        BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
        BIND_NAV_MEASURE
     use utils, only: iw_combo_simple, iw_tooltip
+    use tools_io, only: string
     use param, only: newline
     class(window), intent(inout), target :: w
 
     character(len=:), allocatable, target :: msg
+    real(c_float) :: rgba(4)
+    integer :: ll
+
+    integer, parameter :: navigate_tips(*) = (/BIND_NAV_ROTATE, BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE,&
+       BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE/)
+
+    integer :: i
 
     call iw_combo_simple("##viewmode","Navigate"//c_null_char//"Select"//c_null_char,w%viewmode)
 
-    msg = trim(get_bind_keyname(BIND_NAV_ROTATE)) // ": " // trim(bindnames(BIND_NAV_ROTATE)) // newline
-    msg = msg // trim(get_bind_keyname(BIND_NAV_ROTATE_PERP)) // ": " // trim(bindnames(BIND_NAV_ROTATE_PERP)) // newline
-    msg = msg // trim(get_bind_keyname(BIND_NAV_TRANSLATE)) // ": " // trim(bindnames(BIND_NAV_TRANSLATE)) // newline
-    msg = msg // trim(get_bind_keyname(BIND_NAV_ZOOM)) // ": " // trim(bindnames(BIND_NAV_ZOOM)) // newline
-    msg = msg // trim(get_bind_keyname(BIND_NAV_RESET)) // ": " // trim(bindnames(BIND_NAV_RESET)) // newline
-    msg = msg // trim(get_bind_keyname(BIND_NAV_MEASURE)) // ": " // trim(bindnames(BIND_NAV_MEASURE)) // newline
-    call iw_tooltip(msg)
+    if (w%viewmode == vm_navigate) then
+       ll = 0
+       do i = 1, size(navigate_tips,1)
+          ll = max(ll,len_trim(get_bind_keyname(navigate_tips(i))))
+       end do
+       do i = 1, size(navigate_tips,1)
+          msg = string(trim(get_bind_keyname(navigate_tips(i))) // ":",length=ll+2) //&
+             trim(bindnames(navigate_tips(i)))
+          call iw_tooltip(msg,nowrap=.true.)
+       end do
+    end if
 
   end subroutine viewmode_bar_display
 
