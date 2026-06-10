@@ -119,7 +119,8 @@ contains
   module subroutine representation_set_defaults(r,style,itype)
     use scenes, only: style_phong
     use systems, only: sys, sys_ready, ok_system
-    use global, only: bondfactor
+    use global, only: bondfactor_def, bonddelta_def
+    use param, only: atmcov0
     class(representation), intent(inout) :: r
     integer, intent(in) :: style
     integer, intent(in) :: itype
@@ -177,12 +178,9 @@ contains
 
     !--> bonds
     if (itype == 0 .or. itype == 2) then
-       r%bond_distancetype = 0
-       r%bond_dmin = 0d0
-       r%bond_dmax = 0d0
-       r%bond_bfmin = 0d0
-       r%bond_bfmax = bondfactor
-       r%bond_radtype = (/0_c_int,0_c_int/)
+       r%bond_atmrad = atmcov0
+       r%bond_bfactor = bondfactor_def
+       r%bond_bdelta = bonddelta_def
        r%bond_color_style = 0
        r%bond_border_size = bondborder_def
        r%bond_rad = bondrad_def
@@ -1268,49 +1266,18 @@ contains
   !> the geometry in system isys.
   module subroutine generate_neighstars(d,r)
     use systems, only: sys, sys_ready, ok_system
-    use param, only: atmcov, atmvdw
     class(bond_geom_style), intent(inout) :: d
     type(representation), intent(in) :: r
-
-    integer :: i, j
-    real*8 :: r1cov, r1vdw, r2cov, r2vdw
-    real*8, allocatable :: rij_t(:,:,:)
 
     ! check all the info is available
     if (.not.d%isinit) return
     if (.not.ok_system(r%id,sys_ready)) return
 
-    ! allocate temporary data for rij table
-    allocate(rij_t(sys(r%id)%c%nspc,2,sys(r%id)%c%nspc))
-
-    ! fill table data
-    do i = 1, sys(r%id)%c%nspc
-       r1cov = atmcov(sys(r%id)%c%spc(i)%z)
-       r1vdw = atmvdw(sys(r%id)%c%spc(i)%z)
-       do j = i, sys(r%id)%c%nspc
-          r2cov = atmcov(sys(r%id)%c%spc(j)%z)
-          r2vdw = atmvdw(sys(r%id)%c%spc(j)%z)
-          if (r%bond_distancetype == 0) then
-             if (r%bond_radtype(1) == 0) then
-                rij_t(i,1,j) = r%bond_bfmin * (r1cov + r2cov)
-             else
-                rij_t(i,1,j) = r%bond_bfmin * (r1vdw + r2vdw)
-             end if
-             if (r%bond_radtype(2) == 0) then
-                rij_t(i,2,j) = r%bond_bfmax * (r1cov + r2cov)
-             else
-                rij_t(i,2,j) = r%bond_bfmax * (r1vdw + r2vdw)
-             end if
-          else
-             rij_t(i,1,j) = r%bond_dmin / bohrtoa
-             rij_t(i,2,j) = r%bond_dmax / bohrtoa
-          end if
-          rij_t(j,:,i) = rij_t(i,:,j)
-       end do
-    end do
-
-    ! generate the new neighbor star
-    call sys(r%id)%c%find_asterisms(d%nstar,rij=rij_t)
+    ! generate the new neighbor star using this representation's bonding
+    ! parameters: per-species covalent radii and bond factor for non-metal
+    ! bonds, bond delta for metal bonds (same criteria as the geometry window)
+    call sys(r%id)%c%find_asterisms(d%nstar,atmrad=r%bond_atmrad,bondfac=r%bond_bfactor,&
+       bonddelta=r%bond_bdelta)
 
   end subroutine generate_neighstars
 

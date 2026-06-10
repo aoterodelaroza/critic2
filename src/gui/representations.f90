@@ -20,7 +20,8 @@ module representations
   use iso_c_binding
   use types, only: neighstar
   use shapes, only: dl_sphere, dl_cylinder, dl_string, scene_objects
-  use param, only: bohrtoa, eye
+  use param, only: bohrtoa, eye, maxzat0, atmcov0
+  use global, only: bondfactor_def, bonddelta_def
   implicit none
 
   private
@@ -170,12 +171,9 @@ module representations
      !--> bonds
      logical :: bonds_display ! whether to draw the bonds
      type(bond_geom_style) :: bond_style ! bond styles
-     integer(c_int) :: bond_distancetype ! selector for distance type (0=factor,1=range)
-     real*8 :: bond_dmin ! distance limits (angstrom)
-     real*8 :: bond_dmax ! distance limits (angstrom)
-     real*8 :: bond_bfmin ! bondfactor limits
-     real*8 :: bond_bfmax ! bondfactor limits
-     integer(c_int) :: bond_radtype(2) ! radii type for min and max (0=covalent,1=vdw)
+     real*8 :: bond_atmrad(0:maxzat0) = atmcov0 ! per-species covalent radii for bonding (bohr)
+     real*8 :: bond_bfactor = bondfactor_def ! bond factor for non-metal bonding
+     real*8 :: bond_bdelta = bonddelta_def ! bond delta for metal bonding (bohr)
      integer(c_int) :: bond_color_style ! bond style (0=single color, 1=two colors)
      real*8 :: bond_rad ! radius
      real*8 :: bond_border_size ! bond border size

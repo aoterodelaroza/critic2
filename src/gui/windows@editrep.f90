@@ -160,7 +160,8 @@ contains
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_combo_simple, iw_button, iw_calcwidth,&
        iw_radiobutton, iw_calcheight, iw_clamp_color3, iw_checkbox, iw_coloredit,&
        iw_highlight_selectable, iw_dragfloat_real8, iw_inputtext, iw_inputint
-    use param, only: atmcov, atmvdw, newline, jmlcol, jmlcol2, bohrtoa
+    use param, only: atmcov, atmvdw, atmcov0, newline, jmlcol, jmlcol2, bohrtoa
+    use global, only: bondfactor_def, bonddelta_def
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
@@ -598,68 +599,83 @@ contains
              ldum = iw_radiobutton("Custom bonds",bool=w%rep%bond_style%use_sys_nstar,boolval=.false.,sameline=.true.)
              call iw_tooltip("Draw bonds computed for this representation with custom distance criteria",ttshown)
 
-             ! recalculation controls, only shown for custom bonds
+             ! recalculation controls, only shown for custom bonds (same
+             ! criteria as the geometry window's Recalculate Bonds section)
              if (.not.w%rep%bond_style%use_sys_nstar) then
-                call igAlignTextToFramePadding()
-                call iw_text("Distances ")
-                call iw_combo_simple("##tablebondglobaldistcombo","Factor"//c_null_char//"Range"//c_null_char,&
-                   w%rep%bond_distancetype,sameline_nospace=.true.)
-                call iw_tooltip("Draw bonds whose lengths are a factor of the sum of atomic&
-                   & radii (Factor) or give bond distance range (Range)",ttshown)
+                ! explanation of the bonding criteria
+                call iw_text("Atoms A and B are bonded if:")
+                call iw_text("  A and B non-metals: d < (r_cov(i)+r_cov(j))*f"//newline//&
+                   "  A or B metal:       d < d_NN + δ"//newline//&
+                   "r_cov = covalent radius. d_NN = nearest-neighbor distance.")
 
-                if (w%rep%bond_distancetype == 0) then
-                   ! factor
-                   call igAlignTextToFramePadding()
-                   call iw_text("Between")
-                   ldum = iw_dragfloat_real8("##bondtableglobalbfmin",x1=w%rep%bond_bfmin,speed=0.01d0,min=0.0d0,&
-                      max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-                   call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
+                ! per-species covalent radii table
+                flags = ImGuiTableFlags_None
+                flags = ior(flags,ImGuiTableFlags_Resizable)
+                flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+                flags = ior(flags,ImGuiTableFlags_ScrollY)
+                flags = ior(flags,ImGuiTableFlags_ScrollX)
+                flags = ior(flags,ImGuiTableFlags_Borders)
+                flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+                str1 = "##tableatomrcov_editrep" // c_null_char
+                sz%x = 0
+                sz%y = iw_calcheight(min(5,sys(isys)%c%nspc)+1,0,.false.)
+                if (igBeginTable(c_loc(str1),3,flags,sz,0._c_float)) then
+                   str2 = "Atom" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,0)
+                   str2 = "Z" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,1)
+                   str2 = "Radius (Å)" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,2)
+                   call igTableSetupScrollFreeze(0,1)
+                   call igTableHeadersRow()
 
-                   call iw_text("times",sameline=.true.)
-                   call iw_combo_simple("##bondtableglobalradtypemin","cov."//c_null_char//"vdw"//c_null_char,&
-                      w%rep%bond_radtype(1),sameline=.true.)
-                   call iw_tooltip("Choose the atomic radii (covalent or van der Waals)",ttshown)
-                   call iw_text("radii",sameline=.true.)
-
-                   call igAlignTextToFramePadding()
-                   call iw_text("... and")
-                   ldum = iw_dragfloat_real8("##bondtableglobalbfmax",x1=w%rep%bond_bfmax,speed=0.01d0,min=0.0d0,&
-                      max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-                   call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
-
-                   call iw_text("times",sameline=.true.)
-                   call iw_combo_simple("##bondtableglobalradtypemax","cov."//c_null_char//"vdw"//c_null_char,&
-                      w%rep%bond_radtype(2),sameline=.true.)
-                   call iw_tooltip("Choose the atomic radii (covalent or van der Waals)",ttshown)
-                   call iw_text("radii",sameline=.true.)
-                else
-                   ! range
-                   call igAlignTextToFramePadding()
-                   call iw_text("Between")
-                   ldum = iw_dragfloat_real8("##bondtableglobaldmin",x1=w%rep%bond_dmin,speed=0.01d0,min=0.0d0,&
-                      max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-                   call iw_text("Å",sameline=.true.)
-                   call iw_tooltip("Bonds with length below this factor times the radii are not shown",ttshown)
-
-                   call igAlignTextToFramePadding()
-                   call iw_text("... and")
-                   ldum = iw_dragfloat_real8("##bondtableglobaldmax",x1=w%rep%bond_dmax,speed=0.01d0,min=0.0d0,&
-                      max=9.999d0,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-                   call iw_tooltip("Bonds with length above this factor times the radii are not shown",ttshown)
-                   call iw_text("Å",sameline=.true.)
+                   do i = 1, sys(isys)%c%nspc
+                      iz = sys(isys)%c%spc(i)%z
+                      if (iz <= 0) cycle
+                      call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                      if (igTableSetColumnIndex(0)) then
+                         call igAlignTextToFramePadding()
+                         call iw_text(trim(sys(isys)%c%spc(i)%name))
+                      end if
+                      if (igTableSetColumnIndex(1)) then
+                         call igAlignTextToFramePadding()
+                         call iw_text(string(iz))
+                      end if
+                      if (igTableSetColumnIndex(2)) then
+                         ldum = iw_dragfloat_real8("##tableradius_editrep" // string(i),x1=w%rep%bond_atmrad(iz),&
+                            speed=0.01d0,min=0d0,max=2.65d0,scale=bohrtoa,decimal=3,&
+                            flags=ImGuiSliderFlags_AlwaysClamp)
+                      end if
+                   end do
+                   call igEndTable()
                 end if
+
+                ! bond factor and bond delta
                 call igAlignTextToFramePadding()
-                call iw_text("Intra/Inter-molecular")
-                call iw_combo_simple("##tablebondimolselectglobal",&
-                   "any"//c_null_char//"intra"//c_null_char//"inter"//c_null_char,&
-                   w%rep%bond_imol,sameline=.true.)
-                call iw_tooltip("Draw any bonds (any), only intramolecular (intra), or only intermolecular (inter)",&
-                   ttshown)
+                ldum = iw_dragfloat_real8("Bond factor (f)##bondfactor_editrep",x1=w%rep%bond_bfactor,&
+                   speed=0.001d0,min=1d0,max=4d0,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp)
+                call iw_tooltip("Bond factor parameter (multiplicative) for non-metal bonding (see formula above)",ttshown)
+                call iw_text(" ",sameline=.true.)
+                ldum = iw_dragfloat_real8("Bond delta δ (Å)##bonddelta_editrep",x1=w%rep%bond_bdelta,&
+                   speed=0.001d0,min=0d0,max=2d0,scale=bohrtoa,decimal=4,sameline=.true.,&
+                   flags=ImGuiSliderFlags_AlwaysClamp)
+                call iw_tooltip("Distance tolerance (additive) for metal bonding (see formula above)",ttshown)
+                call iw_text(" ",sameline=.true.)
+
+                ! reset button (same line as the factor/delta drags)
+                if (iw_button("Reset##resetcustombond",sameline=.true.)) then
+                   w%rep%bond_atmrad = atmcov0
+                   w%rep%bond_bfactor = bondfactor_def
+                   w%rep%bond_bdelta = bonddelta_def
+                end if
+                call iw_tooltip("Reset covalent radii, bond factor, and bond delta to defaults",ttshown)
+
+                ! apply button
                 if (iw_button("Apply##applyglobal",danger=.true.)) then
                    call w%rep%bond_style%generate_neighstars(w%rep)
                    changed = .true.
                 end if
-                call iw_tooltip("Recalculate and draw bonds using the selected distance criteria",ttshown)
+                call iw_tooltip("Recalculate and draw bonds using the criteria above",ttshown)
              end if
 
              ! immediately update if non-distances have changed
