@@ -826,9 +826,10 @@ contains
     ldum = igImageButtonEx(igGetID_Str(c_loc(str1)),w%FBOtex, szavail, sz0, sz1, szero, bgcol, tintcol)
     call igPopStyleColor(3)
 
-    ! get view geometry (for mouse to texture coordinate transformation)
+    ! get view geometry and mouse position
     call igGetItemRectMin(w%v_rmin)
     call igGetItemRectMax(w%v_rmax)
+    call igGetMousePos(pos)
 
     ! get hover and needpick
     hover = goodsys .and. w%ilock == ilock_no
