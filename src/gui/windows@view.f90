@@ -1081,23 +1081,22 @@ contains
 
   !> Returns the tooltip message for the current viewmode
   module subroutine viewmode_bar_display(w)
-    use gui_main, only: ColorHighlightText
+    use gui_main, only: ColorHighlightText, tooltip_delay, g
     use keybindings, only: get_bind_keyname, bindnames, BIND_NAV_ROTATE, &
        BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
        BIND_NAV_MEASURE
-    use utils, only: iw_combo_simple, iw_tooltip
+    use utils, only: iw_combo_simple, iw_tooltip, igIsItemHovered_delayed, iw_text
     use tools_io, only: string
     use param, only: newline
     class(window), intent(inout), target :: w
 
-    character(len=:), allocatable, target :: msg
     real(c_float) :: rgba(4)
-    integer :: ll
+    integer :: ll, i
+
+    logical, save :: ttshown = .false. ! tooltip flag
 
     integer, parameter :: navigate_tips(*) = (/BIND_NAV_ROTATE, BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE,&
        BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE/)
-
-    integer :: i
 
     call iw_combo_simple("##viewmode","Navigate"//c_null_char//"Select"//c_null_char,w%viewmode)
 
@@ -1106,11 +1105,20 @@ contains
        do i = 1, size(navigate_tips,1)
           ll = max(ll,len_trim(get_bind_keyname(navigate_tips(i))))
        end do
-       do i = 1, size(navigate_tips,1)
-          msg = string(trim(get_bind_keyname(navigate_tips(i))) // ":",length=ll+2) //&
-             trim(bindnames(navigate_tips(i)))
-          call iw_tooltip(msg,nowrap=.true.)
-       end do
+
+       ! delayed tooltip with info about the key/mouse bindings for this view mode
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
+             call igBeginTooltip()
+
+             do i = 1, size(navigate_tips,1)
+                call iw_text(string(trim(get_bind_keyname(navigate_tips(i))),length=ll+1),highlight=.true.)
+                call iw_text(trim(bindnames(navigate_tips(i))),sameline=.true.)
+             end do
+
+             call igEndTooltip()
+          end if
+       end if
     end if
 
   end subroutine viewmode_bar_display
