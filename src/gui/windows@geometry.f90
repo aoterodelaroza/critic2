@@ -1780,10 +1780,9 @@ contains
              call igAlignTextToFramePadding()
              if (iw_button("Recalculate##symrecalc")) iaction = iaction_sym_recalc
              call iw_tooltip("Recalculate crystal symmetry at the given tolerance (symeps) level",ttshown)
-             call iw_text("at tolerance: ",sameline=.true.)
-             str_eps = string(sysc(isys)%symeps,'e',10,2)
-             if (iw_inputtext("##symepsinput",bufsize=32,texta=str_eps,width=12,sameline=.true.,&
-                notlive=.true.)) then
+             call iw_text("at tolerance:",sameline=.true.)
+             str_eps = string(sysc(isys)%symeps,'e',decimal=2)
+             if (iw_inputtext("##symepsinput",bufsize=32,texta=str_eps,width=8,sameline=.true.,notlive=.true.)) then
                 if (isreal(res,str_eps)) then
                    if (res > 0d0) sysc(isys)%symeps = res
                 end if
