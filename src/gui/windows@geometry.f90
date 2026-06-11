@@ -1776,14 +1776,11 @@ contains
              else
                 call iw_text("  Not available (symmetry not computed)")
              end if
-             neqv = sys(isys)%c%neqv
-             ncv = sys(isys)%c%ncv
-             call iw_text("  Operations: " // string(neqv) // ", Centering vectors: " // string(ncv))
 
-             ! tolerance input and action buttons
-             call iw_text("Operations",highlight=.true.)
              call igAlignTextToFramePadding()
-             call iw_text("Tolerance (symprec): ")
+             if (iw_button("Recalculate##symrecalc")) iaction = iaction_sym_recalc
+             call iw_tooltip("Recalculate crystal symmetry at the given tolerance (symeps) level",ttshown)
+             call iw_text("at tolerance: ",sameline=.true.)
              str_eps = string(sysc(isys)%symeps,'e',10,2)
              if (iw_inputtext("##symepsinput",bufsize=32,texta=str_eps,width=12,sameline=.true.,&
                 notlive=.true.)) then
@@ -1791,23 +1788,26 @@ contains
                    if (res > 0d0) sysc(isys)%symeps = res
                 end if
              end if
-             call iw_tooltip("Distance tolerance (bohr) used to detect the symmetry",ttshown)
+             call iw_tooltip("Distance tolerance (bohr) used to detect the symmetry (symeps)",ttshown)
 
-             if (iw_button("Recalculate##symrecalc",sameline=.true.)) iaction = iaction_sym_recalc
-             call iw_tooltip("Recalculate the symmetry operations at the tolerance above",ttshown)
-             if (iw_button("Clear##symclear",danger=.true.,sameline=.true.)) iaction = iaction_sym_clear
-             call iw_tooltip("Remove all symmetry (reduce to the P1 space group)",ttshown)
-             if (iw_button("Refine##symrefine",danger=.true.,sameline=.true.)) iaction = iaction_sym_refine
+             if (iw_button("Clear##symclear",danger=.true.)) iaction = iaction_sym_clear
+             call iw_tooltip("Remove crystal symmetry",ttshown)
+             if (iw_button("Refine##symrefine",sameline=.true.)) iaction = iaction_sym_refine
              call iw_tooltip("Transform to the conventional cell and move the atoms to their &
                 &ideal symmetry positions",ttshown)
-             if (iw_button("Wholemols##symwholemols",sameline=.true.,&
+             if (iw_button("Whole molecules##symwholemols",sameline=.true.,&
                 disabled=.not.sys(isys)%c%ismol3d)) iaction = iaction_sym_wholemols
-             call iw_tooltip("Choose the asymmetric unit so that it contains whole molecules &
+             call iw_tooltip("Choose a symmetry subgroup such that the asymmetric unit contains whole molecules &
                 &(molecular crystals only)",ttshown)
              if (len_trim(w%errmsg) > 0) &
                 call iw_text(w%errmsg,danger=.true.)
 
              ! symmetry operations table
+             neqv = sys(isys)%c%neqv
+             ncv = sys(isys)%c%ncv
+             call iw_text("Operations",highlight=.true.)
+             call iw_text("(" // string(neqv) // ")",sameline=.true.)
+
              if (neqv >= 1) then
                 ! the operation strings are expensive to build (axis analysis
                 ! does an eigendecomposition per operation), so cache them and
@@ -1861,6 +1861,8 @@ contains
 
              ! centering vectors table
              call iw_text("Centering Vectors",highlight=.true.)
+             call iw_text("(" // string(ncv) // ")",sameline=.true.)
+
              flags = ImGuiTableFlags_None
              flags = ior(flags,ImGuiTableFlags_RowBg)
              flags = ior(flags,ImGuiTableFlags_Borders)
