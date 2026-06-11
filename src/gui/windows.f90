@@ -22,7 +22,7 @@ module windows
   use scenes, only: scene
   use interfaces_cimgui, only: ImVec2
   use global, only: rborder_def
-  use param, only: isformat_r_unknown, eye
+  use param, only: isformat_r_unknown, eye, mlen
   implicit none
 
   private
@@ -177,6 +177,7 @@ module windows
      integer(c_int) :: geometry_cell_inice = 10 ! maximum supercell size for the nice cell search
      real*8, allocatable :: geometry_cell_nice_rmax(:) ! inscribed-sphere radii from the nice search
      real*8, allocatable :: geometry_cell_nice_mmax(:,:,:) ! transformation matrices from the nice search
+     character(len=mlen), allocatable :: geometry_sym_ops(:) ! cached symmetry operations (crystallographic notation)
      real*8, allocatable :: geometry_sym_analyze_eps(:) ! tolerances from the symmetry-vs-epsilon analysis
      character(len=11), allocatable :: geometry_sym_analyze_sym(:) ! space group symbols from the analysis
      integer, allocatable :: geometry_sym_analyze_num(:) ! space group numbers from the analysis

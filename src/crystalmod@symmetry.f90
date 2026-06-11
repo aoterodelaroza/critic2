@@ -349,7 +349,7 @@ contains
     ! check error messages (only if this is not threaded, because
     ! this routine is not thread-safe)
     if (.not.present(ti)) then
-       error = trim(spg_get_error_message(c%spg%spglib_error))
+       error = trim(spg_get_error_message(spg%spglib_error))
        if (.not.equal(error,"no error")) then
           errmsg = string(error)
           return

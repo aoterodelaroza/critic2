@@ -56,11 +56,11 @@ contains
        iw_inputint3
     use types, only: realloc
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger, isreal
-    use param, only: newline, bohrtoa, pi, atmcov0, maxzat0, mlen
+    use param, only: newline, bohrtoa, pi, atmcov0, maxzat0
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
-    logical :: doquit, dorestore, clicked, forcesort, ch, lch
+    logical :: doquit, clicked, forcesort, ch, lch
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:16)
     integer :: ihlbond, ihlbtn ! bonds tab: hovered central atom and hovered neighbor button (cell ids)
     integer :: ipickhl ! cell id of the atom awaiting an add-bond pick (0 = none), highlighted
@@ -103,12 +103,9 @@ contains
     character(len=3) :: schpg
     integer :: holo, laue
     ! symmetry tab
-    character(len=mlen), allocatable :: symops(:) ! symmetry operations in crystallographic notation
     character(len=:), allocatable :: str_eps ! buffer for the symmetry-tolerance input
     character(len=:), allocatable :: sopstr, saxstr ! operation / axis substrings
     integer :: isplit, neqv, ncv ! "##" split position, number of operations / centering vectors
-    logical :: dosymrecalc, dosymclear, dosymrefine, dosymwholemols
-    integer :: isymapply ! analysis row whose epsilon is being applied (0 = none)
 
     ! actions at the end of the window draw
     integer :: iaction, iaction_i1, iaction_i2
@@ -133,6 +130,12 @@ contains
     integer, parameter :: iaction_set_molecule_rotation = 15
     integer, parameter :: iaction_remove_molecules = 16
     integer, parameter :: iaction_reorder_molecules = 17
+    integer, parameter :: iaction_restore = 18
+    integer, parameter :: iaction_sym_recalc = 19
+    integer, parameter :: iaction_sym_clear = 20
+    integer, parameter :: iaction_sym_refine = 21
+    integer, parameter :: iaction_sym_wholemols = 22
+    integer, parameter :: iaction_sym_analyze = 23
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_remove = 1
@@ -179,7 +182,6 @@ contains
     ieuler_drag = 0
     iclicked = 0
     doquit = .false.
-    dorestore = .false.
     szero%x = 0
     szero%y = 0
     forcesort = .false.
@@ -215,7 +217,7 @@ contains
        w%geometry_cell_inice = 10
        if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
        if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
-       call clear_sym_analysis()
+       call clear_sym_cache()
     end if
 
     ! if tied to tree, update the isys
@@ -286,7 +288,7 @@ contains
        call sysc(isys)%highlight_clear(.false.)
        call clear_highlights_table()
        ! the symmetry-vs-epsilon analysis is now stale
-       call clear_sym_analysis()
+       call clear_sym_cache()
     end if
 
     ! system combo
@@ -323,7 +325,7 @@ contains
 
     !! line of global buttons
     ! restore, only if system is independent or master
-    dorestore = iw_button("Restore",danger=.true.)
+    if (iw_button("Restore",danger=.true.)) iaction = iaction_restore
     call iw_tooltip("Restore the system to the original geometry it had when it was first opened",ttshown)
     ldum = iw_checkbox("Keep Bonding",w%geometry_keepbonding,sameline=.true.)
     call iw_tooltip("Preserve bonding when the system geometry changes",ttshown)
@@ -1758,13 +1760,6 @@ contains
           ! check if the tab changed
           call check_changed_tab("symmetry")
 
-          ! per-frame symmetry action flags
-          dosymrecalc = .false.
-          dosymclear = .false.
-          dosymrefine = .false.
-          dosymwholemols = .false.
-          isymapply = 0
-
           if (sys(isys)%c%ismolecule) then
              call iw_text("Symmetry for molecules is not yet implemented.")
           else
@@ -1798,15 +1793,15 @@ contains
              end if
              call iw_tooltip("Distance tolerance (bohr) used to detect the symmetry",ttshown)
 
-             dosymrecalc = iw_button("Recalculate##symrecalc",sameline=.true.)
+             if (iw_button("Recalculate##symrecalc",sameline=.true.)) iaction = iaction_sym_recalc
              call iw_tooltip("Recalculate the symmetry operations at the tolerance above",ttshown)
-             dosymclear = iw_button("Clear##symclear",danger=.true.,sameline=.true.)
+             if (iw_button("Clear##symclear",danger=.true.,sameline=.true.)) iaction = iaction_sym_clear
              call iw_tooltip("Remove all symmetry (reduce to the P1 space group)",ttshown)
-             dosymrefine = iw_button("Refine##symrefine",danger=.true.,sameline=.true.)
+             if (iw_button("Refine##symrefine",danger=.true.,sameline=.true.)) iaction = iaction_sym_refine
              call iw_tooltip("Transform to the conventional cell and move the atoms to their &
                 &ideal symmetry positions",ttshown)
-             dosymwholemols = iw_button("Wholemols##symwholemols",sameline=.true.,&
-                disabled=.not.sys(isys)%c%ismol3d)
+             if (iw_button("Wholemols##symwholemols",sameline=.true.,&
+                disabled=.not.sys(isys)%c%ismol3d)) iaction = iaction_sym_wholemols
              call iw_tooltip("Choose the asymmetric unit so that it contains whole molecules &
                 &(molecular crystals only)",ttshown)
              if (len_trim(w%errmsg) > 0) &
@@ -1814,8 +1809,17 @@ contains
 
              ! symmetry operations table
              if (neqv >= 1) then
-                allocate(symops(neqv*max(ncv,1)))
-                call sys(isys)%c%struct_report_symxyz(symops,doaxes=.true.)
+                ! the operation strings are expensive to build (axis analysis
+                ! does an eigendecomposition per operation), so cache them and
+                ! rebuild only when the symmetry changes (clear_sym_cache
+                ! invalidates the cache on any geometry change)
+                if (allocated(w%geometry_sym_ops)) then
+                   if (size(w%geometry_sym_ops,1) /= neqv*max(ncv,1)) deallocate(w%geometry_sym_ops)
+                end if
+                if (.not.allocated(w%geometry_sym_ops)) then
+                   allocate(w%geometry_sym_ops(neqv*max(ncv,1)))
+                   call sys(isys)%c%struct_report_symxyz(w%geometry_sym_ops,doaxes=.true.)
+                end if
 
                 flags = ImGuiTableFlags_None
                 flags = ior(flags,ImGuiTableFlags_RowBg)
@@ -1839,12 +1843,12 @@ contains
                    do i = 1, neqv
                       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
                       ! split "<op> ## <rotation/axis>"
-                      isplit = index(symops(i)," ## ")
+                      isplit = index(w%geometry_sym_ops(i)," ## ")
                       if (isplit > 0) then
-                         sopstr = trim(adjustl(symops(i)(1:isplit-1)))
-                         saxstr = trim(adjustl(symops(i)(isplit+4:)))
+                         sopstr = trim(adjustl(w%geometry_sym_ops(i)(1:isplit-1)))
+                         saxstr = trim(adjustl(w%geometry_sym_ops(i)(isplit+4:)))
                       else
-                         sopstr = trim(adjustl(symops(i)))
+                         sopstr = trim(adjustl(w%geometry_sym_ops(i)))
                          saxstr = ""
                       end if
                       if (igTableSetColumnIndex(0)) call iw_text(string(i))
@@ -1853,7 +1857,6 @@ contains
                    end do
                    call igEndTable()
                 end if
-                deallocate(symops)
              end if
 
              ! centering vectors table
@@ -1884,9 +1887,7 @@ contains
              call iw_text("Space Group Analysis",highlight=.true.)
              call iw_helpermark("Calculate the space group as a function of the symmetry &
                 &tolerance (symprec). Click a row to adopt that tolerance and recalculate.")
-             if (iw_button("Analyze##symanalyze",sameline=.true.)) &
-                call sysc(isys)%spg_analysis(w%geometry_sym_analyze_eps,w%geometry_sym_analyze_sym,&
-                   w%geometry_sym_analyze_num)
+             if (iw_button("Analyze##symanalyze",sameline=.true.)) iaction = iaction_sym_analyze
              call iw_tooltip("Scan the space group over a range of symmetry tolerances",ttshown)
 
              if (allocated(w%geometry_sym_analyze_eps)) then
@@ -1913,7 +1914,11 @@ contains
                          str2 = string(w%geometry_sym_analyze_eps(i),'e',10,2) //&
                             "##symanalrow" // string(i) // c_null_char
                          if (igSelectable_Bool(c_loc(str2),logical(.false.,c_bool),&
-                            ImGuiSelectableFlags_SpanAllColumns,szero)) isymapply = i
+                            ImGuiSelectableFlags_SpanAllColumns,szero)) then
+                            ! adopt this row's tolerance and recalculate
+                            sysc(isys)%symeps = w%geometry_sym_analyze_eps(i)
+                            iaction = iaction_sym_recalc
+                         end if
                       end if
                       if (igTableSetColumnIndex(1)) call iw_text(trim(w%geometry_sym_analyze_sym(i)))
                       if (igTableSetColumnIndex(2)) call iw_text(string(w%geometry_sym_analyze_num(i)))
@@ -1922,25 +1927,6 @@ contains
                 end if
              end if
           end if ! .not. ismolecule
-
-          ! process the symmetry actions (deferred to after the tab is drawn)
-          if (isymapply > 0) then
-             sysc(isys)%symeps = w%geometry_sym_analyze_eps(isymapply)
-             dosymrecalc = .true.
-          end if
-          if (dosymrecalc) then
-             w%errmsg = ""
-             call sysc(isys)%recalc_symmetry(w%errmsg)
-          elseif (dosymclear) then
-             w%errmsg = ""
-             call sysc(isys)%clear_symmetry()
-          elseif (dosymrefine) then
-             w%errmsg = ""
-             call sysc(isys)%refine_symmetry(w%errmsg)
-          elseif (dosymwholemols) then
-             w%errmsg = ""
-             call sysc(isys)%wholemols_op(w%errmsg)
-          end if
 
           call igEndTabItem()
        end if
@@ -2072,10 +2058,11 @@ contains
        call w%end()
 
     ! process actions at the end; clear any previous error when a new action runs
-    if (iaction /= -1 .or. dorestore) w%errmsg = ""
-    if (dorestore) &
+    if (iaction /= -1) w%errmsg = ""
+    if (iaction == iaction_restore) then
        call sysc(isys)%reread_geometry_from_file()
-    if (iaction == iaction_set_attype_name) then
+
+    elseif (iaction == iaction_set_attype_name) then
        call sysc(isys)%set_attype_name(w%geometry_atomtype,iaction_i1,iaction_str)
 
     elseif (iaction == iaction_set_atomic_number) then
@@ -2156,6 +2143,30 @@ contains
        if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
+    elseif (iaction == iaction_sym_recalc) then
+       call sysc(isys)%recalc_symmetry(w%errmsg)
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
+    elseif (iaction == iaction_sym_clear) then
+       call sysc(isys)%clear_symmetry()
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
+    elseif (iaction == iaction_sym_refine) then
+       call sysc(isys)%refine_symmetry(w%errmsg)
+       ! refine transforms to the conventional cell, so the nice-supercell
+       ! search results are stale
+       if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
+       if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
+    elseif (iaction == iaction_sym_wholemols) then
+       call sysc(isys)%wholemols_op(w%errmsg)
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
+    elseif (iaction == iaction_sym_analyze) then
+       call sysc(isys)%spg_analysis(w%geometry_sym_analyze_eps,w%geometry_sym_analyze_sym,&
+          w%geometry_sym_analyze_num)
+
     end if
 
   contains
@@ -2203,7 +2214,7 @@ contains
       ! remove the cached cell-transformation data and reorder the table
       if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
       if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
-      call clear_sym_analysis()
+      call clear_sym_cache()
       call reset_sort()
 
       ! clear the cell transformations
@@ -2227,14 +2238,16 @@ contains
 
     end subroutine reset_sort
 
-    ! deallocate the cached symmetry-vs-epsilon analysis arrays
-    subroutine clear_sym_analysis()
+    ! deallocate the cached symmetry data (operations table and the
+    ! symmetry-vs-epsilon analysis arrays), so they are rebuilt on next use
+    subroutine clear_sym_cache()
 
+      if (allocated(w%geometry_sym_ops)) deallocate(w%geometry_sym_ops)
       if (allocated(w%geometry_sym_analyze_eps)) deallocate(w%geometry_sym_analyze_eps)
       if (allocated(w%geometry_sym_analyze_sym)) deallocate(w%geometry_sym_analyze_sym)
       if (allocated(w%geometry_sym_analyze_num)) deallocate(w%geometry_sym_analyze_num)
 
-    end subroutine clear_sym_analysis
+    end subroutine clear_sym_cache
 
     ! record the time the selection was last cleared (used to detect geometry
     ! changes that invalidate the system selection)
