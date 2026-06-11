@@ -85,6 +85,7 @@ module systems
      real*8 :: atmcov(0:maxzat0) = atmcov0 ! covalent radii for bonding
      real*8 :: bondfactor = bondfactor_def ! bond factor for bonding calculation
      real*8 :: bonddelta = bonddelta_def ! bond delta for metal bonding calculation
+     real*8 :: symeps = 1d-2 ! tolerance used to determine symmetry
      ! highlights
      real(c_float), allocatable :: highlight_rgba(:,:) ! highlight colors
      real(c_float), allocatable :: highlight_rgba_transient(:,:) ! transient highlight colors
@@ -132,6 +133,11 @@ module systems
      procedure :: transform_cell
      procedure :: transform_cell_matrix
      procedure :: cell_nice_list
+     procedure :: recalc_symmetry
+     procedure :: clear_symmetry
+     procedure :: refine_symmetry
+     procedure :: wholemols_op
+     procedure :: spg_analysis
   end type sysconf
 
   ! system arrays
@@ -397,6 +403,27 @@ module systems
        real*8, allocatable, intent(out) :: rmax(:)
        real*8, allocatable, intent(out) :: mmax(:,:,:)
      end subroutine cell_nice_list
+     module subroutine recalc_symmetry(sysc,errmsg)
+       class(sysconf), intent(inout) :: sysc
+       character(len=:), allocatable, intent(inout) :: errmsg
+     end subroutine recalc_symmetry
+     module subroutine clear_symmetry(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine clear_symmetry
+     module subroutine refine_symmetry(sysc,errmsg)
+       class(sysconf), intent(inout) :: sysc
+       character(len=:), allocatable, intent(inout) :: errmsg
+     end subroutine refine_symmetry
+     module subroutine wholemols_op(sysc,errmsg)
+       class(sysconf), intent(inout) :: sysc
+       character(len=:), allocatable, intent(inout) :: errmsg
+     end subroutine wholemols_op
+     module subroutine spg_analysis(sysc,eps,sym,num)
+       class(sysconf), intent(inout) :: sysc
+       real*8, allocatable, intent(inout) :: eps(:)
+       character(len=11), allocatable, intent(inout) :: sym(:)
+       integer, allocatable, intent(inout) :: num(:)
+     end subroutine spg_analysis
   end interface
 
 end module systems

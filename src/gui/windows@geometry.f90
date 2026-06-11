@@ -40,7 +40,7 @@ contains
     use representations, only: reptype_atoms
     use windows, only: iwin_view, iwin_tree
     use interfaces_glfw, only: glfwGetTime
-    use crystalmod, only: holo_string, pointgroup_info
+    use crystalmod, only: holo_string, laue_string, pointgroup_info
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITGEOM_REMOVE
     use global, only: bondfactor_def, bonddelta_def
@@ -55,8 +55,8 @@ contains
        iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper, iw_inputint,&
        iw_inputint3
     use types, only: realloc
-    use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger
-    use param, only: newline, bohrtoa, pi, atmcov0, maxzat0
+    use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger, isreal
+    use param, only: newline, bohrtoa, pi, atmcov0, maxzat0, mlen
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
@@ -102,6 +102,13 @@ contains
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
     character(len=3) :: schpg
     integer :: holo, laue
+    ! symmetry tab
+    character(len=mlen), allocatable :: symops(:) ! symmetry operations in crystallographic notation
+    character(len=:), allocatable :: str_eps ! buffer for the symmetry-tolerance input
+    character(len=:), allocatable :: sopstr, saxstr ! operation / axis substrings
+    integer :: isplit, neqv, ncv ! "##" split position, number of operations / centering vectors
+    logical :: dosymrecalc, dosymclear, dosymrefine, dosymwholemols
+    integer :: isymapply ! analysis row whose epsilon is being applied (0 = none)
 
     ! actions at the end of the window draw
     integer :: iaction, iaction_i1, iaction_i2
@@ -208,6 +215,7 @@ contains
        w%geometry_cell_inice = 10
        if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
        if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
+       call clear_sym_analysis()
     end if
 
     ! if tied to tree, update the isys
@@ -277,6 +285,8 @@ contains
        ! system selection and force the window cache to be rebuilt
        call sysc(isys)%highlight_clear(.false.)
        call clear_highlights_table()
+       ! the symmetry-vs-epsilon analysis is now stale
+       call clear_sym_analysis()
     end if
 
     ! system combo
@@ -1748,7 +1758,190 @@ contains
           ! check if the tab changed
           call check_changed_tab("symmetry")
 
-          call iw_text("blah")
+          ! per-frame symmetry action flags
+          dosymrecalc = .false.
+          dosymclear = .false.
+          dosymrefine = .false.
+          dosymwholemols = .false.
+          isymapply = 0
+
+          if (sys(isys)%c%ismolecule) then
+             call iw_text("Symmetry for molecules is not yet implemented.")
+          else
+             ! current space group
+             call iw_text("Space Group",highlight=.true.)
+             if (sys(isys)%c%spgavail) then
+                call pointgroup_info(sys(isys)%c%spg%pointgroup_symbol,schpg,holo,laue)
+                call iw_text("  Hermann-Mauguin: " // trim(sys(isys)%c%spg%international_symbol) //&
+                   " (number " // string(sys(isys)%c%spg%spacegroup_number) // ")")
+                call iw_text("  Point group: " // trim(sys(isys)%c%spg%pointgroup_symbol) //&
+                   " (" // trim(schpg) // ")")
+                call iw_text("  Holohedry: " // trim(holo_string(holo)) //&
+                   ", Laue class: " // trim(laue_string(laue)))
+             else
+                call iw_text("  Not available (symmetry not computed)")
+             end if
+             neqv = sys(isys)%c%neqv
+             ncv = sys(isys)%c%ncv
+             call iw_text("  Operations: " // string(neqv) // ", Centering vectors: " // string(ncv))
+
+             ! tolerance input and action buttons
+             call iw_text("Operations",highlight=.true.)
+             call igAlignTextToFramePadding()
+             call iw_text("Tolerance (symprec): ")
+             str_eps = string(sysc(isys)%symeps,'e',10,2)
+             if (iw_inputtext("##symepsinput",bufsize=32,texta=str_eps,width=12,sameline=.true.,&
+                notlive=.true.)) then
+                if (isreal(res,str_eps)) then
+                   if (res > 0d0) sysc(isys)%symeps = res
+                end if
+             end if
+             call iw_tooltip("Distance tolerance (bohr) used to detect the symmetry",ttshown)
+
+             dosymrecalc = iw_button("Recalculate##symrecalc",sameline=.true.)
+             call iw_tooltip("Recalculate the symmetry operations at the tolerance above",ttshown)
+             dosymclear = iw_button("Clear##symclear",danger=.true.,sameline=.true.)
+             call iw_tooltip("Remove all symmetry (reduce to the P1 space group)",ttshown)
+             dosymrefine = iw_button("Refine##symrefine",danger=.true.,sameline=.true.)
+             call iw_tooltip("Transform to the conventional cell and move the atoms to their &
+                &ideal symmetry positions",ttshown)
+             dosymwholemols = iw_button("Wholemols##symwholemols",sameline=.true.,&
+                disabled=.not.sys(isys)%c%ismol3d)
+             call iw_tooltip("Choose the asymmetric unit so that it contains whole molecules &
+                &(molecular crystals only)",ttshown)
+             if (len_trim(w%errmsg) > 0) &
+                call iw_text(w%errmsg,danger=.true.)
+
+             ! symmetry operations table
+             if (neqv >= 1) then
+                allocate(symops(neqv*max(ncv,1)))
+                call sys(isys)%c%struct_report_symxyz(symops,doaxes=.true.)
+
+                flags = ImGuiTableFlags_None
+                flags = ior(flags,ImGuiTableFlags_RowBg)
+                flags = ior(flags,ImGuiTableFlags_Borders)
+                flags = ior(flags,ImGuiTableFlags_ScrollY)
+                flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+                str1 = "##symopstable" // c_null_char
+                sz0%x = 0
+                sz0%y = iw_calcheight(min(neqv,8)+1,0,.false.)
+                if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
+                   str2 = "#" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
+                   str2 = "Operation" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
+                   str2 = "Rotation / axis" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
+                   call igTableSetupScrollFreeze(0,1)
+                   call igTableHeadersRow()
+
+                   ! show only the operations under the identity centering (1..neqv)
+                   do i = 1, neqv
+                      call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+                      ! split "<op> ## <rotation/axis>"
+                      isplit = index(symops(i)," ## ")
+                      if (isplit > 0) then
+                         sopstr = trim(adjustl(symops(i)(1:isplit-1)))
+                         saxstr = trim(adjustl(symops(i)(isplit+4:)))
+                      else
+                         sopstr = trim(adjustl(symops(i)))
+                         saxstr = ""
+                      end if
+                      if (igTableSetColumnIndex(0)) call iw_text(string(i))
+                      if (igTableSetColumnIndex(1)) call iw_text(sopstr)
+                      if (igTableSetColumnIndex(2)) call iw_text(saxstr)
+                   end do
+                   call igEndTable()
+                end if
+                deallocate(symops)
+             end if
+
+             ! centering vectors table
+             call iw_text("Centering Vectors",highlight=.true.)
+             flags = ImGuiTableFlags_None
+             flags = ior(flags,ImGuiTableFlags_RowBg)
+             flags = ior(flags,ImGuiTableFlags_Borders)
+             flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+             str1 = "##symcentable" // c_null_char
+             sz0%x = 0
+             sz0%y = iw_calcheight(ncv+1,0,.false.)
+             if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
+                str2 = "#" // c_null_char
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
+                str2 = "Vector" // c_null_char
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
+                call igTableSetupScrollFreeze(0,1)
+                call igTableHeadersRow()
+                do i = 1, ncv
+                   call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+                   if (igTableSetColumnIndex(0)) call iw_text(string(i))
+                   if (igTableSetColumnIndex(1)) call iw_text(cell_cen_label(sys(isys)%c%cen(:,i)))
+                end do
+                call igEndTable()
+             end if
+
+             ! space group vs tolerance analysis
+             call iw_text("Space Group Analysis",highlight=.true.)
+             call iw_helpermark("Calculate the space group as a function of the symmetry &
+                &tolerance (symprec). Click a row to adopt that tolerance and recalculate.")
+             if (iw_button("Analyze##symanalyze",sameline=.true.)) &
+                call sysc(isys)%spg_analysis(w%geometry_sym_analyze_eps,w%geometry_sym_analyze_sym,&
+                   w%geometry_sym_analyze_num)
+             call iw_tooltip("Scan the space group over a range of symmetry tolerances",ttshown)
+
+             if (allocated(w%geometry_sym_analyze_eps)) then
+                flags = ImGuiTableFlags_None
+                flags = ior(flags,ImGuiTableFlags_RowBg)
+                flags = ior(flags,ImGuiTableFlags_Borders)
+                flags = ior(flags,ImGuiTableFlags_ScrollY)
+                flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+                str1 = "##symanaltable" // c_null_char
+                sz0%x = 0
+                sz0%y = iw_calcheight(size(w%geometry_sym_analyze_eps,1)+1,0,.false.)
+                if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
+                   str2 = "symprec" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
+                   str2 = "Space group" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
+                   str2 = "Number" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
+                   call igTableSetupScrollFreeze(0,1)
+                   call igTableHeadersRow()
+                   do i = 1, size(w%geometry_sym_analyze_eps,1)
+                      call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+                      if (igTableSetColumnIndex(0)) then
+                         str2 = string(w%geometry_sym_analyze_eps(i),'e',10,2) //&
+                            "##symanalrow" // string(i) // c_null_char
+                         if (igSelectable_Bool(c_loc(str2),logical(.false.,c_bool),&
+                            ImGuiSelectableFlags_SpanAllColumns,szero)) isymapply = i
+                      end if
+                      if (igTableSetColumnIndex(1)) call iw_text(trim(w%geometry_sym_analyze_sym(i)))
+                      if (igTableSetColumnIndex(2)) call iw_text(string(w%geometry_sym_analyze_num(i)))
+                   end do
+                   call igEndTable()
+                end if
+             end if
+          end if ! .not. ismolecule
+
+          ! process the symmetry actions (deferred to after the tab is drawn)
+          if (isymapply > 0) then
+             sysc(isys)%symeps = w%geometry_sym_analyze_eps(isymapply)
+             dosymrecalc = .true.
+          end if
+          if (dosymrecalc) then
+             w%errmsg = ""
+             call sysc(isys)%recalc_symmetry(w%errmsg)
+          elseif (dosymclear) then
+             w%errmsg = ""
+             call sysc(isys)%clear_symmetry()
+          elseif (dosymrefine) then
+             w%errmsg = ""
+             call sysc(isys)%refine_symmetry(w%errmsg)
+          elseif (dosymwholemols) then
+             w%errmsg = ""
+             call sysc(isys)%wholemols_op(w%errmsg)
+          end if
+
           call igEndTabItem()
        end if
 
@@ -1878,7 +2071,7 @@ contains
     if (doquit) &
        call w%end()
 
-    ! process events at the end; clear any previous error when a new action runs
+    ! process actions at the end; clear any previous error when a new action runs
     if (iaction /= -1 .or. dorestore) w%errmsg = ""
     if (dorestore) &
        call sysc(isys)%reread_geometry_from_file()
@@ -2010,6 +2203,7 @@ contains
       ! remove the cached cell-transformation data and reorder the table
       if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
       if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
+      call clear_sym_analysis()
       call reset_sort()
 
       ! clear the cell transformations
@@ -2032,6 +2226,15 @@ contains
       forcesort = .true.
 
     end subroutine reset_sort
+
+    ! deallocate the cached symmetry-vs-epsilon analysis arrays
+    subroutine clear_sym_analysis()
+
+      if (allocated(w%geometry_sym_analyze_eps)) deallocate(w%geometry_sym_analyze_eps)
+      if (allocated(w%geometry_sym_analyze_sym)) deallocate(w%geometry_sym_analyze_sym)
+      if (allocated(w%geometry_sym_analyze_num)) deallocate(w%geometry_sym_analyze_num)
+
+    end subroutine clear_sym_analysis
 
     ! record the time the selection was last cleared (used to detect geometry
     ! changes that invalidate the system selection)

@@ -131,6 +131,7 @@ contains
     use windows, only: regenerate_window_pointers
     use interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
     use crystalseedmod, only: crystalseed
+    use global, only: symprec
     use tools_io, only: uout
     use types, only: realloc
     use param, only: dirsep, atmcov0
@@ -291,11 +292,14 @@ contains
        ! set the iafield
        if (iseed == iavib_) sysc(idx)%has_vib = .true.
 
-       ! redo everything
-       call sysc(idx)%post_event(lastchange_geometry)
-
        ! set the covalent radii
        sysc(idx)%atmcov = atmcov0
+
+       ! set the symmetry epsilon
+       sysc(idx)%symeps = symprec
+
+       ! redo everything
+       call sysc(idx)%post_event(lastchange_geometry)
     end do
     deallocate(id)
 
@@ -1994,6 +1998,167 @@ contains
     call sys(isys)%c%cell_nice_list(inice,rmax,mmax)
 
   end subroutine cell_nice_list
+
+  !> Recalculate the crystal symmetry using the tolerance stored in
+  !> sysc%symeps, then post a geometry-change event.
+  module subroutine recalc_symmetry(sysc,errmsg)
+    use global, only: symprec
+    class(sysconf), intent(inout) :: sysc
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    integer :: isys
+    real*8 :: osp
+
+    errmsg = ""
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (sys(isys)%c%ismolecule) return
+
+    ! recalculate the symmetry at the chosen tolerance
+    osp = symprec
+    symprec = sysc%symeps
+    call sys(isys)%c%calcsym(.false.,errmsg)
+    symprec = osp
+    if (len_trim(errmsg) > 0) return
+
+    ! the symmetry (and the non-equivalent atom list) has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine recalc_symmetry
+
+  !> Clear the crystal symmetry (revert to P1), then post a
+  !> geometry-change event.
+  module subroutine clear_symmetry(sysc)
+    class(sysconf), intent(inout) :: sysc
+
+    integer :: isys
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (sys(isys)%c%ismolecule) return
+
+    ! clear the symmetry
+    call sys(isys)%clearsym()
+
+    ! the symmetry (and the non-equivalent atom list) has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine clear_symmetry
+
+  !> Refine the geometry to the ideal symmetry positions (transform to
+  !> the conventional cell and idealize) using the tolerance stored in
+  !> sysc%symeps.
+  module subroutine refine_symmetry(sysc,errmsg)
+    use global, only: symprec
+    class(sysconf), intent(inout) :: sysc
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    integer :: isys
+    real*8 :: osp
+
+    errmsg = ""
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (sys(isys)%c%ismolecule) return
+
+    ! refine at the chosen tolerance (transform_cell posts the event)
+    osp = symprec
+    symprec = sysc%symeps
+    call sysc%transform_cell(celltransform_standard,.true.,errmsg)
+    symprec = osp
+
+  end subroutine refine_symmetry
+
+  !> Re-assign atomic types so the asymmetric unit contains whole
+  !> molecules, then post a geometry-change event. Only valid for a 3d
+  !> molecular crystal.
+  module subroutine wholemols_op(sysc,errmsg)
+    class(sysconf), intent(inout) :: sysc
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    integer :: isys
+
+    errmsg = ""
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (sys(isys)%c%ismolecule) return
+    if (.not.sys(isys)%c%ismol3d) then
+       errmsg = "WHOLEMOLS can only be applied to a molecular crystal"
+       return
+    end if
+
+    ! apply wholemols
+    call sys(isys)%c%wholemols()
+
+    ! the non-equivalent atom list has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine wholemols_op
+
+  !> Scan the space group as a function of the symmetry
+  !> tolerance. Returns, for each of a logarithmic series of
+  !> tolerances (eps), the international symbol (sym) and the space
+  !> group number (num). The system's symmetry is not modified.
+  module subroutine spg_analysis(sysc,eps,sym,num)
+    use global, only: symprec
+    use spglib, only: SpglibDataset
+    class(sysconf), intent(inout) :: sysc
+    real*8, allocatable, intent(inout) :: eps(:)
+    character(len=11), allocatable, intent(inout) :: sym(:)
+    integer, allocatable, intent(inout) :: num(:)
+
+    integer :: isys, i, n
+    real*8 :: osp
+    type(SpglibDataset) :: spg
+    character(len=:), allocatable :: errmsg
+
+    real*8, parameter :: spmin = 1d-10
+    real*8, parameter :: factor = 10d0
+    integer, parameter :: nstep = 11
+
+    if (allocated(eps)) deallocate(eps)
+    if (allocated(sym)) deallocate(sym)
+    if (allocated(num)) deallocate(num)
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (sys(isys)%c%ismolecule) return
+
+    ! scan the tolerance range, recording the space group at each step
+    osp = symprec
+    allocate(eps(nstep),sym(nstep),num(nstep))
+    n = 0
+    symprec = spmin / factor
+    do i = 1, nstep
+       symprec = symprec * factor
+       call sys(isys)%c%spglib_wrap(spg,.false.,errmsg)
+       if (len_trim(errmsg) == 0) then
+          n = n + 1
+          eps(n) = symprec
+          sym(n) = spg%international_symbol
+          num(n) = spg%spacegroup_number
+       end if
+    end do
+    symprec = osp
+
+    ! trim to the number of successful steps
+    if (n == 0) then
+       deallocate(eps,sym,num)
+    elseif (n < nstep) then
+       eps = eps(1:n)
+       sym = sym(1:n)
+       num = num(1:n)
+    end if
+
+  end subroutine spg_analysis
 
   !xx! private procedures
 
