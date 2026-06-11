@@ -980,10 +980,11 @@ module crystalmod
      module subroutine struct_report_symmetry(c)
        class(crystal), intent(in) :: c
      end subroutine struct_report_symmetry
-     module subroutine struct_report_symxyz(c,strfin,doaxes)
+     module subroutine struct_report_symxyz(c,strfin,hmsym,axcr)
        class(crystal), intent(in) :: c
        character(len=mlen), intent(out), optional :: strfin(c%neqv*c%ncv)
-       logical, intent(in), optional :: doaxes
+       character(len=mlen), intent(out), optional :: hmsym(c%neqv*c%ncv)
+       real*8, intent(out), optional :: axcr(3,c%neqv*c%ncv)
      end subroutine struct_report_symxyz
      module subroutine struct_write_json(c,json,p)
        use json_module, only: json_value, json_core
