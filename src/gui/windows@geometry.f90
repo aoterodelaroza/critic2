@@ -104,8 +104,9 @@ contains
     integer :: holo, laue
     ! symmetry tab
     character(len=:), allocatable :: str_eps ! buffer for the symmetry-tolerance input
-    character(len=:), allocatable :: sopstr, saxstr ! operation / axis substrings
-    integer :: isplit, neqv, ncv ! "##" split position, number of operations / centering vectors
+    character(len=:), allocatable :: saxc, saxx ! axis strings (crystallographic / Cartesian)
+    real*8 :: raxc(3), raxx(3) ! rotation axis in crystallographic / Cartesian coordinates
+    integer :: neqv, ncv ! number of operations / centering vectors
 
     ! actions at the end of the window draw
     integer :: iaction, iaction_i1, iaction_i2
@@ -1813,11 +1814,17 @@ contains
                 ! rebuild only when the symmetry changes (clear_sym_cache
                 ! invalidates the cache on any geometry change)
                 if (allocated(w%geometry_sym_ops)) then
-                   if (size(w%geometry_sym_ops,1) /= neqv*max(ncv,1)) deallocate(w%geometry_sym_ops)
+                   if (size(w%geometry_sym_ops,1) /= neqv*max(ncv,1)) then
+                      deallocate(w%geometry_sym_ops)
+                      if (allocated(w%geometry_sym_hm)) deallocate(w%geometry_sym_hm)
+                      if (allocated(w%geometry_sym_axes)) deallocate(w%geometry_sym_axes)
+                   end if
                 end if
                 if (.not.allocated(w%geometry_sym_ops)) then
-                   allocate(w%geometry_sym_ops(neqv*max(ncv,1)))
-                   call sys(isys)%c%struct_report_symxyz(w%geometry_sym_ops,doaxes=.true.)
+                   allocate(w%geometry_sym_ops(neqv*max(ncv,1)),w%geometry_sym_hm(neqv*max(ncv,1)),&
+                      w%geometry_sym_axes(3,neqv*max(ncv,1)))
+                   call sys(isys)%c%struct_report_symxyz(w%geometry_sym_ops,hmsym=w%geometry_sym_hm,&
+                      axcr=w%geometry_sym_axes)
                 end if
 
                 flags = ImGuiTableFlags_None
@@ -1828,31 +1835,47 @@ contains
                 str1 = "##symopstable" // c_null_char
                 sz0%x = 0
                 sz0%y = iw_calcheight(min(neqv,8)+1,0,.false.)
-                if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
+                if (igBeginTable(c_loc(str1),5,flags,sz0,0._c_float)) then
                    str2 = "#" // c_null_char
                    call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
-                   str2 = "Operation" // c_null_char
+                   str2 = "HM" // c_null_char
                    call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
-                   str2 = "Rotation / axis" // c_null_char
+                   str2 = "Operation" // c_null_char
                    call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
+                   str2 = "Axis (cryst.)" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,3)
+                   str2 = "Axis (Cart.)" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,4)
                    call igTableSetupScrollFreeze(0,1)
                    call igTableHeadersRow()
 
                    ! show only the operations under the identity centering (1..neqv)
                    do i = 1, neqv
                       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
-                      ! split "<op> ## <rotation/axis>"
-                      isplit = index(w%geometry_sym_ops(i)," ## ")
-                      if (isplit > 0) then
-                         sopstr = trim(adjustl(w%geometry_sym_ops(i)(1:isplit-1)))
-                         saxstr = trim(adjustl(w%geometry_sym_ops(i)(isplit+4:)))
+                      ! axis in crystallographic coordinates (cached) and Cartesian
+                      ! (computed on the fly); identity/inversion have a zero axis
+                      raxc = w%geometry_sym_axes(:,i)
+                      if (norm2(raxc) < 1d-10) then
+                         saxc = ""
+                         saxx = ""
                       else
-                         sopstr = trim(adjustl(w%geometry_sym_ops(i)))
-                         saxstr = ""
+                         if (all(abs(raxc - nint(raxc)) < 1d-10)) then
+                            saxc = "[" // string(nint(raxc(1))) // "," // string(nint(raxc(2))) //&
+                               "," // string(nint(raxc(3))) // "]"
+                         else
+                            saxc = "[" // string(raxc(1),'f',decimal=1) // "," // string(raxc(2),'f',decimal=1) //&
+                               "," // string(raxc(3),'f',decimal=1) // "]"
+                         end if
+                         raxx = sys(isys)%c%x2c(raxc)
+                         raxx = raxx / norm2(raxx)
+                         saxx = "[" // string(raxx(1),'f',decimal=3) // "," // string(raxx(2),'f',decimal=3) //&
+                            "," // string(raxx(3),'f',decimal=3) // "]"
                       end if
                       if (igTableSetColumnIndex(0)) call iw_text(string(i))
-                      if (igTableSetColumnIndex(1)) call iw_text(sopstr)
-                      if (igTableSetColumnIndex(2)) call iw_text(saxstr)
+                      if (igTableSetColumnIndex(1)) call iw_text(trim(w%geometry_sym_hm(i)))
+                      if (igTableSetColumnIndex(2)) call iw_text(trim(w%geometry_sym_ops(i)))
+                      if (igTableSetColumnIndex(3)) call iw_text(saxc)
+                      if (igTableSetColumnIndex(4)) call iw_text(saxx)
                    end do
                    call igEndTable()
                 end if
@@ -2244,6 +2267,8 @@ contains
     subroutine clear_sym_cache()
 
       if (allocated(w%geometry_sym_ops)) deallocate(w%geometry_sym_ops)
+      if (allocated(w%geometry_sym_hm)) deallocate(w%geometry_sym_hm)
+      if (allocated(w%geometry_sym_axes)) deallocate(w%geometry_sym_axes)
       if (allocated(w%geometry_sym_analyze_eps)) deallocate(w%geometry_sym_analyze_eps)
       if (allocated(w%geometry_sym_analyze_sym)) deallocate(w%geometry_sym_analyze_sym)
       if (allocated(w%geometry_sym_analyze_num)) deallocate(w%geometry_sym_analyze_num)

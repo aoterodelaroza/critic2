@@ -178,6 +178,8 @@ module windows
      real*8, allocatable :: geometry_cell_nice_rmax(:) ! inscribed-sphere radii from the nice search
      real*8, allocatable :: geometry_cell_nice_mmax(:,:,:) ! transformation matrices from the nice search
      character(len=mlen), allocatable :: geometry_sym_ops(:) ! cached symmetry operations (crystallographic notation)
+     character(len=mlen), allocatable :: geometry_sym_hm(:) ! cached Hermann-Mauguin symbols of the operations
+     real*8, allocatable :: geometry_sym_axes(:,:) ! cached rotation axes (crystallographic coordinates)
      real*8, allocatable :: geometry_sym_analyze_eps(:) ! tolerances from the symmetry-vs-epsilon analysis
      character(len=11), allocatable :: geometry_sym_analyze_sym(:) ! space group symbols from the analysis
      integer, allocatable :: geometry_sym_analyze_num(:) ! space group numbers from the analysis
