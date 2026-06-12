@@ -1860,19 +1860,22 @@ contains
                          saxx = ""
                       else
                          if (all(abs(raxc - nint(raxc)) < 1d-10)) then
-                            saxc = "[" // string(nint(raxc(1))) // "," // string(nint(raxc(2))) //&
-                               "," // string(nint(raxc(3))) // "]"
+                            saxc = "[" // string(nint(raxc(1)),2,justify=ioj_right) // "," //&
+                               string(nint(raxc(2)),2,justify=ioj_right) // "," //&
+                               string(nint(raxc(3)),2,justify=ioj_right) // "]"
                          else
-                            saxc = "[" // string(raxc(1),'f',decimal=1) // "," // string(raxc(2),'f',decimal=1) //&
-                               "," // string(raxc(3),'f',decimal=1) // "]"
+                            saxc = "[" // string(raxc(1),'f',length=4,decimal=1,justify=ioj_right) // "," //&
+                               string(raxc(2),'f',length=4,decimal=1,justify=ioj_right) // "," //&
+                               string(raxc(3),'f',length=4,decimal=1,justify=ioj_right) // "]"
                          end if
                          raxx = sys(isys)%c%x2c(raxc)
                          raxx = raxx / norm2(raxx)
-                         saxx = "[" // string(raxx(1),'f',decimal=3) // "," // string(raxx(2),'f',decimal=3) //&
-                            "," // string(raxx(3),'f',decimal=3) // "]"
+                         saxx = "[" // string(raxx(1),'f',length=6,decimal=3,justify=ioj_right) // "," //&
+                            string(raxx(2),'f',length=6,decimal=3,justify=ioj_right) // "," //&
+                            string(raxx(3),'f',length=6,decimal=3,justify=ioj_right) // "]"
                       end if
                       if (igTableSetColumnIndex(0)) call iw_text(string(i))
-                      if (igTableSetColumnIndex(1)) call iw_text(trim(w%geometry_sym_hm(i)))
+                      if (igTableSetColumnIndex(1)) call iw_text(string(w%geometry_sym_hm(i),length=3,justify=ioj_right))
                       if (igTableSetColumnIndex(2)) call iw_text(trim(w%geometry_sym_ops(i)))
                       if (igTableSetColumnIndex(3)) call iw_text(saxc)
                       if (igTableSetColumnIndex(4)) call iw_text(saxx)
