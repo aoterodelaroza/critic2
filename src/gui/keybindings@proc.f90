@@ -252,14 +252,16 @@ contains
     mod = modbind(bind)
     modnow = get_current_mod()
 
-    ! if input is wated, only activate binds that require ctrl, alt, or super
+    ! if input is wanted, only activate binds that require ctrl, alt, or super
     oktext = (modnow >= 2) .or. .not.io%WantTextInput
 
     ! check if any bind is triggered
     if (key == ImGuiKey_None) then
        ! no key or the mod is not correct -> only trigger if partial bind, mod matches, and held_
        is_bind_event = .not.bindfull(bind) .and. mod == modnow .and. held_
-    elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END .and.oktext) then
+    elseif (mod /= modnow) then
+       is_bind_event = .false.
+    elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END .and. oktext) then
        ! correct key ID and not keyboard captured or inputing text
        if (held_) then
           is_bind_event = igIsKeyDown(key)
