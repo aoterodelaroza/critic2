@@ -1844,7 +1844,7 @@ contains
                    call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
                    str2 = "Axis (cryst.)" // c_null_char
                    call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,3)
-                   str2 = "Axis (Cart.)" // c_null_char
+                   str2 = "Axis (Cartesian)" // c_null_char
                    call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,4)
                    call igTableSetupScrollFreeze(0,1)
                    call igTableHeadersRow()
@@ -1891,14 +1891,15 @@ contains
              flags = ImGuiTableFlags_None
              flags = ior(flags,ImGuiTableFlags_RowBg)
              flags = ior(flags,ImGuiTableFlags_Borders)
+             flags = ior(flags,ImGuiTableFlags_ScrollY)
              flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
              str1 = "##symcentable" // c_null_char
              sz0%x = 0
-             sz0%y = iw_calcheight(ncv+1,0,.false.)
+             sz0%y = iw_calcheight(min(ncv,4)+1,0,.false.)
              if (igBeginTable(c_loc(str1),2,flags,sz0,0._c_float)) then
                 str2 = "#" // c_null_char
                 call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
-                str2 = "Vector" // c_null_char
+                str2 = "Coordinates (fractional)" // c_null_char
                 call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
                 call igTableSetupScrollFreeze(0,1)
                 call igTableHeadersRow()
