@@ -516,7 +516,6 @@ contains
     use shapes, only: sphVAO, cylVAO, coneVAO, textVAOos, textVBOos, quadVAO, quadnel
     use gui_main, only: fonts, fontbakesize_large, font_large
     use systems, only: sys, sysc, nsys
-    use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use tools_io, only: string
     use shaders, only: shader_simple, shader_text_onscene,&
@@ -767,13 +766,16 @@ contains
     !> origin projects to the requested window position, rotated with
     !> the scene, and drawn on top of everything else.
     subroutine render_axes_gizmo()
-      real(c_float) :: vp(4,4), vpinv(4,4), corner(4), ph(4), wgiz(4,4)
+      real(c_float) :: vp(4,4), vpinv(4,4), corner(4), ph(4), wgiz(4,4), projgiz(4,4)
       real(c_float) :: nx, ny, spanx, spany, gizf, hside
+
+      ! always use orthographic projection for the gizmo
+      call ortho_projection(s,projgiz)
 
       ! world matrix for the gizmo: rotation = scene rotation, and the
       ! translation is the (post-world) point that projects to the
       ! requested window position
-      vp = matmul(s%projection,s%view)
+      vp = matmul(projgiz,s%view)
       vpinv = vp
       call matinv_cfloat(vpinv,4)
 
@@ -788,6 +790,7 @@ contains
       ny = spany * (1._c_float - 2._c_float * s%obj%gizwinpos(2))
       corner = (/nx,ny,0._c_float,1._c_float/)
       ph = matmul(vpinv,corner)
+
       ! zoom-compensation factor for the gizmo geometry: when the gizmo
       ! should not scale with zoom, shrink/grow the world geometry so that
       ! the orthographic projection (proj(1,1) = 1/hw2) leaves its on-screen
@@ -799,7 +802,7 @@ contains
          hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
          hside = hside * s%camratio
          hside = max(hside,3._c_float)
-         gizf = 1._c_float / (s%projection(1,1) * hside)
+         gizf = 1._c_float / (projgiz(1,1) * hside)
       end if
 
       wgiz = 0._c_float
@@ -827,10 +830,10 @@ contains
       iunif(iu_isortho) = get_uniform_location("isortho")
       call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
       call setuniform_float(0._c_float,idxi=iunif(iu_border))
-      call setuniform_int(merge(1_c_int,0_c_int,s%isortho),idxi=iunif(iu_isortho))
+      call setuniform_int(1_c_int,idxi=iunif(iu_isortho))
       call setuniform_mat4(wgiz,idxi=iunif(iu_world))
       call setuniform_mat4(s%view,idxi=iunif(iu_view))
-      call setuniform_mat4(s%projection,idxi=iunif(iu_projection))
+      call setuniform_mat4(projgiz,idxi=iunif(iu_projection))
 
       ! shafts and arrowheads
       if (s%obj%ncylgiz > 0) then
@@ -847,7 +850,7 @@ contains
          call useshader(shader_text_onscene)
          call setuniform_mat4(wgiz,"world")
          call setuniform_mat4(s%view,"view")
-         call setuniform_mat4(s%projection,"projection")
+         call setuniform_mat4(projgiz,"projection")
          call glDisable(GL_MULTISAMPLE)
          call glEnable(GL_BLEND)
          call glBlendEquation(GL_FUNC_ADD)
@@ -856,7 +859,7 @@ contains
          call glBindVertexArray(textVAOos)
          call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
          call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
-         call draw_all_text_giz()
+         call draw_all_text_giz(projgiz)
          call glEnable(GL_MULTISAMPLE)
          call glDisable(GL_BLEND)
       end if
@@ -884,7 +887,8 @@ contains
 
     end subroutine draw_all_conegiz
 
-    subroutine draw_all_text_giz()
+    subroutine draw_all_text_giz(projgiz)
+      real(c_float), intent(in) :: projgiz(4,4)
       integer :: i
       real(c_float) :: hside, siz, x(3)
       integer(c_int) :: nvert
@@ -905,7 +909,7 @@ contains
             hside = max(hside,3._c_float)
             siz = 2 * abs(s%obj%stringgiz(i)%scale) / fontbakesize_large / hside
          else
-            siz = 2 * abs(s%obj%stringgiz(i)%scale) * s%projection(1,1) / fontbakesize_large
+            siz = 2 * abs(s%obj%stringgiz(i)%scale) * projgiz(1,1) / fontbakesize_large
          end if
          x = s%obj%stringgiz(i)%x
 
@@ -1434,35 +1438,48 @@ contains
 
   !> Update the projection matrix from the v_pos
   module subroutine update_projection_matrix(s)
-    use utils, only: ortho, mult, infiniteperspective
+    use utils, only: mult, infiniteperspective
     use param, only: pi
     class(scene), intent(inout), target :: s
 
-    real(c_float) :: pic, hw2, sc(3), znear, zfar
+    real(c_float) :: pic, sc(3), znear
 
     pic = real(pi,c_float)
-
-    ! scene center: world to tworld
-    call mult(sc,s%world,s%scenecenter)
 
     if (s%isortho) then
        ! orthographic: the frustum half-width follows the camera distance, so
        ! moving the camera (zoom) changes the apparent size
-       znear = 0._c_float
-       zfar = (s%camresetdist * max_zoom) * s%scenerad
-       hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * norm2(s%campos - sc)
-       call ortho(s%projection,-hw2,hw2,-hw2,hw2,znear,zfar)
+       call ortho_projection(s,s%projection)
     else
        ! perspective: the field of view is fixed and the apparent size follows
        ! the camera distance. The near plane is placed just in front of the
        ! scene (must be strictly positive); the far plane is at infinity. The
        ! viewport is square, so the aspect ratio is 1.
+       call mult(sc,s%world,s%scenecenter)
        znear = norm2(s%campos - sc) - s%scenerad
        if (znear < 0.01_c_float * s%scenerad) znear = 0.01_c_float * s%scenerad
        call infiniteperspective(s%projection,s%persp_fov * pic / 180._c_float,1._c_float,znear)
     end if
 
   end subroutine update_projection_matrix
+
+  !> Build the orthographic projection matrix for scene s into proj. This is
+  !> the scene's projection when in orthographic mode; it is also used to draw
+  !> the window-anchored axes gizmo (always orthographic) regardless of the
+  !> scene's projection mode.
+  subroutine ortho_projection(s,proj)
+    use utils, only: ortho, mult
+    use param, only: pi
+    class(scene), intent(in) :: s
+    real(c_float), intent(out) :: proj(4,4)
+
+    real(c_float) :: sc(3), hw2
+
+    call mult(sc,s%world,s%scenecenter)
+    hw2 = tan(0.5_c_float * s%ortho_fov * real(pi,c_float) / 180._c_float) * norm2(s%campos - sc)
+    call ortho(proj,-hw2,hw2,-hw2,hw2,0._c_float,(s%camresetdist * max_zoom) * s%scenerad)
+
+  end subroutine ortho_projection
 
   !> Update the view matrix from the v_pos, v_front, and v_up
   module subroutine update_view_matrix(s)
