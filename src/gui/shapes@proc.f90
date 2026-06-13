@@ -49,6 +49,8 @@ contains
     type(c_ptr) :: c_ptr_
     type(hash) :: ipair
     character(len=:), allocatable :: idx
+    real(c_float), target :: quadv(3,4)
+    integer(c_int), target :: quadi(3,2)
 
     ! allocate icosphere vertex and face arrays
     if (allocated(sphv)) deallocate(sphv)
@@ -322,6 +324,29 @@ contains
     call glBindVertexArray(0)
     call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
+    ! build the buffers for the quad (unit rectangle in the z=0 plane, corners
+    ! at (+/-1,+/-1,0); two triangles)
+    quadv(:,1) = (/-1._c_float,-1._c_float,0._c_float/)
+    quadv(:,2) = (/ 1._c_float,-1._c_float,0._c_float/)
+    quadv(:,3) = (/ 1._c_float, 1._c_float,0._c_float/)
+    quadv(:,4) = (/-1._c_float, 1._c_float,0._c_float/)
+    quadi(:,1) = (/0_c_int,1_c_int,2_c_int/)
+    quadi(:,2) = (/0_c_int,2_c_int,3_c_int/)
+    call glGenVertexArrays(1, c_loc(quadVAO))
+    call glGenBuffers(1, c_loc(quadVBO))
+    call glGenBuffers(1, c_loc(quadEBO))
+    call glBindBuffer(GL_ARRAY_BUFFER, quadVBO)
+    call glBufferData(GL_ARRAY_BUFFER, 12*c_sizeof(c_float_), c_loc(quadv), GL_STATIC_DRAW)
+    call glBindVertexArray(quadVAO)
+    call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadEBO)
+    call glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6*c_sizeof(c_int_), c_loc(quadi), GL_STATIC_DRAW)
+    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(3*c_sizeof(c_float_),c_int),&
+       c_null_ptr)
+    call glEnableVertexAttribArray(0)
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
+    call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+
     ! build the buffers for the text (direct)
     call glGenVertexArrays(1, c_loc(textVAO))
     call glGenBuffers(1, c_loc(textVBO))
@@ -394,6 +419,11 @@ contains
     call glDeleteBuffers(nmaxcone, c_loc(coneEBO))
     if (allocated(conv)) deallocate(conv)
     if (allocated(coni)) deallocate(coni)
+
+    ! quads
+    call glDeleteVertexArrays(1, c_loc(quadVAO))
+    call glDeleteBuffers(1, c_loc(quadVBO))
+    call glDeleteBuffers(1, c_loc(quadEBO))
 
   end subroutine shapes_end
 

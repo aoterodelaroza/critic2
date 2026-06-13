@@ -60,6 +60,13 @@ module shapes
   integer(c_int), parameter, public :: connel(nmaxcone) = (/12,24,36/)
   integer(c_int), parameter, public :: conneladd(0:nmaxcone) = (/0,12,36,72/)
 
+  ! quad objects (filled flat rectangles): unit quad in the z=0 plane, corners
+  ! at (+/-1,+/-1,0), two triangles
+  integer(c_int), target, public :: quadVAO ! quad: vertex array object
+  integer(c_int), target, public :: quadVBO ! quad: vertex buffer object
+  integer(c_int), target, public :: quadEBO ! quad: element buffer object
+  integer(c_int), parameter, public :: quadnel = 2 ! quad: number of triangles
+
   ! text objects
   integer(c_int), target, public :: textVAO
   integer(c_int), target, public :: textVBO
@@ -107,6 +114,15 @@ module shapes
   end type dl_string
   public :: dl_string
 
+  !> filled flat rectangles (quads) for the draw list
+  type dl_plane
+     real(c_float) :: x(3) ! center position
+     real(c_float) :: e1(3) ! x-axis half-vector
+     real(c_float) :: e2(3) ! y-axis half-vector
+     real(c_float) :: rgb(3) ! color
+  end type dl_plane
+  public :: dl_plane
+
   !> collection of objects (draw lists) belonging to a scene
   type scene_objects
      integer :: nsph ! number of spheres
@@ -117,6 +133,8 @@ module shapes
      type(dl_cylinder), allocatable :: cylflat(:) ! flat cylinder draw list
      integer :: ncone ! number of cones (arrowheads)
      type(dl_cylinder), allocatable :: cone(:) ! cone draw list (x1=base, x2=apex)
+     integer :: nplane ! number of flat rectangles
+     type(dl_plane), allocatable :: plane(:) ! flat rectangle draw list
      integer :: nstring ! number of strings
      type(dl_string), allocatable :: string(:) ! flat cylinder draw list
      ! window-anchored axes gizmo (drawn in a separate overlay pass)
