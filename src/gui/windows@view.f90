@@ -423,6 +423,8 @@ contains
                    sysc(i)%sc%bond_res = w%sc%bond_res
                    sysc(i)%sc%bgcolor = w%sc%bgcolor
                    sysc(i)%sc%camresetdist = w%sc%camresetdist
+                   sysc(i)%sc%isortho = w%sc%isortho
+                   if (sysc(i)%sc%iscaminit) call sysc(i)%sc%update_projection_matrix()
                 end if
                 call sysc(i)%sc%build_lists()
              end do
