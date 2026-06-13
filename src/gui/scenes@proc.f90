@@ -902,7 +902,8 @@ contains
          nvert = 0
          ! the label tracks the same zoom behavior as the arrows: constant
          ! on-screen size when the gizmo does not scale with zoom, or scaling
-         ! with the orthographic projection otherwise
+         ! with the gizmo's orthographic projection otherwise. The gizmo is
+         ! always orthographic (projgiz), so no depth/clip-w term is needed here.
          if (.not.s%obj%gizscalewithzoom) then
             hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
             hside = hside * s%camratio
@@ -1010,7 +1011,7 @@ contains
 
     subroutine draw_all_text()
       integer :: i
-      real(c_float) :: hside, siz, x(3)
+      real(c_float) :: hside, siz, x(3), vw(4,4), wclip
       integer(c_int) :: nvert
       real(c_float), allocatable, target :: vert(:,:)
 
@@ -1018,19 +1019,28 @@ contains
 
       iu = get_uniform_location("textColor")
 
+      ! view*world, used to get the anchor's clip-space w (= 1 in orthographic,
+      ! = view depth in perspective) for projection-aware label sizing
+      vw = matmul(s%view,s%world)
+
       do i = 1, s%obj%nstring
          call setuniform_vec3(s%obj%string(i)%rgb,idxi=iu)
          nvert = 0
+         x = s%obj%string(i)%x
+         if (s%animation > 0) x = x + real(displ * s%obj%string(i)%xdelta,c_float)
          if (s%obj%string(i)%scale > 0._c_float) then
+            ! constant on-screen size (projection-independent)
             hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
             hside = hside * s%camratio
             hside = max(hside,3._c_float)
             siz = 2 * s%obj%string(i)%scale / fontbakesize_large / hside
          else
-            siz = 2 * abs(s%obj%string(i)%scale) * s%projection(1,1) / fontbakesize_large
+            ! scale with zoom (projection-aware): divide by the anchor clip-space
+            ! w so the label foreshortens with depth under perspective
+            wclip = s%projection(4,3) * (vw(3,1)*x(1)+vw(3,2)*x(2)+vw(3,3)*x(3)+vw(3,4)) + s%projection(4,4)
+            wclip = max(wclip,1e-4_c_float) ! guard anchors at/behind the camera (perspective); =1 in ortho
+            siz = 2 * abs(s%obj%string(i)%scale) * s%projection(1,1) / fontbakesize_large / wclip
          end if
-         x = s%obj%string(i)%x
-         if (s%animation > 0) x = x + real(displ * s%obj%string(i)%xdelta,c_float)
 
          call calc_text_onscene_vertices(s%obj%string(i)%str,x,s%obj%string(i)%r,&
             siz,nvert,vert,shift=s%obj%string(i)%offset,centered=.true.)
@@ -1042,7 +1052,7 @@ contains
 
     subroutine draw_selection_text()
       integer :: j
-      real(c_float) :: siz
+      real(c_float) :: siz, vw(4,4), wclip
       integer(c_int) :: nvert
       real(c_float), allocatable, target :: vert(:,:)
 
@@ -1050,9 +1060,15 @@ contains
 
       iu = get_uniform_location("textColor")
 
+      ! view*world, for the anchor clip-space w (projection-aware sizing; see
+      ! draw_all_text). These labels always scale with zoom.
+      vw = matmul(s%view,s%world)
+
       do j = 1, s%nmsel
          call setuniform_vec3((/1._c_float,1._c_float,1._c_float/),idxi=iu)
-         siz = sel_label_size * s%projection(1,1) / fontbakesize_large
+         wclip = s%projection(4,3) * (vw(3,1)*xsel(1,j)+vw(3,2)*xsel(2,j)+vw(3,3)*xsel(3,j)+vw(3,4)) + s%projection(4,4)
+         wclip = max(wclip,1e-4_c_float) ! guard anchors at/behind the camera (perspective); =1 in ortho
+         siz = sel_label_size * s%projection(1,1) / fontbakesize_large / wclip
          nvert = 0
          call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
          call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*10*c_sizeof(c_float), c_loc(vert))
