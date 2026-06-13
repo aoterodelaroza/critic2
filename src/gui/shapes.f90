@@ -99,6 +99,7 @@ module shapes
      real(c_float) :: border ! border size
      real(c_float) :: rgbborder(3) ! border color
      real(c_float) :: arvec(3) = 0._c_float ! aromatic bonds: outward (ring-exterior) direction; 0 otherwise
+     real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
   end type dl_cylinder
   public :: dl_cylinder
 
@@ -120,6 +121,7 @@ module shapes
      real(c_float) :: e1(3) ! x-axis half-vector
      real(c_float) :: e2(3) ! y-axis half-vector
      real(c_float) :: rgb(3) ! color
+     real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
   end type dl_plane
   public :: dl_plane
 

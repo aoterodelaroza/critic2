@@ -59,6 +59,8 @@ module representations
   real*8, parameter, public :: rotaxis_radius_def = 0.05d0 / bohrtoa ! radius of the rotation-axis cylinder
   !--> symmetry elements
   real(c_float), parameter, public :: symelem_rgb_def(3) = (/0.85_c_float,0.10_c_float,0.85_c_float/) ! symmetry element color
+  real(c_float), parameter, public :: symelem_alpha = 0.4_c_float ! symmetry element opacity
+  real*8, parameter, public :: symelem_margin = 1.1d0 ! symmetry element size factor
   integer, parameter, public :: symelem_kind_plane = 1 ! mirror/glide plane
   integer, parameter, public :: symelem_kind_axis = 2 ! rotation/screw/rotoinversion axis
 
@@ -236,7 +238,8 @@ module representations
      ! transient symmetry element (disc/cylinder through the origin)
      integer :: symelem_kind = 0 ! 0=none, 1=plane (mirror), 2=axis (rotation)
      real*8 :: symelem_dir(3) = (/0d0,0d0,1d0/) ! axis direction or plane normal, unit, cartesian (bohr)
-     real*8 :: symelem_size = 0d0 ! characteristic size in bohr (axis half-length / disc radius)
+     real*8 :: symelem_size = 0d0 ! system bounding-sphere radius in bohr
+     real*8 :: symelem_cen(3) = 0d0 ! system center in bohr (render frame)
      real(c_float) :: symelem_rgb(3) = symelem_rgb_def ! color of the symmetry element
    contains
      procedure :: init => representation_init

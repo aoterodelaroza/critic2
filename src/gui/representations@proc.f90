@@ -971,9 +971,7 @@ contains
        x0 = r%symelem_dir / max(norm2(r%symelem_dir),1d-10)
 
        if (r%symelem_kind == symelem_kind_plane) then
-          ! mirror/glide plane: a filled rectangle through the origin, lying
-          ! perpendicular to x0 and sized to span the whole displayed system.
-          ! Build two in-plane orthonormal half-edge vectors from the normal.
+          ! mirror/glide plane
           uoriginc = r%origin
           if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
           if (abs(x0(1)) < 0.9d0) then
@@ -985,23 +983,29 @@ contains
           x1 = x1 / norm2(x1)
           x2 = cross(x0,x1) ! unit (x0, x1 orthonormal)
 
+          ! project the system center onto the plane (rectangle center)
+          xc = r%symelem_cen - dot_product(r%symelem_cen - uoriginc,x0) * x0
+          res = symelem_margin * r%symelem_size
+
           obj%nplane = obj%nplane + 1
           if (obj%nplane > size(obj%plane,1)) then
              allocate(auxplane(2*obj%nplane))
              auxplane(1:size(obj%plane,1)) = obj%plane
              call move_alloc(auxplane,obj%plane)
           end if
-          obj%plane(obj%nplane)%x = real(uoriginc,c_float)
-          obj%plane(obj%nplane)%e1 = real(r%symelem_size * x1,c_float)
-          obj%plane(obj%nplane)%e2 = real(r%symelem_size * x2,c_float)
+          obj%plane(obj%nplane)%x = real(xc,c_float)
+          obj%plane(obj%nplane)%e1 = real(res * x1,c_float)
+          obj%plane(obj%nplane)%e2 = real(res * x2,c_float)
           obj%plane(obj%nplane)%rgb = r%symelem_rgb
+          obj%plane(obj%nplane)%alpha = symelem_alpha
        else
           ! rotation/screw/rotoinversion axis: a thin cylinder along x0 drawn
-          ! through every visible lattice point, each spanning the whole system
+          ! through every visible lattice point, each sized to span the system
           dcyl%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
           dcyl%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
           dcyl%r = real(rotaxis_radius_def,c_float)
           dcyl%rgb = r%symelem_rgb
+          dcyl%alpha = symelem_alpha
           dcyl%order = 1
           dcyl%border = 0._c_float
           dcyl%rgbborder = 0._c_float
@@ -1010,8 +1014,11 @@ contains
                 do i3 = 0, nc(3)
                    xc = sys(r%id)%c%x2c(real((/i1,i2,i3/),8) + r%origin)
                    if (sys(r%id)%c%ismolecule) xc = xc - sys(r%id)%c%molx0
-                   dcyl%x1 = real(xc - r%symelem_size * x0,c_float)
-                   dcyl%x2 = real(xc + r%symelem_size * x0,c_float)
+                   ! half-length covering the system bounding sphere from xc,
+                   ! expanded by the symmetry-element margin
+                   res = symelem_margin * (abs(dot_product(r%symelem_cen - xc,x0)) + r%symelem_size)
+                   dcyl%x1 = real(xc - res * x0,c_float)
+                   dcyl%x2 = real(xc + res * x0,c_float)
                    call append_cyl(obj%cyl,obj%ncyl,dcyl)
                 end do
              end do

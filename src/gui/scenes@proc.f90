@@ -621,7 +621,10 @@ contains
        ! draw the bonds
        if (s%obj%ncyl > 0) then
           call glBindVertexArray(cylVAO(s%bond_res))
+          call glEnable(GL_BLEND)
+          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
           call draw_all_cylinders()
+          call glDisable(GL_BLEND)
        end if
 
        ! draw the cones (arrowheads, lit)
@@ -637,12 +640,15 @@ contains
           call draw_all_flat_cylinders()
        end if
 
-       ! draw the flat rectangles, unlit and double-sided
+       ! draw the flat rectangles
        if (s%obj%nplane > 0) then
           call setuniform_int(0_c_int,"uselighting")
           call glDisable(GL_CULL_FACE)
+          call glEnable(GL_BLEND)
+          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
           call glBindVertexArray(quadVAO)
           call draw_all_planes()
+          call glDisable(GL_BLEND)
           call glEnable(GL_CULL_FACE)
        end if
 
@@ -731,7 +737,10 @@ contains
        call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
        if (s%obj%ncyl > 0) then
           call glBindVertexArray(cylVAO(s%bond_res))
+          call glEnable(GL_BLEND)
+          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
           call draw_all_cylinders()
+          call glDisable(GL_BLEND)
        end if
        call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
 
@@ -752,12 +761,15 @@ contains
        end if
        call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
 
-       ! draw the flat rectangles, flat-shaded, double-sided
+       ! draw the flat rectangles
        call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
        if (s%obj%nplane > 0) then
           call glDisable(GL_CULL_FACE)
+          call glEnable(GL_BLEND)
+          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
           call glBindVertexArray(quadVAO)
           call draw_all_planes()
+          call glDisable(GL_BLEND)
           call glEnable(GL_CULL_FACE)
        end if
 
@@ -857,7 +869,7 @@ contains
          end if
          call draw_cylinder(x1,x2,s%obj%cyl(i)%r,s%obj%cyl(i)%rgb,s%bond_res,&
             s%obj%cyl(i)%order,s%obj%cyl(i)%border,s%obj%cyl(i)%rgbborder,&
-            arvec=s%obj%cyl(i)%arvec)
+            arvec=s%obj%cyl(i)%arvec,alpha=s%obj%cyl(i)%alpha)
       end do
 
     end subroutine draw_all_cylinders
@@ -1079,7 +1091,7 @@ contains
          m(1:3,4) = s%obj%plane(i)%x
          call setuniform_mat4(m,idxi=iunif(iu_model))
          rgb_(1:3) = s%obj%plane(i)%rgb
-         rgb_(4) = 1._c_float
+         rgb_(4) = s%obj%plane(i)%alpha
          call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
          call glDrawElements(GL_TRIANGLES, int(3*quadnel,c_int), GL_UNSIGNED_INT, c_null_ptr)
       end do
@@ -1827,7 +1839,7 @@ contains
   !> rotdir (cartesian unit vector, bohr) through the center of mass
   !> xcom, with half-length rotlen.
   module subroutine scene_show_transient_rotaxis(s,tag,xcom,rotdir,rotlen)
-    use representations, only: reptype_axes, reptype_rotaxis, repflavor_rotaxis
+    use representations, only: reptype_rotaxis, repflavor_rotaxis
     class(scene), intent(inout), target :: s
     integer, intent(in) :: tag
     real*8, intent(in) :: xcom(3)
@@ -1863,20 +1875,19 @@ contains
 
   end subroutine scene_show_transient_rotaxis
 
-  !> Show a transient symmetry element through the origin: a disc for a
-  !> mirror/glide plane (kind=symelem_kind_plane, dir = plane normal) or a
+  !> Show a transient symmetry element through the origin: a filled rectangle
+  !> for a mirror/glide plane (kind=symelem_kind_plane, dir = plane normal) or a
   !> cylinder for a rotation/screw/rotoinversion axis (kind=symelem_kind_axis,
   !> dir = axis direction). xorig and dir are in cartesian (bohr), siz is the
-  !> characteristic size (bohr). tag dedups re-hover of the same element (just
-  !> refresh the geometry rather than rebuild).
-  module subroutine scene_show_transient_symelem(s,tag,kind,xorig,dir,siz)
+  !> system bounding-sphere radius (bohr); the element is sized to span the
+  !> system using siz together with the scene center.
+  module subroutine scene_show_transient_symelem(s,tag,kind,xorig,dir)
     use representations, only: reptype_symelem, repflavor_symelem
     class(scene), intent(inout), target :: s
     integer, intent(in) :: tag
     integer, intent(in) :: kind
     real*8, intent(in) :: xorig(3)
     real*8, intent(in) :: dir(3)
-    real*8, intent(in) :: siz
 
     integer :: id
     logical :: found
@@ -1889,7 +1900,8 @@ contains
              s%reptrans(id)%symelem_kind = kind
              s%reptrans(id)%origin = xorig
              s%reptrans(id)%symelem_dir = dir
-             s%reptrans(id)%symelem_size = siz
+             s%reptrans(id)%symelem_size = s%scenerad
+             s%reptrans(id)%symelem_cen = real(s%scenecenter,8)
              found = .true.
           end if
        end do
@@ -1907,7 +1919,8 @@ contains
     s%reptrans(id)%symelem_kind = kind
     s%reptrans(id)%origin = xorig
     s%reptrans(id)%symelem_dir = dir
-    s%reptrans(id)%symelem_size = siz
+    s%reptrans(id)%symelem_size = s%scenerad
+    s%reptrans(id)%symelem_cen = real(s%scenecenter,8)
     s%reptrans_tag = tag
 
   end subroutine scene_show_transient_symelem
@@ -1972,7 +1985,7 @@ contains
   !> 3=triple, -1=aromatic/1.5 drawn as solid+dashed); order < -1 (e.g. -2)
   !> draws a plain flat cylinder. border = size of the border. Requires having
   !> the cylinder VAO bound.
-  subroutine draw_cylinder(x1,x2,rad,rgb,ires,order,border,rgbborder,arvec)
+  subroutine draw_cylinder(x1,x2,rad,rgb,ires,order,border,rgbborder,arvec,alpha)
     use interfaces_opengl3
     use tools_math, only: cross_cfloat
     use shaders, only: setuniform_vec4, setuniform_mat4, setuniform_int, setuniform_float,&
@@ -1987,6 +2000,7 @@ contains
     real(c_float), intent(in) :: border
     real(c_float), intent(in), optional :: rgbborder(3)
     real(c_float), intent(in), optional :: arvec(3)
+    real(c_float), intent(in), optional :: alpha
 
     real(c_float) :: xmid(3), xdif(3), up(3), crs(3), blen
     real(c_float) :: a, ca, sa, axis(3), temp(3), rgb_(4), rgbborder_(3)
@@ -2039,6 +2053,7 @@ contains
     ! common uniforms (color and border)
     rgb_(1:3) = rgb
     rgb_(4) = 1._c_float
+    if (present(alpha)) rgb_(4) = alpha
     call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
     call setuniform_float(border,idxi=iunif(iu_border))
     call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))

@@ -236,13 +236,12 @@ module scenes
        real*8, intent(in) :: rotdir(3)
        real*8, intent(in) :: rotlen
      end subroutine scene_show_transient_rotaxis
-     module subroutine scene_show_transient_symelem(s,tag,kind,xorig,dir,siz)
+     module subroutine scene_show_transient_symelem(s,tag,kind,xorig,dir)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: tag
        integer, intent(in) :: kind
        real*8, intent(in) :: xorig(3)
        real*8, intent(in) :: dir(3)
-       real*8, intent(in) :: siz
      end subroutine scene_show_transient_symelem
   end interface
 

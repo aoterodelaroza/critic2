@@ -109,7 +109,6 @@ contains
     integer :: neqv, ncv ! number of operations / centering vectors
     integer :: ihl_symop ! operations table: hovered operation (0 = none)
     integer :: symkind ! hovered operation: symmetry-element kind to draw
-    real*8 :: symsize ! characteristic size (bohr) of the drawn symmetry element
     character(len=1) :: hm1 ! first character of the Hermann-Mauguin symbol
 
     ! actions at the end of the window draw
@@ -1909,12 +1908,11 @@ contains
                       end if
                    end if
                    if (symkind /= 0) then
-                      ! size the element to span the whole displayed system
-                      symsize = norm2(sysc(isys)%sc%scenecenter) + sysc(isys)%sc%scenerad
+                      ! pass the system bounding-sphere radius; the element is
+                      ! sized to span the displayed system in add_draw_elements
                       raxx = sys(isys)%c%x2c(raxc)
                       if (norm2(raxx) > 1d-10) raxx = raxx / norm2(raxx)
-                      call sysc(isys)%sc%show_transient_symelem(ihl_symop,symkind,(/0d0,0d0,0d0/),&
-                         raxx,symsize)
+                      call sysc(isys)%sc%show_transient_symelem(ihl_symop,symkind,(/0d0,0d0,0d0/),raxx)
                    end if
                 end if
              end if
