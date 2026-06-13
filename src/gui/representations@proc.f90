@@ -92,6 +92,10 @@ contains
        r%isinit = .true.
        r%shown = .true.
        r%name = "Rotation axis"
+    elseif (itype == reptype_symelem) then
+       r%isinit = .true.
+       r%shown = .true.
+       r%name = "Symmetry element"
     else
        r%isinit = .false.
        r%shown = .false.
@@ -353,6 +357,7 @@ contains
     use systems, only: sys, sysc
     use crystalmod, only: iperiod_vacthr
     use tools_io, only: string, nameguess
+    use tools_math, only: cross
     use param, only: tpi, img, atmass
     class(representation), intent(inout) :: r
     integer, intent(in) :: nc(3)
@@ -374,6 +379,7 @@ contains
     type(dl_sphere), allocatable :: auxsph(:)
     type(dl_cylinder), allocatable :: auxcyl(:)
     type(dl_string), allocatable :: auxstr(:)
+    type(dl_plane), allocatable :: auxplane(:)
     type(dl_cylinder) :: dcyl
     type(dl_string) :: dstr
     logical :: fixed
@@ -958,6 +964,59 @@ contains
        dcyl%border = 0._c_float
        dcyl%rgbborder = 0._c_float
        call append_cyl(obj%cyl,obj%ncyl,dcyl)
+    elseif (r%type == reptype_symelem) then
+       !!! symmetry element (plane/axis) !!!
+
+       ! unit direction: the plane normal or the axis direction (cartesian)
+       x0 = r%symelem_dir / max(norm2(r%symelem_dir),1d-10)
+
+       if (r%symelem_kind == symelem_kind_plane) then
+          ! mirror/glide plane: a filled rectangle through the origin, lying
+          ! perpendicular to x0 and sized to span the whole displayed system.
+          ! Build two in-plane orthonormal half-edge vectors from the normal.
+          uoriginc = r%origin
+          if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
+          if (abs(x0(1)) < 0.9d0) then
+             xx = (/1d0,0d0,0d0/)
+          else
+             xx = (/0d0,1d0,0d0/)
+          end if
+          x1 = cross(x0,xx)
+          x1 = x1 / norm2(x1)
+          x2 = cross(x0,x1) ! unit (x0, x1 orthonormal)
+
+          obj%nplane = obj%nplane + 1
+          if (obj%nplane > size(obj%plane,1)) then
+             allocate(auxplane(2*obj%nplane))
+             auxplane(1:size(obj%plane,1)) = obj%plane
+             call move_alloc(auxplane,obj%plane)
+          end if
+          obj%plane(obj%nplane)%x = real(uoriginc,c_float)
+          obj%plane(obj%nplane)%e1 = real(r%symelem_size * x1,c_float)
+          obj%plane(obj%nplane)%e2 = real(r%symelem_size * x2,c_float)
+          obj%plane(obj%nplane)%rgb = r%symelem_rgb
+       else
+          ! rotation/screw/rotoinversion axis: a thin cylinder along x0 drawn
+          ! through every visible lattice point, each spanning the whole system
+          dcyl%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
+          dcyl%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
+          dcyl%r = real(rotaxis_radius_def,c_float)
+          dcyl%rgb = r%symelem_rgb
+          dcyl%order = 1
+          dcyl%border = 0._c_float
+          dcyl%rgbborder = 0._c_float
+          do i1 = 0, nc(1)
+             do i2 = 0, nc(2)
+                do i3 = 0, nc(3)
+                   xc = sys(r%id)%c%x2c(real((/i1,i2,i3/),8) + r%origin)
+                   if (sys(r%id)%c%ismolecule) xc = xc - sys(r%id)%c%molx0
+                   dcyl%x1 = real(xc - r%symelem_size * x0,c_float)
+                   dcyl%x2 = real(xc + r%symelem_size * x0,c_float)
+                   call append_cyl(obj%cyl,obj%ncyl,dcyl)
+                end do
+             end do
+          end do
+       end if
     end if ! reptype
   contains
     subroutine increase_ncone()

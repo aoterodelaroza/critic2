@@ -388,6 +388,9 @@ contains
     s%obj%ncone = 0
     if (allocated(s%obj%cone)) deallocate(s%obj%cone)
     allocate(s%obj%cone(10))
+    s%obj%nplane = 0
+    if (allocated(s%obj%plane)) deallocate(s%obj%plane)
+    allocate(s%obj%plane(10))
     s%obj%nstring = 0
     if (allocated(s%obj%string)) deallocate(s%obj%string)
     allocate(s%obj%string(10))
@@ -510,7 +513,7 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use interfaces_cimgui
     use interfaces_opengl3
-    use shapes, only: sphVAO, cylVAO, coneVAO, textVAOos, textVBOos
+    use shapes, only: sphVAO, cylVAO, coneVAO, textVAOos, textVBOos, quadVAO, quadnel
     use gui_main, only: fonts, fontbakesize_large, font_large
     use systems, only: sys, sysc, nsys
     use utils, only: ortho, project
@@ -634,6 +637,15 @@ contains
           call draw_all_flat_cylinders()
        end if
 
+       ! draw the flat rectangles, unlit and double-sided
+       if (s%obj%nplane > 0) then
+          call setuniform_int(0_c_int,"uselighting")
+          call glDisable(GL_CULL_FACE)
+          call glBindVertexArray(quadVAO)
+          call draw_all_planes()
+          call glEnable(GL_CULL_FACE)
+       end if
+
        ! draw the measure selection atoms
        if (s%nmsel > 0) then
           call setuniform_int(0_c_int,"uselighting")
@@ -739,6 +751,15 @@ contains
           call draw_all_flat_cylinders()
        end if
        call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
+
+       ! draw the flat rectangles, flat-shaded, double-sided
+       call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
+       if (s%obj%nplane > 0) then
+          call glDisable(GL_CULL_FACE)
+          call glBindVertexArray(quadVAO)
+          call draw_all_planes()
+          call glEnable(GL_CULL_FACE)
+       end if
 
        ! draw the measure selection atoms
        if (s%nmsel > 0) then
@@ -1036,6 +1057,35 @@ contains
 
     end subroutine draw_all_flat_cylinders
 
+    ! Draw all filled rectangles. The unit quad (corners +/-1,+/-1,0)
+    ! is mapped onto each rectangle by a model matrix whose first two
+    ! columns are the in-plane half-edge vectors and whose translation
+    ! is the rectangle center. The bound shader/uniform state must
+    ! already render flat (object_type=2 in the simple shader, or
+    ! uselighting=0 in phong).
+    subroutine draw_all_planes()
+      use tools_math, only: cross_cfloat
+      integer :: i
+      real(c_float) :: m(4,4), nrm(3), rgb_(4)
+
+      do i = 1, s%obj%nplane
+         nrm = cross_cfloat(s%obj%plane(i)%e1,s%obj%plane(i)%e2)
+         if (norm2(nrm) > 1e-10_c_float) nrm = nrm / norm2(nrm)
+         m = 0._c_float
+         m(4,4) = 1._c_float
+         m(1:3,1) = s%obj%plane(i)%e1
+         m(1:3,2) = s%obj%plane(i)%e2
+         m(1:3,3) = nrm
+         m(1:3,4) = s%obj%plane(i)%x
+         call setuniform_mat4(m,idxi=iunif(iu_model))
+         rgb_(1:3) = s%obj%plane(i)%rgb
+         rgb_(4) = 1._c_float
+         call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
+         call glDrawElements(GL_TRIANGLES, int(3*quadnel,c_int), GL_UNSIGNED_INT, c_null_ptr)
+      end do
+
+    end subroutine draw_all_planes
+
     !> Draw the measure selections
     subroutine draw_all_mselections()
       use gui_main, only: ColorMeasureSelect
@@ -1068,6 +1118,9 @@ contains
       ! highlight the spheres
       do i = 1, s%obj%nsph
          id = s%obj%sph(i)%idx(1)
+         ! skip any non-atom sphere (idx < 1): it carries no cell-atom index and
+         ! is not present in the per-atom highlight arrays
+         if (id < 1) cycle
          rgba = -1._c_float
          if (allocated(sysc(s%id)%highlight_rgba_transient)) &
             rgba = sysc(s%id)%highlight_rgba_transient(:,id)
@@ -1196,6 +1249,9 @@ contains
        do i = 1, s%obj%nsph
           ! draw the sphere, no gradient paths
           idx = s%obj%sph(i)%idx(1)
+          ! skip any non-atom sphere (idx < 1): it carries no cell-atom index
+          ! and must not be pickable as an atom
+          if (idx < 1) cycle
           iz = sys(s%id)%c%spc(sys(s%id)%c%atcel(idx)%is)%z
           if (iz < maxzat0) then
              call draw_sphere(s%obj%sph(i)%x,s%obj%sph(i)%r,s%atom_res,idx=(/i,0,0,0/))
@@ -1806,6 +1862,55 @@ contains
     s%reptrans_tag = tag
 
   end subroutine scene_show_transient_rotaxis
+
+  !> Show a transient symmetry element through the origin: a disc for a
+  !> mirror/glide plane (kind=symelem_kind_plane, dir = plane normal) or a
+  !> cylinder for a rotation/screw/rotoinversion axis (kind=symelem_kind_axis,
+  !> dir = axis direction). xorig and dir are in cartesian (bohr), siz is the
+  !> characteristic size (bohr). tag dedups re-hover of the same element (just
+  !> refresh the geometry rather than rebuild).
+  module subroutine scene_show_transient_symelem(s,tag,kind,xorig,dir,siz)
+    use representations, only: reptype_symelem, repflavor_symelem
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: tag
+    integer, intent(in) :: kind
+    real*8, intent(in) :: xorig(3)
+    real*8, intent(in) :: dir(3)
+    real*8, intent(in) :: siz
+
+    integer :: id
+    logical :: found
+
+    ! already shown for this tag: refresh the geometry, keep it alive
+    if (s%reptrans_tag == tag .and. s%nreptrans > 0) then
+       found = .false.
+       do id = 1, s%nreptrans
+          if (s%reptrans(id)%type == reptype_symelem) then
+             s%reptrans(id)%symelem_kind = kind
+             s%reptrans(id)%origin = xorig
+             s%reptrans(id)%symelem_dir = dir
+             s%reptrans(id)%symelem_size = siz
+             found = .true.
+          end if
+       end do
+       if (found) then
+          s%reptrans_set = .true.
+          return
+       end if
+    end if
+
+    ! (re)build the transient symmetry element
+    call s%clear_transient_representations()
+    id = s%add_transient_representation(reptype_symelem,repflavor_symelem)
+    if (id <= 0) return
+    if (.not.s%reptrans(id)%isinit) return
+    s%reptrans(id)%symelem_kind = kind
+    s%reptrans(id)%origin = xorig
+    s%reptrans(id)%symelem_dir = dir
+    s%reptrans(id)%symelem_size = siz
+    s%reptrans_tag = tag
+
+  end subroutine scene_show_transient_symelem
 
   !xx! private procedures: low-level draws
 

@@ -37,7 +37,7 @@ contains
 
   !> Draw the geometry window.
   module subroutine draw_geometry(w)
-    use representations, only: reptype_atoms
+    use representations, only: reptype_atoms, symelem_kind_plane, symelem_kind_axis
     use windows, only: iwin_view, iwin_tree
     use interfaces_glfw, only: glfwGetTime
     use crystalmod, only: holo_string, laue_string, pointgroup_info
@@ -107,6 +107,10 @@ contains
     character(len=:), allocatable :: saxc, saxx ! axis strings (crystallographic / Cartesian)
     real*8 :: raxc(3), raxx(3) ! rotation axis in crystallographic / Cartesian coordinates
     integer :: neqv, ncv ! number of operations / centering vectors
+    integer :: ihl_symop ! operations table: hovered operation (0 = none)
+    integer :: symkind ! hovered operation: symmetry-element kind to draw
+    real*8 :: symsize ! characteristic size (bohr) of the drawn symmetry element
+    character(len=1) :: hm1 ! first character of the Hermann-Mauguin symbol
 
     ! actions at the end of the window draw
     integer :: iaction, iaction_i1, iaction_i2
@@ -176,6 +180,7 @@ contains
 
     ! initialize
     ihighlight = 0
+    ihl_symop = 0
     ihlbond = 0
     ihlbtn = 0
     ibrm1 = 0
@@ -1874,13 +1879,43 @@ contains
                             string(raxx(2),'f',length=6,decimal=3,justify=ioj_right) // "," //&
                             string(raxx(3),'f',length=6,decimal=3,justify=ioj_right) // "]"
                       end if
-                      if (igTableSetColumnIndex(0)) call iw_text(string(i))
+                      if (igTableSetColumnIndex(0)) then
+                         call iw_text(string(i))
+                         ! whole-row hover: draw this operation's symmetry element
+                         if (iw_highlight_selectable("##symopselect_" // string(i))) ihl_symop = i
+                      end if
                       if (igTableSetColumnIndex(1)) call iw_text(string(w%geometry_sym_hm(i),length=3,justify=ioj_right))
                       if (igTableSetColumnIndex(2)) call iw_text(trim(w%geometry_sym_ops(i)))
                       if (igTableSetColumnIndex(3)) call iw_text(saxc)
                       if (igTableSetColumnIndex(4)) call iw_text(saxx)
                    end do
                    call igEndTable()
+                end if
+
+                ! hovering an operation row: draw its symmetry element (a plane
+                ! for a mirror/glide, an axis for a rotation; nothing for the
+                ! identity or inversion) as a transient in the view
+                if (ihl_symop > 0 .and. sysc(isys)%sc%isinit /= 0) then
+                   raxc = w%geometry_sym_axes(:,ihl_symop)
+                   ! identity and inversion have a zero axis and show nothing; a
+                   ! mirror/glide (HM letter m/a/b/c/n/d) is a plane, the rest axes
+                   symkind = 0
+                   if (norm2(raxc) >= 1d-10) then
+                      hm1 = w%geometry_sym_hm(ihl_symop)(1:1) ! HM symbol is stored left-aligned
+                      if (hm1 >= "a" .and. hm1 <= "z") then
+                         symkind = symelem_kind_plane
+                      else
+                         symkind = symelem_kind_axis
+                      end if
+                   end if
+                   if (symkind /= 0) then
+                      ! size the element to span the whole displayed system
+                      symsize = norm2(sysc(isys)%sc%scenecenter) + sysc(isys)%sc%scenerad
+                      raxx = sys(isys)%c%x2c(raxc)
+                      if (norm2(raxx) > 1d-10) raxx = raxx / norm2(raxx)
+                      call sysc(isys)%sc%show_transient_symelem(ihl_symop,symkind,(/0d0,0d0,0d0/),&
+                         raxx,symsize)
+                   end if
                 end if
              end if
 

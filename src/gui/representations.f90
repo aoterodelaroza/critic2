@@ -19,7 +19,7 @@
 module representations
   use iso_c_binding
   use types, only: neighstar
-  use shapes, only: dl_sphere, dl_cylinder, dl_string, scene_objects
+  use shapes, only: dl_sphere, dl_cylinder, dl_string, dl_plane, scene_objects
   use param, only: bohrtoa, eye, maxzat0, atmcov0
   use global, only: bondfactor_def, bonddelta_def
   implicit none
@@ -57,6 +57,10 @@ module representations
   real*8, parameter, public :: axes_winfrac_def = 0.15d0 ! window-anchored axes length as a fraction of the scene radius (auto-scale tuning knob)
   !--> rotation axis
   real*8, parameter, public :: rotaxis_radius_def = 0.05d0 / bohrtoa ! radius of the rotation-axis cylinder
+  !--> symmetry elements
+  real(c_float), parameter, public :: symelem_rgb_def(3) = (/0.85_c_float,0.10_c_float,0.85_c_float/) ! symmetry element color
+  integer, parameter, public :: symelem_kind_plane = 1 ! mirror/glide plane
+  integer, parameter, public :: symelem_kind_axis = 2 ! rotation/screw/rotoinversion axis
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
@@ -118,11 +122,12 @@ module representations
 
   ! types of representations
   integer, parameter, public :: reptype_none = 0
-  integer, parameter, public :: reptype_atoms = 1
-  integer, parameter, public :: reptype_unitcell = 2
-  integer, parameter, public :: reptype_axes = 3
-  integer, parameter, public :: reptype_rotaxis = 4
-  integer, parameter, public :: reptype_NUM = 4
+  integer, parameter, public :: reptype_atoms = 1 ! atoms/bonds/labels
+  integer, parameter, public :: reptype_unitcell = 2 ! unit cell
+  integer, parameter, public :: reptype_axes = 3 ! cartesian/crystallographic axes gizmo
+  integer, parameter, public :: reptype_rotaxis = 4 ! rotation axis for a molecule
+  integer, parameter, public :: reptype_symelem = 5 ! symmetry element
+  integer, parameter, public :: reptype_NUM = 5
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -136,7 +141,8 @@ module representations
   integer, parameter, public :: repflavor_unitcell_basic = 8
   integer, parameter, public :: repflavor_axes = 9
   integer, parameter, public :: repflavor_rotaxis = 10
-  integer, parameter, public :: repflavor_NUM = 10
+  integer, parameter, public :: repflavor_symelem = 11
+  integer, parameter, public :: repflavor_NUM = 11
 
   !> Representation: objects to draw on the scene
   type representation
@@ -227,6 +233,11 @@ module representations
      real*8 :: rotaxis_length = 0d0 ! half-length: the cylinder spans origin +/- length*rotaxis_dir
      real*8 :: rotaxis_radius = rotaxis_radius_def ! radius of the rotation-axis cylinder
      real(c_float) :: rotaxis_rgb(3) = 0._c_float ! color of the rotation-axis cylinder
+     ! transient symmetry element (disc/cylinder through the origin)
+     integer :: symelem_kind = 0 ! 0=none, 1=plane (mirror), 2=axis (rotation)
+     real*8 :: symelem_dir(3) = (/0d0,0d0,1d0/) ! axis direction or plane normal, unit, cartesian (bohr)
+     real*8 :: symelem_size = 0d0 ! characteristic size in bohr (axis half-length / disc radius)
+     real(c_float) :: symelem_rgb(3) = symelem_rgb_def ! color of the symmetry element
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults
