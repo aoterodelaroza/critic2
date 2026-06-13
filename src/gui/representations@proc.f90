@@ -970,10 +970,13 @@ contains
        ! unit direction: the plane normal or the axis direction (cartesian)
        x0 = r%symelem_dir / max(norm2(r%symelem_dir),1d-10)
 
+       ! reference point in cartesian (bohr); for molecules referred to the
+       ! molecular center
+       uoriginc = r%origin
+       if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
+
        if (r%symelem_kind == symelem_kind_plane) then
           ! mirror/glide plane
-          uoriginc = r%origin
-          if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
           if (abs(x0(1)) < 0.9d0) then
              xx = (/1d0,0d0,0d0/)
           else
@@ -1009,13 +1012,16 @@ contains
           dcyl%order = 1
           dcyl%border = 0._c_float
           dcyl%rgbborder = 0._c_float
-          do i1 = 0, nc(1)
-             do i2 = 0, nc(2)
-                do i3 = 0, nc(3)
-                   xc = sys(r%id)%c%x2c(real((/i1,i2,i3/),8) + r%origin)
-                   if (sys(r%id)%c%ismolecule) xc = xc - sys(r%id)%c%molx0
-                   ! half-length covering the system bounding sphere from xc,
-                   ! expanded by the symmetry-element margin
+
+          ! in crystals: one axis through every lattice point
+          ! in molecules: through the origin
+          n0 = 0
+          n1 = 0
+          if (.not.sys(r%id)%c%ismolecule) n1 = nc
+          do i1 = n0(1), n1(1)
+             do i2 = n0(2), n1(2)
+                do i3 = n0(3), n1(3)
+                   xc = uoriginc + sys(r%id)%c%x2c(real((/i1,i2,i3/),8))
                    res = symelem_margin * (abs(dot_product(r%symelem_cen - xc,x0)) + r%symelem_size)
                    dcyl%x1 = real(xc - res * x0,c_float)
                    dcyl%x2 = real(xc + res * x0,c_float)

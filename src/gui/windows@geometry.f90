@@ -54,7 +54,8 @@ contains
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
        iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper, iw_inputint,&
        iw_inputint3
-    use types, only: realloc
+    use types, only: realloc, molsymop_identity, molsymop_inversion, molsymop_rotation,&
+       molsymop_plane, molsymop_imp_rotation
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger, isreal
     use param, only: newline, bohrtoa, pi, atmcov0, maxzat0
     class(window), intent(inout), target :: w
@@ -109,6 +110,7 @@ contains
     integer :: neqv, ncv ! number of operations / centering vectors
     integer :: ihl_symop ! operations table: hovered operation (0 = none)
     integer :: symkind ! hovered operation: symmetry-element kind to draw
+    integer :: ioptype ! molecular operation type (molsymop_*)
     character(len=1) :: hm1 ! first character of the Hermann-Mauguin symbol
 
     ! actions at the end of the window draw
@@ -1766,8 +1768,88 @@ contains
           call check_changed_tab("symmetry")
 
           if (sys(isys)%c%ismolecule) then
-             call iw_text("Symmetry for molecules is not yet implemented.")
+             !! symmetry: molecule !!
+
+             ! current point group
+             call iw_text("Point Group",highlight=.true.)
+             if (sys(isys)%c%pg%avail) then
+                call iw_text("  " // trim(sys(isys)%c%pg%symbol))
+             else
+                call iw_text("  Not available (symmetry not computed)")
+             end if
+
+             ! symmetry operations table
+             if (sys(isys)%c%pg%avail) then
+                call iw_text("Operations",highlight=.true.)
+                call iw_text("(" // string(sys(isys)%c%pg%nop) // ")",sameline=.true.)
+
+                flags = ImGuiTableFlags_None
+                flags = ior(flags,ImGuiTableFlags_RowBg)
+                flags = ior(flags,ImGuiTableFlags_Borders)
+                flags = ior(flags,ImGuiTableFlags_ScrollY)
+                flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+                str1 = "##symopstablemol" // c_null_char
+                sz0%x = 0
+                ! size to fit all operations, but cap at the space left above the
+                ! Close button (then scroll) so the table never stretches past it
+                sz0%y = iw_calcheight(sys(isys)%c%pg%nop+1,0,.false.)
+                call igGetContentRegionAvail(szavail)
+                szavail%y = szavail%y - iw_calcheight(5,0,.true.)
+                if (sz0%y > szavail%y) sz0%y = szavail%y
+                if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
+                   str2 = "#" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
+                   str2 = "Sym" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
+                   str2 = "Axis (Å)" // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
+                   call igTableSetupScrollFreeze(0,1)
+                   call igTableHeadersRow()
+
+                   do i = 1, sys(isys)%c%pg%nop
+                      call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+                      ! axis/normal (Cartesian unit vector); identity, inversion
+                      ! and unknown operations have no meaningful axis
+                      ioptype = sys(isys)%c%pg%op(i)%type
+                      if (ioptype == molsymop_rotation .or. ioptype == molsymop_imp_rotation .or.&
+                         ioptype == molsymop_plane) then
+                         raxx = sys(isys)%c%pg%op(i)%axis
+                         saxx = "[" // string(raxx(1),'f',length=6,decimal=3,justify=ioj_right) // "," //&
+                            string(raxx(2),'f',length=6,decimal=3,justify=ioj_right) // "," //&
+                            string(raxx(3),'f',length=6,decimal=3,justify=ioj_right) // "]"
+                      else
+                         saxx = ""
+                      end if
+                      if (igTableSetColumnIndex(0)) then
+                         call iw_text(string(i))
+                         ! whole-row hover: draw this operation's symmetry element
+                         if (iw_highlight_selectable("##symopselectmol_" // string(i))) ihl_symop = i
+                      end if
+                      if (igTableSetColumnIndex(1)) call iw_text(trim(sys(isys)%c%pg%op(i)%sym))
+                      if (igTableSetColumnIndex(2)) call iw_text(saxx)
+                   end do
+                   call igEndTable()
+                end if
+
+                ! hovering an operation row: draw its symmetry element through the center of mass
+                if (ihl_symop > 0 .and. sysc(isys)%sc%isinit /= 0) then
+                   ioptype = sys(isys)%c%pg%op(ihl_symop)%type
+                   symkind = 0
+                   if (ioptype == molsymop_plane) then
+                      symkind = symelem_kind_plane
+                   elseif (ioptype == molsymop_rotation .or. ioptype == molsymop_imp_rotation) then
+                      symkind = symelem_kind_axis
+                   end if
+                   if (symkind /= 0) then
+                      raxx = sys(isys)%c%pg%op(ihl_symop)%axis
+                      if (norm2(raxx) > 1d-10) raxx = raxx / norm2(raxx)
+                      call sysc(isys)%sc%show_transient_symelem(ihl_symop,symkind,&
+                         sys(isys)%c%pg%xcm + sys(isys)%c%molx0,raxx)
+                   end if
+                end if
+             end if
           else
+             !! symmetry: crystal !!
              ! current space group
              call iw_text("Space Group",highlight=.true.)
              if (sys(isys)%c%spgavail) then
