@@ -10,6 +10,7 @@ uniform float rborder; // border of the object
 uniform vec3 bordercolor; // color of the border
 uniform float delta_cyl; // displacement for the cylinder along screen plane
 uniform vec3 bond_outward; // aromatic bonds: outward (ring-exterior) direction; 0 otherwise
+uniform int isortho; // 1=orthographic, 0=perspective projection
 
 // coordinates of the vertex
 layout (location = 0) in vec3 inPosition;
@@ -38,7 +39,7 @@ void main(){
 
     if (delta_cyl != 0.) {
       vec3 upn = normalize(up-center);
-      vec3 ncam = vec3(0.,0.,-1.);
+      vec3 ncam = (isortho != 0) ? vec3(0.,0.,-1.) : normalize(center);
       vec3 vperp = normalize(cross(ncam,upn));
 
       float dd = delta_cyl;

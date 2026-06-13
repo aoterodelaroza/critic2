@@ -146,7 +146,8 @@ submodule (scenes) proc
   integer, parameter :: iu_idx = 9
   integer, parameter :: iu_delta_cyl = 10
   integer, parameter :: iu_bond_outward = 11
-  integer, parameter :: iu_NUM = 12
+  integer, parameter :: iu_isortho = 12
+  integer, parameter :: iu_NUM = 13
   integer(c_int) :: iunif(iu_NUM)
 
   !xx! private procedures: low-level draws
@@ -596,11 +597,13 @@ contains
     iunif(iu_idx) = get_uniform_location("idx")
     iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
     iunif(iu_bond_outward) = get_uniform_location("bond_outward")
+    iunif(iu_isortho) = get_uniform_location("isortho")
 
     ! set the common uniforms
     call setuniform_mat4(s%world,idxi=iunif(iu_world))
     call setuniform_mat4(s%view,idxi=iunif(iu_view))
     call setuniform_mat4(s%projection,idxi=iunif(iu_projection))
+    call setuniform_int(merge(1_c_int,0_c_int,s%isortho),idxi=iunif(iu_isortho))
 
     ! draw the spheres for the atoms
     call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
@@ -821,8 +824,10 @@ contains
       iunif(iu_idx) = get_uniform_location("idx")
       iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
       iunif(iu_bond_outward) = get_uniform_location("bond_outward")
+      iunif(iu_isortho) = get_uniform_location("isortho")
       call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
       call setuniform_float(0._c_float,idxi=iunif(iu_border))
+      call setuniform_int(merge(1_c_int,0_c_int,s%isortho),idxi=iunif(iu_isortho))
       call setuniform_mat4(wgiz,idxi=iunif(iu_world))
       call setuniform_mat4(s%view,idxi=iunif(iu_view))
       call setuniform_mat4(s%projection,idxi=iunif(iu_projection))
@@ -1150,6 +1155,7 @@ contains
 
     s%camresetdist = si%camresetdist
     s%camratio = si%camratio
+    s%isortho = si%isortho
     s%ortho_fov = si%ortho_fov
     s%persp_fov = si%persp_fov
     s%campos = si%campos
@@ -1428,7 +1434,7 @@ contains
 
   !> Update the projection matrix from the v_pos
   module subroutine update_projection_matrix(s)
-    use utils, only: ortho, mult
+    use utils, only: ortho, mult, infiniteperspective
     use param, only: pi
     class(scene), intent(inout), target :: s
 
@@ -1439,13 +1445,22 @@ contains
     ! scene center: world to tworld
     call mult(sc,s%world,s%scenecenter)
 
-    ! near and far planes
-    znear = 0._c_float
-    zfar = (s%camresetdist * max_zoom) * s%scenerad
-
-    ! update the projection matrix
-    hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * norm2(s%campos - sc)
-    call ortho(s%projection,-hw2,hw2,-hw2,hw2,znear,zfar)
+    if (s%isortho) then
+       ! orthographic: the frustum half-width follows the camera distance, so
+       ! moving the camera (zoom) changes the apparent size
+       znear = 0._c_float
+       zfar = (s%camresetdist * max_zoom) * s%scenerad
+       hw2 = tan(0.5_c_float * s%ortho_fov * pic / 180._c_float) * norm2(s%campos - sc)
+       call ortho(s%projection,-hw2,hw2,-hw2,hw2,znear,zfar)
+    else
+       ! perspective: the field of view is fixed and the apparent size follows
+       ! the camera distance. The near plane is placed just in front of the
+       ! scene (must be strictly positive); the far plane is at infinity. The
+       ! viewport is square, so the aspect ratio is 1.
+       znear = norm2(s%campos - sc) - s%scenerad
+       if (znear < 0.01_c_float * s%scenerad) znear = 0.01_c_float * s%scenerad
+       call infiniteperspective(s%projection,s%persp_fov * pic / 180._c_float,1._c_float,znear)
+    end if
 
   end subroutine update_projection_matrix
 

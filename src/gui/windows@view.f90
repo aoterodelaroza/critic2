@@ -69,7 +69,7 @@ contains
        repflavor_axes
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
        iw_setposx_fromend, iw_checkbox, iw_coloredit, iw_menuitem, iw_dragfloat_realc,&
-       iw_text, iw_button, iw_tooltip, iw_intstepper
+       iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
     use systems, only: sysc, sys, sys_init, nsys, ok_system, are_threads_running
@@ -351,6 +351,18 @@ contains
           ch = iw_dragfloat_realc("Reset Distance##resetdistance",x1=w%sc%camresetdist,speed=0.01_c_float,&
              min=0.1_c_float,max=8.0_c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Ratio controlling distance from object when resetting camera",ttshown)
+
+          ! projection mode
+          if (iw_radiobutton("Orthographic##projortho",bool=w%sc%isortho,boolval=.true.)) then
+             call w%sc%update_projection_matrix()
+             chrender = .true.
+          end if
+          call iw_tooltip("Parallel projection, with no perspective distortion",ttshown)
+          if (iw_radiobutton("Perspective##projpersp",bool=w%sc%isortho,boolval=.false.,sameline=.true.)) then
+             call w%sc%update_projection_matrix()
+             chrender = .true.
+          end if
+          call iw_tooltip("Perspective projection, with distant objects appearing smaller",ttshown)
 
           ! object resolution
           call iw_text("Object Resolution",highlight=.true.)

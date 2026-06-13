@@ -63,6 +63,7 @@ module scenes
      logical :: iscaminit = .false. ! true if the camera has been initialized
      real(c_float) :: camresetdist ! camera reset distance
      real(c_float) :: camratio ! window ratio for the camera
+     logical :: isortho = .true. ! projection: .true. = orthographic, .false. = perspective
      real(c_float) :: ortho_fov ! orthographic field of view
      real(c_float) :: persp_fov ! perspective field of view
      real(c_float) :: campos(3) ! position of the camera (tworld coords)
