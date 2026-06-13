@@ -1945,6 +1945,7 @@ contains
              end if
 
              ! space group vs tolerance analysis
+             call igAlignTextToFramePadding()
              call iw_text("Space Group Analysis",highlight=.true.)
              call iw_helpermark("Calculate the space group as a function of the symmetry &
                 &tolerance (symprec). Click a row to adopt that tolerance and recalculate.")
