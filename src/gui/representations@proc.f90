@@ -26,17 +26,15 @@ submodule (representations) proc
 contains
 
   !> Initialize a representation for system isys with ID irep.
-  !> itype is the representation type, style is the scene style
-  !> flavor is the representation flavor, and icount is the
-  !> count array of the calling scene.
-  module subroutine representation_init(r,isys,irep,itype,style,flavor,icount)
+  !> itype is the representation type, flavor is the representation
+  !> flavor, and icount is the count array of the calling scene.
+  module subroutine representation_init(r,isys,irep,itype,flavor,icount)
     use systems, only: sys_ready, ok_system
     use tools_io, only: string
     class(representation), intent(inout) :: r
     integer, intent(in) :: isys
     integer, intent(in) :: irep
     integer, intent(in) :: itype
-    integer, intent(in) :: style
     integer, intent(in) :: flavor
     integer, intent(inout) :: icount(0:repflavor_NUM)
 
@@ -113,20 +111,18 @@ contains
     r%iord = icount(0)
 
     ! set all default values
-    call r%set_defaults(style,0)
+    call r%set_defaults(0)
 
   end subroutine representation_init
 
-  !> Set all values to default for the representation with the given
-  !> scene style. Set a subset of defaults if itype = 0 (all),
-  !> 1 (atom), 2 (bonds), 3 (labels), 4 (mol), 5 (unit cell).
-  module subroutine representation_set_defaults(r,style,itype)
-    use scenes, only: style_phong
+  !> Set all values to default for the representation. Set a subset of
+  !> defaults if itype = 0 (all), 1 (atom), 2 (bonds), 3 (labels),
+  !> 4 (mol), 5 (unit cell).
+  module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
     use param, only: atmcov0
     class(representation), intent(inout) :: r
-    integer, intent(in) :: style
     integer, intent(in) :: itype
 
     integer :: isys
@@ -225,11 +221,7 @@ contains
        r%uc_vaccutsticks = .true.
        r%uc_radius = uc_radius_def
        r%uc_radiusinner = uc_radiusinner_def
-       if (style == style_phong) then
-          r%uc_rgb = 1._c_float
-       else
-          r%uc_rgb = 0._c_float
-       end if
+       r%uc_rgb = 0._c_float
        r%uc_innersteplen = uc_innersteplen_def
        r%uc_innerstipple = .true.
     end if
@@ -265,11 +257,7 @@ contains
        ! just request auto-sizing for that placement.
        r%axes_scale = 1d0
        r%axes_scale_auto = (r%axes_placement == 1)
-       if (style == style_phong) then
-          r%axes_labelrgb = 1._c_float
-       else
-          r%axes_labelrgb = 0._c_float
-       end if
+       r%axes_labelrgb = 0._c_float
        r%axes_labelstr(1) = "x"
        r%axes_labelstr(2) = "y"
        r%axes_labelstr(3) = "z"

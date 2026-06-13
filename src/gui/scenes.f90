@@ -35,10 +35,6 @@ module scenes
   real*8, parameter, public :: anim_amplitude_max = 15d0
   real*8, parameter, public :: anim_speed_max = 50d0
 
-  ! scene style
-  integer(c_int), parameter, public :: style_simple = 0
-  integer(c_int), parameter, public :: style_phong = 1
-
   !> Scene: objects from the system to be drawn and plot settings
   type scene
      integer :: isinit = 0 ! 0=uninitialized, 1=initialized but not built, 2=init and built
@@ -61,16 +57,8 @@ module scenes
      integer(c_int) :: atom_res ! atom resolution
      integer(c_int) :: bond_res ! bond resolution
      integer(c_int) :: uc_res ! unit cell resolution
-     ! scene/shader settings
-     integer(c_int) :: style ! scene style (0=simple,1=phong)
+     ! scene appearance settings
      real(c_float) :: bgcolor(3) ! background color
-     real(c_float) :: lightpos(3) ! light position
-     real(c_float) :: lightcolor(3) ! light color
-     real(c_float) :: ambient ! ambient light coefficent
-     real(c_float) :: diffuse ! diffuse light coefficent
-     real(c_float) :: specular ! specular light coefficent
-     integer(c_int) :: shininess ! shininess parameter
-     real(c_float) :: bordercolor(3) ! border color (simple shader)
      ! scene transformation matrices and camera options
      logical :: iscaminit = .false. ! true if the camera has been initialized
      real(c_float) :: camresetdist ! camera reset distance
@@ -164,9 +152,8 @@ module scenes
      module subroutine scene_render_pick(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_render_pick
-     module subroutine scene_set_style_defaults(s,style)
+     module subroutine scene_set_style_defaults(s)
        class(scene), intent(inout), target :: s
-       integer(c_int), intent(in), optional :: style
      end subroutine scene_set_style_defaults
      module subroutine scene_cam_copy(s,si)
        class(scene), intent(inout), target :: s

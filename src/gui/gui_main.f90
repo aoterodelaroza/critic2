@@ -34,7 +34,6 @@ module gui_main
   !   - Colors
   !   - Scene graphics parameters (atom scale and radii, border thickness, offsets,...)
   !   - Transformation matrices and related variables (fov, reset distance,...)
-  !   - Lighting parameters (lightpos,...)
   !   - Draw list variables (dl_sphere, dl_cylinder,...)
   ! + Real variables declared as *8:
   !   - Time flags for events

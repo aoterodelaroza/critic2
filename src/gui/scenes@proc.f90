@@ -195,8 +195,7 @@ contains
     s%bond_res = 1
     s%uc_res = 1
 
-    ! shader default settings
-    s%style = style_simple
+    ! appearance default settings
     call s%set_style_defaults()
 
     ! measure atom sets
@@ -519,7 +518,7 @@ contains
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use tools_io, only: string
-    use shaders, only: shader_phong, shader_simple, shader_text_onscene,&
+    use shaders, only: shader_simple, shader_text_onscene,&
        useshader, setuniform_int, setuniform_float, setuniform_vec3,&
        setuniform_vec4, setuniform_mat3, setuniform_mat4, get_uniform_location
     use param, only: img, pi
@@ -582,248 +581,124 @@ contains
        end if
     end if
 
-    if (s%style == style_phong) then
-       !! phong !!
-       ! set up the shader and the uniforms
-       call useshader(shader_phong)
+    ! set up the shader
+    call useshader(shader_simple)
 
-       ! get all the uniforms
-       iunif(iu_world) = get_uniform_location("world")
-       iunif(iu_view) = get_uniform_location("view")
-       iunif(iu_projection) = get_uniform_location("projection")
-       iunif(iu_model) = get_uniform_location("model")
-       iunif(iu_object_type) = get_uniform_location("object_type")
-       iunif(iu_border) = get_uniform_location("rborder")
-       iunif(iu_bordercolor) = get_uniform_location("bordercolor")
-       iunif(iu_vcolor) = get_uniform_location("vColor")
-       iunif(iu_idx) = get_uniform_location("idx")
-       iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
-       iunif(iu_bond_outward) = get_uniform_location("bond_outward")
+    ! get all the uniforms
+    iunif(iu_world) = get_uniform_location("world")
+    iunif(iu_view) = get_uniform_location("view")
+    iunif(iu_projection) = get_uniform_location("projection")
+    iunif(iu_model) = get_uniform_location("model")
+    iunif(iu_object_type) = get_uniform_location("object_type")
+    iunif(iu_border) = get_uniform_location("rborder")
+    iunif(iu_bordercolor) = get_uniform_location("bordercolor")
+    iunif(iu_vcolor) = get_uniform_location("vColor")
+    iunif(iu_idx) = get_uniform_location("idx")
+    iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
+    iunif(iu_bond_outward) = get_uniform_location("bond_outward")
 
-       ! set the common uniforms
-       call setuniform_int(1_c_int,"uselighting")
-       call setuniform_vec3(s%lightpos,"lightPos")
-       call setuniform_vec3(s%lightcolor,"lightColor")
-       call setuniform_float(s%ambient,"ambient")
-       call setuniform_float(s%diffuse,"diffuse")
-       call setuniform_float(s%specular,"specular")
-       call setuniform_int(s%shininess,"shininess")
-       call setuniform_mat4(s%world,idxi=iunif(iu_world))
-       call setuniform_mat4(s%view,idxi=iunif(iu_view))
-       call setuniform_mat4(s%projection,idxi=iunif(iu_projection))
+    ! set the common uniforms
+    call setuniform_mat4(s%world,idxi=iunif(iu_world))
+    call setuniform_mat4(s%view,idxi=iunif(iu_view))
+    call setuniform_mat4(s%projection,idxi=iunif(iu_projection))
 
-       ! draw the atoms
-       if (s%obj%nsph > 0) then
-          call glBindVertexArray(sphVAO(s%atom_res))
-          call draw_all_spheres()
-       end if
+    ! draw the spheres for the atoms
+    call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
+    if (s%obj%nsph > 0) then
+       call glBindVertexArray(sphVAO(s%atom_res))
+       call draw_all_spheres()
+    end if
 
-       ! draw the bonds
-       if (s%obj%ncyl > 0) then
-          call glBindVertexArray(cylVAO(s%bond_res))
-          call glEnable(GL_BLEND)
-          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-          call draw_all_cylinders()
-          call glDisable(GL_BLEND)
-       end if
-
-       ! draw the cones (arrowheads, lit)
-       if (s%obj%ncone > 0) then
-          call glBindVertexArray(coneVAO(s%bond_res))
-          call draw_all_cones()
-       end if
-
-       ! draw the flat cylinders (unit cell)
-       if (s%obj%ncylflat > 0) then
-          call setuniform_int(0_c_int,"uselighting")
-          call glBindVertexArray(cylVAO(s%uc_res))
-          call draw_all_flat_cylinders()
-       end if
-
-       ! draw the flat rectangles
-       if (s%obj%nplane > 0) then
-          call setuniform_int(0_c_int,"uselighting")
-          call glDisable(GL_CULL_FACE)
-          call glEnable(GL_BLEND)
-          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-          call glBindVertexArray(quadVAO)
-          call draw_all_planes()
-          call glDisable(GL_BLEND)
-          call glEnable(GL_CULL_FACE)
-       end if
-
-       ! draw the measure selection atoms
-       if (s%nmsel > 0) then
-          call setuniform_int(0_c_int,"uselighting")
-          call glBindVertexArray(sphVAO(s%atom_res))
-          call glEnable(GL_BLEND)
-          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-          call draw_all_mselections()
-          call glDisable(GL_BLEND)
-       end if
-
-       ! render labels with on-scene text
-       call useshader(shader_text_onscene)
-       call setuniform_mat4(s%world,"world")
-       call setuniform_mat4(s%view,"view")
-       call setuniform_mat4(s%projection,"projection")
-
-       call glDisable(GL_MULTISAMPLE)
+    ! draw the cylinders for the bonds (inherit border from atoms)
+    call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
+    if (s%obj%ncyl > 0) then
+       call glBindVertexArray(cylVAO(s%bond_res))
        call glEnable(GL_BLEND)
-       call glBlendEquation(GL_FUNC_ADD)
-       call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
-
-       call glActiveTexture(GL_TEXTURE0)
-       call glBindVertexArray(textVAOos)
-       call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
-       call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
-
-       call draw_all_text()
-
-       ! render selected atom labels with on-scene text
-       if (s%nmsel > 0) &
-          call draw_selection_text()
-
-       ! draw the highlighted/selected atoms
-       doit = .false.
-       if (allocated(sysc(s%id)%highlight_rgba)) &
-          doit = any(sysc(s%id)%highlight_rgba >= 0._c_float)
-       if (.not.doit.and.allocated(sysc(s%id)%highlight_rgba_transient)) &
-          doit = any(sysc(s%id)%highlight_rgba_transient >= 0._c_float)
-       if (doit) then
-          call useshader(shader_phong)
-          call setuniform_int(0_c_int,"uselighting")
-          call glBindVertexArray(sphVAO(s%atom_res))
-          call glEnable(GL_BLEND)
-          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-          call draw_highlights()
-          call glDisable(GL_BLEND)
-       end if
-
-       call glEnable(GL_MULTISAMPLE)
-       call glDisable(GL_BLEND)
-    else
-       ! !! simple !!
-
-       ! set up the shader
-       call useshader(shader_simple)
-
-       ! get all the uniforms
-       iunif(iu_world) = get_uniform_location("world")
-       iunif(iu_view) = get_uniform_location("view")
-       iunif(iu_projection) = get_uniform_location("projection")
-       iunif(iu_model) = get_uniform_location("model")
-       iunif(iu_object_type) = get_uniform_location("object_type")
-       iunif(iu_border) = get_uniform_location("rborder")
-       iunif(iu_bordercolor) = get_uniform_location("bordercolor")
-       iunif(iu_vcolor) = get_uniform_location("vColor")
-       iunif(iu_idx) = get_uniform_location("idx")
-       iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
-       iunif(iu_bond_outward) = get_uniform_location("bond_outward")
-
-       ! set the common uniforms
-       call setuniform_mat4(s%world,idxi=iunif(iu_world))
-       call setuniform_mat4(s%view,idxi=iunif(iu_view))
-       call setuniform_mat4(s%projection,idxi=iunif(iu_projection))
-
-       ! draw the spheres for the atoms
-       call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
-       if (s%obj%nsph > 0) then
-          call glBindVertexArray(sphVAO(s%atom_res))
-          call draw_all_spheres()
-       end if
-
-       ! draw the cylinders for the bonds (inherit border from atoms)
-       call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
-       if (s%obj%ncyl > 0) then
-          call glBindVertexArray(cylVAO(s%bond_res))
-          call glEnable(GL_BLEND)
-          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-          call draw_all_cylinders()
-          call glDisable(GL_BLEND)
-       end if
-       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
-
-       ! draw the cones (arrowheads)
-       call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
-       if (s%obj%ncone > 0) then
-          call glBindVertexArray(coneVAO(s%bond_res))
-          call draw_all_cones()
-       end if
-       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
-
-       ! draw the flat cylinders for the unit cell
-       call setuniform_float(0._c_float,idxi=iunif(iu_border))
-       call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
-       if (s%obj%ncylflat > 0) then
-          call glBindVertexArray(cylVAO(s%uc_res))
-          call draw_all_flat_cylinders()
-       end if
-       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
-
-       ! draw the flat rectangles
-       call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
-       if (s%obj%nplane > 0) then
-          call glDisable(GL_CULL_FACE)
-          call glEnable(GL_BLEND)
-          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-          call glBindVertexArray(quadVAO)
-          call draw_all_planes()
-          call glDisable(GL_BLEND)
-          call glEnable(GL_CULL_FACE)
-       end if
-
-       ! draw the measure selection atoms
-       if (s%nmsel > 0) then
-          call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
-          call glBindVertexArray(sphVAO(s%atom_res))
-          call glEnable(GL_BLEND)
-          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-          call draw_all_mselections()
-          call glDisable(GL_BLEND)
-       end if
-
-       ! render labels with on-scene text
-       call useshader(shader_text_onscene)
-       call setuniform_mat4(s%world,"world")
-       call setuniform_mat4(s%view,"view")
-       call setuniform_mat4(s%projection,"projection")
-
-       call glDisable(GL_MULTISAMPLE)
-       call glEnable(GL_BLEND)
-       call glBlendEquation(GL_FUNC_ADD)
-       call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
-
-       call glActiveTexture(GL_TEXTURE0)
-       call glBindVertexArray(textVAOos)
-       call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
-       call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
-
-       call draw_all_text()
-
-       ! render selected atom labels with on-scene text
-       if (s%nmsel > 0) &
-          call draw_selection_text()
-
-       ! highlight the highlighted/selected atoms
-       doit = .false.
-       if (allocated(sysc(s%id)%highlight_rgba)) &
-          doit = any(sysc(s%id)%highlight_rgba >= 0._c_float)
-       if (.not.doit.and.allocated(sysc(s%id)%highlight_rgba_transient)) &
-          doit = any(sysc(s%id)%highlight_rgba_transient >= 0._c_float)
-       if (doit) then
-          call useshader(shader_simple)
-          call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
-          call glBindVertexArray(sphVAO(s%atom_res))
-          call glEnable(GL_BLEND)
-          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-          call draw_highlights()
-          call glDisable(GL_BLEND)
-       end if
-
-       call glEnable(GL_MULTISAMPLE)
+       call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+       call draw_all_cylinders()
        call glDisable(GL_BLEND)
     end if
+    call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
+
+    ! draw the cones (arrowheads)
+    call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
+    if (s%obj%ncone > 0) then
+       call glBindVertexArray(coneVAO(s%bond_res))
+       call draw_all_cones()
+    end if
+    call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
+
+    ! draw the flat cylinders for the unit cell
+    call setuniform_float(0._c_float,idxi=iunif(iu_border))
+    call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
+    if (s%obj%ncylflat > 0) then
+       call glBindVertexArray(cylVAO(s%uc_res))
+       call draw_all_flat_cylinders()
+    end if
+    call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
+
+    ! draw the flat rectangles
+    call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
+    if (s%obj%nplane > 0) then
+       call glDisable(GL_CULL_FACE)
+       call glEnable(GL_BLEND)
+       call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+       call glBindVertexArray(quadVAO)
+       call draw_all_planes()
+       call glDisable(GL_BLEND)
+       call glEnable(GL_CULL_FACE)
+    end if
+
+    ! draw the measure selection atoms
+    if (s%nmsel > 0) then
+       call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
+       call glBindVertexArray(sphVAO(s%atom_res))
+       call glEnable(GL_BLEND)
+       call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+       call draw_all_mselections()
+       call glDisable(GL_BLEND)
+    end if
+
+    ! render labels with on-scene text
+    call useshader(shader_text_onscene)
+    call setuniform_mat4(s%world,"world")
+    call setuniform_mat4(s%view,"view")
+    call setuniform_mat4(s%projection,"projection")
+
+    call glDisable(GL_MULTISAMPLE)
+    call glEnable(GL_BLEND)
+    call glBlendEquation(GL_FUNC_ADD)
+    call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+
+    call glActiveTexture(GL_TEXTURE0)
+    call glBindVertexArray(textVAOos)
+    call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
+    call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
+
+    call draw_all_text()
+
+    ! render selected atom labels with on-scene text
+    if (s%nmsel > 0) &
+       call draw_selection_text()
+
+    ! highlight the highlighted/selected atoms
+    doit = .false.
+    if (allocated(sysc(s%id)%highlight_rgba)) &
+       doit = any(sysc(s%id)%highlight_rgba >= 0._c_float)
+    if (.not.doit.and.allocated(sysc(s%id)%highlight_rgba_transient)) &
+       doit = any(sysc(s%id)%highlight_rgba_transient >= 0._c_float)
+    if (doit) then
+       call useshader(shader_simple)
+       call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
+       call glBindVertexArray(sphVAO(s%atom_res))
+       call glEnable(GL_BLEND)
+       call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+       call draw_highlights()
+       call glDisable(GL_BLEND)
+    end if
+
+    call glEnable(GL_MULTISAMPLE)
+    call glDisable(GL_BLEND)
 
     ! window-anchored axes gizmo, drawn on top of the scene
     if (s%obj%ncylgiz + s%obj%nconegiz + s%obj%nstringgiz > 0) &
@@ -934,42 +809,20 @@ contains
 
       ! set up the shader and uniforms (reuse the scene matrices, but the
       ! gizmo world matrix)
-      if (s%style == style_phong) then
-         call useshader(shader_phong)
-         iunif(iu_world) = get_uniform_location("world")
-         iunif(iu_view) = get_uniform_location("view")
-         iunif(iu_projection) = get_uniform_location("projection")
-         iunif(iu_model) = get_uniform_location("model")
-         iunif(iu_object_type) = get_uniform_location("object_type")
-         iunif(iu_border) = get_uniform_location("rborder")
-         iunif(iu_bordercolor) = get_uniform_location("bordercolor")
-         iunif(iu_vcolor) = get_uniform_location("vColor")
-         iunif(iu_idx) = get_uniform_location("idx")
-         iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
-         iunif(iu_bond_outward) = get_uniform_location("bond_outward")
-         call setuniform_int(1_c_int,"uselighting")
-         call setuniform_vec3(s%lightpos,"lightPos")
-         call setuniform_vec3(s%lightcolor,"lightColor")
-         call setuniform_float(s%ambient,"ambient")
-         call setuniform_float(s%diffuse,"diffuse")
-         call setuniform_float(s%specular,"specular")
-         call setuniform_int(s%shininess,"shininess")
-      else
-         call useshader(shader_simple)
-         iunif(iu_world) = get_uniform_location("world")
-         iunif(iu_view) = get_uniform_location("view")
-         iunif(iu_projection) = get_uniform_location("projection")
-         iunif(iu_model) = get_uniform_location("model")
-         iunif(iu_object_type) = get_uniform_location("object_type")
-         iunif(iu_border) = get_uniform_location("rborder")
-         iunif(iu_bordercolor) = get_uniform_location("bordercolor")
-         iunif(iu_vcolor) = get_uniform_location("vColor")
-         iunif(iu_idx) = get_uniform_location("idx")
-         iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
-         iunif(iu_bond_outward) = get_uniform_location("bond_outward")
-         call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
-         call setuniform_float(0._c_float,idxi=iunif(iu_border))
-      end if
+      call useshader(shader_simple)
+      iunif(iu_world) = get_uniform_location("world")
+      iunif(iu_view) = get_uniform_location("view")
+      iunif(iu_projection) = get_uniform_location("projection")
+      iunif(iu_model) = get_uniform_location("model")
+      iunif(iu_object_type) = get_uniform_location("object_type")
+      iunif(iu_border) = get_uniform_location("rborder")
+      iunif(iu_bordercolor) = get_uniform_location("bordercolor")
+      iunif(iu_vcolor) = get_uniform_location("vColor")
+      iunif(iu_idx) = get_uniform_location("idx")
+      iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
+      iunif(iu_bond_outward) = get_uniform_location("bond_outward")
+      call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
+      call setuniform_float(0._c_float,idxi=iunif(iu_border))
       call setuniform_mat4(wgiz,idxi=iunif(iu_world))
       call setuniform_mat4(s%view,idxi=iunif(iu_view))
       call setuniform_mat4(s%projection,idxi=iunif(iu_projection))
@@ -1073,8 +926,7 @@ contains
     ! is mapped onto each rectangle by a model matrix whose first two
     ! columns are the in-plane half-edge vectors and whose translation
     ! is the rectangle center. The bound shader/uniform state must
-    ! already render flat (object_type=2 in the simple shader, or
-    ! uselighting=0 in phong).
+    ! already render flat (object_type=2 in the simple shader).
     subroutine draw_all_planes()
       use tools_math, only: cross_cfloat
       integer :: i
@@ -1274,38 +1126,16 @@ contains
 
   end subroutine scene_render_pick
 
-  !> Set the style defaults for the current scene. If style is
-  !> not given, use s%style
-  module subroutine scene_set_style_defaults(s,style)
+  !> Set the appearance defaults for the current scene.
+  module subroutine scene_set_style_defaults(s)
     class(scene), intent(inout), target :: s
-    integer(c_int), intent(in), optional :: style
 
-    integer :: style_
     integer :: i
 
-    style_ = s%style
-    if (present(style)) style_ = style
-
-    if (style_ == style_phong) then
-       !! phong !!
-       s%bgcolor = (/1.0_c_float,1.0_c_float,1.0_c_float/)
-       s%lightpos = (/20._c_float,20._c_float,0._c_float/)
-       s%lightcolor = (/1._c_float,1._c_float,1._c_float/)
-       s%ambient = 0.2_c_float
-       s%diffuse = 0.4_c_float
-       s%specular = 0.6_c_float
-       s%shininess = 8_c_int
-       do i = 1, s%nrep
-          s%rep(i)%uc_rgb = 1._c_float
-       end do
-    else
-       !! simple !!
-       s%bgcolor = (/1._c_float,1._c_float,1._c_float/)
-       do i = 1, s%nrep
-          s%rep(i)%uc_rgb = 0._c_float
-       end do
-       s%bordercolor = 0._c_float
-    end if
+    s%bgcolor = (/1._c_float,1._c_float,1._c_float/)
+    do i = 1, s%nrep
+       s%rep(i)%uc_rgb = 0._c_float
+    end do
 
   end subroutine scene_set_style_defaults
 
@@ -1721,7 +1551,7 @@ contains
     integer :: id
 
     id = s%get_new_representation_id()
-    call s%rep(id)%init(s%id,id,itype,s%style,flavor,s%icount)
+    call s%rep(id)%init(s%id,id,itype,flavor,s%icount)
     s%forcesort = .true.
     s%forcebuildlists = .true.
 
@@ -1758,7 +1588,7 @@ contains
 
     ! initialize the representation (throwaway counter, not s%icount)
     dummycount = 0
-    call s%reptrans(id)%init(s%id,id,itype,s%style,flavor,dummycount)
+    call s%reptrans(id)%init(s%id,id,itype,flavor,dummycount)
 
     ! trigger a rebuild + re-render and keep the transient set alive this frame
     s%forcebuildlists = .true.

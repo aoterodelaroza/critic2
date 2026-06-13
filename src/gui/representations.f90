@@ -253,18 +253,16 @@ module representations
 
   ! module procedure interfaces
   interface
-     module subroutine representation_init(r,isys,irep,itype,style,flavor,icount)
+     module subroutine representation_init(r,isys,irep,itype,flavor,icount)
        class(representation), intent(inout) :: r
        integer, intent(in) :: isys
        integer, intent(in) :: irep
        integer, intent(in) :: itype
-       integer, intent(in) :: style
        integer, intent(in) :: flavor
        integer, intent(inout) :: icount(0:repflavor_NUM)
      end subroutine representation_init
-     module subroutine representation_set_defaults(r,style,itype)
+     module subroutine representation_set_defaults(r,itype)
        class(representation), intent(inout) :: r
-       integer, intent(in) :: style
        integer, intent(in) :: itype
      end subroutine representation_set_defaults
      module subroutine representation_end(r)

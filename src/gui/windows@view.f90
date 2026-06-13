@@ -67,7 +67,6 @@ contains
        repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
        repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic,&
        repflavor_axes
-    use scenes, only: style_phong, style_simple
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
        iw_setposx_fromend, iw_checkbox, iw_coloredit, iw_menuitem, iw_dragfloat_realc,&
        iw_text, iw_button, iw_tooltip, iw_intstepper
@@ -372,48 +371,9 @@ contains
              chrender = .true.
           end if
 
-          ! scene style
+          ! scene appearance (atom border color is set per representation in
+          ! the edit-representations window)
           call iw_text("Appearance",highlight=.true.)
-          call iw_combo_simple("Style##scenestyle","Simple"//c_null_char//"Realistic"&
-             //c_null_char//c_null_char,w%sc%style,changed=ch)
-          if (ch) then
-             call w%sc%set_style_defaults()
-             w%sc%forcebuildlists = .true.
-          end if
-
-          if (w%sc%style == style_phong) then
-             !! phong-specific options !!
-             chrender = chrender .or. iw_dragfloat_realc("Light Position",x3=w%sc%lightpos,&
-                speed=0.5_c_float,decimal=1)
-             call iw_tooltip("Change the position of the light",ttshown)
-
-             chrender = chrender .or. iw_dragfloat_realc("Ambient",x1=w%sc%ambient,speed=0.002_c_float,&
-                min=0._c_float,max=1._c_float,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-             call iw_tooltip("Change the ambient light intensity",ttshown)
-             chrender = chrender .or. iw_dragfloat_realc("Diffuse",x1=w%sc%diffuse,speed=0.002_c_float,&
-                min=0._c_float,max=1._c_float,decimal=3,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
-             call iw_tooltip("Change the diffuse light intensity",ttshown)
-             chrender = chrender .or. iw_dragfloat_realc("Specular",x1=w%sc%specular,&
-                speed=0.002_c_float,min=0._c_float,max=1._c_float,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-             call iw_tooltip("Change the specular light intensity",ttshown)
-             call igSameLine(0._c_float,-1._c_float)
-             str2 = "Shininess" // c_null_char
-             str3 = "%.0f" // c_null_char
-             chrender = chrender .or. igDragInt(c_loc(str2),w%sc%shininess,&
-                1._c_float,0_c_int,256_c_int,c_loc(str3),ImGuiSliderFlags_AlwaysClamp)
-             call iw_tooltip("Change the shininess of the light",ttshown)
-
-             chrender = chrender .or. iw_coloredit("Light",rgb=w%sc%lightcolor)
-             call iw_tooltip("Change the color of the light",ttshown)
-             call igSameLine(0._c_float,-1._c_float)
-          elseif (w%sc%style == style_simple) then
-             call igAlignTextToFramePadding()
-             call iw_text("Atom Border: ")
-             call igSameLine(0._c_float,-1._c_float)
-
-             chrender = chrender .or. iw_coloredit("Color",rgb=w%sc%bordercolor,sameline=.true.)
-             call iw_tooltip("Change the color of the atom borders",ttshown)
-          end if
 
           ! background color
           chrender = chrender .or. iw_coloredit("Background",rgb=w%sc%bgcolor)
@@ -449,13 +409,6 @@ contains
                       sysc(i)%sc%nc = w%sc%nc
                    sysc(i)%sc%atom_res = w%sc%atom_res
                    sysc(i)%sc%bond_res = w%sc%bond_res
-                   sysc(i)%sc%lightpos = w%sc%lightpos
-                   sysc(i)%sc%ambient = w%sc%ambient
-                   sysc(i)%sc%diffuse = w%sc%diffuse
-                   sysc(i)%sc%specular = w%sc%specular
-                   sysc(i)%sc%shininess = w%sc%shininess
-                   sysc(i)%sc%bordercolor = w%sc%bordercolor
-                   sysc(i)%sc%lightcolor = w%sc%lightcolor
                    sysc(i)%sc%bgcolor = w%sc%bgcolor
                    sysc(i)%sc%camresetdist = w%sc%camresetdist
                 end if
