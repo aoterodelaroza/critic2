@@ -639,14 +639,17 @@ contains
     end if
     call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
 
-    ! draw the flat rectangles
+    ! draw the flat rectangles (translucent: keep the depth test but disable
+    ! depth writes so atoms/labels behind the plane stay visible)
     call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
     if (s%obj%nplane > 0) then
        call glDisable(GL_CULL_FACE)
        call glEnable(GL_BLEND)
        call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+       call glDepthMask(int(GL_FALSE,c_signed_char))
        call glBindVertexArray(quadVAO)
        call draw_all_planes()
+       call glDepthMask(int(GL_TRUE,c_signed_char))
        call glDisable(GL_BLEND)
        call glEnable(GL_CULL_FACE)
     end if
@@ -940,7 +943,8 @@ contains
     subroutine draw_all_planes()
       use tools_math, only: cross_cfloat
       integer :: i
-      real(c_float) :: m(4,4), nrm(3), rgb_(4)
+      real(c_float) :: m(4,4), rgb_(4)
+      real(c_float) :: nrm(3)
 
       do i = 1, s%obj%nplane
          nrm = cross_cfloat(s%obj%plane(i)%e1,s%obj%plane(i)%e2)
@@ -1759,13 +1763,14 @@ contains
   !> dir = axis direction). xorig and dir are in cartesian (bohr), siz is the
   !> system bounding-sphere radius (bohr); the element is sized to span the
   !> system using siz together with the scene center.
-  module subroutine scene_show_transient_symelem(s,tag,kind,xorig,dir)
+  module subroutine scene_show_transient_symelem(s,tag,kind,xorig,dir,order)
     use representations, only: reptype_symelem, repflavor_symelem
     class(scene), intent(inout), target :: s
     integer, intent(in) :: tag
     integer, intent(in) :: kind
     real*8, intent(in) :: xorig(3)
     real*8, intent(in) :: dir(3)
+    integer, intent(in) :: order
 
     integer :: id
     logical :: found
@@ -1780,6 +1785,7 @@ contains
              s%reptrans(id)%symelem_dir = dir
              s%reptrans(id)%symelem_size = s%scenerad
              s%reptrans(id)%symelem_cen = real(s%scenecenter,8)
+             s%reptrans(id)%symelem_order = order
              found = .true.
           end if
        end do
@@ -1799,6 +1805,7 @@ contains
     s%reptrans(id)%symelem_dir = dir
     s%reptrans(id)%symelem_size = s%scenerad
     s%reptrans(id)%symelem_cen = real(s%scenecenter,8)
+    s%reptrans(id)%symelem_order = order
     s%reptrans_tag = tag
 
   end subroutine scene_show_transient_symelem

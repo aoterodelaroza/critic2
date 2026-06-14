@@ -108,6 +108,9 @@ void glDetachShader_(GLuint program, GLuint shader){
 void glDisable_(GLenum cap){
   glDisable(cap);
 }
+void glDepthMask_(GLboolean flag){
+  glDepthMask(flag);
+}
 void glDrawArrays_(GLenum mode, GLint first, GLsizei count){
   glDrawArrays(mode,first,count);
 }

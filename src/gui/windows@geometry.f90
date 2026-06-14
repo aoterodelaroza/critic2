@@ -111,7 +111,8 @@ contains
     integer :: ihl_symop ! operations table: hovered operation (0 = none)
     integer :: symkind ! hovered operation: symmetry-element kind to draw
     integer :: ioptype ! molecular operation type (molsymop_*)
-    character(len=1) :: hm1 ! first character of the Hermann-Mauguin symbol
+    integer :: iorder ! hovered axis: rotation order (n)
+    character(len=1) :: hm1, cdig ! first HM character; the order digit
 
     ! actions at the end of the window draw
     integer :: iaction, iaction_i1, iaction_i2
@@ -1844,7 +1845,8 @@ contains
                       raxx = sys(isys)%c%pg%op(ihl_symop)%axis
                       if (norm2(raxx) > 1d-10) raxx = raxx / norm2(raxx)
                       call sysc(isys)%sc%show_transient_symelem(ihl_symop,symkind,&
-                         sys(isys)%c%pg%xcm + sys(isys)%c%molx0,raxx)
+                         sys(isys)%c%pg%xcm + sys(isys)%c%molx0,raxx,&
+                         sys(isys)%c%pg%op(ihl_symop)%opn)
                    end if
                 end if
              end if
@@ -1981,12 +1983,21 @@ contains
                    ! identity and inversion have a zero axis and show nothing; a
                    ! mirror/glide (HM letter m/a/b/c/n/d) is a plane, the rest axes
                    symkind = 0
+                   iorder = 0
                    if (norm2(raxc) >= 1d-10) then
                       hm1 = w%geometry_sym_hm(ihl_symop)(1:1) ! HM symbol is stored left-aligned
                       if (hm1 >= "a" .and. hm1 <= "z") then
                          symkind = symelem_kind_plane
                       else
                          symkind = symelem_kind_axis
+                         ! rotation order from the symbol: the (single) digit, after
+                         ! an optional leading "-" (rotoinversion: "-3"/"-4"/"-6")
+                         if (hm1 == "-") then
+                            cdig = w%geometry_sym_hm(ihl_symop)(2:2)
+                         else
+                            cdig = hm1
+                         end if
+                         if (cdig >= "0" .and. cdig <= "9") iorder = ichar(cdig) - ichar("0")
                       end if
                    end if
                    if (symkind /= 0) then
@@ -1994,7 +2005,8 @@ contains
                       ! sized to span the displayed system in add_draw_elements
                       raxx = sys(isys)%c%x2c(raxc)
                       if (norm2(raxx) > 1d-10) raxx = raxx / norm2(raxx)
-                      call sysc(isys)%sc%show_transient_symelem(ihl_symop,symkind,(/0d0,0d0,0d0/),raxx)
+                      call sysc(isys)%sc%show_transient_symelem(ihl_symop,symkind,(/0d0,0d0,0d0/),raxx,&
+                         iorder)
                    end if
                 end if
              end if

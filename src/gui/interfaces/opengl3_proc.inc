@@ -190,6 +190,11 @@ subroutine glDisable(cap) bind(c,name="glDisable_")
   import c_int
   integer(c_int), value :: cap
 end subroutine glDisable
+! void glDepthMask(GLboolean flag)
+subroutine glDepthMask(flag) bind(c,name="glDepthMask_")
+  import c_signed_char
+  integer(c_signed_char), value :: flag
+end subroutine glDepthMask
 ! void glDrawArrays(GLenum mode, GLint first, GLsizei count);
 subroutine glDrawArrays(mode,first,count) bind(c,name="glDrawArrays_")
   import c_int

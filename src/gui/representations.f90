@@ -58,11 +58,21 @@ module representations
   !--> rotation axis
   real*8, parameter, public :: rotaxis_radius_def = 0.05d0 / bohrtoa ! radius of the rotation-axis cylinder
   !--> symmetry elements
-  real(c_float), parameter, public :: symelem_rgb_def(3) = (/0.85_c_float,0.10_c_float,0.85_c_float/) ! symmetry element color
-  real(c_float), parameter, public :: symelem_alpha = 0.4_c_float ! symmetry element opacity
+  real(c_float), parameter, public :: symelem_rgb_def(3) = (/0.85_c_float,0.10_c_float,0.85_c_float/) ! mirror-plane / default color
+  real(c_float), parameter, public :: symelem_alpha = 0.3_c_float ! mirror-plane fill opacity (axes/frames are opaque)
   real*8, parameter, public :: symelem_margin = 1.1d0 ! symmetry element size factor
+  real*8, parameter, public :: symelem_frame_radius = rotaxis_radius_def ! radius of the plane-border cylinders
+  real*8, parameter, public :: symelem_axis_radius = 0.15d0 / bohrtoa ! radius of the axis cylinders
   integer, parameter, public :: symelem_kind_plane = 1 ! mirror/glide plane
   integer, parameter, public :: symelem_kind_axis = 2 ! rotation/screw/rotoinversion axis
+  ! per-order axis colors (used when nonzero; otherwise symelem_rgb_def)
+  real(c_float), parameter, public :: symelem_rgb_order(3,2:6) = reshape((/&
+     0.85_c_float,0.10_c_float,0.10_c_float,&   ! 2-fold: red
+     0.10_c_float,0.65_c_float,0.10_c_float,&   ! 3-fold: green
+     0.10_c_float,0.30_c_float,0.90_c_float,&   ! 4-fold: blue
+     0.00_c_float,0.00_c_float,0.00_c_float,&   ! 5-fold: (unused, default)
+     0.90_c_float,0.45_c_float,0.05_c_float/),& ! 6-fold: orange
+     shape(symelem_rgb_order))
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
@@ -238,8 +248,9 @@ module representations
      ! transient symmetry element (disc/cylinder through the origin)
      integer :: symelem_kind = 0 ! 0=none, 1=plane (mirror), 2=axis (rotation)
      real*8 :: symelem_dir(3) = (/0d0,0d0,1d0/) ! axis direction or plane normal, unit, cartesian (bohr)
-     real*8 :: symelem_size = 0d0 ! system bounding-sphere radius in bohr
-     real*8 :: symelem_cen(3) = 0d0 ! system center in bohr (render frame)
+     real*8 :: symelem_size = 0d0 ! system bounding-sphere radius (bohr)
+     real*8 :: symelem_cen(3) = 0d0 ! system center (bohr)
+     integer :: symelem_order = 0 ! axis rotation order n (selects the axis color)
      real(c_float) :: symelem_rgb(3) = symelem_rgb_def ! color of the symmetry element
    contains
      procedure :: init => representation_init

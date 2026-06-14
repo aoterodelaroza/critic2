@@ -362,7 +362,8 @@ contains
     real(c_float) :: rgb(3)
     real*8 :: rad1, rad2, dd, f1, f2, axsc
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), phase, mass
-    real*8 :: ucini(3), ucend(3)
+    real*8 :: ucini(3), ucend(3), e1v(3), e2v(3)
+    real(c_float) :: rgbax(3)
     complex*16 :: xdelta0(3), xdelta1(3), xdelta2(3)
     type(dl_sphere), allocatable :: auxsph(:)
     type(dl_cylinder), allocatable :: auxcyl(:)
@@ -963,8 +964,20 @@ contains
        uoriginc = r%origin
        if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
 
+       ! opaque thin-cylinder template (plane frame edges, axis shafts)
+       dcyl%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
+       dcyl%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
+       dcyl%r = real(symelem_frame_radius,c_float)
+       dcyl%rgb = r%symelem_rgb
+       dcyl%alpha = 1._c_float
+       dcyl%order = 1
+       dcyl%border = 0._c_float
+       dcyl%rgbborder = 0._c_float
+
        if (r%symelem_kind == symelem_kind_plane) then
-          ! mirror/glide plane
+          ! mirror/glide plane: translucent fill + opaque border frame
+
+          ! in-plane orthonormal basis perpendicular to the plane normal x0
           if (abs(x0(1)) < 0.9d0) then
              xx = (/1d0,0d0,0d0/)
           else
@@ -972,12 +985,15 @@ contains
           end if
           x1 = cross(x0,xx)
           x1 = x1 / norm2(x1)
-          x2 = cross(x0,x1) ! unit (x0, x1 orthonormal)
+          x2 = cross(x0,x1) ! unit, (x0,x1,x2) orthonormal
 
-          ! project the system center onto the plane (rectangle center)
+          ! rectangle center = projection of the system center onto the plane
           xc = r%symelem_cen - dot_product(r%symelem_cen - uoriginc,x0) * x0
           res = symelem_margin * r%symelem_size
+          e1v = res * x1
+          e2v = res * x2
 
+          ! translucent fill
           obj%nplane = obj%nplane + 1
           if (obj%nplane > size(obj%plane,1)) then
              allocate(auxplane(2*obj%nplane))
@@ -985,24 +1001,35 @@ contains
              call move_alloc(auxplane,obj%plane)
           end if
           obj%plane(obj%nplane)%x = real(xc,c_float)
-          obj%plane(obj%nplane)%e1 = real(res * x1,c_float)
-          obj%plane(obj%nplane)%e2 = real(res * x2,c_float)
+          obj%plane(obj%nplane)%e1 = real(e1v,c_float)
+          obj%plane(obj%nplane)%e2 = real(e2v,c_float)
           obj%plane(obj%nplane)%rgb = r%symelem_rgb
           obj%plane(obj%nplane)%alpha = symelem_alpha
-       else
-          ! rotation/screw/rotoinversion axis: a thin cylinder along x0 drawn
-          ! through every visible lattice point, each sized to span the system
-          dcyl%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
-          dcyl%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
-          dcyl%r = real(rotaxis_radius_def,c_float)
-          dcyl%rgb = r%symelem_rgb
-          dcyl%alpha = symelem_alpha
-          dcyl%order = 1
-          dcyl%border = 0._c_float
-          dcyl%rgbborder = 0._c_float
 
-          ! in crystals: one axis through every lattice point
-          ! in molecules: through the origin
+          ! opaque border frame (4 edge cylinders)
+          call append_edge(xc - e1v - e2v, xc + e1v - e2v)
+          call append_edge(xc + e1v - e2v, xc + e1v + e2v)
+          call append_edge(xc + e1v + e2v, xc - e1v + e2v)
+          call append_edge(xc - e1v + e2v, xc - e1v - e2v)
+       else
+          ! rotation/rotoinversion axis: a thick opaque shaft (colored by the
+          ! rotation order) through every visible lattice point (crystals) or
+          ! the molecular center (molecules)
+
+          ! axis color from the rotation order
+          rgbax = symelem_rgb_def
+          if (r%symelem_order >= lbound(symelem_rgb_order,2) .and. &
+              r%symelem_order <= ubound(symelem_rgb_order,2)) then
+             if (any(symelem_rgb_order(:,r%symelem_order) /= 0._c_float)) &
+                rgbax = symelem_rgb_order(:,r%symelem_order)
+          end if
+          dcyl%rgb = rgbax
+          dcyl%r = real(symelem_axis_radius,c_float)
+
+          ! each shaft spans the system bounding sphere plus a margin on each
+          ! side, centered on the projection of the system center onto the axis
+          ! line
+          res = symelem_margin * r%symelem_size
           n0 = 0
           n1 = 0
           if (.not.sys(r%id)%c%ismolecule) n1 = nc
@@ -1010,7 +1037,7 @@ contains
              do i2 = n0(2), n1(2)
                 do i3 = n0(3), n1(3)
                    xc = uoriginc + sys(r%id)%c%x2c(real((/i1,i2,i3/),8))
-                   res = symelem_margin * (abs(dot_product(r%symelem_cen - xc,x0)) + r%symelem_size)
+                   xc = xc + dot_product(r%symelem_cen - xc,x0) * x0 ! foot of the center on the axis
                    dcyl%x1 = real(xc - res * x0,c_float)
                    dcyl%x2 = real(xc + res * x0,c_float)
                    call append_cyl(obj%cyl,obj%ncyl,dcyl)
@@ -1048,6 +1075,17 @@ contains
       lst(n) = it
 
     end subroutine append_cyl
+
+    !> Append an opaque thin edge cylinder between cartesian points p and q
+    !> (uses the host dcyl template for radius/color).
+    subroutine append_edge(p,q)
+      real*8, intent(in) :: p(3), q(3)
+
+      dcyl%x1 = real(p,c_float)
+      dcyl%x2 = real(q,c_float)
+      call append_cyl(obj%cyl,obj%ncyl,dcyl)
+
+    end subroutine append_edge
 
     !> Append a string record to an allocatable string list,
     !> reallocating if necessary.
