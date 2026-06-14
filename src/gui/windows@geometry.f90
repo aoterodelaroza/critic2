@@ -1078,7 +1078,7 @@ contains
                 ! if the user changed the matrix or the origin, clear the error message
                 if (ch) w%errmsg = ""
              end if
-             ok = iw_button("Apply##celltransfapply")
+             ok = iw_button("Apply##celltransfapply",danger=.true.)
              call iw_tooltip("Apply the supercell transformation",ttshown)
              if (ok) then
                 iaction = iaction_transform_matrix
