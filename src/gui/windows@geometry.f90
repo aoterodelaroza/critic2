@@ -455,8 +455,9 @@ contains
                 if (igTableSetColumnIndex(icol)) then
                    call igAlignTextToFramePadding()
                    call iw_text(string(i,ndigit))
-                   call process_selectable_clicks()
                 end if
+                ! emit even when column 0 is clipped off-screen
+                call process_selectable_clicks()
 
                 ! name
                 icol = icol + 1
@@ -749,8 +750,9 @@ contains
                             end if
                          end if
                       end if
-                      call process_selectable_clicks()
                    end if
+                   ! emit even when column 0 is clipped off-screen
+                   call process_selectable_clicks()
 
                    ! atom name
                    icol = icol + 1
@@ -1352,8 +1354,9 @@ contains
                             end if
                          end if
                       end if
-                      call process_selectable_clicks()
                    end if
+                   ! emit even when column 0 is clipped off-screen
+                   call process_selectable_clicks()
 
                    ! number of atoms
                    icol = icol + 1
@@ -1536,8 +1539,9 @@ contains
                    if (igTableSetColumnIndex(icol)) then
                       call igAlignTextToFramePadding()
                       call iw_text(string(i,ndigit))
-                      if (iw_highlight_selectable("##bondselect" // suffix)) ihlbond = i
                    end if
+                   ! emit even when column 0 is clipped off-screen
+                   if (iw_highlight_selectable("##bondselect" // suffix)) ihlbond = i
 
                    ! atom name
                    icol = icol + 1
@@ -1821,11 +1825,9 @@ contains
                       else
                          saxx = ""
                       end if
-                      if (igTableSetColumnIndex(0)) then
-                         call iw_text(string(i))
-                         ! whole-row hover: draw this operation's symmetry element
-                         if (iw_highlight_selectable("##symopselectmol_" // string(i))) ihl_symop = i
-                      end if
+                      if (igTableSetColumnIndex(0)) call iw_text(string(i))
+                      ! whole-row hover: emit even when column 0 is clipped off-screen
+                      if (iw_highlight_selectable("##symopselectmol_" // string(i))) ihl_symop = i
                       if (igTableSetColumnIndex(1)) call iw_text(trim(sys(isys)%c%pg%op(i)%sym))
                       if (igTableSetColumnIndex(2)) call iw_text(saxx)
                    end do
@@ -1962,11 +1964,11 @@ contains
                             string(raxx(2),'f',length=6,decimal=3,justify=ioj_right) // "," //&
                             string(raxx(3),'f',length=6,decimal=3,justify=ioj_right) // "]"
                       end if
-                      if (igTableSetColumnIndex(0)) then
-                         call iw_text(string(i))
-                         ! whole-row hover: draw this operation's symmetry element
-                         if (iw_highlight_selectable("##symopselect_" // string(i))) ihl_symop = i
-                      end if
+                      if (igTableSetColumnIndex(0)) call iw_text(string(i))
+                      ! whole-row hover: the row-spanning selectable must be emitted
+                      ! even when column 0 is clipped (window dragged past the left
+                      ! edge), otherwise the hover highlight stops working
+                      if (iw_highlight_selectable("##symopselect_" // string(i))) ihl_symop = i
                       if (igTableSetColumnIndex(1)) call iw_text(string(w%geometry_sym_hm(i),length=3,justify=ioj_right))
                       if (igTableSetColumnIndex(2)) call iw_text(trim(w%geometry_sym_ops(i)))
                       if (igTableSetColumnIndex(3)) call iw_text(saxc)
