@@ -37,7 +37,7 @@ contains
   module function iw_periodictable()
     use interfaces_cimgui
     use tools_io, only: nameguess, string
-    use gui_main, only: g, ColorElement
+    use gui_main, only: g, ColorElement, ColorBlack
     use param, only: atmass
     integer :: iw_periodictable
 
@@ -45,9 +45,7 @@ contains
     real(c_float) :: width
     type(ImVec2) :: szero
     real(c_float) :: ssquare(2)
-    type(ImVec4) :: color = ImVec4(0.0, 0.0, 0.0, 1.0)
-
-    type(ImVec4), parameter :: black = ImVec4(0.0, 0.0, 0.0, 1.0)
+    type(ImVec4) :: color = ColorBlack
     integer, parameter :: ptable(18,9) = reshape((/&
         1, -1, -1, -1, -1, -1, -1,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1,  2,&
         3,  4, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  5,  6,  7,  8,  9, 10,&
@@ -79,7 +77,7 @@ contains
              color%y = ColorElement(2,iz)
              color%z = ColorElement(3,iz)
              call igPushStyleColor_Vec4(ImGuiCol_Button,color)
-             call igPushStyleColor_Vec4(ImGuiCol_Text,black)
+             call igPushStyleColor_Vec4(ImGuiCol_Text,ColorBlack)
 
              call igSameLine((icol-1)*width + g%Style%WindowPadding%y,1._c_float)
              if (iw_button(nameguess(iz,.true.),siz=ssquare)) then

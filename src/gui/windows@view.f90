@@ -73,7 +73,8 @@ contains
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
     use systems, only: sysc, sys, sys_init, nsys, ok_system, are_threads_running
-    use gui_main, only: g, fontsize, lockbehavior, tree_select_updates_view
+    use gui_main, only: g, fontsize, lockbehavior, tree_select_updates_view,&
+       ColorBlack, ColorWhite, ColorClearTransparent
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
@@ -755,7 +756,8 @@ contains
           call glClearColor(w%sc%bgcolor(1),w%sc%bgcolor(2),&
              w%sc%bgcolor(3),1._c_float)
        else
-          call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
+          call glClearColor(ColorClearTransparent(1),ColorClearTransparent(2),&
+             ColorClearTransparent(3),ColorClearTransparent(4))
        end if
        call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
        if (associated(w%sc)) call w%sc%render()
@@ -767,7 +769,8 @@ contains
        if (.not.interacting) then
           call glBindFramebuffer(GL_FRAMEBUFFER, w%FBOpick)
           call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
-          call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
+          call glClearColor(ColorClearTransparent(1),ColorClearTransparent(2),&
+             ColorClearTransparent(3),ColorClearTransparent(4))
           call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
           if (associated(w%sc)) call w%sc%renderpick()
           call glBindFramebuffer(GL_FRAMEBUFFER, 0)
@@ -778,14 +781,8 @@ contains
     end if
 
     ! border and tint for the image, draw the image, update the rectangle
-    tintcol%x = 1._c_float
-    tintcol%y = 1._c_float
-    tintcol%z = 1._c_float
-    tintcol%w = 1._c_float
-    bgcol%x = 0._c_float
-    bgcol%y = 0._c_float
-    bgcol%z = 0._c_float
-    bgcol%w = 1._c_float
+    tintcol = ColorWhite
+    bgcol = ColorBlack
     call igPushStyleColor_Vec4(ImGuiCol_Button,bgcol)
     call igPushStyleColor_Vec4(ImGuiCol_ButtonActive,bgcol)
     call igPushStyleColor_Vec4(ImGuiCol_ButtonHovered,bgcol)
@@ -938,6 +935,7 @@ contains
   !> Create the texture for the view window, with atex x atex pixels.
   module subroutine create_texture_view(w,atex)
     use interfaces_opengl3
+    use gui_main, only: ColorClearTransparent
     use tools_io, only: ferror, faterr
     class(window), intent(inout), target :: w
     integer, intent(in) :: atex
@@ -990,13 +988,15 @@ contains
     ! initial clear
     call glBindFramebuffer(GL_FRAMEBUFFER, w%FBO)
     call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
-    call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
+    call glClearColor(ColorClearTransparent(1),ColorClearTransparent(2),&
+       ColorClearTransparent(3),ColorClearTransparent(4))
     call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
     call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
     call glBindFramebuffer(GL_FRAMEBUFFER, w%FBOpick)
     call glViewport(0_c_int,0_c_int,w%FBOside,w%FBOside)
-    call glClearColor(0._c_float,0._c_float,0._c_float,0._c_float)
+    call glClearColor(ColorClearTransparent(1),ColorClearTransparent(2),&
+       ColorClearTransparent(3),ColorClearTransparent(4))
     call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
     call glBindFramebuffer(GL_FRAMEBUFFER, 0)
 

@@ -49,7 +49,8 @@ contains
        atlisttype_ncel_ang, atlisttype_nmol, celltransform_standard,&
        celltransform_primstd, celltransform_niggli, celltransform_delaunay, lastchange_rebond
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene, ColorHighlightBondScene,&
-       ColorTableHighlightRow
+       ColorTableHighlightRow, ColorBlack, ColorWhite, ColorButtonHoverFactor,&
+       ColorButtonActiveFactor, lumweights
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
        iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper, iw_inputint,&
@@ -1597,17 +1598,19 @@ contains
                          if (havergb_) then
                             col4 = ImVec4(rgb(1),rgb(2),rgb(3),1._c_float)
                             call igPushStyleColor_Vec4(ImGuiCol_Button,col4)
-                            col4 = ImVec4(min(rgb(1)*1.2_c_float,1._c_float),&
-                               min(rgb(2)*1.2_c_float,1._c_float),min(rgb(3)*1.2_c_float,1._c_float),1._c_float)
+                            col4 = ImVec4(min(rgb(1)*ColorButtonHoverFactor,1._c_float),&
+                               min(rgb(2)*ColorButtonHoverFactor,1._c_float),&
+                               min(rgb(3)*ColorButtonHoverFactor,1._c_float),1._c_float)
                             call igPushStyleColor_Vec4(ImGuiCol_ButtonHovered,col4)
-                            col4 = ImVec4(rgb(1)*0.8_c_float,rgb(2)*0.8_c_float,rgb(3)*0.8_c_float,1._c_float)
+                            col4 = ImVec4(rgb(1)*ColorButtonActiveFactor,rgb(2)*ColorButtonActiveFactor,&
+                               rgb(3)*ColorButtonActiveFactor,1._c_float)
                             call igPushStyleColor_Vec4(ImGuiCol_ButtonActive,col4)
                             ! readable label: black on light atoms, white on dark ones
-                            lum = 0.299_c_float*rgb(1)+0.587_c_float*rgb(2)+0.114_c_float*rgb(3)
+                            lum = lumweights(1)*rgb(1)+lumweights(2)*rgb(2)+lumweights(3)*rgb(3)
                             if (lum > 0.5_c_float) then
-                               col4 = ImVec4(0._c_float,0._c_float,0._c_float,1._c_float)
+                               col4 = ColorBlack
                             else
-                               col4 = ImVec4(1._c_float,1._c_float,1._c_float,1._c_float)
+                               col4 = ColorWhite
                             end if
                             call igPushStyleColor_Vec4(ImGuiCol_Text,col4)
                          end if

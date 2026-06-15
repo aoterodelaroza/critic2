@@ -121,6 +121,8 @@ contains
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
+    use gui_main, only: ColorAtomBorder_def, ColorBond_def, ColorBondBorder_def,&
+       ColorLabel_def, ColorRotaxis_def, ColorAxes_def
     use param, only: atmcov0
     class(representation), intent(inout) :: r
     integer, intent(in) :: itype
@@ -161,7 +163,7 @@ contains
        r%atom_radii_value = atomconstantrad_def
        r%atom_color_type = 0
        r%atom_border_size = atomborder_def
-       r%atom_border_rgb = (/0._c_float,0._c_float,0._c_float/)
+       r%atom_border_rgb = ColorAtomBorder_def
        if (r%flavor == repflavor_atoms_licorice) then
           r%atom_radii_type = 2
           r%atom_radii_value = atomrad_licorice_def
@@ -184,8 +186,8 @@ contains
        r%bond_color_style = 0
        r%bond_border_size = bondborder_def
        r%bond_rad = bondrad_def
-       r%bond_border_rgb = (/0._c_float,0._c_float,0._c_float/)
-       r%bond_rgb = (/0._c_float,0._c_float,0._c_float/)
+       r%bond_border_rgb = ColorBondBorder_def
+       r%bond_rgb = ColorBond_def
        r%bond_order = 4 ! calculated (value from ordcon)
        r%bond_imol = 0
        r%bond_bothends = .true.
@@ -202,7 +204,7 @@ contains
     if (itype == 0 .or. itype == 3) then
        r%label_type = 0
        r%label_scale = 0.5d0
-       r%label_rgb = (/0._c_float,0._c_float,0._c_float/)
+       r%label_rgb = ColorLabel_def
        r%label_const_size = .false.
        r%label_offset = (/0d0,0d0,0d0/)
        if (r%flavor == repflavor_atoms_criticalpoints) then
@@ -241,9 +243,7 @@ contains
        r%axes_radius = axes_radius_def
        r%axes_conelength = axes_conelength_def
        r%axes_coneradius = axes_coneradius_def
-       r%axes_rgb(:,1) = (/1._c_float,0._c_float,0._c_float/) ! x = red
-       r%axes_rgb(:,2) = (/0._c_float,1._c_float,0._c_float/) ! y = green
-       r%axes_rgb(:,3) = (/0._c_float,0._c_float,1._c_float/) ! z = blue
+       r%axes_rgb = ColorAxes_def ! x = red, y = green, z = blue
        r%axes_showlabels = .true.
        r%axes_labelscale = axes_labelscale_def
        r%axes_labelconstsize = .false.
@@ -268,7 +268,7 @@ contains
        r%rotaxis_dir = (/0d0,0d0,1d0/)
        r%rotaxis_length = 0d0
        r%rotaxis_radius = rotaxis_radius_def
-       r%rotaxis_rgb = (/0._c_float,0._c_float,0._c_float/) ! black
+       r%rotaxis_rgb = ColorRotaxis_def ! black
     end if
 
     ! initialize the styles
@@ -344,6 +344,7 @@ contains
   module subroutine add_draw_elements(r,nc,obj,doanim,iqpt,ifreq)
     use systems, only: sys, sysc
     use crystalmod, only: iperiod_vacthr
+    use gui_main, only: ColorAxes_def
     use tools_io, only: string, nameguess
     use tools_math, only: cross
     use param, only: tpi, img, atmass
@@ -784,12 +785,8 @@ contains
           obj%cylflat(obj%ncylflat)%x1 = real(x1,c_float)
           obj%cylflat(obj%ncylflat)%x2 = real(x2,c_float)
           obj%cylflat(obj%ncylflat)%r = real(r%uc_radius,c_float)
-          if (r%uc_coloraxes.and.i==1) then
-             obj%cylflat(obj%ncylflat)%rgb = (/1._c_float,0._c_float,0._c_float/)
-          elseif (r%uc_coloraxes.and.i==2) then
-             obj%cylflat(obj%ncylflat)%rgb = (/0._c_float,1._c_float,0._c_float/)
-          elseif (r%uc_coloraxes.and.i==3) then
-             obj%cylflat(obj%ncylflat)%rgb = (/0._c_float,0._c_float,1._c_float/)
+          if (r%uc_coloraxes.and.i>=1.and.i<=3) then
+             obj%cylflat(obj%ncylflat)%rgb = ColorAxes_def(:,i)
           else
              obj%cylflat(obj%ncylflat)%rgb = r%uc_rgb
           end if

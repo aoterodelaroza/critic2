@@ -99,6 +99,32 @@ module gui_main
   real(c_float), public :: ColorHighlightSelectScene(4)
   real(c_float), public :: ColorMeasureSelect(4,4)
 
+  ! generic black/white constants
+  type(ImVec4), parameter, public :: ColorBlack = ImVec4(0.0, 0.0, 0.0, 1.0) ! opaque black
+  type(ImVec4), parameter, public :: ColorWhite = ImVec4(1.0, 1.0, 1.0, 1.0) ! opaque white
+
+  ! representation default colors
+  real(c_float), parameter, public :: ColorAtomBorder_def(3) = (/0._c_float,0._c_float,0._c_float/) ! atom border (black)
+  real(c_float), parameter, public :: ColorBond_def(3) = (/0._c_float,0._c_float,0._c_float/) ! bond (black)
+  real(c_float), parameter, public :: ColorBondBorder_def(3) = (/0._c_float,0._c_float,0._c_float/) ! bond border (black)
+  real(c_float), parameter, public :: ColorLabel_def(3) = (/0._c_float,0._c_float,0._c_float/) ! atom label (black)
+  real(c_float), parameter, public :: ColorRotaxis_def(3) = (/0._c_float,0._c_float,0._c_float/) ! rotation axis (black)
+  real(c_float), parameter, public :: ColorAxes_def(3,3) = reshape((/& ! canonical axis colors
+     1._c_float,0._c_float,0._c_float,&  ! x = red
+     0._c_float,1._c_float,0._c_float,&  ! y = green
+     0._c_float,0._c_float,1._c_float/),&! z = blue
+     shape(ColorAxes_def))
+
+  ! scene default colors
+  real(c_float), parameter, public :: ColorSceneBg_def(3) = (/1._c_float,1._c_float,1._c_float/) ! scene background (white)
+
+  ! non-palette color-related numerics
+  real(c_float), parameter, public :: ColorRootBg(4) = (/0.45_c_float,0.55_c_float,0.60_c_float,1.00_c_float/) ! root window clear color
+  real(c_float), parameter, public :: ColorClearTransparent(4) = (/0._c_float,0._c_float,0._c_float,0._c_float/) ! FBO transparent clear
+  real(c_float), parameter, public :: ColorButtonHoverFactor = 1.2_c_float ! hovered button brighten factor
+  real(c_float), parameter, public :: ColorButtonActiveFactor = 0.8_c_float ! active button darken factor
+  real(c_float), parameter, public :: lumweights(3) = (/0.299_c_float,0.587_c_float,0.114_c_float/) ! perceived-luminance weights
+
   ! element colors
   real(c_float), public :: ColorElement(3,0:maxzat0)
 

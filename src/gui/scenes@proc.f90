@@ -1157,11 +1157,12 @@ contains
 
   !> Set the appearance defaults for the current scene.
   module subroutine scene_set_style_defaults(s)
+    use gui_main, only: ColorSceneBg_def
     class(scene), intent(inout), target :: s
 
     integer :: i
 
-    s%bgcolor = (/1._c_float,1._c_float,1._c_float/)
+    s%bgcolor = ColorSceneBg_def
     do i = 1, s%nrep
        s%rep(i)%uc_rgb = 0._c_float
     end do

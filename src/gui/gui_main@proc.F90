@@ -304,7 +304,7 @@ contains
        call igRender()
        call glfwGetFramebufferSize(rootwin, display_w, display_h)
        call glViewport(0, 0, display_w, display_h)
-       call glClearColor(0.45, 0.55, 0.60, 1.00)
+       call glClearColor(ColorRootBg(1), ColorRootBg(2), ColorRootBg(3), ColorRootBg(4))
        call glClear(GL_COLOR_BUFFER_BIT)
        call ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData())
 
