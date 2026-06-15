@@ -318,6 +318,8 @@ module crystalmod
      procedure :: spglib_wrap !< Get the spg from the crystal geometry
      procedure :: spgtowyc !< Copy the Wyckoff positions to a crystal from an spg
      procedure :: calcsym !< Calculate the symmetry operations from the crystal geometry
+     procedure :: calcsym_old !< Calculate the symmetry operations with the old (pre-spglib) guesser
+     procedure :: guessspg !< Guess the symmetry operations from the structure (old guesser)
      procedure :: clearsym !< Clear symmetry info and transform to a P1
      procedure :: checkgroup !< Check that the space group operations are consistent
      procedure :: getiws !< Calculate the IWS and its tetrahedra partition around a point
@@ -918,6 +920,14 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine calcsym
+     module subroutine calcsym_old(c,errmsg)
+       class(crystal), intent(inout) :: c
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine calcsym_old
+     module subroutine guessspg(c,level)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: level
+     end subroutine guessspg
      module subroutine clearsym(c,cel2neq,neq2cel)
        class(crystal), intent(inout) :: c
        logical, intent(in), optional :: cel2neq

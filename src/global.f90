@@ -123,6 +123,10 @@ module global
   ! symmetry precision (spglib)
   real*8 :: symprec = 1d-2
 
+  ! use the old (pre-spglib) symmetry guesser instead of spglib when
+  ! building a crystal (set with the SYM OLD keyword)
+  logical :: useoldsym = .false.
+
   ! A molecule/crystal is considered small if they have less than this
   ! number of atoms in the cell (skips symmetry detection).
   integer :: crsmall = 2000

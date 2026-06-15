@@ -414,7 +414,7 @@ contains
   ! atoms, coordinates, atomic numbers, and orbits. Outputs rotation
   ! matrices.
   subroutine calcrotm_general(nat,x,iorb,norbit,orb,nrotm,mrotm)
-    use tools_math, only: matinv, det3
+    use tools_math, only: matinv, det3, cross
     use param, only: eye
     integer, intent(in) :: nat
     real*8, intent(in) :: x(3,nat)
@@ -425,7 +425,7 @@ contains
     type(molsymop), intent(inout), allocatable :: mrotm(:)
 
     integer :: i1, i2, i3, oi1, oi2, oi3, j1, j2, j3
-    real*8 :: mat(3,3), mi(3,3), mop(3,3), dd
+    real*8 :: mat(3,3), mi(3,3), mop(3,3), dd, dbest
 
     ! initialize the symmetry matrices with the identity matrix
     nrotm = 0
@@ -436,26 +436,43 @@ contains
     if (is_symop(mat,nat,x,norbit,orb)) &
        call add_symop(mat,nrotm,mrotm)
 
-    ! find a triplet of atoms that is not coplanar with the origin
-    oi1 = 0
+    ! Choose a well-conditioned reference triplet (one not coplanar with
+    ! the origin and as far from coplanar as possible). Using the first
+    ! barely-acceptable triplet gives an ill-conditioned inverse and makes
+    ! is_symop reject valid operations for highly symmetric/degenerate
+    ! point sets (e.g. lattice-point clouds). Build it greedily in O(nat):
+    ! the farthest atom, then the one most perpendicular to it, then the
+    ! one maximizing the triple product.
+    oi1 = 1
+    do i1 = 2, nat
+       if (norm2(x(:,i1)) > norm2(x(:,oi1))) oi1 = i1
+    end do
     oi2 = 0
+    dbest = -1d0
+    do i2 = 1, nat
+       if (i2 == oi1) cycle
+       dd = norm2(cross(x(:,oi1),x(:,i2)))
+       if (dd > dbest) then
+          dbest = dd
+          oi2 = i2
+       end if
+    end do
     oi3 = 0
-    main: do i1 = 1, nat
-       mi(:,1) = x(:,i1)
-       do i2 = i1+1, nat
-          mi(:,2) = x(:,i2)
-          do i3 = i2+1, nat
-             mi(:,3) = x(:,i3)
-             dd = det3(mi)
-             if (abs(dd) > eps_planar_det3) then
-                oi1 = i1
-                oi2 = i2
-                oi3 = i3
-                exit main
-             end if
-          end do
-       end do
-    end do main
+    dbest = -1d0
+    mi(:,1) = x(:,oi1)
+    mi(:,2) = x(:,oi2)
+    do i3 = 1, nat
+       if (i3 == oi1 .or. i3 == oi2) cycle
+       mi(:,3) = x(:,i3)
+       dd = abs(det3(mi))
+       if (dd > dbest) then
+          dbest = dd
+          oi3 = i3
+       end if
+    end do
+    mi(:,1) = x(:,oi1)
+    mi(:,2) = x(:,oi2)
+    mi(:,3) = x(:,oi3)
     call matinv(mi,3)
 
     ! run over all other triplets with the same orbits

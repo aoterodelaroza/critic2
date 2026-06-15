@@ -49,6 +49,7 @@ module crystalseedmod
      ! symmetry
      integer :: havesym = 0 !< Have symmetry? 0 = no; 1 = yes
      integer :: findsym = -1 !< Find the symmetry? 0 = no; 1 = yes; -1 = only small
+     logical :: useoldsym = .false. !< Use the old (pre-spglib) symmetry guesser
      logical :: checkrepeats = .false. !< Check if atoms are repeated on crystal build
      integer :: neqv = 0 !< Number of symmetry operations
      integer :: ncv = 0 !< Number ofcentering vectors

@@ -125,7 +125,11 @@ contains
              doguess = 0
           else
              word = lgetword(line,lp)
-             if (isinteger(idum,word)) then
+             if (equal(word,'old')) then
+                useoldsym = .true.
+             elseif (equal(word,'new')) then
+                useoldsym = .false.
+             elseif (isinteger(idum,word)) then
                 doguess = idum
              elseif (isreal(rdum,word)) then
                 symprec = rdum
