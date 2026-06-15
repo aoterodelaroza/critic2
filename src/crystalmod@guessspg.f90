@@ -19,7 +19,7 @@
 ! spglib when the SYM OLD keyword is given before a structure is read.
 ! Based on the space-group operations guessing algorithm by teVelde
 ! (described in his PhD thesis).
-submodule (crystalmod) guesspg
+submodule (crystalmod) guessspg
   implicit none
 
   ! private state for the old (pre-spglib) symmetry guesser (guessspg)
@@ -77,7 +77,7 @@ contains
 
     ! find the symmetry operations (neqv, rotm, ncv, cen) from the geometry
     c%havesym = 0
-    call c%guessspg(2)
+    call c%guess_spg(2)
 
     ! Orbit reduction: build the non-equivalent atom list, the
     ! multiplicities, and the complete-list symmetry mapping in a single
@@ -127,13 +127,13 @@ contains
 
   end subroutine calcsym_old
 
-  !xx! guessspg - crystal symmetry guessing module (old, pre-spglib)
+  !xx! guess_spg - crystal symmetry guessing module (old, pre-spglib)
   !> Guesses the symmetry operations from the geometry of the unit
   !> cell and the positions of the atoms in it. In: cell vectors
   !> (m_x2c). Inout: nneq, at(:). Out: neqv, ncv, cen, rotm. If level
   !> = 0, use no symmetry. If level = 1, find only the centering
   !> vectors. Level = 2, full symmetry.
-  module subroutine guessspg(c,level)
+  module subroutine guess_spg(c,level)
     use param, only: eyet
     class(crystal), intent(inout) :: c
     integer, intent(in) :: level
@@ -182,7 +182,7 @@ contains
        call filltrans(c,isref,iref)
     end if
 
-  end subroutine guessspg
+  end subroutine guess_spg
 
   !> Choose the reference species (the one with the fewest atoms in the
   !> complete cell list) and the index of its first atom. Used to anchor
@@ -481,7 +481,7 @@ contains
        if (abs(clen(i) - aal(3)) <= symprec) then; n3 = n3+1; idx3(n3) = i; end if
     end do
 
-    ! the identity is always present; place it first (guessspg relies on
+    ! the identity is always present; place it first (guess_spg relies on
     ! op 1 = identity)
     nn = 1
     rot(:,:,1) = eye
@@ -581,4 +581,4 @@ contains
     end function maps_centering
   end subroutine lattpg
 
-end submodule guesspg
+end submodule guessspg
