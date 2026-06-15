@@ -3494,7 +3494,8 @@ contains
     integer :: nf_ !< number of facets in the WS cell
     integer :: nv_ !< number of vertices
     integer :: mnfv_ !< maximum number of vertices per facet
-    type(c_ptr), target :: fid ! file handle
+    type(c_ptr), target :: ctx ! qhull result handle
+    integer(c_int) :: ier ! qhull error flag
     integer(c_int), allocatable :: ivws(:)
     real(c_double), allocatable :: xvws(:,:)
     integer, allocatable :: iside_(:,:), nside_(:), iord(:)
@@ -3536,21 +3537,22 @@ contains
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
-       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv,fid) bind(c)
+       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv,ctx,ier) bind(c)
          use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: n
          real(c_double) :: xstar(3,n)
          integer(c_int) :: nf, nv, mnfv
-         type(c_ptr) :: fid
+         type(c_ptr) :: ctx
+         integer(c_int) :: ier
        end subroutine runqhull_voronoi_step1
-       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws,fid) bind(c)
+       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws,ctx) bind(c)
          use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: nf, nv, mnfv
          integer(c_int) :: ivws(nf)
          real(c_double) :: xvws(3,nv)
          integer(c_int) :: nfvws(mnfv)
          integer(c_int) :: fvws(mnfv)
-         type(c_ptr), value :: fid
+         type(c_ptr), value :: ctx
        end subroutine runqhull_voronoi_step2
     end interface
 
@@ -3617,10 +3619,12 @@ contains
        ! polyhedron (VDP) is constructed...
 
        ! run voronoi
-       call runqhull_voronoi_step1(nat,xstar,nf_,nv_,mnfv_,fid)
+       call runqhull_voronoi_step1(nat,xstar,nf_,nv_,mnfv_,ctx,ier)
+       if (ier /= 0) &
+          call ferror('trick_voronoi','qhull failed to compute the Voronoi polyhedron.',faterr)
        allocate(ivws(nf_),iside_(mnfv_,nf_),xvws(3,nv_),nside_(nf_))
        nside_ = 0
-       call runqhull_voronoi_step2(nf_,nv_,mnfv_,ivws,xvws,nside_,iside_,fid)
+       call runqhull_voronoi_step2(nf_,nv_,mnfv_,ivws,xvws,nside_,iside_,ctx)
 
        ! sort neighbors by distance
        allocate(auxd(nf_),iord(nf_))

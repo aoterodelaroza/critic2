@@ -2975,23 +2975,25 @@ contains
     real(c_double) :: x0(3)
     real(c_double), allocatable :: xstar(:,:)
     integer(c_int), allocatable :: iface(:,:), lvec(:,:)
-    type(c_ptr), target :: fid
+    type(c_ptr), target :: ctx
+    integer(c_int) :: ier
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
-       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,fid) bind(c)
+       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,ctx,ier) bind(c)
          import c_int, c_double, c_ptr
          integer(c_int), value :: n
          real(c_double) :: x0(3)
          real(c_double) :: xvert(3,n)
          integer(c_int) :: nf
-         type(c_ptr) :: fid
+         type(c_ptr) :: ctx
+         integer(c_int) :: ier
        end subroutine runqhull_basintriangulate_step1
-       subroutine runqhull_basintriangulate_step2(nf,iface,fid) bind(c)
+       subroutine runqhull_basintriangulate_step2(nf,iface,ctx) bind(c)
          import c_int, c_double, c_ptr
          integer(c_int), value :: nf
          integer(c_int) :: iface(3,nf)
-         type(c_ptr), value :: fid
+         type(c_ptr), value :: ctx
        end subroutine runqhull_basintriangulate_step2
     end interface
 
@@ -3087,10 +3089,12 @@ contains
           xstar(:,j) = s%c%atcel(eid(j))%x + lvec(:,j)
           xstar(:,j) = s%c%x2c(xstar(:,j))
        end do
-       call runqhull_basintriangulate_step1(nat,x0,xstar,nf,fid)
+       call runqhull_basintriangulate_step1(nat,x0,xstar,nf,ctx,ier)
+       if (ier /= 0) &
+          call ferror("struct_polyhedra","qhull failed to triangulate the polyhedron.",faterr)
        if (allocated(iface)) deallocate(iface)
        allocate(iface(3,nf))
-       call runqhull_basintriangulate_step2(nf,iface,fid)
+       call runqhull_basintriangulate_step2(nf,iface,ctx)
 
        ! calculate the polyhedron volume
        vol = 0d0
@@ -5257,21 +5261,22 @@ contains
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
-       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv,fid) bind(c)
+       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv,ctx,ier) bind(c)
          use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: n
          real(c_double) :: xstar(3,n)
          integer(c_int) :: nf, nv, mnfv
-         type(c_ptr) :: fid
+         type(c_ptr) :: ctx
+         integer(c_int) :: ier
        end subroutine runqhull_voronoi_step1
-       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws,fid) bind(c)
+       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws,ctx) bind(c)
          use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: nf, nv, mnfv
          integer(c_int) :: ivws(nf)
          real(c_double) :: xvws(3,nv)
          integer(c_int) :: nfvws(mnfv)
          integer(c_int) :: fvws(mnfv)
-         type(c_ptr), value :: fid
+         type(c_ptr), value :: ctx
        end subroutine runqhull_voronoi_step2
     end interface
 
@@ -5283,7 +5288,8 @@ contains
     integer :: bz_nf, bz_nv, bz_mnfv, bz_nside(14), bz_ineighx(3,14)
     integer, allocatable :: bz_iside(:,:)
     real*8, allocatable :: bz_x(:,:)
-    type(c_ptr), target :: fid
+    type(c_ptr), target :: ctx
+    integer(c_int) :: ier
 
     real*8, parameter :: eps_dnorm = 1d-5 !< minimum lattice vector length
     character*2, parameter :: lvecname(3) = (/"a*","b*","c*"/)
@@ -5329,10 +5335,12 @@ contains
           call ferror("wigner","Lattice vector too short. Please, check the unit cell definition.",faterr)
     end do
 
-    call runqhull_voronoi_step1(n,xstar,bz_nf,bz_nv,bz_mnfv,fid)
+    call runqhull_voronoi_step1(n,xstar,bz_nf,bz_nv,bz_mnfv,ctx,ier)
+    if (ier /= 0) &
+       call ferror("struct_bz","qhull failed to compute the Brillouin-Zone geometry.",faterr)
     allocate(ivws(bz_nf),bz_iside(bz_mnfv,bz_nf),xvws(3,bz_nv))
     bz_nside = 0
-    call runqhull_voronoi_step2(bz_nf,bz_nv,bz_mnfv,ivws,xvws,bz_nside(1:bz_nf),bz_iside,fid)
+    call runqhull_voronoi_step2(bz_nf,bz_nv,bz_mnfv,ivws,xvws,bz_nside(1:bz_nf),bz_iside,ctx)
 
     if (allocated(bz_x)) deallocate(bz_x)
     allocate(bz_x(3,bz_nv))

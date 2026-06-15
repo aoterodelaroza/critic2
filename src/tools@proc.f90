@@ -708,21 +708,22 @@ contains
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
-       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv,fid) bind(c)
+       subroutine runqhull_voronoi_step1(n,xstar,nf,nv,mnfv,ctx,ier) bind(c)
          use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: n
          real(c_double) :: xstar(3,n)
          integer(c_int) :: nf, nv, mnfv
-         type(c_ptr) :: fid
+         type(c_ptr) :: ctx
+         integer(c_int) :: ier
        end subroutine runqhull_voronoi_step1
-       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws,fid) bind(c)
+       subroutine runqhull_voronoi_step2(nf,nv,mnfv,ivws,xvws,nfvws,fvws,ctx) bind(c)
          use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: nf, nv, mnfv
          integer(c_int) :: ivws(nf)
          real(c_double) :: xvws(3,nv)
          integer(c_int) :: nfvws(mnfv)
          integer(c_int) :: fvws(mnfv)
-         type(c_ptr), value :: fid
+         type(c_ptr), value :: ctx
        end subroutine runqhull_voronoi_step2
     end interface
 
@@ -750,7 +751,8 @@ contains
     real*8 :: m_xr2c_(3,3) !< reduced cryst -> input cartesian matrix
     real*8 :: m_c2xr_(3,3) !< cartesian -> reduced cryst matrix
     integer, allocatable :: ineighxr_(:,:) !< WS neighbor lattice points (del cell, cryst.)
-    type(c_ptr), target :: fid ! file handle
+    type(c_ptr), target :: ctx ! qhull result handle
+    integer(c_int) :: ier ! qhull error flag
 
     ! delaunay reduction
     call delaunay_reduction(m_x2c,rmat,rbas=rdel)
@@ -779,10 +781,12 @@ contains
     end do
 
     ! determine the WS cell
-    call runqhull_voronoi_step1(n,xstar,nf_,nv_,mnfv_,fid)
+    call runqhull_voronoi_step1(n,xstar,nf_,nv_,mnfv_,ctx,ier)
+    if (ier /= 0) &
+       call ferror("wigner","qhull failed to compute the Wigner-Seitz cell.",faterr)
     allocate(ivws(nf_),iside_(mnfv_,nf_),xvws(3,nv_),nside_(nf_))
     nside_ = 0
-    call runqhull_voronoi_step2(nf_,nv_,mnfv_,ivws,xvws,nside_,iside_,fid)
+    call runqhull_voronoi_step2(nf_,nv_,mnfv_,ivws,xvws,nside_,iside_,ctx)
     if (present(nf)) nf = nf_
     if (present(nv)) nv = nv_
     if (present(mnfv)) mnfv = mnfv_

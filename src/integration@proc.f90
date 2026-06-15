@@ -4254,13 +4254,13 @@ contains
   !> Plot the atomic basins found by YT or BADER to graphical files.
   !> bas = integration driver data.
   subroutine int_gridbasins(bas)
-    use iso_c_binding, only: c_ptr
+    use iso_c_binding, only: c_ptr, c_int
     use yt, only: yt_weights, ytdata_clean, ytdata
     use systemmod, only: sy
     use global, only: fileroot
     use graphics, only: grhandle
     use tools_math, only: m_x2c_from_cellpar, matinv, cross
-    use tools_io, only: string, uout, ferror, noerr, string
+    use tools_io, only: string, uout, ferror, noerr, faterr, string
     use types, only: realloc, basindat
     type(basindat), intent(in) :: bas
 
@@ -4274,23 +4274,25 @@ contains
     integer :: nvert, nf
     real*8, allocatable :: xvert(:,:), xrho(:)
     integer, allocatable :: iface(:,:)
-    type(c_ptr), target :: fid
+    type(c_ptr), target :: ctx
+    integer(c_int) :: ier
 
     interface
        ! The definitions and documentation for these functions are in doqhull.c
-       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,fid) bind(c)
+       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,ctx,ier) bind(c)
          use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: n
          real(c_double) :: x0(3)
          real(c_double) :: xvert(3,n)
          integer(c_int) :: nf
-         type(c_ptr) :: fid
+         type(c_ptr) :: ctx
+         integer(c_int) :: ier
        end subroutine runqhull_basintriangulate_step1
-       subroutine runqhull_basintriangulate_step2(nf,iface,fid) bind(c)
+       subroutine runqhull_basintriangulate_step2(nf,iface,ctx) bind(c)
          use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
          integer(c_int), value :: nf
          integer(c_int) :: iface(3,nf)
-         type(c_ptr), value :: fid
+         type(c_ptr), value :: ctx
        end subroutine runqhull_basintriangulate_step2
     end interface
 
@@ -4372,9 +4374,11 @@ contains
        if (nvert > 0) then
           ! run qhull
           x = sy%c%x2c(bas%xattr(:,i))
-          call runqhull_basintriangulate_step1(nvert,x,xvert,nf,fid)
+          call runqhull_basintriangulate_step1(nvert,x,xvert,nf,ctx,ier)
+          if (ier /= 0) &
+             call ferror("int_gridbasins","qhull failed to triangulate the basin surface.",faterr)
           allocate(iface(3,nf))
-          call runqhull_basintriangulate_step2(nf,iface,fid)
+          call runqhull_basintriangulate_step2(nf,iface,ctx)
 
           ! orient the faces
           !$omp parallel do private(x1,x2,iaux)
