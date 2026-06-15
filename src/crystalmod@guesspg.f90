@@ -36,6 +36,7 @@ contains
   !> are filled. If error, errmsg has length > 0.
   module subroutine calcsym_old(c,errmsg)
     use param, only: icrd_crys
+    use global, only: symprec
     use types, only: realloc
     class(crystal), intent(inout) :: c
     character(len=:), allocatable, intent(out) :: errmsg
@@ -99,7 +100,7 @@ contains
        do io = 1, c%neqv
           do it = 1, c%ncv
              x0 = matmul(c%rotm(1:3,1:3,io),c%atcel(k)%x) + c%rotm(:,4,io) + c%cen(:,it)
-             id = c%identify_atom(x0,icrd_crys)
+             id = c%identify_atom(x0,icrd_crys,distmax=symprec)
              if (id == 0) then
                 errmsg = "incomplete orbit while building the complete atom list"
                 return
@@ -170,7 +171,7 @@ contains
     if (level > 1) then
        ! Find the rotation parts of the operations
        rmat = transpose(c%m_x2c)
-       call lattpg(rmat,c%ncv,c%cen,c%neqv,rot)
+       call lattpg(rmat,c%neqv,rot)
        c%rotm(1:3,1:3,1:c%neqv) = rot(:,:,1:c%neqv)
 
        ! the first operation is the identity, with zero translation
@@ -230,7 +231,7 @@ contains
   !> lookups, m = number of reference-species atoms (true positives run a
   !> full O(ncel) check, false candidates exit early).
   subroutine cenbuild(c,isref,iref)
-    use global, only: atomeps
+    use global, only: symprec
     use types, only: realloc
     type(crystal), intent(inout) :: c
     integer, intent(in) :: isref, iref
@@ -254,7 +255,7 @@ contains
        ! skip if already in the list (ncv is small)
        rep = .false.
        do j = 1, c%ncv
-          if (c%are_lclose(c%cen(:,j),tr,atomeps)) then
+          if (c%are_lclose(c%cen(:,j),tr,symprec)) then
              rep = .true.
              exit
           end if
@@ -297,6 +298,7 @@ contains
   !> teVelde, described in his PhD thesis.
   function iscelltr(c,tr)
     use param, only: icrd_crys
+    use global, only: symprec
     logical :: iscelltr
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: tr(3) !< Cell translation vector to check
@@ -305,7 +307,7 @@ contains
 
     iscelltr = .false.
     do i = 1, c%ncel
-       id = c%identify_atom(c%atcel(i)%x + tr,icrd_crys)
+       id = c%identify_atom(c%atcel(i)%x + tr,icrd_crys,distmax=symprec)
        if (id == 0) return
        if (c%atcel(id)%is /= c%atcel(i)%is) return
     end do
@@ -322,7 +324,7 @@ contains
   !> part of the spg operations guessing algorithm by teVelde, described
   !> in his PhD thesis.
   subroutine filltrans(c,isref,iref)
-    use global, only: atomeps
+    use global, only: symprec
     type(crystal), intent(inout) :: c
     integer, intent(in) :: isref, iref
 
@@ -363,7 +365,7 @@ contains
           k = 1
           do while (dok .and. k<c%ncv)
              k = k + 1
-             if (c%are_lclose(c%rotm(:,4,n),c%cen(:,k),atomeps)) then
+             if (c%are_lclose(c%rotm(:,4,n),c%cen(:,k),symprec)) then
                 c%rotm(:,4,n) = 0d0
                 dok = .false.
              end if
@@ -382,6 +384,7 @@ contains
   !> in his PhD thesis.
   function goodop(c,op)
     use param, only: icrd_crys
+    use global, only: symprec
     logical :: goodop
     type(crystal), intent(inout) :: c
     integer, intent(in) :: op !< Operation identifier
@@ -392,7 +395,7 @@ contains
     goodop = .false.
     do i = 1, c%ncel
        xnew = matmul(c%rotm(1:3,1:3,op),c%atcel(i)%x) + c%rotm(:,4,op)
-       id = c%identify_atom(xnew,icrd_crys)
+       id = c%identify_atom(xnew,icrd_crys,distmax=symprec)
        if (id == 0) return
        if (c%atcel(id)%is /= c%atcel(i)%is) return
     end do
@@ -400,127 +403,148 @@ contains
 
   end function goodop
 
-  !> Determine the rotational parts of the symmetry operations from the
-  !> lattice point group. rmat (rows = lattice vectors) and the
-  !> centering vectors (xcen, ncen) are the input; nn (number of
-  !> operations) and rot (rotation matrices, crystallographic) are the
-  !> output.
-  subroutine lattpg(rmat,ncen,xcen,nn,rot)
-    use molsymmod, only: calc_point_group, point_group
-    use tools_math, only: matinv
-    use types, only: realloc, molsymop_identity
+  !> Determine the rotational parts of the symmetry operations from
+  !> the lattice point group, using the lattice metric tensor. A
+  !> crystallographic rotation is an integer matrix R (in the
+  !> crystallographic basis) with |det R| = 1 that preserves the
+  !> metric tensor G = rmat.rmat^T to within the symmetry
+  !> tolerance. The columns of R are the images of the basis vectors,
+  !> so each column is an integer lattice vector with the same length
+  !> as the corresponding basis vector. rmat (rows = lattice vectors)
+  !> is the input; nn (number of operations) and rot (rotation
+  !> matrices, crystallographic, identity first) are the output.
+  subroutine lattpg(rmat,nn,rot)
+    use tools_math, only: det3, matinv
+    use global, only: symprec
+    use types, only: realloc
     use param, only: eye
     real*8, intent(in) :: rmat(3,3)
-    integer, intent(in) :: ncen
-    real*8, intent(in) :: xcen(3,ncen)
-    integer, intent(out), optional :: nn
-    real*8, intent(out), optional :: rot(3,3,48)
+    integer, intent(out) :: nn
+    real*8, intent(out) :: rot(3,3,48)
 
-    real*8 :: rmati(3,3), aal(3), gmat(3,3)
-    integer :: i, j, na, nb, nc, npos, np0, ia, ib, ic, it, op, ier, iident
-    real*8  :: amax, amax2e, x(3), t(3), d2
-    real*8, allocatable :: ax(:,:)
-    integer, allocatable :: atZmol(:)
-    logical :: found
-    type(point_group) :: pg
-    character(len=:), allocatable :: errmsg
+    real*8 :: gmat(3,3), ginv(3,3), aal(3), maxl, gp(3,3), rop(3,3), d
+    integer :: i, nbox(3), ia, ib, ic, ncand, n1, n2, n3, j1, j2, j3, ier
+    integer, allocatable :: cand(:,:), idx1(:), idx2(:), idx3(:)
+    real*8, allocatable :: clen(:)
 
-    ! the reciprocal-space matrix is the transpose of the inverse
-    rmati = rmat
-    call matinv(rmati,3,ier)
     gmat = matmul(rmat,transpose(rmat))
     do i = 1, 3
        aal(i) = sqrt(gmat(i,i))
     end do
+    maxl = maxval(aal)
 
-    ! every lattice vector must be represented in the molecule
-    amax = 2d0*maxval(aal)
-    amax2e = amax * amax + 1d-5
-    na = int((amax/aal(1)) - 1d-7) + 2
-    nb = int((amax/aal(2)) - 1d-7) + 2
-    nc = int((amax/aal(3)) - 1d-7) + 2
+    ! Box of integer lattice vectors that can have Cartesian length <=
+    ! maxl+symprec. The i-th integer index of a vector v is n_i = b_i.v
+    ! (b_i = reciprocal lattice vector), so |n_i| <= |v| |b_i| = |v|
+    ! sqrt(ginv_ii). This bound is correct for any (incl. sheared,
+    ! non-reduced) cell, unlike maxl/aal(i).
+    ginv = gmat
+    call matinv(ginv,3,ier)
+    do i = 1, 3
+       nbox(i) = int((maxl+symprec)*sqrt(ginv(i,i))) + 1
+    end do
 
-    ! build the lattice point molecule
-    npos = 0
-    allocate(ax(3,10))
-    do ia = -na, na
-       do ib = -nb, nb
-          do ic = -nc, nc
-             do it = 1, ncen
-                x = real((/ia,ib,ic/),8) + xcen(:,it)
-                t = matmul(x,rmat)
-                d2 = dot_product(t,t)
-                if (d2 <= amax2e) then
-                   npos = npos + 1
-                   if (npos > size(ax,2)) call realloc(ax,3,2*npos)
-                   ax(:,npos) = t
+    ! collect candidate columns: integer lattice vectors with Cartesian
+    ! length <= maxl + symprec (the columns of any rotation are images of
+    ! the basis vectors, so no longer than the longest basis vector)
+    ncand = 0
+    allocate(cand(3,32),clen(32))
+    do ia = -nbox(1), nbox(1)
+       do ib = -nbox(2), nbox(2)
+          do ic = -nbox(3), nbox(3)
+             if (ia == 0 .and. ib == 0 .and. ic == 0) cycle
+             d = dot_product(real((/ia,ib,ic/),8),matmul(gmat,real((/ia,ib,ic/),8))) ! length^2
+             if (d <= (maxl+symprec)**2) then
+                ncand = ncand + 1
+                if (ncand > size(clen)) then
+                   call realloc(cand,3,2*ncand)
+                   call realloc(clen,2*ncand)
                 end if
-             end do
-          end do
-       end do
-    end do
-    call realloc(ax,3,npos)
-
-    ! Make the cluster exactly centrosymmetric about the origin. A lattice
-    ! always has an inversion center at the origin, but the symmetric
-    ! integer index box above does not capture the antipodes of
-    ! half-/third-centered points symmetrically (they fall at shifted
-    ! indices), so the raw cluster can be slightly lopsided. The point-group
-    ! detector recenters to the center of mass, which must coincide with the
-    ! lattice inversion center; otherwise it misses the inversion and the
-    ! rotations through the origin. Add any missing antipodes (-t is always a
-    ! lattice point).
-    np0 = npos
-    do i = 1, np0
-       found = .false.
-       do j = 1, npos
-          if (norm2(ax(:,j) + ax(:,i)) < 1d-5) then
-             found = .true.
-             exit
-          end if
-       end do
-       if (.not.found) then
-          npos = npos + 1
-          if (npos > size(ax,2)) call realloc(ax,3,2*npos)
-          ax(:,npos) = -ax(:,i)
-       end if
-    end do
-    call realloc(ax,3,npos)
-    allocate(atZmol(npos))
-    atzmol = 1
-
-    ! Use the molecular point-group detector to determine the lattice
-    ! point group (all lattice points are the same fake species).
-    call calc_point_group(npos,ax,atZmol,pg,errmsg)
-
-    if (present(nn) .and. present(rot)) then
-       if (.not.pg%avail .or. len_trim(errmsg) > 0) then
-          ! could not determine the point group: fall back to P1
-          nn = 1
-          rot(:,:,1) = eye
-       else
-          ! calc_point_group returns Cartesian operation matrices; convert
-          ! each to crystallographic coordinates with rmati^T . m . rmat^T.
-          ! The identity must come first (guessspg relies on op 1 = identity).
-          iident = 1
-          do i = 1, pg%nop
-             if (pg%op(i)%type == molsymop_identity) then
-                iident = i
-                exit
+                cand(:,ncand) = (/ia,ib,ic/)
+                clen(ncand) = sqrt(max(d,0d0))
              end if
           end do
-          nn = pg%nop
-          rot(:,:,1) = matmul(transpose(rmati),matmul(pg%op(iident)%m,transpose(rmat)))
-          op = 1
-          do i = 1, pg%nop
-             if (i == iident) cycle
-             op = op + 1
-             rot(:,:,op) = matmul(transpose(rmati),matmul(pg%op(i)%m,transpose(rmat)))
-          end do
-       end if
-    end if
-    deallocate(atZmol,ax)
+       end do
+    end do
 
+    ! candidate columns matching each basis vector's length
+    allocate(idx1(ncand),idx2(ncand),idx3(ncand))
+    n1 = 0; n2 = 0; n3 = 0
+    do i = 1, ncand
+       if (abs(clen(i) - aal(1)) <= symprec) then; n1 = n1+1; idx1(n1) = i; end if
+       if (abs(clen(i) - aal(2)) <= symprec) then; n2 = n2+1; idx2(n2) = i; end if
+       if (abs(clen(i) - aal(3)) <= symprec) then; n3 = n3+1; idx3(n3) = i; end if
+    end do
+
+    ! the identity is always present; place it first (guessspg relies on
+    ! op 1 = identity)
+    nn = 1
+    rot(:,:,1) = eye
+
+    ! enumerate triples of candidate columns (one matching each basis
+    ! vector's length) forming an integer matrix R with |det| = 1 that
+    ! preserves the metric (R^T G R = G)
+    do j1 = 1, n1
+       rop(:,1) = real(cand(:,idx1(j1)),8)
+       do j2 = 1, n2
+          rop(:,2) = real(cand(:,idx2(j2)),8)
+          do j3 = 1, n3
+             rop(:,3) = real(cand(:,idx3(j3)),8)
+             if (abs(abs(det3(rop)) - 1d0) > 1d-6) cycle
+
+             ! skip the identity (already placed first)
+             if (all(abs(rop - eye) < 1d-6)) cycle
+
+             ! the rotated metric R^T G R must match G
+             gp = matmul(transpose(rop),matmul(gmat,rop))
+             if (.not.metric_ok(gp,gmat,symprec)) cycle
+
+             nn = nn + 1
+             if (nn > 48) then
+                ! a crystallographic point group has at most 48 operations;
+                ! guard against overflow (should not happen for a lattice)
+                nn = 48
+                return
+             end if
+             rot(:,:,nn) = rop
+          end do
+       end do
+    end do
+
+  contains
+    !> Port of spglib's is_identity_metric: are two metric tensors
+    !> equal within a Cartesian distance tolerance eps? Lengths are
+    !> compared directly; angle differences are recast as
+    !> displacements (length * sin(dtheta)) and compared to eps.
+    function metric_ok(g1,g2,eps) result(ok)
+      real*8, intent(in) :: g1(3,3), g2(3,3), eps
+      logical :: ok
+
+      integer :: ii, jj, kk
+      integer, parameter :: es(2,3) = reshape((/1,2, 1,3, 2,3/),(/2,3/))
+      real*8 :: l1(3), l2(3), cos1, cos2, x, sind2, lave2
+
+      ok = .false.
+      do ii = 1, 3
+         l1(ii) = sqrt(g1(ii,ii))
+         l2(ii) = sqrt(g2(ii,ii))
+         if (abs(l1(ii) - l2(ii)) > eps) return
+      end do
+      do ii = 1, 3
+         jj = es(1,ii)
+         kk = es(2,ii)
+         cos1 = g2(jj,kk) / (l2(jj)*l2(kk))
+         cos2 = g1(jj,kk) / (l1(jj)*l1(kk))
+         x = cos1*cos2 + sqrt(max(1d0-cos1*cos1,0d0)) * sqrt(max(1d0-cos2*cos2,0d0))
+         sind2 = 1d0 - x*x
+         lave2 = ((l2(jj)+l1(jj)) * (l2(kk)+l1(kk))) / 4d0
+         if (sind2 > 1d-12) then
+            if (sind2*lave2 > eps*eps) return
+         end if
+      end do
+      ok = .true.
+
+    end function metric_ok
   end subroutine lattpg
 
 end submodule guesspg
