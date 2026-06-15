@@ -169,9 +169,9 @@ contains
 
     ! Find the non-centering operations?
     if (level > 1) then
-       ! Find the rotation parts of the operations
+       ! find the rotation parts of the operations (lattice point group)
        rmat = transpose(c%m_x2c)
-       call lattpg(rmat,c%neqv,rot)
+       call lattpg(rmat,c%ncv,c%cen,c%neqv,rot)
        c%rotm(1:3,1:3,1:c%neqv) = rot(:,:,1:c%neqv)
 
        ! the first operation is the identity, with zero translation
@@ -405,27 +405,29 @@ contains
 
   !> Determine the rotational parts of the symmetry operations from
   !> the lattice point group, using the lattice metric tensor. A
-  !> crystallographic rotation is an integer matrix R (in the
-  !> crystallographic basis) with |det R| = 1 that preserves the
-  !> metric tensor G = rmat.rmat^T to within the symmetry
-  !> tolerance. The columns of R are the images of the basis vectors,
-  !> so each column is an integer lattice vector with the same length
-  !> as the corresponding basis vector. rmat (rows = lattice vectors)
-  !> is the input; nn (number of operations) and rot (rotation
-  !> matrices, crystallographic, identity first) are the output.
-  subroutine lattpg(rmat,nn,rot)
+  !> lattice rotation is a matrix R (in the crystallographic basis)
+  !> with |det R| = 1 that preserves the metric tensor G = rmat.rmat^T
+  !> to within the symmetry tolerance. The columns of R are the images
+  !> of the basis vectors, so each column is a lattice vector with the
+  !> same length as the corresponding basis vector. rmat (rows =
+  !> lattice vectors), ncen and xcen are the input; nn (number of
+  !> operations) and rot (rotation matrices, crystallographic,
+  !> identity first) are the output.
+  subroutine lattpg(rmat,ncen,xcen,nn,rot)
     use tools_math, only: det3, matinv
     use global, only: symprec
     use types, only: realloc
     use param, only: eye
     real*8, intent(in) :: rmat(3,3)
+    integer, intent(in) :: ncen
+    real*8, intent(in) :: xcen(3,ncen)
     integer, intent(out) :: nn
     real*8, intent(out) :: rot(3,3,48)
 
-    real*8 :: gmat(3,3), ginv(3,3), aal(3), maxl, gp(3,3), rop(3,3), d
-    integer :: i, nbox(3), ia, ib, ic, ncand, n1, n2, n3, j1, j2, j3, ier
-    integer, allocatable :: cand(:,:), idx1(:), idx2(:), idx3(:)
-    real*8, allocatable :: clen(:)
+    real*8 :: gmat(3,3), ginv(3,3), aal(3), maxl, gp(3,3), rop(3,3), d, vv(3)
+    integer :: i, nbox(3), ia, ib, ic, it, ncand, n1, n2, n3, j1, j2, j3, ier
+    integer, allocatable :: idx1(:), idx2(:), idx3(:)
+    real*8, allocatable :: cand(:,:), clen(:)
 
     gmat = matmul(rmat,transpose(rmat))
     do i = 1, 3
@@ -433,36 +435,39 @@ contains
     end do
     maxl = maxval(aal)
 
-    ! Box of integer lattice vectors that can have Cartesian length <=
-    ! maxl+symprec. The i-th integer index of a vector v is n_i = b_i.v
-    ! (b_i = reciprocal lattice vector), so |n_i| <= |v| |b_i| = |v|
-    ! sqrt(ginv_ii). This bound is correct for any (incl. sheared,
-    ! non-reduced) cell, unlike maxl/aal(i).
+    ! Box of integer cells whose lattice vectors (integer + centering) can
+    ! have Cartesian length <= maxl+symprec. The i-th fractional index of a
+    ! vector v is v_i = b_i.v (b_i = reciprocal lattice vector), so
+    ! |v_i| <= |v| |b_i| = |v| sqrt(ginv_ii); the integer part adds at most
+    ! 1 (centering is in [0,1)). Correct for any (incl. sheared, centered)
+    ! cell.
     ginv = gmat
     call matinv(ginv,3,ier)
     do i = 1, 3
-       nbox(i) = int((maxl+symprec)*sqrt(ginv(i,i))) + 1
+       nbox(i) = int((maxl+symprec)*sqrt(ginv(i,i))) + 2
     end do
 
-    ! collect candidate columns: integer lattice vectors with Cartesian
-    ! length <= maxl + symprec (the columns of any rotation are images of
-    ! the basis vectors, so no longer than the longest basis vector)
+    ! collect candidate columns: lattice vectors (integer combination plus
+    ! a centering vector) with Cartesian length <= maxl + symprec
     ncand = 0
     allocate(cand(3,32),clen(32))
     do ia = -nbox(1), nbox(1)
        do ib = -nbox(2), nbox(2)
           do ic = -nbox(3), nbox(3)
-             if (ia == 0 .and. ib == 0 .and. ic == 0) cycle
-             d = dot_product(real((/ia,ib,ic/),8),matmul(gmat,real((/ia,ib,ic/),8))) ! length^2
-             if (d <= (maxl+symprec)**2) then
-                ncand = ncand + 1
-                if (ncand > size(clen)) then
-                   call realloc(cand,3,2*ncand)
-                   call realloc(clen,2*ncand)
+             do it = 1, ncen
+                vv = real((/ia,ib,ic/),8) + xcen(:,it)
+                d = dot_product(vv,matmul(gmat,vv)) ! length^2 in Cartesian
+                if (d <= 1d-10) cycle ! the zero vector
+                if (d <= (maxl+symprec)**2) then
+                   ncand = ncand + 1
+                   if (ncand > size(clen)) then
+                      call realloc(cand,3,2*ncand)
+                      call realloc(clen,2*ncand)
+                   end if
+                   cand(:,ncand) = vv
+                   clen(ncand) = sqrt(d)
                 end if
-                cand(:,ncand) = (/ia,ib,ic/)
-                clen(ncand) = sqrt(max(d,0d0))
-             end if
+             end do
           end do
        end do
     end do
@@ -482,14 +487,14 @@ contains
     rot(:,:,1) = eye
 
     ! enumerate triples of candidate columns (one matching each basis
-    ! vector's length) forming an integer matrix R with |det| = 1 that
-    ! preserves the metric (R^T G R = G)
+    ! vector's length) forming a matrix R with |det| = 1 that preserves
+    ! the metric (R^T G R = G)
     do j1 = 1, n1
-       rop(:,1) = real(cand(:,idx1(j1)),8)
+       rop(:,1) = cand(:,idx1(j1))
        do j2 = 1, n2
-          rop(:,2) = real(cand(:,idx2(j2)),8)
+          rop(:,2) = cand(:,idx2(j2))
           do j3 = 1, n3
-             rop(:,3) = real(cand(:,idx3(j3)),8)
+             rop(:,3) = cand(:,idx3(j3))
              if (abs(abs(det3(rop)) - 1d0) > 1d-6) cycle
 
              ! skip the identity (already placed first)
@@ -498,6 +503,10 @@ contains
              ! the rotated metric R^T G R must match G
              gp = matmul(transpose(rop),matmul(gmat,rop))
              if (.not.metric_ok(gp,gmat,symprec)) cycle
+
+             ! R must map the whole (centered) lattice onto itself: every
+             ! centering vector must go to a lattice point
+             if (.not.maps_centering(rop)) cycle
 
              nn = nn + 1
              if (nn > 48) then
@@ -545,6 +554,31 @@ contains
       ok = .true.
 
     end function metric_ok
+
+    !> Returns .true. if the rotation rr maps every centering vector onto
+    !> a lattice point (integer + centering), i.e. rr is a symmetry of the
+    !> centered lattice and not merely of its conventional-cell metric.
+    function maps_centering(rr) result(ok)
+      real*8, intent(in) :: rr(3,3)
+      logical :: ok
+
+      integer :: jt, kt
+      real*8 :: w(3), dw(3)
+
+      ok = .true.
+      do jt = 1, ncen
+         w = matmul(rr,xcen(:,jt))
+         do kt = 1, ncen
+            dw = w - xcen(:,kt)
+            dw = dw - nint(dw)
+            if (sqrt(max(dot_product(dw,matmul(gmat,dw)),0d0)) < symprec) goto 1
+         end do
+         ok = .false.
+         return
+1        continue
+      end do
+
+    end function maps_centering
   end subroutine lattpg
 
 end submodule guesspg
