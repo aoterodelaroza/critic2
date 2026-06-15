@@ -56,8 +56,7 @@ contains
        iw_combo_simple, iw_highlight_selectable, iw_coloredit, iw_dragfloat_real8, iw_checkbox,&
        iw_inputtext, iw_periodictable, iw_menuitem, iw_radiobutton, iw_intstepper, iw_inputint,&
        iw_inputint3
-    use types, only: realloc, molsymop_identity, molsymop_inversion, molsymop_rotation,&
-       molsymop_plane, molsymop_imp_rotation
+    use types, only: realloc, molsymop_rotation, molsymop_plane, molsymop_imp_rotation
     use tools_io, only: string, nameguess, ioj_center, ioj_right, isinteger, isreal
     use param, only: newline, bohrtoa, pi, atmcov0, maxzat0
     class(window), intent(inout), target :: w
@@ -984,41 +983,21 @@ contains
              if (iw_button("Conventional##celltransfstd")) then
                 iaction = iaction_transform_cell
                 iaction_i1 = celltransform_standard
-                iaction_l = .false.
              end if
              call iw_tooltip("Transform to the conventional cell",ttshown)
-             if (iw_button("Conventional+Refine##celltransfstd",sameline=.true.)) then
-                iaction = iaction_transform_cell
-                iaction_i1 = celltransform_standard
-                iaction_l = .true.
-             end if
-             call iw_tooltip("Transform to the conventional cell and refine the atoms to &
-                &their ideal symmetry positions",ttshown)
-
-             if (iw_button("Primitive##celltransfprim")) then
+             if (iw_button("Primitive##celltransfprim",sameline=.true.)) then
                 iaction = iaction_transform_cell
                 iaction_i1 = celltransform_primstd
-                iaction_l = .false.
              end if
              call iw_tooltip("Transform to the standard primitive cell",ttshown)
-             if (iw_button("Primitive+Refine##celltransfprim",sameline=.true.)) then
-                iaction = iaction_transform_cell
-                iaction_i1 = celltransform_primstd
-                iaction_l = .false.
-             end if
-             call iw_tooltip("Transform to the primitive cell and refine the atoms to &
-                &their ideal symmetry positions",ttshown)
-
              if (iw_button("Niggli##celltransfnig",sameline=.true.)) then
                 iaction = iaction_transform_cell
                 iaction_i1 = celltransform_niggli
-                iaction_l = .false.
              end if
              call iw_tooltip("Transform to the primitive Niggli cell",ttshown)
              if (iw_button("Delaunay##celltransfdel",sameline=.true.)) then
                 iaction = iaction_transform_cell
                 iaction_i1 = celltransform_delaunay
-                iaction_l = .false.
              end if
              call iw_tooltip("Transform to the primitive Delaunay cell",ttshown)
 
@@ -2303,7 +2282,7 @@ contains
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_transform_cell) then
-       call sysc(isys)%transform_cell(iaction_i1,iaction_l,errmsg=w%errmsg)
+       call sysc(isys)%transform_cell(iaction_i1,.false.,errmsg=w%errmsg)
        if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
        if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
