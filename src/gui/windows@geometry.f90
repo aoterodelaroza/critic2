@@ -871,8 +871,24 @@ contains
                 end do ! clipper indices
              end do ! clipper step
 
-             ! end the clipper and the table
+             ! end the clipper
              call ImGuiListClipper_End(clipper)
+
+             ! last table row (new atom)
+             call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+             if (igTableSetColumnIndex(0)) then
+                ldum = iw_button("New##newatom",popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+                if (ldum) then
+                   w%geometry_input_coord = 0d0
+                   w%geometry_input_species = 1
+                end if
+                if (ok) then
+                   call draw_addatom_popup()
+                   call igEndPopup()
+                end if
+             end if
+
+             ! end the table
              call igEndTable()
           end if
 
@@ -2871,19 +2887,79 @@ contains
 
     end subroutine draw_highlight_buttons
 
-    ! draw the row of buttons controlling the edition of the system
-    subroutine draw_edit_buttons()
+    ! draw the contents of the add-atom popup: position and species
+    ! selectors plus the Add button. Shared by the Add button in the edit
+    ! row and the New row at the bottom of the atoms table.
+    subroutine draw_addatom_popup()
 
       logical :: ldum, ok
       integer :: izout
       character(len=:), allocatable :: str
 
+      call igAlignTextToFramePadding()
+      call iw_text("Position")
+      ldum = iw_dragfloat_real8("##xaddcoord",x1=w%geometry_input_coord(1),speed=0.001d0,decimal=6,&
+         notlive=.true.,sameline=.true.)
+      ldum = iw_dragfloat_real8("##yaddcoord",x1=w%geometry_input_coord(2),speed=0.001d0,decimal=6,&
+         notlive=.true.,sameline=.true.)
+      ldum = iw_dragfloat_real8("##zaddcoord",x1=w%geometry_input_coord(3),speed=0.001d0,decimal=6,&
+         notlive=.true.,sameline=.true.)
+
+      call igAlignTextToFramePadding()
+      call iw_text("Species")
+      if (w%geometry_input_species > 0) then
+         str = string(w%geometry_input_species) // ": " // trim(sys(isys)%c%spc(w%geometry_input_species)%name)
+      else
+         str = trim(nameguess(abs(w%geometry_input_species),.true.))
+      end if
+      ldum = iw_button(str // "##speciesaddcoord",popupcontext=ok,&
+         popupflags=ImGuiPopupFlags_MouseButtonLeft,sameline=.true.)
+      if (ok) then
+         ldum = iw_menuitem("Species ",enabled=.false.)
+         call igSeparator()
+         do j = 1, sys(isys)%c%nspc
+            if (iw_menuitem(string(j) // ": " // trim(sys(isys)%c%spc(j)%name))) then
+               w%geometry_input_species = j
+            end if
+         end do
+         call igSeparator()
+         str1 = "New" // c_null_char
+         if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+            izout = iw_periodictable()
+            if (izout >= 0) then
+               w%geometry_input_species = -izout
+               call igCloseCurrentPopup()
+            end if
+            call igEndMenu()
+         end if
+         call igEndPopup()
+      end if
+
+      if (iw_button("Add")) then
+         iaction = iaction_add_atom
+         iaction_i1 = w%geometry_input_species
+         iaction_x = w%geometry_input_coord
+         call igCloseCurrentPopup()
+      end if
+
+    end subroutine draw_addatom_popup
+
+    ! draw the row of buttons controlling the edition of the system
+    subroutine draw_edit_buttons()
+
+      logical :: ldum, ok
+      integer :: izout
+
       ! highlight color
       call igAlignTextToFramePadding()
       call iw_text("Edit",highlight=.true.)
 
-      ! Add button
+      ! Add button: reset the input fields when the popup opens
       ldum = iw_button("Add##addatom",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+      if (ldum) then
+         w%geometry_input_coord = 0d0
+         w%geometry_input_species = 1
+      end if
       if (ok) then
          if (w%geometry_atomtype == atlisttype_species) then
             izout = iw_periodictable()
@@ -2893,56 +2969,9 @@ contains
                call igCloseCurrentPopup()
             end if
          else
-            call igAlignTextToFramePadding()
-            call iw_text("Position")
-            ldum = iw_dragfloat_real8("##xaddcoord",x1=w%geometry_input_coord(1),speed=0.001d0,decimal=6,&
-               notlive=.true.,sameline=.true.)
-            ldum = iw_dragfloat_real8("##yaddcoord",x1=w%geometry_input_coord(2),speed=0.001d0,decimal=6,&
-               notlive=.true.,sameline=.true.)
-            ldum = iw_dragfloat_real8("##zaddcoord",x1=w%geometry_input_coord(3),speed=0.001d0,decimal=6,&
-               notlive=.true.,sameline=.true.)
-
-            call igAlignTextToFramePadding()
-            call iw_text("Species")
-            if (w%geometry_input_species > 0) then
-               str = string(w%geometry_input_species) // ": " // trim(sys(isys)%c%spc(w%geometry_input_species)%name)
-            else
-               str = trim(nameguess(abs(w%geometry_input_species),.true.))
-            end if
-            ldum = iw_button(str // "##speciesaddcoord",popupcontext=ok,&
-               popupflags=ImGuiPopupFlags_MouseButtonLeft,sameline=.true.)
-            if (ok) then
-               ldum = iw_menuitem("Species ",enabled=.false.)
-               call igSeparator()
-               do j = 1, sys(isys)%c%nspc
-                  if (iw_menuitem(string(j) // ": " // trim(sys(isys)%c%spc(j)%name))) then
-                     w%geometry_input_species = j
-                  end if
-               end do
-               call igSeparator()
-               str1 = "New" // c_null_char
-               if (igBeginMenu(c_loc(str1),.true._c_bool)) then
-                  izout = iw_periodictable()
-                  if (izout >= 0) then
-                     w%geometry_input_species = -izout
-                     call igCloseCurrentPopup()
-                  end if
-                  call igEndMenu()
-               end if
-               call igEndPopup()
-            end if
-
-            if (iw_button("Add")) then
-               iaction = iaction_add_atom
-               iaction_i1 = w%geometry_input_species
-               iaction_x = w%geometry_input_coord
-               call igCloseCurrentPopup()
-            end if
+            call draw_addatom_popup()
          end if
          call igEndPopup()
-      else
-         w%geometry_input_coord = 0d0
-         w%geometry_input_species = 1
       end if
 
       ! Duplicate button
