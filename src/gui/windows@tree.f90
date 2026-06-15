@@ -337,9 +337,13 @@ contains
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_ncel)
 
-       str = "nmol##0" // c_null_char
+       str = "Z##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_nmol)
+
+       str = "Z'##0" // c_null_char
+       flags = ImGuiTableColumnFlags_DefaultHide
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_zprime)
 
        str = "a/Å##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
@@ -764,8 +768,20 @@ contains
                       call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                    end if
 
-                   if (igTableSetColumnIndex(ic_tree_nmol)) then ! nmol
+                   if (igTableSetColumnIndex(ic_tree_nmol)) then ! Z (nmol)
                       str = string(sys(i)%c%nmol)
+                      call write_maybe_selectable(i,tooltipstr)
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                   end if
+
+                   if (igTableSetColumnIndex(ic_tree_zprime)) then ! Z'
+                      if (sys(i)%c%ismolecule) then
+                         str = "<mol>"
+                      elseif (sys(i)%c%spgavail) then
+                         str = string(nint(real(sys(i)%c%nmol,8) / real(sys(i)%c%neqv,8)))
+                      else
+                         str = "n/a"
+                      end if
                       call write_maybe_selectable(i,tooltipstr)
                       call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                    end if
@@ -1204,7 +1220,7 @@ contains
 
     ! different types, different sorts
     if (w%tree_sortcid == ic_tree_id.or.w%tree_sortcid == ic_tree_nneq.or.w%tree_sortcid == ic_tree_ncel.or.&
-       w%tree_sortcid == ic_tree_nmol) then
+       w%tree_sortcid == ic_tree_nmol.or.w%tree_sortcid == ic_tree_zprime) then
        ! sort by integer
        allocate(ival(n))
        do i = 1, n
@@ -1217,6 +1233,13 @@ contains
                 ival(i) = sys(w%iord(i))%c%ncel
              elseif (w%tree_sortcid == ic_tree_nmol) then
                 ival(i) = sys(w%iord(i))%c%nmol
+             elseif (w%tree_sortcid == ic_tree_zprime) then
+                if (sys(w%iord(i))%c%spgavail .and. .not.sys(w%iord(i))%c%ismolecule) then
+                   ival(i) = nint(real(sys(w%iord(i))%c%nmol,8) / real(sys(w%iord(i))%c%neqv,8))
+                else
+                   ival(i) = huge(1)
+                   valid(i) = .false.
+                end if
              end if
           else
              ival(i) = huge(1)

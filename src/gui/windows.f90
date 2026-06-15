@@ -312,16 +312,17 @@ module windows
   integer(c_int), parameter, public :: ic_tree_nneq = 7
   integer(c_int), parameter, public :: ic_tree_ncel = 8
   integer(c_int), parameter, public :: ic_tree_nmol = 9
-  integer(c_int), parameter, public :: ic_tree_a = 10
-  integer(c_int), parameter, public :: ic_tree_b = 11
-  integer(c_int), parameter, public :: ic_tree_c = 12
-  integer(c_int), parameter, public :: ic_tree_alpha = 13
-  integer(c_int), parameter, public :: ic_tree_beta = 14
-  integer(c_int), parameter, public :: ic_tree_gamma = 15
-  integer(c_int), parameter, public :: ic_tree_e = 16
-  integer(c_int), parameter, public :: ic_tree_emol = 17
-  integer(c_int), parameter, public :: ic_tree_p = 18
-  integer(c_int), parameter, public :: ic_tree_NUMCOLUMNS = 19 ! keep up to date
+  integer(c_int), parameter, public :: ic_tree_zprime = 10
+  integer(c_int), parameter, public :: ic_tree_a = 11
+  integer(c_int), parameter, public :: ic_tree_b = 12
+  integer(c_int), parameter, public :: ic_tree_c = 13
+  integer(c_int), parameter, public :: ic_tree_alpha = 14
+  integer(c_int), parameter, public :: ic_tree_beta = 15
+  integer(c_int), parameter, public :: ic_tree_gamma = 16
+  integer(c_int), parameter, public :: ic_tree_e = 17
+  integer(c_int), parameter, public :: ic_tree_emol = 18
+  integer(c_int), parameter, public :: ic_tree_p = 19
+  integer(c_int), parameter, public :: ic_tree_NUMCOLUMNS = 20 ! keep up to date
 
   ! routines to manipulate the window stack
   public :: stack_realloc_maybe
