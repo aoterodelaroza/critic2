@@ -650,14 +650,11 @@ contains
 
              if (docoord) then
                 icol = icol + 1
-                if (w%geometry_atomtype == atlisttype_ncel_ang) then
-                   strx = "x/Å" // c_null_char
-                   stry = "y/Å" // c_null_char
-                   strz = "z/Å" // c_null_char
-                elseif (w%geometry_atomtype == atlisttype_ncel_bohr) then
-                   strx = "x/bohr" // c_null_char
-                   stry = "y/bohr" // c_null_char
-                   strz = "z/bohr" // c_null_char
+                if (w%geometry_atomtype == atlisttype_ncel_ang .or. w%geometry_atomtype == atlisttype_ncel_bohr) then
+                   str2 = "/" // sysc(isys)%attype_coordinates_units(w%geometry_atomtype)
+                   strx = "x" // str2 // c_null_char
+                   stry = "y" // str2 // c_null_char
+                   strz = "z" // str2 // c_null_char
                 else
                    strx = "x" // c_null_char
                    stry = "y" // c_null_char
@@ -1274,14 +1271,11 @@ contains
              end if
 
              icol = icol + 1
-             if (w%geometry_moltype == atlisttype_ncel_ang) then
-                strx = "x/Å" // c_null_char
-                stry = "y/Å" // c_null_char
-                strz = "z/Å" // c_null_char
-             elseif (w%geometry_moltype == atlisttype_ncel_bohr) then
-                strx = "x/bohr" // c_null_char
-                stry = "y/bohr" // c_null_char
-                strz = "z/bohr" // c_null_char
+             if (w%geometry_moltype == atlisttype_ncel_ang .or. w%geometry_moltype == atlisttype_ncel_bohr) then
+                str2 = "/" // sysc(isys)%attype_coordinates_units(w%geometry_moltype)
+                strx = "x" // str2 // c_null_char
+                stry = "y" // str2 // c_null_char
+                strz = "z" // str2 // c_null_char
              else
                 strx = "x" // c_null_char
                 stry = "y" // c_null_char
@@ -2899,13 +2893,7 @@ contains
       ! the input position is interpreted in the same coordinate type as
       ! shown in the table, so the new atom's row matches the user input
       call igAlignTextToFramePadding()
-      if (w%geometry_atomtype == atlisttype_ncel_ang) then
-         call iw_text("Position (Å)")
-      elseif (w%geometry_atomtype == atlisttype_ncel_bohr) then
-         call iw_text("Position (bohr)")
-      else
-         call iw_text("Position (fractional)")
-      end if
+      call iw_text("Position (" // sysc(isys)%attype_coordinates_units(w%geometry_atomtype) // ")")
       ldum = iw_dragfloat_real8("##xaddcoord",x1=w%geometry_input_coord(1),speed=0.001d0,decimal=6,&
          notlive=.true.,sameline=.true.)
       ldum = iw_dragfloat_real8("##yaddcoord",x1=w%geometry_input_coord(2),speed=0.001d0,decimal=6,&

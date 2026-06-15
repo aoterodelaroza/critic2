@@ -112,6 +112,7 @@ module systems
      procedure :: set_attype_name
      procedure :: attype_coordinates
      procedure :: attype_coordinates_decimals
+     procedure :: attype_coordinates_units
      procedure :: attype_celatom_mask
      procedure :: attype_celatom_to_id
      procedure :: attype_type_id_to_id
@@ -287,6 +288,11 @@ module systems
        integer, intent(in) :: type
        integer :: attype_coordinates_decimals
      end function attype_coordinates_decimals
+     module function attype_coordinates_units(sysc,type)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       character(len=:), allocatable :: attype_coordinates_units
+     end function attype_coordinates_units
      module subroutine attype_celatom_mask(sysc,type,ids,mask,imask)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type

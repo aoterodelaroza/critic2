@@ -1207,6 +1207,23 @@ contains
 
   end function attype_coordinates_decimals
 
+  ! For the given atom type, return the units of the atomic coordinates
+  ! ("Å", "bohr", or "fractional"), for use in column headers and labels.
+  module function attype_coordinates_units(sysc,type)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    character(len=:), allocatable :: attype_coordinates_units
+
+    if (type == atlisttype_ncel_ang) then
+       attype_coordinates_units = "Å"
+    elseif (type == atlisttype_ncel_bohr) then
+       attype_coordinates_units = "bohr"
+    else
+       attype_coordinates_units = "fractional"
+    end if
+
+  end function attype_coordinates_units
+
   ! If mask is present, return a logical mask of length equal to the
   ! number of atoms in the cell, with .true. if the atom matches one
   ! of the given ids for the corresponding atom type. If imask is
