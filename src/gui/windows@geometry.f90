@@ -49,6 +49,7 @@ contains
        atlisttype_ncel_ang, atlisttype_nmol, celltransform_standard,&
        celltransform_primstd, celltransform_niggli, celltransform_delaunay, lastchange_rebond
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene, ColorHighlightBondScene,&
+       ColorHighlightBondScene2,&
        ColorTableHighlightRow, ColorBlack, ColorWhite, ColorButtonHoverFactor,&
        ColorButtonActiveFactor, lumweights
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_calcwidth, iw_button, iw_calcheight, iw_calcwidth,&
@@ -2111,8 +2112,7 @@ contains
           jj = sys(isys)%c%nstar(ihlbond)%idcon(j)
           ihigh(1+j) = jj
           if (jj == ihlbtn) then
-             irgba(1:3,1+j) = min(ColorHighlightBondScene(1:3)*1.2_c_float,1._c_float)
-             irgba(4,1+j) = ColorHighlightBondScene(4)
+             irgba(:,1+j) = ColorHighlightBondScene2
           else
              irgba(:,1+j) = ColorHighlightBondScene
           end if
