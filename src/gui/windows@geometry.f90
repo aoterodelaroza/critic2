@@ -2896,8 +2896,16 @@ contains
       integer :: izout
       character(len=:), allocatable :: str
 
+      ! the input position is interpreted in the same coordinate type as
+      ! shown in the table, so the new atom's row matches the user input
       call igAlignTextToFramePadding()
-      call iw_text("Position")
+      if (w%geometry_atomtype == atlisttype_ncel_ang) then
+         call iw_text("Position (Å)")
+      elseif (w%geometry_atomtype == atlisttype_ncel_bohr) then
+         call iw_text("Position (bohr)")
+      else
+         call iw_text("Position (fractional)")
+      end if
       ldum = iw_dragfloat_real8("##xaddcoord",x1=w%geometry_input_coord(1),speed=0.001d0,decimal=6,&
          notlive=.true.,sameline=.true.)
       ldum = iw_dragfloat_real8("##yaddcoord",x1=w%geometry_input_coord(2),speed=0.001d0,decimal=6,&

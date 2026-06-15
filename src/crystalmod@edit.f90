@@ -1697,7 +1697,7 @@ contains
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
     call realloc(seed%atname,seed%nat)
-    seed%x(:,seed%nat) = x
+    seed%x(:,seed%nat) = xx
     seed%is(seed%nat) = is_
     seed%atname(seed%nat) = seed%spc(is_)%name
 
