@@ -1921,16 +1921,20 @@ contains
   !> of the celltransform_* constants (standard, primitive, primstd,
   !> niggli, delaunay). refine applies only to the standardized cells and
   !> refines the atomic positions to their ideal symmetric locations.
-  module subroutine transform_cell(sysc,mode,refine,errmsg)
+  module subroutine transform_cell(sysc,mode,refine,errmsg,keepcell)
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: mode
     logical, intent(in) :: refine
     character(len=:), allocatable, intent(inout) :: errmsg
+    logical, intent(in), optional :: keepcell
 
     integer :: isys
     real*8 :: x0(3,3)
+    logical :: keepcell_
 
     errmsg = ""
+    keepcell_ = .false.
+    if (present(keepcell)) keepcell_ = keepcell
 
     ! consistency checks
     isys = sysc%id
@@ -1941,7 +1945,7 @@ contains
     x0 = 0d0
     select case (mode)
     case (celltransform_standard)
-       x0 = sys(isys)%c%cell_standard(.false.,.false.,refine,errmsg=errmsg)
+       x0 = sys(isys)%c%cell_standard(.false.,.false.,refine,errmsg=errmsg,keepcell=keepcell_)
     case (celltransform_primitive)
        x0 = sys(isys)%c%cell_standard(.true.,.false.,refine,errmsg=errmsg)
     case (celltransform_primstd)
@@ -2065,9 +2069,10 @@ contains
 
   end subroutine clear_symmetry
 
-  !> Refine the geometry to the ideal symmetry positions (transform to
-  !> the conventional cell and idealize) using the tolerance stored in
-  !> sysc%symeps.
+  !> Refine the geometry to the ideal symmetry positions (idealize the
+  !> cell parameters and atomic positions) using the tolerance stored
+  !> in sysc%symeps, keeping the original cell choice (i.e. without
+  !> switching to the conventional cell).
   module subroutine refine_symmetry(sysc,errmsg)
     use global, only: symprec
     class(sysconf), intent(inout) :: sysc
@@ -2083,10 +2088,11 @@ contains
     if (.not.ok_system(isys,sys_init)) return
     if (sys(isys)%c%ismolecule) return
 
-    ! refine at the chosen tolerance (transform_cell posts the event)
+    ! refine at the chosen tolerance, keeping the original cell
+    ! (transform_cell posts the event)
     osp = symprec
     symprec = sysc%symeps
-    call sysc%transform_cell(celltransform_standard,.true.,errmsg)
+    call sysc%transform_cell(celltransform_standard,.true.,errmsg,keepcell=.true.)
     symprec = osp
 
   end subroutine refine_symmetry

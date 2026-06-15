@@ -391,11 +391,12 @@ module systems
        logical, intent(in) :: forcewyc
        logical, intent(in), optional :: copybonding
      end subroutine move_cell
-     module subroutine transform_cell(sysc,mode,refine,errmsg)
+     module subroutine transform_cell(sysc,mode,refine,errmsg,keepcell)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: mode
        logical, intent(in) :: refine
        character(len=:), allocatable, intent(inout) :: errmsg
+       logical, intent(in), optional :: keepcell
      end subroutine transform_cell
      module subroutine transform_cell_matrix(sysc,x0,t0,doinv,errmsg)
        class(sysconf), intent(inout) :: sysc

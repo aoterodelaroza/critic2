@@ -742,7 +742,7 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine newcell
-     module function cell_standard(c,toprim,doforce,refine,noenv,errmsg,ti) result(x0)
+     module function cell_standard(c,toprim,doforce,refine,noenv,errmsg,ti,keepcell) result(x0)
        class(crystal), intent(inout) :: c
        logical, intent(in) :: toprim
        logical, intent(in) :: doforce
@@ -750,6 +750,7 @@ module crystalmod
        logical, intent(in), optional :: noenv
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
+       logical, intent(in), optional :: keepcell
        real*8 :: x0(3,3)
      end function cell_standard
      module function cell_niggli(c,noenv,errmsg,ti) result(x0)

@@ -1897,8 +1897,8 @@ contains
              if (iw_button("Clear##symclear",danger=.true.)) iaction = iaction_sym_clear
              call iw_tooltip("Remove crystal symmetry",ttshown)
              if (iw_button("Refine##symrefine",sameline=.true.)) iaction = iaction_sym_refine
-             call iw_tooltip("Transform to the conventional cell and move the atoms to their &
-                &ideal symmetry positions",ttshown)
+             call iw_tooltip("Idealize the cell parameters and move the atoms to their ideal &
+                &symmetry positions.",ttshown)
              if (iw_button("Whole molecules##symwholemols",sameline=.true.,&
                 disabled=.not.sys(isys)%c%ismol3d)) iaction = iaction_sym_wholemols
              call iw_tooltip("Choose a symmetry subgroup such that the asymmetric unit contains whole molecules &
@@ -2324,8 +2324,8 @@ contains
 
     elseif (iaction == iaction_sym_refine) then
        call sysc(isys)%refine_symmetry(w%errmsg)
-       ! refine transforms to the conventional cell, so the nice-supercell
-       ! search results are stale
+       ! refine changes the cell metric and atomic positions, so the
+       ! nice-supercell search results are stale
        if (allocated(w%geometry_cell_nice_rmax)) deallocate(w%geometry_cell_nice_rmax)
        if (allocated(w%geometry_cell_nice_mmax)) deallocate(w%geometry_cell_nice_mmax)
        sysc(isys)%sc%nextbuildlists_fixcam = .true.

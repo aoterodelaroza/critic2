@@ -493,14 +493,17 @@ contains
   end subroutine newcell
 
   !> Transform to the standard cell. If toprim, convert to the
-  !> primitive standard cell. If doforce = .true., force the
-  !> transformation to the primitive even if it does not lead to a
-  !> smaller cell. Refine = refine the symmetry positions. noenv = do
-  !> not initialize the environment. Return the transformation matrix,
-  !> or a matrix of zeros if no change was done.
-  module function cell_standard(c,toprim,doforce,refine,noenv,errmsg,ti) result(x0)
+  !> primitive. If doforce, force the transformation to the primitive
+  !> even if it does not lead to a smaller cell. Refine = refine the
+  !> symmetry positions. noenv = do not initialize the
+  !> environment. keepcell = idealize the cell and atomic positions
+  !> but keep the original cell choice instead of switching to the
+  !> conventional cell (only meaningful with refine). Return the
+  !> transformation matrix, or a matrix of zeros if no change was
+  !> done.
+  module function cell_standard(c,toprim,doforce,refine,noenv,errmsg,ti,keepcell) result(x0)
     use iso_c_binding, only: c_double
-    use spglib, only: spg_standardize_cell
+    use spglib, only: spg_standardize_cell, SpglibDataset
     use global, only: symprec
     use tools_math, only: det3, matinv
     use types, only: realloc
@@ -512,19 +515,31 @@ contains
     logical, intent(in), optional :: noenv
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
+    logical, intent(in), optional :: keepcell
     real*8 :: x0(3,3)
 
     integer :: ntyp, nat
     integer :: i, nnew, iprim, inorefine
     real(c_double), allocatable :: x(:,:)
     integer, allocatable :: types_(:)
-    real*8 :: rmat(3,3)
+    real*8 :: rmat(3,3), pmat(3,3)
+    logical :: keepcell_
+    type(SpglibDataset) :: dset
 
     x0 = 0d0
     errmsg = ""
+    keepcell_ = .false.
+    if (present(keepcell)) keepcell_ = keepcell .and. refine
 
     ! ignore molecules
     if (c%ismolecule) return
+
+    ! save the transformation matrix to the conventional cell
+    if (keepcell_) then
+       call c%spglib_wrap(dset,.false.,errmsg,ti=ti)
+       if (len_trim(errmsg) > 0) return
+       pmat = transpose(dset%transformation_matrix)
+    end if
 
     ! use spglib transformation to the standard cell
     rmat = transpose(c%m_x2c)
@@ -560,6 +575,10 @@ contains
     ! rmat = transpose(matinv(c%spg%transformation_matrix))
     if (refine) then
        call c%newcell(rmat,nnew=nnew,xnew=x,isnew=types_,noenv=noenv,ti=ti,errmsg=errmsg)
+       if (len_trim(errmsg) > 0) return
+       ! transform the idealized conventional cell back to the original
+       if (keepcell_) &
+          call c%newcell(pmat,noenv=noenv,ti=ti,errmsg=errmsg)
     else
        ! if a primitive is wanted but det is not less than 1, do not make the change
        if (all(abs(rmat - eye) < symprec)) return

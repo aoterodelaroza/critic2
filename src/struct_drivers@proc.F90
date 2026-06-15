@@ -447,7 +447,7 @@ contains
     real*8 :: osp
     type(SpglibDataset) :: spg
     real*8 :: x0(3,3)
-    logical :: isempty
+    logical :: isempty, keepcell
 
     real*8, parameter :: spmin = 1d-10
     real*8, parameter :: factor = 10d0
