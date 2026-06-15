@@ -5,10 +5,10 @@ LATT -1
 SYMM y,-x,-z
 SYMM -x,-y,z
 SYMM -y,x,-z
-SYMM -1/2-x,-1/2+y,-z
-SYMM -1/2-y,-1/2-x,z
 SYMM -1/2+x,-1/2-y,-z
 SYMM -1/2+y,-1/2+x,z
+SYMM -1/2-x,-1/2+y,-z
+SYMM -1/2-y,-1/2-x,z
 SFAC C O N H 
 UNIT  2 2 4 8
 FVAR 1.00

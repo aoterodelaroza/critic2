@@ -106,6 +106,8 @@ contains
        type(c_ptr) :: wyckoffs
        type(c_ptr) :: site_symmetry_symbols
        type(c_ptr) :: equivalent_atoms
+       type(c_ptr) :: crystallographic_orbits
+       real(c_double) :: primitive_lattice(3,3)
        type(c_ptr) :: mapping_to_primitive
        integer(c_int) :: n_std_atoms
        real(c_double) :: std_lattice(3,3)
@@ -229,6 +231,7 @@ contains
        character(kind=c_char) :: international_full(20)
        character(kind=c_char) :: international(32)
        character(kind=c_char) :: schoenflies(7)
+       integer(c_int) :: hall_number
        character(kind=c_char) :: hall_symbol(17)
        character(kind=c_char) :: choice(6)
        character(kind=c_char) :: pointgroup_international(6)

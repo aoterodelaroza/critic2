@@ -1,36 +1,6 @@
-/* Copyright (C) 2008 Atsushi Togo */
-/* All rights reserved. */
-
-/* This file is part of spglib. */
-
-/* Redistribution and use in source and binary forms, with or without */
-/* modification, are permitted provided that the following conditions */
-/* are met: */
-
-/* * Redistributions of source code must retain the above copyright */
-/*   notice, this list of conditions and the following disclaimer. */
-
-/* * Redistributions in binary form must reproduce the above copyright */
-/*   notice, this list of conditions and the following disclaimer in */
-/*   the documentation and/or other materials provided with the */
-/*   distribution. */
-
-/* * Neither the name of the phonopy project nor the names of its */
-/*   contributors may be used to endorse or promote products derived */
-/*   from this software without specific prior written permission. */
-
-/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS */
-/* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT */
-/* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS */
-/* FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE */
-/* COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, */
-/* INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, */
-/* BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; */
-/* LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER */
-/* CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT */
-/* LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN */
-/* ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE */
-/* POSSIBILITY OF SUCH DAMAGE. */
+// Copyright (C) 2008 Atsushi Togo
+// This file is part of spglib.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef __primitive_H__
 #define __primitive_H__
@@ -40,18 +10,29 @@
 #include "symmetry.h"
 
 typedef struct {
-  Cell *cell;
-  int *mapping_table;
-  int size;
-  double tolerance;
-  double angle_tolerance;
+    Cell *cell;
+    int *mapping_table;
+    int size;
+    double tolerance;
+    double angle_tolerance;
+    double (*orig_lattice)[3]; /* 3x3 matrix */
 } Primitive;
 
-Primitive * prm_alloc_primitive(const int size);
-void prm_free_primitive(Primitive * primitive);
-Primitive * prm_get_primitive(const Cell * cell,
-                              const double symprec,
-                              const double angle_tolerance);
-Symmetry * prm_get_primitive_symmetry(const Symmetry *symmetry,
-				      const double symprec);
+Primitive *prm_alloc_primitive(int const size);
+void prm_free_primitive(Primitive *primitive);
+Primitive *prm_get_primitive(Cell const *cell, double const symprec,
+                             double const angle_tolerance);
+int prm_get_primitive_with_pure_trans(Primitive *primitive, Cell const *cell,
+                                      VecDBL const *pure_trans,
+                                      double const symprec,
+                                      double const angle_tolerance);
+Symmetry *prm_get_primitive_symmetry(double t_mat[3][3],
+                                     Symmetry const *symmetry,
+                                     double const symprec);
+int prm_get_primitive_lattice_vectors(double prim_lattice[3][3],
+                                      Cell const *cell,
+                                      VecDBL const *pure_trans,
+                                      double const symprec,
+                                      double const angle_tolerance);
+
 #endif
