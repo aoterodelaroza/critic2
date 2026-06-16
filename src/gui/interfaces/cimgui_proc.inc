@@ -1427,7 +1427,16 @@ end subroutine ImGuiListClipper_ForceDisplayRangeByIndices
 !x! void ImDrawList_GetClipRectMin(ImVec2 *pOut,ImDrawList* self);
 !x! void ImDrawList_GetClipRectMax(ImVec2 *pOut,ImDrawList* self);
 !x! void ImDrawList_AddLine(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,ImU32 col,float thickness);
-!x! void ImDrawList_AddRect(ImDrawList* self,const ImVec2 p_min,const ImVec2 p_max,ImU32 col,float rounding,ImDrawFlags flags,float thickness);
+! void ImDrawList_AddRect(ImDrawList* self,const ImVec2 p_min,const ImVec2 p_max,ImU32 col,float rounding,ImDrawFlags flags,float thickness);
+subroutine ImDrawList_AddRect(self,p_min,p_max,col,rounding,flags,thickness) bind(c,name="ImDrawList_AddRect")
+  import c_ptr, ImVec2, c_int, c_float
+  type(c_ptr), value :: self
+  type(ImVec2), value :: p_min, p_max
+  integer(c_int), value :: col
+  real(c_float), value :: rounding
+  integer(c_int), value :: flags
+  real(c_float), value :: thickness
+end subroutine ImDrawList_AddRect
 ! void ImDrawList_AddRectFilled(ImDrawList* self,const ImVec2 p_min,const ImVec2 p_max,ImU32 col,float rounding,ImDrawFlags flags);
 subroutine ImDrawList_AddRectFilled(self,p_min,p_max,col,rounding,flags) bind(c,name="ImDrawList_AddRectFilled")
   import c_ptr, ImVec2, c_int, c_float

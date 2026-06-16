@@ -1465,13 +1465,17 @@ contains
           if (igIsMouseDown(ImGuiMouseButton_Left)) then
              ! draw the rubber band once dragged beyond the click/drag threshold
              if (dragged) then
-                col = igGetColorU32_Vec4(ImVec4(ColorHighlightSelectScene(1),&
-                   ColorHighlightSelectScene(2),ColorHighlightSelectScene(3),0.3_c_float))
                 pmin%x = min(w%selrect_p0%x,mousepos%x)
                 pmin%y = min(w%selrect_p0%y,mousepos%y)
                 pmax%x = max(w%selrect_p0%x,mousepos%x)
                 pmax%y = max(w%selrect_p0%y,mousepos%y)
+                ! translucent fill plus a slightly darker border
+                col = igGetColorU32_Vec4(ImVec4(ColorHighlightSelectScene(1),&
+                   ColorHighlightSelectScene(2),ColorHighlightSelectScene(3),0.3_c_float))
                 call ImDrawList_AddRectFilled(igGetWindowDrawList(),pmin,pmax,col,0._c_float,0_c_int)
+                col = igGetColorU32_Vec4(ImVec4(0.6_c_float*ColorHighlightSelectScene(1),&
+                   0.6_c_float*ColorHighlightSelectScene(2),0.6_c_float*ColorHighlightSelectScene(3),0.8_c_float))
+                call ImDrawList_AddRect(igGetWindowDrawList(),pmin,pmax,col,0._c_float,0_c_int,1.5_c_float)
              end if
           else
              ! mouse released: a drag selects a rectangle, a static click toggles one atom
