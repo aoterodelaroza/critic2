@@ -122,8 +122,24 @@ contains
 
     c%havesym = 1
 
-    ! no spglib dataset available: clear the Wyckoff letters
-    call c%spgtowyc()
+    ! Overlay the spglib space-group dataset (symbol, Wyckoff letters,
+    ! transformation matrix, standardized cell) on top of the in-house
+    ! operations. The symmetry operations themselves (neqv/rotm/ncv/cen)
+    ! and the asymmetric unit (nneq/atcel) keep the guessspg result; only
+    ! the space-group labels come from spglib. spglib_wrap reads c%atcel in
+    ! order, so spgtowyc's per-atom Wyckoff assignment is consistent. A
+    ! separate error string is used so a labeling failure does not discard
+    ! the (valid) operations.
+    block
+      character(len=:), allocatable :: emsg2
+      call c%spglib_wrap(c%spg,.false.,emsg2)
+      if (len_trim(emsg2) == 0 .and. c%spg%n_atoms > 0) then
+         c%spgavail = .true.
+         call c%spgtowyc(c%spg)
+      else
+         call c%spgtowyc()
+      end if
+    end block
 
   end subroutine calcsym_old
 

@@ -500,13 +500,10 @@ contains
     clearsym = .true.
     if (.not.seed%ismolecule .and. seed%havesym == 0) then
        if ((seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall) .and. haveatoms) then
-          ! symmetry was not available, and I want it
-          ! this operation fills the symmetry info, at(i)%mult, and ncel/atcel
-          if (seed%useoldsym) then
-             call c%calcsym_old(errmsg)
-          else
-             call c%calcsym(.true.,errmsg,ti=ti)
-          end if
+          ! symmetry was not available, and I want it. This operation fills
+          ! the symmetry info, at(i)%mult, and ncel/atcel.
+          call c%calcsym_old(errmsg)
+          ! call c%calcsym(.true.,errmsg,ti=ti)
           if (len_trim(errmsg) > 0) then
              if (usegui) then
                 clearsym = .true.

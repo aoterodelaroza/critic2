@@ -2,13 +2,13 @@ TITL critic2 | urea
 CELL 0.71073 5.56500000   5.56500000   4.68400000   90.000000  90.000000  90.000000  
 ZERR 3 0.0001 0.0001 0.0001 0.0001 0.0001 0.0001
 LATT -1
-SYMM y,-x,-z
 SYMM -x,-y,z
-SYMM -y,x,-z
-SYMM -1/2+x,-1/2-y,-z
-SYMM -1/2+y,-1/2+x,z
 SYMM -1/2-x,-1/2+y,-z
 SYMM -1/2-y,-1/2-x,z
+SYMM y,-x,-z
+SYMM -y,x,-z
+SYMM -1/2+y,-1/2+x,z
+SYMM -1/2+x,-1/2-y,-z
 SFAC C O N H 
 UNIT  2 2 4 8
 FVAR 1.00
