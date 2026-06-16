@@ -125,14 +125,7 @@ contains
              doguess = 0
           else
              word = lgetword(line,lp)
-             if (equal(word,'old')) then
-                ! default: in-house guesser for the operations + spglib for
-                ! the space-group symbol/Wyckoff/standardization
-                useoldsym = .true.
-             elseif (equal(word,'new')) then
-                ! use spglib for everything
-                useoldsym = .false.
-             elseif (isinteger(idum,word)) then
+             if (isinteger(idum,word)) then
                 doguess = idum
              elseif (isreal(rdum,word)) then
                 symprec = rdum

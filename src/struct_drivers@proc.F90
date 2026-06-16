@@ -48,7 +48,7 @@ contains
        isformat_r_akaikkr, isformat_r_xband, isformat_r_unknown
     use crystalseedmod, only: crystalseed, struct_detect_read_format,&
        struct_detect_ismol
-    use global, only: doguess, iunit, dunit0, rborder_def, eval_next, useoldsym
+    use global, only: doguess, iunit, dunit0, rborder_def, eval_next
     use tools_io, only: getword, equal, ferror, faterr, zatguess, lgetword,&
        string, uin, isinteger, isreal, lower
     use types, only: realloc
@@ -413,7 +413,6 @@ contains
        elseif (doguess == 1 .and. seed%havesym == 0) then
           seed%findsym = 1
        end if
-       seed%useoldsym = useoldsym
     end if
 
     if (present(s0)) then

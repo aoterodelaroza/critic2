@@ -123,12 +123,6 @@ module global
   ! symmetry precision (spglib)
   real*8 :: symprec = 1d-2
 
-  ! default symmetry path when building a crystal: .true. = the in-house
-  ! guesser (guessspg) for the symmetry operations, with spglib supplying
-  ! the space-group symbol, Wyckoff letters and cell standardization (SYM
-  ! OLD); .false. = use spglib for everything (SYM NEW).
-  logical :: useoldsym = .true.
-
   ! A molecule/crystal is considered small if they have less than this
   ! number of atoms in the cell (skips symmetry detection).
   integer :: crsmall = 2000
