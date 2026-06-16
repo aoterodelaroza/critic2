@@ -1183,8 +1183,9 @@ contains
        ! in window_forced mode, any click requires picking
        viewmode_activate_picking = any_mouse_clicked()
     elseif (w%viewmode == vm_navigate) then
-       ! navigate -> only if measuring
-       viewmode_activate_picking = is_bind_event(BIND_NAV_MEASURE)
+       ! navigate -> when measuring, or on a double click (to clear the selection)
+       viewmode_activate_picking = is_bind_event(BIND_NAV_MEASURE) .or.&
+          igIsMouseDoubleClicked(ImGuiMouseButton_Left)
     elseif (w%viewmode == vm_select) then
        ! select -> on any click, so the atom under the mouse is fresh
        viewmode_activate_picking = any_mouse_clicked()
@@ -1420,6 +1421,12 @@ contains
           call w%sc%select_atom((/0,0,0,0,0/))
           w%forcerender = .true.
        end if
+
+       ! double click on empty space clears the selection
+       if (hover .and. igIsMouseDoubleClicked(ImGuiMouseButton_Left) .and. w%mousepos_idx(1) == 0) then
+          call sysc(w%view_selected)%highlight_clear(.false.)
+          w%forcerender = .true.
+       end if
     elseif (w%viewmode == vm_select) then
        ! select mode
        isys = w%view_selected
@@ -1428,11 +1435,16 @@ contains
        ! select the whole fragment under the mouse with either a right click or
        ! a left double click; a single left click starts a potential rubber band
        if (hover) then
-          if (igIsMouseDoubleClicked(ImGuiMouseButton_Left).and.w%mousepos_idx(1) > 0) then
-             ! the first click of the pair already toggled this single atom on
-             ! its release; undo it before toggling the fragment
-             call toggle_cellatoms((/w%mousepos_idx(1)/))
-             call toggle_fragment(w%mousepos_idx(1))
+          if (igIsMouseDoubleClicked(ImGuiMouseButton_Left)) then
+             if (w%mousepos_idx(1) > 0) then
+                ! the first click of the pair already toggled this single atom on
+                ! its release; undo it before toggling the fragment
+                call toggle_cellatoms((/w%mousepos_idx(1)/))
+                call toggle_fragment(w%mousepos_idx(1))
+             else
+                ! double click on empty space clears the selection
+                call sysc(isys)%highlight_clear(.false.)
+             end if
              w%selrect_active = .false.
              w%forcerender = .true.
           elseif (igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool).and.w%mousepos_idx(1) > 0) then
