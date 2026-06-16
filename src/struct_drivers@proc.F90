@@ -1493,6 +1493,7 @@ contains
     type(crystalseed) :: seed
     integer, allocatable :: fname_type(:)
     type(vstring) :: lerrmsg
+    character(len=:), allocatable :: lerrs
 
     integer, parameter :: msg_counter = 50
 
@@ -1832,16 +1833,19 @@ contains
           end if
 
           lerrmsg%s = ""
-          !$omp parallel do firstprivate(lerrmsg) private(xnorm2)
+          !$omp parallel do private(xnorm2,lerrs)
           do j = i+1, ns
              if (epsreduce > 0d0) then
                 if (irepeat(j) > 0) cycle
              end if
-             call crosscorr_gaussian(xp(i),xp(j),xrpd_alpha_def,sigma,xnorm2,lerrmsg%s,.false.)
-             !$omp critical (errmsg_)
-             if (len(lerrmsg%s) > 0) &
-                call ferror("struct_compare","error calculating Gaussian crosscorrelation",faterr)
-             !$omp end critical (errmsg_)
+             call crosscorr_gaussian(xp(i),xp(j),xrpd_alpha_def,sigma,xnorm2,lerrs,.false.)
+             if (allocated(lerrs)) then
+                if (len_trim(lerrs) > 0) then
+                   !$omp critical (errmsg_)
+                   lerrmsg%s = lerrs
+                   !$omp end critical (errmsg_)
+                end if
+             end if
              diff(i,j) = max(1d0 - xnorm2 / xnorm(i) / xnorm(j),0d0)
              diff(j,i) = diff(i,j)
 
@@ -1850,6 +1854,8 @@ contains
              end if
           end do
           !$omp end parallel do
+          if (len_trim(lerrmsg%s) > 0) &
+             call ferror("struct_compare","error calculating Gaussian crosscorrelation",faterr)
        end do
        deallocate(xnorm,xp)
        write (uout,'("  ... finished comparing patterns")')

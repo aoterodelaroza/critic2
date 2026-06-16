@@ -202,6 +202,7 @@ contains
     integer :: i, j
     real*8, allocatable :: rhoout(:), lapout(:)
     type(vstring) :: lerrmsg
+    character(len=:), allocatable :: lerrs
     type(field_evaluation_avail) :: request
 
     ! read the points
@@ -325,7 +326,7 @@ contains
     lapout = 0d0
 
     lerrmsg%s = ""
-    !$omp parallel do private(xp,dist,res,iok,rhopt,lappt) firstprivate(lerrmsg)
+    !$omp parallel do private(xp,dist,res,iok,rhopt,lappt,lerrs)
     do i=1,np
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
        if (id >= 0) then
@@ -359,18 +360,22 @@ contains
              lappt = res%del2f
           end select
        else
-          rhopt = sy%eval(expr,lerrmsg%s,xp)
+          lerrs = ""
+          rhopt = sy%eval(expr,lerrs,xp)
           lappt = rhopt
        end if
 
        !$omp critical (iowrite)
        rhoout(i) = rhopt
        lapout(i) = lappt
-       if (len_trim(lerrmsg%s) > 0) &
-          call ferror('rhoplot_line',lerrmsg%s,faterr)
+       if (allocated(lerrs)) then
+          if (len_trim(lerrs) > 0) lerrmsg%s = lerrs
+       end if
        !$omp end critical (iowrite)
     enddo
     !$omp end parallel do
+    if (len_trim(lerrmsg%s) > 0) &
+       call ferror('rhoplot_line',lerrmsg%s,faterr)
 
     ! write the line to output
     do i = 1, np
@@ -430,6 +435,7 @@ contains
     type(grid3) :: faux
     complex*16, allocatable :: caux(:,:,:)
     type(vstring) :: lerrmsg
+    character(len=:), allocatable :: lerrs
     type(field_evaluation_avail) :: request
     integer :: ia(3), na(3)
     logical :: iused(3)
@@ -891,7 +897,7 @@ contains
           call faux%end()
        else
           lerrmsg%s = ""
-          !$omp parallel do private(xp,res,lappt) firstprivate(lerrmsg)
+          !$omp parallel do private(xp,res,lappt,lerrs)
           do iz = 0, nn(3)-1
              do iy = 0, nn(2)-1
                 do ix = 0, nn(1)-1
@@ -926,17 +932,21 @@ contains
                          lappt = res%del2f
                       end select
                    else
-                      lappt = sy%eval(expr,lerrmsg%s,xp)
+                      lerrs = ""
+                      lappt = sy%eval(expr,lerrs,xp)
                    end if
                    !$omp critical (fieldwrite)
                    lf(ix+1,iy+1,iz+1) = lappt
-                   if (len_trim(lerrmsg%s) > 0) &
-                      call ferror('rhoplot_cube',lerrmsg%s,faterr)
+                   if (allocated(lerrs)) then
+                      if (len_trim(lerrs) > 0) lerrmsg%s = lerrs
+                   end if
                    !$omp end critical (fieldwrite)
                 end do
              end do
           end do
           !$omp end parallel do
+          if (len_trim(lerrmsg%s) > 0) &
+             call ferror('rhoplot_cube',lerrmsg%s,faterr)
        end if
        ! cube body
        if (outform == outform_bincube) then
@@ -978,6 +988,7 @@ contains
     integer :: ix, iy, cmopt
     real*8, allocatable :: ff(:,:), ziso(:)
     type(vstring) :: lerrmsg
+    character(len=:), allocatable :: lerrs
     type(field_evaluation_avail) :: request
 
     ! read the points
@@ -1213,7 +1224,7 @@ contains
     end if
 
     lerrmsg%s = ""
-    !$omp parallel do private (xp,res,rhopt) firstprivate(lerrmsg)
+    !$omp parallel do private (xp,res,rhopt,lerrs)
     do ix = 1, nx
        do iy = 1, ny
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
@@ -1247,16 +1258,20 @@ contains
                 rhopt = res%del2f
              end select
           else
-             rhopt = sy%eval(expr,lerrmsg%s,xp)
+             lerrs = ""
+             rhopt = sy%eval(expr,lerrs,xp)
           endif
           !$omp critical (write)
           ff(ix,iy) = rhopt
-          if (len_trim(lerrmsg%s) > 0) &
-             call ferror('rhoplot_plane',lerrmsg%s,faterr)
+          if (allocated(lerrs)) then
+             if (len_trim(lerrs) > 0) lerrmsg%s = lerrs
+          end if
           !$omp end critical (write)
        end do
     end do
     !$omp end parallel do
+    if (len_trim(lerrmsg%s) > 0) &
+       call ferror('rhoplot_plane',lerrmsg%s,faterr)
 
     ! open the output
     if (len_trim(outfile) > 0) then

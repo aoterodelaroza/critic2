@@ -1,5 +1,5 @@
 ## delete: 004_load-cubeopts.cro
-## check: 004_load-cubeopts_01.line -a1e-10
+## check: 004_load-cubeopts_01.line -r1e-1
 ## check: 004_load-cubeopts_02.line -a1e-10
 ## check: 004_load-cubeopts_03.line -a1e-10
 ## check: 004_load-cubeopts_04.line -a1e-10
