@@ -1076,8 +1076,8 @@ contains
     ! the window_forced view mode cannot be overridden by keybindings
     if (w%viewmode < 0) return
 
+    ! select mode (shift)
     if (is_bind_event(BIND_VIEWMODE_SELECT,held=.true.)) then
-    ! if (igIsKeyDown(ImGuiKey_ModShift).and..not.io%WantTextInput) then
        w%viewmode = vm_select
        w%viewmode_transient = .true.
     end if
@@ -1122,7 +1122,7 @@ contains
     integer, parameter :: navigate_tips(*) = (/BIND_NAV_ROTATE, BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE,&
        BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE/)
     character(len=*), parameter :: viewmode_items = "Navigate"//c_null_char//"Select"//c_null_char
-    integer, parameter :: ipickatom = vm_select + 1 ! index of the Pick Atom combo entry (forced mode)
+    integer, parameter :: ipickatom = vm_NUM + 1 ! index of the Pick Atom combo entry (forced mode)
 
     if (w%viewmode < 0) then
        ! In window_forced mode, the combo shows Pick Atom and the
@@ -1185,6 +1185,9 @@ contains
     elseif (w%viewmode == vm_navigate) then
        ! navigate -> only if measuring
        viewmode_activate_picking = is_bind_event(BIND_NAV_MEASURE)
+    elseif (w%viewmode == vm_select) then
+       ! select -> on any click, so the atom under the mouse is fresh
+       viewmode_activate_picking = any_mouse_clicked()
     end if
 
   end function viewmode_activate_picking
@@ -1201,18 +1204,23 @@ contains
        BIND_NAV_ROTATE_PERP,&
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE,&
        BIND_CLOSE_FOCUSED_DIALOG
-    use systems, only: nsys
-    use gui_main, only: io
+    use systems, only: nsys, sysc, sys, atlisttype_ncel_frac
+    use gui_main, only: io, ColorHighlightSelectScene
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
 
-    type(ImVec2) :: texpos, mousepos
+    type(ImVec2) :: texpos, mousepos, pmin, pmax
+    type(ImVec4) :: rgba4
     real(c_float) :: ratio, pos3(3), vnew(3), vold(3), axis(3)
     real(c_float) :: mpos2(2), ang, xc(3), dist
+    integer :: isys, icel, imol, nlist, i
+    integer(c_int) :: col
+    integer, allocatable :: idlist(:)
     logical :: ok
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
+    real(c_float), parameter :: selrect_thr = 4._c_float ! click/drag threshold (pixels)
 
     ! first pass when opened, reset the state
     if (w%firstpass) then
@@ -1225,6 +1233,7 @@ contains
        w%mpos0_s = 0._c_float
        w%mpos0_m = 0._c_float
        w%ilock = ilock_no
+       w%selrect_active = .false.
     end if
 
     ! window_forced view mode: exits on a mouse click on the view (any
@@ -1265,6 +1274,9 @@ contains
 
     ! process mode-specific events
     if (w%viewmode == vm_navigate) then
+       ! drop any rubber-band drag carried over from select mode (e.g. shift released mid-drag)
+       w%selrect_active = .false.
+
        call igGetMousePos(mousepos)
        texpos = mousepos
 
@@ -1410,6 +1422,60 @@ contains
           call w%sc%select_atom((/0,0,0,0,0/))
           w%forcerender = .true.
        end if
+    elseif (w%viewmode == vm_select) then
+       ! select mode
+       isys = w%view_selected
+       call igGetMousePos(mousepos)
+
+       ! right click over an atom: toggle the whole fragment
+       if (hover) then
+          if (igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool).and.w%mousepos_idx(1) > 0) then
+             imol = sys(isys)%c%idatcelmol(1,w%mousepos_idx(1))
+             nlist = sys(isys)%c%mol(imol)%nat
+             allocate(idlist(nlist))
+             do i = 1, nlist
+                idlist(i) = sys(isys)%c%mol(imol)%at(i)%cidx
+             end do
+             call toggle_cellatoms(idlist)
+             deallocate(idlist)
+             w%selrect_active = .false.
+             w%forcerender = .true.
+          elseif (igIsMouseClicked(ImGuiMouseButton_Left,.false._c_bool)) then
+             ! left click: start a potential rubber-band drag
+             w%selrect_active = .true.
+             w%selrect_p0 = mousepos
+          end if
+       end if
+
+       ! left drag/release: rubber-band rectangle or single-atom toggle
+       if (w%selrect_active) then
+          if (igIsMouseDown(ImGuiMouseButton_Left)) then
+             ! draw the rubber band once dragged beyond the click/drag threshold
+             if (abs(mousepos%x-w%selrect_p0%x) > selrect_thr .or.&
+                abs(mousepos%y-w%selrect_p0%y) > selrect_thr) then
+                rgba4%x = ColorHighlightSelectScene(1)
+                rgba4%y = ColorHighlightSelectScene(2)
+                rgba4%z = ColorHighlightSelectScene(3)
+                rgba4%w = 0.3_c_float
+                col = igGetColorU32_Vec4(rgba4)
+                pmin%x = min(w%selrect_p0%x,mousepos%x)
+                pmin%y = min(w%selrect_p0%y,mousepos%y)
+                pmax%x = max(w%selrect_p0%x,mousepos%x)
+                pmax%y = max(w%selrect_p0%y,mousepos%y)
+                call ImDrawList_AddRectFilled(igGetWindowDrawList(),pmin,pmax,col,0._c_float,0_c_int)
+             end if
+          else
+             ! mouse released: a drag selects a rectangle, a static click toggles one atom
+             if (abs(mousepos%x-w%selrect_p0%x) > selrect_thr .or.&
+                abs(mousepos%y-w%selrect_p0%y) > selrect_thr) then
+                call select_in_rect(w%selrect_p0,mousepos)
+             elseif (w%mousepos_idx(1) > 0) then
+                call toggle_cellatoms((/w%mousepos_idx(1)/))
+             end if
+             w%selrect_active = .false.
+             w%forcerender = .true.
+          end if
+       end if
     end if
 
     ! if this is a transient view mode, reset to default (navigation)
@@ -1434,6 +1500,111 @@ contains
          end if
       end do
     end function any_key_pressed
+
+    ! whether cell atom icel is currently in the persistent selection
+    function cellatom_selected(icel)
+      logical :: cellatom_selected
+      integer, intent(in) :: icel
+
+      cellatom_selected = .false.
+      if (allocated(sysc(isys)%highlight_rgba)) then
+         if (icel >= 1 .and. icel <= size(sysc(isys)%highlight_rgba,2)) &
+            cellatom_selected = all(sysc(isys)%highlight_rgba(:,icel) >= 0._c_float)
+      end if
+    end function cellatom_selected
+
+    ! toggle a list of cell atoms: if all are already selected, clear them;
+    ! otherwise select all of them
+    subroutine toggle_cellatoms(idlist)
+      integer, intent(in) :: idlist(:)
+
+      integer :: k
+      logical :: allsel
+      real(c_float), allocatable :: rgba(:,:)
+
+      if (size(idlist) == 0) return
+      allsel = .true.
+      do k = 1, size(idlist)
+         if (.not.cellatom_selected(idlist(k))) then
+            allsel = .false.
+            exit
+         end if
+      end do
+      if (allsel) then
+         call sysc(isys)%highlight_clear(.false.,idlist,atlisttype_ncel_frac)
+      else
+         allocate(rgba(4,size(idlist)))
+         do k = 1, size(idlist)
+            rgba(:,k) = ColorHighlightSelectScene
+         end do
+         call sysc(isys)%highlight_atoms(.false.,idlist,atlisttype_ncel_frac,rgba)
+      end if
+    end subroutine toggle_cellatoms
+
+    ! Add to the selection every atom whose center is inside the screen-space
+    ! rectangle delimited by p0 and p1.
+    subroutine select_in_rect(p0,p1)
+      use interfaces_opengl3
+      type(ImVec2), intent(in) :: p0, p1
+
+      type(ImVec2) :: t0, t1
+      integer :: ix0, iy0, ix1, iy1, nx, ny, npix, ip, isph, jcel, n
+      real(c_float), allocatable, target :: buf(:)
+      integer(c_int) :: rgbaint(4)
+      integer, allocatable :: lst(:)
+      real(c_float), allocatable :: rgba(:,:)
+      logical, allocatable :: seen(:)
+
+      if (.not.associated(w%sc)) return
+      if (w%sc%isinit < 2) return
+      if (sys(isys)%c%ncel <= 0) return
+      if (w%sc%obj%nsph <= 0) return
+
+      ! rectangle corners: mouse position -> texture pixel coordinates
+      t0 = p0
+      t1 = p1
+      call w%mousepos_to_texpos(t0)
+      call w%mousepos_to_texpos(t1)
+      ix0 = max(min(int(t0%x),int(t1%x)),0)
+      ix1 = min(max(int(t0%x),int(t1%x)),w%FBOside-1)
+      iy0 = max(min(int(t0%y),int(t1%y)),0)
+      iy1 = min(max(int(t0%y),int(t1%y)),w%FBOside-1)
+      nx = ix1 - ix0 + 1
+      ny = iy1 - iy0 + 1
+      if (nx <= 0 .or. ny <= 0) return
+
+      ! read the pick buffer block (RGBA32F encodes the sphere index)
+      npix = nx * ny
+      allocate(buf(4*npix))
+      call glBindFramebuffer(GL_FRAMEBUFFER, w%FBOpick)
+      call glReadPixels(int(ix0,c_int),int(iy0,c_int),int(nx,c_int),int(ny,c_int),&
+         GL_RGBA,GL_FLOAT,c_loc(buf(1)))
+      call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+
+      ! collect the unique cell atoms whose spheres appear in the region
+      allocate(lst(npix),seen(sys(isys)%c%ncel))
+      seen = .false.
+      n = 0
+      do ip = 1, npix
+         rgbaint = transfer(buf(4*ip-3:4*ip),rgbaint)
+         isph = rgbaint(1)
+         if (isph < 1 .or. isph > w%sc%obj%nsph) cycle
+         jcel = w%sc%obj%sph(isph)%idx(1)
+         if (jcel < 1 .or. jcel > sys(isys)%c%ncel) cycle
+         if (seen(jcel)) cycle
+         n = n + 1
+         lst(n) = jcel
+         seen(jcel) = .true.
+      end do
+
+      if (n > 0) then
+         allocate(rgba(4,n))
+         do ip = 1, n
+            rgba(:,ip) = ColorHighlightSelectScene
+         end do
+         call sysc(isys)%highlight_atoms(.false.,lst(1:n),atlisttype_ncel_frac,rgba)
+      end if
+    end subroutine select_in_rect
   end subroutine viewmode_process_events
 
   !> Whether any mouse button was clicked this frame

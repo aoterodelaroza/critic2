@@ -41,6 +41,7 @@ module windows
   integer, parameter, public :: vm_pick_atom = -1
   integer, parameter, public :: vm_navigate  = 0
   integer, parameter, public :: vm_select    = 1
+  integer, parameter, public :: vm_NUM = 1
 
   ! view mode data structure for window_forced modes
   type viewmode_data
@@ -118,6 +119,8 @@ module windows
      real(c_float) :: oldview(4,4)
      real(c_float) :: mpos0_s
      integer :: ilock = 0 ! mouse parameters -^
+     logical :: selrect_active = .false. ! rubber-band selection drag in progress (vm_select)
+     type(ImVec2) :: selrect_p0 ! rubber-band drag start position (mouse/screen coords)
      real*8 :: timelast_view_assign = 0d0   ! time the view was last assigned a system
      real*8 :: timelast_view_getpixel = 0d0 ! time the pick buffer was last queried for atom ID
      ! dialog parameters
