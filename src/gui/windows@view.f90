@@ -1210,13 +1210,11 @@ contains
     logical, intent(in) :: hover
 
     type(ImVec2) :: texpos, mousepos, pmin, pmax
-    type(ImVec4) :: rgba4
     real(c_float) :: ratio, pos3(3), vnew(3), vold(3), axis(3)
     real(c_float) :: mpos2(2), ang, xc(3), dist
-    integer :: isys, icel, imol, nlist, i
+    integer :: isys
     integer(c_int) :: col
-    integer, allocatable :: idlist(:)
-    logical :: ok
+    logical :: ok, dragged
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
@@ -1427,17 +1425,18 @@ contains
        isys = w%view_selected
        call igGetMousePos(mousepos)
 
-       ! right click over an atom: toggle the whole fragment
+       ! select the whole fragment under the mouse with either a right click or
+       ! a left double click; a single left click starts a potential rubber band
        if (hover) then
-          if (igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool).and.w%mousepos_idx(1) > 0) then
-             imol = sys(isys)%c%idatcelmol(1,w%mousepos_idx(1))
-             nlist = sys(isys)%c%mol(imol)%nat
-             allocate(idlist(nlist))
-             do i = 1, nlist
-                idlist(i) = sys(isys)%c%mol(imol)%at(i)%cidx
-             end do
-             call toggle_cellatoms(idlist)
-             deallocate(idlist)
+          if (igIsMouseDoubleClicked(ImGuiMouseButton_Left).and.w%mousepos_idx(1) > 0) then
+             ! the first click of the pair already toggled this single atom on
+             ! its release; undo it before toggling the fragment
+             call toggle_cellatoms((/w%mousepos_idx(1)/))
+             call toggle_fragment(w%mousepos_idx(1))
+             w%selrect_active = .false.
+             w%forcerender = .true.
+          elseif (igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool).and.w%mousepos_idx(1) > 0) then
+             call toggle_fragment(w%mousepos_idx(1))
              w%selrect_active = .false.
              w%forcerender = .true.
           elseif (igIsMouseClicked(ImGuiMouseButton_Left,.false._c_bool)) then
@@ -1449,15 +1448,13 @@ contains
 
        ! left drag/release: rubber-band rectangle or single-atom toggle
        if (w%selrect_active) then
+          dragged = abs(mousepos%x-w%selrect_p0%x) > selrect_thr .or.&
+             abs(mousepos%y-w%selrect_p0%y) > selrect_thr
           if (igIsMouseDown(ImGuiMouseButton_Left)) then
              ! draw the rubber band once dragged beyond the click/drag threshold
-             if (abs(mousepos%x-w%selrect_p0%x) > selrect_thr .or.&
-                abs(mousepos%y-w%selrect_p0%y) > selrect_thr) then
-                rgba4%x = ColorHighlightSelectScene(1)
-                rgba4%y = ColorHighlightSelectScene(2)
-                rgba4%z = ColorHighlightSelectScene(3)
-                rgba4%w = 0.3_c_float
-                col = igGetColorU32_Vec4(rgba4)
+             if (dragged) then
+                col = igGetColorU32_Vec4(ImVec4(ColorHighlightSelectScene(1),&
+                   ColorHighlightSelectScene(2),ColorHighlightSelectScene(3),0.3_c_float))
                 pmin%x = min(w%selrect_p0%x,mousepos%x)
                 pmin%y = min(w%selrect_p0%y,mousepos%y)
                 pmax%x = max(w%selrect_p0%x,mousepos%x)
@@ -1466,8 +1463,7 @@ contains
              end if
           else
              ! mouse released: a drag selects a rectangle, a static click toggles one atom
-             if (abs(mousepos%x-w%selrect_p0%x) > selrect_thr .or.&
-                abs(mousepos%y-w%selrect_p0%y) > selrect_thr) then
+             if (dragged) then
                 call select_in_rect(w%selrect_p0,mousepos)
              elseif (w%mousepos_idx(1) > 0) then
                 call toggle_cellatoms((/w%mousepos_idx(1)/))
@@ -1520,7 +1516,6 @@ contains
 
       integer :: k
       logical :: allsel
-      real(c_float), allocatable :: rgba(:,:)
 
       if (size(idlist) == 0) return
       allsel = .true.
@@ -1533,13 +1528,25 @@ contains
       if (allsel) then
          call sysc(isys)%highlight_clear(.false.,idlist,atlisttype_ncel_frac)
       else
-         allocate(rgba(4,size(idlist)))
-         do k = 1, size(idlist)
-            rgba(:,k) = ColorHighlightSelectScene
-         end do
-         call sysc(isys)%highlight_atoms(.false.,idlist,atlisttype_ncel_frac,rgba)
+         call sysc(isys)%highlight_atoms(.false.,idlist,atlisttype_ncel_frac,&
+            spread(ColorHighlightSelectScene,2,size(idlist)))
       end if
     end subroutine toggle_cellatoms
+
+    ! toggle the whole fragment (molecule) that cell atom icel belongs to
+    subroutine toggle_fragment(icel)
+      integer, intent(in) :: icel
+
+      integer :: jmol, k
+      integer, allocatable :: flist(:)
+
+      jmol = sys(isys)%c%idatcelmol(1,icel)
+      allocate(flist(sys(isys)%c%mol(jmol)%nat))
+      do k = 1, sys(isys)%c%mol(jmol)%nat
+         flist(k) = sys(isys)%c%mol(jmol)%at(k)%cidx
+      end do
+      call toggle_cellatoms(flist)
+    end subroutine toggle_fragment
 
     ! Add to the selection every atom whose center is inside the screen-space
     ! rectangle delimited by p0 and p1.
@@ -1552,7 +1559,6 @@ contains
       real(c_float), allocatable, target :: buf(:)
       integer(c_int) :: rgbaint(4)
       integer, allocatable :: lst(:)
-      real(c_float), allocatable :: rgba(:,:)
       logical, allocatable :: seen(:)
 
       if (.not.associated(w%sc)) return
@@ -1597,13 +1603,9 @@ contains
          seen(jcel) = .true.
       end do
 
-      if (n > 0) then
-         allocate(rgba(4,n))
-         do ip = 1, n
-            rgba(:,ip) = ColorHighlightSelectScene
-         end do
-         call sysc(isys)%highlight_atoms(.false.,lst(1:n),atlisttype_ncel_frac,rgba)
-      end if
+      if (n > 0) &
+         call sysc(isys)%highlight_atoms(.false.,lst(1:n),atlisttype_ncel_frac,&
+            spread(ColorHighlightSelectScene,2,n))
     end subroutine select_in_rect
   end subroutine viewmode_process_events
 
