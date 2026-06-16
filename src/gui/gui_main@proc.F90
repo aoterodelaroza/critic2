@@ -644,7 +644,7 @@ contains
 
           launch(d_geometry) = launch(d_geometry) .or. &
              iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=isysvok)
-          call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
+          call iw_tooltip("View and edit the atomic positions, bonds, symmetry...",ttshown)
 
           if (iw_menuitem("Vibrations...",enabled=isysvok)) &
              idum = stack_create_window(wintype_vibrations,.true.,idparent=iwin_view,orraise=-1)
