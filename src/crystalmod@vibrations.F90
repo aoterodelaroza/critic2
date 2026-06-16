@@ -1034,7 +1034,7 @@ contains
     type(crystalseed), intent(out) :: seed
 
     real*8, allocatable :: xat(:,:)
-    real*8 :: ff, ffrac, fterm, xx(2), xn
+    real*8 :: ff, fterm, xx(2), xn
     real*8 :: qsq
     integer :: i, j, iqpt, ini
     integer, allocatable :: idx(:)
