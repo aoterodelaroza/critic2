@@ -124,7 +124,7 @@ contains
   !> other seeds in the tree view. If iafield, load a field from that
   !> seed. If iavib, load vibrational data from that seed. If forceidx
   !> is present, force the system to be in the provided index.
-  module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx)
+  module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx,idlist)
     use utils, only: get_current_working_dir
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
@@ -140,6 +140,7 @@ contains
     logical, intent(in), optional :: collapse
     integer, intent(in), optional :: iafield, iavib
     integer, intent(in), optional :: forceidx
+    integer, allocatable, intent(out), optional :: idlist(:)
 
     integer :: i, j, nid, idum
     integer :: iafield_, iavib_, forceidx_
@@ -301,6 +302,11 @@ contains
        ! redo everything
        call sysc(idx)%post_event(lastchange_geometry)
     end do
+
+    ! return the IDs of the new systems if requested
+    if (present(idlist)) then
+       idlist = id
+    end if
     deallocate(id)
 
   end subroutine add_systems_from_seeds
@@ -841,13 +847,14 @@ contains
   !> molecule.
   module subroutine new_system_from_highlighted(sysc,forcemolecule)
     use crystalseedmod, only: crystalseed
+    use windows, only: win, iwin_tree
     use types, only: realloc
     use global, only: rborder_def
     class(sysconf), intent(inout) :: sysc
     logical, intent(in), optional :: forcemolecule
 
     integer :: i, nat, id
-    integer, allocatable :: iat(:)
+    integer, allocatable :: iat(:), idnew(:)
     type(crystalseed), allocatable :: seed(:)
     logical :: molecule
 
@@ -895,9 +902,12 @@ contains
     end if
     seed(1)%name = trim(sysc%seed%name) // " (selection)"
 
-    ! create the new system
-    call add_systems_from_seeds(1,seed)
+    ! create the new system and select it in the tree
+    call add_systems_from_seeds(1,seed,idlist=idnew)
     call launch_initialization_thread()
+    if (allocated(idnew)) then
+       if (size(idnew) >= 1) call win(iwin_tree)%select_system_tree(idnew(1))
+    end if
 
   end subroutine new_system_from_highlighted
 

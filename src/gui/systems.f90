@@ -175,12 +175,13 @@ module systems
      end function are_threads_running
      module subroutine system_shorten_names()
      end subroutine system_shorten_names
-     module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx)
+     module subroutine add_systems_from_seeds(nseed,seed,collapse,iafield,iavib,forceidx,idlist)
        integer, intent(in) :: nseed
        type(crystalseed), allocatable, intent(in) :: seed(:)
        logical, intent(in), optional :: collapse
        integer, intent(in), optional :: iafield, iavib
        integer, intent(in), optional :: forceidx
+       integer, allocatable, intent(out), optional :: idlist(:)
      end subroutine add_systems_from_seeds
      module subroutine add_systems_from_name(name,mol,isformat,readlastonly,rborder,molcubic,&
         forceidx)
