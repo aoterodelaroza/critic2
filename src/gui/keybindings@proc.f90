@@ -152,7 +152,7 @@ contains
     if (igIsMouseDown(ImGuiMouseButton_Middle)) key = ImGuiKey_MouseMiddle
     if (abs(io%MouseWheel) > 1e-8_c_float) key = ImGuiKey_MouseScroll
     if (key /= -1) then
-       if (.not.bindfull(bind).and.key==ImGuiKey_Space) &
+       if (bindtype(bind) == -1.and.key==ImGuiKey_Space) &
           key = ImGuiKey_None
        set_bind_from_user_input = .true.
        call set_bind(bind,key,mod)
@@ -221,6 +221,9 @@ contains
     call set_bind(BIND_NAV_ZOOM,ImGuiKey_MouseScroll,mod_none)
     call set_bind(BIND_NAV_RESET,ImGuiKey_MouseRightDouble,mod_none)
     call set_bind(BIND_NAV_MEASURE,ImGuiKey_MouseLeftDouble,mod_none)
+    call set_bind(BIND_SELECT_ATOMS,ImGuiKey_MouseLeft,mod_none)
+    call set_bind(BIND_SELECT_MOLECULES,ImGuiKey_MouseRight,mod_none)
+    call set_bind(BIND_SELECT_MOLECULES_AND_DESELECT,ImGuiKey_MouseLeftDouble,mod_none)
     call set_bind(BIND_EDITGEOM_REMOVE,ImGuiKey_Delete,mod_none)
 
   end subroutine set_default_keybindings
@@ -250,6 +253,8 @@ contains
     ! get key and mod for this bind, and the current mod
     key = keybind(bind)
     mod = modbind(bind)
+    if (bindtype(bind) > 0) &
+       mod = ior(mod,modbind(bindtype(bind)))
     modnow = get_current_mod()
 
     ! if input is wanted, only activate binds that require ctrl, alt, or super
@@ -258,7 +263,7 @@ contains
     ! check if any bind is triggered
     if (key == ImGuiKey_None) then
        ! no key or the mod is not correct -> only trigger if partial bind, mod matches, and held_
-       is_bind_event = .not.bindfull(bind) .and. mod == modnow .and. held_
+       is_bind_event = (bindtype(bind) == -1) .and. mod == modnow .and. held_
     elseif (mod /= modnow) then
        is_bind_event = .false.
     elseif (key >= ImGuiKey_NamedKey_BEGIN .and. key < ImGuiKey_NamedKey_END .and. oktext) then
@@ -302,15 +307,15 @@ contains
 
     integer :: group, ll
     integer(c_int) :: key, mod
-    logical :: full
+    logical :: notfull
 
     get_bind_keyname = ""
     group = groupbind(bind)
     key = keybind(bind)
     mod = modbind(bind)
-    full = bindfull(bind)
+    notfull = (bindtype(bind) == -1)
 
-    if (key /= ImGuiKey_None .or. .not.full) then
+    if (key /= ImGuiKey_None .or. notfull) then
        get_bind_keyname = ""
        if (iand(mod,mod_ctrl)/=0)  get_bind_keyname = trim(get_bind_keyname) // "Ctrl+"
        if (iand(mod,mod_alt)/=0)   get_bind_keyname = trim(get_bind_keyname) // "Alt+"
@@ -336,7 +341,7 @@ contains
        end if
 
        ! take out the final + if this is a partial bind
-       if (.not.full) then
+       if (notfull) then
           ll = len_trim(get_bind_keyname)
           if (ll > 0) then
              if (get_bind_keyname(ll:ll) == "+") get_bind_keyname = get_bind_keyname(1:ll-1)

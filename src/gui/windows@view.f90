@@ -1171,7 +1171,7 @@ contains
   !> according to the current view mode and window state.  hover =
   !> whether the view is active and being hovered.
   module function viewmode_activate_picking(w,hover)
-    use keybindings, only: is_bind_event, BIND_NAV_MEASURE
+    use keybindings, only: is_bind_event, BIND_NAV_MEASURE, BIND_SELECT_MOLECULES_AND_DESELECT
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
     logical :: viewmode_activate_picking
@@ -1185,7 +1185,7 @@ contains
     elseif (w%viewmode == vm_navigate) then
        ! navigate -> when measuring, or on a double click (to clear the selection)
        viewmode_activate_picking = is_bind_event(BIND_NAV_MEASURE) .or.&
-          igIsMouseDoubleClicked(ImGuiMouseButton_Left)
+          is_bind_event(BIND_SELECT_MOLECULES_AND_DESELECT)
     elseif (w%viewmode == vm_select) then
        ! select -> on any click, so the atom under the mouse is fresh
        viewmode_activate_picking = any_mouse_clicked()
@@ -1204,7 +1204,8 @@ contains
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
        BIND_NAV_ROTATE_PERP,&
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE,&
-       BIND_CLOSE_FOCUSED_DIALOG
+       BIND_CLOSE_FOCUSED_DIALOG, BIND_SELECT_MOLECULES_AND_DESELECT, BIND_SELECT_ATOMS,&
+       BIND_SELECT_MOLECULES
     use systems, only: nsys, sysc, sys, atlisttype_ncel_frac
     use gui_main, only: io, ColorHighlightSelectScene
     class(window), intent(inout), target :: w
@@ -1435,7 +1436,7 @@ contains
        ! select the whole fragment under the mouse with either a right click or
        ! a left double click; a single left click starts a potential rubber band
        if (hover) then
-          if (igIsMouseDoubleClicked(ImGuiMouseButton_Left)) then
+          if (is_bind_event(BIND_SELECT_MOLECULES_AND_DESELECT)) then
              if (w%mousepos_idx(1) > 0) then
                 ! the first click of the pair already toggled this single atom on
                 ! its release; undo it before toggling the fragment
@@ -1447,11 +1448,11 @@ contains
              end if
              w%selrect_active = .false.
              w%forcerender = .true.
-          elseif (igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool).and.w%mousepos_idx(1) > 0) then
+          elseif (is_bind_event(BIND_SELECT_MOLECULES) .and. w%mousepos_idx(1) > 0) then
              call toggle_fragment(w%mousepos_idx(1))
              w%selrect_active = .false.
              w%forcerender = .true.
-          elseif (igIsMouseClicked(ImGuiMouseButton_Left,.false._c_bool)) then
+          elseif (is_bind_event(BIND_SELECT_ATOMS)) then
              ! left click: start a potential rubber-band drag
              w%selrect_active = .true.
              w%selrect_p0 = mousepos
@@ -1462,7 +1463,7 @@ contains
        if (w%selrect_active) then
           dragged = abs(mousepos%x-w%selrect_p0%x) > selrect_thr .or.&
              abs(mousepos%y-w%selrect_p0%y) > selrect_thr
-          if (igIsMouseDown(ImGuiMouseButton_Left)) then
+          if (is_bind_event(BIND_SELECT_ATOMS,.true.)) then
              ! draw the rubber band once dragged beyond the click/drag threshold
              if (dragged) then
                 pmin%x = min(w%selrect_p0%x,mousepos%x)

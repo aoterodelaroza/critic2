@@ -232,7 +232,7 @@ contains
              flags = ior(flags,ImGuiWindowFlags_NoMove)
              call igOpenPopup_Str(c_loc(str2),ImGuiPopupFlags_None)
              if (igBeginPopupModal(c_loc(str2),logical(.true.,c_bool),flags)) then
-                if (bindfull(getbind)) then
+                if (bindtype(getbind) >= 0) then
                    call iw_text("Please press a key or mouse button.")
                 else
                    call iw_text("Please press a key, mouse button, or modifier combination followed by SPACE to accept.")
