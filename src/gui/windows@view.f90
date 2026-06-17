@@ -1713,12 +1713,12 @@ contains
     ! produced by the navigation arcball math); ang0 is the rotation
     ! angle (radians).
     subroutine moveatoms_rotate_molecule(axis0,ang0)
-      use tools_math, only: euler2mat, mat2euler
+      use tools_math, only: euler2mat, mat2euler, axisangle2mat
       real(c_float), intent(in) :: axis0(3)
       real(c_float), intent(in) :: ang0
 
       real(c_float) :: axisw(3), lax
-      real*8 :: u(3), rinc(3,3), rcur(3,3), euler(3), ca, sa
+      real*8 :: rinc(3,3), rcur(3,3), euler(3)
       integer :: imol
 
       imol = w%moveatoms_imol
@@ -1729,16 +1729,10 @@ contains
       if (lax <= 1e-10_c_float) return
       axisw = axis0 / lax
       call invmult(axisw,w%sc%world,notrans=.true.)
-      lax = norm2(axisw)
-      if (lax <= 1e-10_c_float) return
-      u = real(axisw / lax,8)
+      if (norm2(axisw) <= 1e-10_c_float) return
 
-      ! incremental rotation matrix (Rodrigues) about u by ang0
-      ca = cos(real(ang0,8))
-      sa = sin(real(ang0,8))
-      rinc(1,:) = (/ ca+u(1)*u(1)*(1d0-ca), u(1)*u(2)*(1d0-ca)-u(3)*sa, u(1)*u(3)*(1d0-ca)+u(2)*sa /)
-      rinc(2,:) = (/ u(2)*u(1)*(1d0-ca)+u(3)*sa, ca+u(2)*u(2)*(1d0-ca), u(2)*u(3)*(1d0-ca)-u(1)*sa /)
-      rinc(3,:) = (/ u(3)*u(1)*(1d0-ca)-u(2)*sa, u(3)*u(2)*(1d0-ca)+u(1)*sa, ca+u(3)*u(3)*(1d0-ca) /)
+      ! incremental rotation matrix (Rodrigues) about the world-space axis
+      rinc = axisangle2mat(real(axisw,8),real(ang0,8))
 
       ! compose with the molecule's current standard-frame orientation and apply
       if (.not.sys(isys)%c%mol(imol)%axes_computed) call sys(isys)%c%mol(imol)%compute_std()

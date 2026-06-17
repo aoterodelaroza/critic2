@@ -53,6 +53,7 @@ module tools_math
   public :: quat2mat
   public :: mat2euler
   public :: euler2mat
+  public :: axisangle2mat
   public :: matinv
   public :: matinv_cfloat
   public :: matinvsym
@@ -292,6 +293,10 @@ module tools_math
        real*8, intent(in) :: e(3)
        real*8 :: r(3,3)
      end function euler2mat
+     module function axisangle2mat(axis,angle) result(mat)
+       real*8, intent(in) :: axis(3), angle
+       real*8 :: mat(3,3)
+     end function axisangle2mat
      module subroutine matinv(m,n0,ier)
        integer, intent(in) :: n0
        real*8, intent(inout) :: m(n0,n0)

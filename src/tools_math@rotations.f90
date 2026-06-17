@@ -166,4 +166,38 @@ contains
 
   end function euler2mat
 
+  !> Rotation matrix for an active right-handed rotation by angle
+  !> (radians) about axis, via Rodrigues' formula. The axis is
+  !> normalized internally; if it is essentially zero, the identity is
+  !> returned.
+  module function axisangle2mat(axis,angle) result(mat)
+    use param, only: eye
+    real*8, intent(in) :: axis(3), angle
+    real*8 :: mat(3,3)
+
+    real*8 :: nn, c, s, ax(3), temp(3)
+
+    mat = eye
+    nn = norm2(axis)
+    if (nn < 1d-20) return
+
+    c = cos(angle)
+    s = sin(angle)
+    ax = axis / nn
+    temp = (1d0-c) * ax
+
+    mat(1,1) = c + temp(1) * ax(1)
+    mat(2,1) = temp(1) * ax(2) + s * ax(3)
+    mat(3,1) = temp(1) * ax(3) - s * ax(2)
+
+    mat(1,2) = temp(2) * ax(1) - s * ax(3)
+    mat(2,2) = c + temp(2) * ax(2)
+    mat(3,2) = temp(2) * ax(3) + s * ax(1)
+
+    mat(1,3) = temp(3) * ax(1) + s * ax(2)
+    mat(2,3) = temp(3) * ax(2) - s * ax(1)
+    mat(3,3) = c + temp(3) * ax(3)
+
+  end function axisangle2mat
+
 end submodule rotations

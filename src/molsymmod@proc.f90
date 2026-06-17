@@ -301,7 +301,7 @@ contains
   ! atoms, coordinates, atomic numbers, and orbits. Outputs
   ! rotation matrices.
   subroutine calcrotm_linear(nat,x,norbit,orb,nrotm,mrotm)
-    use tools_math, only: cross
+    use tools_math, only: cross, axisangle2mat
     use param, only: eye, tpi
     integer, intent(in) :: nat
     real*8, intent(in) :: x(3,nat)
@@ -324,7 +324,7 @@ contains
     ! add the rotation along the axis
     axis = x(:,2) - x(:,1)
     axis = axis / norm2(axis)
-    mat = rotation_matrix(axis,tpi / norder_inf)
+    mat = axisangle2mat(axis,tpi / norder_inf)
     call add_symop(mat,nrotm,mrotm)
 
     ! add a reflection plane with normal perpendicular to the axis
@@ -681,39 +681,6 @@ contains
     end do
 
   end subroutine group_closure
-
-  ! Returns the rotation matrix for a rotation around the given axis
-  ! with the given angle in radians. Applies Rodrigues' rotation
-  ! formula.
-  function rotation_matrix(axis,angle) result(mat)
-    use param, only: eye
-    real*8, intent(in) :: axis(3), angle
-    real*8 :: mat(3,3)
-
-    real*8 :: nn, c, s, ax(3), temp(3)
-
-    mat = eye
-    nn = norm2(axis)
-    if (nn < 1d-20) return
-
-    c = cos(angle)
-    s = sin(angle)
-    ax = axis / nn
-    temp = (1-c) * ax
-
-    mat(1,1) = c + temp(1) * ax(1)
-    mat(2,1) = temp(1) * ax(2) + s * ax(3)
-    mat(3,1) = temp(1) * ax(3) - s * ax(2)
-
-    mat(1,2) = temp(2) * ax(1) - s * ax(3)
-    mat(2,2) = c + temp(2) * ax(2)
-    mat(3,2) = temp(2) * ax(3) + s * ax(1)
-
-    mat(1,3) = temp(3) * ax(1) + s * ax(2)
-    mat(2,3) = temp(3) * ax(2) - s * ax(1)
-    mat(3,3) = c + temp(3) * ax(3)
-
-  end function rotation_matrix
 
   ! Returns the matrix corresponding to a reflection given the vector
   ! normal to the plane. The plane passes through the origin.
