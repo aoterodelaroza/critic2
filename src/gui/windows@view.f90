@@ -61,7 +61,7 @@ contains
        BIND_VIEW_TOGGLE_ATOMS, BIND_VIEW_TOGGLE_BONDS, BIND_VIEW_CYCLE_LABELS,&
        BIND_VIEW_TOGGLE_CELL,&
        get_bind_keyname, BIND_EDITGEOM_REMOVE, BIND_EDITGEOM_DESELECT,&
-       BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
+       BIND_EDITGEOM_SELECT_ALL, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes,&
        repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
        repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
@@ -938,6 +938,10 @@ contains
           call sysc(is)%highlight_clear(.false.)
           w%forcerender = .true.
           selcleared = .true.
+       elseif (is_bind_event(BIND_EDITGEOM_SELECT_ALL)) then
+          ! select all atoms
+          call sysc(is)%highlight_all()
+          w%forcerender = .true.
        end if
     end if
 
