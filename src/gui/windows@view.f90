@@ -1713,12 +1713,12 @@ contains
     ! produced by the navigation arcball math); ang0 is the rotation
     ! angle (radians).
     subroutine moveatoms_rotate_molecule(axis0,ang0)
-      use tools_math, only: euler2mat, mat2euler, axisangle2mat
+      use tools_math, only: euler2mat, axisangle2mat
       real(c_float), intent(in) :: axis0(3)
       real(c_float), intent(in) :: ang0
 
       real(c_float) :: axisw(3), lax
-      real*8 :: rinc(3,3), rcur(3,3), euler(3)
+      real*8 :: rinc(3,3)
       integer :: imol
 
       imol = w%moveatoms_imol
@@ -1731,14 +1731,12 @@ contains
       call invmult(axisw,w%sc%world,notrans=.true.)
       if (norm2(axisw) <= 1e-10_c_float) return
 
-      ! incremental rotation matrix (Rodrigues) about the world-space axis
+      ! incremental rotation (Rodrigues) about the world-space axis, composed
+      ! with the molecule's current standard-frame orientation
       rinc = axisangle2mat(real(axisw,8),real(ang0,8))
-
-      ! compose with the molecule's current standard-frame orientation and apply
       if (.not.sys(isys)%c%mol(imol)%axes_computed) call sys(isys)%c%mol(imol)%compute_std()
-      rcur = euler2mat(sys(isys)%c%mol(imol)%euler_std)
-      euler = mat2euler(matmul(rinc,rcur))
-      call sys(isys)%c%rotate_molecule(imol,euler,copybonding=.true.)
+      rinc = matmul(rinc,euler2mat(sys(isys)%c%mol(imol)%euler_std))
+      call sys(isys)%c%rotate_molecule(imol,rmat=rinc,copybonding=.true.)
       sysc(isys)%sc%nextbuildlists_fixcam = .true.
       call sysc(isys)%post_event(lastchange_geometry)
 

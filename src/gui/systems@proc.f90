@@ -1795,7 +1795,7 @@ contains
     ! rotate the molecule
     copybonding_ = .false.
     if (present(copybonding)) copybonding_ = copybonding
-    call sys(isys)%c%rotate_molecule(id,euler,copybonding=copybonding_)
+    call sys(isys)%c%rotate_molecule(id,euler=euler,copybonding=copybonding_)
 
     ! the geometry has changed
     call sysc%post_event(lastchange_geometry)

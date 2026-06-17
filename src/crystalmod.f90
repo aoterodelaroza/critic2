@@ -830,10 +830,12 @@ module crystalmod
        logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine move_molecule
-     module subroutine rotate_molecule(c,imol,euler,copybonding,ti)
+     module subroutine rotate_molecule(c,imol,euler,quat,rmat,copybonding,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: imol
-       real*8, intent(in) :: euler(3)
+       real*8, intent(in), optional :: euler(3)
+       real*8, intent(in), optional :: quat(4)
+       real*8, intent(in), optional :: rmat(3,3)
        logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine rotate_molecule

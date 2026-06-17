@@ -1480,23 +1480,28 @@ contains
   end subroutine move_molecule
 
   !> Rigidly rotate the molecular fragment imol about its center of mass
-  !> so that the Euler angles (ZYZ, radians) of its standard orientation
-  !> become euler. The rotation uses the fragment atoms (whole molecule,
-  !> with lattice translations applied), not the cell atoms, so it stays
-  !> rigid even when the molecule is split across cell boundaries. Only
-  !> applies to discrete fragments. Symmetry is not preserved (P1).
-  module subroutine rotate_molecule(c,imol,euler,copybonding,ti)
+  !> so that its standard orientation becomes the target orientation. The
+  !> target is given by exactly one of: euler (ZYZ Euler angles, radians),
+  !> quat (unit quaternion w,x,y,z), or rmat (3x3 rotation matrix). The
+  !> rotation uses the fragment atoms (whole molecule, with lattice
+  !> translations applied), not the cell atoms, so it stays rigid even
+  !> when the molecule is split across cell boundaries. Only applies to
+  !> discrete fragments. Symmetry is not preserved (P1).
+  module subroutine rotate_molecule(c,imol,euler,quat,rmat,copybonding,ti)
     use crystalseedmod, only: crystalseed
-    use tools_math, only: euler2mat, mat2euler, mat2quat
+    use tools_math, only: euler2mat, mat2euler, quat2mat
+    use tools_io, only: ferror, faterr
     class(crystal), intent(inout) :: c
     integer, intent(in) :: imol
-    real*8, intent(in) :: euler(3)
+    real*8, intent(in), optional :: euler(3)
+    real*8, intent(in), optional :: quat(4)
+    real*8, intent(in), optional :: rmat(3,3)
     logical, intent(in), optional :: copybonding
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
-    real*8 :: rnew(3), rmat(3,3), rrot(3,3), xcm(3)
-    integer :: j, k, lvec(3)
+    real*8 :: rnew(3), amat(3,3), rrot(3,3), xcm(3)
+    integer :: j, k, lvec(3), npres
     logical :: copybonding_
 
     ! consistency checks
@@ -1505,12 +1510,27 @@ contains
     copybonding_ = .false.
     if (present(copybonding)) copybonding_ = copybonding
 
+    ! exactly one orientation representation must be given
+    npres = 0
+    if (present(euler)) npres = npres + 1
+    if (present(quat)) npres = npres + 1
+    if (present(rmat)) npres = npres + 1
+    if (npres /= 1) &
+       call ferror('rotate_molecule','exactly one of euler/quat/rmat is required',faterr)
+
     ! make sure the standard frame is available
     if (.not.c%mol(imol)%axes_computed) call c%mol(imol)%compute_std()
 
-    ! rigid rotation that brings the current standard frame to the target
-    rmat = euler2mat(euler)
-    rrot = matmul(rmat,transpose(c%mol(imol)%m_std))
+    ! target orientation as a rotation matrix, then the rigid rotation that
+    ! brings the current standard frame to that target
+    if (present(euler)) then
+       amat = euler2mat(euler)
+    elseif (present(quat)) then
+       amat = quat2mat(quat)
+    else
+       amat = rmat
+    end if
+    rrot = matmul(amat,transpose(c%mol(imol)%m_std))
     xcm = c%mol(imol)%xcm
 
     ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom
@@ -1543,7 +1563,7 @@ contains
     ! only if the bonding is preserved - otherwise the molecules may change
     if (copybonding_) then
        call c%mol(imol)%compute_std()
-       c%mol(imol)%euler_std = euler
+       c%mol(imol)%euler_std = mat2euler(amat)
     end if
 
   end subroutine rotate_molecule
