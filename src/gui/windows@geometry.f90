@@ -42,7 +42,8 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use crystalmod, only: holo_string, laue_string, pointgroup_info
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
-       BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITGEOM_REMOVE
+       BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITGEOM_REMOVE,&
+       BIND_EDITGEOM_DESELECT
     use global, only: bondfactor_def, bonddelta_def
     use systems, only: nsys, sysc, sys, sys_init, ok_system, reread_system_from_file,&
        atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac, atlisttype_ncel_bohr,&
@@ -62,7 +63,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
-    logical :: doquit, clicked, forcesort, ch, lch
+    logical :: doquit, clicked, forcesort, ch, lch, deselected
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:16)
     integer :: ihlbond, ihlbtn ! bonds tab: hovered central atom and hovered neighbor button (cell ids)
     integer :: ipickhl ! cell id of the atom awaiting an add-bond pick (0 = none), highlighted
@@ -2190,6 +2191,17 @@ contains
        iaction_i1 = edit_remove
     end if
 
+    ! deselect all highlighted atoms
+    deselected = .false.
+    if (w%focused() .and. is_bind_event(BIND_EDITGEOM_DESELECT)) then
+       if (allocated(sysc(isys)%highlight_rgba)) then
+          if (any(sysc(isys)%highlight_rgba >= 0._c_float)) then
+             call sysc(isys)%highlight_clear(.false.)
+             deselected = .true.
+          end if
+       end if
+    end if
+
     ! right-align and bottom-align for the rest of the contents
     call igGetContentRegionAvail(szavail)
     call igSetCursorPosX(iw_calcwidth(5,1,from_end=.true.) - g%Style%ScrollbarSize)
@@ -2198,8 +2210,8 @@ contains
 
     ! close button
     if (w%focused() .and. is_bind_event(BIND_OK_FOCUSED_DIALOG)) doquit = .true.
-    if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
-       is_bind_event(BIND_CLOSE_ALL_DIALOGS)) &
+    if (.not.deselected .and. ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)).or.&
+       is_bind_event(BIND_CLOSE_ALL_DIALOGS))) &
        doquit = .true.
     doquit = doquit .or. iw_button("Close")
 
@@ -2818,7 +2830,7 @@ contains
       if (iw_button("None##highlightnone",sameline=.true.)) then
          call sysc(isys)%highlight_clear(.false.)
       end if
-      call iw_tooltip("Deselect all atoms",ttshown)
+      call iw_tooltip("Deselect all atoms (" // trim(get_bind_keyname(BIND_EDITGEOM_DESELECT)) // ")",ttshown)
       if (iw_button("Toggle##highlighttoggle",sameline=.true.)) then
          ! compute the per-row selection state once
          allocate(tstate(ntype))

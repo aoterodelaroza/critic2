@@ -60,7 +60,7 @@ contains
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS,&
        BIND_VIEW_TOGGLE_ATOMS, BIND_VIEW_TOGGLE_BONDS, BIND_VIEW_CYCLE_LABELS,&
        BIND_VIEW_TOGGLE_CELL,&
-       get_bind_keyname,&
+       get_bind_keyname, BIND_EDITGEOM_REMOVE, BIND_EDITGEOM_DESELECT,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes,&
        repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
@@ -92,7 +92,7 @@ contains
     integer(c_int) :: newside, vside
     real(c_float) :: scal, width, rgba(4)
     real(c_float) :: rscale
-    logical :: interacting
+    logical :: interacting, selcleared
     real*8 :: x0(3), time
     type(ImVec2) :: sz
     logical :: changedisplay(4) ! 1=atoms, 2=bonds, 3=labels, 4=cell
@@ -919,14 +919,39 @@ contains
     call igSameLine(0._c_float,0._c_float)
     call iw_setposx_fromend(5,1)
 
+    ! keyboard actions on the current atom selection, when the view is focused:
+    selcleared = .false.
+    if (w%focused() .and. ok_system(w%view_selected,sys_init)) then
+       is = w%view_selected
+       if (allocated(sysc(is)%highlight_rgba)) then
+          ok = any(sysc(is)%highlight_rgba >= 0._c_float)
+       else
+          ok = .false.
+       end if
+       if (ok .and. is_bind_event(BIND_EDITGEOM_REMOVE)) then
+          ! delete the selected atoms
+          call sysc(is)%edit_highlighted_atoms(remove=.true.,errmsg=msg)
+          sysc(is)%sc%nextbuildlists_fixcam = .true.
+          w%forcerender = .true.
+       elseif (ok .and. is_bind_event(BIND_EDITGEOM_DESELECT)) then
+          ! clear the selection
+          call sysc(is)%highlight_clear(.false.)
+          w%forcerender = .true.
+          selcleared = .true.
+       end if
+    end if
+
     if (.not.w%ismain) then
        ! the close button
        if (iw_button("Close",danger=.true.)) w%isopen = .false.
 
-       ! exit if focused and received the close keybinding
-       if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or.&
-          is_bind_event(BIND_CLOSE_ALL_DIALOGS)) then
-          w%isopen = .false.
+       ! exit if focused and received the close keybinding (unless Escape was
+       ! just used to clear the selection)
+       if (.not.selcleared) then
+          if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or.&
+             is_bind_event(BIND_CLOSE_ALL_DIALOGS)) then
+             w%isopen = .false.
+          end if
        end if
     end if
 

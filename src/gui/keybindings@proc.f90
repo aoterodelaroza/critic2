@@ -225,6 +225,7 @@ contains
     call set_bind(BIND_SELECT_MOLECULES,ImGuiKey_MouseRight,mod_none)
     call set_bind(BIND_SELECT_MOLECULES_AND_DESELECT,ImGuiKey_MouseLeftDouble,mod_none)
     call set_bind(BIND_EDITGEOM_REMOVE,ImGuiKey_Delete,mod_none)
+    call set_bind(BIND_EDITGEOM_DESELECT,ImGuiKey_Escape,mod_none)
 
   end subroutine set_default_keybindings
 
