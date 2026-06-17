@@ -85,7 +85,11 @@ module keybindings
   integer, parameter, public :: BIND_EDITSELECT_REMOVE = 38 ! edit geometry: remove atoms
   integer, parameter, public :: BIND_EDITSELECT_DESELECT = 39 ! edit geometry: deselect all atoms
   integer, parameter, public :: BIND_EDITSELECT_SELECT_ALL = 40 ! edit geometry: select all atoms
-  integer, parameter, public :: BIND_NUM = 40 ! total number of binds
+  integer, parameter, public :: BIND_VIEWMODE_MOVEATOMS = 41 ! enter the move-atoms view mode (transient)
+  integer, parameter, public :: BIND_MOVEATOMS_TRANSLATE = 42 ! move atoms: translate atom/molecule
+  integer, parameter, public :: BIND_MOVEATOMS_ROTATE = 43 ! move atoms: rotate molecule about its COM
+  integer, parameter, public :: BIND_MOVEATOMS_ROTATE_PERP = 44 ! move atoms: rotate molecule perpendicular to screen
+  integer, parameter, public :: BIND_NUM = 44 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -128,7 +132,11 @@ module keybindings
      "Select molecules/Deselect       ",& ! BIND_SELECT_MOLECULES_AND_DESELECT
      "Remove selected atoms           ",& ! BIND_EDITSELECT_REMOVE
      "Deselect all atoms              ",& ! BIND_EDITSELECT_DESELECT
-     "Select all atoms                "&  ! BIND_EDITSELECT_SELECT_ALL
+     "Select all atoms                ",& ! BIND_EDITSELECT_SELECT_ALL
+     "Move atoms                      ",& ! BIND_VIEWMODE_MOVEATOMS
+     "Translate atom or molecule      ",& ! BIND_MOVEATOMS_TRANSLATE
+     "Rotate molecule                 ",& ! BIND_MOVEATOMS_ROTATE
+     "Rotate molecule (perpendicular) "&  ! BIND_MOVEATOMS_ROTATE_PERP
      /)
 
   ! The key associated with each bind, bind -> key
@@ -152,7 +160,8 @@ module keybindings
   integer, parameter, public :: group_viewmode_navigation = 7 ! view mouse interaction modes
   integer, parameter, public :: group_viewmode_select = 8     ! view mouse interaction modes
   integer, parameter, public :: group_editselect = 9          ! if the edit geometry window is active
-  integer, parameter, public :: group_NUM = 9                 ! total number of groups
+  integer, parameter, public :: group_viewmode_moveatoms = 10 ! view mouse interaction modes
+  integer, parameter, public :: group_NUM = 10                ! total number of groups
 
   ! Names of the keybinding groups
   character(len=28), parameter, public :: groupnames(group_NUM) = (/&
@@ -164,7 +173,8 @@ module keybindings
      "View Mouse Interaction Modes",&
      "View Window: Navigation Mode",&
      "View Window: Select Mode    ",&
-     "Atom/Molecule Selection     "/)
+     "Atom/Molecule Selection     ",&
+     "View Window: Move Atoms Mode"/)
 
   ! Bind groups assignment
   integer, parameter, public :: groupbind(BIND_NUM) = (/&
@@ -207,7 +217,11 @@ module keybindings
      group_viewmode_select,&     ! BIND_SELECT_MOLECULES_AND_DESELECT
      group_editselect,&          ! BIND_EDITSELECT_REMOVE
      group_editselect,&          ! BIND_EDITSELECT_DESELECT
-     group_editselect/)          ! BIND_EDITSELECT_SELECT_ALL
+     group_editselect,&          ! BIND_EDITSELECT_SELECT_ALL
+     group_viewmode,&            ! BIND_VIEWMODE_MOVEATOMS
+     group_viewmode_moveatoms,&  ! BIND_MOVEATOMS_TRANSLATE
+     group_viewmode_moveatoms,&  ! BIND_MOVEATOMS_ROTATE
+     group_viewmode_moveatoms/)  ! BIND_MOVEATOMS_ROTATE_PERP
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -253,7 +267,11 @@ module keybindings
      BIND_VIEWMODE_SELECT,&  ! BIND_SELECT_AND_DESELECT
      0,&  ! BIND_EDITSELECT_REMOVE
      0,&  ! BIND_EDITSELECT_DESELECT
-     0/)  ! BIND_EDITSELECT_SELECT_ALL
+     0,&  ! BIND_EDITSELECT_SELECT_ALL
+     -1,& ! BIND_VIEWMODE_MOVEATOMS
+     BIND_VIEWMODE_MOVEATOMS,&  ! BIND_MOVEATOMS_TRANSLATE
+     BIND_VIEWMODE_MOVEATOMS,&  ! BIND_MOVEATOMS_ROTATE
+     BIND_VIEWMODE_MOVEATOMS/)  ! BIND_MOVEATOMS_ROTATE_PERP
 
   ! module procedure interfaces
   interface

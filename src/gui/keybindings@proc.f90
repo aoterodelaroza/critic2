@@ -227,6 +227,10 @@ contains
     call set_bind(BIND_EDITSELECT_REMOVE,ImGuiKey_Delete,mod_none)
     call set_bind(BIND_EDITSELECT_DESELECT,ImGuiKey_Escape,mod_none)
     call set_bind(BIND_EDITSELECT_SELECT_ALL,ImGuiKey_A,mod_ctrl)
+    call set_bind(BIND_VIEWMODE_MOVEATOMS,ImGuiKey_None,mod_ctrl)
+    call set_bind(BIND_MOVEATOMS_TRANSLATE,ImGuiKey_MouseRight,mod_none)
+    call set_bind(BIND_MOVEATOMS_ROTATE,ImGuiKey_MouseLeft,mod_none)
+    call set_bind(BIND_MOVEATOMS_ROTATE_PERP,ImGuiKey_MouseMiddle,mod_none)
 
   end subroutine set_default_keybindings
 

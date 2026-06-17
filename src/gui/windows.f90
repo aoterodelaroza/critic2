@@ -41,12 +41,14 @@ module windows
   integer, parameter, public :: vm_pick_atom = -1
   integer, parameter, public :: vm_navigate  = 0
   integer, parameter, public :: vm_select    = 1
-  integer, parameter, public :: vm_NUM = 1
+  integer, parameter, public :: vm_moveatoms = 2
+  integer, parameter, public :: vm_NUM = 2
 
   character(len=10), parameter, public :: vmnames(-1:vm_NUM) = (/&
      "Pick Atoms",& ! vm_pick_atom
      "Navigate  ",& ! vm_navigate
-     "Select    "&  ! vm_select
+     "Select    ",& ! vm_select
+     "Move Atoms"&  ! vm_moveatoms
      /)
 
   ! view mode data structure for window_forced modes
@@ -125,6 +127,9 @@ module windows
      real(c_float) :: oldview(4,4)
      real(c_float) :: mpos0_s
      integer :: ilock = 0 ! mouse parameters -^
+     integer :: moveatoms_icel = 0 ! cell atom in move-atoms drag
+     integer :: moveatoms_imol = 0 ! molecule in move-atoms drag
+     logical :: moveatoms_isdiscrete = .false. ! whether the move-atoms fragment is discrete
      logical :: selrect_active = .false. ! rubber-band selection drag in progress (vm_select)
      type(ImVec2) :: selrect_p0 ! rubber-band drag start position (mouse/screen coords)
      real*8 :: timelast_view_assign = 0d0   ! time the view was last assigned a system
