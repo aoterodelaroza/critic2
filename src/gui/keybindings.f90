@@ -82,9 +82,9 @@ module keybindings
   integer, parameter, public :: BIND_SELECT_ATOMS = 35 ! select: select single atoms
   integer, parameter, public :: BIND_SELECT_MOLECULES = 36 ! select: select molecules
   integer, parameter, public :: BIND_SELECT_MOLECULES_AND_DESELECT = 37 ! select: select molecules/deselect
-  integer, parameter, public :: BIND_EDITGEOM_REMOVE = 38 ! edit geometry: remove atoms
-  integer, parameter, public :: BIND_EDITGEOM_DESELECT = 39 ! edit geometry: deselect all atoms
-  integer, parameter, public :: BIND_EDITGEOM_SELECT_ALL = 40 ! edit geometry: select all atoms
+  integer, parameter, public :: BIND_EDITSELECT_REMOVE = 38 ! edit geometry: remove atoms
+  integer, parameter, public :: BIND_EDITSELECT_DESELECT = 39 ! edit geometry: deselect all atoms
+  integer, parameter, public :: BIND_EDITSELECT_SELECT_ALL = 40 ! edit geometry: select all atoms
   integer, parameter, public :: BIND_NUM = 40 ! total number of binds
 
   ! Bind names
@@ -126,9 +126,9 @@ module keybindings
      "Select atoms                    ",& ! BIND_SELECT_ATOMS
      "Select molecules                ",& ! BIND_SELECT_MOLECULES
      "Select molecules/Deselect       ",& ! BIND_SELECT_MOLECULES_AND_DESELECT
-     "Remove selected atoms           ",& ! BIND_EDITGEOM_REMOVE
-     "Deselect all atoms              ",& ! BIND_EDITGEOM_DESELECT
-     "Select all atoms                "&  ! BIND_EDITGEOM_SELECT_ALL
+     "Remove selected atoms           ",& ! BIND_EDITSELECT_REMOVE
+     "Deselect all atoms              ",& ! BIND_EDITSELECT_DESELECT
+     "Select all atoms                "&  ! BIND_EDITSELECT_SELECT_ALL
      /)
 
   ! The key associated with each bind, bind -> key
@@ -151,7 +151,7 @@ module keybindings
   integer, parameter, public :: group_viewmode = 6            ! view mouse interaction modes
   integer, parameter, public :: group_viewmode_navigation = 7 ! view mouse interaction modes
   integer, parameter, public :: group_viewmode_select = 8     ! view mouse interaction modes
-  integer, parameter, public :: group_editgeom = 9            ! if the edit geometry window is active
+  integer, parameter, public :: group_editselect = 9          ! if the edit geometry window is active
   integer, parameter, public :: group_NUM = 9                 ! total number of groups
 
   ! Names of the keybinding groups
@@ -164,7 +164,7 @@ module keybindings
      "View Mouse Interaction Modes",&
      "View Window: Navigation Mode",&
      "View Window: Select Mode    ",&
-     "View/Edit Geometry          "/)
+     "Atom/Molecule Selection     "/)
 
   ! Bind groups assignment
   integer, parameter, public :: groupbind(BIND_NUM) = (/&
@@ -205,9 +205,9 @@ module keybindings
      group_viewmode_select,&     ! BIND_SELECT_ATOMS
      group_viewmode_select,&     ! BIND_SELECT_MOLECULES
      group_viewmode_select,&     ! BIND_SELECT_MOLECULES_AND_DESELECT
-     group_editgeom,&            ! BIND_EDITGEOM_REMOVE
-     group_editgeom,&            ! BIND_EDITGEOM_DESELECT
-     group_editgeom/)            ! BIND_EDITGEOM_SELECT_ALL
+     group_editselect,&          ! BIND_EDITSELECT_REMOVE
+     group_editselect,&          ! BIND_EDITSELECT_DESELECT
+     group_editselect/)          ! BIND_EDITSELECT_SELECT_ALL
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -251,9 +251,9 @@ module keybindings
      BIND_VIEWMODE_SELECT,&  ! BIND_SELECT_ATOMS
      BIND_VIEWMODE_SELECT,&  ! BIND_SELECT_MOLECULES
      BIND_VIEWMODE_SELECT,&  ! BIND_SELECT_AND_DESELECT
-     0,&  ! BIND_EDITGEOM_REMOVE
-     0,&  ! BIND_EDITGEOM_DESELECT
-     0/)  ! BIND_EDITGEOM_SELECT_ALL
+     0,&  ! BIND_EDITSELECT_REMOVE
+     0,&  ! BIND_EDITSELECT_DESELECT
+     0/)  ! BIND_EDITSELECT_SELECT_ALL
 
   ! module procedure interfaces
   interface

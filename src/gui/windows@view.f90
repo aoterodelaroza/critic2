@@ -60,8 +60,8 @@ contains
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS,&
        BIND_VIEW_TOGGLE_ATOMS, BIND_VIEW_TOGGLE_BONDS, BIND_VIEW_CYCLE_LABELS,&
        BIND_VIEW_TOGGLE_CELL,&
-       get_bind_keyname, BIND_EDITGEOM_REMOVE, BIND_EDITGEOM_DESELECT,&
-       BIND_EDITGEOM_SELECT_ALL, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
+       get_bind_keyname, BIND_EDITSELECT_REMOVE, BIND_EDITSELECT_DESELECT,&
+       BIND_EDITSELECT_SELECT_ALL, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes,&
        repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
        repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
@@ -928,17 +928,17 @@ contains
        else
           ok = .false.
        end if
-       if (ok .and. is_bind_event(BIND_EDITGEOM_REMOVE)) then
+       if (ok .and. is_bind_event(BIND_EDITSELECT_REMOVE)) then
           ! delete the selected atoms
           call sysc(is)%edit_highlighted_atoms(remove=.true.,errmsg=msg)
           sysc(is)%sc%nextbuildlists_fixcam = .true.
           w%forcerender = .true.
-       elseif (ok .and. is_bind_event(BIND_EDITGEOM_DESELECT)) then
+       elseif (ok .and. is_bind_event(BIND_EDITSELECT_DESELECT)) then
           ! clear the selection
           call sysc(is)%highlight_clear(.false.)
           w%forcerender = .true.
           selcleared = .true.
-       elseif (is_bind_event(BIND_EDITGEOM_SELECT_ALL)) then
+       elseif (is_bind_event(BIND_EDITSELECT_SELECT_ALL)) then
           ! select all atoms
           call sysc(is)%highlight_all()
           w%forcerender = .true.
@@ -1137,10 +1137,8 @@ contains
   !> Returns the tooltip message for the current viewmode
   module subroutine viewmode_bar_display(w)
     use gui_main, only: tooltip_delay, g
-    use keybindings, only: get_bind_keyname, bindnames, BIND_NAV_ROTATE, &
-       BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
-       BIND_NAV_MEASURE, BIND_NUM, group_viewmode_navigation, group_viewmode_select,&
-       groupbind
+    use keybindings, only: get_bind_keyname, bindnames,&
+       BIND_NUM, group_viewmode_navigation, group_viewmode_select, groupbind
     use utils, only: iw_combo_simple, iw_tooltip, igIsItemHovered_delayed, iw_text
     use tools_io, only: string
     class(window), intent(inout), target :: w

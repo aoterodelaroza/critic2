@@ -42,8 +42,8 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use crystalmod, only: holo_string, laue_string, pointgroup_info
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
-       BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITGEOM_REMOVE,&
-       BIND_EDITGEOM_DESELECT
+       BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITSELECT_REMOVE,&
+       BIND_EDITSELECT_DESELECT
     use global, only: bondfactor_def, bonddelta_def
     use systems, only: nsys, sysc, sys, sys_init, ok_system, reread_system_from_file,&
        atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac, atlisttype_ncel_bohr,&
@@ -2186,14 +2186,14 @@ contains
     end if
 
     ! remove/merge highlighted atoms
-    if (w%focused() .and. is_bind_event(BIND_EDITGEOM_REMOVE)) then
+    if (w%focused() .and. is_bind_event(BIND_EDITSELECT_REMOVE)) then
        iaction = iaction_edit_highlighted
        iaction_i1 = edit_remove
     end if
 
     ! deselect all highlighted atoms
     deselected = .false.
-    if (w%focused() .and. is_bind_event(BIND_EDITGEOM_DESELECT)) then
+    if (w%focused() .and. is_bind_event(BIND_EDITSELECT_DESELECT)) then
        if (allocated(sysc(isys)%highlight_rgba)) then
           if (any(sysc(isys)%highlight_rgba >= 0._c_float)) then
              call sysc(isys)%highlight_clear(.false.)
@@ -2830,7 +2830,7 @@ contains
       if (iw_button("None##highlightnone",sameline=.true.)) then
          call sysc(isys)%highlight_clear(.false.)
       end if
-      call iw_tooltip("Deselect all atoms (" // trim(get_bind_keyname(BIND_EDITGEOM_DESELECT)) // ")",ttshown)
+      call iw_tooltip("Deselect all atoms (" // trim(get_bind_keyname(BIND_EDITSELECT_DESELECT)) // ")",ttshown)
       if (iw_button("Toggle##highlighttoggle",sameline=.true.)) then
          ! compute the per-row selection state once
          allocate(tstate(ntype))
@@ -2976,7 +2976,7 @@ contains
          iaction = iaction_edit_highlighted
          iaction_i1 = edit_remove
       end if
-      call iw_tooltip("Remove selected atoms (" // trim(get_bind_keyname(BIND_EDITGEOM_REMOVE)) // ")",ttshown)
+      call iw_tooltip("Remove selected atoms (" // trim(get_bind_keyname(BIND_EDITSELECT_REMOVE)) // ")",ttshown)
 
       ! Merge button
       if (iw_button("Merge##mergeselection",sameline=.true.,disabled=.not.havesel)) then

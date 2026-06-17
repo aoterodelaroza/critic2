@@ -463,8 +463,8 @@ contains
        wintype_about, wintype_geometry, wintype_vibrations, wintype_exportimage
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
-       BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITGEOM_SELECT_ALL,&
-       BIND_EDITGEOM_DESELECT, BIND_EDITGEOM_REMOVE, get_bind_keyname, is_bind_event
+       BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
+       BIND_EDITSELECT_DESELECT, BIND_EDITSELECT_REMOVE, get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
     use param, only: isformat_write_from_read, isformat_w_unknown
@@ -584,12 +584,12 @@ contains
        str1 = "Edit" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
           ! Edit -> Select All
-          if (iw_menuitem("Select All",BIND_EDITGEOM_SELECT_ALL,enabled=isysvok)) &
+          if (iw_menuitem("Select All",BIND_EDITSELECT_SELECT_ALL,enabled=isysvok)) &
              call sysc(isysv)%highlight_all()
           call iw_tooltip("Select all atoms in the view",ttshown)
 
           ! Edit -> Select None
-          if (iw_menuitem("Select None",BIND_EDITGEOM_DESELECT,enabled=isysvok)) &
+          if (iw_menuitem("Select None",BIND_EDITSELECT_DESELECT,enabled=isysvok)) &
              call sysc(isysv)%highlight_clear(.false.)
           call iw_tooltip("Clear the atom selection in the view",ttshown)
 
@@ -607,7 +607,7 @@ contains
           call iw_tooltip("Create a new system from the selected atoms",ttshown)
 
           ! Edit -> Remove selection
-          if (iw_menuitem("Remove Selection",BIND_EDITGEOM_REMOVE,enabled=isysvok)) then
+          if (iw_menuitem("Remove Selection",BIND_EDITSELECT_REMOVE,enabled=isysvok)) then
              call sysc(isysv)%edit_highlighted_atoms(remove=.true.,errmsg=errmsg)
              sysc(isysv)%sc%nextbuildlists_fixcam = .true.
           end if
