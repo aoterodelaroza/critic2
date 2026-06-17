@@ -750,6 +750,130 @@ contains
 
   end subroutine highlight_clear
 
+  !> Select (persistent highlight) all cell atoms in the system.
+  module subroutine highlight_all(sysc)
+    use gui_main, only: ColorHighlightSelectScene
+    class(sysconf), intent(inout) :: sysc
+
+    integer :: i, nat
+    integer, allocatable :: iat(:)
+
+    if (sysc%status < sys_init) return
+    nat = sys(sysc%id)%c%ncel
+    if (nat <= 0) return
+
+    allocate(iat(nat))
+    do i = 1, nat
+       iat(i) = i
+    end do
+    call sysc%highlight_atoms(.false.,iat,atlisttype_ncel_frac,&
+       spread(ColorHighlightSelectScene,2,nat))
+
+  end subroutine highlight_all
+
+  !> Invert the persistent selection of all cell atoms in the system. Atoms
+  !> currently selected become unselected and vice versa.
+  module subroutine highlight_invert(sysc)
+    use gui_main, only: ColorHighlightSelectScene
+    class(sysconf), intent(inout) :: sysc
+
+    integer :: i, nat, nsel, nuns
+    integer, allocatable :: sel(:), uns(:)
+
+    if (sysc%status < sys_init) return
+    nat = sys(sysc%id)%c%ncel
+    if (nat <= 0) return
+
+    ! split the cell atoms into selected and unselected
+    call sysc%highlighted_atom_list(nsel,sel)
+    allocate(uns(nat))
+    nuns = 0
+    do i = 1, nat
+       if (.not.any(sel(1:nsel) == i)) then
+          nuns = nuns + 1
+          uns(nuns) = i
+       end if
+    end do
+
+    if (nsel > 0) &
+       call sysc%highlight_clear(.false.,sel(1:nsel),atlisttype_ncel_frac)
+    if (nuns > 0) &
+       call sysc%highlight_atoms(.false.,uns(1:nuns),atlisttype_ncel_frac,&
+          spread(ColorHighlightSelectScene,2,nuns))
+
+  end subroutine highlight_invert
+
+  !> Return the list of highlighted (selected) cell atoms. On output, nat is the
+  !> number of selected atoms and iat(1:nat) their cell-atom indices. iat is
+  !> allocated to ncel; only the first nat entries are meaningful. Returns
+  !> nat = 0 if the system is not initialized or has no selection.
+  module subroutine highlighted_atom_list(sysc,nat,iat)
+    class(sysconf), intent(in) :: sysc
+    integer, intent(out) :: nat
+    integer, allocatable, intent(inout) :: iat(:)
+
+    integer :: i, ncel
+
+    nat = 0
+    if (sysc%status < sys_init) return
+    ncel = sys(sysc%id)%c%ncel
+    if (ncel <= 0) return
+
+    if (allocated(iat)) then
+       if (size(iat,1) < ncel) deallocate(iat)
+    end if
+    if (.not.allocated(iat)) allocate(iat(ncel))
+
+    if (.not.allocated(sysc%highlight_rgba)) return
+    do i = 1, min(ncel,size(sysc%highlight_rgba,2))
+       if (any(sysc%highlight_rgba(:,i) >= 0._c_float)) then
+          nat = nat + 1
+          iat(nat) = i
+       end if
+    end do
+
+  end subroutine highlighted_atom_list
+
+  !> Create a new system containing only the highlighted (selected) atoms of
+  !> this system. The new system preserves the parent type (a crystal yields a
+  !> P1 crystal with the same cell; a molecule yields a molecule).
+  module subroutine new_system_from_highlighted(sysc)
+    use crystalseedmod, only: crystalseed
+    use types, only: realloc
+    class(sysconf), intent(inout) :: sysc
+
+    integer :: i, nat, id
+    integer, allocatable :: iat(:)
+    type(crystalseed), allocatable :: seed(:)
+
+    ! consistency checks
+    id = sysc%id
+    if (.not.ok_system(id,sys_init)) return
+
+    ! list the selected cell atoms; no-op if nothing is selected
+    call sysc%highlighted_atom_list(nat,iat)
+    if (nat == 0) return
+
+    ! build a seed from the crystal, then keep only the selected atoms
+    allocate(seed(1))
+    call sys(id)%c%makeseed(seed(1),copysym=.false.)
+    call realloc(seed(1)%x,3,nat)
+    call realloc(seed(1)%is,nat)
+    call realloc(seed(1)%atname,nat)
+    do i = 1, nat
+       seed(1)%x(:,i) = sys(id)%c%atcel(iat(i))%x
+       seed(1)%is(i) = sys(id)%c%atcel(iat(i))%is
+       seed(1)%atname(i) = sys(id)%c%at(sys(id)%c%atcel(iat(i))%idx)%name
+    end do
+    seed(1)%nat = nat
+    seed(1)%name = trim(sysc%seed%name) // " (selection)"
+
+    ! create the new system
+    call add_systems_from_seeds(1,seed)
+    call launch_initialization_thread()
+
+  end subroutine new_system_from_highlighted
+
   !> Remove, merge or duplicate the highlighted atoms in the system.
   module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate,errmsg)
     class(sysconf), intent(inout) :: sysc

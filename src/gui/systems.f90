@@ -101,8 +101,12 @@ module systems
      ! highlights
      procedure :: highlight_atoms
      procedure :: highlight_clear
+     procedure :: highlight_all
+     procedure :: highlight_invert
+     procedure :: highlighted_atom_list
      procedure :: edit_highlighted_atoms
      procedure :: edit_highlighted_species
+     procedure :: new_system_from_highlighted
      ! atlisttype tools
      procedure :: attype_combo_simple
      procedure :: attype_number
@@ -228,6 +232,20 @@ module systems
        integer, intent(in), optional :: idx(:)
        integer, intent(in), optional :: type
      end subroutine highlight_clear
+     module subroutine highlight_all(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine highlight_all
+     module subroutine highlight_invert(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine highlight_invert
+     module subroutine highlighted_atom_list(sysc,nat,iat)
+       class(sysconf), intent(in) :: sysc
+       integer, intent(out) :: nat
+       integer, allocatable, intent(inout) :: iat(:)
+     end subroutine highlighted_atom_list
+     module subroutine new_system_from_highlighted(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine new_system_from_highlighted
      module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate,errmsg)
        class(sysconf), intent(inout) :: sysc
        logical, intent(in), optional :: remove, merge, duplicate

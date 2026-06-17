@@ -581,6 +581,32 @@ contains
        ! Edit
        str1 = "Edit" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+          ! Edit -> Select All
+          if (iw_menuitem("Select All",enabled=isysvok)) &
+             call sysc(isysv)%highlight_all()
+          call iw_tooltip("Select all atoms in the view",ttshown)
+
+          ! Edit -> Select None
+          if (iw_menuitem("Select None",enabled=isysvok)) &
+             call sysc(isysv)%highlight_clear(.false.)
+          call iw_tooltip("Clear the atom selection in the view",ttshown)
+
+          ! Edit -> Invert Selection
+          if (iw_menuitem("Invert Selection",enabled=isysvok)) &
+             call sysc(isysv)%highlight_invert()
+          call iw_tooltip("Toggle the selection of every atom in the view",ttshown)
+
+          ! Edit -> Separator
+          call igSeparator()
+
+          ! Edit -> New from Selection
+          if (iw_menuitem("New from Selection",enabled=isysvok)) &
+             call sysc(isysv)%new_system_from_highlighted()
+          call iw_tooltip("Create a new system from the selected atoms",ttshown)
+
+          ! Edit -> Separator
+          call igSeparator()
+
           ! Edit -> Preferences...
           if (iw_menuitem("Preferences...")) &
              idum = stack_create_window(wintype_preferences,.true.,orraise=-1)
