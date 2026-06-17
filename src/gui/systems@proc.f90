@@ -834,17 +834,22 @@ contains
 
   end subroutine highlighted_atom_list
 
-  !> Create a new system containing only the highlighted (selected) atoms of
-  !> this system. The new system preserves the parent type (a crystal yields a
-  !> P1 crystal with the same cell; a molecule yields a molecule).
-  module subroutine new_system_from_highlighted(sysc)
+  !> Create a new system containing only the highlighted (selected)
+  !> atoms of this system. By default the new system preserves the
+  !> parent type (crystal or molecule). If forcemolecule is present
+  !> and true, the selection is always turned into a non-periodic
+  !> molecule.
+  module subroutine new_system_from_highlighted(sysc,forcemolecule)
     use crystalseedmod, only: crystalseed
     use types, only: realloc
+    use global, only: rborder_def
     class(sysconf), intent(inout) :: sysc
+    logical, intent(in), optional :: forcemolecule
 
     integer :: i, nat, id
     integer, allocatable :: iat(:)
     type(crystalseed), allocatable :: seed(:)
+    logical :: molecule
 
     ! consistency checks
     id = sysc%id
@@ -854,6 +859,10 @@ contains
     call sysc%highlighted_atom_list(nat,iat)
     if (nat == 0) return
 
+    ! whether to force the new system to be a molecule
+    molecule = .false.
+    if (present(forcemolecule)) molecule = forcemolecule
+
     ! build a seed from the crystal, then keep only the selected atoms
     allocate(seed(1))
     call sys(id)%c%makeseed(seed(1),copysym=.false.)
@@ -861,11 +870,29 @@ contains
     call realloc(seed(1)%is,nat)
     call realloc(seed(1)%atname,nat)
     do i = 1, nat
-       seed(1)%x(:,i) = sys(id)%c%atcel(iat(i))%x
+       if (molecule) then
+          ! absolute Cartesian (bohr) coordinates for a molecule seed
+          seed(1)%x(:,i) = sys(id)%c%atcel(iat(i))%r + sys(id)%c%molx0
+       else
+          seed(1)%x(:,i) = sys(id)%c%atcel(iat(i))%x
+       end if
        seed(1)%is(i) = sys(id)%c%atcel(iat(i))%is
        seed(1)%atname(i) = sys(id)%c%at(sys(id)%c%atcel(iat(i))%idx)%name
     end do
     seed(1)%nat = nat
+
+    ! turn the seed into a non-periodic molecule if requested
+    if (molecule) then
+       seed(1)%ismolecule = .true.
+       seed(1)%useabr = 0
+       seed(1)%havesym = 0
+       seed(1)%neqv = 0
+       seed(1)%ncv = 0
+       seed(1)%havex0 = .false.
+       seed(1)%molx0 = 0d0
+       seed(1)%border = rborder_def
+       seed(1)%cubic = .false.
+    end if
     seed(1)%name = trim(sysc%seed%name) // " (selection)"
 
     ! create the new system

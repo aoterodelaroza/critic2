@@ -606,6 +606,11 @@ contains
              call sysc(isysv)%new_system_from_highlighted()
           call iw_tooltip("Create a new system from the selected atoms",ttshown)
 
+          ! Edit -> Molecule from Selection
+          if (iw_menuitem("Molecule from Selection",enabled=isysvok)) &
+             call sysc(isysv)%new_system_from_highlighted(forcemolecule=.true.)
+          call iw_tooltip("Create a new molecule from the selected atoms",ttshown)
+
           ! Edit -> Remove selection
           if (iw_menuitem("Remove Selection",BIND_EDITSELECT_REMOVE,enabled=isysvok)) then
              call sysc(isysv)%edit_highlighted_atoms(remove=.true.,errmsg=errmsg)

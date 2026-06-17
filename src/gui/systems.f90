@@ -243,8 +243,9 @@ module systems
        integer, intent(out) :: nat
        integer, allocatable, intent(inout) :: iat(:)
      end subroutine highlighted_atom_list
-     module subroutine new_system_from_highlighted(sysc)
+     module subroutine new_system_from_highlighted(sysc,forcemolecule)
        class(sysconf), intent(inout) :: sysc
+       logical, intent(in), optional :: forcemolecule
      end subroutine new_system_from_highlighted
      module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate,errmsg)
        class(sysconf), intent(inout) :: sysc
