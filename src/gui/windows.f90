@@ -43,6 +43,12 @@ module windows
   integer, parameter, public :: vm_select    = 1
   integer, parameter, public :: vm_NUM = 1
 
+  character(len=10), parameter, public :: vmnames(-1:vm_NUM) = (/&
+     "Pick Atoms",& ! vm_pick_atom
+     "Navigate  ",& ! vm_navigate
+     "Select    "&  ! vm_select
+     /)
+
   ! view mode data structure for window_forced modes
   type viewmode_data
      character(len=:), allocatable :: msg ! message shown in the view bar

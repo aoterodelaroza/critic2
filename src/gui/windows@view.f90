@@ -1110,57 +1110,69 @@ contains
     use gui_main, only: tooltip_delay, g
     use keybindings, only: get_bind_keyname, bindnames, BIND_NAV_ROTATE, &
        BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET,&
-       BIND_NAV_MEASURE
+       BIND_NAV_MEASURE, BIND_NUM, group_viewmode_navigation, group_viewmode_select,&
+       groupbind
     use utils, only: iw_combo_simple, iw_tooltip, igIsItemHovered_delayed, iw_text
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: ll, i, viewmode_before, iforced
+    integer :: ll, i, n, viewmode_before, iforced
+    character(len=:), allocatable :: viewmode_items
+    integer, allocatable :: tips(:)
+    logical :: ok
 
     logical, save :: ttshown = .false. ! tooltip flag
 
-    integer, parameter :: navigate_tips(*) = (/BIND_NAV_ROTATE, BIND_NAV_ROTATE_PERP, BIND_NAV_TRANSLATE,&
-       BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE/)
-    character(len=*), parameter :: viewmode_items = "Navigate"//c_null_char//"Select"//c_null_char
-    integer, parameter :: ipickatom = vm_NUM + 1 ! index of the Pick Atom combo entry (forced mode)
+    viewmode_items = ""
+    do i = 0, vm_NUM
+       viewmode_items = trim(viewmode_items) // trim(vmnames(i)) // c_null_char
+    end do
 
     if (w%viewmode < 0) then
-       ! In window_forced mode, the combo shows Pick Atom and the
-       ! caller-provided message follows; selecting another mode
-       ! explicitly cancels the pick
-       iforced = ipickatom
-       call iw_combo_simple("##viewmode",viewmode_items//"Pick Atom"//c_null_char,iforced)
-       if (iforced /= ipickatom) then
+       ! window forced mode
+       iforced = vm_NUM+1
+       viewmode_items = viewmode_items // trim(vmnames(w%viewmode)) // c_null_char
+       call iw_combo_simple("##viewmode",viewmode_items,iforced)
+       if (iforced /= vm_NUM + 1) then
           w%viewmode = iforced
           w%viewmode_transient = .false.
        elseif (allocated(w%vmdata%msg)) then
           call iw_text(w%vmdata%msg,highlight=.true.,sameline=.true.)
        end if
     else
-       ! The usual combo box; if the user selects the mode explicitly, it is not transient
+       ! the usual combo box; if the user selects the mode explicitly, it is not transient
        viewmode_before = w%viewmode
        call iw_combo_simple("##viewmode",viewmode_items,w%viewmode)
-       if (w%viewmode /= viewmode_before) &
-          w%viewmode_transient = .false.
+       if (w%viewmode /= viewmode_before) w%viewmode_transient = .false.
 
-       if (w%viewmode == vm_navigate) then
-          ll = 0
-          do i = 1, size(navigate_tips,1)
-             ll = max(ll,len_trim(get_bind_keyname(navigate_tips(i))))
-          end do
+       ! get the tips for this view mode
+       ll = 1
+       n = 0
+       allocate(tips(BIND_NUM))
+       do i = 1, BIND_NUM
+          if (w%viewmode == vm_navigate) then
+             ok = (groupbind(i) == group_viewmode_navigation)
+          elseif (w%viewmode == vm_select) then
+             ok = (groupbind(i) == group_viewmode_select)
+          end if
+          if (ok) then
+             n = n + 1
+             tips(n) = i
+             ll = max(ll,len_trim(get_bind_keyname(i)))
+          end if
+       end do
 
-          ! delayed tooltip with info about the key/mouse bindings for this view mode
-          if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-             if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
-                call igBeginTooltip()
+       ! delayed tooltip with info about the key/mouse bindings for this view mode
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
+             call igBeginTooltip()
 
-                do i = 1, size(navigate_tips,1)
-                   call iw_text(string(trim(get_bind_keyname(navigate_tips(i))),length=ll+1),highlight=.true.)
-                   call iw_text(trim(bindnames(navigate_tips(i))),sameline=.true.)
-                end do
+             do i = 1, n
+                call iw_text(string(trim(get_bind_keyname(tips(i))),length=ll+1),highlight=.true.)
+                call iw_text(trim(bindnames(tips(i))),sameline=.true.)
+             end do
 
-                call igEndTooltip()
-             end if
+             call igEndTooltip()
           end if
        end if
     end if
