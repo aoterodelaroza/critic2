@@ -238,6 +238,7 @@ contains
   ! the event happens only if the button is held down (for mouse).
   module function is_bind_event(bind,held)
     use gui_main, only: io
+    use windows, only: win, iwin_view
     use interfaces_cimgui
     integer, intent(in) :: bind
     logical, intent(in), optional :: held
@@ -259,8 +260,10 @@ contains
     ! get key and mod for this bind, and the current mod
     key = keybind(bind)
     mod = modbind(bind)
-    if (bindtype(bind) > 0) &
-       mod = ior(mod,modbind(bindtype(bind)))
+    if (bindtype(bind) > 0) then
+       if (win(iwin_view)%viewmode_transient) &
+          mod = ior(mod,modbind(bindtype(bind)))
+    end if
     modnow = get_current_mod()
 
     ! if input is wanted, only activate binds that require ctrl, alt, or super
