@@ -99,7 +99,7 @@ contains
     isused = 0
     seed%nat = natom
     seed%nspc = 0
-    allocate(seed%x(3,seed%nat),seed%is(seed%nat))
+    allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
     seed%x = position
     do i = 1, natom
        if (zat(i) <= 0 .or. zat(i) > maxzat0) return
@@ -108,6 +108,7 @@ contains
           isused(zat(i)) = seed%nspc
        end if
        seed%is(i) = isused(zat(i))
+       seed%atname(i) = nameguess(zat(i))
     end do
 
     ! atomic species

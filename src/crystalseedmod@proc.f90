@@ -48,6 +48,7 @@ contains
     if (allocated(seed%x)) deallocate(seed%x)
     if (allocated(seed%is)) deallocate(seed%is)
     if (allocated(seed%atname)) deallocate(seed%atname)
+    seed%neqlist = .false.
     seed%nspc = 0
     if (allocated(seed%spc)) deallocate(seed%spc)
     seed%useabr = 0
@@ -69,6 +70,134 @@ contains
     seed%pressure = huge(1d0)
 
   end subroutine seed_end
+
+  !> Check the seed fields for internal consistency. These checks guard
+  !> against ill-formed seeds produced by the reader routines (programmer
+  !> errors), not against bad user input. If errmsg is present, the first
+  !> violation found is returned there and the routine returns; otherwise a
+  !> violation aborts the program with faterr.
+  module subroutine seed_check(seed,errmsg)
+    use tools_io, only: ferror, faterr
+    class(crystalseed), intent(in) :: seed !< Crystal seed
+    character(len=:), allocatable, intent(out), optional :: errmsg !< error message (faterr if absent)
+
+    character(len=:), allocatable :: msg
+    integer :: i
+
+    msg = ""
+
+    ! the seed must be in use
+    if (.not.seed%isused) then
+       msg = "seed is not in use"
+       goto 999
+    end if
+
+    ! useabr must be in range; useabr==0 only for molecules (auto bounding box)
+    if (seed%useabr < 0 .or. seed%useabr > 2) then
+       msg = "unknown useabr (must be 0, 1, or 2)"
+       goto 999
+    end if
+    if (seed%useabr == 0 .and. .not.seed%ismolecule) then
+       msg = "useabr=0 (auto bounding box) is only valid for a molecule"
+       goto 999
+    end if
+
+    ! atom list kind: a non-equivalent atom list requires symmetry and a crystal.
+    ! A complete list (neqlist=.false.) is allowed with or without symmetry.
+    if (seed%neqlist .and. (seed%havesym <= 0 .or. seed%ismolecule)) then
+       msg = "non-equivalent atom list (neqlist) requires symmetry (havesym>0) and a crystal"
+       goto 999
+    end if
+
+    ! molecules carry no crystallographic symmetry
+    if (seed%ismolecule) then
+       if (seed%havesym > 0) then
+          msg = "a molecule cannot have crystallographic symmetry (havesym>0)"
+          goto 999
+       end if
+       if (seed%checkrepeats) then
+          msg = "a molecule cannot use checkrepeats"
+          goto 999
+       end if
+    end if
+
+    ! checkrepeats (remove symmetry-duplicate atoms before building) requires
+    ! symmetry; it applies to both a complete and a non-equivalent atom list
+    if (seed%checkrepeats .and. seed%havesym <= 0) then
+       msg = "checkrepeats requires symmetry (havesym>0)"
+       goto 999
+    end if
+
+    ! the symmetry info must be present and consistent when symmetry is claimed
+    if (seed%havesym > 0) then
+       if (seed%neqv < 1 .or. seed%ncv < 1) then
+          msg = "havesym>0 but neqv or ncv is not positive"
+          goto 999
+       end if
+       if (.not.allocated(seed%cen) .or. .not.allocated(seed%rotm)) then
+          msg = "havesym>0 but cen or rotm is not allocated"
+          goto 999
+       end if
+       if (size(seed%cen,2) < seed%ncv .or. size(seed%rotm,3) < seed%neqv) then
+          msg = "havesym>0 but cen or rotm is too small for neqv/ncv"
+          goto 999
+       end if
+    end if
+
+    ! bonds are over the complete cell list and incompatible with symmetry
+    if (seed%havebonds) then
+       if (seed%havesym > 0) then
+          msg = "incompatible fields in seed: bonds and symmetry"
+          goto 999
+       end if
+       if (seed%neqlist) then
+          msg = "incompatible fields in seed: bonds and non-equivalent atom list"
+          goto 999
+       end if
+       if (.not.allocated(seed%nstar)) then
+          msg = "havebonds but nstar is not allocated"
+          goto 999
+       end if
+       if (size(seed%nstar,1) /= seed%nat) then
+          msg = "havebonds but nstar size does not match the number of atoms"
+          goto 999
+       end if
+    end if
+
+    ! findsym must be in range
+    if (seed%findsym < -1 .or. seed%findsym > 1) then
+       msg = "unknown findsym (must be -1, 0, or 1)"
+       goto 999
+    end if
+
+    ! atom and species sanity
+    if (seed%nat > 0) then
+       if (.not.allocated(seed%x) .or. .not.allocated(seed%is) .or. .not.allocated(seed%atname)) then
+          msg = "nat>0 but x, is, or atname is not allocated"
+          goto 999
+       end if
+       if (size(seed%x,2) < seed%nat .or. size(seed%is,1) < seed%nat .or. size(seed%atname,1) < seed%nat) then
+          msg = "nat>0 but x, is, or atname is too small"
+          goto 999
+       end if
+       if (seed%nspc < 1 .or. .not.allocated(seed%spc)) then
+          msg = "nat>0 but no species are defined"
+          goto 999
+       end if
+       do i = 1, seed%nat
+          if (seed%is(i) < 1 .or. seed%is(i) > seed%nspc) then
+             msg = "atom with species index out of range"
+             goto 999
+          end if
+       end do
+    end if
+
+999 continue
+    if (present(errmsg)) errmsg = msg
+    if (len_trim(msg) > 0 .and. .not.present(errmsg)) &
+       call ferror("seed_check",msg,faterr)
+
+  end subroutine seed_check
 
   !> Parse a crystal environment
   module subroutine parse_crystal_env(seed,lu,oksyn,fromlib)
@@ -384,14 +513,17 @@ contains
     call realloc(seed%is,seed%nat)
     call realloc(seed%spc,seed%nspc)
 
-    ! symmetry
+    ! symmetry (the crystal environment is never a molecule)
     if (goodspg) then
        seed%havesym = 1
-       seed%findsym = 0
        seed%checkrepeats = .false.
+       seed%findsym = 0
+       seed%neqlist = .true.
     else
        seed%havesym = 0
+       seed%checkrepeats = .false.
        seed%findsym = -1
+       seed%neqlist = .false.
     end if
     oksyn = .true.
 
@@ -1349,9 +1481,17 @@ contains
     call realloc(seed%atname,seed%nat)
     call realloc(seed%cen,3,seed%ncv)
 
-    ! use the symmetry in this file
-    seed%havesym = 1
-    seed%checkrepeats = .true.
+    ! use the symmetry in this file (a molecule does not apply crystallographic
+    ! symmetry)
+    if (.not.mol) then
+       seed%havesym = 1
+       seed%checkrepeats = .true.
+       seed%neqlist = .true.
+    else
+       seed%havesym = 0
+       seed%checkrepeats = .false.
+       seed%neqlist = .false.
+    end if
     seed%findsym = -1
     call realloc(seed%rotm,3,4,seed%neqv)
     call realloc(seed%cen,3,seed%ncv)
@@ -2521,8 +2661,15 @@ contains
     ! close the file and clean up
     call fclose(lu)
 
-    ! have symmetry, but recalculate
-    seed%havesym = 1
+    ! have symmetry, but recalculate (a molecule does not apply crystallographic
+    ! symmetry)
+    if (.not.mol) then
+       seed%havesym = 1
+       seed%neqlist = .true.
+    else
+       seed%havesym = 0
+       seed%neqlist = .false.
+    end if
     seed%checkrepeats = .false.
     seed%findsym = -1
 
@@ -2983,13 +3130,20 @@ contains
 
 115 FORMAT(3(3I2,F10.5,/))
 
-    ! symmetry
+    ! symmetry (a molecule does not apply crystallographic symmetry)
     if (seed%neqv > 0) then
-       seed%havesym = 1
        seed%findsym = 0
+       if (.not.mol) then
+          seed%havesym = 1
+          seed%neqlist = .true.
+       else
+          seed%havesym = 0
+          seed%neqlist = .false.
+       end if
     else
-       seed%havesym = 0
        seed%findsym = -1
+       seed%havesym = 0
+       seed%neqlist = .false.
     end if
     seed%checkrepeats = .false.
 
@@ -6845,6 +6999,7 @@ contains
     else
        if (allocated(to%atname)) deallocate(to%atname)
     end if
+    to%neqlist = from%neqlist
     to%nspc = from%nspc
     if (allocated(from%spc)) then
        to%spc = from%spc
@@ -7648,11 +7803,20 @@ contains
          seed%cen(:,1) = 0d0
          seed%havesym = 0
          seed%checkrepeats = .false.
+         seed%neqlist = .false.
          seed%findsym = -1
       else
-         ! we have symmetry, check for repeats
-         seed%havesym = 1
-         seed%checkrepeats = .true.
+         ! we have symmetry (crystals check for repeats; a molecule does not
+         ! apply crystallographic symmetry)
+         if (.not.mol) then
+            seed%havesym = 1
+            seed%checkrepeats = .true.
+            seed%neqlist = .true.
+         else
+            seed%havesym = 0
+            seed%checkrepeats = .false.
+            seed%neqlist = .false.
+         end if
          seed%findsym = 0
       end if
 

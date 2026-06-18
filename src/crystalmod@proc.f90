@@ -174,15 +174,16 @@ contains
     character(len=:), allocatable :: errmsg
     logical :: haveatoms
 
-    if (.not.seed%isused) then
+    ! check the seed for internal consistency
+    call seed%check(errmsg)
+    if (len_trim(errmsg) > 0) then
        if (crashfail) then
-          call ferror("struct_new","uninitialized seed",faterr)
+          call ferror("struct_new",errmsg,faterr)
        else
           return
        end if
     end if
-    if (seed%havebonds .and. seed%havesym > 0) &
-       call ferror("struct_new","incompatible fields in seed: bonds and symmetry",faterr)
+
     copybonds = seed%havebonds .and. seed%havesym <= 0 .and. allocated(seed%nstar)
 
     ! initialize the structure

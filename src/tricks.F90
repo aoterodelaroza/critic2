@@ -1276,6 +1276,8 @@ contains
        ! read and build the crystal structure
        call seed%read_any_file(file,0,errmsg)
        seed%havesym = 0
+       seed%checkrepeats = .false.
+       seed%neqlist = .false.
        seed%findsym = 0
        if (len_trim(errmsg) > 0) goto 999
        call st(nst)%struct_new(seed,.true.)

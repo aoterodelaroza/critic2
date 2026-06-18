@@ -34,6 +34,7 @@ module crystalseedmod
      character(len=mlen) :: name = "" !< Source file, if available
      integer :: isformat !< source file format
      ! atoms
+     logical :: neqlist = .false. !< whether x is the non-equivalent atom list
      integer :: nat = 0 !< Number of atoms
      real*8, allocatable :: x(:,:) !< Atomic positions (crystal - fractional;molecule with useabr=0 - bohr)
      integer, allocatable :: is(:) !< Species of a given atom
@@ -42,7 +43,7 @@ module crystalseedmod
      integer :: nspc = 0 !< Number of species
      type(species), allocatable :: spc(:) !< Species
      ! cell
-     integer :: useabr = 0 !< 0 = uninit; 1 = use aa,bb; 2 = use m_x2c
+     integer :: useabr = 0 !< 0 = auto-box (molecule); 1 = use aa,bb; 2 = use m_x2c
      real*8 :: aa(3) !< Cell lengths (bohr)
      real*8 :: bb(3) !< Cell angles (degrees)
      real*8 :: m_x2c(3,3) !< Crystallographic to cartesian matrix
@@ -67,7 +68,8 @@ module crystalseedmod
      real*8 :: energy = huge(1d0) !< energy (Hartree)
      real*8 :: pressure = huge(1d0) !< pressure (GPa)
    contains
-     procedure :: end => seed_end !< Deallocate arrays and nullify variables
+     procedure :: end => seed_end ! deallocate arrays and nullify variables
+     procedure :: check => seed_check ! check the seed fields for internal consistency
      procedure :: parse_crystal_env
      procedure :: parse_molecule_env
      procedure :: from_fragment
@@ -130,8 +132,12 @@ module crystalseedmod
   ! module procedure interfaces
   interface
      module subroutine seed_end(seed)
-       class(crystalseed), intent(inout) :: seed !< Crystal seed output
+       class(crystalseed), intent(inout) :: seed
      end subroutine seed_end
+     module subroutine seed_check(seed,errmsg)
+       class(crystalseed), intent(in) :: seed
+       character(len=:), allocatable, intent(out), optional :: errmsg
+     end subroutine seed_check
      module subroutine parse_crystal_env(seed,lu,oksyn,fromlib)
        class(crystalseed), intent(inout) :: seed
        integer, intent(in) :: lu

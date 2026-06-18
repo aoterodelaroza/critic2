@@ -117,8 +117,9 @@ contains
     ! symmetry
     seed%findsym = -1
     seed%checkrepeats = .false.
-    if (copysym .and. c%spgavail) then
+    if (.not.c%ismolecule .and. copysym .and. c%spgavail) then
        seed%havesym = 1
+       seed%neqlist = .true.
        seed%neqv = c%neqv
        seed%ncv = c%ncv
        allocate(seed%rotm(3,4,c%neqv),seed%cen(3,c%ncv))
@@ -126,6 +127,7 @@ contains
        seed%cen = c%cen(:,1:c%ncv)
     else
        seed%havesym = 0
+       seed%neqlist = .false.
        seed%neqv = 0
        seed%ncv = 0
     end if
@@ -1083,6 +1085,7 @@ contains
     ncseed%havesym = 1
     ncseed%findsym = 0
     ncseed%checkrepeats = .false.
+    ncseed%neqlist = .true.
 
     ! build the new crystal
     call c%struct_new(ncseed,.true.,ti=ti)
