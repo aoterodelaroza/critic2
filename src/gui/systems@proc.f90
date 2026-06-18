@@ -583,17 +583,20 @@ contains
 
   !> Set the time for last change at level level. If keepfields is
   !> present and true, do not reset the associated fields.
-  module subroutine post_event(sysc,level,keepfields)
+  module subroutine post_event(sysc,level,keepfields,nocapture)
     use interfaces_glfw, only: glfwGetTime
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: level
     logical, intent(in), optional :: keepfields
+    logical, intent(in), optional :: nocapture
 
     real*8 :: time
-    logical :: keepfields_
+    logical :: keepfields_, nocapture_
 
     keepfields_ = .false.
     if (present(keepfields)) keepfields_ = keepfields
+    nocapture_ = .false.
+    if (present(nocapture)) nocapture_ = nocapture
 
     time = glfwGetTime()
     if (level >= lastchange_render) sysc%timelastchange_render = time
@@ -605,9 +608,9 @@ contains
        call sysc%highlight_clear(.true.)
        call sysc%highlight_clear(.false.)
        sysc%timelastchange_geometry = time
-       ! record in the undo/redo history, unless we are restoring a
+       ! record in the undo/redo history, unless the caller is restoring a
        ! previous state (which also posts a geometry event)
-       if (.not.sysc%undo_active .and. ok_system(sysc%id,sys_init)) &
+       if (.not.nocapture_ .and. ok_system(sysc%id,sys_init)) &
           call sysc%undo_capture(time)
     end if
 
@@ -621,7 +624,6 @@ contains
 
     sysc%undo_n = 0
     sysc%undo_icur = 0
-    sysc%undo_active = .false.
     ! seed the history with the current geometry (undo_capture is a no-op if
     ! the system is not yet initialized); the time is irrelevant here
     call sysc%undo_capture(0d0)
@@ -711,7 +713,7 @@ contains
 
   !> Rebuild the system's crystal structure from the current state in the
   !> undo history and refresh the scene. Helper for undo/redo; the restore
-  !> is flagged so it is not itself recorded as a new history entry.
+  !> posts with nocapture so it is not itself recorded as a new history entry.
   subroutine undo_restore(sysc)
     class(sysconf), intent(inout) :: sysc
 
@@ -721,11 +723,9 @@ contains
     if (.not.ok_system(isys,sys_init)) return
     if (sysc%undo_icur < 1 .or. sysc%undo_icur > sysc%undo_n) return
 
-    sysc%undo_active = .true.
     call sys(isys)%c%struct_new(sysc%undo_seed(sysc%undo_icur),crashfail=.true.)
     sysc%sc%nextbuildlists_fixcam = .true.
-    call sysc%post_event(lastchange_geometry)
-    sysc%undo_active = .false.
+    call sysc%post_event(lastchange_geometry,nocapture=.true.)
 
     ! force the next edit to start a new history entry instead of coalescing
     ! with (overwriting) the state we just restored

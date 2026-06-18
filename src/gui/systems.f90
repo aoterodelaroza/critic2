@@ -103,7 +103,6 @@ module systems
      type(crystalseed), allocatable :: undo_seed(:) ! saved structural states (1:undo_n)
      integer :: undo_n = 0      ! number of states currently in the history
      integer :: undo_icur = 0   ! index of the current state in the history (1:undo_n)
-     logical :: undo_active = .false. ! .true. while an undo/redo restore is in progress (suppresses capture)
      real*8 :: undo_lasttime = -1d30 ! time of the last capture (used to coalesce drags)
    contains
      ! time events
@@ -232,10 +231,11 @@ module systems
        integer, intent(in) :: isys, level
        logical :: ok_system
      end function ok_system
-     module subroutine post_event(sysc,level,keepfields)
+     module subroutine post_event(sysc,level,keepfields,nocapture)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: level
        logical, intent(in), optional :: keepfields
+       logical, intent(in), optional :: nocapture
      end subroutine post_event
      module subroutine highlight_atoms(sysc,transient,idx,type,rgba)
        class(sysconf), intent(inout) :: sysc
