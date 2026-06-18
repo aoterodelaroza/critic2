@@ -605,9 +605,133 @@ contains
        call sysc%highlight_clear(.true.)
        call sysc%highlight_clear(.false.)
        sysc%timelastchange_geometry = time
+       ! record in the undo/redo history, unless we are restoring a
+       ! previous state (which also posts a geometry event)
+       if (.not.sysc%undo_active .and. ok_system(sysc%id,sys_init)) &
+          call sysc%undo_capture(time)
     end if
 
   end subroutine post_event
+
+  !> Reset the undo/redo history for this system: discard all saved states
+  !> and re-seed the history with the current geometry (if the system is
+  !> initialized). Called when a system is first initialized or reloaded.
+  module subroutine undo_reset(sysc)
+    class(sysconf), intent(inout) :: sysc
+
+    sysc%undo_n = 0
+    sysc%undo_icur = 0
+    sysc%undo_active = .false.
+    ! seed the history with the current geometry (undo_capture is a no-op if
+    ! the system is not yet initialized); the time is irrelevant here
+    call sysc%undo_capture(0d0)
+    ! the next edit must start a new entry, not coalesce with the seed
+    sysc%undo_lasttime = -1d30
+
+  end subroutine undo_reset
+
+  !> Capture the current geometry as a new state in the undo/redo history.
+  !> time is the current GLFW time, used to coalesce rapid consecutive
+  !> captures (a continuous drag produces one capture per frame) into a
+  !> single history entry. Discards any redo states ahead of the current.
+  module subroutine undo_capture(sysc,time)
+    class(sysconf), intent(inout) :: sysc
+    real*8, intent(in) :: time
+
+    integer :: k, isys
+    logical :: copysym, coalesce
+
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (.not.allocated(sysc%undo_seed)) allocate(sysc%undo_seed(undo_maxdepth))
+
+    ! drop any redo states ahead of the current one
+    sysc%undo_n = sysc%undo_icur
+
+    ! coalesce consecutive captures (frames of an interactive drag) by
+    ! overwriting the current top state instead of appending a new one
+    coalesce = (sysc%undo_icur >= 1) .and. ((time - sysc%undo_lasttime) < undo_coalesce_time)
+    if (.not.coalesce) then
+       ! drop the oldest state if the history is full
+       if (sysc%undo_n >= undo_maxdepth) then
+          do k = 1, undo_maxdepth-1
+             sysc%undo_seed(k) = sysc%undo_seed(k+1)
+          end do
+          sysc%undo_n = undo_maxdepth - 1
+       end if
+       sysc%undo_n = sysc%undo_n + 1
+       sysc%undo_icur = sysc%undo_n
+    end if
+
+    ! save the current geometry into the (possibly new) top slot
+    copysym = (.not.sys(isys)%c%ismolecule .and. sys(isys)%c%spgavail)
+    call sys(isys)%c%makeseed(sysc%undo_seed(sysc%undo_icur),copysym=copysym,&
+       copybonding=.not.copysym)
+    sysc%undo_lasttime = time
+
+  end subroutine undo_capture
+
+  !> Restore the previous geometry state from the undo history.
+  module subroutine undo(sysc)
+    class(sysconf), intent(inout) :: sysc
+
+    if (.not.sysc%can_undo()) return
+    sysc%undo_icur = sysc%undo_icur - 1
+    call undo_restore(sysc)
+
+  end subroutine undo
+
+  !> Restore the next geometry state from the redo history.
+  module subroutine redo(sysc)
+    class(sysconf), intent(inout) :: sysc
+
+    if (.not.sysc%can_redo()) return
+    sysc%undo_icur = sysc%undo_icur + 1
+    call undo_restore(sysc)
+
+  end subroutine redo
+
+  !> .true. if there is a previous state to undo to.
+  module function can_undo(sysc)
+    class(sysconf), intent(in) :: sysc
+    logical :: can_undo
+
+    can_undo = (sysc%undo_icur > 1)
+
+  end function can_undo
+
+  !> .true. if there is a next state to redo to.
+  module function can_redo(sysc)
+    class(sysconf), intent(in) :: sysc
+    logical :: can_redo
+
+    can_redo = (sysc%undo_icur < sysc%undo_n)
+
+  end function can_redo
+
+  !> Rebuild the system's crystal structure from the current state in the
+  !> undo history and refresh the scene. Helper for undo/redo; the restore
+  !> is flagged so it is not itself recorded as a new history entry.
+  subroutine undo_restore(sysc)
+    class(sysconf), intent(inout) :: sysc
+
+    integer :: isys
+
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (sysc%undo_icur < 1 .or. sysc%undo_icur > sysc%undo_n) return
+
+    sysc%undo_active = .true.
+    call sys(isys)%c%struct_new(sysc%undo_seed(sysc%undo_icur),crashfail=.true.)
+    sysc%sc%nextbuildlists_fixcam = .true.
+    call sysc%post_event(lastchange_geometry)
+    sysc%undo_active = .false.
+
+    ! force the next edit to start a new history entry instead of coalescing
+    ! with (overwriting) the state we just restored
+    sysc%undo_lasttime = -1d30
+
+  end subroutine undo_restore
 
   !> Highlight atoms in the system. If transient, add the highlighted
   !> atom to the transient list and clear the list before adding. Add
@@ -1984,6 +2108,9 @@ contains
     ! the geometry has changed
     call sysc%post_event(lastchange_geometry)
 
+    ! the structure was reloaded from file: start a fresh undo history
+    call sysc%undo_reset()
+
   end subroutine reread_geometry_from_file
 
   ! Change the unit cell of the system to have cell lengths aa (bohr)
@@ -2417,8 +2544,13 @@ contains
                 ! initialize the scene and build the initial draw list
                 call sysc(i)%sc%init(i)
 
-                ! this system has been initialized
+                ! post the first geometry change
                 call sysc(i)%post_event(lastchange_geometry,keepfields=.true.)
+
+                ! seed the undo/redo history with the initial geometry
+                call sysc(i)%undo_reset()
+
+                ! this system has been initialized
                 sysc(i)%status = sys_init
              end if
 

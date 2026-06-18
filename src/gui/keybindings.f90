@@ -89,7 +89,9 @@ module keybindings
   integer, parameter, public :: BIND_MOVEATOMS_TRANSLATE = 42 ! move atoms: translate atom/molecule
   integer, parameter, public :: BIND_MOVEATOMS_ROTATE = 43 ! move atoms: rotate molecule about its COM
   integer, parameter, public :: BIND_MOVEATOMS_ROTATE_PERP = 44 ! move atoms: rotate molecule perpendicular to screen
-  integer, parameter, public :: BIND_NUM = 44 ! total number of binds
+  integer, parameter, public :: BIND_UNDO = 45 ! undo the last geometry change
+  integer, parameter, public :: BIND_REDO = 46 ! redo the last undone geometry change
+  integer, parameter, public :: BIND_NUM = 46 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -136,7 +138,9 @@ module keybindings
      "Move atoms                      ",& ! BIND_VIEWMODE_MOVEATOMS
      "Translate atom or molecule      ",& ! BIND_MOVEATOMS_TRANSLATE
      "Rotate molecule                 ",& ! BIND_MOVEATOMS_ROTATE
-     "Rotate molecule (perpendicular) "&  ! BIND_MOVEATOMS_ROTATE_PERP
+     "Rotate molecule (perpendicular) ",& ! BIND_MOVEATOMS_ROTATE_PERP
+     "Undo geometry change            ",& ! BIND_UNDO
+     "Redo geometry change            "&  ! BIND_REDO
      /)
 
   ! The key associated with each bind, bind -> key
@@ -221,7 +225,9 @@ module keybindings
      group_viewmode,&            ! BIND_VIEWMODE_MOVEATOMS
      group_viewmode_moveatoms,&  ! BIND_MOVEATOMS_TRANSLATE
      group_viewmode_moveatoms,&  ! BIND_MOVEATOMS_ROTATE
-     group_viewmode_moveatoms/)  ! BIND_MOVEATOMS_ROTATE_PERP
+     group_viewmode_moveatoms,&  ! BIND_MOVEATOMS_ROTATE_PERP
+     group_global,&              ! BIND_UNDO
+     group_global/)              ! BIND_REDO
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -271,7 +277,9 @@ module keybindings
      -1,& ! BIND_VIEWMODE_MOVEATOMS
      BIND_VIEWMODE_MOVEATOMS,&  ! BIND_MOVEATOMS_TRANSLATE
      BIND_VIEWMODE_MOVEATOMS,&  ! BIND_MOVEATOMS_ROTATE
-     BIND_VIEWMODE_MOVEATOMS/)  ! BIND_MOVEATOMS_ROTATE_PERP
+     BIND_VIEWMODE_MOVEATOMS,&  ! BIND_MOVEATOMS_ROTATE_PERP
+     0,&  ! BIND_UNDO
+     0/)  ! BIND_REDO
 
   ! module procedure interfaces
   interface

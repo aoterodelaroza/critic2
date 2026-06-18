@@ -231,6 +231,8 @@ contains
     call set_bind(BIND_MOVEATOMS_TRANSLATE,ImGuiKey_MouseRight,mod_none)
     call set_bind(BIND_MOVEATOMS_ROTATE,ImGuiKey_MouseLeft,mod_none)
     call set_bind(BIND_MOVEATOMS_ROTATE_PERP,ImGuiKey_MouseMiddle,mod_none)
+    call set_bind(BIND_UNDO,ImGuiKey_Z,mod_ctrl)
+    call set_bind(BIND_REDO,ImGuiKey_Y,mod_ctrl)
 
   end subroutine set_default_keybindings
 

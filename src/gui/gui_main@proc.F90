@@ -464,7 +464,8 @@ contains
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
-       BIND_EDITSELECT_DESELECT, BIND_EDITSELECT_REMOVE, get_bind_keyname, is_bind_event
+       BIND_EDITSELECT_DESELECT, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO,&
+       get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
     use param, only: isformat_write_from_read, isformat_w_unknown
@@ -485,6 +486,7 @@ contains
     character(len=:), allocatable :: errmsg
     integer(c_int) :: idum
     logical :: launchquit, launch(D_TOTAL), isysok, isysvok, ifieldok, ok
+    logical :: okundo, okredo
     integer :: isys, isysv
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -494,6 +496,13 @@ contains
     isysok = ok_system(isys,sys_init)
     isysv = win(iwin_view)%view_selected
     isysvok = ok_system(isysv,sys_init)
+
+    ! whether undo/redo are available for the view-selected system (guard the
+    ! sysc() access, since .and. does not short-circuit in Fortran)
+    okundo = isysvok
+    if (okundo) okundo = sysc(isysv)%can_undo()
+    okredo = isysvok
+    if (okredo) okredo = sysc(isysv)%can_redo()
 
     ! keybindings
     !! menu key bindings
@@ -507,6 +516,10 @@ contains
     launch(d_save) = isysok .and. is_bind_event(BIND_SAVE)
     launch(d_export_now) = isysvok .and. is_bind_event(BIND_EXPORT_NOW)
     launchquit = is_bind_event(BIND_QUIT)
+
+    !! undo/redo the geometry of the view-selected system
+    if (isysvok .and. is_bind_event(BIND_UNDO)) call sysc(isysv)%undo()
+    if (isysvok .and. is_bind_event(BIND_REDO)) call sysc(isysv)%redo()
 
     ! start the menu
     if (igBeginMainMenuBar()) then
@@ -583,6 +596,19 @@ contains
        ! Edit
        str1 = "Edit" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+          ! Edit -> Undo
+          if (iw_menuitem("Undo",BIND_UNDO,enabled=okundo)) &
+             call sysc(isysv)%undo()
+          call iw_tooltip("Undo the last change to the geometry of this system",ttshown)
+
+          ! Edit -> Redo
+          if (iw_menuitem("Redo",BIND_REDO,enabled=okredo)) &
+             call sysc(isysv)%redo()
+          call iw_tooltip("Redo the last undone change to the geometry of this system",ttshown)
+
+          ! Edit -> Separator
+          call igSeparator()
+
           ! Edit -> Select All
           if (iw_menuitem("Select All",BIND_EDITSELECT_SELECT_ALL,enabled=isysvok)) &
              call sysc(isysv)%highlight_all()

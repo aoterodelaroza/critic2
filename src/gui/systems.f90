@@ -55,6 +55,10 @@ module systems
   integer, parameter, public :: atlisttype_nmol = 6      ! molecules
   integer, parameter, public :: atlisttype_NUM = 6 ! the number of atom list types
 
+  ! undo/redo history of geometry states
+  integer, parameter, public :: undo_maxdepth = 50 ! maximum number of states kept in the history
+  real*8, parameter :: undo_coalesce_time = 0.5d0 ! captures closer in time than this (s) are merged (drags)
+
   ! cell transformation modes (for transform_cell)
   integer, parameter, public :: celltransform_standard = 1 ! standardized conventional cell
   integer, parameter, public :: celltransform_primitive = 2 ! standardized primitive cell (if smaller)
@@ -95,6 +99,12 @@ module systems
      real*8 :: timelastchange_rebond = 0d0     ! time system last was rebonded
      real*8 :: timelastchange_buildlists = 0d0 ! time system last required a list rebuild
      real*8 :: timelastchange_render = 0d0     ! time system last required a render
+     ! undo/redo history of geometry states (see systems@proc.f90)
+     type(crystalseed), allocatable :: undo_seed(:) ! saved structural states (1:undo_n)
+     integer :: undo_n = 0      ! number of states currently in the history
+     integer :: undo_icur = 0   ! index of the current state in the history (1:undo_n)
+     logical :: undo_active = .false. ! .true. while an undo/redo restore is in progress (suppresses capture)
+     real*8 :: undo_lasttime = -1d30 ! time of the last capture (used to coalesce drags)
    contains
      ! time events
      procedure :: post_event
@@ -143,6 +153,13 @@ module systems
      procedure :: refine_symmetry
      procedure :: wholemols_op
      procedure :: spg_analysis
+     ! undo/redo
+     procedure :: undo_reset
+     procedure :: undo_capture
+     procedure :: undo
+     procedure :: redo
+     procedure :: can_undo
+     procedure :: can_redo
   end type sysconf
 
   ! system arrays
@@ -451,6 +468,27 @@ module systems
        character(len=11), allocatable, intent(inout) :: sym(:)
        integer, allocatable, intent(inout) :: num(:)
      end subroutine spg_analysis
+     module subroutine undo_reset(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine undo_reset
+     module subroutine undo_capture(sysc,time)
+       class(sysconf), intent(inout) :: sysc
+       real*8, intent(in) :: time
+     end subroutine undo_capture
+     module subroutine undo(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine undo
+     module subroutine redo(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine redo
+     module function can_undo(sysc)
+       class(sysconf), intent(in) :: sysc
+       logical :: can_undo
+     end function can_undo
+     module function can_redo(sysc)
+       class(sysconf), intent(in) :: sysc
+       logical :: can_redo
+     end function can_redo
   end interface
 
 end module systems
