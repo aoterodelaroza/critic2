@@ -432,12 +432,17 @@ contains
           end if
        end if
     end do
-    if (s%obj%nsph + s%obj%ncyl + s%obj%ncylflat + s%obj%ncone + s%obj%nstring > 0) then
+    ! ghost (pick-only) spheres do not count as framing geometry: a scene whose
+    ! only geometry is ghosts falls through to the default extent below
+    if (count(.not.s%obj%sph(1:s%obj%nsph)%ghost) + s%obj%ncyl + s%obj%ncylflat +&
+       s%obj%ncone + s%obj%nstring > 0) then
        do i = 1, 3
           xmin(i) = huge(1._c_float)
           xmax(i) = -huge(1._c_float)
 
-          xmin(i) = minval(s%obj%sph(1:s%obj%nsph)%x(i)) - maxrad
+          ! exclude ghost (pick-only) spheres so they do not affect framing
+          xmin(i) = minval(s%obj%sph(1:s%obj%nsph)%x(i),&
+             mask=.not.s%obj%sph(1:s%obj%nsph)%ghost) - maxrad
           xmin(i) = min(xmin(i),minval(s%obj%cyl(1:s%obj%ncyl)%x1(i)))
           xmin(i) = min(xmin(i),minval(s%obj%cyl(1:s%obj%ncyl)%x2(i)))
           xmin(i) = min(xmin(i),minval(s%obj%cylflat(1:s%obj%ncylflat)%x1(i)))
@@ -446,7 +451,8 @@ contains
           xmin(i) = min(xmin(i),minval(s%obj%cone(1:s%obj%ncone)%x2(i)))
           xmin(i) = min(xmin(i),minval(s%obj%string(1:s%obj%nstring)%x(i)))
 
-          xmax(i) = maxval(s%obj%sph(1:s%obj%nsph)%x(i)) + maxrad
+          xmax(i) = maxval(s%obj%sph(1:s%obj%nsph)%x(i),&
+             mask=.not.s%obj%sph(1:s%obj%nsph)%ghost) + maxrad
           xmax(i) = max(xmax(i),maxval(s%obj%cyl(1:s%obj%ncyl)%x1(i)))
           xmax(i) = max(xmax(i),maxval(s%obj%cyl(1:s%obj%ncyl)%x2(i)))
           xmax(i) = max(xmax(i),maxval(s%obj%cylflat(1:s%obj%ncylflat)%x1(i)))
@@ -726,6 +732,7 @@ contains
       real(c_float) :: x(3)
 
       do i = 1, s%obj%nsph
+         if (s%obj%sph(i)%ghost) cycle ! invisible pick-only target, not drawn
          x = s%obj%sph(i)%x
          if (s%animation > 0) then
             x = x + real(displ * s%obj%sph(i)%xdelta,c_float)

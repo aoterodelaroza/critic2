@@ -599,6 +599,28 @@ contains
                       obj%sph(obj%nsph)%xdelta = cmplx(xdelta1,kind=c_float_complex)
                       obj%sph(obj%nsph)%border = real(r%atom_border_size,c_float)
                       obj%sph(obj%nsph)%rgbborder = r%atom_border_rgb
+                   else if (dobonds) then
+                      ! atoms hidden but bonds shown: add an invisible pick target at
+                      ! the atom site so hidden atoms can still be picked, measured,
+                      ! and box-selected. Carries the real idx; rendered only into the
+                      ! pick buffer (skipped in the visible sphere pass).
+                      obj%nsph = obj%nsph + 1
+                      if (obj%nsph > size(obj%sph,1)) then
+                         allocate(auxsph(2*obj%nsph))
+                         auxsph(1:size(obj%sph,1)) = obj%sph
+                         call move_alloc(auxsph,obj%sph)
+                      end if
+
+                      ! write down the ghost sphere
+                      obj%sph(obj%nsph)%x = real(xc + uoriginc,c_float)
+                      obj%sph(obj%nsph)%r = real(2d0 * r%bond_rad,c_float) ! generous click radius
+                      obj%sph(obj%nsph)%rgb = rgb
+                      obj%sph(obj%nsph)%idx(1) = i
+                      obj%sph(obj%nsph)%idx(2:4) = ix
+                      obj%sph(obj%nsph)%xdelta = cmplx(xdelta1,kind=c_float_complex)
+                      obj%sph(obj%nsph)%border = 0._c_float
+                      obj%sph(obj%nsph)%rgbborder = rgb
+                      obj%sph(obj%nsph)%ghost = .true.
                    end if
 
                    ! bonds

@@ -84,6 +84,7 @@ module shapes
      complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
      real(c_float) :: border ! border size
      real(c_float) :: rgbborder(3) ! border color
+     logical :: ghost = .false. ! invisible pick-only target (atoms hidden, bonds shown)
   end type dl_sphere
   public :: dl_sphere
 
