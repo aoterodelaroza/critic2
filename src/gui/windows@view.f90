@@ -1796,16 +1796,14 @@ contains
       call toggle_cellatoms(flist)
     end subroutine toggle_fragment
 
-    ! Add to the selection every atom whose center is inside the screen-space
-    ! rectangle delimited by p0 and p1.
+    ! Add to the selection every atom whose projected center falls inside the
+    ! screen-space rectangle delimited by p0 and p1.
     subroutine select_in_rect(p0,p1)
-      use interfaces_opengl3
       type(ImVec2), intent(in) :: p0, p1
 
       type(ImVec2) :: t0, t1
-      integer :: ix0, iy0, ix1, iy1, nx, ny, npix, ip, isph, jcel, n
-      real(c_float), allocatable, target :: buf(:)
-      integer(c_int) :: rgbaint(4)
+      integer :: isph, jcel, n
+      real(c_float) :: xmin, xmax, ymin, ymax, xp(3), xt(3)
       integer, allocatable :: lst(:)
       logical, allocatable :: seen(:)
 
@@ -1814,38 +1812,34 @@ contains
       if (sys(isys)%c%ncel <= 0) return
       if (w%sc%obj%nsph <= 0) return
 
-      ! rectangle corners: mouse position -> texture pixel coordinates
+      ! rectangle corners: mouse position -> texture position
       t0 = p0
       t1 = p1
       call w%mousepos_to_texpos(t0)
       call w%mousepos_to_texpos(t1)
-      ix0 = max(min(int(t0%x),int(t1%x)),0)
-      ix1 = min(max(int(t0%x),int(t1%x)),w%FBOside-1)
-      iy0 = max(min(int(t0%y),int(t1%y)),0)
-      iy1 = min(max(int(t0%y),int(t1%y)),w%FBOside-1)
-      nx = ix1 - ix0 + 1
-      ny = iy1 - iy0 + 1
-      if (nx <= 0 .or. ny <= 0) return
+      xmin = min(t0%x,t1%x)
+      xmax = max(t0%x,t1%x)
+      ymin = min(t0%y,t1%y)
+      ymax = max(t0%y,t1%y)
 
-      ! read the pick buffer block (RGBA32F encodes the sphere index)
-      npix = nx * ny
-      allocate(buf(4*npix))
-      call glBindFramebuffer(GL_FRAMEBUFFER, w%FBOpick)
-      call glReadPixels(int(ix0,c_int),int(iy0,c_int),int(nx,c_int),int(ny,c_int),&
-         GL_RGBA,GL_FLOAT,c_loc(buf(1)))
-      call glBindFramebuffer(GL_FRAMEBUFFER, 0)
-
-      ! collect the unique cell atoms whose spheres appear in the region
-      allocate(lst(npix),seen(sys(isys)%c%ncel))
+      ! project every drawn sphere center and collect the unique cell atoms whose
+      ! centers fall inside the rectangle
+      allocate(lst(w%sc%obj%nsph),seen(sys(isys)%c%ncel))
       seen = .false.
       n = 0
-      do ip = 1, npix
-         rgbaint = transfer(buf(4*ip-3:4*ip),rgbaint)
-         isph = rgbaint(1)
-         if (isph < 1 .or. isph > w%sc%obj%nsph) cycle
+      do isph = 1, w%sc%obj%nsph
          jcel = w%sc%obj%sph(isph)%idx(1)
          if (jcel < 1 .or. jcel > sys(isys)%c%ncel) cycle
          if (seen(jcel)) cycle
+
+         ! world coordinates -> texture position (x,y) + depth (z)
+         xt = w%sc%obj%sph(isph)%x
+         call mult(xp,w%sc%world,xt)
+         call w%world_to_texpos(xp)
+         if (xp(3) < 0._c_float .or. xp(3) > 1._c_float) cycle ! outside the view frustum
+         if (xp(1) < xmin .or. xp(1) > xmax) cycle
+         if (xp(2) < ymin .or. xp(2) > ymax) cycle
+
          n = n + 1
          lst(n) = jcel
          seen(jcel) = .true.
