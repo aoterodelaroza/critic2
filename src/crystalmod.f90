@@ -318,7 +318,7 @@ module crystalmod
      procedure :: spglib_wrap !< Get the spg from the crystal geometry
      procedure :: spgtowyc !< Copy the Wyckoff positions to a crystal from an spg
      procedure :: calcsym !< Calculate the symmetry operations from the crystal geometry
-     procedure :: calcsym_old !< Calculate the symmetry operations with the old (pre-spglib) guesser
+     procedure :: reduceatoms !< Reduce the complete cell list to the non-equivalent list given known symmetry
      procedure :: guess_spg !< Guess the symmetry operations from the structure (old guesser)
      procedure :: clearsym !< Clear symmetry info and set the crystal to P1
      procedure :: checkgroup !< Check that the space group operations are consistent
@@ -922,10 +922,11 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine calcsym
-     module subroutine calcsym_old(c,errmsg)
+     module subroutine reduceatoms(c,name,errmsg)
        class(crystal), intent(inout) :: c
+       character*10, intent(in) :: name(:)
        character(len=:), allocatable, intent(out) :: errmsg
-     end subroutine calcsym_old
+     end subroutine reduceatoms
      module subroutine guess_spg(c,level)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: level

@@ -166,11 +166,12 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3), delta(3)
-    logical :: good, good2, clearsym, doenv, copybonds
+    logical :: good, good2, doenv, copybonds, envbuilt
     integer :: i, j, k, l, iat, newmult
     real*8, allocatable :: atpos(:,:), area(:), deltasave(:,:)
     integer, allocatable :: irotm(:), icenv(:)
     logical, allocatable :: useatom(:)
+    character*10, allocatable :: name(:)
     character(len=:), allocatable :: errmsg
     logical :: haveatoms
 
@@ -286,30 +287,15 @@ contains
        end do
     end if
 
-    ! copy the atomic information
+    ! copy the species
     c%nspc = seed%nspc
-    c%nneq = count(useatom)
-    if (c%nneq > 0) then
-       if (allocated(c%at)) deallocate(c%at)
-       allocate(c%at(c%nneq))
-       if (allocated(c%spc)) deallocate(c%spc)
-       allocate(c%spc(c%nspc))
-       c%spc = seed%spc(1:seed%nspc)
-       i = 0
-       do j = 1, seed%nat
-          if (useatom(j)) then
-             i = i + 1
-             c%at(i)%x = seed%x(:,j)
-             c%at(i)%is = seed%is(j)
-             c%at(i)%name = seed%atname(j)
-          end if
-       end do
-    end if
-    deallocate(useatom)
+    if (allocated(c%spc)) deallocate(c%spc)
+    allocate(c%spc(c%nspc))
+    c%spc = seed%spc(1:seed%nspc)
 
-    ! check if we have any atoms
+    ! do we have any atoms? (at least one atom of a species with z>0)
     haveatoms = .false.
-    if (c%nneq > 0) then
+    if (seed%nat > 0) then
        do i = 1, c%nspc
           if (c%spc(i)%z > 0) then
              haveatoms = .true.
@@ -318,79 +304,10 @@ contains
        end do
     end if
 
-    ! transform the atomic coordinates in the case of a molecule, and fill
-    ! the remaining molecular fields
-    if (seed%ismolecule) then
-       if (seed%useabr == 0) then
-          ! a cell has not been given
-
-          ! center in the cell and convert to crystallographic coordinates
-          do i = 1, c%nneq
-             c%at(i)%x = (c%at(i)%x-xcm+0.5d0*c%aa) / c%aa
-          end do
-
-          ! Keep the (1/2,1/2,1/2) translation applied
-          c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa + xcm
-
-          ! Set up the molecular cell. c%molborder is in fractional coordinates
-          ! and gives the position of the molecular cell in each axis. By default,
-          ! choose the molecular cell as the minimal encompassing cell for the molecule
-          ! plus 80% of the border or 2 bohr, whichever is larger. The molecular cell
-          ! can not exceed the actual unit cell
-          c%molborder = max(border - max(2d0,0.8d0 * border),0d0) / (xmax - xmin)
-       else
-          if (any(abs(c%bb - 90d0) > 1d-3)) then
-             if (crashfail) then
-                call ferror("struct_new","MOLECULE does not allow non-orthogonal cells",faterr)
-             else
-                return
-             end if
-          end if
-          ! a cell has been given, save the origin
-          if (seed%havex0) then
-             c%molx0 = seed%molx0
-          else
-             c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa
-          endif
-
-          ! calculate the molecular cell
-          if (c%nneq > 0) then
-             xmin = 1d40
-             do i = 1, c%nneq
-                do j = 1, 3
-                   xmin(j) = min(c%at(i)%x(j),xmin(j))
-                   xmin(j) = min(1d0-max(c%at(i)%x(j),1d0-xmin(j)),xmin(j))
-                end do
-             end do
-          end if
-          c%molborder = max(xmin - max(0.8d0 * xmin,2d0/c%aa),0d0)
-       end if
-    end if
-
-    ! move the crystallographic coordinates to the main cell, calculate the
-    ! Cartesian coordinates. Set the default wyckoff letter. Molecules are not
-    ! wrapped: the cell is only a bounding box and wrapping would tear the
-    ! molecule apart. If the system has bonding info, update the lattice vector
-    ! in the neighbor star.
-    copybonds = seed%havebonds
-    if (copybonds) copybonds = (size(seed%nstar,1) == c%nneq)
-    if (copybonds) allocate(deltasave(3,c%nneq))
-    do i = 1, c%nneq
-       if (.not.seed%ismolecule) then
-          delta = -floor(c%at(i)%x)
-          c%at(i)%x = c%at(i)%x + delta
-          if (copybonds) deltasave(:,i) = delta
-       else
-          if (copybonds) deltasave(:,i) = 0d0
-       end if
-       c%at(i)%r = c%x2c(c%at(i)%x)
-       c%at(i)%wyc = "?"
-    end do
-
-    !! symmetry !!
-
-    ! crystals: copy the symmetry information, if available
-    ! havesym>0 implies a crystal
+    ! if the seed provides the symmetry operations, copy them to the crystal
+    ! and make the identity the first operation. These are used both to expand
+    ! a non-equivalent list (path A) and to reduce a complete list (path B1).
+    ! havesym>0 implies a crystal.
     if (seed%havesym > 0) then
        c%havesym = 1
        c%neqv = seed%neqv
@@ -436,8 +353,39 @@ contains
              end if
           end if
        end if
+    end if
 
-       ! generate the complete atom list
+    copybonds = .false.
+    envbuilt = .false.
+    if (seed%neqlist) then
+       !! ========================= PATH A =========================
+       !! The seed atoms are the non-equivalent (asymmetric unit) list and the
+       !! seed carries its symmetry (seed%check: havesym>0, crystal). Copy them
+       !! to the non-equivalent list c%at and expand to the complete cell list
+       !! c%atcel with the symmetry operations.
+
+       ! copy the (checkrepeats-filtered) atoms to the non-equivalent list
+       c%nneq = count(useatom)
+       if (allocated(c%at)) deallocate(c%at)
+       allocate(c%at(c%nneq))
+       i = 0
+       do j = 1, seed%nat
+          if (useatom(j)) then
+             i = i + 1
+             c%at(i)%x = seed%x(:,j)
+             c%at(i)%is = seed%is(j)
+             c%at(i)%name = seed%atname(j)
+          end if
+       end do
+
+       ! wrap to the main cell, Cartesian coordinates, default Wyckoff letter
+       do i = 1, c%nneq
+          c%at(i)%x = c%at(i)%x - floor(c%at(i)%x)
+          c%at(i)%r = c%x2c(c%at(i)%x)
+          c%at(i)%wyc = "?"
+       end do
+
+       ! generate the complete atom list by applying the symmetry operations
        if (c%nneq > 0) then
           if (allocated(c%atcel)) deallocate(c%atcel)
           allocate(c%atcel(c%nneq*c%neqv*c%ncv))
@@ -483,63 +431,146 @@ contains
           c%ncel = 0
        end if
     else
-       call c%clearsym()
-    end if
+       !! ========================= PATH B =========================
+       !! The seed atoms are the complete cell list. Copy them to c%atcel,
+       !! then reduce to the non-equivalent list c%at: applying the provided
+       !! symmetry (B1), finding it (B2), or setting P1 (B3/B4).
 
-    ! crystal symmetry from spglib
-    clearsym = .true.
-    if (.not.seed%ismolecule .and. seed%havesym == 0) then
-       if ((seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall) .and. haveatoms) then
-          ! symmetry was not available, and I want it. This operation fills
-          ! the symmetry info, at(i)%mult, and ncel/atcel.
-          call c%calcsym_old(errmsg)
-          ! call c%calcsym(.true.,errmsg,ti=ti)
-          if (len_trim(errmsg) > 0) then
-             if (usegui) then
-                clearsym = .true.
-             else
-                call ferror("struct_new","spglib: "//errmsg,faterr)
-             end if
+       ! copy the atoms to the complete cell list; keep the names in cell order
+       ! (celatom has no name field) for the reduction below
+       c%ncel = seed%nat
+       if (allocated(c%atcel)) deallocate(c%atcel)
+       allocate(c%atcel(c%ncel))
+       allocate(name(c%ncel))
+       do i = 1, c%ncel
+          c%atcel(i)%x = seed%x(:,i)
+          c%atcel(i)%is = seed%is(i)
+          c%atcel(i)%idx = i
+          c%atcel(i)%cidx = i
+          name(i) = seed%atname(i)
+       end do
+
+       ! transform the coordinates for a molecule and fill the molecular fields
+       ! (a molecule always has neqlist=.false., so this only runs here)
+       if (seed%ismolecule) then
+          if (seed%useabr == 0) then
+             ! no cell given: center in the cell, convert to crystallographic
+             do i = 1, c%ncel
+                c%atcel(i)%x = (c%atcel(i)%x-xcm+0.5d0*c%aa) / c%aa
+             end do
+
+             ! Keep the (1/2,1/2,1/2) translation applied
+             c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa + xcm
+
+             ! Set up the molecular cell. c%molborder is in fractional coordinates
+             ! and gives the position of the molecular cell in each axis. By default,
+             ! choose the molecular cell as the minimal encompassing cell for the molecule
+             ! plus 80% of the border or 2 bohr, whichever is larger. The molecular cell
+             ! can not exceed the actual unit cell
+             c%molborder = max(border - max(2d0,0.8d0 * border),0d0) / (xmax - xmin)
           else
-             clearsym = .false.
+             if (any(abs(c%bb - 90d0) > 1d-3)) then
+                if (crashfail) then
+                   call ferror("struct_new","MOLECULE does not allow non-orthogonal cells",faterr)
+                else
+                   return
+                end if
+             end if
+             ! a cell has been given, save the origin
+             if (seed%havex0) then
+                c%molx0 = seed%molx0
+             else
+                c%molx0 = -(/0.5d0, 0.5d0, 0.5d0/) * c%aa
+             endif
+
+             ! calculate the molecular cell
+             xmin = 1d40
+             do i = 1, c%ncel
+                do j = 1, 3
+                   xmin(j) = min(c%atcel(i)%x(j),xmin(j))
+                   xmin(j) = min(1d0-max(c%atcel(i)%x(j),1d0-xmin(j)),xmin(j))
+                end do
+             end do
+             c%molborder = max(xmin - max(0.8d0 * xmin,2d0/c%aa),0d0)
           end if
        end if
 
-    else if (c%havesym > 0) then
-       ! symmetry was already available, but I still want the space group details
+       ! wrap to the main cell (crystals only; molecules are not wrapped, as the
+       ! cell is just a bounding box), Cartesian and reduced coordinates. Track
+       ! the wrapping shift for the bond lattice vectors.
+       copybonds = seed%havebonds
+       if (copybonds) allocate(deltasave(3,c%ncel))
+       do i = 1, c%ncel
+          if (.not.seed%ismolecule) then
+             delta = -floor(c%atcel(i)%x)
+             c%atcel(i)%x = c%atcel(i)%x + delta
+             if (copybonds) deltasave(:,i) = delta
+          else
+             if (copybonds) deltasave(:,i) = 0d0
+          end if
+          c%atcel(i)%r = c%x2c(c%atcel(i)%x)
+          c%atcel(i)%rxc = c%x2xr(c%atcel(i)%x)
+          c%atcel(i)%rxc = c%atcel(i)%rxc - floor(c%atcel(i)%rxc)
+          c%atcel(i)%rxc = c%xr2c(c%atcel(i)%rxc)
+       end do
+
+       ! determine the symmetry operations of the complete list, building the
+       ! spatial index only when the reduction needs it (identify_atom). P1
+       ! (B3/B4) needs neither: reduceatoms uses its trivial P1 fast path.
+       if (seed%havesym > 0) then
+          ! B1: the symmetry was provided and already copied above
+          if (c%neqv*c%ncv > 1) then
+             call c%build_env()
+             envbuilt = .true.
+          end if
+       else if (.not.seed%ismolecule .and. haveatoms .and. &
+          (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall)) then
+          ! B2: find the symmetry from the complete cell geometry
+          call c%build_env()
+          envbuilt = .true.
+          c%havesym = 0
+          call c%guess_spg(2)
+          c%havesym = 1
+       else
+          ! B3/B4: no symmetry - set P1
+          call c%clearsym()
+       end if
+
+       ! reduce the complete list to the non-equivalent list with the symmetry
+       call c%reduceatoms(name,errmsg)
+       if (len_trim(errmsg) > 0) then
+          if (seed%havesym > 0) then
+             ! B1: the provided operations are inconsistent with the atom list
+             if (crashfail) then
+                call ferror("struct_new","reduceatoms: "//errmsg,faterr)
+             else
+                return
+             end if
+          else if (usegui) then
+             ! B2: the guessed symmetry is inconsistent - fall back to P1
+             call c%clearsym()
+             call c%reduceatoms(name,errmsg)
+             if (len_trim(errmsg) > 0) call ferror("struct_new","reduceatoms: "//errmsg,faterr)
+          else
+             call ferror("struct_new","reduceatoms: "//errmsg,faterr)
+          end if
+       end if
+       deallocate(name)
+    end if
+    if (allocated(useatom)) deallocate(useatom)
+
+    ! overlay the spglib space-group labels, common to both paths (P1 just
+    ! resets the Wyckoffs). In path A havesym is always > 0.
+    if (c%havesym > 0) then
        call c%spglib_wrap(c%spg,.false.,errmsg,ti=ti)
        if (len_trim(errmsg) > 0) then
           call ferror("struct_new","spglib: "//errmsg,faterr)
        else
           c%spgavail = .true.
           call c%spgtowyc(c%spg)
-          clearsym = .false.
        end if
-    end if
-
-    if (clearsym) then
-       ! symmetry was not available or there was an error, and I do not
-       ! want symmetry - set P1 and make a copy of at() to atcel(). Note that
-       ! the environment and asterisms become obsolete and need recalculating.
-       call c%clearsym()
-       c%ncel = c%nneq
-       if (allocated(c%atcel)) deallocate(c%atcel)
-       allocate(c%atcel(c%ncel))
-       do i = 1, c%ncel
-          c%atcel(i)%x = c%at(i)%x
-          c%atcel(i)%r = c%at(i)%r
-
-          c%atcel(i)%rxc = c%x2xr(c%atcel(i)%x)
-          c%atcel(i)%rxc = c%atcel(i)%rxc - floor(c%atcel(i)%rxc)
-          c%atcel(i)%rxc = c%xr2c(c%atcel(i)%rxc)
-
-          c%atcel(i)%idx = i
-          c%atcel(i)%cidx = i
-          c%atcel(i)%ir = 1
-          c%atcel(i)%ic = 1
-          c%atcel(i)%lvec = 0
-          c%atcel(i)%is = c%at(i)%is
-       end do
+    else
+       call c%spgtowyc()
     end if
 
     !! molecular symmetry !!
@@ -564,8 +595,9 @@ contains
           call grid1_register_ae(c%spc(i)%z)
        end do
 
-       ! set up the block environments
-       call c%build_env()
+       ! set up the block environments (unless the reduction in path B already
+       ! built the spatial index from the same, unchanged complete atom list)
+       if (.not.envbuilt) call c%build_env()
 
        ! calculate vacuum lengths
        call c%calc_vacuum_lengths()

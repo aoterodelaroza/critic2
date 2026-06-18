@@ -1229,4 +1229,90 @@ contains
 
   end subroutine calcmolsym
 
+  !> Reduce the complete cell atom list (c%atcel) to the non-equivalent
+  !> atom list (c%at) given the symmetry operations already set in the
+  !> crystal (neqv, ncv, rotm, cen). On input c%atcel(1:c%ncel) must be
+  !> populated and name(:) holds the per-cell-atom names (celatom has no name
+  !> field). For non-trivial symmetry the block spatial index must be built
+  !> (c%build_env) on input; the P1 case (neqv=ncv=1) takes a fast path that
+  !> needs no index. On output nneq, the reduced at() list (with
+  !> name/mult/wyc), and the complete-list symmetry mapping
+  !> (atcel%idx/cidx/ir/ic/lvec) are filled. If error, errmsg has length > 0.
+  module subroutine reduceatoms(c,name,errmsg)
+    use param, only: icrd_crys
+    use global, only: symprec
+    use types, only: realloc
+    class(crystal), intent(inout) :: c
+    character*10, intent(in) :: name(:)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: k, io, it, id
+    real*8 :: x0(3)
+    logical, allocatable :: done(:)
+
+    errmsg = ""
+
+    ! P1: each atom is its own representative (1:1 at <-> atcel), so
+    ! no orbit walk or spatial index is needed.
+    if (c%neqv == 1 .and. c%ncv == 1) then
+       c%nneq = c%ncel
+       call realloc(c%at,c%nneq)
+       do k = 1, c%ncel
+          c%at(k)%x = c%atcel(k)%x
+          c%at(k)%r = c%atcel(k)%r
+          c%at(k)%is = c%atcel(k)%is
+          c%at(k)%name = name(k)
+          c%at(k)%wyc = "?"
+          c%at(k)%mult = 1
+          c%atcel(k)%idx = k
+          c%atcel(k)%cidx = k
+          c%atcel(k)%ir = 1
+          c%atcel(k)%ic = 1
+          c%atcel(k)%lvec = 0
+       end do
+       return
+    end if
+
+    ! Orbit reduction: build the non-equivalent atom list, the
+    ! multiplicities, and the complete-list symmetry mapping in a single
+    ! O(ncel*neqv*ncv) pass. Each atom is assigned to the first
+    ! representative whose orbit reaches it, using O(1) identify_atom lookups.
+    allocate(done(c%ncel))
+    done = .false.
+    c%nneq = 0
+    do k = 1, c%ncel
+       if (done(k)) cycle
+       c%nneq = c%nneq + 1
+       if (c%nneq > size(c%at,1)) call realloc(c%at,2*c%nneq)
+       c%at(c%nneq)%x = c%atcel(k)%x
+       c%at(c%nneq)%r = c%atcel(k)%r
+       c%at(c%nneq)%is = c%atcel(k)%is
+       c%at(c%nneq)%name = name(k)
+       c%at(c%nneq)%wyc = "?"
+       c%at(c%nneq)%mult = 0
+       do io = 1, c%neqv
+          do it = 1, c%ncv
+             x0 = matmul(c%rotm(1:3,1:3,io),c%atcel(k)%x) + c%rotm(:,4,io) + c%cen(:,it)
+             id = c%identify_atom(x0,icrd_crys,distmax=symprec)
+             if (id == 0) then
+                errmsg = "incomplete orbit while building the complete atom list"
+                return
+             end if
+             if (.not.done(id)) then
+                done(id) = .true.
+                c%atcel(id)%idx = c%nneq
+                c%atcel(id)%cidx = id
+                c%atcel(id)%ir = io
+                c%atcel(id)%ic = it
+                c%atcel(id)%lvec = nint(c%atcel(id)%x - x0)
+                c%at(c%nneq)%mult = c%at(c%nneq)%mult + 1
+             end if
+          end do
+       end do
+    end do
+    call realloc(c%at,c%nneq)
+    deallocate(done)
+
+  end subroutine reduceatoms
+
 end submodule symmetry
