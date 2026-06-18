@@ -70,13 +70,13 @@ module crystalseedmod
    contains
      procedure :: end => seed_end ! deallocate arrays and nullify variables
      procedure :: check => seed_check ! check the seed fields for internal consistency
-     procedure :: parse_crystal_env
-     procedure :: parse_molecule_env
-     procedure :: from_fragment
-     procedure :: strip_hydrogens
-     procedure :: read_library
-     procedure :: read_any_file
-     procedure :: read_cif
+     procedure :: parse_crystal_env ! parse a crystal environment
+     procedure :: parse_molecule_env ! parse a molecular environment
+     procedure :: read_library ! read a structure from the library
+     procedure :: from_fragment ! create a crystal seed from a molecular fragment
+     procedure :: strip_hydrogens ! remove all hydrogens from the seed
+     procedure :: read_any_file ! detect file format of a file and read a seed from it
+     procedure :: read_cif ! below, various readers that give seeds
      procedure :: read_mol2
      procedure :: read_sdf
      procedure :: read_shelx
@@ -111,7 +111,7 @@ module crystalseedmod
      procedure :: read_aimsout
      procedure :: read_tinkerfrac
      procedure :: read_xyz
-     procedure :: report
+     procedure :: report ! report the contents of a crystalseed (debug only)
   end type crystalseed
   public :: crystalseed
 
