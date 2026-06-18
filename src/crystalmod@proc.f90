@@ -602,9 +602,8 @@ contains
        ! calculate vacuum lengths
        call c%calc_vacuum_lengths()
 
-       ! Find atomic connectivity and molecular fragments, or copy from seed.
-       ! Only copy if the seed had no symmetry information (otherwise the
-       ! atoms in the seed are taken as the neq-list and reordered).
+       ! Find atomic connectivity and molecular fragments, or copy from the
+       ! seed. Copying needs the complete cell list.
        if (copybonds) then
           c%nstar = seed%nstar
           do i = 1, c%ncel

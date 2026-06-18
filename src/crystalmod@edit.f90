@@ -27,7 +27,6 @@ contains
   module subroutine makeseed(c,seed,copysym,useabr,copybonding)
     use global, only: rborder_def
     use crystalseedmod, only: crystalseed
-    use tools_io, only: ferror, faterr
     class(crystal), intent(in) :: c
     type(crystalseed), intent(out) :: seed
     logical, intent(in) :: copysym
@@ -36,7 +35,7 @@ contains
 
     integer :: i
     integer :: useabr_
-    logical :: copybonding_
+    logical :: copybonding_, wantsym, wantbonds, useneq
 
     ! initialize
     useabr_ = 2
@@ -44,9 +43,14 @@ contains
     copybonding_ = .false.
     if (present(copybonding)) copybonding_ = copybonding
 
-    ! copybonding and copysym are not compatible
-    if (copybonding_ .and. copysym) &
-       call ferror('makeseed','copybonding and copysym are incompatible',faterr)
+    ! What to copy: the symmetry (wantsym) and/or the bonding (wantbonds). The
+    ! non-equivalent (asymmetric unit) atom list is used only when copying the
+    ! symmetry without the bonding; with bonding (nstar is indexed over the
+    ! complete cell list) the complete list is used instead, optionally
+    ! together with the symmetry.
+    wantsym = (.not.c%ismolecule .and. copysym .and. c%spgavail)
+    wantbonds = (copybonding_ .and. allocated(c%nstar))
+    useneq = (wantsym .and. .not.wantbonds)
 
     ! general
     seed%isused = .true.
@@ -55,8 +59,8 @@ contains
     seed%isformat = c%isformat
 
     ! atoms
-    if (.not.c%ismolecule .and. copysym .and. c%spgavail) then
-       ! crystals with symmetry
+    if (useneq) then
+       ! the non-equivalent (asymmetric unit) atom list
        seed%nat = c%nneq
        allocate(seed%x(3,c%nneq),seed%is(c%nneq),seed%atname(c%nneq))
        do i = 1, c%nneq
@@ -65,7 +69,7 @@ contains
           seed%atname(i) = c%at(i)%name
        end do
     else
-       ! crystals without symmetry
+       ! the complete cell list
        seed%nat = c%ncel
        allocate(seed%x(3,c%ncel),seed%is(c%ncel),seed%atname(c%ncel))
        do i = 1, c%ncel
@@ -83,7 +87,7 @@ contains
     end if
 
     ! bonding (nstar is indexed by ncel)
-    if (copybonding_ .and. allocated(c%nstar)) then
+    if (wantbonds) then
        seed%havebonds = .true.
        seed%nstar = c%nstar
     else
@@ -114,12 +118,13 @@ contains
        seed%m_x2c = c%m_x2c
     end if
 
-    ! symmetry
+    ! symmetry. neqlist is .true. only for the asymmetric-unit case (useneq);
+    ! a complete list carried together with the symmetry has neqlist=.false.
     seed%findsym = -1
     seed%checkrepeats = .false.
-    if (.not.c%ismolecule .and. copysym .and. c%spgavail) then
+    if (wantsym) then
        seed%havesym = 1
-       seed%neqlist = .true.
+       seed%neqlist = useneq
        seed%neqv = c%neqv
        seed%ncv = c%ncv
        allocate(seed%rotm(3,4,c%neqv),seed%cen(3,c%ncv))
@@ -1283,7 +1288,9 @@ contains
     ! make seed from this crystal, preserving bonding if requested. For a
     ! molecule, use an absolute-Cartesian seed (useabr=0) so struct_new re-fits
     ! the encompassing cell to the moved atom instead of wrapping it into the
-    ! old cell. copybonding is incompatible with copysym (nneq-indexed seed).
+    ! old cell. A symmetric move (copysym) uses the non-equivalent (nneq-indexed)
+    ! seed so moving the representative expands to all its equivalents; bonds
+    ! (nstar is ncel-indexed) cannot ride on that seed, so they are recomputed.
     if (c%ismolecule) then
        call c%makeseed(seed,copysym=.false.,useabr=0,copybonding=copybonding_)
     else

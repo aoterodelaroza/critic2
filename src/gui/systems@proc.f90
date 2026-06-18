@@ -665,10 +665,12 @@ contains
        sysc%undo_icur = sysc%undo_n
     end if
 
-    ! save the current geometry into the (possibly new) top slot
+    ! save the current geometry into the (possibly new) top slot, inheriting
+    ! both the symmetry (when available) and the bonding, so that restoring
+    ! recovers the exact same system
     copysym = (.not.sys(isys)%c%ismolecule .and. sys(isys)%c%spgavail)
     call sys(isys)%c%makeseed(sysc%undo_seed(undo_slot(sysc,sysc%undo_icur)),copysym=copysym,&
-       copybonding=.not.copysym)
+       copybonding=.true.)
     sysc%undo_lasttime = time
 
   end subroutine undo_capture
@@ -1870,7 +1872,7 @@ contains
 
   ! For the molecule identifier id corresponding to the given molecule
   ! coordinate type, rigidly translate the fragment so that its center
-  ! of mass is at position x. If 
+  ! of mass is at position x.
   module subroutine set_molecule_position(sysc,type,id,x,copybonding)
     use global, only: iunit_bohr, iunit_fractional
     use param, only: bohrtoa

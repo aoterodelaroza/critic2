@@ -144,12 +144,10 @@ contains
        end if
     end if
 
-    ! bonds are over the complete cell list and incompatible with symmetry
+    ! bonds are indexed over the complete cell list, so they require the
+    ! complete list (neqlist=.false.); they are compatible with symmetry (the
+    ! reduction in struct_new keeps the complete-list order)
     if (seed%havebonds) then
-       if (seed%havesym > 0) then
-          msg = "incompatible fields in seed: bonds and symmetry"
-          goto 999
-       end if
        if (seed%neqlist) then
           msg = "incompatible fields in seed: bonds and non-equivalent atom list"
           goto 999
