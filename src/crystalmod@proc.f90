@@ -184,8 +184,6 @@ contains
        end if
     end if
 
-    copybonds = seed%havebonds .and. seed%havesym <= 0 .and. allocated(seed%nstar)
-
     ! initialize the structure
     call c%init()
     c%ismolecule = seed%ismolecule
@@ -218,14 +216,8 @@ contains
 
     ! basic cell and centering information
     if (seed%useabr == 0) then
-       if (.not.seed%ismolecule) then
-          if (crashfail) then
-             call ferror("struct_new","cell data unavailable",faterr)
-          else
-             return
-          end if
-       end if
-       ! this is a molecule, for which no cell has been given
+       ! a molecule for which no cell has been given (seed%check guarantees
+       ! useabr==0 implies ismolecule)
        c%aa = xmax - xmin
        c%bb = 90d0
 
@@ -241,7 +233,7 @@ contains
        c%m_c2x = c%m_x2c
        call matinv(c%m_c2x,3)
        g = matmul(transpose(c%m_x2c),c%m_x2c)
-    elseif (seed%useabr == 2) then
+    else
        ! use m_x2c
        c%m_x2c = seed%m_x2c
        c%m_c2x = c%m_x2c
@@ -253,12 +245,6 @@ contains
        c%bb(1) = acos(g(2,3) / c%aa(2) / c%aa(3)) * 180d0 / pi
        c%bb(2) = acos(g(1,3) / c%aa(1) / c%aa(3)) * 180d0 / pi
        c%bb(3) = acos(g(1,2) / c%aa(1) / c%aa(2)) * 180d0 / pi
-    else
-       if (crashfail) then
-          call ferror("struct_new","unknown useabr",faterr)
-       else
-          return
-       end if
     end if
 
     ! rest of the cell metrics
@@ -282,9 +268,10 @@ contains
     !! now the atoms, we can use shortest() and related functions past this !!
 
     ! check for repeats in the seed (for cif & shelx formats)
+    ! checkrepeats implies havesym>0 and a crystal
     allocate(useatom(seed%nat))
     useatom = .true.
-    if (seed%havesym > 0 .and. .not.seed%ismolecule .and. seed%nat > 0 .and. seed%checkrepeats) then
+    if (seed%checkrepeats .and. seed%nat > 0) then
        do i = 1, seed%nat
           if (.not.useatom(i)) cycle
           do j = 1, seed%neqv
@@ -385,6 +372,7 @@ contains
     ! wrapped: the cell is only a bounding box and wrapping would tear the
     ! molecule apart. If the system has bonding info, update the lattice vector
     ! in the neighbor star.
+    copybonds = seed%havebonds
     if (copybonds) copybonds = (size(seed%nstar,1) == c%nneq)
     if (copybonds) allocate(deltasave(3,c%nneq))
     do i = 1, c%nneq
@@ -402,7 +390,8 @@ contains
     !! symmetry !!
 
     ! crystals: copy the symmetry information, if available
-    if (seed%havesym > 0 .and..not.seed%ismolecule) then
+    ! havesym>0 implies a crystal
+    if (seed%havesym > 0) then
        c%havesym = 1
        c%neqv = seed%neqv
        c%ncv = seed%ncv
@@ -516,7 +505,7 @@ contains
           end if
        end if
 
-    else if (.not.seed%ismolecule .and. c%havesym > 0) then
+    else if (c%havesym > 0) then
        ! symmetry was already available, but I still want the space group details
        call c%spglib_wrap(c%spg,.false.,errmsg,ti=ti)
        if (len_trim(errmsg) > 0) then
