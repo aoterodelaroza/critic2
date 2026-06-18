@@ -2547,11 +2547,13 @@ contains
                 ! post the first geometry change
                 call sysc(i)%post_event(lastchange_geometry,keepfields=.true.)
 
-                ! seed the undo/redo history with the initial geometry
-                call sysc(i)%undo_reset()
-
                 ! this system has been initialized
                 sysc(i)%status = sys_init
+
+                ! seed the undo/redo history with the initial geometry (must
+                ! come after the status is set, since undo_capture only records
+                ! systems that are sys_init)
+                call sysc(i)%undo_reset()
              end if
 
 #ifdef _THREADS
