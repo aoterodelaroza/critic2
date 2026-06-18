@@ -519,8 +519,27 @@ contains
 
     if (clearsym) then
        ! symmetry was not available or there was an error, and I do not
-       ! want symmetry - make a copy of at() to atcel() and set P1
-       call c%clearsym(neq2cel=.true.)
+       ! want symmetry - set P1 and make a copy of at() to atcel(). Note that
+       ! the environment and asterisms become obsolete and need recalculating.
+       call c%clearsym()
+       c%ncel = c%nneq
+       if (allocated(c%atcel)) deallocate(c%atcel)
+       allocate(c%atcel(c%ncel))
+       do i = 1, c%ncel
+          c%atcel(i)%x = c%at(i)%x
+          c%atcel(i)%r = c%at(i)%r
+
+          c%atcel(i)%rxc = c%x2xr(c%atcel(i)%x)
+          c%atcel(i)%rxc = c%atcel(i)%rxc - floor(c%atcel(i)%rxc)
+          c%atcel(i)%rxc = c%xr2c(c%atcel(i)%rxc)
+
+          c%atcel(i)%idx = i
+          c%atcel(i)%cidx = i
+          c%atcel(i)%ir = 1
+          c%atcel(i)%ic = 1
+          c%atcel(i)%lvec = 0
+          c%atcel(i)%is = c%at(i)%is
+       end do
     end if
 
     !! molecular symmetry !!

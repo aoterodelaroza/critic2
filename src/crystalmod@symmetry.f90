@@ -549,29 +549,22 @@ contains
 
   end subroutine calcsym
 
-  !> Clear the symmetry information from the crystal and rebuild the
-  !> atom list. If cel2neq, copy the atom information from atcel(:) to
-  !> at(:). If neq2cel, copy from at(:) to atcel(:). Note that if
-  !> neq2cel is used, then the environment and asterisms become
-  !> obsolete and need to be recalculated.
-  module subroutine clearsym(c,cel2neq,neq2cel)
+  !> Clear the symmetry information from the crystal and set it to P1.
+  !> If cel2neq, also copy the complete cell list atcel(:) over to the
+  !> non-equivalent atom list at(:) (ncel -> nneq).
+  module subroutine clearsym(c,cel2neq)
     use types, only: neqatom, realloc
     use param, only: eyet
     class(crystal), intent(inout) :: c
     logical, intent(in), optional :: cel2neq
-    logical, intent(in), optional :: neq2cel
 
     type(neqatom), allocatable :: aux(:)
-    integer :: idir, i
+    integer :: i
     character*10, allocatable :: name(:)
+    logical :: cel2neq_
 
-    idir = 0
-    if (present(cel2neq)) then
-       if (cel2neq) idir = 1
-    end if
-    if (present(neq2cel)) then
-       if (neq2cel) idir = -1
-    end if
+    cel2neq_ = .false.
+    if (present(cel2neq)) cel2neq_ = cel2neq
 
     ! nullify the space group and all the symmetry info
     c%spgavail = .false.
@@ -591,48 +584,26 @@ contains
        end do
     end if
 
-    if (idir == 1) then
-       ! convert ncel to nneq
-       if (c%nneq /= c%ncel) then
-          allocate(name(c%ncel))
-          do i = 1, c%ncel
-             name(i) = c%at(c%atcel(i)%idx)%name
-          end do
-
-          allocate(aux(c%nneq))
-          aux = c%at(1:c%nneq)
-          c%nneq = c%ncel
-          call realloc(c%at,c%ncel)
-          do i = 1, c%ncel
-             c%at(i) = aux(c%atcel(i)%idx)
-             c%at(i)%x = c%atcel(i)%x
-             c%at(i)%is = c%atcel(i)%is
-             c%at(i)%mult = 1
-             c%at(i)%wyc = "?"
-             c%at(i)%name = name(i)
-          end do
-          deallocate(aux,name)
-       end if
-    elseif (idir == -1) then
-       ! convert nneq to ncel
-       c%ncel = c%nneq
-       if (allocated(c%atcel)) deallocate(c%atcel)
-       allocate(c%atcel(c%ncel))
+    ! optionally convert ncel to nneq
+    if (cel2neq_ .and. c%nneq /= c%ncel) then
+       allocate(name(c%ncel))
        do i = 1, c%ncel
-          c%atcel(i)%x = c%at(i)%x
-          c%atcel(i)%r = c%at(i)%r
-
-          c%atcel(i)%rxc = c%x2xr(c%atcel(i)%x)
-          c%atcel(i)%rxc = c%atcel(i)%rxc - floor(c%atcel(i)%rxc)
-          c%atcel(i)%rxc = c%xr2c(c%atcel(i)%rxc)
-
-          c%atcel(i)%idx = i
-          c%atcel(i)%cidx = i
-          c%atcel(i)%ir = 1
-          c%atcel(i)%ic = 1
-          c%atcel(i)%lvec = 0
-          c%atcel(i)%is = c%at(i)%is
+          name(i) = c%at(c%atcel(i)%idx)%name
        end do
+
+       allocate(aux(c%nneq))
+       aux = c%at(1:c%nneq)
+       c%nneq = c%ncel
+       call realloc(c%at,c%ncel)
+       do i = 1, c%ncel
+          c%at(i) = aux(c%atcel(i)%idx)
+          c%at(i)%x = c%atcel(i)%x
+          c%at(i)%is = c%atcel(i)%is
+          c%at(i)%mult = 1
+          c%at(i)%wyc = "?"
+          c%at(i)%name = name(i)
+       end do
+       deallocate(aux,name)
     end if
 
   end subroutine clearsym

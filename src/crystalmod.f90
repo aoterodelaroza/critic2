@@ -320,7 +320,7 @@ module crystalmod
      procedure :: calcsym !< Calculate the symmetry operations from the crystal geometry
      procedure :: calcsym_old !< Calculate the symmetry operations with the old (pre-spglib) guesser
      procedure :: guess_spg !< Guess the symmetry operations from the structure (old guesser)
-     procedure :: clearsym !< Clear symmetry info and transform to a P1
+     procedure :: clearsym !< Clear symmetry info and set the crystal to P1
      procedure :: checkgroup !< Check that the space group operations are consistent
      procedure :: getiws !< Calculate the IWS and its tetrahedra partition around a point
      procedure :: calcmolsym !< Calculate the molecular symmetry
@@ -930,10 +930,9 @@ module crystalmod
        class(crystal), intent(inout) :: c
        integer, intent(in) :: level
      end subroutine guess_spg
-     module subroutine clearsym(c,cel2neq,neq2cel)
+     module subroutine clearsym(c,cel2neq)
        class(crystal), intent(inout) :: c
        logical, intent(in), optional :: cel2neq
-       logical, intent(in), optional :: neq2cel
      end subroutine clearsym
      module subroutine checkgroup(c)
        class(crystal), intent(inout) :: c
