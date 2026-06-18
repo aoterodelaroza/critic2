@@ -624,6 +624,7 @@ contains
 
     sysc%undo_n = 0
     sysc%undo_icur = 0
+    sysc%undo_ibase = 1
     ! seed the history with the current geometry (undo_capture is a no-op if
     ! the system is not yet initialized); the time is irrelevant here
     call sysc%undo_capture(0d0)
@@ -640,7 +641,7 @@ contains
     class(sysconf), intent(inout) :: sysc
     real*8, intent(in) :: time
 
-    integer :: k, isys
+    integer :: isys
     logical :: copysym, coalesce
 
     isys = sysc%id
@@ -654,11 +655,10 @@ contains
     ! overwriting the current top state instead of appending a new one
     coalesce = (sysc%undo_icur >= 1) .and. ((time - sysc%undo_lasttime) < undo_coalesce_time)
     if (.not.coalesce) then
-       ! drop the oldest state if the history is full
+       ! drop the oldest state if the history is full by advancing the base of
+       ! the ring buffer; the new state then reuses the freed (oldest) slot
        if (sysc%undo_n >= undo_maxdepth) then
-          do k = 1, undo_maxdepth-1
-             sysc%undo_seed(k) = sysc%undo_seed(k+1)
-          end do
+          sysc%undo_ibase = modulo(sysc%undo_ibase,undo_maxdepth) + 1
           sysc%undo_n = undo_maxdepth - 1
        end if
        sysc%undo_n = sysc%undo_n + 1
@@ -667,7 +667,7 @@ contains
 
     ! save the current geometry into the (possibly new) top slot
     copysym = (.not.sys(isys)%c%ismolecule .and. sys(isys)%c%spgavail)
-    call sys(isys)%c%makeseed(sysc%undo_seed(sysc%undo_icur),copysym=copysym,&
+    call sys(isys)%c%makeseed(sysc%undo_seed(undo_slot(sysc,sysc%undo_icur)),copysym=copysym,&
        copybonding=.not.copysym)
     sysc%undo_lasttime = time
 
@@ -723,7 +723,7 @@ contains
     if (.not.ok_system(isys,sys_init)) return
     if (sysc%undo_icur < 1 .or. sysc%undo_icur > sysc%undo_n) return
 
-    call sys(isys)%c%struct_new(sysc%undo_seed(sysc%undo_icur),crashfail=.true.)
+    call sys(isys)%c%struct_new(sysc%undo_seed(undo_slot(sysc,sysc%undo_icur)),crashfail=.true.)
     sysc%sc%nextbuildlists_fixcam = .true.
     call sysc%post_event(lastchange_geometry,nocapture=.true.)
 
@@ -732,6 +732,17 @@ contains
     sysc%undo_lasttime = -1d30
 
   end subroutine undo_restore
+
+  !> Map a logical history index j (1:undo_n) to its physical slot in the
+  !> undo_seed ring buffer, accounting for the moving base pointer.
+  pure function undo_slot(sysc,j)
+    class(sysconf), intent(in) :: sysc
+    integer, intent(in) :: j
+    integer :: undo_slot
+
+    undo_slot = modulo(sysc%undo_ibase - 1 + (j - 1),undo_maxdepth) + 1
+
+  end function undo_slot
 
   !> Highlight atoms in the system. If transient, add the highlighted
   !> atom to the transient list and clear the list before adding. Add

@@ -100,9 +100,10 @@ module systems
      real*8 :: timelastchange_buildlists = 0d0 ! time system last required a list rebuild
      real*8 :: timelastchange_render = 0d0     ! time system last required a render
      ! undo/redo history of geometry states (see systems@proc.f90)
-     type(crystalseed), allocatable :: undo_seed(:) ! saved structural states (1:undo_n)
+     type(crystalseed), allocatable :: undo_seed(:) ! ring buffer of saved structural states (size undo_maxdepth)
      integer :: undo_n = 0      ! number of states currently in the history
-     integer :: undo_icur = 0   ! index of the current state in the history (1:undo_n)
+     integer :: undo_icur = 0   ! logical index of the current state in the history (1:undo_n)
+     integer :: undo_ibase = 1  ! physical slot of logical state 1 (base of the ring buffer)
      real*8 :: undo_lasttime = -1d30 ! time of the last capture (used to coalesce drags)
    contains
      ! time events
