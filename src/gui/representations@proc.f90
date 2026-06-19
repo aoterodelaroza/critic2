@@ -124,7 +124,8 @@ contains
 
   !> Set all values to default for the representation. Set a subset of
   !> defaults if itype = 0 (all), 1 (atom), 2 (bonds), 3 (labels),
-  !> 4 (mol), 5 (unit cell).
+  !> 4 (mol), 5 (unit cell), 6 (cartesian axes), 7 (rotation axes),
+  !> 8 (coordination polyhedra).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -222,8 +223,6 @@ contains
        end if
     end if
 
-    !--> molecules
-
     ! unit cell
     if (itype == 0 .or. itype == 5) then
        r%uc_inner = .true.
@@ -258,11 +257,6 @@ contains
        r%axes_labeldistance = axes_labeldistance_def
        r%axes_labeloffset = 0d0
        r%axes_scalewithzoom = .false.
-       ! For the window-anchored placement, the axes are drawn in real-space
-       ! (bohr) units, so for large systems they would look small relative to
-       ! the window. The actual scale is computed from the scene radius in
-       ! scene_build_lists (where the rendered scene size is known); here we
-       ! just request auto-sizing for that placement.
        r%axes_scale = 1d0
        r%axes_scale_auto = (r%axes_placement == 1)
        r%axes_labelrgb = 0._c_float
@@ -281,7 +275,6 @@ contains
 
     ! coordination polyhedra
     if (itype == 0 .or. itype == 8) then
-       ! default roles: metals are centers (cations), non-metals are vertices (anions)
        if (allocated(r%poly_iscenter)) deallocate(r%poly_iscenter)
        if (allocated(r%poly_isvertex)) deallocate(r%poly_isvertex)
        allocate(r%poly_iscenter(sys(isys)%c%nspc),r%poly_isvertex(sys(isys)%c%nspc))
