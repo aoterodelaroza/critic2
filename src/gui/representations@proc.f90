@@ -280,6 +280,7 @@ contains
        r%poly_edge_rgb = 0._c_float
        r%poly_usecentercolor_edge = .true.
        r%poly_coplanar_eps = 0.1d0
+       r%poly_showcorners = .true.
     end if
 
     ! initialize the styles
@@ -364,6 +365,7 @@ contains
     use gui_main, only: ColorAxes_def
     use tools_io, only: string, nameguess
     use tools_math, only: cross, plane_from_points
+    use types, only: realloc
     use tools, only: mergesort
     use param, only: tpi, img, atmass, icrd_crys
     class(representation), intent(inout) :: r
@@ -397,7 +399,10 @@ contains
     integer, allocatable :: eidp(:), lvecp(:,:)
     real(c_float) :: rgbface(3), rgbedge(3)
     integer :: natp, idpoly, kp
-    logical :: dopoly
+    logical :: dopoly, corneractive
+    ! corner atoms forced visible (poly_showcorners)
+    integer, allocatable :: cornlist(:,:)
+    integer :: ncorn, ica, idc, imolc
 
     interface
        subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,ctx,ier) bind(c)
@@ -500,13 +505,20 @@ contains
           uoriginc = sys(r%id)%c%x2c(r%origin)
        end if
 
+       ! whether we will force the polyhedra corner atoms to be drawn (only when
+       ! the representation displays atoms, so lshown tracks visible spheres)
+       corneractive = r%poly_display .and. r%poly_showcorners .and. r%atoms_display .and.&
+          r%coordpoly_style%isinit
+
        ! whether we'll be doing bonds, allocate array to check whether
-       ! an atoms has been drawn
+       ! an atom has been drawn (also used to deduplicate forced corner atoms)
        dobonds = r%bonds_display .and. r%bond_style%isinit
-       if (dobonds) then
+       if (dobonds .or. corneractive) then
           allocate(lshown(sys(r%id)%c%ncel,-1:n(1)+1,-1:n(2)+1,-1:n(3)+1))
           lshown = .false.
        end if
+       ncorn = 0
+       if (corneractive) allocate(cornlist(4,100))
 
        ! coordination polyhedra: per-species distance-window scratch
        if (r%poly_display .and. r%coordpoly_style%isinit) &
@@ -667,6 +679,17 @@ contains
                       end do
                       call build_polyhedron(xvpoly(:,1:natp),natp,rgbface,rgbedge,&
                          r%poly_alpha,r%poly_edge_rad,r%poly_coplanar_eps)
+
+                      ! collect this polyhedron's corner atom images to force
+                      ! them visible after the main loop (deduplicated there)
+                      if (corneractive) then
+                         do kp = 1, natp
+                            ncorn = ncorn + 1
+                            if (ncorn > size(cornlist,2)) call realloc(cornlist,4,2*ncorn)
+                            cornlist(1,ncorn) = eidp(kp)
+                            cornlist(2:4,ncorn) = lvecp(:,kp) + ix
+                         end do
+                      end if
                    end if
 
                    ! calculate the animation delta
@@ -719,12 +742,15 @@ contains
                       obj%sph(obj%nsph)%ghost = .true.
                    end if
 
-                   ! bonds
-                   if (dobonds) then
-                      ! mark this atom as drawn
+                   ! mark this atom image as drawn (for bonds and for
+                   ! deduplicating forced polyhedra corner atoms)
+                   if (allocated(lshown)) then
                       call check_lshown(i,ix(1),ix(2),ix(3))
                       lshown(i,ix(1),ix(2),ix(3)) = .true.
+                   end if
 
+                   ! bonds
+                   if (dobonds) then
                       ! bonds
                       do ib = 1, r%bond_style%nstar(i)%ncon
                          ineigh = r%bond_style%nstar(i)%idcon(ib)
@@ -870,6 +896,40 @@ contains
              end do ! i2
           end do ! i1
        end do ! loop over complete atom list (i)
+
+       ! draw the polyhedra corner atoms that the selection did not already draw
+       ! (so every drawn polyhedron shows its corner atoms)
+       if (corneractive) then
+          do ica = 1, ncorn
+             ix = cornlist(2:4,ica)
+             call check_lshown(cornlist(1,ica),ix(1),ix(2),ix(3))
+             if (lshown(cornlist(1,ica),ix(1),ix(2),ix(3))) cycle ! already drawn
+             lshown(cornlist(1,ica),ix(1),ix(2),ix(3)) = .true.
+
+             ! style and position of the corner atom
+             idc = sysc(r%id)%attype_celatom_to_id(r%atom_style%type,cornlist(1,ica))
+             imolc = sys(r%id)%c%idatcelmol(1,cornlist(1,ica))
+             rgb = r%atom_style%rgb(:,idc) * r%mol_style%tint_rgb(:,imolc)
+             rad1 = r%atom_style%rad(idc) * r%mol_style%scale_rad(imolc)
+             xc = sys(r%id)%c%x2c(sys(r%id)%c%atcel(cornlist(1,ica))%x + ix)
+
+             obj%nsph = obj%nsph + 1
+             if (obj%nsph > size(obj%sph,1)) then
+                allocate(auxsph(2*obj%nsph))
+                auxsph(1:size(obj%sph,1)) = obj%sph
+                call move_alloc(auxsph,obj%sph)
+             end if
+             obj%sph(obj%nsph)%x = real(xc + uoriginc,c_float)
+             obj%sph(obj%nsph)%r = real(rad1,c_float)
+             obj%sph(obj%nsph)%rgb = rgb
+             obj%sph(obj%nsph)%idx(1) = cornlist(1,ica)
+             obj%sph(obj%nsph)%idx(2:4) = ix
+             obj%sph(obj%nsph)%xdelta = cmplx(0d0,0d0,kind=c_float_complex)
+             obj%sph(obj%nsph)%border = real(r%atom_border_size,c_float)
+             obj%sph(obj%nsph)%rgbborder = r%atom_border_rgb
+          end do
+       end if
+       if (allocated(cornlist)) deallocate(cornlist)
        if (allocated(up2dsp)) deallocate(up2dsp)
     elseif (r%type == reptype_unitcell) then
        !!! unit cell representation !!!

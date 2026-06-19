@@ -328,6 +328,12 @@ contains
              call iw_tooltip("Displace the origin of the cell being represented.",ttshown)
           end if
 
+          ! show the corner atoms of coordination polyhedra
+          changed = changed .or. iw_checkbox("Show atoms at polyhedra corners##polyshowcorners",&
+             w%rep%poly_showcorners)
+          call iw_tooltip("When coordination polyhedra are displayed and atoms are shown, also "//&
+             "draw the atoms at the polyhedra corners, even if they fall outside the current selection.",ttshown)
+
           ! draw the atom selection widget
           changed = changed .or. atom_selection_widget(isys,w%rep,.true.,.false.,ihighlight,highlight_type)
 

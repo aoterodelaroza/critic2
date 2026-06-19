@@ -282,6 +282,7 @@ module representations
      real(c_float) :: poly_edge_rgb(3) = 0._c_float ! edge cylinder color
      logical :: poly_usecentercolor_edge = .true. ! edges take the central atom color
      real*8 :: poly_coplanar_eps = 0.1d0 ! coplanarity tolerance for the planar-polygon path (bohr)
+     logical :: poly_showcorners = .true. ! also draw the corner atoms, even if outside the selection
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults
