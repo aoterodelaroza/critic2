@@ -1819,20 +1819,23 @@ contains
 
   end subroutine label_style_end
 
-  !> Reset the coordination-polyhedra style to defaults from the system pointed
-  !> at by representation r. Centers are enumerated by d%type; by default metals
-  !> are shown centers, non-metals are corners, and the distance window is
-  !> [0, (r_cov(center)+r_cov(corner))*bondfactor] sized from covalent radii.
+  !> Reset the coordination-polyhedra style to defaults from the
+  !> system pointed at by representation r.
   module subroutine coordpoly_style_reset(d,r)
     use interfaces_glfw, only: glfwGetTime
     use systems, only: sys, sysc, sys_ready, ok_system, atlisttype_species
-    use param, only: atmcov0, ismetal, maxzat
+    use param, only: atmcov0, atmeneg, maxzat
     use global, only: bondfactor_def
     class(coordpoly_geom_style), intent(inout) :: d
     type(representation), intent(in) :: r
 
-    integer :: i, j, ispc, iz, jz, nspc
-    real*8 :: dd
+    ! typical-anion species used as default corners: N, O, F, S, Cl, Br, I
+    integer, parameter :: zanion(7) = (/7,8,9,16,17,35,53/)
+
+    integer :: i, j, ispc, iz, jz, nspc, navg, nvalid
+    real*8 :: dd, avgeneg
+    logical :: useavg
+    logical, allocatable :: spccenter(:), spccorner(:)
 
     ! if not initialized, set type
     if (.not.d%isinit) d%type = atlisttype_species
@@ -1851,9 +1854,79 @@ contains
     ! check the system is sane
     if (.not.ok_system(r%id,sys_ready)) return
 
-    ! fill data: centers are metals, corners are non-metals, and the distance
-    ! window is sized from covalent radii
+    ! count the number of species that can act as centers or corners
     nspc = sys(r%id)%c%nspc
+    allocate(spccenter(nspc),spccorner(nspc))
+    spccenter = .false.
+    spccorner = .false.
+    nvalid = 0
+    do j = 1, nspc
+       jz = sys(r%id)%c%spc(j)%z
+       if (jz > 0 .and. jz <= maxzat) nvalid = nvalid + 1
+    end do
+
+    if (nvalid == 1) then
+       ! single species: it acts as both center and corner
+       do j = 1, nspc
+          jz = sys(r%id)%c%spc(j)%z
+          if (jz > 0 .and. jz <= maxzat) then
+             spccenter(j) = .true.
+             spccorner(j) = .true.
+          end if
+       end do
+    else
+       ! If typical species that act as anions are present, use them
+       ! as corners. Otherwise, use the electronegativity average to
+       ! determine centers and corners.
+       useavg = .true.
+       do j = 1, nspc
+          jz = sys(r%id)%c%spc(j)%z
+          if (jz > 0 .and. jz <= maxzat .and. any(zanion == jz)) then
+             useavg = .false.
+             exit
+          end if
+       end do
+
+       if (.not.useavg) then
+          ! corners are the anions, centers are everyone else
+          do j = 1, nspc
+             jz = sys(r%id)%c%spc(j)%z
+             if (jz > 0 .and. jz <= maxzat) then
+                spccorner(j) = any(zanion == jz)
+                spccenter(j) = .not.spccorner(j)
+             end if
+          end do
+          ! all present species are anions: fall back to average
+          if (.not.any(spccenter)) then
+             useavg = .true.
+             spccenter = .false.
+             spccorner = .false.
+          end if
+       end if
+
+       if (useavg) then
+          ! average electronegativity over species with a defined value
+          avgeneg = 0d0
+          navg = 0
+          do j = 1, nspc
+             jz = sys(r%id)%c%spc(j)%z
+             if (jz > 0 .and. jz <= maxzat .and. atmeneg(jz) > 0d0) then
+                avgeneg = avgeneg + atmeneg(jz)
+                navg = navg + 1
+             end if
+          end do
+          if (navg > 0) avgeneg = avgeneg / navg
+          do j = 1, nspc
+             jz = sys(r%id)%c%spc(j)%z
+             if (jz > 0 .and. jz <= maxzat .and. atmeneg(jz) > 0d0) then
+                spccenter(j) = atmeneg(jz) < avgeneg
+                spccorner(j) = atmeneg(jz) > avgeneg
+             end if
+          end do
+       end if
+    end if
+
+    ! fill the style, use the rcov sum times bondfactor as the distance cutoff
     d%ntype = sysc(r%id)%attype_number(d%type)
     allocate(d%shown(d%ntype),d%corner(nspc,d%ntype),d%dmin(d%ntype),d%dmax(d%ntype))
     d%dmin = 0d0
@@ -1861,13 +1934,11 @@ contains
     do i = 1, d%ntype
        ispc = sysc(r%id)%attype_species(d%type,i)
        iz = sys(r%id)%c%spc(ispc)%z
-       ! metals are centers by default; skip bare/critical-point species
-       d%shown(i) = ismetal(iz) .and. iz > 0 .and. iz <= maxzat
+       d%shown(i) = spccenter(ispc)
        do j = 1, nspc
-          jz = sys(r%id)%c%spc(j)%z
-          ! non-metals are corners by default; skip bare/critical-point species
-          d%corner(j,i) = (.not.ismetal(jz)) .and. jz > 0 .and. jz <= maxzat
+          d%corner(j,i) = spccorner(j)
           if (d%corner(j,i)) then
+             jz = sys(r%id)%c%spc(j)%z
              dd = (atmcov0(iz) + atmcov0(jz)) * bondfactor_def
              d%dmax(i) = max(d%dmax(i),dd)
           end if
