@@ -336,4 +336,23 @@ contains
       A = 16777216*A1 + D
   end subroutine i1mcry
 
+  !> Return .true. if atomic number z corresponds to a metal.
+  module function ismetal(z)
+    integer, intent(in) :: z
+    logical :: ismetal
+
+    integer :: k
+    integer, parameter :: lnonmetal(24) = &
+       (/0,1,2,5,6,7,8,9,10,14,15,16,17,18,33,34,35,36,52,53,54,85,86,118/)
+
+    ismetal = .true.
+    do k = 1, size(lnonmetal,1)
+       if (z == lnonmetal(k)) then
+          ismetal = .false.
+          return
+       end if
+    end do
+
+  end function ismetal
+
 end submodule proc

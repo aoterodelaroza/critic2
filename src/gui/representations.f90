@@ -19,7 +19,7 @@
 module representations
   use iso_c_binding
   use types, only: neighstar
-  use shapes, only: dl_sphere, dl_cylinder, dl_string, dl_plane, scene_objects
+  use shapes, only: dl_sphere, dl_cylinder, dl_string, dl_plane, dl_triangle, scene_objects
   use param, only: bohrtoa, eye, maxzat0, atmcov0
   use global, only: bondfactor_def, bonddelta_def
   implicit none
@@ -139,7 +139,8 @@ module representations
   integer, parameter, public :: reptype_axes = 3 ! cartesian/crystallographic axes gizmo
   integer, parameter, public :: reptype_rotaxis = 4 ! rotation axis for a molecule
   integer, parameter, public :: reptype_symelem = 5 ! symmetry element
-  integer, parameter, public :: reptype_NUM = 5
+  integer, parameter, public :: reptype_coordpolyhedra = 6 ! coordination polyhedra
+  integer, parameter, public :: reptype_NUM = 6
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -154,7 +155,8 @@ module representations
   integer, parameter, public :: repflavor_axes = 9
   integer, parameter, public :: repflavor_rotaxis = 10
   integer, parameter, public :: repflavor_symelem = 11
-  integer, parameter, public :: repflavor_NUM = 11
+  integer, parameter, public :: repflavor_coordpolyhedra = 12
+  integer, parameter, public :: repflavor_NUM = 12
 
   !> Representation: objects to draw on the scene
   type representation
@@ -252,6 +254,16 @@ module representations
      real*8 :: symelem_cen(3) = 0d0 ! system center (bohr)
      integer :: symelem_order = 0 ! axis rotation order n (selects the axis color)
      real(c_float) :: symelem_rgb(3) = symelem_rgb_def ! color of the symmetry element
+     ! coordination polyhedra
+     logical, allocatable :: poly_iscenter(:) ! polyhedron center species (nspc)
+     logical, allocatable :: poly_isvertex(:) ! polyhedron vertex species (nspc)
+     real*8 :: poly_alpha = 0.5d0 ! face opacity (1 = opaque)
+     logical :: poly_usecentercolor = .true. ! faces/edges take the central atom color
+     real(c_float) :: poly_rgb(3) = 0._c_float ! face color when not using the central atom color
+     real*8 :: poly_edge_rad = 0.05d0 ! edge cylinder radius (bohr)
+     real(c_float) :: poly_edge_rgb(3) = 0._c_float ! edge cylinder color
+     logical :: poly_usecentercolor_edge = .true. ! edges take the central atom color
+     real*8 :: poly_coplanar_eps = 0.1d0 ! coplanarity tolerance for the planar-polygon path (bohr)
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults

@@ -67,6 +67,14 @@ module shapes
   integer(c_int), target, public :: quadEBO ! quad: element buffer object
   integer(c_int), parameter, public :: quadnel = 2 ! quad: number of triangles
 
+  ! triangle objects (filled flat triangles): unit reference triangle in the
+  ! z=0 plane, corners at (0,0,0),(1,0,0),(0,1,0). A model matrix whose first
+  ! two columns are (v2-v1) and (v3-v1) maps these corners onto any triangle.
+  integer(c_int), target, public :: triVAO ! triangle: vertex array object
+  integer(c_int), target, public :: triVBO ! triangle: vertex buffer object
+  integer(c_int), target, public :: triEBO ! triangle: element buffer object
+  integer(c_int), parameter, public :: trinel = 1 ! triangle: number of triangles
+
   ! text objects
   integer(c_int), target, public :: textVAO
   integer(c_int), target, public :: textVBO
@@ -126,6 +134,16 @@ module shapes
   end type dl_plane
   public :: dl_plane
 
+  !> filled flat triangles for the draw list (e.g. coordination polyhedra faces)
+  type dl_triangle
+     real(c_float) :: x1(3) ! first vertex
+     real(c_float) :: x2(3) ! second vertex
+     real(c_float) :: x3(3) ! third vertex
+     real(c_float) :: rgb(3) ! color
+     real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
+  end type dl_triangle
+  public :: dl_triangle
+
   !> collection of objects (draw lists) belonging to a scene
   type scene_objects
      integer :: nsph ! number of spheres
@@ -138,6 +156,8 @@ module shapes
      type(dl_cylinder), allocatable :: cone(:) ! cone draw list (x1=base, x2=apex)
      integer :: nplane ! number of flat rectangles
      type(dl_plane), allocatable :: plane(:) ! flat rectangle draw list
+     integer :: ntriangle ! number of flat triangles
+     type(dl_triangle), allocatable :: triangle(:) ! flat triangle draw list
      integer :: nstring ! number of strings
      type(dl_string), allocatable :: string(:) ! flat cylinder draw list
      ! window-anchored axes gizmo (drawn in a separate overlay pass)

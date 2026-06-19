@@ -52,7 +52,8 @@ contains
 
   !> Draw the edit represenatation window.
   module subroutine draw_editrep(w)
-    use representations, only: representation, reptype_atoms, reptype_unitcell, reptype_axes
+    use representations, only: representation, reptype_atoms, reptype_unitcell, reptype_axes,&
+       reptype_coordpolyhedra
     use windows, only: nwin, win, wintype_view
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
@@ -94,11 +95,15 @@ contains
        call iw_text("Type and Name",highlight=.true.)
 
        ! the representation type
-       itype = w%rep%type - 1
-       call iw_combo_simple("##reptype","Atoms" // c_null_char // "Unit cell" // c_null_char //&
-          "Axes" // c_null_char,itype)
-       if (w%rep%type /= itype + 1) changed = .true.
-       w%rep%type = itype + 1
+       if (w%rep%type <= reptype_axes) then
+          itype = w%rep%type - 1
+          call iw_combo_simple("##reptype","Atoms" // c_null_char // "Unit cell" // c_null_char //&
+             "Axes" // c_null_char,itype)
+          if (w%rep%type /= itype + 1) changed = .true.
+          w%rep%type = itype + 1
+       elseif (w%rep%type == reptype_coordpolyhedra) then
+          call iw_text("Polyhedra")
+       end if
        call iw_tooltip("Type of object",ttshown)
 
        ! name text input
@@ -116,6 +121,8 @@ contains
           changed = changed .or. w%draw_editrep_unitcell(ttshown)
        elseif (w%rep%type == reptype_axes) then
           changed = changed .or. w%draw_editrep_axes(ttshown)
+       elseif (w%rep%type == reptype_coordpolyhedra) then
+          changed = changed .or. w%draw_editrep_coordpolyhedra(ttshown)
        end if
 
        ! rebuild draw lists if necessary
@@ -1179,6 +1186,169 @@ contains
     end if
 
   end function draw_editrep_axes
+
+  !> Draw the editrep (Object) window, coordination polyhedra class. Returns
+  !> true if the scene needs rendering again. ttshown = the tooltip flag.
+  module function draw_editrep_coordpolyhedra(w,ttshown) result(changed)
+    use representations, only: representation
+    use systems, only: sys
+    use gui_main, only: g
+    use tools_io, only: string
+    use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_coloredit,&
+       iw_calcheight, iw_dragfloat_real8
+    use param, only: atmcov0, newline, bohrtoa
+    use global, only: bondfactor_def, bonddelta_def
+    use interfaces_cimgui
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    integer :: i, isys, iz
+    logical :: ldum
+    integer(c_int) :: flags
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    type(ImVec2) :: sz
+
+    changed = .false.
+    isys = w%isys
+
+    ! make sure the per-species role arrays match the current number of species
+    if (.not.allocated(w%rep%poly_iscenter) .or. .not.allocated(w%rep%poly_isvertex)) then
+       call w%rep%set_defaults(8)
+    elseif (size(w%rep%poly_iscenter,1) /= sys(isys)%c%nspc) then
+       call w%rep%set_defaults(8)
+    end if
+
+    ! per-species center/vertex role table
+    call iw_text("Atom roles",highlight=.true.)
+    call iw_text("Centers (cations) are the polyhedron centers; vertices (anions) are the corners.")
+    flags = ImGuiTableFlags_None
+    flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+    flags = ior(flags,ImGuiTableFlags_ScrollY)
+    flags = ior(flags,ImGuiTableFlags_Borders)
+    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+    str1 = "##tablepolyroles_editrep" // c_null_char
+    sz%x = 0
+    sz%y = iw_calcheight(min(5,sys(isys)%c%nspc)+1,0,.false.)
+    if (igBeginTable(c_loc(str1),3,flags,sz,0._c_float)) then
+       str2 = "Atom" // c_null_char
+       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,0)
+       str2 = "Center" // c_null_char
+       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,1)
+       str2 = "Vertex" // c_null_char
+       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,2)
+       call igTableSetupScrollFreeze(0,1)
+       call igTableHeadersRow()
+
+       do i = 1, sys(isys)%c%nspc
+          iz = sys(isys)%c%spc(i)%z
+          if (iz <= 0) cycle
+          call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+          if (igTableSetColumnIndex(0)) then
+             call igAlignTextToFramePadding()
+             call iw_text(trim(sys(isys)%c%spc(i)%name))
+          end if
+          if (igTableSetColumnIndex(1)) then
+             changed = changed .or. iw_checkbox("##polycenter" // string(i),w%rep%poly_iscenter(i))
+          end if
+          if (igTableSetColumnIndex(2)) then
+             changed = changed .or. iw_checkbox("##polyvertex" // string(i),w%rep%poly_isvertex(i))
+          end if
+       end do
+       call igEndTable()
+    end if
+
+    ! appearance
+    call iw_text("Appearance",highlight=.true.)
+    changed = changed .or. iw_dragfloat_real8("Face opacity##polyalpha",x1=w%rep%poly_alpha,&
+       speed=0.005d0,min=0d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Opacity of the polyhedron faces (0 = transparent, 1 = opaque)",ttshown)
+
+    changed = changed .or. iw_checkbox("Faces use the central atom color##polyusecen",w%rep%poly_usecentercolor)
+    call iw_tooltip("Color the faces with the shade of the central (cation) atom",ttshown)
+    if (.not.w%rep%poly_usecentercolor) &
+       changed = changed .or. iw_coloredit("Face color##polyfacecolor",rgb=w%rep%poly_rgb,sameline=.true.)
+
+    changed = changed .or. iw_dragfloat_real8("Edge radius (Å)##polyedgerad",x1=w%rep%poly_edge_rad,&
+       speed=0.002d0,min=0d0,max=1d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Radius of the polyhedron edge cylinders",ttshown)
+
+    changed = changed .or. iw_checkbox("Edges use the central atom color##polyusecenedge",&
+       w%rep%poly_usecentercolor_edge)
+    call iw_tooltip("Color the edges with the shade of the central (cation) atom",ttshown)
+    if (.not.w%rep%poly_usecentercolor_edge) &
+       changed = changed .or. iw_coloredit("Edge color##polyedgecolor",rgb=w%rep%poly_edge_rgb,sameline=.true.)
+
+    ! coordination distance criteria (same as the bonds section in the atoms
+    ! representation). Changes here are applied only when the Apply button is
+    ! pressed, since recomputing the coordination is comparatively expensive.
+    call iw_text("Coordination distances",highlight=.true.)
+    call iw_text("Atoms A and B are coordinated if:")
+    call iw_text("  A and B non-metals: d < (r_cov(i)+r_cov(j))*f"//newline//&
+       "  A or B metal:       d < d_NN + δ"//newline//&
+       "r_cov = covalent radius. d_NN = nearest-neighbor distance.")
+
+    flags = ImGuiTableFlags_None
+    flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+    flags = ior(flags,ImGuiTableFlags_ScrollY)
+    flags = ior(flags,ImGuiTableFlags_Borders)
+    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+    str1 = "##tablepolyrcov_editrep" // c_null_char
+    sz%x = 0
+    sz%y = iw_calcheight(min(5,sys(isys)%c%nspc)+1,0,.false.)
+    if (igBeginTable(c_loc(str1),3,flags,sz,0._c_float)) then
+       str2 = "Atom" // c_null_char
+       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,0)
+       str2 = "Z" // c_null_char
+       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,1)
+       str2 = "Radius (Å)" // c_null_char
+       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,2)
+       call igTableSetupScrollFreeze(0,1)
+       call igTableHeadersRow()
+
+       do i = 1, sys(isys)%c%nspc
+          iz = sys(isys)%c%spc(i)%z
+          if (iz <= 0) cycle
+          call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+          if (igTableSetColumnIndex(0)) then
+             call igAlignTextToFramePadding()
+             call iw_text(trim(sys(isys)%c%spc(i)%name))
+          end if
+          if (igTableSetColumnIndex(1)) then
+             call igAlignTextToFramePadding()
+             call iw_text(string(iz))
+          end if
+          if (igTableSetColumnIndex(2)) then
+             ldum = iw_dragfloat_real8("##tablepolyradius_editrep" // string(i),x1=w%rep%bond_atmrad(iz),&
+                speed=0.01d0,min=0d0,max=2.65d0,scale=bohrtoa,decimal=3,&
+                flags=ImGuiSliderFlags_AlwaysClamp)
+          end if
+       end do
+       call igEndTable()
+    end if
+
+    call igAlignTextToFramePadding()
+    ldum = iw_dragfloat_real8("Bond factor (f)##polybondfactor",x1=w%rep%bond_bfactor,&
+       speed=0.001d0,min=1d0,max=4d0,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Bond factor parameter (multiplicative) for non-metal coordination (see formula above)",ttshown)
+    ldum = iw_dragfloat_real8("Bond delta δ (Å)##polybonddelta",x1=w%rep%bond_bdelta,&
+       speed=0.001d0,min=0d0,max=2d0,scale=bohrtoa,decimal=4,sameline=.true.,&
+       flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Distance tolerance (additive) for metal coordination (see formula above)",ttshown)
+
+    if (iw_button("Reset##resetpolydist",sameline=.true.)) then
+       w%rep%bond_atmrad = atmcov0
+       w%rep%bond_bfactor = bondfactor_def
+       w%rep%bond_bdelta = bonddelta_def
+       changed = .true.
+    end if
+    call iw_tooltip("Reset covalent radii, bond factor, and bond delta to defaults",ttshown)
+
+    if (iw_button("Apply##applypolydist",danger=.true.)) &
+       changed = .true.
+    call iw_tooltip("Recalculate and draw the polyhedra using the distance criteria above",ttshown)
+
+  end function draw_editrep_coordpolyhedra
 
   !xx! private procedures
 

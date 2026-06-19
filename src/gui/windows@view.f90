@@ -63,10 +63,11 @@ contains
        get_bind_keyname, BIND_EDITSELECT_REMOVE, BIND_EDITSELECT_DESELECT,&
        BIND_EDITSELECT_SELECT_ALL, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes,&
+       reptype_coordpolyhedra,&
        repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
        repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
        repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic,&
-       repflavor_axes
+       repflavor_axes, repflavor_coordpolyhedra
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
        iw_setposx_fromend, iw_checkbox, iw_coloredit, iw_menuitem, iw_dragfloat_realc,&
        iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton
@@ -514,6 +515,13 @@ contains
                 chbuild = .true.
              end if
              call iw_tooltip("Display the cartesian (lab-frame) x/y/z axes",ttshown)
+
+             call igSeparator()
+             if (iw_menuitem("Coordination Polyhedra",shortcut_text="Polyhedra")) then
+                call w%sc%add_representation(reptype_coordpolyhedra,repflavor_coordpolyhedra)
+                chbuild = .true.
+             end if
+             call iw_tooltip("Draw coordination polyhedra around the cation (center) atoms",ttshown)
 
              call igEndPopup()
           end if

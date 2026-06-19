@@ -51,6 +51,8 @@ contains
     character(len=:), allocatable :: idx
     real(c_float), target :: quadv(3,4)
     integer(c_int), target :: quadi(3,2)
+    real(c_float), target :: triv(3,3)
+    integer(c_int), target :: trii(3,1)
 
     ! allocate icosphere vertex and face arrays
     if (allocated(sphv)) deallocate(sphv)
@@ -347,6 +349,27 @@ contains
     call glBindVertexArray(0)
     call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
+    ! Build the buffers for the triangle (unit reference triangle in the z=0
+    ! plane, corners at (0,0,0),(1,0,0),(0,1,0))
+    triv(:,1) = (/0._c_float,0._c_float,0._c_float/)
+    triv(:,2) = (/1._c_float,0._c_float,0._c_float/)
+    triv(:,3) = (/0._c_float,1._c_float,0._c_float/)
+    trii(:,1) = (/0_c_int,1_c_int,2_c_int/)
+    call glGenVertexArrays(1, c_loc(triVAO))
+    call glGenBuffers(1, c_loc(triVBO))
+    call glGenBuffers(1, c_loc(triEBO))
+    call glBindBuffer(GL_ARRAY_BUFFER, triVBO)
+    call glBufferData(GL_ARRAY_BUFFER, 9*c_sizeof(c_float_), c_loc(triv), GL_STATIC_DRAW)
+    call glBindVertexArray(triVAO)
+    call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, triEBO)
+    call glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3*c_sizeof(c_int_), c_loc(trii), GL_STATIC_DRAW)
+    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(3*c_sizeof(c_float_),c_int),&
+       c_null_ptr)
+    call glEnableVertexAttribArray(0)
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
+    call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+
     ! build the buffers for the text (direct)
     call glGenVertexArrays(1, c_loc(textVAO))
     call glGenBuffers(1, c_loc(textVBO))
@@ -424,6 +447,11 @@ contains
     call glDeleteVertexArrays(1, c_loc(quadVAO))
     call glDeleteBuffers(1, c_loc(quadVBO))
     call glDeleteBuffers(1, c_loc(quadEBO))
+
+    ! triangles
+    call glDeleteVertexArrays(1, c_loc(triVAO))
+    call glDeleteBuffers(1, c_loc(triVBO))
+    call glDeleteBuffers(1, c_loc(triEBO))
 
   end subroutine shapes_end
 

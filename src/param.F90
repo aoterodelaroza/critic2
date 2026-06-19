@@ -695,6 +695,10 @@ module param
        integer, intent(in) :: isformat
        integer :: iwformat
      end function isformat_write_from_read
+     module function ismetal(z)
+       integer, intent(in) :: z
+       logical :: ismetal
+     end function ismetal
   end interface
 
 end module param

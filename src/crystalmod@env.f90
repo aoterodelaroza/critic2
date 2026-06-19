@@ -760,7 +760,7 @@ contains
   !> If one is metal and the other non-metal, apply both.
   module subroutine find_asterisms(c,nstar,atmrad,bondfac,rij,bonddelta)
     use global, only: bonddelta_def
-    use param, only: maxzat0
+    use param, only: maxzat0, ismetal
     use tools_io, only: string, ferror, faterr
     use tools, only: qcksort
     use types, only: realloc
@@ -776,7 +776,6 @@ contains
     real*8 :: ri, rj, dmax, dd
     logical :: bonded, ism, jsm
     real*8, allocatable :: rij2(:,:,:)
-    logical :: ismetal(0:maxzat0)
     real*8 :: dbond
 
     type atenv_type
@@ -786,7 +785,6 @@ contains
        real*8, allocatable :: dist(:)
     end type atenv_type
     type(atenv_type), allocatable :: atenv(:)
-    integer, parameter :: lnonmetal(24) = (/0,1,2,5,6,7,8,9,10,14,15,16,17,18,33,34,35,36,52,53,54,85,86,118/)
 
     ! return if there are no atoms
     if (c%ncel == 0) return
@@ -797,10 +795,6 @@ contains
     else
        dbond = bonddelta_def
     end if
-    ismetal = .true.
-    do i = 1, size(lnonmetal,1)
-       ismetal(lnonmetal(i)) = .false.
-    end do
 
     ! allocate the asterism arrays
     if (allocated(nstar)) deallocate(nstar)

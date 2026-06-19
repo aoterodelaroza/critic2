@@ -391,6 +391,9 @@ contains
     s%obj%nplane = 0
     if (allocated(s%obj%plane)) deallocate(s%obj%plane)
     allocate(s%obj%plane(10))
+    s%obj%ntriangle = 0
+    if (allocated(s%obj%triangle)) deallocate(s%obj%triangle)
+    allocate(s%obj%triangle(10))
     s%obj%nstring = 0
     if (allocated(s%obj%string)) deallocate(s%obj%string)
     allocate(s%obj%string(10))
@@ -519,7 +522,8 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use interfaces_cimgui
     use interfaces_opengl3
-    use shapes, only: sphVAO, cylVAO, coneVAO, textVAOos, textVBOos, quadVAO, quadnel
+    use shapes, only: sphVAO, cylVAO, coneVAO, textVAOos, textVBOos, quadVAO, quadnel,&
+       triVAO, trinel
     use gui_main, only: fonts, fontbakesize_large, font_large
     use systems, only: sys, sysc, nsys
     use tools_math, only: eigsym, matinv_cfloat
@@ -655,6 +659,21 @@ contains
        call glDepthMask(int(GL_FALSE,c_signed_char))
        call glBindVertexArray(quadVAO)
        call draw_all_planes()
+       call glDepthMask(int(GL_TRUE,c_signed_char))
+       call glDisable(GL_BLEND)
+       call glEnable(GL_CULL_FACE)
+    end if
+
+    ! draw the filled triangles (coordination polyhedra faces), same
+    ! translucent treatment as the planes
+    call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
+    if (s%obj%ntriangle > 0) then
+       call glDisable(GL_CULL_FACE)
+       call glEnable(GL_BLEND)
+       call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+       call glDepthMask(int(GL_FALSE,c_signed_char))
+       call glBindVertexArray(triVAO)
+       call draw_all_triangles()
        call glDepthMask(int(GL_TRUE,c_signed_char))
        call glDisable(GL_BLEND)
        call glEnable(GL_CULL_FACE)
@@ -971,6 +990,35 @@ contains
 
     end subroutine draw_all_planes
 
+    ! Draw all filled triangles. The unit reference triangle (corners
+    ! (0,0,0),(1,0,0),(0,1,0)) is mapped onto each triangle by a model matrix
+    ! whose first two columns are (x2-x1) and (x3-x1) and whose translation is
+    ! x1. The bound shader/uniform state must already render flat (object_type=2).
+    subroutine draw_all_triangles()
+      use tools_math, only: cross_cfloat
+      integer :: i
+      real(c_float) :: m(4,4), rgb_(4)
+      real(c_float) :: nrm(3)
+
+      do i = 1, s%obj%ntriangle
+         nrm = cross_cfloat(s%obj%triangle(i)%x2 - s%obj%triangle(i)%x1,&
+            s%obj%triangle(i)%x3 - s%obj%triangle(i)%x1)
+         if (norm2(nrm) > 1e-10_c_float) nrm = nrm / norm2(nrm)
+         m = 0._c_float
+         m(4,4) = 1._c_float
+         m(1:3,1) = s%obj%triangle(i)%x2 - s%obj%triangle(i)%x1
+         m(1:3,2) = s%obj%triangle(i)%x3 - s%obj%triangle(i)%x1
+         m(1:3,3) = nrm
+         m(1:3,4) = s%obj%triangle(i)%x1
+         call setuniform_mat4(m,idxi=iunif(iu_model))
+         rgb_(1:3) = s%obj%triangle(i)%rgb
+         rgb_(4) = s%obj%triangle(i)%alpha
+         call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
+         call glDrawElements(GL_TRIANGLES, int(3*trinel,c_int), GL_UNSIGNED_INT, c_null_ptr)
+      end do
+
+    end subroutine draw_all_triangles
+
     !> Draw the measure selections
     subroutine draw_all_mselections()
       use gui_main, only: ColorMeasureSelect
@@ -1271,7 +1319,8 @@ contains
   !> if the scene needs to be rendered again.
   module function representation_menu(s,idparent) result(changed)
     use interfaces_cimgui
-    use representations, only: reptype_atoms, reptype_unitcell, reptype_axes
+    use representations, only: reptype_atoms, reptype_unitcell, reptype_axes,&
+       reptype_coordpolyhedra
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext
     use windows, only: stack_create_window, wintype_editrep
     use gui_main, only: ColorDangerButton, g
@@ -1399,6 +1448,8 @@ contains
              str3 = "cell" // c_null_char
           elseif (s%rep(i)%type == reptype_axes) then
              str3 = "axes" // c_null_char
+          elseif (s%rep(i)%type == reptype_coordpolyhedra) then
+             str3 = "polyhedra" // c_null_char
           else
              str3 = "???" // c_null_char
           end if

@@ -94,6 +94,13 @@ contains
        r%isinit = .true.
        r%shown = .true.
        r%name = "Symmetry element"
+    elseif (itype == reptype_coordpolyhedra) then
+       r%isinit = .true.
+       r%shown = .true.
+       r%name = "Polyhedra"
+       r%atoms_display = .false.
+       r%bonds_display = .false.
+       r%labels_display = .false.
     else
        r%isinit = .false.
        r%shown = .false.
@@ -123,11 +130,12 @@ contains
     use global, only: bondfactor_def, bonddelta_def
     use gui_main, only: ColorAtomBorder_def, ColorBond_def, ColorBondBorder_def,&
        ColorLabel_def, ColorRotaxis_def, ColorAxes_def
-    use param, only: atmcov0
+    use param, only: atmcov0, ismetal
     class(representation), intent(inout) :: r
     integer, intent(in) :: itype
 
-    integer :: isys
+    integer :: isys, i
+    logical :: ism
 
     ! check the system is sane
     isys = r%id
@@ -271,6 +279,26 @@ contains
        r%rotaxis_rgb = ColorRotaxis_def ! black
     end if
 
+    ! coordination polyhedra
+    if (itype == 0 .or. itype == 8) then
+       ! default roles: metals are centers (cations), non-metals are vertices (anions)
+       if (allocated(r%poly_iscenter)) deallocate(r%poly_iscenter)
+       if (allocated(r%poly_isvertex)) deallocate(r%poly_isvertex)
+       allocate(r%poly_iscenter(sys(isys)%c%nspc),r%poly_isvertex(sys(isys)%c%nspc))
+       do i = 1, sys(isys)%c%nspc
+          ism = ismetal(sys(isys)%c%spc(i)%z)
+          r%poly_iscenter(i) = ism
+          r%poly_isvertex(i) = .not.ism
+       end do
+       r%poly_alpha = 0.5d0
+       r%poly_usecentercolor = .true.
+       r%poly_rgb = 0._c_float
+       r%poly_edge_rad = 0.05d0
+       r%poly_edge_rgb = 0._c_float
+       r%poly_usecentercolor_edge = .true.
+       r%poly_coplanar_eps = 0.1d0
+    end if
+
     ! initialize the styles
     call r%reset_all_styles(itype)
 
@@ -295,6 +323,9 @@ contains
     call r%bond_style%end()
     call r%label_style%end()
     call r%mol_style%end()
+
+    if (allocated(r%poly_iscenter)) deallocate(r%poly_iscenter)
+    if (allocated(r%poly_isvertex)) deallocate(r%poly_isvertex)
 
   end subroutine representation_end
 
@@ -347,6 +378,7 @@ contains
     use gui_main, only: ColorAxes_def
     use tools_io, only: string, nameguess
     use tools_math, only: cross
+    use tools, only: mergesort
     use param, only: tpi, img, atmass
     class(representation), intent(inout) :: r
     integer, intent(in) :: nc(3)
@@ -374,6 +406,29 @@ contains
     type(dl_string) :: dstr
     logical :: fixed
     character(len=:), allocatable :: errmsg
+    ! coordination polyhedra
+    type(neighstar), allocatable :: nstarpoly(:)
+    real*8, allocatable :: xvpoly(:,:)
+    real(c_float) :: rgbface(3), rgbedge(3)
+    integer :: nv
+
+    interface
+       subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,ctx,ier) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
+         integer(c_int), value :: n
+         real(c_double) :: x0(3)
+         real(c_double) :: xvert(3,n)
+         integer(c_int) :: nf
+         type(c_ptr) :: ctx
+         integer(c_int) :: ier
+       end subroutine runqhull_basintriangulate_step1
+       subroutine runqhull_basintriangulate_step2(nf,iface,ctx) bind(c)
+         use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr
+         integer(c_int), value :: nf
+         integer(c_int) :: iface(3,nf)
+         type(c_ptr), value :: ctx
+       end subroutine runqhull_basintriangulate_step2
+    end interface
 
     real*8, parameter :: rthr = 0.01d0
     real*8, parameter :: rthr1 = 1-rthr
@@ -1064,6 +1119,77 @@ contains
              end do
           end do
        end if
+    elseif (r%type == reptype_coordpolyhedra) then
+       !!! coordination polyhedra representation !!!
+
+       ! number of cells
+       n = 1
+       if (r%pertype == 1) then
+          n = nc
+       elseif (r%pertype == 2) then
+          n = r%ncell
+       end if
+
+       ! origin shift
+       if (sys(r%id)%c%ismolecule) then
+          uoriginc = r%origin / bohrtoa
+       else
+          uoriginc = sys(r%id)%c%x2c(r%origin)
+       end if
+
+       ! compute the coordination (neighbor star) with this representation's
+       ! distance criteria
+       call sys(r%id)%c%find_asterisms(nstarpoly,atmrad=r%bond_atmrad,&
+          bondfac=r%bond_bfactor,bonddelta=r%bond_bdelta)
+
+       if (allocated(nstarpoly) .and. allocated(r%poly_iscenter) .and.&
+          allocated(r%poly_isvertex)) then
+          do i = 1, sys(r%id)%c%ncel
+             ! must be a center species
+             if (.not.r%poly_iscenter(sys(r%id)%c%atcel(i)%is)) cycle
+             if (nstarpoly(i)%ncon < 3) cycle
+
+             ! face and edge colors from the central atom
+             id = sysc(r%id)%attype_celatom_to_id(r%atom_style%type,i)
+             if (r%poly_usecentercolor) then
+                rgbface = r%atom_style%rgb(:,id)
+             else
+                rgbface = r%poly_rgb
+             end if
+             if (r%poly_usecentercolor_edge) then
+                rgbedge = r%atom_style%rgb(:,id)
+             else
+                rgbedge = r%poly_edge_rgb
+             end if
+
+             ! vertex buffer: its size depends only on the center atom i
+             if (allocated(xvpoly)) deallocate(xvpoly)
+             allocate(xvpoly(3,nstarpoly(i)%ncon))
+
+             ! draw one polyhedron per drawn cell replica
+             do i1 = 0, n(1)-1
+                do i2 = 0, n(2)-1
+                   do i3 = 0, n(3)-1
+                      ix = (/i1,i2,i3/)
+
+                      ! gather the vertex (anion) neighbors
+                      nv = 0
+                      do ineigh = 1, nstarpoly(i)%ncon
+                         idaux = nstarpoly(i)%idcon(ineigh)
+                         if (.not.r%poly_isvertex(sys(r%id)%c%atcel(idaux)%is)) cycle
+                         xx = sys(r%id)%c%atcel(idaux)%x + nstarpoly(i)%lcon(:,ineigh) + ix
+                         nv = nv + 1
+                         xvpoly(:,nv) = sys(r%id)%c%x2c(xx) + uoriginc
+                      end do
+                      if (nv < 3) cycle
+
+                      call build_polyhedron(xvpoly(:,1:nv),nv,rgbface,rgbedge,&
+                         r%poly_alpha,r%poly_edge_rad,r%poly_coplanar_eps)
+                   end do
+                end do
+             end do
+          end do
+       end if
     end if ! reptype
   contains
     subroutine increase_ncone()
@@ -1105,6 +1231,165 @@ contains
       call append_cyl(obj%cyl,obj%ncyl,dcyl)
 
     end subroutine append_edge
+
+    !> Build a coordination polyhedron from nv vertex positions xv (cartesian,
+    !> bohr). The vertex centroid is used as the interior reference point (it is
+    !> always inside the convex hull, unlike the cation for one-sided
+    !> coordinations). Adds translucent triangular faces (color rgbf, opacity
+    !> alphaf) and opaque edge cylinders (color rgbe, radius rade) to the draw
+    !> lists. If the vertices are coplanar to within eps, a filled polygon is
+    !> drawn instead of a 3D convex hull.
+    subroutine build_polyhedron(xv,nvv,rgbf,rgbe,alphaf,rade,eps)
+      use iso_c_binding, only: c_ptr, c_int
+      integer, intent(in) :: nvv
+      real*8, intent(in) :: xv(3,nvv)
+      real(c_float), intent(in) :: rgbf(3), rgbe(3)
+      real*8, intent(in) :: alphaf, rade, eps
+
+      real*8, parameter :: edge_coplanar_cos = 0.9986d0 ! ~3 degrees
+
+      integer :: a, b, k, kk, ntri, nedge, ip, iq, e
+      integer, allocatable :: itri(:,:), edgei(:,:), iord_(:)
+      real*8, allocatable :: edgenrm(:,:), ang(:)
+      logical, allocatable :: edgekeep(:)
+      real*8 :: cen0(3), nrm(3), v1(3), v2(3), dev, dmax, e1u(3), e2u(3), cc, nrm_a(3)
+      type(c_ptr) :: ctx
+      integer(c_int) :: ier
+      integer :: nf
+
+      ! centroid of the vertices (an interior reference point)
+      cen0 = 0d0
+      do k = 1, nvv
+         cen0 = cen0 + xv(:,k)
+      end do
+      cen0 = cen0 / nvv
+
+      ! estimate the plane normal: v1 spans from the centroid to a vertex, then
+      ! take the vertex giving the largest perpendicular component
+      v1 = xv(:,1) - cen0
+      if (norm2(v1) < 1d-10) v1 = xv(:,2) - cen0
+      dmax = -1d0
+      nrm = 0d0
+      do k = 1, nvv
+         v2 = cross(v1,xv(:,k)-cen0)
+         if (norm2(v2) > dmax) then
+            dmax = norm2(v2)
+            nrm = v2
+         end if
+      end do
+      if (norm2(nrm) > 1d-10) nrm = nrm / norm2(nrm)
+
+      ! maximum out-of-plane deviation
+      dev = 0d0
+      do k = 1, nvv
+         dev = max(dev,abs(dot_product(xv(:,k)-cen0,nrm)))
+      end do
+
+      if (dev < eps .and. norm2(nrm) > 1d-10) then
+         ! planar polygon: order vertices by angle about the normal and
+         ! fan-triangulate from the centroid
+         e1u = xv(:,1) - cen0
+         e1u = e1u - dot_product(e1u,nrm)*nrm
+         if (norm2(e1u) < 1d-10) return
+         e1u = e1u / norm2(e1u)
+         e2u = cross(nrm,e1u)
+
+         allocate(ang(nvv),iord_(nvv))
+         do k = 1, nvv
+            ang(k) = atan2(dot_product(xv(:,k)-cen0,e2u),dot_product(xv(:,k)-cen0,e1u))
+            iord_(k) = k
+         end do
+         call mergesort(ang,iord_,1,nvv)
+
+         do k = 1, nvv
+            kk = mod(k,nvv) + 1
+            call append_triangle(cen0,xv(:,iord_(k)),xv(:,iord_(kk)),rgbf,alphaf)
+            call increase_ncylflat()
+            obj%cylflat(obj%ncylflat)%x1 = real(xv(:,iord_(k)),c_float)
+            obj%cylflat(obj%ncylflat)%x2 = real(xv(:,iord_(kk)),c_float)
+            obj%cylflat(obj%ncylflat)%r = real(rade,c_float)
+            obj%cylflat(obj%ncylflat)%rgb = rgbe
+         end do
+         return
+      end if
+
+      ! 3D convex hull of the vertices, seen from the interior centroid
+      call runqhull_basintriangulate_step1(nvv,cen0,xv,nf,ctx,ier)
+      if (ier /= 0 .or. nf <= 0) return
+      ntri = nf
+      allocate(itri(3,ntri))
+      call runqhull_basintriangulate_step2(ntri,itri,ctx)
+
+      ! faces
+      do a = 1, ntri
+         call append_triangle(xv(:,itri(1,a)),xv(:,itri(2,a)),xv(:,itri(3,a)),rgbf,alphaf)
+      end do
+
+      ! edges: collect unique triangle edges and the adjacent-face normals;
+      ! suppress edges shared by two near-coplanar triangles (triangulation
+      ! diagonals across a flat polyhedron face)
+      allocate(edgei(2,3*ntri),edgenrm(3,3*ntri),edgekeep(3*ntri))
+      nedge = 0
+      do a = 1, ntri
+         nrm_a = cross(xv(:,itri(2,a))-xv(:,itri(1,a)),xv(:,itri(3,a))-xv(:,itri(1,a)))
+         if (norm2(nrm_a) > 1d-10) nrm_a = nrm_a / norm2(nrm_a)
+         do k = 1, 3
+            ip = itri(k,a)
+            iq = itri(mod(k,3)+1,a)
+            if (ip > iq) then
+               b = ip
+               ip = iq
+               iq = b
+            end if
+            e = 0
+            do b = 1, nedge
+               if (edgei(1,b) == ip .and. edgei(2,b) == iq) then
+                  e = b
+                  exit
+               end if
+            end do
+            if (e == 0) then
+               nedge = nedge + 1
+               edgei(:,nedge) = (/ip,iq/)
+               edgenrm(:,nedge) = nrm_a
+               edgekeep(nedge) = .true.
+            else
+               cc = abs(dot_product(edgenrm(:,e),nrm_a))
+               edgekeep(e) = (cc < edge_coplanar_cos)
+            end if
+         end do
+      end do
+      do e = 1, nedge
+         if (.not.edgekeep(e)) cycle
+         call increase_ncylflat()
+         obj%cylflat(obj%ncylflat)%x1 = real(xv(:,edgei(1,e)),c_float)
+         obj%cylflat(obj%ncylflat)%x2 = real(xv(:,edgei(2,e)),c_float)
+         obj%cylflat(obj%ncylflat)%r = real(rade,c_float)
+         obj%cylflat(obj%ncylflat)%rgb = rgbe
+      end do
+
+    end subroutine build_polyhedron
+
+    !> Append a translucent triangular face (vertices p1,p2,p3, cartesian bohr).
+    subroutine append_triangle(p1,p2,p3,rgb_,alpha_)
+      real*8, intent(in) :: p1(3), p2(3), p3(3)
+      real(c_float), intent(in) :: rgb_(3)
+      real*8, intent(in) :: alpha_
+      type(dl_triangle), allocatable :: auxtri(:)
+
+      obj%ntriangle = obj%ntriangle + 1
+      if (obj%ntriangle > size(obj%triangle,1)) then
+         allocate(auxtri(2*obj%ntriangle))
+         auxtri(1:size(obj%triangle,1)) = obj%triangle
+         call move_alloc(auxtri,obj%triangle)
+      end if
+      obj%triangle(obj%ntriangle)%x1 = real(p1,c_float)
+      obj%triangle(obj%ntriangle)%x2 = real(p2,c_float)
+      obj%triangle(obj%ntriangle)%x3 = real(p3,c_float)
+      obj%triangle(obj%ntriangle)%rgb = rgb_
+      obj%triangle(obj%ntriangle)%alpha = real(alpha_,c_float)
+
+    end subroutine append_triangle
 
     !> Append a string record to an allocatable string list,
     !> reallocating if necessary.
