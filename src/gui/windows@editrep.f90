@@ -916,6 +916,9 @@ contains
              ! center type selector
              call igAlignTextToFramePadding()
              call iw_text("Centers and Corners",highlight=.true.)
+             call iw_helpermark("In the table, each row corresponds to a polyhedron center. &
+                &For each center, the columns show the atom name, whether the polyhedron is shown (Show),&
+                & the distance range to the corners (Min/Max), and which atomic species are allowed as corners.",sameline=.true.)
              itype_combo = 0
              if (w%rep%coordpoly_style%type == atlisttype_nneq) itype_combo = 1
              if (w%rep%coordpoly_style%type == atlisttype_ncel_frac) itype_combo = 2
@@ -933,7 +936,6 @@ contains
 
              ! per-center table: each row is a center atom; the species columns
              ! on the right select which species are its corners
-             call iw_text("Rows: center atoms. Columns: corner species.")
              flags = ImGuiTableFlags_None
              flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
              flags = ior(flags,ImGuiTableFlags_ScrollY)
