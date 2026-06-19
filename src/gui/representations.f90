@@ -132,6 +132,25 @@ module representations
   end type label_geom_style
   public :: label_geom_style
 
+  !> Draw style for coordination polyhedra (geometry-dependent parameters).
+  !> Centers are enumerated by atom-list type (species/nneq/ncel/...). For each
+  !> center type, the style records whether it is shown, which species act as
+  !> polyhedron corners, and the min/max center-corner distance window.
+  type coordpoly_geom_style
+     logical :: isinit = .false. ! whether the style is intialized
+     real*8 :: timelastreset = 0d0 ! time the style was last reset
+     integer :: type ! center atom-list type (atlisttype_* in systems module)
+     integer :: ntype = 0 ! number of center types
+     logical, allocatable :: shown(:) ! draw polyhedra for this center type (ntype)
+     logical, allocatable :: corner(:,:) ! species j is a corner of center type i (nspc,ntype)
+     real*8, allocatable :: dmin(:) ! min center-corner distance per center type (ntype, bohr)
+     real*8, allocatable :: dmax(:) ! max center-corner distance per center type (ntype, bohr)
+   contains
+     procedure :: reset => coordpoly_style_reset
+     procedure :: end => coordpoly_style_end
+  end type coordpoly_geom_style
+  public :: coordpoly_geom_style
+
   ! types of representations
   integer, parameter, public :: reptype_none = 0
   integer, parameter, public :: reptype_atoms = 1 ! atoms/bonds/labels
@@ -255,8 +274,7 @@ module representations
      integer :: symelem_order = 0 ! axis rotation order n (selects the axis color)
      real(c_float) :: symelem_rgb(3) = symelem_rgb_def ! color of the symmetry element
      ! coordination polyhedra
-     logical, allocatable :: poly_iscenter(:) ! polyhedron center species (nspc)
-     logical, allocatable :: poly_isvertex(:) ! polyhedron vertex species (nspc)
+     type(coordpoly_geom_style) :: coordpoly_style ! center/corner/distance geometry
      real*8 :: poly_alpha = 0.5d0 ! face opacity (1 = opaque)
      logical :: poly_usecentercolor = .true. ! faces/edges take the central atom color
      real(c_float) :: poly_rgb(3) = 0._c_float ! face color when not using the central atom color
@@ -349,6 +367,13 @@ module representations
      module subroutine label_style_end(d)
        class(label_geom_style), intent(inout) :: d
      end subroutine label_style_end
+     module subroutine coordpoly_style_reset(d,r)
+       class(coordpoly_geom_style), intent(inout) :: d
+       type(representation), intent(in) :: r
+     end subroutine coordpoly_style_reset
+     module subroutine coordpoly_style_end(d)
+       class(coordpoly_geom_style), intent(inout) :: d
+     end subroutine coordpoly_style_end
   end interface
 
 end module representations

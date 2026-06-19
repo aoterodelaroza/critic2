@@ -131,12 +131,11 @@ contains
     use global, only: bondfactor_def, bonddelta_def
     use gui_main, only: ColorAtomBorder_def, ColorBond_def, ColorBondBorder_def,&
        ColorLabel_def, ColorRotaxis_def, ColorAxes_def
-    use param, only: atmcov0, ismetal
+    use param, only: atmcov0
     class(representation), intent(inout) :: r
     integer, intent(in) :: itype
 
-    integer :: isys, i
-    logical :: ism
+    integer :: isys
 
     ! check the system is sane
     isys = r%id
@@ -275,14 +274,6 @@ contains
 
     ! coordination polyhedra
     if (itype == 0 .or. itype == 8) then
-       if (allocated(r%poly_iscenter)) deallocate(r%poly_iscenter)
-       if (allocated(r%poly_isvertex)) deallocate(r%poly_isvertex)
-       allocate(r%poly_iscenter(sys(isys)%c%nspc),r%poly_isvertex(sys(isys)%c%nspc))
-       do i = 1, sys(isys)%c%nspc
-          ism = ismetal(sys(isys)%c%spc(i)%z)
-          r%poly_iscenter(i) = ism
-          r%poly_isvertex(i) = .not.ism
-       end do
        r%poly_alpha = 0.5d0
        r%poly_usecentercolor = .true.
        r%poly_rgb = 0._c_float
@@ -316,9 +307,7 @@ contains
     call r%bond_style%end()
     call r%label_style%end()
     call r%mol_style%end()
-
-    if (allocated(r%poly_iscenter)) deallocate(r%poly_iscenter)
-    if (allocated(r%poly_isvertex)) deallocate(r%poly_isvertex)
+    call r%coordpoly_style%end()
 
   end subroutine representation_end
 
@@ -355,10 +344,15 @@ contains
     doreset = doreset .or. (sysc(r%id)%timelastchange_rebond > r%mol_style%timelastreset)
     if (doreset) call r%mol_style%reset(r)
 
-    ! labels
+    ! labels: if the geometry changed
     doreset = .not.r%label_style%isinit
     doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%label_style%timelastreset)
     if (doreset) call r%label_style%reset(r)
+
+    ! coordination polyhedra: if the geometry changed
+    doreset = .not.r%coordpoly_style%isinit
+    doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%coordpoly_style%timelastreset)
+    if (doreset) call r%coordpoly_style%reset(r)
 
   end subroutine update_styles
 
@@ -372,7 +366,7 @@ contains
     use tools_io, only: string, nameguess
     use tools_math, only: cross, plane_from_points
     use tools, only: mergesort
-    use param, only: tpi, img, atmass
+    use param, only: tpi, img, atmass, icrd_crys
     class(representation), intent(inout) :: r
     integer, intent(in) :: nc(3)
     type(scene_objects), intent(inout) :: obj
@@ -400,10 +394,10 @@ contains
     logical :: fixed
     character(len=:), allocatable :: errmsg
     ! coordination polyhedra
-    type(neighstar), allocatable :: nstarpoly(:)
-    real*8, allocatable :: xvpoly(:,:)
+    real*8, allocatable :: xvpoly(:,:), up2dsp(:,:)
+    integer, allocatable :: eidp(:), lvecp(:,:)
     real(c_float) :: rgbface(3), rgbedge(3)
-    integer :: nv
+    integer :: natp
 
     interface
        subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,ctx,ier) bind(c)
@@ -1114,6 +1108,7 @@ contains
        end if
     elseif (r%type == reptype_coordpolyhedra) then
        !!! coordination polyhedra representation !!!
+       if (.not.r%coordpoly_style%isinit) return
 
        ! number of cells
        n = 1
@@ -1130,59 +1125,62 @@ contains
           uoriginc = sys(r%id)%c%x2c(r%origin)
        end if
 
-       ! compute the coordination (neighbor star) with this representation's
-       ! distance criteria
-       call sys(r%id)%c%find_asterisms(nstarpoly,atmrad=r%bond_atmrad,&
-          bondfac=r%bond_bfactor,bonddelta=r%bond_bdelta)
+       allocate(up2dsp(sys(r%id)%c%nspc,2))
+       do i = 1, sys(r%id)%c%ncel
+          ! center type and whether polyhedra are drawn for it
+          id = sysc(r%id)%attype_celatom_to_id(r%coordpoly_style%type,i)
+          if (.not.r%coordpoly_style%shown(id)) cycle
+          if (r%coordpoly_style%dmax(id) <= 0d0) cycle
+          if (.not.any(r%coordpoly_style%corner(:,id))) cycle
 
-       if (allocated(nstarpoly) .and. allocated(r%poly_iscenter) .and.&
-          allocated(r%poly_isvertex)) then
-          do i = 1, sys(r%id)%c%ncel
-             ! must be a center species
-             if (.not.r%poly_iscenter(sys(r%id)%c%atcel(i)%is)) cycle
-             if (nstarpoly(i)%ncon < 3) cycle
-
-             ! face and edge colors from the central atom
-             id = sysc(r%id)%attype_celatom_to_id(r%atom_style%type,i)
-             if (r%poly_usecentercolor) then
-                rgbface = r%atom_style%rgb(:,id)
+          ! per-species [min,max] distance window for the corner search
+          ! (non-corner species get [0,0], which excludes them)
+          do j = 1, sys(r%id)%c%nspc
+             if (r%coordpoly_style%corner(j,id)) then
+                up2dsp(j,1) = r%coordpoly_style%dmin(id)
+                up2dsp(j,2) = r%coordpoly_style%dmax(id)
              else
-                rgbface = r%poly_rgb
+                up2dsp(j,:) = 0d0
              end if
-             if (r%poly_usecentercolor_edge) then
-                rgbedge = r%atom_style%rgb(:,id)
-             else
-                rgbedge = r%poly_edge_rgb
-             end if
+          end do
 
-             ! vertex buffer: its size depends only on the center atom i
-             if (allocated(xvpoly)) deallocate(xvpoly)
-             allocate(xvpoly(3,nstarpoly(i)%ncon))
+          ! corner atoms around this center (one search; cell replicas below
+          ! are just translations of the same set)
+          call sys(r%id)%c%list_near_atoms(sys(r%id)%c%atcel(i)%x,icrd_crys,.true.,&
+             natp,eid=eidp,lvec=lvecp,up2dsp=up2dsp,nozero=.true.)
+          if (natp < 3) cycle
 
-             ! draw one polyhedron per drawn cell replica
-             do i1 = 0, n(1)-1
-                do i2 = 0, n(2)-1
-                   do i3 = 0, n(3)-1
-                      ix = (/i1,i2,i3/)
+          ! face and edge colors from the central atom
+          idaux = sysc(r%id)%attype_celatom_to_id(r%atom_style%type,i)
+          if (r%poly_usecentercolor) then
+             rgbface = r%atom_style%rgb(:,idaux)
+          else
+             rgbface = r%poly_rgb
+          end if
+          if (r%poly_usecentercolor_edge) then
+             rgbedge = r%atom_style%rgb(:,idaux)
+          else
+             rgbedge = r%poly_edge_rgb
+          end if
 
-                      ! gather the vertex (anion) neighbors
-                      nv = 0
-                      do ineigh = 1, nstarpoly(i)%ncon
-                         idaux = nstarpoly(i)%idcon(ineigh)
-                         if (.not.r%poly_isvertex(sys(r%id)%c%atcel(idaux)%is)) cycle
-                         xx = sys(r%id)%c%atcel(idaux)%x + nstarpoly(i)%lcon(:,ineigh) + ix
-                         nv = nv + 1
-                         xvpoly(:,nv) = sys(r%id)%c%x2c(xx) + uoriginc
-                      end do
-                      if (nv < 3) cycle
-
-                      call build_polyhedron(xvpoly(:,1:nv),nv,rgbface,rgbedge,&
-                         r%poly_alpha,r%poly_edge_rad,r%poly_coplanar_eps)
+          ! one polyhedron per drawn cell replica
+          if (allocated(xvpoly)) deallocate(xvpoly)
+          allocate(xvpoly(3,natp))
+          do i1 = 0, n(1)-1
+             do i2 = 0, n(2)-1
+                do i3 = 0, n(3)-1
+                   ix = (/i1,i2,i3/)
+                   do k = 1, natp
+                      xvpoly(:,k) = sys(r%id)%c%x2c(sys(r%id)%c%atcel(eidp(k))%x + &
+                         lvecp(:,k) + ix) + uoriginc
                    end do
+                   call build_polyhedron(xvpoly(:,1:natp),natp,rgbface,rgbedge,&
+                      r%poly_alpha,r%poly_edge_rad,r%poly_coplanar_eps)
                 end do
              end do
           end do
-       end if
+       end do
+       deallocate(up2dsp)
     end if ! reptype
   contains
     subroutine increase_ncone()
@@ -1480,6 +1478,8 @@ contains
        call r%label_style%reset(r)
     if (itype == 0 .or. itype == 4) &
        call r%mol_style%reset(r)
+    if (itype == 0 .or. itype == 8) &
+       call r%coordpoly_style%reset(r)
 
   end subroutine reset_all_styles
 
@@ -1818,5 +1818,77 @@ contains
     if (allocated(d%str)) deallocate(d%str)
 
   end subroutine label_style_end
+
+  !> Reset the coordination-polyhedra style to defaults from the system pointed
+  !> at by representation r. Centers are enumerated by d%type; by default metals
+  !> are shown centers, non-metals are corners, and the distance window is
+  !> [0, (r_cov(center)+r_cov(corner))*bondfactor] sized from covalent radii.
+  module subroutine coordpoly_style_reset(d,r)
+    use interfaces_glfw, only: glfwGetTime
+    use systems, only: sys, sysc, sys_ready, ok_system, atlisttype_species
+    use param, only: atmcov0, ismetal, maxzat
+    use global, only: bondfactor_def
+    class(coordpoly_geom_style), intent(inout) :: d
+    type(representation), intent(in) :: r
+
+    integer :: i, j, ispc, iz, jz, nspc
+    real*8 :: dd
+
+    ! if not initialized, set type
+    if (.not.d%isinit) d%type = atlisttype_species
+
+    ! reset the style to zero
+    d%ntype = 0
+    d%isinit = .false.
+    if (allocated(d%shown)) deallocate(d%shown)
+    if (allocated(d%corner)) deallocate(d%corner)
+    if (allocated(d%dmin)) deallocate(d%dmin)
+    if (allocated(d%dmax)) deallocate(d%dmax)
+
+    ! reset the time
+    d%timelastreset = glfwGetTime()
+
+    ! check the system is sane
+    if (.not.ok_system(r%id,sys_ready)) return
+
+    ! fill data: centers are metals, corners are non-metals, and the distance
+    ! window is sized from covalent radii
+    nspc = sys(r%id)%c%nspc
+    d%ntype = sysc(r%id)%attype_number(d%type)
+    allocate(d%shown(d%ntype),d%corner(nspc,d%ntype),d%dmin(d%ntype),d%dmax(d%ntype))
+    d%dmin = 0d0
+    d%dmax = 0d0
+    do i = 1, d%ntype
+       ispc = sysc(r%id)%attype_species(d%type,i)
+       iz = sys(r%id)%c%spc(ispc)%z
+       ! metals are centers by default; skip bare/critical-point species
+       d%shown(i) = ismetal(iz) .and. iz > 0 .and. iz <= maxzat
+       do j = 1, nspc
+          jz = sys(r%id)%c%spc(j)%z
+          ! non-metals are corners by default; skip bare/critical-point species
+          d%corner(j,i) = (.not.ismetal(jz)) .and. jz > 0 .and. jz <= maxzat
+          if (d%corner(j,i)) then
+             dd = (atmcov0(iz) + atmcov0(jz)) * bondfactor_def
+             d%dmax(i) = max(d%dmax(i),dd)
+          end if
+       end do
+    end do
+    d%isinit = .true.
+
+  end subroutine coordpoly_style_reset
+
+  !> Deallocate all arrays and end the coordination-polyhedra style.
+  module subroutine coordpoly_style_end(d)
+    class(coordpoly_geom_style), intent(inout) :: d
+
+    d%isinit = .false.
+    d%timelastreset = 0d0
+    d%ntype = 0
+    if (allocated(d%shown)) deallocate(d%shown)
+    if (allocated(d%corner)) deallocate(d%corner)
+    if (allocated(d%dmin)) deallocate(d%dmin)
+    if (allocated(d%dmax)) deallocate(d%dmax)
+
+  end subroutine coordpoly_style_end
 
 end submodule proc
