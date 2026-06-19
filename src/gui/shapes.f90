@@ -102,8 +102,8 @@ module shapes
      real(c_float) :: x2(3) ! other end of the cylinder
      real(c_float) :: r ! radius
      real(c_float) :: rgb(3) ! color
-     complex(c_float_complex) :: x1delta(3) ! delta-vector for vibration animations (end 1)
-     complex(c_float_complex) :: x2delta(3) ! delta-vector for vibration animations (end 2)
+     complex(c_float_complex) :: x1delta(3) = (0._c_float,0._c_float) ! delta-vector for vibration animations (end 1)
+     complex(c_float_complex) :: x2delta(3) = (0._c_float,0._c_float) ! delta-vector for vibration animations (end 2)
      integer(c_int) :: order ! order of the bond (-1=aromatic/1.5,0=dashed,1=single,2=double,3=triple); < -1 = flat cylinder
      real(c_float) :: border ! border size
      real(c_float) :: rgbborder(3) ! border color
@@ -141,6 +141,9 @@ module shapes
      real(c_float) :: x3(3) ! third vertex
      real(c_float) :: rgb(3) ! color
      real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
+     complex(c_float_complex) :: x1delta(3) = (0._c_float,0._c_float) ! delta-vector for vibration animations (vertex 1)
+     complex(c_float_complex) :: x2delta(3) = (0._c_float,0._c_float) ! delta-vector for vibration animations (vertex 2)
+     complex(c_float_complex) :: x3delta(3) = (0._c_float,0._c_float) ! delta-vector for vibration animations (vertex 3)
   end type dl_triangle
   public :: dl_triangle
 

@@ -382,7 +382,7 @@ contains
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3), iord
     real(c_float) :: rgb(3)
     real*8 :: rad1, rad2, dd, f1, f2, axsc
-    real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), phase, mass
+    real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), xpolyc(3)
     real*8 :: ucini(3), ucend(3), e1v(3), e2v(3)
     real(c_float) :: rgbax(3)
     complex*16 :: xdelta0(3), xdelta1(3), xdelta2(3)
@@ -396,6 +396,7 @@ contains
     character(len=:), allocatable :: errmsg
     ! coordination polyhedra
     real*8, allocatable :: xvpoly(:,:), up2dsp(:,:)
+    complex*16, allocatable :: dvpoly(:,:)
     integer, allocatable :: eidp(:), lvecp(:,:)
     real(c_float) :: rgbface(3), rgbedge(3)
     integer :: natp, idpoly, kp
@@ -628,11 +629,15 @@ contains
                    natp,eid=eidp,lvec=lvecp,up2dsp=up2dsp,nozero=.true.)
                 dopoly = (natp >= 3)
                 if (dopoly) then
-                   ! grow-only corner buffer (reused across center atoms)
+                   ! grow-only corner buffers (reused across center atoms)
                    if (allocated(xvpoly)) then
                       if (size(xvpoly,2) < natp) deallocate(xvpoly)
                    end if
                    if (.not.allocated(xvpoly)) allocate(xvpoly(3,natp))
+                   if (allocated(dvpoly)) then
+                      if (size(dvpoly,2) < natp) deallocate(dvpoly)
+                   end if
+                   if (.not.allocated(dvpoly)) allocate(dvpoly(3,natp))
                    if (r%poly_usecentercolor) then
                       rgbface = rgb
                    else
@@ -674,10 +679,11 @@ contains
                    ! (corners are the search result translated to this image)
                    if (dopoly) then
                       do kp = 1, natp
-                         xvpoly(:,kp) = sys(r%id)%c%x2c(sys(r%id)%c%atcel(eidp(kp))%x + &
-                            lvecp(:,kp) + ix) + uoriginc
+                         xpolyc = sys(r%id)%c%atcel(eidp(kp))%x + lvecp(:,kp) + ix
+                         xvpoly(:,kp) = sys(r%id)%c%x2c(xpolyc) + uoriginc
+                         dvpoly(:,kp) = vibdelta(eidp(kp),xpolyc) ! per-corner vibration delta
                       end do
-                      call build_polyhedron(xvpoly(:,1:natp),natp,rgbface,rgbedge,&
+                      call build_polyhedron(xvpoly(:,1:natp),dvpoly(:,1:natp),natp,rgbface,rgbedge,&
                          r%poly_alpha,r%poly_edge_rad,r%poly_coplanar_eps)
 
                       ! collect this polyhedron's corner atom images to force
@@ -692,13 +698,8 @@ contains
                       end if
                    end if
 
-                   ! calculate the animation delta
-                   xdelta1 = 0d0
-                   if (doanim_) then
-                      mass = atmass(sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z)
-                      phase = tpi * dot_product(xx,sys(r%id)%c%vib%qpt(:,iqpt))
-                      xdelta1 = sys(r%id)%c%vib%vec(:,i,ifreq,iqpt) * exp(img * phase) / sqrt(mass)
-                   end if
+                   ! animation delta of this (center) atom
+                   xdelta1 = vibdelta(i,xx)
 
                    ! draw the atom, reallocate if necessary
                    if (r%atoms_display) then
@@ -794,14 +795,8 @@ contains
                             call move_alloc(auxcyl,obj%cyl)
                          end if
 
-                         ! calculate the animation delta of the other end
-                         xdelta2 = 0d0
-                         if (doanim_) then
-                            mass = atmass(sys(r%id)%c%spc(sys(r%id)%c%atcel(ineigh)%is)%z)
-                            xx = sys(r%id)%c%atcel(ineigh)%x + ixn
-                            phase = tpi * dot_product(xx,sys(r%id)%c%vib%qpt(:,iqpt))
-                            xdelta2 = sys(r%id)%c%vib%vec(:,ineigh,ifreq,iqpt) * exp(img * phase) / sqrt(mass)
-                         end if
+                         ! animation delta of the other end
+                         xdelta2 = vibdelta(ineigh,sys(r%id)%c%atcel(ineigh)%x + ixn)
 
                          x1 = xc + uoriginc
                          x2 = sys(r%id)%c%atcel(ineigh)%x + ixn
@@ -911,7 +906,11 @@ contains
              imolc = sys(r%id)%c%idatcelmol(1,cornlist(1,ica))
              rgb = r%atom_style%rgb(:,idc) * r%mol_style%tint_rgb(:,imolc)
              rad1 = r%atom_style%rad(idc) * r%mol_style%scale_rad(imolc)
-             xc = sys(r%id)%c%x2c(sys(r%id)%c%atcel(cornlist(1,ica))%x + ix)
+             xx = sys(r%id)%c%atcel(cornlist(1,ica))%x + ix
+             xc = sys(r%id)%c%x2c(xx)
+
+             ! animation delta of the corner atom (so it moves with the polyhedron)
+             xdelta1 = vibdelta(cornlist(1,ica),xx)
 
              obj%nsph = obj%nsph + 1
              if (obj%nsph > size(obj%sph,1)) then
@@ -924,7 +923,7 @@ contains
              obj%sph(obj%nsph)%rgb = rgb
              obj%sph(obj%nsph)%idx(1) = cornlist(1,ica)
              obj%sph(obj%nsph)%idx(2:4) = ix
-             obj%sph(obj%nsph)%xdelta = cmplx(0d0,0d0,kind=c_float_complex)
+             obj%sph(obj%nsph)%xdelta = cmplx(xdelta1,kind=c_float_complex)
              obj%sph(obj%nsph)%border = real(r%atom_border_size,c_float)
              obj%sph(obj%nsph)%rgbborder = r%atom_border_rgb
           end do
@@ -1270,10 +1269,11 @@ contains
     !> alphaf) and opaque edge cylinders (color rgbe, radius rade) to the draw
     !> lists. If the vertices are coplanar to within eps, a filled polygon is
     !> drawn instead of a 3D convex hull.
-    subroutine build_polyhedron(xv,nvv,rgbf,rgbe,alphaf,rade,eps)
-      use iso_c_binding, only: c_ptr, c_int
+    subroutine build_polyhedron(xv,dv,nvv,rgbf,rgbe,alphaf,rade,eps)
+      use iso_c_binding, only: c_ptr, c_int, c_float_complex
       integer, intent(in) :: nvv
       real*8, intent(in) :: xv(3,nvv)
+      complex*16, intent(in) :: dv(3,nvv) ! per-vertex vibration deltas
       real(c_float), intent(in) :: rgbf(3), rgbe(3)
       real*8, intent(in) :: alphaf, rade, eps
 
@@ -1284,6 +1284,7 @@ contains
       real*8, allocatable :: edgenrm(:,:), ang(:)
       logical, allocatable :: edgekeep(:)
       real*8 :: cen0(3), nrm(3), dev, e1u(3), e2u(3), cc, nrm_a(3)
+      complex*16 :: dcen(3)
       type(c_ptr) :: ctx
       integer(c_int) :: ier
       integer :: nf
@@ -1308,14 +1309,24 @@ contains
          end do
          call mergesort(ang,iord_,1,nvv)
 
+         ! the fan apex sits at the centroid; animate it by the mean vertex delta
+         dcen = 0d0
+         do k = 1, nvv
+            dcen = dcen + dv(:,k)
+         end do
+         dcen = dcen / nvv
+
          do k = 1, nvv
             kk = mod(k,nvv) + 1
-            call append_triangle(cen0,xv(:,iord_(k)),xv(:,iord_(kk)),rgbf,alphaf)
+            call append_triangle(cen0,xv(:,iord_(k)),xv(:,iord_(kk)),&
+               dcen,dv(:,iord_(k)),dv(:,iord_(kk)),rgbf,alphaf)
             call increase_ncylflat()
             obj%cylflat(obj%ncylflat)%x1 = real(xv(:,iord_(k)),c_float)
             obj%cylflat(obj%ncylflat)%x2 = real(xv(:,iord_(kk)),c_float)
             obj%cylflat(obj%ncylflat)%r = real(rade,c_float)
             obj%cylflat(obj%ncylflat)%rgb = rgbe
+            obj%cylflat(obj%ncylflat)%x1delta = cmplx(dv(:,iord_(k)),kind=c_float_complex)
+            obj%cylflat(obj%ncylflat)%x2delta = cmplx(dv(:,iord_(kk)),kind=c_float_complex)
          end do
          return
       end if
@@ -1329,7 +1340,8 @@ contains
 
       ! faces
       do a = 1, ntri
-         call append_triangle(xv(:,itri(1,a)),xv(:,itri(2,a)),xv(:,itri(3,a)),rgbf,alphaf)
+         call append_triangle(xv(:,itri(1,a)),xv(:,itri(2,a)),xv(:,itri(3,a)),&
+            dv(:,itri(1,a)),dv(:,itri(2,a)),dv(:,itri(3,a)),rgbf,alphaf)
       end do
 
       ! edges: collect unique triangle edges and the adjacent-face normals;
@@ -1373,13 +1385,18 @@ contains
          obj%cylflat(obj%ncylflat)%x2 = real(xv(:,edgei(2,e)),c_float)
          obj%cylflat(obj%ncylflat)%r = real(rade,c_float)
          obj%cylflat(obj%ncylflat)%rgb = rgbe
+         obj%cylflat(obj%ncylflat)%x1delta = cmplx(dv(:,edgei(1,e)),kind=c_float_complex)
+         obj%cylflat(obj%ncylflat)%x2delta = cmplx(dv(:,edgei(2,e)),kind=c_float_complex)
       end do
 
     end subroutine build_polyhedron
 
-    !> Append a translucent triangular face (vertices p1,p2,p3, cartesian bohr).
-    subroutine append_triangle(p1,p2,p3,rgb_,alpha_)
+    !> Append a translucent triangular face (vertices p1,p2,p3, cartesian bohr)
+    !> with per-vertex vibration deltas d1,d2,d3.
+    subroutine append_triangle(p1,p2,p3,d1,d2,d3,rgb_,alpha_)
+      use iso_c_binding, only: c_float_complex
       real*8, intent(in) :: p1(3), p2(3), p3(3)
+      complex*16, intent(in) :: d1(3), d2(3), d3(3)
       real(c_float), intent(in) :: rgb_(3)
       real*8, intent(in) :: alpha_
       type(dl_triangle), allocatable :: auxtri(:)
@@ -1395,8 +1412,28 @@ contains
       obj%triangle(obj%ntriangle)%x3 = real(p3,c_float)
       obj%triangle(obj%ntriangle)%rgb = rgb_
       obj%triangle(obj%ntriangle)%alpha = real(alpha_,c_float)
+      obj%triangle(obj%ntriangle)%x1delta = cmplx(d1,kind=c_float_complex)
+      obj%triangle(obj%ntriangle)%x2delta = cmplx(d2,kind=c_float_complex)
+      obj%triangle(obj%ntriangle)%x3delta = cmplx(d3,kind=c_float_complex)
 
     end subroutine append_triangle
+
+    !> Vibration-animation displacement of cell atom iat whose (animated)
+    !> fractional position is xfrac; zero if the scene is not animating.
+    function vibdelta(iat,xfrac) result(dv)
+      integer, intent(in) :: iat
+      real*8, intent(in) :: xfrac(3)
+      complex*16 :: dv(3)
+
+      real*8 :: vmass, vph
+
+      dv = 0d0
+      if (.not.doanim_) return
+      vmass = atmass(sys(r%id)%c%spc(sys(r%id)%c%atcel(iat)%is)%z)
+      vph = tpi * dot_product(xfrac,sys(r%id)%c%vib%qpt(:,iqpt))
+      dv = sys(r%id)%c%vib%vec(:,iat,ifreq,iqpt) * exp(img * vph) / sqrt(vmass)
+
+    end function vibdelta
 
     !> Append a string record to an allocatable string list,
     !> reallocating if necessary.

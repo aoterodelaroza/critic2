@@ -953,9 +953,16 @@ contains
 
     subroutine draw_all_flat_cylinders()
       integer :: i
+      real(c_float) :: x1(3), x2(3)
 
       do i = 1, s%obj%ncylflat
-         call draw_cylinder(s%obj%cylflat(i)%x1,s%obj%cylflat(i)%x2,&
+         x1 = s%obj%cylflat(i)%x1
+         x2 = s%obj%cylflat(i)%x2
+         if (s%animation > 0) then
+            x1 = x1 + real(displ * s%obj%cylflat(i)%x1delta,c_float)
+            x2 = x2 + real(displ * s%obj%cylflat(i)%x2delta,c_float)
+         end if
+         call draw_cylinder(x1,x2,&
             s%obj%cylflat(i)%r,s%obj%cylflat(i)%rgb,s%uc_res,-2,0._c_float)
       end do
 
@@ -998,18 +1005,25 @@ contains
       use tools_math, only: cross_cfloat
       integer :: i
       real(c_float) :: m(4,4), rgb_(4)
-      real(c_float) :: nrm(3)
+      real(c_float) :: nrm(3), p1(3), p2(3), p3(3)
 
       do i = 1, s%obj%ntriangle
-         nrm = cross_cfloat(s%obj%triangle(i)%x2 - s%obj%triangle(i)%x1,&
-            s%obj%triangle(i)%x3 - s%obj%triangle(i)%x1)
+         p1 = s%obj%triangle(i)%x1
+         p2 = s%obj%triangle(i)%x2
+         p3 = s%obj%triangle(i)%x3
+         if (s%animation > 0) then
+            p1 = p1 + real(displ * s%obj%triangle(i)%x1delta,c_float)
+            p2 = p2 + real(displ * s%obj%triangle(i)%x2delta,c_float)
+            p3 = p3 + real(displ * s%obj%triangle(i)%x3delta,c_float)
+         end if
+         nrm = cross_cfloat(p2 - p1,p3 - p1)
          if (norm2(nrm) > 1e-10_c_float) nrm = nrm / norm2(nrm)
          m = 0._c_float
          m(4,4) = 1._c_float
-         m(1:3,1) = s%obj%triangle(i)%x2 - s%obj%triangle(i)%x1
-         m(1:3,2) = s%obj%triangle(i)%x3 - s%obj%triangle(i)%x1
+         m(1:3,1) = p2 - p1
+         m(1:3,2) = p3 - p1
          m(1:3,3) = nrm
-         m(1:3,4) = s%obj%triangle(i)%x1
+         m(1:3,4) = p1
          call setuniform_mat4(m,idxi=iunif(iu_model))
          rgb_(1:3) = s%obj%triangle(i)%rgb
          rgb_(4) = s%obj%triangle(i)%alpha
