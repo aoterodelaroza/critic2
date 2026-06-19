@@ -128,7 +128,8 @@ contains
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
     use gui_main, only: ColorAtomBorder_def, ColorBond_def, ColorBondBorder_def,&
-       ColorLabel_def, ColorRotaxis_def, ColorAxes_def, ColorVdwContacts_def
+       ColorLabel_def, ColorRotaxis_def, ColorAxes_def, ColorVdwContacts_def,&
+       ColorHbonds_def
     use param, only: atmcov0, atmvdw0
     class(representation), intent(inout) :: r
     integer, intent(in) :: itype
@@ -214,6 +215,18 @@ contains
           r%bond_rad = bondrad_vdwcontacts_def
           r%bond_border_size = 0d0
           r%bond_rgb = ColorVdwContacts_def
+       elseif (r%flavor == repflavor_atoms_hbonds) then
+          ! hydrogen bonds: dashed, intermolecular-only contacts to H, using
+          ! the sum of the van der Waals radii as the distance cutoff (the
+          ! H<->acceptor species filtering is done in bond_style_reset)
+          r%bond_atmrad = atmvdw0
+          r%bond_bfactor = bondfactor_vdwcontacts_def
+          r%bond_order = 0 ! dashed
+          r%bond_imol = 2 ! intermolecular only
+          r%bond_bothends = .false.
+          r%bond_rad = bondrad_vdwcontacts_def
+          r%bond_border_size = 0d0
+          r%bond_rgb = ColorHbonds_def
        end if
     end if
 
