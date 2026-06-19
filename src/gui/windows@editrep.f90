@@ -169,7 +169,6 @@ contains
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     integer, allocatable :: indi(:), indj(:)
-    character(len=:), allocatable :: rowname
     type(ImVec2) :: sz
 
     integer(c_int), parameter :: lsttrans(0:7) = (/0,1,2,2,2,3,4,5/)
@@ -915,11 +914,12 @@ contains
              end if
 
              ! center type selector
-             call iw_text("Centers",highlight=.true.)
+             call igAlignTextToFramePadding()
+             call iw_text("Centers and Corners",highlight=.true.)
              itype_combo = 0
              if (w%rep%coordpoly_style%type == atlisttype_nneq) itype_combo = 1
              if (w%rep%coordpoly_style%type == atlisttype_ncel_frac) itype_combo = 2
-             call iw_combo_simple("Group centers by##polycentertype","Species" // c_null_char //&
+             call iw_combo_simple("Centers##polycentertype","Species" // c_null_char //&
                 "Non-equivalent atoms" // c_null_char // "Cell atoms" // c_null_char,itype_combo)
              call iw_tooltip("How to group the atoms that act as polyhedra centers",ttshown)
              newtype = atlisttype_species
@@ -931,31 +931,33 @@ contains
                 changed = .true.
              end if
 
-             ! per-center table: shown, distance window, and the corner species
-             call iw_text("For each center: whether it is drawn, the min/max center-corner "//&
-                "distance (Å), and which species are corners.")
+             ! per-center table: each row is a center atom; the species columns
+             ! on the right select which species are its corners
+             call iw_text("Rows: center atoms. Columns: corner species.")
              flags = ImGuiTableFlags_None
              flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
              flags = ior(flags,ImGuiTableFlags_ScrollY)
              flags = ior(flags,ImGuiTableFlags_ScrollX)
              flags = ior(flags,ImGuiTableFlags_Borders)
              flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-             ncol = 4 + sys(isys)%c%nspc
+             ncol = 5 + sys(isys)%c%nspc
              str1 = "##tablepolycenters_editrep" // c_null_char
              sz%x = 0
              sz%y = iw_calcheight(min(8,w%rep%coordpoly_style%ntype)+1,0,.false.)
              if (igBeginTable(c_loc(str1),ncol,flags,sz,0._c_float)) then
-                str2 = "Center" // c_null_char
+                str2 = "Id" // c_null_char
                 call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,0)
-                str2 = "Show" // c_null_char
+                str2 = "Atom" // c_null_char
                 call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,1)
-                str2 = "Min (Å)" // c_null_char
+                str2 = "Show" // c_null_char
                 call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,2)
-                str2 = "Max (Å)" // c_null_char
+                str2 = "Min (Å)" // c_null_char
                 call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,3)
+                str2 = "Max (Å)" // c_null_char
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,4)
                 do j = 1, sys(isys)%c%nspc
                    str2 = trim(sys(isys)%c%spc(j)%name) // c_null_char
-                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,3+j)
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,4+j)
                 end do
                 call igTableSetupScrollFreeze(1,1)
                 call igTableHeadersRow()
@@ -967,22 +969,22 @@ contains
                    call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
                    if (igTableSetColumnIndex(0)) then
                       call igAlignTextToFramePadding()
-                      rowname = trim(sys(isys)%c%spc(ispc)%name)
-                      if (w%rep%coordpoly_style%type /= atlisttype_species) rowname = rowname // "/" // string(i)
-                      call iw_text(rowname)
+                      call iw_text(string(i))
                    end if
                    if (igTableSetColumnIndex(1)) &
-                      changed = changed .or. iw_checkbox("##polyshown" // string(i),w%rep%coordpoly_style%shown(i))
+                      call iw_text(sysc(isys)%attype_name(w%rep%coordpoly_style%type,i))
                    if (igTableSetColumnIndex(2)) &
+                      changed = changed .or. iw_checkbox("##polyshown" // string(i),w%rep%coordpoly_style%shown(i))
+                   if (igTableSetColumnIndex(3)) &
                       changed = changed .or. iw_dragfloat_real8("##polydmin" // string(i),&
                          x1=w%rep%coordpoly_style%dmin(i),speed=0.01d0,min=0d0,max=20d0,scale=bohrtoa,&
                          decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-                   if (igTableSetColumnIndex(3)) &
+                   if (igTableSetColumnIndex(4)) &
                       changed = changed .or. iw_dragfloat_real8("##polydmax" // string(i),&
                          x1=w%rep%coordpoly_style%dmax(i),speed=0.01d0,min=0d0,max=20d0,scale=bohrtoa,&
                          decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
                    do j = 1, sys(isys)%c%nspc
-                      if (igTableSetColumnIndex(3+j)) &
+                      if (igTableSetColumnIndex(4+j)) &
                          changed = changed .or. iw_checkbox("##polycorner" // string(i) // "_" // string(j),&
                             w%rep%coordpoly_style%corner(j,i))
                    end do
@@ -1485,7 +1487,7 @@ contains
 
              ! name
              icol = icol + 1
-             if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%spc(ispc)%name))
+             if (igTableSetColumnIndex(icol)) call iw_text(sysc(isys)%attype_name(r%atom_style%type,i))
 
              ! Z
              icol = icol + 1
