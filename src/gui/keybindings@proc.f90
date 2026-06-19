@@ -215,6 +215,7 @@ contains
     call set_bind(BIND_VIEW_TOGGLE_BONDS,ImGuiKey_W,mod_none)
     call set_bind(BIND_VIEW_CYCLE_LABELS,ImGuiKey_E,mod_none)
     call set_bind(BIND_VIEW_TOGGLE_CELL,ImGuiKey_R,mod_none)
+    call set_bind(BIND_VIEW_TOGGLE_POLYHEDRA,ImGuiKey_T,mod_none)
     call set_bind(BIND_NAV_ROTATE,ImGuiKey_MouseLeft,mod_none)
     call set_bind(BIND_NAV_ROTATE_PERP,ImGuiKey_MouseMiddle,mod_none)
     call set_bind(BIND_NAV_TRANSLATE,ImGuiKey_MouseRight,mod_none)

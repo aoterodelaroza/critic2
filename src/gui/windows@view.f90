@@ -59,7 +59,7 @@ contains
        BIND_VIEW_ALIGN_A_AXIS, BIND_VIEW_ALIGN_B_AXIS, BIND_VIEW_ALIGN_C_AXIS,&
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS,&
        BIND_VIEW_TOGGLE_ATOMS, BIND_VIEW_TOGGLE_BONDS, BIND_VIEW_CYCLE_LABELS,&
-       BIND_VIEW_TOGGLE_CELL,&
+       BIND_VIEW_TOGGLE_CELL, BIND_VIEW_TOGGLE_POLYHEDRA,&
        get_bind_keyname, BIND_EDITSELECT_REMOVE, BIND_EDITSELECT_DESELECT,&
        BIND_EDITSELECT_SELECT_ALL, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes,&
@@ -85,7 +85,7 @@ contains
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
-    logical :: isuc, islabelsl, needpick, enabled
+    logical :: isuc, islabelsl, needpick, enabled, ispoly
     integer :: islabels
     logical :: ch
     integer(c_int) :: flags, nc(3), ires, idum
@@ -95,7 +95,7 @@ contains
     logical :: interacting, selcleared
     real*8 :: x0(3), time
     type(ImVec2) :: sz
-    logical :: changedisplay(4) ! 1=atoms, 2=bonds, 3=labels, 4=cell
+    logical :: changedisplay(5) ! 1=atoms, 2=bonds, 3=labels, 4=cell, 5=polyhedra
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -153,12 +153,14 @@ contains
     islabels = -1
     islabelsl = .false.
     isuc = .false.
+    ispoly = .false.
     if (associated(w%sc)) then
        do i = 1, w%sc%nrep
           if (w%sc%rep(i)%isinit) then
              if (w%sc%rep(i)%type == reptype_atoms) then
                 isatom = isatom .or. w%sc%rep(i)%atoms_display
                 isbond = isbond .or. w%sc%rep(i)%bonds_display
+                ispoly = ispoly .or. w%sc%rep(i)%poly_display
                 if (w%sc%rep(i)%labels_display .and. w%sc%rep(i)%flavor/=repflavor_atoms_criticalpoints .and.&
                    w%sc%rep(i)%flavor/=repflavor_atoms_gradientpaths) &
                    islabels = w%sc%rep(i)%label_type
@@ -198,12 +200,17 @@ contains
           changedisplay(4) = .true.
           isuc = .not.isuc
        end if
+       if (is_bind_event(BIND_VIEW_TOGGLE_POLYHEDRA)) then
+          changedisplay(5) = .true.
+          ispoly = .not.ispoly
+       end if
        if (any(changedisplay)) then
           do i = 1, w%sc%nrep
              if (w%sc%rep(i)%isinit) then
                 if (w%sc%rep(i)%type == reptype_atoms) then
                    if (changedisplay(1)) w%sc%rep(i)%atoms_display = isatom
                    if (changedisplay(2)) w%sc%rep(i)%bonds_display = isbond
+                   if (changedisplay(5)) w%sc%rep(i)%poly_display = ispoly
                    if (changedisplay(3) .and. w%sc%rep(i)%flavor/=repflavor_atoms_criticalpoints .and.&
                       w%sc%rep(i)%flavor/=repflavor_atoms_gradientpaths) then
                       w%sc%rep(i)%labels_display = islabelsl
@@ -283,6 +290,19 @@ contains
              call iw_tooltip("Toggle display unit cell in all objects ("//&
                 trim(get_bind_keyname(BIND_VIEW_TOGGLE_CELL)) // ").",ttshown)
           end if
+
+          if (iw_checkbox("Polyhedra##polyshortcut",ispoly,sameline=.true.)) then
+             do i = 1, w%sc%nrep
+                if (w%sc%rep(i)%isinit) then
+                   if (w%sc%rep(i)%type == reptype_atoms) then
+                      w%sc%rep(i)%poly_display = ispoly
+                   end if
+                end if
+             end do
+             chbuild = .true.
+          end if
+          call iw_tooltip("Toggle display polyhedra in all objects ("//&
+             trim(get_bind_keyname(BIND_VIEW_TOGGLE_POLYHEDRA)) // ").",ttshown)
 
           ! periodicity (number of cells) selector
           if (.not.sys(w%view_selected)%c%ismolecule) then

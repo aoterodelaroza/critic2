@@ -91,7 +91,8 @@ module keybindings
   integer, parameter, public :: BIND_MOVEATOMS_ROTATE_PERP = 44 ! move atoms: rotate molecule perpendicular to screen
   integer, parameter, public :: BIND_UNDO = 45 ! undo the last geometry change
   integer, parameter, public :: BIND_REDO = 46 ! redo the last undone geometry change
-  integer, parameter, public :: BIND_NUM = 46 ! total number of binds
+  integer, parameter, public :: BIND_VIEW_TOGGLE_POLYHEDRA = 47 ! view: toggle polyhedra in the first rep
+  integer, parameter, public :: BIND_NUM = 47 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -140,7 +141,8 @@ module keybindings
      "Rotate molecule                 ",& ! BIND_MOVEATOMS_ROTATE
      "Rotate molecule (perpendicular) ",& ! BIND_MOVEATOMS_ROTATE_PERP
      "Undo geometry change            ",& ! BIND_UNDO
-     "Redo geometry change            "&  ! BIND_REDO
+     "Redo geometry change            ",& ! BIND_REDO
+     "Toggle display of polyhedra     "&  ! BIND_VIEW_TOGGLE_POLYHEDRA
      /)
 
   ! The key associated with each bind, bind -> key
@@ -227,7 +229,8 @@ module keybindings
      group_viewmode_moveatoms,&  ! BIND_MOVEATOMS_ROTATE
      group_viewmode_moveatoms,&  ! BIND_MOVEATOMS_ROTATE_PERP
      group_global,&              ! BIND_UNDO
-     group_global/)              ! BIND_REDO
+     group_global,&              ! BIND_REDO
+     group_view/)                ! BIND_VIEW_TOGGLE_POLYHEDRA
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -279,7 +282,8 @@ module keybindings
      BIND_VIEWMODE_MOVEATOMS,&  ! BIND_MOVEATOMS_ROTATE
      BIND_VIEWMODE_MOVEATOMS,&  ! BIND_MOVEATOMS_ROTATE_PERP
      0,&  ! BIND_UNDO
-     0/)  ! BIND_REDO
+     0,&  ! BIND_REDO
+     0/)  ! BIND_VIEW_TOGGLE_POLYHEDRA
 
   ! module procedure interfaces
   interface
