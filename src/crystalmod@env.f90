@@ -764,7 +764,7 @@ contains
     use tools_io, only: string, ferror, faterr
     use tools, only: qcksort
     use types, only: realloc
-    use param, only: icrd_crys, atmcov, bohrtoa, maxzat
+    use param, only: icrd_crys, atmcov, maxzat
     class(crystal), intent(inout) :: c
     type(neighstar), allocatable, intent(inout) :: nstar(:)
     real*8, intent(in), optional :: atmrad(0:maxzat0)
@@ -1986,48 +1986,28 @@ contains
     !> and contributing to the pi system (a double bond, or a lone-pair donor
     !> heteroatom: pyrrole-type N deg 3, or furan/thiophene O/S deg 2).
     function ring_is_aromatic(ratom,rlv,m) result(arom1)
-      use tools_math, only: cross
+      use tools_math, only: plane_from_points
       use param, only: bohrtoa
       integer, intent(in) :: m, ratom(m), rlv(3,m)
       logical :: arom1
 
       real*8, parameter :: dplane = 0.20d0 / bohrtoa ! max out-of-plane deviation (ang)
-      real*8 :: pos(3,m), cen(3), nor(3), e1(3), e2(3), nn, dev
-      integer :: k, kp, kn, j, a, z
+      real*8 :: pos(3,m), cen(3), nor(3), dev
+      integer :: k, j, a, z
       logical :: hasdbl
 
       arom1 = .false.
 
-      ! Cartesian positions of the ring atom images and their centroid
+      ! Cartesian positions of the ring atom images
       do k = 1, m
          pos(:,k) = c%x2c(c%atcel(ratom(k))%x + real(rlv(:,k),8))
       end do
-      cen = 0d0
-      do k = 1, m
-         cen = cen + pos(:,k)
-      end do
-      cen = cen / real(m,8)
 
-      ! mean-plane normal = sum of cross products of consecutive ring edges
-      nor = 0d0
-      do k = 1, m
-         kp = k - 1
-         if (kp < 1) kp = m
-         kn = k + 1
-         if (kn > m) kn = 1
-         e1 = pos(:,k) - pos(:,kp)
-         e2 = pos(:,kn) - pos(:,k)
-         nor = nor + cross(e1,e2)
-      end do
-      nn = norm2(nor)
-      if (nn < 1d-10) return
-      nor = nor / nn
-
-      ! planarity: every atom close to the mean plane
-      do k = 1, m
-         dev = abs(dot_product(pos(:,k)-cen,nor))
-         if (dev > dplane) return
-      end do
+      ! centroid, best-fit ring-plane normal, and planarity test: the maximum
+      ! out-of-plane deviation must be within dplane
+      call plane_from_points(pos,m,cen,nor,dev)
+      if (norm2(nor) < 1d-10) return ! degenerate (collinear/coincident)
+      if (dev > dplane) return       ! not planar
 
       ! conjugation: every ring atom must be sp2 / contribute to the pi system
       do k = 1, m

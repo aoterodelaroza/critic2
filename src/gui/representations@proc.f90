@@ -370,7 +370,7 @@ contains
     use crystalmod, only: iperiod_vacthr
     use gui_main, only: ColorAxes_def
     use tools_io, only: string, nameguess
-    use tools_math, only: cross
+    use tools_math, only: cross, plane_from_points
     use tools, only: mergesort
     use param, only: tpi, img, atmass
     class(representation), intent(inout) :: r
@@ -1245,38 +1245,14 @@ contains
       integer, allocatable :: itri(:,:), edgei(:,:), iord_(:)
       real*8, allocatable :: edgenrm(:,:), ang(:)
       logical, allocatable :: edgekeep(:)
-      real*8 :: cen0(3), nrm(3), v1(3), v2(3), dev, dmax, e1u(3), e2u(3), cc, nrm_a(3)
+      real*8 :: cen0(3), nrm(3), dev, e1u(3), e2u(3), cc, nrm_a(3)
       type(c_ptr) :: ctx
       integer(c_int) :: ier
       integer :: nf
 
-      ! centroid of the vertices (an interior reference point)
-      cen0 = 0d0
-      do k = 1, nvv
-         cen0 = cen0 + xv(:,k)
-      end do
-      cen0 = cen0 / nvv
-
-      ! estimate the plane normal: v1 spans from the centroid to a vertex, then
-      ! take the vertex giving the largest perpendicular component
-      v1 = xv(:,1) - cen0
-      if (norm2(v1) < 1d-10) v1 = xv(:,2) - cen0
-      dmax = -1d0
-      nrm = 0d0
-      do k = 1, nvv
-         v2 = cross(v1,xv(:,k)-cen0)
-         if (norm2(v2) > dmax) then
-            dmax = norm2(v2)
-            nrm = v2
-         end if
-      end do
-      if (norm2(nrm) > 1d-10) nrm = nrm / norm2(nrm)
-
-      ! maximum out-of-plane deviation
-      dev = 0d0
-      do k = 1, nvv
-         dev = max(dev,abs(dot_product(xv(:,k)-cen0,nrm)))
-      end do
+      ! centroid (an interior reference point), best-fit plane unit normal, and
+      ! the maximum out-of-plane deviation
+      call plane_from_points(xv,nvv,cen0,nrm,dev)
 
       if (dev < eps .and. norm2(nrm) > 1d-10) then
          ! planar polygon: order vertices by angle about the normal and

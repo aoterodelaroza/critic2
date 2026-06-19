@@ -1255,6 +1255,71 @@ contains
 
   end subroutine plane_scale_extend
 
+  !> Best-fit plane of a set of n points x(3,n). Returns the centroid (xcen),
+  !> the unit normal to the least-squares plane (xnor; the eigenvector of the
+  !> point covariance matrix with the smallest eigenvalue), and optionally the
+  !> maximum out-of-plane deviation (dev). The sign of xnor is arbitrary. If no
+  !> plane is defined (n < 3, or all points coincident) xnor is returned as
+  !> zero; for collinear points the normal is an arbitrary unit vector
+  !> perpendicular to the line.
+  module subroutine plane_from_points(x,n,xcen,xnor,dev)
+    integer, intent(in) :: n
+    real*8, intent(in) :: x(3,n)
+    real*8, intent(out) :: xcen(3)
+    real*8, intent(out) :: xnor(3)
+    real*8, intent(out), optional :: dev
+
+    integer :: k
+    real*8 :: cov(3,3), eval(3), d(3), dd
+
+    xcen = 0d0
+    xnor = 0d0
+    if (present(dev)) dev = 0d0
+    if (n < 1) return
+
+    ! centroid
+    do k = 1, n
+       xcen = xcen + x(:,k)
+    end do
+    xcen = xcen / real(n,8)
+    if (n < 3) return
+
+    ! covariance matrix of the centered points
+    cov = 0d0
+    do k = 1, n
+       d = x(:,k) - xcen
+       cov(1,1) = cov(1,1) + d(1)*d(1)
+       cov(2,2) = cov(2,2) + d(2)*d(2)
+       cov(3,3) = cov(3,3) + d(3)*d(3)
+       cov(1,2) = cov(1,2) + d(1)*d(2)
+       cov(1,3) = cov(1,3) + d(1)*d(3)
+       cov(2,3) = cov(2,3) + d(2)*d(3)
+    end do
+    cov(2,1) = cov(1,2)
+    cov(3,1) = cov(1,3)
+    cov(3,2) = cov(2,3)
+    if (sum(abs((/cov(1,1),cov(2,2),cov(3,3)/))) < 1d-20) return ! all points coincident
+
+    ! the normal is the eigenvector with the smallest eigenvalue (eigsym
+    ! returns ascending eigenvalues, eigenvectors in the columns)
+    call eigsym(cov,3,eval)
+    xnor = cov(:,1)
+    dd = norm2(xnor)
+    if (dd < 1d-10) then
+       xnor = 0d0
+       return
+    end if
+    xnor = xnor / dd
+
+    ! maximum out-of-plane deviation
+    if (present(dev)) then
+       do k = 1, n
+          dev = max(dev,abs(dot_product(x(:,k)-xcen,xnor)))
+       end do
+    end if
+
+  end subroutine plane_from_points
+
   !> This routine selects particular contour values (ziso(1:niso))
   !> based on the given selection scheme (niso_type). fmax and fmin
   !> are the maximum and minimum values of the field.

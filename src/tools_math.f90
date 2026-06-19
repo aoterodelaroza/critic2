@@ -58,6 +58,7 @@ module tools_math
   public :: matinv_cfloat
   public :: matinvsym
   public :: plane_scale_extend
+  public :: plane_from_points
   public :: assign_ziso
   public :: comb
   public :: nchoosek
@@ -317,6 +318,13 @@ module tools_math
        real*8, intent(inout) :: x0(3), x1(3), x2(3)
        real*8, intent(in), optional :: sxi, syi, zx0i, zx1i, zy0i, zy1i
      end subroutine plane_scale_extend
+     module subroutine plane_from_points(x,n,xcen,xnor,dev)
+       integer, intent(in) :: n
+       real*8, intent(in) :: x(3,n)
+       real*8, intent(out) :: xcen(3)
+       real*8, intent(out) :: xnor(3)
+       real*8, intent(out), optional :: dev
+     end subroutine plane_from_points
      module subroutine assign_ziso(niso_type,niso,ziso,fmin,fmax)
        integer, intent(in) :: niso_type
        integer, intent(inout) :: niso
