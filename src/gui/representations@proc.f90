@@ -128,8 +128,8 @@ contains
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
     use gui_main, only: ColorAtomBorder_def, ColorBond_def, ColorBondBorder_def,&
-       ColorLabel_def, ColorRotaxis_def, ColorAxes_def
-    use param, only: atmcov0
+       ColorLabel_def, ColorRotaxis_def, ColorAxes_def, ColorVdwContacts_def
+    use param, only: atmcov0, atmvdw0
     class(representation), intent(inout) :: r
     integer, intent(in) :: itype
 
@@ -203,6 +203,17 @@ contains
        elseif (r%flavor == repflavor_atoms_licorice) then
           r%bond_color_style = 1
           r%bond_rad = bondrad_licorice_def
+       elseif (r%flavor == repflavor_atoms_vdwcontacts) then
+          ! van der waals contacts: dashed, intermolecular-only bonds using
+          ! the sum of the van der Waals radii as the distance cutoff
+          r%bond_atmrad = atmvdw0
+          r%bond_bfactor = bondfactor_vdwcontacts_def
+          r%bond_order = 0 ! dashed
+          r%bond_imol = 2 ! intermolecular only
+          r%bond_bothends = .false.
+          r%bond_rad = bondrad_vdwcontacts_def
+          r%bond_border_size = 0d0
+          r%bond_rgb = ColorVdwContacts_def
        end if
     end if
 

@@ -40,6 +40,8 @@ module representations
   !--> bonds
   real*8, parameter, public :: bondrad_def = 0.125d0 / bohrtoa ! bond radius
   real*8, parameter, public :: bondrad_licorice_def = 0.25d0 / bohrtoa ! bond radius (licorice)
+  real*8, parameter, public :: bondrad_vdwcontacts_def = 0.15d0 / bohrtoa ! bond radius (vdw contacts)
+  real*8, parameter, public :: bondfactor_vdwcontacts_def = 1.0d0 ! bond factor (vdw contacts: cutoff = sum of vdw radii)
   real*8, parameter, public :: bondborder_def = 0.03d0 / bohrtoa ! bond border
   real*8, parameter, public :: bondborder_stickflav_def = 0.025d0 / bohrtoa ! bond border (stick flavor)
   !--> unit cell
