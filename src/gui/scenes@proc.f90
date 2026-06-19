@@ -1319,8 +1319,7 @@ contains
   !> if the scene needs to be rendered again.
   module function representation_menu(s,idparent) result(changed)
     use interfaces_cimgui
-    use representations, only: reptype_atoms, reptype_unitcell, reptype_axes,&
-       reptype_coordpolyhedra
+    use representations, only: reptype_atoms, reptype_unitcell, reptype_axes
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext
     use windows, only: stack_create_window, wintype_editrep
     use gui_main, only: ColorDangerButton, g
@@ -1448,8 +1447,6 @@ contains
              str3 = "cell" // c_null_char
           elseif (s%rep(i)%type == reptype_axes) then
              str3 = "axes" // c_null_char
-          elseif (s%rep(i)%type == reptype_coordpolyhedra) then
-             str3 = "polyhedra" // c_null_char
           else
              str3 = "???" // c_null_char
           end if

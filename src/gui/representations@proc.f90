@@ -51,6 +51,7 @@ contains
     r%atoms_display = .true.
     r%bonds_display = .true.
     r%labels_display = .false.
+    r%poly_display = .false.
 
     ! if type was given, mark as initialized and set name
     if (itype == reptype_atoms) then
@@ -77,6 +78,10 @@ contains
           r%name = "Gradient Paths"
           r%bonds_display = .false.
           r%labels_display = .false.
+       elseif (flavor == repflavor_atoms_polyhedra) then
+          r%name = "Polyhedra"
+          r%bonds_display = .false.
+          r%poly_display = .true.
        end if
     elseif (itype == reptype_unitcell) then
        r%isinit = .true.
@@ -94,13 +99,6 @@ contains
        r%isinit = .true.
        r%shown = .true.
        r%name = "Symmetry element"
-    elseif (itype == reptype_coordpolyhedra) then
-       r%isinit = .true.
-       r%shown = .true.
-       r%name = "Polyhedra"
-       r%atoms_display = .false.
-       r%bonds_display = .false.
-       r%labels_display = .false.
     else
        r%isinit = .false.
        r%shown = .false.
@@ -272,8 +270,9 @@ contains
        r%rotaxis_rgb = ColorRotaxis_def ! black
     end if
 
-    ! coordination polyhedra
-    if (itype == 0 .or. itype == 8) then
+    ! coordination polyhedra appearance (part of the atoms representation; the
+    ! center/corner/distance geometry lives in coordpoly_style, reset below)
+    if (itype == 0 .or. itype == 1) then
        r%poly_alpha = 0.5d0
        r%poly_usecentercolor = .true.
        r%poly_rgb = 0._c_float
@@ -397,7 +396,8 @@ contains
     real*8, allocatable :: xvpoly(:,:), up2dsp(:,:)
     integer, allocatable :: eidp(:), lvecp(:,:)
     real(c_float) :: rgbface(3), rgbedge(3)
-    integer :: natp
+    integer :: natp, idpoly, kp
+    logical :: dopoly
 
     interface
        subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,ctx,ier) bind(c)
@@ -508,6 +508,10 @@ contains
           lshown = .false.
        end if
 
+       ! coordination polyhedra: per-species distance-window scratch
+       if (r%poly_display .and. r%coordpoly_style%isinit) &
+          allocate(up2dsp(sys(r%id)%c%nspc,2))
+
        ! whether there is vacuum in any direction
        dovac = (sys(r%id)%c%vaclength > iperiod_vacthr)
        if (any(dovac)) then
@@ -592,6 +596,45 @@ contains
           ! draw the spheres and cylinders
           rgb = r%atom_style%rgb(:,id) * r%mol_style%tint_rgb(:,imol)
           rad1 = r%atom_style%rad(id) * r%mol_style%scale_rad(imol)
+
+          ! coordination polyhedron: if this atom is a shown center, find its
+          ! corner atoms once (translation-invariant; reused for every image)
+          dopoly = .false.
+          if (r%poly_display .and. r%coordpoly_style%isinit) then
+             idpoly = sysc(r%id)%attype_celatom_to_id(r%coordpoly_style%type,i)
+             if (r%coordpoly_style%shown(idpoly) .and. r%coordpoly_style%dmax(idpoly) > 0d0 .and.&
+                any(r%coordpoly_style%corner(:,idpoly))) then
+                do j = 1, sys(r%id)%c%nspc
+                   if (r%coordpoly_style%corner(j,idpoly)) then
+                      up2dsp(j,1) = r%coordpoly_style%dmin(idpoly)
+                      up2dsp(j,2) = r%coordpoly_style%dmax(idpoly)
+                   else
+                      up2dsp(j,:) = 0d0
+                   end if
+                end do
+                call sys(r%id)%c%list_near_atoms(sys(r%id)%c%atcel(i)%x,icrd_crys,.true.,&
+                   natp,eid=eidp,lvec=lvecp,up2dsp=up2dsp,nozero=.true.)
+                dopoly = (natp >= 3)
+                if (dopoly) then
+                   ! grow-only corner buffer (reused across center atoms)
+                   if (allocated(xvpoly)) then
+                      if (size(xvpoly,2) < natp) deallocate(xvpoly)
+                   end if
+                   if (.not.allocated(xvpoly)) allocate(xvpoly(3,natp))
+                   if (r%poly_usecentercolor) then
+                      rgbface = rgb
+                   else
+                      rgbface = r%poly_rgb
+                   end if
+                   if (r%poly_usecentercolor_edge) then
+                      rgbedge = rgb
+                   else
+                      rgbedge = r%poly_edge_rgb
+                   end if
+                end if
+             end if
+          end if
+
           do i1 = n0(1), n1(1)
              do i2 = n0(2), n1(2)
                 do i3 = n0(3), n1(3)
@@ -613,6 +656,17 @@ contains
                          havefilter = .false.
                          r%errfilter = errmsg
                       end if
+                   end if
+
+                   ! draw the coordination polyhedron for this center image
+                   ! (corners are the search result translated to this image)
+                   if (dopoly) then
+                      do kp = 1, natp
+                         xvpoly(:,kp) = sys(r%id)%c%x2c(sys(r%id)%c%atcel(eidp(kp))%x + &
+                            lvecp(:,kp) + ix) + uoriginc
+                      end do
+                      call build_polyhedron(xvpoly(:,1:natp),natp,rgbface,rgbedge,&
+                         r%poly_alpha,r%poly_edge_rad,r%poly_coplanar_eps)
                    end if
 
                    ! calculate the animation delta
@@ -816,6 +870,7 @@ contains
              end do ! i2
           end do ! i1
        end do ! loop over complete atom list (i)
+       if (allocated(up2dsp)) deallocate(up2dsp)
     elseif (r%type == reptype_unitcell) then
        !!! unit cell representation !!!
 
@@ -1106,81 +1161,6 @@ contains
              end do
           end do
        end if
-    elseif (r%type == reptype_coordpolyhedra) then
-       !!! coordination polyhedra representation !!!
-       if (.not.r%coordpoly_style%isinit) return
-
-       ! number of cells
-       n = 1
-       if (r%pertype == 1) then
-          n = nc
-       elseif (r%pertype == 2) then
-          n = r%ncell
-       end if
-
-       ! origin shift
-       if (sys(r%id)%c%ismolecule) then
-          uoriginc = r%origin / bohrtoa
-       else
-          uoriginc = sys(r%id)%c%x2c(r%origin)
-       end if
-
-       allocate(up2dsp(sys(r%id)%c%nspc,2))
-       do i = 1, sys(r%id)%c%ncel
-          ! center type and whether polyhedra are drawn for it
-          id = sysc(r%id)%attype_celatom_to_id(r%coordpoly_style%type,i)
-          if (.not.r%coordpoly_style%shown(id)) cycle
-          if (r%coordpoly_style%dmax(id) <= 0d0) cycle
-          if (.not.any(r%coordpoly_style%corner(:,id))) cycle
-
-          ! per-species [min,max] distance window for the corner search
-          ! (non-corner species get [0,0], which excludes them)
-          do j = 1, sys(r%id)%c%nspc
-             if (r%coordpoly_style%corner(j,id)) then
-                up2dsp(j,1) = r%coordpoly_style%dmin(id)
-                up2dsp(j,2) = r%coordpoly_style%dmax(id)
-             else
-                up2dsp(j,:) = 0d0
-             end if
-          end do
-
-          ! corner atoms around this center (one search; cell replicas below
-          ! are just translations of the same set)
-          call sys(r%id)%c%list_near_atoms(sys(r%id)%c%atcel(i)%x,icrd_crys,.true.,&
-             natp,eid=eidp,lvec=lvecp,up2dsp=up2dsp,nozero=.true.)
-          if (natp < 3) cycle
-
-          ! face and edge colors from the central atom
-          idaux = sysc(r%id)%attype_celatom_to_id(r%atom_style%type,i)
-          if (r%poly_usecentercolor) then
-             rgbface = r%atom_style%rgb(:,idaux)
-          else
-             rgbface = r%poly_rgb
-          end if
-          if (r%poly_usecentercolor_edge) then
-             rgbedge = r%atom_style%rgb(:,idaux)
-          else
-             rgbedge = r%poly_edge_rgb
-          end if
-
-          ! one polyhedron per drawn cell replica
-          if (allocated(xvpoly)) deallocate(xvpoly)
-          allocate(xvpoly(3,natp))
-          do i1 = 0, n(1)-1
-             do i2 = 0, n(2)-1
-                do i3 = 0, n(3)-1
-                   ix = (/i1,i2,i3/)
-                   do k = 1, natp
-                      xvpoly(:,k) = sys(r%id)%c%x2c(sys(r%id)%c%atcel(eidp(k))%x + &
-                         lvecp(:,k) + ix) + uoriginc
-                   end do
-                   call build_polyhedron(xvpoly(:,1:natp),natp,rgbface,rgbedge,&
-                      r%poly_alpha,r%poly_edge_rad,r%poly_coplanar_eps)
-                end do
-             end do
-          end do
-       end do
-       deallocate(up2dsp)
     end if ! reptype
   contains
     subroutine increase_ncone()
@@ -1478,7 +1458,7 @@ contains
        call r%label_style%reset(r)
     if (itype == 0 .or. itype == 4) &
        call r%mol_style%reset(r)
-    if (itype == 0 .or. itype == 8) &
+    if (itype == 0 .or. itype == 1) &
        call r%coordpoly_style%reset(r)
 
   end subroutine reset_all_styles

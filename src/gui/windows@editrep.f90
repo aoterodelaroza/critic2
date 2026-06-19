@@ -52,8 +52,7 @@ contains
 
   !> Draw the edit represenatation window.
   module subroutine draw_editrep(w)
-    use representations, only: representation, reptype_atoms, reptype_unitcell, reptype_axes,&
-       reptype_coordpolyhedra
+    use representations, only: representation, reptype_atoms, reptype_unitcell, reptype_axes
     use windows, only: nwin, win, wintype_view
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
@@ -109,8 +108,6 @@ contains
           changed = changed .or. w%draw_editrep_unitcell(ttshown)
        elseif (w%rep%type == reptype_axes) then
           changed = changed .or. w%draw_editrep_axes(ttshown)
-       elseif (w%rep%type == reptype_coordpolyhedra) then
-          changed = changed .or. w%draw_editrep_coordpolyhedra(ttshown)
        end if
 
        ! rebuild draw lists if necessary
@@ -149,7 +146,7 @@ contains
   module function draw_editrep_atoms(w,ttshown) result(changed)
     use representations, only: representation
     use systems, only: sys, sysc, atlisttype_species, atlisttype_ncel_ang, atlisttype_nmol,&
-       atlisttype_nneq
+       atlisttype_nneq, atlisttype_ncel_frac
     use gui_main, only: g, ColorHighlightScene, ColorElement
     use tools_io, only: string
     use utils, only: iw_text, iw_tooltip, iw_helpermark, iw_combo_simple, iw_button, iw_calcwidth,&
@@ -168,9 +165,11 @@ contains
     integer(c_int) :: nc(3), lst, flags, nspcpair
     real(c_float) :: sqw
     integer :: i, j, k, intable, nrow, is, ncol, ihighlight, highlight_type
+    integer :: itype_combo, newtype
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     integer, allocatable :: indi(:), indj(:)
+    character(len=:), allocatable :: rowname
     type(ImVec2) :: sz
 
     integer(c_int), parameter :: lsttrans(0:7) = (/0,1,2,2,2,3,4,5/)
@@ -198,6 +197,9 @@ contains
 
     changed = changed .or. iw_checkbox("Labels##labelsglobaldisplay",w%rep%labels_display,sameline=.true.,highlight=.true.)
     call iw_tooltip("Display atomic labels in the scene",ttshown)
+
+    changed = changed .or. iw_checkbox("Polyhedra##polyglobaldisplay",w%rep%poly_display,sameline=.true.,highlight=.true.)
+    call iw_tooltip("Display coordination polyhedra around the center atoms in the scene",ttshown)
 
     str1 = "##editrepatomstabbar" // string(w%isys) // c_null_char
     flags = ImGuiTabBarFlags_Reorderable
@@ -892,6 +894,125 @@ contains
              call igEndTabItem()
           end if ! begin tab item (labels)
        end if
+
+       !!!!! Polyhedra tab !!!!!
+       if (w%rep%poly_display) then
+          str1 = "Polyhedra##editrepatoms_polyhedratab" // c_null_char
+          flags = ImGuiTabItemFlags_None
+          if (igBeginTabItem(c_loc(str1),c_null_ptr,flags)) then
+             ! make sure the style is initialized and matches the current system
+             if (.not.w%rep%coordpoly_style%isinit) then
+                call w%rep%coordpoly_style%reset(w%rep)
+             elseif (w%rep%coordpoly_style%ntype /= sysc(isys)%attype_number(w%rep%coordpoly_style%type) .or.&
+                size(w%rep%coordpoly_style%corner,1) /= sys(isys)%c%nspc) then
+                call w%rep%coordpoly_style%reset(w%rep)
+             end if
+
+             ! center type selector
+             call iw_text("Centers",highlight=.true.)
+             itype_combo = 0
+             if (w%rep%coordpoly_style%type == atlisttype_nneq) itype_combo = 1
+             if (w%rep%coordpoly_style%type == atlisttype_ncel_frac) itype_combo = 2
+             call iw_combo_simple("Group centers by##polycentertype","Species" // c_null_char //&
+                "Non-equivalent atoms" // c_null_char // "Cell atoms" // c_null_char,itype_combo)
+             call iw_tooltip("How to group the atoms that act as polyhedra centers",ttshown)
+             newtype = atlisttype_species
+             if (itype_combo == 1) newtype = atlisttype_nneq
+             if (itype_combo == 2) newtype = atlisttype_ncel_frac
+             if (newtype /= w%rep%coordpoly_style%type) then
+                w%rep%coordpoly_style%type = newtype
+                call w%rep%coordpoly_style%reset(w%rep)
+                changed = .true.
+             end if
+
+             ! per-center table: shown, distance window, and the corner species
+             call iw_text("For each center: whether it is drawn, the min/max center-corner "//&
+                "distance (Å), and which species are corners.")
+             flags = ImGuiTableFlags_None
+             flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
+             flags = ior(flags,ImGuiTableFlags_ScrollY)
+             flags = ior(flags,ImGuiTableFlags_ScrollX)
+             flags = ior(flags,ImGuiTableFlags_Borders)
+             flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+             ncol = 4 + sys(isys)%c%nspc
+             str1 = "##tablepolycenters_editrep" // c_null_char
+             sz%x = 0
+             sz%y = iw_calcheight(min(8,w%rep%coordpoly_style%ntype)+1,0,.false.)
+             if (igBeginTable(c_loc(str1),ncol,flags,sz,0._c_float)) then
+                str2 = "Center" // c_null_char
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,0)
+                str2 = "Show" // c_null_char
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,1)
+                str2 = "Min (Å)" // c_null_char
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,2)
+                str2 = "Max (Å)" // c_null_char
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,3)
+                do j = 1, sys(isys)%c%nspc
+                   str2 = trim(sys(isys)%c%spc(j)%name) // c_null_char
+                   call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,3+j)
+                end do
+                call igTableSetupScrollFreeze(1,1)
+                call igTableHeadersRow()
+
+                do i = 1, w%rep%coordpoly_style%ntype
+                   ispc = sysc(isys)%attype_species(w%rep%coordpoly_style%type,i)
+                   iz = sys(isys)%c%spc(ispc)%z
+                   if (iz <= 0) cycle
+                   call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+                   if (igTableSetColumnIndex(0)) then
+                      call igAlignTextToFramePadding()
+                      rowname = trim(sys(isys)%c%spc(ispc)%name)
+                      if (w%rep%coordpoly_style%type /= atlisttype_species) rowname = rowname // "/" // string(i)
+                      call iw_text(rowname)
+                   end if
+                   if (igTableSetColumnIndex(1)) &
+                      changed = changed .or. iw_checkbox("##polyshown" // string(i),w%rep%coordpoly_style%shown(i))
+                   if (igTableSetColumnIndex(2)) &
+                      changed = changed .or. iw_dragfloat_real8("##polydmin" // string(i),&
+                         x1=w%rep%coordpoly_style%dmin(i),speed=0.01d0,min=0d0,max=20d0,scale=bohrtoa,&
+                         decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+                   if (igTableSetColumnIndex(3)) &
+                      changed = changed .or. iw_dragfloat_real8("##polydmax" // string(i),&
+                         x1=w%rep%coordpoly_style%dmax(i),speed=0.01d0,min=0d0,max=20d0,scale=bohrtoa,&
+                         decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+                   do j = 1, sys(isys)%c%nspc
+                      if (igTableSetColumnIndex(3+j)) &
+                         changed = changed .or. iw_checkbox("##polycorner" // string(i) // "_" // string(j),&
+                            w%rep%coordpoly_style%corner(j,i))
+                   end do
+                end do
+                call igEndTable()
+             end if
+
+             if (iw_button("Reset##resetpolycenters",danger=.true.)) then
+                call w%rep%coordpoly_style%reset(w%rep)
+                changed = .true.
+             end if
+             call iw_tooltip("Reset the centers, corners, and distances to defaults",ttshown)
+
+             ! appearance
+             call iw_text("Appearance",highlight=.true.)
+             changed = changed .or. iw_dragfloat_real8("Face opacity##polyalpha",x1=w%rep%poly_alpha,&
+                speed=0.005d0,min=0d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Opacity of the polyhedron faces (0 = transparent, 1 = opaque)",ttshown)
+
+             changed = changed .or. iw_checkbox("Faces use the central atom color##polyusecen",w%rep%poly_usecentercolor)
+             call iw_tooltip("Color the faces with the shade of the central (cation) atom",ttshown)
+             if (.not.w%rep%poly_usecentercolor) &
+                changed = changed .or. iw_coloredit("Face color##polyfacecolor",rgb=w%rep%poly_rgb,sameline=.true.)
+
+             changed = changed .or. iw_dragfloat_real8("Edge radius (Å)##polyedgerad",x1=w%rep%poly_edge_rad,&
+                speed=0.002d0,min=0d0,max=1d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Radius of the polyhedron edge cylinders",ttshown)
+
+             changed = changed .or. iw_checkbox("Edges use the central atom color##polyusecenedge",&
+                w%rep%poly_usecentercolor_edge)
+             call iw_tooltip("Color the edges with the shade of the central (cation) atom",ttshown)
+             if (.not.w%rep%poly_usecentercolor_edge) &
+                changed = changed .or. iw_coloredit("Edge color##polyedgecolor",rgb=w%rep%poly_edge_rgb,sameline=.true.)
+             call igEndTabItem()
+          end if ! begin tab item (polyhedra)
+       end if
        call igEndTabBar()
     end if ! begin tab bar
 
@@ -1174,142 +1295,6 @@ contains
     end if
 
   end function draw_editrep_axes
-
-  !> Draw the editrep (Object) window, coordination polyhedra class. Returns
-  !> true if the scene needs rendering again. ttshown = the tooltip flag.
-  module function draw_editrep_coordpolyhedra(w,ttshown) result(changed)
-    use representations, only: representation
-    use systems, only: sys, sysc, atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac
-    use tools_io, only: string
-    use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_coloredit,&
-       iw_calcheight, iw_dragfloat_real8, iw_combo_simple
-    use param, only: bohrtoa
-    use interfaces_cimgui
-    class(window), intent(inout), target :: w
-    logical, intent(inout) :: ttshown
-    logical :: changed
-
-    integer :: i, j, isys, iz, ispc, itype_combo, newtype, ncol
-    integer(c_int) :: flags
-    character(kind=c_char,len=:), allocatable, target :: str1, str2
-    character(len=:), allocatable :: rowname
-    type(ImVec2) :: sz
-
-    changed = .false.
-    isys = w%isys
-
-    ! make sure the style is initialized and matches the current system
-    if (.not.w%rep%coordpoly_style%isinit) then
-       call w%rep%coordpoly_style%reset(w%rep)
-    elseif (w%rep%coordpoly_style%ntype /= sysc(isys)%attype_number(w%rep%coordpoly_style%type) .or.&
-       size(w%rep%coordpoly_style%corner,1) /= sys(isys)%c%nspc) then
-       call w%rep%coordpoly_style%reset(w%rep)
-    end if
-
-    ! center type selector
-    call iw_text("Centers",highlight=.true.)
-    itype_combo = 0
-    if (w%rep%coordpoly_style%type == atlisttype_nneq) itype_combo = 1
-    if (w%rep%coordpoly_style%type == atlisttype_ncel_frac) itype_combo = 2
-    call iw_combo_simple("Group centers by##polycentertype","Species" // c_null_char //&
-       "Non-equivalent atoms" // c_null_char // "Cell atoms" // c_null_char,itype_combo)
-    call iw_tooltip("How to group the atoms that act as polyhedra centers",ttshown)
-    newtype = atlisttype_species
-    if (itype_combo == 1) newtype = atlisttype_nneq
-    if (itype_combo == 2) newtype = atlisttype_ncel_frac
-    if (newtype /= w%rep%coordpoly_style%type) then
-       w%rep%coordpoly_style%type = newtype
-       call w%rep%coordpoly_style%reset(w%rep)
-       changed = .true.
-    end if
-
-    ! per-center table: shown, distance window, and the corner species
-    call iw_text("For each center: whether it is drawn, the min/max center-corner "//&
-       "distance (Å), and which species are corners.")
-    flags = ImGuiTableFlags_None
-    flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
-    flags = ior(flags,ImGuiTableFlags_ScrollY)
-    flags = ior(flags,ImGuiTableFlags_ScrollX)
-    flags = ior(flags,ImGuiTableFlags_Borders)
-    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
-    ncol = 4 + sys(isys)%c%nspc
-    str1 = "##tablepolycenters_editrep" // c_null_char
-    sz%x = 0
-    sz%y = iw_calcheight(min(8,w%rep%coordpoly_style%ntype)+1,0,.false.)
-    if (igBeginTable(c_loc(str1),ncol,flags,sz,0._c_float)) then
-       str2 = "Center" // c_null_char
-       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,0)
-       str2 = "Show" // c_null_char
-       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,1)
-       str2 = "Min (Å)" // c_null_char
-       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,2)
-       str2 = "Max (Å)" // c_null_char
-       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,3)
-       do j = 1, sys(isys)%c%nspc
-          str2 = trim(sys(isys)%c%spc(j)%name) // c_null_char
-          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,3+j)
-       end do
-       call igTableSetupScrollFreeze(1,1)
-       call igTableHeadersRow()
-
-       do i = 1, w%rep%coordpoly_style%ntype
-          ispc = sysc(isys)%attype_species(w%rep%coordpoly_style%type,i)
-          iz = sys(isys)%c%spc(ispc)%z
-          if (iz <= 0) cycle
-          call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
-          if (igTableSetColumnIndex(0)) then
-             call igAlignTextToFramePadding()
-             rowname = trim(sys(isys)%c%spc(ispc)%name)
-             if (w%rep%coordpoly_style%type /= atlisttype_species) rowname = rowname // "/" // string(i)
-             call iw_text(rowname)
-          end if
-          if (igTableSetColumnIndex(1)) &
-             changed = changed .or. iw_checkbox("##polyshown" // string(i),w%rep%coordpoly_style%shown(i))
-          if (igTableSetColumnIndex(2)) &
-             changed = changed .or. iw_dragfloat_real8("##polydmin" // string(i),&
-                x1=w%rep%coordpoly_style%dmin(i),speed=0.01d0,min=0d0,max=20d0,scale=bohrtoa,&
-                decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-          if (igTableSetColumnIndex(3)) &
-             changed = changed .or. iw_dragfloat_real8("##polydmax" // string(i),&
-                x1=w%rep%coordpoly_style%dmax(i),speed=0.01d0,min=0d0,max=20d0,scale=bohrtoa,&
-                decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-          do j = 1, sys(isys)%c%nspc
-             if (igTableSetColumnIndex(3+j)) &
-                changed = changed .or. iw_checkbox("##polycorner" // string(i) // "_" // string(j),&
-                   w%rep%coordpoly_style%corner(j,i))
-          end do
-       end do
-       call igEndTable()
-    end if
-
-    if (iw_button("Reset##resetpolycenters",danger=.true.)) then
-       call w%rep%coordpoly_style%reset(w%rep)
-       changed = .true.
-    end if
-    call iw_tooltip("Reset the centers, corners, and distances to defaults",ttshown)
-
-    ! appearance
-    call iw_text("Appearance",highlight=.true.)
-    changed = changed .or. iw_dragfloat_real8("Face opacity##polyalpha",x1=w%rep%poly_alpha,&
-       speed=0.005d0,min=0d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Opacity of the polyhedron faces (0 = transparent, 1 = opaque)",ttshown)
-
-    changed = changed .or. iw_checkbox("Faces use the central atom color##polyusecen",w%rep%poly_usecentercolor)
-    call iw_tooltip("Color the faces with the shade of the central (cation) atom",ttshown)
-    if (.not.w%rep%poly_usecentercolor) &
-       changed = changed .or. iw_coloredit("Face color##polyfacecolor",rgb=w%rep%poly_rgb,sameline=.true.)
-
-    changed = changed .or. iw_dragfloat_real8("Edge radius (Å)##polyedgerad",x1=w%rep%poly_edge_rad,&
-       speed=0.002d0,min=0d0,max=1d0,scale=bohrtoa,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Radius of the polyhedron edge cylinders",ttshown)
-
-    changed = changed .or. iw_checkbox("Edges use the central atom color##polyusecenedge",&
-       w%rep%poly_usecentercolor_edge)
-    call iw_tooltip("Color the edges with the shade of the central (cation) atom",ttshown)
-    if (.not.w%rep%poly_usecentercolor_edge) &
-       changed = changed .or. iw_coloredit("Edge color##polyedgecolor",rgb=w%rep%poly_edge_rgb,sameline=.true.)
-
-  end function draw_editrep_coordpolyhedra
 
   !xx! private procedures
 

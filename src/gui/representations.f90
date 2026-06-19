@@ -158,8 +158,7 @@ module representations
   integer, parameter, public :: reptype_axes = 3 ! cartesian/crystallographic axes gizmo
   integer, parameter, public :: reptype_rotaxis = 4 ! rotation axis for a molecule
   integer, parameter, public :: reptype_symelem = 5 ! symmetry element
-  integer, parameter, public :: reptype_coordpolyhedra = 6 ! coordination polyhedra
-  integer, parameter, public :: reptype_NUM = 6
+  integer, parameter, public :: reptype_NUM = 5
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -170,11 +169,11 @@ module representations
   integer, parameter, public :: repflavor_atoms_hbonds = 5
   integer, parameter, public :: repflavor_atoms_criticalpoints = 6
   integer, parameter, public :: repflavor_atoms_gradientpaths = 7
-  integer, parameter, public :: repflavor_unitcell_basic = 8
-  integer, parameter, public :: repflavor_axes = 9
-  integer, parameter, public :: repflavor_rotaxis = 10
-  integer, parameter, public :: repflavor_symelem = 11
-  integer, parameter, public :: repflavor_coordpolyhedra = 12
+  integer, parameter, public :: repflavor_atoms_polyhedra = 8
+  integer, parameter, public :: repflavor_unitcell_basic = 9
+  integer, parameter, public :: repflavor_axes = 10
+  integer, parameter, public :: repflavor_rotaxis = 11
+  integer, parameter, public :: repflavor_symelem = 12
   integer, parameter, public :: repflavor_NUM = 12
 
   !> Representation: objects to draw on the scene
@@ -273,7 +272,8 @@ module representations
      real*8 :: symelem_cen(3) = 0d0 ! system center (bohr)
      integer :: symelem_order = 0 ! axis rotation order n (selects the axis color)
      real(c_float) :: symelem_rgb(3) = symelem_rgb_def ! color of the symmetry element
-     ! coordination polyhedra
+     ! coordination polyhedra (drawn around the atoms of this representation)
+     logical :: poly_display ! whether to draw the coordination polyhedra
      type(coordpoly_geom_style) :: coordpoly_style ! center/corner/distance geometry
      real*8 :: poly_alpha = 0.5d0 ! face opacity (1 = opaque)
      logical :: poly_usecentercolor = .true. ! faces/edges take the central atom color
