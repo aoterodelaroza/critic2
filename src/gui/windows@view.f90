@@ -422,6 +422,7 @@ contains
                          if (sysc(i)%sc%rep(j)%type == reptype_atoms) then
                             sysc(i)%sc%rep(j)%atoms_display = isatom
                             sysc(i)%sc%rep(j)%bonds_display = isbond
+                            sysc(i)%sc%rep(j)%poly_display = ispoly
                             sysc(i)%sc%rep(j)%labels_display = islabelsl
                             if (islabelsl) then
                                if (sys(i)%c%ismolecule.and.islabels == 8) then
