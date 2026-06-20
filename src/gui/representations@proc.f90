@@ -129,7 +129,7 @@ contains
     use global, only: bondfactor_def, bonddelta_def
     use gui_main, only: ColorAtomBorder_def, ColorBond_def, ColorBondBorder_def,&
        ColorLabel_def, ColorRotaxis_def, ColorAxes_def, ColorVdwContacts_def,&
-       ColorHbonds_def
+       ColorHbonds_def, ColorHbondStrong_def, ColorHbondModerate_def, ColorHbondWeak_def
     use param, only: atmcov0, atmvdw0
     class(representation), intent(inout) :: r
     integer, intent(in) :: itype
@@ -198,6 +198,7 @@ contains
        r%bond_order = 4 ! calculated (value from ordcon)
        r%bond_imol = 0
        r%bond_bothends = .true.
+       r%bond_hbond_classify = .false.
        if (r%flavor == repflavor_atoms_sticks) then
           r%bond_color_style = 1
           r%bond_border_size = bondborder_stickflav_def
@@ -216,17 +217,22 @@ contains
           r%bond_border_size = 0d0
           r%bond_rgb = ColorVdwContacts_def
        elseif (r%flavor == repflavor_atoms_hbonds) then
-          ! hydrogen bonds: dashed, intermolecular-only contacts to H, using
-          ! the sum of the van der Waals radii as the distance cutoff (the
-          ! H<->acceptor species filtering is done in bond_style_reset)
+          ! hydrogen bonds: dashed, intermolecular-only contacts.
+          ! Jeffrey-Steiner strength classification (distance + D-H...A angle) is applied at render time.
           r%bond_atmrad = atmvdw0
-          r%bond_bfactor = bondfactor_vdwcontacts_def
+          r%bond_bfactor = bondfactor_hbonds_def
           r%bond_order = 0 ! dashed
           r%bond_imol = 2 ! intermolecular only
           r%bond_bothends = .false.
           r%bond_rad = bondrad_vdwcontacts_def
           r%bond_border_size = 0d0
           r%bond_rgb = ColorHbonds_def
+          r%bond_hbond_classify = .true.
+          r%bond_hbond_rgb(:,1) = ColorHbondStrong_def
+          r%bond_hbond_rgb(:,2) = ColorHbondModerate_def
+          r%bond_hbond_rgb(:,3) = ColorHbondWeak_def
+          r%bond_hbond_dist = hbond_dist_def
+          r%bond_hbond_ang = hbond_ang_def
        end if
     end if
 
@@ -406,6 +412,9 @@ contains
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3), iord
     real(c_float) :: rgb(3)
     real*8 :: rad1, rad2, dd, f1, f2, axsc
+    integer :: hbzi, hbzn, hbhcel, hblv(3), hbdon, hbdc, hbac, hbcat, hbib
+    real(c_float) :: bondrgb(3)
+    real*8 :: xhb_h(3), xhb_a(3), xhb_d(3), vhb_hd(3), vhb_ha(3), hbang, hbn1, hbn2
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), xpolyc(3)
     real*8 :: ucini(3), ucend(3), e1v(3), e2v(3)
     real(c_float) :: rgbax(3)
@@ -418,14 +427,12 @@ contains
     type(dl_string) :: dstr
     logical :: fixed
     character(len=:), allocatable :: errmsg
-    ! coordination polyhedra
     real*8, allocatable :: xvpoly(:,:), up2dsp(:,:)
     complex*16, allocatable :: dvpoly(:,:)
     integer, allocatable :: eidp(:), lvecp(:,:)
     real(c_float) :: rgbface(3), rgbedge(3)
     integer :: natp, idpoly, kp
     logical :: dopoly, corneractive
-    ! corner atoms forced visible (poly_showcorners)
     integer, allocatable :: cornlist(:,:)
     integer :: ncorn, ica, idc, imolc
 
@@ -807,6 +814,83 @@ contains
                             iord = r%bond_order
                          end if
 
+                         ! bond endpoints (Cartesian, bohr)
+                         x1 = xc + uoriginc
+                         x2 = sys(r%id)%c%atcel(ineigh)%x + ixn
+                         x2 = sys(r%id)%c%x2c(x2) + uoriginc
+
+                         ! bond color
+                         bondrgb = r%bond_rgb
+
+                         ! Jeffrey-Steiner hydrogen-bond strength classification
+                         ! color each H...A contact by its strength based on the geometry
+                         ! G. A. Jeffrey, An Introduction to Hydrogen Bonding, Oxford University Press, 1997
+                         ! T. Steiner, Angew. Chem. Intl. Ed. 41 (2002) 48, doi:10.1002/1521-3773(20020104)41:1<48::AID-ANIE48>3.0.CO;2-U
+                         if (r%bond_hbond_classify) then
+                            ! identify the H end (the other end is the acceptor)
+                            hbzi = sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z
+                            hbzn = sys(r%id)%c%spc(sys(r%id)%c%atcel(ineigh)%is)%z
+                            if (hbzi == 1) then
+                               xhb_h = x1
+                               xhb_a = x2
+                               hbhcel = i
+                               hblv = ix
+                            elseif (hbzn == 1) then
+                               xhb_h = x2
+                               xhb_a = x1
+                               hbhcel = ineigh
+                               hblv = ixn
+                            else
+                               cycle ! neither end is hydrogen: not an H-bond
+                            end if
+
+                            ! find the donor atom D in D-H...A
+                            hbdon = 0
+                            if (allocated(sys(r%id)%c%nstar)) then
+                               do hbib = 1, sys(r%id)%c%nstar(hbhcel)%ncon
+                                  if (sys(r%id)%c%spc(sys(r%id)%c%atcel(&
+                                     sys(r%id)%c%nstar(hbhcel)%idcon(hbib))%is)%z > 1) then
+                                     hbdon = hbib
+                                     exit
+                                  end if
+                               end do
+                            end if
+                            if (hbdon == 0) cycle ! no donor atom: skip
+
+                            ! H...A distance class
+                            dd = norm2(xhb_a - xhb_h)
+                            if (dd < r%bond_hbond_dist(1)) then
+                               hbdc = 1
+                            elseif (dd < r%bond_hbond_dist(2)) then
+                               hbdc = 2
+                            else
+                               hbdc = 3
+                            end if
+
+                            hbcat = hbdc
+                            xhb_d = sys(r%id)%c%atcel(sys(r%id)%c%nstar(hbhcel)%idcon(hbdon))%x +&
+                               hblv + sys(r%id)%c%nstar(hbhcel)%lcon(:,hbdon)
+                            xhb_d = sys(r%id)%c%x2c(xhb_d) + uoriginc
+                            vhb_hd = xhb_d - xhb_h
+                            vhb_ha = xhb_a - xhb_h
+                            hbn1 = norm2(vhb_hd)
+                            hbn2 = norm2(vhb_ha)
+                            if (hbn1 > 1d-10 .and. hbn2 > 1d-10) then
+                               hbang = acos(max(min(dot_product(vhb_hd,vhb_ha)/(hbn1*hbn2),&
+                                  1d0),-1d0)) * 180d0 / acos(-1d0)
+                               if (hbang < hbond_angmin_def) cycle ! too bent to be a H-bond
+                               if (hbang >= r%bond_hbond_ang(2)) then
+                                  hbac = 1
+                               elseif (hbang >= r%bond_hbond_ang(1)) then
+                                  hbac = 2
+                               else
+                                  hbac = 3
+                               end if
+                               hbcat = max(hbdc,hbac)
+                            end if
+                            bondrgb = r%bond_hbond_rgb(:,hbcat)
+                         end if
+
                          ! draw the bond, reallocate if necessary
                          if (r%bond_color_style == 0) then
                             obj%ncyl = obj%ncyl + 1
@@ -822,16 +906,13 @@ contains
                          ! animation delta of the other end
                          xdelta2 = vibdelta(ineigh,sys(r%id)%c%atcel(ineigh)%x + ixn)
 
-                         x1 = xc + uoriginc
-                         x2 = sys(r%id)%c%atcel(ineigh)%x + ixn
-                         x2 = sys(r%id)%c%x2c(x2) + uoriginc
-                         if (r%bond_color_style == 0) then
+                         if (r%bond_color_style == 0 .or. r%bond_hbond_classify) then
                             obj%cyl(obj%ncyl)%x1 = real(x1,c_float)
                             obj%cyl(obj%ncyl)%x1delta = cmplx(xdelta1,kind=c_float_complex)
                             obj%cyl(obj%ncyl)%x2 = real(x2,c_float)
                             obj%cyl(obj%ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
                             obj%cyl(obj%ncyl)%r = real(r%bond_rad,c_float)
-                            obj%cyl(obj%ncyl)%rgb = r%bond_rgb
+                            obj%cyl(obj%ncyl)%rgb = bondrgb
                             obj%cyl(obj%ncyl)%order = iord
                             obj%cyl(obj%ncyl)%border = real(r%bond_border_size,c_float)
                             obj%cyl(obj%ncyl)%rgbborder = r%bond_border_rgb

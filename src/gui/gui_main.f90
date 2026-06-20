@@ -110,6 +110,9 @@ module gui_main
   real(c_float), parameter, public :: ColorBondBorder_def(3) = (/0._c_float,0._c_float,0._c_float/) ! bond border (black)
   real(c_float), parameter, public :: ColorVdwContacts_def(3) = (/0.51_c_float,0.83_c_float,0.11_c_float/) ! vdw contacts bond (green)
   real(c_float), parameter, public :: ColorHbonds_def(3) = (/0.11_c_float,0.44_c_float,0.83_c_float/) ! hydrogen bond (blue)
+  real(c_float), parameter, public :: ColorHbondStrong_def(3) = (/0.00_c_float,0.00_c_float,1.00_c_float/) ! strong H-bond (blue)
+  real(c_float), parameter, public :: ColorHbondModerate_def(3) = (/0.00_c_float,0.70_c_float,0.00_c_float/) ! moderate H-bond (green)
+  real(c_float), parameter, public :: ColorHbondWeak_def(3) = (/1.00_c_float,0.00_c_float,0.00_c_float/) ! weak H-bond (red)
   real(c_float), parameter, public :: ColorLabel_def(3) = (/0._c_float,0._c_float,0._c_float/) ! atom label (black)
   real(c_float), parameter, public :: ColorRotaxis_def(3) = (/0._c_float,0._c_float,0._c_float/) ! rotation axis (black)
   real(c_float), parameter, public :: ColorAxes_def(3,3) = reshape((/& ! canonical axis colors

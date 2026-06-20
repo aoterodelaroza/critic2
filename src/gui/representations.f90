@@ -42,6 +42,10 @@ module representations
   real*8, parameter, public :: bondrad_licorice_def = 0.25d0 / bohrtoa ! bond radius (licorice)
   real*8, parameter, public :: bondrad_vdwcontacts_def = 0.15d0 / bohrtoa ! bond radius (vdw contacts)
   real*8, parameter, public :: bondfactor_vdwcontacts_def = 1.0d0 ! bond factor (vdw contacts: cutoff = sum of vdw radii)
+  real*8, parameter, public :: bondfactor_hbonds_def = 1.2d0 ! bond factor for H-bonds (cutoff ~ weak H...A max, ~3.2 A for H...O)
+  real*8, parameter, public :: hbond_dist_def(2) = (/1.5d0,2.2d0/) / bohrtoa ! H...A distance class boundaries (strong|mod, mod|weak)
+  real*8, parameter, public :: hbond_ang_def(2) = (/130d0,170d0/) ! D-H...A angle class boundaries (weak|mod, mod|strong), degrees
+  real*8, parameter, public :: hbond_angmin_def = 90d0 ! D-H...A angle below which a contact is not an H-bond (discarded)
   real*8, parameter, public :: bondborder_def = 0.03d0 / bohrtoa ! bond border
   real*8, parameter, public :: bondborder_stickflav_def = 0.025d0 / bohrtoa ! bond border (stick flavor)
   !--> unit cell
@@ -222,6 +226,13 @@ module representations
      integer(c_int) :: bond_order ! order (0=dashed,1=single,2=double,3=triple,4=ordcon value)
      integer(c_int) :: bond_imol ! molecular connections (0=any,1=intramol,2=intermol)
      logical :: bond_bothends ! if true, both atoms need to be drawn to draw the bond
+     logical :: bond_hbond_classify = .false. ! Jeffrey-Steiner hydrogen-bond strength classification
+     real(c_float) :: bond_hbond_rgb(3,3) = reshape((/& ! per-class colors
+        0.00_c_float,0.00_c_float,1.00_c_float,&  ! strong: blue
+        0.00_c_float,0.70_c_float,0.00_c_float,&  ! moderate: green
+        1.00_c_float,0.00_c_float,0.00_c_float/),(/3,3/)) ! weak: red
+     real*8 :: bond_hbond_dist(2) = hbond_dist_def ! H...A distance class boundaries (strong|mod, mod|weak), bohr
+     real*8 :: bond_hbond_ang(2) = hbond_ang_def ! D-H...A angle class boundaries (weak|mod, mod|strong), degrees
      !--> labels
      logical :: labels_display ! whether to draw the labels
      type(label_geom_style) :: label_style ! bond styles

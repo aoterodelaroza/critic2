@@ -484,6 +484,37 @@ contains
              call iw_tooltip("Represent a bond if both end-atoms are in the scene (checked) or if only &
                 &one end-atom is in the scene (unchecked)",ttshown)
 
+             ! Jeffrey-Steiner hydrogen-bond strength classification
+             call igAlignTextToFramePadding()
+             call iw_text("Classify H-bonds")
+             ch = ch .or. iw_checkbox("##hbondclassify",w%rep%bond_hbond_classify,sameline=.true.)
+             call iw_tooltip("Color each contact by its Jeffrey-Steiner hydrogen-bond strength &
+                &(strong/moderate/weak), combining the H...A distance and the D-H...A angle information.",ttshown)
+
+             if (w%rep%bond_hbond_classify) then
+                ch = ch .or. iw_coloredit("Strong##hbstrongcolor",rgb=w%rep%bond_hbond_rgb(:,1))
+                ch = ch .or. iw_coloredit("Moderate##hbmodcolor",rgb=w%rep%bond_hbond_rgb(:,2),sameline=.true.)
+                ch = ch .or. iw_coloredit("Weak##hbweakcolor",rgb=w%rep%bond_hbond_rgb(:,3),sameline=.true.)
+
+                call igAlignTextToFramePadding()
+                call iw_text("H...A Distance (Å)")
+                ch = ch .or. iw_dragfloat_real8("strong|moderate##hbdist1",x1=w%rep%bond_hbond_dist(1),speed=0.01d0,&
+                   min=0d0,max=5d0,scale=bohrtoa,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+                call iw_tooltip("H...A distance class boundaries",ttshown)
+                ch = ch .or. iw_dragfloat_real8("moderate|weak##hbdist2",x1=w%rep%bond_hbond_dist(2),speed=0.01d0,&
+                   min=0d0,max=5d0,scale=bohrtoa,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+                call iw_tooltip("H...A distance class boundaries",ttshown)
+
+                call igAlignTextToFramePadding()
+                call iw_text("D-H...A Angle (°)")
+                ch = ch .or. iw_dragfloat_real8("weak|moderate##hbang1",x1=w%rep%bond_hbond_ang(1),speed=0.5d0,&
+                   min=0d0,max=180d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+                call iw_tooltip("D-H...A angle class boundaries",ttshown)
+                ch = ch .or. iw_dragfloat_real8("moderate|strong##hbang2",x1=w%rep%bond_hbond_ang(2),speed=0.5d0,&
+                   min=0d0,max=180d0,decimal=1,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+                call iw_tooltip("D-H...A angle class boundaries",ttshown)
+             end if
+
              !! atom selection block !!
              call iw_text("Atom Pair Selection",highlight=.true.)
 
