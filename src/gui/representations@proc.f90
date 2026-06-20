@@ -397,7 +397,7 @@ contains
     use tools_math, only: cross, plane_from_points
     use types, only: realloc
     use tools, only: mergesort
-    use param, only: tpi, img, atmass, icrd_crys
+    use param, only: tpi, img, atmass, icrd_crys, pi
     class(representation), intent(inout) :: r
     integer, intent(in) :: nc(3)
     type(scene_objects), intent(inout) :: obj
@@ -412,9 +412,9 @@ contains
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3), iord
     real(c_float) :: rgb(3)
     real*8 :: rad1, rad2, dd, f1, f2, axsc
-    integer :: hbzi, hbzn, hbhcel, hblv(3), hbdon, hbdc, hbac, hbcat, hbib
+    integer :: hbzi, hbzn, hbhcel, hblv(3), hbacel, hbalv(3), hbdon, hbdc, hbac, hbcat, hbib
     real(c_float) :: bondrgb(3)
-    real*8 :: xhb_h(3), xhb_a(3), xhb_d(3), vhb_hd(3), vhb_ha(3), hbang, hbn1, hbn2
+    real*8 :: xhb_h(3), xhb_a(3), xhb_d(3), hbang ! fractional points (vertex H) and angle (degrees)
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), xpolyc(3)
     real*8 :: ucini(3), ucend(3), e1v(3), e2v(3)
     real(c_float) :: rgbax(3)
@@ -827,22 +827,25 @@ contains
                          ! G. A. Jeffrey, An Introduction to Hydrogen Bonding, Oxford University Press, 1997
                          ! T. Steiner, Angew. Chem. Intl. Ed. 41 (2002) 48, doi:10.1002/1521-3773(20020104)41:1<48::AID-ANIE48>3.0.CO;2-U
                          if (r%bond_hbond_classify) then
-                            ! identify the H end (the other end is the acceptor)
+                            ! identify the H end (the other end is the acceptor);
+                            ! work in fractional coordinates (vertex at H)
                             hbzi = sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z
                             hbzn = sys(r%id)%c%spc(sys(r%id)%c%atcel(ineigh)%is)%z
                             if (hbzi == 1) then
-                               xhb_h = x1
-                               xhb_a = x2
                                hbhcel = i
                                hblv = ix
+                               hbacel = ineigh
+                               hbalv = ixn
                             elseif (hbzn == 1) then
-                               xhb_h = x2
-                               xhb_a = x1
                                hbhcel = ineigh
                                hblv = ixn
+                               hbacel = i
+                               hbalv = ix
                             else
                                cycle ! neither end is hydrogen: not an H-bond
                             end if
+                            xhb_h = sys(r%id)%c%atcel(hbhcel)%x + hblv
+                            xhb_a = sys(r%id)%c%atcel(hbacel)%x + hbalv
 
                             ! find the donor atom D in D-H...A
                             hbdon = 0
@@ -858,7 +861,7 @@ contains
                             if (hbdon == 0) cycle ! no donor atom: skip
 
                             ! H...A distance class
-                            dd = norm2(xhb_a - xhb_h)
+                            dd = sys(r%id)%c%distance(xhb_a,xhb_h)
                             if (dd < r%bond_hbond_dist(1)) then
                                hbdc = 1
                             elseif (dd < r%bond_hbond_dist(2)) then
@@ -867,27 +870,19 @@ contains
                                hbdc = 3
                             end if
 
-                            hbcat = hbdc
+                            ! D-H...A angle class (the weaker of the two wins)
                             xhb_d = sys(r%id)%c%atcel(sys(r%id)%c%nstar(hbhcel)%idcon(hbdon))%x +&
                                hblv + sys(r%id)%c%nstar(hbhcel)%lcon(:,hbdon)
-                            xhb_d = sys(r%id)%c%x2c(xhb_d) + uoriginc
-                            vhb_hd = xhb_d - xhb_h
-                            vhb_ha = xhb_a - xhb_h
-                            hbn1 = norm2(vhb_hd)
-                            hbn2 = norm2(vhb_ha)
-                            if (hbn1 > 1d-10 .and. hbn2 > 1d-10) then
-                               hbang = acos(max(min(dot_product(vhb_hd,vhb_ha)/(hbn1*hbn2),&
-                                  1d0),-1d0)) * 180d0 / acos(-1d0)
-                               if (hbang < hbond_angmin_def) cycle ! too bent to be a H-bond
-                               if (hbang >= r%bond_hbond_ang(2)) then
-                                  hbac = 1
-                               elseif (hbang >= r%bond_hbond_ang(1)) then
-                                  hbac = 2
-                               else
-                                  hbac = 3
-                               end if
-                               hbcat = max(hbdc,hbac)
+                            hbang = sys(r%id)%c%angle(xhb_d,xhb_h,xhb_a) * 180d0 / pi
+                            if (hbang < hbond_angmin_def) cycle ! too bent to be a H-bond
+                            if (hbang >= r%bond_hbond_ang(2)) then
+                               hbac = 1
+                            elseif (hbang >= r%bond_hbond_ang(1)) then
+                               hbac = 2
+                            else
+                               hbac = 3
                             end if
+                            hbcat = max(hbdc,hbac)
                             bondrgb = r%bond_hbond_rgb(:,hbcat)
                          end if
 

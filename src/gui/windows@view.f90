@@ -1968,16 +1968,15 @@ contains
 
        ! angle 1-2-3
        idx3 = msel(1:4,1)
-       x0 = sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4) -&
-          (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
-       x1 = sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4) -&
-          (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
-       x0 = sys(w%view_selected)%c%x2c(x0)
-       x1 = sys(w%view_selected)%c%x2c(x1)
-       d1 = norm2(x0)
-       d2 = norm2(x1)
+       d1 = sys(w%view_selected)%c%distance(sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4),&
+          sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
+       d2 = sys(w%view_selected)%c%distance(sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4),&
+          sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
        if (d1 > 1d-14 .and. d2 > 1d-14) then
-          ang = acos(dot_product(x0,x1) / d1 / d2) * 180d0 / pi
+          ang = sys(w%view_selected)%c%angle(&
+             sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4),&
+             sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4),&
+             sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
           call iw_text(", α(",sameline_nospace=.true.)
           call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
           call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
@@ -2018,16 +2017,15 @@ contains
 
        ! angle 2-3-4
        idx3 = msel(1:4,2)
-       x0 = sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4) -&
-          (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
-       x1 = sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4) -&
-          (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
-       x0 = sys(w%view_selected)%c%x2c(x0)
-       x1 = sys(w%view_selected)%c%x2c(x1)
-       d1 = norm2(x0)
-       d2 = norm2(x1)
+       d1 = sys(w%view_selected)%c%distance(sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4),&
+          sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
+       d2 = sys(w%view_selected)%c%distance(sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4),&
+          sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
        if (d1 > 1d-14 .and. d2 > 1d-14) then
-          ang = acos(dot_product(x0,x1) / norm2(x0) / norm2(x1)) * 180d0 / pi
+          ang = sys(w%view_selected)%c%angle(&
+             sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4),&
+             sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4),&
+             sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
           call iw_text(", α(",sameline_nospace=.true.)
           call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
           call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)

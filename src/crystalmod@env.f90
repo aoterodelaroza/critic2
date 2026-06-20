@@ -1629,28 +1629,31 @@ contains
     function out_vector(ja,ibnd) result(v)
       integer, intent(in) :: ja, ibnd
       real*8 :: v(3)
-      if (bia(ibnd) == ja) then
-         v = c%x2c(c%atcel(bib(ibnd))%x + real(blv(:,ibnd),8) - c%atcel(ja)%x)
-      else
-         v = c%x2c(c%atcel(bia(ibnd))%x - real(blv(:,ibnd),8) - c%atcel(ja)%x)
-      end if
+      v = c%x2c(out_point(ja,ibnd) - c%atcel(ja)%x)
     end function out_vector
 
     !> Largest bond angle (degrees) at a degree-2 atom (its two incident bonds).
     function atom_angle(ja) result(ang)
+      use param, only: pi
       integer, intent(in) :: ja
-      real*8 :: ang, v1(3), v2(3), n1, n2, ca
+      real*8 :: ang
       ang = 0d0
       if (nincid(ja) < 2) return
-      v1 = out_vector(ja,incid(1,ja))
-      v2 = out_vector(ja,incid(2,ja))
-      n1 = norm2(v1)
-      n2 = norm2(v2)
-      if (n1 < 1d-10 .or. n2 < 1d-10) return
-      ca = dot_product(v1,v2) / (n1*n2)
-      ca = max(min(ca,1d0),-1d0)
-      ang = acos(ca) * 180d0 / acos(-1d0)
+      ang = c%angle(out_point(ja,incid(1,ja)),c%atcel(ja)%x,&
+         out_point(ja,incid(2,ja))) * 180d0 / pi
     end function atom_angle
+
+    !> Crystallographic coordinates of the atom at the far end of bond ibnd
+    !> from atom ja (the neighbor's position in ja's reference image).
+    function out_point(ja,ibnd) result(x)
+      integer, intent(in) :: ja, ibnd
+      real*8 :: x(3)
+      if (bia(ibnd) == ja) then
+         x = c%atcel(bib(ibnd))%x + real(blv(:,ibnd),8)
+      else
+         x = c%atcel(bia(ibnd))%x - real(blv(:,ibnd),8)
+      end if
+    end function out_point
 
     !> Pyramidality of a degree-3 atom: |triple product| of its three unit
     !> bond vectors. 0 for a planar (sp2) center, ~0.77 for ideal sp3.

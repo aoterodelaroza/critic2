@@ -246,6 +246,7 @@ module crystalmod
      procedure :: xr2x !< Convert reduced cryst. -> input cryst.
      procedure :: x2xr !< Convert input cryst. -> reduced cryst.
      procedure :: distance !< Distance between points in crystallographic coordinates
+     procedure :: angle !< Angle (radians) at the vertex of three points in crystallographic coordinates
      procedure :: distmatrix !< calculate the distance matrix (molecules only)
      procedure :: eql_distance !< Shortest distance between lattice-translated vectors
      procedure :: shortest !< Gives the lattice-translated vector with shortest length
@@ -477,6 +478,13 @@ module crystalmod
        real*8, intent(in) :: x2(3)
        real*8 :: distance
      end function distance
+     pure module function angle(c,x1,x2,x3)
+       class(crystal), intent(in) :: c
+       real*8, intent(in) :: x1(3)
+       real*8, intent(in) :: x2(3)
+       real*8, intent(in) :: x3(3)
+       real*8 :: angle
+     end function angle
      module subroutine distmatrix(c,d,inverse,conn)
        class(crystal), intent(in) :: c
        real*8, allocatable, intent(inout) :: d(:,:)

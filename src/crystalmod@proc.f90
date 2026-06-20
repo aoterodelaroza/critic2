@@ -759,6 +759,31 @@ contains
 
   end function distance
 
+  !> Compute the angle (radians) at the vertex x2 subtended by the three
+  !> points x1, x2, x3 in crystallographic coordinates (the angle between
+  !> vectors x2->x1 and x2->x3). Returns 0 if either vector is degenerate.
+  !> This routine is thread-safe.
+  pure module function angle(c,x1,x2,x3)
+    class(crystal), intent(in) :: c !< Input crystal
+    real*8, intent(in) :: x1(3) !< First point in cryst. coordinates
+    real*8, intent(in) :: x2(3) !< Vertex point in cryst. coordinates
+    real*8, intent(in) :: x3(3) !< Third point in cryst. coordinates
+    real*8 :: angle
+
+    real*8 :: v1(3), v2(3), n1, n2
+
+    v1 = c%x2c(x1 - x2)
+    v2 = c%x2c(x3 - x2)
+    n1 = norm2(v1)
+    n2 = norm2(v2)
+    if (n1 < 1d-12 .or. n2 < 1d-12) then
+       angle = 0d0
+    else
+       angle = acos(max(min(dot_product(v1,v2) / (n1*n2),1d0),-1d0))
+    end if
+
+  end function angle
+
   !> Calculate the distance matrix (molecules only). If inverse,
   !> invert the distances. If conn, return the distance if the atoms
   !> are bonded, and the inverse distance if they are not, and zero
