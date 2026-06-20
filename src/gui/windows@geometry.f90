@@ -63,7 +63,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
-    logical :: doquit, clicked, forcesort, ch, lch, deselected
+    logical :: doquit, clicked, forcesort, ch, lch, deselected, chvol
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:16)
     integer :: ihlbond, ihlbtn ! bonds tab: hovered central atom and hovered neighbor button (cell ids)
     integer :: ipickhl ! cell id of the atom awaiting an add-bond pick (0 = none), highlighted
@@ -95,7 +95,7 @@ contains
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, havergb_, ldum, ok, oksys
-    real*8 :: x0(3), x6(6), xold(3), x6old(6), res
+    real*8 :: x0(3), x6(6), xold(3), x6old(6), res, vol, volold, scal
     real*8 :: stdrot(3,3), stdcom(3), stdext, stdaxlen ! transient std-orientation axes
     integer :: ieuler_drag ! which Euler angle (1/2/3) is being dragged (0 = none)
     real*8 :: rotdir(3), rotlen ! transient rotation-axis direction and half-length
@@ -973,9 +973,26 @@ contains
              ch = ch .or. iw_dragfloat_real8("##cellanbsc",x1=x6(6),speed=0.01d0,decimal=4,sameline=.true.,&
                 notlive=.true.)
 
+             ! cell volume
+             call igAlignTextToFramePadding()
+             call iw_text("Volume (Å³): ")
+             vol = sys(isys)%c%omega * bohrtoa**3
+             volold = vol
+             chvol = iw_dragfloat_real8("##cellvolume",x1=vol,speed=0.5d0,decimal=4,min=1d-6,&
+                notlive=.true.,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+             call iw_tooltip("Cell volume in Å³. Changing it scales the cell isotropically, &
+                &compressing or expanding the crystal at constant fractional coordinates",ttshown)
+
              if (ch .and. any(abs(x6-x6old) > epsmoved)) then
                 iaction = iaction_change_cell
                 iaction_x6 = x6
+                iaction_l = w%geometry_forcewyc
+             elseif (chvol .and. abs(vol-volold) > epsmoved .and. vol > 1d-6) then
+                ! isotropic scale factor on the lengths to reach the target volume
+                scal = (vol / volold)**(1d0/3d0)
+                iaction = iaction_change_cell
+                iaction_x6(1:3) = sys(isys)%c%aa * scal
+                iaction_x6(4:6) = sys(isys)%c%bb
                 iaction_l = w%geometry_forcewyc
              end if
 
