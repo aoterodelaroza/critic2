@@ -365,7 +365,7 @@ contains
 
   end subroutine new_eval
 
-  module subroutine grid_end(f)
+  pure module subroutine grid_end(f)
     class(grid3), intent(inout) :: f
 
     f%mode = mode_default
@@ -456,7 +456,7 @@ contains
   end subroutine setmode
 
   !> Normalize the grid to a given value. omega is the cell volume.
-  module subroutine normalize(f,norm)
+  pure module subroutine normalize(f,norm)
     use tools_math, only: det3
     class(grid3), intent(inout) :: f
     real*8, intent(in) :: norm

@@ -53,7 +53,7 @@ module meshmod
   public :: mesh
 
   interface
-     module subroutine endmesh(m)
+     pure module subroutine endmesh(m)
        class(mesh), intent(inout) :: m
      end subroutine endmesh
      module subroutine genmesh(m,c,type,lvl)

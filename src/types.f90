@@ -390,142 +390,142 @@ module types
      module subroutine scalar_value_clear(s)
        class(scalar_value), intent(inout) :: s
      end subroutine scalar_value_clear
-     module subroutine field_evaluation_avail_clear(s)
+     pure module subroutine field_evaluation_avail_clear(s)
        class(field_evaluation_avail), intent(inout) :: s
      end subroutine field_evaluation_avail_clear
-     module subroutine field_evaluation_avail_all_basic(s)
+     pure module subroutine field_evaluation_avail_all_basic(s)
        class(field_evaluation_avail), intent(inout) :: s
      end subroutine field_evaluation_avail_all_basic
-     module subroutine field_evaluation_avail_field_only(s)
+     pure module subroutine field_evaluation_avail_field_only(s)
        class(field_evaluation_avail), intent(inout) :: s
      end subroutine field_evaluation_avail_field_only
-     module subroutine field_evaluation_avail_field_nder1(s)
+     pure module subroutine field_evaluation_avail_field_nder1(s)
        class(field_evaluation_avail), intent(inout) :: s
      end subroutine field_evaluation_avail_field_nder1
-     module subroutine field_evaluation_avail_field_nder2(s)
+     pure module subroutine field_evaluation_avail_field_nder2(s)
        class(field_evaluation_avail), intent(inout) :: s
      end subroutine field_evaluation_avail_field_nder2
-     module subroutine realloc_vstring(a,nnew)
+     pure module subroutine realloc_vstring(a,nnew)
        type(vstring), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_vstring
-     module subroutine realloc_pointpropable(a,nnew)
+     pure module subroutine realloc_pointpropable(a,nnew)
        type(pointpropable), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_pointpropable
-     module subroutine realloc_integrable(a,nnew)
+     pure module subroutine realloc_integrable(a,nnew)
        type(integrable), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_integrable
-     module subroutine realloc_species(a,nnew)
+     pure module subroutine realloc_species(a,nnew)
        type(species), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_species
-     module subroutine realloc_basicatom(a,nnew)
+     pure module subroutine realloc_basicatom(a,nnew)
        type(basicatom), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_basicatom
-     module subroutine realloc_neqatom(a,nnew)
+     pure module subroutine realloc_neqatom(a,nnew)
        type(neqatom), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_neqatom
-     module subroutine realloc_celatom(a,nnew)
+     pure module subroutine realloc_celatom(a,nnew)
        type(celatom), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_celatom
-     module subroutine realloc_anyatom(a,nnew)
+     pure module subroutine realloc_anyatom(a,nnew)
        type(anyatom), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_anyatom
-     module subroutine realloc_molsymop(a,nnew)
+     pure module subroutine realloc_molsymop(a,nnew)
        type(molsymop), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_molsymop
-     module subroutine realloc_cp(a,nnew)
+     pure module subroutine realloc_cp(a,nnew)
        type(cp_type), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_cp
-     module subroutine realloc_gpathp(a,nnew)
+     pure module subroutine realloc_gpathp(a,nnew)
        type(gpathp), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_gpathp
-     module subroutine realloc1l(a,nnew)
+     pure module subroutine realloc1l(a,nnew)
        logical, intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc1l
-     module subroutine realloc2l(a,n1,n2)
+     pure module subroutine realloc2l(a,n1,n2)
        logical, intent(inout), allocatable :: a(:,:)
        integer, intent(in) :: n1, n2
      end subroutine realloc2l
-     module subroutine realloc1r(a,nnew)
+     pure module subroutine realloc1r(a,nnew)
        real*8, intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc1r
-     module subroutine realloc2r(a,n1,n2)
+     pure module subroutine realloc2r(a,n1,n2)
        real*8, intent(inout), allocatable :: a(:,:)
        integer, intent(in) :: n1, n2
      end subroutine realloc2r
-     module subroutine realloc3r(a,n1,n2,n3)
+     pure module subroutine realloc3r(a,n1,n2,n3)
        real*8, intent(inout), allocatable :: a(:,:,:)
        integer, intent(in) :: n1, n2, n3
      end subroutine realloc3r
-     module subroutine realloc4r(a,n1,n2,n3,n4)
+     pure module subroutine realloc4r(a,n1,n2,n3,n4)
        real*8, intent(inout), allocatable :: a(:,:,:,:)
        integer, intent(in) :: n1, n2, n3, n4
      end subroutine realloc4r
-     module subroutine realloc5r(a,n1,n2,n3,n4,n5)
+     pure module subroutine realloc5r(a,n1,n2,n3,n4,n5)
        real*8, intent(inout), allocatable :: a(:,:,:,:,:)
        integer, intent(in) :: n1, n2, n3, n4, n5
      end subroutine realloc5r
-     module subroutine realloc1r4(a,nnew)
+     pure module subroutine realloc1r4(a,nnew)
        real*4, intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc1r4
-     module subroutine realloc2r4(a,n1,n2)
+     pure module subroutine realloc2r4(a,n1,n2)
        real*4, intent(inout), allocatable :: a(:,:)
        integer, intent(in) :: n1, n2
      end subroutine realloc2r4
-     module subroutine realloc1i(a,nnew)
+     pure module subroutine realloc1i(a,nnew)
        integer, intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc1i
-     module subroutine realloc2i(a,n1,n2)
+     pure module subroutine realloc2i(a,n1,n2)
        integer, intent(inout), allocatable :: a(:,:)
        integer, intent(in) :: n1, n2
      end subroutine realloc2i
-     module subroutine realloc1c(a,nnew)
+     pure module subroutine realloc1c(a,nnew)
        character*(*), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc1c
-     module subroutine realloc1cmplx8(a,nnew)
+     pure module subroutine realloc1cmplx8(a,nnew)
        complex*8, intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc1cmplx8
-     module subroutine realloc2cmplx8(a,n1,n2)
+     pure module subroutine realloc2cmplx8(a,n1,n2)
        complex*8, intent(inout), allocatable :: a(:,:)
        integer, intent(in) :: n1, n2
      end subroutine realloc2cmplx8
-     module subroutine realloc4cmplx8(a,n1,n2,n3,n4)
+     pure module subroutine realloc4cmplx8(a,n1,n2,n3,n4)
        complex*8, intent(inout), allocatable :: a(:,:,:,:)
        integer, intent(in) :: n1, n2, n3, n4
      end subroutine realloc4cmplx8
-     module subroutine realloc5cmplx8(a,n1,n2,n3,n4,n5)
+     pure module subroutine realloc5cmplx8(a,n1,n2,n3,n4,n5)
        complex*8, intent(inout), allocatable :: a(:,:,:,:,:)
        integer, intent(in) :: n1, n2, n3, n4, n5
      end subroutine realloc5cmplx8
-     module subroutine realloc1cmplx16(a,nnew)
+     pure module subroutine realloc1cmplx16(a,nnew)
        complex*16, intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc1cmplx16
-     module subroutine realloc2cmplx16(a,n1,n2)
+     pure module subroutine realloc2cmplx16(a,n1,n2)
        complex*16, intent(inout), allocatable :: a(:,:)
        integer, intent(in) :: n1, n2
      end subroutine realloc2cmplx16
-     module subroutine realloc4cmplx16(a,n1,n2,n3,n4)
+     pure module subroutine realloc4cmplx16(a,n1,n2,n3,n4)
        complex*16, intent(inout), allocatable :: a(:,:,:,:)
        integer, intent(in) :: n1, n2, n3, n4
      end subroutine realloc4cmplx16
-     module subroutine realloc5cmplx16(a,n1,n2,n3,n4,n5)
+     pure module subroutine realloc5cmplx16(a,n1,n2,n3,n4,n5)
        complex*16, intent(inout), allocatable :: a(:,:,:,:,:)
        integer, intent(in) :: n1, n2, n3, n4, n5
      end subroutine realloc5cmplx16

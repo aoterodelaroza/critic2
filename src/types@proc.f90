@@ -57,7 +57,7 @@ contains
   end subroutine scalar_value_clear
 
   !> Clear of values and flags of a field evaluation avail type.
-  module subroutine field_evaluation_avail_clear(s)
+  pure module subroutine field_evaluation_avail_clear(s)
     class(field_evaluation_avail), intent(inout) :: s
 
     s%avail = .false.
@@ -67,7 +67,7 @@ contains
   end subroutine field_evaluation_avail_clear
 
   !> Request all basic properties (all except MO, mep, uslater, xhole).
-  module subroutine field_evaluation_avail_all_basic(s)
+  pure module subroutine field_evaluation_avail_all_basic(s)
     class(field_evaluation_avail), intent(inout) :: s
 
     s%avail = .true.
@@ -81,7 +81,7 @@ contains
   end subroutine field_evaluation_avail_all_basic
 
   !> Request the field only.
-  module subroutine field_evaluation_avail_field_only(s)
+  pure module subroutine field_evaluation_avail_field_only(s)
     class(field_evaluation_avail), intent(inout) :: s
 
     s%avail = .false.
@@ -92,7 +92,7 @@ contains
   end subroutine field_evaluation_avail_field_only
 
   !> Request the field and its first derivatives.
-  module subroutine field_evaluation_avail_field_nder1(s)
+  pure module subroutine field_evaluation_avail_field_nder1(s)
     class(field_evaluation_avail), intent(inout) :: s
 
     s%avail = .false.
@@ -104,7 +104,7 @@ contains
   end subroutine field_evaluation_avail_field_nder1
 
   !> Request the field and its first and second derivatives.
-  module subroutine field_evaluation_avail_field_nder2(s)
+  pure module subroutine field_evaluation_avail_field_nder2(s)
     class(field_evaluation_avail), intent(inout) :: s
 
     s%avail = .false.
@@ -117,7 +117,7 @@ contains
   end subroutine field_evaluation_avail_field_nder2
 
   !> Adapt the size of an allocatable 1D type(vstring) array
-  module subroutine realloc_vstring(a,nnew)
+  pure module subroutine realloc_vstring(a,nnew)
     type(vstring), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
@@ -139,7 +139,7 @@ contains
   end subroutine realloc_vstring
 
   !> Adapt the size of an allocatable 1D type(pointpropable) array
-  module subroutine realloc_pointpropable(a,nnew)
+  pure module subroutine realloc_pointpropable(a,nnew)
     type(pointpropable), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
@@ -161,7 +161,7 @@ contains
   end subroutine realloc_pointpropable
 
   !> Adapt the size of an allocatable 1D type(integrable) array
-  module subroutine realloc_integrable(a,nnew)
+  pure module subroutine realloc_integrable(a,nnew)
     type(integrable), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
@@ -183,7 +183,7 @@ contains
   end subroutine realloc_integrable
 
   !> Adapt the size of an allocatable 1D type(species) array
-  module subroutine realloc_species(a,nnew)
+  pure module subroutine realloc_species(a,nnew)
     type(species), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
@@ -208,7 +208,7 @@ contains
   end subroutine realloc_species
 
   !> Adapt the size of an allocatable 1D type(atom) array
-  module subroutine realloc_basicatom(a,nnew)
+  pure module subroutine realloc_basicatom(a,nnew)
     type(basicatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
@@ -229,7 +229,7 @@ contains
   end subroutine realloc_basicatom
 
   !> Adapt the size of an allocatable 1D type(atom) array
-  module subroutine realloc_neqatom(a,nnew)
+  pure module subroutine realloc_neqatom(a,nnew)
     type(neqatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
@@ -250,7 +250,7 @@ contains
   end subroutine realloc_neqatom
 
   !> Adapt the size of an allocatable 1D type(celatom) array
-  module subroutine realloc_celatom(a,nnew)
+  pure module subroutine realloc_celatom(a,nnew)
     type(celatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
@@ -271,7 +271,7 @@ contains
   end subroutine realloc_celatom
 
   !> Adapt the size of an allocatable 1D type(celatom) array
-  module subroutine realloc_anyatom(a,nnew)
+  pure module subroutine realloc_anyatom(a,nnew)
     type(anyatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
@@ -292,7 +292,7 @@ contains
   end subroutine realloc_anyatom
 
   !> Adapt the size of an allocatable 1D type(molsymop) array
-  module subroutine realloc_molsymop(a,nnew)
+  pure module subroutine realloc_molsymop(a,nnew)
     type(molsymop), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
@@ -313,7 +313,7 @@ contains
   end subroutine realloc_molsymop
 
   !> Adapt the size of an allocatable 1D type(atom) array
-  module subroutine realloc_cp(a,nnew)
+  pure module subroutine realloc_cp(a,nnew)
     type(cp_type), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
@@ -334,7 +334,7 @@ contains
   end subroutine realloc_cp
 
   !> Adapt the size of an allocatable 1D type(atom) array
-  module subroutine realloc_gpathp(a,nnew)
+  pure module subroutine realloc_gpathp(a,nnew)
     type(gpathp), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew
 
@@ -355,7 +355,7 @@ contains
   end subroutine realloc_gpathp
 
   !> Adapt the size of an allocatable 1D logical array
-  module subroutine realloc1l(a,nnew)
+  pure module subroutine realloc1l(a,nnew)
     logical, intent(inout), allocatable :: a(:) !< Input array, logical, 1D
     integer, intent(in) :: nnew !< new dimension
 
@@ -377,7 +377,7 @@ contains
   end subroutine realloc1l
 
   !> Adapt the size of an allocatable 2D logical array
-  module subroutine realloc2l(a,n1,n2)
+  pure module subroutine realloc2l(a,n1,n2)
     logical, intent(inout), allocatable :: a(:,:) !< Input array, logical, 2D
     integer, intent(in) :: n1, n2 !< new dimension
 
@@ -400,7 +400,7 @@ contains
   end subroutine realloc2l
 
   !> Adapt the size of an allocatable 1D real*8 array
-  module subroutine realloc1r(a,nnew)
+  pure module subroutine realloc1r(a,nnew)
     real*8, intent(inout), allocatable :: a(:) !< Input array, real*8, 1D
     integer, intent(in) :: nnew !< new dimension
 
@@ -421,7 +421,7 @@ contains
   end subroutine realloc1r
 
   !> Adapt the size of an allocatable 2D real*8 array
-  module subroutine realloc2r(a,n1,n2)
+  pure module subroutine realloc2r(a,n1,n2)
     real*8, intent(inout), allocatable :: a(:,:) !< Input array, real*8, 2D
     integer, intent(in) :: n1, n2 !< new dimension
 
@@ -444,7 +444,7 @@ contains
   end subroutine realloc2r
 
   !> Adapt the size of an allocatable 3D real*8 array
-  module subroutine realloc3r(a,n1,n2,n3)
+  pure module subroutine realloc3r(a,n1,n2,n3)
     real*8, intent(inout), allocatable :: a(:,:,:) !< Input array, real*8, 3D
     integer, intent(in) :: n1, n2, n3 !< new dimension
 
@@ -468,7 +468,7 @@ contains
   end subroutine realloc3r
 
   !> Adapt the size of an allocatable 3D real*8 array
-  module subroutine realloc4r(a,n1,n2,n3,n4)
+  pure module subroutine realloc4r(a,n1,n2,n3,n4)
     real*8, intent(inout), allocatable :: a(:,:,:,:) !< Input array, real*8, 3D
     integer, intent(in) :: n1, n2, n3, n4 !< new dimension
 
@@ -495,7 +495,7 @@ contains
   end subroutine realloc4r
 
   !> Adapt the size of an allocatable 3D real*8 array
-  module subroutine realloc5r(a,n1,n2,n3,n4,n5)
+  pure module subroutine realloc5r(a,n1,n2,n3,n4,n5)
     real*8, intent(inout), allocatable :: a(:,:,:,:,:) !< Input array, real*8, 3D
     integer, intent(in) :: n1, n2, n3, n4, n5 !< new dimension
 
@@ -523,7 +523,7 @@ contains
   end subroutine realloc5r
 
   !> Adapt the size of an allocatable 1D real*4 array
-  module subroutine realloc1r4(a,nnew)
+  pure module subroutine realloc1r4(a,nnew)
     real*4, intent(inout), allocatable :: a(:) !< Input array, real*8, 1D
     integer, intent(in) :: nnew !< new dimension
 
@@ -545,7 +545,7 @@ contains
   end subroutine realloc1r4
 
   !> Adapt the size of an allocatable 2D real*4 array
-  module subroutine realloc2r4(a,n1,n2)
+  pure module subroutine realloc2r4(a,n1,n2)
     real*4, intent(inout), allocatable :: a(:,:) !< Input array, real*8, 2D
     integer, intent(in) :: n1, n2 !< new dimension
 
@@ -568,7 +568,7 @@ contains
   end subroutine realloc2r4
 
   !> Adapt the size of an allocatable 1D integer array
-  module subroutine realloc1i(a,nnew)
+  pure module subroutine realloc1i(a,nnew)
     integer, intent(inout), allocatable :: a(:) !< Input array, integer, 1D
     integer, intent(in) :: nnew !< New dimension
 
@@ -589,7 +589,7 @@ contains
   end subroutine realloc1i
 
   !> Adapt the size of an allocatable 1D real*8 array
-  module subroutine realloc2i(a,n1,n2)
+  pure module subroutine realloc2i(a,n1,n2)
     integer, intent(inout), allocatable :: a(:,:) !< Input array, integer, 2D
     integer, intent(in) :: n1, n2 !< new dimension
 
@@ -612,7 +612,7 @@ contains
   end subroutine realloc2i
 
   !> Adapt the size of an allocatable 1D character array
-  module subroutine realloc1c(a,nnew)
+  pure module subroutine realloc1c(a,nnew)
     character*(*), intent(inout), allocatable :: a(:) !< Input array, character, 1D
     integer, intent(in) :: nnew !< New dimension
 
@@ -633,7 +633,7 @@ contains
   end subroutine realloc1c
 
   !> Adapt the size of an allocatable 1D complex*8 array
-  module subroutine realloc1cmplx8(a,nnew)
+  pure module subroutine realloc1cmplx8(a,nnew)
     complex*8, intent(inout), allocatable :: a(:) !< Input array, complex*8, 1D
     integer, intent(in) :: nnew !< new dimension
 
@@ -655,7 +655,7 @@ contains
   end subroutine realloc1cmplx8
 
   !> Adapt the size of an allocatable 2D complex*8 array
-  module subroutine realloc2cmplx8(a,n1,n2)
+  pure module subroutine realloc2cmplx8(a,n1,n2)
     complex*8, intent(inout), allocatable :: a(:,:) !< Input array, complex*8, 2D
     integer, intent(in) :: n1, n2 !< new dimension
 
@@ -678,7 +678,7 @@ contains
   end subroutine realloc2cmplx8
 
   !> Adapt the size of an allocatable 2D complex*8 array
-  module subroutine realloc4cmplx8(a,n1,n2,n3,n4)
+  pure module subroutine realloc4cmplx8(a,n1,n2,n3,n4)
     complex*8, intent(inout), allocatable :: a(:,:,:,:) !< Input array, complex*8, 2D
     integer, intent(in) :: n1, n2, n3, n4 !< new dimension
 
@@ -704,7 +704,7 @@ contains
   end subroutine realloc4cmplx8
 
   !> Adapt the size of an allocatable 5D complex*8 array
-  module subroutine realloc5cmplx8(a,n1,n2,n3,n4,n5)
+  pure module subroutine realloc5cmplx8(a,n1,n2,n3,n4,n5)
     complex*8, intent(inout), allocatable :: a(:,:,:,:,:) !< Input array, complex*8, 3D
     integer, intent(in) :: n1, n2, n3, n4, n5 !< new dimension
 
@@ -732,7 +732,7 @@ contains
   end subroutine realloc5cmplx8
 
   !> Adapt the size of an allocatable 1D complex*16 array
-  module subroutine realloc1cmplx16(a,nnew)
+  pure module subroutine realloc1cmplx16(a,nnew)
     complex*16, intent(inout), allocatable :: a(:) !< Input array, complex*16, 1D
     integer, intent(in) :: nnew !< new dimension
 
@@ -754,7 +754,7 @@ contains
   end subroutine realloc1cmplx16
 
   !> Adapt the size of an allocatable 2D complex*16 array
-  module subroutine realloc2cmplx16(a,n1,n2)
+  pure module subroutine realloc2cmplx16(a,n1,n2)
     complex*16, intent(inout), allocatable :: a(:,:) !< Input array, complex*16, 2D
     integer, intent(in) :: n1, n2 !< new dimension
 
@@ -777,7 +777,7 @@ contains
   end subroutine realloc2cmplx16
 
   !> Adapt the size of an allocatable 2D complex*16 array
-  module subroutine realloc4cmplx16(a,n1,n2,n3,n4)
+  pure module subroutine realloc4cmplx16(a,n1,n2,n3,n4)
     complex*16, intent(inout), allocatable :: a(:,:,:,:) !< Input array, complex*16, 2D
     integer, intent(in) :: n1, n2, n3, n4 !< new dimension
 
@@ -803,7 +803,7 @@ contains
   end subroutine realloc4cmplx16
 
   !> Adapt the size of an allocatable 5D complex*16 array
-  module subroutine realloc5cmplx16(a,n1,n2,n3,n4,n5)
+  pure module subroutine realloc5cmplx16(a,n1,n2,n3,n4,n5)
     complex*16, intent(inout), allocatable :: a(:,:,:,:,:) !< Input array, complex*16, 3D
     integer, intent(in) :: n1, n2, n3, n4, n5 !< new dimension
 

@@ -110,7 +110,7 @@ contains
   end subroutine struct_init
 
   !> Terminate allocated arrays
-  module subroutine struct_end(c)
+  pure module subroutine struct_end(c)
     use param, only: isformat_r_unknown
     class(crystal), intent(inout) :: c
 
@@ -808,7 +808,7 @@ contains
   !> invert the distances. If conn, return the distance if the atoms
   !> are bonded, and the inverse distance if they are not, and zero
   !> along the diagonals.
-  module subroutine distmatrix(c,d,inverse,conn)
+  pure module subroutine distmatrix(c,d,inverse,conn)
     class(crystal), intent(in) :: c
     real*8, allocatable, intent(inout) :: d(:,:)
     logical, intent(in), optional :: inverse

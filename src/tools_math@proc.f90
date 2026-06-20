@@ -70,7 +70,7 @@ contains
   !> positions and intensities given by th2p and ip. Return the
   !> pattern in t (2*theta) and ih (intensity). The powder pattern is
   !> normalized to have 100 as the highest point.
-  module subroutine synthetic_powder(th2ini,th2end,npts,sigma,th2p,ip,t,ih)
+  pure module subroutine synthetic_powder(th2ini,th2end,npts,sigma,th2p,ip,t,ih)
     real*8, intent(in) :: th2ini, th2end
     integer, intent(in) :: npts
     real*8, intent(in) :: sigma
@@ -104,7 +104,7 @@ contains
 
   !> Calculate a normalized Gaussian function with center x0
   !> and FWHM gamma.
-  module function gaussian(x,x0,gamma) result(gau)
+  pure module function gaussian(x,x0,gamma) result(gau)
     use param, only: pi
     real*8, intent(in) :: x(:), x0, gamma
     real*8 :: gau(size(x,1))
@@ -117,7 +117,7 @@ contains
   end function gaussian
 
   !> Calculate a Lorentzian function with center x0 and FWHM gamma.
-  module function lorentzian(x,x0,gamma) result(lor)
+  pure module function lorentzian(x,x0,gamma) result(lor)
     use param, only: pi
     real*8, intent(in) :: x(:), x0, gamma
     real*8 :: lor(size(x,1))
@@ -165,7 +165,7 @@ contains
   !> Gives a cartesian to crystallographic conversion matrix from
   !> the cell parameters using the Cholesky decomposition of the
   !> metric tensor.
-  module function m_c2x_from_cellpar(aal,bbl) result(mat)
+  pure module function m_c2x_from_cellpar(aal,bbl) result(mat)
     real*8, intent(in) :: aal(3),bbl(3)
     real*8 :: mat(3,3)
 
@@ -351,7 +351,7 @@ contains
 
   !> Convert the input vector v to spherical coordinates.
   !> v = (r*sin(th)*cos(ph),r*sin(th)*sin(ph),r*cos(th))
-  module subroutine tosphere(v,r,tp)
+  pure module subroutine tosphere(v,r,tp)
     use param, only: pi
     real*8, intent(in) :: v(3) !< input vector
     real*8, intent(out) :: r !< distance
@@ -545,7 +545,7 @@ contains
   !> and the first (rho1) and second (rho2) derivative at the
   !> distance r0. Only calculate derivatives up to nder (returns 0
   !> for the other derivatives if present).
-  module subroutine radial_derivs(rlm,a,b,r0,nder,rho,rho1,rho2)
+  pure module subroutine radial_derivs(rlm,a,b,r0,nder,rho,rho1,rho2)
     real*8, dimension(:), intent(in) :: rlm
     integer, intent(in) :: nder
     real*8, intent(in) :: r0
@@ -658,7 +658,7 @@ contains
   !>   (a) x**0 = 1D0  no matter what x is.
   !>   (b) 0D0**I = 0D0  for any I<>0.
   !>   (c) X**I  otherwise.
-  module function ep(x,i)
+  pure module function ep(x,i)
     integer, intent(in) :: i !< Exponent
     real*8, intent(in) ::  x !< Base
     real*8 :: ep
@@ -674,7 +674,7 @@ contains
   end function ep
 
   !> Compute the greatest common divisor of an array of num integers (n).
-  module function gcdn(n,num)
+  pure module function gcdn(n,num)
     integer, intent(in) :: n(num)
     integer, intent(in) :: num
     integer :: gcdn
@@ -696,7 +696,7 @@ contains
   end function gcdn
 
   !> Compute greatest common divisor of two integers.
-  module function gcd2(m,n)
+  pure module function gcd2(m,n)
     integer, intent(in) :: m
     integer, intent(in) :: n
     integer :: gcd2
@@ -725,7 +725,7 @@ contains
   end function gcd2
 
   !> Compute the least common multiple of an array of num integers (n).
-  module function lcmn(n,num)
+  pure module function lcmn(n,num)
     integer, intent(in) :: n(num)
     integer, intent(in) :: num
     integer :: lcmn
@@ -747,7 +747,7 @@ contains
   end function lcmn
 
   !> Compute the least common multiple of two integers.
-  module function lcm2(m,n)
+  pure module function lcm2(m,n)
     integer, intent(in) :: m, n
     integer :: lcm2
 
@@ -757,7 +757,7 @@ contains
 
   !> Compute the greatest common divisor of an array of num integers (n).
   !> integer*8 version.
-  module function gcdn_i8(n,num)
+  pure module function gcdn_i8(n,num)
     integer*8, intent(in) :: n(num)
     integer, intent(in) :: num
     integer*8 :: gcdn_i8
@@ -780,7 +780,7 @@ contains
 
   !> Compute greatest common divisor of two integers.  integer*8
   !> version.
-  module function gcd2_i8(m,n)
+  pure module function gcd2_i8(m,n)
     integer*8, intent(in) :: m
     integer*8, intent(in) :: n
     integer*8 :: gcd2_i8
@@ -803,7 +803,7 @@ contains
 
   !> Compute the least common multiple of an array of num integers
   !> (n).  integer*8 version.
-  module function lcmn_i8(n,num)
+  pure module function lcmn_i8(n,num)
     integer*8, intent(in) :: n(num)
     integer, intent(in) :: num
     integer*8 :: lcmn_i8
@@ -826,7 +826,7 @@ contains
 
   !> Compute the least common multiple of two integers.  integer*8
   !> version.
-  module function lcm2_i8(m,n)
+  pure module function lcm2_i8(m,n)
     integer*8, intent(in) :: m, n
     integer*8 :: lcm2_i8
 
@@ -835,7 +835,7 @@ contains
   end function lcm2_i8
 
   !> Find a rational number q/r that approximates x0 to within eps (r > 0).
-  module subroutine rational_approx(x0,q,r,eps)
+  pure module subroutine rational_approx(x0,q,r,eps)
     real*8, intent(in) :: x0
     integer*8, intent(out):: q, r
     real*8, intent(in) :: eps
@@ -1063,7 +1063,7 @@ contains
   end function cross_cfloat
 
   !> Mixed product of three 3-vectors
-  module function mixed(v1,v2,v3)
+  pure module function mixed(v1,v2,v3)
     real*8, intent(in) :: v1(3) !< First vector
     real*8, intent(in) :: v2(3) !< Second vector
     real*8, intent(in) :: v3(3) !< Third vector
@@ -1089,7 +1089,7 @@ contains
   end function mnorm2
 
   !> Determinant of a real 3x3 symmetric matrix
-  module function det3sym(m)
+  pure module function det3sym(m)
     real*8, intent(in) :: m(3,3) !< Input matrix
     real*8 :: det3sym
 
@@ -1102,7 +1102,7 @@ contains
   end function det3sym
 
   !> Determinant of a real 3x3 matrix
-  module function det3(m)
+  pure module function det3(m)
     real*8, intent(in) :: m(3,3) !< Input matrix
     real*8 :: det3
 
@@ -1341,7 +1341,7 @@ contains
   !> This routine selects particular contour values (ziso(1:niso))
   !> based on the given selection scheme (niso_type). fmax and fmin
   !> are the maximum and minimum values of the field.
-  module subroutine assign_ziso(niso_type,niso,ziso,fmin,fmax)
+  pure module subroutine assign_ziso(niso_type,niso,ziso,fmin,fmax)
     use param, only: pi
     integer, intent(in) :: niso_type
     integer, intent(inout) :: niso
@@ -1468,8 +1468,9 @@ contains
   !> corresponds to a given index in the lexicographic order. Buckles
   !> and Lybanon's algorithm (toms/515, B.P. Buckles and M.  Lybanon,
   !> ACM TOMS 3 (1977) 180-182).
-  module subroutine comb(n, p, l, c)
-    integer :: n, p, l, c(p)
+  pure module subroutine comb(n, p, l, c)
+    integer, intent(in) :: n, p, l
+    integer, intent(out) :: c(p)
 
     ! THIS SUBROUTINE FINDS THE COMBINATION SET OF N THINGS
     ! TAKEN P AT A TIME FOR A GIVEN LEXICOGRAPHICAL INDEX.
@@ -1510,8 +1511,8 @@ contains
   end subroutine comb
 
   !> Returns m choose n. Same source as comb.
-  module function nchoosek(M, N)
-    integer :: m, n
+  pure module function nchoosek(M, N)
+    integer, intent(in) :: m, n
     integer :: nchoosek
 
     ! ACM ALGORITHM 160 TRANSLATED TO FORTRAN.  CALCULATES THE
@@ -1613,7 +1614,7 @@ contains
   end function rmsd_walker
 
   !> Find the Gauss-Legendre nodes and weights for an interval.
-  module subroutine gauleg(x1,x2,x,w,n)
+  pure module subroutine gauleg(x1,x2,x,w,n)
     use param, only: pi
     real*8, intent(in) :: x1 !< Left limit of the interval
     real*8, intent(in) :: x2 !< Right limit of the interval
@@ -1819,7 +1820,7 @@ contains
 
   !> Tang-Toennies damping function:
   !>  f(r) = 1 - exp(-br) * sum_k=0^n (br^k) / k!
-  module function fdamp_tt(r,b,n)
+  pure module function fdamp_tt(r,b,n)
     real*8, intent(in) :: r, b
     integer, intent(in) :: n
     real*8 :: fdamp_tt
@@ -1840,7 +1841,7 @@ contains
 
   ! Becke-Johnson damping function:
   !  f(r) = r^n / (r^n + rvdw^n)
-  module function fdamp_bj(r,rvdw,n)
+  pure module function fdamp_bj(r,rvdw,n)
     real*8, intent(in) :: r, rvdw
     integer, intent(in) :: n
     real*8 :: fdamp_bj
@@ -1856,7 +1857,7 @@ contains
   !> associated with the cost matrix c that yields the minimal
   !> cost. The cost is returned as an additional argument.
   !> For every column i, as(i) gives the assigned row.
-  module subroutine munkres(n,c,as,cost)
+  pure module subroutine munkres(n,c,as,cost)
     integer, intent(in) :: n
     real*8, intent(in) :: c(n,n)
     integer, intent(out) :: as(n)
@@ -2208,7 +2209,7 @@ contains
 
   !> Invert a permutation iperm(1:n). The values of iperm must all be
   !> different and between 1 and n.
-  module function invert_permutation(iperm) result(res)
+  pure module function invert_permutation(iperm) result(res)
     integer, intent(in) :: iperm(:)
     integer :: res(size(iperm,1))
 
@@ -2451,7 +2452,7 @@ contains
 
   !> Evaluate the spline determined by coefficients c (output of
   !> splinefit) with n knots at x. Return the result in y.
-  module function splineval(n,c,x) result (y)
+  pure module function splineval(n,c,x) result (y)
     integer, intent(in) :: n
     real*8, intent(in) :: c(5,n)
     real*8, intent(in) :: x
@@ -2476,7 +2477,7 @@ contains
   !> Given a set of n points with coordinates x and y, interpolate
   !> linearly at xi and return the interpolated y value (yi). The
   !> x are assumed to be in increasing order.
-  module function interp1(n,x,y,xi) result(yi)
+  pure module function interp1(n,x,y,xi) result(yi)
     integer, intent(in) :: n
     real*8, intent(in) :: x(n), y(n), xi
     real*8 :: yi

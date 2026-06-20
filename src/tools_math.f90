@@ -112,7 +112,7 @@ module tools_math
        real*8, intent(in) :: f(:), g(:)
        real*8 :: dfg
      end function crosscorr_triangle
-     module subroutine synthetic_powder(th2ini,th2end,npts,sigma,th2p,ip,t,ih)
+     pure module subroutine synthetic_powder(th2ini,th2end,npts,sigma,th2p,ip,t,ih)
        real*8, intent(in) :: th2ini, th2end
        integer, intent(in) :: npts
        real*8, intent(in) :: sigma
@@ -121,11 +121,11 @@ module tools_math
        real*8, allocatable, intent(inout) :: t(:)
        real*8, allocatable, intent(inout) :: ih(:)
      end subroutine synthetic_powder
-     module function gaussian(x,x0,gamma) result(gau)
+     pure module function gaussian(x,x0,gamma) result(gau)
        real*8, intent(in) :: x(:), x0, gamma
        real*8 :: gau(size(x,1))
      end function gaussian
-     module function lorentzian(x,x0,gamma) result(lor)
+     pure module function lorentzian(x,x0,gamma) result(lor)
        real*8, intent(in) :: x(:), x0, gamma
        real*8 :: lor(size(x,1))
      end function lorentzian
@@ -133,7 +133,7 @@ module tools_math
        real*8, intent(in) :: aal(3),bbl(3)
        real*8 :: mat(3,3)
      end function m_x2c_from_cellpar
-     module function m_c2x_from_cellpar(aal,bbl) result(mat)
+     pure module function m_c2x_from_cellpar(aal,bbl) result(mat)
        real*8, intent(in) :: aal(3),bbl(3)
        real*8 :: mat(3,3)
      end function m_c2x_from_cellpar
@@ -157,7 +157,7 @@ module tools_math
        real*8, intent(in) :: tp(2)
        complex*16, intent(out) :: ylm(*)
      end subroutine genylm
-     module subroutine tosphere(v,r,tp)
+     pure module subroutine tosphere(v,r,tp)
        real*8, intent(in) :: v(3)
        real*8, intent(out) :: r
        real*8, intent(out) :: tp(2)
@@ -170,7 +170,7 @@ module tools_math
        integer, intent(in) :: nder
        complex*16, intent(out), optional :: grad(3), hess(6)
      end subroutine ylmderiv
-     module subroutine radial_derivs(rlm,a,b,r0,nder,rho,rho1,rho2)
+     pure module subroutine radial_derivs(rlm,a,b,r0,nder,rho,rho1,rho2)
        real*8, dimension(:), intent(in) :: rlm
        integer, intent(in) :: nder
        real*8, intent(in) :: r0
@@ -178,48 +178,48 @@ module tools_math
        real*8, intent(out) :: rho
        real*8, intent(out), optional :: rho1, rho2
      end subroutine radial_derivs
-     module function ep(x,i)
+     pure module function ep(x,i)
        integer, intent(in) :: i
        real*8, intent(in) ::  x
        real*8 :: ep
      end function ep
-     module function gcdn(n,num)
+     pure module function gcdn(n,num)
        integer, intent(in) :: n(num)
        integer, intent(in) :: num
        integer :: gcdn
      end function gcdn
-     module function gcd2(m,n)
+     pure module function gcd2(m,n)
        integer, intent(in) :: m, n
        integer :: gcd2
      end function gcd2
-     module function lcmn(n,num)
+     pure module function lcmn(n,num)
        integer, intent(in) :: n(num)
        integer, intent(in) :: num
        integer :: lcmn
      end function lcmn
-     module function lcm2(m,n)
+     pure module function lcm2(m,n)
        integer, intent(in) :: m, n
        integer :: lcm2
      end function lcm2
-     module function gcdn_i8(n,num)
+     pure module function gcdn_i8(n,num)
        integer*8, intent(in) :: n(num)
        integer, intent(in) :: num
        integer*8 :: gcdn_i8
      end function gcdn_i8
-     module function gcd2_i8(m,n)
+     pure module function gcd2_i8(m,n)
        integer*8, intent(in) :: m, n
        integer*8 :: gcd2_i8
      end function gcd2_i8
-     module function lcmn_i8(n,num)
+     pure module function lcmn_i8(n,num)
        integer*8, intent(in) :: n(num)
        integer, intent(in) :: num
        integer*8 :: lcmn_i8
      end function lcmn_i8
-     module function lcm2_i8(m,n)
+     pure module function lcm2_i8(m,n)
        integer*8, intent(in) :: m, n
        integer*8 :: lcm2_i8
      end function lcm2_i8
-     module subroutine rational_approx(x0,q,r,eps)
+     pure module subroutine rational_approx(x0,q,r,eps)
        real*8, intent(in) :: x0
        integer*8, intent(out):: q, r
        real*8, intent(in) :: eps
@@ -262,7 +262,7 @@ module tools_math
        real(c_float), intent(in) :: v2(3)
        real(c_float) :: vx(3)
      end function cross_cfloat
-     module function mixed(v1,v2,v3)
+     pure module function mixed(v1,v2,v3)
        real*8, intent(in) :: v1(3)
        real*8, intent(in) :: v2(3)
        real*8, intent(in) :: v3(3)
@@ -276,11 +276,11 @@ module tools_math
        real*8, intent(in) :: a(3,3)
        real*8 :: mnorm2
      end function mnorm2
-     module function det3sym(m)
+     pure module function det3sym(m)
        real*8, intent(in) :: m(3,3)
        real*8 :: det3sym
      end function det3sym
-     module function det3(m)
+     pure module function det3(m)
        real*8, intent(in) :: m(3,3)
        real*8 :: det3
      end function det3
@@ -331,17 +331,18 @@ module tools_math
        real*8, intent(out) :: xnor(3)
        real*8, intent(out), optional :: dev
      end subroutine plane_from_points
-     module subroutine assign_ziso(niso_type,niso,ziso,fmin,fmax)
+     pure module subroutine assign_ziso(niso_type,niso,ziso,fmin,fmax)
        integer, intent(in) :: niso_type
        integer, intent(inout) :: niso
        real*8, allocatable, intent(inout) :: ziso(:)
        real*8, intent(in) :: fmin, fmax
      end subroutine assign_ziso
-     module subroutine comb(n, p, l, c)
-       integer :: n, p, l, c(p)
+     pure module subroutine comb(n, p, l, c)
+       integer, intent(in) :: n, p, l
+       integer, intent(out) :: c(p)
      end subroutine comb
-     module function nchoosek(M, N)
-       integer :: m, n
+     pure module function nchoosek(M, N)
+       integer, intent(in) :: m, n
        integer :: nchoosek
      end function nchoosek
      module function rmsd_walker(x1o,x2o,mrot) result(rmsd)
@@ -349,7 +350,7 @@ module tools_math
        real*8, intent(out), optional :: mrot(3,3)
        real*8 :: rmsd
      end function rmsd_walker
-     module subroutine gauleg (x1,x2,x,w,n)
+     pure module subroutine gauleg (x1,x2,x,w,n)
        real*8, intent(in) :: x1
        real*8, intent(in) :: x2
        real*8, dimension(n), intent(out) :: x
@@ -368,17 +369,17 @@ module tools_math
        real*8, intent(in) :: rho, quad, uxpos
        real*8, intent(out) :: xlnrm
      end subroutine xlnorm
-     module function fdamp_tt(r,b,n)
+     pure module function fdamp_tt(r,b,n)
        real*8, intent(in) :: r, b
        integer, intent(in) :: n
        real*8 :: fdamp_tt
      end function fdamp_tt
-     module function fdamp_bj(r,rvdw,n)
+     pure module function fdamp_bj(r,rvdw,n)
        real*8, intent(in) :: r, rvdw
        integer, intent(in) :: n
        real*8 :: fdamp_bj
      end function fdamp_bj
-     module subroutine munkres(n,c,as,cost)
+     pure module subroutine munkres(n,c,as,cost)
        integer, intent(in) :: n
        real*8, intent(in) :: c(n,n)
        integer, intent(out) :: as(n)
@@ -400,7 +401,7 @@ module tools_math
        integer, intent(out) :: nlist
        integer, allocatable, intent(inout) :: list(:,:)
      end subroutine ullmann_graph_matching
-     module function invert_permutation(iperm)
+     pure module function invert_permutation(iperm)
        integer, intent(in) :: iperm(:)
        integer :: invert_permutation(size(iperm,1))
      end function invert_permutation
@@ -424,13 +425,13 @@ module tools_math
        real*8, intent(in), optional :: ypend(2)
        real*8 :: c(5,n)
      end function splinefit
-     module function splineval(n,c,x) result (y)
+     pure module function splineval(n,c,x) result (y)
        integer, intent(in) :: n
        real*8, intent(in) :: c(5,n)
        real*8, intent(in) :: x
        real*8 :: y
      end function splineval
-     module function interp1(n,x,y,xi) result(yi)
+     pure module function interp1(n,x,y,xi) result(yi)
        integer, intent(in) :: n
        real*8, intent(in) :: x(n), y(n), xi
        real*8 :: yi

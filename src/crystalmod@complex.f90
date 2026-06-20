@@ -370,7 +370,7 @@ contains
 
   !> Calculate the number of k-points (nk) for a given rk-length. Uses
   !> the VASP formula.
-  module subroutine get_kpoints(c,rk,nk)
+  pure module subroutine get_kpoints(c,rk,nk)
     class(crystal), intent(in) :: c
     real*8, intent(in) :: rk
     integer, intent(out) :: nk(3)

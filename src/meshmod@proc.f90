@@ -30,7 +30,7 @@ submodule (meshmod) proc
 contains
 
   !> Deallocate and uninitalize
-  module subroutine endmesh(m)
+  pure module subroutine endmesh(m)
     class(mesh), intent(inout) :: m
 
     m%n = 0

@@ -55,14 +55,14 @@ module surface
   public :: minisurf
 
   interface
-     module subroutine minisurf_begin(s,m,f)
+     pure module subroutine minisurf_begin(s,m,f)
        class(minisurf), intent(inout) :: s
        integer, intent(in) :: m, f
      end subroutine minisurf_begin
-     module subroutine minisurf_close(s)
+     pure module subroutine minisurf_close(s)
        class(minisurf), intent(inout) :: s
      end subroutine minisurf_close
-     module subroutine minisurf_clean(s)
+     pure module subroutine minisurf_clean(s)
        class(minisurf), intent(inout) :: s
      end subroutine minisurf_clean
      module subroutine spheresphere(s,xnuc,ntheta,nphi)

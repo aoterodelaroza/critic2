@@ -22,7 +22,7 @@ submodule (fragmentmod) proc
 contains
 
   !> Initialize a fragment
-  module subroutine fragment_init(fr)
+  pure module subroutine fragment_init(fr)
     class(fragment), intent(inout) :: fr
 
     if (allocated(fr%at)) deallocate(fr%at)
@@ -148,7 +148,7 @@ contains
   !> Translate the fragment by the lattice vector lvec (crystallographic
   !> coordinates). Uses the crystallographic -> Cartesian matrix (m_x2c)
   !> saved at build time.
-  module subroutine fragment_translate(fr,lvec)
+  pure module subroutine fragment_translate(fr,lvec)
     class(fragment), intent(inout) :: fr
     integer, intent(in) :: lvec(3)
 
@@ -641,7 +641,7 @@ contains
 
   !> Returns the center of mass (in Cartesian coordinates).  If
   !> weight0 is false, then all atoms have the same weight.
-  module function cmass(fr,weight0) result (x)
+  pure module function cmass(fr,weight0) result (x)
     use param, only: atmass
     class(fragment), intent(in) :: fr
     logical, intent(in), optional :: weight0

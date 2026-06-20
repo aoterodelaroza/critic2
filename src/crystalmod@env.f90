@@ -29,7 +29,7 @@ contains
   !> well as the %inext field in the complete atom list
   !> atoms. Requires the reduced lattice vectors as well as the
   !> complete atom list.
-  module subroutine build_env(c)
+  pure module subroutine build_env(c)
     use tools_math, only: det3, cross
     class(crystal), intent(inout) :: c
 

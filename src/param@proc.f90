@@ -87,7 +87,7 @@ contains
 
   !> Convert a structure format for reading to a format for writing.
   !> Returns isformat_w_unknown if not possible.
-  module function isformat_write_from_read(isformat) result(iwformat)
+  pure module function isformat_write_from_read(isformat) result(iwformat)
     integer, intent(in) :: isformat
     integer :: iwformat
 
@@ -337,7 +337,7 @@ contains
   end subroutine i1mcry
 
   !> Return .true. if atomic number z corresponds to a metal.
-  module function ismetal(z)
+  pure module function ismetal(z)
     integer, intent(in) :: z
     logical :: ismetal
 

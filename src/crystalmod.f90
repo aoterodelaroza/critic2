@@ -416,7 +416,7 @@ module crystalmod
      module subroutine struct_init(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_init
-     module subroutine struct_end(c)
+     pure module subroutine struct_end(c)
        class(crystal), intent(inout) :: c
      end subroutine struct_end
      module subroutine struct_new(c,seed,crashfail,noenv,ti)
@@ -494,7 +494,7 @@ module crystalmod
        real*8, intent(in) :: x4(3)
        real*8 :: dihedral
      end function dihedral
-     module subroutine distmatrix(c,d,inverse,conn)
+     pure module subroutine distmatrix(c,d,inverse,conn)
        class(crystal), intent(in) :: c
        real*8, allocatable, intent(inout) :: d(:,:)
        logical, intent(in), optional :: inverse
@@ -536,7 +536,7 @@ module crystalmod
        character*(*), intent(in) :: str
        integer :: res
      end function identify_spc
-     module subroutine build_env(c)
+     pure module subroutine build_env(c)
        class(crystal), intent(inout) :: c
      end subroutine build_env
      module subroutine list_near_atoms(c,xp,icrd,sorted,nat,eid,dist,lvec,ishell0,up2d,&
@@ -728,7 +728,7 @@ module crystalmod
        real*8, intent(in), optional :: rtable(:)
        real*8 :: vvdw
      end function vdw_volume
-     module subroutine get_kpoints(c,rk,nk)
+     pure module subroutine get_kpoints(c,rk,nk)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: rk
        integer, intent(out) :: nk(3)

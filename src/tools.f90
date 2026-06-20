@@ -67,22 +67,22 @@ module tools
      module subroutine qcksort_i4_inplace(arr)
        integer, intent(inout) :: arr(:)
      end subroutine qcksort_i4_inplace
-     module subroutine mergesort_r8(arr,iord,ini,n)
+     pure module subroutine mergesort_r8(arr,iord,ini,n)
        real*8, dimension(:), intent(in) :: arr
        integer, dimension(:), intent(inout) :: iord
        integer, intent(in) :: ini, n
      end subroutine mergesort_r8
-     module subroutine mergesort_i4(arr, iord, ini, n)
+     pure module subroutine mergesort_i4(arr, iord, ini, n)
        integer, dimension(:), intent(in) :: arr
        integer, dimension(:), intent(inout) :: iord
        integer, intent(in) :: ini, n
      end subroutine mergesort_i4
-     module subroutine mergesort_str(arr, iord, ini, n)
+     pure module subroutine mergesort_str(arr, iord, ini, n)
        type(vstring), dimension(:), intent(in) :: arr
        integer, dimension(:), intent(inout) :: iord
        integer, intent(in) :: ini, n
      end subroutine mergesort_str
-     module function tiny_atom_type(iz,nn)
+     pure module function tiny_atom_type(iz,nn)
        integer, intent(in) :: iz, nn
        integer :: tiny_atom_type
      end function tiny_atom_type

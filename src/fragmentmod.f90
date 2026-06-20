@@ -68,7 +68,7 @@ module fragmentmod
   end type fragment
 
   interface
-     module subroutine fragment_init(fr)
+     pure module subroutine fragment_init(fr)
        class(fragment), intent(inout) :: fr
      end subroutine fragment_init
      module subroutine fragment_build(fr,nspc,spc,nat,xyz,icrd,is,idx,cidx,m_x2c,&
@@ -97,7 +97,7 @@ module fragmentmod
        integer, intent(in) :: cidx
        real*8, intent(in) :: m_x2c(3,3)
      end subroutine fragment_build_atom
-     module subroutine fragment_translate(fr,lvec)
+     pure module subroutine fragment_translate(fr,lvec)
        class(fragment), intent(inout) :: fr
        integer, intent(in) :: lvec(3)
      end subroutine fragment_translate
@@ -131,7 +131,7 @@ module fragmentmod
        class(fragment), intent(inout) :: fr
        class(fragment), intent(in) :: fra
      end subroutine append
-     module function cmass(fr,weight0) result (x)
+     pure module function cmass(fr,weight0) result (x)
        class(fragment), intent(in) :: fr
        logical, intent(in), optional :: weight0
        real*8 :: x(3)

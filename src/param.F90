@@ -691,11 +691,11 @@ module param
      !xx! proc submodule
      module subroutine param_init()
      end subroutine param_init
-     module function isformat_write_from_read(isformat) result(iwformat)
+     pure module function isformat_write_from_read(isformat) result(iwformat)
        integer, intent(in) :: isformat
        integer :: iwformat
      end function isformat_write_from_read
-     module function ismetal(z)
+     pure module function ismetal(z)
        integer, intent(in) :: z
        logical :: ismetal
      end function ismetal

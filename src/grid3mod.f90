@@ -134,14 +134,14 @@ module grid3mod
        character(*), intent(in) :: expr
        real*8, intent(in) :: x2c(3,3)
      end subroutine new_eval
-     module subroutine grid_end(f)
+     pure module subroutine grid_end(f)
        class(grid3), intent(inout) :: f
      end subroutine grid_end
      module subroutine setmode(f,mode)
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: mode
      end subroutine setmode
-     module subroutine normalize(f,norm)
+     pure module subroutine normalize(f,norm)
        class(grid3), intent(inout) :: f
        real*8, intent(in) :: norm
      end subroutine normalize

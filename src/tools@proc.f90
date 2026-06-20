@@ -295,7 +295,7 @@ contains
   !> mergesort. Returns the ordering permutation in array iord
   !> (normally, iord = ini:n). This sort is stable and uses n
   !> additional work space.
-  module subroutine mergesort_r8(arr,iord,ini,n)
+  pure module subroutine mergesort_r8(arr,iord,ini,n)
     real*8, dimension(:), intent(in) :: arr
     integer, dimension(:), intent(inout) :: iord
     integer, intent(in) :: ini, n
@@ -354,7 +354,7 @@ contains
   !> mergesort. Returns the ordering permutation in array iord
   !> (normally, iord = ini:n). This sort is stable and uses n
   !> additional work space.
-  module subroutine mergesort_i4(arr, iord, ini, n)
+  pure module subroutine mergesort_i4(arr, iord, ini, n)
     integer, dimension(:), intent(in) :: arr
     integer, dimension(:), intent(inout) :: iord
     integer, intent(in) :: ini, n
@@ -413,7 +413,7 @@ contains
   !> order by mergesort. Returns the ordering permutation in array
   !> iord (normally, iord = ini:n). This sort is stable and uses n
   !> additional work space.
-  module subroutine mergesort_str(arr, iord, ini, n)
+  pure module subroutine mergesort_str(arr, iord, ini, n)
     type(vstring), dimension(:), intent(in) :: arr
     integer, dimension(:), intent(inout) :: iord
     integer, intent(in) :: ini, n
@@ -471,7 +471,7 @@ contains
   !> Return the atom type for TINKER's tiny force field (see tiny.prm
   !> in the TINKER distribution). iz is the atomic number and nn is
   !> the number of neighbors. Return 0 if the atom is unknown.
-  module function tiny_atom_type(iz,nn)
+  pure module function tiny_atom_type(iz,nn)
     integer, intent(in) :: iz, nn
     integer :: tiny_atom_type
 
