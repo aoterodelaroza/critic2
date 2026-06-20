@@ -39,7 +39,7 @@ contains
     use fragmentmod, only: fragment, realloc_fragment
     use tools_io, only: getline, lgetword, equal, uin, faterr, ferror, ucopy, &
        string, getword, uout, fopen_write, tictac, fclose
-    use tools_math, only: eigsym, m_x2c_from_cellpar, matinv
+    use tools_math, only: eigsym, m_x2c_from_cellpar, matinv, cellpar_from_metric
     use types, only: scalar_value, realloc, field_evaluation_avail
     use param, only: pi, vsmall, bohrtoa, ifformat_as_ft_grad, ifformat_as_ft_xx,&
        ifformat_as_ft_yy, ifformat_as_ft_zz, icrd_crys
@@ -726,14 +726,9 @@ contains
      ! internally converts the coordinate system to a Cartesian matrix
      ! that is lower triangular.
      gg = matmul(transpose(xmat),xmat)
-     aal(1) = sqrt(gg(1,1))
-     aal(2) = sqrt(gg(2,2))
-     aal(3) = sqrt(gg(3,3))
+     call cellpar_from_metric(gg,aal,bbl)
      if (any(abs(aal) < 1d-2)) &
         call ferror('nciplot','region too small',faterr)
-     bbl(1) = acos(gg(2,3) / aal(2) / aal(3)) * 180d0 / pi
-     bbl(2) = acos(gg(1,3) / aal(1) / aal(3)) * 180d0 / pi
-     bbl(3) = acos(gg(1,2) / aal(1) / aal(2)) * 180d0 / pi
      isortho = all(abs(bbl - 90d0) < 1d-4)
      rchol = m_x2c_from_cellpar(aal,bbl)
      xmati = xmat

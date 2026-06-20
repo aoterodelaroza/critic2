@@ -27,7 +27,7 @@ contains
   !> information about the structure. lq = list of atomic species.
   module subroutine struct_report(c,lcrys,lq)
     use global, only: iunitname0, dunit0, iunit
-    use tools_math, only: gcd
+    use tools_math, only: gcd, cellpar_from_metric
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
     use param, only: bohrtoa, maxzat, pi, atmass, pcamu, bohrtocm
     class(crystal), intent(inout) :: c
@@ -380,11 +380,8 @@ contains
           do i = 1, 3
              x0 = c%m_xr2x(:,i)
              xred(:,i) = c%x2c(x0)
-             xlen(i) = norm2(xred(:,i))
           end do
-          xang(1) = acos(dot_product(xred(:,2),xred(:,3)) / xlen(2) / xlen(3)) * 180d0 / pi
-          xang(2) = acos(dot_product(xred(:,1),xred(:,3)) / xlen(1) / xlen(3)) * 180d0 / pi
-          xang(3) = acos(dot_product(xred(:,1),xred(:,2)) / xlen(1) / xlen(2)) * 180d0 / pi
+          call cellpar_from_metric(matmul(transpose(xred),xred),xlen,xang)
 
           write (uout,'("  Delaunay reduced cell lengths: ",99(A," "))') &
              (string(xlen(j),'f',decimal=6,justify=ioj_right),j=1,3)
@@ -1491,7 +1488,7 @@ contains
   !> Write an abinit input template
   module subroutine write_abinit(c,file,ti)
     use tools_io, only: fopen_write, string, fclose
-    use param, only: pi
+    use tools_math, only: cellpar_from_metric
     class(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     type(thread_info), intent(in), optional :: ti
@@ -1503,12 +1500,7 @@ contains
 
     ! Find the lengths and angles of the cell
     gpq = matmul(transpose(c%m_x2c),c%m_x2c)
-    do i = 1, 3
-       aap(i) = sqrt(gpq(i,i))
-    end do
-    bbp(1)=acos(gpq(2,3)/sqrt(gpq(2,2)*gpq(3,3)))/pi*180d0
-    bbp(2)=acos(gpq(1,3)/sqrt(gpq(1,1)*gpq(3,3)))/pi*180d0
-    bbp(3)=acos(gpq(1,2)/sqrt(gpq(1,1)*gpq(2,2)))/pi*180d0
+    call cellpar_from_metric(gpq,aap,bbp)
 
     ! Write input
     lu = fopen_write(file,ti=ti)

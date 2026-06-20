@@ -28,6 +28,7 @@ module tools_math
   public :: lorentzian
   public :: m_x2c_from_cellpar
   public :: m_c2x_from_cellpar
+  public :: cellpar_from_metric
   public :: factorial
   public :: genrlm_real
   public :: genylm
@@ -136,6 +137,11 @@ module tools_math
        real*8, intent(in) :: aal(3),bbl(3)
        real*8 :: mat(3,3)
      end function m_c2x_from_cellpar
+     pure module subroutine cellpar_from_metric(g,aa,bb)
+       real*8, intent(in) :: g(3,3)
+       real*8, intent(out) :: aa(3)
+       real*8, intent(out) :: bb(3)
+     end subroutine cellpar_from_metric
      module function factorial(n) result(f)
        real*8 :: f
        integer, intent(in) :: n

@@ -154,7 +154,7 @@ contains
     use grid1mod, only: grid1_register_ae
     use global, only: crsmall, molsmall, atomeps_structnew, bondfactor
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
-       det3, mnorm2
+       det3, mnorm2, cellpar_from_metric
     use tools_io, only: ferror, faterr, string, usegui
     use tools, only: wscell
     use types, only: realloc
@@ -240,12 +240,7 @@ contains
        c%m_c2x = c%m_x2c
        call matinv(c%m_c2x,3)
        g = matmul(transpose(c%m_x2c),c%m_x2c)
-       do i = 1, 3
-          c%aa(i) = sqrt(g(i,i))
-       end do
-       c%bb(1) = acos(g(2,3) / c%aa(2) / c%aa(3)) * 180d0 / pi
-       c%bb(2) = acos(g(1,3) / c%aa(1) / c%aa(3)) * 180d0 / pi
-       c%bb(3) = acos(g(1,2) / c%aa(1) / c%aa(2)) * 180d0 / pi
+       call cellpar_from_metric(g,c%aa,c%bb)
     end if
 
     ! rest of the cell metrics

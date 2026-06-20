@@ -703,9 +703,9 @@ contains
 
   !> Write a cml file (molecule) from an array of atomic coordinates.
   module subroutine writecml(fr,file,r,luout,ti)
-    use tools_math, only: matinv
+    use tools_math, only: matinv, cellpar_from_metric
     use tools_io, only: fopen_write, string, nameguess, fclose
-    use param, only: pi, bohrtoa
+    use param, only: bohrtoa
     class(fragment), intent(in) :: fr
     character*(*), intent(in) :: file
     real*8, intent(in), optional :: r(3,3)
@@ -724,12 +724,7 @@ contains
        ri = r
        call matinv(ri,3)
        g = matmul(transpose(r),r)
-       do i = 1, 3
-          aa(i) = sqrt(g(i,i))
-       end do
-       bb(1) = acos(g(2,3) / aa(2) / aa(3)) * 180d0 / pi
-       bb(2) = acos(g(1,3) / aa(1) / aa(3)) * 180d0 / pi
-       bb(3) = acos(g(1,2) / aa(1) / aa(2)) * 180d0 / pi
+       call cellpar_from_metric(g,aa,bb)
        aa = aa * bohrtoa
        write (lu,'(" <crystal>")')
        write (lu,'("  <scalar title=""a"" units=""units:angstrom"">",A,"</scalar>")') string(aa(1),'f',decimal=8)

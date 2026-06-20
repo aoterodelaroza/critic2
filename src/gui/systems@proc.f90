@@ -2131,8 +2131,7 @@ contains
   ! symemtry.
   module subroutine move_cell(sysc,aa,bb,forcewyc,copybonding)
     use crystalmod, only: pointgroup_info
-    use tools_math, only: m_x2c_from_cellpar
-    use param, only: pi
+    use tools_math, only: m_x2c_from_cellpar, cellpar_from_metric
     class(sysconf), intent(inout) :: sysc
     real*8, intent(in) :: aa(3), bb(3)
     logical, intent(in) :: forcewyc
@@ -2176,12 +2175,7 @@ contains
           end do
           gavg = gavg / leqv
 
-          do i = 1, 3
-             aa_(i) = sqrt(gavg(i,i))
-          end do
-          bb_(1) = acos(gavg(2,3) / aa_(2) / aa_(3)) * 180d0 / pi
-          bb_(2) = acos(gavg(1,3) / aa_(1) / aa_(3)) * 180d0 / pi
-          bb_(3) = acos(gavg(1,2) / aa_(1) / aa_(2)) * 180d0 / pi
+          call cellpar_from_metric(gavg,aa_,bb_)
 
           if (abs(aa(1) - sys(isys)%c%aa(1)) > tighteps) then
              da = abs(aa(1) - aa_(1))

@@ -189,6 +189,24 @@ contains
 
   end function m_c2x_from_cellpar
 
+  !> Cell parameters from a metric tensor g (g(i,j) = v_i . v_j): the lengths
+  !> aa = (a,b,c) and the angles bb = (alpha,beta,gamma) in degrees. This is
+  !> the inverse companion of m_x2c_from_cellpar.
+  pure module subroutine cellpar_from_metric(g,aa,bb)
+    use param, only: pi
+    real*8, intent(in) :: g(3,3)
+    real*8, intent(out) :: aa(3)
+    real*8, intent(out) :: bb(3)
+
+    aa(1) = sqrt(g(1,1))
+    aa(2) = sqrt(g(2,2))
+    aa(3) = sqrt(g(3,3))
+    bb(1) = acos(max(min(g(2,3) / (aa(2)*aa(3)),1d0),-1d0)) * 180d0 / pi
+    bb(2) = acos(max(min(g(1,3) / (aa(1)*aa(3)),1d0),-1d0)) * 180d0 / pi
+    bb(3) = acos(max(min(g(1,2) / (aa(1)*aa(2)),1d0),-1d0)) * 180d0 / pi
+
+  end subroutine cellpar_from_metric
+
   !> Factorial of an integer (returns real)
   module function factorial(n) result(f)
     use param, only: mfact, fact

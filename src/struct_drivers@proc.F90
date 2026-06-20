@@ -5259,7 +5259,7 @@ contains
   module subroutine struct_bz(s)
     use, intrinsic :: iso_c_binding, only: c_int, c_double, c_ptr, c_loc
     use global, only: iunitname0, iunit, dunit0
-    use tools_math, only: matinv
+    use tools_math, only: matinv, cellpar_from_metric
     use tools_io, only: uout, faterr, ferror, string, ioj_right, ioj_center
     use tools, only: delaunay_reduction
     use param, only: pi
@@ -5311,12 +5311,7 @@ contains
 
     ! cell lengths and angles
     g = matmul(transpose(m_x2c_r),m_x2c_r)
-    do i = 1, 3
-       aa(i) = sqrt(g(i,i))
-    end do
-    bb(1) = acos(g(2,3) / aa(2) / aa(3)) * 180d0 / pi
-    bb(2) = acos(g(1,3) / aa(1) / aa(3)) * 180d0 / pi
-    bb(3) = acos(g(1,2) / aa(1) / aa(2)) * 180d0 / pi
+    call cellpar_from_metric(g,aa,bb)
 
     ! construct star of lattice vectors -> use Delaunay reduction
     ! see 9.1.8 in ITC.

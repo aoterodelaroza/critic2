@@ -1027,21 +1027,16 @@ contains
   !> least rmax thick. x2r is the cryst-to-car matrix for the
   !> lattice. The heuristic method has been adapted from gulp.
   module subroutine search_lattice(x2r,rmax,imax,jmax,kmax)
-    use param, only: pi
+    use tools_math, only: cellpar_from_metric
 
     real*8, intent(in) :: x2r(3,3), rmax
     integer, intent(out) :: imax, jmax, kmax
 
-    integer :: i, nadd
+    integer :: nadd
     real*8 :: acell(3), bcell(3), gmat(3,3)
 
     gmat = matmul(transpose(x2r),x2r)
-    do i = 1, 3
-       acell(i) = sqrt(gmat(i,i))
-    end do
-    bcell(1) = acos(gmat(2,3) / acell(2) / acell(3)) * 180d0 / pi
-    bcell(2) = acos(gmat(1,3) / acell(1) / acell(3)) * 180d0 / pi
-    bcell(3) = acos(gmat(1,2) / acell(1) / acell(2)) * 180d0 / pi
+    call cellpar_from_metric(gmat,acell,bcell)
 
     ! determine cell list, trick adapted from gulp
     nadd = 0
