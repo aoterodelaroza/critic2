@@ -784,6 +784,31 @@ contains
 
   end function angle
 
+  !> Compute the signed dihedral angle (radians, in (-pi,pi], IUPAC
+  !> convention) of the four points x1, x2, x3, x4 in crystallographic
+  !> coordinates: the angle between the (x1,x2,x3) and (x2,x3,x4) planes
+  !> about the x2-x3 axis. Returns 0 for degenerate (collinear) input.
+  !> This routine is thread-safe.
+  pure module function dihedral(c,x1,x2,x3,x4)
+    use tools_math, only: cross
+    class(crystal), intent(in) :: c !< Input crystal
+    real*8, intent(in) :: x1(3) !< First point in cryst. coordinates
+    real*8, intent(in) :: x2(3) !< Second point in cryst. coordinates
+    real*8, intent(in) :: x3(3) !< Third point in cryst. coordinates
+    real*8, intent(in) :: x4(3) !< Fourth point in cryst. coordinates
+    real*8 :: dihedral
+
+    real*8 :: b1(3), b2(3), b3(3), n1(3), n2(3)
+
+    b1 = c%x2c(x2 - x1)
+    b2 = c%x2c(x3 - x2)
+    b3 = c%x2c(x4 - x3)
+    n1 = cross(b1,b2)
+    n2 = cross(b2,b3)
+    dihedral = atan2(norm2(b2) * dot_product(b1,n2), dot_product(n1,n2))
+
+  end function dihedral
+
   !> Calculate the distance matrix (molecules only). If inverse,
   !> invert the distances. If conn, return the distance if the atoms
   !> are bonded, and the inverse distance if they are not, and zero

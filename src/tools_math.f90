@@ -245,12 +245,12 @@ module tools_math
        integer, intent(out) :: r, s
        real*8, intent(in) :: eps
      end subroutine rsindex
-     module function cross(v1,v2) result (vx)
+     pure module function cross(v1,v2) result (vx)
        real*8, intent(in) :: v1(3)
        real*8, intent(in) :: v2(3)
        real*8 :: vx(3)
      end function cross
-     module function cross_cfloat(v1,v2) result (vx)
+     pure module function cross_cfloat(v1,v2) result (vx)
        use iso_c_binding, only: c_float
        real(c_float), intent(in) :: v1(3)
        real(c_float), intent(in) :: v2(3)

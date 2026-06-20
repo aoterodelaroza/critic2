@@ -1894,7 +1894,6 @@ contains
     use systems, only: sys
     use gui_main, only: fontsize, ColorMeasureSelect
     use tools_io, only: string
-    use tools_math, only: cross
     use param, only: bohrtoa, pi
     class(window), intent(inout), target :: w
     integer(c_int), intent(in) :: idx(5)
@@ -1902,7 +1901,7 @@ contains
     integer :: nmsel
     integer :: msel(5,4)
     integer :: idx1(4), idx2(4), idx3(4), idx4(4)
-    real*8 :: x0(3), x1(3), x2(3), d, d1, d2, ang, n0(3), n1(3)
+    real*8 :: x0(3), d, d1, d2, ang
 
     if (.not.associated(w%sc)) return
 
@@ -2039,19 +2038,11 @@ contains
 
        ! dihedral 1-2-3-4
        idx4 = msel(1:4,1)
-       x0 = sys(w%view_selected)%c%atcel(idx4(1))%x + idx4(2:4) -&
-          (sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4))
-       x1 = sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4) -&
-          (sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
-       x2 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4) -&
-          (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
-       x0 = sys(w%view_selected)%c%x2c(x0)
-       x1 = sys(w%view_selected)%c%x2c(x1)
-       x2 = sys(w%view_selected)%c%x2c(x2)
-       n0 = cross(x0,x1)
-       n1 = cross(x1,x2)
-
-       ang = -atan2(norm2(x1) * dot_product(x0,n1), dot_product(n0,n1)) * 180d0/pi
+       ang = sys(w%view_selected)%c%dihedral(&
+          sys(w%view_selected)%c%atcel(idx4(1))%x + idx4(2:4),&
+          sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4),&
+          sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4),&
+          sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
        call iw_text(", φ(",sameline_nospace=.true.)
        call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
        call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)

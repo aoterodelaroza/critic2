@@ -1020,7 +1020,7 @@ contains
   end subroutine rsindex
 
   !> Cross product of two 3-vectors
-  module function cross(v1,v2) result (vx)
+  pure module function cross(v1,v2) result (vx)
     real*8, intent(in) :: v1(3) !< First vector
     real*8, intent(in) :: v2(3) !< Second vector
     real*8 :: vx(3)
@@ -1032,7 +1032,7 @@ contains
   end function cross
 
   !> Cross product of two 3-vectors, C float version
-  module function cross_cfloat(v1,v2) result (vx)
+  pure module function cross_cfloat(v1,v2) result (vx)
     use iso_c_binding, only: c_float
     real(c_float), intent(in) :: v1(3) !< First vector
     real(c_float), intent(in) :: v2(3) !< Second vector
