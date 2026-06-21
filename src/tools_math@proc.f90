@@ -160,6 +160,9 @@ contains
     mat(2,3) = aal(3) * HH2
     mat(3,3) = aal(3) * HH3
 
+    ! ensure the lattice vectors form a right-handed system
+    if (det3(mat) < 0d0) mat = -mat
+
   end function m_x2c_from_cellpar
 
   !> Gives a cartesian to crystallographic conversion matrix from
