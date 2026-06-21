@@ -1557,11 +1557,12 @@ contains
     ! rotate the fragment atoms (whole molecule) and write them to the seed
     do j = 1, c%mol(imol)%nat
        k = c%mol(imol)%at(j)%cidx
+       ! atom position rigidly rotated about the molecule's center of mass
+       rnew = xcm + matmul(rrot,c%mol(imol)%at(j)%r - xcm)
        if (c%ismolecule) then
-          seed%x(:,k) = c%molx0 + matmul(rrot,c%mol(imol)%at(j)%r - xcm) ! cartesian
+          seed%x(:,k) = rnew + c%molx0 ! absolute cartesian (+molx0)
        else
           lvec = nint(seed%x(:,k) - c%c2x(c%mol(imol)%at(j)%r))
-          rnew = xcm + matmul(rrot,c%mol(imol)%at(j)%r - xcm)
           seed%x(:,k) = c%c2x(rnew) + lvec ! crystallographic
        end if
     end do
