@@ -1,20 +1,20 @@
 ## delete: 003_write_xyz_nmer.cro
-## check: 003_write_xyz_nmer_1_2.xyz -a1e-10
-## check: 003_write_xyz_nmer_1_3.xyz -a1e-10
-## check: 003_write_xyz_nmer_1_4.xyz -a1e-10
-## check: 003_write_xyz_nmer_1_5.xyz -a1e-10
-## check: 003_write_xyz_nmer_1_6.xyz -a1e-10
-## check: 003_write_xyz_nmer_1_7.xyz -a1e-10
-## check: 003_write_xyz_nmer_1_8.xyz -a1e-10
-## check: 003_write_xyz_nmer_2_1.xyz -a1e-10
-## check: 003_write_xyz_nmer_2_3.xyz -a1e-10
-## check: 003_write_xyz_nmer_2_4.xyz -a1e-10
-## check: 003_write_xyz_nmer_2_5.xyz -a1e-10
-## check: 003_write_xyz_nmer_2_6.xyz -a1e-10
-## check: 003_write_xyz_nmer_2_7.xyz -a1e-10
-## check: 003_write_xyz_nmer_2_8.xyz -a1e-10
-## check: 003_write_xyz_nmer_1.xyz -a1e-10
-## check: 003_write_xyz_nmer_2.xyz -a1e-10
+## check: 003_write_xyz_nmer_monomer_1.xyz -a1e-10
+## check: 003_write_xyz_nmer_monomer_2.xyz -a1e-10
+## check: 003_write_xyz_nmer_dimer_1.xyz -a1e-10
+## check: 003_write_xyz_nmer_dimer_2.xyz -a1e-10
+## check: 003_write_xyz_nmer_dimer_3.xyz -a1e-10
+## check: 003_write_xyz_nmer_dimer_4.xyz -a1e-10
+## check: 003_write_xyz_nmer_dimer_5.xyz -a1e-10
+## check: 003_write_xyz_nmer_dimer_6.xyz -a1e-10
+## check: 003_write_xyz_nmer_dimer_7.xyz -a1e-10
+## check: 003_write_xyz_nmer_dimer_8.xyz -a1e-10
+## check: 003_write_xyz_nmer_dimer_9.xyz -a1e-10
+## check: 003_write_xyz_nmer_dimer_10.xyz -a1e-10
+## check: 003_write_xyz_nmer_dimer_11.xyz -a1e-10
+## check: 003_write_xyz_nmer_dimer_12.xyz -a1e-10
+## check: 003_write_xyz_nmer_dimer_13.xyz -a1e-10
+## check: 003_write_xyz_nmer_dimer_14.xyz -a1e-10
 ## labels: regression quick nodata
 crystal library urea
 write 003_write_xyz_nmer.xyz molmotif nmer 2

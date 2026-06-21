@@ -909,7 +909,7 @@ contains
   !> and do not close the file.
   module subroutine write_mol(c,file,fmt,ix0,doborder0,onemotif0,molmotif0,&
      environ0,renv0,lnmer0,nmer0,rsph0,xsph0,rcub0,xcub0,usenames0,luout,ti)
-    use global, only: dunit0, iunit
+    use global, only: dunit0, iunit, iunitname0
     use tools_math, only: nchoosek, comb
     use tools_io, only: ferror, faterr, uout, string, ioj_left, string, ioj_right,&
        equal
@@ -933,11 +933,11 @@ contains
     type(fragment), allocatable :: fr0(:)
     logical, allocatable :: isdiscrete(:)
     integer :: i, j, k, l, nmol, icel, lvec(3), ncm
-    integer :: ncomb, nlimi, nlimj, icount
-    integer, allocatable :: icomb(:), origmol(:)
-    character(len=:), allocatable :: wroot, file0, aux
+    integer :: ncomb, nlimi, nlimj, icount, ic, iat
+    integer, allocatable :: icomb(:), origmol(:), idmolf(:), lvecf(:,:), allcon(:,:)
+    character(len=:), allocatable :: wroot, file0, froot
     logical :: doagain
-    real*8, allocatable :: cmlist(:,:)
+    real*8, allocatable :: cmlist(:,:), comc(:,:)
     real*8 :: xcm(3), dist
     integer :: ix(3)
     logical :: doborder, onemotif, molmotif, environ
@@ -1075,6 +1075,20 @@ contains
        write (uout,*)
     end if
 
+    ! precompute per-fragment metadata for the n-mer tables below: the
+    ! cell-motif molecule id, the home-cell lattice vector, and the
+    ! (Cartesian, bohr) center of mass used for the inter-monomer distances.
+    if (lnmer .and. allocated(c%idatcelmol)) then
+       allocate(idmolf(nmol),lvecf(3,nmol),comc(3,nmol))
+       do i = 1, nmol
+          ic = fr0(i)%at(1)%cidx
+          idmolf(i) = c%idatcelmol(1,ic)
+          iat = c%idatcelmol(2,ic)
+          lvecf(:,i) = nint(fr0(i)%at(1)%x - c%mol(idmolf(i))%at(iat)%x)
+          comc(:,i) = fr0(i)%cmass()
+       end do
+    end if
+
     ! if this is a molecule, translate to the proper origin
     if (c%ismolecule) then
        do i = 1, fr%nat
@@ -1095,6 +1109,10 @@ contains
     else
        wroot = file(:index(file,'.',.true.)-1)
        do i = 1, nmer
+          ! generate the n-mers of size i, write their files (named
+          ! <root>_<type>_<counter>.<fmt>) and store the list of constituent
+          ! monomers (allcon(1:i,counter)) for the tables below.
+          froot = trim(wroot) // "_" // nmer_name(i) // "_"
           if (i == 1) then
              if (nmer == 1) then
                 nlimj = nmol
@@ -1102,57 +1120,58 @@ contains
                 nlimj = c%nmol
              end if
              ! monomers
+             allocate(allcon(1,max(nlimj,1)))
+             icount = 0
              do j = 1, nlimj
-                file0 = trim(wroot) // "_" // string(j) // "." // fmt
+                icount = icount + 1
+                allcon(1,icount) = j
+                file0 = froot // string(icount) // "." // fmt
                 call dowrite(file0,fr0(j),ti=ti)
              end do
-             write (uout,'("+ Written ",A," ",A,"-mers")') string(c%nmol), string(i)
           elseif (i == nmer) then
              ! n-mers
-             allocate(icomb(i-1))
+             ncomb = nchoosek(nmol,i-1)
+             allocate(icomb(i-1),allcon(i,max(c%nmol*ncomb,1)))
              icount = 0
              do l = 1, c%nmol
-                ncomb = nchoosek(nmol,i-1)
                 do j = 1, ncomb
                    call comb(nmol,i-1,j,icomb)
                    if (any(icomb == l)) cycle
-                   file0 = trim(wroot) // "_" // string(l)
+                   icount = icount + 1
+                   allcon(1,icount) = l
+                   allcon(2:i,icount) = icomb(1:i-1)
                    fr = fr0(l)
                    do k = 1, i-1
-                      aux = trim(file0) // "_" // string(icomb(k))
-                      file0 = aux
                       call fr%append(fr0(icomb(k)))
                    end do
-                   aux = trim(file0) // "." // fmt
-                   file0 = aux
+                   file0 = froot // string(icount) // "." // fmt
                    call dowrite(file0,fr,ti=ti)
-                   icount = icount + 1
                 end do
              end do
              deallocate(icomb)
-             write (uout,'("+ Written ",A," ",A,"-mers")') string(icount), string(i)
           else
              ! everything in between
              ncomb = nchoosek(nmol,i)
-             allocate(icomb(i))
+             allocate(icomb(i),allcon(i,max(ncomb,1)))
              icount = 0
              do j = 1, ncomb
                 call comb(nmol,i,j,icomb)
-                file0 = wroot
+                icount = icount + 1
+                allcon(1:i,icount) = icomb(1:i)
                 call fr%init()
                 do k = 1, i
-                   aux = trim(file0) // "_" // string(icomb(k))
-                   file0 = aux
                    call fr%append(fr0(icomb(k)))
                 end do
-                aux = trim(file0) // "." // fmt
-                file0 = aux
+                file0 = froot // string(icount) // "." // fmt
                 call dowrite(file0,fr,ti=ti)
-                icount = icount + 1
              end do
              deallocate(icomb)
-             write (uout,'("+ Written ",A," ",A,"-mers")') string(icount), string(i)
           end if
+
+          ! identity table and, for n>=2, the inter-monomer distance table
+          call nmer_idtable(i,allcon,icount)
+          if (i >= 2) call nmer_disttable(i,allcon,icount)
+          deallocate(allcon)
        end do
     end if
 
@@ -1177,6 +1196,103 @@ contains
       endif
 
     end subroutine dowrite
+
+    !> Singular name of an n-mer of size isize (monomer, dimer, ...).
+    function nmer_name(isize) result(nm)
+      integer, intent(in) :: isize
+      character(len=:), allocatable :: nm
+
+      select case (isize)
+      case (1)
+         nm = "monomer"
+      case (2)
+         nm = "dimer"
+      case (3)
+         nm = "trimer"
+      case (4)
+         nm = "tetramer"
+      case default
+         nm = string(isize) // "-mer"
+      end select
+    end function nmer_name
+
+    !> Write the identity table for the n-mers of size isize. con(1:isize,n)
+    !> are the constituent monomers (fragment indices) of the n-th n-mer, and
+    !> ntot is the number of n-mers. Each row gives the n-mer label and, for
+    !> each monomer, its cell-motif id and (except for the first) its
+    !> home-cell lattice vector.
+    subroutine nmer_idtable(isize,con,ntot)
+      integer, intent(in) :: isize, con(:,:), ntot
+      integer :: n, m, id, lw
+      character(len=:), allocatable :: nm, str
+
+      nm = nmer_name(isize)
+      lw = len(nm) + 7
+      write (uout,'("+ List of ",A,"s written: ",A)') nm, string(ntot)
+      write (uout,'("# Files are named <root>_",A,"_<n>.",A)') nm, fmt
+      write (uout,'("# id = index of the monomer in the main cell")')
+      write (uout,'("# lvec = lattice vector")')
+
+      ! header
+      str = "# " // string(nm,lw,ioj_left)
+      do m = 1, isize
+         str = str // "  " // string("id"//string(m),4,ioj_right)
+         if (m > 1) &
+            str = str // "  " // string("lvec"//string(m),11,ioj_right)
+      end do
+      write (uout,'(A)') str
+
+      ! rows
+      do n = 1, ntot
+         str = "  " // string(nm//"_"//string(n),lw,ioj_left)
+         do m = 1, isize
+            id = con(m,n)
+            str = str // "  " // string(idmolf(id),4,ioj_right)
+            if (m > 1) &
+               str = str // "  " // string(lvecf(1,id),3,ioj_right) // &
+               string(lvecf(2,id),4,ioj_right) // string(lvecf(3,id),4,ioj_right)
+         end do
+         write (uout,'(A)') str
+      end do
+      write (uout,*)
+    end subroutine nmer_idtable
+
+    !> Write the table of the isize*(isize-1)/2 distances between the centers
+    !> of mass of all monomer pairs in each n-mer of size isize.
+    subroutine nmer_disttable(isize,con,ntot)
+      integer, intent(in) :: isize, con(:,:), ntot
+      integer :: n, a, b, lw
+      real*8 :: d
+      character(len=:), allocatable :: nm, str
+
+      nm = nmer_name(isize)
+      lw = len(nm) + 7
+      write (uout,'("+ Distances between monomer pairs in the ",A,"s (",A,")")') &
+         nm, trim(iunitname0(iunit))
+
+      ! header
+      str = "# " // string(nm,lw,ioj_left)
+      do a = 1, isize
+         do b = a+1, isize
+            str = str // "  " // string("d("//string(a)//"-"//string(b)//")",10,ioj_right)
+         end do
+      end do
+      write (uout,'(A)') str
+
+      ! rows
+      do n = 1, ntot
+         str = "  " // string(nm//"_"//string(n),lw,ioj_left)
+         do a = 1, isize
+            do b = a+1, isize
+               d = norm2(comc(:,con(a,n)) - comc(:,con(b,n))) * dunit0(iunit)
+               str = str // "  " // string(d,'f',10,4,ioj_right)
+            end do
+         end do
+         write (uout,'(A)') str
+      end do
+      write (uout,*)
+    end subroutine nmer_disttable
+
     function icelcomb(idx,i,j,icel)
       integer, intent(in) :: idx, i, j, icel
       integer :: icelcomb(3)
