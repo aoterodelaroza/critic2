@@ -37,7 +37,8 @@ contains
 
   !> Draw the geometry window.
   module subroutine draw_geometry(w)
-    use representations, only: reptype_atoms, symelem_kind_plane, symelem_kind_axis
+    use representations, only: reptype_atoms, reptype_symelem, repflavor_symelem
+    use crystalmod, only: symop_kind_plane, symop_kind_axis
     use windows, only: iwin_view, iwin_tree
     use interfaces_glfw, only: glfwGetTime
     use crystalmod, only: holo_string, laue_string, pointgroup_info
@@ -2432,11 +2433,12 @@ contains
     subroutine symop_display_and_buttons(nop)
       integer, intent(in) :: nop
 
-      integer :: i, n, tag, hovadd, kind1, order1, lioptype
+      integer :: i, n, tag, hovadd, kind1, order1, lioptype, idobj, iview
       integer, allocatable :: skind(:), sorder(:)
       real*8, allocatable :: sorig(:,:), sdir(:,:)
       real*8 :: orig1(3), dir1(3), lraxx(3), lraxc(3)
       character(len=1) :: lhm1, lcdig
+      logical :: idnew
 
       ! display the selected and hovered symmetry elements in the view
       if (sysc(isys)%sc%isinit /= 0) then
@@ -2455,9 +2457,9 @@ contains
             if (sys(isys)%c%ismolecule) then
                lioptype = sys(isys)%c%pg%op(i)%type
                if (lioptype == molsymop_plane) then
-                  kind1 = symelem_kind_plane
+                  kind1 = symop_kind_plane
                elseif (lioptype == molsymop_rotation .or. lioptype == molsymop_imp_rotation) then
-                  kind1 = symelem_kind_axis
+                  kind1 = symop_kind_axis
                end if
                if (kind1 == 0) cycle
                lraxx = sys(isys)%c%pg%op(i)%axis
@@ -2470,9 +2472,9 @@ contains
                if (norm2(lraxc) < 1d-10) cycle
                lhm1 = w%geometry_sym_hm(i)(1:1) ! HM symbol is stored left-aligned
                if (lhm1 >= "a" .and. lhm1 <= "z") then
-                  kind1 = symelem_kind_plane
+                  kind1 = symop_kind_plane
                else
-                  kind1 = symelem_kind_axis
+                  kind1 = symop_kind_axis
                   ! rotation order from the symbol: the digit, after an optional
                   ! leading "-" (rotoinversion: "-3"/"-4"/"-6")
                   if (lhm1 == "-") then
@@ -2524,6 +2526,60 @@ contains
          w%geometry_sym_selgen = w%geometry_sym_selgen + 1
       end if
       call iw_tooltip("Toggle the symmetry-operation selection",ttshown)
+
+      ! create a persistent symmetry-elements object from the current selection,
+      ! or reuse the existing one if there already is a symmetry-elements object
+      if (iw_button("Create Object##symcreateobj",sameline=.true.,disabled=(sysc(isys)%sc%isinit==0))) then
+         idobj = 0
+         do i = 1, sysc(isys)%sc%nrep
+            if (sysc(isys)%sc%rep(i)%isinit .and. sysc(isys)%sc%rep(i)%type == reptype_symelem) then
+               idobj = i
+               exit
+            end if
+         end do
+         idnew = (idobj == 0)
+         if (idnew) &
+            call sysc(isys)%sc%add_representation(reptype_symelem,repflavor_symelem,id=idobj)
+         if (idobj > 0) then
+            ! ensure the operation snapshot/visibility style is initialized
+            call sysc(isys)%sc%rep(idobj)%update()
+            associate (rr => sysc(isys)%sc%rep(idobj))
+              if (rr%symelem_style%isinit) then
+                 if (size(rr%symelem_style%shown,1) == size(w%geometry_sym_sel,1)) then
+                    if (idnew) then
+                       ! new object: show exactly the selected operations
+                       rr%symelem_style%shown = w%geometry_sym_sel
+                    else
+                       ! reuse: mark the selected operations as shown in it
+                       where (w%geometry_sym_sel) rr%symelem_style%shown = .true.
+                    end if
+                    sysc(isys)%sc%forcebuildlists = .true.
+                 end if
+              end if
+            end associate
+         end if
+         if (idobj > 0) then
+            ! open the editor if a view window for this system is available
+            iview = 0
+            do i = 1, nwin
+               if (win(i)%isinit .and. win(i)%isopen .and. win(i)%type == wintype_view) then
+                  if (win(i)%view_selected == isys .and. associated(win(i)%sc)) then
+                     iview = i
+                     exit
+                  end if
+               end if
+            end do
+            if (iview > 0) &
+               idobj = stack_create_window(wintype_editrep,.true.,isys=isys,irep=idobj,&
+                  idparent=iview,orraise=-1)
+
+            ! clear the table selection so the transient preview does not
+            ! duplicate the elements now drawn by the persistent object
+            w%geometry_sym_sel = .false.
+            w%geometry_sym_selgen = w%geometry_sym_selgen + 1
+         end if
+      end if
+      call iw_tooltip("Create a symmetry-elements object from the current selection",ttshown)
 
     end subroutine symop_display_and_buttons
 

@@ -196,10 +196,11 @@ module scenes
        class(scene), intent(inout), target :: s
        integer, intent(in) :: idx(5)
      end subroutine select_atom
-     module subroutine add_representation(s,itype,flavor)
+     module subroutine add_representation(s,itype,flavor,id)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: itype
        integer, intent(in) :: flavor
+       integer, intent(out), optional :: id
      end subroutine add_representation
      module function scene_add_transient_representation(s,itype,flavor) result(id)
        class(scene), intent(inout), target :: s

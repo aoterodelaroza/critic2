@@ -261,6 +261,7 @@ module windows
      procedure :: draw_editrep_atoms
      procedure :: draw_editrep_unitcell
      procedure :: draw_editrep_axes
+     procedure :: draw_editrep_symelem
      ! export image
      procedure :: draw_exportimage
      ! vibrations
@@ -576,6 +577,11 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_axes
+     module function draw_editrep_symelem(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical :: changed
+     end function draw_editrep_symelem
      !xx! exportimage submodule !xx!
      module subroutine draw_exportimage(w)
        class(window), intent(inout), target :: w

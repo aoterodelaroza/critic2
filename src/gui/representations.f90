@@ -20,7 +20,7 @@ module representations
   use iso_c_binding
   use types, only: neighstar
   use shapes, only: dl_sphere, dl_cylinder, dl_string, dl_plane, dl_triangle, scene_objects
-  use param, only: bohrtoa, eye, maxzat0, atmcov0
+  use param, only: bohrtoa, eye, maxzat0, atmcov0, mlen
   use global, only: bondfactor_def, bonddelta_def
   implicit none
 
@@ -69,8 +69,6 @@ module representations
   real*8, parameter, public :: symelem_margin = 1.1d0 ! symmetry element size factor
   real*8, parameter, public :: symelem_frame_radius = rotaxis_radius_def ! radius of the plane-border cylinders
   real*8, parameter, public :: symelem_axis_radius = 0.15d0 / bohrtoa ! radius of the axis cylinders
-  integer, parameter, public :: symelem_kind_plane = 1 ! mirror/glide plane
-  integer, parameter, public :: symelem_kind_axis = 2 ! rotation/screw/rotoinversion axis
   ! per-order axis colors (used when nonzero; otherwise symelem_rgb_def)
   real(c_float), parameter, public :: symelem_rgb_order(3,2:6) = reshape((/&
      0.85_c_float,0.10_c_float,0.10_c_float,&   ! 2-fold: red
@@ -156,6 +154,25 @@ module representations
      procedure :: end => coordpoly_style_end
   end type coordpoly_geom_style
   public :: coordpoly_geom_style
+
+  !> Draw style for symmetry elements (geometry-dependent parameters). Holds a
+  !> snapshot of the system's symmetry operations (kind/direction/order/label),
+  !> refreshed from list_symops when the geometry changes, plus the per-operation
+  !> visibility selected by the user.
+  type symelem_style
+     logical :: isinit = .false. ! whether the style is intialized
+     real*8 :: timelastreset = 0d0 ! time the style was last reset
+     integer :: nop = 0 ! number of symmetry operations
+     logical, allocatable :: shown(:) ! per-op on/off (nop)
+     integer, allocatable :: kind(:) ! per-op element kind (symop_kind_*; 0=none) (nop)
+     real*8, allocatable :: dir(:,:) ! per-op cartesian unit dir/normal (3,nop)
+     integer, allocatable :: order(:) ! per-op rotation order (nop)
+     character(len=mlen), allocatable :: label(:) ! per-op label: HM symbol or molecular sym string (nop)
+   contains
+     procedure :: reset => symelem_style_reset
+     procedure :: end => symelem_style_end
+  end type symelem_style
+  public :: symelem_style
 
   ! types of representations
   integer, parameter, public :: reptype_none = 0
@@ -278,14 +295,20 @@ module representations
      real*8 :: rotaxis_length = 0d0 ! half-length: the cylinder spans origin +/- length*rotaxis_dir
      real*8 :: rotaxis_radius = rotaxis_radius_def ! radius of the rotation-axis cylinder
      real(c_float) :: rotaxis_rgb(3) = 0._c_float ! color of the rotation-axis cylinder
-     ! transient symmetry element (disc/cylinder through the origin)
+     ! symmetry elements
+     !! transient
      integer :: symelem_kind = 0 ! 0=none, 1=plane (mirror), 2=axis (rotation)
      real*8 :: symelem_dir(3) = (/0d0,0d0,1d0/) ! axis direction or plane normal, unit, cartesian (bohr)
      real*8 :: symelem_size = 0d0 ! system bounding-sphere radius (bohr)
      real*8 :: symelem_cen(3) = 0d0 ! system center (bohr)
      integer :: symelem_order = 0 ! axis rotation order n (selects the axis color)
      real(c_float) :: symelem_rgb(3) = symelem_rgb_def ! color of the symmetry element
-     ! coordination polyhedra (drawn around the atoms of this representation)
+     !! permanent
+     type(symelem_style) :: symelem_style ! operation snapshot + per-op visibility (geometry-dependent)
+     real*8 :: symelem_origin(3) = 0d0 ! editable origin the elements pass through (coords per symelem_coordtype)
+     integer(c_int) :: symelem_coordtype = 0 ! origin coords: 0=crystallographic, 1=cartesian (angstrom), 2=cartesian (bohr)
+     logical :: symelem_usecustomrgb = .false. ! true: use symelem_rgb for all; false: per-order/default colors
+     ! coordination polyhedra
      logical :: poly_display ! whether to draw the coordination polyhedra
      type(coordpoly_geom_style) :: coordpoly_style ! center/corner/distance geometry
      real*8 :: poly_alpha = 0.5d0 ! face opacity (1 = opaque)
@@ -388,6 +411,13 @@ module representations
      module subroutine coordpoly_style_end(d)
        class(coordpoly_geom_style), intent(inout) :: d
      end subroutine coordpoly_style_end
+     module subroutine symelem_style_reset(d,r)
+       class(symelem_style), intent(inout) :: d
+       type(representation), intent(in) :: r
+     end subroutine symelem_style_reset
+     module subroutine symelem_style_end(d)
+       class(symelem_style), intent(inout) :: d
+     end subroutine symelem_style_end
   end interface
 
 end module representations

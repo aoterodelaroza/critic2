@@ -62,11 +62,11 @@ contains
        BIND_VIEW_TOGGLE_CELL, BIND_VIEW_TOGGLE_POLYHEDRA,&
        get_bind_keyname, BIND_EDITSELECT_REMOVE, BIND_EDITSELECT_DESELECT,&
        BIND_EDITSELECT_SELECT_ALL, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
-    use representations, only: reptype_atoms, reptype_unitcell, reptype_axes,&
+    use representations, only: reptype_atoms, reptype_unitcell, reptype_axes, reptype_symelem,&
        repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
        repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
        repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic,&
-       repflavor_axes, repflavor_atoms_polyhedra
+       repflavor_axes, repflavor_atoms_polyhedra, repflavor_symelem
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
        iw_setposx_fromend, iw_checkbox, iw_coloredit, iw_menuitem, iw_dragfloat_realc,&
        iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton
@@ -495,6 +495,7 @@ contains
              end if
              call iw_tooltip("Draw atoms and bonds with the same radius, hide labels",ttshown)
 
+             call igSeparator()
              if (iw_menuitem("Van der Waals Contacts",shortcut_text="Atoms")) then
                 call w%sc%add_representation(reptype_atoms,repflavor_atoms_vdwcontacts)
                 chbuild = .true.
@@ -508,6 +509,7 @@ contains
              end if
              call iw_tooltip("Display contacts between hydrogen bonded atoms",ttshown)
 
+             call igSeparator()
              if (iw_menuitem("Critical Points",shortcut_text="Atoms")) then
                 call w%sc%add_representation(reptype_atoms,repflavor_atoms_criticalpoints)
                 chbuild = .true.
@@ -520,6 +522,7 @@ contains
              end if
              call iw_tooltip("Draw dummy atoms representing gradient paths (Xz atoms)",ttshown)
 
+             call igSeparator()
              if (iw_menuitem("Coordination Polyhedra",shortcut_text="Atoms")) then
                 call w%sc%add_representation(reptype_atoms,repflavor_atoms_polyhedra)
                 chbuild = .true.
@@ -536,11 +539,21 @@ contains
              end if
 
              call igSeparator()
-             if (iw_menuitem("Axes",shortcut_text="Axes")) then
+             if (iw_menuitem("Cartesian/Crystallographic Axes",shortcut_text="Axes")) then
                 call w%sc%add_representation(reptype_axes,repflavor_axes)
                 chbuild = .true.
              end if
              call iw_tooltip("Display the cartesian (lab-frame) x/y/z axes",ttshown)
+
+             ! symmetry available for crystals (always) or molecules with a point group
+             call igSeparator()
+             enabled = .true.
+             if (sys(w%view_selected)%c%ismolecule) enabled = sys(w%view_selected)%c%pg%avail
+             if (iw_menuitem("Symmetry Elements",shortcut_text="Symmetry",enabled=enabled)) then
+                call w%sc%add_representation(reptype_symelem,repflavor_symelem)
+                chbuild = .true.
+             end if
+             call iw_tooltip("Display symmetry elements",ttshown)
 
              call igEndPopup()
           end if

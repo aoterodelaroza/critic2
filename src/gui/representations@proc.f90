@@ -98,7 +98,7 @@ contains
     elseif (itype == reptype_symelem) then
        r%isinit = .true.
        r%shown = .true.
-       r%name = "Symmetry element"
+       r%name = "Symmetry elements"
     else
        r%isinit = .false.
        r%shown = .false.
@@ -120,10 +120,68 @@ contains
 
   end subroutine representation_init
 
+  !> Reset a symmetry-element style.
+  module subroutine symelem_style_reset(d,r)
+    use interfaces_glfw, only: glfwGetTime
+    use systems, only: sys, sys_ready, ok_system
+    class(symelem_style), intent(inout) :: d
+    type(representation), intent(in) :: r
+
+    integer :: nop
+    logical, allocatable :: shownold(:)
+
+    ! reset the time and remember the previous selection
+    d%timelastreset = glfwGetTime()
+    if (allocated(d%shown)) call move_alloc(d%shown,shownold)
+    d%nop = 0
+    d%isinit = .false.
+    if (allocated(d%kind)) deallocate(d%kind)
+    if (allocated(d%dir)) deallocate(d%dir)
+    if (allocated(d%order)) deallocate(d%order)
+    if (allocated(d%label)) deallocate(d%label)
+
+    ! check the system is sane
+    if (.not.ok_system(r%id,sys_ready)) return
+
+    ! recompute the operation snapshot
+    call sys(r%id)%c%list_symops(nop,d%kind,d%dir,d%order,d%label)
+    d%nop = nop
+
+    ! restore the previous visibility if the operation count is unchanged,
+    ! otherwise show all operations
+    allocate(d%shown(nop))
+    if (allocated(shownold)) then
+       if (size(shownold,1) == nop) then
+          d%shown = shownold
+       else
+          d%shown = .true.
+       end if
+    else
+       d%shown = .true.
+    end if
+    d%isinit = .true.
+
+  end subroutine symelem_style_reset
+
+  !> Deallocate all arrays and end the symmetry-element style.
+  module subroutine symelem_style_end(d)
+    class(symelem_style), intent(inout) :: d
+
+    d%isinit = .false.
+    d%timelastreset = 0d0
+    d%nop = 0
+    if (allocated(d%shown)) deallocate(d%shown)
+    if (allocated(d%kind)) deallocate(d%kind)
+    if (allocated(d%dir)) deallocate(d%dir)
+    if (allocated(d%order)) deallocate(d%order)
+    if (allocated(d%label)) deallocate(d%label)
+
+  end subroutine symelem_style_end
+
   !> Set all values to default for the representation. Set a subset of
   !> defaults if itype = 0 (all), 1 (atom), 2 (bonds), 3 (labels),
   !> 4 (mol), 5 (unit cell), 6 (cartesian axes), 7 (rotation axes),
-  !> 8 (coordination polyhedra).
+  !> 8 (coordination polyhedra), 9 (symmetry elements).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -300,9 +358,8 @@ contains
        r%rotaxis_rgb = ColorRotaxis_def ! black
     end if
 
-    ! coordination polyhedra appearance (part of the atoms representation; the
-    ! center/corner/distance geometry lives in coordpoly_style, reset below)
-    if (itype == 0 .or. itype == 1) then
+    ! coordination polyhedra
+    if (itype == 0 .or. itype == 8) then
        r%poly_alpha = 0.5d0
        r%poly_usecentercolor = .true.
        r%poly_rgb = 0._c_float
@@ -311,6 +368,24 @@ contains
        r%poly_usecentercolor_edge = .true.
        r%poly_coplanar_eps = 0.1d0
        r%poly_showcorners = .true.
+    end if
+
+    ! symmetry elements
+    if (itype == 0 .or. itype == 9) then
+       if (sys(isys)%c%ismolecule) then
+          r%symelem_coordtype = 2 ! cartesian (bohr)
+          if (sys(isys)%c%pg%avail) then
+             r%symelem_origin = sys(isys)%c%pg%xcm + sys(isys)%c%molx0
+          else
+             r%symelem_origin = 0d0
+          end if
+       else
+          r%symelem_coordtype = 0 ! crystallographic
+          r%symelem_origin = 0d0
+       end if
+       r%symelem_usecustomrgb = .false.
+       r%symelem_rgb = symelem_rgb_def
+       if (r%symelem_style%isinit) r%symelem_style%shown = .true.
     end if
 
     ! initialize the styles
@@ -338,6 +413,7 @@ contains
     call r%label_style%end()
     call r%mol_style%end()
     call r%coordpoly_style%end()
+    call r%symelem_style%end()
 
   end subroutine representation_end
 
@@ -353,36 +429,44 @@ contains
     if (.not.r%isinit .or. r%id == 0) return
     if (.not.ok_system(r%id,sys_ready)) return
 
-    ! check if we need to reset the representation styles
-    ! atoms
-    doreset = .not.r%atom_style%isinit
-    doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%atom_style%timelastreset)
-    if (doreset) call r%atom_style%reset(r)
+    if (r%type == reptype_atoms) then
+       ! check if we need to reset the representation styles
+       ! atoms
+       doreset = .not.r%atom_style%isinit
+       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%atom_style%timelastreset)
+       if (doreset) call r%atom_style%reset(r)
 
-    ! bonds: if the geometry changed
-    doreset = .not.r%bond_style%isinit
-    doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%bond_style%timelastreset)
-    if (doreset) call r%bond_style%reset(r)
+       ! bonds: if the geometry changed
+       doreset = .not.r%bond_style%isinit
+       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%bond_style%timelastreset)
+       if (doreset) call r%bond_style%reset(r)
 
-    ! bonds: if the system has been rebonded and this representation tracks
-    ! the bonds in the system (%use_sys_nstar), recalculate the bond style
-    doreset = r%bond_style%use_sys_nstar .and. (sysc(r%id)%timelastchange_rebond > r%bond_style%timelastreset)
-    if (doreset) call r%bond_style%copy_neighstars_from_system(r%id)
+       ! bonds: if the system has been rebonded and this representation tracks
+       ! the bonds in the system (%use_sys_nstar), recalculate the bond style
+       doreset = r%bond_style%use_sys_nstar .and. (sysc(r%id)%timelastchange_rebond > r%bond_style%timelastreset)
+       if (doreset) call r%bond_style%copy_neighstars_from_system(r%id)
 
-    ! molecules: if the geometry or the bonds changed
-    doreset = .not.r%mol_style%isinit
-    doreset = doreset .or. (sysc(r%id)%timelastchange_rebond > r%mol_style%timelastreset)
-    if (doreset) call r%mol_style%reset(r)
+       ! molecules: if the geometry or the bonds changed
+       doreset = .not.r%mol_style%isinit
+       doreset = doreset .or. (sysc(r%id)%timelastchange_rebond > r%mol_style%timelastreset)
+       if (doreset) call r%mol_style%reset(r)
 
-    ! labels: if the geometry changed
-    doreset = .not.r%label_style%isinit
-    doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%label_style%timelastreset)
-    if (doreset) call r%label_style%reset(r)
+       ! labels: if the geometry changed
+       doreset = .not.r%label_style%isinit
+       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%label_style%timelastreset)
+       if (doreset) call r%label_style%reset(r)
 
-    ! coordination polyhedra: if the geometry changed
-    doreset = .not.r%coordpoly_style%isinit
-    doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%coordpoly_style%timelastreset)
-    if (doreset) call r%coordpoly_style%reset(r)
+       ! coordination polyhedra: if the geometry changed
+       doreset = .not.r%coordpoly_style%isinit
+       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%coordpoly_style%timelastreset)
+       if (doreset) call r%coordpoly_style%reset(r)
+
+    elseif (r%type == reptype_symelem) then
+       ! symmetry elements: if the geometry changed
+       doreset = .not.r%symelem_style%isinit
+       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%symelem_style%timelastreset)
+       if (doreset) call r%symelem_style%reset(r)
+    end if
 
   end subroutine update_styles
 
@@ -391,7 +475,7 @@ contains
   !> iqpt and frequency ifreq to animate the representation.
   module subroutine add_draw_elements(r,nc,obj,doanim,iqpt,ifreq)
     use systems, only: sys, sysc
-    use crystalmod, only: iperiod_vacthr
+    use crystalmod, only: iperiod_vacthr, symop_kind_plane
     use gui_main, only: ColorAxes_def
     use tools_io, only: string, nameguess
     use tools_math, only: cross, plane_from_points
@@ -416,8 +500,7 @@ contains
     real(c_float) :: bondrgb(3)
     real*8 :: xhb_h(3), xhb_a(3), xhb_d(3), hbang ! fractional points (vertex H) and angle (degrees)
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), xpolyc(3)
-    real*8 :: ucini(3), ucend(3), e1v(3), e2v(3)
-    real(c_float) :: rgbax(3)
+    real*8 :: ucini(3), ucend(3)
     complex*16 :: xdelta0(3), xdelta1(3), xdelta2(3)
     type(dl_sphere), allocatable :: auxsph(:)
     type(dl_cylinder), allocatable :: auxcyl(:)
@@ -1229,96 +1312,30 @@ contains
        dcyl%rgbborder = 0._c_float
        call append_cyl(obj%cyl,obj%ncyl,dcyl)
     elseif (r%type == reptype_symelem) then
-       !!! symmetry element (plane/axis) !!!
-
-       ! unit direction: the plane normal or the axis direction (cartesian)
-       x0 = r%symelem_dir / max(norm2(r%symelem_dir),1d-10)
-
-       ! reference point in cartesian (bohr); for molecules referred to the
-       ! molecular center
-       uoriginc = r%origin
-       if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
-
-       ! opaque thin-cylinder template (plane frame edges, axis shafts)
-       dcyl%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
-       dcyl%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
-       dcyl%r = real(symelem_frame_radius,c_float)
-       dcyl%rgb = r%symelem_rgb
-       dcyl%alpha = 1._c_float
-       dcyl%order = 1
-       dcyl%border = 0._c_float
-       dcyl%rgbborder = 0._c_float
-
-       if (r%symelem_kind == symelem_kind_plane) then
-          ! mirror/glide plane: translucent fill + opaque border frame
-
-          ! in-plane orthonormal basis perpendicular to the plane normal x0
-          if (abs(x0(1)) < 0.9d0) then
-             xx = (/1d0,0d0,0d0/)
+       !!! symmetry element(s) (plane/axis) !!!
+       if (r%symelem_style%isinit) then
+          ! persistent set
+          if (r%symelem_coordtype == 2) then
+             uoriginc = r%symelem_origin ! cartesian (bohr)
+          elseif (r%symelem_coordtype == 0 .and. .not.sys(r%id)%c%ismolecule) then
+             uoriginc = sys(r%id)%c%x2c(r%symelem_origin) ! crystallographic
           else
-             xx = (/0d0,1d0,0d0/)
+             uoriginc = r%symelem_origin / bohrtoa ! cartesian (angstrom)
           end if
-          x1 = cross(x0,xx)
-          x1 = x1 / norm2(x1)
-          x2 = cross(x0,x1) ! unit, (x0,x1,x2) orthonormal
-
-          ! rectangle center = projection of the system center onto the plane
-          xc = r%symelem_cen - dot_product(r%symelem_cen - uoriginc,x0) * x0
-          res = symelem_margin * r%symelem_size
-          e1v = res * x1
-          e2v = res * x2
-
-          ! translucent fill
-          obj%nplane = obj%nplane + 1
-          if (obj%nplane > size(obj%plane,1)) then
-             allocate(auxplane(2*obj%nplane))
-             auxplane(1:size(obj%plane,1)) = obj%plane
-             call move_alloc(auxplane,obj%plane)
-          end if
-          obj%plane(obj%nplane)%x = real(xc,c_float)
-          obj%plane(obj%nplane)%e1 = real(e1v,c_float)
-          obj%plane(obj%nplane)%e2 = real(e2v,c_float)
-          obj%plane(obj%nplane)%rgb = r%symelem_rgb
-          obj%plane(obj%nplane)%alpha = symelem_alpha
-
-          ! opaque border frame (4 edge cylinders)
-          call append_edge(xc - e1v - e2v, xc + e1v - e2v)
-          call append_edge(xc + e1v - e2v, xc + e1v + e2v)
-          call append_edge(xc + e1v + e2v, xc - e1v + e2v)
-          call append_edge(xc - e1v + e2v, xc - e1v - e2v)
-       else
-          ! rotation/rotoinversion axis: a thick opaque shaft (colored by the
-          ! rotation order) through every visible lattice point (crystals) or
-          ! the molecular center (molecules)
-
-          ! axis color from the rotation order
-          rgbax = symelem_rgb_def
-          if (r%symelem_order >= lbound(symelem_rgb_order,2) .and. &
-              r%symelem_order <= ubound(symelem_rgb_order,2)) then
-             if (any(symelem_rgb_order(:,r%symelem_order) /= 0._c_float)) &
-                rgbax = symelem_rgb_order(:,r%symelem_order)
-          end if
-          dcyl%rgb = rgbax
-          dcyl%r = real(symelem_axis_radius,c_float)
-
-          ! each shaft spans the system bounding sphere plus a margin on each
-          ! side, centered on the projection of the system center onto the axis
-          ! line
-          res = symelem_margin * r%symelem_size
-          n0 = 0
-          n1 = 0
-          if (.not.sys(r%id)%c%ismolecule) n1 = nc
-          do i1 = n0(1), n1(1)
-             do i2 = n0(2), n1(2)
-                do i3 = n0(3), n1(3)
-                   xc = uoriginc + sys(r%id)%c%x2c(real((/i1,i2,i3/),8))
-                   xc = xc + dot_product(r%symelem_cen - xc,x0) * x0 ! foot of the center on the axis
-                   dcyl%x1 = real(xc - res * x0,c_float)
-                   dcyl%x2 = real(xc + res * x0,c_float)
-                   call append_cyl(obj%cyl,obj%ncyl,dcyl)
-                end do
-             end do
+          if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
+          do i1 = 1, r%symelem_style%nop
+             if (.not.r%symelem_style%shown(i1)) cycle
+             if (r%symelem_style%kind(i1) == 0) cycle
+             call draw_symmetry_element(r%symelem_style%kind(i1),r%symelem_style%dir(:,i1),&
+                r%symelem_style%order(i1),uoriginc,r%symelem_usecustomrgb,r%symelem_rgb)
           end do
+       else
+          ! transient single element (hover/selection preview)
+          uoriginc = r%origin
+          if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
+          if (r%symelem_kind /= 0) &
+             call draw_symmetry_element(r%symelem_kind,r%symelem_dir,r%symelem_order,&
+                uoriginc,.false.,r%symelem_rgb)
        end if
     end if ! reptype
   contains
@@ -1361,6 +1378,104 @@ contains
       call append_cyl(obj%cyl,obj%ncyl,dcyl)
 
     end subroutine append_edge
+
+    !> Draw one symmetry element of kind skind (symop_kind_plane/axis), with
+    !> unit direction/normal sdir, rotation order sorder, passing through the
+    !> cartesian-bohr point uoriginc. If usecustom, everything is drawn in
+    !> customrgb; otherwise planes use the default color and axes are colored by
+    !> rotation order. Uses the host r%symelem_size/r%symelem_cen for sizing.
+    subroutine draw_symmetry_element(skind,sdir,sorder,uoriginc,usecustom,customrgb)
+      integer, intent(in) :: skind, sorder
+      real*8, intent(in) :: sdir(3), uoriginc(3)
+      logical, intent(in) :: usecustom
+      real(c_float), intent(in) :: customrgb(3)
+
+      real*8 :: lx0(3), lxx(3), lx1(3), lx2(3), lxc(3), le1v(3), le2v(3), lres
+      real(c_float) :: rgbel(3)
+      integer :: j1, j2, j3, m1(3)
+
+      ! unit direction: the plane normal or the axis direction (cartesian)
+      lx0 = sdir / max(norm2(sdir),1d-10)
+
+      ! opaque thin-cylinder template (plane frame edges, axis shafts)
+      dcyl%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
+      dcyl%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
+      dcyl%r = real(symelem_frame_radius,c_float)
+      dcyl%alpha = 1._c_float
+      dcyl%order = 1
+      dcyl%border = 0._c_float
+      dcyl%rgbborder = 0._c_float
+
+      if (skind == symop_kind_plane) then
+         ! mirror/glide plane: translucent fill + opaque border frame
+         rgbel = symelem_rgb_def
+         if (usecustom) rgbel = customrgb
+         dcyl%rgb = rgbel
+
+         ! in-plane orthonormal basis perpendicular to the plane normal lx0
+         if (abs(lx0(1)) < 0.9d0) then
+            lxx = (/1d0,0d0,0d0/)
+         else
+            lxx = (/0d0,1d0,0d0/)
+         end if
+         lx1 = cross(lx0,lxx)
+         lx1 = lx1 / norm2(lx1)
+         lx2 = cross(lx0,lx1) ! unit, (lx0,lx1,lx2) orthonormal
+
+         ! rectangle center = projection of the system center onto the plane
+         lxc = r%symelem_cen - dot_product(r%symelem_cen - uoriginc,lx0) * lx0
+         lres = symelem_margin * r%symelem_size
+         le1v = lres * lx1
+         le2v = lres * lx2
+
+         ! translucent fill
+         obj%nplane = obj%nplane + 1
+         if (obj%nplane > size(obj%plane,1)) then
+            allocate(auxplane(2*obj%nplane))
+            auxplane(1:size(obj%plane,1)) = obj%plane
+            call move_alloc(auxplane,obj%plane)
+         end if
+         obj%plane(obj%nplane)%x = real(lxc,c_float)
+         obj%plane(obj%nplane)%e1 = real(le1v,c_float)
+         obj%plane(obj%nplane)%e2 = real(le2v,c_float)
+         obj%plane(obj%nplane)%rgb = rgbel
+         obj%plane(obj%nplane)%alpha = symelem_alpha
+
+         ! opaque border frame (4 edge cylinders)
+         call append_edge(lxc - le1v - le2v, lxc + le1v - le2v)
+         call append_edge(lxc + le1v - le2v, lxc + le1v + le2v)
+         call append_edge(lxc + le1v + le2v, lxc - le1v + le2v)
+         call append_edge(lxc - le1v + le2v, lxc - le1v - le2v)
+      else
+         ! rotation/rotoinversion axis: a thick opaque shaft (colored by the
+         ! rotation order, unless a custom color is set) through every visible
+         ! lattice point (crystals) or the molecular center (molecules)
+         rgbel = symelem_rgb_def
+         if (usecustom) then
+            rgbel = customrgb
+         elseif (sorder >= lbound(symelem_rgb_order,2) .and. sorder <= ubound(symelem_rgb_order,2)) then
+            if (any(symelem_rgb_order(:,sorder) /= 0._c_float)) rgbel = symelem_rgb_order(:,sorder)
+         end if
+         dcyl%rgb = rgbel
+         dcyl%r = real(symelem_axis_radius,c_float)
+
+         lres = symelem_margin * r%symelem_size
+         m1 = 0
+         if (.not.sys(r%id)%c%ismolecule) m1 = nc
+         do j1 = 0, m1(1)
+            do j2 = 0, m1(2)
+               do j3 = 0, m1(3)
+                  lxc = uoriginc + sys(r%id)%c%x2c(real((/j1,j2,j3/),8))
+                  lxc = lxc + dot_product(r%symelem_cen - lxc,lx0) * lx0 ! foot of the center on the axis
+                  dcyl%x1 = real(lxc - lres * lx0,c_float)
+                  dcyl%x2 = real(lxc + lres * lx0,c_float)
+                  call append_cyl(obj%cyl,obj%ncyl,dcyl)
+               end do
+            end do
+         end do
+      end if
+
+    end subroutine draw_symmetry_element
 
     !> Build a coordination polyhedron from nv vertex positions xv (cartesian,
     !> bohr). The vertex centroid is used as the interior reference point (it is
@@ -1655,7 +1770,7 @@ contains
        call r%label_style%reset(r)
     if (itype == 0 .or. itype == 4) &
        call r%mol_style%reset(r)
-    if (itype == 0 .or. itype == 1) &
+    if (itype == 0 .or. itype == 8) &
        call r%coordpoly_style%reset(r)
 
   end subroutine reset_all_styles

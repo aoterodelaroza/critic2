@@ -52,7 +52,8 @@ contains
 
   !> Draw the edit represenatation window.
   module subroutine draw_editrep(w)
-    use representations, only: representation, reptype_atoms, reptype_unitcell, reptype_axes
+    use representations, only: representation, reptype_atoms, reptype_unitcell, reptype_axes,&
+       reptype_symelem
     use windows, only: nwin, win, wintype_view
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
@@ -108,6 +109,8 @@ contains
           changed = changed .or. w%draw_editrep_unitcell(ttshown)
        elseif (w%rep%type == reptype_axes) then
           changed = changed .or. w%draw_editrep_axes(ttshown)
+       elseif (w%rep%type == reptype_symelem) then
+          changed = changed .or. w%draw_editrep_symelem(ttshown)
        end if
 
        ! rebuild draw lists if necessary
@@ -1786,5 +1789,118 @@ contains
     end if
 
   end function atom_selection_widget
+
+  !> Draw the editrep (Object) window, symmetry-elements class. Returns true if
+  !> the scene needs rendering again. ttshown = the tooltip flag.
+  module function draw_editrep_symelem(w,ttshown) result(changed)
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
+       iw_combo_simple, iw_button, iw_calcheight
+    use systems, only: sys
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch
+    integer :: i, icoord, nop
+    integer(c_int) :: flags
+    type(ImVec2) :: sz0
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+
+    changed = .false.
+
+    ! refresh the symmetry-element style (snapshot + visibility) if the geometry
+    ! changed since the last reset
+    call w%rep%update()
+    nop = w%rep%symelem_style%nop
+
+    !! origin
+    call iw_text("Origin",highlight=.true.)
+    if (sys(w%isys)%c%ismolecule) then
+       ! molecules: cartesian options only (coordtype 1/2), referred to the
+       ! molecular center; the combo is 0-based, hence the +/-1 offset
+       icoord = max(w%rep%symelem_coordtype,1) - 1
+       call iw_combo_simple("Coordinates##symelemcoord","Cartesian (Å)" // c_null_char // &
+          "Cartesian (bohr)" // c_null_char,icoord,changed=ch)
+       if (ch .or. (icoord+1) /= w%rep%symelem_coordtype) changed = .true.
+       w%rep%symelem_coordtype = icoord + 1
+    else
+       icoord = w%rep%symelem_coordtype
+       call iw_combo_simple("Coordinates##symelemcoord","Crystallographic" // c_null_char // &
+          "Cartesian (Å)" // c_null_char // "Cartesian (bohr)" // c_null_char,icoord,changed=ch)
+       if (ch) changed = .true.
+       w%rep%symelem_coordtype = icoord
+    end if
+    call iw_tooltip("Coordinate system in which the origin is given",ttshown)
+    changed = changed .or. iw_dragfloat_real8("##originsymelem",x3=w%rep%symelem_origin,speed=0.001d0,decimal=5)
+    call iw_tooltip("Point the symmetry elements pass through (and, for crystals, every lattice point)",ttshown)
+
+    !! color
+    call iw_text("Color",highlight=.true.)
+    changed = changed .or. iw_checkbox("Custom color##symelemcustomrgb",w%rep%symelem_usecustomrgb)
+    call iw_tooltip("Color all elements with a single custom color. If off, mirror/glide planes use &
+       &the default color and rotation axes are colored by rotation order.",ttshown)
+    if (w%rep%symelem_usecustomrgb) &
+       changed = changed .or. iw_coloredit("##symelemrgb",rgb=w%rep%symelem_rgb,sameline=.true.)
+
+    !! operations
+    call iw_text("Operations",highlight=.true.)
+    if (w%rep%symelem_style%isinit) then
+       ! all / none / toggle
+       if (iw_button("All##symelemall")) then
+          w%rep%symelem_style%shown = .true.
+          changed = .true.
+       end if
+       call iw_tooltip("Show all operations",ttshown)
+       if (iw_button("None##symelemnone",sameline=.true.)) then
+          w%rep%symelem_style%shown = .false.
+          changed = .true.
+       end if
+       call iw_tooltip("Hide all operations",ttshown)
+       if (iw_button("Toggle##symelemtoggle",sameline=.true.)) then
+          w%rep%symelem_style%shown = .not.w%rep%symelem_style%shown
+          changed = .true.
+       end if
+       call iw_tooltip("Toggle the operation selection",ttshown)
+
+       ! per-operation table
+       flags = ImGuiTableFlags_None
+       flags = ior(flags,ImGuiTableFlags_RowBg)
+       flags = ior(flags,ImGuiTableFlags_Borders)
+       flags = ior(flags,ImGuiTableFlags_ScrollY)
+       flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+       str1 = "##symelemtable" // c_null_char
+       sz0%x = 0
+       sz0%y = iw_calcheight(min(nop,10)+1,0,.false.)
+       if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
+          str2 = "show" // c_null_char
+          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
+          str2 = "#" // c_null_char
+          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
+          str2 = "Symbol" // c_null_char
+          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
+          call igTableSetupScrollFreeze(0,1)
+          call igTableHeadersRow()
+
+          do i = 1, nop
+             call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+             if (igTableSetColumnIndex(0)) then
+                if (w%rep%symelem_style%kind(i) == 0) then
+                   ! identity/inversion: nothing to draw, show a disabled checkbox
+                   call igBeginDisabled(.true._c_bool)
+                   ch = iw_checkbox("##symelemshow" // string(i),w%rep%symelem_style%shown(i))
+                   call igEndDisabled()
+                else
+                   if (iw_checkbox("##symelemshow" // string(i),w%rep%symelem_style%shown(i))) changed = .true.
+                end if
+             end if
+             if (igTableSetColumnIndex(1)) call iw_text(string(i))
+             if (igTableSetColumnIndex(2)) call iw_text(trim(w%rep%symelem_style%label(i)))
+          end do
+          call igEndTable()
+       end if
+    end if
+
+  end function draw_editrep_symelem
 
 end submodule editrep

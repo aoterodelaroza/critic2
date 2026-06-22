@@ -70,6 +70,10 @@ module crystalmod
      "unknown","-1     ","2/m    ","mmm    ","4/m    ","4/mmm  ",&
      "-3     ","-3m    ","6/m    ","6/mmm  ","m-3    ","m-3m   "/)
 
+  ! symmetry-operation element kinds (used by list_symops)
+  integer, parameter, public :: symop_kind_plane = 1 ! mirror/glide plane
+  integer, parameter, public :: symop_kind_axis = 2 ! rotation/screw/rotoinversion axis
+
   ! Defaults for powder X-ray diffraction routines
   real*8, parameter, public :: xrpd_lambda_def = 1.5406d0
   real*8, parameter, public :: xrpd_fpol_def = 0d0
@@ -335,6 +339,7 @@ module crystalmod
      procedure :: report => struct_report !< Write lots of information about the crystal structure to uout
      procedure :: struct_report_symmetry !< Write symmmetry information
      procedure :: struct_report_symxyz !< Write sym. ops. in crystallographic notation to uout
+     procedure :: list_symops !< Report symmetry element list (kind/dir/order/label)
      procedure :: struct_write_json !< Write a json object containing the crystal structure info
 
      ! structure writers (write)
@@ -1015,6 +1020,14 @@ module crystalmod
        character(len=mlen), intent(out), optional :: hmsym(c%neqv*c%ncv)
        real*8, intent(out), optional :: axcr(3,c%neqv*c%ncv)
      end subroutine struct_report_symxyz
+     module subroutine list_symops(c,n,kind,dir,order,label)
+       class(crystal), intent(in) :: c
+       integer, intent(out) :: n
+       integer, allocatable, intent(out) :: kind(:)
+       real*8, allocatable, intent(out) :: dir(:,:)
+       integer, allocatable, intent(out) :: order(:)
+       character(len=mlen), allocatable, intent(out) :: label(:)
+     end subroutine list_symops
      module subroutine struct_write_json(c,json,p)
        use json_module, only: json_value, json_core
        class(crystal), intent(inout) :: c

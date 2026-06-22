@@ -1310,4 +1310,86 @@ contains
 
   end subroutine reduceatoms
 
+  !> Returns the list of symmetry operations. There are n
+  !> operations. For each, the routine gives: kind (symop_kind_plane
+  !> parameter), the unit direction/normal dir in cartesian (bohr),
+  !> the rotation order, and a label (Hermann-Mauguin symbol for
+  !> crystals, the molecular symmetry symbol for molecules).
+  module subroutine list_symops(c,n,kind,dir,order,label)
+    use param, only: mlen
+    use types, only: molsymop_plane, molsymop_rotation, molsymop_imp_rotation
+    class(crystal), intent(in) :: c
+    integer, intent(out) :: n
+    integer, allocatable, intent(out) :: kind(:)
+    real*8, allocatable, intent(out) :: dir(:,:)
+    integer, allocatable, intent(out) :: order(:)
+    character(len=mlen), allocatable, intent(out) :: label(:)
+
+    integer :: i, ioptype
+    real*8 :: raxc(3), raxx(3)
+    character(len=1) :: hm1, cdig
+    character(len=mlen), allocatable :: hm(:)
+    real*8, allocatable :: axcr(:,:)
+
+    if (c%ismolecule) then
+       n = 0
+       if (c%pg%avail) n = c%pg%nop
+    else
+       n = c%neqv
+    end if
+    allocate(kind(n),dir(3,n),order(n),label(n))
+    kind = 0
+    order = 0
+    dir = 0d0
+    label = ""
+    if (n == 0) return
+
+    if (c%ismolecule) then
+       !! molecule: point-group operations
+       do i = 1, n
+          label(i) = c%pg%op(i)%sym
+          ioptype = c%pg%op(i)%type
+          if (ioptype == molsymop_plane) then
+             kind(i) = symop_kind_plane
+          elseif (ioptype == molsymop_rotation .or. ioptype == molsymop_imp_rotation) then
+             kind(i) = symop_kind_axis
+          end if
+          if (kind(i) == 0) cycle
+          raxx = c%pg%op(i)%axis
+          if (norm2(raxx) > 1d-10) raxx = raxx / norm2(raxx)
+          dir(:,i) = raxx
+          order(i) = c%pg%op(i)%opn
+       end do
+    else
+       !! crystal: space-group operations (identity centering only)
+       allocate(hm(c%neqv*c%ncv),axcr(3,c%neqv*c%ncv))
+       call c%struct_report_symxyz(hmsym=hm,axcr=axcr)
+       do i = 1, n
+          label(i) = hm(i)
+          raxc = axcr(:,i)
+          ! identity and inversion have a zero axis and draw nothing
+          if (norm2(raxc) < 1d-10) cycle
+          hm1 = hm(i)(1:1) ! HM symbol is stored left-aligned
+          if (hm1 >= "a" .and. hm1 <= "z") then
+             kind(i) = symop_kind_plane
+          else
+             kind(i) = symop_kind_axis
+             ! rotation order from the symbol: the digit, after an optional
+             ! leading "-" (rotoinversion: "-3"/"-4"/"-6")
+             if (hm1 == "-") then
+                cdig = hm(i)(2:2)
+             else
+                cdig = hm1
+             end if
+             if (cdig >= "0" .and. cdig <= "9") order(i) = ichar(cdig) - ichar("0")
+          end if
+          raxx = c%x2c(raxc)
+          if (norm2(raxx) > 1d-10) raxx = raxx / norm2(raxx)
+          dir(:,i) = raxx
+       end do
+       deallocate(hm,axcr)
+    end if
+
+  end subroutine list_symops
+
 end submodule symmetry

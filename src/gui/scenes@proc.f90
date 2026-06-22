@@ -362,7 +362,7 @@ contains
 
   !> Build the draw lists for the current scene.
   module subroutine scene_build_lists(s)
-    use representations, only: reptype_atoms, reptype_axes, axes_winfrac_def
+    use representations, only: reptype_atoms, reptype_axes, reptype_symelem, axes_winfrac_def
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
     use systems, only: sys_ready, ok_system
@@ -417,8 +417,10 @@ contains
        ! update to reflect changes in the number of atoms or molecules
        call s%rep(i)%update()
 
-       ! add draw elements (except window-anchored axes, done below)
+       ! add draw elements (except window-anchored axes and persistent symmetry
+       ! elements, which need the scene radius and are done below)
        if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes_placement == 1) cycle
+       if (s%rep(i)%type == reptype_symelem) cycle
        call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
     end do
 
@@ -435,6 +437,7 @@ contains
           end if
        end if
     end do
+
     ! ghost (pick-only) spheres do not count as framing geometry: a scene whose
     ! only geometry is ghosts falls through to the default extent below
     if (count(.not.s%obj%sph(1:s%obj%nsph)%ghost) + s%obj%ncyl + s%obj%ncylflat +&
@@ -496,6 +499,16 @@ contains
              s%rep(i)%axes_scale = axes_winfrac_def * real(s%scenerad,8) / max(s%rep(i)%axes_length,1d-10)
              s%rep(i)%axes_scale_auto = .false.
           end if
+          call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
+       end if
+    end do
+
+    ! persistent symmetry-element sets: deferred like anchored axes because they
+    ! are sized from the scene radius (and excluded from the bounding box)
+    do i = 1, s%nrep
+       if (s%rep(i)%type == reptype_symelem) then
+          s%rep(i)%symelem_size = real(s%scenerad,8)
+          s%rep(i)%symelem_cen = real(s%scenecenter,8)
           call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
        end if
     end do
@@ -1333,7 +1346,7 @@ contains
   !> if the scene needs to be rendered again.
   module function representation_menu(s,idparent) result(changed)
     use interfaces_cimgui
-    use representations, only: reptype_atoms, reptype_unitcell, reptype_axes
+    use representations, only: reptype_atoms, reptype_unitcell, reptype_axes, reptype_symelem
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext
     use windows, only: stack_create_window, wintype_editrep
     use gui_main, only: ColorDangerButton, g
@@ -1461,6 +1474,8 @@ contains
              str3 = "cell" // c_null_char
           elseif (s%rep(i)%type == reptype_axes) then
              str3 = "axes" // c_null_char
+          elseif (s%rep(i)%type == reptype_symelem) then
+             str3 = "symmetry" // c_null_char
           else
              str3 = "???" // c_null_char
           end if
@@ -1665,17 +1680,20 @@ contains
   end subroutine select_atom
 
   !> Add a new representation to the scene with type itype and the given flavor.
-  module subroutine add_representation(s,itype,flavor)
+  !> If id is present, it returns the new representation id.
+  module subroutine add_representation(s,itype,flavor,id)
     class(scene), intent(inout), target :: s
     integer, intent(in) :: itype
     integer, intent(in) :: flavor
+    integer, intent(out), optional :: id
 
-    integer :: id
+    integer :: id_
 
-    id = s%get_new_representation_id()
-    call s%rep(id)%init(s%id,id,itype,flavor,s%icount)
+    id_ = s%get_new_representation_id()
+    call s%rep(id_)%init(s%id,id_,itype,flavor,s%icount)
     s%forcesort = .true.
     s%forcebuildlists = .true.
+    if (present(id)) id = id_
 
   end subroutine add_representation
 
@@ -1708,7 +1726,9 @@ contains
     end if
     id = s%nreptrans
 
-    ! initialize the representation (throwaway counter, not s%icount)
+    ! initialize the representation (throwaway counter, not s%icount). Transient
+    ! reps are single-element and never run update(), so their symelem_style stays
+    ! uninitialized and the single-element draw path is used.
     dummycount = 0
     call s%reptrans(id)%init(s%id,id,itype,flavor,dummycount)
 
@@ -1829,8 +1849,8 @@ contains
 
   !> Show a set of n symmetry elements as transient
   !> representations. Each element k is a plane
-  !> (kind(k)=symelem_kind_plane, dir = plane normal) or an axis
-  !> (kind(k)=symelem_kind_axis, dir = axis direction); xorig and dir
+  !> (kind(k)=symop_kind_plane, dir = plane normal) or an axis
+  !> (kind(k)=symop_kind_axis, dir = axis direction); xorig and dir
   !> are in cartesian (bohr) and the elements are sized to span the
   !> displayed system. tag identifies the requested set for dedup:
   !> when it matches the set already shown, the element geometry is
