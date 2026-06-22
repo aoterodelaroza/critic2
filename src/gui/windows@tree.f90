@@ -228,6 +228,13 @@ contains
        forceinit = .false.
     end if
 
+    ! external request to select a system
+    if (w%forceselect > 0) then
+       call w%select_system_tree(w%forceselect)
+       forceselect = w%forceselect
+       w%forceselect = 0
+    end if
+
     ! count systems, select which ones will be shown; next and previous systems
     nshown_after_filter = 0
     nshown = 0
@@ -877,6 +884,9 @@ contains
        call igEndTable()
     end if
     call igPopStyleVar(3_c_int)
+
+    ! drop any pending selection that was not consumed above
+    forceselect = 0
 
     !! process the keybindings
     ! remove system or field

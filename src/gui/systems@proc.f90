@@ -128,7 +128,7 @@ contains
     use utils, only: get_current_working_dir
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
-    use windows, only: regenerate_window_pointers
+    use windows, only: regenerate_window_pointers, win, iwin_tree
     use interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
     use crystalseedmod, only: crystalseed
     use global, only: symprec
@@ -302,6 +302,12 @@ contains
        ! redo everything
        call sysc(idx)%post_event(lastchange_geometry)
     end do
+
+    ! select the first new system in the tree
+    if (allocated(win)) then
+       if (iwin_tree > 0 .and. iwin_tree <= size(win)) &
+          win(iwin_tree)%forceselect = id(1)
+    end if
 
     ! return the IDs of the new systems if requested
     if (present(idlist)) then
@@ -984,14 +990,13 @@ contains
   !> molecule.
   module subroutine new_system_from_highlighted(sysc,forcemolecule)
     use crystalseedmod, only: crystalseed
-    use windows, only: win, iwin_tree
     use types, only: realloc
     use global, only: rborder_def
     class(sysconf), intent(inout) :: sysc
     logical, intent(in), optional :: forcemolecule
 
     integer :: i, nat, id
-    integer, allocatable :: iat(:), idnew(:)
+    integer, allocatable :: iat(:)
     type(crystalseed), allocatable :: seed(:)
     logical :: molecule
 
@@ -1039,12 +1044,9 @@ contains
     end if
     seed(1)%name = trim(sysc%seed%name) // " (selection)"
 
-    ! create the new system and select it in the tree
-    call add_systems_from_seeds(1,seed,idlist=idnew)
+    ! create the new system (add_systems_from_seeds selects it in the tree)
+    call add_systems_from_seeds(1,seed)
     call launch_initialization_thread()
-    if (allocated(idnew)) then
-       if (size(idnew) >= 1) call win(iwin_tree)%select_system_tree(idnew(1))
-    end if
 
   end subroutine new_system_from_highlighted
 
