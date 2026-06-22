@@ -1827,58 +1827,63 @@ contains
 
   end subroutine scene_show_transient_rotaxis
 
-  !> Show a transient symmetry element through the origin: a filled rectangle
-  !> for a mirror/glide plane (kind=symelem_kind_plane, dir = plane normal) or a
-  !> cylinder for a rotation/screw/rotoinversion axis (kind=symelem_kind_axis,
-  !> dir = axis direction). xorig and dir are in cartesian (bohr), siz is the
-  !> system bounding-sphere radius (bohr); the element is sized to span the
-  !> system using siz together with the scene center.
-  module subroutine scene_show_transient_symelem(s,tag,kind,xorig,dir,order)
+  !> Show a set of n symmetry elements as transient
+  !> representations. Each element k is a plane
+  !> (kind(k)=symelem_kind_plane, dir = plane normal) or an axis
+  !> (kind(k)=symelem_kind_axis, dir = axis direction); xorig and dir
+  !> are in cartesian (bohr) and the elements are sized to span the
+  !> displayed system. tag identifies the requested set for dedup:
+  !> when it matches the set already shown, the element geometry is
+  !> refreshed in place (no list rebuild), otherwise the transient
+  !> list is rebuilt from scratch. Like the other transient
+  !> representations, this must be called every frame to keep the
+  !> elements alive.
+  module subroutine scene_show_symelems(s,tag,n,kind,xorig,dir,order)
     use representations, only: reptype_symelem, repflavor_symelem
     class(scene), intent(inout), target :: s
     integer, intent(in) :: tag
-    integer, intent(in) :: kind
-    real*8, intent(in) :: xorig(3)
-    real*8, intent(in) :: dir(3)
-    integer, intent(in) :: order
+    integer, intent(in) :: n
+    integer, intent(in) :: kind(n)
+    real*8, intent(in) :: xorig(3,n)
+    real*8, intent(in) :: dir(3,n)
+    integer, intent(in) :: order(n)
 
-    integer :: id
-    logical :: found
+    integer :: k, id
 
-    ! already shown for this tag: refresh the geometry, keep it alive
-    if (s%reptrans_tag == tag .and. s%nreptrans > 0) then
-       found = .false.
-       do id = 1, s%nreptrans
-          if (s%reptrans(id)%type == reptype_symelem) then
-             s%reptrans(id)%symelem_kind = kind
-             s%reptrans(id)%origin = xorig
-             s%reptrans(id)%symelem_dir = dir
-             s%reptrans(id)%symelem_size = s%scenerad
-             s%reptrans(id)%symelem_cen = real(s%scenecenter,8)
-             s%reptrans(id)%symelem_order = order
-             found = .true.
-          end if
+    ! nothing to show: let the main loop auto-clear the transients
+    if (n <= 0) return
+
+    ! same set already shown: refresh the element geometry, keep it alive
+    if (s%reptrans_tag == tag .and. s%nreptrans == n) then
+       do id = 1, n
+          if (s%reptrans(id)%type /= reptype_symelem) cycle
+          s%reptrans(id)%symelem_kind = kind(id)
+          s%reptrans(id)%origin = xorig(:,id)
+          s%reptrans(id)%symelem_dir = dir(:,id)
+          s%reptrans(id)%symelem_size = s%scenerad
+          s%reptrans(id)%symelem_cen = real(s%scenecenter,8)
+          s%reptrans(id)%symelem_order = order(id)
        end do
-       if (found) then
-          s%reptrans_set = .true.
-          return
-       end if
+       s%reptrans_set = .true.
+       return
     end if
 
-    ! (re)build the transient symmetry element
+    ! (re)build the transient symmetry elements
     call s%clear_transient_representations()
-    id = s%add_transient_representation(reptype_symelem,repflavor_symelem)
-    if (id <= 0) return
-    if (.not.s%reptrans(id)%isinit) return
-    s%reptrans(id)%symelem_kind = kind
-    s%reptrans(id)%origin = xorig
-    s%reptrans(id)%symelem_dir = dir
-    s%reptrans(id)%symelem_size = s%scenerad
-    s%reptrans(id)%symelem_cen = real(s%scenecenter,8)
-    s%reptrans(id)%symelem_order = order
+    do k = 1, n
+       id = s%add_transient_representation(reptype_symelem,repflavor_symelem)
+       if (id <= 0) cycle
+       if (.not.s%reptrans(id)%isinit) cycle
+       s%reptrans(id)%symelem_kind = kind(k)
+       s%reptrans(id)%origin = xorig(:,k)
+       s%reptrans(id)%symelem_dir = dir(:,k)
+       s%reptrans(id)%symelem_size = s%scenerad
+       s%reptrans(id)%symelem_cen = real(s%scenecenter,8)
+       s%reptrans(id)%symelem_order = order(k)
+    end do
     s%reptrans_tag = tag
 
-  end subroutine scene_show_transient_symelem
+  end subroutine scene_show_symelems
 
   !xx! private procedures: low-level draws
 

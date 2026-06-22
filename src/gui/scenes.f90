@@ -121,7 +121,7 @@ module scenes
      procedure :: clear_transient_representations => scene_clear_transient_representations
      procedure :: show_transient_axes => scene_show_transient_axes
      procedure :: show_transient_rotaxis => scene_show_transient_rotaxis
-     procedure :: show_transient_symelem => scene_show_transient_symelem
+     procedure :: show_symelems => scene_show_symelems
   end type scene
   public :: scene
 
@@ -224,14 +224,15 @@ module scenes
        real*8, intent(in) :: rotdir(3)
        real*8, intent(in) :: rotlen
      end subroutine scene_show_transient_rotaxis
-     module subroutine scene_show_transient_symelem(s,tag,kind,xorig,dir,order)
+     module subroutine scene_show_symelems(s,tag,n,kind,xorig,dir,order)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: tag
-       integer, intent(in) :: kind
-       real*8, intent(in) :: xorig(3)
-       real*8, intent(in) :: dir(3)
-       integer, intent(in) :: order
-     end subroutine scene_show_transient_symelem
+       integer, intent(in) :: n
+       integer, intent(in) :: kind(n)
+       real*8, intent(in) :: xorig(3,n)
+       real*8, intent(in) :: dir(3,n)
+       integer, intent(in) :: order(n)
+     end subroutine scene_show_symelems
   end interface
 
 end module scenes

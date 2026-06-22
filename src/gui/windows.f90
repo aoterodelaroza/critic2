@@ -194,6 +194,8 @@ module windows
      character(len=mlen), allocatable :: geometry_sym_ops(:) ! cached symmetry operations (crystallographic notation)
      character(len=mlen), allocatable :: geometry_sym_hm(:) ! cached Hermann-Mauguin symbols of the operations
      real*8, allocatable :: geometry_sym_axes(:,:) ! cached rotation axes (crystallographic coordinates)
+     logical, allocatable :: geometry_sym_sel(:) ! per-operation selection flags (symmetry tab)
+     integer :: geometry_sym_selgen = 0 ! generation counter, bumped when the symmetry selection changes
      real*8, allocatable :: geometry_sym_analyze_eps(:) ! tolerances from the symmetry-vs-epsilon analysis
      character(len=11), allocatable :: geometry_sym_analyze_sym(:) ! space group symbols from the analysis
      integer, allocatable :: geometry_sym_analyze_num(:) ! space group numbers from the analysis

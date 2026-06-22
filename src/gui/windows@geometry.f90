@@ -111,10 +111,7 @@ contains
     real*8 :: raxc(3), raxx(3) ! rotation axis in crystallographic / Cartesian coordinates
     integer :: neqv, ncv ! number of operations / centering vectors
     integer :: ihl_symop ! operations table: hovered operation (0 = none)
-    integer :: symkind ! hovered operation: symmetry-element kind to draw
     integer :: ioptype ! molecular operation type (molsymop_*)
-    integer :: iorder ! hovered axis: rotation order (n)
-    character(len=1) :: hm1, cdig ! first HM character; the order digit
 
     ! actions at the end of the window draw
     integer :: iaction, iaction_i1, iaction_i2
@@ -1812,6 +1809,7 @@ contains
                 call igGetContentRegionAvail(szavail)
                 szavail%y = szavail%y - iw_calcheight(5,0,.true.)
                 if (sz0%y > szavail%y) sz0%y = szavail%y
+                call symop_ensure_sel(sys(isys)%c%pg%nop)
                 if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
                    str2 = "#" // c_null_char
                    call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
@@ -1824,6 +1822,7 @@ contains
 
                    do i = 1, sys(isys)%c%pg%nop
                       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+                      call symop_selectbg(i)
                       ! axis/normal (Cartesian unit vector); identity, inversion
                       ! and unknown operations have no meaningful axis
                       ioptype = sys(isys)%c%pg%op(i)%type
@@ -1837,31 +1836,17 @@ contains
                          saxx = ""
                       end if
                       if (igTableSetColumnIndex(0)) call iw_text(string(i))
-                      ! whole-row hover: emit even when column 0 is clipped off-screen
-                      if (iw_highlight_selectable("##symopselectmol_" // string(i))) ihl_symop = i
+                      ! whole-row select/hover: emit even when column 0 is clipped off-screen
+                      if (iw_highlight_selectable("##symopselectmol_" // string(i),clicked=clicked)) ihl_symop = i
+                      if (clicked) call symop_click(i)
                       if (igTableSetColumnIndex(1)) call iw_text(trim(sys(isys)%c%pg%op(i)%sym))
                       if (igTableSetColumnIndex(2)) call iw_text(saxx)
                    end do
                    call igEndTable()
                 end if
 
-                ! hovering an operation row: draw its symmetry element through the center of mass
-                if (ihl_symop > 0 .and. sysc(isys)%sc%isinit /= 0) then
-                   ioptype = sys(isys)%c%pg%op(ihl_symop)%type
-                   symkind = 0
-                   if (ioptype == molsymop_plane) then
-                      symkind = symelem_kind_plane
-                   elseif (ioptype == molsymop_rotation .or. ioptype == molsymop_imp_rotation) then
-                      symkind = symelem_kind_axis
-                   end if
-                   if (symkind /= 0) then
-                      raxx = sys(isys)%c%pg%op(ihl_symop)%axis
-                      if (norm2(raxx) > 1d-10) raxx = raxx / norm2(raxx)
-                      call sysc(isys)%sc%show_transient_symelem(ihl_symop,symkind,&
-                         sys(isys)%c%pg%xcm + sys(isys)%c%molx0,raxx,&
-                         sys(isys)%c%pg%op(ihl_symop)%opn)
-                   end if
-                end if
+                ! draw the selected/hovered symmetry elements and the selection row
+                call symop_display_and_buttons(sys(isys)%c%pg%nop)
              end if
           else
              !! symmetry: crystal !!
@@ -1936,6 +1921,7 @@ contains
                 str1 = "##symopstable" // c_null_char
                 sz0%x = 0
                 sz0%y = iw_calcheight(min(neqv,8)+1,0,.false.)
+                call symop_ensure_sel(neqv)
                 if (igBeginTable(c_loc(str1),5,flags,sz0,0._c_float)) then
                    str2 = "#" // c_null_char
                    call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
@@ -1953,6 +1939,7 @@ contains
                    ! show only the operations under the identity centering (1..neqv)
                    do i = 1, neqv
                       call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+                      call symop_selectbg(i)
                       ! axis in crystallographic coordinates (cached) and Cartesian
                       ! (computed on the fly); identity/inversion have a zero axis
                       raxc = w%geometry_sym_axes(:,i)
@@ -1976,10 +1963,11 @@ contains
                             string(raxx(3),'f',length=6,decimal=3,justify=ioj_right) // "]"
                       end if
                       if (igTableSetColumnIndex(0)) call iw_text(string(i))
-                      ! whole-row hover: the row-spanning selectable must be emitted
-                      ! even when column 0 is clipped (window dragged past the left
-                      ! edge), otherwise the hover highlight stops working
-                      if (iw_highlight_selectable("##symopselect_" // string(i))) ihl_symop = i
+                      ! whole-row select/hover: the row-spanning selectable must be
+                      ! emitted even when column 0 is clipped (window dragged past
+                      ! the left edge), otherwise the highlight stops working
+                      if (iw_highlight_selectable("##symopselect_" // string(i),clicked=clicked)) ihl_symop = i
+                      if (clicked) call symop_click(i)
                       if (igTableSetColumnIndex(1)) call iw_text(string(w%geometry_sym_hm(i),length=3,justify=ioj_right))
                       if (igTableSetColumnIndex(2)) call iw_text(trim(w%geometry_sym_ops(i)))
                       if (igTableSetColumnIndex(3)) call iw_text(saxc)
@@ -1988,40 +1976,8 @@ contains
                    call igEndTable()
                 end if
 
-                ! hovering an operation row: draw its symmetry element (a plane
-                ! for a mirror/glide, an axis for a rotation; nothing for the
-                ! identity or inversion) as a transient in the view
-                if (ihl_symop > 0 .and. sysc(isys)%sc%isinit /= 0) then
-                   raxc = w%geometry_sym_axes(:,ihl_symop)
-                   ! identity and inversion have a zero axis and show nothing; a
-                   ! mirror/glide (HM letter m/a/b/c/n/d) is a plane, the rest axes
-                   symkind = 0
-                   iorder = 0
-                   if (norm2(raxc) >= 1d-10) then
-                      hm1 = w%geometry_sym_hm(ihl_symop)(1:1) ! HM symbol is stored left-aligned
-                      if (hm1 >= "a" .and. hm1 <= "z") then
-                         symkind = symelem_kind_plane
-                      else
-                         symkind = symelem_kind_axis
-                         ! rotation order from the symbol: the (single) digit, after
-                         ! an optional leading "-" (rotoinversion: "-3"/"-4"/"-6")
-                         if (hm1 == "-") then
-                            cdig = w%geometry_sym_hm(ihl_symop)(2:2)
-                         else
-                            cdig = hm1
-                         end if
-                         if (cdig >= "0" .and. cdig <= "9") iorder = ichar(cdig) - ichar("0")
-                      end if
-                   end if
-                   if (symkind /= 0) then
-                      ! pass the system bounding-sphere radius; the element is
-                      ! sized to span the displayed system in add_draw_elements
-                      raxx = sys(isys)%c%x2c(raxc)
-                      if (norm2(raxx) > 1d-10) raxx = raxx / norm2(raxx)
-                      call sysc(isys)%sc%show_transient_symelem(ihl_symop,symkind,(/0d0,0d0,0d0/),raxx,&
-                         iorder)
-                   end if
-                end if
+                ! draw the selected/hovered symmetry elements and the selection row
+                call symop_display_and_buttons(neqv)
              end if
 
              ! centering vectors table
@@ -2417,13 +2373,169 @@ contains
 
     end subroutine reset_sort
 
-    ! deallocate the cached symmetry data (operations table and the
+    ! Ensure the symmetry-operation selection array exists and is sized to nop
+    ! (the number of operations in the table); reset it whenever the size changes.
+    subroutine symop_ensure_sel(nop)
+      integer, intent(in) :: nop
+
+      if (allocated(w%geometry_sym_sel)) then
+         if (size(w%geometry_sym_sel,1) /= nop) deallocate(w%geometry_sym_sel)
+      end if
+      if (.not.allocated(w%geometry_sym_sel)) then
+         allocate(w%geometry_sym_sel(nop))
+         w%geometry_sym_sel = .false.
+      end if
+
+    end subroutine symop_ensure_sel
+
+    ! Set the background color of the current symmetry-operation table row when
+    ! operation i is selected. Call right after igTableNextRow.
+    subroutine symop_selectbg(i)
+      integer, intent(in) :: i
+
+      integer(c_int) :: color
+      type(ImVec4) :: col4
+
+      if (.not.allocated(w%geometry_sym_sel)) return
+      if (i < 1 .or. i > size(w%geometry_sym_sel,1)) return
+      if (.not.w%geometry_sym_sel(i)) return
+      col4 = ImVec4(w%geometry_select_rgba(1),w%geometry_select_rgba(2),&
+         w%geometry_select_rgba(3),w%geometry_select_rgba(4))
+      color = igGetColorU32_Vec4(col4)
+      call igTableSetBgColor(ImGuiTableBgTarget_RowBg0,color,-1_c_int)
+
+    end subroutine symop_selectbg
+
+    ! Process a click on symmetry-operation row i: plain click toggles the row,
+    ! shift-click selects the range from the last-selected row.
+    subroutine symop_click(i)
+      integer, intent(in) :: i
+
+      integer :: lo, hi
+
+      if (.not.allocated(w%geometry_sym_sel)) return
+      if (igIsKeyDown(ImGuiKey_ModShift).and.w%lastselected /= 0.and.w%lastselected /= i) then
+         lo = min(i,w%lastselected)
+         hi = max(i,w%lastselected)
+         w%geometry_sym_sel(lo:hi) = .true.
+      else
+         w%geometry_sym_sel(i) = .not.w%geometry_sym_sel(i)
+      end if
+      w%lastselected = i
+      w%geometry_sym_selgen = w%geometry_sym_selgen + 1
+
+    end subroutine symop_click
+
+    ! Push the selected (and hovered) symmetry elements to the view, then draw
+    ! the Selection row (color picker + All/None/Toggle). nop is the number of
+    ! operations shown in the table.
+    subroutine symop_display_and_buttons(nop)
+      integer, intent(in) :: nop
+
+      integer :: i, n, tag, hovadd, kind1, order1, lioptype
+      integer, allocatable :: skind(:), sorder(:)
+      real*8, allocatable :: sorig(:,:), sdir(:,:)
+      real*8 :: orig1(3), dir1(3), lraxx(3), lraxc(3)
+      character(len=1) :: lhm1, lcdig
+
+      ! display the selected and hovered symmetry elements in the view
+      if (sysc(isys)%sc%isinit /= 0) then
+         allocate(skind(nop),sorder(nop),sorig(3,nop),sdir(3,nop))
+         n = 0
+         do i = 1, nop
+            if (.not.(w%geometry_sym_sel(i).or.i == ihl_symop)) cycle
+
+            ! symmetry element for operation i: kind (symelem_kind_*; 0 = nothing
+            ! to draw, i.e. identity/inversion/unknown), origin and direction
+            ! (cartesian, bohr) and rotation order; molecule and crystal cases
+            kind1 = 0
+            order1 = 0
+            orig1 = 0d0
+            dir1 = 0d0
+            if (sys(isys)%c%ismolecule) then
+               lioptype = sys(isys)%c%pg%op(i)%type
+               if (lioptype == molsymop_plane) then
+                  kind1 = symelem_kind_plane
+               elseif (lioptype == molsymop_rotation .or. lioptype == molsymop_imp_rotation) then
+                  kind1 = symelem_kind_axis
+               end if
+               if (kind1 == 0) cycle
+               lraxx = sys(isys)%c%pg%op(i)%axis
+               if (norm2(lraxx) > 1d-10) lraxx = lraxx / norm2(lraxx)
+               orig1 = sys(isys)%c%pg%xcm + sys(isys)%c%molx0
+               dir1 = lraxx
+               order1 = sys(isys)%c%pg%op(i)%opn
+            else
+               lraxc = w%geometry_sym_axes(:,i)
+               if (norm2(lraxc) < 1d-10) cycle
+               lhm1 = w%geometry_sym_hm(i)(1:1) ! HM symbol is stored left-aligned
+               if (lhm1 >= "a" .and. lhm1 <= "z") then
+                  kind1 = symelem_kind_plane
+               else
+                  kind1 = symelem_kind_axis
+                  ! rotation order from the symbol: the digit, after an optional
+                  ! leading "-" (rotoinversion: "-3"/"-4"/"-6")
+                  if (lhm1 == "-") then
+                     lcdig = w%geometry_sym_hm(i)(2:2)
+                  else
+                     lcdig = lhm1
+                  end if
+                  if (lcdig >= "0" .and. lcdig <= "9") order1 = ichar(lcdig) - ichar("0")
+               end if
+               lraxx = sys(isys)%c%x2c(lraxc)
+               if (norm2(lraxx) > 1d-10) lraxx = lraxx / norm2(lraxx)
+               ! crystal symmetry elements pass through the origin
+               dir1 = lraxx
+            end if
+
+            n = n + 1
+            skind(n) = kind1
+            sorig(:,n) = orig1
+            sdir(:,n) = dir1
+            sorder(n) = order1
+         end do
+         ! unique tag: the selection generation combined with the hovered row
+         ! (only when it adds to the selection), so the scene rebuilds the
+         ! element list only when the displayed set actually changes
+         hovadd = 0
+         if (ihl_symop > 0 .and. ihl_symop <= nop) then
+            if (.not.w%geometry_sym_sel(ihl_symop)) hovadd = ihl_symop
+         end if
+         tag = w%geometry_sym_selgen * (nop + 2) + (hovadd + 1)
+         call sysc(isys)%sc%show_symelems(tag,n,skind(1:n),sorig(:,1:n),sdir(:,1:n),sorder(1:n))
+         deallocate(skind,sorder,sorig,sdir)
+      end if
+
+      ! Selection row: all/none/toggle buttons (elements use the default colors)
+      call igAlignTextToFramePadding()
+      call iw_text("Selection",highlight=.true.)
+      if (iw_button("All##symselall",sameline=.true.)) then
+         w%geometry_sym_sel = .true.
+         w%geometry_sym_selgen = w%geometry_sym_selgen + 1
+      end if
+      call iw_tooltip("Select all symmetry operations",ttshown)
+      if (iw_button("None##symselnone",sameline=.true.)) then
+         w%geometry_sym_sel = .false.
+         w%geometry_sym_selgen = w%geometry_sym_selgen + 1
+      end if
+      call iw_tooltip("Deselect all symmetry operations",ttshown)
+      if (iw_button("Toggle##symseltoggle",sameline=.true.)) then
+         w%geometry_sym_sel = .not.w%geometry_sym_sel
+         w%geometry_sym_selgen = w%geometry_sym_selgen + 1
+      end if
+      call iw_tooltip("Toggle the symmetry-operation selection",ttshown)
+
+    end subroutine symop_display_and_buttons
+
+    ! deallocate the cached symmetry data (operations table, selection, and the
     ! symmetry-vs-epsilon analysis arrays), so they are rebuilt on next use
     subroutine clear_sym_cache()
 
       if (allocated(w%geometry_sym_ops)) deallocate(w%geometry_sym_ops)
       if (allocated(w%geometry_sym_hm)) deallocate(w%geometry_sym_hm)
       if (allocated(w%geometry_sym_axes)) deallocate(w%geometry_sym_axes)
+      if (allocated(w%geometry_sym_sel)) deallocate(w%geometry_sym_sel)
+      w%geometry_sym_selgen = w%geometry_sym_selgen + 1
       if (allocated(w%geometry_sym_analyze_eps)) deallocate(w%geometry_sym_analyze_eps)
       if (allocated(w%geometry_sym_analyze_sym)) deallocate(w%geometry_sym_analyze_sym)
       if (allocated(w%geometry_sym_analyze_num)) deallocate(w%geometry_sym_analyze_num)
@@ -3045,6 +3157,8 @@ contains
          ! the selection persists across tabs (it lives on the system, indexed
          ! by cell atom); the window cache is rebuilt from it for the new tab
          call reset_sort()
+         ! the shift-range anchor is per-table, so drop it when switching tabs
+         w%lastselected = 0
          w%tabselected = tab
       end if
 
