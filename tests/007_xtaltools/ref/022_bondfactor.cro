@@ -1,6 +1,68 @@
 * WRITE xyz files: 022_bondfactor_gen_*.xyz
-+ Written 48 1-mers
++ List of monomers written: 48
+# Files are named <root>_monomer_<n>.xyz
+# id = index of the monomer in the main cell
+# lvec = lattice vector
+# monomer          id1
+  monomer_1          1
+  monomer_2          2
+  monomer_3          3
+  monomer_4          4
+  monomer_5          5
+  monomer_6          6
+  monomer_7          7
+  monomer_8          8
+  monomer_9          9
+  monomer_10        10
+  monomer_11        11
+  monomer_12        12
+  monomer_13        13
+  monomer_14        14
+  monomer_15        15
+  monomer_16        16
+  monomer_17        17
+  monomer_18        18
+  monomer_19        19
+  monomer_20        20
+  monomer_21        21
+  monomer_22        22
+  monomer_23        23
+  monomer_24        24
+  monomer_25        25
+  monomer_26        26
+  monomer_27        27
+  monomer_28        28
+  monomer_29        29
+  monomer_30        30
+  monomer_31        31
+  monomer_32        32
+  monomer_33        33
+  monomer_34        34
+  monomer_35        35
+  monomer_36        36
+  monomer_37        37
+  monomer_38        38
+  monomer_39        39
+  monomer_40        40
+  monomer_41        41
+  monomer_42        42
+  monomer_43        43
+  monomer_44        44
+  monomer_45        45
+  monomer_46        46
+  monomer_47        47
+  monomer_48        48
+
 
 * WRITE xyz files: 022_bondfactor_gen_*.xyz
-+ Written 4 1-mers
++ List of monomers written: 4
+# Files are named <root>_monomer_<n>.xyz
+# id = index of the monomer in the main cell
+# lvec = lattice vector
+# monomer          id1
+  monomer_1          1
+  monomer_2          2
+  monomer_3          3
+  monomer_4          4
+
 

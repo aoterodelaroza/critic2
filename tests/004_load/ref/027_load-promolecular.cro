@@ -1,5 +1,12 @@
 * WRITE xyz files: 027_load-promolecular_*.xyz
-+ Written 2 1-mers
++ List of monomers written: 2
+# Files are named <root>_monomer_<n>.xyz
+# id = index of the monomer in the main cell
+# lvec = lattice vector
+# monomer          id1
+  monomer_1          1
+  monomer_2          2
+
 
 + Field number 1
   Name: <promolecular>

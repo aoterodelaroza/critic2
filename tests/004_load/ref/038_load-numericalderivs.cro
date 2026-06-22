@@ -1391,7 +1391,14 @@
   Field 11 (f,|grad|,lap): 8.783520871E-08  1.645706292E-03  6.122136677E+00  
 
 * WRITE xyz files: 038_load-numericalderivs_*.xyz
-+ Written 2 1-mers
++ List of monomers written: 2
+# Files are named <root>_monomer_<n>.xyz
+# id = index of the monomer in the main cell
+# lvec = lattice vector
+# monomer          id1
+  monomer_1          1
+  monomer_2          2
+
 
 + Field number 1
   Name: <promolecular using fragment>

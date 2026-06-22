@@ -1,5 +1,14 @@
 * WRITE xyz files: 038_molreorder_mol_gen_*.xyz
-+ Written 4 1-mers
++ List of monomers written: 4
+# Files are named <root>_monomer_<n>.xyz
+# id = index of the monomer in the main cell
+# lvec = lattice vector
+# monomer          id1
+  monomer_1          1
+  monomer_2          2
+  monomer_3          3
+  monomer_4          4
+
 
 * MOLREORDER: reorder the atoms in a molecule or a molecular crystal
 + Reference structure: ../zz_source/dmacrys-2.3.0/nhelic_01/nhelic_mol.xyz
