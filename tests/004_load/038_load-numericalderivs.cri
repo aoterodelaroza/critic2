@@ -1,4 +1,4 @@
-## delete: 038_load-numericalderivs_1.xyz 038_load-numericalderivs_2.xyz
+## delete: 038_load-numericalderivs_monomer_1.xyz 038_load-numericalderivs_monomer_2.xyz
 ## check: 038_load-numericalderivs.cro -a1.5e-1
 ## labels: regression
 
@@ -143,8 +143,8 @@ point 0.1 0.2 0.3 all
 # promolecular (fragment)
 crystal library urea
 write 038_load-numericalderivs.xyz onemotif nmer 1
-load promolecular fragment 038_load-numericalderivs_1.xyz analytical
-load promolecular fragment 038_load-numericalderivs_1.xyz numerical
+load promolecular fragment 038_load-numericalderivs_monomer_1.xyz analytical
+load promolecular fragment 038_load-numericalderivs_monomer_1.xyz numerical
 load as "abs($2:x-$1:x)" ghost id x #3
 load as "abs($2:y-$1:y)" ghost id y #4
 load as "abs($2:z-$1:z)" ghost id z #5
