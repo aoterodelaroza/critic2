@@ -210,6 +210,29 @@ subroutine glDrawElements(mode,count,type,indices) bind(c,name="glDrawElements_"
   integer(c_int), value :: type
   type(c_ptr), intent(in), value :: indices
 end subroutine glDrawElements
+! void glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei instancecount);
+subroutine glDrawArraysInstanced(mode,first,count,instancecount) bind(c,name="glDrawArraysInstanced_")
+  import c_int
+  integer(c_int), value :: mode
+  integer(c_int), value :: first
+  integer(c_int), value :: count
+  integer(c_int), value :: instancecount
+end subroutine glDrawArraysInstanced
+! void glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount);
+subroutine glDrawElementsInstanced(mode,count,type,indices,instancecount) bind(c,name="glDrawElementsInstanced_")
+  import c_int, c_ptr
+  integer(c_int), value :: mode
+  integer(c_int), value :: count
+  integer(c_int), value :: type
+  type(c_ptr), intent(in), value :: indices
+  integer(c_int), value :: instancecount
+end subroutine glDrawElementsInstanced
+! void glVertexAttribDivisor(GLuint index, GLuint divisor);
+subroutine glVertexAttribDivisor(index,divisor) bind(c,name="glVertexAttribDivisor_")
+  import c_int
+  integer(c_int), value :: index
+  integer(c_int), value :: divisor
+end subroutine glVertexAttribDivisor
 ! void glEnable(GLenum cap)
 subroutine glEnable(cap) bind(c,name="glEnable_")
   import c_int

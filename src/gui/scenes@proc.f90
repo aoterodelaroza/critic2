@@ -125,6 +125,9 @@
 submodule (scenes) proc
   implicit none
 
+  ! id of the scene whose data currently occupies the shared VBOs
+  integer :: inst_owner = -1
+
   ! some math parameters
   real(c_float), parameter :: zero = 0._c_float
   real(c_float), parameter :: one = 1._c_float
@@ -134,29 +137,7 @@ submodule (scenes) proc
      zero,zero,one,zero,&
      zero,zero,zero,one/),shape(eye4))
 
-  ! space for uniforms
-  integer, parameter :: iu_world = 1
-  integer, parameter :: iu_view = 2
-  integer, parameter :: iu_projection = 3
-  integer, parameter :: iu_model = 4
-  integer, parameter :: iu_object_type = 5
-  integer, parameter :: iu_border = 6
-  integer, parameter :: iu_bordercolor = 7
-  integer, parameter :: iu_vcolor = 8
-  integer, parameter :: iu_idx = 9
-  integer, parameter :: iu_delta_cyl = 10
-  integer, parameter :: iu_bond_outward = 11
-  integer, parameter :: iu_isortho = 12
-  integer, parameter :: iu_isgizmo = 13
-  integer, parameter :: iu_gizmo_ndc = 14
-  integer, parameter :: iu_gizmo_scale = 15
-  integer, parameter :: iu_NUM = 16
-  integer(c_int) :: iunif(iu_NUM)
-
   !xx! private procedures: low-level draws
-  ! subroutine draw_sphere(x0,rad,ires,rgb,index)
-  ! subroutine draw_cylinder(x1,x2,rad,rgb,ires)
-  ! subroutine calc_text_direct_vertices(text,x0,y0,siz,nvert,vert,centered)
   ! subroutine calc_text_onscene_vertices(text,x0,r,siz,nvert,vert,centered)
 
 contains
@@ -524,8 +505,10 @@ contains
     ! window uses this to re-render when the window geometry changes)
     s%hasanchoredobj = (s%obj%ncylgiz > 0 .or. s%obj%nconegiz > 0 .or. s%obj%nstringgiz > 0)
 
-    ! rebuilding lists is done
+    ! rebuilding lists is done; the cached instance buffers are now stale and
+    ! must be repacked/uploaded on the next render
     s%forcebuildlists = .false.
+    s%inst_valid = .false.
     s%isinit = 2
     s%timelastbuild = glfwGetTime()
 
@@ -536,22 +519,27 @@ contains
     use interfaces_glfw, only: glfwGetTime
     use interfaces_cimgui
     use interfaces_opengl3
-    use shapes, only: sphVAO, cylVAO, coneVAO, textVAOos, textVBOos, quadVAO, quadnel,&
-       triVAO, trinel
+    use shapes, only: textVAOos, textVBOos, quadnel, trinel,&
+       sph_inst_nf, cyl_inst_nf, mesh_inst_nf, connel, nmaxcone,&
+       planeinstVAO, planeinstVBO, triinstVAO, triinstVBO, coneinstVAO, coneinstVBO,&
+       sphinstVAO, sphinstVBO, cylinstVAO, cylinstVBO,&
+       sphinstVAOscr, sphinstVBOscr, cylinstVAOscr, cylinstVBOscr, coneinstVAOscr, coneinstVBOscr
     use gui_main, only: fonts, fontbakesize_large, font_large
     use systems, only: sys, sysc, nsys
     use tools_math, only: eigsym, matinv_cfloat
     use tools_io, only: string
-    use shaders, only: shader_simple, shader_text_onscene,&
-       useshader, setuniform_int, setuniform_float, setuniform_vec3,&
-       setuniform_vec4, setuniform_mat3, setuniform_mat4, get_uniform_location
+    use shaders, only: shader_text_onscene, shader_sphere, shader_cylinder,&
+       shader_mesh, useshader, setuniform_int, setuniform_float, setuniform_vec3,&
+       setuniform_vec4, setuniform_mat3, setuniform_mat4, get_uniform_location,&
+       uniloc, u_world, u_view, u_projection, u_isortho, u_displ, u_upick,&
+       u_isanchored, u_anchored_ndc, u_anchored_scale, u_textcolor
     use param, only: img, pi
     class(scene), intent(inout), target :: s
 
     real(c_float) :: xsel(3,4), radsel(4)
     complex(c_float_complex) :: displ
     real*8 :: deltat, fac, time
-    logical :: doit
+    logical :: doit, dobuild
     integer :: i, ifound
 
     real(c_float), parameter :: msel_thickness = 0.1_c_float
@@ -605,102 +593,83 @@ contains
        end if
     end if
 
-    ! set up the shader
-    call useshader(shader_simple)
+    ! decide whether the cached instance buffers must be (re)built and uploaded:
+    ! when they are stale (draw lists changed), while animating (positions move
+    ! every frame), or when another scene last wrote the shared instance VBOs.
+    dobuild = (.not.s%inst_valid) .or. (s%animation > 0) .or. (s%animation /= s%inst_last_anim) .or.&
+       (inst_owner /= s%id)
+    s%inst_last_anim = s%animation
 
-    ! get all the uniforms
-    iunif(iu_world) = get_uniform_location("world")
-    iunif(iu_view) = get_uniform_location("view")
-    iunif(iu_projection) = get_uniform_location("projection")
-    iunif(iu_model) = get_uniform_location("model")
-    iunif(iu_object_type) = get_uniform_location("object_type")
-    iunif(iu_border) = get_uniform_location("rborder")
-    iunif(iu_bordercolor) = get_uniform_location("bordercolor")
-    iunif(iu_vcolor) = get_uniform_location("vColor")
-    iunif(iu_idx) = get_uniform_location("idx")
-    iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
-    iunif(iu_bond_outward) = get_uniform_location("bond_outward")
-    iunif(iu_isortho) = get_uniform_location("isortho")
-    iunif(iu_isgizmo) = get_uniform_location("isgizmo")
-    iunif(iu_gizmo_ndc) = get_uniform_location("gizmo_ndc")
-    iunif(iu_gizmo_scale) = get_uniform_location("gizmo_scale")
-
-    ! set the common uniforms
-    call setuniform_mat4(s%world,idxi=iunif(iu_world))
-    call setuniform_mat4(s%view,idxi=iunif(iu_view))
-    call setuniform_mat4(s%projection,idxi=iunif(iu_projection))
-    call setuniform_int(merge(1_c_int,0_c_int,s%isortho),idxi=iunif(iu_isortho))
-    call setuniform_int(0_c_int,idxi=iunif(iu_isgizmo))
-
-    ! draw the spheres for the atoms
-    call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
+    ! draw the atoms (instanced sphere impostors)
     if (s%obj%nsph > 0) then
-       call glBindVertexArray(sphVAO(s%atom_res))
-       call draw_all_spheres()
+       call setup_sphere_shader()
+       if (dobuild) then
+          call draw_all_spheres()
+       else
+          call inst_render_arrays(sphinstVAO,s%nsph_inst)
+       end if
     end if
 
-    ! draw the cylinders for the bonds (inherit border from atoms)
-    call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
-    if (s%obj%ncyl > 0) then
-       call glBindVertexArray(cylVAO(s%bond_res))
+    ! draw the bonds and the unit-cell edges (instanced cylinder impostors)
+    if (s%obj%ncyl + s%obj%ncylflat > 0) then
+       call setup_cylinder_shader()
        call glEnable(GL_BLEND)
        call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-       call draw_all_cylinders()
+       if (dobuild) then
+          call draw_all_cylinders()
+       else
+          call inst_render_arrays(cylinstVAO,s%ncyl_inst)
+       end if
        call glDisable(GL_BLEND)
     end if
-    call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
 
-    ! draw the cones (arrowheads)
-    call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
-    if (s%obj%ncone > 0) then
-       call glBindVertexArray(coneVAO(s%bond_res))
-       call draw_all_cones()
-    end if
-    call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
+    ! draw the plain meshes (cones, planes, polyhedra triangles)
+    if (s%obj%ncone + s%obj%nplane + s%obj%ntriangle > 0) then
+       call setup_mesh_shader()
 
-    ! draw the flat cylinders for the unit cell
-    call setuniform_float(0._c_float,idxi=iunif(iu_border))
-    call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
-    if (s%obj%ncylflat > 0) then
-       call glBindVertexArray(cylVAO(s%uc_res))
-       call draw_all_flat_cylinders()
-    end if
-    call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
+       ! cones (arrowheads): opaque
+       if (s%obj%ncone > 0) then
+          if (dobuild) then
+             call draw_all_cones()
+          else
+             call inst_render_elements(coneinstVAO,connel(nmaxcone),s%ncone_inst)
+          end if
+       end if
 
-    ! draw the flat rectangles (translucent: keep the depth test but disable
-    ! depth writes so atoms/labels behind the plane stay visible)
-    call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
-    if (s%obj%nplane > 0) then
-       call glDisable(GL_CULL_FACE)
-       call glEnable(GL_BLEND)
-       call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-       call glDepthMask(int(GL_FALSE,c_signed_char))
-       call glBindVertexArray(quadVAO)
-       call draw_all_planes()
-       call glDepthMask(int(GL_TRUE,c_signed_char))
-       call glDisable(GL_BLEND)
-       call glEnable(GL_CULL_FACE)
-    end if
-
-    ! draw the filled triangles (coordination polyhedra faces), same
-    ! translucent treatment as the planes
-    call setuniform_int(2_c_int,idxi=iunif(iu_object_type))
-    if (s%obj%ntriangle > 0) then
-       call glDisable(GL_CULL_FACE)
-       call glEnable(GL_BLEND)
-       call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-       call glDepthMask(int(GL_FALSE,c_signed_char))
-       call glBindVertexArray(triVAO)
-       call draw_all_triangles()
-       call glDepthMask(int(GL_TRUE,c_signed_char))
-       call glDisable(GL_BLEND)
-       call glEnable(GL_CULL_FACE)
+       ! flat rectangles and polyhedra triangles (translucent: keep the depth
+       ! test but disable depth writes so atoms/labels behind stay visible)
+       if (s%obj%nplane + s%obj%ntriangle > 0) then
+          call glDisable(GL_CULL_FACE)
+          call glEnable(GL_BLEND)
+          call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+          call glDepthMask(int(GL_FALSE,c_signed_char))
+          if (s%obj%nplane > 0) then
+             if (dobuild) then
+                call draw_all_planes()
+             else
+                call inst_render_elements(planeinstVAO,quadnel,s%nplane_inst)
+             end if
+          end if
+          if (s%obj%ntriangle > 0) then
+             if (dobuild) then
+                call draw_all_triangles()
+             else
+                call inst_render_elements(triinstVAO,trinel,s%ntri_inst)
+             end if
+          end if
+          call glDepthMask(int(GL_TRUE,c_signed_char))
+          call glDisable(GL_BLEND)
+          call glEnable(GL_CULL_FACE)
+       end if
     end if
 
-    ! draw the measure selection atoms
+    ! the cached instance buffers are now current and owned by this scene
+    s%inst_valid = .true.
+    inst_owner = s%id
+
+    ! draw the measure selection atoms (instanced sphere impostors)
     if (s%nmsel > 0) then
-       call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
-       call glBindVertexArray(sphVAO(s%atom_res))
+       call setup_sphere_shader()
        call glEnable(GL_BLEND)
        call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
        call draw_all_mselections()
@@ -709,10 +678,10 @@ contains
 
     ! render labels with on-scene text
     call useshader(shader_text_onscene)
-    call setuniform_mat4(s%world,"world")
-    call setuniform_mat4(s%view,"view")
-    call setuniform_mat4(s%projection,"projection")
-    call setuniform_int(0_c_int,"isgizmo")
+    call setuniform_mat4(s%world,idxi=uniloc(u_world))
+    call setuniform_mat4(s%view,idxi=uniloc(u_view))
+    call setuniform_mat4(s%projection,idxi=uniloc(u_projection))
+    call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
 
     call glDisable(GL_MULTISAMPLE)
     call glEnable(GL_BLEND)
@@ -737,9 +706,7 @@ contains
     if (.not.doit.and.allocated(sysc(s%id)%highlight_rgba_transient)) &
        doit = any(sysc(s%id)%highlight_rgba_transient >= 0._c_float)
     if (doit) then
-       call useshader(shader_simple)
-       call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
-       call glBindVertexArray(sphVAO(s%atom_res))
+       call setup_sphere_shader()
        call glEnable(GL_BLEND)
        call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
        call draw_highlights()
@@ -765,26 +732,67 @@ contains
     s%timelastrender = time
 
   contains
-    subroutine draw_all_spheres()
-      integer :: i
-      real(c_float) :: x(3)
+    !> Set up the sphere impostor shader and its per-frame uniforms.
+    subroutine setup_sphere_shader()
+      call useshader(shader_sphere)
+      call setuniform_mat4(s%world,idxi=uniloc(u_world))
+      call setuniform_mat4(s%view,idxi=uniloc(u_view))
+      call setuniform_mat4(s%projection,idxi=uniloc(u_projection))
+      call setuniform_int(merge(1_c_int,0_c_int,s%isortho),idxi=uniloc(u_isortho))
+      call setuniform_int(0_c_int,idxi=uniloc(u_upick))
+      call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
+      call setuniform_vec3((/real(displ,c_float),real(aimag(displ),c_float),0._c_float/),idxi=uniloc(u_displ))
+    end subroutine setup_sphere_shader
 
+    subroutine draw_all_spheres()
+      integer :: i, n
+      real(c_float), allocatable :: buf(:,:)
+      real(c_float), parameter :: zr(4) = 0._c_float
+
+      allocate(buf(sph_inst_nf,s%obj%nsph))
+      n = 0
       do i = 1, s%obj%nsph
          if (s%obj%sph(i)%ghost) cycle ! invisible pick-only target, not drawn
-         x = s%obj%sph(i)%x
-         if (s%animation > 0) then
-            x = x + real(displ * s%obj%sph(i)%xdelta,c_float)
-         end if
-         call draw_sphere(x,s%obj%sph(i)%r,s%atom_res,rgb=s%obj%sph(i)%rgb,&
-            border=s%obj%sph(i)%border,rgbborder=s%obj%sph(i)%rgbborder)
+         n = n + 1
+         call sphere_pack(buf(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
+            (/s%obj%sph(i)%rgb,1._c_float/),s%obj%sph(i)%border,&
+            s%obj%sph(i)%rgbborder,s%obj%sph(i)%xdelta,zr)
       end do
+      call sphere_inst_draw(sphinstVAO,sphinstVBO,n,buf)
+      s%nsph_inst = n
+      deallocate(buf)
 
     end subroutine draw_all_spheres
 
-    subroutine draw_all_cylinders()
-      integer :: i
-      real(c_float) :: x1(3), x2(3)
+    !> Set up the cylinder impostor shader and its per-frame uniforms.
+    subroutine setup_cylinder_shader()
+      call useshader(shader_cylinder)
+      call setuniform_mat4(s%world,idxi=uniloc(u_world))
+      call setuniform_mat4(s%view,idxi=uniloc(u_view))
+      call setuniform_mat4(s%projection,idxi=uniloc(u_projection))
+      call setuniform_int(merge(1_c_int,0_c_int,s%isortho),idxi=uniloc(u_isortho))
+      call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
+    end subroutine setup_cylinder_shader
 
+    !> Build and draw all cylinder impostors: bonds (multi-bonds expanded into
+    !> laterally-offset instances; dashed and the aromatic interior expanded into
+    !> short capped-cylinder dashes) and the unit-cell edges (plain, no border).
+    !> The cylinder geometric radius is half the stored bond radius (the legacy
+    !> unit mesh had radius 0.5). Endpoints are animated on the CPU.
+    subroutine draw_all_cylinders()
+      integer :: i, n, k, j, nseg, ntot
+      real(c_float) :: x1(3), x2(3), rgba(4), r, rgeo, bcol(3), bord, outw(3)
+      real(c_float) :: dl(3), dir(3), blen, p, half, tc, sx1(3), sx2(3)
+      logical :: dsh(3)
+      real(c_float), allocatable :: buf(:,:), ex1(:,:), ex2(:,:)
+      integer, allocatable :: nd(:)
+      real(c_float), parameter :: zv(3) = 0._c_float
+      real(c_float), parameter :: dash_period = 0.4_c_float
+
+      ! precompute the animated endpoints and per-bond dash counts, and the total
+      ! number of instances (dashes expand into several short cylinders)
+      allocate(ex1(3,s%obj%ncyl), ex2(3,s%obj%ncyl), nd(s%obj%ncyl))
+      ntot = s%obj%ncylflat
       do i = 1, s%obj%ncyl
          x1 = s%obj%cyl(i)%x1
          x2 = s%obj%cyl(i)%x2
@@ -792,25 +800,124 @@ contains
             x1 = x1 + real(displ * s%obj%cyl(i)%x1delta,c_float)
             x2 = x2 + real(displ * s%obj%cyl(i)%x2delta,c_float)
          end if
-         call draw_cylinder(x1,x2,s%obj%cyl(i)%r,s%obj%cyl(i)%rgb,s%bond_res,&
-            s%obj%cyl(i)%order,s%obj%cyl(i)%border,s%obj%cyl(i)%rgbborder,&
-            arvec=s%obj%cyl(i)%arvec,alpha=s%obj%cyl(i)%alpha)
+         ex1(:,i) = x1
+         ex2(:,i) = x2
+         nd(i) = min(64, max(1, nint(norm2(x2-x1)/dash_period)))
+         select case (s%obj%cyl(i)%order)
+         case (-1); ntot = ntot + 1 + nd(i)
+         case (0);  ntot = ntot + nd(i)
+         case (2);  ntot = ntot + 2
+         case (3);  ntot = ntot + 3
+         case default; ntot = ntot + 1
+         end select
       end do
+
+      allocate(buf(cyl_inst_nf,max(ntot,1)))
+      n = 0
+
+      ! bonds: expand the bond order into one or more (possibly dashed) runs
+      do i = 1, s%obj%ncyl
+         x1 = ex1(:,i)
+         x2 = ex2(:,i)
+         r = s%obj%cyl(i)%r
+         rgeo = 0.5_c_float * r
+         rgba = (/s%obj%cyl(i)%rgb, s%obj%cyl(i)%alpha/)
+         bord = s%obj%cyl(i)%border
+         bcol = s%obj%cyl(i)%rgbborder
+         outw = 0._c_float
+         dsh = .false.
+         select case (s%obj%cyl(i)%order)
+         case (-1) ! aromatic (1.5): solid ring exterior + dashed ring interior
+            nseg = 2
+            dl(1) = 0.75_c_float*r
+            dl(2) = -0.75_c_float*r; dsh(2) = .true.
+            outw = s%obj%cyl(i)%arvec
+         case (0) ! dashed
+            nseg = 1
+            dl(1) = 0._c_float; dsh(1) = .true.
+         case (2) ! double
+            nseg = 2
+            dl(1) = 0.75_c_float*r; dl(2) = -0.75_c_float*r
+         case (3) ! triple
+            nseg = 3
+            dl(1) = 1.35_c_float*r; dl(2) = 0._c_float; dl(3) = -1.35_c_float*r
+         case default ! single (1) or flat (< -1)
+            nseg = 1
+            dl(1) = 0._c_float
+         end select
+
+         blen = norm2(x2-x1)
+         dir = 0._c_float
+         if (blen > 1e-7_c_float) dir = (x2-x1)/blen
+
+         do k = 1, nseg
+            if (dsh(k)) then
+               ! string of short capped cylinders (dashes)
+               p = blen / real(nd(i),c_float)
+               half = 0.25_c_float * p
+               do j = 0, nd(i)-1
+                  tc = (real(j,c_float) + 0.5_c_float) * p
+                  sx1 = x1 + dir * (tc - half)
+                  sx2 = x1 + dir * (tc + half)
+                  n = n + 1
+                  call cyl_pack(buf(:,n),sx1,sx2,rgeo,rgba,bord,bcol,dl(k),outw)
+               end do
+            else
+               n = n + 1
+               call cyl_pack(buf(:,n),x1,x2,rgeo,rgba,bord,bcol,dl(k),outw)
+            end if
+         end do
+      end do
+
+      ! unit-cell edges: plain cylinders, no border
+      do i = 1, s%obj%ncylflat
+         x1 = s%obj%cylflat(i)%x1
+         x2 = s%obj%cylflat(i)%x2
+         if (s%animation > 0) then
+            x1 = x1 + real(displ * s%obj%cylflat(i)%x1delta,c_float)
+            x2 = x2 + real(displ * s%obj%cylflat(i)%x2delta,c_float)
+         end if
+         n = n + 1
+         call cyl_pack(buf(:,n),x1,x2,0.5_c_float*s%obj%cylflat(i)%r,&
+            (/s%obj%cylflat(i)%rgb,1._c_float/),0._c_float,zv,0._c_float,zv)
+      end do
+
+      call cyl_inst_draw(cylinstVAO,cylinstVBO,n,buf)
+      s%ncyl_inst = n
+      deallocate(buf,ex1,ex2,nd)
 
     end subroutine draw_all_cylinders
 
-    subroutine draw_all_cones()
-      integer :: i
+    !> Set up the mesh shader and its per-frame uniforms.
+    subroutine setup_mesh_shader()
+      call useshader(shader_mesh)
+      call setuniform_mat4(s%world,idxi=uniloc(u_world))
+      call setuniform_mat4(s%view,idxi=uniloc(u_view))
+      call setuniform_mat4(s%projection,idxi=uniloc(u_projection))
+      call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
+    end subroutine setup_mesh_shader
 
+    subroutine draw_all_cones()
+      integer :: i, n
+      real(c_float) :: model(4,4)
+      real(c_float), allocatable :: buf(:,:)
+
+      allocate(buf(mesh_inst_nf,s%obj%ncone))
+      n = 0
       do i = 1, s%obj%ncone
-         call draw_cone(s%obj%cone(i)%x1,s%obj%cone(i)%x2,&
-            s%obj%cone(i)%r,s%obj%cone(i)%rgb,s%bond_res)
+         if (norm2(s%obj%cone(i)%x2 - s%obj%cone(i)%x1) < 1e-4_c_float) cycle
+         call cone_model(s%obj%cone(i)%x1,s%obj%cone(i)%x2,s%obj%cone(i)%r,model)
+         n = n + 1
+         call mesh_pack(buf(:,n),model,(/s%obj%cone(i)%rgb,1._c_float/))
       end do
+      call mesh_inst_draw(coneinstVAO,coneinstVBO,connel(nmaxcone),n,buf)
+      s%ncone_inst = n
+      deallocate(buf)
 
     end subroutine draw_all_cones
 
     !> Target NDC position (gizndc) and zoom-compensation factor (gizf) for a
-    !> gizmo item at the window fraction winpos. The shader (isgizmo) anchors the
+    !> gizmo item at the window fraction winpos. The shader (isanchored) anchors the
     !> local-origin geometry at gizndc and scales it by gizf — no matrix inverse
     !> or per-item world matrix needed.
     subroutine gizmo_ndc_scale(winpos,scalewithzoom,projgiz,gizndc,gizf)
@@ -847,76 +954,68 @@ contains
     end subroutine gizmo_ndc_scale
 
     !> Render the window-anchored axes gizmo(s). Each gizmo item carries its own
-    !> window position and zoom-scale flag; the shader (isgizmo) anchors the
-    !> local-origin geometry at the requested NDC position, drawn on top.
+    !> window position and zoom-scale flag; the object shaders (isanchored) anchor
+    !> the local-origin geometry at the requested NDC position, drawn on top with
+    !> an orthographic projection. Shafts use the cylinder impostor, arrowheads
+    !> the mesh shader, and labels the on-scene text shader.
     subroutine render_axes_gizmo()
       real(c_float) :: projgiz(4,4), gizndc(3), gizf
-      real(c_float) :: hside, siz
+      real(c_float) :: hside, siz, model(4,4)
+      real(c_float) :: cylbuf(cyl_inst_nf,1), meshbuf(mesh_inst_nf,1)
       integer :: i, iu
       integer(c_int) :: nvert
       real(c_float), allocatable, target :: vert(:,:)
+      real(c_float), parameter :: zv(3) = 0._c_float
 
-      ! the gizmo always uses an orthographic projection
-      call ortho_projection(s,projgiz)
+      ! the gizmo always uses an orthographic projection, with a symmetric depth
+      ! range so the anchored (eye-origin-centered) geometry is never clipped
+      call ortho_projection(s,projgiz,symz=.true.)
 
       ! clear the depth buffer so the gizmo always draws on top
       call glClear(GL_DEPTH_BUFFER_BIT)
 
-      ! set up the shader and uniforms (the per-item NDC position and scale are
-      ! set in the loops below; the screen placement is done in the shader)
-      call useshader(shader_simple)
-      iunif(iu_world) = get_uniform_location("world")
-      iunif(iu_view) = get_uniform_location("view")
-      iunif(iu_projection) = get_uniform_location("projection")
-      iunif(iu_model) = get_uniform_location("model")
-      iunif(iu_object_type) = get_uniform_location("object_type")
-      iunif(iu_border) = get_uniform_location("rborder")
-      iunif(iu_bordercolor) = get_uniform_location("bordercolor")
-      iunif(iu_vcolor) = get_uniform_location("vColor")
-      iunif(iu_idx) = get_uniform_location("idx")
-      iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
-      iunif(iu_bond_outward) = get_uniform_location("bond_outward")
-      iunif(iu_isortho) = get_uniform_location("isortho")
-      iunif(iu_isgizmo) = get_uniform_location("isgizmo")
-      iunif(iu_gizmo_ndc) = get_uniform_location("gizmo_ndc")
-      iunif(iu_gizmo_scale) = get_uniform_location("gizmo_scale")
-      call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
-      call setuniform_float(0._c_float,idxi=iunif(iu_border))
-      call setuniform_int(1_c_int,idxi=iunif(iu_isortho))
-      call setuniform_int(1_c_int,idxi=iunif(iu_isgizmo))
-      call setuniform_mat4(s%world,idxi=iunif(iu_world))
-      call setuniform_mat4(s%view,idxi=iunif(iu_view))
-      call setuniform_mat4(projgiz,idxi=iunif(iu_projection))
-
-      ! shafts (each with its own per-item window placement)
+      ! shafts: cylinder impostors, anchored (one instanced draw per item so each
+      ! can carry its own window placement)
       if (s%obj%ncylgiz > 0) then
-         call glBindVertexArray(cylVAO(s%bond_res))
+         call useshader(shader_cylinder)
+         call setuniform_mat4(s%world,"world")
+         call setuniform_mat4(s%view,"view")
+         call setuniform_mat4(projgiz,"projection")
+         call setuniform_int(1_c_int,"isortho")
+         call setuniform_int(1_c_int,"isanchored")
          do i = 1, s%obj%ncylgiz
             call gizmo_ndc_scale(s%obj%cylgiz(i)%gizwinpos,s%obj%cylgiz(i)%gizscalewithzoom,projgiz,gizndc,gizf)
-            call setuniform_vec3(gizndc,idxi=iunif(iu_gizmo_ndc))
-            call setuniform_float(gizf,idxi=iunif(iu_gizmo_scale))
-            call draw_cylinder(s%obj%cylgiz(i)%x1,s%obj%cylgiz(i)%x2,s%obj%cylgiz(i)%r,&
-               s%obj%cylgiz(i)%rgb,s%bond_res,s%obj%cylgiz(i)%order,s%obj%cylgiz(i)%border,&
-               s%obj%cylgiz(i)%rgbborder)
+            call setuniform_vec3(gizndc,"anchored_ndc")
+            call setuniform_float(gizf,"anchored_scale")
+            call cyl_pack(cylbuf(:,1),s%obj%cylgiz(i)%x1,s%obj%cylgiz(i)%x2,&
+               0.5_c_float*s%obj%cylgiz(i)%r,(/s%obj%cylgiz(i)%rgb,1._c_float/),&
+               s%obj%cylgiz(i)%border,s%obj%cylgiz(i)%rgbborder,0._c_float,zv)
+            call cyl_inst_draw(cylinstVAOscr,cylinstVBOscr,1,cylbuf)
          end do
       end if
 
-      ! arrowheads
+      ! arrowheads: cone meshes, anchored
       if (s%obj%nconegiz > 0) then
-         call glBindVertexArray(coneVAO(s%bond_res))
+         call useshader(shader_mesh)
+         call setuniform_mat4(s%world,"world")
+         call setuniform_mat4(s%view,"view")
+         call setuniform_mat4(projgiz,"projection")
+         call setuniform_int(1_c_int,"isanchored")
          do i = 1, s%obj%nconegiz
+            if (norm2(s%obj%conegiz(i)%x2 - s%obj%conegiz(i)%x1) < 1e-4_c_float) cycle
             call gizmo_ndc_scale(s%obj%conegiz(i)%gizwinpos,s%obj%conegiz(i)%gizscalewithzoom,projgiz,gizndc,gizf)
-            call setuniform_vec3(gizndc,idxi=iunif(iu_gizmo_ndc))
-            call setuniform_float(gizf,idxi=iunif(iu_gizmo_scale))
-            call draw_cone(s%obj%conegiz(i)%x1,s%obj%conegiz(i)%x2,&
-               s%obj%conegiz(i)%r,s%obj%conegiz(i)%rgb,s%bond_res)
+            call setuniform_vec3(gizndc,"anchored_ndc")
+            call setuniform_float(gizf,"anchored_scale")
+            call cone_model(s%obj%conegiz(i)%x1,s%obj%conegiz(i)%x2,s%obj%conegiz(i)%r,model)
+            call mesh_pack(meshbuf(:,1),model,(/s%obj%conegiz(i)%rgb,1._c_float/))
+            call mesh_inst_draw(coneinstVAOscr,coneinstVBOscr,connel(nmaxcone),1,meshbuf)
          end do
       end if
 
       ! labels
       if (s%obj%nstringgiz > 0) then
          call useshader(shader_text_onscene)
-         call setuniform_int(1_c_int,"isgizmo")
+         call setuniform_int(1_c_int,"isanchored")
          call setuniform_mat4(s%world,"world")
          call setuniform_mat4(s%view,"view")
          call setuniform_mat4(projgiz,"projection")
@@ -931,8 +1030,8 @@ contains
          iu = get_uniform_location("textColor")
          do i = 1, s%obj%nstringgiz
             call gizmo_ndc_scale(s%obj%stringgiz(i)%gizwinpos,s%obj%stringgiz(i)%gizscalewithzoom,projgiz,gizndc,gizf)
-            call setuniform_vec3(gizndc,"gizmo_ndc")
-            call setuniform_float(gizf,"gizmo_scale")
+            call setuniform_vec3(gizndc,"anchored_ndc")
+            call setuniform_float(gizf,"anchored_scale")
             call setuniform_vec3(s%obj%stringgiz(i)%rgb,idxi=iu)
             nvert = 0
             ! the label tracks the same zoom behavior as the arrows: constant
@@ -953,27 +1052,10 @@ contains
          end do
          call glEnable(GL_MULTISAMPLE)
          call glDisable(GL_BLEND)
-         call setuniform_int(0_c_int,"isgizmo")
+         call setuniform_int(0_c_int,"isanchored")
       end if
 
     end subroutine render_axes_gizmo
-
-    subroutine draw_all_flat_cylinders()
-      integer :: i
-      real(c_float) :: x1(3), x2(3)
-
-      do i = 1, s%obj%ncylflat
-         x1 = s%obj%cylflat(i)%x1
-         x2 = s%obj%cylflat(i)%x2
-         if (s%animation > 0) then
-            x1 = x1 + real(displ * s%obj%cylflat(i)%x1delta,c_float)
-            x2 = x2 + real(displ * s%obj%cylflat(i)%x2delta,c_float)
-         end if
-         call draw_cylinder(x1,x2,&
-            s%obj%cylflat(i)%r,s%obj%cylflat(i)%rgb,s%uc_res,-2,0._c_float)
-      end do
-
-    end subroutine draw_all_flat_cylinders
 
     ! Draw all filled rectangles. The unit quad (corners +/-1,+/-1,0)
     ! is mapped onto each rectangle by a model matrix whose first two
@@ -982,10 +1064,12 @@ contains
     ! already render flat (object_type=2 in the simple shader).
     subroutine draw_all_planes()
       use tools_math, only: cross_cfloat
-      integer :: i
-      real(c_float) :: m(4,4), rgb_(4)
-      real(c_float) :: nrm(3)
+      integer :: i, n
+      real(c_float) :: m(4,4), nrm(3)
+      real(c_float), allocatable :: buf(:,:)
 
+      allocate(buf(mesh_inst_nf,s%obj%nplane))
+      n = 0
       do i = 1, s%obj%nplane
          nrm = cross_cfloat(s%obj%plane(i)%e1,s%obj%plane(i)%e2)
          if (norm2(nrm) > 1e-10_c_float) nrm = nrm / norm2(nrm)
@@ -995,12 +1079,12 @@ contains
          m(1:3,2) = s%obj%plane(i)%e2
          m(1:3,3) = nrm
          m(1:3,4) = s%obj%plane(i)%x
-         call setuniform_mat4(m,idxi=iunif(iu_model))
-         rgb_(1:3) = s%obj%plane(i)%rgb
-         rgb_(4) = s%obj%plane(i)%alpha
-         call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
-         call glDrawElements(GL_TRIANGLES, int(3*quadnel,c_int), GL_UNSIGNED_INT, c_null_ptr)
+         n = n + 1
+         call mesh_pack(buf(:,n),m,(/s%obj%plane(i)%rgb,s%obj%plane(i)%alpha/))
       end do
+      call mesh_inst_draw(planeinstVAO,planeinstVBO,quadnel,n,buf)
+      s%nplane_inst = n
+      deallocate(buf)
 
     end subroutine draw_all_planes
 
@@ -1010,10 +1094,12 @@ contains
     ! x1. The bound shader/uniform state must already render flat (object_type=2).
     subroutine draw_all_triangles()
       use tools_math, only: cross_cfloat
-      integer :: i
-      real(c_float) :: m(4,4), rgb_(4)
-      real(c_float) :: nrm(3), p1(3), p2(3), p3(3)
+      integer :: i, n
+      real(c_float) :: m(4,4), nrm(3), p1(3), p2(3), p3(3)
+      real(c_float), allocatable :: buf(:,:)
 
+      allocate(buf(mesh_inst_nf,s%obj%ntriangle))
+      n = 0
       do i = 1, s%obj%ntriangle
          p1 = s%obj%triangle(i)%x1
          p2 = s%obj%triangle(i)%x2
@@ -1031,38 +1117,48 @@ contains
          m(1:3,2) = p3 - p1
          m(1:3,3) = nrm
          m(1:3,4) = p1
-         call setuniform_mat4(m,idxi=iunif(iu_model))
-         rgb_(1:3) = s%obj%triangle(i)%rgb
-         rgb_(4) = s%obj%triangle(i)%alpha
-         call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
-         call glDrawElements(GL_TRIANGLES, int(3*trinel,c_int), GL_UNSIGNED_INT, c_null_ptr)
+         n = n + 1
+         call mesh_pack(buf(:,n),m,(/s%obj%triangle(i)%rgb,s%obj%triangle(i)%alpha/))
       end do
+      call mesh_inst_draw(triinstVAO,triinstVBO,trinel,n,buf)
+      s%ntri_inst = n
+      deallocate(buf)
 
     end subroutine draw_all_triangles
 
     !> Draw the measure selections
     subroutine draw_all_mselections()
       use gui_main, only: ColorMeasureSelect
+      use representations, only: atomborder_def
       integer :: i, j
       real(c_float) :: x(3)
+      real(c_float), allocatable :: buf(:,:)
+      real(c_float), parameter :: zr(4) = 0._c_float
 
+      allocate(buf(sph_inst_nf,s%nmsel))
       do j = 1, s%nmsel
          i = s%msel(5,j)
          x = s%obj%sph(i)%x
          if (s%animation > 0) x = x + real(displ * s%obj%sph(i)%xdelta,c_float)
-         call draw_sphere(x,s%obj%sph(i)%r + msel_thickness,s%atom_res,&
-            rgba=ColorMeasureSelect(:,j))
+         call sphere_pack(buf(:,j),s%obj%sph(i)%x,s%obj%sph(i)%r + msel_thickness,&
+            ColorMeasureSelect(:,j),real(atomborder_def,c_float),(/0._c_float,0._c_float,0._c_float/),&
+            s%obj%sph(i)%xdelta,zr)
          radsel(j) = s%obj%sph(i)%r + msel_thickness
          xsel(:,j) = x
       end do
+      call sphere_inst_draw(sphinstVAOscr,sphinstVBOscr,s%nmsel,buf)
+      deallocate(buf)
 
     end subroutine draw_all_mselections
 
     !> Draw the highlights on the scene
     subroutine draw_highlights()
       use systems, only: sysc
-      integer :: i, id
-      real(c_float) :: x(3), rgba(4)
+      use representations, only: atomborder_def
+      integer :: i, id, n
+      real(c_float) :: rgba(4)
+      real(c_float), allocatable :: buf(:,:)
+      real(c_float), parameter :: zr(4) = 0._c_float
 
       ! initial checks
       if (s%isinit < 2) return
@@ -1070,6 +1166,8 @@ contains
          .not.allocated(sysc(s%id)%highlight_rgba_transient)) return
 
       ! highlight the spheres
+      allocate(buf(sph_inst_nf,s%obj%nsph))
+      n = 0
       do i = 1, s%obj%nsph
          id = s%obj%sph(i)%idx(1)
          ! skip any non-atom sphere (idx < 1): it carries no cell-atom index and
@@ -1081,11 +1179,13 @@ contains
          if (any(rgba < 0).and.allocated(sysc(s%id)%highlight_rgba)) &
             rgba = sysc(s%id)%highlight_rgba(:,id)
          if (all(rgba >= 0)) then
-            x = s%obj%sph(i)%x
-            if (s%animation > 0) x = x + real(displ * s%obj%sph(i)%xdelta,c_float)
-            call draw_sphere(x,s%obj%sph(i)%r + sel_thickness,s%atom_res,rgba=rgba,rgbborder=rgba(1:3))
+            n = n + 1
+            call sphere_pack(buf(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r + sel_thickness,&
+               rgba,real(atomborder_def,c_float),rgba(1:3),s%obj%sph(i)%xdelta,zr)
          end if
       end do
+      call sphere_inst_draw(sphinstVAOscr,sphinstVBOscr,n,buf)
+      deallocate(buf)
 
     end subroutine draw_highlights
 
@@ -1164,17 +1264,19 @@ contains
     use interfaces_cimgui
     use interfaces_opengl3
     use systems, only: sysc, nsys, sys
-    use shapes, only: sphVAO
+    use shapes, only: sph_inst_nf, sphinstVAOscr, sphinstVBOscr
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
-    use shaders, only: shader_pickindex, useshader, setuniform_int,&
+    use shaders, only: shader_sphere, useshader, setuniform_int,&
        setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
        setuniform_mat4, get_uniform_location
     use param, only: maxzat0
     class(scene), intent(inout), target :: s
 
-    integer :: i, ifound, iz, idx
+    integer :: i, ifound, iz, idx, n
     real*8 :: time
+    real(c_float) :: ridx(4)
+    real(c_float), allocatable :: buf(:,:)
 
     ! check that the scene and system are initialized
     if (s%isinit < 2) return
@@ -1202,19 +1304,21 @@ contains
     ! if necessary, reset the camera
     if (s%forceresetcam) call s%reset()
 
-    ! set up the shader and the uniforms
-    call useshader(shader_pickindex)
+    ! set up the sphere impostor shader for picking (ray-cast so the pickable
+    ! silhouette matches the visible sphere); positions are not animated
+    call useshader(shader_sphere)
     call setuniform_mat4(s%world,"world")
     call setuniform_mat4(s%view,"view")
     call setuniform_mat4(s%projection,"projection")
+    call setuniform_int(merge(1_c_int,0_c_int,s%isortho),"isortho")
+    call setuniform_int(1_c_int,"uPick")
+    call setuniform_int(0_c_int,"isanchored")
+    call setuniform_vec3((/0._c_float,0._c_float,0._c_float/),"displ")
 
-    ! set the uniforms
-    iunif(iu_model) = get_uniform_location("model")
-    iunif(iu_idx) = get_uniform_location("idx")
-
-    ! draw the atoms
+    ! draw the atoms, each with its loop index encoded into the pick color
     if (s%obj%nsph > 0) then
-       call glBindVertexArray(sphVAO(s%atom_res))
+       allocate(buf(sph_inst_nf,s%obj%nsph))
+       n = 0
        do i = 1, s%obj%nsph
           ! draw the sphere, no gradient paths
           idx = s%obj%sph(i)%idx(1)
@@ -1223,10 +1327,15 @@ contains
           if (idx < 1) cycle
           iz = sys(s%id)%c%spc(sys(s%id)%c%atcel(idx)%is)%z
           if (iz < maxzat0) then
-             call draw_sphere(s%obj%sph(i)%x,s%obj%sph(i)%r,s%atom_res,idx=(/i,0,0,0/))
+             n = n + 1
+             ridx = transfer((/i,0,0,0/),ridx)
+             call sphere_pack(buf(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
+                (/0._c_float,0._c_float,0._c_float,1._c_float/),0._c_float,&
+                (/0._c_float,0._c_float,0._c_float/),s%obj%sph(i)%xdelta,ridx)
           end if
        end do
-       call glBindVertexArray(0)
+       call sphere_inst_draw(sphinstVAOscr,sphinstVBOscr,n,buf)
+       deallocate(buf)
     end if
 
   end subroutine scene_render_pick
@@ -1562,17 +1671,38 @@ contains
 
   end subroutine update_projection_matrix
 
-  !> Build the orthographic projection matrix for scene s into proj. This is
-  !> the scene's projection when in orthographic mode; it is also used to draw
-  !> the window-anchored axes gizmo (always orthographic) regardless of the
-  !> scene's projection mode.
-  subroutine ortho_projection(s,proj)
+  !> Ratio between the window-anchored gizmo's on-screen size with "scale with
+  !> zoom" off vs on.
+  module function scene_gizmo_zoom_factor(s) result(f)
+    use utils, only: mult
+    use param, only: pi
+    class(scene), intent(in) :: s
+    real(c_float) :: f
+
+    real(c_float) :: sc(3), hw2, hside
+
+    call mult(sc,s%world,s%scenecenter)
+    hw2 = tan(0.5_c_float * s%ortho_fov * real(pi,c_float) / 180._c_float) * norm2(s%campos - sc)
+    hw2 = max(hw2,1e-4_c_float)
+    hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
+    hside = hside * s%camratio
+    hside = max(hside,3._c_float)
+    f = hw2 / hside
+
+  end function scene_gizmo_zoom_factor
+
+  subroutine ortho_projection(s,proj,symz)
     use utils, only: ortho, mult
     use param, only: pi
     class(scene), intent(in) :: s
     real(c_float), intent(out) :: proj(4,4)
+    logical, intent(in), optional :: symz
 
-    real(c_float) :: sc(3), hw2
+    real(c_float) :: sc(3), hw2, zf
+    logical :: sym
+
+    sym = .false.
+    if (present(symz)) sym = symz
 
     call mult(sc,s%world,s%scenecenter)
     hw2 = tan(0.5_c_float * s%ortho_fov * real(pi,c_float) / 180._c_float) * norm2(s%campos - sc)
@@ -1581,7 +1711,16 @@ contains
     ! (scenerad->0), the projection matrix becomes singular and its inverse
     ! (unproject) divides by zero -> SIGFPE.
     hw2 = max(hw2,1e-4_c_float)
-    call ortho(proj,-hw2,hw2,-hw2,hw2,0._c_float,max((s%camresetdist * max_zoom) * s%scenerad,1e-4_c_float))
+    zf = max((s%camresetdist * max_zoom) * s%scenerad,1e-4_c_float)
+    if (sym) then
+       ! symmetric depth range for the window-anchored gizmo: its geometry is
+       ! centered at the eye origin (anchoring drops the eye translation), so a
+       ! [0,zf] range would clip the half pointing toward the camera. Centering
+       ! the range on z=0 keeps the whole widget inside the frustum.
+       call ortho(proj,-hw2,hw2,-hw2,hw2,-zf,zf)
+    else
+       call ortho(proj,-hw2,hw2,-hw2,hw2,0._c_float,zf)
+    end if
 
   end subroutine ortho_projection
 
@@ -1906,100 +2045,133 @@ contains
 
   !xx! private procedures: low-level draws
 
-  !> Draw a sphere with center x0, radius rad and color rgb. Requires
-  !> having the sphere VAO bound.
-  subroutine draw_sphere(x0,rad,ires,rgb,rgba,idx,border,rgbborder)
-    use representations, only: atomborder_def
+  !> Pack one sphere instance into column col of an instance buffer (layout
+  !> must match the sphinstVAO attribute offsets set in shapes_init).
+  subroutine sphere_pack(col,x,r,rgba,border,bcol,xdelta,ridx)
+    use shapes, only: sph_inst_nf
+    real(c_float), intent(out) :: col(sph_inst_nf)
+    real(c_float), intent(in) :: x(3), r, rgba(4), border, bcol(3)
+    complex(c_float_complex), intent(in) :: xdelta(3)
+    real(c_float), intent(in) :: ridx(4)
+
+    col(1:3) = x
+    col(4) = r
+    col(5:8) = rgba
+    col(9) = border
+    col(10:12) = bcol
+    col(13:15) = real(xdelta,c_float)
+    col(16:18) = real(aimag(xdelta),c_float)
+    col(19:22) = ridx
+
+  end subroutine sphere_pack
+
+  !> Upload n packed sphere instances to vbo and draw them through vao with the
+  !> currently bound sphere impostor shader (one instanced draw call).
+  subroutine sphere_inst_draw(vao,vbo,n,buf)
     use interfaces_opengl3
-    use shaders, only: setuniform_vec3, setuniform_vec4, setuniform_mat4, setuniform_float
-    use shapes, only: sphnel
-    real(c_float), intent(in) :: x0(3)
-    real(c_float), intent(in) :: rad
-    integer(c_int), intent(in) :: ires
-    real(c_float), intent(in), optional :: rgb(3)
-    real(c_float), intent(in), optional :: rgba(4)
-    integer(c_int), intent(in), optional :: idx(4)
-    real(c_float), intent(in), optional :: border
-    real(c_float), intent(in), optional :: rgbborder(3)
+    use shapes, only: sph_inst_nf
+    integer(c_int), intent(in) :: vao, vbo
+    integer, intent(in) :: n
+    real(c_float), intent(in), target :: buf(sph_inst_nf,n)
+    real(c_float) :: f_
 
-    real(c_float) :: model(4,4)
-    real(c_float) :: ridx(4), rgb_(4)
-    real(c_float) :: border_, rgbborder_(3)
+    if (n <= 0) return
+    call glBindVertexArray(vao)
+    call glBindBuffer(GL_ARRAY_BUFFER, vbo)
+    call glBufferData(GL_ARRAY_BUFFER, int(n,c_intptr_t)*sph_inst_nf*c_sizeof(f_), c_loc(buf), GL_DYNAMIC_DRAW)
+    call glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0_c_int, 4_c_int, int(n,c_int))
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
 
-    ! the model matrix: scale and translate
-    model = eye4
-    model(1:3,4) = x0
-    model(1,1) = rad
-    model(2,2) = rad
-    model(3,3) = rad
+  end subroutine sphere_inst_draw
 
-    ! border
-    border_ = real(atomborder_def,c_float)
-    if (present(border)) border_ = border
-    call setuniform_float(border_,idxi=iunif(iu_border))
-    rgbborder_ = 0._c_float
-    if (present(rgbborder)) rgbborder_ = rgbborder
-    call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
-
-    ! set the uniforms
-    if (present(rgb)) then
-       rgb_(1:3) = rgb
-       rgb_(4) = 1._c_float
-       call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
-    elseif (present(rgba)) then
-       call setuniform_vec4(rgba,idxi=iunif(iu_vcolor))
-    elseif (present(idx)) then
-       ridx = transfer(idx,ridx)
-       call setuniform_vec4(ridx,idxi=iunif(iu_idx))
-    end if
-    call setuniform_mat4(model,idxi=iunif(iu_model))
-
-    ! draw
-    call glDrawElements(GL_TRIANGLES, int(3*sphnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
-
-  end subroutine draw_sphere
-
-  !> Draw a cylinder from x1 to x2 with radius rad and color rgb. ires
-  !> = resolution. order = order of the bond (0=dashed, 1=single, 2=double,
-  !> 3=triple, -1=aromatic/1.5 drawn as solid+dashed); order < -1 (e.g. -2)
-  !> draws a plain flat cylinder. border = size of the border. Requires having
-  !> the cylinder VAO bound.
-  subroutine draw_cylinder(x1,x2,rad,rgb,ires,order,border,rgbborder,arvec,alpha)
+  !> Draw n already-uploaded impostor instances through vao (no upload). Used to
+  !> re-draw the cached main buffers when they have not changed.
+  subroutine inst_render_arrays(vao,n)
     use interfaces_opengl3
+    integer(c_int), intent(in) :: vao
+    integer, intent(in) :: n
+
+    if (n <= 0) return
+    call glBindVertexArray(vao)
+    call glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0_c_int, 4_c_int, int(n,c_int))
+    call glBindVertexArray(0)
+
+  end subroutine inst_render_arrays
+
+  !> Draw n already-uploaded mesh instances through vao (no upload), with nelem
+  !> triangles per instance. Used to re-draw cached mesh buffers.
+  subroutine inst_render_elements(vao,nelem,n)
+    use interfaces_opengl3
+    integer(c_int), intent(in) :: vao
+    integer, intent(in) :: nelem, n
+
+    if (n <= 0) return
+    call glBindVertexArray(vao)
+    call glDrawElementsInstanced(GL_TRIANGLES, int(3*nelem,c_int), GL_UNSIGNED_INT, c_null_ptr, int(n,c_int))
+    call glBindVertexArray(0)
+
+  end subroutine inst_render_elements
+
+  !> Pack one cylinder instance into column col of an instance buffer (layout
+  !> must match the cylinstVAO attribute offsets set in shapes_init).
+  subroutine cyl_pack(col,x1,x2,r,rgba,border,bcol,delta,outward)
+    use shapes, only: cyl_inst_nf
+    real(c_float), intent(out) :: col(cyl_inst_nf)
+    real(c_float), intent(in) :: x1(3), x2(3), r, rgba(4), border, bcol(3), delta, outward(3)
+
+    col(1:3) = x1
+    col(4:6) = x2
+    col(7) = r
+    col(8:11) = rgba
+    col(12) = border
+    col(13:15) = bcol
+    col(16) = delta
+    col(17:19) = outward
+
+  end subroutine cyl_pack
+
+  !> Upload n packed cylinder instances to vbo and draw them through vao with the
+  !> currently bound cylinder impostor shader (one instanced draw call).
+  subroutine cyl_inst_draw(vao,vbo,n,buf)
+    use interfaces_opengl3
+    use shapes, only: cyl_inst_nf
+    integer(c_int), intent(in) :: vao, vbo
+    integer, intent(in) :: n
+    real(c_float), intent(in), target :: buf(cyl_inst_nf,n)
+    real(c_float) :: f_
+
+    if (n <= 0) return
+    call glBindVertexArray(vao)
+    call glBindBuffer(GL_ARRAY_BUFFER, vbo)
+    call glBufferData(GL_ARRAY_BUFFER, int(n,c_intptr_t)*cyl_inst_nf*c_sizeof(f_), c_loc(buf), GL_DYNAMIC_DRAW)
+    call glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0_c_int, 4_c_int, int(n,c_int))
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
+
+  end subroutine cyl_inst_draw
+
+  !> Pack one mesh instance (model matrix columns + color) into column col.
+  subroutine mesh_pack(col,model,rgba)
+    use shapes, only: mesh_inst_nf
+    real(c_float), intent(out) :: col(mesh_inst_nf)
+    real(c_float), intent(in) :: model(4,4), rgba(4)
+
+    col(1:16) = reshape(model,(/16/)) ! column-major: col1..col4
+    col(17:20) = rgba
+
+  end subroutine mesh_pack
+
+  !> Build the model matrix that maps the unit cone mesh onto the cone from
+  !> base x1 to apex x2 with base radius rad (same convention as draw_cone).
+  subroutine cone_model(x1,x2,rad,model)
     use tools_math, only: cross_cfloat
-    use shaders, only: setuniform_vec4, setuniform_mat4, setuniform_int, setuniform_float,&
-       setuniform_vec3
-    use shapes, only: cylnel
-    real(c_float), intent(in) :: x1(3)
-    real(c_float), intent(in) :: x2(3)
-    real(c_float), intent(in) :: rad
-    real(c_float), intent(in) :: rgb(3)
-    integer(c_int), intent(in) :: ires
-    integer(c_int), intent(in) :: order
-    real(c_float), intent(in) :: border
-    real(c_float), intent(in), optional :: rgbborder(3)
-    real(c_float), intent(in), optional :: arvec(3)
-    real(c_float), intent(in), optional :: alpha
+    real(c_float), intent(in) :: x1(3), x2(3), rad
+    real(c_float), intent(out) :: model(4,4)
 
-    real(c_float) :: xmid(3), xdif(3), up(3), crs(3), blen
-    real(c_float) :: a, ca, sa, axis(3), temp(3), rgb_(4), rgbborder_(3)
-    real(c_float) :: crot1(3), crot2(3)
+    real(c_float) :: xmid(3), xdif(3), up(3), crs(3), blen, a, ca, sa, axis(3), temp(3)
 
-    real(c_float), parameter :: dash_length = 0.4 ! length (period) of the dashes
-
-    ! color of the border
-    rgbborder_ = 0._c_float
-    if (present(rgbborder)) rgbborder_ = rgbborder
-
-    ! aromatic outward direction (orients the dashed sub-bond toward the ring
-    ! interior); zero for all non-aromatic cylinders
-    if (present(arvec)) then
-       call setuniform_vec3(arvec,idxi=iunif(iu_bond_outward))
-    else
-       call setuniform_vec3((/0._c_float,0._c_float,0._c_float/),idxi=iunif(iu_bond_outward))
-    end if
-
-    ! some calculations for the model matrix
+    model = eye4
     xmid = 0.5_c_float * (x1 + x2)
     xdif = x2 - x1
     blen = norm2(xdif)
@@ -2007,135 +2179,6 @@ contains
     xdif = xdif / blen
     up = (/0._c_float,0._c_float,1._c_float/)
     crs = cross_cfloat(up,xdif)
-
-    ! the rotation columns of the model matrix (rotate the unit cylinder, whose
-    ! axis is +z, onto the bond direction xdif); the third column is xdif
-    crot1 = (/1._c_float,0._c_float,0._c_float/)
-    crot2 = (/0._c_float,1._c_float,0._c_float/)
-    if (dot_product(crs,crs) > 1e-14_c_float) then
-       ! rotate(acos(dot(xdif,up)),crs)
-       a = acos(dot_product(xdif,up))
-       ca = cos(a)
-       sa = sin(a)
-       axis = crs / norm2(crs)
-       temp = (1._c_float - ca) * axis
-
-       crot1(1) = ca + temp(1) * axis(1)
-       crot1(2) = temp(1) * axis(2) + sa * axis(3)
-       crot1(3) = temp(1) * axis(3) - sa * axis(2)
-
-       crot2(1) = temp(2) * axis(1) - sa * axis(3)
-       crot2(2) = ca + temp(2) * axis(2)
-       crot2(3) = temp(2) * axis(3) + sa * axis(1)
-    end if
-
-    ! common uniforms (color and border)
-    rgb_(1:3) = rgb
-    rgb_(4) = 1._c_float
-    if (present(alpha)) rgb_(4) = alpha
-    call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
-    call setuniform_float(border,idxi=iunif(iu_border))
-    call setuniform_vec3(rgbborder_,idxi=iunif(iu_bordercolor))
-
-    ! draw. dashed bonds are drawn as a string of short solid cylinders so they
-    ! get the same caps and silhouette border as solid bonds.
-    if (order == -1) then
-       ! aromatic (order 1.5): solid (ring exterior) + dashed (ring interior)
-       call setuniform_float(0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
-       call draw_seg(xmid,blen)
-       call setuniform_float(-0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
-       call draw_dashes()
-    elseif (order < 0) then
-       ! flat cylinder
-       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
-       call draw_seg(xmid,blen)
-    elseif (order == 0) then
-       ! dashed
-       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
-       call draw_dashes()
-    elseif (order == 1) then
-       ! single
-       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
-       call draw_seg(xmid,blen)
-    elseif (order == 2) then
-       ! double
-       call setuniform_float(0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
-       call draw_seg(xmid,blen)
-       call setuniform_float(-0.75_c_float*rad,idxi=iunif(iu_delta_cyl))
-       call draw_seg(xmid,blen)
-    elseif (order == 3) then
-       ! triple
-       call setuniform_float(1.35_c_float*rad,idxi=iunif(iu_delta_cyl))
-       call draw_seg(xmid,blen)
-       call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
-       call draw_seg(xmid,blen)
-       call setuniform_float(-1.35_c_float*rad,idxi=iunif(iu_delta_cyl))
-       call draw_seg(xmid,blen)
-    end if
-
-  contains
-
-    ! draw a single solid cylinder centered at xc with axial length seglen,
-    ! oriented along xdif with radius rad (uses host-associated crot1/crot2)
-    subroutine draw_seg(xc,seglen)
-      real(c_float), intent(in) :: xc(3)
-      real(c_float), intent(in) :: seglen
-      real(c_float) :: m(4,4)
-
-      m = 0._c_float
-      m(4,4) = 1._c_float
-      m(1:3,1) = crot1 * rad
-      m(1:3,2) = crot2 * rad
-      m(1:3,3) = xdif * seglen
-      m(1:3,4) = xc
-      call setuniform_mat4(m,idxi=iunif(iu_model))
-      call glDrawElements(GL_TRIANGLES, int(3*cylnel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
-    end subroutine draw_seg
-
-    ! draw the bond as a string of short solid cylinders (dashes)
-    subroutine draw_dashes()
-      integer(c_int) :: k, nd
-      real(c_float) :: p, tc
-      real(c_float), parameter :: fill = 0.5_c_float ! dash on-fraction of the period
-
-      nd = max(1_c_int,nint(blen / dash_length,c_int))
-      if (nd > 64) nd = 64 ! cap the number of dashes (and draw calls)
-      p = blen / real(nd,c_float)
-      do k = 0, nd-1
-         tc = (real(k,c_float) + 0.5_c_float) * p
-         call draw_seg(x1 + xdif * tc, fill * p)
-      end do
-    end subroutine draw_dashes
-
-  end subroutine draw_cylinder
-
-  !> Draw a cone from base x1 to apex x2 with base radius rad and color
-  !> rgb. ires = resolution. Requires having the cone VAO bound.
-  subroutine draw_cone(x1,x2,rad,rgb,ires)
-    use interfaces_opengl3
-    use tools_math, only: cross_cfloat
-    use shaders, only: setuniform_vec4, setuniform_mat4, setuniform_float, setuniform_vec3
-    use shapes, only: connel
-    real(c_float), intent(in) :: x1(3)
-    real(c_float), intent(in) :: x2(3)
-    real(c_float), intent(in) :: rad
-    real(c_float), intent(in) :: rgb(3)
-    integer(c_int), intent(in) :: ires
-
-    real(c_float) :: xmid(3), xdif(3), up(3), crs(3), model(4,4), blen
-    real(c_float) :: a, ca, sa, axis(3), temp(3), rgb_(4), zero3(3)
-
-    ! some calculations for the model matrix
-    xmid = 0.5_c_float * (x1 + x2)
-    xdif = x2 - x1
-    blen = norm2(xdif)
-    if (blen < 1e-4_c_float) return
-    xdif = xdif / blen
-    up = (/0._c_float,0._c_float,1._c_float/)
-    crs = cross_cfloat(up,xdif)
-
-    ! the model matrix
-    model = eye4
     model(1:3,4) = xmid
     if (dot_product(crs,crs) > 1e-14_c_float) then
        a = acos(dot_product(xdif,up))
@@ -2143,15 +2186,12 @@ contains
        sa = sin(a)
        axis = crs / norm2(crs)
        temp = (1._c_float - ca) * axis
-
        model(1,1) = ca + temp(1) * axis(1)
        model(2,1) = temp(1) * axis(2) + sa * axis(3)
        model(3,1) = temp(1) * axis(3) - sa * axis(2)
-
        model(1,2) = temp(2) * axis(1) - sa * axis(3)
        model(2,2) = ca + temp(2) * axis(2)
        model(3,2) = temp(2) * axis(3) + sa * axis(1)
-
        model(1,3) = temp(3) * axis(1) + sa * axis(2)
        model(2,3) = temp(3) * axis(2) - sa * axis(1)
        model(3,3) = ca + temp(3) * axis(3)
@@ -2160,137 +2200,28 @@ contains
     model(:,2) = model(:,2) * rad
     model(:,3) = model(:,3) * blen
 
-    ! set the uniforms (no border on arrowheads)
-    zero3 = 0._c_float
-    call setuniform_float(0._c_float,idxi=iunif(iu_border))
-    call setuniform_vec3(zero3,idxi=iunif(iu_bordercolor))
-    call setuniform_float(0._c_float,idxi=iunif(iu_delta_cyl))
-    rgb_(1:3) = rgb
-    rgb_(4) = 1._c_float
-    call setuniform_vec4(rgb_,idxi=iunif(iu_vcolor))
-    call setuniform_mat4(model,idxi=iunif(iu_model))
+  end subroutine cone_model
 
-    ! draw
-    call glDrawElements(GL_TRIANGLES, int(3*connel(ires),c_int), GL_UNSIGNED_INT, c_null_ptr)
+  !> Upload n packed mesh instances and draw them (one instanced draw call) with
+  !> the currently bound mesh shader, using the given instanced VAO/VBO and the
+  !> mesh's triangle count nelem.
+  subroutine mesh_inst_draw(vao,vbo,nelem,n,buf)
+    use interfaces_opengl3
+    use shapes, only: mesh_inst_nf
+    integer(c_int), intent(in) :: vao, vbo
+    integer, intent(in) :: nelem, n
+    real(c_float), intent(in), target :: buf(mesh_inst_nf,n)
+    real(c_float) :: f_
 
-  end subroutine draw_cone
+    if (n <= 0) return
+    call glBindVertexArray(vao)
+    call glBindBuffer(GL_ARRAY_BUFFER, vbo)
+    call glBufferData(GL_ARRAY_BUFFER, int(n,c_intptr_t)*mesh_inst_nf*c_sizeof(f_), c_loc(buf), GL_DYNAMIC_DRAW)
+    call glDrawElementsInstanced(GL_TRIANGLES, int(3*nelem,c_int), GL_UNSIGNED_INT, c_null_ptr, int(n,c_int))
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
 
-  !> Calculate the vertices for the given text and adds them to
-  !> nvert/vert, direct version. (x0,y0) = position of top-left corner
-  !> (pixels), siz = size in pixels. nvert/vert output vertices. If
-  !> centered, center the text in x and y.
-  subroutine calc_text_direct_vertices(text,x0,y0,siz,nvert,vert,centered)
-    use interfaces_cimgui
-    use gui_main, only: g, fontbakesize_large
-    use types, only: realloc
-    use param, only: newline
-    character(len=*), intent(in) :: text
-    real(c_float), intent(in) :: x0, y0
-    real(c_float), intent(in) :: siz
-    integer(c_int), intent(inout) :: nvert
-    real(c_float), allocatable, intent(inout) :: vert(:,:)
-    logical, intent(in), optional :: centered
-
-    integer :: i, nline
-    type(c_ptr) :: cptr
-    type(ImFontGlyph), pointer :: glyph
-    real(c_float) :: xpos, ypos, scale, lheight, fs
-    real(c_float) :: x1, x2, y1, y2, u1, v1, u2, v2
-    logical :: centered_
-    real(c_float), allocatable :: xlen(:)
-    integer, allocatable :: jlen(:)
-
-    ! ibits(glyph%colored_visible_codepoint,0,1) ! colored
-    ! ibits(glyph%colored_visible_codepoint,1,1) ! visible
-    ! ibits(glyph%colored_visible_codepoint,2,30), ichar('R') ! codepoint
-    ! glyph%AdvanceX
-    ! glyph%X0, glyph%Y0, glyph%X1, glyph%Y1
-    ! glyph%U0, glyph%V0, glyph%U1, glyph%V1
-
-    ! initialize
-    centered_ = .false.
-    if (present(centered)) centered_ = centered
-    if (.not.allocated(vert)) then
-       allocate(vert(4,100))
-       nvert = 0
-    end if
-
-    ! initial variables
-    xpos = floor(x0)
-    ypos = floor(y0)
-    fs = fontbakesize_large
-    scale = siz / fs
-    lheight = scale * fs
-    if (centered_) then
-       nline = 1
-       allocate(xlen(10),jlen(10))
-       jlen(1) = nvert+1
-       xlen(1) = 0._c_float
-    end if
-
-    ! loop over characters
-    i = 0
-    do while (i < len_trim(text))
-       i = i + 1
-       ! newline, skip line and advance one (linux)
-       if (text(i:i) == newline) then
-          xpos = floor(x0)
-          ypos = ypos + lheight
-          i = i + 1
-          if (centered_) then
-             nline = nline + 1
-             if (nline+1 > size(xlen,1)) then
-                call realloc(xlen,2*nline)
-                call realloc(jlen,2*nline)
-             end if
-             xlen(nline) = 0._c_float
-             jlen(nline) = nvert+1
-          end if
-          continue
-       end if
-
-       ! get the glyph
-       cptr = ImFont_FindGlyph(g%Font,int(ichar(text(i:i)),c_int16_t))
-       call c_f_pointer(cptr,glyph)
-
-       ! calculate quad and texture coordinates
-       x1 = xpos + glyph%X0 * scale
-       x2 = xpos + glyph%X1 * scale
-       y1 = ypos + glyph%Y0 * scale
-       y2 = ypos + glyph%Y1 * scale
-       u1 = glyph%U0
-       v1 = glyph%V1
-       u2 = glyph%U1
-       v2 = glyph%V0
-
-       ! add to the vertices
-       if (nvert+6 > size(vert,2)) call realloc(vert,4,2*(nvert+6))
-       vert(:,nvert+1) = (/x1, y2, u1, v1/)
-       vert(:,nvert+2) = (/x1, y1, u1, v2/)
-       vert(:,nvert+3) = (/x2, y1, u2, v2/)
-       vert(:,nvert+4) = (/x1, y2, u1, v1/)
-       vert(:,nvert+5) = (/x2, y1, u2, v2/)
-       vert(:,nvert+6) = (/x2, y2, u2, v1/)
-       nvert = nvert + 6
-
-       ! advance xpos
-       xpos = xpos + glyph%AdvanceX * scale
-
-       ! update
-       if (centered_) then
-          xlen(nline) = max(xlen(nline),xpos)
-       end if
-    end do
-    if (centered_) then
-       jlen(nline+1) = nvert+1
-
-       do i = 1, nline
-          vert(1,jlen(i):jlen(i+1)-1) = vert(1,jlen(i):jlen(i+1)-1) - 0.5_c_float * xlen(i)
-       end do
-       vert(2,jlen(1):nvert) = vert(2,jlen(1):nvert) - 0.5_c_float * nline * lheight
-    end if
-
-  end subroutine calc_text_direct_vertices
+  end subroutine mesh_inst_draw
 
   !> Calculate the vertices for the given text and adds them to
   !> nvert/vert, on-scene version. x0 = world position of the label.

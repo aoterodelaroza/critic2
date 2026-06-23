@@ -20,14 +20,6 @@ submodule (shapes) proc
   use iso_c_binding
   implicit none
 
-  ! icospheres
-  real(c_float), allocatable, target :: sphv(:,:) ! vertices (1:3) and normals (4:6)
-  integer(c_int), allocatable, target :: sphi(:,:) ! faces
-
-  ! cylinders
-  real(c_float), allocatable, target :: cylv(:,:) ! vertices (1:3) and normals (4:6)
-  integer(c_int), allocatable, target :: cyli(:,:) ! faces
-
   ! cones (arrowheads)
   real(c_float), allocatable, target :: conv(:,:) ! vertices (1:3)
   integer(c_int), allocatable, target :: coni(:,:) ! faces
@@ -37,228 +29,20 @@ contains
   !> Create and initialize the buffers for the basic shapes
   module subroutine shapes_init()
     use interfaces_opengl3
-    use tools_math, only: cross
-    use hashmod, only: hash
     use param, only: pi
-    real(c_float) :: tau, rad0, xico, zico, zero, half, one, angle
-    real(c_float) :: cylr, pic, cylnorm, cylrn, halfn, halfn2, ca, sa
-    integer :: i, l, j, k(3), nk1, nk2, nk3, n, nface, npt
-    integer(c_int) :: shift1, shift2
+    real(c_float) :: angle, pic, ca, sa
+    integer :: i, l, j, n, nface, npt
+    integer(c_int) :: shift1
     integer(c_int) :: c_int_
     real(c_float) :: c_float_
     type(c_ptr) :: c_ptr_
-    type(hash) :: ipair
-    character(len=:), allocatable :: idx
     real(c_float), target :: quadv(3,4)
     integer(c_int), target :: quadi(3,2)
     real(c_float), target :: triv(3,3)
     integer(c_int), target :: trii(3,1)
+    real(c_float), target :: impquadc(2,4)
 
-    ! allocate icosphere vertex and face arrays
-    if (allocated(sphv)) deallocate(sphv)
-    if (allocated(sphi)) deallocate(sphi)
-    allocate(sphv(3,sphnve(nmaxsph)))
-    allocate(sphi(3,sphneladd(nmaxsph)))
-
-    ! initialize icosahedron
-    zero = 0._c_float
-    tau = (1._c_float + sqrt(5._c_float))/2._c_float
-    rad0 = sqrt(3._c_float - tau)
-    xico = (tau - 1._c_float) / rad0
-    zico = 1._c_float / rad0
-
-    ! vertices
-    sphv(:,1 ) = (/-xico,  zero,  zico/)
-    sphv(:,2 ) = (/ xico,  zero,  zico/)
-    sphv(:,3 ) = (/-xico,  zero, -zico/)
-    sphv(:,4 ) = (/ xico,  zero, -zico/)
-    sphv(:,5 ) = (/ zero,  zico,  xico/)
-    sphv(:,6 ) = (/ zero,  zico, -xico/)
-    sphv(:,7 ) = (/ zero, -zico,  xico/)
-    sphv(:,8 ) = (/ zero, -zico, -xico/)
-    sphv(:,9 ) = (/ zico,  xico,  zero/)
-    sphv(:,10) = (/-zico,  xico,  zero/)
-    sphv(:,11) = (/ zico, -xico,  zero/)
-    sphv(:,12) = (/-zico, -xico,  zero/)
-
-    ! sphere faces, counter-clock-wise
-    sphi(:,1 ) = (/ 0_c_int,  1_c_int,  4_c_int/)
-    sphi(:,2 ) = (/ 0_c_int,  4_c_int,  9_c_int/)
-    sphi(:,3 ) = (/ 9_c_int,  4_c_int,  5_c_int/)
-    sphi(:,4 ) = (/ 4_c_int,  8_c_int,  5_c_int/)
-    sphi(:,5 ) = (/ 4_c_int,  1_c_int,  8_c_int/)
-    sphi(:,6 ) = (/ 8_c_int,  1_c_int, 10_c_int/)
-    sphi(:,7 ) = (/ 8_c_int, 10_c_int,  3_c_int/)
-    sphi(:,8 ) = (/ 5_c_int,  8_c_int,  3_c_int/)
-    sphi(:,9 ) = (/ 5_c_int,  3_c_int,  2_c_int/)
-    sphi(:,10) = (/ 2_c_int,  3_c_int,  7_c_int/)
-    sphi(:,11) = (/ 7_c_int,  3_c_int, 10_c_int/)
-    sphi(:,12) = (/ 7_c_int, 10_c_int,  6_c_int/)
-    sphi(:,13) = (/ 7_c_int,  6_c_int, 11_c_int/)
-    sphi(:,14) = (/11_c_int,  6_c_int,  0_c_int/)
-    sphi(:,15) = (/ 0_c_int,  6_c_int,  1_c_int/)
-    sphi(:,16) = (/ 6_c_int, 10_c_int,  1_c_int/)
-    sphi(:,17) = (/ 9_c_int, 11_c_int,  0_c_int/)
-    sphi(:,18) = (/ 9_c_int,  2_c_int, 11_c_int/)
-    sphi(:,19) = (/ 9_c_int,  5_c_int,  2_c_int/)
-    sphi(:,20) = (/ 7_c_int, 11_c_int,  2_c_int/)
-
-    ! vertices and edges of the rest of the spheres
-    do i = 1, nmaxsph-1
-       n = sphnve(i)
-       nface = sphneladd(i)
-       do j = sphneladd(i-1)+1, sphneladd(i)
-          k = sphi(:,j) + 1
-
-          ! create the new vertices
-          call ipack(k(1),k(2))
-          if (ipair%iskey(idx)) then
-             nk1 = ipair%get(idx,nk1)
-          else
-             n = n + 1
-             nk1 = n
-             call ipair%put(idx,n)
-             sphv(1:3,n) = 0.5_c_float * (sphv(1:3,k(1)) + sphv(1:3,k(2)))
-             sphv(1:3,n) = sphv(1:3,n) / norm2(sphv(1:3,n))
-          end if
-          call ipack(k(1),k(3))
-          if (ipair%iskey(idx)) then
-             nk2 = ipair%get(idx,nk2)
-          else
-             n = n + 1
-             nk2 = n
-             call ipair%put(idx,n)
-             sphv(1:3,n) = 0.5_c_float * (sphv(1:3,k(1)) + sphv(1:3,k(3)))
-             sphv(1:3,n) = sphv(1:3,n) / norm2(sphv(1:3,n))
-          end if
-          call ipack(k(2),k(3))
-          if (ipair%iskey(idx)) then
-             nk3 = ipair%get(idx,nk3)
-          else
-             n = n + 1
-             nk3 = n
-             call ipair%put(idx,n)
-             sphv(1:3,n) = 0.5_c_float * (sphv(1:3,k(2)) + sphv(1:3,k(3)))
-             sphv(1:3,n) = sphv(1:3,n) / norm2(sphv(1:3,n))
-          end if
-
-          ! create the new faces
-          nface = nface + 1
-          sphi(:,nface) = (/k(1),nk1,nk2/) - 1
-          nface = nface + 1
-          sphi(:,nface) = (/nk1,nk3,nk2/) - 1
-          nface = nface + 1
-          sphi(:,nface) = (/nk1,k(2),nk3/) - 1
-          nface = nface + 1
-          sphi(:,nface) = (/nk2,nk3,k(3)/) - 1
-       end do
-    end do
-
-    ! build the buffers for the spheres
-    call glGenVertexArrays(nmaxsph, c_loc(sphVAO))
-    call glGenBuffers(1, c_loc(sphVBO))
-    call glGenBuffers(nmaxsph, c_loc(sphEBO))
-    call glBindBuffer(GL_ARRAY_BUFFER, sphVBO)
-    call glBufferData(GL_ARRAY_BUFFER, 3*sphnve(nmaxsph)*c_sizeof(c_float_), c_loc(sphv), GL_STATIC_DRAW)
-
-    do i = 1, nmaxsph
-       call glBindVertexArray(sphVAO(i))
-       call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sphEBO(i))
-       call glBufferData(GL_ELEMENT_ARRAY_BUFFER,3*sphnel(i)*c_sizeof(c_int_), c_loc(sphi(1,sphneladd(i-1)+1)), GL_STATIC_DRAW)
-
-       call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(3*c_sizeof(c_float_),c_int),&
-          c_null_ptr)
-       call glEnableVertexAttribArray(0)
-    end do
-
-    call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    call glBindVertexArray(0)
-    call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
-
-    ! allocate cylinder vertex and face arrays
-    if (allocated(cylv)) deallocate(cylv)
-    if (allocated(cyli)) deallocate(cyli)
-    allocate(cylv(3,cylnveadd(nmaxcyl)))
-    allocate(cyli(3,cylneladd(nmaxcyl)))
-
-    ! initialize cylinders
     pic = real(pi,c_float)
-    half = 0.5_c_float
-    one = 1.0_c_float
-    cylr = cos(30._c_float * pic / 180._c_float)
-    cylnorm = sqrt(0.5_c_float + cylr * cylr)
-    cylrn = cylr / cylnorm
-    halfn = 0.5_c_float / cylnorm
-    halfn2 = 2 * halfn
-
-    ! vertices and edges of the rest of the cylinders
-    do i = 1, nmaxcyl
-       n = cylnveadd(i-1)
-       npt = (cylnve(i)-2)/2
-
-       ! end caps
-       n = n + 1
-       cylv(1:2,n) = 0._c_float
-       cylv(3,n) = -0.5_c_float
-       n = n + 1
-       cylv(1:2,n) = 0._c_float
-       cylv(3,n) = 0.5_c_float
-
-       half = 0.5_c_float
-       do j = 1, 2
-          half = -half
-          do l = 1, npt
-             angle = real(l-1,c_float) / real(npt,c_float) * 2._c_float * pic
-             ca = cos(angle)
-             sa = sin(angle)
-             n = n + 1
-             cylv(1,n) = 0.5_c_float * ca
-             cylv(2,n) = 0.5_c_float * sa
-             cylv(3,n) = half
-          end do
-       end do
-
-       nface = cylneladd(i-1)
-       shift1 = 2
-       shift2 = 2+npt
-       do j = 1, npt
-          nface = nface + 1
-          cyli(:,nface) = (/0, mod(j,npt)+shift1, j+shift1-1/)
-       end do
-       do j = 1, npt
-          nface = nface + 1
-          cyli(:,nface) = (/1, j+shift2-1, mod(j,npt)+shift2/)
-       end do
-       do j = 1, npt
-          nface = nface + 1
-          cyli(:,nface) = (/j+shift1-1, mod(j,npt)+shift1, mod(j,npt)+shift2/)
-       end do
-       do j = 1, npt
-          nface = nface + 1
-          cyli(:,nface) = (/j+shift1-1, mod(j,npt)+shift2, j+shift2-1/)
-       end do
-    end do
-
-    ! build the buffers for the cylinder
-    call glGenVertexArrays(nmaxcyl, c_loc(cylVAO))
-    call glGenBuffers(nmaxcyl, c_loc(cylVBO))
-    call glGenBuffers(nmaxcyl, c_loc(cylEBO))
-
-    do i = 1, nmaxcyl
-       call glBindBuffer(GL_ARRAY_BUFFER, cylVBO(i))
-       call glBufferData(GL_ARRAY_BUFFER, 3*cylnve(i)*c_sizeof(c_float_), c_loc(cylv(1,cylnveadd(i-1)+1)), GL_STATIC_DRAW)
-       call glBindVertexArray(cylVAO(i))
-       call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cylEBO(i))
-       call glBufferData(GL_ELEMENT_ARRAY_BUFFER,3*cylnel(i)*c_sizeof(c_int_), c_loc(cyli(1,cylneladd(i-1)+1)), GL_STATIC_DRAW)
-
-       call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(3*c_sizeof(c_float_),c_int),&
-          c_null_ptr)
-       call glEnableVertexAttribArray(0)
-    end do
-
-    call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    call glBindVertexArray(0)
-    call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
 
     ! allocate cone vertex and face arrays
     if (allocated(conv)) deallocate(conv)
@@ -403,38 +187,130 @@ contains
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
 
+    ! impostor billboards: a single unit quad (triangle strip, corners in
+    ! [-1,1]) is expanded per instance via instanced attributes.
+    impquadc(:,1) = (/-1._c_float,-1._c_float/)
+    impquadc(:,2) = (/ 1._c_float,-1._c_float/)
+    impquadc(:,3) = (/-1._c_float, 1._c_float/)
+    impquadc(:,4) = (/ 1._c_float, 1._c_float/)
+    call glGenBuffers(1, c_loc(impQuadVBO))
+    call glBindBuffer(GL_ARRAY_BUFFER, impQuadVBO)
+    call glBufferData(GL_ARRAY_BUFFER, 2*4*c_sizeof(c_float_), c_loc(impquadc), GL_STATIC_DRAW)
+
+    ! sphere impostor VAOs: cached main + transient scratch (same layout)
+    call setup_sph_inst(sphinstVAO, sphinstVBO)
+    call setup_sph_inst(sphinstVAOscr, sphinstVBOscr)
+
+    ! cylinder impostor VAOs: cached main + transient scratch
+    call setup_cyl_inst(cylinstVAO, cylinstVBO)
+    call setup_cyl_inst(cylinstVAOscr, cylinstVBOscr)
+
+    ! instanced plain-mesh VAOs (planes, polyhedra triangles, cones): the mesh
+    ! vertex (location 0) plus a per-instance model matrix (1..4) + color (5).
+    ! Cones always use the highest mesh resolution (counts are tiny); the cone
+    ! scratch VAO serves the gizmo arrowheads.
+    call setup_mesh_inst(planeinstVAO, planeinstVBO, quadVBO, quadEBO)
+    call setup_mesh_inst(triinstVAO, triinstVBO, triVBO, triEBO)
+    call setup_mesh_inst(coneinstVAO, coneinstVBO, coneVBO(nmaxcone), coneEBO(nmaxcone))
+    call setup_mesh_inst(coneinstVAOscr, coneinstVBOscr, coneVBO(nmaxcone), coneEBO(nmaxcone))
+
   contains
-    subroutine ipack(i,j)
-      use tools_io, only: string
-      integer, intent(in) :: i, j
+    !> Set up a sphere impostor VAO: shared quad corner (loc 0) + per-instance
+    !> sphere attributes (loc 1..8) from the given instance buffer.
+    subroutine setup_sph_inst(vao, vbo)
+      integer(c_int), intent(inout), target :: vao, vbo
+      integer(c_int) :: st
 
-      if (i < j) then
-         idx = string(i) // "_" // string(j)
-      else
-         idx = string(j) // "_" // string(i)
-      end if
+      call glGenVertexArrays(1, c_loc(vao))
+      call glGenBuffers(1, c_loc(vbo))
+      call glBindVertexArray(vao)
+      call glBindBuffer(GL_ARRAY_BUFFER, impQuadVBO)
+      call glEnableVertexAttribArray(0)
+      call glVertexAttribPointer(0, 2, GL_FLOAT, int(GL_FALSE,c_signed_char), int(2*c_sizeof(c_float_),c_int), c_null_ptr)
+      call glBindBuffer(GL_ARRAY_BUFFER, vbo)
+      st = int(sph_inst_nf * c_sizeof(c_float_),c_int)
+      call inst_attrib(1, 3, st, 0)  ! a_center
+      call inst_attrib(2, 1, st, 3)  ! a_radius
+      call inst_attrib(3, 4, st, 4)  ! a_color
+      call inst_attrib(4, 1, st, 8)  ! a_border
+      call inst_attrib(5, 3, st, 9)  ! a_bordercolor
+      call inst_attrib(6, 3, st, 12) ! a_xdelta_re
+      call inst_attrib(7, 3, st, 15) ! a_xdelta_im
+      call inst_attrib(8, 4, st, 18) ! a_idx
+      call glBindBuffer(GL_ARRAY_BUFFER, 0)
+      call glBindVertexArray(0)
 
-    end subroutine ipack
+    end subroutine setup_sph_inst
+
+    !> Set up a cylinder impostor VAO: shared quad corner (loc 0) + per-instance
+    !> cylinder attributes (loc 1..8) from the given instance buffer.
+    subroutine setup_cyl_inst(vao, vbo)
+      integer(c_int), intent(inout), target :: vao, vbo
+      integer(c_int) :: st
+
+      call glGenVertexArrays(1, c_loc(vao))
+      call glGenBuffers(1, c_loc(vbo))
+      call glBindVertexArray(vao)
+      call glBindBuffer(GL_ARRAY_BUFFER, impQuadVBO)
+      call glEnableVertexAttribArray(0)
+      call glVertexAttribPointer(0, 2, GL_FLOAT, int(GL_FALSE,c_signed_char), int(2*c_sizeof(c_float_),c_int), c_null_ptr)
+      call glBindBuffer(GL_ARRAY_BUFFER, vbo)
+      st = int(cyl_inst_nf * c_sizeof(c_float_),c_int)
+      call inst_attrib(1, 3, st, 0)  ! a_x1
+      call inst_attrib(2, 3, st, 3)  ! a_x2
+      call inst_attrib(3, 1, st, 6)  ! a_radius
+      call inst_attrib(4, 4, st, 7)  ! a_color
+      call inst_attrib(5, 1, st, 11) ! a_border
+      call inst_attrib(6, 3, st, 12) ! a_bordercolor
+      call inst_attrib(7, 1, st, 15) ! a_delta
+      call inst_attrib(8, 3, st, 16) ! a_outward
+      call glBindBuffer(GL_ARRAY_BUFFER, 0)
+      call glBindVertexArray(0)
+
+    end subroutine setup_cyl_inst
+    !> Set up an instanced plain-mesh VAO: bind the mesh vertex buffer (loc 0)
+    !> and element buffer, then a fresh per-instance buffer holding the model
+    !> matrix columns (loc 1..4) and the color (loc 5).
+    subroutine setup_mesh_inst(vao, vbo, meshvbo, meshebo)
+      integer(c_int), intent(inout), target :: vao, vbo
+      integer(c_int), intent(in) :: meshvbo, meshebo
+      integer(c_int) :: st
+
+      call glGenVertexArrays(1, c_loc(vao))
+      call glGenBuffers(1, c_loc(vbo))
+      call glBindVertexArray(vao)
+      call glBindBuffer(GL_ARRAY_BUFFER, meshvbo)
+      call glEnableVertexAttribArray(0)
+      call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(3*c_sizeof(c_float_),c_int), c_null_ptr)
+      call glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshebo)
+      call glBindBuffer(GL_ARRAY_BUFFER, vbo)
+      st = int(mesh_inst_nf * c_sizeof(c_float_),c_int)
+      call inst_attrib(1, 4, st, 0)  ! model column 1
+      call inst_attrib(2, 4, st, 4)  ! model column 2
+      call inst_attrib(3, 4, st, 8)  ! model column 3
+      call inst_attrib(4, 4, st, 12) ! model column 4
+      call inst_attrib(5, 4, st, 16) ! color
+      call glBindBuffer(GL_ARRAY_BUFFER, 0)
+      call glBindVertexArray(0)
+
+    end subroutine setup_mesh_inst
+    !> Enable an instanced float attribute (divisor 1) at location loc with
+    !> ncomp components, the given byte stride, and an offset of offf floats.
+    subroutine inst_attrib(loc, ncomp, stride, offf)
+      integer(c_int), intent(in) :: loc, ncomp, stride, offf
+
+      call glEnableVertexAttribArray(loc)
+      call glVertexAttribPointer(loc, ncomp, GL_FLOAT, int(GL_FALSE,c_signed_char), stride,&
+         transfer(int(offf,c_intptr_t) * c_sizeof(c_float_), c_ptr_))
+      call glVertexAttribDivisor(loc, 1_c_int)
+
+    end subroutine inst_attrib
 
   end subroutine shapes_init
 
   !> Terminate the shapes buffers
   module subroutine shapes_end()
     use interfaces_opengl3
-
-    ! spheres
-    call glDeleteVertexArrays(nmaxsph, c_loc(sphVAO))
-    call glDeleteBuffers(1, c_loc(sphVBO))
-    call glDeleteBuffers(nmaxsph, c_loc(sphEBO))
-    if (allocated(sphv)) deallocate(sphv)
-    if (allocated(sphi)) deallocate(sphi)
-
-    ! cylinders
-    call glDeleteVertexArrays(nmaxcyl, c_loc(cylVAO))
-    call glDeleteBuffers(nmaxcyl, c_loc(cylVBO))
-    call glDeleteBuffers(nmaxcyl, c_loc(cylEBO))
-    if (allocated(cylv)) deallocate(cylv)
-    if (allocated(cyli)) deallocate(cyli)
 
     ! cones
     call glDeleteVertexArrays(nmaxcone, c_loc(coneVAO))
@@ -452,6 +328,25 @@ contains
     call glDeleteVertexArrays(1, c_loc(triVAO))
     call glDeleteBuffers(1, c_loc(triVBO))
     call glDeleteBuffers(1, c_loc(triEBO))
+
+    ! impostors
+    call glDeleteVertexArrays(1, c_loc(sphinstVAO))
+    call glDeleteBuffers(1, c_loc(sphinstVBO))
+    call glDeleteVertexArrays(1, c_loc(cylinstVAO))
+    call glDeleteBuffers(1, c_loc(cylinstVBO))
+    call glDeleteBuffers(1, c_loc(impQuadVBO))
+    call glDeleteVertexArrays(1, c_loc(planeinstVAO))
+    call glDeleteBuffers(1, c_loc(planeinstVBO))
+    call glDeleteVertexArrays(1, c_loc(triinstVAO))
+    call glDeleteBuffers(1, c_loc(triinstVBO))
+    call glDeleteVertexArrays(1, c_loc(coneinstVAO))
+    call glDeleteBuffers(1, c_loc(coneinstVBO))
+    call glDeleteVertexArrays(1, c_loc(sphinstVAOscr))
+    call glDeleteBuffers(1, c_loc(sphinstVBOscr))
+    call glDeleteVertexArrays(1, c_loc(cylinstVAOscr))
+    call glDeleteBuffers(1, c_loc(cylinstVBOscr))
+    call glDeleteVertexArrays(1, c_loc(coneinstVAOscr))
+    call glDeleteBuffers(1, c_loc(coneinstVBOscr))
 
   end subroutine shapes_end
 

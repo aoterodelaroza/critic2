@@ -1191,6 +1191,7 @@ contains
   !> Draw the editrep window, cartesian axes class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_axes(w,ttshown) result(changed)
+    use windows, only: win
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
        iw_inputtext, iw_radiobutton, iw_combo_simple
     use systems, only: sys
@@ -1201,6 +1202,7 @@ contains
 
     logical :: ch
     integer :: icoord
+    real*8 :: zf
 
     ! initialize
     changed = .false.
@@ -1261,7 +1263,21 @@ contains
        changed = changed .or. iw_dragfloat_real8("from bottom##axeswiny",x1=w%rep%axes_winpos(2),speed=0.005d0,&
           min=0d0,max=1d0,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
        call iw_tooltip("Vertical position of the axes, as a fraction of the window height from the bottom",ttshown)
-       changed = changed .or. iw_checkbox("Scale with zoom##axesscalewithzoom",w%rep%axes_scalewithzoom)
+       if (iw_checkbox("Scale with zoom##axesscalewithzoom",w%rep%axes_scalewithzoom)) then
+          changed = .true.
+          ! keep the apparent on-screen size unchanged across the toggle
+          if (associated(win(w%idparent)%sc)) then
+             zf = real(win(w%idparent)%sc%gizmo_zoom_factor(),8)
+             if (zf > 1d-10) then
+                if (w%rep%axes_scalewithzoom) then
+                   w%rep%axes_scale = w%rep%axes_scale * zf
+                else
+                   w%rep%axes_scale = w%rep%axes_scale / zf
+                end if
+                w%rep%axes_scale_auto = .false.
+             end if
+          end if
+       end if
        call iw_tooltip("Let the gizmo grow and shrink as the scene is zoomed in and out (on), or keep&
           & it at a constant size on the window (off)",ttshown)
     end if

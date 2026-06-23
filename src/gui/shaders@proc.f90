@@ -21,11 +21,10 @@ submodule (shaders) proc
   implicit none
 
   character*(*), parameter :: shader_file(shader_NUM) = (/&
-     "test        ",& ! shader_test
-     "simple      ",& ! shader_simple
-     "text_direct ",& ! shader_text_direct
      "text_onscene",& ! shader_text_onscene
-     "pickindex   "&  ! shader_pickindex
+     "sphere      ",& ! shader_sphere
+     "cylinder    ",& ! shader_cylinder
+     "mesh        "&  ! shader_mesh
      /)
 
   ! shader programs
@@ -33,6 +32,13 @@ submodule (shaders) proc
 
   ! current shader
   integer :: icur_shader = 0
+
+  ! cached uniform locations, indexed (uniform, program). Filled at init so the
+  ! hot path can pass idxi= instead of looking the location up by name.
+  integer(c_int) :: ishad_uniloc(u_NUM,shader_NUM)
+  character(len=14), parameter :: uniname(u_NUM) = (/ character(len=14) :: &
+     "world", "view", "projection", "isortho", "displ", "uPick",&
+     "isanchored", "anchored_ndc", "anchored_scale", "textColor" /)
 
 contains
 
@@ -49,6 +55,7 @@ contains
     logical :: exist
     character(kind=c_char,len=:), allocatable, target :: sprog
     character(kind=c_char,len=1024), target :: infolog
+    character(kind=c_char,len=:), allocatable, target :: ustr
 
     character*2, parameter :: prefix(2) = (/"vs","fs"/)
     integer(c_int) :: shtype(2)
@@ -101,7 +108,31 @@ contains
        end do
     end do
 
+    ! cache the uniform locations of every program (looked up once here instead
+    ! of by name on every frame). Names absent from a program get -1, which the
+    ! setuniform_* routines skip.
+    do i = 1, shader_NUM
+       do j = 1, u_NUM
+          ustr = trim(uniname(j)) // c_null_char
+          ishad_uniloc(j,i) = glGetUniformLocation(ishad_prog(i),c_loc(ustr))
+       end do
+    end do
+
   end subroutine shaders_init
+
+  !> Cached location of uniform u (one of the u_* parameters) in the currently
+  !> bound shader program; -1 if not present.
+  module function uniloc(u)
+    integer, intent(in) :: u
+    integer(c_int) :: uniloc
+
+    if (icur_shader < 1 .or. icur_shader > shader_NUM .or. u < 1 .or. u > u_NUM) then
+       uniloc = -1_c_int
+    else
+       uniloc = ishad_uniloc(u,icur_shader)
+    end if
+
+  end function uniloc
 
   !> Delete the shader programs
   module subroutine shaders_end()

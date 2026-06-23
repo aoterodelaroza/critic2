@@ -117,6 +117,15 @@ void glDrawArrays_(GLenum mode, GLint first, GLsizei count){
 void glDrawElements_(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices){
   glDrawElements(mode,count,type,indices);
 }
+void glDrawArraysInstanced_(GLenum mode, GLint first, GLsizei count, GLsizei instancecount){
+  glDrawArraysInstanced(mode,first,count,instancecount);
+}
+void glDrawElementsInstanced_(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices, GLsizei instancecount){
+  glDrawElementsInstanced(mode,count,type,indices,instancecount);
+}
+void glVertexAttribDivisor_(GLuint index, GLuint divisor){
+  glVertexAttribDivisor(index,divisor);
+}
 void glEnable_(GLenum cap){
   glEnable(cap);
 }

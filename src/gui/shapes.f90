@@ -25,29 +25,6 @@ module shapes
   public :: shapes_init
   public :: shapes_end
 
-  ! sphere objects
-  integer, parameter, public :: nmaxsph = 5
-  integer(c_int), target, public :: sphVAO(nmaxsph) ! sphere: vertex array object
-  integer(c_int), target, public :: sphVBO          ! sphere: vertex buffer object
-  integer(c_int), target, public :: sphEBO(nmaxsph) ! sphere: element buffer object
-
-  ! sphere dimensions
-  integer(c_int), parameter, public :: sphnve(nmaxsph) = (/12,42,162,642,2562/)
-  integer(c_int), parameter, public :: sphnel(nmaxsph) = (/20,80,320,1280,5120/)
-  integer(c_int), parameter, public :: sphneladd(0:nmaxsph) = (/0,20,100,420,1700,6820/)
-
-  ! cylinder objects
-  integer, parameter, public :: nmaxcyl = 3
-  integer(c_int), target, public :: cylVAO(nmaxcyl) ! cylinder: vertex array object
-  integer(c_int), target, public :: cylVBO(nmaxcyl) ! cylinder: vertex buffer object
-  integer(c_int), target, public :: cylEBO(nmaxcyl) ! cylinder: element buffer object
-
-  ! cylinder dimensions
-  integer(c_int), parameter, public :: cylnve(nmaxcyl) = (/14,26,38/)
-  integer(c_int), parameter, public :: cylnveadd(0:nmaxcyl) = (/0,14,40,78/)
-  integer(c_int), parameter, public :: cylnel(nmaxcyl) = (/24,48,72/)
-  integer(c_int), parameter, public :: cylneladd(0:nmaxcyl) = (/0,24,72,144/)
-
   ! cone objects (arrowheads)
   integer, parameter, public :: nmaxcone = 3
   integer(c_int), target, public :: coneVAO(nmaxcone) ! cone: vertex array object
@@ -81,6 +58,31 @@ module shapes
   integer(c_int), target, public :: textVAOos
   integer(c_int), target, public :: textVBOos
   integer(c_int), parameter, public :: text_maxvert = 6 * 128
+
+  ! impostor objects (instanced billboards). A single unit quad (corners in
+  ! [-1,1], drawn as a triangle strip) is expanded per instance; the fragment
+  ! shader ray-casts the actual surface.
+  integer(c_int), target, public :: impQuadVBO ! shared unit-quad corners
+  integer(c_int), target, public :: sphinstVAO ! sphere impostor: instanced VAO
+  integer(c_int), target, public :: sphinstVBO ! sphere impostor: per-instance data
+  integer(c_int), parameter, public :: sph_inst_nf = 22 ! floats per sphere instance
+  integer(c_int), target, public :: cylinstVAO ! cylinder impostor: instanced VAO
+  integer(c_int), target, public :: cylinstVBO ! cylinder impostor: per-instance data
+  integer(c_int), parameter, public :: cyl_inst_nf = 19 ! floats per cylinder instance
+
+  ! instanced plain meshes (planes, polyhedra triangles, cones): per-instance
+  ! model matrix (4 columns) + color
+  integer(c_int), target, public :: planeinstVAO, planeinstVBO ! quad mesh, instanced
+  integer(c_int), target, public :: triinstVAO, triinstVBO     ! triangle mesh, instanced
+  integer(c_int), target, public :: coneinstVAO, coneinstVBO   ! cone mesh, instanced
+  integer(c_int), parameter, public :: mesh_inst_nf = 20 ! floats per mesh instance (16 model + 4 color)
+
+  ! scratch instance buffers for transient/overlay draws (measure-selection,
+  ! highlights, picking, gizmo) that re-upload every frame, so they do not
+  ! clobber the cached main-scene buffers above
+  integer(c_int), target, public :: sphinstVAOscr, sphinstVBOscr  ! sphere scratch
+  integer(c_int), target, public :: cylinstVAOscr, cylinstVBOscr  ! cylinder scratch
+  integer(c_int), target, public :: coneinstVAOscr, coneinstVBOscr ! cone-mesh scratch
 
   !! draw list objects
   !> spheres for the draw list

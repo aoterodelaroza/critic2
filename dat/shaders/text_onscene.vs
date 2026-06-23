@@ -9,22 +9,23 @@ uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 world;
 uniform float depth;
-uniform int isgizmo; // 1=screen-fixed overlay (window-anchored gizmo)
-uniform vec3 gizmo_ndc; // target NDC position for the gizmo (xy used)
-uniform float gizmo_scale; // per-item zoom-compensation factor (gizf)
+uniform int isanchored; // 1=screen-fixed overlay (window-anchored gizmo)
+uniform vec3 anchored_ndc; // target NDC position for the gizmo (xy used)
+uniform float anchored_scale; // per-item zoom-compensation factor (gizf)
 
 void main(){
-  if (isgizmo != 0) {
-    // screen-fixed overlay: place the (gizmo-local) anchor x0 at gizmo_ndc with
-    // an orthographic projection scaled by gizmo_scale; the per-glyph offset
-    // (vertex) is already in NDC. xshift.xy is an eye-space in-plane shift (0
-    // for the gizmo); xshift.z is the eye-space depth offset.
-    vec3 e = (mat3(view * world) * x0) * gizmo_scale;
+  if (isanchored != 0) {
+    // screen-fixed overlay: place the anchor x0 at anchored_ndc with
+    // an orthographic projection scaled by anchored_scale; the
+    // per-glyph offset (vertex) is already in NDC. xshift.xy is an
+    // eye-space in-plane shift (0 for the gizmo); xshift.z is the
+    // eye-space depth offset.
+    vec3 e = (mat3(view * world) * x0) * anchored_scale;
     e.xy += xshift.xy;
     vec4 cxy = projection * vec4(e, 0.0);
     e.z += xshift.z;
     vec4 cz = projection * vec4(e, 0.0);
-    gl_Position = vec4(gizmo_ndc.xy + cxy.xy + vertex, cz.z, 1.0);
+    gl_Position = vec4(anchored_ndc.xy + cxy.xy + vertex, cz.z, 1.0);
   } else {
     vec4 x = view * world * vec4(x0, 1.0);
     x.xy += xshift.xy;

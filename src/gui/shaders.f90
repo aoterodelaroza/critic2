@@ -22,17 +22,31 @@ module shaders
 
   private
 
-  integer, parameter, public :: shader_test = 1
-  integer, parameter, public :: shader_simple = 2
-  integer, parameter, public :: shader_text_direct = 3
-  integer, parameter, public :: shader_text_onscene = 4
-  integer, parameter, public :: shader_pickindex = 5
-  integer, parameter, public :: shader_NUM = 5
+  integer, parameter, public :: shader_text_onscene = 1
+  integer, parameter, public :: shader_sphere = 2
+  integer, parameter, public :: shader_cylinder = 3
+  integer, parameter, public :: shader_mesh = 4
+  integer, parameter, public :: shader_NUM = 4
+
+  ! cached uniform locations: master list of the uniform names used in the hot
+  ! render path; locations are queried once at init and fetched with uniloc()
+  integer, parameter, public :: u_world = 1
+  integer, parameter, public :: u_view = 2
+  integer, parameter, public :: u_projection = 3
+  integer, parameter, public :: u_isortho = 4
+  integer, parameter, public :: u_displ = 5
+  integer, parameter, public :: u_upick = 6
+  integer, parameter, public :: u_isanchored = 7
+  integer, parameter, public :: u_anchored_ndc = 8
+  integer, parameter, public :: u_anchored_scale = 9
+  integer, parameter, public :: u_textcolor = 10
+  integer, parameter, public :: u_NUM = 10
 
   public :: shaders_init
   public :: shaders_end
   public :: useshader
   public :: get_uniform_location
+  public :: uniloc
   public :: setuniform_int
   public :: setuniform_float
   public :: setuniform_vec3
@@ -74,6 +88,10 @@ module shaders
        character*(*), intent(in) :: name
        integer(c_int) :: get_uniform_location
      end function get_uniform_location
+     module function uniloc(u)
+       integer, intent(in) :: u
+       integer(c_int) :: uniloc
+     end function uniloc
      module subroutine setuniform_int(x,name,idxi)
        integer(c_int), intent(in) :: x
        character*(*), intent(in), optional :: name

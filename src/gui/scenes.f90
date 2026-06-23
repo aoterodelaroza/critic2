@@ -44,6 +44,13 @@ module scenes
      logical :: forceresetcam = .false. ! force reset of the camera
      logical :: forcebuildlists ! force rebuild of lists
      logical :: nextbuildlists_fixcam = .false. ! if true, next build_lists skips camera translation
+     logical :: inst_valid = .false. ! true if the cached instance buffers are current
+     integer :: inst_last_anim = -1 ! s%animation at the last instance-buffer build
+     integer :: nsph_inst = 0   ! number of cached atom-sphere instances
+     integer :: ncyl_inst = 0   ! number of cached bond/cell-cylinder instances
+     integer :: ncone_inst = 0  ! number of cached cone instances
+     integer :: nplane_inst = 0 ! number of cached plane instances
+     integer :: ntri_inst = 0   ! number of cached triangle instances
      real*8 :: timelastrender = 0d0 ! time when the view was last rendered
      real*8 :: timelastbuild = 0d0 ! time of the last build
      real*8 :: timelastcamchange = 0d0 ! time the camera was last changed
@@ -122,6 +129,7 @@ module scenes
      procedure :: show_transient_axes => scene_show_transient_axes
      procedure :: show_transient_rotaxis => scene_show_transient_rotaxis
      procedure :: show_symelems => scene_show_symelems
+     procedure :: gizmo_zoom_factor => scene_gizmo_zoom_factor
   end type scene
   public :: scene
 
@@ -153,6 +161,10 @@ module scenes
      module subroutine scene_render_pick(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_render_pick
+     module function scene_gizmo_zoom_factor(s) result(f)
+       class(scene), intent(in) :: s
+       real(c_float) :: f
+     end function scene_gizmo_zoom_factor
      module subroutine scene_set_style_defaults(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_set_style_defaults
