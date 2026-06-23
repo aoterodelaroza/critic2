@@ -147,7 +147,10 @@ submodule (scenes) proc
   integer, parameter :: iu_delta_cyl = 10
   integer, parameter :: iu_bond_outward = 11
   integer, parameter :: iu_isortho = 12
-  integer, parameter :: iu_NUM = 13
+  integer, parameter :: iu_isgizmo = 13
+  integer, parameter :: iu_gizmo_ndc = 14
+  integer, parameter :: iu_gizmo_scale = 15
+  integer, parameter :: iu_NUM = 16
   integer(c_int) :: iunif(iu_NUM)
 
   !xx! private procedures: low-level draws
@@ -407,8 +410,6 @@ contains
     s%obj%nstringgiz = 0
     if (allocated(s%obj%stringgiz)) deallocate(s%obj%stringgiz)
     allocate(s%obj%stringgiz(10))
-    s%obj%gizwinpos = (/0.1_c_float,0.1_c_float/)
-    s%obj%gizscalewithzoom = .false.
 
     ! add the items by representation. Window-anchored axes are deferred: they
     ! need the scene radius (computed below) to auto-size, and they live in the
@@ -620,12 +621,16 @@ contains
     iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
     iunif(iu_bond_outward) = get_uniform_location("bond_outward")
     iunif(iu_isortho) = get_uniform_location("isortho")
+    iunif(iu_isgizmo) = get_uniform_location("isgizmo")
+    iunif(iu_gizmo_ndc) = get_uniform_location("gizmo_ndc")
+    iunif(iu_gizmo_scale) = get_uniform_location("gizmo_scale")
 
     ! set the common uniforms
     call setuniform_mat4(s%world,idxi=iunif(iu_world))
     call setuniform_mat4(s%view,idxi=iunif(iu_view))
     call setuniform_mat4(s%projection,idxi=iunif(iu_projection))
     call setuniform_int(merge(1_c_int,0_c_int,s%isortho),idxi=iunif(iu_isortho))
+    call setuniform_int(0_c_int,idxi=iunif(iu_isgizmo))
 
     ! draw the spheres for the atoms
     call setuniform_int(0_c_int,idxi=iunif(iu_object_type))
@@ -707,6 +712,7 @@ contains
     call setuniform_mat4(s%world,"world")
     call setuniform_mat4(s%view,"view")
     call setuniform_mat4(s%projection,"projection")
+    call setuniform_int(0_c_int,"isgizmo")
 
     call glDisable(GL_MULTISAMPLE)
     call glEnable(GL_BLEND)
@@ -803,42 +809,33 @@ contains
 
     end subroutine draw_all_cones
 
-    !> Render the window-anchored axes gizmo. The gizmo geometry is
-    !> built around the local origin; here it is positioned so its
-    !> origin projects to the requested window position, rotated with
-    !> the scene, and drawn on top of everything else.
-    subroutine render_axes_gizmo()
-      real(c_float) :: vp(4,4), vpinv(4,4), corner(4), ph(4), wgiz(4,4), projgiz(4,4)
-      real(c_float) :: nx, ny, spanx, spany, gizf, hside
+    !> Target NDC position (gizndc) and zoom-compensation factor (gizf) for a
+    !> gizmo item at the window fraction winpos. The shader (isgizmo) anchors the
+    !> local-origin geometry at gizndc and scales it by gizf — no matrix inverse
+    !> or per-item world matrix needed.
+    subroutine gizmo_ndc_scale(winpos,scalewithzoom,projgiz,gizndc,gizf)
+      real(c_float), intent(in) :: winpos(2)
+      logical, intent(in) :: scalewithzoom
+      real(c_float), intent(in) :: projgiz(4,4)
+      real(c_float), intent(out) :: gizndc(3), gizf
 
-      ! always use orthographic projection for the gizmo
-      call ortho_projection(s,projgiz)
+      real(c_float) :: spanx, spany, hside
 
-      ! world matrix for the gizmo: rotation = scene rotation, and the
-      ! translation is the (post-world) point that projects to the
-      ! requested window position
-      vp = matmul(projgiz,s%view)
-      vpinv = vp
-      call matinv_cfloat(vpinv,4)
-
-      ! the requested position (gizwinpos) is given as fractions of the
-      ! visible part of the render buffer (the window), measured from the
-      ! left and from the bottom; map it to the NDC of the full render
-      ! texture, accounting for the cropped region (viewuv0) and the
+      ! winpos is given as fractions of the visible part of the render buffer
+      ! (the window), from the left and bottom; map it to the NDC of the full
+      ! render texture, accounting for the cropped region (viewuv0) and the
       ! vertical flip between the render buffer and the displayed image
       spanx = 1._c_float - 2._c_float * s%viewuv0(1)
       spany = 1._c_float - 2._c_float * s%viewuv0(2)
-      nx = spanx * (2._c_float * s%obj%gizwinpos(1) - 1._c_float)
-      ny = spany * (1._c_float - 2._c_float * s%obj%gizwinpos(2))
-      corner = (/nx,ny,0._c_float,1._c_float/)
-      ph = matmul(vpinv,corner)
+      gizndc(1) = spanx * (2._c_float * winpos(1) - 1._c_float)
+      gizndc(2) = spany * (1._c_float - 2._c_float * winpos(2))
+      gizndc(3) = 0._c_float
 
-      ! zoom-compensation factor for the gizmo geometry: when the gizmo
-      ! should not scale with zoom, shrink/grow the world geometry so that
-      ! the orthographic projection (proj(1,1) = 1/hw2) leaves its on-screen
-      ! size constant. hside is the half-window size at the reset zoom, so
-      ! at that zoom both modes coincide (no jump when toggling).
-      if (s%obj%gizscalewithzoom) then
+      ! zoom-compensation factor: when the gizmo should not scale with zoom,
+      ! shrink/grow the geometry so the orthographic projection leaves its
+      ! on-screen size constant. hside is the half-window size at the reset zoom,
+      ! so at that zoom both modes coincide (no jump when toggling).
+      if (scalewithzoom) then
          gizf = 1._c_float
       else
          hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
@@ -847,16 +844,26 @@ contains
          gizf = 1._c_float / (projgiz(1,1) * hside)
       end if
 
-      wgiz = 0._c_float
-      wgiz(1:3,1:3) = s%world(1:3,1:3) * gizf
-      wgiz(1:3,4) = ph(1:3) / ph(4)
-      wgiz(4,4) = 1._c_float
+    end subroutine gizmo_ndc_scale
+
+    !> Render the window-anchored axes gizmo(s). Each gizmo item carries its own
+    !> window position and zoom-scale flag; the shader (isgizmo) anchors the
+    !> local-origin geometry at the requested NDC position, drawn on top.
+    subroutine render_axes_gizmo()
+      real(c_float) :: projgiz(4,4), gizndc(3), gizf
+      real(c_float) :: hside, siz
+      integer :: i, iu
+      integer(c_int) :: nvert
+      real(c_float), allocatable, target :: vert(:,:)
+
+      ! the gizmo always uses an orthographic projection
+      call ortho_projection(s,projgiz)
 
       ! clear the depth buffer so the gizmo always draws on top
       call glClear(GL_DEPTH_BUFFER_BIT)
 
-      ! set up the shader and uniforms (reuse the scene matrices, but the
-      ! gizmo world matrix)
+      ! set up the shader and uniforms (the per-item NDC position and scale are
+      ! set in the loops below; the screen placement is done in the shader)
       call useshader(shader_simple)
       iunif(iu_world) = get_uniform_location("world")
       iunif(iu_view) = get_uniform_location("view")
@@ -870,27 +877,47 @@ contains
       iunif(iu_delta_cyl) = get_uniform_location("delta_cyl")
       iunif(iu_bond_outward) = get_uniform_location("bond_outward")
       iunif(iu_isortho) = get_uniform_location("isortho")
+      iunif(iu_isgizmo) = get_uniform_location("isgizmo")
+      iunif(iu_gizmo_ndc) = get_uniform_location("gizmo_ndc")
+      iunif(iu_gizmo_scale) = get_uniform_location("gizmo_scale")
       call setuniform_int(1_c_int,idxi=iunif(iu_object_type))
       call setuniform_float(0._c_float,idxi=iunif(iu_border))
       call setuniform_int(1_c_int,idxi=iunif(iu_isortho))
-      call setuniform_mat4(wgiz,idxi=iunif(iu_world))
+      call setuniform_int(1_c_int,idxi=iunif(iu_isgizmo))
+      call setuniform_mat4(s%world,idxi=iunif(iu_world))
       call setuniform_mat4(s%view,idxi=iunif(iu_view))
       call setuniform_mat4(projgiz,idxi=iunif(iu_projection))
 
-      ! shafts and arrowheads
+      ! shafts (each with its own per-item window placement)
       if (s%obj%ncylgiz > 0) then
          call glBindVertexArray(cylVAO(s%bond_res))
-         call draw_all_cylgiz()
+         do i = 1, s%obj%ncylgiz
+            call gizmo_ndc_scale(s%obj%cylgiz(i)%gizwinpos,s%obj%cylgiz(i)%gizscalewithzoom,projgiz,gizndc,gizf)
+            call setuniform_vec3(gizndc,idxi=iunif(iu_gizmo_ndc))
+            call setuniform_float(gizf,idxi=iunif(iu_gizmo_scale))
+            call draw_cylinder(s%obj%cylgiz(i)%x1,s%obj%cylgiz(i)%x2,s%obj%cylgiz(i)%r,&
+               s%obj%cylgiz(i)%rgb,s%bond_res,s%obj%cylgiz(i)%order,s%obj%cylgiz(i)%border,&
+               s%obj%cylgiz(i)%rgbborder)
+         end do
       end if
+
+      ! arrowheads
       if (s%obj%nconegiz > 0) then
          call glBindVertexArray(coneVAO(s%bond_res))
-         call draw_all_conegiz()
+         do i = 1, s%obj%nconegiz
+            call gizmo_ndc_scale(s%obj%conegiz(i)%gizwinpos,s%obj%conegiz(i)%gizscalewithzoom,projgiz,gizndc,gizf)
+            call setuniform_vec3(gizndc,idxi=iunif(iu_gizmo_ndc))
+            call setuniform_float(gizf,idxi=iunif(iu_gizmo_scale))
+            call draw_cone(s%obj%conegiz(i)%x1,s%obj%conegiz(i)%x2,&
+               s%obj%conegiz(i)%r,s%obj%conegiz(i)%rgb,s%bond_res)
+         end do
       end if
 
       ! labels
       if (s%obj%nstringgiz > 0) then
          call useshader(shader_text_onscene)
-         call setuniform_mat4(wgiz,"world")
+         call setuniform_int(1_c_int,"isgizmo")
+         call setuniform_mat4(s%world,"world")
          call setuniform_mat4(s%view,"view")
          call setuniform_mat4(projgiz,"projection")
          call glDisable(GL_MULTISAMPLE)
@@ -901,68 +928,35 @@ contains
          call glBindVertexArray(textVAOos)
          call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
          call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
-         call draw_all_text_giz(projgiz)
+         iu = get_uniform_location("textColor")
+         do i = 1, s%obj%nstringgiz
+            call gizmo_ndc_scale(s%obj%stringgiz(i)%gizwinpos,s%obj%stringgiz(i)%gizscalewithzoom,projgiz,gizndc,gizf)
+            call setuniform_vec3(gizndc,"gizmo_ndc")
+            call setuniform_float(gizf,"gizmo_scale")
+            call setuniform_vec3(s%obj%stringgiz(i)%rgb,idxi=iu)
+            nvert = 0
+            ! the label tracks the same zoom behavior as the arrows: constant
+            ! on-screen size when the gizmo does not scale with zoom, or scaling
+            ! with the gizmo's orthographic projection otherwise.
+            if (.not.s%obj%stringgiz(i)%gizscalewithzoom) then
+               hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
+               hside = hside * s%camratio
+               hside = max(hside,3._c_float)
+               siz = 2 * abs(s%obj%stringgiz(i)%scale) / fontbakesize_large / hside
+            else
+               siz = 2 * abs(s%obj%stringgiz(i)%scale) * projgiz(1,1) / fontbakesize_large
+            end if
+            call calc_text_onscene_vertices(s%obj%stringgiz(i)%str,s%obj%stringgiz(i)%x,s%obj%stringgiz(i)%r,&
+               siz,nvert,vert,shift=s%obj%stringgiz(i)%offset,centered=.true.)
+            call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*10*c_sizeof(c_float), c_loc(vert))
+            call glDrawArrays(GL_TRIANGLES, 0, nvert)
+         end do
          call glEnable(GL_MULTISAMPLE)
          call glDisable(GL_BLEND)
+         call setuniform_int(0_c_int,"isgizmo")
       end if
 
     end subroutine render_axes_gizmo
-
-    subroutine draw_all_cylgiz()
-      integer :: i
-
-      do i = 1, s%obj%ncylgiz
-         call draw_cylinder(s%obj%cylgiz(i)%x1,s%obj%cylgiz(i)%x2,s%obj%cylgiz(i)%r,&
-            s%obj%cylgiz(i)%rgb,s%bond_res,s%obj%cylgiz(i)%order,s%obj%cylgiz(i)%border,&
-            s%obj%cylgiz(i)%rgbborder)
-      end do
-
-    end subroutine draw_all_cylgiz
-
-    subroutine draw_all_conegiz()
-      integer :: i
-
-      do i = 1, s%obj%nconegiz
-         call draw_cone(s%obj%conegiz(i)%x1,s%obj%conegiz(i)%x2,&
-            s%obj%conegiz(i)%r,s%obj%conegiz(i)%rgb,s%bond_res)
-      end do
-
-    end subroutine draw_all_conegiz
-
-    subroutine draw_all_text_giz(projgiz)
-      real(c_float), intent(in) :: projgiz(4,4)
-      integer :: i
-      real(c_float) :: hside, siz, x(3)
-      integer(c_int) :: nvert
-      real(c_float), allocatable, target :: vert(:,:)
-      integer :: iu
-
-      iu = get_uniform_location("textColor")
-
-      do i = 1, s%obj%nstringgiz
-         call setuniform_vec3(s%obj%stringgiz(i)%rgb,idxi=iu)
-         nvert = 0
-         ! the label tracks the same zoom behavior as the arrows: constant
-         ! on-screen size when the gizmo does not scale with zoom, or scaling
-         ! with the gizmo's orthographic projection otherwise. The gizmo is
-         ! always orthographic (projgiz), so no depth/clip-w term is needed here.
-         if (.not.s%obj%gizscalewithzoom) then
-            hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
-            hside = hside * s%camratio
-            hside = max(hside,3._c_float)
-            siz = 2 * abs(s%obj%stringgiz(i)%scale) / fontbakesize_large / hside
-         else
-            siz = 2 * abs(s%obj%stringgiz(i)%scale) * projgiz(1,1) / fontbakesize_large
-         end if
-         x = s%obj%stringgiz(i)%x
-
-         call calc_text_onscene_vertices(s%obj%stringgiz(i)%str,x,s%obj%stringgiz(i)%r,&
-            siz,nvert,vert,shift=s%obj%stringgiz(i)%offset,centered=.true.)
-         call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*10*c_sizeof(c_float), c_loc(vert))
-         call glDrawArrays(GL_TRIANGLES, 0, nvert)
-      end do
-
-    end subroutine draw_all_text_giz
 
     subroutine draw_all_flat_cylinders()
       integer :: i
@@ -1582,7 +1576,12 @@ contains
 
     call mult(sc,s%world,s%scenecenter)
     hw2 = tan(0.5_c_float * s%ortho_fov * real(pi,c_float) / 180._c_float) * norm2(s%campos - sc)
-    call ortho(proj,-hw2,hw2,-hw2,hw2,0._c_float,(s%camresetdist * max_zoom) * s%scenerad)
+    ! guard against a degenerate (zero-width or zero-depth) frustum: if the
+    ! camera reaches the scene center (hw2->0) or the scene has no extent
+    ! (scenerad->0), the projection matrix becomes singular and its inverse
+    ! (unproject) divides by zero -> SIGFPE.
+    hw2 = max(hw2,1e-4_c_float)
+    call ortho(proj,-hw2,hw2,-hw2,hw2,0._c_float,max((s%camresetdist * max_zoom) * s%scenerad,1e-4_c_float))
 
   end subroutine ortho_projection
 

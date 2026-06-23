@@ -1408,7 +1408,12 @@ contains
 
        ! drag
        if (hover.and.is_bind_event(BIND_NAV_TRANSLATE,.false.).and.(w%ilock == ilock_no.or.w%ilock == ilock_right)) then
-          w%mpos0_r = (/texpos%x,texpos%y,1._c_float/)
+          ! drag on the scene-center depth plane; unprojecting at the far plane
+          ! (z=1) is degenerate in perspective (point at infinity -> division by
+          ! zero in unproject)
+          vnew = w%sc%scenecenter
+          call w%world_to_texpos(vnew)
+          w%mpos0_r = (/texpos%x,texpos%y,vnew(3)/)
 
           ! save the current view matrix
           w%oldview = w%sc%view
@@ -1599,7 +1604,11 @@ contains
           (w%ilock == ilock_no.or.w%ilock == ilock_right)) then
           call moveatoms_latch()
           if (w%moveatoms_icel > 0) then
-             w%mpos0_r = (/texpos%x,texpos%y,1._c_float/)
+             ! drag on the scene-center depth plane (see note above): the far
+             ! plane (z=1) is at infinity in perspective and crashes unproject
+             vnew = w%sc%scenecenter
+             call w%world_to_texpos(vnew)
+             w%mpos0_r = (/texpos%x,texpos%y,vnew(3)/)
              w%ilock = ilock_right
              w%mposlast = mousepos
           end if

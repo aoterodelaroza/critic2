@@ -109,6 +109,8 @@ module shapes
      real(c_float) :: rgbborder(3) ! border color
      real(c_float) :: arvec(3) = 0._c_float ! aromatic bonds: outward (ring-exterior) direction; 0 otherwise
      real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
+     real(c_float) :: gizwinpos(2) = 0._c_float ! window position (fractions) for window-anchored gizmo items
+     logical :: gizscalewithzoom = .false. ! whether this gizmo item scales with zoom (gizmo items only)
   end type dl_cylinder
   public :: dl_cylinder
 
@@ -121,6 +123,8 @@ module shapes
      real(c_float) :: offset(3) ! offset of the label in pixels
      complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
      character(len=:), allocatable :: str ! string
+     real(c_float) :: gizwinpos(2) = 0._c_float ! window position (fractions) for window-anchored gizmo items
+     logical :: gizscalewithzoom = .false. ! whether this gizmo item scales with zoom (gizmo items only)
   end type dl_string
   public :: dl_string
 
@@ -170,8 +174,6 @@ module shapes
      type(dl_cylinder), allocatable :: conegiz(:) ! gizmo cone draw list
      integer :: nstringgiz ! number of gizmo strings (axis labels)
      type(dl_string), allocatable :: stringgiz(:) ! gizmo string draw list
-     real(c_float) :: gizwinpos(2) ! window position (fractions) for the gizmo
-     logical :: gizscalewithzoom ! whether the gizmo scales when the scene is zoomed
   end type scene_objects
   public :: scene_objects
 

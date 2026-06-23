@@ -1200,13 +1200,17 @@ contains
 
        ! placement: at the cartesian origin (+shift), or anchored to a
        ! fixed window position. In the latter case the geometry is built
-       ! around the local origin and positioned at render time; record
-       ! the requested window position in the gizmo draw list.
+       ! around the local origin and positioned at render time; the window
+       ! position is stamped onto each gizmo draw item below.
        fixed = (r%axes_placement == 1)
        if (fixed) then
           uoriginc = 0d0
-          obj%gizwinpos = r%axes_winpos
-          obj%gizscalewithzoom = r%axes_scalewithzoom
+          ! stamp the window placement onto the reused templates so every
+          ! appended gizmo item carries its own position/scale flag
+          dcyl%gizwinpos = real(r%axes_winpos,c_float)
+          dcyl%gizscalewithzoom = r%axes_scalewithzoom
+          dstr%gizwinpos = real(r%axes_winpos,c_float)
+          dstr%gizscalewithzoom = r%axes_scalewithzoom
        else
           ! origin in the requested coordinate system, converted to
           ! cartesian (bohr)
