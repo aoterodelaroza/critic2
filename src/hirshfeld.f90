@@ -25,6 +25,10 @@ module hirshfeld
   public :: hirsh_nogrid
   public :: hirsh_weights
   public :: voronoi_grid
+  ! iterative Hirshfeld (Hirshfeld-I, Bultinck 2007)
+  public :: hirsh_i_driver
+  public :: hirsh_i_eval
+  public :: hirsh_i_cleanup
 
   interface
      module subroutine hirsh_grid(s,bas)
@@ -49,6 +53,23 @@ module hirshfeld
      end subroutine voronoi_grid
      module subroutine hirsh_nogrid()
      end subroutine hirsh_nogrid
+     module subroutine hirsh_i_driver(s,bas)
+       use systemmod, only: system
+       use types, only: basindat
+       type(system), intent(inout) :: s
+       type(basindat), intent(inout) :: bas
+     end subroutine hirsh_i_driver
+     module subroutine hirsh_i_eval(bas,idcel,dist,rho)
+       use types, only: basindat
+       type(basindat), intent(in) :: bas
+       integer, intent(in) :: idcel
+       real*8, intent(in) :: dist
+       real*8, intent(out) :: rho
+     end subroutine hirsh_i_eval
+     module subroutine hirsh_i_cleanup(bas)
+       use types, only: basindat
+       type(basindat), intent(inout) :: bas
+     end subroutine hirsh_i_cleanup
   end interface
 
 end module hirshfeld

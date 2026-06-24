@@ -54,6 +54,7 @@ module grid1mod
   public :: grid1_register_core
   public :: grid1_register_ae
   public :: grid1_clean_grids
+  public :: grid1_read_file
 
   interface
      module subroutine grid1_end(g)
@@ -80,6 +81,12 @@ module grid1mod
      end subroutine grid1_register_ae
      module subroutine grid1_clean_grids()
      end subroutine grid1_clean_grids
+     module subroutine grid1_read_file(g,file,z,q,ti)
+       class(grid1), intent(inout) :: g
+       character(len=*), intent(in) :: file
+       integer, intent(in) :: z, q
+       type(thread_info), intent(in), optional :: ti
+     end subroutine grid1_read_file
   end interface
 
 end module grid1mod
