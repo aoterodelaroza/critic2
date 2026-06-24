@@ -701,6 +701,9 @@ contains
     if (iw_button("+",disabled=.not.associated(w%sc),sameline=.true.)) then
        idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
        win(idum)%sc = w%sc
+       ! the value copy aliased the source scene's GL handles; detach so the new
+       ! view lazily builds its own instance buffers
+       call win(idum)%sc%gl%detach()
        win(idum)%view_selected = w%view_selected
        call win(idum)%sc%reset_animation()
     end if

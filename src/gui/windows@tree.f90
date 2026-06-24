@@ -1074,6 +1074,9 @@ contains
          if (iw_menuitem("Display in New View",enabled=enabled_no_threads)) then
             idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
             win(idum)%sc = sysc(isys)%sc
+            ! the value copy aliased the source scene's GL handles; detach so the
+            ! new view lazily builds its own instance buffers
+            call win(idum)%sc%gl%detach()
             win(idum)%view_selected = isys
          end if
          call iw_tooltip("Display this system in a new view window",ttshown)

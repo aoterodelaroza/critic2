@@ -61,28 +61,16 @@ module shapes
 
   ! impostor objects (instanced billboards). A single unit quad (corners in
   ! [-1,1], drawn as a triangle strip) is expanded per instance; the fragment
-  ! shader ray-casts the actual surface.
+  ! shader ray-casts the actual surface. The shared unit-quad corners live here
+  ! (template geometry); the per-instance VAOs/VBOs are per-scene, in the
+  ! scene_glbuffers type below.
   integer(c_int), target, public :: impQuadVBO ! shared unit-quad corners
-  integer(c_int), target, public :: sphinstVAO ! sphere impostor: instanced VAO
-  integer(c_int), target, public :: sphinstVBO ! sphere impostor: per-instance data
   integer(c_int), parameter, public :: sph_inst_nf = 22 ! floats per sphere instance
-  integer(c_int), target, public :: cylinstVAO ! cylinder impostor: instanced VAO
-  integer(c_int), target, public :: cylinstVBO ! cylinder impostor: per-instance data
   integer(c_int), parameter, public :: cyl_inst_nf = 19 ! floats per cylinder instance
 
   ! instanced plain meshes (planes, polyhedra triangles, cones): per-instance
   ! model matrix (4 columns) + color
-  integer(c_int), target, public :: planeinstVAO, planeinstVBO ! quad mesh, instanced
-  integer(c_int), target, public :: triinstVAO, triinstVBO     ! triangle mesh, instanced
-  integer(c_int), target, public :: coneinstVAO, coneinstVBO   ! cone mesh, instanced
   integer(c_int), parameter, public :: mesh_inst_nf = 20 ! floats per mesh instance (16 model + 4 color)
-
-  ! scratch instance buffers for transient/overlay draws (measure-selection,
-  ! highlights, picking, gizmo) that re-upload every frame, so they do not
-  ! clobber the cached main-scene buffers above
-  integer(c_int), target, public :: sphinstVAOscr, sphinstVBOscr  ! sphere scratch
-  integer(c_int), target, public :: cylinstVAOscr, cylinstVBOscr  ! cylinder scratch
-  integer(c_int), target, public :: coneinstVAOscr, coneinstVBOscr ! cone-mesh scratch
 
   !! draw list objects
   !> spheres for the draw list
@@ -179,12 +167,91 @@ module shapes
   end type scene_objects
   public :: scene_objects
 
+  ! mesh-buffer role selectors for the scene_glbuffers draw_mesh/redraw_mesh methods
+  integer, parameter, public :: glb_cone = 1    ! cached cone (arrowhead) mesh
+  integer, parameter, public :: glb_plane = 2   ! cached plane (rectangle) mesh
+  integer, parameter, public :: glb_tri = 3     ! cached triangle (polyhedron face) mesh
+  integer, parameter, public :: glb_conescr = 4 ! scratch cone mesh (gizmo arrowheads)
+
+  ! per-scene OpenGL instance buffers.
+  type scene_glbuffers
+     logical :: isinit = .false. ! GL buffers created?
+     ! cached instance buffers (one scene's worth)
+     integer(c_int) :: sphinstVAO = 0, sphinstVBO = 0    ! sphere impostors
+     integer(c_int) :: cylinstVAO = 0, cylinstVBO = 0    ! cylinder impostors
+     integer(c_int) :: coneinstVAO = 0, coneinstVBO = 0  ! cone mesh
+     integer(c_int) :: planeinstVAO = 0, planeinstVBO = 0 ! quad mesh
+     integer(c_int) :: triinstVAO = 0, triinstVBO = 0    ! triangle mesh
+     ! scratch instance buffers (re-uploaded every frame: measure-selection,
+     ! highlights, picking, gizmo)
+     integer(c_int) :: sphinstVAOscr = 0, sphinstVBOscr = 0
+     integer(c_int) :: cylinstVAOscr = 0, cylinstVBOscr = 0
+     integer(c_int) :: coneinstVAOscr = 0, coneinstVBOscr = 0
+     ! cached-buffer validity and instance counts
+     logical :: inst_valid = .false. ! true if the cached instance buffers are current
+     integer :: inst_last_anim = -1 ! animation state at the last instance-buffer build
+     integer :: nsph_inst = 0   ! number of cached atom-sphere instances
+     integer :: ncyl_inst = 0   ! number of cached bond/cell-cylinder instances
+     integer :: ncone_inst = 0  ! number of cached cone instances
+     integer :: nplane_inst = 0 ! number of cached plane instances
+     integer :: ntri_inst = 0   ! number of cached triangle instances
+   contains
+     procedure :: init => glbuffers_init
+     procedure :: end => glbuffers_end
+     procedure :: detach => glbuffers_detach
+     procedure :: draw_spheres => glbuffers_draw_spheres
+     procedure :: draw_cylinders => glbuffers_draw_cylinders
+     procedure :: draw_mesh => glbuffers_draw_mesh
+     procedure :: redraw_spheres => glbuffers_redraw_spheres
+     procedure :: redraw_cylinders => glbuffers_redraw_cylinders
+     procedure :: redraw_mesh => glbuffers_redraw_mesh
+  end type scene_glbuffers
+  public :: scene_glbuffers
+
   ! module procedure interfaces
   interface
      module subroutine shapes_init()
      end subroutine shapes_init
      module subroutine shapes_end()
      end subroutine shapes_end
+     module subroutine glbuffers_init(b)
+       class(scene_glbuffers), intent(inout), target :: b
+     end subroutine glbuffers_init
+     module subroutine glbuffers_end(b)
+       class(scene_glbuffers), intent(inout), target :: b
+     end subroutine glbuffers_end
+     module subroutine glbuffers_detach(b)
+       class(scene_glbuffers), intent(inout) :: b
+     end subroutine glbuffers_detach
+     module subroutine glbuffers_draw_spheres(b,n,buf,scratch)
+       class(scene_glbuffers), intent(inout) :: b
+       integer, intent(in) :: n
+       real(c_float), intent(in), target :: buf(sph_inst_nf,n)
+       logical, intent(in) :: scratch
+     end subroutine glbuffers_draw_spheres
+     module subroutine glbuffers_draw_cylinders(b,n,buf,scratch)
+       class(scene_glbuffers), intent(inout) :: b
+       integer, intent(in) :: n
+       real(c_float), intent(in), target :: buf(cyl_inst_nf,n)
+       logical, intent(in) :: scratch
+     end subroutine glbuffers_draw_cylinders
+     module subroutine glbuffers_draw_mesh(b,role,nelem,n,buf)
+       class(scene_glbuffers), intent(inout) :: b
+       integer, intent(in) :: role, nelem, n
+       real(c_float), intent(in), target :: buf(mesh_inst_nf,n)
+     end subroutine glbuffers_draw_mesh
+     module subroutine glbuffers_redraw_spheres(b,n)
+       class(scene_glbuffers), intent(inout) :: b
+       integer, intent(in) :: n
+     end subroutine glbuffers_redraw_spheres
+     module subroutine glbuffers_redraw_cylinders(b,n)
+       class(scene_glbuffers), intent(inout) :: b
+       integer, intent(in) :: n
+     end subroutine glbuffers_redraw_cylinders
+     module subroutine glbuffers_redraw_mesh(b,role,nelem,n)
+       class(scene_glbuffers), intent(inout) :: b
+       integer, intent(in) :: role, nelem, n
+     end subroutine glbuffers_redraw_mesh
   end interface
 
 end module shapes

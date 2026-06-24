@@ -196,23 +196,71 @@ contains
     call glGenBuffers(1, c_loc(impQuadVBO))
     call glBindBuffer(GL_ARRAY_BUFFER, impQuadVBO)
     call glBufferData(GL_ARRAY_BUFFER, 2*4*c_sizeof(c_float_), c_loc(impquadc), GL_STATIC_DRAW)
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+
+    ! the per-instance VAOs/VBOs (sphere/cylinder impostors and the plain meshes)
+    ! are per-scene and created lazily by scene_glbuffers%init
+
+  end subroutine shapes_init
+
+  !> Terminate the shapes buffers
+  module subroutine shapes_end()
+    use interfaces_opengl3
+
+    ! cones
+    call glDeleteVertexArrays(nmaxcone, c_loc(coneVAO))
+    call glDeleteBuffers(nmaxcone, c_loc(coneVBO))
+    call glDeleteBuffers(nmaxcone, c_loc(coneEBO))
+    if (allocated(conv)) deallocate(conv)
+    if (allocated(coni)) deallocate(coni)
+
+    ! quads
+    call glDeleteVertexArrays(1, c_loc(quadVAO))
+    call glDeleteBuffers(1, c_loc(quadVBO))
+    call glDeleteBuffers(1, c_loc(quadEBO))
+
+    ! triangles
+    call glDeleteVertexArrays(1, c_loc(triVAO))
+    call glDeleteBuffers(1, c_loc(triVBO))
+    call glDeleteBuffers(1, c_loc(triEBO))
+
+    ! shared impostor quad (the per-scene instance buffers are freed by
+    ! scene_glbuffers%end)
+    call glDeleteBuffers(1, c_loc(impQuadVBO))
+
+  end subroutine shapes_end
+
+  !> Create and configure this scene's instance VAOs/VBOs: sphere and cylinder
+  !> impostors and the plain meshes (planes, polyhedra triangles, cones), each
+  !> with a cached and (for the impostors and cones) a transient scratch buffer.
+  !> The per-instance VAOs reference the shared template geometry (impQuadVBO and
+  !> the cone/quad/tri meshes). Idempotent: a no-op if already initialized.
+  module subroutine glbuffers_init(b)
+    use interfaces_opengl3
+    class(scene_glbuffers), intent(inout), target :: b
+    real(c_float) :: c_float_
+    type(c_ptr) :: c_ptr_
+
+    if (b%isinit) return
 
     ! sphere impostor VAOs: cached main + transient scratch (same layout)
-    call setup_sph_inst(sphinstVAO, sphinstVBO)
-    call setup_sph_inst(sphinstVAOscr, sphinstVBOscr)
+    call setup_sph_inst(b%sphinstVAO, b%sphinstVBO)
+    call setup_sph_inst(b%sphinstVAOscr, b%sphinstVBOscr)
 
     ! cylinder impostor VAOs: cached main + transient scratch
-    call setup_cyl_inst(cylinstVAO, cylinstVBO)
-    call setup_cyl_inst(cylinstVAOscr, cylinstVBOscr)
+    call setup_cyl_inst(b%cylinstVAO, b%cylinstVBO)
+    call setup_cyl_inst(b%cylinstVAOscr, b%cylinstVBOscr)
 
     ! instanced plain-mesh VAOs (planes, polyhedra triangles, cones): the mesh
     ! vertex (location 0) plus a per-instance model matrix (1..4) + color (5).
     ! Cones always use the highest mesh resolution (counts are tiny); the cone
     ! scratch VAO serves the gizmo arrowheads.
-    call setup_mesh_inst(planeinstVAO, planeinstVBO, quadVBO, quadEBO)
-    call setup_mesh_inst(triinstVAO, triinstVBO, triVBO, triEBO)
-    call setup_mesh_inst(coneinstVAO, coneinstVBO, coneVBO(nmaxcone), coneEBO(nmaxcone))
-    call setup_mesh_inst(coneinstVAOscr, coneinstVBOscr, coneVBO(nmaxcone), coneEBO(nmaxcone))
+    call setup_mesh_inst(b%planeinstVAO, b%planeinstVBO, quadVBO, quadEBO)
+    call setup_mesh_inst(b%triinstVAO, b%triinstVBO, triVBO, triEBO)
+    call setup_mesh_inst(b%coneinstVAO, b%coneinstVBO, coneVBO(nmaxcone), coneEBO(nmaxcone))
+    call setup_mesh_inst(b%coneinstVAOscr, b%coneinstVBOscr, coneVBO(nmaxcone), coneEBO(nmaxcone))
+
+    b%isinit = .true.
 
   contains
     !> Set up a sphere impostor VAO: shared quad corner (loc 0) + per-instance
@@ -306,49 +354,213 @@ contains
 
     end subroutine inst_attrib
 
-  end subroutine shapes_init
+  end subroutine glbuffers_init
 
-  !> Terminate the shapes buffers
-  module subroutine shapes_end()
+  !> Delete this scene's instance VAOs/VBOs. A no-op if not initialized.
+  module subroutine glbuffers_end(b)
     use interfaces_opengl3
+    class(scene_glbuffers), intent(inout), target :: b
 
-    ! cones
-    call glDeleteVertexArrays(nmaxcone, c_loc(coneVAO))
-    call glDeleteBuffers(nmaxcone, c_loc(coneVBO))
-    call glDeleteBuffers(nmaxcone, c_loc(coneEBO))
-    if (allocated(conv)) deallocate(conv)
-    if (allocated(coni)) deallocate(coni)
+    if (.not.b%isinit) return
 
-    ! quads
-    call glDeleteVertexArrays(1, c_loc(quadVAO))
-    call glDeleteBuffers(1, c_loc(quadVBO))
-    call glDeleteBuffers(1, c_loc(quadEBO))
+    call glDeleteVertexArrays(1, c_loc(b%sphinstVAO))
+    call glDeleteBuffers(1, c_loc(b%sphinstVBO))
+    call glDeleteVertexArrays(1, c_loc(b%cylinstVAO))
+    call glDeleteBuffers(1, c_loc(b%cylinstVBO))
+    call glDeleteVertexArrays(1, c_loc(b%planeinstVAO))
+    call glDeleteBuffers(1, c_loc(b%planeinstVBO))
+    call glDeleteVertexArrays(1, c_loc(b%triinstVAO))
+    call glDeleteBuffers(1, c_loc(b%triinstVBO))
+    call glDeleteVertexArrays(1, c_loc(b%coneinstVAO))
+    call glDeleteBuffers(1, c_loc(b%coneinstVBO))
+    call glDeleteVertexArrays(1, c_loc(b%sphinstVAOscr))
+    call glDeleteBuffers(1, c_loc(b%sphinstVBOscr))
+    call glDeleteVertexArrays(1, c_loc(b%cylinstVAOscr))
+    call glDeleteBuffers(1, c_loc(b%cylinstVBOscr))
+    call glDeleteVertexArrays(1, c_loc(b%coneinstVAOscr))
+    call glDeleteBuffers(1, c_loc(b%coneinstVBOscr))
 
-    ! triangles
-    call glDeleteVertexArrays(1, c_loc(triVAO))
-    call glDeleteBuffers(1, c_loc(triVBO))
-    call glDeleteBuffers(1, c_loc(triEBO))
+    call b%detach()
 
-    ! impostors
-    call glDeleteVertexArrays(1, c_loc(sphinstVAO))
-    call glDeleteBuffers(1, c_loc(sphinstVBO))
-    call glDeleteVertexArrays(1, c_loc(cylinstVAO))
-    call glDeleteBuffers(1, c_loc(cylinstVBO))
-    call glDeleteBuffers(1, c_loc(impQuadVBO))
-    call glDeleteVertexArrays(1, c_loc(planeinstVAO))
-    call glDeleteBuffers(1, c_loc(planeinstVBO))
-    call glDeleteVertexArrays(1, c_loc(triinstVAO))
-    call glDeleteBuffers(1, c_loc(triinstVBO))
-    call glDeleteVertexArrays(1, c_loc(coneinstVAO))
-    call glDeleteBuffers(1, c_loc(coneinstVBO))
-    call glDeleteVertexArrays(1, c_loc(sphinstVAOscr))
-    call glDeleteBuffers(1, c_loc(sphinstVBOscr))
-    call glDeleteVertexArrays(1, c_loc(cylinstVAOscr))
-    call glDeleteBuffers(1, c_loc(cylinstVBOscr))
-    call glDeleteVertexArrays(1, c_loc(coneinstVAOscr))
-    call glDeleteBuffers(1, c_loc(coneinstVBOscr))
+  end subroutine glbuffers_end
 
-  end subroutine shapes_end
+  !> Reset the buffer handles and cached state to a fresh (uninitialized) state
+  !> WITHOUT deleting any GL objects. Used after a whole-scene value copy so the
+  !> copy lazily creates its own buffers instead of aliasing the source's.
+  module subroutine glbuffers_detach(b)
+    class(scene_glbuffers), intent(inout) :: b
+
+    b%isinit = .false.
+    b%sphinstVAO = 0
+    b%sphinstVBO = 0
+    b%cylinstVAO = 0
+    b%cylinstVBO = 0
+    b%coneinstVAO = 0
+    b%coneinstVBO = 0
+    b%planeinstVAO = 0
+    b%planeinstVBO = 0
+    b%triinstVAO = 0
+    b%triinstVBO = 0
+    b%sphinstVAOscr = 0
+    b%sphinstVBOscr = 0
+    b%cylinstVAOscr = 0
+    b%cylinstVBOscr = 0
+    b%coneinstVAOscr = 0
+    b%coneinstVBOscr = 0
+    b%inst_valid = .false.
+    b%inst_last_anim = -1
+    b%nsph_inst = 0
+    b%ncyl_inst = 0
+    b%ncone_inst = 0
+    b%nplane_inst = 0
+    b%ntri_inst = 0
+
+  end subroutine glbuffers_detach
+
+  !> Upload n packed sphere instances and draw them through the cached (or
+  !> scratch) sphere impostor VAO with the currently bound shader (one instanced
+  !> draw call).
+  module subroutine glbuffers_draw_spheres(b,n,buf,scratch)
+    use interfaces_opengl3
+    class(scene_glbuffers), intent(inout) :: b
+    integer, intent(in) :: n
+    real(c_float), intent(in), target :: buf(sph_inst_nf,n)
+    logical, intent(in) :: scratch
+    integer(c_int) :: vao, vbo
+    real(c_float) :: f_
+
+    if (n <= 0) return
+    if (scratch) then
+       vao = b%sphinstVAOscr; vbo = b%sphinstVBOscr
+    else
+       vao = b%sphinstVAO; vbo = b%sphinstVBO
+    end if
+    call glBindVertexArray(vao)
+    call glBindBuffer(GL_ARRAY_BUFFER, vbo)
+    call glBufferData(GL_ARRAY_BUFFER, int(n,c_intptr_t)*sph_inst_nf*c_sizeof(f_), c_loc(buf), GL_DYNAMIC_DRAW)
+    call glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0_c_int, 4_c_int, int(n,c_int))
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
+
+  end subroutine glbuffers_draw_spheres
+
+  !> Upload n packed cylinder instances and draw them through the cached (or
+  !> scratch) cylinder impostor VAO with the currently bound shader.
+  module subroutine glbuffers_draw_cylinders(b,n,buf,scratch)
+    use interfaces_opengl3
+    class(scene_glbuffers), intent(inout) :: b
+    integer, intent(in) :: n
+    real(c_float), intent(in), target :: buf(cyl_inst_nf,n)
+    logical, intent(in) :: scratch
+    integer(c_int) :: vao, vbo
+    real(c_float) :: f_
+
+    if (n <= 0) return
+    if (scratch) then
+       vao = b%cylinstVAOscr; vbo = b%cylinstVBOscr
+    else
+       vao = b%cylinstVAO; vbo = b%cylinstVBO
+    end if
+    call glBindVertexArray(vao)
+    call glBindBuffer(GL_ARRAY_BUFFER, vbo)
+    call glBufferData(GL_ARRAY_BUFFER, int(n,c_intptr_t)*cyl_inst_nf*c_sizeof(f_), c_loc(buf), GL_DYNAMIC_DRAW)
+    call glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0_c_int, 4_c_int, int(n,c_int))
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
+
+  end subroutine glbuffers_draw_cylinders
+
+  !> Upload n packed mesh instances and draw them with the currently bound mesh
+  !> shader, using the VAO/VBO selected by role (glb_cone/plane/tri/conescr) and
+  !> the mesh's triangle count nelem.
+  module subroutine glbuffers_draw_mesh(b,role,nelem,n,buf)
+    use interfaces_opengl3
+    use tools_io, only: ferror, faterr
+    class(scene_glbuffers), intent(inout) :: b
+    integer, intent(in) :: role, nelem, n
+    real(c_float), intent(in), target :: buf(mesh_inst_nf,n)
+    integer(c_int) :: vao, vbo
+    real(c_float) :: f_
+
+    if (n <= 0) return
+    select case (role)
+    case (glb_cone)
+       vao = b%coneinstVAO
+       vbo = b%coneinstVBO
+    case (glb_plane)
+       vao = b%planeinstVAO
+       vbo = b%planeinstVBO
+    case (glb_tri)
+       vao = b%triinstVAO
+       vbo = b%triinstVBO
+    case (glb_conescr)
+       vao = b%coneinstVAOscr
+       vbo = b%coneinstVBOscr
+    case default
+       call ferror('glbuffers_draw_mesh','unknown mesh role',faterr)
+    end select
+    call glBindVertexArray(vao)
+    call glBindBuffer(GL_ARRAY_BUFFER, vbo)
+    call glBufferData(GL_ARRAY_BUFFER, int(n,c_intptr_t)*mesh_inst_nf*c_sizeof(f_), c_loc(buf), GL_DYNAMIC_DRAW)
+    call glDrawElementsInstanced(GL_TRIANGLES, int(3*nelem,c_int), GL_UNSIGNED_INT, c_null_ptr, int(n,c_int))
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
+
+  end subroutine glbuffers_draw_mesh
+
+  !> Re-draw n already-uploaded sphere impostor instances through the cached VAO
+  !> (no upload). Used when the cached buffers have not changed.
+  module subroutine glbuffers_redraw_spheres(b,n)
+    use interfaces_opengl3
+    class(scene_glbuffers), intent(inout) :: b
+    integer, intent(in) :: n
+
+    if (n <= 0) return
+    call glBindVertexArray(b%sphinstVAO)
+    call glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0_c_int, 4_c_int, int(n,c_int))
+    call glBindVertexArray(0)
+
+  end subroutine glbuffers_redraw_spheres
+
+  !> Re-draw n already-uploaded cylinder impostor instances through the cached
+  !> VAO (no upload).
+  module subroutine glbuffers_redraw_cylinders(b,n)
+    use interfaces_opengl3
+    class(scene_glbuffers), intent(inout) :: b
+    integer, intent(in) :: n
+
+    if (n <= 0) return
+    call glBindVertexArray(b%cylinstVAO)
+    call glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0_c_int, 4_c_int, int(n,c_int))
+    call glBindVertexArray(0)
+
+  end subroutine glbuffers_redraw_cylinders
+
+  !> Re-draw n already-uploaded mesh instances through the cached VAO selected by
+  !> role (glb_cone/plane/tri), with nelem triangles per instance (no upload).
+  module subroutine glbuffers_redraw_mesh(b,role,nelem,n)
+    use interfaces_opengl3
+    use tools_io, only: ferror, faterr
+    class(scene_glbuffers), intent(inout) :: b
+    integer, intent(in) :: role, nelem, n
+    integer(c_int) :: vao
+
+    if (n <= 0) return
+    select case (role)
+    case (glb_cone)
+       vao = b%coneinstVAO
+    case (glb_plane)
+       vao = b%planeinstVAO
+    case (glb_tri)
+       vao = b%triinstVAO
+    case default
+       call ferror('glbuffers_redraw_mesh','unknown mesh role',faterr)
+    end select
+    call glBindVertexArray(vao)
+    call glDrawElementsInstanced(GL_TRIANGLES, int(3*nelem,c_int), GL_UNSIGNED_INT, c_null_ptr, int(n,c_int))
+    call glBindVertexArray(0)
+
+  end subroutine glbuffers_redraw_mesh
 
   ! !> Initialize images for the icons in the GUI.
   ! module subroutine icons_init()

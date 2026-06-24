@@ -125,9 +125,6 @@
 submodule (scenes) proc
   implicit none
 
-  ! id of the scene whose data currently occupies the shared VBOs
-  integer :: inst_owner = -1
-
   ! some math parameters
   real(c_float), parameter :: zero = 0._c_float
   real(c_float), parameter :: one = 1._c_float
@@ -264,6 +261,7 @@ contains
     s%isinit = 0
     s%iscaminit = .false.
     s%id = 0
+    call s%gl%end()
     if (allocated(s%rep)) deallocate(s%rep)
     if (allocated(s%icount)) deallocate(s%icount)
     if (allocated(s%iord)) deallocate(s%iord)
@@ -508,7 +506,7 @@ contains
     ! rebuilding lists is done; the cached instance buffers are now stale and
     ! must be repacked/uploaded on the next render
     s%forcebuildlists = .false.
-    s%inst_valid = .false.
+    s%gl%inst_valid = .false.
     s%isinit = 2
     s%timelastbuild = glfwGetTime()
 
@@ -521,9 +519,7 @@ contains
     use interfaces_opengl3
     use shapes, only: textVAOos, textVBOos, quadnel, trinel,&
        sph_inst_nf, cyl_inst_nf, mesh_inst_nf, connel, nmaxcone,&
-       planeinstVAO, planeinstVBO, triinstVAO, triinstVBO, coneinstVAO, coneinstVBO,&
-       sphinstVAO, sphinstVBO, cylinstVAO, cylinstVBO,&
-       sphinstVAOscr, sphinstVBOscr, cylinstVAOscr, cylinstVBOscr, coneinstVAOscr, coneinstVBOscr
+       glb_cone, glb_plane, glb_tri, glb_conescr
     use gui_main, only: fonts, fontbakesize_large, font_large
     use systems, only: sys, sysc, nsys
     use tools_math, only: eigsym, matinv_cfloat
@@ -550,6 +546,9 @@ contains
 
     ! check that the scene and system are initialized
     if (s%isinit == 0) return
+
+    ! create this scene's GL instance buffers on first render
+    if (.not.s%gl%isinit) call s%gl%init()
 
     ! build draw lists if not done already
     if (s%isinit == 1 .or. .not.allocated(s%obj%sph)) call s%build_lists()
@@ -593,12 +592,12 @@ contains
        end if
     end if
 
-    ! decide whether the cached instance buffers must be (re)built and uploaded:
-    ! when they are stale (draw lists changed), while animating (positions move
-    ! every frame), or when another scene last wrote the shared instance VBOs.
-    dobuild = (.not.s%inst_valid) .or. (s%animation > 0) .or. (s%animation /= s%inst_last_anim) .or.&
-       (inst_owner /= s%id)
-    s%inst_last_anim = s%animation
+    ! decide whether this scene's cached instance buffers must be (re)built and
+    ! uploaded: when they are stale (draw lists changed) or while animating
+    ! (positions move every frame). Each scene owns its own buffers, so there is
+    ! no cross-scene contention.
+    dobuild = (.not.s%gl%inst_valid) .or. (s%animation > 0) .or. (s%animation /= s%gl%inst_last_anim)
+    s%gl%inst_last_anim = s%animation
 
     ! draw the atoms (instanced sphere impostors)
     if (s%obj%nsph > 0) then
@@ -606,7 +605,7 @@ contains
        if (dobuild) then
           call draw_all_spheres()
        else
-          call inst_render_arrays(sphinstVAO,s%nsph_inst)
+          call s%gl%redraw_spheres(s%gl%nsph_inst)
        end if
     end if
 
@@ -618,7 +617,7 @@ contains
        if (dobuild) then
           call draw_all_cylinders()
        else
-          call inst_render_arrays(cylinstVAO,s%ncyl_inst)
+          call s%gl%redraw_cylinders(s%gl%ncyl_inst)
        end if
        call glDisable(GL_BLEND)
     end if
@@ -632,7 +631,7 @@ contains
           if (dobuild) then
              call draw_all_cones()
           else
-             call inst_render_elements(coneinstVAO,connel(nmaxcone),s%ncone_inst)
+             call s%gl%redraw_mesh(glb_cone,connel(nmaxcone),s%gl%ncone_inst)
           end if
        end if
 
@@ -647,14 +646,14 @@ contains
              if (dobuild) then
                 call draw_all_planes()
              else
-                call inst_render_elements(planeinstVAO,quadnel,s%nplane_inst)
+                call s%gl%redraw_mesh(glb_plane,quadnel,s%gl%nplane_inst)
              end if
           end if
           if (s%obj%ntriangle > 0) then
              if (dobuild) then
                 call draw_all_triangles()
              else
-                call inst_render_elements(triinstVAO,trinel,s%ntri_inst)
+                call s%gl%redraw_mesh(glb_tri,trinel,s%gl%ntri_inst)
              end if
           end if
           call glDepthMask(int(GL_TRUE,c_signed_char))
@@ -663,9 +662,8 @@ contains
        end if
     end if
 
-    ! the cached instance buffers are now current and owned by this scene
-    s%inst_valid = .true.
-    inst_owner = s%id
+    ! this scene's cached instance buffers are now current
+    s%gl%inst_valid = .true.
 
     ! draw the measure selection atoms (instanced sphere impostors)
     if (s%nmsel > 0) then
@@ -758,8 +756,8 @@ contains
             (/s%obj%sph(i)%rgb,1._c_float/),s%obj%sph(i)%border,&
             s%obj%sph(i)%rgbborder,s%obj%sph(i)%xdelta,zr)
       end do
-      call sphere_inst_draw(sphinstVAO,sphinstVBO,n,buf)
-      s%nsph_inst = n
+      call s%gl%draw_spheres(n,buf,.false.)
+      s%gl%nsph_inst = n
       deallocate(buf)
 
     end subroutine draw_all_spheres
@@ -882,8 +880,8 @@ contains
             (/s%obj%cylflat(i)%rgb,1._c_float/),0._c_float,zv,0._c_float,zv)
       end do
 
-      call cyl_inst_draw(cylinstVAO,cylinstVBO,n,buf)
-      s%ncyl_inst = n
+      call s%gl%draw_cylinders(n,buf,.false.)
+      s%gl%ncyl_inst = n
       deallocate(buf,ex1,ex2,nd)
 
     end subroutine draw_all_cylinders
@@ -910,8 +908,8 @@ contains
          n = n + 1
          call mesh_pack(buf(:,n),model,(/s%obj%cone(i)%rgb,1._c_float/))
       end do
-      call mesh_inst_draw(coneinstVAO,coneinstVBO,connel(nmaxcone),n,buf)
-      s%ncone_inst = n
+      call s%gl%draw_mesh(glb_cone,connel(nmaxcone),n,buf)
+      s%gl%ncone_inst = n
       deallocate(buf)
 
     end subroutine draw_all_cones
@@ -990,7 +988,7 @@ contains
             call cyl_pack(cylbuf(:,1),s%obj%cylgiz(i)%x1,s%obj%cylgiz(i)%x2,&
                0.5_c_float*s%obj%cylgiz(i)%r,(/s%obj%cylgiz(i)%rgb,1._c_float/),&
                s%obj%cylgiz(i)%border,s%obj%cylgiz(i)%rgbborder,0._c_float,zv)
-            call cyl_inst_draw(cylinstVAOscr,cylinstVBOscr,1,cylbuf)
+            call s%gl%draw_cylinders(1,cylbuf,.true.)
          end do
       end if
 
@@ -1008,7 +1006,7 @@ contains
             call setuniform_float(gizf,"anchored_scale")
             call cone_model(s%obj%conegiz(i)%x1,s%obj%conegiz(i)%x2,s%obj%conegiz(i)%r,model)
             call mesh_pack(meshbuf(:,1),model,(/s%obj%conegiz(i)%rgb,1._c_float/))
-            call mesh_inst_draw(coneinstVAOscr,coneinstVBOscr,connel(nmaxcone),1,meshbuf)
+            call s%gl%draw_mesh(glb_conescr,connel(nmaxcone),1,meshbuf)
          end do
       end if
 
@@ -1082,8 +1080,8 @@ contains
          n = n + 1
          call mesh_pack(buf(:,n),m,(/s%obj%plane(i)%rgb,s%obj%plane(i)%alpha/))
       end do
-      call mesh_inst_draw(planeinstVAO,planeinstVBO,quadnel,n,buf)
-      s%nplane_inst = n
+      call s%gl%draw_mesh(glb_plane,quadnel,n,buf)
+      s%gl%nplane_inst = n
       deallocate(buf)
 
     end subroutine draw_all_planes
@@ -1120,8 +1118,8 @@ contains
          n = n + 1
          call mesh_pack(buf(:,n),m,(/s%obj%triangle(i)%rgb,s%obj%triangle(i)%alpha/))
       end do
-      call mesh_inst_draw(triinstVAO,triinstVBO,trinel,n,buf)
-      s%ntri_inst = n
+      call s%gl%draw_mesh(glb_tri,trinel,n,buf)
+      s%gl%ntri_inst = n
       deallocate(buf)
 
     end subroutine draw_all_triangles
@@ -1146,7 +1144,7 @@ contains
          radsel(j) = s%obj%sph(i)%r + msel_thickness
          xsel(:,j) = x
       end do
-      call sphere_inst_draw(sphinstVAOscr,sphinstVBOscr,s%nmsel,buf)
+      call s%gl%draw_spheres(s%nmsel,buf,.true.)
       deallocate(buf)
 
     end subroutine draw_all_mselections
@@ -1184,7 +1182,7 @@ contains
                rgba,real(atomborder_def,c_float),rgba(1:3),s%obj%sph(i)%xdelta,zr)
          end if
       end do
-      call sphere_inst_draw(sphinstVAOscr,sphinstVBOscr,n,buf)
+      call s%gl%draw_spheres(n,buf,.true.)
       deallocate(buf)
 
     end subroutine draw_highlights
@@ -1264,7 +1262,7 @@ contains
     use interfaces_cimgui
     use interfaces_opengl3
     use systems, only: sysc, nsys, sys
-    use shapes, only: sph_inst_nf, sphinstVAOscr, sphinstVBOscr
+    use shapes, only: sph_inst_nf
     use utils, only: ortho, project
     use tools_math, only: eigsym, matinv_cfloat
     use shaders, only: shader_sphere, useshader, setuniform_int,&
@@ -1280,6 +1278,9 @@ contains
 
     ! check that the scene and system are initialized
     if (s%isinit < 2) return
+
+    ! create this scene's GL instance buffers if not done already
+    if (.not.s%gl%isinit) call s%gl%init()
 
     ! build draw lists if not done already
     if (.not.allocated(s%obj%sph)) call s%build_lists()
@@ -1334,7 +1335,7 @@ contains
                 (/0._c_float,0._c_float,0._c_float/),s%obj%sph(i)%xdelta,ridx)
           end if
        end do
-       call sphere_inst_draw(sphinstVAOscr,sphinstVBOscr,n,buf)
+       call s%gl%draw_spheres(n,buf,.true.)
        deallocate(buf)
     end if
 
@@ -2046,7 +2047,7 @@ contains
   !xx! private procedures: low-level draws
 
   !> Pack one sphere instance into column col of an instance buffer (layout
-  !> must match the sphinstVAO attribute offsets set in shapes_init).
+  !> must match the sphinstVAO attribute offsets set in glbuffers_init).
   subroutine sphere_pack(col,x,r,rgba,border,bcol,xdelta,ridx)
     use shapes, only: sph_inst_nf
     real(c_float), intent(out) :: col(sph_inst_nf)
@@ -2065,56 +2066,8 @@ contains
 
   end subroutine sphere_pack
 
-  !> Upload n packed sphere instances to vbo and draw them through vao with the
-  !> currently bound sphere impostor shader (one instanced draw call).
-  subroutine sphere_inst_draw(vao,vbo,n,buf)
-    use interfaces_opengl3
-    use shapes, only: sph_inst_nf
-    integer(c_int), intent(in) :: vao, vbo
-    integer, intent(in) :: n
-    real(c_float), intent(in), target :: buf(sph_inst_nf,n)
-    real(c_float) :: f_
-
-    if (n <= 0) return
-    call glBindVertexArray(vao)
-    call glBindBuffer(GL_ARRAY_BUFFER, vbo)
-    call glBufferData(GL_ARRAY_BUFFER, int(n,c_intptr_t)*sph_inst_nf*c_sizeof(f_), c_loc(buf), GL_DYNAMIC_DRAW)
-    call glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0_c_int, 4_c_int, int(n,c_int))
-    call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    call glBindVertexArray(0)
-
-  end subroutine sphere_inst_draw
-
-  !> Draw n already-uploaded impostor instances through vao (no upload). Used to
-  !> re-draw the cached main buffers when they have not changed.
-  subroutine inst_render_arrays(vao,n)
-    use interfaces_opengl3
-    integer(c_int), intent(in) :: vao
-    integer, intent(in) :: n
-
-    if (n <= 0) return
-    call glBindVertexArray(vao)
-    call glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0_c_int, 4_c_int, int(n,c_int))
-    call glBindVertexArray(0)
-
-  end subroutine inst_render_arrays
-
-  !> Draw n already-uploaded mesh instances through vao (no upload), with nelem
-  !> triangles per instance. Used to re-draw cached mesh buffers.
-  subroutine inst_render_elements(vao,nelem,n)
-    use interfaces_opengl3
-    integer(c_int), intent(in) :: vao
-    integer, intent(in) :: nelem, n
-
-    if (n <= 0) return
-    call glBindVertexArray(vao)
-    call glDrawElementsInstanced(GL_TRIANGLES, int(3*nelem,c_int), GL_UNSIGNED_INT, c_null_ptr, int(n,c_int))
-    call glBindVertexArray(0)
-
-  end subroutine inst_render_elements
-
   !> Pack one cylinder instance into column col of an instance buffer (layout
-  !> must match the cylinstVAO attribute offsets set in shapes_init).
+  !> must match the cylinstVAO attribute offsets set in glbuffers_init).
   subroutine cyl_pack(col,x1,x2,r,rgba,border,bcol,delta,outward)
     use shapes, only: cyl_inst_nf
     real(c_float), intent(out) :: col(cyl_inst_nf)
@@ -2130,26 +2083,6 @@ contains
     col(17:19) = outward
 
   end subroutine cyl_pack
-
-  !> Upload n packed cylinder instances to vbo and draw them through vao with the
-  !> currently bound cylinder impostor shader (one instanced draw call).
-  subroutine cyl_inst_draw(vao,vbo,n,buf)
-    use interfaces_opengl3
-    use shapes, only: cyl_inst_nf
-    integer(c_int), intent(in) :: vao, vbo
-    integer, intent(in) :: n
-    real(c_float), intent(in), target :: buf(cyl_inst_nf,n)
-    real(c_float) :: f_
-
-    if (n <= 0) return
-    call glBindVertexArray(vao)
-    call glBindBuffer(GL_ARRAY_BUFFER, vbo)
-    call glBufferData(GL_ARRAY_BUFFER, int(n,c_intptr_t)*cyl_inst_nf*c_sizeof(f_), c_loc(buf), GL_DYNAMIC_DRAW)
-    call glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0_c_int, 4_c_int, int(n,c_int))
-    call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    call glBindVertexArray(0)
-
-  end subroutine cyl_inst_draw
 
   !> Pack one mesh instance (model matrix columns + color) into column col.
   subroutine mesh_pack(col,model,rgba)
@@ -2201,27 +2134,6 @@ contains
     model(:,3) = model(:,3) * blen
 
   end subroutine cone_model
-
-  !> Upload n packed mesh instances and draw them (one instanced draw call) with
-  !> the currently bound mesh shader, using the given instanced VAO/VBO and the
-  !> mesh's triangle count nelem.
-  subroutine mesh_inst_draw(vao,vbo,nelem,n,buf)
-    use interfaces_opengl3
-    use shapes, only: mesh_inst_nf
-    integer(c_int), intent(in) :: vao, vbo
-    integer, intent(in) :: nelem, n
-    real(c_float), intent(in), target :: buf(mesh_inst_nf,n)
-    real(c_float) :: f_
-
-    if (n <= 0) return
-    call glBindVertexArray(vao)
-    call glBindBuffer(GL_ARRAY_BUFFER, vbo)
-    call glBufferData(GL_ARRAY_BUFFER, int(n,c_intptr_t)*mesh_inst_nf*c_sizeof(f_), c_loc(buf), GL_DYNAMIC_DRAW)
-    call glDrawElementsInstanced(GL_TRIANGLES, int(3*nelem,c_int), GL_UNSIGNED_INT, c_null_ptr, int(n,c_int))
-    call glBindBuffer(GL_ARRAY_BUFFER, 0)
-    call glBindVertexArray(0)
-
-  end subroutine mesh_inst_draw
 
   !> Calculate the vertices for the given text and adds them to
   !> nvert/vert, on-scene version. x0 = world position of the label.

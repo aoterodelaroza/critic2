@@ -18,7 +18,8 @@
 ! Scene object and GL rendering utilities
 module scenes
   use iso_c_binding
-  use shapes, only: scene_objects
+  use shapes, only: scene_objects, scene_glbuffers, glb_cone, glb_plane, glb_tri,&
+     glb_conescr
   use representations, only: representation
   use types, only: neighstar
   implicit none
@@ -44,13 +45,6 @@ module scenes
      logical :: forceresetcam = .false. ! force reset of the camera
      logical :: forcebuildlists ! force rebuild of lists
      logical :: nextbuildlists_fixcam = .false. ! if true, next build_lists skips camera translation
-     logical :: inst_valid = .false. ! true if the cached instance buffers are current
-     integer :: inst_last_anim = -1 ! s%animation at the last instance-buffer build
-     integer :: nsph_inst = 0   ! number of cached atom-sphere instances
-     integer :: ncyl_inst = 0   ! number of cached bond/cell-cylinder instances
-     integer :: ncone_inst = 0  ! number of cached cone instances
-     integer :: nplane_inst = 0 ! number of cached plane instances
-     integer :: ntri_inst = 0   ! number of cached triangle instances
      real*8 :: timelastrender = 0d0 ! time when the view was last rendered
      real*8 :: timelastbuild = 0d0 ! time of the last build
      real*8 :: timelastcamchange = 0d0 ! time the camera was last changed
@@ -96,6 +90,8 @@ module scenes
      integer :: msel(5,4) ! 1 is atom cell ID, 2:4 is lattice vector, 5 is sphere ID
      ! draw lists packed in a scene object
      type(scene_objects) :: obj
+     ! per-scene OpenGL instance buffers (created lazily on first render)
+     type(scene_glbuffers) :: gl
      ! vibration animation
      integer :: animation = 0 ! animate the scene? 0=off, 1=manual, 2=automatic
      integer :: iqpt_selected = 0 ! selected q-point in the vibrations window
