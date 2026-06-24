@@ -691,11 +691,15 @@ contains
     call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
     call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
 
+    ! on-scene text quads have reversed winding (y-down glyphs flipped for the
+    ! right-side-up presentation), so disable culling while drawing them
+    call glDisable(GL_CULL_FACE)
     call draw_all_text()
 
     ! render selected atom labels with on-scene text
     if (s%nmsel > 0) &
        call draw_selection_text()
+    call glEnable(GL_CULL_FACE)
 
     ! highlight the highlighted/selected atoms
     doit = .false.
@@ -928,12 +932,12 @@ contains
 
       ! winpos is given as fractions of the visible part of the render buffer
       ! (the window), from the left and bottom; map it to the NDC of the full
-      ! render texture, accounting for the cropped region (viewuv0) and the
-      ! vertical flip between the render buffer and the displayed image
+      ! render texture, accounting for the cropped region (viewuv0). The texture
+      ! is presented right-side up, so the bottom of the window is NDC y = -1.
       spanx = 1._c_float - 2._c_float * s%viewuv0(1)
       spany = 1._c_float - 2._c_float * s%viewuv0(2)
       gizndc(1) = spanx * (2._c_float * winpos(1) - 1._c_float)
-      gizndc(2) = spany * (1._c_float - 2._c_float * winpos(2))
+      gizndc(2) = spany * (2._c_float * winpos(2) - 1._c_float)
       gizndc(3) = 0._c_float
 
       ! zoom-compensation factor: when the gizmo should not scale with zoom,
@@ -1018,6 +1022,7 @@ contains
          call setuniform_mat4(s%view,"view")
          call setuniform_mat4(projgiz,"projection")
          call glDisable(GL_MULTISAMPLE)
+         call glDisable(GL_CULL_FACE) ! y-flipped glyph quads have reversed winding
          call glEnable(GL_BLEND)
          call glBlendEquation(GL_FUNC_ADD)
          call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
@@ -1049,6 +1054,7 @@ contains
             call glDrawArrays(GL_TRIANGLES, 0, nvert)
          end do
          call glEnable(GL_MULTISAMPLE)
+         call glEnable(GL_CULL_FACE)
          call glDisable(GL_BLEND)
          call setuniform_int(0_c_int,"isanchored")
       end if
@@ -2248,7 +2254,13 @@ contains
        end do
        vert(8,jlen(1):nvert) = vert(8,jlen(1):nvert) - 0.5_c_float * nline * lheight
     end if
-    vert(7:8,nvert0+1:nvert) = vert(7:8,nvert0+1:nvert) * siz
+    ! scale to on-screen size. The render texture is presented right-side up
+    ! (see draw_view) but ImGui glyph quads use a y-down layout, so the vertical
+    ! offset is negated (folded into the scaling) to keep on-scene text upright.
+    ! This reverses the quad winding, so culling must be disabled where these
+    ! vertices are drawn.
+    vert(7,nvert0+1:nvert) =  vert(7,nvert0+1:nvert) * siz
+    vert(8,nvert0+1:nvert) = -vert(8,nvert0+1:nvert) * siz
 
   end subroutine calc_text_onscene_vertices
 

@@ -2,6 +2,11 @@
 
 !!! stb procedures !!!
 
+!x! void stbi_flip_vertically_on_write(int flag);
+subroutine stbi_flip_vertically_on_write(flag) bind(c,name="stbi_flip_vertically_on_write")
+  import c_int
+  integer(c_int), value :: flag
+end subroutine stbi_flip_vertically_on_write
 !x! int stbi_write_png(char const *filename, int w, int h, int comp, const void *data, int stride_in_bytes);
 function stbi_write_png(filename,w,h,comp,data,stride_in_bytes) bind(c,name="stbi_write_png")
   import c_int, c_ptr

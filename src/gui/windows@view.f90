@@ -91,7 +91,7 @@ contains
     integer(c_int) :: flags, nc(3), ires, idum
     integer(c_int) :: newside, vside
     real(c_float) :: scal, width, rgba(4)
-    real(c_float) :: rscale
+    real(c_float) :: rscale, tmpuv
     logical :: interacting, selcleared
     real*8 :: x0(3), time
     type(ImVec2) :: sz
@@ -832,6 +832,12 @@ contains
     call igPushStyleColor_Vec4(ImGuiCol_Button,bgcol)
     call igPushStyleColor_Vec4(ImGuiCol_ButtonActive,bgcol)
     call igPushStyleColor_Vec4(ImGuiCol_ButtonHovered,bgcol)
+    ! the render texture is a bottom-left-origin OpenGL FBO; flip the vertical
+    ! UVs so the scene is presented right-side up. Without this the 3D geometry
+    ! (and the Cartesian-axes gizmo) renders vertically mirrored / left-handed.
+    tmpuv = sz0%y
+    sz0%y = sz1%y
+    sz1%y = tmpuv
     str1 = "##imagebutton" // c_null_char
     ldum = igImageButtonEx(igGetID_Str(c_loc(str1)),w%FBOtex, szavail, sz0, sz1, szero, bgcol, tintcol)
     call igPopStyleColor(3)
@@ -2106,7 +2112,10 @@ contains
     pos%y = (0.5_c_float - (pos%y - w%v_rmin%y) / dy) * yratio
 
     pos%x = (0.5_c_float * pos%x + 0.5_c_float) * w%FBOside
-    pos%y = (0.5_c_float - 0.5_c_float * pos%y) * w%FBOside
+    ! the render texture is now presented right-side up (see draw_view), so the
+    ! texture row increases upward like the framebuffer (origin bottom-left):
+    ! screen-top maps to the top framebuffer row, matching glReadPixels in getpixel.
+    pos%y = (0.5_c_float + 0.5_c_float * pos%y) * w%FBOside
 
   end subroutine mousepos_to_texpos
 
@@ -2118,7 +2127,9 @@ contains
     real(c_float) :: x, y, xratio1, yratio1
 
     pos%x = (pos%x / w%FBOside) * 2._c_float - 1._c_float
-    pos%y = 1._c_float - (pos%y / w%FBOside) * 2._c_float
+    ! inverse of mousepos_to_texpos: the texture is presented right-side up, so
+    ! the vertical mapping is no longer inverted
+    pos%y = (pos%y / w%FBOside) * 2._c_float - 1._c_float
 
     x = max(w%v_rmax%x - w%v_rmin%x,1._c_float)
     y = max(w%v_rmax%y - w%v_rmin%y,1._c_float)
@@ -2337,10 +2348,13 @@ contains
        x1%y = w%v_rmax%y
        call w%mousepos_to_texpos(x0)
        call w%mousepos_to_texpos(x1)
-       width = min(nint((x1%x - x0%x) / real(w%FBOside,8) * npixel),npixel)
-       height = min(nint((x1%y - x0%y) / real(w%FBOside,8) * npixel),npixel)
-       origin(1) = max(nint(x0%x / real(w%FBOside,8) * npixel),0)
-       origin(2) = max(nint(x0%y / real(w%FBOside,8) * npixel),0)
+       ! the texture is presented right-side up, so v_rmin (screen top) maps to
+       ! the larger texture row and v_rmax to the smaller; use abs/min so the
+       ! crop rectangle (glReadPixels origin is the lower-left) is well defined
+       width = min(nint(abs(x1%x - x0%x) / real(w%FBOside,8) * npixel),npixel)
+       height = min(nint(abs(x1%y - x0%y) / real(w%FBOside,8) * npixel),npixel)
+       origin(1) = max(nint(min(x0%x,x1%x) / real(w%FBOside,8) * npixel),0)
+       origin(2) = max(nint(min(x0%y,x1%y) / real(w%FBOside,8) * npixel),0)
        allocate(data(4 * width * height))
        data = 0_c_signed_char
        call glReadPixels(origin(1), origin(2), width, height, GL_RGBA, GL_UNSIGNED_BYTE, c_loc(data))
@@ -2349,7 +2363,9 @@ contains
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) /= GL_FRAMEBUFFER_COMPLETE) &
        errmsg = "Error rendering export image"
 
-    ! write the file
+    ! write the file. glReadPixels returns rows bottom-to-top while stb writes
+    ! top-to-bottom, so flip vertically on write to match the on-screen view.
+    call stbi_flip_vertically_on_write(1_c_int)
     str = trim(file) // c_null_char
     if (fformat(1:3) == "PNG") then
        idum = stbi_write_png(c_loc(str), width, height, 4, c_loc(data), 4*width)
@@ -2363,6 +2379,7 @@ contains
        idum = 0
        errmsg = "Unknown file format: "  // string(fformat)
     end if
+    call stbi_flip_vertically_on_write(0_c_int)
     if (idum == 0) &
        errmsg = "Error exporting image to file: "  // string(file)
 
