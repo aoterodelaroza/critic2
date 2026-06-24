@@ -103,7 +103,9 @@ contains
              ! check all names start with the same string
              do i = i1+1, nsys
                 if (sysc(i)%status == sys_empty.or.sysc(i)%renamed) cycle
-                if (len_trim(sysc(i)%seed%name) < idx) exit
+                ! a name shorter than the candidate prefix cannot start with it,
+                ! so the prefix is not common: try a shorter one
+                if (len_trim(sysc(i)%seed%name) < idx) cycle main
                 if (sysc(i)%seed%name(1:idx) /= str) cycle main
              end do
 
