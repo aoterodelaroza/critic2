@@ -325,10 +325,10 @@ contains
     if (c%nmol == 0 .or. c%ncel == 0) return
 
     ! 3d molecular crystals calculations
+    if (allocated(c%idxmol)) deallocate(c%idxmol)
     c%ismol3d = all(c%mol(1:c%nmol)%discrete).and..not.c%ismolecule
     if (c%ismol3d) then
        ! assign fractional (-1)/symmetry unique (0)/symmetry equivalent (>0)
-       if (allocated(c%idxmol)) deallocate(c%idxmol)
        allocate(c%idxmol(c%nmol))
        c%idxmol = 0
 
