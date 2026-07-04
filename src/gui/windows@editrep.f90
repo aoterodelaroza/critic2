@@ -228,7 +228,7 @@ contains
           call iw_tooltip("Open the manual page regarding arithmetic expressions.",ttshown)
 
           ! filter text input
-          if (iw_inputtext("##filtertext",bufsize=1023,texta=w%rep%filter,notlive=.true.)) then
+          if (iw_inputtext("##filtertext",bufsize=1023,texta=w%rep%sel%filter,notlive=.true.)) then
              ! test the filter
              if (sys(isys)%c%ncel > 0) then
                 x0 = sys(isys)%c%atcel(1)%r
@@ -236,19 +236,19 @@ contains
                 x0 = 0d0
              end if
              changed = .true.
-             w%rep%errfilter = ""
+             w%rep%sel%errfilter = ""
           end if
-          if (len_trim(w%rep%filter) == 0) w%rep%errfilter = ""
+          if (len_trim(w%rep%sel%filter) == 0) w%rep%sel%errfilter = ""
           call iw_tooltip("Apply this filter to the atoms in the system. Atoms are represented if non-zero.",&
              ttshown)
           if (iw_button("Clear",sameline=.true.)) then
-             w%rep%filter = ""
-             w%rep%errfilter = ""
+             w%rep%sel%filter = ""
+             w%rep%sel%errfilter = ""
              changed = .true.
           end if
           call iw_tooltip("Clear the filter",ttshown)
-          if (len_trim(w%rep%errfilter) > 0) &
-             call iw_text("Error: " // trim(w%rep%errfilter),danger=.true.)
+          if (len_trim(w%rep%sel%errfilter) > 0) &
+             call iw_text("Error: " // trim(w%rep%sel%errfilter),danger=.true.)
 
           ! periodicity
           if (.not.sys(isys)%c%ismolecule) then
@@ -256,76 +256,76 @@ contains
              call iw_text("Periodicity",highlight=.true.)
 
              ! radio buttons for the periodicity type
-             changed = changed .or. iw_radiobutton("None",int=w%rep%pertype,intval=0_c_int,sameline=.true.)
+             changed = changed .or. iw_radiobutton("None",int=w%rep%sel%pertype,intval=0_c_int,sameline=.true.)
              call iw_tooltip("This object is represented only in the main cell and not repeated by translation",ttshown)
-             changed = changed .or. iw_radiobutton("Automatic",int=w%rep%pertype,intval=1_c_int,sameline=.true.)
+             changed = changed .or. iw_radiobutton("Automatic",int=w%rep%sel%pertype,intval=1_c_int,sameline=.true.)
              call iw_tooltip("Number of periodic cells controlled by the +/- options &
                 &in the 'Scene' button of the view window",ttshown)
-             changed = changed .or. iw_radiobutton("Manual",int=w%rep%pertype,intval=2_c_int,sameline=.true.)
+             changed = changed .or. iw_radiobutton("Manual",int=w%rep%sel%pertype,intval=2_c_int,sameline=.true.)
              call iw_tooltip("Manually set the number of periodic cells",ttshown)
 
              ! number of periodic cells, if manual
-             if (w%rep%pertype == 2_c_int) then
+             if (w%rep%sel%pertype == 2_c_int) then
                 ! calculate widths
-                ipad = ceiling(log10(max(maxval(w%rep%ncell),1) + 0.1))
+                ipad = ceiling(log10(max(maxval(w%rep%sel%ncell),1) + 0.1))
                 sqw = max(iw_calcwidth(1,1),igGetTextLineHeightWithSpacing())
                 call igPushItemWidth(sqw)
 
-                nc = w%rep%ncell
+                nc = w%rep%sel%ncell
                 call igAlignTextToFramePadding()
                 call iw_text("a:")
                 call igSameLine(0._c_float,0._c_float)
-                if (iw_button("-##aaxis")) w%rep%ncell(1) = max(w%rep%ncell(1)-1,1)
+                if (iw_button("-##aaxis")) w%rep%sel%ncell(1) = max(w%rep%sel%ncell(1)-1,1)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                ldum = iw_inputint("##aaxis",w%rep%ncell(1),width=ipad,notlive=.true.)
+                ldum = iw_inputint("##aaxis",w%rep%sel%ncell(1),width=ipad,notlive=.true.)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                if (iw_button("+##aaxis")) w%rep%ncell(1) = w%rep%ncell(1)+1
+                if (iw_button("+##aaxis")) w%rep%sel%ncell(1) = w%rep%sel%ncell(1)+1
 
                 call igSameLine(0._c_float,-1._c_float)
                 call iw_text("b:")
                 call igSameLine(0._c_float,0._c_float)
-                if (iw_button("-##baxis")) w%rep%ncell(2) = max(w%rep%ncell(2)-1,1)
+                if (iw_button("-##baxis")) w%rep%sel%ncell(2) = max(w%rep%sel%ncell(2)-1,1)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                ldum = iw_inputint("##baxis",w%rep%ncell(2),width=ipad,notlive=.true.)
+                ldum = iw_inputint("##baxis",w%rep%sel%ncell(2),width=ipad,notlive=.true.)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                if (iw_button("+##baxis")) w%rep%ncell(2) = w%rep%ncell(2)+1
+                if (iw_button("+##baxis")) w%rep%sel%ncell(2) = w%rep%sel%ncell(2)+1
 
                 call igSameLine(0._c_float,-1._c_float)
                 call iw_text("c:")
                 call igSameLine(0._c_float,0._c_float)
-                if (iw_button("-##caxis")) w%rep%ncell(3) = max(w%rep%ncell(3)-1,1)
+                if (iw_button("-##caxis")) w%rep%sel%ncell(3) = max(w%rep%sel%ncell(3)-1,1)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                ldum = iw_inputint("##caxis",w%rep%ncell(3),width=ipad,notlive=.true.)
+                ldum = iw_inputint("##caxis",w%rep%sel%ncell(3),width=ipad,notlive=.true.)
                 call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-                if (iw_button("+##caxis")) w%rep%ncell(3) = w%rep%ncell(3)+1
-                w%rep%ncell = max(w%rep%ncell,1)
-                if (any(nc /= w%rep%ncell)) changed = .true.
+                if (iw_button("+##caxis")) w%rep%sel%ncell(3) = w%rep%sel%ncell(3)+1
+                w%rep%sel%ncell = max(w%rep%sel%ncell,1)
+                if (any(nc /= w%rep%sel%ncell)) changed = .true.
                 call igPopItemWidth()
 
                 if (iw_button("Reset",sameline=.true.)) then
-                   w%rep%ncell = 1
+                   w%rep%sel%ncell = 1
                    changed = .true.
                 end if
              end if
 
              ! checkbox for molecular motif
-             changed = changed .or. iw_checkbox("Show connected molecules",w%rep%onemotif)
+             changed = changed .or. iw_checkbox("Show connected molecules",w%rep%sel%onemotif)
              call iw_tooltip("Translate atoms to display whole molecules",ttshown)
 
              ! checkbox for border
-             changed = changed .or. iw_checkbox("Show atoms at cell edges",w%rep%border,sameline=.true.)
+             changed = changed .or. iw_checkbox("Show atoms at cell edges",w%rep%sel%border,sameline=.true.)
              call iw_tooltip("Display atoms near the unit cell edges",ttshown)
           end if
 
           ! origin of the atoms
           if (.not.sys(isys)%c%ismolecule) then
              ! origin translation
-             changed = changed .or. iw_dragfloat_real8("Translate Origin (fractional)##originatom",x3=w%rep%origin,&
+             changed = changed .or. iw_dragfloat_real8("Translate Origin (fractional)##originatom",x3=w%rep%sel%origin,&
                 speed=0.001d0,decimal=5)
              call iw_tooltip("Translation vector for the contents of the unit cell.",ttshown)
 
              ! origin shift
-             changed = changed .or. iw_dragfloat_real8("Cell Origin Shift (fractional)##origincell",x3=w%rep%tshift,&
+             changed = changed .or. iw_dragfloat_real8("Cell Origin Shift (fractional)##origincell",x3=w%rep%sel%tshift,&
                 speed=0.001d0,decimal=5)
              call iw_tooltip("Displace the origin of the cell being represented.",ttshown)
           end if
@@ -1092,53 +1092,53 @@ contains
     call iw_text("Periodicity",highlight=.true.)
 
     ! radio buttons for the periodicity type
-    changed = changed .or. iw_radiobutton("None",int=w%rep%pertype,intval=0_c_int,sameline=.true.)
+    changed = changed .or. iw_radiobutton("None",int=w%rep%sel%pertype,intval=0_c_int,sameline=.true.)
     call iw_tooltip("This object is represented only in the main cell and not repeated by translation",ttshown)
-    changed = changed .or. iw_radiobutton("Automatic",int=w%rep%pertype,intval=1_c_int,sameline=.true.)
+    changed = changed .or. iw_radiobutton("Automatic",int=w%rep%sel%pertype,intval=1_c_int,sameline=.true.)
     call iw_tooltip("Number of periodic cells controlled by the +/- options in the view menu",ttshown)
-    changed = changed .or. iw_radiobutton("Manual",int=w%rep%pertype,intval=2_c_int,sameline=.true.)
+    changed = changed .or. iw_radiobutton("Manual",int=w%rep%sel%pertype,intval=2_c_int,sameline=.true.)
     call iw_tooltip("Manually set the number of periodic cells",ttshown)
 
     ! number of periodic cells, if manual
-    if (w%rep%pertype == 2_c_int) then
+    if (w%rep%sel%pertype == 2_c_int) then
        ! calculate widths
-       ipad = ceiling(log10(max(maxval(w%rep%ncell),1) + 0.1))
+       ipad = ceiling(log10(max(maxval(w%rep%sel%ncell),1) + 0.1))
        sqw = max(iw_calcwidth(1,1),igGetTextLineHeightWithSpacing())
        call igPushItemWidth(sqw)
 
-       nc = w%rep%ncell
+       nc = w%rep%sel%ncell
        call igAlignTextToFramePadding()
        call iw_text("a:")
        call igSameLine(0._c_float,0._c_float)
-       if (iw_button("-##aaxis")) w%rep%ncell(1) = max(w%rep%ncell(1)-1,1)
+       if (iw_button("-##aaxis")) w%rep%sel%ncell(1) = max(w%rep%sel%ncell(1)-1,1)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       ldum = iw_inputint("##aaxis",w%rep%ncell(1),width=ipad,notlive=.true.)
+       ldum = iw_inputint("##aaxis",w%rep%sel%ncell(1),width=ipad,notlive=.true.)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       if (iw_button("+##aaxis")) w%rep%ncell(1) = w%rep%ncell(1)+1
+       if (iw_button("+##aaxis")) w%rep%sel%ncell(1) = w%rep%sel%ncell(1)+1
 
        call igSameLine(0._c_float,-1._c_float)
        call iw_text("b:")
        call igSameLine(0._c_float,0._c_float)
-       if (iw_button("-##baxis")) w%rep%ncell(2) = max(w%rep%ncell(2)-1,1)
+       if (iw_button("-##baxis")) w%rep%sel%ncell(2) = max(w%rep%sel%ncell(2)-1,1)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       ldum = iw_inputint("##baxis",w%rep%ncell(2),width=ipad,notlive=.true.)
+       ldum = iw_inputint("##baxis",w%rep%sel%ncell(2),width=ipad,notlive=.true.)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       if (iw_button("+##baxis")) w%rep%ncell(2) = w%rep%ncell(2)+1
+       if (iw_button("+##baxis")) w%rep%sel%ncell(2) = w%rep%sel%ncell(2)+1
 
        call igSameLine(0._c_float,-1._c_float)
        call iw_text("c:")
        call igSameLine(0._c_float,0._c_float)
-       if (iw_button("-##caxis")) w%rep%ncell(3) = max(w%rep%ncell(3)-1,1)
+       if (iw_button("-##caxis")) w%rep%sel%ncell(3) = max(w%rep%sel%ncell(3)-1,1)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       ldum = iw_inputint("##caxis",w%rep%ncell(3),width=ipad,notlive=.true.)
+       ldum = iw_inputint("##caxis",w%rep%sel%ncell(3),width=ipad,notlive=.true.)
        call igSameLine(0._c_float,0.5_c_float*g%Style%FramePadding%x)
-       if (iw_button("+##caxis")) w%rep%ncell(3) = w%rep%ncell(3)+1
-       w%rep%ncell = max(w%rep%ncell,1)
-       if (any(nc /= w%rep%ncell)) changed = .true.
+       if (iw_button("+##caxis")) w%rep%sel%ncell(3) = w%rep%sel%ncell(3)+1
+       w%rep%sel%ncell = max(w%rep%sel%ncell,1)
+       if (any(nc /= w%rep%sel%ncell)) changed = .true.
        call igPopItemWidth()
 
        if (iw_button("Reset",sameline=.true.)) then
-          w%rep%ncell = 1
+          w%rep%sel%ncell = 1
           changed = .true.
        end if
     end if
@@ -1183,7 +1183,7 @@ contains
 
     ! origin of the unit cell
     call iw_text("Origin Shift",highlight=.true.)
-    changed = changed .or. iw_dragfloat_real8("##originucx",x3=w%rep%origin,speed=0.001d0,decimal=5)
+    changed = changed .or. iw_dragfloat_real8("##originucx",x3=w%rep%sel%origin,speed=0.001d0,decimal=5)
     call iw_tooltip("Coordinates for the origin shift of the unit cell",ttshown)
 
   end function draw_editrep_unitcell
@@ -1254,7 +1254,7 @@ contains
           w%rep%axes%coordtype = icoord
        end if
        call iw_tooltip("Coordinate system in which the origin is given",ttshown)
-       changed = changed .or. iw_dragfloat_real8("##originaxes",x3=w%rep%origin,speed=0.001d0,decimal=5)
+       changed = changed .or. iw_dragfloat_real8("##originaxes",x3=w%rep%axes%origin,speed=0.001d0,decimal=5)
        call iw_tooltip("Coordinates for the origin of the axes",ttshown)
     else
        changed = changed .or. iw_dragfloat_real8("from left##axeswinx",x1=w%rep%axes%winpos(1),speed=0.005d0,&
@@ -1631,7 +1631,7 @@ contains
 
     ! molecule selection
     ! initialized and more than one molecule
-    if (r%mol_style%isinit .and. r%mol_style%ntype > 1) then
+    if (r%mols%style%isinit .and. r%mols%style%ntype > 1) then
        if (showselection) then
           call iw_text("Molecule Selection",highlight=.true.)
        elseif (showdrawopts) then
@@ -1653,7 +1653,7 @@ contains
        flags = ior(flags,ImGuiTableFlags_ScrollY)
        str1="##tablemolstyles" // c_null_char
        sz0%x = 0
-       sz0%y = iw_calcheight(min(5,r%mol_style%ntype)+1,0,.false.)
+       sz0%y = iw_calcheight(min(5,r%mols%style%ntype)+1,0,.false.)
        if (igBeginTable(c_loc(str1),ncol,flags,sz0,0._c_float)) then
           icol = -1
 
@@ -1703,7 +1703,7 @@ contains
 
           ! start the clipper
           clipper = ImGuiListClipper_ImGuiListClipper()
-          call ImGuiListClipper_Begin(clipper,r%mol_style%ntype,-1._c_float)
+          call ImGuiListClipper_Begin(clipper,r%mols%style%ntype,-1._c_float)
 
           ! draw the rows
           do while(ImGuiListClipper_Step(clipper))
@@ -1733,7 +1733,7 @@ contains
                 if (showselection) then
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
-                      changed = changed .or. iw_checkbox("##tablemolshown" // string(i) ,r%mol_style%shown(i))
+                      changed = changed .or. iw_checkbox("##tablemolshown" // string(i) ,r%mols%style%shown(i))
                       call iw_tooltip("Toggle display of all atoms in this molecule",ttshown)
                    end if
                 end if
@@ -1742,11 +1742,11 @@ contains
                 if (showdrawopts) then
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
-                      ch = iw_coloredit("##tablemolcolor" // string(i),rgb=r%mol_style%tint_rgb(:,i))
+                      ch = iw_coloredit("##tablemolcolor" // string(i),rgb=r%mols%style%tint_rgb(:,i))
                       call iw_tooltip("Molecule color tint",ttshown)
                       if (ch) then
-                         r%mol_style%tint_rgb(:,i) = min(r%mol_style%tint_rgb(:,i),1._c_float)
-                         r%mol_style%tint_rgb(:,i) = max(r%mol_style%tint_rgb(:,i),0._c_float)
+                         r%mols%style%tint_rgb(:,i) = min(r%mols%style%tint_rgb(:,i),1._c_float)
+                         r%mols%style%tint_rgb(:,i) = max(r%mols%style%tint_rgb(:,i),0._c_float)
                          changed = .true.
                       end if
                    end if
@@ -1755,7 +1755,7 @@ contains
                    icol = icol + 1
                    if (igTableSetColumnIndex(icol)) then
                       changed = changed .or. iw_dragfloat_real8("##tablemolradius" // string(i),&
-                         x1=r%mol_style%scale_rad(i),speed=0.005d0,min=0d0,max=5d0,decimal=3,&
+                         x1=r%mols%style%scale_rad(i),speed=0.005d0,min=0d0,max=5d0,decimal=3,&
                          flags=ImGuiSliderFlags_AlwaysClamp)
                       call iw_tooltip("Scale factor for the atomic radii in this molecule",ttshown)
                    end if
@@ -1785,18 +1785,18 @@ contains
        if (showselection) then
           ! style buttons: show/hide
           if (iw_button("Show All##showallmolecules")) then
-             r%mol_style%shown = .true.
+             r%mols%style%shown = .true.
              changed = .true.
           end if
           call iw_tooltip("Show all molecules in the system",ttshown)
           if (iw_button("Hide All##hideallmolecules",sameline=.true.)) then
-             r%mol_style%shown = .false.
+             r%mols%style%shown = .false.
              changed = .true.
           end if
           call iw_tooltip("Hide all molecules in the system",ttshown)
           if (iw_button("Toggle Show/Hide##toggleallmolecules",sameline=.true.)) then
-             do i = 1, r%mol_style%ntype
-                r%mol_style%shown(i) = .not.r%mol_style%shown(i)
+             do i = 1, r%mols%style%ntype
+                r%mols%style%shown(i) = .not.r%mols%style%shown(i)
              end do
              changed = .true.
           end if

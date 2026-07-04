@@ -58,6 +58,9 @@ module shapes
   integer(c_int), target, public :: textVAOos
   integer(c_int), target, public :: textVBOos
   integer(c_int), parameter, public :: text_maxvert = 6 * 128
+  ! floats per on-scene-text vertex: anchor (3), eye shift (3), glyph corner
+  ! (2), font-atlas UV (2), anchor vibration delta re (3) and im (3)
+  integer(c_int), parameter, public :: text_vert_nf = 16
 
   ! impostor objects (instanced billboards). A single unit quad (corners in
   ! [-1,1], drawn as a triangle strip) is expanded per instance; the fragment
@@ -66,11 +69,13 @@ module shapes
   ! scene_glbuffers type below.
   integer(c_int), target, public :: impQuadVBO ! shared unit-quad corners
   integer(c_int), parameter, public :: sph_inst_nf = 22 ! floats per sphere instance
-  integer(c_int), parameter, public :: cyl_inst_nf = 19 ! floats per cylinder instance
+  integer(c_int), parameter, public :: cyl_inst_nf = 31 ! floats per cylinder instance
 
   ! instanced plain meshes (planes, polyhedra triangles, cones): per-instance
-  ! model matrix (4 columns) + color
-  integer(c_int), parameter, public :: mesh_inst_nf = 20 ! floats per mesh instance (16 model + 4 color)
+  ! model matrix (4 columns) + color + per-vertex vibration deltas (real and
+  ! imaginary parts for the three reference-triangle corners; zero for planes
+  ! and cones, which are not animated)
+  integer(c_int), parameter, public :: mesh_inst_nf = 38 ! floats per mesh instance (16 model + 4 color + 18 deltas)
 
   !! draw list objects
   !> spheres for the draw list
@@ -232,18 +237,15 @@ module shapes
      real(c_float), allocatable :: packsph(:,:)  ! sphere instances (also selections/highlights/pick)
      real(c_float), allocatable :: packcyl(:,:)  ! cylinder instances
      real(c_float), allocatable :: packmesh(:,:) ! mesh instances (cones, then planes, then triangles)
-     real(c_float), allocatable :: packex1(:,:), packex2(:,:) ! animated cylinder endpoints
-     integer, allocatable :: packnd(:) ! per-bond dash counts
      ! per-scene on-scene-text buffer: the glyph vertices of the scene labels
-     ! are cached here (and in the VBO) and reused while the camera, the draw
-     ! lists, and the animation state do not change
-     integer(c_int) :: textVAO = 0, textVBO = 0 ! cached label glyph buffer (10 floats/vertex)
+     ! are cached here (and in the VBO) and reused while the camera and the
+     ! draw lists do not change
+     integer(c_int) :: textVAO = 0, textVBO = 0 ! cached label glyph buffer (text_vert_nf floats/vertex)
      integer :: text_cap = 0 ! vertex capacity of the text VBO storage
      integer, allocatable :: text_first(:) ! first vertex of each label (0-based)
      integer, allocatable :: text_count(:) ! vertex count of each label
-     real(c_float), allocatable :: packtext(:,:) ! concatenated glyph vertices (10,:)
+     real(c_float), allocatable :: packtext(:,:) ! concatenated glyph vertices (text_vert_nf,:)
      logical :: text_valid = .false. ! cached text vertices are current
-     integer :: text_last_anim = -1 ! animation state at the last text rebuild
      real*8 :: text_build_time = -1d0 ! draw-list build time at the last text rebuild
      real(c_float) :: text_proj(4,4) = 0._c_float ! projection matrix at the last text rebuild
      real(c_float) :: text_vw3(4) = 0._c_float ! view*world third row at the last text rebuild
@@ -251,7 +253,6 @@ module shapes
      real(c_float) :: text_fontsize = -1._c_float ! baked font size at the last text rebuild
      ! cached-buffer validity and instance counts
      logical :: inst_valid = .false. ! true if the cached instance buffers are current
-     integer :: inst_last_anim = -1 ! animation state at the last instance-buffer build
      integer :: nsph_inst = 0   ! number of cached atom-sphere instances
      integer :: ncyl_inst = 0   ! number of cached bond/cell-cylinder instances
      integer :: ncone_inst = 0  ! number of cached cone instances
@@ -359,7 +360,7 @@ module shapes
      module subroutine glbuffers_upload_text(b,nvert,buf)
        class(scene_glbuffers), intent(inout) :: b
        integer, intent(in) :: nvert
-       real(c_float), intent(in), target :: buf(10,nvert)
+       real(c_float), intent(in), target :: buf(text_vert_nf,nvert)
      end subroutine glbuffers_upload_text
      module subroutine glbuffers_redraw_spheres(b,n)
        class(scene_glbuffers), intent(inout) :: b

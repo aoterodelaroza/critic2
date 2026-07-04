@@ -170,7 +170,7 @@ contains
     call glGenBuffers(1, c_loc(textVBOos))
     call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
     call glBindVertexArray(textVAOos)
-    call glBufferData(GL_ARRAY_BUFFER, text_maxvert*10*c_sizeof(c_float_), c_null_ptr, GL_DYNAMIC_DRAW)
+    call glBufferData(GL_ARRAY_BUFFER, text_maxvert*text_vert_nf*c_sizeof(c_float_), c_null_ptr, GL_DYNAMIC_DRAW)
     call set_text_onscene_attribs()
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
@@ -446,27 +446,35 @@ contains
   end subroutine dl_append_triangle
 
   !> Set the vertex attributes of the on-scene-text layout on the currently
-  !> bound VAO/VBO (10 floats per vertex: anchor (loc 0, 3), eye-space shift
-  !> (1, 3), glyph corner (2, 2), font-atlas UV (3, 2)). Must match the
+  !> bound VAO/VBO (text_vert_nf floats per vertex: anchor (loc 0, 3),
+  !> eye-space shift (1, 3), glyph corner (2, 2), font-atlas UV (3, 2), anchor
+  !> vibration delta real (4, 3) and imaginary (5, 3) parts). Must match the
   !> text_onscene shaders and the packing in calc_text_onscene_vertices.
   subroutine set_text_onscene_attribs()
     use interfaces_opengl3
 
+    integer(c_int) :: st
     real(c_float) :: c_float_
     type(c_ptr) :: c_ptr_
 
+    st = int(text_vert_nf*c_sizeof(c_float_),c_int)
     call glEnableVertexAttribArray(0)
-    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
-       c_null_ptr)
+    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), st, c_null_ptr)
     call glEnableVertexAttribArray(1)
-    call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
+    call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), st,&
        transfer(3_c_intptr_t * c_sizeof(c_float_),c_ptr_))
     call glEnableVertexAttribArray(2)
-    call glVertexAttribPointer(2, 2, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
+    call glVertexAttribPointer(2, 2, GL_FLOAT, int(GL_FALSE,c_signed_char), st,&
        transfer(6_c_intptr_t * c_sizeof(c_float_),c_ptr_))
     call glEnableVertexAttribArray(3)
-    call glVertexAttribPointer(3, 2, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
+    call glVertexAttribPointer(3, 2, GL_FLOAT, int(GL_FALSE,c_signed_char), st,&
        transfer(8_c_intptr_t * c_sizeof(c_float_),c_ptr_))
+    call glEnableVertexAttribArray(4)
+    call glVertexAttribPointer(4, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), st,&
+       transfer(10_c_intptr_t * c_sizeof(c_float_),c_ptr_))
+    call glEnableVertexAttribArray(5)
+    call glVertexAttribPointer(5, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), st,&
+       transfer(13_c_intptr_t * c_sizeof(c_float_),c_ptr_))
 
   end subroutine set_text_onscene_attribs
 
@@ -500,7 +508,7 @@ contains
     call setup_mesh_inst(b%coneinstVAO, b%coneinstVBO, coneVBO(nmaxcone), coneEBO(nmaxcone))
     call setup_mesh_inst(b%coneinstVAOscr, b%coneinstVBOscr, coneVBO(nmaxcone), coneEBO(nmaxcone))
 
-    ! cached on-scene-text VAO (same 10-float vertex layout as textVAOos);
+    ! cached on-scene-text VAO (same text_vert_nf-float vertex layout as textVAOos);
     ! storage is sized on upload (see glbuffers_upload_text)
     call glGenVertexArrays(1, c_loc(b%textVAO))
     call glGenBuffers(1, c_loc(b%textVBO))
@@ -562,6 +570,10 @@ contains
       call inst_attrib(6, 3, st, 12) ! a_bordercolor
       call inst_attrib(7, 1, st, 15) ! a_delta
       call inst_attrib(8, 3, st, 16) ! a_outward
+      call inst_attrib(9, 3, st, 19)  ! a_x1delta_re
+      call inst_attrib(10, 3, st, 22) ! a_x1delta_im
+      call inst_attrib(11, 3, st, 25) ! a_x2delta_re
+      call inst_attrib(12, 3, st, 28) ! a_x2delta_im
       call glBindBuffer(GL_ARRAY_BUFFER, 0)
       call glBindVertexArray(0)
 
@@ -588,6 +600,12 @@ contains
       call inst_attrib(3, 4, st, 8)  ! model column 3
       call inst_attrib(4, 4, st, 12) ! model column 4
       call inst_attrib(5, 4, st, 16) ! color
+      call inst_attrib(6, 3, st, 20)  ! a_d1re (vertex 1 vibration delta, real)
+      call inst_attrib(7, 3, st, 23)  ! a_d1im (vertex 1 vibration delta, imag)
+      call inst_attrib(8, 3, st, 26)  ! a_d2re
+      call inst_attrib(9, 3, st, 29)  ! a_d2im
+      call inst_attrib(10, 3, st, 32) ! a_d3re
+      call inst_attrib(11, 3, st, 35) ! a_d3im
       call glBindBuffer(GL_ARRAY_BUFFER, 0)
       call glBindVertexArray(0)
 
@@ -670,14 +688,10 @@ contains
     if (allocated(b%packsph)) deallocate(b%packsph)
     if (allocated(b%packcyl)) deallocate(b%packcyl)
     if (allocated(b%packmesh)) deallocate(b%packmesh)
-    if (allocated(b%packex1)) deallocate(b%packex1)
-    if (allocated(b%packex2)) deallocate(b%packex2)
-    if (allocated(b%packnd)) deallocate(b%packnd)
     b%textVAO = 0
     b%textVBO = 0
     b%text_cap = 0
     b%text_valid = .false.
-    b%text_last_anim = -1
     b%text_build_time = -1d0
     b%text_hside = -1._c_float
     b%text_fontsize = -1._c_float
@@ -685,7 +699,6 @@ contains
     if (allocated(b%text_count)) deallocate(b%text_count)
     if (allocated(b%packtext)) deallocate(b%packtext)
     b%inst_valid = .false.
-    b%inst_last_anim = -1
     b%nsph_inst = 0
     b%ncyl_inst = 0
     b%ncone_inst = 0
@@ -825,17 +838,17 @@ contains
 
   end subroutine glbuffers_draw_mesh
 
-  !> Upload nvert on-scene-text glyph vertices (10 floats each) to the cached
+  !> Upload nvert on-scene-text glyph vertices (text_vert_nf floats each) to the cached
   !> per-scene text VBO (orphan + subdata, capacity-tracked like the instance
   !> buffers).
   module subroutine glbuffers_upload_text(b,nvert,buf)
     use interfaces_opengl3
     class(scene_glbuffers), intent(inout) :: b
     integer, intent(in) :: nvert
-    real(c_float), intent(in), target :: buf(10,nvert)
+    real(c_float), intent(in), target :: buf(text_vert_nf,nvert)
 
     if (nvert <= 0) return
-    call upload_instances(b%textVBO,b%text_cap,10,nvert,c_loc(buf))
+    call upload_instances(b%textVBO,b%text_cap,int(text_vert_nf),nvert,c_loc(buf))
 
   end subroutine glbuffers_upload_text
 

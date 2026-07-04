@@ -482,13 +482,13 @@ contains
 
   end subroutine scene_build_lists
 
-  !> Draw the scene
+  !> Draw the scene.
   module subroutine scene_render(s)
     use interfaces_glfw, only: glfwGetTime
     use interfaces_cimgui
     use interfaces_opengl3
     use shapes, only: textVAOos, textVBOos, quadnel, trinel,&
-       sph_inst_nf, cyl_inst_nf, mesh_inst_nf, connel, nmaxcone,&
+       sph_inst_nf, cyl_inst_nf, mesh_inst_nf, text_vert_nf, connel, nmaxcone,&
        glb_cone, glb_plane, glb_tri, glb_conescr, ensure_pack
     use gui_main, only: fonts, fontbakesize_large, font_large
     use systems, only: sys, sysc
@@ -504,7 +504,7 @@ contains
     real(c_float) :: xsel(3,4), radsel(4)
     complex(c_float_complex) :: displ
     real*8 :: deltat, fac, time
-    logical :: doit, dobuild, dobuildanim
+    logical :: doit, dobuild
 
     real(c_float), parameter :: msel_thickness = 0.1_c_float
     real(c_float), parameter :: sel_thickness = 0.2_c_float
@@ -524,9 +524,11 @@ contains
     ! render text with the large font
     call igPushFont(font_large)
 
-    ! calculate the time factor
+    ! calculate the time factor. The phasor is zero unless an animation is
+    ! actually running, so Animation=None shows the equilibrium geometry (the
+    ! GPU applies displ to the per-instance vibration deltas).
     displ = 0._c_float
-    if (s%ifreq_selected > 0 .and. s%iqpt_selected > 0) then
+    if (s%ifreq_selected > 0 .and. s%iqpt_selected > 0 .and. s%animation > 0) then
        fac = s%anim_amplitude * sqrt(freq_ref / max(abs(sys(s%id)%c%vib%freq(s%ifreq_selected,s%iqpt_selected)),freq_min))
        if (s%animation == 1) then ! manual
           displ = cmplx(fac * exp(0.5d0 * s%anim_phase * pi * img),&
@@ -538,16 +540,11 @@ contains
     end if
 
     ! decide whether this scene's cached instance buffers must be (re)built
-    ! and uploaded. All types are rebuilt when they are stale (draw lists
-    ! changed). While animating (and on the animation on/off transition) only
-    ! the CPU-animated types need rebuilding every frame (dobuildanim):
-    ! cylinders (endpoints and dashes) and triangles. Spheres are displaced in
-    ! the vertex shader (u_displ and the per-instance deltas already in the
-    ! buffer) and cones/planes are not animated, so their cached buffers stay
-    ! valid across animation frames.
+    ! and uploaded: only when they are stale (draw lists changed). All
+    ! vibration animation is applied in the vertex shaders from the
+    ! per-instance deltas and the displ uniform, so the buffers (and the text
+    ! cache) are animation-invariant.
     dobuild = .not.s%gl%inst_valid
-    dobuildanim = dobuild .or. (s%animation > 0) .or. (s%animation /= s%gl%inst_last_anim)
-    s%gl%inst_last_anim = s%animation
 
     ! draw the atoms (instanced sphere impostors)
     if (s%obj%nsph > 0) then
@@ -559,12 +556,15 @@ contains
        end if
     end if
 
-    ! draw the bonds and the unit-cell edges (instanced cylinder impostors)
+    ! draw the bonds and the unit-cell edges (instanced cylinder impostors).
+    ! Blending is enabled because the bond alpha is plumbed through to the
+    ! fragment color (translucent bonds); all cylinders are opaque (alpha=1)
+    ! at present, so this has no visible effect today.
     if (s%obj%ncyl + s%obj%ncylflat > 0) then
        call setup_shader(shader_cylinder)
        call glEnable(GL_BLEND)
        call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-       if (dobuildanim) then
+       if (dobuild) then
           call draw_all_cylinders()
        else
           call s%gl%redraw_cylinders(s%gl%ncyl_inst)
@@ -600,7 +600,7 @@ contains
              end if
           end if
           if (s%obj%ntriangle > 0) then
-             if (dobuildanim) then
+             if (dobuild) then
                 call draw_all_triangles()
              else
                 call s%gl%redraw_mesh(glb_tri,trinel,s%gl%ntri_inst)
@@ -644,8 +644,11 @@ contains
     if (s%nmsel > 0) &
        call draw_selection_text()
     call glEnable(GL_CULL_FACE)
+    call glEnable(GL_MULTISAMPLE)
+    call glDisable(GL_BLEND)
 
-    ! highlight the highlighted/selected atoms
+    ! highlight the highlighted/selected atoms (translucent overlay spheres;
+    ! multisampling is back on so their rims are antialiased like the atoms)
     doit = .false.
     if (allocated(sysc(s%id)%highlight_rgba)) &
        doit = any(sysc(s%id)%highlight_rgba >= 0._c_float)
@@ -658,9 +661,6 @@ contains
        call draw_highlights()
        call glDisable(GL_BLEND)
     end if
-
-    call glEnable(GL_MULTISAMPLE)
-    call glDisable(GL_BLEND)
 
     ! window-anchored axes gizmo, drawn on top of the scene
     if (s%obj%ncylgiz + s%obj%nconegiz + s%obj%nstringgiz > 0) &
@@ -679,9 +679,10 @@ contains
 
   contains
     !> Bind shader ishader and set the shared scene uniforms (world, view,
-    !> projection, isanchored=0). The impostor shaders also get the projection
-    !> type; the sphere shader additionally gets pick mode off and the
-    !> vibration displacement.
+    !> projection, isanchored=0, and the vibration displacement phasor; the
+    !> u_displ set is a no-op for programs without the uniform). The impostor
+    !> shaders also get the projection type; the sphere shader additionally
+    !> gets pick mode off.
     subroutine setup_shader(ishader)
       integer, intent(in) :: ishader
 
@@ -690,12 +691,11 @@ contains
       call setuniform_mat4(s%view,idxi=uniloc(u_view))
       call setuniform_mat4(s%projection,idxi=uniloc(u_projection))
       call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
+      call setuniform_vec3((/real(displ,c_float),real(aimag(displ),c_float),0._c_float/),idxi=uniloc(u_displ))
       if (ishader == shader_sphere .or. ishader == shader_cylinder) &
          call setuniform_int(merge(1_c_int,0_c_int,s%isortho),idxi=uniloc(u_isortho))
-      if (ishader == shader_sphere) then
+      if (ishader == shader_sphere) &
          call setuniform_int(0_c_int,idxi=uniloc(u_upick))
-         call setuniform_vec3((/real(displ,c_float),real(aimag(displ),c_float),0._c_float/),idxi=uniloc(u_displ))
-      end if
 
     end subroutine setup_shader
 
@@ -717,54 +717,44 @@ contains
 
     end subroutine draw_all_spheres
 
-    !> Build and draw all cylinder impostors: bonds (multi-bonds expanded into
-    !> laterally-offset instances; dashed and the aromatic interior expanded into
-    !> short capped-cylinder dashes) and the unit-cell edges (plain, no border).
-    !> The cylinder geometric radius is half the stored bond radius (the legacy
-    !> unit mesh had radius 0.5). Endpoints are animated on the CPU.
+    !> Build and draw all cylinder impostors: bonds (multi-bonds
+    !> expanded into laterally-offset instances; dashed and the
+    !> aromatic interior expanded into short capped-cylinder dashes)
+    !> and the unit-cell edges (plain, no border).
     subroutine draw_all_cylinders()
-      integer :: i, n, k, j, nseg, ntot
+      integer :: i, n, k, j, nseg, ntot, ndash
       real(c_float) :: x1(3), x2(3), rgba(4), r, rgeo, bcol(3), bord, outw(3)
-      real(c_float) :: dl(3), dir(3), blen, p, half, tc, sx1(3), sx2(3)
+      real(c_float) :: dl(3), dir(3), blen, p, half, tc, sx1(3), sx2(3), t1, t2
+      complex(c_float_complex) :: xd1(3), xd2(3), sd1(3), sd2(3)
       logical :: dsh(3)
       real(c_float), parameter :: zv(3) = 0._c_float
-      real(c_float), parameter :: dash_period = 0.4_c_float
 
-      ! precompute the animated endpoints and per-bond dash counts, and the total
-      ! number of instances (dashes expand into several short cylinders). The
-      ! endpoint/dash/instance scratch is persistent (grow-only pack buffers).
-      call ensure_pack(s%gl%packex1,3,s%obj%ncyl)
-      call ensure_pack(s%gl%packex2,3,s%obj%ncyl)
-      call ensure_pack(s%gl%packnd,s%obj%ncyl)
-      associate(ex1 => s%gl%packex1, ex2 => s%gl%packex2, nd => s%gl%packnd)
+      ! count the instances (dashes expand into several short cylinders)
       ntot = s%obj%ncylflat
       do i = 1, s%obj%ncyl
-         x1 = s%obj%cyl(i)%x1
-         x2 = s%obj%cyl(i)%x2
-         if (s%animation > 0) then
-            x1 = x1 + real(displ * s%obj%cyl(i)%x1delta,c_float)
-            x2 = x2 + real(displ * s%obj%cyl(i)%x2delta,c_float)
-         end if
-         ex1(:,i) = x1
-         ex2(:,i) = x2
-         nd(i) = min(64, max(1, nint(norm2(x2-x1)/dash_period)))
          select case (s%obj%cyl(i)%order)
-         case (-1); ntot = ntot + 1 + nd(i)
-         case (0);  ntot = ntot + nd(i)
-         case (2);  ntot = ntot + 2
-         case (3);  ntot = ntot + 3
-         case default; ntot = ntot + 1
+         case (-1)
+            ntot = ntot + 1 + dash_count(i)
+         case (0)
+            ntot = ntot + dash_count(i)
+         case (2)
+            ntot = ntot + 2
+         case (3)
+            ntot = ntot + 3
+         case default
+            ntot = ntot + 1
          end select
       end do
 
       call ensure_pack(s%gl%packcyl,cyl_inst_nf,ntot)
-      associate(buf => s%gl%packcyl)
       n = 0
 
       ! bonds: expand the bond order into one or more (possibly dashed) runs
       do i = 1, s%obj%ncyl
-         x1 = ex1(:,i)
-         x2 = ex2(:,i)
+         x1 = s%obj%cyl(i)%x1
+         x2 = s%obj%cyl(i)%x2
+         xd1 = s%obj%cyl(i)%x1delta
+         xd2 = s%obj%cyl(i)%x2delta
          r = s%obj%cyl(i)%r
          rgeo = 0.5_c_float * r
          rgba = (/s%obj%cyl(i)%rgb, s%obj%cyl(i)%alpha/)
@@ -798,42 +788,54 @@ contains
 
          do k = 1, nseg
             if (dsh(k)) then
-               ! string of short capped cylinders (dashes)
-               p = blen / real(nd(i),c_float)
+               ! string of short capped cylinders (dashes); each dash carries
+               ! the endpoint deltas interpolated at its fractional positions,
+               ! so the dashes ride the animated bond
+               ndash = dash_count(i)
+               p = blen / real(ndash,c_float)
                half = 0.25_c_float * p
-               do j = 0, nd(i)-1
+               do j = 0, ndash-1
                   tc = (real(j,c_float) + 0.5_c_float) * p
                   sx1 = x1 + dir * (tc - half)
                   sx2 = x1 + dir * (tc + half)
+                  t1 = (tc - half) / max(blen,1e-7_c_float)
+                  t2 = (tc + half) / max(blen,1e-7_c_float)
+                  sd1 = (1._c_float - t1) * xd1 + t1 * xd2
+                  sd2 = (1._c_float - t2) * xd1 + t2 * xd2
                   n = n + 1
-                  call cyl_pack(buf(:,n),sx1,sx2,rgeo,rgba,bord,bcol,dl(k),outw)
+                  call cyl_pack(s%gl%packcyl(:,n),sx1,sx2,rgeo,rgba,bord,bcol,dl(k),outw,sd1,sd2)
                end do
             else
                n = n + 1
-               call cyl_pack(buf(:,n),x1,x2,rgeo,rgba,bord,bcol,dl(k),outw)
+               call cyl_pack(s%gl%packcyl(:,n),x1,x2,rgeo,rgba,bord,bcol,dl(k),outw,xd1,xd2)
             end if
          end do
       end do
 
       ! unit-cell edges: plain cylinders, no border
       do i = 1, s%obj%ncylflat
-         x1 = s%obj%cylflat(i)%x1
-         x2 = s%obj%cylflat(i)%x2
-         if (s%animation > 0) then
-            x1 = x1 + real(displ * s%obj%cylflat(i)%x1delta,c_float)
-            x2 = x2 + real(displ * s%obj%cylflat(i)%x2delta,c_float)
-         end if
          n = n + 1
-         call cyl_pack(buf(:,n),x1,x2,0.5_c_float*s%obj%cylflat(i)%r,&
-            (/s%obj%cylflat(i)%rgb,1._c_float/),0._c_float,zv,0._c_float,zv)
+         call cyl_pack(s%gl%packcyl(:,n),s%obj%cylflat(i)%x1,s%obj%cylflat(i)%x2,&
+            0.5_c_float*s%obj%cylflat(i)%r,(/s%obj%cylflat(i)%rgb,1._c_float/),&
+            0._c_float,zv,0._c_float,zv,s%obj%cylflat(i)%x1delta,s%obj%cylflat(i)%x2delta)
       end do
 
-      call s%gl%draw_cylinders(n,buf,.false.)
+      call s%gl%draw_cylinders(n,s%gl%packcyl,.false.)
       s%gl%ncyl_inst = n
-      end associate
-      end associate
 
     end subroutine draw_all_cylinders
+
+    !> Number of dashes for the dashed expansion of bond cylinder i, from the
+    !> equilibrium bond length (frozen while animating).
+    function dash_count(i) result(ndash)
+      integer, intent(in) :: i
+      integer :: ndash
+
+      real(c_float), parameter :: dash_period = 0.4_c_float
+
+      ndash = min(64, max(1, nint(norm2(s%obj%cyl(i)%x2 - s%obj%cyl(i)%x1)/dash_period)))
+
+    end function dash_count
 
     subroutine draw_all_cones()
       integer :: i, n
@@ -901,6 +903,7 @@ contains
       integer(c_int) :: nvert
       real(c_float), allocatable, target :: vert(:,:)
       real(c_float), parameter :: zv(3) = 0._c_float
+      complex(c_float_complex), parameter :: zc(3) = (0._c_float,0._c_float)
 
       ! the gizmo always uses an orthographic projection, with a symmetric depth
       ! range so the anchored (eye-origin-centered) geometry is never clipped
@@ -930,7 +933,7 @@ contains
                n = n + 1
                call cyl_pack(s%gl%packcyl(:,n),s%obj%cylgiz(k)%x1,s%obj%cylgiz(k)%x2,&
                   0.5_c_float*s%obj%cylgiz(k)%r,(/s%obj%cylgiz(k)%rgb,1._c_float/),&
-                  s%obj%cylgiz(k)%border,s%obj%cylgiz(k)%rgbborder,0._c_float,zv)
+                  s%obj%cylgiz(k)%border,s%obj%cylgiz(k)%rgbborder,0._c_float,zv,zc,zc)
             end do
             call s%gl%draw_cylinders(n,s%gl%packcyl,.true.)
             i = j + 1
@@ -997,7 +1000,7 @@ contains
             end if
             call calc_text_onscene_vertices(s%obj%stringgiz(i)%str,s%obj%stringgiz(i)%x,s%obj%stringgiz(i)%r,&
                siz,nvert,vert,shift=s%obj%stringgiz(i)%offset,centered=.true.)
-            call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*10*c_sizeof(c_float), c_loc(vert))
+            call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*text_vert_nf*c_sizeof(c_float), c_loc(vert))
             call glDrawArrays(GL_TRIANGLES, 0, nvert)
          end do
          call glEnable(GL_MULTISAMPLE)
@@ -1062,17 +1065,15 @@ contains
       integer :: i, n
       real(c_float) :: m(4,4), nrm(3), p1(3), p2(3), p3(3)
 
+      ! the model matrix maps the reference triangle onto the equilibrium
+      ! vertices; the vibration displacement is applied in the vertex shader
+      ! from the per-corner deltas
       call ensure_pack(s%gl%packmesh,mesh_inst_nf,s%obj%ntriangle)
       n = 0
       do i = 1, s%obj%ntriangle
          p1 = s%obj%triangle(i)%x1
          p2 = s%obj%triangle(i)%x2
          p3 = s%obj%triangle(i)%x3
-         if (s%animation > 0) then
-            p1 = p1 + real(displ * s%obj%triangle(i)%x1delta,c_float)
-            p2 = p2 + real(displ * s%obj%triangle(i)%x2delta,c_float)
-            p3 = p3 + real(displ * s%obj%triangle(i)%x3delta,c_float)
-         end if
          nrm = cross_cfloat(p2 - p1,p3 - p1)
          if (norm2(nrm) > 1e-10_c_float) nrm = nrm / norm2(nrm)
          m = 0._c_float
@@ -1082,7 +1083,8 @@ contains
          m(1:3,3) = nrm
          m(1:3,4) = p1
          n = n + 1
-         call mesh_pack(s%gl%packmesh(:,n),m,(/s%obj%triangle(i)%rgb,s%obj%triangle(i)%alpha/))
+         call mesh_pack(s%gl%packmesh(:,n),m,(/s%obj%triangle(i)%rgb,s%obj%triangle(i)%alpha/),&
+            s%obj%triangle(i)%x1delta,s%obj%triangle(i)%x2delta,s%obj%triangle(i)%x3delta)
       end do
       call s%gl%draw_mesh(glb_tri,trinel,n,s%gl%packmesh)
       s%gl%ntri_inst = n
@@ -1100,8 +1102,9 @@ contains
       call ensure_pack(s%gl%packsph,sph_inst_nf,s%nmsel)
       do j = 1, s%nmsel
          i = s%msel(5,j)
-         x = s%obj%sph(i)%x
-         if (s%animation > 0) x = x + real(displ * s%obj%sph(i)%xdelta,c_float)
+         ! CPU-displaced label anchor for draw_selection_text (displ is zero
+         ! when no animation is running)
+         x = s%obj%sph(i)%x + real(displ * s%obj%sph(i)%xdelta,c_float)
          call sphere_pack(s%gl%packsph(:,j),s%obj%sph(i)%x,s%obj%sph(i)%r + msel_thickness,&
             ColorMeasureSelect(:,j),real(atomborder_def,c_float),(/0._c_float,0._c_float,0._c_float/),&
             s%obj%sph(i)%xdelta,zr)
@@ -1150,9 +1153,9 @@ contains
 
     !> Draw the scene labels. The glyph vertices are cached in the per-scene
     !> text buffer and rebuilt only when their inputs change: the draw lists
-    !> (timelastbuild), any camera/projection quantity entering the on-screen
-    !> glyph size (projection matrix, view*world third row, reset-zoom
-    !> half-side, baked font size), or a running animation (anchors move).
+    !> (timelastbuild) or any camera/projection quantity entering the
+    !> on-screen glyph size (projection matrix, view*world third row,
+    !> reset-zoom half-side, baked font size).
     subroutine draw_all_text()
       integer :: i, nvert, nv0
       real(c_float) :: hside, siz, x(3), vw(4,4), wclip
@@ -1167,12 +1170,8 @@ contains
       ! half-window size at the reset zoom (constant on-screen size labels)
       hside = reset_zoom_hside(s)
 
-      ! decide whether the cached glyph vertices are still valid. The cache is
-      ! rebuilt every frame while animating (the anchors move), and also on the
-      ! animation on/off transition (text_last_anim), so the labels return to
-      ! their equilibrium positions when the animation stops.
-      rebuild = .not.s%gl%text_valid .or. s%animation > 0 .or.&
-         (s%animation /= s%gl%text_last_anim)
+      ! decide whether the cached glyph vertices are still valid
+      rebuild = .not.s%gl%text_valid
       if (.not.rebuild) rebuild = (s%gl%text_build_time /= s%timelastbuild)
       if (.not.rebuild) rebuild = any(s%gl%text_proj /= s%projection)
       if (.not.rebuild) rebuild = any(s%gl%text_vw3 /= vw(3,:))
@@ -1188,7 +1187,6 @@ contains
          do i = 1, s%obj%nstring
             nv0 = nvert
             x = s%obj%string(i)%x
-            if (s%animation > 0) x = x + real(displ * s%obj%string(i)%xdelta,c_float)
             if (s%obj%string(i)%scale > 0._c_float) then
                ! constant on-screen size (projection-independent)
                siz = 2 * s%obj%string(i)%scale / fontbakesize_large / hside
@@ -1201,7 +1199,8 @@ contains
                siz = 2 * abs(s%obj%string(i)%scale) * s%projection(1,1) / fontbakesize_large / wclip
             end if
             call calc_text_onscene_vertices(s%obj%string(i)%str,x,s%obj%string(i)%r,&
-               siz,nvert,s%gl%packtext,shift=s%obj%string(i)%offset,centered=.true.)
+               siz,nvert,s%gl%packtext,shift=s%obj%string(i)%offset,centered=.true.,&
+               xdelta=s%obj%string(i)%xdelta)
             s%gl%text_first(i) = nv0
             s%gl%text_count(i) = nvert - nv0
          end do
@@ -1209,7 +1208,6 @@ contains
 
          ! stamp the validity keys
          s%gl%text_valid = .true.
-         s%gl%text_last_anim = s%animation
          s%gl%text_build_time = s%timelastbuild
          s%gl%text_proj = s%projection
          s%gl%text_vw3 = vw(3,:)
@@ -1248,8 +1246,10 @@ contains
          wclip = max(wclip,1e-4_c_float) ! guard anchors at/behind the camera (perspective); =1 in ortho
          siz = sel_label_size * s%projection(1,1) / fontbakesize_large / wclip
          nvert = 0
+         ! the xsel anchors are already CPU-displaced (see draw_all_mselections);
+         ! xdelta is deliberately omitted here, or the numerals would displace twice
          call calc_text_onscene_vertices(string(j),xsel(:,j),radsel(j),siz,nvert,vert,centered=.true.)
-         call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*10*c_sizeof(c_float), c_loc(vert))
+         call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*text_vert_nf*c_sizeof(c_float), c_loc(vert))
          call glDrawArrays(GL_TRIANGLES, 0, nvert)
       end do
       call glBindBuffer(GL_ARRAY_BUFFER, 0)
@@ -1279,6 +1279,10 @@ contains
 
     ! buffers, draw lists, camera lock, camera reset
     call scene_render_prepare(s)
+
+    ! blending must be off: the pick colors are bit-packed indices whose alpha
+    ! channel is 0.0, so any leaked blend state would zero them out
+    call glDisable(GL_BLEND)
 
     ! set up the sphere impostor shader for picking (ray-cast so the pickable
     ! silhouette matches the visible sphere); positions are not animated
@@ -1911,7 +1915,7 @@ contains
     if (s%reptrans_tag == tag .and. s%nreptrans > 0) then
        do id = 1, s%nreptrans
           if (s%reptrans(id)%type == reptype_axes) then
-             s%reptrans(id)%origin = xcom
+             s%reptrans(id)%axes%origin = xcom
              s%reptrans(id)%axes%rot = rot
              s%reptrans(id)%axes%scale = axlen / max(s%reptrans(id)%axes%length,1d-10)
           end if
@@ -1928,7 +1932,7 @@ contains
 
     s%reptrans(id)%axes%placement = 0 ! drawn in world space (not a window gizmo)
     s%reptrans(id)%axes%coordtype = 2 ! origin in cartesian (bohr)
-    s%reptrans(id)%origin = xcom
+    s%reptrans(id)%axes%origin = xcom
     s%reptrans(id)%axes%kind = 0 ! cartesian base directions, reoriented by axes_rot
     s%reptrans(id)%axes%rot = rot ! orient along the molecule's principal axes
     s%reptrans(id)%axes%showlabels = .false.
@@ -1956,7 +1960,7 @@ contains
     if (s%reptrans_tag == tag .and. s%nreptrans > 0) then
        do id = 1, s%nreptrans
           if (s%reptrans(id)%type == reptype_rotaxis) then
-             s%reptrans(id)%origin = xcom
+             s%reptrans(id)%rotaxis%origin = xcom
              s%reptrans(id)%rotaxis%dir = rotdir
              s%reptrans(id)%rotaxis%length = rotlen
           end if
@@ -1969,7 +1973,7 @@ contains
     id = s%add_transient_representation(reptype_rotaxis,repflavor_rotaxis)
     if (id > 0) then
        if (s%reptrans(id)%isinit) then
-          s%reptrans(id)%origin = xcom
+          s%reptrans(id)%rotaxis%origin = xcom
           s%reptrans(id)%rotaxis%dir = rotdir
           s%reptrans(id)%rotaxis%length = rotlen
        end if
@@ -2009,7 +2013,7 @@ contains
        do id = 1, n
           if (s%reptrans(id)%type /= reptype_symelem) cycle
           s%reptrans(id)%symelem%kind = kind(id)
-          s%reptrans(id)%origin = xorig(:,id)
+          s%reptrans(id)%symelem%origin_transient = xorig(:,id)
           s%reptrans(id)%symelem%dir = dir(:,id)
           s%reptrans(id)%symelem%size = s%scenerad
           s%reptrans(id)%symelem%cen = real(s%scenecenter,8)
@@ -2026,7 +2030,7 @@ contains
        if (id <= 0) cycle
        if (.not.s%reptrans(id)%isinit) cycle
        s%reptrans(id)%symelem%kind = kind(k)
-       s%reptrans(id)%origin = xorig(:,k)
+       s%reptrans(id)%symelem%origin_transient = xorig(:,k)
        s%reptrans(id)%symelem%dir = dir(:,k)
        s%reptrans(id)%symelem%size = s%scenerad
        s%reptrans(id)%symelem%cen = real(s%scenecenter,8)
@@ -2097,10 +2101,12 @@ contains
 
   !> Pack one cylinder instance into column col of an instance buffer (layout
   !> must match the cylinstVAO attribute offsets set in glbuffers_init).
-  subroutine cyl_pack(col,x1,x2,r,rgba,border,bcol,delta,outward)
+  !> x1/x2 are the equilibrium endpoints; xd1/xd2 the vibration deltas.
+  subroutine cyl_pack(col,x1,x2,r,rgba,border,bcol,delta,outward,xd1,xd2)
     use shapes, only: cyl_inst_nf
     real(c_float), intent(out) :: col(cyl_inst_nf)
     real(c_float), intent(in) :: x1(3), x2(3), r, rgba(4), border, bcol(3), delta, outward(3)
+    complex(c_float_complex), intent(in) :: xd1(3), xd2(3)
 
     col(1:3) = x1
     col(4:6) = x2
@@ -2110,17 +2116,38 @@ contains
     col(13:15) = bcol
     col(16) = delta
     col(17:19) = outward
+    col(20:22) = real(xd1,c_float)
+    col(23:25) = aimag(xd1)
+    col(26:28) = real(xd2,c_float)
+    col(29:31) = aimag(xd2)
 
   end subroutine cyl_pack
 
-  !> Pack one mesh instance (model matrix columns + color) into column col.
-  subroutine mesh_pack(col,model,rgba)
+  !> Pack one mesh instance (model matrix columns + color + per-vertex
+  !> vibration deltas) into column col. The deltas d1/d2/d3 correspond to the
+  !> reference-triangle corners (polyhedra faces); they are zero when absent
+  !> (planes, cones).
+  subroutine mesh_pack(col,model,rgba,d1,d2,d3)
     use shapes, only: mesh_inst_nf
     real(c_float), intent(out) :: col(mesh_inst_nf)
     real(c_float), intent(in) :: model(4,4), rgba(4)
+    complex(c_float_complex), intent(in), optional :: d1(3), d2(3), d3(3)
 
     col(1:16) = reshape(model,(/16/)) ! column-major: col1..col4
     col(17:20) = rgba
+    col(21:38) = 0._c_float
+    if (present(d1)) then
+       col(21:23) = real(d1,c_float)
+       col(24:26) = aimag(d1)
+    end if
+    if (present(d2)) then
+       col(27:29) = real(d2,c_float)
+       col(30:32) = aimag(d2)
+    end if
+    if (present(d3)) then
+       col(33:35) = real(d3,c_float)
+       col(36:38) = aimag(d3)
+    end if
 
   end subroutine mesh_pack
 
@@ -2165,10 +2192,12 @@ contains
   end subroutine cone_model
 
   !> Calculate the vertices for the given text and adds them to
-  !> nvert/vert, on-scene version. x0 = world position of the label.
-  !> r = radius of the associated atom.
-  subroutine calc_text_onscene_vertices(text,x0,r,siz,nvert,vert,shift,centered)
+  !> nvert/vert, on-scene version. x0 = world position of the label
+  !> (equilibrium; the vibration displacement is applied in the shader from
+  !> the xdelta packed with each vertex). r = radius of the associated atom.
+  subroutine calc_text_onscene_vertices(text,x0,r,siz,nvert,vert,shift,centered,xdelta)
     use interfaces_cimgui
+    use shapes, only: text_vert_nf
     use gui_main, only: g, fontbakesize_large
     use types, only: realloc
     use param, only: newline, bohrtoa
@@ -2180,11 +2209,13 @@ contains
     real(c_float), allocatable, intent(inout) :: vert(:,:)
     real(c_float), intent(in), optional :: shift(3)
     logical, intent(in), optional :: centered
+    complex(c_float_complex), intent(in), optional :: xdelta(3)
 
     integer :: i, j, nline, nvert0
     type(c_ptr) :: cptr
     type(ImFontGlyph), pointer :: glyph
     real(c_float) :: xpos, ypos, lheight, shift_(3)
+    complex(c_float_complex) :: xdelta_(3)
     logical :: centered_
     real(c_float), allocatable :: xlen(:)
     integer, allocatable :: jlen(:)
@@ -2196,8 +2227,10 @@ contains
     if (present(centered)) centered_ = centered
     shift_ = 0._c_float
     if (present(shift)) shift_ = shift / real(bohrtoa,c_float)
+    xdelta_ = (0._c_float,0._c_float)
+    if (present(xdelta)) xdelta_ = xdelta
     if (.not.allocated(vert)) then
-       allocate(vert(10,100))
+       allocate(vert(text_vert_nf,100))
        nvert = 0
     end if
     nvert0 = nvert
@@ -2239,11 +2272,13 @@ contains
        call c_f_pointer(cptr,glyph)
 
        ! add to the vertices
-       if (nvert+6 > size(vert,2)) call realloc(vert,10,2*(nvert+6))
+       if (nvert+6 > size(vert,2)) call realloc(vert,int(text_vert_nf),2*(nvert+6))
        do j = nvert+1, nvert+6
           vert(1:3,j) = x0
           vert(4:5,j) = shift_(1:2)
           vert(6,j) = r + rshift + shift_(3)
+          vert(11:13,j) = real(xdelta_,c_float)
+          vert(14:16,j) = aimag(xdelta_)
        end do
 
        vert(7:8,nvert+1) = (/xpos + glyph%X0, ypos + glyph%Y1/)

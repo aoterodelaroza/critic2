@@ -200,24 +200,23 @@ contains
 
     !! initialize an empty representation
     if (itype == 0) then
-       ! global parameters
-       r%pertype = 1
+       ! selection group
+       r%sel%pertype = 1
        if (sys(isys)%c%ismolecule) then
-          r%ncell = 0
+          r%sel%ncell = 0
        else
-          r%ncell = 1
+          r%sel%ncell = 1
        end if
-       r%origin = 0d0
-       r%tshift = 0d0
-       ! atoms, bonds, labels
-       r%filter = ""
-       r%errfilter = ""
+       r%sel%origin = 0d0
+       r%sel%tshift = 0d0
+       r%sel%filter = ""
+       r%sel%errfilter = ""
        if (sys(isys)%c%ismolecule) then
-          r%border = .false.
-          r%onemotif = .false.
+          r%sel%border = .false.
+          r%sel%onemotif = .false.
        else
-          r%border = .true.
-          r%onemotif = (sys(isys)%c%nmol > 1)
+          r%sel%border = .true.
+          r%sel%onemotif = (sys(isys)%c%nmol > 1)
        end if
     end if
 
@@ -325,6 +324,7 @@ contains
        r%axes%kind = 0 ! cartesian
        r%axes%rot = eye ! no extra orientation by default
        r%axes%placement = 1
+       r%axes%origin = 0d0
        if (sys(isys)%c%ismolecule) then
           r%axes%coordtype = 1 ! cartesian (angstrom)
        else
@@ -352,6 +352,7 @@ contains
 
     ! rotation axis
     if (itype == 0 .or. itype == 7) then
+       r%rotaxis%origin = 0d0
        r%rotaxis%dir = (/0d0,0d0,1d0/)
        r%rotaxis%length = 0d0
        r%rotaxis%radius = rotaxis_radius_def
@@ -372,6 +373,7 @@ contains
 
     ! symmetry elements
     if (itype == 0 .or. itype == 9) then
+       r%symelem%origin_transient = 0d0
        if (sys(isys)%c%ismolecule) then
           r%symelem%coordtype = 2 ! cartesian (bohr)
           if (sys(isys)%c%pg%avail) then
@@ -405,13 +407,13 @@ contains
     r%idrep = 0
     r%iord = 0
     r%name = ""
-    r%filter = ""
-    r%errfilter = ""
+    r%sel%filter = ""
+    r%sel%errfilter = ""
 
     call r%atoms%style%end()
     call r%bonds%style%end()
     call r%labels%style%end()
-    call r%mol_style%end()
+    call r%mols%style%end()
     call r%poly%style%end()
     call r%symelem%style%end()
 
@@ -447,9 +449,9 @@ contains
        if (doreset) call r%bonds%style%copy_neighstars_from_system(r%id)
 
        ! molecules: if the geometry or the bonds changed
-       doreset = .not.r%mol_style%isinit
-       doreset = doreset .or. (sysc(r%id)%timelastchange_rebond > r%mol_style%timelastreset)
-       if (doreset) call r%mol_style%reset(r)
+       doreset = .not.r%mols%style%isinit
+       doreset = doreset .or. (sysc(r%id)%timelastchange_rebond > r%mols%style%timelastreset)
+       if (doreset) call r%mols%style%reset(r)
 
        ! labels: if the geometry changed
        doreset = .not.r%labels%style%isinit
@@ -591,31 +593,31 @@ contains
        !! first, the atoms
        ! do we have a filter? If so, tokenize it once here; the evaluation for
        ! each atom image below reuses the token list (skips the string parsing)
-       havefilter = (len_trim(r%filter) > 0) .and. (len_trim(r%errfilter) == 0)
+       havefilter = (len_trim(r%sel%filter) > 0) .and. (len_trim(r%sel%errfilter) == 0)
        if (havefilter) then
           syptr => sys(r%id)
           errmsg = ""
-          call pretokenize(r%filter,toklist,errmsg,c_loc(syptr))
+          call pretokenize(r%sel%filter,toklist,errmsg,c_loc(syptr))
           if (len_trim(errmsg) > 0) then
              havefilter = .false.
-             r%errfilter = errmsg
+             r%sel%errfilter = errmsg
           end if
        end if
-       usetshift = any(abs(r%tshift) > 1d-5)
+       usetshift = any(abs(r%sel%tshift) > 1d-5)
 
        ! calculate the periodicity
        n = 1
-       if (r%pertype == 1) then
+       if (r%sel%pertype == 1) then
           n = nc
-       elseif (r%pertype == 2) then
-          n = r%ncell
+       elseif (r%sel%pertype == 2) then
+          n = r%sel%ncell
        end if
 
        ! origin shift
        if (c%ismolecule) then
-          uoriginc = r%origin / bohrtoa
+          uoriginc = r%sel%origin / bohrtoa
        else
-          uoriginc = c%x2c(r%origin)
+          uoriginc = c%x2c(r%sel%origin)
        end if
 
        ! whether we will force the polyhedra corner atoms to be drawn (only when
@@ -637,8 +639,8 @@ contains
           ! bounded by this; that path keeps using check_lshown, which grows
           ! the array as needed.
           mb = 1
-          if (usetshift) mb = mb + maxval(ceiling(abs(r%tshift))) + 1
-          if (r%onemotif) then
+          if (usetshift) mb = mb + maxval(ceiling(abs(r%sel%tshift))) + 1
+          if (r%sel%onemotif) then
              mbb = 0
              do imol = 1, c%nmol
                 do k = 1, c%mol(imol)%nat
@@ -688,7 +690,7 @@ contains
        i = 0
        imol = 0
        do while(.true.)
-          if (r%onemotif) then
+          if (r%sel%onemotif) then
              ! this is a new molecule if there are no molecules or this is the last atom
              ! in the previous one
              step = (imol == 0)
@@ -724,13 +726,13 @@ contains
           if (.not.r%atoms%style%shown(id)) cycle
 
           ! skip hidden molecules
-          if (.not.r%mol_style%shown(imol)) cycle
+          if (.not.r%mols%style%shown(imol)) cycle
 
           ! calculate the border
           xx = c%atcel(i)%x
           n0 = 0
           n1 = n-1
-          if (r%border.and..not.r%onemotif) then
+          if (r%sel%border.and..not.r%sel%onemotif) then
              do j = 1, 3
                 ! not in a vacuum direction
                 if (.not.dovac(j)) then
@@ -759,8 +761,8 @@ contains
           end if
 
           ! draw the spheres and cylinders
-          rgb = r%atoms%style%rgb(:,id) * r%mol_style%tint_rgb(:,imol)
-          rad1 = r%atoms%style%rad(id) * r%mol_style%scale_rad(imol)
+          rgb = r%atoms%style%rgb(:,id) * r%mols%style%tint_rgb(:,imol)
+          rad1 = r%atoms%style%rad(id) * r%mols%style%scale_rad(imol)
 
           ! coordination polyhedron: if this atom is a shown center, find its
           ! corner atoms once (translation-invariant; reused for every image)
@@ -820,8 +822,8 @@ contains
                 do i3 = n0(3), n1(3)
                    ix = (/i1,i2,i3/) + lvec + vacshift
                    if (usetshift) then
-                      xx = c%atcel(i)%x - r%tshift
-                      ix = ix + nint(xx - floor(xx) + r%tshift - c%atcel(i)%x)
+                      xx = c%atcel(i)%x - r%sel%tshift
+                      ix = ix + nint(xx - floor(xx) + r%sel%tshift - c%atcel(i)%x)
                    end if
 
                    xx = c%atcel(i)%x + ix
@@ -829,12 +831,12 @@ contains
 
                    ! apply the filter
                    if (havefilter) then
-                      res = sys(r%id)%eval(r%filter,errmsg,xc,toklist)
+                      res = sys(r%id)%eval(r%sel%filter,errmsg,xc,toklist)
                       if (len_trim(errmsg) == 0) then
                          if (res == 0d0) cycle
                       else
                          havefilter = .false.
-                         r%errfilter = errmsg
+                         r%sel%errfilter = errmsg
                       end if
                    end if
 
@@ -964,7 +966,7 @@ contains
                             ! two half-cylinders, each colored like its end atom;
                             ! the split point balances the two atomic radii
                             idaux = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,ineigh)
-                            rad2 = r%atoms%style%rad(idaux) * r%mol_style%scale_rad(c%idatcelmol(1,ineigh))
+                            rad2 = r%atoms%style%rad(idaux) * r%mols%style%scale_rad(c%idatcelmol(1,ineigh))
                             dd = norm2(x2 - x1)
                             f1 = min(max((0.5d0 + 0.5d0 * (rad2 - rad1) / dd),0._c_float),1._c_float)
                             f2 = 1._c_float - f1
@@ -983,7 +985,7 @@ contains
                             dcyl%x2 = real(x2,c_float)
                             dcyl%x2delta = cmplx(xdelta2,kind=c_float_complex)
                             dcyl%rgb = r%atoms%style%rgb(:,idaux) * &
-                               r%mol_style%tint_rgb(:,c%idatcelmol(1,ineigh))
+                               r%mols%style%tint_rgb(:,c%idatcelmol(1,ineigh))
                             call dl_append(obj%cyl,obj%ncyl,dcyl)
                          end if
                       end do ! ncon
@@ -1039,8 +1041,8 @@ contains
              ! style and position of the corner atom
              idc = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,cornlist(1,ica))
              imolc = c%idatcelmol(1,cornlist(1,ica))
-             rgb = r%atoms%style%rgb(:,idc) * r%mol_style%tint_rgb(:,imolc)
-             rad1 = r%atoms%style%rad(idc) * r%mol_style%scale_rad(imolc)
+             rgb = r%atoms%style%rgb(:,idc) * r%mols%style%tint_rgb(:,imolc)
+             rad1 = r%atoms%style%rad(idc) * r%mols%style%scale_rad(imolc)
              xx = c%atcel(cornlist(1,ica))%x + ix
              xc = c%x2c(xx)
 
@@ -1066,10 +1068,10 @@ contains
 
        ! number of cells
        n = 1
-       if (r%pertype == 1) then
+       if (r%sel%pertype == 1) then
           n = nc
-       elseif (r%pertype == 2) then
-          n = r%ncell
+       elseif (r%sel%pertype == 2) then
+          n = r%sel%ncell
        end if
 
        ! vacuum directions: we have a vacuum and only one cell in that direction
@@ -1159,11 +1161,11 @@ contains
           ! origin in the requested coordinate system, converted to
           ! cartesian (bohr)
           if (r%axes%coordtype == 2) then
-             uoriginc = r%origin ! cartesian (bohr)
+             uoriginc = r%axes%origin ! cartesian (bohr)
           elseif (r%axes%coordtype == 0 .and. .not.c%ismolecule) then
-             uoriginc = c%x2c(r%origin) ! crystallographic
+             uoriginc = c%x2c(r%axes%origin) ! crystallographic
           else
-             uoriginc = r%origin / bohrtoa ! cartesian (angstrom)
+             uoriginc = r%axes%origin / bohrtoa ! cartesian (angstrom)
           end if
           ! for molecules, cartesian coordinates are referred to the molecular center
           if (c%ismolecule) uoriginc = uoriginc - c%molx0
@@ -1247,7 +1249,7 @@ contains
        !!! rotation-axis representation (single black cylinder through the origin) !!!
 
        ! origin in cartesian (bohr); for molecules referred to the molecular center
-       uoriginc = r%origin
+       uoriginc = r%rotaxis%origin
        if (c%ismolecule) uoriginc = uoriginc - c%molx0
 
        ! double-ended cylinder (the axis line): origin +/- length*dir
@@ -1282,7 +1284,7 @@ contains
           end do
        else
           ! transient single element (hover/selection preview)
-          uoriginc = r%origin
+          uoriginc = r%symelem%origin_transient
           if (c%ismolecule) uoriginc = uoriginc - c%molx0
           if (r%symelem%kind /= 0) &
              call draw_symmetry_element(r%symelem%kind,r%symelem%dir,r%symelem%order,&
@@ -1679,9 +1681,9 @@ contains
       end if
 
       ! stick ends
-      x1 = ucini + r%origin
+      x1 = ucini + r%sel%origin
       x1 = c%x2c(x1)
-      x2 = ucend + r%origin
+      x2 = ucend + r%sel%origin
       x2 = c%x2c(x2)
 
     end subroutine process_vacuum_uc_sticks
@@ -1729,7 +1731,7 @@ contains
     if (itype == 0 .or. itype == 3) &
        call r%labels%style%reset(r)
     if (itype == 0 .or. itype == 4) &
-       call r%mol_style%reset(r)
+       call r%mols%style%reset(r)
     if (itype == 0 .or. itype == 8) &
        call r%poly%style%reset(r)
 

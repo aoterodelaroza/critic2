@@ -200,6 +200,21 @@ module representations
   integer, parameter, public :: repflavor_symelem = 12
   integer, parameter, public :: repflavor_NUM = 12
 
+  !> Selection of the part of the system that is drawn: periodicity, origin
+  !> shift, display region, and the atom filter (reptype_atoms; pertype, ncell
+  !> and origin also control reptype_unitcell). Accessed as r%sel%...
+  type rep_selection
+     integer(c_int) :: pertype ! periodicity control: 0=none, 1=auto, 2=manual
+     integer(c_int) :: ncell(3) ! number of unit cells drawn
+     real*8 :: origin(3) ! origin shift of the representation
+     real*8 :: tshift(3) ! origin of the unit cell display region
+     logical :: border ! draw atoms at the border of the unit cell
+     logical :: onemotif ! draw connected molecules
+     character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
+     character(kind=c_char,len=:), allocatable :: errfilter ! filter error
+  end type rep_selection
+  public :: rep_selection
+
   !> Atom display options (reptype_atoms; accessed as r%atoms%...)
   type rep_atoms
      logical :: display ! whether to draw the atoms
@@ -269,6 +284,7 @@ module representations
      real*8 :: rot(3,3) = eye ! orientation applied to the axis directions (columns are the axes); identity by default
      integer(c_int) :: placement ! 0 = at the origin, 1 = anchored at a fixed window position
      integer(c_int) :: coordtype ! origin coordinates: 0 = crystallographic, 1 = cartesian (angstrom), 2 = cartesian (bohr)
+     real*8 :: origin(3) = 0d0 ! origin of the axes (coordinates per coordtype)
      real*8 :: winpos(2) ! window position (fractions from left and bottom) when window-anchored
      real*8 :: length ! length of each axis
      real*8 :: radius ! radius of the axis shafts
@@ -290,6 +306,7 @@ module representations
 
   !> Rotation axis options (reptype_rotaxis; accessed as r%rotaxis%...)
   type rep_rotaxis
+     real*8 :: origin(3) = 0d0 ! origin the axis line passes through (cartesian, bohr)
      real*8 :: dir(3) = (/0d0,0d0,1d0/) ! unit direction in cartesian (bohr); the axis line passes through origin
      real*8 :: length = 0d0 ! half-length: the cylinder spans origin +/- length*dir
      real*8 :: radius = rotaxis_radius_def ! radius of the rotation-axis cylinder
@@ -305,6 +322,7 @@ module representations
   type rep_symelem
      !! transient
      integer :: kind = 0 ! 0=none, 1=plane (mirror), 2=axis (rotation)
+     real*8 :: origin_transient(3) = 0d0 ! transient element origin (cartesian, bohr)
      real*8 :: dir(3) = (/0d0,0d0,1d0/) ! axis direction or plane normal, unit, cartesian (bohr)
      real*8 :: size = 0d0 ! system bounding-sphere radius (bohr)
      real*8 :: cen(3) = 0d0 ! system center (bohr)
@@ -317,6 +335,12 @@ module representations
      logical :: usecustomrgb = .false. ! true: use rgb for all; false: per-order/default colors
   end type rep_symelem
   public :: rep_symelem
+
+  !> Per-molecule display options (reptype_atoms; accessed as r%mols%...)
+  type rep_mols
+     type(mol_geom_style) :: style ! molecule styles (geometry-dependent)
+  end type rep_mols
+  public :: rep_mols
 
   !> Coordination polyhedra options (reptype_atoms; accessed as r%poly%...)
   type rep_poly
@@ -344,21 +368,12 @@ module representations
      integer :: idrep ! representation ID
      integer :: iord = 0 ! representation order integer in menu
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
-     ! global parameters
-     integer(c_int) :: pertype ! periodicity control: 0=none, 1=auto, 2=manual
-     integer(c_int) :: ncell(3) ! number of unit cells drawn
-     real*8 :: origin(3) ! origin of the representation
-     real*8 :: tshift(3) ! origin of the unit cell display region
-     ! atoms/bonds/labels representation-wide controls
-     character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
-     character(kind=c_char,len=:), allocatable :: errfilter ! filter error
-     logical :: border ! draw atoms at the border of the unit cell
-     logical :: onemotif ! draw connected molecules
      ! per-object option groups
+     type(rep_selection) :: sel ! which part of the system is drawn
      type(rep_atoms) :: atoms ! atom display options
      type(rep_bonds) :: bonds ! bond display options
      type(rep_labels) :: labels ! label display options
-     type(mol_geom_style) :: mol_style ! molecule styles (geometry-dependent)
+     type(rep_mols) :: mols ! per-molecule display options
      type(rep_unitcell) :: uc ! unit cell display options
      type(rep_axes) :: axes ! cartesian/crystallographic axes options
      type(rep_rotaxis) :: rotaxis ! rotation axis options

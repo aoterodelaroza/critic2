@@ -2,25 +2,31 @@
 
 // Instanced capped-cylinder shader. Each instance is a billboard quad
 // that covers the screen projection of the segment; the fragment
-// shader ray-casts the actual cylinder. Endpoints arrive already
-// animated (CPU side).
+// shader ray-casts the actual cylinder. Vibration animation displaces
+// the endpoints here (per-instance complex deltas + the displ phasor),
+// so the instance buffer holds the equilibrium geometry.
 
 // per-vertex: quad corner in [-1,1]^2
 layout (location = 0) in vec2 a_corner;
 
 // per-instance attributes
-layout (location = 1) in vec3 a_x1;          // endpoint 1 (pre-world coords)
-layout (location = 2) in vec3 a_x2;          // endpoint 2 (pre-world coords)
+layout (location = 1) in vec3 a_x1;          // endpoint 1 (pre-world coords, equilibrium)
+layout (location = 2) in vec3 a_x2;          // endpoint 2 (pre-world coords, equilibrium)
 layout (location = 3) in float a_radius;
 layout (location = 4) in vec4 a_color;
 layout (location = 5) in float a_border;
 layout (location = 6) in vec3 a_bordercolor;
 layout (location = 7) in float a_delta;      // lateral (screen-perp) offset for multi-bonds
 layout (location = 8) in vec3 a_outward;     // aromatic ring-exterior direction (0 otherwise)
+layout (location = 9) in vec3 a_x1delta_re;  // endpoint 1 vibration delta (real part)
+layout (location = 10) in vec3 a_x1delta_im; // endpoint 1 vibration delta (imag part)
+layout (location = 11) in vec3 a_x2delta_re; // endpoint 2 vibration delta (real part)
+layout (location = 12) in vec3 a_x2delta_im; // endpoint 2 vibration delta (imag part)
 
 uniform mat4 view;
 uniform mat4 world;
 uniform mat4 projection;
+uniform vec3 displ;        // complex vibration amplitude (re,im,unused); 0 when not animating
 uniform int isortho;       // 1=orthographic, 0=perspective
 uniform int isanchored;       // 1=window-anchored overlay, 0=normal scene
 uniform vec3 anchored_ndc;    // target NDC position for the anchor (xy used)
@@ -35,19 +41,21 @@ flat out float fBorder;
 flat out vec3 fBorderColor;
 
 void main(){
-  // eye-space endpoints. For a window-anchored object only the rotation of
-  // view*world is applied (no eye translation) and the geometry is scaled to a
-  // constant on-screen size.
+  // animated endpoints (pre-world coords), then to eye space. For a
+  // window-anchored object only the rotation of view*world is applied (no eye
+  // translation) and the geometry is scaled to a constant on-screen size.
   mat4 vm = view * world;
+  vec3 x1 = a_x1 + displ.x * a_x1delta_re - displ.y * a_x1delta_im;
+  vec3 x2 = a_x2 + displ.x * a_x2delta_re - displ.y * a_x2delta_im;
   vec3 ae, be;
   float rad = a_radius;
   if (isanchored != 0){
-    ae = mat3(vm) * (a_x1 * anchored_scale);
-    be = mat3(vm) * (a_x2 * anchored_scale);
+    ae = mat3(vm) * (x1 * anchored_scale);
+    be = mat3(vm) * (x2 * anchored_scale);
     rad = a_radius * anchored_scale;
   } else {
-    ae = (vm * vec4(a_x1, 1.0)).xyz;
-    be = (vm * vec4(a_x2, 1.0)).xyz;
+    ae = (vm * vec4(x1, 1.0)).xyz;
+    be = (vm * vec4(x2, 1.0)).xyz;
   }
   vec3 mid = 0.5 * (ae + be);
 
