@@ -64,7 +64,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
-    logical :: doquit, clicked, forcesort, ch, lch, deselected, chvol
+    logical :: doquit, clicked, forcesort, ch, lch, deselected, chvol, iactive
     integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:16)
     integer :: ihlbond, ihlbtn ! bonds tab: hovered central atom and hovered neighbor button (cell ids)
     integer :: ipickhl ! cell id of the atom awaiting an add-bond pick (0 = none), highlighted
@@ -1418,8 +1418,11 @@ contains
                    ! editable (rigid rotation) for discrete molecules with >1 atom
                    x0 = mol_euler_angles(i)
                    if (sys(isys)%c%mol(i)%discrete .and. sys(isys)%c%mol(i)%nat > 1) then
+                      ! while this molecule's Euler angles are being dragged, edit the unwrapped angles.
+                      if (w%geometry_euler_drag_mol == i) x0 = w%geometry_euler_drag_val
                       xold = x0
                       ch = .false.
+                      iactive = .false.
                       do j = 1, 3
                          icol = icol + 1
                          if (igTableSetColumnIndex(icol)) then
@@ -1429,6 +1432,7 @@ contains
                             if (logical(igIsItemActive())) then
                                ihighlight = i
                                ieuler_drag = j
+                               iactive = .true.
                             end if
                          end if
                       end do
@@ -1436,6 +1440,11 @@ contains
                          iaction = iaction_set_molecule_rotation
                          iaction_i1 = i
                          iaction_x = x0 * (pi / 180d0)
+                      end if
+                      ! persist the unwrapped angles for the next frame of the drag
+                      if (iactive) then
+                         w%geometry_euler_drag_mol = i
+                         w%geometry_euler_drag_val = x0
                       end if
                    elseif (.not.sys(isys)%c%mol(i)%discrete) then
                       ! non-discrete fragment: the standard orientation (and its
@@ -2133,6 +2142,10 @@ contains
           end if
        end if
     end if
+
+    ! the Euler-angle drag has ended (no drag widget active this frame): drop the
+    ! persisted unwrapped angles so the table shows the canonical decomposition again
+    if (ieuler_drag == 0) w%geometry_euler_drag_mol = 0
 
     ! process clicked: write the selection directly to the system
     if (iclicked > 0) then

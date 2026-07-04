@@ -170,6 +170,8 @@ module windows
      integer(c_int) :: geometry_moltype = 3 ! coord type for molecules [0=spc, 1=nneq, 2=ncel(frac), 3=ncel(cart)]
      logical :: geometry_forcewyc = .true. ! force respecting symmetry when displacing nneq
      logical :: geometry_keepbonding = .true. ! preserve bonding through atom-preserving transformations
+     integer :: geometry_euler_drag_mol = 0 ! molecule whose Euler angles are being dragged (0 = none)
+     real*8 :: geometry_euler_drag_val(3) = 0d0 ! unwrapped Euler angles (degrees) during an active drag
      real(c_float) :: geometry_select_rgba(4) ! highlight color
      integer(c_int) :: geometry_sortcid = 0 ! sort table by this column id
      integer(c_int) :: geometry_sortdir = 1 ! sort table with this direction
