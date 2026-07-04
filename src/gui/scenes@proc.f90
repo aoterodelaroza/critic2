@@ -923,8 +923,7 @@ contains
          call ensure_pack(s%gl%packcyl,cyl_inst_nf,s%obj%ncylgiz)
          i = 1
          do while (i <= s%obj%ncylgiz)
-            j = giz_group_end(s%obj%cylgiz(:)%winpos(1),s%obj%cylgiz(:)%winpos(2),&
-               s%obj%cylgiz(:)%scalewithzoom,s%obj%ncylgiz,i)
+            j = giz_group_end(s%obj%cylgiz,s%obj%ncylgiz,i)
             call gizmo_ndc_scale(s%obj%cylgiz(i)%winpos,s%obj%cylgiz(i)%scalewithzoom,projgiz,gizndc,gizf)
             call setuniform_vec3(gizndc,idxi=uniloc(u_anchored_ndc))
             call setuniform_float(gizf,idxi=uniloc(u_anchored_scale))
@@ -950,8 +949,7 @@ contains
          call ensure_pack(s%gl%packmesh,mesh_inst_nf,s%obj%nconegiz)
          i = 1
          do while (i <= s%obj%nconegiz)
-            j = giz_group_end(s%obj%conegiz(:)%winpos(1),s%obj%conegiz(:)%winpos(2),&
-               s%obj%conegiz(:)%scalewithzoom,s%obj%nconegiz,i)
+            j = giz_group_end(s%obj%conegiz,s%obj%nconegiz,i)
             call gizmo_ndc_scale(s%obj%conegiz(i)%winpos,s%obj%conegiz(i)%scalewithzoom,projgiz,gizndc,gizf)
             call setuniform_vec3(gizndc,idxi=uniloc(u_anchored_ndc))
             call setuniform_float(gizf,idxi=uniloc(u_anchored_scale))
@@ -1013,15 +1011,15 @@ contains
 
     !> Last index of the run of gizmo items starting at i that share the same
     !> window placement (winpos and scalewithzoom) as item i.
-    function giz_group_end(wx,wy,swz,ntot,i) result(j)
-      real(c_float), intent(in) :: wx(:), wy(:)
-      logical, intent(in) :: swz(:)
+    function giz_group_end(arr,ntot,i) result(j)
+      type(dl_cylinder_giz), intent(in) :: arr(:)
       integer, intent(in) :: ntot, i
       integer :: j
 
       j = i
       do while (j < ntot)
-         if (wx(j+1) /= wx(i) .or. wy(j+1) /= wy(i) .or. (swz(j+1) .neqv. swz(i))) exit
+         if (arr(j+1)%winpos(1) /= arr(i)%winpos(1) .or. arr(j+1)%winpos(2) /= arr(i)%winpos(2) .or. &
+            (arr(j+1)%scalewithzoom .neqv. arr(i)%scalewithzoom)) exit
          j = j + 1
       end do
 

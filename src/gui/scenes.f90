@@ -19,7 +19,7 @@
 module scenes
   use iso_c_binding
   use shapes, only: scene_objects, scene_glbuffers, glb_cone, glb_plane, glb_tri,&
-     glb_conescr
+     glb_conescr, dl_cylinder_giz
   use representations, only: representation
   use types, only: neighstar
   implicit none
