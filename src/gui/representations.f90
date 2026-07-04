@@ -19,7 +19,8 @@
 module representations
   use iso_c_binding
   use types, only: neighstar
-  use shapes, only: dl_sphere, dl_cylinder, dl_string, dl_plane, dl_triangle, scene_objects
+  use shapes, only: dl_sphere, dl_cylinder, dl_cylinder_giz, dl_string, dl_string_giz,&
+     dl_plane, dl_triangle, scene_objects, dl_append
   use param, only: bohrtoa, eye, maxzat0, atmcov0, mlen
   use global, only: bondfactor_def, bonddelta_def
   implicit none
@@ -199,6 +200,139 @@ module representations
   integer, parameter, public :: repflavor_symelem = 12
   integer, parameter, public :: repflavor_NUM = 12
 
+  !> Atom display options (reptype_atoms; accessed as r%atoms%...)
+  type rep_atoms
+     logical :: display ! whether to draw the atoms
+     type(atom_geom_style) :: style ! atom styles (geometry-dependent)
+     integer(c_int) :: radii_type ! option to reset radii: 0=covalent,1=vdw,2=constant
+     real*8 :: radii_scale ! reset radii, scale factor
+     real*8 :: radii_value ! reset radii, constant value (default: same as bond radius for licorice)
+     integer(c_int) :: color_type ! option to reset colors: 0=current,1=jmlcol,2=jmlcol2
+     real*8 :: border_size ! atom border size
+     real(c_float) :: border_rgb(3) ! atom border color
+  end type rep_atoms
+  public :: rep_atoms
+
+  !> Bond display options (reptype_atoms; accessed as r%bonds%...)
+  type rep_bonds
+     logical :: display ! whether to draw the bonds
+     type(bond_geom_style) :: style ! bond styles (geometry-dependent)
+     real*8 :: atmrad(0:maxzat0) = atmcov0 ! per-species covalent radii for bonding (bohr)
+     real*8 :: bfactor = bondfactor_def ! bond factor for non-metal bonding
+     real*8 :: bdelta = bonddelta_def ! bond delta for metal bonding (bohr)
+     integer(c_int) :: color_style ! bond style (0=single color, 1=two colors)
+     real*8 :: rad ! radius
+     real*8 :: border_size ! bond border size
+     real(c_float) :: border_rgb(3) ! bond border color
+     real(c_float) :: rgb(3) ! color
+     integer(c_int) :: order ! order (0=dashed,1=single,2=double,3=triple,4=ordcon value)
+     integer(c_int) :: imol ! molecular connections (0=any,1=intramol,2=intermol)
+     logical :: bothends ! if true, both atoms need to be drawn to draw the bond
+     logical :: hbond_classify = .false. ! Jeffrey-Steiner hydrogen-bond strength classification
+     real(c_float) :: hbond_rgb(3,3) = reshape((/& ! per-class colors
+        0.00_c_float,0.00_c_float,1.00_c_float,&  ! strong: blue
+        0.00_c_float,0.70_c_float,0.00_c_float,&  ! moderate: green
+        1.00_c_float,0.00_c_float,0.00_c_float/),(/3,3/)) ! weak: red
+     real*8 :: hbond_dist(2) = hbond_dist_def ! H...A distance class boundaries (strong|mod, mod|weak), bohr
+     real*8 :: hbond_ang(2) = hbond_ang_def ! D-H...A angle class boundaries (weak|mod, mod|strong), degrees
+  end type rep_bonds
+  public :: rep_bonds
+
+  !> Label display options (reptype_atoms; accessed as r%labels%...)
+  type rep_labels
+     logical :: display ! whether to draw the labels
+     type(label_geom_style) :: style ! label styles (geometry-dependent)
+     integer(c_int) :: type ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
+     real*8 :: scale ! scale for the labels
+     real(c_float) :: rgb(3) ! color of the labels
+     logical :: const_size ! whether labels scale with objects or are constant size
+     real*8 :: offset(3) ! offset of the label
+  end type rep_labels
+  public :: rep_labels
+
+  !> Unit cell display options (reptype_unitcell; accessed as r%uc%...)
+  type rep_unitcell
+     logical :: inner ! display inner cylinders
+     logical :: coloraxes ! color the axes (x=red,y=green,z=blue)
+     logical :: vaccutsticks ! cut sticks in systems with vacuum
+     real*8 :: radius ! cylinder radius
+     real*8 :: radiusinner ! cylinder radius (inner)
+     real(c_float) :: rgb(3) ! cylinder colors
+     real*8 :: innersteplen ! number of subdivisions for the inner sticks
+     logical :: innerstipple ! stippled lines for the inner lines
+  end type rep_unitcell
+  public :: rep_unitcell
+
+  !> Cartesian/crystallographic axes options (reptype_axes; accessed as r%axes%...)
+  type rep_axes
+     integer(c_int) :: kind ! 0 = cartesian, 1 = crystallographic
+     real*8 :: rot(3,3) = eye ! orientation applied to the axis directions (columns are the axes); identity by default
+     integer(c_int) :: placement ! 0 = at the origin, 1 = anchored at a fixed window position
+     integer(c_int) :: coordtype ! origin coordinates: 0 = crystallographic, 1 = cartesian (angstrom), 2 = cartesian (bohr)
+     real*8 :: winpos(2) ! window position (fractions from left and bottom) when window-anchored
+     real*8 :: length ! length of each axis
+     real*8 :: radius ! radius of the axis shafts
+     real*8 :: conelength ! length of the arrowhead cones
+     real*8 :: coneradius ! base radius of the arrowhead cones
+     real(c_float) :: rgb(3,3) ! color of the x, y, z axes
+     logical :: showlabels ! draw x/y/z labels at the axis tips
+     real*8 :: labelscale ! scale for the axis labels
+     logical :: labelconstsize ! whether the labels have constant size or scale with the arrowhead
+     real(c_float) :: labelrgb(3) ! color of the axis labels
+     character(kind=c_char,len=32) :: labelstr(3) ! text of the x, y, z axis labels
+     real*8 :: labeldistance ! distance along the axis from the arrowhead to the label (all axes)
+     real*8 :: labeloffset(3,3) ! per-axis (cartesian) offset of the label from that position
+     real*8 :: scale ! global scale factor applied to the whole gizmo (arrows and labels)
+     logical :: scale_auto ! auto-size the window-anchored gizmo from the scene radius
+     logical :: scalewithzoom ! whether the window-anchored gizmo scales when the scene is zoomed
+  end type rep_axes
+  public :: rep_axes
+
+  !> Rotation axis options (reptype_rotaxis; accessed as r%rotaxis%...)
+  type rep_rotaxis
+     real*8 :: dir(3) = (/0d0,0d0,1d0/) ! unit direction in cartesian (bohr); the axis line passes through origin
+     real*8 :: length = 0d0 ! half-length: the cylinder spans origin +/- length*dir
+     real*8 :: radius = rotaxis_radius_def ! radius of the rotation-axis cylinder
+     real(c_float) :: rgb(3) = 0._c_float ! color of the rotation-axis cylinder
+  end type rep_rotaxis
+  public :: rep_rotaxis
+
+  !> Symmetry element options (reptype_symelem; accessed as r%symelem%...).
+  !> The transient fields describe a single hover/preview element (stamped by
+  !> scene_show_symelems); size and cen are per-build inputs stamped by
+  !> scene_build_lists for persistent sets too. The permanent fields hold the
+  !> user-editable state of a persistent symmetry-element representation.
+  type rep_symelem
+     !! transient
+     integer :: kind = 0 ! 0=none, 1=plane (mirror), 2=axis (rotation)
+     real*8 :: dir(3) = (/0d0,0d0,1d0/) ! axis direction or plane normal, unit, cartesian (bohr)
+     real*8 :: size = 0d0 ! system bounding-sphere radius (bohr)
+     real*8 :: cen(3) = 0d0 ! system center (bohr)
+     integer :: order = 0 ! axis rotation order n (selects the axis color)
+     real(c_float) :: rgb(3) = symelem_rgb_def ! color of the symmetry element
+     !! permanent
+     type(symelem_style) :: style ! operation snapshot + per-op visibility (geometry-dependent)
+     real*8 :: origin(3) = 0d0 ! editable origin the elements pass through (coords per coordtype)
+     integer(c_int) :: coordtype = 0 ! origin coords: 0=crystallographic, 1=cartesian (angstrom), 2=cartesian (bohr)
+     logical :: usecustomrgb = .false. ! true: use rgb for all; false: per-order/default colors
+  end type rep_symelem
+  public :: rep_symelem
+
+  !> Coordination polyhedra options (reptype_atoms; accessed as r%poly%...)
+  type rep_poly
+     logical :: display ! whether to draw the coordination polyhedra
+     type(coordpoly_geom_style) :: style ! center/corner/distance geometry (geometry-dependent)
+     real*8 :: alpha = 0.5d0 ! face opacity (1 = opaque)
+     logical :: usecentercolor = .true. ! faces take the central atom color
+     real(c_float) :: rgb(3) = 0._c_float ! face color when not using the central atom color
+     real*8 :: edge_rad = 0.05d0 ! edge cylinder radius (bohr)
+     real(c_float) :: edge_rgb(3) = 0._c_float ! edge cylinder color
+     logical :: usecentercolor_edge = .true. ! edges take the central atom color
+     real*8 :: coplanar_eps = 0.1d0 ! coplanarity tolerance for the planar-polygon path (bohr)
+     logical :: showcorners = .true. ! also draw the corner atoms, even if outside the selection
+  end type rep_poly
+  public :: rep_poly
+
   !> Representation: objects to draw on the scene
   type representation
      ! main variables
@@ -215,110 +349,21 @@ module representations
      integer(c_int) :: ncell(3) ! number of unit cells drawn
      real*8 :: origin(3) ! origin of the representation
      real*8 :: tshift(3) ! origin of the unit cell display region
-     ! atoms, bonds, labels
+     ! atoms/bonds/labels representation-wide controls
      character(kind=c_char,len=:), allocatable :: filter ! filter for the representation
      character(kind=c_char,len=:), allocatable :: errfilter ! filter error
      logical :: border ! draw atoms at the border of the unit cell
      logical :: onemotif ! draw connected molecules
-     !--> atoms
-     logical :: atoms_display ! whether to draw the atoms
-     type(atom_geom_style) :: atom_style ! atom styles
-     integer(c_int) :: atom_radii_type ! option to reset radii: 0=covalent,1=vdw,2=constant
-     real*8 :: atom_radii_scale ! reset radii, scale factor
-     real*8 :: atom_radii_value ! reset radii, constant value (default: same as bond radius for licorice)
-     integer(c_int) :: atom_color_type ! option to reset colors: 0=current,1=jmlcol,2=jmlcol2
-     real*8 :: atom_border_size ! atom border size
-     real(c_float) :: atom_border_rgb(3) ! atom border color
-     !--> bonds
-     logical :: bonds_display ! whether to draw the bonds
-     type(bond_geom_style) :: bond_style ! bond styles
-     real*8 :: bond_atmrad(0:maxzat0) = atmcov0 ! per-species covalent radii for bonding (bohr)
-     real*8 :: bond_bfactor = bondfactor_def ! bond factor for non-metal bonding
-     real*8 :: bond_bdelta = bonddelta_def ! bond delta for metal bonding (bohr)
-     integer(c_int) :: bond_color_style ! bond style (0=single color, 1=two colors)
-     real*8 :: bond_rad ! radius
-     real*8 :: bond_border_size ! bond border size
-     real(c_float) :: bond_border_rgb(3) ! bond color
-     real(c_float) :: bond_rgb(3) ! color
-     integer(c_int) :: bond_order ! order (0=dashed,1=single,2=double,3=triple,4=ordcon value)
-     integer(c_int) :: bond_imol ! molecular connections (0=any,1=intramol,2=intermol)
-     logical :: bond_bothends ! if true, both atoms need to be drawn to draw the bond
-     logical :: bond_hbond_classify = .false. ! Jeffrey-Steiner hydrogen-bond strength classification
-     real(c_float) :: bond_hbond_rgb(3,3) = reshape((/& ! per-class colors
-        0.00_c_float,0.00_c_float,1.00_c_float,&  ! strong: blue
-        0.00_c_float,0.70_c_float,0.00_c_float,&  ! moderate: green
-        1.00_c_float,0.00_c_float,0.00_c_float/),(/3,3/)) ! weak: red
-     real*8 :: bond_hbond_dist(2) = hbond_dist_def ! H...A distance class boundaries (strong|mod, mod|weak), bohr
-     real*8 :: bond_hbond_ang(2) = hbond_ang_def ! D-H...A angle class boundaries (weak|mod, mod|strong), degrees
-     !--> labels
-     logical :: labels_display ! whether to draw the labels
-     type(label_geom_style) :: label_style ! bond styles
-     integer(c_int) :: label_type ! 0=atom-symbol, 1=atom-name, 2=cel-atom, 3=cel-atom+lvec, 4=neq-atom, 5=spc, 6=Z, 7=mol, 8=wyckoff
-     real*8 :: label_scale ! scale for the labels
-     real(c_float) :: label_rgb(3) ! color of the labels
-     logical :: label_const_size ! whether labels scale with objects or are constant size
-     real*8 :: label_offset(3) ! offset of the label
-     !--> molecules
-     type(mol_geom_style) :: mol_style ! molecule styles
-     ! unit cell
-     logical :: uc_inner ! unit cell, display inner cylinders
-     logical :: uc_coloraxes ! unit cell, color the axes (x=red,y=green,z=blue)
-     logical :: uc_vaccutsticks ! unit cell, cut sticks in systems with vacuum
-     real*8 :: uc_radius ! unit cell cylinder radius
-     real*8 :: uc_radiusinner ! unit cell cylinder radius (inner)
-     real(c_float) :: uc_rgb(3) ! unit cell cylinder colors
-     real*8 :: uc_innersteplen ! number of subdivisions for the inner sticks
-     logical :: uc_innerstipple ! stippled lines for the inner lines
-     ! cartesian/crystallographic axes
-     integer(c_int) :: axes_kind ! 0 = cartesian, 1 = crystallographic
-     real*8 :: axes_rot(3,3) = eye ! orientation applied to the axis directions (columns are the axes); identity by default
-     integer(c_int) :: axes_placement ! 0 = at the origin, 1 = anchored at a fixed window position
-     integer(c_int) :: axes_coordtype ! origin coordinates: 0 = crystallographic, 1 = cartesian (angstrom), 2 = cartesian (bohr)
-     real*8 :: axes_winpos(2) ! window position (fractions from left and bottom) when window-anchored
-     real*8 :: axes_length ! length of each axis
-     real*8 :: axes_radius ! radius of the axis shafts
-     real*8 :: axes_conelength ! length of the arrowhead cones
-     real*8 :: axes_coneradius ! base radius of the arrowhead cones
-     real(c_float) :: axes_rgb(3,3) ! color of the x, y, z axes
-     logical :: axes_showlabels ! draw x/y/z labels at the axis tips
-     real*8 :: axes_labelscale ! scale for the axis labels
-     logical :: axes_labelconstsize ! whether the labels have constant size or scale with the arrowhead
-     real(c_float) :: axes_labelrgb(3) ! color of the axis labels
-     character(kind=c_char,len=32) :: axes_labelstr(3) ! text of the x, y, z axis labels
-     real*8 :: axes_labeldistance ! distance along the axis from the arrowhead to the label (all axes)
-     real*8 :: axes_labeloffset(3,3) ! per-axis (cartesian) offset of the label from that position
-     real*8 :: axes_scale ! global scale factor applied to the whole gizmo (arrows and labels)
-     logical :: axes_scale_auto ! auto-size the window-anchored gizmo from the scene radius
-     logical :: axes_scalewithzoom ! whether the window-anchored gizmo scales when the scene is zoomed
-     ! rotation axis
-     real*8 :: rotaxis_dir(3) = (/0d0,0d0,1d0/) ! unit direction in cartesian (bohr); the axis line passes through origin
-     real*8 :: rotaxis_length = 0d0 ! half-length: the cylinder spans origin +/- length*rotaxis_dir
-     real*8 :: rotaxis_radius = rotaxis_radius_def ! radius of the rotation-axis cylinder
-     real(c_float) :: rotaxis_rgb(3) = 0._c_float ! color of the rotation-axis cylinder
-     ! symmetry elements
-     !! transient
-     integer :: symelem_kind = 0 ! 0=none, 1=plane (mirror), 2=axis (rotation)
-     real*8 :: symelem_dir(3) = (/0d0,0d0,1d0/) ! axis direction or plane normal, unit, cartesian (bohr)
-     real*8 :: symelem_size = 0d0 ! system bounding-sphere radius (bohr)
-     real*8 :: symelem_cen(3) = 0d0 ! system center (bohr)
-     integer :: symelem_order = 0 ! axis rotation order n (selects the axis color)
-     real(c_float) :: symelem_rgb(3) = symelem_rgb_def ! color of the symmetry element
-     !! permanent
-     type(symelem_style) :: symelem_style ! operation snapshot + per-op visibility (geometry-dependent)
-     real*8 :: symelem_origin(3) = 0d0 ! editable origin the elements pass through (coords per symelem_coordtype)
-     integer(c_int) :: symelem_coordtype = 0 ! origin coords: 0=crystallographic, 1=cartesian (angstrom), 2=cartesian (bohr)
-     logical :: symelem_usecustomrgb = .false. ! true: use symelem_rgb for all; false: per-order/default colors
-     ! coordination polyhedra
-     logical :: poly_display ! whether to draw the coordination polyhedra
-     type(coordpoly_geom_style) :: coordpoly_style ! center/corner/distance geometry
-     real*8 :: poly_alpha = 0.5d0 ! face opacity (1 = opaque)
-     logical :: poly_usecentercolor = .true. ! faces/edges take the central atom color
-     real(c_float) :: poly_rgb(3) = 0._c_float ! face color when not using the central atom color
-     real*8 :: poly_edge_rad = 0.05d0 ! edge cylinder radius (bohr)
-     real(c_float) :: poly_edge_rgb(3) = 0._c_float ! edge cylinder color
-     logical :: poly_usecentercolor_edge = .true. ! edges take the central atom color
-     real*8 :: poly_coplanar_eps = 0.1d0 ! coplanarity tolerance for the planar-polygon path (bohr)
-     logical :: poly_showcorners = .true. ! also draw the corner atoms, even if outside the selection
+     ! per-object option groups
+     type(rep_atoms) :: atoms ! atom display options
+     type(rep_bonds) :: bonds ! bond display options
+     type(rep_labels) :: labels ! label display options
+     type(mol_geom_style) :: mol_style ! molecule styles (geometry-dependent)
+     type(rep_unitcell) :: uc ! unit cell display options
+     type(rep_axes) :: axes ! cartesian/crystallographic axes options
+     type(rep_rotaxis) :: rotaxis ! rotation axis options
+     type(rep_symelem) :: symelem ! symmetry element options
+     type(rep_poly) :: poly ! coordination polyhedra options
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults

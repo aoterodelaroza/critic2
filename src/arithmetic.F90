@@ -53,7 +53,7 @@ module arithmetic
        real*8, intent(in), optional :: x0(3)
        type(c_ptr), intent(in), optional :: sptr
        logical, intent(in), optional :: periodic
-       type(token), intent(in), optional :: toklistin(:)
+       type(token), intent(in), optional, target :: toklistin(:)
      end function eval
      module subroutine eval_grid(n,expr,sptr,f,iok)
        integer, intent(in) :: n(3)

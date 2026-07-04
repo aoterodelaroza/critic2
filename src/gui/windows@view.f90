@@ -158,12 +158,12 @@ contains
        do i = 1, w%sc%nrep
           if (w%sc%rep(i)%isinit) then
              if (w%sc%rep(i)%type == reptype_atoms) then
-                isatom = isatom .or. w%sc%rep(i)%atoms_display
-                isbond = isbond .or. w%sc%rep(i)%bonds_display
-                ispoly = ispoly .or. w%sc%rep(i)%poly_display
-                if (w%sc%rep(i)%labels_display .and. w%sc%rep(i)%flavor/=repflavor_atoms_criticalpoints .and.&
+                isatom = isatom .or. w%sc%rep(i)%atoms%display
+                isbond = isbond .or. w%sc%rep(i)%bonds%display
+                ispoly = ispoly .or. w%sc%rep(i)%poly%display
+                if (w%sc%rep(i)%labels%display .and. w%sc%rep(i)%flavor/=repflavor_atoms_criticalpoints .and.&
                    w%sc%rep(i)%flavor/=repflavor_atoms_gradientpaths) &
-                   islabels = w%sc%rep(i)%label_type
+                   islabels = w%sc%rep(i)%labels%type
              elseif (w%sc%rep(i)%type == reptype_unitcell) then
                 isuc = isuc .or. w%sc%rep(i)%shown
              end if
@@ -208,15 +208,15 @@ contains
           do i = 1, w%sc%nrep
              if (w%sc%rep(i)%isinit) then
                 if (w%sc%rep(i)%type == reptype_atoms) then
-                   if (changedisplay(1)) w%sc%rep(i)%atoms_display = isatom
-                   if (changedisplay(2)) w%sc%rep(i)%bonds_display = isbond
-                   if (changedisplay(5)) w%sc%rep(i)%poly_display = ispoly
+                   if (changedisplay(1)) w%sc%rep(i)%atoms%display = isatom
+                   if (changedisplay(2)) w%sc%rep(i)%bonds%display = isbond
+                   if (changedisplay(5)) w%sc%rep(i)%poly%display = ispoly
                    if (changedisplay(3) .and. w%sc%rep(i)%flavor/=repflavor_atoms_criticalpoints .and.&
                       w%sc%rep(i)%flavor/=repflavor_atoms_gradientpaths) then
-                      w%sc%rep(i)%labels_display = islabelsl
+                      w%sc%rep(i)%labels%display = islabelsl
                       if (islabelsl) then
-                         w%sc%rep(i)%label_type = islabels
-                         call w%sc%rep(i)%label_style%reset(w%sc%rep(i))
+                         w%sc%rep(i)%labels%type = islabels
+                         call w%sc%rep(i)%labels%style%reset(w%sc%rep(i))
                       end if
                    end if
                 elseif (w%sc%rep(i)%type == reptype_unitcell) then
@@ -241,7 +241,7 @@ contains
              do i = 1, w%sc%nrep
                 if (w%sc%rep(i)%isinit) then
                    if (w%sc%rep(i)%type == reptype_atoms) then
-                      w%sc%rep(i)%atoms_display = isatom
+                      w%sc%rep(i)%atoms%display = isatom
                    end if
                 end if
              end do
@@ -254,7 +254,7 @@ contains
              do i = 1, w%sc%nrep
                 if (w%sc%rep(i)%isinit) then
                    if (w%sc%rep(i)%type == reptype_atoms) then
-                      w%sc%rep(i)%bonds_display = isbond
+                      w%sc%rep(i)%bonds%display = isbond
                    end if
                 end if
              end do
@@ -267,7 +267,7 @@ contains
              do i = 1, w%sc%nrep
                 if (w%sc%rep(i)%isinit) then
                    if (w%sc%rep(i)%type == reptype_atoms) then
-                      w%sc%rep(i)%labels_display = islabelsl
+                      w%sc%rep(i)%labels%display = islabelsl
                    end if
                 end if
              end do
@@ -295,7 +295,7 @@ contains
              do i = 1, w%sc%nrep
                 if (w%sc%rep(i)%isinit) then
                    if (w%sc%rep(i)%type == reptype_atoms) then
-                      w%sc%rep(i)%poly_display = ispoly
+                      w%sc%rep(i)%poly%display = ispoly
                    end if
                 end if
              end do
@@ -371,6 +371,7 @@ contains
              trim(get_bind_keyname(BIND_VIEW_ALIGN_Z_AXIS)) // ").",ttshown)
           ch = iw_dragfloat_realc("Reset Distance##resetdistance",x1=w%sc%camresetdist,speed=0.01_c_float,&
              min=0.1_c_float,max=8.0_c_float,decimal=2,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
+          if (ch) chrender = .true. ! constant-size labels and the gizmo depend on camresetdist
           call iw_tooltip("Ratio controlling distance from object when resetting camera",ttshown)
 
           ! projection mode
@@ -420,17 +421,17 @@ contains
                    do j = 1, sysc(i)%sc%nrep
                       if (sysc(i)%sc%rep(j)%isinit) then
                          if (sysc(i)%sc%rep(j)%type == reptype_atoms) then
-                            sysc(i)%sc%rep(j)%atoms_display = isatom
-                            sysc(i)%sc%rep(j)%bonds_display = isbond
-                            sysc(i)%sc%rep(j)%poly_display = ispoly
-                            sysc(i)%sc%rep(j)%labels_display = islabelsl
+                            sysc(i)%sc%rep(j)%atoms%display = isatom
+                            sysc(i)%sc%rep(j)%bonds%display = isbond
+                            sysc(i)%sc%rep(j)%poly%display = ispoly
+                            sysc(i)%sc%rep(j)%labels%display = islabelsl
                             if (islabelsl) then
                                if (sys(i)%c%ismolecule.and.islabels == 8) then
-                                  sysc(i)%sc%rep(j)%label_type = 0
+                                  sysc(i)%sc%rep(j)%labels%type = 0
                                else
-                                  sysc(i)%sc%rep(j)%label_type = islabels
+                                  sysc(i)%sc%rep(j)%labels%type = islabels
                                end if
-                               call sysc(i)%sc%rep(j)%label_style%reset(sysc(i)%sc%rep(j))
+                               call sysc(i)%sc%rep(j)%labels%style%reset(sysc(i)%sc%rep(j))
                             end if
                          elseif (sysc(i)%sc%rep(j)%type == reptype_unitcell.and.&
                             .not.sys(w%view_selected)%c%ismolecule) then

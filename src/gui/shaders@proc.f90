@@ -159,19 +159,6 @@ contains
 
   end subroutine useshader
 
-  !> Get a uniform location
-  module function get_uniform_location(name)
-    use interfaces_opengl3, only: glGetUniformLocation
-    character*(*), intent(in) :: name
-    integer(c_int) :: get_uniform_location
-
-    character(kind=c_char,len=:), allocatable, target :: str
-
-    str = trim(name) // c_null_char
-    get_uniform_location = glGetUniformLocation(ishad_prog(icur_shader),c_loc(str))
-
-  end function get_uniform_location
-
   !> Set an integer uniform.
   module subroutine setuniform_int(x,name,idxi)
     use interfaces_opengl3, only: glUniform1i, glGetUniformLocation

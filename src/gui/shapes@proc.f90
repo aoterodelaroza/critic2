@@ -35,7 +35,6 @@ contains
     integer(c_int) :: shift1
     integer(c_int) :: c_int_
     real(c_float) :: c_float_
-    type(c_ptr) :: c_ptr_
     real(c_float), target :: quadv(3,4)
     integer(c_int), target :: quadi(3,2)
     real(c_float), target :: triv(3,3)
@@ -172,18 +171,7 @@ contains
     call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
     call glBindVertexArray(textVAOos)
     call glBufferData(GL_ARRAY_BUFFER, text_maxvert*10*c_sizeof(c_float_), c_null_ptr, GL_DYNAMIC_DRAW)
-    call glEnableVertexAttribArray(0)
-    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
-       c_null_ptr)
-    call glEnableVertexAttribArray(1)
-    call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
-       transfer(3_c_int * c_sizeof(c_float_),c_ptr_))
-    call glEnableVertexAttribArray(2)
-    call glVertexAttribPointer(2, 2, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
-       transfer(6_c_int * c_sizeof(c_float_),c_ptr_))
-    call glEnableVertexAttribArray(3)
-    call glVertexAttribPointer(3, 2, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
-       transfer(8_c_int * c_sizeof(c_float_),c_ptr_))
+    call set_text_onscene_attribs()
     call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
 
@@ -230,6 +218,258 @@ contains
 
   end subroutine shapes_end
 
+  !> Reset the draw lists: zero the counters but keep the allocations, so the
+  !> capacities reached in previous builds are reused. Lists that have never
+  !> been allocated get a small initial capacity.
+  module subroutine scene_objects_reset(o)
+    class(scene_objects), intent(inout) :: o
+
+    o%nsph = 0
+    o%ncyl = 0
+    o%ncylflat = 0
+    o%ncone = 0
+    o%nplane = 0
+    o%ntriangle = 0
+    o%nstring = 0
+    o%ncylgiz = 0
+    o%nconegiz = 0
+    o%nstringgiz = 0
+    if (.not.allocated(o%sph)) allocate(o%sph(100))
+    if (.not.allocated(o%cyl)) allocate(o%cyl(100))
+    if (.not.allocated(o%cylflat)) allocate(o%cylflat(10))
+    if (.not.allocated(o%cone)) allocate(o%cone(10))
+    if (.not.allocated(o%plane)) allocate(o%plane(10))
+    if (.not.allocated(o%triangle)) allocate(o%triangle(10))
+    if (.not.allocated(o%string)) allocate(o%string(10))
+    if (.not.allocated(o%cylgiz)) allocate(o%cylgiz(10))
+    if (.not.allocated(o%conegiz)) allocate(o%conegiz(10))
+    if (.not.allocated(o%stringgiz)) allocate(o%stringgiz(10))
+
+  end subroutine scene_objects_reset
+
+  !> Ensure minimum capacities in the draw lists (grow-only; counters are
+  !> untouched and only the used entries are copied over on growth). Presizing
+  !> with a known element count avoids the incremental reallocations in
+  !> dl_append.
+  module subroutine scene_objects_reserve(o,nsph,ncyl,nstring)
+    class(scene_objects), intent(inout) :: o
+    integer, intent(in), optional :: nsph, ncyl, nstring
+
+    type(dl_sphere), allocatable :: auxsph(:)
+    type(dl_cylinder), allocatable :: auxcyl(:)
+    type(dl_string), allocatable :: auxstr(:)
+
+    if (present(nsph)) then
+       if (.not.allocated(o%sph)) then
+          allocate(o%sph(max(nsph,1)))
+       elseif (size(o%sph,1) < nsph) then
+          allocate(auxsph(nsph))
+          auxsph(1:o%nsph) = o%sph(1:o%nsph)
+          call move_alloc(auxsph,o%sph)
+       end if
+    end if
+    if (present(ncyl)) then
+       if (.not.allocated(o%cyl)) then
+          allocate(o%cyl(max(ncyl,1)))
+       elseif (size(o%cyl,1) < ncyl) then
+          allocate(auxcyl(ncyl))
+          auxcyl(1:o%ncyl) = o%cyl(1:o%ncyl)
+          call move_alloc(auxcyl,o%cyl)
+       end if
+    end if
+    if (present(nstring)) then
+       if (.not.allocated(o%string)) then
+          allocate(o%string(max(nstring,1)))
+       elseif (size(o%string,1) < nstring) then
+          allocate(auxstr(nstring))
+          auxstr(1:o%nstring) = o%string(1:o%nstring)
+          call move_alloc(auxstr,o%string)
+       end if
+    end if
+
+  end subroutine scene_objects_reserve
+
+  !> Deallocate all draw lists and zero the counters.
+  module subroutine scene_objects_end(o)
+    class(scene_objects), intent(inout) :: o
+
+    o%nsph = 0
+    o%ncyl = 0
+    o%ncylflat = 0
+    o%ncone = 0
+    o%nplane = 0
+    o%ntriangle = 0
+    o%nstring = 0
+    o%ncylgiz = 0
+    o%nconegiz = 0
+    o%nstringgiz = 0
+    if (allocated(o%sph)) deallocate(o%sph)
+    if (allocated(o%cyl)) deallocate(o%cyl)
+    if (allocated(o%cylflat)) deallocate(o%cylflat)
+    if (allocated(o%cone)) deallocate(o%cone)
+    if (allocated(o%plane)) deallocate(o%plane)
+    if (allocated(o%triangle)) deallocate(o%triangle)
+    if (allocated(o%string)) deallocate(o%string)
+    if (allocated(o%cylgiz)) deallocate(o%cylgiz)
+    if (allocated(o%conegiz)) deallocate(o%conegiz)
+    if (allocated(o%stringgiz)) deallocate(o%stringgiz)
+
+  end subroutine scene_objects_end
+
+  !> dl_append implementations: append item it to list lst with count n,
+  !> allocating or growing (2x) the list as needed. One specific procedure per
+  !> draw-list element type, all behind the dl_append generic.
+  module subroutine dl_append_sphere(lst,n,it)
+    type(dl_sphere), allocatable, intent(inout) :: lst(:)
+    integer, intent(inout) :: n
+    type(dl_sphere), intent(in) :: it
+    type(dl_sphere), allocatable :: aux(:)
+
+    n = n + 1
+    if (.not.allocated(lst)) then
+       allocate(lst(max(n,100)))
+    elseif (n > size(lst,1)) then
+       allocate(aux(2*n))
+       aux(1:n-1) = lst(1:n-1)
+       call move_alloc(aux,lst)
+    end if
+    lst(n) = it
+
+  end subroutine dl_append_sphere
+
+  module subroutine dl_append_cylinder(lst,n,it)
+    type(dl_cylinder), allocatable, intent(inout) :: lst(:)
+    integer, intent(inout) :: n
+    type(dl_cylinder), intent(in) :: it
+    type(dl_cylinder), allocatable :: aux(:)
+
+    n = n + 1
+    if (.not.allocated(lst)) then
+       allocate(lst(max(n,100)))
+    elseif (n > size(lst,1)) then
+       allocate(aux(2*n))
+       aux(1:n-1) = lst(1:n-1)
+       call move_alloc(aux,lst)
+    end if
+    lst(n) = it
+
+  end subroutine dl_append_cylinder
+
+  module subroutine dl_append_cylinder_giz(lst,n,it)
+    type(dl_cylinder_giz), allocatable, intent(inout) :: lst(:)
+    integer, intent(inout) :: n
+    type(dl_cylinder_giz), intent(in) :: it
+    type(dl_cylinder_giz), allocatable :: aux(:)
+
+    n = n + 1
+    if (.not.allocated(lst)) then
+       allocate(lst(max(n,10)))
+    elseif (n > size(lst,1)) then
+       allocate(aux(2*n))
+       aux(1:n-1) = lst(1:n-1)
+       call move_alloc(aux,lst)
+    end if
+    lst(n) = it
+
+  end subroutine dl_append_cylinder_giz
+
+  module subroutine dl_append_string(lst,n,it)
+    type(dl_string), allocatable, intent(inout) :: lst(:)
+    integer, intent(inout) :: n
+    type(dl_string), intent(in) :: it
+    type(dl_string), allocatable :: aux(:)
+
+    n = n + 1
+    if (.not.allocated(lst)) then
+       allocate(lst(max(n,100)))
+    elseif (n > size(lst,1)) then
+       allocate(aux(2*n))
+       aux(1:n-1) = lst(1:n-1)
+       call move_alloc(aux,lst)
+    end if
+    lst(n) = it
+
+  end subroutine dl_append_string
+
+  module subroutine dl_append_string_giz(lst,n,it)
+    type(dl_string_giz), allocatable, intent(inout) :: lst(:)
+    integer, intent(inout) :: n
+    type(dl_string_giz), intent(in) :: it
+    type(dl_string_giz), allocatable :: aux(:)
+
+    n = n + 1
+    if (.not.allocated(lst)) then
+       allocate(lst(max(n,10)))
+    elseif (n > size(lst,1)) then
+       allocate(aux(2*n))
+       aux(1:n-1) = lst(1:n-1)
+       call move_alloc(aux,lst)
+    end if
+    lst(n) = it
+
+  end subroutine dl_append_string_giz
+
+  module subroutine dl_append_plane(lst,n,it)
+    type(dl_plane), allocatable, intent(inout) :: lst(:)
+    integer, intent(inout) :: n
+    type(dl_plane), intent(in) :: it
+    type(dl_plane), allocatable :: aux(:)
+
+    n = n + 1
+    if (.not.allocated(lst)) then
+       allocate(lst(max(n,10)))
+    elseif (n > size(lst,1)) then
+       allocate(aux(2*n))
+       aux(1:n-1) = lst(1:n-1)
+       call move_alloc(aux,lst)
+    end if
+    lst(n) = it
+
+  end subroutine dl_append_plane
+
+  module subroutine dl_append_triangle(lst,n,it)
+    type(dl_triangle), allocatable, intent(inout) :: lst(:)
+    integer, intent(inout) :: n
+    type(dl_triangle), intent(in) :: it
+    type(dl_triangle), allocatable :: aux(:)
+
+    n = n + 1
+    if (.not.allocated(lst)) then
+       allocate(lst(max(n,10)))
+    elseif (n > size(lst,1)) then
+       allocate(aux(2*n))
+       aux(1:n-1) = lst(1:n-1)
+       call move_alloc(aux,lst)
+    end if
+    lst(n) = it
+
+  end subroutine dl_append_triangle
+
+  !> Set the vertex attributes of the on-scene-text layout on the currently
+  !> bound VAO/VBO (10 floats per vertex: anchor (loc 0, 3), eye-space shift
+  !> (1, 3), glyph corner (2, 2), font-atlas UV (3, 2)). Must match the
+  !> text_onscene shaders and the packing in calc_text_onscene_vertices.
+  subroutine set_text_onscene_attribs()
+    use interfaces_opengl3
+
+    real(c_float) :: c_float_
+    type(c_ptr) :: c_ptr_
+
+    call glEnableVertexAttribArray(0)
+    call glVertexAttribPointer(0, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
+       c_null_ptr)
+    call glEnableVertexAttribArray(1)
+    call glVertexAttribPointer(1, 3, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
+       transfer(3_c_intptr_t * c_sizeof(c_float_),c_ptr_))
+    call glEnableVertexAttribArray(2)
+    call glVertexAttribPointer(2, 2, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
+       transfer(6_c_intptr_t * c_sizeof(c_float_),c_ptr_))
+    call glEnableVertexAttribArray(3)
+    call glVertexAttribPointer(3, 2, GL_FLOAT, int(GL_FALSE,c_signed_char), int(10*c_sizeof(c_float_),c_int),&
+       transfer(8_c_intptr_t * c_sizeof(c_float_),c_ptr_))
+
+  end subroutine set_text_onscene_attribs
+
   !> Create and configure this scene's instance VAOs/VBOs: sphere and cylinder
   !> impostors and the plain meshes (planes, polyhedra triangles, cones), each
   !> with a cached and (for the impostors and cones) a transient scratch buffer.
@@ -259,6 +499,16 @@ contains
     call setup_mesh_inst(b%triinstVAO, b%triinstVBO, triVBO, triEBO)
     call setup_mesh_inst(b%coneinstVAO, b%coneinstVBO, coneVBO(nmaxcone), coneEBO(nmaxcone))
     call setup_mesh_inst(b%coneinstVAOscr, b%coneinstVBOscr, coneVBO(nmaxcone), coneEBO(nmaxcone))
+
+    ! cached on-scene-text VAO (same 10-float vertex layout as textVAOos);
+    ! storage is sized on upload (see glbuffers_upload_text)
+    call glGenVertexArrays(1, c_loc(b%textVAO))
+    call glGenBuffers(1, c_loc(b%textVBO))
+    call glBindVertexArray(b%textVAO)
+    call glBindBuffer(GL_ARRAY_BUFFER, b%textVBO)
+    call set_text_onscene_attribs()
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+    call glBindVertexArray(0)
 
     b%isinit = .true.
 
@@ -379,6 +629,8 @@ contains
     call glDeleteBuffers(1, c_loc(b%cylinstVBOscr))
     call glDeleteVertexArrays(1, c_loc(b%coneinstVAOscr))
     call glDeleteBuffers(1, c_loc(b%coneinstVBOscr))
+    call glDeleteVertexArrays(1, c_loc(b%textVAO))
+    call glDeleteBuffers(1, c_loc(b%textVBO))
 
     call b%detach()
 
@@ -407,6 +659,31 @@ contains
     b%cylinstVBOscr = 0
     b%coneinstVAOscr = 0
     b%coneinstVBOscr = 0
+    b%sph_cap = 0
+    b%cyl_cap = 0
+    b%cone_cap = 0
+    b%plane_cap = 0
+    b%tri_cap = 0
+    b%sphscr_cap = 0
+    b%cylscr_cap = 0
+    b%conescr_cap = 0
+    if (allocated(b%packsph)) deallocate(b%packsph)
+    if (allocated(b%packcyl)) deallocate(b%packcyl)
+    if (allocated(b%packmesh)) deallocate(b%packmesh)
+    if (allocated(b%packex1)) deallocate(b%packex1)
+    if (allocated(b%packex2)) deallocate(b%packex2)
+    if (allocated(b%packnd)) deallocate(b%packnd)
+    b%textVAO = 0
+    b%textVBO = 0
+    b%text_cap = 0
+    b%text_valid = .false.
+    b%text_last_anim = -1
+    b%text_build_time = -1d0
+    b%text_hside = -1._c_float
+    b%text_fontsize = -1._c_float
+    if (allocated(b%text_first)) deallocate(b%text_first)
+    if (allocated(b%text_count)) deallocate(b%text_count)
+    if (allocated(b%packtext)) deallocate(b%packtext)
     b%inst_valid = .false.
     b%inst_last_anim = -1
     b%nsph_inst = 0
@@ -417,6 +694,54 @@ contains
 
   end subroutine glbuffers_detach
 
+  !> Ensure the (nf,:) pack scratch array holds at least n columns (grow-only;
+  !> contents are not preserved).
+  module subroutine ensure_pack_realc2(arr,nf,n)
+    real(c_float), allocatable, intent(inout) :: arr(:,:)
+    integer, intent(in) :: nf, n
+
+    if (allocated(arr)) then
+       if (size(arr,1) /= nf .or. size(arr,2) < n) deallocate(arr)
+    end if
+    if (.not.allocated(arr)) allocate(arr(nf,max(n,1)))
+
+  end subroutine ensure_pack_realc2
+
+  !> Ensure the integer pack scratch array holds at least n elements
+  !> (grow-only; contents are not preserved).
+  module subroutine ensure_pack_int1(arr,n)
+    integer, allocatable, intent(inout) :: arr(:)
+    integer, intent(in) :: n
+
+    if (allocated(arr)) then
+       if (size(arr,1) < n) deallocate(arr)
+    end if
+    if (.not.allocated(arr)) allocate(arr(max(n,1)))
+
+  end subroutine ensure_pack_int1
+
+  !> Upload n instances of nf floats each to instance VBO vbo with storage
+  !> capacity cap (in instances, updated on growth). The storage is orphaned
+  !> (glBufferData with a null pointer) and re-filled with glBufferSubData, so
+  !> the upload does not stall on a previous frame's in-flight draw; it is
+  !> re-created (2x) only when n exceeds the capacity.
+  subroutine upload_instances(vbo,cap,nf,n,ptr)
+    use interfaces_opengl3
+    integer(c_int), intent(in) :: vbo
+    integer, intent(inout) :: cap
+    integer, intent(in) :: nf, n
+    type(c_ptr), intent(in) :: ptr
+
+    real(c_float) :: f_
+
+    if (n > cap) cap = max(n,2*cap)
+    call glBindBuffer(GL_ARRAY_BUFFER, vbo)
+    call glBufferData(GL_ARRAY_BUFFER, int(cap,c_intptr_t)*nf*c_sizeof(f_), c_null_ptr, GL_DYNAMIC_DRAW)
+    call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, int(n,c_intptr_t)*nf*c_sizeof(f_), ptr)
+    call glBindBuffer(GL_ARRAY_BUFFER, 0)
+
+  end subroutine upload_instances
+
   !> Upload n packed sphere instances and draw them through the cached (or
   !> scratch) sphere impostor VAO with the currently bound shader (one instanced
   !> draw call).
@@ -426,20 +751,18 @@ contains
     integer, intent(in) :: n
     real(c_float), intent(in), target :: buf(sph_inst_nf,n)
     logical, intent(in) :: scratch
-    integer(c_int) :: vao, vbo
-    real(c_float) :: f_
+    integer(c_int) :: vao
 
     if (n <= 0) return
     if (scratch) then
-       vao = b%sphinstVAOscr; vbo = b%sphinstVBOscr
+       call upload_instances(b%sphinstVBOscr,b%sphscr_cap,sph_inst_nf,n,c_loc(buf))
+       vao = b%sphinstVAOscr
     else
-       vao = b%sphinstVAO; vbo = b%sphinstVBO
+       call upload_instances(b%sphinstVBO,b%sph_cap,sph_inst_nf,n,c_loc(buf))
+       vao = b%sphinstVAO
     end if
     call glBindVertexArray(vao)
-    call glBindBuffer(GL_ARRAY_BUFFER, vbo)
-    call glBufferData(GL_ARRAY_BUFFER, int(n,c_intptr_t)*sph_inst_nf*c_sizeof(f_), c_loc(buf), GL_DYNAMIC_DRAW)
     call glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0_c_int, 4_c_int, int(n,c_int))
-    call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
 
   end subroutine glbuffers_draw_spheres
@@ -452,20 +775,18 @@ contains
     integer, intent(in) :: n
     real(c_float), intent(in), target :: buf(cyl_inst_nf,n)
     logical, intent(in) :: scratch
-    integer(c_int) :: vao, vbo
-    real(c_float) :: f_
+    integer(c_int) :: vao
 
     if (n <= 0) return
     if (scratch) then
-       vao = b%cylinstVAOscr; vbo = b%cylinstVBOscr
+       call upload_instances(b%cylinstVBOscr,b%cylscr_cap,cyl_inst_nf,n,c_loc(buf))
+       vao = b%cylinstVAOscr
     else
-       vao = b%cylinstVAO; vbo = b%cylinstVBO
+       call upload_instances(b%cylinstVBO,b%cyl_cap,cyl_inst_nf,n,c_loc(buf))
+       vao = b%cylinstVAO
     end if
     call glBindVertexArray(vao)
-    call glBindBuffer(GL_ARRAY_BUFFER, vbo)
-    call glBufferData(GL_ARRAY_BUFFER, int(n,c_intptr_t)*cyl_inst_nf*c_sizeof(f_), c_loc(buf), GL_DYNAMIC_DRAW)
     call glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0_c_int, 4_c_int, int(n,c_int))
-    call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
 
   end subroutine glbuffers_draw_cylinders
@@ -479,34 +800,44 @@ contains
     class(scene_glbuffers), intent(inout) :: b
     integer, intent(in) :: role, nelem, n
     real(c_float), intent(in), target :: buf(mesh_inst_nf,n)
-    integer(c_int) :: vao, vbo
-    real(c_float) :: f_
+    integer(c_int) :: vao
 
     if (n <= 0) return
     select case (role)
     case (glb_cone)
+       call upload_instances(b%coneinstVBO,b%cone_cap,mesh_inst_nf,n,c_loc(buf))
        vao = b%coneinstVAO
-       vbo = b%coneinstVBO
     case (glb_plane)
+       call upload_instances(b%planeinstVBO,b%plane_cap,mesh_inst_nf,n,c_loc(buf))
        vao = b%planeinstVAO
-       vbo = b%planeinstVBO
     case (glb_tri)
+       call upload_instances(b%triinstVBO,b%tri_cap,mesh_inst_nf,n,c_loc(buf))
        vao = b%triinstVAO
-       vbo = b%triinstVBO
     case (glb_conescr)
+       call upload_instances(b%coneinstVBOscr,b%conescr_cap,mesh_inst_nf,n,c_loc(buf))
        vao = b%coneinstVAOscr
-       vbo = b%coneinstVBOscr
     case default
        call ferror('glbuffers_draw_mesh','unknown mesh role',faterr)
     end select
     call glBindVertexArray(vao)
-    call glBindBuffer(GL_ARRAY_BUFFER, vbo)
-    call glBufferData(GL_ARRAY_BUFFER, int(n,c_intptr_t)*mesh_inst_nf*c_sizeof(f_), c_loc(buf), GL_DYNAMIC_DRAW)
     call glDrawElementsInstanced(GL_TRIANGLES, int(3*nelem,c_int), GL_UNSIGNED_INT, c_null_ptr, int(n,c_int))
-    call glBindBuffer(GL_ARRAY_BUFFER, 0)
     call glBindVertexArray(0)
 
   end subroutine glbuffers_draw_mesh
+
+  !> Upload nvert on-scene-text glyph vertices (10 floats each) to the cached
+  !> per-scene text VBO (orphan + subdata, capacity-tracked like the instance
+  !> buffers).
+  module subroutine glbuffers_upload_text(b,nvert,buf)
+    use interfaces_opengl3
+    class(scene_glbuffers), intent(inout) :: b
+    integer, intent(in) :: nvert
+    real(c_float), intent(in), target :: buf(10,nvert)
+
+    if (nvert <= 0) return
+    call upload_instances(b%textVBO,b%text_cap,10,nvert,c_loc(buf))
+
+  end subroutine glbuffers_upload_text
 
   !> Re-draw n already-uploaded sphere impostor instances through the cached VAO
   !> (no upload). Used when the cached buffers have not changed.
@@ -561,38 +892,5 @@ contains
     call glBindVertexArray(0)
 
   end subroutine glbuffers_redraw_mesh
-
-  ! !> Initialize images for the icons in the GUI.
-  ! module subroutine icons_init()
-  !   use interfaces_opengl3
-  !   use interfaces_stb
-  !   use tools_io, only: ferror, faterr
-  !   use global, only: critic_home
-  !   use param, only: dirsep
-
-  !   character(kind=c_char,len=:), allocatable, target :: file
-  !   type(c_ptr) :: image
-  !   integer(c_int) :: idum, width, height
-
-  !   integer(c_int) :: icon_side = 64
-
-  !   ! load the icon
-  !   file = trim(critic_home) // dirsep // "assets" // dirsep // "qe.png" // c_null_char
-  !   image = stbi_load(c_loc(file), width, height, idum, 4)
-  !   if (.not.c_associated(image)) &
-  !      call ferror('gui_start','Could not find GUI assets: have you set CRITIC_HOME?',faterr)
-
-  !   ! create the texture
-  !   call glGenTextures(1, c_loc(treeicon1))
-  !   call glBindTexture(GL_TEXTURE_2D, treeicon1)
-  !   call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-  !   call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-  !   call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image)
-  !   call glBindTexture(GL_TEXTURE_2D, 0)
-
-  !   ! free
-  !   call stbi_image_free(image)
-
-  ! end subroutine icons_init
 
 end submodule proc

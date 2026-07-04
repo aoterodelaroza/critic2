@@ -214,11 +214,13 @@ module systemmod
        character*(*), intent(in) :: line0
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine new_pointprop_string
-     module function system_eval_expression(s,expr,errmsg,x0)
+     module function system_eval_expression(s,expr,errmsg,x0,toklist)
+       use arithmetic, only: token
        class(system), intent(inout), target :: s
        character(*), intent(in) :: expr
        character(len=:), allocatable, intent(inout) :: errmsg
        real*8, intent(in), optional :: x0(3)
+       type(token), intent(in), optional :: toklist(:)
        real*8 :: system_eval_expression
      end function system_eval_expression
      module subroutine propty(s,id,x0,res,resinput,verbose,allfields)

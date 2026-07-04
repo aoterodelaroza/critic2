@@ -39,7 +39,7 @@
 !
 ! 4. Eye/view coordinates: coordinate system in which the camera is at
 ! (0,0,0) and points in the -z direction, with the up vector being
-! the -y direction.
+! the +y direction.
 !
 ! 4 -> 5 with PROJECTION MATRIX: the projection matrix is constructed
 ! by selecting the visible region (fustrum) and mapping that into the
@@ -262,6 +262,7 @@ contains
     s%iscaminit = .false.
     s%id = 0
     call s%gl%end()
+    call s%obj%end()
     if (allocated(s%rep)) deallocate(s%rep)
     if (allocated(s%icount)) deallocate(s%icount)
     if (allocated(s%iord)) deallocate(s%iord)
@@ -298,9 +299,7 @@ contains
     s%world = eye4
 
     ! camera distance and view matrix
-    hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
-    hside = hside * s%camratio
-    hside = max(hside,3._c_float)
+    hside = reset_zoom_hside(s)
     s%campos = s%scenecenter
     s%campos(3) = s%campos(3) + real(hside,c_float) / tan(0.5_c_float * s%ortho_fov * pic / 180._c_float)
     s%camfront = (/zero,zero,-one/)
@@ -336,7 +335,7 @@ contains
     if (.not.allocated(s%rep)) return
 
     do irep = 1, s%nrep
-       call s%rep(irep)%atom_style%reset_colors(s%rep(irep))
+       call s%rep(irep)%atoms%style%reset_colors(s%rep(irep))
     end do
     s%forcebuildlists = .true.
 
@@ -357,38 +356,9 @@ contains
     ! only build lists if system is initialized
     if (.not.ok_system(s%id,sys_ready)) return
 
-    ! initialize
-    s%obj%nsph = 0
-    if (allocated(s%obj%sph)) deallocate(s%obj%sph)
-    allocate(s%obj%sph(100))
-    s%obj%ncyl = 0
-    if (allocated(s%obj%cyl)) deallocate(s%obj%cyl)
-    allocate(s%obj%cyl(100))
-    s%obj%ncylflat = 0
-    if (allocated(s%obj%cylflat)) deallocate(s%obj%cylflat)
-    allocate(s%obj%cylflat(10))
-    s%obj%ncone = 0
-    if (allocated(s%obj%cone)) deallocate(s%obj%cone)
-    allocate(s%obj%cone(10))
-    s%obj%nplane = 0
-    if (allocated(s%obj%plane)) deallocate(s%obj%plane)
-    allocate(s%obj%plane(10))
-    s%obj%ntriangle = 0
-    if (allocated(s%obj%triangle)) deallocate(s%obj%triangle)
-    allocate(s%obj%triangle(10))
-    s%obj%nstring = 0
-    if (allocated(s%obj%string)) deallocate(s%obj%string)
-    allocate(s%obj%string(10))
-    ! window-anchored axes gizmo lists (kept out of the scene bounding box)
-    s%obj%ncylgiz = 0
-    if (allocated(s%obj%cylgiz)) deallocate(s%obj%cylgiz)
-    allocate(s%obj%cylgiz(10))
-    s%obj%nconegiz = 0
-    if (allocated(s%obj%conegiz)) deallocate(s%obj%conegiz)
-    allocate(s%obj%conegiz(10))
-    s%obj%nstringgiz = 0
-    if (allocated(s%obj%stringgiz)) deallocate(s%obj%stringgiz)
-    allocate(s%obj%stringgiz(10))
+    ! reset the draw lists: counters to zero, allocations kept and reused
+    ! across rebuilds (freed only in scene_end)
+    call s%obj%reset()
 
     ! add the items by representation. Window-anchored axes are deferred: they
     ! need the scene radius (computed below) to auto-size, and they live in the
@@ -399,7 +369,7 @@ contains
 
        ! add draw elements (except window-anchored axes and persistent symmetry
        ! elements, which need the scene radius and are done below)
-       if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes_placement == 1) cycle
+       if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == 1) cycle
        if (s%rep(i)%type == reptype_symelem) cycle
        call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
     end do
@@ -412,8 +382,8 @@ contains
     maxrad = 0._c_float
     do i = 1, s%nrep
        if (s%rep(i)%shown .and. s%rep(i)%type == reptype_atoms) then
-          if (s%rep(i)%atom_style%ntype > 0) then
-             maxrad = max(maxrad,real(maxval(s%rep(i)%atom_style%rad(1:s%rep(i)%atom_style%ntype)),c_float))
+          if (s%rep(i)%atoms%style%ntype > 0) then
+             maxrad = max(maxrad,real(maxval(s%rep(i)%atoms%style%rad(1:s%rep(i)%atoms%style%ntype)),c_float))
           end if
        end if
     end do
@@ -474,10 +444,10 @@ contains
     ! are built (or after the gizmo is re-anchored); the auto flag is then
     ! cleared so manual edits and later rebuilds keep the value.
     do i = 1, s%nrep
-       if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes_placement == 1) then
-          if (s%rep(i)%axes_scale_auto) then
-             s%rep(i)%axes_scale = axes_winfrac_def * real(s%scenerad,8) / max(s%rep(i)%axes_length,1d-10)
-             s%rep(i)%axes_scale_auto = .false.
+       if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == 1) then
+          if (s%rep(i)%axes%scale_auto) then
+             s%rep(i)%axes%scale = axes_winfrac_def * real(s%scenerad,8) / max(s%rep(i)%axes%length,1d-10)
+             s%rep(i)%axes%scale_auto = .false.
           end if
           call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
        end if
@@ -487,8 +457,8 @@ contains
     ! are sized from the scene radius (and excluded from the bounding box)
     do i = 1, s%nrep
        if (s%rep(i)%type == reptype_symelem) then
-          s%rep(i)%symelem_size = real(s%scenerad,8)
-          s%rep(i)%symelem_cen = real(s%scenecenter,8)
+          s%rep(i)%symelem%size = real(s%scenerad,8)
+          s%rep(i)%symelem%cen = real(s%scenecenter,8)
           call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
        end if
     end do
@@ -519,14 +489,13 @@ contains
     use interfaces_opengl3
     use shapes, only: textVAOos, textVBOos, quadnel, trinel,&
        sph_inst_nf, cyl_inst_nf, mesh_inst_nf, connel, nmaxcone,&
-       glb_cone, glb_plane, glb_tri, glb_conescr
+       glb_cone, glb_plane, glb_tri, glb_conescr, ensure_pack
     use gui_main, only: fonts, fontbakesize_large, font_large
-    use systems, only: sys, sysc, nsys
-    use tools_math, only: eigsym, matinv_cfloat
+    use systems, only: sys, sysc
     use tools_io, only: string
     use shaders, only: shader_text_onscene, shader_sphere, shader_cylinder,&
        shader_mesh, useshader, setuniform_int, setuniform_float, setuniform_vec3,&
-       setuniform_vec4, setuniform_mat3, setuniform_mat4, get_uniform_location,&
+       setuniform_mat4,&
        uniloc, u_world, u_view, u_projection, u_isortho, u_displ, u_upick,&
        u_isanchored, u_anchored_ndc, u_anchored_scale, u_textcolor
     use param, only: img, pi
@@ -535,8 +504,7 @@ contains
     real(c_float) :: xsel(3,4), radsel(4)
     complex(c_float_complex) :: displ
     real*8 :: deltat, fac, time
-    logical :: doit, dobuild
-    integer :: i, ifound
+    logical :: doit, dobuild, dobuildanim
 
     real(c_float), parameter :: msel_thickness = 0.1_c_float
     real(c_float), parameter :: sel_thickness = 0.2_c_float
@@ -547,31 +515,8 @@ contains
     ! check that the scene and system are initialized
     if (s%isinit == 0) return
 
-    ! create this scene's GL instance buffers on first render
-    if (.not.s%gl%isinit) call s%gl%init()
-
-    ! build draw lists if not done already
-    if (s%isinit == 1 .or. .not.allocated(s%obj%sph)) call s%build_lists()
-
-    ! if necessary, rebuild draw lists
-    if (s%forcebuildlists) call s%build_lists()
-
-    ! if the camera is locked, copy the camera parameters from the member
-    ! of the locking group who was moved last
-    if (s%lockedcam /= 0) then
-       ifound = 0
-       time = s%timelastcamchange
-       do i = 1, nsys
-          if (sysc(i)%sc%lockedcam == s%lockedcam .and. sysc(i)%sc%timelastcamchange > time) then
-             ifound = i
-             time = sysc(i)%sc%timelastcamchange
-          end if
-       end do
-       if (ifound > 0) call s%cam_copy(sysc(ifound)%sc)
-    end if
-
-    ! if necessary, reset the camera
-    if (s%forceresetcam) call s%reset()
+    ! buffers, draw lists, camera lock, camera reset
+    call scene_render_prepare(s)
 
     ! get the time
     time = glfwGetTime()
@@ -592,16 +537,21 @@ contains
        end if
     end if
 
-    ! decide whether this scene's cached instance buffers must be (re)built and
-    ! uploaded: when they are stale (draw lists changed) or while animating
-    ! (positions move every frame). Each scene owns its own buffers, so there is
-    ! no cross-scene contention.
-    dobuild = (.not.s%gl%inst_valid) .or. (s%animation > 0) .or. (s%animation /= s%gl%inst_last_anim)
+    ! decide whether this scene's cached instance buffers must be (re)built
+    ! and uploaded. All types are rebuilt when they are stale (draw lists
+    ! changed). While animating (and on the animation on/off transition) only
+    ! the CPU-animated types need rebuilding every frame (dobuildanim):
+    ! cylinders (endpoints and dashes) and triangles. Spheres are displaced in
+    ! the vertex shader (u_displ and the per-instance deltas already in the
+    ! buffer) and cones/planes are not animated, so their cached buffers stay
+    ! valid across animation frames.
+    dobuild = .not.s%gl%inst_valid
+    dobuildanim = dobuild .or. (s%animation > 0) .or. (s%animation /= s%gl%inst_last_anim)
     s%gl%inst_last_anim = s%animation
 
     ! draw the atoms (instanced sphere impostors)
     if (s%obj%nsph > 0) then
-       call setup_sphere_shader()
+       call setup_shader(shader_sphere)
        if (dobuild) then
           call draw_all_spheres()
        else
@@ -611,10 +561,10 @@ contains
 
     ! draw the bonds and the unit-cell edges (instanced cylinder impostors)
     if (s%obj%ncyl + s%obj%ncylflat > 0) then
-       call setup_cylinder_shader()
+       call setup_shader(shader_cylinder)
        call glEnable(GL_BLEND)
        call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-       if (dobuild) then
+       if (dobuildanim) then
           call draw_all_cylinders()
        else
           call s%gl%redraw_cylinders(s%gl%ncyl_inst)
@@ -624,7 +574,7 @@ contains
 
     ! draw the plain meshes (cones, planes, polyhedra triangles)
     if (s%obj%ncone + s%obj%nplane + s%obj%ntriangle > 0) then
-       call setup_mesh_shader()
+       call setup_shader(shader_mesh)
 
        ! cones (arrowheads): opaque
        if (s%obj%ncone > 0) then
@@ -650,7 +600,7 @@ contains
              end if
           end if
           if (s%obj%ntriangle > 0) then
-             if (dobuild) then
+             if (dobuildanim) then
                 call draw_all_triangles()
              else
                 call s%gl%redraw_mesh(glb_tri,trinel,s%gl%ntri_inst)
@@ -667,7 +617,7 @@ contains
 
     ! draw the measure selection atoms (instanced sphere impostors)
     if (s%nmsel > 0) then
-       call setup_sphere_shader()
+       call setup_shader(shader_sphere)
        call glEnable(GL_BLEND)
        call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
        call draw_all_mselections()
@@ -675,11 +625,7 @@ contains
     end if
 
     ! render labels with on-scene text
-    call useshader(shader_text_onscene)
-    call setuniform_mat4(s%world,idxi=uniloc(u_world))
-    call setuniform_mat4(s%view,idxi=uniloc(u_view))
-    call setuniform_mat4(s%projection,idxi=uniloc(u_projection))
-    call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
+    call setup_shader(shader_text_onscene)
 
     call glDisable(GL_MULTISAMPLE)
     call glEnable(GL_BLEND)
@@ -687,9 +633,7 @@ contains
     call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
 
     call glActiveTexture(GL_TEXTURE0)
-    call glBindVertexArray(textVAOos)
     call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
-    call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
 
     ! on-scene text quads have reversed winding (y-down glyphs flipped for the
     ! right-side-up presentation), so disable culling while drawing them
@@ -708,7 +652,7 @@ contains
     if (.not.doit.and.allocated(sysc(s%id)%highlight_rgba_transient)) &
        doit = any(sysc(s%id)%highlight_rgba_transient >= 0._c_float)
     if (doit) then
-       call setup_sphere_shader()
+       call setup_shader(shader_sphere)
        call glEnable(GL_BLEND)
        call glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
        call draw_highlights()
@@ -734,47 +678,44 @@ contains
     s%timelastrender = time
 
   contains
-    !> Set up the sphere impostor shader and its per-frame uniforms.
-    subroutine setup_sphere_shader()
-      call useshader(shader_sphere)
+    !> Bind shader ishader and set the shared scene uniforms (world, view,
+    !> projection, isanchored=0). The impostor shaders also get the projection
+    !> type; the sphere shader additionally gets pick mode off and the
+    !> vibration displacement.
+    subroutine setup_shader(ishader)
+      integer, intent(in) :: ishader
+
+      call useshader(ishader)
       call setuniform_mat4(s%world,idxi=uniloc(u_world))
       call setuniform_mat4(s%view,idxi=uniloc(u_view))
       call setuniform_mat4(s%projection,idxi=uniloc(u_projection))
-      call setuniform_int(merge(1_c_int,0_c_int,s%isortho),idxi=uniloc(u_isortho))
-      call setuniform_int(0_c_int,idxi=uniloc(u_upick))
       call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
-      call setuniform_vec3((/real(displ,c_float),real(aimag(displ),c_float),0._c_float/),idxi=uniloc(u_displ))
-    end subroutine setup_sphere_shader
+      if (ishader == shader_sphere .or. ishader == shader_cylinder) &
+         call setuniform_int(merge(1_c_int,0_c_int,s%isortho),idxi=uniloc(u_isortho))
+      if (ishader == shader_sphere) then
+         call setuniform_int(0_c_int,idxi=uniloc(u_upick))
+         call setuniform_vec3((/real(displ,c_float),real(aimag(displ),c_float),0._c_float/),idxi=uniloc(u_displ))
+      end if
+
+    end subroutine setup_shader
 
     subroutine draw_all_spheres()
       integer :: i, n
-      real(c_float), allocatable :: buf(:,:)
       real(c_float), parameter :: zr(4) = 0._c_float
 
-      allocate(buf(sph_inst_nf,s%obj%nsph))
+      call ensure_pack(s%gl%packsph,sph_inst_nf,s%obj%nsph)
       n = 0
       do i = 1, s%obj%nsph
          if (s%obj%sph(i)%ghost) cycle ! invisible pick-only target, not drawn
          n = n + 1
-         call sphere_pack(buf(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
+         call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
             (/s%obj%sph(i)%rgb,1._c_float/),s%obj%sph(i)%border,&
             s%obj%sph(i)%rgbborder,s%obj%sph(i)%xdelta,zr)
       end do
-      call s%gl%draw_spheres(n,buf,.false.)
+      call s%gl%draw_spheres(n,s%gl%packsph,.false.)
       s%gl%nsph_inst = n
-      deallocate(buf)
 
     end subroutine draw_all_spheres
-
-    !> Set up the cylinder impostor shader and its per-frame uniforms.
-    subroutine setup_cylinder_shader()
-      call useshader(shader_cylinder)
-      call setuniform_mat4(s%world,idxi=uniloc(u_world))
-      call setuniform_mat4(s%view,idxi=uniloc(u_view))
-      call setuniform_mat4(s%projection,idxi=uniloc(u_projection))
-      call setuniform_int(merge(1_c_int,0_c_int,s%isortho),idxi=uniloc(u_isortho))
-      call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
-    end subroutine setup_cylinder_shader
 
     !> Build and draw all cylinder impostors: bonds (multi-bonds expanded into
     !> laterally-offset instances; dashed and the aromatic interior expanded into
@@ -786,14 +727,16 @@ contains
       real(c_float) :: x1(3), x2(3), rgba(4), r, rgeo, bcol(3), bord, outw(3)
       real(c_float) :: dl(3), dir(3), blen, p, half, tc, sx1(3), sx2(3)
       logical :: dsh(3)
-      real(c_float), allocatable :: buf(:,:), ex1(:,:), ex2(:,:)
-      integer, allocatable :: nd(:)
       real(c_float), parameter :: zv(3) = 0._c_float
       real(c_float), parameter :: dash_period = 0.4_c_float
 
       ! precompute the animated endpoints and per-bond dash counts, and the total
-      ! number of instances (dashes expand into several short cylinders)
-      allocate(ex1(3,s%obj%ncyl), ex2(3,s%obj%ncyl), nd(s%obj%ncyl))
+      ! number of instances (dashes expand into several short cylinders). The
+      ! endpoint/dash/instance scratch is persistent (grow-only pack buffers).
+      call ensure_pack(s%gl%packex1,3,s%obj%ncyl)
+      call ensure_pack(s%gl%packex2,3,s%obj%ncyl)
+      call ensure_pack(s%gl%packnd,s%obj%ncyl)
+      associate(ex1 => s%gl%packex1, ex2 => s%gl%packex2, nd => s%gl%packnd)
       ntot = s%obj%ncylflat
       do i = 1, s%obj%ncyl
          x1 = s%obj%cyl(i)%x1
@@ -814,7 +757,8 @@ contains
          end select
       end do
 
-      allocate(buf(cyl_inst_nf,max(ntot,1)))
+      call ensure_pack(s%gl%packcyl,cyl_inst_nf,ntot)
+      associate(buf => s%gl%packcyl)
       n = 0
 
       ! bonds: expand the bond order into one or more (possibly dashed) runs
@@ -886,35 +830,25 @@ contains
 
       call s%gl%draw_cylinders(n,buf,.false.)
       s%gl%ncyl_inst = n
-      deallocate(buf,ex1,ex2,nd)
+      end associate
+      end associate
 
     end subroutine draw_all_cylinders
-
-    !> Set up the mesh shader and its per-frame uniforms.
-    subroutine setup_mesh_shader()
-      call useshader(shader_mesh)
-      call setuniform_mat4(s%world,idxi=uniloc(u_world))
-      call setuniform_mat4(s%view,idxi=uniloc(u_view))
-      call setuniform_mat4(s%projection,idxi=uniloc(u_projection))
-      call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
-    end subroutine setup_mesh_shader
 
     subroutine draw_all_cones()
       integer :: i, n
       real(c_float) :: model(4,4)
-      real(c_float), allocatable :: buf(:,:)
 
-      allocate(buf(mesh_inst_nf,s%obj%ncone))
+      call ensure_pack(s%gl%packmesh,mesh_inst_nf,s%obj%ncone)
       n = 0
       do i = 1, s%obj%ncone
          if (norm2(s%obj%cone(i)%x2 - s%obj%cone(i)%x1) < 1e-4_c_float) cycle
          call cone_model(s%obj%cone(i)%x1,s%obj%cone(i)%x2,s%obj%cone(i)%r,model)
          n = n + 1
-         call mesh_pack(buf(:,n),model,(/s%obj%cone(i)%rgb,1._c_float/))
+         call mesh_pack(s%gl%packmesh(:,n),model,(/s%obj%cone(i)%rgb,1._c_float/))
       end do
-      call s%gl%draw_mesh(glb_cone,connel(nmaxcone),n,buf)
+      call s%gl%draw_mesh(glb_cone,connel(nmaxcone),n,s%gl%packmesh)
       s%gl%ncone_inst = n
-      deallocate(buf)
 
     end subroutine draw_all_cones
 
@@ -947,9 +881,7 @@ contains
       if (scalewithzoom) then
          gizf = 1._c_float
       else
-         hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
-         hside = hside * s%camratio
-         hside = max(hside,3._c_float)
+         hside = reset_zoom_hside(s)
          gizf = 1._c_float / (projgiz(1,1) * hside)
       end if
 
@@ -959,12 +891,13 @@ contains
     !> window position and zoom-scale flag; the object shaders (isanchored) anchor
     !> the local-origin geometry at the requested NDC position, drawn on top with
     !> an orthographic projection. Shafts use the cylinder impostor, arrowheads
-    !> the mesh shader, and labels the on-scene text shader.
+    !> the mesh shader, and labels the on-scene text shader. Consecutive items
+    !> with the same window placement (in practice, the shafts/heads of one
+    !> gizmo) are batched into a single instanced draw.
     subroutine render_axes_gizmo()
       real(c_float) :: projgiz(4,4), gizndc(3), gizf
       real(c_float) :: hside, siz, model(4,4)
-      real(c_float) :: cylbuf(cyl_inst_nf,1), meshbuf(mesh_inst_nf,1)
-      integer :: i, iu
+      integer :: i, j, k, n
       integer(c_int) :: nvert
       real(c_float), allocatable, target :: vert(:,:)
       real(c_float), parameter :: zv(3) = 0._c_float
@@ -976,51 +909,68 @@ contains
       ! clear the depth buffer so the gizmo always draws on top
       call glClear(GL_DEPTH_BUFFER_BIT)
 
-      ! shafts: cylinder impostors, anchored (one instanced draw per item so each
-      ! can carry its own window placement)
+      ! shafts: cylinder impostors, anchored, batched by window placement
       if (s%obj%ncylgiz > 0) then
          call useshader(shader_cylinder)
-         call setuniform_mat4(s%world,"world")
-         call setuniform_mat4(s%view,"view")
-         call setuniform_mat4(projgiz,"projection")
-         call setuniform_int(1_c_int,"isortho")
-         call setuniform_int(1_c_int,"isanchored")
-         do i = 1, s%obj%ncylgiz
-            call gizmo_ndc_scale(s%obj%cylgiz(i)%gizwinpos,s%obj%cylgiz(i)%gizscalewithzoom,projgiz,gizndc,gizf)
-            call setuniform_vec3(gizndc,"anchored_ndc")
-            call setuniform_float(gizf,"anchored_scale")
-            call cyl_pack(cylbuf(:,1),s%obj%cylgiz(i)%x1,s%obj%cylgiz(i)%x2,&
-               0.5_c_float*s%obj%cylgiz(i)%r,(/s%obj%cylgiz(i)%rgb,1._c_float/),&
-               s%obj%cylgiz(i)%border,s%obj%cylgiz(i)%rgbborder,0._c_float,zv)
-            call s%gl%draw_cylinders(1,cylbuf,.true.)
+         call setuniform_mat4(s%world,idxi=uniloc(u_world))
+         call setuniform_mat4(s%view,idxi=uniloc(u_view))
+         call setuniform_mat4(projgiz,idxi=uniloc(u_projection))
+         call setuniform_int(1_c_int,idxi=uniloc(u_isortho))
+         call setuniform_int(1_c_int,idxi=uniloc(u_isanchored))
+         call ensure_pack(s%gl%packcyl,cyl_inst_nf,s%obj%ncylgiz)
+         i = 1
+         do while (i <= s%obj%ncylgiz)
+            j = giz_group_end(s%obj%cylgiz(:)%winpos(1),s%obj%cylgiz(:)%winpos(2),&
+               s%obj%cylgiz(:)%scalewithzoom,s%obj%ncylgiz,i)
+            call gizmo_ndc_scale(s%obj%cylgiz(i)%winpos,s%obj%cylgiz(i)%scalewithzoom,projgiz,gizndc,gizf)
+            call setuniform_vec3(gizndc,idxi=uniloc(u_anchored_ndc))
+            call setuniform_float(gizf,idxi=uniloc(u_anchored_scale))
+            n = 0
+            do k = i, j
+               n = n + 1
+               call cyl_pack(s%gl%packcyl(:,n),s%obj%cylgiz(k)%x1,s%obj%cylgiz(k)%x2,&
+                  0.5_c_float*s%obj%cylgiz(k)%r,(/s%obj%cylgiz(k)%rgb,1._c_float/),&
+                  s%obj%cylgiz(k)%border,s%obj%cylgiz(k)%rgbborder,0._c_float,zv)
+            end do
+            call s%gl%draw_cylinders(n,s%gl%packcyl,.true.)
+            i = j + 1
          end do
       end if
 
-      ! arrowheads: cone meshes, anchored
+      ! arrowheads: cone meshes, anchored, batched by window placement
       if (s%obj%nconegiz > 0) then
          call useshader(shader_mesh)
-         call setuniform_mat4(s%world,"world")
-         call setuniform_mat4(s%view,"view")
-         call setuniform_mat4(projgiz,"projection")
-         call setuniform_int(1_c_int,"isanchored")
-         do i = 1, s%obj%nconegiz
-            if (norm2(s%obj%conegiz(i)%x2 - s%obj%conegiz(i)%x1) < 1e-4_c_float) cycle
-            call gizmo_ndc_scale(s%obj%conegiz(i)%gizwinpos,s%obj%conegiz(i)%gizscalewithzoom,projgiz,gizndc,gizf)
-            call setuniform_vec3(gizndc,"anchored_ndc")
-            call setuniform_float(gizf,"anchored_scale")
-            call cone_model(s%obj%conegiz(i)%x1,s%obj%conegiz(i)%x2,s%obj%conegiz(i)%r,model)
-            call mesh_pack(meshbuf(:,1),model,(/s%obj%conegiz(i)%rgb,1._c_float/))
-            call s%gl%draw_mesh(glb_conescr,connel(nmaxcone),1,meshbuf)
+         call setuniform_mat4(s%world,idxi=uniloc(u_world))
+         call setuniform_mat4(s%view,idxi=uniloc(u_view))
+         call setuniform_mat4(projgiz,idxi=uniloc(u_projection))
+         call setuniform_int(1_c_int,idxi=uniloc(u_isanchored))
+         call ensure_pack(s%gl%packmesh,mesh_inst_nf,s%obj%nconegiz)
+         i = 1
+         do while (i <= s%obj%nconegiz)
+            j = giz_group_end(s%obj%conegiz(:)%winpos(1),s%obj%conegiz(:)%winpos(2),&
+               s%obj%conegiz(:)%scalewithzoom,s%obj%nconegiz,i)
+            call gizmo_ndc_scale(s%obj%conegiz(i)%winpos,s%obj%conegiz(i)%scalewithzoom,projgiz,gizndc,gizf)
+            call setuniform_vec3(gizndc,idxi=uniloc(u_anchored_ndc))
+            call setuniform_float(gizf,idxi=uniloc(u_anchored_scale))
+            n = 0
+            do k = i, j
+               if (norm2(s%obj%conegiz(k)%x2 - s%obj%conegiz(k)%x1) < 1e-4_c_float) cycle
+               call cone_model(s%obj%conegiz(k)%x1,s%obj%conegiz(k)%x2,s%obj%conegiz(k)%r,model)
+               n = n + 1
+               call mesh_pack(s%gl%packmesh(:,n),model,(/s%obj%conegiz(k)%rgb,1._c_float/))
+            end do
+            call s%gl%draw_mesh(glb_conescr,connel(nmaxcone),n,s%gl%packmesh)
+            i = j + 1
          end do
       end if
 
-      ! labels
+      ! labels: streamed per string (each carries its own color and placement)
       if (s%obj%nstringgiz > 0) then
          call useshader(shader_text_onscene)
-         call setuniform_int(1_c_int,"isanchored")
-         call setuniform_mat4(s%world,"world")
-         call setuniform_mat4(s%view,"view")
-         call setuniform_mat4(projgiz,"projection")
+         call setuniform_int(1_c_int,idxi=uniloc(u_isanchored))
+         call setuniform_mat4(s%world,idxi=uniloc(u_world))
+         call setuniform_mat4(s%view,idxi=uniloc(u_view))
+         call setuniform_mat4(projgiz,idxi=uniloc(u_projection))
          call glDisable(GL_MULTISAMPLE)
          call glDisable(GL_CULL_FACE) ! y-flipped glyph quads have reversed winding
          call glEnable(GL_BLEND)
@@ -1030,20 +980,17 @@ contains
          call glBindVertexArray(textVAOos)
          call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
          call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
-         iu = get_uniform_location("textColor")
          do i = 1, s%obj%nstringgiz
-            call gizmo_ndc_scale(s%obj%stringgiz(i)%gizwinpos,s%obj%stringgiz(i)%gizscalewithzoom,projgiz,gizndc,gizf)
-            call setuniform_vec3(gizndc,"anchored_ndc")
-            call setuniform_float(gizf,"anchored_scale")
-            call setuniform_vec3(s%obj%stringgiz(i)%rgb,idxi=iu)
+            call gizmo_ndc_scale(s%obj%stringgiz(i)%winpos,s%obj%stringgiz(i)%scalewithzoom,projgiz,gizndc,gizf)
+            call setuniform_vec3(gizndc,idxi=uniloc(u_anchored_ndc))
+            call setuniform_float(gizf,idxi=uniloc(u_anchored_scale))
+            call setuniform_vec3(s%obj%stringgiz(i)%rgb,idxi=uniloc(u_textcolor))
             nvert = 0
             ! the label tracks the same zoom behavior as the arrows: constant
             ! on-screen size when the gizmo does not scale with zoom, or scaling
             ! with the gizmo's orthographic projection otherwise.
-            if (.not.s%obj%stringgiz(i)%gizscalewithzoom) then
-               hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
-               hside = hside * s%camratio
-               hside = max(hside,3._c_float)
+            if (.not.s%obj%stringgiz(i)%scalewithzoom) then
+               hside = reset_zoom_hside(s)
                siz = 2 * abs(s%obj%stringgiz(i)%scale) / fontbakesize_large / hside
             else
                siz = 2 * abs(s%obj%stringgiz(i)%scale) * projgiz(1,1) / fontbakesize_large
@@ -1056,10 +1003,26 @@ contains
          call glEnable(GL_MULTISAMPLE)
          call glEnable(GL_CULL_FACE)
          call glDisable(GL_BLEND)
-         call setuniform_int(0_c_int,"isanchored")
+         call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
       end if
 
     end subroutine render_axes_gizmo
+
+    !> Last index of the run of gizmo items starting at i that share the same
+    !> window placement (winpos and scalewithzoom) as item i.
+    function giz_group_end(wx,wy,swz,ntot,i) result(j)
+      real(c_float), intent(in) :: wx(:), wy(:)
+      logical, intent(in) :: swz(:)
+      integer, intent(in) :: ntot, i
+      integer :: j
+
+      j = i
+      do while (j < ntot)
+         if (wx(j+1) /= wx(i) .or. wy(j+1) /= wy(i) .or. (swz(j+1) .neqv. swz(i))) exit
+         j = j + 1
+      end do
+
+    end function giz_group_end
 
     ! Draw all filled rectangles. The unit quad (corners +/-1,+/-1,0)
     ! is mapped onto each rectangle by a model matrix whose first two
@@ -1070,9 +1033,8 @@ contains
       use tools_math, only: cross_cfloat
       integer :: i, n
       real(c_float) :: m(4,4), nrm(3)
-      real(c_float), allocatable :: buf(:,:)
 
-      allocate(buf(mesh_inst_nf,s%obj%nplane))
+      call ensure_pack(s%gl%packmesh,mesh_inst_nf,s%obj%nplane)
       n = 0
       do i = 1, s%obj%nplane
          nrm = cross_cfloat(s%obj%plane(i)%e1,s%obj%plane(i)%e2)
@@ -1084,11 +1046,10 @@ contains
          m(1:3,3) = nrm
          m(1:3,4) = s%obj%plane(i)%x
          n = n + 1
-         call mesh_pack(buf(:,n),m,(/s%obj%plane(i)%rgb,s%obj%plane(i)%alpha/))
+         call mesh_pack(s%gl%packmesh(:,n),m,(/s%obj%plane(i)%rgb,s%obj%plane(i)%alpha/))
       end do
-      call s%gl%draw_mesh(glb_plane,quadnel,n,buf)
+      call s%gl%draw_mesh(glb_plane,quadnel,n,s%gl%packmesh)
       s%gl%nplane_inst = n
-      deallocate(buf)
 
     end subroutine draw_all_planes
 
@@ -1100,9 +1061,8 @@ contains
       use tools_math, only: cross_cfloat
       integer :: i, n
       real(c_float) :: m(4,4), nrm(3), p1(3), p2(3), p3(3)
-      real(c_float), allocatable :: buf(:,:)
 
-      allocate(buf(mesh_inst_nf,s%obj%ntriangle))
+      call ensure_pack(s%gl%packmesh,mesh_inst_nf,s%obj%ntriangle)
       n = 0
       do i = 1, s%obj%ntriangle
          p1 = s%obj%triangle(i)%x1
@@ -1122,11 +1082,10 @@ contains
          m(1:3,3) = nrm
          m(1:3,4) = p1
          n = n + 1
-         call mesh_pack(buf(:,n),m,(/s%obj%triangle(i)%rgb,s%obj%triangle(i)%alpha/))
+         call mesh_pack(s%gl%packmesh(:,n),m,(/s%obj%triangle(i)%rgb,s%obj%triangle(i)%alpha/))
       end do
-      call s%gl%draw_mesh(glb_tri,trinel,n,buf)
+      call s%gl%draw_mesh(glb_tri,trinel,n,s%gl%packmesh)
       s%gl%ntri_inst = n
-      deallocate(buf)
 
     end subroutine draw_all_triangles
 
@@ -1136,22 +1095,20 @@ contains
       use representations, only: atomborder_def
       integer :: i, j
       real(c_float) :: x(3)
-      real(c_float), allocatable :: buf(:,:)
       real(c_float), parameter :: zr(4) = 0._c_float
 
-      allocate(buf(sph_inst_nf,s%nmsel))
+      call ensure_pack(s%gl%packsph,sph_inst_nf,s%nmsel)
       do j = 1, s%nmsel
          i = s%msel(5,j)
          x = s%obj%sph(i)%x
          if (s%animation > 0) x = x + real(displ * s%obj%sph(i)%xdelta,c_float)
-         call sphere_pack(buf(:,j),s%obj%sph(i)%x,s%obj%sph(i)%r + msel_thickness,&
+         call sphere_pack(s%gl%packsph(:,j),s%obj%sph(i)%x,s%obj%sph(i)%r + msel_thickness,&
             ColorMeasureSelect(:,j),real(atomborder_def,c_float),(/0._c_float,0._c_float,0._c_float/),&
             s%obj%sph(i)%xdelta,zr)
          radsel(j) = s%obj%sph(i)%r + msel_thickness
          xsel(:,j) = x
       end do
-      call s%gl%draw_spheres(s%nmsel,buf,.true.)
-      deallocate(buf)
+      call s%gl%draw_spheres(s%nmsel,s%gl%packsph,.true.)
 
     end subroutine draw_all_mselections
 
@@ -1161,7 +1118,6 @@ contains
       use representations, only: atomborder_def
       integer :: i, id, n
       real(c_float) :: rgba(4)
-      real(c_float), allocatable :: buf(:,:)
       real(c_float), parameter :: zr(4) = 0._c_float
 
       ! initial checks
@@ -1170,7 +1126,7 @@ contains
          .not.allocated(sysc(s%id)%highlight_rgba_transient)) return
 
       ! highlight the spheres
-      allocate(buf(sph_inst_nf,s%obj%nsph))
+      call ensure_pack(s%gl%packsph,sph_inst_nf,s%obj%nsph)
       n = 0
       do i = 1, s%obj%nsph
          id = s%obj%sph(i)%idx(1)
@@ -1184,72 +1140,110 @@ contains
             rgba = sysc(s%id)%highlight_rgba(:,id)
          if (all(rgba >= 0)) then
             n = n + 1
-            call sphere_pack(buf(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r + sel_thickness,&
+            call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r + sel_thickness,&
                rgba,real(atomborder_def,c_float),rgba(1:3),s%obj%sph(i)%xdelta,zr)
          end if
       end do
-      call s%gl%draw_spheres(n,buf,.true.)
-      deallocate(buf)
+      call s%gl%draw_spheres(n,s%gl%packsph,.true.)
 
     end subroutine draw_highlights
 
+    !> Draw the scene labels. The glyph vertices are cached in the per-scene
+    !> text buffer and rebuilt only when their inputs change: the draw lists
+    !> (timelastbuild), any camera/projection quantity entering the on-screen
+    !> glyph size (projection matrix, view*world third row, reset-zoom
+    !> half-side, baked font size), or a running animation (anchors move).
     subroutine draw_all_text()
-      integer :: i
+      integer :: i, nvert, nv0
       real(c_float) :: hside, siz, x(3), vw(4,4), wclip
-      integer(c_int) :: nvert
-      real(c_float), allocatable, target :: vert(:,:)
+      logical :: rebuild
 
-      integer :: iu
-
-      iu = get_uniform_location("textColor")
+      if (s%obj%nstring <= 0) return
 
       ! view*world, used to get the anchor's clip-space w (= 1 in orthographic,
       ! = view depth in perspective) for projection-aware label sizing
       vw = matmul(s%view,s%world)
 
-      do i = 1, s%obj%nstring
-         call setuniform_vec3(s%obj%string(i)%rgb,idxi=iu)
-         nvert = 0
-         x = s%obj%string(i)%x
-         if (s%animation > 0) x = x + real(displ * s%obj%string(i)%xdelta,c_float)
-         if (s%obj%string(i)%scale > 0._c_float) then
-            ! constant on-screen size (projection-independent)
-            hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
-            hside = hside * s%camratio
-            hside = max(hside,3._c_float)
-            siz = 2 * s%obj%string(i)%scale / fontbakesize_large / hside
-         else
-            ! scale with zoom (projection-aware): divide by the anchor clip-space
-            ! w so the label foreshortens with depth under perspective
-            wclip = s%projection(4,3) * (vw(3,1)*x(1)+vw(3,2)*x(2)+vw(3,3)*x(3)+vw(3,4)) + s%projection(4,4)
-            wclip = max(wclip,1e-4_c_float) ! guard anchors at/behind the camera (perspective); =1 in ortho
-            siz = 2 * abs(s%obj%string(i)%scale) * s%projection(1,1) / fontbakesize_large / wclip
-         end if
+      ! half-window size at the reset zoom (constant on-screen size labels)
+      hside = reset_zoom_hside(s)
 
-         call calc_text_onscene_vertices(s%obj%string(i)%str,x,s%obj%string(i)%r,&
-            siz,nvert,vert,shift=s%obj%string(i)%offset,centered=.true.)
-         call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*10*c_sizeof(c_float), c_loc(vert))
-         call glDrawArrays(GL_TRIANGLES, 0, nvert)
+      ! decide whether the cached glyph vertices are still valid. The cache is
+      ! rebuilt every frame while animating (the anchors move), and also on the
+      ! animation on/off transition (text_last_anim), so the labels return to
+      ! their equilibrium positions when the animation stops.
+      rebuild = .not.s%gl%text_valid .or. s%animation > 0 .or.&
+         (s%animation /= s%gl%text_last_anim)
+      if (.not.rebuild) rebuild = (s%gl%text_build_time /= s%timelastbuild)
+      if (.not.rebuild) rebuild = any(s%gl%text_proj /= s%projection)
+      if (.not.rebuild) rebuild = any(s%gl%text_vw3 /= vw(3,:))
+      if (.not.rebuild) rebuild = (s%gl%text_hside /= hside) .or.&
+         (s%gl%text_fontsize /= fontbakesize_large)
+
+      if (rebuild) then
+         ! rebuild the concatenated glyph vertices for all labels and upload
+         ! them once
+         call ensure_pack(s%gl%text_first,s%obj%nstring)
+         call ensure_pack(s%gl%text_count,s%obj%nstring)
+         nvert = 0
+         do i = 1, s%obj%nstring
+            nv0 = nvert
+            x = s%obj%string(i)%x
+            if (s%animation > 0) x = x + real(displ * s%obj%string(i)%xdelta,c_float)
+            if (s%obj%string(i)%scale > 0._c_float) then
+               ! constant on-screen size (projection-independent)
+               siz = 2 * s%obj%string(i)%scale / fontbakesize_large / hside
+            else
+               ! scale with zoom (projection-aware): divide by the anchor
+               ! clip-space w so the label foreshortens with depth under
+               ! perspective
+               wclip = s%projection(4,3) * (vw(3,1)*x(1)+vw(3,2)*x(2)+vw(3,3)*x(3)+vw(3,4)) + s%projection(4,4)
+               wclip = max(wclip,1e-4_c_float) ! guard anchors at/behind the camera (perspective); =1 in ortho
+               siz = 2 * abs(s%obj%string(i)%scale) * s%projection(1,1) / fontbakesize_large / wclip
+            end if
+            call calc_text_onscene_vertices(s%obj%string(i)%str,x,s%obj%string(i)%r,&
+               siz,nvert,s%gl%packtext,shift=s%obj%string(i)%offset,centered=.true.)
+            s%gl%text_first(i) = nv0
+            s%gl%text_count(i) = nvert - nv0
+         end do
+         call s%gl%upload_text(nvert,s%gl%packtext)
+
+         ! stamp the validity keys
+         s%gl%text_valid = .true.
+         s%gl%text_last_anim = s%animation
+         s%gl%text_build_time = s%timelastbuild
+         s%gl%text_proj = s%projection
+         s%gl%text_vw3 = vw(3,:)
+         s%gl%text_hside = hside
+         s%gl%text_fontsize = fontbakesize_large
+      end if
+
+      ! draw each label from the cached buffer with its own color
+      call glBindVertexArray(s%gl%textVAO)
+      do i = 1, s%obj%nstring
+         if (s%gl%text_count(i) <= 0) cycle
+         call setuniform_vec3(s%obj%string(i)%rgb,idxi=uniloc(u_textcolor))
+         call glDrawArrays(GL_TRIANGLES, int(s%gl%text_first(i),c_int), int(s%gl%text_count(i),c_int))
       end do
+      call glBindVertexArray(0)
 
     end subroutine draw_all_text
 
+    !> Draw the measure-selection numerals. At most 4 short strings, streamed
+    !> through the shared on-scene text buffer every frame (not cached).
     subroutine draw_selection_text()
       integer :: j
       real(c_float) :: siz, vw(4,4), wclip
       integer(c_int) :: nvert
       real(c_float), allocatable, target :: vert(:,:)
 
-      integer :: iu
-
-      iu = get_uniform_location("textColor")
-
       ! view*world, for the anchor clip-space w (projection-aware sizing; see
       ! draw_all_text). These labels always scale with zoom.
       vw = matmul(s%view,s%world)
 
+      call glBindVertexArray(textVAOos)
+      call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
       do j = 1, s%nmsel
-         call setuniform_vec3((/1._c_float,1._c_float,1._c_float/),idxi=iu)
+         call setuniform_vec3((/1._c_float,1._c_float,1._c_float/),idxi=uniloc(u_textcolor))
          wclip = s%projection(4,3) * (vw(3,1)*xsel(1,j)+vw(3,2)*xsel(2,j)+vw(3,3)*xsel(3,j)+vw(3,4)) + s%projection(4,4)
          wclip = max(wclip,1e-4_c_float) ! guard anchors at/behind the camera (perspective); =1 in ortho
          siz = sel_label_size * s%projection(1,1) / fontbakesize_large / wclip
@@ -1258,6 +1252,8 @@ contains
          call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*10*c_sizeof(c_float), c_loc(vert))
          call glDrawArrays(GL_TRIANGLES, 0, nvert)
       end do
+      call glBindBuffer(GL_ARRAY_BUFFER, 0)
+      call glBindVertexArray(0)
 
     end subroutine draw_selection_text
 
@@ -1267,64 +1263,37 @@ contains
   module subroutine scene_render_pick(s)
     use interfaces_cimgui
     use interfaces_opengl3
-    use systems, only: sysc, nsys, sys
-    use shapes, only: sph_inst_nf
-    use utils, only: ortho, project
-    use tools_math, only: eigsym, matinv_cfloat
+    use systems, only: sys
+    use shapes, only: sph_inst_nf, ensure_pack
     use shaders, only: shader_sphere, useshader, setuniform_int,&
-       setuniform_float, setuniform_vec3, setuniform_vec4, setuniform_mat3,&
-       setuniform_mat4, get_uniform_location
+       setuniform_vec3, setuniform_mat4, uniloc, u_world, u_view,&
+       u_projection, u_isortho, u_upick, u_isanchored, u_displ
     use param, only: maxzat0
     class(scene), intent(inout), target :: s
 
-    integer :: i, ifound, iz, idx, n
-    real*8 :: time
+    integer :: i, iz, idx, n
     real(c_float) :: ridx(4)
-    real(c_float), allocatable :: buf(:,:)
 
     ! check that the scene and system are initialized
     if (s%isinit < 2) return
 
-    ! create this scene's GL instance buffers if not done already
-    if (.not.s%gl%isinit) call s%gl%init()
-
-    ! build draw lists if not done already
-    if (.not.allocated(s%obj%sph)) call s%build_lists()
-
-    ! if necessary, rebuild draw lists
-    if (s%forcebuildlists) call s%build_lists()
-
-    ! if the camera is locked, copy the camera parameters from the member
-    ! of the locking group who was moved last
-    if (s%lockedcam /= 0) then
-       ifound = 0
-       time = s%timelastcamchange
-       do i = 1, nsys
-          if (sysc(i)%sc%lockedcam == s%lockedcam .and. sysc(i)%sc%timelastcamchange > time) then
-             ifound = i
-             time = sysc(i)%sc%timelastcamchange
-          end if
-       end do
-       if (ifound > 0) call s%cam_copy(sysc(ifound)%sc)
-    end if
-
-    ! if necessary, reset the camera
-    if (s%forceresetcam) call s%reset()
+    ! buffers, draw lists, camera lock, camera reset
+    call scene_render_prepare(s)
 
     ! set up the sphere impostor shader for picking (ray-cast so the pickable
     ! silhouette matches the visible sphere); positions are not animated
     call useshader(shader_sphere)
-    call setuniform_mat4(s%world,"world")
-    call setuniform_mat4(s%view,"view")
-    call setuniform_mat4(s%projection,"projection")
-    call setuniform_int(merge(1_c_int,0_c_int,s%isortho),"isortho")
-    call setuniform_int(1_c_int,"uPick")
-    call setuniform_int(0_c_int,"isanchored")
-    call setuniform_vec3((/0._c_float,0._c_float,0._c_float/),"displ")
+    call setuniform_mat4(s%world,idxi=uniloc(u_world))
+    call setuniform_mat4(s%view,idxi=uniloc(u_view))
+    call setuniform_mat4(s%projection,idxi=uniloc(u_projection))
+    call setuniform_int(merge(1_c_int,0_c_int,s%isortho),idxi=uniloc(u_isortho))
+    call setuniform_int(1_c_int,idxi=uniloc(u_upick))
+    call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
+    call setuniform_vec3((/0._c_float,0._c_float,0._c_float/),idxi=uniloc(u_displ))
 
     ! draw the atoms, each with its loop index encoded into the pick color
     if (s%obj%nsph > 0) then
-       allocate(buf(sph_inst_nf,s%obj%nsph))
+       call ensure_pack(s%gl%packsph,sph_inst_nf,s%obj%nsph)
        n = 0
        do i = 1, s%obj%nsph
           ! draw the sphere, no gradient paths
@@ -1336,13 +1305,12 @@ contains
           if (iz < maxzat0) then
              n = n + 1
              ridx = transfer((/i,0,0,0/),ridx)
-             call sphere_pack(buf(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
+             call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
                 (/0._c_float,0._c_float,0._c_float,1._c_float/),0._c_float,&
                 (/0._c_float,0._c_float,0._c_float/),s%obj%sph(i)%xdelta,ridx)
           end if
        end do
-       call s%gl%draw_spheres(n,buf,.true.)
-       deallocate(buf)
+       call s%gl%draw_spheres(n,s%gl%packsph,.true.)
     end if
 
   end subroutine scene_render_pick
@@ -1356,7 +1324,7 @@ contains
 
     s%bgcolor = ColorSceneBg_def
     do i = 1, s%nrep
-       s%rep(i)%uc_rgb = 0._c_float
+       s%rep(i)%uc%rgb = 0._c_float
     end do
 
   end subroutine scene_set_style_defaults
@@ -1653,6 +1621,7 @@ contains
 
   !> Update the projection matrix from the v_pos
   module subroutine update_projection_matrix(s)
+    use interfaces_glfw, only: glfwGetTime
     use utils, only: mult, infiniteperspective
     use param, only: pi
     class(scene), intent(inout), target :: s
@@ -1676,6 +1645,11 @@ contains
        call infiniteperspective(s%projection,s%persp_fov * pic / 180._c_float,1._c_float,znear)
     end if
 
+    ! the camera projection has changed: stamp the change time so consumers of
+    ! the camera state (locked-camera sync, caches) see direct projection
+    ! edits (e.g. the orthographic/perspective toggle), not only camera moves
+    s%timelastcamchange = glfwGetTime()
+
   end subroutine update_projection_matrix
 
   !> Ratio between the window-anchored gizmo's on-screen size with "scale with
@@ -1691,12 +1665,24 @@ contains
     call mult(sc,s%world,s%scenecenter)
     hw2 = tan(0.5_c_float * s%ortho_fov * real(pi,c_float) / 180._c_float) * norm2(s%campos - sc)
     hw2 = max(hw2,1e-4_c_float)
-    hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
-    hside = hside * s%camratio
-    hside = max(hside,3._c_float)
+    hside = reset_zoom_hside(s)
     f = hw2 / hside
 
   end function scene_gizmo_zoom_factor
+
+  !> Half of the visible window side at the reset zoom (tworld units): the
+  !> quantity scene_reset uses to place the camera. Constant on-screen-size
+  !> items (labels, the window-anchored gizmo) divide by it so that the two
+  !> zoom-scaling modes coincide at the reset zoom.
+  function reset_zoom_hside(s) result(hside)
+    class(scene), intent(in) :: s
+    real(c_float) :: hside
+
+    hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
+    hside = hside * s%camratio
+    hside = max(hside,3._c_float)
+
+  end function reset_zoom_hside
 
   subroutine ortho_projection(s,proj,symz)
     use utils, only: ortho, mult
@@ -1926,8 +1912,8 @@ contains
        do id = 1, s%nreptrans
           if (s%reptrans(id)%type == reptype_axes) then
              s%reptrans(id)%origin = xcom
-             s%reptrans(id)%axes_rot = rot
-             s%reptrans(id)%axes_scale = axlen / max(s%reptrans(id)%axes_length,1d-10)
+             s%reptrans(id)%axes%rot = rot
+             s%reptrans(id)%axes%scale = axlen / max(s%reptrans(id)%axes%length,1d-10)
           end if
        end do
        s%reptrans_set = .true.
@@ -1940,14 +1926,14 @@ contains
     if (id <= 0) return
     if (.not.s%reptrans(id)%isinit) return
 
-    s%reptrans(id)%axes_placement = 0 ! drawn in world space (not a window gizmo)
-    s%reptrans(id)%axes_coordtype = 2 ! origin in cartesian (bohr)
+    s%reptrans(id)%axes%placement = 0 ! drawn in world space (not a window gizmo)
+    s%reptrans(id)%axes%coordtype = 2 ! origin in cartesian (bohr)
     s%reptrans(id)%origin = xcom
-    s%reptrans(id)%axes_kind = 0 ! cartesian base directions, reoriented by axes_rot
-    s%reptrans(id)%axes_rot = rot ! orient along the molecule's principal axes
-    s%reptrans(id)%axes_showlabels = .false.
-    s%reptrans(id)%axes_scale = axlen / max(s%reptrans(id)%axes_length,1d-10)
-    s%reptrans(id)%axes_scale_auto = .false.
+    s%reptrans(id)%axes%kind = 0 ! cartesian base directions, reoriented by axes_rot
+    s%reptrans(id)%axes%rot = rot ! orient along the molecule's principal axes
+    s%reptrans(id)%axes%showlabels = .false.
+    s%reptrans(id)%axes%scale = axlen / max(s%reptrans(id)%axes%length,1d-10)
+    s%reptrans(id)%axes%scale_auto = .false.
     s%reptrans_tag = tag
 
   end subroutine scene_show_transient_axes
@@ -1971,8 +1957,8 @@ contains
        do id = 1, s%nreptrans
           if (s%reptrans(id)%type == reptype_rotaxis) then
              s%reptrans(id)%origin = xcom
-             s%reptrans(id)%rotaxis_dir = rotdir
-             s%reptrans(id)%rotaxis_length = rotlen
+             s%reptrans(id)%rotaxis%dir = rotdir
+             s%reptrans(id)%rotaxis%length = rotlen
           end if
        end do
        s%reptrans_set = .true.
@@ -1984,8 +1970,8 @@ contains
     if (id > 0) then
        if (s%reptrans(id)%isinit) then
           s%reptrans(id)%origin = xcom
-          s%reptrans(id)%rotaxis_dir = rotdir
-          s%reptrans(id)%rotaxis_length = rotlen
+          s%reptrans(id)%rotaxis%dir = rotdir
+          s%reptrans(id)%rotaxis%length = rotlen
        end if
     end if
     s%reptrans_tag = tag
@@ -2022,12 +2008,12 @@ contains
     if (s%reptrans_tag == tag .and. s%nreptrans == n) then
        do id = 1, n
           if (s%reptrans(id)%type /= reptype_symelem) cycle
-          s%reptrans(id)%symelem_kind = kind(id)
+          s%reptrans(id)%symelem%kind = kind(id)
           s%reptrans(id)%origin = xorig(:,id)
-          s%reptrans(id)%symelem_dir = dir(:,id)
-          s%reptrans(id)%symelem_size = s%scenerad
-          s%reptrans(id)%symelem_cen = real(s%scenecenter,8)
-          s%reptrans(id)%symelem_order = order(id)
+          s%reptrans(id)%symelem%dir = dir(:,id)
+          s%reptrans(id)%symelem%size = s%scenerad
+          s%reptrans(id)%symelem%cen = real(s%scenecenter,8)
+          s%reptrans(id)%symelem%order = order(id)
        end do
        s%reptrans_set = .true.
        return
@@ -2039,18 +2025,55 @@ contains
        id = s%add_transient_representation(reptype_symelem,repflavor_symelem)
        if (id <= 0) cycle
        if (.not.s%reptrans(id)%isinit) cycle
-       s%reptrans(id)%symelem_kind = kind(k)
+       s%reptrans(id)%symelem%kind = kind(k)
        s%reptrans(id)%origin = xorig(:,k)
-       s%reptrans(id)%symelem_dir = dir(:,k)
-       s%reptrans(id)%symelem_size = s%scenerad
-       s%reptrans(id)%symelem_cen = real(s%scenecenter,8)
-       s%reptrans(id)%symelem_order = order(k)
+       s%reptrans(id)%symelem%dir = dir(:,k)
+       s%reptrans(id)%symelem%size = s%scenerad
+       s%reptrans(id)%symelem%cen = real(s%scenecenter,8)
+       s%reptrans(id)%symelem%order = order(k)
     end do
     s%reptrans_tag = tag
 
   end subroutine scene_show_symelems
 
   !xx! private procedures: low-level draws
+
+  !> Common entry preparation for scene_render and scene_render_pick: create
+  !> the GL buffers on first use, (re)build the draw lists if needed, copy the
+  !> camera from the most recently moved member of the locking group, and
+  !> reset the camera if required.
+  subroutine scene_render_prepare(s)
+    use systems, only: sysc, nsys
+    class(scene), intent(inout), target :: s
+
+    integer :: i, ifound
+    real*8 :: time
+
+    ! create this scene's GL instance buffers on first render
+    if (.not.s%gl%isinit) call s%gl%init()
+
+    ! build the draw lists if not done already or if a rebuild is forced
+    if (s%isinit == 1 .or. .not.allocated(s%obj%sph) .or. s%forcebuildlists) &
+       call s%build_lists()
+
+    ! if the camera is locked, copy the camera parameters from the member
+    ! of the locking group who was moved last
+    if (s%lockedcam /= 0) then
+       ifound = 0
+       time = s%timelastcamchange
+       do i = 1, nsys
+          if (sysc(i)%sc%lockedcam == s%lockedcam .and. sysc(i)%sc%timelastcamchange > time) then
+             ifound = i
+             time = sysc(i)%sc%timelastcamchange
+          end if
+       end do
+       if (ifound > 0) call s%cam_copy(sysc(ifound)%sc)
+    end if
+
+    ! if necessary, reset the camera
+    if (s%forceresetcam) call s%reset()
+
+  end subroutine scene_render_prepare
 
   !> Pack one sphere instance into column col of an instance buffer (layout
   !> must match the sphinstVAO attribute offsets set in glbuffers_init).
@@ -2216,7 +2239,7 @@ contains
        call c_f_pointer(cptr,glyph)
 
        ! add to the vertices
-       if (nvert+6 > size(vert,2)) call realloc(vert,8,2*(nvert+6))
+       if (nvert+6 > size(vert,2)) call realloc(vert,10,2*(nvert+6))
        do j = nvert+1, nvert+6
           vert(1:3,j) = x0
           vert(4:5,j) = shift_(1:2)

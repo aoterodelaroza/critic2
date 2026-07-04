@@ -2544,14 +2544,14 @@ contains
             ! ensure the operation snapshot/visibility style is initialized
             call sysc(isys)%sc%rep(idobj)%update()
             associate (rr => sysc(isys)%sc%rep(idobj))
-              if (rr%symelem_style%isinit) then
-                 if (size(rr%symelem_style%shown,1) == size(w%geometry_sym_sel,1)) then
+              if (rr%symelem%style%isinit) then
+                 if (size(rr%symelem%style%shown,1) == size(w%geometry_sym_sel,1)) then
                     if (idnew) then
                        ! new object: show exactly the selected operations
-                       rr%symelem_style%shown = w%geometry_sym_sel
+                       rr%symelem%style%shown = w%geometry_sym_sel
                     else
                        ! reuse: mark the selected operations as shown in it
-                       where (w%geometry_sym_sel) rr%symelem_style%shown = .true.
+                       where (w%geometry_sym_sel) rr%symelem%style%shown = .true.
                     end if
                     sysc(isys)%sc%forcebuildlists = .true.
                  end if
@@ -2968,10 +2968,10 @@ contains
          do jrep = 1, win(iview)%sc%nrep
             if (win(iview)%sc%rep(jrep)%type == reptype_atoms.and.win(iview)%sc%rep(jrep)%isinit.and.&
                win(iview)%sc%rep(jrep)%shown) then
-               idd = sysc(isys)%attype_type_id_to_id(itype,iat,win(iview)%sc%rep(jrep)%atom_style%type)
+               idd = sysc(isys)%attype_type_id_to_id(itype,iat,win(iview)%sc%rep(jrep)%atoms%style%type)
                if (idd /= 0) then
                   have = .true.
-                  rgbo = win(iview)%sc%rep(jrep)%atom_style%rgb(:,idd)
+                  rgbo = win(iview)%sc%rep(jrep)%atoms%style%rgb(:,idd)
                   exit
                end if
             end if

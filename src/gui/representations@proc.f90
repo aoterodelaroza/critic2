@@ -48,10 +48,10 @@ contains
     r%flavor = flavor
 
     ! default display options
-    r%atoms_display = .true.
-    r%bonds_display = .true.
-    r%labels_display = .false.
-    r%poly_display = .false.
+    r%atoms%display = .true.
+    r%bonds%display = .true.
+    r%labels%display = .false.
+    r%poly%display = .false.
 
     ! if type was given, mark as initialized and set name
     if (itype == reptype_atoms) then
@@ -61,27 +61,27 @@ contains
           r%name = "Ball and Stick"
        elseif (flavor == repflavor_atoms_sticks) then
           r%name = "Bonds"
-          r%atoms_display = .false.
+          r%atoms%display = .false.
        elseif (flavor == repflavor_atoms_licorice) then
           r%name = "Licorice"
        elseif (flavor == repflavor_atoms_vdwcontacts) then
           r%name = "VdW Contacts"
-          r%atoms_display = .false.
+          r%atoms%display = .false.
        elseif (flavor == repflavor_atoms_hbonds) then
           r%name = "Hydrogen Bonds"
-          r%atoms_display = .false.
+          r%atoms%display = .false.
        elseif (flavor == repflavor_atoms_criticalpoints) then
           r%name = "Critical Points"
-          r%bonds_display = .false.
-          r%labels_display = .true.
+          r%bonds%display = .false.
+          r%labels%display = .true.
        elseif (flavor == repflavor_atoms_gradientpaths) then
           r%name = "Gradient Paths"
-          r%bonds_display = .false.
-          r%labels_display = .false.
+          r%bonds%display = .false.
+          r%labels%display = .false.
        elseif (flavor == repflavor_atoms_polyhedra) then
           r%name = "Polyhedra"
-          r%bonds_display = .false.
-          r%poly_display = .true.
+          r%bonds%display = .false.
+          r%poly%display = .true.
        end if
     elseif (itype == reptype_unitcell) then
        r%isinit = .true.
@@ -223,169 +223,169 @@ contains
 
     !--> atoms
     if (itype == 0 .or. itype == 1) then
-       r%atom_radii_type = 0
-       r%atom_radii_scale = atomcovradscale_def
-       r%atom_radii_value = atomconstantrad_def
-       r%atom_color_type = 0
-       r%atom_border_size = atomborder_def
-       r%atom_border_rgb = ColorAtomBorder_def
+       r%atoms%radii_type = 0
+       r%atoms%radii_scale = atomcovradscale_def
+       r%atoms%radii_value = atomconstantrad_def
+       r%atoms%color_type = 0
+       r%atoms%border_size = atomborder_def
+       r%atoms%border_rgb = ColorAtomBorder_def
        if (r%flavor == repflavor_atoms_licorice) then
-          r%atom_radii_type = 2
-          r%atom_radii_value = atomrad_licorice_def
+          r%atoms%radii_type = 2
+          r%atoms%radii_value = atomrad_licorice_def
        elseif (r%flavor == repflavor_atoms_criticalpoints) then
-          r%atom_radii_type = 2
-          r%atom_radii_value = atomrad_criticalpoints_def
-          r%atom_border_size = atomborder_criticalpoints_def
+          r%atoms%radii_type = 2
+          r%atoms%radii_value = atomrad_criticalpoints_def
+          r%atoms%border_size = atomborder_criticalpoints_def
        elseif (r%flavor == repflavor_atoms_gradientpaths) then
-          r%atom_radii_type = 2
-          r%atom_radii_value = atomrad_gradientpaths_def
-          r%atom_border_size = atomborder_gradientpaths_def
+          r%atoms%radii_type = 2
+          r%atoms%radii_value = atomrad_gradientpaths_def
+          r%atoms%border_size = atomborder_gradientpaths_def
        end if
     end if
 
     !--> bonds
     if (itype == 0 .or. itype == 2) then
-       r%bond_atmrad = atmcov0
-       r%bond_bfactor = bondfactor_def
-       r%bond_bdelta = bonddelta_def
-       r%bond_color_style = 0
-       r%bond_border_size = bondborder_def
-       r%bond_rad = bondrad_def
-       r%bond_border_rgb = ColorBondBorder_def
-       r%bond_rgb = ColorBond_def
-       r%bond_order = 4 ! calculated (value from ordcon)
-       r%bond_imol = 0
-       r%bond_bothends = .true.
-       r%bond_hbond_classify = .false.
+       r%bonds%atmrad = atmcov0
+       r%bonds%bfactor = bondfactor_def
+       r%bonds%bdelta = bonddelta_def
+       r%bonds%color_style = 0
+       r%bonds%border_size = bondborder_def
+       r%bonds%rad = bondrad_def
+       r%bonds%border_rgb = ColorBondBorder_def
+       r%bonds%rgb = ColorBond_def
+       r%bonds%order = 4 ! calculated (value from ordcon)
+       r%bonds%imol = 0
+       r%bonds%bothends = .true.
+       r%bonds%hbond_classify = .false.
        if (r%flavor == repflavor_atoms_sticks) then
-          r%bond_color_style = 1
-          r%bond_border_size = bondborder_stickflav_def
+          r%bonds%color_style = 1
+          r%bonds%border_size = bondborder_stickflav_def
        elseif (r%flavor == repflavor_atoms_licorice) then
-          r%bond_color_style = 1
-          r%bond_rad = bondrad_licorice_def
+          r%bonds%color_style = 1
+          r%bonds%rad = bondrad_licorice_def
        elseif (r%flavor == repflavor_atoms_vdwcontacts) then
           ! van der waals contacts: dashed, intermolecular-only bonds using
           ! the sum of the van der Waals radii as the distance cutoff
-          r%bond_atmrad = atmvdw0
-          r%bond_bfactor = bondfactor_vdwcontacts_def
-          r%bond_order = 0 ! dashed
-          r%bond_imol = 2 ! intermolecular only
-          r%bond_bothends = .false.
-          r%bond_rad = bondrad_vdwcontacts_def
-          r%bond_border_size = 0d0
-          r%bond_rgb = ColorVdwContacts_def
+          r%bonds%atmrad = atmvdw0
+          r%bonds%bfactor = bondfactor_vdwcontacts_def
+          r%bonds%order = 0 ! dashed
+          r%bonds%imol = 2 ! intermolecular only
+          r%bonds%bothends = .false.
+          r%bonds%rad = bondrad_vdwcontacts_def
+          r%bonds%border_size = 0d0
+          r%bonds%rgb = ColorVdwContacts_def
        elseif (r%flavor == repflavor_atoms_hbonds) then
           ! hydrogen bonds: dashed, intermolecular-only contacts.
           ! Jeffrey-Steiner strength classification (distance + D-H...A angle) is applied at render time.
-          r%bond_atmrad = atmvdw0
-          r%bond_bfactor = bondfactor_hbonds_def
-          r%bond_order = 0 ! dashed
-          r%bond_imol = 2 ! intermolecular only
-          r%bond_bothends = .false.
-          r%bond_rad = bondrad_vdwcontacts_def
-          r%bond_border_size = 0d0
-          r%bond_rgb = ColorHbonds_def
-          r%bond_hbond_classify = .true.
-          r%bond_hbond_rgb(:,1) = ColorHbondStrong_def
-          r%bond_hbond_rgb(:,2) = ColorHbondModerate_def
-          r%bond_hbond_rgb(:,3) = ColorHbondWeak_def
-          r%bond_hbond_dist = hbond_dist_def
-          r%bond_hbond_ang = hbond_ang_def
+          r%bonds%atmrad = atmvdw0
+          r%bonds%bfactor = bondfactor_hbonds_def
+          r%bonds%order = 0 ! dashed
+          r%bonds%imol = 2 ! intermolecular only
+          r%bonds%bothends = .false.
+          r%bonds%rad = bondrad_vdwcontacts_def
+          r%bonds%border_size = 0d0
+          r%bonds%rgb = ColorHbonds_def
+          r%bonds%hbond_classify = .true.
+          r%bonds%hbond_rgb(:,1) = ColorHbondStrong_def
+          r%bonds%hbond_rgb(:,2) = ColorHbondModerate_def
+          r%bonds%hbond_rgb(:,3) = ColorHbondWeak_def
+          r%bonds%hbond_dist = hbond_dist_def
+          r%bonds%hbond_ang = hbond_ang_def
        end if
     end if
 
     !--> labels
     if (itype == 0 .or. itype == 3) then
-       r%label_type = 0
-       r%label_scale = 0.5d0
-       r%label_rgb = ColorLabel_def
-       r%label_const_size = .false.
-       r%label_offset = (/0d0,0d0,0d0/)
+       r%labels%type = 0
+       r%labels%scale = 0.5d0
+       r%labels%rgb = ColorLabel_def
+       r%labels%const_size = .false.
+       r%labels%offset = (/0d0,0d0,0d0/)
        if (r%flavor == repflavor_atoms_criticalpoints) then
-          r%label_type = 2 ! cell atom
-          r%label_scale = 0.3d0
-          r%label_offset = (/0d0,0.25d0,0d0/)
+          r%labels%type = 2 ! cell atom
+          r%labels%scale = 0.3d0
+          r%labels%offset = (/0d0,0.25d0,0d0/)
        end if
     end if
 
     ! unit cell
     if (itype == 0 .or. itype == 5) then
-       r%uc_inner = .true.
-       r%uc_coloraxes = .true.
-       r%uc_vaccutsticks = .true.
-       r%uc_radius = uc_radius_def
-       r%uc_radiusinner = uc_radiusinner_def
-       r%uc_rgb = 0._c_float
-       r%uc_innersteplen = uc_innersteplen_def
-       r%uc_innerstipple = .true.
+       r%uc%inner = .true.
+       r%uc%coloraxes = .true.
+       r%uc%vaccutsticks = .true.
+       r%uc%radius = uc_radius_def
+       r%uc%radiusinner = uc_radiusinner_def
+       r%uc%rgb = 0._c_float
+       r%uc%innersteplen = uc_innersteplen_def
+       r%uc%innerstipple = .true.
     end if
 
     ! cartesian axes
     if (itype == 0 .or. itype == 6) then
-       r%axes_kind = 0 ! cartesian
-       r%axes_rot = eye ! no extra orientation by default
-       r%axes_placement = 1
+       r%axes%kind = 0 ! cartesian
+       r%axes%rot = eye ! no extra orientation by default
+       r%axes%placement = 1
        if (sys(isys)%c%ismolecule) then
-          r%axes_coordtype = 1 ! cartesian (angstrom)
+          r%axes%coordtype = 1 ! cartesian (angstrom)
        else
-          r%axes_coordtype = 0 ! crystallographic
+          r%axes%coordtype = 0 ! crystallographic
        end if
-       r%axes_winpos = axes_winpos_def
-       r%axes_length = axes_length_def
-       r%axes_radius = axes_radius_def
-       r%axes_conelength = axes_conelength_def
-       r%axes_coneradius = axes_coneradius_def
-       r%axes_rgb = ColorAxes_def ! x = red, y = green, z = blue
-       r%axes_showlabels = .true.
-       r%axes_labelscale = axes_labelscale_def
-       r%axes_labelconstsize = .false.
-       r%axes_labeldistance = axes_labeldistance_def
-       r%axes_labeloffset = 0d0
-       r%axes_scalewithzoom = .false.
-       r%axes_scale = 1d0
-       r%axes_scale_auto = (r%axes_placement == 1)
-       r%axes_labelrgb = 0._c_float
-       r%axes_labelstr(1) = "x"
-       r%axes_labelstr(2) = "y"
-       r%axes_labelstr(3) = "z"
+       r%axes%winpos = axes_winpos_def
+       r%axes%length = axes_length_def
+       r%axes%radius = axes_radius_def
+       r%axes%conelength = axes_conelength_def
+       r%axes%coneradius = axes_coneradius_def
+       r%axes%rgb = ColorAxes_def ! x = red, y = green, z = blue
+       r%axes%showlabels = .true.
+       r%axes%labelscale = axes_labelscale_def
+       r%axes%labelconstsize = .false.
+       r%axes%labeldistance = axes_labeldistance_def
+       r%axes%labeloffset = 0d0
+       r%axes%scalewithzoom = .false.
+       r%axes%scale = 1d0
+       r%axes%scale_auto = (r%axes%placement == 1)
+       r%axes%labelrgb = 0._c_float
+       r%axes%labelstr(1) = "x"
+       r%axes%labelstr(2) = "y"
+       r%axes%labelstr(3) = "z"
     end if
 
     ! rotation axis
     if (itype == 0 .or. itype == 7) then
-       r%rotaxis_dir = (/0d0,0d0,1d0/)
-       r%rotaxis_length = 0d0
-       r%rotaxis_radius = rotaxis_radius_def
-       r%rotaxis_rgb = ColorRotaxis_def ! black
+       r%rotaxis%dir = (/0d0,0d0,1d0/)
+       r%rotaxis%length = 0d0
+       r%rotaxis%radius = rotaxis_radius_def
+       r%rotaxis%rgb = ColorRotaxis_def ! black
     end if
 
     ! coordination polyhedra
     if (itype == 0 .or. itype == 8) then
-       r%poly_alpha = 0.5d0
-       r%poly_usecentercolor = .true.
-       r%poly_rgb = 0._c_float
-       r%poly_edge_rad = 0.05d0
-       r%poly_edge_rgb = 0._c_float
-       r%poly_usecentercolor_edge = .true.
-       r%poly_coplanar_eps = 0.1d0
-       r%poly_showcorners = .true.
+       r%poly%alpha = 0.5d0
+       r%poly%usecentercolor = .true.
+       r%poly%rgb = 0._c_float
+       r%poly%edge_rad = 0.05d0
+       r%poly%edge_rgb = 0._c_float
+       r%poly%usecentercolor_edge = .true.
+       r%poly%coplanar_eps = 0.1d0
+       r%poly%showcorners = .true.
     end if
 
     ! symmetry elements
     if (itype == 0 .or. itype == 9) then
        if (sys(isys)%c%ismolecule) then
-          r%symelem_coordtype = 2 ! cartesian (bohr)
+          r%symelem%coordtype = 2 ! cartesian (bohr)
           if (sys(isys)%c%pg%avail) then
-             r%symelem_origin = sys(isys)%c%pg%xcm + sys(isys)%c%molx0
+             r%symelem%origin = sys(isys)%c%pg%xcm + sys(isys)%c%molx0
           else
-             r%symelem_origin = 0d0
+             r%symelem%origin = 0d0
           end if
        else
-          r%symelem_coordtype = 0 ! crystallographic
-          r%symelem_origin = 0d0
+          r%symelem%coordtype = 0 ! crystallographic
+          r%symelem%origin = 0d0
        end if
-       r%symelem_usecustomrgb = .false.
-       r%symelem_rgb = symelem_rgb_def
-       if (r%symelem_style%isinit) r%symelem_style%shown = .true.
+       r%symelem%usecustomrgb = .false.
+       r%symelem%rgb = symelem_rgb_def
+       if (r%symelem%style%isinit) r%symelem%style%shown = .true.
     end if
 
     ! initialize the styles
@@ -408,12 +408,12 @@ contains
     r%filter = ""
     r%errfilter = ""
 
-    call r%atom_style%end()
-    call r%bond_style%end()
-    call r%label_style%end()
+    call r%atoms%style%end()
+    call r%bonds%style%end()
+    call r%labels%style%end()
     call r%mol_style%end()
-    call r%coordpoly_style%end()
-    call r%symelem_style%end()
+    call r%poly%style%end()
+    call r%symelem%style%end()
 
   end subroutine representation_end
 
@@ -432,19 +432,19 @@ contains
     if (r%type == reptype_atoms) then
        ! check if we need to reset the representation styles
        ! atoms
-       doreset = .not.r%atom_style%isinit
-       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%atom_style%timelastreset)
-       if (doreset) call r%atom_style%reset(r)
+       doreset = .not.r%atoms%style%isinit
+       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%atoms%style%timelastreset)
+       if (doreset) call r%atoms%style%reset(r)
 
        ! bonds: if the geometry changed
-       doreset = .not.r%bond_style%isinit
-       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%bond_style%timelastreset)
-       if (doreset) call r%bond_style%reset(r)
+       doreset = .not.r%bonds%style%isinit
+       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%bonds%style%timelastreset)
+       if (doreset) call r%bonds%style%reset(r)
 
        ! bonds: if the system has been rebonded and this representation tracks
        ! the bonds in the system (%use_sys_nstar), recalculate the bond style
-       doreset = r%bond_style%use_sys_nstar .and. (sysc(r%id)%timelastchange_rebond > r%bond_style%timelastreset)
-       if (doreset) call r%bond_style%copy_neighstars_from_system(r%id)
+       doreset = r%bonds%style%use_sys_nstar .and. (sysc(r%id)%timelastchange_rebond > r%bonds%style%timelastreset)
+       if (doreset) call r%bonds%style%copy_neighstars_from_system(r%id)
 
        ! molecules: if the geometry or the bonds changed
        doreset = .not.r%mol_style%isinit
@@ -452,20 +452,20 @@ contains
        if (doreset) call r%mol_style%reset(r)
 
        ! labels: if the geometry changed
-       doreset = .not.r%label_style%isinit
-       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%label_style%timelastreset)
-       if (doreset) call r%label_style%reset(r)
+       doreset = .not.r%labels%style%isinit
+       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%labels%style%timelastreset)
+       if (doreset) call r%labels%style%reset(r)
 
        ! coordination polyhedra: if the geometry changed
-       doreset = .not.r%coordpoly_style%isinit
-       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%coordpoly_style%timelastreset)
-       if (doreset) call r%coordpoly_style%reset(r)
+       doreset = .not.r%poly%style%isinit
+       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%poly%style%timelastreset)
+       if (doreset) call r%poly%style%reset(r)
 
     elseif (r%type == reptype_symelem) then
        ! symmetry elements: if the geometry changed
-       doreset = .not.r%symelem_style%isinit
-       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%symelem_style%timelastreset)
-       if (doreset) call r%symelem_style%reset(r)
+       doreset = .not.r%symelem%style%isinit
+       doreset = doreset .or. (sysc(r%id)%timelastchange_geometry > r%symelem%style%timelastreset)
+       if (doreset) call r%symelem%style%reset(r)
     end if
 
   end subroutine update_styles
@@ -475,9 +475,11 @@ contains
   !> iqpt and frequency ifreq to animate the representation.
   module subroutine add_draw_elements(r,nc,obj,doanim,iqpt,ifreq)
     use systems, only: sys, sysc
-    use crystalmod, only: iperiod_vacthr, symop_kind_plane
+    use systemmod, only: system
+    use crystalmod, only: crystal, iperiod_vacthr, symop_kind_plane
+    use arithmetic, only: pretokenize, token
     use gui_main, only: ColorAxes_def
-    use tools_io, only: string, nameguess
+    use tools_io, only: string
     use tools_math, only: cross, plane_from_points
     use types, only: realloc
     use tools, only: mergesort
@@ -494,20 +496,23 @@ contains
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3)
     integer :: i1, i2, i3, ix(3), idl
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3), iord
+    integer :: nimg, nres, nbond, mb, mbb
     real(c_float) :: rgb(3)
     real*8 :: rad1, rad2, dd, f1, f2, axsc
-    integer :: hbzi, hbzn, hbhcel, hblv(3), hbacel, hbalv(3), hbdon, hbdc, hbac, hbcat, hbib
+    integer, allocatable :: hbcat(:) ! per-bond H-bond class cache for the current atom
     real(c_float) :: bondrgb(3)
-    real*8 :: xhb_h(3), xhb_a(3), xhb_d(3), hbang ! fractional points (vertex H) and angle (degrees)
+    type(crystal), pointer :: c ! the system's crystal structure (sys(r%id)%c)
+    type(system), pointer :: syptr
+    type(token), allocatable :: toklist(:) ! pre-tokenized filter expression
+    complex*16, allocatable :: vibbase(:,:) ! per-atom vibration phasors (3,ncel)
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), xpolyc(3)
     real*8 :: ucini(3), ucend(3)
     complex*16 :: xdelta0(3), xdelta1(3), xdelta2(3)
-    type(dl_sphere), allocatable :: auxsph(:)
-    type(dl_cylinder), allocatable :: auxcyl(:)
-    type(dl_string), allocatable :: auxstr(:)
-    type(dl_plane), allocatable :: auxplane(:)
+    type(dl_sphere) :: dsph
     type(dl_cylinder) :: dcyl
+    type(dl_cylinder_giz) :: dcylgiz
     type(dl_string) :: dstr
+    type(dl_string_giz) :: dstrgiz
     logical :: fixed
     character(len=:), allocatable :: errmsg
     real*8, allocatable :: xvpoly(:,:), up2dsp(:,:)
@@ -561,48 +566,41 @@ contains
     if (.not.r%isinit) return
     if (.not.r%shown) return
 
-    ! initialize the drawlists if not done already
-    if (.not.allocated(obj%sph)) then
-       allocate(obj%sph(100))
-       obj%nsph = 0
-    end if
-    if (.not.allocated(obj%cyl)) then
-       allocate(obj%cyl(100))
-       obj%ncyl = 0
-    end if
-    if (.not.allocated(obj%cylflat)) then
-       allocate(obj%cylflat(100))
-       obj%ncylflat = 0
-    end if
-    if (.not.allocated(obj%cone)) then
-       allocate(obj%cone(100))
-       obj%ncone = 0
-    end if
-    if (.not.allocated(obj%cylgiz)) then
-       allocate(obj%cylgiz(10))
-       obj%ncylgiz = 0
-    end if
-    if (.not.allocated(obj%conegiz)) then
-       allocate(obj%conegiz(10))
-       obj%nconegiz = 0
-    end if
-    if (.not.allocated(obj%stringgiz)) then
-       allocate(obj%stringgiz(10))
-       obj%nstringgiz = 0
-    end if
-    if (.not.allocated(obj%string)) then
-       allocate(obj%string(100))
-       obj%nstring = 0
-    end if
+    ! the system's crystal structure (also visible in the contained routines)
+    c => sys(r%id)%c
+
+    ! the draw lists have been reset/allocated by scene_build_lists
+    ! (scene_objects%reset); dl_append grows them as needed
     doanim_ = doanim
-    if (doanim_) doanim_ = doanim_ .and. (iqpt > 0 .and. ifreq > 0 .and. sys(r%id)%c%vib%hasvibs)
+    if (doanim_) doanim_ = doanim_ .and. (iqpt > 0 .and. ifreq > 0 .and. c%vib%hasvibs)
+
+    ! precompute the per-atom vibration phasors: displacement of atom iat at
+    ! lattice translation L is vibbase(:,iat) * exp(i 2 pi q.L) (see vibdelta)
+    if (doanim_) then
+       allocate(vibbase(3,c%ncel))
+       do i = 1, c%ncel
+          vibbase(:,i) = c%vib%vec(:,i,ifreq,iqpt) * &
+             exp(img * tpi * dot_product(c%atcel(i)%x,c%vib%qpt(:,iqpt))) / &
+             sqrt(atmass(c%spc(c%atcel(i)%is)%z))
+       end do
+    end if
 
     if (r%type == reptype_atoms) then
        !!! atoms and bonds representation !!!
 
        !! first, the atoms
-       ! do we have a filter?
+       ! do we have a filter? If so, tokenize it once here; the evaluation for
+       ! each atom image below reuses the token list (skips the string parsing)
        havefilter = (len_trim(r%filter) > 0) .and. (len_trim(r%errfilter) == 0)
+       if (havefilter) then
+          syptr => sys(r%id)
+          errmsg = ""
+          call pretokenize(r%filter,toklist,errmsg,c_loc(syptr))
+          if (len_trim(errmsg) > 0) then
+             havefilter = .false.
+             r%errfilter = errmsg
+          end if
+       end if
        usetshift = any(abs(r%tshift) > 1d-5)
 
        ! calculate the periodicity
@@ -614,36 +612,76 @@ contains
        end if
 
        ! origin shift
-       if (sys(r%id)%c%ismolecule) then
+       if (c%ismolecule) then
           uoriginc = r%origin / bohrtoa
        else
-          uoriginc = sys(r%id)%c%x2c(r%origin)
+          uoriginc = c%x2c(r%origin)
        end if
 
        ! whether we will force the polyhedra corner atoms to be drawn (only when
        ! the representation displays atoms, so lshown tracks visible spheres)
-       corneractive = r%poly_display .and. r%poly_showcorners .and. r%atoms_display .and.&
-          r%coordpoly_style%isinit
+       corneractive = r%poly%display .and. r%poly%showcorners .and. r%atoms%display .and.&
+          r%poly%style%isinit
 
        ! whether we'll be doing bonds, allocate array to check whether
        ! an atom has been drawn (also used to deduplicate forced corner atoms)
-       dobonds = r%bonds_display .and. r%bond_style%isinit
+       dobonds = r%bonds%display .and. r%bonds%style%isinit
        if (dobonds .or. corneractive) then
-          allocate(lshown(sys(r%id)%c%ncel,-1:n(1)+1,-1:n(2)+1,-1:n(3)+1))
+          ! bound the lattice translations reachable by the loops below so the
+          ! atom and bond sites can index lshown directly (no bounds checks):
+          ! the base image range is [-1,n] (border), plus the vacuum shift (1),
+          ! the tshift rounding (the adjustment is -floor(x-tshift), bounded by
+          ! ceiling(|tshift|)+1 because the atomic coordinates x are in [0,1)),
+          ! the molecule lattice vectors (onemotif), and the neighbor-star
+          ! connectivity vectors (bonds). Polyhedra corner images are not
+          ! bounded by this; that path keeps using check_lshown, which grows
+          ! the array as needed.
+          mb = 1
+          if (usetshift) mb = mb + maxval(ceiling(abs(r%tshift))) + 1
+          if (r%onemotif) then
+             mbb = 0
+             do imol = 1, c%nmol
+                do k = 1, c%mol(imol)%nat
+                   mbb = max(mbb,maxval(abs(c%mol(imol)%at(k)%lvec)))
+                end do
+             end do
+             mb = mb + mbb
+          end if
+          if (dobonds) then
+             mbb = 0
+             do i = 1, c%ncel
+                if (r%bonds%style%nstar(i)%ncon > 0) &
+                   mbb = max(mbb,maxval(abs(r%bonds%style%nstar(i)%lcon(:,1:r%bonds%style%nstar(i)%ncon))))
+             end do
+             mb = mb + mbb
+          end if
+          allocate(lshown(c%ncel,-1-mb:n(1)+mb,-1-mb:n(2)+mb,-1-mb:n(3)+mb))
           lshown = .false.
+       end if
+
+       ! presize the draw lists from the known atom/bond counts (the 2x growth
+       ! in dl_append absorbs border/vacuum extras and forced polyhedra corners)
+       nimg = product(n)
+       nres = c%ncel * nimg
+       if (r%atoms%display .or. dobonds) call obj%reserve(nsph = obj%nsph + nres)
+       if (r%labels%display) call obj%reserve(nstring = obj%nstring + nres)
+       if (dobonds) then
+          nbond = sum(r%bonds%style%nstar(1:c%ncel)%ncon) / 2
+          if (r%bonds%color_style /= 0) nbond = 2*nbond
+          call obj%reserve(ncyl = obj%ncyl + nbond*nimg)
        end if
        ncorn = 0
        if (corneractive) allocate(cornlist(4,100))
 
        ! coordination polyhedra: per-species distance-window scratch
-       if (r%poly_display .and. r%coordpoly_style%isinit) &
-          allocate(up2dsp(sys(r%id)%c%nspc,2))
+       if (r%poly%display .and. r%poly%style%isinit) &
+          allocate(up2dsp(c%nspc,2))
 
        ! whether there is vacuum in any direction
-       dovac = (sys(r%id)%c%vaclength > iperiod_vacthr)
+       dovac = (c%vaclength > iperiod_vacthr)
        if (any(dovac)) then
-          ucini = sys(r%id)%c%vactop - 1d0 - vacextension / sys(r%id)%c%aa
-          ucend = sys(r%id)%c%vacbot + vacextension / sys(r%id)%c%aa
+          ucini = c%vactop - 1d0 - vacextension / c%aa
+          ucend = c%vacbot + vacextension / c%aa
        end if
 
        ! run over atoms, either directly or per-molecule
@@ -654,42 +692,42 @@ contains
              ! this is a new molecule if there are no molecules or this is the last atom
              ! in the previous one
              step = (imol == 0)
-             if (.not.step) step = (k == sys(r%id)%c%mol(imol)%nat)
+             if (.not.step) step = (k == c%mol(imol)%nat)
              if (step) then
                 imol = imol + 1
                 k = 0
              end if
 
              ! we are finished if we have all molecules
-             if (imol > sys(r%id)%c%nmol) exit
+             if (imol > c%nmol) exit
 
              ! Add the new atom; only translate if the fragment is discrete
              k = k + 1
-             i = sys(r%id)%c%mol(imol)%at(k)%cidx
-             if (sys(r%id)%c%mol(imol)%discrete) then
-                lvec = sys(r%id)%c%mol(imol)%at(k)%lvec
+             i = c%mol(imol)%at(k)%cidx
+             if (c%mol(imol)%discrete) then
+                lvec = c%mol(imol)%at(k)%lvec
              else
                 lvec = 0
              end if
           else
              ! next atom in the complete list, exit if done
              i = i + 1
-             if (i > sys(r%id)%c%ncel) exit
+             if (i > c%ncel) exit
              lvec = 0
-             imol = sys(r%id)%c%idatcelmol(1,i)
+             imol = c%idatcelmol(1,i)
           end if
           ! i is current atom from the complete atom list
           ! imol is the corresponding molecule
 
           ! skip hidden atoms
-          id = sysc(r%id)%attype_celatom_to_id(r%atom_style%type,i)
-          if (.not.r%atom_style%shown(id)) cycle
+          id = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,i)
+          if (.not.r%atoms%style%shown(id)) cycle
 
           ! skip hidden molecules
           if (.not.r%mol_style%shown(imol)) cycle
 
           ! calculate the border
-          xx = sys(r%id)%c%atcel(i)%x
+          xx = c%atcel(i)%x
           n0 = 0
           n1 = n-1
           if (r%border.and..not.r%onemotif) then
@@ -708,7 +746,7 @@ contains
           ! calculate the vacuum shift
           vacshift = 0
           if (any(dovac)) then
-             xx = sys(r%id)%c%atcel(i)%x
+             xx = c%atcel(i)%x
              do j = 1, 3
                 if (dovac(j)) then
                    if (xx(j) < ucini(j)) then
@@ -721,25 +759,25 @@ contains
           end if
 
           ! draw the spheres and cylinders
-          rgb = r%atom_style%rgb(:,id) * r%mol_style%tint_rgb(:,imol)
-          rad1 = r%atom_style%rad(id) * r%mol_style%scale_rad(imol)
+          rgb = r%atoms%style%rgb(:,id) * r%mol_style%tint_rgb(:,imol)
+          rad1 = r%atoms%style%rad(id) * r%mol_style%scale_rad(imol)
 
           ! coordination polyhedron: if this atom is a shown center, find its
           ! corner atoms once (translation-invariant; reused for every image)
           dopoly = .false.
-          if (r%poly_display .and. r%coordpoly_style%isinit) then
-             idpoly = sysc(r%id)%attype_celatom_to_id(r%coordpoly_style%type,i)
-             if (r%coordpoly_style%shown(idpoly) .and. r%coordpoly_style%dmax(idpoly) > 0d0 .and.&
-                any(r%coordpoly_style%corner(:,idpoly))) then
-                do j = 1, sys(r%id)%c%nspc
-                   if (r%coordpoly_style%corner(j,idpoly)) then
-                      up2dsp(j,1) = r%coordpoly_style%dmin(idpoly)
-                      up2dsp(j,2) = r%coordpoly_style%dmax(idpoly)
+          if (r%poly%display .and. r%poly%style%isinit) then
+             idpoly = sysc(r%id)%attype_celatom_to_id(r%poly%style%type,i)
+             if (r%poly%style%shown(idpoly) .and. r%poly%style%dmax(idpoly) > 0d0 .and.&
+                any(r%poly%style%corner(:,idpoly))) then
+                do j = 1, c%nspc
+                   if (r%poly%style%corner(j,idpoly)) then
+                      up2dsp(j,1) = r%poly%style%dmin(idpoly)
+                      up2dsp(j,2) = r%poly%style%dmax(idpoly)
                    else
                       up2dsp(j,:) = 0d0
                    end if
                 end do
-                call sys(r%id)%c%list_near_atoms(sys(r%id)%c%atcel(i)%x,icrd_crys,.true.,&
+                call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,&
                    natp,eid=eidp,lvec=lvecp,up2dsp=up2dsp,nozero=.true.)
                 dopoly = (natp >= 3)
                 if (dopoly) then
@@ -752,18 +790,29 @@ contains
                       if (size(dvpoly,2) < natp) deallocate(dvpoly)
                    end if
                    if (.not.allocated(dvpoly)) allocate(dvpoly(3,natp))
-                   if (r%poly_usecentercolor) then
+                   if (r%poly%usecentercolor) then
                       rgbface = rgb
                    else
-                      rgbface = r%poly_rgb
+                      rgbface = r%poly%rgb
                    end if
-                   if (r%poly_usecentercolor_edge) then
+                   if (r%poly%usecentercolor_edge) then
                       rgbedge = rgb
                    else
-                      rgbedge = r%poly_edge_rgb
+                      rgbedge = r%poly%edge_rgb
                    end if
                 end if
              end if
+          end if
+
+          ! lazy per-bond H-bond classification cache for this atom: the
+          ! classification is translation-invariant, so it is computed once per
+          ! unique bond (hbond_class) and reused for every periodic image
+          if (dobonds .and. r%bonds%hbond_classify) then
+             if (allocated(hbcat)) then
+                if (size(hbcat,1) < r%bonds%style%nstar(i)%ncon) deallocate(hbcat)
+             end if
+             if (.not.allocated(hbcat)) allocate(hbcat(max(r%bonds%style%nstar(i)%ncon,1)))
+             hbcat(1:r%bonds%style%nstar(i)%ncon) = -1
           end if
 
           do i1 = n0(1), n1(1)
@@ -771,16 +820,16 @@ contains
                 do i3 = n0(3), n1(3)
                    ix = (/i1,i2,i3/) + lvec + vacshift
                    if (usetshift) then
-                      xx = sys(r%id)%c%atcel(i)%x - r%tshift
-                      ix = ix + nint(xx - floor(xx) + r%tshift - sys(r%id)%c%atcel(i)%x)
+                      xx = c%atcel(i)%x - r%tshift
+                      ix = ix + nint(xx - floor(xx) + r%tshift - c%atcel(i)%x)
                    end if
 
-                   xx = sys(r%id)%c%atcel(i)%x + ix
-                   xc = sys(r%id)%c%x2c(xx)
+                   xx = c%atcel(i)%x + ix
+                   xc = c%x2c(xx)
 
                    ! apply the filter
                    if (havefilter) then
-                      res = sys(r%id)%eval(r%filter,errmsg,xc)
+                      res = sys(r%id)%eval(r%filter,errmsg,xc,toklist)
                       if (len_trim(errmsg) == 0) then
                          if (res == 0d0) cycle
                       else
@@ -793,12 +842,12 @@ contains
                    ! (corners are the search result translated to this image)
                    if (dopoly) then
                       do kp = 1, natp
-                         xpolyc = sys(r%id)%c%atcel(eidp(kp))%x + lvecp(:,kp) + ix
-                         xvpoly(:,kp) = sys(r%id)%c%x2c(xpolyc) + uoriginc
-                         dvpoly(:,kp) = vibdelta(eidp(kp),xpolyc) ! per-corner vibration delta
+                         xpolyc = c%atcel(eidp(kp))%x + lvecp(:,kp) + ix
+                         xvpoly(:,kp) = c%x2c(xpolyc) + uoriginc
+                         dvpoly(:,kp) = vibdelta(eidp(kp),lvecp(:,kp)+ix) ! per-corner vibration delta
                       end do
                       call build_polyhedron(xvpoly(:,1:natp),dvpoly(:,1:natp),natp,rgbface,rgbedge,&
-                         r%poly_alpha,r%poly_edge_rad,r%poly_coplanar_eps)
+                         r%poly%alpha,r%poly%edge_rad,r%poly%coplanar_eps)
 
                       ! collect this polyhedron's corner atom images to force
                       ! them visible after the main loop (deduplicated there)
@@ -813,261 +862,164 @@ contains
                    end if
 
                    ! animation delta of this (center) atom
-                   xdelta1 = vibdelta(i,xx)
+                   xdelta1 = vibdelta(i,ix)
 
-                   ! draw the atom, reallocate if necessary
-                   if (r%atoms_display) then
-                      obj%nsph = obj%nsph + 1
-                      if (obj%nsph > size(obj%sph,1)) then
-                         allocate(auxsph(2*obj%nsph))
-                         auxsph(1:size(obj%sph,1)) = obj%sph
-                         call move_alloc(auxsph,obj%sph)
+                   ! draw the atom. If the atoms are hidden but the bonds shown,
+                   ! add an invisible (ghost) pick target at the atom site so
+                   ! hidden atoms can still be picked, measured, and box-selected;
+                   ! it carries the real idx and is rendered only into the pick
+                   ! buffer (skipped in the visible sphere pass).
+                   if (r%atoms%display .or. dobonds) then
+                      dsph%x = real(xc + uoriginc,c_float)
+                      dsph%rgb = rgb
+                      dsph%idx(1) = i
+                      dsph%idx(2:4) = ix
+                      dsph%xdelta = cmplx(xdelta1,kind=c_float_complex)
+                      if (r%atoms%display) then
+                         dsph%r = real(rad1,c_float)
+                         dsph%border = real(r%atoms%border_size,c_float)
+                         dsph%rgbborder = r%atoms%border_rgb
+                         dsph%ghost = .false.
+                      else
+                         dsph%r = real(2d0 * r%bonds%rad,c_float) ! generous click radius
+                         dsph%border = 0._c_float
+                         dsph%rgbborder = rgb
+                         dsph%ghost = .true.
                       end if
-
-                      ! write down the sphere
-                      obj%sph(obj%nsph)%x = real(xc + uoriginc,c_float)
-                      obj%sph(obj%nsph)%r = real(rad1,c_float)
-                      obj%sph(obj%nsph)%rgb = rgb
-                      obj%sph(obj%nsph)%idx(1) = i
-                      obj%sph(obj%nsph)%idx(2:4) = ix
-                      obj%sph(obj%nsph)%xdelta = cmplx(xdelta1,kind=c_float_complex)
-                      obj%sph(obj%nsph)%border = real(r%atom_border_size,c_float)
-                      obj%sph(obj%nsph)%rgbborder = r%atom_border_rgb
-                   else if (dobonds) then
-                      ! atoms hidden but bonds shown: add an invisible pick target at
-                      ! the atom site so hidden atoms can still be picked, measured,
-                      ! and box-selected. Carries the real idx; rendered only into the
-                      ! pick buffer (skipped in the visible sphere pass).
-                      obj%nsph = obj%nsph + 1
-                      if (obj%nsph > size(obj%sph,1)) then
-                         allocate(auxsph(2*obj%nsph))
-                         auxsph(1:size(obj%sph,1)) = obj%sph
-                         call move_alloc(auxsph,obj%sph)
-                      end if
-
-                      ! write down the ghost sphere
-                      obj%sph(obj%nsph)%x = real(xc + uoriginc,c_float)
-                      obj%sph(obj%nsph)%r = real(2d0 * r%bond_rad,c_float) ! generous click radius
-                      obj%sph(obj%nsph)%rgb = rgb
-                      obj%sph(obj%nsph)%idx(1) = i
-                      obj%sph(obj%nsph)%idx(2:4) = ix
-                      obj%sph(obj%nsph)%xdelta = cmplx(xdelta1,kind=c_float_complex)
-                      obj%sph(obj%nsph)%border = 0._c_float
-                      obj%sph(obj%nsph)%rgbborder = rgb
-                      obj%sph(obj%nsph)%ghost = .true.
+                      call dl_append(obj%sph,obj%nsph,dsph)
                    end if
 
                    ! mark this atom image as drawn (for bonds and for
-                   ! deduplicating forced polyhedra corner atoms)
-                   if (allocated(lshown)) then
-                      call check_lshown(i,ix(1),ix(2),ix(3))
-                      lshown(i,ix(1),ix(2),ix(3)) = .true.
-                   end if
+                   ! deduplicating forced polyhedra corner atoms); ix is within
+                   ! the lshown bounds by construction (see the mb margin above)
+                   if (allocated(lshown)) lshown(i,ix(1),ix(2),ix(3)) = .true.
 
                    ! bonds
                    if (dobonds) then
-                      ! bonds
-                      do ib = 1, r%bond_style%nstar(i)%ncon
-                         ineigh = r%bond_style%nstar(i)%idcon(ib)
-                         if (.not.r%bond_style%shown(sys(r%id)%c%atcel(ineigh)%is,sys(r%id)%c%atcel(i)%is)) cycle
-                         ixn = ix + r%bond_style%nstar(i)%lcon(:,ib)
+                      do ib = 1, r%bonds%style%nstar(i)%ncon
+                         ineigh = r%bonds%style%nstar(i)%idcon(ib)
+                         if (.not.r%bonds%style%shown(c%atcel(ineigh)%is,c%atcel(i)%is)) cycle
+                         ixn = ix + r%bonds%style%nstar(i)%lcon(:,ib)
 
-                         if (r%bond_imol == 1) then ! intramol
-                            if (.not.sys(r%id)%c%in_same_molecule(i,ix,ineigh,ixn)) cycle
-                         elseif (r%bond_imol == 2) then ! intermol
-                            if (sys(r%id)%c%in_same_molecule(i,ix,ineigh,ixn)) cycle
+                         if (r%bonds%imol == 1) then ! intramol
+                            if (.not.c%in_same_molecule(i,ix,ineigh,ixn)) cycle
+                         elseif (r%bonds%imol == 2) then ! intermol
+                            if (c%in_same_molecule(i,ix,ineigh,ixn)) cycle
                          end if
 
-                         call check_lshown(ineigh,ixn(1),ixn(2),ixn(3))
-                         if (r%bond_bothends) then
+                         if (r%bonds%bothends) then
                             ! skip if the atom has been represented already
                             ! (draws once, and only if both atoms are present)
-                         if (.not.lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
+                            if (.not.lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
                          else
                             ! skip if the atom has not been represented already
                             ! (draws once, only one of the atoms need be present)
-                         if (lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
+                            if (lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
                          end if
 
                          ! per-bond order: in "Calculated" mode (4) use the order
                          ! stored in the connectivity (ordcon); otherwise use the fixed order
-                         if (r%bond_order == 4) then
-                            iord = r%bond_style%nstar(i)%ordcon(ib)
+                         if (r%bonds%order == 4) then
+                            iord = r%bonds%style%nstar(i)%ordcon(ib)
                          else
-                            iord = r%bond_order
+                            iord = r%bonds%order
                          end if
 
                          ! bond endpoints (Cartesian, bohr)
                          x1 = xc + uoriginc
-                         x2 = sys(r%id)%c%atcel(ineigh)%x + ixn
-                         x2 = sys(r%id)%c%x2c(x2) + uoriginc
+                         x2 = c%atcel(ineigh)%x + ixn
+                         x2 = c%x2c(x2) + uoriginc
 
                          ! bond color
-                         bondrgb = r%bond_rgb
+                         bondrgb = r%bonds%rgb
 
-                         ! Jeffrey-Steiner hydrogen-bond strength classification
-                         ! color each H...A contact by its strength based on the geometry
-                         ! G. A. Jeffrey, An Introduction to Hydrogen Bonding, Oxford University Press, 1997
-                         ! T. Steiner, Angew. Chem. Intl. Ed. 41 (2002) 48, doi:10.1002/1521-3773(20020104)41:1<48::AID-ANIE48>3.0.CO;2-U
-                         if (r%bond_hbond_classify) then
-                            ! identify the H end (the other end is the acceptor);
-                            ! work in fractional coordinates (vertex at H)
-                            hbzi = sys(r%id)%c%spc(sys(r%id)%c%atcel(i)%is)%z
-                            hbzn = sys(r%id)%c%spc(sys(r%id)%c%atcel(ineigh)%is)%z
-                            if (hbzi == 1) then
-                               hbhcel = i
-                               hblv = ix
-                               hbacel = ineigh
-                               hbalv = ixn
-                            elseif (hbzn == 1) then
-                               hbhcel = ineigh
-                               hblv = ixn
-                               hbacel = i
-                               hbalv = ix
-                            else
-                               cycle ! neither end is hydrogen: not an H-bond
-                            end if
-                            xhb_h = sys(r%id)%c%atcel(hbhcel)%x + hblv
-                            xhb_a = sys(r%id)%c%atcel(hbacel)%x + hbalv
-
-                            ! find the donor atom D in D-H...A
-                            hbdon = 0
-                            if (allocated(sys(r%id)%c%nstar)) then
-                               do hbib = 1, sys(r%id)%c%nstar(hbhcel)%ncon
-                                  if (sys(r%id)%c%spc(sys(r%id)%c%atcel(&
-                                     sys(r%id)%c%nstar(hbhcel)%idcon(hbib))%is)%z > 1) then
-                                     hbdon = hbib
-                                     exit
-                                  end if
-                               end do
-                            end if
-                            if (hbdon == 0) cycle ! no donor atom: skip
-
-                            ! H...A distance class
-                            dd = sys(r%id)%c%distance(xhb_a,xhb_h)
-                            if (dd < r%bond_hbond_dist(1)) then
-                               hbdc = 1
-                            elseif (dd < r%bond_hbond_dist(2)) then
-                               hbdc = 2
-                            else
-                               hbdc = 3
-                            end if
-
-                            ! D-H...A angle class (the weaker of the two wins)
-                            xhb_d = sys(r%id)%c%atcel(sys(r%id)%c%nstar(hbhcel)%idcon(hbdon))%x +&
-                               hblv + sys(r%id)%c%nstar(hbhcel)%lcon(:,hbdon)
-                            hbang = sys(r%id)%c%angle(xhb_d,xhb_h,xhb_a) * 180d0 / pi
-                            if (hbang < hbond_angmin_def) cycle ! too bent to be a H-bond
-                            if (hbang >= r%bond_hbond_ang(2)) then
-                               hbac = 1
-                            elseif (hbang >= r%bond_hbond_ang(1)) then
-                               hbac = 2
-                            else
-                               hbac = 3
-                            end if
-                            hbcat = max(hbdc,hbac)
-                            bondrgb = r%bond_hbond_rgb(:,hbcat)
-                         end if
-
-                         ! draw the bond, reallocate if necessary
-                         if (r%bond_color_style == 0) then
-                            obj%ncyl = obj%ncyl + 1
-                         else
-                            obj%ncyl = obj%ncyl + 2
-                         end if
-                         if (obj%ncyl > size(obj%cyl,1)) then
-                            allocate(auxcyl(2*obj%ncyl))
-                            auxcyl(1:size(obj%cyl,1)) = obj%cyl
-                            call move_alloc(auxcyl,obj%cyl)
+                         ! Jeffrey-Steiner hydrogen-bond strength classification:
+                         ! color each H...A contact by its strength (computed once
+                         ! per unique bond in hbond_class, cached across images)
+                         if (r%bonds%hbond_classify) then
+                            if (hbcat(ib) < 0) hbcat(ib) = hbond_class(i,ib)
+                            if (hbcat(ib) == 0) cycle ! not an H-bond
+                            bondrgb = r%bonds%hbond_rgb(:,hbcat(ib))
                          end if
 
                          ! animation delta of the other end
-                         xdelta2 = vibdelta(ineigh,sys(r%id)%c%atcel(ineigh)%x + ixn)
+                         xdelta2 = vibdelta(ineigh,ixn)
 
-                         if (r%bond_color_style == 0 .or. r%bond_hbond_classify) then
-                            obj%cyl(obj%ncyl)%x1 = real(x1,c_float)
-                            obj%cyl(obj%ncyl)%x1delta = cmplx(xdelta1,kind=c_float_complex)
-                            obj%cyl(obj%ncyl)%x2 = real(x2,c_float)
-                            obj%cyl(obj%ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
-                            obj%cyl(obj%ncyl)%r = real(r%bond_rad,c_float)
-                            obj%cyl(obj%ncyl)%rgb = bondrgb
-                            obj%cyl(obj%ncyl)%order = iord
-                            obj%cyl(obj%ncyl)%border = real(r%bond_border_size,c_float)
-                            obj%cyl(obj%ncyl)%rgbborder = r%bond_border_rgb
-                            obj%cyl(obj%ncyl)%arvec = real(r%bond_style%nstar(i)%aromdir(:,ib),c_float)
+                         ! fields shared by all cylinders of this bond
+                         dcyl%r = real(r%bonds%rad,c_float)
+                         dcyl%order = iord
+                         dcyl%border = real(r%bonds%border_size,c_float)
+                         dcyl%rgbborder = r%bonds%border_rgb
+                         dcyl%arvec = real(r%bonds%style%nstar(i)%aromdir(:,ib),c_float)
+
+                         if (r%bonds%color_style == 0 .or. r%bonds%hbond_classify) then
+                            ! single cylinder with the bond color
+                            dcyl%x1 = real(x1,c_float)
+                            dcyl%x1delta = cmplx(xdelta1,kind=c_float_complex)
+                            dcyl%x2 = real(x2,c_float)
+                            dcyl%x2delta = cmplx(xdelta2,kind=c_float_complex)
+                            dcyl%rgb = bondrgb
+                            call dl_append(obj%cyl,obj%ncyl,dcyl)
                          else
-                            idaux = sysc(r%id)%attype_celatom_to_id(r%atom_style%type,ineigh)
-                            rad2 = r%atom_style%rad(idaux) * r%mol_style%scale_rad(sys(r%id)%c%idatcelmol(1,ineigh))
+                            ! two half-cylinders, each colored like its end atom;
+                            ! the split point balances the two atomic radii
+                            idaux = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,ineigh)
+                            rad2 = r%atoms%style%rad(idaux) * r%mol_style%scale_rad(c%idatcelmol(1,ineigh))
                             dd = norm2(x2 - x1)
                             f1 = min(max((0.5d0 + 0.5d0 * (rad2 - rad1) / dd),0._c_float),1._c_float)
                             f2 = 1._c_float - f1
                             x0 = f1 * x1 + f2 * x2
                             xdelta0 = f1 * xdelta1 + f2 * xdelta2
 
-                            ! add the two cylinders to the list
-                            obj%cyl(obj%ncyl-1)%x1 = real(x1,c_float)
-                            obj%cyl(obj%ncyl-1)%x1delta = cmplx(xdelta1,kind=c_float_complex)
-                            obj%cyl(obj%ncyl-1)%x2 = real(x0,c_float)
-                            obj%cyl(obj%ncyl-1)%x2delta = cmplx(xdelta0,kind=c_float_complex)
-                            obj%cyl(obj%ncyl-1)%r = real(r%bond_rad,c_float)
-                            obj%cyl(obj%ncyl-1)%rgb = rgb
-                            obj%cyl(obj%ncyl-1)%order = iord
-                            obj%cyl(obj%ncyl-1)%border = real(r%bond_border_size,c_float)
-                            obj%cyl(obj%ncyl-1)%rgbborder = r%bond_border_rgb
-                            obj%cyl(obj%ncyl-1)%arvec = real(r%bond_style%nstar(i)%aromdir(:,ib),c_float)
+                            dcyl%x1 = real(x1,c_float)
+                            dcyl%x1delta = cmplx(xdelta1,kind=c_float_complex)
+                            dcyl%x2 = real(x0,c_float)
+                            dcyl%x2delta = cmplx(xdelta0,kind=c_float_complex)
+                            dcyl%rgb = rgb
+                            call dl_append(obj%cyl,obj%ncyl,dcyl)
 
-                            obj%cyl(obj%ncyl)%x1 = real(x0,c_float)
-                            obj%cyl(obj%ncyl)%x1delta = cmplx(xdelta0,kind=c_float_complex)
-                            obj%cyl(obj%ncyl)%x2 = real(x2,c_float)
-                            obj%cyl(obj%ncyl)%x2delta = cmplx(xdelta2,kind=c_float_complex)
-                            obj%cyl(obj%ncyl)%r = real(r%bond_rad,c_float)
-                            obj%cyl(obj%ncyl)%rgb = r%atom_style%rgb(:,idaux) * &
-                               r%mol_style%tint_rgb(:,sys(r%id)%c%idatcelmol(1,ineigh))
-                            obj%cyl(obj%ncyl)%order = iord
-                            obj%cyl(obj%ncyl)%border = real(r%bond_border_size,c_float)
-                            obj%cyl(obj%ncyl)%rgbborder = r%bond_border_rgb
-                            obj%cyl(obj%ncyl)%arvec = real(r%bond_style%nstar(i)%aromdir(:,ib),c_float)
+                            dcyl%x1 = real(x0,c_float)
+                            dcyl%x1delta = cmplx(xdelta0,kind=c_float_complex)
+                            dcyl%x2 = real(x2,c_float)
+                            dcyl%x2delta = cmplx(xdelta2,kind=c_float_complex)
+                            dcyl%rgb = r%atoms%style%rgb(:,idaux) * &
+                               r%mol_style%tint_rgb(:,c%idatcelmol(1,ineigh))
+                            call dl_append(obj%cyl,obj%ncyl,dcyl)
                          end if
                       end do ! ncon
                    end if
 
-                   if (r%labels_display) then
-                      select case(r%label_type)
+                   if (r%labels%display) then
+                      select case(r%labels%type)
                       case (0,5,6)
-                         idl = sys(r%id)%c%atcel(i)%is
+                         idl = c%atcel(i)%is
                       case (2,3)
                          idl = i
                       case (1,4,8)
-                         idl = sys(r%id)%c%atcel(i)%idx
+                         idl = c%atcel(i)%idx
                       case (7)
-                         idl = sys(r%id)%c%idatcelmol(1,i)
+                         idl = c%idatcelmol(1,i)
                       end select
 
                       ! labels
-                      if (r%label_style%shown(idl)) then
-                         obj%nstring = obj%nstring + 1
-                         if (obj%nstring > size(obj%string,1)) then
-                            allocate(auxstr(2*obj%nstring))
-                            auxstr(1:size(obj%string,1)) = obj%string
-                            call move_alloc(auxstr,obj%string)
-                         end if
-
-                         obj%string(obj%nstring)%x = real(xc + uoriginc,c_float)
-                         obj%string(obj%nstring)%xdelta = cmplx(xdelta1,kind=c_float_complex)
-                         obj%string(obj%nstring)%r = real(rad1,c_float)
-                         obj%string(obj%nstring)%rgb = r%label_rgb
-                         if (r%label_const_size) then
-                            obj%string(obj%nstring)%scale = real(r%label_scale,c_float)
+                      if (r%labels%style%shown(idl)) then
+                         dstr%x = real(xc + uoriginc,c_float)
+                         dstr%xdelta = cmplx(xdelta1,kind=c_float_complex)
+                         dstr%r = real(rad1,c_float)
+                         dstr%rgb = r%labels%rgb
+                         if (r%labels%const_size) then
+                            dstr%scale = real(r%labels%scale,c_float)
                          else
-                            obj%string(obj%nstring)%scale = real(-r%label_scale,c_float)
+                            dstr%scale = real(-r%labels%scale,c_float)
                          end if
-                         obj%string(obj%nstring)%offset = real(r%label_offset,c_float)
-                         obj%string(obj%nstring)%str = trim(r%label_style%str(idl))
-                         if (r%label_type == 3) then
+                         dstr%offset = real(r%labels%offset,c_float)
+                         dstr%str = trim(r%labels%style%str(idl))
+                         if (r%labels%type == 3) then
                             ! add the lattice vectors
-                            obj%string(obj%nstring)%str = obj%string(obj%nstring)%str // "[" //&
+                            dstr%str = dstr%str // "[" //&
                                string(ix(1)) // "," // string(ix(2)) // "," //string(ix(3)) // "]"
                          end if
+                         call dl_append(obj%string,obj%nstring,dstr)
                       end if ! label display conditions
                    end if ! label_display
                 end do ! i3
@@ -1085,30 +1037,26 @@ contains
              lshown(cornlist(1,ica),ix(1),ix(2),ix(3)) = .true.
 
              ! style and position of the corner atom
-             idc = sysc(r%id)%attype_celatom_to_id(r%atom_style%type,cornlist(1,ica))
-             imolc = sys(r%id)%c%idatcelmol(1,cornlist(1,ica))
-             rgb = r%atom_style%rgb(:,idc) * r%mol_style%tint_rgb(:,imolc)
-             rad1 = r%atom_style%rad(idc) * r%mol_style%scale_rad(imolc)
-             xx = sys(r%id)%c%atcel(cornlist(1,ica))%x + ix
-             xc = sys(r%id)%c%x2c(xx)
+             idc = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,cornlist(1,ica))
+             imolc = c%idatcelmol(1,cornlist(1,ica))
+             rgb = r%atoms%style%rgb(:,idc) * r%mol_style%tint_rgb(:,imolc)
+             rad1 = r%atoms%style%rad(idc) * r%mol_style%scale_rad(imolc)
+             xx = c%atcel(cornlist(1,ica))%x + ix
+             xc = c%x2c(xx)
 
              ! animation delta of the corner atom (so it moves with the polyhedron)
-             xdelta1 = vibdelta(cornlist(1,ica),xx)
+             xdelta1 = vibdelta(cornlist(1,ica),ix)
 
-             obj%nsph = obj%nsph + 1
-             if (obj%nsph > size(obj%sph,1)) then
-                allocate(auxsph(2*obj%nsph))
-                auxsph(1:size(obj%sph,1)) = obj%sph
-                call move_alloc(auxsph,obj%sph)
-             end if
-             obj%sph(obj%nsph)%x = real(xc + uoriginc,c_float)
-             obj%sph(obj%nsph)%r = real(rad1,c_float)
-             obj%sph(obj%nsph)%rgb = rgb
-             obj%sph(obj%nsph)%idx(1) = cornlist(1,ica)
-             obj%sph(obj%nsph)%idx(2:4) = ix
-             obj%sph(obj%nsph)%xdelta = cmplx(xdelta1,kind=c_float_complex)
-             obj%sph(obj%nsph)%border = real(r%atom_border_size,c_float)
-             obj%sph(obj%nsph)%rgbborder = r%atom_border_rgb
+             dsph%x = real(xc + uoriginc,c_float)
+             dsph%r = real(rad1,c_float)
+             dsph%rgb = rgb
+             dsph%idx(1) = cornlist(1,ica)
+             dsph%idx(2:4) = ix
+             dsph%xdelta = cmplx(xdelta1,kind=c_float_complex)
+             dsph%border = real(r%atoms%border_size,c_float)
+             dsph%rgbborder = r%atoms%border_rgb
+             dsph%ghost = .false.
+             call dl_append(obj%sph,obj%nsph,dsph)
           end do
        end if
        if (allocated(cornlist)) deallocate(cornlist)
@@ -1126,9 +1074,9 @@ contains
 
        ! vacuum directions: we have a vacuum and only one cell in that direction
        isvac = .false.
-       if (r%uc_vaccutsticks) then
+       if (r%uc%vaccutsticks) then
           do i = 1, 3
-             if (sys(r%id)%c%vaclength(i) > iperiod_vacthr .and. n(i) == 1) then
+             if (c%vaclength(i) > iperiod_vacthr .and. n(i) == 1) then
                 isvac(i) = .true.
              end if
           end do
@@ -1142,19 +1090,19 @@ contains
           if (docycle) cycle
 
           ! add the sticks
-          call increase_ncylflat()
-          obj%cylflat(obj%ncylflat)%x1 = real(x1,c_float)
-          obj%cylflat(obj%ncylflat)%x2 = real(x2,c_float)
-          obj%cylflat(obj%ncylflat)%r = real(r%uc_radius,c_float)
-          if (r%uc_coloraxes.and.i>=1.and.i<=3) then
-             obj%cylflat(obj%ncylflat)%rgb = ColorAxes_def(:,i)
+          dcyl%x1 = real(x1,c_float)
+          dcyl%x2 = real(x2,c_float)
+          dcyl%r = real(r%uc%radius,c_float)
+          if (r%uc%coloraxes.and.i>=1.and.i<=3) then
+             dcyl%rgb = ColorAxes_def(:,i)
           else
-             obj%cylflat(obj%ncylflat)%rgb = r%uc_rgb
+             dcyl%rgb = r%uc%rgb
           end if
+          call dl_append(obj%cylflat,obj%ncylflat,dcyl)
        end do
 
        ! draw inner cylinders
-       if (r%uc_inner) then
+       if (r%uc%inner) then
           do i1 = 0, n(1)-1
              do i2 = 0, n(2)-1
                 do i3 = 0, n(3)-1
@@ -1172,23 +1120,19 @@ contains
                       if (docycle) cycle
 
                       ! stippled lines for the inner lines
-                      if (r%uc_innerstipple) then
-                         nstep = ceiling(norm2(x2 - x1) / r%uc_innersteplen)
+                      dcyl%r = real(r%uc%radiusinner,c_float)
+                      dcyl%rgb = r%uc%rgb
+                      if (r%uc%innerstipple) then
+                         nstep = ceiling(norm2(x2 - x1) / r%uc%innersteplen)
                          do j = 1, nstep
-                            call increase_ncylflat()
-                            obj%cylflat(obj%ncylflat)%x1 = &
-                               real(x1 + real(2*j-1,8)/real(2*nstep,8) * (x2-x1) ,c_float)
-                            obj%cylflat(obj%ncylflat)%x2 = &
-                               real(x1 + real(2*j,8)/real(2*nstep,8) * (x2-x1) ,c_float)
-                            obj%cylflat(obj%ncylflat)%r = real(r%uc_radiusinner,c_float)
-                            obj%cylflat(obj%ncylflat)%rgb = r%uc_rgb
+                            dcyl%x1 = real(x1 + real(2*j-1,8)/real(2*nstep,8) * (x2-x1) ,c_float)
+                            dcyl%x2 = real(x1 + real(2*j,8)/real(2*nstep,8) * (x2-x1) ,c_float)
+                            call dl_append(obj%cylflat,obj%ncylflat,dcyl)
                          end do
                       else
-                         call increase_ncylflat()
-                         obj%cylflat(obj%ncylflat)%x1 = real(x1 ,c_float)
-                         obj%cylflat(obj%ncylflat)%x2 = real(x2 ,c_float)
-                         obj%cylflat(obj%ncylflat)%r = real(r%uc_radiusinner,c_float)
-                         obj%cylflat(obj%ncylflat)%rgb = r%uc_rgb
+                         dcyl%x1 = real(x1 ,c_float)
+                         dcyl%x2 = real(x2 ,c_float)
+                         call dl_append(obj%cylflat,obj%ncylflat,dcyl)
                       end if
                    end do
                 end do
@@ -1202,97 +1146,100 @@ contains
        ! fixed window position. In the latter case the geometry is built
        ! around the local origin and positioned at render time; the window
        ! position is stamped onto each gizmo draw item below.
-       fixed = (r%axes_placement == 1)
+       fixed = (r%axes%placement == 1)
        if (fixed) then
           uoriginc = 0d0
-          ! stamp the window placement onto the reused templates so every
+          ! stamp the window placement onto the gizmo templates so every
           ! appended gizmo item carries its own position/scale flag
-          dcyl%gizwinpos = real(r%axes_winpos,c_float)
-          dcyl%gizscalewithzoom = r%axes_scalewithzoom
-          dstr%gizwinpos = real(r%axes_winpos,c_float)
-          dstr%gizscalewithzoom = r%axes_scalewithzoom
+          dcylgiz%winpos = real(r%axes%winpos,c_float)
+          dcylgiz%scalewithzoom = r%axes%scalewithzoom
+          dstrgiz%winpos = real(r%axes%winpos,c_float)
+          dstrgiz%scalewithzoom = r%axes%scalewithzoom
        else
           ! origin in the requested coordinate system, converted to
           ! cartesian (bohr)
-          if (r%axes_coordtype == 2) then
+          if (r%axes%coordtype == 2) then
              uoriginc = r%origin ! cartesian (bohr)
-          elseif (r%axes_coordtype == 0 .and. .not.sys(r%id)%c%ismolecule) then
-             uoriginc = sys(r%id)%c%x2c(r%origin) ! crystallographic
+          elseif (r%axes%coordtype == 0 .and. .not.c%ismolecule) then
+             uoriginc = c%x2c(r%origin) ! crystallographic
           else
              uoriginc = r%origin / bohrtoa ! cartesian (angstrom)
           end if
           ! for molecules, cartesian coordinates are referred to the molecular center
-          if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
+          if (c%ismolecule) uoriginc = uoriginc - c%molx0
        end if
 
        ! global scale factor applied to the whole gizmo (arrows and labels)
-       axsc = r%axes_scale
+       axsc = r%axes%scale
 
        ! arrowhead geometry (head length capped so it never exceeds the
        ! total axis length)
-       rad1 = min(r%axes_conelength, r%axes_length) * axsc ! head length
-       rad2 = r%axes_coneradius * axsc ! head radius
+       rad1 = min(r%axes%conelength, r%axes%length) * axsc ! head length
+       rad2 = r%axes%coneradius * axsc ! head radius
 
        do k = 1, 3
           ! unit direction for this axis: cartesian (lab-frame) or along
           ! the crystallographic lattice vector
-          if (r%axes_kind == 1 .and. .not.sys(r%id)%c%ismolecule) then
-             x0 = sys(r%id)%c%m_x2c(:,k)
+          if (r%axes%kind == 1 .and. .not.c%ismolecule) then
+             x0 = c%m_x2c(:,k)
              x0 = x0 / norm2(x0)
           else
              x0 = 0d0
              x0(k) = 1d0
           end if
           ! reorient the axis directions (identity unless a frame was requested)
-          x0 = matmul(r%axes_rot,x0)
+          x0 = matmul(r%axes%rot,x0)
 
           ! shaft (round, lit cylinder)
           x1 = uoriginc
-          x2 = uoriginc + max(r%axes_length * axsc - rad1,0d0) * x0
+          x2 = uoriginc + max(r%axes%length * axsc - rad1,0d0) * x0
           dcyl%x1 = real(x1,c_float)
           dcyl%x2 = real(x2,c_float)
           dcyl%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
           dcyl%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
-          dcyl%r = real(r%axes_radius * axsc,c_float)
-          dcyl%rgb = r%axes_rgb(:,k)
+          dcyl%r = real(r%axes%radius * axsc,c_float)
+          dcyl%rgb = r%axes%rgb(:,k)
           dcyl%order = 1
           dcyl%border = 0._c_float
           dcyl%rgbborder = 0._c_float
           if (fixed) then
-             call append_cyl(obj%cylgiz,obj%ncylgiz,dcyl)
+             dcylgiz%dl_cylinder = dcyl
+             call dl_append(obj%cylgiz,obj%ncylgiz,dcylgiz)
           else
-             call append_cyl(obj%cyl,obj%ncyl,dcyl)
+             call dl_append(obj%cyl,obj%ncyl,dcyl)
           end if
 
           ! arrowhead (cone) from the shaft end to the axis tip
           dcyl%x1 = real(x2,c_float)
-          dcyl%x2 = real(uoriginc + r%axes_length * axsc * x0,c_float)
+          dcyl%x2 = real(uoriginc + r%axes%length * axsc * x0,c_float)
           dcyl%r = real(rad2,c_float)
           if (fixed) then
-             call append_cyl(obj%conegiz,obj%nconegiz,dcyl)
+             dcylgiz%dl_cylinder = dcyl
+             call dl_append(obj%conegiz,obj%nconegiz,dcylgiz)
           else
-             call append_cyl(obj%cone,obj%ncone,dcyl)
+             call dl_append(obj%cone,obj%ncone,dcyl)
           end if
 
           ! label: along the axis from the arrowhead tip by the shared
           ! distance, plus the per-axis cartesian offset
-          if (r%axes_showlabels) then
-             dstr%x = real(uoriginc + (r%axes_length + r%axes_labeldistance) * axsc * x0 + &
-                r%axes_labeloffset(:,k) * axsc,c_float)
+          if (r%axes%showlabels) then
+             dstr%x = real(uoriginc + (r%axes%length + r%axes%labeldistance) * axsc * x0 + &
+                r%axes%labeloffset(:,k) * axsc,c_float)
              dstr%xdelta = cmplx(0d0,0d0,kind=c_float_complex)
              dstr%r = real(rad2,c_float)
-             dstr%rgb = r%axes_labelrgb
-             if (r%axes_labelconstsize) then
-                dstr%scale = real(r%axes_labelscale * axsc,c_float)
+             dstr%rgb = r%axes%labelrgb
+             if (r%axes%labelconstsize) then
+                dstr%scale = real(r%axes%labelscale * axsc,c_float)
              else
-                dstr%scale = real(-r%axes_labelscale * axsc,c_float)
+                dstr%scale = real(-r%axes%labelscale * axsc,c_float)
              end if
              dstr%offset = 0._c_float
-             dstr%str = trim(r%axes_labelstr(k))
+             dstr%str = trim(r%axes%labelstr(k))
              if (fixed) then
-                call append_str(obj%stringgiz,obj%nstringgiz,dstr)
+                dstrgiz%dl_string = dstr
+                call dl_append(obj%stringgiz,obj%nstringgiz,dstrgiz)
              else
-                call append_str(obj%string,obj%nstring,dstr)
+                call dl_append(obj%string,obj%nstring,dstr)
              end if
           end if
        end do
@@ -1301,76 +1248,125 @@ contains
 
        ! origin in cartesian (bohr); for molecules referred to the molecular center
        uoriginc = r%origin
-       if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
+       if (c%ismolecule) uoriginc = uoriginc - c%molx0
 
        ! double-ended cylinder (the axis line): origin +/- length*dir
-       x0 = r%rotaxis_dir / max(norm2(r%rotaxis_dir),1d-10)
-       dcyl%x1 = real(uoriginc - r%rotaxis_length * x0,c_float)
-       dcyl%x2 = real(uoriginc + r%rotaxis_length * x0,c_float)
+       x0 = r%rotaxis%dir / max(norm2(r%rotaxis%dir),1d-10)
+       dcyl%x1 = real(uoriginc - r%rotaxis%length * x0,c_float)
+       dcyl%x2 = real(uoriginc + r%rotaxis%length * x0,c_float)
        dcyl%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
        dcyl%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
-       dcyl%r = real(r%rotaxis_radius,c_float)
-       dcyl%rgb = r%rotaxis_rgb
+       dcyl%r = real(r%rotaxis%radius,c_float)
+       dcyl%rgb = r%rotaxis%rgb
        dcyl%order = 1
        dcyl%border = 0._c_float
        dcyl%rgbborder = 0._c_float
-       call append_cyl(obj%cyl,obj%ncyl,dcyl)
+       call dl_append(obj%cyl,obj%ncyl,dcyl)
     elseif (r%type == reptype_symelem) then
        !!! symmetry element(s) (plane/axis) !!!
-       if (r%symelem_style%isinit) then
+       if (r%symelem%style%isinit) then
           ! persistent set
-          if (r%symelem_coordtype == 2) then
-             uoriginc = r%symelem_origin ! cartesian (bohr)
-          elseif (r%symelem_coordtype == 0 .and. .not.sys(r%id)%c%ismolecule) then
-             uoriginc = sys(r%id)%c%x2c(r%symelem_origin) ! crystallographic
+          if (r%symelem%coordtype == 2) then
+             uoriginc = r%symelem%origin ! cartesian (bohr)
+          elseif (r%symelem%coordtype == 0 .and. .not.c%ismolecule) then
+             uoriginc = c%x2c(r%symelem%origin) ! crystallographic
           else
-             uoriginc = r%symelem_origin / bohrtoa ! cartesian (angstrom)
+             uoriginc = r%symelem%origin / bohrtoa ! cartesian (angstrom)
           end if
-          if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
-          do i1 = 1, r%symelem_style%nop
-             if (.not.r%symelem_style%shown(i1)) cycle
-             if (r%symelem_style%kind(i1) == 0) cycle
-             call draw_symmetry_element(r%symelem_style%kind(i1),r%symelem_style%dir(:,i1),&
-                r%symelem_style%order(i1),uoriginc,r%symelem_usecustomrgb,r%symelem_rgb)
+          if (c%ismolecule) uoriginc = uoriginc - c%molx0
+          do i1 = 1, r%symelem%style%nop
+             if (.not.r%symelem%style%shown(i1)) cycle
+             if (r%symelem%style%kind(i1) == 0) cycle
+             call draw_symmetry_element(r%symelem%style%kind(i1),r%symelem%style%dir(:,i1),&
+                r%symelem%style%order(i1),uoriginc,r%symelem%usecustomrgb,r%symelem%rgb)
           end do
        else
           ! transient single element (hover/selection preview)
           uoriginc = r%origin
-          if (sys(r%id)%c%ismolecule) uoriginc = uoriginc - sys(r%id)%c%molx0
-          if (r%symelem_kind /= 0) &
-             call draw_symmetry_element(r%symelem_kind,r%symelem_dir,r%symelem_order,&
-                uoriginc,.false.,r%symelem_rgb)
+          if (c%ismolecule) uoriginc = uoriginc - c%molx0
+          if (r%symelem%kind /= 0) &
+             call draw_symmetry_element(r%symelem%kind,r%symelem%dir,r%symelem%order,&
+                uoriginc,.false.,r%symelem%rgb)
        end if
     end if ! reptype
   contains
-    subroutine increase_ncone()
 
-      obj%ncone = obj%ncone + 1
-      if (obj%ncone > size(obj%cone,1)) then
-         allocate(auxcyl(2*obj%ncone))
-         auxcyl(1:size(obj%cone,1)) = obj%cone
-         call move_alloc(auxcyl,obj%cone)
+    !> Jeffrey-Steiner hydrogen-bond strength classification of bond ib of cell
+    !> atom i. Returns 0 if the contact is not an H-bond (skip it), or the
+    !> strength class 1..3 (strong/moderate/weak). The geometry is
+    !> translation-invariant, so this runs once per unique bond (zero-cell
+    !> image) and the result is cached across periodic images.
+    !> G. A. Jeffrey, An Introduction to Hydrogen Bonding, Oxford University Press, 1997
+    !> T. Steiner, Angew. Chem. Intl. Ed. 41 (2002) 48, doi:10.1002/1521-3773(20020104)41:1<48::AID-ANIE48>3.0.CO;2-U
+    function hbond_class(i,ib) result(cat)
+      integer, intent(in) :: i, ib
+      integer :: cat
+
+      integer :: ineigh, hbzi, hbzn, hbhcel, hblv(3), hbacel, hbalv(3)
+      integer :: hbdon, hbdc, hbac, hbib
+      real*8 :: xhb_h(3), xhb_a(3), xhb_d(3), hbang, dd
+
+      cat = 0
+      ineigh = r%bonds%style%nstar(i)%idcon(ib)
+
+      ! identify the H end (the other end is the acceptor); work in fractional
+      ! coordinates with atom i in the zero cell
+      hbzi = c%spc(c%atcel(i)%is)%z
+      hbzn = c%spc(c%atcel(ineigh)%is)%z
+      if (hbzi == 1) then
+         hbhcel = i
+         hblv = 0
+         hbacel = ineigh
+         hbalv = r%bonds%style%nstar(i)%lcon(:,ib)
+      elseif (hbzn == 1) then
+         hbhcel = ineigh
+         hblv = r%bonds%style%nstar(i)%lcon(:,ib)
+         hbacel = i
+         hbalv = 0
+      else
+         return ! neither end is hydrogen: not an H-bond
+      end if
+      xhb_h = c%atcel(hbhcel)%x + hblv
+      xhb_a = c%atcel(hbacel)%x + hbalv
+
+      ! find the donor atom D in D-H...A
+      hbdon = 0
+      if (allocated(c%nstar)) then
+         do hbib = 1, c%nstar(hbhcel)%ncon
+            if (c%spc(c%atcel(&
+               c%nstar(hbhcel)%idcon(hbib))%is)%z > 1) then
+               hbdon = hbib
+               exit
+            end if
+         end do
+      end if
+      if (hbdon == 0) return ! no donor atom: skip
+
+      ! H...A distance class
+      dd = c%distance(xhb_a,xhb_h)
+      if (dd < r%bonds%hbond_dist(1)) then
+         hbdc = 1
+      elseif (dd < r%bonds%hbond_dist(2)) then
+         hbdc = 2
+      else
+         hbdc = 3
       end if
 
-    end subroutine increase_ncone
-
-    !> Append a cylinder record to an allocatable cylinder list,
-    !> reallocating if necessary.
-    subroutine append_cyl(lst,n,it)
-      type(dl_cylinder), allocatable, intent(inout) :: lst(:)
-      integer, intent(inout) :: n
-      type(dl_cylinder), intent(in) :: it
-      type(dl_cylinder), allocatable :: aux(:)
-
-      n = n + 1
-      if (n > size(lst,1)) then
-         allocate(aux(2*n))
-         aux(1:size(lst,1)) = lst
-         call move_alloc(aux,lst)
+      ! D-H...A angle class (the weaker of the two wins)
+      xhb_d = c%atcel(c%nstar(hbhcel)%idcon(hbdon))%x +&
+         hblv + c%nstar(hbhcel)%lcon(:,hbdon)
+      hbang = c%angle(xhb_d,xhb_h,xhb_a) * 180d0 / pi
+      if (hbang < hbond_angmin_def) return ! too bent to be a H-bond
+      if (hbang >= r%bonds%hbond_ang(2)) then
+         hbac = 1
+      elseif (hbang >= r%bonds%hbond_ang(1)) then
+         hbac = 2
+      else
+         hbac = 3
       end if
-      lst(n) = it
+      cat = max(hbdc,hbac)
 
-    end subroutine append_cyl
+    end function hbond_class
 
     !> Append an opaque thin edge cylinder between cartesian points p and q
     !> (uses the host dcyl template for radius/color).
@@ -1379,7 +1375,7 @@ contains
 
       dcyl%x1 = real(p,c_float)
       dcyl%x2 = real(q,c_float)
-      call append_cyl(obj%cyl,obj%ncyl,dcyl)
+      call dl_append(obj%cyl,obj%ncyl,dcyl)
 
     end subroutine append_edge
 
@@ -1387,7 +1383,7 @@ contains
     !> unit direction/normal sdir, rotation order sorder, passing through the
     !> cartesian-bohr point uoriginc. If usecustom, everything is drawn in
     !> customrgb; otherwise planes use the default color and axes are colored by
-    !> rotation order. Uses the host r%symelem_size/r%symelem_cen for sizing.
+    !> rotation order. Uses the host r%symelem%size/r%symelem%cen for sizing.
     subroutine draw_symmetry_element(skind,sdir,sorder,uoriginc,usecustom,customrgb)
       integer, intent(in) :: skind, sorder
       real*8, intent(in) :: sdir(3), uoriginc(3)
@@ -1397,6 +1393,7 @@ contains
       real*8 :: lx0(3), lxx(3), lx1(3), lx2(3), lxc(3), le1v(3), le2v(3), lres
       real(c_float) :: rgbel(3)
       integer :: j1, j2, j3, m1(3)
+      type(dl_plane) :: dpl
 
       ! unit direction: the plane normal or the axis direction (cartesian)
       lx0 = sdir / max(norm2(sdir),1d-10)
@@ -1427,23 +1424,18 @@ contains
          lx2 = cross(lx0,lx1) ! unit, (lx0,lx1,lx2) orthonormal
 
          ! rectangle center = projection of the system center onto the plane
-         lxc = r%symelem_cen - dot_product(r%symelem_cen - uoriginc,lx0) * lx0
-         lres = symelem_margin * r%symelem_size
+         lxc = r%symelem%cen - dot_product(r%symelem%cen - uoriginc,lx0) * lx0
+         lres = symelem_margin * r%symelem%size
          le1v = lres * lx1
          le2v = lres * lx2
 
          ! translucent fill
-         obj%nplane = obj%nplane + 1
-         if (obj%nplane > size(obj%plane,1)) then
-            allocate(auxplane(2*obj%nplane))
-            auxplane(1:size(obj%plane,1)) = obj%plane
-            call move_alloc(auxplane,obj%plane)
-         end if
-         obj%plane(obj%nplane)%x = real(lxc,c_float)
-         obj%plane(obj%nplane)%e1 = real(le1v,c_float)
-         obj%plane(obj%nplane)%e2 = real(le2v,c_float)
-         obj%plane(obj%nplane)%rgb = rgbel
-         obj%plane(obj%nplane)%alpha = symelem_alpha
+         dpl%x = real(lxc,c_float)
+         dpl%e1 = real(le1v,c_float)
+         dpl%e2 = real(le2v,c_float)
+         dpl%rgb = rgbel
+         dpl%alpha = symelem_alpha
+         call dl_append(obj%plane,obj%nplane,dpl)
 
          ! opaque border frame (4 edge cylinders)
          call append_edge(lxc - le1v - le2v, lxc + le1v - le2v)
@@ -1463,17 +1455,17 @@ contains
          dcyl%rgb = rgbel
          dcyl%r = real(symelem_axis_radius,c_float)
 
-         lres = symelem_margin * r%symelem_size
+         lres = symelem_margin * r%symelem%size
          m1 = 0
-         if (.not.sys(r%id)%c%ismolecule) m1 = nc
+         if (.not.c%ismolecule) m1 = nc
          do j1 = 0, m1(1)
             do j2 = 0, m1(2)
                do j3 = 0, m1(3)
-                  lxc = uoriginc + sys(r%id)%c%x2c(real((/j1,j2,j3/),8))
-                  lxc = lxc + dot_product(r%symelem_cen - lxc,lx0) * lx0 ! foot of the center on the axis
+                  lxc = uoriginc + c%x2c(real((/j1,j2,j3/),8))
+                  lxc = lxc + dot_product(r%symelem%cen - lxc,lx0) * lx0 ! foot of the center on the axis
                   dcyl%x1 = real(lxc - lres * lx0,c_float)
                   dcyl%x2 = real(lxc + lres * lx0,c_float)
-                  call append_cyl(obj%cyl,obj%ncyl,dcyl)
+                  call dl_append(obj%cyl,obj%ncyl,dcyl)
                end do
             end do
          end do
@@ -1481,13 +1473,12 @@ contains
 
     end subroutine draw_symmetry_element
 
-    !> Build a coordination polyhedron from nv vertex positions xv (cartesian,
-    !> bohr). The vertex centroid is used as the interior reference point (it is
-    !> always inside the convex hull, unlike the cation for one-sided
-    !> coordinations). Adds translucent triangular faces (color rgbf, opacity
-    !> alphaf) and opaque edge cylinders (color rgbe, radius rade) to the draw
-    !> lists. If the vertices are coplanar to within eps, a filled polygon is
-    !> drawn instead of a 3D convex hull.
+    !> Build a coordination polyhedron from nvv vertex positions xv
+    !> (cartesian, bohr). The vertex centroid is used as the interior
+    !> reference point. Adds translucent triangular faces (color rgbf,
+    !> opacity alphaf) and opaque edge cylinders (color rgbe, radius
+    !> rade) to the draw lists. If the vertices are coplanar to within
+    !> eps, a filled polygon is drawn instead of a 3D convex hull.
     subroutine build_polyhedron(xv,dv,nvv,rgbf,rgbe,alphaf,rade,eps)
       use iso_c_binding, only: c_ptr, c_int, c_float_complex
       integer, intent(in) :: nvv
@@ -1507,6 +1498,7 @@ contains
       type(c_ptr) :: ctx
       integer(c_int) :: ier
       integer :: nf
+      type(dl_cylinder) :: dedge
 
       ! centroid (an interior reference point), best-fit plane unit normal, and
       ! the maximum out-of-plane deviation
@@ -1535,17 +1527,17 @@ contains
          end do
          dcen = dcen / nvv
 
+         dedge%r = real(rade,c_float)
+         dedge%rgb = rgbe
          do k = 1, nvv
             kk = mod(k,nvv) + 1
             call append_triangle(cen0,xv(:,iord_(k)),xv(:,iord_(kk)),&
                dcen,dv(:,iord_(k)),dv(:,iord_(kk)),rgbf,alphaf)
-            call increase_ncylflat()
-            obj%cylflat(obj%ncylflat)%x1 = real(xv(:,iord_(k)),c_float)
-            obj%cylflat(obj%ncylflat)%x2 = real(xv(:,iord_(kk)),c_float)
-            obj%cylflat(obj%ncylflat)%r = real(rade,c_float)
-            obj%cylflat(obj%ncylflat)%rgb = rgbe
-            obj%cylflat(obj%ncylflat)%x1delta = cmplx(dv(:,iord_(k)),kind=c_float_complex)
-            obj%cylflat(obj%ncylflat)%x2delta = cmplx(dv(:,iord_(kk)),kind=c_float_complex)
+            dedge%x1 = real(xv(:,iord_(k)),c_float)
+            dedge%x2 = real(xv(:,iord_(kk)),c_float)
+            dedge%x1delta = cmplx(dv(:,iord_(k)),kind=c_float_complex)
+            dedge%x2delta = cmplx(dv(:,iord_(kk)),kind=c_float_complex)
+            call dl_append(obj%cylflat,obj%ncylflat,dedge)
          end do
          return
       end if
@@ -1597,15 +1589,15 @@ contains
             end if
          end do
       end do
+      dedge%r = real(rade,c_float)
+      dedge%rgb = rgbe
       do e = 1, nedge
          if (.not.edgekeep(e)) cycle
-         call increase_ncylflat()
-         obj%cylflat(obj%ncylflat)%x1 = real(xv(:,edgei(1,e)),c_float)
-         obj%cylflat(obj%ncylflat)%x2 = real(xv(:,edgei(2,e)),c_float)
-         obj%cylflat(obj%ncylflat)%r = real(rade,c_float)
-         obj%cylflat(obj%ncylflat)%rgb = rgbe
-         obj%cylflat(obj%ncylflat)%x1delta = cmplx(dv(:,edgei(1,e)),kind=c_float_complex)
-         obj%cylflat(obj%ncylflat)%x2delta = cmplx(dv(:,edgei(2,e)),kind=c_float_complex)
+         dedge%x1 = real(xv(:,edgei(1,e)),c_float)
+         dedge%x2 = real(xv(:,edgei(2,e)),c_float)
+         dedge%x1delta = cmplx(dv(:,edgei(1,e)),kind=c_float_complex)
+         dedge%x2delta = cmplx(dv(:,edgei(2,e)),kind=c_float_complex)
+         call dl_append(obj%cylflat,obj%ncylflat,dedge)
       end do
 
     end subroutine build_polyhedron
@@ -1618,70 +1610,34 @@ contains
       complex*16, intent(in) :: d1(3), d2(3), d3(3)
       real(c_float), intent(in) :: rgb_(3)
       real*8, intent(in) :: alpha_
-      type(dl_triangle), allocatable :: auxtri(:)
+      type(dl_triangle) :: dtri
 
-      obj%ntriangle = obj%ntriangle + 1
-      if (obj%ntriangle > size(obj%triangle,1)) then
-         allocate(auxtri(2*obj%ntriangle))
-         auxtri(1:size(obj%triangle,1)) = obj%triangle
-         call move_alloc(auxtri,obj%triangle)
-      end if
-      obj%triangle(obj%ntriangle)%x1 = real(p1,c_float)
-      obj%triangle(obj%ntriangle)%x2 = real(p2,c_float)
-      obj%triangle(obj%ntriangle)%x3 = real(p3,c_float)
-      obj%triangle(obj%ntriangle)%rgb = rgb_
-      obj%triangle(obj%ntriangle)%alpha = real(alpha_,c_float)
-      obj%triangle(obj%ntriangle)%x1delta = cmplx(d1,kind=c_float_complex)
-      obj%triangle(obj%ntriangle)%x2delta = cmplx(d2,kind=c_float_complex)
-      obj%triangle(obj%ntriangle)%x3delta = cmplx(d3,kind=c_float_complex)
+      dtri%x1 = real(p1,c_float)
+      dtri%x2 = real(p2,c_float)
+      dtri%x3 = real(p3,c_float)
+      dtri%rgb = rgb_
+      dtri%alpha = real(alpha_,c_float)
+      dtri%x1delta = cmplx(d1,kind=c_float_complex)
+      dtri%x2delta = cmplx(d2,kind=c_float_complex)
+      dtri%x3delta = cmplx(d3,kind=c_float_complex)
+      call dl_append(obj%triangle,obj%ntriangle,dtri)
 
     end subroutine append_triangle
 
-    !> Vibration-animation displacement of cell atom iat whose (animated)
-    !> fractional position is xfrac; zero if the scene is not animating.
-    function vibdelta(iat,xfrac) result(dv)
+    !> Vibration-animation displacement of the periodic image of cell atom iat
+    !> at lattice translation ix; zero if the scene is not animating. Uses the
+    !> phasors precomputed in vibbase (mass, mode vector and atom-position
+    !> phase); only the lattice-translation phase depends on the image.
+    function vibdelta(iat,ix) result(dv)
       integer, intent(in) :: iat
-      real*8, intent(in) :: xfrac(3)
+      integer, intent(in) :: ix(3)
       complex*16 :: dv(3)
-
-      real*8 :: vmass, vph
 
       dv = 0d0
       if (.not.doanim_) return
-      vmass = atmass(sys(r%id)%c%spc(sys(r%id)%c%atcel(iat)%is)%z)
-      vph = tpi * dot_product(xfrac,sys(r%id)%c%vib%qpt(:,iqpt))
-      dv = sys(r%id)%c%vib%vec(:,iat,ifreq,iqpt) * exp(img * vph) / sqrt(vmass)
+      dv = vibbase(:,iat) * exp(img * tpi * dot_product(real(ix,8),c%vib%qpt(:,iqpt)))
 
     end function vibdelta
-
-    !> Append a string record to an allocatable string list,
-    !> reallocating if necessary.
-    subroutine append_str(lst,n,it)
-      type(dl_string), allocatable, intent(inout) :: lst(:)
-      integer, intent(inout) :: n
-      type(dl_string), intent(in) :: it
-      type(dl_string), allocatable :: aux(:)
-
-      n = n + 1
-      if (n > size(lst,1)) then
-         allocate(aux(2*n))
-         aux(1:size(lst,1)) = lst
-         call move_alloc(aux,lst)
-      end if
-      lst(n) = it
-
-    end subroutine append_str
-
-    subroutine increase_ncylflat()
-
-      obj%ncylflat = obj%ncylflat + 1
-      if (obj%ncylflat > size(obj%cylflat,1)) then
-         allocate(auxcyl(2*obj%ncylflat))
-         auxcyl(1:size(obj%cylflat,1)) = obj%cylflat
-         call move_alloc(auxcyl,obj%cylflat)
-      end if
-
-    end subroutine increase_ncylflat
 
     subroutine process_vacuum_uc_sticks(ix1,ix2,x1,x2,docycle)
       integer, intent(in) :: ix1(3), ix2(3)
@@ -1702,8 +1658,8 @@ contains
          ! there is vacuum and this stick goes in the vacuum direction: cut it
          do j = 1, 3
             if (isvac(j)) then
-               ucini(j) = sys(r%id)%c%vactop(j) - 1d0 - vacextension / sys(r%id)%c%aa(j)
-               ucend(j) = sys(r%id)%c%vacbot(j) + vacextension / sys(r%id)%c%aa(j)
+               ucini(j) = c%vactop(j) - 1d0 - vacextension / c%aa(j)
+               ucend(j) = c%vacbot(j) + vacextension / c%aa(j)
             end if
          end do
       elseif (any(isvac).and..not.all(isvac)) then
@@ -1715,8 +1671,8 @@ contains
                   docycle = .true.
                   return
                else
-                  ucini(j) = 0.5d0 * (sys(r%id)%c%vactop(j) - 1d0 + sys(r%id)%c%vacbot(j))
-                  ucend(j) = 0.5d0 * (sys(r%id)%c%vactop(j) - 1d0 + sys(r%id)%c%vacbot(j))
+                  ucini(j) = 0.5d0 * (c%vactop(j) - 1d0 + c%vacbot(j))
+                  ucend(j) = 0.5d0 * (c%vactop(j) - 1d0 + c%vacbot(j))
                end if
             end if
          end do
@@ -1724,9 +1680,9 @@ contains
 
       ! stick ends
       x1 = ucini + r%origin
-      x1 = sys(r%id)%c%x2c(x1)
+      x1 = c%x2c(x1)
       x2 = ucend + r%origin
-      x2 = sys(r%id)%c%x2c(x2)
+      x2 = c%x2c(x2)
 
     end subroutine process_vacuum_uc_sticks
 
@@ -1767,15 +1723,15 @@ contains
     integer, intent(in) :: itype
 
     if (itype == 0 .or. itype == 1) &
-       call r%atom_style%reset(r)
+       call r%atoms%style%reset(r)
     if (itype == 0 .or. itype == 2) &
-       call r%bond_style%reset(r)
+       call r%bonds%style%reset(r)
     if (itype == 0 .or. itype == 3) &
-       call r%label_style%reset(r)
+       call r%labels%style%reset(r)
     if (itype == 0 .or. itype == 4) &
        call r%mol_style%reset(r)
     if (itype == 0 .or. itype == 8) &
-       call r%coordpoly_style%reset(r)
+       call r%poly%style%reset(r)
 
   end subroutine reset_all_styles
 
@@ -1816,21 +1772,21 @@ contains
        iz = sys(r%id)%c%spc(ispc)%z
 
        ! color scheme or GUI colors
-       if (r%atom_color_type == 0) then
+       if (r%atoms%color_type == 0) then
           d%rgb(:,i) = ColorElement(:,iz)
-       elseif (r%atom_color_type == 1) then
+       elseif (r%atoms%color_type == 1) then
           d%rgb(:,i) = real(jmlcol(:,iz),c_float) / 255._c_float
        else
           d%rgb(:,i) = real(jmlcol2(:,iz),c_float) / 255._c_float
        end if
 
        ! scale covalent, vdw, or absolute value
-       if (r%atom_radii_type == 0) then
-          d%rad(i) = r%atom_radii_scale * atmcov(iz)
-       elseif (r%atom_radii_type == 1) then
-          d%rad(i) = r%atom_radii_scale * atmvdw(iz)
+       if (r%atoms%radii_type == 0) then
+          d%rad(i) = r%atoms%radii_scale * atmcov(iz)
+       elseif (r%atoms%radii_type == 1) then
+          d%rad(i) = r%atoms%radii_scale * atmvdw(iz)
        else
-          d%rad(i) = r%atom_radii_value
+          d%rad(i) = r%atoms%radii_value
        endif
 
        if (r%flavor == repflavor_atoms_criticalpoints) then
@@ -1943,8 +1899,8 @@ contains
     ! generate the new neighbor star using this representation's bonding
     ! parameters: per-species covalent radii and bond factor for non-metal
     ! bonds, bond delta for metal bonds (same criteria as the geometry window)
-    call sys(r%id)%c%find_asterisms(d%nstar,atmrad=r%bond_atmrad,bondfac=r%bond_bfactor,&
-       bonddelta=r%bond_bdelta)
+    call sys(r%id)%c%find_asterisms(d%nstar,atmrad=r%bonds%atmrad,bondfac=r%bonds%bfactor,&
+       bonddelta=r%bonds%bdelta)
 
   end subroutine generate_neighstars
 
@@ -2061,7 +2017,7 @@ contains
 
     ! fill according to the style
     d%isinit = .true.
-    select case(r%label_type)
+    select case(r%labels%type)
     case (0,5,6)
        d%ntype = sys(r%id)%c%nspc
     case (2,3)
@@ -2077,7 +2033,7 @@ contains
     ! fill shown, exclude hydrogens
     d%shown = .true.
     do i = 1, d%ntype
-       select case(r%label_type)
+       select case(r%labels%type)
        case (0,5,6)
           if (sys(r%id)%c%spc(i)%z == 1) d%shown(i) = .false.
        case (2,3)
@@ -2089,13 +2045,13 @@ contains
 
     ! fill text
     do i = 1, d%ntype
-       if (r%label_type == 0) then ! 0 = atomic symbol
+       if (r%labels%type == 0) then ! 0 = atomic symbol
           d%str(i) = trim(nameguess(sys(r%id)%c%spc(i)%z,.true.))
-       elseif (r%label_type == 1) then ! 1 = atom name
+       elseif (r%labels%type == 1) then ! 1 = atom name
           d%str(i) = trim(sys(r%id)%c%at(i)%name)
-       elseif (r%label_type == 6) then ! 6 = Z
+       elseif (r%labels%type == 6) then ! 6 = Z
           d%str(i) = string(sys(r%id)%c%spc(i)%z)
-       elseif (r%label_type == 8) then ! 8 = wyckoff
+       elseif (r%labels%type == 8) then ! 8 = wyckoff
           d%str(i) = string(sys(r%id)%c%at(i)%mult) // string(sys(r%id)%c%at(i)%wyc)
        else
           d%str(i) = string(i)

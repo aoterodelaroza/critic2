@@ -45,7 +45,6 @@ module shaders
   public :: shaders_init
   public :: shaders_end
   public :: useshader
-  public :: get_uniform_location
   public :: uniloc
   public :: setuniform_int
   public :: setuniform_float
@@ -84,10 +83,6 @@ module shaders
      module subroutine useshader(id)
        integer, intent(in) :: id
      end subroutine useshader
-     module function get_uniform_location(name)
-       character*(*), intent(in) :: name
-       integer(c_int) :: get_uniform_location
-     end function get_uniform_location
      module function uniloc(u)
        integer, intent(in) :: u
        integer(c_int) :: uniloc

@@ -1297,20 +1297,24 @@ contains
 
   end subroutine new_pointprop_string
 
-  !> Evaluate an arithmetic expression using the system's fields
-  module function system_eval_expression(s,expr,errmsg,x0)
-    use arithmetic, only: eval
+  !> Evaluate an arithmetic expression using the system's fields. If toklist
+  !> is given, use the pre-tokenized expression (see pretokenize in the
+  !> arithmetic module) instead of parsing expr; this saves the parsing cost
+  !> when the same expression is evaluated many times.
+  module function system_eval_expression(s,expr,errmsg,x0,toklist)
+    use arithmetic, only: eval, token
     use iso_c_binding, only: c_loc
     class(system), intent(inout), target :: s
     character(*), intent(in) :: expr
     character(len=:), allocatable, intent(inout) :: errmsg
     real*8, intent(in), optional :: x0(3)
+    type(token), intent(in), optional :: toklist(:)
     real*8 :: system_eval_expression
 
     type(system), pointer :: syl
 
     syl => s
-    system_eval_expression = eval(expr,errmsg,x0,c_loc(syl),.not.sy%c%ismolecule)
+    system_eval_expression = eval(expr,errmsg,x0,c_loc(syl),.not.syl%c%ismolecule,toklist)
 
   end function system_eval_expression
 

@@ -190,14 +190,15 @@ contains
     real*8, intent(in), optional :: x0(3)
     type(c_ptr), intent(in), optional :: sptr
     logical, intent(in), optional :: periodic
-    type(token), intent(in), optional :: toklistin(:)
+    type(token), intent(in), optional, target :: toklistin(:)
 
     integer :: i, ntok, lp
     integer :: c, s(100)
     logical :: again, ok
     real*8 :: q(100)
     integer :: nq, ns
-    type(token), allocatable :: toklist(:)
+    type(token), allocatable, target :: toklist(:)
+    type(token), pointer :: tl(:)
     type(system), pointer :: syl
 
     errmsg = ""
@@ -213,9 +214,9 @@ contains
        end if
     end if
 
-    ! tokenize the expression or use the tokens in input
+    ! tokenize the expression, or point at the token list provided in input
     if (present(toklistin)) then
-       toklist = toklistin
+       tl => toklistin
        ntok = size(toklistin,1)
     else
        lp = 1
@@ -224,6 +225,7 @@ contains
           errmsg = 'syntax error evaluating: ' // trim(expr)
           return
        end if
+       tl => toklist
     end if
 
     ! initialize
@@ -233,17 +235,17 @@ contains
 
     ! run over tokens
     do i = 1, ntok
-       if (toklist(i)%type == token_num) then
+       if (tl(i)%type == token_num) then
           ! a number
           nq = nq + 1
-          q(nq) = toklist(i)%fval
-       elseif (toklist(i)%type == token_fun) then
+          q(nq) = tl(i)%fval
+       elseif (tl(i)%type == token_fun) then
           ! a function
           ns = ns + 1
-          s(ns) = toklist(i)%ival
-       elseif (toklist(i)%type == token_op) then
+          s(ns) = tl(i)%ival
+       elseif (tl(i)%type == token_op) then
           ! a binary operator
-          c = toklist(i)%ival
+          c = tl(i)%ival
           again = .true.
           do while (again)
              again = .false.
@@ -257,11 +259,11 @@ contains
           end do
           ns = ns + 1
           s(ns) = c
-       elseif (toklist(i)%type == token_lpar) then
+       elseif (tl(i)%type == token_lpar) then
           ! left parenthesis
           ns = ns + 1
           s(ns) = fun_openpar
-       elseif (toklist(i)%type == token_rpar) then
+       elseif (tl(i)%type == token_rpar) then
           ! right parenthesis
            do while (ns > 0)
               if (s(ns) == fun_openpar) exit
@@ -281,7 +283,7 @@ contains
                  if (len_trim(errmsg) > 0) return
               end if
            end if
-        elseif (toklist(i)%type == token_comma) then
+        elseif (tl(i)%type == token_comma) then
            ! a comma
            do while (ns > 0)
               if (s(ns) == fun_openpar) exit
@@ -292,15 +294,15 @@ contains
               errmsg = 'mismatched parentheses'
               return
            end if
-        elseif (toklist(i)%type == token_field) then
+        elseif (tl(i)%type == token_field) then
            ! a field
            nq = nq + 1
-           q(nq) = fieldeval(toklist(i)%sval,toklist(i)%fder,errmsg,x0,syl,periodic)
+           q(nq) = fieldeval(tl(i)%sval,tl(i)%fder,errmsg,x0,syl,periodic)
            if (len_trim(errmsg) > 0) return
-        elseif (toklist(i)%type == token_structvar) then
+        elseif (tl(i)%type == token_structvar) then
            ! a structural variable
            nq = nq + 1
-           q(nq) = structvareval(toklist(i)%ival,toklist(i)%fder,errmsg,x0,syl,periodic)
+           q(nq) = structvareval(tl(i)%ival,tl(i)%fder,errmsg,x0,syl,periodic)
            if (len_trim(errmsg) > 0) return
         else
            errmsg = 'syntax error'

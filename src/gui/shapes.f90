@@ -86,7 +86,8 @@ module shapes
   end type dl_sphere
   public :: dl_sphere
 
-  !> cylinders for the draw list
+  !> cylinders for the draw list. Also used for cones (arrowheads), with
+  !> x1 = base center and x2 = apex.
   type dl_cylinder
      real(c_float) :: x1(3) ! one end of the cylinder
      real(c_float) :: x2(3) ! other end of the cylinder
@@ -94,15 +95,20 @@ module shapes
      real(c_float) :: rgb(3) ! color
      complex(c_float_complex) :: x1delta(3) = (0._c_float,0._c_float) ! delta-vector for vibration animations (end 1)
      complex(c_float_complex) :: x2delta(3) = (0._c_float,0._c_float) ! delta-vector for vibration animations (end 2)
-     integer(c_int) :: order ! order of the bond (-1=aromatic/1.5,0=dashed,1=single,2=double,3=triple); < -1 = flat cylinder
-     real(c_float) :: border ! border size
-     real(c_float) :: rgbborder(3) ! border color
+     integer(c_int) :: order = 1 ! order of the bond (-1=aromatic/1.5,0=dashed,1=single,2=double,3=triple); < -1 = flat cylinder
+     real(c_float) :: border = 0._c_float ! border size
+     real(c_float) :: rgbborder(3) = 0._c_float ! border color
      real(c_float) :: arvec(3) = 0._c_float ! aromatic bonds: outward (ring-exterior) direction; 0 otherwise
      real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
-     real(c_float) :: gizwinpos(2) = 0._c_float ! window position (fractions) for window-anchored gizmo items
-     logical :: gizscalewithzoom = .false. ! whether this gizmo item scales with zoom (gizmo items only)
   end type dl_cylinder
   public :: dl_cylinder
+
+  !> window-anchored gizmo cylinder/cone: a dl_cylinder plus its window placement
+  type, extends(dl_cylinder) :: dl_cylinder_giz
+     real(c_float) :: winpos(2) = 0._c_float ! window position (fractions from left and bottom)
+     logical :: scalewithzoom = .false. ! whether this gizmo item scales with zoom
+  end type dl_cylinder_giz
+  public :: dl_cylinder_giz
 
   !> strings for the draw list
   type dl_string
@@ -113,10 +119,15 @@ module shapes
      real(c_float) :: offset(3) ! offset of the label in pixels
      complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
      character(len=:), allocatable :: str ! string
-     real(c_float) :: gizwinpos(2) = 0._c_float ! window position (fractions) for window-anchored gizmo items
-     logical :: gizscalewithzoom = .false. ! whether this gizmo item scales with zoom (gizmo items only)
   end type dl_string
   public :: dl_string
+
+  !> window-anchored gizmo string: a dl_string plus its window placement
+  type, extends(dl_string) :: dl_string_giz
+     real(c_float) :: winpos(2) = 0._c_float ! window position (fractions from left and bottom)
+     logical :: scalewithzoom = .false. ! whether this gizmo item scales with zoom
+  end type dl_string_giz
+  public :: dl_string_giz
 
   !> filled flat rectangles (quads) for the draw list
   type dl_plane
@@ -156,16 +167,40 @@ module shapes
      integer :: ntriangle ! number of flat triangles
      type(dl_triangle), allocatable :: triangle(:) ! flat triangle draw list
      integer :: nstring ! number of strings
-     type(dl_string), allocatable :: string(:) ! flat cylinder draw list
+     type(dl_string), allocatable :: string(:) ! string draw list
      ! window-anchored axes gizmo (drawn in a separate overlay pass)
      integer :: ncylgiz ! number of gizmo cylinders (axis shafts)
-     type(dl_cylinder), allocatable :: cylgiz(:) ! gizmo cylinder draw list
+     type(dl_cylinder_giz), allocatable :: cylgiz(:) ! gizmo cylinder draw list
      integer :: nconegiz ! number of gizmo cones (arrowheads)
-     type(dl_cylinder), allocatable :: conegiz(:) ! gizmo cone draw list
+     type(dl_cylinder_giz), allocatable :: conegiz(:) ! gizmo cone draw list
      integer :: nstringgiz ! number of gizmo strings (axis labels)
-     type(dl_string), allocatable :: stringgiz(:) ! gizmo string draw list
+     type(dl_string_giz), allocatable :: stringgiz(:) ! gizmo string draw list
+   contains
+     procedure :: reset => scene_objects_reset
+     procedure :: reserve => scene_objects_reserve
+     procedure :: end => scene_objects_end
   end type scene_objects
   public :: scene_objects
+
+  !> Ensure a pack scratch array is allocated with at least the requested
+  !> extent (grow-only; the contents are scratch and are not preserved).
+  interface ensure_pack
+     module procedure ensure_pack_realc2
+     module procedure ensure_pack_int1
+  end interface ensure_pack
+  public :: ensure_pack
+
+  !> Append an item to a draw list, growing (or allocating) the list as needed.
+  interface dl_append
+     module procedure dl_append_sphere
+     module procedure dl_append_cylinder
+     module procedure dl_append_cylinder_giz
+     module procedure dl_append_string
+     module procedure dl_append_string_giz
+     module procedure dl_append_plane
+     module procedure dl_append_triangle
+  end interface dl_append
+  public :: dl_append
 
   ! mesh-buffer role selectors for the scene_glbuffers draw_mesh/redraw_mesh methods
   integer, parameter, public :: glb_cone = 1    ! cached cone (arrowhead) mesh
@@ -187,6 +222,33 @@ module shapes
      integer(c_int) :: sphinstVAOscr = 0, sphinstVBOscr = 0
      integer(c_int) :: cylinstVAOscr = 0, cylinstVBOscr = 0
      integer(c_int) :: coneinstVAOscr = 0, coneinstVBOscr = 0
+     ! VBO storage capacities (in instances). Uploads orphan the current
+     ! storage and glBufferSubData into it; the storage is re-created (2x)
+     ! only when the instance count exceeds the capacity.
+     integer :: sph_cap = 0, cyl_cap = 0, cone_cap = 0, plane_cap = 0, tri_cap = 0
+     integer :: sphscr_cap = 0, cylscr_cap = 0, conescr_cap = 0
+     ! persistent CPU pack scratch (grow-only, see ensure_pack): instance data
+     ! is packed here before upload, avoiding per-frame allocations
+     real(c_float), allocatable :: packsph(:,:)  ! sphere instances (also selections/highlights/pick)
+     real(c_float), allocatable :: packcyl(:,:)  ! cylinder instances
+     real(c_float), allocatable :: packmesh(:,:) ! mesh instances (cones, then planes, then triangles)
+     real(c_float), allocatable :: packex1(:,:), packex2(:,:) ! animated cylinder endpoints
+     integer, allocatable :: packnd(:) ! per-bond dash counts
+     ! per-scene on-scene-text buffer: the glyph vertices of the scene labels
+     ! are cached here (and in the VBO) and reused while the camera, the draw
+     ! lists, and the animation state do not change
+     integer(c_int) :: textVAO = 0, textVBO = 0 ! cached label glyph buffer (10 floats/vertex)
+     integer :: text_cap = 0 ! vertex capacity of the text VBO storage
+     integer, allocatable :: text_first(:) ! first vertex of each label (0-based)
+     integer, allocatable :: text_count(:) ! vertex count of each label
+     real(c_float), allocatable :: packtext(:,:) ! concatenated glyph vertices (10,:)
+     logical :: text_valid = .false. ! cached text vertices are current
+     integer :: text_last_anim = -1 ! animation state at the last text rebuild
+     real*8 :: text_build_time = -1d0 ! draw-list build time at the last text rebuild
+     real(c_float) :: text_proj(4,4) = 0._c_float ! projection matrix at the last text rebuild
+     real(c_float) :: text_vw3(4) = 0._c_float ! view*world third row at the last text rebuild
+     real(c_float) :: text_hside = -1._c_float ! reset-zoom half-side at the last text rebuild
+     real(c_float) :: text_fontsize = -1._c_float ! baked font size at the last text rebuild
      ! cached-buffer validity and instance counts
      logical :: inst_valid = .false. ! true if the cached instance buffers are current
      integer :: inst_last_anim = -1 ! animation state at the last instance-buffer build
@@ -202,6 +264,7 @@ module shapes
      procedure :: draw_spheres => glbuffers_draw_spheres
      procedure :: draw_cylinders => glbuffers_draw_cylinders
      procedure :: draw_mesh => glbuffers_draw_mesh
+     procedure :: upload_text => glbuffers_upload_text
      procedure :: redraw_spheres => glbuffers_redraw_spheres
      procedure :: redraw_cylinders => glbuffers_redraw_cylinders
      procedure :: redraw_mesh => glbuffers_redraw_mesh
@@ -214,6 +277,59 @@ module shapes
      end subroutine shapes_init
      module subroutine shapes_end()
      end subroutine shapes_end
+     module subroutine scene_objects_reset(o)
+       class(scene_objects), intent(inout) :: o
+     end subroutine scene_objects_reset
+     module subroutine scene_objects_reserve(o,nsph,ncyl,nstring)
+       class(scene_objects), intent(inout) :: o
+       integer, intent(in), optional :: nsph, ncyl, nstring
+     end subroutine scene_objects_reserve
+     module subroutine scene_objects_end(o)
+       class(scene_objects), intent(inout) :: o
+     end subroutine scene_objects_end
+     module subroutine ensure_pack_realc2(arr,nf,n)
+       real(c_float), allocatable, intent(inout) :: arr(:,:)
+       integer, intent(in) :: nf, n
+     end subroutine ensure_pack_realc2
+     module subroutine ensure_pack_int1(arr,n)
+       integer, allocatable, intent(inout) :: arr(:)
+       integer, intent(in) :: n
+     end subroutine ensure_pack_int1
+     module subroutine dl_append_sphere(lst,n,it)
+       type(dl_sphere), allocatable, intent(inout) :: lst(:)
+       integer, intent(inout) :: n
+       type(dl_sphere), intent(in) :: it
+     end subroutine dl_append_sphere
+     module subroutine dl_append_cylinder(lst,n,it)
+       type(dl_cylinder), allocatable, intent(inout) :: lst(:)
+       integer, intent(inout) :: n
+       type(dl_cylinder), intent(in) :: it
+     end subroutine dl_append_cylinder
+     module subroutine dl_append_cylinder_giz(lst,n,it)
+       type(dl_cylinder_giz), allocatable, intent(inout) :: lst(:)
+       integer, intent(inout) :: n
+       type(dl_cylinder_giz), intent(in) :: it
+     end subroutine dl_append_cylinder_giz
+     module subroutine dl_append_string(lst,n,it)
+       type(dl_string), allocatable, intent(inout) :: lst(:)
+       integer, intent(inout) :: n
+       type(dl_string), intent(in) :: it
+     end subroutine dl_append_string
+     module subroutine dl_append_string_giz(lst,n,it)
+       type(dl_string_giz), allocatable, intent(inout) :: lst(:)
+       integer, intent(inout) :: n
+       type(dl_string_giz), intent(in) :: it
+     end subroutine dl_append_string_giz
+     module subroutine dl_append_plane(lst,n,it)
+       type(dl_plane), allocatable, intent(inout) :: lst(:)
+       integer, intent(inout) :: n
+       type(dl_plane), intent(in) :: it
+     end subroutine dl_append_plane
+     module subroutine dl_append_triangle(lst,n,it)
+       type(dl_triangle), allocatable, intent(inout) :: lst(:)
+       integer, intent(inout) :: n
+       type(dl_triangle), intent(in) :: it
+     end subroutine dl_append_triangle
      module subroutine glbuffers_init(b)
        class(scene_glbuffers), intent(inout), target :: b
      end subroutine glbuffers_init
@@ -240,6 +356,11 @@ module shapes
        integer, intent(in) :: role, nelem, n
        real(c_float), intent(in), target :: buf(mesh_inst_nf,n)
      end subroutine glbuffers_draw_mesh
+     module subroutine glbuffers_upload_text(b,nvert,buf)
+       class(scene_glbuffers), intent(inout) :: b
+       integer, intent(in) :: nvert
+       real(c_float), intent(in), target :: buf(10,nvert)
+     end subroutine glbuffers_upload_text
      module subroutine glbuffers_redraw_spheres(b,n)
        class(scene_glbuffers), intent(inout) :: b
        integer, intent(in) :: n

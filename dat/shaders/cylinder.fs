@@ -2,8 +2,7 @@
 
 // Ray-cast capped-cylinder impostor. Intersects the view ray with a finite
 // cylinder (side + two flat caps) in eye space, writes the true depth, and
-// applies flat color + a screen-space silhouette border. Dashed bonds are a
-// fragment stripe pattern along the axis.
+// applies flat color + a screen-space silhouette border.
 
 in vec3 fA;
 in vec3 fB;
