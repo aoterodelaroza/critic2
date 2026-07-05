@@ -20,7 +20,7 @@
 ! Crystal seed class, contains the structure file readers.
 module crystalseedmod
   use fragmentmod, only: fragment
-  use types, only: species, thread_info, neighstar
+  use types, only: species, thread_info, neighstar, siteocc
   use param, only: mlen
   implicit none
 
@@ -40,6 +40,7 @@ module crystalseedmod
      integer, allocatable :: is(:) !< Species of a given atom
      character*10, allocatable :: atname(:) !< atomic names
      real*8, allocatable :: occ(:) !< site occupancies; allocated only if the source has partial occupancies (unallocated = all 1)
+     type(siteocc), allocatable :: mix(:) !< co-occupants of mixed sites (per atom); allocated only when the seed carries mixed sites (unallocated = none)
      ! species
      integer :: nspc = 0 !< Number of species
      type(species), allocatable :: spc(:) !< Species

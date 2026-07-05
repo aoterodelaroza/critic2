@@ -64,17 +64,20 @@ contains
        seed%nat = c%nneq
        allocate(seed%x(3,c%nneq),seed%is(c%nneq),seed%atname(c%nneq))
        if (c%haveocc) allocate(seed%occ(c%nneq))
+       if (c%haveocc) allocate(seed%mix(c%nneq))
        do i = 1, c%nneq
           seed%x(:,i) = c%at(i)%x
           seed%is(i) = c%at(i)%is
           seed%atname(i) = c%at(i)%name
           if (c%haveocc) seed%occ(i) = c%at(i)%occ
+          if (c%haveocc) seed%mix(i) = c%at(i)%mix
        end do
     else
        ! the complete cell list
        seed%nat = c%ncel
        allocate(seed%x(3,c%ncel),seed%is(c%ncel),seed%atname(c%ncel))
        if (c%haveocc) allocate(seed%occ(c%ncel))
+       if (c%haveocc) allocate(seed%mix(c%ncel))
        do i = 1, c%ncel
           if (useabr_ == 0 .and. c%ismolecule) then
              ! molecule + useabr==0: struct_new expects absolute Cartesian (bohr)
@@ -87,6 +90,8 @@ contains
           seed%is(i) = c%atcel(i)%is
           seed%atname(i) = c%at(c%atcel(i)%idx)%name
           if (c%haveocc) seed%occ(i) = c%at(c%atcel(i)%idx)%occ
+          if (c%haveocc) &
+             seed%mix(i) = c%at(c%atcel(i)%idx)%mix
        end do
     end if
 
@@ -198,6 +203,7 @@ contains
     seed%nat = c%ncel * nc(1) * nc(2) * nc(3)
     allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
     if (c%haveocc) allocate(seed%occ(seed%nat))
+    if (c%haveocc) allocate(seed%mix(seed%nat))
     do i = 1, c%ncel
        smass = sqrt(atmass(c%spc(c%atcel(i)%is)%z))
        do ix = 0, nc(1)-1
@@ -213,6 +219,8 @@ contains
                 seed%is(k) = c%atcel(i)%is
                 seed%atname(k) = c%at(c%atcel(i)%idx)%name
                 if (c%haveocc) seed%occ(k) = c%at(c%atcel(i)%idx)%occ
+                if (c%haveocc) &
+                   seed%mix(k) = c%at(c%atcel(i)%idx)%mix
              end do
           end do
        end do
@@ -359,6 +367,7 @@ contains
           ntot = product(nvec)
           allocate(ncseed%x(3,c%ncel * ntot),ncseed%is(c%ncel * ntot),ncseed%atname(c%ncel * ntot))
           if (c%haveocc) allocate(ncseed%occ(c%ncel * ntot))
+          if (c%haveocc) allocate(ncseed%mix(c%ncel * ntot))
 
           nn = 0
           do i = 1, nvec(1)
@@ -371,6 +380,8 @@ contains
                       ncseed%x(:,nn) = (c%atcel(m)%x-t) / real(nvec,8) + xshift
                       ncseed%atname(nn) = c%at(c%atcel(m)%idx)%name
                       if (c%haveocc) ncseed%occ(nn) = c%at(c%atcel(m)%idx)%occ
+                      if (c%haveocc) &
+                         ncseed%mix(nn) = c%at(c%atcel(m)%idx)%mix
                    end do
                 end do
              end do
@@ -451,6 +462,7 @@ contains
           end if
           allocate(ncseed%x(3,nn),ncseed%is(nn),ncseed%atname(nn))
           if (c%haveocc) allocate(ncseed%occ(nn))
+          if (c%haveocc) allocate(ncseed%mix(nn))
           do i = 1, nlat
              do j = 1, c%ncel
                 ! candidate atom
@@ -475,11 +487,14 @@ contains
                       call realloc(ncseed%is,2*ncseed%nat)
                       call realloc(ncseed%atname,2*ncseed%nat)
                       if (c%haveocc) call realloc(ncseed%occ,2*ncseed%nat)
+                      if (c%haveocc) call realloc(ncseed%mix,2*ncseed%nat)
                    end if
                    ncseed%x(:,ncseed%nat) = x
                    ncseed%is(ncseed%nat) = c%atcel(j)%is
                    ncseed%atname(ncseed%nat) = c%at(c%atcel(j)%idx)%name
                    if (c%haveocc) ncseed%occ(ncseed%nat) = c%at(c%atcel(j)%idx)%occ
+                   if (c%haveocc) &
+                      ncseed%mix(ncseed%nat) = c%at(c%atcel(j)%idx)%mix
                 end if
              end do
           end do
@@ -487,6 +502,7 @@ contains
           call realloc(ncseed%is,ncseed%nat)
           call realloc(ncseed%atname,ncseed%nat)
           if (c%haveocc) call realloc(ncseed%occ,ncseed%nat)
+          if (c%haveocc) call realloc(ncseed%mix,ncseed%nat)
           deallocate(xlat)
        end if
     end if
@@ -791,6 +807,7 @@ contains
     seed%is = seed%is(iperm(:))
     seed%atname = seed%atname(iperm(:))
     if (allocated(seed%occ)) seed%occ = seed%occ(iperm(:))
+    if (allocated(seed%mix)) seed%mix = seed%mix(iperm(:))
 
     ! reload the crystal
     call c%struct_new(seed,.true.,ti=ti)
@@ -849,6 +866,7 @@ contains
     seed%is = seed%is(atperm(:))
     seed%atname = seed%atname(atperm(:))
     if (allocated(seed%occ)) seed%occ = seed%occ(atperm(:))
+    if (allocated(seed%mix)) seed%mix = seed%mix(atperm(:))
 
     ! reload the crystal
     call c%struct_new(seed,.true.,ti=ti)
@@ -865,7 +883,7 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
-    integer :: i
+    integer :: i, j
     integer, allocatable :: iiperm(:)
 
     ! make the new seed
@@ -878,10 +896,16 @@ contains
        iiperm(iperm(i)) = i
     end do
 
-    ! reorder the species
+    ! reorder the species (remap the species indices, including the co-occupant
+    ! lists, which are stored as species indices)
     seed%spc = seed%spc(iperm(:))
     do i = 1, seed%nat
        seed%is(i) = iiperm(seed%is(i))
+       if (allocated(seed%mix)) then
+          do j = 1, seed%mix(i)%nocc
+             seed%mix(i)%is(j) = iiperm(seed%mix(i)%is(j))
+          end do
+       end if
     end do
 
     ! reload the crystal
@@ -1053,6 +1077,7 @@ contains
     ! calculate the asymmetric unit for the new group, write it down in the seed
     allocate(ncseed%x(3,c%ncel),ncseed%is(c%ncel),ncseed%atname(c%ncel))
     if (c%haveocc) allocate(ncseed%occ(c%ncel))
+    if (c%haveocc) allocate(ncseed%mix(c%ncel))
     ncseed%nat = 0
     allocate(isuse(c%ncel))
     isuse = .false.
@@ -1075,6 +1100,8 @@ contains
        ncseed%is(ncseed%nat) = c%atcel(i)%is
        ncseed%atname(ncseed%nat) = c%at(c%atcel(i)%idx)%name
        if (c%haveocc) ncseed%occ(ncseed%nat) = c%at(c%atcel(i)%idx)%occ
+       if (c%haveocc) &
+          ncseed%mix(ncseed%nat) = c%at(c%atcel(i)%idx)%mix
     end do
     deallocate(isuse)
 
@@ -1208,6 +1235,9 @@ contains
     call realloc(seed%is,natnew)
     call realloc(seed%atname,natnew)
     if (allocated(seed%occ)) call realloc(seed%occ,natnew)
+    ! rebuild the co-occupant lists fresh (the atom set changes here)
+    if (allocated(seed%mix)) deallocate(seed%mix)
+    if (c%haveocc) allocate(seed%mix(natnew))
 
     ! re-do the atom and species info
     seed%nat = 0
@@ -1218,12 +1248,16 @@ contains
           seed%atname(seed%nat) = c%at(c%atcel(i)%idx)%name
           seed%is(seed%nat) = c%atcel(i)%is
           if (allocated(seed%occ)) seed%occ(seed%nat) = c%at(c%atcel(i)%idx)%occ
+          if (c%haveocc) &
+             seed%mix(seed%nat) = c%at(c%atcel(i)%idx)%mix
           if (dupatoms(i)) then
              seed%nat = seed%nat + 1
              seed%x(:,seed%nat) = c%atcel(i)%x
              seed%atname(seed%nat) = c%at(c%atcel(i)%idx)%name
              seed%is(seed%nat) = c%atcel(i)%is
              if (allocated(seed%occ)) seed%occ(seed%nat) = c%at(c%atcel(i)%idx)%occ
+             if (c%haveocc) &
+                seed%mix(seed%nat) = c%at(c%atcel(i)%idx)%mix
           end if
        end if
     end do
@@ -1268,10 +1302,11 @@ contains
     if (present(copybonding)) copybonding_ = copybonding
     call c%makeseed(seed,copysym=.false.,copybonding=copybonding_)
 
-    ! apply the change
+    ! apply the change; a re-speciated atom is no longer a mixed site
     do i = 1, nat
        seed%is(iat(i)) = is
        seed%atname(iat(i)) = c%spc(is)%name
+       if (allocated(seed%mix)) seed%mix(iat(i))%nocc = 0
     end do
 
     ! build the new crystal

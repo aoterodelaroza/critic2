@@ -126,6 +126,7 @@ module systems
      procedure :: set_attype_name
      procedure :: set_attype_occupancy
      procedure :: attype_occupancy
+     procedure :: attype_mixed
      procedure :: attype_coordinates
      procedure :: attype_coordinates_decimals
      procedure :: attype_coordinates_units
@@ -329,6 +330,12 @@ module systems
        integer, intent(in) :: id
        real*8 :: attype_occupancy
      end function attype_occupancy
+     module function attype_mixed(sysc,type,id)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: type
+       integer, intent(in) :: id
+       character(len=:), allocatable :: attype_mixed
+     end function attype_mixed
      module function attype_coordinates(sysc,type,id)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: type

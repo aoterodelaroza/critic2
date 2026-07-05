@@ -1511,6 +1511,29 @@ contains
 
   end function attype_occupancy
 
+  ! For the given atom type and id, return the list of occupants of a mixed
+  ! site ("Ta 0.500 / Mg 0.250 / Na 0.250"), or an empty string if not mixed.
+  module function attype_mixed(sysc,type,id)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: id
+    character(len=:), allocatable :: attype_mixed
+
+    integer :: isys, ineq
+
+    attype_mixed = ""
+    isys = sysc%id
+    if (type == atlisttype_nneq) then
+       ineq = id
+    elseif (type /= atlisttype_species .and. type /= atlisttype_nmol) then
+       ineq = sys(isys)%c%atcel(id)%idx
+    else
+       return
+    end if
+    attype_mixed = sys(isys)%c%mix_string(ineq,decimal=3)
+
+  end function attype_mixed
+
   ! For the given atom type, return the corresponding atomic
   ! coordinates.
   module function attype_coordinates(sysc,type,id)

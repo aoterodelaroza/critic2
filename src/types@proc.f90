@@ -229,6 +229,26 @@ contains
   end subroutine realloc_basicatom
 
   !> Adapt the size of an allocatable 1D type(atom) array
+  pure module subroutine realloc_siteocc(a,nnew)
+    type(siteocc), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(siteocc), allocatable :: temp(:)
+    integer :: nold
+
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
+    nold = size(a)
+    if (nold == nnew) return
+    allocate(temp(nnew))
+
+    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_siteocc
+
   pure module subroutine realloc_neqatom(a,nnew)
     type(neqatom), intent(inout), allocatable :: a(:)
     integer, intent(in) :: nnew

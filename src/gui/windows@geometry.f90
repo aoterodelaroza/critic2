@@ -74,6 +74,7 @@ contains
     logical(c_bool) :: is_selected
     integer(c_int) :: atompreflags, flags, ntype, ncol, ndigit, ndigitm, ndigitidx, color
     character(kind=c_char,len=:), allocatable, target :: s, str1, str2, suffix
+    character(len=:), allocatable :: smix
     character(kind=c_char,len=:), allocatable, target :: strx, stry, strz, stropt
     character(len=:), allocatable :: name
     integer, allocatable :: ihigh(:)
@@ -849,6 +850,10 @@ contains
                                iaction_x(1) = occval
                             end if
                          end if
+                         ! mixed site: list the occupants on hover
+                         smix = sysc(isys)%attype_mixed(w%geometry_atomtype,i)
+                         if (len_trim(smix) > 0) &
+                            call iw_tooltip("Mixed site: " // trim(smix))
                       end if
                    end if
 

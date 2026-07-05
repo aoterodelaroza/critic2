@@ -16,8 +16,12 @@ layout (location = 5) in vec3 a_bordercolor; // border color
 layout (location = 6) in vec3 a_xdelta_re;   // vibration delta (real part)
 layout (location = 7) in vec3 a_xdelta_im;   // vibration delta (imag part)
 layout (location = 8) in vec4 a_idx;         // picking index (bit-packed floats)
-layout (location = 9) in float a_occ;        // site occupancy (for sector rendering)
+layout (location = 9) in float a_occ;        // occupancy of pie sector 1 (representative)
 layout (location = 10) in vec3 a_occ_empty;  // color of the empty occupancy sector
+layout (location = 11) in vec3 a_piecum;     // cumulative sector boundaries t2,t3,ttot (mixed sites)
+layout (location = 12) in vec3 a_piecol2;    // color of pie sector 2
+layout (location = 13) in vec3 a_piecol3;    // color of pie sector 3
+layout (location = 14) in vec3 a_piecol4;    // color of pie sector 4
 
 uniform mat4 view;
 uniform mat4 world;
@@ -37,6 +41,10 @@ flat out vec3 fBorderColor;
 flat out vec4 fIdx;
 flat out float fOcc;
 flat out vec3 fOccEmpty;
+flat out vec3 fPieCum;
+flat out vec3 fPieCol2;
+flat out vec3 fPieCol3;
+flat out vec3 fPieCol4;
 
 void main(){
   // animated center (pre-world coords), then to eye space. For a window-anchored
@@ -69,6 +77,10 @@ void main(){
   fIdx = a_idx;
   fOcc = a_occ;
   fOccEmpty = a_occ_empty;
+  fPieCum = a_piecum;
+  fPieCol2 = a_piecol2;
+  fPieCol3 = a_piecol3;
+  fPieCol4 = a_piecol4;
 
   vec4 c = projection * vec4(pos, 1.0);
   gl_Position = (isanchored != 0) ? vec4(anchored_ndc.xy + c.xy, c.z, c.w) : c;

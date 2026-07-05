@@ -68,7 +68,8 @@ module shapes
   ! (template geometry); the per-instance VAOs/VBOs are per-scene, in the
   ! scene_glbuffers type below.
   integer(c_int), target, public :: impQuadVBO ! shared unit-quad corners
-  integer(c_int), parameter, public :: sph_inst_nf = 26 ! floats per sphere instance
+  integer, parameter, public :: maxpie = 4 ! max colored occupancy-pie sectors (rest grey)
+  integer(c_int), parameter, public :: sph_inst_nf = 38 ! floats per sphere instance
   integer(c_int), parameter, public :: cyl_inst_nf = 31 ! floats per cylinder instance
 
   ! instanced plain meshes (planes, polyhedra triangles, cones): per-instance
@@ -87,8 +88,10 @@ module shapes
      complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
      real(c_float) :: border ! border size
      real(c_float) :: rgbborder(3) ! border color
-     real(c_float) :: occ = 1._c_float ! site occupancy (for sector rendering)
+     real(c_float) :: occ = 1._c_float ! occupancy of pie sector 1 (representative)
      real(c_float) :: occ_empty_rgb(3) = 0._c_float ! color of the empty (unoccupied) sector
+     real(c_float) :: pie_cum(3) = 1._c_float ! cumulative sector boundaries t2,t3,ttot (mixed sites)
+     real(c_float) :: pie_rgb(3,3) = 0._c_float ! colors of pie sectors 2,3,4 (mixed sites)
      logical :: ghost = .false. ! invisible pick-only target (atoms hidden, bonds shown)
   end type dl_sphere
   public :: dl_sphere

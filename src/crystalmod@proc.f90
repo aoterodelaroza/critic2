@@ -175,6 +175,12 @@ contains
     character*10, allocatable :: name(:)
     character(len=:), allocatable :: errmsg
     logical :: haveatoms
+    integer, allocatable :: igroup(:) !< coincident-atom grouping (mixed sites)
+    integer, allocatable :: gis(:) !< species of the occupants of one mixed-site group
+    integer, allocatable :: gidx(:) !< seed-atom index of each occupant (for the name)
+    real*8, allocatable :: gocc(:) !< occupancy of the occupants of one mixed-site group
+    integer :: ng, m, irep, iz1, iz2
+    real*8 :: osum, otmp
 
     ! check the seed for internal consistency
     call seed%check(errmsg)
@@ -268,6 +274,12 @@ contains
     ! checkrepeats implies havesym>0 and a crystal
     allocate(useatom(seed%nat))
     useatom = .true.
+    ! igroup(l) is the surviving atom that dropped atom l coincides with (mixed
+    ! sites: several species sharing one position are recorded, not discarded)
+    allocate(igroup(seed%nat))
+    do i = 1, seed%nat
+       igroup(i) = i
+    end do
     if (seed%checkrepeats .and. seed%nat > 0) then
        do i = 1, seed%nat
           if (.not.useatom(i)) cycle
@@ -276,7 +288,10 @@ contains
                 xx = matmul(seed%rotm(1:3,1:3,j),seed%x(:,i)) + seed%rotm(:,4,j) + seed%cen(:,k)
                 do l = i+1, seed%nat
                    if (.not.useatom(l)) cycle
-                   if (c%eql_distance(seed%x(:,l),xx) < atomeps_structnew) useatom(l) = .false.
+                   if (c%eql_distance(seed%x(:,l),xx) < atomeps_structnew) then
+                      useatom(l) = .false.
+                      igroup(l) = i
+                   end if
                 end do
              enddo
           enddo
@@ -360,21 +375,78 @@ contains
        !! to the non-equivalent list c%at and expand to the complete cell list
        !! c%atcel with the symmetry operations.
 
-       ! copy the (checkrepeats-filtered) atoms to the non-equivalent list
+       ! copy the (checkrepeats-filtered) atoms to the non-equivalent list. Atoms
+       ! that coincided with a survivor are its co-occupants; when they are of a
+       ! different species the site is a mixed/substitutional site.
        c%nneq = count(useatom)
        if (allocated(c%at)) deallocate(c%at)
        allocate(c%at(c%nneq))
+       allocate(gis(seed%nat),gocc(seed%nat),gidx(seed%nat))
        i = 0
        do j = 1, seed%nat
-          if (useatom(j)) then
-             i = i + 1
-             c%at(i)%x = seed%x(:,j)
-             c%at(i)%is = seed%is(j)
-             c%at(i)%name = seed%atname(j)
-             if (allocated(seed%occ)) then
-                c%at(i)%occ = seed%occ(j)
+          if (.not.useatom(j)) cycle
+          i = i + 1
+
+          ! gather the coincident group rooted at j (j plus all atoms merged into
+          ! it), collapsing repeated species (keep the maximum occupancy). gidx
+          ! records the seed atom each distinct species came from (for the name).
+          ng = 0
+          do m = 1, seed%nat
+             if (m /= j .and. igroup(m) /= j) cycle
+             otmp = 1d0
+             if (allocated(seed%occ)) otmp = seed%occ(m)
+             irep = 0
+             do l = 1, ng
+                if (gis(l) == seed%is(m)) then
+                   irep = l
+                   exit
+                end if
+             end do
+             if (irep > 0) then
+                gocc(irep) = max(gocc(irep),otmp)
              else
-                c%at(i)%occ = 1d0
+                ng = ng + 1
+                gis(ng) = seed%is(m)
+                gocc(ng) = otmp
+                gidx(ng) = m
+             end if
+          end do
+
+          if (ng >= 2) then
+             ! mixed site: normalize the occupancies to sum 1, then sort by
+             ! decreasing occupancy (ties: higher atomic number first)
+             osum = sum(gocc(1:ng))
+             if (osum > 0d0 .and. abs(osum - 1d0) > 1d-4) &
+                gocc(1:ng) = gocc(1:ng) / osum
+             do l = 1, ng-1
+                do m = l+1, ng
+                   iz1 = c%spc(gis(l))%z
+                   iz2 = c%spc(gis(m))%z
+                   if (gocc(m) > gocc(l) .or. (gocc(m) == gocc(l) .and. iz2 > iz1)) then
+                      otmp = gocc(l); gocc(l) = gocc(m); gocc(m) = otmp
+                      irep = gis(l); gis(l) = gis(m); gis(m) = irep
+                      irep = gidx(l); gidx(l) = gidx(m); gidx(m) = irep
+                   end if
+                end do
+             end do
+             allocate(c%at(i)%mix)
+             c%at(i)%mix%nocc = ng
+             c%at(i)%mix%is = gis(1:ng)
+             c%at(i)%mix%occ = gocc(1:ng)
+          end if
+
+          ! representative = occupant 1; its seed atom gidx(1) carries the name
+          c%at(i)%is = gis(1)
+          c%at(i)%occ = gocc(1)
+          c%at(i)%name = seed%atname(gidx(1))
+          c%at(i)%x = seed%x(:,j)
+
+          ! co-occupants carried explicitly by the seed (makeseed/newcell path,
+          ! which emits representatives only, without the flat coincident atoms)
+          if (allocated(seed%mix)) then
+             if (seed%mix(j)%nocc >= 2) then
+                if (.not.allocated(c%at(i)%mix)) allocate(c%at(i)%mix)
+                c%at(i)%mix = seed%mix(j)
              end if
           end if
        end do
@@ -598,11 +670,22 @@ contains
              if (len_trim(errmsg) > 0) call ferror("struct_new","reduceatoms: "//errmsg,faterr)
           end if
        end if
+
+       ! restore co-occupants carried explicitly by the seed. c%atcel(i) is seed
+       ! atom i and c%atcel(i)%idx is its non-equivalent atom after reduction.
+       if (allocated(seed%mix)) then
+          do i = 1, c%ncel
+             if (seed%mix(i)%nocc >= 2 .and. .not.allocated(c%at(c%atcel(i)%idx)%mix)) then
+                allocate(c%at(c%atcel(i)%idx)%mix)
+                c%at(c%atcel(i)%idx)%mix = seed%mix(i)
+             end if
+          end do
+       end if
        deallocate(name,occcel)
     end if
     if (allocated(useatom)) deallocate(useatom)
 
-    ! flag the presence of partial occupancies
+    ! flag the presence of non-trivial occupancies (partial or mixed)
     call c%set_haveocc()
 
     ! overlay the spglib space-group labels, common to both paths (P1 just
@@ -683,7 +766,34 @@ contains
     use global, only: occ_eps
     class(crystal), intent(inout) :: c
 
-    c%haveocc = any(c%at(1:c%nneq)%occ < 1d0-occ_eps)
+    integer :: i
+
+    ! haveocc: any site with partial occupancy or with more than one occupant
+    c%haveocc = .false.
+    do i = 1, c%nneq
+       if (c%at(i)%occ < 1d0-occ_eps) c%haveocc = .true.
+       if (allocated(c%at(i)%mix)) then
+          if (c%at(i)%mix%nocc >= 2) c%haveocc = .true.
+       end if
+       if (c%haveocc) exit
+    end do
+
+    ! Keep %mix allocated for every non-equivalent atom iff haveocc: a single
+    ! (partial or full) occupancy is a one-occupant site. This way the rest of
+    ! the code never has to test whether %mix is allocated - it is whenever
+    ! haveocc is true.
+    do i = 1, c%nneq
+       if (c%haveocc) then
+          if (.not.allocated(c%at(i)%mix)) then
+             allocate(c%at(i)%mix)
+             c%at(i)%mix%nocc = 1
+             c%at(i)%mix%is = [c%at(i)%is]
+             c%at(i)%mix%occ = [c%at(i)%occ]
+          end if
+       elseif (allocated(c%at(i)%mix)) then
+          deallocate(c%at(i)%mix)
+       end if
+    end do
 
   end subroutine set_haveocc
 

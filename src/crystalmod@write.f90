@@ -133,9 +133,10 @@ contains
           write (uout,'("# at = complete list atomic ID. xyz = Cartesian coordinates. spc = atomic species.")')
           write (uout,'("# wyck = wyckoff position. name = atomic name (symbol). mult = multiplicity.")')
           write (uout,'("# Z = atomic number.")')
-          ! the occupancy column is shown only for structures with partial occupancies
+          ! the occupancy column is shown only for structures with partial
+          ! occupancies; a mixed site lists the occupants instead of a number
           if (c%haveocc) &
-             write (uout,'("# occ = site occupancy.")')
+             write (uout,'("# occ = site occupancy (mixed sites: the species and occupancy of each occupant).")')
 
           if (c%haveocc) then
              str1 = string("occ",8,ioj_center)
@@ -148,10 +149,14 @@ contains
              string("name",7,ioj_center), string("mult",4,ioj_center), string("Z",3,ioj_center), str1
           do i=1, c%nneq
              is = c%at(i)%is
-             if (c%haveocc) then
-                str1 = string(c%at(i)%occ,'f',length=8,decimal=4,justify=3)
-             else
+             ! occupancy column: the occupant list for a mixed site, a single
+             ! number for a single (partial or full) occupancy, empty otherwise
+             if (.not.c%haveocc) then
                 str1 = ""
+             elseif (c%at(i)%mix%nocc >= 2) then
+                str1 = c%mix_string(i)
+             else
+                str1 = string(c%at(i)%occ,'f',length=8,decimal=4,justify=3)
              end if
              write (uout,'("  ",99(A," "))') string(i,3,ioj_center),&
                 (string(c%at(i)%x(j),'f',length=14,decimal=10,justify=3),j=1,3),&
@@ -408,6 +413,31 @@ contains
     end if
 
   end subroutine struct_report
+
+  !> Return the occupant list of a mixed/substitutional non-equivalent
+  !> site i or an empty string if i is not mixed. decimal (default 2)
+  !> sets the number of occupancy decimals.
+  module function mix_string(c,i,decimal) result(str)
+    use tools_io, only: string
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: i
+    integer, intent(in), optional :: decimal
+    character(len=:), allocatable :: str
+
+    integer :: k, dec
+
+    str = ""
+    if (.not.allocated(c%at(i)%mix)) return
+    if (c%at(i)%mix%nocc < 2) return
+    dec = 2
+    if (present(decimal)) dec = decimal
+    do k = 1, c%at(i)%mix%nocc
+       str = str // trim(c%spc(c%at(i)%mix%is(k))%name) // "(" //&
+          string(c%at(i)%mix%occ(k),'f',decimal=dec) // ")"
+       if (k < c%at(i)%mix%nocc) str = str // "/"
+    end do
+
+  end function mix_string
 
   !> Write information about the crystal symmetry.
   module subroutine struct_report_symmetry(c)
@@ -1861,7 +1891,8 @@ contains
     logical, intent(in) :: usesym0
     type(thread_info), intent(in), optional :: ti
 
-    integer :: i, j, iz, lu, idx, gcdz
+    integer :: i, j, k, iz, lu, idx, gcdz
+    logical :: ismix
     character(len=mlen), allocatable :: strfin(:)
     character*2 :: sym
     character*3 :: schpg
@@ -2030,28 +2061,56 @@ contains
     write (lu,'("_atom_site_fract_y")')
     write (lu,'("_atom_site_fract_z")')
     write (lu,'("_atom_site_occupancy")')
-    ! the occupancy is always written (1 for fully occupied sites)
     if (usesym) then
        do i = 1, c%nneq
-          iz = c%at(i)%is
-          str = trim(c%at(i)%name) // string(addlabel(i))
-          write (lu,'(6(A," "))') string(str,5,ioj_left),&
-             string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
-             (string(c%at(i)%x(j),'f',decimal=14),j=1,3),&
-             string(c%at(i)%occ,'f',decimal=4)
+          ismix = .false.
+          if (c%haveocc) ismix = (c%at(i)%mix%nocc >= 2)
+          if (ismix) then
+             do k = 1, c%at(i)%mix%nocc
+                iz = c%at(i)%mix%is(k)
+                call wline(trim(c%spc(iz)%name) // string(i) // "_" // string(k),&
+                   iz,c%at(i)%x,c%at(i)%mix%occ(k))
+             end do
+          else
+             call wline(trim(c%at(i)%name) // string(addlabel(i)),c%at(i)%is,&
+                c%at(i)%x,c%at(i)%occ)
+          end if
        end do
     else
        do i = 1, c%ncel
-          iz = c%atcel(i)%is
-          str = trim(c%at(c%atcel(i)%idx)%name) // string(addlabel(i))
-          write (lu,'(6(A," "))') string(str,5,ioj_left),&
-             string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
-             (string(c%atcel(i)%x(j),'f',decimal=14),j=1,3),&
-             string(c%at(c%atcel(i)%idx)%occ,'f',decimal=4)
+          idx = c%atcel(i)%idx
+          ismix = .false.
+          if (c%haveocc) ismix = (c%at(idx)%mix%nocc >= 2)
+          if (ismix) then
+             do k = 1, c%at(idx)%mix%nocc
+                iz = c%at(idx)%mix%is(k)
+                call wline(trim(c%spc(iz)%name) // string(i) // "_" // string(k),&
+                   iz,c%atcel(i)%x,c%at(idx)%mix%occ(k))
+             end do
+          else
+             call wline(trim(c%at(idx)%name) // string(addlabel(i)),c%atcel(i)%is,&
+                c%atcel(i)%x,c%at(idx)%occ)
+          end if
        end do
     end if
     deallocate(addlabel)
     call fclose(lu)
+
+  contains
+    ! write one _atom_site line: label, type symbol, fractional coords, occupancy
+    subroutine wline(lbl,iz,x,occ)
+      character(len=*), intent(in) :: lbl
+      integer, intent(in) :: iz
+      real*8, intent(in) :: x(3)
+      real*8, intent(in) :: occ
+
+      integer :: jj
+
+      write (lu,'(6(A," "))') string(lbl,5,ioj_left),&
+         string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
+         (string(x(jj),'f',decimal=14),jj=1,3),&
+         string(occ,'f',decimal=4)
+    end subroutine wline
 
   end subroutine write_cif
 

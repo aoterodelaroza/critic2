@@ -19,7 +19,7 @@
 ! Structure class and routines for basic crystallography computations
 module crystalmod
   use spglib, only: SpglibDataset
-  use types, only: neqatom, celatom, neighstar, species, cp_type
+  use types, only: neqatom, celatom, neighstar, species, cp_type, siteocc
   use fragmentmod, only: fragment
   use molsymmod, only: point_group
   use param, only: maxzat0, mlen
@@ -156,8 +156,7 @@ module crystalmod
      ! complete atoms list
      integer :: ncel = 0 !< Number of atoms in the main cell
      type(celatom), allocatable :: atcel(:) !< List of atoms in the main cell
-     ! partial occupancies
-     logical :: haveocc = .false. !< are there sites with partial occupancy (occ < 1)?
+     logical :: haveocc = .false. !< are there sites with non-trivial occupancy (occ < 1 or mixed)?
      ! cell and lattice metrics
      real*8 :: aa(3) !< cell lengths (bohr)
      real*8 :: bb(3) !< cell angles (degrees)
@@ -239,7 +238,8 @@ module crystalmod
      procedure :: init => struct_init !< Allocate arrays and nullify variables
      procedure :: end => struct_end !< Deallocate arrays and nullify variables
      procedure :: struct_new !< Initialize the structure from a crystal seed
-     procedure :: set_haveocc !< Recompute the partial-occupancy flag (haveocc)
+     procedure :: set_haveocc !< Recompute the occupancy flag (haveocc)
+     procedure :: mix_string !< Format the occupant list of a mixed site
      procedure :: calc_vacuum_lengths !< Calculate the vacuum lengths and slab limits
      procedure :: recompute_molecular_cell !< Re-fit the molecular cell to the current atoms (molecules)
 
@@ -438,6 +438,12 @@ module crystalmod
      module subroutine set_haveocc(c)
        class(crystal), intent(inout) :: c
      end subroutine set_haveocc
+     module function mix_string(c,i,decimal) result(str)
+       class(crystal), intent(in) :: c
+       integer, intent(in) :: i
+       integer, intent(in), optional :: decimal
+       character(len=:), allocatable :: str
+     end function mix_string
      module subroutine calc_vacuum_lengths(c)
        class(crystal), intent(inout) :: c
      end subroutine calc_vacuum_lengths

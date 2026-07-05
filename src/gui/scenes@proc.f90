@@ -711,7 +711,7 @@ contains
          call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
             (/s%obj%sph(i)%rgb,1._c_float/),s%obj%sph(i)%border,&
             s%obj%sph(i)%rgbborder,s%obj%sph(i)%xdelta,zr,s%obj%sph(i)%occ,&
-            s%obj%sph(i)%occ_empty_rgb)
+            s%obj%sph(i)%occ_empty_rgb,s%obj%sph(i)%pie_cum,s%obj%sph(i)%pie_rgb)
       end do
       call s%gl%draw_spheres(n,s%gl%packsph,.false.)
       s%gl%nsph_inst = n
@@ -2082,7 +2082,7 @@ contains
 
   !> Pack one sphere instance into column col of an instance buffer (layout
   !> must match the sphinstVAO attribute offsets set in glbuffers_init).
-  subroutine sphere_pack(col,x,r,rgba,border,bcol,xdelta,ridx,occ,occempty)
+  subroutine sphere_pack(col,x,r,rgba,border,bcol,xdelta,ridx,occ,occempty,piecum,piergb)
     use shapes, only: sph_inst_nf
     real(c_float), intent(out) :: col(sph_inst_nf)
     real(c_float), intent(in) :: x(3), r, rgba(4), border, bcol(3)
@@ -2090,6 +2090,8 @@ contains
     real(c_float), intent(in) :: ridx(4)
     real(c_float), intent(in) :: occ
     real(c_float), intent(in) :: occempty(3)
+    real(c_float), intent(in), optional :: piecum(3)   ! mixed-site sector boundaries
+    real(c_float), intent(in), optional :: piergb(3,3) ! mixed-site sector colors
 
     col(1:3) = x
     col(4) = r
@@ -2101,6 +2103,19 @@ contains
     col(19:22) = ridx
     col(23) = occ
     col(24:26) = occempty
+    ! mixed-site pie extras (absent for overlays/single-occupant spheres)
+    if (present(piecum)) then
+       col(27:29) = piecum
+    else
+       col(27:29) = 1._c_float
+    end if
+    if (present(piergb)) then
+       col(30:32) = piergb(:,1)
+       col(33:35) = piergb(:,2)
+       col(36:38) = piergb(:,3)
+    else
+       col(30:38) = 0._c_float
+    end if
 
   end subroutine sphere_pack
 

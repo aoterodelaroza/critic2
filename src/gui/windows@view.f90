@@ -889,7 +889,11 @@ contains
        ineq = sys(w%view_selected)%c%atcel(icel)%idx
        ismol = sys(w%view_selected)%c%ismolecule
 
-       msg = trim(sys(w%view_selected)%c%at(ineq)%name)
+       ! lead with the occupant list for a mixed site, otherwise the atom name
+       ! (mix_string returns empty for a single-occupant site)
+       msg = sys(w%view_selected)%c%mix_string(ineq)
+       if (len_trim(msg) == 0) &
+          msg = trim(sys(w%view_selected)%c%at(ineq)%name)
        if (.not.ismol) then
           x0 = sys(w%view_selected)%c%atcel(icel)%x
 

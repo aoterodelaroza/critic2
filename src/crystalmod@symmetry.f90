@@ -416,6 +416,7 @@ contains
     real*8 :: rotm(3,3), x0(3)
     character*10, allocatable :: name(:)
     real*8, allocatable :: occs(:)
+    type(siteocc), allocatable :: mixs(:)
 
     c%spgavail = .false.
     call c%spglib_wrap(c%spg,usenneq,errmsg,ti=ti)
@@ -427,9 +428,11 @@ contains
     c%spgavail = .true.
 
     ! make a copy of nneq into ncel, if appropriate
+    ! carry the mixed-site co-occupant lists through the rebuild, keyed by the
+    ! cell atom they come from (they are not stored in the cell list)
     if (usenneq) then
        c%ncel = c%nneq
-       allocate(name(c%ncel),occs(c%ncel))
+       allocate(name(c%ncel),occs(c%ncel),mixs(c%ncel))
        if (allocated(c%atcel)) deallocate(c%atcel)
        allocate(c%atcel(c%ncel))
        do i = 1, c%ncel
@@ -444,12 +447,14 @@ contains
           c%atcel(i)%cidx = i
           name(i) = c%at(i)%name
           occs(i) = c%at(i)%occ
+          if (allocated(c%at(i)%mix)) mixs(i) = c%at(i)%mix
        end do
     else
-       allocate(name(c%ncel),occs(c%ncel))
+       allocate(name(c%ncel),occs(c%ncel),mixs(c%ncel))
        do i = 1, c%ncel
           name(i) = c%at(c%atcel(i)%idx)%name
           occs(i) = c%at(c%atcel(i)%idx)%occ
+          if (allocated(c%at(c%atcel(i)%idx)%mix)) mixs(i) = c%at(c%atcel(i)%idx)%mix
        end do
     end if
 
@@ -470,6 +475,13 @@ contains
           c%at(c%nneq)%mult = 1
           c%at(c%nneq)%wyc = "?"
           c%at(c%nneq)%occ = occs(idx)
+          ! restore (or clear stale) mixed-site co-occupants for this representative
+          if (mixs(idx)%nocc >= 2) then
+             if (.not.allocated(c%at(c%nneq)%mix)) allocate(c%at(c%nneq)%mix)
+             c%at(c%nneq)%mix = mixs(idx)
+          else if (allocated(c%at(c%nneq)%mix)) then
+             deallocate(c%at(c%nneq)%mix)
+          end if
        else
           c%at(iidx(idx))%mult = c%at(iidx(idx))%mult + 1
        end if
@@ -477,7 +489,8 @@ contains
        c%atcel(i)%cidx = i
     end do
     call realloc(c%at,c%nneq)
-    deallocate(name,occs)
+    deallocate(name,occs,mixs)
+    call c%set_haveocc()
 
     ! unpack spglib's output into pure translations and symops
     c%neqv = 1

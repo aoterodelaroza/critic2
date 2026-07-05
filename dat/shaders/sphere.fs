@@ -14,6 +14,10 @@ flat in vec3 fBorderColor;
 flat in vec4 fIdx;
 flat in float fOcc;
 flat in vec3 fOccEmpty;
+flat in vec3 fPieCum;    // cumulative sector boundaries t2,t3,ttot (mixed sites)
+flat in vec3 fPieCol2;   // color of pie sector 2
+flat in vec3 fPieCol3;   // color of pie sector 3
+flat in vec3 fPieCol4;   // color of pie sector 4
 
 uniform mat4 projection;
 uniform int isortho;   // 1=orthographic, 0=perspective
@@ -57,28 +61,38 @@ void main(){
   vec3 vx = hit - fCenterEye;                 // |vx| == fRadius
   float rproj = length(vx - dot(vx, rd) * rd);
 
-  // Partial-occupancy pie: paint an azimuthal sector proportional to
-  // the occupancy in the element color and the rest in the
-  // empty-sector color (fOccEmpty).
+  // Occupancy pie: up to four species sectors proportional to their occupancy,
+  // and the empty-sector color (fOccEmpty) for any residual vacancy. Sector
+  // boundaries are the cumulative fractions t1=fOcc, (t2,t3,ttot)=fPieCum,
+  // measured from the +y axis so the 0.5-occupancy division is vertical. For a
+  // full/single-species atom the extra sectors are zero-width.
+  const float TAU = 6.2831853;
   vec4 base = fColor;
-  if (fOcc < 0.999){
+  // enter the pie for a partially-occupied atom, or a mixed site with a real
+  // second sector (fPieCum.x = t2 > t1 = fOcc) even if the representative is ~full
+  if (fOcc < 0.999 || fPieCum.x > fOcc + 1e-4){
     vec2 p = vx.xy;
-    // the pie starts at the +y axis (angle pi/2), so the 0.5-occupancy division
-    // is vertical; the two division rays are at +y (d1) and at +y+occ*2pi (d2)
-    float ang = fOcc * 6.2831853;
-    float phi = atan(p.y, p.x) - 1.5707963;
-    if (phi < 0.0) phi += 6.2831853;
-    if (phi >= ang)
-      base = vec4(fOccEmpty, fColor.a);
+    float pf = (atan(p.y, p.x) - 1.5707963) / TAU;  // fraction from +y, [0,1)
+    if (pf < 0.0) pf += 1.0;
 
-    // border along the two sector division rays, same thickness as the atom
-    // rim border (fBorder). d1 = (0,1) is the +y axis; d2 rotates by ang.
+    float t1 = fOcc, t2 = fPieCum.x, t3 = fPieCum.y, ttot = fPieCum.z;
+    vec3 col;
+    if (pf < t1)        col = fColor.rgb;
+    else if (pf < t2)   col = fPieCol2;
+    else if (pf < t3)   col = fPieCol3;
+    else if (pf < ttot) col = fPieCol4;
+    else                col = fOccEmpty;
+    base = vec4(col, fColor.a);
+
+    // border along each sector-division ray, same thickness as the rim border
     float halfw = 0.5 * fBorder;
-    vec2 d2 = vec2(-sin(ang), cos(ang));
-    bool ondiv = (p.y >= 0.0 && abs(p.x) < halfw) ||
-                 (dot(p, d2) >= 0.0 && abs(p.x*d2.y - p.y*d2.x) < halfw);
-    if (ondiv)
-      base = vec4(fBorderColor, fColor.a);
+    float bnd[5];
+    bnd[0] = 0.0; bnd[1] = t1; bnd[2] = t2; bnd[3] = t3; bnd[4] = ttot;
+    for (int k = 0; k < 5; k++){
+      vec2 d = vec2(-sin(bnd[k]*TAU), cos(bnd[k]*TAU));
+      if (dot(p, d) >= 0.0 && abs(p.x*d.y - p.y*d.x) < halfw)
+        base = vec4(fBorderColor, fColor.a);
+    }
   }
 
   if (fRadius - rproj < fBorder)

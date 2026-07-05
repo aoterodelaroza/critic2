@@ -497,7 +497,8 @@ contains
     use systemmod, only: system
     use crystalmod, only: crystal, iperiod_vacthr, symop_kind_plane
     use arithmetic, only: pretokenize, token
-    use gui_main, only: ColorAxes_def
+    use gui_main, only: ColorAxes_def, ColorElement
+    use shapes, only: maxpie
     use tools_io, only: string
     use tools_math, only: cross, plane_from_points
     use types, only: realloc
@@ -516,7 +517,7 @@ contains
     integer :: i1, i2, i3, ix(3), idl
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3), iord
     integer :: nimg, nres, nbond, mb, mbb
-    real(c_float) :: rgb(3), occ1
+    real(c_float) :: rgb(3), occ1, piecum(3), piergb(3,3)
     real*8 :: rad1, rad2, dd, f1, f2, axsc
     integer, allocatable :: hbcat(:) ! per-bond H-bond class cache for the current atom
     real(c_float) :: bondrgb(3)
@@ -777,11 +778,9 @@ contains
           rgb = r%atoms%style%rgb(:,id) * r%mols%style%tint_rgb(:,imol)
           rad1 = r%atoms%style%rad(id) * r%mols%style%scale_rad(imol)
 
-          ! site occupancy for sector rendering (1 unless the system
-          ! has partial occupancies and the option is on)
-          occ1 = 1._c_float
-          if (r%atoms%occ_sectors .and. c%haveocc) &
-             occ1 = real(c%at(c%atcel(i)%idx)%occ,c_float)
+          ! occupancy pie sectors for this atom (occ1 = first sector; piecum/piergb
+          ! carry the extra sectors of a mixed/substitutional site)
+          call mixpie(c%atcel(i)%idx,occ1,piecum,piergb)
 
           ! coordination polyhedron: if this atom is a shown center, find its
           ! corner atoms once (translation-invariant; reused for every image)
@@ -902,6 +901,8 @@ contains
                          dsph%rgbborder = r%atoms%border_rgb
                          dsph%occ = occ1
                          dsph%occ_empty_rgb = r%atoms%occ_empty_rgb
+                         dsph%pie_cum = piecum
+                         dsph%pie_rgb = piergb
                          dsph%ghost = .false.
                       else
                          dsph%r = real(2d0 * r%bonds%rad,c_float) ! generous click radius
@@ -1071,9 +1072,7 @@ contains
              ! animation delta of the corner atom (so it moves with the polyhedron)
              xdelta1 = vibdelta(cornlist(1,ica),ix)
 
-             occ1 = 1._c_float
-             if (r%atoms%occ_sectors .and. c%haveocc) &
-                occ1 = real(c%at(c%atcel(cornlist(1,ica))%idx)%occ,c_float)
+             call mixpie(c%atcel(cornlist(1,ica))%idx,occ1,piecum,piergb)
 
              dsph%x = real(xc + uoriginc,c_float)
              dsph%r = real(rad1,c_float)
@@ -1085,6 +1084,8 @@ contains
              dsph%rgbborder = r%atoms%border_rgb
              dsph%occ = occ1
              dsph%occ_empty_rgb = r%atoms%occ_empty_rgb
+             dsph%pie_cum = piecum
+             dsph%pie_rgb = piergb
              dsph%ghost = .false.
              call dl_append(obj%sph,obj%nsph,dsph)
           end do
@@ -1668,6 +1669,40 @@ contains
       dv = vibbase(:,iat) * exp(img * tpi * dot_product(real(ix,8),c%vib%qpt(:,iqpt)))
 
     end function vibdelta
+
+    ! Occupancy pie for the non-equivalent atom idx: occ1 is the first sector
+    ! (representative occupancy); piecum = (t2,t3,ttot) cumulative sector
+    ! boundaries and piergb = colors of sectors 2,3,4 for a mixed site (up to 4
+    ! colored sectors, remainder grey). For a full/single-partial atom the extra
+    ! sectors are zero-width. All defaults render exactly as the single-species
+    ! sector path when the option is off or the atom is fully occupied.
+    subroutine mixpie(idx,occ1,piecum,piergb)
+      integer, intent(in) :: idx
+      real(c_float), intent(out) :: occ1, piecum(3), piergb(3,3)
+
+      integer :: k
+      real(c_float) :: cum
+
+      occ1 = 1._c_float
+      piecum = 1._c_float
+      piergb = 0._c_float
+      if (.not.(r%atoms%occ_sectors .and. c%haveocc)) return
+
+      ! haveocc guarantees %mix is allocated (one occupant for a single partial
+      ! site, several for a mixed site). Draw the first maxpie occupants as
+      ! colored sectors with cumulative boundaries, any remainder as grey; a
+      ! single occupant leaves the extra sectors zero-width (see the shader).
+      occ1 = real(c%at(idx)%mix%occ(1),c_float)
+      cum = occ1
+      do k = 2, maxpie
+         if (c%at(idx)%mix%nocc >= k) then
+            cum = cum + real(c%at(idx)%mix%occ(k),c_float)
+            piergb(:,k-1) = ColorElement(:,c%spc(c%at(idx)%mix%is(k))%z)
+         end if
+         piecum(k-1) = cum
+      end do
+
+    end subroutine mixpie
 
     subroutine process_vacuum_uc_sticks(ix1,ix2,x1,x2,docycle)
       integer, intent(in) :: ix1(3), ix2(3)

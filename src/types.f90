@@ -25,6 +25,7 @@ module types
   public :: thread_info
   public :: species
   public :: basicatom
+  public :: siteocc
   public :: neqatom
   public :: celatom
   public :: anyatom
@@ -48,6 +49,7 @@ module types
      module procedure realloc_integrable
      module procedure realloc_species
      module procedure realloc_basicatom
+     module procedure realloc_siteocc
      module procedure realloc_neqatom
      module procedure realloc_celatom
      module procedure realloc_anyatom
@@ -101,6 +103,16 @@ module types
      integer :: is = 0 !< species
   end type basicatom
 
+  !> Occupants of a non-equivalent site: the species that share the
+  !> same position, their occupancy, sorted by decreasing
+  !> occupancy. Entry 1 is the representative and matches the parent
+  !> neqatom.
+  type :: siteocc
+     integer :: nocc = 0 !< number of occupants (>= 2 for a mixed site)
+     integer, allocatable :: is(:) !< species of each occupant
+     real*8, allocatable :: occ(:) !< occupancy of each occupant
+  end type siteocc
+
   !> Atom from the non-equivalent atom list (nneq)
   type :: neqatom
      real*8 :: x(3)   !< coordinates (crystallographic)
@@ -110,6 +122,7 @@ module types
      integer :: mult  !< multiplicity
      character*1 :: wyc !< Wyckoff letter
      real*8 :: occ = 1d0 !< site occupancy (1 = fully occupied)
+     type(siteocc), allocatable :: mix !< co-occupants of a mixed site (unallocated otherwise)
   end type neqatom
 
   !> Any atom in the crystal type
@@ -426,6 +439,10 @@ module types
        type(basicatom), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_basicatom
+     pure module subroutine realloc_siteocc(a,nnew)
+       type(siteocc), intent(inout), allocatable :: a(:)
+       integer, intent(in) :: nnew
+     end subroutine realloc_siteocc
      pure module subroutine realloc_neqatom(a,nnew)
        type(neqatom), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew

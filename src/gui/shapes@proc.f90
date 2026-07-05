@@ -545,6 +545,10 @@ contains
       call inst_attrib(8, 4, st, 18) ! a_idx
       call inst_attrib(9, 1, st, 22) ! a_occ
       call inst_attrib(10, 3, st, 23) ! a_occ_empty
+      call inst_attrib(11, 3, st, 26) ! a_piecum (t2,t3,ttot)
+      call inst_attrib(12, 3, st, 29) ! a_piecol2
+      call inst_attrib(13, 3, st, 32) ! a_piecol3
+      call inst_attrib(14, 3, st, 35) ! a_piecol4
       call glBindBuffer(GL_ARRAY_BUFFER, 0)
       call glBindVertexArray(0)
 
