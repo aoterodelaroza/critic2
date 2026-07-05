@@ -156,6 +156,8 @@ module crystalmod
      ! complete atoms list
      integer :: ncel = 0 !< Number of atoms in the main cell
      type(celatom), allocatable :: atcel(:) !< List of atoms in the main cell
+     ! partial occupancies
+     logical :: haveocc = .false. !< are there sites with partial occupancy (occ < 1)?
      ! cell and lattice metrics
      real*8 :: aa(3) !< cell lengths (bohr)
      real*8 :: bb(3) !< cell angles (degrees)
@@ -943,10 +945,11 @@ module crystalmod
        character(len=:), allocatable, intent(out) :: errmsg
        type(thread_info), intent(in), optional :: ti
      end subroutine calcsym
-     module subroutine reduceatoms(c,name,errmsg)
+     module subroutine reduceatoms(c,name,errmsg,occ)
        class(crystal), intent(inout) :: c
        character*10, intent(in) :: name(:)
        character(len=:), allocatable, intent(out) :: errmsg
+       real*8, intent(in), optional :: occ(:)
      end subroutine reduceatoms
      module subroutine guess_spg(c,level)
        class(crystal), intent(inout) :: c

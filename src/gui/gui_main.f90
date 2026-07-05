@@ -106,6 +106,7 @@ module gui_main
 
   ! representation default colors
   real(c_float), parameter, public :: ColorAtomBorder_def(3) = (/0._c_float,0._c_float,0._c_float/) ! atom border (black)
+  real(c_float), parameter, public :: ColorOccEmpty_def(3) = (/0.80_c_float,0.80_c_float,0.80_c_float/) ! empty occupancy sector (light gray)
   real(c_float), parameter, public :: ColorBond_def(3) = (/0._c_float,0._c_float,0._c_float/) ! bond (black)
   real(c_float), parameter, public :: ColorBondBorder_def(3) = (/0._c_float,0._c_float,0._c_float/) ! bond border (black)
   real(c_float), parameter, public :: ColorVdwContacts_def(3) = (/0.51_c_float,0.83_c_float,0.11_c_float/) ! vdw contacts bond (green)

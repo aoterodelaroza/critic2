@@ -109,6 +109,7 @@ module types
      character*10 :: name !< atom name
      integer :: mult  !< multiplicity
      character*1 :: wyc !< Wyckoff letter
+     real*8 :: occ = 1d0 !< site occupancy (1 = fully occupied)
   end type neqatom
 
   !> Any atom in the crystal type

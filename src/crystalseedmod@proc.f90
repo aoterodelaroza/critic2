@@ -48,6 +48,7 @@ contains
     if (allocated(seed%x)) deallocate(seed%x)
     if (allocated(seed%is)) deallocate(seed%is)
     if (allocated(seed%atname)) deallocate(seed%atname)
+    if (allocated(seed%occ)) deallocate(seed%occ)
     seed%neqlist = .false.
     seed%nspc = 0
     if (allocated(seed%spc)) deallocate(seed%spc)
@@ -188,6 +189,18 @@ contains
              goto 999
           end if
        end do
+       if (allocated(seed%occ)) then
+          if (size(seed%occ,1) < seed%nat) then
+             msg = "occ is allocated but too small"
+             goto 999
+          end if
+          do i = 1, seed%nat
+             if (seed%occ(i) <= 0d0 .or. seed%occ(i) > 1d0+1d-10) then
+                msg = "atom with occupancy out of range (must be in (0,1])"
+                goto 999
+             end if
+          end do
+       end if
     end if
 
 999 continue
@@ -927,12 +940,14 @@ contains
           seed%x(:,nnat) = seed%x(:,i)
           seed%is(nnat) = seed%is(i)
           seed%atname(nnat) = seed%atname(i)
+          if (allocated(seed%occ)) seed%occ(nnat) = seed%occ(i)
        end if
     end do
     seed%nat = nnat
     call realloc(seed%x,3,nnat)
     call realloc(seed%is,nnat)
     call realloc(seed%atname,nnat)
+    if (allocated(seed%occ)) call realloc(seed%occ,nnat)
 
   end subroutine strip_hydrogens
 
@@ -1180,11 +1195,12 @@ contains
     integer :: lu, lp, ilat, ll
     logical :: ok, iscent, havecell, found
     character(len=:), allocatable :: uword, word, line, aux, word2
-    real*8 :: raux, rot0(3,4)
-    integer :: i, j, n
+    real*8 :: raux, rot0(3,4), sof, pp, x0(3), xd(3)
+    integer :: i, j, k, io, it, n, mm, mult
     integer :: iz
-    integer :: lncv
-    real*8, allocatable :: lcen(:,:)
+    integer :: lncv, nfvar
+    real*8, allocatable :: lcen(:,:), occfac(:), fvar(:)
+    logical :: haveocc
 
     real*8, parameter :: eps = 1d-5
 
@@ -1209,6 +1225,13 @@ contains
     if (.not.allocated(seed%x)) allocate(seed%x(3,10))
     if (.not.allocated(seed%is)) allocate(seed%is(10))
     if (.not.allocated(seed%atname)) allocate(seed%atname(10))
+    allocate(occfac(10))
+
+    ! free variables (fvar(1) is the overall scale); site occupation factors
+    ! (sof) may reference them
+    nfvar = 0
+    allocate(fvar(1))
+    fvar = 1d0
 
     ! centering vectors may come in symm. If that happens,
     ! replicate the atoms and let LATT determine the global
@@ -1354,6 +1377,15 @@ contains
              seed%spc(seed%nspc)%name = trim(word)
           end do
           call realloc(seed%spc,seed%nspc)
+       elseif (equal(word,"fvar")) then
+          ! read the free variables (used to model sof of disordered atoms)
+          do while (.true.)
+             ok = isreal(raux,line,lp)
+             if (.not.ok) exit
+             nfvar = nfvar + 1
+             if (nfvar > size(fvar,1)) call realloc(fvar,2*nfvar)
+             fvar(nfvar) = raux
+          end do
        elseif (equal(word,"unit")) then
           ! ignore the unit card... some res files don't have it,
           ! and we can count the atoms in the list anyway
@@ -1368,7 +1400,7 @@ contains
           equal(word,"delu").or.equal(word,"dfix").or.equal(word,"disp").or.&
           equal(word,"eadp").or.equal(word,"eqiv").or.equal(word,"exti").or.&
           equal(word,"exyz").or.equal(word,"flat").or.equal(word,"fmap").or.&
-          equal(word,"free").or.equal(word,"fvar").or.equal(word,"grid").or.&
+          equal(word,"free").or.equal(word,"grid").or.&
           equal(word,"hfix").or.equal(word,"hklf").or.equal(word,"hope").or.&
           equal(word,"htab").or.&
           equal(word,"isor").or.equal(word,"laue").or.equal(word,"list").or.&
@@ -1412,6 +1444,7 @@ contains
              call realloc(seed%x,3,2*seed%nat)
              call realloc(seed%is,2*seed%nat)
              call realloc(seed%atname,2*seed%nat)
+             call realloc(occfac,2*seed%nat)
           end if
           ok = isinteger(iz,line,lp)
           ok = ok .and. isreal(seed%x(1,seed%nat),line,lp)
@@ -1427,6 +1460,31 @@ contains
           end if
           seed%is(seed%nat) = iz
           seed%atname(seed%nat) = uword
+
+          ! site occupation factor (sof): optional 4th number after the
+          ! coordinates. Decode the SHELX free-variable convention m*10+p:
+          ! m=0/1 fixed at p; m>1 uses p*fvar(m); m<-1 uses p*(1-fvar(-m)).
+          ! The special-position multiplicity factor is removed below.
+          occfac(seed%nat) = 1d0
+          if (isreal(sof,line,lp)) then
+             mm = nint(sof/10d0)
+             pp = sof - 10d0*mm
+             if (mm == 0 .or. mm == 1) then
+                occfac(seed%nat) = pp
+             elseif (mm > 1) then
+                if (mm <= nfvar) then
+                   occfac(seed%nat) = pp * fvar(mm)
+                else
+                   occfac(seed%nat) = pp
+                end if
+             elseif (mm < -1) then
+                if (-mm <= nfvar) then
+                   occfac(seed%nat) = pp * (1d0 - fvar(-mm))
+                else
+                   occfac(seed%nat) = -pp
+                end if
+             end if
+          end if
        end if
     end do
 
@@ -1477,6 +1535,7 @@ contains
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
     call realloc(seed%atname,seed%nat)
+    call realloc(occfac,seed%nat)
     call realloc(seed%cen,3,seed%ncv)
 
     ! use the symmetry in this file (a molecule does not apply crystallographic
@@ -1493,6 +1552,48 @@ contains
     seed%findsym = -1
     call realloc(seed%rotm,3,4,seed%neqv)
     call realloc(seed%cen,3,seed%ncv)
+
+    ! recover the chemical occupancy from the SHELX site occupation factor. For
+    ! an atom on a special position the sof also carries the ratio of the site
+    ! multiplicity to the general multiplicity (neqv*ncv), which we divide out.
+    haveocc = .false.
+    do i = 1, seed%nat
+       if (.not.mol) then
+          ! count the distinct images (the site multiplicity)
+          mult = 0
+          do io = 1, seed%neqv
+             do it = 1, seed%ncv
+                x0 = matmul(seed%rotm(1:3,1:3,io),seed%x(:,i)) + seed%rotm(:,4,io) + seed%cen(:,it)
+                found = .false.
+                inner: do k = 1, io
+                   do j = 1, seed%ncv
+                      if (k == io .and. j >= it) exit inner
+                      xd = matmul(seed%rotm(1:3,1:3,k),seed%x(:,i)) + seed%rotm(:,4,k) + seed%cen(:,j)
+                      xd = x0 - xd
+                      xd = xd - nint(xd)
+                      if (all(abs(xd) < eps)) then
+                         found = .true.
+                         exit inner
+                      end if
+                   end do
+                end do inner
+                if (.not.found) mult = mult + 1
+             end do
+          end do
+          if (mult > 0) then
+             occfac(i) = occfac(i) * real(seed%neqv*seed%ncv,8) / real(mult,8)
+          end if
+       end if
+       ! snap to 1 and clamp to (0,1]
+       if (abs(occfac(i) - 1d0) < 1d-3) occfac(i) = 1d0
+       occfac(i) = max(min(occfac(i),1d0),1d-10)
+       if (occfac(i) < 1d0-1d-6) haveocc = .true.
+    end do
+    if (haveocc) then
+       if (allocated(seed%occ)) deallocate(seed%occ)
+       allocate(seed%occ(seed%nat))
+       seed%occ = occfac(1:seed%nat)
+    end if
 
 999 continue
     call fclose(lu)
@@ -6997,6 +7098,11 @@ contains
     else
        if (allocated(to%atname)) deallocate(to%atname)
     end if
+    if (allocated(from%occ)) then
+       to%occ = from%occ
+    else
+       if (allocated(to%occ)) deallocate(to%occ)
+    end if
     to%neqlist = from%neqlist
     to%nspc = from%nspc
     if (allocated(from%spc)) then
@@ -7339,9 +7445,9 @@ contains
     logical :: indata, inloopheader, inloop, ldum, ok
     logical :: havefields(10) ! 1-3 = abc, 4-6 = angles, 7=symbol, 8-10=xyz
     integer :: looptype ! 1 = symmetry, 2 = atoms
-    integer :: cols(6) ! 1=symbol, 2=x, 3=y, 4=z, 5=label, 6=symop
+    integer :: cols(7) ! 1=symbol, 2=x, 3=y, 4=z, 5=label, 6=symop, 7=occupancy
     integer :: nat, nop
-    real*8, allocatable :: xat(:,:)
+    real*8, allocatable :: xat(:,:), occat(:)
     integer, allocatable :: zat(:)
     character*10, allocatable :: atname(:)
     character*256, allocatable :: ops(:)
@@ -7364,7 +7470,7 @@ contains
     ! initialize atom list
     nat = 0
     nop = 0
-    allocate(xat(3,20),zat(20),atname(20))
+    allocate(xat(3,20),zat(20),atname(20),occat(20))
     allocate(ops(48))
 
     ! run over lines in the file
@@ -7487,7 +7593,7 @@ contains
              nhead = nhead + 1
              if (word == "_atom_site_type_symbol" .or. word == "_atom_site_label" .or.&
                 word == "_atom_site_fract_x" .or. word == "_atom_site_fract_y" .or.&
-                word == "_atom_site_fract_z") then
+                word == "_atom_site_fract_z" .or. word == "_atom_site_occupancy") then
                 ! an atom loop
                 looptype = 2
                 nat = 0
@@ -7502,6 +7608,8 @@ contains
                    cols(3) = nhead
                 elseif (word == "_atom_site_fract_z") then
                    cols(4) = nhead
+                elseif (word == "_atom_site_occupancy") then
+                   cols(7) = nhead
                 end if
              elseif (word == "_symmetry_equiv_pos_as_xyz" .or. &
                 word == "_space_group_symop_operation_xyz") then
@@ -7531,11 +7639,13 @@ contains
                 call realloc(xat,3,2*nat)
                 call realloc(zat,2*nat)
                 call realloc(atname,2*nat)
+                call realloc(occat,2*nat)
              end if
+             occat(nat) = 1d0
 
              ! read the fields
              lp = 1
-             do i = 1, maxval(cols(1:5))
+             do i = 1, max(maxval(cols(1:5)),cols(7))
                 ok = isexpression_or_word(word,line,lp)
                 if (ok) then
                    if (cols(2)==i .or. cols(3)==i .or. cols(4)==i) then
@@ -7559,6 +7669,10 @@ contains
                    end if
                    if (cols(5)==i) &
                       atname(nat) = word
+                   if (cols(7)==i) then
+                      ! occupancy is optional data: keep 1 if unknown (?, .) or unparseable
+                      if (isreal(rdum,word)) occat(nat) = rdum
+                   end if
                 end if
 
                 if (.not.ok) then
@@ -7725,6 +7839,14 @@ contains
          seed%x(:,i) = xat(:,i)
          seed%atname(i) = atname(i)
       end do
+
+      ! fill the occupancies, only if some of them are partial
+      if (any(occat(1:nat) < 1d0-1d-6)) then
+         allocate(seed%occ(nat))
+         do i = 1, nat
+            seed%occ(i) = max(min(occat(i),1d0),1d-10)
+         end do
+      end if
 
       ! pre-allocate the symmetry
       seed%neqv = 0

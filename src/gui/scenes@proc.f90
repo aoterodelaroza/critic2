@@ -710,7 +710,8 @@ contains
          n = n + 1
          call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
             (/s%obj%sph(i)%rgb,1._c_float/),s%obj%sph(i)%border,&
-            s%obj%sph(i)%rgbborder,s%obj%sph(i)%xdelta,zr)
+            s%obj%sph(i)%rgbborder,s%obj%sph(i)%xdelta,zr,s%obj%sph(i)%occ,&
+            s%obj%sph(i)%occ_empty_rgb)
       end do
       call s%gl%draw_spheres(n,s%gl%packsph,.false.)
       s%gl%nsph_inst = n
@@ -1105,7 +1106,7 @@ contains
          x = s%obj%sph(i)%x + real(displ * s%obj%sph(i)%xdelta,c_float)
          call sphere_pack(s%gl%packsph(:,j),s%obj%sph(i)%x,s%obj%sph(i)%r + msel_thickness,&
             ColorMeasureSelect(:,j),real(atomborder_def,c_float),(/0._c_float,0._c_float,0._c_float/),&
-            s%obj%sph(i)%xdelta,zr)
+            s%obj%sph(i)%xdelta,zr,1._c_float,(/0._c_float,0._c_float,0._c_float/))
          radsel(j) = s%obj%sph(i)%r + msel_thickness
          xsel(:,j) = x
       end do
@@ -1142,7 +1143,8 @@ contains
          if (all(rgba >= 0)) then
             n = n + 1
             call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r + sel_thickness,&
-               rgba,real(atomborder_def,c_float),rgba(1:3),s%obj%sph(i)%xdelta,zr)
+               rgba,real(atomborder_def,c_float),rgba(1:3),s%obj%sph(i)%xdelta,zr,1._c_float,&
+               (/0._c_float,0._c_float,0._c_float/))
          end if
       end do
       call s%gl%draw_spheres(n,s%gl%packsph,.true.)
@@ -1309,7 +1311,8 @@ contains
              ridx = transfer((/i,0,0,0/),ridx)
              call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
                 (/0._c_float,0._c_float,0._c_float,1._c_float/),0._c_float,&
-                (/0._c_float,0._c_float,0._c_float/),s%obj%sph(i)%xdelta,ridx)
+                (/0._c_float,0._c_float,0._c_float/),s%obj%sph(i)%xdelta,ridx,1._c_float,&
+                (/0._c_float,0._c_float,0._c_float/))
           end if
        end do
        call s%gl%draw_spheres(n,s%gl%packsph,.true.)
@@ -2079,12 +2082,14 @@ contains
 
   !> Pack one sphere instance into column col of an instance buffer (layout
   !> must match the sphinstVAO attribute offsets set in glbuffers_init).
-  subroutine sphere_pack(col,x,r,rgba,border,bcol,xdelta,ridx)
+  subroutine sphere_pack(col,x,r,rgba,border,bcol,xdelta,ridx,occ,occempty)
     use shapes, only: sph_inst_nf
     real(c_float), intent(out) :: col(sph_inst_nf)
     real(c_float), intent(in) :: x(3), r, rgba(4), border, bcol(3)
     complex(c_float_complex), intent(in) :: xdelta(3)
     real(c_float), intent(in) :: ridx(4)
+    real(c_float), intent(in) :: occ
+    real(c_float), intent(in) :: occempty(3)
 
     col(1:3) = x
     col(4) = r
@@ -2094,6 +2099,8 @@ contains
     col(13:15) = real(xdelta,c_float)
     col(16:18) = real(aimag(xdelta),c_float)
     col(19:22) = ridx
+    col(23) = occ
+    col(24:26) = occempty
 
   end subroutine sphere_pack
 

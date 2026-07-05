@@ -225,6 +225,8 @@ module representations
      integer(c_int) :: color_type ! option to reset colors: 0=current,1=jmlcol,2=jmlcol2
      real*8 :: border_size ! atom border size
      real(c_float) :: border_rgb(3) ! atom border color
+     logical :: occ_sectors ! render partial occupancies as sectors
+     real(c_float) :: occ_empty_rgb(3) ! color of the empty (unoccupied) sector
   end type rep_atoms
   public :: rep_atoms
 

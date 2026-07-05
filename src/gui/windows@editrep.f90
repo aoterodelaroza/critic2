@@ -1419,6 +1419,18 @@ contains
 
     ! selector and reset
     changed = .false.
+
+    ! occupancy sectors
+    if (showdrawopts .and. sys(isys)%c%haveocc) then
+       changed = changed .or. iw_checkbox("Occupancy sectors",r%atoms%occ_sectors)
+       call iw_tooltip("Draw partially occupied sites as spheres with a filled "//&
+          "sector proportional to the occupancy",ttshown)
+       if (r%atoms%occ_sectors) then
+          changed = changed .or. iw_coloredit("Void color",rgb=r%atoms%occ_empty_rgb,sameline=.true.)
+          call iw_tooltip("Color of the void sector drawn on partially occupied atoms",ttshown)
+       end if
+    end if
+
     ch = sysc(isys)%attype_combo_simple("Atom types##atomtypeselection",r%atoms%style%type,&
        atlisttype_allowed,units=.false.)
     call iw_tooltip("Group atoms by these categories",ttshown)

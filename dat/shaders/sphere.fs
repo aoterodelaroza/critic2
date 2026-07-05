@@ -12,6 +12,8 @@ flat in vec4 fColor;
 flat in float fBorder;
 flat in vec3 fBorderColor;
 flat in vec4 fIdx;
+flat in float fOcc;
+flat in vec3 fOccEmpty;
 
 uniform mat4 projection;
 uniform int isortho;   // 1=orthographic, 0=perspective
@@ -54,8 +56,33 @@ void main(){
   // the rim (its in-screen distance from the center approaches the radius)
   vec3 vx = hit - fCenterEye;                 // |vx| == fRadius
   float rproj = length(vx - dot(vx, rd) * rd);
+
+  // Partial-occupancy pie: paint an azimuthal sector proportional to
+  // the occupancy in the element color and the rest in the
+  // empty-sector color (fOccEmpty).
+  vec4 base = fColor;
+  if (fOcc < 0.999){
+    vec2 p = vx.xy;
+    float start = 1.5707963;
+    float ang = fOcc * 6.2831853;
+    float phi = atan(p.y, p.x) - start;
+    if (phi < 0.0) phi += 6.2831853;
+    if (phi >= ang)
+      base = vec4(fOccEmpty, fColor.a);
+
+    // border along the two sector division rays (at start and start+occ*2pi),
+    // drawn with the same thickness as the atom rim border (fBorder)
+    float halfw = 0.5 * fBorder;
+    vec2 d1 = vec2(cos(start), sin(start));
+    vec2 d2 = vec2(cos(start + ang), sin(start + ang));
+    bool ondiv = (dot(p, d1) >= 0.0 && abs(p.x*d1.y - p.y*d1.x) < halfw) ||
+                 (dot(p, d2) >= 0.0 && abs(p.x*d2.y - p.y*d2.x) < halfw);
+    if (ondiv)
+      base = vec4(fBorderColor, fColor.a);
+  }
+
   if (fRadius - rproj < fBorder)
     outColor = vec4(fBorderColor, fColor.a);
   else
-    outColor = fColor;
+    outColor = base;
 }

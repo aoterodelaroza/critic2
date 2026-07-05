@@ -543,6 +543,8 @@ contains
       call inst_attrib(6, 3, st, 12) ! a_xdelta_re
       call inst_attrib(7, 3, st, 15) ! a_xdelta_im
       call inst_attrib(8, 4, st, 18) ! a_idx
+      call inst_attrib(9, 1, st, 22) ! a_occ
+      call inst_attrib(10, 3, st, 23) ! a_occ_empty
       call glBindBuffer(GL_ARRAY_BUFFER, 0)
       call glBindVertexArray(0)
 

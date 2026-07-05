@@ -415,6 +415,7 @@ contains
     logical :: found
     real*8 :: rotm(3,3), x0(3)
     character*10, allocatable :: name(:)
+    real*8, allocatable :: occs(:)
 
     c%spgavail = .false.
     call c%spglib_wrap(c%spg,usenneq,errmsg,ti=ti)
@@ -428,7 +429,7 @@ contains
     ! make a copy of nneq into ncel, if appropriate
     if (usenneq) then
        c%ncel = c%nneq
-       allocate(name(c%ncel))
+       allocate(name(c%ncel),occs(c%ncel))
        if (allocated(c%atcel)) deallocate(c%atcel)
        allocate(c%atcel(c%ncel))
        do i = 1, c%ncel
@@ -442,11 +443,13 @@ contains
           c%atcel(i)%is = c%at(i)%is
           c%atcel(i)%cidx = i
           name(i) = c%at(i)%name
+          occs(i) = c%at(i)%occ
        end do
     else
-       allocate(name(c%ncel))
+       allocate(name(c%ncel),occs(c%ncel))
        do i = 1, c%ncel
           name(i) = c%at(c%atcel(i)%idx)%name
+          occs(i) = c%at(c%atcel(i)%idx)%occ
        end do
     end if
 
@@ -466,6 +469,7 @@ contains
           c%at(c%nneq)%name = name(idx)
           c%at(c%nneq)%mult = 1
           c%at(c%nneq)%wyc = "?"
+          c%at(c%nneq)%occ = occs(idx)
        else
           c%at(iidx(idx))%mult = c%at(iidx(idx))%mult + 1
        end if
@@ -473,7 +477,7 @@ contains
        c%atcel(i)%cidx = i
     end do
     call realloc(c%at,c%nneq)
-    deallocate(name)
+    deallocate(name,occs)
 
     ! unpack spglib's output into pure translations and symops
     c%neqv = 1
@@ -1233,13 +1237,14 @@ contains
   !> needs no index. On output nneq, the reduced at() list (with
   !> name/mult/wyc), and the complete-list symmetry mapping
   !> (atcel%idx/cidx/ir/ic/lvec) are filled. If error, errmsg has length > 0.
-  module subroutine reduceatoms(c,name,errmsg)
+  module subroutine reduceatoms(c,name,errmsg,occ)
     use param, only: icrd_crys
     use global, only: symprec
     use types, only: realloc
     class(crystal), intent(inout) :: c
     character*10, intent(in) :: name(:)
     character(len=:), allocatable, intent(out) :: errmsg
+    real*8, intent(in), optional :: occ(:)
 
     integer :: k, io, it, id
     real*8 :: x0(3)
@@ -1259,6 +1264,11 @@ contains
           c%at(k)%name = name(k)
           c%at(k)%wyc = "?"
           c%at(k)%mult = 1
+          if (present(occ)) then
+             c%at(k)%occ = occ(k)
+          else
+             c%at(k)%occ = 1d0
+          end if
           c%atcel(k)%idx = k
           c%atcel(k)%cidx = k
           c%atcel(k)%ir = 1
@@ -1285,6 +1295,11 @@ contains
        c%at(c%nneq)%name = name(k)
        c%at(c%nneq)%wyc = "?"
        c%at(c%nneq)%mult = 0
+       if (present(occ)) then
+          c%at(c%nneq)%occ = occ(k)
+       else
+          c%at(c%nneq)%occ = 1d0
+       end if
        do io = 1, c%neqv
           do it = 1, c%ncv
              x0 = matmul(c%rotm(1:3,1:3,io),c%atcel(k)%x) + c%rotm(:,4,io) + c%cen(:,it)

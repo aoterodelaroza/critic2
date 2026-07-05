@@ -63,9 +63,9 @@ contains
     use param, only: newline, bohrtoa, pi, atmcov0, maxzat0
     class(window), intent(inout), target :: w
 
-    logical :: domol, dowyc, doidx, docoord, havesel, haveexpr
+    logical :: domol, dowyc, doidx, docoord, havesel, haveexpr, doocc
     logical :: doquit, clicked, forcesort, ch, lch, deselected, chvol, iactive
-    integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:16)
+    integer :: ihighlight, iclicked, iclicked_ini, iclicked_end, nhigh, dec, icolsort(0:17)
     integer :: ihlbond, ihlbtn ! bonds tab: hovered central atom and hovered neighbor button (cell ids)
     integer :: ipickhl ! cell id of the atom awaiting an add-bond pick (0 = none), highlighted
     integer :: ibrm1, ibrm2, lbrm(3) ! bonds tab: deferred bond removal (cell ids + lattice vector)
@@ -166,6 +166,7 @@ contains
     integer, parameter :: ic_eb = 13 ! Euler angle beta
     integer, parameter :: ic_eg = 14 ! Euler angle gamma
     integer, parameter :: ic_sym = 15 ! point-group symbol (molecules tab)
+    integer, parameter :: ic_occ = 16 ! site occupancy
 
     ! allowed atom list types in tables
     integer, parameter :: atlisttype_allowed(4) = (/atlisttype_nneq,&
@@ -575,12 +576,14 @@ contains
           doidx = ((w%geometry_atomtype == atlisttype_ncel_frac.or.w%geometry_atomtype == atlisttype_ncel_bohr.or.&
              w%geometry_atomtype == atlisttype_ncel_ang).and..not.sys(isys)%c%ismolecule)
           docoord = w%geometry_atomtype /= atlisttype_species
+          doocc = (sys(isys)%c%haveocc .and. w%geometry_atomtype /= atlisttype_species)
 
           ! number of columns
           ncol = 3
           if (domol) ncol = ncol + 1 ! mol
           if (dowyc) ncol = ncol + 1 ! wyckoff/multiplicity
           if (doidx) ncol = ncol + 1 ! nneq idx
+          if (doocc) ncol = ncol + 1 ! occupancy
           if (docoord) ncol = ncol + 3 ! coordinates
 
           ! whether we have an expression
@@ -644,6 +647,13 @@ contains
                 str2 = "idx" // c_null_char
                 call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
                 icolsort(icol) = ic_idx
+             end if
+
+             if (doocc) then
+                icol = icol + 1
+                str2 = "Occ." // c_null_char
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
+                icolsort(icol) = ic_occ
              end if
 
              if (docoord) then
@@ -820,6 +830,20 @@ contains
                       icol = icol + 1
                       ! i is cell index in this case
                       if (igTableSetColumnIndex(icol)) call iw_text(string(sys(isys)%c%atcel(i)%idx,ndigitidx))
+                   end if
+
+                   ! occupancy
+                   if (doocc) then
+                      icol = icol + 1
+                      if (igTableSetColumnIndex(icol)) then
+                         if (w%geometry_atomtype == atlisttype_nneq) then
+                            ! i is an nneq index in this case
+                            call iw_text(string(sys(isys)%c%at(i)%occ,'f',5,3))
+                         else
+                            ! i is a cell index in this case
+                            call iw_text(string(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%occ,'f',5,3))
+                         end if
+                      end if
                    end if
 
                    ! coordinates
@@ -2710,7 +2734,8 @@ contains
          deallocate(ival)
       elseif (icolsort(w%geometry_sortcid)==ic_x.or.icolsort(w%geometry_sortcid)==ic_y.or.&
          icolsort(w%geometry_sortcid)==ic_z.or.icolsort(w%geometry_sortcid)==ic_ea.or.&
-         icolsort(w%geometry_sortcid)==ic_eb.or.icolsort(w%geometry_sortcid)==ic_eg) then
+         icolsort(w%geometry_sortcid)==ic_eb.or.icolsort(w%geometry_sortcid)==ic_eg.or.&
+         icolsort(w%geometry_sortcid)==ic_occ) then
          ! real
          allocate(rval(ntype))
          do ii = 1, ntype
@@ -2725,6 +2750,13 @@ contains
                   rval(ii) = x0(2)
                else
                   rval(ii) = x0(3)
+               end if
+            elseif (icolsort(w%geometry_sortcid) == ic_occ) then
+               ! occupancy
+               if (w%geometry_atomtype == atlisttype_nneq) then
+                  rval(ii) = sys(isys)%c%at(i)%occ
+               else
+                  rval(ii) = sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%occ
                end if
             else
                if (table_hltype == atlisttype_nmol) then

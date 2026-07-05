@@ -187,7 +187,8 @@ contains
     use global, only: bondfactor_def, bonddelta_def
     use gui_main, only: ColorAtomBorder_def, ColorBond_def, ColorBondBorder_def,&
        ColorLabel_def, ColorRotaxis_def, ColorAxes_def, ColorVdwContacts_def,&
-       ColorHbonds_def, ColorHbondStrong_def, ColorHbondModerate_def, ColorHbondWeak_def
+       ColorHbonds_def, ColorHbondStrong_def, ColorHbondModerate_def, ColorHbondWeak_def,&
+       ColorOccEmpty_def
     use param, only: atmcov0, atmvdw0
     class(representation), intent(inout) :: r
     integer, intent(in) :: itype
@@ -242,6 +243,8 @@ contains
        r%atoms%color_type = 0
        r%atoms%border_size = atomborder_def
        r%atoms%border_rgb = ColorAtomBorder_def
+       r%atoms%occ_sectors = .true.
+       r%atoms%occ_empty_rgb = ColorOccEmpty_def
        if (r%flavor == repflavor_atoms_licorice) then
           r%atoms%radii_type = 2
           r%atoms%radii_value = atomrad_licorice_def
@@ -513,7 +516,7 @@ contains
     integer :: i1, i2, i3, ix(3), idl
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3), iord
     integer :: nimg, nres, nbond, mb, mbb
-    real(c_float) :: rgb(3)
+    real(c_float) :: rgb(3), occ1
     real*8 :: rad1, rad2, dd, f1, f2, axsc
     integer, allocatable :: hbcat(:) ! per-bond H-bond class cache for the current atom
     real(c_float) :: bondrgb(3)
@@ -774,6 +777,12 @@ contains
           rgb = r%atoms%style%rgb(:,id) * r%mols%style%tint_rgb(:,imol)
           rad1 = r%atoms%style%rad(id) * r%mols%style%scale_rad(imol)
 
+          ! site occupancy for sector rendering (1 unless the system
+          ! has partial occupancies and the option is on)
+          occ1 = 1._c_float
+          if (r%atoms%occ_sectors .and. c%haveocc) &
+             occ1 = real(c%at(c%atcel(i)%idx)%occ,c_float)
+
           ! coordination polyhedron: if this atom is a shown center, find its
           ! corner atoms once (translation-invariant; reused for every image)
           dopoly = .false.
@@ -891,11 +900,14 @@ contains
                          dsph%r = real(rad1,c_float)
                          dsph%border = real(r%atoms%border_size,c_float)
                          dsph%rgbborder = r%atoms%border_rgb
+                         dsph%occ = occ1
+                         dsph%occ_empty_rgb = r%atoms%occ_empty_rgb
                          dsph%ghost = .false.
                       else
                          dsph%r = real(2d0 * r%bonds%rad,c_float) ! generous click radius
                          dsph%border = 0._c_float
                          dsph%rgbborder = rgb
+                         dsph%occ = 1._c_float
                          dsph%ghost = .true.
                       end if
                       call dl_append(obj%sph,obj%nsph,dsph)
@@ -1059,6 +1071,10 @@ contains
              ! animation delta of the corner atom (so it moves with the polyhedron)
              xdelta1 = vibdelta(cornlist(1,ica),ix)
 
+             occ1 = 1._c_float
+             if (r%atoms%occ_sectors .and. c%haveocc) &
+                occ1 = real(c%at(c%atcel(cornlist(1,ica))%idx)%occ,c_float)
+
              dsph%x = real(xc + uoriginc,c_float)
              dsph%r = real(rad1,c_float)
              dsph%rgb = rgb
@@ -1067,6 +1083,8 @@ contains
              dsph%xdelta = cmplx(xdelta1,kind=c_float_complex)
              dsph%border = real(r%atoms%border_size,c_float)
              dsph%rgbborder = r%atoms%border_rgb
+             dsph%occ = occ1
+             dsph%occ_empty_rgb = r%atoms%occ_empty_rgb
              dsph%ghost = .false.
              call dl_append(obj%sph,obj%nsph,dsph)
           end do

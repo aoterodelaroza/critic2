@@ -63,15 +63,18 @@ contains
        ! the non-equivalent (asymmetric unit) atom list
        seed%nat = c%nneq
        allocate(seed%x(3,c%nneq),seed%is(c%nneq),seed%atname(c%nneq))
+       if (c%haveocc) allocate(seed%occ(c%nneq))
        do i = 1, c%nneq
           seed%x(:,i) = c%at(i)%x
           seed%is(i) = c%at(i)%is
           seed%atname(i) = c%at(i)%name
+          if (c%haveocc) seed%occ(i) = c%at(i)%occ
        end do
     else
        ! the complete cell list
        seed%nat = c%ncel
        allocate(seed%x(3,c%ncel),seed%is(c%ncel),seed%atname(c%ncel))
+       if (c%haveocc) allocate(seed%occ(c%ncel))
        do i = 1, c%ncel
           if (useabr_ == 0 .and. c%ismolecule) then
              ! molecule + useabr==0: struct_new expects absolute Cartesian (bohr)
@@ -83,6 +86,7 @@ contains
           end if
           seed%is(i) = c%atcel(i)%is
           seed%atname(i) = c%at(c%atcel(i)%idx)%name
+          if (c%haveocc) seed%occ(i) = c%at(c%atcel(i)%idx)%occ
        end do
     end if
 
@@ -193,6 +197,7 @@ contains
     k = 0
     seed%nat = c%ncel * nc(1) * nc(2) * nc(3)
     allocate(seed%x(3,seed%nat),seed%is(seed%nat),seed%atname(seed%nat))
+    if (c%haveocc) allocate(seed%occ(seed%nat))
     do i = 1, c%ncel
        smass = sqrt(atmass(c%spc(c%atcel(i)%is)%z))
        do ix = 0, nc(1)-1
@@ -207,6 +212,7 @@ contains
                 seed%x(:,k) = (xx + c%c2x(xd)) / real(nc,8)
                 seed%is(k) = c%atcel(i)%is
                 seed%atname(k) = c%at(c%atcel(i)%idx)%name
+                if (c%haveocc) seed%occ(k) = c%at(c%atcel(i)%idx)%occ
              end do
           end do
        end do
@@ -352,6 +358,7 @@ contains
           end do
           ntot = product(nvec)
           allocate(ncseed%x(3,c%ncel * ntot),ncseed%is(c%ncel * ntot),ncseed%atname(c%ncel * ntot))
+          if (c%haveocc) allocate(ncseed%occ(c%ncel * ntot))
 
           nn = 0
           do i = 1, nvec(1)
@@ -363,6 +370,7 @@ contains
                       ncseed%is(nn) = c%atcel(m)%is
                       ncseed%x(:,nn) = (c%atcel(m)%x-t) / real(nvec,8) + xshift
                       ncseed%atname(nn) = c%at(c%atcel(m)%idx)%name
+                      if (c%haveocc) ncseed%occ(nn) = c%at(c%atcel(m)%idx)%occ
                    end do
                 end do
              end do
@@ -442,6 +450,7 @@ contains
              goto 999
           end if
           allocate(ncseed%x(3,nn),ncseed%is(nn),ncseed%atname(nn))
+          if (c%haveocc) allocate(ncseed%occ(nn))
           do i = 1, nlat
              do j = 1, c%ncel
                 ! candidate atom
@@ -465,16 +474,19 @@ contains
                       call realloc(ncseed%x,3,2*ncseed%nat)
                       call realloc(ncseed%is,2*ncseed%nat)
                       call realloc(ncseed%atname,2*ncseed%nat)
+                      if (c%haveocc) call realloc(ncseed%occ,2*ncseed%nat)
                    end if
                    ncseed%x(:,ncseed%nat) = x
                    ncseed%is(ncseed%nat) = c%atcel(j)%is
                    ncseed%atname(ncseed%nat) = c%at(c%atcel(j)%idx)%name
+                   if (c%haveocc) ncseed%occ(ncseed%nat) = c%at(c%atcel(j)%idx)%occ
                 end if
              end do
           end do
           call realloc(ncseed%x,3,ncseed%nat)
           call realloc(ncseed%is,ncseed%nat)
           call realloc(ncseed%atname,ncseed%nat)
+          if (c%haveocc) call realloc(ncseed%occ,ncseed%nat)
           deallocate(xlat)
        end if
     end if
@@ -778,6 +790,7 @@ contains
     deallocate(x,is)
     seed%is = seed%is(iperm(:))
     seed%atname = seed%atname(iperm(:))
+    if (allocated(seed%occ)) seed%occ = seed%occ(iperm(:))
 
     ! reload the crystal
     call c%struct_new(seed,.true.,ti=ti)
@@ -835,6 +848,7 @@ contains
     deallocate(x)
     seed%is = seed%is(atperm(:))
     seed%atname = seed%atname(atperm(:))
+    if (allocated(seed%occ)) seed%occ = seed%occ(atperm(:))
 
     ! reload the crystal
     call c%struct_new(seed,.true.,ti=ti)
@@ -1038,6 +1052,7 @@ contains
 
     ! calculate the asymmetric unit for the new group, write it down in the seed
     allocate(ncseed%x(3,c%ncel),ncseed%is(c%ncel),ncseed%atname(c%ncel))
+    if (c%haveocc) allocate(ncseed%occ(c%ncel))
     ncseed%nat = 0
     allocate(isuse(c%ncel))
     isuse = .false.
@@ -1059,6 +1074,7 @@ contains
        ncseed%x(:,ncseed%nat) = c%atcel(i)%x
        ncseed%is(ncseed%nat) = c%atcel(i)%is
        ncseed%atname(ncseed%nat) = c%at(c%atcel(i)%idx)%name
+       if (c%haveocc) ncseed%occ(ncseed%nat) = c%at(c%atcel(i)%idx)%occ
     end do
     deallocate(isuse)
 
@@ -1191,6 +1207,7 @@ contains
     call realloc(seed%x,3,natnew)
     call realloc(seed%is,natnew)
     call realloc(seed%atname,natnew)
+    if (allocated(seed%occ)) call realloc(seed%occ,natnew)
 
     ! re-do the atom and species info
     seed%nat = 0
@@ -1200,11 +1217,13 @@ contains
           seed%x(:,seed%nat) = c%atcel(i)%x
           seed%atname(seed%nat) = c%at(c%atcel(i)%idx)%name
           seed%is(seed%nat) = c%atcel(i)%is
+          if (allocated(seed%occ)) seed%occ(seed%nat) = c%at(c%atcel(i)%idx)%occ
           if (dupatoms(i)) then
              seed%nat = seed%nat + 1
              seed%x(:,seed%nat) = c%atcel(i)%x
              seed%atname(seed%nat) = c%at(c%atcel(i)%idx)%name
              seed%is(seed%nat) = c%atcel(i)%is
+             if (allocated(seed%occ)) seed%occ(seed%nat) = c%at(c%atcel(i)%idx)%occ
           end if
        end if
     end do
@@ -1215,6 +1234,7 @@ contains
        seed%x(:,seed%nat) = mergex
        seed%is(seed%nat) = mergespc
        seed%atname(seed%nat) = c%spc(mergespc)%name
+       if (allocated(seed%occ)) seed%occ(seed%nat) = 1d0
     end if
 
     ! build the new crystal
@@ -1747,6 +1767,10 @@ contains
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
     call realloc(seed%atname,seed%nat)
+    if (allocated(seed%occ)) then
+       call realloc(seed%occ,seed%nat)
+       seed%occ(seed%nat) = 1d0
+    end if
     seed%x(:,seed%nat) = xx
     seed%is(seed%nat) = is_
     seed%atname(seed%nat) = seed%spc(is_)%name

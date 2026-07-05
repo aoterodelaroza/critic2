@@ -16,6 +16,8 @@ layout (location = 5) in vec3 a_bordercolor; // border color
 layout (location = 6) in vec3 a_xdelta_re;   // vibration delta (real part)
 layout (location = 7) in vec3 a_xdelta_im;   // vibration delta (imag part)
 layout (location = 8) in vec4 a_idx;         // picking index (bit-packed floats)
+layout (location = 9) in float a_occ;        // site occupancy (for sector rendering)
+layout (location = 10) in vec3 a_occ_empty;  // color of the empty occupancy sector
 
 uniform mat4 view;
 uniform mat4 world;
@@ -33,6 +35,8 @@ flat out vec4 fColor;
 flat out float fBorder;
 flat out vec3 fBorderColor;
 flat out vec4 fIdx;
+flat out float fOcc;
+flat out vec3 fOccEmpty;
 
 void main(){
   // animated center (pre-world coords), then to eye space. For a window-anchored
@@ -63,6 +67,8 @@ void main(){
   fBorder = a_border;
   fBorderColor = a_bordercolor;
   fIdx = a_idx;
+  fOcc = a_occ;
+  fOccEmpty = a_occ_empty;
 
   vec4 c = projection * vec4(pos, 1.0);
   gl_Position = (isanchored != 0) ? vec4(anchored_ndc.xy + c.xy, c.z, c.w) : c;

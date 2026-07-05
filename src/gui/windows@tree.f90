@@ -22,6 +22,7 @@ submodule (windows) tree
 
   ! color for vibrations and fields in tree
   real(c_float), parameter :: rgba_vibrations(4) = (/0.84_c_float,0.86_c_float,0.00_c_float,1.00_c_float/)
+  real(c_float), parameter :: rgba_partialocc(4) = (/0.94_c_float,0.60_c_float,0.00_c_float,1.00_c_float/)
   real(c_float), parameter :: rgba_fields(4) = (/0.00_c_float,1.00_c_float,0.50_c_float,1.00_c_float/)
   real(c_float), parameter :: rgba_reference(4) = (/0.890_c_float,0.706_c_float,0.129_c_float,1._c_float/)
 
@@ -475,10 +476,13 @@ contains
                    str = string(i)
                    call write_maybe_selectable(i,tooltipstr)
                    ok = (sysc(i)%status >= sys_ready)
-                   if (ok) ok = sys(i)%c%vib%hasvibs
-                   if (ok) then
+                   if (ok .and. sys(i)%c%vib%hasvibs) then
+                      ! vibrations take precedence
                       call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,&
                          rgba=rgba_vibrations)
+                   else if (ok .and. sys(i)%c%haveocc) then
+                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,&
+                         rgba=rgba_partialocc)
                    else
                       call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
                    end if
@@ -1598,6 +1602,12 @@ contains
        if (sys(i)%c%vib%hasvibs) then
           call iw_text("")
           call iw_text("Vibration data available",rgba=rgba_vibrations)
+       end if
+
+       ! partial occupancies
+       if (sys(i)%c%haveocc) then
+          call iw_text("")
+          call iw_text("Partial site occupancies",rgba=rgba_partialocc)
        end if
     else
        ! not initialized

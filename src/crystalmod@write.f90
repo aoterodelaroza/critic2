@@ -148,6 +148,20 @@ contains
           enddo
           write (uout,*)
 
+          ! note the non-equivalent atoms with partial occupancy
+          if (c%haveocc) then
+             write (uout,'("+ List of sites with partial occupancies:")')
+             write (uout,'("# nat = non-equivalent atom id. name = atomic name. occ = site occupancy.")')
+             write (uout,'("# ",3(A," "))') string("nat",3,ioj_center), &
+                string("name",7,ioj_center), string("occ",8,ioj_center)
+             do i = 1, c%nneq
+                if (c%at(i)%occ < 1d0-1d-6) &
+                   write (uout,'("  ",3(A," "))') string(i,3,ioj_center), &
+                   string(c%at(i)%name,7,ioj_center), string(c%at(i)%occ,'f',length=8,decimal=4,justify=3)
+             end do
+             write (uout,*)
+          end if
+
           write (uout,'("+ List of atoms in the unit cell (cryst. coords.): ")')
           write (uout,'("# at = complete list atomic ID. xyz = Cartesian coordinates. spc = atomic species.")')
           write (uout,'("# name = atomic name (symbol). Z = atomic number. nat = non-equivalent atom id.")')
@@ -2016,21 +2030,37 @@ contains
     write (lu,'("_atom_site_fract_x")')
     write (lu,'("_atom_site_fract_y")')
     write (lu,'("_atom_site_fract_z")')
+    if (c%haveocc) &
+       write (lu,'("_atom_site_occupancy")')
     if (usesym) then
        do i = 1, c%nneq
           iz = c%at(i)%is
           str = trim(c%at(i)%name) // string(addlabel(i))
-          write (lu,'(5(A," "))') string(str,5,ioj_left),&
-             string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
-             (string(c%at(i)%x(j),'f',decimal=14),j=1,3)
+          if (c%haveocc) then
+             write (lu,'(6(A," "))') string(str,5,ioj_left),&
+                string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
+                (string(c%at(i)%x(j),'f',decimal=14),j=1,3),&
+                string(c%at(i)%occ,'f',decimal=4)
+          else
+             write (lu,'(5(A," "))') string(str,5,ioj_left),&
+                string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
+                (string(c%at(i)%x(j),'f',decimal=14),j=1,3)
+          end if
        end do
     else
        do i = 1, c%ncel
           iz = c%atcel(i)%is
           str = trim(c%at(c%atcel(i)%idx)%name) // string(addlabel(i))
-          write (lu,'(5(A," "))') string(str,5,ioj_left),&
-             string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
-             (string(c%atcel(i)%x(j),'f',decimal=14),j=1,3)
+          if (c%haveocc) then
+             write (lu,'(6(A," "))') string(str,5,ioj_left),&
+                string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
+                (string(c%atcel(i)%x(j),'f',decimal=14),j=1,3),&
+                string(c%at(c%atcel(i)%idx)%occ,'f',decimal=4)
+          else
+             write (lu,'(5(A," "))') string(str,5,ioj_left),&
+                string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
+                (string(c%atcel(i)%x(j),'f',decimal=14),j=1,3)
+          end if
        end do
     end if
     deallocate(addlabel)

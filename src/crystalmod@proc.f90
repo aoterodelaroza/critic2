@@ -43,6 +43,7 @@ contains
     c%nspc = 0
     c%nneq = 0
     c%ncel = 0
+    c%haveocc = .false.
 
     ! nullify metrics
     c%aa = 0d0
@@ -168,7 +169,7 @@ contains
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3), delta(3)
     logical :: good, good2, doenv, copybonds, envbuilt
     integer :: i, j, k, l, iat, newmult
-    real*8, allocatable :: atpos(:,:), area(:), deltasave(:,:)
+    real*8, allocatable :: atpos(:,:), area(:), deltasave(:,:), occcel(:)
     integer, allocatable :: irotm(:), icenv(:)
     logical, allocatable :: useatom(:)
     character*10, allocatable :: name(:)
@@ -370,6 +371,11 @@ contains
              c%at(i)%x = seed%x(:,j)
              c%at(i)%is = seed%is(j)
              c%at(i)%name = seed%atname(j)
+             if (allocated(seed%occ)) then
+                c%at(i)%occ = seed%occ(j)
+             else
+                c%at(i)%occ = 1d0
+             end if
           end if
        end do
 
@@ -436,13 +442,18 @@ contains
        c%ncel = seed%nat
        if (allocated(c%atcel)) deallocate(c%atcel)
        allocate(c%atcel(c%ncel))
-       allocate(name(c%ncel))
+       allocate(name(c%ncel),occcel(c%ncel))
        do i = 1, c%ncel
           c%atcel(i)%x = seed%x(:,i)
           c%atcel(i)%is = seed%is(i)
           c%atcel(i)%idx = i
           c%atcel(i)%cidx = i
           name(i) = seed%atname(i)
+          if (allocated(seed%occ)) then
+             occcel(i) = seed%occ(i)
+          else
+             occcel(i) = 1d0
+          end if
        end do
 
        ! transform the coordinates for a molecule and fill the molecular fields
@@ -532,7 +543,7 @@ contains
        end if
 
        ! reduce the complete list to the non-equivalent list with the symmetry
-       call c%reduceatoms(name,errmsg)
+       call c%reduceatoms(name,errmsg,occ=occcel)
        if (len_trim(errmsg) > 0) then
           if (seed%havesym > 0) then
              ! B1: the provided operations are inconsistent with the atom list
@@ -544,15 +555,40 @@ contains
           else if (usegui) then
              ! B2: the guessed symmetry is inconsistent - fall back to P1
              call c%clearsym()
-             call c%reduceatoms(name,errmsg)
+             call c%reduceatoms(name,errmsg,occ=occcel)
              if (len_trim(errmsg) > 0) call ferror("struct_new","reduceatoms: "//errmsg,faterr)
           else
              call ferror("struct_new","reduceatoms: "//errmsg,faterr)
           end if
        end if
-       deallocate(name)
+
+       ! the guessed symmetry (B2) is found from species and positions only, so
+       ! it may merge sites that differ in occupancy; if that happened, discard
+       ! it and re-reduce in P1
+       if (allocated(seed%occ) .and. seed%havesym == 0 .and. c%havesym > 0) then
+          good = .true.
+          do i = 1, c%ncel
+             if (abs(occcel(i) - c%at(c%atcel(i)%idx)%occ) > 1d-3) then
+                good = .false.
+                exit
+             end if
+          end do
+          if (.not.good) then
+             call c%clearsym()
+             call c%reduceatoms(name,errmsg,occ=occcel)
+             if (len_trim(errmsg) > 0) call ferror("struct_new","reduceatoms: "//errmsg,faterr)
+          end if
+       end if
+       deallocate(name,occcel)
     end if
     if (allocated(useatom)) deallocate(useatom)
+
+    ! flag the presence of partial occupancies
+    if (c%nneq > 0) then
+       c%haveocc = any(c%at(1:c%nneq)%occ < 1d0-1d-6)
+    else
+       c%haveocc = .false.
+    end if
 
     ! overlay the spglib space-group labels, common to both paths (P1 just
     ! resets the Wyckoffs). In path A havesym is always > 0.
