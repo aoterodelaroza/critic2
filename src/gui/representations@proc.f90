@@ -192,7 +192,7 @@ contains
     class(representation), intent(inout) :: r
     integer, intent(in) :: itype
 
-    integer :: isys
+    integer :: isys, imol, iat
 
     ! check the system is sane
     isys = r%id
@@ -216,7 +216,21 @@ contains
           r%sel%onemotif = .false.
        else
           r%sel%border = .true.
+          ! show connected molecules by default if there is more than one
+          ! fragment, or if a non-discrete fragment carries reconnection
+          ! lattice vectors (dangling pieces split by the cell boundary)
           r%sel%onemotif = (sys(isys)%c%nmol > 1)
+          if (.not.r%sel%onemotif) then
+             moldangler: do imol = 1, sys(isys)%c%nmol
+                if (sys(isys)%c%mol(imol)%discrete) cycle
+                do iat = 1, sys(isys)%c%mol(imol)%nat
+                   if (any(sys(isys)%c%mol(imol)%at(iat)%lvec /= 0)) then
+                      r%sel%onemotif = .true.
+                      exit moldangler
+                   end if
+                end do
+             end do moldangler
+          end if
        end if
     end if
 
@@ -703,14 +717,10 @@ contains
              ! we are finished if we have all molecules
              if (imol > c%nmol) exit
 
-             ! Add the new atom; only translate if the fragment is discrete
+             ! Add the new atom, translated by the molecule lattice vector
              k = k + 1
              i = c%mol(imol)%at(k)%cidx
-             if (c%mol(imol)%discrete) then
-                lvec = c%mol(imol)%at(k)%lvec
-             else
-                lvec = 0
-             end if
+             lvec = c%mol(imol)%at(k)%lvec
           else
              ! next atom in the complete list, exit if done
              i = i + 1
@@ -748,7 +758,7 @@ contains
           ! calculate the vacuum shift
           vacshift = 0
           if (any(dovac)) then
-             xx = c%atcel(i)%x
+             xx = c%atcel(i)%x + lvec
              do j = 1, 3
                 if (dovac(j)) then
                    if (xx(j) < ucini(j)) then

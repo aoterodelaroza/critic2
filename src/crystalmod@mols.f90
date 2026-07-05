@@ -168,6 +168,12 @@ contains
        call explore_node(i,c%nmol,(/0,0,0/))
     end do
 
+    ! for non-discrete fragments, recompute the per-atom lattice vectors so
+    ! that dangling pieces split off by the cell boundary are translated to
+    ! reconnect with the rest; the periodic core stays in the main cell
+    if (any(.not.isdiscrete(1:c%nmol))) &
+       call reconnect_nondiscrete_pieces()
+
     ! build the fragment for each molecule by collecting its atoms from
     ! the complete atom list (work arrays sized to fit any molecule)
     allocate(c%mol(c%nmol))
@@ -178,13 +184,8 @@ contains
           if (c%idatcelmol(1,k) /= i) cycle
           nat = nat + 1
           c%idatcelmol(2,k) = nat
-          if (isdiscrete(i)) then
-             fx(:,nat) = c%atcel(k)%x + lvec(:,k)
-             flvec(:,nat) = lvec(:,k)
-          else
-             fx(:,nat) = c%atcel(k)%x
-             flvec(:,nat) = 0
-          end if
+          fx(:,nat) = c%atcel(k)%x + lvec(:,k)
+          flvec(:,nat) = lvec(:,k)
           fis(nat) = c%atcel(k)%is
           fidx(nat) = c%atcel(k)%idx
           fcidx(nat) = k
@@ -195,10 +196,10 @@ contains
     end do
     deallocate(nlmol,lmol,isdiscrete,lvec,fx,fis,fidx,fcidx,flvec)
 
-    ! translate all fragments to the main cell
+    ! translate all discrete fragments to the main cell
     if (.not.c%ismolecule) then
        do i = 1, c%nmol
-          call c%mol(i)%translate_to_main_cell()
+          if (c%mol(i)%discrete) call c%mol(i)%translate_to_main_cell()
        end do
     end if
 
@@ -308,6 +309,140 @@ contains
 
       deallocate(stk_i,stk_k,stk_lvec)
     end subroutine explore_node
+
+    !> For each non-discrete fragment, find the pieces of the fragment
+    !> that are connected without crossing cell boundaries (bonds with
+    !> lcon = 0).  A piece is a dangler if all its bonds to the rest
+    !> of the structure go to a single other piece with a single
+    !> consistent lattice vector Danglers are peeled off iteratively
+    !> and translated to reconnect with their anchor; everything else
+    !> (the periodic core of the framework) stays wrapped in the main
+    !> cell. Overwrites lvec(:,i) for all atoms in non-discrete
+    !> fragments (zero for the atoms in the core).
+    subroutine reconnect_nondiscrete_pieces()
+      integer :: i, j, k, m, iq, nq, ip, jp, npc, nedge, npeel, ineigh, lab(3)
+      logical :: changed
+      integer, allocatable :: ipiece(:) ! piece id per cell atom (0 = atom in a discrete fragment)
+      integer, allocatable :: pshift(:,:) ! lattice shift assigned to each piece
+      integer, allocatable :: q(:) ! BFS queue (cell atom ids)
+      integer, allocatable :: estart(:) ! CSR offsets of the piece edge lists
+      integer, allocatable :: eto(:) ! target piece of each directed edge
+      integer, allocatable :: elab(:,:) ! lattice vector of each directed edge
+      logical, allocatable :: alive(:) ! piece not peeled off yet?
+      integer, allocatable :: porder(:) ! pieces in peel order
+      integer, allocatable :: panchor(:) ! anchor piece of each peeled piece
+      integer, allocatable :: plab(:,:) ! lattice vector to the anchor of each peeled piece
+
+      ! find the pieces: connected components of the lcon = 0 subgraph,
+      ! restricted to the atoms of non-discrete fragments
+      allocate(ipiece(c%ncel),q(c%ncel))
+      ipiece = 0
+      npc = 0
+      do i = 1, c%ncel
+         if (isdiscrete(c%idatcelmol(1,i))) cycle
+         if (ipiece(i) > 0) cycle
+         npc = npc + 1
+         nq = 1
+         q(1) = i
+         ipiece(i) = npc
+         iq = 0
+         do while (iq < nq)
+            iq = iq + 1
+            j = q(iq)
+            do k = 1, c%nstar(j)%ncon
+               if (any(c%nstar(j)%lcon(:,k) /= 0)) cycle
+               if (ipiece(c%nstar(j)%idcon(k)) > 0) cycle
+               nq = nq + 1
+               q(nq) = c%nstar(j)%idcon(k)
+               ipiece(q(nq)) = npc
+            end do
+         end do
+      end do
+
+      ! build the piece-level directed edge lists (CSR) from the
+      ! boundary-crossing bonds; a bond i->j with lattice vector lcon
+      ! means piece(j) is drawn connected if shifted by shift(piece(i))+lcon
+      allocate(estart(npc+1))
+      estart = 0
+      do i = 1, c%ncel
+         if (ipiece(i) == 0) cycle
+         do k = 1, c%nstar(i)%ncon
+            if (all(c%nstar(i)%lcon(:,k) == 0)) cycle
+            estart(ipiece(i)+1) = estart(ipiece(i)+1) + 1
+         end do
+      end do
+      estart(1) = 1
+      do ip = 1, npc
+         estart(ip+1) = estart(ip+1) + estart(ip)
+      end do
+      nedge = estart(npc+1) - 1
+      allocate(eto(nedge),elab(3,nedge))
+      q(1:npc) = estart(1:npc) ! next free slot in each piece's edge list
+      do i = 1, c%ncel
+         if (ipiece(i) == 0) cycle
+         ip = ipiece(i)
+         do k = 1, c%nstar(i)%ncon
+            if (all(c%nstar(i)%lcon(:,k) == 0)) cycle
+            eto(q(ip)) = ipiece(c%nstar(i)%idcon(k))
+            elab(:,q(ip)) = c%nstar(i)%lcon(:,k)
+            q(ip) = q(ip) + 1
+         end do
+      end do
+
+      ! iteratively peel off the dangling pieces: a piece can be peeled if
+      ! all its edges to non-peeled pieces go to a single other piece with
+      ! a single lattice vector (moving it reconnects all those bonds at
+      ! once). Pieces with a self-edge or with conflicting edges stay in
+      ! the main cell: they are the periodic core of the framework, or (a
+      ! conservative choice) danglers anchored to more than one piece.
+      allocate(alive(npc),porder(npc),panchor(npc),plab(3,npc))
+      alive = .true.
+      npeel = 0
+      changed = .true.
+      do while (changed)
+         changed = .false.
+         pieces: do ip = 1, npc
+            if (.not.alive(ip)) cycle
+            ineigh = 0
+            do m = estart(ip), estart(ip+1)-1
+               jp = eto(m)
+               if (.not.alive(jp)) cycle
+               if (jp == ip) cycle pieces ! self-edge: this piece is itself periodic
+               if (ineigh == 0) then
+                  ineigh = jp
+                  lab = elab(:,m)
+               elseif (jp /= ineigh .or. any(elab(:,m) /= lab)) then
+                  cycle pieces ! conflicting edges: keep in the main cell
+               end if
+            end do
+            if (ineigh == 0) cycle ! no anchor to peel onto
+            alive(ip) = .false.
+            npeel = npeel + 1
+            porder(npeel) = ip
+            panchor(ip) = ineigh
+            plab(:,ip) = lab
+            changed = .true.
+         end do pieces
+      end do
+
+      ! assign the shifts: core pieces stay in place; peeled pieces, in
+      ! reverse peel order (so the anchor is always assigned first), are
+      ! translated next to their anchor
+      allocate(pshift(3,npc))
+      pshift = 0
+      do m = npeel, 1, -1
+         ip = porder(m)
+         pshift(:,ip) = pshift(:,panchor(ip)) - plab(:,ip)
+      end do
+
+      ! overwrite the per-atom lattice vectors of the non-discrete fragments
+      do i = 1, c%ncel
+         if (ipiece(i) == 0) cycle
+         lvec(:,i) = pshift(:,ipiece(i))
+      end do
+
+      deallocate(ipiece,q,estart,eto,elab,alive,porder,panchor,plab,pshift)
+    end subroutine reconnect_nondiscrete_pieces
 
   end subroutine fill_molecular_fragments
 
