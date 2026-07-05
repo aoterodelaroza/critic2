@@ -26,7 +26,7 @@ contains
   !> Write information about the crystal structure to the output. lcrys =
   !> information about the structure. lq = list of atomic species.
   module subroutine struct_report(c,lcrys,lq)
-    use global, only: iunitname0, dunit0, iunit, occ_eps
+    use global, only: iunitname0, dunit0, iunit
     use tools_math, only: gcd, cellpar_from_metric
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
     use param, only: bohrtoa, maxzat, pi, atmass, pcamu, bohrtocm
@@ -133,18 +133,31 @@ contains
           write (uout,'("# at = complete list atomic ID. xyz = Cartesian coordinates. spc = atomic species.")')
           write (uout,'("# wyck = wyckoff position. name = atomic name (symbol). mult = multiplicity.")')
           write (uout,'("# Z = atomic number.")')
+          ! the occupancy column is shown only for structures with partial occupancies
+          if (c%haveocc) &
+             write (uout,'("# occ = site occupancy.")')
 
+          if (c%haveocc) then
+             str1 = string("occ",8,ioj_center)
+          else
+             str1 = ""
+          end if
           write (uout,'("# ",99(A," "))') string("nat",3,ioj_center), &
              string("x",14,ioj_center), string("y",14,ioj_center),&
              string("z",14,ioj_center), string("spc",3,ioj_center), string("wyck",4,ioj_center), &
-             string("name",7,ioj_center), string("mult",4,ioj_center), string("Z",3,ioj_center)
+             string("name",7,ioj_center), string("mult",4,ioj_center), string("Z",3,ioj_center), str1
           do i=1, c%nneq
              is = c%at(i)%is
+             if (c%haveocc) then
+                str1 = string(c%at(i)%occ,'f',length=8,decimal=4,justify=3)
+             else
+                str1 = ""
+             end if
              write (uout,'("  ",99(A," "))') string(i,3,ioj_center),&
                 (string(c%at(i)%x(j),'f',length=14,decimal=10,justify=3),j=1,3),&
                 string(is,3,ioj_center), string(c%at(i)%mult,3,ioj_right) // c%at(i)%wyc, &
                 string(c%at(i)%name,7,ioj_center), &
-                string(c%at(i)%mult,4,ioj_center), string(c%spc(is)%z,3,ioj_center)
+                string(c%at(i)%mult,4,ioj_center), string(c%spc(is)%z,3,ioj_center), str1
           enddo
           write (uout,*)
 
@@ -219,20 +232,6 @@ contains
              string(c%atcel(i)%idx,3,ioj_center), str1
        enddo
        write (uout,*)
-
-       ! note the sites with partial occupancy (crystals and molecules)
-       if (c%haveocc) then
-          write (uout,'("+ List of sites with partial occupancies:")')
-          write (uout,'("# nat = non-equivalent atom id. name = atomic name. occ = site occupancy.")')
-          write (uout,'("# ",3(A," "))') string("nat",3,ioj_center), &
-             string("name",7,ioj_center), string("occ",8,ioj_center)
-          do i = 1, c%nneq
-             if (c%at(i)%occ < 1d0-occ_eps) &
-                write (uout,'("  ",3(A," "))') string(i,3,ioj_center), &
-                string(c%at(i)%name,7,ioj_center), string(c%at(i)%occ,'f',length=8,decimal=4,justify=3)
-          end do
-          write (uout,*)
-       end if
 
        ! Encompassing region for the molecule
        if (c%ismolecule) then
