@@ -62,7 +62,7 @@ contains
     type(ImVec4) :: col4
     integer(c_int) :: flags, color, idir
     integer :: i, j, k, jsel, id, iref, inext, iprev, ithis, nfreal, iaux
-    integer :: nshown, nshown_after_filter
+    integer :: nshown, nshown_after_filter, ihl
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -475,12 +475,20 @@ contains
                 if (igTableSetColumnIndex(ic_tree_id)) then
                    str = string(i)
                    call write_maybe_selectable(i,tooltipstr)
+                   ! highlight the ID
                    ok = (sysc(i)%status >= sys_ready)
-                   if (ok .and. sys(i)%c%vib%hasvibs) then
-                      ! vibrations take precedence
+                   ihl = 0
+                   if (ok) then
+                      if (sys(i)%c%vib%hasvibs) then
+                         ihl = 1
+                      else if (sys(i)%c%haveocc) then
+                         ihl = 2
+                      end if
+                   end if
+                   if (ihl == 1) then
                       call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,&
                          rgba=rgba_vibrations)
-                   else if (ok .and. sys(i)%c%haveocc) then
+                   else if (ihl == 2) then
                       call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,&
                          rgba=rgba_partialocc)
                    else
