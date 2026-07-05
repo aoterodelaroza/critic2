@@ -1866,7 +1866,7 @@ contains
     character(len=mlen), allocatable :: strfin(:)
     character*2 :: sym
     character*3 :: schpg
-    character(len=:), allocatable :: str, socc
+    character(len=:), allocatable :: str
     integer :: holo, laue, natmol
     logical :: usesym, doz
     integer :: datvalues(8)
@@ -2030,28 +2030,25 @@ contains
     write (lu,'("_atom_site_fract_x")')
     write (lu,'("_atom_site_fract_y")')
     write (lu,'("_atom_site_fract_z")')
-    if (c%haveocc) &
-       write (lu,'("_atom_site_occupancy")')
-    ! the occupancy column is appended only when the structure has partial
-    ! occupancies (otherwise socc is empty and the write is unchanged)
-    socc = ""
+    write (lu,'("_atom_site_occupancy")')
+    ! the occupancy is always written (1 for fully occupied sites)
     if (usesym) then
        do i = 1, c%nneq
           iz = c%at(i)%is
           str = trim(c%at(i)%name) // string(addlabel(i))
-          if (c%haveocc) socc = string(c%at(i)%occ,'f',decimal=4)
-          write (lu,'(5(A," "),A)') string(str,5,ioj_left),&
+          write (lu,'(6(A," "))') string(str,5,ioj_left),&
              string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
-             (string(c%at(i)%x(j),'f',decimal=14),j=1,3), trim(socc)
+             (string(c%at(i)%x(j),'f',decimal=14),j=1,3),&
+             string(c%at(i)%occ,'f',decimal=4)
        end do
     else
        do i = 1, c%ncel
           iz = c%atcel(i)%is
           str = trim(c%at(c%atcel(i)%idx)%name) // string(addlabel(i))
-          if (c%haveocc) socc = string(c%at(c%atcel(i)%idx)%occ,'f',decimal=4)
-          write (lu,'(5(A," "),A)') string(str,5,ioj_left),&
+          write (lu,'(6(A," "))') string(str,5,ioj_left),&
              string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
-             (string(c%atcel(i)%x(j),'f',decimal=14),j=1,3), trim(socc)
+             (string(c%atcel(i)%x(j),'f',decimal=14),j=1,3),&
+             string(c%at(c%atcel(i)%idx)%occ,'f',decimal=4)
        end do
     end if
     deallocate(addlabel)
