@@ -1451,8 +1451,11 @@ contains
           ok = ok .and. isreal(seed%x(2,seed%nat),line,lp)
           ok = ok .and. isreal(seed%x(3,seed%nat),line,lp)
           if (.not.ok) then
+             ! not a valid atom card: could be a multi-line TITL continuation
+             ! (e.g. Olex2 writes extra description lines) or an unrecognized
+             ! keyword. Skip the line rather than treating it as an atom.
              seed%nat = seed%nat - 1
-             continue
+             cycle
           end if
           if (iz < 1 .or. iz > seed%nspc) then
              errmsg = "Atom type not found in SFAC list."
