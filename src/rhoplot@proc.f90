@@ -2228,7 +2228,8 @@ contains
 
        ! search for a non-used point and start a curve
        k = n1
-       do while ((lc(k)) .and. (k.le.npuntos))
+       do while (k.le.npuntos)
+          if (.not.lc(k)) exit
           k = k+1
        enddo
        if (k.gt.npuntos) then

@@ -2192,17 +2192,21 @@ contains
           navg = 0
           do j = 1, nspc
              jz = sys(r%id)%c%spc(j)%z
-             if (jz > 0 .and. jz <= maxzat .and. atmeneg(jz) > 0d0) then
-                avgeneg = avgeneg + atmeneg(jz)
-                navg = navg + 1
+             if (jz > 0 .and. jz <= maxzat) then
+                if (atmeneg(jz) > 0d0) then
+                   avgeneg = avgeneg + atmeneg(jz)
+                   navg = navg + 1
+                end if
              end if
           end do
           if (navg > 0) avgeneg = avgeneg / navg
           do j = 1, nspc
              jz = sys(r%id)%c%spc(j)%z
-             if (jz > 0 .and. jz <= maxzat .and. atmeneg(jz) > 0d0) then
-                spccenter(j) = atmeneg(jz) < avgeneg
-                spccorner(j) = atmeneg(jz) > avgeneg
+             if (jz > 0 .and. jz <= maxzat) then
+                if (atmeneg(jz) > 0d0) then
+                   spccenter(j) = atmeneg(jz) < avgeneg
+                   spccorner(j) = atmeneg(jz) > avgeneg
+                end if
              end if
           end do
        end if

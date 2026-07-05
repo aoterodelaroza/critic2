@@ -144,10 +144,12 @@ contains
          if (sysc(i)%seed%energy == huge(1d0)) return
          val = sysc(i)%seed%energy
       elseif (ic == ic_tree_v) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         if (sysc(i)%status /= sys_init) return
+         if (sys(i)%c%ismolecule) return
          val = sys(i)%c%omega*bohrtoa**3
       elseif (ic == ic_tree_vmol) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         if (sysc(i)%status /= sys_init) return
+         if (sys(i)%c%ismolecule) return
          val = sys(i)%c%omega*bohrtoa**3/sys(i)%c%nmol
       elseif (ic == ic_tree_nneq) then
          if (sysc(i)%status /= sys_init) return
@@ -159,29 +161,36 @@ contains
          if (sysc(i)%status /= sys_init) return
          val = sys(i)%c%nmol
       elseif (ic == ic_tree_a) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         if (sysc(i)%status /= sys_init) return
+         if (sys(i)%c%ismolecule) return
          val = sys(i)%c%aa(1)*bohrtoa
       elseif (ic == ic_tree_b) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         if (sysc(i)%status /= sys_init) return
+         if (sys(i)%c%ismolecule) return
          val = sys(i)%c%aa(2)*bohrtoa
       elseif (ic == ic_tree_c) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         if (sysc(i)%status /= sys_init) return
+         if (sys(i)%c%ismolecule) return
          val = sys(i)%c%aa(3)*bohrtoa
       elseif (ic == ic_tree_alpha) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         if (sysc(i)%status /= sys_init) return
+         if (sys(i)%c%ismolecule) return
          val = sys(i)%c%bb(1)
       elseif (ic == ic_tree_beta) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         if (sysc(i)%status /= sys_init) return
+         if (sys(i)%c%ismolecule) return
          val = sys(i)%c%bb(2)
       elseif (ic == ic_tree_gamma) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule) return
+         if (sysc(i)%status /= sys_init) return
+         if (sys(i)%c%ismolecule) return
          val = sys(i)%c%bb(3)
       elseif (ic == ic_tree_emol) then
          if (sysc(i)%status /= sys_init .or. sysc(i)%seed%energy == huge(1d0)) return
          val = sysc(i)%seed%energy/sys(i)%c%nmol
       elseif (ic == ic_tree_p) then
-         if (sysc(i)%status /= sys_init .or. sys(i)%c%ismolecule .or.&
-             sysc(i)%seed%pressure == huge(1d0)) return
+         if (sysc(i)%status /= sys_init) return
+         if (sys(i)%c%ismolecule) return
+         if (sysc(i)%seed%pressure == huge(1d0)) return
          val = sysc(i)%seed%pressure
       end if
       getvalue = .true.
