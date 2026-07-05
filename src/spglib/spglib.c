@@ -325,9 +325,9 @@ void spg_free_dataset(SpglibDataset *dataset) {
 
     dataset->spacegroup_number = 0;
     dataset->hall_number = 0;
-    strcpy(dataset->international_symbol, "");
-    strcpy(dataset->hall_symbol, "");
-    strcpy(dataset->choice, "");
+    dataset->international_symbol[0] = '\0';
+    dataset->hall_symbol[0] = '\0';
+    dataset->choice[0] = '\0';
 
     free(dataset);
 }
@@ -576,8 +576,8 @@ SpglibMagneticSpacegroupType spg_get_magnetic_spacegroup_type_from_symmetry(
     /* Initialization */
     spglibtype.uni_number = 0;
     spglibtype.litvin_number = 0;
-    strcpy(spglibtype.bns_number, "");
-    strcpy(spglibtype.og_number, "");
+    spglibtype.bns_number[0] = '\0';
+    spglibtype.og_number[0] = '\0';
     spglibtype.number = 0;
     spglibtype.type = 0;
 
@@ -604,8 +604,8 @@ SpglibMagneticSpacegroupType spg_get_magnetic_spacegroup_type_from_symmetry(
     matched = spg_get_magnetic_spacegroup_type(msgdata->uni_number);
     spglibtype.uni_number = matched.uni_number;
     spglibtype.litvin_number = matched.litvin_number;
-    strcpy(spglibtype.bns_number, matched.bns_number);
-    strcpy(spglibtype.og_number, matched.og_number);
+    snprintf(spglibtype.bns_number, sizeof(spglibtype.bns_number), "%s", matched.bns_number);
+    snprintf(spglibtype.og_number, sizeof(spglibtype.og_number), "%s", matched.og_number);
     spglibtype.number = matched.number;
     spglibtype.type = matched.type;
 
@@ -768,8 +768,8 @@ SpglibMagneticSpacegroupType spg_get_magnetic_spacegroup_type(
     /* Initialization */
     spglibtype.uni_number = 0;
     spglibtype.litvin_number = 0;
-    strcpy(spglibtype.bns_number, "");
-    strcpy(spglibtype.og_number, "");
+    spglibtype.bns_number[0] = '\0';
+    spglibtype.og_number[0] = '\0';
     spglibtype.number = 0;
     spglibtype.type = 0;
 
@@ -1316,9 +1316,9 @@ static SpglibDataset *init_dataset(void) {
 
     dataset->spacegroup_number = 0;
     dataset->hall_number = 0;
-    strcpy(dataset->international_symbol, "");
-    strcpy(dataset->hall_symbol, "");
-    strcpy(dataset->choice, "");
+    dataset->international_symbol[0] = '\0';
+    dataset->hall_symbol[0] = '\0';
+    dataset->choice[0] = '\0';
     dataset->origin_shift[0] = 0;
     dataset->origin_shift[1] = 0;
     dataset->origin_shift[2] = 0;
@@ -1340,7 +1340,7 @@ static SpglibDataset *init_dataset(void) {
     }
     dataset->std_mapping_to_primitive = NULL;
     /* dataset->pointgroup_number = 0; */
-    strcpy(dataset->pointgroup_symbol, "");
+    dataset->pointgroup_symbol[0] = '\0';
 
     return dataset;
 }
@@ -2293,16 +2293,16 @@ SpglibSpacegroupType get_spacegroup_type(int const hall_number) {
 
     spglibtype.number = 0;
     spglibtype.hall_number = 0;
-    strcpy(spglibtype.schoenflies, "");
-    strcpy(spglibtype.hall_symbol, "");
-    strcpy(spglibtype.choice, "");
-    strcpy(spglibtype.international, "");
-    strcpy(spglibtype.international_full, "");
-    strcpy(spglibtype.international_short, "");
-    strcpy(spglibtype.pointgroup_international, "");
-    strcpy(spglibtype.pointgroup_schoenflies, "");
+    spglibtype.schoenflies[0] = '\0';
+    spglibtype.hall_symbol[0] = '\0';
+    spglibtype.choice[0] = '\0';
+    spglibtype.international[0] = '\0';
+    spglibtype.international_full[0] = '\0';
+    spglibtype.international_short[0] = '\0';
+    spglibtype.pointgroup_international[0] = '\0';
+    spglibtype.pointgroup_schoenflies[0] = '\0';
     spglibtype.arithmetic_crystal_class_number = 0;
-    strcpy(spglibtype.arithmetic_crystal_class_symbol, "");
+    spglibtype.arithmetic_crystal_class_symbol[0] = '\0';
 
     if (0 < hall_number && hall_number < 531) {
         spgtype = spgdb_get_spacegroup_type(hall_number);
