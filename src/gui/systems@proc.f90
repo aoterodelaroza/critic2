@@ -1473,22 +1473,43 @@ contains
     isys = sysc%id
     if (.not.ok_system(isys,sys_init)) return
 
+    ! occupancy is clamped to (0,1] (0 would be a vacancy, rejected by seed_check)
     if (type == atlisttype_nneq) then
-       sys(isys)%c%at(id)%occ = min(max(occ,0d0),1d0)
+       sys(isys)%c%at(id)%occ = min(max(occ,1d-10),1d0)
     elseif (type /= atlisttype_species .and. type /= atlisttype_nmol) then
-       sys(isys)%c%at(sys(isys)%c%atcel(id)%idx)%occ = min(max(occ,0d0),1d0)
+       sys(isys)%c%at(sys(isys)%c%atcel(id)%idx)%occ = min(max(occ,1d-10),1d0)
     else
        return
     end if
 
     ! update the partial-occupancy flag
-    if (sys(isys)%c%nneq > 0) &
-       sys(isys)%c%haveocc = any(sys(isys)%c%at(1:sys(isys)%c%nneq)%occ < 1d0-1d-6)
+    call sys(isys)%c%set_haveocc()
 
     ! the geometry has changed
     call sysc%post_event(lastchange_geometry)
 
   end subroutine set_attype_occupancy
+
+  ! For the given atom type and id, return the site occupancy. The occupancy
+  ! lives on the non-equivalent atom, reached directly (nneq) or via the
+  ! complete-list index (cell lists).
+  module function attype_occupancy(sysc,type,id)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: id
+    real*8 :: attype_occupancy
+
+    integer :: isys
+
+    attype_occupancy = 1d0
+    isys = sysc%id
+    if (type == atlisttype_nneq) then
+       attype_occupancy = sys(isys)%c%at(id)%occ
+    elseif (type /= atlisttype_species .and. type /= atlisttype_nmol) then
+       attype_occupancy = sys(isys)%c%at(sys(isys)%c%atcel(id)%idx)%occ
+    end if
+
+  end function attype_occupancy
 
   ! For the given atom type, return the corresponding atomic
   ! coordinates.

@@ -838,16 +838,10 @@ contains
                    if (doocc) then
                       icol = icol + 1
                       if (igTableSetColumnIndex(icol)) then
-                         if (w%geometry_atomtype == atlisttype_nneq) then
-                            ! i is an nneq index in this case
-                            occval = sys(isys)%c%at(i)%occ
-                         else
-                            ! i is a cell index in this case
-                            occval = sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%occ
-                         end if
+                         occval = sysc(isys)%attype_occupancy(w%geometry_atomtype,i)
                          occold = occval
                          if (iw_dragfloat_real8("##occ" // string(isys) // "_" // string(i),&
-                            x1=occval,speed=0.001d0,min=0d0,max=1d0,decimal=3,notlive=.true.,&
+                            x1=occval,speed=0.001d0,min=1d-10,max=1d0,decimal=3,notlive=.true.,&
                             flags=ImGuiSliderFlags_AlwaysClamp)) then
                             if (abs(occval-occold) > 1d-10) then
                                iaction = iaction_set_atom_occupancy
@@ -2769,11 +2763,7 @@ contains
                end if
             elseif (icolsort(w%geometry_sortcid) == ic_occ) then
                ! occupancy
-               if (w%geometry_atomtype == atlisttype_nneq) then
-                  rval(ii) = sys(isys)%c%at(i)%occ
-               else
-                  rval(ii) = sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%occ
-               end if
+               rval(ii) = sysc(isys)%attype_occupancy(w%geometry_atomtype,i)
             else
                if (table_hltype == atlisttype_nmol) then
                   x0 = mol_com_coords(i)

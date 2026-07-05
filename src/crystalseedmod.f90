@@ -437,6 +437,11 @@ module crystalseedmod
        type(crystalseed), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_crystalseed
+     module subroutine seed_set_occ(seed,occ,nat)
+       type(crystalseed), intent(inout) :: seed
+       real*8, intent(in) :: occ(:)
+       integer, intent(in) :: nat
+     end subroutine seed_set_occ
      module subroutine struct_detect_read_format(file,isformat,alsofield,ti)
        character*(*), intent(in) :: file
        integer, intent(out) :: isformat

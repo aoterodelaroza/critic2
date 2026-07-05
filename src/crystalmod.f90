@@ -239,6 +239,7 @@ module crystalmod
      procedure :: init => struct_init !< Allocate arrays and nullify variables
      procedure :: end => struct_end !< Deallocate arrays and nullify variables
      procedure :: struct_new !< Initialize the structure from a crystal seed
+     procedure :: set_haveocc !< Recompute the partial-occupancy flag (haveocc)
      procedure :: calc_vacuum_lengths !< Calculate the vacuum lengths and slab limits
      procedure :: recompute_molecular_cell !< Re-fit the molecular cell to the current atoms (molecules)
 
@@ -434,6 +435,9 @@ module crystalmod
        logical, intent(in), optional :: noenv
        type(thread_info), intent(in), optional :: ti
      end subroutine struct_new
+     module subroutine set_haveocc(c)
+       class(crystal), intent(inout) :: c
+     end subroutine set_haveocc
      module subroutine calc_vacuum_lengths(c)
        class(crystal), intent(inout) :: c
      end subroutine calc_vacuum_lengths

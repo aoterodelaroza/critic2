@@ -34,6 +34,9 @@ module global
   real*8, parameter :: atomeps_structnew = 5d-2 !< ditto, checking for repeats in struct_new
   real*8, parameter :: atomeps2 = atomeps*atomeps
 
+  ! Occupancy threshold: a site is partially occupied if its occupancy is below (1 - occ_eps)
+  real*8, parameter :: occ_eps = 1d-6
+
   ! Beta-sphere default radius (bohr)
   real*8, parameter :: rbetadef = 0.1d0
 

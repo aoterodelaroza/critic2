@@ -26,7 +26,7 @@ contains
   !> Write information about the crystal structure to the output. lcrys =
   !> information about the structure. lq = list of atomic species.
   module subroutine struct_report(c,lcrys,lq)
-    use global, only: iunitname0, dunit0, iunit
+    use global, only: iunitname0, dunit0, iunit, occ_eps
     use tools_math, only: gcd, cellpar_from_metric
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
     use param, only: bohrtoa, maxzat, pi, atmass, pcamu, bohrtocm
@@ -227,7 +227,7 @@ contains
           write (uout,'("# ",3(A," "))') string("nat",3,ioj_center), &
              string("name",7,ioj_center), string("occ",8,ioj_center)
           do i = 1, c%nneq
-             if (c%at(i)%occ < 1d0-1d-6) &
+             if (c%at(i)%occ < 1d0-occ_eps) &
                 write (uout,'("  ",3(A," "))') string(i,3,ioj_center), &
                 string(c%at(i)%name,7,ioj_center), string(c%at(i)%occ,'f',length=8,decimal=4,justify=3)
           end do
@@ -1866,7 +1866,7 @@ contains
     character(len=mlen), allocatable :: strfin(:)
     character*2 :: sym
     character*3 :: schpg
-    character(len=:), allocatable :: str
+    character(len=:), allocatable :: str, socc
     integer :: holo, laue, natmol
     logical :: usesym, doz
     integer :: datvalues(8)
@@ -2032,35 +2032,26 @@ contains
     write (lu,'("_atom_site_fract_z")')
     if (c%haveocc) &
        write (lu,'("_atom_site_occupancy")')
+    ! the occupancy column is appended only when the structure has partial
+    ! occupancies (otherwise socc is empty and the write is unchanged)
+    socc = ""
     if (usesym) then
        do i = 1, c%nneq
           iz = c%at(i)%is
           str = trim(c%at(i)%name) // string(addlabel(i))
-          if (c%haveocc) then
-             write (lu,'(6(A," "))') string(str,5,ioj_left),&
-                string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
-                (string(c%at(i)%x(j),'f',decimal=14),j=1,3),&
-                string(c%at(i)%occ,'f',decimal=4)
-          else
-             write (lu,'(5(A," "))') string(str,5,ioj_left),&
-                string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
-                (string(c%at(i)%x(j),'f',decimal=14),j=1,3)
-          end if
+          if (c%haveocc) socc = string(c%at(i)%occ,'f',decimal=4)
+          write (lu,'(5(A," "),A)') string(str,5,ioj_left),&
+             string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
+             (string(c%at(i)%x(j),'f',decimal=14),j=1,3), trim(socc)
        end do
     else
        do i = 1, c%ncel
           iz = c%atcel(i)%is
           str = trim(c%at(c%atcel(i)%idx)%name) // string(addlabel(i))
-          if (c%haveocc) then
-             write (lu,'(6(A," "))') string(str,5,ioj_left),&
-                string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
-                (string(c%atcel(i)%x(j),'f',decimal=14),j=1,3),&
-                string(c%at(c%atcel(i)%idx)%occ,'f',decimal=4)
-          else
-             write (lu,'(5(A," "))') string(str,5,ioj_left),&
-                string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
-                (string(c%atcel(i)%x(j),'f',decimal=14),j=1,3)
-          end if
+          if (c%haveocc) socc = string(c%at(c%atcel(i)%idx)%occ,'f',decimal=4)
+          write (lu,'(5(A," "),A)') string(str,5,ioj_left),&
+             string(nameguess(c%spc(iz)%z,.true.),5,ioj_left),&
+             (string(c%atcel(i)%x(j),'f',decimal=14),j=1,3), trim(socc)
        end do
     end if
     deallocate(addlabel)

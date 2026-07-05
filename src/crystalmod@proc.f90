@@ -153,10 +153,10 @@ contains
   module subroutine struct_new(c,seed,crashfail,noenv,ti)
     use crystalseedmod, only: crystalseed
     use grid1mod, only: grid1_register_ae
-    use global, only: crsmall, molsmall, atomeps_structnew, bondfactor
+    use global, only: crsmall, molsmall, atomeps_structnew, bondfactor, symprec
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
        det3, mnorm2, cellpar_from_metric
-    use tools_io, only: ferror, faterr, string, usegui
+    use tools_io, only: ferror, faterr, warning, string, usegui
     use tools, only: wscell
     use types, only: realloc
     use param, only: pi, eyet, eye, atmcov
@@ -167,7 +167,7 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3), delta(3)
-    logical :: good, good2, doenv, copybonds, envbuilt
+    logical :: good, good2, doenv, copybonds, envbuilt, hascoinc
     integer :: i, j, k, l, iat, newmult
     real*8, allocatable :: atpos(:,:), area(:), deltasave(:,:), occcel(:)
     integer, allocatable :: irotm(:), icenv(:)
@@ -531,12 +531,31 @@ contains
           end if
        else if (.not.seed%ismolecule .and. haveatoms .and. &
           (seed%findsym == 1 .or. seed%findsym == -1 .and. seed%nat <= crsmall)) then
-          ! B2: find the symmetry from the complete cell geometry
-          call c%build_env()
-          envbuilt = .true.
-          c%havesym = 0
-          call c%guess_spg(2)
-          c%havesym = 1
+          ! candidate for symmetry guessing (B2), but atoms closer than the
+          ! symmetry distance tolerance (symprec) cannot be told apart by the
+          ! symmetry search (spglib rejects them as "too close"), so detect them
+          ! by nearest-lattice-image distance and fall back to P1
+          hascoinc = .false.
+          cloop: do i = 1, c%ncel
+             do j = i+1, c%ncel
+                if (c%are_lclose(c%atcel(i)%x,c%atcel(j)%x,symprec)) then
+                   hascoinc = .true.
+                   exit cloop
+                end if
+             end do
+          end do cloop
+
+          if (hascoinc) then
+             ! B4: coincident atoms - set P1
+             call c%clearsym()
+          else
+             ! B2: find the symmetry from the complete cell geometry
+             call c%build_env()
+             envbuilt = .true.
+             c%havesym = 0
+             call c%guess_spg(2)
+             c%havesym = 1
+          end if
        else
           ! B3/B4: no symmetry - set P1
           call c%clearsym()
@@ -584,18 +603,18 @@ contains
     if (allocated(useatom)) deallocate(useatom)
 
     ! flag the presence of partial occupancies
-    if (c%nneq > 0) then
-       c%haveocc = any(c%at(1:c%nneq)%occ < 1d0-1d-6)
-    else
-       c%haveocc = .false.
-    end if
+    call c%set_haveocc()
 
     ! overlay the spglib space-group labels, common to both paths (P1 just
     ! resets the Wyckoffs). In path A havesym is always > 0.
     if (c%havesym > 0) then
        call c%spglib_wrap(c%spg,.false.,errmsg,ti=ti)
        if (len_trim(errmsg) > 0) then
-          call ferror("struct_new","spglib: "//errmsg,faterr)
+          ! spglib could not analyze the cell -> keep the structure
+          ! but without the spglib space-group dataset
+          call ferror("struct_new","spglib could not assign the space group: "//trim(errmsg),warning)
+          c%spgavail = .false.
+          call c%spgtowyc()
        else
           c%spgavail = .true.
           call c%spgtowyc(c%spg)
@@ -657,6 +676,16 @@ contains
     c%isinit = .true.
 
   end subroutine struct_new
+
+  !> Recompute the partial-occupancy flag: haveocc is true if any
+  !> non-equivalent atom has an occupancy below 1 (empty slice -> .false.).
+  module subroutine set_haveocc(c)
+    use global, only: occ_eps
+    class(crystal), intent(inout) :: c
+
+    c%haveocc = any(c%at(1:c%nneq)%occ < 1d0-occ_eps)
+
+  end subroutine set_haveocc
 
   !> Calculate the vacuum lengths (c%vaclength) and the limits of the
   !> largest empty slab in each direction (c%vactop, c%vacbot), in

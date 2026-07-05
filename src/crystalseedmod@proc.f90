@@ -537,12 +537,8 @@ contains
     call realloc(seed%is,seed%nat)
     call realloc(seed%spc,seed%nspc)
 
-    ! store the occupancies, only if some are partial
-    if (any(occ(1:seed%nat) < 1d0-1d-6)) then
-       if (allocated(seed%occ)) deallocate(seed%occ)
-       allocate(seed%occ(seed%nat))
-       seed%occ = occ(1:seed%nat)
-    end if
+    ! store the occupancies (kept only if some site is partial)
+    call seed_set_occ(seed,occ,seed%nat)
 
     ! symmetry (the crystal environment is never a molecule)
     if (goodspg) then
@@ -746,12 +742,8 @@ contains
     call realloc(seed%is,seed%nat)
     call realloc(seed%spc,seed%nspc)
 
-    ! store the occupancies, only if some are partial
-    if (any(occ(1:seed%nat) < 1d0-1d-6)) then
-       if (allocated(seed%occ)) deallocate(seed%occ)
-       allocate(seed%occ(seed%nat))
-       seed%occ = occ(1:seed%nat)
-    end if
+    ! store the occupancies (kept only if some site is partial)
+    call seed_set_occ(seed,occ,seed%nat)
 
     oksyn = .true.
     seed%useabr = 0
@@ -1239,7 +1231,6 @@ contains
     integer :: iz
     integer :: lncv, nfvar
     real*8, allocatable :: lcen(:,:), occfac(:), fvar(:)
-    logical :: haveocc
 
     real*8, parameter :: eps = 1d-5
 
@@ -1505,8 +1496,10 @@ contains
 
           ! site occupation factor (sof): optional 4th number after the
           ! coordinates. Decode the SHELX free-variable convention m*10+p:
-          ! m=0/1 fixed at p; m>1 uses p*fvar(m); m<-1 uses p*(1-fvar(-m)).
-          ! The special-position multiplicity factor is removed below.
+          ! m=0/1 fixed at p; m>1 uses p*fvar(m); m<-1 uses |p|*(1-fvar(-m)).
+          ! For m<-1 both mm and pp come out negative (e.g. sof=-21 -> mm=-2,
+          ! pp=-1), so the magnitude is -pp. The special-position multiplicity
+          ! factor is removed below.
           occfac(seed%nat) = 1d0
           if (isreal(sof,line,lp)) then
              mm = nint(sof/10d0)
@@ -1521,7 +1514,7 @@ contains
                 end if
              elseif (mm < -1) then
                 if (-mm <= nfvar) then
-                   occfac(seed%nat) = pp * (1d0 - fvar(-mm))
+                   occfac(seed%nat) = -pp * (1d0 - fvar(-mm))
                 else
                    occfac(seed%nat) = -pp
                 end if
@@ -1598,7 +1591,6 @@ contains
     ! recover the chemical occupancy from the SHELX site occupation factor. For
     ! an atom on a special position the sof also carries the ratio of the site
     ! multiplicity to the general multiplicity (neqv*ncv), which we divide out.
-    haveocc = .false.
     do i = 1, seed%nat
        if (.not.mol) then
           ! count the distinct images (the site multiplicity)
@@ -1626,16 +1618,12 @@ contains
              occfac(i) = occfac(i) * real(seed%neqv*seed%ncv,8) / real(mult,8)
           end if
        end if
-       ! snap to 1 and clamp to (0,1]
+       ! snap a nearly-full occupancy to exactly 1 (seed_set_occ does the clamp)
        if (abs(occfac(i) - 1d0) < 1d-3) occfac(i) = 1d0
-       occfac(i) = max(min(occfac(i),1d0),1d-10)
-       if (occfac(i) < 1d0-1d-6) haveocc = .true.
     end do
-    if (haveocc) then
-       if (allocated(seed%occ)) deallocate(seed%occ)
-       allocate(seed%occ(seed%nat))
-       seed%occ = occfac(1:seed%nat)
-    end if
+
+    ! store the occupancies (kept only if some site is partial)
+    call seed_set_occ(seed,occfac,seed%nat)
 
 999 continue
     call fclose(lu)
@@ -6423,6 +6411,28 @@ contains
 
   end subroutine realloc_crystalseed
 
+  !> Store the site occupancies occ(1:nat) into the seed. The values are clamped
+  !> to (0,1]. seed%occ is allocated only when some site is partially occupied
+  !> (occ < 1); otherwise it is left deallocated, which means all occupancies
+  !> are 1 (see the seed%occ contract in crystalseedmod).
+  module subroutine seed_set_occ(seed,occ,nat)
+    use global, only: occ_eps
+    type(crystalseed), intent(inout) :: seed
+    real*8, intent(in) :: occ(:)
+    integer, intent(in) :: nat
+
+    integer :: i
+
+    if (allocated(seed%occ)) deallocate(seed%occ)
+    if (nat <= 0) return
+    if (.not.any(occ(1:nat) < 1d0-occ_eps)) return
+    allocate(seed%occ(nat))
+    do i = 1, nat
+       seed%occ(i) = max(min(occ(i),1d0),1d-10)
+    end do
+
+  end subroutine seed_set_occ
+
   !> Detect the format for the structure-containing file. Normally,
   !> this works by detecting the extension, but the file may be
   !> opened and searched if ambiguity is present. The format and
@@ -7882,13 +7892,8 @@ contains
          seed%atname(i) = atname(i)
       end do
 
-      ! fill the occupancies, only if some of them are partial
-      if (any(occat(1:nat) < 1d0-1d-6)) then
-         allocate(seed%occ(nat))
-         do i = 1, nat
-            seed%occ(i) = max(min(occat(i),1d0),1d-10)
-         end do
-      end if
+      ! store the occupancies (kept only if some site is partial)
+      call seed_set_occ(seed,occat,nat)
 
       ! pre-allocate the symmetry
       seed%neqv = 0

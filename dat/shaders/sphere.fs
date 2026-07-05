@@ -63,19 +63,19 @@ void main(){
   vec4 base = fColor;
   if (fOcc < 0.999){
     vec2 p = vx.xy;
-    float start = 1.5707963;
+    // the pie starts at the +y axis (angle pi/2), so the 0.5-occupancy division
+    // is vertical; the two division rays are at +y (d1) and at +y+occ*2pi (d2)
     float ang = fOcc * 6.2831853;
-    float phi = atan(p.y, p.x) - start;
+    float phi = atan(p.y, p.x) - 1.5707963;
     if (phi < 0.0) phi += 6.2831853;
     if (phi >= ang)
       base = vec4(fOccEmpty, fColor.a);
 
-    // border along the two sector division rays (at start and start+occ*2pi),
-    // drawn with the same thickness as the atom rim border (fBorder)
+    // border along the two sector division rays, same thickness as the atom
+    // rim border (fBorder). d1 = (0,1) is the +y axis; d2 rotates by ang.
     float halfw = 0.5 * fBorder;
-    vec2 d1 = vec2(cos(start), sin(start));
-    vec2 d2 = vec2(cos(start + ang), sin(start + ang));
-    bool ondiv = (dot(p, d1) >= 0.0 && abs(p.x*d1.y - p.y*d1.x) < halfw) ||
+    vec2 d2 = vec2(-sin(ang), cos(ang));
+    bool ondiv = (p.y >= 0.0 && abs(p.x) < halfw) ||
                  (dot(p, d2) >= 0.0 && abs(p.x*d2.y - p.y*d2.x) < halfw);
     if (ondiv)
       base = vec4(fBorderColor, fColor.a);
