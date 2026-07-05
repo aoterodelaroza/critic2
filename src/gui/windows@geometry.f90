@@ -97,6 +97,7 @@ contains
     type(ImGuiListClipper), pointer :: clipper_f
     logical :: havergb, havergb_, ldum, ok, oksys
     real*8 :: x0(3), x6(6), xold(3), x6old(6), res, vol, volold, scal
+    real*8 :: occval, occold
     real*8 :: stdrot(3,3), stdcom(3), stdext, stdaxlen ! transient std-orientation axes
     integer :: ieuler_drag ! which Euler angle (1/2/3) is being dragged (0 = none)
     real*8 :: rotdir(3), rotlen ! transient rotation-axis direction and half-length
@@ -143,6 +144,7 @@ contains
     integer, parameter :: iaction_sym_refine = 21
     integer, parameter :: iaction_sym_wholemols = 22
     integer, parameter :: iaction_sym_analyze = 23
+    integer, parameter :: iaction_set_atom_occupancy = 24
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_remove = 1
@@ -576,7 +578,7 @@ contains
           doidx = ((w%geometry_atomtype == atlisttype_ncel_frac.or.w%geometry_atomtype == atlisttype_ncel_bohr.or.&
              w%geometry_atomtype == atlisttype_ncel_ang).and..not.sys(isys)%c%ismolecule)
           docoord = w%geometry_atomtype /= atlisttype_species
-          doocc = (sys(isys)%c%haveocc .and. w%geometry_atomtype /= atlisttype_species)
+          doocc = (w%geometry_atomtype /= atlisttype_species)
 
           ! number of columns
           ncol = 3
@@ -838,10 +840,20 @@ contains
                       if (igTableSetColumnIndex(icol)) then
                          if (w%geometry_atomtype == atlisttype_nneq) then
                             ! i is an nneq index in this case
-                            call iw_text(string(sys(isys)%c%at(i)%occ,'f',5,3))
+                            occval = sys(isys)%c%at(i)%occ
                          else
                             ! i is a cell index in this case
-                            call iw_text(string(sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%occ,'f',5,3))
+                            occval = sys(isys)%c%at(sys(isys)%c%atcel(i)%idx)%occ
+                         end if
+                         occold = occval
+                         if (iw_dragfloat_real8("##occ" // string(isys) // "_" // string(i),&
+                            x1=occval,speed=0.001d0,min=0d0,max=1d0,decimal=3,notlive=.true.,&
+                            flags=ImGuiSliderFlags_AlwaysClamp)) then
+                            if (abs(occval-occold) > 1d-10) then
+                               iaction = iaction_set_atom_occupancy
+                               iaction_i1 = i
+                               iaction_x(1) = occval
+                            end if
                          end if
                       end if
                    end if
@@ -2251,6 +2263,10 @@ contains
     elseif (iaction == iaction_set_atom_position) then
        call sysc(isys)%set_atom_position(w%geometry_atomtype,iaction_i1,iaction_x,iaction_l,&
           copybonding=w%geometry_keepbonding)
+       sysc(isys)%sc%nextbuildlists_fixcam = .true.
+
+    elseif (iaction == iaction_set_atom_occupancy) then
+       call sysc(isys)%set_attype_occupancy(w%geometry_atomtype,iaction_i1,iaction_x(1))
        sysc(isys)%sc%nextbuildlists_fixcam = .true.
 
     elseif (iaction == iaction_add_species_change_atom) then

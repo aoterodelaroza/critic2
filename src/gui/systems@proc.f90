@@ -1458,6 +1458,38 @@ contains
 
   end subroutine set_attype_name
 
+  ! For the given atom type and id, set the site occupancy to occ. The
+  ! occupancy lives on the non-equivalent atom, so a change in the cell list
+  ! applies to all symmetry-equivalent atoms.
+  module subroutine set_attype_occupancy(sysc,type,id,occ)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: type
+    integer, intent(in) :: id
+    real*8, intent(in) :: occ
+
+    integer :: isys
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+
+    if (type == atlisttype_nneq) then
+       sys(isys)%c%at(id)%occ = min(max(occ,0d0),1d0)
+    elseif (type /= atlisttype_species .and. type /= atlisttype_nmol) then
+       sys(isys)%c%at(sys(isys)%c%atcel(id)%idx)%occ = min(max(occ,0d0),1d0)
+    else
+       return
+    end if
+
+    ! update the partial-occupancy flag
+    if (sys(isys)%c%nneq > 0) &
+       sys(isys)%c%haveocc = any(sys(isys)%c%at(1:sys(isys)%c%nneq)%occ < 1d0-1d-6)
+
+    ! the geometry has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine set_attype_occupancy
+
   ! For the given atom type, return the corresponding atomic
   ! coordinates.
   module function attype_coordinates(sysc,type,id)
