@@ -148,20 +148,6 @@ contains
           enddo
           write (uout,*)
 
-          ! note the non-equivalent atoms with partial occupancy
-          if (c%haveocc) then
-             write (uout,'("+ List of sites with partial occupancies:")')
-             write (uout,'("# nat = non-equivalent atom id. name = atomic name. occ = site occupancy.")')
-             write (uout,'("# ",3(A," "))') string("nat",3,ioj_center), &
-                string("name",7,ioj_center), string("occ",8,ioj_center)
-             do i = 1, c%nneq
-                if (c%at(i)%occ < 1d0-1d-6) &
-                   write (uout,'("  ",3(A," "))') string(i,3,ioj_center), &
-                   string(c%at(i)%name,7,ioj_center), string(c%at(i)%occ,'f',length=8,decimal=4,justify=3)
-             end do
-             write (uout,*)
-          end if
-
           write (uout,'("+ List of atoms in the unit cell (cryst. coords.): ")')
           write (uout,'("# at = complete list atomic ID. xyz = Cartesian coordinates. spc = atomic species.")')
           write (uout,'("# name = atomic name (symbol). Z = atomic number. nat = non-equivalent atom id.")')
@@ -233,6 +219,20 @@ contains
              string(c%atcel(i)%idx,3,ioj_center), str1
        enddo
        write (uout,*)
+
+       ! note the sites with partial occupancy (crystals and molecules)
+       if (c%haveocc) then
+          write (uout,'("+ List of sites with partial occupancies:")')
+          write (uout,'("# nat = non-equivalent atom id. name = atomic name. occ = site occupancy.")')
+          write (uout,'("# ",3(A," "))') string("nat",3,ioj_center), &
+             string("name",7,ioj_center), string("occ",8,ioj_center)
+          do i = 1, c%nneq
+             if (c%at(i)%occ < 1d0-1d-6) &
+                write (uout,'("  ",3(A," "))') string(i,3,ioj_center), &
+                string(c%at(i)%name,7,ioj_center), string(c%at(i)%occ,'f',length=8,decimal=4,justify=3)
+          end do
+          write (uout,*)
+       end if
 
        ! Encompassing region for the molecule
        if (c%ismolecule) then

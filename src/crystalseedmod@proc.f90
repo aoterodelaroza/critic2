@@ -216,7 +216,7 @@ contains
     use global, only: eval_next, dunit0, iunit, iunit_isdef, iunit_bohr
     use tools_math, only: matinv
     use tools_io, only: uin, getline, ucopy, lgetword, equal, ferror, faterr,&
-       getword, lower, isinteger, string, nameguess, zatguess, equali
+       getword, lower, isinteger, isreal, string, nameguess, zatguess, equali
     use param, only: bohrtoa, isformat_r_from_input
     use types, only: realloc
 
@@ -229,7 +229,8 @@ contains
     character*255, allocatable :: sline(:)
     integer :: i, j, k, lp, nsline, luout, iat, lp2, iunit0, it
     integer :: hnum, ier
-    real*8 :: rmat(3,3), scal, ascal, x(3), xdif(3)
+    real*8 :: rmat(3,3), scal, ascal, x(3), xdif(3), rocc
+    real*8, allocatable :: occ(:)
     logical :: ok, goodspg, islib
     logical :: isset
     real*8 :: rot(3,4)
@@ -255,7 +256,7 @@ contains
     else
        luout = -1
     endif
-    allocate(seed%x(3,10),seed%is(10),seed%spc(2),seed%atname(10))
+    allocate(seed%x(3,10),seed%is(10),seed%spc(2),seed%atname(10),occ(10))
     do while (getline(lu,line,ucopy=luout))
        lp = 1
        uword = getword(line,lp)
@@ -387,6 +388,7 @@ contains
              call realloc(seed%x,3,2*seed%nat)
              call realloc(seed%is,2*seed%nat)
              call realloc(seed%atname,2*seed%nat)
+             call realloc(occ,2*seed%nat)
           end if
 
           if (.not.equal(word,'neq')) then
@@ -443,6 +445,9 @@ contains
           end if
           seed%is(seed%nat) = it
 
+          ! optional trailing fields: unit keyword and/or an occupancy value
+          ! (a bare number, taken as the last column; default 1)
+          rocc = 1d0
           do while (.true.)
              word = lgetword(line,lp)
              if (equal(word,'ang') .or. equal(word,'angstrom')) then
@@ -459,6 +464,11 @@ contains
                    return
                 end if
                 seed%x(:,seed%nat) = matmul(rmat,seed%x(:,seed%nat))
+             else if (len_trim(word) > 0 .and. isreal(rocc,word)) then
+                if (rocc <= 0d0 .or. rocc > 1d0) then
+                   call ferror('parse_crystal_env','Occupancy must be in the range (0,1]',faterr,line,syntax=.true.)
+                   return
+                end if
              else if (len_trim(word) > 0) then
                 call ferror('parse_crystal_env','Unknown keyword in atom input',faterr,line,syntax=.true.)
                 return
@@ -466,6 +476,7 @@ contains
                 exit
              end if
           end do
+          occ(seed%nat) = rocc
        end if
     end do
     aux = getword(line,lp)
@@ -512,9 +523,11 @@ contains
                 if (seed%nat > size(seed%x,2)) then
                    call realloc(seed%x,3,2*seed%nat)
                    call realloc(seed%is,2*seed%nat)
+                   call realloc(occ,2*seed%nat)
                 end if
                 seed%is(seed%nat) = seed%is(j)
                 seed%x(:,seed%nat) = x
+                occ(seed%nat) = occ(j)
              endif
           end do
        end do
@@ -523,6 +536,13 @@ contains
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
     call realloc(seed%spc,seed%nspc)
+
+    ! store the occupancies, only if some are partial
+    if (any(occ(1:seed%nat) < 1d0-1d-6)) then
+       if (allocated(seed%occ)) deallocate(seed%occ)
+       allocate(seed%occ(seed%nat))
+       seed%occ = occ(1:seed%nat)
+    end if
 
     ! symmetry (the crystal environment is never a molecule)
     if (goodspg) then
@@ -555,7 +575,7 @@ contains
   module subroutine parse_molecule_env(seed,lu,oksyn,fromlib)
     use global, only: rborder_def, eval_next, dunit0, iunit, iunit_ang, iunit_isdef
     use tools_io, only: uin, ucopy, getline, lgetword, equal, ferror, faterr,&
-       string, isinteger, nameguess, getword, zatguess, equali, lower
+       string, isinteger, isreal, nameguess, getword, zatguess, equali, lower
     use param, only: bohrtoa, isformat_r_from_input
     use types, only: realloc
 
@@ -566,7 +586,8 @@ contains
 
     character(len=:), allocatable :: uword, word, aux, line, name
     integer :: lp, lp2, luout, iat, iunit0, it, i
-    real*8 :: rborder
+    real*8 :: rborder, rocc
+    real*8, allocatable :: occ(:)
     logical :: ok, docube, isset, islib
 
     call seed%end()
@@ -584,7 +605,7 @@ contains
     rborder = rborder_def
     seed%nat = 0
     seed%nspc = 0
-    allocate(seed%x(3,10),seed%is(10),seed%spc(2),seed%atname(10))
+    allocate(seed%x(3,10),seed%is(10),seed%spc(2),seed%atname(10),occ(10))
     if (lu == uin) then
        luout = ucopy
     else
@@ -626,6 +647,7 @@ contains
              call realloc(seed%x,3,2*seed%nat)
              call realloc(seed%is,2*seed%nat)
              call realloc(seed%atname,2*seed%nat)
+             call realloc(occ,2*seed%nat)
           end if
 
           if (.not.equal(word,'neq')) then
@@ -682,7 +704,10 @@ contains
           end if
           seed%is(seed%nat) = it
 
+          ! optional trailing fields: unit keyword and/or an occupancy value
+          ! (a bare number, taken as the last column; default 1)
           isset = .false.
+          rocc = 1d0
           do while (.true.)
              word = lgetword(line,lp)
              if (equal(word,'ang') .or. equal(word,'angstrom')) then
@@ -690,6 +715,11 @@ contains
                 seed%x(:,seed%nat) = seed%x(:,seed%nat) / bohrtoa
              else if (equal(word,'bohr') .or. equal(word,'au')) then
                 isset = .true.
+             else if (len_trim(word) > 0 .and. isreal(rocc,word)) then
+                if (rocc <= 0d0 .or. rocc > 1d0) then
+                   call ferror('parse_molecule_input','Occupancy must be in the range (0,1]',faterr,line,syntax=.true.)
+                   return
+                end if
              else if (len_trim(word) > 0) then
                 call ferror('parse_molecule_input','Unknown extra keyword in atomic input',faterr,line,syntax=.true.)
                 return
@@ -697,6 +727,7 @@ contains
                 exit
              end if
           end do
+          occ(seed%nat) = rocc
           if (.not.isset) then
              seed%x(:,seed%nat) = seed%x(:,seed%nat) / dunit0(iunit0)
           end if
@@ -714,6 +745,14 @@ contains
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
     call realloc(seed%spc,seed%nspc)
+
+    ! store the occupancies, only if some are partial
+    if (any(occ(1:seed%nat) < 1d0-1d-6)) then
+       if (allocated(seed%occ)) deallocate(seed%occ)
+       allocate(seed%occ(seed%nat))
+       seed%occ = occ(1:seed%nat)
+    end if
+
     oksyn = .true.
     seed%useabr = 0
 

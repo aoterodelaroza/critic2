@@ -155,8 +155,9 @@ contains
     ! atomic positions: header
     call iw_text("Atomic positions",highlight=.true.) ! molecule
     call iw_helpermark("Give the atomic positions for this system as:" // newline //&
-       "  <Sy> <x> <y> <z>" // newline //&
-       "where Sy is the atomic symbol and x,y,z are the atomic coordinates.")
+       "  <Sy> <x> <y> <z> [occ]" // newline //&
+       "where Sy is the atomic symbol and x,y,z are the atomic coordinates." // newline //&
+       "occ is an optional site occupancy, between 0 and 1.")
 
     ! units, does not apply in the case of crystal/cell parameters
     if (ismolecule .or. cellopt == 2) then
