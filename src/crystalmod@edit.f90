@@ -1390,6 +1390,73 @@ contains
 
   end subroutine move_atom
 
+  !> Delete the symmetry operations flagged in del and rebuild the crystal with
+  !> the largest subgroup of operations that contains none of them (the identity
+  !> is never removable).
+  module subroutine reduce_symmetry(c,del,errmsg,ti)
+    use crystalseedmod, only: crystalseed
+    class(crystal), intent(inout) :: c
+    logical, intent(in) :: del(:)
+    character(len=:), allocatable, intent(out) :: errmsg
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: seed
+    logical, allocatable :: lkeep(:), deluse(:)
+    integer :: i, k, nkeep
+
+    errmsg = ""
+    if (.not.c%isinit .or. c%ismolecule .or. c%neqv <= 1) return
+
+    ! the identity (operation 1) is never removable
+    allocate(deluse(c%neqv))
+    deluse = del(1:c%neqv)
+    deluse(1) = .false.
+    if (.not.any(deluse)) then
+       errmsg = "no removable operations were selected"
+       return
+    end if
+
+    ! largest subgroup of the operations that avoids all the deleted ones
+    allocate(lkeep(c%neqv))
+    call c%symop_subgroup(deluse,lkeep)
+    nkeep = count(lkeep)
+    if (nkeep >= c%neqv) return
+
+    ! create seed, then attach the reduced symmetry
+    call c%makeseed(seed,copysym=.false.)
+    seed%havesym = 1
+    seed%findsym = 0
+    seed%checkrepeats = .false.
+    seed%neqlist = .false.
+    seed%neqv = nkeep
+    seed%ncv = c%ncv
+    if (allocated(seed%rotm)) deallocate(seed%rotm)
+    if (allocated(seed%cen)) deallocate(seed%cen)
+    allocate(seed%rotm(3,4,nkeep),seed%cen(3,c%ncv))
+    seed%cen = c%cen(:,1:c%ncv)
+    k = 0
+    do i = 1, c%neqv
+       if (lkeep(i)) then
+          k = k + 1
+          seed%rotm(:,:,k) = c%rotm(:,:,i)
+       end if
+    end do
+
+    ! rebuild the crystal
+    call c%struct_new(seed,crashfail=.false.,ti=ti)
+    if (.not.c%isinit) then
+       errmsg = "could not rebuild the structure with the reduced symmetry"
+       return
+    end if
+
+    ! the atoms and cell are unchanged, so spglib re-detected the original full
+    ! symmetry; discard its labels and mark the space group / Wyckoffs unknown
+    c%spgavail = .false.
+    c%spg%n_atoms = 0
+    call c%spgtowyc()
+
+  end subroutine reduce_symmetry
+
   !> Recalculate the unit cell of a molecule to fit the current atomic
   !> positions, growing it as needed so the molecule (e.g. after a
   !> rigid rotation or translation in place) stays inside the

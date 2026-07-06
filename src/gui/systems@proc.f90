@@ -2444,6 +2444,31 @@ contains
 
   end subroutine clear_symmetry
 
+  !> Delete the symmetry operations flagged in del and rebuild the crystal with
+  !> the largest subgroup avoiding them, then post a geometry-change event.
+  module subroutine reduce_symmetry(sysc,del,errmsg)
+    class(sysconf), intent(inout) :: sysc
+    logical, intent(in) :: del(:)
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    integer :: isys
+
+    errmsg = ""
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (sys(isys)%c%ismolecule) return
+
+    ! reduce the symmetry to the largest subgroup avoiding the deleted operations
+    call sys(isys)%c%reduce_symmetry(del,errmsg)
+    if (len_trim(errmsg) > 0) return
+
+    ! the symmetry (and the non-equivalent atom list) has changed
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine reduce_symmetry
+
   !> Refine the geometry to the ideal symmetry positions (idealize the
   !> cell parameters and atomic positions) using the tolerance stored
   !> in sysc%symeps, keeping the original cell choice (i.e. without

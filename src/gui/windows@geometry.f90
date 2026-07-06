@@ -146,6 +146,7 @@ contains
     integer, parameter :: iaction_sym_wholemols = 22
     integer, parameter :: iaction_sym_analyze = 23
     integer, parameter :: iaction_set_atom_occupancy = 24
+    integer, parameter :: iaction_sym_deleteops = 25
 
     ! edit actions on highglighted atoms
     integer, parameter :: edit_remove = 1
@@ -2355,6 +2356,15 @@ contains
        call sysc(isys)%spg_analysis(w%geometry_sym_analyze_eps,w%geometry_sym_analyze_sym,&
           w%geometry_sym_analyze_num)
 
+    elseif (iaction == iaction_sym_deleteops) then
+       if (allocated(w%geometry_sym_sel)) then
+          call sysc(isys)%reduce_symmetry(w%geometry_sym_sel,w%errmsg)
+          ! neqv changed: drop the cached operations table + selection so they
+          ! are rebuilt at the new operation count
+          call clear_sym_cache()
+          sysc(isys)%sc%nextbuildlists_fixcam = .true.
+       end if
+
     end if
 
   contains
@@ -2485,7 +2495,7 @@ contains
     subroutine symop_display_and_buttons(nop)
       integer, intent(in) :: nop
 
-      integer :: i, n, tag, hovadd, kind1, order1, lioptype, idobj, iview
+      integer :: i, n, tag, hovadd, kind1, order1, lioptype, idobj, iview, nsel
       integer, allocatable :: skind(:), sorder(:)
       real*8, allocatable :: sorig(:,:), sdir(:,:)
       real*8 :: orig1(3), dir1(3), lraxx(3), lraxc(3)
@@ -2632,6 +2642,22 @@ contains
          end if
       end if
       call iw_tooltip("Create a symmetry-elements object from the current selection",ttshown)
+
+      ! Delete: reduce the crystal symmetry to the largest subgroup that excludes
+      ! the selected operations (crystals only; the identity cannot be deleted)
+      if (.not.sys(isys)%c%ismolecule) then
+         call igAlignTextToFramePadding()
+         call iw_text("Transform",highlight=.true.)
+
+         nsel = 0
+         do i = 2, min(nop,size(w%geometry_sym_sel,1))
+            if (w%geometry_sym_sel(i)) nsel = nsel + 1
+         end do
+         if (iw_button("Delete##symseldelete",sameline=.true.,disabled=(nsel==0))) &
+            iaction = iaction_sym_deleteops
+         call iw_tooltip("Delete the selected operations and rebuild with a maximal "//&
+            "subgroup that excludes them.",ttshown)
+      end if
 
     end subroutine symop_display_and_buttons
 

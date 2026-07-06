@@ -153,6 +153,7 @@ module systems
      procedure :: cell_nice_list
      procedure :: recalc_symmetry
      procedure :: clear_symmetry
+     procedure :: reduce_symmetry
      procedure :: refine_symmetry
      procedure :: wholemols_op
      procedure :: spg_analysis
@@ -476,6 +477,11 @@ module systems
      module subroutine clear_symmetry(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine clear_symmetry
+     module subroutine reduce_symmetry(sysc,del,errmsg)
+       class(sysconf), intent(inout) :: sysc
+       logical, intent(in) :: del(:)
+       character(len=:), allocatable, intent(inout) :: errmsg
+     end subroutine reduce_symmetry
      module subroutine refine_symmetry(sysc,errmsg)
        class(sysconf), intent(inout) :: sysc
        character(len=:), allocatable, intent(inout) :: errmsg

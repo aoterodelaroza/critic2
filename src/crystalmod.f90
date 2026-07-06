@@ -317,6 +317,7 @@ module crystalmod
      procedure :: remove_bond !< Remove a single bond between two cell atoms
      procedure :: set_bond_order !< Set the bond order of a single bond between two cell atoms
      procedure :: add_bond !< Add a single bond between two cell atoms
+     procedure :: reduce_symmetry !< Delete symmetry operations and rebuild with the reduced subgroup
 
      ! symmetry (symmetry)
      procedure :: pointgroup !< Returns the rotations in the crystal point group
@@ -330,6 +331,7 @@ module crystalmod
      procedure :: guess_spg !< Guess the symmetry operations from the structure (old guesser)
      procedure :: clearsym !< Clear symmetry info and set the crystal to P1
      procedure :: checkgroup !< Check that the space group operations are consistent
+     procedure :: symop_subgroup !< Calculate largest subgroup not containing the deleted ops
      procedure :: getiws !< Calculate the IWS and its tetrahedra partition around a point
      procedure :: calcmolsym !< Calculate the molecular symmetry
 
@@ -972,6 +974,17 @@ module crystalmod
      module subroutine checkgroup(c)
        class(crystal), intent(inout) :: c
      end subroutine checkgroup
+     module subroutine symop_subgroup(c,del,lkeep)
+       class(crystal), intent(in) :: c
+       logical, intent(in) :: del(:)
+       logical, intent(out) :: lkeep(:)
+     end subroutine symop_subgroup
+     module subroutine reduce_symmetry(c,del,errmsg,ti)
+       class(crystal), intent(inout) :: c
+       logical, intent(in) :: del(:)
+       character(len=:), allocatable, intent(out) :: errmsg
+       type(thread_info), intent(in), optional :: ti
+     end subroutine reduce_symmetry
      module subroutine getiws(c,xorigin,ntetrag,tetrag)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: xorigin(3)

@@ -736,6 +736,177 @@ contains
     end subroutine checkexists
   end subroutine checkgroup
 
+  !> Find the largest subgroup that does not contain any of the
+  !> operations flagged in del (the identity, operation 1, is never
+  !> removable). Returns lkeep, a mask of the operations of the chosen
+  !> subgroup. Ties (several subgroups of the same, maximal size
+  !> avoiding the deleted operations) are broken by keeping the most
+  !> non-deleted operations, then by lowest operation indices.
+  module subroutine symop_subgroup(c,del,lkeep)
+    class(crystal), intent(in) :: c
+    logical, intent(in) :: del(:)
+    logical, intent(out) :: lkeep(:)
+
+    integer, parameter :: nsubmax = 4096
+    integer :: i, j, k, n, nsub, ifound(2), bestpop, pop, ov, bestov
+    integer, allocatable :: prod(:,:)
+    logical, allocatable :: subs(:,:), bestset(:), tmp(:)
+    real*8 :: op(4,4), op1(4,4)
+    logical :: better
+
+    ! initialize
+    n = c%neqv
+    if (n <= 1) return
+    lkeep = .false.
+    lkeep(1:n) = .true.
+
+    ! calculate the multiplication table prod(i,j)
+    allocate(prod(n,n))
+    do i = 1, n
+       op = 0d0
+       op(1:3,1:3) = c%rotm(:,1:3,i)
+       op(1:3,4) = c%rotm(:,4,i)
+       op(4,4) = 1d0
+       do j = 1, n
+          op1 = 0d0
+          op1(1:3,1:3) = c%rotm(:,1:3,j)
+          op1(1:3,4) = c%rotm(:,4,j)
+          op1(4,4) = 1d0
+          call opindex(matmul(op,op1),ifound)
+          prod(i,j) = ifound(1)
+       end do
+    end do
+    if (any(prod == 0)) return
+
+    ! enumerate the subgroups as logical sets. Seed with the trivial
+    ! subgroup and each cyclic subgroup, then join pairs of subgroups
+    ! until no new ones appear.
+    allocate(subs(n,nsubmax),bestset(n),tmp(n))
+    nsub = 0
+    tmp = .false.
+    tmp(1) = .true.
+    call addset(tmp)
+    do i = 2, n
+       tmp = .false.
+       tmp(1) = .true.
+       tmp(i) = .true.
+       call addset(closeset(tmp))
+    end do
+    k = 1
+    do while (k <= nsub)
+       do j = 1, nsub
+          call addset(closeset(subs(:,k) .or. subs(:,j)))
+          if (nsub >= nsubmax) exit
+       end do
+       k = k + 1
+    end do
+
+    ! pick the largest subgroup that contains no deleted operation; tie-break by
+    ! the most kept (non-deleted) operations, then prefer including the lowest-
+    ! index operation
+    bestpop = -1
+    bestov = -1
+    bestset = .false.
+    bestset(1) = .true.
+    do k = 1, nsub
+       if (any(subs(:,k) .and. del(1:n))) cycle
+       pop = count(subs(:,k))
+       ov = count(subs(:,k) .and. .not.del(1:n))
+       better = .false.
+       if (pop > bestpop) then
+          better = .true.
+       elseif (pop == bestpop .and. ov > bestov) then
+          better = .true.
+       elseif (pop == bestpop .and. ov == bestov) then
+          do i = 1, n
+             if (subs(i,k) .neqv. bestset(i)) then
+                better = subs(i,k)
+                exit
+             end if
+          end do
+       end if
+       if (better) then
+          bestpop = pop
+          bestov = ov
+          bestset = subs(:,k)
+       end if
+    end do
+
+    lkeep = .false.
+    lkeep(1:n) = bestset(1:n)
+    deallocate(prod,subs,bestset,tmp)
+
+  contains
+    ! Find the index of the 4x4 operation op
+    subroutine opindex(op,ifound)
+      real*8, intent(in) :: op(4,4)
+      integer, intent(out) :: ifound(2)
+
+      real*8 :: op1(4,4), x(3)
+      integer :: ii, jj
+
+      ifound = 0
+      do ii = 1, c%neqv
+         do jj = 1, c%ncv
+            op1 = 0d0
+            op1(1:3,1:3) = c%rotm(:,1:3,ii)
+            op1(1:3,4) = c%rotm(:,4,ii) + c%cen(:,jj)
+            op1(4,4) = 1d0
+            x = op(1:3,4) - op1(1:3,4)
+            x = x - nint(x)
+            if (all(abs(op(1:3,1:3) - op1(1:3,1:3)) < 1d-4) .and. all(abs(x) < 1d-4)) then
+               ifound(1) = ii
+               ifound(2) = jj
+               return
+            end if
+         end do
+      end do
+
+    end subroutine opindex
+
+    ! close a set of operations under composition (result is a subgroup)
+    function closeset(set0) result(set)
+      logical, intent(in) :: set0(:)
+      logical :: set(n)
+
+      integer :: ii, jj, kk
+      logical :: changed
+
+      set = set0(1:n)
+      changed = .true.
+      do while (changed)
+         changed = .false.
+         do ii = 1, n
+            if (.not.set(ii)) cycle
+            do jj = 1, n
+               if (.not.set(jj)) cycle
+               kk = prod(ii,jj)
+               if (.not.set(kk)) then
+                  set(kk) = .true.
+                  changed = .true.
+               end if
+            end do
+         end do
+      end do
+
+    end function closeset
+
+    ! add a subgroup set to the list if not already present
+    subroutine addset(set)
+      logical, intent(in) :: set(:)
+      integer :: ii
+
+      do ii = 1, nsub
+         if (all(subs(1:n,ii) .eqv. set(1:n))) return
+      end do
+      if (nsub < nsubmax) then
+         nsub = nsub + 1
+         subs(1:n,nsub) = set(1:n)
+      end if
+
+    end subroutine addset
+  end subroutine symop_subgroup
+
   !> Calculate the irreducible WS wedge around point xorigin (cryst coords)
   !> and partition it into tetrahedra.
   module subroutine getiws(c,xorigin,ntetrag,tetrag)

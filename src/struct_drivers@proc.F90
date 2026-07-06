@@ -443,11 +443,12 @@ contains
     logical, intent(in) :: verbose
 
     character(len=:), allocatable :: word, errmsg
-    integer :: lp, i
+    integer :: lp, i, idx, ndel
     real*8 :: osp
     type(SpglibDataset) :: spg
     real*8 :: x0(3,3)
     logical :: isempty
+    logical, allocatable :: del(:)
 
     real*8, parameter :: spmin = 1d-10
     real*8, parameter :: factor = 10d0
@@ -475,6 +476,25 @@ contains
        call s%c%calcsym(.false.,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror("struct_sym","spglib: "//errmsg,faterr)
+
+    elseif (equal(word,'delete')) then
+       write (uout,'("+ DELETE symmetry operations, reducing to a subgroup.")')
+       allocate(del(s%c%neqv))
+       del = .false.
+       ndel = 0
+       do while (isinteger(idx,line,lp))
+          if (idx >= 1 .and. idx <= s%c%neqv) then
+             del(idx) = .true.
+             ndel = ndel + 1
+          end if
+       end do
+       if (ndel == 0) then
+          call ferror('struct_sym','SYM DELETE needs a list of operation indices',faterr,line,syntax=.true.)
+          return
+       end if
+       call s%c%reduce_symmetry(del,errmsg)
+       if (len_trim(errmsg) > 0) &
+          call ferror("struct_sym","reduce_symmetry: "//errmsg,faterr)
 
     elseif (equal(word,'analysis')) then
        write (uout,'("+ ANALYSIS of the crystal symmetry.")')
