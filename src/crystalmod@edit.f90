@@ -1449,11 +1449,19 @@ contains
        return
     end if
 
-    ! the atoms and cell are unchanged, so spglib re-detected the original full
-    ! symmetry; discard its labels and mark the space group / Wyckoffs unknown
-    c%spgavail = .false.
-    c%spg%n_atoms = 0
-    call c%spgtowyc()
+    ! Try to recover the reduced space group
+    call c%spglib_wrap(c%spg,.false.,errmsg,useidx=.true.,ti=ti)
+    if (len_trim(errmsg) == 0 .and. c%spg%n_atoms > 0 .and. &
+       c%spg%n_operations == c%neqv*c%ncv) then
+       c%spgavail = .true.
+       call c%spgtowyc()      ! clear the stale full-group letters, then fill
+       call c%spgtowyc(c%spg)
+    else
+       errmsg = ""
+       c%spgavail = .false.
+       c%spg%n_atoms = 0
+       call c%spgtowyc()
+    end if
 
   end subroutine reduce_symmetry
 

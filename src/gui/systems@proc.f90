@@ -1058,7 +1058,7 @@ contains
     logical, intent(in), optional :: remove, merge, duplicate
     character(len=:), allocatable, intent(inout) :: errmsg
 
-    integer :: i, nat, id
+    integer :: nat, id
     integer, allocatable :: iat(:)
 
     errmsg = ""
@@ -1067,17 +1067,10 @@ contains
     id = sysc%id
     if (.not.ok_system(id,sys_init)) return
 
-    ! build the list of atoms to remove/merge/duplicate
-    allocate(iat(sys(id)%c%ncel))
-    nat = 0
-    do i = 1, sys(id)%c%ncel
-       if (any(sysc%highlight_rgba(:,i) >= 0._c_float)) then
-          nat = nat + 1
-          iat(nat) = i
-       end if
-    end do
-
-    ! return if nothing to do
+    ! nothing to do if no atom is highlighted (the highlight array may not even
+    ! be allocated, e.g. when the Delete key is pressed with only a
+    ! transient/symmetry highlight)
+    call sysc%highlighted_atom_list(nat,iat)
     if (nat == 0) return
 
     ! remove/merge/duplicate the atoms
@@ -1136,14 +1129,7 @@ contains
 
     ! remove/merge the highlighted atoms
     if (remove_ .or. merge_) then
-       allocate(iat(sys(id)%c%ncel))
-       nat = 0
-       do i = 1, sys(id)%c%ncel
-          if (any(sysc%highlight_rgba(:,i) >= 0._c_float)) then
-             nat = nat + 1
-             iat(nat) = i
-          end if
-       end do
+       call sysc%highlighted_atom_list(nat,iat)
 
        ! remove/merge/duplicate the atoms
        if (nat > 0) then

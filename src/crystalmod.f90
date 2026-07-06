@@ -940,11 +940,12 @@ module crystalmod
        real*8, intent(in) :: x0(3)
        integer :: mult
      end function get_mult
-     module subroutine spglib_wrap(c,spg,usenneq,errmsg,ti)
+     module subroutine spglib_wrap(c,spg,usenneq,errmsg,useidx,ti)
        class(crystal), intent(in) :: c
        type(SpglibDataset), intent(inout) :: spg
        logical, intent(in) :: usenneq
        character(len=:), allocatable, intent(out) :: errmsg
+       logical, intent(in), optional :: useidx
        type(thread_info), intent(in), optional :: ti
      end subroutine spglib_wrap
      module subroutine spgtowyc(c,spg)

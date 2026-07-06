@@ -300,7 +300,7 @@ contains
   !> If usenneq, use nneq and at(:) instead of ncel and atcel(:).
   !> If error, return the error in errmsg. Otherwise, return
   !> a zero-length string.
-  module subroutine spglib_wrap(c,spg,usenneq,errmsg,ti)
+  module subroutine spglib_wrap(c,spg,usenneq,errmsg,useidx,ti)
     use iso_c_binding, only: c_double
     use spglib, only: spg_get_dataset, spg_get_error_message
     use global, only: symprec
@@ -311,6 +311,7 @@ contains
     type(SpglibDataset), intent(inout) :: spg
     logical, intent(in) :: usenneq
     character(len=:), allocatable, intent(out) :: errmsg
+    logical, intent(in), optional :: useidx
     type(thread_info), intent(in), optional :: ti
 
     real(c_double) :: lattice(3,3)
@@ -319,6 +320,11 @@ contains
     integer :: ntyp, nat
     integer :: i, iz(maxzat0)
     character(len=32) :: error
+    logical :: idxc
+
+    ! color the atoms by non-equivalent-atom index instead of species
+    idxc = .false.
+    if (present(useidx)) idxc = useidx
 
     ! get the dataset from spglib
     errmsg = ""
@@ -339,7 +345,11 @@ contains
        allocate(x(3,c%ncel),typ(c%ncel))
        do i = 1, c%ncel
           x(:,i) = c%atcel(i)%x
-          typ(i) = c%atcel(i)%is
+          if (idxc) then
+             typ(i) = c%atcel(i)%idx
+          else
+             typ(i) = c%atcel(i)%is
+          end if
        end do
     end if
 
