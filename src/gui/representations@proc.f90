@@ -510,15 +510,17 @@ contains
     logical, intent(in) :: doanim
     integer, intent(in) :: iqpt, ifreq
 
-    logical, allocatable :: lshown(:,:,:,:)
+    ! per atom-image display state: 0 = not shown, 1 = selection-shown,
+    ! 2 = polyhedron-corner shown, 3 = corner whose bonds have been emitted
+    integer, allocatable :: lshown(:,:,:,:)
     logical :: havefilter, step, isedge(3), usetshift, doanim_, dobonds, isvac(3)
     logical :: isvacdir, docycle, dovac(3)
     integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3)
     integer :: i1, i2, i3, ix(3), idl
-    integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3), iord
+    integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3)
     integer :: nimg, nres, nbond, mb, mbb
     real(c_float) :: rgb(3), occ1, piecum(3), piergb(3,3)
-    real*8 :: rad1, rad2, dd, f1, f2, axsc
+    real*8 :: rad1, rad2, axsc
     integer, allocatable :: hbcat(:) ! per-bond H-bond class cache for the current atom
     real(c_float) :: bondrgb(3)
     type(crystal), pointer :: c ! the system's crystal structure (sys(r%id)%c)
@@ -527,7 +529,7 @@ contains
     complex*16, allocatable :: vibbase(:,:) ! per-atom vibration phasors (3,ncel)
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), xpolyc(3)
     real*8 :: ucini(3), ucend(3)
-    complex*16 :: xdelta0(3), xdelta1(3), xdelta2(3)
+    complex*16 :: xdelta1(3)
     type(dl_sphere) :: dsph
     type(dl_cylinder) :: dcyl
     type(dl_cylinder_giz) :: dcylgiz
@@ -542,7 +544,7 @@ contains
     integer :: natp, idpoly, kp
     logical :: dopoly, corneractive
     integer, allocatable :: cornlist(:,:)
-    integer :: ncorn, ica, idc, imolc
+    integer :: ncorn, ica, idc, imolc, ip, ixp(3), nbstate, ihb
 
     interface
        subroutine runqhull_basintriangulate_step1(n,x0,xvert,nf,ctx,ier) bind(c)
@@ -676,7 +678,7 @@ contains
              mb = mb + mbb
           end if
           allocate(lshown(c%ncel,-1-mb:n(1)+mb,-1-mb:n(2)+mb,-1-mb:n(3)+mb))
-          lshown = .false.
+          lshown = 0
        end if
 
        ! presize the draw lists from the known atom/bond counts (the 2x growth
@@ -917,7 +919,7 @@ contains
                    ! mark this atom image as drawn (for bonds and for
                    ! deduplicating forced polyhedra corner atoms); ix is within
                    ! the lshown bounds by construction (see the mb margin above)
-                   if (allocated(lshown)) lshown(i,ix(1),ix(2),ix(3)) = .true.
+                   if (allocated(lshown)) lshown(i,ix(1),ix(2),ix(3)) = 1
 
                    ! bonds
                    if (dobonds) then
@@ -935,82 +937,23 @@ contains
                          if (r%bonds%bothends) then
                             ! skip if the atom has been represented already
                             ! (draws once, and only if both atoms are present)
-                            if (.not.lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
+                            if (lshown(ineigh,ixn(1),ixn(2),ixn(3)) == 0) cycle
                          else
                             ! skip if the atom has not been represented already
                             ! (draws once, only one of the atoms need be present)
-                            if (lshown(ineigh,ixn(1),ixn(2),ixn(3))) cycle
+                            if (lshown(ineigh,ixn(1),ixn(2),ixn(3)) /= 0) cycle
                          end if
-
-                         ! per-bond order: in "Calculated" mode (4) use the order
-                         ! stored in the connectivity (ordcon); otherwise use the fixed order
-                         if (r%bonds%order == 4) then
-                            iord = r%bonds%style%nstar(i)%ordcon(ib)
-                         else
-                            iord = r%bonds%order
-                         end if
-
-                         ! bond endpoints (Cartesian, bohr)
-                         x1 = xc + uoriginc
-                         x2 = c%atcel(ineigh)%x + ixn
-                         x2 = c%x2c(x2) + uoriginc
 
                          ! bond color
                          bondrgb = r%bonds%rgb
-
-                         ! Jeffrey-Steiner hydrogen-bond strength classification:
-                         ! color each H...A contact by its strength (computed once
-                         ! per unique bond in hbond_class, cached across images)
                          if (r%bonds%hbond_classify) then
                             if (hbcat(ib) < 0) hbcat(ib) = hbond_class(i,ib)
                             if (hbcat(ib) == 0) cycle ! not an H-bond
                             bondrgb = r%bonds%hbond_rgb(:,hbcat(ib))
                          end if
 
-                         ! animation delta of the other end
-                         xdelta2 = vibdelta(ineigh,ixn)
-
-                         ! fields shared by all cylinders of this bond
-                         dcyl%r = real(r%bonds%rad,c_float)
-                         dcyl%order = iord
-                         dcyl%border = real(r%bonds%border_size,c_float)
-                         dcyl%rgbborder = r%bonds%border_rgb
-                         dcyl%arvec = real(r%bonds%style%nstar(i)%aromdir(:,ib),c_float)
-
-                         if (r%bonds%color_style == 0 .or. r%bonds%hbond_classify) then
-                            ! single cylinder with the bond color
-                            dcyl%x1 = real(x1,c_float)
-                            dcyl%x1delta = cmplx(xdelta1,kind=c_float_complex)
-                            dcyl%x2 = real(x2,c_float)
-                            dcyl%x2delta = cmplx(xdelta2,kind=c_float_complex)
-                            dcyl%rgb = bondrgb
-                            call dl_append(obj%cyl,obj%ncyl,dcyl)
-                         else
-                            ! two half-cylinders, each colored like its end atom;
-                            ! the split point balances the two atomic radii
-                            idaux = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,ineigh)
-                            rad2 = r%atoms%style%rad(idaux) * r%mols%style%scale_rad(c%idatcelmol(1,ineigh))
-                            dd = norm2(x2 - x1)
-                            f1 = min(max((0.5d0 + 0.5d0 * (rad2 - rad1) / dd),0._c_float),1._c_float)
-                            f2 = 1._c_float - f1
-                            x0 = f1 * x1 + f2 * x2
-                            xdelta0 = f1 * xdelta1 + f2 * xdelta2
-
-                            dcyl%x1 = real(x1,c_float)
-                            dcyl%x1delta = cmplx(xdelta1,kind=c_float_complex)
-                            dcyl%x2 = real(x0,c_float)
-                            dcyl%x2delta = cmplx(xdelta0,kind=c_float_complex)
-                            dcyl%rgb = rgb
-                            call dl_append(obj%cyl,obj%ncyl,dcyl)
-
-                            dcyl%x1 = real(x0,c_float)
-                            dcyl%x1delta = cmplx(xdelta0,kind=c_float_complex)
-                            dcyl%x2 = real(x2,c_float)
-                            dcyl%x2delta = cmplx(xdelta2,kind=c_float_complex)
-                            dcyl%rgb = r%atoms%style%rgb(:,idaux) * &
-                               r%mols%style%tint_rgb(:,c%idatcelmol(1,ineigh))
-                            call dl_append(obj%cyl,obj%ncyl,dcyl)
-                         end if
+                         ! emit the bond cylinder(s) from this center image
+                         call emit_bond(i,ib,ineigh,ixn,xc+uoriginc,rgb,rad1,xdelta1,bondrgb)
                       end do ! ncon
                    end if
 
@@ -1058,8 +1001,8 @@ contains
           do ica = 1, ncorn
              ix = cornlist(2:4,ica)
              call check_lshown(cornlist(1,ica),ix(1),ix(2),ix(3))
-             if (lshown(cornlist(1,ica),ix(1),ix(2),ix(3))) cycle ! already drawn
-             lshown(cornlist(1,ica),ix(1),ix(2),ix(3)) = .true.
+             if (lshown(cornlist(1,ica),ix(1),ix(2),ix(3)) /= 0) cycle ! already drawn
+             lshown(cornlist(1,ica),ix(1),ix(2),ix(3)) = 2
 
              ! style and position of the corner atom
              idc = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,cornlist(1,ica))
@@ -1088,6 +1031,66 @@ contains
              dsph%pie_rgb = piergb
              dsph%ghost = .false.
              call dl_append(obj%sph,obj%nsph,dsph)
+          end do
+       end if
+
+       ! draw the bonds of the polyhedra corner atoms, but only to
+       ! atoms that are also present in the view (selection atoms or
+       ! other corner atoms); bonds to absent atoms are not
+       ! drawn. Deduplication uses the lshown state (2 = corner sphere
+       ! drawn, 3 = its bonds emitted) so that no bond is drawn both
+       ! here and in the main loop, and no corner-corner bond is drawn
+       ! twice.
+       if (corneractive .and. dobonds) then
+          do ica = 1, ncorn
+             ip = cornlist(1,ica)
+             ixp = cornlist(2:4,ica)
+             ! only freshly-drawn corner atoms not yet processed: this
+             ! also dedups corner images (state 3) and skips corners
+             ! that coincide with selection atoms (state 1, already
+             ! handled above)
+             if (lshown(ip,ixp(1),ixp(2),ixp(3)) /= 2) cycle
+             lshown(ip,ixp(1),ixp(2),ixp(3)) = 3
+
+             ! corner display quantities (the center of the emitted bonds)
+             idc = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,ip)
+             imolc = c%idatcelmol(1,ip)
+             rgb = r%atoms%style%rgb(:,idc) * r%mols%style%tint_rgb(:,imolc)
+             rad1 = r%atoms%style%rad(idc) * r%mols%style%scale_rad(imolc)
+             xc = c%x2c(c%atcel(ip)%x + ixp)
+             xdelta1 = vibdelta(ip,ixp)
+
+             do ib = 1, r%bonds%style%nstar(ip)%ncon
+                ineigh = r%bonds%style%nstar(ip)%idcon(ib)
+                if (.not.r%bonds%style%shown(c%atcel(ineigh)%is,c%atcel(ip)%is)) cycle
+                ixn = ixp + r%bonds%style%nstar(ip)%lcon(:,ib)
+
+                if (r%bonds%imol == 1) then ! intramol
+                   if (.not.c%in_same_molecule(ip,ixp,ineigh,ixn)) cycle
+                elseif (r%bonds%imol == 2) then ! intermol
+                   if (c%in_same_molecule(ip,ixp,ineigh,ixn)) cycle
+                end if
+
+                ! only bonds to atoms present in the view, drawn exactly once
+                ! (nbstate is the neighbor image's lshown display state)
+                call check_lshown(ineigh,ixn(1),ixn(2),ixn(3))
+                nbstate = lshown(ineigh,ixn(1),ixn(2),ixn(3))
+                if (nbstate == 0) cycle ! neighbor absent from the view
+                if (nbstate == 3) cycle ! the other corner already emitted this bond
+                if (.not.r%bonds%bothends .and. nbstate == 1) cycle ! selection neighbor
+                                                                    ! already drew it (dangling)
+
+                ! bond color; H-bond classification (translation-invariant, so
+                ! no cross-image cache is needed for a once-processed corner)
+                bondrgb = r%bonds%rgb
+                if (r%bonds%hbond_classify) then
+                   ihb = hbond_class(ip,ib)
+                   if (ihb == 0) cycle ! not an H-bond
+                   bondrgb = r%bonds%hbond_rgb(:,ihb)
+                end if
+
+                call emit_bond(ip,ib,ineigh,ixn,xc+uoriginc,rgb,rad1,xdelta1,bondrgb)
+             end do
           end do
        end if
        if (allocated(cornlist)) deallocate(cornlist)
@@ -1751,11 +1754,83 @@ contains
 
     end subroutine process_vacuum_uc_sticks
 
+    !> Emit the cylinder(s) for one bond from a center atom image to
+    !> the neighbor image (ineigh,ixn). Cartesian endpoint x1 (bohr,
+    !> origin-shifted), color rgbcen, radius radcen, animation delta
+    !> xdeltacen, and the final bond color bondrgb. icen/ib identify
+    !> the center's neighbor-star entry.
+    subroutine emit_bond(icen,ib,ineigh,ixn,x1,rgbcen,radcen,xdeltacen,bondrgb)
+      integer, intent(in) :: icen, ib, ineigh, ixn(3)
+      real*8, intent(in) :: x1(3), radcen
+      real(c_float), intent(in) :: rgbcen(3), bondrgb(3)
+      complex*16, intent(in) :: xdeltacen(3)
+
+      integer :: iord, idaux
+      real*8 :: x2(3), x0(3), dd, f1, f2, rad2
+      complex*16 :: xdelta2(3), xdelta0(3)
+
+      ! per-bond order: in "Calculated" mode (4) use the order stored in the
+      ! connectivity (ordcon); otherwise use the fixed order
+      if (r%bonds%order == 4) then
+         iord = r%bonds%style%nstar(icen)%ordcon(ib)
+      else
+         iord = r%bonds%order
+      end if
+
+      ! other endpoint (Cartesian, bohr) and its animation delta
+      x2 = c%atcel(ineigh)%x + ixn
+      x2 = c%x2c(x2) + uoriginc
+      xdelta2 = vibdelta(ineigh,ixn)
+
+      ! fields shared by all cylinders of this bond
+      dcyl%r = real(r%bonds%rad,c_float)
+      dcyl%order = iord
+      dcyl%border = real(r%bonds%border_size,c_float)
+      dcyl%rgbborder = r%bonds%border_rgb
+      dcyl%arvec = real(r%bonds%style%nstar(icen)%aromdir(:,ib),c_float)
+
+      if (r%bonds%color_style == 0 .or. r%bonds%hbond_classify) then
+         ! single cylinder with the bond color
+         dcyl%x1 = real(x1,c_float)
+         dcyl%x1delta = cmplx(xdeltacen,kind=c_float_complex)
+         dcyl%x2 = real(x2,c_float)
+         dcyl%x2delta = cmplx(xdelta2,kind=c_float_complex)
+         dcyl%rgb = bondrgb
+         call dl_append(obj%cyl,obj%ncyl,dcyl)
+      else
+         ! two half-cylinders, each colored like its end atom;
+         ! the split point balances the two atomic radii
+         idaux = sysc(r%id)%attype_celatom_to_id(r%atoms%style%type,ineigh)
+         rad2 = r%atoms%style%rad(idaux) * r%mols%style%scale_rad(c%idatcelmol(1,ineigh))
+         dd = norm2(x2 - x1)
+         f1 = min(max((0.5d0 + 0.5d0 * (rad2 - radcen) / dd),0._c_float),1._c_float)
+         f2 = 1._c_float - f1
+         x0 = f1 * x1 + f2 * x2
+         xdelta0 = f1 * xdeltacen + f2 * xdelta2
+
+         dcyl%x1 = real(x1,c_float)
+         dcyl%x1delta = cmplx(xdeltacen,kind=c_float_complex)
+         dcyl%x2 = real(x0,c_float)
+         dcyl%x2delta = cmplx(xdelta0,kind=c_float_complex)
+         dcyl%rgb = rgbcen
+         call dl_append(obj%cyl,obj%ncyl,dcyl)
+
+         dcyl%x1 = real(x0,c_float)
+         dcyl%x1delta = cmplx(xdelta0,kind=c_float_complex)
+         dcyl%x2 = real(x2,c_float)
+         dcyl%x2delta = cmplx(xdelta2,kind=c_float_complex)
+         dcyl%rgb = r%atoms%style%rgb(:,idaux) * &
+            r%mols%style%tint_rgb(:,c%idatcelmol(1,ineigh))
+         call dl_append(obj%cyl,obj%ncyl,dcyl)
+      end if
+
+    end subroutine emit_bond
+
     subroutine check_lshown(i,i1,i2,i3)
       integer, intent(in) :: i, i1, i2, i3
 
       integer :: l, l1, l2, l3, u, u1, u2, u3
-      logical, allocatable :: lshown_aux(:,:,:,:)
+      integer, allocatable :: lshown_aux(:,:,:,:)
 
       if (i < lbound(lshown,1) .or. i > ubound(lshown,1) .or.&
          i1 < lbound(lshown,2) .or. i1 > ubound(lshown,2) .or.&
@@ -1770,7 +1845,7 @@ contains
          l3 = min(i3,lbound(lshown,4))
          u3 = max(i3,ubound(lshown,4))
          allocate(lshown_aux(l:u,l1:u1,l2:u2,l3:u3))
-         lshown_aux = .false.
+         lshown_aux = 0
          lshown_aux(lbound(lshown,1):ubound(lshown,1),lbound(lshown,2):ubound(lshown,2),&
             lbound(lshown,3):ubound(lshown,3),lbound(lshown,4):ubound(lshown,4)) = &
             lshown
