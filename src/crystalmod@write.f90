@@ -27,7 +27,7 @@ contains
   !> information about the structure. lq = list of atomic species.
   module subroutine struct_report(c,lcrys,lq)
     use global, only: iunitname0, dunit0, iunit
-    use tools_math, only: gcd, cellpar_from_metric
+    use tools_math, only: cellpar_from_metric
     use tools_io, only: uout, string, ioj_center, ioj_left, ioj_right
     use param, only: bohrtoa, maxzat, pi, atmass, pcamu, bohrtocm
     class(crystal), intent(inout) :: c
@@ -35,11 +35,11 @@ contains
     logical, intent(in) :: lq
 
     integer :: i, j, k, iz, is
-    integer :: nelec
-    real*8 :: maxdv, xcm(3), x0(3), xlen(3), xang(3), xred(3,3)
+    real*8 :: nelec
+    real*8 :: xcm(3), x0(3), xlen(3), xang(3), xred(3,3)
     real*8 :: dens, mass, rnn2
     character(len=:), allocatable :: str1
-    integer, allocatable :: nis(:)
+    real*8, allocatable :: nis(:)
     real*8 :: zp
 
     character*1, parameter :: lvecname(3) = (/"a","b","c"/)
@@ -64,16 +64,8 @@ contains
              string(c%aa(1)*bohrtoa,'f',decimal=6), string(c%aa(2)*bohrtoa,'f',decimal=6), string(c%aa(3)*bohrtoa,'f',decimal=6)
        endif
 
-       ! Compute unit formula, and z
-       allocate(nis(c%nspc))
-       nis = 0
-       do i = 1, c%nneq
-          nis(c%at(i)%is) = nis(c%at(i)%is) + c%at(i)%mult
-       end do
-       maxdv = gcd(nis,c%nspc)
-       write (uout,'("  Empirical formula: ",999(10(A,"(",A,") ")))') &
-          (string(c%spc(i)%name), string(nint(nis(i)/maxdv)), i=1,c%nspc)
-       deallocate(nis)
+       ! empirical formula (weighted by site occupancy)
+       write (uout,'("  Empirical formula: ",A)') c%formula_string(.true.)
        if (.not.c%ismolecule) then
           write (uout,'("  Number of non-equivalent atoms in the unit cell: ",A)') string(c%nneq)
           write (uout,'("  Number of atoms in the unit cell: ",A)') string(c%ncel)
@@ -81,15 +73,20 @@ contains
           write (uout,'("  Number of atoms: ",A)') string(c%ncel)
        endif
        write (uout,'("  Number of atomic species: ",A)') string(c%nspc)
-       nelec = 0
+       call c%composition(nis)
+       nelec = 0d0
        mass = 0d0
-       do i = 1, c%nneq
-          iz = c%spc(c%at(i)%is)%z
+       do is = 1, c%nspc
+          iz = c%spc(is)%z
           if (iz >= maxzat .or. iz <= 0) cycle
-          nelec = nelec + iz * c%at(i)%mult
-          mass = mass + atmass(iz) * c%at(i)%mult
+          nelec = nelec + iz * nis(is)
+          mass = mass + atmass(iz) * nis(is)
        end do
-       write (uout,'("  Number of electrons (with zero atomic charge): ",A)') string(nelec)
+       if (abs(nelec - anint(nelec)) < 1d-6) then
+          write (uout,'("  Number of electrons (with zero atomic charge): ",A)') string(nint(nelec))
+       else
+          write (uout,'("  Number of electrons (with zero atomic charge): ",A)') string(nelec,'f',decimal=4)
+       end if
        if (.not.c%ismolecule) then
           write (uout,'("  Molar mass (amu, per unit cell): ",A)') string(mass,'f',decimal=3)
        else
@@ -438,6 +435,125 @@ contains
     end do
 
   end function mix_string
+
+  !> Occupancy-weighted number of atoms per species in the unit cell.
+  !> On output nis(1:nspc) holds, for each species, the sum over the cell
+  !> atoms of their occupancy.
+  module subroutine composition(c,nis)
+    class(crystal), intent(in) :: c
+    real*8, allocatable, intent(inout) :: nis(:)
+
+    integer :: i, k
+
+    if (allocated(nis)) deallocate(nis)
+    allocate(nis(c%nspc))
+    nis = 0d0
+    do i = 1, c%nneq
+       if (c%haveocc) then
+          do k = 1, c%at(i)%mix%nocc
+             nis(c%at(i)%mix%is(k)) = nis(c%at(i)%mix%is(k)) + c%at(i)%mult * c%at(i)%mix%occ(k)
+          end do
+       else
+          nis(c%at(i)%is) = nis(c%at(i)%is) + real(c%at(i)%mult,8)
+       end if
+    end do
+
+  end subroutine composition
+
+  !> Return the empirical formula as a string, weighted by site occupancy.
+  module function formula_string(c,useparen) result(str)
+    use tools_math, only: gcd
+    use tools_io, only: string
+    class(crystal), intent(in) :: c
+    logical, intent(in) :: useparen
+    character(len=:), allocatable :: str
+
+    integer :: i, maxdv
+    real*8, allocatable :: nis(:)
+    integer, allocatable :: inis(:)
+    logical :: clean
+    real*8 :: dv, dvany
+
+    real*8, parameter :: eps = 1d-4
+
+    call c%composition(nis)
+    allocate(inis(c%nspc))
+    inis = nint(nis)
+    clean = all(abs(nis - inis) < eps)
+
+    str = ""
+    if (clean) then
+       ! integer empirical formula reduced by the gcd of the counts
+       maxdv = gcd(inis,c%nspc)
+       if (maxdv <= 0) maxdv = 1
+       do i = 1, c%nspc
+          if (inis(i) == 0) cycle
+          str = str // spc_count(i,string(inis(i)/maxdv))
+       end do
+    else
+       ! fractional occupancy: normalize by the smallest (near-)integer nonzero
+       ! count if there is one, else by the smallest nonzero count
+       dv = -1d0
+       dvany = -1d0
+       do i = 1, c%nspc
+          if (nis(i) < eps) cycle
+          if (dvany < 0d0 .or. nis(i) < dvany) dvany = nis(i)
+          if (abs(nis(i) - nint(nis(i))) < eps) then
+             if (dv < 0d0 .or. nis(i) < dv) dv = nis(i)
+          end if
+       end do
+       if (dv < 0d0) dv = dvany
+       if (dv <= 0d0) dv = 1d0
+       do i = 1, c%nspc
+          if (nis(i) < eps) cycle
+          str = str // spc_count(i,fmtcount(nis(i)/dv,.false.))
+       end do
+    end if
+
+  contains
+    ! format one species entry "name(cnt) " or "namecnt "
+    function spc_count(i,cnt) result(s)
+      integer, intent(in) :: i
+      character(len=*), intent(in) :: cnt
+      character(len=:), allocatable :: s
+      if (useparen) then
+         s = trim(c%spc(i)%name) // "(" // trim(cnt) // ") "
+      else
+         s = trim(c%spc(i)%name) // trim(cnt) // " "
+      end if
+    end function spc_count
+
+  end function formula_string
+
+  !> Format a real atom count as a string: an integer when it is
+  !> (near-)integer, otherwise with up to 3 decimals and trailing zeros
+  !> trimmed. If blank_if_one, a count of 1 returns an empty string (for
+  !> chemical-formula subscripts that omit the "1").
+  function fmtcount(x,blank_if_one) result(s)
+    use tools_io, only: string
+    real*8, intent(in) :: x
+    logical, intent(in) :: blank_if_one
+    character(len=:), allocatable :: s
+
+    ! half of the 1d-3 display precision, so anything that would render as
+    ! "N.000" is treated as the integer N
+    real*8, parameter :: eps = 5d-4
+
+    if (abs(x - anint(x)) < eps) then
+       if (blank_if_one .and. nint(x) == 1) then
+          s = ""
+       else
+          s = string(nint(x))
+       end if
+    else
+       s = string(x,'f',decimal=3)
+       do while (len(s) > 0 .and. s(len(s):len(s)) == "0")
+          s = s(1:len(s)-1)
+       end do
+       if (len(s) > 0 .and. s(len(s):len(s)) == ".") s = s(1:len(s)-1)
+    end if
+
+  end function fmtcount
 
   !> Write information about the crystal symmetry.
   module subroutine struct_report_symmetry(c)
@@ -1898,9 +2014,10 @@ contains
     character*3 :: schpg
     character(len=:), allocatable :: str
     integer :: holo, laue, natmol
-    logical :: usesym, doz
+    logical :: usesym, doz, inti
     integer :: datvalues(8)
     integer, allocatable :: atc(:,:), addlabel(:), spcuse(:)
+    real*8, allocatable :: atcf(:), rnis(:)
 
     ! Hill order for chemical formula. First C, then H, then all the other
     ! elements in alphabetical order.
@@ -1927,67 +2044,105 @@ contains
           (string(datvalues(i)),i=1,3)
     end if
 
-    ! formula: count the number of element types
-    allocate(atc(maxzat,c%nmol))
-    doz = c%ismol3d
-    atc = 0
-    do i = 1, c%nmol
-       do j = 1, c%mol(i)%nat
-          if (c%mol(i)%spc(c%mol(i)%at(j)%is)%z > 0 .and. c%mol(i)%spc(c%mol(i)%at(j)%is)%z <= maxzat) then
-             atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,i) = atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,i) + 1
-          end if
-       end do
-       if (i > 1) then
-          if (any(atc(:,i) - atc(:,1) /= 0)) then
-             doz = .false.
-          end if
-       end if
-    end do
-
-    ! formula
-    if (.not.doz) then
-       ! not a molecular crystal or different types of molecules,
-       ! collect all atc then calculate gdc of all non-zero
-       ! numbers. atc(:,1) is now the formula unit and gcdz = Z.
-       do i = 2, c%nmol
-          atc(:,1) = atc(:,1) + atc(:,i)
-       end do
-       gcdz = -1
-       do i = 1, maxzat
-          if (atc(i,1) > 0) then
-             if (gcdz < 0) then
-                gcdz = atc(i,1)
-             else
-                gcdz = gcd(gcdz,atc(i,1))
+    ! formula (Hill order) and formula units Z, written to str + gcdz below
+    if (.not.c%haveocc) then
+       ! formula: count the number of element types
+       allocate(atc(maxzat,c%nmol))
+       doz = c%ismol3d
+       atc = 0
+       do i = 1, c%nmol
+          do j = 1, c%mol(i)%nat
+             if (c%mol(i)%spc(c%mol(i)%at(j)%is)%z > 0 .and. c%mol(i)%spc(c%mol(i)%at(j)%is)%z <= maxzat) then
+                atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,i) = atc(c%mol(i)%spc(c%mol(i)%at(j)%is)%z,i) + 1
+             end if
+          end do
+          if (i > 1) then
+             if (any(atc(:,i) - atc(:,1) /= 0)) then
+                doz = .false.
              end if
           end if
        end do
-       atc(:,1) = atc(:,1) / gcdz
-    else
-       ! a molecular crystal with always the same molecule: gcdz = Z
-       natmol = sum(atc(:,1))
-       if (abs(real(c%ncel,8)/real(natmol,8) - c%ncel/natmol) > 1d-10) &
-          call ferror('write_cif','inconsistent number of atoms in fragment',faterr)
-       gcdz = c%ncel / natmol
-    end if
 
-    ! formula: build the molecular formula/formula unit and write to cif
-    str = ""
-    do i = 1, maxzat
-       idx = hillord(i)
-       if (atc(idx,1) > 0) then
-          sym = nameguess(idx,.true.)
-          if (atc(idx,1) > 1) then
-             str = str // trim(sym) // string(atc(idx,1)) // " "
-          else
-             str = str // trim(sym) //  " "
-          end if
+       ! formula
+       if (.not.doz) then
+          ! not a molecular crystal or different types of molecules,
+          ! collect all atc then calculate gdc of all non-zero
+          ! numbers. atc(:,1) is now the formula unit and gcdz = Z.
+          do i = 2, c%nmol
+             atc(:,1) = atc(:,1) + atc(:,i)
+          end do
+          gcdz = -1
+          do i = 1, maxzat
+             if (atc(i,1) > 0) then
+                if (gcdz < 0) then
+                   gcdz = atc(i,1)
+                else
+                   gcdz = gcd(gcdz,atc(i,1))
+                end if
+             end if
+          end do
+          atc(:,1) = atc(:,1) / gcdz
+       else
+          ! a molecular crystal with always the same molecule: gcdz = Z
+          natmol = sum(atc(:,1))
+          if (abs(real(c%ncel,8)/real(natmol,8) - c%ncel/natmol) > 1d-10) &
+             call ferror('write_cif','inconsistent number of atoms in fragment',faterr)
+          gcdz = c%ncel / natmol
        end if
-    end do
-    str = trim(str)
+
+       ! formula: build the molecular formula/formula unit
+       str = ""
+       do i = 1, maxzat
+          idx = hillord(i)
+          if (atc(idx,1) > 0) then
+             sym = nameguess(idx,.true.)
+             if (atc(idx,1) > 1) then
+                str = str // trim(sym) // string(atc(idx,1)) // " "
+             else
+                str = str // trim(sym) //  " "
+             end if
+          end if
+       end do
+       str = trim(str)
+       deallocate(atc)
+    else
+       ! occupancy-weighted formula (per element, Hill order). Reduce by the
+       ! gcd of the counts when they are all (near-)integer; otherwise report
+       ! the whole-cell fractional composition with Z = 1.
+       call c%composition(rnis)
+       allocate(atcf(maxzat))
+       atcf = 0d0
+       do i = 1, c%nspc
+          iz = c%spc(i)%z
+          if (iz > 0 .and. iz <= maxzat) atcf(iz) = atcf(iz) + rnis(i)
+       end do
+       inti = all(abs(atcf - anint(atcf)) < 1d-4)
+       gcdz = 1
+       if (inti) then
+          gcdz = -1
+          do i = 1, maxzat
+             if (nint(atcf(i)) > 0) then
+                if (gcdz < 0) then
+                   gcdz = nint(atcf(i))
+                else
+                   gcdz = gcd(gcdz,nint(atcf(i)))
+                end if
+             end if
+          end do
+          if (gcdz <= 0) gcdz = 1
+       end if
+       str = ""
+       do i = 1, maxzat
+          idx = hillord(i)
+          if (atcf(idx) < 1d-10) cycle
+          sym = nameguess(idx,.true.)
+          str = str // trim(sym) // trim(fmtcount(atcf(idx)/gcdz,.true.)) // " "
+       end do
+       str = trim(str)
+       deallocate(atcf)
+    end if
     write (lu,'("_chemical_formula_sum ''",A,"''")') str
     write (lu,'("_cell_formula_units_Z ",A)') string(gcdz)
-    deallocate(atc)
 
     ! cell dimensions
     write (lu,'("_cell_length_a ",F20.10)') c%aa(1)*bohrtoa
@@ -3087,16 +3242,21 @@ contains
     end do
 
     ! empirical formula
-    allocate(nis(c%nspc))
-    nis = 0
-    do i = 1, corig%nneq
-       nis(corig%at(i)%is) = nis(corig%at(i)%is) + 1
-    end do
-    maxdv = gcd(nis,c%nspc)
-    str = ""
-    do i = 1, c%nspc
-       str = str // string(c%spc(i)%name) // "(" // string(nint(nis(i)/maxdv)) // ") "
-    end do
+    if (.not.corig%haveocc) then
+       allocate(nis(c%nspc))
+       nis = 0
+       do i = 1, corig%nneq
+          nis(corig%at(i)%is) = nis(corig%at(i)%is) + 1
+       end do
+       maxdv = gcd(nis,c%nspc)
+       str = ""
+       do i = 1, c%nspc
+          str = str // string(c%spc(i)%name) // "(" // string(nint(nis(i)/maxdv)) // ") "
+       end do
+    else
+       ! occupancy-weighted empirical formula
+       str = corig%formula_string(.true.)
+    end if
     str = trim(adjustl(str))
     icount=0
     do i = 1, len(str), 51

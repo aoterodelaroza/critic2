@@ -1457,15 +1457,14 @@ contains
     use gui_main, only: ColorTableCellBg
     use tools_io, only: string
     use param, only: bohrtoa, maxzat, atmass, pcamu, bohrtocm
-    use tools_math, only: gcd
     integer, intent(in) :: i
 
     character(kind=c_char,len=:), allocatable, target :: str
-    integer, allocatable :: nis(:)
+    real*8, allocatable :: nis(:)
     integer :: k, iz
-    real*8 :: maxdv, mass, dens
+    real*8 :: mass, dens
     real(c_float) :: rgba(4)
-    integer :: nelec
+    real*8 :: nelec
     character(len=3) :: schpg
     integer :: holo, laue
     integer :: izp0
@@ -1523,32 +1522,28 @@ contains
        str = str // string(sys(i)%c%nspc) // " species)"
        call iw_text(str,sameline_nospace=.true.)
 
-       ! electrons, molar mass
-       nelec = 0
+       ! electrons, molar mass (weighted by site occupancy)
+       call sys(i)%c%composition(nis)
+       nelec = 0d0
        mass = 0d0
-       do k = 1, sys(i)%c%nneq
-          iz = sys(i)%c%spc(sys(i)%c%at(k)%is)%z
+       do k = 1, sys(i)%c%nspc
+          iz = sys(i)%c%spc(k)%z
           if (iz >= maxzat .or. iz <= 0) cycle
-          nelec = nelec + iz * sys(i)%c%at(k)%mult
-          mass = mass + atmass(iz) * sys(i)%c%at(k)%mult
+          nelec = nelec + iz * nis(k)
+          mass = mass + atmass(iz) * nis(k)
        end do
        call iw_text("Electrons: ",highlight=.true.)
-       call iw_text(string(nelec),sameline_nospace=.true.)
+       if (abs(nelec - anint(nelec)) < 1d-6) then
+          call iw_text(string(nint(nelec)),sameline_nospace=.true.)
+       else
+          call iw_text(string(nelec,'f',decimal=4),sameline_nospace=.true.)
+       end if
        call iw_text(" Mass (amu): ",highlight=.true.,sameline=.true.)
        call iw_text(string(mass,'f',decimal=3),sameline_nospace=.true.)
 
-       ! empirical formula
-       allocate(nis(sys(i)%c%nspc))
-       nis = 0
-       do k = 1, sys(i)%c%nneq
-          nis(sys(i)%c%at(k)%is) = nis(sys(i)%c%at(k)%is) + sys(i)%c%at(k)%mult
-       end do
-       maxdv = gcd(nis,sys(i)%c%nspc)
+       ! empirical formula (weighted by site occupancy)
        call iw_text("Formula: ",highlight=.true.)
-       str = ""
-       do k = 1, sys(i)%c%nspc
-          str = str // string(sys(i)%c%spc(k)%name) // string(nint(nis(k)/maxdv)) // " "
-       end do
+       str = sys(i)%c%formula_string(.false.)
        if (len(str) > 30) str = str(1:27) // "..."
        call iw_text(str,sameline_nospace=.true.)
 

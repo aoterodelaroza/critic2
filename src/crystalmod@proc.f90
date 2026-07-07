@@ -413,10 +413,11 @@ contains
           end do
 
           if (ng >= 2) then
-             ! mixed site: normalize the occupancies to sum 1, then sort by
-             ! decreasing occupancy (ties: higher atomic number first)
+             ! mixed site: if over-occupied (occupancies sum to more
+             ! than 1), normalize. Sort by decreasing occupancy (ties:
+             ! higher atomic number first)
              osum = sum(gocc(1:ng))
-             if (osum > 0d0 .and. abs(osum - 1d0) > 1d-4) &
+             if (osum > 1d0 + 1d-4) &
                 gocc(1:ng) = gocc(1:ng) / osum
              do l = 1, ng-1
                 do m = l+1, ng

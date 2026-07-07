@@ -240,6 +240,8 @@ module crystalmod
      procedure :: struct_new !< Initialize the structure from a crystal seed
      procedure :: set_haveocc !< Recompute the occupancy flag (haveocc)
      procedure :: mix_string !< Format the occupant list of a mixed site
+     procedure :: composition !< Occupancy-weighted atom count per species in the cell
+     procedure :: formula_string !< Format the (occupancy-weighted) empirical formula
      procedure :: calc_vacuum_lengths !< Calculate the vacuum lengths and slab limits
      procedure :: recompute_molecular_cell !< Re-fit the molecular cell to the current atoms (molecules)
 
@@ -446,6 +448,15 @@ module crystalmod
        integer, intent(in), optional :: decimal
        character(len=:), allocatable :: str
      end function mix_string
+     module subroutine composition(c,nis)
+       class(crystal), intent(in) :: c
+       real*8, allocatable, intent(inout) :: nis(:)
+     end subroutine composition
+     module function formula_string(c,useparen) result(str)
+       class(crystal), intent(in) :: c
+       logical, intent(in) :: useparen
+       character(len=:), allocatable :: str
+     end function formula_string
      module subroutine calc_vacuum_lengths(c)
        class(crystal), intent(inout) :: c
      end subroutine calc_vacuum_lengths
