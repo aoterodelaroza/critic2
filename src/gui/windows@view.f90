@@ -59,7 +59,7 @@ contains
        BIND_VIEW_ALIGN_A_AXIS, BIND_VIEW_ALIGN_B_AXIS, BIND_VIEW_ALIGN_C_AXIS,&
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS,&
        BIND_VIEW_TOGGLE_ATOMS, BIND_VIEW_TOGGLE_BONDS, BIND_VIEW_CYCLE_LABELS,&
-       BIND_VIEW_TOGGLE_CELL, BIND_VIEW_TOGGLE_POLYHEDRA,&
+       BIND_VIEW_TOGGLE_CELL, BIND_VIEW_TOGGLE_POLYHEDRA, BIND_RECALC_BONDS,&
        get_bind_keyname, BIND_EDITSELECT_REMOVE, BIND_EDITSELECT_DESELECT,&
        BIND_EDITSELECT_SELECT_ALL, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes, reptype_symelem,&
@@ -204,6 +204,8 @@ contains
           changedisplay(5) = .true.
           ispoly = .not.ispoly
        end if
+       if (is_bind_event(BIND_RECALC_BONDS)) &
+          call sysc(w%view_selected)%rebond()
        if (any(changedisplay)) then
           do i = 1, w%sc%nrep
              if (w%sc%rep(i)%isinit) then
@@ -651,6 +653,10 @@ contains
        if (iw_menuitem("View/Edit Geometry...",enabled=enabled)) &
           iaux = stack_create_window(wintype_geometry,.true.,isys=w%view_selected,orraise=-1)
        call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
+
+       if (iw_menuitem("Recalculate bonds",BIND_RECALC_BONDS,enabled=enabled)) &
+          call sysc(w%view_selected)%rebond()
+       call iw_tooltip("Recompute the bonds/connectivity for this system",ttshown)
 
        if (iw_menuitem("Vibrations...",enabled=enabled)) &
           iaux = stack_create_window(wintype_vibrations,.true.,idparent=w%id,orraise=-1)

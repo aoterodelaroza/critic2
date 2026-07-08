@@ -746,14 +746,12 @@ contains
              end do
           end do
           deallocate(deltasave)
+          ! connectivity was copied, not recomputed; still refresh the derived
+          ! molecular data (the post-asterism tail of the rebond sequence)
+          call c%refresh_molecular_data()
        else
-          call c%find_asterisms(c%nstar,atmcov,bondfactor)
+          call c%rebond(atmcov,bondfactor)
        end if
-
-       ! find fragments, molecular equivalence, and periodicity
-       call c%fill_molecular_fragments()
-       call c%calculate_molecular_equivalence()
-       call c%calculate_periodicity()
     end if
 
     ! the initialization is done - this crystal is ready to use

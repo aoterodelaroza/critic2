@@ -624,6 +624,19 @@ contains
 
   end subroutine post_event
 
+  !> Recompute the bonds/connectivity for this system using its configured
+  !> bonding parameters (per-species covalent radii, bond factor, metal-bond
+  !> tolerance), then signal the scene/representations to refresh. This is the
+  !> single entry point for the "Recalculate bonds" action (Tools menu, Ctrl+B)
+  !> and the View/Edit Geometry "Apply" button.
+  module subroutine rebond(sysc)
+    class(sysconf), intent(inout) :: sysc
+
+    call sys(sysc%id)%c%rebond(sysc%atmcov,sysc%bondfactor,bonddelta=sysc%bonddelta)
+    call sysc%post_event(lastchange_rebond)
+
+  end subroutine rebond
+
   !> Reset the undo/redo history for this system: discard all saved states
   !> and re-seed the history with the current geometry (if the system is
   !> initialized). Called when a system is first initialized or reloaded.

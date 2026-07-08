@@ -108,6 +108,7 @@ module systems
    contains
      ! time events
      procedure :: post_event
+     procedure :: rebond ! recompute bonds/connectivity, then signal the scene
      ! highlights
      procedure :: highlight_atoms
      procedure :: highlight_clear
@@ -242,6 +243,9 @@ module systems
        logical, intent(in), optional :: keepfields
        logical, intent(in), optional :: nocapture
      end subroutine post_event
+     module subroutine rebond(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine rebond
      module subroutine highlight_atoms(sysc,transient,idx,type,rgba)
        class(sysconf), intent(inout) :: sysc
        logical, intent(in) :: transient

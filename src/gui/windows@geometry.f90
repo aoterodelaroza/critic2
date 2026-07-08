@@ -49,7 +49,7 @@ contains
     use systems, only: nsys, sysc, sys, sys_init, ok_system, reread_system_from_file,&
        atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac, atlisttype_ncel_bohr,&
        atlisttype_ncel_ang, atlisttype_nmol, celltransform_standard,&
-       celltransform_primstd, celltransform_niggli, celltransform_delaunay, lastchange_rebond
+       celltransform_primstd, celltransform_niggli, celltransform_delaunay
     use gui_main, only: g, ColorHighlightScene, ColorHighlightSelectScene, ColorHighlightBondScene,&
        ColorHighlightBondScene2,&
        ColorTableHighlightRow, ColorBlack, ColorWhite, ColorButtonHoverFactor,&
@@ -1806,14 +1806,8 @@ contains
           call iw_tooltip("Reset atomic radii, bond factor, and bond delta to defaults",ttshown)
 
           ! reset + apply buttons
-          if (iw_button("Apply",danger=.true.)) then
-             call sys(isys)%c%find_asterisms(sys(isys)%c%nstar,sysc(isys)%atmcov,sysc(isys)%bondfactor,&
-                bonddelta=sysc(isys)%bonddelta)
-             call sys(isys)%c%fill_molecular_fragments()
-             call sys(isys)%c%calculate_molecular_equivalence()
-             call sys(isys)%c%calculate_periodicity()
-             call sysc(isys)%post_event(lastchange_rebond)
-          end if
+          if (iw_button("Apply",danger=.true.)) &
+             call sysc(isys)%rebond()
           call iw_tooltip("Recalculate bonds with the parameters above",ttshown)
 
           call igEndTabItem()

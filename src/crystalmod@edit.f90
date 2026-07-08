@@ -1908,11 +1908,9 @@ contains
     call remove_one(c%nstar(iat1),iat2,lvec)
     call remove_one(c%nstar(iat2),iat1,-lvec)
 
-    ! keep molecular fragments consistent with the new connectivity (lightweight;
-    ! same post-asterism steps the rebond window runs, no struct_new)
-    call c%fill_molecular_fragments()
-    call c%calculate_molecular_equivalence()
-    call c%calculate_periodicity()
+    ! keep molecular fragments consistent with the new connectivity (in-place
+    ! edit, no asterism recompute)
+    call c%refresh_molecular_data()
 
   contains
     subroutine remove_one(ns,id,lv)
@@ -1996,11 +1994,9 @@ contains
     call add_one(c%nstar(iat1),iat2,lvec)
     call add_one(c%nstar(iat2),iat1,-lvec)
 
-    ! keep molecular fragments consistent with the new connectivity (lightweight;
-    ! same post-asterism steps the rebond window runs, no struct_new)
-    call c%fill_molecular_fragments()
-    call c%calculate_molecular_equivalence()
-    call c%calculate_periodicity()
+    ! keep molecular fragments consistent with the new connectivity (in-place
+    ! edit, no asterism recompute)
+    call c%refresh_molecular_data()
 
   contains
     subroutine add_one(ns,id,lv)
@@ -2023,5 +2019,33 @@ contains
       ns%ncon = n
     end subroutine add_one
   end subroutine add_bond
+
+  !> Recompute the atomic connectivity (asterisms) and the derived
+  !> molecular data (fragments, molecular equivalence, periodicity).
+  module subroutine rebond(c,atmrad,bondfac,bonddelta)
+    use param, only: maxzat0
+    class(crystal), intent(inout) :: c
+    real*8, intent(in), optional :: atmrad(0:maxzat0)
+    real*8, intent(in), optional :: bondfac
+    real*8, intent(in), optional :: bonddelta
+
+    call c%find_asterisms(c%nstar,atmrad,bondfac,bonddelta=bonddelta)
+    call c%refresh_molecular_data()
+
+  end subroutine rebond
+
+  !> Refresh the molecular data derived from the current connectivity: molecular
+  !> fragments, molecular equivalence, and periodicity. This is the post-asterism
+  !> tail shared by rebond, struct_new (when bonds are copied, not recomputed),
+  !> and the in-place bond editors (add_bond/remove_bond). It assumes c%nstar is
+  !> already populated; it does not recompute the asterisms.
+  module subroutine refresh_molecular_data(c)
+    class(crystal), intent(inout) :: c
+
+    call c%fill_molecular_fragments()
+    call c%calculate_molecular_equivalence()
+    call c%calculate_periodicity()
+
+  end subroutine refresh_molecular_data
 
 end submodule edit

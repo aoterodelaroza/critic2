@@ -272,7 +272,9 @@ module crystalmod
      procedure :: get_rnn2
      procedure :: identify_atom
      procedure :: promolecular_atom
-     procedure :: find_asterisms
+     procedure :: find_asterisms !< Find covalent connectivity
+     procedure :: rebond !< Recalculate asterisms and molecular data
+     procedure :: refresh_molecular_data !< Recalculate molecular fragments, equivalence, periodicity
      procedure :: list_near_lattice_points
      procedure :: nearest_lattice_point
      procedure :: in_same_molecule
@@ -640,6 +642,16 @@ module crystalmod
        real*8, intent(in), optional :: rij(:,:,:)
        real*8, intent(in), optional :: bonddelta
      end subroutine find_asterisms
+     module subroutine rebond(c,atmrad,bondfac,bonddelta)
+       use param, only: maxzat0
+       class(crystal), intent(inout) :: c
+       real*8, intent(in), optional :: atmrad(0:maxzat0)
+       real*8, intent(in), optional :: bondfac
+       real*8, intent(in), optional :: bonddelta
+     end subroutine rebond
+     module subroutine refresh_molecular_data(c)
+       class(crystal), intent(inout) :: c
+     end subroutine refresh_molecular_data
      module subroutine list_near_lattice_points(c,xp,icrd,sorted,nat,dist,lvec,x2c,ndiv,&
         up2d,up2n,nozero)
        class(crystal), intent(inout) :: c
