@@ -489,10 +489,9 @@ contains
 
              ! Jeffrey-Steiner hydrogen-bond strength classification
              call igAlignTextToFramePadding()
-             call iw_text("Classify H-bonds")
+             call iw_text("Hydrogen bonds")
              ch = ch .or. iw_checkbox("##hbondclassify",w%rep%bonds%hbond_classify,sameline=.true.)
-             call iw_tooltip("Color each contact by its Jeffrey-Steiner hydrogen-bond strength &
-                &(strong/moderate/weak), combining the H...A distance and the D-H...A angle information.",ttshown)
+             call iw_tooltip("Represent only hydrogen bonds and color them by their Jeffrey-Steiner strength.",ttshown)
 
              if (w%rep%bonds%hbond_classify) then
                 ch = ch .or. iw_coloredit("Strong##hbstrongcolor",rgb=w%rep%bonds%hbond_rgb(:,1))
