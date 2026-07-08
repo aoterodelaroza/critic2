@@ -38,6 +38,7 @@ module representations
   real*8, parameter, public :: atomrad_licorice_def = 0.11_c_float / bohrtoa ! atomic radius value (licorice)
   real*8, parameter, public :: atomrad_criticalpoints_def = 0.13_c_float / bohrtoa ! atomic radius value (critical points)
   real*8, parameter, public :: atomrad_gradientpaths_def = 0.05_c_float / bohrtoa ! atomic radius value (gradient paths)
+  logical, parameter, public :: occ_sectors_def = .true. ! render partial occupancies as sectors
   !--> bonds
   real*8, parameter, public :: bondrad_def = 0.125d0 / bohrtoa ! bond radius
   real*8, parameter, public :: bondrad_licorice_def = 0.25d0 / bohrtoa ! bond radius (licorice)
@@ -49,6 +50,11 @@ module representations
   real*8, parameter, public :: hbond_angmin_def = 90d0 ! D-H...A angle below which a contact is not an H-bond (discarded)
   real*8, parameter, public :: bondborder_def = 0.03d0 / bohrtoa ! bond border
   real*8, parameter, public :: bondborder_stickflav_def = 0.025d0 / bohrtoa ! bond border (stick flavor)
+  logical, parameter, public :: hbond_classify_def = .false. ! Jeffrey-Steiner H-bond strength classification
+  !--> labels
+  real*8, parameter, public :: label_scale_def = 0.5d0 ! label size
+  real*8, parameter, public :: label_scale_criticalpoints_def = 0.3d0 ! label size (critical points)
+  real*8, parameter, public :: label_offset_criticalpoints_def(3) = (/0d0,0.25d0,0d0/) ! label offset (critical points)
   !--> unit cell
   real*8, parameter, public :: uc_radius_def = 0.08d0 / bohrtoa ! radius of sticks
   real*8, parameter, public :: uc_radiusinner_def = 0.08d0 / bohrtoa ! radius of inner sticks
@@ -78,6 +84,15 @@ module representations
      0.00_c_float,0.00_c_float,0.00_c_float,&   ! 5-fold: (unused, default)
      0.90_c_float,0.45_c_float,0.05_c_float/),& ! 6-fold: orange
      shape(symelem_rgb_order))
+  !--> coordination polyhedra
+  real*8, parameter, public :: polyalpha_def = 0.75d0 ! face opacity (1 = opaque)
+  real*8, parameter, public :: polyedgerad_def = 0.06d0 / bohrtoa ! edge cylinder radius
+  real*8, parameter, public :: polycoplanar_def = 0.1d0 ! coplanarity tolerance for the planar-polygon path
+  real(c_float), parameter, public :: polyface_rgb_def(3) = 0._c_float ! face color (when not using the central atom color)
+  real(c_float), parameter, public :: polyedge_rgb_def(3) = 0._c_float ! edge color (when not using the central atom color)
+  logical, parameter, public :: poly_usecentercolor_def = .true. ! faces take the central atom color
+  logical, parameter, public :: poly_usecentercolor_edge_def = .false. ! edges take the central atom color
+  logical, parameter, public :: poly_showcorners_def = .true. ! also draw the corner atoms outside the selection
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
@@ -245,7 +260,7 @@ module representations
      integer(c_int) :: order ! order (0=dashed,1=single,2=double,3=triple,4=ordcon value)
      integer(c_int) :: imol ! molecular connections (0=any,1=intramol,2=intermol)
      logical :: bothends ! if true, both atoms need to be drawn to draw the bond
-     logical :: hbond_classify = .false. ! Jeffrey-Steiner hydrogen-bond strength classification
+     logical :: hbond_classify = hbond_classify_def ! Jeffrey-Steiner hydrogen-bond strength classification
      real(c_float) :: hbond_rgb(3,3) = reshape((/& ! per-class colors
         0.00_c_float,0.00_c_float,1.00_c_float,&  ! strong: blue
         0.00_c_float,0.70_c_float,0.00_c_float,&  ! moderate: green
@@ -348,14 +363,14 @@ module representations
   type rep_poly
      logical :: display ! whether to draw the coordination polyhedra
      type(coordpoly_geom_style) :: style ! center/corner/distance geometry (geometry-dependent)
-     real*8 :: alpha = 0.5d0 ! face opacity (1 = opaque)
-     logical :: usecentercolor = .true. ! faces take the central atom color
-     real(c_float) :: rgb(3) = 0._c_float ! face color when not using the central atom color
-     real*8 :: edge_rad = 0.05d0 ! edge cylinder radius (bohr)
-     real(c_float) :: edge_rgb(3) = 0._c_float ! edge cylinder color
-     logical :: usecentercolor_edge = .true. ! edges take the central atom color
-     real*8 :: coplanar_eps = 0.1d0 ! coplanarity tolerance for the planar-polygon path (bohr)
-     logical :: showcorners = .true. ! also draw the corner atoms, even if outside the selection
+     real*8 :: alpha = polyalpha_def ! face opacity (1 = opaque)
+     logical :: usecentercolor = poly_usecentercolor_def ! faces take the central atom color
+     real(c_float) :: rgb(3) = polyface_rgb_def ! face color when not using the central atom color
+     real*8 :: edge_rad = polyedgerad_def ! edge cylinder radius (bohr)
+     real(c_float) :: edge_rgb(3) = polyedge_rgb_def ! edge cylinder color
+     logical :: usecentercolor_edge = poly_usecentercolor_edge_def ! edges take the central atom color
+     real*8 :: coplanar_eps = polycoplanar_def ! coplanarity tolerance for the planar-polygon path (bohr)
+     logical :: showcorners = poly_showcorners_def ! also draw the corner atoms, even if outside the selection
   end type rep_poly
   public :: rep_poly
 

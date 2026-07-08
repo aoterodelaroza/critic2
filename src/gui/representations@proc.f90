@@ -243,7 +243,7 @@ contains
        r%atoms%color_type = 0
        r%atoms%border_size = atomborder_def
        r%atoms%border_rgb = ColorAtomBorder_def
-       r%atoms%occ_sectors = .true.
+       r%atoms%occ_sectors = occ_sectors_def
        r%atoms%occ_empty_rgb = ColorOccEmpty_def
        if (r%flavor == repflavor_atoms_licorice) then
           r%atoms%radii_type = 2
@@ -272,7 +272,7 @@ contains
        r%bonds%order = 4 ! calculated (value from ordcon)
        r%bonds%imol = 0
        r%bonds%bothends = .true.
-       r%bonds%hbond_classify = .false.
+       r%bonds%hbond_classify = hbond_classify_def
        if (r%flavor == repflavor_atoms_sticks) then
           r%bonds%color_style = 1
           r%bonds%border_size = bondborder_stickflav_def
@@ -313,14 +313,14 @@ contains
     !--> labels
     if (itype == 0 .or. itype == 3) then
        r%labels%type = 0
-       r%labels%scale = 0.5d0
+       r%labels%scale = label_scale_def
        r%labels%rgb = ColorLabel_def
        r%labels%const_size = .false.
        r%labels%offset = (/0d0,0d0,0d0/)
        if (r%flavor == repflavor_atoms_criticalpoints) then
           r%labels%type = 2 ! cell atom
-          r%labels%scale = 0.3d0
-          r%labels%offset = (/0d0,0.25d0,0d0/)
+          r%labels%scale = label_scale_criticalpoints_def
+          r%labels%offset = label_offset_criticalpoints_def
        end if
     end if
 
@@ -378,14 +378,14 @@ contains
 
     ! coordination polyhedra
     if (itype == 0 .or. itype == 8) then
-       r%poly%alpha = 0.5d0
-       r%poly%usecentercolor = .true.
-       r%poly%rgb = 0._c_float
-       r%poly%edge_rad = 0.05d0
-       r%poly%edge_rgb = 0._c_float
-       r%poly%usecentercolor_edge = .true.
-       r%poly%coplanar_eps = 0.1d0
-       r%poly%showcorners = .true.
+       r%poly%alpha = polyalpha_def
+       r%poly%usecentercolor = poly_usecentercolor_def
+       r%poly%rgb = polyface_rgb_def
+       r%poly%edge_rad = polyedgerad_def
+       r%poly%edge_rgb = polyedge_rgb_def
+       r%poly%usecentercolor_edge = poly_usecentercolor_edge_def
+       r%poly%coplanar_eps = polycoplanar_def
+       r%poly%showcorners = poly_showcorners_def
     end if
 
     ! symmetry elements
@@ -515,7 +515,7 @@ contains
     integer, allocatable :: lshown(:,:,:,:)
     logical :: havefilter, step, isedge(3), usetshift, doanim_, dobonds, isvac(3)
     logical :: isvacdir, docycle, dovac(3)
-    integer :: n(3), i, j, k, imol, lvec(3), id, idaux, n0(3), n1(3)
+    integer :: n(3), i, j, k, imol, lvec(3), id, n0(3), n1(3)
     integer :: i1, i2, i3, ix(3), idl
     integer :: ib, ineigh, ixn(3), ix1(3), ix2(3), nstep, vacshift(3)
     integer :: nimg, nres, nbond, mb, mbb
