@@ -465,7 +465,7 @@ contains
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
        BIND_EDITSELECT_DESELECT, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO,&
-       get_bind_keyname, is_bind_event
+       BIND_RECALC_BONDS, get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
     use param, only: isformat_write_from_read, isformat_w_unknown
@@ -711,6 +711,10 @@ contains
           launch(d_geometry) = launch(d_geometry) .or. &
              iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=isysvok)
           call iw_tooltip("View and edit the atomic positions, bonds, symmetry...",ttshown)
+
+          if (iw_menuitem("Recalculate bonds",BIND_RECALC_BONDS,enabled=isysvok)) &
+             call sysc(isysv)%rebond()
+          call iw_tooltip("Recompute the bonds/connectivity for this system",ttshown)
 
           if (iw_menuitem("Vibrations...",enabled=isysvok)) &
              idum = stack_create_window(wintype_vibrations,.true.,idparent=iwin_view,orraise=-1)
