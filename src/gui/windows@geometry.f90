@@ -97,7 +97,7 @@ contains
     character(len=:), allocatable :: bondglyph, bondword ! bonds tab: bond-type glyph and word
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
-    logical :: havergb, havergb_, ldum, ok, oksys
+    logical :: havergb, havergb_, ldum, ok, oksys, ballow
     real*8 :: x0(3), x6(6), xold(3), x6old(6), res, vol, volold, scal
     real*8 :: occval, occold
     real*8 :: stdrot(3,3), stdcom(3), stdext, stdaxlen ! transient std-orientation axes
@@ -1788,9 +1788,21 @@ contains
                 ! allowed-bond checkboxes, one per element (symmetric mask by Z)
                 do j = 1, natused_bonds
                    if (igTableSetColumnIndex(2+j)) then
-                      if (iw_checkbox("##bondallowed_" // string(i) // "_" // string(j),&
-                         sysc(isys)%bondallowed(iz,iat_bonds(j)))) &
-                         sysc(isys)%bondallowed(iat_bonds(j),iz) = sysc(isys)%bondallowed(iz,iat_bonds(j))
+                      ! the mask is allocated lazily: unallocated means all pairs
+                      ! allowed, so default to checked and only allocate on a change
+                      if (allocated(sysc(isys)%bondallowed)) then
+                         ballow = sysc(isys)%bondallowed(iz,iat_bonds(j))
+                      else
+                         ballow = .true.
+                      end if
+                      if (iw_checkbox("##bondallowed_" // string(i) // "_" // string(j),ballow)) then
+                         if (.not.allocated(sysc(isys)%bondallowed)) then
+                            allocate(sysc(isys)%bondallowed(maxzat0,maxzat0))
+                            sysc(isys)%bondallowed = .true.
+                         end if
+                         sysc(isys)%bondallowed(iz,iat_bonds(j)) = ballow
+                         sysc(isys)%bondallowed(iat_bonds(j),iz) = ballow
+                      end if
                       call iw_tooltip("Allow " // trim(name_bonds(i)) // "-" //&
                          trim(name_bonds(j)) // " bonds to form when recalculating",ttshown)
                    end if
@@ -1812,18 +1824,22 @@ contains
              min=0d0,max=2d0,scale=bohrtoa,decimal=4,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Distance tolerance (additive) for metal-non-metal bonding (see formula above)",ttshown)
 
-          ! allow all / allow none / reset / apply buttons
-          if (iw_button("Allow All##allowallbondtypes")) &
-             sysc(isys)%bondallowed = .true.
+          ! allow all / allow none / reset / apply buttons. The mask is freed
+          ! when it returns to fully-allowed (the unallocated = all-allowed default)
+          if (iw_button("Allow All##allowallbondtypes")) then
+             if (allocated(sysc(isys)%bondallowed)) deallocate(sysc(isys)%bondallowed)
+          end if
           call iw_tooltip("Allow all bond types to form",ttshown)
-          if (iw_button("Allow None##allownonebondtypes",sameline=.true.)) &
+          if (iw_button("Allow None##allownonebondtypes",sameline=.true.)) then
+             if (.not.allocated(sysc(isys)%bondallowed)) allocate(sysc(isys)%bondallowed(maxzat0,maxzat0))
              sysc(isys)%bondallowed = .false.
+          end if
           call iw_tooltip("Forbid all bond types from forming",ttshown)
           if (iw_button("Reset",sameline=.true.)) then
              sysc(isys)%atmcov = atmcov0
              sysc(isys)%bondfactor = bondfactor_def
              sysc(isys)%bonddelta = bonddelta_def
-             sysc(isys)%bondallowed = .true.
+             if (allocated(sysc(isys)%bondallowed)) deallocate(sysc(isys)%bondallowed)
           end if
           call iw_tooltip("Reset atomic radii, bond factor, bond delta, and allowed bond types to defaults",ttshown)
           if (iw_button("Apply",danger=.true.,sameline=.true.)) &
