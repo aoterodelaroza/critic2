@@ -758,7 +758,7 @@ contains
   !> b) The distance is at most dbond (0.2 ang) higher than the minimum distance.
   !> If i and j are metals, use b. If i and j are non-metals, use a.
   !> If one is metal and the other non-metal, apply both.
-  module subroutine find_asterisms(c,nstar,atmrad,bondfac,rij,bonddelta)
+  module subroutine find_asterisms(c,nstar,atmrad,bondfac,rij,bonddelta,allowed)
     use global, only: bonddelta_def
     use param, only: maxzat0, ismetal
     use tools_io, only: string, ferror, faterr
@@ -771,6 +771,7 @@ contains
     real*8, intent(in), optional :: bondfac
     real*8, intent(in), optional :: rij(:,:,:)
     real*8, intent(in), optional :: bonddelta
+    logical, intent(in), optional :: allowed(:,:) ! per-element-pair bond mask, indexed by atomic number (Z,Z)
 
     integer :: i, j, iz, jz, jid
     real*8 :: ri, rj, dmax, dd
@@ -869,6 +870,11 @@ contains
           jz = c%spc(c%atcel(jid)%is)%z
           if (jz > maxzat) cycle
           jsm = ismetal(jz)
+
+          ! skip element pairs the caller has disallowed
+          if (present(allowed) .and. iz > 0 .and. jz > 0) then
+             if (.not.allowed(jz,iz)) cycle
+          end if
           bonded = .false.
 
           dd = atenv(i)%dist(j)

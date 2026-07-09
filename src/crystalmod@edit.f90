@@ -2022,14 +2022,15 @@ contains
 
   !> Recompute the atomic connectivity (asterisms) and the derived
   !> molecular data (fragments, molecular equivalence, periodicity).
-  module subroutine rebond(c,atmrad,bondfac,bonddelta)
+  module subroutine rebond(c,atmrad,bondfac,bonddelta,allowed)
     use param, only: maxzat0
     class(crystal), intent(inout) :: c
     real*8, intent(in), optional :: atmrad(0:maxzat0)
     real*8, intent(in), optional :: bondfac
     real*8, intent(in), optional :: bonddelta
+    logical, intent(in), optional :: allowed(:,:)
 
-    call c%find_asterisms(c%nstar,atmrad,bondfac,bonddelta=bonddelta)
+    call c%find_asterisms(c%nstar,atmrad,bondfac,bonddelta=bonddelta,allowed=allowed)
     call c%refresh_molecular_data()
 
   end subroutine rebond

@@ -91,6 +91,7 @@ contains
     integer :: ord, zi, zj ! bonds tab: bond order and atomic numbers of the two bonded atoms
     integer :: natused_bonds ! bonds tab: number of distinct atomic species present
     integer, allocatable :: iat_bonds(:) ! bonds tab: Z values of distinct species
+    character(len=2), allocatable :: name_bonds(:) ! bonds tab: element symbols of distinct species
     logical :: atused_bonds(maxzat0) ! bonds tab: species presence flags
     real*8 :: dbond
     character(len=:), allocatable :: bondglyph, bondword ! bonds tab: bond-type glyph and word
@@ -1539,12 +1540,13 @@ contains
              atused_bonds(sys(isys)%c%spc(i)%z) = .true.
           end do
           natused_bonds = count(atused_bonds)
-          allocate(iat_bonds(natused_bonds))
+          allocate(iat_bonds(natused_bonds),name_bonds(natused_bonds))
           natused_bonds = 0
           do i = 1, maxzat0
              if (atused_bonds(i)) then
                 natused_bonds = natused_bonds + 1
                 iat_bonds(natused_bonds) = i
+                name_bonds(natused_bonds) = nameguess(i,.true.)
              end if
           end do
 
@@ -1737,12 +1739,12 @@ contains
           ! separator + recalculate bonds section
           call igSeparator()
           call iw_text("Recalculate Bonds",highlight=.true.)
-          call iw_text("Atoms A and B are bonded if:",sameline=.true.)
+          call iw_text("Atoms A and B are bonded if:")
           call iw_text("  A and B non-metals: d < (r_cov(i)+r_cov(j))*f"//newline//&
              "  A or B metal:       d < d_NN + δ"//newline//&
              "r_cov = covalent radius. d_NN = nearest-neighbor distance.")
 
-          ! atomic radii table
+          ! atomic radii + allowed-bond matrix table
           flags = ImGuiTableFlags_None
           flags = ior(flags,ImGuiTableFlags_Resizable)
           flags = ior(flags,ImGuiTableFlags_NoSavedSettings)
@@ -1753,13 +1755,17 @@ contains
           str1 = "##tableatomrcov_geom" // c_null_char
           sz0%x = 0
           sz0%y = iw_calcheight(min(5,natused_bonds)+1,0,.false.)
-          if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
+          if (igBeginTable(c_loc(str1),3+natused_bonds,flags,sz0,0._c_float)) then
              str2 = "Atom" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,0)
              str2 = "Z" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,1)
              str2 = "Radius (Å)" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,2)
+             do j = 1, natused_bonds
+                str2 = trim(name_bonds(j)) // c_null_char
+                call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,2+j)
+             end do
              call igTableSetupScrollFreeze(0,1)
              call igTableHeadersRow()
 
@@ -1768,7 +1774,7 @@ contains
                 iz = iat_bonds(i)
                 if (igTableSetColumnIndex(0)) then
                    call igAlignTextToFramePadding()
-                   call iw_text(string(nameguess(iz,.true.)))
+                   call iw_text(trim(name_bonds(i)))
                 end if
                 if (igTableSetColumnIndex(1)) then
                    call igAlignTextToFramePadding()
@@ -1779,10 +1785,20 @@ contains
                       speed=0.01d0,min=0d0,max=2.65d0,scale=bohrtoa,decimal=3,&
                       flags=ImGuiSliderFlags_AlwaysClamp)
                 end if
+                ! allowed-bond checkboxes, one per element (symmetric mask by Z)
+                do j = 1, natused_bonds
+                   if (igTableSetColumnIndex(2+j)) then
+                      if (iw_checkbox("##bondallowed_" // string(i) // "_" // string(j),&
+                         sysc(isys)%bondallowed(iz,iat_bonds(j)))) &
+                         sysc(isys)%bondallowed(iat_bonds(j),iz) = sysc(isys)%bondallowed(iz,iat_bonds(j))
+                      call iw_tooltip("Allow " // trim(name_bonds(i)) // "-" //&
+                         trim(name_bonds(j)) // " bonds to form when recalculating",ttshown)
+                   end if
+                end do
              end do
              call igEndTable()
           end if
-          deallocate(iat_bonds)
+          deallocate(iat_bonds,name_bonds)
 
           ! bond factor drag
           call igAlignTextToFramePadding()
@@ -1795,18 +1811,22 @@ contains
           ldum = iw_dragfloat_real8("Bond delta δ (Å)##bonddelta_geom",x1=sysc(isys)%bonddelta,speed=0.001d0,&
              min=0d0,max=2d0,scale=bohrtoa,decimal=4,sameline=.true.,flags=ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Distance tolerance (additive) for metal-non-metal bonding (see formula above)",ttshown)
-          call iw_text(" ",sameline=.true.)
 
-          ! Reset button
+          ! allow all / allow none / reset / apply buttons
+          if (iw_button("Allow All##allowallbondtypes")) &
+             sysc(isys)%bondallowed = .true.
+          call iw_tooltip("Allow all bond types to form",ttshown)
+          if (iw_button("Allow None##allownonebondtypes",sameline=.true.)) &
+             sysc(isys)%bondallowed = .false.
+          call iw_tooltip("Forbid all bond types from forming",ttshown)
           if (iw_button("Reset",sameline=.true.)) then
              sysc(isys)%atmcov = atmcov0
              sysc(isys)%bondfactor = bondfactor_def
              sysc(isys)%bonddelta = bonddelta_def
+             sysc(isys)%bondallowed = .true.
           end if
-          call iw_tooltip("Reset atomic radii, bond factor, and bond delta to defaults",ttshown)
-
-          ! reset + apply buttons
-          if (iw_button("Apply",danger=.true.)) &
+          call iw_tooltip("Reset atomic radii, bond factor, bond delta, and allowed bond types to defaults",ttshown)
+          if (iw_button("Apply",danger=.true.,sameline=.true.)) &
              call sysc(isys)%rebond()
           call iw_tooltip("Recalculate bonds with the parameters above",ttshown)
 

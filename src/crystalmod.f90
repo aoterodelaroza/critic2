@@ -633,7 +633,7 @@ module crystalmod
        integer, intent(in), optional :: zpsp(:)
        type(fragment), intent(in), optional :: fr
      end subroutine promolecular_atom
-     module subroutine find_asterisms(c,nstar,atmrad,bondfac,rij,bonddelta)
+     module subroutine find_asterisms(c,nstar,atmrad,bondfac,rij,bonddelta,allowed)
        use param, only: maxzat0
        class(crystal), intent(inout) :: c
        type(neighstar), allocatable, intent(inout) :: nstar(:)
@@ -641,13 +641,15 @@ module crystalmod
        real*8, intent(in), optional :: bondfac
        real*8, intent(in), optional :: rij(:,:,:)
        real*8, intent(in), optional :: bonddelta
+       logical, intent(in), optional :: allowed(:,:)
      end subroutine find_asterisms
-     module subroutine rebond(c,atmrad,bondfac,bonddelta)
+     module subroutine rebond(c,atmrad,bondfac,bonddelta,allowed)
        use param, only: maxzat0
        class(crystal), intent(inout) :: c
        real*8, intent(in), optional :: atmrad(0:maxzat0)
        real*8, intent(in), optional :: bondfac
        real*8, intent(in), optional :: bonddelta
+       logical, intent(in), optional :: allowed(:,:)
      end subroutine rebond
      module subroutine refresh_molecular_data(c)
        class(crystal), intent(inout) :: c

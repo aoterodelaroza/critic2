@@ -632,7 +632,8 @@ contains
   module subroutine rebond(sysc)
     class(sysconf), intent(inout) :: sysc
 
-    call sys(sysc%id)%c%rebond(sysc%atmcov,sysc%bondfactor,bonddelta=sysc%bonddelta)
+    call sys(sysc%id)%c%rebond(sysc%atmcov,sysc%bondfactor,bonddelta=sysc%bonddelta,&
+       allowed=sysc%bondallowed)
     call sysc%post_event(lastchange_rebond)
 
   end subroutine rebond

@@ -89,6 +89,7 @@ module systems
      real*8 :: atmcov(0:maxzat0) = atmcov0 ! covalent radii for bonding
      real*8 :: bondfactor = bondfactor_def ! bond factor for bonding calculation
      real*8 :: bonddelta = bonddelta_def ! bond delta for metal bonding calculation
+     logical :: bondallowed(maxzat0,maxzat0) = .true. ! per-element-pair bond mask (by Z); .false. = never bond
      real*8 :: symeps = 1d-2 ! tolerance used to determine symmetry
      ! highlights
      real(c_float), allocatable :: highlight_rgba(:,:) ! highlight colors
