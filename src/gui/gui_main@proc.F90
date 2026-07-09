@@ -628,7 +628,7 @@ contains
           call igSeparator()
 
           ! Edit -> New from Selection
-          if (iw_menuitem("New from Selection",enabled=isysvok)) &
+          if (iw_menuitem("System from Selection",enabled=isysvok)) &
              call sysc(isysv)%new_system_from_highlighted()
           call iw_tooltip("Create a new system from the selected atoms",ttshown)
 
