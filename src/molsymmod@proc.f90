@@ -29,15 +29,11 @@ submodule (molsymmod) proc
      integer, allocatable :: id(:) ! ids of the atoms in the orbit
   end type orbit
 
-  real*8, parameter :: eps_linear = 1d-5 ! check whether a molecule is linear
-  real*8, parameter :: eps_planar = 1d-5 ! check whether a molecule is planar
-  real*8, parameter :: eps_orbit = 1d-5 ! check to determine whether an atom is in an orbit
-  real*8, parameter :: eps_equalop = 1d-2 ! check whether two symmetry operations are equal
-  real*8, parameter :: eps_pos = 1d-5 ! whether to atomic positions are equal
-  real*8, parameter :: eps_planar_axis = 1d-5 ! eps to find the axis normal to a plane
-  real*8, parameter :: eps_planar_det3 = 1d-6 ! eps to find whether triplet is planar
-  real*8, parameter :: eps_isinteger = 1d-5 ! eps for whether a number is an integer
-  real*8, parameter :: eps_zeroangle = 1d0 * pi / 180d0  ! eps for zero angle (radians)
+  real*8, parameter :: eps_dist = 3d-5 ! distance/coordinate comparisons: linearity, planarity, orbits, atom images (tessel: TOLdist)
+  real*8, parameter :: eps_eqvm = 2d0 * eps_dist ! check whether two symmetry operations are equal (tessel: TOLeqvm = 2*TOLdist)
+  real*8, parameter :: eps_sng = 1d-5 ! singularity checks: normal axis, triplet determinant (tessel: TOLsng)
+  real*8, parameter :: eps_isint = 3d-5 ! eps for whether a number is an integer (tessel: TOLisint)
+  real*8, parameter :: eps_null = 3d-6 ! eps for zero angle, in radians (tessel: TOLnull)
 
   integer, parameter :: norder_inf = 4 ! order of the infinite group (Cinfv, Dinfh)
 
@@ -151,7 +147,7 @@ contains
        do i = 3, nat
           xthis = x(:,i) - x(:,1)
           xthis = xthis / norm2(xthis)
-          if (abs(abs(dot_product(xthis,xref)) - 1d0) > eps_linear) then
+          if (abs(abs(dot_product(xthis,xref)) - 1d0) > eps_dist) then
              iref = i
              pg%islinear = .false.
              exit
@@ -171,7 +167,7 @@ contains
           if (i == iref) cycle
           xthis = x(:,i) - x(:,1)
           xthis = xthis / norm2(xthis)
-          if (abs(dot_product(xthis,xref)) > eps_planar) then
+          if (abs(dot_product(xthis,xref)) > eps_dist) then
              pg%isplanar = .false.
              exit
           end if
@@ -241,7 +237,7 @@ contains
 
        ! try to find if a current orbit fits
        do j = 1, norbit
-          if (abs(orb(j)%dist - dist) < eps_orbit .and. orb(j)%z == z(i)) then
+          if (abs(orb(j)%dist - dist) < eps_dist .and. orb(j)%z == z(i)) then
              orb(j)%nat = orb(j)%nat + 1
              if (orb(j)%nat > size(orb(j)%id,1)) &
                 call realloc(orb(j)%id,2*orb(j)%nat)
@@ -329,7 +325,7 @@ contains
 
     ! add a reflection plane with normal perpendicular to the axis
     xref = (/0d0,0d0,1d0/)
-    if (abs(abs(dot_product(axis,xref)) - 1d0) < eps_linear) &
+    if (abs(abs(dot_product(axis,xref)) - 1d0) < eps_dist) &
        xref = (/0d0,1d0,0d0/)
     mat = reflection_matrix(cross(axis,xref))
     call add_symop(mat,nrotm,mrotm)
@@ -371,7 +367,7 @@ contains
     do i = 3, nat
        axis = cross(x(:,2) - x(:,1), x(:,i) - x(:,1))
        nn = norm2(axis)
-       if (nn > eps_planar_axis) then
+       if (nn > eps_sng) then
           axis = axis / nn
           exit
        end if
@@ -386,7 +382,7 @@ contains
           mi(:,2) = x(:,i2)
           mi(:,3) = axis
           dd = det3(mi)
-          if (abs(dd) < eps_planar_det3) cycle
+          if (abs(dd) < eps_sng) cycle
           call matinv(mi,3)
 
           ! run over pairs in the same orbits
@@ -520,11 +516,11 @@ contains
     det = det3(mat)
 
     ! skip if this is not a rotation
-    if (abs(abs(det)-1d0) > eps_isinteger) return
+    if (abs(abs(det)-1d0) > eps_isint) return
 
     ! skip if the matrix is already known
     do i = 1, nrotm
-       if (sum(abs(mat - mrotm(i)%m)) < eps_equalop) then
+       if (sum(abs(mat - mrotm(i)%m)) < eps_eqvm) then
           return
        end if
     end do
@@ -542,7 +538,7 @@ contains
     end if
 
     ! identity and inversion treated separately
-    if (abs(abs(trace)-3d0) < eps_isinteger) then
+    if (abs(abs(trace)-3d0) < eps_isint) then
        if (trace > 0d0) then
           ! identity
           mrotm(nrotm)%type = molsymop_identity
@@ -564,14 +560,14 @@ contains
        angle = 0.5d0 * (trace - det)
        if (abs(angle) > 1d0) angle = sign(1d0, angle)
        angle = acos(angle)
-       if (abs(angle) < eps_zeroangle) angle = tpi
+       if (abs(angle) < eps_null) angle = tpi
 
        ! calculate the order of the rotation
        xmin = 1d40
        do i = 1, 20
           xx = i * tpi / angle
           xdif = abs(xx - nint(xx))
-          if (xdif < eps_isinteger) then
+          if (xdif < eps_isint) then
              mrotm(nrotm)%opn = nint(xx)
              mrotm(nrotm)%opm = i
              exit
@@ -598,7 +594,7 @@ contains
        if (det > 0d0) then
           mrotm(nrotm)%type = molsymop_rotation
           mrotm(nrotm)%sym = "C_" // string(mrotm(nrotm)%opn) // "^" // string(mrotm(nrotm)%opm)
-       elseif (abs(trace - 1d0) < eps_isinteger) then
+       elseif (abs(trace - 1d0) < eps_isint) then
           mrotm(nrotm)%type = molsymop_plane
           mrotm(nrotm)%sym = "sigma"
        elseif (mrotm(nrotm)%opn == 2 .and. mrotm(nrotm)%opm == 1) then
@@ -638,7 +634,7 @@ contains
           ! check if the transformed atom is in the orbit
           found = .false.
           do j = 1, orb(io)%nat
-             if (norm2(x(:,orb(io)%id(j)) - xt) < eps_pos) then
+             if (norm2(x(:,orb(io)%id(j)) - xt) < eps_dist) then
                 found = .true.
                 exit
              end if
@@ -775,10 +771,10 @@ contains
        do i = 1, nsigma
           axis = mrotm(isigma(i))%axis
           xprod = dot_product(axis,aref)
-          if (abs(abs(xprod)-1d0) < eps_isinteger) then
+          if (abs(abs(xprod)-1d0) < eps_isint) then
              sigmah = .true.
              mrotm(isigma(i))%sym = 'sigma_h'
-          elseif (abs(xprod) < eps_isinteger) then
+          elseif (abs(xprod) < eps_isint) then
              mrotm(isigma(i))%sym = 'sigma_v'
           end if
        end do
@@ -790,7 +786,7 @@ contains
        do i = 1, binmult
           axis = mrotm(ibin(i))%axis
           xprod = dot_product(axis,aref)
-          if (abs(xprod) < eps_isinteger) &
+          if (abs(xprod) < eps_isint) &
              nbinperp = nbinperp + 1
        end do
     endif
