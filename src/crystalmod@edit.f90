@@ -1714,7 +1714,7 @@ contains
   !> parameter is changed to x in units of iunit_l. If dorelative, the
   !> change is relative to the current value. If dofraction, x is
   !> interpreted as the fractional change in the current value.
-  module subroutine move_cell(c,iaxis,x,iunit_l,dorelative,dofraction,ti)
+  module subroutine move_cell(c,iaxis,x,iunit_l,dorelative,dofraction,copybonding,ti)
     use crystalseedmod, only: crystalseed
     use global, only: iunit_ang
     use param, only: bohrtoa, third
@@ -1723,16 +1723,21 @@ contains
     real*8, intent(in) :: x
     integer, intent(in) :: iunit_l
     logical, intent(in) :: dorelative, dofraction
+    logical, intent(in), optional :: copybonding
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     real*8 :: xx, ref
+    logical :: copybonding_
 
-    ! make seed from this crystal
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
+
+    ! make seed from this crystal, preserving the connectivity if requested
     if (iaxis /= 0) then
-       call c%makeseed(seed,copysym=.false.,useabr=1)
+       call c%makeseed(seed,copysym=.false.,useabr=1,copybonding=copybonding_)
     else
-       call c%makeseed(seed,copysym=.false.,useabr=2)
+       call c%makeseed(seed,copysym=.false.,useabr=2,copybonding=copybonding_)
     end if
 
     ! interpret units

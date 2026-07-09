@@ -899,12 +899,13 @@ module crystalmod
        logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine rotate_molecule
-     module subroutine move_cell(c,iaxis,x,iunit_l,dorelative,dofraction,ti)
+     module subroutine move_cell(c,iaxis,x,iunit_l,dorelative,dofraction,copybonding,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iaxis
        real*8, intent(in) :: x
        integer, intent(in) :: iunit_l
        logical, intent(in) :: dorelative, dofraction
+       logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine move_cell
      module subroutine move_cell_all(c,aa,bb,copybonding,ti)

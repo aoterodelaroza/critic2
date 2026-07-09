@@ -1147,7 +1147,8 @@ contains
 
   !> Process the user keybindings that set the viewmode
   module subroutine viewmode_set_mode(w)
-    use keybindings, only: is_bind_event, BIND_VIEWMODE_SELECT, BIND_VIEWMODE_MOVEATOMS
+    use keybindings, only: is_bind_event, BIND_VIEWMODE_SELECT, BIND_VIEWMODE_MOVEMOL,&
+       BIND_VIEWMODE_MOVEATOM
     class(window), intent(inout), target :: w
 
     logical :: ok
@@ -1174,9 +1175,15 @@ contains
        w%viewmode_transient = .true.
     end if
 
-    ! move-atoms mode (ctrl)
-    if (is_bind_event(BIND_VIEWMODE_MOVEATOMS,held=.true.)) then
-       w%viewmode = vm_moveatoms
+    ! move-molecules mode (ctrl)
+    if (is_bind_event(BIND_VIEWMODE_MOVEMOL,held=.true.)) then
+       w%viewmode = vm_movemol
+       w%viewmode_transient = .true.
+    end if
+
+    ! move-atoms mode (alt)
+    if (is_bind_event(BIND_VIEWMODE_MOVEATOM,held=.true.)) then
+       w%viewmode = vm_moveatom
        w%viewmode_transient = .true.
     end if
 
@@ -1208,14 +1215,15 @@ contains
     use gui_main, only: tooltip_delay, g
     use keybindings, only: get_bind_keyname, bindnames,&
        BIND_NUM, group_viewmode_navigation, group_viewmode_select,&
-       group_viewmode_moveatoms, groupbind
+       group_viewmode_movemol, group_viewmode_moveatom, groupbind, BIND_NAV_ZOOM
     use utils, only: iw_combo_simple, iw_tooltip, igIsItemHovered_delayed, iw_text
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: ll, i, n, viewmode_before, iforced
+    integer :: ll, i, n, viewmode_before, iforced, nline
     character(len=:), allocatable :: viewmode_items
     integer, allocatable :: tips(:)
+    character(len=64), allocatable :: keyline(:), lblline(:)
     logical :: ok
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -1252,8 +1260,10 @@ contains
              ok = (groupbind(i) == group_viewmode_navigation)
           elseif (w%viewmode == vm_select) then
              ok = (groupbind(i) == group_viewmode_select)
-          elseif (w%viewmode == vm_moveatoms) then
-             ok = (groupbind(i) == group_viewmode_moveatoms)
+          elseif (w%viewmode == vm_movemol) then
+             ok = (groupbind(i) == group_viewmode_movemol)
+          elseif (w%viewmode == vm_moveatom) then
+             ok = (groupbind(i) == group_viewmode_moveatom)
           end if
           if (ok) then
              n = n + 1
@@ -1265,14 +1275,32 @@ contains
        ! delayed tooltip with info about the key/mouse bindings for this view mode
        if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
           if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
-             call igBeginTooltip()
-
+             ! build the tooltip lines: one per bind in this mode's group, plus
+             ! the mouse-scroll (cell-volume) line for the move modes
+             allocate(keyline(n+1),lblline(n+1))
              do i = 1, n
-                call iw_text(string(trim(get_bind_keyname(tips(i))),length=ll+1),highlight=.true.)
-                call iw_text(trim(bindnames(tips(i))),sameline=.true.)
+                keyline(i) = trim(get_bind_keyname(tips(i)))
+                lblline(i) = trim(bindnames(tips(i)))
+             end do
+             nline = n
+             if (w%viewmode == vm_movemol .or. w%viewmode == vm_moveatom) then
+                nline = nline + 1
+                keyline(nline) = trim(get_bind_keyname(BIND_NAV_ZOOM))
+                lblline(nline) = "Change cell volume (crystals)"
+             end if
+             ! align the key column
+             ll = 1
+             do i = 1, nline
+                ll = max(ll,len_trim(keyline(i)))
              end do
 
+             call igBeginTooltip()
+             do i = 1, nline
+                call iw_text(string(trim(keyline(i)),length=ll+1),highlight=.true.)
+                call iw_text(trim(lblline(i)),sameline=.true.)
+             end do
              call igEndTooltip()
+             deallocate(keyline,lblline)
           end if
        end if
     end if
@@ -1298,7 +1326,7 @@ contains
        ! navigate -> when measuring, or on a double click (to clear the selection)
        viewmode_activate_picking = is_bind_event(BIND_NAV_MEASURE) .or.&
           is_bind_event(BIND_SELECT_MOLECULES_AND_DESELECT)
-    elseif (w%viewmode == vm_select .or. w%viewmode == vm_moveatoms) then
+    elseif (w%viewmode == vm_select .or. w%viewmode == vm_movemol .or. w%viewmode == vm_moveatom) then
        ! select -> on any click, so the atom under the mouse is fresh
        ! move atoms -> on any click, to latch the grabbed atom/molecule
        viewmode_activate_picking = any_mouse_clicked()
@@ -1318,8 +1346,8 @@ contains
        BIND_NAV_ROTATE_PERP,&
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_SELECT_MOLECULES_AND_DESELECT, BIND_SELECT_ATOMS,&
-       BIND_SELECT_MOLECULES, BIND_MOVEATOMS_TRANSLATE, BIND_MOVEATOMS_ROTATE,&
-       BIND_MOVEATOMS_ROTATE_PERP
+       BIND_SELECT_MOLECULES, BIND_MOVEMOL_TRANSLATE, BIND_MOVEMOL_ROTATE,&
+       BIND_MOVEMOL_ROTATE_PERP, BIND_MOVEATOM_TRANSLATE
     use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry
     use global, only: iunit_bohr
     use gui_main, only: io, ColorHighlightSelectScene
@@ -1336,6 +1364,7 @@ contains
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
+    real(c_float), parameter :: mousesens_vol0 = 0.05_c_float ! per-notch fractional cell-volume change
     real(c_float), parameter :: selrect_thr = 4._c_float ! click/drag threshold (pixels)
 
     ! first pass when opened, reset the state
@@ -1610,20 +1639,23 @@ contains
              w%forcerender = .true.
           end if
        end if
-    elseif (w%viewmode == vm_moveatoms) then
-       ! move-atoms mode: rigidly drag the atom/molecule under the cursor,
+    elseif (w%viewmode == vm_movemol) then
+       ! move-molecules mode: rigidly drag the molecule/atom under the cursor,
        ! preserving the bonding
        isys = w%view_selected
        call igGetMousePos(mousepos)
        texpos = mousepos
        call w%mousepos_to_texpos(texpos)
 
+       ! scroll: resize the cell (crystal) or zoom the camera (molecule)
+       call moveobj_scroll()
+
        ! translate (right mouse): whole molecule if the fragment is discrete,
        ! otherwise just the single atom; the grabbed atom stays under the cursor
-       if (hover.and.is_bind_event(BIND_MOVEATOMS_TRANSLATE,.false.).and.&
+       if (hover.and.is_bind_event(BIND_MOVEMOL_TRANSLATE,.false.).and.&
           (w%ilock == ilock_no.or.w%ilock == ilock_right)) then
-          call moveatoms_latch()
-          if (w%moveatoms_icel > 0) then
+          call moveobj_latch()
+          if (w%moveobj_icel > 0) then
              ! drag on the scene-center depth plane (see note above): the far
              ! plane (z=1) is at infinity in perspective and crashes unproject
              vnew = w%sc%scenecenter
@@ -1634,7 +1666,7 @@ contains
           end if
        elseif (w%ilock == ilock_right) then
           call igSetMouseCursor(ImGuiMouseCursor_Hand)
-          if (w%moveatoms_icel > 0 .and. is_bind_event(BIND_MOVEATOMS_TRANSLATE,.true.)) then
+          if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MOVEMOL_TRANSLATE,.true.)) then
              if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
                 ! world (bohr) displacement matching the cursor motion
                 vnew = (/texpos%x,texpos%y,w%mpos0_r(3)/)
@@ -1645,11 +1677,11 @@ contains
                 call invmult(xc,w%sc%view,notrans=.true.)  ! eye -> tworld
                 call invmult(xc,w%sc%world,notrans=.true.) ! tworld -> world (bohr)
                 dxbohr = real(xc,8)
-                if (w%moveatoms_isdiscrete) then
-                   call sys(isys)%c%move_molecule(w%moveatoms_imol,dxbohr,iunit_bohr,&
+                if (w%moveobj_isdiscrete) then
+                   call sys(isys)%c%move_molecule(w%moveobj_imol,dxbohr,iunit_bohr,&
                       .true.,copybonding=.true.)
                 else
-                   call sys(isys)%c%move_atom(w%moveatoms_icel,dxbohr,iunit_bohr,&
+                   call sys(isys)%c%move_atom(w%moveobj_icel,dxbohr,iunit_bohr,&
                       .false.,.true.,copybonding=.true.)
                 end if
                 sysc(isys)%sc%nextbuildlists_fixcam = .true.
@@ -1664,10 +1696,10 @@ contains
        end if
 
        ! rotate the molecule about its COM (left mouse), discrete fragments only
-       if (hover.and.is_bind_event(BIND_MOVEATOMS_ROTATE,.false.).and.&
+       if (hover.and.is_bind_event(BIND_MOVEMOL_ROTATE,.false.).and.&
           (w%ilock == ilock_no.or.w%ilock == ilock_left)) then
-          call moveatoms_latch()
-          if (w%moveatoms_icel > 0 .and. w%moveatoms_isdiscrete) then
+          call moveobj_latch()
+          if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete) then
              w%mpos0_l = (/texpos%x,texpos%y,0._c_float/)
              w%cpos0_l = w%mpos0_l
              call w%texpos_to_view(w%cpos0_l)
@@ -1675,8 +1707,8 @@ contains
           end if
        elseif (w%ilock == ilock_left) then
           call igSetMouseCursor(ImGuiMouseCursor_Hand)
-          if (w%moveatoms_icel > 0 .and. w%moveatoms_isdiscrete .and.&
-             is_bind_event(BIND_MOVEATOMS_ROTATE,.true.)) then
+          if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete .and.&
+             is_bind_event(BIND_MOVEMOL_ROTATE,.true.)) then
              if (texpos%x /= w%mpos0_l(1) .or. texpos%y /= w%mpos0_l(2)) then
                 ! arcball axis (eye) + angle, same math as scene rotation
                 vnew = (/texpos%x,texpos%y,w%mpos0_l(3)/)
@@ -1686,7 +1718,7 @@ contains
                 mpos2(1) = texpos%x - w%mpos0_l(1)
                 mpos2(2) = texpos%y - w%mpos0_l(2)
                 ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
-                call moveatoms_rotate_molecule(axis,ang)
+                call movemol_rotate_molecule(axis,ang)
                 w%forcerender = .true.
                 w%mpos0_l = (/texpos%x,texpos%y,0._c_float/)
                 w%cpos0_l = w%mpos0_l
@@ -1699,12 +1731,12 @@ contains
 
        ! rotate the molecule about the screen-perpendicular axis (middle mouse),
        ! discrete fragments only
-       if (hover.and.is_bind_event(BIND_MOVEATOMS_ROTATE_PERP,.false.).and.&
+       if (hover.and.is_bind_event(BIND_MOVEMOL_ROTATE_PERP,.false.).and.&
           (w%ilock == ilock_no.or.w%ilock == ilock_middle)) then
-          call moveatoms_latch()
-          if (w%moveatoms_icel > 0 .and. w%moveatoms_isdiscrete) then
+          call moveobj_latch()
+          if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete) then
              ! project the molecule center of mass to screen
-             comc = sys(isys)%c%mol(w%moveatoms_imol)%cmass()
+             comc = sys(isys)%c%mol(w%moveobj_imol)%cmass()
              call mult(w%mpos0_m,w%sc%world,comc)
              call w%world_to_texpos(w%mpos0_m)
              vnew = (/texpos%x,texpos%y,0._c_float/)
@@ -1719,8 +1751,8 @@ contains
           end if
        elseif (w%ilock == ilock_middle) then
           call igSetMouseCursor(ImGuiMouseCursor_Hand)
-          if (w%moveatoms_icel > 0 .and. w%moveatoms_isdiscrete .and.&
-             is_bind_event(BIND_MOVEATOMS_ROTATE_PERP,.true.)) then
+          if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete .and.&
+             is_bind_event(BIND_MOVEMOL_ROTATE_PERP,.true.)) then
              vnew = (/texpos%x,texpos%y,0._c_float/)
              vnew = vnew - w%mpos0_m
              dist = norm2(vnew)
@@ -1729,7 +1761,7 @@ contains
                 xc = cross_cfloat(w%cpos0_m,vnew)
                 ang = atan2(xc(3),dot_product(w%cpos0_m,vnew))
                 axis = (/0._c_float,0._c_float,1._c_float/)
-                call moveatoms_rotate_molecule(axis,ang)
+                call movemol_rotate_molecule(axis,ang)
                 w%forcerender = .true.
                 w%cpos0_m = vnew
              end if
@@ -1737,6 +1769,19 @@ contains
              w%ilock = ilock_no
           end if
        end if
+    elseif (w%viewmode == vm_moveatom) then
+       ! move-atoms mode: left- or right-drag translates the single atom under
+       ! the cursor (never the whole molecule); scroll resizes the cell (crystals)
+       isys = w%view_selected
+       call igGetMousePos(mousepos)
+       texpos = mousepos
+       call w%mousepos_to_texpos(texpos)
+
+       ! scroll: resize the cell (crystal) or zoom the camera (molecule)
+       call moveobj_scroll()
+
+       ! translate the single atom under the cursor (left mouse)
+       call moveatom_translate(BIND_MOVEATOM_TRANSLATE,ilock_left,w%mpos0_l)
     end if
 
     ! if this is a transient view mode, reset to default (navigation)
@@ -1762,29 +1807,97 @@ contains
       end do
     end function any_key_pressed
 
+    ! mouse scroll while in a move mode: change the cell volume isotropically
+    ! for a crystal, otherwise fall back to the camera zoom
+    subroutine moveobj_scroll()
+      real(c_float) :: rr
+
+      if (.not.hover) return
+      if (.not.(w%ilock == ilock_no .or. w%ilock == ilock_scroll)) return
+      if (io%MouseWheel == 0._c_float) return
+      if (sys(isys)%c%ismolecule) then
+         rr = min(max(mousesens_zoom0*io%MouseWheel,-0.99999_c_float),0.9999_c_float)
+         call w%sc%cam_zoom(rr)
+         w%forcerender = .true.
+      else
+         ! rescale the cell volume but keep the current bonds (copybonding)
+         call sys(isys)%c%move_cell(0,1d0 + real(mousesens_vol0*io%MouseWheel,8),iunit_bohr,&
+            .false.,.true.,copybonding=.true.)
+         sysc(isys)%sc%nextbuildlists_fixcam = .true.
+         call sysc(isys)%post_event(lastchange_geometry)
+         w%forcerender = .true.
+      end if
+    end subroutine moveobj_scroll
+
+    ! translate the single latched atom by dragging with the given mouse bind;
+    ! ilockval and anchor are the per-button lock state and drag anchor. Always
+    ! moves just the one atom (used by the move-atoms mode)
+    subroutine moveatom_translate(bindid,ilockval,anchor)
+      integer, intent(in) :: bindid, ilockval
+      real(c_float), intent(inout) :: anchor(3)
+
+      if (hover.and.is_bind_event(bindid,.false.).and.&
+         (w%ilock == ilock_no.or.w%ilock == ilockval)) then
+         call moveobj_latch()
+         if (w%moveobj_icel > 0) then
+            ! drag on the scene-center depth plane (the far plane is at infinity
+            ! in perspective and crashes unproject)
+            vnew = w%sc%scenecenter
+            call w%world_to_texpos(vnew)
+            anchor = (/texpos%x,texpos%y,vnew(3)/)
+            w%ilock = ilockval
+            w%mposlast = mousepos
+         end if
+      elseif (w%ilock == ilockval) then
+         call igSetMouseCursor(ImGuiMouseCursor_Hand)
+         if (w%moveobj_icel > 0 .and. is_bind_event(bindid,.true.)) then
+            if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
+               ! world (bohr) displacement matching the cursor motion
+               vnew = (/texpos%x,texpos%y,anchor(3)/)
+               call w%texpos_to_view(vnew)
+               vold = anchor
+               call w%texpos_to_view(vold)
+               xc = vnew - vold
+               call invmult(xc,w%sc%view,notrans=.true.)  ! eye -> tworld
+               call invmult(xc,w%sc%world,notrans=.true.) ! tworld -> world (bohr)
+               dxbohr = real(xc,8)
+               call sys(isys)%c%move_atom(w%moveobj_icel,dxbohr,iunit_bohr,&
+                  .false.,.true.,copybonding=.true.)
+               sysc(isys)%sc%nextbuildlists_fixcam = .true.
+               call sysc(isys)%post_event(lastchange_geometry)
+               w%forcerender = .true.
+               anchor = (/texpos%x,texpos%y,anchor(3)/)
+               w%mposlast = mousepos
+            end if
+         else
+            w%ilock = ilock_no
+         end if
+      end if
+    end subroutine moveatom_translate
+
     ! latch the cell atom and its molecular fragment under the cursor at the
-    ! start of a move-atoms drag
-    subroutine moveatoms_latch()
+    ! start of a move drag
+    subroutine moveobj_latch()
       integer :: jmol
 
-      w%moveatoms_icel = 0
-      w%moveatoms_imol = 0
-      w%moveatoms_isdiscrete = .false.
+      w%moveobj_icel = 0
+      w%moveobj_imol = 0
+      w%moveobj_isdiscrete = .false.
       if (w%mousepos_idx(1) <= 0) return
-      w%moveatoms_icel = w%mousepos_idx(1)
+      w%moveobj_icel = w%mousepos_idx(1)
       if (allocated(sys(isys)%c%idatcelmol)) then
-         jmol = sys(isys)%c%idatcelmol(1,w%moveatoms_icel)
-         w%moveatoms_imol = jmol
+         jmol = sys(isys)%c%idatcelmol(1,w%moveobj_icel)
+         w%moveobj_imol = jmol
          if (jmol >= 1 .and. jmol <= sys(isys)%c%nmol) &
-            w%moveatoms_isdiscrete = sys(isys)%c%mol(jmol)%discrete
+            w%moveobj_isdiscrete = sys(isys)%c%mol(jmol)%discrete
       end if
-    end subroutine moveatoms_latch
+    end subroutine moveobj_latch
 
     ! rotate the latched molecule rigidly about its center of mass,
     ! preserving bonding. axis0 is in eye/view coordinates (as
     ! produced by the navigation arcball math); ang0 is the rotation
     ! angle (radians).
-    subroutine moveatoms_rotate_molecule(axis0,ang0)
+    subroutine movemol_rotate_molecule(axis0,ang0)
       use tools_math, only: euler2mat, axisangle2mat
       real(c_float), intent(in) :: axis0(3)
       real(c_float), intent(in) :: ang0
@@ -1793,7 +1906,7 @@ contains
       real*8 :: rinc(3,3)
       integer :: imol
 
-      imol = w%moveatoms_imol
+      imol = w%moveobj_imol
       if (imol < 1) return
 
       ! axis from eye/view to world (bohr), matching scene_cam_rotate
@@ -1812,7 +1925,7 @@ contains
       sysc(isys)%sc%nextbuildlists_fixcam = .true.
       call sysc(isys)%post_event(lastchange_geometry)
 
-    end subroutine moveatoms_rotate_molecule
+    end subroutine movemol_rotate_molecule
 
     ! whether cell atom icel is currently in the persistent selection
     function cellatom_selected(icel)

@@ -85,15 +85,17 @@ module keybindings
   integer, parameter, public :: BIND_EDITSELECT_REMOVE = 38 ! edit geometry: remove atoms
   integer, parameter, public :: BIND_EDITSELECT_DESELECT = 39 ! edit geometry: deselect all atoms
   integer, parameter, public :: BIND_EDITSELECT_SELECT_ALL = 40 ! edit geometry: select all atoms
-  integer, parameter, public :: BIND_VIEWMODE_MOVEATOMS = 41 ! enter the move-atoms view mode (transient)
-  integer, parameter, public :: BIND_MOVEATOMS_TRANSLATE = 42 ! move atoms: translate atom/molecule
-  integer, parameter, public :: BIND_MOVEATOMS_ROTATE = 43 ! move atoms: rotate molecule about its COM
-  integer, parameter, public :: BIND_MOVEATOMS_ROTATE_PERP = 44 ! move atoms: rotate molecule perpendicular to screen
+  integer, parameter, public :: BIND_VIEWMODE_MOVEMOL = 41 ! enter the move-molecules view mode (transient)
+  integer, parameter, public :: BIND_MOVEMOL_TRANSLATE = 42 ! move molecules: translate molecule/atom
+  integer, parameter, public :: BIND_MOVEMOL_ROTATE = 43 ! move molecules: rotate molecule about its COM
+  integer, parameter, public :: BIND_MOVEMOL_ROTATE_PERP = 44 ! move molecules: rotate molecule perpendicular to screen
   integer, parameter, public :: BIND_UNDO = 45 ! undo the last geometry change
   integer, parameter, public :: BIND_REDO = 46 ! redo the last undone geometry change
   integer, parameter, public :: BIND_VIEW_TOGGLE_POLYHEDRA = 47 ! view: toggle polyhedra in the first rep
   integer, parameter, public :: BIND_RECALC_BONDS = 48 ! view: recalculate bonds/connectivity
-  integer, parameter, public :: BIND_NUM = 48 ! total number of binds
+  integer, parameter, public :: BIND_VIEWMODE_MOVEATOM = 49 ! enter the move-atoms view mode (transient)
+  integer, parameter, public :: BIND_MOVEATOM_TRANSLATE = 50 ! move atoms: translate single atom
+  integer, parameter, public :: BIND_NUM = 50 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -137,14 +139,16 @@ module keybindings
      "Remove selected atoms           ",& ! BIND_EDITSELECT_REMOVE
      "Deselect all atoms              ",& ! BIND_EDITSELECT_DESELECT
      "Select all atoms                ",& ! BIND_EDITSELECT_SELECT_ALL
-     "Move atoms                      ",& ! BIND_VIEWMODE_MOVEATOMS
-     "Translate atom or molecule      ",& ! BIND_MOVEATOMS_TRANSLATE
-     "Rotate molecule                 ",& ! BIND_MOVEATOMS_ROTATE
-     "Rotate molecule (perpendicular) ",& ! BIND_MOVEATOMS_ROTATE_PERP
+     "Move molecules                  ",& ! BIND_VIEWMODE_MOVEMOL
+     "Translate molecule              ",& ! BIND_MOVEMOL_TRANSLATE
+     "Rotate molecule                 ",& ! BIND_MOVEMOL_ROTATE
+     "Rotate molecule (perpendicular) ",& ! BIND_MOVEMOL_ROTATE_PERP
      "Undo geometry change            ",& ! BIND_UNDO
      "Redo geometry change            ",& ! BIND_REDO
      "Toggle display of polyhedra     ",& ! BIND_VIEW_TOGGLE_POLYHEDRA
-     "Recalculate bonds               "&  ! BIND_RECALC_BONDS
+     "Recalculate bonds               ",& ! BIND_RECALC_BONDS
+     "Move atoms                      ",& ! BIND_VIEWMODE_MOVEATOM
+     "Translate atom                  "&  ! BIND_MOVEATOM_TRANSLATE
      /)
 
   ! The key associated with each bind, bind -> key
@@ -168,21 +172,23 @@ module keybindings
   integer, parameter, public :: group_viewmode_navigation = 7 ! view mouse interaction modes
   integer, parameter, public :: group_viewmode_select = 8     ! view mouse interaction modes
   integer, parameter, public :: group_editselect = 9          ! if the edit geometry window is active
-  integer, parameter, public :: group_viewmode_moveatoms = 10 ! view mouse interaction modes
-  integer, parameter, public :: group_NUM = 10                ! total number of groups
+  integer, parameter, public :: group_viewmode_movemol = 10   ! view mouse interaction modes
+  integer, parameter, public :: group_viewmode_moveatom = 11  ! view mouse interaction modes
+  integer, parameter, public :: group_NUM = 11                ! total number of groups
 
   ! Names of the keybinding groups
-  character(len=28), parameter, public :: groupnames(group_NUM) = (/&
-     "Global                      ",&
-     "Tree Window                 ",&
-     "Input Window                ",&
-     "Dialogs                     ",&
-     "View Window                 ",&
-     "View Mouse Interaction Modes",&
-     "View Window: Navigation Mode",&
-     "View Window: Select Mode    ",&
-     "Atom/Molecule Selection     ",&
-     "View Window: Move Atoms Mode"/)
+  character(len=32), parameter, public :: groupnames(group_NUM) = (/&
+     "Global                          ",&
+     "Tree Window                     ",&
+     "Input Window                    ",&
+     "Dialogs                         ",&
+     "View Window                     ",&
+     "View Mouse Interaction Modes    ",&
+     "View Window: Navigation Mode    ",&
+     "View Window: Select Mode        ",&
+     "Atom/Molecule Selection         ",&
+     "View Window: Move Molecules Mode",&
+     "View Window: Move Atoms Mode    "/)
 
   ! Bind groups assignment
   integer, parameter, public :: groupbind(BIND_NUM) = (/&
@@ -226,14 +232,16 @@ module keybindings
      group_editselect,&          ! BIND_EDITSELECT_REMOVE
      group_editselect,&          ! BIND_EDITSELECT_DESELECT
      group_editselect,&          ! BIND_EDITSELECT_SELECT_ALL
-     group_viewmode,&            ! BIND_VIEWMODE_MOVEATOMS
-     group_viewmode_moveatoms,&  ! BIND_MOVEATOMS_TRANSLATE
-     group_viewmode_moveatoms,&  ! BIND_MOVEATOMS_ROTATE
-     group_viewmode_moveatoms,&  ! BIND_MOVEATOMS_ROTATE_PERP
+     group_viewmode,&            ! BIND_VIEWMODE_MOVEMOL
+     group_viewmode_movemol,&    ! BIND_MOVEMOL_TRANSLATE
+     group_viewmode_movemol,&    ! BIND_MOVEMOL_ROTATE
+     group_viewmode_movemol,&    ! BIND_MOVEMOL_ROTATE_PERP
      group_global,&              ! BIND_UNDO
      group_global,&              ! BIND_REDO
      group_view,&                ! BIND_VIEW_TOGGLE_POLYHEDRA
-     group_view/)                ! BIND_RECALC_BONDS
+     group_view,&                ! BIND_RECALC_BONDS
+     group_viewmode,&            ! BIND_VIEWMODE_MOVEATOM
+     group_viewmode_moveatom/)   ! BIND_MOVEATOM_TRANSLATE
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -280,14 +288,16 @@ module keybindings
      0,&  ! BIND_EDITSELECT_REMOVE
      0,&  ! BIND_EDITSELECT_DESELECT
      0,&  ! BIND_EDITSELECT_SELECT_ALL
-     -1,& ! BIND_VIEWMODE_MOVEATOMS
-     BIND_VIEWMODE_MOVEATOMS,&  ! BIND_MOVEATOMS_TRANSLATE
-     BIND_VIEWMODE_MOVEATOMS,&  ! BIND_MOVEATOMS_ROTATE
-     BIND_VIEWMODE_MOVEATOMS,&  ! BIND_MOVEATOMS_ROTATE_PERP
+     -1,& ! BIND_VIEWMODE_MOVEMOL
+     BIND_VIEWMODE_MOVEMOL,&  ! BIND_MOVEMOL_TRANSLATE
+     BIND_VIEWMODE_MOVEMOL,&  ! BIND_MOVEMOL_ROTATE
+     BIND_VIEWMODE_MOVEMOL,&  ! BIND_MOVEMOL_ROTATE_PERP
      0,&  ! BIND_UNDO
      0,&  ! BIND_REDO
      0,&  ! BIND_VIEW_TOGGLE_POLYHEDRA
-     0/)  ! BIND_RECALC_BONDS
+     0,&  ! BIND_RECALC_BONDS
+     -1,& ! BIND_VIEWMODE_MOVEATOM
+     BIND_VIEWMODE_MOVEATOM/)  ! BIND_MOVEATOM_TRANSLATE
 
   ! module procedure interfaces
   interface
