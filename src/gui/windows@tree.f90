@@ -62,24 +62,25 @@ contains
     use c_interface_module
     class(window), intent(inout), target :: w
 
-    character(kind=c_char,len=:), allocatable, target :: str, strpop, zeroc, ch
+    character(kind=c_char,len=:), allocatable, target :: str, zeroc, ch
     character(kind=c_char,len=:), allocatable :: tooltipstr
     type(ImVec2) :: szero, sz, uv0, uv1
     type(ImVec4) :: col4, tintcol, nobord
     integer(c_int) :: flags, color, itex
-    integer :: i, j, k, jsel, id, iref, inext, iprev, ithis, iaux, ifmt
-    integer :: nshown, nshown_after_filter, maxprops, nprop
+    integer :: i, j, k, jsel, iref, inext, iprev, ithis, iaux, ifmt
+    integer :: nshown, nshown_after_filter, maxprops, nprop, nrow, ithis_row
     logical :: hasfield, hasvib, hasocc
-    logical(c_bool) :: ldum, isel
+    logical(c_bool) :: ldum
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
     type(ImGuiTableColumnSortSpecs), pointer :: colspecs
-    logical :: hadenabledcolumn, isend, ok, found, reinit
+    logical :: hadenabledcolumn, ok, found, reinit
     logical :: export
     real(c_float) :: width, pos
     type(c_ptr), target :: clipper
     type(ImGuiListClipper), pointer :: clipper_f
     integer, allocatable :: ishown(:)
+    integer, allocatable :: ishown_row(:), ifield_row(:)
 
     integer, allocatable, save :: forceremove(:) ! enter integers to remove one or more systems
     integer, save :: forceselect = 0 ! force selection of a system
@@ -296,6 +297,39 @@ contains
        end if
     end if
 
+    ! Build the flattened list of table rows: one row per shown system,
+    ! plus one row per initialized field of the expanded systems.
+    nrow = 0
+    ithis_row = 0
+    if (nshown_after_filter > 0) then
+       ! upper bound for the number of rows
+       nrow = nshown_after_filter
+       do j = 1, nshown_after_filter
+          i = ishown(j)
+          if (sysc(i)%showfields .and. sysc(i)%status >= sys_ready) &
+             nrow = nrow + count(sys(i)%f(0:sys(i)%nf)%isinit)
+       end do
+       allocate(ishown_row(nrow),ifield_row(nrow))
+
+       ! fill the row list
+       nrow = 0
+       do j = 1, nshown_after_filter
+          i = ishown(j)
+          nrow = nrow + 1
+          ishown_row(nrow) = i
+          ifield_row(nrow) = -1
+          if (i == w%tree_selected) ithis_row = nrow
+          if (sysc(i)%showfields .and. sysc(i)%status >= sys_ready) then
+             do k = 0, sys(i)%nf
+                if (.not.sys(i)%f(k)%isinit) cycle
+                nrow = nrow + 1
+                ishown_row(nrow) = i
+                ifield_row(nrow) = k
+             end do
+          end if
+       end do
+    end if
+
     ! final message in the header line
     if (nshown > 1) then
        call iw_text(" " // string(nshown_after_filter) // "/" // string(nshown) // " shown",&
@@ -453,16 +487,23 @@ contains
 
        ! the big table
        if (allocated(w%iord) .and. nshown_after_filter > 0) then
-          ! start the clipper
+          ! start the clipper over the flattened row list (systems + fields
+          ! of the expanded systems)
           clipper = ImGuiListClipper_ImGuiListClipper()
-          call ImGuiListClipper_Begin(clipper,nshown_after_filter,-1._c_float)
-          call ImGuiListClipper_ForceDisplayRangeByIndices(clipper,ithis-4,ithis+4)
+          call ImGuiListClipper_Begin(clipper,nrow,-1._c_float)
+          call ImGuiListClipper_ForceDisplayRangeByIndices(clipper,ithis_row-4,ithis_row+4)
 
           ! draw the rows
           do while(ImGuiListClipper_Step(clipper))
              call c_f_pointer(clipper,clipper_f)
              do j = clipper_f%DisplayStart+1, clipper_f%DisplayEnd
-                i = ishown(j)
+                i = ishown_row(j)
+
+                ! field rows of an expanded system
+                if (ifield_row(j) >= 0) then
+                   call draw_field_row(i,ifield_row(j))
+                   cycle
+                end if
 
                 ! start defining the table row
                 call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
@@ -596,190 +637,6 @@ contains
                    end if
                    str = str // trim(sysc(i)%seed%name)
                    call iw_text(str,disabled=(sysc(i)%status /= sys_init),sameline_nospace=.true.,copy_to_output=export)
-
-                   ! the fields
-                   if (sysc(i)%showfields) then
-                      do k = 0, sys(i)%nf
-                         if (.not.sys(i)%f(k)%isinit) cycle
-
-                         ! selectable
-                         call igSetCursorPosX(igGetCursorPosX() + iw_calcwidth(1,1))
-                         isend = (k == sys(i)%nf)
-                         if (.not.isend) isend = all(.not.sys(i)%f(k+1:)%isinit)
-                         if (.not.isend) call iw_text("┌",noadvance=.true.)
-                         if (sys(i)%iref == k) then
-                            str = "└─►(" // string(k) // ",ref): " // trim(sys(i)%f(k)%name) // "##field" // &
-                               string(i) // "," // string(k) // c_null_char
-                         else
-                            str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // "##field" // &
-                               string(i) // "," // string(k) // c_null_char
-                         end if
-                         isel = (w%tree_selected==i) .and. (sys(i)%iref == k)
-                         call igPushStyleColor_Vec4(ImGuiCol_Header,ColorFieldSelected)
-                         flags = ImGuiSelectableFlags_SpanAllColumns
-                         if (igSelectable_Bool(c_loc(str),isel,flags,szero)) then
-                            call w%select_system_tree(i)
-                            call sys(i)%set_reference(k,.false.)
-                         end if
-                         call igPopStyleColor(1)
-
-                         ! right click to open the field context menu
-                         if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
-                            ! remove option (fields)
-                            if (k > 0) then
-                               if (iw_menuitem("Remove")) &
-                                  call sys(i)%unload_field(k)
-                               call iw_tooltip("Remove this field",ttshown)
-                            end if
-
-                            ! rename option (fields)
-                            strpop = "Rename" // c_null_char
-                            if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-                               if (iw_inputtext("##inputrenamefield",bufsize=mlen-1,textf=sys(i)%f(k)%name,grabfocus=.true.,&
-                                  notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)) &
-                                  call igCloseCurrentPopup()
-                               call igEndMenu()
-                            end if
-                            call iw_tooltip("Rename this field",ttshown)
-
-                            !! now the load new field options !!
-                            call igSeparator()
-
-                            ! duplicate option (fields)
-                            if (iw_menuitem("Duplicate")) then
-                               id = sys(i)%getfieldnum()
-                               call sys(i)%field_copy(k,id)
-                               sys(i)%f(id)%id = id
-                               sys(i)%f(id)%name = trim(sys(i)%f(k)%name)
-                            end if
-                            call iw_tooltip("Load a copy of this field as a new field",ttshown)
-
-                            ! grid calculation options
-                            if (sys(i)%f(k)%type == type_grid) then
-                               strpop = "Load Fourier-Transformed Grid" // c_null_char
-                               if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-                                  ldum = iw_menuitem("[First derivatives]",enabled=.false.)
-                                  if (iw_menuitem("x")) then
-                                     id = sys(i)%getfieldnum()
-                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                        "<generated>, x-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_x)
-                                  end if
-                                  call iw_tooltip("Load a new grid field using FFT as the x-component of &
-                                     &this field's gradient",ttshown)
-                                  if (iw_menuitem("y")) then
-                                     id = sys(i)%getfieldnum()
-                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                        "<generated>, y-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_y)
-                                  end if
-                                  call iw_tooltip("Load a new grid field using FFT as the y-component of &
-                                     &this field's gradient",ttshown)
-                                  if (iw_menuitem("z")) then
-                                     id = sys(i)%getfieldnum()
-                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                        "<generated>, z-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_z)
-                                  end if
-                                  call iw_tooltip("Load a new grid field using FFT as the z-component of &
-                                     &this field's gradient",ttshown)
-                                  if (iw_menuitem("Gradient Norm")) then
-                                     id = sys(i)%getfieldnum()
-                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                        "<generated>, grad of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_grad)
-                                  end if
-                                  call iw_tooltip("Load a new grid field using FFT as the norm of &
-                                     &this field's gradient",ttshown)
-                                  call igSeparator()
-
-                                  ldum = iw_menuitem("[Second derivatives]",enabled=.false.)
-                                  if (iw_menuitem("xx")) then
-                                     id = sys(i)%getfieldnum()
-                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                        "<generated>, xx-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xx)
-                                  end if
-                                  call iw_tooltip("Load a new grid field using FFT as the xx component of &
-                                     &this field's Hessian matrix",ttshown)
-                                  if (iw_menuitem("xy")) then
-                                     id = sys(i)%getfieldnum()
-                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                        "<generated>, xy-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xy)
-                                  end if
-                                  call iw_tooltip("Load a new grid field using FFT as the xy component of &
-                                     &this field's Hessian matrix",ttshown)
-                                  if (iw_menuitem("xz")) then
-                                     id = sys(i)%getfieldnum()
-                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                        "<generated>, xz-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xz)
-                                  end if
-                                  call iw_tooltip("Load a new grid field using FFT as the xz component of &
-                                     &this field's Hessian matrix",ttshown)
-                                  if (iw_menuitem("yy")) then
-                                     id = sys(i)%getfieldnum()
-                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                        "<generated>, yy-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_yy)
-                                  end if
-                                  call iw_tooltip("Load a new grid field using FFT as the yy component of &
-                                     &this field's Hessian matrix",ttshown)
-                                  if (iw_menuitem("yz")) then
-                                     id = sys(i)%getfieldnum()
-                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                        "<generated>, yz-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_yz)
-                                  end if
-                                  call iw_tooltip("Load a new grid field using FFT as the yz component of &
-                                     &this field's Hessian matrix",ttshown)
-                                  if (iw_menuitem("zz")) then
-                                     id = sys(i)%getfieldnum()
-                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, zz-derivative of $" // string(k),&
-                                        sys(i)%f(k)%grid,ifformat_as_ft_zz)
-                                  end if
-                                  call iw_tooltip("Load a new grid field using FFT as the zz component of &
-                                     &this field's Hessian matrix",ttshown)
-                                  if (iw_menuitem("Laplacian")) then
-                                     id = sys(i)%getfieldnum()
-                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                        "<generated>, lap of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_lap)
-                                  end if
-                                  call iw_tooltip("Load a new grid field using FFT as the Laplacian of this field",ttshown)
-
-                                  call igSeparator()
-                                  if (iw_menuitem("Potential")) then
-                                     id = sys(i)%getfieldnum()
-                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
-                                        "<generated>, potential of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_pot)
-                                  end if
-                                  call iw_tooltip("Load a new grid field using FFT as the potential that generates&
-                                     &this field (via Poisson's equation)",ttshown)
-                                  call igEndMenu()
-                               end if
-
-                               strpop = "Load Resampled Grid" // c_null_char
-                               if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
-                                  ldum = iw_inputint3("New Size##resamplefieldmenunewsize",iresample,width=4*3)
-
-                                  if (iw_menuitem("OK##resamplefieldmenuok")) then
-                                     id = sys(i)%getfieldnum()
-                                     call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, resample of $" // string(k),&
-                                        sys(i)%f(k)%grid,ifformat_as_resample,n=iresample)
-                                  end if
-                                  call igEndMenu()
-                               else
-                                  iresample = sys(i)%f(k)%grid%n
-                               end if
-                               call iw_tooltip("Load a new grid field as a resampling of this field",ttshown)
-
-                            end if
-
-                            call igEndPopup()
-                         end if
-
-                         ! tooltip
-                         if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-                            if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
-                               g%LastItemData%NavRect%max,.false._c_bool)) then
-                               call tree_field_tooltip_string(i,k)
-                            end if
-                         end if
-
-                      end do
-                   end if
                 end if
 
                 ! energy
@@ -940,7 +797,7 @@ contains
                 end if
                 ! enter new line
                 if (export) write (uout,*)
-             end do ! clipper indices
+             end do ! row indices
           end do ! clipper step
           call ImGuiListClipper_End(clipper)
        else
@@ -1225,6 +1082,208 @@ contains
       end if
 
     end subroutine draw_icon_cell
+
+    !> Draw the table row corresponding to field k of system i (one of
+    !> the rows below an expanded system). The row contains a
+    !> full-width selectable in the name column with the field name,
+    !> the field context menu, and the field tooltip.
+    subroutine draw_field_row(i,k)
+      integer, intent(in) :: i, k
+
+      character(kind=c_char,len=:), allocatable, target :: str, strpop
+      logical(c_bool) :: isel, ldum
+      logical :: isend
+      integer(c_int) :: flags, color
+      type(ImVec4) :: col4
+      integer :: id
+
+      ! start the row and color the name cell like the parent system's
+      call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
+      if (sysc(i)%status >= sys_ready) then
+         col4 = ImVec4(ColorTableCellBg(1,sys(i)%c%iperiod),ColorTableCellBg(2,sys(i)%c%iperiod),&
+            ColorTableCellBg(3,sys(i)%c%iperiod),ColorTableCellBg(4,sys(i)%c%iperiod))
+         color = igGetColorU32_Vec4(col4)
+         call igTableSetBgColor(ImGuiTableBgTarget_CellBg, color, ic_tree_name)
+      end if
+      if (.not.igTableSetColumnIndex(ic_tree_name)) return
+
+      ! selectable
+      call igSetCursorPosX(igGetCursorPosX() + iw_calcwidth(1,1))
+      isend = (k == sys(i)%nf)
+      if (.not.isend) isend = all(.not.sys(i)%f(k+1:)%isinit)
+      if (.not.isend) call iw_text("┌",noadvance=.true.)
+      if (sys(i)%iref == k) then
+         str = "└─►(" // string(k) // ",ref): " // trim(sys(i)%f(k)%name) // "##field" // &
+            string(i) // "," // string(k) // c_null_char
+      else
+         str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // "##field" // &
+            string(i) // "," // string(k) // c_null_char
+      end if
+      isel = (w%tree_selected==i) .and. (sys(i)%iref == k)
+      call igPushStyleColor_Vec4(ImGuiCol_Header,ColorFieldSelected)
+      flags = ImGuiSelectableFlags_SpanAllColumns
+      if (igSelectable_Bool(c_loc(str),isel,flags,szero)) then
+         call w%select_system_tree(i)
+         call sys(i)%set_reference(k,.false.)
+      end if
+      call igPopStyleColor(1)
+
+      ! right click to open the field context menu
+      if (igBeginPopupContextItem(c_loc(str),ImGuiPopupFlags_MouseButtonRight)) then
+         ! remove option (fields)
+         if (k > 0) then
+            if (iw_menuitem("Remove")) &
+               call sys(i)%unload_field(k)
+            call iw_tooltip("Remove this field",ttshown)
+         end if
+
+         ! rename option (fields)
+         strpop = "Rename" // c_null_char
+         if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+            if (iw_inputtext("##inputrenamefield",bufsize=mlen-1,textf=sys(i)%f(k)%name,grabfocus=.true.,&
+               notlive=.true.,flags=ImGuiInputTextFlags_AutoSelectAll)) &
+               call igCloseCurrentPopup()
+            call igEndMenu()
+         end if
+         call iw_tooltip("Rename this field",ttshown)
+
+         !! now the load new field options !!
+         call igSeparator()
+
+         ! duplicate option (fields)
+         if (iw_menuitem("Duplicate")) then
+            id = sys(i)%getfieldnum()
+            call sys(i)%field_copy(k,id)
+            sys(i)%f(id)%id = id
+            sys(i)%f(id)%name = trim(sys(i)%f(k)%name)
+         end if
+         call iw_tooltip("Load a copy of this field as a new field",ttshown)
+
+         ! grid calculation options
+         if (sys(i)%f(k)%type == type_grid) then
+            strpop = "Load Fourier-Transformed Grid" // c_null_char
+            if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+               ldum = iw_menuitem("[First derivatives]",enabled=.false.)
+               if (iw_menuitem("x")) then
+                  id = sys(i)%getfieldnum()
+                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                     "<generated>, x-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_x)
+               end if
+               call iw_tooltip("Load a new grid field using FFT as the x-component of &
+                  &this field's gradient",ttshown)
+               if (iw_menuitem("y")) then
+                  id = sys(i)%getfieldnum()
+                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                     "<generated>, y-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_y)
+               end if
+               call iw_tooltip("Load a new grid field using FFT as the y-component of &
+                  &this field's gradient",ttshown)
+               if (iw_menuitem("z")) then
+                  id = sys(i)%getfieldnum()
+                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                     "<generated>, z-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_z)
+               end if
+               call iw_tooltip("Load a new grid field using FFT as the z-component of &
+                  &this field's gradient",ttshown)
+               if (iw_menuitem("Gradient Norm")) then
+                  id = sys(i)%getfieldnum()
+                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                     "<generated>, grad of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_grad)
+               end if
+               call iw_tooltip("Load a new grid field using FFT as the norm of &
+                  &this field's gradient",ttshown)
+               call igSeparator()
+
+               ldum = iw_menuitem("[Second derivatives]",enabled=.false.)
+               if (iw_menuitem("xx")) then
+                  id = sys(i)%getfieldnum()
+                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                     "<generated>, xx-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xx)
+               end if
+               call iw_tooltip("Load a new grid field using FFT as the xx component of &
+                  &this field's Hessian matrix",ttshown)
+               if (iw_menuitem("xy")) then
+                  id = sys(i)%getfieldnum()
+                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                     "<generated>, xy-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xy)
+               end if
+               call iw_tooltip("Load a new grid field using FFT as the xy component of &
+                  &this field's Hessian matrix",ttshown)
+               if (iw_menuitem("xz")) then
+                  id = sys(i)%getfieldnum()
+                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                     "<generated>, xz-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_xz)
+               end if
+               call iw_tooltip("Load a new grid field using FFT as the xz component of &
+                  &this field's Hessian matrix",ttshown)
+               if (iw_menuitem("yy")) then
+                  id = sys(i)%getfieldnum()
+                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                     "<generated>, yy-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_yy)
+               end if
+               call iw_tooltip("Load a new grid field using FFT as the yy component of &
+                  &this field's Hessian matrix",ttshown)
+               if (iw_menuitem("yz")) then
+                  id = sys(i)%getfieldnum()
+                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                     "<generated>, yz-derivative of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_yz)
+               end if
+               call iw_tooltip("Load a new grid field using FFT as the yz component of &
+                  &this field's Hessian matrix",ttshown)
+               if (iw_menuitem("zz")) then
+                  id = sys(i)%getfieldnum()
+                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, zz-derivative of $" // string(k),&
+                     sys(i)%f(k)%grid,ifformat_as_ft_zz)
+               end if
+               call iw_tooltip("Load a new grid field using FFT as the zz component of &
+                  &this field's Hessian matrix",ttshown)
+               if (iw_menuitem("Laplacian")) then
+                  id = sys(i)%getfieldnum()
+                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                     "<generated>, lap of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_lap)
+               end if
+               call iw_tooltip("Load a new grid field using FFT as the Laplacian of this field",ttshown)
+
+               call igSeparator()
+               if (iw_menuitem("Potential")) then
+                  id = sys(i)%getfieldnum()
+                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,&
+                     "<generated>, potential of $" // string(k),sys(i)%f(k)%grid,ifformat_as_ft_pot)
+               end if
+               call iw_tooltip("Load a new grid field using FFT as the potential that generates&
+                  &this field (via Poisson's equation)",ttshown)
+               call igEndMenu()
+            end if
+
+            strpop = "Load Resampled Grid" // c_null_char
+            if (igBeginMenu(c_loc(strpop),.true._c_bool)) then
+               ldum = iw_inputint3("New Size##resamplefieldmenunewsize",iresample,width=4*3)
+
+               if (iw_menuitem("OK##resamplefieldmenuok")) then
+                  id = sys(i)%getfieldnum()
+                  call sys(i)%f(id)%load_as_fftgrid(sys(i)%c,id,"<generated>, resample of $" // string(k),&
+                     sys(i)%f(k)%grid,ifformat_as_resample,n=iresample)
+               end if
+               call igEndMenu()
+            else
+               iresample = sys(i)%f(k)%grid%n
+            end if
+            call iw_tooltip("Load a new grid field as a resampling of this field",ttshown)
+
+         end if
+
+         call igEndPopup()
+      end if
+
+      ! tooltip
+      if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+         if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
+            g%LastItemData%NavRect%max,.false._c_bool)) then
+            call tree_field_tooltip_string(i,k)
+         end if
+      end if
+
+    end subroutine draw_field_row
 
     ! un-hide the dependents and set as expanded
     subroutine expand_system(i)
