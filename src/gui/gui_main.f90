@@ -65,15 +65,15 @@ module gui_main
 
   ! GUI colors, defaults
   real(c_float), parameter, public :: ColorTableCellBg_def(4,0:8) = reshape((/& ! tree table name cell
-     0.80_c_float,0.00_c_float,0.00_c_float,0.4_c_float,&  ! 3d periodic
-     1.00_c_float,0.43_c_float,0.00_c_float,0.4_c_float,&  ! 3d periodic, layered
-     1.00_c_float,0.79_c_float,0.00_c_float,0.4_c_float,&  ! 3d periodic, chain
-     0.58_c_float,1.00_c_float,0.00_c_float,0.4_c_float,&  ! 3d periodic, molecular
-     0.00_c_float,1.00_c_float,0.96_c_float,0.4_c_float,&  ! slab
-     0.00_c_float,0.28_c_float,1.00_c_float,0.4_c_float,&  ! chain
-     0.51_c_float,0.51_c_float,0.51_c_float,0.4_c_float,&  ! molecule in a box
-     0.56_c_float,0.00_c_float,1.00_c_float,0.4_c_float,&  ! single molecule
-     1.00_c_float,0.00_c_float,0.66_c_float,0.4_c_float/),&! molecular cluster
+     0.65_c_float,0.05_c_float,0.05_c_float,0.4_c_float,&  ! 3d periodic (dark red)
+     0.90_c_float,0.35_c_float,0.10_c_float,0.4_c_float,&  ! 3d periodic, layered (red-orange)
+     1.00_c_float,0.60_c_float,0.10_c_float,0.4_c_float,&  ! 3d periodic, chain (orange)
+     1.00_c_float,0.80_c_float,0.25_c_float,0.4_c_float,&  ! 3d periodic, molecular (yellow-orange)
+     0.00_c_float,0.75_c_float,0.65_c_float,0.4_c_float,&  ! slab (teal)
+     0.25_c_float,0.80_c_float,0.30_c_float,0.4_c_float,&  ! chain (green)
+     0.45_c_float,0.55_c_float,0.70_c_float,0.4_c_float,&  ! molecule in a box (blue-grey)
+     0.25_c_float,0.45_c_float,0.95_c_float,0.4_c_float,&  ! single molecule (blue)
+     0.65_c_float,0.35_c_float,0.95_c_float,0.4_c_float/),&! molecular cluster (purple)
      shape(ColorTableCellBg_def))
   real(c_float), parameter, public :: ColorHighlightScene_def(4) = (/1.0_c_float,1.0_c_float,0.5_c_float,0.7_c_float/) ! hover highlight of atoms in view
   real(c_float), parameter, public :: ColorHighlightSelectScene_def(4) = (/0.2_c_float,0.64_c_float,0.9_c_float,0.7_c_float/) ! edit geometry selection color

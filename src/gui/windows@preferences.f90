@@ -252,11 +252,12 @@ contains
           call igSeparator()
 
           ! color editors
-          call color_edit4("Crystal","A molecular system with a single molecule",ColorTableCellBg(:,0))
+          call color_edit4("Crystal","A crystal, with a three-dimensional periodic bonding network",&
+             ColorTableCellBg(:,0))
           call color_edit4("Layered crystal","A layered crystal, with two-dimensional periodic bonding networks",&
              ColorTableCellBg(:,1))
           call color_edit4("Crystal with 1D bonded chains",&
-             "A crystal, with a one-dimensional periodic bonding networks",&
+             "A crystal, with one-dimensional periodic bonding networks",&
              ColorTableCellBg(:,2))
           call color_edit4("Molecular crystal","A molecular crystal",ColorTableCellBg(:,3))
           call color_edit4("Surface","A 2D surface",ColorTableCellBg(:,4))

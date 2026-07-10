@@ -52,6 +52,7 @@ contains
        thread, thread_ti, nthread
     use shaders, only: shaders_init, shaders_end
     use shapes, only: shapes_init, shapes_end
+    use icons, only: icons_init, icons_end
     use windows, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
        wintype_console_output, wintype_about, wintype_builder, iwin_tree, iwin_view,&
        iwin_console_input, iwin_console_output, iwin_about, iwin_builder,&
@@ -219,6 +220,7 @@ contains
 
     ! create buffers for objects and compile and link shaders
     call shapes_init()
+    call icons_init()
     call shaders_init()
     call windows_init()
 
@@ -343,6 +345,7 @@ contains
 
     ! cleanup
     call shapes_end()
+    call icons_end()
     call shaders_end()
     call ImGui_ImplOpenGL3_Shutdown()
     call ImGui_ImplGlfw_Shutdown()

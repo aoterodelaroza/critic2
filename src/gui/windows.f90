@@ -326,24 +326,26 @@ module windows
   integer(c_int), parameter, public :: ic_tree_closebutton = 0
   integer(c_int), parameter, public :: ic_tree_expandbutton = 1
   integer(c_int), parameter, public :: ic_tree_id = 2
-  integer(c_int), parameter, public :: ic_tree_name = 3
-  integer(c_int), parameter, public :: ic_tree_spg = 4
-  integer(c_int), parameter, public :: ic_tree_v = 5
-  integer(c_int), parameter, public :: ic_tree_vmol = 6
-  integer(c_int), parameter, public :: ic_tree_nneq = 7
-  integer(c_int), parameter, public :: ic_tree_ncel = 8
-  integer(c_int), parameter, public :: ic_tree_nmol = 9
-  integer(c_int), parameter, public :: ic_tree_zprime = 10
-  integer(c_int), parameter, public :: ic_tree_a = 11
-  integer(c_int), parameter, public :: ic_tree_b = 12
-  integer(c_int), parameter, public :: ic_tree_c = 13
-  integer(c_int), parameter, public :: ic_tree_alpha = 14
-  integer(c_int), parameter, public :: ic_tree_beta = 15
-  integer(c_int), parameter, public :: ic_tree_gamma = 16
-  integer(c_int), parameter, public :: ic_tree_e = 17
-  integer(c_int), parameter, public :: ic_tree_emol = 18
-  integer(c_int), parameter, public :: ic_tree_p = 19
-  integer(c_int), parameter, public :: ic_tree_NUMCOLUMNS = 20 ! keep up to date
+  integer(c_int), parameter, public :: ic_tree_format = 3
+  integer(c_int), parameter, public :: ic_tree_props = 4
+  integer(c_int), parameter, public :: ic_tree_name = 5
+  integer(c_int), parameter, public :: ic_tree_spg = 6
+  integer(c_int), parameter, public :: ic_tree_v = 7
+  integer(c_int), parameter, public :: ic_tree_vmol = 8
+  integer(c_int), parameter, public :: ic_tree_nneq = 9
+  integer(c_int), parameter, public :: ic_tree_ncel = 10
+  integer(c_int), parameter, public :: ic_tree_nmol = 11
+  integer(c_int), parameter, public :: ic_tree_zprime = 12
+  integer(c_int), parameter, public :: ic_tree_a = 13
+  integer(c_int), parameter, public :: ic_tree_b = 14
+  integer(c_int), parameter, public :: ic_tree_c = 15
+  integer(c_int), parameter, public :: ic_tree_alpha = 16
+  integer(c_int), parameter, public :: ic_tree_beta = 17
+  integer(c_int), parameter, public :: ic_tree_gamma = 18
+  integer(c_int), parameter, public :: ic_tree_e = 19
+  integer(c_int), parameter, public :: ic_tree_emol = 20
+  integer(c_int), parameter, public :: ic_tree_p = 21
+  integer(c_int), parameter, public :: ic_tree_NUMCOLUMNS = 22 ! keep up to date
 
   ! routines to manipulate the window stack
   public :: stack_realloc_maybe

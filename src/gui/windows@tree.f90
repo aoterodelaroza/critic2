@@ -46,6 +46,8 @@ contains
        remove_systems
     use gui_main, only: ColorTableCellBg, tooltip_delay, ColorDangerButton,&
        ColorFieldSelected, g, fontsize
+    use icons, only: icon_tex, icon_tex_fmt, rgba_icon_fmt, icon_fmt_MAX,&
+       format_name, icon_prop_fields, icon_prop_vib, icon_prop_occ
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
@@ -58,11 +60,12 @@ contains
 
     character(kind=c_char,len=:), allocatable, target :: str, strpop, zeroc, ch
     character(kind=c_char,len=:), allocatable :: tooltipstr
-    type(ImVec2) :: szero, sz
-    type(ImVec4) :: col4
+    type(ImVec2) :: szero, sz, uv0, uv1
+    type(ImVec4) :: col4, tintcol, nobord
     integer(c_int) :: flags, color, idir
-    integer :: i, j, k, jsel, id, iref, inext, iprev, ithis, nfreal, iaux
-    integer :: nshown, nshown_after_filter, ihl
+    integer :: i, j, k, jsel, id, iref, inext, iprev, ithis, iaux, ifmt
+    integer :: nshown, nshown_after_filter
+    logical :: hasfield, hasvib, hasocc
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
     type(ImGuiTableSortSpecs), pointer :: sortspecs
@@ -91,6 +94,9 @@ contains
     tooltipstr = ""
     szero%x = 0
     szero%y = 0
+    uv0 = ImVec2(0._c_float,0._c_float)
+    uv1 = ImVec2(1._c_float,1._c_float)
+    nobord = ImVec4(0._c_float,0._c_float,0._c_float,0._c_float)
     if (w%firstpass) then
        w%tree_sortcid = ic_tree_id
        w%tree_sortdir = 1
@@ -303,7 +309,8 @@ contains
        end if
 
        ! set up the columns
-       ! closebutton - ID - name - spg - volume - nneq - ncel - nmol - a - b - c - alpha - beta - gamma
+       ! closebutton - expandbutton - ID - format - properties - name - spg - volume -
+       ! nneq - ncel - nmol - zprime - a - b - c - alpha - beta - gamma - e - emol - p
        str = "(close button)##0closebutton" // c_null_char
        flags = ImGuiTableColumnFlags_NoResize
        flags = ior(flags,ImGuiTableColumnFlags_NoReorder)
@@ -320,6 +327,18 @@ contains
        str = "ID##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultSort
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_id)
+
+       str = "format##0" // c_null_char
+       flags = ImGuiTableColumnFlags_NoResize
+       flags = ior(flags,ImGuiTableColumnFlags_NoSort)
+       flags = ior(flags,ImGuiTableColumnFlags_NoHeaderLabel)
+       flags = ior(flags,ImGuiTableColumnFlags_NoHeaderWidth)
+       width = max(4._c_float, fontsize%y + 4._c_float)
+       call igTableSetupColumn(c_loc(str),flags,width,ic_tree_format)
+
+       str = "properties##0" // c_null_char
+       width = max(4._c_float, 3._c_float * fontsize%y + 8._c_float)
+       call igTableSetupColumn(c_loc(str),flags,width,ic_tree_props)
 
        str = "Name##0" // c_null_char
        flags = ImGuiTableColumnFlags_WidthStretch
@@ -475,25 +494,46 @@ contains
                 if (igTableSetColumnIndex(ic_tree_id)) then
                    str = string(i)
                    call write_maybe_selectable(i,tooltipstr)
-                   ! highlight the ID
-                   ok = (sysc(i)%status >= sys_ready)
-                   ihl = 0
-                   if (ok) then
-                      if (sys(i)%c%vib%hasvibs) then
-                         ihl = 1
-                      else if (sys(i)%c%haveocc) then
-                         ihl = 2
+                   call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                end if
+
+                ! format column
+                if (igTableSetColumnIndex(ic_tree_format)) then
+                   call write_maybe_selectable(i,tooltipstr)
+                   ifmt = sysc(i)%seed%isformat
+                   if (ifmt < 0 .or. ifmt > icon_fmt_MAX) ifmt = 0
+                   if (icon_tex_fmt(ifmt) /= 0) then
+                      sz%x = fontsize%y
+                      sz%y = fontsize%y
+                      tintcol = ImVec4(rgba_icon_fmt(1,ifmt),rgba_icon_fmt(2,ifmt),&
+                         rgba_icon_fmt(3,ifmt),rgba_icon_fmt(4,ifmt))
+                      call igImage(icon_tex_fmt(ifmt),sz,uv0,uv1,tintcol,nobord)
+                      if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+                         str = "Format: " // format_name(ifmt) // c_null_char
+                         call igSetTooltip(c_loc(str))
                       end if
                    end if
-                   if (ihl == 1) then
-                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,&
-                         rgba=rgba_vibrations)
-                   else if (ihl == 2) then
-                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export,&
-                         rgba=rgba_partialocc)
-                   else
-                      call iw_text(str,disabled=(sysc(i)%status /= sys_init),copy_to_output=export)
+                end if
+
+                ! properties column (fields, vibrations, disorder)
+                if (igTableSetColumnIndex(ic_tree_props)) then
+                   call write_maybe_selectable(i,tooltipstr)
+                   hasfield = .false.
+                   hasvib = .false.
+                   hasocc = .false.
+                   if (sysc(i)%status >= sys_ready) then
+                      hasfield = any(sys(i)%f(1:sys(i)%nf)%isinit)
+                      hasvib = sys(i)%c%vib%hasvibs
+                      hasocc = sys(i)%c%haveocc
                    end if
+                   call draw_icon_cell(hasfield,icon_tex(icon_prop_fields),rgba_fields,&
+                      "Scalar fields loaded")
+                   call igSameLine(0._c_float,2._c_float)
+                   call draw_icon_cell(hasvib,icon_tex(icon_prop_vib),rgba_vibrations,&
+                      "Vibration data available")
+                   call igSameLine(0._c_float,2._c_float)
+                   call draw_icon_cell(hasocc,icon_tex(icon_prop_occ),rgba_partialocc,&
+                      "Partial site occupancies (disorder)")
                 end if
 
                 ! name
@@ -510,15 +550,7 @@ contains
                    pos = igGetCursorPosX()
                    call igSetCursorPosX(pos + g%Style%FramePadding%x)
 
-                   nfreal = 0
-                   do k = 1, sys(i)%nf
-                      if (sys(i)%f(k)%isinit) nfreal = nfreal + 1
-                   end do
-                   if (nfreal > 0) then
-                      call iw_text(ch,rgba=rgba_fields)
-                   else
-                      call iw_text(ch)
-                   end if
+                   call iw_text(ch)
                    call igSameLine(0._c_float,-1._c_float)
                    call igSetCursorPosX(pos)
                    str = ch // "##" // string(ic_tree_name) // "," // string(i) // c_null_char
@@ -1140,6 +1172,33 @@ contains
       hadenabledcolumn = .true.
 
     end subroutine write_maybe_selectable
+
+    ! Draw a square icon of side fontsize%y with the given texture and
+    ! tint, and show a tooltip on hover. If show is false or the
+    ! texture is not available, draw an empty placeholder instead.
+    subroutine draw_icon_cell(show,tex,rgba,tooltip)
+      logical, intent(in) :: show
+      integer(c_int), intent(in) :: tex
+      real(c_float), intent(in) :: rgba(4)
+      character(len=*), intent(in) :: tooltip
+
+      type(ImVec2) :: sz
+      type(ImVec4) :: tintcol
+      character(kind=c_char,len=:), allocatable, target :: strl
+
+      sz = ImVec2(fontsize%y,fontsize%y)
+      if (show .and. tex /= 0) then
+         tintcol = ImVec4(rgba(1),rgba(2),rgba(3),rgba(4))
+         call igImage(tex,sz,uv0,uv1,tintcol,nobord)
+         if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+            strl = tooltip // c_null_char
+            call igSetTooltip(c_loc(strl))
+         end if
+      else
+         call igDummy(sz)
+      end if
+
+    end subroutine draw_icon_cell
 
     ! un-hide the dependents and set as expanded
     subroutine expand_system(i)

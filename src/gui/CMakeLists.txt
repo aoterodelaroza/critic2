@@ -36,6 +36,7 @@ set(SOURCES
   utils.f90 utils@proc.f90 utils@math.f90
   templates.f90 templates@proc.f90
   shapes.f90 shapes@proc.f90
+  icons.f90 icons@proc.f90
   shaders.f90 shaders@proc.f90
   scenes.f90 scenes@proc.f90
   representations.f90 representations@proc.f90
