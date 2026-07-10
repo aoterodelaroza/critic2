@@ -8602,6 +8602,10 @@ contains
           hasr = .true.
 
        elseif (index(line,"Cartesian axes")>0) then
+          if (.not.allocated(is)) then
+             errmsg = "Found atomic positions before the number of atoms in the QE output."
+             goto 999
+          end if
           ok = getline_raw(lu,line)
           if (.not.ok) goto 999
           ok = getline_raw(lu,line)
@@ -8653,7 +8657,11 @@ contains
           m_x2c = transpose(r)
           hasr = .true.
 
-       elseif (index(line,"ATOMIC_POSITIONS") > 0) then
+       elseif (index(line,"ATOMIC_POSITIONS") == 1) then
+          if (.not.allocated(is)) then
+             errmsg = "Found atomic positions before the number of atoms in the QE output."
+             goto 999
+          end if
           rfac = 1d0
           if (index(line,"angstrom") > 0) then
              tox = .true.
