@@ -62,6 +62,9 @@ contains
     use tools_io, only: ferror, faterr, string, falloc, fdealloc
     use param, only: dirsep
     integer(c_int) :: idum, display_w, display_h, ileft, iright
+    integer(c_int) :: iwinw, iwinh, monx, mony, monw, monh
+    real(c_float) :: treeratio
+    type(c_ptr) :: monitor
     type(c_funptr) :: fdum
     type(c_ptr) :: ptrc
     logical(c_bool) :: ldum, show_demo_window, show_implot_demo_window
@@ -112,11 +115,30 @@ contains
     glfw_lenient = .false.
     ! call glfwWindowHint(GLFW_SAMPLES, ms_samples) ! activate multisampling
 
-    ! set up window
+    ! set up window: open at 80% of the primary monitor work area (screen
+    ! minus taskbar), clamped to a minimum and to fit the work area. Fall
+    ! back to a fixed size if the monitor cannot be queried.
+    iwinw = 1280
+    iwinh = 720
+    monw = 0
+    monh = 0
+    monitor = glfwGetPrimaryMonitor()
+    if (c_associated(monitor)) then
+       call glfwGetMonitorWorkarea(monitor,monx,mony,monw,monh)
+       if (monw > 0 .and. monh > 0) then
+          ! 80% of the work area, at least 800x600, but never larger than
+          ! the work area (fit wins, so the window stays fully on-screen)
+          iwinw = min(max(nint(0.8_c_float * monw,c_int),800),monw)
+          iwinh = min(max(nint(0.8_c_float * monh,c_int),600),monh)
+       end if
+    end if
     strc = gui_title
-    rootwin = glfwCreateWindow(1280, 720, c_loc(strc), c_null_ptr, c_null_ptr)
+    rootwin = glfwCreateWindow(iwinw, iwinh, c_loc(strc), c_null_ptr, c_null_ptr)
     if (.not.c_associated(rootwin)) &
        call ferror('gui_start','Failed to create window',faterr)
+    ! center the window in the work area
+    if (monw > 0 .and. monh > 0) &
+       call glfwSetWindowPos(rootwin, monx + (monw-iwinw)/2, mony + (monh-iwinh)/2)
     fdum = glfwSetDropCallback(rootwin,c_funloc(drop_callback))
     call glfwMakeContextCurrent(rootwin)
     call glfwSwapInterval(1) ! enable vsync
@@ -272,7 +294,14 @@ contains
        ! first pass: use the dock builder routines to place the windows
        ! https://github.com/ocornut/imgui/issues/2109
        if (firstpass) then
-          ileft = igDockBuilderSplitNode(iddock, ImGuiDir_Left, 0.3_c_float, idum, iright)
+          ! initial tree width: enough for the icon/ID columns plus a
+          ! typical file name (~30 chars), in font-size units so it tracks
+          ! the font scale; capped so it is never a sliver or more than a
+          ! third of the window
+          treeratio = 0.3_c_float
+          if (io%DisplaySize%x > 0._c_float) &
+             treeratio = min(0.33_c_float,max(0.13_c_float,44 * fontsize%x / io%DisplaySize%x))
+          ileft = igDockBuilderSplitNode(iddock, ImGuiDir_Left, treeratio, idum, iright)
           ! ibottom = igDockBuilderSplitNode(iright, ImGuiDir_Down, 0.3_c_float, idum, idum2)
 
           call igDockBuilderDockWindow(c_loc(win(iwin_tree)%name), ileft)

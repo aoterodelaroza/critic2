@@ -24,6 +24,23 @@ subroutine glfwWindowHint(hint,val) bind(c,name="glfwWindowHint")
   import c_int
   integer(c_int), value :: hint, val
 end subroutine glfwWindowHint
+! GLFWmonitor *glfwGetPrimaryMonitor(void)
+function glfwGetPrimaryMonitor() bind(c,name="glfwGetPrimaryMonitor")
+  import c_ptr
+  type(c_ptr) :: glfwGetPrimaryMonitor
+end function glfwGetPrimaryMonitor
+! void glfwGetMonitorWorkarea(GLFWmonitor *monitor, int *xpos, int *ypos, int *width, int *height)
+subroutine glfwGetMonitorWorkarea(monitor, xpos, ypos, width, height) bind(c,name="glfwGetMonitorWorkarea")
+  import c_int, c_ptr
+  type(c_ptr), value :: monitor
+  integer(c_int) :: xpos, ypos, width, height
+end subroutine glfwGetMonitorWorkarea
+! void glfwSetWindowPos(GLFWwindow *window, int xpos, int ypos)
+subroutine glfwSetWindowPos(window, xpos, ypos) bind(c,name="glfwSetWindowPos")
+  import c_int, c_ptr
+  type(c_ptr), value :: window
+  integer(c_int), value :: xpos, ypos
+end subroutine glfwSetWindowPos
 ! GLFWwindow *glfwCreateWindow(int width, int height, const char *title, GLFWmonitor *monitor, GLFWwindow *share)
 function glfwCreateWindow(width, height, title, monitor, share) bind(c,name="glfwCreateWindow")
   import c_int, c_ptr
