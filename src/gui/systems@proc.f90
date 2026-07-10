@@ -68,57 +68,94 @@ contains
 
   end function are_threads_running
 
-  ! Re-write the seed names from the full-path names to remove as much
-  ! of the prefixes as possible
+  ! Re-write the seed names from the full-path names. Each system is
+  ! shown with only its file name (last path component) unless that would
+  ! collide with another system's name; in that case, the minimum number
+  ! of parent directories needed to tell the clashing systems apart is
+  ! prepended. Renamed systems keep their user-given name and are ignored.
   module subroutine system_shorten_names()
+    use tools_io, only: string
     use param, only: dirsep
 
-    integer :: idx, i, i1
-    character(len=:), allocatable :: str, removed
+    integer :: i, a, b, np, d, ndup, si
+    integer, allocatable :: plist(:)
+    logical :: unique
+    character(len=:), allocatable :: fni, fnj
 
-    ! reset all names to the full-path name
+    ! collect the participating systems (non-empty and not renamed)
+    allocate(plist(nsys))
+    np = 0
     do i = 1, nsys
-       if (sysc(i)%status /= sys_empty .and..not.sysc(i)%renamed) &
-          sysc(i)%seed%name = sysc(i)%fullname
+       if (sysc(i)%status /= sys_empty .and..not.sysc(i)%renamed) then
+          np = np + 1
+          plist(np) = i
+       end if
     end do
 
-    ! remove as much as possible from the beginning
-    if (nsys > 0) then
-       i1 = 0
-       do i = 1, nsys
-          if (sysc(i)%status /= sys_empty.and..not.sysc(i)%renamed) then
-             i1 = i
+    ! for each system, use the shortest run of trailing path components
+    ! that is unique among the other (non-duplicate) participating systems
+    do a = 1, np
+       i = plist(a)
+       fni = trim(sysc(i)%fullname)
+       d = 0
+       do
+          d = d + 1
+          si = laststart(fni,d) ! start of this system's last d components
+          unique = .true.
+          do b = 1, np
+             if (b == a) cycle
+             fnj = trim(sysc(plist(b))%fullname)
+             if (fnj == fni) cycle ! an exact duplicate, handled below
+             ! not unique if the last d path components coincide
+             if (fni(si:) == fnj(laststart(fnj,d):)) then
+                unique = .false.
+                exit
+             end if
+          end do
+          if (unique) then
+             sysc(i)%seed%name = fni(si:)
+             exit
+          elseif (si == 1) then
+             ! the whole path is already used (should only happen for exact
+             ! duplicates); stop here and let the duplicate pass disambiguate
+             sysc(i)%seed%name = fni
              exit
           end if
        end do
-       if (i1 > 0) then
-          idx = len_trim(sysc(i1)%seed%name)+1
-          removed = ""
-          main: do while (.true.)
-             ! grab string up to the first dirsep
-             idx = index(sysc(i1)%seed%name(1:idx-1),dirsep,.true.)
-             if (idx == 0) exit main
-             str = sysc(i1)%seed%name(1:idx)
+    end do
 
-             ! check all names start with the same string
-             do i = i1+1, nsys
-                if (sysc(i)%status == sys_empty.or.sysc(i)%renamed) cycle
-                ! a name shorter than the candidate prefix cannot start with it,
-                ! so the prefix is not common: try a shorter one
-                if (len_trim(sysc(i)%seed%name) < idx) cycle main
-                if (sysc(i)%seed%name(1:idx) /= str) cycle main
-             end do
+    ! exact duplicates (same full-path name, e.g. from Duplicate or reload)
+    ! cannot be told apart by the path: append a counter
+    do a = 1, np
+       i = plist(a)
+       ndup = 0
+       do b = 1, a-1
+          if (trim(sysc(plist(b))%fullname) == trim(sysc(i)%fullname)) ndup = ndup + 1
+       end do
+       if (ndup > 0) &
+          sysc(i)%seed%name = trim(sysc(i)%seed%name) // " (" // string(ndup+1) // ")"
+    end do
 
-             ! remove the string
-             removed = removed // sysc(i1)%seed%name(1:idx)
-             do i = 1, nsys
-                if (sysc(i)%status == sys_empty.or.sysc(i)%renamed) cycle
-                sysc(i)%seed%name = sysc(i)%seed%name(idx+1:)
-             end do
-          end do main
-       end if
-    end if
-
+  contains
+    !> Starting character index of the last d path components of str
+    !> (the part after the d-th dirsep counted from the end; 1 if str has
+    !> fewer than d components).
+    integer function laststart(str,d)
+      character(len=*), intent(in) :: str
+      integer, intent(in) :: d
+      integer :: p, c
+      laststart = 1
+      c = 0
+      do p = len_trim(str), 1, -1
+         if (str(p:p) == dirsep) then
+            c = c + 1
+            if (c == d) then
+               laststart = p + 1
+               return
+            end if
+         end if
+      end do
+    end function laststart
   end subroutine system_shorten_names
 
   !> Add systems from the given seeds. If collapse is present and
