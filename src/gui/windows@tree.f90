@@ -64,7 +64,7 @@ contains
     type(ImVec4) :: col4, tintcol, nobord
     integer(c_int) :: flags, color, idir
     integer :: i, j, k, jsel, id, iref, inext, iprev, ithis, iaux, ifmt
-    integer :: nshown, nshown_after_filter
+    integer :: nshown, nshown_after_filter, maxprops, nprop
     logical :: hasfield, hasvib, hasocc
     logical(c_bool) :: ldum, isel
     type(c_ptr) :: ptrc
@@ -86,6 +86,7 @@ contains
     logical, save :: forceinit = .false. ! run the initialization threads
     type(c_ptr), save :: cfilter = c_null_ptr ! filter object (allocated first pass, never destroyed)
     logical, save :: ttshown = .false. ! tooltip flag
+    integer, save :: lastmaxprops = -1 ! last max number of simultaneous property icons (to detect resize)
     integer(c_int), save :: iresample(3) = (/0,0,0/) ! for the grid resampling menu option
 
     ! initialize
@@ -105,7 +106,10 @@ contains
        forcesort = .true.
     end if
 
-    ! update the tree based on time signals between dependent windows
+    ! update the tree based on time signals between dependent windows;
+    ! also find the maximum number of property icons shown simultaneously
+    ! in any row, to size the properties column
+    maxprops = 0
     do i = 1, nsys
        ! if a system has changed fundamentally, the table needs an update (maybe)
        if (w%timelast_tree_update < sysc(i)%timelastchange_geometry) forceremap = .true.
@@ -115,7 +119,20 @@ contains
        ! if a system has been rebonded, the "nmol" column may have changed: sort and resize
        if (w%timelast_tree_resize < sysc(i)%timelastchange_rebond) forceresize = .true.
        if (w%timelast_tree_sort < sysc(i)%timelastchange_rebond) forcesort = .true.
+       ! count property icons for this system
+       if (sysc(i)%status >= sys_ready) then
+          nprop = 0
+          if (any(sys(i)%f(1:sys(i)%nf)%isinit)) nprop = nprop + 1
+          if (sys(i)%c%vib%hasvibs) nprop = nprop + 1
+          if (sys(i)%c%haveocc) nprop = nprop + 1
+          maxprops = max(maxprops,nprop)
+       end if
     end do
+    ! resize the columns if the properties column needs a different width
+    if (maxprops /= lastmaxprops) then
+       forceresize = .true.
+       lastmaxprops = maxprops
+    end if
 
     ! Tree options button
     export = .false.
@@ -337,8 +354,7 @@ contains
        call igTableSetupColumn(c_loc(str),flags,width,ic_tree_format)
 
        str = "properties##0" // c_null_char
-       width = max(4._c_float, 3._c_float * fontsize%y + 8._c_float)
-       call igTableSetupColumn(c_loc(str),flags,width,ic_tree_props)
+       call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_props)
 
        str = "Name##0" // c_null_char
        flags = ImGuiTableColumnFlags_WidthStretch
@@ -526,14 +542,19 @@ contains
                       hasvib = sys(i)%c%vib%hasvibs
                       hasocc = sys(i)%c%haveocc
                    end if
+                   ! icons, then pad to maxprops
+                   nprop = 0
                    call draw_icon_cell(hasfield,icon_tex(icon_prop_fields),rgba_fields,&
-                      "Scalar fields loaded")
-                   call igSameLine(0._c_float,2._c_float)
+                      "Scalar fields loaded",nprop)
                    call draw_icon_cell(hasvib,icon_tex(icon_prop_vib),rgba_vibrations,&
-                      "Vibration data available")
-                   call igSameLine(0._c_float,2._c_float)
+                      "Vibration data available",nprop)
                    call draw_icon_cell(hasocc,icon_tex(icon_prop_occ),rgba_partialocc,&
-                      "Partial site occupancies (disorder)")
+                      "Partial site occupancies (disorder)",nprop)
+                   sz = ImVec2(fontsize%y,fontsize%y)
+                   do k = nprop+1, maxprops
+                      if (k > 1) call igSameLine(0._c_float,2._c_float)
+                      call igDummy(sz)
+                   end do
                 end if
 
                 ! name
@@ -1176,26 +1197,30 @@ contains
     ! Draw a square icon of side fontsize%y with the given texture and
     ! tint, and show a tooltip on hover. If show is false or the
     ! texture is not available, draw an empty placeholder instead.
-    subroutine draw_icon_cell(show,tex,rgba,tooltip)
+    !> Draw one property icon (tinted texture tex, color rgba, with the
+    !> given tooltip) if show is true and the texture is available. Icons
+    !> are packed with no gaps: ndrawn is the number of icons already drawn
+    !> in this cell; it is incremented when this icon is drawn.
+    subroutine draw_icon_cell(show,tex,rgba,tooltip,ndrawn)
       logical, intent(in) :: show
       integer(c_int), intent(in) :: tex
       real(c_float), intent(in) :: rgba(4)
       character(len=*), intent(in) :: tooltip
+      integer, intent(inout) :: ndrawn
 
       type(ImVec2) :: sz
       type(ImVec4) :: tintcol
       character(kind=c_char,len=:), allocatable, target :: strl
 
+      if (.not.show .or. tex == 0) return
+      if (ndrawn > 0) call igSameLine(0._c_float,2._c_float)
+      ndrawn = ndrawn + 1
       sz = ImVec2(fontsize%y,fontsize%y)
-      if (show .and. tex /= 0) then
-         tintcol = ImVec4(rgba(1),rgba(2),rgba(3),rgba(4))
-         call igImage(tex,sz,uv0,uv1,tintcol,nobord)
-         if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-            strl = tooltip // c_null_char
-            call igSetTooltip(c_loc(strl))
-         end if
-      else
-         call igDummy(sz)
+      tintcol = ImVec4(rgba(1),rgba(2),rgba(3),rgba(4))
+      call igImage(tex,sz,uv0,uv1,tintcol,nobord)
+      if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+         strl = tooltip // c_null_char
+         call igSetTooltip(c_loc(strl))
       end if
 
     end subroutine draw_icon_cell
