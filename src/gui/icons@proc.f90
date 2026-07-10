@@ -20,9 +20,10 @@ submodule (icons) proc
   use iso_c_binding
   implicit none
 
-  ! property icon PNG file names, in icon ID order
+  ! property and UI icon PNG file names, in icon ID order
   character(len=*), parameter :: iconfile(icon_NUM) = (/character(len=16) ::&
-     "prop_fields.png","prop_vib.png","prop_occ.png"/)
+     "prop_fields.png","prop_vib.png","prop_occ.png",&
+     "ui_close.png","ui_expand.png","ui_collapse.png"/)
 
   ! format icon PNG file names, in isformat_r_* order
   character(len=*), parameter :: fmtfile(0:icon_fmt_MAX) = (/character(len=20) ::&

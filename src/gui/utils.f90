@@ -44,6 +44,8 @@ module utils
   public :: iw_checkbox
   public :: iw_text
   public :: iw_button
+  public :: iw_icon_button
+  public :: iw_close_button
   public :: iw_menuitem
   public :: iw_tooltip
   public :: iw_helpermark
@@ -252,6 +254,17 @@ module utils
        integer(c_int), intent(in), optional :: popupflags
        logical :: iw_button
      end function iw_button
+     module function iw_icon_button(strid,tex,rgba,fallback) result(pressed)
+       character(len=*,kind=c_char), intent(in) :: strid
+       integer(c_int), intent(in) :: tex
+       real(c_float), intent(in) :: rgba(4)
+       character(len=*,kind=c_char), intent(in) :: fallback
+       logical :: pressed
+     end function iw_icon_button
+     module function iw_close_button(strid) result(pressed)
+       character(len=*,kind=c_char), intent(in) :: strid
+       logical :: pressed
+     end function iw_close_button
      module subroutine iw_tooltip(str,ttshown,rgba,nowrap)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(inout), optional :: ttshown

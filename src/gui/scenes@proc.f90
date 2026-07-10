@@ -1430,9 +1430,10 @@ contains
   module function representation_menu(s,idparent) result(changed)
     use interfaces_cimgui
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes, reptype_symelem
-    use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext
+    use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
+       iw_close_button
     use windows, only: stack_create_window, wintype_editrep
-    use gui_main, only: ColorDangerButton, g
+    use gui_main, only: g
     use tools_io, only: string
     use tools, only: mergesort
     class(scene), intent(inout), target :: s
@@ -1481,9 +1482,8 @@ contains
        doerase = .false.
        call igTableNextRow(ImGuiTableRowFlags_None, 0._c_float)
        if (igTableSetColumnIndex(ic_closebutton)) then
-          call igAlignTextToFramePadding()
           str1 = "##2ic_closebutton" // string(ic_closebutton) // "," // string(i) // c_null_char
-          if (my_CloseButton(c_loc(str1),ColorDangerButton)) doerase = .true.
+          if (iw_close_button(str1(:len(str1)-1))) doerase = .true.
        end if
 
        ! view button

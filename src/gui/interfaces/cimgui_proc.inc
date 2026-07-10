@@ -2556,15 +2556,6 @@ function IGFD_GetFlags(vContext) bind(c,name="IGFD_GetFlags")
   integer(c_int) :: IGFD_GetFlags
 end function IGFD_GetFlags
 
-!!! my own imgui widgets (from my_imgui) !!!
-! bool my_CloseButton(const char* str_id, ImVec4 buttonbg);
-function my_CloseButton(str_id,buttonbg) bind(c,name="my_CloseButton")
-  import c_ptr, c_bool, ImVec4
-  type(c_ptr), intent(in), value :: str_id
-  type(ImVec4), value :: buttonbg
-  logical(c_bool) :: my_CloseButton
-end function my_CloseButton
-
 !!! utils !!!
 ! int getCurrentWorkDir(char *str, size_t siz);
 function getCurrentWorkDir(str,siz) bind(c,name="getCurrentWorkDir")

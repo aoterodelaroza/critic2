@@ -21,43 +21,6 @@
 
 using namespace ImGui;
 
-bool my_CloseButton(const char* str_id, ImVec4 buttonbg) {
-  float sz = GetFrameHeight();
-  ImVec2 size = {sz,sz};
-  ImGuiButtonFlags flags = ImGuiButtonFlags_None;
-
-  ImGuiContext& g = *GImGui;
-  ImGuiWindow* window = GetCurrentWindow();
-  if (window->SkipItems)
-    return false;
-
-  const ImGuiID id = window->GetID(str_id);
-  const ImRect bb(window->DC.CursorPos, window->DC.CursorPos + size);
-  const float default_size = GetFrameHeight();
-  ItemSize(size, (size.y >= default_size) ? g.Style.FramePadding.y : -1.0f);
-  if (!ItemAdd(bb, id))
-    return false;
-
-  if (g.LastItemData.InFlags & ImGuiItemFlags_ButtonRepeat)
-    flags |= ImGuiButtonFlags_Repeat;
-
-  bool hovered, held;
-  bool pressed = ButtonBehavior(bb, id, &hovered, &held, flags);
-
-  // Render
-  const ImU32 col = GetColorU32((held && hovered) ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : GetColorU32(buttonbg));
-  ImVec2 center = bb.GetCenter();
-  window->DrawList->AddCircleFilled(center, ImMax(2.0f, g.FontSize * 0.5f + 1.0f), col, 12);
-
-  float cross_extent = g.FontSize * 0.5f * 0.7071f - 1.0f;
-  ImU32 cross_col = GetColorU32(ImGuiCol_Text);
-  center -= ImVec2(0.5f, 0.5f);
-  window->DrawList->AddLine(center + ImVec2(+cross_extent, +cross_extent), center + ImVec2(-cross_extent, -cross_extent), cross_col, 1.0f);
-  window->DrawList->AddLine(center + ImVec2(+cross_extent, -cross_extent), center + ImVec2(-cross_extent, +cross_extent), cross_col, 1.0f);
-
-  return pressed;
-}
-
 //// The fonts for the critic2 GUI
 // DejaVu Sans Mono
 static const char font_dejavu_base85[316260+1] =

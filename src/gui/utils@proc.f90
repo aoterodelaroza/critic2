@@ -1279,6 +1279,64 @@ contains
 
   end function iw_button
 
+  !> Draw a clickable icon button of side fontsize%y: an invisible button
+  !> (id from strid) with the tinted texture tex drawn on top, brightened
+  !> while hovered. If the texture is unavailable (tex==0), the fallback
+  !> text glyph is drawn instead, so the control keeps working with no
+  !> icon assets. Returns .true. when clicked.
+  module function iw_icon_button(strid,tex,rgba,fallback) result(pressed)
+    use interfaces_cimgui
+    use gui_main, only: fontsize
+    character(len=*,kind=c_char), intent(in) :: strid
+    integer(c_int), intent(in) :: tex
+    real(c_float), intent(in) :: rgba(4)
+    character(len=*,kind=c_char), intent(in) :: fallback
+    logical :: pressed
+
+    type(ImVec2) :: sz, uv0, uv1
+    type(ImVec4) :: tintcol, nobord
+    real(c_float) :: posx, col(4)
+    character(kind=c_char,len=:), allocatable, target :: strl
+
+    sz = ImVec2(fontsize%y,fontsize%y)
+    uv0 = ImVec2(0._c_float,0._c_float)
+    uv1 = ImVec2(1._c_float,1._c_float)
+    nobord = ImVec4(0._c_float,0._c_float,0._c_float,0._c_float)
+    call igAlignTextToFramePadding()
+    posx = igGetCursorPosX()
+
+    ! invisible button first (captures the click and hover), then draw the
+    ! icon (or a text glyph, if the texture is unavailable) on top
+    strl = strid // c_null_char
+    pressed = logical(igInvisibleButton(c_loc(strl),sz,ImGuiButtonFlags_None))
+    ! brighten the tint toward white while hovered
+    col = rgba
+    if (igIsItemHovered(ImGuiHoveredFlags_None)) &
+       col(1:3) = rgba(1:3) + (1._c_float-rgba(1:3))*0.4_c_float
+    call igSameLine(0._c_float,-1._c_float)
+    call igSetCursorPosX(posx)
+    if (tex /= 0) then
+       tintcol = ImVec4(col(1),col(2),col(3),col(4))
+       call igImage(tex,sz,uv0,uv1,tintcol,nobord)
+    else
+       call iw_text(fallback,rgba=col)
+    end if
+
+  end function iw_icon_button
+
+  !> Draw the standard close button (a red X icon) with the given id.
+  !> Returns .true. when clicked.
+  module function iw_close_button(strid) result(pressed)
+    use icons, only: icon_tex, icon_ui_close
+    character(len=*,kind=c_char), intent(in) :: strid
+    logical :: pressed
+
+    real(c_float), parameter :: rgba_close(4) = (/0.86_c_float,0.20_c_float,0.18_c_float,1.00_c_float/)
+
+    pressed = iw_icon_button(strid,icon_tex(icon_ui_close),rgba_close,"✕")
+
+  end function iw_close_button
+
   !> Create a wrapped tooltip, maybe with a delay to show. ttshown
   !> activates the delay, and is the show flag for the delayed tooltip.
   module subroutine iw_tooltip(str,ttshown,rgba,nowrap)

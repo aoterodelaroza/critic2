@@ -27,7 +27,11 @@ module icons
   integer, parameter, public :: icon_prop_fields = 1 ! fields loaded (nested rings)
   integer, parameter, public :: icon_prop_vib = 2    ! vibration data (zigzag)
   integer, parameter, public :: icon_prop_occ = 3    ! partial occupancies (half-filled circle)
-  integer, parameter, public :: icon_NUM = 3
+  ! icon IDs: UI controls
+  integer, parameter, public :: icon_ui_close = 4    ! close button (X)
+  integer, parameter, public :: icon_ui_expand = 5   ! expand button (right triangle)
+  integer, parameter, public :: icon_ui_collapse = 6 ! collapse button (down triangle)
+  integer, parameter, public :: icon_NUM = 6
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

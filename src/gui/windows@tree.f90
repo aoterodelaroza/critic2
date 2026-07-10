@@ -25,6 +25,8 @@ submodule (windows) tree
   real(c_float), parameter :: rgba_partialocc(4) = (/0.94_c_float,0.60_c_float,0.00_c_float,1.00_c_float/)
   real(c_float), parameter :: rgba_fields(4) = (/0.00_c_float,1.00_c_float,0.50_c_float,1.00_c_float/)
   real(c_float), parameter :: rgba_reference(4) = (/0.890_c_float,0.706_c_float,0.129_c_float,1._c_float/)
+  ! color for the tree expand/collapse control-button icon
+  real(c_float), parameter :: rgba_expand(4) = (/0.72_c_float,0.72_c_float,0.78_c_float,1.00_c_float/)
 
   !xx! private procedures
   ! function tree_system_tooltip(i)
@@ -39,15 +41,17 @@ contains
     use keybindings, only: is_bind_event, BIND_TREE_REMOVE_SYSTEM_FIELD, BIND_TREE_MOVE_UP,&
        BIND_TREE_MOVE_DOWN
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_button, iw_inputtext,&
-       iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem, iw_inputint3
+       iw_text, iw_setposx_fromend, iw_calcwidth, iw_calcheight, iw_menuitem, iw_inputint3,&
+       iw_icon_button, iw_close_button
     use systems, only: nsys, sys, sysc, sys_empty, sys_init, sys_ready,&
        sys_loaded_not_init, launch_initialization_thread,&
        kill_initialization_thread, system_shorten_names, ok_system, sys_initializing,&
        remove_systems
-    use gui_main, only: ColorTableCellBg, tooltip_delay, ColorDangerButton,&
+    use gui_main, only: ColorTableCellBg, tooltip_delay,&
        ColorFieldSelected, g, fontsize
     use icons, only: icon_tex, icon_tex_fmt, rgba_icon_fmt, icon_fmt_MAX,&
-       format_name, icon_prop_fields, icon_prop_vib, icon_prop_occ
+       format_name, icon_prop_fields, icon_prop_vib, icon_prop_occ,&
+       icon_ui_expand, icon_ui_collapse
     use fieldmod, only: type_grid
     use tools_io, only: string, uout
     use types, only: realloc
@@ -62,7 +66,7 @@ contains
     character(kind=c_char,len=:), allocatable :: tooltipstr
     type(ImVec2) :: szero, sz, uv0, uv1
     type(ImVec4) :: col4, tintcol, nobord
-    integer(c_int) :: flags, color, idir
+    integer(c_int) :: flags, color, itex
     integer :: i, j, k, jsel, id, iref, inext, iprev, ithis, iaux, ifmt
     integer :: nshown, nshown_after_filter, maxprops, nprop
     logical :: hasfield, hasvib, hasocc
@@ -467,25 +471,25 @@ contains
                 ! close button
                 if (sysc(i)%status == sys_init) then
                    if (igTableSetColumnIndex(ic_tree_closebutton)) then
-                      call igAlignTextToFramePadding()
-                      str = "##1closebutton" // string(ic_tree_closebutton) // "," // string(i) // c_null_char
-                      if (my_CloseButton(c_loc(str),ColorDangerButton)) forceremove = (/i/)
+                      str = "##1closebutton" // string(ic_tree_closebutton) // "," // string(i)
+                      if (iw_close_button(str)) forceremove = (/i/)
                       if (igIsItemHovered(ImGuiHoveredFlags_None)) &
                          tooltipstr = "Close this system"
                    end if
                 end if
 
-                ! expand button
+                ! expand/collapse button for multi-seed entries (SCF iterations)
                 if (igTableSetColumnIndex(ic_tree_expandbutton)) then
                    if (sysc(i)%collapse < 0) then
-                      ! expand button for multi-seed entries
-                      str = "##expand" // string(ic_tree_expandbutton) // "," // string(i) // c_null_char
+                      str = "##expand" // string(ic_tree_expandbutton) // "," // string(i)
                       if (sysc(i)%collapse == -1) then
-                         idir = ImGuiDir_Right
+                         itex = icon_tex(icon_ui_expand)
+                         ch = "▶"
                       else
-                         idir = ImGuiDir_Down
+                         itex = icon_tex(icon_ui_collapse)
+                         ch = "▼"
                       end if
-                      if (igArrowButton(c_loc(str),idir)) then
+                      if (iw_icon_button(str,itex,rgba_expand,ch)) then
                          ! expand or collapse
                          if (sysc(i)%collapse == -1) then
                             call expand_system(i)
@@ -1194,9 +1198,6 @@ contains
 
     end subroutine write_maybe_selectable
 
-    ! Draw a square icon of side fontsize%y with the given texture and
-    ! tint, and show a tooltip on hover. If show is false or the
-    ! texture is not available, draw an empty placeholder instead.
     !> Draw one property icon (tinted texture tex, color rgba, with the
     !> given tooltip) if show is true and the texture is available. Icons
     !> are packed with no gaps: ndrawn is the number of icons already drawn
