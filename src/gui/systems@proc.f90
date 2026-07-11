@@ -461,14 +461,14 @@ contains
   !> Re-read the system from file name of system idx
   module subroutine reread_system_from_file(idx)
     use crystalseedmod, only: crystalseed, read_seeds_from_file, realloc_crystalseed
-    use param, only: isformat_r_from_library
+    use param, only: isformat_r_from_library, isformat_r_derived
     integer, intent(in) :: idx
 
     character(len=:), allocatable :: file, errmsg
     logical :: exist
     integer :: isformat, mol, iafield, iavib, nseed, icol, idseed
     type(crystalseed), allocatable :: seed(:)
-    logical :: collapse, ihid, renamed
+    logical :: collapse, ihid, renamed, derived
     character(len=:), allocatable :: fullname
 
     ! the seed is available
@@ -487,11 +487,21 @@ contains
     fullname = sysc(idx)%fullname
     idseed = sysc(idx)%idseed
 
-    ! make sure the file exists
-    file = sysc(idx)%seed%file
-    if (isformat /= isformat_r_from_library) then
-       inquire(file=file,exist=exist)
-       if (.not.exist) return
+    ! derived (in-memory) systems are not backed by a file: keep a copy of
+    ! the initial seed and rebuild the system from it
+    derived = (isformat == isformat_r_derived)
+    iafield = 0
+    iavib = 0
+    allocate(seed(1))
+    if (derived) then
+       seed(1) = sysc(idx)%seed
+    else
+       ! make sure the file exists
+       file = sysc(idx)%seed%file
+       if (isformat /= isformat_r_from_library) then
+          inquire(file=file,exist=exist)
+          if (.not.exist) return
+       end if
     end if
 
     ! terminate the system
@@ -499,22 +509,23 @@ contains
     call sysc(idx)%seed%end()
     sysc(idx)%status = sys_empty
 
-    ! re-read the seeds from file
-    errmsg = ""
-    nseed = 0
-    allocate(seed(1))
-    if (isformat == isformat_r_from_library) then
-       call seed(1)%read_library(file,exist)
-       if (.not.exist) return
-    else
-       call read_seeds_from_file(file,mol,isformat,.false.,nseed,seed,collapse,errmsg,&
-          iafield,iavib)
-       if (len_trim(errmsg) > 0 .or. nseed == 0) return
+    ! re-read the seeds from file (derived systems already have the seed)
+    if (.not.derived) then
+       errmsg = ""
+       nseed = 0
+       if (isformat == isformat_r_from_library) then
+          call seed(1)%read_library(file,exist)
+          if (.not.exist) return
+       else
+          call read_seeds_from_file(file,mol,isformat,.false.,nseed,seed,collapse,errmsg,&
+             iafield,iavib)
+          if (len_trim(errmsg) > 0 .or. nseed == 0) return
 
-       ! move the relevant seed to the first position
-       if (nseed > 1) then
-          seed(1) = seed(sysc(idx)%idseed)
-          call realloc_crystalseed(seed,1)
+          ! move the relevant seed to the first position
+          if (nseed > 1) then
+             seed(1) = seed(idseed)
+             call realloc_crystalseed(seed,1)
+          end if
        end if
     end if
 
@@ -1045,6 +1056,7 @@ contains
     use crystalseedmod, only: crystalseed
     use types, only: realloc
     use global, only: rborder_def
+    use param, only: isformat_r_derived
     class(sysconf), intent(inout) :: sysc
     logical, intent(in), optional :: forcemolecule
 
@@ -1096,6 +1108,10 @@ contains
        seed(1)%cubic = .false.
     end if
     seed(1)%name = trim(sysc%seed%name) // " (selection)"
+
+    ! derived system
+    seed(1)%file = ""
+    seed(1)%isformat = isformat_r_derived
 
     ! create the new system (add_systems_from_seeds selects it in the tree)
     call add_systems_from_seeds(1,seed)
@@ -2187,7 +2203,7 @@ contains
   ! set the atomic position(s) in the system.
   module subroutine reread_geometry_from_file(sysc)
     use crystalseedmod, only: crystalseed, read_seeds_from_file, realloc_crystalseed
-    use param, only: isformat_r_from_library
+    use param, only: isformat_r_from_library, isformat_r_derived
     class(sysconf), intent(inout) :: sysc
 
     integer :: isys
@@ -2200,6 +2216,14 @@ contains
     ! consistency checks
     isys = sysc%id
     if (.not.ok_system(isys,sys_init)) return
+
+    ! derived systems
+    if (sysc%seed%isformat == isformat_r_derived) then
+       call sys(isys)%c%struct_new(sysc%seed,crashfail=.true.)
+       call sysc%post_event(lastchange_geometry)
+       call sysc%undo_reset()
+       return
+    end if
 
     ! make sure the file exists
     if (sysc%seed%ismolecule) then

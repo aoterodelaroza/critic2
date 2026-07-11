@@ -165,7 +165,7 @@ contains
   module subroutine makeseed_nudged(c,seed,qpt,evec,amplitude,phase)
     use crystalseedmod, only: crystalseed
     use tools_math, only: rational_approx
-    use param, only: atmass, pi, img, tpi
+    use param, only: atmass, pi, img, tpi, isformat_r_derived
     class(crystal), intent(in) :: c
     type(crystalseed), intent(out) :: seed
     real*8, intent(in) :: qpt(3)
@@ -179,11 +179,12 @@ contains
     integer*8 :: q, r
     real*8 :: smass, xx(3), xd(3)
 
-    ! general
+    ! general. This is an in-memory system derived from another one, not
+    ! backed by a file: mark it so that restoring uses the initial seed.
     seed%isused = .true.
     seed%name = trim(c%file) // " (nudge)"
-    seed%file = c%file
-    seed%isformat = c%isformat
+    seed%file = ""
+    seed%isformat = isformat_r_derived
 
     ! calculate number of cells
     nc = 1
