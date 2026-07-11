@@ -2255,17 +2255,18 @@ contains
   subroutine read_gaussian_log(v,c,file,errmsg,ti)
     use types, only: realloc
     use tools_io, only: fopen_read, fclose, getline_raw, isreal
-    use param, only: ivformat_gaussian_log, atmass
+    use tools_math, only: rmsd_walker
+    use param, only: ivformat_gaussian_log, atmass, bohrtoa, img
     type(vibrations), intent(inout) :: v
     type(crystal), intent(in) :: c
     character*(*), intent(in) :: file
     character(len=:), allocatable, intent(out) :: errmsg
     type(thread_info), intent(in), optional :: ti
 
-    logical :: ok, okl(3)
+    logical :: ok, okl(3), have_std
     character(len=:), allocatable :: line
-    integer :: lu, i, j, nread, iz, nn, lp, idum(2)
-    real*8 :: xdum, xread(9)
+    integer :: lu, i, j, nread, iz, nn, lp, idum(2), idum3(3)
+    real*8 :: xdum, xread(9), rot(3,3), xstd(3,c%ncel), xinp(3,c%ncel)
     ! integer :: jfreq ! checking normalization
     ! complex*16 :: summ
 
@@ -2295,12 +2296,29 @@ contains
     if (allocated(v%vec)) deallocate(v%vec)
     allocate(v%vec(3,c%ncel,v%nfreq,1))
 
+    ! The normal-mode displacements below are printed in Gaussian's standard
+    ! orientation, but the stored geometry is the input orientation. Capture the
+    ! last standard-orientation block so we can rotate the modes into the input
+    ! frame afterwards (see below).
+    have_std = .false.
     nread = 0
     do while (.true.)
        ! advance to the next frequencies header
        ok = .false.
        do while (getline_raw(lu,line,.false.))
           if (index(line," Harmonic frequencies (cm**-1)") > 0) nread = 0
+          if (index(line,"Standard orientation:") > 0) then
+             ! skip the 4 header/separator lines, then read the atomic coordinates
+             do i = 1, 4
+                if (.not.getline_raw(lu,line,.false.)) goto 999
+             end do
+             do i = 1, c%ncel
+                if (.not.getline_raw(lu,line,.false.)) goto 999
+                read (line,*,end=999,err=999) idum3, xstd(:,i)
+             end do
+             xstd = xstd / bohrtoa
+             have_std = .true.
+          end if
           if (index(line," Frequencies --") > 0) then
              ok = .true.
              exit
@@ -2338,6 +2356,25 @@ contains
     v%nfreq = nread
     call realloc(v%freq,v%nfreq,v%nqpt)
     call realloc(v%vec,3,c%ncel,v%nfreq,v%nqpt)
+
+    ! The mode vectors are in the standard orientation but the
+    ! geometry is in the input orientation. Rotate the modes into the
+    ! input frame using the rotation that superimposes the
+    ! standard-orientation geometry onto the stored one.  Skipped when
+    ! there is no standard orientation block (e.g. nosymm), in which
+    ! case the modes are already in the input frame.
+    if (have_std) then
+       do i = 1, c%ncel
+          xinp(:,i) = c%atcel(i)%r
+       end do
+       xdum = rmsd_walker(xstd,xinp,rot)
+       do i = 1, c%ncel
+          do j = 1, v%nfreq
+             v%vec(:,i,j,1) = matmul(rot,real(v%vec(:,i,j,1),8)) + &
+                img * matmul(rot,aimag(v%vec(:,i,j,1)))
+          end do
+       end do
+    end if
 
     ! convert to mass-weighed coordinates (orthonormal eigenvectors)
     ! (note: units are incorrect, but we are normalizing afterwards)
