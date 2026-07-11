@@ -231,9 +231,9 @@ contains
     o%nplane = 0
     o%ntriangle = 0
     o%nstring = 0
-    o%ncylgiz = 0
-    o%nconegiz = 0
-    o%nstringgiz = 0
+    o%ncylover = 0
+    o%nconeover = 0
+    o%nstringover = 0
     if (.not.allocated(o%sph)) allocate(o%sph(100))
     if (.not.allocated(o%cyl)) allocate(o%cyl(100))
     if (.not.allocated(o%cylflat)) allocate(o%cylflat(10))
@@ -241,9 +241,9 @@ contains
     if (.not.allocated(o%plane)) allocate(o%plane(10))
     if (.not.allocated(o%triangle)) allocate(o%triangle(10))
     if (.not.allocated(o%string)) allocate(o%string(10))
-    if (.not.allocated(o%cylgiz)) allocate(o%cylgiz(10))
-    if (.not.allocated(o%conegiz)) allocate(o%conegiz(10))
-    if (.not.allocated(o%stringgiz)) allocate(o%stringgiz(10))
+    if (.not.allocated(o%cylover)) allocate(o%cylover(10))
+    if (.not.allocated(o%coneover)) allocate(o%coneover(10))
+    if (.not.allocated(o%stringover)) allocate(o%stringover(10))
 
   end subroutine scene_objects_reset
 
@@ -300,9 +300,9 @@ contains
     o%nplane = 0
     o%ntriangle = 0
     o%nstring = 0
-    o%ncylgiz = 0
-    o%nconegiz = 0
-    o%nstringgiz = 0
+    o%ncylover = 0
+    o%nconeover = 0
+    o%nstringover = 0
     if (allocated(o%sph)) deallocate(o%sph)
     if (allocated(o%cyl)) deallocate(o%cyl)
     if (allocated(o%cylflat)) deallocate(o%cylflat)
@@ -310,9 +310,9 @@ contains
     if (allocated(o%plane)) deallocate(o%plane)
     if (allocated(o%triangle)) deallocate(o%triangle)
     if (allocated(o%string)) deallocate(o%string)
-    if (allocated(o%cylgiz)) deallocate(o%cylgiz)
-    if (allocated(o%conegiz)) deallocate(o%conegiz)
-    if (allocated(o%stringgiz)) deallocate(o%stringgiz)
+    if (allocated(o%cylover)) deallocate(o%cylover)
+    if (allocated(o%coneover)) deallocate(o%coneover)
+    if (allocated(o%stringover)) deallocate(o%stringover)
 
   end subroutine scene_objects_end
 
@@ -355,11 +355,11 @@ contains
 
   end subroutine dl_append_cylinder
 
-  module subroutine dl_append_cylinder_giz(lst,n,it)
-    type(dl_cylinder_giz), allocatable, intent(inout) :: lst(:)
+  module subroutine dl_append_cylinder_over(lst,n,it)
+    type(dl_cylinder_over), allocatable, intent(inout) :: lst(:)
     integer, intent(inout) :: n
-    type(dl_cylinder_giz), intent(in) :: it
-    type(dl_cylinder_giz), allocatable :: aux(:)
+    type(dl_cylinder_over), intent(in) :: it
+    type(dl_cylinder_over), allocatable :: aux(:)
 
     n = n + 1
     if (.not.allocated(lst)) then
@@ -371,7 +371,7 @@ contains
     end if
     lst(n) = it
 
-  end subroutine dl_append_cylinder_giz
+  end subroutine dl_append_cylinder_over
 
   module subroutine dl_append_string(lst,n,it)
     type(dl_string), allocatable, intent(inout) :: lst(:)
@@ -391,11 +391,11 @@ contains
 
   end subroutine dl_append_string
 
-  module subroutine dl_append_string_giz(lst,n,it)
-    type(dl_string_giz), allocatable, intent(inout) :: lst(:)
+  module subroutine dl_append_string_over(lst,n,it)
+    type(dl_string_over), allocatable, intent(inout) :: lst(:)
     integer, intent(inout) :: n
-    type(dl_string_giz), intent(in) :: it
-    type(dl_string_giz), allocatable :: aux(:)
+    type(dl_string_over), intent(in) :: it
+    type(dl_string_over), allocatable :: aux(:)
 
     n = n + 1
     if (.not.allocated(lst)) then
@@ -407,7 +407,7 @@ contains
     end if
     lst(n) = it
 
-  end subroutine dl_append_string_giz
+  end subroutine dl_append_string_over
 
   module subroutine dl_append_plane(lst,n,it)
     type(dl_plane), allocatable, intent(inout) :: lst(:)
@@ -502,7 +502,7 @@ contains
     ! instanced plain-mesh VAOs (planes, polyhedra triangles, cones): the mesh
     ! vertex (location 0) plus a per-instance model matrix (1..4) + color (5).
     ! Cones always use the highest mesh resolution (counts are tiny); the cone
-    ! scratch VAO serves the gizmo arrowheads.
+    ! scratch VAO serves the overlay cones.
     call setup_mesh_inst(b%planeinstVAO, b%planeinstVBO, quadVBO, quadEBO)
     call setup_mesh_inst(b%triinstVAO, b%triinstVBO, triVBO, triEBO)
     call setup_mesh_inst(b%coneinstVAO, b%coneinstVBO, coneVBO(nmaxcone), coneEBO(nmaxcone))

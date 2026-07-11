@@ -19,7 +19,7 @@
 module scenes
   use iso_c_binding
   use shapes, only: scene_objects, scene_glbuffers, glb_cone, glb_plane, glb_tri,&
-     glb_conescr, dl_cylinder_giz
+     glb_conescr, dl_cylinder_over
   use representations, only: representation
   use types, only: neighstar
   implicit none
@@ -125,7 +125,7 @@ module scenes
      procedure :: show_transient_axes => scene_show_transient_axes
      procedure :: show_transient_rotaxis => scene_show_transient_rotaxis
      procedure :: show_symelems => scene_show_symelems
-     procedure :: gizmo_zoom_factor => scene_gizmo_zoom_factor
+     procedure :: overlay_zoom_factor => scene_overlay_zoom_factor
   end type scene
   public :: scene
 
@@ -157,10 +157,10 @@ module scenes
      module subroutine scene_render_pick(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_render_pick
-     module function scene_gizmo_zoom_factor(s) result(f)
+     module function scene_overlay_zoom_factor(s) result(f)
        class(scene), intent(in) :: s
        real(c_float) :: f
-     end function scene_gizmo_zoom_factor
+     end function scene_overlay_zoom_factor
      module subroutine scene_set_style_defaults(s)
        class(scene), intent(inout), target :: s
      end subroutine scene_set_style_defaults

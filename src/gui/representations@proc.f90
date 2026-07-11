@@ -532,9 +532,9 @@ contains
     complex*16 :: xdelta1(3)
     type(dl_sphere) :: dsph
     type(dl_cylinder) :: dcyl
-    type(dl_cylinder_giz) :: dcylgiz
+    type(dl_cylinder_over) :: dcylover
     type(dl_string) :: dstr
-    type(dl_string_giz) :: dstrgiz
+    type(dl_string_over) :: dstrover
     logical :: fixed
     character(len=:), allocatable :: errmsg
     real*8, allocatable :: xvpoly(:,:), up2dsp(:,:)
@@ -1179,16 +1179,16 @@ contains
        ! placement: at the cartesian origin (+shift), or anchored to a
        ! fixed window position. In the latter case the geometry is built
        ! around the local origin and positioned at render time; the window
-       ! position is stamped onto each gizmo draw item below.
+       ! position is stamped onto each overlay draw item below.
        fixed = (r%axes%placement == 1)
        if (fixed) then
           uoriginc = 0d0
-          ! stamp the window placement onto the gizmo templates so every
-          ! appended gizmo item carries its own position/scale flag
-          dcylgiz%winpos = real(r%axes%winpos,c_float)
-          dcylgiz%scalewithzoom = r%axes%scalewithzoom
-          dstrgiz%winpos = real(r%axes%winpos,c_float)
-          dstrgiz%scalewithzoom = r%axes%scalewithzoom
+          ! stamp the window placement onto the overlay templates so every
+          ! appended overlay item carries its own position/scale flag
+          dcylover%winpos = real(r%axes%winpos,c_float)
+          dcylover%scalewithzoom = r%axes%scalewithzoom
+          dstrover%winpos = real(r%axes%winpos,c_float)
+          dstrover%scalewithzoom = r%axes%scalewithzoom
        else
           ! origin in the requested coordinate system, converted to
           ! cartesian (bohr)
@@ -1237,8 +1237,8 @@ contains
           dcyl%border = 0._c_float
           dcyl%rgbborder = 0._c_float
           if (fixed) then
-             dcylgiz%dl_cylinder = dcyl
-             call dl_append(obj%cylgiz,obj%ncylgiz,dcylgiz)
+             dcylover%dl_cylinder = dcyl
+             call dl_append(obj%cylover,obj%ncylover,dcylover)
           else
              call dl_append(obj%cyl,obj%ncyl,dcyl)
           end if
@@ -1248,8 +1248,8 @@ contains
           dcyl%x2 = real(uoriginc + r%axes%length * axsc * x0,c_float)
           dcyl%r = real(rad2,c_float)
           if (fixed) then
-             dcylgiz%dl_cylinder = dcyl
-             call dl_append(obj%conegiz,obj%nconegiz,dcylgiz)
+             dcylover%dl_cylinder = dcyl
+             call dl_append(obj%coneover,obj%nconeover,dcylover)
           else
              call dl_append(obj%cone,obj%ncone,dcyl)
           end if
@@ -1270,8 +1270,8 @@ contains
              dstr%offset = 0._c_float
              dstr%str = trim(r%axes%labelstr(k))
              if (fixed) then
-                dstrgiz%dl_string = dstr
-                call dl_append(obj%stringgiz,obj%nstringgiz,dstrgiz)
+                dstrover%dl_string = dstr
+                call dl_append(obj%stringover,obj%nstringover,dstrover)
              else
                 call dl_append(obj%string,obj%nstring,dstr)
              end if

@@ -19,7 +19,7 @@
 module representations
   use iso_c_binding
   use types, only: neighstar
-  use shapes, only: dl_sphere, dl_cylinder, dl_cylinder_giz, dl_string, dl_string_giz,&
+  use shapes, only: dl_sphere, dl_cylinder, dl_cylinder_over, dl_string, dl_string_over,&
      dl_plane, dl_triangle, scene_objects, dl_append
   use param, only: bohrtoa, eye, maxzat0, atmcov0, mlen
   use global, only: bondfactor_def, bonddelta_def

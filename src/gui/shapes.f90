@@ -113,12 +113,12 @@ module shapes
   end type dl_cylinder
   public :: dl_cylinder
 
-  !> window-anchored gizmo cylinder/cone: a dl_cylinder plus its window placement
-  type, extends(dl_cylinder) :: dl_cylinder_giz
+  !> window-anchored overlay cylinder/cone: a dl_cylinder plus its window placement
+  type, extends(dl_cylinder) :: dl_cylinder_over
      real(c_float) :: winpos(2) = 0._c_float ! window position (fractions from left and bottom)
-     logical :: scalewithzoom = .false. ! whether this gizmo item scales with zoom
-  end type dl_cylinder_giz
-  public :: dl_cylinder_giz
+     logical :: scalewithzoom = .false. ! whether this overlay item scales with zoom
+  end type dl_cylinder_over
+  public :: dl_cylinder_over
 
   !> strings for the draw list
   type dl_string
@@ -132,12 +132,12 @@ module shapes
   end type dl_string
   public :: dl_string
 
-  !> window-anchored gizmo string: a dl_string plus its window placement
-  type, extends(dl_string) :: dl_string_giz
+  !> window-anchored overlay string: a dl_string plus its window placement
+  type, extends(dl_string) :: dl_string_over
      real(c_float) :: winpos(2) = 0._c_float ! window position (fractions from left and bottom)
-     logical :: scalewithzoom = .false. ! whether this gizmo item scales with zoom
-  end type dl_string_giz
-  public :: dl_string_giz
+     logical :: scalewithzoom = .false. ! whether this overlay item scales with zoom
+  end type dl_string_over
+  public :: dl_string_over
 
   !> filled flat rectangles (quads) for the draw list
   type dl_plane
@@ -178,13 +178,14 @@ module shapes
      type(dl_triangle), allocatable :: triangle(:) ! flat triangle draw list
      integer :: nstring ! number of strings
      type(dl_string), allocatable :: string(:) ! string draw list
-     ! window-anchored axes gizmo (drawn in a separate overlay pass)
-     integer :: ncylgiz ! number of gizmo cylinders (axis shafts)
-     type(dl_cylinder_giz), allocatable :: cylgiz(:) ! gizmo cylinder draw list
-     integer :: nconegiz ! number of gizmo cones (arrowheads)
-     type(dl_cylinder_giz), allocatable :: conegiz(:) ! gizmo cone draw list
-     integer :: nstringgiz ! number of gizmo strings (axis labels)
-     type(dl_string_giz), allocatable :: stringgiz(:) ! gizmo string draw list
+     ! window-anchored overlay objects (drawn in a separate overlay pass;
+     ! currently the axes gizmo, but not restricted to it)
+     integer :: ncylover ! number of overlay cylinders (e.g. axes gizmo shafts)
+     type(dl_cylinder_over), allocatable :: cylover(:) ! overlay cylinder draw list
+     integer :: nconeover ! number of overlay cones (e.g. axes gizmo arrowheads)
+     type(dl_cylinder_over), allocatable :: coneover(:) ! overlay cone draw list
+     integer :: nstringover ! number of overlay strings (e.g. axes gizmo labels)
+     type(dl_string_over), allocatable :: stringover(:) ! overlay string draw list
    contains
      procedure :: reset => scene_objects_reset
      procedure :: reserve => scene_objects_reserve
@@ -204,9 +205,9 @@ module shapes
   interface dl_append
      module procedure dl_append_sphere
      module procedure dl_append_cylinder
-     module procedure dl_append_cylinder_giz
+     module procedure dl_append_cylinder_over
      module procedure dl_append_string
-     module procedure dl_append_string_giz
+     module procedure dl_append_string_over
      module procedure dl_append_plane
      module procedure dl_append_triangle
   end interface dl_append
@@ -216,7 +217,7 @@ module shapes
   integer, parameter, public :: glb_cone = 1    ! cached cone (arrowhead) mesh
   integer, parameter, public :: glb_plane = 2   ! cached plane (rectangle) mesh
   integer, parameter, public :: glb_tri = 3     ! cached triangle (polyhedron face) mesh
-  integer, parameter, public :: glb_conescr = 4 ! scratch cone mesh (gizmo arrowheads)
+  integer, parameter, public :: glb_conescr = 4 ! scratch cone mesh (overlay cones)
 
   ! per-scene OpenGL instance buffers.
   type scene_glbuffers
@@ -228,7 +229,7 @@ module shapes
      integer(c_int) :: planeinstVAO = 0, planeinstVBO = 0 ! quad mesh
      integer(c_int) :: triinstVAO = 0, triinstVBO = 0    ! triangle mesh
      ! scratch instance buffers (re-uploaded every frame: measure-selection,
-     ! highlights, picking, gizmo)
+     ! highlights, picking, overlay)
      integer(c_int) :: sphinstVAOscr = 0, sphinstVBOscr = 0
      integer(c_int) :: cylinstVAOscr = 0, cylinstVBOscr = 0
      integer(c_int) :: coneinstVAOscr = 0, coneinstVBOscr = 0
@@ -311,21 +312,21 @@ module shapes
        integer, intent(inout) :: n
        type(dl_cylinder), intent(in) :: it
      end subroutine dl_append_cylinder
-     module subroutine dl_append_cylinder_giz(lst,n,it)
-       type(dl_cylinder_giz), allocatable, intent(inout) :: lst(:)
+     module subroutine dl_append_cylinder_over(lst,n,it)
+       type(dl_cylinder_over), allocatable, intent(inout) :: lst(:)
        integer, intent(inout) :: n
-       type(dl_cylinder_giz), intent(in) :: it
-     end subroutine dl_append_cylinder_giz
+       type(dl_cylinder_over), intent(in) :: it
+     end subroutine dl_append_cylinder_over
      module subroutine dl_append_string(lst,n,it)
        type(dl_string), allocatable, intent(inout) :: lst(:)
        integer, intent(inout) :: n
        type(dl_string), intent(in) :: it
      end subroutine dl_append_string
-     module subroutine dl_append_string_giz(lst,n,it)
-       type(dl_string_giz), allocatable, intent(inout) :: lst(:)
+     module subroutine dl_append_string_over(lst,n,it)
+       type(dl_string_over), allocatable, intent(inout) :: lst(:)
        integer, intent(inout) :: n
-       type(dl_string_giz), intent(in) :: it
-     end subroutine dl_append_string_giz
+       type(dl_string_over), intent(in) :: it
+     end subroutine dl_append_string_over
      module subroutine dl_append_plane(lst,n,it)
        type(dl_plane), allocatable, intent(inout) :: lst(:)
        integer, intent(inout) :: n

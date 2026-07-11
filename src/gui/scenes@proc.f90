@@ -362,7 +362,7 @@ contains
 
     ! add the items by representation. Window-anchored axes are deferred: they
     ! need the scene radius (computed below) to auto-size, and they live in the
-    ! gizmo draw lists, which are excluded from the scene bounding box anyway.
+    ! overlay draw lists, which are excluded from the scene bounding box anyway.
     do i = 1, s%nrep
        ! update to reflect changes in the number of atoms or molecules
        call s%rep(i)%update()
@@ -471,7 +471,7 @@ contains
 
     ! flag whether any object is anchored to the window borders (the view
     ! window uses this to re-render when the window geometry changes)
-    s%hasanchoredobj = (s%obj%ncylgiz > 0 .or. s%obj%nconegiz > 0 .or. s%obj%nstringgiz > 0)
+    s%hasanchoredobj = (s%obj%ncylover > 0 .or. s%obj%nconeover > 0 .or. s%obj%nstringover > 0)
 
     ! rebuilding lists is done; the cached instance buffers are now stale and
     ! must be repacked/uploaded on the next render
@@ -662,9 +662,9 @@ contains
        call glDisable(GL_BLEND)
     end if
 
-    ! window-anchored axes gizmo, drawn on top of the scene
-    if (s%obj%ncylgiz + s%obj%nconegiz + s%obj%nstringgiz > 0) &
-       call render_axes_gizmo()
+    ! window-anchored overlay objects (e.g. the axes gizmo), drawn on top of the scene
+    if (s%obj%ncylover + s%obj%nconeover + s%obj%nstringover > 0) &
+       call render_overlay()
 
     ! pop the large font
     call igPopFont()
@@ -855,15 +855,14 @@ contains
 
     end subroutine draw_all_cones
 
-    !> Target NDC position (gizndc) and zoom-compensation factor (gizf) for a
-    !> gizmo item at the window fraction winpos. The shader (isanchored) anchors the
-    !> local-origin geometry at gizndc and scales it by gizf — no matrix inverse
-    !> or per-item world matrix needed.
-    subroutine gizmo_ndc_scale(winpos,scalewithzoom,projgiz,gizndc,gizf)
+    !> Target NDC position (overndc) and zoom-compensation factor (overf) for an
+    !> overlay item at the window fraction winpos. The shader (isanchored) anchors the
+    !> local-origin geometry at overndc and scales it by overf.
+    subroutine overlay_ndc_scale(winpos,scalewithzoom,projover,overndc,overf)
       real(c_float), intent(in) :: winpos(2)
       logical, intent(in) :: scalewithzoom
-      real(c_float), intent(in) :: projgiz(4,4)
-      real(c_float), intent(out) :: gizndc(3), gizf
+      real(c_float), intent(in) :: projover(4,4)
+      real(c_float), intent(out) :: overndc(3), overf
 
       real(c_float) :: spanx, spany, hside
 
@@ -873,32 +872,32 @@ contains
       ! is presented right-side up, so the bottom of the window is NDC y = -1.
       spanx = 1._c_float - 2._c_float * s%viewuv0(1)
       spany = 1._c_float - 2._c_float * s%viewuv0(2)
-      gizndc(1) = spanx * (2._c_float * winpos(1) - 1._c_float)
-      gizndc(2) = spany * (2._c_float * winpos(2) - 1._c_float)
-      gizndc(3) = 0._c_float
+      overndc(1) = spanx * (2._c_float * winpos(1) - 1._c_float)
+      overndc(2) = spany * (2._c_float * winpos(2) - 1._c_float)
+      overndc(3) = 0._c_float
 
-      ! zoom-compensation factor: when the gizmo should not scale with zoom,
+      ! zoom-compensation factor: when the overlay item should not scale with zoom,
       ! shrink/grow the geometry so the orthographic projection leaves its
       ! on-screen size constant. hside is the half-window size at the reset zoom,
       ! so at that zoom both modes coincide (no jump when toggling).
       if (scalewithzoom) then
-         gizf = 1._c_float
+         overf = 1._c_float
       else
          hside = reset_zoom_hside(s)
-         gizf = 1._c_float / (projgiz(1,1) * hside)
+         overf = 1._c_float / (projover(1,1) * hside)
       end if
 
-    end subroutine gizmo_ndc_scale
+    end subroutine overlay_ndc_scale
 
-    !> Render the window-anchored axes gizmo(s). Each gizmo item carries its own
-    !> window position and zoom-scale flag; the object shaders (isanchored) anchor
-    !> the local-origin geometry at the requested NDC position, drawn on top with
-    !> an orthographic projection. Shafts use the cylinder impostor, arrowheads
-    !> the mesh shader, and labels the on-scene text shader. Consecutive items
-    !> with the same window placement (in practice, the shafts/heads of one
-    !> gizmo) are batched into a single instanced draw.
-    subroutine render_axes_gizmo()
-      real(c_float) :: projgiz(4,4), gizndc(3), gizf
+    !> Render the window-anchored overlay objects (e.g. the axes gizmo). Each
+    !> overlay item carries its own window position and zoom-scale flag; the object
+    !> shaders (isanchored) anchor the local-origin geometry at the requested NDC
+    !> position, drawn on top with an orthographic projection. Cylinders use the
+    !> cylinder impostor, cones the mesh shader, and strings the on-scene text
+    !> shader. Consecutive items with the same window placement (in practice, the
+    !> shafts/heads of one axes gizmo) are batched into a single instanced draw.
+    subroutine render_overlay()
+      real(c_float) :: projover(4,4), overndc(3), overf
       real(c_float) :: hside, siz, model(4,4)
       integer :: i, j, k, n
       integer(c_int) :: nvert
@@ -906,34 +905,34 @@ contains
       real(c_float), parameter :: zv(3) = 0._c_float
       complex(c_float_complex), parameter :: zc(3) = (0._c_float,0._c_float)
 
-      ! the gizmo always uses an orthographic projection, with a symmetric depth
-      ! range so the anchored (eye-origin-centered) geometry is never clipped
-      call ortho_projection(s,projgiz,symz=.true.)
+      ! the overlay pass always uses an orthographic projection, with a symmetric
+      ! depth range so the anchored (eye-origin-centered) geometry is never clipped
+      call ortho_projection(s,projover,symz=.true.)
 
-      ! clear the depth buffer so the gizmo always draws on top
+      ! clear the depth buffer so the overlay always draws on top
       call glClear(GL_DEPTH_BUFFER_BIT)
 
       ! shafts: cylinder impostors, anchored, batched by window placement
-      if (s%obj%ncylgiz > 0) then
+      if (s%obj%ncylover > 0) then
          call useshader(shader_cylinder)
          call setuniform_mat4(s%world,idxi=uniloc(u_world))
          call setuniform_mat4(s%view,idxi=uniloc(u_view))
-         call setuniform_mat4(projgiz,idxi=uniloc(u_projection))
+         call setuniform_mat4(projover,idxi=uniloc(u_projection))
          call setuniform_int(1_c_int,idxi=uniloc(u_isortho))
          call setuniform_int(1_c_int,idxi=uniloc(u_isanchored))
-         call ensure_pack(s%gl%packcyl,cyl_inst_nf,s%obj%ncylgiz)
+         call ensure_pack(s%gl%packcyl,cyl_inst_nf,s%obj%ncylover)
          i = 1
-         do while (i <= s%obj%ncylgiz)
-            j = giz_group_end(s%obj%cylgiz,s%obj%ncylgiz,i)
-            call gizmo_ndc_scale(s%obj%cylgiz(i)%winpos,s%obj%cylgiz(i)%scalewithzoom,projgiz,gizndc,gizf)
-            call setuniform_vec3(gizndc,idxi=uniloc(u_anchored_ndc))
-            call setuniform_float(gizf,idxi=uniloc(u_anchored_scale))
+         do while (i <= s%obj%ncylover)
+            j = over_group_end(s%obj%cylover,s%obj%ncylover,i)
+            call overlay_ndc_scale(s%obj%cylover(i)%winpos,s%obj%cylover(i)%scalewithzoom,projover,overndc,overf)
+            call setuniform_vec3(overndc,idxi=uniloc(u_anchored_ndc))
+            call setuniform_float(overf,idxi=uniloc(u_anchored_scale))
             n = 0
             do k = i, j
                n = n + 1
-               call cyl_pack(s%gl%packcyl(:,n),s%obj%cylgiz(k)%x1,s%obj%cylgiz(k)%x2,&
-                  0.5_c_float*s%obj%cylgiz(k)%r,(/s%obj%cylgiz(k)%rgb,1._c_float/),&
-                  s%obj%cylgiz(k)%border,s%obj%cylgiz(k)%rgbborder,0._c_float,zv,zc,zc)
+               call cyl_pack(s%gl%packcyl(:,n),s%obj%cylover(k)%x1,s%obj%cylover(k)%x2,&
+                  0.5_c_float*s%obj%cylover(k)%r,(/s%obj%cylover(k)%rgb,1._c_float/),&
+                  s%obj%cylover(k)%border,s%obj%cylover(k)%rgbborder,0._c_float,zv,zc,zc)
             end do
             call s%gl%draw_cylinders(n,s%gl%packcyl,.true.)
             i = j + 1
@@ -941,25 +940,25 @@ contains
       end if
 
       ! arrowheads: cone meshes, anchored, batched by window placement
-      if (s%obj%nconegiz > 0) then
+      if (s%obj%nconeover > 0) then
          call useshader(shader_mesh)
          call setuniform_mat4(s%world,idxi=uniloc(u_world))
          call setuniform_mat4(s%view,idxi=uniloc(u_view))
-         call setuniform_mat4(projgiz,idxi=uniloc(u_projection))
+         call setuniform_mat4(projover,idxi=uniloc(u_projection))
          call setuniform_int(1_c_int,idxi=uniloc(u_isanchored))
-         call ensure_pack(s%gl%packmesh,mesh_inst_nf,s%obj%nconegiz)
+         call ensure_pack(s%gl%packmesh,mesh_inst_nf,s%obj%nconeover)
          i = 1
-         do while (i <= s%obj%nconegiz)
-            j = giz_group_end(s%obj%conegiz,s%obj%nconegiz,i)
-            call gizmo_ndc_scale(s%obj%conegiz(i)%winpos,s%obj%conegiz(i)%scalewithzoom,projgiz,gizndc,gizf)
-            call setuniform_vec3(gizndc,idxi=uniloc(u_anchored_ndc))
-            call setuniform_float(gizf,idxi=uniloc(u_anchored_scale))
+         do while (i <= s%obj%nconeover)
+            j = over_group_end(s%obj%coneover,s%obj%nconeover,i)
+            call overlay_ndc_scale(s%obj%coneover(i)%winpos,s%obj%coneover(i)%scalewithzoom,projover,overndc,overf)
+            call setuniform_vec3(overndc,idxi=uniloc(u_anchored_ndc))
+            call setuniform_float(overf,idxi=uniloc(u_anchored_scale))
             n = 0
             do k = i, j
-               if (norm2(s%obj%conegiz(k)%x2 - s%obj%conegiz(k)%x1) < 1e-4_c_float) cycle
-               call cone_model(s%obj%conegiz(k)%x1,s%obj%conegiz(k)%x2,s%obj%conegiz(k)%r,model)
+               if (norm2(s%obj%coneover(k)%x2 - s%obj%coneover(k)%x1) < 1e-4_c_float) cycle
+               call cone_model(s%obj%coneover(k)%x1,s%obj%coneover(k)%x2,s%obj%coneover(k)%r,model)
                n = n + 1
-               call mesh_pack(s%gl%packmesh(:,n),model,(/s%obj%conegiz(k)%rgb,1._c_float/))
+               call mesh_pack(s%gl%packmesh(:,n),model,(/s%obj%coneover(k)%rgb,1._c_float/))
             end do
             call s%gl%draw_mesh(glb_conescr,connel(nmaxcone),n,s%gl%packmesh)
             i = j + 1
@@ -967,12 +966,12 @@ contains
       end if
 
       ! labels: streamed per string (each carries its own color and placement)
-      if (s%obj%nstringgiz > 0) then
+      if (s%obj%nstringover > 0) then
          call useshader(shader_text_onscene)
          call setuniform_int(1_c_int,idxi=uniloc(u_isanchored))
          call setuniform_mat4(s%world,idxi=uniloc(u_world))
          call setuniform_mat4(s%view,idxi=uniloc(u_view))
-         call setuniform_mat4(projgiz,idxi=uniloc(u_projection))
+         call setuniform_mat4(projover,idxi=uniloc(u_projection))
          call glDisable(GL_MULTISAMPLE)
          call glDisable(GL_CULL_FACE) ! y-flipped glyph quads have reversed winding
          call glEnable(GL_BLEND)
@@ -982,23 +981,23 @@ contains
          call glBindVertexArray(textVAOos)
          call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
          call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
-         do i = 1, s%obj%nstringgiz
-            call gizmo_ndc_scale(s%obj%stringgiz(i)%winpos,s%obj%stringgiz(i)%scalewithzoom,projgiz,gizndc,gizf)
-            call setuniform_vec3(gizndc,idxi=uniloc(u_anchored_ndc))
-            call setuniform_float(gizf,idxi=uniloc(u_anchored_scale))
-            call setuniform_vec3(s%obj%stringgiz(i)%rgb,idxi=uniloc(u_textcolor))
+         do i = 1, s%obj%nstringover
+            call overlay_ndc_scale(s%obj%stringover(i)%winpos,s%obj%stringover(i)%scalewithzoom,projover,overndc,overf)
+            call setuniform_vec3(overndc,idxi=uniloc(u_anchored_ndc))
+            call setuniform_float(overf,idxi=uniloc(u_anchored_scale))
+            call setuniform_vec3(s%obj%stringover(i)%rgb,idxi=uniloc(u_textcolor))
             nvert = 0
-            ! the label tracks the same zoom behavior as the arrows: constant
-            ! on-screen size when the gizmo does not scale with zoom, or scaling
-            ! with the gizmo's orthographic projection otherwise.
-            if (.not.s%obj%stringgiz(i)%scalewithzoom) then
+            ! the string tracks the same zoom behavior as the other overlay items:
+            ! constant on-screen size when the overlay does not scale with zoom, or
+            ! scaling with the overlay's orthographic projection otherwise.
+            if (.not.s%obj%stringover(i)%scalewithzoom) then
                hside = reset_zoom_hside(s)
-               siz = 2 * abs(s%obj%stringgiz(i)%scale) / fontbakesize_large / hside
+               siz = 2 * abs(s%obj%stringover(i)%scale) / fontbakesize_large / hside
             else
-               siz = 2 * abs(s%obj%stringgiz(i)%scale) * projgiz(1,1) / fontbakesize_large
+               siz = 2 * abs(s%obj%stringover(i)%scale) * projover(1,1) / fontbakesize_large
             end if
-            call calc_text_onscene_vertices(s%obj%stringgiz(i)%str,s%obj%stringgiz(i)%x,s%obj%stringgiz(i)%r,&
-               siz,nvert,vert,shift=s%obj%stringgiz(i)%offset,centered=.true.)
+            call calc_text_onscene_vertices(s%obj%stringover(i)%str,s%obj%stringover(i)%x,s%obj%stringover(i)%r,&
+               siz,nvert,vert,shift=s%obj%stringover(i)%offset,centered=.true.)
             call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*text_vert_nf*c_sizeof(c_float), c_loc(vert))
             call glDrawArrays(GL_TRIANGLES, 0, nvert)
          end do
@@ -1008,12 +1007,12 @@ contains
          call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
       end if
 
-    end subroutine render_axes_gizmo
+    end subroutine render_overlay
 
-    !> Last index of the run of gizmo items starting at i that share the same
+    !> Last index of the run of overlay items starting at i that share the same
     !> window placement (winpos and scalewithzoom) as item i.
-    function giz_group_end(arr,ntot,i) result(j)
-      type(dl_cylinder_giz), intent(in) :: arr(:)
+    function over_group_end(arr,ntot,i) result(j)
+      type(dl_cylinder_over), intent(in) :: arr(:)
       integer, intent(in) :: ntot, i
       integer :: j
 
@@ -1024,7 +1023,7 @@ contains
          j = j + 1
       end do
 
-    end function giz_group_end
+    end function over_group_end
 
     ! Draw all filled rectangles. The unit quad (corners +/-1,+/-1,0)
     ! is mapped onto each rectangle by a model matrix whose first two
@@ -1657,9 +1656,9 @@ contains
 
   end subroutine update_projection_matrix
 
-  !> Ratio between the window-anchored gizmo's on-screen size with "scale with
-  !> zoom" off vs on.
-  module function scene_gizmo_zoom_factor(s) result(f)
+  !> Ratio between a window-anchored overlay object's on-screen size with "scale
+  !> with zoom" off vs on.
+  module function scene_overlay_zoom_factor(s) result(f)
     use utils, only: mult
     use param, only: pi
     class(scene), intent(in) :: s
@@ -1673,11 +1672,11 @@ contains
     hside = reset_zoom_hside(s)
     f = hw2 / hside
 
-  end function scene_gizmo_zoom_factor
+  end function scene_overlay_zoom_factor
 
   !> Half of the visible window side at the reset zoom (tworld units): the
   !> quantity scene_reset uses to place the camera. Constant on-screen-size
-  !> items (labels, the window-anchored gizmo) divide by it so that the two
+  !> items (labels, window-anchored overlay objects) divide by it so that the two
   !> zoom-scaling modes coincide at the reset zoom.
   function reset_zoom_hside(s) result(hside)
     class(scene), intent(in) :: s
@@ -1711,7 +1710,7 @@ contains
     hw2 = max(hw2,1e-4_c_float)
     zf = max((s%camresetdist * max_zoom) * s%scenerad,1e-4_c_float)
     if (sym) then
-       ! symmetric depth range for the window-anchored gizmo: its geometry is
+       ! symmetric depth range for the window-anchored overlay: its geometry is
        ! centered at the eye origin (anchoring drops the eye translation), so a
        ! [0,zf] range would clip the half pointing toward the camera. Centering
        ! the range on z=0 keeps the whole widget inside the frustum.
@@ -1931,7 +1930,7 @@ contains
     if (id <= 0) return
     if (.not.s%reptrans(id)%isinit) return
 
-    s%reptrans(id)%axes%placement = 0 ! drawn in world space (not a window gizmo)
+    s%reptrans(id)%axes%placement = 0 ! drawn in world space (not window-anchored)
     s%reptrans(id)%axes%coordtype = 2 ! origin in cartesian (bohr)
     s%reptrans(id)%axes%origin = xcom
     s%reptrans(id)%axes%kind = 0 ! cartesian base directions, reoriented by axes_rot

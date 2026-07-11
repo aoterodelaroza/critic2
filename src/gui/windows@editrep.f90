@@ -1266,7 +1266,7 @@ contains
           changed = .true.
           ! keep the apparent on-screen size unchanged across the toggle
           if (associated(win(w%idparent)%sc)) then
-             zf = real(win(w%idparent)%sc%gizmo_zoom_factor(),8)
+             zf = real(win(w%idparent)%sc%overlay_zoom_factor(),8)
              if (zf > 1d-10) then
                 if (w%rep%axes%scalewithzoom) then
                    w%rep%axes%scale = w%rep%axes%scale * zf
