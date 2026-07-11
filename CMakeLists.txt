@@ -105,6 +105,7 @@ option(USE_LIBXC "Use the libxc library for access (exchange-correlation energie
 option(USE_LIBCINT "Use the libcint library (calculation of molecular integrals with Gaussian functions)." ON)
 option(USE_READLINE "Use the readline library (improved command-line interface)." ON)
 option(USE_NLOPT "Use the nlopt library (global optimization for variable-cell crystal structure comparison)." ON)
+option(USE_TBLITE "Use the tblite library (GFN-xTB energies and forces for the interactive dynamics)." OFF)
 option(ENABLE_OPENMP "Enable OpenMP parallelization." ON)
 option(BUILD_STATIC "Build critic2 statically (tested only on linux, and no GUI)." OFF)
 
@@ -294,6 +295,11 @@ if (USE_NLOPT)
   find_package(NLOPT)
 endif()
 
+## tblite
+if (USE_TBLITE)
+  find_package(TBLITE)
+endif()
+
 ## the syntax.txt target
 add_custom_target(syntax
   COMMAND wget -qO - 'raw.githubusercontent.com/aoterodelaroza/aoterodelaroza.github.io/master/_critic2/13_syntax.md' | awk '/~~~/{a=!a\;next}a{print}' > syntax.txt
@@ -363,6 +369,11 @@ if (NLOPT_FOUND)
   set(_message "${_message}Nlopt: ${NLOPT_VERSION} | lib=${NLOPT_LIBRARIES}\n")
 else()
   set(_message "${_message}Nlopt: not used\n")
+endif()
+if (TBLITE_FOUND)
+  set(_message "${_message}tblite: lib=${TBLITE_LIBRARIES}\n")
+else()
+  set(_message "${_message}tblite: not used\n")
 endif()
 if (NUMDIFF_FOUND)
   set(_message "${_message}Numdiff: ${NUMDIFF_EXE}\n")

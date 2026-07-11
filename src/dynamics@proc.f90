@@ -60,11 +60,12 @@ contains
     end if
 
     md%nat = c%ncel
-    allocate(md%r(3,md%nat),md%v(3,md%nat),md%f(3,md%nat),md%mass(md%nat))
+    allocate(md%r(3,md%nat),md%r0(3,md%nat),md%v(3,md%nat),md%f(3,md%nat),md%mass(md%nat))
     do i = 1, md%nat
        md%r(:,i) = c%atcel(i)%r
        md%mass(i) = atmass(c%spc(c%atcel(i)%is)%z) * amu2au
     end do
+    md%r0 = md%r
 
     ! initial velocities and forces
     md%fire_dt = md%dt
@@ -97,13 +98,32 @@ contains
 
   end subroutine md_step
 
+  !> Restore the initial geometry and zero the velocities, writing the geometry
+  !> back into c.
+  module subroutine md_reset(md,c)
+    use crystalmod, only: crystal
+    class(mdrun), intent(inout) :: md
+    class(crystal), intent(inout) :: c
+
+    if (.not.md%ready) return
+    md%r = md%r0
+    md%v = 0d0
+    md%drag_iat = 0
+    md%fire_dt = md%dt
+    md%fire_alpha = fire_alpha0
+    md%fire_npos = 0
+    call compute_forces(md,c)
+    call kinetic(md)
+
+  end subroutine md_reset
+
   !> (Re)draw velocities from the Maxwell-Boltzmann distribution at the target
   !> temperature and remove the center-of-mass drift.
   module subroutine md_init_velocities(md)
     class(mdrun), intent(inout) :: md
 
     integer :: i, k
-    real*8 :: sigma, pcom(3), mtot
+    real*8 :: sigma
 
     do i = 1, md%nat
        sigma = sqrt(kboltz*md%temperature/md%mass(i))
@@ -112,18 +132,8 @@ contains
        end do
     end do
 
-    ! remove center-of-mass momentum
-    pcom = 0d0
-    mtot = 0d0
-    do i = 1, md%nat
-       pcom = pcom + md%mass(i)*md%v(:,i)
-       mtot = mtot + md%mass(i)
-    end do
-    if (mtot > 0d0) then
-       do i = 1, md%nat
-          md%v(:,i) = md%v(:,i) - pcom/mtot
-       end do
-    end if
+    ! remove the center-of-mass drift
+    call remove_com(md)
 
   end subroutine md_init_velocities
 
@@ -146,10 +156,8 @@ contains
     md%nat = 0
     md%ekin = 0d0
     md%epot = 0d0
-    if (allocated(md%r)) deallocate(md%r)
-    if (allocated(md%v)) deallocate(md%v)
-    if (allocated(md%f)) deallocate(md%f)
-    if (allocated(md%mass)) deallocate(md%mass)
+    ! all buffers are allocated together in md_init
+    if (allocated(md%r)) deallocate(md%r,md%r0,md%v,md%f,md%mass)
   end subroutine md_free
 
   !xx! private procedures
@@ -161,12 +169,11 @@ contains
     class(mdrun), intent(inout) :: md
     class(crystal), intent(inout) :: c
 
-    real*8, allocatable :: grad(:,:)
-
+    ! evaluate the gradient straight into the persistent force buffer (no
+    ! per-step allocation), then negate to get forces and add the drag spring
     call c%update_positions(md%r)
-    allocate(grad(3,md%nat))
-    call md%cl%evaluate(c,md%epot,grad)
-    md%f = -grad
+    call md%cl%evaluate(c,md%epot,md%f)
+    md%f = -md%f
     if (md%drag_iat > 0 .and. md%drag_iat <= md%nat) &
        md%f(:,md%drag_iat) = md%f(:,md%drag_iat) + md%drag_k*(md%drag_target - md%r(:,md%drag_iat))
 

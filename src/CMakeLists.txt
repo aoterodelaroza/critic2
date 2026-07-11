@@ -180,6 +180,17 @@ if (USE_NLOPT AND NLOPT_FOUND)
   include_directories("${NLOPT_INCLUDE_DIRS}")
 endif()
 
+if (USE_TBLITE AND TBLITE_FOUND)
+  target_link_libraries(critic2 PRIVATE ${TBLITE_LIBRARIES})
+  if (BUILD_LIBRARY)
+    target_link_libraries(libcritic2 PRIVATE ${TBLITE_LIBRARIES})
+  endif()
+  add_definitions("-DHAVE_TBLITE")
+  if (TBLITE_INCLUDE_DIRS)
+    include_directories("${TBLITE_INCLUDE_DIRS}")
+  endif()
+endif()
+
 ## hdf5
 if (USE_HDF5 AND HDF5_FOUND)
   target_link_libraries(critic2 PRIVATE ${HDF5_LIBRARIES})

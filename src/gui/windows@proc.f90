@@ -312,6 +312,7 @@ contains
              if (ok.and.type == wintype_scfplot.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok.and.type == wintype_geometry.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok.and.type == wintype_vibrations.and.present(idparent)) ok = (win(i)%idparent == idparent)
+             if (ok.and.type == wintype_dynamics.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok) then
                 raiseid = i
                 exit
@@ -474,6 +475,10 @@ contains
        ! vibrations window
        if (.not.present(idparent)) &
           call ferror('window_init','vibrations requires idparent',faterr)
+    elseif (type == wintype_dynamics) then
+       ! dynamics window
+       if (.not.present(idparent)) &
+          call ferror('window_init','dynamics requires idparent',faterr)
     elseif (type == wintype_view) then
        ! view window
        if (.not.present(purpose)) &
@@ -519,6 +524,15 @@ contains
                 win(w%idparent)%sc%iqpt_selected = 0
                 win(w%idparent)%sc%ifreq_selected = 0
                 win(w%idparent)%sc%animation = 0
+                win(w%idparent)%forcerender = .true.
+             end if
+          end if
+       elseif (w%type == wintype_dynamics) then
+          ! stop the dynamics run and free its state
+          if (w%idparent > 0 .and. w%idparent <= nwin) then
+             if (associated(win(w%idparent)%sc)) then
+                win(w%idparent)%sc%md_run = .false.
+                call win(w%idparent)%sc%md%free()
                 win(w%idparent)%forcerender = .true.
              end if
           end if
@@ -722,6 +736,12 @@ contains
           inisize%x = 62 * fontsize%x
           inisize%y = 25 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+       elseif (w%type == wintype_dynamics) then
+          w%name = "Dynamics" // "##" // string(w%id) // c_null_char
+          w%flags = ImGuiWindowFlags_None
+          inisize%x = 55 * fontsize%x
+          inisize%y = 22 * fontsize%y
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_geometry) then
           w%name = "View/Edit Geometry##"  // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
@@ -797,6 +817,8 @@ contains
                 call w%draw_exportimage()
              elseif (w%type == wintype_vibrations) then
                 call w%draw_vibrations()
+             elseif (w%type == wintype_dynamics) then
+                call w%draw_dynamics()
              elseif (w%type == wintype_geometry) then
                 call w%draw_geometry()
              elseif (w%type == wintype_preferences) then

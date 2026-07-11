@@ -35,6 +35,7 @@ submodule (windows) view
   integer, parameter :: ilock_right = 2
   integer, parameter :: ilock_scroll = 3
   integer, parameter :: ilock_middle = 4
+  integer, parameter :: ilock_mddrag = 5 ! dragging an atom during interactive dynamics
 
   ! minimum time elapsed between consecutive queries of the pick buffer (seconds)
   real*8, parameter :: pick_interval = 1d0 / 10d0
@@ -72,7 +73,7 @@ contains
        iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
-    use systems, only: sysc, sys, sys_init, nsys, ok_system, are_threads_running
+    use systems, only: sysc, sys, sys_init, nsys, ok_system, are_threads_running, lastchange_geometry
     use gui_main, only: g, fontsize, lockbehavior, tree_select_updates_view,&
        ColorBlack, ColorWhite, ColorClearTransparent
     use tools_io, only: string
@@ -625,7 +626,10 @@ contains
     if (associated(w%sc)) then
        if (w%sc%timelastbuild < sysc(w%view_selected)%timelastchange_buildlists) then
           w%sc%forcebuildlists = .true.
-          w%mousepos_idx = 0
+          ! during interactive dynamics the geometry changes every frame but the
+          ! atom identities are stable, so keep the pick index (else grabbing an
+          ! atom would be impossible)
+          if (.not.w%sc%md_run) w%mousepos_idx = 0
        end if
        if (chbuild) w%sc%forcebuildlists = .true.
        if (chrender .or. w%sc%forcebuildlists .or. w%sc%timelastrender < sysc(w%view_selected)%timelastchange_render) &
@@ -635,6 +639,16 @@ contains
        if (w%sc%ifreq_selected > 0.and.w%sc%iqpt_selected > 0.and.sys(w%view_selected)%c%vib%hasvibs.and.&
           w%sc%animation > 0) &
           w%forcerender = .true.
+
+       ! interactive molecular dynamics: advance one step per frame. Only the
+       ! main view drives the loop, so multiple views of the same system do not
+       ! double-step it.
+       if (w%ismain .and. w%sc%md_run .and. w%sc%md%ready) then
+          call w%sc%md%step(sys(w%view_selected)%c)
+          w%sc%nextbuildlists_fixcam = .true.
+          call sysc(w%view_selected)%post_event(lastchange_geometry)
+          w%forcerender = .true.
+       end if
     end if
 
     ! export image
@@ -661,6 +675,11 @@ contains
        if (iw_menuitem("Vibrations...",enabled=enabled)) &
           iaux = stack_create_window(wintype_vibrations,.true.,idparent=w%id,orraise=-1)
        call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
+
+       if (iw_menuitem("Dynamics...",enabled=enabled)) &
+          iaux = stack_create_window(wintype_dynamics,.true.,idparent=w%id,orraise=-1)
+       call iw_tooltip("Run an interactive molecular-dynamics simulation: animate the system at a &
+          &given temperature and drag atoms with the mouse",ttshown)
        call igEndPopup()
     end if
 
@@ -863,6 +882,11 @@ contains
     needpick = hover .and. (abs(w%mousepos_lastpick%x-pos%x) > 1e-4.or.abs(w%mousepos_lastpick%y-pos%y) > 1e-4) .and.&
        (w%timelast_view_getpixel + pick_interval < time)
     needpick = needpick .or. w%viewmode_activate_picking(hover)
+    ! during interactive dynamics, re-pick each throttle interval even if the
+    ! cursor is still, so the atom under a stationary cursor stays selectable as
+    ! it moves (needed for grab-and-drag)
+    if (hover .and. associated(w%sc)) needpick = needpick .or. &
+       (w%sc%md_run .and. (w%timelast_view_getpixel + pick_interval < time))
 
     ! get the ID of the atom under mouse
     if (needpick) then
@@ -1427,6 +1451,46 @@ contains
 
        ! transform to the texture pos
        call w%mousepos_to_texpos(texpos)
+
+       ! interactive dynamics: grab and drag an atom with a spring. Uses the
+       ! rotate bind but takes priority over camera rotation while MD is running
+       ! and an atom is under the cursor. Drag on the grabbed atom's depth plane.
+       if (w%ilock == ilock_mddrag .and. .not.w%sc%md_run) then
+          w%ilock = ilock_no
+          w%sc%md%drag_iat = 0
+       end if
+       if (w%sc%md_run) then
+          if (hover.and.is_bind_event(BIND_NAV_ROTATE,.false.).and.w%ilock == ilock_no.and.&
+             w%mousepos_idx(1) > 0 .and. w%sc%md%ready) then
+             w%sc%md%drag_iat = w%mousepos_idx(1)
+             w%sc%md%drag_target = sys(w%view_selected)%c%atcel(w%mousepos_idx(1))%r
+             vnew = real(sys(w%view_selected)%c%atcel(w%mousepos_idx(1))%r,c_float)
+             call w%world_to_texpos(vnew)
+             w%mpos0_r = (/texpos%x,texpos%y,vnew(3)/)
+             w%ilock = ilock_mddrag
+             w%mposlast = mousepos
+          elseif (w%ilock == ilock_mddrag) then
+             call igSetMouseCursor(ImGuiMouseCursor_Hand)
+             if (is_bind_event(BIND_NAV_ROTATE,.true.)) then
+                if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
+                   vnew = (/texpos%x,texpos%y,w%mpos0_r(3)/)
+                   call w%texpos_to_view(vnew)
+                   vold = w%mpos0_r
+                   call w%texpos_to_view(vold)
+                   xc = vnew - vold
+                   call invmult(xc,w%sc%view,notrans=.true.)  ! eye -> tworld
+                   call invmult(xc,w%sc%world,notrans=.true.) ! tworld -> world (bohr)
+                   w%sc%md%drag_target = w%sc%md%drag_target + real(xc,8)
+                   w%mpos0_r = (/texpos%x,texpos%y,w%mpos0_r(3)/)
+                   w%mposlast = mousepos
+                   w%forcerender = .true.
+                end if
+             else
+                w%ilock = ilock_no
+                w%sc%md%drag_iat = 0
+             end if
+          end if
+       end if
 
        ! Zoom. There are two behaviors: mouse scroll and hold key and
        ! translate mouse

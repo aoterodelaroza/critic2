@@ -22,6 +22,7 @@ module scenes
      glb_conescr, dl_cylinder_over
   use representations, only: representation
   use types, only: neighstar
+  use dynamics, only: mdrun
   implicit none
 
   private
@@ -99,6 +100,10 @@ module scenes
      real*8 :: anim_speed = anim_speed_default ! animation speed
      real*8 :: anim_amplitude = anim_amplitude_default ! animation amplitude
      real*8 :: anim_phase = 0d0 ! animation phase (manual)
+     ! interactive molecular dynamics (dynamics window)
+     logical :: md_run = .false. ! whether the MD/relaxation loop advances each frame
+     integer :: md_backend = 0 ! requested MD energy backend (0=built-in, 1=tblite)
+     type(mdrun) :: md ! MD / relaxation state
    contains
      procedure :: init => scene_init
      procedure :: end => scene_end

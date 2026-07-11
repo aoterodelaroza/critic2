@@ -35,6 +35,7 @@ module dynamics
      integer :: nat = 0 !< number of atoms
      integer :: mode = md_dynamics !< md_dynamics or md_relax
      real*8, allocatable :: r(:,:) !< positions (3,nat), bohr
+     real*8, allocatable :: r0(:,:) !< initial positions (3,nat), bohr (for reset)
      real*8, allocatable :: v(:,:) !< velocities (3,nat), bohr/a.u.
      real*8, allocatable :: f(:,:) !< forces (3,nat), hartree/bohr
      real*8, allocatable :: mass(:) !< atomic masses (nat), electron-mass units
@@ -54,6 +55,7 @@ module dynamics
    contains
      procedure :: init => md_init
      procedure :: step => md_step
+     procedure :: reset => md_reset
      procedure :: init_velocities => md_init_velocities
      procedure :: temperature_now => md_temperature
      procedure :: free => md_free
@@ -76,6 +78,11 @@ module dynamics
        class(mdrun), intent(inout) :: md
        class(crystal), intent(inout) :: c
      end subroutine md_step
+     module subroutine md_reset(md,c)
+       use crystalmod, only: crystal
+       class(mdrun), intent(inout) :: md
+       class(crystal), intent(inout) :: c
+     end subroutine md_reset
      module subroutine md_init_velocities(md)
        class(mdrun), intent(inout) :: md
      end subroutine md_init_velocities

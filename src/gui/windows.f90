@@ -270,6 +270,8 @@ module windows
      procedure :: draw_exportimage
      ! vibrations
      procedure :: draw_vibrations
+     ! dynamics
+     procedure :: draw_dynamics
      ! geometry
      procedure :: update_geometry
      procedure :: draw_geometry
@@ -309,6 +311,7 @@ module windows
   integer, parameter, public :: wintype_treeplot = 15
   integer, parameter, public :: wintype_geometry = 16
   integer, parameter, public :: wintype_builder = 17
+  integer, parameter, public :: wintype_dynamics = 18
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -596,6 +599,10 @@ module windows
      module subroutine draw_vibrations(w)
        class(window), intent(inout), target :: w
      end subroutine draw_vibrations
+     !xx! dynamics submodule !xx!
+     module subroutine draw_dynamics(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_dynamics
      !xx! geometry submodule !xx!
      module subroutine update_geometry(w)
        class(window), intent(inout), target :: w

@@ -22,6 +22,7 @@
 !> -DHAVE_TBLITE; otherwise they are stubs and the calculator falls back to the
 !> built-in force field.
 submodule (energy) proc
+  use iso_c_binding
   implicit none
 
   ! default built-in force-field parameters (atomic units)
@@ -30,6 +31,91 @@ submodule (energy) proc
   real*8, parameter :: eps_lj = 2d-4 !< Lennard-Jones well depth, hartree
   real*8, parameter :: rcut_lj = 12d0 !< Lennard-Jones cutoff radius, bohr
   real*8, parameter :: sin_min = 1d-4 !< regularization for angles near 0/pi
+
+#ifdef HAVE_TBLITE
+  ! Interfaces to the tblite C API (https://tblite.readthedocs.io/en/latest/api/c.html).
+  ! Opaque handles are passed as C pointers. Array/optional pointers are passed
+  ! by value as type(c_ptr) so that a NULL (c_null_ptr) or an actual address
+  ! (c_loc(...)) can be given through the same argument.
+  interface
+     function c_tblite_new_error() bind(c,name="tblite_new_error") result(h)
+       import c_ptr
+       type(c_ptr) :: h
+     end function c_tblite_new_error
+     subroutine c_tblite_delete_error(h) bind(c,name="tblite_delete_error")
+       import c_ptr
+       type(c_ptr), intent(inout) :: h
+     end subroutine c_tblite_delete_error
+     function c_tblite_new_context() bind(c,name="tblite_new_context") result(h)
+       import c_ptr
+       type(c_ptr) :: h
+     end function c_tblite_new_context
+     subroutine c_tblite_delete_context(h) bind(c,name="tblite_delete_context")
+       import c_ptr
+       type(c_ptr), intent(inout) :: h
+     end subroutine c_tblite_delete_context
+     function c_tblite_new_structure(err,natoms,numbers,positions,charge,uhf,lattice,periodic) &
+        bind(c,name="tblite_new_structure") result(h)
+       import c_ptr, c_int
+       type(c_ptr), value :: err
+       integer(c_int), value :: natoms
+       type(c_ptr), value :: numbers, positions, charge, uhf, lattice, periodic
+       type(c_ptr) :: h
+     end function c_tblite_new_structure
+     subroutine c_tblite_update_structure_geometry(err,mol,positions,lattice) &
+        bind(c,name="tblite_update_structure_geometry")
+       import c_ptr
+       type(c_ptr), value :: err, mol, positions, lattice
+     end subroutine c_tblite_update_structure_geometry
+     subroutine c_tblite_delete_structure(h) bind(c,name="tblite_delete_structure")
+       import c_ptr
+       type(c_ptr), intent(inout) :: h
+     end subroutine c_tblite_delete_structure
+     function c_tblite_new_gfn2_calculator(ctx,mol,config) &
+        bind(c,name="tblite_new_gfn2_calculator") result(h)
+       import c_ptr
+       type(c_ptr), value :: ctx, mol, config
+       type(c_ptr) :: h
+     end function c_tblite_new_gfn2_calculator
+     function c_tblite_new_gfn1_calculator(ctx,mol,config) &
+        bind(c,name="tblite_new_gfn1_calculator") result(h)
+       import c_ptr
+       type(c_ptr), value :: ctx, mol, config
+       type(c_ptr) :: h
+     end function c_tblite_new_gfn1_calculator
+     subroutine c_tblite_delete_calculator(h) bind(c,name="tblite_delete_calculator")
+       import c_ptr
+       type(c_ptr), intent(inout) :: h
+     end subroutine c_tblite_delete_calculator
+     function c_tblite_new_result() bind(c,name="tblite_new_result") result(h)
+       import c_ptr
+       type(c_ptr) :: h
+     end function c_tblite_new_result
+     subroutine c_tblite_delete_result(h) bind(c,name="tblite_delete_result")
+       import c_ptr
+       type(c_ptr), intent(inout) :: h
+     end subroutine c_tblite_delete_result
+     subroutine c_tblite_get_singlepoint(ctx,mol,calc,res) bind(c,name="tblite_get_singlepoint")
+       import c_ptr
+       type(c_ptr), value :: ctx, mol, calc, res
+     end subroutine c_tblite_get_singlepoint
+     subroutine c_tblite_get_result_energy(err,res,energy) bind(c,name="tblite_get_result_energy")
+       import c_ptr, c_double
+       type(c_ptr), value :: err, res
+       real(c_double), intent(out) :: energy
+     end subroutine c_tblite_get_result_energy
+     subroutine c_tblite_get_result_gradient(err,res,gradient) bind(c,name="tblite_get_result_gradient")
+       import c_ptr, c_double
+       type(c_ptr), value :: err, res
+       real(c_double), intent(out) :: gradient(*)
+     end subroutine c_tblite_get_result_gradient
+     subroutine c_tblite_get_result_virial(err,res,sigma) bind(c,name="tblite_get_result_virial")
+       import c_ptr, c_double
+       type(c_ptr), value :: err, res
+       real(c_double), intent(out) :: sigma(*)
+     end subroutine c_tblite_get_result_virial
+  end interface
+#endif
 
 contains
 
@@ -118,23 +204,10 @@ contains
     cl%nbond = 0
     cl%nang = 0
     cl%nnb = 0
-    if (allocated(cl%bond_i)) deallocate(cl%bond_i)
-    if (allocated(cl%bond_j)) deallocate(cl%bond_j)
-    if (allocated(cl%bond_lvec)) deallocate(cl%bond_lvec)
-    if (allocated(cl%bond_r0)) deallocate(cl%bond_r0)
-    if (allocated(cl%bond_k)) deallocate(cl%bond_k)
-    if (allocated(cl%ang_i)) deallocate(cl%ang_i)
-    if (allocated(cl%ang_j)) deallocate(cl%ang_j)
-    if (allocated(cl%ang_k)) deallocate(cl%ang_k)
-    if (allocated(cl%ang_li)) deallocate(cl%ang_li)
-    if (allocated(cl%ang_lk)) deallocate(cl%ang_lk)
-    if (allocated(cl%ang_t0)) deallocate(cl%ang_t0)
-    if (allocated(cl%ang_kk)) deallocate(cl%ang_kk)
-    if (allocated(cl%nb_i)) deallocate(cl%nb_i)
-    if (allocated(cl%nb_j)) deallocate(cl%nb_j)
-    if (allocated(cl%nb_lvec)) deallocate(cl%nb_lvec)
-    if (allocated(cl%nb_sig)) deallocate(cl%nb_sig)
-    if (allocated(cl%nb_eps)) deallocate(cl%nb_eps)
+    ! each group of arrays is allocated together, so a single guard suffices
+    if (allocated(cl%bond_i)) deallocate(cl%bond_i,cl%bond_j,cl%bond_lvec,cl%bond_r0,cl%bond_k)
+    if (allocated(cl%ang_i)) deallocate(cl%ang_i,cl%ang_j,cl%ang_k,cl%ang_li,cl%ang_lk,cl%ang_t0,cl%ang_kk)
+    if (allocated(cl%nb_i)) deallocate(cl%nb_i,cl%nb_j,cl%nb_lvec,cl%nb_sig,cl%nb_eps)
 
   end subroutine calc_free
 
@@ -197,14 +270,10 @@ contains
     end do
 
     ! ---- angles (i-j-k, vertex j) ----
-    ! first pass: count
+    ! count: every unordered pair of neighbors of each vertex is an angle
     na = 0
     do j = 1, cl%nat
-       do ka = 1, ns(j)%ncon
-          do kb = ka+1, ns(j)%ncon
-             na = na + 1
-          end do
-       end do
+       na = na + ns(j)%ncon*(ns(j)%ncon-1)/2
     end do
     cl%nang = na
     allocate(cl%ang_i(na),cl%ang_j(na),cl%ang_k(na),cl%ang_li(3,na),cl%ang_lk(3,na),&
@@ -404,7 +473,7 @@ contains
     class(crystal), intent(in) :: c
     integer, intent(in) :: ia, lv(3)
     real*8 :: r(3)
-    r = c%atcel(ia)%r + matmul(c%m_x2c,real(lv,8))
+    r = c%atcel(ia)%r + c%x2c(real(lv,8))
   end function atpos
 
   !> True if the directed bond (i -> j with lattice vector lv) is the canonical
@@ -520,8 +589,45 @@ contains
     character(len=:), allocatable, intent(out), optional :: errmsg
 
 #ifdef HAVE_TBLITE
-    ! real implementation to be added in the tblite integration step
-    if (present(errmsg)) errmsg = "tblite backend not yet implemented"
+    type(c_ptr) :: err
+    integer(c_int), allocatable, target :: numbers(:)
+    real(c_double), allocatable, target :: coords(:,:)
+    real(c_double), target :: lattice(3,3)
+    logical(c_bool), target :: periodic(3)
+    integer :: i
+
+    ! atomic numbers and positions (bohr)
+    allocate(numbers(c%ncel),coords(3,c%ncel))
+    do i = 1, c%ncel
+       numbers(i) = int(c%spc(c%atcel(i)%is)%z,c_int)
+       coords(:,i) = c%atcel(i)%r
+    end do
+
+    err = c_tblite_new_error()
+    if (c%ismolecule) then
+       cl%tb_mol = c_tblite_new_structure(err,int(c%ncel,c_int),c_loc(numbers),c_loc(coords),&
+          c_null_ptr,c_null_ptr,c_null_ptr,c_null_ptr)
+    else
+       lattice = c%m_x2c
+       periodic = .true._c_bool
+       cl%tb_mol = c_tblite_new_structure(err,int(c%ncel,c_int),c_loc(numbers),c_loc(coords),&
+          c_null_ptr,c_null_ptr,c_loc(lattice),c_loc(periodic))
+    end if
+    cl%tb_ctx = c_tblite_new_context()
+
+    ! GFN1/GFN2-xTB are topology-free (need only elements and coordinates)
+    if (cl%method == tbm_gfn1) then
+       cl%tb_calc = c_tblite_new_gfn1_calculator(cl%tb_ctx,cl%tb_mol,c_null_ptr)
+    else
+       cl%tb_calc = c_tblite_new_gfn2_calculator(cl%tb_ctx,cl%tb_mol,c_null_ptr)
+    end if
+    cl%tb_res = c_tblite_new_result()
+    call c_tblite_delete_error(err)
+
+    if (.not.(c_associated(cl%tb_mol).and.c_associated(cl%tb_calc).and.&
+       c_associated(cl%tb_ctx).and.c_associated(cl%tb_res))) then
+       if (present(errmsg)) errmsg = "tblite calculator initialization failed"
+    end if
 #else
     if (present(errmsg)) errmsg = "critic2 was compiled without tblite support"
 #endif
@@ -537,12 +643,47 @@ contains
     real*8, intent(out), optional :: stress(3,3)
     character(len=:), allocatable, intent(out), optional :: errmsg
 
+#ifdef HAVE_TBLITE
+    type(c_ptr) :: err
+    real(c_double), allocatable, target :: coords(:,:), grad_c(:)
+    real(c_double), target :: lattice(3,3)
+    real(c_double) :: e_c, sigma(9)
+    integer :: i
+
     ene = 0d0
     grad = 0d0
     if (present(stress)) stress = 0d0
-#ifdef HAVE_TBLITE
-    if (present(errmsg)) errmsg = "tblite backend not yet implemented"
+
+    allocate(coords(3,c%ncel),grad_c(3*c%ncel))
+    do i = 1, c%ncel
+       coords(:,i) = c%atcel(i)%r
+    end do
+
+    err = c_tblite_new_error()
+    ! push the current geometry into the tblite structure
+    if (c%ismolecule) then
+       call c_tblite_update_structure_geometry(err,cl%tb_mol,c_loc(coords),c_null_ptr)
+    else
+       lattice = c%m_x2c
+       call c_tblite_update_structure_geometry(err,cl%tb_mol,c_loc(coords),c_loc(lattice))
+    end if
+
+    ! single point
+    call c_tblite_get_singlepoint(cl%tb_ctx,cl%tb_mol,cl%tb_calc,cl%tb_res)
+    call c_tblite_get_result_energy(err,cl%tb_res,e_c)
+    ene = e_c
+    call c_tblite_get_result_gradient(err,cl%tb_res,grad_c)
+    grad = reshape(grad_c,(/3,c%ncel/))
+    if (present(stress) .and. .not.c%ismolecule .and. c%omega > 1d-10) then
+       call c_tblite_get_result_virial(err,cl%tb_res,sigma)
+       ! tblite returns the virial (dE/d(strain)); convert to stress
+       stress = reshape(sigma,(/3,3/)) / c%omega
+    end if
+    call c_tblite_delete_error(err)
 #else
+    ene = 0d0
+    grad = 0d0
+    if (present(stress)) stress = 0d0
     if (present(errmsg)) errmsg = "critic2 was compiled without tblite support"
 #endif
 
@@ -552,10 +693,22 @@ contains
     use crystalmod, only: crystal
     class(calculator), intent(inout) :: cl
     class(crystal), intent(inout) :: c
+    ! tblite reads the geometry on every evaluate (via update_structure_geometry),
+    ! so nothing needs to be cached here
   end subroutine calc_update_tblite
 
   module subroutine calc_free_tblite(cl)
     class(calculator), intent(inout) :: cl
+#ifdef HAVE_TBLITE
+    if (c_associated(cl%tb_res)) call c_tblite_delete_result(cl%tb_res)
+    if (c_associated(cl%tb_calc)) call c_tblite_delete_calculator(cl%tb_calc)
+    if (c_associated(cl%tb_mol)) call c_tblite_delete_structure(cl%tb_mol)
+    if (c_associated(cl%tb_ctx)) call c_tblite_delete_context(cl%tb_ctx)
+    cl%tb_res = c_null_ptr
+    cl%tb_calc = c_null_ptr
+    cl%tb_mol = c_null_ptr
+    cl%tb_ctx = c_null_ptr
+#endif
   end subroutine calc_free_tblite
 
 end submodule proc
