@@ -104,6 +104,11 @@ function glfwGetTime() bind(c,name="glfwGetTime")
   import c_double
   real(c_double) :: glfwGetTime
 end function glfwGetTime
+! void glfwShowWindow(GLFWwindow *window)
+subroutine glfwShowWindow(window) bind(c,name="glfwShowWindow")
+  import c_ptr
+  type(c_ptr), value :: window
+end subroutine glfwShowWindow
 ! void glfwDestroyWindow(GLFWwindow * window)
 subroutine glfwDestroyWindow(window) bind(c,name="glfwDestroyWindow")
   import c_ptr

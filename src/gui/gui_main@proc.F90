@@ -70,7 +70,7 @@ contains
     logical(c_bool) :: ldum, show_demo_window, show_implot_demo_window
     character(kind=c_char,len=:), allocatable, target :: strc, file
     integer :: i, j, ludum(10), saveinpcon
-    logical :: firstpass
+    logical :: firstpass, shown
     integer(c_short), allocatable, target :: range(:)
     type(GLFWimage), target :: icon
 
@@ -114,6 +114,10 @@ contains
     call glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE)
     glfw_lenient = .false.
     ! call glfwWindowHint(GLFW_SAMPLES, ms_samples) ! activate multisampling
+
+    ! create the window hidden and reveal it only once the first properly
+    ! laid-out frame has been rendered
+    call glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
 
     ! set up window: open at 80% of the primary monitor work area (screen
     ! minus taskbar), clamped to a minimum and to fit the work area. Fall
@@ -258,6 +262,7 @@ contains
     show_demo_window = .false.
     show_implot_demo_window = .false.
     firstpass = .true.
+    shown = .false.
     do while (glfwWindowShouldClose(rootwin) == 0)
        ! poll events
        call glfwPollEvents()
@@ -341,6 +346,12 @@ contains
 
        ! swap buffers
        call glfwSwapBuffers(rootwin)
+
+       ! reveal the window once the layout has settled
+       if (.not.shown .and. .not.firstpass) then
+          call glfwShowWindow(rootwin)
+          shown = .true.
+       end if
 
        ! run commands from the input console
        if (force_run_commands == 1) then
