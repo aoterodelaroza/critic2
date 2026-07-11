@@ -19,6 +19,7 @@
 module systems
   use iso_c_binding
   use scenes, only: scene
+  use dynamics, only: mdrun
   use systemmod, only: system
   use crystalseedmod, only: crystalseed
   use global, only: bondfactor_def, bonddelta_def
@@ -85,6 +86,10 @@ module systems
      logical :: renamed = .false. ! true if the system has been renamed
      ! scene
      type(scene) :: sc ! scene for the system in the main view
+     ! interactive molecular dynamics (one run per system, driven each frame)
+     logical :: md_run = .false. ! whether the MD/relaxation loop advances this system
+     integer :: md_backend = 0 ! requested MD energy backend (0=built-in, 1=tblite)
+     type(mdrun) :: md ! MD / relaxation state
      ! bonding
      real*8 :: atmcov(0:maxzat0) = atmcov0 ! covalent radii for bonding
      real*8 :: bondfactor = bondfactor_def ! bond factor for bonding calculation

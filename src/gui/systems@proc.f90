@@ -419,6 +419,8 @@ contains
     if (.not.ok_system(idx,sys_loaded_not_init)) return
     call sys(idx)%end()
     call sysc(idx)%seed%end()
+    sysc(idx)%md_run = .false.
+    call sysc(idx)%md%free()
 #ifdef _THREADS
     if (c_associated(sysc(idx)%thread_lock)) then
        call deallocate_mtx(sysc(idx)%thread_lock)

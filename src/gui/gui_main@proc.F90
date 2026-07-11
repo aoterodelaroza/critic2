@@ -49,7 +49,7 @@ contains
     use interfaces_opengl3
     use interfaces_stb
     use systems, only: sys, sysc, nsys, launch_initialization_thread, system_shorten_names,&
-       thread, thread_ti, nthread
+       thread, thread_ti, nthread, ok_system, sys_init, lastchange_geometry
     use shaders, only: shaders_init, shaders_end
     use shapes, only: shapes_init, shapes_end
     use icons, only: icons_init, icons_end
@@ -290,6 +290,17 @@ contains
 
        ! maybe reallocate the window stack
        call stack_realloc_maybe()
+
+       ! advance any running interactive dynamics once per system per frame
+       ! (before drawing, so every view of the system renders the new geometry
+       ! this frame); the dynamics window drives sysc(i)%md_run
+       do i = 1, nsys
+          if (sysc(i)%md_run .and. sysc(i)%md%ready .and. ok_system(i,sys_init)) then
+             call sysc(i)%md%step(sys(i)%c)
+             sysc(i)%sc%nextbuildlists_fixcam = .true.
+             call sysc(i)%post_event(lastchange_geometry)
+          end if
+       end do
 
        ! process the window stack
        do i = 1, nwin

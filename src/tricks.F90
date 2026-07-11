@@ -4200,9 +4200,13 @@ contains
     fnorm = sqrt(sum(md%f*md%f))
     write (uout,'("  FIRE steps:                ",A)') string(nstep)
     write (uout,'("  final |force| (Ha/bohr):   ",A)') string(fnorm,'e',decimal=8)
-    write (uout,*)
 
+    ! (4) rebuild the (moved) crystal, as done when the GUI dynamics stops
     call md%free()
+    call sy%c%rebuild_after_move()
+    write (uout,'("  rebuilt crystal: ncel = ",A,", nneq = ",A,", nmol = ",A)') &
+       string(sy%c%ncel), string(sy%c%nneq), string(sy%c%nmol)
+    write (uout,*)
 
   end subroutine trick_md
 

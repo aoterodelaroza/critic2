@@ -44,14 +44,17 @@ module dynamics
      real*8 :: gamma = 2d-3 !< Langevin friction, 1/a.u.
      real*8 :: ekin = 0d0 !< last kinetic energy, hartree
      real*8 :: epot = 0d0 !< last potential energy, hartree
-     ! interactive drag (harmonic spring atom -> cursor)
+     ! interactive drag: the dragged atom is clamped to the cursor position
      integer :: drag_iat = 0 !< dragged atom (cell index), 0 = none
      real*8 :: drag_target(3) = 0d0 !< cursor target position, bohr
-     real*8 :: drag_k = 0.02d0 !< drag spring constant, hartree/bohr^2
      ! FIRE relaxation state
      real*8 :: fire_alpha = 0.1d0
      real*8 :: fire_dt = 20d0
      integer :: fire_npos = 0
+     ! neighbor-list refresh (built-in FF nonbonded list is rebuilt every
+     ! nblist_every force evaluations so new close contacts are captured)
+     integer :: istep = 0
+     integer :: nblist_every = 10
    contains
      procedure :: init => md_init
      procedure :: step => md_step

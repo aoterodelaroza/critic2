@@ -1411,6 +1411,29 @@ contains
 
   end subroutine update_positions
 
+  !> Rebuild the crystal from the current cell positions (as left by
+  !> update_positions), re-deriving the environment, connectivity, molecular
+  !> fragments, and symmetry. Use this once after a run of in-place position
+  !> updates (e.g. when interactive dynamics stops) to restore full consistency
+  !> of the non-equivalent atom list and symmetry with the moved atoms.
+  module subroutine rebuild_after_move(c,ti)
+    use crystalseedmod, only: crystalseed
+    class(crystal), intent(inout) :: c
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: seed
+
+    ! copysym=.false. builds the seed from the full cell (the moved atcel), so
+    ! symmetry is re-derived from scratch (it is generally broken after motion)
+    if (c%ismolecule) then
+       call c%makeseed(seed,copysym=.false.,useabr=0)
+    else
+       call c%makeseed(seed,copysym=.false.)
+    end if
+    call c%struct_new(seed,crashfail=.true.,ti=ti)
+
+  end subroutine rebuild_after_move
+
   !> Delete the symmetry operations flagged in del and rebuild the crystal with
   !> the largest subgroup of operations that contains none of them (the identity
   !> is never removable).

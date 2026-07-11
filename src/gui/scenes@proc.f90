@@ -276,8 +276,6 @@ contains
     s%animation = 0
     s%anim_speed = anim_speed_default
     s%anim_amplitude = anim_amplitude_default
-    s%md_run = .false.
-    call s%md%free()
 
   end subroutine scene_end
 

@@ -71,6 +71,7 @@ contains
     md%fire_dt = md%dt
     md%fire_alpha = fire_alpha0
     md%fire_npos = 0
+    md%istep = 0
     if (md%mode == md_dynamics) then
        call md%init_velocities()
     else
@@ -94,6 +95,11 @@ contains
     else
        call step_langevin(md,c)
     end if
+    ! keep the dragged atom clamped to the cursor with no residual velocity
+    if (md%drag_iat > 0 .and. md%drag_iat <= md%nat) then
+       md%r(:,md%drag_iat) = md%drag_target
+       md%v(:,md%drag_iat) = 0d0
+    end if
     call kinetic(md)
 
   end subroutine md_step
@@ -112,6 +118,7 @@ contains
     md%fire_dt = md%dt
     md%fire_alpha = fire_alpha0
     md%fire_npos = 0
+    md%istep = 0
     call compute_forces(md,c)
     call kinetic(md)
 
@@ -169,13 +176,21 @@ contains
     class(mdrun), intent(inout) :: md
     class(crystal), intent(inout) :: c
 
+    ! the dragged atom is clamped to the cursor position (a hard constraint, not
+    ! a spring), so pin it before evaluating: neighbors then feel it exactly at
+    ! the cursor and respond via the dynamics
+    if (md%drag_iat > 0 .and. md%drag_iat <= md%nat) md%r(:,md%drag_iat) = md%drag_target
+
     ! evaluate the gradient straight into the persistent force buffer (no
-    ! per-step allocation), then negate to get forces and add the drag spring
+    ! per-step allocation), then negate to get the forces
     call c%update_positions(md%r)
+    ! periodically refresh the backend's neighbor list so contacts created by
+    ! motion/dragging are captured (no-op for the tblite backend)
+    md%istep = md%istep + 1
+    if (md%nblist_every > 0 .and. mod(md%istep,md%nblist_every) == 0) &
+       call md%cl%update_geometry(c)
     call md%cl%evaluate(c,md%epot,md%f)
     md%f = -md%f
-    if (md%drag_iat > 0 .and. md%drag_iat <= md%nat) &
-       md%f(:,md%drag_iat) = md%f(:,md%drag_iat) + md%drag_k*(md%drag_target - md%r(:,md%drag_iat))
 
   end subroutine compute_forces
 
@@ -277,6 +292,10 @@ contains
        md%fire_alpha = fire_alpha0
        md%v = 0d0
     end if
+
+    ! remove any net drift (relevant when a drag applies a net external force;
+    ! a no-op for purely internal forces, which already sum to zero)
+    call remove_com(md)
 
   end subroutine step_fire
 

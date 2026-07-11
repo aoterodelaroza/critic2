@@ -502,9 +502,11 @@ contains
 
   !> End a window and deallocate the data.
   module subroutine window_end(w)
-    use systems, only: ok_system, sysc, sys_init
+    use systems, only: ok_system, sysc, sys, sys_init, lastchange_geometry
     use interfaces_opengl3
     class(window), intent(inout), target :: w
+
+    integer :: isysd
 
     ! window-specific destruction
     if (w%isinit) then
@@ -528,12 +530,20 @@ contains
              end if
           end if
        elseif (w%type == wintype_dynamics) then
-          ! stop the dynamics run and free its state
+          ! stop the dynamics run, rebuild the (moved) crystal so symmetry and
+          ! the non-equivalent atom list are consistent again, and free the state
           if (w%idparent > 0 .and. w%idparent <= nwin) then
              if (associated(win(w%idparent)%sc)) then
-                win(w%idparent)%sc%md_run = .false.
-                call win(w%idparent)%sc%md%free()
-                win(w%idparent)%forcerender = .true.
+                isysd = win(w%idparent)%sc%id
+                if (ok_system(isysd,sys_init)) then
+                   if (sysc(isysd)%md%ready) then
+                      call sys(isysd)%c%rebuild_after_move()
+                      call sysc(isysd)%post_event(lastchange_geometry)
+                   end if
+                   sysc(isysd)%md_run = .false.
+                   call sysc(isysd)%md%free()
+                   win(w%idparent)%forcerender = .true.
+                end if
              end if
           end if
        elseif (w%type == wintype_geometry) then
