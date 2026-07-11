@@ -356,19 +356,15 @@ contains
     ! only build lists if system is initialized
     if (.not.ok_system(s%id,sys_ready)) return
 
-    ! reset the draw lists: counters to zero, allocations kept and reused
-    ! across rebuilds (freed only in scene_end)
+    ! reset the draw lists
     call s%obj%reset()
 
-    ! add the items by representation. Window-anchored axes are deferred: they
-    ! need the scene radius (computed below) to auto-size, and they live in the
-    ! overlay draw lists, which are excluded from the scene bounding box anyway.
+    ! add the items by representation; defer reps that need the scene radius
     do i = 1, s%nrep
        ! update to reflect changes in the number of atoms or molecules
        call s%rep(i)%update()
 
-       ! add draw elements (except window-anchored axes and persistent symmetry
-       ! elements, which need the scene radius and are done below)
+       ! add draw elements
        if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == 1) cycle
        if (s%rep(i)%type == reptype_symelem) cycle
        call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
@@ -378,7 +374,7 @@ contains
     s%nmsel = 0
     s%msel = 0
 
-    ! recalculate scene center and radius
+    ! recalculate scene radius
     maxrad = 0._c_float
     do i = 1, s%nrep
        if (s%rep(i)%shown .and. s%rep(i)%type == reptype_atoms) then
@@ -388,8 +384,7 @@ contains
        end if
     end do
 
-    ! ghost (pick-only) spheres do not count as framing geometry: a scene whose
-    ! only geometry is ghosts falls through to the default extent below
+    ! recalculate scene bounding box (ignore ghosts)
     if (count(.not.s%obj%sph(1:s%obj%nsph)%ghost) + s%obj%ncyl + s%obj%ncylflat +&
        s%obj%ncone + s%obj%nstring > 0) then
        do i = 1, 3
@@ -397,8 +392,7 @@ contains
           xmax(i) = -huge(1._c_float)
 
           ! exclude ghost (pick-only) spheres so they do not affect framing
-          xmin(i) = minval(s%obj%sph(1:s%obj%nsph)%x(i),&
-             mask=.not.s%obj%sph(1:s%obj%nsph)%ghost) - maxrad
+          xmin(i) = minval(s%obj%sph(1:s%obj%nsph)%x(i),mask=.not.s%obj%sph(1:s%obj%nsph)%ghost) - maxrad
           xmin(i) = min(xmin(i),minval(s%obj%cyl(1:s%obj%ncyl)%x1(i)))
           xmin(i) = min(xmin(i),minval(s%obj%cyl(1:s%obj%ncyl)%x2(i)))
           xmin(i) = min(xmin(i),minval(s%obj%cylflat(1:s%obj%ncylflat)%x1(i)))
@@ -407,8 +401,7 @@ contains
           xmin(i) = min(xmin(i),minval(s%obj%cone(1:s%obj%ncone)%x2(i)))
           xmin(i) = min(xmin(i),minval(s%obj%string(1:s%obj%nstring)%x(i)))
 
-          xmax(i) = maxval(s%obj%sph(1:s%obj%nsph)%x(i),&
-             mask=.not.s%obj%sph(1:s%obj%nsph)%ghost) + maxrad
+          xmax(i) = maxval(s%obj%sph(1:s%obj%nsph)%x(i),mask=.not.s%obj%sph(1:s%obj%nsph)%ghost) + maxrad
           xmax(i) = max(xmax(i),maxval(s%obj%cyl(1:s%obj%ncyl)%x1(i)))
           xmax(i) = max(xmax(i),maxval(s%obj%cyl(1:s%obj%ncyl)%x2(i)))
           xmax(i) = max(xmax(i),maxval(s%obj%cylflat(1:s%obj%ncylflat)%x1(i)))
@@ -422,12 +415,12 @@ contains
        xmax = 1._c_float
     end if
 
-    ! new scene center and center shift in xc
+    ! save the new scene center and center shift
     xc = s%scenecenter
     s%scenecenter = 0.5_c_float * (xmin + xmax)
     xc = s%scenecenter - xc
 
-    ! radius and bounding box
+    ! save scene radius and bounding box
     s%scenerad = 0.5_c_float * norm2(xmax - xmin)
     s%scenexmin = xmin
     s%scenexmax = xmax
@@ -437,12 +430,7 @@ contains
        call translate(s%world,-xc)
     s%nextbuildlists_fixcam = .false.
 
-    ! Now that the scene radius is known, build the deferred window-anchored
-    ! axes. Auto-size the gizmo from the scene radius so it occupies a roughly
-    ! constant fraction of the window regardless of the system size (and of how
-    ! many cells are drawn). This is done only once, the first time the lists
-    ! are built (or after the gizmo is re-anchored); the auto flag is then
-    ! cleared so manual edits and later rebuilds keep the value.
+    ! build the window-anchored axes
     do i = 1, s%nrep
        if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == 1) then
           if (s%rep(i)%axes%scale_auto) then
@@ -453,8 +441,7 @@ contains
        end if
     end do
 
-    ! persistent symmetry-element sets: deferred like anchored axes because they
-    ! are sized from the scene radius (and excluded from the bounding box)
+    ! persistent symmetry-elements
     do i = 1, s%nrep
        if (s%rep(i)%type == reptype_symelem) then
           s%rep(i)%symelem%size = real(s%scenerad,8)
@@ -463,8 +450,7 @@ contains
        end if
     end do
 
-    ! transient representations (e.g. hover hints): built last, after the scene
-    ! bounding box is known, so they never perturb the camera or scene size
+    ! transient representations: built last so they do not perturb the camera or scene size
     do i = 1, s%nreptrans
        call s%reptrans(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
     end do
@@ -524,29 +510,24 @@ contains
     ! render text with the large font
     call igPushFont(font_large)
 
-    ! calculate the time factor. The phasor is zero unless an animation is
-    ! actually running, so Animation=None shows the equilibrium geometry (the
-    ! GPU applies displ to the per-instance vibration deltas).
+    ! calculate the time factor for the animation
     displ = 0._c_float
     if (s%ifreq_selected > 0 .and. s%iqpt_selected > 0 .and. s%animation > 0) then
        fac = s%anim_amplitude * sqrt(freq_ref / max(abs(sys(s%id)%c%vib%freq(s%ifreq_selected,s%iqpt_selected)),freq_min))
-       if (s%animation == 1) then ! manual
-          displ = cmplx(fac * exp(0.5d0 * s%anim_phase * pi * img),&
-             kind=c_float_complex)
-       else ! automatic
+       if (s%animation == 1) then
+          ! manual
+          displ = cmplx(fac * exp(0.5d0 * s%anim_phase * pi * img),kind=c_float_complex)
+       else
+          ! automatic
           deltat = time - s%timerefanimation
           displ = cmplx(fac * exp(deltat * s%anim_speed * img),kind=c_float_complex)
        end if
     end if
 
-    ! decide whether this scene's cached instance buffers must be (re)built
-    ! and uploaded: only when they are stale (draw lists changed). All
-    ! vibration animation is applied in the vertex shaders from the
-    ! per-instance deltas and the displ uniform, so the buffers (and the text
-    ! cache) are animation-invariant.
+    ! decide whether this scene's cached instance buffers must be rebuilt and uploaded
     dobuild = .not.s%gl%inst_valid
 
-    ! draw the atoms (instanced sphere impostors)
+    ! draw the atoms
     if (s%obj%nsph > 0) then
        call setup_shader(shader_sphere)
        if (dobuild) then
@@ -556,10 +537,7 @@ contains
        end if
     end if
 
-    ! draw the bonds and the unit-cell edges (instanced cylinder impostors).
-    ! Blending is enabled because the bond alpha is plumbed through to the
-    ! fragment color (translucent bonds); all cylinders are opaque (alpha=1)
-    ! at present, so this has no visible effect today.
+    ! draw the bonds and the unit-cell edges
     if (s%obj%ncyl + s%obj%ncylflat > 0) then
        call setup_shader(shader_cylinder)
        call glEnable(GL_BLEND)
@@ -576,7 +554,7 @@ contains
     if (s%obj%ncone + s%obj%nplane + s%obj%ntriangle > 0) then
        call setup_shader(shader_mesh)
 
-       ! cones (arrowheads): opaque
+       ! cones (arrowheads)
        if (s%obj%ncone > 0) then
           if (dobuild) then
              call draw_all_cones()
@@ -615,7 +593,7 @@ contains
     ! this scene's cached instance buffers are now current
     s%gl%inst_valid = .true.
 
-    ! draw the measure selection atoms (instanced sphere impostors)
+    ! draw the measure selection atoms
     if (s%nmsel > 0) then
        call setup_shader(shader_sphere)
        call glEnable(GL_BLEND)
@@ -624,31 +602,24 @@ contains
        call glDisable(GL_BLEND)
     end if
 
-    ! render labels with on-scene text
+    ! render labels and selection labels with on-scene text
+    ! text quads have reversed winding -> disable culling
     call setup_shader(shader_text_onscene)
-
     call glDisable(GL_MULTISAMPLE)
     call glEnable(GL_BLEND)
     call glBlendEquation(GL_FUNC_ADD)
     call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
-
     call glActiveTexture(GL_TEXTURE0)
     call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
-
-    ! on-scene text quads have reversed winding (y-down glyphs flipped for the
-    ! right-side-up presentation), so disable culling while drawing them
     call glDisable(GL_CULL_FACE)
     call draw_all_text()
-
-    ! render selected atom labels with on-scene text
     if (s%nmsel > 0) &
        call draw_selection_text()
     call glEnable(GL_CULL_FACE)
     call glEnable(GL_MULTISAMPLE)
     call glDisable(GL_BLEND)
 
-    ! highlight the highlighted/selected atoms (translucent overlay spheres;
-    ! multisampling is back on so their rims are antialiased like the atoms)
+    ! highlight the highlighted/selected atoms
     doit = .false.
     if (allocated(sysc(s%id)%highlight_rgba)) &
        doit = any(sysc(s%id)%highlight_rgba >= 0._c_float)
@@ -662,7 +633,7 @@ contains
        call glDisable(GL_BLEND)
     end if
 
-    ! window-anchored overlay objects (e.g. the axes gizmo), drawn on top of the scene
+    ! window-anchored overlay objects (e.g. axes), drawn on top of the scene
     if (s%obj%ncylover + s%obj%nconeover + s%obj%nstringover > 0) &
        call render_overlay()
 
@@ -678,11 +649,7 @@ contains
     s%timelastrender = time
 
   contains
-    !> Bind shader ishader and set the shared scene uniforms (world, view,
-    !> projection, isanchored=0, and the vibration displacement phasor; the
-    !> u_displ set is a no-op for programs without the uniform). The impostor
-    !> shaders also get the projection type; the sphere shader additionally
-    !> gets pick mode off.
+    !> Bind shader ishader and set the shared scene uniforms
     subroutine setup_shader(ishader)
       integer, intent(in) :: ishader
 
@@ -699,6 +666,7 @@ contains
 
     end subroutine setup_shader
 
+    ! draw all spheres in the scene
     subroutine draw_all_spheres()
       integer :: i, n
       real(c_float), parameter :: zr(4) = 0._c_float
@@ -2042,10 +2010,10 @@ contains
 
   !xx! private procedures: low-level draws
 
-  !> Common entry preparation for scene_render and scene_render_pick: create
-  !> the GL buffers on first use, (re)build the draw lists if needed, copy the
-  !> camera from the most recently moved member of the locking group, and
-  !> reset the camera if required.
+  !> Preparation for scene_render and scene_render_pick: create the GL
+  !> buffers on first use, (re)build the draw lists if needed, copy
+  !> the camera from the most recently moved member of the locking
+  !> group, and reset the camera if required.
   subroutine scene_render_prepare(s)
     use systems, only: sysc, nsys
     class(scene), intent(inout), target :: s
