@@ -1027,6 +1027,7 @@ contains
   module subroutine vibrations_phonon_rattle(v,c,temp,seed)
     use crystalseedmod, only: crystalseed
     use tools, only: mergesort
+    use tools_math, only: gauss_random
     use param, only: atmass, pi, hbar, clight, pcamu, bohrtom
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
@@ -1034,7 +1035,7 @@ contains
     type(crystalseed), intent(out) :: seed
 
     real*8, allocatable :: xat(:,:)
-    real*8 :: ff, fterm, xx(2), xn
+    real*8 :: ff, fterm, xn
     real*8 :: qsq
     integer :: i, j, iqpt, ini
     integer, allocatable :: idx(:)
@@ -1105,8 +1106,7 @@ contains
           tanh(0.5d0 * ff * cminv_to_K / temp)
 
        ! sample normal distribution
-       call random_number(xx)
-       xn = sqrt(qsq) * sqrt(-2d0 * log(xx(1))) * cos(2d0 * pi * xx(2))
+       xn = sqrt(qsq) * gauss_random()
 
        do j = 1, seed%nat
           fterm = xn / sqrt(atmass(seed%spc(seed%is(j))%z))

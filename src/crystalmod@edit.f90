@@ -1391,6 +1391,26 @@ contains
 
   end subroutine move_atom
 
+  !> Overwrite the Cartesian positions of all atoms in the main cell with rnew
+  !> (3,ncel, bohr), updating the fractional coordinates accordingly. This is a
+  !> fast in-place update intended for real-time animation (molecular dynamics,
+  !> dragging): it does NOT rebuild the environment, symmetry, molecular
+  !> fragments, or connectivity. Callers that need those refreshed (e.g. after
+  !> stopping an animation) must rebuild the crystal explicitly. Atoms are not
+  !> wrapped into the cell, so trajectories stay continuous across cell edges.
+  module subroutine update_positions(c,rnew)
+    class(crystal), intent(inout) :: c
+    real*8, intent(in) :: rnew(:,:)
+
+    integer :: i
+
+    do i = 1, c%ncel
+       c%atcel(i)%r = rnew(:,i)
+       c%atcel(i)%x = c%c2x(rnew(:,i))
+    end do
+
+  end subroutine update_positions
+
   !> Delete the symmetry operations flagged in del and rebuild the crystal with
   !> the largest subgroup of operations that contains none of them (the identity
   !> is never removable).

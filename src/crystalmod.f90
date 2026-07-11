@@ -313,6 +313,7 @@ module crystalmod
      procedure :: edit_atom_list !< Remove/merge/duplicate a list of atoms
      procedure :: change_atom_species !< Change the species of atoms
      procedure :: move_atom !< Move an atom
+     procedure :: update_positions !< Overwrite all cell-atom positions in place (fast, no rebuild)
      procedure :: move_molecule !< Move a molecular fragment (rigid translation)
      procedure :: rotate_molecule !< Rotate a molecular fragment (rigid rotation about its COM)
      procedure :: move_cell !< Move the unit cell
@@ -881,6 +882,10 @@ module crystalmod
        logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine move_atom
+     module subroutine update_positions(c,rnew)
+       class(crystal), intent(inout) :: c
+       real*8, intent(in) :: rnew(:,:)
+     end subroutine update_positions
      module subroutine move_molecule(c,imol,x,iunit_l,dorelative,copybonding,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: imol

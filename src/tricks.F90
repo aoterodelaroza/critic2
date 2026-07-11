@@ -36,6 +36,8 @@ module tricks
   private :: trick_average_electron_energy
   private :: trick_calculate_displacements
   private :: trick_voronoi
+  private :: trick_energy
+  private :: trick_md
 
 contains
 
@@ -69,6 +71,10 @@ contains
        call trick_calculate_displacements(line0(lp:))
     else if (equal(word,'voronoi')) then
        call trick_voronoi(line0(lp:))
+    else if (equal(word,'energy')) then
+       call trick_energy(line0(lp:))
+    else if (equal(word,'md')) then
+       call trick_md(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -4015,5 +4021,189 @@ contains
     end subroutine recalculate_valence
 
   end subroutine trick_voronoi
+
+  !> Test the built-in force-field energy calculator: report the energy and
+  !> check the analytic gradient (and stress, for crystals) against finite
+  !> differences on the currently loaded system. Invoke with "TRICK ENERGY".
+  subroutine trick_energy(line0)
+    use systemmod, only: sy
+    use energy, only: calculator, ff_builtin
+    use tools_io, only: uout, string, ferror, faterr
+    character*(*), intent(in) :: line0
+
+    type(calculator) :: cl
+    integer :: nat, i, k, a, b
+    real*8 :: e0, ep, em, h, gmax, smax
+    real*8, allocatable :: grad(:,:), gfd(:,:), gtmp(:,:), rsave(:,:)
+    real*8 :: stress(3,3), sfd(3,3), m_save(3,3), omega0
+    character(len=:), allocatable :: errmsg
+
+    if (.not.associated(sy)) then
+       call ferror('trick_energy','no system loaded',faterr)
+       return
+    end if
+    nat = sy%c%ncel
+    h = 1d-4
+
+    ! initialize the built-in force field
+    call cl%init(sy%c,backend=ff_builtin,errmsg=errmsg)
+    if (allocated(errmsg)) then
+       call ferror('trick_energy',errmsg,faterr)
+       return
+    end if
+
+    ! displace the atoms away from the (equilibrium) reference geometry with a
+    ! deterministic pattern so that the bond and angle gradients are nonzero and
+    ! actually exercised by the finite-difference check
+    do i = 1, nat
+       do k = 1, 3
+          sy%c%atcel(i)%r(k) = sy%c%atcel(i)%r(k) + 0.15d0*sin(1.7d0*i + 2.3d0*k + 0.9d0)
+       end do
+    end do
+
+    allocate(grad(3,nat),gfd(3,nat),gtmp(3,nat),rsave(3,nat))
+    call cl%evaluate(sy%c,e0,grad,stress=stress,errmsg=errmsg)
+    if (allocated(errmsg)) then
+       call ferror('trick_energy',errmsg,faterr)
+       return
+    end if
+
+    write (uout,'("* TRICK: built-in force-field energy test")')
+    write (uout,'("  number of atoms:      ",A)') string(nat)
+    write (uout,'("  number of bonds:      ",A)') string(cl%nbond)
+    write (uout,'("  number of angles:     ",A)') string(cl%nang)
+    write (uout,'("  number of LJ pairs:   ",A)') string(cl%nnb)
+    write (uout,'("  energy (hartree):     ",A)') string(e0,'e',decimal=10)
+
+    ! finite-difference gradient
+    do i = 1, nat
+       rsave(:,i) = sy%c%atcel(i)%r
+    end do
+    do i = 1, nat
+       do k = 1, 3
+          sy%c%atcel(i)%r(k) = rsave(k,i) + h
+          call cl%evaluate(sy%c,ep,gtmp)
+          sy%c%atcel(i)%r(k) = rsave(k,i) - h
+          call cl%evaluate(sy%c,em,gtmp)
+          gfd(k,i) = (ep - em) / (2d0*h)
+          sy%c%atcel(i)%r(k) = rsave(k,i)
+       end do
+    end do
+    gmax = maxval(abs(gfd - grad))
+    write (uout,'("  max |grad_analytic - grad_fd| (hartree/bohr): ",A)') string(gmax,'e',decimal=6)
+
+    ! finite-difference stress (crystals only)
+    if (.not.sy%c%ismolecule) then
+       m_save = sy%c%m_x2c
+       omega0 = sy%c%omega
+       do a = 1, 3
+          do b = 1, 3
+             ! deformation gradient F = I + h e_a (x) e_b
+             do i = 1, nat
+                sy%c%atcel(i)%r = rsave(:,i)
+                sy%c%atcel(i)%r(a) = sy%c%atcel(i)%r(a) + h*rsave(b,i)
+             end do
+             sy%c%m_x2c = m_save
+             sy%c%m_x2c(a,:) = sy%c%m_x2c(a,:) + h*m_save(b,:)
+             call cl%evaluate(sy%c,ep,gtmp)
+             do i = 1, nat
+                sy%c%atcel(i)%r = rsave(:,i)
+                sy%c%atcel(i)%r(a) = sy%c%atcel(i)%r(a) - h*rsave(b,i)
+             end do
+             sy%c%m_x2c = m_save
+             sy%c%m_x2c(a,:) = sy%c%m_x2c(a,:) - h*m_save(b,:)
+             call cl%evaluate(sy%c,em,gtmp)
+             sfd(a,b) = (ep - em) / (2d0*h) / omega0
+          end do
+       end do
+       ! restore geometry
+       do i = 1, nat
+          sy%c%atcel(i)%r = rsave(:,i)
+       end do
+       sy%c%m_x2c = m_save
+       smax = maxval(abs(sfd - stress))
+       write (uout,'("  max |stress_analytic - stress_fd| (hartree/bohr^3): ",A)') string(smax,'e',decimal=6)
+    end if
+    write (uout,*)
+
+    call cl%free()
+
+  end subroutine trick_energy
+
+  !> Test the real-time dynamics engine on the loaded system: (1) energy
+  !> conservation with the thermostat off (NVE), (2) thermostat temperature
+  !> tracking, and (3) FIRE relaxation of a displaced geometry. Invoke with
+  !> "TRICK MD".
+  subroutine trick_md(line0)
+    use systemmod, only: sy
+    use dynamics, only: mdrun, md_dynamics, md_relax
+    use energy, only: ff_builtin
+    use tools_io, only: uout, string, ferror, faterr
+    character*(*), intent(in) :: line0
+
+    type(mdrun) :: md
+    integer :: i, istep, nstep
+    real*8 :: e0, etot, drift, tsum, fnorm
+    character(len=:), allocatable :: errmsg
+
+    if (.not.associated(sy)) then
+       call ferror('trick_md','no system loaded',faterr)
+       return
+    end if
+
+    write (uout,'("* TRICK: real-time dynamics test")')
+
+    ! (1) NVE energy conservation (thermostat off)
+    call md%init(sy%c,backend=ff_builtin,temperature=300d0,dt=10d0,mode=md_dynamics,errmsg=errmsg)
+    if (allocated(errmsg)) then
+       call ferror('trick_md',errmsg,faterr)
+       return
+    end if
+    md%gamma = 0d0
+    e0 = md%ekin + md%epot
+    drift = 0d0
+    nstep = 2000
+    do istep = 1, nstep
+       call md%step(sy%c)
+       etot = md%ekin + md%epot
+       drift = max(drift,abs(etot-e0))
+    end do
+    write (uout,'("  NVE steps:                 ",A)') string(nstep)
+    write (uout,'("  initial total energy (Ha): ",A)') string(e0,'e',decimal=8)
+    write (uout,'("  max energy drift (Ha):     ",A)') string(drift,'e',decimal=8)
+    if (abs(e0) > 1d-12) &
+       write (uout,'("  relative drift:            ",A)') string(drift/abs(e0),'e',decimal=6)
+
+    ! (2) thermostat temperature tracking
+    call md%init(sy%c,backend=ff_builtin,temperature=300d0,dt=10d0,mode=md_dynamics,errmsg=errmsg)
+    md%gamma = 5d-3
+    tsum = 0d0
+    nstep = 4000
+    do istep = 1, nstep
+       call md%step(sy%c)
+       if (istep > nstep/2) tsum = tsum + md%temperature_now()
+    end do
+    write (uout,'("  target temperature (K):    ",A)') string(300d0,'f',decimal=2)
+    write (uout,'("  average temperature (K):   ",A)') string(tsum/(nstep/2),'f',decimal=2)
+
+    ! (3) FIRE relaxation of a displaced geometry
+    call md%init(sy%c,backend=ff_builtin,dt=10d0,mode=md_relax,errmsg=errmsg)
+    do i = 1, md%nat
+       md%r(1,i) = md%r(1,i) + 0.1d0*sin(1.7d0*i+0.3d0)
+       md%r(2,i) = md%r(2,i) + 0.1d0*sin(2.1d0*i+1.1d0)
+       md%r(3,i) = md%r(3,i) + 0.1d0*sin(0.7d0*i+2.4d0)
+    end do
+    nstep = 2000
+    do istep = 1, nstep
+       call md%step(sy%c)
+    end do
+    fnorm = sqrt(sum(md%f*md%f))
+    write (uout,'("  FIRE steps:                ",A)') string(nstep)
+    write (uout,'("  final |force| (Ha/bohr):   ",A)') string(fnorm,'e',decimal=8)
+    write (uout,*)
+
+    call md%free()
+
+  end subroutine trick_md
 
 end module tricks

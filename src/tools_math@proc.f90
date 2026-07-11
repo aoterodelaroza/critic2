@@ -24,6 +24,21 @@ submodule (tools_math) proc
 
 contains
 
+  !> Standard-normal (mean 0, variance 1) random deviate via the Box-Muller
+  !> transform, using the intrinsic random_number generator. Call random_seed()
+  !> beforehand if a nondeterministic sequence is required.
+  module function gauss_random() result(g)
+    use param, only: tpi
+    real*8 :: g
+
+    real*8 :: u(2)
+
+    call random_number(u)
+    u(1) = max(u(1),1d-300)
+    g = sqrt(-2d0*log(u(1))) * cos(tpi*u(2))
+
+  end function gauss_random
+
   !> Calculate the cross-correlation between two functions with
   !> triangle weight. For similarity measures between spectra, as
   !> proposed here:

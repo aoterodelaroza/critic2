@@ -30,6 +30,7 @@ module tools_math
   public :: m_c2x_from_cellpar
   public :: cellpar_from_metric
   public :: factorial
+  public :: gauss_random
   public :: genrlm_real
   public :: genylm
   public :: tosphere
@@ -146,6 +147,9 @@ module tools_math
        real*8 :: f
        integer, intent(in) :: n
      end function factorial
+     module function gauss_random() result(g)
+       real*8 :: g
+     end function gauss_random
      module subroutine genrlm_real(lmax,r,tp,rrlm)
        integer, intent(in) :: lmax
        real*8, intent(in) :: r
