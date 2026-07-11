@@ -311,6 +311,7 @@ contains
              end if
              if (ok.and.type == wintype_scfplot.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok.and.type == wintype_geometry.and.present(isys)) ok = (win(i)%isys == isys)
+             if (ok.and.type == wintype_vibrations.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok) then
                 raiseid = i
                 exit
@@ -469,7 +470,7 @@ contains
        ! export image window
        if (.not.present(idparent)) &
           call ferror('window_init','exportimage requires idparent',faterr)
-    elseif (type == wintype_exportimage) then
+    elseif (type == wintype_vibrations) then
        ! vibrations window
        if (.not.present(idparent)) &
           call ferror('window_init','vibrations requires idparent',faterr)
