@@ -356,6 +356,19 @@ module types
      ! isosurface options
      logical :: higher ! higher/lower
      real*8 :: isov ! contour level for the isosurface integration
+     ! Hirshfeld-I options (imtype_hirshfeld_i)
+     character(len=:), allocatable :: hi_wfcdir ! optional dir of user .wfc for charged atoms
+     real*8 :: hi_tol ! SCF convergence tolerance on max |dQ| (default 1e-4)
+     integer :: hi_maxit ! SCF max iterations (default 60)
+     ! Hirshfeld-I per-cellatom SCF state (live during HIRSHFELD_I integration).
+     ! Populated by hirsh_i_driver and consumed by hirsh_i_eval; cleared by
+     ! hirsh_i_cleanup at the end of intgrid_driver. Mirrors the role of
+     ! bas%luw for the YT integrator.
+     logical :: hi_isactive = .false.
+     integer, allocatable :: hi_qlo(:)     ! lower integer charge bracket per cell-atom
+     integer, allocatable :: hi_qhi(:)     ! upper integer charge bracket per cell-atom
+     real*8, allocatable :: hi_frac(:)     ! mixing fraction (Q - qlo)
+     real*8, allocatable :: hi_qfinal(:)   ! converged charge Q_A = Z_A - N_A
      ! integration grid
      integer :: n(3) ! number of grid points
      real*8, allocatable :: f(:,:,:) ! basin field

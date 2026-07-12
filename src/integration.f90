@@ -79,6 +79,7 @@ module integration
   integer, parameter, public :: imtype_hirshfeld = 4
   integer, parameter, public :: imtype_voronoi = 5
   integer, parameter, public :: imtype_bisect = 6
+  integer, parameter, public :: imtype_hirshfeld_i = 7
 
   interface
      module subroutine intgrid_driver(line)
