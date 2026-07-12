@@ -774,7 +774,7 @@ contains
     logical, intent(in), optional :: allowed(:,:) ! per-element-pair bond mask, indexed by atomic number (Z,Z)
 
     integer :: i, j, iz, jz, jid
-    real*8 :: ri, rj, dmax, dd
+    real*8 :: ri, rj, dmax, dd, dmaxbond
     logical :: bonded, ism, jsm
     real*8, allocatable :: rij2(:,:,:)
     real*8 :: dbond
@@ -850,13 +850,18 @@ contains
        dmax = max(atmcov(c%spc(i)%z),dmax)
     end do
 
+    ! Largest upper bond-distance threshold in the criterion (plus the
+    ! metal slack dbond). The neighbor search radius must cover it, or
+    ! a bond could be detected from one endpoint only.
+    dmaxbond = maxval(rij2(:,2,:)) + dbond
+
     ! calculate the atomic environments
     allocate(atenv(c%ncel))
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z
        if (iz > maxzat) cycle
        call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,atenv(i)%nat,atenv(i)%eid,&
-          atenv(i)%dist,atenv(i)%lvec,up2d=(atmcov(iz) + dmax)*2d0,nozero=.true.)
+          atenv(i)%dist,atenv(i)%lvec,up2d=max((atmcov(iz) + dmax)*2d0,dmaxbond),nozero=.true.)
     end do
 
     ! process the environments and generate the bonds
@@ -1382,7 +1387,7 @@ contains
     class(crystal), intent(inout) :: c
     type(neighstar), intent(inout) :: nstar(:)
 
-    integer :: i, k, ia, ib, nb, mb, maxdeg, za, zb, ncand
+    integer :: i, k, ia, ib, nb, mb, za, zb, ncand
     integer, allocatable :: bia(:), bib(:), blv(:,:), bord(:)
     logical, allocatable :: bfix(:)
     real*8, allocatable :: bdist(:)
@@ -1418,24 +1423,22 @@ contains
        cap(ia) = zhang_maxval(c%spc(c%atcel(ia)%is)%z)
     end do
 
-    ! count neighbors (degree) and total bonds; return if no bonds
+    ! count the unique bonds; return if none
     nb = 0
     do ia = 1, c%ncel
        if (cap(ia) < 0) cycle
        do k = 1, nstar(ia)%ncon
           ib = nstar(ia)%idcon(k)
           if (cap(ib) < 0) cycle
-          if (ib == ia) cycle ! skip self-image bonds (left single, see below)
-          deg(ia) = deg(ia) + 1
-          if (ia < ib) nb = nb + 1
+          if (ib <= ia) cycle ! count each bond once; skip self-image bonds
+          nb = nb + 1
        end do
     end do
     if (nb == 0) return
-    maxdeg = maxval(deg)
 
-    ! build the unique bond list and the per-atom incidence list
+    ! Build the unique bond list and the per-atom incidence count.
     allocate(bia(nb),bib(nb),blv(3,nb),bdist(nb),bord(nb),bfix(nb))
-    allocate(nincid(c%ncel),incid(maxdeg,c%ncel))
+    allocate(nincid(c%ncel))
     bord = 1
     bfix = .false.
     nincid = 0
@@ -1452,10 +1455,23 @@ contains
           blv(:,mb) = nstar(ia)%lcon(:,k)
           bdist(mb) = norm2(c%x2c(c%atcel(ib)%x + real(blv(:,mb),8) - c%atcel(ia)%x))
           nincid(ia) = nincid(ia) + 1
-          incid(nincid(ia),ia) = mb
           nincid(ib) = nincid(ib) + 1
-          incid(nincid(ib),ib) = mb
        end do
+    end do
+
+    ! per-atom degree = number of incident bonds actually recorded
+    deg = nincid
+
+    ! fill the incidence list now that its maximum size is known
+    allocate(incid(maxval(nincid),c%ncel))
+    nincid = 0
+    do mb = 1, nb
+       ia = bia(mb)
+       ib = bib(mb)
+       nincid(ia) = nincid(ia) + 1
+       incid(nincid(ia),ia) = mb
+       nincid(ib) = nincid(ib) + 1
+       incid(nincid(ib),ib) = mb
     end do
 
     ! Open valence available for upgrading bonds beyond single (cap - degree)
