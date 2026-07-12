@@ -38,6 +38,7 @@ module tricks
   private :: trick_voronoi
   private :: trick_energy
   private :: trick_md
+  private :: trick_uffe
 
 contains
 
@@ -75,6 +76,8 @@ contains
        call trick_energy(line0(lp:))
     else if (equal(word,'md')) then
        call trick_md(line0(lp:))
+    else if (equal(word,'uffe')) then
+       call trick_uffe(line0(lp:))
     else
        call ferror('trick','Unknown keyword: ' // trim(word),faterr,line0,syntax=.true.)
        return
@@ -4073,6 +4076,12 @@ contains
     write (uout,'("  number of bonds:      ",A)') string(cl%nbond)
     write (uout,'("  number of angles:     ",A)') string(cl%nang)
     write (uout,'("  number of LJ pairs:   ",A)') string(cl%nnb)
+    write (uout,'("  number of torsions:   ",A)') string(cl%ntor)
+    write (uout,'("  number of inversions: ",A)') string(cl%ninv)
+    if (cl%do_elec .and. allocated(cl%qeq)) &
+       write (uout,'("  QEq charges min/max/sum: ",A," ",A," ",A)') &
+       string(minval(cl%qeq),'f',decimal=4), string(maxval(cl%qeq),'f',decimal=4), &
+       string(sum(cl%qeq),'f',decimal=6)
     write (uout,'("  energy (hartree):     ",A)') string(e0,'e',decimal=10)
 
     ! finite-difference gradient
@@ -4129,6 +4138,37 @@ contains
     call cl%free()
 
   end subroutine trick_energy
+
+  !> Print the built-in UFF energy (kcal/mol) of the loaded system at its current
+  !> geometry with electrostatics OFF, for comparison against RDKit's UFF (which
+  !> has no electrostatic term). Invoke with "TRICK UFFE".
+  subroutine trick_uffe(line0)
+    use systemmod, only: sy
+    use energy, only: calculator, ff_builtin
+    use tools_io, only: uout, string, ferror, faterr
+    use param, only: hartokjmol
+    character*(*), intent(in) :: line0
+
+    type(calculator) :: cl
+    real*8 :: e0
+    real*8, allocatable :: grad(:,:)
+    character(len=:), allocatable :: errmsg
+
+    if (.not.associated(sy)) then
+       call ferror('trick_uffe','no system loaded',faterr)
+       return
+    end if
+    call cl%init(sy%c,backend=ff_builtin,elec=.false.,errmsg=errmsg)
+    if (allocated(errmsg)) then
+       call ferror('trick_uffe',errmsg,faterr)
+       return
+    end if
+    allocate(grad(3,sy%c%ncel))
+    call cl%evaluate(sy%c,e0,grad)
+    write (uout,'("UFF-noelec energy (kcal/mol): ",A)') string(e0*hartokjmol/4.184d0,'f',decimal=6)
+    call cl%free()
+
+  end subroutine trick_uffe
 
   !> Test the real-time dynamics engine on the loaded system: (1) energy
   !> conservation with the thermostat off (NVE), (2) thermostat temperature

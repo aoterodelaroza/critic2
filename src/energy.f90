@@ -21,8 +21,9 @@
 !> geometry relaxation, and by crystal-structure-prediction (CSP) searches.
 !>
 !> Two backends are provided behind a single interface:
-!>  - ff_builtin: a dependency-free classical force field (harmonic bonds and
-!>    angles from the connectivity graph plus a Lennard-Jones nonbonded term).
+!>  - ff_builtin: the built-in Universal Force Field (UFF, Rappe et al. 1992),
+!>    with atom types derived from the connectivity graph and parameters read
+!>    from dat/uff.dat. Covers bonds, angles, and van der Waals terms.
 !>  - ff_tblite: an optional interface to the tblite library (GFN-FF / GFN2-xTB),
 !>    only available when compiled with -DHAVE_TBLITE.
 !>
@@ -36,13 +37,51 @@ module energy
   public :: calculator
 
   ! energy backends
-  integer, parameter, public :: ff_builtin = 0 !< built-in classical force field
+  integer, parameter, public :: ff_builtin = 0 !< built-in Universal Force Field (UFF)
   integer, parameter, public :: ff_tblite = 1 !< tblite library (GFN-FF/xTB)
 
   ! tblite methods (used only by the tblite backend)
   integer, parameter, public :: tbm_gfnff = 0 !< GFN-FF general force field
   integer, parameter, public :: tbm_gfn2 = 1 !< GFN2-xTB
   integer, parameter, public :: tbm_gfn1 = 2 !< GFN1-xTB
+
+  !> UFF harmonic bond term (central pair i-j; j in image lvec).
+  type bondterm
+     integer :: i, j, lvec(3)
+     real*8 :: r0 !< natural bond length (bohr)
+     real*8 :: k !< force constant (hartree/bohr^2)
+  end type bondterm
+
+  !> UFF angle term (i-j-k, vertex j; i in image li, k in image lk).
+  type angleterm
+     integer :: i, j, k, li(3), lk(3)
+     real*8 :: c0, c1, c2 !< precomputed Fourier coefficients
+     real*8 :: kk !< force constant k_IJK (hartree)
+  end type angleterm
+
+  !> UFF van der Waals (Lennard-Jones 12-6) nonbonded pair (i-j; j in image lvec).
+  type vdwterm
+     integer :: i, j, lvec(3)
+     real*8 :: rmin !< vdW minimum distance x_IJ (bohr)
+     real*8 :: deps !< vdW well depth D_IJ (hartree)
+     real*8 :: qscr2 = 0d0 !< squared Coulomb screening length a_IJ^2 (bohr^2), QEq electrostatics
+     real*8 :: qij = 0d0 !< product of QEq charges q_i q_j (electrons^2)
+  end type vdwterm
+
+  !> UFF torsion term (i-j-k-l, central bond j-k; i,k,l in images li,lk,ll rel. to j).
+  type torsterm
+     integer :: i, j, k, l, li(3), lk(3), ll(3)
+     real*8 :: v !< barrier (hartree)
+     integer :: n !< periodicity
+     real*8 :: cosf !< phase term cos(n*phi0), +1 or -1
+  end type torsterm
+
+  !> UFF inversion (out-of-plane) term (central c + 3 neighbors n1/n2/n3 in images l1/l2/l3).
+  type invterm
+     integer :: c, n1, n2, n3, l1(3), l2(3), l3(3)
+     real*8 :: k !< force constant per apex (hartree)
+     real*8 :: c0, c1, c2 !< inversion coefficients
+  end type invterm
 
   !> Energy/force/stress calculator. Initialize with %init for a given crystal,
   !> then call %evaluate as many times as needed (positions are re-read from the
@@ -52,24 +91,17 @@ module energy
      integer :: method = tbm_gfnff !< tblite method (tbm_*), only for ff_tblite
      logical :: ready = .false. !< true once %init has run successfully
      integer :: nat = 0 !< number of atoms (= c%ncel)
-     ! built-in FF: harmonic bond terms
-     integer :: nbond = 0
-     integer, allocatable :: bond_i(:), bond_j(:) !< atcel indices of the pair
-     integer, allocatable :: bond_lvec(:,:) !< lattice vector of atom j (3,nbond)
-     real*8, allocatable :: bond_r0(:) !< equilibrium length (bohr)
-     real*8, allocatable :: bond_k(:) !< force constant (hartree/bohr^2)
-     ! built-in FF: harmonic angle terms (i-j-k, j is the vertex)
-     integer :: nang = 0
-     integer, allocatable :: ang_i(:), ang_j(:), ang_k(:) !< atcel indices
-     integer, allocatable :: ang_li(:,:), ang_lk(:,:) !< lattice vectors of i and k
-     real*8, allocatable :: ang_t0(:) !< equilibrium angle (radians)
-     real*8, allocatable :: ang_kk(:) !< force constant (hartree/radian^2)
-     ! built-in FF: Lennard-Jones nonbonded pairs
-     integer :: nnb = 0
-     integer, allocatable :: nb_i(:), nb_j(:) !< atcel indices
-     integer, allocatable :: nb_lvec(:,:) !< lattice vector of atom j (3,nnb)
-     real*8, allocatable :: nb_sig(:) !< LJ sigma (bohr)
-     real*8, allocatable :: nb_eps(:) !< LJ epsilon (hartree)
+     integer, allocatable :: attype(:) !< UFF atom-type index for each atom
+     ! built-in UFF term lists
+     integer :: nbond = 0, nang = 0, nnb = 0, ntor = 0, ninv = 0
+     type(bondterm), allocatable :: bond(:)
+     type(angleterm), allocatable :: ang(:)
+     type(vdwterm), allocatable :: nb(:)
+     type(torsterm), allocatable :: tor(:)
+     type(invterm), allocatable :: inv(:)
+     ! built-in UFF: QEq partial charges (electrostatics)
+     logical :: do_elec = .false. !< whether the Coulomb/QEq term is active
+     real*8, allocatable :: qeq(:) !< equilibrated partial charge per atom (electrons)
      ! tblite handles (only used by the tblite backend)
      type(c_ptr) :: tb_ctx = c_null_ptr
      type(c_ptr) :: tb_mol = c_null_ptr
@@ -83,12 +115,13 @@ module energy
   end type calculator
 
   interface
-     module subroutine calc_init(cl,c,backend,method,errmsg)
+     module subroutine calc_init(cl,c,backend,method,elec,errmsg)
        use crystalmod, only: crystal
        class(calculator), intent(inout) :: cl
        class(crystal), intent(inout) :: c
        integer, intent(in), optional :: backend
        integer, intent(in), optional :: method
+       logical, intent(in), optional :: elec
        character(len=:), allocatable, intent(out), optional :: errmsg
      end subroutine calc_init
      module subroutine calc_evaluate(cl,c,ene,grad,stress,errmsg)

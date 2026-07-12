@@ -42,7 +42,7 @@ contains
     character(len=:), allocatable :: errmsg
 
     character(len=*), parameter :: str_backend = &
-       "Built-in force field" // c_null_char // "GFN2-xTB (tblite)" // c_null_char
+       "UFF (built-in)" // c_null_char // "GFN2-xTB (tblite)" // c_null_char
     character(len=*), parameter :: str_mode = &
        "Temperature (MD)" // c_null_char // "Relaxation" // c_null_char
 
@@ -83,8 +83,8 @@ contains
        call iw_combo_simple("##dynamicsengine",str_backend,ibackend)
        call igPopItemWidth()
        sysc(isys)%md_backend = ibackend
-       call iw_tooltip("Energy and force engine. The built-in force field always works; GFN2-xTB &
-          &requires critic2 compiled with tblite support.",ttshown)
+       call iw_tooltip("Energy and force engine. The built-in Universal Force Field (UFF) always &
+          &works; GFN2-xTB requires critic2 compiled with tblite support.",ttshown)
 
        ! mode (dynamics vs relaxation), bound live to the run
        call igAlignTextToFramePadding()
