@@ -44,6 +44,21 @@ submodule (energy) proc
   integer, parameter :: qeq_itermax = 30 !< max QEq iterations (charge-dependent H)
   real*8, parameter :: qeq_scfcrit = 1d-10 !< QEq charge convergence (electrons)
 
+  ! TIP4P water model (Jorgensen et al., J. Chem. Phys. 79 (1983) 926)
+  ! The harmonic intramolecular restraints are NOT part of TIP4P (a
+  ! rigid model): they keep the monomers together during
+  ! MD/relaxation, and are zero at the reference geometry. Force
+  ! constants are the harmonic limit of q-TIP4P/F (Habershon et al.,
+  ! J. Chem. Phys. 131 (2009) 024501).
+  real*8, parameter :: tip4p_qh = 0.52d0 !< H charge (electrons); M charge = -2*qh
+  real*8, parameter :: tip4p_doh = 0.9572d0 / bohrtoa !< reference OH distance, bohr
+  real*8, parameter :: tip4p_hoh = 104.52d0 !< reference HOH angle, degrees
+  real*8, parameter :: tip4p_dom = 0.15d0 / bohrtoa !< O-M site distance, bohr
+  real*8, parameter :: tip4p_lja = 6d5 * kcal2ha / bohrtoa**12 !< LJ A (kcal A^12/mol -> au)
+  real*8, parameter :: tip4p_ljc = 610d0 * kcal2ha / bohrtoa**6 !< LJ C (kcal A^6/mol -> au)
+  real*8, parameter :: tip4p_kbond = 2d0 * 116.09d0 * 2.287d0**2 * kcal2ha * bohrtoa**2 !< OH restraint (au)
+  real*8, parameter :: tip4p_kang = 87.85d0 * kcal2ha !< HOH restraint (hartree/rad^2)
+
 #ifdef HAVE_TBLITE
   ! Interfaces to the tblite C API (https://tblite.readthedocs.io/en/latest/api/c.html).
   ! Opaque handles are passed as C pointers. Array/optional pointers are passed
@@ -156,6 +171,8 @@ contains
        call uff_setup(cl,c,errmsg)
     else if (cl%backend == ff_tblite) then
        call calc_init_tblite(cl,c,errmsg)
+    else if (cl%backend == ff_tip4p) then
+       call tip4p_setup(cl,c,errmsg)
     else
        errmsg = "unknown energy backend"
     end if
@@ -189,6 +206,8 @@ contains
        call uff_evaluate(cl,c,ene,grad,stress)
     else if (cl%backend == ff_tblite) then
        call calc_eval_tblite(cl,c,ene,grad,stress,errmsg)
+    else if (cl%backend == ff_tip4p) then
+       call tip4p_evaluate(cl,c,ene,grad,stress)
     else
        errmsg = "unknown energy backend"
     end if
@@ -208,6 +227,7 @@ contains
     else if (cl%backend == ff_tblite) then
        call calc_update_tblite(cl,c)
     end if
+    ! ff_tip4p: nothing to update
 
   end subroutine calc_update_geometry
 
@@ -237,6 +257,8 @@ contains
     if (allocated(cl%nb)) deallocate(cl%nb)
     if (allocated(cl%tor)) deallocate(cl%tor)
     if (allocated(cl%inv)) deallocate(cl%inv)
+    cl%nwat = 0
+    if (allocated(cl%iwat)) deallocate(cl%iwat)
 
   end subroutine calc_free
 
@@ -1959,6 +1981,211 @@ contains
        end do
     end do
   end subroutine virial
+
+  !xx! TIP4P water model (Jorgensen et al., J. Chem. Phys. 79 (1983) 926)
+
+  !> Identify the water molecules for the TIP4P model from the connectivity
+  !> graph and store them on the calculator. Molecules only; every atom must
+  !> belong to a water (an O bonded to exactly two H). errmsg is empty on
+  !> success and holds the error message on failure.
+  subroutine tip4p_setup(cl,c,errmsg)
+    use crystalmod, only: crystal
+    use types, only: neighstar
+    use tools_io, only: string
+    class(calculator), intent(inout) :: cl
+    class(crystal), intent(inout) :: c
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    type(neighstar), allocatable :: ns(:)
+    logical, allocatable :: used(:)
+    integer :: i, ih1, ih2
+
+    errmsg = ""
+    cl%do_elec = .false. ! the TIP4P charges are fixed; no QEq
+    if (.not.c%ismolecule) then
+       errmsg = "the TIP4P model is only available for molecules"
+       return
+    end if
+
+    ! connectivity graph (use the crystal's own if available)
+    if (allocated(c%nstar)) then
+       ns = c%nstar
+    else
+       call c%find_asterisms(ns)
+    end if
+
+    ! find the waters: an O bonded to exactly two H, each used only once
+    cl%nwat = 0
+    if (allocated(cl%iwat)) deallocate(cl%iwat)
+    allocate(cl%iwat(3,max(cl%nat/3,1)),used(cl%nat))
+    used = .false.
+    do i = 1, cl%nat
+       if (c%spc(c%atcel(i)%is)%z /= 8) cycle
+       if (ns(i)%ncon /= 2) then
+          errmsg = "TIP4P requires an all-water system (O atom " // string(i) // &
+             " does not have exactly two bonded atoms)"
+          return
+       end if
+       ih1 = ns(i)%idcon(1)
+       ih2 = ns(i)%idcon(2)
+       if (c%spc(c%atcel(ih1)%is)%z /= 1 .or. c%spc(c%atcel(ih2)%is)%z /= 1 .or.&
+          ih1 == ih2) then
+          errmsg = "TIP4P requires an all-water system (O atom " // string(i) // &
+             " is not bonded to two distinct H atoms)"
+          return
+       end if
+       if (used(ih1) .or. used(ih2)) then
+          errmsg = "TIP4P requires an all-water system (O atom " // string(i) // &
+             " shares an H atom with another water)"
+          return
+       end if
+       used(i) = .true.
+       used(ih1) = .true.
+       used(ih2) = .true.
+       cl%nwat = cl%nwat + 1
+       cl%iwat(1,cl%nwat) = i
+       cl%iwat(2,cl%nwat) = ih1
+       cl%iwat(3,cl%nwat) = ih2
+    end do
+    if (.not.all(used)) then
+       errmsg = "TIP4P requires an all-water system (found " // string(cl%nwat) // &
+          " waters for " // string(cl%nat) // " atoms)"
+       return
+    end if
+
+  end subroutine tip4p_setup
+
+  !> Evaluate the TIP4P energy, gradient, and (optionally) stress
+  !> (always zero: molecules only), in atomic units. The monomers are
+  !> held together by harmonic restraints on the OH bonds and the HOH
+  !> angle, which vanish at the reference geometry (so rigid-geometry
+  !> cluster energies match the standard TIP4P values).
+  subroutine tip4p_evaluate(cl,c,ene,grad,stress)
+    use crystalmod, only: crystal
+    use param, only: rad
+    class(calculator), intent(inout) :: cl
+    class(crystal), intent(inout) :: c
+    real*8, intent(out) :: ene
+    real*8, intent(out) :: grad(:,:)
+    real*8, intent(out), optional :: stress(3,3)
+
+    integer :: w1, w2, k1, k2, io, jo, ih, ih1, ih2, k
+    real*8 :: am, wo, theta0
+    real*8 :: d(3), r, dr, gmag, g(3), r6, r12
+    real*8 :: a(3), b(3), na, nb, u, st, theta, edu
+    real*8 :: dudi(3), dudj(3), dudk(3)
+    real*8 :: q(3)
+    real*8, allocatable :: rs(:,:,:), gs(:,:,:)
+    logical :: dopar
+
+    ene = 0d0
+    grad = 0d0
+    if (present(stress)) stress = 0d0
+    dopar = cl%nat >= uff_omp_nmin
+
+    ! M-site linear weight from the reference geometry
+    am = tip4p_dom / (2d0 * tip4p_doh * cos(0.5d0 * tip4p_hoh * rad))
+    wo = 1d0 - 2d0*am
+    theta0 = tip4p_hoh * rad
+
+    ! charge site positions (H1, H2, M) and charges
+    q = (/ tip4p_qh, tip4p_qh, -2d0*tip4p_qh /)
+    allocate(rs(3,3,cl%nwat),gs(3,3,cl%nwat))
+    do w1 = 1, cl%nwat
+       io = cl%iwat(1,w1)
+       ih1 = cl%iwat(2,w1)
+       ih2 = cl%iwat(3,w1)
+       rs(:,1,w1) = c%atcel(ih1)%r
+       rs(:,2,w1) = c%atcel(ih2)%r
+       rs(:,3,w1) = wo * c%atcel(io)%r + am * (c%atcel(ih1)%r + c%atcel(ih2)%r)
+    end do
+    gs = 0d0
+
+    ! intramolecular restraints: harmonic OH bonds and HOH angle (zero at the
+    ! reference geometry; these keep the monomers together during MD/relaxation)
+    do w1 = 1, cl%nwat
+       io = cl%iwat(1,w1)
+       do k = 2, 3
+          ih = cl%iwat(k,w1)
+          d = c%atcel(io)%r - c%atcel(ih)%r
+          r = norm2(d)
+          if (r < 1d-10) cycle
+          dr = r - tip4p_doh
+          ene = ene + 0.5d0 * tip4p_kbond * dr*dr
+          g = tip4p_kbond * dr / r * d
+          grad(:,io) = grad(:,io) + g
+          grad(:,ih) = grad(:,ih) - g
+       end do
+       ih1 = cl%iwat(2,w1)
+       ih2 = cl%iwat(3,w1)
+       a = c%atcel(ih1)%r - c%atcel(io)%r
+       b = c%atcel(ih2)%r - c%atcel(io)%r
+       na = norm2(a)
+       nb = norm2(b)
+       if (na < 1d-10 .or. nb < 1d-10) cycle
+       u = dot_product(a,b)/(na*nb)
+       u = max(min(u,1d0),-1d0)
+       theta = acos(u)
+       st = sqrt(max(1d0 - u*u,1d-12))
+       ene = ene + 0.5d0 * tip4p_kang * (theta - theta0)**2
+       ! dE/du = -kang*(theta-theta0)/sin(theta)
+       edu = -tip4p_kang * (theta - theta0) / st
+       dudi = b/(na*nb) - (u/(na*na))*a
+       dudk = a/(na*nb) - (u/(nb*nb))*b
+       dudj = -(dudi+dudk)
+       grad(:,ih1) = grad(:,ih1) + edu*dudi
+       grad(:,ih2) = grad(:,ih2) + edu*dudk
+       grad(:,io) = grad(:,io) + edu*dudj
+    end do
+
+    ! intermolecular: LJ between O atoms, Coulomb between charge sites
+    !$omp parallel do private(w1,w2,io,jo,d,r,r6,r12,gmag,g,k1,k2) &
+    !$omp    reduction(+:ene,grad,gs) if(dopar)
+    do w1 = 1, cl%nwat
+       io = cl%iwat(1,w1)
+       do w2 = w1+1, cl%nwat
+          ! LJ between the O atoms
+          jo = cl%iwat(1,w2)
+          d = c%atcel(io)%r - c%atcel(jo)%r
+          r = norm2(d)
+          if (r >= 1d-10) then
+             r6 = r**6
+             r12 = r6*r6
+             ene = ene + tip4p_lja/r12 - tip4p_ljc/r6
+             ! dE/dr = (-12 A/r^12 + 6 C/r^6)/r
+             gmag = (-12d0*tip4p_lja/r12 + 6d0*tip4p_ljc/r6)/(r*r)
+             g = gmag * d
+             grad(:,io) = grad(:,io) + g
+             grad(:,jo) = grad(:,jo) - g
+          end if
+          ! Coulomb between the charge sites
+          do k1 = 1, 3
+             do k2 = 1, 3
+                d = rs(:,k1,w1) - rs(:,k2,w2)
+                r = norm2(d)
+                if (r < 1d-10) cycle
+                ene = ene + q(k1)*q(k2)/r
+                g = -q(k1)*q(k2)/(r*r*r) * d
+                gs(:,k1,w1) = gs(:,k1,w1) + g
+                gs(:,k2,w2) = gs(:,k2,w2) - g
+             end do
+          end do
+       end do
+    end do
+    !$omp end parallel do
+
+    ! redistribute the site gradients onto the atoms: H sites are atoms; the
+    ! M site spreads onto O/H1/H2 with the virtual-site weights
+    do w1 = 1, cl%nwat
+       io = cl%iwat(1,w1)
+       ih1 = cl%iwat(2,w1)
+       ih2 = cl%iwat(3,w1)
+       grad(:,ih1) = grad(:,ih1) + gs(:,1,w1) + am*gs(:,3,w1)
+       grad(:,ih2) = grad(:,ih2) + gs(:,2,w1) + am*gs(:,3,w1)
+       grad(:,io) = grad(:,io) + wo*gs(:,3,w1)
+    end do
+
+  end subroutine tip4p_evaluate
 
   ! ---- tblite (GFN-FF / xTB) backend ----
 

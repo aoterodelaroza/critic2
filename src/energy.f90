@@ -28,6 +28,7 @@ module energy
   ! energy backends
   integer, parameter, public :: ff_uff = 0 !< built-in Universal Force Field (UFF)
   integer, parameter, public :: ff_tblite = 1 !< tblite library (GFN-FF/xTB)
+  integer, parameter, public :: ff_tip4p = 2 !< built-in TIP4P water model (molecules only)
 
   ! tblite methods (used only by the tblite backend)
   integer, parameter, public :: tbm_gfnff = 0 !< GFN-FF general force field
@@ -118,6 +119,9 @@ module energy
      integer, allocatable :: qnbptr(:) !< CSR row pointers (nat+1)
      integer, allocatable :: qnbj(:) !< neighbour cell-atom index
      integer, allocatable :: qnblv(:,:) !< neighbour lattice vector (3, nqnb)
+     !! TIP4P
+     integer :: nwat = 0 !< number of water molecules
+     integer, allocatable :: iwat(:,:) !< water atoms (3,nwat): O, H1, H2 cell indices
      !! tblite
      type(c_ptr) :: tb_ctx = c_null_ptr
      type(c_ptr) :: tb_mol = c_null_ptr

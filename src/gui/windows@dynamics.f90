@@ -26,7 +26,6 @@ contains
   !> the ability to grab and drag atoms in the view.
   module subroutine draw_dynamics(w)
     use systems, only: sysc, sys, sys_init, ok_system, lastchange_geometry
-    use energy, only: ff_uff, ff_tblite
     use dynamics, only: md_dynamics, md_relax
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcwidth, iw_combo_simple,&
        iw_dragfloat_real8
@@ -41,8 +40,12 @@ contains
     type(ImVec2) :: szavail
     character(len=:), allocatable :: errmsg
 
+    ! the combo index is stored directly as the backend id: the entry order must
+    ! match the ff_* constants in the energy module (ff_uff=0, ff_tblite=1,
+    ! ff_tip4p=2)
     character(len=*), parameter :: str_backend = &
-       "UFF (built-in)" // c_null_char // "GFN2-xTB (tblite)" // c_null_char
+       "UFF (built-in)" // c_null_char // "GFN2-xTB (tblite)" // c_null_char //&
+       "TIP4P water (built-in)" // c_null_char
     character(len=*), parameter :: str_mode = &
        "Temperature (MD)" // c_null_char // "Relaxation" // c_null_char
 
@@ -84,7 +87,8 @@ contains
        call igPopItemWidth()
        sysc(isys)%md_backend = ibackend
        call iw_tooltip("Energy and force engine. The built-in Universal Force Field (UFF) always &
-          &works; GFN2-xTB requires critic2 compiled with tblite support.",ttshown)
+          &works; GFN2-xTB requires critic2 compiled with tblite support; TIP4P works for &
+          &systems composed entirely of water molecules.",ttshown)
 
        ! mode (dynamics vs relaxation), bound live to the run
        call igAlignTextToFramePadding()

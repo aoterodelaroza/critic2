@@ -88,7 +88,7 @@ module systems
      type(scene) :: sc ! scene for the system in the main view
      ! interactive molecular dynamics (one run per system, driven each frame)
      logical :: md_run = .false. ! whether the MD/relaxation loop advances this system
-     integer :: md_backend = 0 ! requested MD energy backend (0=built-in, 1=tblite)
+     integer :: md_backend = 0 ! requested MD energy backend
      type(mdrun) :: md ! MD / relaxation state
      ! bonding
      real*8 :: atmcov(0:maxzat0) = atmcov0 ! covalent radii for bonding
