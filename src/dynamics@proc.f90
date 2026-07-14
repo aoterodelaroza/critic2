@@ -32,8 +32,8 @@ contains
 
   !> Initialize an MD/relaxation run for crystal c. Optional arguments
   !> set the energy backend, method, target temperature (K), timestep
-  !> (a.u.), and run mode (md_dynamics or md_relax). On error, errmsg
-  !> is and non-zero.
+  !> (a.u.), and run mode (md_dynamics or md_relax). errmsg is empty on success
+  !> and holds the error message on failure.
   module subroutine md_init(md,c,backend,method,temperature,dt,mode,errmsg)
     use crystalmod, only: crystal
     use param, only: atmass
@@ -44,10 +44,11 @@ contains
     real*8, intent(in), optional :: temperature
     real*8, intent(in), optional :: dt
     integer, intent(in), optional :: mode
-    character(len=:), allocatable, intent(out), optional :: errmsg
+    character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: i
 
+    errmsg = ""
     call md%free()
     call random_seed()
     if (present(temperature)) md%temperature = temperature
@@ -55,9 +56,7 @@ contains
     if (present(mode)) md%mode = mode
 
     call md%cl%init(c,backend=backend,method=method,errmsg=errmsg)
-    if (present(errmsg)) then
-       if (allocated(errmsg)) return
-    end if
+    if (len_trim(errmsg) > 0) return
 
     md%nat = c%ncel
     allocate(md%r(3,md%nat),md%r0(3,md%nat),md%v(3,md%nat),md%f(3,md%nat),md%mass(md%nat))
@@ -176,6 +175,8 @@ contains
     class(mdrun), intent(inout) :: md
     class(crystal), intent(inout) :: c
 
+    character(len=:), allocatable :: errmsg
+
     ! the dragged atom is clamped to the cursor position (a hard constraint, not
     ! a spring), so pin it before evaluating: neighbors then feel it exactly at
     ! the cursor and respond via the dynamics
@@ -189,7 +190,11 @@ contains
     md%istep = md%istep + 1
     if (md%nblist_every > 0 .and. mod(md%istep,md%nblist_every) == 0) &
        call md%cl%update_geometry(c)
-    call md%cl%evaluate(c,md%epot,md%f)
+    call md%cl%evaluate(c,md%epot,md%f,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) then
+       md%ready = .false.
+       return
+    end if
     md%f = -md%f
 
   end subroutine compute_forces

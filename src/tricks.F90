@@ -4030,8 +4030,9 @@ contains
   !> differences on the currently loaded system. Invoke with "TRICK ENERGY".
   subroutine trick_energy(line0)
     use systemmod, only: sy
-    use energy, only: calculator, ff_builtin
+    use energy, only: calculator, ff_uff
     use tools_io, only: uout, string, ferror, faterr
+    use tools_math, only: matinv, det3
     character*(*), intent(in) :: line0
 
     type(calculator) :: cl
@@ -4049,8 +4050,8 @@ contains
     h = 1d-4
 
     ! initialize the built-in force field
-    call cl%init(sy%c,backend=ff_builtin,errmsg=errmsg)
-    if (allocated(errmsg)) then
+    call cl%init(sy%c,backend=ff_uff,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) then
        call ferror('trick_energy',errmsg,faterr)
        return
     end if
@@ -4066,7 +4067,7 @@ contains
 
     allocate(grad(3,nat),gfd(3,nat),gtmp(3,nat),rsave(3,nat))
     call cl%evaluate(sy%c,e0,grad,stress=stress,errmsg=errmsg)
-    if (allocated(errmsg)) then
+    if (len_trim(errmsg) > 0) then
        call ferror('trick_energy',errmsg,faterr)
        return
     end if
@@ -4091,9 +4092,9 @@ contains
     do i = 1, nat
        do k = 1, 3
           sy%c%atcel(i)%r(k) = rsave(k,i) + h
-          call cl%evaluate(sy%c,ep,gtmp)
+          call cl%evaluate(sy%c,ep,gtmp,errmsg=errmsg)
           sy%c%atcel(i)%r(k) = rsave(k,i) - h
-          call cl%evaluate(sy%c,em,gtmp)
+          call cl%evaluate(sy%c,em,gtmp,errmsg=errmsg)
           gfd(k,i) = (ep - em) / (2d0*h)
           sy%c%atcel(i)%r(k) = rsave(k,i)
        end do
@@ -4114,28 +4115,43 @@ contains
              end do
              sy%c%m_x2c = m_save
              sy%c%m_x2c(a,:) = sy%c%m_x2c(a,:) + h*m_save(b,:)
-             call cl%evaluate(sy%c,ep,gtmp)
+             call refresh_metric(sy%c%m_x2c,sy%c%m_c2x,sy%c%omega)
+             call cl%evaluate(sy%c,ep,gtmp,errmsg=errmsg)
              do i = 1, nat
                 sy%c%atcel(i)%r = rsave(:,i)
                 sy%c%atcel(i)%r(a) = sy%c%atcel(i)%r(a) - h*rsave(b,i)
              end do
              sy%c%m_x2c = m_save
              sy%c%m_x2c(a,:) = sy%c%m_x2c(a,:) - h*m_save(b,:)
-             call cl%evaluate(sy%c,em,gtmp)
+             call refresh_metric(sy%c%m_x2c,sy%c%m_c2x,sy%c%omega)
+             call cl%evaluate(sy%c,em,gtmp,errmsg=errmsg)
              sfd(a,b) = (ep - em) / (2d0*h) / omega0
           end do
        end do
-       ! restore geometry
+       ! restore geometry and metric
        do i = 1, nat
           sy%c%atcel(i)%r = rsave(:,i)
        end do
        sy%c%m_x2c = m_save
+       call refresh_metric(sy%c%m_x2c,sy%c%m_c2x,sy%c%omega)
        smax = maxval(abs(sfd - stress))
        write (uout,'("  max |stress_analytic - stress_fd| (hartree/bohr^3): ",A)') string(smax,'e',decimal=6)
     end if
     write (uout,*)
 
     call cl%free()
+
+  contains
+    !> Recompute the derived cell metrics (m_c2x = inv(m_x2c), omega =
+    !> |det(m_x2c)|) after m_x2c is strained by hand, keeping the crystal
+    !> consistent for the energy calculator.
+    subroutine refresh_metric(mx2c,mc2x,omega)
+      real*8, intent(in) :: mx2c(3,3)
+      real*8, intent(out) :: mc2x(3,3), omega
+      mc2x = mx2c
+      call matinv(mc2x,3)
+      omega = abs(det3(mx2c))
+    end subroutine refresh_metric
 
   end subroutine trick_energy
 
@@ -4144,7 +4160,7 @@ contains
   !> has no electrostatic term). Invoke with "TRICK UFFE".
   subroutine trick_uffe(line0)
     use systemmod, only: sy
-    use energy, only: calculator, ff_builtin
+    use energy, only: calculator, ff_uff
     use tools_io, only: uout, string, ferror, faterr
     use param, only: hartokjmol
     character*(*), intent(in) :: line0
@@ -4158,13 +4174,13 @@ contains
        call ferror('trick_uffe','no system loaded',faterr)
        return
     end if
-    call cl%init(sy%c,backend=ff_builtin,elec=.false.,errmsg=errmsg)
-    if (allocated(errmsg)) then
+    call cl%init(sy%c,backend=ff_uff,elec=.false.,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) then
        call ferror('trick_uffe',errmsg,faterr)
        return
     end if
     allocate(grad(3,sy%c%ncel))
-    call cl%evaluate(sy%c,e0,grad)
+    call cl%evaluate(sy%c,e0,grad,errmsg=errmsg)
     write (uout,'("UFF-noelec energy (kcal/mol): ",A)') string(e0*hartokjmol/4.184d0,'f',decimal=6)
     call cl%free()
 
@@ -4177,7 +4193,7 @@ contains
   subroutine trick_md(line0)
     use systemmod, only: sy
     use dynamics, only: mdrun, md_dynamics, md_relax
-    use energy, only: ff_builtin
+    use energy, only: ff_uff
     use tools_io, only: uout, string, ferror, faterr
     character*(*), intent(in) :: line0
 
@@ -4194,8 +4210,8 @@ contains
     write (uout,'("* TRICK: real-time dynamics test")')
 
     ! (1) NVE energy conservation (thermostat off)
-    call md%init(sy%c,backend=ff_builtin,temperature=300d0,dt=10d0,mode=md_dynamics,errmsg=errmsg)
-    if (allocated(errmsg)) then
+    call md%init(sy%c,backend=ff_uff,temperature=300d0,dt=10d0,mode=md_dynamics,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) then
        call ferror('trick_md',errmsg,faterr)
        return
     end if
@@ -4215,7 +4231,7 @@ contains
        write (uout,'("  relative drift:            ",A)') string(drift/abs(e0),'e',decimal=6)
 
     ! (2) thermostat temperature tracking
-    call md%init(sy%c,backend=ff_builtin,temperature=300d0,dt=10d0,mode=md_dynamics,errmsg=errmsg)
+    call md%init(sy%c,backend=ff_uff,temperature=300d0,dt=10d0,mode=md_dynamics,errmsg=errmsg)
     md%gamma = 5d-3
     tsum = 0d0
     nstep = 4000
@@ -4227,7 +4243,7 @@ contains
     write (uout,'("  average temperature (K):   ",A)') string(tsum/(nstep/2),'f',decimal=2)
 
     ! (3) FIRE relaxation of a displaced geometry
-    call md%init(sy%c,backend=ff_builtin,dt=10d0,mode=md_relax,errmsg=errmsg)
+    call md%init(sy%c,backend=ff_uff,dt=10d0,mode=md_relax,errmsg=errmsg)
     do i = 1, md%nat
        md%r(1,i) = md%r(1,i) + 0.1d0*sin(1.7d0*i+0.3d0)
        md%r(2,i) = md%r(2,i) + 0.1d0*sin(2.1d0*i+1.1d0)

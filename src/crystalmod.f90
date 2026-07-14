@@ -293,6 +293,8 @@ module crystalmod
      procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
      procedure :: ewald_energy !< electrostatic energy (Ewald)
      procedure :: ewald_pot !< electrostatic potential (Ewald)
+     procedure :: ewald_matrix !< periodic Ewald 1/r interaction matrix (per-atom)
+     procedure :: ewald_energy_grad !< Ewald 1/r energy, forces and virial (per-atom)
      procedure :: promolecular_array3 !< calculate core and promolecular densities on a grid
      procedure :: get_pack_ratio !< Calculate the packing ratio
      procedure :: vdw_volume !< Calculate the van der waals volume
@@ -738,14 +740,32 @@ module crystalmod
        real*8, intent(in) :: qfrac(:)
        real*8 :: ewe
      end function ewald_energy
-     module function ewald_pot(c,qfrac,x,rcut,hcut,eta,qsum,lrmax,lhmax)
+     module function ewald_pot(c,qat,x,rcut,hcut,eta,lrmax,lhmax) result(pot)
        class(crystal), intent(inout) :: c
-       real*8, intent(in) :: qfrac(:)
+       real*8, intent(in) :: qat(:)
        real*8, intent(in) :: x(3)
-       real*8, intent(in) :: rcut, hcut, eta, qsum
+       real*8, intent(in) :: rcut, hcut, eta
        integer, intent(in) :: lrmax(3), lhmax(3)
-       real*8 :: ewald_pot
+       real*8 :: pot
      end function ewald_pot
+     module subroutine ewald_matrix(c,aew,rcut,hcut,eta,lrmax,lhmax)
+       class(crystal), intent(inout) :: c
+       real*8, intent(out) :: aew(:,:)
+       real*8, intent(in) :: rcut, hcut, eta
+       integer, intent(in) :: lrmax(3), lhmax(3)
+     end subroutine ewald_matrix
+     module subroutine ewald_energy_grad(c,qat,rcut,hcut,eta,lrmax,lhmax,eene,grad,vir,dostress,&
+        nbptr,nbj,nblv)
+       class(crystal), intent(inout) :: c
+       real*8, intent(in) :: qat(:)
+       real*8, intent(in) :: rcut, hcut, eta
+       integer, intent(in) :: lrmax(3), lhmax(3)
+       real*8, intent(out) :: eene
+       real*8, intent(inout) :: grad(:,:)
+       real*8, intent(inout) :: vir(3,3)
+       logical, intent(in) :: dostress
+       integer, intent(in), optional :: nbptr(:), nbj(:), nblv(:,:)
+     end subroutine ewald_energy_grad
      module subroutine promolecular(c,x0,icrd,f,fp,fpp,nder,zpsp,fr)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: x0(3)

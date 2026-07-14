@@ -26,7 +26,7 @@ contains
   !> the ability to grab and drag atoms in the view.
   module subroutine draw_dynamics(w)
     use systems, only: sysc, sys, sys_init, ok_system, lastchange_geometry
-    use energy, only: ff_builtin, ff_tblite
+    use energy, only: ff_uff, ff_tblite
     use dynamics, only: md_dynamics, md_relax
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcwidth, iw_combo_simple,&
        iw_dragfloat_real8
@@ -112,15 +112,13 @@ contains
        if (.not.sysc(isys)%md_run) then
           if (iw_button("Run")) then
              needinit = (.not.sysc(isys)%md%ready) .or. (sysc(isys)%md%cl%backend /= sysc(isys)%md_backend)
+             w%errmsg = ""
              if (needinit) then
-                if (allocated(errmsg)) deallocate(errmsg)
                 call sysc(isys)%md%init(sys(isys)%c,backend=sysc(isys)%md_backend,errmsg=errmsg)
                 sysc(isys)%md%mode = imode
-             end if
-             if (allocated(errmsg)) then
                 w%errmsg = errmsg
-             else
-                w%errmsg = ""
+             end if
+             if (len_trim(w%errmsg) == 0) then
                 sysc(isys)%md_run = .true.
                 win(w%idparent)%forcerender = .true.
              end if

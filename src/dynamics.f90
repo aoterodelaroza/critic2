@@ -74,7 +74,7 @@ module dynamics
        real*8, intent(in), optional :: temperature
        real*8, intent(in), optional :: dt
        integer, intent(in), optional :: mode
-       character(len=:), allocatable, intent(out), optional :: errmsg
+       character(len=:), allocatable, intent(out) :: errmsg
      end subroutine md_init
      module subroutine md_step(md,c)
        use crystalmod, only: crystal
