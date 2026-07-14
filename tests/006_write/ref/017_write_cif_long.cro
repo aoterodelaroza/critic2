@@ -4708,10 +4708,10 @@
   ... finished comparing patterns
 + DIFF = 1.110223E-16
 
-* WRITE cif file: 067a_litharge.cif
+* WRITE cif file: 067a_bacos2.cif
 
 * COMPARE: compare structures
-  Crystal 1 : 067a_litharge.cif
+  Crystal 1 : 067a_bacos2.cif
   Crystal 2 : <current>
 # Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
 # Please cite:
@@ -4723,10 +4723,10 @@
   ... finished comparing patterns
 + DIFF = 0.000000E+00
 
-* WRITE cif file: 067b_litharge.cif
+* WRITE cif file: 067b_bacos2.cif
 
 * COMPARE: compare structures
-  Crystal 1 : 067b_litharge.cif
+  Crystal 1 : 067b_bacos2.cif
   Crystal 2 : <current>
 # Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
 # Please cite:
@@ -4738,10 +4738,10 @@
   ... finished comparing patterns
 + DIFF = 0.000000E+00
 
-* WRITE cif file: 067c_litharge.cif
+* WRITE cif file: 067c_bacos2.cif
 
 * COMPARE: compare structures
-  Crystal 1 : 067c_litharge.cif
+  Crystal 1 : 067c_bacos2.cif
   Crystal 2 : <current>
 # Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
 # Please cite:
@@ -4753,10 +4753,10 @@
   ... finished comparing patterns
 + DIFF = 0.000000E+00
 
-* WRITE cif file: 067d_litharge.cif
+* WRITE cif file: 067d_bacos2.cif
 
 * COMPARE: compare structures
-  Crystal 1 : 067d_litharge.cif
+  Crystal 1 : 067d_bacos2.cif
   Crystal 2 : <current>
 # Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
 # Please cite:
@@ -4768,10 +4768,10 @@
   ... finished comparing patterns
 + DIFF = 0.000000E+00
 
-* WRITE cif file: 067e_litharge.cif
+* WRITE cif file: 067e_bacos2.cif
 
 * COMPARE: compare structures
-  Crystal 1 : 067e_litharge.cif
+  Crystal 1 : 067e_bacos2.cif
   Crystal 2 : <current>
 # Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
 # Please cite:
@@ -4783,10 +4783,10 @@
   ... finished comparing patterns
 + DIFF = 0.000000E+00
 
-* WRITE cif file: 067f_litharge.cif
+* WRITE cif file: 067f_bacos2.cif
 
 * COMPARE: compare structures
-  Crystal 1 : 067f_litharge.cif
+  Crystal 1 : 067f_bacos2.cif
   Crystal 2 : <current>
 # Using cross-correlated Gaussian powder diffraction patterns (GPWDF).
 # Please cite:

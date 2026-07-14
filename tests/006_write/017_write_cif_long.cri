@@ -32,7 +32,7 @@
 ## delete: 060e_fersmite.cif 060f_fersmite.cif 061a_brookite.cif 061b_brookite.cif 062a_chrysoberyl.cif 062b_chrysoberyl.cif 062c_chrysoberyl.cif 062d_chrysoberyl.cif 062e_chrysoberyl.cif
 ## delete: 062f_chrysoberyl.cif 063a_rasvumite.cif 063b_rasvumite.cif 063c_rasvumite.cif 063d_rasvumite.cif 063e_rasvumite.cif 063f_rasvumite.cif 064a_gallium.cif 064b_gallium.cif
 ## delete: 064c_gallium.cif 064d_gallium.cif 064e_gallium.cif 064f_gallium.cif 065a_naio3.cif 065b_naio3.cif 065c_naio3.cif 066a_thi3.cif 066b_thi3.cif
-## delete: 066c_thi3.cif 067a_litharge.cif 067b_litharge.cif 067c_litharge.cif 067d_litharge.cif 067e_litharge.cif 067f_litharge.cif 068a_pbcl2o4.cif 068b_pbcl2o4.cif
+## delete: 066c_thi3.cif 067a_bacos2.cif 067b_bacos2.cif 067c_bacos2.cif 067d_bacos2.cif 067e_bacos2.cif 067f_bacos2.cif 068a_pbcl2o4.cif 068b_pbcl2o4.cif
 ## delete: 068c_pbcl2o4.cif 068d_pbcl2o4.cif 068e_pbcl2o4.cif 068f_pbcl2o4.cif 068g_pbcl2o4.cif 068h_pbcl2o4.cif 068i_pbcl2o4.cif 068j_pbcl2o4.cif 068k_pbcl2o4.cif
 ## delete: 068l_pbcl2o4.cif 069_tlf.cif 070a_a-sulfur.cif 070b_a-sulfur.cif 071_beyerite.cif 072a_pinchite.cif 072b_pinchite.cif 072c_pinchite.cif 073a_chesnokovite.cif
 ## delete: 073b_chesnokovite.cif 074a_wadsleyite.cif 074b_wadsleyite.cif 074c_wadsleyite.cif 074d_wadsleyite.cif 074e_wadsleyite.cif 074f_wadsleyite.cif 075_ni8bi8si.cif 076_b-ca2p2o7.cif
@@ -1000,24 +1000,24 @@ compare 066b_thi3.cif .
 crystal ../zz_source/cif/allspg/066c_thi3.cif
 write 066c_thi3.cif
 compare 066c_thi3.cif .
-crystal ../zz_source/cif/allspg/067a_litharge.cif
-write 067a_litharge.cif
-compare 067a_litharge.cif .
-crystal ../zz_source/cif/allspg/067b_litharge.cif
-write 067b_litharge.cif
-compare 067b_litharge.cif .
-crystal ../zz_source/cif/allspg/067c_litharge.cif
-write 067c_litharge.cif
-compare 067c_litharge.cif .
-crystal ../zz_source/cif/allspg/067d_litharge.cif
-write 067d_litharge.cif
-compare 067d_litharge.cif .
-crystal ../zz_source/cif/allspg/067e_litharge.cif
-write 067e_litharge.cif
-compare 067e_litharge.cif .
-crystal ../zz_source/cif/allspg/067f_litharge.cif
-write 067f_litharge.cif
-compare 067f_litharge.cif .
+crystal ../zz_source/cif/allspg/067a_bacos2.cif
+write 067a_bacos2.cif
+compare 067a_bacos2.cif .
+crystal ../zz_source/cif/allspg/067b_bacos2.cif
+write 067b_bacos2.cif
+compare 067b_bacos2.cif .
+crystal ../zz_source/cif/allspg/067c_bacos2.cif
+write 067c_bacos2.cif
+compare 067c_bacos2.cif .
+crystal ../zz_source/cif/allspg/067d_bacos2.cif
+write 067d_bacos2.cif
+compare 067d_bacos2.cif .
+crystal ../zz_source/cif/allspg/067e_bacos2.cif
+write 067e_bacos2.cif
+compare 067e_bacos2.cif .
+crystal ../zz_source/cif/allspg/067f_bacos2.cif
+write 067f_bacos2.cif
+compare 067f_bacos2.cif .
 crystal ../zz_source/cif/allspg/068a_pbcl2o4.cif
 write 068a_pbcl2o4.cif
 compare 068a_pbcl2o4.cif .
