@@ -2,8 +2,8 @@ set(CMAKE_BUILD_TYPE Release)
 
 set(SOURCES
 daxpy.f dbdsqr.f dcabs1.f dcopy.f ddot.f dgebak.f dgebal.f dgebd2.f dgebrd.f dgeev.f
-dgehd2.f dgehrd.f dgelq2.f dgelqf.f dgemm.f dgemv.f dgeqr2.f dgeqrf.f dger.f dgesvd.f
-dgetrf2.f dgetrf.f dgetri.f dhseqr.f disnan.f dlabad.f dlabrd.f dlacpy.f dladiv.f dlae2.f
+dgehd2.f dgehrd.f dgelq2.f dgelqf.f dgemm.f dgemv.f dgeqr2.f dgeqrf.f dger.f dgesv.f dgesvd.f
+dgetrf2.f dgetrf.f dgetri.f dgetrs.f dhseqr.f disnan.f dlabad.f dlabrd.f dlacpy.f dladiv.f dlae2.f
 dlaev2.f dlaexc.f dlahqr.f dlahr2.f dlaisnan.f dlaln2.f dlamch.f dlange.f dlanst.f dlansy.f
 dlanv2.f dlapy2.f dlapy3.f dlaqr0.f dlaqr1.f dlaqr2.f dlaqr3.f dlaqr4.f dlaqr5.f dlarfb.f
 dlarf.f dlarfg.f dlarft.f dlarfx.f dlartg.f dlas2.f dlascl.f dlaset.f dlasq1.f dlasq2.f
