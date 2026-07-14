@@ -155,9 +155,8 @@ contains
     use grid1mod, only: grid1_register_ae
     use global, only: crsmall, molsmall, atomeps_structnew, bondfactor, symprec
     use tools_math, only: m_x2c_from_cellpar, m_c2x_from_cellpar, matinv, &
-       det3, mnorm2, cellpar_from_metric
+       cellpar_from_metric
     use tools_io, only: ferror, faterr, warning, string, usegui
-    use tools, only: wscell
     use types, only: realloc
     use param, only: pi, eyet, eye, atmcov
     class(crystal), intent(inout) :: c
@@ -169,7 +168,7 @@ contains
     real*8 :: g(3,3), xmax(3), xmin(3), xcm(3), border, xx(3), delta(3)
     logical :: good, good2, doenv, copybonds, envbuilt, hascoinc
     integer :: i, j, k, l, iat, newmult
-    real*8, allocatable :: atpos(:,:), area(:), deltasave(:,:), occcel(:)
+    real*8, allocatable :: atpos(:,:), deltasave(:,:), occcel(:)
     integer, allocatable :: irotm(:), icenv(:)
     logical, allocatable :: useatom(:)
     character*10, allocatable :: name(:)
@@ -250,23 +249,8 @@ contains
        call cellpar_from_metric(g,c%aa,c%bb)
     end if
 
-    ! rest of the cell metrics
-    c%m_rc2rx = transpose(c%m_x2c)
-    c%m_rx2rc = transpose(c%m_c2x)
-    c%gtensor = g
-    c%omega = sqrt(max(det3(g),0d0))
-    c%grtensor = g
-    call matinv(c%grtensor,3)
-    do i = 1, 3
-       c%ar(i) = sqrt(c%grtensor(i,i))
-    end do
-    c%n2_x2c = mnorm2(c%m_x2c)
-    c%n2_c2x = mnorm2(c%m_c2x)
-
-    ! calculate the wigner-seitz cell
-    call wscell(c%m_x2c,.not.c%ismolecule,c%ws_nf,c%ws_nv,c%ws_mnfv,c%ws_iside,c%ws_nside,&
-       c%ws_x,c%ws_ineighc,c%ws_ineighx,area,c%isortho,c%m_xr2x,c%m_x2xr,c%m_xr2c,c%m_c2xr,&
-       c%n2_xr2x,c%n2_x2xr,c%n2_xr2c,c%n2_c2xr,c%ws_ineighxr,c%isortho_del)
+    ! derived cell metrics + wigner-seitz reduced cell
+    call set_cell_metrics(c)
 
     !! now the atoms, we can use shortest() and related functions past this !!
 

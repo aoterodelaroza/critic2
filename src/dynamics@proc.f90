@@ -28,6 +28,10 @@ submodule (dynamics) proc
   real*8, parameter :: fire_alpha0 = 0.1d0
   integer, parameter :: fire_nmin = 5
 
+  ! enlarge the molecular cell when any atom comes within this
+  ! fractional distance of a cell face.
+  real*8, parameter :: md_enlarge_margin = 0.1d0
+
 contains
 
   !> Initialize an MD/relaxation run for crystal c. Optional arguments
@@ -99,9 +103,63 @@ contains
        md%r(:,md%drag_iat) = md%drag_target
        md%v(:,md%drag_iat) = 0d0
     end if
+    ! recenter the molecule and grow its box if an atom nears a cell face
+    call keep_in_cell(md,c)
     call kinetic(md)
 
   end subroutine md_step
+
+  !> For molecules embedded in a display cell: translate the whole
+  !> system so the center of mass sits at the cell center, and enlarge
+  !> the molecular cell in place when any atom comes within
+  !> md_enlarge_margin of a cell face.
+  subroutine keep_in_cell(md,c)
+    use crystalmod, only: crystal
+    class(mdrun), intent(inout) :: md
+    class(crystal), intent(inout) :: c
+
+    integer :: i
+    real*8 :: xcom(3), shift(3), xf(3)
+    logical :: doenlarge
+
+    if (.not.c%ismolecule .or. md%nat == 0) return
+
+    ! while an atom is being dragged, do not recenter or resize
+    if (md%drag_iat > 0) then
+       call c%update_positions(md%r)
+       return
+    end if
+
+    ! recenter the center of mass on the cell center (removes slow drift and
+    ! keeps the molecule framed)
+    xcom = 0d0
+    do i = 1, md%nat
+       xcom = xcom + md%mass(i) * md%r(:,i)
+    end do
+    xcom = xcom / sum(md%mass(1:md%nat))
+    shift = c%x2c((/0.5d0,0.5d0,0.5d0/)) - xcom
+    do i = 1, md%nat
+       md%r(:,i) = md%r(:,i) + shift
+    end do
+
+    ! enlarge the cell if any atom sits within the margin of a face
+    doenlarge = .false.
+    do i = 1, md%nat
+       xf = c%c2x(md%r(:,i))
+       if (any(xf < md_enlarge_margin) .or. any(xf > 1d0 - md_enlarge_margin)) then
+          doenlarge = .true.
+          exit
+       end if
+    end do
+    call c%update_positions(md%r)
+    if (doenlarge) then
+       call c%recompute_molecular_cell()
+       do i = 1, md%nat
+          md%r(:,i) = c%atcel(i)%r
+       end do
+    end if
+
+  end subroutine keep_in_cell
 
   !> Restore the initial geometry and zero the velocities, writing the geometry
   !> back into c.

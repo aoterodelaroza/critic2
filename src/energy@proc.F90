@@ -1260,6 +1260,7 @@ contains
     do ipass = 1, 2
        nnb = 0
        do i = 1, cl%nat
+          ! neighbour candidates within the vdW cutoff
           call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.false.,nat,eid=eid,dist=dist,&
              lvec=lvec,up2d=rcut_lj,nozero=.true.)
           do m = 1, nat

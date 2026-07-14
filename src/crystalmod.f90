@@ -469,6 +469,9 @@ module crystalmod
      module subroutine recompute_molecular_cell(c)
        class(crystal), intent(inout) :: c
      end subroutine recompute_molecular_cell
+     module subroutine set_cell_metrics(c)
+       class(crystal), intent(inout) :: c
+     end subroutine set_cell_metrics
      pure module function x2c(c,xx) result(res)
        class(crystal), intent(in) :: c
        real*8, intent(in) :: xx(3)

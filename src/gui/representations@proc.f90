@@ -700,7 +700,9 @@ contains
           allocate(up2dsp(c%nspc,2))
 
        ! whether there is vacuum in any direction
+       ! disable it for an isolated molecule and in a live dynamics run
        dovac = (c%vaclength > iperiod_vacthr)
+       if (c%ismolecule .or. sysc(r%id)%md_run) dovac = .false.
        if (any(dovac)) then
           ucini = c%vactop - 1d0 - vacextension / c%aa
           ucend = c%vacbot + vacextension / c%aa

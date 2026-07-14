@@ -1512,14 +1512,7 @@ contains
   !> Recalculate the unit cell of a molecule to fit the current atomic
   !> positions, growing it as needed so the molecule (e.g. after a
   !> rigid rotation or translation in place) stays inside the
-  !> cell. The absolute atomic positions (Cartesian + molx0) are
-  !> preserved, so the rendered scene in the GUI does not move. The
-  !> molecular cell (molborder) and the vacuum descriptors are
-  !> recalculated. The neighbor star, molecular decomposition, and
-  !> Wigner-Seitz data are NOT recomputed (no rebonding); they are
-  !> reconciled by the next full rebuild (struct_new). This routine is
-  !> only used for molecules, and only by the GUI (move_molecule and
-  !> rotate_molecule with no rebonding).
+  !> cell.
   module subroutine recompute_molecular_cell(c)
     use tools_math, only: m_x2c_from_cellpar, matinv
     use global, only: rborder_def
@@ -1530,8 +1523,7 @@ contains
 
     if (.not.c%ismolecule .or. c%ncel == 0) return
 
-    ! bounding box of the absolute atomic positions (r + molx0), padded with
-    ! the default border (same construction as struct_new's molecule branch)
+    ! calculate the bounding box
     border = max(rborder_def,1d-6)
     smin = c%atcel(1)%r + c%molx0
     smax = smin
@@ -1545,9 +1537,7 @@ contains
     smin = smin - border
     smax = smax + border
 
-    ! new orthogonal cell. The cell origin (molx0) sits at the lower padded
-    ! corner, so the absolute positions (r + molx0) are left unchanged; sh is
-    ! the uniform Cartesian shift applied to every internal Cartesian coordinate.
+    ! set up the new orthogonal cell
     sh = c%molx0 - smin
     c%aa = smax - smin
     c%bb = 90d0
@@ -1556,12 +1546,14 @@ contains
     call matinv(c%m_c2x,3)
     c%molx0 = smin
 
+    ! refresh the derived cell metrics and WS reduced cell for the new box so
+    ! omega/gtensor/reduced matrices stay consistent
+    call set_cell_metrics(c)
+
     ! molecular cell used for display (same formula as struct_new)
     c%molborder = max(border - max(2d0,0.8d0 * border),0d0) / c%aa
 
-    ! shift the cell atoms (and the matching non-equivalent atoms): the
-    ! Cartesian positions move rigidly by sh, the fractional ones are
-    ! recomputed in the new cell
+    ! shift the cell atoms
     do k = 1, c%ncel
        c%atcel(k)%r = c%atcel(k)%r + sh
        c%atcel(k)%x = c%c2x(c%atcel(k)%r)
@@ -1584,10 +1576,44 @@ contains
        end do
     end if
 
+    ! rebuild the block-grid neighbor environment for the new cell/positions
+    call c%build_env()
+
     ! recompute the vacuum descriptors for the new cell
     call c%calc_vacuum_lengths()
 
   end subroutine recompute_molecular_cell
+
+  !> Compute the derived cell metrics (reciprocal matrices, metric tensors,
+  !> volume, norms) and the Wigner-Seitz reduced cell from the already-set
+  !> c%m_x2c / c%m_c2x.
+  module subroutine set_cell_metrics(c)
+    use tools, only: wscell
+    use tools_math, only: matinv, det3, mnorm2
+    class(crystal), intent(inout) :: c
+
+    integer :: i
+    real*8 :: g(3,3)
+    real*8, allocatable :: area(:)
+
+    g = matmul(transpose(c%m_x2c),c%m_x2c)
+    c%m_rc2rx = transpose(c%m_x2c)
+    c%m_rx2rc = transpose(c%m_c2x)
+    c%gtensor = g
+    c%omega = sqrt(max(det3(g),0d0))
+    c%grtensor = g
+    call matinv(c%grtensor,3)
+    do i = 1, 3
+       c%ar(i) = sqrt(c%grtensor(i,i))
+    end do
+    c%n2_x2c = mnorm2(c%m_x2c)
+    c%n2_c2x = mnorm2(c%m_c2x)
+
+    call wscell(c%m_x2c,.not.c%ismolecule,c%ws_nf,c%ws_nv,c%ws_mnfv,c%ws_iside,c%ws_nside,&
+       c%ws_x,c%ws_ineighc,c%ws_ineighx,area,c%isortho,c%m_xr2x,c%m_x2xr,c%m_xr2c,c%m_c2xr,&
+       c%n2_xr2x,c%n2_x2xr,c%n2_xr2c,c%n2_c2xr,c%ws_ineighxr,c%isortho_del)
+
+  end subroutine set_cell_metrics
 
   !> Rigidly translate the molecular fragment imol so that its center
   !> of mass is at position x in units of iunit_l (see global). If
