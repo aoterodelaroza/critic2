@@ -35,6 +35,8 @@ submodule (energy) proc
   real*8, parameter :: rcut_lj = 10d0 / bohrtoa !< van der Waals cutoff radius, bohr
   real*8, parameter :: uff_lambda = 0.1332d0 !< bond-order correction coefficient
   real*8, parameter :: uff_kpre = 664.12d0 !< force-constant prefactor, kcal.A/mol
+  ! OpenMP is used in the evaluator only at/above this atom count
+  integer, parameter :: uff_omp_nmin = 48 !< min atoms to enable OpenMP in uff_evaluate
   ! QEq (Rappe-Goddard) electrostatics, GULP convention
   real*8, parameter :: qeq_rqeq = 15d0 / bohrtoa ! Slater short-range correction cutoff
   real*8, parameter :: qeq_rqeqtaper = 12d0 / bohrtoa ! Slater taper
@@ -720,7 +722,7 @@ contains
     real*8 :: sr, sr2, sr6, sr12, fmag
     real*8 :: vir(3,3)
     real*8 :: esofar, ecoul
-    logical :: dostress
+    logical :: dostress, dopar
     ! torsion locals
     integer :: t, nn, ti, tj, tk, tl
     real*8 :: rl(3), tv1(3), tv2(3), tv3(3), cp1(3), cp2(3)
@@ -735,8 +737,11 @@ contains
     ene = 0d0
     grad = 0d0
     vir = 0d0
+    ! OpenMP is used only for large enough systems (see uff_omp_nmin)
+    dopar = cl%nat >= uff_omp_nmin
 
     ! bond stretch: E = 1/2 k (r-r_IJ)^2
+    !$omp parallel do private(n,i,j,d,r,dr,gmag,g) reduction(+:ene,grad,vir) if(dopar)
     do n = 1, cl%nbond
        i = cl%bond(n)%i
        j = cl%bond(n)%j
@@ -751,10 +756,13 @@ contains
        grad(:,j) = grad(:,j) - g
        if (dostress) call virial(vir,d,-g)
     end do
+    !$omp end parallel do
     esofar = ene
 
     ! angle bend, expressed in u = cos(theta) (no 1/sin(theta) singularity):
     ! E = kk * P(u) with the polynomial P precomputed at setup
+    !$omp parallel do private(n,ii,jj,kk,ri,rj,rk,a,b,na,nb,u,dudi,dudk,dudj,pu,dpu,edu,gi,gj,gk) &
+    !$omp    reduction(+:ene,grad,vir) if(dopar)
     do n = 1, cl%nang
        ii = cl%ang(n)%i
        jj = cl%ang(n)%j
@@ -789,9 +797,11 @@ contains
           call virial(vir,rk,-gk)
        end if
     end do
+    !$omp end parallel do
     esofar = ene
 
     ! van der Waals (UFF 12-6): E = D [(x/r)^12 - 2 (x/r)^6]
+    !$omp parallel do private(n,i,j,d,r,sr,sr2,sr6,sr12,fmag,g) reduction(+:ene,grad,vir) if(dopar)
     do n = 1, cl%nnb
        i = cl%nb(n)%i
        j = cl%nb(n)%j
@@ -810,6 +820,7 @@ contains
        grad(:,j) = grad(:,j) - g
        if (dostress) call virial(vir,d,-g)
     end do
+    !$omp end parallel do
     esofar = ene
 
     ! QEq electrostatics (Ewald 1/r + self + Slater short-range correction)
@@ -820,6 +831,9 @@ contains
 
     ! torsions: E = V/2 (1 - cosTerm cos(n phi)), written via c = cos(phi) with
     ! the Chebyshev expansion so no sin/atan2 sign convention is needed
+    !$omp parallel do &
+    !$omp    private(t,ti,tj,tk,tl,ri,rj,rk,rl,tv1,tv2,tv3,cp1,cp2,n1,n2,cphi,vt,nn,ct,cc2,tn,dtn,dedc,dva,dvb,dc1,dc2,dc3,gi,gj,gk,gl) &
+    !$omp    reduction(+:ene,grad,vir) if(dopar)
     do t = 1, cl%ntor
        ti = cl%tor(t)%i
        tj = cl%tor(t)%j
@@ -880,10 +894,13 @@ contains
           call virial(vir,rl,-gl)
        end if
     end do
+    !$omp end parallel do
     esofar = ene
 
     ! inversions (out-of-plane) at 3-coordinate centers, averaged over the 3
     ! apex choices: E = K [C0 + C1 sin(Y) + C2 cos(2 Y)]
+    !$omp parallel do private(inv,ti,iidx,rc,rnb,ap,ib1,ib2,cosy,siny,edcy,gc,gg1,gg2,gg3) &
+    !$omp    reduction(+:ene,grad,vir) if(dopar)
     do inv = 1, cl%ninv
        ti = cl%inv(inv)%c
        iidx = (/cl%inv(inv)%n1,cl%inv(inv)%n2,cl%inv(inv)%n3/)
@@ -920,6 +937,7 @@ contains
           end if
        end do
     end do
+    !$omp end parallel do
 
     if (dostress) then
        if (c%ismolecule .or. c%omega < 1d-10) then
@@ -1007,6 +1025,7 @@ contains
 
       ! --- QEq self energy (chi q + mu q^2; hydrogen higher-order) ---
       eself = 0d0
+      !$omp parallel do private(i,z,qi,chi,mu,zh0) reduction(+:eself) if(dopar)
       do i = 1, n
          z = c%spc(c%atcel(i)%is)%z
          qi = cl%qeq(i)
@@ -1019,11 +1038,13 @@ contains
             eself = eself + qi*(chi + qi*mu)
          end if
       end do
+      !$omp end parallel do
 
       ! --- short-range: crystal = Slater correction (J-1/r) over images added to
       !     the Ewald 1/r; molecule = full direct Coulomb J over all finite pairs ---
       eslat = 0d0
       if (c%ismolecule) then
+         !$omp parallel do private(i,j,qi,qj,d,r,gam,dgam,dzadum,gmag) reduction(+:ecoul,grad) if(dopar)
          do i = 1, n
             qi = cl%qeq(i)
             do j = 1, n
@@ -1040,7 +1061,9 @@ contains
                grad(:,j) = grad(:,j) - gmag*d
             end do
          end do
+         !$omp end parallel do
       else
+         !$omp parallel do private(i,p,j,qi,qj,d,r,gam,dgam,dzadum,gmag) reduction(+:eslat,grad,vir) if(dopar)
          do i = 1, n
             qi = cl%qeq(i)
             do p = cl%qnbptr(i), cl%qnbptr(i+1)-1
@@ -1059,6 +1082,7 @@ contains
                if (dostress) call virial(vir,d,-gmag*d)
             end do
          end do
+         !$omp end parallel do
       end if
 
       eelec = ecoul + eself + eslat

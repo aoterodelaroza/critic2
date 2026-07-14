@@ -19,6 +19,10 @@
 submodule (crystalmod) complex
   implicit none
 
+  ! OpenMP is used in the Ewald routines only above these sizes.
+  integer, parameter :: ewald_omp_nmin = 48  !< min atoms to thread the real-space loops
+  integer, parameter :: ewald_omp_kmin = 256 !< min k-vectors to thread the reciprocal loop
+
 contains
 
   !> Calculate real and reciprocal space sum cutoffs. qfrac contains the
@@ -211,10 +215,13 @@ contains
     integer :: i
     real*8 :: g(c%ncel)
 
+    ! each row is independent (ewald_gval is read-only in c); no reduction needed
+    !$omp parallel do private(i,g) if(c%ncel >= ewald_omp_nmin)
     do i = 1, c%ncel
        call ewald_gval(c,c%atcel(i)%x,eta,rcut,hcut,lrmax,lhmax,g)
        aew(i,:) = g
     end do
+    !$omp end parallel do
     ! self term (diagonal) and neutralizing background (uniform)
     do i = 1, c%ncel
        aew(i,i) = aew(i,i) - 2d0/(sqpi*eta)
@@ -245,12 +252,13 @@ contains
     real*8 :: px(3), kv(3), kc(3), d(3), g(3), gp, fmag, gr
     real*8 :: sc, ss, brec, s2, fac, qtot
     real*8 :: minvt(3,3)
-    logical :: uselist
+    logical :: uselist, dorecip, dopar
 
     n = c%ncel
     eene = 0d0
     minvt = transpose(c%m_c2x)
     uselist = present(nbptr) .and. present(nbj) .and. present(nblv)
+    dopar = n >= ewald_omp_nmin
 
     ! --- real space: 0.5 sum q_i q_j erfc(r/eta)/r within rcut. Self image
     ! (i==j, L=0) is excluded by r<1d-10; own images (i==j, L/=0) contribute
@@ -258,6 +266,7 @@ contains
     ! CSR pair list when supplied (fast path for MD/relaxation); otherwise a
     ! generic image-cell triple loop. ---
     if (uselist) then
+       !$omp parallel do private(i,p,j,px,d,r,gr,gp,fmag,g,a,b) reduction(+:eene,grad,vir) if(dopar)
        do i = 1, n
           do p = nbptr(i), nbptr(i+1)-1
              j = nbj(p)
@@ -283,7 +292,9 @@ contains
              end if
           end do
        end do
+       !$omp end parallel do
     else
+       !$omp parallel do private(i,j,i1,i2,i3,px,d,r,gr,gp,fmag,g,a,b) reduction(+:eene,grad,vir) if(dopar)
        do i = 1, n
           do j = 1, n
              do i1 = -lrmax(1), lrmax(1)
@@ -314,6 +325,7 @@ contains
              end do
           end do
        end do
+       !$omp end parallel do
     end if
 
     ! --- self energy (diagonal Ewald term) ---
@@ -324,7 +336,10 @@ contains
     qtot = sum(qat(1:n))
     eene = eene - 0.5d0*pi*eta*eta/c%omega*qtot*qtot
 
-    ! --- reciprocal space: sum_k brec |S(k)|^2 ---
+    ! --- reciprocal space: sum_k brec |S(k)|^2 (dominant cost; parallel over k) ---
+    dorecip = product(2*lhmax+1) >= ewald_omp_kmin
+    !$omp parallel do collapse(3) private(kv,kc,dh,bbarg,brec,sc,ss,i,cosk,sink,s2,fac,a,b) &
+    !$omp    reduction(+:eene,grad,vir) if(dorecip)
     do i1 = -lhmax(1), lhmax(1)
        do i2 = -lhmax(2), lhmax(2)
           do i3 = -lhmax(3), lhmax(3)
@@ -358,6 +373,7 @@ contains
           end do
        end do
     end do
+    !$omp end parallel do
 
   end subroutine ewald_energy_grad
 
