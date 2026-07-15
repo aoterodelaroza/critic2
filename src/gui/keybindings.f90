@@ -99,7 +99,9 @@ module keybindings
   integer, parameter, public :: BIND_MDINTERACT_MOVEMOL = 52 ! interactive dynamics: move a molecule / translate the view
   integer, parameter, public :: BIND_MDINTERACT_ROTMOL = 53 ! interactive dynamics: rotate a molecule
   integer, parameter, public :: BIND_PICKATOM_SELECT = 54 ! atom pick: select the atom under the cursor
-  integer, parameter, public :: BIND_NUM = 54 ! total number of binds
+  integer, parameter, public :: BIND_MOVEMOL_CHANGECELL = 55 ! move molecules: change cell volume (crystals) / zoom
+  integer, parameter, public :: BIND_MOVEATOM_CHANGECELL = 56 ! move atoms: change cell volume (crystals) / zoom
+  integer, parameter, public :: BIND_NUM = 56 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -156,7 +158,9 @@ module keybindings
      "Drag an atom                    ",& ! BIND_MDINTERACT_DRAGATOM
      "Move a molecule                 ",& ! BIND_MDINTERACT_MOVEMOL
      "Rotate a molecule               ",& ! BIND_MDINTERACT_ROTMOL
-     "Pick the atom under the cursor  "&  ! BIND_PICKATOM_SELECT
+     "Pick atom under cursor          ",& ! BIND_PICKATOM_SELECT
+     "Change cell volume/Zoom         ",& ! BIND_MOVEMOL_CHANGECELL
+     "Change cell volume/Zoom         "&  ! BIND_MOVEATOM_CHANGECELL
      /)
 
   ! The key associated with each bind, bind -> key
@@ -257,7 +261,9 @@ module keybindings
      group_viewmode_mdinteract,& ! BIND_MDINTERACT_DRAGATOM
      group_viewmode_mdinteract,& ! BIND_MDINTERACT_MOVEMOL
      group_viewmode_mdinteract,& ! BIND_MDINTERACT_ROTMOL
-     group_viewmode_pickatom/)   ! BIND_PICKATOM_SELECT
+     group_viewmode_pickatom,&   ! BIND_PICKATOM_SELECT
+     group_viewmode_movemol,&    ! BIND_MOVEMOL_CHANGECELL
+     group_viewmode_moveatom/)   ! BIND_MOVEATOM_CHANGECELL
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -317,7 +323,9 @@ module keybindings
      0,&  ! BIND_MDINTERACT_DRAGATOM
      0,&  ! BIND_MDINTERACT_MOVEMOL
      0,&  ! BIND_MDINTERACT_ROTMOL
-     0/)  ! BIND_PICKATOM_SELECT
+     0,&  ! BIND_PICKATOM_SELECT
+     BIND_VIEWMODE_MOVEMOL,&   ! BIND_MOVEMOL_CHANGECELL
+     BIND_VIEWMODE_MOVEATOM/)  ! BIND_MOVEATOM_CHANGECELL
 
   ! module procedure interfaces
   interface

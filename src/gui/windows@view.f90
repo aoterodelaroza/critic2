@@ -1249,7 +1249,7 @@ contains
     use keybindings, only: get_bind_keyname, bindnames,&
        BIND_NUM, group_viewmode_navigation, group_viewmode_select,&
        group_viewmode_movemol, group_viewmode_moveatom, group_viewmode_mdinteract,&
-       group_viewmode_pickatom, groupbind, BIND_NAV_ZOOM
+       group_viewmode_pickatom, groupbind
     use utils, only: iw_combo_simple, iw_tooltip, igIsItemHovered_delayed, iw_text
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -1318,19 +1318,13 @@ contains
              end if
           end do
 
-          ! build the tooltip lines: one per bind in this mode's group, plus
-          ! the mouse-scroll (cell-volume) line for the move modes
-          allocate(keyline(n+1),lblline(n+1))
+          ! build the tooltip lines: one per bind in this mode's group
+          allocate(keyline(n),lblline(n))
           do i = 1, n
              keyline(i) = trim(get_bind_keyname(tips(i)))
              lblline(i) = trim(bindnames(tips(i)))
           end do
           nline = n
-          if (w%viewmode == vm_movemol .or. w%viewmode == vm_moveatom) then
-             nline = nline + 1
-             keyline(nline) = trim(get_bind_keyname(BIND_NAV_ZOOM))
-             lblline(nline) = "Change cell volume (crystals)"
-          end if
 
           ! align the key column
           ll = 1
@@ -1399,7 +1393,8 @@ contains
        BIND_CLOSE_FOCUSED_DIALOG, BIND_SELECT_MOLECULES_AND_DESELECT, BIND_SELECT_ATOMS,&
        BIND_SELECT_MOLECULES, BIND_MOVEMOL_TRANSLATE, BIND_MOVEMOL_ROTATE,&
        BIND_MOVEMOL_ROTATE_PERP, BIND_MOVEATOM_TRANSLATE,&
-       BIND_MDINTERACT_DRAGATOM, BIND_MDINTERACT_MOVEMOL, BIND_MDINTERACT_ROTMOL
+       BIND_MDINTERACT_DRAGATOM, BIND_MDINTERACT_MOVEMOL, BIND_MDINTERACT_ROTMOL,&
+       BIND_MOVEMOL_CHANGECELL, BIND_MOVEATOM_CHANGECELL
     use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry
     use global, only: iunit_bohr
     use gui_main, only: io, ColorHighlightSelectScene
@@ -1724,8 +1719,8 @@ contains
        texpos = mousepos
        call w%mousepos_to_texpos(texpos)
 
-       ! scroll: resize the cell (crystal) or zoom the camera (molecule)
-       call moveobj_scroll()
+       ! change cell (crystal) / zoom camera (molecule)
+       call moveobj_scroll(BIND_MOVEMOL_CHANGECELL)
 
        ! translate (right mouse): whole molecule if the fragment is discrete,
        ! otherwise just the single atom; the grabbed atom stays under the cursor
@@ -1854,8 +1849,8 @@ contains
        texpos = mousepos
        call w%mousepos_to_texpos(texpos)
 
-       ! scroll: resize the cell (crystal) or zoom the camera (molecule)
-       call moveobj_scroll()
+       ! change cell (crystal) / zoom camera (molecule)
+       call moveobj_scroll(BIND_MOVEATOM_CHANGECELL)
 
        ! translate the single atom under the cursor (left mouse)
        call moveatom_translate(BIND_MOVEATOM_TRANSLATE,ilock_left,w%mpos0_l)
@@ -1884,21 +1879,40 @@ contains
       end do
     end function any_key_pressed
 
-    ! mouse scroll while in a move mode: change the cell volume isotropically
-    ! for a crystal, otherwise fall back to the camera zoom
-    subroutine moveobj_scroll()
-      real(c_float) :: rr
+    ! change-cell bind while in a move mode: change the cell volume isotropically
+    ! for a crystal, otherwise fall back to the camera zoom. bindid is bound to
+    ! the mouse scroll by default, but supports a held key + vertical drag too
+    ! (same two behaviors as the navigation zoom).
+    subroutine moveobj_scroll(bindid)
+      integer, intent(in) :: bindid
+      real(c_float) :: delta, rr
 
-      if (.not.hover) return
-      if (.not.(w%ilock == ilock_no .or. w%ilock == ilock_scroll)) return
-      if (io%MouseWheel == 0._c_float) return
+      ! collect the change amount from the scroll wheel or the key drag
+      delta = 0._c_float
+      if (hover.and.(w%ilock == ilock_no .or. w%ilock == ilock_scroll).and. is_bind_event(bindid,.false.)) then
+         if (is_bind_mousescroll(bindid)) then
+            delta = io%MouseWheel
+         else
+            w%mpos0_s = mousepos%y
+            w%ilock = ilock_scroll
+         end if
+      elseif (w%ilock == ilock_scroll) then
+         if (is_bind_event(bindid,.true.)) then
+            delta = (w%mpos0_s-mousepos%y) * (10._c_float / w%FBOside)
+            w%mpos0_s = mousepos%y
+         else
+            w%ilock = ilock_no
+         end if
+      end if
+      if (delta == 0._c_float) return
+
       if (sys(isys)%c%ismolecule) then
-         rr = min(max(mousesens_zoom0*io%MouseWheel,-0.99999_c_float),0.9999_c_float)
+         rr = min(max(mousesens_zoom0*delta,-0.99999_c_float),0.9999_c_float)
          call w%sc%cam_zoom(rr)
          w%forcerender = .true.
       else
          ! rescale the cell volume but keep the current bonds (copybonding)
-         call sys(isys)%c%move_cell(0,1d0 + real(mousesens_vol0*io%MouseWheel,8),iunit_bohr,&
+         call sys(isys)%c%move_cell(0,1d0 + real(mousesens_vol0*delta,8),iunit_bohr,&
             .false.,.true.,copybonding=.true.)
          sysc(isys)%sc%nextbuildlists_fixcam = .true.
          call sysc(isys)%post_event(lastchange_geometry)
