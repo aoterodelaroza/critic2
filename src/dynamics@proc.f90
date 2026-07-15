@@ -75,6 +75,8 @@ contains
     md%fire_alpha = fire_alpha0
     md%fire_npos = 0
     md%istep = 0
+    md%drag_iat = 0
+    md%interacting = .false.
     if (md%mode == md_dynamics) then
        call md%init_velocities()
     else
@@ -124,8 +126,9 @@ contains
 
     if (.not.c%ismolecule .or. md%nat == 0) return
 
-    ! while an atom is being dragged, do not recenter or resize
-    if (md%drag_iat > 0) then
+    ! while the user is dragging an atom or rigidly moving/rotating a molecule,
+    ! do not recenter or resize (that would fight the manipulation)
+    if (md%drag_iat > 0 .or. md%interacting) then
        call c%update_positions(md%r)
        return
     end if
@@ -172,6 +175,7 @@ contains
     md%r = md%r0
     md%v = 0d0
     md%drag_iat = 0
+    md%interacting = .false.
     md%fire_dt = md%dt
     md%fire_alpha = fire_alpha0
     md%fire_npos = 0

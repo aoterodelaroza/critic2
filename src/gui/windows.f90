@@ -37,15 +37,17 @@ module windows
   character(kind=c_char,len=:), allocatable, target :: inputb
   integer(c_size_t), parameter :: maxlib = 40000
 
-  ! view modes (positive = normal; negative = forced by a window)
-  integer, parameter, public :: vm_pick_atom = -1
+  ! view modes (positive = normal, user-selectable; negative = forced)
+  integer, parameter, public :: vm_mddrag = -2 ! forced during interactive dynamics
+  integer, parameter, public :: vm_pick_atom = -1 ! forced by a window awaiting an atom pick
   integer, parameter, public :: vm_navigate  = 0
   integer, parameter, public :: vm_select    = 1
   integer, parameter, public :: vm_movemol   = 2
   integer, parameter, public :: vm_moveatom  = 3
-  integer, parameter, public :: vm_NUM = 3
+  integer, parameter, public :: vm_NUM = 3 ! highest user-selectable mode (combo)
 
-  character(len=14), parameter, public :: vmnames(-1:vm_NUM) = (/&
+  character(len=14), parameter, public :: vmnames(vm_mddrag:vm_NUM) = (/&
+     "Interact (MD) ",& ! vm_mddrag
      "Pick Atoms    ",& ! vm_pick_atom
      "Navigate      ",& ! vm_navigate
      "Select        ",& ! vm_select

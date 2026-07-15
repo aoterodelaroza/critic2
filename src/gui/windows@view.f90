@@ -35,7 +35,9 @@ submodule (windows) view
   integer, parameter :: ilock_right = 2
   integer, parameter :: ilock_scroll = 3
   integer, parameter :: ilock_middle = 4
-  integer, parameter :: ilock_mddrag = 5 ! dragging an atom during interactive dynamics
+  integer, parameter :: ilock_mddrag = 5    ! dragging an atom during interactive dynamics
+  integer, parameter :: ilock_mdmovemol = 6 ! rigidly translating a molecule during interactive dynamics
+  integer, parameter :: ilock_mdrotmol = 7  ! rigidly rotating a molecule during interactive dynamics
 
   ! minimum time elapsed between consecutive queries of the pick buffer (seconds)
   real*8, parameter :: pick_interval = 1d0 / 10d0
@@ -1163,10 +1165,27 @@ contains
   module subroutine viewmode_set_mode(w)
     use keybindings, only: is_bind_event, BIND_VIEWMODE_SELECT, BIND_VIEWMODE_MOVEMOL,&
        BIND_VIEWMODE_MOVEATOM
+    use systems, only: nsys, sysc
     class(window), intent(inout), target :: w
 
     logical :: ok
     integer :: id
+
+    ! while an interactive dynamics run is active on the viewed
+    ! system, force the dedicated MD interaction mode and lock it: the
+    ! user cannot switch modes until the run stops.
+    if (w%view_selected >= 1 .and. w%view_selected <= nsys) then
+       if (sysc(w%view_selected)%md_run) then
+          w%viewmode = vm_mddrag
+          w%viewmode_transient = .false.
+          return
+       end if
+    end if
+    if (w%viewmode == vm_mddrag) then
+       ! the run stopped: leave the forced mode
+       w%viewmode = vm_navigate
+       w%viewmode_transient = .false.
+    end if
 
     ! if the viewmode is forced by another window, check that window is still valid
     if (w%viewmode < 0) then
@@ -1248,10 +1267,32 @@ contains
     end do
 
     if (w%viewmode < 0) then
-       ! window forced mode
+       ! window-forced modes: show the combo; picking a normal mode
+       ! leaves a window-forced pick, while vm_mddrag is re-forced
+       ! each frame.
        iforced = vm_NUM+1
        viewmode_items = viewmode_items // trim(vmnames(w%viewmode)) // c_null_char
        call iw_combo_simple("##viewmode",viewmode_items,iforced)
+
+       ! delayed tooltip describing the forced mode's mouse bindings
+       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+          call igBeginTooltip()
+          if (w%viewmode == vm_mddrag) then
+             call iw_text("Left drag",highlight=.true.)
+             call iw_text("grab an atom / rotate the view",sameline=.true.)
+             call iw_text("Right drag",highlight=.true.)
+             call iw_text("move a molecule / translate the view",sameline=.true.)
+             call iw_text("Middle drag",highlight=.true.)
+             call iw_text("rotate a molecule",sameline=.true.)
+          else
+             call iw_text("Click",highlight=.true.)
+             call iw_text("pick the atom under the cursor",sameline=.true.)
+             call iw_text("Any key",highlight=.true.)
+             call iw_text("cancel the pick",sameline=.true.)
+          end if
+          call igEndTooltip()
+       end if
+
        if (iforced /= vm_NUM + 1) then
           w%viewmode = iforced
           w%viewmode_transient = .false.
@@ -1355,7 +1396,7 @@ contains
     use interfaces_cimgui
     use scenes, only: scene
     use utils, only: translate, rotate, mult, invmult
-    use tools_math, only: cross_cfloat, matinv_cfloat
+    use tools_math, only: cross_cfloat, matinv_cfloat, axisangle2mat
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
        BIND_NAV_ROTATE_PERP,&
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE,&
@@ -1395,12 +1436,11 @@ contains
        w%selrect_active = .false.
     end if
 
-    ! window_forced view mode: exits on a mouse click on the view (any
-    ! button) or any key press anywhere; if an atom is under the mouse
-    ! when clicked, save it as the pick result. Also exits if the
-    ! window that commanded the mode is gone. Processed before the
-    ! scene-validity guards so the mode can always exit.
-    if (w%viewmode < 0) then
+    ! window_forced view mode (pick atom): exits on a mouse click on the view
+    ! (any button) or any key press anywhere; if an atom is under the mouse
+    ! when clicked, save it as the pick result. Also exits if the window that
+    ! commanded the mode is gone.
+    if (w%viewmode == vm_pick_atom) then
        ! check the commanding window is still active
        ok = (w%vmdata%owner >= 1 .and. w%vmdata%owner <= nwin)
        if (ok) ok = win(w%vmdata%owner)%isinit .and. win(w%vmdata%owner)%isopen
@@ -1431,8 +1471,21 @@ contains
     if (.not.associated(w%sc)) return
     if (w%sc%isinit < 2) return
 
+    ! release any interactive-dynamics grab whenever the view is not in the
+    ! forced MD mode
+    if (w%viewmode /= vm_mddrag) then
+       if (w%ilock == ilock_mddrag .or. w%ilock == ilock_mdmovemol .or. w%ilock == ilock_mdrotmol) &
+          w%ilock = ilock_no
+       sysc(w%view_selected)%md%drag_iat = 0
+       sysc(w%view_selected)%md%interacting = .false.
+    end if
+
     ! process mode-specific events
-    if (w%viewmode == vm_navigate) then
+    if (w%viewmode == vm_navigate .or. w%viewmode == vm_mddrag) then
+       ! navigation and the forced interactive-dynamics mode share the camera
+       ! controls below; vm_mddrag additionally grabs atoms/molecules first.
+       isys = w%view_selected
+
        ! drop any rubber-band drag carried over from select mode (e.g. shift released mid-drag)
        w%selrect_active = .false.
 
@@ -1442,44 +1495,17 @@ contains
        ! transform to the texture pos
        call w%mousepos_to_texpos(texpos)
 
-       ! interactive dynamics: grab and drag an atom with a spring. Uses the
-       ! rotate bind but takes priority over camera rotation while MD is running
-       ! and an atom is under the cursor. Drag on the grabbed atom's depth plane.
-       if (w%ilock == ilock_mddrag .and. .not.sysc(w%view_selected)%md_run) then
-          w%ilock = ilock_no
-          sysc(w%view_selected)%md%drag_iat = 0
-       end if
-       if (sysc(w%view_selected)%md_run) then
-          if (hover.and.is_bind_event(BIND_NAV_ROTATE,.false.).and.w%ilock == ilock_no.and.&
-             w%mousepos_idx(1) > 0 .and. sysc(w%view_selected)%md%ready) then
-             sysc(w%view_selected)%md%drag_iat = w%mousepos_idx(1)
-             sysc(w%view_selected)%md%drag_target = sys(w%view_selected)%c%atcel(w%mousepos_idx(1))%r
-             vnew = real(sys(w%view_selected)%c%atcel(w%mousepos_idx(1))%r,c_float)
-             call w%world_to_texpos(vnew)
-             w%mpos0_r = (/texpos%x,texpos%y,vnew(3)/)
-             w%ilock = ilock_mddrag
-             w%mposlast = mousepos
-          elseif (w%ilock == ilock_mddrag) then
-             call igSetMouseCursor(ImGuiMouseCursor_Hand)
-             if (is_bind_event(BIND_NAV_ROTATE,.true.)) then
-                if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
-                   vnew = (/texpos%x,texpos%y,w%mpos0_r(3)/)
-                   call w%texpos_to_view(vnew)
-                   vold = w%mpos0_r
-                   call w%texpos_to_view(vold)
-                   xc = vnew - vold
-                   call invmult(xc,w%sc%view,notrans=.true.)  ! eye -> tworld
-                   call invmult(xc,w%sc%world,notrans=.true.) ! tworld -> world (bohr)
-                   sysc(w%view_selected)%md%drag_target = sysc(w%view_selected)%md%drag_target + real(xc,8)
-                   w%mpos0_r = (/texpos%x,texpos%y,w%mpos0_r(3)/)
-                   w%mposlast = mousepos
-                   w%forcerender = .true.
-                end if
-             else
-                w%ilock = ilock_no
-                sysc(w%view_selected)%md%drag_iat = 0
-             end if
-          end if
+       ! Interactive dynamics grabs (only in the forced MD
+       ! mode). These run before the camera controls and take priority
+       ! when the cursor is over an atom/molecule: left grabs an atom,
+       ! right rigidly translates the molecule under the cursor,
+       ! middle rigidly rotates it. When the cursor is on empty space
+       ! the grab does not latch and the matching camera control below
+       ! (rotate/translate/perp-rotate) runs instead.
+       if (w%viewmode == vm_mddrag) then
+          call md_atom_drag()
+          call md_mol_move()
+          call md_mol_rotate()
        end if
 
        ! Zoom. There are two behaviors: mouse scroll and hold key and
@@ -1928,6 +1954,185 @@ contains
          end if
       end if
     end subroutine moveatom_translate
+
+    ! Interactive dynamics (vm_mddrag): grab the atom under the cursor and
+    ! drag it to follow the mouse (left button), by setting the MD drag
+    ! target that the integrator clamps each step. Latches on the grabbed atom's
+    ! depth plane. Does nothing (leaving the camera rotation to run) if the
+    ! cursor is not over an atom.
+    subroutine md_atom_drag()
+      if (hover.and.is_bind_event(BIND_NAV_ROTATE,.false.).and.w%ilock == ilock_no.and.&
+         w%mousepos_idx(1) > 0 .and. sysc(isys)%md%ready) then
+         sysc(isys)%md%drag_iat = w%mousepos_idx(1)
+         sysc(isys)%md%drag_target = sys(isys)%c%atcel(w%mousepos_idx(1))%r
+         vnew = real(sys(isys)%c%atcel(w%mousepos_idx(1))%r,c_float)
+         call w%world_to_texpos(vnew)
+         w%mpos0_r = (/texpos%x,texpos%y,vnew(3)/)
+         w%ilock = ilock_mddrag
+         w%mposlast = mousepos
+      elseif (w%ilock == ilock_mddrag) then
+         call igSetMouseCursor(ImGuiMouseCursor_Hand)
+         if (is_bind_event(BIND_NAV_ROTATE,.true.)) then
+            if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
+               call drag_delta_world(dxbohr)
+               sysc(isys)%md%drag_target = sysc(isys)%md%drag_target + dxbohr
+               w%mpos0_r = (/texpos%x,texpos%y,w%mpos0_r(3)/)
+               w%mposlast = mousepos
+               w%forcerender = .true.
+            end if
+         else
+            w%ilock = ilock_no
+            sysc(isys)%md%drag_iat = 0
+         end if
+      end if
+    end subroutine md_atom_drag
+
+    ! interactive dynamics (vm_mddrag): rigidly translate the molecule under the
+    ! cursor (right button) so it follows the mouse, by shifting its atoms in the
+    ! MD position buffer. Does nothing (leaving the camera pan to run) if the
+    ! cursor is not over an atom.
+    subroutine md_mol_move()
+      if (hover.and.is_bind_event(BIND_NAV_TRANSLATE,.false.).and.w%ilock == ilock_no.and.&
+         w%mousepos_idx(1) > 0 .and. sysc(isys)%md%ready) then
+         call moveobj_latch()
+         if (w%moveobj_icel > 0) then
+            ! drag on the scene-center depth plane (far plane -> unproject crash)
+            vnew = w%sc%scenecenter
+            call w%world_to_texpos(vnew)
+            w%mpos0_r = (/texpos%x,texpos%y,vnew(3)/)
+            w%ilock = ilock_mdmovemol
+            w%mposlast = mousepos
+            sysc(isys)%md%interacting = .true.
+         end if
+      elseif (w%ilock == ilock_mdmovemol) then
+         call igSetMouseCursor(ImGuiMouseCursor_Hand)
+         if (w%moveobj_icel > 0 .and. is_bind_event(BIND_NAV_TRANSLATE,.true.)) then
+            if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
+               call drag_delta_world(dxbohr)
+               call md_move_fragment(dxbohr)
+               w%mpos0_r = (/texpos%x,texpos%y,w%mpos0_r(3)/)
+               w%mposlast = mousepos
+               w%forcerender = .true.
+            end if
+         else
+            w%ilock = ilock_no
+            sysc(isys)%md%interacting = .false.
+         end if
+      end if
+    end subroutine md_mol_move
+
+    ! interactive dynamics (vm_mddrag): rigidly rotate the molecule under the
+    ! cursor about its center of mass (middle button), arcball-style, by
+    ! rotating its atoms in the MD position buffer. Does nothing (leaving the
+    ! camera perpendicular rotation to run) if the cursor is not over an atom.
+    subroutine md_mol_rotate()
+      real(c_float) :: axisw(3), lax
+      real*8 :: rmat(3,3)
+
+      if (hover.and.is_bind_event(BIND_NAV_ROTATE_PERP,.false.).and.w%ilock == ilock_no.and.&
+         w%mousepos_idx(1) > 0 .and. sysc(isys)%md%ready) then
+         call moveobj_latch()
+         if (w%moveobj_icel > 0) then
+            w%mpos0_m = (/texpos%x,texpos%y,0._c_float/)
+            w%cpos0_m = w%mpos0_m
+            call w%texpos_to_view(w%cpos0_m)
+            w%ilock = ilock_mdrotmol
+            sysc(isys)%md%interacting = .true.
+         end if
+      elseif (w%ilock == ilock_mdrotmol) then
+         call igSetMouseCursor(ImGuiMouseCursor_Hand)
+         if (w%moveobj_icel > 0 .and. is_bind_event(BIND_NAV_ROTATE_PERP,.true.)) then
+            if (texpos%x /= w%mpos0_m(1) .or. texpos%y /= w%mpos0_m(2)) then
+               ! arcball axis (eye) + angle, same math as the camera rotation
+               vnew = (/texpos%x,texpos%y,w%mpos0_m(3)/)
+               call w%texpos_to_view(vnew)
+               pos3 = (/0._c_float,0._c_float,1._c_float/)
+               axis = cross_cfloat(pos3,vnew - w%cpos0_m)
+               mpos2(1) = texpos%x - w%mpos0_m(1)
+               mpos2(2) = texpos%y - w%mpos0_m(2)
+               ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
+               ! axis from eye to world (bohr), then rotate the fragment
+               lax = norm2(axis)
+               if (lax > 1e-10_c_float) then
+                  axisw = axis / lax
+                  call invmult(axisw,w%sc%world,notrans=.true.)
+                  if (norm2(axisw) > 1e-10_c_float) then
+                     rmat = axisangle2mat(real(axisw,8),real(ang,8))
+                     call md_rotate_fragment(rmat)
+                     w%forcerender = .true.
+                  end if
+               end if
+               w%mpos0_m = (/texpos%x,texpos%y,0._c_float/)
+               w%cpos0_m = w%mpos0_m
+               call w%texpos_to_view(w%cpos0_m)
+            end if
+         else
+            w%ilock = ilock_no
+            sysc(isys)%md%interacting = .false.
+         end if
+      end if
+    end subroutine md_mol_rotate
+
+    ! world displacement matching the cursor motion from the drag anchor
+    ! w%mpos0_r on its depth plane (used by the MD atom/molecule translation drags)
+    subroutine drag_delta_world(dbohr)
+      real*8, intent(out) :: dbohr(3)
+      real(c_float) :: va(3), vb(3), dc(3)
+
+      va = (/texpos%x,texpos%y,w%mpos0_r(3)/)
+      call w%texpos_to_view(va)
+      vb = w%mpos0_r
+      call w%texpos_to_view(vb)
+      dc = va - vb
+      call invmult(dc,w%sc%view,notrans=.true.)  ! eye -> tworld
+      call invmult(dc,w%sc%world,notrans=.true.) ! tworld -> world (bohr)
+      dbohr = real(dc,8)
+    end subroutine drag_delta_world
+
+    ! shift the latched fragment's atoms in the MD position buffer by dx (bohr):
+    ! the whole molecule if it is discrete, otherwise just the single latched
+    ! atom (matching the move-molecules mode); keep c synced
+    subroutine md_move_fragment(dx)
+      real*8, intent(in) :: dx(3)
+      integer :: imol, k, iat
+
+      imol = w%moveobj_imol
+      if (w%moveobj_isdiscrete .and. imol >= 1 .and. imol <= sys(isys)%c%nmol) then
+         do k = 1, sys(isys)%c%mol(imol)%nat
+            iat = sys(isys)%c%mol(imol)%at(k)%cidx
+            sysc(isys)%md%r(:,iat) = sysc(isys)%md%r(:,iat) + dx
+         end do
+      elseif (w%moveobj_icel > 0) then
+         sysc(isys)%md%r(:,w%moveobj_icel) = sysc(isys)%md%r(:,w%moveobj_icel) + dx
+      end if
+      call sys(isys)%c%update_positions(sysc(isys)%md%r)
+    end subroutine md_move_fragment
+
+    ! rotate the latched molecule's atoms in the MD position buffer about their
+    ! mass-weighted center by rmat (world/bohr); discrete molecules only (as in
+    ! the move-molecules mode); keep c synced
+    subroutine md_rotate_fragment(rmat)
+      real*8, intent(in) :: rmat(3,3)
+      integer :: imol, k, iat
+      real*8 :: com(3), mtot
+
+      imol = w%moveobj_imol
+      if (.not.w%moveobj_isdiscrete .or. imol < 1 .or. imol > sys(isys)%c%nmol) return
+      com = 0d0
+      mtot = 0d0
+      do k = 1, sys(isys)%c%mol(imol)%nat
+         iat = sys(isys)%c%mol(imol)%at(k)%cidx
+         com = com + sysc(isys)%md%mass(iat) * sysc(isys)%md%r(:,iat)
+         mtot = mtot + sysc(isys)%md%mass(iat)
+      end do
+      if (mtot <= 0d0) return
+      com = com / mtot
+      do k = 1, sys(isys)%c%mol(imol)%nat
+         iat = sys(isys)%c%mol(imol)%at(k)%cidx
+         sysc(isys)%md%r(:,iat) = com + matmul(rmat, sysc(isys)%md%r(:,iat) - com)
+      end do
+      call sys(isys)%c%update_positions(sysc(isys)%md%r)
+    end subroutine md_rotate_fragment
 
     ! latch the cell atom and its molecular fragment under the cursor at the
     ! start of a move drag
