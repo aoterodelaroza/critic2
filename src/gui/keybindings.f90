@@ -95,7 +95,11 @@ module keybindings
   integer, parameter, public :: BIND_RECALC_BONDS = 48 ! view: recalculate bonds/connectivity
   integer, parameter, public :: BIND_VIEWMODE_MOVEATOM = 49 ! enter the move-atoms view mode (transient)
   integer, parameter, public :: BIND_MOVEATOM_TRANSLATE = 50 ! move atoms: translate single atom
-  integer, parameter, public :: BIND_NUM = 50 ! total number of binds
+  integer, parameter, public :: BIND_MDINTERACT_DRAGATOM = 51 ! interactive dynamics: drag an atom / rotate the view
+  integer, parameter, public :: BIND_MDINTERACT_MOVEMOL = 52 ! interactive dynamics: move a molecule / translate the view
+  integer, parameter, public :: BIND_MDINTERACT_ROTMOL = 53 ! interactive dynamics: rotate a molecule
+  integer, parameter, public :: BIND_PICKATOM_SELECT = 54 ! atom pick: select the atom under the cursor
+  integer, parameter, public :: BIND_NUM = 54 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -148,7 +152,11 @@ module keybindings
      "Toggle display of polyhedra     ",& ! BIND_VIEW_TOGGLE_POLYHEDRA
      "Recalculate bonds               ",& ! BIND_RECALC_BONDS
      "Move atoms                      ",& ! BIND_VIEWMODE_MOVEATOM
-     "Translate atom                  "&  ! BIND_MOVEATOM_TRANSLATE
+     "Translate atom                  ",& ! BIND_MOVEATOM_TRANSLATE
+     "Drag an atom                    ",& ! BIND_MDINTERACT_DRAGATOM
+     "Move a molecule                 ",& ! BIND_MDINTERACT_MOVEMOL
+     "Rotate a molecule               ",& ! BIND_MDINTERACT_ROTMOL
+     "Pick the atom under the cursor  "&  ! BIND_PICKATOM_SELECT
      /)
 
   ! The key associated with each bind, bind -> key
@@ -174,7 +182,9 @@ module keybindings
   integer, parameter, public :: group_editselect = 9          ! if the edit geometry window is active
   integer, parameter, public :: group_viewmode_movemol = 10   ! view mouse interaction modes
   integer, parameter, public :: group_viewmode_moveatom = 11  ! view mouse interaction modes
-  integer, parameter, public :: group_NUM = 11                ! total number of groups
+  integer, parameter, public :: group_viewmode_mdinteract = 12 ! view mouse interaction modes (forced during dynamics)
+  integer, parameter, public :: group_viewmode_pickatom = 13  ! view mouse interaction modes (forced atom pick)
+  integer, parameter, public :: group_NUM = 13                ! total number of groups
 
   ! Names of the keybinding groups
   character(len=32), parameter, public :: groupnames(group_NUM) = (/&
@@ -188,7 +198,9 @@ module keybindings
      "View Window: Select Mode        ",&
      "Atom/Molecule Selection         ",&
      "View Window: Move Molecules Mode",&
-     "View Window: Move Atoms Mode    "/)
+     "View Window: Move Atoms Mode    ",&
+     "View Window: Interact (MD) Mode ",&
+     "View Window: Pick Atom Mode     "/)
 
   ! Bind groups assignment
   integer, parameter, public :: groupbind(BIND_NUM) = (/&
@@ -241,7 +253,11 @@ module keybindings
      group_view,&                ! BIND_VIEW_TOGGLE_POLYHEDRA
      group_view,&                ! BIND_RECALC_BONDS
      group_viewmode,&            ! BIND_VIEWMODE_MOVEATOM
-     group_viewmode_moveatom/)   ! BIND_MOVEATOM_TRANSLATE
+     group_viewmode_moveatom,&   ! BIND_MOVEATOM_TRANSLATE
+     group_viewmode_mdinteract,& ! BIND_MDINTERACT_DRAGATOM
+     group_viewmode_mdinteract,& ! BIND_MDINTERACT_MOVEMOL
+     group_viewmode_mdinteract,& ! BIND_MDINTERACT_ROTMOL
+     group_viewmode_pickatom/)   ! BIND_PICKATOM_SELECT
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -297,7 +313,11 @@ module keybindings
      0,&  ! BIND_VIEW_TOGGLE_POLYHEDRA
      0,&  ! BIND_RECALC_BONDS
      -1,& ! BIND_VIEWMODE_MOVEATOM
-     BIND_VIEWMODE_MOVEATOM/)  ! BIND_MOVEATOM_TRANSLATE
+     BIND_VIEWMODE_MOVEATOM,&  ! BIND_MOVEATOM_TRANSLATE
+     0,&  ! BIND_MDINTERACT_DRAGATOM
+     0,&  ! BIND_MDINTERACT_MOVEMOL
+     0,&  ! BIND_MDINTERACT_ROTMOL
+     0/)  ! BIND_PICKATOM_SELECT
 
   ! module procedure interfaces
   interface

@@ -1176,12 +1176,12 @@ contains
     ! user cannot switch modes until the run stops.
     if (w%view_selected >= 1 .and. w%view_selected <= nsys) then
        if (sysc(w%view_selected)%md_run) then
-          w%viewmode = vm_mddrag
+          w%viewmode = vm_mdinteract
           w%viewmode_transient = .false.
           return
        end if
     end if
-    if (w%viewmode == vm_mddrag) then
+    if (w%viewmode == vm_mdinteract) then
        ! the run stopped: leave the forced mode
        w%viewmode = vm_navigate
        w%viewmode_transient = .false.
@@ -1248,16 +1248,16 @@ contains
     use gui_main, only: tooltip_delay, g
     use keybindings, only: get_bind_keyname, bindnames,&
        BIND_NUM, group_viewmode_navigation, group_viewmode_select,&
-       group_viewmode_movemol, group_viewmode_moveatom, groupbind, BIND_NAV_ZOOM
+       group_viewmode_movemol, group_viewmode_moveatom, group_viewmode_mdinteract,&
+       group_viewmode_pickatom, groupbind, BIND_NAV_ZOOM
     use utils, only: iw_combo_simple, iw_tooltip, igIsItemHovered_delayed, iw_text
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: ll, i, n, viewmode_before, iforced, nline
+    integer :: ll, i, n, viewmode_before, iforced, nline, mygroup
     character(len=:), allocatable :: viewmode_items
     integer, allocatable :: tips(:)
     character(len=64), allocatable :: keyline(:), lblline(:)
-    logical :: ok
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -1268,96 +1268,90 @@ contains
 
     if (w%viewmode < 0) then
        ! window-forced modes: show the combo; picking a normal mode
-       ! leaves a window-forced pick, while vm_mddrag is re-forced
+       ! leaves a window-forced pick, while vm_mdinteract is re-forced
        ! each frame.
        iforced = vm_NUM+1
        viewmode_items = viewmode_items // trim(vmnames(w%viewmode)) // c_null_char
        call iw_combo_simple("##viewmode",viewmode_items,iforced)
 
-       ! delayed tooltip describing the forced mode's mouse bindings
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          call igBeginTooltip()
-          if (w%viewmode == vm_mddrag) then
-             call iw_text("Left drag",highlight=.true.)
-             call iw_text("grab an atom / rotate the view",sameline=.true.)
-             call iw_text("Right drag",highlight=.true.)
-             call iw_text("move a molecule / translate the view",sameline=.true.)
-             call iw_text("Middle drag",highlight=.true.)
-             call iw_text("rotate a molecule",sameline=.true.)
-          else
-             call iw_text("Click",highlight=.true.)
-             call iw_text("pick the atom under the cursor",sameline=.true.)
-             call iw_text("Any key",highlight=.true.)
-             call iw_text("cancel the pick",sameline=.true.)
-          end if
-          call igEndTooltip()
-       end if
-
        if (iforced /= vm_NUM + 1) then
           w%viewmode = iforced
           w%viewmode_transient = .false.
-       elseif (allocated(w%vmdata%msg)) then
-          call iw_text(w%vmdata%msg,highlight=.true.,sameline=.true.)
        end if
     else
        ! the usual combo box; if the user selects the mode explicitly, it is not transient
        viewmode_before = w%viewmode
        call iw_combo_simple("##viewmode",viewmode_items,w%viewmode)
        if (w%viewmode /= viewmode_before) w%viewmode_transient = .false.
+    end if
 
-       ! get the tips for this view mode
-       ll = 1
-       n = 0
-       allocate(tips(BIND_NUM))
-       do i = 1, BIND_NUM
-          ok = .false.
-          if (w%viewmode == vm_navigate) then
-             ok = (groupbind(i) == group_viewmode_navigation)
-          elseif (w%viewmode == vm_select) then
-             ok = (groupbind(i) == group_viewmode_select)
-          elseif (w%viewmode == vm_movemol) then
-             ok = (groupbind(i) == group_viewmode_movemol)
-          elseif (w%viewmode == vm_moveatom) then
-             ok = (groupbind(i) == group_viewmode_moveatom)
-          end if
-          if (ok) then
-             n = n + 1
-             tips(n) = i
-             ll = max(ll,len_trim(get_bind_keyname(i)))
-          end if
-       end do
+    ! delayed tooltip with info about the key/mouse bindings for this view mode
+    if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
+       if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
+          ! the keybinding group for this view mode
+          select case (w%viewmode)
+          case (vm_navigate)
+             mygroup = group_viewmode_navigation
+          case (vm_select)
+             mygroup = group_viewmode_select
+          case (vm_movemol)
+             mygroup = group_viewmode_movemol
+          case (vm_moveatom)
+             mygroup = group_viewmode_moveatom
+          case (vm_mdinteract)
+             mygroup = group_viewmode_mdinteract
+          case (vm_pick_atom)
+             mygroup = group_viewmode_pickatom
+          case default
+             mygroup = 0
+          end select
 
-       ! delayed tooltip with info about the key/mouse bindings for this view mode
-       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-          if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
-             ! build the tooltip lines: one per bind in this mode's group, plus
-             ! the mouse-scroll (cell-volume) line for the move modes
-             allocate(keyline(n+1),lblline(n+1))
-             do i = 1, n
-                keyline(i) = trim(get_bind_keyname(tips(i)))
-                lblline(i) = trim(bindnames(tips(i)))
-             end do
-             nline = n
-             if (w%viewmode == vm_movemol .or. w%viewmode == vm_moveatom) then
-                nline = nline + 1
-                keyline(nline) = trim(get_bind_keyname(BIND_NAV_ZOOM))
-                lblline(nline) = "Change cell volume (crystals)"
+          ! one tooltip line per bind in this mode's group
+          ll = 1
+          n = 0
+          allocate(tips(BIND_NUM))
+          do i = 1, BIND_NUM
+             if (groupbind(i) == mygroup) then
+                n = n + 1
+                tips(n) = i
+                ll = max(ll,len_trim(get_bind_keyname(i)))
              end if
-             ! align the key column
-             ll = 1
-             do i = 1, nline
-                ll = max(ll,len_trim(keyline(i)))
-             end do
+          end do
 
-             call igBeginTooltip()
-             do i = 1, nline
-                call iw_text(string(trim(keyline(i)),length=ll+1),highlight=.true.)
-                call iw_text(trim(lblline(i)),sameline=.true.)
-             end do
-             call igEndTooltip()
-             deallocate(keyline,lblline)
+          ! build the tooltip lines: one per bind in this mode's group, plus
+          ! the mouse-scroll (cell-volume) line for the move modes
+          allocate(keyline(n+1),lblline(n+1))
+          do i = 1, n
+             keyline(i) = trim(get_bind_keyname(tips(i)))
+             lblline(i) = trim(bindnames(tips(i)))
+          end do
+          nline = n
+          if (w%viewmode == vm_movemol .or. w%viewmode == vm_moveatom) then
+             nline = nline + 1
+             keyline(nline) = trim(get_bind_keyname(BIND_NAV_ZOOM))
+             lblline(nline) = "Change cell volume (crystals)"
           end if
+
+          ! align the key column
+          ll = 1
+          do i = 1, nline
+             ll = max(ll,len_trim(keyline(i)))
+          end do
+
+          ! draw the tooltip
+          call igBeginTooltip()
+          do i = 1, nline
+             call iw_text(string(trim(keyline(i)),length=ll+1),highlight=.true.)
+             call iw_text(trim(lblline(i)),sameline=.true.)
+          end do
+          call igEndTooltip()
+          deallocate(tips,keyline,lblline)
        end if
+    end if
+
+    ! show the viewmode message ("pick an atom...", etc.)
+    if (allocated(w%vmdata%msg)) then
+       call iw_text(w%vmdata%msg,highlight=.true.,sameline=.true.)
     end if
 
   end subroutine viewmode_bar_display
@@ -1402,7 +1396,8 @@ contains
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE,&
        BIND_CLOSE_FOCUSED_DIALOG, BIND_SELECT_MOLECULES_AND_DESELECT, BIND_SELECT_ATOMS,&
        BIND_SELECT_MOLECULES, BIND_MOVEMOL_TRANSLATE, BIND_MOVEMOL_ROTATE,&
-       BIND_MOVEMOL_ROTATE_PERP, BIND_MOVEATOM_TRANSLATE
+       BIND_MOVEMOL_ROTATE_PERP, BIND_MOVEATOM_TRANSLATE,&
+       BIND_MDINTERACT_DRAGATOM, BIND_MDINTERACT_MOVEMOL, BIND_MDINTERACT_ROTMOL
     use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry
     use global, only: iunit_bohr
     use gui_main, only: io, ColorHighlightSelectScene
@@ -1473,7 +1468,7 @@ contains
 
     ! release any interactive-dynamics grab whenever the view is not in the
     ! forced MD mode
-    if (w%viewmode /= vm_mddrag) then
+    if (w%viewmode /= vm_mdinteract) then
        if (w%ilock == ilock_mddrag .or. w%ilock == ilock_mdmovemol .or. w%ilock == ilock_mdrotmol) &
           w%ilock = ilock_no
        sysc(w%view_selected)%md%drag_iat = 0
@@ -1481,9 +1476,9 @@ contains
     end if
 
     ! process mode-specific events
-    if (w%viewmode == vm_navigate .or. w%viewmode == vm_mddrag) then
+    if (w%viewmode == vm_navigate .or. w%viewmode == vm_mdinteract) then
        ! navigation and the forced interactive-dynamics mode share the camera
-       ! controls below; vm_mddrag additionally grabs atoms/molecules first.
+       ! controls below; vm_mdinteract additionally grabs atoms/molecules first.
        isys = w%view_selected
 
        ! drop any rubber-band drag carried over from select mode (e.g. shift released mid-drag)
@@ -1502,7 +1497,7 @@ contains
        ! middle rigidly rotates it. When the cursor is on empty space
        ! the grab does not latch and the matching camera control below
        ! (rotate/translate/perp-rotate) runs instead.
-       if (w%viewmode == vm_mddrag) then
+       if (w%viewmode == vm_mdinteract) then
           call md_atom_drag()
           call md_mol_move()
           call md_mol_rotate()
@@ -1955,13 +1950,13 @@ contains
       end if
     end subroutine moveatom_translate
 
-    ! Interactive dynamics (vm_mddrag): grab the atom under the cursor and
+    ! Interactive dynamics (vm_mdinteract): grab the atom under the cursor and
     ! drag it to follow the mouse (left button), by setting the MD drag
     ! target that the integrator clamps each step. Latches on the grabbed atom's
     ! depth plane. Does nothing (leaving the camera rotation to run) if the
     ! cursor is not over an atom.
     subroutine md_atom_drag()
-      if (hover.and.is_bind_event(BIND_NAV_ROTATE,.false.).and.w%ilock == ilock_no.and.&
+      if (hover.and.is_bind_event(BIND_MDINTERACT_DRAGATOM,.false.).and.w%ilock == ilock_no.and.&
          w%mousepos_idx(1) > 0 .and. sysc(isys)%md%ready) then
          sysc(isys)%md%drag_iat = w%mousepos_idx(1)
          sysc(isys)%md%drag_target = sys(isys)%c%atcel(w%mousepos_idx(1))%r
@@ -1972,7 +1967,7 @@ contains
          w%mposlast = mousepos
       elseif (w%ilock == ilock_mddrag) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (is_bind_event(BIND_NAV_ROTATE,.true.)) then
+         if (is_bind_event(BIND_MDINTERACT_DRAGATOM,.true.)) then
             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
                call drag_delta_world(dxbohr)
                sysc(isys)%md%drag_target = sysc(isys)%md%drag_target + dxbohr
@@ -1987,12 +1982,12 @@ contains
       end if
     end subroutine md_atom_drag
 
-    ! interactive dynamics (vm_mddrag): rigidly translate the molecule under the
+    ! interactive dynamics (vm_mdinteract): rigidly translate the molecule under the
     ! cursor (right button) so it follows the mouse, by shifting its atoms in the
     ! MD position buffer. Does nothing (leaving the camera pan to run) if the
     ! cursor is not over an atom.
     subroutine md_mol_move()
-      if (hover.and.is_bind_event(BIND_NAV_TRANSLATE,.false.).and.w%ilock == ilock_no.and.&
+      if (hover.and.is_bind_event(BIND_MDINTERACT_MOVEMOL,.false.).and.w%ilock == ilock_no.and.&
          w%mousepos_idx(1) > 0 .and. sysc(isys)%md%ready) then
          call moveobj_latch()
          if (w%moveobj_icel > 0) then
@@ -2006,7 +2001,7 @@ contains
          end if
       elseif (w%ilock == ilock_mdmovemol) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (w%moveobj_icel > 0 .and. is_bind_event(BIND_NAV_TRANSLATE,.true.)) then
+         if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MDINTERACT_MOVEMOL,.true.)) then
             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
                call drag_delta_world(dxbohr)
                call md_move_fragment(dxbohr)
@@ -2021,7 +2016,7 @@ contains
       end if
     end subroutine md_mol_move
 
-    ! interactive dynamics (vm_mddrag): rigidly rotate the molecule under the
+    ! interactive dynamics (vm_mdinteract): rigidly rotate the molecule under the
     ! cursor about its center of mass (middle button), arcball-style, by
     ! rotating its atoms in the MD position buffer. Does nothing (leaving the
     ! camera perpendicular rotation to run) if the cursor is not over an atom.
@@ -2029,7 +2024,7 @@ contains
       real(c_float) :: axisw(3), lax
       real*8 :: rmat(3,3)
 
-      if (hover.and.is_bind_event(BIND_NAV_ROTATE_PERP,.false.).and.w%ilock == ilock_no.and.&
+      if (hover.and.is_bind_event(BIND_MDINTERACT_ROTMOL,.false.).and.w%ilock == ilock_no.and.&
          w%mousepos_idx(1) > 0 .and. sysc(isys)%md%ready) then
          call moveobj_latch()
          if (w%moveobj_icel > 0) then
@@ -2041,7 +2036,7 @@ contains
          end if
       elseif (w%ilock == ilock_mdrotmol) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-         if (w%moveobj_icel > 0 .and. is_bind_event(BIND_NAV_ROTATE_PERP,.true.)) then
+         if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MDINTERACT_ROTMOL,.true.)) then
             if (texpos%x /= w%mpos0_m(1) .or. texpos%y /= w%mpos0_m(2)) then
                ! arcball axis (eye) + angle, same math as the camera rotation
                vnew = (/texpos%x,texpos%y,w%mpos0_m(3)/)

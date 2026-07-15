@@ -38,7 +38,7 @@ module windows
   integer(c_size_t), parameter :: maxlib = 40000
 
   ! view modes (positive = normal, user-selectable; negative = forced)
-  integer, parameter, public :: vm_mddrag = -2 ! forced during interactive dynamics
+  integer, parameter, public :: vm_mdinteract = -2 ! forced during interactive dynamics
   integer, parameter, public :: vm_pick_atom = -1 ! forced by a window awaiting an atom pick
   integer, parameter, public :: vm_navigate  = 0
   integer, parameter, public :: vm_select    = 1
@@ -46,8 +46,8 @@ module windows
   integer, parameter, public :: vm_moveatom  = 3
   integer, parameter, public :: vm_NUM = 3 ! highest user-selectable mode (combo)
 
-  character(len=14), parameter, public :: vmnames(vm_mddrag:vm_NUM) = (/&
-     "Interact (MD) ",& ! vm_mddrag
+  character(len=14), parameter, public :: vmnames(vm_mdinteract:vm_NUM) = (/&
+     "Interact (MD) ",& ! vm_mdinteract
      "Pick Atoms    ",& ! vm_pick_atom
      "Navigate      ",& ! vm_navigate
      "Select        ",& ! vm_select
