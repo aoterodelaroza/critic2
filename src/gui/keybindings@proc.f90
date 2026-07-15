@@ -241,6 +241,8 @@ contains
     call set_bind(BIND_PICKATOM_SELECT,ImGuiKey_MouseLeft,mod_none)
     call set_bind(BIND_MOVEMOL_CHANGECELL,ImGuiKey_MouseScroll,mod_none)
     call set_bind(BIND_MOVEATOM_CHANGECELL,ImGuiKey_MouseScroll,mod_none)
+    call set_bind(BIND_SELECT_ZOOM,ImGuiKey_MouseScroll,mod_none)
+    call set_bind(BIND_MDINTERACT_ZOOM,ImGuiKey_MouseScroll,mod_none)
     call set_bind(BIND_UNDO,ImGuiKey_Z,mod_ctrl)
     call set_bind(BIND_REDO,ImGuiKey_Y,mod_ctrl)
 

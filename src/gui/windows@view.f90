@@ -1254,7 +1254,7 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: ll, i, n, viewmode_before, iforced, nline, mygroup
+    integer :: ll, i, n, m, viewmode_before, iforced, mygroup
     character(len=:), allocatable :: viewmode_items
     integer, allocatable :: tips(:)
     character(len=64), allocatable :: keyline(:), lblline(:)
@@ -1319,22 +1319,28 @@ contains
           end do
 
           ! build the tooltip lines: one per bind in this mode's group
-          allocate(keyline(n),lblline(n))
+          m = n
+          if (w%viewmode == vm_pick_atom) m = n + 1
+          allocate(keyline(m),lblline(m))
           do i = 1, n
              keyline(i) = trim(get_bind_keyname(tips(i)))
              lblline(i) = trim(bindnames(tips(i)))
           end do
-          nline = n
+          if (w%viewmode == vm_pick_atom) then
+             n = n + 1
+             keyline(n) = "Any Key"
+             lblline(n) = "Cancel Pick Atom"
+          end if
 
           ! align the key column
           ll = 1
-          do i = 1, nline
+          do i = 1, n
              ll = max(ll,len_trim(keyline(i)))
           end do
 
           ! draw the tooltip
           call igBeginTooltip()
-          do i = 1, nline
+          do i = 1, n
              call iw_text(string(trim(keyline(i)),length=ll+1),highlight=.true.)
              call iw_text(trim(lblline(i)),sameline=.true.)
           end do
@@ -1394,7 +1400,8 @@ contains
        BIND_SELECT_MOLECULES, BIND_MOVEMOL_TRANSLATE, BIND_MOVEMOL_ROTATE,&
        BIND_MOVEMOL_ROTATE_PERP, BIND_MOVEATOM_TRANSLATE,&
        BIND_MDINTERACT_DRAGATOM, BIND_MDINTERACT_MOVEMOL, BIND_MDINTERACT_ROTMOL,&
-       BIND_MOVEMOL_CHANGECELL, BIND_MOVEATOM_CHANGECELL
+       BIND_MOVEMOL_CHANGECELL, BIND_MOVEATOM_CHANGECELL,&
+       BIND_SELECT_ZOOM, BIND_MDINTERACT_ZOOM
     use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry
     use global, only: iunit_bohr
     use gui_main, only: io, ColorHighlightSelectScene
@@ -1402,7 +1409,7 @@ contains
     logical, intent(in) :: hover
 
     type(ImVec2) :: texpos, mousepos, pmin, pmax
-    real(c_float) :: ratio, pos3(3), vnew(3), vold(3), axis(3)
+    real(c_float) :: pos3(3), vnew(3), vold(3), axis(3)
     real(c_float) :: mpos2(2), ang, xc(3), dist, comc(3)
     real*8 :: dxbohr(3)
     integer :: isys
@@ -1472,162 +1479,23 @@ contains
        sysc(w%view_selected)%md%interacting = .false.
     end if
 
-    ! process mode-specific events
-    if (w%viewmode == vm_navigate .or. w%viewmode == vm_mdinteract) then
-       ! navigation and the forced interactive-dynamics mode share the camera
-       ! controls below; vm_mdinteract additionally grabs atoms/molecules first.
-       isys = w%view_selected
-
-       ! drop any rubber-band drag carried over from select mode (e.g. shift released mid-drag)
+    ! drop any drag carried over from select mode
+    if (w%viewmode /= vm_select) then
        w%selrect_active = .false.
+    end if
 
+    ! process mode-specific events
+    if (w%viewmode == vm_navigate) then
+       ! navigation mode
        call igGetMousePos(mousepos)
        texpos = mousepos
-
-       ! transform to the texture pos
        call w%mousepos_to_texpos(texpos)
 
-       ! Interactive dynamics grabs (only in the forced MD
-       ! mode). These run before the camera controls and take priority
-       ! when the cursor is over an atom/molecule: left grabs an atom,
-       ! right rigidly translates the molecule under the cursor,
-       ! middle rigidly rotates it. When the cursor is on empty space
-       ! the grab does not latch and the matching camera control below
-       ! (rotate/translate/perp-rotate) runs instead.
-       if (w%viewmode == vm_mdinteract) then
-          call md_atom_drag()
-          call md_mol_move()
-          call md_mol_rotate()
-       end if
-
-       ! Zoom. There are two behaviors: mouse scroll and hold key and
-       ! translate mouse
-       ratio = 0._c_float
-       if (hover.and.(w%ilock == ilock_no .or. w%ilock == ilock_scroll).and. is_bind_event(BIND_NAV_ZOOM,.false.)) then
-          if (is_bind_mousescroll(BIND_NAV_ZOOM)) then
-             ! mouse scroll
-             ratio = mousesens_zoom0 * io%MouseWheel
-          else
-             ! keys
-             w%mpos0_s = mousepos%y
-             w%ilock = ilock_scroll
-          end if
-       elseif (w%ilock == ilock_scroll) then
-          if (is_bind_event(BIND_NAV_ZOOM,.true.)) then
-             ! 10/a to make it adimensional
-             ratio = mousesens_zoom0 * (w%mpos0_s-mousepos%y) * (10._c_float / w%FBOside)
-             w%mpos0_s = mousepos%y
-          else
-             w%ilock = ilock_no
-          end if
-       end if
-       if (ratio /= 0._c_float) then
-          ratio = min(max(ratio,-0.99999_c_float),0.9999_c_float)
-          call w%sc%cam_zoom(ratio)
-          w%forcerender = .true.
-       end if
-
-       ! drag
-       if (hover.and.is_bind_event(BIND_NAV_TRANSLATE,.false.).and.(w%ilock == ilock_no.or.w%ilock == ilock_right)) then
-          ! drag on the scene-center depth plane; unprojecting at the far plane
-          ! (z=1) is degenerate in perspective (point at infinity -> division by
-          ! zero in unproject)
-          vnew = w%sc%scenecenter
-          call w%world_to_texpos(vnew)
-          w%mpos0_r = (/texpos%x,texpos%y,vnew(3)/)
-
-          ! save the current view matrix
-          w%oldview = w%sc%view
-
-          w%ilock = ilock_right
-          w%mposlast = mousepos
-       elseif (w%ilock == ilock_right) then
-          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-          if (is_bind_event(BIND_NAV_TRANSLATE,.true.)) then
-             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
-                vnew = (/texpos%x,texpos%y,w%mpos0_r(3)/)
-                call w%texpos_to_view(vnew)
-                vold = w%mpos0_r
-                call w%texpos_to_view(vold)
-
-                xc = vold - vnew
-                call invmult(xc,w%oldview)
-                call w%sc%cam_move(xc)
-                w%forcerender = .true.
-             end if
-          else
-             w%ilock = ilock_no
-          end if
-       end if
-
-       ! rotate
-       if (hover .and. is_bind_event(BIND_NAV_ROTATE,.false.) .and. (w%ilock == ilock_no .or. w%ilock == ilock_left)) then
-          w%mpos0_l = (/texpos%x, texpos%y, 0._c_float/)
-          w%cpos0_l = w%mpos0_l
-          call w%texpos_to_view(w%cpos0_l)
-          w%ilock = ilock_left
-       elseif (w%ilock == ilock_left) then
-          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-          if (is_bind_event(BIND_NAV_ROTATE,.true.)) then
-             if (texpos%x /= w%mpos0_l(1) .or. texpos%y /= w%mpos0_l(2)) then
-                ! calculate the axis
-                vnew = (/texpos%x,texpos%y,w%mpos0_l(3)/)
-                call w%texpos_to_view(vnew)
-                pos3 = (/0._c_float,0._c_float,1._c_float/)
-                axis = cross_cfloat(pos3,vnew - w%cpos0_l)
-
-                ! calculate the angle
-                mpos2(1) = texpos%x - w%mpos0_l(1)
-                mpos2(2) = texpos%y - w%mpos0_l(2)
-                ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
-
-                ! rotate the camera
-                call w%sc%cam_rotate(axis,ang)
-
-                ! save the new position and re-render
-                w%mpos0_l = (/texpos%x, texpos%y, 0._c_float/)
-                w%cpos0_l = w%mpos0_l
-                call w%texpos_to_view(w%cpos0_l)
-                w%forcerender = .true.
-             end if
-          else
-             w%ilock = ilock_no
-          end if
-       end if
-
-       ! rotate around perpendicular axis
-       if (hover .and. is_bind_event(BIND_NAV_ROTATE_PERP,.false.) .and.&
-          (w%ilock == ilock_no .or. w%ilock == ilock_middle)) then
-          w%mpos0_m = w%sc%scenecenter
-          call w%world_to_texpos(w%mpos0_m)
-          vnew = (/texpos%x,texpos%y,0._c_float/)
-          vnew = vnew - w%mpos0_m
-          dist = norm2(vnew)
-          if (dist > 0._c_float) then
-             w%cpos0_m = vnew / dist
-          else
-             w%cpos0_m = (/0._c_float, -1._c_float, 0._c_float/)
-          end if
-          w%ilock = ilock_middle
-       elseif (w%ilock == ilock_middle) then
-          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-          if (is_bind_event(BIND_NAV_ROTATE_PERP,.true.)) then
-             vnew = (/texpos%x,texpos%y,0._c_float/)
-             vnew = vnew - w%mpos0_m
-             dist = norm2(vnew)
-             if (dist > 0._c_float) then
-                vnew = vnew / dist
-                xc = cross_cfloat(w%cpos0_m,vnew)
-                ang = atan2(xc(3),dot_product(w%cpos0_m,vnew))
-                axis = (/0._c_float,0._c_float,1._c_float/)
-                call w%sc%cam_rotate(axis,ang)
-                w%forcerender = .true.
-                w%cpos0_m = vnew
-             end if
-          else
-             w%ilock = ilock_no
-          end if
-       end if
+       ! camera controls: zoom, pan, rotate, perpendicular-rotate
+       call cam_zoom(BIND_NAV_ZOOM)
+       call cam_translate(BIND_NAV_TRANSLATE)
+       call cam_rotate(BIND_NAV_ROTATE)
+       call cam_perp(BIND_NAV_ROTATE_PERP)
 
        ! reset the view
        if (hover .and. is_bind_event(BIND_NAV_RESET,.false.)) then
@@ -1650,10 +1518,33 @@ contains
           call sysc(w%view_selected)%highlight_clear(.false.)
           w%forcerender = .true.
        end if
+    elseif (w%viewmode == vm_mdinteract) then
+       ! forced interactive-dynamics mode: grab the atom/molecule under the
+       ! cursor first (the grabs take priority and latch a lock), then run the
+       ! camera controls keyed to this mode's own binds, so a drag on empty space
+       ! rotates/pans/spins the camera and the wheel zooms.
+       isys = w%view_selected
+
+       call igGetMousePos(mousepos)
+       texpos = mousepos
+       call w%mousepos_to_texpos(texpos)
+
+       call md_atom_drag()
+       call md_mol_move()
+       call md_mol_rotate()
+
+       call cam_zoom(BIND_MDINTERACT_ZOOM)
+       call cam_translate(BIND_MDINTERACT_MOVEMOL)
+       call cam_rotate(BIND_MDINTERACT_DRAGATOM)
+       call cam_perp(BIND_MDINTERACT_ROTMOL)
     elseif (w%viewmode == vm_select) then
        ! select mode
        isys = w%view_selected
        call igGetMousePos(mousepos)
+
+       ! mouse wheel zooms the camera (no other camera controls, so the left
+       ! drag is free for the rubber-band selection)
+       call cam_zoom(BIND_SELECT_ZOOM)
 
        ! select the whole fragment under the mouse with either a right click or
        ! a left double click; a single left click starts a potential rubber band
@@ -1879,15 +1770,13 @@ contains
       end do
     end function any_key_pressed
 
-    ! change-cell bind while in a move mode: change the cell volume isotropically
-    ! for a crystal, otherwise fall back to the camera zoom. bindid is bound to
-    ! the mouse scroll by default, but supports a held key + vertical drag too
-    ! (same two behaviors as the navigation zoom).
-    subroutine moveobj_scroll(bindid)
+    ! adimensional scroll amount for the given bind: from the mouse wheel, or
+    ! from a held key + vertical drag (latched via ilock_scroll). Shared by the
+    ! camera zoom and the move-mode change-cell scroll.
+    subroutine scroll_amount(bindid,delta)
       integer, intent(in) :: bindid
-      real(c_float) :: delta, rr
+      real(c_float), intent(out) :: delta
 
-      ! collect the change amount from the scroll wheel or the key drag
       delta = 0._c_float
       if (hover.and.(w%ilock == ilock_no .or. w%ilock == ilock_scroll).and. is_bind_event(bindid,.false.)) then
          if (is_bind_mousescroll(bindid)) then
@@ -1898,12 +1787,141 @@ contains
          end if
       elseif (w%ilock == ilock_scroll) then
          if (is_bind_event(bindid,.true.)) then
+            ! 10/a to make it adimensional
             delta = (w%mpos0_s-mousepos%y) * (10._c_float / w%FBOside)
             w%mpos0_s = mousepos%y
          else
             w%ilock = ilock_no
          end if
       end if
+    end subroutine scroll_amount
+
+    ! zoom the camera with the given bind (mouse scroll, or held key + vertical drag)
+    subroutine cam_zoom(bindid)
+      integer, intent(in) :: bindid
+      real(c_float) :: ratio
+
+      call scroll_amount(bindid,ratio)
+      if (ratio /= 0._c_float) then
+         ratio = min(max(mousesens_zoom0*ratio,-0.99999_c_float),0.9999_c_float)
+         call w%sc%cam_zoom(ratio)
+         w%forcerender = .true.
+      end if
+    end subroutine cam_zoom
+
+    ! translate/pan the camera by dragging with the given bind
+    subroutine cam_translate(bindid)
+      integer, intent(in) :: bindid
+
+      if (hover.and.is_bind_event(bindid,.false.).and.(w%ilock == ilock_no.or.w%ilock == ilock_right)) then
+         ! drag on the scene-center depth plane; unprojecting at the far plane
+         ! (z=1) is degenerate in perspective (point at infinity -> division by
+         ! zero in unproject)
+         vnew = w%sc%scenecenter
+         call w%world_to_texpos(vnew)
+         w%mpos0_r = (/texpos%x,texpos%y,vnew(3)/)
+         w%oldview = w%sc%view
+         w%ilock = ilock_right
+         w%mposlast = mousepos
+      elseif (w%ilock == ilock_right) then
+         call igSetMouseCursor(ImGuiMouseCursor_Hand)
+         if (is_bind_event(bindid,.true.)) then
+            if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
+               vnew = (/texpos%x,texpos%y,w%mpos0_r(3)/)
+               call w%texpos_to_view(vnew)
+               vold = w%mpos0_r
+               call w%texpos_to_view(vold)
+               xc = vold - vnew
+               call invmult(xc,w%oldview)
+               call w%sc%cam_move(xc)
+               w%forcerender = .true.
+            end if
+         else
+            w%ilock = ilock_no
+         end if
+      end if
+    end subroutine cam_translate
+
+    ! rotate (arcball) the camera by dragging with the given bind
+    subroutine cam_rotate(bindid)
+      integer, intent(in) :: bindid
+
+      if (hover .and. is_bind_event(bindid,.false.) .and. (w%ilock == ilock_no .or. w%ilock == ilock_left)) then
+         w%mpos0_l = (/texpos%x, texpos%y, 0._c_float/)
+         w%cpos0_l = w%mpos0_l
+         call w%texpos_to_view(w%cpos0_l)
+         w%ilock = ilock_left
+      elseif (w%ilock == ilock_left) then
+         call igSetMouseCursor(ImGuiMouseCursor_Hand)
+         if (is_bind_event(bindid,.true.)) then
+            if (texpos%x /= w%mpos0_l(1) .or. texpos%y /= w%mpos0_l(2)) then
+               ! arcball axis (eye) and angle
+               vnew = (/texpos%x,texpos%y,w%mpos0_l(3)/)
+               call w%texpos_to_view(vnew)
+               pos3 = (/0._c_float,0._c_float,1._c_float/)
+               axis = cross_cfloat(pos3,vnew - w%cpos0_l)
+               mpos2(1) = texpos%x - w%mpos0_l(1)
+               mpos2(2) = texpos%y - w%mpos0_l(2)
+               ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
+               call w%sc%cam_rotate(axis,ang)
+               w%mpos0_l = (/texpos%x, texpos%y, 0._c_float/)
+               w%cpos0_l = w%mpos0_l
+               call w%texpos_to_view(w%cpos0_l)
+               w%forcerender = .true.
+            end if
+         else
+            w%ilock = ilock_no
+         end if
+      end if
+    end subroutine cam_rotate
+
+    ! rotate the camera around the screen-perpendicular axis with the given bind
+    subroutine cam_perp(bindid)
+      integer, intent(in) :: bindid
+
+      if (hover .and. is_bind_event(bindid,.false.) .and.&
+         (w%ilock == ilock_no .or. w%ilock == ilock_middle)) then
+         w%mpos0_m = w%sc%scenecenter
+         call w%world_to_texpos(w%mpos0_m)
+         vnew = (/texpos%x,texpos%y,0._c_float/)
+         vnew = vnew - w%mpos0_m
+         dist = norm2(vnew)
+         if (dist > 0._c_float) then
+            w%cpos0_m = vnew / dist
+         else
+            w%cpos0_m = (/0._c_float, -1._c_float, 0._c_float/)
+         end if
+         w%ilock = ilock_middle
+      elseif (w%ilock == ilock_middle) then
+         call igSetMouseCursor(ImGuiMouseCursor_Hand)
+         if (is_bind_event(bindid,.true.)) then
+            vnew = (/texpos%x,texpos%y,0._c_float/)
+            vnew = vnew - w%mpos0_m
+            dist = norm2(vnew)
+            if (dist > 0._c_float) then
+               vnew = vnew / dist
+               xc = cross_cfloat(w%cpos0_m,vnew)
+               ang = atan2(xc(3),dot_product(w%cpos0_m,vnew))
+               axis = (/0._c_float,0._c_float,1._c_float/)
+               call w%sc%cam_rotate(axis,ang)
+               w%forcerender = .true.
+               w%cpos0_m = vnew
+            end if
+         else
+            w%ilock = ilock_no
+         end if
+      end if
+    end subroutine cam_perp
+
+    ! change-cell bind while in a move mode: change the cell volume isotropically
+    ! for a crystal, otherwise fall back to the camera zoom. bindid is bound to
+    ! the mouse scroll by default, but supports a held key + vertical drag too
+    ! (same two behaviors as the navigation zoom).
+    subroutine moveobj_scroll(bindid)
+      integer, intent(in) :: bindid
+      real(c_float) :: delta, rr
+
+      call scroll_amount(bindid,delta)
       if (delta == 0._c_float) return
 
       if (sys(isys)%c%ismolecule) then

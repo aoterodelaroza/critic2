@@ -101,7 +101,9 @@ module keybindings
   integer, parameter, public :: BIND_PICKATOM_SELECT = 54 ! atom pick: select the atom under the cursor
   integer, parameter, public :: BIND_MOVEMOL_CHANGECELL = 55 ! move molecules: change cell volume (crystals) / zoom
   integer, parameter, public :: BIND_MOVEATOM_CHANGECELL = 56 ! move atoms: change cell volume (crystals) / zoom
-  integer, parameter, public :: BIND_NUM = 56 ! total number of binds
+  integer, parameter, public :: BIND_SELECT_ZOOM = 57 ! select: zoom the camera
+  integer, parameter, public :: BIND_MDINTERACT_ZOOM = 58 ! interactive dynamics: zoom the camera
+  integer, parameter, public :: BIND_NUM = 58 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -160,7 +162,9 @@ module keybindings
      "Rotate a molecule               ",& ! BIND_MDINTERACT_ROTMOL
      "Pick atom under cursor          ",& ! BIND_PICKATOM_SELECT
      "Change cell volume/Zoom         ",& ! BIND_MOVEMOL_CHANGECELL
-     "Change cell volume/Zoom         "&  ! BIND_MOVEATOM_CHANGECELL
+     "Change cell volume/Zoom         ",& ! BIND_MOVEATOM_CHANGECELL
+     "Camera zoom                     ",& ! BIND_SELECT_ZOOM
+     "Camera zoom                     "&  ! BIND_MDINTERACT_ZOOM
      /)
 
   ! The key associated with each bind, bind -> key
@@ -263,7 +267,9 @@ module keybindings
      group_viewmode_mdinteract,& ! BIND_MDINTERACT_ROTMOL
      group_viewmode_pickatom,&   ! BIND_PICKATOM_SELECT
      group_viewmode_movemol,&    ! BIND_MOVEMOL_CHANGECELL
-     group_viewmode_moveatom/)   ! BIND_MOVEATOM_CHANGECELL
+     group_viewmode_moveatom,&   ! BIND_MOVEATOM_CHANGECELL
+     group_viewmode_select,&     ! BIND_SELECT_ZOOM
+     group_viewmode_mdinteract/) ! BIND_MDINTERACT_ZOOM
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -325,7 +331,9 @@ module keybindings
      0,&  ! BIND_MDINTERACT_ROTMOL
      0,&  ! BIND_PICKATOM_SELECT
      BIND_VIEWMODE_MOVEMOL,&   ! BIND_MOVEMOL_CHANGECELL
-     BIND_VIEWMODE_MOVEATOM/)  ! BIND_MOVEATOM_CHANGECELL
+     BIND_VIEWMODE_MOVEATOM,&  ! BIND_MOVEATOM_CHANGECELL
+     BIND_VIEWMODE_SELECT,&    ! BIND_SELECT_ZOOM
+     0/)  ! BIND_MDINTERACT_ZOOM
 
   ! module procedure interfaces
   interface
