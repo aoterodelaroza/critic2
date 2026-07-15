@@ -1349,8 +1349,10 @@ contains
        end if
     end if
 
-    ! show the viewmode message ("pick an atom...", etc.)
-    if (allocated(w%vmdata%msg)) then
+    ! show the pick message ("pick an atom...", etc.) only while the window-forced
+    ! pick mode is active, so it vanishes as soon as an atom is picked or the view
+    ! mode changes (the string itself lingers allocated until the next pick)
+    if (w%viewmode == vm_pick_atom .and. allocated(w%vmdata%msg)) then
        call iw_text(w%vmdata%msg,highlight=.true.,sameline=.true.)
     end if
 
