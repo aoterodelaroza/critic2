@@ -27,9 +27,12 @@ submodule (dynamics) proc
   real*8, parameter :: fire_falpha = 0.99d0
   real*8, parameter :: fire_alpha0 = 0.1d0
   integer, parameter :: fire_nmin = 5
+  real*8, parameter :: fire_drmax = 0.5d0 ! trust-region cap on the step displacements
+  real*8, parameter :: fire_dt0 = 10d0 ! initial FIRE timestep (a.u.)
+  real*8, parameter :: fire_dtmax = 40d0 ! ceiling for the adaptive FIRE timestep (a.u.)
+  real*8, parameter :: fire_dtmin = 1d0 ! floor for the adaptive timestep (a.u.); stable for stiff O-H bonds
 
-  ! enlarge the molecular cell when any atom comes within this
-  ! fractional distance of a cell face.
+  ! enlarge the molecular cell when any atom comes within this fractional distance of a cell face.
   real*8, parameter :: md_enlarge_margin = 0.1d0
 
 contains
@@ -71,7 +74,7 @@ contains
     md%r0 = md%r
 
     ! initial velocities and forces
-    md%fire_dt = md%dt
+    md%fire_dt = fire_dt0
     md%fire_alpha = fire_alpha0
     md%fire_npos = 0
     md%istep = 0
@@ -176,7 +179,7 @@ contains
     md%v = 0d0
     md%drag_iat = 0
     md%interacting = .false.
-    md%fire_dt = md%dt
+    md%fire_dt = fire_dt0
     md%fire_alpha = fire_alpha0
     md%fire_npos = 0
     md%istep = 0
@@ -326,14 +329,21 @@ contains
     class(crystal), intent(inout) :: c
 
     integer :: i
-    real*8 :: power, fnorm, vnorm, dtmax
-
-    dtmax = 5d0*md%dt
+    real*8 :: power, fnorm, vnorm, dmax
+    logical :: capped
 
     ! velocity-Verlet with the adaptive FIRE timestep
     do i = 1, md%nat
        md%v(:,i) = md%v(:,i) + 0.5d0*md%fire_dt*md%f(:,i)/md%mass(i)
     end do
+    ! trust region: scale the velocity so no atom moves more than fire_drmax this step
+    dmax = 0d0
+    do i = 1, md%nat
+       dmax = max(dmax,norm2(md%v(:,i)))
+    end do
+    dmax = dmax * md%fire_dt
+    capped = (dmax > fire_drmax)
+    if (capped) md%v = md%v * (fire_drmax/dmax)
     md%r = md%r + md%fire_dt*md%v
     call compute_forces(md,c)
     do i = 1, md%nat
@@ -347,17 +357,17 @@ contains
     if (fnorm > 1d-30) &
        md%v = (1d0-md%fire_alpha)*md%v + md%fire_alpha*(vnorm/fnorm)*md%f
 
-    if (power > 0d0) then
+    if (power > 0d0 .and. .not.capped) then
        md%fire_npos = md%fire_npos + 1
        if (md%fire_npos > fire_nmin) then
-          md%fire_dt = min(md%fire_dt*fire_finc,dtmax)
+          md%fire_dt = min(md%fire_dt*fire_finc,fire_dtmax)
           md%fire_alpha = md%fire_alpha*fire_falpha
        end if
     else
        md%fire_npos = 0
-       md%fire_dt = md%fire_dt*fire_fdec
+       md%fire_dt = max(md%fire_dt*fire_fdec,fire_dtmin)
        md%fire_alpha = fire_alpha0
-       md%v = 0d0
+       if (power <= 0d0) md%v = 0d0
     end if
 
     ! remove any net drift (relevant when a drag applies a net external force;

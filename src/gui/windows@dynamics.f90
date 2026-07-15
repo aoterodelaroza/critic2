@@ -26,7 +26,7 @@ contains
   !> the ability to grab and drag atoms in the view.
   module subroutine draw_dynamics(w)
     use systems, only: sysc, sys, sys_init, ok_system, lastchange_geometry
-    use dynamics, only: md_dynamics, md_relax
+    use dynamics, only: md_dynamics
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcwidth, iw_combo_simple,&
        iw_dragfloat_real8
     use gui_main, only: g
@@ -102,15 +102,19 @@ contains
        call iw_tooltip("Temperature: animate the system with a thermostat at the chosen temperature. &
           &Relaxation: drive the system to its nearest energy minimum.",ttshown)
 
-       ! temperature (used live by the thermostat)
-       ldum = iw_dragfloat_real8("Temperature (K)##dynamicstemp",x1=sysc(isys)%md%temperature,&
-          speed=1d0,min=0d0,max=2000d0,decimal=0,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Target temperature of the thermostat, in kelvin",ttshown)
+       ! temperature and speed apply only to the MD thermostat; a relaxation is a
+       ! minimizer (FIRE) that manages its own timestep, so neither is shown for it
+       if (imode == md_dynamics) then
+          ! temperature (used live by the thermostat)
+          ldum = iw_dragfloat_real8("Temperature (K)##dynamicstemp",x1=sysc(isys)%md%temperature,&
+             speed=1d0,min=0d0,max=2000d0,decimal=0,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Target temperature of the thermostat, in kelvin",ttshown)
 
-       ! speed = timestep (used live)
-       ldum = iw_dragfloat_real8("Speed##dynamicsspeed",x1=sysc(isys)%md%dt,&
-          speed=0.1d0,min=2d0,max=40d0,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
-       call iw_tooltip("Simulation speed (integration timestep, atomic units)",ttshown)
+          ! speed = timestep (used live)
+          ldum = iw_dragfloat_real8("Speed##dynamicsspeed",x1=sysc(isys)%md%dt,&
+             speed=0.1d0,min=2d0,max=40d0,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Simulation speed (integration timestep, atomic units)",ttshown)
+       end if
 
        ! run / pause
        if (.not.sysc(isys)%md_run) then
