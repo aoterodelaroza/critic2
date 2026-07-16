@@ -395,6 +395,9 @@ module representations
      real*8 :: scale = text_scale_def ! text size
      real(c_float) :: rgb(3) = 0._c_float ! text color
      logical :: scalewithzoom = .false. ! text scales with zoom (vs constant on-screen size)
+     real*8 :: offset(2) = 0d0 ! in-plane on-screen offset (angstrom; 3D placements only)
+     logical :: depth = .true. ! 3D placements: text is occluded by objects in front of it
+     logical :: infront = .true. ! on-screen placement: text in front of (vs behind) the scene
   end type text_item
   public :: text_item
 

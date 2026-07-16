@@ -1942,7 +1942,7 @@ contains
     use gui_main, only: ColorLabel_def
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
        iw_combo_simple, iw_button, iw_calcheight, iw_inputtext, iw_close_button,&
-       iw_highlight_selectable
+       iw_highlight_selectable, iw_radiobutton
     use systems, only: sys, sysc
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -2049,11 +2049,10 @@ contains
              if (iw_checkbox("##textshow" // string(i),w%rep%text%t(i)%shown)) changed = .true.
              call iw_tooltip("Toggle show/hide this text",ttshown)
           end if
-          ! the text itself
+          ! the text (first line only; edited in the box below the table)
           if (igTableSetColumnIndex(2)) then
-             call igSetNextItemWidth(-1._c_float)
-             if (iw_inputtext("##textstr" // string(i),bufsize=1023,texta=w%rep%text%t(i)%str)) &
-                changed = .true.
+             call igAlignTextToFramePadding()
+             call iw_text(first_line(w%rep%text%t(i)%str))
           end if
           ! placement summary; a row-spanning selectable picks the edited item,
           ! and the row being edited is shown highlighted
@@ -2112,6 +2111,12 @@ contains
        isel = min(max(w%lastselected,1),w%rep%text%ntext)
        w%lastselected = isel
 
+       ! the text, edited in a multiline box
+       call iw_text("Text",highlight=.true.)
+       if (iw_inputtext("##textstredit",bufsize=4095,texta=w%rep%text%t(isel)%str,nlines=3)) &
+          changed = .true.
+       call iw_tooltip("Text of the selected annotation (multiple lines allowed)",ttshown)
+
        ! placement
        call igAlignTextToFramePadding()
        call iw_text("Placement",highlight=.true.)
@@ -2128,6 +2133,12 @@ contains
              speed=0.005d0,min=0d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
           call iw_tooltip("Position of the text in the viewport, as fractions of the window &
              &size from the left and bottom borders",ttshown)
+          changed = changed .or. iw_radiobutton("In front##textfront",bool=w%rep%text%t(isel)%infront,&
+             boolval=.true.)
+          call iw_tooltip("Draw the text in front of the scene",ttshown)
+          changed = changed .or. iw_radiobutton("Behind##textbehind",bool=w%rep%text%t(isel)%infront,&
+             boolval=.false.,sameline=.true.)
+          call iw_tooltip("Draw the text behind the scene (covered by the objects)",ttshown)
        elseif (ipl == textpos_point) then
           changed = changed .or. iw_dragfloat_real8("Position##textpos",x3=w%rep%text%t(isel)%pos,&
              speed=0.001d0,decimal=5)
@@ -2159,6 +2170,16 @@ contains
              anchor_string(w%rep%text%t(isel)%idx2),sameline=.true.)
        end if
 
+       ! 3D placements: on-screen offset from the anchor and depth toggle
+       if (ipl /= textpos_screen) then
+          changed = changed .or. iw_dragfloat_real8("Offset (Å)##textoffset",x2=w%rep%text%t(isel)%offset,&
+             speed=0.01d0,decimal=2)
+          call iw_tooltip("Offset of the text from its anchor, in on-screen (in-plane) coordinates",ttshown)
+          changed = changed .or. iw_checkbox("Depth##textdepth",w%rep%text%t(isel)%depth)
+          call iw_tooltip("The text is hidden by objects in front of it. If unchecked, the &
+             &text is drawn on top of all objects.",ttshown)
+       end if
+
        ! style
        call iw_text("Style",highlight=.true.)
        changed = changed .or. iw_dragfloat_real8("Size##textscale",x1=w%rep%text%t(isel)%scale,&
@@ -2172,6 +2193,19 @@ contains
     end if
 
   contains
+    !> First line of a text (with a continuation mark if there are more lines).
+    function first_line(str) result(s)
+      character(len=*), intent(in) :: str
+      character(len=:), allocatable :: s
+      integer :: idx
+      idx = index(str,new_line('a'))
+      if (idx > 0) then
+         s = str(1:idx-1) // " (...)"
+      else
+         s = str
+      end if
+    end function first_line
+
     !> Short description of an atom anchor: name + cell index (+ lattice vector).
     function anchor_string(idx) result(s)
       integer(c_int), intent(in) :: idx(4)

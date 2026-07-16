@@ -1292,6 +1292,7 @@ contains
              dstr%str = trim(r%axes%labelstr(k))
              if (fixed) then
                 dstrover%dl_string = dstr
+                dstrover%depth = .false. ! the gizmo labels always draw in front
                 call dl_append(obj%stringover,obj%nstringover,dstrover)
              else
                 call dl_append(obj%string,obj%nstring,dstr)
@@ -1360,6 +1361,7 @@ contains
              dstrover%rgb = r%text%t(i)%rgb
              dstrover%scale = real(r%text%t(i)%scale,c_float) ! sign unused in the overlay
              dstrover%offset = 0._c_float
+             dstrover%depth = .not.r%text%t(i)%infront
              dstrover%str = trim(r%text%t(i)%str)
              call dl_append(obj%stringover,obj%nstringover,dstrover)
           else
@@ -1404,7 +1406,9 @@ contains
              else
                 dstr%scale = real(r%text%t(i)%scale,c_float)
              end if
-             dstr%offset = 0._c_float
+             dstr%offset(1:2) = real(r%text%t(i)%offset,c_float)
+             dstr%offset(3) = 0._c_float
+             dstr%depth = r%text%t(i)%depth
              dstr%str = trim(r%text%t(i)%str)
              call dl_append(obj%string,obj%nstring,dstr)
           end if

@@ -103,7 +103,8 @@ contains
   !> (allocatable string) or textf (fixed string). grabfocus = grab focus
   !> when drawn. sameline = place in the same line as the previous widget.
   !> flags = flags from ImGuiInputTextFlags_*.
-  module function iw_inputtext(label,bufsize,texta,textf,width,grabfocus,sameline,notlive,flags)
+  module function iw_inputtext(label,bufsize,texta,textf,width,grabfocus,sameline,notlive,flags,&
+     nlines)
     use interfaces_cimgui
     character(len=*), intent(in) :: label
     integer, intent(in) :: bufsize
@@ -114,6 +115,7 @@ contains
     logical, intent(in), optional :: sameline
     logical, intent(in), optional :: notlive
     integer(c_int), intent(in), optional :: flags
+    integer, intent(in), optional :: nlines
     logical :: iw_inputtext
 
     integer(c_int) :: flags_, myid
@@ -121,6 +123,7 @@ contains
     character(kind=c_char,len=:), allocatable :: src
     integer :: i, ll
     logical :: sameline_, notlive_
+    type(ImVec2) :: szml
 
     ! process input options
     flags_ = ImGuiInputTextFlags_None
@@ -171,8 +174,15 @@ contains
        if (grabfocus) call igSetKeyboardFocusHere(0_c_int)
     end if
 
-    ! call inputtext
-    iw_inputtext = logical(igInputText(c_loc(label_),c_loc(text_),int(bufsize,c_size_t),flags_,c_null_funptr,c_null_ptr))
+    ! call inputtext (multiline if a number of lines was given)
+    if (present(nlines)) then
+       szml%x = 0._c_float
+       szml%y = iw_calcheight(nlines,0,.false.)
+       iw_inputtext = logical(igInputTextMultiline(c_loc(label_),c_loc(text_),int(bufsize,c_size_t),&
+          szml,flags_,c_null_funptr,c_null_ptr))
+    else
+       iw_inputtext = logical(igInputText(c_loc(label_),c_loc(text_),int(bufsize,c_size_t),flags_,c_null_funptr,c_null_ptr))
+    end if
 
     ! pop the width
     if (present(width)) &

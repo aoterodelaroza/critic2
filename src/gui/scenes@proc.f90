@@ -866,16 +866,18 @@ contains
     !> shafts/heads of one axes gizmo) are batched into a single instanced draw.
     subroutine render_overlay()
       real(c_float) :: projover(4,4), overndc(3), overf
-      real(c_float) :: hside, siz, model(4,4)
+      real(c_float) :: model(4,4)
       integer :: i, j, k, n
-      integer(c_int) :: nvert
-      real(c_float), allocatable, target :: vert(:,:)
       real(c_float), parameter :: zv(3) = 0._c_float
       complex(c_float_complex), parameter :: zc(3) = (0._c_float,0._c_float)
 
       ! the overlay pass always uses an orthographic projection, with a symmetric
       ! depth range so the anchored (eye-origin-centered) geometry is never clipped
       call ortho_projection(s,projover,symz=.true.)
+
+      ! "behind" strings: drawn before the depth clear, so they are tested
+      ! against the scene depth and show only where no scene object was drawn
+      call render_overlay_strings(projover,.true.)
 
       ! clear the depth buffer so the overlay always draws on top
       call glClear(GL_DEPTH_BUFFER_BIT)
@@ -934,48 +936,67 @@ contains
       end if
 
       ! labels: streamed per string (each carries its own color and placement)
-      if (s%obj%nstringover > 0) then
-         call useshader(shader_text_onscene)
-         call setuniform_int(1_c_int,idxi=uniloc(u_isanchored))
-         call setuniform_mat4(s%world,idxi=uniloc(u_world))
-         call setuniform_mat4(s%view,idxi=uniloc(u_view))
-         call setuniform_mat4(projover,idxi=uniloc(u_projection))
-         call glDisable(GL_MULTISAMPLE)
-         call glDisable(GL_CULL_FACE) ! y-flipped glyph quads have reversed winding
-         call glEnable(GL_BLEND)
-         call glBlendEquation(GL_FUNC_ADD)
-         call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
-         call glActiveTexture(GL_TEXTURE0)
-         call glBindVertexArray(textVAOos)
-         call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
-         call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
-         do i = 1, s%obj%nstringover
-            call overlay_ndc_scale(s%obj%stringover(i)%winpos,s%obj%stringover(i)%scalewithzoom,projover,overndc,overf)
-            call setuniform_vec3(overndc,idxi=uniloc(u_anchored_ndc))
-            call setuniform_float(overf,idxi=uniloc(u_anchored_scale))
-            call setuniform_vec3(s%obj%stringover(i)%rgb,idxi=uniloc(u_textcolor))
-            nvert = 0
-            ! the string tracks the same zoom behavior as the other overlay items:
-            ! constant on-screen size when the overlay does not scale with zoom, or
-            ! scaling with the overlay's orthographic projection otherwise.
-            if (.not.s%obj%stringover(i)%scalewithzoom) then
-               hside = reset_zoom_hside(s)
-               siz = 2 * abs(s%obj%stringover(i)%scale) / fontbakesize_large / hside
-            else
-               siz = 2 * abs(s%obj%stringover(i)%scale) * projover(1,1) / fontbakesize_large
-            end if
-            call calc_text_onscene_vertices(s%obj%stringover(i)%str,s%obj%stringover(i)%x,s%obj%stringover(i)%r,&
-               siz,nvert,vert,shift=s%obj%stringover(i)%offset,centered=.true.)
-            call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*text_vert_nf*c_sizeof(c_float), c_loc(vert))
-            call glDrawArrays(GL_TRIANGLES, 0, nvert)
-         end do
-         call glEnable(GL_MULTISAMPLE)
-         call glEnable(GL_CULL_FACE)
-         call glDisable(GL_BLEND)
-         call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
-      end if
+      call render_overlay_strings(projover,.false.)
 
     end subroutine render_overlay
+
+    !> Draw the overlay strings, streamed per string (each carries its own
+    !> color and placement). If dobehind, draw the strings with depth (before
+    !> the overlay depth clear, tested against the scene depth buffer);
+    !> otherwise draw the depth-less strings (on top of everything).
+    subroutine render_overlay_strings(projover,dobehind)
+      real(c_float), intent(in) :: projover(4,4)
+      logical, intent(in) :: dobehind
+
+      integer :: i
+      integer(c_int) :: nvert
+      real(c_float) :: overndc(3), overf, hside, siz
+      real(c_float), allocatable, target :: vert(:,:)
+
+      if (s%obj%nstringover <= 0) return
+      if (.not.any(s%obj%stringover(1:s%obj%nstringover)%depth .eqv. dobehind)) return
+
+      call useshader(shader_text_onscene)
+      call setuniform_int(1_c_int,idxi=uniloc(u_isanchored))
+      call setuniform_mat4(s%world,idxi=uniloc(u_world))
+      call setuniform_mat4(s%view,idxi=uniloc(u_view))
+      call setuniform_mat4(projover,idxi=uniloc(u_projection))
+      call glDisable(GL_MULTISAMPLE)
+      call glDisable(GL_CULL_FACE) ! y-flipped glyph quads have reversed winding
+      call glEnable(GL_BLEND)
+      call glBlendEquation(GL_FUNC_ADD)
+      call glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)
+      call glActiveTexture(GL_TEXTURE0)
+      call glBindVertexArray(textVAOos)
+      call glBindTexture(GL_TEXTURE_2D, transfer(fonts%TexID,1_c_int))
+      call glBindBuffer(GL_ARRAY_BUFFER, textVBOos)
+      do i = 1, s%obj%nstringover
+         if (s%obj%stringover(i)%depth .neqv. dobehind) cycle
+         call overlay_ndc_scale(s%obj%stringover(i)%winpos,s%obj%stringover(i)%scalewithzoom,projover,overndc,overf)
+         call setuniform_vec3(overndc,idxi=uniloc(u_anchored_ndc))
+         call setuniform_float(overf,idxi=uniloc(u_anchored_scale))
+         call setuniform_vec3(s%obj%stringover(i)%rgb,idxi=uniloc(u_textcolor))
+         nvert = 0
+         ! the string tracks the same zoom behavior as the other overlay items:
+         ! constant on-screen size when the overlay does not scale with zoom, or
+         ! scaling with the overlay's orthographic projection otherwise.
+         if (.not.s%obj%stringover(i)%scalewithzoom) then
+            hside = reset_zoom_hside(s)
+            siz = 2 * abs(s%obj%stringover(i)%scale) / fontbakesize_large / hside
+         else
+            siz = 2 * abs(s%obj%stringover(i)%scale) * projover(1,1) / fontbakesize_large
+         end if
+         call calc_text_onscene_vertices(s%obj%stringover(i)%str,s%obj%stringover(i)%x,s%obj%stringover(i)%r,&
+            siz,nvert,vert,shift=s%obj%stringover(i)%offset,centered=.true.)
+         call glBufferSubData(GL_ARRAY_BUFFER, 0_c_intptr_t, nvert*text_vert_nf*c_sizeof(c_float), c_loc(vert))
+         call glDrawArrays(GL_TRIANGLES, 0, nvert)
+      end do
+      call glEnable(GL_MULTISAMPLE)
+      call glEnable(GL_CULL_FACE)
+      call glDisable(GL_BLEND)
+      call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
+
+    end subroutine render_overlay_strings
 
     !> Last index of the run of overlay items starting at i that share the same
     !> window placement (winpos and scalewithzoom) as item i.
@@ -1187,7 +1208,9 @@ contains
       do i = 1, s%obj%nstring
          if (s%gl%text_count(i) <= 0) cycle
          call setuniform_vec3(s%obj%string(i)%rgb,idxi=uniloc(u_textcolor))
+         if (.not.s%obj%string(i)%depth) call glDisable(GL_DEPTH_TEST)
          call glDrawArrays(GL_TRIANGLES, int(s%gl%text_first(i),c_int), int(s%gl%text_count(i),c_int))
+         if (.not.s%obj%string(i)%depth) call glEnable(GL_DEPTH_TEST)
       end do
       call glBindVertexArray(0)
 
@@ -2240,11 +2263,10 @@ contains
     i = 0
     do while (i < len_trim(text))
        i = i + 1
-       ! newline, skip line and advance one (linux)
+       ! newline: start a new line and move on to the next character
        if (text(i:i) == newline) then
           xpos = 0._c_float
           ypos = ypos + lheight
-          i = i + 1
           if (centered_) then
              nline = nline + 1
              if (nline+1 > size(xlen,1)) then
@@ -2254,7 +2276,7 @@ contains
              xlen(nline) = 0._c_float
              jlen(nline) = nvert+1
           end if
-          continue
+          cycle
        end if
 
        ! get the glyph

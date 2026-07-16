@@ -128,6 +128,7 @@ module shapes
      real(c_float) :: scale ! scale (1.0 = radius)
      real(c_float) :: offset(3) ! offset of the label in pixels
      complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
+     logical :: depth = .true. ! occluded by scene objects
      character(len=:), allocatable :: str ! string
   end type dl_string
   public :: dl_string
