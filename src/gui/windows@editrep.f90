@@ -1972,9 +1972,7 @@ contains
           w%editrep_text_pick_item = 0
           w%editrep_text_pick_slot = 0
        elseif (win(iview)%viewmode >= 0) then
-          ! the pick finished; anchors are only committed to the item when the
-          ! whole pick sequence completes (a cancelled bond pick leaves the
-          ! previous anchor pair untouched)
+          ! the pick finished
           i = w%editrep_text_pick_item
           if (win(iview)%vmdata%idx(1) > 0) then
              if (w%editrep_text_pick_slot == 1) then
@@ -1984,8 +1982,7 @@ contains
                    w%editrep_text_pick_slot = 2
                    w%editrep_text_pick_time = glfwGetTime()
                    win(iview)%vmdata%idx = 0
-                   call win(iview)%viewmode_set_forced(vm_pick_atom,&
-                      "Pick the second atom of the bond...",w%id)
+                   call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the second atom of the bond...",w%id)
                 else
                    ! atom anchor: complete
                    w%rep%text%t(i)%idx1 = win(iview)%vmdata%idx(1:4)
@@ -2013,8 +2010,8 @@ contains
        end if
     end if
 
-    !! table of text items
-    call iw_text("Texts",highlight=.true.)
+    ! table of text items
+    call iw_text("Text objects",highlight=.true.)
     idel = 0
     flags = ImGuiTableFlags_None
     flags = ior(flags,ImGuiTableFlags_RowBg)
@@ -2106,7 +2103,7 @@ contains
        changed = .true.
     end if
 
-    !! detail section for the selected item
+    !! section for changing the selected text
     if (w%rep%text%ntext > 0) then
        isel = min(max(w%lastselected,1),w%rep%text%ntext)
        w%lastselected = isel
@@ -2125,7 +2122,7 @@ contains
           "Atom" // c_null_char // "Bond" // c_null_char,ipl,changed=ch,sameline=.true.)
        changed = changed .or. ch
        w%rep%text%t(isel)%placement = ipl
-       call iw_tooltip("How the text is placed: anchored to the viewport (on-screen), at a &
+       call iw_tooltip("Place the text: anchored to the view (on-screen), at a &
           &3D position in the system, or tied to an atom or a bond",ttshown)
 
        if (ipl == textpos_screen) then
@@ -2138,12 +2135,12 @@ contains
           call iw_tooltip("Draw the text in front of the scene",ttshown)
           changed = changed .or. iw_radiobutton("Behind##textbehind",bool=w%rep%text%t(isel)%infront,&
              boolval=.false.,sameline=.true.)
-          call iw_tooltip("Draw the text behind the scene (covered by the objects)",ttshown)
+          call iw_tooltip("Draw the text behind the scene",ttshown)
        elseif (ipl == textpos_point) then
           changed = changed .or. iw_dragfloat_real8("Position##textpos",x3=w%rep%text%t(isel)%pos,&
              speed=0.001d0,decimal=5)
           if (sys(w%isys)%c%ismolecule) then
-             call iw_tooltip("Position of the text (Cartesian coordinates, angstrom)",ttshown)
+             call iw_tooltip("Position of the text (Cartesian coordinates, Å)",ttshown)
           else
              call iw_tooltip("Position of the text (fractional coordinates)",ttshown)
           end if
@@ -2162,8 +2159,7 @@ contains
              w%editrep_text_pick_item = isel
              w%editrep_text_pick_slot = 1
              w%editrep_text_pick_time = glfwGetTime()
-             call win(iview)%viewmode_set_forced(vm_pick_atom,&
-                "Pick the first atom of the bond...",w%id)
+             call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the first atom of the bond...",w%id)
           end if
           call iw_tooltip("Click, then pick the two atoms of the bond in the view window",ttshown)
           call iw_text("Anchor: " // anchor_string(w%rep%text%t(isel)%idx1) // " - " //&
