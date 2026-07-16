@@ -203,9 +203,6 @@ contains
           end if
        end if
 
-       ! usage hint
-       call iw_text("Drag an atom with the left mouse button to pull it around.")
-
        ! error message
        if (len_trim(w%errmsg) > 0) &
           call iw_text(trim(w%errmsg),danger=.true.)
