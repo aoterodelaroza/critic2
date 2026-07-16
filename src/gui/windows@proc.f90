@@ -479,6 +479,10 @@ contains
        ! dynamics window
        if (.not.present(idparent)) &
           call ferror('window_init','dynamics requires idparent',faterr)
+    elseif (type == wintype_water_cluster) then
+       ! water cluster demonstration window
+       if (.not.present(idparent)) &
+          call ferror('window_init','water_cluster requires idparent',faterr)
     elseif (type == wintype_view) then
        ! view window
        if (.not.present(purpose)) &
@@ -502,7 +506,7 @@ contains
 
   !> End a window and deallocate the data.
   module subroutine window_end(w)
-    use systems, only: ok_system, sysc, sys, sys_init, lastchange_geometry
+    use systems, only: ok_system, sysc, sys, sys_init, lastchange_geometry, remove_system
     use interfaces_opengl3
     class(window), intent(inout), target :: w
 
@@ -546,6 +550,14 @@ contains
                 end if
              end if
           end if
+       elseif (w%type == wintype_water_cluster) then
+          ! the demo owns its generated cluster; remove it on close so it does not linger
+          isysd = w%wc_isys
+          if (ok_system(isysd,sys_init)) then
+             sysc(isysd)%md_run = .false.
+             if (sysc(isysd)%md%ready) call sysc(isysd)%md%free()
+             call remove_system(isysd)
+          end if
        elseif (w%type == wintype_geometry) then
           ! remove all highlights
           if (ok_system(w%isys,sys_init)) &
@@ -582,6 +594,9 @@ contains
     w%editrep_text_pick_item = 0
     w%editrep_text_pick_slot = 0
     w%editrep_text_pick_idx = 0
+    w%wc_started = .false.
+    w%wc_isys = 0
+    w%wc_irep_text = 0
 
   end subroutine window_end
 
@@ -755,6 +770,12 @@ contains
           inisize%x = 55 * fontsize%x
           inisize%y = 22 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
+       elseif (w%type == wintype_water_cluster) then
+          w%name = "Water Cluster Demonstration" // "##" // string(w%id) // c_null_char
+          w%flags = ImGuiWindowFlags_None
+          inisize%x = 55 * fontsize%x
+          inisize%y = 24 * fontsize%y
+          call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_geometry) then
           w%name = "View/Edit Geometry##"  // string(w%id) // c_null_char
           w%flags = ImGuiWindowFlags_None
@@ -832,6 +853,8 @@ contains
                 call w%draw_vibrations()
              elseif (w%type == wintype_dynamics) then
                 call w%draw_dynamics()
+             elseif (w%type == wintype_water_cluster) then
+                call w%draw_water_cluster()
              elseif (w%type == wintype_geometry) then
                 call w%draw_geometry()
              elseif (w%type == wintype_preferences) then

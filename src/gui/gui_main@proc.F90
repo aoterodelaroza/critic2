@@ -514,7 +514,8 @@ contains
        iwin_console_output, iwin_builder, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
-       wintype_about, wintype_geometry, wintype_vibrations, wintype_dynamics, wintype_exportimage
+       wintype_about, wintype_geometry, wintype_vibrations, wintype_dynamics, wintype_exportimage,&
+       wintype_water_cluster
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
@@ -634,6 +635,18 @@ contains
           if (iw_menuitem("Remove Field",enabled=ifieldok)) &
              call sys(isys)%unload_field(sys(isys)%iref)
           call iw_tooltip("Remove the reference field from the current system",ttshown)
+
+          ! File -> Separator
+          call igSeparator()
+
+          ! File -> Demonstrations
+          str2 = "Demonstrations" // c_null_char
+          if (igBeginMenu(c_loc(str2),.true._c_bool)) then
+             if (iw_menuitem("Water cluster")) &
+                idum = stack_create_window(wintype_water_cluster,.true.,idparent=iwin_view,orraise=-1)
+             call iw_tooltip("Interactive game: relax a cluster of water molecules with the TIP4P model",ttshown)
+             call igEndMenu()
+          end if
 
           ! File -> Separator
           call igSeparator()

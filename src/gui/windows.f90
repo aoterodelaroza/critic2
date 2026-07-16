@@ -211,6 +211,12 @@ module windows
      integer, allocatable :: geometry_sym_analyze_num(:) ! space group numbers from the analysis
      ! preferences parameters
      logical :: color_preferences_reset_reps = .true. ! whether changing the element colors resets current representations
+     ! water cluster demonstration parameters
+     integer(c_int) :: wc_nwat = 6 ! number of water molecules to generate
+     integer(c_int) :: wc_placement = 0 ! initial placement of the monomers (0 = random, 1 = row)
+     logical :: wc_started = .false. ! whether the relaxation has been auto-started for wc_isys
+     integer :: wc_isys = 0 ! the generated cluster system (0 = none yet)
+     integer :: wc_irep_text = 0 ! representation index of the on-screen score text (0 = none)
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window
@@ -280,6 +286,8 @@ module windows
      procedure :: draw_vibrations
      ! dynamics
      procedure :: draw_dynamics
+     ! water cluster demonstration
+     procedure :: draw_water_cluster
      ! geometry
      procedure :: update_geometry
      procedure :: draw_geometry
@@ -320,6 +328,7 @@ module windows
   integer, parameter, public :: wintype_geometry = 16
   integer, parameter, public :: wintype_builder = 17
   integer, parameter, public :: wintype_dynamics = 18
+  integer, parameter, public :: wintype_water_cluster = 19
 
   ! window purposes
   integer, parameter, public :: wpurp_unknown = 0
@@ -620,6 +629,10 @@ module windows
      module subroutine draw_dynamics(w)
        class(window), intent(inout), target :: w
      end subroutine draw_dynamics
+     !xx! water_cluster submodule !xx!
+     module subroutine draw_water_cluster(w)
+       class(window), intent(inout), target :: w
+     end subroutine draw_water_cluster
      !xx! geometry submodule !xx!
      module subroutine update_geometry(w)
        class(window), intent(inout), target :: w
