@@ -653,7 +653,6 @@ contains
           iaux = stack_create_window(wintype_exportimage,.true.,idparent=w%id,orraise=-1)
        call iw_tooltip("Export the current view to an image file (png)",ttshown)
 
-       ! separator
        call igSeparator()
 
        if (iw_menuitem("View/Edit Geometry...",enabled=enabled)) &
@@ -663,6 +662,8 @@ contains
        if (iw_menuitem("Recalculate bonds",BIND_RECALC_BONDS,enabled=enabled)) &
           call sysc(w%view_selected)%rebond()
        call iw_tooltip("Recompute the bonds/connectivity for this system",ttshown)
+
+       call igSeparator()
 
        if (iw_menuitem("Vibrations...",enabled=enabled)) &
           iaux = stack_create_window(wintype_vibrations,.true.,idparent=w%id,orraise=-1)

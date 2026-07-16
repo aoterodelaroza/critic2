@@ -759,7 +759,6 @@ contains
              idum = stack_create_window(wintype_exportimage,.true.,idparent=iwin_view,orraise=-1)
           call iw_tooltip("Export the current view to an image file (png)",ttshown)
 
-          ! separator
           call igSeparator()
 
           launch(d_geometry) = launch(d_geometry) .or. &
@@ -769,6 +768,8 @@ contains
           if (iw_menuitem("Recalculate bonds",BIND_RECALC_BONDS,enabled=isysvok)) &
              call sysc(isysv)%rebond()
           call iw_tooltip("Recompute the bonds/connectivity for this system",ttshown)
+
+          call igSeparator()
 
           if (iw_menuitem("Vibrations...",enabled=isysvok)) &
              idum = stack_create_window(wintype_vibrations,.true.,idparent=iwin_view,orraise=-1)

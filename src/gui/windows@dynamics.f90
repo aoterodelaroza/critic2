@@ -26,28 +26,32 @@ contains
   !> the ability to grab and drag atoms in the view.
   module subroutine draw_dynamics(w)
     use systems, only: sysc, sys, sys_init, ok_system, lastchange_geometry
-    use dynamics, only: md_dynamics
+    use dynamics, only: md_dynamics, md_relax
+    use energy, only: ff_uff, ff_tblite, ff_tip4p, ff_backend_applicable
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcwidth, iw_combo_simple,&
-       iw_dragfloat_real8
+       iw_dragfloat_real8, iw_radiobutton
     use gui_main, only: g
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
     use tools_io, only: string
+    use param, only: kcal2ha, hartoev, bohrtoa, autofs
     class(window), intent(inout), target :: w
 
-    logical :: doquit, goodsys, goodparent, needinit, ldum
-    integer :: isys, imode, ibackend
-    type(ImVec2) :: szavail
-    character(len=:), allocatable :: errmsg
+    logical :: doquit, goodsys, goodparent, needinit, ldum, haspress
+    integer :: isys, ibackend, nback, icombo, i, backids(3)
+    integer(c_int) :: imode, tflags
+    real*8 :: pgpa
+    type(ImVec2) :: szavail, sz0
+    character(len=:), allocatable :: errmsg, str_backend
+    character(len=:,kind=c_char), allocatable, target :: str1, str2
 
-    ! the combo index is stored directly as the backend id: the entry order must
-    ! match the ff_* constants in the energy module (ff_uff=0, ff_tblite=1,
-    ! ff_tip4p=2)
-    character(len=*), parameter :: str_backend = &
-       "UFF (built-in)" // c_null_char // "GFN2-xTB (tblite)" // c_null_char //&
-       "TIP4P water (built-in)" // c_null_char
-    character(len=*), parameter :: str_mode = &
-       "Temperature (MD)" // c_null_char // "Relaxation" // c_null_char
+    ! candidate MD/relaxation backends in preference order (labels padded to a
+    ! common length for the array constructor; trimmed on use)
+    integer, parameter :: backids_all(3) = (/ff_uff, ff_tblite, ff_tip4p/)
+    character(len=*), parameter :: backlabels(3) = (/ &
+       "UFF              ", &
+       "GFN2-xTB (tblite)", &
+       "TIP4P water      "/)
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -59,7 +63,7 @@ contains
     ! initialize state
     if (w%firstpass) w%errmsg = ""
 
-    ! resolve the system (MD state lives on the per-system sysc, not the scene)
+    ! resolve the system
     isys = 0
     doquit = .not.goodparent
     if (.not.doquit) then
@@ -77,48 +81,58 @@ contains
        call iw_text("System",highlight=.true.)
        call iw_text("(" // string(isys) // ") " // trim(sysc(isys)%seed%name),sameline=.true.)
 
-       ! energy engine
+       ! method used for MD/relaxation
        call igAlignTextToFramePadding()
-       call iw_text("Engine",highlight=.true.)
+       call iw_text("Method",highlight=.true.)
+       str_backend = ""
+       nback = 0
+       do i = 1, size(backids_all)
+          if (.not.ff_backend_applicable(backids_all(i),sys(isys)%c)) cycle
+          nback = nback + 1
+          backids(nback) = backids_all(i)
+          str_backend = str_backend // trim(backlabels(i)) // c_null_char
+       end do
+
+       ! translate the stored backend id to its position in the filtered list
        ibackend = sysc(isys)%md_backend
+       icombo = 0
+       do i = 1, nback
+          if (backids(i) == ibackend) icombo = i - 1
+       end do
        call igSameLine(0._c_float,-1._c_float)
        call igPushItemWidth(iw_calcwidth(21,1))
-       call iw_combo_simple("##dynamicsengine",str_backend,ibackend)
+       call iw_combo_simple("##dynamicsengine",str_backend,icombo)
        call igPopItemWidth()
-       sysc(isys)%md_backend = ibackend
-       call iw_tooltip("Energy and force engine. The built-in Universal Force Field (UFF) always &
-          &works; GFN2-xTB requires critic2 compiled with tblite support; TIP4P works for &
-          &systems composed entirely of water molecules.",ttshown)
 
-       ! mode (dynamics vs relaxation), bound live to the run
+       ! persist the selection (also snaps a no-longer-applicable backend to UFF)
+       sysc(isys)%md_backend = backids(icombo+1)
+       call iw_tooltip("Method for the calculation of energies, forces, and stress.",ttshown)
+
+       ! mode (dynamics vs relaxation), bound live to the run: two radio buttons
        call igAlignTextToFramePadding()
-       call iw_text("Mode",highlight=.true.)
        imode = sysc(isys)%md%mode
-       call igSameLine(0._c_float,-1._c_float)
-       call igPushItemWidth(iw_calcwidth(17,1))
-       call iw_combo_simple("##dynamicsmode",str_mode,imode)
-       call igPopItemWidth()
+       ldum = iw_radiobutton("Dynamics (NVT)",int=imode,intval=int(md_dynamics,c_int))
+       call iw_tooltip("Animate the system using an NVT molecular dynamics run",ttshown)
+       ldum = iw_radiobutton("Relaxation",int=imode,intval=int(md_relax,c_int),sameline=.true.)
+       call iw_tooltip("Relax the system to its nearest energy minimum",ttshown)
        sysc(isys)%md%mode = imode
-       call iw_tooltip("Temperature: animate the system with a thermostat at the chosen temperature. &
-          &Relaxation: drive the system to its nearest energy minimum.",ttshown)
 
-       ! temperature and speed apply only to the MD thermostat; a relaxation is a
-       ! minimizer (FIRE) that manages its own timestep, so neither is shown for it
+       ! temperature and timestep
        if (imode == md_dynamics) then
-          ! temperature (used live by the thermostat)
+          ! temperature
           ldum = iw_dragfloat_real8("Temperature (K)##dynamicstemp",x1=sysc(isys)%md%temperature,&
-             speed=1d0,min=0d0,max=2000d0,decimal=0,flags=ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Target temperature of the thermostat, in kelvin",ttshown)
+             speed=5d0,min=0d0,max=10000d0,decimal=0,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Temperature of the thermostat",ttshown)
 
           ! speed = timestep (used live)
-          ldum = iw_dragfloat_real8("Speed##dynamicsspeed",x1=sysc(isys)%md%dt,&
+          ldum = iw_dragfloat_real8("Time step (au)##dynamicsspeed",x1=sysc(isys)%md%dt,&
              speed=0.1d0,min=2d0,max=40d0,decimal=1,flags=ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Simulation speed (integration timestep, atomic units)",ttshown)
+          call iw_tooltip("Integration time step for the MD run, in atomic units",ttshown)
        end if
 
        ! run / pause
        if (.not.sysc(isys)%md_run) then
-          if (iw_button("Run")) then
+          if (iw_button("RUN",danger=.true.)) then
              needinit = (.not.sysc(isys)%md%ready) .or. (sysc(isys)%md%cl%backend /= sysc(isys)%md_backend)
              w%errmsg = ""
              if (needinit) then
@@ -133,7 +147,7 @@ contains
           end if
           call iw_tooltip("Start (or resume) the simulation",ttshown)
        else
-          if (iw_button("Pause",danger=.true.)) then
+          if (iw_button("Pause")) then
              sysc(isys)%md_run = .false.
              win(w%idparent)%forcerender = .true.
           end if
@@ -149,10 +163,44 @@ contains
        end if
        call iw_tooltip("Restore the initial geometry and stop all motion",ttshown)
 
-       ! status line
+       ! status: table of live run quantities
        if (sysc(isys)%md%ready) then
-          call iw_text("T = " // string(sysc(isys)%md%temperature_now(),'f',decimal=0) // " K" //&
-             "   E = " // string(sysc(isys)%md%epot,'f',decimal=5) // " Ha")
+          tflags = ImGuiTableFlags_None
+          tflags = ior(tflags,ImGuiTableFlags_NoSavedSettings)
+          tflags = ior(tflags,ImGuiTableFlags_RowBg)
+          tflags = ior(tflags,ImGuiTableFlags_Borders)
+          tflags = ior(tflags,ImGuiTableFlags_SizingFixedFit)
+          str1 = "##dynamicsstatus" // c_null_char
+          sz0%x = 0._c_float
+          sz0%y = 0._c_float
+          if (igBeginTable(c_loc(str1),2,tflags,sz0,0._c_float)) then
+             str2 = "Property" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,0_c_int)
+             str2 = "Value" // c_null_char
+             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,1_c_int)
+             call igTableHeadersRow()
+
+             ! temperature: MD only (a relaxation has no meaningful temperature)
+             if (sysc(isys)%md%mode == md_dynamics) &
+                call status_row("Temperature (K)",string(sysc(isys)%md%temperature_now(),'f',decimal=1))
+             ! energies: both modes
+             call status_row("Energy (Hartree)",string(sysc(isys)%md%epot,'f',decimal=6))
+             call status_row("Energy (kcal/mol)",string(sysc(isys)%md%epot/kcal2ha,'f',decimal=3))
+             if (sysc(isys)%md%mode == md_relax) then
+                ! relaxation: convergence indicator (largest atomic force)
+                if (sysc(isys)%md%nat > 0) &
+                   call status_row("Max |force| (eV/A)",&
+                      string(maxval(norm2(sysc(isys)%md%f,1))*hartoev/bohrtoa,'f',decimal=4))
+             else
+                ! MD: elapsed simulation time and, for crystals, the pressure
+                call status_row("Time (fs)",string(sysc(isys)%md%simtime*autofs,'f',decimal=1))
+                pgpa = sysc(isys)%md%pressure(sys(isys)%c,haspress)
+                if (haspress) &
+                   call status_row("Pressure (GPa)",string(pgpa,'f',decimal=3))
+             end if
+
+             call igEndTable()
+          end if
        end if
 
        ! usage hint
@@ -180,6 +228,15 @@ contains
 
     ! quit = close the window (the MD run is stopped and freed in window_end)
     if (doquit) call w%end()
+
+  contains
+    !> Emit one property/value row of the status table.
+    subroutine status_row(prop,val)
+      character(len=*), intent(in) :: prop, val
+      call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+      if (igTableSetColumnIndex(0_c_int)) call iw_text(prop)
+      if (igTableSetColumnIndex(1_c_int)) call iw_text(val)
+    end subroutine status_row
 
   end subroutine draw_dynamics
 

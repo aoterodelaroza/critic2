@@ -50,6 +50,7 @@ module param
   real*8, parameter :: hartoev  =  27.211386245988d0 !< hartree to ev factor
   real*8, parameter :: autogpa  =  29421.0108037190d0 !< hartree/bohr**3 to gpa
   real*8, parameter :: eva3togpa = 160.2176487028540d0 !< eV/ang**3 to gpa
+  real*8, parameter :: autofs = 2.4188843265857d-2 !< atomic unit of time to femtoseconds
   real*8, parameter :: pcamu = 1.660538782d-24 !< atomic mass unit [g] (nist2006)
   real*8, parameter :: kboltz = 3.166811563d-6 !< Boltzmann constant [hartree/K]
   real*8, parameter :: amu2au = 1822.888486209d0 !< atomic mass unit -> electron mass [a.u.]

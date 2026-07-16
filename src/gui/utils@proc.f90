@@ -245,8 +245,8 @@ contains
     integer(c_int) :: flags_
     logical :: notlive_
     real(c_float) :: x1_, x2_(2), x3_(3), x4_(4)
-    integer :: n
-    real(c_float) :: width
+    integer :: n, nintdig, decimal_
+    real(c_float) :: width, vmax
     type(ImVec2) :: sz
     logical :: sameline_
     character(len=:,kind=c_char), allocatable, target :: strc
@@ -261,8 +261,9 @@ contains
     if (present(max)) max_ = max
     scale_ = 1._c_float
     if (present(scale)) scale_ = scale
-    sformat_ = "%.3f" // c_null_char
-    if (present(decimal)) sformat_ = "%." // string(decimal) // "f" // c_null_char
+    decimal_ = 3
+    if (present(decimal)) decimal_ = decimal
+    sformat_ = "%." // string(decimal_) // "f" // c_null_char
     sameline_ = .false.
     if (present(sameline)) sameline_ = sameline
     flags_ = 0_c_int
@@ -274,7 +275,9 @@ contains
     if (sameline_) &
        call igSameLine(0._c_float,-1._c_float)
 
-    ! calculate width
+    ! calculate width: reserve room for the integer part of the field's range
+    ! (from min/max) plus the decimals, so a large maximum (e.g. temperature up
+    ! to 10000) is not clipped; small-valued fields keep the previous default
     strc = "0" // c_null_char
     call igCalcTextSize(sz,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
     if (present(x1)) then
@@ -286,7 +289,16 @@ contains
     elseif (present(x4)) then
        n = 4
     end if
-    width = (4 + decimal) * sz%x * n + (n-1) * g%Style%ItemInnerSpacing%x
+    ! present() gates the bounds; max/min are dummy-arg names here (shadowing the
+    ! intrinsics), so use plain comparisons rather than the max()/min() intrinsics
+    vmax = 1._c_float
+    if (present(max) .and. abs(max_) > vmax) vmax = abs(max_)
+    if (present(min) .and. abs(min_) > vmax) vmax = abs(min_)
+    ! integer digits (biased up near powers of ten so 10000 gets 5, never fewer
+    ! than 3 to preserve the old (4+decimal) default for small-valued fields)
+    nintdig = int(log10(vmax) + 1e-4_c_float) + 1
+    if (nintdig < 3) nintdig = 3
+    width = (1 + nintdig + decimal_) * sz%x * n + (n-1) * g%Style%ItemInnerSpacing%x
 
     ! draw the float
     call igPushItemWidth(width)
@@ -350,8 +362,8 @@ contains
     character(len=:,kind=c_char), allocatable, target :: str_, sformat_
     integer(c_int) :: flags_
     logical :: notlive_
-    integer :: n
-    real(c_float) :: width
+    integer :: n, nintdig, decimal_
+    real(c_float) :: width, vmax
     type(ImVec2) :: sz
     logical :: sameline_
     character(len=:,kind=c_char), allocatable, target :: strc
@@ -366,8 +378,9 @@ contains
     if (present(max)) max_ = real(max,c_float)
     scale_ = 1._c_float
     if (present(scale)) scale_ = scale
-    sformat_ = "%.3f" // c_null_char
-    if (present(decimal)) sformat_ = "%." // string(decimal) // "f" // c_null_char
+    decimal_ = 3
+    if (present(decimal)) decimal_ = decimal
+    sformat_ = "%." // string(decimal_) // "f" // c_null_char
     sameline_ = .false.
     if (present(sameline)) sameline_ = sameline
     flags_ = 0_c_int
@@ -391,7 +404,13 @@ contains
     elseif (present(x4)) then
        n = 4
     end if
-    width = (4 + decimal) * sz%x * n + (n-1) * g%Style%ItemInnerSpacing%x
+    vmax = 1._c_float
+    if (present(max) .and. abs(max_) > vmax) vmax = abs(max_)
+    if (present(min) .and. abs(min_) > vmax) vmax = abs(min_)
+    ! integer digits
+    nintdig = int(log10(vmax) + 1e-4_c_float) + 1
+    if (nintdig < 3) nintdig = 3
+    width = (1 + nintdig + decimal_) * sz%x * n + (n-1) * g%Style%ItemInnerSpacing%x
 
     ! draw the float
     call igPushItemWidth(width)

@@ -44,6 +44,8 @@ module dynamics
      real*8 :: gamma = 2d-3 !< Langevin friction, 1/a.u.
      real*8 :: ekin = 0d0 !< last kinetic energy, hartree
      real*8 :: epot = 0d0 !< last potential energy, hartree
+     real*8 :: stress(3,3) = 0d0 !< last virial stress (hartree/bohr**3), crystals only
+     real*8 :: simtime = 0d0 !< accumulated simulation time (a.u.), dynamics only
      ! interactive drag
      integer :: drag_iat = 0 !< dragged atom (cell index), 0 = none
      real*8 :: drag_target(3) = 0d0 !< cursor target position, bohr
@@ -61,6 +63,7 @@ module dynamics
      procedure :: reset => md_reset
      procedure :: init_velocities => md_init_velocities
      procedure :: temperature_now => md_temperature
+     procedure :: pressure => md_pressure
      procedure :: free => md_free
   end type mdrun
 
@@ -93,6 +96,13 @@ module dynamics
        class(mdrun), intent(in) :: md
        real*8 :: t
      end function md_temperature
+     module function md_pressure(md,c,ok) result(p)
+       use crystalmod, only: crystal
+       class(mdrun), intent(in) :: md
+       class(crystal), intent(in) :: c
+       logical, intent(out) :: ok
+       real*8 :: p
+     end function md_pressure
      module subroutine md_free(md)
        class(mdrun), intent(inout) :: md
      end subroutine md_free

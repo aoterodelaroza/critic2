@@ -78,6 +78,8 @@ contains
     md%fire_alpha = fire_alpha0
     md%fire_npos = 0
     md%istep = 0
+    md%simtime = 0d0
+    md%stress = 0d0
     md%drag_iat = 0
     md%interacting = .false.
     if (md%mode == md_dynamics) then
@@ -102,6 +104,7 @@ contains
        call step_fire(md,c)
     else
        call step_langevin(md,c)
+       md%simtime = md%simtime + md%dt ! advance the clock by the step's timestep
     end if
     ! keep the dragged atom clamped to the cursor with no residual velocity
     if (md%drag_iat > 0 .and. md%drag_iat <= md%nat) then
@@ -183,6 +186,8 @@ contains
     md%fire_alpha = fire_alpha0
     md%fire_npos = 0
     md%istep = 0
+    md%simtime = 0d0
+    md%stress = 0d0
     call compute_forces(md,c)
     call kinetic(md)
 
@@ -218,6 +223,24 @@ contains
     ndof = max(3*md%nat - 3,1)
     t = 2d0*md%ekin/(real(ndof,8)*kboltz)
   end function md_temperature
+
+  !> Instantaneous pressure (GPa) of a periodic system: the kinetic term
+  !> (2/3 E_kin/V) plus the virial term (-1/3 tr stress), from the stress cached
+  !> by the last force evaluation. ok=.false. for a molecule (no cell).
+  module function md_pressure(md,c,ok) result(p)
+    use crystalmod, only: crystal
+    use param, only: autogpa
+    class(mdrun), intent(in) :: md
+    class(crystal), intent(in) :: c
+    logical, intent(out) :: ok
+    real*8 :: p
+
+    p = 0d0
+    ok = (.not.c%ismolecule) .and. (c%omega > 0d0)
+    if (.not.ok) return
+    p = (2d0/3d0*md%ekin/c%omega - (md%stress(1,1)+md%stress(2,2)+md%stress(3,3))/3d0) * autogpa
+
+  end function md_pressure
 
   !> Release the run and its calculator.
   module subroutine md_free(md)
@@ -255,7 +278,12 @@ contains
     md%istep = md%istep + 1
     if (md%nblist_every > 0 .and. mod(md%istep,md%nblist_every) == 0) &
        call md%cl%update_geometry(c)
-    call md%cl%evaluate(c,md%epot,md%f,errmsg=errmsg)
+    ! cache the virial stress for crystals, on-screen pressure
+    if (c%ismolecule) then
+       call md%cl%evaluate(c,md%epot,md%f,errmsg=errmsg)
+    else
+       call md%cl%evaluate(c,md%epot,md%f,stress=md%stress,errmsg=errmsg)
+    end if
     if (len_trim(errmsg) > 0) then
        md%ready = .false.
        return

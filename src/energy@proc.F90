@@ -178,6 +178,43 @@ contains
 
   end subroutine calc_init
 
+  !> Whether energy the backend (ff_*) can be used for system c
+  module function ff_backend_applicable(backend,c) result(ok)
+    use crystalmod, only: crystal
+    integer, intent(in) :: backend
+    class(crystal), intent(in) :: c
+    logical :: ok
+
+    integer :: i, nh, no
+
+    ok = .false.
+    select case (backend)
+    case (ff_uff)
+       ok = .true.
+    case (ff_tblite)
+#ifdef HAVE_TBLITE
+       ok = .true.
+#else
+       ok = .false.
+#endif
+    case (ff_tip4p)
+       if (.not.c%ismolecule) return
+       nh = 0
+       no = 0
+       do i = 1, c%ncel
+          if (c%spc(c%atcel(i)%is)%z == 1) then
+             nh = nh + 1
+          else if (c%spc(c%atcel(i)%is)%z == 8) then
+             no = no + 1
+          else
+             return ! a non-H/O atom: not all-water
+          end if
+       end do
+       ok = (no > 0 .and. nh == 2*no)
+    end select
+
+  end function ff_backend_applicable
+
   !> Evaluate the energy (ene, hartree), energy gradient (grad(3,nat),
   !> hartree/bohr; force = -grad) and, optionally, the stress tensor
   !> (stress(3,3), hartree/bohr^3) at the current geometry of c.
