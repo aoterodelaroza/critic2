@@ -53,7 +53,7 @@ contains
   !> Draw the edit represenatation window.
   module subroutine draw_editrep(w)
     use representations, only: representation, reptype_atoms, reptype_unitcell, reptype_axes,&
-       reptype_symelem
+       reptype_symelem, reptype_text
     use windows, only: nwin, win, wintype_view
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
@@ -79,6 +79,7 @@ contains
     if (.not.doquit) doquit = (w%rep%type <= 0)
     if (.not.doquit) doquit = .not.(w%idparent > 0 .and. w%idparent <= nwin)
     if (.not.doquit) doquit = .not.(win(w%idparent)%isinit)
+    if (.not.doquit) doquit = .not.(win(w%idparent)%isopen)
     if (.not.doquit) doquit = .not.associated(win(w%idparent)%sc)
     if (.not.doquit) doquit = win(w%idparent)%type /= wintype_view
     if (.not.doquit) doquit = (win(w%idparent)%view_selected /= isys)
@@ -111,6 +112,8 @@ contains
           changed = changed .or. w%draw_editrep_axes(ttshown)
        elseif (w%rep%type == reptype_symelem) then
           changed = changed .or. w%draw_editrep_symelem(ttshown)
+       elseif (w%rep%type == reptype_text) then
+          changed = changed .or. w%draw_editrep_text(ttshown)
        end if
 
        ! rebuild draw lists if necessary
@@ -1929,5 +1932,258 @@ contains
     end if
 
   end function draw_editrep_symelem
+
+  !> Draw the editrep window, text annotations. Returns true if the
+  !> scene needs rendering again. ttshown = the tooltip flag.
+  module function draw_editrep_text(w,ttshown) result(changed)
+    use interfaces_glfw, only: glfwGetTime
+    use representations, only: text_item, textpos_screen, textpos_point, textpos_atom,&
+       textpos_bond
+    use gui_main, only: ColorLabel_def
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
+       iw_combo_simple, iw_button, iw_calcheight, iw_inputtext, iw_close_button,&
+       iw_highlight_selectable
+    use systems, only: sys, sysc
+    use tools_io, only: string
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    logical :: ch, ok, ldum
+    integer :: i, k, iview, isel, idel, ipl
+    integer(c_int) :: flags
+    type(ImVec2) :: sz0
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+    type(text_item), allocatable :: taux(:)
+
+    ! initialize
+    changed = .false.
+    iview = w%idparent
+
+    ! handle a pending atom pick commanded to the parent view
+    if (w%editrep_text_pick_item > 0) then
+       ok = (w%editrep_text_pick_item <= w%rep%text%ntext)
+       if (ok) ok = (win(iview)%vmdata%owner == w%id) .and.&
+          (sysc(w%isys)%timelastchange_geometry < w%editrep_text_pick_time)
+       if (.not.ok) then
+          ! the item was deleted, another window took over the pick, or the
+          ! geometry changed (stale cell-atom ids): cancel
+          call win(iview)%viewmode_release_forced(w%id)
+          w%editrep_text_pick_item = 0
+          w%editrep_text_pick_slot = 0
+       elseif (win(iview)%viewmode >= 0) then
+          ! the pick finished; anchors are only committed to the item when the
+          ! whole pick sequence completes (a cancelled bond pick leaves the
+          ! previous anchor pair untouched)
+          i = w%editrep_text_pick_item
+          if (win(iview)%vmdata%idx(1) > 0) then
+             if (w%editrep_text_pick_slot == 1) then
+                if (w%rep%text%t(i)%placement == textpos_bond) then
+                   ! bond anchor: stage this atom and chain the second pick
+                   w%editrep_text_pick_idx = win(iview)%vmdata%idx(1:4)
+                   w%editrep_text_pick_slot = 2
+                   w%editrep_text_pick_time = glfwGetTime()
+                   win(iview)%vmdata%idx = 0
+                   call win(iview)%viewmode_set_forced(vm_pick_atom,&
+                      "Pick the second atom of the bond...",w%id)
+                else
+                   ! atom anchor: complete
+                   w%rep%text%t(i)%idx1 = win(iview)%vmdata%idx(1:4)
+                   changed = .true.
+                   w%editrep_text_pick_item = 0
+                   w%editrep_text_pick_slot = 0
+                end if
+             else
+                ! second bond atom: complete, unless it repeats the first atom
+                ! (a degenerate bond; treated as a cancel)
+                if (any(win(iview)%vmdata%idx(1:4) /= w%editrep_text_pick_idx)) then
+                   w%rep%text%t(i)%idx1 = w%editrep_text_pick_idx
+                   w%rep%text%t(i)%idx2 = win(iview)%vmdata%idx(1:4)
+                   changed = .true.
+                end if
+                w%editrep_text_pick_item = 0
+                w%editrep_text_pick_slot = 0
+             end if
+          else
+             ! the user cancelled the pick
+             w%editrep_text_pick_item = 0
+             w%editrep_text_pick_slot = 0
+          end if
+          if (w%editrep_text_pick_item == 0) win(iview)%vmdata%idx = 0
+       end if
+    end if
+
+    !! table of text items
+    call iw_text("Texts",highlight=.true.)
+    idel = 0
+    flags = ImGuiTableFlags_None
+    flags = ior(flags,ImGuiTableFlags_RowBg)
+    flags = ior(flags,ImGuiTableFlags_Borders)
+    flags = ior(flags,ImGuiTableFlags_ScrollY)
+    flags = ior(flags,ImGuiTableFlags_SizingFixedFit)
+    str1 = "##texttable" // c_null_char
+    sz0%x = 0
+    sz0%y = iw_calcheight(min(w%rep%text%ntext,5)+1,0,.false.)
+    if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
+       str2 = "" // c_null_char
+       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,0)
+       str2 = "show" // c_null_char
+       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,1)
+       str2 = "text" // c_null_char
+       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthStretch,0._c_float,2)
+       str2 = "placement" // c_null_char
+       call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,3)
+       call igTableSetupScrollFreeze(0,1)
+       call igTableHeadersRow()
+
+       do i = 1, w%rep%text%ntext
+          call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+          ! delete button
+          if (igTableSetColumnIndex(0)) then
+             call igAlignTextToFramePadding()
+             if (iw_close_button("##textdel" // string(i))) idel = i
+             call iw_tooltip("Remove this text",ttshown)
+          end if
+          ! shown checkbox
+          if (igTableSetColumnIndex(1)) then
+             if (iw_checkbox("##textshow" // string(i),w%rep%text%t(i)%shown)) changed = .true.
+             call iw_tooltip("Toggle show/hide this text",ttshown)
+          end if
+          ! the text itself
+          if (igTableSetColumnIndex(2)) then
+             call igSetNextItemWidth(-1._c_float)
+             if (iw_inputtext("##textstr" // string(i),bufsize=1023,texta=w%rep%text%t(i)%str)) &
+                changed = .true.
+          end if
+          ! placement summary; a row-spanning selectable picks the edited item
+          if (igTableSetColumnIndex(3)) then
+             call igAlignTextToFramePadding()
+             if (w%rep%text%t(i)%placement == textpos_screen) then
+                str1 = "on-screen"
+             elseif (w%rep%text%t(i)%placement == textpos_point) then
+                str1 = "3D position"
+             elseif (w%rep%text%t(i)%placement == textpos_atom) then
+                str1 = "atom"
+             else
+                str1 = "bond"
+             end if
+             if (i == w%lastselected) str1 = str1 // " (editing)"
+             call iw_text(str1)
+             ldum = iw_highlight_selectable("##textsel" // string(i),clicked=ch)
+             if (ch) w%lastselected = i
+          end if
+       end do
+       call igEndTable()
+    end if
+
+    ! add button
+    if (iw_button("Add##textadd")) then
+       allocate(taux(w%rep%text%ntext+1))
+       if (w%rep%text%ntext > 0) taux(1:w%rep%text%ntext) = w%rep%text%t(1:w%rep%text%ntext)
+       call move_alloc(taux,w%rep%text%t)
+       w%rep%text%ntext = w%rep%text%ntext + 1
+       w%rep%text%t(w%rep%text%ntext)%str = "Text"
+       w%rep%text%t(w%rep%text%ntext)%rgb = ColorLabel_def
+       w%lastselected = w%rep%text%ntext
+       changed = .true.
+    end if
+    call iw_tooltip("Add a new text",ttshown)
+
+    ! process a deletion
+    if (idel > 0) then
+       do k = idel, w%rep%text%ntext-1
+          w%rep%text%t(k) = w%rep%text%t(k+1)
+       end do
+       w%rep%text%ntext = w%rep%text%ntext - 1
+       if (w%editrep_text_pick_item == idel) then
+          ! cancel a pick pending on the deleted item
+          call win(iview)%viewmode_release_forced(w%id)
+          w%editrep_text_pick_item = 0
+          w%editrep_text_pick_slot = 0
+       elseif (w%editrep_text_pick_item > idel) then
+          w%editrep_text_pick_item = w%editrep_text_pick_item - 1
+       end if
+       changed = .true.
+    end if
+
+    !! detail section for the selected item
+    if (w%rep%text%ntext > 0) then
+       isel = min(max(w%lastselected,1),w%rep%text%ntext)
+       w%lastselected = isel
+
+       ! placement
+       call igAlignTextToFramePadding()
+       call iw_text("Placement",highlight=.true.)
+       ipl = w%rep%text%t(isel)%placement
+       call iw_combo_simple("##textplacement","On-screen" // c_null_char // "3D position" // c_null_char //&
+          "Atom" // c_null_char // "Bond" // c_null_char,ipl,changed=ch,sameline=.true.)
+       changed = changed .or. ch
+       w%rep%text%t(isel)%placement = ipl
+       call iw_tooltip("How the text is placed: anchored to the viewport (on-screen), at a &
+          &3D position in the system, or tied to an atom or a bond",ttshown)
+
+       if (ipl == textpos_screen) then
+          changed = changed .or. iw_dragfloat_real8("Position##textwinpos",x2=w%rep%text%t(isel)%winpos,&
+             speed=0.005d0,min=0d0,max=1d0,decimal=3,flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Position of the text in the viewport, as fractions of the window &
+             &size from the left and bottom borders",ttshown)
+       elseif (ipl == textpos_point) then
+          changed = changed .or. iw_dragfloat_real8("Position##textpos",x3=w%rep%text%t(isel)%pos,&
+             speed=0.001d0,decimal=5)
+          if (sys(w%isys)%c%ismolecule) then
+             call iw_tooltip("Position of the text (Cartesian coordinates, angstrom)",ttshown)
+          else
+             call iw_tooltip("Position of the text (fractional coordinates)",ttshown)
+          end if
+       elseif (ipl == textpos_atom) then
+          if (iw_button("Pick atom##textpickatom",disabled=(w%editrep_text_pick_item > 0))) then
+             w%editrep_text_pick_item = isel
+             w%editrep_text_pick_slot = 1
+             w%editrep_text_pick_time = glfwGetTime()
+             call win(iview)%viewmode_set_forced(vm_pick_atom,&
+                "Pick the atom to anchor the text to...",w%id)
+          end if
+          call iw_tooltip("Click, then pick the anchor atom in the view window",ttshown)
+          call iw_text("Anchor: " // anchor_string(w%rep%text%t(isel)%idx1),sameline=.true.)
+       else ! textpos_bond
+          if (iw_button("Pick bond atoms##textpickbond",disabled=(w%editrep_text_pick_item > 0))) then
+             w%editrep_text_pick_item = isel
+             w%editrep_text_pick_slot = 1
+             w%editrep_text_pick_time = glfwGetTime()
+             call win(iview)%viewmode_set_forced(vm_pick_atom,&
+                "Pick the first atom of the bond...",w%id)
+          end if
+          call iw_tooltip("Click, then pick the two atoms of the bond in the view window",ttshown)
+          call iw_text("Anchor: " // anchor_string(w%rep%text%t(isel)%idx1) // " - " //&
+             anchor_string(w%rep%text%t(isel)%idx2),sameline=.true.)
+       end if
+
+       ! style
+       call iw_text("Style",highlight=.true.)
+       changed = changed .or. iw_dragfloat_real8("Size##textscale",x1=w%rep%text%t(isel)%scale,&
+          speed=0.01d0,min=0.05d0,max=10d0,decimal=2,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Size of the text",ttshown)
+       changed = changed .or. iw_coloredit("Color##textcolor",rgb=w%rep%text%t(isel)%rgb,sameline=.true.)
+       call iw_tooltip("Color of the text",ttshown)
+       changed = changed .or. iw_checkbox("Scale with zoom##textzoom",w%rep%text%t(isel)%scalewithzoom)
+       call iw_tooltip("Whether the text size scales when zooming in and out, or stays &
+          &at a constant on-screen size",ttshown)
+    end if
+
+  contains
+    !> Short description of an atom anchor: name + cell index (+ lattice vector).
+    function anchor_string(idx) result(s)
+      integer(c_int), intent(in) :: idx(4)
+      character(len=:), allocatable :: s
+      if (idx(1) < 1 .or. idx(1) > sys(w%isys)%c%ncel) then
+         s = "(not set)"
+      else
+         s = trim(sys(w%isys)%c%at(sys(w%isys)%c%atcel(idx(1))%idx)%name) // "#" // string(idx(1))
+         if (any(idx(2:4) /= 0)) &
+            s = s // "+(" // string(idx(2)) // "," // string(idx(3)) // "," // string(idx(4)) // ")"
+      end if
+    end function anchor_string
+
+  end function draw_editrep_text
 
 end submodule editrep

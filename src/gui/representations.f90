@@ -84,6 +84,13 @@ module representations
      0.00_c_float,0.00_c_float,0.00_c_float,&   ! 5-fold: (unused, default)
      0.90_c_float,0.45_c_float,0.05_c_float/),& ! 6-fold: orange
      shape(symelem_rgb_order))
+  !--> text annotations
+  integer, parameter, public :: textpos_screen = 0 ! anchored to a viewport position
+  integer, parameter, public :: textpos_point = 1 ! at a 3D position in the system
+  integer, parameter, public :: textpos_atom = 2 ! tied to an atom (cell atom + lattice vector)
+  integer, parameter, public :: textpos_bond = 3 ! tied to a bond (two atom images)
+  real*8, parameter, public :: text_scale_def = label_scale_def ! text size (same semantics as labels)
+  real*8, parameter, public :: text_winpos_def(2) = (/0.5d0,0.85d0/) ! default viewport position (near top-center)
   !--> coordination polyhedra
   real*8, parameter, public :: polyalpha_def = 0.75d0 ! face opacity (1 = opaque)
   real*8, parameter, public :: polyedgerad_def = 0.06d0 / bohrtoa ! edge cylinder radius
@@ -197,7 +204,8 @@ module representations
   integer, parameter, public :: reptype_axes = 3 ! cartesian/crystallographic axes gizmo
   integer, parameter, public :: reptype_rotaxis = 4 ! rotation axis for a molecule
   integer, parameter, public :: reptype_symelem = 5 ! symmetry element
-  integer, parameter, public :: reptype_NUM = 5
+  integer, parameter, public :: reptype_text = 6 ! user text annotations
+  integer, parameter, public :: reptype_NUM = 6
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -213,7 +221,8 @@ module representations
   integer, parameter, public :: repflavor_axes = 10
   integer, parameter, public :: repflavor_rotaxis = 11
   integer, parameter, public :: repflavor_symelem = 12
-  integer, parameter, public :: repflavor_NUM = 12
+  integer, parameter, public :: repflavor_text = 13
+  integer, parameter, public :: repflavor_NUM = 13
 
   !> Selection of the part of the system that is drawn: periodicity, origin
   !> shift, display region, and the atom filter (reptype_atoms; pertype, ncell
@@ -374,6 +383,28 @@ module representations
   end type rep_poly
   public :: rep_poly
 
+  !> User text annotation (reptype_text)
+  type text_item
+     logical :: shown = .true. ! whether this text is drawn
+     character(kind=c_char,len=:), allocatable :: str ! the text (newlines allowed)
+     integer(c_int) :: placement = textpos_screen ! placement mode (textpos_*)
+     real*8 :: winpos(2) = text_winpos_def ! viewport position, fractions from left/bottom (textpos_screen)
+     real*8 :: pos(3) = 0d0 ! 3D anchor: fractional (crystal) or angstrom (molecule) (textpos_point)
+     integer(c_int) :: idx1(4) = 0 ! atom anchor/bond atom 1: cell atom + lattice vector; 0 = unset
+     integer(c_int) :: idx2(4) = 0 ! bond atom 2: cell atom + lattice vector; 0 = unset
+     real*8 :: scale = text_scale_def ! text size
+     real(c_float) :: rgb(3) = 0._c_float ! text color
+     logical :: scalewithzoom = .false. ! text scales with zoom (vs constant on-screen size)
+  end type text_item
+  public :: text_item
+
+  !> Text annotation options (reptype_text; accessed as r%text%...)
+  type rep_text
+     integer :: ntext = 0 ! number of text items
+     type(text_item), allocatable :: t(:) ! the text items
+  end type rep_text
+  public :: rep_text
+
   !> Representation: objects to draw on the scene
   type representation
      ! main variables
@@ -396,6 +427,7 @@ module representations
      type(rep_rotaxis) :: rotaxis ! rotation axis options
      type(rep_symelem) :: symelem ! symmetry element options
      type(rep_poly) :: poly ! coordination polyhedra options
+     type(rep_text) :: text ! text annotation options
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults

@@ -205,7 +205,7 @@ contains
        ! live: texta/textf update on every change
        if (iw_inputtext) then
           ll = index(text_,c_null_char)-1
-          if (ll <= 0) ll = len(text_)
+          if (ll < 0) ll = len(text_)
           if (present(texta)) then
              texta = text_(1:ll)
           else

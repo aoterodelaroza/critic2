@@ -259,12 +259,7 @@ contains
        if (.not.ok) then
           ! the view is gone, shows another system, another window took over
           ! the pick, or the geometry changed (stale cell-atom ids): cancel
-          if (oksys) then
-             if (win(iview)%vmdata%owner == w%id) then
-                win(iview)%viewmode = vm_navigate
-                win(iview)%viewmode_transient = .false.
-             end if
-          end if
+          if (oksys) call win(iview)%viewmode_release_forced(w%id)
           w%geometry_addbond_iat = 0
           w%geometry_addbond_iview = 0
        elseif (win(iview)%viewmode >= 0) then

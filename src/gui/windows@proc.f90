@@ -579,6 +579,9 @@ contains
     w%geometry_expr_error = ""
     w%geometry_addbond_iat = 0
     w%geometry_addbond_iview = 0
+    w%editrep_text_pick_item = 0
+    w%editrep_text_pick_slot = 0
+    w%editrep_text_pick_idx = 0
 
   end subroutine window_end
 

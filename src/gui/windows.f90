@@ -160,6 +160,10 @@ module windows
      ! edit representation parameters
      type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
      real*8 :: timelast_plot_update = 0d0 ! time the plot was last updaed
+     integer :: editrep_text_pick_item = 0 ! text item waiting for an atom pick (0 = idle)
+     integer :: editrep_text_pick_slot = 0 ! anchor being picked (1 = atom/first bond atom, 2 = second bond atom)
+     real*8 :: editrep_text_pick_time = 0d0 ! time the pick was commanded (to detect stale ids)
+     integer(c_int) :: editrep_text_pick_idx(4) = 0 ! staged first bond atom (committed when the pair completes)
      ! export image parameters
      integer(c_int) :: nsample ! number of samples for anti-aliasing
      integer(c_int) :: jpgquality ! jpg quality
@@ -226,6 +230,7 @@ module windows
      procedure :: delete_texture_view ! delete the texture for the view
      procedure :: viewmode_set_mode ! set the viewmode based on user keypresses
      procedure :: viewmode_set_forced ! enter the forced transient view mode (pick an atom)
+     procedure :: viewmode_release_forced ! cancel the forced view mode if owned by the caller
      procedure :: viewmode_bar_display ! bar display for the current view mode
      procedure :: viewmode_activate_picking ! activate picking by view mode
      procedure :: viewmode_process_events ! process mouse events according to view mode
@@ -268,6 +273,7 @@ module windows
      procedure :: draw_editrep_unitcell
      procedure :: draw_editrep_axes
      procedure :: draw_editrep_symelem
+     procedure :: draw_editrep_text
      ! export image
      procedure :: draw_exportimage
      ! vibrations
@@ -447,6 +453,10 @@ module windows
        character(len=*), intent(in) :: message
        integer, intent(in) :: idcaller
      end subroutine viewmode_set_forced
+     module subroutine viewmode_release_forced(w,idcaller)
+       class(window), intent(inout), target :: w
+       integer, intent(in) :: idcaller
+     end subroutine viewmode_release_forced
      module subroutine viewmode_bar_display(w)
        class(window), intent(inout), target :: w
      end subroutine viewmode_bar_display
@@ -593,6 +603,11 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_symelem
+     module function draw_editrep_text(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical :: changed
+     end function draw_editrep_text
      !xx! exportimage submodule !xx!
      module subroutine draw_exportimage(w)
        class(window), intent(inout), target :: w

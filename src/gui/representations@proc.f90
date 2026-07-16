@@ -99,6 +99,10 @@ contains
        r%isinit = .true.
        r%shown = .true.
        r%name = "Symmetry elements"
+    elseif (itype == reptype_text) then
+       r%isinit = .true.
+       r%shown = .true.
+       r%name = "Text"
     else
        r%isinit = .false.
        r%shown = .false.
@@ -181,7 +185,7 @@ contains
   !> Set all values to default for the representation. Set a subset of
   !> defaults if itype = 0 (all), 1 (atom), 2 (bonds), 3 (labels),
   !> 4 (mol), 5 (unit cell), 6 (cartesian axes), 7 (rotation axes),
-  !> 8 (coordination polyhedra), 9 (symmetry elements).
+  !> 8 (coordination polyhedra), 9 (symmetry elements), 10 (text annotations).
   module subroutine representation_set_defaults(r,itype)
     use systems, only: sys, sys_ready, ok_system
     use global, only: bondfactor_def, bonddelta_def
@@ -407,6 +411,19 @@ contains
        if (r%symelem%style%isinit) r%symelem%style%shown = .true.
     end if
 
+    ! text annotations
+    if (itype == 0 .or. itype == 10) then
+       r%text%ntext = 0
+       if (allocated(r%text%t)) deallocate(r%text%t)
+       if (r%type == reptype_text) then
+          ! default: a single visible on-screen text
+          allocate(r%text%t(1))
+          r%text%ntext = 1
+          r%text%t(1)%str = "Text"
+          r%text%t(1)%rgb = ColorLabel_def
+       end if
+    end if
+
     ! initialize the styles
     call r%reset_all_styles(itype)
 
@@ -426,6 +443,8 @@ contains
     r%name = ""
     r%sel%filter = ""
     r%sel%errfilter = ""
+    r%text%ntext = 0
+    if (allocated(r%text%t)) deallocate(r%text%t)
 
     call r%atoms%style%end()
     call r%bonds%style%end()
@@ -1324,6 +1343,72 @@ contains
              call draw_symmetry_element(r%symelem%kind,r%symelem%dir,r%symelem%order,&
                 uoriginc,.false.,r%symelem%rgb)
        end if
+    elseif (r%type == reptype_text) then
+       !!! user text annotations !!!
+       do i = 1, r%text%ntext
+          if (.not.r%text%t(i)%shown) cycle
+          if (.not.allocated(r%text%t(i)%str)) cycle
+          if (len_trim(r%text%t(i)%str) == 0) cycle
+
+          if (r%text%t(i)%placement == textpos_screen) then
+             ! viewport-anchored overlay string, positioned at render time
+             dstrover%winpos = real(r%text%t(i)%winpos,c_float)
+             dstrover%scalewithzoom = r%text%t(i)%scalewithzoom
+             dstrover%x = 0._c_float
+             dstrover%xdelta = cmplx(0d0,0d0,kind=c_float_complex)
+             dstrover%r = 0._c_float
+             dstrover%rgb = r%text%t(i)%rgb
+             dstrover%scale = real(r%text%t(i)%scale,c_float) ! sign unused in the overlay
+             dstrover%offset = 0._c_float
+             dstrover%str = trim(r%text%t(i)%str)
+             call dl_append(obj%stringover,obj%nstringover,dstrover)
+          else
+             ! world-anchored string: resolve the anchor position, animation
+             ! delta, and push-out radius from the placement
+             if (r%text%t(i)%placement == textpos_point) then
+                ! fractional coordinates (crystal) or angstrom (molecule)
+                if (c%ismolecule) then
+                   xx = r%text%t(i)%pos / bohrtoa - c%molx0
+                else
+                   xx = c%x2c(r%text%t(i)%pos)
+                end if
+                xdelta1 = 0d0
+                rad1 = 0d0
+             elseif (r%text%t(i)%placement == textpos_atom) then
+                ! skip unset anchors and anchors made stale by a geometry edit
+                id = r%text%t(i)%idx1(1)
+                if (id < 1 .or. id > c%ncel) cycle
+                ix = r%text%t(i)%idx1(2:4)
+                xx = c%x2c(c%atcel(id)%x + ix)
+                xdelta1 = vibdelta(id,ix)
+                rad1 = atmcov0(c%spc(c%atcel(id)%is)%z) ! clear the atom sphere
+             else ! textpos_bond
+                id = r%text%t(i)%idx1(1)
+                ineigh = r%text%t(i)%idx2(1)
+                if (id < 1 .or. id > c%ncel) cycle
+                if (ineigh < 1 .or. ineigh > c%ncel) cycle
+                ix = r%text%t(i)%idx1(2:4)
+                ix2 = r%text%t(i)%idx2(2:4)
+                x1 = c%x2c(c%atcel(id)%x + ix)
+                x2 = c%x2c(c%atcel(ineigh)%x + ix2)
+                xx = 0.5d0 * (x1 + x2) ! bond midpoint
+                xdelta1 = 0.5d0 * (vibdelta(id,ix) + vibdelta(ineigh,ix2))
+                rad1 = 2d0 * bondrad_def ! clear the bond cylinder
+             end if
+             dstr%x = real(xx,c_float)
+             dstr%xdelta = cmplx(xdelta1,kind=c_float_complex)
+             dstr%r = real(rad1,c_float)
+             dstr%rgb = r%text%t(i)%rgb
+             if (r%text%t(i)%scalewithzoom) then
+                dstr%scale = real(-r%text%t(i)%scale,c_float)
+             else
+                dstr%scale = real(r%text%t(i)%scale,c_float)
+             end if
+             dstr%offset = 0._c_float
+             dstr%str = trim(r%text%t(i)%str)
+             call dl_append(obj%string,obj%nstring,dstr)
+          end if
+       end do
     end if ! reptype
   contains
 

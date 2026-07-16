@@ -69,7 +69,7 @@ contains
        repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
        repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
        repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic,&
-       repflavor_axes, repflavor_atoms_polyhedra, repflavor_symelem
+       repflavor_axes, repflavor_atoms_polyhedra, repflavor_symelem, reptype_text, repflavor_text
     use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
        iw_setposx_fromend, iw_checkbox, iw_coloredit, iw_menuitem, iw_dragfloat_realc,&
        iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton
@@ -560,6 +560,13 @@ contains
                 chbuild = .true.
              end if
              call iw_tooltip("Display symmetry elements",ttshown)
+
+             call igSeparator()
+             if (iw_menuitem("Text",shortcut_text="Text")) then
+                call w%sc%add_representation(reptype_text,repflavor_text)
+                chbuild = .true.
+             end if
+             call iw_tooltip("Add text annotations to the view",ttshown)
 
              call igEndPopup()
           end if
@@ -1243,6 +1250,20 @@ contains
     w%vmdata%idx = 0
 
   end subroutine viewmode_set_forced
+
+  !> Release a forced view mode commanded by caller window idcaller: if that
+  !> caller still owns an active forced mode, return the view to navigation.
+  !> The companion to viewmode_set_forced, for cancelling a pending pick.
+  module subroutine viewmode_release_forced(w,idcaller)
+    class(window), intent(inout), target :: w
+    integer, intent(in) :: idcaller
+
+    if (w%vmdata%owner == idcaller .and. w%viewmode < 0) then
+       w%viewmode = vm_navigate
+       w%viewmode_transient = .false.
+    end if
+
+  end subroutine viewmode_release_forced
 
   !> Returns the tooltip message for the current viewmode
   module subroutine viewmode_bar_display(w)
