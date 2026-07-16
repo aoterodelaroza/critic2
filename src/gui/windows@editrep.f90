@@ -2055,7 +2055,8 @@ contains
              if (iw_inputtext("##textstr" // string(i),bufsize=1023,texta=w%rep%text%t(i)%str)) &
                 changed = .true.
           end if
-          ! placement summary; a row-spanning selectable picks the edited item
+          ! placement summary; a row-spanning selectable picks the edited item,
+          ! and the row being edited is shown highlighted
           if (igTableSetColumnIndex(3)) then
              call igAlignTextToFramePadding()
              if (w%rep%text%t(i)%placement == textpos_screen) then
@@ -2067,9 +2068,9 @@ contains
              else
                 str1 = "bond"
              end if
-             if (i == w%lastselected) str1 = str1 // " (editing)"
              call iw_text(str1)
-             ldum = iw_highlight_selectable("##textsel" // string(i),clicked=ch)
+             ldum = iw_highlight_selectable("##textsel" // string(i),clicked=ch,&
+                selected=(i == w%lastselected))
              if (ch) w%lastselected = i
           end if
        end do

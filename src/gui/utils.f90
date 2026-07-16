@@ -275,9 +275,10 @@ module utils
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(in), optional :: sameline
      end subroutine iw_helpermark
-     module function iw_highlight_selectable(str,clicked)
+     module function iw_highlight_selectable(str,clicked,selected)
        character(len=*,kind=c_char), intent(in) :: str
        logical, intent(out), optional :: clicked
+       logical, intent(in), optional :: selected
        logical :: iw_highlight_selectable
      end function iw_highlight_selectable
      module function igIsItemHovered_delayed(flags,thr,already_shown)

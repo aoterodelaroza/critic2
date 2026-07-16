@@ -1426,11 +1426,12 @@ contains
   !> Create a selectable that highlights the current row. Return true
   !> if the selectable is hovered. If clicked is present, return .true.
   !> if clicked.
-  module function iw_highlight_selectable(str,clicked)
+  module function iw_highlight_selectable(str,clicked,selected)
     use interfaces_cimgui
     use gui_main, only: g, ColorTableHighlightRow
     character(len=*,kind=c_char), intent(in) :: str
     logical, intent(out), optional :: clicked
+    logical, intent(in), optional :: selected
     logical :: iw_highlight_selectable
 
     type(ImVec2) :: sz1, szero
@@ -1438,7 +1439,10 @@ contains
     integer(c_int) :: flags
     character(kind=c_char,len=:), allocatable, target :: str2
     logical :: ldum
+    logical(c_bool) :: sel_
 
+    sel_ = .false._c_bool
+    if (present(selected)) sel_ = logical(selected,c_bool)
     szero%x = 0
     szero%y = 0
     sz1%x = g%Style%ItemSpacing%x
@@ -1451,7 +1455,7 @@ contains
     flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
     str2 = trim(str) // c_null_char
     call igSameLine(0._c_float,0._c_float)
-    ldum = igSelectable_Bool(c_loc(str2),.false._c_bool,flags,szero)
+    ldum = igSelectable_Bool(c_loc(str2),sel_,flags,szero)
     if (present(clicked)) clicked = ldum
     call igSetCursorPosX(pos)
     iw_highlight_selectable = .false.
