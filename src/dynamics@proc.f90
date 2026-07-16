@@ -27,7 +27,7 @@ submodule (dynamics) proc
   real*8, parameter :: fire_falpha = 0.99d0
   real*8, parameter :: fire_alpha0 = 0.1d0
   integer, parameter :: fire_nmin = 5
-  real*8, parameter :: fire_drmax = 0.5d0 ! trust-region cap on the step displacements
+  real*8, parameter :: md_drmax = 0.5d0 ! trust-region cap on per-step displacement shared by FIRE and Langevin
   real*8, parameter :: fire_dt0 = 10d0 ! initial FIRE timestep (a.u.)
   real*8, parameter :: fire_dtmax = 40d0 ! ceiling for the adaptive FIRE timestep (a.u.)
   real*8, parameter :: fire_dtmin = 1d0 ! floor for the adaptive timestep (a.u.); stable for stiff O-H bonds
@@ -279,6 +279,9 @@ contains
     do i = 1, md%nat
        md%v(:,i) = md%v(:,i) + 0.5d0*md%dt*md%f(:,i)/md%mass(i)
     end do
+    ! trust region: clamp per-atom speed so no atom drifts more than md_drmax this step
+    ! step. Stops an atom dragged far outside the cell from blowing the integrator up
+    call cap_velocity(md)
     ! A: half drift
     md%r = md%r + 0.5d0*md%dt*md%v
     ! O: Ornstein-Uhlenbeck thermostat
@@ -297,6 +300,9 @@ contains
     do i = 1, md%nat
        md%v(:,i) = md%v(:,i) + 0.5d0*md%dt*md%f(:,i)/md%mass(i)
     end do
+    ! clamp again so a pathological force cannot leave the reported kinetic
+    ! energy / temperature (and the next step's drift) blown up
+    call cap_velocity(md)
 
     ! remove the center-of-mass drift injected by the thermostat (keeps the
     ! system from slowly translating out of view and makes 3N-3 the correct
@@ -304,6 +310,18 @@ contains
     call remove_com(md)
 
   end subroutine step_langevin
+
+  !> Clamp each atom's speed so its drift over one timestep cannot exceed md_drmax.
+  subroutine cap_velocity(md)
+    class(mdrun), intent(inout) :: md
+    integer :: i
+    real*8 :: vmax, vn
+    vmax = md_drmax / max(md%dt,1d-30)
+    do i = 1, md%nat
+       vn = norm2(md%v(:,i))
+       if (vn > vmax) md%v(:,i) = md%v(:,i) * (vmax/vn)
+    end do
+  end subroutine cap_velocity
 
   !> Subtract the center-of-mass velocity so the whole system does not drift.
   subroutine remove_com(md)
@@ -342,8 +360,8 @@ contains
        dmax = max(dmax,norm2(md%v(:,i)))
     end do
     dmax = dmax * md%fire_dt
-    capped = (dmax > fire_drmax)
-    if (capped) md%v = md%v * (fire_drmax/dmax)
+    capped = (dmax > md_drmax)
+    if (capped) md%v = md%v * (md_drmax/dmax)
     md%r = md%r + md%fire_dt*md%v
     call compute_forces(md,c)
     do i = 1, md%nat
