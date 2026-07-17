@@ -34,15 +34,26 @@ set(SOURCES_Fortran abinit_private.f90 abinit_private@proc.f90 autocp.f90
   tricks.F90 types.f90 types@proc.f90 wfn_private.f90
   wien_private.f90 wien_private@proc.f90 xdm.f90
   xdm@proc.f90 yt.f90 yt@proc.f90
-  arithmetic.F90 arithmetic@proc.F90 config@proc.F90
+  arithmetic.F90 arithmetic@proc.F90
   molcalc@proc.F90 param.F90 param@proc.f90
   tools_io@proc.F90 wfn_private@proc.F90
+  "${CMAKE_CURRENT_BINARY_DIR}/config@proc.F90"
   )
 set(SOURCES_C doqhull.c)
 set(SOURCES_Fortran_Main critic2.F90)
 set(SOURCES_Fortran_Library libcritic2.f90 libcritic2@proc.f90)
-set(SOURCES ${SOURCES_Fortran} ${SOURCES_C} ${SOURCES_Fortran_Main})
+
+## the core object library, compiled once and linked into both the
+## executable and the shared library
 add_library(critic2_core OBJECT ${SOURCES_Fortran} ${SOURCES_C})
+
+## interface target carrying the compile definitions, include directories,
+## and external libraries shared by the core, the executable, the shared
+## library, and the GUI. Toolchain-level optimization/debug flags stay in
+## the global CMAKE_<LANG>_FLAGS_<CONFIG> (set in the top-level file); only
+## semantic flags and definitions belong here.
+add_library(critic2_defs INTERFACE)
+target_link_libraries(critic2_core PUBLIC critic2_defs)
 
 ## gfortran-10: do not check fftpack for argument mismatch
 if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU" AND ("${CMAKE_Fortran_COMPILER_VERSION}" VERSION_GREATER 10.0.0
@@ -59,225 +70,165 @@ set(PACKAGE ${CMAKE_PROJECT_NAME})
 set(VERSION "${CMAKE_PROJECT_VERSION}")
 set(TARGET ${CMAKE_SYSTEM})
 if (CRITIC2_ROOT)
-  set_property(SOURCE config@proc.F90 APPEND PROPERTY COMPILE_FLAGS "-DDATADIR='\"${CRITIC2_ROOT}\"'")
+  set(CRITIC2_DATADIR "${CRITIC2_ROOT}")
 else()
-  set_property(SOURCE config@proc.F90 APPEND PROPERTY COMPILE_FLAGS "-DDATADIR='\"${CMAKE_INSTALL_FULL_DATADIR}\"'")
+  set(CRITIC2_DATADIR "${CMAKE_INSTALL_FULL_DATADIR}")
 endif()
-configure_file(config@proc.F90.in "${CMAKE_CURRENT_SOURCE_DIR}/config@proc.F90")
+configure_file(config@proc.F90.in "${CMAKE_CURRENT_BINARY_DIR}/config@proc.F90")
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/config@proc.F90")
+  message(WARNING "Stale generated file src/config@proc.F90 found in the source tree; please delete it")
+endif()
 
 ## executable
-add_executable(critic2 ${SOURCES})
-add_dependencies(critic2 critic2_core)
+add_executable(critic2 ${SOURCES_Fortran_Main})
+target_link_libraries(critic2 PRIVATE critic2_core)
 
 ## library
 if (BUILD_LIBRARY)
-  add_library(libcritic2 SHARED ${SOURCES_Fortran} ${SOURCES_C} ${SOURCES_Fortran_Library})
+  add_library(libcritic2 SHARED ${SOURCES_Fortran_Library})
   set_target_properties(libcritic2 PROPERTIES OUTPUT_NAME critic2 PUBLIC_HEADER "libcritic2.h")
-  add_dependencies(libcritic2 critic2_core critic2)
-  set_source_files_properties(libcritic2@proc.f90 libcritic2.f90 PROPERTIES COMPILE_FLAGS "-fvisibility=default")
+  target_link_libraries(libcritic2 PRIVATE critic2_core)
+  if (CMAKE_Fortran_COMPILER_ID MATCHES "GNU|Intel")
+    set_source_files_properties(libcritic2@proc.f90 libcritic2.f90 PROPERTIES COMPILE_FLAGS "-fvisibility=default")
+  endif()
 endif()
+
+## link a bundled object library into the final targets. Object files do
+## not chain reliably through other object libraries in older CMake, so
+## each one is linked directly into the executable and the shared library.
+function(link_bundled_lib lib)
+  target_link_libraries(critic2 PRIVATE ${lib})
+  if (BUILD_LIBRARY)
+    target_link_libraries(libcritic2 PRIVATE ${lib})
+  endif()
+endfunction()
 
 ## cubpack
 add_subdirectory(cubpack)
-include_directories("${CMAKE_BINARY_DIR}/src/cubpack")
-target_sources(critic2 PRIVATE $<TARGET_OBJECTS:cubpack>)
-if (BUILD_LIBRARY)
-  target_sources(libcritic2 PRIVATE $<TARGET_OBJECTS:cubpack>)
-endif()
+link_bundled_lib(cubpack)
+## the core uses cubpack modules
 add_dependencies(critic2_core cubpack)
 
 ## openmp
 if (OPENMP_FOUND)
-  target_link_libraries(critic2 PRIVATE ${OpenMP_Fortran_LIBRARIES})
-  if (BUILD_LIBRARY)
-    target_link_libraries(libcritic2 PRIVATE ${OpenMP_Fortran_LIBRARIES})
-  endif()
-  add_definitions("-DHAVE_OPENMP")
+  target_link_libraries(critic2_defs INTERFACE OpenMP::OpenMP_Fortran)
+  target_compile_definitions(critic2_defs INTERFACE HAVE_OPENMP)
 endif()
 
 ## lapack
 if (LAPACK_FOUND)
-  set_property(TARGET critic2 APPEND PROPERTY LINK_FLAGS "${LAPACK_LINKER_FLAGS}")
-  target_link_libraries(critic2 PRIVATE ${LAPACK_LIBRARIES})
-  if (BUILD_LIBRARY)
-    set_property(TARGET libcritic2 APPEND PROPERTY LINK_FLAGS "${LAPACK_LINKER_FLAGS}")
-    target_link_libraries(libcritic2 PRIVATE ${LAPACK_LIBRARIES})
-  endif()
+  target_link_options(critic2_defs INTERFACE ${LAPACK_LINKER_FLAGS})
+  target_link_libraries(critic2_defs INTERFACE ${LAPACK_LIBRARIES})
   if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU")
-    set(CMAKE_Fortran_FLAGS_${BT} "${CMAKE_Fortran_FLAGS_${BT}} -fexternal-blas")
+    target_compile_options(critic2_defs INTERFACE $<$<COMPILE_LANGUAGE:Fortran>:-fexternal-blas>)
   endif()
-  add_definitions("-DHAVE_LAPACK")
+  target_compile_definitions(critic2_defs INTERFACE HAVE_LAPACK)
 else()
   add_subdirectory(oldlibs)
-  target_sources(critic2 PRIVATE $<TARGET_OBJECTS:oldlibs>)
-  if (BUILD_LIBRARY)
-    target_sources(libcritic2 PRIVATE $<TARGET_OBJECTS:oldlibs>)
-  endif()
-  add_dependencies(critic2_core oldlibs)
+  link_bundled_lib(oldlibs)
 endif()
 
 ## qhull
 add_subdirectory(qhull)
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/qhull")
-target_sources(critic2 PRIVATE $<TARGET_OBJECTS:qhull>)
-if (BUILD_LIBRARY)
-  target_sources(libcritic2 PRIVATE $<TARGET_OBJECTS:qhull>)
-endif()
-add_dependencies(critic2_core qhull)
+target_include_directories(critic2_defs INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/qhull")
+link_bundled_lib(qhull)
 
 ## spglib
 add_subdirectory(spglib)
-target_sources(critic2 PRIVATE $<TARGET_OBJECTS:spglib>)
-if (BUILD_LIBRARY)
-  target_sources(libcritic2 PRIVATE $<TARGET_OBJECTS:spglib>)
-endif()
-add_dependencies(critic2_core spglib)
+link_bundled_lib(spglib)
 
 ## json-fortran
 add_subdirectory(json-fortran)
-include_directories("${CMAKE_BINARY_DIR}/src/json-fortran")
-target_sources(critic2 PRIVATE $<TARGET_OBJECTS:json-fortran>)
-if (BUILD_LIBRARY)
-  target_sources(libcritic2 PRIVATE $<TARGET_OBJECTS:json-fortran>)
-endif()
+link_bundled_lib(json-fortran)
+## the core uses json-fortran modules
 add_dependencies(critic2_core json-fortran)
 
 ## libxc
 if (USE_LIBXC AND LIBXC_FOUND)
-  include_directories("${LIBXC_INCLUDE_DIRS}")
-  target_link_libraries(critic2 PRIVATE ${LIBXC_xcf03_LIBRARY} ${LIBXC_xc_LIBRARY})
-  if (BUILD_LIBRARY)
-    target_link_libraries(libcritic2 PRIVATE ${LIBXC_xcf03_LIBRARY} ${LIBXC_xc_LIBRARY})
-  endif()
-  add_definitions("-DHAVE_LIBXC")
+  target_include_directories(critic2_defs INTERFACE "${LIBXC_INCLUDE_DIRS}")
+  target_link_libraries(critic2_defs INTERFACE ${LIBXC_xcf03_LIBRARY} ${LIBXC_xc_LIBRARY})
+  target_compile_definitions(critic2_defs INTERFACE HAVE_LIBXC)
 endif()
 
 ## libcint
 if (USE_LIBCINT AND LIBCINT_FOUND)
-  target_link_libraries(critic2 PRIVATE ${LIBCINT_LIBRARY})
-  if (BUILD_LIBRARY)
-    target_link_libraries(libcritic2 PRIVATE ${LIBCINT_LIBRARY})
-  endif()
-  add_definitions("-DHAVE_CINT")
+  target_link_libraries(critic2_defs INTERFACE ${LIBCINT_LIBRARY})
+  target_compile_definitions(critic2_defs INTERFACE HAVE_CINT)
 endif()
 
 ## readline
 if (USE_READLINE AND READLINE_FOUND)
-  target_link_libraries(critic2 PRIVATE ${READLINE_LIBRARY})
-  if (BUILD_LIBRARY)
-    target_link_libraries(libcritic2 PRIVATE ${READLINE_LIBRARY})
-  endif()
-  add_definitions("-DHAVE_READLINE")
+  target_link_libraries(critic2_defs INTERFACE ${READLINE_LIBRARY})
+  target_compile_definitions(critic2_defs INTERFACE HAVE_READLINE)
 endif()
 
 ## libnlopt
 if (USE_NLOPT AND NLOPT_FOUND)
-  target_link_libraries(critic2 PRIVATE ${NLOPT_LIBRARIES})
-  if (BUILD_LIBRARY)
-    target_link_libraries(libcritic2 PRIVATE ${NLOPT_LIBRARIES})
-  endif()
-  add_definitions("-DHAVE_NLOPT")
-  include_directories("${NLOPT_INCLUDE_DIRS}")
+  target_include_directories(critic2_defs INTERFACE "${NLOPT_INCLUDE_DIRS}")
+  target_link_libraries(critic2_defs INTERFACE ${NLOPT_LIBRARIES})
+  target_compile_definitions(critic2_defs INTERFACE HAVE_NLOPT)
 endif()
 
+## tblite
 if (USE_TBLITE AND TBLITE_FOUND)
-  target_link_libraries(critic2 PRIVATE ${TBLITE_LIBRARIES})
-  if (BUILD_LIBRARY)
-    target_link_libraries(libcritic2 PRIVATE ${TBLITE_LIBRARIES})
-  endif()
-  add_definitions("-DHAVE_TBLITE")
   if (TBLITE_INCLUDE_DIRS)
-    include_directories("${TBLITE_INCLUDE_DIRS}")
+    target_include_directories(critic2_defs INTERFACE "${TBLITE_INCLUDE_DIRS}")
   endif()
+  target_link_libraries(critic2_defs INTERFACE ${TBLITE_LIBRARIES})
+  target_compile_definitions(critic2_defs INTERFACE HAVE_TBLITE)
 endif()
 
 ## hdf5
 if (USE_HDF5 AND HDF5_FOUND)
-  target_link_libraries(critic2 PRIVATE ${HDF5_LIBRARIES})
-  if (BUILD_LIBRARY)
-    target_link_libraries(libcritic2 PRIVATE ${HDF5_LIBRARIES})
-  endif()
-  add_definitions("-DHAVE_HDF5")
-  include_directories(${HDF5_INCLUDE_DIRS})
+  target_include_directories(critic2_defs INTERFACE ${HDF5_INCLUDE_DIRS})
+  target_link_libraries(critic2_defs INTERFACE ${HDF5_LIBRARIES})
+  target_compile_definitions(critic2_defs INTERFACE HAVE_HDF5)
 endif()
 
 ## emd (earth mover's distance)
 add_subdirectory(emd)
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/emd")
-target_sources(critic2 PRIVATE $<TARGET_OBJECTS:emd>)
-if (BUILD_LIBRARY)
-  target_sources(libcritic2 PRIVATE $<TARGET_OBJECTS:emd>)
-endif()
-add_dependencies(critic2_core emd)
+target_include_directories(critic2_defs INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/emd")
+link_bundled_lib(emd)
 
-## graphical user interface
+## graphical user interface. The GUI libraries (GLFW, OpenGL, freetype,
+## dl, threads) are attached to the fgui target in gui/CMakeLists.txt and
+## propagate to the executable through the link.
 if (ENABLE_GUI)
-  ## GLFW
-  target_include_directories(critic2 PRIVATE ${GLFW3_INCLUDE_DIR})
-  target_link_libraries(critic2 PRIVATE ${GLFW3_LIBRARY})
-
-  ## FREETYPE
-  if (FREETYPE_FOUND)
-   target_include_directories(critic2 PRIVATE ${FREETYPE_INCLUDE_DIRS})
-   target_link_libraries(critic2 PRIVATE ${FREETYPE_LIBRARIES})
-  endif()
-
-  ## OpenGL
-  target_link_libraries(critic2 PRIVATE OpenGL::GL)
-
-  ## the dynamic linking library
-  target_link_libraries(critic2 PRIVATE ${CMAKE_DL_LIBS})
-
-  ## the threads library
-  if (USE_GUI_THREADS AND CMAKE_THREAD_LIBS_INIT)
-    target_link_libraries(critic2 PRIVATE ${CMAKE_THREAD_LIBS_INIT})
-  endif()
-
-  ## process subdirectory
   add_subdirectory(gui)
-  target_sources(critic2 PRIVATE $<TARGET_OBJECTS:fgui>)
-  include_directories("${CMAKE_BINARY_DIR}/src/gui")
+  target_link_libraries(critic2 PRIVATE fgui)
 
-  ## add dependency to the core critic2 files
+  ## the GUI reads the core module files
   add_dependencies(fgui critic2_core)
 
   ## add the HAVE_GUI definition
-  add_definitions("-DHAVE_GUI")
+  target_compile_definitions(critic2_defs INTERFACE HAVE_GUI)
 endif()
 
-## cross-compilation for windows, add the flag
+## cross-compilation for windows, add the flag (only needed for the
+## Fortran preprocessor; C/C++ compilers predefine it)
 if (WIN32)
-  add_definitions("-D_WIN32")
+  target_compile_definitions(critic2_defs INTERFACE $<$<COMPILE_LANGUAGE:Fortran>:_WIN32>)
+  ## GUI builds are windowed applications (-mwindows); the CLI keeps its console
+  if (ENABLE_GUI)
+    set_target_properties(critic2 PROPERTIES WIN32_EXECUTABLE ON)
+  endif()
+endif()
+
+## static build
+if (BUILD_STATIC)
+  target_link_options(critic2 PRIVATE -static)
+  target_link_libraries(critic2 PRIVATE ${LIBDL_LIBRARY})
 endif()
 
 ## install the binary
-install(TARGETS critic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS critic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT runtime)
 if (BUILD_LIBRARY)
   install(TARGETS libcritic2
-          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+          LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT devel
+	  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR} COMPONENT devel)
 endif()
 
-## recipe specific copies and install
-if (BUILD_RECIPE STREQUAL "MSYS2")
-  foreach (i IN ITEMS libgcc_s_seh-1.dll glfw3.dll libgomp-1.dll libreadline8.dll libstdc++-6.dll libgfortran-5.dll libwinpthread-1.dll libtermcap-0.dll libquadmath-0.dll)
-    execute_process (
-        COMMAND bash -c "${CMAKE_C_COMPILER} -print-file-name=${i}"
-        OUTPUT_VARIABLE TMP
-    )
-    add_custom_command(
-      TARGET critic2
-      POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy ${TMP} ${CMAKE_BINARY_DIR}/src)
-    install(FILES ${CMAKE_BINARY_DIR}/src/${i} DESTINATION ${CMAKE_INSTALL_BINDIR})
-  endforeach()
-elseif (BUILD_RECIPE STREQUAL "WINE")
-  foreach (i IN ITEMS libgfortran-5.dll libgcc_s_seh-1.dll libgomp-1.dll libstdc++-6.dll libquadmath-0.dll)
-    add_custom_command(TARGET critic2 POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy /usr/lib/gcc/x86_64-w64-mingw32/12-win32/${i} ${CMAKE_BINARY_DIR}/src)
-    install(FILES ${CMAKE_BINARY_DIR}/src/${i} DESTINATION ${CMAKE_INSTALL_BINDIR})
-  endforeach()
-  add_custom_command(TARGET critic2 POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy /usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll ${CMAKE_BINARY_DIR}/src)
-  install(FILES ${CMAKE_BINARY_DIR}/src/libwinpthread-1.dll DESTINATION ${CMAKE_INSTALL_BINDIR})
+## bundle the runtime DLLs on Windows
+if (WIN32)
+  include(${CMAKE_SOURCE_DIR}/cmake/BundleDLLs.cmake)
 endif()

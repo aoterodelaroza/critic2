@@ -717,10 +717,12 @@ contains
     use hdf5, only: h5open_f
 #endif
     character*(*) :: ghome, datadir
-    integer :: isenv
+    integer :: isenv, idx
     logical :: lchk
-    character(len=:), allocatable :: wfcstr, msgr1, msgr2, msg1, msg2, msg3
+    character(len=:), allocatable :: wfcstr, msgr1, msgr2, msg1, msg2a, msg2b, msg3, msg4
+    character(len=:), allocatable :: exedir
     integer, parameter :: maxlenpath = 1024
+    character(len=maxlenpath) :: argv0
 #ifdef HAVE_HDF5
     integer :: ierr
 #endif
@@ -755,23 +757,48 @@ contains
        msg1 = "(!) 1. CRITIC_HOME environment variable not set"
     end if
 
+    ! then relative to the executable directory (relocatable installs,
+    ! e.g. an unpacked binary package: <exedir>/../share/critic2 or <exedir>)
+    msg2a = ""
+    msg2b = ""
+    call get_command_argument(0,argv0)
+    idx = max(index(argv0,"/",back=.true.),index(argv0,dirsep,back=.true.))
+    if (idx > 1) then
+       exedir = argv0(1:idx-1)
+       critic_home = exedir // dirsep // ".." // dirsep // "share" // dirsep // "critic2"
+       inquire(file=trim(critic_home) // wfcstr,exist=lchk)
+       if (lchk) goto 99
+       msg2a = "(!) 2. Not found (exe path): " // trim(critic_home) // wfcstr
+
+       critic_home = exedir
+       inquire(file=trim(critic_home) // wfcstr,exist=lchk)
+       if (lchk) goto 99
+       msg2b = "(!) 2. Not found (exe path): " // trim(critic_home) // wfcstr
+    else
+       msg2a = "(!) 2. Could not determine the executable directory"
+    end if
+
     ! then the install path
     critic_home = trim(adjustl(datadir))
     inquire(file=trim(critic_home) // wfcstr,exist=lchk)
     if (lchk) goto 99
-    msg2 = "(!) 2. Not found (install path): " // trim(critic_home) // wfcstr
+    msg3 = "(!) 3. Not found (install path): " // trim(critic_home) // wfcstr
 
     ! then the current directory
     critic_home = "."
     inquire(file=trim(critic_home) // wfcstr,exist=lchk)
     if (lchk) goto 99
-    msg3 = "(!) 3. Not found (pwd): " // trim(critic_home) // wfcstr
+    msg4 = "(!) 4. Not found (pwd): " // trim(critic_home) // wfcstr
 
     ! argh!
     call ferror("grda_init","Could not find data files.",warning)
     if (len_trim(msgr1) > 0 .and. len_trim(msgr2) > 0) &
        write (uout,'(A/A)') msgr1, msgr2
-    write (uout,'(A/A/A)') msg1, msg2, msg3
+    write (uout,'(A)') msg1
+    write (uout,'(A)') msg2a
+    if (len_trim(msg2b) > 0) &
+       write (uout,'(A)') msg2b
+    write (uout,'(A/A)') msg3, msg4
     write (uout,'("(!) The density files and the structure library will not be available.")')
     critic_home = "."
 

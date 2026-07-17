@@ -23,11 +23,7 @@ submodule (config) proc
   character(len=*), parameter :: version = "@VERSION@"
   character(len=*), parameter :: atarget = "@TARGET@"
   character(len=*), parameter :: adate = "@DATE@"
-#ifdef DATADIR
-  character(len=*), parameter :: datadir = trim(adjustl(DATADIR)) // dirsep // "critic2"
-#else
-  character(len=*), parameter :: datadir = "."
-#endif
+  character(len=*), parameter :: datadir = "@CRITIC2_DATADIR@" // dirsep // "critic2"
 
 contains
 

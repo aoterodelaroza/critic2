@@ -2,3 +2,23 @@ To install critic2, please follow the instructions in:
 
 https://aoterodelaroza.github.io/critic2/installation/
 
+Windows builds
+--------------
+
+* Cross-compilation from Linux with MinGW-w64 (packages
+  gfortran-mingw-w64-x86-64 and g++-mingw-w64-x86-64 on Debian/Ubuntu):
+
+    cmake -B build-win -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/x86_64-w64-mingw32.cmake \
+      -DUSE_EXTERNAL_LAPACK=OFF -DUSE_LIBXC=OFF -DUSE_READLINE=OFF \
+      [-DENABLE_GUI=ON -DGLFW3_ROOT=<path to unpacked glfw-*.bin.WIN64>] \
+      [-DCMAKE_CROSSCOMPILING_EMULATOR=wine]
+    cmake --build build-win -j
+
+  See the header of the toolchain file for all options.
+
+* Native build in an MSYS2 shell (no toolchain file needed):
+
+    cmake -B build -G "MSYS Makefiles" [-DENABLE_GUI=ON ...]
+    cmake --build build -j
+
+The regression tests are POSIX-only and are skipped on Windows.

@@ -7,3 +7,12 @@ macro(list_variables)
       message(STATUS "${_variableName}=${${_variableName}}")
   endforeach()
 endmacro()
+
+## Keep a bundled/vendored numerical library optimized even in Debug
+## builds by compiling it with -O2 in every configuration. lang is the
+## language of the target's sources (C, Fortran, ...).
+function(c2_optimize_vendored tgt lang)
+  if (CMAKE_${lang}_COMPILER_ID MATCHES "GNU|Clang|Intel")
+    target_compile_options(${tgt} PRIVATE -O2)
+  endif()
+endfunction()

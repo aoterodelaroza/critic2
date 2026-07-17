@@ -5,24 +5,31 @@
 #  LIBCINT_VERSION - version of the libcint library.
 #
 include(FindPackageHandleStandardArgs)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
 
 if (DEFINED ENV{LIBCINT_DIR})
   set(LIBCINT_DIR "$ENV{LIBCINT_DIR}")
+endif()
+
+## LIBCINT_DIR may point outside the cross-compilation sysroot
+set(_root_both)
+if (LIBCINT_DIR)
+  set(_root_both CMAKE_FIND_ROOT_PATH_BOTH)
 endif()
 
 find_path(LIBCINT_INCLUDE_DIRS
           NAMES cint.h
           PATH_SUFFIXES include
           HINTS ${LIBCINT_DIR}
+          ${_root_both}
 	  )
 
 find_library(LIBCINT_LIBRARY
   NAMES cint
   PATH_SUFFIXES lib
   HINTS ${LIBCINT_DIR}
+  ${_root_both}
   )
+unset(_root_both)
 
 find_package_handle_standard_args(LIBCINT
   REQUIRED_VARS LIBCINT_LIBRARY LIBCINT_INCLUDE_DIRS

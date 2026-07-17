@@ -4,17 +4,22 @@
 ## READLINE_INCLUDE_DIRS - the directory containing the header files
 
 include(FindPackageHandleStandardArgs)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
 
 if (DEFINED ENV{READLINE_DIR})
   set(READLINE_DIR "$ENV{READLINE_DIR}")
+endif()
+
+## READLINE_DIR may point outside the cross-compilation sysroot
+set(_root_both)
+if (READLINE_DIR)
+  set(_root_both CMAKE_FIND_ROOT_PATH_BOTH)
 endif()
 
 find_library(READLINE_LIBRARY
     NAMES readline
     PATH_SUFFIXES lib readline
     HINTS ${READLINE_DIR}
+    ${_root_both}
 )
 
 if (BUILD_STATIC)
@@ -22,6 +27,7 @@ if (BUILD_STATIC)
       NAMES tinfo
       PATH_SUFFIXES lib
       HINTS ${READLINE_DIR}
+      ${_root_both}
   )
 
   if (TINFO)
@@ -33,7 +39,9 @@ find_path(READLINE_INCLUDE_DIRS
   NAMES readline/readline.h
   PATH_SUFFIXES include
   HINTS ${READLINE_DIR}
+  ${_root_both}
   )
+unset(_root_both)
 
 find_package_handle_standard_args(READLINE
   REQUIRED_VARS READLINE_LIBRARY READLINE_INCLUDE_DIRS

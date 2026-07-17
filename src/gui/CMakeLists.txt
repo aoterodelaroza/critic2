@@ -42,24 +42,35 @@ set(SOURCES
   representations.f90 representations@proc.f90
   )
 
-## cross-compilation for windows, add the flag
-if (WIN32)
-  add_definitions("-D_WIN32")
-endif()
-if (USE_GUI_THREADS)
-  add_definitions("-D_THREADS")
-endif()
-
 ## freetype
 if (FREETYPE_FOUND)
   set(SOURCES ${SOURCES} imgui/imgui_freetype.cpp)
-  add_definitions("-DIMGUI_ENABLE_FREETYPE")
-  set_property(SOURCE cimgui/cimgui.cpp APPEND PROPERTY COMPILE_FLAGS "-DCIMGUI_FREETYPE")
 endif()
 
 add_library(fgui OBJECT ${SOURCES})
 
-## include directories
-target_include_directories(fgui PRIVATE "${GLFW3_INCLUDE_DIR}")
-target_include_directories(fgui PRIVATE "${CMAKE_BINARY_DIR}/src/")
-target_include_directories(fgui PRIVATE "${FREETYPE_INCLUDE_DIRS}")
+## shared definitions and include directories (HAVE_*, _WIN32, ...)
+target_link_libraries(fgui PRIVATE critic2_defs)
+
+## GLFW, OpenGL, and the dynamic linking library; PUBLIC so they
+## propagate to the targets that link fgui
+target_link_libraries(fgui PUBLIC ${GLFW3_LIBRARY} OpenGL::GL ${CMAKE_DL_LIBS})
+if (GLFW3_INCLUDE_DIR)
+  target_include_directories(fgui PRIVATE "${GLFW3_INCLUDE_DIR}")
+endif()
+
+## threads (tinycthread)
+if (USE_GUI_THREADS)
+  target_compile_definitions(fgui PRIVATE _THREADS)
+  target_link_libraries(fgui PUBLIC Threads::Threads)
+endif()
+
+## freetype
+if (FREETYPE_FOUND)
+  target_compile_definitions(fgui PRIVATE IMGUI_ENABLE_FREETYPE)
+  set_property(SOURCE cimgui/cimgui.cpp APPEND PROPERTY COMPILE_DEFINITIONS CIMGUI_FREETYPE)
+  target_link_libraries(fgui PUBLIC ${FREETYPE_LIBRARIES})
+  if (FREETYPE_INCLUDE_DIRS)
+    target_include_directories(fgui PRIVATE "${FREETYPE_INCLUDE_DIRS}")
+  endif()
+endif()

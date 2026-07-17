@@ -6,29 +6,37 @@
 ## LIBXC_VERSION - the version of the libxc found
 
 include(FindPackageHandleStandardArgs)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
 
 if (DEFINED ENV{LIBXC_DIR})
   set(LIBXC_DIR "$ENV{LIBXC_DIR}")
+endif()
+
+## LIBXC_DIR may point outside the cross-compilation sysroot
+set(_root_both)
+if (LIBXC_DIR)
+  set(_root_both CMAKE_FIND_ROOT_PATH_BOTH)
 endif()
 
 find_library(LIBXC_xc_LIBRARY
   NAMES xc
   PATH_SUFFIXES lib
   HINTS ${LIBXC_DIR}
+  ${_root_both}
   )
 find_library(LIBXC_xcf03_LIBRARY
   NAMES xcf03
   PATH_SUFFIXES lib
   HINTS ${LIBXC_DIR}
+  ${_root_both}
   )
 
 find_path(LIBXC_INCLUDE_DIRS
   NAMES xc_f03_lib_m.mod
   PATH_SUFFIXES include
   HINTS ${LIBXC_DIR}
+  ${_root_both}
   )
+unset(_root_both)
 
 find_package_handle_standard_args(LIBXC
   REQUIRED_VARS LIBXC_xc_LIBRARY LIBXC_xcf03_LIBRARY LIBXC_INCLUDE_DIRS

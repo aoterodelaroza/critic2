@@ -1,5 +1,3 @@
-set(CMAKE_BUILD_TYPE Release)
-
 set(SOURCES
 daxpy.f dbdsqr.f dcabs1.f dcopy.f ddot.f dgebak.f dgebal.f dgebd2.f dgebrd.f dgeev.f
 dgehd2.f dgehrd.f dgelq2.f dgelqf.f dgemm.f dgemv.f dgeqr2.f dgeqrf.f dger.f dgesv.f dgesvd.f
@@ -21,3 +19,6 @@ zlarft.f zlascl.f zlaset.f zlasr.f zlassq.f zlatrd.f zscal.f zsteqr.f zswap.f zt
 ztrmv.f zung2l.f zung2r.f zungl2.f zungql.f zungqr.f zungtr.f
 )
 add_library(oldlibs OBJECT ${SOURCES})
+
+## keep the bundled LAPACK/BLAS optimized even in Debug builds
+c2_optimize_vendored(oldlibs Fortran)
