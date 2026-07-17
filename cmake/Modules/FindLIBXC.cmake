@@ -47,13 +47,20 @@ if (NOT LIBXC_FOUND)
   set(LIBXC_DIR "${LIBXC_DIR}" CACHE STRING "Directory containing the libxc library (>=4.1).")
 endif()
 
-## check whether we can compile against it
+## Check whether we can actually compile against it. libxc's Fortran .mod
+## files are compiler-specific, so a libxc built with a different compiler
+## (e.g. the system gfortran build used with ifort/ifx) is unusable and
+## must disable libxc. Use a separate result variable: the normal
+## LIBXC_FOUND set by find_package_handle_standard_args above would
+## otherwise shadow the cache value written by try_compile, so the check
+## result would be silently ignored.
 if (LIBXC_FOUND)
-  try_compile(LIBXC_FOUND "${CMAKE_BINARY_DIR}/temp" "${CMAKE_SOURCE_DIR}/cmake/Modules/libxc_test.f90"
+  try_compile(LIBXC_COMPILES "${CMAKE_BINARY_DIR}/temp" "${CMAKE_SOURCE_DIR}/cmake/Modules/libxc_test.f90"
     LINK_LIBRARIES ${LIBXC_xcf03_LIBRARY} ${LIBXC_xc_LIBRARY}
     CMAKE_FLAGS "-DINCLUDE_DIRECTORIES=${LIBXC_INCLUDE_DIRS}")
-  if (NOT LIBXC_FOUND)
+  if (NOT LIBXC_COMPILES)
     message(STATUS "Found libxc (lib=${LIBXC_xcf03_LIBRARY} ${LIBXC_xc_LIBRARY} | inc=${LIBXC_INCLUDE_DIRS}) but could not compile against it (different compiler?)")
+    set(LIBXC_FOUND FALSE)
   endif()
 endif()
 

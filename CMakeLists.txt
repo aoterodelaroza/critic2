@@ -253,79 +253,69 @@ if (BUILD_TESTING AND NUMDIFF_FOUND)
   add_subdirectory(tests)
 endif()
 
-## summary
-set(_message
-"\n\n### ${CMAKE_PROJECT_NAME}, ${CMAKE_PROJECT_VERSION}###\n"
-"Date: ${DATE}\n"
-"Build type: ${CMAKE_BUILD_TYPE}\n"
-"Fortran compiler: ${CMAKE_Fortran_COMPILER} (${CMAKE_Fortran_COMPILER_ID}, ${CMAKE_Fortran_COMPILER_VERSION})\n"
-"Fortran flags: ${CMAKE_Fortran_FLAGS_${BT}}\n"
-"C compiler: ${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID}, ${CMAKE_C_COMPILER_VERSION})\n"
-"C flags: ${CMAKE_C_FLAGS_${BT}}\n"
-)
+## configuration summary
 
+## append one "label   value" line, with the label padded to a fixed
+## width so the values line up. ;-lists (e.g. LAPACK_LIBRARIES) are shown
+## space-separated so they stay readable instead of running together.
+macro(summary_line label value)
+  string(REPLACE ";" " " _v "${value}")
+  string(LENGTH "${label}" _n)
+  math(EXPR _n "18 - ${_n}")
+  set(_pad "")
+  if (_n GREATER 0)
+    string(REPEAT " " ${_n} _pad)
+  endif()
+  string(APPEND _summary "  ${label}${_pad}${_v}\n")
+endmacro()
+
+## append a library line: its detail when found, "not used" otherwise
+macro(summary_pkg label found detail)
+  if (${found})
+    summary_line("${label}" "${detail}")
+  else()
+    summary_line("${label}" "not used")
+  endif()
+endmacro()
+
+set(_summary "\n### ${CMAKE_PROJECT_NAME} ${CMAKE_PROJECT_VERSION} ###\n")
+summary_line("Date"             "${DATE}")
+summary_line("Build type"       "${CMAKE_BUILD_TYPE}")
+summary_line("Install prefix"   "${CMAKE_INSTALL_PREFIX}")
+summary_line("Fortran compiler" "${CMAKE_Fortran_COMPILER} (${CMAKE_Fortran_COMPILER_ID} ${CMAKE_Fortran_COMPILER_VERSION})")
+summary_line("Fortran flags"    "${CMAKE_Fortran_FLAGS_${BT}}")
+summary_line("C compiler"       "${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION})")
+summary_line("C flags"          "${CMAKE_C_FLAGS_${BT}}")
 if (ENABLE_GUI)
-  set(_message
-    "${_message}CXX compiler: ${CMAKE_CXX_COMPILER} (${CMAKE_CXX_COMPILER_ID}, ${CMAKE_CXX_COMPILER_VERSION})\n"
-    "CXX flags: ${CMAKE_CXX_FLAGS_${BT}}\n"
-  )
+  summary_line("C++ compiler"   "${CMAKE_CXX_COMPILER} (${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION})")
+  summary_line("C++ flags"      "${CMAKE_CXX_FLAGS_${BT}}")
 endif()
-
-set(_message
-"${_message}Install directory: ${CMAKE_INSTALL_PREFIX}\n"
-"OpenMP parallelization: ${OPENMP_FOUND}\n"
-)
+summary_line("Shared library"   "${BUILD_LIBRARY}")
+summary_line("Static build"     "${BUILD_STATIC}")
+summary_line("OpenMP"           "${OPENMP_FOUND}")
 
 if (LAPACK_FOUND)
-  set(_message "${_message}Lapack: lib=${LAPACK_LIBRARIES}\n")
+  summary_line("Lapack" "${LAPACK_LIBRARIES}")
 else()
-  set(_message "${_message}Lapack: <internal>\n")
+  summary_line("Lapack" "<internal>")
 endif()
-if (LIBXC_FOUND)
-  set(_message "${_message}Libxc: ${LIBXC_VERSION} | lib=${LIBXC_xcf03_LIBRARY} ${LIBXC_xc_LIBRARY} | inc=${LIBXC_INCLUDE_DIRS}\n")
-else()
-  set(_message "${_message}Libxc: not used\n")
-endif()
-if (LIBCINT_FOUND)
-  set(_message "${_message}Libcint: ${LIBCINT_VERSION} | lib=${LIBCINT_LIBRARY}\n")
-else()
-  set(_message "${_message}Libcint: not used\n")
-endif()
-if (READLINE_FOUND)
-  set(_message "${_message}Readline: lib=${READLINE_LIBRARY} | inc=${READLINE_INCLUDE_DIRS}\n")
-else()
-  set(_message "${_message}Readline: not used\n")
-endif()
-if (NLOPT_FOUND)
-  set(_message "${_message}Nlopt: ${NLOPT_VERSION} | lib=${NLOPT_LIBRARIES}\n")
-else()
-  set(_message "${_message}Nlopt: not used\n")
-endif()
-if (TBLITE_FOUND)
-  set(_message "${_message}tblite: lib=${TBLITE_LIBRARIES}\n")
-else()
-  set(_message "${_message}tblite: not used\n")
-endif()
-if (NUMDIFF_FOUND)
-  set(_message "${_message}Numdiff: ${NUMDIFF_EXE}\n")
-else()
-  set(_message "${_message}Numdiff: not found\n")
-endif()
+summary_pkg("Libxc"    LIBXC_FOUND    "${LIBXC_VERSION} | ${LIBXC_xcf03_LIBRARY} ${LIBXC_xc_LIBRARY} | ${LIBXC_INCLUDE_DIRS}")
+summary_pkg("Libcint"  LIBCINT_FOUND  "${LIBCINT_VERSION} | ${LIBCINT_LIBRARY}")
+summary_pkg("Readline" READLINE_FOUND "${READLINE_LIBRARY} | ${READLINE_INCLUDE_DIRS}")
+summary_pkg("Nlopt"    NLOPT_FOUND    "${NLOPT_VERSION} | ${NLOPT_LIBRARIES}")
+summary_pkg("tblite"   TBLITE_FOUND   "${TBLITE_LIBRARIES}")
+summary_pkg("Numdiff"  NUMDIFF_FOUND  "${NUMDIFF_EXE}")
 
-set(_message "${_message}GUI build: ${ENABLE_GUI}\n")
-
+summary_line("GUI" "${ENABLE_GUI}")
 if (ENABLE_GUI)
-  set(_message
-    "${_message}gl: lib=${OPENGL_LIBRARIES} | inc=${OPENGL_INCLUDE_DIRS}\n"
-    "glfw: lib=${GLFW3_LIBRARY} | inc=${GLFW3_INCLUDE_DIR}\n"
-    "freetype: lib=${FREETYPE_LIBRARIES} | inc=${FREETYPE_INCLUDE_DIRS}\n"
-    "hdf5: lib=${HDF5_LIBRARIES} | inc=${HDF5_INCLUDE_DIRS}\n"
-    "dl: lib=${CMAKE_DL_LIBS}\n")
+  summary_line("OpenGL" "${OPENGL_LIBRARIES}")
+  summary_line("GLFW"   "${GLFW3_LIBRARY} | ${GLFW3_INCLUDE_DIR}")
+  summary_pkg("Freetype" FREETYPE_FOUND "${FREETYPE_LIBRARIES}")
+  summary_pkg("HDF5"     HDF5_FOUND     "${HDF5_LIBRARIES}")
 endif()
 
-set(_message "${_message}################################\n")
-
-message(STATUS ${_message})
+string(APPEND _summary "###############################")
+message(STATUS "${_summary}")
 
 ## packaging
 include(${CMAKE_SOURCE_DIR}/cmake/CritiCPack.cmake)
