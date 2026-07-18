@@ -87,6 +87,26 @@ contains
 
     integer, parameter :: initial_nsys = 20
 
+#ifdef _WIN32
+    ! OpenGL software (Mesa) fallback helpers, implemented in c_utils/utils.c
+    logical :: gl_software_mode
+    character(kind=c_char,len=:), allocatable, target :: chome
+    interface
+       ! 1 if this is the relaunched, bundled-Mesa instance (CRITIC2_SOFTWARE_GL set)
+       function guiGLSoftwareRequested() bind(c,name="guiGLSoftwareRequested")
+         import c_int
+         integer(c_int) :: guiGLSoftwareRequested
+       end function guiGLSoftwareRequested
+       ! relaunch the bin\mesa copy (bundled Mesa OpenGL), forwarding CRITIC_HOME;
+       ! ends the process on success, returns 0 if no Mesa is bundled
+       function guiRelaunchSoftwareGL(critic_home) bind(c,name="guiRelaunchSoftwareGL")
+         import c_int, c_ptr
+         type(c_ptr), value :: critic_home
+         integer(c_int) :: guiRelaunchSoftwareGL
+       end function guiRelaunchSoftwareGL
+    end interface
+#endif
+
     ! initialize the sys arrays
     nsys = 0
     allocate(sys(initial_nsys),sysc(initial_nsys))
@@ -114,16 +134,41 @@ contains
        call fdealloc(ludum(i))
     end do
 
+#ifdef _WIN32
+    ! OpenGL software fallback: the bin\mesa copy of this executable (which loads
+    ! the bundled Mesa OpenGL through its own static import) sets CRITIC2_SOFTWARE_GL.
+    ! Detect whether this is that instance, so we do not try to relaunch again;
+    ! chome forwards critic_home to the relaunch below.
+    gl_software_mode = (guiGLSoftwareRequested() /= 0)
+    chome = trim(critic_home) // c_null_char
+#endif
+
     ! Initialize glfw
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
-    if (glfwInit() == 0) &
+#ifdef _WIN32
+    ! On Windows, keep GLFW errors non-fatal during the native OpenGL attempt: if
+    ! the system driver cannot provide OpenGL 3.3, the failure surfaces in the
+    ! error callback, and we want to relaunch with the bundled Mesa rather than
+    ! abort. glfw_lenient stays true from here until the window is created.
+    if (.not.gl_software_mode) glfw_lenient = .true.
+#endif
+    if (glfwInit() == 0) then
+#ifdef _WIN32
+       if (.not.gl_software_mode) idum = guiRelaunchSoftwareGL(c_loc(chome))
+#endif
        call ferror('gui_start','Failed to initialize GLFW',faterr)
+    end if
     glfw_lenient = .true.
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, opengl_version_major)
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, opengl_version_minor)
     call glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
     call glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE)
+#ifdef _WIN32
+    ! keep lenient through window creation during the native attempt
+    if (gl_software_mode) glfw_lenient = .false.
+#else
     glfw_lenient = .false.
+#endif
     ! call glfwWindowHint(GLFW_SAMPLES, ms_samples) ! activate multisampling
 
     ! create the window hidden and reveal it only once the first properly
@@ -149,8 +194,19 @@ contains
     end if
     strc = gui_title
     rootwin = glfwCreateWindow(iwinw, iwinh, c_loc(strc), c_null_ptr, c_null_ptr)
-    if (.not.c_associated(rootwin)) &
+    if (.not.c_associated(rootwin)) then
+#ifdef _WIN32
+       ! the system OpenGL cannot provide version 3.3; if we have not already,
+       ! relaunch using the bundled Mesa OpenGL. guiRelaunchSoftwareGL ends this
+       ! process on success, and returns (a no-op) if no Mesa is bundled.
+       if (.not.gl_software_mode) idum = guiRelaunchSoftwareGL(c_loc(chome))
+#endif
        call ferror('gui_start','Failed to create the GUI window.'//gl_fail_hint,faterr)
+    end if
+#ifdef _WIN32
+    ! the native OpenGL attempt succeeded; restore fatal GLFW error handling
+    if (.not.gl_software_mode) glfw_lenient = .false.
+#endif
     ! center the window in the work area
     if (monw > 0 .and. monh > 0) &
        call glfwSetWindowPos(rootwin, monx + (monw-iwinw)/2, mony + (monh-iwinh)/2)

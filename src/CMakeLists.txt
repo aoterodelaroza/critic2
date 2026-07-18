@@ -282,3 +282,23 @@ endif()
 if (WIN32)
   include(${CMAKE_SOURCE_DIR}/cmake/BundleDLLs.cmake)
 endif()
+
+## bundle a Mesa software/translation OpenGL as a fallback for Windows
+## systems whose OpenGL is older than 3.3. Point MESA_DIR at a
+## directory containing Mesa's opengl32.dll and its dependencies
+## (libgallium_wgl.dll, libglapi.dll, dxil.dll, ...). It installs into
+## bin/mesa so it does NOT shadow the system OpenGL; the GUI loads it
+## only when the native driver cannot create a 3.3 context (see
+## gui_start in gui_main@proc.F90). When MESA_DIR is unset, no
+## fallback is bundled and the GUI just errors as before.
+if (WIN32 AND ENABLE_GUI AND MESA_DIR)
+  file(GLOB _mesa_dlls "${MESA_DIR}/*.dll")
+  if (_mesa_dlls)
+    install(FILES ${_mesa_dlls} DESTINATION "${CMAKE_INSTALL_BINDIR}/mesa" COMPONENT runtime)
+    ## a second copy of the GUI executable lives next to the bundled Mesa so its
+    ## static opengl32 import resolves to Mesa; the fallback relaunches this copy
+    install(TARGETS ${CRITIC2_GUI_EXE} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}/mesa" COMPONENT runtime)
+  else()
+    message(WARNING "MESA_DIR='${MESA_DIR}' has no DLLs; the software OpenGL fallback will not be bundled")
+  endif()
+endif()
