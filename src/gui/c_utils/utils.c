@@ -39,15 +39,15 @@ int getCurrentWorkDir(char *str, size_t siz){
 
 // Call the external browser to open a link (portable?)
 void openLink(const char* link){
-#if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
-    const char* open_executable = "start";
-#elif __APPLE__
-    const char* open_executable = "open";
-#else
-    const char* open_executable = "xdg-open";
-#endif
     char command[1024];
-    snprintf(command, 1024, "%s \"%s\"", open_executable, link);
+#if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
+    // start treats the first quoted argument as the window title
+    snprintf(command, 1024, "start \"\" \"%s\"", link);
+#elif __APPLE__
+    snprintf(command, 1024, "open \"%s\"", link);
+#else
+    snprintf(command, 1024, "xdg-open \"%s\"", link);
+#endif
     system(command);
 }
 

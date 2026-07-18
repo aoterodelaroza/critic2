@@ -236,9 +236,7 @@ contains
     g%Style%Colors(ImGuiCol_TabActive+1) = g%Style%Colors(ImGuiCol_TabHovered+1)
 
     ! Parse the command line and read as many systems as possible
-    ! Initialize the first system, if available
     call process_arguments()
-    call launch_initialization_thread()
     call system_shorten_names()
 
     ! set default UI settings
@@ -257,6 +255,9 @@ contains
     iwin_console_output = stack_create_window(wintype_console_output,.true.,permanent=.true.)
     iwin_builder = stack_create_window(wintype_builder,.true.,permanent=.true.)
     iwin_about = stack_create_window(wintype_about,.false.,permanent=.true.)
+
+    ! start initializing the systems from the command line
+    call launch_initialization_thread()
 
     ! main loop
     show_demo_window = .false.

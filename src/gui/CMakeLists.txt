@@ -24,7 +24,7 @@ set(SOURCES
 
   opengl/openglwrapper.c opengl/gl3w.c
 
-  systems.f90 systems@proc.f90
+  systems.f90 systems@proc.F90
   gui_main.f90 gui_main@proc.F90
   keybindings.f90 keybindings@proc.f90 commands.f90 commands@proc.f90
   windows.f90 windows@proc.f90 windows@tree.f90 windows@view.f90 windows@dialog.f90
@@ -51,6 +51,10 @@ add_library(fgui OBJECT ${SOURCES})
 
 ## shared definitions and include directories (HAVE_*, _WIN32, ...)
 target_link_libraries(fgui PRIVATE critic2_defs)
+
+## ImGuiFileDialog includes its bundled dirent shim as "filedialog/dirent.h"
+## on Windows, which requires this directory on the include path
+target_include_directories(fgui PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 ## GLFW, OpenGL, and the dynamic linking library; PUBLIC so they
 ## propagate to the targets that link fgui

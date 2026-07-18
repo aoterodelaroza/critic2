@@ -696,7 +696,7 @@ contains
     idx = index(word,'.',.true.)
     if (idx > 0) then
        extdot2 = file(index(file(1:idx-1),'.',.true.)+1:)
-       idx = index(extdot2,'/',.true.)
+       idx = max(index(extdot2,'/',.true.),index(extdot2,dirsep,.true.))
        if (idx > 0) &
           extdot2 = extdot2(idx+1:)
     else

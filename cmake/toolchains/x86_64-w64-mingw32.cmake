@@ -18,9 +18,14 @@ set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
 set(TOOLCHAIN_PREFIX x86_64-w64-mingw32)
 
-set(CMAKE_Fortran_COMPILER ${TOOLCHAIN_PREFIX}-gfortran)
-set(CMAKE_C_COMPILER ${TOOLCHAIN_PREFIX}-gcc)
-set(CMAKE_CXX_COMPILER ${TOOLCHAIN_PREFIX}-g++)
+## Debian/Ubuntu ship two flavors of the MinGW compilers: *-win32 (the
+## default, win32 thread model) and *-posix (winpthreads). The win32-model
+## runtime corrupts memory when threads are created at runtime, which
+## crashes the GUI, so use the posix-model compilers whenever available.
+## Other distributions ship posix-model compilers under the plain names.
+find_program(CMAKE_Fortran_COMPILER NAMES ${TOOLCHAIN_PREFIX}-gfortran-posix ${TOOLCHAIN_PREFIX}-gfortran)
+find_program(CMAKE_C_COMPILER NAMES ${TOOLCHAIN_PREFIX}-gcc-posix ${TOOLCHAIN_PREFIX}-gcc)
+find_program(CMAKE_CXX_COMPILER NAMES ${TOOLCHAIN_PREFIX}-g++-posix ${TOOLCHAIN_PREFIX}-g++)
 
 set(CMAKE_FIND_ROOT_PATH /usr/${TOOLCHAIN_PREFIX})
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)

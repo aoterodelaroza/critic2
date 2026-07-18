@@ -7369,7 +7369,7 @@ contains
           path = file(1:index(file,dirsep,.true.))
           if (len_trim(path) < 1) &
              path = "."
-          ofile = trim(path) // "/POTCAR"
+          ofile = trim(path) // dirsep // "POTCAR"
           inquire(file=ofile,exist=ok)
           if (.not.ok) then
              errmsg = "Atom types not found in POSCAR and no POTCAR in the same directory"

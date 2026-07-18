@@ -187,7 +187,7 @@ contains
     character(len=:), allocatable :: errmsg, str
     type(system), allocatable :: syaux(:)
     type(sysconf), allocatable :: syscaux(:)
-    logical :: collapse_, isrun
+    logical :: collapse_, isrun, isabspath
     integer, allocatable :: id(:)
 
     if (nseed == 0) then
@@ -290,7 +290,13 @@ contains
 
        ! write down the full name
        str = trim(adjustl(sysc(idx)%seed%name))
-       if (str(1:1) == dirsep) then
+       isabspath = (str(1:1) == dirsep .or. str(1:1) == "/")
+#ifdef _WIN32
+       if (.not.isabspath .and. len(str) >= 2) then
+          isabspath = (str(2:2) == ":")
+       end if
+#endif
+       if (isabspath) then
           sysc(idx)%fullname = str
        else
           sysc(idx)%fullname = get_current_working_dir() // dirsep // str
@@ -2649,7 +2655,7 @@ contains
   !xx! private procedures
 
   ! Thread worker: run over all systems and initialize the ones that are not locked
-  function initialization_thread_worker(arg)
+  function initialization_thread_worker(arg) bind(c)
     use gui_main, only: force_quit_threads
     use interfaces_threads, only: thrd_success, mtx_unlock, mtx_trylock
     use tools_io, only: string, uout

@@ -1301,6 +1301,9 @@ contains
     ! read fails
     if (interactive.and..not.usegui) then
        call get_environment_variable("HOME",home,status=istat)
+#ifdef _WIN32
+       if (istat /= 0) call get_environment_variable("USERPROFILE",home,status=istat)
+#endif
        if (istat == 0) then
           file_c = f_c_string_dup(trim(home) // "/.critic2_history")
           istat = read_history(file_c)
@@ -1331,6 +1334,9 @@ contains
     ! write fails
     if (interactive) then
        call get_environment_variable("HOME",home,status=istat)
+#ifdef _WIN32
+       if (istat /= 0) call get_environment_variable("USERPROFILE",home,status=istat)
+#endif
        if (istat == 0) then
           file_c = f_c_string_dup(trim(home) // "/.critic2_history")
           istat = write_history(file_c)
