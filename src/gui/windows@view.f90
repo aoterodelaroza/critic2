@@ -865,7 +865,7 @@ contains
     sz0%y = sz1%y
     sz1%y = tmpuv
     str1 = "##imagebutton" // c_null_char
-    ldum = igImageButtonEx(igGetID_Str(c_loc(str1)),w%FBOtex, szavail, sz0, sz1, szero, bgcol, tintcol)
+    ldum = igImageButtonEx(igGetID_Str(c_loc(str1)),int(w%FBOtex,c_intptr_t), szavail, sz0, sz1, szero, bgcol, tintcol)
     call igPopStyleColor(3)
 
     ! get view geometry and mouse position
@@ -1066,7 +1066,7 @@ contains
 
     ! textures
     call glBindTexture(GL_TEXTURE_2D, w%FBOtex)
-    call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, atex, atex, 0, GL_RGBA, GL_UNSIGNED_BYTE, c_null_ptr)
+    call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, atex, atex, 0, GL_RGBA, GL_UNSIGNED_BYTE, c_null_ptr)
     call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
     call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
     call glBindTexture(GL_TEXTURE_2D, 0)
@@ -1077,10 +1077,10 @@ contains
 
     ! render buffers
     call glBindRenderbuffer(GL_RENDERBUFFER, w%FBOdepth)
-    call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, atex, atex)
+    call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, atex, atex)
     call glBindRenderbuffer(GL_RENDERBUFFER, 0)
     call glBindRenderbuffer(GL_RENDERBUFFER, w%FBOdepthp)
-    call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, atex, atex)
+    call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, atex, atex)
     call glBindRenderbuffer(GL_RENDERBUFFER, 0)
 
     ! frame buffers
@@ -2712,21 +2712,21 @@ contains
 
     ! textures
     call glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, msFBOtex)
-    call glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, nsample, GL_RGBA, npixel, npixel,&
+    call glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, nsample, GL_RGBA8, npixel, npixel,&
        int(GL_TRUE,c_signed_char))
     call glBindTexture(GL_TEXTURE_2D, 0)
     call glBindTexture(GL_TEXTURE_2D, endFBOtex)
-    call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, npixel, npixel, 0, GL_RGBA, GL_UNSIGNED_BYTE, c_null_ptr)
+    call glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, npixel, npixel, 0, GL_RGBA, GL_UNSIGNED_BYTE, c_null_ptr)
     call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
     call glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
     call glBindTexture(GL_TEXTURE_2D, 0)
 
     ! render buffer
     call glBindRenderbuffer(GL_RENDERBUFFER, msFBOdepth)
-    call glRenderbufferStorageMultisample(GL_RENDERBUFFER, nsample, GL_DEPTH_COMPONENT, npixel, npixel)
+    call glRenderbufferStorageMultisample(GL_RENDERBUFFER, nsample, GL_DEPTH_COMPONENT24, npixel, npixel)
     call glBindRenderbuffer(GL_RENDERBUFFER, 0)
     call glBindRenderbuffer(GL_RENDERBUFFER, endFBOdepth)
-    call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, npixel, npixel)
+    call glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, npixel, npixel)
     call glBindRenderbuffer(GL_RENDERBUFFER, 0)
 
     ! frame buffer

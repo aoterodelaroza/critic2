@@ -67,6 +67,12 @@ subroutine glfwGetFramebufferSize(window, width, height) bind(c,name="glfwGetFra
   type(c_ptr), value :: window
   integer(c_int) :: width, height
 end subroutine glfwGetFramebufferSize
+! void glfwGetWindowContentScale(GLFWwindow *window, float *xscale, float *yscale)
+subroutine glfwGetWindowContentScale(window, xscale, yscale) bind(c,name="glfwGetWindowContentScale")
+  import c_float, c_ptr
+  type(c_ptr), value :: window
+  real(c_float) :: xscale, yscale
+end subroutine glfwGetWindowContentScale
 ! int glfwWindowShouldClose(GLFWwindow *window)
 function glfwWindowShouldClose(window) bind(c,name="glfwWindowShouldClose")
   import c_ptr, c_int

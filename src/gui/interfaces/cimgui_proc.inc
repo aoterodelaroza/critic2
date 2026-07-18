@@ -30,7 +30,11 @@ function igGetIO() bind(c,name="igGetIO")
   import c_ptr
   type(c_ptr) :: igGetIO
 end function igGetIO
-!x! ImGuiStyle* igGetStyle(void);
+! ImGuiStyle* igGetStyle(void);
+function igGetStyle() bind(c,name="igGetStyle")
+  import c_ptr
+  type(c_ptr) :: igGetStyle
+end function igGetStyle
 ! void igNewFrame(void);
 subroutine igNewFrame() bind(c,name="igNewFrame")
 end subroutine igNewFrame
@@ -491,8 +495,8 @@ function igArrowButton(str_id,dir) bind(c,name="igArrowButton")
 end function igArrowButton
 ! void igImage(ImTextureID user_texture_id,const ImVec2 size,const ImVec2 uv0,const ImVec2 uv1,const ImVec4 tint_col,const ImVec4 border_col);
 subroutine igImage(user_texture_id,size,uv0,uv1,tint_col,border_col) bind(c,name="igImage")
-  import c_int, c_ptr, ImVec2, ImVec4
-  integer(c_int), value :: user_texture_id ! type(c_ptr), value :: user_texture_id
+  import c_int, c_intptr_t, c_ptr, ImVec2, ImVec4
+  integer(c_intptr_t), value :: user_texture_id ! ImTextureID is void* (pointer-width)
   type(ImVec2), intent(in), value :: size
   type(ImVec2), intent(in), value :: uv0
   type(ImVec2), intent(in), value :: uv1
@@ -501,9 +505,9 @@ subroutine igImage(user_texture_id,size,uv0,uv1,tint_col,border_col) bind(c,name
 end subroutine igImage
 ! bool igImageButton(ImTextureID user_texture_id,const ImVec2 size,const ImVec2 uv0,const ImVec2 uv1,int frame_padding,const ImVec4 bg_col,const ImVec4 tint_col);
 function igImageButton(user_texture_id,size,uv0,uv1,frame_padding,bg_col,tint_col) bind(c,name="igImageButton")
-  import c_bool, c_int, c_ptr, ImVec2, ImVec4
+  import c_bool, c_int, c_intptr_t, c_ptr, ImVec2, ImVec4
   logical(c_bool) :: igImageButton
-  integer(c_int), value :: user_texture_id ! type(c_ptr), value :: user_texture_id
+  integer(c_intptr_t), value :: user_texture_id ! ImTextureID is void* (pointer-width)
   type(ImVec2), intent(in), value :: size
   type(ImVec2), intent(in), value :: uv0
   type(ImVec2), intent(in), value :: uv1
@@ -1253,7 +1257,12 @@ end subroutine igSetClipboardText
 !x! ImGuiViewport* igFindViewportByPlatformHandle(void* platform_handle);
 !x! ImGuiStyle* ImGuiStyle_ImGuiStyle(void);
 !x! void ImGuiStyle_destroy(ImGuiStyle* self);
-!x! void ImGuiStyle_ScaleAllSizes(ImGuiStyle* self,float scale_factor);
+! void ImGuiStyle_ScaleAllSizes(ImGuiStyle* self,float scale_factor);
+subroutine ImGuiStyle_ScaleAllSizes(self,scale_factor) bind(c,name="ImGuiStyle_ScaleAllSizes")
+  import c_ptr, c_float
+  type(c_ptr), value :: self
+  real(c_float), value :: scale_factor
+end subroutine ImGuiStyle_ScaleAllSizes
 !x! void ImGuiIO_AddKeyEvent(ImGuiIO* self,ImGuiKey key,bool down);
 !x! void ImGuiIO_AddKeyAnalogEvent(ImGuiIO* self,ImGuiKey key,bool down,float v);
 !x! void ImGuiIO_AddMousePosEvent(ImGuiIO* self,float x,float y);
@@ -2260,10 +2269,10 @@ end function igButtonEx
 !x! bool igScrollbarEx(const ImRect bb,ImGuiID id,ImGuiAxis axis,ImS64* p_scroll_v,ImS64 avail_v,ImS64 contents_v,ImDrawFlags flags);
 ! bool igImageButtonEx(ImGuiID id,ImTextureID texture_id,const ImVec2 size,const ImVec2 uv0,const ImVec2 uv1,const ImVec2 padding,const ImVec4 bg_col,const ImVec4 tint_col);
 function igImageButtonEx(id,texture_id,size,uv0,uv1,padding,bg_col,tint_col) bind(c,name="igImageButtonEx")
-  import c_bool, c_int, c_ptr, ImVec2, ImVec4
+  import c_bool, c_int, c_intptr_t, c_ptr, ImVec2, ImVec4
   logical(c_bool) :: igImageButtonEx
   integer(c_int), value :: id
-  integer(c_int), value :: texture_id ! type(c_ptr), value :: user_texture_id
+  integer(c_intptr_t), value :: texture_id ! ImTextureID is void* (pointer-width)
   type(ImVec2), intent(in), value :: size
   type(ImVec2), intent(in), value :: uv0
   type(ImVec2), intent(in), value :: uv1

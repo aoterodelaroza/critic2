@@ -127,7 +127,7 @@ contains
     class(crystal), intent(inout) :: c
 
     integer :: i
-    real*8 :: xcom(3), shift(3), xf(3)
+    real*8 :: xcom(3), shift(3), xf(3), ri(3)
     logical :: doenlarge
 
     if (.not.c%ismolecule .or. md%nat == 0) return
@@ -154,7 +154,11 @@ contains
     ! enlarge the cell if any atom sits within the margin of a face
     doenlarge = .false.
     do i = 1, md%nat
-       xf = c%c2x(md%r(:,i))
+       ! the ri temporary works around a gfortran miscompile of an array
+       ! section of a polymorphic object passed to a type-bound function;
+       ! see tools/check-gfortran-bug.md. Do NOT fold into c%c2x(md%r(:,i)).
+       ri = md%r(:,i)
+       xf = c%c2x(ri)
        if (any(xf < md_enlarge_margin) .or. any(xf > 1d0 - md_enlarge_margin)) then
           doenlarge = .true.
           exit

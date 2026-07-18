@@ -28,6 +28,15 @@ submodule (gui_main) proc
   ! gui title
   character(len=*,kind=c_char), parameter :: gui_title = "critic2 GUI"//c_null_char
 
+  ! hint appended to OpenGL/driver-related fatal errors. These failures are
+  ! almost always a graphics-driver or remote-session problem rather than a
+  ! critic2 bug, and (with the message box on Windows) this text tells the
+  ! user what to check. char(10) is a newline for the message box.
+  character(len=*), parameter :: gl_fail_hint = char(10)//char(10)//&
+     "critic2 requires OpenGL 3.3. This usually fails when the graphics driver is "//&
+     "missing or outdated, or when running over Remote Desktop or in a virtual "//&
+     "machine without GPU acceleration. Please update your graphics drivers and try again."
+
   ! the dockspace ID
   integer(c_int) :: iddock = 0
 
@@ -63,7 +72,9 @@ contains
     use param, only: dirsep
     integer(c_int) :: idum, display_w, display_h, ileft, iright
     integer(c_int) :: iwinw, iwinh, monx, mony, monw, monh
-    real(c_float) :: treeratio
+    real(c_float) :: treeratio, content_scale, cscx, cscy
+    character(len=64) :: envval
+    integer :: ios
     type(c_ptr) :: monitor
     type(c_funptr) :: fdum
     type(c_ptr) :: ptrc
@@ -139,13 +150,28 @@ contains
     strc = gui_title
     rootwin = glfwCreateWindow(iwinw, iwinh, c_loc(strc), c_null_ptr, c_null_ptr)
     if (.not.c_associated(rootwin)) &
-       call ferror('gui_start','Failed to create window',faterr)
+       call ferror('gui_start','Failed to create the GUI window.'//gl_fail_hint,faterr)
     ! center the window in the work area
     if (monw > 0 .and. monh > 0) &
        call glfwSetWindowPos(rootwin, monx + (monw-iwinw)/2, mony + (monh-iwinh)/2)
     fdum = glfwSetDropCallback(rootwin,c_funloc(drop_callback))
     call glfwMakeContextCurrent(rootwin)
     call glfwSwapInterval(1) ! enable vsync
+
+    ! HiDPI content scale. On Windows the window/framebuffer are in physical
+    ! pixels, so the UI font and style sizes are multiplied by this factor to
+    ! render at the correct size and stay crisp on scaled (e.g. 150%) displays.
+    ! A scale of 1.0 leaves the baked font size and style untouched.
+    content_scale = 1._c_float
+    call glfwGetWindowContentScale(rootwin, cscx, cscy)
+    if (cscx > 0._c_float) content_scale = cscx
+    ! manual override, e.g. to enlarge the UI on a display GLFW reports as
+    ! unscaled (or to test HiDPI): CRITIC2_UI_SCALE=1.5
+    call get_environment_variable("CRITIC2_UI_SCALE",envval,status=ios)
+    if (ios == 0 .and. len_trim(envval) > 0) then
+       read (envval,*,iostat=ios) cscx
+       if (ios == 0 .and. cscx > 0._c_float) content_scale = cscx
+    end if
 
     ! set GUI icon
     file = trim(critic_home) // dirsep // "assets" // dirsep // "critic2_icon.png" // c_null_char
@@ -168,10 +194,10 @@ contains
     ! initialize gl3w
     idum = gl3wInit()
     if (idum /= 0) &
-       call ferror('gui_start','Failed to initialize OpenGL (gl3w)',faterr)
+       call ferror('gui_start','Failed to initialize OpenGL (gl3w).'//gl_fail_hint,faterr)
     if (gl3wIsSupported(opengl_version_major,opengl_version_minor) == 0) &
-       call ferror('gui_start','gl3w: OpenGL version ' // &
-       string(opengl_version_major) // '.' // string(opengl_version_minor) // ' not supported',faterr)
+       call ferror('gui_start','OpenGL version ' // &
+       string(opengl_version_major) // '.' // string(opengl_version_minor) // ' not supported.'//gl_fail_hint,faterr)
 
     ! set glfw options
     glfw_lenient = .true.
@@ -215,9 +241,9 @@ contains
             9984_c_short, 10175_c_short,& ! dingbats
                0_c_short/)
     font_normal = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,font_dejavu_base85_ptr,&
-       fontbakesize,c_null_ptr,c_loc(range))
+       fontbakesize*content_scale,c_null_ptr,c_loc(range))
     font_large = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,font_dejavu_base85_ptr,&
-       fontbakesize_large,c_null_ptr,c_loc(range))
+       fontbakesize_large*content_scale,c_null_ptr,c_loc(range))
 
     ! bold font if using freetype
 #ifdef IMGUI_ENABLE_FREETYPE
@@ -234,6 +260,11 @@ contains
     call igStyleColorsDark(c_null_ptr)
     g%Style%FrameRounding = 3._c_float
     g%Style%Colors(ImGuiCol_TabActive+1) = g%Style%Colors(ImGuiCol_TabHovered+1)
+
+    ! scale the style (padding, spacing, rounding, ...) to the display for
+    ! HiDPI; no-op at 1.0 so non-scaled displays are unaffected
+    if (abs(content_scale - 1._c_float) > 1.e-4_c_float) &
+       call ImGuiStyle_ScaleAllSizes(igGetStyle(), content_scale)
 
     ! Parse the command line and read as many systems as possible
     call process_arguments()
@@ -431,7 +462,7 @@ contains
       if (glfw_lenient) then
          call ferror('glfw',"GLFW error (" // string(error) // "): " // trim(msg),warning)
       else
-         call ferror('glfw',"GLFW error (" // string(error) // "): " // trim(msg),faterr)
+         call ferror('glfw',"GLFW error (" // string(error) // "): " // trim(msg)//gl_fail_hint,faterr)
       end if
 
     end subroutine error_callback

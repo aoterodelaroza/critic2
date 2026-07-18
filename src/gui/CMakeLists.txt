@@ -67,6 +67,14 @@ endif()
 if (USE_GUI_THREADS)
   target_compile_definitions(fgui PRIVATE _THREADS)
   target_link_libraries(fgui PUBLIC Threads::Threads)
+  ## On Windows/MinGW, force tinycthread's POSIX (winpthreads) backend instead
+  ## of raw Win32 CreateThread, so its worker threads are real pthreads that
+  ## match libgfortran's winpthreads thread model. libwinpthread is already a
+  ## runtime dependency. The macros must reach every translation unit that
+  ## includes tinycthread.h, so they are set on the whole target.
+  if (WIN32)
+    target_compile_definitions(fgui PRIVATE _TTHREAD_POSIX_ _TTHREAD_PLATFORM_DEFINED_)
+  endif()
 endif()
 
 ## freetype

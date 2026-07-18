@@ -2670,6 +2670,10 @@ contains
     integer :: iff, ivformat
     character(len=:), allocatable :: errmsg
 
+    ! written by the main thread (kill_initialization_thread); the volatile
+    ! attribute must be repeated here so the poll below is not optimized away
+    volatile :: force_quit_threads
+
     ! recover the thread info pointer
     call c_f_pointer(arg,ti)
     ti%active = .true.

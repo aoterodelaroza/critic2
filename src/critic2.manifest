@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Application manifest for the Windows build of critic2.
+
+     The active code page is set to UTF-8 so that narrow (char*) file paths are
+     interpreted as UTF-8 by the UCRT and by gfortran's OPEN. This matters for
+     the GUI drag-and-drop callback, which receives file paths from GLFW as
+     UTF-8: without this, an accented path (e.g. "wáter.cif") is decoded in the
+     legacy ANSI code page (e.g. CP1252) and the file fails to open. It also
+     lets a non-ASCII CRITIC_HOME work. Requires Windows 10 version 1903+. -->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity type="win32" name="critic2.exe" version="1.0.0.0" processorArchitecture="*"/>
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
+    </windowsSettings>
+  </application>
+</assembly>

@@ -568,7 +568,7 @@ contains
                       sz%y = fontsize%y
                       tintcol = ImVec4(rgba_icon_fmt(1,ifmt),rgba_icon_fmt(2,ifmt),&
                          rgba_icon_fmt(3,ifmt),rgba_icon_fmt(4,ifmt))
-                      call igImage(icon_tex_fmt(ifmt),sz,uv0,uv1,tintcol,nobord)
+                      call igImage(int(icon_tex_fmt(ifmt),c_intptr_t),sz,uv0,uv1,tintcol,nobord)
                       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
                          str = "Format: " // format_name(ifmt) // c_null_char
                          call igSetTooltip(c_loc(str))
@@ -1075,7 +1075,7 @@ contains
       ndrawn = ndrawn + 1
       sz = ImVec2(fontsize%y,fontsize%y)
       tintcol = ImVec4(rgba(1),rgba(2),rgba(3),rgba(4))
-      call igImage(tex,sz,uv0,uv1,tintcol,nobord)
+      call igImage(int(tex,c_intptr_t),sz,uv0,uv1,tintcol,nobord)
       if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
          strl = tooltip // c_null_char
          call igSetTooltip(c_loc(strl))

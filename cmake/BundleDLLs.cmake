@@ -1,7 +1,4 @@
-## Bundle the runtime DLLs next to critic2.exe at install time (Windows
-## only; included from src/CMakeLists.txt). The dependency scan uses
-## file(GET_RUNTIME_DEPENDENCIES), which needs objdump -- available in
-## both MinGW cross toolchains and MSYS2.
+## Bundle the runtime DLLs next to critic2.exe at install time (Windows only)
 
 ## Directories searched for DLLs: the C/Fortran compiler runtime
 ## directories (works for any gcc version), the sysroot bin/lib dirs,
@@ -18,6 +15,15 @@ if (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
       endif()
     endforeach()
   endforeach()
+  ## Native MinGW (e.g. MSYS2): the runtime DLLs (libgfortran, libstdc++,
+  ## glfw3, openblas, hdf5, ...) live in the compiler's bin directory, which
+  ## -print-file-name above does not report (it lists the lib/ import libs).
+  ## Add it explicitly so GET_RUNTIME_DEPENDENCIES can resolve them; without
+  ## this, a native build packages critic2.exe with no DLLs.
+  get_filename_component(_ccbin "${CMAKE_C_COMPILER}" DIRECTORY)
+  if (EXISTS "${_ccbin}")
+    list(APPEND _dll_dirs "${_ccbin}")
+  endif()
 endif()
 if (CMAKE_FIND_ROOT_PATH)
   foreach(_root ${CMAKE_FIND_ROOT_PATH})
@@ -28,6 +34,19 @@ if (ENABLE_GUI AND GLFW3_LIBRARY AND EXISTS "${GLFW3_LIBRARY}")
   get_filename_component(_dir "${GLFW3_LIBRARY}" DIRECTORY)
   list(APPEND _dll_dirs "${_dir}")
 endif()
+## Also search bin/ and lib/ of every prefix CMake uses to find packages. This
+## bundles the DLLs of libraries found outside the compiler's own tree -- e.g.
+## GLFW/HDF5/OpenBLAS from an MSYS2 prefix when building with a standalone
+## (WinLibs) compiler, where the compiler runtime DLLs and the library DLLs
+## live in different directories. Adding search dirs is safe: only DLLs the
+## executable actually imports are bundled, and system DLLs are POST-excluded.
+foreach(_p ${CMAKE_PREFIX_PATH} ${CMAKE_SYSTEM_PREFIX_PATH})
+  foreach(_sub bin lib)
+    if (EXISTS "${_p}/${_sub}")
+      list(APPEND _dll_dirs "${_p}/${_sub}")
+    endif()
+  endforeach()
+endforeach()
 list(REMOVE_DUPLICATES _dll_dirs)
 
 install(CODE "set(_dll_dirs \"${_dll_dirs}\")" COMPONENT runtime)

@@ -1285,6 +1285,7 @@ contains
 #ifdef HAVE_READLINE
     use iso_c_binding, only: c_int, c_ptr
     use c_interface_module, only: f_c_string_dup, c_free
+    use param, only: dirsep
     interface
        function read_history(file) bind(c)
          import c_int, c_ptr
@@ -1305,7 +1306,7 @@ contains
        if (istat /= 0) call get_environment_variable("USERPROFILE",home,status=istat)
 #endif
        if (istat == 0) then
-          file_c = f_c_string_dup(trim(home) // "/.critic2_history")
+          file_c = f_c_string_dup(trim(home) // dirsep // ".critic2_history")
           istat = read_history(file_c)
           call c_free(file_c)
        end if
@@ -1318,6 +1319,7 @@ contains
 #ifdef HAVE_READLINE
     use iso_c_binding, only: c_int, c_ptr
     use c_interface_module, only: f_c_string_dup, c_free
+    use param, only: dirsep
     interface
        function write_history(file) bind(c)
          import c_int, c_ptr
@@ -1338,7 +1340,7 @@ contains
        if (istat /= 0) call get_environment_variable("USERPROFILE",home,status=istat)
 #endif
        if (istat == 0) then
-          file_c = f_c_string_dup(trim(home) // "/.critic2_history")
+          file_c = f_c_string_dup(trim(home) // dirsep // ".critic2_history")
           istat = write_history(file_c)
           call c_free(file_c)
        end if
@@ -1595,6 +1597,11 @@ contains
              if (present(inputline)) &
                 write (*,'(A," : ",A)') trim(chtype), trim(inputline)
              write (*,100) trim(chtype),trim(routine),trim(message)
+#if defined(_WIN32) && defined(HAVE_GUI)
+             ! the Windows GUI build is windowed (-mwindows) -> no
+             ! writes; show the error in a modal message box
+             call ferror_message_box()
+#endif
           end if
        end if
        stop 1
@@ -1605,6 +1612,28 @@ contains
     endif
 
 100 format (A," (",A,"): ",A/)
+
+#if defined(_WIN32) && defined(HAVE_GUI)
+  contains
+    !> Windows: show the current fatal error in a modal Windows message box.
+    subroutine ferror_message_box()
+      use iso_c_binding, only: c_char, c_null_char, c_ptr, c_loc
+      character(kind=c_char,len=:), allocatable, target :: ctitle, cbody
+      interface
+         subroutine guiMessageBox(title,msg) bind(c,name="guiMessageBox")
+           import :: c_ptr
+           type(c_ptr), value :: title, msg
+         end subroutine guiMessageBox
+      end interface
+
+      ctitle = "critic2: fatal error" // c_null_char
+      cbody = trim(chtype) // " (" // trim(routine) // "):" // new_line('a') // trim(message)
+      if (present(inputline)) &
+         cbody = cbody // new_line('a') // new_line('a') // "input: " // trim(inputline)
+      cbody = cbody // c_null_char
+      call guiMessageBox(c_loc(ctitle), c_loc(cbody))
+    end subroutine ferror_message_box
+#endif
 
   end subroutine ferror
 

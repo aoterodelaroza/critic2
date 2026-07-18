@@ -1346,7 +1346,7 @@ contains
     call igSetCursorPosX(posx)
     if (tex /= 0) then
        tintcol = ImVec4(col(1),col(2),col(3),col(4))
-       call igImage(tex,sz,uv0,uv1,tintcol,nobord)
+       call igImage(int(tex,c_intptr_t),sz,uv0,uv1,tintcol,nobord)
     else
        call iw_text(fallback,rgba=col)
     end if

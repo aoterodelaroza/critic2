@@ -19,6 +19,8 @@
 
 #if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
   /* Windows */
+  #include <windows.h>
+  #include <shellapi.h>
   #include <direct.h>
   #define GETCWD _getcwd
 #else
@@ -39,15 +41,28 @@ int getCurrentWorkDir(char *str, size_t siz){
 
 // Call the external browser to open a link (portable?)
 void openLink(const char* link){
-    char command[1024];
 #if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
-    // start treats the first quoted argument as the window title
-    snprintf(command, 1024, "start \"\" \"%s\"", link);
-#elif __APPLE__
-    snprintf(command, 1024, "open \"%s\"", link);
+    // ShellExecute opens the link without spawning cmd.exe
+    ShellExecuteA(NULL, "open", link, NULL, NULL, SW_SHOWNORMAL);
 #else
+    char command[1024];
+  #if defined(__APPLE__)
+    snprintf(command, 1024, "open \"%s\"", link);
+  #else
     snprintf(command, 1024, "xdg-open \"%s\"", link);
-#endif
+  #endif
     system(command);
+#endif
 }
+
+#if defined(_WIN32) || defined(__WIN32__) || defined(__WINDOWS__)
+// Pop a modal error message box. The Windows GUI build is a GUI-subsystem
+// (-mwindows) app with no console, so a fatal error written to stdout/stderr
+// would be invisible; this makes it visible. user32 is already linked by the
+// GUI executable (via GLFW).
+void guiMessageBox(const char* title, const char* msg){
+    MessageBoxA(NULL, msg ? msg : "", title ? title : "critic2",
+                MB_OK | MB_ICONERROR | MB_SETFOREGROUND | MB_TOPMOST);
+}
+#endif
 

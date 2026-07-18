@@ -212,6 +212,15 @@ if (WIN32)
   if (ENABLE_GUI)
     set_target_properties(critic2 PROPERTIES WIN32_EXECUTABLE ON)
   endif()
+  ## Embed an application manifest that sets the active code page to UTF-8, so
+  ## narrow (char*) file paths -- argv, and especially the UTF-8 paths the GLFW
+  ## drag-and-drop callback delivers -- are interpreted as UTF-8 by the UCRT and
+  ## by gfortran's OPEN (otherwise accented paths fail on a CP1252 system).
+  ## Requires Windows 10 1903+. windres (RC) ships with the MinGW binutils.
+  enable_language(RC)
+  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/critic2_manifest.rc"
+    "1 24 \"${CMAKE_CURRENT_SOURCE_DIR}/critic2.manifest\"\n")
+  target_sources(critic2 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/critic2_manifest.rc")
 endif()
 
 ## static build
