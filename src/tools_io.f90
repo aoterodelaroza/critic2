@@ -95,10 +95,11 @@ module tools_io
   interface
      module subroutine lualloc_init()
      end subroutine lualloc_init
-     module subroutine stdargs(optv,ghome,uroot)
+     module subroutine stdargs(optv,ghome,uroot,defaultgui)
        character(len=:), allocatable, intent(out) :: optv
        character(len=:), allocatable, intent(out) :: ghome
        character(len=:), allocatable, intent(out) :: uroot
+       logical, intent(in), optional :: defaultgui
      end subroutine stdargs
      module function string_int4(a,length,justify,pad0,padspace) result(s)
        character(len=:), allocatable :: s

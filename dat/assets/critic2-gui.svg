@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="ground" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f46e5"/><stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <radialGradient id="nucleus" cx="37%" cy="34%" r="72%">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="55%" stop-color="#dbe2ff"/><stop offset="1" stop-color="#a6b3f0"/>
+    </radialGradient>
+    <radialGradient id="gold" cx="37%" cy="33%" r="72%">
+      <stop offset="0" stop-color="#ffe6b0"/><stop offset="55%" stop-color="#f6b73c"/><stop offset="1" stop-color="#d18f1c"/>
+    </radialGradient>
+  </defs>
+  <rect x="2" y="2" width="96" height="96" rx="24" fill="url(#ground)"/>
+  <polygon points="21.7,39.4 40.6,22.9 78.3,22.9 59.4,39.4" fill="#ffffff" opacity="0.30"/>
+  <polygon points="21.7,39.4 59.4,39.4 59.4,77.1 21.7,77.1" fill="#ffffff" opacity="0.16"/>
+  <polygon points="59.4,39.4 78.3,22.9 78.3,60.6 59.4,77.1" fill="#ffffff" opacity="0.06"/>
+  <g stroke="#eef1ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M21.7 39.4 59.4 39.4 59.4 77.1 21.7 77.1Z"/>
+    <path d="M21.7 39.4 40.6 22.9 78.3 22.9 59.4 39.4"/>
+    <line x1="78.3" y1="22.9" x2="78.3" y2="60.6"/>
+    <line x1="59.4" y1="77.1" x2="78.3" y2="60.6"/>
+  </g>
+  <g fill="url(#nucleus)">
+    <circle cx="21.7" cy="39.4" r="5"/><circle cx="59.4" cy="39.4" r="5"/>
+    <circle cx="59.4" cy="77.1" r="5"/><circle cx="21.7" cy="77.1" r="5"/>
+    <circle cx="78.3" cy="22.9" r="5"/><circle cx="78.3" cy="60.6" r="5"/>
+  </g>
+  <circle cx="40.6" cy="22.9" r="5.6" fill="url(#gold)"/>
+</svg>

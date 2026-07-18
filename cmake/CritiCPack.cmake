@@ -58,4 +58,20 @@ set(CPACK_NSIS_MODIFY_PATH ON)
 set(CPACK_NSIS_DISPLAY_NAME "critic2")
 set(CPACK_NSIS_URL_INFO_ABOUT "${critic2_URL}")
 
+## Start Menu / desktop shortcuts. Each pair is the executable name (without
+## .exe, found under bin/) and the shortcut label; each shortcut shows the icon
+## embedded in its executable. On a GUI build there are two binaries -- the
+## windowed critic2-gui.exe (the plain "critic2") and the console critic2.exe
+## ("critic2 (console)"). A CLI-only build ships the single console shortcut.
+if (WIN32 AND ENABLE_GUI)
+  set(CPACK_PACKAGE_EXECUTABLES
+    "critic2-gui" "critic2"
+    "critic2"     "critic2 (console)")
+  set(CPACK_CREATE_DESKTOP_LINKS "critic2-gui")
+  ## offer to launch the GUI from the installer's finish page
+  set(CPACK_NSIS_MUI_FINISHPAGE_RUN "critic2-gui")
+elseif (WIN32)
+  set(CPACK_PACKAGE_EXECUTABLES "critic2" "critic2")
+endif()
+
 include(CPack)

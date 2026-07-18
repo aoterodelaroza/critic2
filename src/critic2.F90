@@ -38,13 +38,21 @@ program critic
 
   ! command-line arguments
   character(len=:), allocatable :: optv, ghome
+  logical :: guidef
 
   ! initialize parameters
   call start_clock()
   call param_init()
 
+  ! CRITIC2_GUI_DEFAULT is set when compiling the windowed executable
+  ! (critic2-gui.exe on Windows), which always starts the GUI
+  guidef = .false.
+#ifdef CRITIC2_GUI_DEFAULT
+  guidef = .true.
+#endif
+
   ! input/output, arguments (tools_io)
-  call stdargs(optv,ghome,fileroot)
+  call stdargs(optv,ghome,fileroot,guidef)
   call history_init()
 
   ! set default values and initialize the rest of the modules
@@ -94,12 +102,5 @@ program critic
   endif
 
 999 continue
-
-    ! pause at the end of the windows execution so I can see the output
-#ifdef _WIN32
-  if (.not.usegui) then
-     read (*,*)
-  end if
-#endif
 
 end program critic

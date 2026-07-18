@@ -79,9 +79,26 @@ if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/config@proc.F90")
   message(WARNING "Stale generated file src/config@proc.F90 found in the source tree; please delete it")
 endif()
 
-## executable
+## executable (console: the command-line interface)
 add_executable(critic2 ${SOURCES_Fortran_Main})
 target_link_libraries(critic2 PRIVATE critic2_core)
+
+## On Windows with the GUI, build a second, windowed executable
+## (critic2-gui.exe) from the same sources. critic2.exe is the console
+## CLI (output stays visible); critic2-gui.exe is the GUI with no
+## console. They are otherwise identical; critic2-gui.exe just
+## defaults to launching the GUI (CRITIC2_GUI_DEFAULT) and carries a
+## different icon and subsystem. CRITIC2_GUI_EXE names the target if
+## it exists, "" if not, so the shared link/install logic below can
+## extend to it uniformly.
+set(CRITIC2_GUI_EXE "")
+if (WIN32 AND ENABLE_GUI)
+  set(CRITIC2_GUI_EXE critic2-gui)
+  add_executable(critic2-gui ${SOURCES_Fortran_Main})
+  target_link_libraries(critic2-gui PRIVATE critic2_core)
+  target_compile_definitions(critic2-gui PRIVATE CRITIC2_GUI_DEFAULT)
+  set_target_properties(critic2-gui PROPERTIES WIN32_EXECUTABLE ON)
+endif()
 
 ## library
 if (BUILD_LIBRARY)
@@ -98,6 +115,9 @@ endif()
 ## each one is linked directly into the executable and the shared library.
 function(link_bundled_lib lib)
   target_link_libraries(critic2 PRIVATE ${lib})
+  if (CRITIC2_GUI_EXE)
+    target_link_libraries(${CRITIC2_GUI_EXE} PRIVATE ${lib})
+  endif()
   if (BUILD_LIBRARY)
     target_link_libraries(libcritic2 PRIVATE ${lib})
   endif()
@@ -196,6 +216,9 @@ link_bundled_lib(emd)
 if (ENABLE_GUI)
   add_subdirectory(gui)
   target_link_libraries(critic2 PRIVATE fgui)
+  if (CRITIC2_GUI_EXE)
+    target_link_libraries(${CRITIC2_GUI_EXE} PRIVATE fgui)
+  endif()
 
   ## the GUI reads the core module files
   add_dependencies(fgui critic2_core)
@@ -208,29 +231,47 @@ endif()
 ## Fortran preprocessor; C/C++ compilers predefine it)
 if (WIN32)
   target_compile_definitions(critic2_defs INTERFACE $<$<COMPILE_LANGUAGE:Fortran>:_WIN32>)
-  ## GUI builds are windowed applications (-mwindows); the CLI keeps its console
-  if (ENABLE_GUI)
-    set_target_properties(critic2 PROPERTIES WIN32_EXECUTABLE ON)
-  endif()
-  ## Embed an application manifest that sets the active code page to UTF-8, so
-  ## narrow (char*) file paths -- argv, and especially the UTF-8 paths the GLFW
-  ## drag-and-drop callback delivers -- are interpreted as UTF-8 by the UCRT and
-  ## by gfortran's OPEN (otherwise accented paths fail on a CP1252 system).
-  ## Requires Windows 10 1903+. windres (RC) ships with the MinGW binutils.
+  ## critic2.exe stays a console application (WIN32_EXECUTABLE OFF) so the CLI
+  ## output is visible; critic2-gui.exe is the windowed one (set above).
+  ##
+  ## Each executable embeds, via a resource script compiled by windres:
+  ##  - the application manifest (resource type 24 = RT_MANIFEST, id 1): sets the
+  ##    active code page to UTF-8 so narrow char* paths -- argv and the UTF-8
+  ##    paths the GLFW drag-and-drop callback delivers -- are read as UTF-8 by the
+  ##    UCRT and gfortran's OPEN (accented paths otherwise fail on CP1252).
+  ##    Requires Windows 10 1903+.
+  ##  - the application icon (id 1): the terminal-style icon for the console CLI,
+  ##    the colour icon for the GUI. Explorer and the shortcuts use it.
+  ## windres (RC) ships with the MinGW binutils.
   enable_language(RC)
-  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/critic2_manifest.rc"
-    "1 24 \"${CMAKE_CURRENT_SOURCE_DIR}/critic2.manifest\"\n")
-  target_sources(critic2 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/critic2_manifest.rc")
+  ## the icons live with the other visual assets in dat/assets; the console CLI
+  ## gets the terminal icon, the GUI the colour one (same as the GUI window icon)
+  set(_icondir "${CMAKE_SOURCE_DIR}/dat/assets")
+  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/critic2_cli.rc"
+    "1 24 \"${CMAKE_CURRENT_SOURCE_DIR}/critic2.manifest\"\n1 ICON \"${_icondir}/critic2.ico\"\n")
+  target_sources(critic2 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/critic2_cli.rc")
+  if (CRITIC2_GUI_EXE)
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/critic2_gui.rc"
+      "1 24 \"${CMAKE_CURRENT_SOURCE_DIR}/critic2.manifest\"\n1 ICON \"${_icondir}/critic2-gui.ico\"\n")
+    target_sources(${CRITIC2_GUI_EXE} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/critic2_gui.rc")
+  endif()
 endif()
 
 ## static build
 if (BUILD_STATIC)
   target_link_options(critic2 PRIVATE -static)
   target_link_libraries(critic2 PRIVATE ${LIBDL_LIBRARY})
+  if (CRITIC2_GUI_EXE)
+    target_link_options(${CRITIC2_GUI_EXE} PRIVATE -static)
+    target_link_libraries(${CRITIC2_GUI_EXE} PRIVATE ${LIBDL_LIBRARY})
+  endif()
 endif()
 
-## install the binary
+## install the binary (both executables on a Windows GUI build)
 install(TARGETS critic2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT runtime)
+if (CRITIC2_GUI_EXE)
+  install(TARGETS ${CRITIC2_GUI_EXE} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT runtime)
+endif()
 if (BUILD_LIBRARY)
   install(TARGETS libcritic2
           LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT devel

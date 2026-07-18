@@ -50,6 +50,11 @@ endforeach()
 list(REMOVE_DUPLICATES _dll_dirs)
 
 install(CODE "set(_dll_dirs \"${_dll_dirs}\")" COMPONENT runtime)
+## executables whose runtime dependencies are bundled
+install(CODE "set(_bundle_exes \"$<TARGET_FILE:critic2>\")" COMPONENT runtime)
+if (CRITIC2_GUI_EXE)
+  install(CODE "list(APPEND _bundle_exes \"$<TARGET_FILE:${CRITIC2_GUI_EXE}>\")" COMPONENT runtime)
+endif()
 if (NOT CMAKE_HOST_WIN32)
   ## cross-compiling: tell GET_RUNTIME_DEPENDENCIES to parse PE binaries
   ## with the toolchain objdump instead of the host's default (ELF)
@@ -60,9 +65,9 @@ if (NOT CMAKE_HOST_WIN32)
   " COMPONENT runtime)
 endif()
 install(CODE [[
-  message(STATUS "Resolving runtime DLL dependencies of critic2.exe")
+  message(STATUS "Resolving runtime DLL dependencies of the critic2 executables")
   file(GET_RUNTIME_DEPENDENCIES
-    EXECUTABLES "$<TARGET_FILE:critic2>"
+    EXECUTABLES ${_bundle_exes}
     RESOLVED_DEPENDENCIES_VAR _deps
     UNRESOLVED_DEPENDENCIES_VAR _undeps
     DIRECTORIES ${_dll_dirs}

@@ -46,12 +46,13 @@ contains
   !> command-line options. On output, optv contains the dash-options
   !> passed to critic, ghome is the path passed with -r and uroot is
   !> the root for the run.
-  module subroutine stdargs(optv,ghome,uroot)
+  module subroutine stdargs(optv,ghome,uroot,defaultgui)
     use iso_fortran_env, only: input_unit, output_unit
     use param, only: dirsep
     character(len=:), allocatable, intent(out) :: optv
     character(len=:), allocatable, intent(out) :: ghome
     character(len=:), allocatable, intent(out) :: uroot
+    logical, intent(in), optional :: defaultgui
 
     integer, parameter :: arglen = 1024
 
@@ -89,6 +90,10 @@ contains
           end if
        end if
     end do
+    ! run the GUI, as if -g had been passed
+    if (present(defaultgui)) then
+       if (defaultgui) usegui = .true.
+    end if
 #endif
 
     ! process arguments
