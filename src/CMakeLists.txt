@@ -283,22 +283,64 @@ if (WIN32)
   include(${CMAKE_SOURCE_DIR}/cmake/BundleDLLs.cmake)
 endif()
 
-## bundle a Mesa software/translation OpenGL as a fallback for Windows
-## systems whose OpenGL is older than 3.3. Point MESA_DIR at a
-## directory containing Mesa's opengl32.dll and its dependencies
-## (libgallium_wgl.dll, libglapi.dll, dxil.dll, ...). It installs into
-## bin/mesa so it does NOT shadow the system OpenGL; the GUI loads it
-## only when the native driver cannot create a 3.3 context (see
-## gui_start in gui_main@proc.F90). When MESA_DIR is unset, no
-## fallback is bundled and the GUI just errors as before.
+## software-rendering GUI build. Point MESA_DIR at a directory with Mesa's
+## opengl32.dll and its dependencies (libgallium_wgl.dll, libglapi.dll,
+## dxil.dll, ...). A second copy of the GUI executable is installed into a
+## sibling bin-mesa/ next to those DLLs, so its static opengl32 import resolves
+## to Mesa (guiForceSoftwareGLIfBundled then forces the llvmpipe software
+## rasterizer). The compiler runtime DLLs (libgfortran, glfw3, ...) are NOT
+## duplicated here: they are shared from bin/, which the "software rendering"
+## launcher reaches by setting the working directory to bin/. When MESA_DIR is
+## unset, no software build is bundled.
+set(CRITIC2_HAVE_MESA OFF)
 if (WIN32 AND ENABLE_GUI AND MESA_DIR)
   file(GLOB _mesa_dlls "${MESA_DIR}/*.dll")
   if (_mesa_dlls)
-    install(FILES ${_mesa_dlls} DESTINATION "${CMAKE_INSTALL_BINDIR}/mesa" COMPONENT runtime)
-    ## a second copy of the GUI executable lives next to the bundled Mesa so its
-    ## static opengl32 import resolves to Mesa; the fallback relaunches this copy
-    install(TARGETS ${CRITIC2_GUI_EXE} RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}/mesa" COMPONENT runtime)
+    install(FILES ${_mesa_dlls} DESTINATION "bin-mesa" COMPONENT runtime)
+    install(TARGETS ${CRITIC2_GUI_EXE} RUNTIME DESTINATION "bin-mesa" COMPONENT runtime)
+    set(CRITIC2_HAVE_MESA ON)
   else()
-    message(WARNING "MESA_DIR='${MESA_DIR}' has no DLLs; the software OpenGL fallback will not be bundled")
+    message(WARNING "MESA_DIR='${MESA_DIR}' has no DLLs; the software OpenGL build will not be bundled")
+  endif()
+endif()
+
+## Portable launcher executables at the package root, so users need not dig into
+## bin/ (and never run the bin-mesa copy directly, which needs bin/ for its shared
+## runtime DLLs). Each is a tiny GUI-subsystem exe (no console flash) that runs
+## its target relative to its own location -- so they work from any unzip path --
+## and carries the matching critic2 icon. See src/gui/launcher.c.
+if (WIN32)
+  function(critic2_launcher tgt outname ltarget lworkdir icon console)
+    add_executable(${tgt} gui/launcher.c)
+    ## a separate output dir: the GUI launcher's OUTPUT_NAME "critic2" would
+    ## otherwise clobber the core critic2.exe in the build tree
+    set_target_properties(${tgt} PROPERTIES WIN32_EXECUTABLE ON OUTPUT_NAME "${outname}"
+      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/launchers")
+    ## -municode: use the wide entry point (wWinMain) so paths are Unicode
+    target_compile_options(${tgt} PRIVATE -municode)
+    target_link_options(${tgt} PRIVATE -municode)
+    target_compile_definitions(${tgt} PRIVATE
+      "LAUNCH_TARGET=L\"${ltarget}\"" "LAUNCH_WORKDIR=L\"${lworkdir}\"")
+    if (console)
+      target_compile_definitions(${tgt} PRIVATE LAUNCH_CONSOLE)
+    endif()
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${tgt}.rc" "1 ICON \"${icon}\"\n")
+    target_sources(${tgt} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/${tgt}.rc")
+    install(TARGETS ${tgt} RUNTIME DESTINATION "." COMPONENT runtime)
+  endfunction()
+
+  set(_icondir "${CMAKE_SOURCE_DIR}/dat/assets")
+  if (ENABLE_GUI)
+    critic2_launcher(critic2_launch_gui "critic2" "bin/critic2-gui.exe" "bin"
+                     "${_icondir}/critic2-gui.ico" OFF)
+    critic2_launcher(critic2_launch_cli "critic2 (console)" "bin/critic2.exe" "bin"
+                     "${_icondir}/critic2.ico" ON)
+    if (CRITIC2_HAVE_MESA)
+      critic2_launcher(critic2_launch_sw "critic2 (software rendering)"
+                       "bin-mesa/critic2-gui.exe" "bin" "${_icondir}/critic2-gui.ico" OFF)
+    endif()
+  else()
+    critic2_launcher(critic2_launch_cli "critic2" "bin/critic2.exe" "bin"
+                     "${_icondir}/critic2.ico" ON)
   endif()
 endif()

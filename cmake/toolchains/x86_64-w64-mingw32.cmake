@@ -12,7 +12,10 @@
 ##     [-DCMAKE_INSTALL_PREFIX=<staging directory>]
 ##
 ## Libraries are searched only under CMAKE_FIND_ROOT_PATH; pass additional
-## prefixes per package (e.g. GLFW3_ROOT) or extend CMAKE_FIND_ROOT_PATH.
+## prefixes per package (e.g. GLFW3_ROOT) or extend CMAKE_FIND_ROOT_PATH via
+## -DCRITIC2_FIND_ROOT=<dir1>[;<dir2>...] (each such <dir> is searched for
+## <dir>/lib import libraries and <dir>/bin runtime DLLs -- e.g. an unpacked
+## OpenBLAS binary distribution passed with -DBLA_VENDOR=OpenBLAS).
 
 set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
@@ -27,7 +30,9 @@ find_program(CMAKE_Fortran_COMPILER NAMES ${TOOLCHAIN_PREFIX}-gfortran-posix ${T
 find_program(CMAKE_C_COMPILER NAMES ${TOOLCHAIN_PREFIX}-gcc-posix ${TOOLCHAIN_PREFIX}-gcc)
 find_program(CMAKE_CXX_COMPILER NAMES ${TOOLCHAIN_PREFIX}-g++-posix ${TOOLCHAIN_PREFIX}-g++)
 
-set(CMAKE_FIND_ROOT_PATH /usr/${TOOLCHAIN_PREFIX})
+## the sysroot, plus any extra prefixes the user provides (see CRITIC2_FIND_ROOT
+## above) so binary distributions unpacked outside the sysroot can be found
+set(CMAKE_FIND_ROOT_PATH /usr/${TOOLCHAIN_PREFIX} ${CRITIC2_FIND_ROOT})
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)

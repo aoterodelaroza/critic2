@@ -5,18 +5,165 @@ https://aoterodelaroza.github.io/critic2/installation/
 Windows builds
 --------------
 
-* Cross-compilation from Linux with MinGW-w64 (packages
-  gfortran-mingw-w64-x86-64 and g++-mingw-w64-x86-64 on Debian/Ubuntu):
+The Windows GUI package is produced by cross-compiling from Linux with MinGW-w64
+and packaging with CPack. The result is a self-contained tree -- shipped both as
+a portable .zip and as an NSIS installer .exe -- that bundles every required DLL,
+so it runs on a stock Windows machine with no extra dependencies. The steps below
+build both packages from scratch.
 
-    cmake -B build-win -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/x86_64-w64-mingw32.cmake \
-      -DUSE_EXTERNAL_LAPACK=OFF -DUSE_LIBXC=OFF -DUSE_READLINE=OFF \
-      [-DENABLE_GUI=ON -DGLFW3_ROOT=<path to unpacked glfw-*.bin.WIN64>] \
-      [-DCMAKE_CROSSCOMPILING_EMULATOR=wine]
-    cmake --build build-win -j
+1. Prerequisites (Debian/Ubuntu package names)
 
-  See the header of the toolchain file for all options.
+   * MinGW-w64 toolchain, POSIX thread model (required: the win32 thread model
+     corrupts memory when the GUI spawns threads):
 
-* Native build in an MSYS2 shell (no toolchain file needed):
+       apt install gfortran-mingw-w64-x86-64 g++-mingw-w64-x86-64 gcc-mingw-w64-x86-64
+
+     Keep the mingw-w64 runtime in sync with the compiler by using
+     "apt full-upgrade", or upgrade the mingw-w64* packages
+     explicitly.
+
+   * NSIS, for the installer (provides makensis):
+
+       apt install nsis
+
+   * GLFW 3, Windows 64-bit binaries (GUI only). Download "Windows pre-compiled
+     binaries (64-bit)" from https://www.glfw.org/download and unpack it; you
+     will point at its include/ and lib-mingw-w64/ directories.
+
+   * (optional) Mesa for Windows, for the software-OpenGL fallback used on
+     machines that lack OpenGL 3.3 (old GPUs, Remote Desktop, GPU-less VMs). Get
+     a build from https://github.com/pal1000/mesa-dist-win (the MinGW "release"
+     package) and use the directory containing opengl32.dll, libgallium_wgl.dll,
+     libglapi.dll and dxil.dll. To support Windows 7, use a 24.x release; newer
+     Mesa imports Win8+ symbols and will not load there.
+
+   * (optional) OpenBLAS, for fast external LAPACK/BLAS. A prebuilt MinGW
+     Windows build is available from https://github.com/OpenMathLib/OpenBLAS
+     (the "OpenBLAS-<version>-x64.zip" asset). Without it critic2 falls back to
+     its slower bundled reference LAPACK.
+
+   * (optional) FreeType, for higher-quality GUI font rendering. It has no
+     MinGW-compatible prebuilt binary, but imgui needs only its core API, so a
+     minimal (dependency-free) DLL is easily cross-built from the source at
+     https://download.savannah.gnu.org/releases/freetype/. Without it the GUI
+     uses its lower-quality built-in font rasterizer.
+
+   * (optional) readline, for interactive command-line editing and history.
+     GNU readline needs termcap/termios and does not build for Windows; the
+     substitute is wineditline (https://sourceforge.net/projects/mingweditline/),
+     a BSD-licensed, readline-API-compatible library whose edit.dll exports the
+     readline/add_history/read_history/write_history functions critic2 uses.
+     Without it the CLI falls back to the plain Windows console line editor.
+
+   These downloads can be automated: run
+
+       tools/fetch-windows-deps.sh [DEST]      # needs curl, unzip, p7zip-full
+
+   which fetches GLFW, Mesa and OpenBLAS and cross-builds a minimal FreeType and
+   a readline-compatible wineditline into DEST (default ./windows-deps), then
+   prints a ready-to-paste recipe (the configure line with all the -D options
+   filled in, plus the build and package commands) that you can run directly
+   instead of assembling the flags below by hand. Set FETCH_MESA=0,
+   FETCH_LAPACK=0, FETCH_FREETYPE=0 or FETCH_READLINE=0 to skip a dependency, or
+   GLFW_VERSION / MESA_VERSION / OPENBLAS_VERSION / FREETYPE_VERSION /
+   WINEDITLINE_VERSION to pick versions. (The FreeType and readline cross-builds
+   need the MinGW toolchain and cmake; each is skipped with a warning if either
+   is absent.)
+
+   The remaining optional libraries critic2 can use (libxc, HDF5, nlopt,
+   libcint, tblite) have no MinGW-compatible prebuilt Windows binaries; enabling
+   them means cross-building each from source first, so the recipe below leaves
+   them off. OpenMP needs no download -- it is provided by the toolchain's
+   libgomp -- and is enabled below.
+
+2. Configure (Release, GUI, with the software fallback, fast BLAS and OpenMP).
+   If you used fetch-windows-deps.sh, it already printed this command with the
+   paths filled in; otherwise set them yourself:
+
+     GLFW=/path/to/glfw-3.4.bin.WIN64
+     MESA=/path/to/mesa-dist-win/x64          # optional
+     OPENBLAS=/path/to/openblas-x64           # optional (contains bin/ lib/ include/)
+     FREETYPE=/path/to/freetype-mingw         # optional (contains bin/ lib/ include/)
+     READLINE=/path/to/wineditline-mingw      # optional (contains bin/ lib/ include/)
+
+     cmake -S . -B build-win \
+       -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/x86_64-w64-mingw32.cmake \
+       -DCMAKE_BUILD_TYPE=Release \
+       -DENABLE_GUI=ON -DENABLE_OPENMP=ON \
+       -DGLFW3_INCLUDE_DIR=$GLFW/include \
+       -DGLFW3_LIBRARY=$GLFW/lib-mingw-w64/libglfw3dll.a \
+       -DMESA_DIR=$MESA \
+       -DUSE_EXTERNAL_LAPACK=ON -DBLA_VENDOR=OpenBLAS \
+       -DUSE_FREETYPE=ON -DUSE_READLINE=ON \
+       -DCRITIC2_FIND_ROOT="$OPENBLAS;$FREETYPE;$READLINE" \
+       -DUSE_LIBXC=OFF -DUSE_HDF5=OFF \
+       -DUSE_NLOPT=OFF -DUSE_LIBCINT=OFF -DUSE_TBLITE=OFF
+
+   Notes:
+   * Drop -DMESA_DIR to omit the software fallback (the GUI then needs the target
+     machine to provide OpenGL 3.3 itself).
+   * For a command-line-only package use -DENABLE_GUI=OFF and omit the GLFW,
+     MESA and FREETYPE options.
+   * -DGLFW3_ROOT=$GLFW also works when the layout is standard; the explicit
+     INCLUDE_DIR/LIBRARY above is reliable for the glfw.org WIN64 binary dist,
+     whose import library lives in lib-mingw-w64/. Use libglfw3dll.a (not
+     libglfw3.a) so glfw3.dll is bundled.
+   * -DCRITIC2_FIND_ROOT is a ';'-separated list of extra prefixes added to the
+     cross find-root; each is searched for import libraries (<prefix>/lib) and
+     bundled DLLs (<prefix>/bin). It carries both OpenBLAS and FreeType here.
+   * External LAPACK: -DBLA_VENDOR=OpenBLAS tells CMake's FindLAPACK to use the
+     OpenBLAS in CRITIC2_FIND_ROOT. To skip it and use critic2's bundled
+     reference LAPACK instead, drop it and set -DUSE_EXTERNAL_LAPACK=OFF.
+   * FreeType improves GUI font rendering; drop -DUSE_FREETYPE=ON (or its
+     find-root entry) to fall back to imgui's built-in rasterizer.
+   * readline: the wineditline prefix built by fetch-windows-deps.sh is laid out
+     as a readline-compatible tree (lib/libreadline.dll.a, include/readline/) so
+     the stock FindREADLINE locates it; drop -DUSE_READLINE=ON to use the plain
+     console line editor instead.
+   * The other optional libraries (libxc, HDF5, nlopt, libcint, tblite) are off
+     because they have no MinGW prebuilt binaries; each can be enabled if you
+     cross-build it and add its prefix to -DCRITIC2_FIND_ROOT (or use the
+     library's own -D options). Each adds bundled DLLs.
+   * See the header of cmake/toolchains/x86_64-w64-mingw32.cmake for more.
+
+3. Build
+
+     cmake --build build-win -j
+
+   This produces build-win/src/critic2.exe (console CLI) and, for a GUI build,
+   build-win/src/critic2-gui.exe (windowed GUI).
+
+4. Package. Run CPack from the build directory. All required runtime DLLs (the
+   compiler runtime, GLFW, and OpenBLAS/FreeType/readline if used) are detected
+   and bundled automatically.
+
+     cd build-win
+     cpack -G ZIP     # portable  -> critic2-<version>-win64.zip
+     cpack -G NSIS    # installer -> critic2-<version>-win64.exe
+
+   or produce both at once (also what a bare "cpack" does here when makensis is
+   present):
+
+     cpack -G "ZIP;NSIS"
+
+   Package layout: bin/ holds the executables (native OpenGL) with their runtime
+   DLLs; if MESA_DIR was set, a sibling bin-mesa/ holds a second GUI executable
+   next to Mesa's software OpenGL (it shares bin/'s runtime DLLs, so they are not
+   duplicated). The root has small launcher executables -- double-clickable, with
+   the critic2 icon and no console flash -- that run the right binary relative to
+   their own location (so they work wherever the package is unpacked):
+
+     critic2.exe                        the GUI (native OpenGL)
+     critic2 (console).exe              the command line
+     critic2 (software rendering).exe   the GUI forced onto Mesa/llvmpipe, for
+                                        machines with no GPU or OpenGL < 3.3
+
+   The .zip is portable: unzip it anywhere and double-click a launcher; critic2
+   finds its data next to the executables, with no environment variables. The
+   .exe installer puts critic2 under Program Files, adds bin to PATH, and creates
+   Start-Menu and desktop shortcuts.
+
+Native build in an MSYS2 shell (no toolchain file needed):
 
     cmake -B build -G "MSYS Makefiles" [-DENABLE_GUI=ON ...]
     cmake --build build -j

@@ -32,10 +32,19 @@ submodule (gui_main) proc
   ! almost always a graphics-driver or remote-session problem rather than a
   ! critic2 bug, and (with the message box on Windows) this text tells the
   ! user what to check. char(10) is a newline for the message box.
+#ifdef _WIN32
+  character(len=*), parameter :: gl_fail_hint = char(10)//char(10)//&
+     "critic2 requires OpenGL 3.3. This usually fails when the graphics driver is "//&
+     "missing or outdated, or when running over Remote Desktop or in a virtual "//&
+     "machine without GPU acceleration."//char(10)//char(10)//&
+     "Try the software-rendering version instead: the ""critic2 (software rendering)"" "//&
+     "shortcut, or bin-mesa\critic2-gui.exe."
+#else
   character(len=*), parameter :: gl_fail_hint = char(10)//char(10)//&
      "critic2 requires OpenGL 3.3. This usually fails when the graphics driver is "//&
      "missing or outdated, or when running over Remote Desktop or in a virtual "//&
      "machine without GPU acceleration. Please update your graphics drivers and try again."
+#endif
 
   ! the dockspace ID
   integer(c_int) :: iddock = 0
@@ -88,22 +97,12 @@ contains
     integer, parameter :: initial_nsys = 20
 
 #ifdef _WIN32
-    ! OpenGL software (Mesa) fallback helpers, implemented in c_utils/utils.c
-    logical :: gl_software_mode
-    character(kind=c_char,len=:), allocatable, target :: chome
+    ! If a bundled Mesa opengl32.dll sits next to this executable (the
+    ! bin-mesa software-rendering build), force Mesa's software rasterizer.
+    ! Implemented in c_utils/utils.c.
     interface
-       ! 1 if this is the relaunched, bundled-Mesa instance (CRITIC2_SOFTWARE_GL set)
-       function guiGLSoftwareRequested() bind(c,name="guiGLSoftwareRequested")
-         import c_int
-         integer(c_int) :: guiGLSoftwareRequested
-       end function guiGLSoftwareRequested
-       ! relaunch the bin\mesa copy (bundled Mesa OpenGL), forwarding CRITIC_HOME;
-       ! ends the process on success, returns 0 if no Mesa is bundled
-       function guiRelaunchSoftwareGL(critic_home) bind(c,name="guiRelaunchSoftwareGL")
-         import c_int, c_ptr
-         type(c_ptr), value :: critic_home
-         integer(c_int) :: guiRelaunchSoftwareGL
-       end function guiRelaunchSoftwareGL
+       subroutine guiForceSoftwareGLIfBundled() bind(c,name="guiForceSoftwareGLIfBundled")
+       end subroutine guiForceSoftwareGLIfBundled
     end interface
 #endif
 
@@ -135,40 +134,23 @@ contains
     end do
 
 #ifdef _WIN32
-    ! OpenGL software fallback: the bin\mesa copy of this executable (which loads
-    ! the bundled Mesa OpenGL through its own static import) sets CRITIC2_SOFTWARE_GL.
-    ! Detect whether this is that instance, so we do not try to relaunch again;
-    ! chome forwards critic_home to the relaunch below.
-    gl_software_mode = (guiGLSoftwareRequested() /= 0)
-    chome = trim(critic_home) // c_null_char
+    ! In the bin-mesa build (a bundled Mesa opengl32.dll sits next to the exe),
+    ! force Mesa's software rasterizer so the GUI renders without a GPU. No-op in
+    ! the native bin build (no opengl32.dll next to the exe -> the system driver
+    ! is used). Must run before the OpenGL context is created.
+    call guiForceSoftwareGLIfBundled()
 #endif
 
     ! Initialize glfw
     fdum = glfwSetErrorCallback(c_funloc(error_callback))
-#ifdef _WIN32
-    ! On Windows, keep GLFW errors non-fatal during the native OpenGL attempt: if
-    ! the system driver cannot provide OpenGL 3.3, the failure surfaces in the
-    ! error callback, and we want to relaunch with the bundled Mesa rather than
-    ! abort. glfw_lenient stays true from here until the window is created.
-    if (.not.gl_software_mode) glfw_lenient = .true.
-#endif
-    if (glfwInit() == 0) then
-#ifdef _WIN32
-       if (.not.gl_software_mode) idum = guiRelaunchSoftwareGL(c_loc(chome))
-#endif
+    if (glfwInit() == 0) &
        call ferror('gui_start','Failed to initialize GLFW',faterr)
-    end if
     glfw_lenient = .true.
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, opengl_version_major)
     call glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, opengl_version_minor)
     call glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
     call glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE)
-#ifdef _WIN32
-    ! keep lenient through window creation during the native attempt
-    if (gl_software_mode) glfw_lenient = .false.
-#else
     glfw_lenient = .false.
-#endif
     ! call glfwWindowHint(GLFW_SAMPLES, ms_samples) ! activate multisampling
 
     ! create the window hidden and reveal it only once the first properly
@@ -194,19 +176,8 @@ contains
     end if
     strc = gui_title
     rootwin = glfwCreateWindow(iwinw, iwinh, c_loc(strc), c_null_ptr, c_null_ptr)
-    if (.not.c_associated(rootwin)) then
-#ifdef _WIN32
-       ! the system OpenGL cannot provide version 3.3; if we have not already,
-       ! relaunch using the bundled Mesa OpenGL. guiRelaunchSoftwareGL ends this
-       ! process on success, and returns (a no-op) if no Mesa is bundled.
-       if (.not.gl_software_mode) idum = guiRelaunchSoftwareGL(c_loc(chome))
-#endif
+    if (.not.c_associated(rootwin)) &
        call ferror('gui_start','Failed to create the GUI window.'//gl_fail_hint,faterr)
-    end if
-#ifdef _WIN32
-    ! the native OpenGL attempt succeeded; restore fatal GLFW error handling
-    if (.not.gl_software_mode) glfw_lenient = .false.
-#endif
     ! center the window in the work area
     if (monw > 0 .and. monh > 0) &
        call glfwSetWindowPos(rootwin, monx + (monw-iwinw)/2, mony + (monh-iwinh)/2)
