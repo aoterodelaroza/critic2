@@ -22,3 +22,11 @@ add_library(oldlibs OBJECT ${SOURCES})
 
 ## keep the bundled LAPACK/BLAS optimized even in Debug builds
 c2_optimize_vendored(oldlibs Fortran)
+
+## critic2 calls this reference LAPACK (e.g. dsyev) concurrently from OpenMP
+## parallel regions, so it must be re-entrant.
+if (CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(oldlibs PRIVATE -frecursive)
+elseif (CMAKE_Fortran_COMPILER_ID MATCHES "Intel")
+  target_compile_options(oldlibs PRIVATE -recursive)
+endif()
