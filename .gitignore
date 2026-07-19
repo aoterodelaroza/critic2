@@ -57,7 +57,7 @@ src/TAGS
 # gui
 imgui.ini
 
-# cmake 
+# cmake
 build*/
 CMakeCache.txt
 CMakeFiles
@@ -70,3 +70,6 @@ tests/zz_source/
 
 # AI (claude)
 CLAUDE.md
+
+# windows dependencies
+windows-deps/
