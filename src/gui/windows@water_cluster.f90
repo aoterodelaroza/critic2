@@ -27,9 +27,9 @@ submodule (windows) water_cluster
   ! molecules. These are critic2's own TIP4P energies at each
   ! Cambridge Cluster Database global-minimum geometry (D. J. Wales
   ! and M. P. Hodges, Chem. Phys.  Lett. 286, 65 (1998)). critic2's
-  ! TIP4P adds harmonic q-TIP4P/F intramolecular restraints
-  ! (energy@proc.F90:45-58), so the monomers flex and bind ~4-5% more
-  ! than the rigid TIP4P Wales tabulated.
+  ! TIP4P adds harmonic q-TIP4P/F intramolecular restraints (see the
+  ! tip4p_* parameters in the energy module), so the monomers flex and
+  ! bind ~4-5% more than the rigid TIP4P Wales tabulated.
   integer, parameter :: wc_nmin = 2        ! smallest cluster with a reference
   integer, parameter :: wc_nmax = 21       ! largest cluster with a reference
   integer, parameter :: wc_ngen_max = 100  ! largest cluster the user can generate
@@ -38,10 +38,6 @@ submodule (windows) water_cluster
      -255.29024d0, -320.18069d0, -360.80033d0, -409.44119d0, -451.80108d0, &
      -516.69115d0, -558.32278d0, -610.71658d0, -658.05751d0, -713.99910d0, &
      -758.57272d0, -810.16291d0, -860.34569d0, -914.82736d0, -961.23746d0/)
-
-  ! TIP4P reference monomer geometry (must match src/energy@proc.F90).
-  real*8, parameter :: wc_roh_ang = 0.9572d0 ! reference O-H distance (angstrom)
-  real*8, parameter :: wc_hoh_deg = 104.52d0 ! reference H-O-H angle (degrees)
 
 contains
 
@@ -289,6 +285,7 @@ contains
   subroutine build_water_cluster(nwat,placement,id,errmsg)
     use crystalseedmod, only: crystalseed
     use systems, only: add_systems_from_seeds, launch_initialization_thread
+    use energy, only: tip4p_doh, tip4p_hoh
     use global, only: rborder_def
     use param, only: isformat_r_derived, bohrtoa, rad, pi
     use tools_io, only: string
@@ -313,9 +310,10 @@ contains
     ! fresh random sequence for this cluster
     call random_seed()
 
-    ! reference monomer (bohr): O at the origin, H's symmetric in the xy-plane
-    roh = wc_roh_ang / bohrtoa
-    half = 0.5d0 * wc_hoh_deg * rad
+    ! reference monomer (bohr): O at the origin, H's symmetric in the xy-plane,
+    ! at the same reference geometry the TIP4P model restrains toward
+    roh = tip4p_doh
+    half = 0.5d0 * tip4p_hoh * rad
     rmono(:,1) = (/0d0, 0d0, 0d0/)
     rmono(:,2) = (/roh*cos(half),  roh*sin(half), 0d0/)
     rmono(:,3) = (/roh*cos(half), -roh*sin(half), 0d0/)

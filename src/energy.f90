@@ -19,6 +19,7 @@
 !> geometry.
 module energy
   use iso_c_binding, only: c_ptr, c_null_ptr
+  use param, only: bohrtoa, kcal2ha
   implicit none
 
   private
@@ -35,6 +36,21 @@ module energy
   integer, parameter, public :: tbm_gfnff = 0 !< GFN-FF general force field
   integer, parameter, public :: tbm_gfn2 = 1 !< GFN2-xTB
   integer, parameter, public :: tbm_gfn1 = 2 !< GFN1-xTB
+
+  ! TIP4P water model (Jorgensen et al., J. Chem. Phys. 79 (1983) 926).
+  ! The harmonic intramolecular restraints are NOT part of TIP4P (a
+  ! rigid model): they keep the monomers together during
+  ! MD/relaxation, and are zero at the reference geometry. Force
+  ! constants are the harmonic limit of q-TIP4P/F (Habershon et al.,
+  ! J. Chem. Phys. 131 (2009) 024501).
+  real*8, parameter, public :: tip4p_qh = 0.52d0 !< H charge (electrons); M charge = -2*qh
+  real*8, parameter, public :: tip4p_doh = 0.9572d0 / bohrtoa !< reference OH distance, bohr
+  real*8, parameter, public :: tip4p_hoh = 104.52d0 !< reference HOH angle, degrees
+  real*8, parameter, public :: tip4p_dom = 0.15d0 / bohrtoa !< O-M site distance, bohr
+  real*8, parameter, public :: tip4p_lja = 6d5 * kcal2ha / bohrtoa**12 !< LJ A (kcal A^12/mol -> au)
+  real*8, parameter, public :: tip4p_ljc = 610d0 * kcal2ha / bohrtoa**6 !< LJ C (kcal A^6/mol -> au)
+  real*8, parameter, public :: tip4p_kbond = 2d0 * 116.09d0 * 2.287d0**2 * kcal2ha * bohrtoa**2 !< OH restraint (au)
+  real*8, parameter, public :: tip4p_kang = 87.85d0 * kcal2ha !< HOH restraint (hartree/rad^2)
 
   !> UFF atom-type parameters, in native UFF units (Rappe et al., JACS 114
   !> (1992) 10024). The full table is hardwired in uff_atom_params
