@@ -68,10 +68,12 @@ if (WIN32 AND ENABLE_GUI)
     "critic2-gui" "critic2"
     "critic2"     "critic2 (console)")
   set(CPACK_CREATE_DESKTOP_LINKS "critic2-gui")
-  ## offer to launch the GUI from the installer's finish page
-  set(CPACK_NSIS_MUI_FINISHPAGE_RUN "critic2-gui")
 elseif (WIN32)
   set(CPACK_PACKAGE_EXECUTABLES "critic2" "critic2")
 endif()
+
+## Always install the data files
+set(CPACK_COMPONENT_DATA_REQUIRED ON)
+set(CPACK_COMPONENT_DATA_DISPLAY_NAME "Data files")
 
 include(CPack)
