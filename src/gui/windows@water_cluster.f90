@@ -64,7 +64,7 @@ contains
 
     logical :: doquit, goodparent, ldum, hasref
     integer :: isys, nwat, tflags
-    real*8 :: eb_kcal, rec_kcal, ratio
+    real*8 :: eb_kcal, rec_kcal, score
     type(ImVec2) :: szavail, sz0
     character(len=:,kind=c_char), allocatable, target :: str1, str2
 
@@ -109,6 +109,15 @@ contains
        end if
        call iw_tooltip("Generate a new cluster",ttshown)
 
+       ! zoom buttons (touchscreens may not have a mouse wheel); only once a
+       ! cluster exists and the view is displaying it
+       if (ok_system(w%wc_isys,sys_init) .and. w%wc_isys == win(w%idparent)%view_selected) then
+          if (iw_button("Zoom +",sameline=.true.)) call wc_zoom(0.15_c_float)
+          call iw_tooltip("Zoom in",ttshown)
+          if (iw_button("Zoom -",sameline=.true.)) call wc_zoom(-0.15_c_float)
+          call iw_tooltip("Zoom out",ttshown)
+       end if
+
        ! kiosk auto-start: once the generated system has finished initializing,
        ! set up TIP4P + FIRE and start the continuous relaxation
        if (ok_system(w%wc_isys,sys_init) .and. .not.w%wc_started) &
@@ -121,15 +130,17 @@ contains
              nwat = sys(isys)%c%ncel / 3
              eb_kcal = -sysc(isys)%md%epot / kcal2ha
              hasref = (nwat >= wc_nmin .and. nwat <= wc_nmax)
-             ratio = -1d0
-             rec_kcal = 0d0
+             score = 0d0
              if (hasref) then
                 rec_kcal = -wc_record_kjmol(nwat) / (kcal2ha * hartokjmol)
-                ratio = sysc(isys)%md%epot / (wc_record_kjmol(nwat) / hartokjmol)
+                ! score in [0,100]: 0 at zero energy (fully dissociated) and
+                ! 100 at the record energy (both energies are negative)
+                score = 100d0 * (sysc(isys)%md%epot*hartokjmol) / wc_record_kjmol(nwat)
+                score = min(max(score,0d0),100d0)
              end if
 
              ! push the number + color to the on-screen scoreboard text
-             call wc_update_scoreboard(isys,eb_kcal,ratio,hasref)
+             call wc_update_scoreboard(isys,score,eb_kcal,hasref)
 
              ! window status table
              tflags = ImGuiTableFlags_None
@@ -151,7 +162,7 @@ contains
                 call status_row("Binding energy (kcal/mol)",string(eb_kcal,'f',decimal=1))
                 if (hasref) then
                    call status_row("Record (kcal/mol)",string(rec_kcal,'f',decimal=1))
-                   call status_row("Fraction of record (%)",string(100d0*ratio,'f',decimal=1))
+                   call status_row("Score (0-100)",string(score,'f',decimal=1))
                 end if
                 if (sysc(isys)%md%nat > 0) &
                    call status_row("Max |force| (eV/A)",&
@@ -194,6 +205,14 @@ contains
       if (igTableSetColumnIndex(1_c_int)) call iw_text(val)
     end subroutine status_row
 
+    !> Zoom the displayed scene in (ratio > 0) or out (ratio < 0) by a fixed
+    !> step, for touchscreens with no mouse wheel.
+    subroutine wc_zoom(ratio)
+      real(c_float), intent(in) :: ratio
+      call sysc(w%wc_isys)%sc%cam_zoom(ratio)
+      win(w%idparent)%forcerender = .true.
+    end subroutine wc_zoom
+
     !> Set up TIP4P + FIRE for the generated cluster and start the continuous
     !> relaxation, then add the hydrogen-bond and scoreboard representations.
     subroutine wc_start()
@@ -214,7 +233,6 @@ contains
          sysc(is)%md_run = .false.
          return
       end if
-      sysc(is)%md%mode = md_relax
       sysc(is)%md_run = .true.
       win(w%idparent)%forcerender = .true.
 
@@ -238,13 +256,11 @@ contains
       end associate
     end subroutine wc_start
 
-    !> Write the on-screen scoreboard: just the number, minus the lattice
-    !> energy in kcal/mol to two decimals, colored by closeness to the record.
-    !> The scene background is left untouched.
-    subroutine wc_update_scoreboard(is,eb,rat,hasref)
+    !> Write the on-screen scoreboard
+    subroutine wc_update_scoreboard(is,score,eb,hasref)
       use tools_io, only: string
       integer, intent(in) :: is
-      real*8, intent(in) :: eb, rat
+      real*8, intent(in) :: score, eb
       logical, intent(in) :: hasref
 
       real(c_float) :: rgb(3)
@@ -254,8 +270,12 @@ contains
 
       ! the always-on MD run rebuilds the draw lists every frame, so the new
       ! string/color is picked up without forcing a rebuild here
-      call wc_score_color(hasref,rat,rgb)
-      sysc(is)%sc%rep(w%wc_irep_text)%text%t(1)%str = string(eb,'f',decimal=2)
+      call wc_score_color(hasref,score,rgb)
+      if (hasref) then
+         sysc(is)%sc%rep(w%wc_irep_text)%text%t(1)%str = string(score,'f',decimal=1)
+      else
+         sysc(is)%sc%rep(w%wc_irep_text)%text%t(1)%str = string(eb,'f',decimal=2)
+      end if
       sysc(is)%sc%rep(w%wc_irep_text)%text%t(1)%rgb = rgb
     end subroutine wc_update_scoreboard
 
@@ -279,7 +299,7 @@ contains
 
     type(crystalseed), allocatable :: seed(:)
     integer, allocatable :: idlist(:)
-    real*8 :: rmono(3,3), rot(3,3), roh, half, dmin, drow, lbox, trial(3), u3(3)
+    real*8 :: rmono(3,3), rot(3,3), roh, half, dmin, dmin2, drow, lbox, trial(3), u3(3)
     real*8, allocatable :: cen(:,:)
     integer :: i, j, k, m, iw, itry
     logical :: good, found, clash
@@ -304,6 +324,7 @@ contains
     ! nwat distinct waters (no spurious cross-molecule bonds)
     allocate(cen(3,nwat))
     dmin = 3.0d0 / bohrtoa
+    dmin2 = dmin * dmin
     if (placement == 1) then
        ! a straight row along x
        drow = 3.2d0 / bohrtoa
@@ -326,7 +347,8 @@ contains
                 trial = u3 * lbox
                 clash = .false.
                 do j = 1, i-1
-                   if (norm2(trial-cen(:,j)) < dmin) then
+                   ! compare squared distances to avoid a sqrt per pair test
+                   if (sum((trial-cen(:,j))**2) < dmin2) then
                       clash = .true.
                       exit
                    end if
@@ -418,15 +440,14 @@ contains
 
   end subroutine wc_random_rotation
 
-  !> Map the ratio (current energy)/(record energy) to a red-to-green color.
-  !> If there is no reference energy for this cluster size (hasref = .false.)
-  !> the text is plain black. Otherwise the useful range (~0.5 to 1.0) is
-  !> stretched red -> yellow -> green (a net-repulsive arrangement, ratio < 0,
-  !> clamps to red). Colors are darkened so the text stays legible against the
-  !> (light) scene background.
-  subroutine wc_score_color(hasref,ratio,rgb)
+  !> Map the score (0 to 100) to a red-to-green color. If there is no
+  !> reference energy for this cluster size (hasref = .false.) the text is
+  !> plain black. Otherwise the score is stretched red -> yellow -> green.
+  !> Colors are darkened so the text stays legible against the (light) scene
+  !> background.
+  subroutine wc_score_color(hasref,score,rgb)
     logical, intent(in) :: hasref
-    real*8, intent(in) :: ratio
+    real*8, intent(in) :: score
     real(c_float), intent(out) :: rgb(3)
 
     real(c_float), parameter :: dark = 0.72_c_float ! darken for legibility
@@ -438,8 +459,8 @@ contains
        return
     end if
 
-    t = (ratio - 0.5d0) / 0.5d0
-    t = min(max(t,0d0),1d0)
+    ! score is already clamped to [0,100] by the caller
+    t = score / 100d0
     if (t < 0.5d0) then
        ! red -> yellow
        rgb = (/1._c_float, real(2d0*t,c_float), 0._c_float/)
