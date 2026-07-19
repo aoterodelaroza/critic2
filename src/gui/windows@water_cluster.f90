@@ -101,7 +101,6 @@ contains
           w%errmsg = ""
           call build_water_cluster(int(w%wc_nwat),int(w%wc_placement),w%wc_isys,w%errmsg)
           w%wc_started = .false.
-          w%wc_irep_text = 0
        end if
        call iw_tooltip("Generate a new cluster",ttshown)
 
@@ -212,8 +211,7 @@ contains
     !> Set up TIP4P + FIRE for the generated cluster and start the continuous
     !> relaxation, then add the hydrogen-bond and scoreboard representations.
     subroutine wc_start()
-      use representations, only: reptype_atoms, reptype_text, reptype_axes,&
-         repflavor_atoms_hbonds, repflavor_text, textpos_screen
+      use representations, only: reptype_atoms, reptype_axes, repflavor_atoms_hbonds
       character(len=:), allocatable :: errmsg
 
       integer :: is, i
@@ -241,18 +239,9 @@ contains
       ! hydrogen bonds
       call sysc(is)%sc%add_representation(reptype_atoms,repflavor_atoms_hbonds)
 
-      ! on-screen scoreboard text
-      call sysc(is)%sc%add_representation(reptype_text,repflavor_text,w%wc_irep_text)
-      associate (t => sysc(is)%sc%rep(w%wc_irep_text)%text%t(1))
-        t%placement = textpos_screen
-        t%winpos = (/0.5d0,0.90d0/)
-        t%scale = 1.5d0
-        t%scalewithzoom = .false.
-        t%infront = .true.
-      end associate
     end subroutine wc_start
 
-    !> Write the on-screen scoreboard
+    !> Re-arm the on-screen scoreboard as a transient text representation
     subroutine wc_update_scoreboard(is,score,eb,hasref)
       use tools_io, only: string
       integer, intent(in) :: is
@@ -260,19 +249,15 @@ contains
       logical, intent(in) :: hasref
 
       real(c_float) :: rgb(3)
+      character(len=:), allocatable :: str
 
-      if (w%wc_irep_text < 1 .or. w%wc_irep_text > sysc(is)%sc%nrep) return
-      if (sysc(is)%sc%rep(w%wc_irep_text)%text%ntext < 1) return
-
-      ! the always-on MD run rebuilds the draw lists every frame, so the new
-      ! string/color is picked up without forcing a rebuild here
       call wc_score_color(hasref,score,rgb)
       if (hasref) then
-         sysc(is)%sc%rep(w%wc_irep_text)%text%t(1)%str = string(score,'f',decimal=1)
+         str = string(score,'f',decimal=1)
       else
-         sysc(is)%sc%rep(w%wc_irep_text)%text%t(1)%str = string(eb,'f',decimal=2)
+         str = string(eb,'f',decimal=2)
       end if
-      sysc(is)%sc%rep(w%wc_irep_text)%text%t(1)%rgb = rgb
+      call sysc(is)%sc%show_transient_text(str,rgb,(/0.5d0,0.90d0/),1.5d0)
     end subroutine wc_update_scoreboard
 
   end subroutine draw_water_cluster

@@ -124,6 +124,7 @@ module scenes
      procedure :: clear_transient_representations => scene_clear_transient_representations
      procedure :: show_transient_axes => scene_show_transient_axes
      procedure :: show_transient_rotaxis => scene_show_transient_rotaxis
+     procedure :: show_transient_text => scene_show_transient_text
      procedure :: show_symelems => scene_show_symelems
      procedure :: overlay_zoom_factor => scene_overlay_zoom_factor
   end type scene
@@ -233,6 +234,13 @@ module scenes
        real*8, intent(in) :: rotdir(3)
        real*8, intent(in) :: rotlen
      end subroutine scene_show_transient_rotaxis
+     module subroutine scene_show_transient_text(s,str,rgb,winpos,scale)
+       class(scene), intent(inout), target :: s
+       character(len=*), intent(in) :: str
+       real(c_float), intent(in) :: rgb(3)
+       real*8, intent(in) :: winpos(2)
+       real*8, intent(in) :: scale
+     end subroutine scene_show_transient_text
      module subroutine scene_show_symelems(s,tag,n,kind,xorig,dir,order)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: tag

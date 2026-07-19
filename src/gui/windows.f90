@@ -216,7 +216,6 @@ module windows
      integer(c_int) :: wc_placement = 0 ! initial placement of the monomers (0 = random, 1 = row)
      logical :: wc_started = .false. ! whether the relaxation has been auto-started for wc_isys
      integer :: wc_isys = 0 ! the generated cluster system (0 = none yet)
-     integer :: wc_irep_text = 0 ! representation index of the on-screen score text (0 = none)
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window

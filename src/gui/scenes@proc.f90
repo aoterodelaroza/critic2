@@ -1976,6 +1976,34 @@ contains
 
   end subroutine scene_show_transient_rotaxis
 
+  !> Show a transient screen-anchored text label at viewport-fraction
+  !> position winpos with color rgb and size scale.
+  module subroutine scene_show_transient_text(s,str,rgb,winpos,scale)
+    use representations, only: reptype_text, repflavor_text, textpos_screen
+    class(scene), intent(inout), target :: s
+    character(len=*), intent(in) :: str
+    real(c_float), intent(in) :: rgb(3)
+    real*8, intent(in) :: winpos(2)
+    real*8, intent(in) :: scale
+
+    integer :: id
+
+    call s%clear_transient_representations()
+    id = s%add_transient_representation(reptype_text,repflavor_text)
+    if (id <= 0) return
+    if (.not.s%reptrans(id)%isinit) return
+    associate (t => s%reptrans(id)%text%t(1))
+      t%placement = textpos_screen
+      t%winpos = winpos
+      t%scale = scale
+      t%scalewithzoom = .false.
+      t%infront = .true.
+      t%str = str
+      t%rgb = rgb
+    end associate
+
+  end subroutine scene_show_transient_text
+
   !> Show a set of n symmetry elements as transient
   !> representations. Each element k is a plane
   !> (kind(k)=symop_kind_plane, dir = plane normal) or an axis

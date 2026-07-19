@@ -596,7 +596,6 @@ contains
     w%editrep_text_pick_idx = 0
     w%wc_started = .false.
     w%wc_isys = 0
-    w%wc_irep_text = 0
 
   end subroutine window_end
 
