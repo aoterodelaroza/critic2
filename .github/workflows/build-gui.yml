@@ -1,4 +1,4 @@
-name: test-nodata
+name: build-gui
 
 on: [push, pull_request, workflow_dispatch]
 
@@ -10,16 +10,21 @@ env:
   HOMEBREW_NO_GITHUB_API: "ON"
   HOMEBREW_NO_INSTALL_CLEANUP: "ON"
 
+# Build-only coverage of the ImGui/OpenGL/GLFW GUI. The job compiles and links
+# with ENABLE_GUI=ON; it never opens a window, so no display/GPU is needed.
+# HDF5 is left off (its Fortran-HL detection is the flakiest CI dependency);
+# Freetype is on because it is cheap and exercises the font-rendering paths.
+
 jobs:
-  test-nodata:
-    name: ${{ matrix.os }}, gfortran
+  build-gui:
+    name: ${{ matrix.os }}, gui
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -30,24 +35,24 @@ jobs:
         run: |
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test
           sudo apt-get update
-          sudo apt-get install -y gcc gfortran numdiff
+          sudo apt-get install -y gcc gfortran \
+            libglfw3-dev libglvnd-dev libgl1-mesa-dev libglu1-mesa-dev libfreetype-dev
           echo "CC=gcc" >> "$GITHUB_ENV"
           echo "FC=gfortran" >> "$GITHUB_ENV"
 
       - name: Install packages (macOS)
         if: contains(matrix.os,'macos')
         run: |
-          brew install gcc numdiff || brew upgrade gcc numdiff || true
-          # Homebrew gcc installs versioned binaries (gfortran-14, ...); fall
-          # back to the unversioned symlink if the glob finds nothing. Use the
-          # system clang for C (the standard macOS + Homebrew-gfortran combo).
+          # OpenGL is a system framework on macOS; only glfw and freetype are
+          # needed from Homebrew.
+          brew install gcc glfw freetype || brew upgrade gcc glfw freetype || true
           fc=$(ls "$(brew --prefix)"/bin/gfortran-* 2>/dev/null | sort -V | tail -n1)
           echo "CC=clang" >> "$GITHUB_ENV"
           echo "FC=${fc:-gfortran}" >> "$GITHUB_ENV"
 
       - name: Build
         run: |
-          cmake -Bbuild -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Debug -Wno-dev -DCMAKE_C_COMPILER="$CC" -DCMAKE_Fortran_COMPILER="$FC"
+          cmake -Bbuild -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER="$CC" -DCMAKE_Fortran_COMPILER="$FC" \
+            -DENABLE_GUI=ON -DUSE_FREETYPE=ON -DUSE_HDF5=OFF
           cmake --build build/ --target all
-          cd build
-          ctest -L nodata --output-on-failure

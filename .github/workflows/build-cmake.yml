@@ -12,19 +12,23 @@ env:
 
 jobs:
   build-cmake:
-    name: ${{ matrix.os }}, gfortran
+    name: ${{ matrix.os }}, ${{ matrix.config.name }}
     strategy:
       fail-fast: false
       matrix:
-#        os: [ubuntu-latest, macos-latest]
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, macos-latest]
+        config:
+          - name: default
+            flags: ""
+          - name: library
+            flags: "-DBUILD_LIBRARY=ON"
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install packages (ubuntu)
         if: contains(matrix.os,'ubuntu')
@@ -32,14 +36,21 @@ jobs:
           sudo add-apt-repository ppa:ubuntu-toolchain-r/test
           sudo apt-get update
           sudo apt-get install -y gcc gfortran
+          echo "CC=gcc" >> "$GITHUB_ENV"
+          echo "FC=gfortran" >> "$GITHUB_ENV"
 
-#      - name: Install packages (macOS)
-#        if: contains(matrix.os,'macos')
-#        run: |
-#          brew install gcc || brew upgrade gcc || true
+      - name: Install packages (macOS)
+        if: contains(matrix.os,'macos')
+        run: |
+          brew install gcc || brew upgrade gcc || true
+          # Homebrew gcc installs versioned binaries (gfortran-14, ...); fall
+          # back to the unversioned symlink if the glob finds nothing. Use the
+          # system clang for C (the standard macOS + Homebrew-gfortran combo).
+          fc=$(ls "$(brew --prefix)"/bin/gfortran-* 2>/dev/null | sort -V | tail -n1)
+          echo "CC=clang" >> "$GITHUB_ENV"
+          echo "FC=${fc:-gfortran}" >> "$GITHUB_ENV"
 
       - name: Build
         run: |
-          cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=gcc -DCMAKE_Fortran_COMPILER=gfortran
+          cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER="$CC" -DCMAKE_Fortran_COMPILER="$FC" ${{ matrix.config.flags }}
           cmake --build build/ --target all
-

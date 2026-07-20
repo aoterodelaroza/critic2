@@ -1,0 +1,36 @@
+name: build-windows
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  build-windows:
+    name: windows-latest, mingw-w64 (ucrt64)
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up MSYS2 (UCRT64)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          # UCRT64 gcc/gfortran use the POSIX thread model, which critic2
+          # requires: the win32-thread mingw variant crashes the threaded GUI.
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-gcc-fortran
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-openblas
+
+      - name: Build (CLI + library)
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_LIBRARY=ON
+          cmake --build build -j
