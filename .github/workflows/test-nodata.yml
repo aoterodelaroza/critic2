@@ -50,9 +50,11 @@ jobs:
           # whether that is a debug-flag artifact or a genuine runtime bug.
           echo "BUILD_TYPE=Release" >> "$GITHUB_ENV"
 
+      # BUILD_LIBRARY=ON so the libcritic2 C API test (tests/018_library) is
+      # built and run as part of the suite; it is skipped otherwise.
       - name: Build
         run: |
-          cmake -Bbuild -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -Wno-dev -DCMAKE_C_COMPILER="$CC" -DCMAKE_Fortran_COMPILER="$FC"
+          cmake -Bbuild -DBUILD_TESTING=ON -DBUILD_LIBRARY=ON -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -Wno-dev -DCMAKE_C_COMPILER="$CC" -DCMAKE_Fortran_COMPILER="$FC"
           cmake --build build/ --target all
 
       # macOS is allowed to fail this step only. critic2 builds, runs

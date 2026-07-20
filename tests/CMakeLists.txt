@@ -251,3 +251,9 @@ endif()
 foreach(dir ${TESTDIRS})
   add_subdirectory(${dir})
 endforeach()
+
+## the libcritic2 C API test is not a .cri bundle and needs the shared
+## library, so it is kept out of TESTDIRS and added only if it is built
+if (BUILD_LIBRARY)
+  add_subdirectory(018_library)
+endif()

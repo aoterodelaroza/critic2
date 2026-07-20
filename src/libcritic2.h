@@ -20,6 +20,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef LIBCRITIC2_H
 #define LIBCRITIC2_H
 
+// some prototypes below use bool, which is a keyword in C++ and in C23
+// but needs this header in older C. Included outside the extern "C"
+// block on purpose.
+#if !defined(__cplusplus) && __STDC_VERSION__ < 202311L
+#include <stdbool.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
