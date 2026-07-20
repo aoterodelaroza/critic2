@@ -142,12 +142,19 @@ module gui_main
   ! public procedures
   public :: gui_start
   public :: set_default_ui_settings
+  public :: show_tools_menu
 
   interface
      module subroutine gui_start()
      end subroutine gui_start
      module subroutine set_default_ui_settings()
      end subroutine set_default_ui_settings
+     module subroutine show_tools_menu(isys,idparent,ttshown,launchgeometry)
+       integer, intent(in) :: isys
+       integer, intent(in) :: idparent
+       logical, intent(inout) :: ttshown
+       logical, intent(inout), optional :: launchgeometry
+     end subroutine show_tools_menu
   end interface
 
 end module gui_main

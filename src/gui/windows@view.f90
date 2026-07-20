@@ -77,11 +77,11 @@ contains
     use global, only: dunit0, iunit_ang
     use systems, only: sysc, sys, sys_init, nsys, ok_system, are_threads_running
     use gui_main, only: g, fontsize, lockbehavior, tree_select_updates_view,&
-       ColorBlack, ColorWhite, ColorClearTransparent
+       ColorBlack, ColorWhite, ColorClearTransparent, show_tools_menu
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: i, j, k, nrep, is, icel, ineq, iaux
+    integer :: i, j, k, nrep, is, icel, ineq
     type(ImVec2) :: szavail, sz0, sz1, szero, pos
     type(ImVec4) :: tintcol, bgcol
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
@@ -629,36 +629,12 @@ contains
           w%forcerender = .true.
     end if
 
-    ! export image
+    ! tools menu
     ldum = iw_button("Tools",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft,&
        disabled=.not.associated(w%sc))
     call iw_tooltip("Show various tools operating on the view of this system",ttshown)
     if (ok) then
-       enabled = associated(w%sc)
-       if (iw_menuitem("Export to Image...",enabled=enabled)) &
-          iaux = stack_create_window(wintype_exportimage,.true.,idparent=w%id,orraise=-1)
-       call iw_tooltip("Export the current view to an image file (png)",ttshown)
-
-       call igSeparator()
-
-       if (iw_menuitem("View/Edit Geometry...",enabled=enabled)) &
-          iaux = stack_create_window(wintype_geometry,.true.,isys=w%view_selected,orraise=-1)
-       call iw_tooltip("View and edit the atomic positions, bonds, etc.",ttshown)
-
-       if (iw_menuitem("Recalculate bonds",BIND_RECALC_BONDS,enabled=enabled)) &
-          call sysc(w%view_selected)%rebond()
-       call iw_tooltip("Recompute the bonds/connectivity for this system",ttshown)
-
-       call igSeparator()
-
-       if (iw_menuitem("Vibrations...",enabled=enabled)) &
-          iaux = stack_create_window(wintype_vibrations,.true.,idparent=w%id,orraise=-1)
-       call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
-
-       if (iw_menuitem("Dynamics...",enabled=enabled)) &
-          iaux = stack_create_window(wintype_dynamics,.true.,idparent=w%id,orraise=-1)
-       call iw_tooltip("Run an interactive molecular-dynamics simulation: animate the system at a &
-          &given temperature and drag atoms with the mouse",ttshown)
+       call show_tools_menu(w%view_selected,w%id,ttshown)
        call igEndPopup()
     end if
 

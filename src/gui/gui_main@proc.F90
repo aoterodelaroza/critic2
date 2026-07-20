@@ -543,6 +543,65 @@ contains
 
   end subroutine set_default_ui_settings
 
+  !> Show the contents of the tools menu for system isys. The caller is
+  !> responsible for opening and closing the menu/popup. Child windows
+  !> created by the menu items are given idparent as their parent
+  !> window. ttshown is the tooltip flag. If launchgeometry is present,
+  !> the geometry window is not created here; instead, launchgeometry is
+  !> set to .true. and the caller is responsible for creating it.
+  module subroutine show_tools_menu(isys,idparent,ttshown,launchgeometry)
+    use interfaces_cimgui, only: igSeparator
+    use systems, only: sysc, sys_init, ok_system
+    use windows, only: stack_create_window, wintype_exportimage, wintype_geometry,&
+       wintype_vibrations, wintype_dynamics
+    use utils, only: iw_tooltip, iw_menuitem
+    use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS
+    integer, intent(in) :: isys
+    integer, intent(in) :: idparent
+    logical, intent(inout) :: ttshown
+    logical, intent(inout), optional :: launchgeometry
+
+    integer(c_int) :: idum
+    logical :: enabled, ok
+
+    enabled = ok_system(isys,sys_init)
+
+    ! export the view to an image file
+    if (iw_menuitem("Export to Image...",enabled=enabled)) &
+       idum = stack_create_window(wintype_exportimage,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Export the current view to an image file (png)",ttshown)
+
+    call igSeparator()
+
+    ! view/edit the geometry
+    ok = iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=enabled)
+    if (present(launchgeometry)) then
+       launchgeometry = launchgeometry .or. ok
+    elseif (ok) then
+       idum = stack_create_window(wintype_geometry,.true.,isys=isys,orraise=-1)
+    end if
+    call iw_tooltip("View and edit the atomic positions, bonds, symmetry...",ttshown)
+
+    ! recalculate the bonds
+    if (iw_menuitem("Recalculate bonds",BIND_RECALC_BONDS,enabled=enabled)) &
+       call sysc(isys)%rebond()
+    call iw_tooltip("Recompute the bonds/connectivity for this system",ttshown)
+
+    call igSeparator()
+
+    ! vibrations
+    if (iw_menuitem("Vibrations...",enabled=enabled)) &
+       idum = stack_create_window(wintype_vibrations,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
+
+    ! interactive dynamics
+    if (iw_menuitem("Dynamics...",enabled=enabled)) &
+       idum = stack_create_window(wintype_dynamics,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Run an interactive molecular-dynamics simulation: animate the system at a &
+       &given temperature and drag atoms with the mouse",ttshown)
+
+  end subroutine show_tools_menu
+
   !xx! private procedures
 
   ! Process the command-line arguments. Skip the options and load the files.
@@ -573,13 +632,12 @@ contains
        iwin_console_output, iwin_builder, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
-       wintype_about, wintype_geometry, wintype_vibrations, wintype_dynamics, wintype_exportimage,&
-       wintype_water_cluster
+       wintype_about, wintype_geometry, wintype_water_cluster
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
        BIND_EDITSELECT_DESELECT, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO,&
-       BIND_RECALC_BONDS, get_bind_keyname, is_bind_event
+       get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
     use param, only: isformat_write_from_read, isformat_w_unknown
@@ -824,34 +882,10 @@ contains
           ttshown = .false.
        end if
 
-       ! Windows
+       ! Tools menu
        str1 = "Tools" // c_null_char
        if (igBeginMenu(c_loc(str1),.true._c_bool)) then
-          if (iw_menuitem("Export to Image...",enabled=isysvok)) &
-             idum = stack_create_window(wintype_exportimage,.true.,idparent=iwin_view,orraise=-1)
-          call iw_tooltip("Export the current view to an image file (png)",ttshown)
-
-          call igSeparator()
-
-          launch(d_geometry) = launch(d_geometry) .or. &
-             iw_menuitem("View/Edit Geometry...",BIND_GEOMETRY,enabled=isysvok)
-          call iw_tooltip("View and edit the atomic positions, bonds, symmetry...",ttshown)
-
-          if (iw_menuitem("Recalculate bonds",BIND_RECALC_BONDS,enabled=isysvok)) &
-             call sysc(isysv)%rebond()
-          call iw_tooltip("Recompute the bonds/connectivity for this system",ttshown)
-
-          call igSeparator()
-
-          if (iw_menuitem("Vibrations...",enabled=isysvok)) &
-             idum = stack_create_window(wintype_vibrations,.true.,idparent=iwin_view,orraise=-1)
-          call iw_tooltip("Display an animation showing the atomic vibrations for this system",ttshown)
-
-          if (iw_menuitem("Dynamics...",enabled=isysvok)) &
-             idum = stack_create_window(wintype_dynamics,.true.,idparent=iwin_view,orraise=-1)
-          call iw_tooltip("Run an interactive molecular-dynamics simulation: animate the system at a &
-             &given temperature and drag atoms with the mouse",ttshown)
-
+          call show_tools_menu(isysv,iwin_view,ttshown,launchgeometry=launch(d_geometry))
           call igEndMenu()
        else
           ttshown = .false.
