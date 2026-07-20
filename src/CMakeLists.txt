@@ -127,7 +127,7 @@ endfunction()
 add_subdirectory(cubpack)
 link_bundled_lib(cubpack)
 ## the core uses cubpack modules
-add_dependencies(critic2_core cubpack)
+target_link_libraries(critic2_core PUBLIC cubpack)
 
 ## openmp
 if (OPENMP_FOUND)
@@ -161,7 +161,7 @@ link_bundled_lib(spglib)
 add_subdirectory(json-fortran)
 link_bundled_lib(json-fortran)
 ## the core uses json-fortran modules
-add_dependencies(critic2_core json-fortran)
+target_link_libraries(critic2_core PUBLIC json-fortran)
 
 ## libxc
 if (USE_LIBXC AND LIBXC_FOUND)

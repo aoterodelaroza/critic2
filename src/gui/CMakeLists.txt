@@ -63,6 +63,13 @@ if (GLFW3_INCLUDE_DIR)
   target_include_directories(fgui PRIVATE "${GLFW3_INCLUDE_DIR}")
 endif()
 
+## On macOS, gl3w.c loads GL entry points through the CoreFoundation bundle
+## API (CFBundleGetFunctionPointerForName, ...), so CoreFoundation must be
+## linked explicitly; the OpenGL framework does not pull it in.
+if (APPLE)
+  target_link_libraries(fgui PUBLIC "-framework CoreFoundation")
+endif()
+
 ## threads (tinycthread)
 if (USE_GUI_THREADS)
   target_compile_definitions(fgui PRIVATE _THREADS)
