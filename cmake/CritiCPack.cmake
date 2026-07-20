@@ -1,12 +1,4 @@
-## CPack configuration for the critic2 installation packages. Included at
-## the end of the top-level CMakeLists.txt. Typical use, from the build
-## directory of a Release build:
-##   cpack            # all default generators for this platform
-##   cpack -G TGZ     # a specific generator
-## Generators: Linux TGZ (+DEB/RPM when the tools are present), macOS
-## TGZ/DragNDrop, Windows ZIP (+NSIS when makensis is present; for
-## cross-compilation install the nsis package on the Linux host).
-
+## CPack configuration for the critic2 installation packages.
 set(CPACK_PACKAGE_NAME "critic2")
 set(CPACK_PACKAGE_VENDOR "Alberto Otero de la Roza")
 set(CPACK_PACKAGE_CONTACT "${critic2_EMAIL}")
@@ -17,7 +9,7 @@ set(CPACK_PACKAGE_INSTALL_DIRECTORY "critic2")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/COPYING")
 set(CPACK_STRIP_FILES ON)
 
-## default generators per platform, overridable with -DCPACK_GENERATOR=...
+## default generators per platform
 if (NOT CPACK_GENERATOR)
   if (WIN32)
     set(CPACK_GENERATOR ZIP)
@@ -63,17 +55,34 @@ set(CPACK_NSIS_URL_INFO_ABOUT "${critic2_URL}")
 ## embedded in its executable. On a GUI build there are two binaries -- the
 ## windowed critic2-gui.exe (the plain "critic2") and the console critic2.exe
 ## ("critic2 (console)"). A CLI-only build ships the single console shortcut.
+## CPACK_CREATE_DESKTOP_LINKS names the subset that also get a desktop icon
+## (gated on the "Create desktop icon" checkbox); on a GUI build that is both,
+## so together with the software-rendering entry below all three land on the
+## desktop and in the Start Menu.
 if (WIN32 AND ENABLE_GUI)
   set(CPACK_PACKAGE_EXECUTABLES
     "critic2-gui" "critic2"
     "critic2"     "critic2 (console)")
-  set(CPACK_CREATE_DESKTOP_LINKS "critic2-gui")
+  set(CPACK_CREATE_DESKTOP_LINKS "critic2-gui" "critic2")
 elseif (WIN32)
   set(CPACK_PACKAGE_EXECUTABLES "critic2" "critic2")
+  set(CPACK_CREATE_DESKTOP_LINKS "critic2")
 endif()
 
-## Always install the data files
-set(CPACK_COMPONENT_DATA_REQUIRED ON)
-set(CPACK_COMPONENT_DATA_DISPLAY_NAME "Data files")
+## Software-rendering shortcut.
+if (WIN32 AND CRITIC2_HAVE_MESA)
+  set(CPACK_NSIS_CREATE_ICONS_EXTRA
+    "CreateShortCut '$SMPROGRAMS\\$STARTMENU_FOLDER\\critic2 (software rendering).lnk' '$INSTDIR\\critic2 (software rendering).exe'
+  StrCmp '$INSTALL_DESKTOP' '1' 0 +2
+    CreateShortCut '$DESKTOP\\critic2 (software rendering).lnk' '$INSTDIR\\critic2 (software rendering).exe'")
+  set(CPACK_NSIS_DELETE_ICONS_EXTRA
+    "Delete '$SMPROGRAMS\\$MUI_TEMP\\critic2 (software rendering).lnk'
+  StrCmp '$INSTALL_DESKTOP' '1' 0 +2
+    Delete '$DESKTOP\\critic2 (software rendering).lnk'")
+endif()
+
+## Every component (program, data files) is mandatory: drop the
+## component-selection page altogether.
+set(CPACK_MONOLITHIC_INSTALL ON)
 
 include(CPack)

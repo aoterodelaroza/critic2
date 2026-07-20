@@ -303,6 +303,9 @@ if (WIN32 AND ENABLE_GUI AND MESA_DIR)
     message(WARNING "MESA_DIR='${MESA_DIR}' has no DLLs; the software OpenGL build will not be bundled")
   endif()
 endif()
+## visible to the top-level packaging config (cmake/CritiCPack.cmake), which
+## adds the "critic2 (software rendering)" installer shortcut when set
+set(CRITIC2_HAVE_MESA ${CRITIC2_HAVE_MESA} PARENT_SCOPE)
 
 ## Portable launcher executables at the package root, so users need not dig into
 ## bin/ (and never run the bin-mesa copy directly, which needs bin/ for its shared
