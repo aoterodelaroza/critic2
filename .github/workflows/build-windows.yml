@@ -4,9 +4,18 @@ on: [push, pull_request, workflow_dispatch]
 
 jobs:
   build-windows:
-    name: windows-latest, mingw-w64 (ucrt64)
+    name: windows-latest, ucrt64, ${{ matrix.config.name }}
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - name: cli
+            flags: "-DBUILD_LIBRARY=ON"
+          - name: gui
+            flags: "-DENABLE_GUI=ON -DUSE_FREETYPE=ON -DUSE_HDF5=OFF"
 
     defaults:
       run:
@@ -23,14 +32,22 @@ jobs:
           update: true
           # UCRT64 gcc/gfortran use the POSIX thread model, which critic2
           # requires: the win32-thread mingw variant crashes the threaded GUI.
+          # glfw and freetype are only needed by the gui config, but they are
+          # small and installing them unconditionally keeps this list simple.
           install: >-
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-gcc-fortran
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-openblas
+            mingw-w64-ucrt-x86_64-glfw
+            mingw-w64-ucrt-x86_64-freetype
 
-      - name: Build (CLI + library)
+      # The gui config is build-only: it compiles and links the ImGui/OpenGL
+      # stack and the tinycthread POSIX (winpthreads) backend that WIN32
+      # selects, without opening a window. HDF5 is left off, as on the other
+      # GUI jobs, because its Fortran-HL detection is the flakiest dependency.
+      - name: Build (${{ matrix.config.name }})
         run: |
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_LIBRARY=ON
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release ${{ matrix.config.flags }}
           cmake --build build -j

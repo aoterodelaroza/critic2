@@ -221,7 +221,7 @@ if (ENABLE_GUI)
   endif()
 
   ## the GUI reads the core module files
-  add_dependencies(fgui critic2_core)
+  target_link_libraries(fgui PUBLIC critic2_core)
 
   ## add the HAVE_GUI definition
   target_compile_definitions(critic2_defs INTERFACE HAVE_GUI)
