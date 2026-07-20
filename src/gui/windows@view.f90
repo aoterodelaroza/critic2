@@ -391,6 +391,39 @@ contains
           end if
           call iw_tooltip("Perspective projection, with distant objects appearing smaller",ttshown)
 
+          ! camera lock: share the camera position and orientation between
+          ! systems (only meaningful in the main view, which is the one that
+          ! follows the tree selection)
+          if (w%ismain) then
+             call iw_text("Camera Lock",highlight=.true.)
+             if (iw_radiobutton("Lock All##camlock",int=lockbehavior,intval=2_c_int)) then
+                do k = 1, nsys
+                   sysc(k)%sc%lockedcam = -1
+                end do
+             end if
+             call iw_tooltip("Use the same camera position for all loaded systems",ttshown)
+
+             if (iw_radiobutton("SCF Only##camlock",int=lockbehavior,intval=1_c_int,sameline=.true.)) then
+                do k = 1, nsys
+                   if (sysc(k)%collapse < 0) then
+                      sysc(k)%sc%lockedcam = k
+                   elseif (sysc(k)%collapse > 0) then
+                      sysc(k)%sc%lockedcam = sysc(k)%collapse
+                   else
+                      sysc(k)%sc%lockedcam = 0
+                   end if
+                end do
+             end if
+             call iw_tooltip("Use the same camera position for all SCF iterations of the same system",ttshown)
+
+             if (iw_radiobutton("Unlock All##camlock",int=lockbehavior,intval=0_c_int,sameline=.true.)) then
+                do k = 1, nsys
+                   sysc(k)%sc%lockedcam = 0
+                end do
+             end if
+             call iw_tooltip("No systems share the same camera position",ttshown)
+          end if
+
           ! scene appearance (atom border color is set per representation in
           ! the edit-representations window)
           call iw_text("Appearance",highlight=.true.)
@@ -638,48 +671,8 @@ contains
        call igEndPopup()
     end if
 
-    ! camera lock
-    if (w%ismain) then
-       ldum = iw_button("Cam-Lock",disabled=.not.associated(w%sc),sameline=.true.,&
-          popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
-       if (ok) then
-          if (iw_menuitem("Lock All",selected=(lockbehavior==2))) then
-             lockbehavior = 2
-             do k = 1, nsys
-                sysc(k)%sc%lockedcam = -1
-             end do
-          end if
-          call iw_tooltip("Lock the camera position for all loaded systems",ttshown)
-
-          if (iw_menuitem("Lock SCF Iterations Only",selected=(lockbehavior==1))) then
-             lockbehavior = 1
-             do k = 1, nsys
-                if (sysc(k)%collapse < 0) then
-                   sysc(k)%sc%lockedcam = k
-                elseif (sysc(k)%collapse > 0) then
-                   sysc(k)%sc%lockedcam = sysc(k)%collapse
-                else
-                   sysc(k)%sc%lockedcam = 0
-                end if
-             end do
-          end if
-          call iw_tooltip("Lock the camera position only for SCF iterations of the same system",ttshown)
-
-          if (iw_menuitem("Unlock All",selected=(lockbehavior==0))) then
-             lockbehavior = 0
-             do k = 1, nsys
-                sysc(k)%sc%lockedcam = 0
-             end do
-          end if
-          call iw_tooltip("Do not lock the camera position for any system",ttshown)
-
-          call igEndPopup()
-       end if
-       call iw_tooltip("Lock the camera position and orientation for multiple systems",ttshown)
-    end if
-
     ! the button for new alternate view
-    if (iw_button("+",disabled=.not.associated(w%sc),sameline=.true.)) then
+    if (iw_button("New",disabled=.not.associated(w%sc),sameline=.true.)) then
        idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
        win(idum)%sc = w%sc
        ! the value copy aliased the source scene's GL handles; detach so the new
