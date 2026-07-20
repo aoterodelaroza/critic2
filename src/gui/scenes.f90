@@ -54,10 +54,6 @@ module scenes
      real(c_float) :: scenexmin(3) ! scene xmin (world coords)
      real(c_float) :: scenexmax(3) ! scene xmax (world coords)
      integer(c_int) :: nc(3) ! number of unit cells drawn (global +/-)
-     ! object resolutions
-     integer(c_int) :: atom_res ! atom resolution
-     integer(c_int) :: bond_res ! bond resolution
-     integer(c_int) :: uc_res ! unit cell resolution
      ! scene appearance settings
      real(c_float) :: bgcolor(3) ! background color
      ! scene transformation matrices and camera options

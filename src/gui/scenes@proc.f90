@@ -172,11 +172,6 @@ contains
     s%anim_speed = anim_speed_default
     s%anim_amplitude = anim_amplitude_default
 
-    ! resolutions
-    s%atom_res = 4
-    s%bond_res = 1
-    s%uc_res = 1
-
     ! appearance default settings
     call s%set_style_defaults()
 

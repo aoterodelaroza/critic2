@@ -391,25 +391,6 @@ contains
           end if
           call iw_tooltip("Perspective projection, with distant objects appearing smaller",ttshown)
 
-          ! object resolution
-          call iw_text("Object Resolution",highlight=.true.)
-          ires = w%sc%atom_res - 1
-          call iw_combo_simple("Atoms##atomresselect","1: Carnby"//c_null_char//"2: Rough"//c_null_char//&
-             "3: Normal"//c_null_char//"4: Good"//c_null_char//"5: Amazing"//c_nulL_char,ires)
-          call iw_tooltip("Set the resolution of the spheres representing the atoms",ttshown)
-          if (ires + 1 /= w%sc%atom_res) then
-             w%sc%atom_res = ires + 1
-             chrender = .true.
-          end if
-          ires = w%sc%bond_res - 1
-          call iw_combo_simple("Bonds##bondresselect","1: Rough" // c_null_char // "2: Normal" // c_null_char //&
-             "3: Good" // c_null_char,ires,sameline=.true.)
-          call iw_tooltip("Set the resolution of the cylinders representing the bonds",ttshown)
-          if (ires + 1 /= w%sc%bond_res) then
-             w%sc%bond_res = ires + 1
-             chrender = .true.
-          end if
-
           ! scene appearance (atom border color is set per representation in
           ! the edit-representations window)
           call iw_text("Appearance",highlight=.true.)
@@ -447,8 +428,6 @@ contains
                    ! rest
                    if (.not.sys(w%view_selected)%c%ismolecule.and..not.sys(i)%c%ismolecule) &
                       sysc(i)%sc%nc = w%sc%nc
-                   sysc(i)%sc%atom_res = w%sc%atom_res
-                   sysc(i)%sc%bond_res = w%sc%bond_res
                    sysc(i)%sc%bgcolor = w%sc%bgcolor
                    sysc(i)%sc%camresetdist = w%sc%camresetdist
                    sysc(i)%sc%isortho = w%sc%isortho
