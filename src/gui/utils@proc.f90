@@ -1353,6 +1353,86 @@ contains
 
   end function iw_icon_button
 
+  !> Draw an icon toggle button of standard frame height: the tinted
+  !> texture tex on a button whose background is highlighted while
+  !> state is on and transparent while off. If the texture is
+  !> unavailable (tex==0), a text button with the fallback glyph is
+  !> drawn instead, so the control keeps working with no icon assets.
+  !> Clicking flips state; returns .true. when that happens. If state
+  !> is absent, the button is a momentary flat button (always drawn in
+  !> the off style). If popupcontext and popupflags are given, open a
+  !> context popup attached to the button and return whether it is
+  !> open. If danger, tint the icon red (fallback: danger button
+  !> color).
+  module function iw_icon_togglebutton(strid,tex,fallback,state,disabled,sameline,&
+     popupcontext,popupflags,danger) result(changed)
+    use interfaces_cimgui
+    use gui_main, only: g, fontsize, ColorDangerButton
+    character(len=*,kind=c_char), intent(in) :: strid
+    integer(c_int), intent(in) :: tex
+    character(len=*,kind=c_char), intent(in) :: fallback
+    logical, intent(inout), optional :: state
+    logical, intent(in), optional :: disabled
+    logical, intent(in), optional :: sameline
+    logical, intent(inout), optional :: popupcontext
+    integer(c_int), intent(in), optional :: popupflags
+    logical, intent(in), optional :: danger
+    logical :: changed
+
+    logical :: disabled_, danger_, state_
+    type(ImVec2) :: sz, uv0, uv1
+    type(ImVec4) :: bgcol, tintcol
+    character(kind=c_char,len=:), allocatable, target :: strl
+
+    disabled_ = .false.
+    if (present(disabled)) disabled_ = disabled
+    danger_ = .false.
+    if (present(danger)) danger_ = danger
+    state_ = .false.
+    if (present(state)) state_ = state
+    if (present(sameline)) then
+       if (sameline) call igSameLine(0._c_float,-1._c_float)
+    end if
+
+    ! button background: pressed-button color when on, transparent when off
+    if (state_) then
+       call igPushStyleColor_Vec4(ImGuiCol_Button,g%Style%Colors(ImGuiCol_ButtonActive+1))
+    else
+       bgcol = ImVec4(0._c_float,0._c_float,0._c_float,0._c_float)
+       call igPushStyleColor_Vec4(ImGuiCol_Button,bgcol)
+    end if
+    call igBeginDisabled(logical(disabled_,c_bool))
+    if (tex /= 0) then
+       sz = ImVec2(fontsize%y,fontsize%y)
+       uv0 = ImVec2(0._c_float,0._c_float)
+       uv1 = ImVec2(1._c_float,1._c_float)
+       bgcol = ImVec4(0._c_float,0._c_float,0._c_float,0._c_float)
+       if (danger_) then
+          tintcol = ImVec4(0.86_c_float,0.20_c_float,0.18_c_float,1._c_float)
+       else
+          tintcol = ImVec4(1._c_float,1._c_float,1._c_float,1._c_float)
+       end if
+       strl = strid // c_null_char
+       changed = logical(igImageButtonEx(igGetID_Str(c_loc(strl)),int(tex,c_intptr_t),sz,uv0,uv1,&
+          g%Style%FramePadding,bgcol,tintcol))
+    else
+       sz = ImVec2(0._c_float,0._c_float)
+       strl = fallback // "###" // strid // c_null_char
+       if (danger_) &
+          call igPushStyleColor_Vec4(ImGuiCol_Button,ColorDangerButton)
+       changed = logical(igButton(c_loc(strl),sz))
+       if (danger_) &
+          call igPopStyleColor(1)
+    end if
+    call igEndDisabled()
+    call igPopStyleColor(1)
+    if (changed .and. present(state)) state = .not.state
+    ! attach the context popup to the last item (the button in either branch)
+    if (present(popupcontext) .and. present(popupflags)) &
+       popupcontext = igBeginPopupContextItem(c_null_ptr,popupflags)
+
+  end function iw_icon_togglebutton
+
   !> Draw the standard close button (a red X icon) with the given id.
   !> Returns .true. when clicked.
   module function iw_close_button(strid) result(pressed)

@@ -70,12 +70,16 @@ contains
        repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
        repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic,&
        repflavor_axes, repflavor_atoms_polyhedra, repflavor_symelem, reptype_text, repflavor_text
-    use utils, only: iw_calcheight, iw_calcwidth, iw_clamp_color3, iw_combo_simple,&
-       iw_setposx_fromend, iw_checkbox, iw_coloredit, iw_menuitem, iw_dragfloat_realc,&
-       iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton
+    use utils, only: iw_calcheight, iw_calcwidth,&
+       iw_setposx_fromend, iw_coloredit, iw_menuitem, iw_dragfloat_realc,&
+       iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton, iw_icon_togglebutton
+    use icons, only: icon_tex, icon_ui_atoms, icon_ui_bonds, icon_ui_labels, icon_ui_cell,&
+       icon_ui_polyhedra, icon_ui_label_num, icon_ui_label_wyck, icon_ui_camera,&
+       icon_ui_bgcolor, icon_ui_applyall, icon_ui_reset, icon_ui_draw, icon_ui_objects,&
+       icon_ui_tools, icon_ui_newview
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
-    use systems, only: sysc, sys, sys_init, nsys, ok_system, are_threads_running
+    use systems, only: sysc, sys, sys_init, nsys, ok_system
     use gui_main, only: g, fontsize, lockbehavior, tree_select_updates_view,&
        ColorBlack, ColorWhite, ColorClearTransparent, show_tools_menu
     use tools_io, only: string
@@ -88,10 +92,10 @@ contains
     character(len=:), allocatable, target :: msg
     logical(c_bool) :: is_selected
     logical :: hover, chbuild, chrender, goodsys, ldum, ok, ismol, isatom, isbond
-    logical :: isuc, islabelsl, needpick, enabled, ispoly
+    logical :: isuc, islabelsl, needpick, enabled, ispoly, symenabled
     integer :: islabels
     logical :: ch
-    integer(c_int) :: flags, nc(3), ires, idum
+    integer(c_int) :: flags, idum
     integer(c_int) :: newside, vside
     real(c_float) :: scal, width, rgba(4)
     real(c_float) :: rscale, tmpuv
@@ -188,16 +192,7 @@ contains
        end if
        if (is_bind_event(BIND_VIEW_CYCLE_LABELS)) then
           changedisplay(3) = .true.
-          if (islabels == -1) then ! no labels -> atom-name
-             islabels = 1
-          elseif (islabels == 1) then ! atom-name -> celatom
-             islabels = 2
-          elseif (islabels == 2 .and..not.sys(w%view_selected)%c%ismolecule) then ! celatom -> wyckoff
-             islabels = 8
-          else ! * -> no labels
-             islabels = -1
-          end if
-          islabelsl = (islabels >= 0)
+          call cycle_labels()
        end if
        if (is_bind_event(BIND_VIEW_TOGGLE_CELL)) then
           changedisplay(4) = .true.
@@ -210,129 +205,110 @@ contains
        if (is_bind_event(BIND_RECALC_BONDS)) &
           call sysc(w%view_selected)%rebond()
        if (any(changedisplay)) then
-          do i = 1, w%sc%nrep
-             if (w%sc%rep(i)%isinit) then
-                if (w%sc%rep(i)%type == reptype_atoms) then
-                   if (changedisplay(1)) w%sc%rep(i)%atoms%display = isatom
-                   if (changedisplay(2)) w%sc%rep(i)%bonds%display = isbond
-                   if (changedisplay(5)) w%sc%rep(i)%poly%display = ispoly
-                   if (changedisplay(3) .and. w%sc%rep(i)%flavor/=repflavor_atoms_criticalpoints .and.&
-                      w%sc%rep(i)%flavor/=repflavor_atoms_gradientpaths) then
-                      w%sc%rep(i)%labels%display = islabelsl
-                      if (islabelsl) then
-                         w%sc%rep(i)%labels%type = islabels
-                         call w%sc%rep(i)%labels%style%reset(w%sc%rep(i))
-                      end if
-                   end if
-                elseif (w%sc%rep(i)%type == reptype_unitcell) then
-                   if (changedisplay(4)) w%sc%rep(i)%shown = isuc
-                end if
-             end if
-          end do
+          call apply_displayflags(atoms=changedisplay(1),bonds=changedisplay(2),&
+             labels=changedisplay(3),cell=changedisplay(4),poly=changedisplay(5),&
+             settype=.true.)
           chbuild = .true.
        end if
     end if
 
-    ! scene menu
-    str1="##viewscenebutton" // c_null_char
-    if (iw_button("Scene",disabled=.not.associated(w%sc))) then
-       call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
+    ! toolbar: display toggles (atoms, bonds, labels, cell, polyhedra)
+    enabled = associated(w%sc)
+    ismol = .false.
+    if (goodsys) ismol = sys(w%view_selected)%c%ismolecule
+
+    if (iw_icon_togglebutton("atomstoggle",icon_tex(icon_ui_atoms),"At",isatom,disabled=.not.enabled)) then
+       call apply_displayflags(atoms=.true.)
+       chbuild = .true.
     end if
-    if (associated(w%sc)) then
-       if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
-          ! display shortcuts
-          call iw_text("Display Shortcuts",highlight=.true.)
-          if (iw_checkbox("Atoms##atomsshortcut",isatom)) then
-             do i = 1, w%sc%nrep
-                if (w%sc%rep(i)%isinit) then
-                   if (w%sc%rep(i)%type == reptype_atoms) then
-                      w%sc%rep(i)%atoms%display = isatom
-                   end if
-                end if
-             end do
-             chbuild = .true.
-          end if
-          call iw_tooltip("Toggle display atoms in all objects ("//&
-             trim(get_bind_keyname(BIND_VIEW_TOGGLE_ATOMS)) // ").",ttshown)
+    call iw_tooltip("Toggle display atoms in all objects ("//&
+       trim(get_bind_keyname(BIND_VIEW_TOGGLE_ATOMS)) // ").",ttshown)
 
-          if (iw_checkbox("Bonds##bondsshortcut",isbond,sameline=.true.)) then
-             do i = 1, w%sc%nrep
-                if (w%sc%rep(i)%isinit) then
-                   if (w%sc%rep(i)%type == reptype_atoms) then
-                      w%sc%rep(i)%bonds%display = isbond
-                   end if
-                end if
-             end do
-             chbuild = .true.
-          end if
-          call iw_tooltip("Toggle display bonds in all objects ("//&
-             trim(get_bind_keyname(BIND_VIEW_TOGGLE_BONDS)) // ").",ttshown)
+    if (iw_icon_togglebutton("bondstoggle",icon_tex(icon_ui_bonds),"Bn",isbond,disabled=.not.enabled,&
+       sameline=.true.)) then
+       call apply_displayflags(bonds=.true.)
+       chbuild = .true.
+    end if
+    call iw_tooltip("Toggle display bonds in all objects ("//&
+       trim(get_bind_keyname(BIND_VIEW_TOGGLE_BONDS)) // ").",ttshown)
 
-          if (iw_checkbox("Labels##labelshortcut",islabelsl,sameline=.true.)) then
-             do i = 1, w%sc%nrep
-                if (w%sc%rep(i)%isinit) then
-                   if (w%sc%rep(i)%type == reptype_atoms) then
-                      w%sc%rep(i)%labels%display = islabelsl
-                   end if
-                end if
-             end do
-             chbuild = .true.
-          end if
-          call iw_tooltip("Toggle display labels in all objects ("//&
-             trim(get_bind_keyname(BIND_VIEW_CYCLE_LABELS)) // ").",ttshown)
+    ! labels button: cycle through the label types, with an icon showing
+    ! the current type (A = atom name, # = atom index, 4a = Wyckoff site).
+    ! The widget's flip of islabelsl is irrelevant: cycle_labels recomputes it.
+    idum = icon_ui_labels
+    if (islabels == 2) then
+       idum = icon_ui_label_num
+    elseif (islabels == 8) then
+       idum = icon_ui_label_wyck
+    end if
+    if (iw_icon_togglebutton("labelstoggle",icon_tex(idum),"Lb",islabelsl,disabled=.not.enabled,&
+       sameline=.true.)) then
+       call cycle_labels()
+       call apply_displayflags(labels=.true.,settype=.true.)
+       chbuild = .true.
+    end if
+    call iw_tooltip("Cycle the labels in all objects: none, atom name, atom index, Wyckoff site ("//&
+       trim(get_bind_keyname(BIND_VIEW_CYCLE_LABELS)) // ").",ttshown)
 
-          if (.not.sys(w%view_selected)%c%ismolecule) then
-             if (iw_checkbox("Unit Cell##ucshortcut",isuc,sameline=.true.)) then
-                do i = 1, w%sc%nrep
-                   if (w%sc%rep(i)%isinit) then
-                      if (w%sc%rep(i)%type == reptype_unitcell) then
-                         w%sc%rep(i)%shown = isuc
-                      end if
-                   end if
-                end do
-                chbuild = .true.
-             end if
-             call iw_tooltip("Toggle display unit cell in all objects ("//&
-                trim(get_bind_keyname(BIND_VIEW_TOGGLE_CELL)) // ").",ttshown)
-          end if
+    if (.not.enabled .or. .not.ismol) then
+       if (iw_icon_togglebutton("celltoggle",icon_tex(icon_ui_cell),"Cl",isuc,disabled=.not.enabled,&
+          sameline=.true.)) then
+          call apply_displayflags(cell=.true.)
+          chbuild = .true.
+       end if
+       call iw_tooltip("Toggle display unit cell in all objects ("//&
+          trim(get_bind_keyname(BIND_VIEW_TOGGLE_CELL)) // ").",ttshown)
+    end if
 
-          if (iw_checkbox("Polyhedra##polyshortcut",ispoly,sameline=.true.)) then
-             do i = 1, w%sc%nrep
-                if (w%sc%rep(i)%isinit) then
-                   if (w%sc%rep(i)%type == reptype_atoms) then
-                      w%sc%rep(i)%poly%display = ispoly
-                   end if
-                end if
-             end do
-             chbuild = .true.
-          end if
-          call iw_tooltip("Toggle display polyhedra in all objects ("//&
-             trim(get_bind_keyname(BIND_VIEW_TOGGLE_POLYHEDRA)) // ").",ttshown)
+    if (iw_icon_togglebutton("polytoggle",icon_tex(icon_ui_polyhedra),"Ph",ispoly,disabled=.not.enabled,&
+       sameline=.true.)) then
+       call apply_displayflags(poly=.true.)
+       chbuild = .true.
+    end if
+    call iw_tooltip("Toggle display polyhedra in all objects ("//&
+       trim(get_bind_keyname(BIND_VIEW_TOGGLE_POLYHEDRA)) // ").",ttshown)
 
-          ! periodicity (number of cells) selector
-          if (.not.sys(w%view_selected)%c%ismolecule) then
-             ! title
+    ! toolbar: periodicity button with live a×b×c label
+    if (.not.enabled .or. .not.ismol) then
+       if (associated(w%sc)) then
+          msg = string(w%sc%nc(1)) // "×" // string(w%sc%nc(2)) // "×" // string(w%sc%nc(3))
+       else
+          msg = "1×1×1"
+       end if
+       call igSameLine(0._c_float,2._c_float * g%Style%ItemSpacing%x)
+       ldum = iw_button(msg // "###viewperiodicity",disabled=.not.enabled,popupcontext=ok,&
+          popupflags=ImGuiPopupFlags_MouseButtonLeft)
+       call iw_tooltip("Number of unit cells displayed along the a, b, and c axes",ttshown)
+       if (ok) then
+          if (associated(w%sc)) then
              call igAlignTextToFramePadding()
              call iw_text("Periodicity",highlight=.true.)
-             if (iw_button("Reset##periodicity",sameline=.true.)) then
-                w%sc%nc = 1
-                chbuild = .true.
-             end if
-             call iw_tooltip("Reset the number of cells to one",ttshown)
-
-             ! number of cells in each direction (shared digit width)
-             nc = w%sc%nc
-             ldum = iw_intstepper("aaxis",nc(1),label="a:",minval=1_c_int,notlive=.true.,&
-                tooltip="Number of cells represented along the a crystallographic axis")
-             ldum = iw_intstepper("baxis",nc(2),label="b:",minval=1_c_int,sameline=.true.,notlive=.true.,&
-                tooltip="Number of cells represented along the b crystallographic axis")
-             ldum = iw_intstepper("caxis",nc(3),label="c:",minval=1_c_int,sameline=.true.,notlive=.true.,&
-                tooltip="Number of cells represented along the c crystallographic axis")
-             if (any(nc /= w%sc%nc)) then
-                w%sc%nc = nc
-                chbuild = .true.
-             end if
+             call periodicity_widgets()
           end if
+          call igEndPopup()
+       end if
+    end if
+
+    ! toolbar: camera button, with the projection, camera position, and
+    ! camera lock controls in a popup
+    call igSameLine(0._c_float,2._c_float * g%Style%ItemSpacing%x)
+    ldum = iw_icon_togglebutton("camerabutton",icon_tex(icon_ui_camera),"Cam",&
+       disabled=.not.enabled,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+    call iw_tooltip("Change the camera and scene settings",ttshown)
+    if (ok) then
+       if (associated(w%sc)) then
+          ! projection mode
+          call iw_text("Projection",highlight=.true.)
+          if (iw_radiobutton("Orthographic##projortho",bool=w%sc%isortho,boolval=.true.)) then
+             call w%sc%update_projection_matrix()
+             chrender = .true.
+          end if
+          call iw_tooltip("Parallel projection, with no perspective distortion",ttshown)
+          if (iw_radiobutton("Perspective##projpersp",bool=w%sc%isortho,boolval=.false.,sameline=.true.)) then
+             call w%sc%update_projection_matrix()
+             chrender = .true.
+          end if
+          call iw_tooltip("Perspective projection, with distant objects appearing smaller",ttshown)
 
           ! camera position: align view axis
           call iw_text("Camera Position",highlight=.true.)
@@ -379,18 +355,6 @@ contains
           if (ch) chrender = .true. ! constant-size labels and the gizmo depend on camresetdist
           call iw_tooltip("Ratio controlling distance from object when resetting camera",ttshown)
 
-          ! projection mode
-          if (iw_radiobutton("Orthographic##projortho",bool=w%sc%isortho,boolval=.true.)) then
-             call w%sc%update_projection_matrix()
-             chrender = .true.
-          end if
-          call iw_tooltip("Parallel projection, with no perspective distortion",ttshown)
-          if (iw_radiobutton("Perspective##projpersp",bool=w%sc%isortho,boolval=.false.,sameline=.true.)) then
-             call w%sc%update_projection_matrix()
-             chrender = .true.
-          end if
-          call iw_tooltip("Perspective projection, with distant objects appearing smaller",ttshown)
-
           ! camera lock: share the camera position and orientation between
           ! systems (only meaningful in the main view, which is the one that
           ! follows the tree selection)
@@ -423,166 +387,150 @@ contains
              end if
              call iw_tooltip("No systems share the same camera position",ttshown)
           end if
-
-          ! scene appearance (atom border color is set per representation in
-          ! the edit-representations window)
-          call iw_text("Appearance",highlight=.true.)
-
-          ! background color
-          chrender = chrender .or. iw_coloredit("Background",rgb=w%sc%bgcolor)
-          call iw_tooltip("Change the scene background color",ttshown)
-
-          ! apply to all scenes
-          if (iw_button("Apply to All Systems",danger=.true.)) then
-             do i = 1, nsys
-                if (sysc(i)%status == sys_init .and. i /= w%view_selected) then
-                   ! atoms, bonds, unit cell
-                   do j = 1, sysc(i)%sc%nrep
-                      if (sysc(i)%sc%rep(j)%isinit) then
-                         if (sysc(i)%sc%rep(j)%type == reptype_atoms) then
-                            sysc(i)%sc%rep(j)%atoms%display = isatom
-                            sysc(i)%sc%rep(j)%bonds%display = isbond
-                            sysc(i)%sc%rep(j)%poly%display = ispoly
-                            sysc(i)%sc%rep(j)%labels%display = islabelsl
-                            if (islabelsl) then
-                               if (sys(i)%c%ismolecule.and.islabels == 8) then
-                                  sysc(i)%sc%rep(j)%labels%type = 0
-                               else
-                                  sysc(i)%sc%rep(j)%labels%type = islabels
-                               end if
-                               call sysc(i)%sc%rep(j)%labels%style%reset(sysc(i)%sc%rep(j))
-                            end if
-                         elseif (sysc(i)%sc%rep(j)%type == reptype_unitcell.and.&
-                            .not.sys(w%view_selected)%c%ismolecule) then
-                            sysc(i)%sc%rep(j)%shown = isuc
-                         end if
-                      end if
-                   end do
-                   ! rest
-                   if (.not.sys(w%view_selected)%c%ismolecule.and..not.sys(i)%c%ismolecule) &
-                      sysc(i)%sc%nc = w%sc%nc
-                   sysc(i)%sc%bgcolor = w%sc%bgcolor
-                   sysc(i)%sc%camresetdist = w%sc%camresetdist
-                   sysc(i)%sc%isortho = w%sc%isortho
-                   if (sysc(i)%sc%iscaminit) call sysc(i)%sc%update_projection_matrix()
-                end if
-                call sysc(i)%sc%build_lists()
-             end do
-          end if
-          call iw_tooltip("Apply these settings to all systems",ttshown)
-          if (iw_button("Reset",sameline=.true.,danger=.true.)) then
-             call w%sc%init(w%view_selected)
-             chbuild = .true.
-          end if
-          call iw_tooltip("Reset to the default settings",ttshown)
-
-          call igEndPopup()
        end if
+       call igEndPopup()
     end if
-    call iw_tooltip("Change the view options",ttshown)
 
-    ! gear menu
-    str1="##viewgear" // c_null_char
-    if (iw_button("Objects",sameline=.true.,disabled=.not.associated(w%sc))) then
-       call igOpenPopup_Str(c_loc(str1),ImGuiPopupFlags_None)
+    ! toolbar: background color button, with a color picker popup
+    ldum = iw_icon_togglebutton("bgcolorbutton",icon_tex(icon_ui_bgcolor),"Bg",&
+       disabled=.not.enabled,sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+    call iw_tooltip("Change the scene background color",ttshown)
+    if (ok) then
+       if (associated(w%sc)) then
+          chrender = chrender .or. iw_coloredit("Background",rgb=w%sc%bgcolor)
+       end if
+       call igEndPopup()
     end if
-    if (associated(w%sc)) then
-       if (igBeginPopupContextItem(c_loc(str1),ImGuiPopupFlags_None)) then
-          call igAlignTextToFramePadding()
-          ! objects table
-          call iw_text("List of Objects",highlight=.true.)
 
-          ! add button
-          ldum = iw_button("Add",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
-          if (ok) then
-             if (iw_menuitem("Ball and Stick",shortcut_text="Atoms")) then
-                call w%sc%add_representation(reptype_atoms,repflavor_atoms_ballandstick)
-                chbuild = .true.
-             end if
+    ! toolbar: apply the settings of this scene to all systems
+    if (iw_icon_togglebutton("applyallbutton",icon_tex(icon_ui_applyall),"Ap",&
+       disabled=.not.enabled,sameline=.true.,danger=.true.)) then
+       do i = 1, nsys
+          if (sysc(i)%status == sys_init .and. i /= w%view_selected) then
+             ! atoms, bonds, unit cell
+             do j = 1, sysc(i)%sc%nrep
+                if (sysc(i)%sc%rep(j)%isinit) then
+                   if (sysc(i)%sc%rep(j)%type == reptype_atoms) then
+                      sysc(i)%sc%rep(j)%atoms%display = isatom
+                      sysc(i)%sc%rep(j)%bonds%display = isbond
+                      sysc(i)%sc%rep(j)%poly%display = ispoly
+                      sysc(i)%sc%rep(j)%labels%display = islabelsl
+                      if (islabelsl) then
+                         if (sys(i)%c%ismolecule.and.islabels == 8) then
+                            sysc(i)%sc%rep(j)%labels%type = 0
+                         else
+                            sysc(i)%sc%rep(j)%labels%type = islabels
+                         end if
+                         call sysc(i)%sc%rep(j)%labels%style%reset(sysc(i)%sc%rep(j))
+                      end if
+                   elseif (sysc(i)%sc%rep(j)%type == reptype_unitcell.and.&
+                      .not.sys(w%view_selected)%c%ismolecule) then
+                      sysc(i)%sc%rep(j)%shown = isuc
+                   end if
+                end if
+             end do
+             ! rest
+             if (.not.sys(w%view_selected)%c%ismolecule.and..not.sys(i)%c%ismolecule) &
+                sysc(i)%sc%nc = w%sc%nc
+             sysc(i)%sc%bgcolor = w%sc%bgcolor
+             sysc(i)%sc%camresetdist = w%sc%camresetdist
+             sysc(i)%sc%isortho = w%sc%isortho
+             if (sysc(i)%sc%iscaminit) call sysc(i)%sc%update_projection_matrix()
+          end if
+          call sysc(i)%sc%build_lists()
+       end do
+    end if
+    call iw_tooltip("Apply the settings of this scene to all systems",ttshown)
+
+    ! toolbar: reset this scene to the default settings
+    if (iw_icon_togglebutton("resetscenebutton",icon_tex(icon_ui_reset),"Rs",&
+       disabled=.not.enabled,sameline=.true.,danger=.true.)) then
+       call w%sc%init(w%view_selected)
+       chbuild = .true.
+    end if
+    call iw_tooltip("Reset this scene to the default settings",ttshown)
+
+    ! toolbar: draw button, with a popup for adding new objects to the view
+    call igSameLine(0._c_float,-1._c_float)
+    call igSeparatorEx(ImGuiSeparatorFlags_Vertical)
+    call igSameLine(0._c_float,-1._c_float)
+    ldum = iw_icon_togglebutton("drawbutton",icon_tex(icon_ui_draw),"Dw",&
+       disabled=.not.enabled,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+    call iw_tooltip("Add a new object to the view",ttshown)
+    if (ok) then
+       if (associated(w%sc)) then
+          ! atom-based representations submenu
+          str1 = "Atoms, bonds,..." // c_null_char
+          if (igBeginMenu(c_loc(str1),.true._c_bool)) then
+             if (iw_menuitem("Ball and Stick")) &
+                call add_rep_and_edit(reptype_atoms,repflavor_atoms_ballandstick)
              call iw_tooltip("Draw atoms as balls and bonds as sticks, hide the labels",ttshown)
 
-             if (iw_menuitem("Bonds",shortcut_text="Atoms")) then
-                call w%sc%add_representation(reptype_atoms,repflavor_atoms_sticks)
-                chbuild = .true.
-             end if
+             if (iw_menuitem("Bonds")) &
+                call add_rep_and_edit(reptype_atoms,repflavor_atoms_sticks)
              call iw_tooltip("Draw bonds as sticks, hide atoms and labels",ttshown)
 
-             if (iw_menuitem("Licorice",shortcut_text="Atoms")) then
-                call w%sc%add_representation(reptype_atoms,repflavor_atoms_licorice)
-                chbuild = .true.
-             end if
+             if (iw_menuitem("Licorice")) &
+                call add_rep_and_edit(reptype_atoms,repflavor_atoms_licorice)
              call iw_tooltip("Draw atoms and bonds with the same radius, hide labels",ttshown)
 
-             call igSeparator()
-             if (iw_menuitem("Van der Waals Contacts",shortcut_text="Atoms")) then
-                call w%sc%add_representation(reptype_atoms,repflavor_atoms_vdwcontacts)
-                chbuild = .true.
-             end if
+             if (iw_menuitem("Van der Waals Contacts")) &
+                call add_rep_and_edit(reptype_atoms,repflavor_atoms_vdwcontacts)
              call iw_tooltip("Display contacts between nonbonded atoms closer than the sum &
                 &of their van der Waals radii",ttshown)
 
-             if (iw_menuitem("Hydrogen Bonds",shortcut_text="Atoms")) then
-                call w%sc%add_representation(reptype_atoms,repflavor_atoms_hbonds)
-                chbuild = .true.
-             end if
+             if (iw_menuitem("Hydrogen Bonds")) &
+                call add_rep_and_edit(reptype_atoms,repflavor_atoms_hbonds)
              call iw_tooltip("Display contacts between hydrogen bonded atoms",ttshown)
 
-             call igSeparator()
-             if (iw_menuitem("Critical Points",shortcut_text="Atoms")) then
-                call w%sc%add_representation(reptype_atoms,repflavor_atoms_criticalpoints)
-                chbuild = .true.
-             end if
+             if (iw_menuitem("Critical Points")) &
+                call add_rep_and_edit(reptype_atoms,repflavor_atoms_criticalpoints)
              call iw_tooltip("Draw dummy atoms representing critical points (Xn, Xb,... atoms)",ttshown)
 
-             if (iw_menuitem("Gradient Paths",shortcut_text="Atoms")) then
-                call w%sc%add_representation(reptype_atoms,repflavor_atoms_gradientpaths)
-                chbuild = .true.
-             end if
+             if (iw_menuitem("Gradient Paths")) &
+                call add_rep_and_edit(reptype_atoms,repflavor_atoms_gradientpaths)
              call iw_tooltip("Draw dummy atoms representing gradient paths (Xz atoms)",ttshown)
 
-             call igSeparator()
-             if (iw_menuitem("Coordination Polyhedra",shortcut_text="Atoms")) then
-                call w%sc%add_representation(reptype_atoms,repflavor_atoms_polyhedra)
-                chbuild = .true.
-             end if
+             if (iw_menuitem("Coordination Polyhedra")) &
+                call add_rep_and_edit(reptype_atoms,repflavor_atoms_polyhedra)
              call iw_tooltip("Draw coordination polyhedra around the center atoms",ttshown)
 
-             if (.not.sys(w%view_selected)%c%ismolecule) then
-                call igSeparator()
-                if (iw_menuitem("Unit Cell",shortcut_text="Cell")) then
-                   call w%sc%add_representation(reptype_unitcell,repflavor_unitcell_basic)
-                   chbuild = .true.
-                end if
-                call iw_tooltip("Display the unit cell",ttshown)
-             end if
-
-             call igSeparator()
-             if (iw_menuitem("Cartesian/Crystallographic Axes",shortcut_text="Axes")) then
-                call w%sc%add_representation(reptype_axes,repflavor_axes)
-                chbuild = .true.
-             end if
-             call iw_tooltip("Display the cartesian (lab-frame) x/y/z axes",ttshown)
-
-             ! symmetry available for crystals (always) or molecules with a point group
-             call igSeparator()
-             enabled = .true.
-             if (sys(w%view_selected)%c%ismolecule) enabled = sys(w%view_selected)%c%pg%avail
-             if (iw_menuitem("Symmetry Elements",shortcut_text="Symmetry",enabled=enabled)) then
-                call w%sc%add_representation(reptype_symelem,repflavor_symelem)
-                chbuild = .true.
-             end if
-             call iw_tooltip("Display symmetry elements",ttshown)
-
-             call igSeparator()
-             if (iw_menuitem("Text",shortcut_text="Text")) then
-                call w%sc%add_representation(reptype_text,repflavor_text)
-                chbuild = .true.
-             end if
-             call iw_tooltip("Add text annotations to the view",ttshown)
-
-             call igEndPopup()
+             call igEndMenu()
           end if
-          call iw_tooltip("Add a new object to the view",ttshown)
+          call iw_tooltip("Add atoms, bonds, labels, and other atom-based objects",ttshown)
+
+          if (.not.sys(w%view_selected)%c%ismolecule) then
+             if (iw_menuitem("Unit Cell")) &
+                call add_rep_and_edit(reptype_unitcell,repflavor_unitcell_basic)
+             call iw_tooltip("Display the unit cell",ttshown)
+          end if
+
+          if (iw_menuitem("Axes")) &
+             call add_rep_and_edit(reptype_axes,repflavor_axes)
+          call iw_tooltip("Display the cartesian (lab-frame) x/y/z axes",ttshown)
+
+          ! symmetry available for crystals (always) or molecules with a point group
+          symenabled = .true.
+          if (sys(w%view_selected)%c%ismolecule) symenabled = sys(w%view_selected)%c%pg%avail
+          if (iw_menuitem("Symmetry Elements",enabled=symenabled)) &
+             call add_rep_and_edit(reptype_symelem,repflavor_symelem)
+          call iw_tooltip("Display symmetry elements",ttshown)
+
+          if (iw_menuitem("Text")) &
+             call add_rep_and_edit(reptype_text,repflavor_text)
+          call iw_tooltip("Add text annotations to the view",ttshown)
+       end if
+       call igEndPopup()
+    end if
+
+    ! toolbar: objects list button, with the list of objects in a popup
+    ldum = iw_icon_togglebutton("objectsbutton",icon_tex(icon_ui_objects),"Ob",&
+       disabled=.not.enabled,sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
+    call iw_tooltip("Remove and modify the objects in the view",ttshown)
+    if (ok) then
+       if (associated(w%sc)) then
+          call igAlignTextToFramePadding()
+          call iw_text("List of Objects",highlight=.true.)
 
           ! set table style
           sz%x = 3._c_float
@@ -595,7 +543,7 @@ contains
           sz%y = 2._c_float
           call igPushStyleVar_Vec2(ImGuiStyleVar_CellPadding,sz)
 
-          ! rest of the table
+          ! the objects table
           str2 = "Objects##0,0" // c_null_char
           flags = ImGuiTableFlags_NoSavedSettings
           flags = ior(flags,ImGuiTableFlags_RowBg)
@@ -637,42 +585,22 @@ contains
              call igEndTable()
           end if
           call igPopStyleVar(3_c_int)
-
-          call igEndPopup()
        end if
-    end if
-    call iw_tooltip("Add, remove, and modify objects",ttshown)
-
-    ! update the draw lists and render
-    if (associated(w%sc)) then
-       if (w%sc%timelastbuild < sysc(w%view_selected)%timelastchange_buildlists) then
-          w%sc%forcebuildlists = .true.
-          ! during interactive dynamics the geometry changes every frame but the
-          ! atom identities are stable, so keep the pick index (else grabbing an
-          ! atom would be impossible)
-          if (.not.sysc(w%view_selected)%md_run) w%mousepos_idx = 0
-       end if
-       if (chbuild) w%sc%forcebuildlists = .true.
-       if (chrender .or. w%sc%forcebuildlists .or. w%sc%timelastrender < sysc(w%view_selected)%timelastchange_render) &
-          w%forcerender = .true.
-
-       ! continuous render if animation is active
-       if (w%sc%ifreq_selected > 0.and.w%sc%iqpt_selected > 0.and.sys(w%view_selected)%c%vib%hasvibs.and.&
-          w%sc%animation > 0) &
-          w%forcerender = .true.
+       call igEndPopup()
     end if
 
-    ! tools menu
-    ldum = iw_button("Tools",sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft,&
-       disabled=.not.associated(w%sc))
+    ! toolbar: tools button
+    ldum = iw_icon_togglebutton("toolsbutton",icon_tex(icon_ui_tools),"Tl",&
+       disabled=.not.enabled,sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
     call iw_tooltip("Show various tools operating on the view of this system",ttshown)
     if (ok) then
        call show_tools_menu(w%view_selected,w%id,ttshown)
        call igEndPopup()
     end if
 
-    ! the button for new alternate view
-    if (iw_button("New",disabled=.not.associated(w%sc),sameline=.true.)) then
+    ! toolbar: new alternate view button
+    if (iw_icon_togglebutton("newviewbutton",icon_tex(icon_ui_newview),"Nw",&
+       disabled=.not.enabled,sameline=.true.)) then
        idum = stack_create_window(wintype_view,.true.,purpose=wpurp_view_alternate)
        win(idum)%sc = w%sc
        ! the value copy aliased the source scene's GL handles; detach so the new
@@ -704,6 +632,25 @@ contains
        call igEndCombo()
     end if
     call iw_tooltip("Choose the system displayed",ttshown)
+
+    ! update the draw lists and render
+    if (associated(w%sc)) then
+       if (w%sc%timelastbuild < sysc(w%view_selected)%timelastchange_buildlists) then
+          w%sc%forcebuildlists = .true.
+          ! during interactive dynamics the geometry changes every frame but the
+          ! atom identities are stable, so keep the pick index (else grabbing an
+          ! atom would be impossible)
+          if (.not.sysc(w%view_selected)%md_run) w%mousepos_idx = 0
+       end if
+       if (chbuild) w%sc%forcebuildlists = .true.
+       if (chrender .or. w%sc%forcebuildlists .or. w%sc%timelastrender < sysc(w%view_selected)%timelastchange_render) &
+          w%forcerender = .true.
+
+       ! continuous render if animation is active
+       if (w%sc%ifreq_selected > 0.and.w%sc%iqpt_selected > 0.and.sys(w%view_selected)%c%vib%hasvibs.and.&
+          w%sc%animation > 0) &
+          w%forcerender = .true.
+    end if
 
     ! get the remaining size for the texture
     call igGetContentRegionAvail(szavail)
@@ -994,6 +941,112 @@ contains
        end if
     end if
 
+  contains
+    !> Copy the display shortcut flags (isatom, isbond, islabelsl, isuc,
+    !> ispoly host variables) to all initialized representations of the
+    !> current scene. Each optional argument selects one flag, applied if
+    !> present and true. If settype (with labels), also set the label
+    !> type from islabels and reset the label style.
+    subroutine apply_displayflags(atoms,bonds,labels,cell,poly,settype)
+      logical, intent(in), optional :: atoms, bonds, labels, cell, poly, settype
+
+      integer :: i
+      logical :: doatoms, dobonds, dolabels, docell, dopoly, dosettype
+
+      doatoms = .false.
+      if (present(atoms)) doatoms = atoms
+      dobonds = .false.
+      if (present(bonds)) dobonds = bonds
+      dolabels = .false.
+      if (present(labels)) dolabels = labels
+      docell = .false.
+      if (present(cell)) docell = cell
+      dopoly = .false.
+      if (present(poly)) dopoly = poly
+      dosettype = .false.
+      if (present(settype)) dosettype = settype
+
+      do i = 1, w%sc%nrep
+         if (.not.w%sc%rep(i)%isinit) cycle
+         if (w%sc%rep(i)%type == reptype_atoms) then
+            if (doatoms) w%sc%rep(i)%atoms%display = isatom
+            if (dobonds) w%sc%rep(i)%bonds%display = isbond
+            if (dopoly) w%sc%rep(i)%poly%display = ispoly
+            if (dolabels .and. w%sc%rep(i)%flavor/=repflavor_atoms_criticalpoints .and.&
+               w%sc%rep(i)%flavor/=repflavor_atoms_gradientpaths) then
+               w%sc%rep(i)%labels%display = islabelsl
+               if (dosettype .and. islabelsl) then
+                  w%sc%rep(i)%labels%type = islabels
+                  call w%sc%rep(i)%labels%style%reset(w%sc%rep(i))
+               end if
+            end if
+         elseif (w%sc%rep(i)%type == reptype_unitcell) then
+            if (docell) w%sc%rep(i)%shown = isuc
+         end if
+      end do
+
+    end subroutine apply_displayflags
+
+    !> Advance the label state (islabels, islabelsl host variables) one
+    !> step in the cycle: none -> atom name -> atom index -> Wyckoff
+    !> site (crystals only) -> none. Shared by the labels keybinding
+    !> and the toolbar labels button.
+    subroutine cycle_labels()
+
+      if (islabels == -1) then ! no labels -> atom-name
+         islabels = 1
+      elseif (islabels == 1) then ! atom-name -> celatom
+         islabels = 2
+      elseif (islabels == 2 .and..not.sys(w%view_selected)%c%ismolecule) then ! celatom -> wyckoff
+         islabels = 8
+      else ! * -> no labels
+         islabels = -1
+      end if
+      islabelsl = (islabels >= 0)
+
+    end subroutine cycle_labels
+
+    !> Add a new representation with the given type and flavor to the
+    !> current scene, then open the edit representation window for it.
+    !> Used by the items in the toolbar draw button popup.
+    subroutine add_rep_and_edit(itype,flavor)
+      integer, intent(in) :: itype, flavor
+
+      integer :: irep, idw
+
+      call w%sc%add_representation(itype,flavor,id=irep)
+      idw = stack_create_window(wintype_editrep,.true.,isys=w%view_selected,irep=irep,&
+         idparent=w%id,orraise=-1)
+      chbuild = .true.
+
+    end subroutine add_rep_and_edit
+
+    !> Draw the periodicity widgets (reset button and a/b/c cell-number
+    !> steppers), shared by the Scene menu and the toolbar periodicity
+    !> popup. Sets chbuild if the number of cells changes.
+    subroutine periodicity_widgets()
+      integer(c_int) :: nc(3)
+
+      if (iw_button("Reset##periodicity",sameline=.true.)) then
+         w%sc%nc = 1
+         chbuild = .true.
+      end if
+      call iw_tooltip("Reset the number of cells to one",ttshown)
+
+      ! number of cells in each direction (shared digit width)
+      nc = w%sc%nc
+      ldum = iw_intstepper("aaxis",nc(1),label="a:",minval=1_c_int,notlive=.true.,&
+         tooltip="Number of cells represented along the a crystallographic axis")
+      ldum = iw_intstepper("baxis",nc(2),label="b:",minval=1_c_int,sameline=.true.,notlive=.true.,&
+         tooltip="Number of cells represented along the b crystallographic axis")
+      ldum = iw_intstepper("caxis",nc(3),label="c:",minval=1_c_int,sameline=.true.,notlive=.true.,&
+         tooltip="Number of cells represented along the c crystallographic axis")
+      if (any(nc /= w%sc%nc)) then
+         w%sc%nc = nc
+         chbuild = .true.
+      end if
+
+    end subroutine periodicity_widgets
   end subroutine draw_view
 
   !> Create the texture for the view window, with atex x atex pixels.

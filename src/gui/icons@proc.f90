@@ -21,9 +21,14 @@ submodule (icons) proc
   implicit none
 
   ! property and UI icon PNG file names, in icon ID order
-  character(len=*), parameter :: iconfile(icon_NUM) = (/character(len=16) ::&
+  character(len=*), parameter :: iconfile(icon_NUM) = (/character(len=20) ::&
      "prop_fields.png","prop_vib.png","prop_occ.png",&
-     "ui_close.png","ui_expand.png","ui_collapse.png"/)
+     "ui_close.png","ui_expand.png","ui_collapse.png",&
+     "ui_atoms.png","ui_bonds.png","ui_labels.png",&
+     "ui_cell.png","ui_polyhedra.png","ui_label_num.png",&
+     "ui_label_wyck.png","ui_camera.png","ui_bgcolor.png",&
+     "ui_applyall.png","ui_reset.png","ui_draw.png",&
+     "ui_objects.png","ui_tools.png","ui_newview.png"/)
 
   ! format icon PNG file names, in isformat_r_* order
   character(len=*), parameter :: fmtfile(0:icon_fmt_MAX) = (/character(len=20) ::&

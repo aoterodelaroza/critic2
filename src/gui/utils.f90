@@ -45,6 +45,7 @@ module utils
   public :: iw_text
   public :: iw_button
   public :: iw_icon_button
+  public :: iw_icon_togglebutton
   public :: iw_close_button
   public :: iw_menuitem
   public :: iw_tooltip
@@ -263,6 +264,19 @@ module utils
        character(len=*,kind=c_char), intent(in) :: fallback
        logical :: pressed
      end function iw_icon_button
+     module function iw_icon_togglebutton(strid,tex,fallback,state,disabled,sameline,&
+        popupcontext,popupflags,danger) result(changed)
+       character(len=*,kind=c_char), intent(in) :: strid
+       integer(c_int), intent(in) :: tex
+       character(len=*,kind=c_char), intent(in) :: fallback
+       logical, intent(inout), optional :: state
+       logical, intent(in), optional :: disabled
+       logical, intent(in), optional :: sameline
+       logical, intent(inout), optional :: popupcontext
+       integer(c_int), intent(in), optional :: popupflags
+       logical, intent(in), optional :: danger
+       logical :: changed
+     end function iw_icon_togglebutton
      module function iw_close_button(strid) result(pressed)
        character(len=*,kind=c_char), intent(in) :: strid
        logical :: pressed

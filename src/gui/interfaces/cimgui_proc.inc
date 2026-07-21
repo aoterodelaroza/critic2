@@ -2284,7 +2284,11 @@ end function igImageButtonEx
 !x! ImGuiID igGetWindowScrollbarID(ImGuiWindow* window,ImGuiAxis axis);
 !x! ImGuiID igGetWindowResizeCornerID(ImGuiWindow* window,int n);
 !x! ImGuiID igGetWindowResizeBorderID(ImGuiWindow* window,ImGuiDir dir);
-!x! void igSeparatorEx(ImGuiSeparatorFlags flags);
+! void igSeparatorEx(ImGuiSeparatorFlags flags);
+subroutine igSeparatorEx(flags) bind(c,name="igSeparatorEx")
+  import c_int
+  integer(c_int), value :: flags
+end subroutine igSeparatorEx
 !x! bool igCheckboxFlags_S64Ptr(const char* label,ImS64* flags,ImS64 flags_value);
 !x! bool igCheckboxFlags_U64Ptr(const char* label,ImU64* flags,ImU64 flags_value);
 !x! bool igButtonBehavior(const ImRect bb,ImGuiID id,bool* out_hovered,bool* out_held,ImGuiButtonFlags flags);
