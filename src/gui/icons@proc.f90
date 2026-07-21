@@ -26,7 +26,7 @@ submodule (icons) proc
      "ui_close.png","ui_expand.png","ui_collapse.png",&
      "ui_atoms.png","ui_bonds.png","ui_labels.png",&
      "ui_cell.png","ui_polyhedra.png","ui_label_num.png",&
-     "ui_label_wyck.png","ui_camera.png","ui_bgcolor.png",&
+     "ui_label_wyck.png","ui_camera.png",&
      "ui_applyall.png","ui_reset.png","ui_draw.png",&
      "ui_objects.png","ui_tools.png","ui_newview.png"/)
 

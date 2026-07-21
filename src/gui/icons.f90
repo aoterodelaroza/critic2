@@ -40,14 +40,13 @@ module icons
   integer, parameter, public :: icon_ui_label_num = 12  ! atom-index labels (#)
   integer, parameter, public :: icon_ui_label_wyck = 13 ! Wyckoff labels (4a)
   integer, parameter, public :: icon_ui_camera = 14     ! camera settings (camera)
-  integer, parameter, public :: icon_ui_bgcolor = 15    ! background color (palette)
-  integer, parameter, public :: icon_ui_applyall = 16   ! apply to all systems (cascaded layers)
-  integer, parameter, public :: icon_ui_reset = 17      ! reset scene (circular arrow)
-  integer, parameter, public :: icon_ui_draw = 18       ! add objects to the view (pencil)
-  integer, parameter, public :: icon_ui_objects = 19    ! list of objects (list rows)
-  integer, parameter, public :: icon_ui_tools = 20      ! tools menu (wrench)
-  integer, parameter, public :: icon_ui_newview = 21    ! new view window (window with +)
-  integer, parameter, public :: icon_NUM = 21
+  integer, parameter, public :: icon_ui_applyall = 15   ! apply to all systems (cascaded layers)
+  integer, parameter, public :: icon_ui_reset = 16      ! reset scene (circular arrow)
+  integer, parameter, public :: icon_ui_draw = 17       ! add objects to the view (pencil)
+  integer, parameter, public :: icon_ui_objects = 18    ! list of objects (list rows)
+  integer, parameter, public :: icon_ui_tools = 19      ! tools menu (wrench)
+  integer, parameter, public :: icon_ui_newview = 20    ! new view window (window with +)
+  integer, parameter, public :: icon_NUM = 20
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

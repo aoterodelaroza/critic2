@@ -75,7 +75,7 @@ contains
        iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton, iw_icon_togglebutton
     use icons, only: icon_tex, icon_ui_atoms, icon_ui_bonds, icon_ui_labels, icon_ui_cell,&
        icon_ui_polyhedra, icon_ui_label_num, icon_ui_label_wyck, icon_ui_camera,&
-       icon_ui_bgcolor, icon_ui_applyall, icon_ui_reset, icon_ui_draw, icon_ui_objects,&
+       icon_ui_applyall, icon_ui_reset, icon_ui_draw, icon_ui_objects,&
        icon_ui_tools, icon_ui_newview
     use crystalmod, only: iperiod_vacthr
     use global, only: dunit0, iunit_ang
@@ -387,17 +387,11 @@ contains
              end if
              call iw_tooltip("No systems share the same camera position",ttshown)
           end if
-       end if
-       call igEndPopup()
-    end if
 
-    ! toolbar: background color button, with a color picker popup
-    ldum = iw_icon_togglebutton("bgcolorbutton",icon_tex(icon_ui_bgcolor),"Bg",&
-       disabled=.not.enabled,sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
-    call iw_tooltip("Change the scene background color",ttshown)
-    if (ok) then
-       if (associated(w%sc)) then
-          chrender = chrender .or. iw_coloredit("Background",rgb=w%sc%bgcolor)
+          ! background color
+          call iw_text("Background",highlight=.true.)
+          chrender = chrender .or. iw_coloredit("Color##bgcolor",rgb=w%sc%bgcolor)
+          call iw_tooltip("Change the background color of the scene",ttshown)
        end if
        call igEndPopup()
     end if
