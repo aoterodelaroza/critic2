@@ -68,6 +68,12 @@ submodule (energy) proc
        import c_ptr
        type(c_ptr), intent(inout) :: h
      end subroutine c_tblite_delete_context
+     subroutine c_tblite_set_context_verbosity(ctx,verbosity) &
+        bind(c,name="tblite_set_context_verbosity")
+       import c_ptr, c_int
+       type(c_ptr), value :: ctx
+       integer(c_int), value :: verbosity
+     end subroutine c_tblite_set_context_verbosity
      function c_tblite_new_structure(err,natoms,numbers,positions,charge,uhf,lattice,periodic) &
         bind(c,name="tblite_new_structure") result(h)
        import c_ptr, c_int
@@ -2205,7 +2211,7 @@ contains
 
   end subroutine tip4p_evaluate
 
-  ! ---- tblite (GFN-FF / xTB) backend ----
+  ! ---- tblite (GFN2/GFN1-xTB) backend ----
 
   module subroutine calc_init_tblite(cl,c,errmsg)
     use crystalmod, only: crystal
@@ -2240,6 +2246,8 @@ contains
           c_null_ptr,c_null_ptr,c_loc(lattice),c_loc(periodic))
     end if
     cl%tb_ctx = c_tblite_new_context()
+    ! silence tblite's stdout printout (SCC iterations, summary, timings)
+    if (c_associated(cl%tb_ctx)) call c_tblite_set_context_verbosity(cl%tb_ctx,0_c_int)
 
     ! GFN1/GFN2-xTB are topology-free (need only elements and coordinates)
     if (cl%method == tbm_gfn1) then

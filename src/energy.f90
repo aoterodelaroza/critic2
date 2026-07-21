@@ -29,11 +29,10 @@ module energy
 
   ! energy backends
   integer, parameter, public :: ff_uff = 0 !< built-in Universal Force Field (UFF)
-  integer, parameter, public :: ff_tblite = 1 !< tblite library (GFN-FF/xTB)
+  integer, parameter, public :: ff_tblite = 1 !< tblite library (GFN2/GFN1-xTB)
   integer, parameter, public :: ff_tip4p = 2 !< built-in TIP4P water model (molecules only)
 
   ! tblite methods (used only by the tblite backend)
-  integer, parameter, public :: tbm_gfnff = 0 !< GFN-FF general force field
   integer, parameter, public :: tbm_gfn2 = 1 !< GFN2-xTB
   integer, parameter, public :: tbm_gfn1 = 2 !< GFN1-xTB
 
@@ -111,7 +110,7 @@ module energy
   !> Energy/force/stress calculator
   type calculator
      integer :: backend = ff_uff !< selected backend (ff_*)
-     integer :: method = tbm_gfnff !< tblite method (tbm_*), only for ff_tblite
+     integer :: method = tbm_gfn2 !< tblite method (tbm_*), only for ff_tblite
      logical :: ready = .false. !< true once %init has run successfully
      !! UFF
      integer :: nat = 0 !< number of atoms (= c%ncel)
