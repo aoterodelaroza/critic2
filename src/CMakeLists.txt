@@ -198,6 +198,15 @@ if (USE_TBLITE AND TBLITE_FOUND)
   target_compile_definitions(critic2_defs INTERFACE HAVE_TBLITE)
 endif()
 
+## xtb
+if (USE_XTB AND XTB_FOUND)
+  if (XTB_INCLUDE_DIRS)
+    target_include_directories(critic2_defs INTERFACE "${XTB_INCLUDE_DIRS}")
+  endif()
+  target_link_libraries(critic2_defs INTERFACE ${XTB_LIBRARIES})
+  target_compile_definitions(critic2_defs INTERFACE HAVE_XTB)
+endif()
+
 ## hdf5
 if (USE_HDF5 AND HDF5_FOUND)
   target_include_directories(critic2_defs INTERFACE ${HDF5_INCLUDE_DIRS})

@@ -4028,10 +4028,10 @@ contains
   !> Test the built-in force-field energy calculator: report the energy and
   !> check the analytic gradient (and stress, for crystals) against finite
   !> differences on the currently loaded system. Invoke with "TRICK ENERGY
-  !> [TIP4P]" (default force field: UFF).
+  !> [TIP4P|GFN2|GFNFF]" (default force field: UFF).
   subroutine trick_energy(line0)
     use systemmod, only: sy
-    use energy, only: calculator, ff_uff, ff_tip4p
+    use energy, only: calculator, ff_uff, ff_gfnxtb, ff_tip4p, ff_gfnff
     use tools_io, only: uout, string, ferror, faterr, lgetword, equal
     use tools_math, only: matinv, det3
     use param, only: hartokjmol
@@ -4057,6 +4057,10 @@ contains
     word = lgetword(line0,lp)
     if (equal(word,'tip4p')) then
        ibackend = ff_tip4p
+    else if (equal(word,'gfn2')) then
+       ibackend = ff_gfnxtb
+    else if (equal(word,'gfnff')) then
+       ibackend = ff_gfnff
     else if (len_trim(word) > 0) then
        call ferror('trick_energy','unknown force field: ' // trim(word),faterr)
        return
@@ -4099,7 +4103,7 @@ contains
     write (uout,'("  number of atoms:      ",A)') string(nat)
     if (ibackend == ff_tip4p) then
        write (uout,'("  number of waters:     ",A)') string(cl%nwat)
-    else
+    else if (ibackend == ff_uff) then
        write (uout,'("  number of bonds:      ",A)') string(cl%nbond)
        write (uout,'("  number of angles:     ",A)') string(cl%nang)
        write (uout,'("  number of LJ pairs:   ",A)') string(cl%nnb)
@@ -4120,8 +4124,10 @@ contains
        do k = 1, 3
           sy%c%atcel(i)%r(k) = rsave(k,i) + h
           call cl%evaluate(sy%c,ep,gtmp,errmsg=errmsg)
+          if (len_trim(errmsg) > 0) call ferror('trick_energy',errmsg,faterr)
           sy%c%atcel(i)%r(k) = rsave(k,i) - h
           call cl%evaluate(sy%c,em,gtmp,errmsg=errmsg)
+          if (len_trim(errmsg) > 0) call ferror('trick_energy',errmsg,faterr)
           gfd(k,i) = (ep - em) / (2d0*h)
           sy%c%atcel(i)%r(k) = rsave(k,i)
        end do
@@ -4144,6 +4150,7 @@ contains
              sy%c%m_x2c(a,:) = sy%c%m_x2c(a,:) + h*m_save(b,:)
              call refresh_metric(sy%c%m_x2c,sy%c%m_c2x,sy%c%omega)
              call cl%evaluate(sy%c,ep,gtmp,errmsg=errmsg)
+             if (len_trim(errmsg) > 0) call ferror('trick_energy',errmsg,faterr)
              do i = 1, nat
                 sy%c%atcel(i)%r = rsave(:,i)
                 sy%c%atcel(i)%r(a) = sy%c%atcel(i)%r(a) - h*rsave(b,i)
@@ -4152,6 +4159,7 @@ contains
              sy%c%m_x2c(a,:) = sy%c%m_x2c(a,:) - h*m_save(b,:)
              call refresh_metric(sy%c%m_x2c,sy%c%m_c2x,sy%c%omega)
              call cl%evaluate(sy%c,em,gtmp,errmsg=errmsg)
+             if (len_trim(errmsg) > 0) call ferror('trick_energy',errmsg,faterr)
              sfd(a,b) = (ep - em) / (2d0*h) / omega0
           end do
        end do

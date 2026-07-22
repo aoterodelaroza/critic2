@@ -27,7 +27,7 @@ contains
   module subroutine draw_dynamics(w)
     use systems, only: sysc, sys, sys_init, ok_system, lastchange_geometry
     use dynamics, only: md_dynamics, md_relax
-    use energy, only: ff_uff, ff_tblite, ff_tip4p, ff_backend_applicable
+    use energy, only: ff_uff, ff_gfnxtb, ff_gfnff, ff_tip4p, ff_backend_applicable
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcwidth, iw_combo_simple,&
        iw_dragfloat_real8, iw_radiobutton
     use gui_main, only: g
@@ -38,7 +38,7 @@ contains
     class(window), intent(inout), target :: w
 
     logical :: doquit, goodsys, goodparent, needinit, ldum, haspress
-    integer :: isys, ibackend, nback, icombo, i, backids(3)
+    integer :: isys, ibackend, nback, icombo, i, backids(4)
     integer(c_int) :: imode, tflags
     real*8 :: pgpa
     type(ImVec2) :: szavail, sz0
@@ -47,10 +47,11 @@ contains
 
     ! candidate MD/relaxation backends in preference order (labels padded to a
     ! common length for the array constructor; trimmed on use)
-    integer, parameter :: backids_all(3) = (/ff_uff, ff_tblite, ff_tip4p/)
-    character(len=*), parameter :: backlabels(3) = (/ &
+    integer, parameter :: backids_all(4) = (/ff_uff, ff_gfnxtb, ff_gfnff, ff_tip4p/)
+    character(len=*), parameter :: backlabels(4) = (/ &
        "UFF              ", &
        "GFN2-xTB (tblite)", &
+       "GFN-FF (xtb)     ", &
        "TIP4P water      "/)
 
     logical, save :: ttshown = .false. ! tooltip flag

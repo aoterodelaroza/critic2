@@ -137,10 +137,117 @@ submodule (energy) proc
   end interface
 #endif
 
+#ifdef HAVE_XTB
+  ! Interfaces to the xtb C API (https://xtb-docs.readthedocs.io/en/latest/api.html,
+  ! include/xtb.h). Same conventions as the tblite block above: opaque handles are
+  ! C pointers; array/optional pointer arguments are passed by value as
+  ! type(c_ptr) so that NULL (c_null_ptr) or an address (c_loc(...)) can be given.
+  interface
+     function c_xtb_new_environment() bind(c,name="xtb_newEnvironment") result(h)
+       import c_ptr
+       type(c_ptr) :: h
+     end function c_xtb_new_environment
+     subroutine c_xtb_del_environment(h) bind(c,name="xtb_delEnvironment")
+       import c_ptr
+       type(c_ptr), intent(inout) :: h
+     end subroutine c_xtb_del_environment
+     function c_xtb_check_environment(env) bind(c,name="xtb_checkEnvironment") result(nerr)
+       import c_ptr, c_int
+       type(c_ptr), value :: env
+       integer(c_int) :: nerr
+     end function c_xtb_check_environment
+     subroutine c_xtb_set_verbosity(env,verbosity) bind(c,name="xtb_setVerbosity")
+       import c_ptr, c_int
+       type(c_ptr), value :: env
+       integer(c_int), value :: verbosity
+     end subroutine c_xtb_set_verbosity
+     subroutine c_xtb_get_error(env,buffer,buffersize) bind(c,name="xtb_getError")
+       import c_ptr, c_char, c_int
+       type(c_ptr), value :: env
+       character(kind=c_char), intent(inout) :: buffer(*)
+       integer(c_int), intent(in) :: buffersize
+     end subroutine c_xtb_get_error
+     subroutine c_xtb_set_output(env,filename) bind(c,name="xtb_setOutput")
+       import c_ptr, c_char
+       type(c_ptr), value :: env
+       character(kind=c_char), intent(in) :: filename(*)
+     end subroutine c_xtb_set_output
+     function c_xtb_new_molecule(env,natoms,numbers,positions,charge,uhf,lattice,periodic) &
+        bind(c,name="xtb_newMolecule") result(h)
+       import c_ptr
+       type(c_ptr), value :: env, natoms, numbers, positions, charge, uhf, lattice, periodic
+       type(c_ptr) :: h
+     end function c_xtb_new_molecule
+     subroutine c_xtb_del_molecule(h) bind(c,name="xtb_delMolecule")
+       import c_ptr
+       type(c_ptr), intent(inout) :: h
+     end subroutine c_xtb_del_molecule
+     subroutine c_xtb_update_molecule(env,mol,positions,lattice) bind(c,name="xtb_updateMolecule")
+       import c_ptr
+       type(c_ptr), value :: env, mol, positions, lattice
+     end subroutine c_xtb_update_molecule
+     function c_xtb_new_calculator() bind(c,name="xtb_newCalculator") result(h)
+       import c_ptr
+       type(c_ptr) :: h
+     end function c_xtb_new_calculator
+     subroutine c_xtb_del_calculator(h) bind(c,name="xtb_delCalculator")
+       import c_ptr
+       type(c_ptr), intent(inout) :: h
+     end subroutine c_xtb_del_calculator
+     subroutine c_xtb_load_gfnff(env,mol,calc,filename) bind(c,name="xtb_loadGFNFF")
+       import c_ptr
+       type(c_ptr), value :: env, mol, calc, filename
+     end subroutine c_xtb_load_gfnff
+     function c_xtb_new_results() bind(c,name="xtb_newResults") result(h)
+       import c_ptr
+       type(c_ptr) :: h
+     end function c_xtb_new_results
+     subroutine c_xtb_del_results(h) bind(c,name="xtb_delResults")
+       import c_ptr
+       type(c_ptr), intent(inout) :: h
+     end subroutine c_xtb_del_results
+     subroutine c_xtb_singlepoint(env,mol,calc,res) bind(c,name="xtb_singlepoint")
+       import c_ptr
+       type(c_ptr), value :: env, mol, calc, res
+     end subroutine c_xtb_singlepoint
+     subroutine c_xtb_get_energy(env,res,energy) bind(c,name="xtb_getEnergy")
+       import c_ptr, c_double
+       type(c_ptr), value :: env, res
+       real(c_double), intent(out) :: energy
+     end subroutine c_xtb_get_energy
+     subroutine c_xtb_get_gradient(env,res,gradient) bind(c,name="xtb_getGradient")
+       import c_ptr, c_double
+       type(c_ptr), value :: env, res
+       real(c_double), intent(out) :: gradient(*)
+     end subroutine c_xtb_get_gradient
+     subroutine c_xtb_get_virial(env,res,virial) bind(c,name="xtb_getVirial")
+       import c_ptr, c_double
+       type(c_ptr), value :: env, res
+       real(c_double), intent(out) :: virial(*)
+     end subroutine c_xtb_get_virial
+  end interface
+
+  ! xtb writes some output (e.g. the GFN-FF topology generation report)
+  ! directly to its environment output unit regardless of the verbosity
+  ! setting, so every environment is redirected to the null device. xtb never
+  ! closes those units (its releaseOutput unit check is defective), and since
+  ! critic2 and libxtb share the same Fortran runtime we close them ourselves:
+  ! count the live environments and sweep the null-device units when the last
+  ! one is freed (never earlier -- a unit still held by a live environment
+  ! must not be closed). The counter is not thread-safe; calculator
+  ! init/free only ever runs serially (CLI, or the GUI render thread).
+#ifdef _WIN32
+  character(len=*), parameter :: xtb_nullfile = "NUL"
+#else
+  character(len=*), parameter :: xtb_nullfile = "/dev/null"
+#endif
+  integer :: nxtbenv = 0 !< number of live xtb environments
+#endif
+
 contains
 
   !> Initialize the calculator for crystal c. backend selects ff_uff (default)
-  !> or ff_tblite; method selects the tblite method. elec toggles the built-in
+  !> or ff_gfnxtb; method selects the tblite method. elec toggles the built-in
   !> UFF QEq electrostatics (default on). errmsg is empty on success and holds
   !> the error message on failure.
   module subroutine calc_init(cl,c,backend,method,elec,errmsg)
@@ -162,10 +269,12 @@ contains
 
     if (cl%backend == ff_uff) then
        call uff_setup(cl,c,errmsg)
-    else if (cl%backend == ff_tblite) then
+    else if (cl%backend == ff_gfnxtb) then
        call calc_init_tblite(cl,c,errmsg)
     else if (cl%backend == ff_tip4p) then
        call tip4p_setup(cl,c,errmsg)
+    else if (cl%backend == ff_gfnff) then
+       call calc_init_xtb(cl,c,errmsg)
     else
        errmsg = "unknown energy backend"
     end if
@@ -186,9 +295,23 @@ contains
     select case (backend)
     case (ff_uff)
        ok = .true.
-    case (ff_tblite)
+    case (ff_gfnxtb)
 #ifdef HAVE_TBLITE
        ok = .true.
+#else
+       ok = .false.
+#endif
+    case (ff_gfnff)
+#ifdef HAVE_XTB
+       ! molecules only: xtb's periodic GFN-FF (6.7.1) energies match the xtb
+       ! program but the analytic gradient is inconsistent with the energy
+       ! (finite-difference check off by ~1e-3), and the C API does not
+       ! provide the GFN-FF virial at all, so MD/relax on crystals would be
+       ! wrong. The missing virial is independently guarded at runtime in
+       ! calc_eval_xtb (which errors rather than returning garbage). Lift this
+       ! only once xtb's periodic GFN-FF gradient AND virial are fixed
+       ! upstream.
+       ok = c%ismolecule
 #else
        ok = .false.
 #endif
@@ -234,10 +357,12 @@ contains
 
     if (cl%backend == ff_uff) then
        call uff_evaluate(cl,c,ene,grad,stress)
-    else if (cl%backend == ff_tblite) then
+    else if (cl%backend == ff_gfnxtb) then
        call calc_eval_tblite(cl,c,ene,grad,stress,errmsg)
     else if (cl%backend == ff_tip4p) then
        call tip4p_evaluate(cl,c,ene,grad,stress)
+    else if (cl%backend == ff_gfnff) then
+       call calc_eval_xtb(cl,c,ene,grad,stress,errmsg)
     else
        errmsg = "unknown energy backend"
     end if
@@ -254,10 +379,9 @@ contains
     if (cl%backend == ff_uff) then
        call uff_nonbonded(cl,c)
        if (cl%do_elec) call uff_qeq_pairs(cl,c)
-    else if (cl%backend == ff_tblite) then
-       call calc_update_tblite(cl,c)
     end if
-    ! ff_tip4p: nothing to update
+    ! ff_gfnxtb, ff_tip4p, ff_gfnff: nothing to update (these backends read the
+    ! geometry on every evaluate)
 
   end subroutine calc_update_geometry
 
@@ -265,7 +389,8 @@ contains
   module subroutine calc_free(cl)
     class(calculator), intent(inout) :: cl
 
-    if (cl%backend == ff_tblite) call calc_free_tblite(cl)
+    if (cl%backend == ff_gfnxtb) call calc_free_tblite(cl)
+    if (cl%backend == ff_gfnff) call calc_free_xtb(cl)
     cl%ready = .false.
     cl%nat = 0
     cl%nbond = 0
@@ -2324,14 +2449,6 @@ contains
 
   end subroutine calc_eval_tblite
 
-  module subroutine calc_update_tblite(cl,c)
-    use crystalmod, only: crystal
-    class(calculator), intent(inout) :: cl
-    class(crystal), intent(inout) :: c
-    ! tblite reads the geometry on every evaluate (via update_structure_geometry),
-    ! so nothing needs to be cached here
-  end subroutine calc_update_tblite
-
   module subroutine calc_free_tblite(cl)
     class(calculator), intent(inout) :: cl
 #ifdef HAVE_TBLITE
@@ -2345,5 +2462,223 @@ contains
     cl%tb_ctx = c_null_ptr
 #endif
   end subroutine calc_free_tblite
+
+  ! ---- xtb (GFN-FF) backend ----
+
+#ifdef HAVE_XTB
+  !> Retrieve (and clear) the error messages accumulated in the xtb
+  !> environment. xtb never resets its error log in check_environment,
+  !> so a stale error would make every subsequent evaluation report
+  !> failure.
+  function xtb_error_message(env) result(msg)
+    use c_interface_module, only: c_f_string
+    type(c_ptr), intent(in) :: env
+    character(len=:), allocatable :: msg
+
+    integer, parameter :: buflen = 512
+    character(kind=c_char) :: buf(buflen)
+    character(len=buflen) :: tmp
+
+    ! the pre-fill is MANDATORY: xtb's f_c_character drops the null
+    ! terminator it means to append, so the trailing nulls here are the only
+    ! guarantee that the buffer is terminated
+    buf = c_null_char
+    call c_xtb_get_error(env,buf,int(buflen,c_int))
+    call c_f_string(buf,tmp)
+    msg = trim(tmp)
+  end function xtb_error_message
+#endif
+
+  module subroutine calc_init_xtb(cl,c,errmsg)
+    use crystalmod, only: crystal
+    class(calculator), intent(inout) :: cl
+    class(crystal), intent(inout) :: c
+    character(len=:), allocatable, intent(out) :: errmsg
+
+#ifdef HAVE_XTB
+    integer(c_int), target :: natoms
+    integer(c_int), allocatable, target :: numbers(:)
+    real(c_double), allocatable, target :: coords(:,:)
+    real(c_double), target :: lattice(3,3)
+    logical(c_bool), target :: periodic(3)
+    integer :: i, lu, ios
+
+    errmsg = ""
+    ! atomic numbers and positions (bohr)
+    natoms = int(c%ncel,c_int)
+    allocate(numbers(c%ncel),coords(3,c%ncel))
+    do i = 1, c%ncel
+       numbers(i) = int(c%spc(c%atcel(i)%is)%z,c_int)
+       coords(:,i) = c%atcel(i)%r
+    end do
+
+    cl%xtb_env = c_xtb_new_environment()
+    ! silence xtb: mute the verbosity and redirect the output unit to the
+    ! null device (some printout, e.g. the GFN-FF topology generation report,
+    ! ignores the verbosity setting)
+    if (c_associated(cl%xtb_env)) then
+       call c_xtb_set_verbosity(cl%xtb_env,0_c_int)
+       call c_xtb_set_output(cl%xtb_env,xtb_nullfile//c_null_char)
+       nxtbenv = nxtbenv + 1
+    end if
+
+    if (c%ismolecule) then
+       cl%xtb_mol = c_xtb_new_molecule(cl%xtb_env,c_loc(natoms),c_loc(numbers),&
+          c_loc(coords),c_null_ptr,c_null_ptr,c_null_ptr,c_null_ptr)
+    else
+       lattice = c%m_x2c
+       periodic = .true._c_bool
+       cl%xtb_mol = c_xtb_new_molecule(cl%xtb_env,c_loc(natoms),c_loc(numbers),&
+          c_loc(coords),c_null_ptr,c_null_ptr,c_loc(lattice),c_loc(periodic))
+    end if
+    cl%xtb_calc = c_xtb_new_calculator()
+    cl%xtb_res = c_xtb_new_results()
+    if (.not.(c_associated(cl%xtb_env).and.c_associated(cl%xtb_mol).and.&
+       c_associated(cl%xtb_calc).and.c_associated(cl%xtb_res))) then
+       errmsg = "xtb calculator initialization failed"
+       ! report (and drain) the reason xtb logged, if the environment is up
+       if (c_associated(cl%xtb_env)) &
+          errmsg = errmsg // ": " // xtb_error_message(cl%xtb_env)
+       call calc_free_xtb(cl) ! free the partial handles (and balance nxtbenv)
+       return
+    end if
+
+    ! xtb's loadGFNFF unconditionally writes a gfnff_topo restart file in the
+    ! current directory (no API switch to disable it) and does NOT check that
+    ! the open succeeded, so a read-only working directory would abort the
+    ! whole process inside libxtb. Probe writability by creating the file
+    ! ourselves and fail cleanly if we cannot. (chdir'ing to a scratch
+    ! directory would let GFN-FF run anywhere, but chdir is process-global and
+    ! would race with the GUI's concurrent structure-loading thread.)
+    open(newunit=lu,file="gfnff_topo",status="replace",iostat=ios)
+    if (ios /= 0) then
+       errmsg = "xtb GFN-FF needs a writable working directory (xtb writes a gfnff_topo file there)"
+       call calc_free_xtb(cl)
+       return
+    end if
+    close(lu,status="delete",iostat=ios)
+
+    ! load the GFN-FF parametrization (NULL filename = internal parameters);
+    ! this builds the force-field topology from the current geometry
+    call c_xtb_load_gfnff(cl%xtb_env,cl%xtb_mol,cl%xtb_calc,c_null_ptr)
+
+    ! remove the gfnff_topo file the load just (over)wrote
+    open(newunit=lu,file="gfnff_topo",status="old",iostat=ios)
+    if (ios == 0) close(lu,status="delete",iostat=ios)
+
+    if (c_xtb_check_environment(cl%xtb_env) /= 0) then
+       errmsg = "xtb GFN-FF initialization failed: " // xtb_error_message(cl%xtb_env)
+       call calc_free_xtb(cl)
+       return
+    end if
+#else
+    errmsg = "critic2 was compiled without xtb support"
+#endif
+
+  end subroutine calc_init_xtb
+
+  module subroutine calc_eval_xtb(cl,c,ene,grad,stress,errmsg)
+    use crystalmod, only: crystal
+    class(calculator), intent(inout) :: cl
+    class(crystal), intent(inout) :: c
+    real*8, intent(out) :: ene
+    real*8, intent(out) :: grad(:,:)
+    real*8, intent(out), optional :: stress(3,3)
+    character(len=:), allocatable, intent(out) :: errmsg
+
+#ifdef HAVE_XTB
+    real(c_double), allocatable, target :: coords(:,:), grad_c(:)
+    real(c_double), target :: lattice(3,3)
+    real(c_double) :: e_c, sigma(9)
+    integer :: i
+
+    errmsg = ""
+    ene = 0d0
+    grad = 0d0
+    if (present(stress)) stress = 0d0
+
+    allocate(coords(3,c%ncel),grad_c(3*c%ncel))
+    do i = 1, c%ncel
+       coords(:,i) = c%atcel(i)%r
+    end do
+
+    ! push the current geometry into the xtb molecule
+    if (c%ismolecule) then
+       call c_xtb_update_molecule(cl%xtb_env,cl%xtb_mol,c_loc(coords),c_null_ptr)
+    else
+       lattice = c%m_x2c
+       call c_xtb_update_molecule(cl%xtb_env,cl%xtb_mol,c_loc(coords),c_loc(lattice))
+    end if
+
+    ! single point
+    call c_xtb_singlepoint(cl%xtb_env,cl%xtb_mol,cl%xtb_calc,cl%xtb_res)
+    if (c_xtb_check_environment(cl%xtb_env) /= 0) then
+       errmsg = "xtb GFN-FF single-point calculation failed: " // xtb_error_message(cl%xtb_env)
+       return
+    end if
+    call c_xtb_get_energy(cl%xtb_env,cl%xtb_res,e_c)
+    call c_xtb_get_gradient(cl%xtb_env,cl%xtb_res,grad_c)
+    if (c_xtb_check_environment(cl%xtb_env) /= 0) then
+       errmsg = "xtb GFN-FF result retrieval failed: " // xtb_error_message(cl%xtb_env)
+       return
+    end if
+    ene = e_c
+    grad = reshape(grad_c,(/3,c%ncel/))
+    if (present(stress) .and. .not.c%ismolecule .and. c%omega > 1d-10) then
+       ! xtb returns the virial (dE/d(strain)); convert to stress. NOTE: as of
+       ! xtb 6.7.1 the C API never provides the virial for GFN-FF (the result
+       ! sigma is invalidated after every GFN-FF singlepoint), so this fails
+       ! cleanly rather than returning garbage
+       call c_xtb_get_virial(cl%xtb_env,cl%xtb_res,sigma)
+       if (c_xtb_check_environment(cl%xtb_env) /= 0) then
+          errmsg = "xtb stress not available: " // xtb_error_message(cl%xtb_env)
+          return
+       end if
+       stress = reshape(sigma,(/3,3/)) / c%omega
+    end if
+#else
+    ene = 0d0
+    grad = 0d0
+    if (present(stress)) stress = 0d0
+    errmsg = "critic2 was compiled without xtb support"
+#endif
+
+  end subroutine calc_eval_xtb
+
+  module subroutine calc_free_xtb(cl)
+    class(calculator), intent(inout) :: cl
+#ifdef HAVE_XTB
+    integer :: lu, ios
+    logical :: op
+
+    if (c_associated(cl%xtb_res)) call c_xtb_del_results(cl%xtb_res)
+    if (c_associated(cl%xtb_calc)) call c_xtb_del_calculator(cl%xtb_calc)
+    if (c_associated(cl%xtb_mol)) call c_xtb_del_molecule(cl%xtb_mol)
+    if (c_associated(cl%xtb_env)) then
+       call c_xtb_del_environment(cl%xtb_env)
+       ! close the null-device unit(s) xtb leaks, once no environment is left.
+       ! Only negative units may be closed: inquire-by-file matches by inode,
+       ! so when the process stdio is itself redirected to the null device
+       ! (critic2 ... > /dev/null) the preconnected units (0/5/6) match too --
+       ! closing those would swallow all subsequent critic2 output. xtb's
+       ! leaked units always come from open(newunit=...), which assigns
+       ! negative numbers; stop the sweep (accepting the small leak) if a
+       ! non-newunit connection is returned.
+       nxtbenv = nxtbenv - 1
+       if (nxtbenv <= 0) then
+          do
+             inquire(file=xtb_nullfile,number=lu,opened=op)
+             if (.not.op .or. lu >= 0) exit
+             close(lu,iostat=ios)
+             if (ios /= 0) exit
+          end do
+       end if
+    end if
+    cl%xtb_res = c_null_ptr
+    cl%xtb_calc = c_null_ptr
+    cl%xtb_mol = c_null_ptr
+    cl%xtb_env = c_null_ptr
+#endif
+  end subroutine calc_free_xtb
 
 end submodule proc

@@ -29,8 +29,9 @@ module energy
 
   ! energy backends
   integer, parameter, public :: ff_uff = 0 !< built-in Universal Force Field (UFF)
-  integer, parameter, public :: ff_tblite = 1 !< tblite library (GFN2/GFN1-xTB)
+  integer, parameter, public :: ff_gfnxtb = 1 !< tblite library (GFN2/GFN1-xTB)
   integer, parameter, public :: ff_tip4p = 2 !< built-in TIP4P water model (molecules only)
+  integer, parameter, public :: ff_gfnff = 3 !< xtb library (GFN-FF)
 
   ! tblite methods (used only by the tblite backend)
   integer, parameter, public :: tbm_gfn2 = 1 !< GFN2-xTB
@@ -110,7 +111,7 @@ module energy
   !> Energy/force/stress calculator
   type calculator
      integer :: backend = ff_uff !< selected backend (ff_*)
-     integer :: method = tbm_gfn2 !< tblite method (tbm_*), only for ff_tblite
+     integer :: method = tbm_gfn2 !< tblite method (tbm_*), only for ff_gfnxtb
      logical :: ready = .false. !< true once %init has run successfully
      !! UFF
      integer :: nat = 0 !< number of atoms (= c%ncel)
@@ -143,6 +144,11 @@ module energy
      type(c_ptr) :: tb_mol = c_null_ptr
      type(c_ptr) :: tb_calc = c_null_ptr
      type(c_ptr) :: tb_res = c_null_ptr
+     !! xtb
+     type(c_ptr) :: xtb_env = c_null_ptr
+     type(c_ptr) :: xtb_mol = c_null_ptr
+     type(c_ptr) :: xtb_calc = c_null_ptr
+     type(c_ptr) :: xtb_res = c_null_ptr
    contains
      procedure :: init => calc_init
      procedure :: evaluate => calc_evaluate
@@ -199,14 +205,28 @@ module energy
        real*8, intent(out), optional :: stress(3,3)
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine calc_eval_tblite
-     module subroutine calc_update_tblite(cl,c)
-       use crystalmod, only: crystal
-       class(calculator), intent(inout) :: cl
-       class(crystal), intent(inout) :: c
-     end subroutine calc_update_tblite
      module subroutine calc_free_tblite(cl)
        class(calculator), intent(inout) :: cl
      end subroutine calc_free_tblite
+     ! xtb backend (implemented in energy@proc.F90; stubs when built without xtb)
+     module subroutine calc_init_xtb(cl,c,errmsg)
+       use crystalmod, only: crystal
+       class(calculator), intent(inout) :: cl
+       class(crystal), intent(inout) :: c
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine calc_init_xtb
+     module subroutine calc_eval_xtb(cl,c,ene,grad,stress,errmsg)
+       use crystalmod, only: crystal
+       class(calculator), intent(inout) :: cl
+       class(crystal), intent(inout) :: c
+       real*8, intent(out) :: ene
+       real*8, intent(out) :: grad(:,:)
+       real*8, intent(out), optional :: stress(3,3)
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine calc_eval_xtb
+     module subroutine calc_free_xtb(cl)
+       class(calculator), intent(inout) :: cl
+     end subroutine calc_free_xtb
   end interface
 
 end module energy

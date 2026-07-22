@@ -47,7 +47,8 @@ option(USE_LIBXC "Use the libxc library for access (exchange-correlation energie
 option(USE_LIBCINT "Use the libcint library (calculation of molecular integrals with Gaussian functions)." ON)
 option(USE_READLINE "Use the readline library (improved command-line interface)." ON)
 option(USE_NLOPT "Use the nlopt library (global optimization for variable-cell crystal structure comparison)." ON)
-option(USE_TBLITE "Use the tblite library (GFN-xTB energies and forces for the interactive dynamics)." OFF)
+option(USE_TBLITE "Use the tblite library (GFN-xTB energies and forces)." OFF)
+option(USE_XTB "Use the xtb library (GFN-FF energies and forces)." OFF)
 option(ENABLE_OPENMP "Enable OpenMP parallelization." ON)
 option(BUILD_STATIC "Build critic2 statically (tested only on linux, and no GUI)." OFF)
 
@@ -237,6 +238,11 @@ if (USE_TBLITE)
   find_package(TBLITE)
 endif()
 
+## xtb
+if (USE_XTB)
+  find_package(XTB)
+endif()
+
 ## the syntax.txt target
 add_custom_target(syntax
   COMMAND wget -qO - 'raw.githubusercontent.com/aoterodelaroza/aoterodelaroza.github.io/master/_critic2/13_syntax.md' | awk '/~~~/{a=!a\;next}a{print}' > syntax.txt
@@ -304,6 +310,7 @@ summary_pkg("Libcint"  LIBCINT_FOUND  "${LIBCINT_VERSION} | ${LIBCINT_LIBRARY}")
 summary_pkg("Readline" READLINE_FOUND "${READLINE_LIBRARY} | ${READLINE_INCLUDE_DIRS}")
 summary_pkg("Nlopt"    NLOPT_FOUND    "${NLOPT_VERSION} | ${NLOPT_LIBRARIES}")
 summary_pkg("tblite"   TBLITE_FOUND   "${TBLITE_LIBRARIES}")
+summary_pkg("xtb"      XTB_FOUND      "${XTB_LIBRARIES}")
 summary_pkg("Numdiff"  NUMDIFF_FOUND  "${NUMDIFF_EXE}")
 
 summary_line("GUI" "${ENABLE_GUI}")
