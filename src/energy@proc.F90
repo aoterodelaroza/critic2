@@ -361,6 +361,37 @@ contains
 
   end function ff_backend_applicable
 
+  !> Human-readable label for an energy backend (ff_*)
+  module function ff_backend_label(backend,method) result(lbl)
+    integer, intent(in) :: backend
+    integer, intent(in), optional :: method
+    character(len=:), allocatable :: lbl
+
+    integer :: m
+
+    m = tbm_gfn2
+    if (present(method)) m = method
+    select case (backend)
+    case (ff_uff)
+       lbl = "UFF"
+    case (ff_dreiding)
+       lbl = "DREIDING"
+    case (ff_gfnxtb)
+       if (m == tbm_gfn1) then
+          lbl = "GFN1-xTB (tblite)"
+       else
+          lbl = "GFN2-xTB (tblite)"
+       end if
+    case (ff_gfnff)
+       lbl = "GFN-FF (xtb)"
+    case (ff_tip4p)
+       lbl = "TIP4P water"
+    case default
+       lbl = "unknown"
+    end select
+
+  end function ff_backend_label
+
   !> Evaluate the energy (ene, hartree), energy gradient (grad(3,nat),
   !> hartree/bohr; force = -grad) and, optionally, the stress tensor
   !> (stress(3,3), hartree/bohr^3) at the current geometry of c.

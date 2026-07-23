@@ -99,7 +99,7 @@ contains
        elseif (equal(word,'edit')) then
           call check_structure_defined(ok)
           if (.not.ok) cycle
-          call struct_edit(sy,.not.quiet)
+          call struct_edit(sy,.not.quiet,line(lp:))
 
           ! newcell
        elseif (equal(word,'newcell')) then

@@ -32,6 +32,7 @@ module dynamics
   type mdrun
      type(calculator) :: cl !< the energy/force backend
      logical :: ready = .false. !< true once %init has succeeded
+     character(len=:), allocatable :: errmsg !< last force-evaluation error (empty if none)
      integer :: nat = 0 !< number of atoms
      integer :: mode = md_dynamics !< md_dynamics or md_relax
      real*8, allocatable :: r(:,:) !< positions (3,nat), bohr

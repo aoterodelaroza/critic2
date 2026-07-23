@@ -123,9 +123,10 @@ module struct_drivers
        type(system), intent(inout) :: s
        character*(*), intent(in) :: line
      end subroutine struct_vdw
-     module subroutine struct_edit(s,verbose)
+     module subroutine struct_edit(s,verbose,line0)
        type(system), intent(inout) :: s
        logical, intent(in) :: verbose
+       character(len=*), intent(in), optional :: line0
      end subroutine struct_edit
      module subroutine struct_newcell(s,line,verbose)
        type(system), intent(inout) :: s

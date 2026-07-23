@@ -3274,7 +3274,7 @@ contains
   end subroutine struct_vdw
 
   !> Edit a molecular or crystal structure
-  module subroutine struct_edit(s,verbose)
+  module subroutine struct_edit(s,verbose,line0)
     use systemmod, only: system
     use tools_io, only: uout, ucopy, uin, getline, lgetword, equal, ferror, faterr,&
        getword, isinteger, string
@@ -3282,13 +3282,20 @@ contains
     use types, only: realloc
     type(system), intent(inout) :: s
     logical, intent(in) :: verbose
+    character(len=*), intent(in), optional :: line0
 
     character(len=:), allocatable :: line, word, errmsg
     integer :: lp
     integer :: idx, nat, i, iunit_l, iaxis
     integer, allocatable :: iat(:)
-    logical :: ok, dorelative, dofraction, changed, usesym
+    logical :: ok, dorelative, dofraction, changed, usesym, oneline
+
     real*8 :: x(3), rdum
+
+    ! one-line form ("EDIT <subcommand> ..."): run the single subcommand given
+    ! on the EDIT line instead of reading a block terminated by END
+    oneline = present(line0)
+    if (oneline) oneline = (len_trim(line0) > 0)
 
     if (verbose) then
        write (uout,'("* Edit the crystal or molecular structure (EDIT)")')
@@ -3298,7 +3305,12 @@ contains
     ! transform to the primitive?
     errmsg = "Invalid syntax"
     changed = .false.
-    do while (getline(uin,line,ucopy=ucopy))
+    do
+       if (oneline) then
+          line = line0
+       else
+          if (.not.getline(uin,line,ucopy=ucopy)) exit
+       end if
        lp = 1
        word = lgetword(line,lp)
        if (equal(word,"delete")) then
@@ -3466,11 +3478,18 @@ contains
           call s%c%move_cell(iaxis,rdum,iunit_l,dorelative,dofraction)
           changed = .true.
 
+       elseif (equal(word,"relax")) then
+          ! EDIT RELAX ff.s [thresh.r]: relax the geometry with force field ff
+          call struct_relax(s,line,lp,verbose,errmsg)
+          if (len_trim(errmsg) > 0) goto 999
+          changed = .true.
+
        elseif (equal(word,"end") .or. equal(word,"endedit")) then
           exit
        elseif (len_trim(word) > 0) then
           goto 999
        end if
+       if (oneline) exit ! one-line form: a single subcommand, no END
     end do
 
     ! wrap up
@@ -3486,6 +3505,142 @@ contains
     call ferror('struct_edit',errmsg,faterr,line,syntax=.true.)
 
   end subroutine struct_edit
+
+  !> Relax the geometry of system s with a built-in/library force
+  !> field. Runs a FIRE relaxation, printing the per-step energy and
+  !> maximum force, updates the structure in place, and reports the
+  !> final energy. errmsg is set on error (empty on success).
+  subroutine struct_relax(s,line,lp,verbose,errmsg)
+    use systemmod, only: system
+    use dynamics, only: mdrun, md_relax
+    use energy, only: ff_uff, ff_dreiding, ff_gfnxtb, ff_gfnff, ff_tip4p, &
+       tbm_gfn2, tbm_gfn1, ff_backend_applicable, ff_backend_label
+    use tools_io, only: uout, lgetword, string
+    use global, only: eval_next_real
+    use param, only: hartoev, bohrtoa
+    type(system), intent(inout) :: s
+    character(len=*), intent(in) :: line
+    integer, intent(inout) :: lp
+    logical, intent(in) :: verbose
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer, parameter :: maxstep = 5000
+    real*8, parameter :: thresh_default = 1d-4 ! hartree/bohr
+
+    type(mdrun) :: md
+    character(len=:), allocatable :: word, ffname
+    integer :: backend, method, istep
+    real*8 :: thresh, fmax, rtmp
+    logical :: converged
+
+    errmsg = ""
+
+    ! force-field identifier (mirrors the GUI dynamics-window options)
+    word = lgetword(line,lp)
+    method = tbm_gfn2
+    select case (word)
+    case ("uff")
+       backend = ff_uff
+    case ("dreiding")
+       backend = ff_dreiding
+    case ("gfn2","gfn2-xtb","gfn2xtb")
+       backend = ff_gfnxtb; method = tbm_gfn2
+    case ("gfn1","gfn1-xtb","gfn1xtb")
+       backend = ff_gfnxtb; method = tbm_gfn1
+    case ("gfnff","gfn-ff")
+       backend = ff_gfnff
+    case ("tip4p")
+       backend = ff_tip4p
+    case default
+       errmsg = "unknown force field in EDIT RELAX: " // trim(word)
+       return
+    end select
+    ffname = ff_backend_label(backend,method)
+
+    ! optional max-force convergence threshold (hartree/bohr); keep the default
+    ! when absent (eval_next_real zeroes its output on a failed parse)
+    thresh = thresh_default
+    if (eval_next_real(rtmp,line,lp)) then
+       thresh = rtmp
+       if (thresh <= 0d0) then
+          errmsg = "the EDIT RELAX force threshold must be positive"
+          return
+       end if
+    end if
+
+    ! the force field must be applicable to this system
+    if (.not.ff_backend_applicable(backend,s%c)) then
+       errmsg = "the " // trim(ffname) // " force field is not available for this system"
+       return
+    end if
+    if (s%c%ncel == 0) then
+       errmsg = "there are no atoms to relax"
+       return
+    end if
+
+    ! set up the FIRE relaxation
+    call md%init(s%c,backend=backend,method=method,mode=md_relax,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) then
+       call md%free() ! release any partial calculator state (e.g. tblite/xtb handles)
+       return
+    end if
+
+    if (verbose) then
+       write (uout,'("+ Geometry relaxation (FIRE) with the ",A," force field")') trim(ffname)
+       if (.not.s%c%ismolecule) &
+          write (uout,'("  (fixed cell: atomic positions only, the lattice is not relaxed)")')
+       write (uout,'("  max-force convergence threshold (hartree/bohr): ",A)') string(thresh,'e',decimal=4)
+       write (uout,'("  max-force convergence threshold (eV/ang):       ",A)') &
+          string(thresh*hartoev/bohrtoa,'e',decimal=4)
+       write (uout,'(/"   step         energy (Ha)      max|F| (Ha/bohr)    max|F| (eV/ang)")')
+    end if
+
+    ! relaxation loop
+    converged = .false.
+    fmax = 0d0
+    do istep = 1, maxstep
+       call md%step(s%c)
+       if (.not.md%ready) then
+          ! a force-field evaluation failed mid-relaxation (e.g. tblite/xtb SCF
+          ! non-convergence); abort rather than report a spurious convergence
+          errmsg = "force-field evaluation failed during relaxation"
+          if (allocated(md%errmsg)) then
+             if (len_trim(md%errmsg) > 0) errmsg = errmsg // ": " // md%errmsg
+          end if
+          call md%free()
+          return
+       end if
+       fmax = maxval(norm2(md%f,1)) ! largest atomic force magnitude
+       if (verbose) &
+          write (uout,'(2X,I6,3X,A,3X,A,3X,A)') istep, &
+          string(md%epot,'f',length=18,decimal=10), &
+          string(fmax,'e',length=16,decimal=8), &
+          string(fmax*hartoev/bohrtoa,'e',length=14,decimal=6)
+       if (fmax < thresh) then
+          converged = .true.
+          exit
+       end if
+    end do
+
+    ! adopt the relaxed geometry (re-derive symmetry and the cell)
+    call s%c%rebuild_after_move()
+
+    if (verbose) then
+       write (uout,*)
+       if (converged) then
+          write (uout,'("  relaxation converged in ",A," steps")') string(istep)
+       else
+          write (uout,'("  WARNING: relaxation did NOT converge in ",A," steps")') string(maxstep)
+       end if
+       write (uout,'("  final energy (hartree): ",A)') string(md%epot,'f',decimal=10)
+       write (uout,'("  final energy (eV):      ",A)') string(md%epot*hartoev,'f',decimal=6)
+       write (uout,'("  final max|force| (hartree/bohr): ",A)') string(fmax,'e',decimal=6)
+       write (uout,*)
+    end if
+
+    call md%free()
+
+  end subroutine struct_relax
 
   !> Build a new crystal from the current crystal by cell transformation
   module subroutine struct_newcell(s,line,verbose)

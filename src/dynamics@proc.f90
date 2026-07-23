@@ -88,6 +88,12 @@ contains
        md%v = 0d0
     end if
     call compute_forces(md,c)
+    if (allocated(md%errmsg)) then
+       if (len_trim(md%errmsg) > 0) then
+          errmsg = "force-field evaluation failed: " // md%errmsg
+          return
+       end if
+    end if
     call kinetic(md)
     md%ready = .true.
 
@@ -289,9 +295,11 @@ contains
        call md%cl%evaluate(c,md%epot,md%f,stress=md%stress,errmsg=errmsg)
     end if
     if (len_trim(errmsg) > 0) then
+       md%errmsg = errmsg
        md%ready = .false.
        return
     end if
+    md%errmsg = ""
     md%f = -md%f
 
   end subroutine compute_forces

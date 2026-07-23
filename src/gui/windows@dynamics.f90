@@ -27,7 +27,7 @@ contains
   module subroutine draw_dynamics(w)
     use systems, only: sysc, sys, sys_init, ok_system, lastchange_geometry
     use dynamics, only: md_dynamics, md_relax
-    use energy, only: ff_uff, ff_dreiding, ff_gfnxtb, ff_gfnff, ff_tip4p, ff_backend_applicable
+    use energy, only: ff_uff, ff_dreiding, ff_gfnxtb, ff_gfnff, ff_tip4p, ff_backend_applicable, ff_backend_label
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcwidth, iw_combo_simple,&
        iw_dragfloat_real8, iw_radiobutton
     use gui_main, only: g
@@ -45,15 +45,8 @@ contains
     character(len=:), allocatable :: errmsg, str_backend
     character(len=:,kind=c_char), allocatable, target :: str1, str2
 
-    ! candidate MD/relaxation backends in preference order (labels padded to a
-    ! common length for the array constructor; trimmed on use)
+    ! candidate MD/relaxation backends in preference order
     integer, parameter :: backids_all(5) = (/ff_uff, ff_dreiding, ff_gfnxtb, ff_gfnff, ff_tip4p/)
-    character(len=*), parameter :: backlabels(5) = (/ &
-       "UFF              ", &
-       "DREIDING         ", &
-       "GFN2-xTB (tblite)", &
-       "GFN-FF (xtb)     ", &
-       "TIP4P water      "/)
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -92,7 +85,7 @@ contains
           if (.not.ff_backend_applicable(backids_all(i),sys(isys)%c)) cycle
           nback = nback + 1
           backids(nback) = backids_all(i)
-          str_backend = str_backend // trim(backlabels(i)) // c_null_char
+          str_backend = str_backend // trim(ff_backend_label(backids_all(i))) // c_null_char
        end do
 
        ! translate the stored backend id to its position in the filtered list
