@@ -46,6 +46,22 @@ submodule (energy) proc
   ! declared public in the parent module (src/energy.f90) and reach this
   ! submodule by host association.
 
+  ! DREIDING per-type parameters (Mayo et al.; matched to GULP 6.4 dreiding.lib).
+  type dretype
+     character(len=6) :: label = "" !< DREIDING atom-type label
+     integer :: z = 0        !< atomic number
+     real*8 :: pic = 1d0     !< pi class (1 sp3/ion, 1.5 resonant, 2 sp2, 3 sp)
+     real*8 :: r = 0d0       !< bond radius (angstrom); r0_ij = r_i+r_j-0.01
+     real*8 :: th0 = -1d0    !< equilibrium bond angle (degrees), -1 = not a centre
+     real*8 :: eps = 0d0     !< van der Waals well depth (kcal/mol)
+     real*8 :: sig = 0d0     !< van der Waals distance/minimum (angstrom)
+     integer :: invk = 0     !< inversion kind: 0 none, 1 planar, 2 squared
+  end type dretype
+  integer, parameter :: ndretype = 49
+  type(dretype), save :: dre(ndretype)
+  logical, save :: dre_ready = .false.
+  integer, parameter :: dre_hbz(7) = (/7,8,9,16,17,35,53/)
+
 #ifdef HAVE_TBLITE
   ! Interfaces to the tblite C API (https://tblite.readthedocs.io/en/latest/api/c.html).
   ! Opaque handles are passed as C pointers. Array/optional pointers are passed
@@ -275,6 +291,8 @@ contains
        call tip4p_setup(cl,c,errmsg)
     else if (cl%backend == ff_gfnff) then
        call calc_init_xtb(cl,c,errmsg)
+    else if (cl%backend == ff_dreiding) then
+       call dreiding_setup(cl,c,errmsg)
     else
        errmsg = "unknown energy backend"
     end if
@@ -295,6 +313,16 @@ contains
     select case (backend)
     case (ff_uff)
        ok = .true.
+    case (ff_dreiding)
+       ! only if every atom's element is parametrized in DREIDING
+       call dre_build_table()
+       ok = .true.
+       do i = 1, c%ncel
+          if (.not.dre_element_supported(c%spc(c%atcel(i)%is)%z)) then
+             ok = .false.
+             return
+          end if
+       end do
     case (ff_gfnxtb)
 #ifdef HAVE_TBLITE
        ok = .true.
@@ -355,8 +383,9 @@ contains
        return
     end if
 
-    if (cl%backend == ff_uff) then
-       call uff_evaluate(cl,c,ene,grad,stress)
+    if (cl%backend == ff_uff .or. cl%backend == ff_dreiding) then
+       ! DREIDING shares UFF's term-list evaluator
+       call uff_dre_evaluate(cl,c,ene,grad,stress)
     else if (cl%backend == ff_gfnxtb) then
        call calc_eval_tblite(cl,c,ene,grad,stress,errmsg)
     else if (cl%backend == ff_tip4p) then
@@ -379,6 +408,9 @@ contains
     if (cl%backend == ff_uff) then
        call uff_nonbonded(cl,c)
        if (cl%do_elec) call uff_qeq_pairs(cl,c)
+    else if (cl%backend == ff_dreiding) then
+       call dre_nonbonded(cl,c)
+       call dre_hbond_pairs(cl,c)
     end if
     ! ff_gfnxtb, ff_tip4p, ff_gfnff: nothing to update (these backends read the
     ! geometry on every evaluate)
@@ -414,6 +446,9 @@ contains
     if (allocated(cl%inv)) deallocate(cl%inv)
     cl%nwat = 0
     if (allocated(cl%iwat)) deallocate(cl%iwat)
+    cl%nhb = 0
+    if (allocated(cl%hb)) deallocate(cl%hb)
+    if (allocated(cl%dretyp)) deallocate(cl%dretyp)
 
   end subroutine calc_free
 
@@ -795,24 +830,6 @@ contains
 
     end subroutine uff_inversion_params
 
-    !> Real bond order of the connection k of a neighbor star (aromatic -> 1.5,
-    !> unset/dashed -> 1).
-    pure function bond_order(nsa,k) result(bo)
-      use types, only: neighstar
-      type(neighstar), intent(in) :: nsa
-      integer, intent(in) :: k
-      real*8 :: bo
-      integer :: o
-      o = 1
-      if (allocated(nsa%ordcon)) o = nsa%ordcon(k)
-      if (o == -1) then
-         bo = 1.5d0
-      else if (o <= 0) then
-         bo = 1d0
-      else
-         bo = real(o,8)
-      end if
-    end function bond_order
 
     !> UFF natural bond length r_IJ (angstrom) for atom types iti/itj and bond
     !> order bo, including bond-order and electronegativity corrections.
@@ -881,11 +898,12 @@ contains
 
   end subroutine uff_setup
 
-  !> Evaluate the UFF energy, gradient, and (optionally) stress, all
-  !> in atomic units.
-  subroutine uff_evaluate(cl,c,ene,grad,stress)
+  !> Evaluate the UFF/DREIDING energy, gradient, and (optionally)
+  !> stress, all in atomic units.
+  subroutine uff_dre_evaluate(cl,c,ene,grad,stress)
     use crystalmod, only: crystal
     use tools_math, only: cross
+    use param, only: pi, rad
     class(calculator), intent(inout) :: cl
     class(crystal), intent(inout) :: c
     real*8, intent(out) :: ene
@@ -896,6 +914,7 @@ contains
     real*8 :: d(3), r, dr, gmag, g(3)
     real*8 :: ri(3), rj(3), rk(3), a(3), b(3), na, nb, u, edu, pu, dpu
     real*8 :: dudi(3), dudk(3), dudj(3), gi(3), gj(3), gk(3)
+    real*8 :: dtheta, sinth
     real*8 :: sr, sr2, sr6, sr12, fmag
     real*8 :: vir(3,3)
     real*8 :: esofar, ecoul
@@ -909,6 +928,11 @@ contains
     integer :: inv, ap, ib1, ib2, iidx(3)
     real*8 :: rc(3), rnb(3,3), cosy, siny, edcy
     real*8 :: gc(3), gg1(3), gg2(3), gg3(3)
+    ! hydrogen-bond locals
+    integer :: ihb, ih, id, ia
+    real*8 :: rh(3), rd(3), ra(3), d23(3), u23(3), vd(3), va(3)
+    real*8 :: dcd(3), dca(3), dch(3), gh(3), gd(3), ga(3)
+    real*8 :: r23, fr, dfr, ndv, nav, cth, xx, tap, dtap, gth, xmin, xmax
 
     dostress = present(stress)
     ene = 0d0
@@ -936,7 +960,7 @@ contains
 
     ! angle bend, expressed in u = cos(theta) (no 1/sin(theta) singularity):
     ! E = kk * P(u) with the polynomial P precomputed at setup
-    !$omp parallel do private(n,ii,jj,kk,ri,rj,rk,a,b,na,nb,u,dudi,dudk,dudj,pu,dpu,edu,gi,gj,gk) &
+    !$omp parallel do private(n,ii,jj,kk,ri,rj,rk,a,b,na,nb,u,dudi,dudk,dudj,pu,dpu,edu,gi,gj,gk,dtheta,sinth) &
     !$omp    reduction(+:ene,grad,vir)
     do n = 1, cl%nang
        ii = cl%ang(n)%i
@@ -955,11 +979,20 @@ contains
        dudi = b/(na*nb) - (u/(na*na))*a
        dudk = a/(na*nb) - (u/(nb*nb))*b
        dudj = -(dudi+dudk)
-       ! P(u) and dP/du (Horner), u = cos(theta)
-       pu = cl%ang(n)%p(0) + u*(cl%ang(n)%p(1) + u*(cl%ang(n)%p(2) + u*(cl%ang(n)%p(3) + u*cl%ang(n)%p(4))))
-       dpu = cl%ang(n)%p(1) + u*(2d0*cl%ang(n)%p(2) + u*(3d0*cl%ang(n)%p(3) + u*4d0*cl%ang(n)%p(4)))
-       ene = ene + cl%ang(n)%kk * pu
-       edu = cl%ang(n)%kk * dpu
+       if (cl%ang(n)%kind == ak_harmonic) then
+          ! DREIDING harmonic bend: E = 1/2 kk (theta-th0)^2, theta = acos(u);
+          ! dE/du = kk (theta-th0) (-1/sin theta) (finite limit at theta=th0=0/pi)
+          dtheta = acos(u) - cl%ang(n)%th0
+          sinth = sqrt(max(1d0-u*u,1d-16))
+          ene = ene + 0.5d0 * cl%ang(n)%kk * dtheta*dtheta
+          edu = -cl%ang(n)%kk * dtheta / sinth
+       else
+          ! UFF cosine-polynomial bend: E = kk P(u), u = cos(theta)
+          pu = cl%ang(n)%p(0) + u*(cl%ang(n)%p(1) + u*(cl%ang(n)%p(2) + u*(cl%ang(n)%p(3) + u*cl%ang(n)%p(4))))
+          dpu = cl%ang(n)%p(1) + u*(2d0*cl%ang(n)%p(2) + u*(3d0*cl%ang(n)%p(3) + u*4d0*cl%ang(n)%p(4)))
+          ene = ene + cl%ang(n)%kk * pu
+          edu = cl%ang(n)%kk * dpu
+       end if
        gi = edu*dudi
        gj = edu*dudj
        gk = edu*dudk
@@ -1095,11 +1128,22 @@ contains
              ib2 = 2
           end if
           call uff_wilson_cosy(rc,rnb(:,ib1),rnb(:,ib2),rnb(:,ap),cosy,gc,gg1,gg2,gg3)
+          ! siny = sin(angle-from-normal) = cos(out-of-plane angle phi) (Wilson)
           siny = sqrt(max(1d0 - cosy*cosy,1d-12))
-          ene = ene + cl%inv(inv)%k*(cl%inv(inv)%c0 + cl%inv(inv)%c1*siny &
-             + cl%inv(inv)%c2*(2d0*siny*siny - 1d0))
-          ! dE/d(cosY) = -K (C1 + 4 C2 sinY) cosY / sinY
-          edcy = -cl%inv(inv)%k*(cl%inv(inv)%c1 + 4d0*cl%inv(inv)%c2*siny)*cosy/siny
+          if (cl%inv(inv)%kind == ik_dre_planar) then
+             ! DREIDING planar: E = k (1 - cos phi), cos phi = siny
+             ene = ene + cl%inv(inv)%k*(1d0 - siny)
+             edcy = cl%inv(inv)%k*cosy/siny
+          else if (cl%inv(inv)%kind == ik_dre_squared) then
+             ! DREIDING squared: E = 1/2 (k/sin^2 k0)(cos phi - cos k0)^2 (k prescaled)
+             ene = ene + 0.5d0*cl%inv(inv)%k*(siny - cl%inv(inv)%ck0)**2
+             edcy = -cl%inv(inv)%k*(siny - cl%inv(inv)%ck0)*cosy/siny
+          else
+             ! UFF: E = K [C0 + C1 sin(Y) + C2 cos(2Y)]; dE/d(cosY) = -K(C1+4 C2 sinY)cosY/sinY
+             ene = ene + cl%inv(inv)%k*(cl%inv(inv)%c0 + cl%inv(inv)%c1*siny &
+                + cl%inv(inv)%c2*(2d0*siny*siny - 1d0))
+             edcy = -cl%inv(inv)%k*(cl%inv(inv)%c1 + 4d0*cl%inv(inv)%c2*siny)*cosy/siny
+          end if
           grad(:,ti) = grad(:,ti) + edcy*gc
           grad(:,iidx(ib1)) = grad(:,iidx(ib1)) + edcy*gg1
           grad(:,iidx(ib2)) = grad(:,iidx(ib2)) + edcy*gg2
@@ -1113,6 +1157,69 @@ contains
        end do
     end do
     !$omp end parallel do
+
+    ! DREIDING hydrogen bonds: E = (A/r^12 - B/r^10) cos^4(theta) T(cos^2 theta)
+    ! for theta > 90, where r is the donor-acceptor distance and theta the
+    ! D-H-A angle; T is a raised-cosine angular taper (dre_hb_tmin..tmax)
+    if (cl%nhb > 0) then
+       xmin = cos(dre_hb_tmin*rad)**2
+       xmax = cos(dre_hb_tmax*rad)**2
+       !$omp parallel do private(ihb,ih,id,ia,rh,rd,ra,d23,r23,u23,fr,dfr,vd,va,ndv,nav,cth,&
+       !$omp    dcd,dca,dch,xx,tap,dtap,gth,gh,gd,ga) reduction(+:ene,grad,vir)
+       do ihb = 1, cl%nhb
+          ih = cl%hb(ihb)%ih
+          id = cl%hb(ihb)%id
+          ia = cl%hb(ihb)%ia
+          rh = c%atcel(ih)%r
+          rd = c%atcel(id)%r + c%x2c(real(cl%hb(ihb)%ld,8))
+          ra = c%atcel(ia)%r + c%x2c(real(cl%hb(ihb)%la,8))
+          ! donor-acceptor distance and radial factor
+          d23 = ra - rd
+          r23 = norm2(d23)
+          if (r23 < 1d-10 .or. r23 > dre_hb_rcut) cycle
+          u23 = d23/r23
+          fr = dre_hb_a/r23**12 - dre_hb_b/r23**10
+          dfr = -12d0*dre_hb_a/r23**13 + 10d0*dre_hb_b/r23**11
+          ! D-H-A angle (vertex H), cos = cth
+          vd = rd - rh
+          va = ra - rh
+          ndv = norm2(vd)
+          nav = norm2(va)
+          if (ndv < 1d-10 .or. nav < 1d-10) cycle
+          cth = dot_product(vd,va)/(ndv*nav)
+          cth = max(min(cth,1d0),-1d0)
+          if (cth >= 0d0) cycle ! theta <= 90: no hydrogen bond
+          dcd = va/(ndv*nav) - (cth/(ndv*ndv))*vd
+          dca = vd/(ndv*nav) - (cth/(nav*nav))*va
+          dch = -(dcd+dca)
+          ! angular factor g(cth) = cth^4 T(cth^2); taper T rises 0->1 over [xmin,xmax]
+          xx = cth*cth
+          if (xx <= xmin) then
+             tap = 0d0; dtap = 0d0
+          else if (xx >= xmax) then
+             tap = 1d0; dtap = 0d0
+          else
+             tap = 0.5d0*(1d0 - cos(pi*(xx-xmin)/(xmax-xmin)))
+             dtap = 0.5d0*pi/(xmax-xmin)*sin(pi*(xx-xmin)/(xmax-xmin))
+          end if
+          ! dg/d(cth) = 4 cth^3 T + cth^4 T'(xx) 2 cth
+          gth = 4d0*cth**3*tap + xx*xx*dtap*2d0*cth
+          ene = ene + fr*(cth**4*tap)
+          ! gradients: radial part on D,A; angular part on H,D,A
+          gd = dfr*(-u23)*(cth**4*tap) + fr*gth*dcd
+          ga = dfr*( u23)*(cth**4*tap) + fr*gth*dca
+          gh = fr*gth*dch
+          grad(:,id) = grad(:,id) + gd
+          grad(:,ia) = grad(:,ia) + ga
+          grad(:,ih) = grad(:,ih) + gh
+          if (dostress) then
+             call virial(vir,rd,-gd)
+             call virial(vir,ra,-ga)
+             call virial(vir,rh,-gh)
+          end if
+       end do
+       !$omp end parallel do
+    end if
 
     if (dostress) then
        if (c%ismolecule .or. c%omega < 1d-10) then
@@ -1264,7 +1371,7 @@ contains
       ene = ene + eelec
 
     end subroutine uff_electrostatics
-  end subroutine uff_evaluate
+  end subroutine uff_dre_evaluate
 
   !> Equilibrate partial charges by the QEq method of Rappe and Goddard.
   subroutine uff_qeq(cl,c)
@@ -1444,41 +1551,6 @@ contains
           allocate(cl%nb(nnb))
        end if
     end do
-
-  contains
-    !> True if atoms (i, j+lv) are 1-2 (directly bonded) or 1-3 (both bonded to a
-    !> common atom), and should therefore be excluded from the nonbonded term.
-    function excluded_13(ns,i,j,lv) result(ex)
-      use types, only: neighstar
-      type(neighstar), intent(in) :: ns(:)
-      integer, intent(in) :: i, j, lv(3)
-      logical :: ex
-
-      integer :: ka, kb, a, la(3), b, lab(3)
-
-      ex = .false.
-      ! 1-2: i directly bonded to (j,lv)
-      do ka = 1, ns(i)%ncon
-         if (ns(i)%idcon(ka) == j .and. all(ns(i)%lcon(:,ka) == lv)) then
-            ex = .true.
-            return
-         end if
-      end do
-      ! 1-3: some neighbor a of i is bonded to (j,lv)
-      do ka = 1, ns(i)%ncon
-         a = ns(i)%idcon(ka)
-         la = ns(i)%lcon(:,ka)
-         do kb = 1, ns(a)%ncon
-            b = ns(a)%idcon(kb)
-            lab = la + ns(a)%lcon(:,kb)
-            if (b == j .and. all(lab == lv)) then
-               ex = .true.
-               return
-            end if
-         end do
-      end do
-
-    end function excluded_13
 
   end subroutine uff_nonbonded
 
@@ -2100,6 +2172,58 @@ contains
     end if
   end subroutine qeq_add_slater
 
+  !> Real bond order of the connection k of a neighbor star (aromatic -> 1.5,
+  !> unset/dashed -> 1). Shared by the UFF and DREIDING setups.
+  pure function bond_order(nsa,k) result(bo)
+    use types, only: neighstar
+    type(neighstar), intent(in) :: nsa
+    integer, intent(in) :: k
+    real*8 :: bo
+    integer :: o
+    o = 1
+    if (allocated(nsa%ordcon)) o = nsa%ordcon(k)
+    if (o == -1) then
+       bo = 1.5d0
+    else if (o <= 0) then
+       bo = 1d0
+    else
+       bo = real(o,8)
+    end if
+  end function bond_order
+
+  !> True if atoms (i, j+lv) are 1-2 (directly bonded) or 1-3 (both bonded to a
+  !> common atom), and should therefore be excluded from the nonbonded term.
+  !> Shared by the UFF and DREIDING nonbonded builders.
+  function excluded_13(ns,i,j,lv) result(ex)
+    use types, only: neighstar
+    type(neighstar), intent(in) :: ns(:)
+    integer, intent(in) :: i, j, lv(3)
+    logical :: ex
+    integer :: ka, kb, a, la(3), b, lab(3)
+
+    ex = .false.
+    ! 1-2: i directly bonded to (j,lv)
+    do ka = 1, ns(i)%ncon
+       if (ns(i)%idcon(ka) == j .and. all(ns(i)%lcon(:,ka) == lv)) then
+          ex = .true.
+          return
+       end if
+    end do
+    ! 1-3: some neighbor a of i is bonded to (j,lv)
+    do ka = 1, ns(i)%ncon
+       a = ns(i)%idcon(ka)
+       la = ns(i)%lcon(:,ka)
+       do kb = 1, ns(a)%ncon
+          b = ns(a)%idcon(kb)
+          lab = la + ns(a)%lcon(:,kb)
+          if (b == j .and. all(lab == lv)) then
+             ex = .true.
+             return
+          end if
+       end do
+    end do
+  end function excluded_13
+
   !> True if the directed bond (i -> j with lattice vector lv) is the canonical
   !> representative of its undirected pair (avoids double-counting).
   pure function bond_canonical(i,j,lv) result(ok)
@@ -2135,6 +2259,642 @@ contains
        end do
     end do
   end subroutine virial
+
+  !xx! DREIDING generic force field (Mayo, Olafson & Goddard, J. Phys. Chem. 94 (1990) 8897)
+  ! Matched to GULP 6.4 dreiding.lib: harmonic angle bending, no
+  ! electrostatics, explicit hydrogen bonds.
+
+  !> Fill the DREIDING per-type parameter table (once). Values and combination
+  !> rules verified to reproduce every entry of the GULP dreiding.lib.
+  subroutine dre_build_table()
+    if (dre_ready) return
+    dre( 1) = dretype("H_    ",   1, 1.0d0 , 0.3300d0,   -1.000d0, 0.0152d0, 3.1950d0, 0)
+    dre( 2) = dretype("H___A ",   1, 1.0d0 , 0.3300d0,   -1.000d0, 0.0001d0, 3.1950d0, 0)
+    dre( 3) = dretype("H___b ",   1, 1.0d0 , 0.5100d0,   90.000d0, 0.0152d0, 3.1950d0, 0)
+    dre( 4) = dretype("B_3   ",   5, 1.0d0 , 0.8800d0,  109.471d0, 0.0950d0, 4.0200d0, 0)
+    dre( 5) = dretype("B_2   ",   5, 2.0d0 , 0.7900d0,  120.000d0, 0.0950d0, 4.0200d0, 1)
+    dre( 6) = dretype("C_34  ",   6, 1.0d0 , 0.7700d0,  109.471d0, 0.3016d0, 4.2370d0, 0)
+    dre( 7) = dretype("C_33  ",   6, 1.0d0 , 0.7700d0,  109.471d0, 0.2500d0, 4.1524d0, 0)
+    dre( 8) = dretype("C_32  ",   6, 1.0d0 , 0.7700d0,  109.471d0, 0.1984d0, 4.0677d0, 0)
+    dre( 9) = dretype("C_31  ",   6, 1.0d0 , 0.7700d0,  109.471d0, 0.1467d0, 3.9830d0, 2)
+    dre(10) = dretype("C_3   ",   6, 1.0d0 , 0.7700d0,  109.471d0, 0.0951d0, 3.8983d0, 0)
+    dre(11) = dretype("C_22  ",   6, 2.0d0 , 0.6700d0,  120.000d0, 0.1984d0, 4.0677d0, 1)
+    dre(12) = dretype("C_21  ",   6, 2.0d0 , 0.6700d0,  120.000d0, 0.1467d0, 3.9830d0, 1)
+    dre(13) = dretype("C_2   ",   6, 2.0d0 , 0.6700d0,  120.000d0, 0.0951d0, 3.8983d0, 1)
+    dre(14) = dretype("C_R2  ",   6, 1.5d0 , 0.7000d0,  120.000d0, 0.1984d0, 4.0677d0, 1)
+    dre(15) = dretype("C_R1  ",   6, 1.5d0 , 0.7000d0,  120.000d0, 0.1356d0, 4.2300d0, 1)
+    dre(16) = dretype("C_R   ",   6, 1.5d0 , 0.7000d0,  120.000d0, 0.0951d0, 3.8983d0, 1)
+    dre(17) = dretype("C_11  ",   6, 3.0d0 , 0.6020d0,  180.000d0, 0.1467d0, 3.9830d0, 0)
+    dre(18) = dretype("C_1   ",   6, 3.0d0 , 0.6020d0,  180.000d0, 0.0951d0, 3.8983d0, 0)
+    dre(19) = dretype("N_3   ",   7, 1.0d0 , 0.7020d0,  106.700d0, 0.0774d0, 3.6621d0, 0)
+    dre(20) = dretype("N_R   ",   7, 1.5d0 , 0.6500d0,  120.000d0, 0.0774d0, 3.6621d0, 1)
+    dre(21) = dretype("N_2   ",   7, 2.0d0 , 0.6150d0,  120.000d0, 0.0774d0, 3.6621d0, 1)
+    dre(22) = dretype("N_1   ",   7, 3.0d0 , 0.5560d0,  180.000d0, 0.0774d0, 3.6621d0, 0)
+    dre(23) = dretype("O_3   ",   8, 1.0d0 , 0.6600d0,  104.510d0, 0.0957d0, 3.4046d0, 0)
+    dre(24) = dretype("O_R   ",   8, 1.5d0 , 0.6600d0,  120.000d0, 0.0957d0, 3.4046d0, 1)
+    dre(25) = dretype("O_2   ",   8, 2.0d0 , 0.5600d0,  120.000d0, 0.0957d0, 3.4046d0, 1)
+    dre(26) = dretype("O_1   ",   8, 3.0d0 , 0.5280d0,   -1.000d0, 0.0957d0, 3.4046d0, 0)
+    dre(27) = dretype("F_    ",   9, 1.0d0 , 0.6110d0,   -1.000d0, 0.0725d0, 3.4720d0, 0)
+    dre(28) = dretype("Cl    ",  17, 1.0d0 , 0.9970d0,   -1.000d0, 0.2833d0, 3.9503d0, 0)
+    dre(29) = dretype("Br    ",  35, 1.0d0 , 1.1670d0,   -1.000d0, 0.3700d0, 3.9500d0, 0)
+    dre(30) = dretype("I_    ",  53, 1.0d0 , 1.3600d0,   -1.000d0, 0.5100d0, 4.1500d0, 0)
+    dre(31) = dretype("Al3   ",  13, 1.0d0 , 1.0470d0,  109.471d0, 0.3100d0, 4.3900d0, 0)
+    dre(32) = dretype("Si3   ",  14, 1.0d0 , 0.9370d0,  109.471d0, 0.3100d0, 4.2700d0, 0)
+    dre(33) = dretype("P_3   ",  15, 1.0d0 , 0.8900d0,   93.300d0, 0.3200d0, 4.1500d0, 0)
+    dre(34) = dretype("S_3   ",  16, 1.0d0 , 1.0400d0,   92.100d0, 0.3440d0, 4.0300d0, 0)
+    dre(35) = dretype("Ga3   ",  31, 1.0d0 , 1.2100d0,  109.471d0, 0.4000d0, 4.3900d0, 0)
+    dre(36) = dretype("Ge3   ",  32, 1.0d0 , 1.2100d0,  109.471d0, 0.4000d0, 4.2700d0, 0)
+    dre(37) = dretype("As3   ",  33, 1.0d0 , 1.2100d0,   92.100d0, 0.4100d0, 4.1500d0, 0)
+    dre(38) = dretype("Se3   ",  34, 1.0d0 , 1.2100d0,   90.600d0, 0.4300d0, 4.0300d0, 0)
+    dre(39) = dretype("In3   ",  49, 1.0d0 , 1.3900d0,  109.471d0, 0.5500d0, 4.5900d0, 0)
+    dre(40) = dretype("Sn3   ",  50, 1.0d0 , 1.3730d0,  109.471d0, 0.5500d0, 4.4700d0, 0)
+    dre(41) = dretype("Sb3   ",  51, 1.0d0 , 1.4320d0,   91.600d0, 0.5500d0, 4.3500d0, 0)
+    dre(42) = dretype("Te3   ",  52, 1.0d0 , 1.2800d0,   90.300d0, 0.5700d0, 4.2300d0, 0)
+    dre(43) = dretype("Na    ",  11, 1.0d0 , 1.8600d0,   90.000d0, 0.5000d0, 3.1440d0, 0)
+    dre(44) = dretype("Ca    ",  20, 1.0d0 , 1.9400d0,   90.000d0, 0.0500d0, 3.4720d0, 0)
+    dre(45) = dretype("Fe    ",  26, 1.0d0 , 1.2850d0,   90.000d0, 0.0550d0, 4.5400d0, 0)
+    dre(46) = dretype("Zn    ",  30, 1.0d0 , 1.3300d0,  109.471d0, 0.0550d0, 4.5400d0, 0)
+    dre(47) = dretype("Ti    ",  22, 1.0d0 , 1.4300d0,   90.000d0, 0.0550d0, 4.5400d0, 0)
+    dre(48) = dretype("Tc    ",  43, 1.0d0 , 1.3515d0,   90.000d0, 0.0550d0, 4.5400d0, 0)
+    dre(49) = dretype("Ru    ",  44, 1.0d0 , 1.3300d0,   90.000d0, 0.0550d0, 4.5400d0, 0)
+    dre_ready = .true.
+  end subroutine dre_build_table
+
+  !> Whether element z has DREIDING parameters.
+  function dre_element_supported(z) result(ok)
+    integer, intent(in) :: z
+    logical :: ok
+    integer :: i
+    call dre_build_table()
+    ok = .false.
+    do i = 1, ndretype
+       if (dre(i)%z == z) then
+          ok = .true.
+          return
+       end if
+    end do
+  end function dre_element_supported
+
+  !> Assign a DREIDING atom-type index to atom iat from element +
+  !> connectivity (hybridization from coordination, bond orders and
+  !> aromaticity). 0 if none.
+  function dre_assign_type(c,iat,ns) result(it)
+    use crystalmod, only: crystal
+    use types, only: neighstar
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: iat
+    type(neighstar), intent(in) :: ns(:)
+    integer :: it
+
+    integer :: z, ncon, k, maxo, zj
+    logical :: arom
+    character(len=6) :: lbl
+
+    z = c%spc(c%atcel(iat)%is)%z
+    ncon = ns(iat)%ncon
+    arom = ns(iat)%isaromatic
+    maxo = 1
+    if (allocated(ns(iat)%ordcon)) then
+       do k = 1, ncon
+          if (ns(iat)%ordcon(k) > maxo) maxo = ns(iat)%ordcon(k)
+       end do
+    end if
+
+    lbl = ""
+    select case (z)
+    case (1) ! H: H___A if bonded to N, O or S; else H_
+       lbl = "H_"
+       if (ncon == 1) then
+          zj = c%spc(c%atcel(ns(iat)%idcon(1))%is)%z
+          if (zj == 7 .or. zj == 8 .or. zj == 16) lbl = "H___A"
+       end if
+    case (5) ! B
+       if (ncon >= 4) then
+          lbl = "B_3"
+       else
+          lbl = "B_2"
+       end if
+    case (6) ! C
+       if (arom) then
+          lbl = "C_R"
+       else if (maxo >= 3 .or. ncon <= 2) then
+          lbl = "C_1"
+       else if (maxo == 2 .or. ncon == 3) then
+          lbl = "C_2"
+       else
+          lbl = "C_3"
+       end if
+    case (7) ! N
+       if (arom) then
+          lbl = "N_R"
+       else if (maxo >= 3 .or. ncon == 1) then
+          lbl = "N_1"
+       else if (maxo == 2 .or. ncon == 2) then
+          lbl = "N_2"
+       else
+          lbl = "N_3"
+       end if
+    case (8) ! O
+       if (arom) then
+          lbl = "O_R"
+       else if (ncon >= 2) then
+          lbl = "O_3"
+       else
+          lbl = "O_2"
+       end if
+    case (9) ! F
+       lbl = "F_"
+    case (17) ! Cl
+       lbl = "Cl"
+    case (35) ! Br
+       lbl = "Br"
+    case (53) ! I
+       lbl = "I_"
+    case (13) ! Al
+       lbl = "Al3"
+    case (14) ! Si
+       lbl = "Si3"
+    case (15) ! P
+       lbl = "P_3"
+    case (16) ! S
+       lbl = "S_3"
+    case (31) ! Ga
+       lbl = "Ga3"
+    case (32) ! Ge
+       lbl = "Ge3"
+    case (33) ! As
+       lbl = "As3"
+    case (34) ! Se
+       lbl = "Se3"
+    case (49) ! In
+       lbl = "In3"
+    case (50) ! Sn
+       lbl = "Sn3"
+    case (51) ! Sb
+       lbl = "Sb3"
+    case (52) ! Te
+       lbl = "Te3"
+    case (11) ! Na
+       lbl = "Na"
+    case (20) ! Ca
+       lbl = "Ca"
+    case (26) ! Fe
+       lbl = "Fe"
+    case (30) ! Zn
+       lbl = "Zn"
+    case (22) ! Ti
+       lbl = "Ti"
+    case (43) ! Tc
+       lbl = "Tc"
+    case (44) ! Ru
+       lbl = "Ru"
+    end select
+
+    it = 0
+    if (len_trim(lbl) > 0) it = dre_label_index(lbl)
+  end function dre_assign_type
+
+  !> Index of a DREIDING type by label (0 if not found).
+  function dre_label_index(lbl) result(it)
+    character(len=*), intent(in) :: lbl
+    integer :: it, i
+    it = 0
+    do i = 1, ndretype
+       if (trim(dre(i)%label) == trim(lbl)) then
+          it = i
+          return
+       end if
+    end do
+  end function dre_label_index
+
+  !> DREIDING bond order between types ti and tj (700*order = force constant).
+  function dre_bond_order(ti,tj) result(bo)
+    integer, intent(in) :: ti, tj
+    real*8 :: bo
+    real*8 :: a, b
+    ! irregular sp-carbon / sp2-oxygen exceptions (C_1/C_11 - O_2 -> order 2)
+    if ((dre(ti)%z == 6 .and. dre(ti)%pic == 3d0 .and. trim(dre(tj)%label) == "O_2") .or. &
+        (dre(tj)%z == 6 .and. dre(tj)%pic == 3d0 .and. trim(dre(ti)%label) == "O_2")) then
+       bo = 2d0
+       return
+    end if
+    a = dre(ti)%pic
+    b = dre(tj)%pic
+    if (a == 3d0 .and. b == 3d0) then
+       bo = 3d0 ! both sp
+    else if ((a == 1.5d0 .or. a == 2d0) .and. (b == 1.5d0 .or. b == 2d0)) then
+       ! both sp2-like (excluding sp)
+       if (a == 1.5d0 .and. b == 1.5d0) then
+          bo = 1.5d0 ! both resonant
+       else
+          bo = 2d0
+       end if
+    else
+       bo = 1d0
+    end if
+  end function dre_bond_order
+
+  !> DREIDING torsion parameters for a quadruple (ti-tj-tk-tl about the central
+  !> bond tj-tk) in section isec (1 single, 2 double, 3 resonant, 4 single-
+  !> exocyclic). Returns barrier v (kcal/mol), signed periodicity nn, phase phi0
+  !> (degrees). Reproduces every row of the GULP dreiding torsion sections.
+  subroutine dre_torsion_params(isec,ti,tj,tk,tl,v,nn,phi0)
+    integer, intent(in) :: isec, ti, tj, tk, tl
+    real*8, intent(out) :: v, phi0
+    integer, intent(out) :: nn
+
+    logical :: rj, sj, pj3, rk, sk, pk3, rsi, rsl
+
+    if (isec == 2) then ! double bond
+       if (dre(tj)%pic == 2d0 .and. dre(tk)%pic == 2d0) then
+          v = 22.5d0; nn = -2; phi0 = 0d0
+       else
+          v = 12.5d0; nn = -2; phi0 = 0d0
+       end if
+       return
+    else if (isec == 3) then ! resonant (aromatic) bond
+       v = 12.5d0; nn = -2; phi0 = 0d0
+       return
+    else if (isec == 4) then ! single exocyclic (resonant-resonant single bond)
+       v = 5.0d0; nn = -2; phi0 = 0d0
+       return
+    end if
+
+    ! single bond
+    rj = (dre(tj)%pic == 1.5d0); sj = (dre(tj)%pic == 2d0); pj3 = (dre(tj)%pic == 1d0)
+    rk = (dre(tk)%pic == 1.5d0); sk = (dre(tk)%pic == 2d0); pk3 = (dre(tk)%pic == 1d0)
+    rsi = (dre(ti)%pic == 1.5d0 .or. dre(ti)%pic == 2d0)
+    rsl = (dre(tl)%pic == 1.5d0 .or. dre(tl)%pic == 2d0)
+    if ((rj .or. sj) .and. pk3) then ! sp2/R center j, sp3 k
+       if (dre_g16(dre(tk)%z)) then
+          v = 1d0; nn = -2; phi0 = 0d0
+       else if (rsi) then
+          v = 0.5d0; nn = -6; phi0 = 0d0
+       else
+          v = 1d0; nn = -3; phi0 = 180d0
+       end if
+    else if ((rk .or. sk) .and. pj3) then ! sp2/R center k, sp3 j
+       if (dre_g16(dre(tj)%z)) then
+          v = 1d0; nn = -2; phi0 = 0d0
+       else if (rsl) then
+          v = 0.5d0; nn = -6; phi0 = 0d0
+       else
+          v = 1d0; nn = -3; phi0 = 180d0
+       end if
+    else if ((rj .or. sj) .and. (rk .or. sk)) then ! both sp2-like
+       if (sj .and. sk) then
+          v = 2.5d0; nn = -2; phi0 = 0d0
+       else
+          v = 12.5d0; nn = -2; phi0 = 0d0
+       end if
+    else if (pj3 .and. pk3) then ! both sp3
+       if (dre_g16(dre(tj)%z) .and. dre_g16(dre(tk)%z)) then
+          v = 1d0; nn = -2; phi0 = 180d0
+       else
+          v = 1d0; nn = -3; phi0 = 180d0
+       end if
+    else
+       v = 1d0; nn = -3; phi0 = 180d0 ! fallback
+    end if
+  contains
+
+    !> Whether atomic number z is a group-16 element (O, S, Se, Te).
+    pure function dre_g16(z) result(ok)
+      integer, intent(in) :: z
+      logical :: ok
+      ok = (z == 8 .or. z == 16 .or. z == 34 .or. z == 52)
+    end function dre_g16
+
+  end subroutine dre_torsion_params
+
+  !> Build the DREIDING calculator (types + bond/angle/torsion/inversion/vdW/
+  !> hydrogen-bond term lists) for crystal c.
+  subroutine dreiding_setup(cl,c,errmsg)
+    use crystalmod, only: crystal
+    use types, only: neighstar
+    use param, only: rad
+    use tools_io, only: string
+    class(calculator), intent(inout) :: cl
+    class(crystal), intent(inout) :: c
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    type(neighstar), allocatable :: ns(:)
+    integer :: i, j, k, ka, kb, ni, nk, nb, na, ipass
+    integer :: jj, kk, a, b, nl, nt, nih, isec, ti, tj, tk, tl, norder
+    integer :: lv(3), li(3), lk(3), ljk(3), lkl(3)
+    real*8 :: bo, v, phi0, sk0
+    real*8, parameter :: dre_kbond = 700d0, dre_kang = 100d0, dre_kinv = 40d0
+
+    errmsg = ""
+    call dre_build_table()
+    cl%do_elec = .false. ! DREIDING (GULP realization) has no electrostatics
+
+    ! connectivity graph
+    if (allocated(c%nstar)) then
+       ns = c%nstar
+    else
+       call c%find_asterisms(ns)
+    end if
+
+    ! assign a DREIDING type to every atom
+    allocate(cl%dretyp(cl%nat))
+    do i = 1, cl%nat
+       cl%dretyp(i) = dre_assign_type(c,i,ns)
+       if (cl%dretyp(i) == 0) then
+          errmsg = "no DREIDING parameters for atomic number " // string(c%spc(c%atcel(i)%is)%z)
+          return
+       end if
+    end do
+
+    ! ---- bonds: E = 1/2 k (r-r0)^2, r0 = R_i+R_j-0.01, k = 700*order ----
+    do ipass = 1, 2
+       nb = 0
+       do i = 1, cl%nat
+          do k = 1, ns(i)%ncon
+             j = ns(i)%idcon(k)
+             lv = ns(i)%lcon(:,k)
+             if (.not.bond_canonical(i,j,lv)) cycle
+             nb = nb + 1
+             if (ipass == 2) then
+                ti = cl%dretyp(i); tj = cl%dretyp(j)
+                cl%bond(nb)%i = i
+                cl%bond(nb)%j = j
+                cl%bond(nb)%lvec = lv
+                cl%bond(nb)%r0 = (dre(ti)%r + dre(tj)%r - 0.01d0) / bohrtoa
+                cl%bond(nb)%k = dre_kbond * dre_bond_order(ti,tj) * kcal2ha * bohrtoa*bohrtoa
+             end if
+          end do
+       end do
+       if (ipass == 1) then
+          cl%nbond = nb
+          allocate(cl%bond(nb))
+       end if
+    end do
+
+    ! ---- angles (i-j-k, vertex j): E = 1/2 k (theta-theta0)^2 (harmonic) ----
+    na = 0
+    do j = 1, cl%nat
+       if (dre(cl%dretyp(j))%th0 < 0d0) cycle
+       na = na + ns(j)%ncon*(ns(j)%ncon-1)/2
+    end do
+    cl%nang = na
+    allocate(cl%ang(na))
+    na = 0
+    do j = 1, cl%nat
+       if (dre(cl%dretyp(j))%th0 < 0d0) cycle
+       do ka = 1, ns(j)%ncon
+          ni = ns(j)%idcon(ka)
+          li = ns(j)%lcon(:,ka)
+          do kb = ka+1, ns(j)%ncon
+             nk = ns(j)%idcon(kb)
+             lk = ns(j)%lcon(:,kb)
+             na = na + 1
+             cl%ang(na)%kind = ak_harmonic
+             cl%ang(na)%i = ni
+             cl%ang(na)%j = j
+             cl%ang(na)%k = nk
+             cl%ang(na)%li = li
+             cl%ang(na)%lk = lk
+             cl%ang(na)%kk = dre_kang * kcal2ha
+             cl%ang(na)%th0 = dre(cl%dretyp(j))%th0 * rad
+             cl%ang(na)%p = 0d0
+          end do
+       end do
+    end do
+
+    ! ---- torsions about each central bond j-k (both non-terminal, non-sp) ----
+    do ipass = 1, 2
+       nt = 0
+       do jj = 1, cl%nat
+          tj = cl%dretyp(jj)
+          if (dre(tj)%pic == 3d0) cycle ! sp centre: no torsion
+          do ka = 1, ns(jj)%ncon
+             kk = ns(jj)%idcon(ka)
+             ljk = ns(jj)%lcon(:,ka)
+             if (.not.bond_canonical(jj,kk,ljk)) cycle
+             tk = cl%dretyp(kk)
+             if (dre(tk)%pic == 3d0) cycle
+             if (ns(jj)%ncon < 2 .or. ns(kk)%ncon < 2) cycle
+             ! section from the perceived j-k bond character
+             bo = bond_order(ns(jj),ka)
+             if (bo == 1.5d0) then
+                isec = 3 ! resonant
+             else if (bo == 2d0) then
+                isec = 2 ! double
+             else if (bo >= 3d0) then
+                cycle ! triple: no torsion
+             else if (dre(tj)%pic == 1.5d0 .and. dre(tk)%pic == 1.5d0) then
+                isec = 4 ! single bond between two resonant atoms (exocyclic)
+             else
+                isec = 1 ! single
+             end if
+             do a = 1, ns(jj)%ncon
+                ni = ns(jj)%idcon(a)
+                li = ns(jj)%lcon(:,a)
+                if (ni == kk .and. all(li == ljk)) cycle
+                do b = 1, ns(kk)%ncon
+                   nl = ns(kk)%idcon(b)
+                   lkl = ns(kk)%lcon(:,b)
+                   if (nl == jj .and. all(ljk+lkl == 0)) cycle
+                   nt = nt + 1
+                   if (ipass == 2) then
+                      ti = cl%dretyp(ni); tl = cl%dretyp(nl)
+                      call dre_torsion_params(isec,ti,tj,tk,tl,v,norder,phi0)
+                      ! distribute over all torsions about the central bond
+                      v = v / real(max((ns(jj)%ncon-1)*(ns(kk)%ncon-1),1),8)
+                      cl%tor(nt)%i = ni
+                      cl%tor(nt)%j = jj
+                      cl%tor(nt)%k = kk
+                      cl%tor(nt)%l = nl
+                      cl%tor(nt)%li = li
+                      cl%tor(nt)%lk = ljk
+                      cl%tor(nt)%ll = ljk + lkl
+                      ! DREIDING E = k(1+isign cos(n phi - phi0)) -> UFF form
+                      ! E = V/2 (1 - cosf cos(n phi)): V = 2k, cosf = -isign cos(phi0)
+                      cl%tor(nt)%v = 2d0 * v * kcal2ha
+                      cl%tor(nt)%n = abs(norder)
+                      cl%tor(nt)%cosf = -sign(1,norder) * cos(phi0*rad)
+                   end if
+                end do
+             end do
+          end do
+       end do
+       if (ipass == 1) then
+          cl%ntor = nt
+          allocate(cl%tor(nt))
+       end if
+    end do
+
+    ! ---- inversions (out-of-plane) at 3-coordinate centres ----
+    do ipass = 1, 2
+       nih = 0
+       do i = 1, cl%nat
+          ti = cl%dretyp(i)
+          if (dre(ti)%invk == 0) cycle
+          if (ns(i)%ncon /= 3) cycle ! only3
+          nih = nih + 1
+          if (ipass == 2) then
+             cl%inv(nih)%c = i
+             cl%inv(nih)%n1 = ns(i)%idcon(1)
+             cl%inv(nih)%n2 = ns(i)%idcon(2)
+             cl%inv(nih)%n3 = ns(i)%idcon(3)
+             cl%inv(nih)%l1 = ns(i)%lcon(:,1)
+             cl%inv(nih)%l2 = ns(i)%lcon(:,2)
+             cl%inv(nih)%l3 = ns(i)%lcon(:,3)
+             if (dre(ti)%invk == 2) then
+                ! squared form, C_31: k0 = 54.736 deg, k folds in 1/sin^2 k0 and 1/3
+                sk0 = sin(54.736d0*rad)
+                cl%inv(nih)%kind = ik_dre_squared
+                cl%inv(nih)%k = dre_kinv/(sk0*sk0) * kcal2ha / 3d0
+                cl%inv(nih)%ck0 = cos(54.736d0*rad)
+             else
+                ! planar form: E = k (1 - cos phi), averaged over 3 apices
+                cl%inv(nih)%kind = ik_dre_planar
+                cl%inv(nih)%k = dre_kinv * kcal2ha / 3d0
+                cl%inv(nih)%ck0 = 0d0
+             end if
+             cl%inv(nih)%c0 = 0d0
+             cl%inv(nih)%c1 = 0d0
+             cl%inv(nih)%c2 = 0d0
+          end if
+       end do
+       if (ipass == 1) then
+          cl%ninv = nih
+          allocate(cl%inv(nih))
+       end if
+    end do
+
+    ! ---- van der Waals + hydrogen bonds ----
+    call dre_nonbonded(cl,c)
+    call dre_hbond_pairs(cl,c)
+
+  end subroutine dreiding_setup
+
+  !> Build the DREIDING van der Waals pair list (LJ 12-6, geometric combining,
+  !> 12.5 A cutoff, 1-2 and 1-3 exclusions), mirroring uff_nonbonded.
+  subroutine dre_nonbonded(cl,c)
+    use crystalmod, only: crystal
+    use types, only: neighstar
+    use param, only: icrd_crys
+    class(calculator), intent(inout) :: cl
+    class(crystal), intent(inout) :: c
+
+    type(neighstar), allocatable :: nslocal(:)
+    integer :: i, j, m, nat, nnb, ipass, ti, tj
+    integer, allocatable :: eid(:), lvec(:,:)
+    real*8, allocatable :: dist(:)
+    integer :: lv(3)
+    logical :: havens, is13
+
+    if (.not.allocated(cl%dretyp)) return
+    havens = allocated(c%nstar)
+    if (.not.havens) call c%find_asterisms(nslocal)
+    if (allocated(cl%nb)) deallocate(cl%nb)
+
+    do ipass = 1, 2
+       nnb = 0
+       do i = 1, cl%nat
+          call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.false.,nat,eid=eid,dist=dist,&
+             lvec=lvec,up2d=dre_vdwcut,nozero=.true.)
+          do m = 1, nat
+             j = eid(m)
+             lv = lvec(:,m)
+             if (.not.bond_canonical(i,j,lv)) cycle
+             if (havens) then
+                is13 = excluded_13(c%nstar,i,j,lv)
+             else
+                is13 = excluded_13(nslocal,i,j,lv)
+             end if
+             if (is13) cycle
+             nnb = nnb + 1
+             if (ipass == 2) then
+                ti = cl%dretyp(i); tj = cl%dretyp(j)
+                cl%nb(nnb)%i = i
+                cl%nb(nnb)%j = j
+                cl%nb(nnb)%lvec = lv
+                ! GULP "geometric" combining: arithmetic-mean distance, geometric
+                ! -mean well depth (matches the dreiding.lib "geometric" keyword)
+                cl%nb(nnb)%rmin = 0.5d0*(dre(ti)%sig + dre(tj)%sig) / bohrtoa
+                cl%nb(nnb)%deps = sqrt(dre(ti)%eps * dre(tj)%eps) * kcal2ha
+             end if
+          end do
+       end do
+       if (ipass == 1) then
+          cl%nnb = nnb
+          allocate(cl%nb(nnb))
+       end if
+    end do
+  end subroutine dre_nonbonded
+
+  !> Build the DREIDING hydrogen-bond term list: H (bonded to an electronegative
+  !> donor N/O/F/S/Cl/Br/I) with each acceptor (same set, not the donor) within
+  !> the H-acceptor cutoff.
+  subroutine dre_hbond_pairs(cl,c)
+    use crystalmod, only: crystal
+    use types, only: neighstar
+    use param, only: icrd_crys
+    class(calculator), intent(inout) :: cl
+    class(crystal), intent(inout) :: c
+
+    type(neighstar), allocatable :: nslocal(:)
+    integer :: ih, id, ja, m, nat, nhb, ipass, zj, za, ncon
+    integer, allocatable :: eid(:), lvec(:,:)
+    real*8, allocatable :: dist(:)
+    integer :: ld(3)
+    logical :: havens
+
+    if (.not.allocated(cl%dretyp)) return
+    ! read the connectivity in place when available (re-run periodically during
+    ! MD, so avoid deep-copying the whole neighbor-star array each time)
+    havens = allocated(c%nstar)
+    if (.not.havens) call c%find_asterisms(nslocal)
+    if (allocated(cl%hb)) deallocate(cl%hb)
+
+    do ipass = 1, 2
+       nhb = 0
+       do ih = 1, cl%nat
+          if (c%spc(c%atcel(ih)%is)%z /= 1) cycle ! H only
+          ! donor = the H's single bonded neighbor (must be electronegative)
+          if (havens) then
+             ncon = c%nstar(ih)%ncon
+             if (ncon == 1) then
+                id = c%nstar(ih)%idcon(1)
+                ld = c%nstar(ih)%lcon(:,1)
+             end if
+          else
+             ncon = nslocal(ih)%ncon
+             if (ncon == 1) then
+                id = nslocal(ih)%idcon(1)
+                ld = nslocal(ih)%lcon(:,1)
+             end if
+          end if
+          if (ncon /= 1) cycle
+          zj = c%spc(c%atcel(id)%is)%z
+          if (.not.any(zj == dre_hbz)) cycle       ! donor must be electronegative
+          ! acceptors near the H (within the H-acceptor cutoff), lvec rel. to ih
+          call c%list_near_atoms(c%atcel(ih)%x,icrd_crys,.false.,nat,eid=eid,dist=dist,&
+             lvec=lvec,up2d=dre_hb_rah,nozero=.true.)
+          do m = 1, nat
+             ja = eid(m)
+             za = c%spc(c%atcel(ja)%is)%z
+             if (.not.any(za == dre_hbz)) cycle    ! acceptor must be electronegative
+             if (ja == id .and. all(lvec(:,m) == ld)) cycle ! not the donor itself
+             nhb = nhb + 1
+             if (ipass == 2) then
+                cl%hb(nhb)%ih = ih
+                cl%hb(nhb)%id = id
+                cl%hb(nhb)%ia = ja
+                cl%hb(nhb)%ld = ld
+                cl%hb(nhb)%la = lvec(:,m)
+             end if
+          end do
+       end do
+       if (ipass == 1) then
+          cl%nhb = nhb
+          allocate(cl%hb(nhb))
+       end if
+    end do
+  end subroutine dre_hbond_pairs
 
   !xx! TIP4P water model (Jorgensen et al., J. Chem. Phys. 79 (1983) 926)
 

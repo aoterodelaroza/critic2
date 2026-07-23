@@ -32,6 +32,7 @@ module energy
   integer, parameter, public :: ff_gfnxtb = 1 !< tblite library (GFN2/GFN1-xTB)
   integer, parameter, public :: ff_tip4p = 2 !< built-in TIP4P water model (molecules only)
   integer, parameter, public :: ff_gfnff = 3 !< xtb library (GFN-FF)
+  integer, parameter, public :: ff_dreiding = 4 !< built-in DREIDING generic force field
 
   ! tblite methods (used only by the tblite backend)
   integer, parameter, public :: tbm_gfn2 = 1 !< GFN2-xTB
@@ -51,6 +52,20 @@ module energy
   real*8, parameter, public :: tip4p_ljc = 610d0 * kcal2ha / bohrtoa**6 !< LJ C (kcal A^6/mol -> au)
   real*8, parameter, public :: tip4p_kbond = 2d0 * 116.09d0 * 2.287d0**2 * kcal2ha * bohrtoa**2 !< OH restraint (au)
   real*8, parameter, public :: tip4p_kang = 87.85d0 * kcal2ha !< HOH restraint (hartree/rad^2)
+
+  ! DREIDING generic force field (Mayo, Olafson, Goddard,
+  ! J. Phys. Chem. 94 (1990) 8897), matched to the GULP 6.4
+  ! dreiding.lib realization: harmonic (not cosine) angle bending, no
+  ! electrostatics, and explicit hydrogen-bond term. Parameter tables
+  ! are hardwired in dre_type_params. The hydrogen-bond A/B and taper
+  ! are constants:
+  real*8, parameter, public :: dre_hb_a = 3741298.1709492207d0 * kcal2ha / bohrtoa**12 !< H-bond A (kcal AA^12/mol -> au)
+  real*8, parameter, public :: dre_hb_b = 593660.5362167358d0 * kcal2ha / bohrtoa**10 !< H-bond B (kcal AA^10/mol -> au)
+  real*8, parameter, public :: dre_hb_tmin = 105d0 !< H-bond taper: lower theta (degrees)
+  real*8, parameter, public :: dre_hb_tmax = 115d0 !< H-bond taper: upper theta (degrees)
+  real*8, parameter, public :: dre_hb_rcut = 5d0 / bohrtoa !< H-bond donor-acceptor cutoff (bohr)
+  real*8, parameter, public :: dre_hb_rah = 3d0 / bohrtoa !< H-bond H-acceptor cutoff (bohr)
+  real*8, parameter, public :: dre_vdwcut = 12.5d0 / bohrtoa !< DREIDING van der Waals cutoff (bohr)
 
   !> UFF atom-type parameters, in native UFF units (Rappe et al., JACS 114
   !> (1992) 10024). The full table is hardwired in uff_atom_params
@@ -76,14 +91,20 @@ module energy
      real*8 :: k !< force constant (hartree/bohr^2)
   end type bondterm
 
-  !> Angle term (i-j-k, vertex j; i in image li, k in image lk). The bending
-  !> energy is kk * P(u) with u = cos(theta) and P a polynomial of degree <= 4,
-  !> which represents both the general cosine-Fourier form and GULP's periodic
-  !> special cases (theta0 = 0, 90, 120, 180 degrees).
+  !> Angle-term energy kinds (angleterm%kind)
+  integer, parameter, public :: ak_cosine = 0 !< kk * P(cos(theta))
+  integer, parameter, public :: ak_harmonic = 1 !< 1/2 kk (theta - th0)^2
+
+  !> Angle term (i-j-k, vertex j; i in image li, k in image lk). For
+  !> ak_cosine the bending energy is kk * P(cos(theta)), with P a
+  !> polynomial of degree <= 4. For ak_harmonic it is 1/2 kk (theta -
+  !> th0)^2, harmonic in the angle itself.
   type angleterm
      integer :: i, j, k, li(3), lk(3)
-     real*8 :: p(0:4) !< coefficients of P(u), u = cos(theta)
-     real*8 :: kk !< force constant k_IJK (hartree)
+     integer :: kind = ak_cosine !< energy kind (ak_*)
+     real*8 :: p(0:4) !< coefficients of P(u), u = cos(theta) (ak_cosine)
+     real*8 :: kk !< force constant k_IJK (hartree, or hartree/rad^2 for ak_harmonic)
+     real*8 :: th0 !< equilibrium angle (radians), ak_harmonic only
   end type angleterm
 
   !> Van der Waals (Lennard-Jones 12-6) nonbonded pair (i-j; j in image lvec).
@@ -101,12 +122,29 @@ module energy
      real*8 :: cosf !< phase term cos(n*phi0), +1 or -1
   end type torsterm
 
-  !> Inversion (out-of-plane) term (central c + 3 neighbors n1/n2/n3 in images l1/l2/l3).
+  !> Inversion-term energy kinds (invterm%kind)
+  integer, parameter, public :: ik_uff = 0 !< k (c0 + c1 cos w + c2 cos 2w)
+  integer, parameter, public :: ik_dre_planar = 1 !< k (1 - cos phi)
+  integer, parameter, public :: ik_dre_squared = 2 !< 1/2 (k/sin^2 k0)(cos phi - cos k0)^2
+
+  !> Inversion (out-of-plane) term (central c + 3 neighbors n1/n2/n3 in images
+  !> l1/l2/l3). ik_uff uses the UFF cosine-coefficient form; the DREIDING kinds
+  !> use the planar / squared-cosine out-of-plane expressions.
   type invterm
      integer :: c, n1, n2, n3, l1(3), l2(3), l3(3)
+     integer :: kind = ik_uff !< energy kind (ik_*)
      real*8 :: k !< force constant per apex (hartree)
-     real*8 :: c0, c1, c2 !< inversion coefficients
+     real*8 :: c0, c1, c2 !< inversion coefficients (ik_uff)
+     real*8 :: ck0 !< cos(k0) for ik_dre_squared
   end type invterm
+
+  !> DREIDING hydrogen-bond term (H = ih bonded to donor id; acceptor ia in
+  !> images ld/la relative to ih). Energy (A/r^12 - B/r^10) cos^4(theta) with an
+  !> angular taper; r is the donor-acceptor distance and theta the D-H-A angle.
+  type hbondterm
+     integer :: ih, id, ia !< H, donor, acceptor cell indices
+     integer :: ld(3), la(3) !< lattice vectors of donor, acceptor relative to ih
+  end type hbondterm
 
   !> Energy/force/stress calculator
   type calculator
@@ -139,6 +177,10 @@ module energy
      !! TIP4P
      integer :: nwat = 0 !< number of water molecules
      integer, allocatable :: iwat(:,:) !< water atoms (3,nwat): O, H1, H2 cell indices
+     !! DREIDING
+     integer, allocatable :: dretyp(:) !< DREIDING atom-type index per atom
+     integer :: nhb = 0 !< number of hydrogen-bond terms
+     type(hbondterm), allocatable :: hb(:) !< hydrogen-bond term list
      !! tblite
      type(c_ptr) :: tb_ctx = c_null_ptr
      type(c_ptr) :: tb_mol = c_null_ptr

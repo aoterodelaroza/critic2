@@ -4031,7 +4031,7 @@ contains
   !> [TIP4P|GFN2|GFNFF]" (default force field: UFF).
   subroutine trick_energy(line0)
     use systemmod, only: sy
-    use energy, only: calculator, ff_uff, ff_gfnxtb, ff_tip4p, ff_gfnff
+    use energy, only: calculator, ff_uff, ff_gfnxtb, ff_tip4p, ff_gfnff, ff_dreiding
     use tools_io, only: uout, string, ferror, faterr, lgetword, equal
     use tools_math, only: matinv, det3
     use param, only: hartokjmol
@@ -4061,6 +4061,8 @@ contains
        ibackend = ff_gfnxtb
     else if (equal(word,'gfnff')) then
        ibackend = ff_gfnff
+    else if (equal(word,'dreiding')) then
+       ibackend = ff_dreiding
     else if (len_trim(word) > 0) then
        call ferror('trick_energy','unknown force field: ' // trim(word),faterr)
        return
@@ -4103,12 +4105,14 @@ contains
     write (uout,'("  number of atoms:      ",A)') string(nat)
     if (ibackend == ff_tip4p) then
        write (uout,'("  number of waters:     ",A)') string(cl%nwat)
-    else if (ibackend == ff_uff) then
+    else if (ibackend == ff_uff .or. ibackend == ff_dreiding) then
        write (uout,'("  number of bonds:      ",A)') string(cl%nbond)
        write (uout,'("  number of angles:     ",A)') string(cl%nang)
        write (uout,'("  number of LJ pairs:   ",A)') string(cl%nnb)
        write (uout,'("  number of torsions:   ",A)') string(cl%ntor)
        write (uout,'("  number of inversions: ",A)') string(cl%ninv)
+       if (ibackend == ff_dreiding) &
+          write (uout,'("  number of H-bonds:    ",A)') string(cl%nhb)
     end if
     if (cl%do_elec .and. allocated(cl%qeq)) &
        write (uout,'("  QEq charges min/max/sum: ",A," ",A," ",A)') &
