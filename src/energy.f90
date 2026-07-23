@@ -57,7 +57,7 @@ module energy
   ! J. Phys. Chem. 94 (1990) 8897), matched to the GULP 6.4
   ! dreiding.lib realization: harmonic (not cosine) angle bending, no
   ! electrostatics, and explicit hydrogen-bond term. Parameter tables
-  ! are hardwired in dre_type_params. The hydrogen-bond A/B and taper
+  ! are hardwired in dre_build_table. The hydrogen-bond A/B and taper
   ! are constants:
   real*8, parameter, public :: dre_hb_a = 3741298.1709492207d0 * kcal2ha / bohrtoa**12 !< H-bond A (kcal AA^12/mol -> au)
   real*8, parameter, public :: dre_hb_b = 593660.5362167358d0 * kcal2ha / bohrtoa**10 !< H-bond B (kcal AA^10/mol -> au)
