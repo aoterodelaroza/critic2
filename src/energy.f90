@@ -27,6 +27,7 @@ module energy
   public :: calculator
   public :: ff_backend_applicable
   public :: ff_backend_label
+  public :: ff_name_to_backend
 
   ! energy backends
   integer, parameter, public :: ff_uff = 0 !< built-in Universal Force Field (UFF)
@@ -237,6 +238,11 @@ module energy
        integer, intent(in), optional :: method
        character(len=:), allocatable :: lbl
      end function ff_backend_label
+     module subroutine ff_name_to_backend(name,backend,method,ok)
+       character(len=*), intent(in) :: name
+       integer, intent(out) :: backend, method
+       logical, intent(out) :: ok
+     end subroutine ff_name_to_backend
      ! tblite backend (implemented in energy@proc.F90; stubs when built without tblite)
      module subroutine calc_init_tblite(cl,c,errmsg)
        use crystalmod, only: crystal

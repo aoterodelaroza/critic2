@@ -361,6 +361,35 @@ contains
 
   end function ff_backend_applicable
 
+  !> Map a lowercase force-field name to its backend (ff_*) and method
+  !> (tbm_*). ok is false for an unrecognized name.
+  module subroutine ff_name_to_backend(name,backend,method,ok)
+    character(len=*), intent(in) :: name
+    integer, intent(out) :: backend, method
+    logical, intent(out) :: ok
+
+    ok = .true.
+    method = tbm_gfn2
+    select case (name)
+    case ("uff")
+       backend = ff_uff
+    case ("dreiding")
+       backend = ff_dreiding
+    case ("gfn2","gfn2-xtb","gfn2xtb")
+       backend = ff_gfnxtb; method = tbm_gfn2
+    case ("gfn1","gfn1-xtb","gfn1xtb")
+       backend = ff_gfnxtb; method = tbm_gfn1
+    case ("gfnff","gfn-ff")
+       backend = ff_gfnff
+    case ("tip4p")
+       backend = ff_tip4p
+    case default
+       backend = -1
+       ok = .false.
+    end select
+
+  end subroutine ff_name_to_backend
+
   !> Human-readable label for an energy backend (ff_*)
   module function ff_backend_label(backend,method) result(lbl)
     integer, intent(in) :: backend

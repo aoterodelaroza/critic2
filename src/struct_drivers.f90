@@ -73,8 +73,9 @@ module struct_drivers
        character*(*), intent(in) :: line
        logical, intent(in) :: usexyznames
      end subroutine struct_write
-     module subroutine struct_write_bulk(s)
+     module subroutine struct_write_bulk(s,line0)
        type(system), intent(inout) :: s
+       character*(*), intent(in) :: line0
      end subroutine struct_write_bulk
      module subroutine struct_atomlabel(s,line)
        type(system), intent(inout) :: s

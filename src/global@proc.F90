@@ -155,7 +155,7 @@ contains
           word = lgetword(line,lp)
           if (equal(word,'bulk')) then
              ! write many structures
-             call struct_write_bulk(sy)
+             call struct_write_bulk(sy,line(lp:))
           else
              ! single write
              call struct_write(sy,subline,.false.)

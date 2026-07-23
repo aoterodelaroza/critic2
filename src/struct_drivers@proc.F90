@@ -902,25 +902,31 @@ contains
   end subroutine struct_write
 
   ! Write multiple structures to several files.
-  module subroutine struct_write_bulk(s)
+  module subroutine struct_write_bulk(s,line0)
     use crystalmod, only: crystal
     use crystalseedmod, only: crystalseed, realloc_crystalseed
     use systemmod, only: system
+    use energy, only: ff_name_to_backend
     use tools_io, only: getline, uin, ucopy, lgetword, ferror, faterr, getword, equal,&
        string
     use global, only: fileroot, eval_next, dunit0, iunit
     use param, only: bohrtoa
     type(system), intent(inout) :: s
+    character*(*), intent(in) :: line0
 
-    character(len=:), allocatable :: root, line, word, file, pre, post, errmsg
+    character(len=:), allocatable :: root, line, word, wff, file, pre, post, errmsg
     integer :: lp, idx, nseed, nn, i, j, npad
+    integer :: backend, method, nini, ngen, nstride
     type(crystalseed) :: seed0
     type(crystalseed), allocatable :: seed(:)
-    real*8 :: xdelta(3), rattle_mag
-    logical :: ok
+    real*8 :: xdelta(3), rattle_mag, temp, dt
+    logical :: ok, oneline
     type(crystal) :: caux
 
     real*8, parameter :: rattle_mag_default = 0.02d0 / bohrtoa ! 0.02 angstrom
+
+    ! one-line form ("WRITE BULK <subcommand> ..."): run the single subcommand
+    oneline = (len_trim(line0) > 0)
 
     ! initialize
     nseed = 0
@@ -930,7 +936,12 @@ contains
     ! default file root: write FHIaims format
     root = trim(fileroot) // "-*.in"
 
-    do while (getline(uin,line,ucopy=ucopy))
+    do
+       if (oneline) then
+          line = line0
+       else
+          if (.not.getline(uin,line,ucopy=ucopy)) exit
+       end if
        lp = 1
        word = lgetword(line,lp)
        if (equal(word,"root")) then
@@ -983,12 +994,67 @@ contains
 
           ! clean up
           nseed = nseed + nn
+       elseif (equal(word,"md")) then
+          ! MD generation of structures
+          wff = lgetword(line,lp)
+          call ff_name_to_backend(wff,backend,method,ok)
+          if (.not.ok) then
+             call ferror('struct_write_bulk','unknown force field in WRITE BULK MD: '//trim(wff),&
+                faterr,line,syntax=.true.)
+             return
+          end if
+
+          ! optional keyword parameters with sensible defaults (T in K, STEP in a.u.)
+          temp = 300d0
+          dt = 20d0
+          nini = 1000
+          ngen = 100
+          nstride = 1
+          do while (.true.)
+             word = lgetword(line,lp)
+             if (equal(word,"t")) then
+                ok = eval_next(temp,line,lp)
+                if (.not.ok) call ferror('struct_write_bulk','invalid temperature in WRITE BULK MD T',&
+                   faterr,line,syntax=.true.)
+             elseif (equal(word,"step")) then
+                ok = eval_next(dt,line,lp)
+                if (.not.ok) call ferror('struct_write_bulk','invalid time step in WRITE BULK MD STEP',&
+                   faterr,line,syntax=.true.)
+             elseif (equal(word,"ini")) then
+                ok = eval_next(nini,line,lp)
+                if (.not.ok) call ferror('struct_write_bulk','invalid step count in WRITE BULK MD INI',&
+                   faterr,line,syntax=.true.)
+             elseif (equal(word,"gen")) then
+                ok = eval_next(ngen,line,lp)
+                if (.not.ok) call ferror('struct_write_bulk','invalid step count in WRITE BULK MD GEN',&
+                   faterr,line,syntax=.true.)
+             elseif (equal(word,"stride")) then
+                ok = eval_next(nstride,line,lp)
+                if (.not.ok) call ferror('struct_write_bulk','invalid stride in WRITE BULK MD STRIDE',&
+                   faterr,line,syntax=.true.)
+             elseif (len_trim(word) > 0) then
+                call ferror('struct_write_bulk','unknown keyword in WRITE BULK MD: '//trim(word),&
+                   faterr,line,syntax=.true.)
+                return
+             else
+                exit
+             end if
+          end do
+          if (temp < 0d0 .or. dt <= 0d0 .or. nini < 0 .or. ngen < 1 .or. nstride < 1) then
+             call ferror('struct_write_bulk','invalid parameters in WRITE BULK MD',faterr,line,syntax=.true.)
+             return
+          end if
+
+          call bulk_md_run(s,backend,method,temp,dt,nini,ngen,nstride,seed,nseed,errmsg)
+          if (len_trim(errmsg) > 0) &
+             call ferror('struct_write_bulk',errmsg,faterr)
        elseif (equal(word,"end").or.equal(word,"endwrite")) then
           exit
        elseif (len_trim(word) > 0) then
           call ferror('struct_write_bulk','Unknown extra keyword',faterr,line,syntax=.true.)
           return
        end if
+       if (oneline) exit ! one-line form: a single subcommand, no END
     end do
 
     ! create the crystals associated with the seeds and write them
@@ -1005,6 +1071,111 @@ contains
     end do
 
   end subroutine struct_write_bulk
+
+  !> Build a force-field failure message for an MD/relaxation driver
+  function md_fail_message(md,base) result(msg)
+    use dynamics, only: mdrun
+    type(mdrun), intent(in) :: md
+    character(len=*), intent(in) :: base
+    character(len=:), allocatable :: msg
+
+    msg = base
+    if (allocated(md%errmsg)) then
+       if (len_trim(md%errmsg) > 0) msg = msg // ": " // md%errmsg
+    end if
+
+  end function md_fail_message
+
+  !> Run an NVT (Langevin) molecular dynamics with the force field given by
+  !> backend/method on a copy of system s (its geometry is left untouched),
+  !> and append ngen configuration snapshots to seed(1:nseed): one snapshot
+  !> every nstride steps, taken after nini equilibration steps. The per-step
+  !> energy and temperature are echoed to uout. errmsg is set on error.
+  subroutine bulk_md_run(s,backend,method,temp,dt,nini,ngen,nstride,seed,nseed,errmsg)
+    use crystalmod, only: crystal
+    use crystalseedmod, only: crystalseed, realloc_crystalseed
+    use dynamics, only: mdrun, md_dynamics
+    use systemmod, only: system
+    use energy, only: ff_backend_applicable, ff_backend_label
+    use tools_io, only: uout, string
+    use param, only: autofs
+    type(system), intent(inout) :: s
+    integer, intent(in) :: backend, method, nini, ngen, nstride
+    real*8, intent(in) :: temp, dt
+    type(crystalseed), allocatable, intent(inout) :: seed(:)
+    integer, intent(inout) :: nseed
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    type(mdrun) :: md
+    type(crystal) :: cmd
+    character(len=:), allocatable :: ffname, snaplabel
+    integer :: istep, ncoll, nsteptot, nprint
+    logical :: collect
+
+    errmsg = ""
+    ffname = ff_backend_label(backend,method)
+    if (.not.ff_backend_applicable(backend,s%c)) then
+       errmsg = "the " // trim(ffname) // " force field is not available for this system"
+       return
+    end if
+    if (s%c%ncel == 0) then
+       errmsg = "there are no atoms for the MD run"
+       return
+    end if
+
+    ! run the MD on a copy so the current system geometry is preserved
+    cmd = s%c
+    call md%init(cmd,backend=backend,method=method,temperature=temp,dt=dt,&
+       mode=md_dynamics,errmsg=errmsg)
+    if (len_trim(errmsg) > 0) then
+       call md%free() ! release any partial calculator state (e.g. tblite/xtb handles)
+       return
+    end if
+
+    write (uout,'("+ Bulk configuration sampling by NVT molecular dynamics (WRITE BULK MD)")')
+    write (uout,'("  force field: ",A)') trim(ffname)
+    write (uout,'("  temperature (K): ",A)') string(temp,'f',decimal=2)
+    write (uout,'("  time step (a.u. / fs): ",A," / ",A)') &
+       string(dt,'f',decimal=2), string(dt*autofs,'f',decimal=4)
+    write (uout,'("  equilibration steps: ",A)') string(nini)
+    write (uout,'("  generation snapshots: ",A," (one every ",A," steps)")') &
+       string(ngen), string(nstride)
+    write (uout,'(/"   step         energy (Ha)        T (K)     snapshot")')
+
+    nsteptot = nini + ngen*nstride
+    nprint = max(1,nsteptot/50) ! keep the equilibration echo to ~50 lines
+    ncoll = 0
+    do istep = 1, nsteptot
+       call md%step(cmd)
+       if (.not.md%ready) then
+          errmsg = md_fail_message(md,"force-field evaluation failed during the MD run")
+          call md%free()
+          return
+       end if
+
+       ! collect a snapshot every nstride steps once equilibration is done
+       collect = (istep > nini .and. mod(istep-nini,nstride) == 0 .and. ncoll < ngen)
+       snaplabel = "-"
+       if (collect) then
+          ncoll = ncoll + 1
+          if (nseed+1 > size(seed,1)) call realloc_crystalseed(seed,2*(nseed+1))
+          call cmd%makeseed(seed(nseed+1),.false.)
+          nseed = nseed + 1
+          snaplabel = string(ncoll)
+       end if
+
+       if (collect .or. mod(istep,nprint) == 0 .or. istep == nsteptot) then
+          write (uout,'(2X,I6,3X,A,3X,A,4X,A)') istep, &
+             string(md%epot,'f',length=18,decimal=10), &
+             string(md%temperature_now(),'f',length=8,decimal=1), snaplabel
+       end if
+    end do
+    write (uout,'(/"  collected ",A," configurations")') string(ncoll)
+    write (uout,*)
+
+    call md%free()
+
+  end subroutine bulk_md_run
 
   !> Relabel atoms based on user's input
   module subroutine struct_atomlabel(s,line)
@@ -3513,8 +3684,7 @@ contains
   subroutine struct_relax(s,line,lp,verbose,errmsg)
     use systemmod, only: system
     use dynamics, only: mdrun, md_relax
-    use energy, only: ff_uff, ff_dreiding, ff_gfnxtb, ff_gfnff, ff_tip4p, &
-       tbm_gfn2, tbm_gfn1, ff_backend_applicable, ff_backend_label
+    use energy, only: ff_backend_applicable, ff_backend_label, ff_name_to_backend
     use tools_io, only: uout, lgetword, string
     use global, only: eval_next_real
     use param, only: hartoev, bohrtoa
@@ -3531,30 +3701,17 @@ contains
     character(len=:), allocatable :: word, ffname
     integer :: backend, method, istep
     real*8 :: thresh, fmax, rtmp
-    logical :: converged
+    logical :: converged, ok
 
     errmsg = ""
 
-    ! force-field identifier (mirrors the GUI dynamics-window options)
+    ! force-field identifier (uff/dreiding/gfn2/gfn1/gfnff/tip4p)
     word = lgetword(line,lp)
-    method = tbm_gfn2
-    select case (word)
-    case ("uff")
-       backend = ff_uff
-    case ("dreiding")
-       backend = ff_dreiding
-    case ("gfn2","gfn2-xtb","gfn2xtb")
-       backend = ff_gfnxtb; method = tbm_gfn2
-    case ("gfn1","gfn1-xtb","gfn1xtb")
-       backend = ff_gfnxtb; method = tbm_gfn1
-    case ("gfnff","gfn-ff")
-       backend = ff_gfnff
-    case ("tip4p")
-       backend = ff_tip4p
-    case default
+    call ff_name_to_backend(word,backend,method,ok)
+    if (.not.ok) then
        errmsg = "unknown force field in EDIT RELAX: " // trim(word)
        return
-    end select
+    end if
     ffname = ff_backend_label(backend,method)
 
     ! optional max-force convergence threshold (hartree/bohr); keep the default
@@ -3603,10 +3760,7 @@ contains
        if (.not.md%ready) then
           ! a force-field evaluation failed mid-relaxation (e.g. tblite/xtb SCF
           ! non-convergence); abort rather than report a spurious convergence
-          errmsg = "force-field evaluation failed during relaxation"
-          if (allocated(md%errmsg)) then
-             if (len_trim(md%errmsg) > 0) errmsg = errmsg // ": " // md%errmsg
-          end if
+          errmsg = md_fail_message(md,"force-field evaluation failed during relaxation")
           call md%free()
           return
        end if
