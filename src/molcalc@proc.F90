@@ -267,7 +267,7 @@ contains
     character*(*), intent(in) :: savevar
 
 #ifdef HAVE_CINT
-    integer :: ioff, joff, koff, loff
+    integer :: ioff, joff
     integer :: nbas, nbast
     integer :: i, j, k, l, di, dj, dk, dl, is0, shls(4), i1, j1
     integer, allocatable :: off(:)

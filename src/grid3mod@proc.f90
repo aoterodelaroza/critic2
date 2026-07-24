@@ -431,7 +431,8 @@ contains
        f%mode = mode_default
     end if
 
-    ! If smoothrho interpolation, calculate the rho0 and derivatives here
+    ! If smoothrho interpolation, calculate the geometry-only rho0 here. The
+    ! option-dependent stencil (init_smr) is built later, in build_interp.
     if (f%mode == mode_smr) then
        if (allocated(f%smr_rho0)) deallocate(f%smr_rho0)
        allocate(f%smr_rho0(f%n(1),f%n(2),f%n(3)))

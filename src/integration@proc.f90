@@ -2787,7 +2787,7 @@ contains
     integer :: is, imo, jmo, ia, ja, ka, iba, ib, jb, kb, ibb
     real*8 :: fac
 
-    real*8, allocatable :: ftemp(:,:,:)
+    real*8, allocatable :: faloc(:,:,:)
     logical, allocatable :: useovrlp(:,:,:)
     real*8, parameter :: ovrlp_thr = 1d-50
 
@@ -2805,41 +2805,39 @@ contains
        end do
     end do
 
-    ! calculate Fa matrix
-    allocate(res%fa(nattr,nattr,nlat(1)*nlat(2)*nlat(3),nspin),ftemp(nattr,nattr,nlattot))
-    ftemp = 0d0
+    ! calculate Fa matrix. Accumulate directly into a thread-local array (reduction)
+    allocate(res%fa(nattr,nattr,nlat(1)*nlat(2)*nlat(3),nspin))
+    allocate(faloc(nattr,nattr,nlattot))
     res%fa = 0d0
     do is = 1, nspin
-       !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,fac) firstprivate(ftemp)
+       faloc = 0d0
+       !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,fac) reduction(+:faloc)
        do imo = 1, nmo
           call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
           do jmo = imo, nmo
              call unpackidx(jmo,ib,jb,kb,ibb,nmo,nbnd,nlat)
              if (.not.useovrlp(imo,jmo,is)) cycle
 
-             ftemp = 0d0
-             do iat_a = 1, nattr
-                do iat_b = 1, nattr
-                   do rat_b = 1, nlattot
-                      ftemp(iat_a,iat_b,rat_b) = &
-                         real(res%sijc(jmo,imo,iat_a,is) * &
-                         res%sijc(res%sij_wnr_imap(imo,rat_b),res%sij_wnr_imap(jmo,rat_b),iat_b,is),8)
-                   end do
-                end do
-             end do
-
              if (imo == jmo) then
                 fac = 1d0
              else
                 fac = 2d0
              end if
-             !$omp critical (addfa)
-             res%fa(:,:,:,is) = res%fa(:,:,:,is) + fac * ftemp
-             !$omp end critical (addfa)
+             do iat_a = 1, nattr
+                do iat_b = 1, nattr
+                   do rat_b = 1, nlattot
+                      faloc(iat_a,iat_b,rat_b) = faloc(iat_a,iat_b,rat_b) + &
+                         fac * real(res%sijc(jmo,imo,iat_a,is) * &
+                         res%sijc(res%sij_wnr_imap(imo,rat_b),res%sij_wnr_imap(jmo,rat_b),iat_b,is),8)
+                   end do
+                end do
+             end do
           end do
        end do
        !$omp end parallel do
+       res%fa(:,:,:,is) = faloc
     end do
+    deallocate(faloc)
 
   end subroutine calc_fa_wannier
 
@@ -2857,7 +2855,7 @@ contains
     integer :: ic, jc, kc, icc, nlattot
     real*8 :: fac
 
-    real*8, allocatable :: f3temp(:,:,:,:,:)
+    real*8, allocatable :: f3loc(:,:,:,:,:)
     logical, allocatable :: useovrlp(:,:,:)
     real*8, parameter :: ovrlp_thr = 1d-50
 
@@ -2905,13 +2903,13 @@ contains
        end do
     end do
 
-    ! three-atom indices
+    ! three-atom indices. Accumulate directly into a thread-local array (reduction)
     allocate(res%fa3(nattr,nattr,nlattot,nattr,nlattot,nspin))
-    allocate(f3temp(nattr,nattr,nlattot,nattr,nlattot))
+    allocate(f3loc(nattr,nattr,nlattot,nattr,nlattot))
     res%fa3 = 0d0
-    f3temp = 0d0
     do is = 1, nspin
-       !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,ic,jc,kc,icc,fac) firstprivate(f3temp)
+       f3loc = 0d0
+       !$omp parallel do private(ia,ja,ka,iba,ib,jb,kb,ibb,ic,jc,kc,icc,fac) reduction(+:f3loc)
        do imo = 1, nmo
           call unpackidx(imo,ia,ja,ka,iba,nmo,nbnd,nlat)
           do jmo = 1, nmo
@@ -2922,13 +2920,12 @@ contains
                 if (.not.useovrlp(imo,kmo,is)) cycle
                 if (.not.useovrlp(jmo,kmo,is)) cycle
 
-                f3temp = 0d0
                 do iat_a = iat_a_ini, iat_a_end
                    do iat_b = iat_b_ini, iat_b_end
                       do rat_b = rat_b_ini, rat_b_end
                          do iat_c = 1, nattr
                             do rat_c = 1, nlattot
-                               f3temp(iat_a,iat_b,rat_b,iat_c,rat_c) = &
+                               f3loc(iat_a,iat_b,rat_b,iat_c,rat_c) = f3loc(iat_a,iat_b,rat_b,iat_c,rat_c) + &
                                   real(res%sijc(imo,kmo,iat_a,is) * &
                                   res%sijc(res%sij_wnr_imap(jmo,rat_b),res%sij_wnr_imap(imo,rat_b),iat_b,is) * &
                                   res%sijc(res%sij_wnr_imap(kmo,rat_c),res%sij_wnr_imap(jmo,rat_c),iat_c,is),8) + &
@@ -2940,16 +2937,14 @@ contains
                       end do ! rat_b
                    end do ! iat_b
                 end do ! iat_a
-
-                !$omp critical (addfa)
-                res%fa3(:,:,:,:,:,is) = res%fa3(:,:,:,:,:,is) + f3temp
-                !$omp end critical (addfa)
              end do ! kmo
           end do ! jmo
        end do ! imo
        !$omp end parallel do
+       res%fa3(:,:,:,:,:,is) = f3loc
     end do ! is
     res%fa3 = 0.5d0 * res%fa3
+    deallocate(f3loc)
 
     write (*,*) "xx checking individual values of DI3"
     do is = 1, nspin
@@ -2994,7 +2989,7 @@ contains
     real*8, intent(in) :: kpt(:,:), occ(:,:,:)
 
     integer :: i, j, is, k, ia, ja, ka, imo1, ik1, ibnd1, imo2, ik2, ibnd2
-    real*8 :: fatemp, kdif(3), fspin
+    real*8 :: kdif(3), fspin
     integer :: nlattot
 
     ! set the spin multiplier
@@ -3008,7 +3003,7 @@ contains
     allocate(res%fa(nattr,nattr,nlattot,nspin))
     res%fa = 0d0
     do is = 1, nspin
-       !$omp parallel do private(k,fatemp,imo1,ibnd1,ik1,imo2,ibnd2,ik2,kdif)
+       !$omp parallel do collapse(2) private(k,imo1,ibnd1,ik1,imo2,ibnd2,ik2,kdif)
        do i = 1, nattr
           do j = 1, nattr
 
@@ -3017,7 +3012,6 @@ contains
                 do ja = 0, nlat(2)-1
                    do ka = 0, nlat(3)-1
                       k = k + 1
-                      fatemp = 0d0
 
                       do imo1 = 1, nmo
                          ibnd1 = modulo(imo1-1,nbnd) + 1
@@ -3054,14 +3048,14 @@ contains
     integer, intent(in) :: atom1, atom2(4)
 
     integer :: i, j, is, k, n
-    real*8 :: kdifb(3), kdifc(3), fspin, pfac
+    real*8 :: kdifb(3), kdifc(3), fspin, pfac, rtmp, ofac
     integer :: nlattot
     integer :: imo, jmo, kmo
     integer :: ibnd, jbnd, kbnd, ik, jk, kk
     integer :: iat_a, iat_b, iat_c, rat_b, rat_c
     integer :: iat_a_ini, iat_a_end, iat_b_ini, iat_b_end, rat_b_ini, rat_b_end
 
-    real*8, allocatable :: f3temp(:,:,:,:,:)
+    real*8, allocatable :: f3loc(:,:,:,:,:)
     logical, allocatable :: useovrlp(:,:,:)
     real*8, parameter :: ovrlp_thr = 1d-50
 
@@ -3125,12 +3119,13 @@ contains
        end do
     end do
 
-    ! three-atom index calculation
+    ! three-atom index calculation. Accumulate into a thread-local array (reduction)
     allocate(res%fa3(nattr,nattr,nlattot,nattr,nlattot,nspin))
-    allocate(f3temp(nattr,nattr,nlattot,nattr,nlattot))
+    allocate(f3loc(nattr,nattr,nlattot,nattr,nlattot))
     res%fa3 = 0d0
-    f3temp = 0d0
     do is = 1, nspin
+       f3loc = 0d0
+       !$omp parallel do private(ibnd,ik,jbnd,jk,kbnd,kk,kdifb,kdifc,pfac,rtmp,ofac) reduction(+:f3loc)
        do imo = 1, nmo
           ibnd = modulo(imo-1,nbnd) + 1
           ik = (imo-1) / nbnd + 1
@@ -3144,8 +3139,9 @@ contains
                 kbnd = modulo(kmo-1,nbnd) + 1
                 kk = (kmo-1) / nbnd + 1
 
-
-                f3temp = 0d0
+                ! occupation factor is constant over the atom/lattice sums; fold
+                ! it in so we can accumulate straight into the reduction array
+                ofac = occ(ibnd,ik,is) * occ(jbnd,jk,is) * occ(kbnd,kk,is)
                 do iat_a = iat_a_ini, iat_a_end
                    do iat_b = iat_b_ini, iat_b_end
                       do rat_b = rat_b_ini, rat_b_end
@@ -3155,31 +3151,29 @@ contains
                                kdifc = kpt(:,jk) - kpt(:,kk)
                                pfac = kdifb(1)*lvec(1,rat_b)+kdifb(2)*lvec(2,rat_b)+kdifb(3)*lvec(3,rat_b) +&
                                   kdifc(1)*lvec(1,rat_c)+kdifc(2)*lvec(2,rat_c)+kdifc(3)*lvec(3,rat_c)
-                               f3temp(iat_a,iat_b,rat_b,iat_c,rat_c) = f3temp(iat_a,iat_b,rat_b,iat_c,rat_c) +&
-                                  real(res%sijc(imo,kmo,iat_a,is)*res%sijc(jmo,imo,iat_b,is)*res%sijc(kmo,jmo,iat_c,is)*&
+                               rtmp = real(res%sijc(imo,kmo,iat_a,is)*res%sijc(jmo,imo,iat_b,is)*res%sijc(kmo,jmo,iat_c,is)*&
                                   exp(tpi*img*pfac),8)
 
                                kdifb = kpt(:,jk) - kpt(:,kk)
                                kdifc = kpt(:,jk) - kpt(:,ik)
                                pfac = kdifb(1)*lvec(1,rat_b)+kdifb(2)*lvec(2,rat_b)+kdifb(3)*lvec(3,rat_b) +&
                                   kdifc(1)*lvec(1,rat_c)+kdifc(2)*lvec(2,rat_c)+kdifc(3)*lvec(3,rat_c)
-                               f3temp(iat_a,iat_b,rat_b,iat_c,rat_c) = f3temp(iat_a,iat_b,rat_b,iat_c,rat_c) +&
-                                  real(res%sijc(imo,kmo,iat_a,is)*res%sijc(kmo,jmo,iat_b,is)*res%sijc(jmo,imo,iat_c,is)*&
+                               rtmp = rtmp + real(res%sijc(imo,kmo,iat_a,is)*res%sijc(kmo,jmo,iat_b,is)*res%sijc(jmo,imo,iat_c,is)*&
                                   exp(tpi*img*pfac),8)
+
+                               f3loc(iat_a,iat_b,rat_b,iat_c,rat_c) = f3loc(iat_a,iat_b,rat_b,iat_c,rat_c) + rtmp * ofac
                             end do ! rat_c
                          end do ! iat_c
                       end do ! rat_b
                    end do ! iat_b
                 end do ! iat_a
-                f3temp = f3temp * occ(ibnd,ik,is) * occ(jbnd,jk,is) * occ(kbnd,kk,is)
-
-                !$omp critical (addfa)
-                res%fa3(:,:,:,:,:,is) = res%fa3(:,:,:,:,:,is) + f3temp
-                !$omp end critical (addfa)
              end do ! kmo = 1, nmo
           end do ! jmo = 1, nmo
        end do ! imo = 1, nmo
+       !$omp end parallel do
+       res%fa3(:,:,:,:,:,is) = f3loc
     end do ! is = 1, nspin
+    deallocate(f3loc)
 
     ! set the spin multiplier
     if (nspin == 1) then
