@@ -1013,7 +1013,7 @@ contains
          call iw_tooltip("Create a copy of this system",ttshown)
 
          ! reopen from file
-         if (iw_menuitem("Reopen from File",enabled=enabled_no_threads)) then
+         if (iw_menuitem("Restore from File",enabled=enabled_no_threads)) then
             call reread_system_from_file(isys)
          end if
          call iw_tooltip("Read the file for this system and reopen it (only last structure is read)",ttshown)
