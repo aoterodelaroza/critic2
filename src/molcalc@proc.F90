@@ -270,6 +270,7 @@ contains
     integer :: ioff, joff, koff, loff
     integer :: nbas, nbast
     integer :: i, j, k, l, di, dj, dk, dl, is0, shls(4), i1, j1
+    integer, allocatable :: off(:)
     real*8, allocatable :: buf1e(:,:,:), buf2e(:,:,:,:,:)
     real*8, external :: CINTgto_norm
     integer, external :: CINTcgto_cart, CINT1e_kin_cart, CINT1e_ovlp_cart, CINT1e_nuc_cart
@@ -351,16 +352,25 @@ contains
       ! fixme: use the ERI symmetries
       jmn = 0d0
       kmn = 0d0
-      ioff = 0
+
+      ! basis-function offset of each shell (prefix sum of the shell sizes),
+      ! so the shell quartets can be processed in any order / in parallel
+      allocate(off(nbas))
+      off(1) = 0
+      do i = 2, nbas
+         off(i) = off(i-1) + CINTcgto(i-2)
+      end do
+
+      ! two-electron part: the shell quartets are independent. jmn/kmn are sum
+      ! reductions and libcint's CINT2e is thread-safe (null optimizer, 0_8).
+      !$omp parallel do private(di,dj,dk,dl,j,k,l,buf2e,shls,is0,i1,j1) &
+      !$omp reduction(+:jmn,kmn) schedule(dynamic)
       do i = 1, nbas
          di = CINTcgto(i-1)
-         joff = 0
          do j = 1, nbas
             dj = CINTcgto(j-1)
-            koff = 0
             do k = 1, nbas
                dk = CINTcgto(k-1)
-               loff = 0
                do l = 1, nbas
                   dl = CINTcgto(l-1)
 
@@ -372,26 +382,23 @@ contains
                      is0 = CINT2e_cart(buf2e,shls,cint%atm,cint%natm,cint%bas,cint%nbas,cint%env,0_8)
                   end if
 
-                  ! eri(ioff+1:ioff+di,joff+1:joff+dj,koff+1:koff+dk,loff+1:loff+dl) = buf2e(:,:,:,:,1)
-                  do j1 = loff+1, loff+dl
-                     do i1 = joff+1, joff+dj
-                        kmn(i1,j1) = kmn(i1,j1) + sum(pmn(ioff+1:ioff+di,koff+1:koff+dk) * buf2e(:,i1-joff,:,j1-loff,1))
+                  ! eri(off(i)+1:.,off(j)+1:.,off(k)+1:.,off(l)+1:.) = buf2e(:,:,:,:,1)
+                  do j1 = off(l)+1, off(l)+dl
+                     do i1 = off(j)+1, off(j)+dj
+                        kmn(i1,j1) = kmn(i1,j1) + sum(pmn(off(i)+1:off(i)+di,off(k)+1:off(k)+dk) * buf2e(:,i1-off(j),:,j1-off(l),1))
                      end do
-                     do i1 = koff+1, koff+dk
-                        jmn(i1,j1) = jmn(i1,j1) + sum(pmn(ioff+1:ioff+di,joff+1:joff+dj) * buf2e(:,:,i1-koff,j1-loff,1))
+                     do i1 = off(k)+1, off(k)+dk
+                        jmn(i1,j1) = jmn(i1,j1) + sum(pmn(off(i)+1:off(i)+di,off(j)+1:off(j)+dj) * buf2e(:,:,i1-off(k),j1-off(l),1))
                      end do
                   end do
 
                   deallocate(buf2e)
-
-                  loff = loff + dl
                end do
-               koff = koff + dk
             end do
-            joff = joff + dj
          end do
-         ioff = ioff + di
       end do
+      !$omp end parallel do
+      deallocate(off)
 
       ! calculate V
       vmn = jmn - 0.5d0 * kmn

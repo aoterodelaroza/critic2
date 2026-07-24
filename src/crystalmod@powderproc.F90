@@ -390,6 +390,8 @@ contains
 
     ! calculate the radial distribution function for the crystal
     ! RDF(r) = sum_i=1...c%nneq sum_j=1...c%env%n sqrt(Zi*Zj) / c%nneq / rij * delta(r-rij)
+    !$omp parallel do private(iz,nat,j,k,kz,jz,idx,found,fac,int,ihaux) &
+    !$omp firstprivate(eid,dist) reduction(+:ih) schedule(dynamic)
     do i = 1, c%nneq
        if (npairs > 0) then
           found = .false.
@@ -443,6 +445,7 @@ contains
              ihat(:,i) = ihat(:,i) + ihaux
        end do
     end do
+    !$omp end parallel do
     if (.not.c%ismolecule) then
        do i = 1, npts
           if (abs(t(i)) < atomeps) cycle

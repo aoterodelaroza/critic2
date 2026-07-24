@@ -857,14 +857,18 @@ contains
 
     ! calculate the atomic environments
     allocate(atenv(c%ncel))
+    !$omp parallel do private(iz) schedule(dynamic)
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z
        if (iz > maxzat) cycle
        call c%list_near_atoms(c%atcel(i)%x,icrd_crys,.true.,atenv(i)%nat,atenv(i)%eid,&
           atenv(i)%dist,atenv(i)%lvec,up2d=max((atmcov(iz) + dmax)*2d0,dmaxbond),nozero=.true.)
     end do
+    !$omp end parallel do
 
-    ! process the environments and generate the bonds
+    ! process the environments and generate the bonds (each atom independent;
+    ! atenv is read-only here and nstar(i) is written only by iteration i)
+    !$omp parallel do private(iz,ism,j,jid,jz,jsm,bonded,dd) schedule(dynamic)
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z
        if (iz > maxzat) cycle
@@ -923,6 +927,7 @@ contains
        call realloc(nstar(i)%ordcon,nstar(i)%ncon)
        call realloc(nstar(i)%aromdir,3,nstar(i)%ncon)
     end do
+    !$omp end parallel do
 
     ! perceive bond orders for the organic subgraph
     call perceive_bond_orders(c,nstar)
