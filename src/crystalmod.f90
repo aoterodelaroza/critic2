@@ -315,8 +315,6 @@ module crystalmod
      procedure :: edit_atom_list !< Remove/merge/duplicate a list of atoms
      procedure :: change_atom_species !< Change the species of atoms
      procedure :: move_atom !< Move an atom
-     procedure :: update_positions !< Overwrite all cell-atom positions in place (fast, no rebuild)
-     procedure :: rebuild_after_move !< Rebuild the crystal from the current (moved) cell positions
      procedure :: move_molecule !< Move a molecular fragment (rigid translation)
      procedure :: rotate_molecule !< Rotate a molecular fragment (rigid rotation about its COM)
      procedure :: move_cell !< Move the unit cell
@@ -326,6 +324,8 @@ module crystalmod
      procedure :: set_bond_order !< Set the bond order of a single bond between two cell atoms
      procedure :: add_bond !< Add a single bond between two cell atoms
      procedure :: reduce_symmetry !< Delete symmetry operations and rebuild with the reduced subgroup
+     procedure :: update_positions !< Overwrite all cell-atom positions in place (fast, no rebuild)
+     procedure :: rebuild_after_move !< Rebuild the crystal from the current (moved) cell positions
 
      ! symmetry (symmetry)
      procedure :: pointgroup !< Returns the rotations in the crystal point group

@@ -1391,13 +1391,14 @@ contains
 
   end subroutine move_atom
 
-  !> Overwrite the Cartesian positions of all atoms in the main cell with rnew
-  !> (3,ncel, bohr), updating the fractional coordinates accordingly. This is a
-  !> fast in-place update intended for real-time animation (molecular dynamics,
-  !> dragging): it does NOT rebuild the environment, symmetry, molecular
-  !> fragments, or connectivity. Callers that need those refreshed (e.g. after
-  !> stopping an animation) must rebuild the crystal explicitly. Atoms are not
-  !> wrapped into the cell, so trajectories stay continuous across cell edges.
+  !> Overwrite the Cartesian positions of all atoms in the main cell
+  !> with rnew (3,ncel, bohr), updating the fractional coordinates
+  !> accordingly. This is a fast in-place update intended for
+  !> real-time animation (molecular dynamics, dragging): it does NOT
+  !> rebuild the environment, symmetry, molecular fragments, or
+  !> connectivity. Callers that need those refreshed (e.g. after
+  !> stopping an animation) must rebuild the crystal explicitly with
+  !> rebuild_after_move.
   module subroutine update_positions(c,rnew)
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: rnew(:,:)
@@ -1412,10 +1413,11 @@ contains
   end subroutine update_positions
 
   !> Rebuild the crystal from the current cell positions (as left by
-  !> update_positions), re-deriving the environment, connectivity, molecular
-  !> fragments, and symmetry. Use this once after a run of in-place position
-  !> updates (e.g. when interactive dynamics stops) to restore full consistency
-  !> of the non-equivalent atom list and symmetry with the moved atoms.
+  !> update_positions), re-deriving the environment, connectivity,
+  !> molecular fragments, and symmetry. Use this once after a run of
+  !> in-place position updates (e.g. when interactive dynamics stops)
+  !> to restore full consistency of the non-equivalent atom list and
+  !> symmetry with the moved atoms.
   module subroutine rebuild_after_move(c,ti)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(inout) :: c
