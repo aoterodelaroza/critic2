@@ -156,7 +156,7 @@ contains
              trim(string(rcur,'e',9,3))
           write (uout,'("  In-plane points: ",A,", ",A)') &
              string(np1), string(np2)
-          !$omp parallel do private (xx,faux)
+          !$omp parallel do private (xx,faux) schedule(dynamic)
           do i = 1, np1
              do j = 1, np2
                 xx(ip1) = real(i-1,8)/np1
@@ -168,9 +168,7 @@ contains
                 else
                    faux = (stm_bisect(xx,ix,rcur) - rtop0 * axlen) * bohrtoa
                 endif
-                !$omp critical (ffwrite)
                 ff(i,j) = faux
-                !$omp end critical (ffwrite)
              end do
           end do
           !$omp end parallel do
@@ -186,9 +184,7 @@ contains
                 xx(ix) = rhei
                 xx = sy%c%x2c(xx)
                 faux = max(sy%f(sy%iref)%grd0(xx),0d0)
-                !$omp critical (ffwrite)
                 ff(i,j) = faux
-                !$omp end critical (ffwrite)
              end do
           end do
           !$omp end parallel do
@@ -290,7 +286,7 @@ contains
     else
        allocate(fl(nn))
        ! Calculate the STM signal along a line
-       !$omp parallel do private (xx,faux)
+       !$omp parallel do private (xx,faux) schedule(dynamic)
        do i = 1, nn
           xx(ip1) = x0(1) + (x1(1)-x0(1)) * real(i-1,8) / (nn-1)
           xx(ip2) = x0(2) + (x1(2)-x0(2)) * real(i-1,8) / (nn-1)
@@ -303,9 +299,7 @@ contains
              xx = sy%c%x2c(xx)
              faux = max(sy%f(sy%iref)%grd0(xx),0d0)
           endif
-          !$omp critical (flwrite)
           fl(i) = faux
-          !$omp end critical (flwrite)
        end do
        !$omp end parallel do
 

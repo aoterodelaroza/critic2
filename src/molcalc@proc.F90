@@ -245,9 +245,7 @@ contains
     do i = 1, m%n
        lerrs = ""
        fval = sy%eval(expr,lerrs,m%x(:,i))
-       !$omp critical (save)
        ff(i) = fval
-       !$omp end critical (save)
     end do
     !$omp end parallel do
     fsum = sum(ff * m%w)

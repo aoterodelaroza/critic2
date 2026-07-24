@@ -592,7 +592,7 @@ contains
 
     ! integrate recursively each IWST
     ! allocatable arrays in private -> openmp 3.0 specs
-    !$omp parallel do private(acum_atprop,iv0) firstprivate(trm,fgr,lapgr,vgr)
+    !$omp parallel do private(acum_atprop,iv0) firstprivate(trm,fgr,lapgr,vgr) schedule(dynamic)
     do tt = 1, nt_orig
 
        !$omp critical (IO)

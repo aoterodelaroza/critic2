@@ -541,7 +541,7 @@ contains
         allocate(rhofragl(nfrag))
         rhofragl = 0d0
         !$omp parallel do private (x,res,resg,ehess,dimgrad,rhoatl,&
-        !$omp xd,dist,rrho,rrho1,rrho2,iz) firstprivate(rhofragl)
+        !$omp xd,dist,rrho,rrho1,rrho2,iz) firstprivate(rhofragl) schedule(dynamic)
         do i = 0, nstep(1)-1
            do j = 0, nstep(2)-1
               do k = 0, nstep(3)-1
@@ -593,12 +593,10 @@ contains
                     end do
                  end if
 
-                 !$omp critical (cubewrite)
                  cgrad(k,j,i) = dimgrad
                  crho(k,j,i) = sign(res%f,ehess(2))*100.D0
                  if (dopromol) rhoat(k,j,i) = rhoatl
                  if (nfrag > 0) rhofrag(k,j,i,1:nfrag) = rhofragl(1:nfrag)
-                 !$omp end critical (cubewrite)
               end do
            end do
         end do

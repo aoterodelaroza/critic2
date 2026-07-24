@@ -136,7 +136,7 @@ contains
     ! split in two because the nodes have to be positioned in the array in
     ! the correct order
     !$omp parallel do private(nr,nang,ir,r,il,x,j,k,r1,r2,hypr,&
-    !$omp cutoff,vp0,vpsum,vpi,iz,iz2) firstprivate(rads,wrads,xang,yang,zang,wang)
+    !$omp cutoff,vp0,vpsum,vpi,iz,iz2) firstprivate(rads,wrads,xang,yang,zang,wang) schedule(dynamic)
     do i = 1, c%ncel
        iz = c%spc(c%atcel(i)%is)%z
        if (iz < 1 .or. iz > maxzat) cycle
@@ -189,10 +189,8 @@ contains
                 enddo
                 vpsum = vpsum + vpi
              enddo
-             !$omp critical (mmesh)
              meshrl(il,ir,i) = vp0/vpsum * wrads(ir) * wang(il)
              meshx(:,il,ir,i) = x
-             !$omp end critical (mmesh)
           enddo
        enddo
     end do
@@ -290,7 +288,7 @@ contains
     ! split in two because the nodes have to be positioned in the array in
     ! the correct order
     !$omp parallel do private(iz,fscal,nr,nang,r,vp0,x,vpsum,iz2,fscal2,xnuc,nat) &
-    !$omp firstprivate(rads,wrads,xang,yang,zang,wang,eid,dist)
+    !$omp firstprivate(rads,wrads,xang,yang,zang,wang,eid,dist) schedule(dynamic)
     do i = 1, c%ncel
        xnuc = c%x2xr(c%atcel(i)%x)
        xnuc = xnuc - floor(xnuc)
@@ -339,10 +337,8 @@ contains
              enddo
              vpsum = max(vp0,vpsum)
 
-             !$omp critical (mmesh)
              meshrl(il,ir,i) = vp0/max(vpsum,1d-40) * wrads(ir) * wang(il)
              meshx(:,il,ir,i) = x
-             !$omp end critical (mmesh)
           enddo
        enddo
     end do
@@ -435,7 +431,7 @@ contains
        end select
     end do
 
-    !$omp parallel do private(fval,res,fder,rhos,laps,tau,drhos2,dsigs,quads,br_b,br_alf,br_a)
+    !$omp parallel do private(fval,res,fder,rhos,laps,tau,drhos2,dsigs,quads,br_b,br_alf,br_a) schedule(dynamic)
     do i = 1, m%n
        if (nder >= 0) then
           call ff%grd(m%x(:,i),request,res,periodic=periodic)
@@ -473,9 +469,7 @@ contains
           else
              call ferror("fillmesh","unknown quantity to calculate in fillmesh",faterr)
           end if
-          !$omp critical (save)
           m%f(i,j) = fval
-          !$omp end critical (save)
        end do
     end do
     !$omp end parallel do

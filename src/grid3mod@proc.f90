@@ -444,9 +444,7 @@ contains
                 x = f%x0 + (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
                 call crystalmod_promolecular(f%cptr,x,icrd_crys,rho,rhof,rhoff,0)
 
-                !$omp critical(write)
                 f%smr_rho0(i,j,k) = max(rho,VSMALL)
-                !$omp end critical(write)
              end do
           end do
        end do
@@ -454,6 +452,19 @@ contains
     end if
 
   end subroutine setmode
+
+  !> Precompute the interpolation coefficients/stencil for the current
+  !> mode.
+  module subroutine build_interp(f)
+    class(grid3), intent(inout) :: f
+
+    if (f%mode == mode_trispline) then
+       call init_trispline(f)
+    else if (f%mode == mode_smr) then
+       call init_smr(f)
+    end if
+
+  end subroutine build_interp
 
   !> Normalize the grid to a given value. omega is the cell volume.
   pure module subroutine normalize(f,norm)
@@ -465,6 +476,8 @@ contains
 
     omega = det3(f%x2cl)
     f%f = f%f / (sum(f%f) * omega / real(product(f%n),8)) * norm
+
+    ! grid values changed: drop stale trispline coefficients
     if (allocated(f%c2)) deallocate(f%c2)
 
   end subroutine normalize
@@ -2381,11 +2394,16 @@ contains
 
     real*8, parameter :: eps = 1d-12
 
-    !$omp critical (checkalloc)
+    ! The coefficients are normally precomputed at field setup
+    ! (setmode); fall back to a locked lazy init if that
+    ! precomputation was somehow skipped.
     if (.not.allocated(f%c2)) then
-       call init_trispline(f)
+       !$omp critical (checkalloc)
+       if (.not.allocated(f%c2)) then
+          call init_trispline(f)
+       end if
+       !$omp end critical (checkalloc)
     end if
-    !$omp end critical (checkalloc)
 
     ! initialize
     y = 0d0
@@ -2833,11 +2851,16 @@ contains
     real*8 :: dfin, swei, sweip(3), sweipp(3,3)
     integer :: nat, ii0
 
-    !$omp critical (checkalloc)
+    ! The stencil is normally precomputed at field setup (setmode); this
+    ! double-checked guard is a lock-free fast path that only falls back to a
+    ! locked lazy init if that precomputation was somehow skipped.
     if (.not.allocated(f%smr_ilist)) then
-       call init_smr(f)
+       !$omp critical (checkalloc)
+       if (.not.allocated(f%smr_ilist)) then
+          call init_smr(f)
+       end if
+       !$omp end critical (checkalloc)
     end if
-    !$omp end critical (checkalloc)
 
     ! initialize
     y = 0d0

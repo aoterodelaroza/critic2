@@ -97,6 +97,7 @@ module grid3mod
    contains
      procedure :: end => grid_end !< deallocate all arrays and uninitialize
      procedure :: setmode !< set the interpolation mode of a grid
+     procedure :: build_interp !< precompute interpolation coefficients for the current mode
      procedure :: normalize !< normalize the grid to a given value
      procedure :: from_array3 !< build a grid3 from a 3d array of real numbers
      procedure :: read_cube !< grid3 from a Gaussian cube file
@@ -141,6 +142,9 @@ module grid3mod
        class(grid3), intent(inout) :: f
        character*(*), intent(in) :: mode
      end subroutine setmode
+     module subroutine build_interp(f)
+       class(grid3), intent(inout) :: f
+     end subroutine build_interp
      pure module subroutine normalize(f,norm)
        class(grid3), intent(inout) :: f
        real*8, intent(in) :: norm

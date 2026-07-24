@@ -357,7 +357,7 @@ contains
           write (uout,'("+ Calculating core density")')
        if (dopro) &
           write (uout,'("+ Calculating promolecular density")')
-       !$omp parallel do private(x,rhoat,rhocore,rdum1,rdum2,k,j,i)
+       !$omp parallel do private(x,rhoat,rhocore,rdum1,rdum2,k,j,i) schedule(dynamic)
        do k = 1, n(3)
           do j = 1, n(2)
              do i = 1, n(1)
@@ -365,10 +365,8 @@ contains
 
                 if (dopro) call sy%c%promolecular_atom(x,icrd_crys,rhoat,rdum1,rdum2,0)
                 if (docor) call sy%c%promolecular_atom(x,icrd_crys,rhocore,rdum1,rdum2,0,sy%f(irho)%zpsp)
-                !$omp critical(write)
                 if (dopro) sy%f(ipdens)%grid%f(i,j,k) = rhoat
                 if (docor) sy%f(icor)%grid%f(i,j,k) = rhocore
-                !$omp end critical(write)
              end do
           end do
        end do
@@ -431,7 +429,7 @@ contains
 
        ! do it
        !$omp parallel do private(rhos,grho,lap,taus,ds,qs,rhs,xroot,xshift,&
-       !$omp                     xold,expx,gx,fx,ffx,k,j,i)
+       !$omp                     xold,expx,gx,fx,ffx,k,j,i) schedule(dynamic)
        do k = 1, n(3)
           do j = 1, n(2)
              do i = 1, n(1)
@@ -470,9 +468,7 @@ contains
                    xroot = xroot - fx / ffx
                 end do
 
-                !$omp critical(write)
                 sy%f(ib)%grid%f(i,j,k) = xroot * (exp(-xroot) / (8d0*pi*rhos))**(1d0/3d0)
-                !$omp end critical(write)
              end do
           end do
        end do
@@ -564,10 +560,8 @@ contains
              end do ! j
           end do ! k
        end do ! ll
-       !$omp critical(write)
        ml(:,iat) = mll
        avol(iat) = avoll
-       !$omp end critical(write)
     end do ! iat
     !$omp end parallel do
     avol = avol * sy%c%omega / ntot

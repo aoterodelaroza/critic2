@@ -543,7 +543,7 @@ contains
 
     !$omp parallel do &
     !$omp private(realnphi,nneval,pprop,perr,piaserr,lerr,v,rprop,rerr,leval,riaserr,ierr) &
-    !$omp firstprivate(ppoints,pweights)
+    !$omp firstprivate(ppoints,pweights) schedule(dynamic)
     do i = 1, ntheta
        realnphi = int(nphi*abs(sin(tpoints(i))))+1
        call gauleg(0d0,2d0*pi,ppoints,pweights,realnphi)
@@ -1214,9 +1214,7 @@ contains
              else
                 padd = count(bas%idg == i) * sy%c%omega / real(ntot,8)
              endif
-             !$omp critical (accum)
              res(k)%psum(i) = res(k)%psum(i) + padd
-             !$omp end critical (accum)
           end do
           !$omp end parallel do
           res(k)%outmode = out_field
@@ -1274,9 +1272,7 @@ contains
                       x(3) = real(i3-1,8) / bas%n(3)
                       x2 = sy%c%x2c(x)
                       call sy%grdall(x2,lprop,plmask)
-                      !$omp critical (write)
                       fint(i1,i2,i3) = lprop(k)
-                      !$omp end critical (write)
                    end do
                 end do
              end do
@@ -1299,9 +1295,7 @@ contains
                 else
                    padd = sum(fint,bas%idg==i) * sy%c%omega / real(ntot,8)
                 endif
-                !$omp critical (accum)
                 res(k)%psum(i) = res(k)%psum(i) + padd
-                !$omp end critical (accum)
              end do
              !$omp end parallel do
              res(k)%outmode = out_field
@@ -1333,9 +1327,7 @@ contains
                             call tosphere(dv,r,tp)
                             call genrlm_real(lmax,r,tp,rrlm)
 
-                            !$omp critical (accum)
                             res(k)%mpole(:,m) = res(k)%mpole(:,m) + rrlm * fint(i1,i2,i3) * w(i1,i2,i3)
-                            !$omp end critical (accum)
                          end do
                       end do
                    end do
@@ -1429,6 +1421,7 @@ contains
     integer :: nat
     integer, allocatable :: nid(:), lvec(:,:)
     real*8, allocatable :: dist(:), rcutmax(:,:)
+    real*8, allocatable :: psuml(:,:)
 
     if (bas%imtype /= imtype_hirshfeld) return
 
@@ -1552,8 +1545,13 @@ contains
        end if
     end do
 
+    ! per-thread accumulator
+    allocate(psuml(bas%nattr,sy%npropi))
+    psuml = 0d0
+
     ! run over grid points
-    !$omp parallel do private(x0,nat,fac,rhoa,raux1,raux2,tosum) firstprivate(nid,dist,lvec)
+    !$omp parallel do private(x0,nat,fac,rhoa,raux1,raux2,tosum) firstprivate(nid,dist,lvec) &
+    !$omp reduction(+:psuml) schedule(dynamic)
     do i3 = 1, bas%n(3)
        do i2 = 1, bas%n(2)
           do i1 = 1, bas%n(1)
@@ -1569,18 +1567,16 @@ contains
                 call agrid(sy%c%spc(sy%c%atcel(nid(i))%is)%z)%interp(dist(i),rhoa,raux1,raux2)
                 tosum = fac * rhoa
 
-                !$omp critical (results)
                 ! add result
                 do l = 1, sy%npropi
                    if (res(l)%done.or..not.sy%propi(l)%used) cycle
                    if (sy%propi(l)%itype == itype_v) then
                       ! volume
-                      res(l)%psum(nid(i)) = res(l)%psum(nid(i)) + tosum
+                      psuml(nid(i),l) = psuml(nid(i),l) + tosum
                    elseif (idmap(l) > 0) then
-                      res(l)%psum(nid(i)) = res(l)%psum(nid(i)) + tosum * fmap(i1,i2,i3,idmap(l))
+                      psuml(nid(i),l) = psuml(nid(i),l) + tosum * fmap(i1,i2,i3,idmap(l))
                    end if
                 end do
-                !$omp end critical (results)
              end do ! i
           end do ! i1
        end do ! i2
@@ -1591,11 +1587,12 @@ contains
     do l = 1, sy%npropi
        if (res(l)%done.or..not.sy%propi(l)%used) cycle
        if (.not.allocated(res(l)%psum)) cycle
-       res(l)%psum = res(l)%psum * sy%c%omega / product(bas%n)
+       res(l)%psum = (res(l)%psum + psuml(:,l)) * sy%c%omega / product(bas%n)
 
        res(l)%done = .true.
        res(l)%reason = ""
     end do
+    deallocate(psuml)
 
   end subroutine intgrid_hirshfeld_fields
 
@@ -1616,10 +1613,10 @@ contains
     integer :: i, j, l, i1, i2, i3, iz, fid
     logical :: ok, fillgrd
     integer, allocatable :: idmap(:)
-    real*8, allocatable :: fmap(:,:,:,:), aux(:,:,:,:,:)
+    real*8, allocatable :: fmap(:,:,:,:)
     real*8 :: x(3), x2(3), x0(3), xdelta(3,3), rhoa, rhob, raux1, raux2, tosum
     real*8 :: lprop(sy%npropi), fac
-    integer :: lb(3), ub(3), lbn(3), ubn(3), nat, lt(3), nmap
+    integer :: lb(3), ub(3), nat, lt(3), nmap
     logical :: plmask(sy%npropi)
     integer, allocatable :: nid(:), lvec(:,:)
     real*8, allocatable :: dist(:), rcutmax(:,:)
@@ -1679,9 +1676,7 @@ contains
                    x(3) = real(i3-1,8) / bas%n(3)
                    x2 = sy%c%x2c(x)
                    call sy%grdall(x2,lprop,plmask)
-                   !$omp critical (write)
                    fmap(i1,i2,i3,nmap) = lprop(l)
-                   !$omp end critical (write)
                 end do
              end do
           end do
@@ -1694,10 +1689,6 @@ contains
        res(l)%hirsh_op = 0d0
        write (uout,'("+ Integrated property (number ",A,"): ",A)') string(l), string(sy%propi(l)%prop_name)
     end do
-
-    ! prepare for output
-    lb = 0
-    ub = 0
 
     ! grid dimensions
     do i = 1, 3
@@ -1719,8 +1710,40 @@ contains
        end if
     end do
 
+    ! Pre-pass: determine the lattice-translation bounds so the accumulators can
+    ! be preallocated once and the main loop needs no lock-protected
+    ! reallocation. For any pair at a grid point, |lt(k)| is bounded by the
+    ! spread of the k-th lattice component over that point's environment; take
+    ! the maximum over all grid points. The bounds are symmetric (both lt and
+    ! -lt are accumulated).
+    ub = 0
+    !$omp parallel do private(x0,nat) firstprivate(nid,dist,lvec) reduction(max:ub) schedule(dynamic)
+    do i3 = 1, bas%n(3)
+       do i2 = 1, bas%n(2)
+          do i1 = 1, bas%n(1)
+             x0 = (i1-1) * xdelta(:,1) + (i2-1) * xdelta(:,2) + (i3-1) * xdelta(:,3)
+             call sy%c%list_near_atoms(x0,icrd_crys,.false.,nat,nid,dist,lvec,up2dsp=rcutmax)
+             if (nat <= 0) cycle
+             ub(1) = max(ub(1), maxval(lvec(1,1:nat)) - minval(lvec(1,1:nat)))
+             ub(2) = max(ub(2), maxval(lvec(2,1:nat)) - minval(lvec(2,1:nat)))
+             ub(3) = max(ub(3), maxval(lvec(3,1:nat)) - minval(lvec(3,1:nat)))
+          end do
+       end do
+    end do
+    !$omp end parallel do
+    lb = -ub
+
+    ! preallocate the overlap accumulators at the final (fixed) bounds
+    do l = 1, sy%npropi
+       if (idmap(l) == 0) cycle
+       if (allocated(res(l)%hirsh_op)) deallocate(res(l)%hirsh_op)
+       allocate(res(l)%hirsh_op(bas%nattr,bas%nattr,lb(1):ub(1),lb(2):ub(2),lb(3):ub(3)))
+       res(l)%hirsh_op = 0d0
+    end do
+
     ! run over grid points
-    !$omp parallel do private(x0,nat,fac,lt,rhoa,rhob,raux1,raux2,tosum) firstprivate(nid,dist,lvec)
+    !$omp parallel do private(x0,nat,fac,lt,rhoa,rhob,raux1,raux2,tosum) firstprivate(nid,dist,lvec) &
+    !$omp schedule(dynamic)
     do i3 = 1, bas%n(3)
        do i2 = 1, bas%n(2)
           do i1 = 1, bas%n(1)
@@ -1740,33 +1763,19 @@ contains
                    call agrid(sy%c%spc(sy%c%atcel(nid(j))%is)%z)%interp(dist(j),rhob,raux1,raux2)
                    tosum = fac * rhoa * rhob
 
-                   !$omp critical (results)
-                   ! reallocate if necessary
-                   if (-abs(lt(1))<lb(1).or.-abs(lt(2))<lb(2).or.-abs(lt(3))<lb(3).or.&
-                      abs(lt(1))>ub(1).or.abs(lt(2))>ub(2).or.abs(lt(3))>ub(3)) then
-                      lbn = min(lb,-abs(lt))
-                      ubn = max(ub,abs(lt))
-                      do l = 1, sy%npropi
-                         if (idmap(l) == 0) cycle
-                         allocate(aux(bas%nattr,bas%nattr,lbn(1):ubn(1),lbn(2):ubn(2),lbn(3):ubn(3)))
-                         aux = 0d0
-                         aux(:,:,lb(1):ub(1),lb(2):ub(2),lb(3):ub(3)) = res(l)%hirsh_op
-                         call move_alloc(aux,res(l)%hirsh_op)
-                      end do
-                      lb = lbn
-                      ub = ubn
-                   end if
-                   ! add result
+                   ! add result. Bounds are fixed (preallocated above), so only
+                   ! per-element atomic updates are needed, not a lock.
                    do l = 1, sy%npropi
                       if (idmap(l) == 0) cycle
+                      !$omp atomic
                       res(l)%hirsh_op(nid(i),nid(j),lt(1),lt(2),lt(3)) = &
                          res(l)%hirsh_op(nid(i),nid(j),lt(1),lt(2),lt(3)) + tosum * fmap(i1,i2,i3,idmap(l))
                       if (i /= j) then
+                         !$omp atomic
                          res(l)%hirsh_op(nid(j),nid(i),-lt(1),-lt(2),-lt(3)) = &
                             res(l)%hirsh_op(nid(j),nid(i),-lt(1),-lt(2),-lt(3)) + tosum * fmap(i1,i2,i3,idmap(l))
                       end if
                    end do
-                   !$omp end critical (results)
                 end do ! j
              end do ! i
           end do ! i1

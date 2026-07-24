@@ -276,6 +276,9 @@ contains
        end if
     end do
 
+    ! precompute the grid interpolation coefficients
+    if (allocated(ff%grid)) call ff%grid%build_interp()
+
   end subroutine field_set_options
 
   !> Load a new field using the given field seed, the crystal
@@ -597,13 +600,13 @@ contains
                    x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
                    x = c%x2c(x)
                    rho = eval(seed%expr,lerrmsg%s,x,sptr,.true.,toklist)
-                   !$omp critical(write)
+                   f%grid%f(i,j,k) = rho
                    if (len_trim(lerrmsg%s) > 0) then
+                      !$omp critical(write)
                       errmsg = lerrmsg%s
                       ifail = .true.
+                      !$omp end critical(write)
                    end if
-                   f%grid%f(i,j,k) = rho
-                   !$omp end critical(write)
                 end do
              end do
           end do

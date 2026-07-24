@@ -1283,7 +1283,7 @@ contains
     nwarn = 0
     nwarn0 = 0
     !$omp parallel do private(unit,raprox,rother,riaprox,rtry,itry,id1,id2,&
-    !$omp xin,xtemp,ier,rr2,xfin,nstep,xmed,rlim,nwarn,plen)
+    !$omp xin,xtemp,ier,rr2,xfin,nstep,xmed,rlim,nwarn,plen) schedule(dynamic)
     do j = 1, srf%nv
        nwarn = 0
        ! skip surfed points
@@ -1507,7 +1507,7 @@ contains
     nwarn = 0
     nwarn0 = 0
     !$omp parallel do private(unit,raprox,riaprox,ok,xtemp,nstep,ier,&
-    !$omp  xin,xfin,xmed,nwarn,plen)
+    !$omp  xin,xfin,xmed,nwarn,plen) schedule(dynamic)
     do i = 1, srf%nv
        nwarn = 0
        ! skip surfed points

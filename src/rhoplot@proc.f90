@@ -326,7 +326,7 @@ contains
     lapout = 0d0
 
     lerrmsg%s = ""
-    !$omp parallel do private(xp,dist,res,iok,rhopt,lappt,lerrs)
+    !$omp parallel do private(xp,dist,res,iok,rhopt,lappt,lerrs) schedule(dynamic)
     do i=1,np
        xp = x0 + (x1 - x0) * real(i-1,8) / real(np-1,8)
        if (id >= 0) then
@@ -365,13 +365,15 @@ contains
           lappt = rhopt
        end if
 
-       !$omp critical (iowrite)
        rhoout(i) = rhopt
        lapout(i) = lappt
        if (allocated(lerrs)) then
-          if (len_trim(lerrs) > 0) lerrmsg%s = lerrs
+          if (len_trim(lerrs) > 0) then
+             !$omp critical (iowrite)
+             lerrmsg%s = lerrs
+             !$omp end critical (iowrite)
+          end if
        end if
-       !$omp end critical (iowrite)
     enddo
     !$omp end parallel do
     if (len_trim(lerrmsg%s) > 0) &
@@ -897,7 +899,7 @@ contains
           call faux%end()
        else
           lerrmsg%s = ""
-          !$omp parallel do private(xp,res,lappt,lerrs)
+          !$omp parallel do private(xp,res,lappt,lerrs) schedule(dynamic)
           do iz = 0, nn(3)-1
              do iy = 0, nn(2)-1
                 do ix = 0, nn(1)-1
@@ -935,12 +937,14 @@ contains
                       lerrs = ""
                       lappt = sy%eval(expr,lerrs,xp)
                    end if
-                   !$omp critical (fieldwrite)
                    lf(ix+1,iy+1,iz+1) = lappt
                    if (allocated(lerrs)) then
-                      if (len_trim(lerrs) > 0) lerrmsg%s = lerrs
+                      if (len_trim(lerrs) > 0) then
+                         !$omp critical (fieldwrite)
+                         lerrmsg%s = lerrs
+                         !$omp end critical (fieldwrite)
+                      end if
                    end if
-                   !$omp end critical (fieldwrite)
                 end do
              end do
           end do
@@ -1224,7 +1228,7 @@ contains
     end if
 
     lerrmsg%s = ""
-    !$omp parallel do private (xp,res,rhopt,lerrs)
+    !$omp parallel do private (xp,res,rhopt,lerrs) schedule(dynamic)
     do ix = 1, nx
        do iy = 1, ny
           xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
@@ -1261,12 +1265,14 @@ contains
              lerrs = ""
              rhopt = sy%eval(expr,lerrs,xp)
           endif
-          !$omp critical (write)
           ff(ix,iy) = rhopt
           if (allocated(lerrs)) then
-             if (len_trim(lerrs) > 0) lerrmsg%s = lerrs
+             if (len_trim(lerrs) > 0) then
+                !$omp critical (write)
+                lerrmsg%s = lerrs
+                !$omp end critical (write)
+             end if
           end if
-          !$omp end critical (write)
        end do
     end do
     !$omp end parallel do
@@ -1760,7 +1766,7 @@ contains
        else
           call request%field_nder2()
        end if
-       !$omp parallel do private(xp,res,rhopt)
+       !$omp parallel do private(xp,res,rhopt) schedule(dynamic)
        do ix = 1, n1
           do iy = 1, n2
              xp = x0 + real(ix-1,8) * uu + real(iy-1,8) * vv
@@ -1791,9 +1797,7 @@ contains
              case (11)
                 rhopt = res%del2f
              end select
-             !$omp critical (write)
              ff(ix,iy) = rhopt
-             !$omp end critical (write)
           end do
        end do
        !$omp end parallel do

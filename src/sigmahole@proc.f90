@@ -149,7 +149,7 @@ contains
     allocate(mval(nu,nv),rval(nu,nv))
 
     ! calculate and plot
-    !$omp parallel do private (u,v,ph,th,xl,uvec,rini,rat,rfin,xp,res,rmid,mep)
+    !$omp parallel do private (u,v,ph,th,xl,uvec,rini,rat,rfin,xp,res,rmid,mep) schedule(dynamic)
     do iu = 1, nu
        u = real(iu-1,8) / real(nu-1,8)
        do iv = 1, nv
@@ -197,10 +197,8 @@ contains
           if (.not.ok) &
              call ferror("sigmahole_driver","could not compute the MEP",faterr)
 
-          !$omp critical (iowrite)
           rval(iu,iv) = rmid
           mval(iu,iv) = mep
-          !$omp end critical (iowrite)
        end do
     end do
 

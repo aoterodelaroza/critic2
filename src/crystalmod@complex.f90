@@ -339,7 +339,7 @@ contains
     ! --- reciprocal space: sum_k brec |S(k)|^2 (dominant cost; parallel over k) ---
     dorecip = product(2*lhmax+1) >= ewald_omp_kmin
     !$omp parallel do collapse(3) private(kv,kc,dh,bbarg,brec,sc,ss,i,cosk,sink,s2,fac,a,b) &
-    !$omp    reduction(+:eene,grad,vir) if(dorecip)
+    !$omp    reduction(+:eene,grad,vir) if(dorecip) schedule(dynamic)
     do i1 = -lhmax(1), lhmax(1)
        do i2 = -lhmax(2), lhmax(2)
           do i3 = -lhmax(3), lhmax(3)

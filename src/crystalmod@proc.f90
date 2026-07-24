@@ -1142,9 +1142,7 @@ contains
           do i = 1, n(1)
              x = (i-1) * xdelta(:,1) + (j-1) * xdelta(:,2) + (k-1) * xdelta(:,3)
              call c%nearest_atom(x,icrd_crys,nid,dist)
-             !$omp critical(write)
              idg(i,j,k) = nid
-             !$omp end critical(write)
           end do
        end do
     end do

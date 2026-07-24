@@ -2024,7 +2024,7 @@ contains
           end if
 
           lerrmsg%s = ""
-          !$omp parallel do private(xnorm2,lerrs)
+          !$omp parallel do private(xnorm2,lerrs) schedule(dynamic)
           do j = i+1, ns
              if (epsreduce > 0d0) then
                 if (irepeat(j) > 0) cycle
@@ -2057,7 +2057,7 @@ contains
        singleatom = -1
 
        ncount = 0
-       !$omp parallel do private(tini,tend,nor,n) firstprivate(t,ih,th2p,ip)
+       !$omp parallel do private(tini,tend,nor,n) firstprivate(t,ih,th2p,ip) schedule(dynamic)
        do i = 1, ns
           !$omp critical (ncount_)
           ncount = ncount + 1
@@ -2123,7 +2123,7 @@ contains
           if (epsreduce > 0d0) then
              if (irepeat(i) > 0) cycle
           end if
-          !$omp parallel do
+          !$omp parallel do schedule(dynamic)
           do j = i+1, ns
              if (epsreduce > 0d0) then
                 if (irepeat(j) > 0) cycle
