@@ -1193,7 +1193,12 @@ function igIsMouseClicked(button,repeat) bind(c,name="igIsMouseClicked")
   logical(c_bool), value :: repeat
   logical(c_bool) :: igIsMouseClicked
 end function igIsMouseClicked
-!x! bool igIsMouseReleased(ImGuiMouseButton button);
+! bool igIsMouseReleased(ImGuiMouseButton button);
+function igIsMouseReleased(button) bind(c,name="igIsMouseReleased")
+  import c_int, c_bool
+  integer(c_int), value :: button
+  logical(c_bool) :: igIsMouseReleased
+end function igIsMouseReleased
 ! bool igIsMouseDoubleClicked(ImGuiMouseButton button);
 function igIsMouseDoubleClicked(button) bind(c,name="igIsMouseDoubleClicked")
   import c_int, c_bool

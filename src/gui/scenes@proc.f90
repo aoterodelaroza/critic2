@@ -341,11 +341,10 @@ contains
     use representations, only: reptype_atoms, reptype_axes, reptype_symelem, axes_winfrac_def
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
-    use systems, only: sys_ready, ok_system
-    use interfaces_glfw, only: glfwGetTime
+    use systems, only: sys_ready, ok_system, sysc
     class(scene), intent(inout), target :: s
 
-    integer :: i
+    integer :: i, j, isph, nsel
     real(c_float) :: xmin(3), xmax(3), maxrad, xc(3)
 
     ! only build lists if system is initialized
@@ -365,9 +364,33 @@ contains
        call s%rep(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
     end do
 
-    ! reset the measure selection
-    s%nmsel = 0
-    s%msel = 0
+    ! Keep the measure selection across rebuilds. msel(1:4) is the
+    ! atom identity (cell atom + lattice vector); msel(5) is the
+    ! index. Clear it if the geometry changed after the selection was
+    ! made (stale atom ids).
+    if (s%nmsel > 0) then
+       if (sysc(s%id)%timelastchange_geometry > s%timelastselect) then
+          s%nmsel = 0
+          s%msel = 0
+       else
+          nsel = 0
+          do j = 1, s%nmsel
+             isph = 0
+             do i = 1, s%obj%nsph
+                if (all(s%obj%sph(i)%idx == s%msel(1:4,j))) then
+                   isph = i
+                   exit
+                end if
+             end do
+             if (isph > 0) then
+                nsel = nsel + 1
+                s%msel(1:4,nsel) = s%msel(1:4,j)
+                s%msel(5,nsel) = isph
+             end if
+          end do
+          s%nmsel = nsel
+       end if
+    end if
 
     ! recalculate scene radius
     maxrad = 0._c_float
@@ -1415,7 +1438,7 @@ contains
   module function representation_menu(s,idparent) result(changed)
     use interfaces_cimgui
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes, reptype_symelem,&
-       reptype_text
+       reptype_text, reptype_measure
     use utils, only: iw_text, iw_tooltip, iw_button, iw_checkbox, iw_menuitem, iw_inputtext,&
        iw_close_button
     use windows, only: stack_create_window, wintype_editrep
@@ -1547,6 +1570,8 @@ contains
              str3 = "symmetry" // c_null_char
           elseif (s%rep(i)%type == reptype_text) then
              str3 = "text" // c_null_char
+          elseif (s%rep(i)%type == reptype_measure) then
+             str3 = "measure" // c_null_char
           else
              str3 = "???" // c_null_char
           end if
@@ -1769,10 +1794,14 @@ contains
   !> Add atom idx to the measure selection set. If idx(1) = 0,
   !> clear the measure selection.
   module subroutine select_atom(s,idx)
+    use interfaces_glfw, only: glfwGetTime
     class(scene), intent(inout), target :: s
     integer, intent(in) :: idx(5)
 
     integer :: i, j
+
+    ! set the last selection time
+    s%timelastselect = glfwGetTime()
 
     ! if no atom, clear
     if (idx(1) == 0) then
@@ -1803,8 +1832,86 @@ contains
 
   end subroutine select_atom
 
-  !> Add a new representation to the scene with type itype and the given flavor.
-  !> If id is present, it returns the new representation id.
+  !> Create a measurement from the current selection plus the clicked
+  !> atom idx.  The number of currently selected atoms (nmsel) sets
+  !> the kind: 1 -> distance, 2 -> angle (vertex = 2nd selected), 3 ->
+  !> dihedral. The measurement is appended to the scene's measurement
+  !> representation (one is created if none exists).
+  module subroutine scene_add_measurement(s,idx)
+    use representations, only: measurement_item
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: idx(5)
+
+    integer :: n, irep, ni
+    integer :: aidx(4,4)
+    type(measurement_item), allocatable :: aux(:)
+
+    ! build the ordered atom list (selected anchors + clicked atom);
+    ! bail out if there is no valid measurement to make
+    if (.not.measure_build_idx(s,idx,aidx,n)) return
+
+    ! find (or create) the measurement representation
+    irep = measure_rep_id(s,.true.)
+    if (irep == 0) return
+
+    ! skip if this exact measurement already exists
+    do ni = 1, s%rep(irep)%measure%nitem
+       if (measure_match(s%rep(irep)%measure%item(ni),aidx,n)) return
+    end do
+
+    ! append the item
+    ni = s%rep(irep)%measure%nitem
+    if (.not.allocated(s%rep(irep)%measure%item)) then
+       allocate(s%rep(irep)%measure%item(1))
+    elseif (ni >= size(s%rep(irep)%measure%item,1)) then
+       allocate(aux(2*ni))
+       aux(1:ni) = s%rep(irep)%measure%item(1:ni)
+       call move_alloc(aux,s%rep(irep)%measure%item)
+    end if
+    ni = ni + 1
+    s%rep(irep)%measure%nitem = ni
+    s%rep(irep)%measure%item(ni)%shown = .true.
+    s%rep(irep)%measure%item(ni)%n = n
+    s%rep(irep)%measure%item(ni)%idx = 0
+    s%rep(irep)%measure%item(ni)%idx(:,1:n) = aidx(:,1:n)
+    s%forcebuildlists = .true.
+
+  end subroutine scene_add_measurement
+
+  !> Delete the measurement made of the current selection plus the
+  !> clicked atom idx (the inverse of scene_add_measurement).
+  module subroutine scene_delete_measurement(s,idx)
+    class(scene), intent(inout), target :: s
+    integer, intent(in) :: idx(5)
+
+    integer :: n, irep, ni, j
+    integer :: aidx(4,4)
+
+    ! build the ordered atom list (selected anchors + clicked atom); bail out if
+    ! there is no valid measurement to remove
+    if (.not.measure_build_idx(s,idx,aidx,n)) return
+
+    ! nothing to do if there is no measurement representation
+    irep = measure_rep_id(s,.false.)
+    if (irep == 0) return
+
+    ! find and remove the matching item
+    do ni = 1, s%rep(irep)%measure%nitem
+       if (measure_match(s%rep(irep)%measure%item(ni),aidx,n)) then
+          do j = ni, s%rep(irep)%measure%nitem-1
+             s%rep(irep)%measure%item(j) = s%rep(irep)%measure%item(j+1)
+          end do
+          s%rep(irep)%measure%nitem = s%rep(irep)%measure%nitem - 1
+          s%forcebuildlists = .true.
+          return
+       end if
+    end do
+
+  end subroutine scene_delete_measurement
+
+  !> Add a new representation to the scene with type itype and the
+  !> given flavor.  If id is present, it returns the new
+  !> representation id.
   module subroutine add_representation(s,itype,flavor,id)
     class(scene), intent(inout), target :: s
     integer, intent(in) :: itype
@@ -2356,5 +2463,96 @@ contains
     vert(8,nvert0+1:nvert) = -vert(8,nvert0+1:nvert) * siz
 
   end subroutine calc_text_onscene_vertices
+
+  !> Build the ordered atom list for a measurement from the current
+  !> selection plus the clicked atom idx: aidx(:,1..nmsel) = selected
+  !> anchors, aidx(:,nmsel+1) = clicked atom, n = nmsel+1. Returns
+  !> .false. (no measurement possible) if no atom is under the cursor,
+  !> the selection is not 1..3 atoms, or the clicked atom repeats a
+  !> selected anchor.
+  function measure_build_idx(s,idx,aidx,n) result(ok)
+    type(scene), intent(in) :: s
+    integer, intent(in) :: idx(5)
+    integer, intent(out) :: aidx(4,4)
+    integer, intent(out) :: n
+    logical :: ok
+
+    integer :: k
+
+    ok = .false.
+    if (idx(1) == 0) return
+    if (s%nmsel < 1 .or. s%nmsel > 3) return
+    ! the clicked atom must not repeat one of the selected anchors
+    do k = 1, s%nmsel
+       if (idx(5) == s%msel(5,k)) return
+    end do
+    ! selected anchors, then the clicked atom
+    n = s%nmsel + 1
+    do k = 1, s%nmsel
+       aidx(:,k) = s%msel(1:4,k)
+    end do
+    aidx(:,n) = idx(1:4)
+    ok = .true.
+
+  end function measure_build_idx
+
+  !> Return the id of the scene's measurement representation. If
+  !> create is true and none exists, add one and return its
+  !> id. Returns 0 if not found (and not created).
+  function measure_rep_id(s,create) result(irep)
+    use representations, only: reptype_measure, repflavor_measure
+    type(scene), intent(inout), target :: s
+    logical, intent(in) :: create
+    integer :: irep
+
+    integer :: i
+
+    irep = 0
+    do i = 1, s%nrep
+       if (.not.s%rep(i)%isinit) cycle
+       if (s%rep(i)%type == reptype_measure) then
+          irep = i
+          return
+       end if
+    end do
+    if (create) call s%add_representation(reptype_measure,repflavor_measure,id=irep)
+
+  end function measure_rep_id
+
+  !> True if the measurement item matches the ordered atom list
+  !> aidx(:,1:n), up to the natural symmetry of each kind: distances
+  !> are unordered, angles keep the vertex (atom 2) but allow the
+  !> endpoints to swap, dihedrals match the list forwards or fully
+  !> reversed.
+  function measure_match(item,aidx,n) result(match)
+    use representations, only: measurement_item
+    type(measurement_item), intent(in) :: item
+    integer, intent(in) :: aidx(4,4)
+    integer, intent(in) :: n
+    logical :: match
+
+    match = .false.
+    if (item%n /= n) return
+    if (n == 2) then
+       match = (same(item%idx(:,1),aidx(:,1)) .and. same(item%idx(:,2),aidx(:,2))) .or. &
+               (same(item%idx(:,1),aidx(:,2)) .and. same(item%idx(:,2),aidx(:,1)))
+    elseif (n == 3) then
+       match = same(item%idx(:,2),aidx(:,2)) .and. ( &
+          (same(item%idx(:,1),aidx(:,1)) .and. same(item%idx(:,3),aidx(:,3))) .or. &
+          (same(item%idx(:,1),aidx(:,3)) .and. same(item%idx(:,3),aidx(:,1))) )
+    else
+       match = (same(item%idx(:,1),aidx(:,1)) .and. same(item%idx(:,2),aidx(:,2)) .and. &
+                same(item%idx(:,3),aidx(:,3)) .and. same(item%idx(:,4),aidx(:,4))) .or. &
+               (same(item%idx(:,1),aidx(:,4)) .and. same(item%idx(:,2),aidx(:,3)) .and. &
+                same(item%idx(:,3),aidx(:,2)) .and. same(item%idx(:,4),aidx(:,1)))
+    end if
+
+  contains
+    logical function same(a,b)
+      integer(c_int), intent(in) :: a(4)
+      integer, intent(in) :: b(4)
+      same = all(int(a) == b)
+    end function same
+  end function measure_match
 
 end submodule proc

@@ -84,6 +84,7 @@ module scenes
      ! measure atom sets
      integer :: nmsel
      integer :: msel(5,4) ! 1 is atom cell ID, 2:4 is lattice vector, 5 is sphere ID
+     real*8 :: timelastselect = -1d0 ! geometry-change time when the measure selection was last set (for staleness)
      ! draw lists packed in a scene object
      type(scene_objects) :: obj
      ! per-scene OpenGL instance buffers (created lazily on first render)
@@ -115,6 +116,8 @@ module scenes
      procedure :: update_view_matrix
      procedure :: align_view_axis
      procedure :: select_atom
+     procedure :: add_measurement => scene_add_measurement
+     procedure :: delete_measurement => scene_delete_measurement
      procedure :: add_representation
      procedure :: add_transient_representation => scene_add_transient_representation
      procedure :: clear_transient_representations => scene_clear_transient_representations
@@ -201,6 +204,14 @@ module scenes
        class(scene), intent(inout), target :: s
        integer, intent(in) :: idx(5)
      end subroutine select_atom
+     module subroutine scene_add_measurement(s,idx)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: idx(5)
+     end subroutine scene_add_measurement
+     module subroutine scene_delete_measurement(s,idx)
+       class(scene), intent(inout), target :: s
+       integer, intent(in) :: idx(5)
+     end subroutine scene_delete_measurement
      module subroutine add_representation(s,itype,flavor,id)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: itype

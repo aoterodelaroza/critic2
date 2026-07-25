@@ -136,6 +136,9 @@ module windows
      logical :: moveobj_isdiscrete = .false. ! whether the move fragment is discrete
      logical :: selrect_active = .false. ! rubber-band selection drag in progress (vm_select)
      type(ImVec2) :: selrect_p0 ! rubber-band drag start position (mouse/screen coords)
+     integer :: measure_pend = 0 ! pending measurement on a right/middle press (0=none, 1=add, 2=delete)
+     integer :: measure_pend_idx(5) = 0 ! atom captured at the press for the pending measurement
+     type(ImVec2) :: measure_pend_p0 ! press position, to tell a click from a drag on release
      real*8 :: timelast_view_assign = 0d0   ! time the view was last assigned a system
      real*8 :: timelast_view_getpixel = 0d0 ! time the pick buffer was last queried for atom ID
      ! dialog parameters
@@ -279,6 +282,7 @@ module windows
      procedure :: draw_editrep_axes
      procedure :: draw_editrep_symelem
      procedure :: draw_editrep_text
+     procedure :: draw_editrep_measure
      ! export image
      procedure :: draw_exportimage
      ! vibrations
@@ -616,6 +620,11 @@ module windows
        logical, intent(inout) :: ttshown
        logical :: changed
      end function draw_editrep_text
+     module function draw_editrep_measure(w,ttshown) result(changed)
+       class(window), intent(inout), target :: w
+       logical, intent(inout) :: ttshown
+       logical :: changed
+     end function draw_editrep_measure
      !xx! exportimage submodule !xx!
      module subroutine draw_exportimage(w)
        class(window), intent(inout), target :: w

@@ -100,6 +100,17 @@ module representations
   logical, parameter, public :: poly_usecentercolor_def = .true. ! faces take the central atom color
   logical, parameter, public :: poly_usecentercolor_edge_def = .false. ! edges take the central atom color
   logical, parameter, public :: poly_showcorners_def = .true. ! also draw the corner atoms outside the selection
+  !--> measurements
+  real*8, parameter, public :: measure_rad_def = 0.04d0 / bohrtoa ! radius of the measurement segments/edges
+  real*8, parameter, public :: measure_sectorrad_def = 0.8d0 / bohrtoa ! radius of the angle/dihedral sectors
+  real*8, parameter, public :: measure_planealpha_def = 0.4d0 ! opacity of the dihedral planes
+  real*8, parameter, public :: measure_sectoralpha_def = 0.5d0 ! opacity of the angle/dihedral sectors
+  real*8, parameter, public :: measure_textscale_def = label_scale_def ! size of the numeric labels
+  integer, parameter, public :: measure_ndeclen_def = 3 ! decimal places for distances (angstrom)
+  integer, parameter, public :: measure_ndecang_def = 1 ! decimal places for angles (degrees)
+  real(c_float), parameter, public :: measure_rgb_dist_def(3) = (/0.90_c_float,0.65_c_float,0.10_c_float/) ! distance color (gold)
+  real(c_float), parameter, public :: measure_rgb_ang_def(3) = (/0.10_c_float,0.65_c_float,0.85_c_float/) ! angle color (cyan)
+  real(c_float), parameter, public :: measure_rgb_dih_def(3) = (/0.90_c_float,0.30_c_float,0.60_c_float/) ! dihedral color (pink)
 
   !> Draw style for atoms (geometry-dependent parameters)
   type atom_geom_style
@@ -205,7 +216,8 @@ module representations
   integer, parameter, public :: reptype_rotaxis = 4 ! rotation axis for a molecule
   integer, parameter, public :: reptype_symelem = 5 ! symmetry element
   integer, parameter, public :: reptype_text = 6 ! user text annotations
-  integer, parameter, public :: reptype_NUM = 6
+  integer, parameter, public :: reptype_measure = 7 ! measurements (distances/angles/dihedrals)
+  integer, parameter, public :: reptype_NUM = 7
 
   ! representation flavors
   integer, parameter, public :: repflavor_unknown = 0
@@ -222,7 +234,8 @@ module representations
   integer, parameter, public :: repflavor_rotaxis = 11
   integer, parameter, public :: repflavor_symelem = 12
   integer, parameter, public :: repflavor_text = 13
-  integer, parameter, public :: repflavor_NUM = 13
+  integer, parameter, public :: repflavor_measure = 14
+  integer, parameter, public :: repflavor_NUM = 14
 
   !> Selection of the part of the system that is drawn: periodicity, origin
   !> shift, display region, and the atom filter (reptype_atoms; pertype, ncell
@@ -408,6 +421,33 @@ module representations
   end type rep_text
   public :: rep_text
 
+  !> A measurement (reptype_measure). The number of atoms sets the
+  !> kind: 2 = distance (Å), 3 = angle (deg, vertex = atom 2), 4 =
+  !> dihedral (deg, axis = atoms 2-3).
+  type measurement_item
+     logical :: shown = .true. ! whether this measurement is drawn
+     integer :: n = 0 ! number of atoms (2=distance, 3=angle, 4=dihedral)
+     integer(c_int) :: idx(4,4) = 0 ! per-atom anchor (1:4,iatom): cell atom id + lattice vector
+  end type measurement_item
+  public :: measurement_item
+
+  !> Measurement options (reptype_measure)
+  type rep_measure
+     integer :: nitem = 0 ! number of measurement items
+     type(measurement_item), allocatable :: item(:) ! the measurement items
+     real*8 :: rad = measure_rad_def ! radius of the segments/edges (bohr)
+     real*8 :: sectorrad = measure_sectorrad_def ! radius of the angle/dihedral sectors (bohr)
+     real*8 :: planealpha = measure_planealpha_def ! opacity of the dihedral planes
+     real*8 :: sectoralpha = measure_sectoralpha_def ! opacity of the angle/dihedral sectors
+     real*8 :: textscale = measure_textscale_def ! size of the numeric labels
+     integer :: ndec_len = measure_ndeclen_def ! decimal places for distances (angstrom)
+     integer :: ndec_ang = measure_ndecang_def ! decimal places for angles (degrees)
+     real(c_float) :: rgb_dist(3) = measure_rgb_dist_def ! color for distances
+     real(c_float) :: rgb_ang(3) = measure_rgb_ang_def ! color for angles
+     real(c_float) :: rgb_dih(3) = measure_rgb_dih_def ! color for dihedrals
+  end type rep_measure
+  public :: rep_measure
+
   !> Representation: objects to draw on the scene
   type representation
      ! main variables
@@ -431,6 +471,7 @@ module representations
      type(rep_symelem) :: symelem ! symmetry element options
      type(rep_poly) :: poly ! coordination polyhedra options
      type(rep_text) :: text ! text annotation options
+     type(rep_measure) :: measure ! measurement options
    contains
      procedure :: init => representation_init
      procedure :: set_defaults => representation_set_defaults

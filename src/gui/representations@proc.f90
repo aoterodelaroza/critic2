@@ -103,6 +103,10 @@ contains
        r%isinit = .true.
        r%shown = .true.
        r%name = "Text"
+    elseif (itype == reptype_measure) then
+       r%isinit = .true.
+       r%shown = .true.
+       r%name = "Measurements"
     else
        r%isinit = .false.
        r%shown = .false.
@@ -424,6 +428,23 @@ contains
        end if
     end if
 
+    ! measurements
+    if (itype == 0 .or. itype == 11) then
+       ! the measurement list is preserved (only the style is reset); a fresh
+       ! representation starts empty
+       if (.not.allocated(r%measure%item)) r%measure%nitem = 0
+       r%measure%rad = measure_rad_def
+       r%measure%sectorrad = measure_sectorrad_def
+       r%measure%planealpha = measure_planealpha_def
+       r%measure%sectoralpha = measure_sectoralpha_def
+       r%measure%textscale = measure_textscale_def
+       r%measure%ndec_len = measure_ndeclen_def
+       r%measure%ndec_ang = measure_ndecang_def
+       r%measure%rgb_dist = measure_rgb_dist_def
+       r%measure%rgb_ang = measure_rgb_ang_def
+       r%measure%rgb_dih = measure_rgb_dih_def
+    end if
+
     ! initialize the styles
     call r%reset_all_styles(itype)
 
@@ -445,6 +466,8 @@ contains
     r%sel%errfilter = ""
     r%text%ntext = 0
     if (allocated(r%text%t)) deallocate(r%text%t)
+    r%measure%nitem = 0
+    if (allocated(r%measure%item)) deallocate(r%measure%item)
 
     call r%atoms%style%end()
     call r%bonds%style%end()
@@ -548,6 +571,9 @@ contains
     complex*16, allocatable :: vibbase(:,:) ! per-atom vibration phasors (3,ncel)
     real*8 :: xx(3), xc(3), x0(3), x1(3), x2(3), res, uoriginc(3), xpolyc(3)
     real*8 :: ucini(3), ucend(3)
+    real*8 :: xmeas(3,4), xfmeas(3,4), dval
+    integer :: iat, natm
+    logical :: okmeas
     complex*16 :: xdelta1(3)
     type(dl_sphere) :: dsph
     type(dl_cylinder) :: dcyl
@@ -1413,8 +1439,165 @@ contains
              call dl_append(obj%string,obj%nstring,dstr)
           end if
        end do
+    elseif (r%type == reptype_measure) then
+       !!! measurements (distances / angles / dihedrals) !!!
+       do i = 1, r%measure%nitem
+          if (.not.r%measure%item(i)%shown) cycle
+          natm = r%measure%item(i)%n
+          if (natm < 2 .or. natm > 4) cycle
+
+          ! resolve the atom positions; skip the item if any anchor is stale
+          okmeas = .true.
+          do iat = 1, natm
+             id = r%measure%item(i)%idx(1,iat)
+             if (id < 1 .or. id > c%ncel) then
+                okmeas = .false.
+                exit
+             end if
+             ix = r%measure%item(i)%idx(2:4,iat)
+             xfmeas(:,iat) = c%atcel(id)%x + ix
+             xmeas(:,iat) = c%x2c(xfmeas(:,iat))
+          end do
+          if (.not.okmeas) cycle
+
+          if (natm == 2) then
+             ! distance: one segment plus the value (Å) at the midpoint
+             dval = c%distance(xfmeas(:,1),xfmeas(:,2)) * bohrtoa
+             call measure_segment(xmeas(:,1),xmeas(:,2),r%measure%rgb_dist)
+             xx = 0.5d0 * (xmeas(:,1) + xmeas(:,2))
+             ! note: scene labels are rendered byte-by-byte; non-ASCII
+             ! glyphs are emitted as single Latin-1 bytes: char(197) = Å, char(176) = °
+             call measure_string(xx,r%measure%rgb_dist,&
+                string(dval,'f',decimal=r%measure%ndec_len) // " " // char(197))
+          elseif (natm == 3) then
+             ! angle at atom 2: two arms, a sector, and the value (deg)
+             dval = c%angle(xfmeas(:,1),xfmeas(:,2),xfmeas(:,3)) * 180d0 / pi
+             call measure_segment(xmeas(:,2),xmeas(:,1),r%measure%rgb_ang)
+             call measure_segment(xmeas(:,2),xmeas(:,3),r%measure%rgb_ang)
+             x0 = xmeas(:,1) - xmeas(:,2)
+             x1 = xmeas(:,3) - xmeas(:,2)
+             ! cap the sector radius so it never overshoots the shorter arm
+             rad1 = min(r%measure%sectorrad,0.6d0*norm2(x0),0.6d0*norm2(x1))
+             call measure_sector(xmeas(:,2),x0,x1,rad1,r%measure%rgb_ang)
+             xx = measure_bisector(x0,x1)
+             xx = xmeas(:,2) + (rad1*1.25d0) * xx
+             call measure_string(xx,r%measure%rgb_ang,&
+                string(dval,'f',decimal=r%measure%ndec_ang) // char(176))
+          else
+             ! dihedral: two planes (A-B-C and B-C-D) sharing the B-C edge, a
+             ! sector around the B-C axis, and the value (deg)
+             dval = c%dihedral(xfmeas(:,1),xfmeas(:,2),xfmeas(:,3),xfmeas(:,4)) * 180d0 / pi
+             call measure_triangle(xmeas(:,1),xmeas(:,2),xmeas(:,3),r%measure%rgb_dih,r%measure%planealpha)
+             call measure_triangle(xmeas(:,2),xmeas(:,3),xmeas(:,4),r%measure%rgb_dih,r%measure%planealpha)
+             ! outline the two planes so they read clearly
+             call measure_segment(xmeas(:,1),xmeas(:,2),r%measure%rgb_dih)
+             call measure_segment(xmeas(:,2),xmeas(:,3),r%measure%rgb_dih)
+             call measure_segment(xmeas(:,3),xmeas(:,4),r%measure%rgb_dih)
+             call measure_segment(xmeas(:,1),xmeas(:,3),r%measure%rgb_dih)
+             call measure_segment(xmeas(:,2),xmeas(:,4),r%measure%rgb_dih)
+             ! sector in the plane perpendicular to the B-C axis at its midpoint
+             x0 = xmeas(:,3) - xmeas(:,2)
+             x0 = x0 / max(norm2(x0),1d-30)
+             xc = 0.5d0 * (xmeas(:,2) + xmeas(:,3))
+             x1 = xmeas(:,1) - xmeas(:,2)
+             x1 = x1 - dot_product(x1,x0)*x0
+             x2 = xmeas(:,4) - xmeas(:,3)
+             x2 = x2 - dot_product(x2,x0)*x0
+             ! cap the sector radius so it does not overshoot the arms
+             rad1 = min(r%measure%sectorrad,0.6d0*norm2(x1),0.6d0*norm2(x2))
+             call measure_sector(xc,x1,x2,rad1,r%measure%rgb_dih)
+             xx = measure_bisector(x1,x2)
+             xx = xc + (rad1*1.25d0) * xx
+             call measure_string(xx,r%measure%rgb_dih,&
+                string(dval,'f',decimal=r%measure%ndec_ang) // char(176))
+          end if
+       end do
     end if ! reptype
   contains
+
+    !> Append a thin cylinder (a measurement segment/edge) from pa to pb.
+    subroutine measure_segment(pa,pb,rgbc)
+      real*8, intent(in) :: pa(3), pb(3)
+      real(c_float), intent(in) :: rgbc(3)
+      type(dl_cylinder) :: dcm
+      dcm%x1 = real(pa,c_float)
+      dcm%x2 = real(pb,c_float)
+      dcm%x1delta = cmplx(0d0,0d0,kind=c_float_complex)
+      dcm%x2delta = cmplx(0d0,0d0,kind=c_float_complex)
+      dcm%r = real(r%measure%rad,c_float)
+      dcm%rgb = rgbc
+      dcm%order = 1
+      dcm%border = 0._c_float
+      dcm%rgbborder = 0._c_float
+      call dl_append(obj%cyl,obj%ncyl,dcm)
+    end subroutine measure_segment
+
+    !> Append a numeric label at the 3D position posc (constant on-screen size,
+    !> drawn in front of the scene).
+    subroutine measure_string(posc,rgbc,str)
+      real*8, intent(in) :: posc(3)
+      real(c_float), intent(in) :: rgbc(3)
+      character(len=*), intent(in) :: str
+      type(dl_string) :: dsm
+      dsm%x = real(posc,c_float)
+      dsm%xdelta = cmplx(0d0,0d0,kind=c_float_complex)
+      dsm%r = 0._c_float
+      dsm%rgb = rgbc
+      dsm%scale = real(r%measure%textscale,c_float)
+      dsm%offset = 0._c_float
+      dsm%depth = .false.
+      dsm%str = trim(str)
+      call dl_append(obj%string,obj%nstring,dsm)
+    end subroutine measure_string
+
+    !> Append a double-sided filled triangle (used for dihedral planes and the
+    !> sector fans); reuses the sibling append_triangle for each face.
+    subroutine measure_triangle(pa,pb,pc,rgbc,alpha)
+      real*8, intent(in) :: pa(3), pb(3), pc(3), alpha
+      real(c_float), intent(in) :: rgbc(3)
+      complex*16, parameter :: z3(3) = (0d0,0d0)
+      ! front face, then back face (opposite winding) so it is visible from both sides
+      call append_triangle(pa,pb,pc,z3,z3,z3,rgbc,alpha)
+      call append_triangle(pa,pc,pb,z3,z3,z3,rgbc,alpha)
+    end subroutine measure_triangle
+
+    !> Append a filled circular sector of radius radius at vertex vertexc,
+    !> spanning from direction d1 to direction d2 (a fan of triangles).
+    subroutine measure_sector(vertexc,d1,d2,radius,rgbc)
+      real*8, intent(in) :: vertexc(3), d1(3), d2(3), radius
+      real(c_float), intent(in) :: rgbc(3)
+      integer, parameter :: nfan = 24
+      real*8 :: u1(3), u2(3), cosa, ang, sina, t, dcur(3), dnext(3)
+      integer :: is
+      u1 = d1 / max(norm2(d1),1d-30)
+      u2 = d2 / max(norm2(d2),1d-30)
+      cosa = max(min(dot_product(u1,u2),1d0),-1d0)
+      ang = acos(cosa)
+      if (ang < 1d-6 .or. radius < 1d-10) return
+      sina = sin(ang)
+      dcur = u1
+      do is = 1, nfan
+         t = dble(is) / dble(nfan)
+         if (sina > 1d-12) then
+            dnext = (sin((1d0-t)*ang)*u1 + sin(t*ang)*u2) / sina
+         else
+            dnext = u1
+         end if
+         call measure_triangle(vertexc,vertexc+radius*dcur,vertexc+radius*dnext,&
+            rgbc,r%measure%sectoralpha)
+         dcur = dnext
+      end do
+    end subroutine measure_sector
+
+    !> Unit bisector of the two directions d1 and d2 (falls back to d1 if they
+    !> are antiparallel).
+    function measure_bisector(d1,d2) result(b)
+      real*8, intent(in) :: d1(3), d2(3)
+      real*8 :: b(3)
+      b = d1 / max(norm2(d1),1d-30) + d2 / max(norm2(d2),1d-30)
+      if (norm2(b) < 1d-10) b = d1
+      b = b / max(norm2(b),1d-30)
+    end function measure_bisector
 
     !> Jeffrey-Steiner hydrogen-bond strength classification of bond ib of cell
     !> atom i. Returns 0 if the contact is not an H-bond (skip it), or the

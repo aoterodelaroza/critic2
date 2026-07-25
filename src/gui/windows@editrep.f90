@@ -53,7 +53,7 @@ contains
   !> Draw the edit represenatation window.
   module subroutine draw_editrep(w)
     use representations, only: representation, reptype_atoms, reptype_unitcell, reptype_axes,&
-       reptype_symelem, reptype_text
+       reptype_symelem, reptype_text, reptype_measure
     use windows, only: nwin, win, wintype_view
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_OK_FOCUSED_DIALOG,&
        BIND_CLOSE_ALL_DIALOGS
@@ -114,6 +114,8 @@ contains
           changed = changed .or. w%draw_editrep_symelem(ttshown)
        elseif (w%rep%type == reptype_text) then
           changed = changed .or. w%draw_editrep_text(ttshown)
+       elseif (w%rep%type == reptype_measure) then
+          changed = changed .or. w%draw_editrep_measure(ttshown)
        end if
 
        ! rebuild draw lists if necessary
@@ -2206,15 +2208,253 @@ contains
     function anchor_string(idx) result(s)
       integer(c_int), intent(in) :: idx(4)
       character(len=:), allocatable :: s
-      if (idx(1) < 1 .or. idx(1) > sys(w%isys)%c%ncel) then
-         s = "(not set)"
-      else
-         s = trim(sys(w%isys)%c%at(sys(w%isys)%c%atcel(idx(1))%idx)%name) // "#" // string(idx(1))
-         if (any(idx(2:4) /= 0)) &
-            s = s // "+(" // string(idx(2)) // "," // string(idx(3)) // "," // string(idx(4)) // ")"
-      end if
+      s = anchor_label(w%isys,idx,"(not set)")
     end function anchor_string
 
   end function draw_editrep_text
+
+  !> Draw the editrep (Object) window, measurements class. Returns true if the
+  !> scene needs rendering again. ttshown = the tooltip flag.
+  module function draw_editrep_measure(w,ttshown) result(changed)
+    use representations, only: measurement_item
+    use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
+       iw_button, iw_calcheight, iw_close_button, iw_intstepper
+    use systems, only: sys
+    use tools_io, only: string
+    use param, only: pi, bohrtoa
+    class(window), intent(inout), target :: w
+    logical, intent(inout) :: ttshown
+    logical :: changed
+
+    integer(c_int) :: flags, idec
+    integer :: idel, k
+    type(ImVec2) :: sz0
+    character(kind=c_char,len=:), allocatable, target :: str1, str2
+
+    changed = .false.
+    idel = 0
+
+    ! usage hint
+    call iw_text("Measurements",highlight=.true.)
+    call iw_text("Double-click atoms in the view to select 1-3 of them, then right-click "//&
+       "another atom to add a measurement (or middle-click to remove it).")
+
+    ! one tab per category
+    str1 = "##editrepmeasuretabbar" // c_null_char
+    flags = ImGuiTabBarFlags_None
+    if (igBeginTabBar(c_loc(str1),flags)) then
+       ! distances
+       str1 = "Distances##editrepmeasure_disttab" // c_null_char
+       if (igBeginTabItem(c_loc(str1),c_null_ptr,ImGuiTabItemFlags_None)) then
+          changed = changed .or. iw_coloredit("Color##measuredistcol",rgb=w%rep%measure%rgb_dist)
+          call iw_tooltip("Color of the distance segments and labels",ttshown)
+          idec = int(w%rep%measure%ndec_len,c_int)
+          if (iw_intstepper("Decimals##measuredistdec",idec,minval=0_c_int,maxval=8_c_int)) then
+             w%rep%measure%ndec_len = idec
+             changed = .true.
+          end if
+          call iw_tooltip("Number of decimal places shown for distances",ttshown)
+          call cat_table(2,"dist")
+          call igEndTabItem()
+       end if
+       ! angles
+       str1 = "Angles##editrepmeasure_angtab" // c_null_char
+       if (igBeginTabItem(c_loc(str1),c_null_ptr,ImGuiTabItemFlags_None)) then
+          changed = changed .or. iw_coloredit("Color##measureangcol",rgb=w%rep%measure%rgb_ang)
+          call iw_tooltip("Color of the angle arms, sectors, and labels",ttshown)
+          idec = int(w%rep%measure%ndec_ang,c_int)
+          if (iw_intstepper("Decimals##measureangdec",idec,minval=0_c_int,maxval=8_c_int)) then
+             w%rep%measure%ndec_ang = idec
+             changed = .true.
+          end if
+          call iw_tooltip("Number of decimal places shown for angles and dihedrals",ttshown)
+          call cat_table(3,"ang")
+          call igEndTabItem()
+       end if
+       ! dihedrals
+       str1 = "Dihedrals##editrepmeasure_dihtab" // c_null_char
+       if (igBeginTabItem(c_loc(str1),c_null_ptr,ImGuiTabItemFlags_None)) then
+          changed = changed .or. iw_coloredit("Color##measuredihcol",rgb=w%rep%measure%rgb_dih)
+          call iw_tooltip("Color of the dihedral planes, edges, sectors, and labels",ttshown)
+          changed = changed .or. iw_dragfloat_real8("Plane opacity##measureplanealpha",&
+             x1=w%rep%measure%planealpha,speed=0.01d0,min=0d0,max=1d0,decimal=2,&
+             flags=ImGuiSliderFlags_AlwaysClamp)
+          call iw_tooltip("Opacity of the dihedral planes",ttshown)
+          call cat_table(4,"dih")
+          call igEndTabItem()
+       end if
+       call igEndTabBar()
+    end if
+
+    ! process a deletion (global item index)
+    if (idel > 0) then
+       do k = idel, w%rep%measure%nitem-1
+          w%rep%measure%item(k) = w%rep%measure%item(k+1)
+       end do
+       w%rep%measure%nitem = w%rep%measure%nitem - 1
+       changed = .true.
+    end if
+
+    ! shared style
+    call iw_text("Style",highlight=.true.)
+    changed = changed .or. iw_dragfloat_real8("Segment radius (Å)##measurerad",&
+       x1=w%rep%measure%rad,speed=0.001d0,min=0.005d0,max=1d0,scale=bohrtoa,decimal=3,&
+       flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Radius of the measurement segments and dihedral edges",ttshown)
+    changed = changed .or. iw_dragfloat_real8("Sector radius (Å)##measuresectorrad",&
+       x1=w%rep%measure%sectorrad,speed=0.01d0,min=0.05d0,max=10d0,scale=bohrtoa,decimal=2,&
+       flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Radius of the angle and dihedral sectors",ttshown)
+    changed = changed .or. iw_dragfloat_real8("Sector opacity##measuresectoralpha",&
+       x1=w%rep%measure%sectoralpha,speed=0.01d0,min=0d0,max=1d0,decimal=2,&
+       flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Opacity of the angle and dihedral sectors",ttshown)
+    changed = changed .or. iw_dragfloat_real8("Label size##measuretextscale",&
+       x1=w%rep%measure%textscale,speed=0.01d0,min=0.05d0,max=10d0,decimal=2,&
+       flags=ImGuiSliderFlags_AlwaysClamp)
+    call iw_tooltip("Size of the numeric labels",ttshown)
+
+  contains
+
+    !> Draw the table of measurement items of the given category (ncat = number
+    !> of atoms: 2 distances, 3 angles, 4 dihedrals). Updates the host changed
+    !> and idel (global item index to delete).
+    subroutine cat_table(ncat,tabidn)
+      integer, intent(in) :: ncat
+      character(len=*), intent(in) :: tabidn
+
+      integer(c_int) :: tflags
+      integer :: i, nrow
+
+      ! count items of this category (for the table height)
+      nrow = 0
+      do i = 1, w%rep%measure%nitem
+         if (w%rep%measure%item(i)%n == ncat) nrow = nrow + 1
+      end do
+
+      tflags = ImGuiTableFlags_None
+      tflags = ior(tflags,ImGuiTableFlags_RowBg)
+      tflags = ior(tflags,ImGuiTableFlags_Borders)
+      tflags = ior(tflags,ImGuiTableFlags_ScrollY)
+      tflags = ior(tflags,ImGuiTableFlags_SizingFixedFit)
+      str1 = "##measuretable" // tabidn // c_null_char
+      sz0%x = 0
+      sz0%y = iw_calcheight(min(nrow,6)+1,0,.false.)
+      if (igBeginTable(c_loc(str1),4,tflags,sz0,0._c_float)) then
+         str2 = "" // c_null_char
+         call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,0)
+         str2 = "show" // c_null_char
+         call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,1)
+         str2 = "atoms" // c_null_char
+         call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthStretch,0._c_float,2)
+         str2 = "value" // c_null_char
+         call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,3)
+         call igTableSetupScrollFreeze(0,1)
+         call igTableHeadersRow()
+
+         do i = 1, w%rep%measure%nitem
+            if (w%rep%measure%item(i)%n /= ncat) cycle
+            call igTableNextRow(ImGuiTableRowFlags_None,0._c_float)
+            ! delete button
+            if (igTableSetColumnIndex(0)) then
+               call igAlignTextToFramePadding()
+               if (iw_close_button("##measuredel" // tabidn // string(i))) idel = i
+               call iw_tooltip("Remove this measurement",ttshown)
+            end if
+            ! shown checkbox
+            if (igTableSetColumnIndex(1)) then
+               if (iw_checkbox("##measureshow" // tabidn // string(i),w%rep%measure%item(i)%shown)) &
+                  changed = .true.
+               call iw_tooltip("Toggle show/hide this measurement",ttshown)
+            end if
+            ! atom labels
+            if (igTableSetColumnIndex(2)) then
+               call igAlignTextToFramePadding()
+               call iw_text(atoms_label(w%rep%measure%item(i)))
+            end if
+            ! value
+            if (igTableSetColumnIndex(3)) then
+               call igAlignTextToFramePadding()
+               call iw_text(item_value_str(w%rep%measure%item(i)))
+            end if
+         end do
+         call igEndTable()
+      end if
+    end subroutine cat_table
+
+    !> Short atom label: name + cell index (+ lattice vector).
+    function one_atom(idx) result(s)
+      integer(c_int), intent(in) :: idx(4)
+      character(len=:), allocatable :: s
+      s = anchor_label(w%isys,idx,"?")
+    end function one_atom
+
+    !> Dash-joined labels of all atoms of a measurement.
+    function atoms_label(item) result(s)
+      type(measurement_item), intent(in) :: item
+      character(len=:), allocatable :: s
+      integer :: ia
+      s = ""
+      do ia = 1, item%n
+         if (ia > 1) s = s // " - "
+         s = s // one_atom(item%idx(:,ia))
+      end do
+    end function atoms_label
+
+    !> Current value of a measurement, formatted with units (or "(stale)" if an
+    !> anchor atom no longer exists).
+    function item_value_str(item) result(s)
+      type(measurement_item), intent(in) :: item
+      character(len=:), allocatable :: s
+      real*8 :: f(3,4), val
+      integer :: ia, idd
+      logical :: okk
+      okk = .true.
+      do ia = 1, item%n
+         idd = item%idx(1,ia)
+         if (idd < 1 .or. idd > sys(w%isys)%c%ncel) then
+            okk = .false.
+            exit
+         end if
+         f(:,ia) = sys(w%isys)%c%atcel(idd)%x + item%idx(2:4,ia)
+      end do
+      if (.not.okk) then
+         s = "(stale)"
+         return
+      end if
+      if (item%n == 2) then
+         val = sys(w%isys)%c%distance(f(:,1),f(:,2)) * bohrtoa
+         s = string(val,'f',decimal=w%rep%measure%ndec_len) // " Å"
+      elseif (item%n == 3) then
+         val = sys(w%isys)%c%angle(f(:,1),f(:,2),f(:,3)) * 180d0 / pi
+         s = string(val,'f',decimal=w%rep%measure%ndec_ang) // "°"
+      else
+         val = sys(w%isys)%c%dihedral(f(:,1),f(:,2),f(:,3),f(:,4)) * 180d0 / pi
+         s = string(val,'f',decimal=w%rep%measure%ndec_ang) // "°"
+      end if
+    end function item_value_str
+
+  end function draw_editrep_measure
+
+  !> Short atom-anchor label: species name + cell-atom index (+ lattice vector),
+  !> or `notset` when idx does not name a valid cell atom of system isys.
+  !> Submodule-local helper shared by the text and measurement editors.
+  function anchor_label(isys,idx,notset) result(s)
+    use systems, only: sys
+    use tools_io, only: string
+    integer, intent(in) :: isys
+    integer(c_int), intent(in) :: idx(4)
+    character(len=*), intent(in) :: notset
+    character(len=:), allocatable :: s
+
+    if (idx(1) < 1 .or. idx(1) > sys(isys)%c%ncel) then
+       s = notset
+    else
+       s = trim(sys(isys)%c%at(sys(isys)%c%atcel(idx(1))%idx)%name) // "#" // string(idx(1))
+       if (any(idx(2:4) /= 0)) &
+          s = s // "+(" // string(idx(2)) // "," // string(idx(3)) // "," // string(idx(4)) // ")"
+    end if
+
+  end function anchor_label
 
 end submodule editrep

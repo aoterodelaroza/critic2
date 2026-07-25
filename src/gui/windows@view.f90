@@ -69,7 +69,8 @@ contains
        repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
        repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
        repflavor_atoms_sticks, repflavor_atoms_licorice, repflavor_unitcell_basic,&
-       repflavor_axes, repflavor_atoms_polyhedra, repflavor_symelem, reptype_text, repflavor_text
+       repflavor_axes, repflavor_atoms_polyhedra, repflavor_symelem, reptype_text, repflavor_text,&
+       reptype_measure, repflavor_measure
     use utils, only: iw_calcheight, iw_calcwidth,&
        iw_setposx_fromend, iw_coloredit, iw_menuitem, iw_dragfloat_realc,&
        iw_text, iw_button, iw_tooltip, iw_intstepper, iw_radiobutton, iw_icon_togglebutton
@@ -513,6 +514,12 @@ contains
           if (iw_menuitem("Text")) &
              call add_rep_and_edit(reptype_text,repflavor_text)
           call iw_tooltip("Add text annotations to the view",ttshown)
+
+          if (iw_menuitem("Measurements")) &
+             call add_rep_and_edit(reptype_measure,repflavor_measure)
+          call iw_tooltip("Measure and display distances, angles, and dihedrals. In the view, &
+             &double-click atoms to select 1-3 of them, then right-click another atom to add &
+             &(or middle-click to remove) the measurement",ttshown)
        end if
        call igEndPopup()
     end if
@@ -1379,6 +1386,7 @@ contains
   !> according to the current view mode and window state.  hover =
   !> whether the view is active and being hovered.
   module function viewmode_activate_picking(w,hover)
+    use interfaces_cimgui, only: igIsMouseClicked, ImGuiMouseButton_Right, ImGuiMouseButton_Middle
     use keybindings, only: is_bind_event, BIND_NAV_MEASURE, BIND_SELECT_MOLECULES_AND_DESELECT
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
@@ -1391,9 +1399,13 @@ contains
        ! in window_forced mode, any click requires picking
        viewmode_activate_picking = any_mouse_clicked()
     elseif (w%viewmode == vm_navigate) then
-       ! navigate -> when measuring, or on a double click (to clear the selection)
+       ! navigate -> when measuring, on a double click (to clear the selection),
+       ! or on a right/middle button press (to capture the atom under the cursor
+       ! for a measurement add/remove, resolved on release)
        viewmode_activate_picking = is_bind_event(BIND_NAV_MEASURE) .or.&
-          is_bind_event(BIND_SELECT_MOLECULES_AND_DESELECT)
+          is_bind_event(BIND_SELECT_MOLECULES_AND_DESELECT) .or.&
+          igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool) .or.&
+          igIsMouseClicked(ImGuiMouseButton_Middle,.false._c_bool)
     elseif (w%viewmode == vm_select .or. w%viewmode == vm_movemol .or. w%viewmode == vm_moveatom) then
        ! select -> on any click, so the atom under the mouse is fresh
        ! move atoms -> on any click, to latch the grabbed atom/molecule
@@ -1450,6 +1462,7 @@ contains
        w%mpos0_m = 0._c_float
        w%ilock = ilock_no
        w%selrect_active = .false.
+       w%measure_pend = 0
     end if
 
     ! window_forced view mode (pick atom): exits on a mouse click on the view
@@ -1501,6 +1514,15 @@ contains
        w%selrect_active = .false.
     end if
 
+    ! drop any pending measurement carried over from navigation mode: the
+    ! press was captured in vm_navigate but the mode changed (e.g. the user
+    ! held the select modifier, an MD run forced interact mode, or the viewed
+    ! system switched) before the release could resolve it. Otherwise the stale
+    ! capture would fire on a later, unrelated right/middle release.
+    if (w%viewmode /= vm_navigate) then
+       w%measure_pend = 0
+    end if
+
     ! process mode-specific events
     if (w%viewmode == vm_navigate) then
        ! navigation mode
@@ -1528,6 +1550,43 @@ contains
        if (hover .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) then
           call w%sc%select_atom((/0,0,0,0,0/))
           w%forcerender = .true.
+       end if
+
+       ! measurement: with 1-3 atoms selected, right-click on another atom adds
+       ! the corresponding measurement (distance/angle/dihedral) and middle-click
+       ! removes it. Capture the atom on the button press (while the view is still
+       ! hovered), then resolve on release only if the cursor did not drag (so a
+       ! right/middle drag still pans/perp-rotates the camera and the right-double
+       ! click still resets the view). The clicked atom is neither selected nor
+       ! deselected.
+       if (hover .and. w%mousepos_idx(1) > 0) then
+          if (igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool)) then
+             w%measure_pend = 1
+             w%measure_pend_idx = w%mousepos_idx
+             w%measure_pend_p0 = mousepos
+          elseif (igIsMouseClicked(ImGuiMouseButton_Middle,.false._c_bool)) then
+             w%measure_pend = 2
+             w%measure_pend_idx = w%mousepos_idx
+             w%measure_pend_p0 = mousepos
+          end if
+       end if
+       ! resolve the pending measurement on release (runs even when hover is off,
+       ! e.g. while a camera-drag lock is held); a drag past the threshold cancels
+       if (w%measure_pend /= 0) then
+          call igGetMousePos(mousepos)
+          if ((w%measure_pend == 1 .and. igIsMouseReleased(ImGuiMouseButton_Right)) .or.&
+              (w%measure_pend == 2 .and. igIsMouseReleased(ImGuiMouseButton_Middle))) then
+             if (abs(mousepos%x-w%measure_pend_p0%x) <= selrect_thr .and.&
+                 abs(mousepos%y-w%measure_pend_p0%y) <= selrect_thr) then
+                if (w%measure_pend == 1) then
+                   call w%sc%add_measurement(w%measure_pend_idx)
+                else
+                   call w%sc%delete_measurement(w%measure_pend_idx)
+                end if
+                w%forcerender = .true.
+             end if
+             w%measure_pend = 0
+          end if
        end if
 
        ! double click on empty space clears the selection
@@ -2516,6 +2575,12 @@ contains
     end if
 
 999 continue ! exit here
+
+    ! usage hint: how to turn the current selection + hovered atom into a
+    ! persistent measurement, or remove it
+    call igNewLine()
+    call iw_text("Right-click an atom to stamp this measurement, middle-click to remove it.",&
+       rgb=(/0.6_c_float,0.6_c_float,0.6_c_float/))
 
     ! finish tooltip
     call igPopTextWrapPos()
