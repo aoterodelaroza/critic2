@@ -2354,7 +2354,7 @@ contains
     logical, intent(in), optional :: centered
     complex(c_float_complex), intent(in), optional :: xdelta(3)
 
-    integer :: i, j, nline, nvert0
+    integer :: i, j, nline, nvert0, nlen, b0, cp
     type(c_ptr) :: cptr
     type(ImFontGlyph), pointer :: glyph
     real(c_float) :: xpos, ypos, lheight, shift_(3)
@@ -2390,8 +2390,9 @@ contains
     end if
 
     ! loop over characters
+    nlen = len_trim(text)
     i = 0
-    do while (i < len_trim(text))
+    do while (i < nlen)
        i = i + 1
        ! newline: start a new line and move on to the next character
        if (text(i:i) == newline) then
@@ -2409,8 +2410,28 @@ contains
           cycle
        end if
 
+       ! decode one UTF-8 code point starting at byte i, advancing i past its
+       ! continuation bytes. The baked font ranges are all within the BMP
+       ! (<= U+27BF), so 1-3 byte sequences cover every drawable glyph; a 4-byte
+       ! lead byte or a malformed/truncated sequence falls through to the raw
+       ! byte. Decoding here (rather than looking up glyphs by raw byte) lets
+       ! scene labels use normal UTF-8 literals, matching the ImGui widgets.
+       b0 = ichar(text(i:i))
+       if (b0 < 128) then
+          cp = b0
+       elseif (b0 >= 224 .and. b0 < 240 .and. i+2 <= nlen) then
+          cp = ior(ior(ishft(iand(b0,15),12),ishft(iand(ichar(text(i+1:i+1)),63),6)),&
+             iand(ichar(text(i+2:i+2)),63))
+          i = i + 2
+       elseif (b0 >= 192 .and. b0 < 224 .and. i+1 <= nlen) then
+          cp = ior(ishft(iand(b0,31),6),iand(ichar(text(i+1:i+1)),63))
+          i = i + 1
+       else
+          cp = b0
+       end if
+
        ! get the glyph
-       cptr = ImFont_FindGlyph(g%Font,int(ichar(text(i:i)),c_int16_t))
+       cptr = ImFont_FindGlyph(g%Font,int(cp,c_int16_t))
        call c_f_pointer(cptr,glyph)
 
        ! add to the vertices

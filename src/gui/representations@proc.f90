@@ -1465,10 +1465,8 @@ contains
              dval = c%distance(xfmeas(:,1),xfmeas(:,2)) * bohrtoa
              call measure_segment(xmeas(:,1),xmeas(:,2),r%measure%rgb_dist)
              xx = 0.5d0 * (xmeas(:,1) + xmeas(:,2))
-             ! note: scene labels are rendered byte-by-byte; non-ASCII
-             ! glyphs are emitted as single Latin-1 bytes: char(197) = Å, char(176) = °
              call measure_string(xx,r%measure%rgb_dist,&
-                string(dval,'f',decimal=r%measure%ndec_len) // " " // char(197))
+                string(dval,'f',decimal=r%measure%ndec_len) // " Å")
           elseif (natm == 3) then
              ! angle at atom 2: two arms, a sector, and the value (deg)
              dval = c%angle(xfmeas(:,1),xfmeas(:,2),xfmeas(:,3)) * 180d0 / pi
@@ -1482,7 +1480,7 @@ contains
              xx = measure_bisector(x0,x1)
              xx = xmeas(:,2) + (rad1*1.25d0) * xx
              call measure_string(xx,r%measure%rgb_ang,&
-                string(dval,'f',decimal=r%measure%ndec_ang) // char(176))
+                string(dval,'f',decimal=r%measure%ndec_ang) // "°")
           else
              ! dihedral: two planes (A-B-C and B-C-D) sharing the B-C edge, a
              ! sector around the B-C axis, and the value (deg)
@@ -1509,7 +1507,7 @@ contains
              xx = measure_bisector(x1,x2)
              xx = xc + (rad1*1.25d0) * xx
              call measure_string(xx,r%measure%rgb_dih,&
-                string(dval,'f',decimal=r%measure%ndec_ang) // char(176))
+                string(dval,'f',decimal=r%measure%ndec_ang) // "°")
           end if
        end do
     end if ! reptype
