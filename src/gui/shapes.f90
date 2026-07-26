@@ -129,6 +129,8 @@ module shapes
      real(c_float) :: offset(3) ! offset of the label in pixels
      complex(c_float_complex) :: xdelta(3) ! delta-vector for vibration animations
      logical :: depth = .true. ! occluded by scene objects
+     logical :: oriented = .false. ! whether to orient the label along x -> x2
+     real(c_float) :: x2(3) = 0._c_float ! second world point defining the on-screen orientation
      character(len=:), allocatable :: str ! string
   end type dl_string
   public :: dl_string
@@ -253,8 +255,10 @@ module shapes
      integer, allocatable :: text_count(:) ! vertex count of each label
      real(c_float), allocatable :: packtext(:,:) ! concatenated glyph vertices (text_vert_nf,:)
      logical :: text_valid = .false. ! cached text vertices are current
-     real*8 :: text_build_time = -1d0 ! draw-list build time at the last text rebuild
+     real*8 :: timebuildtext = -1d0 ! draw-list build time at the last text rebuild
      real(c_float) :: text_proj(4,4) = 0._c_float ! projection matrix at the last text rebuild
+     real(c_float) :: text_vw1(4) = 0._c_float ! view*world first row (oriented labels only)
+     real(c_float) :: text_vw2(4) = 0._c_float ! view*world second row (oriented labels only)
      real(c_float) :: text_vw3(4) = 0._c_float ! view*world third row at the last text rebuild
      real(c_float) :: text_hside = -1._c_float ! reset-zoom half-side at the last text rebuild
      real(c_float) :: text_fontsize = -1._c_float ! baked font size at the last text rebuild

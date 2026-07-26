@@ -424,10 +424,21 @@ module representations
   !> A measurement (reptype_measure). The number of atoms sets the
   !> kind: 2 = distance (Å), 3 = angle (deg, vertex = atom 2), 4 =
   !> dihedral (deg, axis = atoms 2-3).
+  !> A measurement (reptype_measure). Style is per-item: each measurement
+  !> carries its own color, radii, opacities, label size, and decimals.
   type measurement_item
      logical :: shown = .true. ! whether this measurement is drawn
      integer :: n = 0 ! number of atoms (2=distance, 3=angle, 4=dihedral)
      integer(c_int) :: idx(4,4) = 0 ! per-atom anchor (1:4,iatom): cell atom id + lattice vector
+     real(c_float) :: rgb(3) = measure_rgb_dist_def ! color
+     real*8 :: rad = measure_rad_def ! radius of the segment/arms/edges (bohr)
+     real*8 :: sectorrad = measure_sectorrad_def ! radius of the angle/dihedral sector (bohr)
+     real*8 :: sectoralpha = measure_sectoralpha_def ! opacity of the angle/dihedral sector
+     real*8 :: planealpha = measure_planealpha_def ! opacity of the dihedral planes
+     real*8 :: textscale = measure_textscale_def ! size of the numeric label
+     integer :: ndec = measure_ndeclen_def ! decimal places for this item's value
+   contains
+     procedure :: set_defaults => measurement_item_set_defaults
   end type measurement_item
   public :: measurement_item
 
@@ -435,16 +446,7 @@ module representations
   type rep_measure
      integer :: nitem = 0 ! number of measurement items
      type(measurement_item), allocatable :: item(:) ! the measurement items
-     real*8 :: rad = measure_rad_def ! radius of the segments/edges (bohr)
-     real*8 :: sectorrad = measure_sectorrad_def ! radius of the angle/dihedral sectors (bohr)
-     real*8 :: planealpha = measure_planealpha_def ! opacity of the dihedral planes
-     real*8 :: sectoralpha = measure_sectoralpha_def ! opacity of the angle/dihedral sectors
-     real*8 :: textscale = measure_textscale_def ! size of the numeric labels
-     integer :: ndec_len = measure_ndeclen_def ! decimal places for distances (angstrom)
-     integer :: ndec_ang = measure_ndecang_def ! decimal places for angles (degrees)
-     real(c_float) :: rgb_dist(3) = measure_rgb_dist_def ! color for distances
-     real(c_float) :: rgb_ang(3) = measure_rgb_ang_def ! color for angles
-     real(c_float) :: rgb_dih(3) = measure_rgb_dih_def ! color for dihedrals
+     integer :: isel = 0 ! selected item (for the per-item editor under the table)
   end type rep_measure
   public :: rep_measure
 
@@ -496,6 +498,10 @@ module representations
        class(representation), intent(inout) :: r
        integer, intent(in) :: itype
      end subroutine representation_set_defaults
+     module subroutine measurement_item_set_defaults(it,n)
+       class(measurement_item), intent(inout) :: it
+       integer, intent(in) :: n
+     end subroutine measurement_item_set_defaults
      module subroutine representation_end(r)
        class(representation), intent(inout) :: r
      end subroutine representation_end

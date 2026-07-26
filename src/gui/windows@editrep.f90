@@ -2216,17 +2216,19 @@ contains
   !> Draw the editrep (Object) window, measurements class. Returns true if the
   !> scene needs rendering again. ttshown = the tooltip flag.
   module function draw_editrep_measure(w,ttshown) result(changed)
-    use representations, only: measurement_item
+    use representations, only: measurement_item, reptype_atoms
     use utils, only: iw_text, iw_tooltip, iw_checkbox, iw_coloredit, iw_dragfloat_real8,&
-       iw_button, iw_calcheight, iw_close_button, iw_intstepper
-    use systems, only: sys
+       iw_button, iw_calcheight, iw_close_button, iw_intstepper, iw_highlight_selectable
+    use systems, only: sys, sysc, atlisttype_ncel_frac
+    use gui_main, only: ColorButtonHoverFactor, ColorButtonActiveFactor, lumweights,&
+       ColorBlack, ColorWhite
     use tools_io, only: string
     use param, only: pi, bohrtoa
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
-    integer(c_int) :: flags, idec
+    integer(c_int) :: flags
     integer :: idel, k
     type(ImVec2) :: sz0
     character(kind=c_char,len=:), allocatable, target :: str1, str2
@@ -2234,103 +2236,87 @@ contains
     changed = .false.
     idel = 0
 
+    ! keep the selected item in range
+    if (w%rep%measure%isel > w%rep%measure%nitem) w%rep%measure%isel = w%rep%measure%nitem
+    if (w%rep%measure%isel < 0) w%rep%measure%isel = 0
+
     ! usage hint
     call iw_text("Measurements",highlight=.true.)
     call iw_text("Double-click atoms in the view to select 1-3 of them, then right-click "//&
        "another atom to add a measurement (or middle-click to remove it).")
 
-    ! one tab per category
+    ! one tab per category: a selectable table, then the options for the
+    ! selected row underneath
     str1 = "##editrepmeasuretabbar" // c_null_char
     flags = ImGuiTabBarFlags_None
     if (igBeginTabBar(c_loc(str1),flags)) then
-       ! distances
        str1 = "Distances##editrepmeasure_disttab" // c_null_char
        if (igBeginTabItem(c_loc(str1),c_null_ptr,ImGuiTabItemFlags_None)) then
-          changed = changed .or. iw_coloredit("Color##measuredistcol",rgb=w%rep%measure%rgb_dist)
-          call iw_tooltip("Color of the distance segments and labels",ttshown)
-          idec = int(w%rep%measure%ndec_len,c_int)
-          if (iw_intstepper("Decimals##measuredistdec",idec,minval=0_c_int,maxval=8_c_int)) then
-             w%rep%measure%ndec_len = idec
-             changed = .true.
-          end if
-          call iw_tooltip("Number of decimal places shown for distances",ttshown)
           call cat_table(2,"dist")
+          call item_options(2)
           call igEndTabItem()
        end if
-       ! angles
        str1 = "Angles##editrepmeasure_angtab" // c_null_char
        if (igBeginTabItem(c_loc(str1),c_null_ptr,ImGuiTabItemFlags_None)) then
-          changed = changed .or. iw_coloredit("Color##measureangcol",rgb=w%rep%measure%rgb_ang)
-          call iw_tooltip("Color of the angle arms, sectors, and labels",ttshown)
-          idec = int(w%rep%measure%ndec_ang,c_int)
-          if (iw_intstepper("Decimals##measureangdec",idec,minval=0_c_int,maxval=8_c_int)) then
-             w%rep%measure%ndec_ang = idec
-             changed = .true.
-          end if
-          call iw_tooltip("Number of decimal places shown for angles and dihedrals",ttshown)
           call cat_table(3,"ang")
+          call item_options(3)
           call igEndTabItem()
        end if
-       ! dihedrals
        str1 = "Dihedrals##editrepmeasure_dihtab" // c_null_char
        if (igBeginTabItem(c_loc(str1),c_null_ptr,ImGuiTabItemFlags_None)) then
-          changed = changed .or. iw_coloredit("Color##measuredihcol",rgb=w%rep%measure%rgb_dih)
-          call iw_tooltip("Color of the dihedral planes, edges, sectors, and labels",ttshown)
-          changed = changed .or. iw_dragfloat_real8("Plane opacity##measureplanealpha",&
-             x1=w%rep%measure%planealpha,speed=0.01d0,min=0d0,max=1d0,decimal=2,&
-             flags=ImGuiSliderFlags_AlwaysClamp)
-          call iw_tooltip("Opacity of the dihedral planes",ttshown)
           call cat_table(4,"dih")
+          call item_options(4)
           call igEndTabItem()
        end if
        call igEndTabBar()
     end if
 
-    ! process a deletion (global item index)
+    ! process a deletion (global item index) and keep the selection consistent
     if (idel > 0) then
        do k = idel, w%rep%measure%nitem-1
           w%rep%measure%item(k) = w%rep%measure%item(k+1)
        end do
        w%rep%measure%nitem = w%rep%measure%nitem - 1
+       if (w%rep%measure%isel == idel) then
+          w%rep%measure%isel = 0
+       elseif (w%rep%measure%isel > idel) then
+          w%rep%measure%isel = w%rep%measure%isel - 1
+       end if
        changed = .true.
     end if
-
-    ! shared style
-    call iw_text("Style",highlight=.true.)
-    changed = changed .or. iw_dragfloat_real8("Segment radius (Å)##measurerad",&
-       x1=w%rep%measure%rad,speed=0.001d0,min=0.005d0,max=1d0,scale=bohrtoa,decimal=3,&
-       flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Radius of the measurement segments and dihedral edges",ttshown)
-    changed = changed .or. iw_dragfloat_real8("Sector radius (Å)##measuresectorrad",&
-       x1=w%rep%measure%sectorrad,speed=0.01d0,min=0.05d0,max=10d0,scale=bohrtoa,decimal=2,&
-       flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Radius of the angle and dihedral sectors",ttshown)
-    changed = changed .or. iw_dragfloat_real8("Sector opacity##measuresectoralpha",&
-       x1=w%rep%measure%sectoralpha,speed=0.01d0,min=0d0,max=1d0,decimal=2,&
-       flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Opacity of the angle and dihedral sectors",ttshown)
-    changed = changed .or. iw_dragfloat_real8("Label size##measuretextscale",&
-       x1=w%rep%measure%textscale,speed=0.01d0,min=0.05d0,max=10d0,decimal=2,&
-       flags=ImGuiSliderFlags_AlwaysClamp)
-    call iw_tooltip("Size of the numeric labels",ttshown)
 
   contains
 
     !> Draw the table of measurement items of the given category (ncat = number
-    !> of atoms: 2 distances, 3 angles, 4 dihedrals). Updates the host changed
-    !> and idel (global item index to delete).
+    !> of atoms: 2 distances, 3 angles, 4 dihedrals). Distances get a colored
+    !> button per atom (bonds-tab convention, minus the bond type); angles and
+    !> dihedrals get a single dash-joined atoms cell. Every row has a color
+    !> swatch, the value, and is selectable (sets the per-item editor below).
+    !> Updates the host changed and idel (global item index to delete).
     subroutine cat_table(ncat,tabidn)
       integer, intent(in) :: ncat
       character(len=*), intent(in) :: tabidn
 
       integer(c_int) :: tflags
-      integer :: i, nrow
+      integer :: i, nrow, ncol, iccolor, icvalue
+      logical :: ch, ldum
 
       ! count items of this category (for the table height)
       nrow = 0
       do i = 1, w%rep%measure%nitem
          if (w%rep%measure%item(i)%n == ncat) nrow = nrow + 1
       end do
+
+      ! distances: atom 1 + atom 2 columns; angles/dihedrals: a single atoms column
+      if (ncat == 2) then
+         ncol = 6
+         iccolor = 4
+         icvalue = 5
+      else
+         ncol = 5
+         iccolor = 3
+         icvalue = 4
+      end if
 
       tflags = ImGuiTableFlags_None
       tflags = ior(tflags,ImGuiTableFlags_RowBg)
@@ -2340,15 +2326,24 @@ contains
       str1 = "##measuretable" // tabidn // c_null_char
       sz0%x = 0
       sz0%y = iw_calcheight(min(nrow,6)+1,0,.false.)
-      if (igBeginTable(c_loc(str1),4,tflags,sz0,0._c_float)) then
+      if (igBeginTable(c_loc(str1),ncol,tflags,sz0,0._c_float)) then
          str2 = "" // c_null_char
          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,0)
          str2 = "show" // c_null_char
          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,1)
-         str2 = "atoms" // c_null_char
-         call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthStretch,0._c_float,2)
+         if (ncat == 2) then
+            str2 = "atom 1" // c_null_char
+            call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,2)
+            str2 = "atom 2" // c_null_char
+            call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,3)
+         else
+            str2 = "atoms" // c_null_char
+            call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,2)
+         end if
+         str2 = "color" // c_null_char
+         call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,iccolor)
          str2 = "value" // c_null_char
-         call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,3)
+         call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthStretch,0._c_float,icvalue)
          call igTableSetupScrollFreeze(0,1)
          call igTableHeadersRow()
 
@@ -2367,20 +2362,160 @@ contains
                   changed = .true.
                call iw_tooltip("Toggle show/hide this measurement",ttshown)
             end if
-            ! atom labels
-            if (igTableSetColumnIndex(2)) then
-               call igAlignTextToFramePadding()
-               call iw_text(atoms_label(w%rep%measure%item(i)))
+            ! atoms
+            if (ncat == 2) then
+               if (igTableSetColumnIndex(2)) &
+                  call atom_button(w%rep%measure%item(i)%idx(:,1),"##a1" // tabidn // string(i))
+               if (igTableSetColumnIndex(3)) &
+                  call atom_button(w%rep%measure%item(i)%idx(:,2),"##a2" // tabidn // string(i))
+            else
+               if (igTableSetColumnIndex(2)) then
+                  call igAlignTextToFramePadding()
+                  call iw_text(atoms_label(w%rep%measure%item(i)))
+               end if
             end if
-            ! value
-            if (igTableSetColumnIndex(3)) then
+            ! per-item color
+            if (igTableSetColumnIndex(iccolor)) then
+               if (iw_coloredit("##measurecol" // tabidn // string(i),rgb=w%rep%measure%item(i)%rgb)) &
+                  changed = .true.
+               call iw_tooltip("Color of this measurement",ttshown)
+            end if
+            ! value, plus a row-spanning selectable that picks the edited item
+            if (igTableSetColumnIndex(icvalue)) then
                call igAlignTextToFramePadding()
                call iw_text(item_value_str(w%rep%measure%item(i)))
+               ldum = iw_highlight_selectable("##measuresel" // tabidn // string(i),&
+                  clicked=ch,selected=(i == w%rep%measure%isel))
+               if (ch) w%rep%measure%isel = i
             end if
          end do
          call igEndTable()
       end if
     end subroutine cat_table
+
+    !> Draw the per-item options for the selected measurement, underneath its
+    !> table, but only when the selected item belongs to this category (ncat).
+    subroutine item_options(ncat)
+      integer, intent(in) :: ncat
+
+      integer :: is
+      integer(c_int) :: idec
+
+      is = w%rep%measure%isel
+      if (is < 1 .or. is > w%rep%measure%nitem) return
+      if (w%rep%measure%item(is)%n /= ncat) return
+
+      associate (it => w%rep%measure%item(is))
+         ! decimals
+         idec = int(it%ndec,c_int)
+         if (iw_intstepper("Decimals##measureitemdec",idec,minval=0_c_int,maxval=8_c_int)) then
+            it%ndec = idec
+            changed = .true.
+         end if
+         call iw_tooltip("Decimal places shown for this value",ttshown)
+         ! segment/arm/edge radius
+         changed = changed .or. iw_dragfloat_real8("Segment radius (Å)##measureitemrad",&
+            x1=it%rad,speed=0.001d0,min=0.005d0,max=1d0,scale=bohrtoa,decimal=3,&
+            flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Radius of the segments, arms, and dihedral edges",ttshown)
+         ! sector (angles and dihedrals)
+         if (ncat >= 3) then
+            changed = changed .or. iw_dragfloat_real8("Sector radius (Å)##measureitemsrad",&
+               x1=it%sectorrad,speed=0.01d0,min=0.05d0,max=10d0,scale=bohrtoa,decimal=2,&
+               flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Radius of the angle/dihedral sector",ttshown)
+            changed = changed .or. iw_dragfloat_real8("Sector opacity##measureitemsalpha",&
+               x1=it%sectoralpha,speed=0.01d0,min=0d0,max=1d0,decimal=2,&
+               flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Opacity of the angle/dihedral sector",ttshown)
+         end if
+         ! plane opacity (dihedrals)
+         if (ncat == 4) then
+            changed = changed .or. iw_dragfloat_real8("Plane opacity##measureitempalpha",&
+               x1=it%planealpha,speed=0.01d0,min=0d0,max=1d0,decimal=2,&
+               flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("Opacity of the dihedral planes",ttshown)
+         end if
+         ! label size
+         changed = changed .or. iw_dragfloat_real8("Label size##measureitemtscale",&
+            x1=it%textscale,speed=0.01d0,min=0.05d0,max=10d0,decimal=2,&
+            flags=ImGuiSliderFlags_AlwaysClamp)
+         call iw_tooltip("Size of the numeric label",ttshown)
+      end associate
+    end subroutine item_options
+
+    !> Draw a button representing atom idxfull (cell atom id + lattice vector),
+    !> tinted with its color in the parent view (same convention as the geometry
+    !> bonds tab, minus the bond-type glyph). Label = species name + cell id.
+    subroutine atom_button(idxfull,idn)
+      integer(c_int), intent(in) :: idxfull(4)
+      character(len=*), intent(in) :: idn
+
+      integer :: cid
+      real(c_float) :: rgb(3), lum
+      logical :: havergb, ldum
+      type(ImVec4) :: col4
+
+      cid = idxfull(1)
+      if (cid < 1 .or. cid > sys(w%isys)%c%ncel) then
+         call igAlignTextToFramePadding()
+         call iw_text("?")
+         return
+      end if
+
+      havergb = atom_view_rgb(cid,rgb)
+      if (havergb) then
+         col4 = ImVec4(rgb(1),rgb(2),rgb(3),1._c_float)
+         call igPushStyleColor_Vec4(ImGuiCol_Button,col4)
+         col4 = ImVec4(min(rgb(1)*ColorButtonHoverFactor,1._c_float),&
+            min(rgb(2)*ColorButtonHoverFactor,1._c_float),&
+            min(rgb(3)*ColorButtonHoverFactor,1._c_float),1._c_float)
+         call igPushStyleColor_Vec4(ImGuiCol_ButtonHovered,col4)
+         col4 = ImVec4(rgb(1)*ColorButtonActiveFactor,rgb(2)*ColorButtonActiveFactor,&
+            rgb(3)*ColorButtonActiveFactor,1._c_float)
+         call igPushStyleColor_Vec4(ImGuiCol_ButtonActive,col4)
+         ! readable label: black on light atoms, white on dark ones
+         lum = lumweights(1)*rgb(1)+lumweights(2)*rgb(2)+lumweights(3)*rgb(3)
+         if (lum > 0.5_c_float) then
+            col4 = ColorBlack
+         else
+            col4 = ColorWhite
+         end if
+         call igPushStyleColor_Vec4(ImGuiCol_Text,col4)
+      end if
+      ldum = iw_button(one_atom(idxfull) // idn)
+      if (havergb) call igPopStyleColor(4)
+      call iw_tooltip("Atom " // one_atom(idxfull),ttshown)
+    end subroutine atom_button
+
+    !> Color of cell atom cid from the first shown atoms representation in the
+    !> parent view; returns .true. and fills rgb if found. Mirrors the geometry
+    !> window's color_from_view.
+    function atom_view_rgb(cid,rgb) result(have)
+      integer, intent(in) :: cid
+      real(c_float), intent(out) :: rgb(3)
+      logical :: have
+
+      integer :: iview, jrep, idd
+
+      have = .false.
+      rgb = 0._c_float
+      iview = w%idparent
+      if (iview < 1 .or. iview > nwin) return
+      if (.not.associated(win(iview)%sc)) return
+      do jrep = 1, win(iview)%sc%nrep
+         if (win(iview)%sc%rep(jrep)%type == reptype_atoms .and. win(iview)%sc%rep(jrep)%isinit .and.&
+            win(iview)%sc%rep(jrep)%shown) then
+            idd = sysc(w%isys)%attype_type_id_to_id(atlisttype_ncel_frac,cid,&
+               win(iview)%sc%rep(jrep)%atoms%style%type)
+            if (idd /= 0) then
+               have = .true.
+               rgb = win(iview)%sc%rep(jrep)%atoms%style%rgb(:,idd)
+               return
+            end if
+         end if
+      end do
+    end function atom_view_rgb
 
     !> Short atom label: name + cell index (+ lattice vector).
     function one_atom(idx) result(s)
@@ -2424,13 +2559,13 @@ contains
       end if
       if (item%n == 2) then
          val = sys(w%isys)%c%distance(f(:,1),f(:,2)) * bohrtoa
-         s = string(val,'f',decimal=w%rep%measure%ndec_len) // " Å"
+         s = string(val,'f',decimal=item%ndec) // " Å"
       elseif (item%n == 3) then
          val = sys(w%isys)%c%angle(f(:,1),f(:,2),f(:,3)) * 180d0 / pi
-         s = string(val,'f',decimal=w%rep%measure%ndec_ang) // "°"
+         s = string(val,'f',decimal=item%ndec) // "°"
       else
          val = sys(w%isys)%c%dihedral(f(:,1),f(:,2),f(:,3),f(:,4)) * 180d0 / pi
-         s = string(val,'f',decimal=w%rep%measure%ndec_ang) // "°"
+         s = string(val,'f',decimal=item%ndec) // "°"
       end if
     end function item_value_str
 

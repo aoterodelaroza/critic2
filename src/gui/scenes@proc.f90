@@ -1165,6 +1165,7 @@ contains
     subroutine draw_all_text()
       integer :: i, nvert, nv0
       real(c_float) :: hside, siz, x(3), vw(4,4), wclip
+      real(c_float) :: p4(4), c4(4), ndc1(2), ndc2(2), dir(2), perp(2), off2(2), theta, dn, offmag
       logical :: rebuild
 
       if (s%obj%nstring <= 0) return
@@ -1178,9 +1179,14 @@ contains
 
       ! decide whether the cached glyph vertices are still valid
       rebuild = .not.s%gl%text_valid
-      if (.not.rebuild) rebuild = (s%gl%text_build_time /= s%timelastbuild)
+      if (.not.rebuild) rebuild = (s%gl%timebuildtext /= s%timelastbuild)
       if (.not.rebuild) rebuild = any(s%gl%text_proj /= s%projection)
       if (.not.rebuild) rebuild = any(s%gl%text_vw3 /= vw(3,:))
+      ! oriented labels depend on view*world
+      if (.not.rebuild) then
+         if (any(s%gl%text_vw1 /= vw(1,:)) .or. any(s%gl%text_vw2 /= vw(2,:))) &
+            rebuild = any(s%obj%string(1:s%obj%nstring)%oriented)
+      end if
       if (.not.rebuild) rebuild = (s%gl%text_hside /= hside) .or.&
          (s%gl%text_fontsize /= fontbakesize_large)
 
@@ -1204,9 +1210,43 @@ contains
                wclip = max(wclip,1e-4_c_float) ! guard anchors at/behind the camera (perspective); =1 in ortho
                siz = 2 * abs(s%obj%string(i)%scale) * s%projection(1,1) / (fontbakesize_large * uiscale) / wclip
             end if
-            call calc_text_onscene_vertices(s%obj%string(i)%str,x,s%obj%string(i)%r,&
-               siz,nvert,s%gl%packtext,shift=s%obj%string(i)%offset,centered=.true.,&
-               xdelta=s%obj%string(i)%xdelta)
+            if (s%obj%string(i)%oriented) then
+               ! project both endpoints to NDC and orient the label along the
+               ! on-screen segment, offset to the upper side. Near-vertical
+               ! segments (within 30 deg of vertical) keep horizontal text.
+               ! guard the clip-space w (=1 in ortho, view depth in perspective)
+               ! so an endpoint at/behind the camera plane never divides by ~0
+               p4 = (/x(1),x(2),x(3),1._c_float/)
+               c4 = matmul(s%projection,matmul(vw,p4))
+               ndc1 = c4(1:2) / max(c4(4),1e-4_c_float)
+               p4 = (/s%obj%string(i)%x2(1),s%obj%string(i)%x2(2),s%obj%string(i)%x2(3),1._c_float/)
+               c4 = matmul(s%projection,matmul(vw,p4))
+               ndc2 = c4(1:2) / max(c4(4),1e-4_c_float)
+               offmag = 0.55_c_float * (fontbakesize_large * uiscale) * siz
+               dir = ndc2 - ndc1
+               dn = norm2(dir)
+               if (dn > 1e-6_c_float) then
+                  dir = dir / dn
+                  if (dir(1) < 0._c_float) dir = -dir ! read left-to-right
+                  if (abs(dir(1)) < 0.5_c_float) then
+                     theta = 0._c_float ! within 30 deg of vertical -> horizontal
+                  else
+                     theta = atan2(dir(2),dir(1))
+                  end if
+                  perp = (/-dir(2),dir(1)/) ! points to the upper side (perp(2)=dir(1)>=0)
+                  off2 = perp * offmag
+               else
+                  theta = 0._c_float ! segment perpendicular to the screen: horizontal, shifted up
+                  off2 = (/0._c_float,offmag/)
+               end if
+               call calc_text_onscene_vertices(s%obj%string(i)%str,x,s%obj%string(i)%r,&
+                  siz,nvert,s%gl%packtext,shift=s%obj%string(i)%offset,centered=.true.,&
+                  xdelta=s%obj%string(i)%xdelta,angle=theta,off2=off2)
+            else
+               call calc_text_onscene_vertices(s%obj%string(i)%str,x,s%obj%string(i)%r,&
+                  siz,nvert,s%gl%packtext,shift=s%obj%string(i)%offset,centered=.true.,&
+                  xdelta=s%obj%string(i)%xdelta)
+            end if
             s%gl%text_first(i) = nv0
             s%gl%text_count(i) = nvert - nv0
          end do
@@ -1214,8 +1254,10 @@ contains
 
          ! stamp the validity keys
          s%gl%text_valid = .true.
-         s%gl%text_build_time = s%timelastbuild
+         s%gl%timebuildtext = s%timelastbuild
          s%gl%text_proj = s%projection
+         s%gl%text_vw1 = vw(1,:)
+         s%gl%text_vw2 = vw(2,:)
          s%gl%text_vw3 = vw(3,:)
          s%gl%text_hside = hside
          s%gl%text_fontsize = fontbakesize_large
@@ -1870,10 +1912,14 @@ contains
     end if
     ni = ni + 1
     s%rep(irep)%measure%nitem = ni
-    s%rep(irep)%measure%item(ni)%shown = .true.
-    s%rep(irep)%measure%item(ni)%n = n
-    s%rep(irep)%measure%item(ni)%idx = 0
-    s%rep(irep)%measure%item(ni)%idx(:,1:n) = aidx(:,1:n)
+    associate (it => s%rep(irep)%measure%item(ni))
+       it%shown = .true.
+       it%n = n
+       it%idx = 0
+       it%idx(:,1:n) = aidx(:,1:n)
+       call it%set_defaults(n) ! per-item style from the matching kind defaults
+    end associate
+    s%rep(irep)%measure%isel = ni ! select the new item in the editor
     s%forcebuildlists = .true.
 
   end subroutine scene_add_measurement
@@ -1902,6 +1948,13 @@ contains
              s%rep(irep)%measure%item(j) = s%rep(irep)%measure%item(j+1)
           end do
           s%rep(irep)%measure%nitem = s%rep(irep)%measure%nitem - 1
+          ! keep the editor selection on the same item (mirrors the table
+          ! delete): drop it if it was the deleted one, shift down if it was after
+          if (s%rep(irep)%measure%isel == ni) then
+             s%rep(irep)%measure%isel = 0
+          elseif (s%rep(irep)%measure%isel > ni) then
+             s%rep(irep)%measure%isel = s%rep(irep)%measure%isel - 1
+          end if
           s%forcebuildlists = .true.
           return
        end if
@@ -2338,7 +2391,7 @@ contains
   !> nvert/vert, on-scene version. x0 = world position of the label
   !> (equilibrium; the vibration displacement is applied in the shader from
   !> the xdelta packed with each vertex). r = radius of the associated atom.
-  subroutine calc_text_onscene_vertices(text,x0,r,siz,nvert,vert,shift,centered,xdelta)
+  subroutine calc_text_onscene_vertices(text,x0,r,siz,nvert,vert,shift,centered,xdelta,angle,off2)
     use interfaces_cimgui
     use shapes, only: text_vert_nf
     use gui_main, only: g, fontbakesize_large, uiscale
@@ -2353,8 +2406,11 @@ contains
     real(c_float), intent(in), optional :: shift(3)
     logical, intent(in), optional :: centered
     complex(c_float_complex), intent(in), optional :: xdelta(3)
+    real(c_float), intent(in), optional :: angle ! screen-space rotation of the glyphs (radians)
+    real(c_float), intent(in), optional :: off2(2) ! screen-space (NDC) offset applied after rotation
 
-    integer :: i, j, nline, nvert0, nlen, b0, cp
+    integer :: i, j, nline, nvert0, nlen, b0, cp, k
+    real(c_float) :: ca, sa, vx, vy
     type(c_ptr) :: cptr
     type(ImFontGlyph), pointer :: glyph
     real(c_float) :: xpos, ypos, lheight, shift_(3)
@@ -2484,6 +2540,25 @@ contains
     ! vertices are drawn.
     vert(7,nvert0+1:nvert) =  vert(7,nvert0+1:nvert) * siz
     vert(8,nvert0+1:nvert) = -vert(8,nvert0+1:nvert) * siz
+
+    ! optional screen-space rotation of the (now NDC) glyph offsets,
+    ! plus an NDC shift; used for oriented labels
+    if (present(angle)) then
+       if (angle /= 0._c_float) then ! near-vertical labels use angle 0 (no rotation)
+          ca = cos(angle)
+          sa = sin(angle)
+          do k = nvert0+1, nvert
+             vx = vert(7,k)
+             vy = vert(8,k)
+             vert(7,k) = ca*vx - sa*vy
+             vert(8,k) = sa*vx + ca*vy
+          end do
+       end if
+    end if
+    if (present(off2)) then
+       vert(7,nvert0+1:nvert) = vert(7,nvert0+1:nvert) + off2(1)
+       vert(8,nvert0+1:nvert) = vert(8,nvert0+1:nvert) + off2(2)
+    end if
 
   end subroutine calc_text_onscene_vertices
 

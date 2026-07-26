@@ -698,7 +698,7 @@ contains
     b%textVBO = 0
     b%text_cap = 0
     b%text_valid = .false.
-    b%text_build_time = -1d0
+    b%timebuildtext = -1d0
     b%text_hside = -1._c_float
     b%text_fontsize = -1._c_float
     if (allocated(b%text_first)) deallocate(b%text_first)
