@@ -81,7 +81,7 @@ contains
     use param, only: dirsep
     integer(c_int) :: idum, display_w, display_h, ileft, iright
     integer(c_int) :: iwinw, iwinh, monx, mony, monw, monh
-    real(c_float) :: treeratio, content_scale, cscx, cscy
+    real(c_float) :: treeratio, cscx, cscy
     character(len=64) :: envval
     integer :: ios
     type(c_ptr) :: monitor
@@ -189,15 +189,15 @@ contains
     ! pixels, so the UI font and style sizes are multiplied by this factor to
     ! render at the correct size and stay crisp on scaled (e.g. 150%) displays.
     ! A scale of 1.0 leaves the baked font size and style untouched.
-    content_scale = 1._c_float
+    uiscale = 1._c_float
     call glfwGetWindowContentScale(rootwin, cscx, cscy)
-    if (cscx > 0._c_float) content_scale = cscx
+    if (cscx > 0._c_float) uiscale = cscx
     ! manual override, e.g. to enlarge the UI on a display GLFW reports as
     ! unscaled (or to test HiDPI): CRITIC2_UI_SCALE=1.5
     call get_environment_variable("CRITIC2_UI_SCALE",envval,status=ios)
     if (ios == 0 .and. len_trim(envval) > 0) then
        read (envval,*,iostat=ios) cscx
-       if (ios == 0 .and. cscx > 0._c_float) content_scale = cscx
+       if (ios == 0 .and. cscx > 0._c_float) uiscale = cscx
     end if
 
     ! set GUI icon
@@ -268,9 +268,9 @@ contains
             9984_c_short, 10175_c_short,& ! dingbats
                0_c_short/)
     font_normal = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,font_dejavu_base85_ptr,&
-       fontbakesize*content_scale,c_null_ptr,c_loc(range))
+       fontbakesize*uiscale,c_null_ptr,c_loc(range))
     font_large = ImFontAtlas_AddFontFromMemoryCompressedBase85TTF(io%fonts,font_dejavu_base85_ptr,&
-       fontbakesize_large*content_scale,c_null_ptr,c_loc(range))
+       fontbakesize_large*uiscale,c_null_ptr,c_loc(range))
 
     ! bold font if using freetype
 #ifdef IMGUI_ENABLE_FREETYPE
@@ -290,8 +290,8 @@ contains
 
     ! scale the style (padding, spacing, rounding, ...) to the display for
     ! HiDPI; no-op at 1.0 so non-scaled displays are unaffected
-    if (abs(content_scale - 1._c_float) > 1.e-4_c_float) &
-       call ImGuiStyle_ScaleAllSizes(igGetStyle(), content_scale)
+    if (abs(uiscale - 1._c_float) > 1.e-4_c_float) &
+       call ImGuiStyle_ScaleAllSizes(igGetStyle(), uiscale)
 
     ! Parse the command line and read as many systems as possible
     call process_arguments()

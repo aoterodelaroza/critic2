@@ -105,7 +105,7 @@ module representations
   real*8, parameter, public :: measure_sectorrad_def = 0.8d0 / bohrtoa ! radius of the angle/dihedral sectors
   real*8, parameter, public :: measure_planealpha_def = 0.4d0 ! opacity of the dihedral planes
   real*8, parameter, public :: measure_sectoralpha_def = 0.5d0 ! opacity of the angle/dihedral sectors
-  real*8, parameter, public :: measure_textscale_def = label_scale_def ! size of the numeric labels
+  real*8, parameter, public :: measure_textscale_def = 0.4d0 ! size of the numeric labels
   integer, parameter, public :: measure_ndeclen_def = 3 ! decimal places for distances (angstrom)
   integer, parameter, public :: measure_ndecang_def = 1 ! decimal places for angles (degrees)
   real(c_float), parameter, public :: measure_rgb_dist_def(3) = (/0.90_c_float,0.65_c_float,0.10_c_float/) ! distance color (gold)

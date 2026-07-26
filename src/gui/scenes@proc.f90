@@ -494,7 +494,7 @@ contains
     use shapes, only: textVAOos, textVBOos, quadnel, trinel,&
        sph_inst_nf, cyl_inst_nf, mesh_inst_nf, text_vert_nf, connel, nmaxcone,&
        glb_cone, glb_plane, glb_tri, glb_conescr, ensure_pack
-    use gui_main, only: fonts, fontbakesize_large, font_large
+    use gui_main, only: fonts, fontbakesize_large, font_large, uiscale
     use systems, only: sys, sysc
     use tools_io, only: string
     use shaders, only: shader_text_onscene, shader_sphere, shader_cylinder,&
@@ -1000,9 +1000,9 @@ contains
          ! scaling with the overlay's orthographic projection otherwise.
          if (.not.s%obj%stringover(i)%scalewithzoom) then
             hside = reset_zoom_hside(s)
-            siz = 2 * abs(s%obj%stringover(i)%scale) / fontbakesize_large / hside
+            siz = 2 * abs(s%obj%stringover(i)%scale) / (fontbakesize_large * uiscale) / hside
          else
-            siz = 2 * abs(s%obj%stringover(i)%scale) * projover(1,1) / fontbakesize_large
+            siz = 2 * abs(s%obj%stringover(i)%scale) * projover(1,1) / (fontbakesize_large * uiscale)
          end if
          call calc_text_onscene_vertices(s%obj%stringover(i)%str,s%obj%stringover(i)%x,s%obj%stringover(i)%r,&
             siz,nvert,vert,shift=s%obj%stringover(i)%offset,centered=.true.)
@@ -1195,14 +1195,14 @@ contains
             x = s%obj%string(i)%x
             if (s%obj%string(i)%scale > 0._c_float) then
                ! constant on-screen size (projection-independent)
-               siz = 2 * s%obj%string(i)%scale / fontbakesize_large / hside
+               siz = 2 * s%obj%string(i)%scale / (fontbakesize_large * uiscale) / hside
             else
                ! scale with zoom (projection-aware): divide by the anchor
                ! clip-space w so the label foreshortens with depth under
                ! perspective
                wclip = s%projection(4,3) * (vw(3,1)*x(1)+vw(3,2)*x(2)+vw(3,3)*x(3)+vw(3,4)) + s%projection(4,4)
                wclip = max(wclip,1e-4_c_float) ! guard anchors at/behind the camera (perspective); =1 in ortho
-               siz = 2 * abs(s%obj%string(i)%scale) * s%projection(1,1) / fontbakesize_large / wclip
+               siz = 2 * abs(s%obj%string(i)%scale) * s%projection(1,1) / (fontbakesize_large * uiscale) / wclip
             end if
             call calc_text_onscene_vertices(s%obj%string(i)%str,x,s%obj%string(i)%r,&
                siz,nvert,s%gl%packtext,shift=s%obj%string(i)%offset,centered=.true.,&
@@ -1252,7 +1252,7 @@ contains
          call setuniform_vec3((/1._c_float,1._c_float,1._c_float/),idxi=uniloc(u_textcolor))
          wclip = s%projection(4,3) * (vw(3,1)*xsel(1,j)+vw(3,2)*xsel(2,j)+vw(3,3)*xsel(3,j)+vw(3,4)) + s%projection(4,4)
          wclip = max(wclip,1e-4_c_float) ! guard anchors at/behind the camera (perspective); =1 in ortho
-         siz = sel_label_size * s%projection(1,1) / fontbakesize_large / wclip
+         siz = sel_label_size * s%projection(1,1) / (fontbakesize_large * uiscale) / wclip
          nvert = 0
          ! the xsel anchors are already CPU-displaced (see draw_all_mselections);
          ! xdelta is deliberately omitted here, or the numerals would displace twice
@@ -2341,7 +2341,7 @@ contains
   subroutine calc_text_onscene_vertices(text,x0,r,siz,nvert,vert,shift,centered,xdelta)
     use interfaces_cimgui
     use shapes, only: text_vert_nf
-    use gui_main, only: g, fontbakesize_large
+    use gui_main, only: g, fontbakesize_large, uiscale
     use types, only: realloc
     use param, only: newline, bohrtoa
     character(len=*), intent(in) :: text
@@ -2381,7 +2381,9 @@ contains
     ! initial variables
     xpos = 0._c_float
     ypos = 0._c_float
-    lheight = fontbakesize_large
+    ! glyph metrics are baked at fontbakesize_large*uiscale, so the line height
+    ! (used for line advance and vertical centering) must match that baked size
+    lheight = fontbakesize_large * uiscale
     if (centered_) then
        nline = 1
        allocate(xlen(10),jlen(10))

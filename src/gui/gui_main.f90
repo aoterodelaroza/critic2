@@ -51,6 +51,7 @@ module gui_main
   type(ImVec2), public :: fontsize ! font size (sensitive to scaling)
   real(c_float), parameter, public :: fontbakesize = 16._c_float ! normal bake size (for GUI)
   real(c_float), parameter, public :: fontbakesize_large = 128._c_float ! large bake size (for rendering)
+  real(c_float), public :: uiscale = 1._c_float ! HiDPI/content UI scale
   type(c_ptr), public :: font_normal, font_large ! GUI and rendering font pointers
 
   ! GUI control parameters
