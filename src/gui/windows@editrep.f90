@@ -2323,18 +2323,17 @@ contains
 
   contains
 
-    !> Draw the table of measurement items of the given category (ncat = number
-    !> of atoms: 2 distances, 3 angles, 4 dihedrals). Distances get a colored
-    !> button per atom (bonds-tab convention, minus the bond type); angles and
-    !> dihedrals get a single dash-joined atoms cell. Every row has a color
-    !> swatch, the value, and is selectable (sets the per-item editor below).
-    !> Updates the host changed and idel (global item index to delete).
+    !> Draw the table of measurement items of the given category (ncat
+    !> = number of atoms: 2 distances, 3 angles, 4 dihedrals). Every
+    !> atom is a colored button that commands the view into pick mode
+    !> to replace it. Every row has the value and is selectable (sets
+    !> that editor).
     subroutine cat_table(ncat,tabidn)
       integer, intent(in) :: ncat
       character(len=*), intent(in) :: tabidn
 
       integer(c_int) :: tflags
-      integer :: i, nrow, ncol, iccolor, icvalue
+      integer :: i, k, nrow, ncol, icvalue
       logical :: ch, ldum
 
       ! count items of this category (for the table height)
@@ -2343,10 +2342,9 @@ contains
          if (w%rep%measure%item(i)%n == ncat) nrow = nrow + 1
       end do
 
-      ! distances: atom 1 + atom 2 columns; angles/dihedrals: a single atoms column + a color column
-      ncol = 5
-      icvalue = 4
-      iccolor = 3 ! angles/dihedrals only; distances have no color column
+      ! columns: delete, show, one button per atom (ncat of them), value
+      ncol = ncat + 3
+      icvalue = ncat + 2
 
       tflags = ImGuiTableFlags_None
       tflags = ior(tflags,ImGuiTableFlags_RowBg)
@@ -2361,17 +2359,10 @@ contains
          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,0)
          str2 = "show" // c_null_char
          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,1)
-         if (ncat == 2) then
-            str2 = "atom 1" // c_null_char
-            call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,2)
-            str2 = "atom 2" // c_null_char
-            call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,3)
-         else
-            str2 = "atoms" // c_null_char
-            call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,2)
-            str2 = "color" // c_null_char
-            call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,iccolor)
-         end if
+         do k = 1, ncat
+            str2 = "atom " // string(k) // c_null_char
+            call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,k+1)
+         end do
          str2 = "value" // c_null_char
          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthStretch,0._c_float,icvalue)
          call igTableSetupScrollFreeze(0,1)
@@ -2392,23 +2383,11 @@ contains
                   changed = .true.
                call iw_tooltip("Toggle show/hide this measurement",ttshown)
             end if
-            ! atoms (+ color column for angles/dihedrals)
-            if (ncat == 2) then
-               if (igTableSetColumnIndex(2)) &
-                  call atom_button(i,1,"##a1" // tabidn // string(i))
-               if (igTableSetColumnIndex(3)) &
-                  call atom_button(i,2,"##a2" // tabidn // string(i))
-            else
-               if (igTableSetColumnIndex(2)) then
-                  call igAlignTextToFramePadding()
-                  call iw_text(atoms_label(w%rep%measure%item(i)))
-               end if
-               if (igTableSetColumnIndex(iccolor)) then
-                  if (iw_coloredit("##measurecol" // tabidn // string(i),rgb=w%rep%measure%item(i)%rgb)) &
-                     changed = .true.
-                  call iw_tooltip("Color of this measurement",ttshown)
-               end if
-            end if
+            ! one colored atom button per atom
+            do k = 1, ncat
+               if (igTableSetColumnIndex(k+1)) &
+                  call atom_button(i,k,"##a" // string(k) // tabidn // string(i))
+            end do
             ! value, plus a row-spanning selectable that picks the edited item
             if (igTableSetColumnIndex(icvalue)) then
                call igAlignTextToFramePadding()
@@ -2435,11 +2414,9 @@ contains
       if (w%rep%measure%item(is)%n /= ncat) return
 
       associate (it => w%rep%measure%item(is))
-         ! color: distances edit it here; angles/dihedrals use the table column
-         if (ncat == 2) then
-            changed = changed .or. iw_coloredit("Color##measureitemcol",rgb=it%rgb)
-            call iw_tooltip("Color of this measurement",ttshown)
-         end if
+         ! color (the table has no color column for any category)
+         changed = changed .or. iw_coloredit("Color##measureitemcol",rgb=it%rgb)
+         call iw_tooltip("Color of this measurement",ttshown)
          ! decimals (with a trailing label to match the other options)
          idec = int(it%ndec,c_int)
          if (iw_intstepper("measureitemdec",idec,minval=0_c_int,maxval=8_c_int,sameline=.true.)) then
@@ -2606,18 +2583,6 @@ contains
       character(len=:), allocatable :: s
       s = anchor_label(w%isys,idx,"?")
     end function one_atom
-
-    !> Dash-joined labels of all atoms of a measurement.
-    function atoms_label(item) result(s)
-      type(measurement_item), intent(in) :: item
-      character(len=:), allocatable :: s
-      integer :: ia
-      s = ""
-      do ia = 1, item%n
-         if (ia > 1) s = s // " - "
-         s = s // one_atom(item%idx(:,ia))
-      end do
-    end function atoms_label
 
     !> Current value of a measurement, formatted with units (or "(stale)" if an
     !> anchor atom no longer exists).
