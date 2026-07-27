@@ -517,9 +517,7 @@ contains
 
           if (iw_menuitem("Measurements")) &
              call add_rep_and_edit(reptype_measure,repflavor_measure)
-          call iw_tooltip("Measure and display distances, angles, and dihedrals. In the view, &
-             &double-click atoms to select 1-3 of them, then right-click another atom to add &
-             &(or middle-click to remove) the measurement",ttshown)
+          call iw_tooltip("Measure and display distances, angles, and dihedrals",ttshown)
        end if
        call igEndPopup()
     end if
@@ -1590,7 +1588,7 @@ contains
        end if
 
        ! double click on empty space clears the selection
-       if (hover .and. igIsMouseDoubleClicked(ImGuiMouseButton_Left) .and. w%mousepos_idx(1) == 0) then
+       if (hover .and. is_bind_event(BIND_NAV_MEASURE) .and. w%mousepos_idx(1) == 0) then
           call sysc(w%view_selected)%highlight_clear(.false.)
           w%forcerender = .true.
        end if
