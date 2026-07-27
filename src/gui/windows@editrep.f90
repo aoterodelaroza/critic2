@@ -2452,12 +2452,17 @@ contains
                flags=ImGuiSliderFlags_AlwaysClamp)
             call iw_tooltip("Opacity of the angle/dihedral sector",ttshown)
          end if
-         ! plane opacity (dihedrals)
+         ! plane opacity and extension (dihedrals)
          if (ncat == 4) then
             changed = changed .or. iw_dragfloat_real8("Plane opacity##measureitempalpha",&
                x1=it%planealpha,speed=0.01d0,min=0d0,max=1d0,decimal=2,&
                flags=ImGuiSliderFlags_AlwaysClamp)
             call iw_tooltip("Opacity of the dihedral planes",ttshown)
+            changed = changed .or. iw_dragfloat_real8("Plane extension (%)##measureitempext",&
+               x1=it%planeext,speed=1d0,min=0d0,max=100d0,scale=100d0,decimal=0,&
+               flags=ImGuiSliderFlags_AlwaysClamp)
+            call iw_tooltip("How far each plane rectangle extends beyond the atoms, "//&
+               "as a percentage of its size on each side",ttshown)
          end if
          ! label orientation (distances): along the segment, or always horizontal
          if (ncat == 2) then

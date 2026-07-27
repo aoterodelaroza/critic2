@@ -451,6 +451,7 @@ contains
     it%sectorrad = measure_sectorrad_def
     it%sectoralpha = measure_sectoralpha_def
     it%planealpha = measure_planealpha_def
+    it%planeext = measure_planeext_def
     it%textscale = measure_textscale_def
     it%dashed = .false.
     it%dashlen = measure_dashlen_def
@@ -482,6 +483,7 @@ contains
     dst%sectorrad = src%sectorrad
     dst%sectoralpha = src%sectoralpha
     dst%planealpha = src%planealpha
+    dst%planeext = src%planeext
     dst%textscale = src%textscale
     dst%ndec = src%ndec
     dst%dashed = src%dashed
@@ -1527,16 +1529,16 @@ contains
                    string(dval,'f',decimal=mm%ndec) // "°")
              else
                 ! dihedral: two planes (A-B-C and B-C-D) sharing the B-C edge, a
-                ! sector around the B-C axis, and the value (deg)
+                ! sector around the B-C axis, and the value (deg). Each plane is a
+                ! rectangle (right angles, aligned to the B-C axis) that bounds its
+                ! triplet, extended by mm%planeext on each side.
                 dval = c%dihedral(xfmeas(:,1),xfmeas(:,2),xfmeas(:,3),xfmeas(:,4)) * 180d0 / pi
-                call measure_triangle(xmeas(:,1),xmeas(:,2),xmeas(:,3),mm%rgb,mm%planealpha)
-                call measure_triangle(xmeas(:,2),xmeas(:,3),xmeas(:,4),mm%rgb,mm%planealpha)
-                ! outline the two planes so they read clearly
+                call measure_plane_rect(xmeas(:,2),xmeas(:,3),xmeas(:,1),mm%planeext,mm%rgb,mm%planealpha)
+                call measure_plane_rect(xmeas(:,2),xmeas(:,3),xmeas(:,4),mm%planeext,mm%rgb,mm%planealpha)
+                ! outline the backbone bonds so the planes read clearly
                 call measure_segment(xmeas(:,1),xmeas(:,2),mm%rgb,mm%rad,mm%dashed,mm%dashlen)
                 call measure_segment(xmeas(:,2),xmeas(:,3),mm%rgb,mm%rad,mm%dashed,mm%dashlen)
                 call measure_segment(xmeas(:,3),xmeas(:,4),mm%rgb,mm%rad,mm%dashed,mm%dashlen)
-                call measure_segment(xmeas(:,1),xmeas(:,3),mm%rgb,mm%rad,mm%dashed,mm%dashlen)
-                call measure_segment(xmeas(:,2),xmeas(:,4),mm%rgb,mm%rad,mm%dashed,mm%dashlen)
                 ! sector in the plane perpendicular to the B-C axis at its midpoint
                 x0 = xmeas(:,3) - xmeas(:,2)
                 x0 = x0 / max(norm2(x0),1d-30)
@@ -1619,8 +1621,7 @@ contains
       call dl_append(obj%string,obj%nstring,dsm)
     end subroutine measure_string
 
-    !> Append a double-sided filled triangle (used for dihedral planes and the
-    !> sector fans); reuses the sibling append_triangle for each face.
+    !> Append a double-sided filled triangle
     subroutine measure_triangle(pa,pb,pc,rgbc,alpha)
       real*8, intent(in) :: pa(3), pb(3), pc(3), alpha
       real(c_float), intent(in) :: rgbc(3)
@@ -1629,6 +1630,56 @@ contains
       call append_triangle(pa,pb,pc,z3,z3,z3,rgbc,alpha)
       call append_triangle(pa,pc,pb,z3,z3,z3,rgbc,alpha)
     end subroutine measure_triangle
+
+    !> Append a double-sided filled quadrilateral with corners
+    !> pa,pb,pc,pd given in cyclic order.
+    subroutine measure_quad(pa,pb,pc,pd,rgbc,alpha)
+      real*8, intent(in) :: pa(3), pb(3), pc(3), pd(3), alpha
+      real(c_float), intent(in) :: rgbc(3)
+      call measure_triangle(pa,pb,pc,rgbc,alpha)
+      call measure_triangle(pa,pc,pd,rgbc,alpha)
+    end subroutine measure_quad
+
+    !> Append a filled rectangle for a dihedral half-plane. hb-hc is
+    !> the shared (B-C) hinge; term is the terminal atom (A or D). The
+    !> rectangle is the right-angled bounding box of {hb,hc,term} in
+    !> the plane, with the hinge as one axis and the in-plane
+    !> perpendicular (toward term) as the other, grown by the fraction
+    !> ext on every side. Degenerate (collinear) planes are skipped.
+    subroutine measure_plane_rect(hb,hc,term,ext,rgbc,alpha)
+      real*8, intent(in) :: hb(3), hc(3), term(3), ext, alpha
+      real(c_float), intent(in) :: rgbc(3)
+      real*8 :: u(3), w(3), tv(3), lu, tu, tw, umin, umax, du, dw
+      real*8 :: u0, u1, w0, w1, p1(3), p2(3), p3(3), p4(3)
+      ! hinge axis
+      u = hc - hb
+      lu = norm2(u)
+      if (lu < 1d-10) return
+      u = u / lu
+      ! in-plane axis perpendicular to the hinge, toward the terminal atom
+      tv = term - hb
+      tu = dot_product(tv,u)
+      w = tv - tu * u
+      tw = norm2(w)
+      if (tw < 1d-10) return ! collinear triplet: zero-area plane
+      w = w / tw
+      ! bounding box of {hb=(0,0), hc=(lu,0), term=(tu,tw)} in the (u,w) frame at hb
+      umin = min(0d0,lu,tu)
+      umax = max(0d0,lu,tu)
+      du = umax - umin
+      dw = tw ! wmin = 0
+      ! grow by ext on every side
+      u0 = umin - ext*du
+      u1 = umax + ext*du
+      w0 = -ext*dw
+      w1 = tw + ext*dw
+      ! rectangle corners in cyclic order
+      p1 = hb + u0*u + w0*w
+      p2 = hb + u1*u + w0*w
+      p3 = hb + u1*u + w1*w
+      p4 = hb + u0*u + w1*w
+      call measure_quad(p1,p2,p3,p4,rgbc,alpha)
+    end subroutine measure_plane_rect
 
     !> Append a filled circular sector of radius radius at vertex vertexc,
     !> spanning from direction d1 to direction d2 (a fan of triangles).

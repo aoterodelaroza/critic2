@@ -104,6 +104,7 @@ module representations
   real*8, parameter, public :: measure_rad_def = 0.04d0 / bohrtoa ! radius of the measurement segments/edges
   real*8, parameter, public :: measure_sectorrad_def = 1.2d0 / bohrtoa ! radius of the angle/dihedral sectors
   real*8, parameter, public :: measure_planealpha_def = 0.4d0 ! opacity of the dihedral planes
+  real*8, parameter, public :: measure_planeext_def = 0.1d0 ! fractional extension of the dihedral planes beyond the atoms
   real*8, parameter, public :: measure_sectoralpha_def = 0.5d0 ! opacity of the angle/dihedral sectors
   real*8, parameter, public :: measure_textscale_def = 0.75d0 ! size of the numeric labels
   real*8, parameter, public :: measure_dashlen_def = 0.15d0 / bohrtoa ! dash period for dashed segments
@@ -436,6 +437,7 @@ module representations
      real*8 :: sectorrad = measure_sectorrad_def ! radius of the angle/dihedral sector (bohr)
      real*8 :: sectoralpha = measure_sectoralpha_def ! opacity of the angle/dihedral sector
      real*8 :: planealpha = measure_planealpha_def ! opacity of the dihedral planes
+     real*8 :: planeext = measure_planeext_def ! fractional extension of the dihedral planes beyond the atoms
      real*8 :: textscale = measure_textscale_def ! size of the numeric label
      integer :: ndec = measure_ndeclen_def ! decimal places for this item's value
      logical :: dashed = .false. ! draw the segment as a dashed (vs solid) line
