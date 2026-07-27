@@ -217,12 +217,14 @@ contains
     call set_bind(BIND_VIEW_TOGGLE_CELL,ImGuiKey_R,mod_none)
     call set_bind(BIND_VIEW_TOGGLE_POLYHEDRA,ImGuiKey_T,mod_none)
     call set_bind(BIND_RECALC_BONDS,ImGuiKey_B,mod_ctrl)
-    call set_bind(BIND_NAV_ROTATE,ImGuiKey_MouseLeft,mod_none)
-    call set_bind(BIND_NAV_ROTATE_PERP,ImGuiKey_MouseMiddle,mod_none)
-    call set_bind(BIND_NAV_TRANSLATE,ImGuiKey_MouseRight,mod_none)
+    call set_bind(BIND_NAV_ROTATE,ImGuiKey_MouseLeftHold,mod_none)
+    call set_bind(BIND_NAV_ROTATE_PERP,ImGuiKey_MouseMiddleHold,mod_none)
+    call set_bind(BIND_NAV_TRANSLATE,ImGuiKey_MouseRightHold,mod_none)
     call set_bind(BIND_NAV_ZOOM,ImGuiKey_MouseScroll,mod_none)
     call set_bind(BIND_NAV_RESET,ImGuiKey_MouseRightDouble,mod_none)
     call set_bind(BIND_NAV_MEASURE,ImGuiKey_MouseLeftDouble,mod_none)
+    call set_bind(BIND_NAV_MEASURE_ADD,ImGuiKey_MouseRight,mod_none)
+    call set_bind(BIND_NAV_MEASURE_REMOVE,ImGuiKey_MouseMiddle,mod_none)
     call set_bind(BIND_SELECT_ATOMS,ImGuiKey_MouseLeft,mod_none)
     call set_bind(BIND_SELECT_MOLECULES,ImGuiKey_MouseRight,mod_none)
     call set_bind(BIND_SELECT_MOLECULES_AND_DESELECT,ImGuiKey_MouseLeftDouble,mod_none)
@@ -273,6 +275,9 @@ contains
 
     ! get key and mod for this bind, and the current mod
     key = keybind(bind)
+    if (key == ImGuiKey_MouseLeftHold) key = ImGuiKey_MouseLeft
+    if (key == ImGuiKey_MouseRightHold) key = ImGuiKey_MouseRight
+    if (key == ImGuiKey_MouseMiddleHold) key = ImGuiKey_MouseMiddle
     mod = modbind(bind)
     if (bindtype(bind) > 0) then
        if (win(iwin_view)%viewmode_transient) &
@@ -357,6 +362,12 @@ contains
           get_bind_keyname = trim(get_bind_keyname) // "Middle Mouse"
        elseif (key == ImGuiKey_MouseMiddleDouble) then
           get_bind_keyname = trim(get_bind_keyname) // "Double Middle Mouse"
+       elseif (key == ImGuiKey_MouseLeftHold) then
+          get_bind_keyname = trim(get_bind_keyname) // "Left Mouse (hold)"
+       elseif (key == ImGuiKey_MouseRightHold) then
+          get_bind_keyname = trim(get_bind_keyname) // "Right Mouse (hold)"
+       elseif (key == ImGuiKey_MouseMiddleHold) then
+          get_bind_keyname = trim(get_bind_keyname) // "Middle Mouse (hold)"
        elseif (key == ImGuiKey_MouseScroll) then
           get_bind_keyname = trim(get_bind_keyname) // "Mouse Wheel"
        elseif (key /= ImGuiKey_None) then
@@ -386,6 +397,55 @@ contains
     is_bind_mousescroll = (keybind(bind) == ImGuiKey_MouseScroll)
 
   end function is_bind_mousescroll
+
+  ! Returns the ImGui mouse button (Left/Right/Middle) of a mouse bind,
+  ! collapsing the click/double/hold variants, or -1 if it is not a mouse button.
+  module function bind_mouse_button(bind)
+    use interfaces_cimgui, only: ImGuiMouseButton_Left, ImGuiMouseButton_Right,&
+       ImGuiMouseButton_Middle
+    integer, intent(in) :: bind
+    integer(c_int) :: bind_mouse_button
+
+    integer(c_int) :: key
+
+    key = keybind(bind)
+    if (key == ImGuiKey_MouseLeft .or. key == ImGuiKey_MouseLeftDouble .or.&
+        key == ImGuiKey_MouseLeftHold) then
+       bind_mouse_button = ImGuiMouseButton_Left
+    elseif (key == ImGuiKey_MouseRight .or. key == ImGuiKey_MouseRightDouble .or.&
+        key == ImGuiKey_MouseRightHold) then
+       bind_mouse_button = ImGuiMouseButton_Right
+    elseif (key == ImGuiKey_MouseMiddle .or. key == ImGuiKey_MouseMiddleDouble .or.&
+        key == ImGuiKey_MouseMiddleHold) then
+       bind_mouse_button = ImGuiMouseButton_Middle
+    else
+       bind_mouse_button = -1_c_int
+    end if
+
+  end function bind_mouse_button
+
+  ! Next mouse key in the click -> double click -> hold/drag -> click cycle,
+  ! or ImGuiKey_None if key is not a cyclable mouse button. Keeps the mouse-key
+  ! successor order next to the constants (used by the preferences UI).
+  module function cycle_mouse_key(key)
+    use interfaces_cimgui, only: ImGuiKey_None
+    integer(c_int), intent(in) :: key
+    integer(c_int) :: cycle_mouse_key
+
+    select case (key)
+    case (ImGuiKey_MouseLeft);         cycle_mouse_key = ImGuiKey_MouseLeftDouble
+    case (ImGuiKey_MouseLeftDouble);   cycle_mouse_key = ImGuiKey_MouseLeftHold
+    case (ImGuiKey_MouseLeftHold);     cycle_mouse_key = ImGuiKey_MouseLeft
+    case (ImGuiKey_MouseRight);        cycle_mouse_key = ImGuiKey_MouseRightDouble
+    case (ImGuiKey_MouseRightDouble);  cycle_mouse_key = ImGuiKey_MouseRightHold
+    case (ImGuiKey_MouseRightHold);    cycle_mouse_key = ImGuiKey_MouseRight
+    case (ImGuiKey_MouseMiddle);       cycle_mouse_key = ImGuiKey_MouseMiddleDouble
+    case (ImGuiKey_MouseMiddleDouble); cycle_mouse_key = ImGuiKey_MouseMiddleHold
+    case (ImGuiKey_MouseMiddleHold);   cycle_mouse_key = ImGuiKey_MouseMiddle
+    case default;                      cycle_mouse_key = ImGuiKey_None
+    end select
+
+  end function cycle_mouse_key
 
   !xx! private procedures
 

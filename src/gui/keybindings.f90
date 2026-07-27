@@ -31,6 +31,8 @@ module keybindings
   public :: get_bind_keyname
   public :: is_bind_mousescroll
   public :: is_mod_key
+  public :: bind_mouse_button
+  public :: cycle_mouse_key
 
   ! global flag for keybinding use
   logical, public :: use_keybindings = .true.
@@ -42,6 +44,9 @@ module keybindings
   integer, parameter, public :: ImGuiKey_MouseRightDouble = ImGuiKey_COUNT + 4
   integer, parameter, public :: ImGuiKey_MouseMiddle = ImGuiKey_COUNT + 5
   integer, parameter, public :: ImGuiKey_MouseMiddleDouble = ImGuiKey_COUNT + 6
+  integer, parameter, public :: ImGuiKey_MouseLeftHold = ImGuiKey_COUNT + 7
+  integer, parameter, public :: ImGuiKey_MouseRightHold = ImGuiKey_COUNT + 8
+  integer, parameter, public :: ImGuiKey_MouseMiddleHold = ImGuiKey_COUNT + 9
   integer, parameter, public :: ImGuiKey_MouseScroll = ImGuiKey_COUNT + 11
 
   ! Public list of binds
@@ -103,7 +108,9 @@ module keybindings
   integer, parameter, public :: BIND_MOVEATOM_CHANGECELL = 56 ! move atoms: change cell volume (crystals) / zoom
   integer, parameter, public :: BIND_SELECT_ZOOM = 57 ! select: zoom the camera
   integer, parameter, public :: BIND_MDINTERACT_ZOOM = 58 ! interactive dynamics: zoom the camera
-  integer, parameter, public :: BIND_NUM = 58 ! total number of binds
+  integer, parameter, public :: BIND_NAV_MEASURE_ADD = 59 ! navigation: add the measurement for the selected atoms
+  integer, parameter, public :: BIND_NAV_MEASURE_REMOVE = 60 ! navigation: remove the measurement for the selected atoms
+  integer, parameter, public :: BIND_NUM = 60 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -164,7 +171,9 @@ module keybindings
      "Change cell volume/Zoom         ",& ! BIND_MOVEMOL_CHANGECELL
      "Change cell volume/Zoom         ",& ! BIND_MOVEATOM_CHANGECELL
      "Camera zoom                     ",& ! BIND_SELECT_ZOOM
-     "Camera zoom                     "&  ! BIND_MDINTERACT_ZOOM
+     "Camera zoom                     ",& ! BIND_MDINTERACT_ZOOM
+     "Add measurement                 ",& ! BIND_NAV_MEASURE_ADD
+     "Remove measurement              "&  ! BIND_NAV_MEASURE_REMOVE
      /)
 
   ! The key associated with each bind, bind -> key
@@ -269,7 +278,9 @@ module keybindings
      group_viewmode_movemol,&    ! BIND_MOVEMOL_CHANGECELL
      group_viewmode_moveatom,&   ! BIND_MOVEATOM_CHANGECELL
      group_viewmode_select,&     ! BIND_SELECT_ZOOM
-     group_viewmode_mdinteract/) ! BIND_MDINTERACT_ZOOM
+     group_viewmode_mdinteract,& ! BIND_MDINTERACT_ZOOM
+     group_viewmode_navigation,& ! BIND_NAV_MEASURE_ADD
+     group_viewmode_navigation/) ! BIND_NAV_MEASURE_REMOVE
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -333,7 +344,9 @@ module keybindings
      BIND_VIEWMODE_MOVEMOL,&   ! BIND_MOVEMOL_CHANGECELL
      BIND_VIEWMODE_MOVEATOM,&  ! BIND_MOVEATOM_CHANGECELL
      BIND_VIEWMODE_SELECT,&    ! BIND_SELECT_ZOOM
-     0/)  ! BIND_MDINTERACT_ZOOM
+     0,&  ! BIND_MDINTERACT_ZOOM
+     0,&  ! BIND_NAV_MEASURE_ADD
+     0/)  ! BIND_NAV_MEASURE_REMOVE
 
   ! module procedure interfaces
   interface
@@ -368,6 +381,14 @@ module keybindings
        integer, intent(in) :: key
        logical :: is_mod_key
      end function is_mod_key
+     module function bind_mouse_button(bind)
+       integer, intent(in) :: bind
+       integer(c_int) :: bind_mouse_button
+     end function bind_mouse_button
+     module function cycle_mouse_key(key)
+       integer(c_int), intent(in) :: key
+       integer(c_int) :: cycle_mouse_key
+     end function cycle_mouse_key
   end interface
 
 end module keybindings

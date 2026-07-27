@@ -1385,7 +1385,8 @@ contains
   !> whether the view is active and being hovered.
   module function viewmode_activate_picking(w,hover)
     use interfaces_cimgui, only: igIsMouseClicked, ImGuiMouseButton_Right, ImGuiMouseButton_Middle
-    use keybindings, only: is_bind_event, BIND_NAV_MEASURE, BIND_SELECT_MOLECULES_AND_DESELECT
+    use keybindings, only: is_bind_event, BIND_NAV_MEASURE, BIND_SELECT_MOLECULES_AND_DESELECT,&
+       BIND_NAV_MEASURE_ADD, BIND_NAV_MEASURE_REMOVE
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
     logical :: viewmode_activate_picking
@@ -1402,8 +1403,8 @@ contains
        ! for a measurement add/remove, resolved on release)
        viewmode_activate_picking = is_bind_event(BIND_NAV_MEASURE) .or.&
           is_bind_event(BIND_SELECT_MOLECULES_AND_DESELECT) .or.&
-          igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool) .or.&
-          igIsMouseClicked(ImGuiMouseButton_Middle,.false._c_bool)
+          is_bind_event(BIND_NAV_MEASURE_ADD) .or.&
+          is_bind_event(BIND_NAV_MEASURE_REMOVE)
     elseif (w%viewmode == vm_select .or. w%viewmode == vm_movemol .or. w%viewmode == vm_moveatom) then
        ! select -> on any click, so the atom under the mouse is fresh
        ! move atoms -> on any click, to latch the grabbed atom/molecule
@@ -1428,7 +1429,8 @@ contains
        BIND_MOVEMOL_ROTATE_PERP, BIND_MOVEATOM_TRANSLATE,&
        BIND_MDINTERACT_DRAGATOM, BIND_MDINTERACT_MOVEMOL, BIND_MDINTERACT_ROTMOL,&
        BIND_MOVEMOL_CHANGECELL, BIND_MOVEATOM_CHANGECELL,&
-       BIND_SELECT_ZOOM, BIND_MDINTERACT_ZOOM
+       BIND_SELECT_ZOOM, BIND_MDINTERACT_ZOOM, BIND_NAV_MEASURE_ADD,&
+       BIND_NAV_MEASURE_REMOVE, bind_mouse_button
     use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry
     use global, only: iunit_bohr
     use gui_main, only: io, ColorHighlightSelectScene
@@ -1440,7 +1442,7 @@ contains
     real(c_float) :: mpos2(2), ang, xc(3), dist, comc(3)
     real*8 :: dxbohr(3)
     integer :: isys
-    integer(c_int) :: col
+    integer(c_int) :: col, ibtn
     logical :: ok, dragged
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
@@ -1550,30 +1552,46 @@ contains
           w%forcerender = .true.
        end if
 
-       ! measurement: with 1-3 atoms selected, right-click on another atom adds
-       ! the corresponding measurement (distance/angle/dihedral) and middle-click
-       ! removes it. Capture the atom on the button press (while the view is still
-       ! hovered), then resolve on release only if the cursor did not drag (so a
-       ! right/middle drag still pans/perp-rotates the camera and the right-double
-       ! click still resets the view). The clicked atom is neither selected nor
-       ! deselected.
+       ! measurement: with 1-3 atoms selected, the add/remove binding on another
+       ! atom adds/removes the corresponding measurement (distance/angle/dihedral).
+       ! For a mouse-button binding, capture the atom on the press (while the view
+       ! is still hovered) and resolve on release only if the cursor did not drag
+       ! (so a right/middle drag still pans/perp-rotates the camera and the
+       ! right-double click still resets the view); for a non-mouse binding there
+       ! is no drag to disambiguate, so act at once.
        if (hover .and. w%mousepos_idx(1) > 0) then
-          if (igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool)) then
-             w%measure_pend = 1
-             w%measure_pend_idx = w%mousepos_idx
-             w%measure_pend_p0 = mousepos
-          elseif (igIsMouseClicked(ImGuiMouseButton_Middle,.false._c_bool)) then
-             w%measure_pend = 2
-             w%measure_pend_idx = w%mousepos_idx
-             w%measure_pend_p0 = mousepos
+          if (is_bind_event(BIND_NAV_MEASURE_ADD)) then
+             if (bind_mouse_button(BIND_NAV_MEASURE_ADD) >= 0) then
+                w%measure_pend = 1
+                w%measure_pend_idx = w%mousepos_idx
+                w%measure_pend_p0 = mousepos
+             else
+                call w%sc%add_measurement(w%mousepos_idx)
+                w%forcerender = .true.
+             end if
+          elseif (is_bind_event(BIND_NAV_MEASURE_REMOVE)) then
+             if (bind_mouse_button(BIND_NAV_MEASURE_REMOVE) >= 0) then
+                w%measure_pend = 2
+                w%measure_pend_idx = w%mousepos_idx
+                w%measure_pend_p0 = mousepos
+             else
+                call w%sc%delete_measurement(w%mousepos_idx)
+                w%forcerender = .true.
+             end if
           end if
        end if
-       ! resolve the pending measurement on release (runs even when hover is off,
-       ! e.g. while a camera-drag lock is held); a drag past the threshold cancels
+       ! resolve the pending (mouse) measurement on release (runs even when hover
+       ! is off, e.g. while a camera-drag lock is held); a drag past the threshold
+       ! cancels. The button is looked up once and guarded (>= 0) so a bind that is
+       ! no longer a mouse button never reaches igIsMouseReleased with -1.
        if (w%measure_pend /= 0) then
           call igGetMousePos(mousepos)
-          if ((w%measure_pend == 1 .and. igIsMouseReleased(ImGuiMouseButton_Right)) .or.&
-              (w%measure_pend == 2 .and. igIsMouseReleased(ImGuiMouseButton_Middle))) then
+          ibtn = -1_c_int
+          if (w%measure_pend == 1) ibtn = bind_mouse_button(BIND_NAV_MEASURE_ADD)
+          if (w%measure_pend == 2) ibtn = bind_mouse_button(BIND_NAV_MEASURE_REMOVE)
+          if (ibtn < 0) then
+             w%measure_pend = 0
+          elseif (igIsMouseReleased(ibtn)) then
              if (abs(mousepos%x-w%measure_pend_p0%x) <= selrect_thr .and.&
                  abs(mousepos%y-w%measure_pend_p0%y) <= selrect_thr) then
                 if (w%measure_pend == 1) then

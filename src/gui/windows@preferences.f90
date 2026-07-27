@@ -153,8 +153,11 @@ contains
           do igroup = 1, group_NUM
              call iw_text(trim(groupnames(igroup)),highlight=.true.)
              if (igroup == 1) then
-                call iw_helpermark("Left click to assign a new binding. Right-click to toggle double click behavior&
-                   & (only for mouse input). Middle click to erase the binding.")
+                call iw_helpermark("Left click to assign a new binding. Right-click cycles the mouse action&
+                   & (only for mouse input): single click, double click, hold/drag. A hold/drag binding &
+                   &shares its button with the plain click, so the same button can drive two events (e.g. &
+                   &right-hold translates the camera while right-click adds a measurement). Middle click to &
+                   &erase the binding.")
              end if
              call igSeparator()
 
@@ -192,22 +195,9 @@ contains
                       call igPopID()
 
                       if (igIsItemHovered(ImGuiHoveredFlags_None)) then
-                         ! right click to toggle
+                         ! right click cycles the mouse action: single -> double -> hold/drag
                          if (igIsMouseClicked(ImGuiPopupFlags_MouseButtonRight,.false._c_bool)) then
-                            newkey = ImGuiKey_None
-                            if (keybind(i) == ImGuiKey_MouseLeft) then
-                               newkey = ImGuiKey_MouseLeftDouble
-                            elseif (keybind(i) == ImGuiKey_MouseLeftDouble) then
-                               newkey = ImGuiKey_MouseLeft
-                            elseif (keybind(i) == ImGuiKey_MouseRight) then
-                               newkey = ImGuiKey_MouseRightDouble
-                            elseif (keybind(i) == ImGuiKey_MouseRightDouble) then
-                               newkey = ImGuiKey_MouseRight
-                            elseif (keybind(i) == ImGuiKey_MouseMiddle) then
-                               newkey = ImGuiKey_MouseMiddleDouble
-                            elseif (keybind(i) == ImGuiKey_MouseMiddleDouble) then
-                               newkey = ImGuiKey_MouseMiddle
-                            end if
+                            newkey = cycle_mouse_key(keybind(i))
                             if (newkey /= ImGuiKey_None) then
                                call set_bind(i,newkey,modbind(i))
                             end if
