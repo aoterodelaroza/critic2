@@ -1522,7 +1522,7 @@ contains
                 x1 = xmeas(:,3) - xmeas(:,2)
                 ! cap the sector radius so it never overshoots the shorter arm
                 rad1 = min(mm%sectorrad,0.6d0*norm2(x0),0.6d0*norm2(x1))
-                call measure_sector(xmeas(:,2),x0,x1,rad1,mm%rgb,mm%sectoralpha)
+                call measure_sector(xmeas(:,2),x0,x1,rad1,mm%rgb,mm%sectoralpha,mm%rad,mm%dashed,mm%dashlen)
                 xx = measure_bisector(x0,x1)
                 xx = xmeas(:,2) + (rad1*1.25d0) * xx
                 call measure_string(xx,mm%rgb,mm%textscale,mm%scalesystem,mm%offset,&
@@ -1549,7 +1549,7 @@ contains
                 x2 = x2 - dot_product(x2,x0)*x0
                 ! cap the sector radius so it does not overshoot the arms
                 rad1 = min(mm%sectorrad,0.6d0*norm2(x1),0.6d0*norm2(x2))
-                call measure_sector(xc,x1,x2,rad1,mm%rgb,mm%sectoralpha)
+                call measure_sector(xc,x1,x2,rad1,mm%rgb,mm%sectoralpha,mm%rad,mm%dashed,mm%dashlen)
                 xx = measure_bisector(x1,x2)
                 xx = xc + (rad1*1.25d0) * xx
                 call measure_string(xx,mm%rgb,mm%textscale,mm%scalesystem,mm%offset,&
@@ -1683,9 +1683,10 @@ contains
 
     !> Append a filled circular sector of radius radius at vertex vertexc,
     !> spanning from direction d1 to direction d2 (a fan of triangles).
-    subroutine measure_sector(vertexc,d1,d2,radius,rgbc,alphav)
-      real*8, intent(in) :: vertexc(3), d1(3), d2(3), radius, alphav
+    subroutine measure_sector(vertexc,d1,d2,radius,rgbc,alphav,radv,dashed,dashlenv)
+      real*8, intent(in) :: vertexc(3), d1(3), d2(3), radius, alphav, radv, dashlenv
       real(c_float), intent(in) :: rgbc(3)
+      logical, intent(in) :: dashed
       integer, parameter :: nfan = 24
       real*8 :: u1(3), u2(3), cosa, ang, sina, t, dcur(3), dnext(3)
       integer :: is
@@ -1703,8 +1704,10 @@ contains
          else
             dnext = u1
          end if
+         ! filled fan triangle plus its outer-edge chord
          call measure_triangle(vertexc,vertexc+radius*dcur,vertexc+radius*dnext,&
             rgbc,alphav)
+         call measure_segment(vertexc+radius*dcur,vertexc+radius*dnext,rgbc,radv,dashed,dashlenv)
          dcur = dnext
       end do
     end subroutine measure_sector
