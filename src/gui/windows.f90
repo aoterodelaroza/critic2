@@ -167,6 +167,9 @@ module windows
      integer :: editrep_text_pick_slot = 0 ! anchor being picked (1 = atom/first bond atom, 2 = second bond atom)
      real*8 :: editrep_text_pick_time = 0d0 ! time the pick was commanded (to detect stale ids)
      integer(c_int) :: editrep_text_pick_idx(4) = 0 ! staged first bond atom (committed when the pair completes)
+     integer :: editrep_measure_pick_item = 0 ! measurement item waiting for an atom pick (0 = idle)
+     integer :: editrep_measure_pick_slot = 0 ! which measurement atom (1..n) the pick will replace
+     real*8 :: editrep_measure_pick_time = 0d0 ! time the pick was commanded (to detect stale ids)
      ! export image parameters
      integer(c_int) :: nsample ! number of samples for anti-aliasing
      integer(c_int) :: jpgquality ! jpg quality

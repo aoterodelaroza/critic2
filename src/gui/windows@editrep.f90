@@ -2224,21 +2224,51 @@ contains
        ColorBlack, ColorWhite
     use tools_io, only: string
     use param, only: pi, bohrtoa
+    use interfaces_glfw, only: glfwGetTime
     class(window), intent(inout), target :: w
     logical, intent(inout) :: ttshown
     logical :: changed
 
     integer(c_int) :: flags
-    integer :: idel, k
+    integer :: idel, k, iview, i
+    logical :: ok
     type(ImVec2) :: sz0
     character(kind=c_char,len=:), allocatable, target :: str1, str2
 
     changed = .false.
     idel = 0
+    iview = w%idparent
 
     ! keep the selected item in range
     if (w%rep%measure%isel > w%rep%measure%nitem) w%rep%measure%isel = w%rep%measure%nitem
     if (w%rep%measure%isel < 0) w%rep%measure%isel = 0
+
+    ! handle a pending atom pick commanded to the parent view: when the user
+    ! clicks an atom button in a table, the view enters pick mode and the picked
+    ! atom replaces that measurement atom (mirrors the text-anchor pick above)
+    if (w%editrep_measure_pick_item > 0) then
+       ok = (w%editrep_measure_pick_item <= w%rep%measure%nitem)
+       if (ok) ok = (win(iview)%vmdata%owner == w%id) .and.&
+          (sysc(w%isys)%timelastchange_geometry < w%editrep_measure_pick_time)
+       if (.not.ok) then
+          ! the item was deleted, another window took over the pick, or the
+          ! geometry changed (stale cell-atom ids): cancel
+          call win(iview)%viewmode_release_forced(w%id)
+          w%editrep_measure_pick_item = 0
+          w%editrep_measure_pick_slot = 0
+       elseif (win(iview)%viewmode >= 0) then
+          ! the pick finished: replace the atom if one was picked (else cancelled)
+          i = w%editrep_measure_pick_item
+          k = w%editrep_measure_pick_slot
+          if (win(iview)%vmdata%idx(1) > 0 .and. k >= 1 .and. k <= w%rep%measure%item(i)%n) then
+             w%rep%measure%item(i)%idx(:,k) = win(iview)%vmdata%idx(1:4)
+             changed = .true.
+          end if
+          w%editrep_measure_pick_item = 0
+          w%editrep_measure_pick_slot = 0
+          win(iview)%vmdata%idx = 0
+       end if
+    end if
 
     ! usage hint
     call iw_text("Measurements",highlight=.true.)
@@ -2278,6 +2308,15 @@ contains
           w%rep%measure%isel = 0
        elseif (w%rep%measure%isel > idel) then
           w%rep%measure%isel = w%rep%measure%isel - 1
+       end if
+       ! keep a pending atom pick bound to the right item (or cancel it if that
+       ! item was the one deleted), so the pick can't commit to the wrong row
+       if (w%editrep_measure_pick_item == idel) then
+          call win(iview)%viewmode_release_forced(w%id)
+          w%editrep_measure_pick_item = 0
+          w%editrep_measure_pick_slot = 0
+       elseif (w%editrep_measure_pick_item > idel) then
+          w%editrep_measure_pick_item = w%editrep_measure_pick_item - 1
        end if
        changed = .true.
     end if
@@ -2356,9 +2395,9 @@ contains
             ! atoms (+ color column for angles/dihedrals)
             if (ncat == 2) then
                if (igTableSetColumnIndex(2)) &
-                  call atom_button(w%rep%measure%item(i)%idx(:,1),"##a1" // tabidn // string(i))
+                  call atom_button(i,1,"##a1" // tabidn // string(i))
                if (igTableSetColumnIndex(3)) &
-                  call atom_button(w%rep%measure%item(i)%idx(:,2),"##a2" // tabidn // string(i))
+                  call atom_button(i,2,"##a2" // tabidn // string(i))
             else
                if (igTableSetColumnIndex(2)) then
                   call igAlignTextToFramePadding()
@@ -2473,26 +2512,31 @@ contains
       end associate
     end subroutine item_options
 
-    !> Draw a button representing atom idxfull (cell atom id + lattice vector),
-    !> tinted with its color in the parent view (same convention as the geometry
-    !> bonds tab, minus the bond-type glyph). Label = species name + cell id.
-    subroutine atom_button(idxfull,idn)
-      integer(c_int), intent(in) :: idxfull(4)
+    !> Draw a button for atom islot of measurement item iitem (cell
+    !> atom id + lattice vector), tinted with its color in the parent
+    !> view. Label = species name + cell id ("?" if the atom is
+    !> stale). Clicking it commands the parent view into pick mode.
+    subroutine atom_button(iitem,islot,idn)
+      integer, intent(in) :: iitem, islot
       character(len=*), intent(in) :: idn
 
       integer :: cid
+      integer(c_int) :: idxfull(4)
       real(c_float) :: rgb(3), lum
-      logical :: havergb, ldum
+      logical :: havergb, clicked
+      character(len=:), allocatable :: lbl
       type(ImVec4) :: col4
 
+      idxfull = w%rep%measure%item(iitem)%idx(:,islot)
       cid = idxfull(1)
-      if (cid < 1 .or. cid > sys(w%isys)%c%ncel) then
-         call igAlignTextToFramePadding()
-         call iw_text("?")
-         return
+      havergb = .false.
+      if (cid >= 1 .and. cid <= sys(w%isys)%c%ncel) then
+         lbl = one_atom(idxfull)
+         havergb = atom_view_rgb(cid,rgb)
+      else
+         lbl = "?"
       end if
 
-      havergb = atom_view_rgb(cid,rgb)
       if (havergb) then
          col4 = ImVec4(rgb(1),rgb(2),rgb(3),1._c_float)
          call igPushStyleColor_Vec4(ImGuiCol_Button,col4)
@@ -2512,9 +2556,19 @@ contains
          end if
          call igPushStyleColor_Vec4(ImGuiCol_Text,col4)
       end if
-      ldum = iw_button(one_atom(idxfull) // idn)
+      clicked = iw_button(lbl // idn,disabled=(w%editrep_measure_pick_item > 0))
       if (havergb) call igPopStyleColor(4)
-      call iw_tooltip("Atom " // one_atom(idxfull),ttshown)
+      call iw_tooltip("Atom " // lbl // " (click to pick a replacement in the view)",ttshown)
+
+      ! command the parent view into pick mode; the poll at the top of
+      ! draw_editrep_measure commits the picked atom into this slot
+      if (clicked) then
+         w%editrep_measure_pick_item = iitem
+         w%editrep_measure_pick_slot = islot
+         w%editrep_measure_pick_time = glfwGetTime()
+         call win(iview)%viewmode_set_forced(vm_pick_atom,&
+            "Pick the replacement atom in the view...",w%id)
+      end if
     end subroutine atom_button
 
     !> Color of cell atom cid from the first shown atoms representation in the
