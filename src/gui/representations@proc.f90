@@ -1688,7 +1688,7 @@ contains
       real(c_float), intent(in) :: rgbc(3)
       logical, intent(in) :: dashed
       integer, parameter :: nfan = 24
-      real*8 :: u1(3), u2(3), cosa, ang, sina, t, dcur(3), dnext(3)
+      real*8 :: u1(3), u2(3), cosa, ang, sina, t, dcur(3), dnext(3), pcur(3), pnext(3)
       integer :: is
       u1 = d1 / max(norm2(d1),1d-30)
       u2 = d2 / max(norm2(d2),1d-30)
@@ -1704,10 +1704,11 @@ contains
          else
             dnext = u1
          end if
-         ! filled fan triangle plus its outer-edge chord
-         call measure_triangle(vertexc,vertexc+radius*dcur,vertexc+radius*dnext,&
-            rgbc,alphav)
-         call measure_segment(vertexc+radius*dcur,vertexc+radius*dnext,rgbc,radv,dashed,dashlenv)
+         ! filled fan triangle plus its outer-edge chord (arc points on the rim)
+         pcur = vertexc + radius*dcur
+         pnext = vertexc + radius*dnext
+         call measure_triangle(vertexc,pcur,pnext,rgbc,alphav)
+         call measure_segment(pcur,pnext,rgbc,radv,dashed,dashlenv)
          dcur = dnext
       end do
     end subroutine measure_sector
