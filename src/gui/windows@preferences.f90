@@ -29,7 +29,7 @@ contains
        tree_select_updates_inpcon, tree_select_updates_view, io,&
        set_default_ui_settings, ColorTableCellBg, ColorHighlightScene,&
        ColorHighlightSelectScene, ColorHighlightSelectScene, ColorMeasureSelect, &
-       ColorElement
+       ColorElement, uiscale
     use systems, only: nsys, sysc
     use interfaces_cimgui
     use keybindings
@@ -52,7 +52,7 @@ contains
     integer(c_int), save :: catid = 0 ! category ID (from left panel) 0=interface,1=keybinding,2=colors
     integer(c_int), save :: getbind = -1 ! get binding flag
 
-    real(c_float), parameter :: wleft = 120._c_float
+    real(c_float), parameter :: wleft = 200._c_float
 
     ! first pass when opened, reset the state
     if (w%firstpass) call init_state()
@@ -81,7 +81,7 @@ contains
 
     ! left panel with selectables
     str = "leftpanel" // c_null_char
-    sz%x = wleft
+    sz%x = wleft * uiscale
     sz%y = 0._c_float
     if (igBeginChild_Str(c_loc(str),sz,.true._c_bool,ImGuiWindowFlags_None)) then
        str = "Interface" // c_null_char
