@@ -2579,7 +2579,7 @@ contains
     ! usage hint: how to turn the current selection + hovered atom into a
     ! persistent measurement, or remove it
     call igNewLine()
-    call iw_text("Right-click stamps a measurement; middle-click removes it.",&
+    call iw_text("Right/middle-click stamps/removes measurement",&
        rgb=(/0.6_c_float,0.6_c_float,0.6_c_float/))
 
     ! finish tooltip

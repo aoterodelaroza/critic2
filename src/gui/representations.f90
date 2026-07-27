@@ -102,7 +102,7 @@ module representations
   logical, parameter, public :: poly_showcorners_def = .true. ! also draw the corner atoms outside the selection
   !--> measurements
   real*8, parameter, public :: measure_rad_def = 0.04d0 / bohrtoa ! radius of the measurement segments/edges
-  real*8, parameter, public :: measure_sectorrad_def = 0.8d0 / bohrtoa ! radius of the angle/dihedral sectors
+  real*8, parameter, public :: measure_sectorrad_def = 1.2d0 / bohrtoa ! radius of the angle/dihedral sectors
   real*8, parameter, public :: measure_planealpha_def = 0.4d0 ! opacity of the dihedral planes
   real*8, parameter, public :: measure_sectoralpha_def = 0.5d0 ! opacity of the angle/dihedral sectors
   real*8, parameter, public :: measure_textscale_def = 0.75d0 ! size of the numeric labels
