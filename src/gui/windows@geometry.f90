@@ -625,7 +625,7 @@ contains
 
              if (domol) then
                 icol = icol + 1
-                str2 = "mol" // c_null_char
+                str2 = "Mol" // c_null_char
                 call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
                 icolsort(icol) = ic_mol
              end if
@@ -644,7 +644,7 @@ contains
 
              if (doidx) then
                 icol = icol + 1
-                str2 = "idx" // c_null_char
+                str2 = "Idx" // c_null_char
                 call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
                 icolsort(icol) = ic_idx
              end if
@@ -1281,7 +1281,7 @@ contains
              icolsort(icol) = ic_id
 
              icol = icol + 1
-             str2 = "nat" // c_null_char
+             str2 = "Nat" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
              icolsort(icol) = ic_nat
 

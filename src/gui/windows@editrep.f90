@@ -2357,13 +2357,13 @@ contains
       if (igBeginTable(c_loc(str1),ncol,tflags,sz0,0._c_float)) then
          str2 = "" // c_null_char
          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,0)
-         str2 = "show" // c_null_char
+         str2 = "Show" // c_null_char
          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,1)
          do k = 1, ncat
-            str2 = "atom " // string(k) // c_null_char
+            str2 = "Atom " // string(k) // c_null_char
             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,k+1)
          end do
-         str2 = "value" // c_null_char
+         str2 = "Value" // c_null_char
          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthStretch,0._c_float,icvalue)
          call igTableSetupScrollFreeze(0,1)
          call igTableHeadersRow()
