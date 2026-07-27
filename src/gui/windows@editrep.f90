@@ -2242,9 +2242,6 @@ contains
 
     ! usage hint
     call iw_text("Measurements",highlight=.true.)
-    call iw_text("Double-click atoms in the view to select 1-3 of them, then right-click "//&
-       "another atom to add a measurement (or middle-click to remove it).")
-
     ! one tab per category: a selectable table, then the options for the
     ! selected row underneath
     str1 = "##editrepmeasuretabbar" // c_null_char
@@ -2307,16 +2304,10 @@ contains
          if (w%rep%measure%item(i)%n == ncat) nrow = nrow + 1
       end do
 
-      ! distances: atom 1 + atom 2 columns; angles/dihedrals: a single atoms column
-      if (ncat == 2) then
-         ncol = 6
-         iccolor = 4
-         icvalue = 5
-      else
-         ncol = 5
-         iccolor = 3
-         icvalue = 4
-      end if
+      ! distances: atom 1 + atom 2 columns; angles/dihedrals: a single atoms column + a color column
+      ncol = 5
+      icvalue = 4
+      iccolor = 3 ! angles/dihedrals only; distances have no color column
 
       tflags = ImGuiTableFlags_None
       tflags = ior(tflags,ImGuiTableFlags_RowBg)
@@ -2339,9 +2330,9 @@ contains
          else
             str2 = "atoms" // c_null_char
             call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,2)
+            str2 = "color" // c_null_char
+            call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,iccolor)
          end if
-         str2 = "color" // c_null_char
-         call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,iccolor)
          str2 = "value" // c_null_char
          call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthStretch,0._c_float,icvalue)
          call igTableSetupScrollFreeze(0,1)
@@ -2362,7 +2353,7 @@ contains
                   changed = .true.
                call iw_tooltip("Toggle show/hide this measurement",ttshown)
             end if
-            ! atoms
+            ! atoms (+ color column for angles/dihedrals)
             if (ncat == 2) then
                if (igTableSetColumnIndex(2)) &
                   call atom_button(w%rep%measure%item(i)%idx(:,1),"##a1" // tabidn // string(i))
@@ -2373,12 +2364,11 @@ contains
                   call igAlignTextToFramePadding()
                   call iw_text(atoms_label(w%rep%measure%item(i)))
                end if
-            end if
-            ! per-item color
-            if (igTableSetColumnIndex(iccolor)) then
-               if (iw_coloredit("##measurecol" // tabidn // string(i),rgb=w%rep%measure%item(i)%rgb)) &
-                  changed = .true.
-               call iw_tooltip("Color of this measurement",ttshown)
+               if (igTableSetColumnIndex(iccolor)) then
+                  if (iw_coloredit("##measurecol" // tabidn // string(i),rgb=w%rep%measure%item(i)%rgb)) &
+                     changed = .true.
+                  call iw_tooltip("Color of this measurement",ttshown)
+               end if
             end if
             ! value, plus a row-spanning selectable that picks the edited item
             if (igTableSetColumnIndex(icvalue)) then
@@ -2398,7 +2388,7 @@ contains
     subroutine item_options(ncat)
       integer, intent(in) :: ncat
 
-      integer :: is
+      integer :: is, j
       integer(c_int) :: idec
 
       is = w%rep%measure%isel
@@ -2406,18 +2396,35 @@ contains
       if (w%rep%measure%item(is)%n /= ncat) return
 
       associate (it => w%rep%measure%item(is))
-         ! decimals
+         ! color: distances edit it here; angles/dihedrals use the table column
+         if (ncat == 2) then
+            changed = changed .or. iw_coloredit("Color##measureitemcol",rgb=it%rgb)
+            call iw_tooltip("Color of this measurement",ttshown)
+         end if
+         ! decimals (with a trailing label to match the other options)
          idec = int(it%ndec,c_int)
-         if (iw_intstepper("Decimals##measureitemdec",idec,minval=0_c_int,maxval=8_c_int)) then
+         if (iw_intstepper("measureitemdec",idec,minval=0_c_int,maxval=8_c_int,sameline=.true.)) then
             it%ndec = idec
             changed = .true.
          end if
+         call iw_text("Decimals",sameline=.true.)
          call iw_tooltip("Decimal places shown for this value",ttshown)
          ! segment/arm/edge radius
          changed = changed .or. iw_dragfloat_real8("Segment radius (Å)##measureitemrad",&
             x1=it%rad,speed=0.001d0,min=0.005d0,max=1d0,scale=bohrtoa,decimal=3,&
             flags=ImGuiSliderFlags_AlwaysClamp)
          call iw_tooltip("Radius of the segments, arms, and dihedral edges",ttshown)
+         ! line style (distances): solid or dashed, with the dash length
+         if (ncat == 2) then
+            changed = changed .or. iw_checkbox("Dashed line##measureitemdash",it%dashed)
+            call iw_tooltip("Draw the segment as a dashed line instead of a solid one",ttshown)
+            if (it%dashed) then
+               changed = changed .or. iw_dragfloat_real8("Dash length (Å)##measureitemdashlen",&
+                  x1=it%dashlen,speed=0.005d0,min=0.02d0,max=5d0,scale=bohrtoa,decimal=2,&
+                  flags=ImGuiSliderFlags_AlwaysClamp)
+               call iw_tooltip("Length of each dash (and gap) along the segment",ttshown)
+            end if
+         end if
          ! sector (angles and dihedrals)
          if (ncat >= 3) then
             changed = changed .or. iw_dragfloat_real8("Sector radius (Å)##measureitemsrad",&
@@ -2436,11 +2443,33 @@ contains
                flags=ImGuiSliderFlags_AlwaysClamp)
             call iw_tooltip("Opacity of the dihedral planes",ttshown)
          end if
+         ! label orientation (distances): along the segment, or always horizontal
+         if (ncat == 2) then
+            changed = changed .or. iw_checkbox("Orient label along segment##measureitemorient",it%orient)
+            call iw_tooltip("Run the label along the segment; if unchecked, keep it horizontal",ttshown)
+         end if
+         ! label scaling: constant on-screen size, or scaling with the system
+         changed = changed .or. iw_checkbox("Scale label with system size##measureitemscsys",it%scalesystem)
+         call iw_tooltip("Checked: the label scales with the system (grows when zooming in). "//&
+            "Unchecked: it keeps a constant, legible on-screen size for any system size.",ttshown)
          ! label size
          changed = changed .or. iw_dragfloat_real8("Label size##measureitemtscale",&
             x1=it%textscale,speed=0.01d0,min=0.05d0,max=10d0,decimal=2,&
             flags=ImGuiSliderFlags_AlwaysClamp)
          call iw_tooltip("Size of the numeric label",ttshown)
+         ! in-plane (screen-relative) offset of the label from its anchor
+         changed = changed .or. iw_dragfloat_real8("Label offset (Å)##measureitemoffset",&
+            x2=it%offset,speed=0.01d0,decimal=2)
+         call iw_tooltip("Offset of the label from its anchor, in the screen plane (angstrom)",ttshown)
+         ! apply these style options to every measurement in this tab
+         if (iw_button("Apply to All##measureitemapply",danger=.true.)) then
+            do j = 1, w%rep%measure%nitem
+               if (w%rep%measure%item(j)%n /= ncat .or. j == is) cycle
+               call w%rep%measure%item(j)%copy_style(it)
+            end do
+            changed = .true.
+         end if
+         call iw_tooltip("Apply these style options to all measurements in this tab",ttshown)
       end associate
     end subroutine item_options
 

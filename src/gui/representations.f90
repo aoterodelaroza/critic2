@@ -105,7 +105,8 @@ module representations
   real*8, parameter, public :: measure_sectorrad_def = 0.8d0 / bohrtoa ! radius of the angle/dihedral sectors
   real*8, parameter, public :: measure_planealpha_def = 0.4d0 ! opacity of the dihedral planes
   real*8, parameter, public :: measure_sectoralpha_def = 0.5d0 ! opacity of the angle/dihedral sectors
-  real*8, parameter, public :: measure_textscale_def = 0.4d0 ! size of the numeric labels
+  real*8, parameter, public :: measure_textscale_def = 0.75d0 ! size of the numeric labels
+  real*8, parameter, public :: measure_dashlen_def = 0.15d0 / bohrtoa ! dash period for dashed segments
   integer, parameter, public :: measure_ndeclen_def = 3 ! decimal places for distances (angstrom)
   integer, parameter, public :: measure_ndecang_def = 1 ! decimal places for angles (degrees)
   real(c_float), parameter, public :: measure_rgb_dist_def(3) = (/0.90_c_float,0.65_c_float,0.10_c_float/) ! distance color (gold)
@@ -437,8 +438,14 @@ module representations
      real*8 :: planealpha = measure_planealpha_def ! opacity of the dihedral planes
      real*8 :: textscale = measure_textscale_def ! size of the numeric label
      integer :: ndec = measure_ndeclen_def ! decimal places for this item's value
+     logical :: dashed = .false. ! draw the segment as a dashed (vs solid) line
+     real*8 :: dashlen = measure_dashlen_def ! dash period for a dashed segment (bohr)
+     logical :: orient = .true. ! orient the label along the segment (vs always horizontal)
+     logical :: scalesystem = .true. ! label scales with the system size (vs constant on-screen size)
+     real*8 :: offset(2) = 0d0 ! in-plane (screen-relative) offset of the label, angstrom
    contains
      procedure :: set_defaults => measurement_item_set_defaults
+     procedure :: copy_style => measurement_item_copy_style
   end type measurement_item
   public :: measurement_item
 
@@ -502,6 +509,10 @@ module representations
        class(measurement_item), intent(inout) :: it
        integer, intent(in) :: n
      end subroutine measurement_item_set_defaults
+     module subroutine measurement_item_copy_style(dst,src)
+       class(measurement_item), intent(inout) :: dst
+       type(measurement_item), intent(in) :: src
+     end subroutine measurement_item_copy_style
      module subroutine representation_end(r)
        class(representation), intent(inout) :: r
      end subroutine representation_end

@@ -110,6 +110,7 @@ module shapes
      real(c_float) :: rgbborder(3) = 0._c_float ! border color
      real(c_float) :: arvec(3) = 0._c_float ! aromatic bonds: outward (ring-exterior) direction; 0 otherwise
      real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
+     real(c_float) :: dashlen = 0.4_c_float ! dash period for order=0 (dashed), in bohr
   end type dl_cylinder
   public :: dl_cylinder
 
@@ -131,6 +132,7 @@ module shapes
      logical :: depth = .true. ! occluded by scene objects
      logical :: oriented = .false. ! whether to orient the label along x -> x2
      real(c_float) :: x2(3) = 0._c_float ! second world point defining the on-screen orientation
+     logical :: fixedscreen = .false. ! constant-size labels: clamp the reference half-width so large systems do not shrink the label
      character(len=:), allocatable :: str ! string
   end type dl_string
   public :: dl_string

@@ -813,14 +813,13 @@ contains
     end subroutine draw_all_cylinders
 
     !> Number of dashes for the dashed expansion of bond cylinder i, from the
-    !> equilibrium bond length (frozen while animating).
+    !> equilibrium bond length.
     function dash_count(i) result(ndash)
       integer, intent(in) :: i
       integer :: ndash
 
-      real(c_float), parameter :: dash_period = 0.4_c_float
-
-      ndash = min(64, max(1, nint(norm2(s%obj%cyl(i)%x2 - s%obj%cyl(i)%x1)/dash_period)))
+      ndash = min(64, max(1, nint(norm2(s%obj%cyl(i)%x2 - s%obj%cyl(i)%x1) / &
+         max(s%obj%cyl(i)%dashlen,1e-4_c_float))))
 
     end function dash_count
 
@@ -1164,9 +1163,14 @@ contains
     !> reset-zoom half-side, baked font size).
     subroutine draw_all_text()
       integer :: i, nvert, nv0
-      real(c_float) :: hside, siz, x(3), vw(4,4), wclip
+      real(c_float) :: hside, siz, x(3), vw(4,4), wclip, href
       real(c_float) :: p4(4), c4(4), ndc1(2), ndc2(2), dir(2), perp(2), off2(2), theta, dn, offmag
       logical :: rebuild
+
+      ! constant-size ("fixedscreen") labels clamp the reset-zoom reference
+      ! half-width to this value, so their on-screen size stops shrinking once
+      ! the system is larger than a molecule-sized scene (keeps them legible)
+      real(c_float), parameter :: fixedscreen_hmax = 8._c_float
 
       if (s%obj%nstring <= 0) return
 
@@ -1200,8 +1204,12 @@ contains
             nv0 = nvert
             x = s%obj%string(i)%x
             if (s%obj%string(i)%scale > 0._c_float) then
-               ! constant on-screen size (projection-independent)
-               siz = 2 * s%obj%string(i)%scale / (fontbakesize_large * uiscale) / hside
+               ! constant on-screen size (projection-independent). For fixedscreen
+               ! labels clamp the reference half-width so the label stays legible
+               ! on very large systems instead of shrinking away.
+               href = hside
+               if (s%obj%string(i)%fixedscreen) href = min(hside,fixedscreen_hmax)
+               siz = 2 * s%obj%string(i)%scale / (fontbakesize_large * uiscale) / href
             else
                ! scale with zoom (projection-aware): divide by the anchor
                ! clip-space w so the label foreshortens with depth under
@@ -1212,8 +1220,8 @@ contains
             end if
             if (s%obj%string(i)%oriented) then
                ! project both endpoints to NDC and orient the label along the
-               ! on-screen segment, offset to the upper side. Near-vertical
-               ! segments (within 30 deg of vertical) keep horizontal text.
+               ! on-screen segment, offset to the upper side. The label only
+               ! falls back to horizontal when the segment projects to a point.
                ! guard the clip-space w (=1 in ortho, view depth in perspective)
                ! so an endpoint at/behind the camera plane never divides by ~0
                p4 = (/x(1),x(2),x(3),1._c_float/)
@@ -1228,11 +1236,7 @@ contains
                if (dn > 1e-6_c_float) then
                   dir = dir / dn
                   if (dir(1) < 0._c_float) dir = -dir ! read left-to-right
-                  if (abs(dir(1)) < 0.5_c_float) then
-                     theta = 0._c_float ! within 30 deg of vertical -> horizontal
-                  else
-                     theta = atan2(dir(2),dir(1))
-                  end if
+                  theta = atan2(dir(2),dir(1)) ! always run the label along the segment
                   perp = (/-dir(2),dir(1)/) ! points to the upper side (perp(2)=dir(1)>=0)
                   off2 = perp * offmag
                else
@@ -2544,7 +2548,7 @@ contains
     ! optional screen-space rotation of the (now NDC) glyph offsets,
     ! plus an NDC shift; used for oriented labels
     if (present(angle)) then
-       if (angle /= 0._c_float) then ! near-vertical labels use angle 0 (no rotation)
+       if (angle /= 0._c_float) then ! degenerate/horizontal labels use angle 0 (no rotation)
           ca = cos(angle)
           sa = sin(angle)
           do k = nvert0+1, nvert
