@@ -1928,40 +1928,58 @@ contains
 
   end subroutine scene_add_measurement
 
-  !> Delete the measurement made of the current selection plus the
-  !> clicked atom idx (the inverse of scene_add_measurement).
+  !> Delete measurements involving the clicked atom idx. With anchor
+  !> atoms selected, remove only the exact measurement made of the
+  !> selection plus the clicked atom (the inverse of
+  !> scene_add_measurement); with no selection (plain navigation),
+  !> remove every measurement that involves the clicked atom.
   module subroutine scene_delete_measurement(s,idx)
     class(scene), intent(inout), target :: s
     integer, intent(in) :: idx(5)
 
     integer :: n, irep, ni, j
     integer :: aidx(4,4)
+    logical :: usesel, hit
 
-    ! build the ordered atom list (selected anchors + clicked atom); bail out if
-    ! there is no valid measurement to remove
-    if (.not.measure_build_idx(s,idx,aidx,n)) return
+    if (idx(1) == 0) return
 
     ! nothing to do if there is no measurement representation
     irep = measure_rep_id(s,.false.)
     if (irep == 0) return
 
-    ! find and remove the matching item
-    do ni = 1, s%rep(irep)%measure%nitem
-       if (measure_match(s%rep(irep)%measure%item(ni),aidx,n)) then
-          do j = ni, s%rep(irep)%measure%nitem-1
-             s%rep(irep)%measure%item(j) = s%rep(irep)%measure%item(j+1)
-          end do
-          s%rep(irep)%measure%nitem = s%rep(irep)%measure%nitem - 1
-          ! keep the editor selection on the same item (mirrors the table
-          ! delete): drop it if it was the deleted one, shift down if it was after
-          if (s%rep(irep)%measure%isel == ni) then
-             s%rep(irep)%measure%isel = 0
-          elseif (s%rep(irep)%measure%isel > ni) then
-             s%rep(irep)%measure%isel = s%rep(irep)%measure%isel - 1
-          end if
-          s%forcebuildlists = .true.
-          return
+    ! with anchors selected, remove only the exact measurement (selection +
+    ! clicked atom); a click that does not complete a valid measurement (repeats
+    ! an anchor, or too many selected) removes nothing. With no selection (plain
+    ! navigation), remove every measurement that involves the clicked atom.
+    if (s%nmsel == 0) then
+       usesel = .false.
+    else
+       if (.not.measure_build_idx(s,idx,aidx,n)) return
+       usesel = .true.
+    end if
+
+    ! iterate top-down so removing an item never shifts a not-yet-visited one
+    do ni = s%rep(irep)%measure%nitem, 1, -1
+       if (usesel) then
+          hit = measure_match(s%rep(irep)%measure%item(ni),aidx,n)
+       else
+          hit = measure_has_atom(s%rep(irep)%measure%item(ni),idx(1:4))
        end if
+       if (.not.hit) cycle
+       ! remove item ni (only items above ni, already visited, shift down)
+       do j = ni, s%rep(irep)%measure%nitem-1
+          s%rep(irep)%measure%item(j) = s%rep(irep)%measure%item(j+1)
+       end do
+       s%rep(irep)%measure%nitem = s%rep(irep)%measure%nitem - 1
+       ! keep the editor selection on the same item (mirrors the table
+       ! delete): drop it if it was the deleted one, shift down if it was after
+       if (s%rep(irep)%measure%isel == ni) then
+          s%rep(irep)%measure%isel = 0
+       elseif (s%rep(irep)%measure%isel > ni) then
+          s%rep(irep)%measure%isel = s%rep(irep)%measure%isel - 1
+       end if
+       s%forcebuildlists = .true.
+       if (usesel) return ! exact match: at most one item
     end do
 
   end subroutine scene_delete_measurement
@@ -2656,5 +2674,25 @@ contains
       same = all(int(a) == b)
     end function same
   end function measure_match
+
+  !> Whether measurement item involves the atom aidx (cell atom id + lattice
+  !> vector) as any of its anchors.
+  function measure_has_atom(item,aidx) result(has)
+    use representations, only: measurement_item
+    type(measurement_item), intent(in) :: item
+    integer, intent(in) :: aidx(4)
+    logical :: has
+
+    integer :: k
+
+    has = .false.
+    do k = 1, item%n
+       if (all(int(item%idx(:,k)) == aidx)) then
+          has = .true.
+          return
+       end if
+    end do
+
+  end function measure_has_atom
 
 end submodule proc
