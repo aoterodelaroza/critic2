@@ -203,6 +203,11 @@ module keybindings
   integer, parameter, public :: group_viewmode_pickatom = 13  ! view mouse interaction modes (forced atom pick)
   integer, parameter, public :: group_NUM = 13                ! total number of groups
 
+  ! The mutually-exclusive view mouse-interaction modes
+  integer, parameter, public :: group_mousemodes(6) = (/group_viewmode_navigation,&
+     group_viewmode_select, group_viewmode_movemol, group_viewmode_moveatom,&
+     group_viewmode_mdinteract, group_viewmode_pickatom/)
+
   ! Names of the keybinding groups
   character(len=32), parameter, public :: groupnames(group_NUM) = (/&
      "Global                          ",&

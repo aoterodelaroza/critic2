@@ -105,18 +105,10 @@ contains
        hk = hkey(oldkey,oldmod,group)
        if (keymap%iskey(hk)) call keymap%delkey(hk)
     end if
-    ! unbind the previous owner of this key+mod combination in this group...
-    call erase_bind(key,mod,group)
-    if (group == group_global .or. group == group_viewmode) then
-       ! unbind in all other groups
-       do i = 2, group_NUM
-          call erase_bind(key,mod,i)
-       end do
-    else
-       ! unbind from the global and mouse interaction groups
-       call erase_bind(key,mod,group_global)
-       call erase_bind(key,mod,group_viewmode)
-    end if
+    ! unbind the previous owner of this key+mod combination
+    do i = 1, group_NUM
+       if (groups_clash(group,i)) call erase_bind(key,mod,i)
+    end do
 
     ! make the new bind
     keybind(bind) = key
@@ -448,6 +440,37 @@ contains
   end function cycle_mouse_key
 
   !xx! private procedures
+
+  ! Whether binds in groups g1 and g2 can be active in the same context
+  function groups_clash(g1,g2) result(clash)
+    integer, intent(in) :: g1, g2
+    logical :: clash
+
+    clash = .true.
+    if (g1 == g2) return
+    if (g1 == group_global .or. g2 == group_global) return
+    if (group_in_view(g1) .and. group_in_view(g2)) then
+       clash = .not.(group_is_mousemode(g1) .and. group_is_mousemode(g2))
+       return
+    end if
+    clash = .false.
+
+  contains
+    ! groups the view window evaluates every frame it is focused
+    logical function group_in_view(g)
+      integer, intent(in) :: g
+      group_in_view = (g == group_view .or. g == group_viewmode .or. &
+         g == group_editselect .or. group_is_mousemode(g))
+    end function group_in_view
+    ! the mutually-exclusive mouse-interaction modes (only one active at a time)
+    logical function group_is_mousemode(g)
+      integer, intent(in) :: g
+      group_is_mousemode = (g == group_viewmode_navigation .or. &
+         g == group_viewmode_select .or. g == group_viewmode_movemol .or. &
+         g == group_viewmode_moveatom .or. g == group_viewmode_mdinteract .or. &
+         g == group_viewmode_pickatom)
+    end function group_is_mousemode
+  end function groups_clash
 
   ! return a key for the keymap hash by combining key ID, mod, and group.
   function hkey(key,mod,group)
