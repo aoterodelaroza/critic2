@@ -220,8 +220,14 @@ module windows
      ! water cluster demonstration parameters
      integer(c_int) :: wc_nwat = 12 ! number of water molecules to generate
      integer(c_int) :: wc_placement = 3 ! initial placement of the monomers (0 = random, 1 = row, 2 = ring, 3 = flat ring)
+     integer(c_int) :: wc_mode = 1 ! run mode (0 = continuous, 1 = timed)
+     integer(c_int) :: wc_time = 60 ! time limit in the timed mode (s)
      logical :: wc_started = .false. ! whether the relaxation has been auto-started for wc_isys
      integer :: wc_isys = 0 ! the generated cluster system (0 = none yet)
+     logical :: wc_clockrun = .false. ! timed mode: whether the clock is ticking (settling included)
+     logical :: wc_timeup = .false. ! timed mode: whether the player's time is over
+     real*8 :: wc_clock0 = 0d0 ! timed mode: time at which the clock started (s)
+     real*8 :: wc_elapsed = 0d0 ! timed mode: elapsed time shown on the clock (s)
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window

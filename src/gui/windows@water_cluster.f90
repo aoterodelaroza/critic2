@@ -30,6 +30,7 @@ submodule (windows) water_cluster
   integer, parameter :: wc_nmin = 2        ! smallest cluster with a reference
   integer, parameter :: wc_nmax = 21       ! largest cluster with a reference
   integer, parameter :: wc_ngen_max = 100  ! largest cluster the user can generate
+  real*8, parameter :: wc_fsettle = 5d-3   ! timed mode: force threshold ending the settling (eV/angstrom)
   real*8, parameter :: wc_record_kjmol(wc_nmin:wc_nmax) = (/ &
      -26.84746d0,  -72.94662d0, -122.22162d0, -159.44335d0, -207.12239d0, &
      -255.29024d0, -320.18069d0, -360.80033d0, -409.44119d0, -451.80108d0, &
@@ -84,10 +85,27 @@ contains
        call iw_tooltip("Line the water molecules up in a row",ttshown)
        ldum = iw_radiobutton("Ring",int=w%wc_placement,intval=2_c_int,sameline=.true.)
        call iw_tooltip("Arrange the water molecules in a hydrogen-bonded ring, with the free O-H bonds &
-          &alternating above and below the ring plane.",ttshown)
+          &alternating above and below the ring plane",ttshown)
        ldum = iw_radiobutton("Flat ring",int=w%wc_placement,intval=3_c_int,sameline=.true.)
        call iw_tooltip("Arrange the water molecules in a flat hydrogen-bonded ring, with the free O-H &
-          &bonds pointing outwards.",ttshown)
+          &bonds pointing outwards",ttshown)
+
+       ! run mode
+       call igAlignTextToFramePadding()
+       call iw_text("Mode",highlight=.true.)
+       if (iw_radiobutton("Timed",int=w%wc_mode,intval=1_c_int,sameline=.true.)) &
+          call wc_reset_clock()
+       call iw_tooltip("Play against the clock: the timer starts when the first molecule is moved, &
+          &and when it runs out the cluster is left to relax until the forces die out before &
+          &everything stops",ttshown)
+       if (iw_radiobutton("Continuous",int=w%wc_mode,intval=0_c_int,sameline=.true.)) &
+          call wc_reset_clock()
+       call iw_tooltip("Relax the cluster indefinitely, with no time limit",ttshown)
+       if (w%wc_mode == 1) then
+          if (iw_intstepper("wctime",w%wc_time,label="Time (s)",minval=5_c_int,maxval=999_c_int,&
+             ndigit=3,sameline=.true.,tooltip="Duration of a timed run, in seconds")) &
+             call wc_reset_clock()
+       end if
 
        ! generate a new cluster
        if (iw_button("New cluster",danger=.true.)) then
@@ -101,6 +119,7 @@ contains
           w%errmsg = ""
           call build_water_cluster(int(w%wc_nwat),int(w%wc_placement),w%wc_isys,w%errmsg)
           w%wc_started = .false.
+          call wc_reset_clock()
        end if
        call iw_tooltip("Generate a new cluster",ttshown)
 
@@ -122,6 +141,9 @@ contains
        isys = w%wc_isys
        if (ok_system(isys,sys_init) .and. w%wc_started) then
           if (sysc(isys)%md%ready) then
+             ! timed mode: advance the clock, run the settling period, and stop
+             if (w%wc_mode == 1) call wc_tick_clock(isys)
+
              nwat = sys(isys)%c%ncel / 3
              eb_kcal = -sysc(isys)%md%epot / kcal2ha
              hasref = (nwat >= wc_nmin .and. nwat <= wc_nmax)
@@ -160,8 +182,10 @@ contains
                    call status_row("Score (0-100)",string(score,'f',decimal=1))
                 end if
                 if (sysc(isys)%md%nat > 0) &
-                   call status_row("Max |force| (eV/A)",&
-                      string(maxval(norm2(sysc(isys)%md%f,1))*hartoev/bohrtoa,'f',decimal=4))
+                   call status_row("Max |force| (eV/A)",string(wc_maxforce(isys),'f',decimal=4))
+                if (w%wc_mode == 1) &
+                   call status_row("Time (s)",string(wc_clock(),'f',decimal=1) // " / " //&
+                      string(w%wc_time))
 
                 call igEndTable()
              end if
@@ -208,6 +232,76 @@ contains
       win(w%idparent)%forcerender = .true.
     end subroutine wc_zoom
 
+    !> Timed mode: put the clock back to zero, stopped and waiting for the
+    !> player's first move.
+    subroutine wc_reset_clock()
+      w%wc_clockrun = .false.
+      w%wc_timeup = .false.
+      w%wc_clock0 = 0d0
+      w%wc_elapsed = 0d0
+    end subroutine wc_reset_clock
+
+    !> Timed mode: start the clock the first time the player moves a molecule,
+    !> advance it, lock the player out at the buzzer, and stop the relaxation
+    !> once the cluster has settled (largest force below wc_fsettle).
+    subroutine wc_tick_clock(is)
+      use systems, only: lastchange_geometry
+      use interfaces_glfw, only: glfwGetTime
+      integer, intent(in) :: is
+
+      if (.not.w%wc_clockrun) then
+         ! nothing left to do once the settling period is over
+         if (w%wc_timeup) return
+         ! the clock is armed until the player grabs an atom (drag_iat) or
+         ! rigidly moves/rotates a molecule (interacting)
+         if (sysc(is)%md%drag_iat > 0 .or. sysc(is)%md%interacting) then
+            w%wc_clockrun = .true.
+            w%wc_clock0 = glfwGetTime()
+         end if
+         return
+      end if
+
+      if (.not.w%wc_timeup) then
+         w%wc_elapsed = glfwGetTime() - w%wc_clock0
+         if (w%wc_elapsed < real(w%wc_time,8)) return
+         ! the buzzer: freeze the clock and lock the player out (clearing
+         ! md_run also takes the view out of the MD interaction mode)
+         w%wc_timeup = .true.
+         sysc(is)%md_run = .false.
+      end if
+
+      if (wc_maxforce(is) < wc_fsettle) then
+         ! the cluster has settled: stop the relaxation for good
+         w%wc_clockrun = .false.
+      else
+         ! settling: the player can no longer interfere, but the relaxation
+         ! goes on, driven from here because the main loop only advances the
+         ! systems with md_run set
+         call sysc(is)%md%step(sys(is)%c)
+         sysc(is)%sc%nextbuildlists_fixcam = .true.
+         call sysc(is)%post_event(lastchange_geometry)
+      end if
+
+    end subroutine wc_tick_clock
+
+    !> Timed mode: the value shown on the clock, which is the elapsed time
+    !> held at the time limit while the cluster settles.
+    function wc_clock()
+      real*8 :: wc_clock
+      wc_clock = min(w%wc_elapsed,real(w%wc_time,8))
+    end function wc_clock
+
+    !> Largest atomic force in the relaxation of system is, in eV/angstrom.
+    function wc_maxforce(is)
+      integer, intent(in) :: is
+      real*8 :: wc_maxforce
+
+      wc_maxforce = 0d0
+      if (sysc(is)%md%nat > 0) &
+         wc_maxforce = maxval(norm2(sysc(is)%md%f,1)) * hartoev / bohrtoa
+
+    end function wc_maxforce
+
     !> Set up TIP4P + FIRE for the generated cluster and start the continuous
     !> relaxation, then add the hydrogen-bond and scoreboard representations.
     subroutine wc_start()
@@ -248,16 +342,30 @@ contains
       real*8, intent(in) :: score, eb
       logical, intent(in) :: hasref
 
-      real(c_float) :: rgb(3)
+      real(c_float), parameter :: rgb_clock(3) = (/0.20_c_float,0.20_c_float,0.20_c_float/)
+      real(c_float), parameter :: rgb_timeup(3) = (/0.85_c_float,0.10_c_float,0.10_c_float/)
+
+      real(c_float) :: rgb(3), rgbc(3)
       character(len=:), allocatable :: str
 
+      ! the score at the top
       call wc_score_color(hasref,score,rgb)
       if (hasref) then
          str = string(score,'f',decimal=1)
       else
          str = string(eb,'f',decimal=2)
       end if
-      call sysc(is)%sc%show_transient_text(str,rgb,(/0.5d0,0.90d0/),1.5d0)
+      call sysc(is)%sc%clear_transient_representations()
+      call sysc(is)%sc%add_transient_text(str,rgb,(/0.5d0,0.90d0/),1.5d0)
+
+      ! timed mode: the clock at the bottom, in red once the time is up
+      if (w%wc_mode == 1) then
+         rgbc = rgb_clock
+         if (w%wc_timeup) rgbc = rgb_timeup
+         call sysc(is)%sc%add_transient_text(string(wc_clock(),'f',decimal=1),rgbc,&
+            (/0.5d0,0.06d0/),1d0)
+      end if
+
     end subroutine wc_update_scoreboard
 
   end subroutine draw_water_cluster
@@ -286,7 +394,7 @@ contains
     real*8 :: dring, rring, theta
     real*8, allocatable :: cen(:,:)
     integer :: i, j, k, m, iw, itry, iplace
-    logical :: good, found, clash
+    logical :: good, found, clash, isring, flatring
 
     errmsg = ""
     if (nwat < 1) then
@@ -294,9 +402,11 @@ contains
        return
     end if
 
-    ! a ring needs at least three molecules
+    ! placement mode; a ring needs at least three molecules, fall back to a row
     iplace = placement
     if ((iplace == 2 .or. iplace == 3) .and. nwat < 3) iplace = 1
+    isring = (iplace == 2 .or. iplace == 3)
+    flatring = (iplace == 3)
 
     ! fresh random sequence for this cluster
     call random_seed()
@@ -309,18 +419,15 @@ contains
     rmono(:,2) = (/roh*cos(half),  roh*sin(half), 0d0/)
     rmono(:,3) = (/roh*cos(half), -roh*sin(half), 0d0/)
 
-    ! monomer centers (bohr); keep O's well apart so tip4p_setup recognizes
-    ! nwat distinct waters (no spurious cross-molecule bonds)
+    ! monomer centers (bohr)
     allocate(cen(3,nwat))
-    dmin = 3.0d0 / bohrtoa
-    dmin2 = dmin * dmin
     if (iplace == 1) then
        ! a straight row along x
        drow = 3.2d0 / bohrtoa
        do i = 1, nwat
           cen(:,i) = (/real(i-1,8)*drow, 0d0, 0d0/)
        end do
-    elseif (iplace == 2 .or. iplace == 3) then
+    elseif (isring) then
        ! a circle in the xy-plane, centered at the origin, with consecutive
        ! oxygens one hydrogen bond apart
        dring = 2.8d0 / bohrtoa
@@ -330,11 +437,9 @@ contains
           cen(:,i) = (/rring*cos(theta), rring*sin(theta), 0d0/)
        end do
     else
-       ! random positions in a cube, rejection-sampled for the minimum O-O
-       ! separation. Size the box to a fixed sphere-packing fraction (~0.20)
-       ! so the monomers start compact (quick clustering) but well below the
-       ! random-close-packing jamming limit (~0.38) even at nwat = 100, where a
-       ! tighter box would make rejection sampling fail. Grow it as a safety net.
+       ! random positions in a cube
+       dmin = 3.0d0 / bohrtoa
+       dmin2 = dmin * dmin
        lbox = dmin * (real(nwat,8) * (pi/6d0) / 0.20d0)**(1d0/3d0)
        do
           good = .true.
@@ -380,8 +485,8 @@ contains
 
     k = 0
     do iw = 1, nwat
-       if (iplace == 2 .or. iplace == 3) then
-          call wc_ring_orientation(cen,iw,nwat,(iplace == 3),rot)
+       if (isring) then
+          call wc_ring_orientation(cen,iw,flatring,rot)
        else
           call wc_random_rotation(rot)
        end if
@@ -442,21 +547,19 @@ contains
 
   end subroutine wc_random_rotation
 
-  !> Orientation matrix for molecule i in a hydrogen-bonded ring of n waters
+  !> Orientation matrix for molecule i in a hydrogen-bonded ring of waters
   !> with the oxygens at cen (a circle centered at the origin). The molecule
   !> donates one hydrogen to the next oxygen in the ring; the free O-H bond
   !> points radially outwards, in the ring plane (flat), or perpendicular to
   !> the plane, alternating up and down (not flat).
-  subroutine wc_ring_orientation(cen,i,n,flat,rot)
+  subroutine wc_ring_orientation(cen,i,flat,rot)
     use energy, only: tip4p_hoh
     use tools_math, only: cross
     use param, only: rad
     real*8, intent(in) :: cen(:,:)
-    integer, intent(in) :: i, n
+    integer, intent(in) :: i
     logical, intent(in) :: flat
     real*8, intent(out) :: rot(3,3)
-
-    real*8, parameter :: eps = 1d-6
 
     integer :: inext
     real*8 :: ang, u(3), v(3), w(3), a(3), b(3)
@@ -464,21 +567,20 @@ contains
     ang = tip4p_hoh * rad
 
     ! u = donor O-H direction, pointing at the next oxygen in the ring
-    inext = mod(i,n) + 1
+    inext = mod(i,size(cen,2)) + 1
     u = cen(:,inext) - cen(:,i)
     u = u / norm2(u)
 
-    ! w = direction the free O-H leans towards, orthogonalized against u:
-    ! radially outwards in the ring plane, or perpendicular to it, alternating
-    ! up and down
-    w = 0d0
-    if (flat) &
-       w = cen(:,i) - dot_product(cen(:,i),u)*u
-    if (norm2(w) < eps) then
+    ! w = direction the free O-H leans towards, orthogonalized against u
+    if (flat) then
+       ! radially outwards, in the ring plane
+       w = cen(:,i)
+    else
+       ! perpendicular to the ring plane, alternating up and down
        w = (/0d0, 0d0, 1d0/)
        if (mod(i,2) == 0) w = -w
-       w = w - dot_product(w,u)*u
     end if
+    w = w - dot_product(w,u)*u
     w = w / norm2(w)
 
     ! v = free O-H direction; the frame that takes the reference monomer
