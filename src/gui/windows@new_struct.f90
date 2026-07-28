@@ -394,11 +394,11 @@ contains
        flags = ImGuiTableColumnFlags_WidthFixed
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,3)
 
-       str = "choice" // c_null_char
+       str = "Choice" // c_null_char
        flags = ImGuiTableColumnFlags_WidthFixed
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,4)
 
-       str = "system" // c_null_char
+       str = "System" // c_null_char
        flags = ImGuiTableColumnFlags_WidthFixed
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,5)
 

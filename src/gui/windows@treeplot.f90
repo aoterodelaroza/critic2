@@ -61,7 +61,7 @@ contains
     if (w%timelast_plot_update < win(iwin_tree)%timelast_tree_update) forceupdate = .true.
 
     ! x-choose and y-choose
-    str1 = "ID"//c_null_char//"Energy (Ha)"//c_null_char//"Volume (Å³)"//c_null_char//&
+    str1 = "Id"//c_null_char//"Energy (Ha)"//c_null_char//"Volume (Å³)"//c_null_char//&
        "Volume/Z (Å³)"//c_null_char//&
        "Number of symmetry-unique atoms"//c_null_char//"Number of cell atoms"//c_null_char//&
        "Number of molecules"//c_null_char//"a (Å)"//c_null_char//&
@@ -204,7 +204,7 @@ contains
       integer, intent(in) :: ic
 
       if (ic == ic_tree_id) then
-         str = "ID" // c_null_char
+         str = "Id" // c_null_char
       elseif (ic == ic_tree_e) then
          str = "Energy (Ha)" // c_null_char
       elseif (ic == ic_tree_v) then

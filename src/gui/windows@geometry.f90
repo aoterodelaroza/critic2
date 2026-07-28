@@ -400,7 +400,7 @@ contains
              icolsort(icol) = ic_zat
 
              icol = icol + 1
-             str2 = "Num. Atoms" // c_null_char
+             str2 = "Num. atoms" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
              icolsort(icol) = ic_nat
 
@@ -1175,11 +1175,11 @@ contains
                 if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
                    str2 = "n" // c_null_char
                    call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
-                   str2 = "rmax (Å)" // c_null_char
+                   str2 = "Rmax (Å)" // c_null_char
                    call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
-                   str2 = "niceness" // c_null_char
+                   str2 = "Niceness" // c_null_char
                    call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,2)
-                   str2 = "transformation" // c_null_char
+                   str2 = "Transformation" // c_null_char
                    call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,3)
                    call igTableSetupScrollFreeze(0,1)
                    call igTableHeadersRow()
@@ -1286,13 +1286,13 @@ contains
              icolsort(icol) = ic_nat
 
              icol = icol + 1
-             str2 = "Sym." // c_null_char
+             str2 = "Sym" // c_null_char
              call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_NoSort,0.0_c_float,icol)
              icolsort(icol) = ic_sym
 
              if (doidx) then
                 icol = icol + 1
-                str2 = "idx" // c_null_char
+                str2 = "Idx" // c_null_char
                 call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0.0_c_float,icol)
                 icolsort(icol) = ic_idx
              end if
@@ -2096,7 +2096,7 @@ contains
                 sz0%x = 0
                 sz0%y = iw_calcheight(size(w%geometry_sym_analyze_eps,1)+1,0,.false.)
                 if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
-                   str2 = "symprec" // c_null_char
+                   str2 = "Symprec" // c_null_char
                    call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
                    str2 = "Space group" // c_null_char
                    call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)

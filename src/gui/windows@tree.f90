@@ -379,7 +379,7 @@ contains
        str = "(expand button)##0expandbutton" // c_null_char
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_expandbutton)
 
-       str = "ID##0" // c_null_char
+       str = "Id##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultSort
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_id)
 
@@ -391,14 +391,14 @@ contains
        width = max(4._c_float, fontsize%y + 4._c_float)
        call igTableSetupColumn(c_loc(str),flags,width,ic_tree_format)
 
-       str = "properties##0" // c_null_char
+       str = "Properties##0" // c_null_char
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_props)
 
        str = "Name##0" // c_null_char
        flags = ImGuiTableColumnFlags_WidthStretch
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_name)
 
-       str = "sym##0" // c_null_char
+       str = "Sym##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_spg)
 
@@ -410,11 +410,11 @@ contains
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_vmol)
 
-       str = "nneq##0" // c_null_char
+       str = "Nneq##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_nneq)
 
-       str = "nat/ncel##0" // c_null_char
+       str = "Nat/ncel##0" // c_null_char
        flags = ImGuiTableColumnFlags_DefaultHide
        call igTableSetupColumn(c_loc(str),flags,0.0_c_float,ic_tree_ncel)
 

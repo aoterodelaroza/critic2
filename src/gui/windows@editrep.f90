@@ -1680,7 +1680,7 @@ contains
           call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
 
           icol = icol + 1
-          str2 = "nat" // c_null_char
+          str2 = "Nat" // c_null_char
           flags = ImGuiTableColumnFlags_None
           call igTableSetupColumn(c_loc(str2),flags,0.0_c_float,icol)
 
@@ -1905,7 +1905,7 @@ contains
        sz0%x = 0
        sz0%y = iw_calcheight(min(nop,10)+1,0,.false.)
        if (igBeginTable(c_loc(str1),3,flags,sz0,0._c_float)) then
-          str2 = "show" // c_null_char
+          str2 = "Show" // c_null_char
           call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,0)
           str2 = "#" // c_null_char
           call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_None,0._c_float,1)
@@ -2026,11 +2026,11 @@ contains
     if (igBeginTable(c_loc(str1),4,flags,sz0,0._c_float)) then
        str2 = "" // c_null_char
        call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,0)
-       str2 = "show" // c_null_char
+       str2 = "Show" // c_null_char
        call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,1)
-       str2 = "text" // c_null_char
+       str2 = "Text" // c_null_char
        call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthStretch,0._c_float,2)
-       str2 = "placement" // c_null_char
+       str2 = "Placement" // c_null_char
        call igTableSetupColumn(c_loc(str2),ImGuiTableColumnFlags_WidthFixed,0._c_float,3)
        call igTableSetupScrollFreeze(0,1)
        call igTableHeadersRow()
