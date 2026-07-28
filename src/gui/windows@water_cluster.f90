@@ -16,9 +16,6 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ! Water-cluster demonstration window: an interactive TIP4P relaxation game.
-! Generates a cluster of N water molecules (random or in a row), FIRE-relaxes
-! it with the built-in TIP4P model, and shows the binding energy on screen
-! recolored by its closeness to the known global minimum for that cluster size.
 submodule (windows) water_cluster
   use interfaces_cimgui
   implicit none
@@ -41,10 +38,7 @@ submodule (windows) water_cluster
 
 contains
 
-  !> Draw the water-cluster demonstration window: controls to generate a
-  !> cluster of N waters (random or in a row), a continuously running TIP4P
-  !> FIRE relaxation, and an on-screen binding-energy scoreboard colored by
-  !> closeness to the global minimum.
+  !> Draw the water-cluster demonstration window.
   module subroutine draw_water_cluster(w)
     use systems, only: sysc, sys, sys_init, ok_system, remove_system
     use dynamics, only: md_relax
@@ -88,6 +82,12 @@ contains
        call iw_tooltip("Scatter the water molecules at random positions",ttshown)
        ldum = iw_radiobutton("In a row",int=w%wc_placement,intval=1_c_int,sameline=.true.)
        call iw_tooltip("Line the water molecules up in a row",ttshown)
+       ldum = iw_radiobutton("Ring",int=w%wc_placement,intval=2_c_int,sameline=.true.)
+       call iw_tooltip("Arrange the water molecules in a hydrogen-bonded ring, with the free O-H bonds &
+          &alternating above and below the ring plane.",ttshown)
+       ldum = iw_radiobutton("Flat ring",int=w%wc_placement,intval=3_c_int,sameline=.true.)
+       call iw_tooltip("Arrange the water molecules in a flat hydrogen-bonded ring, with the free O-H &
+          &bonds pointing outwards.",ttshown)
 
        ! generate a new cluster
        if (iw_button("New cluster",danger=.true.)) then
@@ -265,14 +265,15 @@ contains
   !xx! private procedures
 
   !> Build a molecular system of nwat water molecules at the TIP4P reference
-  !> geometry (placement: 0 = random in a box, 1 = in a row), register it as a
-  !> new system, and return its id. Errors are returned in errmsg.
+  !> geometry (placement: 0 = random in a box, 1 = in a row, 2 = hydrogen-bonded
+  !> ring, 3 = flat hydrogen-bonded ring), register it as a new system, and
+  !> return its id. Errors are returned in errmsg.
   subroutine build_water_cluster(nwat,placement,id,errmsg)
     use crystalseedmod, only: crystalseed
     use systems, only: add_systems_from_seeds, launch_initialization_thread
     use energy, only: tip4p_doh, tip4p_hoh
     use global, only: rborder_def
-    use param, only: isformat_r_derived, bohrtoa, rad, pi
+    use param, only: isformat_r_derived, bohrtoa, rad, pi, tpi
     use tools_io, only: string
     integer, intent(in) :: nwat
     integer, intent(in) :: placement
@@ -282,8 +283,9 @@ contains
     type(crystalseed), allocatable :: seed(:)
     integer, allocatable :: idlist(:)
     real*8 :: rmono(3,3), rot(3,3), roh, half, dmin, dmin2, drow, lbox, trial(3), u3(3)
+    real*8 :: dring, rring, theta
     real*8, allocatable :: cen(:,:)
-    integer :: i, j, k, m, iw, itry
+    integer :: i, j, k, m, iw, itry, iplace
     logical :: good, found, clash
 
     errmsg = ""
@@ -291,6 +293,10 @@ contains
        errmsg = "invalid number of water molecules"
        return
     end if
+
+    ! a ring needs at least three molecules
+    iplace = placement
+    if ((iplace == 2 .or. iplace == 3) .and. nwat < 3) iplace = 1
 
     ! fresh random sequence for this cluster
     call random_seed()
@@ -308,11 +314,20 @@ contains
     allocate(cen(3,nwat))
     dmin = 3.0d0 / bohrtoa
     dmin2 = dmin * dmin
-    if (placement == 1) then
+    if (iplace == 1) then
        ! a straight row along x
        drow = 3.2d0 / bohrtoa
        do i = 1, nwat
           cen(:,i) = (/real(i-1,8)*drow, 0d0, 0d0/)
+       end do
+    elseif (iplace == 2 .or. iplace == 3) then
+       ! a circle in the xy-plane, centered at the origin, with consecutive
+       ! oxygens one hydrogen bond apart
+       dring = 2.8d0 / bohrtoa
+       rring = 0.5d0 * dring / sin(pi/real(nwat,8))
+       do i = 1, nwat
+          theta = tpi * real(i-1,8) / real(nwat,8)
+          cen(:,i) = (/rring*cos(theta), rring*sin(theta), 0d0/)
        end do
     else
        ! random positions in a cube, rejection-sampled for the minimum O-O
@@ -365,7 +380,11 @@ contains
 
     k = 0
     do iw = 1, nwat
-       call wc_random_rotation(rot)
+       if (iplace == 2 .or. iplace == 3) then
+          call wc_ring_orientation(cen,iw,nwat,(iplace == 3),rot)
+       else
+          call wc_random_rotation(rot)
+       end if
        do m = 1, 3
           k = k + 1
           seed(1)%x(:,k) = cen(:,iw) + matmul(rot,rmono(:,m))
@@ -422,6 +441,58 @@ contains
     rot = quat2mat(q)
 
   end subroutine wc_random_rotation
+
+  !> Orientation matrix for molecule i in a hydrogen-bonded ring of n waters
+  !> with the oxygens at cen (a circle centered at the origin). The molecule
+  !> donates one hydrogen to the next oxygen in the ring; the free O-H bond
+  !> points radially outwards, in the ring plane (flat), or perpendicular to
+  !> the plane, alternating up and down (not flat).
+  subroutine wc_ring_orientation(cen,i,n,flat,rot)
+    use energy, only: tip4p_hoh
+    use tools_math, only: cross
+    use param, only: rad
+    real*8, intent(in) :: cen(:,:)
+    integer, intent(in) :: i, n
+    logical, intent(in) :: flat
+    real*8, intent(out) :: rot(3,3)
+
+    real*8, parameter :: eps = 1d-6
+
+    integer :: inext
+    real*8 :: ang, u(3), v(3), w(3), a(3), b(3)
+
+    ang = tip4p_hoh * rad
+
+    ! u = donor O-H direction, pointing at the next oxygen in the ring
+    inext = mod(i,n) + 1
+    u = cen(:,inext) - cen(:,i)
+    u = u / norm2(u)
+
+    ! w = direction the free O-H leans towards, orthogonalized against u:
+    ! radially outwards in the ring plane, or perpendicular to it, alternating
+    ! up and down
+    w = 0d0
+    if (flat) &
+       w = cen(:,i) - dot_product(cen(:,i),u)*u
+    if (norm2(w) < eps) then
+       w = (/0d0, 0d0, 1d0/)
+       if (mod(i,2) == 0) w = -w
+       w = w - dot_product(w,u)*u
+    end if
+    w = w / norm2(w)
+
+    ! v = free O-H direction; the frame that takes the reference monomer
+    ! (hydrogens in the xy-plane, bisector along x) to these two directions
+    v = cos(ang)*u + sin(ang)*w
+    a = u + v
+    a = a / norm2(a)
+    b = u - v
+    b = b / norm2(b)
+    rot(:,1) = a
+    rot(:,2) = b
+    rot(:,3) = cross(a,b)
+
+  end subroutine wc_ring_orientation
 
   !> Map the score (0 to 100) to a red-to-green color. If there is no
   !> reference energy for this cluster size (hasref = .false.) the text is

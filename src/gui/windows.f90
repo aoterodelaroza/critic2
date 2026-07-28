@@ -219,7 +219,7 @@ module windows
      logical :: color_preferences_reset_reps = .true. ! whether changing the element colors resets current representations
      ! water cluster demonstration parameters
      integer(c_int) :: wc_nwat = 12 ! number of water molecules to generate
-     integer(c_int) :: wc_placement = 0 ! initial placement of the monomers (0 = random, 1 = row)
+     integer(c_int) :: wc_placement = 3 ! initial placement of the monomers (0 = random, 1 = row, 2 = ring, 3 = flat ring)
      logical :: wc_started = .false. ! whether the relaxation has been auto-started for wc_isys
      integer :: wc_isys = 0 ! the generated cluster system (0 = none yet)
    contains
