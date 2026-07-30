@@ -355,11 +355,11 @@ module representations
   end type rep_rotaxis
   public :: rep_rotaxis
 
-  !> Symmetry element options (reptype_symelem; accessed as r%symelem%...).
-  !> The transient fields describe a single hover/preview element (stamped by
-  !> scene_show_symelems); size and cen are per-build inputs stamped by
-  !> scene_build_lists for persistent sets too. The permanent fields hold the
-  !> user-editable state of a persistent symmetry-element representation.
+  !> Symmetry element options (reptype_symelem; accessed as
+  !> r%symelem%...).  The transient fields describe a single
+  !> hover/preview element. The permanent fields hold the
+  !> user-editable state of a persistent symmetry-element
+  !> representation.
   type rep_symelem
      !! transient
      integer :: kind = 0 ! 0=none, 1=plane (mirror), 2=axis (rotation)
@@ -470,6 +470,10 @@ module representations
      integer :: idrep ! representation ID
      integer :: iord = 0 ! representation order integer in menu
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
+     ! transient-representation identity (owner > 0); unused in regular representations
+     integer :: owner = 0 ! ID of the producer (owner) window; 0 = not transient
+     integer :: itag = 0 ! producer-local content tag, for dedup/update-in-place
+     logical :: armed = .false. ! re-armed this frame by the producer (otherwise reaped)
      ! per-object option groups
      type(rep_selection) :: sel ! which part of the system is drawn
      type(rep_atoms) :: atoms ! atom display options

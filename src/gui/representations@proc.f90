@@ -505,6 +505,9 @@ contains
     r%id = 0
     r%idrep = 0
     r%iord = 0
+    r%owner = 0
+    r%itag = 0
+    r%armed = .false.
     r%name = ""
     r%sel%filter = ""
     r%sel%errfilter = ""

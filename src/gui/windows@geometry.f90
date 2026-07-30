@@ -2180,7 +2180,7 @@ contains
           stdcom = stdcom + sys(isys)%c%molx0
 
           ! standard-orientation axes
-          call sysc(isys)%sc%show_transient_axes(ihighlight,stdcom,stdrot,stdaxlen)
+          call sysc(isys)%sc%show_transient_axes(w%id,ihighlight,stdcom,stdrot,stdaxlen)
 
           if (ieuler_drag /= 0) then
              ! dragging a Euler angle: also show the rotation axis for that angle
@@ -2199,7 +2199,7 @@ contains
                 rotdir = stdrot(:,3) ! molecule body Z (already a unit vector)
              end if
              rotlen = max(stdext,1.5d0) * 1.2d0
-             call sysc(isys)%sc%show_transient_rotaxis(-(ihighlight*4+ieuler_drag),stdcom,rotdir,rotlen)
+             call sysc(isys)%sc%show_transient_rotaxis(w%id,-(ihighlight*4+ieuler_drag),stdcom,rotdir,rotlen)
           end if
        end if
     end if
@@ -2591,7 +2591,7 @@ contains
             if (.not.w%geometry_sym_sel(ihl_symop)) hovadd = ihl_symop
          end if
          tag = w%geometry_sym_selgen * (nop + 2) + (hovadd + 1)
-         call sysc(isys)%sc%show_symelems(tag,n,skind(1:n),sorig(:,1:n),sdir(:,1:n),sorder(1:n))
+         call sysc(isys)%sc%show_transient_symelems(w%id,tag,n,skind(1:n),sorig(:,1:n),sdir(:,1:n),sorder(1:n))
          deallocate(skind,sorder,sorig,sdir)
       end if
 

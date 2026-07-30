@@ -76,11 +76,9 @@ module scenes
      integer :: nrep = 0 ! number of representation
      type(representation), allocatable :: rep(:) ! representations
      integer, allocatable :: icount(:) ! last rep counter, for unique names
-     ! transient representations: set per-frame by other windows, drawn, not user controllable, auto-cleared each frame
-     integer :: nreptrans = 0 ! number of transient representations
-     type(representation), allocatable :: reptrans(:) ! transient representations
-     logical :: reptrans_set = .false. ! re-armed each frame a producer wants them kept
-     integer :: reptrans_tag = -1 ! content id for dedup (e.g. the hovered molecule)
+     ! transient representations: rearmed every frame
+     integer :: nreptrans = 0 ! number of transient representation slots (may contain holes)
+     type(representation), allocatable :: reptrans(:) ! transient representations (slot in use iff reptrans(i)%isinit)
      ! measure atom sets
      integer :: nmsel
      integer :: msel(5,4) ! 1 is atom cell ID, 2:4 is lattice vector, 5 is sphere ID
@@ -119,12 +117,11 @@ module scenes
      procedure :: add_measurement => scene_add_measurement
      procedure :: delete_measurement => scene_delete_measurement
      procedure :: add_representation
-     procedure :: add_transient_representation => scene_add_transient_representation
-     procedure :: clear_transient_representations => scene_clear_transient_representations
+     procedure :: reap_transient_representations => scene_reap_transient_representations
      procedure :: show_transient_axes => scene_show_transient_axes
      procedure :: show_transient_rotaxis => scene_show_transient_rotaxis
-     procedure :: add_transient_text => scene_add_transient_text
-     procedure :: show_symelems => scene_show_symelems
+     procedure :: show_transient_text => scene_show_transient_text
+     procedure :: show_transient_symelems => scene_show_transient_symelems
      procedure :: overlay_zoom_factor => scene_overlay_zoom_factor
   end type scene
   public :: scene
@@ -218,45 +215,44 @@ module scenes
        integer, intent(in) :: flavor
        integer, intent(out), optional :: id
      end subroutine add_representation
-     module function scene_add_transient_representation(s,itype,flavor) result(id)
+     module subroutine scene_reap_transient_representations(s)
        class(scene), intent(inout), target :: s
-       integer, intent(in) :: itype
-       integer, intent(in) :: flavor
-       integer :: id
-     end function scene_add_transient_representation
-     module subroutine scene_clear_transient_representations(s)
+     end subroutine scene_reap_transient_representations
+     module subroutine scene_show_transient_axes(s,owner,tag,xcom,rot,axlen)
        class(scene), intent(inout), target :: s
-     end subroutine scene_clear_transient_representations
-     module subroutine scene_show_transient_axes(s,tag,xcom,rot,axlen)
-       class(scene), intent(inout), target :: s
+       integer, intent(in) :: owner
        integer, intent(in) :: tag
        real*8, intent(in) :: xcom(3)
        real*8, intent(in) :: rot(3,3)
        real*8, intent(in) :: axlen
      end subroutine scene_show_transient_axes
-     module subroutine scene_show_transient_rotaxis(s,tag,xcom,rotdir,rotlen)
+     module subroutine scene_show_transient_rotaxis(s,owner,tag,xcom,rotdir,rotlen)
        class(scene), intent(inout), target :: s
+       integer, intent(in) :: owner
        integer, intent(in) :: tag
        real*8, intent(in) :: xcom(3)
        real*8, intent(in) :: rotdir(3)
        real*8, intent(in) :: rotlen
      end subroutine scene_show_transient_rotaxis
-     module subroutine scene_add_transient_text(s,str,rgb,winpos,scale)
+     module subroutine scene_show_transient_text(s,owner,tag,str,rgb,winpos,scale)
        class(scene), intent(inout), target :: s
+       integer, intent(in) :: owner
+       integer, intent(in) :: tag
        character(len=*), intent(in) :: str
        real(c_float), intent(in) :: rgb(3)
        real*8, intent(in) :: winpos(2)
        real*8, intent(in) :: scale
-     end subroutine scene_add_transient_text
-     module subroutine scene_show_symelems(s,tag,n,kind,xorig,dir,order)
+     end subroutine scene_show_transient_text
+     module subroutine scene_show_transient_symelems(s,owner,tag,n,kind,xorig,dir,order)
        class(scene), intent(inout), target :: s
+       integer, intent(in) :: owner
        integer, intent(in) :: tag
        integer, intent(in) :: n
        integer, intent(in) :: kind(n)
        real*8, intent(in) :: xorig(3,n)
        real*8, intent(in) :: dir(3,n)
        integer, intent(in) :: order(n)
-     end subroutine scene_show_symelems
+     end subroutine scene_show_transient_symelems
   end interface
 
 end module scenes

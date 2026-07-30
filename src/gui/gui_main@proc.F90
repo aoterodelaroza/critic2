@@ -335,9 +335,8 @@ contains
        strc = "A" // c_null_char
        call igCalcTextSize(fontsize,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
 
-       ! set the transient flags to false
+       ! set the transient highlight flags to false
        sysc(1:nsys)%highlight_transient_set = .false.
-       sysc(1:nsys)%sc%reptrans_set = .false.
 
        ! show main menu
        call show_main_menu()
@@ -364,6 +363,13 @@ contains
        ! process the window stack
        do i = 1, nwin
           call win(i)%draw()
+       end do
+
+       ! Reap the transient representations that were not re-armed
+       ! during the window draws above
+       do i = 1, nsys
+          if (sysc(i)%sc%nreptrans > 0) &
+             call sysc(i)%sc%reap_transient_representations()
        end do
 
        ! first pass: use the dock builder routines to place the windows
@@ -437,12 +443,10 @@ contains
           force_run_commands = 0
        end if
 
-       ! if the transient flag is false, clear the transient highlight and representations
+       ! if the transient flag is false, clear the transient highlight
        do i = 1, nsys
           if (.not.sysc(i)%highlight_transient_set) &
              call sysc(i)%highlight_clear(.true.)
-          if (sysc(i)%sc%isinit /= 0 .and. .not.sysc(i)%sc%reptrans_set) &
-             call sysc(i)%sc%clear_transient_representations()
        end do
 
        firstpass = .false.

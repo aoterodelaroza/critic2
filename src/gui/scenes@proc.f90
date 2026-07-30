@@ -193,8 +193,6 @@ contains
     ! transient representations (none on init)
     if (allocated(s%reptrans)) deallocate(s%reptrans)
     s%nreptrans = 0
-    s%reptrans_set = .false.
-    s%reptrans_tag = -1
 
     ! atoms
     if (sys(isys)%c%ncel <= crsmall) then
@@ -263,8 +261,6 @@ contains
     if (allocated(s%iord)) deallocate(s%iord)
     if (allocated(s%reptrans)) deallocate(s%reptrans)
     s%nreptrans = 0
-    s%reptrans_set = .false.
-    s%reptrans_tag = -1
     s%nrep = 0
     s%iqpt_selected = 0
     s%ifreq_selected = 0
@@ -468,8 +464,9 @@ contains
        end if
     end do
 
-    ! transient representations: built last so they do not perturb the camera or scene size
+    ! Transient representations: built last so they do not perturb the camera or scene size.
     do i = 1, s%nreptrans
+       if (.not.s%reptrans(i)%isinit) cycle
        call s%reptrans(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
     end do
 
@@ -2003,122 +2000,83 @@ contains
 
   end subroutine add_representation
 
-  !> Add a transient representation (type itype, flavor) to the scene and
-  !> return its id so the caller can configure it. Transient
-  !> representations live in a separate list from the user representations:
-  !> they are drawn in the scene but never appear in the object menu and
-  !> are not user-controllable. They are cleared automatically each frame
-  !> unless re-armed (see scene_clear_transient_representations and the
-  !> per-frame logic in the main loop). A throwaway name counter is used so
-  !> the scene's user-representation counters are untouched.
-  module function scene_add_transient_representation(s,itype,flavor) result(id)
-    use representations, only: repflavor_NUM
-    use systems, only: sysc, lastchange_render
-    class(scene), intent(inout), target :: s
-    integer, intent(in) :: itype
-    integer, intent(in) :: flavor
-    integer :: id
-
-    type(representation), allocatable :: aux(:)
-    integer :: dummycount(0:repflavor_NUM)
-
-    ! grow the transient list
-    s%nreptrans = s%nreptrans + 1
-    if (.not.allocated(s%reptrans)) allocate(s%reptrans(4))
-    if (s%nreptrans > size(s%reptrans,1)) then
-       allocate(aux(2*s%nreptrans))
-       aux(1:size(s%reptrans,1)) = s%reptrans
-       call move_alloc(aux,s%reptrans)
-    end if
-    id = s%nreptrans
-
-    ! initialize the representation (throwaway counter, not s%icount). Transient
-    ! reps are single-element and never run update(), so their symelem_style stays
-    ! uninitialized and the single-element draw path is used.
-    dummycount = 0
-    call s%reptrans(id)%init(s%id,id,itype,flavor,dummycount)
-
-    ! trigger a rebuild + re-render and keep the transient set alive this frame
-    s%forcebuildlists = .true.
-    s%reptrans_set = .true.
-    if (s%id > 0) call sysc(s%id)%post_event(lastchange_render)
-
-  end function scene_add_transient_representation
-
-  !> Clear all transient representations from the scene. Triggers a rebuild
-  !> of the draw lists (and a re-render) only when there was something to
-  !> remove, so it is cheap to call every frame.
-  module subroutine scene_clear_transient_representations(s)
-    use systems, only: sysc, lastchange_render
+  !> Reap the transient representations: end the items that were not
+  !> re-armed by their producer and disarm the survivors for the next
+  !> frame.
+  module subroutine scene_reap_transient_representations(s)
     class(scene), intent(inout), target :: s
 
     integer :: i
+    logical :: died
 
-    if (s%nreptrans <= 0) return
+    died = .false.
     do i = 1, s%nreptrans
-       call s%reptrans(i)%end()
+       if (.not.s%reptrans(i)%isinit) cycle
+       if (s%reptrans(i)%armed) then
+          ! disarm; the producer must re-arm next frame to keep the item
+          s%reptrans(i)%armed = .false.
+       else
+          ! not re-armed this frame: reap (leaves a hole)
+          call s%reptrans(i)%end()
+          died = .true.
+       end if
     end do
-    s%nreptrans = 0
-    s%reptrans_tag = -1
-    s%forcebuildlists = .true.
-    if (s%id > 0) call sysc(s%id)%post_event(lastchange_render)
 
-  end subroutine scene_clear_transient_representations
+    ! trim the trailing holes
+    do while (s%nreptrans > 0)
+       if (s%reptrans(s%nreptrans)%isinit) exit
+       s%nreptrans = s%nreptrans - 1
+    end do
+
+    if (died) call transient_dirty(s)
+
+  end subroutine scene_reap_transient_representations
 
   !> Show a transient set of standard-orientation axes at the Cartesian
   !> (bohr) point xcom, oriented by the rotation matrix rot (columns are
-  !> the axis directions), with each axis of length axlen. tag identifies
-  !> the content (e.g. the molecule index) so that re-hovering the same
-  !> item just keeps the axes alive without rebuilding the draw lists.
-  module subroutine scene_show_transient_axes(s,tag,xcom,rot,axlen)
+  !> the axis directions), with each axis of length axlen. The axes are
+  !> identified by (owner,tag); tag identifies the content (e.g. the
+  !> molecule index) so that re-hovering the same item just keeps the axes
+  !> alive without rebuilding the draw lists.
+  module subroutine scene_show_transient_axes(s,owner,tag,xcom,rot,axlen)
     use representations, only: reptype_axes, repflavor_axes
     class(scene), intent(inout), target :: s
+    integer, intent(in) :: owner
     integer, intent(in) :: tag
     real*8, intent(in) :: xcom(3)
     real*8, intent(in) :: rot(3,3)
     real*8, intent(in) :: axlen
 
     integer :: id
+    logical :: found
 
-    ! already shown for this tag (same molecule): keep the axis geometry but
-    ! refresh its transform, so the axes track the molecule as it is dragged
-    ! (rotated/translated)
-    if (s%reptrans_tag == tag .and. s%nreptrans > 0) then
-       do id = 1, s%nreptrans
-          if (s%reptrans(id)%type == reptype_axes) then
-             s%reptrans(id)%axes%origin = xcom
-             s%reptrans(id)%axes%rot = rot
-             s%reptrans(id)%axes%scale = axlen / max(s%reptrans(id)%axes%length,1d-10)
-          end if
-       end do
-       s%reptrans_set = .true.
-       return
+    id = transient_slot(s,owner,tag,reptype_axes,repflavor_axes,found)
+    if (id <= 0) return
+
+    ! static configuration, stamped when the item is (re)created
+    if (.not.found) then
+       s%reptrans(id)%axes%placement = 0 ! drawn in world space (not window-anchored)
+       s%reptrans(id)%axes%coordtype = 2 ! origin in cartesian (bohr)
+       s%reptrans(id)%axes%kind = 0 ! cartesian base directions, reoriented by axes_rot
+       s%reptrans(id)%axes%showlabels = .false.
+       s%reptrans(id)%axes%scale_auto = .false.
     end if
 
-    ! (re)build the transient axes
-    call s%clear_transient_representations()
-    id = s%add_transient_representation(reptype_axes,repflavor_axes)
-    if (id <= 0) return
-    if (.not.s%reptrans(id)%isinit) return
-
-    s%reptrans(id)%axes%placement = 0 ! drawn in world space (not window-anchored)
-    s%reptrans(id)%axes%coordtype = 2 ! origin in cartesian (bohr)
+    ! the transform is refreshed on every call so the axes track the molecule
+    ! as it is dragged (rotated/translated); no list rebuild needed for that
     s%reptrans(id)%axes%origin = xcom
-    s%reptrans(id)%axes%kind = 0 ! cartesian base directions, reoriented by axes_rot
     s%reptrans(id)%axes%rot = rot ! orient along the molecule's principal axes
-    s%reptrans(id)%axes%showlabels = .false.
     s%reptrans(id)%axes%scale = axlen / max(s%reptrans(id)%axes%length,1d-10)
-    s%reptrans(id)%axes%scale_auto = .false.
-    s%reptrans_tag = tag
 
   end subroutine scene_show_transient_axes
 
-  !> Show a (transient) black cylinder marking the rotation axis
-  !> rotdir (cartesian unit vector, bohr) through the center of mass
-  !> xcom, with half-length rotlen.
-  module subroutine scene_show_transient_rotaxis(s,tag,xcom,rotdir,rotlen)
+  !> Show a transient black cylinder marking the rotation axis rotdir
+  !> (cartesian unit vector, bohr) through the center of mass xcom, with
+  !> half-length rotlen. The cylinder is identified by (owner,tag).
+  module subroutine scene_show_transient_rotaxis(s,owner,tag,xcom,rotdir,rotlen)
     use representations, only: reptype_rotaxis, repflavor_rotaxis
     class(scene), intent(inout), target :: s
+    integer, intent(in) :: owner
     integer, intent(in) :: tag
     real*8, intent(in) :: xcom(3)
     real*8, intent(in) :: rotdir(3)
@@ -2126,52 +2084,46 @@ contains
 
     integer :: id
 
-    ! already shown for this tag: keep the geometry but refresh the transforms,
-    ! so both gizmos track the molecule as it is dragged (rotated)
-    if (s%reptrans_tag == tag .and. s%nreptrans > 0) then
-       do id = 1, s%nreptrans
-          if (s%reptrans(id)%type == reptype_rotaxis) then
-             s%reptrans(id)%rotaxis%origin = xcom
-             s%reptrans(id)%rotaxis%dir = rotdir
-             s%reptrans(id)%rotaxis%length = rotlen
-          end if
-       end do
-       s%reptrans_set = .true.
-       return
-    end if
+    id = transient_slot(s,owner,tag,reptype_rotaxis,repflavor_rotaxis)
+    if (id <= 0) return
 
-    ! rebuild: the rotation-axis cylinder (black, through the COM)
-    id = s%add_transient_representation(reptype_rotaxis,repflavor_rotaxis)
-    if (id > 0) then
-       if (s%reptrans(id)%isinit) then
-          s%reptrans(id)%rotaxis%origin = xcom
-          s%reptrans(id)%rotaxis%dir = rotdir
-          s%reptrans(id)%rotaxis%length = rotlen
-       end if
-    end if
-    s%reptrans_tag = tag
+    s%reptrans(id)%rotaxis%origin = xcom
+    s%reptrans(id)%rotaxis%dir = rotdir
+    s%reptrans(id)%rotaxis%length = rotlen
 
   end subroutine scene_show_transient_rotaxis
 
-  !> Add a transient screen-anchored text label at viewport-fraction
-  !> position winpos with color rgb and size scale. Unlike the show_*
-  !> routines above, this one does not clear the transient set, so several
-  !> labels can be added in the same frame; the caller is responsible for
-  !> clearing (clear_transient_representations) before the first one.
-  module subroutine scene_add_transient_text(s,str,rgb,winpos,scale)
+  !> Show a transient screen-anchored text label at viewport-fraction
+  !> position winpos with color rgb and size scale. The label is identified
+  !> by (owner,tag), so a producer can show several labels at once by using
+  !> different tags.
+  module subroutine scene_show_transient_text(s,owner,tag,str,rgb,winpos,scale)
     use representations, only: reptype_text, repflavor_text, textpos_screen
     class(scene), intent(inout), target :: s
+    integer, intent(in) :: owner
+    integer, intent(in) :: tag
     character(len=*), intent(in) :: str
     real(c_float), intent(in) :: rgb(3)
     real*8, intent(in) :: winpos(2)
     real*8, intent(in) :: scale
 
     integer :: id
+    logical :: found, changed
 
-    id = s%add_transient_representation(reptype_text,repflavor_text)
+    id = transient_slot(s,owner,tag,reptype_text,repflavor_text,found)
     if (id <= 0) return
-    if (.not.s%reptrans(id)%isinit) return
+
     associate (t => s%reptrans(id)%text%t(1))
+      if (found) then
+         ! reused item: skip the stamping if the content is unchanged;
+         ! otherwise force a list rebuild, because the text vertices are
+         ! built in build_lists (a fresh item already triggered one)
+         changed = .not.allocated(t%str)
+         if (.not.changed) changed = (t%str /= str) .or. any(t%rgb /= rgb) .or.&
+            any(t%winpos /= winpos) .or. (t%scale /= scale)
+         if (.not.changed) return
+         call transient_dirty(s)
+      end if
       t%placement = textpos_screen
       t%winpos = winpos
       t%scale = scale
@@ -2181,22 +2133,18 @@ contains
       t%rgb = rgb
     end associate
 
-  end subroutine scene_add_transient_text
+  end subroutine scene_show_transient_text
 
   !> Show a set of n symmetry elements as transient
   !> representations. Each element k is a plane
-  !> (kind(k)=symop_kind_plane, dir = plane normal) or an axis
-  !> (kind(k)=symop_kind_axis, dir = axis direction); xorig and dir
-  !> are in cartesian (bohr) and the elements are sized to span the
-  !> displayed system. tag identifies the requested set for dedup:
-  !> when it matches the set already shown, the element geometry is
-  !> refreshed in place (no list rebuild), otherwise the transient
-  !> list is rebuilt from scratch. Like the other transient
-  !> representations, this must be called every frame to keep the
-  !> elements alive.
-  module subroutine scene_show_symelems(s,tag,n,kind,xorig,dir,order)
+  !> (kind=symop_kind_plane, dir = plane normal) or an axis
+  !> (kind=symop_kind_axis, dir = axis direction); xorig and dir are
+  !> in cartesian (bohr) and the elements are sized to span the
+  !> displayed system.
+  module subroutine scene_show_transient_symelems(s,owner,tag,n,kind,xorig,dir,order)
     use representations, only: reptype_symelem, repflavor_symelem
     class(scene), intent(inout), target :: s
+    integer, intent(in) :: owner
     integer, intent(in) :: tag
     integer, intent(in) :: n
     integer, intent(in) :: kind(n)
@@ -2204,42 +2152,182 @@ contains
     real*8, intent(in) :: dir(3,n)
     integer, intent(in) :: order(n)
 
-    integer :: k, id
+    integer :: i, k, id, nfound, idlist(n)
+    logical :: ok
 
-    ! nothing to show: let the main loop auto-clear the transients
+    ! nothing to show
     if (n <= 0) return
 
-    ! same set already shown: refresh the element geometry, keep it alive
-    if (s%reptrans_tag == tag .and. s%nreptrans == n) then
-       do id = 1, n
-          if (s%reptrans(id)%type /= reptype_symelem) cycle
-          s%reptrans(id)%symelem%kind = kind(id)
-          s%reptrans(id)%symelem%origin_transient = xorig(:,id)
-          s%reptrans(id)%symelem%dir = dir(:,id)
-          s%reptrans(id)%symelem%size = s%scenerad
-          s%reptrans(id)%symelem%cen = real(s%scenecenter,8)
-          s%reptrans(id)%symelem%order = order(id)
+    ! gather this owner's live symmetry elements, in ascending order
+    nfound = 0
+    ok = .true.
+    do i = 1, s%nreptrans
+       if (.not.s%reptrans(i)%isinit) cycle
+       if (s%reptrans(i)%owner /= owner .or. s%reptrans(i)%type /= reptype_symelem) cycle
+       nfound = nfound + 1
+       if (nfound > n) exit
+       idlist(nfound) = i
+       ok = ok .and. (s%reptrans(i)%itag == tag)
+    end do
+
+    ! different set
+    if (.not.ok .or. nfound /= n) then
+       call clear_transient_owner(s,owner,reptype_symelem)
+       do k = 1, n
+          idlist(k) = transient_claim(s,owner,tag,reptype_symelem,repflavor_symelem)
        end do
-       s%reptrans_set = .true.
-       return
     end if
 
-    ! (re)build the transient symmetry elements
-    call s%clear_transient_representations()
+    ! stamp the element geometry (refreshed positionally on every call, so
+    ! the set tracks the scene) and arm it
     do k = 1, n
-       id = s%add_transient_representation(reptype_symelem,repflavor_symelem)
+       id = idlist(k)
        if (id <= 0) cycle
-       if (.not.s%reptrans(id)%isinit) cycle
        s%reptrans(id)%symelem%kind = kind(k)
        s%reptrans(id)%symelem%origin_transient = xorig(:,k)
        s%reptrans(id)%symelem%dir = dir(:,k)
        s%reptrans(id)%symelem%size = s%scenerad
        s%reptrans(id)%symelem%cen = real(s%scenecenter,8)
        s%reptrans(id)%symelem%order = order(k)
+       s%reptrans(id)%armed = .true.
     end do
-    s%reptrans_tag = tag
 
-  end subroutine scene_show_symelems
+  end subroutine scene_show_transient_symelems
+
+  !xx! private procedures: transient representations
+
+  !> Mark the scene as dirty after a transient-representation change:
+  !> force a rebuild of the draw lists and post a re-render event.
+  subroutine transient_dirty(s)
+    use systems, only: sysc, lastchange_render
+    class(scene), intent(inout) :: s
+
+    s%forcebuildlists = .true.
+    if (s%id > 0) call sysc(s%id)%post_event(lastchange_render)
+
+  end subroutine transient_dirty
+
+  !> Claim a transient representation slot for item (owner,itag) with
+  !> representation type itype and the given flavor: reuse the first free
+  !> slot or grow the list, initialize the representation, stamp the
+  !> identity, arm it, and trigger a rebuild + re-render. Returns the slot
+  !> id of a valid, initialized representation, or 0 if the representation
+  !> could not be initialized. A throwaway name counter is used so the
+  !> scene's user-representation counters are untouched.
+  function transient_claim(s,owner,itag,itype,flavor) result(id)
+    use representations, only: repflavor_NUM
+    class(scene), intent(inout) :: s
+    integer, intent(in) :: owner
+    integer, intent(in) :: itag
+    integer, intent(in) :: itype
+    integer, intent(in) :: flavor
+    integer :: id
+
+    type(representation), allocatable :: aux(:)
+    integer :: i, dummycount(0:repflavor_NUM)
+
+    ! reuse the first free slot (a hole left by the reaper), or grow the list
+    id = 0
+    do i = 1, s%nreptrans
+       if (.not.s%reptrans(i)%isinit) then
+          id = i
+          exit
+       end if
+    end do
+    if (id == 0) then
+       s%nreptrans = s%nreptrans + 1
+       if (.not.allocated(s%reptrans)) allocate(s%reptrans(4))
+       if (s%nreptrans > size(s%reptrans,1)) then
+          allocate(aux(2*s%nreptrans))
+          aux(1:size(s%reptrans,1)) = s%reptrans
+          call move_alloc(aux,s%reptrans)
+       end if
+       id = s%nreptrans
+    end if
+
+    ! initialize the representation; on failure, leave the slot as a hole
+    dummycount = 0
+    call s%reptrans(id)%init(s%id,id,itype,flavor,dummycount)
+    if (.not.s%reptrans(id)%isinit) then
+       id = 0
+       return
+    end if
+
+    ! stamp the transient identity, arm, and trigger a rebuild + re-render
+    s%reptrans(id)%owner = owner
+    s%reptrans(id)%itag = itag
+    s%reptrans(id)%armed = .true.
+    call transient_dirty(s)
+
+  end function transient_claim
+
+  !> Find the transient representation identified by (owner,itag) with
+  !> representation type itype and arm it (found=.true.). Otherwise,
+  !> retag an unarmed item of the same owner and type if there is one,
+  !> or claim a fresh slot; both count as found=.false. Returns the
+  !> slot id of a valid, initialized representation, or 0 if a fresh
+  !> slot could not be initialized.
+  function transient_slot(s,owner,itag,itype,flavor,found) result(id)
+    class(scene), intent(inout) :: s
+    integer, intent(in) :: owner
+    integer, intent(in) :: itag
+    integer, intent(in) :: itype
+    integer, intent(in) :: flavor
+    logical, intent(out), optional :: found
+    integer :: id
+
+    integer :: i, ifree
+
+    ! single pass: arm and return the item if it exists; otherwise remember
+    ! the first retag candidate (an unarmed item of the same owner and type)
+    if (present(found)) found = .false.
+    ifree = 0
+    do i = 1, s%nreptrans
+       if (.not.s%reptrans(i)%isinit) cycle
+       if (s%reptrans(i)%owner /= owner .or. s%reptrans(i)%type /= itype) cycle
+       if (s%reptrans(i)%itag == itag) then
+          s%reptrans(i)%armed = .true.
+          if (present(found)) found = .true.
+          id = i
+          return
+       end if
+       if (ifree == 0 .and. .not.s%reptrans(i)%armed) ifree = i
+    end do
+
+    if (ifree > 0) then
+       ! retag the candidate
+       s%reptrans(ifree)%itag = itag
+       s%reptrans(ifree)%armed = .true.
+       call transient_dirty(s)
+       id = ifree
+    else
+       ! claim a fresh slot
+       id = transient_claim(s,owner,itag,itype,flavor)
+    end if
+
+  end function transient_slot
+
+  !> End all live transient representations of this owner with
+  !> representation type itype (leaving holes in the list). Triggers a
+  !> rebuild + re-render if any were removed.
+  subroutine clear_transient_owner(s,owner,itype)
+    class(scene), intent(inout) :: s
+    integer, intent(in) :: owner
+    integer, intent(in) :: itype
+
+    integer :: i
+    logical :: died
+
+    died = .false.
+    do i = 1, s%nreptrans
+       if (.not.s%reptrans(i)%isinit) cycle
+       if (s%reptrans(i)%owner /= owner .or. s%reptrans(i)%type /= itype) cycle
+       call s%reptrans(i)%end()
+       died = .true.
+    end do
+    if (died) call transient_dirty(s)
+
+  end subroutine clear_transient_owner
 
   !xx! private procedures: low-level draws
 

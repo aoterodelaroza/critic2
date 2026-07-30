@@ -355,14 +355,13 @@ contains
       else
          str = string(eb,'f',decimal=2)
       end if
-      call sysc(is)%sc%clear_transient_representations()
-      call sysc(is)%sc%add_transient_text(str,rgb,(/0.5d0,0.90d0/),1.5d0)
+      call sysc(is)%sc%show_transient_text(w%id,1,str,rgb,(/0.5d0,0.90d0/),1.5d0)
 
       ! timed mode: the clock at the bottom, in red once the time is up
       if (w%wc_mode == 1) then
          rgbc = rgb_clock
          if (w%wc_timeup) rgbc = rgb_timeup
-         call sysc(is)%sc%add_transient_text(string(wc_clock(),'f',decimal=1),rgbc,&
+         call sysc(is)%sc%show_transient_text(w%id,2,string(wc_clock(),'f',decimal=1),rgbc,&
             (/0.5d0,0.06d0/),1d0)
       end if
 
