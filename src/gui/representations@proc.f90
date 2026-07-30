@@ -128,6 +128,25 @@ contains
 
   end subroutine representation_init
 
+  !> Allocate a symmetry-element style with room for nop operations.
+  module subroutine symelem_style_alloc(d,nop)
+    use interfaces_glfw, only: glfwGetTime
+    class(symelem_style), intent(inout) :: d
+    integer, intent(in) :: nop
+
+    call d%end()
+    d%timelastreset = glfwGetTime()
+    d%nop = nop
+    allocate(d%shown(nop),d%kind(nop),d%dir(3,nop),d%order(nop),d%label(nop))
+    d%shown = .true.
+    d%kind = 0
+    d%dir = 0d0
+    d%order = 0
+    d%label = ""
+    d%isinit = .true.
+
+  end subroutine symelem_style_alloc
+
   !> Reset a symmetry-element style.
   module subroutine symelem_style_reset(d,r)
     use interfaces_glfw, only: glfwGetTime
@@ -398,7 +417,6 @@ contains
 
     ! symmetry elements
     if (itype == 0 .or. itype == 9) then
-       r%symelem%origin_transient = 0d0
        if (sys(isys)%c%ismolecule) then
           r%symelem%coordtype = 2 ! cartesian (bohr)
           if (sys(isys)%c%pg%avail) then
@@ -1392,9 +1410,8 @@ contains
        dcyl%rgbborder = 0._c_float
        call dl_append(obj%cyl,obj%ncyl,dcyl)
     elseif (r%type == reptype_symelem) then
-       !!! symmetry element(s) (plane/axis) !!!
+       !!! symmetry elements (planes/axes) !!!
        if (r%symelem%style%isinit) then
-          ! persistent set
           if (r%symelem%coordtype == 2) then
              uoriginc = r%symelem%origin ! cartesian (bohr)
           elseif (r%symelem%coordtype == 0 .and. .not.c%ismolecule) then
@@ -1409,13 +1426,6 @@ contains
              call draw_symmetry_element(r%symelem%style%kind(i1),r%symelem%style%dir(:,i1),&
                 r%symelem%style%order(i1),uoriginc,r%symelem%usecustomrgb,r%symelem%rgb)
           end do
-       else
-          ! transient single element (hover/selection preview)
-          uoriginc = r%symelem%origin_transient
-          if (c%ismolecule) uoriginc = uoriginc - c%molx0
-          if (r%symelem%kind /= 0) &
-             call draw_symmetry_element(r%symelem%kind,r%symelem%dir,r%symelem%order,&
-                uoriginc,.false.,r%symelem%rgb)
        end if
     elseif (r%type == reptype_text) then
        !!! user text annotations !!!

@@ -243,13 +243,13 @@ module scenes
        real*8, intent(in) :: winpos(2)
        real*8, intent(in) :: scale
      end subroutine scene_show_transient_text
-     module subroutine scene_show_transient_symelems(s,owner,tag,n,kind,xorig,dir,order)
+     module subroutine scene_show_transient_symelems(s,owner,tag,n,kind,origin,dir,order)
        class(scene), intent(inout), target :: s
        integer, intent(in) :: owner
        integer, intent(in) :: tag
        integer, intent(in) :: n
        integer, intent(in) :: kind(n)
-       real*8, intent(in) :: xorig(3,n)
+       real*8, intent(in) :: origin(3)
        real*8, intent(in) :: dir(3,n)
        integer, intent(in) :: order(n)
      end subroutine scene_show_transient_symelems

@@ -205,6 +205,7 @@ module representations
      integer, allocatable :: order(:) ! per-op rotation order (nop)
      character(len=mlen), allocatable :: label(:) ! per-op label: HM symbol or molecular sym string (nop)
    contains
+     procedure :: alloc => symelem_style_alloc
      procedure :: reset => symelem_style_reset
      procedure :: end => symelem_style_end
   end type symelem_style
@@ -355,25 +356,15 @@ module representations
   end type rep_rotaxis
   public :: rep_rotaxis
 
-  !> Symmetry element options (reptype_symelem; accessed as
-  !> r%symelem%...).  The transient fields describe a single
-  !> hover/preview element. The permanent fields hold the
-  !> user-editable state of a persistent symmetry-element
-  !> representation.
+  !> Symmetry element options (reptype_symelem; accessed as r%symelem%...).
   type rep_symelem
-     !! transient
-     integer :: kind = 0 ! 0=none, 1=plane (mirror), 2=axis (rotation)
-     real*8 :: origin_transient(3) = 0d0 ! transient element origin (cartesian, bohr)
-     real*8 :: dir(3) = (/0d0,0d0,1d0/) ! axis direction or plane normal, unit, cartesian (bohr)
-     real*8 :: size = 0d0 ! system bounding-sphere radius (bohr)
-     real*8 :: cen(3) = 0d0 ! system center (bohr)
-     integer :: order = 0 ! axis rotation order n (selects the axis color)
-     real(c_float) :: rgb(3) = symelem_rgb_def ! color of the symmetry element
-     !! permanent
      type(symelem_style) :: style ! operation snapshot + per-op visibility (geometry-dependent)
-     real*8 :: origin(3) = 0d0 ! editable origin the elements pass through (coords per coordtype)
+     real*8 :: origin(3) = 0d0 ! origin the elements pass through (coords per coordtype)
      integer(c_int) :: coordtype = 0 ! origin coords: 0=crystallographic, 1=cartesian (angstrom), 2=cartesian (bohr)
      logical :: usecustomrgb = .false. ! true: use rgb for all; false: per-order/default colors
+     real(c_float) :: rgb(3) = symelem_rgb_def ! color of the symmetry elements (usecustomrgb)
+     real*8 :: size = 0d0 ! system bounding-sphere radius for sizing (bohr; stamped in build_lists)
+     real*8 :: cen(3) = 0d0 ! system center for sizing (bohr; stamped in build_lists)
   end type rep_symelem
   public :: rep_symelem
 
@@ -587,6 +578,10 @@ module representations
      module subroutine coordpoly_style_end(d)
        class(coordpoly_geom_style), intent(inout) :: d
      end subroutine coordpoly_style_end
+     module subroutine symelem_style_alloc(d,nop)
+       class(symelem_style), intent(inout) :: d
+       integer, intent(in) :: nop
+     end subroutine symelem_style_alloc
      module subroutine symelem_style_reset(d,r)
        class(symelem_style), intent(inout) :: d
        type(representation), intent(in) :: r

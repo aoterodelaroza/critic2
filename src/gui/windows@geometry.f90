@@ -2522,37 +2522,43 @@ contains
 
       integer :: i, n, tag, hovadd, kind1, order1, lioptype, idobj, iview, nsel
       integer, allocatable :: skind(:), sorder(:)
-      real*8, allocatable :: sorig(:,:), sdir(:,:)
-      real*8 :: orig1(3), dir1(3), lraxx(3), lraxc(3)
+      real*8, allocatable :: sdir(:,:)
+      real*8 :: sorig(3), lraxx(3), lraxc(3)
       character(len=1) :: lhm1, lcdig
       logical :: idnew
 
       ! display the selected and hovered symmetry elements in the view
       if (sysc(isys)%sc%isinit /= 0) then
-         allocate(skind(nop),sorder(nop),sorig(3,nop),sdir(3,nop))
+         allocate(skind(nop),sorder(nop),sdir(3,nop))
+
+         ! common origin of the elements (cartesian, bohr)
+         if (sys(isys)%c%ismolecule) then
+            sorig = sys(isys)%c%pg%xcm + sys(isys)%c%molx0
+         else
+            ! crystal symmetry elements pass through the origin
+            sorig = 0d0
+         end if
+
          n = 0
          do i = 1, nop
             if (.not.(w%geometry_sym_sel(i).or.i == ihl_symop)) cycle
 
-            ! symmetry element for operation i: kind (symelem_kind_*; 0 = nothing
-            ! to draw, i.e. identity/inversion/unknown), origin and direction
-            ! (cartesian, bohr) and rotation order; molecule and crystal cases
-            kind1 = 0
+            ! symmetry element for operation i: kind (symop_kind_*; identity,
+            ! inversion, and unknown operations draw nothing and are skipped),
+            ! direction (cartesian, bohr) and rotation order; molecule and
+            ! crystal cases
             order1 = 0
-            orig1 = 0d0
-            dir1 = 0d0
             if (sys(isys)%c%ismolecule) then
                lioptype = sys(isys)%c%pg%op(i)%type
                if (lioptype == molsymop_plane) then
                   kind1 = symop_kind_plane
                elseif (lioptype == molsymop_rotation .or. lioptype == molsymop_imp_rotation) then
                   kind1 = symop_kind_axis
+               else
+                  cycle
                end if
-               if (kind1 == 0) cycle
                lraxx = sys(isys)%c%pg%op(i)%axis
                if (norm2(lraxx) > 1d-10) lraxx = lraxx / norm2(lraxx)
-               orig1 = sys(isys)%c%pg%xcm + sys(isys)%c%molx0
-               dir1 = lraxx
                order1 = sys(isys)%c%pg%op(i)%opn
             else
                lraxc = w%geometry_sym_axes(:,i)
@@ -2573,14 +2579,11 @@ contains
                end if
                lraxx = sys(isys)%c%x2c(lraxc)
                if (norm2(lraxx) > 1d-10) lraxx = lraxx / norm2(lraxx)
-               ! crystal symmetry elements pass through the origin
-               dir1 = lraxx
             end if
 
             n = n + 1
             skind(n) = kind1
-            sorig(:,n) = orig1
-            sdir(:,n) = dir1
+            sdir(:,n) = lraxx
             sorder(n) = order1
          end do
          ! unique tag: the selection generation combined with the hovered row
@@ -2591,8 +2594,8 @@ contains
             if (.not.w%geometry_sym_sel(ihl_symop)) hovadd = ihl_symop
          end if
          tag = w%geometry_sym_selgen * (nop + 2) + (hovadd + 1)
-         call sysc(isys)%sc%show_transient_symelems(w%id,tag,n,skind(1:n),sorig(:,1:n),sdir(:,1:n),sorder(1:n))
-         deallocate(skind,sorder,sorig,sdir)
+         call sysc(isys)%sc%show_transient_symelems(w%id,tag,n,skind(1:n),sorig,sdir(:,1:n),sorder(1:n))
+         deallocate(skind,sorder,sdir)
       end if
 
       ! Selection row: all/none/toggle buttons (elements use the default colors)

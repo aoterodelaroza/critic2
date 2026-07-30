@@ -467,6 +467,10 @@ contains
     ! Transient representations: built last so they do not perturb the camera or scene size.
     do i = 1, s%nreptrans
        if (.not.s%reptrans(i)%isinit) cycle
+       if (s%reptrans(i)%type == reptype_symelem) then
+          s%reptrans(i)%symelem%size = real(s%scenerad,8)
+          s%reptrans(i)%symelem%cen = real(s%scenecenter,8)
+       end if
        call s%reptrans(i)%add_draw_elements(s%nc,s%obj,s%animation>0,s%iqpt_selected,s%ifreq_selected)
     end do
 
@@ -2135,62 +2139,47 @@ contains
 
   end subroutine scene_show_transient_text
 
-  !> Show a set of n symmetry elements as transient
-  !> representations. Each element k is a plane
-  !> (kind=symop_kind_plane, dir = plane normal) or an axis
-  !> (kind=symop_kind_axis, dir = axis direction); xorig and dir are
-  !> in cartesian (bohr) and the elements are sized to span the
-  !> displayed system.
-  module subroutine scene_show_transient_symelems(s,owner,tag,n,kind,xorig,dir,order)
+  !> Show a set of n symmetry elements as a transient
+  !> representation. Each element k is a plane (kind=symop_kind_plane,
+  !> dir = plane normal) or an axis (kind=symop_kind_axis, dir = axis
+  !> direction), passing through the common point origin; origin and
+  !> dir are in cartesian (bohr) and the elements are sized to span
+  !> the displayed system.
+  module subroutine scene_show_transient_symelems(s,owner,tag,n,kind,origin,dir,order)
     use representations, only: reptype_symelem, repflavor_symelem
     class(scene), intent(inout), target :: s
     integer, intent(in) :: owner
     integer, intent(in) :: tag
     integer, intent(in) :: n
     integer, intent(in) :: kind(n)
-    real*8, intent(in) :: xorig(3,n)
+    real*8, intent(in) :: origin(3)
     real*8, intent(in) :: dir(3,n)
     integer, intent(in) :: order(n)
 
-    integer :: i, k, id, nfound, idlist(n)
-    logical :: ok
+    integer :: id
+    logical :: found
 
     ! nothing to show
     if (n <= 0) return
 
-    ! gather this owner's live symmetry elements, in ascending order
-    nfound = 0
-    ok = .true.
-    do i = 1, s%nreptrans
-       if (.not.s%reptrans(i)%isinit) cycle
-       if (s%reptrans(i)%owner /= owner .or. s%reptrans(i)%type /= reptype_symelem) cycle
-       nfound = nfound + 1
-       if (nfound > n) exit
-       idlist(nfound) = i
-       ok = ok .and. (s%reptrans(i)%itag == tag)
-    end do
+    id = transient_slot(s,owner,tag,reptype_symelem,repflavor_symelem,found)
+    if (id <= 0) return
 
-    ! different set
-    if (.not.ok .or. nfound /= n) then
-       call clear_transient_owner(s,owner,reptype_symelem)
-       do k = 1, n
-          idlist(k) = transient_claim(s,owner,tag,reptype_symelem,repflavor_symelem)
-       end do
-    end if
+    associate (se => s%reptrans(id)%symelem)
+      ! (re)build the operation list if the item is new or the count changed
+      if (.not.found .or. se%style%nop /= n) then
+         call se%style%alloc(n)
+         se%coordtype = 2 ! origin in cartesian (bohr)
+         if (found) call transient_dirty(s) ! a new/retagged item is already dirty
+      end if
 
-    ! stamp the element geometry (refreshed positionally on every call, so
-    ! the set tracks the scene) and arm it
-    do k = 1, n
-       id = idlist(k)
-       if (id <= 0) cycle
-       s%reptrans(id)%symelem%kind = kind(k)
-       s%reptrans(id)%symelem%origin_transient = xorig(:,k)
-       s%reptrans(id)%symelem%dir = dir(:,k)
-       s%reptrans(id)%symelem%size = s%scenerad
-       s%reptrans(id)%symelem%cen = real(s%scenecenter,8)
-       s%reptrans(id)%symelem%order = order(k)
-       s%reptrans(id)%armed = .true.
-    end do
+      ! the element geometry is refreshed on every call so the set tracks
+      ! the system; size and cen are stamped in build_lists
+      se%origin = origin
+      se%style%kind = kind
+      se%style%dir = dir
+      se%style%order = order
+    end associate
 
   end subroutine scene_show_transient_symelems
 
@@ -2306,28 +2295,6 @@ contains
     end if
 
   end function transient_slot
-
-  !> End all live transient representations of this owner with
-  !> representation type itype (leaving holes in the list). Triggers a
-  !> rebuild + re-render if any were removed.
-  subroutine clear_transient_owner(s,owner,itype)
-    class(scene), intent(inout) :: s
-    integer, intent(in) :: owner
-    integer, intent(in) :: itype
-
-    integer :: i
-    logical :: died
-
-    died = .false.
-    do i = 1, s%nreptrans
-       if (.not.s%reptrans(i)%isinit) cycle
-       if (s%reptrans(i)%owner /= owner .or. s%reptrans(i)%type /= itype) cycle
-       call s%reptrans(i)%end()
-       died = .true.
-    end do
-    if (died) call transient_dirty(s)
-
-  end subroutine clear_transient_owner
 
   !xx! private procedures: low-level draws
 
