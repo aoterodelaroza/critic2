@@ -1253,12 +1253,17 @@ contains
 
   !> Release a forced view mode commanded by caller window idcaller: if that
   !> caller still owns an active forced mode, return the view to navigation.
-  !> The companion to viewmode_set_forced, for cancelling a pending pick.
-  module subroutine viewmode_release_forced(w,idcaller)
+  !> The companion to viewmode_set_forced, for cancelling a pending pick. If
+  !> mode is present, release only that forced mode.
+  module subroutine viewmode_release_forced(w,idcaller,mode)
     class(window), intent(inout), target :: w
     integer, intent(in) :: idcaller
+    integer, intent(in), optional :: mode
 
     if (w%vmdata%owner == idcaller .and. w%viewmode < 0) then
+       if (present(mode)) then
+          if (w%viewmode /= mode) return
+       end if
        w%viewmode = vm_navigate
        w%viewmode_transient = .false.
     end if
@@ -1271,7 +1276,8 @@ contains
     use keybindings, only: get_bind_keyname, bindnames,&
        BIND_NUM, group_viewmode_navigation, group_viewmode_select,&
        group_viewmode_movemol, group_viewmode_moveatom, group_viewmode_mdinteract,&
-       group_viewmode_pickatom, groupbind
+       group_viewmode_pickatom, groupbind, BIND_CLOSE_FOCUSED_DIALOG,&
+       BIND_NAV_ZOOM, BIND_NAV_RESET
     use utils, only: iw_combo_simple, iw_tooltip, igIsItemHovered_delayed, iw_text
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -1280,6 +1286,7 @@ contains
     character(len=:), allocatable :: viewmode_items
     integer, allocatable :: tips(:)
     character(len=64), allocatable :: keyline(:), lblline(:)
+    logical :: builder
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -1306,6 +1313,7 @@ contains
        call iw_combo_simple("##viewmode",viewmode_items,w%viewmode)
        if (w%viewmode /= viewmode_before) w%viewmode_transient = .false.
     end if
+    builder = (w%viewmode == vm_builder_inc .or. w%viewmode == vm_builder_dec)
 
     ! delayed tooltip with info about the key/mouse bindings for this view mode
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
@@ -1324,7 +1332,7 @@ contains
              mygroup = group_viewmode_mdinteract
           case (vm_pick_atom)
              mygroup = group_viewmode_pickatom
-          case default
+          case default ! incl. the builder modes
              mygroup = 0
           end select
 
@@ -1343,6 +1351,7 @@ contains
           ! build the tooltip lines: one per bind in this mode's group
           m = n
           if (w%viewmode == vm_pick_atom) m = n + 1
+          if (builder) m = n + 5
           allocate(keyline(m),lblline(m))
           do i = 1, n
              keyline(i) = trim(get_bind_keyname(tips(i)))
@@ -1352,6 +1361,23 @@ contains
              n = n + 1
              keyline(n) = "Any Key"
              lblline(n) = "Cancel Pick Atom"
+          end if
+          if (builder) then
+             keyline(n+1) = "Left Click"
+             if (w%viewmode == vm_builder_inc) then
+                lblline(n+1) = "Add Hydrogen to Atom"
+             else
+                lblline(n+1) = "Remove Hydrogen from Atom"
+             end if
+             keyline(n+2) = "Right/Middle Click"
+             lblline(n+2) = "Exit This Mode"
+             keyline(n+3) = trim(get_bind_keyname(BIND_CLOSE_FOCUSED_DIALOG))
+             lblline(n+3) = "Exit This Mode"
+             keyline(n+4) = trim(get_bind_keyname(BIND_NAV_ZOOM))
+             lblline(n+4) = "Zoom"
+             keyline(n+5) = trim(get_bind_keyname(BIND_NAV_RESET))
+             lblline(n+5) = "Reset View"
+             n = n + 5
           end if
 
           ! align the key column
@@ -1374,7 +1400,7 @@ contains
     ! show the pick message ("pick an atom...", etc.) only while the window-forced
     ! pick mode is active, so it vanishes as soon as an atom is picked or the view
     ! mode changes (the string itself lingers allocated until the next pick)
-    if (w%viewmode == vm_pick_atom .and. allocated(w%vmdata%msg)) then
+    if ((w%viewmode == vm_pick_atom .or. builder) .and. allocated(w%vmdata%msg)) then
        call iw_text(w%vmdata%msg,highlight=.true.,sameline=.true.)
     end if
 
@@ -1465,11 +1491,20 @@ contains
        w%measure_pend = 0
     end if
 
-    ! window_forced view mode (pick atom): exits on a mouse click on the view
-    ! (any button) or any key press anywhere; if an atom is under the mouse
-    ! when clicked, save it as the pick result. Also exits if the window that
-    ! commanded the mode is gone.
-    if (w%viewmode == vm_pick_atom) then
+    ! window-forced pick modes. Pick atom: exits on a mouse click on the
+    ! view (any button) or any key press anywhere; if an atom is under
+    ! the mouse when clicked, save it as the pick result. Builder modes
+    ! (increase/decrease valence): a left click on the view delivers the
+    ! atom under the mouse (if any) and the mode stays active for
+    ! successive edits; a right/middle click on the view or the
+    ! close-dialog key (Escape) exits back to navigation. All exit if
+    ! the window that commanded the mode is gone.
+    if (w%viewmode == vm_pick_atom .or. w%viewmode == vm_builder_inc .or.&
+       w%viewmode == vm_builder_dec) then
+       ! drop any drag/measurement state latched before entering the mode
+       w%selrect_active = .false.
+       w%measure_pend = 0
+
        ! check the commanding window is still active
        ok = (w%vmdata%owner >= 1 .and. w%vmdata%owner <= nwin)
        if (ok) ok = win(w%vmdata%owner)%isinit .and. win(w%vmdata%owner)%isopen
@@ -1480,17 +1515,49 @@ contains
           return
        end if
 
-       if (hover .and. any_mouse_clicked()) then
-          ! pick the atom under the mouse, if any, and exit
-          w%vmdata%idx = 0
-          if (w%mousepos_idx(1) > 0) w%vmdata%idx = w%mousepos_idx
-          w%viewmode = vm_navigate
-          w%viewmode_transient = .false.
-       elseif (.not.io%WantTextInput .and. any_key_pressed()) then
-          ! cancelled; the result stays zero
-          w%viewmode = vm_navigate
-          w%viewmode_transient = .false.
-          w%vmdata%idx = 0
+       if (w%viewmode == vm_pick_atom) then
+          if (hover .and. any_mouse_clicked()) then
+             ! pick the atom under the mouse, if any, and exit
+             w%vmdata%idx = 0
+             if (w%mousepos_idx(1) > 0) w%vmdata%idx = w%mousepos_idx
+             w%viewmode = vm_navigate
+             w%viewmode_transient = .false.
+          elseif (.not.io%WantTextInput .and. any_key_pressed()) then
+             ! cancelled; the result stays zero
+             w%viewmode = vm_navigate
+             w%viewmode_transient = .false.
+             w%vmdata%idx = 0
+          end if
+       else
+          if (hover .and. igIsMouseClicked(ImGuiMouseButton_Left,.false._c_bool)) then
+             ! deliver the atom under the mouse, if any; stay in the mode
+             w%vmdata%idx = 0
+             if (w%mousepos_idx(1) > 0) w%vmdata%idx = w%mousepos_idx
+          elseif ((hover .and. (igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool) .or.&
+             igIsMouseClicked(ImGuiMouseButton_Middle,.false._c_bool))) .or.&
+             ((hover .or. win(w%vmdata%owner)%focused()) .and.&
+             is_bind_event(BIND_CLOSE_FOCUSED_DIALOG))) then
+             ! exit the mode; the owner window sees viewmode >= 0 and stands
+             ! down. The exit key only counts with the view hovered or the
+             ! owner focused, so an Escape aimed at closing another window
+             ! does not also kill the mode.
+             w%vmdata%idx = 0
+             w%viewmode = vm_navigate
+             w%viewmode_transient = .false.
+          elseif (w%view_selected >= 1 .and. w%view_selected <= nsys) then
+             ! camera zoom and view reset stay available during the
+             ! persistent mode (their binds do not clash with the pick and
+             ! exit gestures)
+             if (associated(w%sc)) then
+                if (w%sc%isinit >= 2) then
+                   call cam_zoom(BIND_NAV_ZOOM)
+                   if (hover .and. is_bind_event(BIND_NAV_RESET,.false.)) then
+                      call w%sc%reset()
+                      w%forcerender = .true.
+                   end if
+                end if
+             end if
+          end if
        end if
        return
     end if

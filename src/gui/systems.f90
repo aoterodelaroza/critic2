@@ -153,6 +153,7 @@ module systems
      procedure :: remove_bond
      procedure :: set_bond_order
      procedure :: add_bond
+     procedure :: change_valence
      procedure :: reread_geometry_from_file
      procedure :: move_cell
      procedure :: transform_cell
@@ -452,6 +453,10 @@ module systems
        integer, intent(in) :: lvec(3)
        integer, intent(in) :: order
      end subroutine add_bond
+     module subroutine change_valence(sysc,icel,mode)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: icel, mode
+     end subroutine change_valence
      module subroutine reread_geometry_from_file(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine reread_geometry_from_file

@@ -38,6 +38,8 @@ module windows
   integer(c_size_t), parameter :: maxlib = 40000
 
   ! view modes (positive = normal, user-selectable; negative = forced)
+  integer, parameter, public :: vm_builder_dec = -4 ! forced by builder: decrease valence (persistent)
+  integer, parameter, public :: vm_builder_inc = -3 ! forced by builder: increase valence (persistent)
   integer, parameter, public :: vm_mdinteract = -2 ! forced during interactive dynamics
   integer, parameter, public :: vm_pick_atom = -1 ! forced by a window awaiting an atom pick
   integer, parameter, public :: vm_navigate  = 0
@@ -46,13 +48,15 @@ module windows
   integer, parameter, public :: vm_moveatom  = 3
   integer, parameter, public :: vm_NUM = 3 ! highest user-selectable mode (combo)
 
-  character(len=14), parameter, public :: vmnames(vm_mdinteract:vm_NUM) = (/&
-     "Interact (MD) ",& ! vm_mdinteract
-     "Pick Atoms    ",& ! vm_pick_atom
-     "Navigate      ",& ! vm_navigate
-     "Select        ",& ! vm_select
-     "Move Molecules",& ! vm_movemol
-     "Move Atoms    "&  ! vm_moveatom
+  character(len=16), parameter, public :: vmnames(vm_builder_dec:vm_NUM) = (/&
+     "Decrease Valence",& ! vm_builder_dec
+     "Increase Valence",& ! vm_builder_inc
+     "Interact (MD)   ",& ! vm_mdinteract
+     "Pick Atoms      ",& ! vm_pick_atom
+     "Navigate        ",& ! vm_navigate
+     "Select          ",& ! vm_select
+     "Move Molecules  ",& ! vm_movemol
+     "Move Atoms      "&  ! vm_moveatom
      /)
 
   ! view mode data structure for window_forced modes
@@ -194,6 +198,11 @@ module windows
      integer :: geometry_addbond_iat = 0 ! cell atom waiting for an add-bond pick (0 = idle)
      integer :: geometry_addbond_iview = 0 ! view window commanded for the add-bond pick
      real*8 :: geometry_addbond_time = 0d0 ! time the add-bond pick was commanded (to detect stale ids)
+     ! builder parameters
+     integer :: builder_mode = 0 ! active builder tool (0 = idle, 1 = increase valence, 2 = decrease)
+     integer :: builder_iview = 0 ! view window commanded for the builder picks
+     integer :: builder_isys = 0 ! system commanded for the builder picks
+     real*8 :: builder_time = 0d0 ! time of the last click-free poll (stale-click guard)
      character(len=:), allocatable :: geometry_expression ! expression for column in atoms table
      logical :: geometry_expression_ok = .false. ! is the expression ok?
      character(len=:), allocatable :: geometry_expr_error ! error for expression
@@ -474,9 +483,10 @@ module windows
        character(len=*), intent(in) :: message
        integer, intent(in) :: idcaller
      end subroutine viewmode_set_forced
-     module subroutine viewmode_release_forced(w,idcaller)
+     module subroutine viewmode_release_forced(w,idcaller,mode)
        class(window), intent(inout), target :: w
        integer, intent(in) :: idcaller
+       integer, intent(in), optional :: mode
      end subroutine viewmode_release_forced
      module subroutine viewmode_bar_display(w)
        class(window), intent(inout), target :: w

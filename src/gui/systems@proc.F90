@@ -2207,6 +2207,214 @@ contains
 
   end subroutine add_bond
 
+  ! Increase (mode = 1) or decrease (mode = 2) the valence of cell
+  ! atom icel. Changes the number of hydrogens bonded to icel. In both
+  ! cases the mobile substituents of icel (those whose only bonded
+  ! neighbor is icel) are repositioned, keeping their bond distances,
+  ! so their bond directions are maximally separated from each other
+  ! and from the remaining (fixed) substituents. Posts a geometry
+  ! change event.
+  module subroutine change_valence(sysc,icel,mode)
+    use global, only: iunit_bohr
+    use tools_math, only: cross
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: icel, mode
+
+    integer :: isys, i, j, n, nb, nvalid, nfix, nmob, nmv, z0, ish, ihdel
+    real*8 :: r0(3), rj(3), tv(3), dj, uj(3), u1(3), usum(3), uh(3), v(3), dh, vnorm(3)
+    real*8, allocatable :: ufix(:,:), umob(:,:), dmob(:), tvmob(:,:), uall(:,:)
+    integer, allocatable :: nbmob(:)
+    character(len=:), allocatable :: errmsg
+    logical :: coplanar
+
+    real*8, parameter :: eps_degen = 1d-10 ! coincident-atom threshold (bohr)
+    real*8, parameter :: eps_sum = 1d-6 ! degenerate anti-sum threshold
+    real*8, parameter :: eps_coplanar = 0.1d0 ! coplanarity threshold (~6 degrees)
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (icel < 1 .or. icel > sys(isys)%c%ncel) return
+
+    ! position and atomic number of the clicked atom
+    r0 = sys(isys)%c%atcel(icel)%r
+    z0 = sys(isys)%c%spc(sys(isys)%c%atcel(icel)%is)%z
+
+    ! classify the substituents of icel as mobile (their only bonded
+    ! neighbor is icel) or fixed; all geometry is read before any edit
+    ! because every edit rebuilds the structure. In decrease mode, the
+    ! first terminal hydrogen found is earmarked for removal instead.
+    n = 0
+    if (allocated(sys(isys)%c%nstar)) n = sys(isys)%c%nstar(icel)%ncon
+    allocate(ufix(3,max(n,1)),umob(3,n+1),dmob(n+1),tvmob(3,n+1),nbmob(n+1))
+    allocate(uall(3,max(n,1)))
+    nvalid = 0
+    nfix = 0
+    nmob = 0
+    ihdel = 0
+    usum = 0d0
+    u1 = 0d0
+    do j = 1, n
+       nb = sys(isys)%c%nstar(icel)%idcon(j)
+       tv = sys(isys)%c%x2c(dble(sys(isys)%c%nstar(icel)%lcon(:,j)))
+       rj = sys(isys)%c%atcel(nb)%r + tv
+       dj = norm2(rj - r0)
+       if (dj < eps_degen) cycle
+       uj = (rj - r0) / dj
+       nvalid = nvalid + 1
+       if (nvalid == 1) u1 = uj
+       uall(:,nvalid) = uj
+       if (sys(isys)%c%nstar(nb)%ncon == 1) then
+          if (mode == 2 .and. ihdel == 0 .and. sys(isys)%c%spc(sys(isys)%c%atcel(nb)%is)%z == 1) then
+             ! the hydrogen to be removed does not enter the direction sets
+             ihdel = nb
+             cycle
+          end if
+          nmob = nmob + 1
+          umob(:,nmob) = uj
+          dmob(nmob) = dj
+          tvmob(:,nmob) = tv
+          nbmob(nmob) = nb
+       else
+          nfix = nfix + 1
+          ufix(:,nfix) = uj
+       end if
+       usum = usum + uj
+    end do
+
+    if (mode == 1) then
+       ! detect a coplanar substituent set
+       vnorm = 0d0
+       do i = 1, nvalid-1
+          do j = i+1, nvalid
+             v = cross(uall(:,i),uall(:,j))
+             if (norm2(v) > norm2(vnorm)) vnorm = v
+          end do
+       end do
+       coplanar = .false.
+       if (norm2(vnorm) > eps_sum) then
+          vnorm = vnorm / norm2(vnorm)
+          coplanar = all(abs(matmul(vnorm,uall(:,1:nvalid))) < eps_coplanar)
+       end if
+
+       ! initial guess for the new hydrogen direction
+       if (nvalid == 0) then
+          ! no valid substituents, in the z direction
+          uh = (/0d0,0d0,1d0/)
+       elseif (coplanar) then
+          if (norm2(usum) < eps_sum) then
+             ! coplanar with zero average direction: along the normal
+             uh = vnorm
+          else
+             ! coplanar: along the normal minus the average direction
+             uh = -usum / norm2(usum) + vnorm
+             uh = uh / norm2(uh)
+          end if
+       elseif (norm2(usum) < eps_sum) then
+          ! zero average direction: along an arbitrary direction
+          v = (/1d0,0d0,0d0/)
+          if (abs(u1(1)) > 0.9d0) v = (/0d0,1d0,0d0/)
+          uh = cross(u1,v)
+          uh = uh / norm2(uh)
+       else
+          ! along the average direction
+          uh = -usum / norm2(usum)
+       end if
+
+       ! relax the mobile directions plus the new hydrogen
+       nmv = nmob + 1
+       umob(:,nmv) = uh
+       if (nvalid > 0) call spread_directions(nfix,ufix,nmv,umob)
+
+       ! move the mobile substituents in place first, then add the hydrogen
+       call apply_moves()
+       ish = sys(isys)%c%identify_spc("H")
+       if (ish == 0) ish = -1 ! no H species: have add_atom create one (Z = 1)
+       dh = sysc%atmcov(z0) + sysc%atmcov(1)
+       call sys(isys)%c%add_atom(ish,r0 + dh * umob(:,nmv),iunit_bohr,.false.)
+    else
+       ! no terminal hydrogen bonded to this atom: nothing to do
+       if (ihdel == 0) return
+
+       ! relax the remaining mobile directions
+       if (nmob > 0) call spread_directions(nfix,ufix,nmob,umob)
+       call apply_moves()
+       call sys(isys)%c%edit_atom_list(1,(/ihdel/),remove=.true.,errmsg=errmsg)
+       if (has_errmsg(errmsg)) return
+    end if
+
+    ! fix cam for next build and post geometry change
+    sysc%sc%nextbuildlists_fixcam = .true.
+    call sysc%post_event(lastchange_geometry)
+
+  contains
+    ! Overwrite (in-place) the positions of the nmob mobile substituents.
+    subroutine apply_moves()
+      integer :: i
+      real*8, allocatable :: rnew(:,:)
+
+      if (nmob == 0) return
+      allocate(rnew(3,sys(isys)%c%ncel))
+      do i = 1, sys(isys)%c%ncel
+         rnew(:,i) = sys(isys)%c%atcel(i)%r
+      end do
+      do i = 1, nmob
+         rnew(:,nbmob(i)) = r0 + dmob(i) * umob(:,i) - tvmob(:,i)
+      end do
+      call sys(isys)%c%update_positions(rnew)
+    end subroutine apply_moves
+
+    ! Distribute unit vectors on the sphere so they are maximally
+    ! separated from each other: the nfix vectors in ufix are kept fixed
+    ! and the nmob vectors in umob are relaxed by
+    ! minimizing a Thomson-style 1/r pair repulsion with tangent-plane
+    ! projected gradient steps.
+    subroutine spread_directions(nfix,ufix,nmob,umob)
+      integer, intent(in) :: nfix, nmob
+      real*8, intent(in) :: ufix(3,nfix)
+      real*8, intent(inout) :: umob(3,nmob)
+
+      integer :: it, i, j
+      real*8 :: f(3,nmob), d(3), dn, gmax
+
+      integer, parameter :: maxit = 500
+      real*8, parameter :: step = 0.05d0
+      real*8, parameter :: conv = 1d-6
+      real*8, parameter :: dmin2 = 1d-16
+
+      do it = 1, maxit
+         ! forces on the mobile points from all other points, projected
+         ! onto the tangent plane of the sphere
+         gmax = 0d0
+         do i = 1, nmob
+            f(:,i) = 0d0
+            do j = 1, nfix
+               d = umob(:,i) - ufix(:,j)
+               dn = max(dot_product(d,d),dmin2)
+               f(:,i) = f(:,i) + d / (dn * sqrt(dn))
+            end do
+            do j = 1, nmob
+               if (j == i) cycle
+               d = umob(:,i) - umob(:,j)
+               dn = max(dot_product(d,d),dmin2)
+               f(:,i) = f(:,i) + d / (dn * sqrt(dn))
+            end do
+            f(:,i) = f(:,i) - dot_product(f(:,i),umob(:,i)) * umob(:,i)
+            gmax = max(gmax,norm2(f(:,i)))
+         end do
+         if (gmax < conv) exit
+
+         ! simultaneous displacement-clamped update, back onto the sphere
+         do i = 1, nmob
+            umob(:,i) = umob(:,i) + step * f(:,i) / max(1d0,norm2(f(:,i)))
+            umob(:,i) = umob(:,i) / norm2(umob(:,i))
+         end do
+      end do
+
+    end subroutine spread_directions
+
+  end subroutine change_valence
+
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
   module subroutine reread_geometry_from_file(sysc)
