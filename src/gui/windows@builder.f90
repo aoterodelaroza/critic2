@@ -28,8 +28,8 @@ contains
     use systems, only: sysc, ok_system, sys_init
     use utils, only: iw_text, iw_button, iw_tooltip
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_PICKATOM_SELECT,&
-       BIND_PICKATOM_ALT, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
-       BIND_OK_FOCUSED_DIALOG
+       BIND_PICKATOM_ALT, BIND_RECALC_BONDS, BIND_CLOSE_FOCUSED_DIALOG,&
+       BIND_CLOSE_ALL_DIALOGS, BIND_OK_FOCUSED_DIALOG
     use interfaces_glfw, only: glfwGetTime
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -107,6 +107,13 @@ contains
     call iw_tooltip("Add ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//") or remove ("//&
        trim(get_bind_keyname(BIND_PICKATOM_ALT))//") hydrogens on the clicked atoms in the"//&
        " view, repositioning the terminal substituents (click again to stop)",ttshown)
+
+    ! the bonds section
+    call iw_text("Bonds",highlight=.true.)
+    if (iw_button("Rebond",disabled=.not.havesys)) &
+       call sysc(isys)%rebond()
+    call iw_tooltip("Recompute the bond connectivity for this system ("//&
+       trim(get_bind_keyname(BIND_RECALC_BONDS))//")",ttshown)
 
     ! close button and binds
     if (iw_button("Close")) doquit = .true.
