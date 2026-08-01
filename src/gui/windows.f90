@@ -88,6 +88,7 @@ module windows
      integer(c_int) :: id ! internal ID for this window (index from win(:))
      integer :: idparent = 0 ! internal ID (from win(:)) for the caller window
      integer :: itoken = 0 ! parent token for some dialogs functions
+     integer :: purpose ! purpose of the window at creation (dialogs: wpurp_dialog_*; views: wpurp_view_*)
      integer(c_int) :: flags ! window flags
      character(kind=c_char,len=:), allocatable :: name ! name of the window
      character(kind=c_char,len=:), allocatable :: errmsg ! error message in the window
@@ -101,15 +102,14 @@ module windows
      integer, allocatable :: iord(:) ! table order (multiple windows)
      integer :: lastselected = 0 ! selectable, last element selected (multiple windows)
      character(len=:), allocatable :: tabselected ! which tab is selected (multiple windows)
+     integer(c_int) :: sortcid = 0 ! sort the window's table by this column id (tree, geometry)
+     integer(c_int) :: sortdir = 1 ! sort the window's table with this direction (tree, geometry)
+     real*8 :: timelast_sort = 0d0 ! time the window's table was last sorted (tree, geometry)
+     real*8 :: timelast_assign = 0d0 ! time this window was last assigned a system (tree, view, inpcon)
      ! tree table parameters
-     integer :: tree_selected = 1 ! the system selected in a table (input to iord)
-     integer(c_int) :: tree_sortcid = 0 ! sort table by this column id
-     integer(c_int) :: tree_sortdir = 1 ! sort table with this direction
      integer :: forceselect = 0 ! make the tree select this system in the next pass
      real*8 :: timelast_tree_update = 0d0 ! time the tree was last updated
-     real*8 :: timelast_tree_assign = 0d0 ! time the tree was last assigned a system
      real*8 :: timelast_tree_resize = 0d0 ! time the tree columnes were last resized
-     real*8 :: timelast_tree_sort = 0d0   ! time the tree was last sorted
      ! view parameters
      logical :: ismain ! whether this is the main view or an alternate
      type(scene), pointer :: sc ! pointer to the view scene
@@ -121,7 +121,6 @@ module windows
      integer(c_int) :: FBOrgba ! object pick framebuffer -> rgba buffer
      integer(c_int) :: FBOside ! side of the render texture (pixels)
      type(ImVec2) :: v_rmin, v_rmax ! view image rectangle
-     integer :: view_selected = 1 ! the system selected in the view window
      logical :: forcerender = .true. ! force render of the scene
      logical :: lowresrender = .false. ! last render was at reduced (interactive) resolution
      integer :: viewmode = vm_navigate ! view mode (see vm_* above)
@@ -138,18 +137,13 @@ module windows
      integer :: moveobj_imol = 0 ! molecule in a move drag
      logical :: moveobj_isdiscrete = .false. ! whether the move fragment is discrete
      logical :: selrect_active = .false. ! rubber-band selection drag in progress (vm_select)
-     type(ImVec2) :: selrect_p0 ! rubber-band drag start position (mouse/screen coords)
+     type(ImVec2) :: press_p0 ! press position (mouse/screen coords): click-vs-drag test and rubber-band anchor
      integer :: measure_pend = 0 ! pending press capture (0=none, 1=measure add, 2=measure delete, 3=forced-mode pick, 4=alternate pick)
      integer :: measure_pend_idx(5) = 0 ! atom captured at the press for the pending measurement/pick
-     type(ImVec2) :: measure_pend_p0 ! press position, to tell a click from a drag on release
-     real*8 :: timelast_view_assign = 0d0   ! time the view was last assigned a system
      real*8 :: timelast_view_getpixel = 0d0 ! time the pick buffer was last queried for atom ID
      ! dialog parameters
-     integer :: dialog_purpose ! purpose of the dialog (open, save,...)
      type(dialog_userdata) :: dialog_data ! for the side pane callback
      ! input console parameters
-     integer :: inpcon_selected = 1 ! the system selected in the input console
-     real*8 :: timelast_inpcon_assign = 0d0 ! time the inpcon was last assigned a system
      ! output console parameters
      real*8 :: timelast_outcon_focused = 0d0 ! time the outcon was last focused
      ! new structure from library & save image
@@ -166,13 +160,10 @@ module windows
      ! edit representation parameters
      type(representation), pointer :: rep => NULL() ! the representation on which the e.r. window operates
      real*8 :: timelast_plot_update = 0d0 ! time the plot was last updaed
-     integer :: editrep_text_pick_item = 0 ! text item waiting for an atom pick (0 = idle)
-     integer :: editrep_text_pick_slot = 0 ! anchor being picked (1 = atom/first bond atom, 2 = second bond atom)
-     real*8 :: editrep_text_pick_time = 0d0 ! time the pick was commanded (to detect stale ids)
+     integer :: editrep_pick_item = 0 ! text/measurement item waiting for an atom pick (0 = idle)
+     integer :: editrep_pick_slot = 0 ! anchor or measurement atom the pick will fill
+     real*8 :: editrep_pick_time = 0d0 ! time the pick was commanded (to detect stale ids)
      integer(c_int) :: editrep_text_pick_idx(4) = 0 ! staged first bond atom (committed when the pair completes)
-     integer :: editrep_measure_pick_item = 0 ! measurement item waiting for an atom pick (0 = idle)
-     integer :: editrep_measure_pick_slot = 0 ! which measurement atom (1..n) the pick will replace
-     real*8 :: editrep_measure_pick_time = 0d0 ! time the pick was commanded (to detect stale ids)
      ! export image parameters
      integer(c_int) :: nsample ! number of samples for anti-aliasing
      integer(c_int) :: jpgquality ! jpg quality
@@ -190,8 +181,6 @@ module windows
      integer :: geometry_euler_drag_mol = 0 ! molecule whose Euler angles are being dragged (0 = none)
      real*8 :: geometry_euler_drag_val(3) = 0d0 ! unwrapped Euler angles (degrees) during an active drag
      real(c_float) :: geometry_select_rgba(4) ! highlight color
-     integer(c_int) :: geometry_sortcid = 0 ! sort table by this column id
-     integer(c_int) :: geometry_sortdir = 1 ! sort table with this direction
      real*8 :: geometry_input_coord(3) = 0d0 ! coordinates for the new atom in add button
      integer :: geometry_input_species = 1 ! species for the new atom in add button
      integer :: geometry_addbond_iat = 0 ! cell atom waiting for an add-bond pick (0 = idle)
@@ -205,7 +194,6 @@ module windows
      character(len=:), allocatable :: geometry_expression ! expression for column in atoms table
      logical :: geometry_expression_ok = .false. ! is the expression ok?
      character(len=:), allocatable :: geometry_expr_error ! error for expression
-     real*8 :: timelast_geometry_sort = 0d0  ! time the geometry table was last sorted
      real*8 :: timelast_geometry_clearhighlights = 0d0 ! time the highlights were last cleared
      logical :: geometry_cell_simple = .true. ! simple (integer multiples of a/b/c) vs. full matrix transformation
      integer(c_int) :: geometry_cell_nrep(3) = (/1_c_int,1_c_int,1_c_int/) ! a/b/c multiples for the simple transformation
@@ -230,8 +218,7 @@ module windows
      integer(c_int) :: wc_placement = 3 ! initial placement of the monomers (0 = random, 1 = row, 2 = ring, 3 = flat ring)
      integer(c_int) :: wc_mode = 1 ! run mode (0 = continuous, 1 = timed)
      integer(c_int) :: wc_time = 60 ! time limit in the timed mode (s)
-     logical :: wc_started = .false. ! whether the relaxation has been auto-started for wc_isys
-     integer :: wc_isys = 0 ! the generated cluster system (0 = none yet)
+     logical :: wc_started = .false. ! whether the relaxation has been auto-started for the cluster (isys)
      logical :: wc_clockrun = .false. ! timed mode: whether the clock is ticking (settling included)
      logical :: wc_timeup = .false. ! timed mode: whether the player's time is over
      real*8 :: wc_clock0 = 0d0 ! timed mode: time at which the clock started (s)

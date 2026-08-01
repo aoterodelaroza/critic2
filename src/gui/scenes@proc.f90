@@ -1997,7 +1997,7 @@ contains
     integer :: id_
 
     id_ = s%get_new_representation_id()
-    call s%rep(id_)%init(s%id,id_,itype,flavor,s%icount)
+    call s%rep(id_)%init(s%id,itype,flavor,s%icount)
     s%forcesort = .true.
     s%forcebuildlists = .true.
     if (present(id)) id = id_
@@ -2236,7 +2236,7 @@ contains
 
     ! initialize the representation; on failure, leave the slot as a hole
     dummycount = 0
-    call s%reptrans(id)%init(s%id,id,itype,flavor,dummycount)
+    call s%reptrans(id)%init(s%id,itype,flavor,dummycount)
     if (.not.s%reptrans(id)%isinit) then
        id = 0
        return

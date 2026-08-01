@@ -81,12 +81,12 @@ contains
     oksys = ok_system(isys,sys_init)
     if (.not.oksys) then
        ! reset to the table selected
-       isys = win(iwin_tree)%tree_selected
+       isys = win(iwin_tree)%isys
        oksys = ok_system(isys,sys_init)
     end if
     if (.not.oksys) then
        ! reset to the input console selected
-       isys = win(iwin_tree)%inpcon_selected
+       isys = win(iwin_tree)%isys
        oksys = ok_system(isys,sys_init)
     end if
     if (.not.oksys) then

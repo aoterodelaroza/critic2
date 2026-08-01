@@ -63,7 +63,7 @@ contains
     doquit = .not.goodparent
     if (.not.doquit) then
        if (associated(win(w%idparent)%sc)) then
-          isys = win(w%idparent)%sc%id
+          isys = win(w%idparent)%isys
        else
           doquit = .true.
        end if

@@ -303,7 +303,7 @@ contains
           do i = 1, nwin
              ok = win(i)%type == type .and. win(i)%isopen
              ! specific tests according to type
-             if (ok.and.type == wintype_dialog.and.present(purpose)) ok = (win(i)%dialog_data%purpose == purpose)
+             if (ok.and.type == wintype_dialog.and.present(purpose)) ok = (win(i)%purpose == purpose)
              if (ok.and.type == wintype_editrep.and.present(isys).and.present(irep).and.present(idparent)) then
                 ok = (win(i)%isys == isys .and. win(i)%irep == irep .and. win(i)%idparent == idparent)
                 if (ok.and.present(itoken)) &
@@ -375,7 +375,7 @@ contains
           win(i)%rep => win(win(i)%idparent)%sc%rep(win(i)%irep)
        elseif (win(i)%type == wintype_view) then
           win(i)%sc => null()
-          iv = win(i)%view_selected
+          iv = win(i)%isys
           if (ok_system(iv,sys_init)) then
              if (win(i)%ismain) win(i)%sc => sysc(iv)%sc
           end if
@@ -411,14 +411,12 @@ contains
     w%id = -id
     w%name = "" // c_null_char
     w%errmsg = ""
-    w%tree_selected = 1
-    w%tree_sortcid = 0
-    w%tree_sortdir = 1
-    w%inpcon_selected = 1
+    w%isys = 1
+    w%sortcid = 0
+    w%sortdir = 1
     w%okfile = ""
     w%okfile_set = .false. ! whether the library file has been set by the user
     w%okfile_read = .false. ! whether the structure list should be re-read from the lib
-    w%view_selected = 1
     nullify(w%sc)
     w%forcerender = .true.
     if (allocated(w%iord)) deallocate(w%iord)
@@ -437,7 +435,7 @@ contains
     if (present(irep)) w%irep = irep
     if (present(idparent)) w%idparent = idparent
     if (present(itoken)) w%itoken = itoken
-    if (present(purpose)) w%dialog_purpose = purpose
+    if (present(purpose)) w%purpose = purpose
     w%geometry_expression = ""
 
     ! type-specific initialization
@@ -480,9 +478,11 @@ contains
        if (.not.present(idparent)) &
           call ferror('window_init','dynamics requires idparent',faterr)
     elseif (type == wintype_water_cluster) then
-       ! water cluster demonstration window
+       ! water cluster demonstration window; isys is the generated cluster
+       ! system, owned by this window (0 = none yet)
        if (.not.present(idparent)) &
           call ferror('window_init','water_cluster requires idparent',faterr)
+       w%isys = 0
     elseif (type == wintype_view) then
        ! view window
        if (.not.present(purpose)) &
@@ -538,7 +538,7 @@ contains
           ! the non-equivalent atom list are consistent again, and free the state
           if (w%idparent > 0 .and. w%idparent <= nwin) then
              if (associated(win(w%idparent)%sc)) then
-                isysd = win(w%idparent)%sc%id
+                isysd = win(w%idparent)%isys
                 if (ok_system(isysd,sys_init)) then
                    if (sysc(isysd)%md%ready) then
                       call sys(isysd)%c%rebuild_after_move()
@@ -552,7 +552,7 @@ contains
           end if
        elseif (w%type == wintype_water_cluster) then
           ! the demo owns its generated cluster; remove it on close so it does not linger
-          isysd = w%wc_isys
+          isysd = w%isys
           if (ok_system(isysd,sys_init)) then
              sysc(isysd)%md_run = .false.
              if (sysc(isysd)%md%ready) call sysc(isysd)%md%free()
@@ -591,11 +591,10 @@ contains
     w%geometry_expr_error = ""
     w%geometry_addbond_iat = 0
     w%geometry_addbond_iview = 0
-    w%editrep_text_pick_item = 0
-    w%editrep_text_pick_slot = 0
+    w%editrep_pick_item = 0
+    w%editrep_pick_slot = 0
     w%editrep_text_pick_idx = 0
     w%wc_started = .false.
-    w%wc_isys = 0
 
   end subroutine window_end
 
@@ -672,7 +671,7 @@ contains
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        elseif (w%type == wintype_dialog) then
           w%dialog_data%dptr = w%dptr
-          w%dialog_data%purpose = w%dialog_purpose
+          w%dialog_data%purpose = w%purpose
           if (w%dialog_data%showhidden) then
              w%flags = ImGuiFileDialogFlags_None
           else
@@ -684,34 +683,34 @@ contains
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
 
           str1 = "All files (*.*){*.*}" // c_null_char
-          if (w%dialog_purpose == wpurp_dialog_openfiles) then
+          if (w%purpose == wpurp_dialog_openfiles) then
              ! open dialog
              w%name = "Open File(s)##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openfiles),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,0_c_int,c_loc(w%dialog_data),w%flags)
-          elseif (w%dialog_purpose == wpurp_dialog_savelogfile) then
+          elseif (w%purpose == wpurp_dialog_savelogfile) then
              w%name = "Save Log File##" // string(w%id)  // c_null_char
              str2 = "file.log" // c_null_char
              str3 = "./" // c_null_char
              call IGFD_OpenPaneDialog(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str3),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
-          elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile) then
+          elseif (w%purpose == wpurp_dialog_openlibraryfile) then
              w%name = "Open Library File##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
-          elseif (w%dialog_purpose == wpurp_dialog_openfieldfile) then
+          elseif (w%purpose == wpurp_dialog_openfieldfile) then
              w%name = "Open Field File(s)##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openfieldfile),&
                 c_loc(str2),c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
-          elseif (w%dialog_purpose == wpurp_dialog_openvibfile) then
+          elseif (w%purpose == wpurp_dialog_openvibfile) then
              w%name = "Open Vibration Data File(s)##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(dialogstr_openvibfile),&
                 c_loc(str2),c_funloc(dialog_user_callback),280._c_float,0_c_int,c_loc(w%dialog_data),w%flags)
-          elseif (w%dialog_purpose == wpurp_dialog_openonefilemodal) then
+          elseif (w%purpose == wpurp_dialog_openonefilemodal) then
              w%name = "Open File##" // string(w%id)  // c_null_char
              call IGFD_OpenPaneDialog2(w%dptr,c_loc(w%name),c_loc(w%name),c_loc(str1),c_loc(str2),&
                 c_funloc(dialog_user_callback),280._c_float,1_c_int,c_loc(w%dialog_data),w%flags)
-          elseif (w%dialog_purpose == wpurp_dialog_saveimagefile) then
+          elseif (w%purpose == wpurp_dialog_saveimagefile) then
              w%name = "Save Image File##" // string(w%id) // c_null_char
              str1 = "PNG (*.png) {.png},BMP (*.bmp) {.bmp},TGA (*.tga) {.tga},JPEG (*.jpg) {.jpg}"// c_null_char
              str2 = "image.png" // c_null_char

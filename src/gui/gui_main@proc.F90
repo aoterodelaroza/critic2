@@ -434,12 +434,12 @@ contains
           call win(iwin_console_input)%run_commands_ci()
           force_run_commands = 0
        elseif (force_run_commands == 2) then
-          saveinpcon = win(iwin_console_input)%inpcon_selected
+          saveinpcon = win(iwin_console_input)%isys
           do i = 1, nsys
-             win(iwin_console_input)%inpcon_selected = i
+             win(iwin_console_input)%isys = i
              call win(iwin_console_input)%run_commands_ci()
           end do
-          win(iwin_console_input)%inpcon_selected = saveinpcon
+          win(iwin_console_input)%isys = saveinpcon
           force_run_commands = 0
        end if
 
@@ -668,9 +668,9 @@ contains
     logical, save :: ttshown = .false. ! tooltip flag
 
     ! isys is the tree selected system, isysv is the view selected system
-    isys = win(iwin_tree)%tree_selected
+    isys = win(iwin_tree)%isys
     isysok = ok_system(isys,sys_init)
-    isysv = win(iwin_view)%view_selected
+    isysv = win(iwin_view)%isys
     isysvok = ok_system(isysv,sys_init)
 
     ! whether undo/redo are available for the view-selected system (guard the

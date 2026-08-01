@@ -104,9 +104,9 @@ contains
     uv1 = ImVec2(1._c_float,1._c_float)
     nobord = ImVec4(0._c_float,0._c_float,0._c_float,0._c_float)
     if (w%firstpass) then
-       w%tree_sortcid = ic_tree_id
-       w%tree_sortdir = 1
-       w%tree_selected = 1
+       w%sortcid = ic_tree_id
+       w%sortdir = 1
+       w%isys = 1
        forceremap = .true.
        forcesort = .true.
     end if
@@ -119,11 +119,11 @@ contains
        ! if a system has changed fundamentally, the table needs an update (maybe)
        if (w%timelast_tree_update < sysc(i)%timelastchange_geometry) forceremap = .true.
        ! if the currently selected system has changed, maybe we need to reassign
-       if (w%tree_selected == i .and. w%timelast_tree_assign < sysc(i)%timelastchange_geometry) &
+       if (w%isys == i .and. w%timelast_assign < sysc(i)%timelastchange_geometry) &
           forcereassign = .true.
        ! if a system has been rebonded, the "nmol" column may have changed: sort and resize
        if (w%timelast_tree_resize < sysc(i)%timelastchange_rebond) forceresize = .true.
-       if (w%timelast_tree_sort < sysc(i)%timelastchange_rebond) forcesort = .true.
+       if (w%timelast_sort < sysc(i)%timelastchange_rebond) forcesort = .true.
        ! count property icons for this system
        if (sysc(i)%status >= sys_ready) then
           nprop = 0
@@ -281,7 +281,7 @@ contains
              if (ImGuiTextFilter_PassFilter(cfilter,c_loc(str),c_null_ptr)) then
                 nshown_after_filter = nshown_after_filter + 1
                 ishown(nshown_after_filter) = i
-                if (i == w%tree_selected) ithis = nshown_after_filter
+                if (i == w%isys) ithis = nshown_after_filter
              end if
           end do
        else
@@ -318,7 +318,7 @@ contains
           nrow = nrow + 1
           ishown_row(nrow) = i
           ifield_row(nrow) = -1
-          if (i == w%tree_selected) ithis_row = nrow
+          if (i == w%isys) ithis_row = nrow
           if (sysc(i)%showfields .and. sysc(i)%status >= sys_ready) then
              do k = 0, sys(i)%nf
                 if (.not.sys(i)%f(k)%isinit) cycle
@@ -470,15 +470,15 @@ contains
           call c_f_pointer(ptrc,sortspecs)
           if (c_associated(sortspecs%Specs)) then
              call c_f_pointer(sortspecs%Specs,colspecs)
-             w%tree_sortcid = colspecs%ColumnUserID
-             w%tree_sortdir = colspecs%SortDirection
+             w%sortcid = colspecs%ColumnUserID
+             w%sortdir = colspecs%SortDirection
              if (sortspecs%SpecsDirty .and. nshown > 1) then
                 forcesort = .true.
                 sortspecs%SpecsDirty = .false.
              end if
           else
-             w%tree_sortcid = ic_tree_id
-             w%tree_sortdir = 1
+             w%sortcid = ic_tree_id
+             w%sortdir = 1
           end if
        end if
 
@@ -817,7 +817,7 @@ contains
     !! process the keybindings
     ! remove system or field
     if (is_bind_event(BIND_TREE_REMOVE_SYSTEM_FIELD).and.w%focused()) then
-       jsel = w%tree_selected
+       jsel = w%isys
        iref = sys(jsel)%iref
        ok = ok_system(jsel,sys_init)
        if (ok) ok = sysc(jsel)%showfields
@@ -887,7 +887,7 @@ contains
       flags = ior(flags,ImGuiSelectableFlags_AllowItemOverlap)
       flags = ior(flags,ImGuiSelectableFlags_AllowDoubleClick)
       flags = ior(flags,ImGuiSelectableFlags_SelectOnNav)
-      selected = (w%tree_selected==isys)
+      selected = (w%isys==isys)
       strl = "##selectable" // string(isys) // c_null_char
       ok = igSelectable_Bool(c_loc(strl),selected,flags,szero)
       ok = ok .or. (forceselect == isys)
@@ -1003,7 +1003,7 @@ contains
             ! the value copy aliased the source scene's GL handles; detach so the
             ! new view lazily builds its own instance buffers
             call win(idum)%sc%gl%detach()
-            win(idum)%view_selected = isys
+            win(idum)%isys = isys
          end if
          call iw_tooltip("Display this system in a new view window",ttshown)
 
@@ -1119,7 +1119,7 @@ contains
          str = "└─►(" // string(k) // "): " // trim(sys(i)%f(k)%name) // "##field" // &
             string(i) // "," // string(k) // c_null_char
       end if
-      isel = (w%tree_selected==i) .and. (sys(i)%iref == k)
+      isel = (w%isys==i) .and. (sys(i)%iref == k)
       call igPushStyleColor_Vec4(ImGuiCol_Header,ColorFieldSelected)
       flags = ImGuiSelectableFlags_SpanAllColumns
       if (igSelectable_Bool(c_loc(str),isel,flags,szero)) then
@@ -1317,8 +1317,8 @@ contains
       end do
       sysc(i)%collapse = -1
       ! selected goes to master
-      if (w%tree_selected >= 1 .and. w%tree_selected <= nsys) then
-         if (sysc(w%tree_selected)%collapse == i) &
+      if (w%isys >= 1 .and. w%isys <= nsys) then
+         if (sysc(w%isys)%collapse == i) &
             call w%select_system_tree(i)
       end if
       forceremap = .true.
@@ -1374,7 +1374,7 @@ contains
     logical :: doit
 
     ! update the time
-    w%timelast_tree_sort = glfwGetTime()
+    w%timelast_sort = glfwGetTime()
 
     ! check if we have something to sort
     if (.not.allocated(w%iord)) return
@@ -1388,21 +1388,21 @@ contains
     valid = .true.
 
     ! different types, different sorts
-    if (w%tree_sortcid == ic_tree_id.or.w%tree_sortcid == ic_tree_nneq.or.w%tree_sortcid == ic_tree_ncel.or.&
-       w%tree_sortcid == ic_tree_nmol.or.w%tree_sortcid == ic_tree_zprime) then
+    if (w%sortcid == ic_tree_id.or.w%sortcid == ic_tree_nneq.or.w%sortcid == ic_tree_ncel.or.&
+       w%sortcid == ic_tree_nmol.or.w%sortcid == ic_tree_zprime) then
        ! sort by integer
        allocate(ival(n))
        do i = 1, n
-          if (w%tree_sortcid == ic_tree_id) then
+          if (w%sortcid == ic_tree_id) then
              ival(i) = w%iord(i)
           elseif (sysc(w%iord(i))%status == sys_init) then
-             if (w%tree_sortcid == ic_tree_nneq) then
+             if (w%sortcid == ic_tree_nneq) then
                 ival(i) = sys(w%iord(i))%c%nneq
-             elseif (w%tree_sortcid == ic_tree_ncel) then
+             elseif (w%sortcid == ic_tree_ncel) then
                 ival(i) = sys(w%iord(i))%c%ncel
-             elseif (w%tree_sortcid == ic_tree_nmol) then
+             elseif (w%sortcid == ic_tree_nmol) then
                 ival(i) = sys(w%iord(i))%c%nmol
-             elseif (w%tree_sortcid == ic_tree_zprime) then
+             elseif (w%sortcid == ic_tree_zprime) then
                 if (sys(w%iord(i))%c%spgavail .and. .not.sys(w%iord(i))%c%ismolecule) then
                    ival(i) = nint(real(sys(w%iord(i))%c%nmol,8) / real(sys(w%iord(i))%c%neqv,8))
                 else
@@ -1417,37 +1417,37 @@ contains
        end do
        call mergesort(ival,iperm,1,n)
        deallocate(ival)
-    elseif (w%tree_sortcid == ic_tree_v.or.w%tree_sortcid == ic_tree_a.or.w%tree_sortcid == ic_tree_b.or.&
-       w%tree_sortcid == ic_tree_c.or.w%tree_sortcid == ic_tree_alpha.or.w%tree_sortcid == ic_tree_beta.or.&
-       w%tree_sortcid == ic_tree_gamma.or.w%tree_sortcid == ic_tree_vmol.or.&
-       w%tree_sortcid == ic_tree_e.or.w%tree_sortcid == ic_tree_emol.or.w%tree_sortcid == ic_tree_p) then
+    elseif (w%sortcid == ic_tree_v.or.w%sortcid == ic_tree_a.or.w%sortcid == ic_tree_b.or.&
+       w%sortcid == ic_tree_c.or.w%sortcid == ic_tree_alpha.or.w%sortcid == ic_tree_beta.or.&
+       w%sortcid == ic_tree_gamma.or.w%sortcid == ic_tree_vmol.or.&
+       w%sortcid == ic_tree_e.or.w%sortcid == ic_tree_emol.or.w%sortcid == ic_tree_p) then
        ! sort by real
        allocate(rval(n))
        do i = 1, n
           doit = sysc(w%iord(i))%status == sys_init
           if (doit) doit = (.not.sys(w%iord(i))%c%ismolecule)
-          if (w%tree_sortcid == ic_tree_v .and. doit) then
+          if (w%sortcid == ic_tree_v .and. doit) then
              rval(i) = sys(w%iord(i))%c%omega
-          elseif (w%tree_sortcid == ic_tree_a .and. doit) then
+          elseif (w%sortcid == ic_tree_a .and. doit) then
              rval(i) = sys(w%iord(i))%c%aa(1)
-          elseif (w%tree_sortcid == ic_tree_b .and. doit) then
+          elseif (w%sortcid == ic_tree_b .and. doit) then
              rval(i) = sys(w%iord(i))%c%aa(2)
-          elseif (w%tree_sortcid == ic_tree_c .and. doit) then
+          elseif (w%sortcid == ic_tree_c .and. doit) then
              rval(i) = sys(w%iord(i))%c%aa(3)
-          elseif (w%tree_sortcid == ic_tree_alpha .and. doit) then
+          elseif (w%sortcid == ic_tree_alpha .and. doit) then
              rval(i) = sys(w%iord(i))%c%bb(1)
-          elseif (w%tree_sortcid == ic_tree_beta .and. doit) then
+          elseif (w%sortcid == ic_tree_beta .and. doit) then
              rval(i) = sys(w%iord(i))%c%bb(2)
-          elseif (w%tree_sortcid == ic_tree_gamma .and. doit) then
+          elseif (w%sortcid == ic_tree_gamma .and. doit) then
              rval(i) = sys(w%iord(i))%c%bb(3)
-          elseif (w%tree_sortcid == ic_tree_vmol .and. doit) then
+          elseif (w%sortcid == ic_tree_vmol .and. doit) then
              rval(i) = sys(w%iord(i))%c%omega / sys(w%iord(i))%c%nmol
-          elseif (w%tree_sortcid == ic_tree_e .and. sysc(w%iord(i))%seed%energy /= huge(1d0)) then
+          elseif (w%sortcid == ic_tree_e .and. sysc(w%iord(i))%seed%energy /= huge(1d0)) then
              rval(i) = sysc(w%iord(i))%seed%energy
-          elseif (w%tree_sortcid == ic_tree_emol .and. sysc(w%iord(i))%status == sys_init .and.&
+          elseif (w%sortcid == ic_tree_emol .and. sysc(w%iord(i))%status == sys_init .and.&
              sysc(w%iord(i))%seed%energy /= huge(1d0)) then
              rval(i) = sysc(w%iord(i))%seed%energy / sys(w%iord(i))%c%nmol
-          elseif (w%tree_sortcid == ic_tree_p .and. sysc(w%iord(i))%seed%pressure /= huge(1d0)) then
+          elseif (w%sortcid == ic_tree_p .and. sysc(w%iord(i))%seed%pressure /= huge(1d0)) then
              rval(i) = sysc(w%iord(i))%seed%pressure
           else
              rval(i) = huge(1d0)
@@ -1456,15 +1456,15 @@ contains
        end do
        call mergesort(rval,iperm,1,n)
        deallocate(rval)
-    elseif (w%tree_sortcid == ic_tree_name .or. w%tree_sortcid == ic_tree_spg) then
+    elseif (w%sortcid == ic_tree_name .or. w%sortcid == ic_tree_spg) then
        ! sort by string
        allocate(sval(n))
        do i = 1, n
-          if (w%tree_sortcid == ic_tree_name .and. sysc(w%iord(i))%status /= sys_empty.and.&
+          if (w%sortcid == ic_tree_name .and. sysc(w%iord(i))%status /= sys_empty.and.&
              .not.sysc(w%iord(i))%hidden) then
              sval(i)%s = trim(sysc(w%iord(i))%seed%name)
           else
-             doit = (w%tree_sortcid == ic_tree_spg) .and. (sysc(w%iord(i))%status == sys_init)
+             doit = (w%sortcid == ic_tree_spg) .and. (sysc(w%iord(i))%status == sys_init)
              if (doit) doit = .not.sys(w%iord(i))%c%ismolecule
              if (doit) doit = sys(w%iord(i))%c%spgavail
              if (doit) then
@@ -1496,7 +1496,7 @@ contains
        end if
     end do
     do i = nvalid, 1, -1
-       if (w%tree_sortdir == 2) then
+       if (w%sortdir == 2) then
           iperm(nvalid-i+1) = ivalid(i)
        else
           iperm(i) = ivalid(i)
@@ -1523,9 +1523,9 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str
 
     ! this routine only works if the selected tree system is empty
-    idx = w%tree_selected
+    idx = w%isys
     if (sysc(idx)%status > sys_empty) then
-       w%timelast_tree_assign = glfwGetTime()
+       w%timelast_assign = glfwGetTime()
        return
     end if
     if (.not.allocated(w%iord)) then
@@ -1582,8 +1582,8 @@ contains
     class(window), intent(inout) :: w
     integer, intent(in) :: idx
 
-    w%tree_selected = idx
-    w%timelast_tree_assign = glfwGetTime()
+    w%isys = idx
+    w%timelast_assign = glfwGetTime()
 
   end subroutine select_system_tree
 

@@ -82,9 +82,9 @@ contains
     if (.not.doquit) doquit = .not.goodparent
     if (.not.doquit) then
        if (associated(win(w%idparent)%sc)) then
-          isys = win(w%idparent)%sc%id
+          isys = win(w%idparent)%isys
        else
-          isys = win(w%idparent)%view_selected
+          isys = win(w%idparent)%isys
           doquit = .true.
        end if
     end if

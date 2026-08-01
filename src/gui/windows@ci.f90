@@ -54,9 +54,9 @@ contains
     end if
 
     ! update based on time signals between dependent windows
-    if (w%timelast_inpcon_assign < win(iwin_tree)%timelast_tree_assign.and.&
+    if (w%timelast_assign < win(iwin_tree)%timelast_assign.and.&
        tree_select_updates_inpcon) then
-       call assign_system(win(iwin_tree)%tree_selected)
+       call assign_system(win(iwin_tree)%isys)
     end if
 
     ! first line: text
@@ -94,10 +94,10 @@ contains
     !! set the system pointer and determine the preview string
     str2 = "" // c_null_char
     sy => null()
-    if (w%inpcon_selected >= 1 .and. w%inpcon_selected <= nsys) then
-       if (sysc(w%inpcon_selected)%status == sys_init) then
-          str2 = string(w%inpcon_selected) // ": " // trim(sysc(w%inpcon_selected)%seed%name) // c_null_char
-          sy => sys(w%inpcon_selected)
+    if (w%isys >= 1 .and. w%isys <= nsys) then
+       if (sysc(w%isys)%status == sys_init) then
+          str2 = string(w%isys) // ": " // trim(sysc(w%isys)%seed%name) // c_null_char
+          sy => sys(w%isys)
        end if
     end if
     str1 = "##systemcombo" // c_null_char
@@ -105,7 +105,7 @@ contains
     if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
        do i = 1, nsys
           if (sysc(i)%status == sys_init) then
-             is_selected = (w%inpcon_selected == i)
+             is_selected = (w%isys == i)
              str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
              if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) &
                 call assign_system(i)
@@ -173,8 +173,8 @@ contains
       use interfaces_glfw, only: glfwGetTime
       integer, intent(in) :: idx
 
-      w%inpcon_selected = idx
-      w%timelast_inpcon_assign = glfwGetTime()
+      w%isys = idx
+      w%timelast_assign = glfwGetTime()
 
     end subroutine assign_system
 
@@ -195,15 +195,15 @@ contains
     logical :: reinit, ldum
 
     ! if no system selected, return
-    if (w%inpcon_selected < 1 .or. w%inpcon_selected > nsys) return
-    if (sysc(w%inpcon_selected)%status /= sys_init) return
+    if (w%isys < 1 .or. w%isys > nsys) return
+    if (sysc(w%isys)%status /= sys_init) return
 
     ! check we have some input
     idx = index(inputb,c_null_char)
     if (idx <= 1) return
 
     ! connect the system
-    sy => sys(w%inpcon_selected)
+    sy => sys(w%isys)
 
     ! if the initialization is happening, stop it
     reinit = are_threads_running()
@@ -225,7 +225,7 @@ contains
     if (reinit) call launch_initialization_thread()
 
     ! set the time to rebuild lists
-    call sysc(w%inpcon_selected)%post_event(lastchange_geometry)
+    call sysc(w%isys)%post_event(lastchange_geometry)
 
     ! clean up
     call fclose(uin)
@@ -343,11 +343,11 @@ contains
     ! system name and field name
     csystem = "<unknown>"
     cfield = "<unknown>"
-    if (w%inpcon_selected >= 1 .and. w%inpcon_selected <= nsys) then
-       if (sysc(w%inpcon_selected)%status == sys_init) then
-          csystem = "(" // string(w%inpcon_selected) // ") " // trim(sysc(w%inpcon_selected)%seed%name)
-          iref = sys(w%inpcon_selected)%iref
-          cfield = "(" // string(iref) // ") " // trim(sys(w%inpcon_selected)%f(iref)%name)
+    if (w%isys >= 1 .and. w%isys <= nsys) then
+       if (sysc(w%isys)%status == sys_init) then
+          csystem = "(" // string(w%isys) // ") " // trim(sysc(w%isys)%seed%name)
+          iref = sys(w%isys)%iref
+          cfield = "(" // string(iref) // ") " // trim(sys(w%isys)%f(iref)%name)
        end if
     end if
 

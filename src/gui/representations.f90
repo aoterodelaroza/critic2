@@ -458,7 +458,6 @@ module representations
      integer :: type = reptype_none ! type of representation (atoms, cell,...)
      integer :: flavor = repflavor_unknown ! flavor of the representation
      integer :: id ! system ID
-     integer :: idrep ! representation ID
      integer :: iord = 0 ! representation order integer in menu
      character(kind=c_char,len=:), allocatable :: name ! name of the representation
      ! transient-representation identity (owner > 0); unused in regular representations
@@ -490,10 +489,9 @@ module representations
 
   ! module procedure interfaces
   interface
-     module subroutine representation_init(r,isys,irep,itype,flavor,icount)
+     module subroutine representation_init(r,isys,itype,flavor,icount)
        class(representation), intent(inout) :: r
        integer, intent(in) :: isys
-       integer, intent(in) :: irep
        integer, intent(in) :: itype
        integer, intent(in) :: flavor
        integer, intent(inout) :: icount(0:repflavor_NUM)

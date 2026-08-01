@@ -25,15 +25,14 @@ submodule (representations) proc
 
 contains
 
-  !> Initialize a representation for system isys with ID irep.
-  !> itype is the representation type, flavor is the representation
-  !> flavor, and icount is the count array of the calling scene.
-  module subroutine representation_init(r,isys,irep,itype,flavor,icount)
+  !> Initialize a representation for system isys. itype is the
+  !> representation type, flavor is the representation flavor, and
+  !> icount is the count array of the calling scene.
+  module subroutine representation_init(r,isys,itype,flavor,icount)
     use systems, only: sys_ready, ok_system
     use tools_io, only: string
     class(representation), intent(inout) :: r
     integer, intent(in) :: isys
-    integer, intent(in) :: irep
     integer, intent(in) :: itype
     integer, intent(in) :: flavor
     integer, intent(inout) :: icount(0:repflavor_NUM)
@@ -43,7 +42,6 @@ contains
 
     ! save the basic information in the represntation from the arguments
     r%id = isys
-    r%idrep = irep
     r%type = itype
     r%flavor = flavor
 
@@ -521,7 +519,6 @@ contains
     r%type = reptype_none
     r%flavor = repflavor_unknown
     r%id = 0
-    r%idrep = 0
     r%iord = 0
     r%owner = 0
     r%itag = 0

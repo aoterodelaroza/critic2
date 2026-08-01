@@ -78,7 +78,6 @@ module systems
      integer :: idseed ! for systems read from a multi-seed file, the numerical id of the seed
      logical :: has_field = .false. ! true if the seed has a field
      logical :: has_vib = .false. ! true if the seed has vibrational data
-     integer :: iperiod = 0 ! periodicity (see iperiod_*)
      integer :: collapse ! 0 if independent, -1 if master-collapsed, -2 if master-extended, <n> if dependent on n
      type(c_ptr) :: thread_lock = c_null_ptr ! the lock for initialization of this system
      ! system name

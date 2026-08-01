@@ -204,7 +204,7 @@ contains
 
     ! first pass
     if (w%firstpass) then
-       w%tied_to_tree = (w%isys == win(iwin_tree)%tree_selected)
+       w%tied_to_tree = (w%isys == win(iwin_tree)%isys)
        call clear_highlights_table()
        call reset_sort()
        w%geometry_select_rgba = ColorHighlightSelectScene
@@ -216,8 +216,8 @@ contains
        w%geometry_atomtype = 1
        w%geometry_moltype = atlisttype_ncel_frac
        w%geometry_forcewyc = .true.
-       w%geometry_sortcid = 0
-       w%geometry_sortdir = 1
+       w%sortcid = 0
+       w%sortdir = 1
        w%geometry_input_coord = 0d0
        w%geometry_input_species = 1
        w%geometry_addbond_iat = 0
@@ -235,8 +235,8 @@ contains
     end if
 
     ! if tied to tree, update the isys
-    if (w%tied_to_tree .and. (w%isys /= win(iwin_tree)%tree_selected)) then
-       call change_system(win(iwin_tree)%tree_selected)
+    if (w%tied_to_tree .and. (w%isys /= win(iwin_tree)%isys)) then
+       call change_system(win(iwin_tree)%isys)
     end if
 
     ! check if the system still exists
@@ -254,7 +254,7 @@ contains
        oksys = (iview >= 1 .and. iview <= nwin)
        if (oksys) oksys = win(iview)%isinit .and. win(iview)%isopen .and. win(iview)%type == wintype_view
        ok = oksys
-       if (ok) ok = win(iview)%view_selected == isys .and. win(iview)%vmdata%owner == w%id .and.&
+       if (ok) ok = win(iview)%isys == isys .and. win(iview)%vmdata%owner == w%id .and.&
           sysc(isys)%timelastchange_geometry < w%geometry_addbond_time
        if (.not.ok) then
           ! the view is gone, shows another system, another window took over
@@ -288,7 +288,7 @@ contains
     end if
 
     ! force sort if the system has been rebonded or changed geometry
-    if (w%timelast_geometry_sort < sysc(isys)%timelastchange_rebond) then
+    if (w%timelast_sort < sysc(isys)%timelastchange_rebond) then
        call reset_sort()
     end if
     if (w%timelast_geometry_clearhighlights < sysc(isys)%timelastchange_geometry) then
@@ -2448,7 +2448,7 @@ contains
 
       ! change the system
       w%isys = i
-      w%tied_to_tree = w%tied_to_tree .and. (w%isys == win(iwin_tree)%tree_selected)
+      w%tied_to_tree = w%tied_to_tree .and. (w%isys == win(iwin_tree)%isys)
 
     end subroutine change_system
 
@@ -2649,13 +2649,19 @@ contains
             end associate
          end if
          if (idobj > 0) then
-            ! open the editor if a view window for this system is available
+            ! open the editor if a view window showing this system's main
+            ! scene is available; the object was added to sysc(isys)%sc, so
+            ! a view with a private (alternate) scene neither displays it
+            ! nor can the editor be bound to it (window_init points w%rep
+            ! into the parent view's scene)
             iview = 0
             do i = 1, nwin
                if (win(i)%isinit .and. win(i)%isopen .and. win(i)%type == wintype_view) then
-                  if (win(i)%view_selected == isys .and. associated(win(i)%sc)) then
-                     iview = i
-                     exit
+                  if (win(i)%isys == isys .and. associated(win(i)%sc)) then
+                     if (associated(win(i)%sc,sysc(isys)%sc)) then
+                        iview = i
+                        exit
+                     end if
                   end if
                end if
             end do
@@ -2750,7 +2756,7 @@ contains
       type(vstring), allocatable :: sval(:)
 
       ! update the time
-      w%timelast_geometry_sort = glfwGetTime()
+      w%timelast_sort = glfwGetTime()
       w%lastselected = 0
 
       ! reallocate the iord
@@ -2769,58 +2775,58 @@ contains
       end if
 
       ! carry out the sort
-      if (icolsort(w%geometry_sortcid)==ic_id .or. icolsort(w%geometry_sortcid)==ic_zat .or.&
-         icolsort(w%geometry_sortcid)==ic_mol .or. icolsort(w%geometry_sortcid)==ic_mul .or.&
-         icolsort(w%geometry_sortcid)==ic_idx .or. icolsort(w%geometry_sortcid)==ic_nat) then
+      if (icolsort(w%sortcid)==ic_id .or. icolsort(w%sortcid)==ic_zat .or.&
+         icolsort(w%sortcid)==ic_mol .or. icolsort(w%sortcid)==ic_mul .or.&
+         icolsort(w%sortcid)==ic_idx .or. icolsort(w%sortcid)==ic_nat) then
          ! integers
          allocate(ival(ntype))
          do ii = 1, ntype
             i = w%iord(ii)
             if (table_hltype == atlisttype_nmol) then
-               if (icolsort(w%geometry_sortcid) == ic_id) then
+               if (icolsort(w%sortcid) == ic_id) then
                   ival(ii) = i
-               elseif (icolsort(w%geometry_sortcid) == ic_nat) then
+               elseif (icolsort(w%sortcid) == ic_nat) then
                   ival(ii) = sys(isys)%c%mol(i)%nat
-               elseif (icolsort(w%geometry_sortcid) == ic_idx) then
+               elseif (icolsort(w%sortcid) == ic_idx) then
                   ival(ii) = sys(isys)%c%idxmol(i)
                end if
             else
-               if (icolsort(w%geometry_sortcid) == ic_id) then
+               if (icolsort(w%sortcid) == ic_id) then
                   ival(ii) = i
-               elseif (icolsort(w%geometry_sortcid) == ic_zat) then
+               elseif (icolsort(w%sortcid) == ic_zat) then
                   ispc = sysc(isys)%attype_species(w%geometry_atomtype,i)
                   ival(ii) = sys(isys)%c%spc(ispc)%z
-               elseif (icolsort(w%geometry_sortcid) == ic_mol) then
+               elseif (icolsort(w%sortcid) == ic_mol) then
                   ival(ii) = sys(isys)%c%idatcelmol(1,i)
-               elseif (icolsort(w%geometry_sortcid) == ic_mul) then
+               elseif (icolsort(w%sortcid) == ic_mul) then
                   ival(ii) = sys(isys)%c%at(i)%mult
-               elseif (icolsort(w%geometry_sortcid) == ic_idx) then
+               elseif (icolsort(w%sortcid) == ic_idx) then
                   ival(ii) = sys(isys)%c%atcel(i)%idx
                end if
             end if
          end do
          call mergesort(ival,iperm,1,ntype)
          deallocate(ival)
-      elseif (icolsort(w%geometry_sortcid)==ic_x.or.icolsort(w%geometry_sortcid)==ic_y.or.&
-         icolsort(w%geometry_sortcid)==ic_z.or.icolsort(w%geometry_sortcid)==ic_ea.or.&
-         icolsort(w%geometry_sortcid)==ic_eb.or.icolsort(w%geometry_sortcid)==ic_eg.or.&
-         icolsort(w%geometry_sortcid)==ic_occ) then
+      elseif (icolsort(w%sortcid)==ic_x.or.icolsort(w%sortcid)==ic_y.or.&
+         icolsort(w%sortcid)==ic_z.or.icolsort(w%sortcid)==ic_ea.or.&
+         icolsort(w%sortcid)==ic_eb.or.icolsort(w%sortcid)==ic_eg.or.&
+         icolsort(w%sortcid)==ic_occ) then
          ! real
          allocate(rval(ntype))
          do ii = 1, ntype
             i = w%iord(ii)
-            if (icolsort(w%geometry_sortcid)==ic_ea.or.icolsort(w%geometry_sortcid)==ic_eb.or.&
-               icolsort(w%geometry_sortcid)==ic_eg) then
+            if (icolsort(w%sortcid)==ic_ea.or.icolsort(w%sortcid)==ic_eb.or.&
+               icolsort(w%sortcid)==ic_eg) then
                ! Euler angles (molecules tab)
                x0 = mol_euler_angles(i)
-               if (icolsort(w%geometry_sortcid) == ic_ea) then
+               if (icolsort(w%sortcid) == ic_ea) then
                   rval(ii) = x0(1)
-               elseif (icolsort(w%geometry_sortcid) == ic_eb) then
+               elseif (icolsort(w%sortcid) == ic_eb) then
                   rval(ii) = x0(2)
                else
                   rval(ii) = x0(3)
                end if
-            elseif (icolsort(w%geometry_sortcid) == ic_occ) then
+            elseif (icolsort(w%sortcid) == ic_occ) then
                ! occupancy
                rval(ii) = sysc(isys)%attype_occupancy(w%geometry_atomtype,i)
             else
@@ -2830,11 +2836,11 @@ contains
                   x0 = sysc(isys)%attype_coordinates(w%geometry_atomtype,i)
                end if
 
-               if (icolsort(w%geometry_sortcid) == ic_x) then
+               if (icolsort(w%sortcid) == ic_x) then
                   rval(ii) = x0(1)
-               elseif (icolsort(w%geometry_sortcid) == ic_y) then
+               elseif (icolsort(w%sortcid) == ic_y) then
                   rval(ii) = x0(2)
-               elseif (icolsort(w%geometry_sortcid) == ic_z) then
+               elseif (icolsort(w%sortcid) == ic_z) then
                   rval(ii) = x0(3)
                end if
             end if
@@ -2846,9 +2852,9 @@ contains
          allocate(sval(ntype))
          do ii = 1, ntype
             i = w%iord(ii)
-            if (icolsort(w%geometry_sortcid) == ic_atom) then
+            if (icolsort(w%sortcid) == ic_atom) then
                sval(ii)%s = sysc(isys)%attype_name(w%geometry_atomtype,i)
-            elseif (icolsort(w%geometry_sortcid) == ic_wyc) then
+            elseif (icolsort(w%sortcid) == ic_wyc) then
                sval(ii)%s = string(sys(isys)%c%at(i)%mult) // sys(isys)%c%at(i)%wyc
             end if
          end do
@@ -2857,7 +2863,7 @@ contains
       end if
 
       ! reverse if necessary
-      if (w%geometry_sortdir == 2) then
+      if (w%sortdir == 2) then
          allocate(ival(ntype))
          do i = 1, ntype
             ival(i) = iperm(ntype-i+1)
@@ -3029,15 +3035,15 @@ contains
          call c_f_pointer(ptrc,sortspecs)
          if (c_associated(sortspecs%Specs)) then
             call c_f_pointer(sortspecs%Specs,colspecs)
-            w%geometry_sortcid = colspecs%ColumnUserID
-            w%geometry_sortdir = colspecs%SortDirection
+            w%sortcid = colspecs%ColumnUserID
+            w%sortdir = colspecs%SortDirection
             if (sortspecs%SpecsDirty .and. ntype > 1) then
                forcesort = .true.
                sortspecs%SpecsDirty = .false.
             end if
          else
-            w%geometry_sortcid = 0
-            w%geometry_sortdir = 1
+            w%sortcid = 0
+            w%sortdir = 1
          end if
       end if
 
@@ -3047,13 +3053,13 @@ contains
     subroutine get_current_view()
 
       iview = 0
-      if (isys == win(iwin_view)%view_selected) then
+      if (isys == win(iwin_view)%isys) then
          iview = iwin_view
       else
          do j = 1, nwin
             if (.not.win(j)%isinit) cycle
             if (win(j)%type /= wintype_view.or..not.associated(win(j)%sc)) cycle
-            if (isys == win(j)%view_selected) then
+            if (isys == win(j)%isys) then
                iview = j
                exit
             end if

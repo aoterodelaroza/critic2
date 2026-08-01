@@ -136,19 +136,19 @@ contains
 
     !! update the tree based on time signals between dependent windows
     ! track the tree system if this is the main view and the option is active
-    if (w%timelast_view_assign < win(iwin_tree)%timelast_tree_assign .and.&
+    if (w%timelast_assign < win(iwin_tree)%timelast_assign .and.&
        w%ismain .and. tree_select_updates_view) then
-       call w%select_view(win(iwin_tree)%tree_selected)
+       call w%select_view(win(iwin_tree)%isys)
     end if
 
     ! whether the selected view system is a good system, and associate the scene
-    goodsys = ok_system(w%view_selected,sys_init)
+    goodsys = ok_system(w%isys,sys_init)
     if (goodsys) then
        if (w%ismain) then
-          if (.not.associated(w%sc)) w%sc => sysc(w%view_selected)%sc
+          if (.not.associated(w%sc)) w%sc => sysc(w%isys)%sc
        else
           if (.not.associated(w%sc)) allocate(w%sc)
-          if (w%sc%isinit == 0) call w%sc%init(w%view_selected)
+          if (w%sc%isinit == 0) call w%sc%init(w%isys)
        end if
     else
        if (w%ismain) then
@@ -211,7 +211,7 @@ contains
           ispoly = .not.ispoly
        end if
        if (is_bind_event(BIND_RECALC_BONDS)) &
-          call sysc(w%view_selected)%rebond()
+          call sysc(w%isys)%rebond()
        if (any(changedisplay)) then
           call apply_displayflags(atoms=changedisplay(1),bonds=changedisplay(2),&
              labels=changedisplay(3),cell=changedisplay(4),poly=changedisplay(5),&
@@ -223,7 +223,7 @@ contains
     ! toolbar: display toggles (atoms, bonds, labels, cell, polyhedra)
     enabled = associated(w%sc)
     ismol = .false.
-    if (goodsys) ismol = sys(w%view_selected)%c%ismolecule
+    if (goodsys) ismol = sys(w%isys)%c%ismolecule
 
     if (iw_icon_togglebutton("atomstoggle",icon_tex(icon_ui_atoms),"At",isatom,disabled=.not.enabled)) then
        call apply_displayflags(atoms=.true.)
@@ -320,7 +320,7 @@ contains
 
           ! camera position: align view axis
           call iw_text("Camera Position",highlight=.true.)
-          if (.not.sys(w%view_selected)%c%ismolecule) then
+          if (.not.sys(w%isys)%c%ismolecule) then
              if (iw_button("a")) then
                 call w%sc%align_view_axis(1)
                 chrender = .true.
@@ -340,7 +340,7 @@ contains
              call iw_tooltip("Align the camera along the crystallographic c axis ("//&
                 trim(get_bind_keyname(BIND_VIEW_ALIGN_C_AXIS)) // ").",ttshown)
           end if
-          if (iw_button("x",sameline=.not.sys(w%view_selected)%c%ismolecule)) then
+          if (iw_button("x",sameline=.not.sys(w%isys)%c%ismolecule)) then
              call w%sc%align_view_axis(-1)
              chrender = .true.
           end if
@@ -408,7 +408,7 @@ contains
     if (iw_icon_togglebutton("applyallbutton",icon_tex(icon_ui_applyall),"Ap",&
        disabled=.not.enabled,sameline=.true.,danger=.true.)) then
        do i = 1, nsys
-          if (sysc(i)%status == sys_init .and. i /= w%view_selected) then
+          if (sysc(i)%status == sys_init .and. i /= w%isys) then
              ! atoms, bonds, unit cell
              do j = 1, sysc(i)%sc%nrep
                 if (sysc(i)%sc%rep(j)%isinit) then
@@ -426,13 +426,13 @@ contains
                          call sysc(i)%sc%rep(j)%labels%style%reset(sysc(i)%sc%rep(j))
                       end if
                    elseif (sysc(i)%sc%rep(j)%type == reptype_unitcell.and.&
-                      .not.sys(w%view_selected)%c%ismolecule) then
+                      .not.sys(w%isys)%c%ismolecule) then
                       sysc(i)%sc%rep(j)%shown = isuc
                    end if
                 end if
              end do
              ! rest
-             if (.not.sys(w%view_selected)%c%ismolecule.and..not.sys(i)%c%ismolecule) &
+             if (.not.sys(w%isys)%c%ismolecule.and..not.sys(i)%c%ismolecule) &
                 sysc(i)%sc%nc = w%sc%nc
              sysc(i)%sc%bgcolor = w%sc%bgcolor
              sysc(i)%sc%camresetdist = w%sc%camresetdist
@@ -447,7 +447,7 @@ contains
     ! toolbar: reset this scene to the default settings
     if (iw_icon_togglebutton("resetscenebutton",icon_tex(icon_ui_reset),"Rs",&
        disabled=.not.enabled,sameline=.true.,danger=.true.)) then
-       call w%sc%init(w%view_selected)
+       call w%sc%init(w%isys)
        chbuild = .true.
     end if
     call iw_tooltip("Reset this scene to the default settings",ttshown)
@@ -501,7 +501,7 @@ contains
           end if
           call iw_tooltip("Add atoms, bonds, labels, and other atom-based objects",ttshown)
 
-          if (.not.sys(w%view_selected)%c%ismolecule) then
+          if (.not.sys(w%isys)%c%ismolecule) then
              if (iw_menuitem("Unit Cell")) &
                 call add_rep_and_edit(reptype_unitcell,repflavor_unitcell_basic)
              call iw_tooltip("Display the unit cell",ttshown)
@@ -513,7 +513,7 @@ contains
 
           ! symmetry available for crystals (always) or molecules with a point group
           symenabled = .true.
-          if (sys(w%view_selected)%c%ismolecule) symenabled = sys(w%view_selected)%c%pg%avail
+          if (sys(w%isys)%c%ismolecule) symenabled = sys(w%isys)%c%pg%avail
           if (iw_menuitem("Symmetry Elements",enabled=symenabled)) &
              call add_rep_and_edit(reptype_symelem,repflavor_symelem)
           call iw_tooltip("Display symmetry elements",ttshown)
@@ -600,7 +600,7 @@ contains
        disabled=.not.enabled,sameline=.true.,popupcontext=ok,popupflags=ImGuiPopupFlags_MouseButtonLeft)
     call iw_tooltip("Show various tools operating on the view of this system",ttshown)
     if (ok) then
-       call show_tools_menu(w%view_selected,w%id,ttshown)
+       call show_tools_menu(w%isys,w%id,ttshown)
        call igEndPopup()
     end if
 
@@ -612,7 +612,7 @@ contains
        ! the value copy aliased the source scene's GL handles; detach so the new
        ! view lazily builds its own instance buffers
        call win(idum)%sc%gl%detach()
-       win(idum)%view_selected = w%view_selected
+       win(idum)%isys = w%isys
        call win(idum)%sc%reset_animation()
     end if
     call iw_tooltip("Create a new view for the current scene",ttshown)
@@ -621,13 +621,13 @@ contains
     call igSameLine(0._c_float,-1._c_float)
     str2 = "" // c_null_char
     if (goodsys) then
-       str2 = string(w%view_selected) // ": " // trim(sysc(w%view_selected)%seed%name) // c_null_char
+       str2 = string(w%isys) // ": " // trim(sysc(w%isys)%seed%name) // c_null_char
     end if
     str1 = "##systemcombo" // c_null_char
     if (igBeginCombo(c_loc(str1),c_loc(str2),ImGuiComboFlags_None)) then
        do i = 1, nsys
           if (sysc(i)%status == sys_init) then
-             is_selected = (w%view_selected == i)
+             is_selected = (w%isys == i)
              str2 = string(i) // ": " // trim(sysc(i)%seed%name) // c_null_char
              if (igSelectable_Bool(c_loc(str2),is_selected,ImGuiSelectableFlags_None,szero)) &
                 call w%select_view(i)
@@ -641,19 +641,19 @@ contains
 
     ! update the draw lists and render
     if (associated(w%sc)) then
-       if (w%sc%timelastbuild < sysc(w%view_selected)%timelastchange_buildlists) then
+       if (w%sc%timelastbuild < sysc(w%isys)%timelastchange_buildlists) then
           w%sc%forcebuildlists = .true.
           ! during interactive dynamics the geometry changes every frame but the
           ! atom identities are stable, so keep the pick index (else grabbing an
           ! atom would be impossible)
-          if (.not.sysc(w%view_selected)%md_run) w%mousepos_idx = 0
+          if (.not.sysc(w%isys)%md_run) w%mousepos_idx = 0
        end if
        if (chbuild) w%sc%forcebuildlists = .true.
-       if (chrender .or. w%sc%forcebuildlists .or. w%sc%timelastrender < sysc(w%view_selected)%timelastchange_render) &
+       if (chrender .or. w%sc%forcebuildlists .or. w%sc%timelastrender < sysc(w%isys)%timelastchange_render) &
           w%forcerender = .true.
 
        ! continuous render if animation is active
-       if (w%sc%ifreq_selected > 0.and.w%sc%iqpt_selected > 0.and.sys(w%view_selected)%c%vib%hasvibs.and.&
+       if (w%sc%ifreq_selected > 0.and.w%sc%iqpt_selected > 0.and.sys(w%isys)%c%vib%hasvibs.and.&
           w%sc%animation > 0) &
           w%forcerender = .true.
     end if
@@ -786,8 +786,8 @@ contains
     ! during interactive dynamics, re-pick each throttle interval even if the
     ! cursor is still, so the atom under a stationary cursor stays selectable as
     ! it moves (needed for grab-and-drag)
-    if (hover .and. w%view_selected >= 1 .and. w%view_selected <= nsys) needpick = needpick .or. &
-       (sysc(w%view_selected)%md_run .and. (w%timelast_view_getpixel + pick_interval < time))
+    if (hover .and. w%isys >= 1 .and. w%isys <= nsys) needpick = needpick .or. &
+       (sysc(w%isys)%md_run .and. (w%timelast_view_getpixel + pick_interval < time))
 
     ! get the ID of the atom under mouse
     if (needpick) then
@@ -816,32 +816,32 @@ contains
     if (hover .and. w%mousepos_idx(1) > 0) then
        call igSameLine(0._c_float,-1._c_float)
        icel = w%mousepos_idx(1)
-       is = sys(w%view_selected)%c%atcel(icel)%is
-       ineq = sys(w%view_selected)%c%atcel(icel)%idx
-       ismol = sys(w%view_selected)%c%ismolecule
+       is = sys(w%isys)%c%atcel(icel)%is
+       ineq = sys(w%isys)%c%atcel(icel)%idx
+       ismol = sys(w%isys)%c%ismolecule
 
        ! lead with the occupant list for a mixed site, otherwise the atom name
        ! (mix_string returns empty for a single-occupant site)
-       msg = sys(w%view_selected)%c%mix_string(ineq)
+       msg = sys(w%isys)%c%mix_string(ineq)
        if (len_trim(msg) == 0) &
-          msg = trim(sys(w%view_selected)%c%at(ineq)%name)
+          msg = trim(sys(w%isys)%c%at(ineq)%name)
        if (.not.ismol) then
-          x0 = sys(w%view_selected)%c%atcel(icel)%x
+          x0 = sys(w%isys)%c%atcel(icel)%x
 
           msg = trim(msg) // " [cellid=" // string(icel) // "+(" // string(w%mousepos_idx(2)) // "," // string(w%mousepos_idx(3)) //&
              "," // string(w%mousepos_idx(4)) // "),nneqid=" // string(ineq) // ",wyckoff=" // &
-             string(sys(w%view_selected)%c%at(ineq)%mult) // string(sys(w%view_selected)%c%at(ineq)%wyc)
-          if (sys(w%view_selected)%c%nmol > 1) &
-             msg = msg // ",molid=" // string(sys(w%view_selected)%c%idatcelmol(1,icel))
+             string(sys(w%isys)%c%at(ineq)%mult) // string(sys(w%isys)%c%at(ineq)%wyc)
+          if (sys(w%isys)%c%nmol > 1) &
+             msg = msg // ",molid=" // string(sys(w%isys)%c%idatcelmol(1,icel))
           msg = msg // "] " //&
              string(x0(1)+w%mousepos_idx(2),'f',decimal=4) //" "// string(x0(2)+w%mousepos_idx(3),'f',decimal=4) //" "//&
              string(x0(3)+w%mousepos_idx(4),'f',decimal=4) // " (frac)"
        else
-          x0 = (sys(w%view_selected)%c%atcel(icel)%r+sys(w%view_selected)%c%molx0) * dunit0(iunit_ang)
+          x0 = (sys(w%isys)%c%atcel(icel)%r+sys(w%isys)%c%molx0) * dunit0(iunit_ang)
 
           msg = trim(msg) // " [id=" // string(icel)
-          if (sys(w%view_selected)%c%nmol > 1) &
-             msg = msg // ",molid=" // string(sys(w%view_selected)%c%idatcelmol(1,icel))
+          if (sys(w%isys)%c%nmol > 1) &
+             msg = msg // ",molid=" // string(sys(w%isys)%c%idatcelmol(1,icel))
           msg = msg // "] " //&
              string(x0(1),'f',decimal=4) //" "// string(x0(2),'f',decimal=4) //" "//&
              string(x0(3),'f',decimal=4) // " (Å)"
@@ -860,16 +860,16 @@ contains
     !! increase and decrease the number of cells in main view
     if (associated(w%sc)) then
        if (w%ismain) then
-          if (.not.sys(w%view_selected)%c%ismolecule) then
+          if (.not.sys(w%isys)%c%ismolecule) then
              if (is_bind_event(BIND_VIEW_INC_NCELL)) then
                 do i = 1, 3
-                   if (sys(w%view_selected)%c%vaclength(i) < iperiod_vacthr) &
+                   if (sys(w%isys)%c%vaclength(i) < iperiod_vacthr) &
                       w%sc%nc(i) = w%sc%nc(i) + 1
                 end do
                 w%sc%forcebuildlists = .true.
              elseif (is_bind_event(BIND_VIEW_DEC_NCELL)) then
                 do i = 1, 3
-                   if (sys(w%view_selected)%c%vaclength(i) < iperiod_vacthr) &
+                   if (sys(w%isys)%c%vaclength(i) < iperiod_vacthr) &
                       w%sc%nc(i) = w%sc%nc(i) - 1
                 end do
                 w%sc%nc = max(w%sc%nc,1)
@@ -909,8 +909,8 @@ contains
 
     ! keyboard actions on the current atom selection, when the view is focused:
     selcleared = .false.
-    if (w%focused() .and. ok_system(w%view_selected,sys_init)) then
-       is = w%view_selected
+    if (w%focused() .and. ok_system(w%isys,sys_init)) then
+       is = w%isys
        if (allocated(sysc(is)%highlight_rgba)) then
           ok = any(sysc(is)%highlight_rgba >= 0._c_float)
        else
@@ -1003,7 +1003,7 @@ contains
          islabels = 1
       elseif (islabels == 1) then ! atom-name -> celatom
          islabels = 2
-      elseif (islabels == 2 .and..not.sys(w%view_selected)%c%ismolecule) then ! celatom -> wyckoff
+      elseif (islabels == 2 .and..not.sys(w%isys)%c%ismolecule) then ! celatom -> wyckoff
          islabels = 8
       else ! * -> no labels
          islabels = -1
@@ -1021,7 +1021,7 @@ contains
       integer :: irep, idw
 
       call w%sc%add_representation(itype,flavor,id=irep)
-      idw = stack_create_window(wintype_editrep,.true.,isys=w%view_selected,irep=irep,&
+      idw = stack_create_window(wintype_editrep,.true.,isys=w%isys,irep=irep,&
          idparent=w%id,orraise=-1)
       chbuild = .true.
 
@@ -1148,16 +1148,16 @@ contains
 
     if (isys < 1 .or. isys > nsys) return
     if (sysc(isys)%status /= sys_init) w%forcerender = .true. ! for removing the last system in tree
-    if (w%view_selected == isys) return
+    if (w%isys == isys) return
 
     ! select and render the new scene
-    w%view_selected = isys
+    w%isys = isys
     if (w%ismain) then
-       w%sc => sysc(w%view_selected)%sc
+       w%sc => sysc(w%isys)%sc
     else
        if (.not.associated(w%sc)) allocate(w%sc)
        call w%sc%end()
-       call w%sc%init(w%view_selected)
+       call w%sc%init(w%isys)
     end if
     w%forcerender = .true.
 
@@ -1172,7 +1172,7 @@ contains
     w%viewmode_transient = .false.
 
     ! set the time
-    w%timelast_view_assign = glfwGetTime()
+    w%timelast_assign = glfwGetTime()
 
   end subroutine select_view
 
@@ -1189,8 +1189,8 @@ contains
     ! while an interactive dynamics run is active on the viewed
     ! system, force the dedicated MD interaction mode and lock it: the
     ! user cannot switch modes until the run stops.
-    if (w%view_selected >= 1 .and. w%view_selected <= nsys) then
-       if (sysc(w%view_selected)%md_run) then
+    if (w%isys >= 1 .and. w%isys <= nsys) then
+       if (sysc(w%isys)%md_run) then
           w%viewmode = vm_mdinteract
           w%viewmode_transient = .false.
           return
@@ -1529,7 +1529,7 @@ contains
     end if
 
     ! only process if there is an associated system is viewed and scene is initialized
-    if (w%view_selected < 1 .or. w%view_selected > nsys) return
+    if (w%isys < 1 .or. w%isys > nsys) return
     if (.not.associated(w%sc)) return
     if (w%sc%isinit < 2) return
 
@@ -1538,8 +1538,8 @@ contains
     if (w%viewmode /= vm_mdinteract) then
        if (w%ilock == ilock_mddrag .or. w%ilock == ilock_mdmovemol .or. w%ilock == ilock_mdrotmol) &
           w%ilock = ilock_no
-       sysc(w%view_selected)%md%drag_iat = 0
-       sysc(w%view_selected)%md%interacting = .false.
+       sysc(w%isys)%md%drag_iat = 0
+       sysc(w%isys)%md%interacting = .false.
     end if
 
     ! drop any drag carried over from select mode
@@ -1612,7 +1612,7 @@ contains
                 if (bind_mouse_button(BIND_NAV_MEASURE_ADD) >= 0) then
                    w%measure_pend = pend_measure_add
                    w%measure_pend_idx = w%mousepos_idx
-                   w%measure_pend_p0 = mousepos
+                   w%press_p0 = mousepos
                 else
                    call w%sc%add_measurement(w%mousepos_idx)
                    w%forcerender = .true.
@@ -1621,7 +1621,7 @@ contains
                 if (bind_mouse_button(BIND_NAV_MEASURE_REMOVE) >= 0) then
                    w%measure_pend = pend_measure_remove
                    w%measure_pend_idx = w%mousepos_idx
-                   w%measure_pend_p0 = mousepos
+                   w%press_p0 = mousepos
                 else
                    call w%sc%delete_measurement(w%mousepos_idx)
                    w%forcerender = .true.
@@ -1640,7 +1640,7 @@ contains
              if (bind_mouse_button(BIND_PICKATOM_SELECT) >= 0) then
                 w%measure_pend = pend_pick
                 w%measure_pend_idx = w%mousepos_idx
-                w%measure_pend_p0 = mousepos
+                w%press_p0 = mousepos
              else
                 call deliver_pick(w%mousepos_idx,.false.)
              end if
@@ -1649,7 +1649,7 @@ contains
              if (bind_mouse_button(BIND_PICKATOM_ALT) >= 0) then
                 w%measure_pend = pend_pick_alt
                 w%measure_pend_idx = w%mousepos_idx
-                w%measure_pend_p0 = mousepos
+                w%press_p0 = mousepos
              else
                 call deliver_pick(w%mousepos_idx,.true.)
              end if
@@ -1670,8 +1670,8 @@ contains
           if (ibtn < 0) then
              w%measure_pend = pend_none
           elseif (igIsMouseReleased(ibtn)) then
-             if (abs(mousepos%x-w%measure_pend_p0%x) <= selrect_thr .and.&
-                 abs(mousepos%y-w%measure_pend_p0%y) <= selrect_thr) then
+             if (abs(mousepos%x-w%press_p0%x) <= selrect_thr .and.&
+                 abs(mousepos%y-w%press_p0%y) <= selrect_thr) then
                 if (w%measure_pend == pend_measure_add) then
                    call w%sc%add_measurement(w%measure_pend_idx)
                    w%forcerender = .true.
@@ -1689,7 +1689,7 @@ contains
        ! double click on empty space clears the selection
        if (.not.forcedpick .and. hover .and. is_bind_event(BIND_NAV_MEASURE) .and.&
           w%mousepos_idx(1) == 0) then
-          call sysc(w%view_selected)%highlight_clear(.false.)
+          call sysc(w%isys)%highlight_clear(.false.)
           w%forcerender = .true.
        end if
     elseif (w%viewmode == vm_mdinteract) then
@@ -1697,7 +1697,7 @@ contains
        ! cursor first (the grabs take priority and latch a lock), then run the
        ! camera controls keyed to this mode's own binds, so a drag on empty space
        ! rotates/pans/spins the camera and the wheel zooms.
-       isys = w%view_selected
+       isys = w%isys
 
        call igGetMousePos(mousepos)
        texpos = mousepos
@@ -1713,7 +1713,7 @@ contains
        call cam_perp(BIND_MDINTERACT_ROTMOL)
     elseif (w%viewmode == vm_select) then
        ! select mode
-       isys = w%view_selected
+       isys = w%isys
        call igGetMousePos(mousepos)
 
        ! mouse wheel zooms the camera (no other camera controls, so the left
@@ -1742,21 +1742,21 @@ contains
           elseif (is_bind_event(BIND_SELECT_ATOMS)) then
              ! left click: start a potential rubber-band drag
              w%selrect_active = .true.
-             w%selrect_p0 = mousepos
+             w%press_p0 = mousepos
           end if
        end if
 
        ! left drag/release: rubber-band rectangle or single-atom toggle
        if (w%selrect_active) then
-          dragged = abs(mousepos%x-w%selrect_p0%x) > selrect_thr .or.&
-             abs(mousepos%y-w%selrect_p0%y) > selrect_thr
+          dragged = abs(mousepos%x-w%press_p0%x) > selrect_thr .or.&
+             abs(mousepos%y-w%press_p0%y) > selrect_thr
           if (is_bind_event(BIND_SELECT_ATOMS,.true.)) then
              ! draw the rubber band once dragged beyond the click/drag threshold
              if (dragged) then
-                pmin%x = min(w%selrect_p0%x,mousepos%x)
-                pmin%y = min(w%selrect_p0%y,mousepos%y)
-                pmax%x = max(w%selrect_p0%x,mousepos%x)
-                pmax%y = max(w%selrect_p0%y,mousepos%y)
+                pmin%x = min(w%press_p0%x,mousepos%x)
+                pmin%y = min(w%press_p0%y,mousepos%y)
+                pmax%x = max(w%press_p0%x,mousepos%x)
+                pmax%y = max(w%press_p0%y,mousepos%y)
                 ! translucent fill plus a slightly darker border
                 col = igGetColorU32_Vec4(ImVec4(ColorHighlightSelectScene(1),&
                    ColorHighlightSelectScene(2),ColorHighlightSelectScene(3),0.3_c_float))
@@ -1768,7 +1768,7 @@ contains
           else
              ! mouse released: a drag selects a rectangle, a static click toggles one atom
              if (dragged) then
-                call select_in_rect(w%selrect_p0,mousepos)
+                call select_in_rect(w%press_p0,mousepos)
              elseif (w%mousepos_idx(1) > 0) then
                 call toggle_cellatoms((/w%mousepos_idx(1)/))
              end if
@@ -1779,7 +1779,7 @@ contains
     elseif (w%viewmode == vm_movemol) then
        ! move-molecules mode: rigidly drag the molecule/atom under the cursor,
        ! preserving the bonding
-       isys = w%view_selected
+       isys = w%isys
        call igGetMousePos(mousepos)
        texpos = mousepos
        call w%mousepos_to_texpos(texpos)
@@ -1909,7 +1909,7 @@ contains
     elseif (w%viewmode == vm_moveatom) then
        ! move-atoms mode: left- or right-drag translates the single atom under
        ! the cursor (never the whole molecule); scroll resizes the cell (crystals)
-       isys = w%view_selected
+       isys = w%isys
        call igGetMousePos(mousepos)
        texpos = mousepos
        call w%mousepos_to_texpos(texpos)
@@ -2563,9 +2563,9 @@ contains
     else
        idx2 = msel(1:4,2)
     end if
-    x0 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4)
-    x0 = x0 - (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
-    x0 = sys(w%view_selected)%c%x2c(x0)
+    x0 = sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4)
+    x0 = x0 - (sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4))
+    x0 = sys(w%isys)%c%x2c(x0)
     d = norm2(x0)*bohrtoa
     if (abs(d) > 1d-14) then
        call iw_text("d(")
@@ -2589,9 +2589,9 @@ contains
        else
           idx2 = msel(1:4,3)
        end if
-       x0 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4)
-       x0 = x0 - (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
-       x0 = sys(w%view_selected)%c%x2c(x0)
+       x0 = sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4)
+       x0 = x0 - (sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4))
+       x0 = sys(w%isys)%c%x2c(x0)
        d = norm2(x0)*bohrtoa
        if (d > 1d-14) then
           call iw_text("d(")
@@ -2606,15 +2606,15 @@ contains
 
        ! angle 1-2-3
        idx3 = msel(1:4,1)
-       d1 = sys(w%view_selected)%c%distance(sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4),&
-          sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
-       d2 = sys(w%view_selected)%c%distance(sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4),&
-          sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
+       d1 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
+          sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
+       d2 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4),&
+          sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
        if (d1 > 1d-14 .and. d2 > 1d-14) then
-          ang = sys(w%view_selected)%c%angle(&
-             sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4),&
-             sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4),&
-             sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
+          ang = sys(w%isys)%c%angle(&
+             sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
+             sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4),&
+             sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
           call iw_text(", α(",sameline_nospace=.true.)
           call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
           call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
@@ -2638,9 +2638,9 @@ contains
        else
           idx2 = msel(1:4,4)
        end if
-       x0 = sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4)
-       x0 = x0 - (sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4))
-       x0 = sys(w%view_selected)%c%x2c(x0)
+       x0 = sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4)
+       x0 = x0 - (sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4))
+       x0 = sys(w%isys)%c%x2c(x0)
        d = norm2(x0)*bohrtoa
        if (d > 1d-14) then
           call iw_text("d(")
@@ -2655,15 +2655,15 @@ contains
 
        ! angle 2-3-4
        idx3 = msel(1:4,2)
-       d1 = sys(w%view_selected)%c%distance(sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4),&
-          sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
-       d2 = sys(w%view_selected)%c%distance(sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4),&
-          sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4))
+       d1 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
+          sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
+       d2 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4),&
+          sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
        if (d1 > 1d-14 .and. d2 > 1d-14) then
-          ang = sys(w%view_selected)%c%angle(&
-             sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4),&
-             sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4),&
-             sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
+          ang = sys(w%isys)%c%angle(&
+             sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
+             sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4),&
+             sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
           call iw_text(", α(",sameline_nospace=.true.)
           call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
           call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
@@ -2677,11 +2677,11 @@ contains
 
        ! dihedral 1-2-3-4
        idx4 = msel(1:4,1)
-       ang = sys(w%view_selected)%c%dihedral(&
-          sys(w%view_selected)%c%atcel(idx4(1))%x + idx4(2:4),&
-          sys(w%view_selected)%c%atcel(idx3(1))%x + idx3(2:4),&
-          sys(w%view_selected)%c%atcel(idx1(1))%x + idx1(2:4),&
-          sys(w%view_selected)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
+       ang = sys(w%isys)%c%dihedral(&
+          sys(w%isys)%c%atcel(idx4(1))%x + idx4(2:4),&
+          sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
+          sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4),&
+          sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
        call iw_text(", φ(",sameline_nospace=.true.)
        call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
        call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
@@ -2877,7 +2877,7 @@ contains
        return
     end if
     isys = w%sc%id
-    if (.not.ok_system(isys,sys_init) .or. isys /= w%view_selected) then
+    if (.not.ok_system(isys,sys_init) .or. isys /= w%isys) then
        errmsg = "System is not initialized"
        return
     end if
@@ -3032,7 +3032,7 @@ contains
     npixel = w%FBOside
 
     ! get the root of the file name and append the png extension
-    isys = w%view_selected
+    isys = w%isys
     if (.not.ok_system(isys,sys_loaded_not_init)) return
     file = sysc(isys)%seed%file
     wext = lower(file(index(file,'.',.true.)+1:))

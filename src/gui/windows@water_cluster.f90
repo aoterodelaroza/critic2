@@ -110,14 +110,14 @@ contains
        ! generate a new cluster
        if (iw_button("New cluster",danger=.true.)) then
           ! stop, free, and remove the previous cluster
-          if (ok_system(w%wc_isys,sys_init)) then
-             sysc(w%wc_isys)%md_run = .false.
-             if (sysc(w%wc_isys)%md%ready) call sysc(w%wc_isys)%md%free()
-             call remove_system(w%wc_isys)
+          if (ok_system(w%isys,sys_init)) then
+             sysc(w%isys)%md_run = .false.
+             if (sysc(w%isys)%md%ready) call sysc(w%isys)%md%free()
+             call remove_system(w%isys)
           end if
-          w%wc_isys = 0
+          w%isys = 0
           w%errmsg = ""
-          call build_water_cluster(int(w%wc_nwat),int(w%wc_placement),w%wc_isys,w%errmsg)
+          call build_water_cluster(int(w%wc_nwat),int(w%wc_placement),w%isys,w%errmsg)
           w%wc_started = .false.
           call wc_reset_clock()
        end if
@@ -125,7 +125,7 @@ contains
 
        ! zoom buttons (touchscreens may not have a mouse wheel); only once a
        ! cluster exists and the view is displaying it
-       if (ok_system(w%wc_isys,sys_init) .and. w%wc_isys == win(w%idparent)%view_selected) then
+       if (ok_system(w%isys,sys_init) .and. w%isys == win(w%idparent)%isys) then
           if (iw_button("Zoom +",sameline=.true.)) call wc_zoom(0.15_c_float)
           call iw_tooltip("Zoom in",ttshown)
           if (iw_button("Zoom -",sameline=.true.)) call wc_zoom(-0.15_c_float)
@@ -134,11 +134,11 @@ contains
 
        ! kiosk auto-start: once the generated system has finished initializing,
        ! set up TIP4P + FIRE and start the continuous relaxation
-       if (ok_system(w%wc_isys,sys_init) .and. .not.w%wc_started) &
+       if (ok_system(w%isys,sys_init) .and. .not.w%wc_started) &
           call wc_start()
 
        ! scoreboard: update the on-screen text and the window status table
-       isys = w%wc_isys
+       isys = w%isys
        if (ok_system(isys,sys_init) .and. w%wc_started) then
           if (sysc(isys)%md%ready) then
              ! timed mode: advance the clock, run the settling period, and stop
@@ -228,7 +228,7 @@ contains
     !> step, for touchscreens with no mouse wheel.
     subroutine wc_zoom(ratio)
       real(c_float), intent(in) :: ratio
-      call sysc(w%wc_isys)%sc%cam_zoom(ratio)
+      call sysc(w%isys)%sc%cam_zoom(ratio)
       win(w%idparent)%forcerender = .true.
     end subroutine wc_zoom
 
@@ -310,7 +310,7 @@ contains
 
       integer :: is, i
 
-      is = w%wc_isys
+      is = w%isys
       w%wc_started = .true.
 
       ! TIP4P relaxation engine

@@ -82,7 +82,7 @@ contains
     if (.not.doquit) doquit = .not.(win(w%idparent)%isopen)
     if (.not.doquit) doquit = .not.associated(win(w%idparent)%sc)
     if (.not.doquit) doquit = win(w%idparent)%type /= wintype_view
-    if (.not.doquit) doquit = (win(w%idparent)%view_selected /= isys)
+    if (.not.doquit) doquit = (win(w%idparent)%isys /= isys)
 
     if (.not.doquit) then
        ! whether the rep has changed
@@ -1963,34 +1963,34 @@ contains
     iview = w%idparent
 
     ! handle a pending atom pick commanded to the parent view
-    if (w%editrep_text_pick_item > 0) then
-       ok = (w%editrep_text_pick_item <= w%rep%text%ntext)
+    if (w%editrep_pick_item > 0) then
+       ok = (w%editrep_pick_item <= w%rep%text%ntext)
        if (ok) ok = (win(iview)%vmdata%owner == w%id) .and.&
-          (sysc(w%isys)%timelastchange_geometry < w%editrep_text_pick_time)
+          (sysc(w%isys)%timelastchange_geometry < w%editrep_pick_time)
        if (.not.ok) then
           ! the item was deleted, another window took over the pick, or the
           ! geometry changed (stale cell-atom ids): cancel
           call win(iview)%viewmode_release_forced(w%id)
-          w%editrep_text_pick_item = 0
-          w%editrep_text_pick_slot = 0
+          w%editrep_pick_item = 0
+          w%editrep_pick_slot = 0
        elseif (win(iview)%viewmode >= 0) then
           ! the pick finished
-          i = w%editrep_text_pick_item
+          i = w%editrep_pick_item
           if (win(iview)%vmdata%idx(1) > 0) then
-             if (w%editrep_text_pick_slot == 1) then
+             if (w%editrep_pick_slot == 1) then
                 if (w%rep%text%t(i)%placement == textpos_bond) then
                    ! bond anchor: stage this atom and chain the second pick
                    w%editrep_text_pick_idx = win(iview)%vmdata%idx(1:4)
-                   w%editrep_text_pick_slot = 2
-                   w%editrep_text_pick_time = glfwGetTime()
+                   w%editrep_pick_slot = 2
+                   w%editrep_pick_time = glfwGetTime()
                    win(iview)%vmdata%idx = 0
                    call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the second atom of the bond (any key cancels)...",w%id)
                 else
                    ! atom anchor: complete
                    w%rep%text%t(i)%idx1 = win(iview)%vmdata%idx(1:4)
                    changed = .true.
-                   w%editrep_text_pick_item = 0
-                   w%editrep_text_pick_slot = 0
+                   w%editrep_pick_item = 0
+                   w%editrep_pick_slot = 0
                 end if
              else
                 ! second bond atom: complete, unless it repeats the first atom
@@ -2000,15 +2000,15 @@ contains
                    w%rep%text%t(i)%idx2 = win(iview)%vmdata%idx(1:4)
                    changed = .true.
                 end if
-                w%editrep_text_pick_item = 0
-                w%editrep_text_pick_slot = 0
+                w%editrep_pick_item = 0
+                w%editrep_pick_slot = 0
              end if
           else
              ! the user cancelled the pick
-             w%editrep_text_pick_item = 0
-             w%editrep_text_pick_slot = 0
+             w%editrep_pick_item = 0
+             w%editrep_pick_slot = 0
           end if
-          if (w%editrep_text_pick_item == 0) win(iview)%vmdata%idx = 0
+          if (w%editrep_pick_item == 0) win(iview)%vmdata%idx = 0
        end if
     end if
 
@@ -2094,13 +2094,13 @@ contains
           w%rep%text%t(k) = w%rep%text%t(k+1)
        end do
        w%rep%text%ntext = w%rep%text%ntext - 1
-       if (w%editrep_text_pick_item == idel) then
+       if (w%editrep_pick_item == idel) then
           ! cancel a pick pending on the deleted item
           call win(iview)%viewmode_release_forced(w%id)
-          w%editrep_text_pick_item = 0
-          w%editrep_text_pick_slot = 0
-       elseif (w%editrep_text_pick_item > idel) then
-          w%editrep_text_pick_item = w%editrep_text_pick_item - 1
+          w%editrep_pick_item = 0
+          w%editrep_pick_slot = 0
+       elseif (w%editrep_pick_item > idel) then
+          w%editrep_pick_item = w%editrep_pick_item - 1
        end if
        changed = .true.
     end if
@@ -2147,20 +2147,20 @@ contains
              call iw_tooltip("Position of the text (fractional coordinates)",ttshown)
           end if
        elseif (ipl == textpos_atom) then
-          if (iw_button("Pick atom##textpickatom",disabled=(w%editrep_text_pick_item > 0))) then
-             w%editrep_text_pick_item = isel
-             w%editrep_text_pick_slot = 1
-             w%editrep_text_pick_time = glfwGetTime()
+          if (iw_button("Pick atom##textpickatom",disabled=(w%editrep_pick_item > 0))) then
+             w%editrep_pick_item = isel
+             w%editrep_pick_slot = 1
+             w%editrep_pick_time = glfwGetTime()
              call win(iview)%viewmode_set_forced(vm_pick_atom,&
                 "Pick the atom to anchor the text to (any key cancels)...",w%id)
           end if
           call iw_tooltip("Click, then pick the anchor atom in the view window",ttshown)
           call iw_text("Anchor: " // anchor_string(w%rep%text%t(isel)%idx1),sameline=.true.)
        else ! textpos_bond
-          if (iw_button("Pick bond atoms##textpickbond",disabled=(w%editrep_text_pick_item > 0))) then
-             w%editrep_text_pick_item = isel
-             w%editrep_text_pick_slot = 1
-             w%editrep_text_pick_time = glfwGetTime()
+          if (iw_button("Pick bond atoms##textpickbond",disabled=(w%editrep_pick_item > 0))) then
+             w%editrep_pick_item = isel
+             w%editrep_pick_slot = 1
+             w%editrep_pick_time = glfwGetTime()
              call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the first atom of the bond (any key cancels)...",w%id)
           end if
           call iw_tooltip("Click, then pick the two atoms of the bond in the view window",ttshown)
@@ -2246,26 +2246,26 @@ contains
     ! handle a pending atom pick commanded to the parent view: when the user
     ! clicks an atom button in a table, the view enters pick mode and the picked
     ! atom replaces that measurement atom (mirrors the text-anchor pick above)
-    if (w%editrep_measure_pick_item > 0) then
-       ok = (w%editrep_measure_pick_item <= w%rep%measure%nitem)
+    if (w%editrep_pick_item > 0) then
+       ok = (w%editrep_pick_item <= w%rep%measure%nitem)
        if (ok) ok = (win(iview)%vmdata%owner == w%id) .and.&
-          (sysc(w%isys)%timelastchange_geometry < w%editrep_measure_pick_time)
+          (sysc(w%isys)%timelastchange_geometry < w%editrep_pick_time)
        if (.not.ok) then
           ! the item was deleted, another window took over the pick, or the
           ! geometry changed (stale cell-atom ids): cancel
           call win(iview)%viewmode_release_forced(w%id)
-          w%editrep_measure_pick_item = 0
-          w%editrep_measure_pick_slot = 0
+          w%editrep_pick_item = 0
+          w%editrep_pick_slot = 0
        elseif (win(iview)%viewmode >= 0) then
           ! the pick finished: replace the atom if one was picked (else cancelled)
-          i = w%editrep_measure_pick_item
-          k = w%editrep_measure_pick_slot
+          i = w%editrep_pick_item
+          k = w%editrep_pick_slot
           if (win(iview)%vmdata%idx(1) > 0 .and. k >= 1 .and. k <= w%rep%measure%item(i)%n) then
              w%rep%measure%item(i)%idx(:,k) = win(iview)%vmdata%idx(1:4)
              changed = .true.
           end if
-          w%editrep_measure_pick_item = 0
-          w%editrep_measure_pick_slot = 0
+          w%editrep_pick_item = 0
+          w%editrep_pick_slot = 0
           win(iview)%vmdata%idx = 0
        end if
     end if
@@ -2311,12 +2311,12 @@ contains
        end if
        ! keep a pending atom pick bound to the right item (or cancel it if that
        ! item was the one deleted), so the pick can't commit to the wrong row
-       if (w%editrep_measure_pick_item == idel) then
+       if (w%editrep_pick_item == idel) then
           call win(iview)%viewmode_release_forced(w%id)
-          w%editrep_measure_pick_item = 0
-          w%editrep_measure_pick_slot = 0
-       elseif (w%editrep_measure_pick_item > idel) then
-          w%editrep_measure_pick_item = w%editrep_measure_pick_item - 1
+          w%editrep_pick_item = 0
+          w%editrep_pick_slot = 0
+       elseif (w%editrep_pick_item > idel) then
+          w%editrep_pick_item = w%editrep_pick_item - 1
        end if
        changed = .true.
     end if
@@ -2538,16 +2538,16 @@ contains
          end if
          call igPushStyleColor_Vec4(ImGuiCol_Text,col4)
       end if
-      clicked = iw_button(lbl // idn,disabled=(w%editrep_measure_pick_item > 0))
+      clicked = iw_button(lbl // idn,disabled=(w%editrep_pick_item > 0))
       if (havergb) call igPopStyleColor(4)
       call iw_tooltip("Atom " // lbl // " (click to pick a replacement in the view)",ttshown)
 
       ! command the parent view into pick mode; the poll at the top of
       ! draw_editrep_measure commits the picked atom into this slot
       if (clicked) then
-         w%editrep_measure_pick_item = iitem
-         w%editrep_measure_pick_slot = islot
-         w%editrep_measure_pick_time = glfwGetTime()
+         w%editrep_pick_item = iitem
+         w%editrep_pick_slot = islot
+         w%editrep_pick_time = glfwGetTime()
          call win(iview)%viewmode_set_forced(vm_pick_atom,&
             "Pick the replacement atom in the view (any key cancels)...",w%id)
       end if

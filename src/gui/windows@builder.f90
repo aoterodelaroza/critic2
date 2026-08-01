@@ -46,7 +46,7 @@ contains
     end if
 
     ! the builder operates on the system shown in the main view
-    isys = win(iwin_view)%view_selected
+    isys = win(iwin_view)%isys
     havesys = win(iwin_view)%isinit .and. win(iwin_view)%isopen
     if (havesys) havesys = ok_system(isys,sys_init)
 
@@ -59,7 +59,7 @@ contains
        ok = okview
        if (ok) ok = win(iview)%viewmode == vm_builder .and.&
           win(iview)%vmdata%owner == w%id .and.&
-          win(iview)%view_selected == w%builder_isys
+          win(iview)%isys == w%builder_isys
        if (.not.ok) then
           ! the view is gone, the mode was exited (any key, mode combo),
           ! another window took over the pick, or the view shows another

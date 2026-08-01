@@ -57,9 +57,9 @@ contains
     ! initialize
     doquit = .false.
     if (associated(win(w%idparent)%sc)) then
-       isys = win(w%idparent)%sc%id
+       isys = win(w%idparent)%isys
     else
-       isys = win(w%idparent)%view_selected
+       isys = win(w%idparent)%isys
        doquit = .true.
     end if
 

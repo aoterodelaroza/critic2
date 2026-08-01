@@ -52,11 +52,11 @@ contains
 
     ! handle cases when the dialog must quit
     doquit = .false.
-    if (w%dialog_purpose == wpurp_dialog_openvibfile) then
+    if (w%purpose == wpurp_dialog_openvibfile) then
        ! open vibrations file dialog => quit if the system is gone
        doquit = (.not.ok_system(w%isys,sys_init))
-    elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile.or.w%dialog_purpose == wpurp_dialog_saveimagefile.or.&
-       w%dialog_purpose == wpurp_dialog_openfieldfile.or.w%dialog_purpose == wpurp_dialog_openonefilemodal) then
+    elseif (w%purpose == wpurp_dialog_openlibraryfile.or.w%purpose == wpurp_dialog_saveimagefile.or.&
+       w%purpose == wpurp_dialog_openfieldfile.or.w%purpose == wpurp_dialog_openonefilemodal) then
        ! open library file, save image file, open field file, open one file modal
        ! => quit if the caller window is gone
        doquit = .not.win(w%idparent)%isinit
@@ -67,7 +67,7 @@ contains
        ! the dialog has been closed
        if (IGFD_IsOk(w%dptr).and..not.doquit) then
           ! with an OK, gather information
-          if (w%dialog_purpose == wpurp_dialog_openfiles) then
+          if (w%purpose == wpurp_dialog_openfiles) then
              !! open files dialog !!
              ! open all files selected and add the new systems
              sel = IGFD_GetSelection(w%dptr)
@@ -89,7 +89,7 @@ contains
              ! shorten the names
              call system_shorten_names()
 
-          elseif (w%dialog_purpose == wpurp_dialog_savelogfile) then
+          elseif (w%purpose == wpurp_dialog_savelogfile) then
              !! save log file dialog !!
              cstr = IGFD_GetFilePathName(w%dptr)
              call C_F_string_alloc(cstr,name)
@@ -109,8 +109,8 @@ contains
                 end if
                 call fclose(lu)
              end if
-          elseif (w%dialog_purpose == wpurp_dialog_openlibraryfile.or.&
-             w%dialog_purpose == wpurp_dialog_openfieldfile.or.w%dialog_purpose == wpurp_dialog_openonefilemodal) then
+          elseif (w%purpose == wpurp_dialog_openlibraryfile.or.&
+             w%purpose == wpurp_dialog_openfieldfile.or.w%purpose == wpurp_dialog_openonefilemodal) then
              ! !! new structure file dialog !!
              ! cstr = IGFD_GetFilePathName(w%dptr)
              ! call C_F_string_alloc(cstr,name)
@@ -136,7 +136,7 @@ contains
              end do
              win(w%idparent)%okfile_format = w%dialog_data%isformat
 
-          elseif (w%dialog_purpose == wpurp_dialog_openvibfile) then
+          elseif (w%purpose == wpurp_dialog_openvibfile) then
              w%okfile = ""
 
              ! open all files selected and add the new systems
@@ -165,7 +165,7 @@ contains
                 end do
              end if
 
-          elseif (w%dialog_purpose == wpurp_dialog_saveimagefile) then
+          elseif (w%purpose == wpurp_dialog_saveimagefile) then
              !! save image file dialog !!
              win(w%idparent)%okfile_set = .true.
 
