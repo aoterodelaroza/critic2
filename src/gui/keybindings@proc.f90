@@ -233,6 +233,7 @@ contains
     call set_bind(BIND_MDINTERACT_MOVEMOL,ImGuiKey_MouseRight,mod_none)
     call set_bind(BIND_MDINTERACT_ROTMOL,ImGuiKey_MouseMiddle,mod_none)
     call set_bind(BIND_PICKATOM_SELECT,ImGuiKey_MouseLeft,mod_none)
+    call set_bind(BIND_PICKATOM_ALT,ImGuiKey_MouseRight,mod_none)
     call set_bind(BIND_MOVEMOL_CHANGECELL,ImGuiKey_MouseScroll,mod_none)
     call set_bind(BIND_MOVEATOM_CHANGECELL,ImGuiKey_MouseScroll,mod_none)
     call set_bind(BIND_SELECT_ZOOM,ImGuiKey_MouseScroll,mod_none)
@@ -455,13 +456,8 @@ contains
     if (g1 == g2) return
     if (g1 == group_global .or. g2 == group_global) return
     if (group_in_view(g1) .and. group_in_view(g2)) then
-       ! two mouse modes do not clash (only one is active at a time), except
-       ! the pick group: the window-forced pick modes run on top of
-       ! navigation, so the pick bind shares its context with the
-       ! navigation binds
+       ! two mouse modes do not clash (only one is active at a time)
        clash = .not.(group_is_mousemode(g1) .and. group_is_mousemode(g2))
-       clash = clash .or. (g1 == group_viewmode_pickatom .and. g2 == group_viewmode_navigation) .or.&
-          (g1 == group_viewmode_navigation .and. g2 == group_viewmode_pickatom)
        return
     end if
     clash = .false.

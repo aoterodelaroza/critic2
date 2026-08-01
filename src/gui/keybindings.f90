@@ -110,7 +110,8 @@ module keybindings
   integer, parameter, public :: BIND_MDINTERACT_ZOOM = 58 ! interactive dynamics: zoom the camera
   integer, parameter, public :: BIND_NAV_MEASURE_ADD = 59 ! navigation: add the measurement for the selected atoms
   integer, parameter, public :: BIND_NAV_MEASURE_REMOVE = 60 ! navigation: remove the measurement for the selected atoms
-  integer, parameter, public :: BIND_NUM = 60 ! total number of binds
+  integer, parameter, public :: BIND_PICKATOM_ALT = 61 ! atom pick: alternate action on the atom under the cursor (builder: remove H)
+  integer, parameter, public :: BIND_NUM = 61 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -173,7 +174,8 @@ module keybindings
      "Camera zoom                     ",& ! BIND_SELECT_ZOOM
      "Camera zoom                     ",& ! BIND_MDINTERACT_ZOOM
      "Add measurement                 ",& ! BIND_NAV_MEASURE_ADD
-     "Remove measurement              "&  ! BIND_NAV_MEASURE_REMOVE
+     "Remove measurement              ",& ! BIND_NAV_MEASURE_REMOVE
+     "Pick atom, alternate action     "&  ! BIND_PICKATOM_ALT
      /)
 
   ! The key associated with each bind, bind -> key
@@ -285,7 +287,8 @@ module keybindings
      group_viewmode_select,&     ! BIND_SELECT_ZOOM
      group_viewmode_mdinteract,& ! BIND_MDINTERACT_ZOOM
      group_viewmode_navigation,& ! BIND_NAV_MEASURE_ADD
-     group_viewmode_navigation/) ! BIND_NAV_MEASURE_REMOVE
+     group_viewmode_navigation,& ! BIND_NAV_MEASURE_REMOVE
+     group_viewmode_pickatom/)   ! BIND_PICKATOM_ALT
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -351,7 +354,8 @@ module keybindings
      BIND_VIEWMODE_SELECT,&    ! BIND_SELECT_ZOOM
      0,&  ! BIND_MDINTERACT_ZOOM
      0,&  ! BIND_NAV_MEASURE_ADD
-     0/)  ! BIND_NAV_MEASURE_REMOVE
+     0,&  ! BIND_NAV_MEASURE_REMOVE
+     0/)  ! BIND_PICKATOM_ALT
 
   ! module procedure interfaces
   interface

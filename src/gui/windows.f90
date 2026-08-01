@@ -38,8 +38,7 @@ module windows
   integer(c_size_t), parameter :: maxlib = 40000
 
   ! view modes (positive = normal, user-selectable; negative = forced)
-  integer, parameter, public :: vm_builder_dec = -4 ! forced by builder: decrease valence (persistent)
-  integer, parameter, public :: vm_builder_inc = -3 ! forced by builder: increase valence (persistent)
+  integer, parameter, public :: vm_builder = -3 ! forced by builder: change valence (persistent)
   integer, parameter, public :: vm_mdinteract = -2 ! forced during interactive dynamics
   integer, parameter, public :: vm_pick_atom = -1 ! forced by a window awaiting an atom pick
   integer, parameter, public :: vm_navigate  = 0
@@ -48,21 +47,21 @@ module windows
   integer, parameter, public :: vm_moveatom  = 3
   integer, parameter, public :: vm_NUM = 3 ! highest user-selectable mode (combo)
 
-  character(len=16), parameter, public :: vmnames(vm_builder_dec:vm_NUM) = (/&
-     "Decrease Valence",& ! vm_builder_dec
-     "Increase Valence",& ! vm_builder_inc
-     "Interact (MD)   ",& ! vm_mdinteract
-     "Pick Atoms      ",& ! vm_pick_atom
-     "Navigate        ",& ! vm_navigate
-     "Select          ",& ! vm_select
-     "Move Molecules  ",& ! vm_movemol
-     "Move Atoms      "&  ! vm_moveatom
+  character(len=19), parameter, public :: vmnames(vm_builder:vm_NUM) = (/&
+     "Change Atom Valence",& ! vm_builder
+     "Interact (MD)      ",& ! vm_mdinteract
+     "Pick Atoms         ",& ! vm_pick_atom
+     "Navigate           ",& ! vm_navigate
+     "Select             ",& ! vm_select
+     "Move Molecules     ",& ! vm_movemol
+     "Move Atoms         "&  ! vm_moveatom
      /)
 
   ! view mode data structure for window_forced modes
   type viewmode_data
      character(len=:), allocatable :: msg ! message shown in the view bar
      integer(c_int) :: idx(5) ! atom identifier under mouse position
+     integer :: flag = 0 ! action delivered with the pick (valence: 1 = add H, 2 = remove H)
      integer :: owner ! owner window ID
   end type viewmode_data
 
@@ -140,7 +139,7 @@ module windows
      logical :: moveobj_isdiscrete = .false. ! whether the move fragment is discrete
      logical :: selrect_active = .false. ! rubber-band selection drag in progress (vm_select)
      type(ImVec2) :: selrect_p0 ! rubber-band drag start position (mouse/screen coords)
-     integer :: measure_pend = 0 ! pending press capture (0=none, 1=measure add, 2=measure delete, 3=forced-mode pick)
+     integer :: measure_pend = 0 ! pending press capture (0=none, 1=measure add, 2=measure delete, 3=forced-mode pick, 4=alternate pick)
      integer :: measure_pend_idx(5) = 0 ! atom captured at the press for the pending measurement/pick
      type(ImVec2) :: measure_pend_p0 ! press position, to tell a click from a drag on release
      real*8 :: timelast_view_assign = 0d0   ! time the view was last assigned a system
@@ -199,7 +198,7 @@ module windows
      integer :: geometry_addbond_iview = 0 ! view window commanded for the add-bond pick
      real*8 :: geometry_addbond_time = 0d0 ! time the add-bond pick was commanded (to detect stale ids)
      ! builder parameters
-     integer :: builder_mode = 0 ! active builder tool (0 = idle, 1 = increase valence, 2 = decrease)
+     logical :: builder_active = .false. ! whether the change-valence mode is active
      integer :: builder_iview = 0 ! view window commanded for the builder picks
      integer :: builder_isys = 0 ! system commanded for the builder picks
      real*8 :: builder_time = 0d0 ! time of the last click-free poll (stale-click guard)
