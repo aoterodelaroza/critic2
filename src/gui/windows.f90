@@ -140,8 +140,8 @@ module windows
      logical :: moveobj_isdiscrete = .false. ! whether the move fragment is discrete
      logical :: selrect_active = .false. ! rubber-band selection drag in progress (vm_select)
      type(ImVec2) :: selrect_p0 ! rubber-band drag start position (mouse/screen coords)
-     integer :: measure_pend = 0 ! pending measurement on a right/middle press (0=none, 1=add, 2=delete)
-     integer :: measure_pend_idx(5) = 0 ! atom captured at the press for the pending measurement
+     integer :: measure_pend = 0 ! pending press capture (0=none, 1=measure add, 2=measure delete, 3=forced-mode pick)
+     integer :: measure_pend_idx(5) = 0 ! atom captured at the press for the pending measurement/pick
      type(ImVec2) :: measure_pend_p0 ! press position, to tell a click from a drag on release
      real*8 :: timelast_view_assign = 0d0   ! time the view was last assigned a system
      real*8 :: timelast_view_getpixel = 0d0 ! time the pick buffer was last queried for atom ID
@@ -255,7 +255,7 @@ module windows
      procedure :: create_texture_view ! create the texture for the view
      procedure :: delete_texture_view ! delete the texture for the view
      procedure :: viewmode_set_mode ! set the viewmode based on user keypresses
-     procedure :: viewmode_set_forced ! enter the forced transient view mode (pick an atom)
+     procedure :: viewmode_set_forced ! enter a window-forced pick view mode (pick an atom, builder)
      procedure :: viewmode_release_forced ! cancel the forced view mode if owned by the caller
      procedure :: viewmode_bar_display ! bar display for the current view mode
      procedure :: viewmode_activate_picking ! activate picking by view mode

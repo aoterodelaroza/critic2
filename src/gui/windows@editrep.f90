@@ -1984,7 +1984,7 @@ contains
                    w%editrep_text_pick_slot = 2
                    w%editrep_text_pick_time = glfwGetTime()
                    win(iview)%vmdata%idx = 0
-                   call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the second atom of the bond...",w%id)
+                   call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the second atom of the bond (any key cancels)...",w%id)
                 else
                    ! atom anchor: complete
                    w%rep%text%t(i)%idx1 = win(iview)%vmdata%idx(1:4)
@@ -2152,7 +2152,7 @@ contains
              w%editrep_text_pick_slot = 1
              w%editrep_text_pick_time = glfwGetTime()
              call win(iview)%viewmode_set_forced(vm_pick_atom,&
-                "Pick the atom to anchor the text to...",w%id)
+                "Pick the atom to anchor the text to (any key cancels)...",w%id)
           end if
           call iw_tooltip("Click, then pick the anchor atom in the view window",ttshown)
           call iw_text("Anchor: " // anchor_string(w%rep%text%t(isel)%idx1),sameline=.true.)
@@ -2161,7 +2161,7 @@ contains
              w%editrep_text_pick_item = isel
              w%editrep_text_pick_slot = 1
              w%editrep_text_pick_time = glfwGetTime()
-             call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the first atom of the bond...",w%id)
+             call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the first atom of the bond (any key cancels)...",w%id)
           end if
           call iw_tooltip("Click, then pick the two atoms of the bond in the view window",ttshown)
           call iw_text("Anchor: " // anchor_string(w%rep%text%t(isel)%idx1) // " - " //&
@@ -2549,7 +2549,7 @@ contains
          w%editrep_measure_pick_slot = islot
          w%editrep_measure_pick_time = glfwGetTime()
          call win(iview)%viewmode_set_forced(vm_pick_atom,&
-            "Pick the replacement atom in the view...",w%id)
+            "Pick the replacement atom in the view (any key cancels)...",w%id)
       end if
     end subroutine atom_button
 

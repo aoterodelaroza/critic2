@@ -369,9 +369,10 @@ module keybindings
      end function set_bind_from_user_input
      module subroutine set_default_keybindings()
      end subroutine set_default_keybindings
-     module function is_bind_event(bind,held)
+     module function is_bind_event(bind,held,norepeat)
        integer, intent(in) :: bind
        logical, intent(in), optional :: held
+       logical, intent(in), optional :: norepeat
        logical :: is_bind_event
      end function is_bind_event
      module function get_bind_keyname(bind)

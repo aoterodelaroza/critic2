@@ -39,6 +39,12 @@ submodule (windows) view
   integer, parameter :: ilock_mdmovemol = 6 ! rigidly translating a molecule during interactive dynamics
   integer, parameter :: ilock_mdrotmol = 7  ! rigidly rotating a molecule during interactive dynamics
 
+  ! kinds of pending press capture (w%measure_pend), resolved on release
+  integer, parameter :: pend_none = 0
+  integer, parameter :: pend_measure_add = 1    ! add a measurement (navigation)
+  integer, parameter :: pend_measure_remove = 2 ! remove a measurement (navigation)
+  integer, parameter :: pend_pick = 3           ! deliver an atom pick (forced pick modes)
+
   ! minimum time elapsed between consecutive queries of the pick buffer (seconds)
   real*8, parameter :: pick_interval = 1d0 / 10d0
 
@@ -1230,14 +1236,14 @@ contains
 
   end subroutine viewmode_set_mode
 
-  !> Enter the window-forced transient view mode: the message is shown
-  !> in the bar below the view and the mode only exits when the mouse
-  !> clicks the view (any button) or a key is pressed (any key). If an atom
-  !> is under the mouse when it is clicked, its ID is stored in
-  !> w%viewmode_forced_idx (mousepos_idx layout) for use by the
-  !> routine that set the mode; otherwise the result is zero. idcaller
-  !> is the window ID (win(:)) of the caller, used by the caller to verify
-  !> it owns the pick result.
+  !> Enter a window-forced pick view mode: the message is shown in the
+  !> bar below the view. The mode behaves like navigation (same camera
+  !> binds) with measurements disabled; a click with the pick bind
+  !> (BIND_PICKATOM_SELECT, press and release without dragging) stores
+  !> the ID of the atom under the mouse in w%vmdata%idx (mousepos_idx
+  !> layout; zero = no atom / cancelled), and any key press exits the
+  !> mode. idcaller is the window ID (win(:)) of the caller, used by the
+  !> caller to verify it owns the pick result.
   module subroutine viewmode_set_forced(w,mode,message,idcaller)
     class(window), intent(inout), target :: w
     integer, intent(in) :: mode
@@ -1245,6 +1251,7 @@ contains
     integer, intent(in) :: idcaller
 
     w%viewmode = mode
+    w%viewmode_transient = .false.
     w%vmdata%owner = idcaller
     w%vmdata%msg = trim(message)
     w%vmdata%idx = 0
@@ -1276,8 +1283,8 @@ contains
     use keybindings, only: get_bind_keyname, bindnames,&
        BIND_NUM, group_viewmode_navigation, group_viewmode_select,&
        group_viewmode_movemol, group_viewmode_moveatom, group_viewmode_mdinteract,&
-       group_viewmode_pickatom, groupbind, BIND_CLOSE_FOCUSED_DIALOG,&
-       BIND_NAV_ZOOM, BIND_NAV_RESET
+       groupbind, BIND_PICKATOM_SELECT, BIND_NAV_MEASURE, BIND_NAV_MEASURE_ADD,&
+       BIND_NAV_MEASURE_REMOVE
     use utils, only: iw_combo_simple, iw_tooltip, igIsItemHovered_delayed, iw_text
     use tools_io, only: string
     class(window), intent(inout), target :: w
@@ -1286,7 +1293,7 @@ contains
     character(len=:), allocatable :: viewmode_items
     integer, allocatable :: tips(:)
     character(len=64), allocatable :: keyline(:), lblline(:)
-    logical :: builder
+    logical :: builder, pickmode
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -1314,13 +1321,15 @@ contains
        if (w%viewmode /= viewmode_before) w%viewmode_transient = .false.
     end if
     builder = (w%viewmode == vm_builder_inc .or. w%viewmode == vm_builder_dec)
+    pickmode = builder .or. w%viewmode == vm_pick_atom
 
     ! delayed tooltip with info about the key/mouse bindings for this view mode
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
        if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
-          ! the keybinding group for this view mode
+          ! the keybinding group for this view mode; the window-forced pick
+          ! modes share the navigation binds (minus measurements)
           select case (w%viewmode)
-          case (vm_navigate)
+          case (vm_navigate, vm_pick_atom, vm_builder_inc, vm_builder_dec)
              mygroup = group_viewmode_navigation
           case (vm_select)
              mygroup = group_viewmode_select
@@ -1330,54 +1339,48 @@ contains
              mygroup = group_viewmode_moveatom
           case (vm_mdinteract)
              mygroup = group_viewmode_mdinteract
-          case (vm_pick_atom)
-             mygroup = group_viewmode_pickatom
-          case default ! incl. the builder modes
+          case default
              mygroup = 0
           end select
 
-          ! one tooltip line per bind in this mode's group
-          ll = 1
+          ! one tooltip line per bind in this mode's group; measurements
+          ! and selection are disabled in the forced pick modes
           n = 0
           allocate(tips(BIND_NUM))
           do i = 1, BIND_NUM
              if (groupbind(i) == mygroup) then
+                if (pickmode .and. (i == BIND_NAV_MEASURE .or. i == BIND_NAV_MEASURE_ADD .or.&
+                   i == BIND_NAV_MEASURE_REMOVE)) cycle
                 n = n + 1
                 tips(n) = i
-                ll = max(ll,len_trim(get_bind_keyname(i)))
              end if
           end do
 
-          ! build the tooltip lines: one per bind in this mode's group
+          ! build the tooltip lines: one per bind in this mode's group,
+          ! plus the pick action and the exit key in the forced pick modes
           m = n
-          if (w%viewmode == vm_pick_atom) m = n + 1
-          if (builder) m = n + 5
+          if (pickmode) m = n + 2
           allocate(keyline(m),lblline(m))
           do i = 1, n
              keyline(i) = trim(get_bind_keyname(tips(i)))
              lblline(i) = trim(bindnames(tips(i)))
           end do
-          if (w%viewmode == vm_pick_atom) then
-             n = n + 1
-             keyline(n) = "Any Key"
-             lblline(n) = "Cancel Pick Atom"
-          end if
-          if (builder) then
-             keyline(n+1) = "Left Click"
-             if (w%viewmode == vm_builder_inc) then
+          if (pickmode) then
+             keyline(n+1) = trim(get_bind_keyname(BIND_PICKATOM_SELECT))
+             if (w%viewmode == vm_pick_atom) then
+                lblline(n+1) = "Pick Atom"
+             elseif (w%viewmode == vm_builder_inc) then
                 lblline(n+1) = "Add Hydrogen to Atom"
              else
                 lblline(n+1) = "Remove Hydrogen from Atom"
              end if
-             keyline(n+2) = "Right/Middle Click"
-             lblline(n+2) = "Exit This Mode"
-             keyline(n+3) = trim(get_bind_keyname(BIND_CLOSE_FOCUSED_DIALOG))
-             lblline(n+3) = "Exit This Mode"
-             keyline(n+4) = trim(get_bind_keyname(BIND_NAV_ZOOM))
-             lblline(n+4) = "Zoom"
-             keyline(n+5) = trim(get_bind_keyname(BIND_NAV_RESET))
-             lblline(n+5) = "Reset View"
-             n = n + 5
+             keyline(n+2) = "Any Key"
+             if (w%viewmode == vm_pick_atom) then
+                lblline(n+2) = "Cancel Pick Atom"
+             else
+                lblline(n+2) = "Exit This Mode"
+             end if
+             n = n + 2
           end if
 
           ! align the key column
@@ -1400,7 +1403,7 @@ contains
     ! show the pick message ("pick an atom...", etc.) only while the window-forced
     ! pick mode is active, so it vanishes as soon as an atom is picked or the view
     ! mode changes (the string itself lingers allocated until the next pick)
-    if ((w%viewmode == vm_pick_atom .or. builder) .and. allocated(w%vmdata%msg)) then
+    if (pickmode .and. allocated(w%vmdata%msg)) then
        call iw_text(w%vmdata%msg,highlight=.true.,sameline=.true.)
     end if
 
@@ -1410,9 +1413,8 @@ contains
   !> according to the current view mode and window state.  hover =
   !> whether the view is active and being hovered.
   module function viewmode_activate_picking(w,hover)
-    use interfaces_cimgui, only: igIsMouseClicked, ImGuiMouseButton_Right, ImGuiMouseButton_Middle
     use keybindings, only: is_bind_event, BIND_NAV_MEASURE, BIND_SELECT_MOLECULES_AND_DESELECT,&
-       BIND_NAV_MEASURE_ADD, BIND_NAV_MEASURE_REMOVE
+       BIND_NAV_MEASURE_ADD, BIND_NAV_MEASURE_REMOVE, BIND_PICKATOM_SELECT
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
     logical :: viewmode_activate_picking
@@ -1421,8 +1423,9 @@ contains
     if (.not.hover) return
 
     if (w%viewmode < 0) then
-       ! in window_forced mode, any click requires picking
-       viewmode_activate_picking = any_mouse_clicked()
+       ! in forced view mode, only the pick bind consumes the atom under
+       ! the cursor (other clicks drive the camera and read nothing)
+       viewmode_activate_picking = is_bind_event(BIND_PICKATOM_SELECT,norepeat=.true.)
     elseif (w%viewmode == vm_navigate) then
        ! navigate -> when measuring, on a double click (to clear the selection),
        ! or on a right/middle button press (to capture the atom under the cursor
@@ -1456,7 +1459,7 @@ contains
        BIND_MDINTERACT_DRAGATOM, BIND_MDINTERACT_MOVEMOL, BIND_MDINTERACT_ROTMOL,&
        BIND_MOVEMOL_CHANGECELL, BIND_MOVEATOM_CHANGECELL,&
        BIND_SELECT_ZOOM, BIND_MDINTERACT_ZOOM, BIND_NAV_MEASURE_ADD,&
-       BIND_NAV_MEASURE_REMOVE, bind_mouse_button
+       BIND_NAV_MEASURE_REMOVE, BIND_PICKATOM_SELECT, bind_mouse_button
     use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry
     use global, only: iunit_bohr
     use gui_main, only: io, ColorHighlightSelectScene
@@ -1469,7 +1472,7 @@ contains
     real*8 :: dxbohr(3)
     integer :: isys
     integer(c_int) :: col, ibtn
-    logical :: ok, dragged
+    logical :: ok, dragged, forcedpick
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
@@ -1488,78 +1491,33 @@ contains
        w%mpos0_m = 0._c_float
        w%ilock = ilock_no
        w%selrect_active = .false.
-       w%measure_pend = 0
+       w%measure_pend = pend_none
     end if
 
-    ! window-forced pick modes. Pick atom: exits on a mouse click on the
-    ! view (any button) or any key press anywhere; if an atom is under
-    ! the mouse when clicked, save it as the pick result. Builder modes
-    ! (increase/decrease valence): a left click on the view delivers the
-    ! atom under the mouse (if any) and the mode stays active for
-    ! successive edits; a right/middle click on the view or the
-    ! close-dialog key (Escape) exits back to navigation. All exit if
+    ! Window-forced pick modes: they behave like navigation (same
+    ! camera binds), except that measurements and atom selection are
+    ! disabled, a click with the pick bind (press and release without
+    ! dragging) delivers the atom under the cursor to the commanding
+    ! window, and any key press exits/cancels the mode.  Also exit if
     ! the window that commanded the mode is gone.
-    if (w%viewmode == vm_pick_atom .or. w%viewmode == vm_builder_inc .or.&
-       w%viewmode == vm_builder_dec) then
-       ! drop any drag/measurement state latched before entering the mode
-       w%selrect_active = .false.
-       w%measure_pend = 0
-
+    forcedpick = (w%viewmode == vm_pick_atom .or. w%viewmode == vm_builder_inc .or.&
+       w%viewmode == vm_builder_dec)
+    if (forcedpick) then
        ! check the commanding window is still active
        ok = (w%vmdata%owner >= 1 .and. w%vmdata%owner <= nwin)
        if (ok) ok = win(w%vmdata%owner)%isinit .and. win(w%vmdata%owner)%isopen
+       ! any key press exits/cancels the mode (the result stays zero); a
+       ! keyboard-rebound pick bind is exempt while the view is hovered, so
+       ! it can deliver the pick instead
+       if (ok) ok = .not.(.not.io%WantTextInput .and. any_key_pressed() .and.&
+          .not.(hover .and. is_bind_event(BIND_PICKATOM_SELECT)))
        if (.not.ok) then
           w%vmdata%idx = 0
           w%viewmode = vm_navigate
           w%viewmode_transient = .false.
+          w%measure_pend = pend_none
           return
        end if
-
-       if (w%viewmode == vm_pick_atom) then
-          if (hover .and. any_mouse_clicked()) then
-             ! pick the atom under the mouse, if any, and exit
-             w%vmdata%idx = 0
-             if (w%mousepos_idx(1) > 0) w%vmdata%idx = w%mousepos_idx
-             w%viewmode = vm_navigate
-             w%viewmode_transient = .false.
-          elseif (.not.io%WantTextInput .and. any_key_pressed()) then
-             ! cancelled; the result stays zero
-             w%viewmode = vm_navigate
-             w%viewmode_transient = .false.
-             w%vmdata%idx = 0
-          end if
-       else
-          if (hover .and. igIsMouseClicked(ImGuiMouseButton_Left,.false._c_bool)) then
-             ! deliver the atom under the mouse, if any; stay in the mode
-             w%vmdata%idx = 0
-             if (w%mousepos_idx(1) > 0) w%vmdata%idx = w%mousepos_idx
-          elseif ((hover .and. (igIsMouseClicked(ImGuiMouseButton_Right,.false._c_bool) .or.&
-             igIsMouseClicked(ImGuiMouseButton_Middle,.false._c_bool))) .or.&
-             ((hover .or. win(w%vmdata%owner)%focused()) .and.&
-             is_bind_event(BIND_CLOSE_FOCUSED_DIALOG))) then
-             ! exit the mode; the owner window sees viewmode >= 0 and stands
-             ! down. The exit key only counts with the view hovered or the
-             ! owner focused, so an Escape aimed at closing another window
-             ! does not also kill the mode.
-             w%vmdata%idx = 0
-             w%viewmode = vm_navigate
-             w%viewmode_transient = .false.
-          elseif (w%view_selected >= 1 .and. w%view_selected <= nsys) then
-             ! camera zoom and view reset stay available during the
-             ! persistent mode (their binds do not clash with the pick and
-             ! exit gestures)
-             if (associated(w%sc)) then
-                if (w%sc%isinit >= 2) then
-                   call cam_zoom(BIND_NAV_ZOOM)
-                   if (hover .and. is_bind_event(BIND_NAV_RESET,.false.)) then
-                      call w%sc%reset()
-                      w%forcerender = .true.
-                   end if
-                end if
-             end if
-          end if
-       end if
-       return
     end if
 
     ! only process if there is an associated system is viewed and scene is initialized
@@ -1581,17 +1539,22 @@ contains
        w%selrect_active = .false.
     end if
 
-    ! drop any pending measurement carried over from navigation mode: the
-    ! press was captured in vm_navigate but the mode changed (e.g. the user
-    ! held the select modifier, an MD run forced interact mode, or the viewed
-    ! system switched) before the release could resolve it. Otherwise the stale
-    ! capture would fire on a later, unrelated right/middle release.
-    if (w%viewmode /= vm_navigate) then
-       w%measure_pend = 0
+    ! drop any pending press capture whose mode is gone: measure captures
+    ! (1/2) are only valid in navigation, pick captures (3) only in the
+    ! window-forced pick modes; anything else is a stale press (e.g. the
+    ! mode changed or the viewed system switched between the press and the
+    ! release) whose release would otherwise fire an unrelated action later.
+    if (w%viewmode == vm_navigate) then
+       if (w%measure_pend == pend_pick) w%measure_pend = pend_none
+    elseif (forcedpick) then
+       if (w%measure_pend == pend_measure_add .or. w%measure_pend == pend_measure_remove) &
+          w%measure_pend = pend_none
+    else
+       w%measure_pend = pend_none
     end if
 
     ! process mode-specific events
-    if (w%viewmode == vm_navigate) then
+    if (w%viewmode == vm_navigate .or. forcedpick) then
        ! navigation mode
        call igGetMousePos(mousepos)
        texpos = mousepos
@@ -1609,71 +1572,95 @@ contains
           w%forcerender = .true.
        end if
 
-       ! atom selection
-       if (hover .and. is_bind_event(BIND_NAV_MEASURE)) then
-          call w%sc%select_atom(w%mousepos_idx)
-          w%forcerender = .true.
-       end if
-       if (hover .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) then
-          call w%sc%select_atom((/0,0,0,0,0/))
-          w%forcerender = .true.
-       end if
+       ! atom selection and measurements are disabled in the forced pick modes
+       if (.not.forcedpick) then
+          ! atom selection
+          if (hover .and. is_bind_event(BIND_NAV_MEASURE)) then
+             call w%sc%select_atom(w%mousepos_idx)
+             w%forcerender = .true.
+          end if
+          if (hover .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) then
+             call w%sc%select_atom((/0,0,0,0,0/))
+             w%forcerender = .true.
+          end if
 
-       ! measurement: with 1-3 atoms selected, the add/remove binding on another
-       ! atom adds/removes the corresponding measurement (distance/angle/dihedral).
-       ! For a mouse-button binding, capture the atom on the press (while the view
-       ! is still hovered) and resolve on release only if the cursor did not drag
-       ! (so a right/middle drag still pans/perp-rotates the camera and the
-       ! right-double click still resets the view); for a non-mouse binding there
-       ! is no drag to disambiguate, so act at once.
-       if (hover .and. w%mousepos_idx(1) > 0) then
-          if (is_bind_event(BIND_NAV_MEASURE_ADD)) then
-             if (bind_mouse_button(BIND_NAV_MEASURE_ADD) >= 0) then
-                w%measure_pend = 1
-                w%measure_pend_idx = w%mousepos_idx
-                w%measure_pend_p0 = mousepos
-             else
-                call w%sc%add_measurement(w%mousepos_idx)
-                w%forcerender = .true.
+          ! measurement: with 1-3 atoms selected, the add/remove binding on another
+          ! atom adds/removes the corresponding measurement (distance/angle/dihedral).
+          ! For a mouse-button binding, capture the atom on the press (while the view
+          ! is still hovered) and resolve on release only if the cursor did not drag
+          ! (so a right/middle drag still pans/perp-rotates the camera and the
+          ! right-double click still resets the view); for a non-mouse binding there
+          ! is no drag to disambiguate, so act at once.
+          if (hover .and. w%mousepos_idx(1) > 0) then
+             if (is_bind_event(BIND_NAV_MEASURE_ADD)) then
+                if (bind_mouse_button(BIND_NAV_MEASURE_ADD) >= 0) then
+                   w%measure_pend = pend_measure_add
+                   w%measure_pend_idx = w%mousepos_idx
+                   w%measure_pend_p0 = mousepos
+                else
+                   call w%sc%add_measurement(w%mousepos_idx)
+                   w%forcerender = .true.
+                end if
+             elseif (is_bind_event(BIND_NAV_MEASURE_REMOVE)) then
+                if (bind_mouse_button(BIND_NAV_MEASURE_REMOVE) >= 0) then
+                   w%measure_pend = pend_measure_remove
+                   w%measure_pend_idx = w%mousepos_idx
+                   w%measure_pend_p0 = mousepos
+                else
+                   call w%sc%delete_measurement(w%mousepos_idx)
+                   w%forcerender = .true.
+                end if
              end if
-          elseif (is_bind_event(BIND_NAV_MEASURE_REMOVE)) then
-             if (bind_mouse_button(BIND_NAV_MEASURE_REMOVE) >= 0) then
-                w%measure_pend = 2
+          end if
+       else
+          ! forced pick modes: capture the atom under the cursor (possibly
+          ! none) on the pick-bind press, resolved on release if the cursor
+          ! did not drag past the threshold (so a left drag still rotates
+          ! the camera). For a non-mouse bind there is no drag to
+          ! disambiguate, so deliver at once (once per press: norepeat).
+          if (hover .and. is_bind_event(BIND_PICKATOM_SELECT,norepeat=.true.)) then
+             if (bind_mouse_button(BIND_PICKATOM_SELECT) >= 0) then
+                w%measure_pend = pend_pick
                 w%measure_pend_idx = w%mousepos_idx
                 w%measure_pend_p0 = mousepos
              else
-                call w%sc%delete_measurement(w%mousepos_idx)
-                w%forcerender = .true.
+                call deliver_pick(w%mousepos_idx)
              end if
           end if
        end if
-       ! resolve the pending (mouse) measurement on release (runs even when hover
-       ! is off, e.g. while a camera-drag lock is held); a drag past the threshold
-       ! cancels. The button is looked up once and guarded (>= 0) so a bind that is
-       ! no longer a mouse button never reaches igIsMouseReleased with -1.
-       if (w%measure_pend /= 0) then
+       ! resolve the pending (mouse) measurement or pick on release (runs even
+       ! when hover is off, e.g. while a camera-drag lock is held); a drag past
+       ! the threshold cancels. The button is looked up once and guarded (>= 0)
+       ! so a bind that is no longer a mouse button never reaches
+       ! igIsMouseReleased with -1.
+       if (w%measure_pend /= pend_none) then
           call igGetMousePos(mousepos)
           ibtn = -1_c_int
-          if (w%measure_pend == 1) ibtn = bind_mouse_button(BIND_NAV_MEASURE_ADD)
-          if (w%measure_pend == 2) ibtn = bind_mouse_button(BIND_NAV_MEASURE_REMOVE)
+          if (w%measure_pend == pend_measure_add) ibtn = bind_mouse_button(BIND_NAV_MEASURE_ADD)
+          if (w%measure_pend == pend_measure_remove) ibtn = bind_mouse_button(BIND_NAV_MEASURE_REMOVE)
+          if (w%measure_pend == pend_pick) ibtn = bind_mouse_button(BIND_PICKATOM_SELECT)
           if (ibtn < 0) then
-             w%measure_pend = 0
+             w%measure_pend = pend_none
           elseif (igIsMouseReleased(ibtn)) then
              if (abs(mousepos%x-w%measure_pend_p0%x) <= selrect_thr .and.&
                  abs(mousepos%y-w%measure_pend_p0%y) <= selrect_thr) then
-                if (w%measure_pend == 1) then
+                if (w%measure_pend == pend_measure_add) then
                    call w%sc%add_measurement(w%measure_pend_idx)
-                else
+                   w%forcerender = .true.
+                elseif (w%measure_pend == pend_measure_remove) then
                    call w%sc%delete_measurement(w%measure_pend_idx)
+                   w%forcerender = .true.
+                elseif (w%measure_pend == pend_pick) then
+                   call deliver_pick(w%measure_pend_idx)
                 end if
-                w%forcerender = .true.
              end if
-             w%measure_pend = 0
+             w%measure_pend = pend_none
           end if
        end if
 
        ! double click on empty space clears the selection
-       if (hover .and. is_bind_event(BIND_NAV_MEASURE) .and. w%mousepos_idx(1) == 0) then
+       if (.not.forcedpick .and. hover .and. is_bind_event(BIND_NAV_MEASURE) .and.&
+          w%mousepos_idx(1) == 0) then
           call sysc(w%view_selected)%highlight_clear(.false.)
           w%forcerender = .true.
        end if
@@ -1906,8 +1893,10 @@ contains
        call moveatom_translate(BIND_MOVEATOM_TRANSLATE,ilock_left,w%mpos0_l)
     end if
 
-    ! if this is a transient view mode, reset to default (navigation)
-    if (w%viewmode_transient) then
+    ! if this is a transient view mode, reset to default (navigation); the
+    ! window-forced modes are never transient (viewmode_set_forced clears
+    ! the flag), hence the viewmode >= 0 guard
+    if (w%viewmode_transient .and. w%viewmode >= 0) then
        w%viewmode = vm_navigate
        w%viewmode_transient = .false.
     end if
@@ -1928,6 +1917,23 @@ contains
          end if
       end do
     end function any_key_pressed
+
+    ! deliver a completed pick to the commanding window. Pick-atom mode:
+    ! deliver the atom (or zero = clicked on empty space = cancelled) and
+    ! exit the mode. Builder modes: deliver only a real atom and stay in
+    ! the mode for successive edits.
+    subroutine deliver_pick(idx)
+      integer(c_int), intent(in) :: idx(5)
+
+      if (w%viewmode == vm_pick_atom) then
+         w%vmdata%idx = 0
+         if (idx(1) > 0) w%vmdata%idx = idx
+         w%viewmode = vm_navigate
+         w%viewmode_transient = .false.
+      elseif (idx(1) > 0) then
+         w%vmdata%idx = idx
+      end if
+    end subroutine deliver_pick
 
     ! adimensional scroll amount for the given bind: from the mouse wheel, or
     ! from a held key + vertical drag (latched via ilock_scroll). Shared by the

@@ -242,22 +242,27 @@ contains
 
   end subroutine set_default_keybindings
 
-  ! Return whether the bind event is happening. If held (optional),
-  ! the event happens only if the button is held down (for mouse).
-  module function is_bind_event(bind,held)
+  ! Return whether the bind event is happening. If held (default:
+  ! false), the event happens only if the button is held down (for
+  ! mouse).  If norepeat (default: false) the event happens if the key
+  ! press is not repeating.
+  module function is_bind_event(bind,held,norepeat)
     use gui_main, only: io
     use windows, only: win, iwin_view
     use interfaces_cimgui
     integer, intent(in) :: bind
     logical, intent(in), optional :: held
+    logical, intent(in), optional :: norepeat
     logical :: is_bind_event
 
     integer :: key, mod, modnow
-    logical :: held_, oktext
+    logical :: held_, norepeat_, oktext
 
     ! process options
     held_ = .false.
     if (present(held)) held_ = held
+    norepeat_ = .false.
+    if (present(norepeat)) norepeat_ = norepeat
 
     ! some checks
     is_bind_event = .false.
@@ -291,7 +296,7 @@ contains
        if (held_) then
           is_bind_event = igIsKeyDown(key)
        else
-          is_bind_event = igIsKeyPressed(key,.true._c_bool)
+          is_bind_event = igIsKeyPressed(key,logical(.not.norepeat_,c_bool))
        end if
     elseif (key == ImGuiKey_MouseLeft .and. held_) then
        is_bind_event = igIsMouseDown(ImGuiMouseButton_Left)
@@ -450,7 +455,13 @@ contains
     if (g1 == g2) return
     if (g1 == group_global .or. g2 == group_global) return
     if (group_in_view(g1) .and. group_in_view(g2)) then
+       ! two mouse modes do not clash (only one is active at a time), except
+       ! the pick group: the window-forced pick modes run on top of
+       ! navigation, so the pick bind shares its context with the
+       ! navigation binds
        clash = .not.(group_is_mousemode(g1) .and. group_is_mousemode(g2))
+       clash = clash .or. (g1 == group_viewmode_pickatom .and. g2 == group_viewmode_navigation) .or.&
+          (g1 == group_viewmode_navigation .and. g2 == group_viewmode_pickatom)
        return
     end if
     clash = .false.

@@ -1608,7 +1608,7 @@ contains
                          w%geometry_addbond_iview = iview
                          w%geometry_addbond_time = glfwGetTime()
                          call win(iview)%viewmode_set_forced(vm_pick_atom,&
-                            "Please pick an atom to bond to atom " // string(i) // "...",w%id)
+                            "Pick an atom to bond to atom " // string(i) // " (any key cancels)...",w%id)
                       end if
                       call iw_tooltip("Add a bond to this atom: click, then pick an atom in the view window",ttshown)
 

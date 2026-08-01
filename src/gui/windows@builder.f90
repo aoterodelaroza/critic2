@@ -62,9 +62,9 @@ contains
           win(iview)%vmdata%owner == w%id .and.&
           win(iview)%view_selected == w%builder_isys
        if (.not.ok) then
-          ! the view is gone, the mode was exited (Escape, right/middle click,
-          ! mode combo), another window took over the pick, or the view shows
-          ! another system: stand down
+          ! the view is gone, the mode was exited (any key, mode combo),
+          ! another window took over the pick, or the view shows another
+          ! system: release the forced mode
           if (okview) call win(iview)%viewmode_release_forced(w%id,ivm)
           w%builder_mode = 0
           w%builder_iview = 0
@@ -120,10 +120,10 @@ contains
          w%builder_time = glfwGetTime()
          if (imode == 1) then
             call win(iwin_view)%viewmode_set_forced(vm_builder_inc,&
-               "Click on atoms to add hydrogens (Escape or right-click to exit)...",w%id)
+               "Click on atoms to add hydrogens (press any key to exit)...",w%id)
          else
             call win(iwin_view)%viewmode_set_forced(vm_builder_dec,&
-               "Click on atoms to remove hydrogens (Escape or right-click to exit)...",w%id)
+               "Click on atoms to remove hydrogens (press any key to exit)...",w%id)
          end if
       end if
     end subroutine builder_toggle
