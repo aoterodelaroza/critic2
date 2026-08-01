@@ -187,9 +187,8 @@ module windows
      integer :: geometry_addbond_iview = 0 ! view window commanded for the add-bond pick
      real*8 :: geometry_addbond_time = 0d0 ! time the add-bond pick was commanded (to detect stale ids)
      ! builder parameters
-     logical :: builder_active = .false. ! whether the change-valence mode is active
-     integer :: builder_iview = 0 ! view window commanded for the builder picks
-     integer :: builder_isys = 0 ! system commanded for the builder picks
+     logical :: builder_active = .false. ! whether the change-valence mode is active (commanded to the parent view)
+     integer :: builder_isys = 0 ! system latched for the builder picks (0 = no mode active)
      real*8 :: builder_time = 0d0 ! time of the last click-free poll (stale-click guard)
      character(len=:), allocatable :: geometry_expression ! expression for column in atoms table
      logical :: geometry_expression_ok = .false. ! is the expression ok?
@@ -313,7 +312,6 @@ module windows
   integer, public :: iwin_console_output
   integer, public :: iwin_view
   integer, public :: iwin_about
-  integer, public :: iwin_builder
   public :: windows_init
 
   ! window types

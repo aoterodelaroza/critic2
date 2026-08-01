@@ -72,8 +72,8 @@ contains
     use shapes, only: shapes_init, shapes_end
     use icons, only: icons_init, icons_end
     use windows, only: nwin, win, wintype_tree, wintype_view, wintype_console_input,&
-       wintype_console_output, wintype_about, wintype_builder, iwin_tree, iwin_view,&
-       iwin_console_input, iwin_console_output, iwin_about, iwin_builder,&
+       wintype_console_output, wintype_about, iwin_tree, iwin_view,&
+       iwin_console_input, iwin_console_output, iwin_about,&
        stack_create_window, stack_realloc_maybe, wpurp_view_main, windows_init
     use global, only: critic_home
     use c_interface_module, only: f_c_string_dup, C_string_free
@@ -311,7 +311,6 @@ contains
     iwin_view = stack_create_window(wintype_view,.true.,purpose=wpurp_view_main,permanent=.true.)
     iwin_console_input = stack_create_window(wintype_console_input,.true.,permanent=.true.)
     iwin_console_output = stack_create_window(wintype_console_output,.true.,permanent=.true.)
-    iwin_builder = stack_create_window(wintype_builder,.true.,permanent=.true.)
     iwin_about = stack_create_window(wintype_about,.false.,permanent=.true.)
 
     ! start initializing the systems from the command line
@@ -389,13 +388,11 @@ contains
           call igDockBuilderDockWindow(c_loc(win(iwin_view)%name), iright)
           call igDockBuilderDockWindow(c_loc(win(iwin_console_input)%name), ileft)
           call igDockBuilderDockWindow(c_loc(win(iwin_console_output)%name), ileft)
-          call igDockBuilderDockWindow(c_loc(win(iwin_builder)%name), ileft)
           call igDockBuilderFinish(ileft)
           call igDockBuilderFinish(iright)
           call igDockBuilderFinish(iddock)
           win(iwin_console_input)%isopen = .true.
           win(iwin_console_output)%isopen = .true.
-          win(iwin_builder)%isopen = .true.
           call igSetWindowFocus_Str(c_loc(win(iwin_view)%name))
        end if
 
@@ -557,7 +554,7 @@ contains
     use interfaces_cimgui, only: igSeparator
     use systems, only: sysc, sys_init, ok_system
     use windows, only: stack_create_window, wintype_exportimage, wintype_geometry,&
-       wintype_vibrations, wintype_dynamics
+       wintype_vibrations, wintype_dynamics, wintype_builder
     use utils, only: iw_tooltip, iw_menuitem
     use keybindings, only: BIND_GEOMETRY, BIND_RECALC_BONDS
     integer, intent(in) :: isys
@@ -604,6 +601,11 @@ contains
     call iw_tooltip("Run an interactive molecular-dynamics simulation: animate the system at a &
        &given temperature and drag atoms with the mouse",ttshown)
 
+    ! builder
+    if (iw_menuitem("Builder...",enabled=enabled)) &
+       idum = stack_create_window(wintype_builder,.true.,idparent=idparent,orraise=-1)
+    call iw_tooltip("Tools to modify the structure in the view",ttshown)
+
   end subroutine show_tools_menu
 
   !xx! private procedures
@@ -633,7 +635,7 @@ contains
     use systems, only: sys, sysc, sys_init, ok_system, are_threads_running, duplicate_system,&
        reread_system_from_file, remove_system, kill_initialization_thread, write_system
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
-       iwin_console_output, iwin_builder, iwin_about, stack_create_window, wintype_dialog,&
+       iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
        wintype_about, wintype_geometry, wintype_water_cluster
@@ -867,11 +869,6 @@ contains
           if (iw_menuitem("Output Console",selected=logical(win(iwin_console_output)%isopen))) &
              win(iwin_console_output)%isopen = .not.win(iwin_console_output)%isopen
           call iw_tooltip("Toggle the display of the output console window",ttshown)
-
-          ! Windows -> Input Console
-          if (iw_menuitem("Builder",selected=logical(win(iwin_builder)%isopen))) &
-             win(iwin_builder)%isopen = .not.win(iwin_builder)%isopen
-          call iw_tooltip("Toggle the display of the builder window",ttshown)
 
           ! Windows -> Separator
           call igSeparator()

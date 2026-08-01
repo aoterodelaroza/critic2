@@ -313,6 +313,7 @@ contains
              if (ok.and.type == wintype_geometry.and.present(isys)) ok = (win(i)%isys == isys)
              if (ok.and.type == wintype_vibrations.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok.and.type == wintype_dynamics.and.present(idparent)) ok = (win(i)%idparent == idparent)
+             if (ok.and.type == wintype_builder.and.present(idparent)) ok = (win(i)%idparent == idparent)
              if (ok) then
                 raiseid = i
                 exit
@@ -483,6 +484,10 @@ contains
        if (.not.present(idparent)) &
           call ferror('window_init','water_cluster requires idparent',faterr)
        w%isys = 0
+    elseif (type == wintype_builder) then
+       ! builder window, tied to the parent view
+       if (.not.present(idparent)) &
+          call ferror('window_init','builder requires idparent',faterr)
     elseif (type == wintype_view) then
        ! view window
        if (.not.present(purpose)) &
@@ -558,6 +563,12 @@ contains
              if (sysc(isysd)%md%ready) call sysc(isysd)%md%free()
              call remove_system(isysd)
           end if
+       elseif (w%type == wintype_builder) then
+          ! release the forced valence mode on the parent view, if still active
+          if (w%builder_active .and. w%idparent >= 1 .and. w%idparent <= nwin) then
+             if (win(w%idparent)%isinit) &
+                call win(w%idparent)%viewmode_release_forced(w%id,vm_builder)
+          end if
        elseif (w%type == wintype_geometry) then
           ! remove all highlights
           if (ok_system(w%isys,sys_init)) &
@@ -595,6 +606,8 @@ contains
     w%editrep_pick_slot = 0
     w%editrep_text_pick_idx = 0
     w%wc_started = .false.
+    w%builder_active = .false.
+    w%builder_isys = 0
 
   end subroutine window_end
 
@@ -795,8 +808,8 @@ contains
        elseif (w%type == wintype_builder) then
           w%name = "Builder##" // string(w%id)  // c_null_char
           w%flags = ImGuiWindowFlags_None
-          inisize%x = 55 * fontsize%x
-          inisize%y = 25 * fontsize%y
+          inisize%x = 45 * fontsize%x
+          inisize%y = 10 * fontsize%y
           call igSetNextWindowSize(inisize,ImGuiCond_FirstUseEver)
        end if
     end if
