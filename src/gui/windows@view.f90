@@ -1322,7 +1322,7 @@ contains
        call iw_combo_simple("##viewmode",viewmode_items,w%viewmode)
        if (w%viewmode /= viewmode_before) w%viewmode_transient = .false.
     end if
-    valence = (w%viewmode == vm_builder)
+    valence = (w%viewmode == vm_builder_valence)
     pickmode = vm_is_forcedpick(w%viewmode)
 
     ! delayed tooltip with info about the key/mouse bindings for this view mode
@@ -1331,7 +1331,7 @@ contains
           ! the keybinding group for this view mode; the window-forced pick
           ! modes share the navigation binds (minus measurements)
           select case (w%viewmode)
-          case (vm_navigate, vm_pick_atom, vm_builder, vm_builder_remove)
+          case (vm_navigate, vm_pick_atom, vm_builder_valence, vm_builder_remove)
              mygroup = group_viewmode_navigation
           case (vm_select)
              mygroup = group_viewmode_select
@@ -1434,7 +1434,7 @@ contains
        ! in forced view mode, only the pick binds consume the atom under
        ! the cursor (other clicks drive the camera and read nothing)
        viewmode_activate_picking = is_bind_event(BIND_PICKATOM_SELECT,norepeat=.true.) .or.&
-          (w%viewmode == vm_builder .and. is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.))
+          (w%viewmode == vm_builder_valence .and. is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.))
     elseif (w%viewmode == vm_navigate) then
        ! navigate -> when measuring, on a double click (to clear the selection),
        ! or on a right/middle button press (to capture the atom under the cursor
@@ -1520,7 +1520,7 @@ contains
        ! it can deliver the pick instead
        if (ok) ok = .not.(.not.io%WantTextInput .and. any_key_pressed() .and.&
           .not.(hover .and. (is_bind_event(BIND_PICKATOM_SELECT) .or.&
-          (w%viewmode == vm_builder .and. is_bind_event(BIND_PICKATOM_ALT)))))
+          (w%viewmode == vm_builder_valence .and. is_bind_event(BIND_PICKATOM_ALT)))))
        if (.not.ok) then
           w%vmdata%idx = 0
           w%viewmode = vm_navigate
@@ -1561,7 +1561,7 @@ contains
     elseif (forcedpick) then
        if (w%measure_pend == pend_measure_add .or. w%measure_pend == pend_measure_remove) &
           w%measure_pend = pend_none
-       if (w%viewmode /= vm_builder .and. w%measure_pend == pend_pick_alt) &
+       if (w%viewmode /= vm_builder_valence .and. w%measure_pend == pend_pick_alt) &
           w%measure_pend = pend_none
     else
        w%measure_pend = pend_none
@@ -1584,7 +1584,7 @@ contains
        ! on an atom, because a rapid succession of alternate picks (removing
        ! hydrogens) would trigger the double-click reset mid-editing
        if (hover .and. is_bind_event(BIND_NAV_RESET,.false.)) then
-          if (.not.(w%viewmode == vm_builder .and. w%mousepos_idx(1) > 0)) then
+          if (.not.(w%viewmode == vm_builder_valence .and. w%mousepos_idx(1) > 0)) then
              call w%sc%reset()
              w%forcerender = .true.
           end if
@@ -1646,7 +1646,7 @@ contains
              else
                 call deliver_pick(w%mousepos_idx,.false.)
              end if
-          elseif (hover .and. w%viewmode == vm_builder .and.&
+          elseif (hover .and. w%viewmode == vm_builder_valence .and.&
              is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.)) then
              if (bind_mouse_button(BIND_PICKATOM_ALT) >= 0) then
                 w%measure_pend = pend_pick_alt
@@ -2518,6 +2518,16 @@ contains
             spread(ColorHighlightSelectScene,2,n))
     end subroutine select_in_rect
   end subroutine viewmode_process_events
+
+  !> Whether view mode equals one of the window-forced pick modes (an
+  !> owner window awaits atom picks; navigation camera binds active).
+  pure module function vm_is_forcedpick(mode)
+    integer, intent(in) :: mode
+    logical :: vm_is_forcedpick
+
+    vm_is_forcedpick = (mode == vm_pick_atom .or. mode == vm_builder_valence .or.&
+       mode == vm_builder_remove)
+  end function vm_is_forcedpick
 
   !> Whether any mouse button was clicked this frame
   function any_mouse_clicked()

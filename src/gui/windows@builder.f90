@@ -85,7 +85,7 @@ contains
           win(iview)%vmdata%idx = 0
           if (glfwGetTime() - w%builder_time < stale_gap .and.&
              sysc(w%builder_isys)%timelastchange_geometry <= w%builder_time) then
-             if (w%builder_vm == vm_builder) then
+             if (w%builder_vm == vm_builder_valence) then
                 ! change valence: main pick = add a hydrogen, alternate
                 ! pick = remove one
                 call sysc(w%builder_isys)%change_valence(icel,imode)
@@ -123,7 +123,7 @@ contains
     call iw_text("Valence",highlight=.true.)
     if (iw_button("Change",disabled=.not.havesys)) then
        w%errmsg = ""
-       call builder_toggle(vm_builder)
+       call builder_toggle(vm_builder_valence)
     end if
     call iw_tooltip("Add ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//") or remove ("//&
        trim(get_bind_keyname(BIND_PICKATOM_ALT))//") hydrogens on the clicked atoms in the"//&
@@ -191,7 +191,7 @@ contains
          w%builder_vm = jvm
          w%builder_isys = isys
          w%builder_time = glfwGetTime()
-         if (jvm == vm_builder) then
+         if (jvm == vm_builder_valence) then
             msg = "Add ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
                ") or remove ("//trim(get_bind_keyname(BIND_PICKATOM_ALT))//&
                ") hydrogens (any key exits)..."

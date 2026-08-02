@@ -39,7 +39,7 @@ module windows
 
   ! view modes (positive = normal, user-selectable; negative = forced)
   integer, parameter, public :: vm_builder_remove = -4 ! forced by builder: remove atoms (persistent)
-  integer, parameter, public :: vm_builder = -3 ! forced by builder: change valence (persistent)
+  integer, parameter, public :: vm_builder_valence = -3 ! forced by builder: change valence (persistent)
   integer, parameter, public :: vm_mdinteract = -2 ! forced during interactive dynamics
   integer, parameter, public :: vm_pick_atom = -1 ! forced by a window awaiting an atom pick
   integer, parameter, public :: vm_navigate  = 0
@@ -50,7 +50,7 @@ module windows
 
   character(len=19), parameter, public :: vmnames(vm_builder_remove:vm_NUM) = (/&
      "Remove Atoms       ",& ! vm_builder_remove
-     "Change Atom Valence",& ! vm_builder
+     "Change Atom Valence",& ! vm_builder_valence
      "Interact (MD)      ",& ! vm_mdinteract
      "Pick Atoms         ",& ! vm_pick_atom
      "Navigate           ",& ! vm_navigate
@@ -189,7 +189,7 @@ module windows
      integer :: geometry_addbond_iview = 0 ! view window commanded for the add-bond pick
      real*8 :: geometry_addbond_time = 0d0 ! time the add-bond pick was commanded (to detect stale ids)
      ! builder parameters
-     integer :: builder_vm = 0 ! forced mode commanded to the parent view (0 = idle, else vm_builder or vm_builder_remove)
+     integer :: builder_vm = 0 ! forced mode commanded to the parent view (0 = idle, else vm_builder_valence or vm_builder_remove)
      integer :: builder_isys = 0 ! system latched for the builder picks (0 = no mode active)
      real*8 :: builder_time = 0d0 ! time of the last click-free poll (stale-click guard)
      character(len=:), allocatable :: geometry_expression ! expression for column in atoms table
@@ -385,6 +385,10 @@ module windows
   !xx! Interfaces
   interface
      !xx! proc submodule !xx!
+     pure module function vm_is_forcedpick(mode)
+       integer, intent(in) :: mode
+       logical :: vm_is_forcedpick
+     end function vm_is_forcedpick
      module subroutine windows_init()
      end subroutine windows_init
      module subroutine stack_realloc_maybe()
@@ -659,17 +663,5 @@ module windows
        class(window), intent(inout), target :: w
      end subroutine draw_builder
   end interface
-
-contains
-
-  !> Whether view mode equals one of the window-forced pick modes (an
-  !> owner window awaits atom picks; navigation camera binds active).
-  pure function vm_is_forcedpick(mode)
-    integer, intent(in) :: mode
-    logical :: vm_is_forcedpick
-
-    vm_is_forcedpick = (mode == vm_pick_atom .or. mode == vm_builder .or.&
-       mode == vm_builder_remove)
-  end function vm_is_forcedpick
 
 end module windows
