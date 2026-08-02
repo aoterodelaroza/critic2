@@ -111,7 +111,8 @@ module keybindings
   integer, parameter, public :: BIND_NAV_MEASURE_ADD = 59 ! navigation: add the measurement for the selected atoms
   integer, parameter, public :: BIND_NAV_MEASURE_REMOVE = 60 ! navigation: remove the measurement for the selected atoms
   integer, parameter, public :: BIND_PICKATOM_ALT = 61 ! atom pick: alternate action on the atom under the cursor (builder: remove H)
-  integer, parameter, public :: BIND_NUM = 61 ! total number of binds
+  integer, parameter, public :: BIND_EDITDISTANCE = 62 ! view: open the builder and edit distance for the measure-selected atoms
+  integer, parameter, public :: BIND_NUM = 62 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -175,7 +176,8 @@ module keybindings
      "Camera zoom                     ",& ! BIND_MDINTERACT_ZOOM
      "Add measurement                 ",& ! BIND_NAV_MEASURE_ADD
      "Remove measurement              ",& ! BIND_NAV_MEASURE_REMOVE
-     "Pick atom, alternate action     "&  ! BIND_PICKATOM_ALT
+     "Pick atom, alternate action     ",& ! BIND_PICKATOM_ALT
+     "Edit distance between atoms     "&  ! BIND_EDITDISTANCE
      /)
 
   ! The key associated with each bind, bind -> key
@@ -288,7 +290,8 @@ module keybindings
      group_viewmode_mdinteract,& ! BIND_MDINTERACT_ZOOM
      group_viewmode_navigation,& ! BIND_NAV_MEASURE_ADD
      group_viewmode_navigation,& ! BIND_NAV_MEASURE_REMOVE
-     group_viewmode_pickatom/)   ! BIND_PICKATOM_ALT
+     group_viewmode_pickatom,&   ! BIND_PICKATOM_ALT
+     group_view/)                ! BIND_EDITDISTANCE
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -355,7 +358,8 @@ module keybindings
      0,&  ! BIND_MDINTERACT_ZOOM
      0,&  ! BIND_NAV_MEASURE_ADD
      0,&  ! BIND_NAV_MEASURE_REMOVE
-     0/)  ! BIND_PICKATOM_ALT
+     0,&  ! BIND_PICKATOM_ALT
+     0/)  ! BIND_EDITDISTANCE
 
   ! module procedure interfaces
   interface

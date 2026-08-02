@@ -816,4 +816,88 @@ contains
 
   end subroutine listmolecules
 
+  !> Calculate the connected component of cell atom i0 over the bond
+  !> connectivity (c%nstar), skipping every bond between cell atoms
+  !> imask1 and imask2 (in both directions, regardless of lattice
+  !> vector). Returns the number of atoms in the component (nat), the
+  !> list of unique cell-atom indices (iat, reallocated as needed),
+  !> and whether the component is discrete. If the connectivity is not
+  !> available, returns the single atom i0.
+  module subroutine masked_fragment(c,i0,imask1,imask2,nat,iat,discrete)
+    use types, only: realloc
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: i0, imask1, imask2
+    integer, intent(out) :: nat
+    integer, allocatable, intent(inout) :: iat(:)
+    logical, intent(out) :: discrete
+
+    integer :: i, k, sp, newid, lveci(3)
+    integer, allocatable :: idmol(:), lvec(:,:)
+    integer, allocatable :: stk_i(:), stk_k(:), stk_lvec(:,:)
+
+    ! initialize the output; return the single seed atom if there is
+    ! no connectivity
+    nat = 0
+    if (.not.allocated(iat)) allocate(iat(10))
+    discrete = .true.
+    if (i0 < 1 .or. i0 > c%ncel) return
+    nat = 1
+    iat(1) = i0
+    if (.not.allocated(c%nstar)) return
+
+    ! visited/lattice-vector bookkeeping
+    allocate(idmol(c%ncel),lvec(3,c%ncel))
+    idmol = 0
+    lvec = 0
+    idmol(i0) = 1
+
+    ! explicit DFS stack over the neighbor stars, same scheme as
+    ! explore_node in fill_molecular_fragments
+    allocate(stk_i(64),stk_k(64),stk_lvec(3,64))
+    sp = 1
+    stk_i(1) = i0
+    stk_k(1) = 0
+    stk_lvec(:,1) = 0
+
+    do while (sp > 0)
+       i = stk_i(sp)
+       lveci = stk_lvec(:,sp)
+       stk_k(sp) = stk_k(sp) + 1
+       k = stk_k(sp)
+       if (k > c%nstar(i)%ncon) then
+          sp = sp - 1
+          cycle
+       end if
+
+       newid = c%nstar(i)%idcon(k)
+       ! skip the masked bonds (any bond between imask1 and imask2)
+       if ((i == imask1 .and. newid == imask2) .or.&
+          (i == imask2 .and. newid == imask1)) cycle
+       if (idmol(newid) == 0) then
+          ! discover newid, then descend into it (push)
+          idmol(newid) = 1
+          lvec(:,newid) = lveci + c%nstar(i)%lcon(:,k)
+          nat = nat + 1
+          if (nat > size(iat,1)) call realloc(iat,2*nat)
+          iat(nat) = newid
+          sp = sp + 1
+          if (sp > size(stk_i,1)) then
+             call realloc(stk_i,2*sp)
+             call realloc(stk_k,2*sp)
+             call realloc(stk_lvec,3,2*sp)
+          end if
+          stk_i(sp) = newid
+          stk_k(sp) = 0
+          stk_lvec(:,sp) = lvec(:,newid)
+       elseif (any(lveci + c%nstar(i)%lcon(:,k) /= lvec(:,newid))) then
+          ! reached a visited atom through a different lattice
+          ! vector: the component is connected to its own periodic
+          ! images and is not discrete
+          discrete = .false.
+       end if
+    end do
+    deallocate(stk_i,stk_k,stk_lvec)
+
+  end subroutine masked_fragment
+
 end submodule mols

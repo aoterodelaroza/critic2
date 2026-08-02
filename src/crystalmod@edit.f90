@@ -1417,20 +1417,27 @@ contains
   !> molecular fragments, and symmetry. Use this once after a run of
   !> in-place position updates (e.g. when interactive dynamics stops)
   !> to restore full consistency of the non-equivalent atom list and
-  !> symmetry with the moved atoms.
-  module subroutine rebuild_after_move(c,ti)
+  !> symmetry with the moved atoms. If copybonding, keep the current
+  !> bond connectivity through the rebuild instead of re-deriving it
+  !> from the atomic radii.
+  module subroutine rebuild_after_move(c,copybonding,ti)
     use crystalseedmod, only: crystalseed
     class(crystal), intent(inout) :: c
+    logical, intent(in), optional :: copybonding
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    logical :: copybonding_
+
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
 
     ! copysym=.false. builds the seed from the full cell (the moved atcel), so
     ! symmetry is re-derived from scratch (it is generally broken after motion)
     if (c%ismolecule) then
-       call c%makeseed(seed,copysym=.false.,useabr=0)
+       call c%makeseed(seed,copysym=.false.,useabr=0,copybonding=copybonding_)
     else
-       call c%makeseed(seed,copysym=.false.)
+       call c%makeseed(seed,copysym=.false.,copybonding=copybonding_)
     end if
     call c%struct_new(seed,crashfail=.true.,ti=ti)
 

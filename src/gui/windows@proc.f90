@@ -569,6 +569,12 @@ contains
              if (win(w%idparent)%isinit) &
                 call win(w%idparent)%viewmode_release_forced(w%id,w%builder_vm)
           end if
+          ! rebuild the structure if the edit-distance session has applied
+          ! in-place moves that were not committed yet
+          if (w%editdist_dirty .and. ok_system(w%editdist_isys,sys_init)) then
+             call sys(w%editdist_isys)%c%rebuild_after_move(copybonding=.true.)
+             call sysc(w%editdist_isys)%post_event(lastchange_geometry)
+          end if
        elseif (w%type == wintype_geometry) then
           ! remove all highlights
           if (ok_system(w%isys,sys_init)) &
@@ -608,6 +614,13 @@ contains
     w%wc_started = .false.
     w%builder_vm = 0
     w%builder_isys = 0
+    w%editdist_pending = .false.
+    w%editdist_active = .false.
+    w%editdist_isys = 0
+    w%editdist_idx = 0
+    w%editdist_dirty = .false.
+    w%editdist_time = 0d0
+    if (allocated(w%editdist_frag)) deallocate(w%editdist_frag)
 
   end subroutine window_end
 

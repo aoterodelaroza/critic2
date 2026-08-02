@@ -288,6 +288,7 @@ module crystalmod
      procedure :: listatoms_cells !< List all atoms in n cells (maybe w border)
      procedure :: listatoms_sphcub !< List all atoms in a sphere or cube
      procedure :: listmolecules !< List all molecules in the crystal
+     procedure :: masked_fragment !< Connected component of an atom skipping the bonds between two atoms
 
      ! complex operations: ewald, promolecular, etc. (complex)
      procedure :: calculate_ewald_cutoffs !< Calculate the cutoffs for Ewald's sum
@@ -733,6 +734,13 @@ module crystalmod
        type(fragment), intent(out), allocatable :: fr(:)
        logical, intent(out), allocatable :: isdiscrete(:)
      end subroutine listmolecules
+     module subroutine masked_fragment(c,i0,imask1,imask2,nat,iat,discrete)
+       class(crystal), intent(in) :: c
+       integer, intent(in) :: i0, imask1, imask2
+       integer, intent(out) :: nat
+       integer, allocatable, intent(inout) :: iat(:)
+       logical, intent(out) :: discrete
+     end subroutine masked_fragment
      module subroutine calculate_ewald_cutoffs(c,qfrac,rcut,hcut,eta,qsum,lrmax,lhmax)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: qfrac(:)
@@ -911,8 +919,9 @@ module crystalmod
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: rnew(:,:)
      end subroutine update_positions
-     module subroutine rebuild_after_move(c,ti)
+     module subroutine rebuild_after_move(c,copybonding,ti)
        class(crystal), intent(inout) :: c
+       logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine rebuild_after_move
      module subroutine move_molecule(c,imol,x,iunit_l,dorelative,copybonding,ti)
