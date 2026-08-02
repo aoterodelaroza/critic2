@@ -1857,10 +1857,16 @@ contains
              ! current point group
              call iw_text("Point Group",highlight=.true.)
              if (sys(isys)%c%pg%avail) then
-                call iw_text("  " // trim(sys(isys)%c%pg%symbol))
+                call iw_text("  Schoenflies: " // trim(sys(isys)%c%pg%symbol))
              else
                 call iw_text("  Not available (symmetry not computed)")
              end if
+
+             ! symmetrize the molecular geometry
+             if (iw_button("Refine##symrefinemol")) iaction = iaction_sym_refine
+             call iw_tooltip("Move atoms to occupy their symmetry positions exactly",ttshown)
+             if (len_trim(w%errmsg) > 0) &
+                call iw_text(w%errmsg,danger=.true.)
 
              ! symmetry operations table
              if (sys(isys)%c%pg%avail) then

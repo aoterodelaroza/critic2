@@ -138,19 +138,16 @@ contains
     call iw_tooltip("Recompute the bond connectivity for this system ("//&
        trim(get_bind_keyname(BIND_RECALC_BONDS))//")",ttshown)
 
-    ! the symmetry section (crystals only)
+    ! the symmetry section
     call iw_text("Symmetry",highlight=.true.)
-    ok = havesys
-    if (ok) ok = .not.sys(isys)%c%ismolecule
-    if (iw_button("Refine symmetry",disabled=.not.ok)) then
+    if (iw_button("Refine symmetry",disabled=.not.havesys)) then
        w%errmsg = ""
        call sysc(isys)%refine_symmetry(w%errmsg)
        ! hold the camera on the parent view's scene (the main scene when
        ! the parent is the main view, its private scene otherwise)
        if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
     end if
-    call iw_tooltip("Idealize the cell parameters and move the atoms to their ideal"//&
-       " symmetry positions (crystals only)",ttshown)
+    call iw_tooltip("Refine the geometry having atoms occupy their symmetry positions exactly",ttshown)
 
     ! error message, if any
     if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)

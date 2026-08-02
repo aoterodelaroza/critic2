@@ -1422,6 +1422,97 @@ contains
 
   end subroutine calcmolsym
 
+  !> Symmetrize the positions of the atoms in a molecule using the
+  !> current molecular point group (c%pg). errmsg has length > 0 on
+  !> error.
+  module subroutine symmetrize_molecule(c,errmsg)
+    use tools_math, only: matinv
+    class(crystal), intent(inout) :: c
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: i, k, iop, kmin, n, it, ier
+    integer, allocatable :: icount(:)
+    real*8, allocatable :: xc(:,:), xacc(:,:), xnew(:,:)
+    real*8 :: y(3), d2, d2min, rot(3,3), rinv(3,3)
+
+    integer, parameter :: maxit_orth = 20 ! max Newton iterations for orthogonalization
+    real*8, parameter :: eps_orth = 1d-14 ! orthogonalization convergence criterion
+
+    errmsg = ""
+
+    ! consistency checks
+    if (.not.c%ismolecule) then
+       errmsg = "symmetrize_molecule can only be used with molecules"
+       return
+    end if
+    if (.not.c%pg%avail) then
+       errmsg = "the molecular point group is not available"
+       return
+    end if
+
+    ! atomic positions relative to the point-group center
+    n = c%ncel
+    allocate(xc(3,n),xacc(3,n),icount(n))
+    do i = 1, n
+       xc(:,i) = c%atcel(i)%r - c%pg%xcm
+    end do
+
+    ! accumulate the image of every atom under every idealized operation
+    ! onto the nearest atom of the same species
+    xacc = 0d0
+    icount = 0
+    do iop = 1, c%pg%nop
+       ! idealize the operation: Newton iteration for the orthogonal
+       ! factor of the polar decomposition, R <- (R + R^-T) / 2
+       rot = c%pg%op(iop)%m
+       do it = 1, maxit_orth
+          rinv = rot
+          call matinv(rinv,3,ier)
+          if (ier /= 0) then
+             errmsg = "singular point-group operation matrix"
+             return
+          end if
+          rinv = transpose(rinv)
+          if (all(abs(rot - rinv) < eps_orth)) exit
+          rot = 0.5d0 * (rot + rinv)
+       end do
+
+       do i = 1, n
+          y = matmul(rot,xc(:,i))
+          kmin = 0
+          d2min = huge(1d0)
+          do k = 1, n
+             if (c%atcel(k)%is /= c%atcel(i)%is) cycle
+             d2 = dot_product(y - xc(:,k),y - xc(:,k))
+             if (d2 < d2min) then
+                d2min = d2
+                kmin = k
+             end if
+          end do
+          xacc(:,kmin) = xacc(:,kmin) + y
+          icount(kmin) = icount(kmin) + 1
+       end do
+    end do
+
+    ! every operation permutes the atoms, so each atom must have
+    ! received exactly one image per operation; otherwise the point
+    ! group is inconsistent with the current geometry
+    if (any(icount /= c%pg%nop)) then
+       errmsg = "the point group operations are inconsistent with the molecular geometry"
+       return
+    end if
+
+    ! average the images, apply the new positions, and rebuild the
+    ! structure (update_positions alone is a display-only update)
+    allocate(xnew(3,n))
+    do i = 1, n
+       xnew(:,i) = c%pg%xcm + xacc(:,i) / real(c%pg%nop,8)
+    end do
+    call c%update_positions(xnew)
+    call c%rebuild_after_move()
+
+  end subroutine symmetrize_molecule
+
   !> Reduce the complete cell atom list (c%atcel) to the non-equivalent
   !> atom list (c%at) given the symmetry operations already set in the
   !> crystal (neqv, ncv, rotm, cen). On input c%atcel(1:c%ncel) must be

@@ -342,6 +342,7 @@ module crystalmod
      procedure :: symop_subgroup !< Calculate largest subgroup not containing the deleted ops
      procedure :: getiws !< Calculate the IWS and its tetrahedra partition around a point
      procedure :: calcmolsym !< Calculate the molecular symmetry
+     procedure :: symmetrize_molecule !< Symmetrize the atomic positions using the molecular point group
 
      ! powder diffraction and related calcs (powderproc)
      procedure :: powder !< Calculate the powder diffraction pattern
@@ -1056,6 +1057,10 @@ module crystalmod
        type(point_group), intent(inout) :: pg
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine calcmolsym
+     module subroutine symmetrize_molecule(c,errmsg)
+       class(crystal), intent(inout) :: c
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine symmetrize_molecule
      module subroutine powder(c,mode,th2ini0,th2end0,lambda0,fpol,npts,sigma,ishard,&
         th2p,ip,hvecp,discardp,t,ih)
        class(crystal), intent(in) :: c

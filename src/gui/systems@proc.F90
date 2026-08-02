@@ -2788,10 +2788,7 @@ contains
 
   end subroutine reduce_symmetry
 
-  !> Refine the geometry to the ideal symmetry positions (idealize the
-  !> cell parameters and atomic positions) using the tolerance stored
-  !> in sysc%symeps, keeping the original cell choice (i.e. without
-  !> switching to the conventional cell).
+  !> Refine the geometry to the ideal symmetry positions
   module subroutine refine_symmetry(sysc,errmsg)
     use global, only: symprec
     class(sysconf), intent(inout) :: sysc
@@ -2805,14 +2802,32 @@ contains
     ! consistency checks
     isys = sysc%id
     if (.not.ok_system(isys,sys_init)) return
-    if (sys(isys)%c%ismolecule) return
 
-    ! refine at the chosen tolerance, keeping the original cell
-    ! (transform_cell posts the event)
-    osp = symprec
-    symprec = sysc%symeps
-    call sysc%transform_cell(celltransform_standard,.true.,errmsg,keepcell=.true.)
-    symprec = osp
+    if (sys(isys)%c%ismolecule) then
+       ! molecules: symmetrize the atomic positions with the point group
+       if (.not.sys(isys)%c%pg%avail) then
+          call sys(isys)%c%calcmolsym(sys(isys)%c%pg,errmsg)
+          if (len_trim(errmsg) > 0) then
+             call sys(isys)%c%pg%clear()
+             return
+          end if
+       end if
+       call sys(isys)%c%symmetrize_molecule(errmsg)
+       if (len_trim(errmsg) > 0) return
+       ! recompute the point group so it is consistent with the symmetrized positions
+       call sys(isys)%c%calcmolsym(sys(isys)%c%pg,errmsg)
+       if (len_trim(errmsg) > 0) call sys(isys)%c%pg%clear()
+       errmsg = ""
+       call sysc%post_event(lastchange_geometry)
+    else
+       ! crystals: use spglib and keep original cell
+       ! refine at the chosen tolerance, keeping the original cell
+       ! (transform_cell posts the event)
+       osp = symprec
+       symprec = sysc%symeps
+       call sysc%transform_cell(celltransform_standard,.true.,errmsg,keepcell=.true.)
+       symprec = osp
+    end if
 
   end subroutine refine_symmetry
 
