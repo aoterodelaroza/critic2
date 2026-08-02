@@ -153,6 +153,7 @@ module systems
      procedure :: set_bond_order
      procedure :: add_bond
      procedure :: change_valence
+     procedure :: remove_atom_hydrogens
      procedure :: reread_geometry_from_file
      procedure :: move_cell
      procedure :: transform_cell
@@ -456,6 +457,10 @@ module systems
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: icel, mode
      end subroutine change_valence
+     module subroutine remove_atom_hydrogens(sysc,icel)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: icel
+     end subroutine remove_atom_hydrogens
      module subroutine reread_geometry_from_file(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine reread_geometry_from_file

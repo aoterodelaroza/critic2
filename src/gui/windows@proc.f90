@@ -564,10 +564,10 @@ contains
              call remove_system(isysd)
           end if
        elseif (w%type == wintype_builder) then
-          ! release the forced valence mode on the parent view, if still active
-          if (w%builder_active .and. w%idparent >= 1 .and. w%idparent <= nwin) then
+          ! release the forced builder mode on the parent view, if still active
+          if (w%builder_vm /= 0 .and. w%idparent >= 1 .and. w%idparent <= nwin) then
              if (win(w%idparent)%isinit) &
-                call win(w%idparent)%viewmode_release_forced(w%id,vm_builder)
+                call win(w%idparent)%viewmode_release_forced(w%id,w%builder_vm)
           end if
        elseif (w%type == wintype_geometry) then
           ! remove all highlights
@@ -606,7 +606,7 @@ contains
     w%editrep_pick_slot = 0
     w%editrep_text_pick_idx = 0
     w%wc_started = .false.
-    w%builder_active = .false.
+    w%builder_vm = 0
     w%builder_isys = 0
 
   end subroutine window_end

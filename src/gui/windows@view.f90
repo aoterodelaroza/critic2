@@ -1295,7 +1295,7 @@ contains
     character(len=:), allocatable :: viewmode_items
     integer, allocatable :: tips(:)
     character(len=64), allocatable :: keyline(:), lblline(:)
-    logical :: builder, pickmode
+    logical :: valence, pickmode
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -1322,8 +1322,8 @@ contains
        call iw_combo_simple("##viewmode",viewmode_items,w%viewmode)
        if (w%viewmode /= viewmode_before) w%viewmode_transient = .false.
     end if
-    builder = (w%viewmode == vm_builder)
-    pickmode = builder .or. w%viewmode == vm_pick_atom
+    valence = (w%viewmode == vm_builder)
+    pickmode = vm_is_forcedpick(w%viewmode)
 
     ! delayed tooltip with info about the key/mouse bindings for this view mode
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
@@ -1331,7 +1331,7 @@ contains
           ! the keybinding group for this view mode; the window-forced pick
           ! modes share the navigation binds (minus measurements)
           select case (w%viewmode)
-          case (vm_navigate, vm_pick_atom, vm_builder)
+          case (vm_navigate, vm_pick_atom, vm_builder, vm_builder_remove)
              mygroup = group_viewmode_navigation
           case (vm_select)
              mygroup = group_viewmode_select
@@ -1362,7 +1362,7 @@ contains
           ! plus the pick action(s) and the exit key in the forced pick modes
           m = n
           if (pickmode) m = m + 2
-          if (builder) m = m + 1
+          if (valence) m = m + 1
           allocate(keyline(m),lblline(m))
           do i = 1, n
              keyline(i) = trim(get_bind_keyname(tips(i)))
@@ -1371,11 +1371,13 @@ contains
           if (pickmode) then
              n = n + 1
              keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_SELECT))
-             if (builder) then
+             if (valence) then
                 lblline(n) = "Add Hydrogen to Atom"
                 n = n + 1
                 keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_ALT))
                 lblline(n) = "Remove Hydrogen from Atom"
+             elseif (w%viewmode == vm_builder_remove) then
+                lblline(n) = "Remove Atom"
              else
                 lblline(n) = "Pick Atom"
              end if
@@ -1508,7 +1510,7 @@ contains
     ! dragging) delivers the atom under the cursor to the commanding
     ! window, and any key press exits/cancels the mode.  Also exit if
     ! the window that commanded the mode is gone.
-    forcedpick = (w%viewmode == vm_pick_atom .or. w%viewmode == vm_builder)
+    forcedpick = vm_is_forcedpick(w%viewmode)
     if (forcedpick) then
        ! check the commanding window is still active
        ok = (w%vmdata%owner >= 1 .and. w%vmdata%owner <= nwin)
@@ -1549,10 +1551,10 @@ contains
 
     ! drop any pending press capture whose mode is gone: measure captures
     ! (1/2) are only valid in navigation, pick captures (3) only in the
-    ! window-forced pick modes, alternate picks (4) only in the builder;
-    ! anything else is a stale press (e.g. the mode changed or the viewed
-    ! system switched between the press and the release) whose release
-    ! would otherwise fire an unrelated action later.
+    ! window-forced pick modes, alternate picks (4) only in the valence
+    ! builder mode; anything else is a stale press (e.g. the mode changed
+    ! or the viewed system switched between the press and the release)
+    ! whose release would otherwise fire an unrelated action later.
     if (w%viewmode == vm_navigate) then
        if (w%measure_pend == pend_pick .or. w%measure_pend == pend_pick_alt) &
           w%measure_pend = pend_none
@@ -1578,8 +1580,8 @@ contains
        call cam_rotate(BIND_NAV_ROTATE)
        call cam_perp(BIND_NAV_ROTATE_PERP)
 
-       ! reset the view; in the builder mode, not with the cursor on an
-       ! atom, because a rapid succession of alternate picks (removing
+       ! reset the view; in the valence builder mode, not with the cursor
+       ! on an atom, because a rapid succession of alternate picks (removing
        ! hydrogens) would trigger the double-click reset mid-editing
        if (hover .and. is_bind_event(BIND_NAV_RESET,.false.)) then
           if (.not.(w%viewmode == vm_builder .and. w%mousepos_idx(1) > 0)) then
@@ -1632,8 +1634,8 @@ contains
           ! forced pick modes: capture the atom under the cursor (possibly
           ! none) on a pick-bind press, resolved on release if the cursor
           ! did not drag past the threshold (so a left/right drag still
-          ! rotates/pans the camera). The alternate pick bind (builder:
-          ! remove a hydrogen) is only active in the builder mode. For a
+          ! rotates/pans the camera). The alternate pick bind (remove a
+          ! hydrogen) is only active in the valence builder mode. For a
           ! non-mouse bind there is no drag to disambiguate, so deliver at
           ! once (once per press: norepeat).
           if (hover .and. is_bind_event(BIND_PICKATOM_SELECT,norepeat=.true.)) then
@@ -1948,9 +1950,9 @@ contains
 
     ! Deliver a completed pick to the commanding window. Pick-atom mode:
     ! deliver the atom (or zero = clicked on empty space = cancelled) and
-    ! exit the mode. Builder mode: deliver only a real atom, flag whether
-    ! this was the main or the alternate pick action (add or remove a
-    ! hydrogen), and stay in the mode for successive edits.
+    ! exit the mode. Persistent builder modes: deliver only a real atom,
+    ! flag whether the main or the alternate pick bind fired, and stay in
+    ! the mode for successive edits.
     subroutine deliver_pick(idx,alt)
       integer(c_int), intent(in) :: idx(5)
       logical, intent(in) :: alt

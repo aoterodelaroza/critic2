@@ -25,7 +25,7 @@ contains
   !> Draw the builder window. The builder is tied to its parent view
   !> (w%idparent) and operates on the system shown in it.
   module subroutine draw_builder(w)
-    use systems, only: sysc, ok_system, sys_init
+    use systems, only: sys, sysc, ok_system, sys_init
     use utils, only: iw_text, iw_button, iw_tooltip
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_PICKATOM_SELECT,&
        BIND_PICKATOM_ALT, BIND_RECALC_BONDS, BIND_CLOSE_FOCUSED_DIALOG,&
@@ -51,7 +51,8 @@ contains
 
     ! initialize the state on first pass
     if (w%firstpass) then
-       w%builder_active = .false.
+       w%errmsg = ""
+       w%builder_vm = 0
        w%builder_isys = 0
        w%builder_time = 0d0
     end if
@@ -64,30 +65,39 @@ contains
        havesys = ok_system(isys,sys_init)
     end if
 
-    ! handle an active change-valence mode commanded to the parent view
-    if (w%builder_active) then
+    ! handle an active builder mode commanded to the parent view
+    if (w%builder_vm /= 0) then
        ok = goodparent
-       if (ok) ok = win(iview)%viewmode == vm_builder .and.&
+       if (ok) ok = win(iview)%viewmode == w%builder_vm .and.&
           win(iview)%vmdata%owner == w%id .and.&
           win(iview)%isys == w%builder_isys
        if (.not.ok) then
-          ! the view is gone, the mode was exited (any key, mode combo),
+          ! The view is gone, the mode was exited (any key, mode combo),
           ! another window took over the pick, or the view shows another
           ! system: release the forced mode
           call builder_stop()
        elseif (win(iview)%vmdata%idx(1) > 0) then
-          ! an atom click was delivered: apply the edit (main pick = add a
-          ! hydrogen, alternate pick = remove one) and stay in the mode.
-          ! Discard stale clicks instead: those delivered while the builder
-          ! was not polling (hidden dock tab, collapsed window) or with a
-          ! geometry change after the last click-free poll, because the
-          ! stored cell index may then refer to a different atom.
+          ! An atom click was delivered: apply the edit and stay in
+          ! the mode. Discard stale clicks: those delivered while the
+          ! builder was not polling.
           icel = win(iview)%vmdata%idx(1)
           imode = win(iview)%vmdata%flag
           win(iview)%vmdata%idx = 0
           if (glfwGetTime() - w%builder_time < stale_gap .and.&
-             sysc(w%builder_isys)%timelastchange_geometry <= w%builder_time) &
-             call sysc(w%builder_isys)%change_valence(icel,imode)
+             sysc(w%builder_isys)%timelastchange_geometry <= w%builder_time) then
+             if (w%builder_vm == vm_builder) then
+                ! change valence: main pick = add a hydrogen, alternate
+                ! pick = remove one
+                call sysc(w%builder_isys)%change_valence(icel,imode)
+             elseif (w%builder_vm == vm_builder_remove .and. imode == 1) then
+                ! remove atoms (main pick only): the atom and its
+                ! terminal hydrogens
+                call sysc(w%builder_isys)%remove_atom_hydrogens(icel)
+             end if
+             ! hold the camera of the view the user is clicking in through
+             ! the rebuild (the edit routines post the geometry event)
+             if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
+          end if
        else
           ! no click pending: stamp the reference time for the stale-click guard
           w%builder_time = glfwGetTime()
@@ -100,20 +110,50 @@ contains
        call iw_text("(" // string(isys) // ") " // trim(sysc(isys)%seed%name),sameline=.true.)
     end if
 
+    ! the atoms section
+    call iw_text("Atoms",highlight=.true.)
+    if (iw_button("Remove atoms",disabled=.not.havesys)) then
+       w%errmsg = ""
+       call builder_toggle(vm_builder_remove)
+    end if
+    call iw_tooltip("Remove ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//") the clicked"//&
+       " atoms in the view, along with their terminal hydrogens",ttshown)
+
     ! the valence section
     call iw_text("Valence",highlight=.true.)
-    if (iw_button("Change",disabled=.not.havesys)) &
-       call builder_toggle()
+    if (iw_button("Change",disabled=.not.havesys)) then
+       w%errmsg = ""
+       call builder_toggle(vm_builder)
+    end if
     call iw_tooltip("Add ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//") or remove ("//&
        trim(get_bind_keyname(BIND_PICKATOM_ALT))//") hydrogens on the clicked atoms in the"//&
-       " view, repositioning the terminal substituents (click again to stop)",ttshown)
+       " view, repositioning the terminal substituents",ttshown)
 
     ! the bonds section
     call iw_text("Bonds",highlight=.true.)
-    if (iw_button("Rebond",disabled=.not.havesys)) &
+    if (iw_button("Rebond",disabled=.not.havesys)) then
+       w%errmsg = ""
        call sysc(isys)%rebond()
+    end if
     call iw_tooltip("Recompute the bond connectivity for this system ("//&
        trim(get_bind_keyname(BIND_RECALC_BONDS))//")",ttshown)
+
+    ! the symmetry section (crystals only)
+    call iw_text("Symmetry",highlight=.true.)
+    ok = havesys
+    if (ok) ok = .not.sys(isys)%c%ismolecule
+    if (iw_button("Refine symmetry",disabled=.not.ok)) then
+       w%errmsg = ""
+       call sysc(isys)%refine_symmetry(w%errmsg)
+       ! hold the camera on the parent view's scene (the main scene when
+       ! the parent is the main view, its private scene otherwise)
+       if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
+    end if
+    call iw_tooltip("Idealize the cell parameters and move the atoms to their ideal"//&
+       " symmetry positions (crystals only)",ttshown)
+
+    ! error message, if any
+    if (len_trim(w%errmsg) > 0) call iw_text(w%errmsg,danger=.true.)
 
     ! close button and binds
     if (iw_button("Close")) doquit = .true.
@@ -127,29 +167,40 @@ contains
        call w%end()
 
   contains
-    ! Stop the change-valence mode: release the parent view (if alive)
+    ! Stop the active builder mode: release the parent view (if alive)
     ! and clear the mode state.
     subroutine builder_stop()
 
-      if (goodparent) call win(iview)%viewmode_release_forced(w%id,vm_builder)
-      w%builder_active = .false.
+      if (goodparent) call win(iview)%viewmode_release_forced(w%id,w%builder_vm)
+      w%builder_vm = 0
       w%builder_isys = 0
     end subroutine builder_stop
 
-    ! Toggle the change-valence mode: start it on the parent view, or
-    ! stop it if it is already active.
-    subroutine builder_toggle()
+    ! Toggle builder mode jvm (a vm_* constant): start it on the parent
+    ! view, or stop it if it is already the active mode. Starting a mode
+    ! while another one is active switches to the new mode.
+    subroutine builder_toggle(jvm)
+      integer, intent(in) :: jvm
 
-      if (w%builder_active) then
+      character(len=:), allocatable :: msg
+
+      if (w%builder_vm == jvm) then
          call builder_stop()
       else
-         w%builder_active = .true.
+         if (w%builder_vm /= 0) call builder_stop()
+         w%builder_vm = jvm
          w%builder_isys = isys
          w%builder_time = glfwGetTime()
-         call win(iview)%viewmode_set_forced(vm_builder,&
-            "Add ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
-            ") or remove ("//trim(get_bind_keyname(BIND_PICKATOM_ALT))//&
-            ") hydrogens (press any key to exit)...",w%id)
+         if (jvm == vm_builder) then
+            msg = "Add ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
+               ") or remove ("//trim(get_bind_keyname(BIND_PICKATOM_ALT))//&
+               ") hydrogens (any key exits)..."
+         else
+            msg = "Remove ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
+               ") the atoms and their hydrogens"//&
+               " (any key exits)..."
+         end if
+         call win(iview)%viewmode_set_forced(jvm,msg,w%id)
       end if
     end subroutine builder_toggle
   end subroutine draw_builder

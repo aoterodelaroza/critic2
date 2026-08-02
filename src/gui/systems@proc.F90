@@ -680,11 +680,9 @@ contains
 
   end subroutine post_event
 
-  !> Recompute the bonds/connectivity for this system using its configured
-  !> bonding parameters (per-species covalent radii, bond factor, metal-bond
-  !> tolerance), then signal the scene/representations to refresh. This is the
-  !> single entry point for the "Recalculate bonds" action (Tools menu, Ctrl+B)
-  !> and the View/Edit Geometry "Apply" button.
+  !> Recompute the bonds/connectivity for this system using its
+  !> configured bonding parameters, then signal the
+  !> scene/representations to refresh.
   module subroutine rebond(sysc)
     class(sysconf), intent(inout) :: sysc
 
@@ -2343,8 +2341,7 @@ contains
        if (has_errmsg(errmsg)) return
     end if
 
-    ! fix cam for next build and post geometry change
-    sysc%sc%nextbuildlists_fixcam = .true.
+    ! post the geometry change
     call sysc%post_event(lastchange_geometry)
 
   contains
@@ -2414,6 +2411,51 @@ contains
     end subroutine spread_directions
 
   end subroutine change_valence
+
+  !> Remove cell atom icel together with its mobile hydrogen
+  !> substituents (hydrogens whose only bonded neighbor is icel), then
+  !> post a geometry-change event.
+  module subroutine remove_atom_hydrogens(sysc,icel)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: icel
+
+    integer :: isys, j, n, nb, nat
+    integer, allocatable :: iat(:)
+    character(len=:), allocatable :: errmsg
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (icel < 1 .or. icel > sys(isys)%c%ncel) return
+
+    ! collect the atom and its terminal hydrogens (each neighbor once:
+    ! in a crystal the same cell atom may appear as a neighbor with
+    ! several lattice translations)
+    n = 0
+    if (allocated(sys(isys)%c%nstar)) n = sys(isys)%c%nstar(icel)%ncon
+    allocate(iat(n+1))
+    nat = 1
+    iat(1) = icel
+    do j = 1, n
+       nb = sys(isys)%c%nstar(icel)%idcon(j)
+       if (sys(isys)%c%spc(sys(isys)%c%atcel(nb)%is)%z /= 1) cycle
+       if (sys(isys)%c%nstar(nb)%ncon /= 1) cycle
+       if (any(iat(1:nat) == nb)) cycle
+       nat = nat + 1
+       iat(nat) = nb
+    end do
+
+    ! refuse to remove every atom in the system
+    if (nat >= sys(isys)%c%ncel) return
+
+    ! remove them
+    call sys(isys)%c%edit_atom_list(nat,iat(1:nat),remove=.true.,errmsg=errmsg)
+    if (has_errmsg(errmsg)) return
+
+    ! post the geometry change
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine remove_atom_hydrogens
 
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
