@@ -232,6 +232,13 @@ contains
           if (lcommit) call editdist_commit()
        end if
        call iw_tooltip("Distance between the two atoms (Å)",ttshown)
+
+       ! apply button
+       if (iw_button("Apply",danger=.true.)) then
+          w%errmsg = ""
+          call editdist_stop()
+       end if
+       call iw_tooltip("Keep the current distance and release the two atoms",ttshown)
     end if
 
     ! the symmetry section
@@ -321,6 +328,9 @@ contains
       if (w%editdist_dirty) then
          if (ok_system(w%editdist_isys,sys_init)) then
             call sys(w%editdist_isys)%c%rebuild_after_move(copybonding=.true.)
+            if (goodparent) then
+               if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
+            end if
             call sysc(w%editdist_isys)%post_event(lastchange_geometry)
          end if
          w%editdist_dirty = .false.
