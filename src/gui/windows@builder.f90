@@ -164,10 +164,16 @@ contains
     call iw_tooltip("Recompute the bond connectivity for this system ("//&
        trim(get_bind_keyname(BIND_RECALC_BONDS))//")",ttshown)
 
-    ! edit distance section
+    ! edit distance section: the keybinding request toggles the session
+    if (w%focused() .and. is_bind_event(BIND_EDITDISTANCE)) &
+       w%editdist_pending = .true.
     if (w%editdist_pending) then
        w%editdist_pending = .false.
-       if (.not.w%editdist_active) call editdist_start()
+       if (w%editdist_active) then
+          call w%editdist_stop()
+       else
+          call editdist_start()
+       end if
     end if
     if (w%editdist_active) then
        ok = havesys

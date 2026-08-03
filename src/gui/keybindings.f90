@@ -111,7 +111,7 @@ module keybindings
   integer, parameter, public :: BIND_NAV_MEASURE_ADD = 59 ! navigation: add the measurement for the selected atoms
   integer, parameter, public :: BIND_NAV_MEASURE_REMOVE = 60 ! navigation: remove the measurement for the selected atoms
   integer, parameter, public :: BIND_PICKATOM_ALT = 61 ! atom pick: alternate action on the atom under the cursor (builder: remove H)
-  integer, parameter, public :: BIND_EDITDISTANCE = 62 ! view: open the builder and edit distance for the measure-selected atoms
+  integer, parameter, public :: BIND_EDITDISTANCE = 62 ! view: open the builder and toggle edit distance for the measure-selected atoms
   integer, parameter, public :: BIND_NUM = 62 ! total number of binds
 
   ! Bind names
