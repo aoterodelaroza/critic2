@@ -165,15 +165,9 @@ contains
        trim(get_bind_keyname(BIND_RECALC_BONDS))//")",ttshown)
 
     ! edit distance section: the keybinding request toggles the session
-    if (w%focused() .and. is_bind_event(BIND_EDITDISTANCE)) &
-       w%editdist_pending = .true.
-    if (w%editdist_pending) then
+    if (w%editdist_pending .or. (w%focused() .and. is_bind_event(BIND_EDITDISTANCE))) then
        w%editdist_pending = .false.
-       if (w%editdist_active) then
-          call w%editdist_stop()
-       else
-          call editdist_start()
-       end if
+       call editdist_toggle()
     end if
     if (w%editdist_active) then
        ok = havesys
@@ -204,11 +198,7 @@ contains
     ok = w%editdist_active .or. (havesys .and. nsel == 2)
     if (iw_button("Edit distance",disabled=.not.ok)) then
        w%errmsg = ""
-       if (w%editdist_active) then
-          call w%editdist_stop()
-       else
-          call editdist_start()
-       end if
+       call editdist_toggle()
     end if
     call iw_tooltip("Edit the distance and bond between the two selected atoms ("//&
        trim(get_bind_keyname(BIND_EDITDISTANCE))//"); press again to stop",ttshown)
@@ -347,6 +337,17 @@ contains
       w%editdist_time = glfwGetTime()
       w%editdist_active = .true.
     end subroutine editdist_start
+
+    ! Toggle the edit-distance session: stop it if active, start it
+    ! from the measure-selected atoms otherwise.
+    subroutine editdist_toggle()
+
+      if (w%editdist_active) then
+         call w%editdist_stop()
+      else
+         call editdist_start()
+      end if
+    end subroutine editdist_toggle
 
     ! Cartesian position (bohr) of the latched image of atom iside.
     function editdist_pos(iside) result(r)

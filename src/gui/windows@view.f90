@@ -1460,7 +1460,7 @@ contains
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
        BIND_NAV_ROTATE_PERP,&
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE,&
-       BIND_CLOSE_FOCUSED_DIALOG, BIND_SELECT_MOLECULES_AND_DESELECT, BIND_SELECT_ATOMS,&
+       BIND_SELECT_MOLECULES_AND_DESELECT, BIND_SELECT_ATOMS,&
        BIND_SELECT_MOLECULES, BIND_MOVEMOL_TRANSLATE, BIND_MOVEMOL_ROTATE,&
        BIND_MOVEMOL_ROTATE_PERP, BIND_MOVEATOM_TRANSLATE,&
        BIND_MDINTERACT_DRAGATOM, BIND_MDINTERACT_MOVEMOL, BIND_MDINTERACT_ROTMOL,&
@@ -1593,10 +1593,6 @@ contains
           ! atom selection
           if (hover .and. is_bind_event(BIND_NAV_MEASURE)) then
              call w%sc%select_atom(w%mousepos_idx)
-             w%forcerender = .true.
-          end if
-          if (hover .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) then
-             call w%sc%select_atom((/0,0,0,0,0/))
              w%forcerender = .true.
           end if
 

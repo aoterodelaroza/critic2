@@ -587,6 +587,8 @@ contains
     w%itoken = 0
     w%isys = 0
     w%irep = 0
+    w%ptr = c_null_ptr
+    w%timelast_focused = 0d0
     w%tied_to_tree = .false.
     w%name = "" // c_null_char
     if (allocated(w%iord)) deallocate(w%iord)
@@ -641,6 +643,7 @@ contains
   !> Draw an ImGui window.
   module subroutine window_draw(w)
     use gui_main, only: fontsize
+    use interfaces_glfw, only: glfwGetTime
     use utils, only: iw_text, get_nice_next_window_pos
     use tools_io, only: string, ferror, faterr
     class(window), intent(inout), target :: w
@@ -655,6 +658,9 @@ contains
        call w%end()
        return
     end if
+
+    ! record the last time this window was focused (close-dialog bind)
+    if (w%focused()) w%timelast_focused = glfwGetTime()
 
     ! First pass on creation: assign ID, name, and flags
     if (w%id < 0) then

@@ -28,7 +28,7 @@ contains
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    if (w%timelast_outcon_focused < timelast_output_written) then
+    if (w%timelast_focused < timelast_output_written) then
        w%flags = ImGuiWindowFlags_UnsavedDocument
     else
        w%flags = ImGuiWindowFlags_None
@@ -63,12 +63,10 @@ contains
     szero%x = 0._c_float
     szero%y = 0._c_float
     setscroll = .false.
+    ! seed the focus time so old output is not flagged as unread
+    ! (window_draw stamps it whenever the window is focused)
     if (w%firstpass) &
-       w%timelast_outcon_focused = glfwGetTime()
-
-    ! if focused, update the time
-    if (w%focused()) &
-       w%timelast_outcon_focused = glfwGetTime()
+       w%timelast_focused = glfwGetTime()
 
     ! read new output, if available
     ldum = read_output_uout(.false.)

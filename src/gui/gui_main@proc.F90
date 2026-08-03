@@ -58,6 +58,7 @@ submodule (gui_main) proc
   !xx! private procedures
   ! subroutine process_arguments()
   ! subroutine process_cancel_bind()
+  ! subroutine process_close_bind()
   ! subroutine show_main_menu()
   ! function initialization_thread_worker(arg)
 
@@ -338,8 +339,9 @@ contains
        strc = "A" // c_null_char
        call igCalcTextSize(fontsize,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
 
-       ! process the global cancel keybinding
+       ! process the global cancel and close keybindings
        call process_cancel_bind()
+       call process_close_bind()
 
        ! show main menu
        call show_main_menu()
@@ -717,6 +719,48 @@ contains
     end if
 
   end subroutine process_cancel_bind
+
+  ! Process the close-dialog keybinding (BIND_CLOSE_FOCUSED_DIALOG)
+  ! when no closable window is focused: close the still-open window
+  ! that was focused most recently (each window's own draw routine
+  ! handles the bind when it is focused).
+  subroutine process_close_bind()
+    use windows, only: win, nwin, wintype_view, wintype_about
+    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG
+
+    integer :: i, ibest
+    real*8 :: tbest
+
+    if (.not.is_bind_event(BIND_CLOSE_FOCUSED_DIALOG,norepeat=.true.)) return
+
+    ! do nothing if a popup or menu was open last frame (popups are
+    ! not tracked windows, so no window appears focused while one is up)
+    if (popup_open_lastframe) return
+
+    ! find the most recently focused open closable window; if one is
+    ! focused right now, its own draw routine handles the bind
+    ibest = 0
+    tbest = -1d0
+    do i = 1, nwin
+       if (.not.win(i)%isinit .or. .not.win(i)%isopen) cycle
+       ! skip permanent windows (tree, main view, consoles) except the
+       ! about window, which is permanent but closable
+       if (win(i)%permanent .and. win(i)%type /= wintype_about) cycle
+       if (win(i)%focused()) return
+
+       ! alternate views close with this bind only when focused: closing
+       ! one from the fallback would silently destroy its scene and camera
+       if (win(i)%type == wintype_view) cycle
+       if (win(i)%timelast_focused > tbest) then
+          tbest = win(i)%timelast_focused
+          ibest = i
+       end if
+    end do
+
+    ! close it
+    if (ibest > 0) win(ibest)%isopen = .false.
+
+  end subroutine process_close_bind
 
   ! Show the main menu
   subroutine show_main_menu()

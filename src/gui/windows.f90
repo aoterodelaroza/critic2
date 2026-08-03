@@ -108,6 +108,7 @@ module windows
      integer(c_int) :: sortdir = 1 ! sort the window's table with this direction (tree, geometry)
      real*8 :: timelast_sort = 0d0 ! time the window's table was last sorted (tree, geometry)
      real*8 :: timelast_assign = 0d0 ! time this window was last assigned a system (tree, view, inpcon)
+     real*8 :: timelast_focused = 0d0 ! time this window was last focused (close-dialog bind)
      ! tree table parameters
      integer :: forceselect = 0 ! make the tree select this system in the next pass
      real*8 :: timelast_tree_update = 0d0 ! time the tree was last updated
@@ -147,7 +148,6 @@ module windows
      type(dialog_userdata) :: dialog_data ! for the side pane callback
      ! input console parameters
      ! output console parameters
-     real*8 :: timelast_outcon_focused = 0d0 ! time the outcon was last focused
      ! new structure from library & save image
      character(kind=c_char,len=:), allocatable :: okfile ! ok file
      character(kind=c_char,len=:), allocatable :: okfilter ! ok filter
