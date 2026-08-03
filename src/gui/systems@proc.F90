@@ -512,9 +512,11 @@ contains
        end if
     end if
 
-    ! terminate the system
+    ! terminate the system, including any interactive dynamics
     call sys(idx)%end()
     call sysc(idx)%seed%end()
+    sysc(idx)%md_run = .false.
+    call sysc(idx)%md%free()
     sysc(idx)%status = sys_empty
 
     ! re-read the seeds from file (derived systems already have the seed)

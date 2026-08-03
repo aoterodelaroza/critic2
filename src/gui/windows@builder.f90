@@ -25,11 +25,13 @@ contains
   !> Draw the builder window. The builder is tied to its parent view
   !> (w%idparent) and operates on the system shown in it.
   module subroutine draw_builder(w)
-    use systems, only: sys, sysc, ok_system, sys_init, lastchange_geometry
+    use systems, only: sys, sysc, ok_system, sys_init, lastchange_geometry,&
+       reread_system_from_file
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_PICKATOM_SELECT,&
        BIND_PICKATOM_ALT, BIND_RECALC_BONDS, BIND_NAV_MEASURE, BIND_EDITDISTANCE,&
-       BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_OK_FOCUSED_DIALOG
+       BIND_REOPEN, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
+       BIND_OK_FOCUSED_DIALOG
     use interfaces_glfw, only: glfwGetTime
     use tools_io, only: string
     use param, only: bohrtoa
@@ -117,10 +119,21 @@ contains
     end if
 
     ! header: the system this builder operates on
-    if (havesys) then
-       call iw_text("System",highlight=.true.)
+    call iw_text("System",highlight=.true.)
+    if (havesys) &
        call iw_text("(" // string(isys) // ") " // trim(sysc(isys)%seed%name),sameline=.true.)
+    if (iw_button("Restore",danger=.true.,disabled=.not.havesys)) then
+       w%errmsg = ""
+       ! drop any edit-distance session without rebuilding (the geometry is
+       ! discarded) and treat the system as not ready for the rest of this
+       ! frame: the re-read deallocates sys(isys)%c until the init thread runs
+       w%editdist_dirty = .false.
+       if (w%editdist_active) call editdist_stop()
+       call reread_system_from_file(isys)
+       havesys = .false.
     end if
+    call iw_tooltip("Restore the system to the original geometry it had when it was"//&
+       " first opened ("//trim(get_bind_keyname(BIND_REOPEN))//")",ttshown)
 
     ! the atoms section
     call iw_text("Atoms",highlight=.true.)
