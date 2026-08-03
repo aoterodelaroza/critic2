@@ -35,12 +35,13 @@ contains
        BIND_OK_FOCUSED_DIALOG
     use interfaces_glfw, only: glfwGetTime
     use tools_io, only: string
-    use param, only: bohrtoa
+    use tools_math, only: cross, axisangle2mat
+    use param, only: bohrtoa, pi
     class(window), intent(inout), target :: w
 
     integer :: isys, iview, icel, imode, nsel, iside, ibold, ibnew
     logical :: doquit, goodparent, havesys, ok, lcommit, ldum
-    real*8 :: dist
+    real*8 :: dist, ang
     character(len=:), allocatable :: stropt
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -58,18 +59,18 @@ contains
     if (goodparent) goodparent = (win(iview)%type == wintype_view)
     doquit = .not.goodparent
 
-    ! initialize the state on first pass (editdist_pending is NOT reset:
+    ! initialize the state on first pass (edit_pending is NOT reset:
     ! the view sets it right before this window's first draw)
     if (w%firstpass) then
        w%errmsg = ""
        w%builder_vm = 0
        w%builder_isys = 0
        w%builder_time = 0d0
-       w%editdist_active = .false.
-       w%editdist_isys = 0
-       w%editdist_idx = 0
-       w%editdist_dirty = .false.
-       w%editdist_time = 0d0
+       w%edit_kind = 0
+       w%edit_isys = 0
+       w%edit_idx = 0
+       w%edit_dirty = .false.
+       w%edit_time = 0d0
     end if
 
     ! the builder operates on the system shown in the parent view
@@ -125,11 +126,11 @@ contains
        call iw_text("(" // string(isys) // ") " // trim(sysc(isys)%seed%name),sameline=.true.)
     if (iw_button("Restore",danger=.true.,disabled=.not.havesys)) then
        w%errmsg = ""
-       ! drop any edit-distance session without rebuilding (the geometry is
+       ! drop any edit session without rebuilding (the geometry is
        ! discarded) and treat the system as not ready for the rest of this
        ! frame: the re-read deallocates sys(isys)%c until the init thread runs
-       w%editdist_dirty = .false.
-       if (w%editdist_active) call w%editdist_stop()
+       w%edit_dirty = .false.
+       call w%edit_stop()
        call reread_system_from_file(isys)
        havesys = .false.
     end if
@@ -164,51 +165,52 @@ contains
     call iw_tooltip("Recompute the bond connectivity for this system ("//&
        trim(get_bind_keyname(BIND_RECALC_BONDS))//")",ttshown)
 
-    ! edit distance section: the keybinding request toggles the session
-    if (w%editdist_pending .or. (w%focused() .and. is_bind_event(BIND_EDITDISTANCE))) then
-       w%editdist_pending = .false.
-       call editdist_toggle()
-    end if
-    if (w%editdist_active) then
-       ok = havesys
-       if (ok) ok = (isys == w%editdist_isys)
-       if (ok) ok = all(w%editdist_idx(1,:) >= 1) .and. all(w%editdist_idx(1,:) <= sys(isys)%c%ncel)
-       if (ok) ok = .not.sysc(isys)%md_run
-       ! any external geometry or bond edit invalidates the latched atoms
-       ! and masked fragments (our own edits re-stamp editdist_time)
-       if (ok) ok = sysc(isys)%timelastchange_geometry <= w%editdist_time
-       if (ok) ok = sysc(isys)%timelastchange_rebond <= w%editdist_time
-       if (.not.ok) then
-          call w%editdist_stop()
-       else
-          w%editdist_time = glfwGetTime()
-       end if
-    end if
-
     ! number of measure-selected atoms in the parent view
     nsel = 0
     if (goodparent) then
        if (associated(win(iview)%sc)) nsel = win(iview)%sc%nmsel
     end if
 
+    ! the keybinding request toggles an edit session: three selected
+    ! atoms toggle edit angle, two toggle edit distance, and otherwise
+    ! deactivate the active session, if any
+    if (w%edit_pending .or. (w%focused() .and. is_bind_event(BIND_EDITDISTANCE))) then
+       w%edit_pending = .false.
+       if (nsel == 2 .or. nsel == 3) then
+          call edit_toggle(nsel)
+       elseif (w%edit_kind /= 0) then
+          call w%edit_stop()
+       end if
+    end if
+
+    ! per-frame guards on the active edit session
+    if (w%edit_kind /= 0) then
+       if (edit_session_ok()) then
+          w%edit_time = glfwGetTime()
+       else
+          call w%edit_stop()
+       end if
+    end if
+
+    ! edit distance section
     call iw_text("Edit distance",highlight=.true.)
-    if (.not.w%editdist_active) &
+    if (w%edit_kind /= 2) &
        call iw_text("Select two atoms in the view ("//trim(get_bind_keyname(BIND_NAV_MEASURE))//&
        "), then press Edit distance or "//trim(get_bind_keyname(BIND_EDITDISTANCE)))
-    ok = w%editdist_active .or. (havesys .and. nsel == 2)
+    ok = (w%edit_kind == 2) .or. (havesys .and. nsel == 2)
     if (iw_button("Edit distance",disabled=.not.ok)) then
        w%errmsg = ""
-       call editdist_toggle()
+       call edit_toggle(2)
     end if
     call iw_tooltip("Edit the distance and bond between the two selected atoms ("//&
        trim(get_bind_keyname(BIND_EDITDISTANCE))//"); press again to stop",ttshown)
 
-    if (w%editdist_active) then
+    if (w%edit_kind == 2) then
        ! the two atoms
-       call iw_text("(1) "//trim(sys(isys)%c%at(sys(isys)%c%atcel(w%editdist_idx(1,1))%idx)%name)//&
-          string(w%editdist_idx(1,1)))
-       call iw_text("(2) "//trim(sys(isys)%c%at(sys(isys)%c%atcel(w%editdist_idx(1,2))%idx)%name)//&
-          string(w%editdist_idx(1,2)),sameline=.true.)
+       call iw_text("(1) "//trim(sys(isys)%c%at(sys(isys)%c%atcel(w%edit_idx(1,1))%idx)%name)//&
+          string(w%edit_idx(1,1)))
+       call iw_text("(2) "//trim(sys(isys)%c%at(sys(isys)%c%atcel(w%edit_idx(1,2))%idx)%name)//&
+          string(w%edit_idx(1,2)),sameline=.true.)
 
        ! bond type combo
        ibold = editdist_bondidx()
@@ -222,39 +224,107 @@ contains
        ! per-atom move mode combos
        do iside = 1, 2
           stropt = "Fixed"//c_null_char//"Translate atom"//c_null_char
-          if (w%editdist_fragok(iside)) stropt = stropt // "Translate fragment"//c_null_char
+          if (w%edit_fragok(iside)) stropt = stropt // "Translate fragment"//c_null_char
           call iw_combo_simple("Atom "//string(iside)//"##editdistmove"//string(iside),&
-             stropt,w%editdist_imove(iside))
+             stropt,w%edit_imove(iside))
           call iw_tooltip("What moves when the distance changes: nothing (fixed), the atom,"//&
              " or the whole fragment attached to it",ttshown)
        end do
 
        ! distance drag-float (bohr internally, shown in angstrom, no upper bound)
-       dist = norm2(editdist_pos(2) - editdist_pos(1))
-       if (all(w%editdist_imove == 0)) call igBeginDisabled(.true._c_bool)
+       dist = norm2(edit_pos(2) - edit_pos(1))
+       if (all(w%edit_imove == 0)) call igBeginDisabled(.true._c_bool)
        ldum = iw_dragfloat_real8("Distance (Å)##editdistdrag",x1=dist,speed=0.01d0,&
           min=0.1d0,scale=bohrtoa,decimal=3,notlive=.true.,committed=lcommit,&
           flags=ImGuiSliderFlags_AlwaysClamp)
-       if (all(w%editdist_imove == 0)) then
+       if (all(w%edit_imove == 0)) then
           call igEndDisabled()
        else
           if (ldum) call editdist_apply(dist)
-          if (lcommit) call editdist_commit()
+          if (lcommit) call edit_commit()
        end if
        call iw_tooltip("Distance between the two atoms (Å)",ttshown)
 
        ! apply button
        if (iw_button("Apply",danger=.true.)) then
           w%errmsg = ""
-          call w%editdist_stop()
+          call w%edit_stop()
        end if
        call iw_tooltip("Keep the current distance and release the two atoms",ttshown)
     end if
 
-    ! transient highlight of the two latched atoms
-    if (w%editdist_active) &
-       call sysc(w%editdist_isys)%highlight_atoms(.true.,w%editdist_idx(1,:),&
-       atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,2))
+    ! edit angle section
+    call iw_text("Edit angle",highlight=.true.)
+    if (w%edit_kind /= 3) &
+       call iw_text("Select three atoms in the view ("//trim(get_bind_keyname(BIND_NAV_MEASURE))//&
+       "), then press Edit angle or "//trim(get_bind_keyname(BIND_EDITDISTANCE)))
+    ok = (w%edit_kind == 3) .or. (havesys .and. nsel == 3)
+    if (iw_button("Edit angle",disabled=.not.ok)) then
+       w%errmsg = ""
+       call edit_toggle(3)
+    end if
+    call iw_tooltip("Edit the angle between the three selected atoms, vertex at the"//&
+       " second atom ("//trim(get_bind_keyname(BIND_EDITDISTANCE))//"); press again to stop",ttshown)
+
+    if (w%edit_kind == 3) then
+       ! the three atoms
+       do iside = 1, 3
+          call iw_text("("//string(iside)//") "//&
+             trim(sys(isys)%c%at(sys(isys)%c%atcel(w%edit_idx(1,iside))%idx)%name)//&
+             string(w%edit_idx(1,iside)),sameline=(iside > 1))
+       end do
+
+       ! central atom combo; while the central atom moves, the
+       ! terminals are held fixed (rotation needs a fixed vertex)
+       stropt = "Fixed"//c_null_char//"Translate atom"//c_null_char
+       if (w%edit_fragok(2)) stropt = stropt // "Translate group"//c_null_char
+       call iw_combo_simple("Atom 2 (center)##editangmove2",stropt,w%edit_imove(2))
+       call iw_tooltip("What moves when the angle changes: nothing (fixed), the central"//&
+          " atom, or the whole group attached to it",ttshown)
+       if (w%edit_imove(2) > 0) then
+          w%edit_imove(1) = 0
+          w%edit_imove(3) = 0
+       end if
+
+       ! terminal atom combos (rotation available only with a fixed center)
+       do iside = 1, 3, 2
+          stropt = "Fixed"//c_null_char//"Rotate atom"//c_null_char
+          if (w%edit_fragok(iside)) stropt = stropt // "Rotate group"//c_null_char
+          if (w%edit_imove(2) > 0) call igBeginDisabled(.true._c_bool)
+          call iw_combo_simple("Atom "//string(iside)//"##editangmove"//string(iside),&
+             stropt,w%edit_imove(iside))
+          if (w%edit_imove(2) > 0) call igEndDisabled()
+          call iw_tooltip("What moves when the angle changes: nothing (fixed), the"//&
+             " terminal atom, or the whole group attached to it, rotating about the"//&
+             " central atom",ttshown)
+       end do
+
+       ! angle drag-float (degrees)
+       ang = editang_angat(edit_pos(2)) * 180d0 / pi
+       if (all(w%edit_imove == 0)) call igBeginDisabled(.true._c_bool)
+       ldum = iw_dragfloat_real8("Angle (°)##editangdrag",x1=ang,speed=0.2d0,&
+          min=0d0,max=180d0,decimal=2,notlive=.true.,committed=lcommit,&
+          flags=ImGuiSliderFlags_AlwaysClamp)
+       if (all(w%edit_imove == 0)) then
+          call igEndDisabled()
+       else
+          if (ldum) call editang_apply(ang)
+          if (lcommit) call edit_commit()
+       end if
+       call iw_tooltip("Angle between the three atoms (degrees)",ttshown)
+
+       ! apply button
+       if (iw_button("Apply##editang",danger=.true.)) then
+          w%errmsg = ""
+          call w%edit_stop()
+       end if
+       call iw_tooltip("Keep the current angle and release the three atoms",ttshown)
+    end if
+
+    ! transient highlight of the latched atoms
+    if (w%edit_kind /= 0) &
+       call sysc(w%edit_isys)%highlight_atoms(.true.,w%edit_idx(1,1:w%edit_kind),&
+       atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,w%edit_kind))
 
     ! the symmetry section
     call iw_text("Symmetry",highlight=.true.)
@@ -282,13 +352,113 @@ contains
        call w%end()
 
   contains
+    ! Per-frame validity of the active edit session: the parent view
+    ! must show the same system, the latched atoms must exist, dynamics
+    ! must not be running, and no external geometry or bond edit may
+    ! have occurred (our own edits re-stamp the heartbeat).
+    function edit_session_ok() result(ok)
+      logical :: ok
+
+      ok = havesys
+      if (ok) ok = (isys == w%edit_isys)
+      if (ok) ok = all(w%edit_idx(1,1:w%edit_kind) >= 1) .and.&
+         all(w%edit_idx(1,1:w%edit_kind) <= sys(isys)%c%ncel)
+      if (ok) ok = .not.sysc(isys)%md_run
+      if (ok) ok = sysc(isys)%timelastchange_geometry <= w%edit_time
+      if (ok) ok = sysc(isys)%timelastchange_rebond <= w%edit_time
+    end function edit_session_ok
+
+    ! Toggle an edit session of the given kind (2 = distance, 3 =
+    ! angle): stop it if it is the active session, and start it from
+    ! the measure-selected atoms otherwise.
+    subroutine edit_toggle(ikind)
+      integer, intent(in) :: ikind
+
+      if (w%edit_kind == ikind) then
+         call w%edit_stop()
+      elseif (ikind == 2) then
+         call editdist_start()
+      else
+         call editang_start()
+      end if
+    end subroutine edit_toggle
+
+    ! Latch the ikind measure-selected atoms of the parent view into
+    ! edit_idx/edit_isys and clear the measurement. Stops any active
+    ! session first; if its uncommitted moves rebuild the crystal, the
+    ! latched lattice vectors are re-derived against the rewrapped
+    ! atoms.
+    subroutine edit_latch(ikind)
+      integer, intent(in) :: ikind
+
+      integer :: i, ml(4,3)
+      real*8 :: rabs(3,3)
+
+      ml = 0
+      ml(:,1:ikind) = win(iview)%sc%msel(1:4,1:ikind)
+      do i = 1, ikind
+         rabs(:,i) = sys(isys)%c%atcel(ml(1,i))%r + sys(isys)%c%x2c(dble(ml(2:4,i)))
+      end do
+      call w%edit_stop()
+      if (.not.sys(isys)%c%ismolecule) then
+         do i = 1, ikind
+            ml(2:4,i) = nint(sys(isys)%c%c2x(rabs(:,i)) - sys(isys)%c%atcel(ml(1,i))%x)
+         end do
+      end if
+      w%edit_idx = ml
+      w%edit_isys = isys
+      win(iview)%sc%nmsel = 0
+      win(iview)%sc%msel = 0
+    end subroutine edit_latch
+
+    ! Compute the masked groups of the ikind latched atoms: each atom
+    ! severs its bonds to its neighbors in the 1-2-...-ikind chain, and
+    ! its group move option is available only if the component is
+    ! discrete and contains none of the other latched atoms.
+    ! masked_fragment seeds each list with the atom itself, so the atom
+    ! move mode is the one-atom head of the same list.
+    subroutine edit_latch_groups(ikind)
+      integer, intent(in) :: ikind
+
+      integer :: is, js, n
+      logical :: okf, disc
+      integer, allocatable :: ifr(:), work(:,:)
+
+      allocate(work(sys(isys)%c%ncel,ikind))
+      w%edit_nfrag = 0
+      w%edit_fragok = .false.
+      do is = 1, ikind
+         if (is > 1 .and. is < ikind) then
+            call sys(isys)%c%masked_fragment(w%edit_idx(1,is),w%edit_idx(1,is),&
+               w%edit_idx(1,is-1),n,ifr,disc,w%edit_idx(1,is),w%edit_idx(1,is+1))
+         elseif (is > 1) then
+            call sys(isys)%c%masked_fragment(w%edit_idx(1,is),w%edit_idx(1,is),&
+               w%edit_idx(1,is-1),n,ifr,disc)
+         else
+            call sys(isys)%c%masked_fragment(w%edit_idx(1,is),w%edit_idx(1,is),&
+               w%edit_idx(1,is+1),n,ifr,disc)
+         end if
+         okf = disc
+         do js = 1, ikind
+            if (js /= is) okf = okf .and. .not.any(ifr(1:n) == w%edit_idx(1,js))
+         end do
+         w%edit_nfrag(is) = n
+         w%edit_fragok(is) = okf
+         work(1:n,is) = ifr(1:n)
+      end do
+      if (allocated(w%edit_frag)) deallocate(w%edit_frag)
+      allocate(w%edit_frag(maxval(w%edit_nfrag(1:ikind)),ikind))
+      w%edit_frag = 0
+      do is = 1, ikind
+         w%edit_frag(1:w%edit_nfrag(is),is) = work(1:w%edit_nfrag(is),is)
+      end do
+    end subroutine edit_latch_groups
+
     ! Start the edit-distance session from the parent view's two
     ! measure-selected atoms: latch the atoms and the system, compute
     ! the masked fragments of both sides, and set the defaults.
     subroutine editdist_start()
       integer :: ia, ib
-      logical :: disc
-      integer, allocatable :: ifr1(:), ifr2(:)
 
       if (.not.havesys) return
       if (.not.associated(win(iview)%sc)) return
@@ -304,59 +474,62 @@ contains
          w%errmsg = "Edit distance is not available while dynamics is running"
          return
       end if
-
-      ! latch the two atoms (cell atom + lattice vector) and the system,
-      ! and clear the measurement that provided them
-      w%editdist_idx(:,1) = win(iview)%sc%msel(1:4,1)
-      w%editdist_idx(:,2) = win(iview)%sc%msel(1:4,2)
-      w%editdist_isys = isys
-      win(iview)%sc%nmsel = 0
-      win(iview)%sc%msel = 0
-
-      ! masked fragments: connected components ignoring all bonds
-      ! between the two atoms. The fragment option is unavailable if
-      ! the component is periodic or contains the other atom.
-      ! masked_fragment seeds the list with the atom itself, so the
-      ! translate-atom mode is the one-atom head of the same list.
-      call sys(isys)%c%masked_fragment(ia,ia,ib,w%editdist_nfrag(1),ifr1,disc)
-      w%editdist_fragok(1) = disc .and. .not.any(ifr1(1:w%editdist_nfrag(1)) == ib)
-      call sys(isys)%c%masked_fragment(ib,ia,ib,w%editdist_nfrag(2),ifr2,disc)
-      w%editdist_fragok(2) = disc .and. .not.any(ifr2(1:w%editdist_nfrag(2)) == ia)
-      if (allocated(w%editdist_frag)) deallocate(w%editdist_frag)
-      allocate(w%editdist_frag(maxval(w%editdist_nfrag),2))
-      w%editdist_frag = 0
-      w%editdist_frag(1:w%editdist_nfrag(1),1) = ifr1(1:w%editdist_nfrag(1))
-      w%editdist_frag(1:w%editdist_nfrag(2),2) = ifr2(1:w%editdist_nfrag(2))
+      call edit_latch(2)
+      call edit_latch_groups(2)
 
       ! defaults: atom 1 fixed; atom 2 translates its fragment if
       ! available, else the atom
-      w%editdist_imove(1) = 0
-      w%editdist_imove(2) = merge(2,1,w%editdist_fragok(2))
+      w%edit_imove = 0
+      w%edit_imove(2) = merge(2,1,w%edit_fragok(2))
 
-      w%editdist_dirty = .false.
-      w%editdist_time = glfwGetTime()
-      w%editdist_active = .true.
+      w%edit_dirty = .false.
+      w%edit_time = glfwGetTime()
+      w%edit_kind = 2
     end subroutine editdist_start
 
-    ! Toggle the edit-distance session: stop it if active, start it
-    ! from the measure-selected atoms otherwise.
-    subroutine editdist_toggle()
+    ! Start the edit-angle session from the parent view's three
+    ! measure-selected atoms (vertex at the second one): latch the
+    ! atoms and the system, compute the masked groups, and set the
+    ! defaults.
+    subroutine editang_start()
+      integer :: ia, ib, ic
 
-      if (w%editdist_active) then
-         call w%editdist_stop()
-      else
-         call editdist_start()
+      if (.not.havesys) return
+      if (.not.associated(win(iview)%sc)) return
+      if (win(iview)%sc%nmsel /= 3) return
+      ia = win(iview)%sc%msel(1,1)
+      ib = win(iview)%sc%msel(1,2)
+      ic = win(iview)%sc%msel(1,3)
+      if (min(ia,ib,ic) < 1 .or. max(ia,ib,ic) > sys(isys)%c%ncel) return
+      if (ia == ib .or. ib == ic .or. ia == ic) then
+         w%errmsg = "The selected atoms must be three different atoms"
+         return
       end if
-    end subroutine editdist_toggle
+      if (sysc(isys)%md_run) then
+         w%errmsg = "Edit angle is not available while dynamics is running"
+         return
+      end if
+      call edit_latch(3)
+      call edit_latch_groups(3)
+
+      ! defaults: center and terminal 1 fixed; terminal 3 rotates its
+      ! group if available, else the atom
+      w%edit_imove = 0
+      w%edit_imove(3) = merge(2,1,w%edit_fragok(3))
+
+      w%edit_dirty = .false.
+      w%edit_time = glfwGetTime()
+      w%edit_kind = 3
+    end subroutine editang_start
 
     ! Cartesian position (bohr) of the latched image of atom iside.
-    function editdist_pos(iside) result(r)
+    function edit_pos(iside) result(r)
       integer, intent(in) :: iside
       real*8 :: r(3)
 
-      r = sys(isys)%c%atcel(w%editdist_idx(1,iside))%r +&
-         sys(isys)%c%x2c(dble(w%editdist_idx(2:4,iside)))
-    end function editdist_pos
+      r = sys(isys)%c%atcel(w%edit_idx(1,iside))%r +&
+         sys(isys)%c%x2c(dble(w%edit_idx(2:4,iside)))
+    end function edit_pos
 
     ! Index in the bond combo (0 = none, else bondorder(idx)) of the
     ! current bond between the two latched atoms.
@@ -365,11 +538,11 @@ contains
       integer :: ia, j, k, lv(3)
 
       idx = 0
-      ia = w%editdist_idx(1,1)
-      lv = w%editdist_idx(2:4,2) - w%editdist_idx(2:4,1)
+      ia = w%edit_idx(1,1)
+      lv = w%edit_idx(2:4,2) - w%edit_idx(2:4,1)
       if (.not.allocated(sys(isys)%c%nstar)) return
       do j = 1, sys(isys)%c%nstar(ia)%ncon
-         if (sys(isys)%c%nstar(ia)%idcon(j) == w%editdist_idx(1,2) .and.&
+         if (sys(isys)%c%nstar(ia)%idcon(j) == w%edit_idx(1,2) .and.&
             all(sys(isys)%c%nstar(ia)%lcon(:,j) == lv)) then
             do k = 1, size(bondorder,1)
                if (sys(isys)%c%nstar(ia)%ordcon(j) == bondorder(k)) then
@@ -391,21 +564,21 @@ contains
 
       integer :: lv(3)
 
-      lv = w%editdist_idx(2:4,2) - w%editdist_idx(2:4,1)
+      lv = w%edit_idx(2:4,2) - w%edit_idx(2:4,1)
       if (inew == 0) then
-         call sysc(isys)%remove_bond(w%editdist_idx(1,1),w%editdist_idx(1,2),lv)
+         call sysc(isys)%remove_bond(w%edit_idx(1,1),w%edit_idx(1,2),lv)
       elseif (iold == 0) then
-         call sysc(isys)%add_bond(w%editdist_idx(1,1),w%editdist_idx(1,2),lv,bondorder(inew))
+         call sysc(isys)%add_bond(w%edit_idx(1,1),w%edit_idx(1,2),lv,bondorder(inew))
       else
-         call sysc(isys)%set_bond_order(w%editdist_idx(1,1),w%editdist_idx(1,2),lv,bondorder(inew))
+         call sysc(isys)%set_bond_order(w%edit_idx(1,1),w%edit_idx(1,2),lv,bondorder(inew))
       end if
-      w%editdist_time = glfwGetTime()
+      w%edit_time = glfwGetTime()
     end subroutine editdist_setbond
 
     ! Move the atoms so the distance between the two latched images
     ! becomes dnew (bohr), displacing each side along the bond axis
     ! according to its move mode (in-place update; the rebuild happens
-    ! at editdist_commit).
+    ! at edit_commit).
     subroutine editdist_apply(dnew)
       real*8, intent(in) :: dnew
 
@@ -413,8 +586,8 @@ contains
       real*8 :: ra(3), rb(3), u(3), dcur, delta, dshift(2)
       real*8, allocatable :: rnew(:,:)
 
-      ra = editdist_pos(1)
-      rb = editdist_pos(2)
+      ra = edit_pos(1)
+      rb = edit_pos(2)
       dcur = norm2(rb - ra)
       if (dcur < eps_dzero) return
       u = (rb - ra) / dcur
@@ -422,11 +595,11 @@ contains
 
       ! split the displacement among the movable sides (atom 1 moves
       ! against the bond axis, atom 2 along it)
-      if (w%editdist_imove(1) > 0 .and. w%editdist_imove(2) > 0) then
+      if (w%edit_imove(1) > 0 .and. w%edit_imove(2) > 0) then
          dshift = (/-delta/2d0, delta/2d0/)
-      elseif (w%editdist_imove(1) > 0) then
+      elseif (w%edit_imove(1) > 0) then
          dshift = (/-delta, 0d0/)
-      elseif (w%editdist_imove(2) > 0) then
+      elseif (w%edit_imove(2) > 0) then
          dshift = (/0d0, delta/)
       else
          return
@@ -435,47 +608,231 @@ contains
       ! build the new positions and apply them in place; the moving set
       ! is the masked-fragment list (translate fragment) or its one-atom
       ! head (translate atom)
+      call edit_snapshot(rnew)
+      do i = 1, 2
+         if (w%edit_imove(i) == 0) cycle
+         n = merge(w%edit_nfrag(i),1,w%edit_imove(i) == 2)
+         do k = 1, n
+            rnew(:,w%edit_frag(k,i)) = rnew(:,w%edit_frag(k,i)) + dshift(i) * u
+         end do
+      end do
+      call edit_push(rnew)
+    end subroutine editdist_apply
+
+    ! Snapshot the current atomic positions (Cartesian, bohr) into rnew.
+    subroutine edit_snapshot(rnew)
+      real*8, allocatable, intent(inout) :: rnew(:,:)
+
+      integer :: i
+
       allocate(rnew(3,sys(isys)%c%ncel))
       do i = 1, sys(isys)%c%ncel
          rnew(:,i) = sys(isys)%c%atcel(i)%r
       end do
-      do i = 1, 2
-         if (w%editdist_imove(i) == 0) cycle
-         n = merge(w%editdist_nfrag(i),1,w%editdist_imove(i) == 2)
-         do k = 1, n
-            rnew(:,w%editdist_frag(k,i)) = rnew(:,w%editdist_frag(k,i)) + dshift(i) * u
-         end do
-      end do
+    end subroutine edit_snapshot
+
+    ! Apply the moved positions in place, mark the session dirty, and
+    ! notify (the rebuild happens at edit_commit).
+    subroutine edit_push(rnew)
+      real*8, intent(in) :: rnew(:,:)
+
       call sys(isys)%c%update_positions(rnew)
-      w%editdist_dirty = .true.
+      w%edit_dirty = .true.
+      call edit_notify()
+    end subroutine edit_push
+
+    ! Hold the camera of the parent view through the next list rebuild,
+    ! post the geometry event, and re-stamp the session heartbeat
+    ! (after the post, so our own edit does not end the session).
+    subroutine edit_notify()
+
       if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
       call sysc(isys)%post_event(lastchange_geometry)
-      ! stamp after the post so our own edit does not end the session
-      w%editdist_time = glfwGetTime()
-    end subroutine editdist_apply
+      w%edit_time = glfwGetTime()
+    end subroutine edit_notify
 
-    ! Commit the edit-distance moves: rebuild the structure from the
+    ! Angle (radians) at vertex position rr subtended by the two
+    ! latched terminal atoms.
+    function editang_angat(rr) result(a)
+      real*8, intent(in) :: rr(3)
+      real*8 :: a
+
+      real*8 :: va(3), vc(3)
+
+      va = edit_pos(1) - rr
+      vc = edit_pos(3) - rr
+      a = atan2(norm2(cross(va,vc)),dot_product(va,vc))
+    end function editang_angat
+
+    ! Unit vector perpendicular to v (assumed nonzero).
+    function editang_perp(v) result(u)
+      real*8, intent(in) :: v(3)
+      real*8 :: u(3)
+
+      if (abs(v(1)) < 0.9d0 * norm2(v)) then
+         u = cross(v,(/1d0,0d0,0d0/))
+      else
+         u = cross(v,(/0d0,1d0,0d0/))
+      end if
+      u = u / norm2(u)
+    end function editang_perp
+
+    ! Find the translation (shift) of the central atom along the
+    ! internal bisector that makes the angle equal to atgt (radians),
+    ! with the terminal atoms fixed. Returns .false. if no such shift
+    ! can be found.
+    function editang_center_shift(atgt,shift) result(ok)
+      real*8, intent(in) :: atgt
+      real*8, intent(out) :: shift(3)
+      logical :: ok
+
+      integer :: i
+      real*8 :: ra(3), rb(3), rc(3), va(3), vc(3), w0(3), pc(3), acur
+      real*8 :: t0, t1, tm, f0, f1, fm
+
+      ok = .false.
+      shift = 0d0
+      ra = edit_pos(1)
+      rb = edit_pos(2)
+      rc = edit_pos(3)
+      va = ra - rb
+      vc = rc - rb
+      if (norm2(va) < eps_dzero .or. norm2(vc) < eps_dzero) return
+      acur = editang_angat(rb)
+      f0 = acur - atgt
+
+      if (f0 < 0d0) then
+         ! increase the angle: the internal bisector from the vertex
+         ! crosses the 1-3 chord (angle-bisector theorem), where the
+         ! angle tends to 180. Bracket between the vertex position and
+         ! a point just short of the chord.
+         pc = ra + (norm2(va) / (norm2(va) + norm2(vc))) * (rc - ra)
+         t1 = norm2(pc - rb)
+         if (t1 < eps_dzero) return
+         w0 = (pc - rb) / t1
+         t1 = t1 * (1d0 - 1d-10)
+         f1 = editang_angat(rb + t1 * w0) - atgt
+         if (f0 * f1 > 0d0) then
+            ! the target is numerically unreachable (atgt = 180): land
+            ! on the chord point, where the angle is closest to it
+            shift = t1 * w0
+            ok = .true.
+            return
+         end if
+      else
+         ! decrease the angle: move away from the chord along the
+         ! bisector (any perpendicular to the arms if collinear); the
+         ! angle goes to zero, so a doubling search brackets any
+         ! reachable target
+         w0 = va / norm2(va) + vc / norm2(vc)
+         if (norm2(w0) < eps_dzero) then
+            w0 = editang_perp(va)
+         else
+            w0 = w0 / norm2(w0)
+         end if
+         t1 = -0.05d0
+         do i = 1, 60
+            f1 = editang_angat(rb + t1 * w0) - atgt
+            if (f0 * f1 <= 0d0) exit
+            t1 = 2d0 * t1
+         end do
+         if (f0 * f1 > 0d0) return
+      end if
+
+      ! bisection between t0 = 0 and t1
+      ok = .true.
+      t0 = 0d0
+      do i = 1, 80
+         tm = 0.5d0 * (t0 + t1)
+         fm = editang_angat(rb + tm * w0) - atgt
+         if (f0 * fm > 0d0) then
+            t0 = tm
+            f0 = fm
+         else
+            t1 = tm
+         end if
+      end do
+      shift = 0.5d0 * (t0 + t1) * w0
+    end function editang_center_shift
+
+    ! Move the atoms so the angle at the central atom becomes anew
+    ! (degrees): translate the center along the bisector, or rotate
+    ! the terminals about the center, according to the move modes
+    ! (in-place update; the rebuild happens at edit_commit).
+    subroutine editang_apply(anew)
+      real*8, intent(in) :: anew
+
+      integer :: i, k, n, nrot
+      real*8 :: rb(3), va(3), vc(3), axis(3), acur, atgt, dang
+      real*8 :: rot(3,3), shift(3)
+      real*8, allocatable :: rnew(:,:)
+
+      rb = edit_pos(2)
+      va = edit_pos(1) - rb
+      vc = edit_pos(3) - rb
+      if (norm2(va) < eps_dzero .or. norm2(vc) < eps_dzero) return
+      acur = editang_angat(rb)
+      atgt = anew * pi / 180d0
+      if (abs(atgt - acur) < 1d-12) return
+      if (w%edit_imove(2) > 0) then
+         ! translate the central atom (or its group) along the internal
+         ! bisector until the angle becomes atgt
+         if (.not.editang_center_shift(atgt,shift)) return
+      else
+         nrot = count((/w%edit_imove(1),w%edit_imove(3)/) > 0)
+         if (nrot == 0) return
+         dang = atgt - acur
+         ! rotation axis: perpendicular to the plane of the three atoms;
+         ! any direction perpendicular to the arms if they are collinear
+         axis = cross(va,vc)
+         if (norm2(axis) < eps_dzero) axis = editang_perp(va)
+      end if
+
+      ! build the new positions and apply them in place; the moving set
+      ! is the masked-group list or its one-atom head
+      call edit_snapshot(rnew)
+      if (w%edit_imove(2) > 0) then
+         n = merge(w%edit_nfrag(2),1,w%edit_imove(2) == 2)
+         do k = 1, n
+            rnew(:,w%edit_frag(k,2)) = rnew(:,w%edit_frag(k,2)) + shift
+         end do
+      else
+         ! rotating atom 1 by -phi about the axis opens the angle by
+         ! phi, and atom 3 by +phi; split among the moving terminals
+         do i = 1, 3, 2
+            if (w%edit_imove(i) == 0) cycle
+            rot = axisangle2mat(axis,merge(-1d0,1d0,i == 1) * dang / nrot)
+            n = merge(w%edit_nfrag(i),1,w%edit_imove(i) == 2)
+            do k = 1, n
+               rnew(:,w%edit_frag(k,i)) = rb +&
+                  matmul(rot,rnew(:,w%edit_frag(k,i)) - rb)
+            end do
+         end do
+      end if
+
+      call edit_push(rnew)
+    end subroutine editang_apply
+
+    ! Commit the edit-session moves: rebuild the structure from the
     ! moved positions (keeping the current bonds) and re-latch the
     ! lattice vectors (crystal atoms may be rewrapped by the rebuild).
-    subroutine editdist_commit()
+    subroutine edit_commit()
       integer :: i
-      real*8 :: rab(3,2)
+      real*8 :: rl(3,3)
 
-      do i = 1, 2
-         rab(:,i) = editdist_pos(i)
+      do i = 1, w%edit_kind
+         rl(:,i) = edit_pos(i)
       end do
       call sys(isys)%c%rebuild_after_move(copybonding=.true.)
       if (.not.sys(isys)%c%ismolecule) then
-         do i = 1, 2
-            w%editdist_idx(2:4,i) = nint(sys(isys)%c%c2x(rab(:,i)) -&
-               sys(isys)%c%atcel(w%editdist_idx(1,i))%x)
+         do i = 1, w%edit_kind
+            w%edit_idx(2:4,i) = nint(sys(isys)%c%c2x(rl(:,i)) -&
+               sys(isys)%c%atcel(w%edit_idx(1,i))%x)
          end do
       end if
-      w%editdist_dirty = .false.
-      if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
-      call sysc(isys)%post_event(lastchange_geometry)
-      w%editdist_time = glfwGetTime()
-    end subroutine editdist_commit
+      w%edit_dirty = .false.
+      call edit_notify()
+    end subroutine edit_commit
 
     ! Stop the active builder mode: release the parent view (if alive)
     ! and clear the mode state.
@@ -515,30 +872,33 @@ contains
     end subroutine builder_toggle
   end subroutine draw_builder
 
-  !> Stop the edit-distance session of a builder window
-  module subroutine editdist_stop(w)
+  !> Stop the active edit session (distance or angle) of a builder
+  !> window: rebuild the structure first if in-place moves were applied
+  !> but not committed, and release the latched atoms (the start
+  !> routines re-seed the rest of the session state).
+  module subroutine edit_stop(w)
     use systems, only: sys, sysc, ok_system, sys_init, lastchange_geometry
     class(window), intent(inout) :: w
 
     integer :: iview
 
-    if (w%editdist_dirty) then
-       if (ok_system(w%editdist_isys,sys_init)) then
-          call sys(w%editdist_isys)%c%rebuild_after_move(copybonding=.true.)
+    if (w%edit_dirty) then
+       if (ok_system(w%edit_isys,sys_init)) then
+          call sys(w%edit_isys)%c%rebuild_after_move(copybonding=.true.)
           iview = w%idparent
           if (iview >= 1 .and. iview <= nwin) then
              if (win(iview)%isinit) then
                 if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
              end if
           end if
-          call sysc(w%editdist_isys)%post_event(lastchange_geometry)
+          call sysc(w%edit_isys)%post_event(lastchange_geometry)
        end if
-       w%editdist_dirty = .false.
+       w%edit_dirty = .false.
     end if
-    w%editdist_active = .false.
-    w%editdist_isys = 0
-    w%editdist_idx = 0
+    w%edit_kind = 0
+    w%edit_isys = 0
+    w%edit_idx = 0
 
-  end subroutine editdist_stop
+  end subroutine edit_stop
 
 end submodule builder

@@ -816,27 +816,31 @@ contains
 
   end subroutine listmolecules
 
-  !> Calculate the connected component of cell atom i0 over the bond
-  !> connectivity (c%nstar), skipping every bond between cell atoms
-  !> imask1 and imask2 (in both directions, regardless of lattice
-  !> vector). Returns the number of atoms in the component (nat), the
-  !> list of unique cell-atom indices (iat, reallocated as needed),
-  !> and whether the component is discrete. If the connectivity is not
-  !> available, returns the single atom i0.
-  module subroutine masked_fragment(c,i0,imask1,imask2,nat,iat,discrete)
+  !> Calculate the connected component of cell atom i0, skipping every
+  !> bond between cell atoms imask1 and imask2, and between imask3 and
+  !> imask4 if given. Returns the number of atoms in the component
+  !> (nat), the list of unique cell-atom indices (iat, reallocated as
+  !> needed), and whether the component is discrete. If the
+  !> connectivity is not available, returns the single atom i0.
+  module subroutine masked_fragment(c,i0,imask1,imask2,nat,iat,discrete,imask3,imask4)
     use types, only: realloc
     class(crystal), intent(in) :: c
     integer, intent(in) :: i0, imask1, imask2
     integer, intent(out) :: nat
     integer, allocatable, intent(inout) :: iat(:)
     logical, intent(out) :: discrete
+    integer, intent(in), optional :: imask3, imask4
 
-    integer :: i, k, sp, newid, lveci(3)
+    integer :: i, k, sp, newid, lveci(3), im3, im4
     integer, allocatable :: idmol(:), lvec(:,:)
     integer, allocatable :: stk_i(:), stk_k(:), stk_lvec(:,:)
 
     ! initialize the output; return the single seed atom if there is
     ! no connectivity
+    im3 = 0
+    im4 = 0
+    if (present(imask3)) im3 = imask3
+    if (present(imask4)) im4 = imask4
     nat = 0
     if (.not.allocated(iat)) allocate(iat(10))
     discrete = .true.
@@ -870,9 +874,11 @@ contains
        end if
 
        newid = c%nstar(i)%idcon(k)
-       ! skip the masked bonds (any bond between imask1 and imask2)
+       ! skip the masked bonds
        if ((i == imask1 .and. newid == imask2) .or.&
           (i == imask2 .and. newid == imask1)) cycle
+       if ((i == im3 .and. newid == im4) .or.&
+          (i == im4 .and. newid == im3)) cycle
        if (idmol(newid) == 0) then
           ! discover newid, then descend into it (push)
           idmol(newid) = 1

@@ -569,8 +569,8 @@ contains
              if (win(w%idparent)%isinit) &
                 call win(w%idparent)%viewmode_release_forced(w%id,w%builder_vm)
           end if
-          ! stop the edit-distance session
-          call w%editdist_stop()
+          ! stop the edit session
+          call w%edit_stop()
        elseif (w%type == wintype_geometry) then
           ! remove all highlights
           if (ok_system(w%isys,sys_init)) &
@@ -612,13 +612,11 @@ contains
     w%wc_started = .false.
     w%builder_vm = 0
     w%builder_isys = 0
-    w%editdist_pending = .false.
-    w%editdist_active = .false.
-    w%editdist_isys = 0
-    w%editdist_idx = 0
-    w%editdist_dirty = .false.
-    w%editdist_time = 0d0
-    if (allocated(w%editdist_frag)) deallocate(w%editdist_frag)
+    ! (edit-session markers are cleared by the edit_stop call above, and
+    ! the session payload is re-seeded by the start routines)
+    w%edit_pending = .false.
+    w%edit_time = 0d0
+    if (allocated(w%edit_frag)) deallocate(w%edit_frag)
 
   end subroutine window_end
 

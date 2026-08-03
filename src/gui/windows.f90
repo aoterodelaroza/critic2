@@ -192,16 +192,16 @@ module windows
      integer :: builder_vm = 0 ! forced mode commanded to the parent view (0 = idle, else vm_builder_valence or vm_builder_remove)
      integer :: builder_isys = 0 ! system latched for the builder picks (0 = no mode active)
      real*8 :: builder_time = 0d0 ! time of the last click-free poll (stale-click guard)
-     logical :: editdist_pending = .false. ! keybinding request to activate edit distance
-     logical :: editdist_active = .false. ! whether the edit-distance session is active
-     integer :: editdist_isys = 0 ! system latched for the edit-distance session
-     integer :: editdist_idx(4,2) = 0 ! latched atoms (cell atom + lattice vector, one column each)
-     integer :: editdist_imove(2) = 0 ! per-atom move mode (0 = fixed, 1 = translate atom, 2 = translate fragment)
-     logical :: editdist_fragok(2) = .false. ! whether the translate-fragment option is available per atom
-     integer :: editdist_nfrag(2) = 0 ! number of atoms in the masked fragment of each atom
-     integer, allocatable :: editdist_frag(:,:) ! masked-fragment cell atoms of both atoms (:,1) and (:,2)
-     logical :: editdist_dirty = .false. ! in-place moves applied but not yet committed (rebuild pending)
-     real*8 :: editdist_time = 0d0 ! time of the last edit-free poll (external-change guard)
+     logical :: edit_pending = .false. ! keybinding request to toggle an edit session
+     integer :: edit_kind = 0 ! active edit session and its number of atoms: 0 = none, 2 = distance, 3 = angle
+     integer :: edit_isys = 0 ! system latched for the edit session
+     integer :: edit_idx(4,3) = 0 ! latched atoms (cell atom + lattice vector); for angles, column 2 is the vertex
+     integer :: edit_imove(3) = 0 ! per-atom move mode (0 = fixed, 1 = atom, 2 = fragment/group)
+     logical :: edit_fragok(3) = .false. ! whether the fragment/group move option is available per atom
+     integer :: edit_nfrag(3) = 0 ! number of atoms in the masked fragment of each atom
+     integer, allocatable :: edit_frag(:,:) ! masked-fragment cell atoms of the latched atoms
+     logical :: edit_dirty = .false. ! in-place moves applied but not yet committed (rebuild pending)
+     real*8 :: edit_time = 0d0 ! time of the last edit-free poll (external-change guard)
      character(len=:), allocatable :: geometry_expression ! expression for column in atoms table
      logical :: geometry_expression_ok = .false. ! is the expression ok?
      character(len=:), allocatable :: geometry_expr_error ! error for expression
@@ -313,7 +313,7 @@ module windows
      procedure :: draw_preferences
      ! builder window
      procedure :: draw_builder
-     procedure :: editdist_stop
+     procedure :: edit_stop
   end type window
   public :: window
 
@@ -673,9 +673,9 @@ module windows
      module subroutine draw_builder(w)
        class(window), intent(inout), target :: w
      end subroutine draw_builder
-     module subroutine editdist_stop(w)
+     module subroutine edit_stop(w)
        class(window), intent(inout) :: w
-     end subroutine editdist_stop
+     end subroutine edit_stop
   end interface
 
 end module windows

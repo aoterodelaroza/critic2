@@ -687,13 +687,13 @@ contains
        return
     end if
 
-    ! 2) stop an edit-distance session in a builder of this view
+    ! 2) stop an edit-distance/angle session in a builder of this view
     do i = 1, nwin
        if (.not.win(i)%isinit) cycle
        if (win(i)%type /= wintype_builder) cycle
        if (win(i)%idparent /= iv) cycle
-       if (.not.win(i)%editdist_active) cycle
-       call win(i)%editdist_stop()
+       if (win(i)%edit_kind == 0) cycle
+       call win(i)%edit_stop()
        return
     end do
 

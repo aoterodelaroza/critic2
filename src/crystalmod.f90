@@ -734,12 +734,13 @@ module crystalmod
        type(fragment), intent(out), allocatable :: fr(:)
        logical, intent(out), allocatable :: isdiscrete(:)
      end subroutine listmolecules
-     module subroutine masked_fragment(c,i0,imask1,imask2,nat,iat,discrete)
+     module subroutine masked_fragment(c,i0,imask1,imask2,nat,iat,discrete,imask3,imask4)
        class(crystal), intent(in) :: c
        integer, intent(in) :: i0, imask1, imask2
        integer, intent(out) :: nat
        integer, allocatable, intent(inout) :: iat(:)
        logical, intent(out) :: discrete
+       integer, intent(in), optional :: imask3, imask4
      end subroutine masked_fragment
      module subroutine calculate_ewald_cutoffs(c,qfrac,rcut,hcut,eta,qsum,lrmax,lhmax)
        class(crystal), intent(inout) :: c

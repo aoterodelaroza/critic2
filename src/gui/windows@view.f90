@@ -930,7 +930,7 @@ contains
        ! the measure-selected atoms
        if (is_bind_event(BIND_EDITDISTANCE)) then
           idum = stack_create_window(wintype_builder,.true.,idparent=w%id,orraise=-1)
-          win(idum)%editdist_pending = .true.
+          win(idum)%edit_pending = .true.
        end if
     end if
 
