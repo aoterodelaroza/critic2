@@ -252,6 +252,7 @@ contains
   !> axes are physically arbitrary and left as returned by the eigensolver.
   module subroutine fragment_compute_std(fr)
     use tools_math, only: eigsym, cross, mat2quat, mat2euler
+    use tools_io, only: ferror, faterr
     use param, only: atmass, eye
     class(fragment), intent(inout) :: fr
 
@@ -260,7 +261,7 @@ contains
     ! relative threshold for "non-vanishing" higher moments
     real*8, parameter :: momtol = 1d-6
 
-    integer :: i, j, k, gs, ge, d
+    integer :: i, j, k, gs, ge, d, ier
     real*8 :: mass, mtot, pp, tol
     real*8 :: itens(3,3), eval(3), ax(3,3)
     real*8, allocatable :: m(:), pcart(:,:)
@@ -317,7 +318,9 @@ contains
     end do
 
     ! principal moments (ascending) and principal axes (columns)
-    call eigsym(itens,3,eval)
+    call eigsym(itens,3,eval,ier)
+    if (ier /= 0) &
+       call ferror('fragment_compute_std','Error in diagonalization',faterr)
     fr%inertia = eval
     ax = itens
 

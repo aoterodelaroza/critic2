@@ -1046,6 +1046,7 @@ contains
     real*8, parameter :: eps = 1e-3
 
     integer, dimension(2,2) :: iord
+    integer :: ier
     real*8 :: trace, tone
     real*8, dimension(3) :: eigen, eigeni
     real*8, dimension(3,3) :: mat, mat3
@@ -1073,7 +1074,9 @@ contains
     else
        nm=3
        ! It is an axis or a plane. Diagonalize.
-       call eig(mat,3,eigen,eigeni)
+       call eig(mat,3,eigen,eigeni,ier)
+       if (ier /= 0) &
+          call ferror('typeop','Error in diagonalization',faterr)
 
        ! Determine actual operation.
        nones = 0

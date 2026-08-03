@@ -53,6 +53,8 @@ module scenes
      real(c_float) :: scenecenter(3) ! scene center (world coords)
      real(c_float) :: scenexmin(3) ! scene xmin (world coords)
      real(c_float) :: scenexmax(3) ! scene xmax (world coords)
+     real(c_float) :: resetrot(4,4) ! world rotation at camera reset
+     real(c_float) :: resetext(3) ! scene extents along  reset-frame axes (bohr)
      integer(c_int) :: nc(3) ! number of unit cells drawn (global +/-)
      ! scene appearance settings
      real(c_float) :: bgcolor(3) ! background color

@@ -590,7 +590,7 @@ contains
   !> cryst. coordinates.
   module subroutine struct_report_symxyz(c,strfin,hmsym,axcr)
     use tools_math, only: eig, det3
-    use tools_io, only: uout, string, ioj_right
+    use tools_io, only: uout, string, ioj_right, ferror, faterr
     use global, only: symprec
     use param, only: mlen, pi, eye
     class(crystal), intent(in) :: c
@@ -610,7 +610,7 @@ contains
     real*8, parameter :: eps = 1d-5
 
     logical :: ok, iszero, axint
-    integer :: i1, i2, i, j, k, idx, rotnum, ord, p, nhalf
+    integer :: i1, i2, i, j, k, idx, rotnum, ord, p, nhalf, ier
     character(len=mlen) :: strout(c%neqv*c%ncv)
     real*8 :: xtrans, rmat(3,3), eval(3), evali(3), rotaxis(3)
     real*8 :: trace, det, ang, ridx
@@ -692,7 +692,9 @@ contains
           tint = matmul(wsum,wvec) / real(ord,8)
 
           ! determine the axis of rotation (eigenvector with eigenvalue = det)
-          call eig(rmat,3,eval,evali)
+          call eig(rmat,3,eval,evali,ier)
+          if (ier /= 0) &
+             call ferror('struct_report_symxyz','Error in diagonalization',faterr)
           idx = 0
           do j = 1, 3
              if (abs(evali(j)) < eps .and. abs(eval(j)-det) < eps) then

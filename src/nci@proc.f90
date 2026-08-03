@@ -47,7 +47,7 @@ contains
     type(scalar_value) :: res, resg
     character(len=:), allocatable :: line, word, oname, file, errmsg
     logical :: ok, ok2, nstep_from_grid
-    integer :: lp, istat
+    integer :: lp, istat, ier
     integer :: i, j, k, iat, ifr, l, nmol
     integer :: lugc, ludc, luvmd, ludat, lupc
     real*8, allocatable, dimension(:,:,:) :: crho, cgrad, rhoat
@@ -565,7 +565,9 @@ contains
                     ! strangely enough, eig takes about the same time as counting the signs
                     ! and using sylvester's law of inertia.
                     call sy%f(sy%iref)%grd(x,request2,res)
-                    call eigsym(res%hf,3,ehess)
+                    call eigsym(res%hf,3,ehess,ier)
+                    if (ier /= 0) &
+                       call ferror('nciplot','Error in diagonalization',faterr)
                     dimgrad = res%gfmod / (const*max(res%f,vsmall)**fthirds)
                  end if
 

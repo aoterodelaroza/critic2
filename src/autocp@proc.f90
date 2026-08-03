@@ -2113,6 +2113,7 @@ contains
   subroutine makegraph()
     use systemmod, only: sy
     use tools_math, only: eigsym
+    use tools_io, only: ferror, faterr
     use types, only: scalar_value, field_evaluation_avail
     use param, only: pi
     integer :: i, j, k
@@ -2149,7 +2150,9 @@ contains
             ! the third component of the hessian is up/down direction
             call f%grd(f%cp(i)%r,request,res)
             evec = res%hf
-            call eigsym(evec,3,reval)
+            call eigsym(evec,3,reval,ier)
+            if (ier /= 0) &
+               call ferror('makegraph','Error in diagonalization',faterr)
             if (isbcp) then
                xx = evec(:,3)
             else
@@ -2187,7 +2190,9 @@ contains
             isbcp = (f%cp(f%cpcel(i)%idx)%typ == -1)
             call f%grd(f%cpcel(i)%r,request,res)
             evec = res%hf
-            call eigsym(evec,3,reval)
+            call eigsym(evec,3,reval,ier)
+            if (ier /= 0) &
+               call ferror('makegraph','Error in diagonalization',faterr)
             if (isbcp) then
                xx = evec(:,3)
             else

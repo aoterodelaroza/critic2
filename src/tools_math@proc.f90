@@ -949,27 +949,43 @@ contains
 
   !> Find the eigenvectors and eigenvalues of a real nxn Hermitian
   !> matrix, mat. The eigenvectors are stored column-wise in mat.  The
-  !> eigenvalues, in ascending order, are returned in eval.
-  module subroutine eigherm(mat,n0,eval)
+  !> eigenvalues, in ascending order, are returned in eval. If ier is
+  !> present, return the LAPACK error code in it instead of aborting
+  !> when the diagonalization fails.
+  module subroutine eigherm(mat,n0,eval,ier)
     use tools_io, only: ferror, faterr
     integer, intent(in) :: n0
     complex*16, intent(inout) :: mat(n0,n0)
     real*8, intent(out) :: eval(n0)
+    integer, intent(out), optional :: ier
 
     complex*16 :: onework(1)
     integer :: lwork, info, n
     complex*16, allocatable :: work(:)
     real*8, allocatable :: rwork(:)
 
+    if (present(ier)) ier = 0
     n = n0
     lwork = -1
     allocate(rwork(max(1,3*n-2)))
     call zheev('V','U',n,mat,n,eval,onework,lwork,rwork,info)
-    if (info /= 0) call ferror('eig','Error in diagonalization',faterr)
+    if (info /= 0) then
+       if (present(ier)) then
+          ier = info
+          return
+       end if
+       call ferror('eigherm','Error in diagonalization',faterr)
+    end if
     lwork = nint(real(onework(1),8))
     allocate(work(lwork))
     call zheev('V','U',n,mat,n,eval,work,lwork,rwork,info)
-    if (info /= 0) call ferror('eig','Error in diagonalization',faterr)
+    if (info /= 0) then
+       if (present(ier)) then
+          ier = info
+          return
+       end if
+       call ferror('eigherm','Error in diagonalization',faterr)
+    end if
     deallocate(work,rwork)
 
   end subroutine eigherm
@@ -977,24 +993,38 @@ contains
   !> Find the eigenvectors and eigenvalues of a real nxn symmetric
   !> matrix, mat. The eigenvectors are stored column-wise in mat.
   !> The eigenvalues, in ascending order, are returned in eval.
-  module subroutine eigsym(mat,n0,eval)
+  module subroutine eigsym(mat,n0,eval,ier)
     use tools_io, only: ferror, faterr
     integer, intent(in) :: n0
     real*8, intent(inout) :: mat(n0,n0)
     real*8, intent(out) :: eval(n0)
+    integer, intent(out), optional :: ier
 
     real*8 :: onework(1)
     integer :: lwork, info, n
     real*8, allocatable :: work(:)
 
+    if (present(ier)) ier = 0
     n = n0
     lwork = -1
     call dsyev('V','U',n,mat,n,eval,onework,lwork,info)
-    if (info /= 0) call ferror('eig','Error in diagonalization',faterr)
+    if (info /= 0) then
+       if (present(ier)) then
+          ier = info
+          return
+       end if
+       call ferror('eigsym','Error in diagonalization',faterr)
+    end if
     lwork = nint(onework(1))
     allocate(work(lwork))
     call dsyev('V','U',n,mat,n,eval,work,lwork,info)
-    if (info /= 0) call ferror('eig','Error in diagonalization',faterr)
+    if (info /= 0) then
+       if (present(ier)) then
+          ier = info
+          return
+       end if
+       call ferror('eigsym','Error in diagonalization',faterr)
+    end if
     deallocate(work)
 
   end subroutine eigsym
@@ -1006,17 +1036,19 @@ contains
   !> form a conjugate pair, the eigenvectors are:
   !>   mat(:,j) + i * mat(:,j+1)
   !>   mat(:,j) - i * mat(:,j+1)
-  module subroutine eig(mat,n0,eval,evali)
+  module subroutine eig(mat,n0,eval,evali,ier)
     use tools_io, only: ferror, faterr
     integer, intent(in) :: n0
     real*8, intent(inout) :: mat(n0,n0)
     real*8, intent(out) :: eval(n0)
     real*8, intent(out) :: evali(n0)
+    integer, intent(out), optional :: ier
 
     real*8 :: onework(1)
     real*8, allocatable :: ares(:,:), work(:)
     integer :: lwork, info, n
 
+    if (present(ier)) ier = 0
     n = n0
     allocate(ares(n,n))
     lwork = -1
@@ -1024,7 +1056,13 @@ contains
     lwork = nint(onework(1))
     allocate(work(lwork))
     call dgeev('N','V',n,mat,n,eval,evali,ares,n,ares,n,work,lwork,info)
-    if (info /= 0) call ferror('eig','Error in diagonalization',faterr)
+    if (info /= 0) then
+       if (present(ier)) then
+          ier = info
+          return
+       end if
+       call ferror('eig','Error in diagonalization',faterr)
+    end if
     mat = ares
     deallocate(work,ares)
 
@@ -1035,14 +1073,17 @@ contains
   !> the eigenvalues in ehess. Use the threshold eps to determine if an
   !> eigenvalue is zero.
   module subroutine rsindex(mat,ehess,r,s,eps)
+    use tools_io, only: ferror, faterr
     real*8, intent(inout)  :: mat(3,3)
     real*8, intent(out) :: ehess(3)
     integer, intent(out) :: r, s
     real*8, intent(in) :: eps
 
-    integer :: nhplus, nhminus, i
+    integer :: nhplus, nhminus, i, ier
 
-    call eigsym(mat,3,ehess)
+    call eigsym(mat,3,ehess,ier)
+    if (ier /= 0) &
+       call ferror('rsindex','Error in diagonalization',faterr)
 
     nhplus = 0
     nhminus = 0
@@ -1095,13 +1136,17 @@ contains
 
   !> Norm-2 of a 3x3 matrix
   module function mnorm2(a)
+    use tools_io, only: ferror, faterr
     real*8, intent(in) :: a(3,3)
     real*8 :: mnorm2
 
     real*8 :: b(3,3), eval(3)
+    integer :: ier
 
     b = matmul(transpose(a),a)
-    call eigsym(b,3,eval)
+    call eigsym(b,3,eval,ier)
+    if (ier /= 0) &
+       call ferror('mnorm2','Error in diagonalization',faterr)
     mnorm2 = sqrt(maxval(eval))
 
   end function mnorm2
@@ -1299,13 +1344,14 @@ contains
   !> zero; for collinear points the normal is an arbitrary unit vector
   !> perpendicular to the line.
   module subroutine plane_from_points(x,n,xcen,xnor,dev)
+    use tools_io, only: ferror, faterr
     integer, intent(in) :: n
     real*8, intent(in) :: x(3,n)
     real*8, intent(out) :: xcen(3)
     real*8, intent(out) :: xnor(3)
     real*8, intent(out), optional :: dev
 
-    integer :: k
+    integer :: k, ier
     real*8 :: cov(3,3), eval(3), d(3), dd
 
     xcen = 0d0
@@ -1338,7 +1384,9 @@ contains
 
     ! the normal is the eigenvector with the smallest eigenvalue (eigsym
     ! returns ascending eigenvalues, eigenvectors in the columns)
-    call eigsym(cov,3,eval)
+    call eigsym(cov,3,eval,ier)
+    if (ier /= 0) &
+       call ferror('plane_from_points','Error in diagonalization',faterr)
     xnor = cov(:,1)
     dd = norm2(xnor)
     if (dd < 1d-10) then
@@ -1564,7 +1612,7 @@ contains
     real*8, intent(out), optional :: mrot(3,3)
     real*8 :: rmsd
 
-    integer :: n, i, idx
+    integer :: n, i, idx, ier
     real*8, allocatable :: x1(:,:), x2(:,:)
     real*8 :: xcm1(3), xcm2(3), c1(4,4), c2, c3(4,4), xex(4)
     real*8 :: w(4,4), q(4,4), a(4,4), eval(4), evali(4)
@@ -1597,7 +1645,9 @@ contains
 
     ! the a matrix (eq. 47), diagonalization, and rotation matrix
     a = matmul(transpose(c3),c3) * c2 - c1;
-    call eig(a,4,eval,evali)
+    call eig(a,4,eval,evali,ier)
+    if (ier /= 0) &
+       call ferror('rmsd_walker','Error in diagonalization',faterr)
     idx = maxloc(eval,1)
     xex = a(:,idx)
     xex = xex / norm2(xex)
@@ -2045,16 +2095,22 @@ contains
   !   Umeyama, S., "An eigendecomposition approach to weighted graph matching problems". IEEE PAMI, 10 (1988) 695-703.
   !   http://dx.doi.org/10.1109/34.6778
   module subroutine umeyama_graph_matching(n,ag,ah,perm)
+    use tools_io, only: ferror, faterr
     integer, intent(in) :: n
     real*8, intent(inout) :: ag(n,n)
     real*8, intent(inout) :: ah(n,n)
     integer, intent(out) :: perm(n)
 
+    integer :: ier
     real*8 :: eval(n), cost
 
     ! diagonalize both matrices
-    call eigsym(ag,n,eval)
-    call eigsym(ah,n,eval)
+    call eigsym(ag,n,eval,ier)
+    if (ier /= 0) &
+       call ferror('umeyama_graph_matching','Error in diagonalization',faterr)
+    call eigsym(ah,n,eval,ier)
+    if (ier /= 0) &
+       call ferror('umeyama_graph_matching','Error in diagonalization',faterr)
 
     ! calculate the absolute values
     ag = abs(ag)

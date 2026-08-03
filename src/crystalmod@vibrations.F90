@@ -552,6 +552,7 @@ contains
     use param, only: icrd_crys, atmass, tpi, img
     use types, only: realloc
     use tools_math, only: eigherm
+    use tools_io, only: ferror, faterr
     class(vibrations), intent(inout) :: v
     type(crystal), intent(inout) :: c
     real*8, intent(in) :: q(3)
@@ -562,7 +563,7 @@ contains
     real*8 :: sqrt_ij
     integer :: nat
     real*8 :: x1(3), x2(3), maxdisteps
-    integer :: i, jj, j
+    integer :: i, jj, j, ier
     integer, allocatable :: nida(:), lvec(:,:), mult(:)
     real*8, allocatable:: eval(:), dist(:), freq(:), rused(:)
     complex*16, allocatable :: dm(:,:)
@@ -620,7 +621,9 @@ contains
 
     ! diagonalize
     allocate(eval(c%ncel*3),freq(c%ncel*3))
-    call eigherm(dm,c%ncel*3,eval)
+    call eigherm(dm,c%ncel*3,eval,ier)
+    if (ier /= 0) &
+       call ferror('vibrations_calculate_q','Error in diagonalization',faterr)
 
     ! calculate the frequencies
     freq = sign(sqrt(abs(eval)) * freqfactor,eval)

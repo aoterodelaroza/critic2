@@ -2956,7 +2956,7 @@ contains
     logical :: ok, isintra, sort, haveformat
     real*8, allocatable :: fc2(:,:,:,:) ! any size
     integer :: lu, lp, npair
-    integer :: i, j, k, idum, jdum, n_raw, m_raw
+    integer :: i, j, k, idum, jdum, n_raw, m_raw, ier
     integer :: fcidx
     character(len=:), allocatable :: fc2_file, lword, word
     real*8 :: disteps, fc2eps, fc2factor
@@ -3194,7 +3194,9 @@ contains
       dmreal = real(dm,8)
 
       allocate(eval(sy%c%ncel*3),evali(3*sy%c%ncel),freq(sy%c%ncel*3))
-      call eigherm(dm,sy%c%ncel*3,eval)
+      call eigherm(dm,sy%c%ncel*3,eval,ier)
+      if (ier /= 0) &
+         call ferror('trick_force_constants','Error in diagonalization',faterr)
 
       ! calculate the frequencies
       freq = sqrt(abs(eval)) * factor

@@ -1140,7 +1140,9 @@ contains
     xbcp = sy%c%x2c(xbcp)
     call sy%f(sy%iref)%grd(xbcp,request,res)
     evec = res%hf
-    call eigsym(evec,3,reval)
+    call eigsym(evec,3,reval,ier)
+    if (ier /= 0) &
+       call ferror('flx_bcp','Error in diagonalization',faterr)
 
     if (ircp * reval(1) > 0) then
        vup = evec(:,1)

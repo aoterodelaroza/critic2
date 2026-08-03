@@ -165,6 +165,8 @@ contains
     s%scenecenter = 0d0
     s%scenexmin = 0d0
     s%scenexmax = 1d0
+    s%resetrot = eye4
+    s%resetext = 1d0
     s%forcebuildlists = .true.
     s%iqpt_selected = 0
     s%ifreq_selected = 0
@@ -274,6 +276,7 @@ contains
   !> scenecenter, ortho_fov, persp_fov, v_center, v_up, v_pos, view,
   !> world, projection, and znear.
   module subroutine scene_reset(s)
+    use utils, only: translate
     use param, only: pi
     use interfaces_glfw, only: glfwGetTime
     class(scene), intent(inout), target :: s
@@ -286,8 +289,11 @@ contains
     s%ortho_fov = 45._c_float
     s%persp_fov = 45._c_float
 
-    ! world matrix
+    ! apply the reset rotation about the scene center
     s%world = eye4
+    call translate(s%world,s%scenecenter)
+    s%world = matmul(s%world,s%resetrot)
+    call translate(s%world,-s%scenecenter)
 
     ! camera distance and view matrix
     hside = reset_zoom_hside(s)
@@ -337,11 +343,13 @@ contains
     use representations, only: reptype_atoms, reptype_axes, reptype_symelem, axes_winfrac_def
     use interfaces_glfw, only: glfwGetTime
     use utils, only: translate
-    use systems, only: sys_ready, ok_system, sysc
+    use systems, only: sys, sys_ready, ok_system, sysc
+    use tools_math, only: eigsym, cross
     class(scene), intent(inout), target :: s
 
-    integer :: i, j, isph, nsel
+    integer :: i, j, isph, nsel, nsph, k, ier
     real(c_float) :: xmin(3), xmax(3), maxrad, xc(3)
+    real*8 :: xcm(3), cov(3,3), xd(3), eval(3), ax(3,3), proj(3), rmin(3), rmax(3)
 
     ! only build lists if system is initialized
     if (.not.ok_system(s%id,sys_ready)) return
@@ -399,8 +407,8 @@ contains
     end do
 
     ! recalculate scene bounding box (ignore ghosts)
-    if (count(.not.s%obj%sph(1:s%obj%nsph)%ghost) + s%obj%ncyl + s%obj%ncylflat +&
-       s%obj%ncone + s%obj%nstring > 0) then
+    nsph = count(.not.s%obj%sph(1:s%obj%nsph)%ghost)
+    if (nsph + s%obj%ncyl + s%obj%ncylflat + s%obj%ncone + s%obj%nstring > 0) then
        do i = 1, 3
           xmin(i) = huge(1._c_float)
           xmax(i) = -huge(1._c_float)
@@ -438,6 +446,81 @@ contains
     s%scenerad = 0.5_c_float * norm2(xmax - xmin)
     s%scenexmin = xmin
     s%scenexmax = xmax
+
+    ! reset-frame orientation and extents: small molecules are oriented along the principal axes
+    ! (largest extent on screen x, then y, smallest along the view direction)
+    s%resetrot = eye4
+    s%resetext = xmax - xmin
+    if (sys(s%id)%c%ismolecule .and. nsph >= 2 .and. nsph <= 100) then
+       ! covariance matrix of the non-ghost sphere centers
+       xcm = 0d0
+       do i = 1, s%obj%nsph
+          if (s%obj%sph(i)%ghost) cycle
+          xcm = xcm + real(s%obj%sph(i)%x,8)
+       end do
+       xcm = xcm / nsph
+       cov = 0d0
+       do i = 1, s%obj%nsph
+          if (s%obj%sph(i)%ghost) cycle
+          xd = real(s%obj%sph(i)%x,8) - xcm
+          do j = 1, 3
+             cov(:,j) = cov(:,j) + xd * xd(j)
+          end do
+       end do
+
+       ! keep the default orientation if the diagonalization fails
+       ! (e.g. non-finite coordinates)
+       call eigsym(cov,3,eval,ier)
+       if (ier == 0) then
+
+          ! axes: largest eigenvalue on screen x, second on y. Fix the signs
+          ! deterministically (largest-magnitude component positive, so
+          ! rebuilds do not flip the view) and make the frame right-handed.
+          ax(:,1) = cov(:,3)
+          ax(:,2) = cov(:,2)
+          do j = 1, 2
+             ax(:,j) = ax(:,j) / norm2(ax(:,j))
+             k = maxloc(abs(ax(:,j)),1)
+             if (ax(k,j) < 0d0) ax(:,j) = -ax(:,j)
+          end do
+          ax(:,3) = cross(ax(:,1),ax(:,2))
+          s%resetrot(1:3,1:3) = real(transpose(ax),c_float)
+
+          ! extents in the rotated frame: spheres with their radii, plus
+          ! the endpoints of the other scene objects (as in the bounding box)
+          rmin = huge(1d0)
+          rmax = -huge(1d0)
+          do i = 1, s%obj%nsph
+             if (s%obj%sph(i)%ghost) cycle
+             proj = matmul(real(s%obj%sph(i)%x,8),ax)
+             rmin = min(rmin,proj - s%obj%sph(i)%r)
+             rmax = max(rmax,proj + s%obj%sph(i)%r)
+          end do
+          do i = 1, s%obj%ncyl
+             rmin = min(rmin,matmul(real(s%obj%cyl(i)%x1,8),ax))
+             rmax = max(rmax,matmul(real(s%obj%cyl(i)%x1,8),ax))
+             rmin = min(rmin,matmul(real(s%obj%cyl(i)%x2,8),ax))
+             rmax = max(rmax,matmul(real(s%obj%cyl(i)%x2,8),ax))
+          end do
+          do i = 1, s%obj%ncylflat
+             rmin = min(rmin,matmul(real(s%obj%cylflat(i)%x1,8),ax))
+             rmax = max(rmax,matmul(real(s%obj%cylflat(i)%x1,8),ax))
+             rmin = min(rmin,matmul(real(s%obj%cylflat(i)%x2,8),ax))
+             rmax = max(rmax,matmul(real(s%obj%cylflat(i)%x2,8),ax))
+          end do
+          do i = 1, s%obj%ncone
+             rmin = min(rmin,matmul(real(s%obj%cone(i)%x1,8),ax))
+             rmax = max(rmax,matmul(real(s%obj%cone(i)%x1,8),ax))
+             rmin = min(rmin,matmul(real(s%obj%cone(i)%x2,8),ax))
+             rmax = max(rmax,matmul(real(s%obj%cone(i)%x2,8),ax))
+          end do
+          do i = 1, s%obj%nstring
+             rmin = min(rmin,matmul(real(s%obj%string(i)%x,8),ax))
+             rmax = max(rmax,matmul(real(s%obj%string(i)%x,8),ax))
+          end do
+          s%resetext = real(rmax - rmin,c_float)
+       end if
+    end if
 
     ! translate the scene so the center position remains unchanged
     if (s%iscaminit .and. .not.s%nextbuildlists_fixcam) &
@@ -1743,7 +1826,7 @@ contains
     class(scene), intent(in) :: s
     real(c_float) :: hside
 
-    hside = s%camresetdist * 0.5_c_float * max(s%scenexmax(1) - s%scenexmin(1),s%scenexmax(2) - s%scenexmin(2))
+    hside = s%camresetdist * 0.5_c_float * max(s%resetext(1),s%resetext(2))
     hside = hside * s%camratio
     hside = max(hside,3._c_float)
 
@@ -1829,6 +1912,7 @@ contains
     call s%reset()
 
     ! set the world matrix
+    s%world = eye4
     if (angle > 1e-10_c_float) then
        raxis_c = real(raxis / norm2(raxis),c_float)
        call translate(s%world,s%scenecenter)

@@ -499,7 +499,7 @@ contains
   ! Add symmety operation corresponding to mat to the list of rotation
   ! matrices (nrotm, mrotm), if it does not exist already.
   subroutine add_symop(mat,nrotm,mrotm)
-    use tools_io, only: string
+    use tools_io, only: string, ferror, faterr
     use types, only: realloc
     use tools_math, only: det3, eig
     use param, only: tpi
@@ -507,7 +507,7 @@ contains
     integer, intent(inout) :: nrotm
     type(molsymop), intent(inout), allocatable :: mrotm(:)
 
-    integer :: i
+    integer :: i, ier
     real*8 :: det, trace, angle, xx, xmin, xdif
     real*8 :: vp(3,3), eval(3), evali(3)
 
@@ -580,7 +580,9 @@ contains
 
        ! find the rotation axis
        vp = mat
-       call eig(vp,3,eval,evali)
+       call eig(vp,3,eval,evali,ier)
+       if (ier /= 0) &
+          call ferror('add_symop','Error in diagonalization',faterr)
        xmin = 1d40
        do i = 1, 3
           xdif = abs(eval(i)-det) + abs(evali(i))

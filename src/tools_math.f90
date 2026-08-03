@@ -233,21 +233,24 @@ module tools_math
        logical, intent(in) :: allowr
        integer :: yy(3)
      end function lattice_direction
-     module subroutine eigherm(mat,n0,eval)
+     module subroutine eigherm(mat,n0,eval,ier)
        integer, intent(in) :: n0
        complex*16, intent(inout) :: mat(n0,n0)
        real*8, intent(out) :: eval(n0)
+       integer, intent(out), optional :: ier
      end subroutine eigherm
-     module subroutine eigsym(mat,n0,eval)
+     module subroutine eigsym(mat,n0,eval,ier)
        integer, intent(in) :: n0
        real*8, intent(inout) :: mat(n0,n0)
        real*8, intent(out) :: eval(n0)
+       integer, intent(out), optional :: ier
      end subroutine eigsym
-     module subroutine eig(mat,n0,eval,evali)
+     module subroutine eig(mat,n0,eval,evali,ier)
        integer, intent(in) :: n0
        real*8, intent(inout) :: mat(n0,n0)
        real*8, intent(out) :: eval(n0)
        real*8, intent(out) :: evali(n0)
+       integer, intent(out), optional :: ier
      end subroutine eig
      module subroutine rsindex(mat,ehess,r,s,eps)
        real*8, intent(inout)  :: mat(3,3)
