@@ -569,12 +569,8 @@ contains
              if (win(w%idparent)%isinit) &
                 call win(w%idparent)%viewmode_release_forced(w%id,w%builder_vm)
           end if
-          ! rebuild the structure if the edit-distance session has applied
-          ! in-place moves that were not committed yet
-          if (w%editdist_dirty .and. ok_system(w%editdist_isys,sys_init)) then
-             call sys(w%editdist_isys)%c%rebuild_after_move(copybonding=.true.)
-             call sysc(w%editdist_isys)%post_event(lastchange_geometry)
-          end if
+          ! stop the edit-distance session
+          call w%editdist_stop()
        elseif (w%type == wintype_geometry) then
           ! remove all highlights
           if (ok_system(w%isys,sys_init)) &

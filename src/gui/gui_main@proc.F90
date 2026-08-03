@@ -28,6 +28,9 @@ submodule (gui_main) proc
   ! gui title
   character(len=*,kind=c_char), parameter :: gui_title = "critic2 GUI"//c_null_char
 
+  ! whether a popup or menu was open at the end of the last frame
+  logical :: popup_open_lastframe = .false.
+
   ! hint appended to OpenGL/driver-related fatal errors. These failures are
   ! almost always a graphics-driver or remote-session problem rather than a
   ! critic2 bug, and (with the message box on Windows) this text tells the
@@ -54,6 +57,7 @@ submodule (gui_main) proc
 
   !xx! private procedures
   ! subroutine process_arguments()
+  ! subroutine process_cancel_bind()
   ! subroutine show_main_menu()
   ! function initialization_thread_worker(arg)
 
@@ -334,6 +338,9 @@ contains
        strc = "A" // c_null_char
        call igCalcTextSize(fontsize,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
 
+       ! process the global cancel keybinding
+       call process_cancel_bind()
+
        ! show main menu
        call show_main_menu()
 
@@ -441,6 +448,9 @@ contains
        do i = 1, nsys
           call sysc(i)%highlight_transient_commit()
        end do
+
+       ! record whether a popup or menu is open, for the cancel bind
+       popup_open_lastframe = igIsPopupOpen_Str(c_null_ptr,ImGuiPopupFlags_AnyPopup)
 
        firstpass = .false.
     end do
@@ -625,6 +635,89 @@ contains
 
   end subroutine process_arguments
 
+  ! Process the global cancel keybinding (BIND_CANCEL). Cancels the
+  ! most specific active context, one per key press: 1) exit a
+  ! window-forced pick mode in the target view, 2) stop an edit-distance
+  ! session in a builder of the target view, 3) clear the measurement
+  ! selection, 4) deselect all atoms. The target view is the focused
+  ! view (or the parent view of the focused builder), and the main view
+  ! if neither is focused. Focused windows of other types handle the
+  ! cancel bind themselves.
+  subroutine process_cancel_bind()
+    use windows, only: win, nwin, iwin_view, wintype_view, wintype_builder,&
+       vm_is_forcedpick, vm_navigate
+    use systems, only: sysc, ok_system, sys_init
+    use keybindings, only: is_bind_event, BIND_CANCEL
+
+    integer :: i, iv, isys
+    logical :: ok
+
+    if (.not.is_bind_event(BIND_CANCEL,norepeat=.true.)) return
+
+    ! do nothing if a popup or menu was open last frame: the same key
+    ! press was used by imgui to close it
+    if (popup_open_lastframe) return
+
+    ! choose the target view
+    iv = iwin_view
+    do i = 1, nwin
+       if (.not.win(i)%isinit) cycle
+       if (.not.win(i)%focused()) cycle
+       if (win(i)%type == wintype_view) then
+          iv = i
+       elseif (win(i)%type == wintype_builder) then
+          ok = win(i)%idparent >= 1 .and. win(i)%idparent <= nwin
+          if (ok) ok = win(win(i)%idparent)%isinit
+          if (ok) ok = win(win(i)%idparent)%type == wintype_view
+          if (ok) iv = win(i)%idparent
+       else
+          return
+       end if
+       exit
+    end do
+
+    ! 1) exit a window-forced pick mode
+    if (vm_is_forcedpick(win(iv)%viewmode)) then
+       win(iv)%vmdata%idx = 0
+       win(iv)%viewmode = vm_navigate
+       win(iv)%viewmode_transient = .false.
+       win(iv)%measure_pend = 0 ! no pending press capture
+       return
+    end if
+
+    ! 2) stop an edit-distance session in a builder of this view
+    do i = 1, nwin
+       if (.not.win(i)%isinit) cycle
+       if (win(i)%type /= wintype_builder) cycle
+       if (win(i)%idparent /= iv) cycle
+       if (.not.win(i)%editdist_active) cycle
+       call win(i)%editdist_stop()
+       return
+    end do
+
+    ! 3) clear the measurement selection
+    if (associated(win(iv)%sc)) then
+       if (win(iv)%sc%nmsel > 0) then
+          win(iv)%sc%nmsel = 0
+          win(iv)%sc%msel = 0
+          win(iv)%forcerender = .true.
+          return
+       end if
+    end if
+
+    ! 4) deselect all atoms in the viewed system
+    isys = win(iv)%isys
+    if (ok_system(isys,sys_init)) then
+       if (allocated(sysc(isys)%highlight_rgba)) then
+          if (any(sysc(isys)%highlight_rgba >= 0._c_float)) then
+             call sysc(isys)%highlight_clear(.false.)
+             win(iv)%forcerender = .true.
+          end if
+       end if
+    end if
+
+  end subroutine process_cancel_bind
+
   ! Show the main menu
   subroutine show_main_menu()
     use interfaces_cimgui
@@ -638,7 +731,7 @@ contains
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
-       BIND_EDITSELECT_DESELECT, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO,&
+       BIND_CANCEL, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO,&
        get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
@@ -801,7 +894,7 @@ contains
           call iw_tooltip("Select all atoms in the view",ttshown)
 
           ! Edit -> Select None
-          if (iw_menuitem("Select None",BIND_EDITSELECT_DESELECT,enabled=isysvok)) &
+          if (iw_menuitem("Select None",BIND_CANCEL,enabled=isysvok)) &
              call sysc(isysv)%highlight_clear(.false.)
           call iw_tooltip("Clear the atom selection in the view",ttshown)
 

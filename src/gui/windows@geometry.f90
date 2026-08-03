@@ -44,7 +44,7 @@ contains
     use crystalmod, only: holo_string, laue_string, pointgroup_info
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
        BIND_OK_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITSELECT_REMOVE,&
-       BIND_EDITSELECT_DESELECT
+       BIND_CANCEL
     use global, only: bondfactor_def, bonddelta_def
     use systems, only: nsys, sysc, sys, sys_init, ok_system, reread_system_from_file,&
        atlisttype_species, atlisttype_nneq, atlisttype_ncel_frac, atlisttype_ncel_bohr,&
@@ -2247,7 +2247,7 @@ contains
 
     ! deselect all highlighted atoms
     deselected = .false.
-    if (w%focused() .and. is_bind_event(BIND_EDITSELECT_DESELECT)) then
+    if (w%focused() .and. is_bind_event(BIND_CANCEL)) then
        if (allocated(sysc(isys)%highlight_rgba)) then
           if (any(sysc(isys)%highlight_rgba >= 0._c_float)) then
              call sysc(isys)%highlight_clear(.false.)
@@ -3137,7 +3137,7 @@ contains
       if (iw_button("None##highlightnone",sameline=.true.)) then
          call sysc(isys)%highlight_clear(.false.)
       end if
-      call iw_tooltip("Deselect all atoms (" // trim(get_bind_keyname(BIND_EDITSELECT_DESELECT)) // ")",ttshown)
+      call iw_tooltip("Deselect all atoms (" // trim(get_bind_keyname(BIND_CANCEL)) // ")",ttshown)
       if (iw_button("Toggle##highlighttoggle",sameline=.true.)) then
          ! compute the per-row selection state once
          allocate(tstate(ntype))

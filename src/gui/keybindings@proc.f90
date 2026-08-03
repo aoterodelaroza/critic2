@@ -221,7 +221,7 @@ contains
     call set_bind(BIND_SELECT_MOLECULES,ImGuiKey_MouseRight,mod_none)
     call set_bind(BIND_SELECT_MOLECULES_AND_DESELECT,ImGuiKey_MouseLeftDouble,mod_none)
     call set_bind(BIND_EDITSELECT_REMOVE,ImGuiKey_Delete,mod_none)
-    call set_bind(BIND_EDITSELECT_DESELECT,ImGuiKey_Escape,mod_none)
+    call set_bind(BIND_CANCEL,ImGuiKey_Escape,mod_none)
     call set_bind(BIND_EDITSELECT_SELECT_ALL,ImGuiKey_A,mod_ctrl)
     call set_bind(BIND_VIEWMODE_MOVEMOL,ImGuiKey_None,mod_ctrl)
     call set_bind(BIND_MOVEMOL_TRANSLATE,ImGuiKey_MouseRight,mod_none)

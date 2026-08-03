@@ -88,7 +88,7 @@ module keybindings
   integer, parameter, public :: BIND_SELECT_MOLECULES = 36 ! select: select molecules
   integer, parameter, public :: BIND_SELECT_MOLECULES_AND_DESELECT = 37 ! select: select molecules/deselect
   integer, parameter, public :: BIND_EDITSELECT_REMOVE = 38 ! edit geometry: remove atoms
-  integer, parameter, public :: BIND_EDITSELECT_DESELECT = 39 ! edit geometry: deselect all atoms
+  integer, parameter, public :: BIND_CANCEL = 39 ! global cancel: exit modes, cancel sessions, clear selections
   integer, parameter, public :: BIND_EDITSELECT_SELECT_ALL = 40 ! edit geometry: select all atoms
   integer, parameter, public :: BIND_VIEWMODE_MOVEMOL = 41 ! enter the move-molecules view mode (transient)
   integer, parameter, public :: BIND_MOVEMOL_TRANSLATE = 42 ! move molecules: translate molecule/atom
@@ -154,7 +154,7 @@ module keybindings
      "Select molecules                ",& ! BIND_SELECT_MOLECULES
      "Select molecules/Deselect       ",& ! BIND_SELECT_MOLECULES_AND_DESELECT
      "Remove selected atoms           ",& ! BIND_EDITSELECT_REMOVE
-     "Deselect all atoms              ",& ! BIND_EDITSELECT_DESELECT
+     "Cancel                          ",& ! BIND_CANCEL
      "Select all atoms                ",& ! BIND_EDITSELECT_SELECT_ALL
      "Move molecules                  ",& ! BIND_VIEWMODE_MOVEMOL
      "Translate molecule              ",& ! BIND_MOVEMOL_TRANSLATE
@@ -268,7 +268,7 @@ module keybindings
      group_viewmode_select,&     ! BIND_SELECT_MOLECULES
      group_viewmode_select,&     ! BIND_SELECT_MOLECULES_AND_DESELECT
      group_editselect,&          ! BIND_EDITSELECT_REMOVE
-     group_editselect,&          ! BIND_EDITSELECT_DESELECT
+     group_global,&              ! BIND_CANCEL
      group_editselect,&          ! BIND_EDITSELECT_SELECT_ALL
      group_viewmode,&            ! BIND_VIEWMODE_MOVEMOL
      group_viewmode_movemol,&    ! BIND_MOVEMOL_TRANSLATE
@@ -336,7 +336,7 @@ module keybindings
      BIND_VIEWMODE_SELECT,&  ! BIND_SELECT_MOLECULES
      BIND_VIEWMODE_SELECT,&  ! BIND_SELECT_AND_DESELECT
      0,&  ! BIND_EDITSELECT_REMOVE
-     0,&  ! BIND_EDITSELECT_DESELECT
+     0,&  ! BIND_CANCEL
      0,&  ! BIND_EDITSELECT_SELECT_ALL
      -1,& ! BIND_VIEWMODE_MOVEMOL
      BIND_VIEWMODE_MOVEMOL,&  ! BIND_MOVEMOL_TRANSLATE

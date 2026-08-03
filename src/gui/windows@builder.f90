@@ -129,7 +129,7 @@ contains
        ! discarded) and treat the system as not ready for the rest of this
        ! frame: the re-read deallocates sys(isys)%c until the init thread runs
        w%editdist_dirty = .false.
-       if (w%editdist_active) call editdist_stop()
+       if (w%editdist_active) call w%editdist_stop()
        call reread_system_from_file(isys)
        havesys = .false.
     end if
@@ -179,7 +179,7 @@ contains
        if (ok) ok = sysc(isys)%timelastchange_geometry <= w%editdist_time
        if (ok) ok = sysc(isys)%timelastchange_rebond <= w%editdist_time
        if (.not.ok) then
-          call editdist_stop()
+          call w%editdist_stop()
        else
           w%editdist_time = glfwGetTime()
        end if
@@ -199,7 +199,7 @@ contains
     if (iw_button("Edit distance",disabled=.not.ok)) then
        w%errmsg = ""
        if (w%editdist_active) then
-          call editdist_stop()
+          call w%editdist_stop()
        else
           call editdist_start()
        end if
@@ -250,7 +250,7 @@ contains
        ! apply button
        if (iw_button("Apply",danger=.true.)) then
           w%errmsg = ""
-          call editdist_stop()
+          call w%editdist_stop()
        end if
        call iw_tooltip("Keep the current distance and release the two atoms",ttshown)
     end if
@@ -341,26 +341,6 @@ contains
       w%editdist_time = glfwGetTime()
       w%editdist_active = .true.
     end subroutine editdist_start
-
-    ! Stop the edit-distance session, rebuilding the structure first if
-    ! in-place moves were applied but not committed (editdist_start
-    ! re-seeds the rest of the session state).
-    subroutine editdist_stop()
-
-      if (w%editdist_dirty) then
-         if (ok_system(w%editdist_isys,sys_init)) then
-            call sys(w%editdist_isys)%c%rebuild_after_move(copybonding=.true.)
-            if (goodparent) then
-               if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
-            end if
-            call sysc(w%editdist_isys)%post_event(lastchange_geometry)
-         end if
-         w%editdist_dirty = .false.
-      end if
-      w%editdist_active = .false.
-      w%editdist_isys = 0
-      w%editdist_idx = 0
-    end subroutine editdist_stop
 
     ! Cartesian position (bohr) of the latched image of atom iside.
     function editdist_pos(iside) result(r)
@@ -527,5 +507,31 @@ contains
       end if
     end subroutine builder_toggle
   end subroutine draw_builder
+
+  !> Stop the edit-distance session of a builder window
+  module subroutine editdist_stop(w)
+    use systems, only: sys, sysc, ok_system, sys_init, lastchange_geometry
+    class(window), intent(inout) :: w
+
+    integer :: iview
+
+    if (w%editdist_dirty) then
+       if (ok_system(w%editdist_isys,sys_init)) then
+          call sys(w%editdist_isys)%c%rebuild_after_move(copybonding=.true.)
+          iview = w%idparent
+          if (iview >= 1 .and. iview <= nwin) then
+             if (win(iview)%isinit) then
+                if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
+             end if
+          end if
+          call sysc(w%editdist_isys)%post_event(lastchange_geometry)
+       end if
+       w%editdist_dirty = .false.
+    end if
+    w%editdist_active = .false.
+    w%editdist_isys = 0
+    w%editdist_idx = 0
+
+  end subroutine editdist_stop
 
 end submodule builder

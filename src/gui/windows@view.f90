@@ -70,9 +70,8 @@ contains
        BIND_VIEW_ALIGN_X_AXIS, BIND_VIEW_ALIGN_Y_AXIS, BIND_VIEW_ALIGN_Z_AXIS,&
        BIND_VIEW_TOGGLE_ATOMS, BIND_VIEW_TOGGLE_BONDS, BIND_VIEW_CYCLE_LABELS,&
        BIND_VIEW_TOGGLE_CELL, BIND_VIEW_TOGGLE_POLYHEDRA, BIND_RECALC_BONDS,&
-       get_bind_keyname, BIND_EDITSELECT_REMOVE, BIND_EDITSELECT_DESELECT,&
-       BIND_EDITSELECT_SELECT_ALL, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
-       BIND_EDITDISTANCE
+       get_bind_keyname, BIND_EDITSELECT_REMOVE, BIND_EDITSELECT_SELECT_ALL,&
+       BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITDISTANCE
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes, reptype_symelem,&
        repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
        repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
@@ -108,7 +107,7 @@ contains
     integer(c_int) :: newside, vside
     real(c_float) :: scal, width, rgba(4)
     real(c_float) :: rscale, tmpuv
-    logical :: interacting, selcleared
+    logical :: interacting
     real*8 :: x0(3), time
     type(ImVec2) :: sz
     logical :: changedisplay(5) ! 1=atoms, 2=bonds, 3=labels, 4=cell, 5=polyhedra
@@ -908,8 +907,7 @@ contains
     call igSameLine(0._c_float,0._c_float)
     call iw_setposx_fromend(5,1)
 
-    ! keyboard actions on the current atom selection, when the view is focused:
-    selcleared = .false.
+    ! keyboard actions on the current atom selection
     if (w%focused() .and. ok_system(w%isys,sys_init)) then
        is = w%isys
        if (allocated(sysc(is)%highlight_rgba)) then
@@ -922,11 +920,6 @@ contains
           call sysc(is)%edit_highlighted_atoms(remove=.true.,errmsg=msg)
           sysc(is)%sc%nextbuildlists_fixcam = .true.
           w%forcerender = .true.
-       elseif (ok .and. is_bind_event(BIND_EDITSELECT_DESELECT)) then
-          ! clear the selection
-          call sysc(is)%highlight_clear(.false.)
-          w%forcerender = .true.
-          selcleared = .true.
        elseif (is_bind_event(BIND_EDITSELECT_SELECT_ALL)) then
           ! select all atoms
           call sysc(is)%highlight_all()
@@ -945,13 +938,10 @@ contains
        ! the close button
        if (iw_button("Close",danger=.true.)) w%isopen = .false.
 
-       ! exit if focused and received the close keybinding (unless Escape was
-       ! just used to clear the selection)
-       if (.not.selcleared) then
-          if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or.&
-             is_bind_event(BIND_CLOSE_ALL_DIALOGS)) then
-             w%isopen = .false.
-          end if
+       ! exit if focused and received the close keybinding
+       if ((w%focused() .and. is_bind_event(BIND_CLOSE_FOCUSED_DIALOG)) .or.&
+          is_bind_event(BIND_CLOSE_ALL_DIALOGS)) then
+          w%isopen = .false.
        end if
     end if
 

@@ -313,6 +313,7 @@ module windows
      procedure :: draw_preferences
      ! builder window
      procedure :: draw_builder
+     procedure :: editdist_stop
   end type window
   public :: window
 
@@ -672,6 +673,9 @@ module windows
      module subroutine draw_builder(w)
        class(window), intent(inout), target :: w
      end subroutine draw_builder
+     module subroutine editdist_stop(w)
+       class(window), intent(inout) :: w
+     end subroutine editdist_stop
   end interface
 
 end module windows
