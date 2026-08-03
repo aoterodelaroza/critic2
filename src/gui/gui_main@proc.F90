@@ -334,9 +334,6 @@ contains
        strc = "A" // c_null_char
        call igCalcTextSize(fontsize,c_loc(strc),c_null_ptr,.false._c_bool,-1._c_float)
 
-       ! set the transient highlight flags to false
-       sysc(1:nsys)%highlight_transient_set = .false.
-
        ! show main menu
        call show_main_menu()
 
@@ -440,10 +437,9 @@ contains
           force_run_commands = 0
        end if
 
-       ! if the transient flag is false, clear the transient highlight
+       ! commit the transient highlights accumulated by the windows this frame
        do i = 1, nsys
-          if (.not.sysc(i)%highlight_transient_set) &
-             call sysc(i)%highlight_clear(.true.)
+          call sysc(i)%highlight_transient_commit()
        end do
 
        firstpass = .false.

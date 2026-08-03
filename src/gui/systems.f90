@@ -97,8 +97,8 @@ module systems
      real*8 :: symeps = 1d-2 ! tolerance used to determine symmetry
      ! highlights
      real(c_float), allocatable :: highlight_rgba(:,:) ! highlight colors
-     real(c_float), allocatable :: highlight_rgba_transient(:,:) ! transient highlight colors
-     logical :: highlight_transient_set = .false. ! set to false at beginning of main loop; clears transient highlight at end of loop
+     real(c_float), allocatable :: highlight_rgba_transient(:,:) ! transient highlight colors, displayed (committed at the end of each frame)
+     real(c_float), allocatable :: highlight_rgba_transient_acc(:,:) ! transient highlight colors, accumulated during the frame
      ! time
      real*8 :: timelastchange_geometry = 0d0   ! time system last changed geometry
      real*8 :: timelastchange_rebond = 0d0     ! time system last was rebonded
@@ -117,6 +117,7 @@ module systems
      ! highlights
      procedure :: highlight_atoms
      procedure :: highlight_clear
+     procedure :: highlight_transient_commit
      procedure :: highlight_all
      procedure :: highlight_invert
      procedure :: highlighted_atom_list
@@ -266,6 +267,9 @@ module systems
        integer, intent(in), optional :: idx(:)
        integer, intent(in), optional :: type
      end subroutine highlight_clear
+     module subroutine highlight_transient_commit(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine highlight_transient_commit
      module subroutine highlight_all(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine highlight_all

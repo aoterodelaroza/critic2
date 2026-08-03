@@ -287,6 +287,7 @@ contains
        sysc(idx)%showfields = .false.
        if (allocated(sysc(idx)%highlight_rgba)) deallocate(sysc(idx)%highlight_rgba)
        if (allocated(sysc(idx)%highlight_rgba_transient)) deallocate(sysc(idx)%highlight_rgba_transient)
+       if (allocated(sysc(idx)%highlight_rgba_transient_acc)) deallocate(sysc(idx)%highlight_rgba_transient_acc)
 
        ! write down the full name
        str = trim(adjustl(sysc(idx)%seed%name))
@@ -824,10 +825,11 @@ contains
 
   end function undo_slot
 
-  !> Highlight atoms in the system. If transient, add the highlighted
-  !> atom to the transient list and clear the list before adding. Add
-  !> atoms with indices idx of the given type (atlisttype_*) and color
-  !> rgba.
+  !> Highlight atoms in the system. If transient, accumulate the
+  !> highlighted atoms for this frame: calls from several windows add
+  !> up, and the result is displayed and reset by the end-of-frame
+  !> commit (highlight_transient_commit). Add atoms with indices idx of
+  !> the given type (atlisttype_*) and color rgba.
   module subroutine highlight_atoms(sysc,transient,idx,type,rgba)
     class(sysconf), intent(inout) :: sysc
     logical, intent(in) :: transient
@@ -856,26 +858,22 @@ contains
           call sysc%post_event(lastchange_render)
        end if
     else
-       if (allocated(sysc%highlight_rgba_transient)) then
-          if (size(sysc%highlight_rgba_transient,2) /= nat) deallocate(sysc%highlight_rgba_transient)
+       if (allocated(sysc%highlight_rgba_transient_acc)) then
+          if (size(sysc%highlight_rgba_transient_acc,2) /= nat) &
+             deallocate(sysc%highlight_rgba_transient_acc)
        end if
-       if (.not.allocated(sysc%highlight_rgba_transient)) then
-          allocate(sysc%highlight_rgba_transient(4,nat))
-          sysc%highlight_rgba_transient = -1._c_float
-          call sysc%post_event(lastchange_render)
+       if (.not.allocated(sysc%highlight_rgba_transient_acc)) then
+          allocate(sysc%highlight_rgba_transient_acc(4,nat))
+          sysc%highlight_rgba_transient_acc = -1._c_float
        end if
     end if
 
-    ! save a copy of the current highlight
-    allocate(highlight_aux(4,nat))
-    if (transient) then
-       highlight_aux = sysc%highlight_rgba_transient
-    else
+    ! save a copy of the current persistent highlight (transient change
+    ! detection happens at the end-of-frame commit)
+    if (.not.transient) then
+       allocate(highlight_aux(4,nat))
        highlight_aux = sysc%highlight_rgba
     end if
-
-    ! if transient, clear the list
-    if (transient) sysc%highlight_rgba_transient = -1
 
     ! highlight the atoms
     call sysc%attype_celatom_mask(type,idx,imask=imask)
@@ -885,19 +883,17 @@ contains
        if (.not.transient) then
           sysc%highlight_rgba(:,iat) = rgba(:,imask(iat))
        else
-          sysc%highlight_rgba_transient(:,iat) = rgba(:,imask(iat))
+          sysc%highlight_rgba_transient_acc(:,iat) = rgba(:,imask(iat))
        end if
     end do
 
-    ! set highlighted, the transient flag, and time for render if highlight has changed
-    if (transient) then
-       changed = any(sysc%highlight_rgba_transient /= highlight_aux)
-       sysc%highlight_transient_set = .true.
-    else
+    ! for persistent highlights, set the time for render if the highlight
+    ! has changed
+    if (.not.transient) then
        changed = any(sysc%highlight_rgba /= highlight_aux)
-    end if
-    if (changed) then
-       call sysc%post_event(lastchange_render)
+       if (changed) then
+          call sysc%post_event(lastchange_render)
+       end if
     end if
 
   end subroutine highlight_atoms
@@ -918,50 +914,51 @@ contains
 
     ! input checks
     if (sysc%status < sys_init) return
+
+    ! transient: discard both the displayed and the accumulated arrays
+    if (transient) then
+       changed = .false.
+       if (allocated(sysc%highlight_rgba_transient)) then
+          changed = any(sysc%highlight_rgba_transient >= 0._c_float)
+          deallocate(sysc%highlight_rgba_transient)
+       end if
+       if (allocated(sysc%highlight_rgba_transient_acc)) &
+          deallocate(sysc%highlight_rgba_transient_acc)
+       if (changed) then
+          call sysc%post_event(lastchange_render)
+       end if
+       return
+    end if
+
+    ! more input checks
     nat = sys(sysc%id)%c%ncel
     if (nat <= 0) return
 
-    ! check the size of the highlight arrays, allocate if not already done
-    if (.not.transient) then
-       if (allocated(sysc%highlight_rgba)) then
-          if (size(sysc%highlight_rgba,2) /= nat) deallocate(sysc%highlight_rgba)
-       end if
-       if (.not.allocated(sysc%highlight_rgba)) then
-          allocate(sysc%highlight_rgba(4,nat))
-          sysc%highlight_rgba = -1._c_float
-          call sysc%post_event(lastchange_render)
-       end if
-    else
-       if (allocated(sysc%highlight_rgba_transient)) then
-          if (size(sysc%highlight_rgba_transient,2) /= nat) deallocate(sysc%highlight_rgba_transient)
-       end if
-       if (.not.allocated(sysc%highlight_rgba_transient)) then
-          allocate(sysc%highlight_rgba_transient(4,nat))
-          sysc%highlight_rgba_transient = -1._c_float
-          call sysc%post_event(lastchange_render)
-       end if
+    ! check the size of the highlight array, allocate if not already done
+    if (allocated(sysc%highlight_rgba)) then
+       if (size(sysc%highlight_rgba,2) /= nat) deallocate(sysc%highlight_rgba)
+    end if
+    if (.not.allocated(sysc%highlight_rgba)) then
+       allocate(sysc%highlight_rgba(4,nat))
+       sysc%highlight_rgba = -1._c_float
+       call sysc%post_event(lastchange_render)
     end if
 
     ! clear highlights
-    if (transient) then
-       changed = any(sysc%highlight_rgba_transient >= 0._c_float)
-       sysc%highlight_rgba_transient = -1._c_float
-    else
-       if (present(idx) .and. present(type)) then
-          ! save a copy of the current highlight
-          allocate(highlight_aux(4,nat))
-          highlight_aux = sysc%highlight_rgba
+    if (present(idx) .and. present(type)) then
+       ! save a copy of the current highlight
+       allocate(highlight_aux(4,nat))
+       highlight_aux = sysc%highlight_rgba
 
-          ! clear the highlight for the atoms with the given ids/type
-          call sysc%attype_celatom_mask(type,idx,imask=imask)
-          do iat = 1, nat
-             if (imask(iat) /= 0) sysc%highlight_rgba(:,iat) = -1._c_float
-          end do
-          changed = any(sysc%highlight_rgba /= highlight_aux)
-       else
-          changed = any(sysc%highlight_rgba >= 0._c_float)
-          sysc%highlight_rgba = -1._c_float
-       end if
+       ! clear the highlight for the atoms with the given ids/type
+       call sysc%attype_celatom_mask(type,idx,imask=imask)
+       do iat = 1, nat
+          if (imask(iat) /= 0) sysc%highlight_rgba(:,iat) = -1._c_float
+       end do
+       changed = any(sysc%highlight_rgba /= highlight_aux)
+    else
+       changed = any(sysc%highlight_rgba >= 0._c_float)
+       sysc%highlight_rgba = -1._c_float
     end if
 
     ! set highlighted and time for render
@@ -970,6 +967,45 @@ contains
     end if
 
   end subroutine highlight_clear
+
+  !> Commit the transient highlights accumulated during this frame:
+  !> make them the displayed transient highlights, post a render event
+  !> if they changed, and reset the accumulator. Called once per frame
+  !> from the main loop.
+  module subroutine highlight_transient_commit(sysc)
+    class(sysconf), intent(inout) :: sysc
+
+    logical :: changed
+
+    if (allocated(sysc%highlight_rgba_transient_acc)) then
+       ! compare the accumulated highlights against the displayed ones
+       if (allocated(sysc%highlight_rgba_transient)) then
+          if (size(sysc%highlight_rgba_transient,2) ==&
+             size(sysc%highlight_rgba_transient_acc,2)) then
+             changed = any(sysc%highlight_rgba_transient /= sysc%highlight_rgba_transient_acc)
+          else
+             changed = .true.
+          end if
+       else
+          changed = any(sysc%highlight_rgba_transient_acc >= 0._c_float)
+       end if
+
+       ! display the accumulated highlights and reset the accumulator
+       if (changed) then
+          sysc%highlight_rgba_transient = sysc%highlight_rgba_transient_acc
+          call sysc%post_event(lastchange_render)
+       end if
+       sysc%highlight_rgba_transient_acc = -1._c_float
+    elseif (allocated(sysc%highlight_rgba_transient)) then
+       ! no accumulator: clear the displayed highlights, if any
+       changed = any(sysc%highlight_rgba_transient >= 0._c_float)
+       deallocate(sysc%highlight_rgba_transient)
+       if (changed) then
+          call sysc%post_event(lastchange_render)
+       end if
+    end if
+
+  end subroutine highlight_transient_commit
 
   !> Select (persistent highlight) all cell atoms in the system.
   module subroutine highlight_all(sysc)
