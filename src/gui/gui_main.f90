@@ -80,6 +80,7 @@ module gui_main
   real(c_float), parameter, public :: ColorHighlightSelectScene_def(4) = (/0.2_c_float,0.64_c_float,0.9_c_float,0.7_c_float/) ! edit geometry selection color
   real(c_float), parameter, public :: ColorHighlightBondScene(4) = (/0.3_c_float,0.85_c_float,0.3_c_float,0.7_c_float/) ! bonds tab: bonded-neighbor highlight
   real(c_float), parameter, public :: ColorHighlightBondScene2(4) = (/0.85_c_float,0.3_c_float,0.3_c_float,0.7_c_float/) ! bonds tab: selected bonded-neighbor highlight
+  real(c_float), parameter, public :: ColorHighlightEditDistScene(4) = (/0.85_c_float,0.35_c_float,0.90_c_float,0.7_c_float/) ! builder: edit-distance atom highlight
   real(c_float), parameter, public :: ColorMeasureSelect_def(4,4) = reshape((/&
      1._c_float,  0.4_c_float, 0.4_c_float, 0.5_c_float,&
      0.4_c_float, 1._c_float,  0.4_c_float, 0.5_c_float,&

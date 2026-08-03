@@ -26,7 +26,8 @@ contains
   !> (w%idparent) and operates on the system shown in it.
   module subroutine draw_builder(w)
     use systems, only: sys, sysc, ok_system, sys_init, lastchange_geometry,&
-       reread_system_from_file
+       reread_system_from_file, atlisttype_ncel_frac
+    use gui_main, only: ColorHighlightEditDistScene
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_PICKATOM_SELECT,&
        BIND_PICKATOM_ALT, BIND_RECALC_BONDS, BIND_NAV_MEASURE, BIND_EDITDISTANCE,&
@@ -254,6 +255,11 @@ contains
        call iw_tooltip("Keep the current distance and release the two atoms",ttshown)
     end if
 
+    ! transient highlight of the two latched atoms
+    if (w%editdist_active) &
+       call sysc(w%editdist_isys)%highlight_atoms(.true.,w%editdist_idx(1,:),&
+       atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,2))
+
     ! the symmetry section
     call iw_text("Symmetry",highlight=.true.)
     if (iw_button("Refine symmetry",disabled=.not.havesys)) then
@@ -303,10 +309,13 @@ contains
          return
       end if
 
-      ! latch the two atoms (cell atom + lattice vector) and the system
+      ! latch the two atoms (cell atom + lattice vector) and the system,
+      ! and clear the measurement that provided them
       w%editdist_idx(:,1) = win(iview)%sc%msel(1:4,1)
       w%editdist_idx(:,2) = win(iview)%sc%msel(1:4,2)
       w%editdist_isys = isys
+      win(iview)%sc%nmsel = 0
+      win(iview)%sc%msel = 0
 
       ! masked fragments: connected components ignoring all bonds
       ! between the two atoms. The fragment option is unavailable if
