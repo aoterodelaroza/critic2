@@ -71,7 +71,7 @@ contains
        BIND_VIEW_TOGGLE_ATOMS, BIND_VIEW_TOGGLE_BONDS, BIND_VIEW_CYCLE_LABELS,&
        BIND_VIEW_TOGGLE_CELL, BIND_VIEW_TOGGLE_POLYHEDRA, BIND_RECALC_BONDS,&
        get_bind_keyname, BIND_EDITSELECT_REMOVE, BIND_EDITSELECT_SELECT_ALL,&
-       BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDITDISTANCE
+       BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS, BIND_EDIT_D_A_PHI
     use representations, only: reptype_atoms, reptype_unitcell, reptype_axes, reptype_symelem,&
        repflavor_atoms_ballandstick, repflavor_atoms_criticalpoints, repflavor_atoms_gradientpaths,&
        repflavor_atoms_vdwcontacts, repflavor_atoms_hbonds,&
@@ -928,7 +928,7 @@ contains
 
        ! open the builder for this view and activate edit distance for
        ! the measure-selected atoms
-       if (is_bind_event(BIND_EDITDISTANCE)) then
+       if (is_bind_event(BIND_EDIT_D_A_PHI)) then
           idum = stack_create_window(wintype_builder,.true.,idparent=w%id,orraise=-1)
           win(idum)%edit_pending = .true.
        end if

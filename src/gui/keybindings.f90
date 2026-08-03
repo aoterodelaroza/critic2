@@ -111,7 +111,7 @@ module keybindings
   integer, parameter, public :: BIND_NAV_MEASURE_ADD = 59 ! navigation: add the measurement for the selected atoms
   integer, parameter, public :: BIND_NAV_MEASURE_REMOVE = 60 ! navigation: remove the measurement for the selected atoms
   integer, parameter, public :: BIND_PICKATOM_ALT = 61 ! atom pick: alternate action on the atom under the cursor (builder: remove H)
-  integer, parameter, public :: BIND_EDITDISTANCE = 62 ! view: open the builder and toggle edit distance/angle for the measure-selected atoms
+  integer, parameter, public :: BIND_EDIT_D_A_PHI = 62 ! view: open the builder and toggle edit distance/angle/dihedral for the measure-selected atoms
   integer, parameter, public :: BIND_NUM = 62 ! total number of binds
 
   ! Bind names
@@ -177,7 +177,7 @@ module keybindings
      "Add measurement                 ",& ! BIND_NAV_MEASURE_ADD
      "Remove measurement              ",& ! BIND_NAV_MEASURE_REMOVE
      "Pick atom, alternate action     ",& ! BIND_PICKATOM_ALT
-     "Edit distance/angle             "&  ! BIND_EDITDISTANCE
+     "Edit distance/angle/dihedral    "&  ! BIND_EDIT_D_A_PHI
      /)
 
   ! The key associated with each bind, bind -> key
@@ -291,7 +291,7 @@ module keybindings
      group_viewmode_navigation,& ! BIND_NAV_MEASURE_ADD
      group_viewmode_navigation,& ! BIND_NAV_MEASURE_REMOVE
      group_viewmode_pickatom,&   ! BIND_PICKATOM_ALT
-     group_view/)                ! BIND_EDITDISTANCE
+     group_view/)                ! BIND_EDIT_D_A_PHI
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -359,7 +359,7 @@ module keybindings
      0,&  ! BIND_NAV_MEASURE_ADD
      0,&  ! BIND_NAV_MEASURE_REMOVE
      0,&  ! BIND_PICKATOM_ALT
-     0/)  ! BIND_EDITDISTANCE
+     0/)  ! BIND_EDIT_D_A_PHI
 
   ! module procedure interfaces
   interface

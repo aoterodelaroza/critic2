@@ -234,7 +234,7 @@ contains
     call set_bind(BIND_MDINTERACT_ROTMOL,ImGuiKey_MouseMiddle,mod_none)
     call set_bind(BIND_PICKATOM_SELECT,ImGuiKey_MouseLeft,mod_none)
     call set_bind(BIND_PICKATOM_ALT,ImGuiKey_MouseRight,mod_none)
-    call set_bind(BIND_EDITDISTANCE,ImGuiKey_E,mod_none)
+    call set_bind(BIND_EDIT_D_A_PHI,ImGuiKey_E,mod_none)
     call set_bind(BIND_MOVEMOL_CHANGECELL,ImGuiKey_MouseScroll,mod_none)
     call set_bind(BIND_MOVEATOM_CHANGECELL,ImGuiKey_MouseScroll,mod_none)
     call set_bind(BIND_SELECT_ZOOM,ImGuiKey_MouseScroll,mod_none)

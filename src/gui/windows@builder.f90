@@ -30,7 +30,7 @@ contains
     use gui_main, only: ColorHighlightEditDistScene
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_PICKATOM_SELECT,&
-       BIND_PICKATOM_ALT, BIND_RECALC_BONDS, BIND_NAV_MEASURE, BIND_EDITDISTANCE,&
+       BIND_PICKATOM_ALT, BIND_RECALC_BONDS, BIND_NAV_MEASURE, BIND_EDIT_D_A_PHI,&
        BIND_REOPEN, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
     use interfaces_glfw, only: glfwGetTime
@@ -171,12 +171,12 @@ contains
        if (associated(win(iview)%sc)) nsel = win(iview)%sc%nmsel
     end if
 
-    ! the keybinding request toggles an edit session: three selected
-    ! atoms toggle edit angle, two toggle edit distance, and otherwise
-    ! deactivate the active session, if any
-    if (w%edit_pending .or. (w%focused() .and. is_bind_event(BIND_EDITDISTANCE))) then
+    ! the keybinding request toggles an edit session: two selected
+    ! atoms toggle edit distance, three edit angle, four edit dihedral,
+    ! and otherwise deactivate the active session, if any
+    if (w%edit_pending .or. (w%focused() .and. is_bind_event(BIND_EDIT_D_A_PHI))) then
        w%edit_pending = .false.
-       if (nsel == 2 .or. nsel == 3) then
+       if (nsel >= 2 .and. nsel <= 4) then
           call edit_toggle(nsel)
        elseif (w%edit_kind /= 0) then
           call w%edit_stop()
@@ -196,21 +196,18 @@ contains
     call iw_text("Edit distance",highlight=.true.)
     if (w%edit_kind /= 2) &
        call iw_text("Select two atoms in the view ("//trim(get_bind_keyname(BIND_NAV_MEASURE))//&
-       "), then press Edit distance or "//trim(get_bind_keyname(BIND_EDITDISTANCE)))
+       "), then press Edit distance or "//trim(get_bind_keyname(BIND_EDIT_D_A_PHI)))
     ok = (w%edit_kind == 2) .or. (havesys .and. nsel == 2)
     if (iw_button("Edit distance",disabled=.not.ok)) then
        w%errmsg = ""
        call edit_toggle(2)
     end if
     call iw_tooltip("Edit the distance and bond between the two selected atoms ("//&
-       trim(get_bind_keyname(BIND_EDITDISTANCE))//"); press again to stop",ttshown)
+       trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//"); press again to stop",ttshown)
 
     if (w%edit_kind == 2) then
        ! the two atoms
-       call iw_text("(1) "//trim(sys(isys)%c%at(sys(isys)%c%atcel(w%edit_idx(1,1))%idx)%name)//&
-          string(w%edit_idx(1,1)))
-       call iw_text("(2) "//trim(sys(isys)%c%at(sys(isys)%c%atcel(w%edit_idx(1,2))%idx)%name)//&
-          string(w%edit_idx(1,2)),sameline=.true.)
+       call edit_atom_labels()
 
        ! bond type combo
        ibold = editdist_bondidx()
@@ -257,22 +254,18 @@ contains
     call iw_text("Edit angle",highlight=.true.)
     if (w%edit_kind /= 3) &
        call iw_text("Select three atoms in the view ("//trim(get_bind_keyname(BIND_NAV_MEASURE))//&
-       "), then press Edit angle or "//trim(get_bind_keyname(BIND_EDITDISTANCE)))
+       "), then press Edit angle or "//trim(get_bind_keyname(BIND_EDIT_D_A_PHI)))
     ok = (w%edit_kind == 3) .or. (havesys .and. nsel == 3)
     if (iw_button("Edit angle",disabled=.not.ok)) then
        w%errmsg = ""
        call edit_toggle(3)
     end if
     call iw_tooltip("Edit the angle between the three selected atoms, vertex at the"//&
-       " second atom ("//trim(get_bind_keyname(BIND_EDITDISTANCE))//"); press again to stop",ttshown)
+       " second atom ("//trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//"); press again to stop",ttshown)
 
     if (w%edit_kind == 3) then
        ! the three atoms
-       do iside = 1, 3
-          call iw_text("("//string(iside)//") "//&
-             trim(sys(isys)%c%at(sys(isys)%c%atcel(w%edit_idx(1,iside))%idx)%name)//&
-             string(w%edit_idx(1,iside)),sameline=(iside > 1))
-       end do
+       call edit_atom_labels()
 
        ! central atom combo; while the central atom moves, the
        ! terminals are held fixed (rotation needs a fixed vertex)
@@ -319,6 +312,60 @@ contains
           call w%edit_stop()
        end if
        call iw_tooltip("Keep the current angle and release the three atoms",ttshown)
+    end if
+
+    ! edit dihedral section
+    call iw_text("Edit dihedral",highlight=.true.)
+    if (w%edit_kind /= 4) &
+       call iw_text("Select four atoms in the view ("//trim(get_bind_keyname(BIND_NAV_MEASURE))//&
+       "), then press Edit dihedral or "//trim(get_bind_keyname(BIND_EDIT_D_A_PHI)))
+    ok = (w%edit_kind == 4) .or. (havesys .and. nsel == 4)
+    if (iw_button("Edit dihedral",disabled=.not.ok)) then
+       w%errmsg = ""
+       call edit_toggle(4)
+    end if
+    call iw_tooltip("Edit the dihedral angle of the four selected atoms about the 2-3"//&
+       " bond ("//trim(get_bind_keyname(BIND_EDIT_D_A_PHI))//"); press again to stop",ttshown)
+
+    if (w%edit_kind == 4) then
+       ! the four atoms
+       call edit_atom_labels()
+
+       ! terminal atom combos (atoms 2 and 3 always stay fixed)
+       do iside = 1, 4, 3
+          stropt = "Fixed"//c_null_char//"Rotate atom"//c_null_char
+          if (w%edit_fragok(iside)) stropt = stropt // "Rotate group (fix 2-3)"//c_null_char
+          ! fragok(2)/(3) = validity of the half adjacent to terminal 1/4
+          if (w%edit_fragok(merge(2,3,iside == 1))) &
+             stropt = stropt // "Rotate group (move 2-3)"//c_null_char
+          call iw_combo_simple("Atom "//string(iside)//"##editdihmove"//string(iside),&
+             stropt,w%edit_imove(iside))
+          call iw_tooltip("What rotates about the 2-3 axis when the dihedral changes:"//&
+             " nothing (fixed), the terminal atom, the group attached to it (the"//&
+             " substituents of atoms 2 and 3 stay fixed), or the whole half severed"//&
+             " at the 2-3 bond (the environments of atoms 2 and 3 stay rigid)",ttshown)
+       end do
+
+       ! dihedral drag-float (degrees)
+       ang = editdih_val() * 180d0 / pi
+       if (all(w%edit_imove == 0)) call igBeginDisabled(.true._c_bool)
+       ldum = iw_dragfloat_real8("Dihedral (°)##editdihdrag",x1=ang,speed=0.2d0,&
+          min=-180d0,max=180d0,decimal=2,notlive=.true.,committed=lcommit,&
+          flags=ImGuiSliderFlags_AlwaysClamp)
+       if (all(w%edit_imove == 0)) then
+          call igEndDisabled()
+       else
+          if (ldum) call editdih_apply(ang)
+          if (lcommit) call edit_commit()
+       end if
+       call iw_tooltip("Dihedral angle of the four atoms (degrees)",ttshown)
+
+       ! apply button
+       if (iw_button("Apply##editdih",danger=.true.)) then
+          w%errmsg = ""
+          call w%edit_stop()
+       end if
+       call iw_tooltip("Keep the current dihedral and release the four atoms",ttshown)
     end if
 
     ! transient highlight of the latched atoms
@@ -369,19 +416,114 @@ contains
     end function edit_session_ok
 
     ! Toggle an edit session of the given kind (2 = distance, 3 =
-    ! angle): stop it if it is the active session, and start it from
-    ! the measure-selected atoms otherwise.
+    ! angle, 4 = dihedral): stop it if it is the active session, and
+    ! start it from the measure-selected atoms otherwise.
     subroutine edit_toggle(ikind)
       integer, intent(in) :: ikind
 
       if (w%edit_kind == ikind) then
          call w%edit_stop()
-      elseif (ikind == 2) then
-         call editdist_start()
       else
-         call editang_start()
+         call edit_start(ikind)
       end if
     end subroutine edit_toggle
+
+    ! Start an edit session of the given kind (2 = distance, 3 =
+    ! angle, 4 = dihedral) from the parent view's measure-selected
+    ! atoms: latch the atoms and the system, compute the masked
+    ! groups, and set the defaults.
+    subroutine edit_start(ikind)
+      integer, intent(in) :: ikind
+
+      integer :: idx1(4), i, j
+      character(len=:), allocatable :: kname
+
+      if (.not.havesys) return
+      if (.not.associated(win(iview)%sc)) return
+      if (win(iview)%sc%nmsel /= ikind) return
+      idx1 = 0
+      idx1(1:ikind) = win(iview)%sc%msel(1,1:ikind)
+      if (minval(idx1(1:ikind)) < 1 .or. maxval(idx1(1:ikind)) > sys(isys)%c%ncel) return
+      do i = 1, ikind-1
+         do j = i+1, ikind
+            if (idx1(i) /= idx1(j)) cycle
+            ! for dihedrals, atoms 2 and 3 never move, so two periodic
+            ! images of the same atom are allowed there (chain crystals)
+            if (ikind == 4 .and. i == 2 .and. j == 3) cycle
+            w%errmsg = "Two of the selected atoms are periodic images of the same atom"
+            return
+         end do
+      end do
+      if (sysc(isys)%md_run) then
+         if (ikind == 2) then
+            kname = "distance"
+         elseif (ikind == 3) then
+            kname = "angle"
+         else
+            kname = "dihedral"
+         end if
+         w%errmsg = "Edit " // kname // " is not available while dynamics is running"
+         return
+      end if
+      call edit_latch(ikind)
+      call edit_latch_groups(ikind)
+
+      ! defaults: all atoms fixed except the last, which moves its
+      ! group if available, else the atom; for dihedrals, prefer the
+      ! group mode that also rotates the 2-3 substituents (fragok(3)
+      ! is the validity of the half adjacent to terminal 4)
+      w%edit_imove = 0
+      if (ikind == 4 .and. w%edit_fragok(3)) then
+         w%edit_imove(4) = 3
+      else
+         w%edit_imove(ikind) = merge(2,1,w%edit_fragok(ikind))
+      end if
+
+      w%edit_dirty = .false.
+      w%edit_time = glfwGetTime()
+      w%edit_kind = ikind
+    end subroutine edit_start
+
+    ! Show the labels of the latched atoms in one row.
+    subroutine edit_atom_labels()
+      integer :: is
+
+      do is = 1, w%edit_kind
+         call iw_text("("//string(is)//") "//&
+            trim(sys(isys)%c%at(sys(isys)%c%atcel(w%edit_idx(1,is))%idx)%name)//&
+            string(w%edit_idx(1,is)),sameline=(is > 1))
+      end do
+    end subroutine edit_atom_labels
+
+    ! Rotate the moving terminal atoms (or their groups) about the
+    ! axis through center: the first latched atom rotates by
+    ! -dang/nrot and the last by +dang/nrot, which opens the angle or
+    ! dihedral by dang. In the dihedral "move 2-3" mode (imove = 3)
+    ! the move set is the corresponding half, stored in the interior
+    ! columns.
+    subroutine edit_rotate_terminals(rnew,center,axis,dang,nrot)
+      real*8, intent(inout) :: rnew(:,:)
+      real*8, intent(in) :: center(3), axis(3), dang
+      integer, intent(in) :: nrot
+
+      integer :: i, k, n, icol
+      real*8 :: rot(3,3)
+
+      do i = 1, w%edit_kind, w%edit_kind - 1
+         if (w%edit_imove(i) == 0) cycle
+         rot = axisangle2mat(axis,merge(-1d0,1d0,i == 1) * dang / nrot)
+         if (w%edit_imove(i) == 3) then
+            icol = merge(2,3,i == 1)
+            n = w%edit_nfrag(icol)
+         else
+            icol = i
+            n = merge(w%edit_nfrag(i),1,w%edit_imove(i) == 2)
+         end if
+         do k = 1, n
+            rnew(:,w%edit_frag(k,icol)) = center + matmul(rot,rnew(:,w%edit_frag(k,icol)) - center)
+         end do
+      end do
+    end subroutine edit_rotate_terminals
 
     ! Latch the ikind measure-selected atoms of the parent view into
     ! edit_idx/edit_isys and clear the measurement. Stops any active
@@ -391,8 +533,8 @@ contains
     subroutine edit_latch(ikind)
       integer, intent(in) :: ikind
 
-      integer :: i, ml(4,3)
-      real*8 :: rabs(3,3)
+      integer :: i, ml(4,4)
+      real*8 :: rabs(3,4)
 
       ml = 0
       ml(:,1:ikind) = win(iview)%sc%msel(1:4,1:ikind)
@@ -416,11 +558,13 @@ contains
     ! its group move option is available only if the component is
     ! discrete and contains none of the other latched atoms.
     ! masked_fragment seeds each list with the atom itself, so the atom
-    ! move mode is the one-atom head of the same list.
+    ! move mode is the one-atom head of the same list. For dihedrals,
+    ! columns 2-3 instead hold the two halves from severing the 2-3
+    ! bond: they are the move sets of the terminals' "move 2-3" modes.
     subroutine edit_latch_groups(ikind)
       integer, intent(in) :: ikind
 
-      integer :: is, js, n
+      integer :: is, js, it, n
       logical :: okf, disc
       integer, allocatable :: ifr(:), work(:,:)
 
@@ -428,24 +572,47 @@ contains
       w%edit_nfrag = 0
       w%edit_fragok = .false.
       do is = 1, ikind
-         if (is > 1 .and. is < ikind) then
+         if (ikind == 4 .and. (is == 2 .or. is == 3)) then
+            ! dihedral interior columns: the two halves obtained by
+            ! severing the 2-3 bond, seeded at atoms 2 and 3. Each must
+            ! contain its own terminal (1 for the 2-half, 4 for the
+            ! 3-half) and no atom of the other half.
+            it = merge(1,4,is == 2)
+            call sys(isys)%c%masked_fragment(w%edit_idx(1,is),w%edit_idx(1,2),&
+               w%edit_idx(1,3),n,ifr,disc)
+         elseif (is > 1 .and. is < ikind) then
+            it = is
             call sys(isys)%c%masked_fragment(w%edit_idx(1,is),w%edit_idx(1,is),&
                w%edit_idx(1,is-1),n,ifr,disc,w%edit_idx(1,is),w%edit_idx(1,is+1))
          elseif (is > 1) then
+            it = is
             call sys(isys)%c%masked_fragment(w%edit_idx(1,is),w%edit_idx(1,is),&
                w%edit_idx(1,is-1),n,ifr,disc)
          else
+            it = is
             call sys(isys)%c%masked_fragment(w%edit_idx(1,is),w%edit_idx(1,is),&
                w%edit_idx(1,is+1),n,ifr,disc)
          end if
-         okf = disc
+         ! valid if discrete, contains the seed's terminal (trivially
+         ! true when it = is: the fragment contains its own seed), and
+         ! contains no other latched atom
+         okf = disc .and. any(ifr(1:n) == w%edit_idx(1,it))
          do js = 1, ikind
-            if (js /= is) okf = okf .and. .not.any(ifr(1:n) == w%edit_idx(1,js))
+            if (js /= is .and. js /= it) okf = okf .and. .not.any(ifr(1:n) == w%edit_idx(1,js))
          end do
          w%edit_nfrag(is) = n
          w%edit_fragok(is) = okf
          work(1:n,is) = ifr(1:n)
       end do
+      if (ikind == 4) then
+         ! offer the "move 2-3" mode only when the plain group mode is
+         ! also available: the combo option lists are built contiguously,
+         ! so entry 3 (move) must not exist without entry 2 (fix). This
+         ! can suppress a valid half when the terminal's own group is
+         ! invalid (e.g. a ring through the terminal-axis bond).
+         if (.not.w%edit_fragok(1)) w%edit_fragok(2) = .false.
+         if (.not.w%edit_fragok(4)) w%edit_fragok(3) = .false.
+      end if
       if (allocated(w%edit_frag)) deallocate(w%edit_frag)
       allocate(w%edit_frag(maxval(w%edit_nfrag(1:ikind)),ikind))
       w%edit_frag = 0
@@ -453,74 +620,6 @@ contains
          w%edit_frag(1:w%edit_nfrag(is),is) = work(1:w%edit_nfrag(is),is)
       end do
     end subroutine edit_latch_groups
-
-    ! Start the edit-distance session from the parent view's two
-    ! measure-selected atoms: latch the atoms and the system, compute
-    ! the masked fragments of both sides, and set the defaults.
-    subroutine editdist_start()
-      integer :: ia, ib
-
-      if (.not.havesys) return
-      if (.not.associated(win(iview)%sc)) return
-      if (win(iview)%sc%nmsel /= 2) return
-      ia = win(iview)%sc%msel(1,1)
-      ib = win(iview)%sc%msel(1,2)
-      if (ia < 1 .or. ia > sys(isys)%c%ncel .or. ib < 1 .or. ib > sys(isys)%c%ncel) return
-      if (ia == ib) then
-         w%errmsg = "The selected atoms are periodic images of the same atom"
-         return
-      end if
-      if (sysc(isys)%md_run) then
-         w%errmsg = "Edit distance is not available while dynamics is running"
-         return
-      end if
-      call edit_latch(2)
-      call edit_latch_groups(2)
-
-      ! defaults: atom 1 fixed; atom 2 translates its fragment if
-      ! available, else the atom
-      w%edit_imove = 0
-      w%edit_imove(2) = merge(2,1,w%edit_fragok(2))
-
-      w%edit_dirty = .false.
-      w%edit_time = glfwGetTime()
-      w%edit_kind = 2
-    end subroutine editdist_start
-
-    ! Start the edit-angle session from the parent view's three
-    ! measure-selected atoms (vertex at the second one): latch the
-    ! atoms and the system, compute the masked groups, and set the
-    ! defaults.
-    subroutine editang_start()
-      integer :: ia, ib, ic
-
-      if (.not.havesys) return
-      if (.not.associated(win(iview)%sc)) return
-      if (win(iview)%sc%nmsel /= 3) return
-      ia = win(iview)%sc%msel(1,1)
-      ib = win(iview)%sc%msel(1,2)
-      ic = win(iview)%sc%msel(1,3)
-      if (min(ia,ib,ic) < 1 .or. max(ia,ib,ic) > sys(isys)%c%ncel) return
-      if (ia == ib .or. ib == ic .or. ia == ic) then
-         w%errmsg = "The selected atoms must be three different atoms"
-         return
-      end if
-      if (sysc(isys)%md_run) then
-         w%errmsg = "Edit angle is not available while dynamics is running"
-         return
-      end if
-      call edit_latch(3)
-      call edit_latch_groups(3)
-
-      ! defaults: center and terminal 1 fixed; terminal 3 rotates its
-      ! group if available, else the atom
-      w%edit_imove = 0
-      w%edit_imove(3) = merge(2,1,w%edit_fragok(3))
-
-      w%edit_dirty = .false.
-      w%edit_time = glfwGetTime()
-      w%edit_kind = 3
-    end subroutine editang_start
 
     ! Cartesian position (bohr) of the latched image of atom iside.
     function edit_pos(iside) result(r)
@@ -762,9 +861,9 @@ contains
     subroutine editang_apply(anew)
       real*8, intent(in) :: anew
 
-      integer :: i, k, n, nrot
+      integer :: k, n, nrot
       real*8 :: rb(3), va(3), vc(3), axis(3), acur, atgt, dang
-      real*8 :: rot(3,3), shift(3)
+      real*8 :: shift(3)
       real*8, allocatable :: rnew(:,:)
 
       rb = edit_pos(2)
@@ -797,28 +896,63 @@ contains
             rnew(:,w%edit_frag(k,2)) = rnew(:,w%edit_frag(k,2)) + shift
          end do
       else
-         ! rotating atom 1 by -phi about the axis opens the angle by
-         ! phi, and atom 3 by +phi; split among the moving terminals
-         do i = 1, 3, 2
-            if (w%edit_imove(i) == 0) cycle
-            rot = axisangle2mat(axis,merge(-1d0,1d0,i == 1) * dang / nrot)
-            n = merge(w%edit_nfrag(i),1,w%edit_imove(i) == 2)
-            do k = 1, n
-               rnew(:,w%edit_frag(k,i)) = rb +&
-                  matmul(rot,rnew(:,w%edit_frag(k,i)) - rb)
-            end do
-         end do
+         call edit_rotate_terminals(rnew,rb,axis,dang,nrot)
       end if
 
       call edit_push(rnew)
     end subroutine editang_apply
+
+    ! Signed dihedral angle (radians) of the four latched atoms about
+    ! the 2-3 axis, with the same convention as the measurements
+    ! (0 for degenerate, collinear input).
+    function editdih_val() result(a)
+      real*8 :: a
+
+      a = sys(isys)%c%dihedral(&
+         sys(isys)%c%c2x(edit_pos(1)),sys(isys)%c%c2x(edit_pos(2)),&
+         sys(isys)%c%c2x(edit_pos(3)),sys(isys)%c%c2x(edit_pos(4)))
+    end function editdih_val
+
+    ! Move the atoms so the dihedral angle becomes anew (degrees):
+    ! rotate the terminal atoms (or their groups) about the 2-3 axis
+    ! according to the move modes (in-place update; the rebuild happens
+    ! at edit_commit).
+    subroutine editdih_apply(anew)
+      real*8, intent(in) :: anew
+
+      integer :: nrot
+      real*8 :: r2(3), u(3), acur, dang, xn
+      real*8, allocatable :: rnew(:,:)
+
+      nrot = count((/w%edit_imove(1),w%edit_imove(4)/) > 0)
+      if (nrot == 0) return
+
+      ! the 2-3 axis; the dihedral is undefined if either arm is
+      ! collinear with it
+      r2 = edit_pos(2)
+      u = edit_pos(3) - r2
+      xn = norm2(u)
+      if (xn < eps_dzero) return
+      u = u / xn
+      if (norm2(cross(edit_pos(1) - r2,u)) < eps_dzero) return
+      if (norm2(cross(edit_pos(4) - edit_pos(3),u)) < eps_dzero) return
+
+      acur = editdih_val()
+      dang = anew * pi / 180d0 - acur
+      if (abs(dang) < 1d-12) return
+
+      ! build the new positions and apply them in place
+      call edit_snapshot(rnew)
+      call edit_rotate_terminals(rnew,r2,u,dang,nrot)
+      call edit_push(rnew)
+    end subroutine editdih_apply
 
     ! Commit the edit-session moves: rebuild the structure from the
     ! moved positions (keeping the current bonds) and re-latch the
     ! lattice vectors (crystal atoms may be rewrapped by the rebuild).
     subroutine edit_commit()
       integer :: i
-      real*8 :: rl(3,3)
+      real*8 :: rl(3,4)
 
       do i = 1, w%edit_kind
          rl(:,i) = edit_pos(i)
@@ -872,7 +1006,7 @@ contains
     end subroutine builder_toggle
   end subroutine draw_builder
 
-  !> Stop the active edit session (distance or angle) of a builder
+  !> Stop the active edit session (distance, angle, or dihedral) of a builder
   !> window: rebuild the structure first if in-place moves were applied
   !> but not committed, and release the latched atoms (the start
   !> routines re-seed the rest of the session state).

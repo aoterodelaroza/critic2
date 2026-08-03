@@ -193,13 +193,13 @@ module windows
      integer :: builder_isys = 0 ! system latched for the builder picks (0 = no mode active)
      real*8 :: builder_time = 0d0 ! time of the last click-free poll (stale-click guard)
      logical :: edit_pending = .false. ! keybinding request to toggle an edit session
-     integer :: edit_kind = 0 ! active edit session and its number of atoms: 0 = none, 2 = distance, 3 = angle
+     integer :: edit_kind = 0 ! active edit session and its number of atoms: 0 = none, 2 = distance, 3 = angle, 4 = dihedral
      integer :: edit_isys = 0 ! system latched for the edit session
-     integer :: edit_idx(4,3) = 0 ! latched atoms (cell atom + lattice vector); for angles, column 2 is the vertex
-     integer :: edit_imove(3) = 0 ! per-atom move mode (0 = fixed, 1 = atom, 2 = fragment/group)
-     logical :: edit_fragok(3) = .false. ! whether the fragment/group move option is available per atom
-     integer :: edit_nfrag(3) = 0 ! number of atoms in the masked fragment of each atom
-     integer, allocatable :: edit_frag(:,:) ! masked-fragment cell atoms of the latched atoms
+     integer :: edit_idx(4,4) = 0 ! latched atoms (cell atom + lattice vector); for angles, column 2 is the vertex; for dihedrals, columns 2-3 are the axis
+     integer :: edit_imove(4) = 0 ! per-atom move mode (0 = fixed, 1 = atom, 2 = fragment/group, 3 = dihedral half, moving the 2-3 substituents)
+     logical :: edit_fragok(4) = .false. ! whether the fragment/group move option is available per atom
+     integer :: edit_nfrag(4) = 0 ! number of atoms in the masked fragment of each atom
+     integer, allocatable :: edit_frag(:,:) ! masked-fragment cell atoms of the latched atoms; for dihedrals, columns 2-3 hold the two halves of the severed 2-3 bond
      logical :: edit_dirty = .false. ! in-place moves applied but not yet committed (rebuild pending)
      real*8 :: edit_time = 0d0 ! time of the last edit-free poll (external-change guard)
      character(len=:), allocatable :: geometry_expression ! expression for column in atoms table
