@@ -96,6 +96,16 @@ contains
     if (vib_ok) vib_ok = (sys(isys)%c%vib%nqpt > 0) .and. (sys(isys)%c%vib%nfreq > 0)
     if (vib_ok) vib_ok = associated(win(w%idparent)%sc)
 
+    ! drop stale mode selections
+    if (vib_ok) then
+       if (win(w%idparent)%sc%iqpt_selected > sys(isys)%c%vib%nqpt .or.&
+          win(w%idparent)%sc%ifreq_selected > sys(isys)%c%vib%nfreq) then
+          win(w%idparent)%sc%iqpt_selected = 0
+          win(w%idparent)%sc%ifreq_selected = 0
+          win(w%idparent)%sc%animation = 0
+       end if
+    end if
+
     ! header
     if (goodsys) then
        ! system name
@@ -110,6 +120,8 @@ contains
           call sys(isys)%c%vib%end()
           win(w%idparent)%sc%iqpt_selected = 0
           win(w%idparent)%sc%ifreq_selected = 0
+          win(w%idparent)%sc%animation = 0
+          win(w%idparent)%forcerender = .true.
           vib_ok = .false.
        end if
        call iw_tooltip("Clear vibration data for this system",ttshown)

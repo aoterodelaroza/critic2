@@ -184,15 +184,16 @@ contains
   module subroutine run_commands_ci(w)
     use systemmod, only: sy
     use systems, only: launch_initialization_thread, kill_initialization_thread, are_threads_running,&
-       sysc, sys_init, nsys, sys, lastchange_geometry
+       sysc, sys_init, nsys, sys, lastchange_geometry, lastchange_buildlists
     use global, only: critic_main
     use tools_io, only: falloc, uin, fclose, ferror, faterr
     use iso_fortran_env, only: input_unit
     class(window), intent(inout), target :: w
 
     integer :: idx
-    integer :: ios
-    logical :: reinit, ldum
+    integer :: ios, ncel0
+    real*8 :: geomsum0, geomsum1
+    logical :: reinit, ldum, changed
 
     ! if no system selected, return
     if (w%isys < 1 .or. w%isys > nsys) return
@@ -204,6 +205,10 @@ contains
 
     ! connect the system
     sy => sys(w%isys)
+
+    ! snapshot the structure so a geometry change across the commands can be detected
+    ncel0 = sys(w%isys)%c%ncel
+    geomsum0 = geometry_checksum(w%isys)
 
     ! if the initialization is happening, stop it
     reinit = are_threads_running()
@@ -224,12 +229,40 @@ contains
     ! reinitialize the threads
     if (reinit) call launch_initialization_thread()
 
-    ! set the time to rebuild lists
-    call sysc(w%isys)%post_event(lastchange_geometry)
+    ! post the event: a full geometry event only if the commands changed the structure
+    changed = sys(w%isys)%c%ncel /= ncel0
+    if (.not.changed) then
+       geomsum1 = geometry_checksum(w%isys)
+       changed = geomsum1 /= geomsum0
+    end if
+    if (changed) then
+       call sysc(w%isys)%post_event(lastchange_geometry)
+    else
+       call sysc(w%isys)%post_event(lastchange_buildlists)
+    end if
 
     ! clean up
     call fclose(uin)
     uin = input_unit
+
+  contains
+    !> Checksum of the structural data of system id: cell, atomic
+    !> positions, and atomic numbers.
+    function geometry_checksum(id) result(gsum)
+      integer, intent(in) :: id
+      real*8 :: gsum
+
+      integer :: i
+
+      gsum = sum(abs(sys(id)%c%m_x2c)) + real(sys(id)%c%nspc,8)
+      do i = 1, sys(id)%c%nspc
+         gsum = gsum + real(sys(id)%c%spc(i)%z,8)
+      end do
+      do i = 1, sys(id)%c%ncel
+         gsum = gsum + sum(abs(sys(id)%c%atcel(i)%r)) + real(sys(id)%c%atcel(i)%is,8)
+      end do
+
+    end function geometry_checksum
 
   end subroutine run_commands_ci
 

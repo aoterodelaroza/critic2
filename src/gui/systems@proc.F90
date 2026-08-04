@@ -672,11 +672,12 @@ contains
     if (level >= lastchange_geometry) then
        if (.not.keepfields_) &
           call sys(sysc%id)%reset_fields()
+       if (.not.keepfields_ .and. ok_system(sysc%id,sys_init)) &
+          call sys(sysc%id)%c%vib%end()
        call sysc%highlight_clear(.true.)
        call sysc%highlight_clear(.false.)
        sysc%timelastchange_geometry = time
-       ! record in the undo/redo history, unless the caller is restoring a
-       ! previous state (which also posts a geometry event)
+       ! record in the undo/redo history, unless the caller is restoring a previous state
        if (.not.nocapture_ .and. ok_system(sysc%id,sys_init)) &
           call sysc%undo_capture(time)
     end if

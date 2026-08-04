@@ -603,6 +603,18 @@ contains
     ! check that the scene and system are initialized
     if (s%isinit == 0) return
 
+    ! drop the vibration animation if the vibration data is gone
+    if (s%ifreq_selected > 0 .or. s%iqpt_selected > 0) then
+       doit = .not.sys(s%id)%c%vib%hasvibs
+       if (.not.doit) doit = s%iqpt_selected > sys(s%id)%c%vib%nqpt .or.&
+          s%ifreq_selected > sys(s%id)%c%vib%nfreq
+       if (doit) then
+          s%iqpt_selected = 0
+          s%ifreq_selected = 0
+          s%animation = 0
+       end if
+    end if
+
     ! buffers, draw lists, camera lock, camera reset
     call scene_render_prepare(s)
 
