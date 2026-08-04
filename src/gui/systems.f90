@@ -117,6 +117,8 @@ module systems
      procedure :: rebond ! recompute bonds/connectivity, then signal the scene
      procedure :: md_start ! start/resume the MD or relaxation run
      procedure :: md_stop ! stop the run and rebuild the moved structure
+     procedure :: md_advance ! advance the run by one step if active
+     procedure :: md_set_mode ! change the run mode
      ! highlights
      procedure :: highlight_atoms
      procedure :: highlight_clear
@@ -262,6 +264,13 @@ module systems
        integer, intent(in) :: mode
        character(len=:), allocatable, intent(out) :: errmsg
      end subroutine md_start
+     module subroutine md_advance(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine md_advance
+     module subroutine md_set_mode(sysc,mode)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: mode
+     end subroutine md_set_mode
      module subroutine md_stop(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine md_stop

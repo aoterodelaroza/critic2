@@ -72,7 +72,7 @@ contains
     use interfaces_opengl3
     use interfaces_stb
     use systems, only: sys, sysc, nsys, launch_initialization_thread, system_shorten_names,&
-       thread, thread_ti, nthread, ok_system, sys_init, lastchange_geometry
+       thread, thread_ti, nthread
     use shaders, only: shaders_init, shaders_end
     use shapes, only: shapes_init, shapes_end
     use icons, only: icons_init, icons_end
@@ -354,16 +354,9 @@ contains
        ! maybe reallocate the window stack
        call stack_realloc_maybe()
 
-       ! advance any running interactive dynamics once per system per frame before drawing
+       ! advance any running interactive dynamics once per system per frame
        do i = 1, nsys
-          if (sysc(i)%md_run .and. sysc(i)%md%ready .and. ok_system(i,sys_init)) then
-             call sysc(i)%md%step(sys(i)%c)
-             sysc(i)%sc%nextbuildlists_fixcam = .true.
-             call sysc(i)%post_event(lastchange_geometry)
-             sysc(i)%md_time = glfwGetTime()
-             if (.not.sysc(i)%md%ready .or. sysc(i)%md%converged()) &
-                call sysc(i)%md_stop()
-          end if
+          call sysc(i)%md_advance()
        end do
 
        ! process the window stack

@@ -700,7 +700,6 @@ contains
   !> failure.
   module subroutine md_start(sysc,mode,errmsg)
     use interfaces_glfw, only: glfwGetTime
-    use dynamics, only: md_relax
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: mode
     character(len=:), allocatable, intent(out) :: errmsg
@@ -712,22 +711,82 @@ contains
     id = sysc%id
     if (.not.ok_system(id,sys_init)) return
 
+    ! init, also on rebond
     needinit = .not.sysc%md%ready
     if (.not.needinit) needinit = sysc%md%cl%backend /= sysc%md_backend
     if (.not.needinit) needinit = sysc%md%nat /= sys(id)%c%ncel
-    if (.not.needinit) needinit = sysc%timelastchange_geometry > sysc%md_time
+    if (.not.needinit) needinit = sysc%timelastchange_rebond > sysc%md_time
     if (needinit) then
        call sysc%md%init(sys(id)%c,backend=sysc%md_backend,mode=mode,errmsg=errmsg)
        if (len_trim(errmsg) > 0) return
-    elseif (mode == md_relax .and. sysc%md%mode /= md_relax) then
-       ! switching a live run to relaxation: drop the thermal velocities
-       sysc%md%v = 0d0
     end if
-    sysc%md%mode = mode
+    call sysc%md_set_mode(mode)
+    ! a user-started run always stops on convergence (continuous runs,
+    ! e.g. the water-cluster demo, clear autostop after starting)
+    sysc%md%autostop = .true.
     sysc%md_run = .true.
     sysc%md_time = glfwGetTime()
 
   end subroutine md_start
+
+  !> Advance the MD/relaxation run on this system by one step, if one
+  !> is active. Stops the run if the structure was modified externally
+  !> since the last step, if the force evaluation fails, or if the
+  !> relaxation converged.
+  module subroutine md_advance(sysc)
+    use interfaces_glfw, only: glfwGetTime
+    class(sysconf), intent(inout) :: sysc
+
+    integer :: id
+
+    id = sysc%id
+    if (.not.sysc%md_run .or. .not.sysc%md%ready) return
+    if (.not.ok_system(id,sys_init)) return
+
+    if (sysc%md%nat /= sys(id)%c%ncel .or.&
+       sysc%timelastchange_rebond > sysc%md_time) then
+       ! the structure was changed under the run (console command, geometry
+       ! window, undo, rebond, ...): stop it. md%r is stale, so the run
+       ! cannot resume (clearing ready makes the next md_start re-initialize)
+       sysc%md_run = .false.
+       sysc%md%ready = .false.
+       sysc%md%errmsg = "Run stopped: the structure was modified"
+       if (sysc%timelastchange_geometry <= sysc%md_time) then
+          ! rebond-only trigger: the mutator did not rebuild the crystal, but
+          ! the run had moved the atoms with display-only updates — rebuild
+          ! now, keeping the just-recomputed bonds
+          call sys(id)%c%rebuild_after_move(copybonding=.true.)
+          sysc%sc%nextbuildlists_fixcam = .true.
+          call sysc%post_event(lastchange_geometry)
+       end if
+       return
+    end if
+
+    call sysc%md%step(sys(id)%c)
+    sysc%sc%nextbuildlists_fixcam = .true.
+    ! nocapture: per-frame snapshots would clobber the pre-run undo state;
+    ! md_stop posts one capturing event at the end of the run
+    call sysc%post_event(lastchange_geometry,nocapture=.true.)
+    sysc%md_time = glfwGetTime()
+
+    ! stop the run if the relaxation converged (unless it is a continuous
+    ! run, e.g. the water-cluster demo) or if the force evaluation failed
+    if (.not.sysc%md%ready .or. (sysc%md%autostop .and. sysc%md%converged())) &
+       call sysc%md_stop()
+
+  end subroutine md_advance
+
+  !> Change the mode (md_dynamics/md_relax) of the run.
+  module subroutine md_set_mode(sysc,mode)
+    use dynamics, only: md_relax
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: mode
+
+    if (sysc%md%ready .and. mode == md_relax .and. sysc%md%mode /= md_relax) &
+       sysc%md%v = 0d0
+    sysc%md%mode = mode
+
+  end subroutine md_set_mode
 
   !> Stop the MD/relaxation run and rebuild the structure from the
   !> current positions.

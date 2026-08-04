@@ -58,6 +58,7 @@ contains
     errmsg = ""
     call md%free()
     call random_seed()
+    md%autostop = .true.
     if (present(temperature)) md%temperature = temperature
     if (present(dt)) md%dt = dt
     if (present(mode)) md%mode = mode
@@ -281,6 +282,7 @@ contains
     class(mdrun), intent(inout) :: md
     call md%cl%free()
     md%ready = .false.
+    md%errmsg = ""
     md%nat = 0
     md%ekin = 0d0
     md%epot = 0d0
@@ -307,11 +309,12 @@ contains
     ! evaluate the gradient straight into the persistent force buffer (no
     ! per-step allocation), then negate to get the forces
     call c%update_positions(md%r)
-    ! periodically refresh the backend's neighbor list so contacts created by
-    ! motion/dragging are captured (no-op for the tblite backend)
+    ! refresh the backend's neighbor list so contacts created by motion/dragging are captured
     md%istep = md%istep + 1
-    if (md%nblist_every > 0 .and. mod(md%istep,md%nblist_every) == 0) &
+    if (md%nblist_every > 0 .and. mod(md%istep,md%nblist_every) == 0) then
+       call c%update_env_after_move()
        call md%cl%update_geometry(c)
+    end if
     ! cache the virial stress for crystals, on-screen pressure
     if (c%ismolecule) then
        call md%cl%evaluate(c,md%epot,md%f,errmsg=errmsg)

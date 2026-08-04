@@ -25,7 +25,7 @@ contains
   !> the parent view's system, with controls for temperature, speed, engine, and
   !> the ability to grab and drag atoms in the view.
   module subroutine draw_dynamics(w)
-    use systems, only: sysc, sys, sys_init, ok_system, lastchange_geometry
+    use systems, only: sysc, sys, nsys, sys_init, ok_system, lastchange_geometry
     use dynamics, only: md_dynamics, md_relax
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcwidth, iw_combo_simple,&
        iw_dragfloat_real8, iw_radiobutton
@@ -67,6 +67,16 @@ contains
     goodsys = .false.
     if (.not.doquit) goodsys = ok_system(isys,sys_init)
 
+    ! if the view switched systems, stop the run
+    if (.not.doquit) then
+       if (w%isys /= isys .and. w%isys >= 1 .and. w%isys <= nsys) then
+          if (ok_system(w%isys,sys_init)) then
+             if (sysc(w%isys)%md_run) call sysc(w%isys)%md_stop()
+          end if
+       end if
+       w%isys = isys
+    end if
+
     if (goodsys) then
        ! system name
        call iw_text("System",highlight=.true.)
@@ -85,7 +95,7 @@ contains
        call iw_tooltip("Animate the system using an NVT molecular dynamics run",ttshown)
        ldum = iw_radiobutton("Relaxation",int=imode,intval=int(md_relax,c_int),sameline=.true.)
        call iw_tooltip("Relax the system to its nearest energy minimum",ttshown)
-       sysc(isys)%md%mode = imode
+       call sysc(isys)%md_set_mode(int(imode))
 
        ! temperature and timestep
        if (imode == md_dynamics) then
@@ -164,6 +174,12 @@ contains
 
              call igEndTable()
           end if
+       end if
+
+       ! errors and auto-stop notices from the run itself
+       if (allocated(sysc(isys)%md%errmsg)) then
+          if (len_trim(sysc(isys)%md%errmsg) > 0) &
+             call iw_text(trim(sysc(isys)%md%errmsg),danger=.true.)
        end if
 
        ! error message

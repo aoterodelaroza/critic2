@@ -1400,17 +1400,38 @@ contains
   !> stopping an animation) must rebuild the crystal explicitly with
   !> rebuild_after_move.
   module subroutine update_positions(c,rnew)
+    use tools_io, only: ferror, faterr
     class(crystal), intent(inout) :: c
     real*8, intent(in) :: rnew(:,:)
 
     integer :: i
 
+    if (size(rnew,2) < c%ncel) &
+       call ferror('update_positions','rnew size inconsistent with the number of cell atoms',faterr)
     do i = 1, c%ncel
        c%atcel(i)%r = rnew(:,i)
        c%atcel(i)%x = c%c2x(rnew(:,i))
     end do
 
   end subroutine update_positions
+
+  !> Refresh the environment after atoms have moved via
+  !> update_positions. Much cheaper than rebuild_after_move (no
+  !> symmetry, bonds, or fragments); intended for the periodic
+  !> neighbor-list refreshes of an interactive dynamics run.
+  module subroutine update_env_after_move(c)
+    class(crystal), intent(inout) :: c
+
+    integer :: i
+
+    do i = 1, c%ncel
+       c%atcel(i)%rxc = c%x2xr(c%atcel(i)%x)
+       c%atcel(i)%rxc = c%atcel(i)%rxc - floor(c%atcel(i)%rxc)
+       c%atcel(i)%rxc = c%xr2c(c%atcel(i)%rxc)
+    end do
+    call c%build_env()
+
+  end subroutine update_env_after_move
 
   !> Rebuild the crystal from the current cell positions (as left by
   !> update_positions), re-deriving the environment, connectivity,

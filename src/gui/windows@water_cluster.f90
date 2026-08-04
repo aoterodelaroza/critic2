@@ -273,13 +273,17 @@ contains
       if (wc_maxforce(is) < wc_fsettle) then
          ! the cluster has settled: stop the relaxation for good
          w%wc_clockrun = .false.
+      elseif (sysc(is)%md%nat /= sys(is)%c%ncel .or.&
+         sysc(is)%timelastchange_rebond > sysc(is)%md_time) then
+         ! stop the run if the structure changed
+         w%wc_clockrun = .false.
+         sysc(is)%md%ready = .false.
       else
-         ! settling: the player can no longer interfere, but the relaxation
-         ! goes on, driven from here because the main loop only advances the
-         ! systems with md_run set
+         ! settling: the player can no longer interact, but the relaxation continues
          call sysc(is)%md%step(sys(is)%c)
          sysc(is)%sc%nextbuildlists_fixcam = .true.
-         call sysc(is)%post_event(lastchange_geometry)
+         call sysc(is)%post_event(lastchange_geometry,nocapture=.true.)
+         sysc(is)%md_time = glfwGetTime()
       end if
 
     end subroutine wc_tick_clock
@@ -315,13 +319,13 @@ contains
 
       ! TIP4P relaxation engine
       sysc(is)%md_backend = ff_tip4p
-      call sysc(is)%md%init(sys(is)%c,backend=ff_tip4p,mode=md_relax,errmsg=errmsg)
+      call sysc(is)%md_start(md_relax,errmsg)
       if (len_trim(errmsg) > 0) then
          w%errmsg = errmsg
-         sysc(is)%md_run = .false.
          return
       end if
-      sysc(is)%md_run = .true.
+      ! continuous relaxation: disable autostop
+      sysc(is)%md%autostop = .false.
       win(w%idparent)%forcerender = .true.
 
       ! hide the Cartesian axes gizmo

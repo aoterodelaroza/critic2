@@ -326,6 +326,7 @@ module crystalmod
      procedure :: add_bond !< Add a single bond between two cell atoms
      procedure :: reduce_symmetry !< Delete symmetry operations and rebuild with the reduced subgroup
      procedure :: update_positions !< Overwrite all cell-atom positions in place (fast, no rebuild)
+     procedure :: update_env_after_move !< Refresh rxc and the environment block hash after update_positions
      procedure :: rebuild_after_move !< Rebuild the crystal from the current (moved) cell positions
 
      ! symmetry (symmetry)
@@ -920,6 +921,9 @@ module crystalmod
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: rnew(:,:)
      end subroutine update_positions
+     module subroutine update_env_after_move(c)
+       class(crystal), intent(inout) :: c
+     end subroutine update_env_after_move
      module subroutine rebuild_after_move(c,copybonding,ti)
        class(crystal), intent(inout) :: c
        logical, intent(in), optional :: copybonding

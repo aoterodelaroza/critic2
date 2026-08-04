@@ -478,9 +478,9 @@ contains
        ! dynamics window
        if (.not.present(idparent)) &
           call ferror('window_init','dynamics requires idparent',faterr)
+       w%isys = 0
     elseif (type == wintype_water_cluster) then
-       ! water cluster demonstration window; isys is the generated cluster
-       ! system, owned by this window (0 = none yet)
+       ! water cluster demonstration window
        if (.not.present(idparent)) &
           call ferror('window_init','water_cluster requires idparent',faterr)
        w%isys = 0
@@ -539,20 +539,18 @@ contains
              end if
           end if
        elseif (w%type == wintype_dynamics) then
-          ! stop the dynamics run, rebuild the (moved) crystal so symmetry and
-          ! the non-equivalent atom list are consistent again, and free the state
-          if (w%idparent > 0 .and. w%idparent <= nwin) then
-             if (associated(win(w%idparent)%sc)) then
-                isysd = win(w%idparent)%isys
-                if (ok_system(isysd,sys_init)) then
-                   if (sysc(isysd)%md%ready) then
-                      call sys(isysd)%c%rebuild_after_move()
-                      call sysc(isysd)%post_event(lastchange_geometry)
-                   end if
-                   sysc(isysd)%md_run = .false.
-                   call sysc(isysd)%md%free()
+          ! stop the dynamics run, rebuild the crystal, free the state
+          isysd = w%isys
+          if (ok_system(isysd,sys_init)) then
+             if (sysc(isysd)%md%ready) then
+                call sys(isysd)%c%rebuild_after_move()
+                call sysc(isysd)%post_event(lastchange_geometry)
+             end if
+             sysc(isysd)%md_run = .false.
+             call sysc(isysd)%md%free()
+             if (w%idparent > 0 .and. w%idparent <= nwin) then
+                if (associated(win(w%idparent)%sc)) &
                    win(w%idparent)%forcerender = .true.
-                end if
              end if
           end if
        elseif (w%type == wintype_water_cluster) then

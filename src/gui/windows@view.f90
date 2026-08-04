@@ -1148,6 +1148,12 @@ contains
     if (sysc(isys)%status /= sys_init) w%forcerender = .true. ! for removing the last system in tree
     if (w%isys == isys) return
 
+    ! release any interactive-MD grab on the outgoing system
+    if (w%isys >= 1 .and. w%isys <= nsys) then
+       sysc(w%isys)%md%drag_iat = 0
+       sysc(w%isys)%md%interacting = .false.
+    end if
+
     ! select and render the new scene
     w%isys = isys
     if (w%ismain) then
@@ -1192,18 +1198,26 @@ contains
        if (sysc(w%isys)%md_run) then
           do id = 1, nwin
              if (.not.win(id)%isinit .or. .not.win(id)%isopen) cycle
-             if (win(id)%type /= wintype_dynamics) cycle
-             if (win(id)%idparent < 1 .or. win(id)%idparent > nwin) cycle
-             if (win(win(id)%idparent)%isys /= w%isys) cycle
+             if (win(id)%type == wintype_dynamics) then
+                ! a dynamics window drives the system its parent view shows
+                if (win(id)%idparent < 1 .or. win(id)%idparent > nwin) cycle
+                if (win(win(id)%idparent)%isys /= w%isys) cycle
+             elseif (win(id)%type == wintype_water_cluster) then
+                ! the demo drives the run on its own generated system
+                if (win(id)%isys /= w%isys) cycle
+             else
+                cycle
+             end if
              w%viewmode = vm_mdinteract
              w%viewmode_transient = .false.
              return
           end do
-          if (w%viewmode >= 0) then
-             w%viewmode = vm_navigate
-             w%viewmode_transient = .false.
-             return
-          end if
+          ! ownerless run (e.g. a builder relaxation): lock the navigation
+          ! mode and release any armed pick mode so edits cannot fight the run
+          if (vm_is_forcedpick(w%viewmode)) w%vmdata%idx = 0
+          w%viewmode = vm_navigate
+          w%viewmode_transient = .false.
+          return
        end if
     end if
     if (w%viewmode == vm_mdinteract) then

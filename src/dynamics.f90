@@ -32,7 +32,7 @@ module dynamics
   type mdrun
      type(calculator) :: cl !< the energy/force backend
      logical :: ready = .false. !< true once %init has succeeded
-     character(len=:), allocatable :: errmsg !< last force-evaluation error (empty if none)
+     character(len=:), allocatable :: errmsg !< last run error or stop notice (empty if none)
      integer :: nat = 0 !< number of atoms
      integer :: mode = md_dynamics !< md_dynamics or md_relax
      real*8, allocatable :: r(:,:) !< positions (3,nat), bohr
@@ -44,6 +44,7 @@ module dynamics
      real*8 :: temperature = 300d0 !< target temperature, K
      real*8 :: gamma = 2d-3 !< Langevin friction, 1/a.u.
      real*8 :: fconv = 0.005d0 !< relaxation force convergence threshold, eV/angstrom
+     logical :: autostop = .true. !< stop the run automatically when the relaxation converges
      real*8 :: ekin = 0d0 !< last kinetic energy, hartree
      real*8 :: epot = 0d0 !< last potential energy, hartree
      real*8 :: stress(3,3) = 0d0 !< last virial stress (hartree/bohr**3), crystals only
