@@ -638,17 +638,10 @@ contains
 
   end subroutine process_arguments
 
-  ! Process the global cancel keybinding (BIND_CANCEL). Cancels the
-  ! most specific active context, one per key press: 1) exit a
-  ! window-forced pick mode in the target view, 2) stop an edit-distance
-  ! session in a builder of the target view, 3) clear the measurement
-  ! selection, 4) deselect all atoms. The target view is the focused
-  ! view (or the parent view of the focused builder), and the main view
-  ! if neither is focused. Focused windows of other types handle the
-  ! cancel bind themselves.
+  ! Process the global cancel keybinding (BIND_CANCEL)
   subroutine process_cancel_bind()
     use windows, only: win, nwin, iwin_view, wintype_view, wintype_builder,&
-       vm_is_forcedpick, vm_navigate
+       wintype_dynamics, vm_is_forcedpick, vm_navigate
     use systems, only: sysc, ok_system, sys_init
     use keybindings, only: is_bind_event, BIND_CANCEL
 
@@ -668,7 +661,7 @@ contains
        if (.not.win(i)%focused()) cycle
        if (win(i)%type == wintype_view) then
           iv = i
-       elseif (win(i)%type == wintype_builder) then
+       elseif (win(i)%type == wintype_builder .or. win(i)%type == wintype_dynamics) then
           ok = win(i)%idparent >= 1 .and. win(i)%idparent <= nwin
           if (ok) ok = win(win(i)%idparent)%isinit
           if (ok) ok = win(win(i)%idparent)%type == wintype_view
@@ -679,7 +672,17 @@ contains
        exit
     end do
 
-    ! 1) exit a window-forced pick mode
+    ! 1) stop a running dynamics/relaxation on the viewed system
+    isys = win(iv)%isys
+    if (ok_system(isys,sys_init)) then
+       if (sysc(isys)%md_run) then
+          call sysc(isys)%md_stop()
+          win(iv)%forcerender = .true.
+          return
+       end if
+    end if
+
+    ! 2) exit a window-forced pick mode
     if (vm_is_forcedpick(win(iv)%viewmode)) then
        win(iv)%vmdata%idx = 0
        win(iv)%viewmode = vm_navigate
@@ -688,7 +691,7 @@ contains
        return
     end if
 
-    ! 2) stop an edit-distance/angle session in a builder of this view
+    ! 3) stop an edit-distance/angle session in a builder of this view
     do i = 1, nwin
        if (.not.win(i)%isinit) cycle
        if (win(i)%type /= wintype_builder) cycle
@@ -698,7 +701,7 @@ contains
        return
     end do
 
-    ! 3) clear the measurement selection
+    ! 4) clear the measurement selection
     if (associated(win(iv)%sc)) then
        if (win(iv)%sc%nmsel > 0) then
           win(iv)%sc%nmsel = 0
@@ -708,8 +711,7 @@ contains
        end if
     end if
 
-    ! 4) deselect all atoms in the viewed system
-    isys = win(iv)%isys
+    ! 5) deselect all atoms in the viewed system
     if (ok_system(isys,sys_init)) then
        if (allocated(sysc(isys)%highlight_rgba)) then
           if (any(sysc(isys)%highlight_rgba >= 0._c_float)) then
