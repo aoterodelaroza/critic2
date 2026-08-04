@@ -45,7 +45,7 @@ contains
     use dynamics, only: md_relax
     use energy, only: ff_tip4p
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcwidth, iw_radiobutton,&
-       iw_intstepper
+       iw_intstepper, iw_inputtext
     use gui_main, only: g
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
@@ -71,6 +71,12 @@ contains
     if (w%firstpass) w%errmsg = ""
 
     if (.not.doquit) then
+       ! participant name
+       call igAlignTextToFramePadding()
+       call iw_text("Name",highlight=.true.)
+       ldum = iw_inputtext("##wcname",bufsize=63,texta=w%wc_name,sameline=.true.,width=25)
+       call iw_tooltip("Name of the participant, displayed near the score",ttshown)
+
        ! number of water molecules
        call iw_text("Number of water molecules",highlight=.true.)
        ldum = iw_intstepper("wcnwat",w%wc_nwat,minval=int(wc_nmin,c_int),maxval=int(wc_ngen_max,c_int),&
@@ -103,7 +109,7 @@ contains
        call iw_tooltip("Relax the cluster indefinitely, with no time limit",ttshown)
        if (w%wc_mode == 1) then
           if (iw_intstepper("wctime",w%wc_time,label="Time (s)",minval=5_c_int,maxval=999_c_int,&
-             ndigit=3,sameline=.true.,tooltip="Duration of a timed run, in seconds")) &
+             ndigit=3,tooltip="Duration of a timed run, in seconds")) &
              call wc_reset_clock()
        end if
 
@@ -346,7 +352,8 @@ contains
       real*8, intent(in) :: score, eb
       logical, intent(in) :: hasref
 
-      real(c_float), parameter :: rgb_clock(3) = (/0.20_c_float,0.20_c_float,0.20_c_float/)
+      ! plain dark text (name and clock) and the time-up clock override
+      real(c_float), parameter :: rgb_dark(3) = (/0.20_c_float,0.20_c_float,0.20_c_float/)
       real(c_float), parameter :: rgb_timeup(3) = (/0.85_c_float,0.10_c_float,0.10_c_float/)
 
       real(c_float) :: rgb(3), rgbc(3)
@@ -361,9 +368,14 @@ contains
       end if
       call sysc(is)%sc%show_transient_text(w%id,1,str,rgb,(/0.5d0,0.90d0/),1.5d0)
 
+      ! the participant name, above the score
+      if (len_trim(w%wc_name) > 0) &
+         call sysc(is)%sc%show_transient_text(w%id,3,trim(w%wc_name),rgb_dark,&
+            (/0.5d0,0.97d0/),1d0)
+
       ! timed mode: the clock at the bottom, in red once the time is up
       if (w%wc_mode == 1) then
-         rgbc = rgb_clock
+         rgbc = rgb_dark
          if (w%wc_timeup) rgbc = rgb_timeup
          call sysc(is)%sc%show_transient_text(w%id,2,string(wc_clock(),'f',decimal=1),rgbc,&
             (/0.5d0,0.06d0/),1d0)

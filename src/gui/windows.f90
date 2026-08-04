@@ -234,6 +234,7 @@ module windows
      logical :: wc_timeup = .false. ! timed mode: whether the player's time is over
      real*8 :: wc_clock0 = 0d0 ! timed mode: time at which the clock started (s)
      real*8 :: wc_elapsed = 0d0 ! timed mode: elapsed time shown on the clock (s)
+     character(len=:), allocatable :: wc_name ! participant name, shown on the scene near the score
    contains
      procedure :: init => window_init ! initialize the window
      procedure :: end => window_end ! finalize the window

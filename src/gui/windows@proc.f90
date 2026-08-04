@@ -484,6 +484,9 @@ contains
        if (.not.present(idparent)) &
           call ferror('window_init','water_cluster requires idparent',faterr)
        w%isys = 0
+       ! per-participant state: never inherit the previous player's name
+       ! from a recycled window slot
+       w%wc_name = ""
     elseif (type == wintype_builder) then
        ! builder window, tied to the parent view
        if (.not.present(idparent)) &
