@@ -34,7 +34,7 @@ contains
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_PICKATOM_SELECT,&
        BIND_PICKATOM_ALT, BIND_RECALC_BONDS, BIND_NAV_MEASURE, BIND_EDIT_D_A_PHI,&
        BIND_REOPEN, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
-       BIND_OK_FOCUSED_DIALOG
+       BIND_OK_FOCUSED_DIALOG, BIND_CANCEL
     use interfaces_glfw, only: glfwGetTime
     use tools_io, only: string
     use tools_math, only: cross, axisangle2mat
@@ -405,7 +405,8 @@ contains
           call sysc(isys)%md_stop()
           if (associated(win(iview)%sc)) win(iview)%forcerender = .true.
        end if
-       call iw_tooltip("Stop the geometry relaxation",ttshown)
+       call iw_tooltip("Stop the geometry relaxation ("//&
+          trim(get_bind_keyname(BIND_CANCEL))//")",ttshown)
     end if
 
     if (havesys) then

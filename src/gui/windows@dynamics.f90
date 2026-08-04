@@ -30,8 +30,8 @@ contains
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcwidth, iw_combo_simple,&
        iw_dragfloat_real8, iw_radiobutton
     use gui_main, only: g
-    use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
-       BIND_OK_FOCUSED_DIALOG
+    use keybindings, only: is_bind_event, get_bind_keyname, BIND_CLOSE_FOCUSED_DIALOG,&
+       BIND_CLOSE_ALL_DIALOGS, BIND_OK_FOCUSED_DIALOG, BIND_CANCEL
     use tools_io, only: string
     use param, only: kcal2ha, autofs
     class(window), intent(inout), target :: w
@@ -118,13 +118,14 @@ contains
              if (len_trim(w%errmsg) == 0) &
                 win(w%idparent)%forcerender = .true.
           end if
-          call iw_tooltip("Start (or resume) the simulation",ttshown)
+          call iw_tooltip("Start the simulation",ttshown)
        else
-          if (iw_button("Pause")) then
-             sysc(isys)%md_run = .false.
+          if (iw_button("Stop",danger=.true.)) then
+             call sysc(isys)%md_stop()
              win(w%idparent)%forcerender = .true.
           end if
-          call iw_tooltip("Pause the simulation",ttshown)
+          call iw_tooltip("Stop the simulation ("//&
+             trim(get_bind_keyname(BIND_CANCEL))//")",ttshown)
        end if
 
        ! reset the geometry
