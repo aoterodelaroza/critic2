@@ -87,7 +87,8 @@ module systems
      type(scene) :: sc ! scene for the system in the main view
      ! interactive molecular dynamics (one run per system, driven each frame)
      logical :: md_run = .false. ! whether the MD/relaxation loop advances this system
-     integer :: md_backend = 0 ! requested MD energy backend
+     integer :: md_backend = -1 ! requested MD energy backend (-1 = resolve with ff_backend_default on first use)
+     real*8 :: md_time = 0d0 ! time of the last MD init/step (geometry-staleness guard)
      type(mdrun) :: md ! MD / relaxation state
      ! bonding
      real*8 :: atmcov(0:maxzat0) = atmcov0 ! covalent radii for bonding
@@ -114,6 +115,8 @@ module systems
      ! time events
      procedure :: post_event
      procedure :: rebond ! recompute bonds/connectivity, then signal the scene
+     procedure :: md_start ! start/resume the MD or relaxation run
+     procedure :: md_stop ! stop the run and rebuild the moved structure
      ! highlights
      procedure :: highlight_atoms
      procedure :: highlight_clear
@@ -254,6 +257,14 @@ module systems
      module subroutine rebond(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine rebond
+     module subroutine md_start(sysc,mode,errmsg)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: mode
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine md_start
+     module subroutine md_stop(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine md_stop
      module subroutine highlight_atoms(sysc,transient,idx,type,rgba)
        class(sysconf), intent(inout) :: sysc
        logical, intent(in) :: transient

@@ -26,6 +26,7 @@ module energy
 
   public :: calculator
   public :: ff_backend_applicable
+  public :: ff_backend_default
   public :: ff_backend_label
   public :: ff_name_to_backend
 
@@ -35,6 +36,10 @@ module energy
   integer, parameter, public :: ff_tip4p = 2 !< built-in TIP4P water model (molecules only)
   integer, parameter, public :: ff_gfnff = 3 !< xtb library (GFN-FF)
   integer, parameter, public :: ff_dreiding = 4 !< built-in DREIDING generic force field
+
+  ! all energy backends, in display order (ff_backend_default has its
+  ! own preference-order list; extend both when adding a backend)
+  integer, parameter, public :: ff_list(5) = (/ff_uff, ff_dreiding, ff_gfnxtb, ff_gfnff, ff_tip4p/)
 
   ! tblite methods (used only by the tblite backend)
   integer, parameter, public :: tbm_gfn2 = 1 !< GFN2-xTB
@@ -233,6 +238,11 @@ module energy
        class(crystal), intent(in) :: c
        logical :: ok
      end function ff_backend_applicable
+     module function ff_backend_default(c) result(backend)
+       use crystalmod, only: crystal
+       class(crystal), intent(in) :: c
+       integer :: backend
+     end function ff_backend_default
      module function ff_backend_label(backend,method) result(lbl)
        integer, intent(in) :: backend
        integer, intent(in), optional :: method

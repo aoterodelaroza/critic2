@@ -327,6 +327,7 @@ module windows
   integer, public :: iwin_about
   public :: windows_init
   public :: vm_is_forcedpick
+  public :: draw_ff_backend_combo
 
   ! window types
   integer, parameter, public :: wintype_tree = 1
@@ -676,6 +677,10 @@ module windows
      module subroutine edit_stop(w)
        class(window), intent(inout) :: w
      end subroutine edit_stop
+     module subroutine draw_ff_backend_combo(isys,strid,nchars)
+       integer, intent(in) :: isys, nchars
+       character(len=*), intent(in) :: strid
+     end subroutine draw_ff_backend_combo
   end interface
 
 end module windows

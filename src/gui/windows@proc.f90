@@ -620,6 +620,47 @@ contains
 
   end subroutine window_end
 
+  !> Draw the energy-backend combo for system isys.
+  module subroutine draw_ff_backend_combo(isys,strid,nchars)
+    use systems, only: sys, sysc
+    use energy, only: ff_list, ff_backend_applicable, ff_backend_label, ff_backend_default
+    use utils, only: iw_combo_simple, iw_calcwidth
+    integer, intent(in) :: isys, nchars
+    character(len=*), intent(in) :: strid
+
+    integer :: i, nback, icombo, backids(size(ff_list))
+    character(len=:), allocatable :: str
+
+    ! resolve the automatic default and inapplicable backends
+    if (sysc(isys)%md_backend < 0 .or.&
+       .not.ff_backend_applicable(sysc(isys)%md_backend,sys(isys)%c)) &
+       sysc(isys)%md_backend = ff_backend_default(sys(isys)%c)
+
+    ! build the list of applicable backends
+    str = ""
+    nback = 0
+    do i = 1, size(ff_list)
+       if (.not.ff_backend_applicable(ff_list(i),sys(isys)%c)) cycle
+       nback = nback + 1
+       backids(nback) = ff_list(i)
+       str = str // trim(ff_backend_label(ff_list(i))) // c_null_char
+    end do
+
+    ! translate the stored backend id to its position in the filtered list
+    icombo = 0
+    do i = 1, nback
+       if (backids(i) == sysc(isys)%md_backend) icombo = i - 1
+    end do
+    call igSameLine(0._c_float,-1._c_float)
+    call igPushItemWidth(iw_calcwidth(nchars,1))
+    call iw_combo_simple(strid,str,icombo)
+    call igPopItemWidth()
+
+    ! persist the selection
+    sysc(isys)%md_backend = backids(icombo+1)
+
+  end subroutine draw_ff_backend_combo
+
   !> Return true if the root of this window is focused
   module function window_focused(w)
     use gui_main, only: g

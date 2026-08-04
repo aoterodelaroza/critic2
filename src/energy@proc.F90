@@ -90,6 +90,18 @@ submodule (energy) proc
        type(c_ptr), value :: ctx
        integer(c_int), value :: verbosity
      end subroutine c_tblite_set_context_verbosity
+     function c_tblite_check_context(ctx) bind(c,name="tblite_check_context") result(stat)
+       import c_ptr, c_int
+       type(c_ptr), value :: ctx
+       integer(c_int) :: stat
+     end function c_tblite_check_context
+     subroutine c_tblite_get_context_error(ctx,buffer,buffersize) &
+        bind(c,name="tblite_get_context_error")
+       import c_ptr, c_char, c_int
+       type(c_ptr), value :: ctx
+       character(kind=c_char), intent(inout) :: buffer(*)
+       integer(c_int), intent(in) :: buffersize
+     end subroutine c_tblite_get_context_error
      function c_tblite_new_structure(err,natoms,numbers,positions,charge,uhf,lattice,periodic) &
         bind(c,name="tblite_new_structure") result(h)
        import c_ptr, c_int
@@ -360,6 +372,27 @@ contains
     end select
 
   end function ff_backend_applicable
+
+  !> Preferred energy backend for system c: the first applicable of
+  !> GFN2-xTB (tblite), GFN-FF (xtb), TIP4P (all-water molecules),
+  !> DREIDING (all elements parametrized), and UFF (always applicable).
+  module function ff_backend_default(c) result(backend)
+    use crystalmod, only: crystal
+    class(crystal), intent(in) :: c
+    integer :: backend
+
+    integer :: i
+    integer, parameter :: pref(5) = (/ff_tip4p, ff_gfnxtb, ff_gfnff, ff_dreiding, ff_uff/)
+
+    backend = ff_uff
+    do i = 1, size(pref)
+       if (ff_backend_applicable(pref(i),c)) then
+          backend = pref(i)
+          return
+       end if
+    end do
+
+  end function ff_backend_default
 
   !> Map a lowercase force-field name to its backend (ff_*) and method
   !> (tbm_*). ok is false for an unrecognized name.
@@ -3158,6 +3191,27 @@ contains
 
   ! ---- tblite (GFN2/GFN1-xTB) backend ----
 
+#ifdef HAVE_TBLITE
+  !> Retrieve (and clear) the error message stored in the tblite
+  !> calculation context.
+  function tblite_context_error_string(ctx) result(msg)
+    use c_interface_module, only: c_f_string
+    type(c_ptr), intent(in) :: ctx
+    character(len=:), allocatable :: msg
+
+    integer, parameter :: buflen = 512
+    character(kind=c_char) :: buf(buflen)
+    character(len=buflen) :: tmp
+
+    ! pre-fill with nulls so the buffer is terminated even if tblite
+    ! drops the terminator when the message fills the buffer
+    buf = c_null_char
+    call c_tblite_get_context_error(ctx,buf,int(buflen,c_int))
+    call c_f_string(buf,tmp)
+    msg = trim(tmp)
+  end function tblite_context_error_string
+#endif
+
   module subroutine calc_init_tblite(cl,c,errmsg)
     use crystalmod, only: crystal
     class(calculator), intent(inout) :: cl
@@ -3206,6 +3260,11 @@ contains
     if (.not.(c_associated(cl%tb_mol).and.c_associated(cl%tb_calc).and.&
        c_associated(cl%tb_ctx).and.c_associated(cl%tb_res))) then
        errmsg = "tblite calculator initialization failed"
+       if (c_associated(cl%tb_ctx)) then
+          if (c_tblite_check_context(cl%tb_ctx) /= 0) &
+             errmsg = errmsg // ": " // tblite_context_error_string(cl%tb_ctx)
+       end if
+       call calc_free_tblite(cl)
     end if
 #else
     errmsg = "critic2 was compiled without tblite support"
@@ -3248,8 +3307,16 @@ contains
        call c_tblite_update_structure_geometry(err,cl%tb_mol,c_loc(coords),c_loc(lattice))
     end if
 
-    ! single point
+    ! single point; a failure (e.g. SCF not converged for a distorted
+    ! geometry) must be caught here: calling tblite again with the
+    ! resulting incomplete result container aborts inside the library
     call c_tblite_get_singlepoint(cl%tb_ctx,cl%tb_mol,cl%tb_calc,cl%tb_res)
+    if (c_tblite_check_context(cl%tb_ctx) /= 0) then
+       errmsg = "tblite single-point calculation failed: " //&
+          tblite_context_error_string(cl%tb_ctx)
+       call c_tblite_delete_error(err)
+       return
+    end if
     call c_tblite_get_result_energy(err,cl%tb_res,e_c)
     ene = e_c
     call c_tblite_get_result_gradient(err,cl%tb_res,grad_c)

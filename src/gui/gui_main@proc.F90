@@ -354,14 +354,15 @@ contains
        ! maybe reallocate the window stack
        call stack_realloc_maybe()
 
-       ! advance any running interactive dynamics once per system per frame
-       ! (before drawing, so every view of the system renders the new geometry
-       ! this frame); the dynamics window drives sysc(i)%md_run
+       ! advance any running interactive dynamics once per system per frame before drawing
        do i = 1, nsys
           if (sysc(i)%md_run .and. sysc(i)%md%ready .and. ok_system(i,sys_init)) then
              call sysc(i)%md%step(sys(i)%c)
              sysc(i)%sc%nextbuildlists_fixcam = .true.
              call sysc(i)%post_event(lastchange_geometry)
+             sysc(i)%md_time = glfwGetTime()
+             if (.not.sysc(i)%md%ready .or. sysc(i)%md%converged()) &
+                call sysc(i)%md_stop()
           end if
        end do
 

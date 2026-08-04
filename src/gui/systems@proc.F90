@@ -695,6 +695,54 @@ contains
 
   end subroutine rebond
 
+  !> Start (or resume) the MD/relaxation run for this system in the
+  !> given mode (md_dynamics/md_relax). errmsg is non-empty on
+  !> failure.
+  module subroutine md_start(sysc,mode,errmsg)
+    use interfaces_glfw, only: glfwGetTime
+    use dynamics, only: md_relax
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: mode
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: id
+    logical :: needinit
+
+    errmsg = ""
+    id = sysc%id
+    if (.not.ok_system(id,sys_init)) return
+
+    needinit = .not.sysc%md%ready
+    if (.not.needinit) needinit = sysc%md%cl%backend /= sysc%md_backend
+    if (.not.needinit) needinit = sysc%md%nat /= sys(id)%c%ncel
+    if (.not.needinit) needinit = sysc%timelastchange_geometry > sysc%md_time
+    if (needinit) then
+       call sysc%md%init(sys(id)%c,backend=sysc%md_backend,mode=mode,errmsg=errmsg)
+       if (len_trim(errmsg) > 0) return
+    elseif (mode == md_relax .and. sysc%md%mode /= md_relax) then
+       ! switching a live run to relaxation: drop the thermal velocities
+       sysc%md%v = 0d0
+    end if
+    sysc%md%mode = mode
+    sysc%md_run = .true.
+    sysc%md_time = glfwGetTime()
+
+  end subroutine md_start
+
+  !> Stop the MD/relaxation run and rebuild the structure from the
+  !> current positions.
+  module subroutine md_stop(sysc)
+    class(sysconf), intent(inout) :: sysc
+
+    sysc%md_run = .false.
+    if (.not.ok_system(sysc%id,sys_init)) return
+    if (.not.sysc%md%ready .and. .not.allocated(sysc%md%r)) return
+    call sys(sysc%id)%c%rebuild_after_move()
+    sysc%sc%nextbuildlists_fixcam = .true.
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine md_stop
+
   !> Reset the undo/redo history for this system: discard all saved states
   !> and re-seed the history with the current geometry (if the system is
   !> initialized). Called when a system is first initialized or reloaded.

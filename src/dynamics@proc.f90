@@ -252,6 +252,30 @@ contains
 
   end function md_pressure
 
+  !> Largest atomic force magnitude of the last evaluation, in
+  !> eV/angstrom (0 if no forces are available).
+  module function md_maxforce(md) result(f)
+    use param, only: hartoev, bohrtoa
+    class(mdrun), intent(in) :: md
+    real*8 :: f
+
+    f = 0d0
+    if (md%nat > 0 .and. allocated(md%f)) &
+       f = maxval(norm2(md%f,1)) * hartoev / bohrtoa
+
+  end function md_maxforce
+
+  !> Whether a relaxation run has converged: the maximum force is at
+  !> or below the fconv threshold. Always false for dynamics runs.
+  module function md_converged(md) result(conv)
+    class(mdrun), intent(in) :: md
+    logical :: conv
+
+    conv = md%ready .and. md%mode == md_relax .and. md%nat > 0
+    if (conv) conv = md%maxforce() <= md%fconv
+
+  end function md_converged
+
   !> Release the run and its calculator.
   module subroutine md_free(md)
     class(mdrun), intent(inout) :: md

@@ -27,26 +27,22 @@ contains
   module subroutine draw_dynamics(w)
     use systems, only: sysc, sys, sys_init, ok_system, lastchange_geometry
     use dynamics, only: md_dynamics, md_relax
-    use energy, only: ff_uff, ff_dreiding, ff_gfnxtb, ff_gfnff, ff_tip4p, ff_backend_applicable, ff_backend_label
     use utils, only: iw_text, iw_button, iw_tooltip, iw_calcwidth, iw_combo_simple,&
        iw_dragfloat_real8, iw_radiobutton
     use gui_main, only: g
     use keybindings, only: is_bind_event, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG
     use tools_io, only: string
-    use param, only: kcal2ha, hartoev, bohrtoa, autofs
+    use param, only: kcal2ha, autofs
     class(window), intent(inout), target :: w
 
-    logical :: doquit, goodsys, goodparent, needinit, ldum, haspress
-    integer :: isys, ibackend, nback, icombo, i, backids(5)
+    logical :: doquit, goodsys, goodparent, ldum, haspress
+    integer :: isys
     integer(c_int) :: imode, tflags
     real*8 :: pgpa
     type(ImVec2) :: szavail, sz0
-    character(len=:), allocatable :: errmsg, str_backend
+    character(len=:), allocatable :: errmsg
     character(len=:,kind=c_char), allocatable, target :: str1, str2
-
-    ! candidate MD/relaxation backends in preference order
-    integer, parameter :: backids_all(5) = (/ff_uff, ff_dreiding, ff_gfnxtb, ff_gfnff, ff_tip4p/)
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -79,28 +75,7 @@ contains
        ! method used for MD/relaxation
        call igAlignTextToFramePadding()
        call iw_text("Method",highlight=.true.)
-       str_backend = ""
-       nback = 0
-       do i = 1, size(backids_all)
-          if (.not.ff_backend_applicable(backids_all(i),sys(isys)%c)) cycle
-          nback = nback + 1
-          backids(nback) = backids_all(i)
-          str_backend = str_backend // trim(ff_backend_label(backids_all(i))) // c_null_char
-       end do
-
-       ! translate the stored backend id to its position in the filtered list
-       ibackend = sysc(isys)%md_backend
-       icombo = 0
-       do i = 1, nback
-          if (backids(i) == ibackend) icombo = i - 1
-       end do
-       call igSameLine(0._c_float,-1._c_float)
-       call igPushItemWidth(iw_calcwidth(21,1))
-       call iw_combo_simple("##dynamicsengine",str_backend,icombo)
-       call igPopItemWidth()
-
-       ! persist the selection (also snaps a no-longer-applicable backend to UFF)
-       sysc(isys)%md_backend = backids(icombo+1)
+       call draw_ff_backend_combo(isys,"##dynamicsengine",21)
        call iw_tooltip("Method for the calculation of energies, forces, and stress.",ttshown)
 
        ! mode (dynamics vs relaxation), bound live to the run: two radio buttons
@@ -128,17 +103,10 @@ contains
        ! run / pause
        if (.not.sysc(isys)%md_run) then
           if (iw_button("RUN",danger=.true.)) then
-             needinit = (.not.sysc(isys)%md%ready) .or. (sysc(isys)%md%cl%backend /= sysc(isys)%md_backend)
-             w%errmsg = ""
-             if (needinit) then
-                call sysc(isys)%md%init(sys(isys)%c,backend=sysc(isys)%md_backend,errmsg=errmsg)
-                sysc(isys)%md%mode = imode
-                w%errmsg = errmsg
-             end if
-             if (len_trim(w%errmsg) == 0) then
-                sysc(isys)%md_run = .true.
+             call sysc(isys)%md_start(int(imode),errmsg)
+             w%errmsg = errmsg
+             if (len_trim(w%errmsg) == 0) &
                 win(w%idparent)%forcerender = .true.
-             end if
           end if
           call iw_tooltip("Start (or resume) the simulation",ttshown)
        else
@@ -185,7 +153,7 @@ contains
                 ! relaxation: convergence indicator (largest atomic force)
                 if (sysc(isys)%md%nat > 0) &
                    call status_row("Max |force| (eV/A)",&
-                      string(maxval(norm2(sysc(isys)%md%f,1))*hartoev/bohrtoa,'f',decimal=4))
+                      string(sysc(isys)%md%maxforce(),'f',decimal=4))
              else
                 ! MD: elapsed simulation time and, for crystals, the pressure
                 call status_row("Time (fs)",string(sysc(isys)%md%simtime*autofs,'f',decimal=1))

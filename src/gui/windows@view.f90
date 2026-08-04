@@ -1184,14 +1184,26 @@ contains
     logical :: ok
     integer :: id
 
-    ! while an interactive dynamics run is active on the viewed
-    ! system, force the dedicated MD interaction mode and lock it: the
-    ! user cannot switch modes until the run stops.
+    ! While a run driven by a dynamics window is active on the viewed
+    ! system, force the dedicated MD interaction mode in all views of
+    ! that system and lock it: the user cannot switch modes until the
+    ! run stops.
     if (w%isys >= 1 .and. w%isys <= nsys) then
        if (sysc(w%isys)%md_run) then
-          w%viewmode = vm_mdinteract
-          w%viewmode_transient = .false.
-          return
+          do id = 1, nwin
+             if (.not.win(id)%isinit .or. .not.win(id)%isopen) cycle
+             if (win(id)%type /= wintype_dynamics) cycle
+             if (win(id)%idparent < 1 .or. win(id)%idparent > nwin) cycle
+             if (win(win(id)%idparent)%isys /= w%isys) cycle
+             w%viewmode = vm_mdinteract
+             w%viewmode_transient = .false.
+             return
+          end do
+          if (w%viewmode >= 0) then
+             w%viewmode = vm_navigate
+             w%viewmode_transient = .false.
+             return
+          end if
        end if
     end if
     if (w%viewmode == vm_mdinteract) then

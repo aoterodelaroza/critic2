@@ -27,6 +27,8 @@ contains
   module subroutine draw_builder(w)
     use systems, only: sys, sysc, ok_system, sys_init, lastchange_geometry,&
        reread_system_from_file, atlisttype_ncel_frac
+    use dynamics, only: md_relax
+    use energy, only: ff_backend_applicable, ff_backend_default
     use gui_main, only: ColorHighlightEditDistScene
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_PICKATOM_SELECT,&
@@ -40,9 +42,9 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: isys, iview, icel, imode, nsel, iside, ibold, ibnew
-    logical :: doquit, goodparent, havesys, ok, lcommit, ldum
+    logical :: doquit, goodparent, havesys, ok, lcommit, ldum, relaxing
     real*8 :: dist, ang
-    character(len=:), allocatable :: stropt
+    character(len=:), allocatable :: stropt, errmsg
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -372,6 +374,65 @@ contains
     if (w%edit_kind /= 0) &
        call sysc(w%edit_isys)%highlight_atoms(.true.,w%edit_idx(1,1:w%edit_kind),&
        atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,w%edit_kind))
+
+    ! the relax section
+    call iw_text("Relax",highlight=.true.)
+    relaxing = .false.
+    if (havesys) then
+       relaxing = sysc(isys)%md_run .and. sysc(isys)%md%mode == md_relax
+       ! resolve the method before the button (the combo below would
+       ! only snap an inapplicable backend after this frame's click)
+       if (sysc(isys)%md_backend < 0 .or.&
+          .not.ff_backend_applicable(sysc(isys)%md_backend,sys(isys)%c)) &
+          sysc(isys)%md_backend = ff_backend_default(sys(isys)%c)
+    end if
+    if (.not.relaxing) then
+       ok = havesys
+       if (ok) ok = .not.sysc(isys)%md_run
+       if (iw_button("Relax",danger=.true.,disabled=.not.ok)) then
+          ! release any edit session (a running relaxation ends it anyway)
+          call w%edit_stop()
+          call sysc(isys)%md_start(md_relax,errmsg)
+          w%errmsg = errmsg
+          if (len_trim(w%errmsg) == 0) then
+             if (associated(win(iview)%sc)) win(iview)%forcerender = .true.
+          end if
+       end if
+       call iw_tooltip("Relax the geometry to the nearest energy minimum, stopping when"//&
+          " the maximum force falls below the threshold",ttshown)
+    else
+       if (iw_button("Stop",danger=.true.)) then
+          call sysc(isys)%md_stop()
+          if (associated(win(iview)%sc)) win(iview)%forcerender = .true.
+       end if
+       call iw_tooltip("Stop the geometry relaxation",ttshown)
+    end if
+
+    if (havesys) then
+       ! method combo, next to the button
+       call draw_ff_backend_combo(isys,"##builderrelaxmethod",15)
+       call iw_tooltip("Method for the calculation of energies and forces",ttshown)
+
+       ! force convergence threshold
+       ldum = iw_dragfloat_real8("Force threshold (eV/Å)##relaxfconv",x1=sysc(isys)%md%fconv,&
+          speed=0.0005d0,min=0.0001d0,max=1d0,decimal=4,flags=ImGuiSliderFlags_AlwaysClamp)
+       call iw_tooltip("Stop the relaxation when the maximum force falls below this value",ttshown)
+
+       ! live status: energy and maximum force
+       if (sysc(isys)%md%ready .and. sysc(isys)%md%nat > 0 .and.&
+          sysc(isys)%md%mode == md_relax) then
+          call iw_text("Energy: "//string(sysc(isys)%md%epot,'f',decimal=6)//" Ha")
+          call iw_text("Max force: "//string(sysc(isys)%md%maxforce(),'f',decimal=4)//" eV/Å")
+          if (.not.sysc(isys)%md_run .and. sysc(isys)%md%converged()) &
+             call iw_text("(converged)",highlight=.true.,sameline=.true.)
+       end if
+
+       ! surface force-evaluation errors from the run
+       if (allocated(sysc(isys)%md%errmsg)) then
+          if (len_trim(sysc(isys)%md%errmsg) > 0) &
+             call iw_text(trim(sysc(isys)%md%errmsg),danger=.true.)
+       end if
+    end if
 
     ! the symmetry section
     call iw_text("Symmetry",highlight=.true.)

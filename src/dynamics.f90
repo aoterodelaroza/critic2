@@ -43,6 +43,7 @@ module dynamics
      real*8 :: dt = 20d0 !< timestep, a.u. (~0.48 fs)
      real*8 :: temperature = 300d0 !< target temperature, K
      real*8 :: gamma = 2d-3 !< Langevin friction, 1/a.u.
+     real*8 :: fconv = 0.005d0 !< relaxation force convergence threshold, eV/angstrom
      real*8 :: ekin = 0d0 !< last kinetic energy, hartree
      real*8 :: epot = 0d0 !< last potential energy, hartree
      real*8 :: stress(3,3) = 0d0 !< last virial stress (hartree/bohr**3), crystals only
@@ -65,6 +66,8 @@ module dynamics
      procedure :: init_velocities => md_init_velocities
      procedure :: temperature_now => md_temperature
      procedure :: pressure => md_pressure
+     procedure :: maxforce => md_maxforce
+     procedure :: converged => md_converged
      procedure :: free => md_free
   end type mdrun
 
@@ -104,6 +107,14 @@ module dynamics
        logical, intent(out) :: ok
        real*8 :: p
      end function md_pressure
+     module function md_maxforce(md) result(f)
+       class(mdrun), intent(in) :: md
+       real*8 :: f
+     end function md_maxforce
+     module function md_converged(md) result(conv)
+       class(mdrun), intent(in) :: md
+       logical :: conv
+     end function md_converged
      module subroutine md_free(md)
        class(mdrun), intent(inout) :: md
      end subroutine md_free
