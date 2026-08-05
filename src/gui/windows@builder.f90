@@ -1340,11 +1340,11 @@ contains
 
     end subroutine addatom_fit_rec
 
-    ! Horn's quaternion fit for the assignment iasg: the rotation rot
-    ! maximizes sum_j u(:,j) . rot t(:,iasg(j)); the score s is the
-    ! largest eigenvalue of the quaternion matrix (m at perfect fit).
+    ! Horn's quaternion fit (tools_math's rotation_horn) for the
+    ! assignment iasg: the rotation rot maximizes
+    ! sum_j u(:,j) . rot t(:,iasg(j)); the score s is m at perfect fit.
     subroutine addatom_horn(m,u,t,iasg,s,rot,ier)
-      use tools_math, only: eigsym, quat2mat
+      use tools_math, only: rotation_horn
       integer, intent(in) :: m
       real*8, intent(in) :: u(3,*), t(3,*)
       integer, intent(in) :: iasg(maxaddsub)
@@ -1352,39 +1352,13 @@ contains
       real*8, intent(out) :: rot(3,3)
       integer, intent(out) :: ier
 
-      real*8 :: sm(3,3), kk(4,4), eval(4)
-      integer :: j, a, b
+      real*8 :: tp(3,maxaddsub)
+      integer :: j
 
-      s = -huge(1d0)
-      rot = eye
-      sm = 0d0
       do j = 1, m
-         do b = 1, 3
-            do a = 1, 3
-               sm(a,b) = sm(a,b) + t(a,iasg(j)) * u(b,j)
-            end do
-         end do
+         tp(:,j) = t(:,iasg(j))
       end do
-      kk(1,1) = sm(1,1) + sm(2,2) + sm(3,3)
-      kk(1,2) = sm(2,3) - sm(3,2)
-      kk(1,3) = sm(3,1) - sm(1,3)
-      kk(1,4) = sm(1,2) - sm(2,1)
-      kk(2,2) = sm(1,1) - sm(2,2) - sm(3,3)
-      kk(2,3) = sm(1,2) + sm(2,1)
-      kk(2,4) = sm(1,3) + sm(3,1)
-      kk(3,3) = -sm(1,1) + sm(2,2) - sm(3,3)
-      kk(3,4) = sm(2,3) + sm(3,2)
-      kk(4,4) = -sm(1,1) - sm(2,2) + sm(3,3)
-      kk(2,1) = kk(1,2)
-      kk(3,1) = kk(1,3)
-      kk(4,1) = kk(1,4)
-      kk(3,2) = kk(2,3)
-      kk(4,2) = kk(2,4)
-      kk(4,3) = kk(3,4)
-      call eigsym(kk,4,eval,ier)
-      if (ier /= 0) return
-      s = eval(4)
-      rot = quat2mat(kk(:,4))
+      call rotation_horn(tp(:,1:m),u(:,1:m),rot,s=s,ier=ier)
 
     end subroutine addatom_horn
 

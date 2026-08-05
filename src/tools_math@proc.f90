@@ -1681,6 +1681,63 @@ contains
     end function qmat
   end function rmsd_walker
 
+  !> Find the rotation that best aligns the paired vectors x1 -> x2
+  !> about a fixed origin. rot maximizes sum_i x2(:,i)·(rot x1(:,i))
+  !> using Horn's quaternion method, J. Opt. Soc. Am. A 4 (1987) 629.
+  !> Unlike rmsd_walker, the centroids are not removed, so this is
+  !> appropriate for fitting sets of directions. s, if present, is the
+  !> largest eigenvalue of the quaternion matrix (sum_i |x1_i||x2_i|)
+  !> ier, if present, is non-zero if error.
+  module subroutine rotation_horn(x1,x2,rot,s,ier)
+    use param, only: eye
+    real*8, intent(in) :: x1(:,:), x2(:,:)
+    real*8, intent(out) :: rot(3,3)
+    real*8, intent(out), optional :: s
+    integer, intent(out), optional :: ier
+
+    real*8 :: sm(3,3), kk(4,4), eval(4)
+    integer :: n, j, a, b, ier_
+
+    rot = eye
+    if (present(s)) s = -huge(1d0)
+    if (present(ier)) ier = 0
+    n = min(size(x1,2),size(x2,2))
+
+    ! the correlation matrix and Horn's 4x4 quaternion matrix
+    sm = 0d0
+    do j = 1, n
+       do b = 1, 3
+          do a = 1, 3
+             sm(a,b) = sm(a,b) + x1(a,j) * x2(b,j)
+          end do
+       end do
+    end do
+    kk(1,1) = sm(1,1) + sm(2,2) + sm(3,3)
+    kk(1,2) = sm(2,3) - sm(3,2)
+    kk(1,3) = sm(3,1) - sm(1,3)
+    kk(1,4) = sm(1,2) - sm(2,1)
+    kk(2,2) = sm(1,1) - sm(2,2) - sm(3,3)
+    kk(2,3) = sm(1,2) + sm(2,1)
+    kk(2,4) = sm(1,3) + sm(3,1)
+    kk(3,3) = -sm(1,1) + sm(2,2) - sm(3,3)
+    kk(3,4) = sm(2,3) + sm(3,2)
+    kk(4,4) = -sm(1,1) - sm(2,2) + sm(3,3)
+    kk(2,1) = kk(1,2)
+    kk(3,1) = kk(1,3)
+    kk(4,1) = kk(1,4)
+    kk(3,2) = kk(2,3)
+    kk(4,2) = kk(2,4)
+    kk(4,3) = kk(3,4)
+
+    ! the rotation quaternion is the top eigenvector
+    call eigsym(kk,4,eval,ier_)
+    if (present(ier)) ier = ier_
+    if (ier_ /= 0) return
+    if (present(s)) s = eval(4)
+    rot = quat2mat(kk(:,4))
+
+  end subroutine rotation_horn
+
   !> Find the Gauss-Legendre nodes and weights for an interval.
   pure module subroutine gauleg(x1,x2,x,w,n)
     use param, only: pi

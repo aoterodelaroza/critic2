@@ -65,6 +65,7 @@ module tools_math
   public :: comb
   public :: nchoosek
   public :: rmsd_walker
+  public :: rotation_horn
   public :: gauleg
   public :: bhole
   public :: xlnorm
@@ -357,6 +358,12 @@ module tools_math
        real*8, intent(out), optional :: mrot(3,3)
        real*8 :: rmsd
      end function rmsd_walker
+     module subroutine rotation_horn(x1,x2,rot,s,ier)
+       real*8, intent(in) :: x1(:,:), x2(:,:)
+       real*8, intent(out) :: rot(3,3)
+       real*8, intent(out), optional :: s
+       integer, intent(out), optional :: ier
+     end subroutine rotation_horn
      pure module subroutine gauleg (x1,x2,x,w,n)
        real*8, intent(in) :: x1
        real*8, intent(in) :: x2
