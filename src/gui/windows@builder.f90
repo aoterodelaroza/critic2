@@ -1175,12 +1175,11 @@ contains
       real*8, intent(in) :: rcam(3,3)
 
       integer :: isysl, nsub, m, ndel, nadd, k, nb, ncon, znew, zanchor
-      integer, allocatable :: idel(:)
-      real*8 :: tvec(3,maxaddsub), xat(3,maxaddsub+1), rot(3,3)
-      real*8 :: x0(3), dir(3), bl, dnorm
-      real*8, allocatable :: ufix(:,:)
+      integer, allocatable :: idel(:), zat(:)
+      real*8 :: tvec(3,maxaddsub), rot(3,3)
+      real*8 :: x0(3), dir(3), bl, dnorm, xshift(3)
+      real*8, allocatable :: ufix(:,:), xat(:,:)
       logical :: used(maxaddsub), isterm
-      integer :: zat(maxaddsub+1)
 
       isysl = w%builder_isys
       if (icel < 1 .or. icel > sys(isysl)%c%ncel) return
@@ -1192,6 +1191,7 @@ contains
       x0 = sys(isysl)%c%atcel(icel)%r
       ncon = sys(isysl)%c%nstar(icel)%ncon
       allocate(idel(ncon+1),ufix(3,max(ncon,1)))
+      allocate(zat(max(maxaddsub,ncon)+1),xat(3,max(maxaddsub,ncon)+1))
       ndel = 1
       idel(1) = icel
       m = 0
@@ -1213,11 +1213,26 @@ contains
          end if
       end do
 
-      ! enough kept substituents: replace the element in place, keeping all neighbors
+      ! enough kept substituents: replace the element in place
       if (m >= nsub) then
+         xshift = 0d0
+         if (m == 1) then
+            dir = x0 - ufix(:,1)
+            dnorm = norm2(dir)
+            if (dnorm < eps_dzero) return
+            xshift = ufix(:,1) + (sysc(isysl)%atmcov(zanchor) + sysc(isysl)%atmcov(znew)) *&
+               dir / dnorm - x0
+         end if
+         nadd = 1
          zat(1) = znew
-         xat(:,1) = x0
-         call sysc(isysl)%replace_atoms_fragment(1,(/icel/),1,zat(1:1),xat(:,1:1))
+         xat(:,1) = x0 + xshift
+         do k = 2, ndel
+            ! the terminal hydrogens collected in idel(2:)
+            nadd = nadd + 1
+            zat(nadd) = 1
+            xat(:,nadd) = sys(isysl)%c%atcel(idel(k))%r + xshift
+         end do
+         call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:ndel),nadd,zat(1:nadd),xat(:,1:nadd))
          return
       end if
 
