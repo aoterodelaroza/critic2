@@ -160,6 +160,8 @@ module systems
      procedure :: add_bond
      procedure :: change_valence
      procedure :: remove_atom_hydrogens
+     procedure :: add_atoms_fragment
+     procedure :: replace_atoms_fragment
      procedure :: reread_geometry_from_file
      procedure :: move_cell
      procedure :: transform_cell
@@ -485,6 +487,20 @@ module systems
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: icel
      end subroutine remove_atom_hydrogens
+     module subroutine add_atoms_fragment(sysc,nat,zat,x)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: nat
+       integer, intent(in) :: zat(nat)
+       real*8, intent(in) :: x(3,nat)
+     end subroutine add_atoms_fragment
+     module subroutine replace_atoms_fragment(sysc,ndel,idel,nadd,zat,x)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: ndel
+       integer, intent(in) :: idel(ndel)
+       integer, intent(in) :: nadd
+       integer, intent(in) :: zat(nadd)
+       real*8, intent(in) :: x(3,nadd)
+     end subroutine replace_atoms_fragment
      module subroutine reread_geometry_from_file(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine reread_geometry_from_file

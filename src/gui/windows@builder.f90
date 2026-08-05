@@ -30,20 +30,22 @@ contains
     use dynamics, only: md_relax
     use energy, only: ff_backend_applicable, ff_backend_default
     use gui_main, only: ColorHighlightEditDistScene
-    use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8
+    use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
+       iw_periodictable, iw_calcwidth, invmult, mult
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_PICKATOM_SELECT,&
        BIND_PICKATOM_ALT, BIND_RECALC_BONDS, BIND_NAV_MEASURE, BIND_EDIT_D_A_PHI,&
        BIND_REOPEN, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
        BIND_OK_FOCUSED_DIALOG, BIND_CANCEL
     use interfaces_glfw, only: glfwGetTime
-    use tools_io, only: string
+    use tools_io, only: string, nameguess
     use tools_math, only: cross, axisangle2mat
-    use param, only: bohrtoa, pi
+    use param, only: bohrtoa, pi, eye
     class(window), intent(inout), target :: w
 
-    integer :: isys, iview, icel, imode, nsel, iside, ibold, ibnew
+    integer :: isys, iview, icel, imode, nsel, iside, ibold, ibnew, izout, i
     logical :: doquit, goodparent, havesys, ok, lcommit, ldum, relaxing
     real*8 :: dist, ang
+    real(c_float) :: xclick(2)
     character(len=:), allocatable :: stropt, errmsg
 
     logical, save :: ttshown = .false. ! tooltip flag
@@ -52,6 +54,15 @@ contains
     real*8, parameter :: eps_dzero = 1d-10 ! degenerate-distance threshold (bohr)
     ! bond order for each bond-combo index >= 1 (single, double, triple, dashed, aromatic)
     integer, parameter :: bondorder(5) = (/1,2,3,0,-1/)
+    ! add-atoms local geometries (see addatom_template for the vertex sets)
+    integer, parameter :: naddgeom = 19
+    integer, parameter :: maxaddsub = 10 ! largest substituent count (pentagonal prism)
+    character(len=*), parameter :: addgeom_names(naddgeom) = [character(len=24) ::&
+       "atom","linear","bent","triangular","trigonal pyramid","T-shape",&
+       "tetrahedral","square planar","trigonal bipyramid","square pyramid",&
+       "octahedral","trigonal antiprism","pentagonal bipyramid","capped octahedron",&
+       "square antiprism","trigonal dodecahedron","tricapped trigonal prism",&
+       "capped square antiprism","pentagonal prism"]
 
     ! do we have a good parent window (a view)? A hidden view is still
     ! good: the builder survives the hide and the mode can be released
@@ -94,6 +105,25 @@ contains
           ! another window took over the pick, or the view shows another
           ! system: release the forced mode
           call builder_stop()
+       elseif (w%builder_vm == vm_builder_addatom) then
+          ! keep the mouse tooltip current
+          win(iview)%vmdata%tooltip = trim(nameguess(w%builder_addatom_z,.true.))//&
+             " ("//trim(addgeom_names(w%builder_addatom_ig+1))//")"
+          if (win(iview)%vmdata%flag /= 0) then
+             ! a click was delivered: add the fragment at the clicked position or replace the clicked atom
+             icel = win(iview)%vmdata%idx(1)
+             xclick = win(iview)%vmdata%xpos
+             win(iview)%vmdata%flag = 0
+             win(iview)%vmdata%idx = 0
+             if (glfwGetTime() - w%builder_time < stale_gap .and.&
+                sysc(w%builder_isys)%timelastchange_geometry <= w%builder_time) then
+                call addatom_apply(xclick,icel)
+                if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
+             end if
+          else
+             ! no click pending: stamp the reference time
+             w%builder_time = glfwGetTime()
+          end if
        elseif (win(iview)%vmdata%idx(1) > 0) then
           ! An atom click was delivered: apply the edit and stay in
           ! the mode. Discard stale clicks: those delivered while the
@@ -138,6 +168,43 @@ contains
     end if
     call iw_tooltip("Restore the system to the original geometry it had when it was"//&
        " first opened ("//trim(get_bind_keyname(BIND_REOPEN))//")",ttshown)
+
+    ! the add section
+    call iw_text("Add",highlight=.true.)
+    if (w%builder_vm == vm_builder_addatom) then
+       ! armed: the button cancels the mode
+       if (iw_button("Add Atoms",danger=.true.)) &
+          call builder_stop()
+       call iw_tooltip("Stop adding atoms ("//trim(get_bind_keyname(BIND_CANCEL))//")",ttshown)
+    else
+       ldum = iw_button("Add Atoms",disabled=.not.havesys,popupcontext=ok,&
+          popupflags=ImGuiPopupFlags_MouseButtonLeft)
+       if (ok) then
+          izout = iw_periodictable()
+          if (izout > 0) then
+             w%errmsg = ""
+             w%builder_addatom_z = izout
+             call builder_toggle(vm_builder_addatom)
+             call igCloseCurrentPopup()
+          end if
+          call igEndPopup()
+       end if
+       call iw_tooltip("Choose an element, then click in the view to add atoms of that"//&
+          " element with the selected local geometry (the substituents are hydrogens)."//&
+          " Clicking an atom replaces it with the new atom, keeping the substituents"//&
+          " that are not terminal hydrogens",ttshown)
+    end if
+    ! the selected element, next to the button
+    call iw_text(trim(nameguess(w%builder_addatom_z,.true.)),sameline=.true.)
+    ! the local geometry combo
+    stropt = ""
+    do i = 1, naddgeom
+       stropt = stropt // trim(addgeom_names(i)) // c_null_char
+    end do
+    call igPushItemWidth(iw_calcwidth(23,1))
+    call iw_combo_simple("Local geometry##builderaddgeom",stropt,w%builder_addatom_ig)
+    call igPopItemWidth()
+    call iw_tooltip("Local geometry of the added atom (the substituents are hydrogens)",ttshown)
 
     ! the atoms section
     call iw_text("Atoms",highlight=.true.)
@@ -1039,6 +1106,431 @@ contains
       w%builder_isys = 0
     end subroutine builder_stop
 
+    ! Add-atoms mode: on empty space (icel = 0), unproject the clicked
+    ! texture position xpos to the plane parallel to the screen
+    ! through the scene center and add the fragment there. On an atom
+    ! (icel > 0), replace it (see addatom_replace).
+    subroutine addatom_apply(xpos,icel)
+      real(c_float), intent(in) :: xpos(2)
+      integer, intent(in) :: icel
+
+      real(c_float) :: v0(3), vx(3), vy(3)
+      real*8 :: x0(3), rot(3,3), bl
+      real*8 :: tvec(3,maxaddsub), xat(3,maxaddsub+1)
+      integer :: zat(maxaddsub+1), nsub, nat, k
+
+      if (.not.associated(win(iview)%sc)) return
+
+      ! depth of the scene center (tworld), then unproject the click
+      ! and two offset points to get the placement and camera axes
+      ! (texture y points up)
+      call mult(v0,win(iview)%sc%world,win(iview)%sc%scenecenter)
+      call win(iview)%world_to_texpos(v0)
+      vx = (/xpos(1) + 10._c_float, xpos(2), v0(3)/)
+      vy = (/xpos(1), xpos(2) + 10._c_float, v0(3)/)
+      v0 = (/xpos(1), xpos(2), v0(3)/)
+      call win(iview)%texpos_to_world(v0)
+      call win(iview)%texpos_to_world(vx)
+      call win(iview)%texpos_to_world(vy)
+      ! transform to world coordinates
+      call invmult(v0,win(iview)%sc%world)
+      call invmult(vx,win(iview)%sc%world)
+      call invmult(vy,win(iview)%sc%world)
+      x0 = real(v0,8)
+      ! camera axes as the columns of a rotation: (x,y,z) =
+      ! (screen right, screen up, toward the viewer)
+      rot(:,1) = real(vx - v0,8)
+      rot(:,1) = rot(:,1) / norm2(rot(:,1))
+      rot(:,2) = real(vy - v0,8)
+      rot(:,2) = rot(:,2) - dot_product(rot(:,2),rot(:,1)) * rot(:,1)
+      rot(:,2) = rot(:,2) / norm2(rot(:,2))
+      rot(:,3) = cross(rot(:,1),rot(:,2))
+
+      ! clicked on an atom: replace it instead
+      if (icel > 0) then
+         call addatom_replace(icel,rot)
+         return
+      end if
+
+      ! the fragment: central atom plus hydrogens (per-system covalent
+      ! radii, same source as change_valence)
+      call addatom_template(w%builder_addatom_ig,nsub,tvec)
+      nat = 1 + nsub
+      zat(1) = w%builder_addatom_z
+      xat(:,1) = x0
+      if (nsub > 0) then
+         bl = sysc(w%builder_isys)%atmcov(zat(1)) + sysc(w%builder_isys)%atmcov(1)
+         do k = 1, nsub
+            zat(1+k) = 1
+            xat(:,1+k) = x0 + bl * matmul(rot,tvec(:,k))
+         end do
+      end if
+      call sysc(w%builder_isys)%add_atoms_fragment(nat,zat(1:nat),xat(:,1:nat))
+
+    end subroutine addatom_apply
+
+    ! Add-atoms mode, click on cell atom icel: replace it with the fragment.
+    subroutine addatom_replace(icel,rcam)
+      integer, intent(in) :: icel
+      real*8, intent(in) :: rcam(3,3)
+
+      integer :: isysl, nsub, m, ndel, nadd, k, nb, ncon, znew, zanchor
+      integer, allocatable :: idel(:)
+      real*8 :: tvec(3,maxaddsub), xat(3,maxaddsub+1), rot(3,3)
+      real*8 :: x0(3), dir(3), bl, dnorm
+      real*8, allocatable :: ufix(:,:)
+      logical :: used(maxaddsub), isterm
+      integer :: zat(maxaddsub+1)
+
+      isysl = w%builder_isys
+      if (icel < 1 .or. icel > sys(isysl)%c%ncel) return
+      if (.not.allocated(sys(isysl)%c%nstar)) return
+      znew = w%builder_addatom_z
+      call addatom_template(w%builder_addatom_ig,nsub,tvec)
+
+      ! classify the neighbors: kept substituents vs terminal hydrogens
+      x0 = sys(isysl)%c%atcel(icel)%r
+      ncon = sys(isysl)%c%nstar(icel)%ncon
+      allocate(idel(ncon+1),ufix(3,max(ncon,1)))
+      ndel = 1
+      idel(1) = icel
+      m = 0
+      zanchor = 0
+      do k = 1, ncon
+         nb = sys(isysl)%c%nstar(icel)%idcon(k)
+         isterm = ncon > 1 .and. sys(isysl)%c%spc(sys(isysl)%c%atcel(nb)%is)%z == 1
+         if (isterm) isterm = sys(isysl)%c%nstar(nb)%ncon == 1
+         if (isterm) then
+            if (.not.any(idel(1:ndel) == nb)) then
+               ndel = ndel + 1
+               idel(ndel) = nb
+            end if
+         else
+            m = m + 1
+            ufix(:,m) = sys(isysl)%c%x2c(sys(isysl)%c%atcel(nb)%x +&
+               dble(sys(isysl)%c%nstar(icel)%lcon(:,k)))
+            zanchor = sys(isysl)%c%spc(sys(isysl)%c%atcel(nb)%is)%z
+         end if
+      end do
+
+      ! enough kept substituents: replace the element in place, keeping all neighbors
+      if (m >= nsub) then
+         zat(1) = znew
+         xat(:,1) = x0
+         call sysc(isysl)%replace_atoms_fragment(1,(/icel/),1,zat(1:1),xat(:,1:1))
+         return
+      end if
+
+      ! on a single kept substituent, re-bond the new atom at the
+      ! covalent distance along the old bond direction
+      if (m == 1) then
+         dir = x0 - ufix(:,1)
+         dnorm = norm2(dir)
+         if (dnorm < eps_dzero) return
+         x0 = ufix(:,1) + (sysc(isysl)%atmcov(zanchor) + sysc(isysl)%atmcov(znew)) *&
+            dir / dnorm
+      end if
+
+      ! unit directions from the new atom to the kept substituents
+      do k = 1, m
+         dir = ufix(:,k) - x0
+         dnorm = norm2(dir)
+         if (dnorm < eps_dzero) return
+         ufix(:,k) = dir / dnorm
+      end do
+
+      ! template orientation: fit the kept substituent directions, or
+      ! align to the camera if there are none
+      if (m > 0) then
+         call addatom_fit(m,ufix,nsub,tvec,rot,used)
+      else
+         rot = rcam
+         used = .false.
+      end if
+
+      ! the new atom plus hydrogens on the unassigned template slots
+      nadd = 1
+      zat(1) = znew
+      xat(:,1) = x0
+      bl = sysc(isysl)%atmcov(znew) + sysc(isysl)%atmcov(1)
+      do k = 1, nsub
+         if (used(k)) cycle
+         nadd = nadd + 1
+         zat(nadd) = 1
+         xat(:,nadd) = x0 + bl * matmul(rot,tvec(:,k))
+      end do
+      call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:ndel),nadd,zat(1:nadd),xat(:,1:nadd))
+
+    end subroutine addatom_replace
+
+    ! Find the rotation rot and the injective assignment of the m unit
+    ! directions u to the n template vertices t that best aligns them
+    ! used(k) marks the template slots taken by the fitted directions.
+    subroutine addatom_fit(m,u,n,t,rot,used)
+      integer, intent(in) :: m
+      real*8, intent(in) :: u(3,*)
+      integer, intent(in) :: n
+      real*8, intent(in) :: t(3,*)
+      real*8, intent(out) :: rot(3,3)
+      logical, intent(out) :: used(maxaddsub)
+
+      integer :: iasg(maxaddsub), ubest(maxaddsub)
+      logical :: taken(maxaddsub)
+      integer :: j, ier
+      real*8 :: sbest, np
+
+      ! the identity assignment as the fallback
+      rot = eye
+      do j = 1, m
+         iasg(j) = j
+         ubest(j) = j
+      end do
+      call addatom_horn(m,u,t,iasg,sbest,rot,ier)
+      if (ier /= 0) then
+         sbest = -huge(1d0)
+         rot = eye
+      end if
+
+      ! exhaustive search over the assignments if tractable
+      np = 1d0
+      do j = 0, m-1
+         np = np * dble(n-j)
+      end do
+      if (np <= 1d5) then
+         taken = .false.
+         call addatom_fit_rec(m,u,n,t,1,iasg,taken,sbest,rot,ubest)
+      end if
+
+      used = .false.
+      do j = 1, m
+         used(ubest(j)) = .true.
+      end do
+
+    end subroutine addatom_fit
+
+    ! Recursively enumerate the injective assignments of directions
+    ! j..m to the free template slots, keeping the best-scoring one.
+    recursive subroutine addatom_fit_rec(m,u,n,t,j,iasg,taken,sbest,rbest,ubest)
+      integer, intent(in) :: m, n, j
+      real*8, intent(in) :: u(3,*), t(3,*)
+      integer, intent(inout) :: iasg(maxaddsub)
+      logical, intent(inout) :: taken(maxaddsub)
+      real*8, intent(inout) :: sbest, rbest(3,3)
+      integer, intent(inout) :: ubest(maxaddsub)
+
+      integer :: k, ier
+      real*8 :: s, rot(3,3)
+
+      do k = 1, n
+         if (taken(k)) cycle
+         iasg(j) = k
+         if (j < m) then
+            taken(k) = .true.
+            call addatom_fit_rec(m,u,n,t,j+1,iasg,taken,sbest,rbest,ubest)
+            taken(k) = .false.
+         else
+            call addatom_horn(m,u,t,iasg,s,rot,ier)
+            if (ier == 0 .and. s > sbest) then
+               sbest = s
+               rbest = rot
+               ubest(1:m) = iasg(1:m)
+            end if
+         end if
+      end do
+
+    end subroutine addatom_fit_rec
+
+    ! Horn's quaternion fit for the assignment iasg: the rotation rot
+    ! maximizes sum_j u(:,j) . rot t(:,iasg(j)); the score s is the
+    ! largest eigenvalue of the quaternion matrix (m at perfect fit).
+    subroutine addatom_horn(m,u,t,iasg,s,rot,ier)
+      use tools_math, only: eigsym, quat2mat
+      integer, intent(in) :: m
+      real*8, intent(in) :: u(3,*), t(3,*)
+      integer, intent(in) :: iasg(maxaddsub)
+      real*8, intent(out) :: s
+      real*8, intent(out) :: rot(3,3)
+      integer, intent(out) :: ier
+
+      real*8 :: sm(3,3), kk(4,4), eval(4)
+      integer :: j, a, b
+
+      s = -huge(1d0)
+      rot = eye
+      sm = 0d0
+      do j = 1, m
+         do b = 1, 3
+            do a = 1, 3
+               sm(a,b) = sm(a,b) + t(a,iasg(j)) * u(b,j)
+            end do
+         end do
+      end do
+      kk(1,1) = sm(1,1) + sm(2,2) + sm(3,3)
+      kk(1,2) = sm(2,3) - sm(3,2)
+      kk(1,3) = sm(3,1) - sm(1,3)
+      kk(1,4) = sm(1,2) - sm(2,1)
+      kk(2,2) = sm(1,1) - sm(2,2) - sm(3,3)
+      kk(2,3) = sm(1,2) + sm(2,1)
+      kk(2,4) = sm(1,3) + sm(3,1)
+      kk(3,3) = -sm(1,1) + sm(2,2) - sm(3,3)
+      kk(3,4) = sm(2,3) + sm(3,2)
+      kk(4,4) = -sm(1,1) - sm(2,2) + sm(3,3)
+      kk(2,1) = kk(1,2)
+      kk(3,1) = kk(1,3)
+      kk(4,1) = kk(1,4)
+      kk(3,2) = kk(2,3)
+      kk(4,2) = kk(2,4)
+      kk(4,3) = kk(3,4)
+      call eigsym(kk,4,eval,ier)
+      if (ier /= 0) return
+      s = eval(4)
+      rot = quat2mat(kk(:,4))
+
+    end subroutine addatom_horn
+
+    ! Add-atoms mode: number of substituents n and unit vectors v(:,1:n)
+    ! for local geometry index ig (0-based, see addgeom_names). Local
+    ! frame: x = screen right, y = screen up, z = toward the viewer.
+    subroutine addatom_template(ig,n,v)
+      integer, intent(in) :: ig
+      integer, intent(out) :: n
+      real*8, intent(out) :: v(3,maxaddsub)
+
+      integer :: k
+
+      real*8, parameter :: ath = 109.4712d0 ! tetrahedral angle (degrees)
+
+      n = 0
+      v = 0d0
+      select case (ig)
+      case (1) ! linear
+         n = 2
+         call addatom_sphvec(90d0,0d0,v(:,1))
+         call addatom_sphvec(90d0,180d0,v(:,2))
+      case (2) ! bent
+         n = 2
+         call addatom_sphvec(ath/2d0,0d0,v(:,1))
+         call addatom_sphvec(ath/2d0,180d0,v(:,2))
+      case (3) ! triangular
+         n = 3
+         call addatom_sphvec(0d0,0d0,v(:,1))
+         call addatom_sphvec(120d0,0d0,v(:,2))
+         call addatom_sphvec(120d0,180d0,v(:,3))
+      case (4) ! trigonal pyramid
+         n = 3
+         do k = 1, 3
+            call addatom_sphvec(ath,90d0+120d0*(k-1),v(:,k))
+         end do
+      case (5) ! T-shape
+         n = 3
+         call addatom_sphvec(0d0,0d0,v(:,1))
+         call addatom_sphvec(180d0,0d0,v(:,2))
+         call addatom_sphvec(90d0,180d0,v(:,3))
+      case (6) ! tetrahedral
+         n = 4
+         call addatom_sphvec(0d0,0d0,v(:,1))
+         do k = 1, 3
+            call addatom_sphvec(ath,90d0+120d0*(k-1),v(:,1+k))
+         end do
+      case (7) ! square planar
+         n = 4
+         do k = 1, 4
+            call addatom_sphvec(90d0,45d0+90d0*(k-1),v(:,k))
+         end do
+      case (8) ! trigonal bipyramid
+         n = 5
+         call addatom_sphvec(0d0,0d0,v(:,1))
+         call addatom_sphvec(180d0,0d0,v(:,2))
+         do k = 1, 3
+            call addatom_sphvec(90d0,90d0+120d0*(k-1),v(:,2+k))
+         end do
+      case (9) ! square pyramid
+         n = 5
+         call addatom_sphvec(0d0,0d0,v(:,1))
+         do k = 1, 4
+            call addatom_sphvec(100d0,45d0+90d0*(k-1),v(:,1+k))
+         end do
+      case (10) ! octahedral
+         n = 6
+         call addatom_sphvec(0d0,0d0,v(:,1))
+         call addatom_sphvec(180d0,0d0,v(:,2))
+         do k = 1, 4
+            call addatom_sphvec(90d0,90d0*(k-1),v(:,2+k))
+         end do
+      case (11) ! trigonal antiprism
+         n = 6
+         do k = 1, 3
+            call addatom_sphvec(60d0,30d0+120d0*(k-1),v(:,k))
+            call addatom_sphvec(120d0,90d0+120d0*(k-1),v(:,3+k))
+         end do
+      case (12) ! pentagonal bipyramid
+         n = 7
+         call addatom_sphvec(0d0,0d0,v(:,1))
+         call addatom_sphvec(180d0,0d0,v(:,2))
+         do k = 1, 5
+            call addatom_sphvec(90d0,90d0+72d0*(k-1),v(:,2+k))
+         end do
+      case (13) ! capped octahedron
+         n = 7
+         call addatom_sphvec(0d0,0d0,v(:,1))
+         do k = 1, 3
+            call addatom_sphvec(75d0,30d0+120d0*(k-1),v(:,1+k))
+            call addatom_sphvec(130d0,90d0+120d0*(k-1),v(:,4+k))
+         end do
+      case (14) ! square antiprism
+         n = 8
+         do k = 1, 4
+            call addatom_sphvec(59d0,90d0*(k-1),v(:,k))
+            call addatom_sphvec(121d0,45d0+90d0*(k-1),v(:,4+k))
+         end do
+      case (15) ! trigonal dodecahedron
+         n = 8
+         call addatom_sphvec(36.9d0,0d0,v(:,1))
+         call addatom_sphvec(36.9d0,180d0,v(:,2))
+         call addatom_sphvec(143.1d0,90d0,v(:,3))
+         call addatom_sphvec(143.1d0,270d0,v(:,4))
+         call addatom_sphvec(69.5d0,90d0,v(:,5))
+         call addatom_sphvec(69.5d0,270d0,v(:,6))
+         call addatom_sphvec(110.5d0,0d0,v(:,7))
+         call addatom_sphvec(110.5d0,180d0,v(:,8))
+      case (16) ! tricapped trigonal prism
+         n = 9
+         do k = 1, 3
+            call addatom_sphvec(48d0,30d0+120d0*(k-1),v(:,k))
+            call addatom_sphvec(132d0,30d0+120d0*(k-1),v(:,3+k))
+            call addatom_sphvec(90d0,90d0+120d0*(k-1),v(:,6+k))
+         end do
+      case (17) ! capped square antiprism
+         n = 9
+         call addatom_sphvec(0d0,0d0,v(:,1))
+         do k = 1, 4
+            call addatom_sphvec(68d0,90d0*(k-1),v(:,1+k))
+            call addatom_sphvec(118d0,45d0+90d0*(k-1),v(:,5+k))
+         end do
+      case (18) ! pentagonal prism
+         n = 10
+         do k = 1, 5
+            call addatom_sphvec(55d0,90d0+72d0*(k-1),v(:,k))
+            call addatom_sphvec(125d0,90d0+72d0*(k-1),v(:,5+k))
+         end do
+      end select
+
+    end subroutine addatom_template
+
+    ! Unit vector at polar angle th (degrees, from screen up) and
+    ! azimuth ph (degrees, from screen right towards the viewer).
+    subroutine addatom_sphvec(th,ph,v)
+      real*8, intent(in) :: th, ph
+      real*8, intent(out) :: v(3)
+
+      real*8 :: t, p
+
+      t = th * pi / 180d0
+      p = ph * pi / 180d0
+      v = (/sin(t)*cos(p), cos(t), sin(t)*sin(p)/)
+
+    end subroutine addatom_sphvec
+
     ! Toggle builder mode jvm (a vm_* constant): start it on the parent
     ! view, or stop it if it is already the active mode. Starting a mode
     ! while another one is active switches to the new mode.
@@ -1058,6 +1550,10 @@ contains
             msg = "Add ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
                ") or remove ("//trim(get_bind_keyname(BIND_PICKATOM_ALT))//&
                ") hydrogens (any key exits)..."
+         elseif (jvm == vm_builder_addatom) then
+            msg = "Add atoms ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
+               ") at the clicked positions or replace the clicked atoms"//&
+               " (any key exits)..."
          else
             msg = "Remove ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
                ") the atoms and their hydrogens"//&

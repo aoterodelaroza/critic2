@@ -2603,6 +2603,43 @@ contains
 
   end subroutine remove_atom_hydrogens
 
+  !> Add nat atoms with atomic numbers zat and Cartesian coordinates x
+  !> to this system in a single rebuild.
+  module subroutine add_atoms_fragment(sysc,nat,zat,x)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: nat
+    integer, intent(in) :: zat(nat)
+    real*8, intent(in) :: x(3,nat)
+
+    if (.not.ok_system(sysc%id,sys_init)) return
+    if (nat <= 0) return
+
+    call sys(sysc%id)%c%add_fragment(nat,zat,x)
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine add_atoms_fragment
+
+  !> Delete the ndel cell atoms in idel and add nadd atoms with atomic
+  !> numbers zat and Cartesian coordinates x to this system in a
+  !> single rebuild.
+  module subroutine replace_atoms_fragment(sysc,ndel,idel,nadd,zat,x)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: ndel
+    integer, intent(in) :: idel(ndel)
+    integer, intent(in) :: nadd
+    integer, intent(in) :: zat(nadd)
+    real*8, intent(in) :: x(3,nadd)
+
+    if (.not.ok_system(sysc%id,sys_init)) return
+    if (ndel <= 0 .and. nadd <= 0) return
+    ! refuse to remove every atom in the system
+    if (nadd <= 0 .and. ndel >= sys(sysc%id)%c%ncel) return
+
+    call sys(sysc%id)%c%replace_fragment(ndel,idel,nadd,zat,x)
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine replace_atoms_fragment
+
   ! For the atom identifier id corresponding to the given atom type,
   ! set the atomic position(s) in the system.
   module subroutine reread_geometry_from_file(sysc)

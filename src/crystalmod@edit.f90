@@ -1934,7 +1934,7 @@ contains
   !> system. If isnneq, replicate the atom by symmetry.
   module subroutine add_atom(c,is,x,iunit_l,isnneq,ti)
     use crystalseedmod, only: crystalseed
-    use types, only: realloc
+    use types, only: realloc, siteocc
     use global, only: iunit_ang, iunit_bohr
     use tools_io, only: nameguess
     use param, only: bohrtoa
@@ -1946,6 +1946,7 @@ contains
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
+    type(siteocc), allocatable :: mixaux(:)
     real*8 :: xx(3)
     logical :: copysym
     integer :: is_
@@ -1986,6 +1987,12 @@ contains
        call realloc(seed%occ,seed%nat)
        seed%occ(seed%nat) = 1d0
     end if
+    ! the mixed-site data is indexed per atom by struct_new: grow it
+    if (allocated(seed%mix)) then
+       allocate(mixaux(seed%nat))
+       mixaux(1:size(seed%mix,1)) = seed%mix
+       call move_alloc(mixaux,seed%mix)
+    end if
     seed%x(:,seed%nat) = xx
     seed%is(seed%nat) = is_
     seed%atname(seed%nat) = seed%spc(is_)%name
@@ -1994,6 +2001,112 @@ contains
     call c%struct_new(seed,crashfail=.true.,ti=ti)
 
   end subroutine add_atom
+
+  !> Add nat atoms with atomic numbers zat and Cartesian coordinates x
+  !> to the crystal in a single rebuild.
+  module subroutine add_fragment(c,nat,zat,x,ti)
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: nat
+    integer, intent(in) :: zat(nat)
+    real*8, intent(in) :: x(3,nat)
+    type(thread_info), intent(in), optional :: ti
+
+    call c%replace_fragment(0,(/integer::/),nat,zat,x,ti)
+
+  end subroutine add_fragment
+
+  !> Delete the ndel cell atoms in idel and add nadd atoms with atomic
+  !> numbers zat and Cartesian coordinates x to the crystal, in a
+  !> single rebuild.
+  module subroutine replace_fragment(c,ndel,idel,nadd,zat,x,ti)
+    use crystalseedmod, only: crystalseed
+    use types, only: realloc, siteocc
+    use tools_io, only: nameguess
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: ndel
+    integer, intent(in) :: idel(ndel)
+    integer, intent(in) :: nadd
+    integer, intent(in) :: zat(nadd)
+    real*8, intent(in) :: x(3,nadd)
+    type(thread_info), intent(in), optional :: ti
+
+    type(crystalseed) :: seed
+    type(siteocc), allocatable :: mixaux(:)
+    logical, allocatable :: keep(:)
+    integer :: i, j, is, nat0
+
+    if (ndel <= 0 .and. nadd <= 0) return
+
+    ! make seed from this crystal (atoms in atcel order)
+    call c%makeseed(seed,copysym=.false.)
+
+    ! compact out the deleted atoms
+    if (ndel > 0) then
+       allocate(keep(seed%nat))
+       keep = .true.
+       do i = 1, ndel
+          if (idel(i) >= 1 .and. idel(i) <= seed%nat) keep(idel(i)) = .false.
+       end do
+       nat0 = 0
+       do i = 1, seed%nat
+          if (.not.keep(i)) cycle
+          nat0 = nat0 + 1
+          if (nat0 == i) cycle
+          seed%x(:,nat0) = seed%x(:,i)
+          seed%is(nat0) = seed%is(i)
+          seed%atname(nat0) = seed%atname(i)
+          if (allocated(seed%occ)) seed%occ(nat0) = seed%occ(i)
+          if (allocated(seed%mix)) seed%mix(nat0) = seed%mix(i)
+       end do
+       seed%nat = nat0
+    end if
+
+    ! refuse to build an empty structure
+    if (seed%nat + nadd <= 0) return
+
+    ! grow the atom arrays; mixed-site data must be grown too
+    nat0 = seed%nat
+    seed%nat = nat0 + nadd
+    call realloc(seed%x,3,seed%nat)
+    call realloc(seed%is,seed%nat)
+    call realloc(seed%atname,seed%nat)
+    if (allocated(seed%occ)) then
+       call realloc(seed%occ,seed%nat)
+       seed%occ(nat0+1:seed%nat) = 1d0
+    end if
+    if (allocated(seed%mix)) then
+       allocate(mixaux(seed%nat))
+       mixaux(1:nat0) = seed%mix(1:nat0)
+       call move_alloc(mixaux,seed%mix)
+    end if
+
+    do i = 1, nadd
+       ! find or create the species for this atomic number
+       is = 0
+       do j = 1, seed%nspc
+          if (seed%spc(j)%z == zat(i)) then
+             is = j
+             exit
+          end if
+       end do
+       if (is == 0) then
+          seed%nspc = seed%nspc + 1
+          call realloc(seed%spc,seed%nspc)
+          seed%spc(seed%nspc)%name = nameguess(zat(i),.true.)
+          seed%spc(seed%nspc)%z = zat(i)
+          is = seed%nspc
+       end if
+
+       ! the atom
+       seed%x(:,nat0+i) = c%c2x(x(:,i))
+       seed%is(nat0+i) = is
+       seed%atname(nat0+i) = seed%spc(is)%name
+    end do
+
+    ! build the new crystal
+    call c%struct_new(seed,crashfail=.true.,ti=ti)
+
+  end subroutine replace_fragment
 
   ! Remove the bond between cell atoms iat1 and iat2 (iat2 at lattice vector
   ! lvec relative to iat1) by editing the neighbor stars in place. Removes both

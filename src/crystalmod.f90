@@ -321,6 +321,8 @@ module crystalmod
      procedure :: move_cell !< Move the unit cell
      procedure :: move_cell_all !< Move the unit cell, specifying all lengths and angles
      procedure :: add_atom !< Add an atom
+     procedure :: add_fragment !< Add several atoms at once (single rebuild)
+     procedure :: replace_fragment !< Delete and add several atoms at once (single rebuild)
      procedure :: remove_bond !< Remove a single bond between two cell atoms
      procedure :: set_bond_order !< Set the bond order of a single bond between two cell atoms
      procedure :: add_bond !< Add a single bond between two cell atoms
@@ -921,6 +923,22 @@ module crystalmod
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: rnew(:,:)
      end subroutine update_positions
+     module subroutine add_fragment(c,nat,zat,x,ti)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: nat
+       integer, intent(in) :: zat(nat)
+       real*8, intent(in) :: x(3,nat)
+       type(thread_info), intent(in), optional :: ti
+     end subroutine add_fragment
+     module subroutine replace_fragment(c,ndel,idel,nadd,zat,x,ti)
+       class(crystal), intent(inout) :: c
+       integer, intent(in) :: ndel
+       integer, intent(in) :: idel(ndel)
+       integer, intent(in) :: nadd
+       integer, intent(in) :: zat(nadd)
+       real*8, intent(in) :: x(3,nadd)
+       type(thread_info), intent(in), optional :: ti
+     end subroutine replace_fragment
      module subroutine update_env_after_move(c)
        class(crystal), intent(inout) :: c
      end subroutine update_env_after_move

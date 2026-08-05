@@ -38,6 +38,7 @@ module windows
   integer(c_size_t), parameter :: maxlib = 40000
 
   ! view modes (positive = normal, user-selectable; negative = forced)
+  integer, parameter, public :: vm_builder_addatom = -5 ! forced by builder: add atoms (persistent)
   integer, parameter, public :: vm_builder_remove = -4 ! forced by builder: remove atoms (persistent)
   integer, parameter, public :: vm_builder_valence = -3 ! forced by builder: change valence (persistent)
   integer, parameter, public :: vm_mdinteract = -2 ! forced during interactive dynamics
@@ -48,7 +49,8 @@ module windows
   integer, parameter, public :: vm_moveatom  = 3
   integer, parameter, public :: vm_NUM = 3 ! highest user-selectable mode (combo)
 
-  character(len=19), parameter, public :: vmnames(vm_builder_remove:vm_NUM) = (/&
+  character(len=19), parameter, public :: vmnames(vm_builder_addatom:vm_NUM) = (/&
+     "Add Atoms          ",& ! vm_builder_addatom
      "Remove Atoms       ",& ! vm_builder_remove
      "Change Atom Valence",& ! vm_builder_valence
      "Interact (MD)      ",& ! vm_mdinteract
@@ -62,8 +64,10 @@ module windows
   ! view mode data structure for window_forced modes
   type viewmode_data
      character(len=:), allocatable :: msg ! message shown in the view bar
+     character(len=:), allocatable :: tooltip ! tooltip shown at the mouse (add-atoms mode)
      integer(c_int) :: idx(5) ! atom identifier under mouse position
      integer :: flag = 0 ! pick bind that fired (1 = main, 2 = alternate)
+     real(c_float) :: xpos(2) = 0._c_float ! texture position of the click (add-atoms mode)
      integer :: owner ! owner window ID
   end type viewmode_data
 
@@ -189,9 +193,11 @@ module windows
      integer :: geometry_addbond_iview = 0 ! view window commanded for the add-bond pick
      real*8 :: geometry_addbond_time = 0d0 ! time the add-bond pick was commanded (to detect stale ids)
      ! builder parameters
-     integer :: builder_vm = 0 ! forced mode commanded to the parent view (0 = idle, else vm_builder_valence or vm_builder_remove)
+     integer :: builder_vm = 0 ! forced mode commanded to the parent view (0 = idle, else vm_builder_valence/remove/addatom)
      integer :: builder_isys = 0 ! system latched for the builder picks (0 = no mode active)
      real*8 :: builder_time = 0d0 ! time of the last click-free poll (stale-click guard)
+     integer :: builder_addatom_z = 6 ! add atoms: selected element (Z)
+     integer :: builder_addatom_ig = 6 ! add atoms: local geometry (0-based combo index, 6 = tetrahedral)
      logical :: edit_pending = .false. ! keybinding request to toggle an edit session
      integer :: edit_kind = 0 ! active edit session and its number of atoms: 0 = none, 2 = distance, 3 = angle, 4 = dihedral
      integer :: edit_isys = 0 ! system latched for the edit session

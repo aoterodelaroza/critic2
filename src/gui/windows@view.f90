@@ -1355,7 +1355,8 @@ contains
           ! the keybinding group for this view mode; the window-forced pick
           ! modes share the navigation binds (minus measurements)
           select case (w%viewmode)
-          case (vm_navigate, vm_pick_atom, vm_builder_valence, vm_builder_remove)
+          case (vm_navigate, vm_pick_atom, vm_builder_valence, vm_builder_remove,&
+             vm_builder_addatom)
              mygroup = group_viewmode_navigation
           case (vm_select)
              mygroup = group_viewmode_select
@@ -1402,6 +1403,8 @@ contains
                 lblline(n) = "Remove Hydrogen from Atom"
              elseif (w%viewmode == vm_builder_remove) then
                 lblline(n) = "Remove Atom"
+             elseif (w%viewmode == vm_builder_addatom) then
+                lblline(n) = "Add Atoms Here"
              else
                 lblline(n) = "Pick Atom"
              end if
@@ -1507,6 +1510,7 @@ contains
     integer :: isys
     integer(c_int) :: col, ibtn
     logical :: ok, dragged, forcedpick
+    character(kind=c_char,len=:), allocatable, target :: strtt
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
@@ -1651,6 +1655,16 @@ contains
              end if
           end if
        else
+          ! add-atoms mode: show tooltip
+          if (w%viewmode == vm_builder_addatom .and. hover) then
+             if (allocated(w%vmdata%tooltip)) then
+                if (len_trim(w%vmdata%tooltip) > 0) then
+                   strtt = trim(w%vmdata%tooltip) // c_null_char
+                   call igSetTooltip(c_loc(strtt))
+                end if
+             end if
+          end if
+
           ! forced pick modes: capture the atom under the cursor (possibly
           ! none) on a pick-bind press, resolved on release if the cursor
           ! did not drag past the threshold (so a left/right drag still
@@ -1970,9 +1984,10 @@ contains
 
     ! Deliver a completed pick to the commanding window. Pick-atom mode:
     ! deliver the atom (or zero = clicked on empty space = cancelled) and
-    ! exit the mode. Persistent builder modes: deliver only a real atom,
-    ! flag whether the main or the alternate pick bind fired, and stay in
-    ! the mode for successive edits.
+    ! exit the mode. Persistent builder modes: deliver only a real atom
+    ! (add-atoms also delivers empty-space clicks, with the click
+    ! position), flag whether the main or the alternate pick bind fired,
+    ! and stay in the mode for successive edits.
     subroutine deliver_pick(idx,alt)
       integer(c_int), intent(in) :: idx(5)
       logical, intent(in) :: alt
@@ -1982,6 +1997,15 @@ contains
          if (idx(1) > 0) w%vmdata%idx = idx
          w%viewmode = vm_navigate
          w%viewmode_transient = .false.
+      elseif (w%viewmode == vm_builder_addatom) then
+         ! deliver the click position (texture coordinates), even on empty
+         ! space, plus the atom under the cursor if any
+         if (.not.alt) then
+            w%vmdata%idx = 0
+            if (idx(1) > 0) w%vmdata%idx = idx
+            w%vmdata%flag = 1
+            w%vmdata%xpos = (/texpos%x,texpos%y/)
+         end if
       elseif (idx(1) > 0) then
          w%vmdata%idx = idx
          w%vmdata%flag = merge(2,1,alt)
@@ -2546,7 +2570,7 @@ contains
     logical :: vm_is_forcedpick
 
     vm_is_forcedpick = (mode == vm_pick_atom .or. mode == vm_builder_valence .or.&
-       mode == vm_builder_remove)
+       mode == vm_builder_remove .or. mode == vm_builder_addatom)
   end function vm_is_forcedpick
 
   !> Whether any mouse button was clicked this frame
