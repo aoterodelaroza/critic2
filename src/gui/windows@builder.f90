@@ -184,6 +184,7 @@ contains
           if (izout > 0) then
              w%errmsg = ""
              w%builder_addatom_z = izout
+             w%builder_addatom_ig = addatom_prefgeom(izout)
              call builder_toggle(vm_builder_addatom)
              call igCloseCurrentPopup()
           end if
@@ -1361,6 +1362,33 @@ contains
       call rotation_horn(tp(:,1:m),u(:,1:m),rot,s=s,ier=ier)
 
     end subroutine addatom_horn
+
+    ! Add-atoms mode: preferred local geometry for element z, as a
+    ! 0-based combo index into addgeom_names.
+    function addatom_prefgeom(z) result(ig)
+      integer, intent(in) :: z
+      integer :: ig
+
+      select case (z)
+      case (1,3,11,19,37,55,87) ! group 1: atom
+         ig = 0
+      case (4,12,20,38,56,88) ! group 2: linear
+         ig = 1
+      case (5,13) ! B, Al: triangular
+         ig = 3
+      case (6,14,32) ! C, Si, Ge: tetrahedral
+         ig = 6
+      case (7,15,33) ! N, P, As: trigonal pyramid
+         ig = 4
+      case (8,16,34) ! O, S, Se: bent
+         ig = 2
+      case (9,17,35,53) ! F, Cl, Br, I: atom
+         ig = 0
+      case default ! everything else: octahedral
+         ig = 10
+      end select
+
+    end function addatom_prefgeom
 
     ! Add-atoms mode: number of substituents n and unit vectors v(:,1:n)
     ! for local geometry index ig (0-based, see addgeom_names). Local
