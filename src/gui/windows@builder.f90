@@ -1175,12 +1175,12 @@ contains
       real*8, intent(in) :: rcam(3,3)
 
       integer :: isysl, nsub, m, ndel, nadd, k, nb, ncon, znew, zanchor
+      integer :: zat(maxaddsub+1)
       integer, allocatable :: idel(:)
       real*8 :: tvec(3,maxaddsub), xat(3,maxaddsub+1), rot(3,3)
       real*8 :: x0(3), dir(3), bl, dnorm
       real*8, allocatable :: ufix(:,:)
       logical :: used(maxaddsub), isterm
-      integer :: zat(maxaddsub+1)
 
       isysl = w%builder_isys
       if (icel < 1 .or. icel > sys(isysl)%c%ncel) return
@@ -1213,22 +1213,6 @@ contains
          end if
       end do
 
-      ! enough kept substituents already: replace the element and
-      ! remove the excess terminal hydrogens
-      if (m >= nsub) then
-         if (m == 1) then
-            dir = x0 - ufix(:,1)
-            dnorm = norm2(dir)
-            if (dnorm < eps_dzero) return
-            x0 = ufix(:,1) + (sysc(isysl)%atmcov(zanchor) + sysc(isysl)%atmcov(znew)) *&
-               dir / dnorm
-         end if
-         zat(1) = znew
-         xat(:,1) = x0
-         call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:ndel),1,zat(1:1),xat(:,1:1))
-         return
-      end if
-
       ! on a single kept substituent, re-bond the new atom at the
       ! covalent distance along the old bond direction
       if (m == 1) then
@@ -1237,6 +1221,14 @@ contains
          if (dnorm < eps_dzero) return
          x0 = ufix(:,1) + (sysc(isysl)%atmcov(zanchor) + sysc(isysl)%atmcov(znew)) *&
             dir / dnorm
+      end if
+
+      ! enough kept substituents already: replace the element and remove the terminal hydrogens
+      if (m >= nsub) then
+         zat(1) = znew
+         xat(:,1) = x0
+         call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:ndel),1,zat(1:1),xat(:,1:1))
+         return
       end if
 
       ! unit directions from the new atom to the kept substituents
@@ -1531,15 +1523,13 @@ contains
          if (jvm == vm_builder_valence) then
             msg = "Add ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
                ") or remove ("//trim(get_bind_keyname(BIND_PICKATOM_ALT))//&
-               ") hydrogens (any key exits)..."
+               ") hydrogens..."
          elseif (jvm == vm_builder_addatom) then
             msg = "Add atoms ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
-               ") at the clicked positions or replace the clicked atoms"//&
-               " (any key exits)..."
+               ") at the clicked positions or replace the clicked atoms"
          else
             msg = "Remove ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
-               ") the atoms and their hydrogens"//&
-               " (any key exits)..."
+               ") the atoms and their hydrogens"
          end if
          call win(iview)%viewmode_set_forced(jvm,msg,w%id)
       end if

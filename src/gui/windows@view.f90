@@ -1310,6 +1310,7 @@ contains
        BIND_NUM, group_viewmode_navigation, group_viewmode_select,&
        group_viewmode_movemol, group_viewmode_moveatom, group_viewmode_mdinteract,&
        groupbind, BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT, BIND_NAV_MEASURE,&
+       BIND_PICKATOM_EXIT,&
        BIND_NAV_MEASURE_ADD, BIND_NAV_MEASURE_REMOVE
     use utils, only: iw_combo_simple, iw_tooltip, igIsItemHovered_delayed, iw_text
     use tools_io, only: string
@@ -1319,7 +1320,7 @@ contains
     character(len=:), allocatable :: viewmode_items
     integer, allocatable :: tips(:)
     character(len=64), allocatable :: keyline(:), lblline(:)
-    logical :: valence, pickmode
+    logical :: valence, pickmode, emptyexit
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -1348,6 +1349,9 @@ contains
     end if
     valence = (w%viewmode == vm_builder_valence)
     pickmode = vm_is_forcedpick(w%viewmode)
+    ! modes needing an explicit exit-bind tooltip line: the persistent
+    ! builder picks (the move modes list theirs through their own group)
+    emptyexit = (w%viewmode == vm_builder_remove .or. valence)
 
     ! delayed tooltip with info about the key/mouse bindings for this view mode
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
@@ -1384,10 +1388,11 @@ contains
           end do
 
           ! build the tooltip lines: one per bind in this mode's group,
-          ! plus the pick action(s) and the exit key in the forced pick modes
+          ! plus the pick action(s) and the exit gestures
           m = n
           if (pickmode) m = m + 2
           if (valence) m = m + 1
+          if (emptyexit) m = m + 1
           allocate(keyline(m),lblline(m))
           do i = 1, n
              keyline(i) = trim(get_bind_keyname(tips(i)))
@@ -1415,6 +1420,11 @@ contains
              else
                 lblline(n) = "Exit This Mode"
              end if
+          end if
+          if (emptyexit) then
+             n = n + 1
+             keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_EXIT))
+             lblline(n) = "Exit This Mode"
           end if
 
           ! align the key column
@@ -1449,7 +1459,7 @@ contains
   module function viewmode_activate_picking(w,hover)
     use keybindings, only: is_bind_event, BIND_NAV_MEASURE, BIND_SELECT_MOLECULES_AND_DESELECT,&
        BIND_NAV_MEASURE_ADD, BIND_NAV_MEASURE_REMOVE, BIND_PICKATOM_SELECT,&
-       BIND_PICKATOM_ALT
+       BIND_PICKATOM_ALT, BIND_PICKATOM_EXIT, BIND_MOVEMOL_EXIT, BIND_MOVEATOM_EXIT
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
     logical :: viewmode_activate_picking
@@ -1459,9 +1469,11 @@ contains
 
     if (w%viewmode < 0) then
        ! in forced view mode, only the pick binds consume the atom under
-       ! the cursor (other clicks drive the camera and read nothing)
+       ! the cursor; the exit bind also repicks, so the exit-on-empty-space
+       ! gesture never acts on a stale pick
        viewmode_activate_picking = is_bind_event(BIND_PICKATOM_SELECT,norepeat=.true.) .or.&
-          (w%viewmode == vm_builder_valence .and. is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.))
+          (w%viewmode == vm_builder_valence .and. is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.)) .or.&
+          is_bind_event(BIND_PICKATOM_EXIT,norepeat=.true.)
     elseif (w%viewmode == vm_navigate) then
        ! navigate -> when measuring, on a double click (to clear the selection),
        ! or on a right/middle button press (to capture the atom under the cursor
@@ -1472,8 +1484,10 @@ contains
           is_bind_event(BIND_NAV_MEASURE_REMOVE)
     elseif (w%viewmode == vm_select .or. w%viewmode == vm_movemol .or. w%viewmode == vm_moveatom) then
        ! select -> on any click, so the atom under the mouse is fresh
-       ! move atoms -> on any click, to latch the grabbed atom/molecule
-       viewmode_activate_picking = any_mouse_clicked()
+       ! move atoms -> on any click, to latch the grabbed atom/molecule;
+       ! also on the exit bind (in case it is rebound off the mouse)
+       viewmode_activate_picking = any_mouse_clicked() .or.&
+          is_bind_event(BIND_MOVEMOL_EXIT,norepeat=.true.) .or. is_bind_event(BIND_MOVEATOM_EXIT,norepeat=.true.)
     end if
 
   end function viewmode_activate_picking
@@ -1487,7 +1501,7 @@ contains
     use utils, only: translate, rotate, mult, invmult
     use tools_math, only: cross_cfloat, matinv_cfloat, axisangle2mat
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
-       BIND_NAV_ROTATE_PERP,&
+       BIND_NAV_ROTATE_PERP, BIND_PICKATOM_EXIT, BIND_MOVEMOL_EXIT, BIND_MOVEATOM_EXIT,&
        BIND_NAV_TRANSLATE, BIND_NAV_ZOOM, BIND_NAV_RESET, BIND_NAV_MEASURE,&
        BIND_SELECT_MOLECULES_AND_DESELECT, BIND_SELECT_ATOMS,&
        BIND_SELECT_MOLECULES, BIND_MOVEMOL_TRANSLATE, BIND_MOVEMOL_ROTATE,&
@@ -1549,6 +1563,10 @@ contains
        if (ok) ok = .not.(.not.io%WantTextInput .and. any_key_pressed() .and.&
           .not.(hover .and. (is_bind_event(BIND_PICKATOM_SELECT) .or.&
           (w%viewmode == vm_builder_valence .and. is_bind_event(BIND_PICKATOM_ALT)))))
+       ! the exit bind on empty space also exits the persistent builder
+       ! pick modes (not add-atoms, where every click places a fragment)
+       if (ok .and. (w%viewmode == vm_builder_remove .or. w%viewmode == vm_builder_valence)) &
+          ok = .not.exit_on_empty(BIND_PICKATOM_EXIT)
        if (.not.ok) then
           w%vmdata%idx = 0
           w%viewmode = vm_navigate
@@ -1815,6 +1833,14 @@ contains
     elseif (w%viewmode == vm_movemol) then
        ! move-molecules mode: rigidly drag the molecule/atom under the cursor,
        ! preserving the bonding
+
+       ! the exit bind on empty space exits back to navigation
+       if (exit_on_empty(BIND_MOVEMOL_EXIT)) then
+          w%viewmode = vm_navigate
+          w%viewmode_transient = .false.
+          return
+       end if
+
        isys = w%isys
        call igGetMousePos(mousepos)
        texpos = mousepos
@@ -1945,6 +1971,14 @@ contains
     elseif (w%viewmode == vm_moveatom) then
        ! move-atoms mode: left- or right-drag translates the single atom under
        ! the cursor (never the whole molecule); scroll resizes the cell (crystals)
+
+       ! the exit bind on empty space exits back to navigation
+       if (exit_on_empty(BIND_MOVEATOM_EXIT)) then
+          w%viewmode = vm_navigate
+          w%viewmode_transient = .false.
+          return
+       end if
+
        isys = w%isys
        call igGetMousePos(mousepos)
        texpos = mousepos
@@ -1966,6 +2000,18 @@ contains
     end if
 
   contains
+    ! whether the given view-mode exit bind fired on empty space this
+    ! frame (the exit gesture for the move modes and the persistent
+    ! builder pick modes)
+    function exit_on_empty(bindid)
+      integer, intent(in) :: bindid
+      logical :: exit_on_empty
+
+      exit_on_empty = hover .and. is_bind_event(bindid,norepeat=.true.) .and.&
+         w%mousepos_idx(1) == 0
+
+    end function exit_on_empty
+
     ! whether any (non-modifier) key was pressed this frame
     function any_key_pressed()
       use keybindings, only: is_mod_key
