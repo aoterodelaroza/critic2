@@ -198,6 +198,7 @@ module systems
   public :: reread_system_from_file
   public :: write_system
   public :: duplicate_system
+  public :: add_system_empty_molecule
   public :: regenerate_system_pointers
   public :: ok_system
 
@@ -243,6 +244,8 @@ module systems
      module subroutine duplicate_system(idx)
        integer, intent(in) :: idx
      end subroutine duplicate_system
+     module subroutine add_system_empty_molecule()
+     end subroutine add_system_empty_molecule
      module subroutine write_system(idx)
        integer, intent(in) :: idx
      end subroutine write_system

@@ -547,14 +547,17 @@ contains
              endif
 
              ! calculate the molecular cell
-             xmin = 1d40
-             do i = 1, c%ncel
-                do j = 1, 3
-                   xmin(j) = min(c%atcel(i)%x(j),xmin(j))
-                   xmin(j) = min(1d0-max(c%atcel(i)%x(j),1d0-xmin(j)),xmin(j))
+             c%molborder = 0d0
+             if (c%ncel > 0) then
+                xmin = 1d40
+                do i = 1, c%ncel
+                   do j = 1, 3
+                      xmin(j) = min(c%atcel(i)%x(j),xmin(j))
+                      xmin(j) = min(1d0-max(c%atcel(i)%x(j),1d0-xmin(j)),xmin(j))
+                   end do
                 end do
-             end do
-             c%molborder = max(xmin - max(0.8d0 * xmin,2d0/c%aa),0d0)
+                c%molborder = max(xmin - max(0.8d0 * xmin,2d0/c%aa),0d0)
+             end if
           end if
        end if
 

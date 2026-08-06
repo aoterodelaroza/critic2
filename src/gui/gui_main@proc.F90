@@ -762,7 +762,8 @@ contains
   subroutine show_main_menu()
     use interfaces_cimgui
     use systems, only: sys, sysc, sys_init, ok_system, are_threads_running, duplicate_system,&
-       reread_system_from_file, remove_system, kill_initialization_thread, write_system
+       add_system_empty_molecule, reread_system_from_file, remove_system,&
+       kill_initialization_thread, write_system
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
@@ -770,7 +771,7 @@ contains
        wintype_about, wintype_geometry, wintype_water_cluster
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
-       BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
+       BIND_NEW_MOLECULE, BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
        BIND_CANCEL, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO,&
        get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
@@ -792,7 +793,7 @@ contains
     character(kind=c_char,len=:), allocatable, target :: str1, str2
     character(len=:), allocatable :: errmsg
     integer(c_int) :: idum
-    logical :: launchquit, launch(D_TOTAL), isysok, isysvok, ifieldok, ok
+    logical :: launchquit, launchnewmol, launch(D_TOTAL), isysok, isysvok, ifieldok, ok
     logical :: okundo, okredo
     integer :: isys, isysv
 
@@ -823,6 +824,7 @@ contains
     launch(d_save) = isysok .and. is_bind_event(BIND_SAVE)
     launch(d_export_now) = isysvok .and. is_bind_event(BIND_EXPORT_NOW)
     launchquit = is_bind_event(BIND_QUIT)
+    launchnewmol = is_bind_event(BIND_NEW_MOLECULE,norepeat=.true.)
 
     !! undo/redo the geometry of the view-selected system
     if (isysvok .and. is_bind_event(BIND_UNDO)) call sysc(isysv)%undo()
@@ -840,6 +842,10 @@ contains
           ! File -> New from library
           launch(d_newlib) = iw_menuitem("New from Library...")
           call iw_tooltip("Create a new structure from the critic2 library",ttshown)
+
+          ! File -> New Molecule
+          launchnewmol = launchnewmol .or. iw_menuitem("New Molecule",BIND_NEW_MOLECULE)
+          call iw_tooltip("Create a new molecule with no atoms",ttshown)
 
           ! File -> Open
           launch(d_open) = launch(d_open) .or. iw_menuitem("Open...",BIND_OPEN)
@@ -1054,6 +1060,8 @@ contains
     ! process launches
     if (launch(d_new)) &
        idum = stack_create_window(wintype_new_struct,.true.,orraise=-1)
+    if (launchnewmol) &
+       call add_system_empty_molecule()
     if (launch(d_newlib)) &
        idum = stack_create_window(wintype_new_struct_library,.true.,orraise=-1)
     if (launch(d_open)) &

@@ -115,7 +115,8 @@ module keybindings
   integer, parameter, public :: BIND_MOVEMOL_EXIT = 63 ! move molecules: exit the mode (on empty space)
   integer, parameter, public :: BIND_MOVEATOM_EXIT = 64 ! move atoms: exit the mode (on empty space)
   integer, parameter, public :: BIND_PICKATOM_EXIT = 65 ! persistent builder picks: exit the mode (on empty space)
-  integer, parameter, public :: BIND_NUM = 65 ! total number of binds
+  integer, parameter, public :: BIND_NEW_MOLECULE = 66 ! create a new empty molecule
+  integer, parameter, public :: BIND_NUM = 66 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -183,7 +184,8 @@ module keybindings
      "Edit distance/angle/dihedral    ",& ! BIND_EDIT_D_A_PHI
      "Exit mode                       ",& ! BIND_MOVEMOL_EXIT
      "Exit mode                       ",& ! BIND_MOVEATOM_EXIT
-     "Exit mode                       "&  ! BIND_PICKATOM_EXIT
+     "Exit mode                       ",& ! BIND_PICKATOM_EXIT
+     "New molecule                    "&  ! BIND_NEW_MOLECULE
      /)
 
   ! The key associated with each bind, bind -> key
@@ -300,7 +302,8 @@ module keybindings
      group_view,&                ! BIND_EDIT_D_A_PHI
      group_viewmode_movemol,&    ! BIND_MOVEMOL_EXIT
      group_viewmode_moveatom,&   ! BIND_MOVEATOM_EXIT
-     group_viewmode_pickatom/)   ! BIND_PICKATOM_EXIT
+     group_viewmode_pickatom,&   ! BIND_PICKATOM_EXIT
+     group_global/)              ! BIND_NEW_MOLECULE
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -371,7 +374,8 @@ module keybindings
      0,&  ! BIND_EDIT_D_A_PHI
      BIND_VIEWMODE_MOVEMOL,&  ! BIND_MOVEMOL_EXIT
      BIND_VIEWMODE_MOVEATOM,&  ! BIND_MOVEATOM_EXIT
-     0/)  ! BIND_PICKATOM_EXIT
+     0,&  ! BIND_PICKATOM_EXIT
+     0/)  ! BIND_NEW_MOLECULE
 
   ! module procedure interfaces
   interface

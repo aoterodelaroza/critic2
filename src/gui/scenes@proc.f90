@@ -348,7 +348,7 @@ contains
     class(scene), intent(inout), target :: s
 
     integer :: i, j, isph, nsel, nsph, k, ier
-    real(c_float) :: xmin(3), xmax(3), maxrad, xc(3)
+    real(c_float) :: xmin(3), xmax(3), maxrad, xc(3), deltacam(3)
     real*8 :: xcm(3), cov(3,3), xd(3), eval(3), ax(3,3), proj(3), rmin(3), rmax(3)
 
     ! only build lists if system is initialized
@@ -522,10 +522,19 @@ contains
        end if
     end if
 
-    ! translate the scene so the center position remains unchanged
-    if (s%iscaminit .and. .not.s%nextbuildlists_fixcam) &
-       call translate(s%world,-xc)
+    ! translate the scene so the center position remains unchanged. Under
+    ! fixcam, compensate the shift of the molecular cell origin instead, so
+    ! a re-fit of the encompassing cell does not move the scene content
+    if (s%iscaminit) then
+       if (.not.s%nextbuildlists_fixcam) then
+          call translate(s%world,-xc)
+       elseif (sys(s%id)%c%ismolecule) then
+          deltacam = real(sys(s%id)%c%molx0 - s%buildmolx0,c_float)
+          if (any(abs(deltacam) > 0._c_float)) call translate(s%world,deltacam)
+       end if
+    end if
     s%nextbuildlists_fixcam = .false.
+    s%buildmolx0 = sys(s%id)%c%molx0
 
     ! build the window-anchored axes
     do i = 1, s%nrep

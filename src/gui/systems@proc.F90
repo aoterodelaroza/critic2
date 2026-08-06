@@ -569,6 +569,28 @@ contains
 
   end subroutine duplicate_system
 
+  ! Add a new system containing a molecule with no atoms
+  module subroutine add_system_empty_molecule()
+    use crystalseedmod, only: crystalseed
+    use param, only: isformat_r_from_input
+
+    type(crystalseed), allocatable :: seed(:)
+
+    real*8, parameter :: box0 = 50d0 ! initial box side (bohr); re-fitted on the first atom add
+
+    allocate(seed(1))
+    seed(1)%isused = .true.
+    seed(1)%ismolecule = .true.
+    seed(1)%isformat = isformat_r_from_input
+    seed(1)%useabr = 1
+    seed(1)%aa = box0
+    seed(1)%bb = 90d0
+    seed(1)%name = "new molecule"
+    call add_systems_from_seeds(1,seed)
+    call launch_initialization_thread()
+
+  end subroutine add_system_empty_molecule
+
   ! Write the system idx to the same file it was read from. Only for
   ! those file formats that are not outputs.
   module subroutine write_system(idx)

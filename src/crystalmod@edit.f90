@@ -1321,8 +1321,6 @@ contains
   !> relative to its current position.
   module subroutine move_atom(c,idx,x,iunit_l,isnneq,dorelative,copybonding,ti)
     use crystalseedmod, only: crystalseed
-    use global, only: iunit_ang, iunit_bohr
-    use param, only: bohrtoa
     class(crystal), intent(inout) :: c
     integer, intent(in) :: idx
     real*8, intent(in) :: x(3)
@@ -1341,36 +1339,11 @@ contains
     copybonding_ = .false.
     if (present(copybonding)) copybonding_ = copybonding
 
-    ! make seed from this crystal, preserving bonding if requested. For a
-    ! molecule, use an absolute-Cartesian seed (useabr=0) so struct_new re-fits
-    ! the encompassing cell to the moved atom instead of wrapping it into the
-    ! old cell. A symmetric move (copysym) uses the non-equivalent (nneq-indexed)
-    ! seed so moving the representative expands to all its equivalents; bonds
-    ! (nstar is ncel-indexed) cannot ride on that seed, so they are recomputed.
-    if (c%ismolecule) then
-       call c%makeseed(seed,copysym=.false.,useabr=0,copybonding=copybonding_)
-    else
-       call c%makeseed(seed,copysym=copysym,copybonding=(copybonding_ .and. .not.copysym))
-    end if
+    ! make seed from this crystal, preserving bonding if requested
+    call makeseed_for_edit(c,seed,copysym,copybonding_)
 
-    ! interpret units. For a molecule, xx is kept as an internal Cartesian
-    ! position (bohr); otherwise it is converted to crystallographic.
-    if (iunit_l == iunit_ang) then
-       xx = x / bohrtoa
-       if (.not.c%ismolecule) xx = c%c2x(xx)
-    elseif (iunit_l == iunit_bohr) then
-       if (c%ismolecule) then
-          xx = x
-       else
-          xx = c%c2x(x)
-       end if
-    else
-       if (c%ismolecule) then
-          xx = c%x2c(x)
-       else
-          xx = x
-       end if
-    end if
+    ! interpret units: internal Cartesian for a molecule, crystallographic otherwise
+    xx = edit_seed_coords(c,x,iunit_l)
     if (dorelative) then
        if (c%ismolecule) then
           xx = c%atcel(idx)%r + xx
@@ -1455,11 +1428,7 @@ contains
 
     ! copysym=.false. builds the seed from the full cell (the moved atcel), so
     ! symmetry is re-derived from scratch (it is generally broken after motion)
-    if (c%ismolecule) then
-       call c%makeseed(seed,copysym=.false.,useabr=0,copybonding=copybonding_)
-    else
-       call c%makeseed(seed,copysym=.false.,copybonding=copybonding_)
-    end if
+    call makeseed_for_edit(c,seed,.false.,copybonding_)
     call c%struct_new(seed,crashfail=.true.,ti=ti)
 
   end subroutine rebuild_after_move
@@ -1689,14 +1658,8 @@ contains
     end if
 
     ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom
-    ! order), preserving bonding if requested. For a molecule, use an
-    ! absolute-Cartesian seed (useabr=0) so struct_new re-fits the encompassing
-    ! cell to the moved molecule.
-    if (c%ismolecule) then
-       call c%makeseed(seed,copysym=.false.,useabr=0,copybonding=copybonding_)
-    else
-       call c%makeseed(seed,copysym=.false.,copybonding=copybonding_)
-    end if
+    ! order), preserving bonding if requested; re-fits the molecular cell
+    call makeseed_for_edit(c,seed,.false.,copybonding_)
     if (seed%nat /= c%ncel) return
 
     ! translate the atoms belonging to this fragment (Cartesian for molecules,
@@ -1774,14 +1737,8 @@ contains
     xcm = c%mol(imol)%xcm
 
     ! make seed from this crystal (no symmetry, so seed atoms follow cell-atom
-    ! order), preserving bonding if requested. For a molecule, use an
-    ! absolute-Cartesian seed (useabr=0) so struct_new re-fits the encompassing
-    ! cell to the rotated molecule instead of wrapping atoms into the old cell.
-    if (c%ismolecule) then
-       call c%makeseed(seed,copysym=.false.,useabr=0,copybonding=copybonding_)
-    else
-       call c%makeseed(seed,copysym=.false.,copybonding=copybonding_)
-    end if
+    ! order), preserving bonding if requested; re-fits the molecular cell
+    call makeseed_for_edit(c,seed,.false.,copybonding_)
     if (seed%nat /= c%ncel) return
 
     ! rotate the fragment atoms (whole molecule) and write them to the seed
@@ -1935,9 +1892,7 @@ contains
   module subroutine add_atom(c,is,x,iunit_l,isnneq,ti)
     use crystalseedmod, only: crystalseed
     use types, only: realloc, siteocc
-    use global, only: iunit_ang, iunit_bohr
     use tools_io, only: nameguess
-    use param, only: bohrtoa
     class(crystal), intent(inout) :: c
     integer, intent(in) :: is
     real*8, intent(in) :: x(3)
@@ -1954,18 +1909,11 @@ contains
     ! whether to use symmetry
     copysym = isnneq .and. .not.c%ismolecule .and. c%spgavail
 
-    ! make seed from this crystal
-    call c%makeseed(seed,copysym=copysym)
+    ! make seed from this crystal; re-fits the molecular cell to the added atom
+    call makeseed_for_edit(c,seed,copysym,.false.)
 
-    ! interpret units
-    if (iunit_l == iunit_ang) then
-       xx = x / bohrtoa
-       xx = c%c2x(xx)
-    elseif (iunit_l == iunit_bohr) then
-       xx = c%c2x(x)
-    else
-       xx = x
-    end if
+    ! interpret units: internal Cartesian for a molecule, crystallographic otherwise
+    xx = edit_seed_coords(c,x,iunit_l)
 
     ! add the species
     if (is <= 0) then
@@ -1993,7 +1941,12 @@ contains
        mixaux(1:size(seed%mix,1)) = seed%mix
        call move_alloc(mixaux,seed%mix)
     end if
-    seed%x(:,seed%nat) = xx
+    ! the new atom position (absolute Cartesian for molecules)
+    if (c%ismolecule) then
+       seed%x(:,seed%nat) = xx + c%molx0
+    else
+       seed%x(:,seed%nat) = xx
+    end if
     seed%is(seed%nat) = is_
     seed%atname(seed%nat) = seed%spc(is_)%name
 
@@ -2037,8 +1990,9 @@ contains
 
     if (ndel <= 0 .and. nadd <= 0) return
 
-    ! make seed from this crystal (atoms in atcel order)
-    call c%makeseed(seed,copysym=.false.)
+    ! make seed from this crystal (atoms in atcel order); re-fits the
+    ! molecular cell to the new fragment
+    call makeseed_for_edit(c,seed,.false.,.false.)
 
     ! compact out the deleted atoms
     if (ndel > 0) then
@@ -2097,8 +2051,12 @@ contains
           is = seed%nspc
        end if
 
-       ! the atom
-       seed%x(:,nat0+i) = c%c2x(x(:,i))
+       ! the atom (absolute Cartesian for molecules)
+       if (c%ismolecule) then
+          seed%x(:,nat0+i) = x(:,i) + c%molx0
+       else
+          seed%x(:,nat0+i) = c%c2x(x(:,i))
+       end if
        seed%is(nat0+i) = is
        seed%atname(nat0+i) = seed%spc(is)%name
     end do
@@ -2266,5 +2224,59 @@ contains
     call c%calculate_periodicity()
 
   end subroutine refresh_molecular_data
+
+  !xx! private procedures
+
+  ! Make a seed for an edit-and-rebuild operation. For a molecule, use
+  ! an absolute-Cartesian seed (useabr=0) so struct_new re-fits the
+  ! encompassing cell to the edited atoms instead of wrapping them into
+  ! the old cell. A symmetric edit (copysym) uses the non-equivalent
+  ! (nneq-indexed) seed so editing the representative expands to all its
+  ! equivalents; bonds (nstar is ncel-indexed) cannot ride on that seed,
+  ! so they are recomputed.
+  subroutine makeseed_for_edit(c,seed,copysym,copybonding)
+    use crystalseedmod, only: crystalseed
+    class(crystal), intent(in) :: c
+    type(crystalseed), intent(out) :: seed
+    logical, intent(in) :: copysym, copybonding
+
+    if (c%ismolecule) then
+       call c%makeseed(seed,copysym=.false.,useabr=0,copybonding=copybonding)
+    else
+       call c%makeseed(seed,copysym=copysym,copybonding=(copybonding .and. .not.copysym))
+    end if
+
+  end subroutine makeseed_for_edit
+
+  ! Convert atomic position x in units iunit_l (iunit_ang, iunit_bohr,
+  ! or fractional otherwise) to the coordinates used in an edit seed:
+  ! internal Cartesian (bohr) for a molecule, crystallographic
+  ! otherwise.
+  function edit_seed_coords(c,x,iunit_l) result(xx)
+    use global, only: iunit_ang, iunit_bohr
+    use param, only: bohrtoa
+    class(crystal), intent(in) :: c
+    real*8, intent(in) :: x(3)
+    integer, intent(in) :: iunit_l
+    real*8 :: xx(3)
+
+    if (iunit_l == iunit_ang) then
+       xx = x / bohrtoa
+       if (.not.c%ismolecule) xx = c%c2x(xx)
+    elseif (iunit_l == iunit_bohr) then
+       if (c%ismolecule) then
+          xx = x
+       else
+          xx = c%c2x(x)
+       end if
+    else
+       if (c%ismolecule) then
+          xx = c%x2c(x)
+       else
+          xx = x
+       end if
+    end if
+
+  end function edit_seed_coords
 
 end submodule edit
