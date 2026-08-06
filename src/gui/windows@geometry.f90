@@ -3188,6 +3188,10 @@ contains
       integer :: izout
       character(len=:), allocatable :: str
 
+      ! if the selected species does not exist, default to C
+      if (w%geometry_input_species > sys(isys)%c%nspc) &
+         w%geometry_input_species = -6
+
       ! the input position is interpreted in the same coordinate type as
       ! shown in the table, so the new atom's row matches the user input
       call igAlignTextToFramePadding()
