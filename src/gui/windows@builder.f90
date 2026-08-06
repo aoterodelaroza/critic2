@@ -18,6 +18,7 @@
 ! Routines for the builder window.
 submodule (windows) builder
   use interfaces_cimgui
+  use types, only: vstring
   implicit none
 
   ! add-atoms local geometries (see addatom_template for the vertex sets)
@@ -29,6 +30,13 @@ submodule (windows) builder
      "octahedral","trigonal antiprism","pentagonal bipyramid","capped octahedron",&
      "square antiprism","trigonal dodecahedron","tricapped trigonal prism",&
      "capped square antiprism","pentagonal prism"]
+
+  ! the fragment (substituent) library, read from flib_file on first use
+  logical :: fraglib_init = .false. ! whether the library has been read
+  integer :: nfraglib = 0 ! number of fragments in the library
+  type(vstring), allocatable :: fraglib_name(:) ! fragment names
+  integer, allocatable :: fraglib_anchor(:) ! anchor atom of each fragment
+  integer, allocatable :: fraglib_attach(:) ! attachment placeholder of each fragment
 
   ! bond styles in the local geometry pictograms
   integer, parameter :: sty_plain = 0 ! plain line, in the plane of the diagram
@@ -46,7 +54,7 @@ contains
     use energy, only: ff_backend_applicable, ff_backend_default
     use gui_main, only: ColorHighlightEditDistScene
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
-       iw_periodictable, invmult, mult
+       iw_periodictable, iw_menuitem, invmult, mult
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_PICKATOM_SELECT,&
        BIND_PICKATOM_ALT, BIND_RECALC_BONDS, BIND_NAV_MEASURE, BIND_EDIT_D_A_PHI,&
        BIND_REOPEN, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
@@ -57,7 +65,7 @@ contains
     use param, only: bohrtoa, pi, eye
     class(window), intent(inout), target :: w
 
-    integer :: isys, iview, icel, imode, nsel, iside, ibold, ibnew, izout, i
+    integer :: isys, iview, icel, imode, nsel, iside, ibold, ibnew, izout, i, k
     logical :: doquit, goodparent, havesys, ok, lcommit, ldum, relaxing
     real*8 :: dist, ang
     real(c_float) :: xclick(2)
@@ -111,19 +119,28 @@ contains
           ! another window took over the pick, or the view shows another
           ! system: release the forced mode
           call builder_stop()
-       elseif (w%builder_vm == vm_builder_addatom) then
-          ! keep the mouse tooltip current
-          win(iview)%vmdata%tooltip_ig = w%builder_addatom_ig
-          win(iview)%vmdata%tooltip_iz = w%builder_addatom_z
+       elseif (w%builder_vm == vm_builder_addatom .or. w%builder_vm == vm_builder_addfragment) then
+          ! keep the mouse ghost current
+          if (w%builder_vm == vm_builder_addatom) then
+             win(iview)%vmdata%tooltip_ig = w%builder_addatom_ig
+             win(iview)%vmdata%tooltip_iz = w%builder_addatom_z
+          elseif (allocated(w%builder_frag_name)) then
+             win(iview)%vmdata%tooltip_frag = w%builder_frag_name
+          end if
           if (win(iview)%vmdata%flag /= 0) then
-             ! a click was delivered: add the fragment at the clicked position or replace the clicked atom
+             ! a click was delivered: add the atoms or the fragment at the
+             ! clicked position, or replace the clicked atom
              icel = win(iview)%vmdata%idx(1)
              xclick = win(iview)%vmdata%xpos
              win(iview)%vmdata%flag = 0
              win(iview)%vmdata%idx = 0
              if (glfwGetTime() - w%builder_time < stale_gap .and.&
                 sysc(w%builder_isys)%timelastchange_geometry <= w%builder_time) then
-                call addatom_apply(xclick,icel)
+                if (w%builder_vm == vm_builder_addatom) then
+                   call addatom_apply(xclick,icel)
+                else
+                   call addfrag_apply(xclick,icel)
+                end if
                 if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
              end if
           else
@@ -206,6 +223,37 @@ contains
     ! the local geometry selector: a grid of pictograms
     call iw_text("Local geometry",sameline=.true.)
     call draw_addatom_geom_grid(w%builder_addatom_ig)
+
+    ! the add fragments section
+    call iw_text("Add fragments",highlight=.true.)
+    if (w%builder_vm == vm_builder_addfragment) then
+       ! armed: the button cancels the mode
+       if (iw_button("Add fragment",danger=.true.)) &
+          call builder_stop()
+       call iw_tooltip("Stop adding fragments ("//trim(get_bind_keyname(BIND_CANCEL))//")",ttshown)
+    else
+       ldum = iw_button("Add fragment",disabled=.not.havesys,popupcontext=ok,&
+          popupflags=ImGuiPopupFlags_MouseButtonLeft)
+       if (ok) then
+          call fraglib_ensure()
+          if (nfraglib == 0) then
+             call iw_text("No fragments available")
+          else
+             do k = 1, nfraglib
+                if (iw_menuitem(trim(fraglib_name(k)%s))) then
+                   w%errmsg = ""
+                   if (addfrag_load(k)) call builder_toggle(vm_builder_addfragment)
+                   call igCloseCurrentPopup()
+                end if
+             end do
+          end if
+          call igEndPopup()
+       end if
+       call iw_tooltip("Choose a fragment, then click in the view to add it.",ttshown)
+    end if
+    ! the selected fragment, next to the button
+    if (allocated(w%builder_frag_name)) &
+       call iw_text(trim(w%builder_frag_name),sameline=.true.)
 
     ! the atoms section
     call iw_text("Atoms",highlight=.true.)
@@ -1107,19 +1155,18 @@ contains
       w%builder_isys = 0
     end subroutine builder_stop
 
-    ! Add-atoms mode: on empty space (icel = 0), unproject the clicked
-    ! texture position xpos to the plane parallel to the screen
-    ! through the scene center and add the fragment there. On an atom
-    ! (icel > 0), replace it (see addatom_replace).
-    subroutine addatom_apply(xpos,icel)
+    ! Unproject the clicked texture position xpos onto the plane
+    ! parallel to the screen through the scene center: x0 is the
+    ! clicked point in world coordinates and the columns of rcam are
+    ! the camera axes (screen right, screen up, towards the viewer).
+    subroutine builder_click_frame(xpos,x0,rcam,ok)
       real(c_float), intent(in) :: xpos(2)
-      integer, intent(in) :: icel
+      real*8, intent(out) :: x0(3), rcam(3,3)
+      logical, intent(out) :: ok
 
       real(c_float) :: v0(3), vx(3), vy(3)
-      real*8 :: x0(3), rot(3,3), bl
-      real*8 :: tvec(3,maxaddsub), xat(3,maxaddsub+1)
-      integer :: zat(maxaddsub+1), nsub, nat, k
 
+      ok = .false.
       if (.not.associated(win(iview)%sc)) return
 
       ! depth of the scene center (tworld), then unproject the click
@@ -1140,12 +1187,31 @@ contains
       x0 = real(v0,8)
       ! camera axes as the columns of a rotation: (x,y,z) =
       ! (screen right, screen up, toward the viewer)
-      rot(:,1) = real(vx - v0,8)
-      rot(:,1) = rot(:,1) / norm2(rot(:,1))
-      rot(:,2) = real(vy - v0,8)
-      rot(:,2) = rot(:,2) - dot_product(rot(:,2),rot(:,1)) * rot(:,1)
-      rot(:,2) = rot(:,2) / norm2(rot(:,2))
-      rot(:,3) = cross(rot(:,1),rot(:,2))
+      rcam(:,1) = real(vx - v0,8)
+      rcam(:,1) = rcam(:,1) / norm2(rcam(:,1))
+      rcam(:,2) = real(vy - v0,8)
+      rcam(:,2) = rcam(:,2) - dot_product(rcam(:,2),rcam(:,1)) * rcam(:,1)
+      rcam(:,2) = rcam(:,2) / norm2(rcam(:,2))
+      rcam(:,3) = cross(rcam(:,1),rcam(:,2))
+      ok = .true.
+
+    end subroutine builder_click_frame
+
+    ! Add-atoms mode: on empty space (icel = 0), unproject the clicked
+    ! texture position xpos to the plane parallel to the screen
+    ! through the scene center and add the fragment there. On an atom
+    ! (icel > 0), replace it (see addatom_replace).
+    subroutine addatom_apply(xpos,icel)
+      real(c_float), intent(in) :: xpos(2)
+      integer, intent(in) :: icel
+
+      real*8 :: x0(3), rot(3,3), bl
+      real*8 :: tvec(3,maxaddsub), xat(3,maxaddsub+1)
+      integer :: zat(maxaddsub+1), nsub, nat, k
+      logical :: ok
+
+      call builder_click_frame(xpos,x0,rot,ok)
+      if (.not.ok) return
 
       ! clicked on an atom: replace it instead
       if (icel > 0) then
@@ -1390,6 +1456,300 @@ contains
 
     end function addatom_prefgeom
 
+    ! Load fragment ifrag of the library into the builder window state.
+    ! Returns .false. (and sets w%errmsg) if the fragment cannot be read
+    ! or its anchor/attach atoms are not valid.
+    function addfrag_load(ifrag) result(ok)
+      use crystalseedmod, only: crystalseed
+      use global, only: flib_file
+      use tools_io, only: string
+      integer, intent(in) :: ifrag
+      logical :: ok
+
+      type(crystalseed) :: seed
+      integer :: i, ia, it
+
+      ok = .false.
+      w%builder_frag_nat = 0
+      if (ifrag < 1 .or. ifrag > nfraglib) return
+
+      ! read the coordinates with the library reader
+      call seed%read_library(trim(fraglib_name(ifrag)%s),ok,file=flib_file)
+      if (.not.ok .or. seed%nat <= 0 .or. seed%nspc <= 0) then
+         w%errmsg = "Could not read fragment " // trim(fraglib_name(ifrag)%s) //&
+            " from the fragment library"
+         ok = .false.
+         return
+      end if
+
+      ! the anchor and its attachment placeholder must exist
+      ia = fraglib_anchor(ifrag)
+      it = fraglib_attach(ifrag)
+      ok = (ia >= 1 .and. ia <= seed%nat .and. it >= 1 .and. it <= seed%nat .and. ia /= it)
+      if (.not.ok) then
+         w%errmsg = "Fragment " // trim(fraglib_name(ifrag)%s) //&
+            " has an invalid anchor or attach atom"
+         return
+      end if
+
+      ! save the fragment (seed%x is Cartesian and in bohr for a molecule)
+      if (allocated(w%builder_frag_z)) deallocate(w%builder_frag_z)
+      if (allocated(w%builder_frag_x)) deallocate(w%builder_frag_x)
+      allocate(w%builder_frag_z(seed%nat),w%builder_frag_x(3,seed%nat))
+      do i = 1, seed%nat
+         w%builder_frag_z(i) = seed%spc(seed%is(i))%z
+         w%builder_frag_x(:,i) = seed%x(:,i)
+      end do
+      w%builder_frag_nat = seed%nat
+      w%builder_frag_ianchor = ia
+      w%builder_frag_iattach = it
+      w%builder_frag_name = trim(fraglib_name(ifrag)%s)
+
+    end function addfrag_load
+
+    ! Add-fragments mode: place the loaded fragment. On empty space
+    ! (icel = 0) the fragment goes at the clicked position, camera-aligned
+    ! and capped with its placeholder atom. On an atom (icel > 0) the
+    ! anchor replaces it (see addfrag_target).
+    subroutine addfrag_apply(xpos,icel)
+      integer, intent(in) :: icel
+      real(c_float), intent(in) :: xpos(2)
+
+      integer :: isysl, i, ia, nadd, ndel
+      integer, allocatable :: idel(:), zadd(:)
+      real*8, allocatable :: xadd(:,:)
+      real*8 :: x0(3), rcam(3,3), e(3,3), rot(3,3), p0(3), t1(3), dattach(3)
+      logical :: ok, keepattach
+
+      isysl = w%builder_isys
+      ia = w%builder_frag_ianchor
+      if (w%builder_frag_nat <= 0) return
+      call builder_click_frame(xpos,x0,rcam,ok)
+      if (.not.ok) return
+
+      ! the fragment frame and where the fragment goes
+      call addfrag_frame(e)
+      keepattach = (icel == 0)
+      if (keepattach) then
+         ! empty space: the attachment points to the left of the screen
+         p0 = x0
+         dattach = -rcam(:,1)
+         ndel = 0
+         allocate(idel(1))
+      else
+         call addfrag_target(icel,rcam,p0,dattach,ndel,idel,ok)
+         if (.not.ok) return
+      end if
+
+      ! orient the fragment: the attachment along dattach and the plane
+      ! of the fragment facing the viewer as much as it allows
+      call addfrag_rotation(e,dattach,real(rcam(:,3),8),rot)
+      t1 = matmul(rot,e(:,1))
+
+      ! the fragment atoms, rotated and translated onto the anchor; the
+      ! placeholder is dropped when the anchor bonds to the structure
+      allocate(zadd(w%builder_frag_nat),xadd(3,w%builder_frag_nat))
+      nadd = 0
+      do i = 1, w%builder_frag_nat
+         if (.not.keepattach .and. i == w%builder_frag_iattach) cycle
+         nadd = nadd + 1
+         zadd(nadd) = w%builder_frag_z(i)
+         xadd(:,nadd) = p0 + matmul(rot,w%builder_frag_x(:,i) - w%builder_frag_x(:,ia))
+      end do
+
+      ! cap the anchor at the sum of covalent radii
+      if (keepattach) &
+         xadd(:,w%builder_frag_iattach) = p0 + t1 * &
+         (sysc(isysl)%atmcov(w%builder_frag_z(ia)) +&
+         sysc(isysl)%atmcov(w%builder_frag_z(w%builder_frag_iattach)))
+
+      call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:max(ndel,1)),nadd,&
+         zadd(1:nadd),xadd(:,1:nadd))
+
+    end subroutine addfrag_apply
+
+    ! Add-fragments mode, click on cell atom icel: the anchor of the
+    ! fragment replaces it. Returns the position of the anchor (p0), the
+    ! direction from the anchor towards the atoms it bonds to (dattach),
+    ! and the atoms to delete (icel plus the terminal hydrogens that make
+    ! room for the fragment).
+    subroutine addfrag_target(icel,rcam,p0,dattach,ndel,idel,ok)
+      integer, intent(in) :: icel
+      real*8, intent(in) :: rcam(3,3)
+      real*8, intent(out) :: p0(3), dattach(3)
+      integer, intent(out) :: ndel
+      integer, allocatable, intent(inout) :: idel(:)
+      logical, intent(out) :: ok
+
+      integer :: isysl, ncon, k, nb, nanch, nrem, m, zkept
+      real*8 :: x0(3), xnb(3), xkept(3), dir(3), dn, sumdir(3)
+      logical :: isterm
+
+      ok = .false.
+      isysl = w%builder_isys
+      if (icel < 1 .or. icel > sys(isysl)%c%ncel) return
+      if (.not.allocated(sys(isysl)%c%nstar)) return
+
+      x0 = sys(isysl)%c%atcel(icel)%r
+      ncon = sys(isysl)%c%nstar(icel)%ncon
+      if (allocated(idel)) deallocate(idel)
+      allocate(idel(ncon+1))
+      ndel = 1
+      idel(1) = icel
+
+      ! a terminal atom is simply replaced; otherwise make room for the
+      ! fragment by removing as many terminal hydrogens as connections
+      ! the anchor brings with it (fewer if there are not enough)
+      nanch = 0
+      if (ncon > 1) nanch = addfrag_nanchor()
+
+      ! classify the neighbors into removed hydrogens and kept neighbors
+      m = 0
+      nrem = 0
+      zkept = 0
+      sumdir = 0d0
+      xkept = 0d0
+      do k = 1, ncon
+         nb = sys(isysl)%c%nstar(icel)%idcon(k)
+         isterm = (sys(isysl)%c%spc(sys(isysl)%c%atcel(nb)%is)%z == 1)
+         if (isterm) isterm = (sys(isysl)%c%nstar(nb)%ncon == 1)
+         if (isterm .and. nrem < nanch) then
+            if (any(idel(1:ndel) == nb)) cycle
+            nrem = nrem + 1
+            ndel = ndel + 1
+            idel(ndel) = nb
+         else
+            xnb = sys(isysl)%c%x2c(sys(isysl)%c%atcel(nb)%x +&
+               dble(sys(isysl)%c%nstar(icel)%lcon(:,k)))
+            dir = xnb - x0
+            dn = norm2(dir)
+            if (dn < eps_dzero) cycle
+            m = m + 1
+            sumdir = sumdir + dir / dn
+            xkept = xnb
+            zkept = sys(isysl)%c%spc(sys(isysl)%c%atcel(nb)%is)%z
+         end if
+      end do
+
+      ! the anchor bonds towards the kept neighbors; with none left to
+      ! bond to, fall back to the camera orientation
+      p0 = x0
+      dn = norm2(sumdir)
+      if (m == 0 .or. dn < eps_dzero) then
+         dattach = -rcam(:,1)
+      else
+         dattach = sumdir / dn
+         ! on a single kept neighbor, re-bond at the sum of covalent radii
+         if (m == 1) then
+            dir = x0 - xkept
+            dn = norm2(dir)
+            if (dn < eps_dzero) return
+            p0 = xkept + (sysc(isysl)%atmcov(zkept) +&
+               sysc(isysl)%atmcov(w%builder_frag_z(w%builder_frag_ianchor))) * dir / dn
+         end if
+      end if
+      ok = .true.
+
+    end subroutine addfrag_target
+
+    ! Number of atoms bonded to the anchor in the loaded fragment
+    ! (including the attachment placeholder): the connections the anchor
+    ! brings with it when the fragment is attached.
+    function addfrag_nanchor() result(n)
+      use global, only: bondfactor
+      integer :: n
+
+      integer :: i, ia
+
+      ia = w%builder_frag_ianchor
+      n = 0
+      do i = 1, w%builder_frag_nat
+         if (i == ia) cycle
+         if (norm2(w%builder_frag_x(:,i) - w%builder_frag_x(:,ia)) < bondfactor *&
+            (sysc(w%builder_isys)%atmcov(w%builder_frag_z(i)) +&
+            sysc(w%builder_isys)%atmcov(w%builder_frag_z(ia)))) n = n + 1
+      end do
+
+    end function addfrag_nanchor
+
+    ! Orthonormal frame of the loaded fragment: e1 along the attachment
+    ! direction (anchor to placeholder), e3 along the direction of least
+    ! spread of the fragment (the normal, for a planar fragment), and e2
+    ! completing the right-handed set.
+    subroutine addfrag_frame(e)
+      use tools_math, only: eigsym
+      real*8, intent(out) :: e(3,3)
+
+      integer :: i, j, k, ier
+      real*8 :: cov(3,3), eval(3), xd(3), dn
+
+      ! e1: the attachment direction
+      e(:,1) = w%builder_frag_x(:,w%builder_frag_iattach) -&
+         w%builder_frag_x(:,w%builder_frag_ianchor)
+      e(:,1) = e(:,1) / norm2(e(:,1))
+
+      ! e3: the direction in which the fragment is least spread out
+      cov = 0d0
+      do i = 1, w%builder_frag_nat
+         xd = w%builder_frag_x(:,i) - w%builder_frag_x(:,w%builder_frag_ianchor)
+         do j = 1, 3
+            do k = 1, 3
+               cov(j,k) = cov(j,k) + xd(j) * xd(k)
+            end do
+         end do
+      end do
+      call eigsym(cov,3,eval,ier)
+      if (ier == 0) then
+         e(:,3) = cov(:,1)
+      else
+         e(:,3) = (/0d0,0d0,1d0/)
+      end if
+
+      ! make e3 perpendicular to e1, or any perpendicular direction if
+      ! the two are parallel (a linear fragment: the twist is irrelevant)
+      e(:,3) = e(:,3) - dot_product(e(:,3),e(:,1)) * e(:,1)
+      dn = norm2(e(:,3))
+      if (dn < eps_dzero) then
+         e(:,3) = (/1d0,0d0,0d0/) - e(1,1) * e(:,1)
+         dn = norm2(e(:,3))
+         if (dn < eps_dzero) then
+            e(:,3) = (/0d0,1d0,0d0/) - e(2,1) * e(:,1)
+            dn = norm2(e(:,3))
+         end if
+      end if
+      e(:,3) = e(:,3) / dn
+      e(:,2) = cross(e(:,3),e(:,1))
+
+    end subroutine addfrag_frame
+
+    ! Rotation mapping the fragment frame e onto the structure: the
+    ! attachment direction (e1) goes along t1 and the fragment plane
+    ! faces the viewer (view = the direction towards the viewer) as much
+    ! as the attachment allows.
+    subroutine addfrag_rotation(e,t1,view,rot)
+      real*8, intent(in) :: e(3,3), t1(3), view(3)
+      real*8, intent(out) :: rot(3,3)
+
+      real*8 :: t(3,3), dn
+
+      t(:,1) = t1 / norm2(t1)
+      t(:,3) = view - dot_product(view,t(:,1)) * t(:,1)
+      dn = norm2(t(:,3))
+      if (dn < eps_dzero) then
+         ! the attachment points at the viewer: any twist will do
+         t(:,3) = (/1d0,0d0,0d0/) - t(1,1) * t(:,1)
+         dn = norm2(t(:,3))
+         if (dn < eps_dzero) then
+            t(:,3) = (/0d0,1d0,0d0/) - t(2,1) * t(:,1)
+            dn = norm2(t(:,3))
+         end if
+      end if
+      t(:,3) = t(:,3) / dn
+      t(:,2) = cross(t(:,3),t(:,1))
+      rot = matmul(t,transpose(e))
+
+    end subroutine addfrag_rotation
+
 
 
     ! Toggle builder mode jvm (a vm_* constant): start it on the parent
@@ -1413,6 +1773,10 @@ contains
                ") hydrogens..."
          elseif (jvm == vm_builder_addatom) then
             msg = "Add atoms ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
+               ") at the clicked positions or replace the clicked atoms"
+         elseif (jvm == vm_builder_addfragment) then
+            msg = "Add "//trim(w%builder_frag_name)//" ("//&
+               trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
                ") at the clicked positions or replace the clicked atoms"
          else
             msg = "Remove ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
@@ -1891,5 +2255,65 @@ contains
     end select
 
   end subroutine addatom_diagram
+
+  ! Read the list of fragments in the fragment library (flib_file) the
+  ! first time it is needed: the name of each fragment plus the indices
+  ! of its anchor and attachment-placeholder atoms. The format is the
+  ! same as in the crystal and molecule libraries, with the anchor and
+  ! attach keywords given after the endmolecule line (see the file).
+  subroutine fraglib_ensure()
+    use tools_io, only: fopen_read, fclose, getline, lgetword, getword, equal,&
+       isinteger
+    use types, only: realloc
+    use global, only: flib_file
+
+    integer :: lu, lp, idum
+    character(len=:), allocatable :: line, word, name
+    logical :: ok
+
+    if (fraglib_init) return
+    fraglib_init = .true.
+    nfraglib = 0
+    if (.not.allocated(flib_file)) return
+    inquire(file=flib_file,exist=ok)
+    if (.not.ok) return
+    lu = fopen_read(flib_file,abspath0=.true.)
+    if (lu < 0) return
+
+    allocate(fraglib_name(10),fraglib_anchor(10),fraglib_attach(10))
+    do while (getline(lu,line))
+       lp = 1
+       word = lgetword(line,lp)
+       if (equal(word,"structure")) then
+          ! a new fragment: default to the first atom as the anchor and
+          ! no placeholder until the attach keyword is found
+          name = getword(line,lp)
+          if (len_trim(name) == 0) cycle
+          nfraglib = nfraglib + 1
+          if (nfraglib > size(fraglib_name,1)) then
+             call realloc(fraglib_name,2*nfraglib)
+             call realloc(fraglib_anchor,2*nfraglib)
+             call realloc(fraglib_attach,2*nfraglib)
+          end if
+          fraglib_name(nfraglib)%s = name
+          fraglib_anchor(nfraglib) = 1
+          fraglib_attach(nfraglib) = 0
+       elseif (nfraglib > 0) then
+          if (equal(word,"anchor")) then
+             if (isinteger(idum,line,lp)) fraglib_anchor(nfraglib) = idum
+          elseif (equal(word,"attach")) then
+             if (isinteger(idum,line,lp)) fraglib_attach(nfraglib) = idum
+          end if
+       end if
+    end do
+    call fclose(lu)
+
+    if (nfraglib > 0) then
+       call realloc(fraglib_name,nfraglib)
+       call realloc(fraglib_anchor,nfraglib)
+       call realloc(fraglib_attach,nfraglib)
+    end if
+
+  end subroutine fraglib_ensure
 
 end submodule builder

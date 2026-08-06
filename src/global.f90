@@ -44,6 +44,7 @@ module global
   character(len=:), allocatable :: critic_home !< CRITIC_HOME directory (with trailing "/")
   character(len=:), allocatable :: clib_file !< The path to the crystal library file
   character(len=:), allocatable :: mlib_file !< The path to the molecular library file
+  character(len=:), allocatable :: flib_file !< The path to the fragment (substituent) library file
 
   ! Cutoff radius for 1d-12 atomic densities (max of r_LDA, r_PBE). Up
   ! to Pu (93). Values are bohr. This distance is usually enough to

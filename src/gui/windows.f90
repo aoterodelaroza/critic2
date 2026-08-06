@@ -38,6 +38,7 @@ module windows
   integer(c_size_t), parameter :: maxlib = 40000
 
   ! view modes (positive = normal, user-selectable; negative = forced)
+  integer, parameter, public :: vm_builder_addfragment = -6 ! forced by builder: add fragments (persistent)
   integer, parameter, public :: vm_builder_addatom = -5 ! forced by builder: add atoms (persistent)
   integer, parameter, public :: vm_builder_remove = -4 ! forced by builder: remove atoms (persistent)
   integer, parameter, public :: vm_builder_valence = -3 ! forced by builder: change valence (persistent)
@@ -49,7 +50,8 @@ module windows
   integer, parameter, public :: vm_moveatom  = 3
   integer, parameter, public :: vm_NUM = 3 ! highest user-selectable mode (combo)
 
-  character(len=19), parameter, public :: vmnames(vm_builder_addatom:vm_NUM) = (/&
+  character(len=19), parameter, public :: vmnames(vm_builder_addfragment:vm_NUM) = (/&
+     "Add Fragments      ",& ! vm_builder_addfragment
      "Add Atoms          ",& ! vm_builder_addatom
      "Remove Atoms       ",& ! vm_builder_remove
      "Change Atom Valence",& ! vm_builder_valence
@@ -66,6 +68,7 @@ module windows
      character(len=:), allocatable :: msg ! message shown in the view bar
      integer :: tooltip_ig = -1 ! geometry pictogram shown in the mouse tooltip (add-atoms mode; < 0 = none)
      integer :: tooltip_iz = 0 ! atomic number for the pictogram center (add-atoms mode; <= 0 = filled circle)
+     character(len=:), allocatable :: tooltip_frag ! fragment name shown at the cursor (add-fragments mode)
      integer(c_int) :: idx(5) ! atom identifier under mouse position
      integer :: flag = 0 ! pick bind that fired (1 = main, 2 = alternate)
      real(c_float) :: xpos(2) = 0._c_float ! texture position of the click (add-atoms mode)
@@ -199,6 +202,12 @@ module windows
      real*8 :: builder_time = 0d0 ! time of the last click-free poll (stale-click guard)
      integer :: builder_addatom_z = 6 ! add atoms: selected element (Z)
      integer :: builder_addatom_ig = 6 ! add atoms: local geometry (0-based combo index, 6 = tetrahedral)
+     character(len=:), allocatable :: builder_frag_name ! add fragments: name of the selected fragment
+     integer :: builder_frag_nat = 0 ! add fragments: number of atoms in the fragment
+     integer, allocatable :: builder_frag_z(:) ! add fragments: atomic numbers
+     real*8, allocatable :: builder_frag_x(:,:) ! add fragments: Cartesian coordinates (bohr)
+     integer :: builder_frag_ianchor = 0 ! add fragments: anchor atom (attaches to the structure)
+     integer :: builder_frag_iattach = 0 ! add fragments: placeholder atom marking the attachment direction
      logical :: edit_pending = .false. ! keybinding request to toggle an edit session
      integer :: edit_kind = 0 ! active edit session and its number of atoms: 0 = none, 2 = distance, 3 = angle, 4 = dihedral
      integer :: edit_isys = 0 ! system latched for the edit session

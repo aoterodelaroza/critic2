@@ -1369,7 +1369,7 @@ contains
           ! modes share the navigation binds (minus measurements)
           select case (w%viewmode)
           case (vm_navigate, vm_pick_atom, vm_builder_valence, vm_builder_remove,&
-             vm_builder_addatom)
+             vm_builder_addatom, vm_builder_addfragment)
              mygroup = group_viewmode_navigation
           case (vm_select)
              mygroup = group_viewmode_select
@@ -1419,6 +1419,8 @@ contains
                 lblline(n) = "Remove Atom"
              elseif (w%viewmode == vm_builder_addatom) then
                 lblline(n) = "Add Atoms Here"
+             elseif (w%viewmode == vm_builder_addfragment) then
+                lblline(n) = "Add Fragment Here"
              else
                 lblline(n) = "Pick Atom"
              end if
@@ -1522,7 +1524,7 @@ contains
        BIND_CANCEL, bind_mouse_button
     use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry
     use global, only: iunit_bohr
-    use gui_main, only: io, ColorHighlightSelectScene
+    use gui_main, only: io, ColorHighlightSelectScene, lumweights, ColorBlack, ColorWhite
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
 
@@ -1531,8 +1533,9 @@ contains
     real(c_float) :: mpos2(2), ang, xc(3), dist, comc(3)
     real*8 :: dxbohr(3)
     integer :: isys
-    integer(c_int) :: col, ibtn
+    integer(c_int) :: col, ibtn, idum
     logical :: ok, dragged, forcedpick
+    character(kind=c_char,len=:), allocatable, target :: strf
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
@@ -1691,6 +1694,25 @@ contains
                 call addatom_geom_paint(w%vmdata%tooltip_ig,ghostpos,&
                    2.6_c_float*igGetTextLineHeight(),igGetForegroundDrawList_Nil(),&
                    iz=w%vmdata%tooltip_iz,bgrgb=w%sc%bgcolor)
+             end if
+          end if
+
+          ! add-fragments mode: show the name of the fragment being
+          ! added next to the mouse cursor, contrasted against the
+          ! scene background color
+          if (w%viewmode == vm_builder_addfragment .and. hover) then
+             if (allocated(w%vmdata%tooltip_frag) .and. associated(w%sc)) then
+                call igGetMousePos(ghostpos)
+                ghostpos%x = ghostpos%x + 14._c_float
+                ghostpos%y = ghostpos%y + 14._c_float
+                strf = trim(w%vmdata%tooltip_frag) // c_null_char
+                if (dot_product(lumweights,w%sc%bgcolor) <= 0.5_c_float) then
+                   idum = igGetColorU32_Vec4(ColorWhite)
+                else
+                   idum = igGetColorU32_Vec4(ColorBlack)
+                end if
+                call ImDrawList_AddText_Vec2(igGetForegroundDrawList_Nil(),ghostpos,idum,&
+                   c_loc(strf),c_null_ptr)
              end if
           end if
 
@@ -2038,7 +2060,7 @@ contains
          if (idx(1) > 0) w%vmdata%idx = idx
          w%viewmode = vm_navigate
          w%viewmode_transient = .false.
-      elseif (w%viewmode == vm_builder_addatom) then
+      elseif (w%viewmode == vm_builder_addatom .or. w%viewmode == vm_builder_addfragment) then
          ! deliver the click position (texture coordinates), even on empty
          ! space, plus the atom under the cursor if any
          if (.not.alt) then
@@ -2611,7 +2633,8 @@ contains
     logical :: vm_is_forcedpick
 
     vm_is_forcedpick = (mode == vm_pick_atom .or. mode == vm_builder_valence .or.&
-       mode == vm_builder_remove .or. mode == vm_builder_addatom)
+       mode == vm_builder_remove .or. mode == vm_builder_addatom .or.&
+       mode == vm_builder_addfragment)
   end function vm_is_forcedpick
 
   !> Whether any mouse button was clicked this frame

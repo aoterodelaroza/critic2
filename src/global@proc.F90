@@ -807,6 +807,7 @@ contains
     ! library file path
     clib_file = trim(critic_home) // dirsep // "lib" // dirsep // "crystal.dat"
     mlib_file = trim(critic_home) // dirsep // "lib" // dirsep // "molecule.dat"
+    flib_file = trim(critic_home) // dirsep // "lib" // dirsep // "fragment.dat"
 
     ! library-specific initialization
 #ifdef HAVE_HDF5

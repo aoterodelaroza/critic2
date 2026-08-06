@@ -1,0 +1,33 @@
+#xx# Molecular fragments (substituents) used by the GUI builder to
+#xx# build structures by attaching groups to an existing molecule.
+#xx#
+#xx# The format is the same as in the crystal and molecule libraries,
+#xx# with two additional keywords after the endmolecule line:
+#xx#
+#xx#   anchor <i> ... the atom that attaches to the rest of the structure
+#xx#   attach <j> ... the placeholder atom (usually a hydrogen) marking
+#xx#                  the direction of the attachment bond; it caps the
+#xx#                  anchor when the fragment is placed on empty space
+#xx#                  and it is removed when the fragment is bonded to
+#xx#                  an existing atom
+#xx#
+#xx# Therefore each fragment is given as a complete (neutral) molecule.
+#xx# Coordinates are in angstrom.
+structure phenyl
+  molecule
+    6    0.000000    0.000000    0.000000
+    6    0.695000    1.203775    0.000000
+    6    2.085000    1.203775    0.000000
+    6    2.780000    0.000000    0.000000
+    6    2.085000   -1.203775    0.000000
+    6    0.695000   -1.203775    0.000000
+    1    0.150000    2.147743    0.000000
+    1    2.630000    2.147743    0.000000
+    1    3.870000    0.000000    0.000000
+    1    2.630000   -2.147743    0.000000
+    1    0.150000   -2.147743    0.000000
+    1   -1.090000    0.000000    0.000000
+  endmolecule
+  anchor 1
+  attach 12
+endstructure
