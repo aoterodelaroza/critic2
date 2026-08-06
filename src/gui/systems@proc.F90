@@ -168,6 +168,7 @@ contains
     use grid1mod, only: grid1_register_ae
     use gui_main, only: reuse_mid_empty_systems
     use windows, only: regenerate_window_pointers, win, iwin_tree
+    use interfaces_glfw, only: glfwGetTime
     use interfaces_threads, only: allocate_mtx, mtx_init, mtx_plain
     use crystalseedmod, only: crystalseed
     use global, only: symprec
@@ -349,10 +350,13 @@ contains
        call sysc(idx)%post_event(lastchange_geometry)
     end do
 
-    ! select the first new system in the tree
+    ! Select the first new system in the tree
     if (allocated(win)) then
-       if (iwin_tree > 0 .and. iwin_tree <= size(win)) &
+       if (iwin_tree > 0 .and. iwin_tree <= size(win)) then
           win(iwin_tree)%forceselect = id(1)
+          win(iwin_tree)%isys = id(1)
+          win(iwin_tree)%timelast_assign = glfwGetTime()
+       end if
     end if
 
     ! return the IDs of the new systems if requested
