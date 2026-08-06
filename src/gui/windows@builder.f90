@@ -107,7 +107,7 @@ contains
           win(iview)%vmdata%owner == w%id .and.&
           win(iview)%isys == w%builder_isys
        if (.not.ok) then
-          ! The view is gone, the mode was exited (any key, mode combo),
+          ! The view is gone, the mode was exited (cancel key, mode combo),
           ! another window took over the pick, or the view shows another
           ! system: release the forced mode
           call builder_stop()

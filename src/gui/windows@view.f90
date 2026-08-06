@@ -1266,10 +1266,12 @@ contains
   !> binds) with measurements disabled; a click with a pick bind
   !> stores the ID of the atom under the mouse in w%vmdata%idx
   !> (mousepos_idx layout; zero = no atom / cancelled) and which pick
-  !> bind fired in w%vmdata%flag (1 = main, 2 = alternate), and any
-  !> key press exits the mode. idcaller is the window ID (win(:)) of
+  !> bind fired in w%vmdata%flag (1 = main, 2 = alternate), and the
+  !> cancel keybinding exits the mode (a hint is appended to the
+  !> message in pick-atom mode). idcaller is the window ID (win(:)) of
   !> the caller, used by the caller to verify it owns the pick result.
   module subroutine viewmode_set_forced(w,mode,message,idcaller)
+    use keybindings, only: get_bind_keyname, BIND_CANCEL
     class(window), intent(inout), target :: w
     integer, intent(in) :: mode
     character(len=*), intent(in) :: message
@@ -1278,7 +1280,12 @@ contains
     w%viewmode = mode
     w%viewmode_transient = .false.
     w%vmdata%owner = idcaller
-    w%vmdata%msg = trim(message)
+    if (mode == vm_pick_atom) then
+       w%vmdata%msg = trim(message)//" ("//trim(get_bind_keyname(BIND_CANCEL))//&
+          " cancels)..."
+    else
+       w%vmdata%msg = trim(message)
+    end if
     w%vmdata%idx = 0
     w%vmdata%flag = 0
     w%vmdata%tooltip_ig = -1
@@ -1312,7 +1319,7 @@ contains
        BIND_NUM, group_viewmode_navigation, group_viewmode_select,&
        group_viewmode_movemol, group_viewmode_moveatom, group_viewmode_mdinteract,&
        groupbind, BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT, BIND_NAV_MEASURE,&
-       BIND_PICKATOM_EXIT,&
+       BIND_PICKATOM_EXIT, BIND_CANCEL,&
        BIND_NAV_MEASURE_ADD, BIND_NAV_MEASURE_REMOVE
     use utils, only: iw_combo_simple, iw_tooltip, igIsItemHovered_delayed, iw_text
     use tools_io, only: string
@@ -1416,7 +1423,7 @@ contains
                 lblline(n) = "Pick Atom"
              end if
              n = n + 1
-             keyline(n) = "Any Key"
+             keyline(n) = trim(get_bind_keyname(BIND_CANCEL))
              if (w%viewmode == vm_pick_atom) then
                 lblline(n) = "Cancel Pick Atom"
              else
@@ -1512,7 +1519,7 @@ contains
        BIND_MOVEMOL_CHANGECELL, BIND_MOVEATOM_CHANGECELL,&
        BIND_SELECT_ZOOM, BIND_MDINTERACT_ZOOM, BIND_NAV_MEASURE_ADD,&
        BIND_NAV_MEASURE_REMOVE, BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT,&
-       bind_mouse_button
+       BIND_CANCEL, bind_mouse_button
     use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry
     use global, only: iunit_bohr
     use gui_main, only: io, ColorHighlightSelectScene
@@ -1551,19 +1558,18 @@ contains
     ! camera binds), except that measurements and atom selection are
     ! disabled, a click with the pick bind (press and release without
     ! dragging) delivers the atom under the cursor to the commanding
-    ! window, and any key press exits/cancels the mode.  Also exit if
-    ! the window that commanded the mode is gone.
+    ! window, and the cancel keybinding exits/cancels the mode.  Also
+    ! exit if the window that commanded the mode is gone.
     forcedpick = vm_is_forcedpick(w%viewmode)
     if (forcedpick) then
        ! check the commanding window is still active
        ok = (w%vmdata%owner >= 1 .and. w%vmdata%owner <= nwin)
        if (ok) ok = win(w%vmdata%owner)%isinit .and. win(w%vmdata%owner)%isopen
-       ! any key press exits/cancels the mode (the result stays zero); a
-       ! keyboard-rebound pick bind is exempt while the view is hovered, so
-       ! it can deliver the pick instead
-       if (ok) ok = .not.(.not.io%WantTextInput .and. any_key_pressed() .and.&
-          .not.(hover .and. (is_bind_event(BIND_PICKATOM_SELECT) .or.&
-          (w%viewmode == vm_builder_valence .and. is_bind_event(BIND_PICKATOM_ALT)))))
+       ! The cancel keybinding exits/cancels the mode (the result stays
+       ! zero). The global cancel handler (process_cancel_bind) already
+       ! covers this when a view, builder, or dynamics window is focused,
+       ! with MD-stop priority; this check gives the binding global reach.
+       if (ok) ok = .not.is_bind_event(BIND_CANCEL)
        ! the exit bind on empty space also exits the persistent builder
        ! pick modes (not add-atoms, where every click places a fragment)
        if (ok .and. (w%viewmode == vm_builder_remove .or. w%viewmode == vm_builder_valence)) &
@@ -2016,22 +2022,6 @@ contains
          w%mousepos_idx(1) == 0
 
     end function exit_on_empty
-
-    ! whether any (non-modifier) key was pressed this frame
-    function any_key_pressed()
-      use keybindings, only: is_mod_key
-      logical :: any_key_pressed
-      integer :: k
-
-      any_key_pressed = .false.
-      do k = ImGuiKey_NamedKey_BEGIN, ImGuiKey_NamedKey_END-1
-         if (is_mod_key(k)) cycle
-         if (igIsKeyPressed(k,.false._c_bool)) then
-            any_key_pressed = .true.
-            return
-         end if
-      end do
-    end function any_key_pressed
 
     ! Deliver a completed pick to the commanding window. Pick-atom mode:
     ! deliver the atom (or zero = clicked on empty space = cancelled) and
