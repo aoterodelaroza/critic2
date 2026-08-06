@@ -1648,34 +1648,14 @@ contains
 
   end subroutine draw_addatom_geom_grid
 
-  !> Draw the pictogram for add-atoms local geometry ig (0-based) as an
-  !> inline widget with the given side length at the current cursor
-  !> position (e.g. inside a tooltip). If iz is present and positive,
-  !> the central atom is the symbol of element iz in the element color
-  !> instead of a filled circle.
-  module subroutine draw_addatom_geom_icon(ig,side,iz)
-    integer, intent(in) :: ig
-    real(c_float), intent(in) :: side
-    integer, intent(in), optional :: iz
-
-    type(ImVec2) :: sz, p0
-    type(c_ptr) :: dl
-
-    sz%x = side
-    sz%y = side
-    call igDummy(sz)
-    call igGetItemRectMin(p0)
-    dl = igGetWindowDrawList()
-    call addatom_geom_paint(ig,p0,side,dl,iz)
-
-  end subroutine draw_addatom_geom_icon
-
-  ! Paint the pictogram for add-atoms local geometry ig (0-based) into
-  ! the square with top-left screen position p0 and side length side,
-  ! using draw list dl. If iz is present and positive, the central
-  ! atom is the symbol of element iz in the element color instead of
-  ! a filled circle.
-  subroutine addatom_geom_paint(ig,p0,side,dl,iz)
+  !> Paint the pictogram for add-atoms local geometry ig (0-based)
+  !> into the square with top-left screen position p0 and side length
+  !> side, using draw list dl. If iz is present and positive, the
+  !> central atom is the symbol of element iz in the element color
+  !> instead of a filled circle. If bgrgb is present, choose the
+  !> colors to contrast with a backdrop of that color (otherwise the
+  !> ImGui text color is used).
+  module subroutine addatom_geom_paint(ig,p0,side,dl,iz,bgrgb)
     use tools_io, only: nameguess
     use param, only: pi, jmlcol
     integer, intent(in) :: ig
@@ -1683,26 +1663,44 @@ contains
     real(c_float), intent(in) :: side
     type(c_ptr), intent(in) :: dl
     integer, intent(in), optional :: iz
+    real(c_float), intent(in), optional :: bgrgb(3)
 
-    logical :: dosym
+    logical :: dosym, dark
     integer :: nb, k, j
     integer :: sty(maxaddsub)
     real*8 :: ang(maxaddsub), lfac(maxaddsub), a
     type(ImVec2) :: cen, pa, pb, q1, q2, tsz
     type(ImVec4) :: cv
     integer(c_int) :: col
-    real(c_float) :: ux, uy, blen, f, hw, rstart
+    real(c_float) :: ux, uy, blen, f, hw, rstart, sluma
     character(len=:,kind=c_char), allocatable, target :: str1
 
     real(c_float), parameter :: r0rat = 0.14_c_float ! central circle radius (fraction of side)
     real(c_float), parameter :: blrat = 0.40_c_float ! bond length (fraction of side)
     real(c_float), parameter :: wedgerat = 0.09_c_float ! wedge/hash half-width at the far end (fraction of side)
     integer, parameter :: nhash = 4 ! number of strokes in a hashed wedge
+    real(c_float), parameter :: lumamin = 0.45_c_float ! minimum symbol luminance on a dark backdrop
+    real(c_float), parameter :: lumamax = 0.60_c_float ! maximum symbol luminance on a light backdrop
 
     call addatom_diagram(ig,nb,ang,sty,lfac)
     cen%x = p0%x + 0.5_c_float * side
     cen%y = p0%y + 0.5_c_float * side
-    col = igGetColorU32_Col(ImGuiCol_Text,1._c_float)
+
+    ! bond color: black or white against the given backdrop, or the ImGui text color
+    if (present(bgrgb)) then
+       cv%x = 0._c_float
+       cv%y = 0._c_float
+       cv%z = 0._c_float
+       cv%w = 1._c_float
+       if (luma(bgrgb(1),bgrgb(2),bgrgb(3)) <= 0.5_c_float) then
+          cv%x = 1._c_float
+          cv%y = 1._c_float
+          cv%z = 1._c_float
+       end if
+       col = igGetColorU32_Vec4(cv)
+    else
+       col = igGetColorU32_Col(ImGuiCol_Text,1._c_float)
+    end if
 
     ! the bonds start at the edge of the central circle or, if the
     ! element symbol is shown, outside its text box
@@ -1756,6 +1754,30 @@ contains
        cv%y = real(jmlcol(2,iz),c_float) / 255._c_float
        cv%z = real(jmlcol(3,iz),c_float) / 255._c_float
        cv%w = 1._c_float
+
+       ! clamp the luminance so the symbol contrasts with the
+       ! backdrop: darken light colors on a light backdrop, lighten
+       ! dark colors on a dark one
+       sluma = luma(cv%x,cv%y,cv%z)
+       if (present(bgrgb)) then
+          dark = (luma(bgrgb(1),bgrgb(2),bgrgb(3)) <= 0.5_c_float)
+       else
+          dark = .true.
+       end if
+       if (dark) then
+          if (sluma < lumamin) then
+             cv%x = min(cv%x + lumamin - sluma,1._c_float)
+             cv%y = min(cv%y + lumamin - sluma,1._c_float)
+             cv%z = min(cv%z + lumamin - sluma,1._c_float)
+          end if
+       else
+          if (sluma > lumamax) then
+             cv%x = cv%x * lumamax / sluma
+             cv%y = cv%y * lumamax / sluma
+             cv%z = cv%z * lumamax / sluma
+          end if
+       end if
+
        q1%x = cen%x - 0.5_c_float * tsz%x
        q1%y = cen%y - 0.5_c_float * tsz%y
        call ImDrawList_AddText_Vec2(dl,q1,igGetColorU32_Vec4(cv),c_loc(str1),c_null_ptr)
@@ -1763,6 +1785,13 @@ contains
        call ImDrawList_AddCircleFilled(dl,cen,r0rat*side,col,0_c_int)
     end if
 
+  contains
+    ! relative luminance of an rgb color (Rec. 709 weights)
+    function luma(r,g,b)
+      real(c_float), intent(in) :: r, g, b
+      real(c_float) :: luma
+      luma = 0.2126_c_float * r + 0.7152_c_float * g + 0.0722_c_float * b
+    end function luma
   end subroutine addatom_geom_paint
 
   ! Return the 2D diagram for local atom geometry ig (0-based): nb

@@ -689,11 +689,14 @@ module windows
        integer, intent(in) :: isys, nchars
        character(len=*), intent(in) :: strid
      end subroutine draw_ff_backend_combo
-     module subroutine draw_addatom_geom_icon(ig,side,iz)
+     module subroutine addatom_geom_paint(ig,p0,side,dl,iz,bgrgb)
        integer, intent(in) :: ig
+       type(ImVec2), intent(in) :: p0
        real(c_float), intent(in) :: side
+       type(c_ptr), intent(in) :: dl
        integer, intent(in), optional :: iz
-     end subroutine draw_addatom_geom_icon
+       real(c_float), intent(in), optional :: bgrgb(3)
+     end subroutine addatom_geom_paint
   end interface
 
 end module windows

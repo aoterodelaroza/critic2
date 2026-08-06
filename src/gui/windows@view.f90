@@ -1519,7 +1519,7 @@ contains
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
 
-    type(ImVec2) :: texpos, mousepos, pmin, pmax
+    type(ImVec2) :: texpos, mousepos, pmin, pmax, ghostpos
     real(c_float) :: pos3(3), vnew(3), vold(3), axis(3)
     real(c_float) :: mpos2(2), ang, xc(3), dist, comc(3)
     real*8 :: dxbohr(3)
@@ -1674,13 +1674,17 @@ contains
              end if
           end if
        else
-          ! add-atoms mode: show the tooltip at the mouse position
+          ! add-atoms mode: show a ghost pictogram of the added
+          ! fragment next to the mouse cursor, contrasted against the
+          ! scene background color
           if (w%viewmode == vm_builder_addatom .and. hover) then
-             if (w%vmdata%tooltip_ig >= 0) then
-                call igBeginTooltip()
-                call draw_addatom_geom_icon(w%vmdata%tooltip_ig,&
-                   2.6_c_float*igGetTextLineHeight(),iz=w%vmdata%tooltip_iz)
-                call igEndTooltip()
+             if (w%vmdata%tooltip_ig >= 0 .and. associated(w%sc)) then
+                call igGetMousePos(ghostpos)
+                ghostpos%x = ghostpos%x + 14._c_float
+                ghostpos%y = ghostpos%y + 14._c_float
+                call addatom_geom_paint(w%vmdata%tooltip_ig,ghostpos,&
+                   2.6_c_float*igGetTextLineHeight(),igGetForegroundDrawList_Nil(),&
+                   iz=w%vmdata%tooltip_iz,bgrgb=w%sc%bgcolor)
              end if
           end if
 

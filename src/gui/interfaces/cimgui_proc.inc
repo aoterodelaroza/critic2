@@ -1126,7 +1126,11 @@ function igGetMainViewport() bind(c,name="igGetMainViewport")
   type(c_ptr) :: igGetMainViewport
 end function igGetMainViewport
 !x! ImDrawList* igGetBackgroundDrawList_Nil(void);
-!x! ImDrawList* igGetForegroundDrawList_Nil(void);
+! ImDrawList* igGetForegroundDrawList_Nil(void);
+function igGetForegroundDrawList_Nil() bind(c,name="igGetForegroundDrawList_Nil")
+  import c_ptr
+  type(c_ptr) :: igGetForegroundDrawList_Nil
+end function igGetForegroundDrawList_Nil
 !x! ImDrawList* igGetBackgroundDrawList_ViewportPtr(ImGuiViewport* viewport);
 !x! ImDrawList* igGetForegroundDrawList_ViewportPtr(ImGuiViewport* viewport);
 !x! bool igIsRectVisible_Nil(const ImVec2 size);
