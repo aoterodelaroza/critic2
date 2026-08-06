@@ -1490,7 +1490,15 @@ subroutine ImDrawList_AddCircleFilled(self,center,radius,col,num_segments) bind(
 end subroutine ImDrawList_AddCircleFilled
 !x! void ImDrawList_AddNgon(ImDrawList* self,const ImVec2 center,float radius,ImU32 col,int num_segments,float thickness);
 !x! void ImDrawList_AddNgonFilled(ImDrawList* self,const ImVec2 center,float radius,ImU32 col,int num_segments);
-!x! void ImDrawList_AddText_Vec2(ImDrawList* self,const ImVec2 pos,ImU32 col,const char* text_begin,const char* text_end);
+! void ImDrawList_AddText_Vec2(ImDrawList* self,const ImVec2 pos,ImU32 col,const char* text_begin,const char* text_end);
+subroutine ImDrawList_AddText_Vec2(self,pos,col,text_begin,text_end) bind(c,name="ImDrawList_AddText_Vec2")
+  import c_ptr, ImVec2, c_int
+  type(c_ptr), value :: self
+  type(ImVec2), value :: pos
+  integer(c_int), value :: col
+  type(c_ptr), intent(in), value :: text_begin
+  type(c_ptr), intent(in), value :: text_end
+end subroutine ImDrawList_AddText_Vec2
 !x! void ImDrawList_AddText_FontPtr(ImDrawList* self,const ImFont* font,float font_size,const ImVec2 pos,ImU32 col,const char* text_begin,const char* text_end,float wrap_width,const ImVec4* cpu_fine_clip_rect);
 !x! void ImDrawList_AddPolyline(ImDrawList* self,const ImVec2* points,int num_points,ImU32 col,ImDrawFlags flags,float thickness);
 !x! void ImDrawList_AddConvexPolyFilled(ImDrawList* self,const ImVec2* points,int num_points,ImU32 col);

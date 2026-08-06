@@ -113,8 +113,8 @@ contains
           call builder_stop()
        elseif (w%builder_vm == vm_builder_addatom) then
           ! keep the mouse tooltip current
-          win(iview)%vmdata%tooltip = trim(nameguess(w%builder_addatom_z,.true.))
           win(iview)%vmdata%tooltip_ig = w%builder_addatom_ig
+          win(iview)%vmdata%tooltip_iz = w%builder_addatom_z
           if (win(iview)%vmdata%flag /= 0) then
              ! a click was delivered: add the fragment at the clicked position or replace the clicked atom
              icel = win(iview)%vmdata%idx(1)
@@ -1650,10 +1650,13 @@ contains
 
   !> Draw the pictogram for add-atoms local geometry ig (0-based) as an
   !> inline widget with the given side length at the current cursor
-  !> position (e.g. inside a tooltip).
-  module subroutine draw_addatom_geom_icon(ig,side)
+  !> position (e.g. inside a tooltip). If iz is present and positive,
+  !> the central atom is the symbol of element iz in the element color
+  !> instead of a filled circle.
+  module subroutine draw_addatom_geom_icon(ig,side,iz)
     integer, intent(in) :: ig
     real(c_float), intent(in) :: side
+    integer, intent(in), optional :: iz
 
     type(ImVec2) :: sz, p0
     type(c_ptr) :: dl
@@ -1663,26 +1666,33 @@ contains
     call igDummy(sz)
     call igGetItemRectMin(p0)
     dl = igGetWindowDrawList()
-    call addatom_geom_paint(ig,p0,side,dl)
+    call addatom_geom_paint(ig,p0,side,dl,iz)
 
   end subroutine draw_addatom_geom_icon
 
   ! Paint the pictogram for add-atoms local geometry ig (0-based) into
   ! the square with top-left screen position p0 and side length side,
-  ! using draw list dl.
-  subroutine addatom_geom_paint(ig,p0,side,dl)
-    use param, only: pi
+  ! using draw list dl. If iz is present and positive, the central
+  ! atom is the symbol of element iz in the element color instead of
+  ! a filled circle.
+  subroutine addatom_geom_paint(ig,p0,side,dl,iz)
+    use tools_io, only: nameguess
+    use param, only: pi, jmlcol
     integer, intent(in) :: ig
     type(ImVec2), intent(in) :: p0
     real(c_float), intent(in) :: side
     type(c_ptr), intent(in) :: dl
+    integer, intent(in), optional :: iz
 
+    logical :: dosym
     integer :: nb, k, j
     integer :: sty(maxaddsub)
     real*8 :: ang(maxaddsub), lfac(maxaddsub), a
-    type(ImVec2) :: cen, pa, pb, q1, q2
+    type(ImVec2) :: cen, pa, pb, q1, q2, tsz
+    type(ImVec4) :: cv
     integer(c_int) :: col
-    real(c_float) :: ux, uy, blen, f, hw
+    real(c_float) :: ux, uy, blen, f, hw, rstart
+    character(len=:,kind=c_char), allocatable, target :: str1
 
     real(c_float), parameter :: r0rat = 0.14_c_float ! central circle radius (fraction of side)
     real(c_float), parameter :: blrat = 0.40_c_float ! bond length (fraction of side)
@@ -1694,14 +1704,25 @@ contains
     cen%y = p0%y + 0.5_c_float * side
     col = igGetColorU32_Col(ImGuiCol_Text,1._c_float)
 
+    ! the bonds start at the edge of the central circle or, if the
+    ! element symbol is shown, outside its text box
+    dosym = .false.
+    if (present(iz)) dosym = (iz > 0)
+    rstart = r0rat * side
+    if (dosym) then
+       str1 = trim(nameguess(iz,.true.)) // c_null_char
+       call igCalcTextSize(tsz,c_loc(str1),c_null_ptr,.false._c_bool,-1._c_float)
+       rstart = max(rstart,0.55_c_float * sqrt(tsz%x*tsz%x + tsz%y*tsz%y))
+    end if
+
     do k = 1, nb
        ! bond direction on screen (angles counterclockwise from +x, screen y points down)
        a = ang(k) * pi / 180d0
        ux = real(cos(a),c_float)
        uy = -real(sin(a),c_float)
-       blen = blrat * side * real(lfac(k),c_float)
-       pa%x = cen%x + r0rat * side * ux
-       pa%y = cen%y + r0rat * side * uy
+       blen = rstart + (blrat * real(lfac(k),c_float) - r0rat) * side
+       pa%x = cen%x + rstart * ux
+       pa%y = cen%y + rstart * uy
        pb%x = cen%x + blen * ux
        pb%y = cen%y + blen * uy
        if (sty(k) == sty_wedge) then
@@ -1729,8 +1750,18 @@ contains
        end if
     end do
 
-    ! the central atom
-    call ImDrawList_AddCircleFilled(dl,cen,r0rat*side,col,0_c_int)
+    ! the central atom: element symbol in the element color, or a filled circle
+    if (dosym) then
+       cv%x = real(jmlcol(1,iz),c_float) / 255._c_float
+       cv%y = real(jmlcol(2,iz),c_float) / 255._c_float
+       cv%z = real(jmlcol(3,iz),c_float) / 255._c_float
+       cv%w = 1._c_float
+       q1%x = cen%x - 0.5_c_float * tsz%x
+       q1%y = cen%y - 0.5_c_float * tsz%y
+       call ImDrawList_AddText_Vec2(dl,q1,igGetColorU32_Vec4(cv),c_loc(str1),c_null_ptr)
+    else
+       call ImDrawList_AddCircleFilled(dl,cen,r0rat*side,col,0_c_int)
+    end if
 
   end subroutine addatom_geom_paint
 
