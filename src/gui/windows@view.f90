@@ -1281,6 +1281,8 @@ contains
     w%vmdata%msg = trim(message)
     w%vmdata%idx = 0
     w%vmdata%flag = 0
+    w%vmdata%tooltip = ""
+    w%vmdata%tooltip_ig = -1
 
   end subroutine viewmode_set_forced
 
@@ -1498,7 +1500,7 @@ contains
   module subroutine viewmode_process_events(w,hover)
     use interfaces_cimgui
     use scenes, only: scene
-    use utils, only: translate, rotate, mult, invmult
+    use utils, only: translate, rotate, mult, invmult, iw_text
     use tools_math, only: cross_cfloat, matinv_cfloat, axisangle2mat
     use keybindings, only: is_bind_event, is_bind_mousescroll, BIND_NAV_ROTATE,&
        BIND_NAV_ROTATE_PERP, BIND_PICKATOM_EXIT, BIND_MOVEMOL_EXIT, BIND_MOVEATOM_EXIT,&
@@ -1524,7 +1526,6 @@ contains
     integer :: isys
     integer(c_int) :: col, ibtn
     logical :: ok, dragged, forcedpick
-    character(kind=c_char,len=:), allocatable, target :: strtt
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
@@ -1673,12 +1674,16 @@ contains
              end if
           end if
        else
-          ! add-atoms mode: show tooltip
+          ! add-atoms mode: show the tooltip at the mouse position
           if (w%viewmode == vm_builder_addatom .and. hover) then
              if (allocated(w%vmdata%tooltip)) then
                 if (len_trim(w%vmdata%tooltip) > 0) then
-                   strtt = trim(w%vmdata%tooltip) // c_null_char
-                   call igSetTooltip(c_loc(strtt))
+                   call igBeginTooltip()
+                   call iw_text(trim(w%vmdata%tooltip))
+                   if (w%vmdata%tooltip_ig >= 0) &
+                      call draw_addatom_geom_icon(w%vmdata%tooltip_ig,&
+                      3.5_c_float*igGetTextLineHeight())
+                   call igEndTooltip()
                 end if
              end if
           end if

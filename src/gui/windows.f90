@@ -65,6 +65,7 @@ module windows
   type viewmode_data
      character(len=:), allocatable :: msg ! message shown in the view bar
      character(len=:), allocatable :: tooltip ! tooltip shown at the mouse (add-atoms mode)
+     integer :: tooltip_ig = -1 ! geometry pictogram shown in the mouse tooltip (add-atoms mode; < 0 = none)
      integer(c_int) :: idx(5) ! atom identifier under mouse position
      integer :: flag = 0 ! pick bind that fired (1 = main, 2 = alternate)
      real(c_float) :: xpos(2) = 0._c_float ! texture position of the click (add-atoms mode)
@@ -688,6 +689,10 @@ module windows
        integer, intent(in) :: isys, nchars
        character(len=*), intent(in) :: strid
      end subroutine draw_ff_backend_combo
+     module subroutine draw_addatom_geom_icon(ig,side)
+       integer, intent(in) :: ig
+       real(c_float), intent(in) :: side
+     end subroutine draw_addatom_geom_icon
   end interface
 
 end module windows

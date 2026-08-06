@@ -20,6 +20,21 @@ submodule (windows) builder
   use interfaces_cimgui
   implicit none
 
+  ! add-atoms local geometries (see addatom_template for the vertex sets)
+  integer, parameter :: naddgeom = 19
+  integer, parameter :: maxaddsub = 10 ! largest substituent count (pentagonal prism)
+  character(len=*), parameter :: addgeom_names(naddgeom) = [character(len=24) ::&
+     "atom","linear","bent","triangular","trigonal pyramid","T-shape",&
+     "tetrahedral","square planar","trigonal bipyramid","square pyramid",&
+     "octahedral","trigonal antiprism","pentagonal bipyramid","capped octahedron",&
+     "square antiprism","trigonal dodecahedron","tricapped trigonal prism",&
+     "capped square antiprism","pentagonal prism"]
+
+  ! bond styles in the local geometry pictograms
+  integer, parameter :: sty_plain = 0 ! plain line, in the plane of the diagram
+  integer, parameter :: sty_wedge = 1 ! filled wedge, towards the viewer
+  integer, parameter :: sty_hash = 2  ! hashed wedge, away from the viewer
+
 contains
 
   !> Draw the builder window. The builder is tied to its parent view
@@ -31,7 +46,7 @@ contains
     use energy, only: ff_backend_applicable, ff_backend_default
     use gui_main, only: ColorHighlightEditDistScene
     use utils, only: iw_text, iw_button, iw_tooltip, iw_combo_simple, iw_dragfloat_real8,&
-       iw_periodictable, iw_calcwidth, invmult, mult
+       iw_periodictable, invmult, mult
     use keybindings, only: is_bind_event, get_bind_keyname, BIND_PICKATOM_SELECT,&
        BIND_PICKATOM_ALT, BIND_RECALC_BONDS, BIND_NAV_MEASURE, BIND_EDIT_D_A_PHI,&
        BIND_REOPEN, BIND_CLOSE_FOCUSED_DIALOG, BIND_CLOSE_ALL_DIALOGS,&
@@ -54,15 +69,6 @@ contains
     real*8, parameter :: eps_dzero = 1d-10 ! degenerate-distance threshold (bohr)
     ! bond order for each bond-combo index >= 1 (single, double, triple, dashed, aromatic)
     integer, parameter :: bondorder(5) = (/1,2,3,0,-1/)
-    ! add-atoms local geometries (see addatom_template for the vertex sets)
-    integer, parameter :: naddgeom = 19
-    integer, parameter :: maxaddsub = 10 ! largest substituent count (pentagonal prism)
-    character(len=*), parameter :: addgeom_names(naddgeom) = [character(len=24) ::&
-       "atom","linear","bent","triangular","trigonal pyramid","T-shape",&
-       "tetrahedral","square planar","trigonal bipyramid","square pyramid",&
-       "octahedral","trigonal antiprism","pentagonal bipyramid","capped octahedron",&
-       "square antiprism","trigonal dodecahedron","tricapped trigonal prism",&
-       "capped square antiprism","pentagonal prism"]
 
     ! do we have a good parent window (a view)? A hidden view is still
     ! good: the builder survives the hide and the mode can be released
@@ -107,8 +113,8 @@ contains
           call builder_stop()
        elseif (w%builder_vm == vm_builder_addatom) then
           ! keep the mouse tooltip current
-          win(iview)%vmdata%tooltip = trim(nameguess(w%builder_addatom_z,.true.))//&
-             " ("//trim(addgeom_names(w%builder_addatom_ig+1))//")"
+          win(iview)%vmdata%tooltip = trim(nameguess(w%builder_addatom_z,.true.))
+          win(iview)%vmdata%tooltip_ig = w%builder_addatom_ig
           if (win(iview)%vmdata%flag /= 0) then
              ! a click was delivered: add the fragment at the clicked position or replace the clicked atom
              icel = win(iview)%vmdata%idx(1)
@@ -197,15 +203,9 @@ contains
     end if
     ! the selected element, next to the button
     call iw_text(trim(nameguess(w%builder_addatom_z,.true.)),sameline=.true.)
-    ! the local geometry combo
-    stropt = ""
-    do i = 1, naddgeom
-       stropt = stropt // trim(addgeom_names(i)) // c_null_char
-    end do
-    call igPushItemWidth(iw_calcwidth(23,1))
-    call iw_combo_simple("Local geometry##builderaddgeom",stropt,w%builder_addatom_ig)
-    call igPopItemWidth()
-    call iw_tooltip("Local geometry of the added atom (the substituents are hydrogens)",ttshown)
+    ! the local geometry selector: a grid of pictograms
+    call iw_text("Local geometry",sameline=.true.)
+    call draw_addatom_geom_grid(w%builder_addatom_ig)
 
     ! the atoms section
     call iw_text("Atoms",highlight=.true.)
@@ -1390,148 +1390,7 @@ contains
 
     end function addatom_prefgeom
 
-    ! Add-atoms mode: number of substituents n and unit vectors v(:,1:n)
-    ! for local geometry index ig (0-based, see addgeom_names). Local
-    ! frame: x = screen right, y = screen up, z = toward the viewer.
-    subroutine addatom_template(ig,n,v)
-      integer, intent(in) :: ig
-      integer, intent(out) :: n
-      real*8, intent(out) :: v(3,maxaddsub)
 
-      integer :: k
-
-      real*8, parameter :: ath = 109.4712d0 ! tetrahedral angle (degrees)
-
-      n = 0
-      v = 0d0
-      select case (ig)
-      case (1) ! linear
-         n = 2
-         call addatom_sphvec(90d0,0d0,v(:,1))
-         call addatom_sphvec(90d0,180d0,v(:,2))
-      case (2) ! bent
-         n = 2
-         call addatom_sphvec(ath/2d0,0d0,v(:,1))
-         call addatom_sphvec(ath/2d0,180d0,v(:,2))
-      case (3) ! triangular
-         n = 3
-         call addatom_sphvec(0d0,0d0,v(:,1))
-         call addatom_sphvec(120d0,0d0,v(:,2))
-         call addatom_sphvec(120d0,180d0,v(:,3))
-      case (4) ! trigonal pyramid
-         n = 3
-         do k = 1, 3
-            call addatom_sphvec(ath,90d0+120d0*(k-1),v(:,k))
-         end do
-      case (5) ! T-shape
-         n = 3
-         call addatom_sphvec(0d0,0d0,v(:,1))
-         call addatom_sphvec(180d0,0d0,v(:,2))
-         call addatom_sphvec(90d0,180d0,v(:,3))
-      case (6) ! tetrahedral
-         n = 4
-         call addatom_sphvec(0d0,0d0,v(:,1))
-         do k = 1, 3
-            call addatom_sphvec(ath,90d0+120d0*(k-1),v(:,1+k))
-         end do
-      case (7) ! square planar
-         n = 4
-         do k = 1, 4
-            call addatom_sphvec(90d0,45d0+90d0*(k-1),v(:,k))
-         end do
-      case (8) ! trigonal bipyramid
-         n = 5
-         call addatom_sphvec(0d0,0d0,v(:,1))
-         call addatom_sphvec(180d0,0d0,v(:,2))
-         do k = 1, 3
-            call addatom_sphvec(90d0,90d0+120d0*(k-1),v(:,2+k))
-         end do
-      case (9) ! square pyramid
-         n = 5
-         call addatom_sphvec(0d0,0d0,v(:,1))
-         do k = 1, 4
-            call addatom_sphvec(100d0,45d0+90d0*(k-1),v(:,1+k))
-         end do
-      case (10) ! octahedral
-         n = 6
-         call addatom_sphvec(0d0,0d0,v(:,1))
-         call addatom_sphvec(180d0,0d0,v(:,2))
-         do k = 1, 4
-            call addatom_sphvec(90d0,90d0*(k-1),v(:,2+k))
-         end do
-      case (11) ! trigonal antiprism
-         n = 6
-         do k = 1, 3
-            call addatom_sphvec(60d0,30d0+120d0*(k-1),v(:,k))
-            call addatom_sphvec(120d0,90d0+120d0*(k-1),v(:,3+k))
-         end do
-      case (12) ! pentagonal bipyramid
-         n = 7
-         call addatom_sphvec(0d0,0d0,v(:,1))
-         call addatom_sphvec(180d0,0d0,v(:,2))
-         do k = 1, 5
-            call addatom_sphvec(90d0,90d0+72d0*(k-1),v(:,2+k))
-         end do
-      case (13) ! capped octahedron
-         n = 7
-         call addatom_sphvec(0d0,0d0,v(:,1))
-         do k = 1, 3
-            call addatom_sphvec(75d0,30d0+120d0*(k-1),v(:,1+k))
-            call addatom_sphvec(130d0,90d0+120d0*(k-1),v(:,4+k))
-         end do
-      case (14) ! square antiprism
-         n = 8
-         do k = 1, 4
-            call addatom_sphvec(59d0,90d0*(k-1),v(:,k))
-            call addatom_sphvec(121d0,45d0+90d0*(k-1),v(:,4+k))
-         end do
-      case (15) ! trigonal dodecahedron
-         n = 8
-         call addatom_sphvec(36.9d0,0d0,v(:,1))
-         call addatom_sphvec(36.9d0,180d0,v(:,2))
-         call addatom_sphvec(143.1d0,90d0,v(:,3))
-         call addatom_sphvec(143.1d0,270d0,v(:,4))
-         call addatom_sphvec(69.5d0,90d0,v(:,5))
-         call addatom_sphvec(69.5d0,270d0,v(:,6))
-         call addatom_sphvec(110.5d0,0d0,v(:,7))
-         call addatom_sphvec(110.5d0,180d0,v(:,8))
-      case (16) ! tricapped trigonal prism
-         n = 9
-         do k = 1, 3
-            call addatom_sphvec(48d0,30d0+120d0*(k-1),v(:,k))
-            call addatom_sphvec(132d0,30d0+120d0*(k-1),v(:,3+k))
-            call addatom_sphvec(90d0,90d0+120d0*(k-1),v(:,6+k))
-         end do
-      case (17) ! capped square antiprism
-         n = 9
-         call addatom_sphvec(0d0,0d0,v(:,1))
-         do k = 1, 4
-            call addatom_sphvec(68d0,90d0*(k-1),v(:,1+k))
-            call addatom_sphvec(118d0,45d0+90d0*(k-1),v(:,5+k))
-         end do
-      case (18) ! pentagonal prism
-         n = 10
-         do k = 1, 5
-            call addatom_sphvec(55d0,90d0+72d0*(k-1),v(:,k))
-            call addatom_sphvec(125d0,90d0+72d0*(k-1),v(:,5+k))
-         end do
-      end select
-
-    end subroutine addatom_template
-
-    ! Unit vector at polar angle th (degrees, from screen up) and
-    ! azimuth ph (degrees, from screen right towards the viewer).
-    subroutine addatom_sphvec(th,ph,v)
-      real*8, intent(in) :: th, ph
-      real*8, intent(out) :: v(3)
-
-      real*8 :: t, p
-
-      t = th * pi / 180d0
-      p = ph * pi / 180d0
-      v = (/sin(t)*cos(p), cos(t), sin(t)*sin(p)/)
-
-    end subroutine addatom_sphvec
 
     ! Toggle builder mode jvm (a vm_* constant): start it on the parent
     ! view, or stop it if it is already the active mode. Starting a mode
@@ -1592,5 +1451,385 @@ contains
     w%edit_idx = 0
 
   end subroutine edit_stop
+
+  ! Add-atoms mode: number of substituents n and unit vectors v(:,1:n)
+  ! for local geometry index ig (0-based, see addgeom_names). Local
+  ! frame: x = screen right, y = screen up, z = toward the viewer.
+  subroutine addatom_template(ig,n,v)
+    integer, intent(in) :: ig
+    integer, intent(out) :: n
+    real*8, intent(out) :: v(3,maxaddsub)
+
+    integer :: k
+
+    real*8, parameter :: ath = 109.4712d0 ! tetrahedral angle (degrees)
+
+    n = 0
+    v = 0d0
+    select case (ig)
+    case (1) ! linear
+       n = 2
+       call addatom_sphvec(90d0,0d0,v(:,1))
+       call addatom_sphvec(90d0,180d0,v(:,2))
+    case (2) ! bent
+       n = 2
+       call addatom_sphvec(ath/2d0,0d0,v(:,1))
+       call addatom_sphvec(ath/2d0,180d0,v(:,2))
+    case (3) ! triangular
+       n = 3
+       call addatom_sphvec(0d0,0d0,v(:,1))
+       call addatom_sphvec(120d0,0d0,v(:,2))
+       call addatom_sphvec(120d0,180d0,v(:,3))
+    case (4) ! trigonal pyramid
+       n = 3
+       do k = 1, 3
+          call addatom_sphvec(ath,90d0+120d0*(k-1),v(:,k))
+       end do
+    case (5) ! T-shape
+       n = 3
+       call addatom_sphvec(0d0,0d0,v(:,1))
+       call addatom_sphvec(180d0,0d0,v(:,2))
+       call addatom_sphvec(90d0,180d0,v(:,3))
+    case (6) ! tetrahedral
+       n = 4
+       call addatom_sphvec(0d0,0d0,v(:,1))
+       do k = 1, 3
+          call addatom_sphvec(ath,90d0+120d0*(k-1),v(:,1+k))
+       end do
+    case (7) ! square planar
+       n = 4
+       do k = 1, 4
+          call addatom_sphvec(90d0,45d0+90d0*(k-1),v(:,k))
+       end do
+    case (8) ! trigonal bipyramid
+       n = 5
+       call addatom_sphvec(0d0,0d0,v(:,1))
+       call addatom_sphvec(180d0,0d0,v(:,2))
+       do k = 1, 3
+          call addatom_sphvec(90d0,90d0+120d0*(k-1),v(:,2+k))
+       end do
+    case (9) ! square pyramid
+       n = 5
+       call addatom_sphvec(0d0,0d0,v(:,1))
+       do k = 1, 4
+          call addatom_sphvec(100d0,45d0+90d0*(k-1),v(:,1+k))
+       end do
+    case (10) ! octahedral
+       n = 6
+       call addatom_sphvec(0d0,0d0,v(:,1))
+       call addatom_sphvec(180d0,0d0,v(:,2))
+       do k = 1, 4
+          call addatom_sphvec(90d0,90d0*(k-1),v(:,2+k))
+       end do
+    case (11) ! trigonal antiprism
+       n = 6
+       do k = 1, 3
+          call addatom_sphvec(60d0,30d0+120d0*(k-1),v(:,k))
+          call addatom_sphvec(120d0,90d0+120d0*(k-1),v(:,3+k))
+       end do
+    case (12) ! pentagonal bipyramid
+       n = 7
+       call addatom_sphvec(0d0,0d0,v(:,1))
+       call addatom_sphvec(180d0,0d0,v(:,2))
+       do k = 1, 5
+          call addatom_sphvec(90d0,90d0+72d0*(k-1),v(:,2+k))
+       end do
+    case (13) ! capped octahedron
+       n = 7
+       call addatom_sphvec(0d0,0d0,v(:,1))
+       do k = 1, 3
+          call addatom_sphvec(75d0,30d0+120d0*(k-1),v(:,1+k))
+          call addatom_sphvec(130d0,90d0+120d0*(k-1),v(:,4+k))
+       end do
+    case (14) ! square antiprism
+       n = 8
+       do k = 1, 4
+          call addatom_sphvec(59d0,90d0*(k-1),v(:,k))
+          call addatom_sphvec(121d0,45d0+90d0*(k-1),v(:,4+k))
+       end do
+    case (15) ! trigonal dodecahedron
+       n = 8
+       call addatom_sphvec(36.9d0,0d0,v(:,1))
+       call addatom_sphvec(36.9d0,180d0,v(:,2))
+       call addatom_sphvec(143.1d0,90d0,v(:,3))
+       call addatom_sphvec(143.1d0,270d0,v(:,4))
+       call addatom_sphvec(69.5d0,90d0,v(:,5))
+       call addatom_sphvec(69.5d0,270d0,v(:,6))
+       call addatom_sphvec(110.5d0,0d0,v(:,7))
+       call addatom_sphvec(110.5d0,180d0,v(:,8))
+    case (16) ! tricapped trigonal prism
+       n = 9
+       do k = 1, 3
+          call addatom_sphvec(48d0,30d0+120d0*(k-1),v(:,k))
+          call addatom_sphvec(132d0,30d0+120d0*(k-1),v(:,3+k))
+          call addatom_sphvec(90d0,90d0+120d0*(k-1),v(:,6+k))
+       end do
+    case (17) ! capped square antiprism
+       n = 9
+       call addatom_sphvec(0d0,0d0,v(:,1))
+       do k = 1, 4
+          call addatom_sphvec(68d0,90d0*(k-1),v(:,1+k))
+          call addatom_sphvec(118d0,45d0+90d0*(k-1),v(:,5+k))
+       end do
+    case (18) ! pentagonal prism
+       n = 10
+       do k = 1, 5
+          call addatom_sphvec(55d0,90d0+72d0*(k-1),v(:,k))
+          call addatom_sphvec(125d0,90d0+72d0*(k-1),v(:,5+k))
+       end do
+    end select
+
+  end subroutine addatom_template
+
+  ! Unit vector at polar angle th (degrees, from screen up) and
+  ! azimuth ph (degrees, from screen right towards the viewer).
+  subroutine addatom_sphvec(th,ph,v)
+    use param, only: pi
+    real*8, intent(in) :: th, ph
+    real*8, intent(out) :: v(3)
+
+    real*8 :: t, p
+
+    t = th * pi / 180d0
+    p = ph * pi / 180d0
+    v = (/sin(t)*cos(p), cos(t), sin(t)*sin(p)/)
+
+  end subroutine addatom_sphvec
+
+  !> Draw the add-atoms local-geometry selector: a grid of square
+  !> pictograms, one per geometry. ig is the current selection (0-based
+  !> index), updated when an icon is clicked. Hovering an icon shows
+  !> the geometry name.
+  subroutine draw_addatom_geom_grid(ig)
+    use gui_main, only: g
+    use utils, only: iw_tooltip
+    integer, intent(inout) :: ig
+
+    integer :: i
+    logical :: hovered
+    type(ImVec2) :: sz, p0, p1
+    type(c_ptr) :: dl
+    integer(c_int) :: col
+    real(c_float) :: side
+    character(len=:,kind=c_char), allocatable, target :: str1
+
+    integer, parameter :: ncol = 7 ! icons per row
+
+    side = 2.2_c_float * igGetTextLineHeightWithSpacing()
+    sz%x = side
+    sz%y = side
+    str1 = "##geomicon" // c_null_char
+    dl = igGetWindowDrawList()
+    do i = 0, naddgeom-1
+       if (mod(i,ncol) /= 0) call igSameLine(0._c_float,g%Style%ItemInnerSpacing%x)
+       call igPushID_Int(int(i,c_int))
+       if (igInvisibleButton(c_loc(str1),sz,ImGuiButtonFlags_None)) ig = i
+       hovered = igIsItemHovered(ImGuiHoveredFlags_None)
+       call igGetItemRectMin(p0)
+       p1%x = p0%x + side
+       p1%y = p0%y + side
+
+       ! background, frame, and the pictogram
+       if (ig == i) then
+          col = igGetColorU32_Col(ImGuiCol_ButtonActive,0.6_c_float)
+          call ImDrawList_AddRectFilled(dl,p0,p1,col,0._c_float,0_c_int)
+       elseif (hovered) then
+          col = igGetColorU32_Col(ImGuiCol_ButtonHovered,0.6_c_float)
+          call ImDrawList_AddRectFilled(dl,p0,p1,col,0._c_float,0_c_int)
+       end if
+       col = igGetColorU32_Col(merge(ImGuiCol_Text,ImGuiCol_Border,ig == i),1._c_float)
+       call ImDrawList_AddRect(dl,p0,p1,col,0._c_float,0_c_int,1._c_float)
+       call addatom_geom_paint(i,p0,side,dl)
+
+       ! the geometry name in a tooltip
+       if (hovered) call iw_tooltip(trim(addgeom_names(i+1)))
+       call igPopID()
+    end do
+
+  end subroutine draw_addatom_geom_grid
+
+  !> Draw the pictogram for add-atoms local geometry ig (0-based) as an
+  !> inline widget with the given side length at the current cursor
+  !> position (e.g. inside a tooltip).
+  module subroutine draw_addatom_geom_icon(ig,side)
+    integer, intent(in) :: ig
+    real(c_float), intent(in) :: side
+
+    type(ImVec2) :: sz, p0
+    type(c_ptr) :: dl
+
+    sz%x = side
+    sz%y = side
+    call igDummy(sz)
+    call igGetItemRectMin(p0)
+    dl = igGetWindowDrawList()
+    call addatom_geom_paint(ig,p0,side,dl)
+
+  end subroutine draw_addatom_geom_icon
+
+  ! Paint the pictogram for add-atoms local geometry ig (0-based) into
+  ! the square with top-left screen position p0 and side length side,
+  ! using draw list dl.
+  subroutine addatom_geom_paint(ig,p0,side,dl)
+    use param, only: pi
+    integer, intent(in) :: ig
+    type(ImVec2), intent(in) :: p0
+    real(c_float), intent(in) :: side
+    type(c_ptr), intent(in) :: dl
+
+    integer :: nb, k, j
+    integer :: sty(maxaddsub)
+    real*8 :: ang(maxaddsub), lfac(maxaddsub), a
+    type(ImVec2) :: cen, pa, pb, q1, q2
+    integer(c_int) :: col
+    real(c_float) :: ux, uy, blen, f, hw
+
+    real(c_float), parameter :: r0rat = 0.14_c_float ! central circle radius (fraction of side)
+    real(c_float), parameter :: blrat = 0.40_c_float ! bond length (fraction of side)
+    real(c_float), parameter :: wedgerat = 0.09_c_float ! wedge/hash half-width at the far end (fraction of side)
+    integer, parameter :: nhash = 4 ! number of strokes in a hashed wedge
+
+    call addatom_diagram(ig,nb,ang,sty,lfac)
+    cen%x = p0%x + 0.5_c_float * side
+    cen%y = p0%y + 0.5_c_float * side
+    col = igGetColorU32_Col(ImGuiCol_Text,1._c_float)
+
+    do k = 1, nb
+       ! bond direction on screen (angles counterclockwise from +x, screen y points down)
+       a = ang(k) * pi / 180d0
+       ux = real(cos(a),c_float)
+       uy = -real(sin(a),c_float)
+       blen = blrat * side * real(lfac(k),c_float)
+       pa%x = cen%x + r0rat * side * ux
+       pa%y = cen%y + r0rat * side * uy
+       pb%x = cen%x + blen * ux
+       pb%y = cen%y + blen * uy
+       if (sty(k) == sty_wedge) then
+          ! towards the viewer: filled wedge, wide at the far end
+          q1%x = pb%x - wedgerat * side * uy
+          q1%y = pb%y + wedgerat * side * ux
+          q2%x = pb%x + wedgerat * side * uy
+          q2%y = pb%y - wedgerat * side * ux
+          call ImDrawList_AddTriangleFilled(dl,pa,q1,q2,col)
+       elseif (sty(k) == sty_hash) then
+          ! away from the viewer: hashed wedge, strokes perpendicular
+          ! to the bond that widen with the distance
+          do j = 1, nhash
+             f = 0.30_c_float + 0.70_c_float * real(j-1,c_float) / real(nhash-1,c_float)
+             hw = f * wedgerat * side
+             q1%x = pa%x + f * (pb%x - pa%x) - hw * uy
+             q1%y = pa%y + f * (pb%y - pa%y) + hw * ux
+             q2%x = pa%x + f * (pb%x - pa%x) + hw * uy
+             q2%y = pa%y + f * (pb%y - pa%y) - hw * ux
+             call ImDrawList_AddLine(dl,q1,q2,col,max(1._c_float,0.045_c_float*side))
+          end do
+       else
+          ! in the plane of the diagram: plain line
+          call ImDrawList_AddLine(dl,pa,pb,col,max(1.5_c_float,0.06_c_float*side))
+       end if
+    end do
+
+    ! the central atom
+    call ImDrawList_AddCircleFilled(dl,cen,r0rat*side,col,0_c_int)
+
+  end subroutine addatom_geom_paint
+
+  ! Return the 2D diagram for local atom geometry ig (0-based): nb
+  ! bonds with screen angles ang (degrees, counterclockwise from +x),
+  ! styles sty (plain line in the plane of the diagram, filled wedge
+  ! towards the viewer, or hashed wedge away from the viewer), and
+  ! bond length factors lfac.
+  subroutine addatom_diagram(ig,nb,ang,sty,lfac)
+    integer, intent(in) :: ig
+    integer, intent(out) :: nb
+    real*8, intent(out) :: ang(maxaddsub), lfac(maxaddsub)
+    integer, intent(out) :: sty(maxaddsub)
+
+    nb = 0
+    ang = 0d0
+    sty = sty_plain
+    lfac = 1d0
+    select case(ig)
+    case(1) ! linear
+       nb = 2
+       ang(1:2) = (/0d0,180d0/)
+    case(2) ! bent
+       nb = 2
+       ang(1:2) = (/55d0,125d0/)
+    case(3) ! triangular
+       nb = 3
+       ang(1:3) = (/90d0,210d0,330d0/)
+    case(4) ! trigonal pyramid
+       nb = 3
+       ang(1:3) = (/210d0,270d0,330d0/)
+       sty(1:3) = (/sty_plain,sty_hash,sty_wedge/)
+    case(5) ! T-shape
+       nb = 3
+       ang(1:3) = (/0d0,180d0,270d0/)
+    case(6) ! tetrahedral
+       nb = 4
+       ang(1:4) = (/90d0,210d0,270d0,330d0/)
+       sty(1:4) = (/sty_plain,sty_plain,sty_hash,sty_wedge/)
+    case(7) ! square planar
+       nb = 4
+       ang(1:4) = (/0d0,180d0,135d0,315d0/)
+       sty(1:4) = (/sty_plain,sty_plain,sty_hash,sty_wedge/)
+    case(8) ! trigonal bipyramid
+       nb = 5
+       ang(1:5) = (/90d0,270d0,180d0,20d0,340d0/)
+       sty(1:5) = (/sty_plain,sty_plain,sty_plain,sty_hash,sty_wedge/)
+    case(9) ! square pyramid
+       nb = 5
+       ang(1:5) = (/90d0,30d0,150d0,210d0,330d0/)
+       sty(1:5) = (/sty_plain,sty_hash,sty_hash,sty_wedge,sty_wedge/)
+    case(10) ! octahedral
+       nb = 6
+       ang(1:6) = (/90d0,270d0,30d0,150d0,210d0,330d0/)
+       sty(1:6) = (/sty_plain,sty_plain,sty_hash,sty_hash,sty_wedge,sty_wedge/)
+    case(11) ! trigonal antiprism
+       nb = 6
+       ang(1:6) = (/50d0,90d0,130d0,230d0,270d0,310d0/)
+       sty(1:3) = sty_hash
+       sty(4:6) = sty_wedge
+    case(12) ! pentagonal bipyramid
+       nb = 7
+       ang(1:7) = (/90d0,270d0,270d0,0d0,180d0,216d0,324d0/)
+       sty(1:7) = (/sty_plain,sty_plain,sty_hash,sty_plain,sty_plain,sty_wedge,sty_wedge/)
+       lfac(2:3) = (/1.15d0,0.7d0/)
+    case(13) ! capped octahedron
+       nb = 7
+       ang(1:7) = (/90d0,90d0,25d0,155d0,210d0,270d0,330d0/)
+       sty(1:7) = (/sty_plain,sty_hash,sty_hash,sty_hash,sty_wedge,sty_wedge,sty_wedge/)
+       lfac(1:2) = (/1.15d0,0.7d0/)
+    case(14) ! square antiprism
+       nb = 8
+       ang(1:8) = (/22d0,68d0,112d0,158d0,202d0,248d0,292d0,338d0/)
+       sty(1:4) = sty_hash
+       sty(5:8) = sty_wedge
+    case(15) ! trigonal dodecahedron
+       nb = 8
+       ang(1:8) = (/15d0,75d0,105d0,165d0,195d0,255d0,285d0,345d0/)
+       sty(1:4) = sty_hash
+       sty(5:8) = sty_wedge
+    case(16) ! tricapped trigonal prism
+       nb = 9
+       ang(1:9) = (/0d0,180d0,90d0,90d0,40d0,140d0,220d0,270d0,320d0/)
+       sty(1:9) = (/sty_plain,sty_plain,sty_plain,sty_hash,sty_hash,sty_hash,&
+          sty_wedge,sty_wedge,sty_wedge/)
+       lfac(3:4) = (/1.15d0,0.7d0/)
+    case(17) ! capped square antiprism
+       nb = 9
+       ang(1:9) = (/90d0,20d0,65d0,115d0,160d0,205d0,250d0,295d0,340d0/)
+       sty(2:5) = sty_hash
+       sty(6:9) = sty_wedge
+       lfac(1) = 1.15d0
+    case(18) ! pentagonal prism
+       nb = 10
+       ang(1:10) = (/18d0,54d0,90d0,126d0,162d0,198d0,234d0,270d0,306d0,342d0/)
+       sty(1:5) = sty_hash
+       sty(6:10) = sty_wedge
+    end select
+
+  end subroutine addatom_diagram
 
 end submodule builder

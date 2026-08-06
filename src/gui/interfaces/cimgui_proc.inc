@@ -341,7 +341,7 @@ end subroutine igSpacing
 ! void igDummy(const ImVec2 size);
 subroutine igDummy(size) bind(c,name="igDummy")
   import ImVec2
-  type(ImVec2), intent(in) :: size
+  type(ImVec2), intent(in), value :: size
 end subroutine igDummy
 ! void igIndent(float indent_w);
 subroutine igIndent(indent_w) bind(c,name="igIndent")
@@ -1440,7 +1440,14 @@ end subroutine ImGuiListClipper_ForceDisplayRangeByIndices
 !x! void ImDrawList_PopTextureID(ImDrawList* self);
 !x! void ImDrawList_GetClipRectMin(ImVec2 *pOut,ImDrawList* self);
 !x! void ImDrawList_GetClipRectMax(ImVec2 *pOut,ImDrawList* self);
-!x! void ImDrawList_AddLine(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,ImU32 col,float thickness);
+! void ImDrawList_AddLine(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,ImU32 col,float thickness);
+subroutine ImDrawList_AddLine(self,p1,p2,col,thickness) bind(c,name="ImDrawList_AddLine")
+  import c_ptr, ImVec2, c_int, c_float
+  type(c_ptr), value :: self
+  type(ImVec2), value :: p1, p2
+  integer(c_int), value :: col
+  real(c_float), value :: thickness
+end subroutine ImDrawList_AddLine
 ! void ImDrawList_AddRect(ImDrawList* self,const ImVec2 p_min,const ImVec2 p_max,ImU32 col,float rounding,ImDrawFlags flags,float thickness);
 subroutine ImDrawList_AddRect(self,p_min,p_max,col,rounding,flags,thickness) bind(c,name="ImDrawList_AddRect")
   import c_ptr, ImVec2, c_int, c_float
@@ -1464,9 +1471,23 @@ end subroutine ImDrawList_AddRectFilled
 !x! void ImDrawList_AddQuad(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,const ImVec2 p3,const ImVec2 p4,ImU32 col,float thickness);
 !x! void ImDrawList_AddQuadFilled(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,const ImVec2 p3,const ImVec2 p4,ImU32 col);
 !x! void ImDrawList_AddTriangle(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,const ImVec2 p3,ImU32 col,float thickness);
-!x! void ImDrawList_AddTriangleFilled(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,const ImVec2 p3,ImU32 col);
+! void ImDrawList_AddTriangleFilled(ImDrawList* self,const ImVec2 p1,const ImVec2 p2,const ImVec2 p3,ImU32 col);
+subroutine ImDrawList_AddTriangleFilled(self,p1,p2,p3,col) bind(c,name="ImDrawList_AddTriangleFilled")
+  import c_ptr, ImVec2, c_int
+  type(c_ptr), value :: self
+  type(ImVec2), value :: p1, p2, p3
+  integer(c_int), value :: col
+end subroutine ImDrawList_AddTriangleFilled
 !x! void ImDrawList_AddCircle(ImDrawList* self,const ImVec2 center,float radius,ImU32 col,int num_segments,float thickness);
-!x! void ImDrawList_AddCircleFilled(ImDrawList* self,const ImVec2 center,float radius,ImU32 col,int num_segments);
+! void ImDrawList_AddCircleFilled(ImDrawList* self,const ImVec2 center,float radius,ImU32 col,int num_segments);
+subroutine ImDrawList_AddCircleFilled(self,center,radius,col,num_segments) bind(c,name="ImDrawList_AddCircleFilled")
+  import c_ptr, ImVec2, c_int, c_float
+  type(c_ptr), value :: self
+  type(ImVec2), value :: center
+  real(c_float), value :: radius
+  integer(c_int), value :: col
+  integer(c_int), value :: num_segments
+end subroutine ImDrawList_AddCircleFilled
 !x! void ImDrawList_AddNgon(ImDrawList* self,const ImVec2 center,float radius,ImU32 col,int num_segments,float thickness);
 !x! void ImDrawList_AddNgonFilled(ImDrawList* self,const ImVec2 center,float radius,ImU32 col,int num_segments);
 !x! void ImDrawList_AddText_Vec2(ImDrawList* self,const ImVec2 pos,ImU32 col,const char* text_begin,const char* text_end);
