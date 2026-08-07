@@ -38,6 +38,7 @@ submodule (windows) builder
   integer, allocatable :: fraglib_anchor(:) ! anchor atom of each fragment
   integer, allocatable :: fraglib_attach(:) ! attachment placeholder of each fragment
   type(vstring), allocatable :: fraglib_cat(:) ! submenu each fragment belongs to
+  type(vstring), allocatable :: fraglib_sub(:) ! submenu inside that one (empty = none)
   real*8, allocatable :: fraglib_radius(:) ! fictitious covalent radius, bohr (ligands; <= 0 = substituent)
 
   ! most neighbor directions considered when placing a ligand
@@ -70,12 +71,12 @@ contains
     use param, only: bohrtoa, pi, eye
     class(window), intent(inout), target :: w
 
-    integer :: isys, iview, icel, imode, nsel, iside, ibold, ibnew, izout, i, k
-    logical :: doquit, goodparent, havesys, ok, lcommit, ldum, relaxing, ldup
+    integer :: isys, iview, icel, imode, nsel, iside, ibold, ibnew, izout, i, j, k
+    logical :: doquit, goodparent, havesys, ok, lcommit, ldum, relaxing
     real*8 :: dist, ang
     real(c_float) :: xclick(2)
     character(len=:), allocatable :: stropt, errmsg
-    character(kind=c_char,len=:), allocatable, target :: strcat
+    character(kind=c_char,len=:), allocatable, target :: strcat, strsub
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -245,23 +246,32 @@ contains
           if (nfraglib == 0) then
              call iw_text("No fragments available")
           else
-             ! one submenu per category, in order of first appearance
+             ! one submenu per category, in order of first appearance, with
+             ! the fragments of a "parent/child" category one level deeper
              do k = 1, nfraglib
                 ! skip a category whose submenu has already been drawn
-                ldup = .false.
-                do i = 1, k-1
-                   ldup = (fraglib_cat(i)%s == fraglib_cat(k)%s)
-                   if (ldup) exit
-                end do
-                if (ldup) cycle
+                if (.not.fraglib_isfirst(k,.false.)) cycle
                 strcat = trim(fraglib_cat(k)%s) // c_null_char
                 if (igBeginMenu(c_loc(strcat),.true._c_bool)) then
+                   ! the fragments listed directly under this category
                    do i = 1, nfraglib
                       if (fraglib_cat(i)%s /= fraglib_cat(k)%s) cycle
-                      if (iw_menuitem(trim(fraglib_name(i)%s))) then
-                         w%errmsg = ""
-                         if (addfrag_load(i)) call builder_toggle(vm_builder_addfragment)
-                         call igCloseCurrentPopup()
+                      if (len_trim(fraglib_sub(i)%s) > 0) cycle
+                      call fragment_menuitem(i)
+                   end do
+                   ! then one submenu per subcategory
+                   do j = 1, nfraglib
+                      if (fraglib_cat(j)%s /= fraglib_cat(k)%s) cycle
+                      if (len_trim(fraglib_sub(j)%s) == 0) cycle
+                      if (.not.fraglib_isfirst(j,.true.)) cycle
+                      strsub = trim(fraglib_sub(j)%s) // c_null_char
+                      if (igBeginMenu(c_loc(strsub),.true._c_bool)) then
+                         do i = 1, nfraglib
+                            if (fraglib_cat(i)%s /= fraglib_cat(k)%s) cycle
+                            if (fraglib_sub(i)%s /= fraglib_sub(j)%s) cycle
+                            call fragment_menuitem(i)
+                         end do
+                         call igEndMenu()
                       end if
                    end do
                    call igEndMenu()
@@ -1477,6 +1487,19 @@ contains
 
     end function addatom_prefgeom
 
+    ! Draw the menu entry for library fragment i and, if it is chosen, load
+    ! it and arm the add-fragments mode.
+    subroutine fragment_menuitem(i)
+      integer, intent(in) :: i
+
+      if (iw_menuitem(trim(fraglib_name(i)%s))) then
+         w%errmsg = ""
+         if (addfrag_load(i)) call builder_toggle(vm_builder_addfragment)
+         call igCloseCurrentPopup()
+      end if
+
+    end subroutine fragment_menuitem
+
     ! Load fragment ifrag of the library into the builder window state.
     ! Returns .false. (and sets w%errmsg) if the fragment cannot be read
     ! or its anchor/attach atoms are not valid.
@@ -2378,6 +2401,27 @@ contains
 
   end subroutine addatom_diagram
 
+  ! Whether fragment j is the first in the library with its category and,
+  ! if lsub, also with its subcategory: marks where a submenu is opened.
+  function fraglib_isfirst(j,lsub)
+    integer, intent(in) :: j
+    logical, intent(in) :: lsub
+    logical :: fraglib_isfirst
+
+    integer :: i
+
+    fraglib_isfirst = .false.
+    do i = 1, j-1
+       if (fraglib_cat(i)%s /= fraglib_cat(j)%s) cycle
+       if (lsub) then
+          if (fraglib_sub(i)%s /= fraglib_sub(j)%s) cycle
+       end if
+       return
+    end do
+    fraglib_isfirst = .true.
+
+  end function fraglib_isfirst
+
   ! Read the list of fragments in the fragment library (flib_file) the
   ! first time it is needed: the name of each fragment plus the indices
   ! of its anchor and attachment-placeholder atoms. The format is the
@@ -2405,7 +2449,7 @@ contains
     if (lu < 0) return
 
     allocate(fraglib_name(10),fraglib_anchor(10),fraglib_attach(10),fraglib_cat(10),&
-       fraglib_radius(10))
+       fraglib_sub(10),fraglib_radius(10))
     do while (getline(lu,line))
        lp = 1
        word = lgetword(line,lp)
@@ -2420,12 +2464,14 @@ contains
              call realloc(fraglib_anchor,2*nfraglib)
              call realloc(fraglib_attach,2*nfraglib)
              call realloc(fraglib_cat,2*nfraglib)
+             call realloc(fraglib_sub,2*nfraglib)
              call realloc(fraglib_radius,2*nfraglib)
           end if
           fraglib_name(nfraglib)%s = name
           fraglib_anchor(nfraglib) = 1
           fraglib_attach(nfraglib) = 0
           fraglib_cat(nfraglib)%s = ""
+          fraglib_sub(nfraglib)%s = ""
           fraglib_radius(nfraglib) = 0d0
        elseif (nfraglib > 0) then
           if (equal(word,"anchor")) then
@@ -2439,8 +2485,21 @@ contains
              ! angstrom, everything downstream is in bohr)
              if (isreal(rdum,line,lp)) fraglib_radius(nfraglib) = rdum / bohrtoa
           elseif (equal(word,"category")) then
-             ! the category is free text (it labels a submenu)
-             fraglib_cat(nfraglib)%s = trim(adjustl(line(lp:)))
+             ! the category is free text (it labels a submenu); a category of
+             ! the form "parent/child" nests the fragment one level deeper
+             ! split only when both halves are non-empty: an empty menu
+             ! label is fatal in imgui, and this file is user-editable
+             name = trim(adjustl(line(lp:)))
+             idum = index(name,"/")
+             if (idum > 1 .and. len_trim(name(idum+1:)) > 0) then
+                fraglib_cat(nfraglib)%s = trim(name(1:idum-1))
+                fraglib_sub(nfraglib)%s = trim(adjustl(name(idum+1:)))
+             else
+                fraglib_cat(nfraglib)%s = name
+                fraglib_sub(nfraglib)%s = ""
+             end if
+             if (len_trim(fraglib_cat(nfraglib)%s) == 0) &
+                fraglib_cat(nfraglib)%s = "Other"
           end if
        end if
     end do
@@ -2451,6 +2510,7 @@ contains
        call realloc(fraglib_anchor,nfraglib)
        call realloc(fraglib_attach,nfraglib)
        call realloc(fraglib_cat,nfraglib)
+       call realloc(fraglib_sub,nfraglib)
        call realloc(fraglib_radius,nfraglib)
     end if
 

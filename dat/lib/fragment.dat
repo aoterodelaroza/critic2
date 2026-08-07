@@ -11,7 +11,8 @@
 #                    empty space; if it is a dummy (bq, for the dative
 #                    ligands) only its direction is used. In both cases
 #                    it is removed when the fragment bonds to an atom.
-#   category <str> . the submenu the fragment is listed under
+#   category <str> . the submenu the fragment is listed under. A category of
+#                    the form "parent/child" nests it one level deeper
 #   radius <r> ..... fictitious covalent radius, in angstrom. Its presence
 #                    marks the fragment as a LIGAND: the whole fragment is
 #                    placed like a single atom of that radius, which BONDS
@@ -1573,7 +1574,7 @@ structure ammine
   endmolecule
   anchor 1
   attach 5
-  category Inorganic ligands
+  category Inorganic ligands/Monodentate
 endstructure
 structure aqua
   molecule
@@ -1584,7 +1585,7 @@ structure aqua
   endmolecule
   anchor 1
   attach 4
-  category Inorganic ligands
+  category Inorganic ligands/Monodentate
 endstructure
 structure carbonyl
   molecule
@@ -1594,7 +1595,7 @@ structure carbonyl
   endmolecule
   anchor 1
   attach 3
-  category Inorganic ligands
+  category Inorganic ligands/Monodentate
 endstructure
 structure cyanido
   molecule
@@ -1604,7 +1605,7 @@ structure cyanido
   endmolecule
   anchor 1
   attach 3
-  category Inorganic ligands
+  category Inorganic ligands/Monodentate
 endstructure
 structure nitrosyl
   molecule
@@ -1614,7 +1615,7 @@ structure nitrosyl
   endmolecule
   anchor 1
   attach 3
-  category Inorganic ligands
+  category Inorganic ligands/Monodentate
 endstructure
 structure nitrito-N
   molecule
@@ -1625,7 +1626,7 @@ structure nitrito-N
   endmolecule
   anchor 1
   attach 4
-  category Inorganic ligands
+  category Inorganic ligands/Monodentate
 endstructure
 structure thiocyanato-S
   molecule
@@ -1636,7 +1637,7 @@ structure thiocyanato-S
   endmolecule
   anchor 1
   attach 4
-  category Inorganic ligands
+  category Inorganic ligands/Monodentate
 endstructure
 structure pyridine
   molecule
@@ -1655,7 +1656,7 @@ structure pyridine
   endmolecule
   anchor 1
   attach 12
-  category Inorganic ligands
+  category Inorganic ligands/Monodentate
 endstructure
 structure tetrahydrofuran
   molecule
@@ -1676,7 +1677,7 @@ structure tetrahydrofuran
   endmolecule
   anchor 1
   attach 14
-  category Inorganic ligands
+  category Inorganic ligands/Monodentate
 endstructure
 structure dimethyl_sulfide
   molecule
@@ -1693,7 +1694,7 @@ structure dimethyl_sulfide
   endmolecule
   anchor 2
   attach 10
-  category Inorganic ligands
+  category Inorganic ligands/Monodentate
 endstructure
 structure trimethylphosphine
   molecule
@@ -1714,7 +1715,7 @@ structure trimethylphosphine
   endmolecule
   anchor 1
   attach 14
-  category Inorganic ligands
+  category Inorganic ligands/Monodentate
 endstructure
 structure triphenylphosphine
   molecule
@@ -1756,7 +1757,7 @@ structure triphenylphosphine
   endmolecule
   anchor 1
   attach 35
-  category Inorganic ligands
+  category Inorganic ligands/Monodentate
 endstructure
 structure 8-hydroxyquinolinato
   molecule
@@ -1782,7 +1783,7 @@ structure 8-hydroxyquinolinato
   anchor 11
   attach 12
   radius 0.598
-  category Bidentate ligands
+  category Inorganic ligands/Bidentate
 endstructure
 structure acac
   molecule
@@ -1805,7 +1806,7 @@ structure acac
   anchor 3
   attach 4
   radius 0.709
-  category Bidentate ligands
+  category Inorganic ligands/Bidentate
 endstructure
 structure bpy
   molecule
@@ -1834,7 +1835,7 @@ structure bpy
   anchor 6
   attach 7
   radius 0.784
-  category Bidentate ligands
+  category Inorganic ligands/Bidentate
 endstructure
 structure dimethylglyoximato
   molecule
@@ -1859,7 +1860,7 @@ structure dimethylglyoximato
   anchor 5
   attach 1
   radius 0.645
-  category Bidentate ligands
+  category Inorganic ligands/Bidentate
 endstructure
 structure dithiolene
   molecule
@@ -1874,7 +1875,7 @@ structure dithiolene
   anchor 2
   attach 1
   radius 1.085
-  category Bidentate ligands
+  category Inorganic ligands/Bidentate
 endstructure
 structure dmpe
   molecule
@@ -1907,7 +1908,7 @@ structure dmpe
   anchor 6
   attach 9
   radius 1.109
-  category Bidentate ligands
+  category Inorganic ligands/Bidentate
 endstructure
 structure en
   molecule
@@ -1928,7 +1929,7 @@ structure en
   anchor 4
   attach 5
   radius 0.810
-  category Bidentate ligands
+  category Inorganic ligands/Bidentate
 endstructure
 structure oxalato
   molecule
@@ -1943,7 +1944,7 @@ structure oxalato
   anchor 3
   attach 4
   radius 0.719
-  category Bidentate ligands
+  category Inorganic ligands/Bidentate
 endstructure
 structure phenanthroline
   molecule
@@ -1974,7 +1975,7 @@ structure phenanthroline
   anchor 6
   attach 7
   radius 0.790
-  category Bidentate ligands
+  category Inorganic ligands/Bidentate
 endstructure
 structure tmeda
   molecule
@@ -2007,7 +2008,7 @@ structure tmeda
   anchor 2
   attach 9
   radius 0.808
-  category Bidentate ligands
+  category Inorganic ligands/Bidentate
 endstructure
 structure 9-ane-S3
   molecule
@@ -2037,7 +2038,7 @@ structure 9-ane-S3
   anchor 5
   attach 1
   radius 1.089
-  category Tridentate ligands
+  category Inorganic ligands/Tridentate
 endstructure
 structure dien
   molecule
@@ -2066,7 +2067,7 @@ structure dien
   anchor 5
   attach 1
   radius 0.799
-  category Tridentate ligands
+  category Inorganic ligands/Tridentate
 endstructure
 structure ida
   molecule
@@ -2089,7 +2090,7 @@ structure ida
   anchor 2
   attach 1
   radius 0.696
-  category Tridentate ligands
+  category Inorganic ligands/Tridentate
 endstructure
 structure tacn
   molecule
@@ -2119,7 +2120,7 @@ structure tacn
   anchor 4
   attach 1
   radius 0.784
-  category Tridentate ligands
+  category Inorganic ligands/Tridentate
 endstructure
 structure tp-scorpionate
   molecule
@@ -2154,7 +2155,7 @@ structure tp-scorpionate
   anchor 15
   attach 1
   radius 0.811
-  category Tridentate ligands
+  category Inorganic ligands/Tridentate
 endstructure
 structure triphos
   molecule
@@ -2233,7 +2234,7 @@ structure triphos
   anchor 7
   attach 71
   radius 1.137
-  category Tridentate ligands
+  category Inorganic ligands/Tridentate
 endstructure
 structure tpa
   molecule
@@ -2282,7 +2283,7 @@ structure tpa
   anchor 23
   attach 1
   radius 0.776
-  category Tridentate ligands
+  category Inorganic ligands/Tridentate
 endstructure
 structure 12-crown-4
   molecule
@@ -2319,7 +2320,7 @@ structure 12-crown-4
   anchor 8
   attach 1
   radius 0.615
-  category Tetradentate ligands
+  category Inorganic ligands/Tetradentate
 endstructure
 structure cyclam
   molecule
@@ -2362,7 +2363,7 @@ structure cyclam
   anchor 2
   attach 1
   radius 0.681
-  category Tetradentate ligands
+  category Inorganic ligands/Tetradentate
 endstructure
 structure cyclen
   molecule
@@ -2399,7 +2400,7 @@ structure cyclen
   anchor 2
   attach 1
   radius 0.531
-  category Tetradentate ligands
+  category Inorganic ligands/Tetradentate
 endstructure
 structure nta
   molecule
@@ -2427,7 +2428,7 @@ structure nta
   anchor 10
   attach 1
   radius 0.672
-  category Tetradentate ligands
+  category Inorganic ligands/Tetradentate
 endstructure
 structure phthalocyanine
   molecule
@@ -2492,7 +2493,7 @@ structure phthalocyanine
   anchor 8
   attach 57
   radius 0.820
-  category Tetradentate ligands
+  category Inorganic ligands/Tetradentate
 endstructure
 structure porphin
   molecule
@@ -2537,7 +2538,7 @@ structure porphin
   anchor 8
   attach 28
   radius 0.850
-  category Tetradentate ligands
+  category Inorganic ligands/Tetradentate
 endstructure
 structure salen
   molecule
@@ -2580,7 +2581,7 @@ structure salen
   anchor 2
   attach 1
   radius 0.558
-  category Tetradentate ligands
+  category Inorganic ligands/Tetradentate
 endstructure
 structure trien
   molecule
@@ -2617,7 +2618,7 @@ structure trien
   anchor 2
   attach 1
   radius 0.820
-  category Tetradentate ligands
+  category Inorganic ligands/Tetradentate
 endstructure
 structure 18-crown-6
   molecule
@@ -2668,7 +2669,7 @@ structure 18-crown-6
   anchor 4
   attach 11
   radius 0.999
-  category Hexadentate ligands
+  category Inorganic ligands/Hexadentate
 endstructure
 structure edta
   molecule
@@ -2709,7 +2710,7 @@ structure edta
   anchor 3
   attach 33
   radius 0.610
-  category Hexadentate ligands
+  category Inorganic ligands/Hexadentate
 endstructure
 structure hexaaza-18-crown-6
   molecule
@@ -2760,7 +2761,7 @@ structure hexaaza-18-crown-6
   anchor 1
   attach 11
   radius 1.044
-  category Hexadentate ligands
+  category Inorganic ligands/Hexadentate
 endstructure
 structure eta2-acetylene
   molecule
@@ -2773,7 +2774,7 @@ structure eta2-acetylene
   anchor 1
   attach 5
   radius 0.888
-  category Haptic ligands
+  category Inorganic ligands/Haptic
 endstructure
 structure eta2-ethylene
   molecule
@@ -2788,7 +2789,7 @@ structure eta2-ethylene
   anchor 1
   attach 7
   radius 0.918
-  category Haptic ligands
+  category Inorganic ligands/Haptic
 endstructure
 structure eta3-allyl
   molecule
@@ -2805,7 +2806,7 @@ structure eta3-allyl
   anchor 2
   attach 9
   radius 0.838
-  category Haptic ligands
+  category Inorganic ligands/Haptic
 endstructure
 structure eta3-cyclopropenyl
   molecule
@@ -2820,7 +2821,7 @@ structure eta3-cyclopropenyl
   anchor 1
   attach 7
   radius 0.952
-  category Haptic ligands
+  category Inorganic ligands/Haptic
 endstructure
 structure eta3-indenyl
   molecule
@@ -2845,7 +2846,7 @@ structure eta3-indenyl
   anchor 2
   attach 17
   radius 0.876
-  category Haptic ligands
+  category Inorganic ligands/Haptic
 endstructure
 structure eta4-butadiene
   molecule
@@ -2864,7 +2865,7 @@ structure eta4-butadiene
   anchor 3
   attach 11
   radius 0.980
-  category Haptic ligands
+  category Inorganic ligands/Haptic
 endstructure
 structure eta4-cyclooctadiene
   molecule
@@ -2893,7 +2894,7 @@ structure eta4-cyclooctadiene
   anchor 10
   attach 21
   radius 1.312
-  category Haptic ligands
+  category Inorganic ligands/Haptic
 endstructure
 structure eta4-cyclobutadiene
   molecule
@@ -2910,7 +2911,7 @@ structure eta4-cyclobutadiene
   anchor 1
   attach 9
   radius 1.032
-  category Haptic ligands
+  category Inorganic ligands/Haptic
 endstructure
 structure eta5-Cp
   molecule
@@ -2929,7 +2930,7 @@ structure eta5-Cp
   anchor 5
   attach 11
   radius 1.184
-  category Haptic ligands
+  category Inorganic ligands/Haptic
 endstructure
 structure eta5-fluorenyl
   molecule
@@ -2960,7 +2961,7 @@ structure eta5-fluorenyl
   anchor 5
   attach 23
   radius 1.143
-  category Haptic ligands
+  category Inorganic ligands/Haptic
 endstructure
 structure eta5-indenyl
   molecule
@@ -2985,7 +2986,7 @@ structure eta5-indenyl
   anchor 3
   attach 17
   radius 1.129
-  category Haptic ligands
+  category Inorganic ligands/Haptic
 endstructure
 structure eta6-benzene
   molecule
@@ -3006,7 +3007,7 @@ structure eta6-benzene
   anchor 5
   attach 13
   radius 1.229
-  category Haptic ligands
+  category Inorganic ligands/Haptic
 endstructure
 structure eta7-cycloheptatrienyl
   molecule
@@ -3029,7 +3030,7 @@ structure eta7-cycloheptatrienyl
   anchor 7
   attach 15
   radius 1.297
-  category Haptic ligands
+  category Inorganic ligands/Haptic
 endstructure
 structure eta8-cyclooctatetraenyl
   molecule
@@ -3054,5 +3055,5 @@ structure eta8-cyclooctatetraenyl
   anchor 5
   attach 17
   radius 1.507
-  category Haptic ligands
+  category Inorganic ligands/Haptic
 endstructure
