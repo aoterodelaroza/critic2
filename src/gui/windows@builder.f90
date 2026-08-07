@@ -41,6 +41,11 @@ submodule (windows) builder
   type(vstring), allocatable :: fraglib_sub(:) ! submenu inside that one (empty = none)
   real*8, allocatable :: fraglib_radius(:) ! fictitious covalent radius, bohr (ligands; <= 0 = substituent)
 
+  ! texture of the diagram shown in the menu (one slot: the menu is
+  ! hovered one entry at a time)
+  integer :: fragimg_idx = 0 ! library index in the slot (0 = empty)
+  integer(c_int), target :: fragimg_tex = 0 ! GL texture (0 = none)
+
   ! most neighbor directions considered when placing a ligand
   integer, parameter :: maxnbcand = 24
 
@@ -1490,9 +1495,25 @@ contains
     ! Draw the menu entry for library fragment i and, if it is chosen, load
     ! it and arm the add-fragments mode.
     subroutine fragment_menuitem(i)
+      use gui_main, only: tooltip_enabled
       integer, intent(in) :: i
 
-      if (iw_menuitem(trim(fraglib_name(i)%s))) then
+      logical :: clicked
+
+      clicked = iw_menuitem(trim(fraglib_name(i)%s))
+
+      ! a skeletal diagram of the fragment while the entry is hovered
+      if (tooltip_enabled) then
+         if (igIsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup)) then
+            if (fragimg_ensure(i)) then
+               call igBeginTooltip()
+               call draw_fragment_diagram(10._c_float*igGetTextLineHeight())
+               call igEndTooltip()
+            end if
+         end if
+      end if
+
+      if (clicked) then
          w%errmsg = ""
          if (addfrag_load(i)) call builder_toggle(vm_builder_addfragment)
          call igCloseCurrentPopup()
@@ -1504,47 +1525,22 @@ contains
     ! Returns .false. (and sets w%errmsg) if the fragment cannot be read
     ! or its anchor/attach atoms are not valid.
     function addfrag_load(ifrag) result(ok)
-      use crystalseedmod, only: crystalseed
-      use global, only: flib_file
-      use tools_io, only: string
       integer, intent(in) :: ifrag
       logical :: ok
 
-      type(crystalseed) :: seed
-      integer :: i, ia, it
+      integer :: nat, ia, it
 
       ok = .false.
       w%builder_frag_nat = 0
       if (ifrag < 1 .or. ifrag > nfraglib) return
 
-      ! read the coordinates with the library reader
-      call seed%read_library(trim(fraglib_name(ifrag)%s),ok,file=flib_file)
-      if (.not.ok .or. seed%nat <= 0 .or. seed%nspc <= 0) then
-         w%errmsg = "Could not read fragment " // trim(fraglib_name(ifrag)%s) //&
-            " from the fragment library"
-         ok = .false.
-         return
-      end if
-
-      ! the anchor and its attachment placeholder must exist
-      ia = fraglib_anchor(ifrag)
-      it = fraglib_attach(ifrag)
-      ok = (ia >= 1 .and. ia <= seed%nat .and. it >= 1 .and. it <= seed%nat .and. ia /= it)
+      call fraglib_geometry(ifrag,nat,w%builder_frag_z,w%builder_frag_x,ia,it,ok)
       if (.not.ok) then
-         w%errmsg = "Fragment " // trim(fraglib_name(ifrag)%s) //&
-            " has an invalid anchor or attach atom"
+         w%errmsg = "Could not read fragment " // trim(fraglib_name(ifrag)%s) //&
+            " from the fragment library, or its anchor/attach atoms are invalid"
          return
       end if
-
-      ! save the fragment (seed%x is Cartesian and in bohr for a molecule)
-      if (allocated(w%builder_frag_z)) deallocate(w%builder_frag_z)
-      if (allocated(w%builder_frag_x)) deallocate(w%builder_frag_x)
-      allocate(w%builder_frag_z(seed%nat),w%builder_frag_x(3,seed%nat))
-      do i = 1, seed%nat
-         w%builder_frag_z(i) = seed%spc(seed%is(i))%z
-         w%builder_frag_x(:,i) = seed%x(:,i)
-      end do
-      w%builder_frag_nat = seed%nat
+      w%builder_frag_nat = nat
       w%builder_frag_ianchor = ia
       w%builder_frag_iattach = it
       w%builder_frag_radius = fraglib_radius(ifrag)
@@ -2400,6 +2396,116 @@ contains
     end select
 
   end subroutine addatom_diagram
+
+  ! Read the coordinates of library fragment ifrag. z and x (Cartesian,
+  ! bohr) are allocated here; ia and it are the anchor and the attachment
+  ! placeholder, validated against the atom count.
+  subroutine fraglib_geometry(ifrag,nat,z,x,ia,it,ok)
+    use crystalseedmod, only: crystalseed
+    use global, only: flib_file
+    integer, intent(in) :: ifrag
+    integer, intent(out) :: nat, ia, it
+    integer, allocatable, intent(inout) :: z(:)
+    real*8, allocatable, intent(inout) :: x(:,:)
+    logical, intent(out) :: ok
+
+    type(crystalseed) :: seed
+    integer :: i
+
+    ok = .false.
+    nat = 0
+    if (ifrag < 1 .or. ifrag > nfraglib) return
+
+    call seed%read_library(trim(fraglib_name(ifrag)%s),ok,file=flib_file)
+    if (.not.ok .or. seed%nat <= 0 .or. seed%nspc <= 0) then
+       ok = .false.
+       return
+    end if
+
+    ia = fraglib_anchor(ifrag)
+    it = fraglib_attach(ifrag)
+    ok = (ia >= 1 .and. ia <= seed%nat .and. it >= 1 .and. it <= seed%nat .and. ia /= it)
+    if (.not.ok) return
+
+    if (allocated(z)) deallocate(z)
+    if (allocated(x)) deallocate(x)
+    allocate(z(seed%nat),x(3,seed%nat))
+    do i = 1, seed%nat
+       z(i) = seed%spc(seed%is(i))%z
+       x(:,i) = seed%x(:,i)
+    end do
+    nat = seed%nat
+
+  end subroutine fraglib_geometry
+
+  ! Draw the structural diagram of library fragment ifrag as an inline
+  ! image of the given side length. The diagrams are pre-rendered
+  ! (dat/assets/fragments) and loaded on demand into a one-slot texture
+  ! cache, since the menu is hovered one entry at a time.
+  subroutine draw_fragment_diagram(side)
+    use interfaces_opengl3
+    real(c_float), intent(in) :: side
+
+    type(ImVec2) :: sz, uv0, uv1
+    type(ImVec4) :: tint, nobord
+
+    if (fragimg_tex == 0) return
+    sz%x = side
+    sz%y = side
+    uv0%x = 0._c_float
+    uv0%y = 0._c_float
+    uv1%x = 1._c_float
+    uv1%y = 1._c_float
+    tint = ImVec4(1._c_float,1._c_float,1._c_float,1._c_float)
+    nobord = ImVec4(0._c_float,0._c_float,0._c_float,0._c_float)
+    call igImage(int(fragimg_tex,c_intptr_t),sz,uv0,uv1,tint,nobord)
+
+  end subroutine draw_fragment_diagram
+
+  ! Load the diagram of library fragment ifrag into the one-slot texture
+  ! cache. Returns .false. if the fragment has no image, so the caller
+  ! can skip the tooltip instead of opening an empty one.
+  function fragimg_ensure(ifrag)
+    use interfaces_stb, only: stbi_load, stbi_image_free
+    use interfaces_opengl3
+    use global, only: critic_home
+    use param, only: dirsep
+    integer, intent(in) :: ifrag
+    logical :: fragimg_ensure
+
+    integer(c_int) :: iwidth, iheight, ichannel
+    type(c_ptr) :: pixels
+    character(kind=c_char,len=:), allocatable, target :: file
+
+    fragimg_ensure = .false.
+    if (ifrag < 1 .or. ifrag > nfraglib) return
+    if (fragimg_idx == ifrag) then
+       fragimg_ensure = (fragimg_tex /= 0)
+       return
+    end if
+
+    if (fragimg_tex /= 0) call glDeleteTextures(1,c_loc(fragimg_tex))
+    fragimg_tex = 0
+    fragimg_idx = ifrag
+    file = trim(critic_home) // dirsep // "assets" // dirsep // "fragments" //&
+       dirsep // trim(fraglib_name(ifrag)%s) // ".png" // c_null_char
+    pixels = stbi_load(c_loc(file),iwidth,iheight,ichannel,4)
+    if (.not.c_associated(pixels)) return
+
+    call glGenTextures(1,c_loc(fragimg_tex))
+    call glBindTexture(GL_TEXTURE_2D,fragimg_tex)
+    call glPixelStorei(GL_UNPACK_ALIGNMENT,1)
+    call glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,iwidth,iheight,0,GL_RGBA,&
+       GL_UNSIGNED_BYTE,pixels)
+    call glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR)
+    call glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR)
+    call glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE)
+    call glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE)
+    call glBindTexture(GL_TEXTURE_2D,0)
+    call stbi_image_free(pixels)
+    fragimg_ensure = .true.
+
+  end function fragimg_ensure
 
   ! Whether fragment j is the first in the library with its category and,
   ! if lsub, also with its subcategory: marks where a submenu is opened.

@@ -1482,7 +1482,16 @@ subroutine ImDrawList_AddTriangleFilled(self,p1,p2,p3,col) bind(c,name="ImDrawLi
   type(ImVec2), value :: p1, p2, p3
   integer(c_int), value :: col
 end subroutine ImDrawList_AddTriangleFilled
-!x! void ImDrawList_AddCircle(ImDrawList* self,const ImVec2 center,float radius,ImU32 col,int num_segments,float thickness);
+! void ImDrawList_AddCircle(ImDrawList* self,const ImVec2 center,float radius,ImU32 col,int num_segments,float thickness);
+subroutine ImDrawList_AddCircle(self,center,radius,col,num_segments,thickness) bind(c,name="ImDrawList_AddCircle")
+  import c_ptr, ImVec2, c_int, c_float
+  type(c_ptr), value :: self
+  type(ImVec2), value :: center
+  real(c_float), value :: radius
+  integer(c_int), value :: col
+  integer(c_int), value :: num_segments
+  real(c_float), value :: thickness
+end subroutine ImDrawList_AddCircle
 ! void ImDrawList_AddCircleFilled(ImDrawList* self,const ImVec2 center,float radius,ImU32 col,int num_segments);
 subroutine ImDrawList_AddCircleFilled(self,center,radius,col,num_segments) bind(c,name="ImDrawList_AddCircleFilled")
   import c_ptr, ImVec2, c_int, c_float
