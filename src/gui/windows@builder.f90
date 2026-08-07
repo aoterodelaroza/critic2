@@ -37,6 +37,7 @@ submodule (windows) builder
   type(vstring), allocatable :: fraglib_name(:) ! fragment names
   integer, allocatable :: fraglib_anchor(:) ! anchor atom of each fragment
   integer, allocatable :: fraglib_attach(:) ! attachment placeholder of each fragment
+  type(vstring), allocatable :: fraglib_cat(:) ! submenu each fragment belongs to
 
   ! bond styles in the local geometry pictograms
   integer, parameter :: sty_plain = 0 ! plain line, in the plane of the diagram
@@ -66,10 +67,11 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: isys, iview, icel, imode, nsel, iside, ibold, ibnew, izout, i, k
-    logical :: doquit, goodparent, havesys, ok, lcommit, ldum, relaxing
+    logical :: doquit, goodparent, havesys, ok, lcommit, ldum, relaxing, ldup
     real*8 :: dist, ang
     real(c_float) :: xclick(2)
     character(len=:), allocatable :: stropt, errmsg
+    character(kind=c_char,len=:), allocatable, target :: strcat
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -239,11 +241,26 @@ contains
           if (nfraglib == 0) then
              call iw_text("No fragments available")
           else
+             ! one submenu per category, in order of first appearance
              do k = 1, nfraglib
-                if (iw_menuitem(trim(fraglib_name(k)%s))) then
-                   w%errmsg = ""
-                   if (addfrag_load(k)) call builder_toggle(vm_builder_addfragment)
-                   call igCloseCurrentPopup()
+                ! skip a category whose submenu has already been drawn
+                ldup = .false.
+                do i = 1, k-1
+                   ldup = (fraglib_cat(i)%s == fraglib_cat(k)%s)
+                   if (ldup) exit
+                end do
+                if (ldup) cycle
+                strcat = trim(fraglib_cat(k)%s) // c_null_char
+                if (igBeginMenu(c_loc(strcat),.true._c_bool)) then
+                   do i = 1, nfraglib
+                      if (fraglib_cat(i)%s /= fraglib_cat(k)%s) cycle
+                      if (iw_menuitem(trim(fraglib_name(i)%s))) then
+                         w%errmsg = ""
+                         if (addfrag_load(i)) call builder_toggle(vm_builder_addfragment)
+                         call igCloseCurrentPopup()
+                      end if
+                   end do
+                   call igEndMenu()
                 end if
              end do
           end if
@@ -1529,8 +1546,10 @@ contains
 
       ! the fragment frame and where the fragment goes
       call addfrag_frame(e)
-      keepattach = (icel == 0)
-      if (keepattach) then
+      ! the placeholder caps the anchor on empty space, but only if it is
+      ! a real atom: a dummy (the dative ligands) marks a direction only
+      keepattach = (icel == 0 .and. w%builder_frag_z(w%builder_frag_iattach) > 0)
+      if (icel == 0) then
          ! empty space: the attachment points to the left of the screen
          p0 = x0
          dattach = -rcam(:,1)
@@ -1652,9 +1671,10 @@ contains
 
     end subroutine addfrag_target
 
-    ! Number of atoms bonded to the anchor in the loaded fragment
-    ! (including the attachment placeholder): the connections the anchor
-    ! brings with it when the fragment is attached.
+    ! Number of connections the anchor brings with it when the fragment
+    ! is attached: the atoms bonded to it inside the fragment, plus the
+    ! attachment itself. The placeholder is counted explicitly because it
+    ! may be a dummy atom, for which no covalent radius applies.
     function addfrag_nanchor() result(n)
       use global, only: bondfactor
       integer :: n
@@ -1662,9 +1682,9 @@ contains
       integer :: i, ia
 
       ia = w%builder_frag_ianchor
-      n = 0
+      n = 1
       do i = 1, w%builder_frag_nat
-         if (i == ia) cycle
+         if (i == ia .or. i == w%builder_frag_iattach) cycle
          if (norm2(w%builder_frag_x(:,i) - w%builder_frag_x(:,ia)) < bondfactor *&
             (sysc(w%builder_isys)%atmcov(w%builder_frag_z(i)) +&
             sysc(w%builder_isys)%atmcov(w%builder_frag_z(ia)))) n = n + 1
@@ -2280,7 +2300,7 @@ contains
     lu = fopen_read(flib_file,abspath0=.true.)
     if (lu < 0) return
 
-    allocate(fraglib_name(10),fraglib_anchor(10),fraglib_attach(10))
+    allocate(fraglib_name(10),fraglib_anchor(10),fraglib_attach(10),fraglib_cat(10))
     do while (getline(lu,line))
        lp = 1
        word = lgetword(line,lp)
@@ -2294,15 +2314,20 @@ contains
              call realloc(fraglib_name,2*nfraglib)
              call realloc(fraglib_anchor,2*nfraglib)
              call realloc(fraglib_attach,2*nfraglib)
+             call realloc(fraglib_cat,2*nfraglib)
           end if
           fraglib_name(nfraglib)%s = name
           fraglib_anchor(nfraglib) = 1
           fraglib_attach(nfraglib) = 0
+          fraglib_cat(nfraglib)%s = ""
        elseif (nfraglib > 0) then
           if (equal(word,"anchor")) then
              if (isinteger(idum,line,lp)) fraglib_anchor(nfraglib) = idum
           elseif (equal(word,"attach")) then
              if (isinteger(idum,line,lp)) fraglib_attach(nfraglib) = idum
+          elseif (equal(word,"category")) then
+             ! the category is free text (it labels a submenu)
+             fraglib_cat(nfraglib)%s = trim(adjustl(line(lp:)))
           end if
        end if
     end do
@@ -2312,6 +2337,7 @@ contains
        call realloc(fraglib_name,nfraglib)
        call realloc(fraglib_anchor,nfraglib)
        call realloc(fraglib_attach,nfraglib)
+       call realloc(fraglib_cat,nfraglib)
     end if
 
   end subroutine fraglib_ensure
