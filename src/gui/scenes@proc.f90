@@ -1854,7 +1854,10 @@ contains
 
     hside = s%camresetdist * 0.5_c_float * max(s%resetext(1),s%resetext(2))
     hside = hside * s%camratio
-    hside = max(hside,3._c_float)
+    ! a system with very few atoms has almost no extent, and framing it
+    ! exactly fills the window with one or two spheres: keep a minimum
+    ! window size so that a small molecule is shown at a sensible scale
+    hside = max(hside,hside_min)
 
   end function reset_zoom_hside
 

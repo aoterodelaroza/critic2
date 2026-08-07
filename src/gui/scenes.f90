@@ -26,6 +26,9 @@ module scenes
 
   private
 
+  !> Smallest half-window at the reset zoom (bohr)
+  real(c_float), parameter :: hside_min = 10._c_float
+
   !> Zoom minimum and maximum
   real(c_float), parameter, public :: min_zoom = 1._c_float
   real(c_float), parameter, public :: max_zoom = 100._c_float
