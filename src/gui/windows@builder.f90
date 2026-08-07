@@ -38,6 +38,10 @@ submodule (windows) builder
   integer, allocatable :: fraglib_anchor(:) ! anchor atom of each fragment
   integer, allocatable :: fraglib_attach(:) ! attachment placeholder of each fragment
   type(vstring), allocatable :: fraglib_cat(:) ! submenu each fragment belongs to
+  real*8, allocatable :: fraglib_radius(:) ! fictitious covalent radius, bohr (ligands; <= 0 = substituent)
+
+  ! most neighbor directions considered when placing a ligand
+  integer, parameter :: maxnbcand = 24
 
   ! bond styles in the local geometry pictograms
   integer, parameter :: sty_plain = 0 ! plain line, in the plane of the diagram
@@ -1520,6 +1524,7 @@ contains
       w%builder_frag_nat = seed%nat
       w%builder_frag_ianchor = ia
       w%builder_frag_iattach = it
+      w%builder_frag_radius = fraglib_radius(ifrag)
       w%builder_frag_name = trim(fraglib_name(ifrag)%s)
 
     end function addfrag_load
@@ -1527,7 +1532,8 @@ contains
     ! Add-fragments mode: place the loaded fragment. On empty space
     ! (icel = 0) the fragment goes at the clicked position, camera-aligned
     ! and capped with its placeholder atom. On an atom (icel > 0) the
-    ! anchor replaces it (see addfrag_target).
+    ! anchor replaces it (see addfrag_target), unless the fragment is a
+    ! ligand, in which case it bonds to it (see addfrag_ligand_target).
     subroutine addfrag_apply(xpos,icel)
       integer, intent(in) :: icel
       real(c_float), intent(in) :: xpos(2)
@@ -1549,12 +1555,16 @@ contains
       ! the placeholder caps the anchor on empty space, but only if it is
       ! a real atom: a dummy (the dative ligands) marks a direction only
       keepattach = (icel == 0 .and. w%builder_frag_z(w%builder_frag_iattach) > 0)
+      ndel = 0
+      allocate(idel(1))
       if (icel == 0) then
          ! empty space: the attachment points to the left of the screen
          p0 = x0
          dattach = -rcam(:,1)
-         ndel = 0
-         allocate(idel(1))
+      elseif (w%builder_frag_radius > 0d0) then
+         ! a ligand: it bonds to the clicked atom instead of replacing it
+         call addfrag_ligand_target(icel,rcam,p0,dattach,ok)
+         if (.not.ok) return
       else
          call addfrag_target(icel,rcam,p0,dattach,ndel,idel,ok)
          if (.not.ok) return
@@ -1670,6 +1680,93 @@ contains
       ok = .true.
 
     end subroutine addfrag_target
+
+    ! Add-fragments mode, ligand click on cell atom icel: the whole ligand
+    ! is treated as a single atom of fictitious covalent radius
+    ! builder_frag_radius that bonds to icel, which is kept. Returns the
+    ! position of the anchor (p0) and the direction from the anchor towards
+    ! the clicked atom (dattach).
+    subroutine addfrag_ligand_target(icel,rcam,p0,dattach,ok)
+      integer, intent(in) :: icel
+      real*8, intent(in) :: rcam(3,3)
+      real*8, intent(out) :: p0(3), dattach(3)
+      logical, intent(out) :: ok
+
+      integer :: isysl, ncon, k, nb, m, i1, i2, i3, ncand, ibest
+      real*8 :: x0(3), xnb(3), dir(3), dn, sumdir(3), smax, sbest
+      real*8 :: u(3,maxnbcand), cand(3,27)
+
+      ok = .false.
+      isysl = w%builder_isys
+      if (icel < 1 .or. icel > sys(isysl)%c%ncel) return
+      if (.not.allocated(sys(isysl)%c%nstar)) return
+
+      ! unit directions to the neighbors of the clicked atom
+      x0 = sys(isysl)%c%atcel(icel)%r
+      ncon = sys(isysl)%c%nstar(icel)%ncon
+      sumdir = 0d0
+      m = 0
+      do k = 1, ncon
+         if (m >= maxnbcand) exit
+         nb = sys(isysl)%c%nstar(icel)%idcon(k)
+         xnb = sys(isysl)%c%x2c(sys(isysl)%c%atcel(nb)%x +&
+            dble(sys(isysl)%c%nstar(icel)%lcon(:,k)))
+         dir = xnb - x0
+         dn = norm2(dir)
+         if (dn < eps_dzero) cycle
+         m = m + 1
+         u(:,m) = dir / dn
+         sumdir = sumdir + u(:,m)
+      end do
+
+      ! The anchor goes where there is most room, and the attachment
+      ! (anchor -> clicked atom) points back the other way. Candidates are
+      ! the direction opposite the sum of the bonds (exact when the shell is
+      ! lopsided) plus a fixed grid in the camera frame, which still works
+      ! when that sum vanishes, as it does for a linear, square planar or
+      ! octahedral center. Of those, take the one whose closest existing
+      ! bond is furthest away.
+      if (m == 0) then
+         dattach = -rcam(:,1)
+      else
+         ncand = 0
+         dn = norm2(sumdir)
+         if (dn > eps_dzero) then
+            ncand = 1
+            cand(:,1) = -sumdir / dn
+         end if
+         do i1 = -1, 1
+            do i2 = -1, 1
+               do i3 = -1, 1
+                  if (i1 == 0 .and. i2 == 0 .and. i3 == 0) cycle
+                  dir = real((/i1,i2,i3/),8)
+                  ncand = ncand + 1
+                  cand(:,ncand) = matmul(rcam,dir / norm2(dir))
+               end do
+            end do
+         end do
+         ibest = 1
+         sbest = 2d0
+         do k = 1, ncand
+            smax = -2d0
+            do i1 = 1, m
+               smax = max(smax,dot_product(cand(:,k),u(:,i1)))
+            end do
+            if (smax < sbest) then
+               sbest = smax
+               ibest = k
+            end if
+         end do
+         dattach = -cand(:,ibest)
+      end if
+
+      ! the anchor sits at the sum of the two covalent radii, and the
+      ! attachment points back at the clicked atom
+      p0 = x0 - (sysc(isysl)%atmcov(sys(isysl)%c%spc(sys(isysl)%c%atcel(icel)%is)%z) +&
+         w%builder_frag_radius) * dattach
+      ok = .true.
+
+    end subroutine addfrag_ligand_target
 
     ! Number of connections the anchor brings with it when the fragment
     ! is attached: the atoms bonded to it inside the fragment, plus the
@@ -1797,7 +1894,12 @@ contains
          elseif (jvm == vm_builder_addfragment) then
             msg = "Add "//trim(w%builder_frag_name)//" ("//&
                trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
-               ") at the clicked positions or replace the clicked atoms"
+               ") at the clicked positions or "
+            if (w%builder_frag_radius > 0d0) then
+               msg = msg // "bond it to the clicked atom"
+            else
+               msg = msg // "replace the clicked atoms"
+            end if
          else
             msg = "Remove ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
                ") the atoms and their hydrogens"
@@ -2283,11 +2385,13 @@ contains
   ! attach keywords given after the endmolecule line (see the file).
   subroutine fraglib_ensure()
     use tools_io, only: fopen_read, fclose, getline, lgetword, getword, equal,&
-       isinteger
+       isinteger, isreal
     use types, only: realloc
     use global, only: flib_file
+    use param, only: bohrtoa
 
     integer :: lu, lp, idum
+    real*8 :: rdum
     character(len=:), allocatable :: line, word, name
     logical :: ok
 
@@ -2300,7 +2404,8 @@ contains
     lu = fopen_read(flib_file,abspath0=.true.)
     if (lu < 0) return
 
-    allocate(fraglib_name(10),fraglib_anchor(10),fraglib_attach(10),fraglib_cat(10))
+    allocate(fraglib_name(10),fraglib_anchor(10),fraglib_attach(10),fraglib_cat(10),&
+       fraglib_radius(10))
     do while (getline(lu,line))
        lp = 1
        word = lgetword(line,lp)
@@ -2315,16 +2420,24 @@ contains
              call realloc(fraglib_anchor,2*nfraglib)
              call realloc(fraglib_attach,2*nfraglib)
              call realloc(fraglib_cat,2*nfraglib)
+             call realloc(fraglib_radius,2*nfraglib)
           end if
           fraglib_name(nfraglib)%s = name
           fraglib_anchor(nfraglib) = 1
           fraglib_attach(nfraglib) = 0
           fraglib_cat(nfraglib)%s = ""
+          fraglib_radius(nfraglib) = 0d0
        elseif (nfraglib > 0) then
           if (equal(word,"anchor")) then
              if (isinteger(idum,line,lp)) fraglib_anchor(nfraglib) = idum
           elseif (equal(word,"attach")) then
              if (isinteger(idum,line,lp)) fraglib_attach(nfraglib) = idum
+          elseif (equal(word,"radius")) then
+             ! a fictitious covalent radius marks a ligand: the whole fragment
+             ! is placed like a single atom of that radius, bonded to the
+             ! clicked metal instead of replacing it (the file gives it in
+             ! angstrom, everything downstream is in bohr)
+             if (isreal(rdum,line,lp)) fraglib_radius(nfraglib) = rdum / bohrtoa
           elseif (equal(word,"category")) then
              ! the category is free text (it labels a submenu)
              fraglib_cat(nfraglib)%s = trim(adjustl(line(lp:)))
@@ -2338,6 +2451,7 @@ contains
        call realloc(fraglib_anchor,nfraglib)
        call realloc(fraglib_attach,nfraglib)
        call realloc(fraglib_cat,nfraglib)
+       call realloc(fraglib_radius,nfraglib)
     end if
 
   end subroutine fraglib_ensure

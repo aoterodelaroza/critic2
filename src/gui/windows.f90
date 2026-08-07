@@ -208,6 +208,7 @@ module windows
      real*8, allocatable :: builder_frag_x(:,:) ! add fragments: Cartesian coordinates (bohr)
      integer :: builder_frag_ianchor = 0 ! add fragments: anchor atom (attaches to the structure)
      integer :: builder_frag_iattach = 0 ! add fragments: placeholder atom marking the attachment direction
+     real*8 :: builder_frag_radius = 0d0 ! add fragments: fictitious covalent radius, bohr (ligand; <= 0 = substituent)
      logical :: edit_pending = .false. ! keybinding request to toggle an edit session
      integer :: edit_kind = 0 ! active edit session and its number of atoms: 0 = none, 2 = distance, 3 = angle, 4 = dihedral
      integer :: edit_isys = 0 ! system latched for the edit session
