@@ -46,6 +46,7 @@ module scenes
      logical :: forcebuildlists ! force rebuild of lists
      logical :: nextbuildlists_fixcam = .false. ! if true, next build_lists skips camera translation
      real*8 :: buildmolx0(3) = 0d0 ! molecular cell origin at the last build_lists (molecules)
+     integer :: buildncel = -1 ! number of cell atoms at the last build_lists (-1 = never built)
      real*8 :: timelastrender = 0d0 ! time when the view was last rendered
      real*8 :: timelastbuild = 0d0 ! time of the last build
      real*8 :: timelastcamchange = 0d0 ! time the camera was last changed

@@ -536,6 +536,11 @@ contains
     s%nextbuildlists_fixcam = .false.
     s%buildmolx0 = sys(s%id)%c%molx0
 
+    ! a system that had no atoms has nothing to frame, so the camera is
+    ! meaningless until the first atoms appear: reset it when they do
+    if (s%buildncel == 0 .and. sys(s%id)%c%ncel > 0) s%forceresetcam = .true.
+    s%buildncel = sys(s%id)%c%ncel
+
     ! build the window-anchored axes
     do i = 1, s%nrep
        if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == 1) then
