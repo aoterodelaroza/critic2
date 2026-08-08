@@ -43,8 +43,109 @@ structure graphite A9
   endcrystal
 endstructure
 
+### beta-Sn, I4_1/amd (origin 2), hall 427
+structure beta-Sn A5 white_tin tin Sn
+  crystal
+    spg 427
+    cell 5.8318 5.8318 3.1819 90 90 90 ang
+    neq 0 3/4 1/8 Sn
+  endcrystal
+endstructure
+### arsenic, R-3m (H), hall 458
+structure arsenic A7 alpha-As As
+  crystal
+    spg 458
+    cell 3.7598 3.7598 10.5475 90 90 120 ang
+    neq 0 0 0.22706 As
+  endcrystal
+endstructure
+### selenium, P3_121, hall 441
+structure selenium A8 gamma-Se trigonal_selenium Se
+  crystal
+    spg 441
+    cell 4.3662 4.3662 4.9536 90 90 120 ang
+    neq 0.2254 0 1/3 Se
+  endcrystal
+endstructure
+### black_phosphorus, Cmce, hall 304
+structure black_phosphorus A17 phosphorus P
+  crystal
+    spg 304
+    cell 3.3136 10.478 4.3763 90 90 90 ang
+    neq 0 0.10168 0.08056 P
+  endcrystal
+endstructure
+### alpha-uranium, Cmcm, hall 298
+structure alpha-uranium A20 uranium U
+  crystal
+    spg 298
+    cell 2.8537 5.8695 4.9548 90 90 90 ang
+    neq 0 0.1025 1/4 U
+  endcrystal
+endstructure
+### alpha-Po, Pm-3m, hall 517
+structure alpha-Po A_h polonium Po
+  crystal
+    spg 517
+    cell 3.359 3.359 3.359 90 90 90 ang
+    neq 0 0 0 Po
+  endcrystal
+endstructure
+### alpha-Mn, I-43m, hall 513
+structure alpha-Mn A12 manganese Mn
+  crystal
+    spg 513
+    cell 8.9139 8.9139 8.9139 90 90 90 ang
+    neq 0 0 0 Mn
+    neq 0.31787 0.31787 0.31787 Mn
+    neq 0.35706 0.35706 0.03457 Mn
+    neq 0.08979 0.08979 0.28214 Mn
+  endcrystal
+endstructure
+### beta-Mn, P4_132, hall 509
+structure beta-Mn A13
+  crystal
+    spg 509
+    cell 6.3152 6.3152 6.3152 90 90 90 ang
+    neq 1/8 0.20211 0.45211 Mn
+    neq 0.06361 0.06361 0.06361 Mn
+  endcrystal
+endstructure
+### alpha-La, P6_3/mmc, hall 488
+structure alpha-La A3_prime dhcp double_hcp
+  crystal
+    spg 488
+    cell 3.77 3.77 12.159 90 90 120 ang
+    neq 0 0 0 La
+    neq 1/3 2/3 1/4 La
+  endcrystal
+endstructure
+### alpha-Ga, Cmce, hall 304
+structure alpha-Ga A11 gallium
+  crystal
+    spg 304
+    cell 4.5192 7.6586 4.5258 90 90 90 ang
+    neq 0 0.1549 0.0810 Ga
+  endcrystal
+endstructure
+### indium, I4/mmm, hall 424
+structure indium A6 tetragonal_In
+  crystal
+    spg 424
+    cell 3.2523 3.2523 4.9461 90 90 90 ang
+    neq 0 0 0 In
+  endcrystal
+endstructure
+### alpha-Hg, R-3m (H), hall 458
+structure alpha-Hg A10 mercury
+  crystal
+    spg 458
+    cell 3.4577 3.4577 6.6634 90 90 120 ang
+    neq 0 0 0 Hg
+  endcrystal
+endstructure
 #xx# Structures of AB compounds
-structure NaCl B1 rock_salt rocksalt
+structure NaCl B1 rock_salt rocksalt halite
   crystal
     spg F m -3 m
     cell 5.6402 5.6402 5.6402 90 90 90 ang
@@ -60,7 +161,7 @@ structure CsCl B2
     neq 0.5 0.5 0.5 Cl
   endcrystal
 endstructure
-structure zincblende B3 blende blenda
+structure zincblende B3 blende blenda sphalerite
   crystal
     spg F -4 3 m
     cell 5.4060 5.4060 5.4060 90 90 90 ang
@@ -68,7 +169,7 @@ structure zincblende B3 blende blenda
     neq 0.25 0.25 0.25 S
   endcrystal
 endstructure
-structure zincite B4
+structure zincite B4 wurtzite ZnO
   crystal
     spg P 63 m c
     cell 3.2495 3.2495 5.2069 90 90 120 ang
@@ -76,7 +177,7 @@ structure zincite B4
     neq '1/3' '2/3' 0.345 O
   endcrystal
 endstructure
-structure fluorite CaF2
+structure fluorite CaF2 C1
   crystal
     spg F m -3 m
     cell 5.4631 5.4631 5.4631 90 90 90 ang
@@ -85,9 +186,165 @@ structure fluorite CaF2
   endcrystal
 endstructure
 
+### NiAs, P6_3/mmc, hall 488
+structure NiAs B8_1 nickeline niccolite
+  crystal
+    spg 488
+    cell 3.619 3.619 5.034 90 90 120 ang
+    neq 0 0 0 Ni
+    neq 1/3 2/3 1/4 As
+  endcrystal
+endstructure
+### WC, P-6m2, hall 481
+structure WC B_h tungsten_carbide
+  crystal
+    spg 481
+    cell 2.9062 2.9062 2.8378 90 90 120 ang
+    neq 0 0 0 W
+    neq 1/3 2/3 1/2 C
+  endcrystal
+endstructure
+### hBN, P6_3/mmc, hall 488
+structure hBN B_k hexagonal_boron_nitride boron_nitride
+  crystal
+    spg 488
+    cell 2.504 2.504 6.661 90 90 120 ang
+    neq 1/3 2/3 1/4 B
+    neq 2/3 1/3 1/4 N
+  endcrystal
+endstructure
+### FeSi, P2_13, hall 492
+structure FeSi B20
+  crystal
+    spg 492
+    cell 4.4855 4.4855 4.4855 90 90 90 ang
+    neq 0.1358 0.1358 0.1358 Fe
+    neq 0.842 0.842 0.842 Si
+  endcrystal
+endstructure
+### PbO, P4/nmm (origin 2), hall 409
+structure PbO B10 litharge alpha-PbO
+  crystal
+    spg 409
+    cell 3.9759 3.9759 5.0227 90 90 90 ang
+    neq 1/4 1/4 0.2385 Pb
+    neq 3/4 1/4 0 O
+  endcrystal
+endstructure
+### PtS, P4_2/mmc, hall 412
+structure PtS B17 cooperite
+  crystal
+    spg 412
+    cell 3.47 3.47 6.11 90 90 90 ang
+    neq 0 1/2 0 Pt
+    neq 0 0 1/4 S
+  endcrystal
+endstructure
+### NaTl, Fd-3m (origin 2), hall 526
+structure NaTl B32 zintl
+  crystal
+    spg 526
+    cell 7.4839 7.4839 7.4839 90 90 90 ang
+    neq 1/8 1/8 1/8 Na
+    neq 3/8 3/8 3/8 Tl
+  endcrystal
+endstructure
+### CuPt, R-3m (H), hall 458
+structure CuPt L1_1
+  crystal
+    spg 458
+    cell 2.676 2.676 13.11 90 90 120 ang
+    neq 0 0 0 Cu
+    neq 0 0 1/2 Pt
+  endcrystal
+endstructure
+### CoSn, P6/mmm, hall 485
+structure CoSn B35
+  crystal
+    spg 485
+    cell 5.279 5.279 4.258 90 90 120 ang
+    neq 1/2 0 0 Co
+    neq 1/3 2/3 1/2 Sn
+    neq 0 0 1/2 Sn
+  endcrystal
+endstructure
+### AuCd, Pmma, hall 239
+structure AuCd B19
+  crystal
+    spg 239
+    cell 4.7549 3.1548 4.8548 90 90 90 ang
+    neq 1/4 0 0.3181 Au
+    neq 1/4 1/2 0.8237 Cd
+  endcrystal
+endstructure
+### Ni2In, P6_3/mmc, hall 488
+structure Ni2In B8_2
+  crystal
+    spg 488
+    cell 4.179 4.179 5.131 90 90 120 ang
+    neq 0 0 0 Ni
+    neq 1/3 2/3 3/4 Ni
+    neq 1/3 2/3 1/4 In
+  endcrystal
+endstructure
+### cinnabar, P3_121, hall 441
+structure cinnabar B9 HgS alpha-HgS
+  crystal
+    spg 441
+    cell 4.149 4.149 9.495 90 90 120 ang
+    neq 0.7198 0 1/3 Hg
+    neq 0.4889 0 5/6 S
+  endcrystal
+endstructure
+### GeS, Pnma, hall 292
+structure GeS B16
+  crystal
+    spg 292
+    cell 10.47 3.64 4.3 90 90 90 ang
+    neq 0.1155 1/4 0.1225 Ge
+    neq 0.8496 1/4 0.4879 S
+  endcrystal
+endstructure
+### FeB, Pnma, hall 292
+structure FeB B27
+  crystal
+    spg 292
+    cell 5.495 2.946 4.061 90 90 90 ang
+    neq 0.1774 1/4 0.1235 Fe
+    neq 0.0347 1/4 0.6096 B
+  endcrystal
+endstructure
+### MnP, Pnma, hall 292
+structure MnP B31
+  crystal
+    spg 292
+    cell 5.916 3.173 5.26 90 90 90 ang
+    neq 0.0056 1/4 0.1965 Mn
+    neq 0.1878 1/4 0.5686 P
+  endcrystal
+endstructure
+### CrB, Cmcm, hall 298
+structure CrB B33 CrB_type
+  crystal
+    spg 298
+    cell 2.969 7.858 2.932 90 90 90 ang
+    neq 0 0.146 1/4 Cr
+    neq 0 0.440 1/4 B
+  endcrystal
+endstructure
+### matlockite, P4/nmm (origin 2), hall 409
+structure matlockite E0_1 PbFCl
+  crystal
+    spg 409
+    cell 4.109 4.109 7.23 90 90 90 ang
+    neq 1/4 1/4 0.2058 Pb
+    neq 3/4 1/4 0 F
+    neq 1/4 1/4 0.6472 Cl
+  endcrystal
+endstructure
 #xx# Structures of AB2 compounds
 # COD ID: 1011280
-structure CaCl2
+structure CaCl2 C35
   crystal
     spg P n n m
     cell 6.24 6.43 4.2 90 90 90 ang
@@ -96,7 +353,7 @@ structure CaCl2
   endcrystal
 endstructure
 # COD ID: 9009144
-structure MoS2
+structure MoS2 C7 molybdenite
   crystal
     spg P 63/m m c
     cell 3.1604 3.1604 12.295 90 90 120 ang
@@ -105,10 +362,221 @@ structure MoS2
   endcrystal
 endstructure
 
+### cuprite, Pn-3m (origin 2), hall 522
+structure cuprite C3 Cu2O
+  crystal
+    spg 522
+    cell 4.2685 4.2685 4.2685 90 90 90 ang
+    neq 0 0 0 Cu
+    neq 1/4 1/4 1/4 O
+  endcrystal
+endstructure
+### anatase, I4_1/amd (origin 2), hall 427
+structure anatase C5 TiO2_anatase
+  crystal
+    spg 427
+    cell 3.7842 3.7842 9.5146 90 90 90 ang
+    neq 0 1/4 3/8 Ti
+    neq 0 1/4 0.16656 O
+  endcrystal
+endstructure
+### brookite, Pbca, hall 290
+structure brookite C21 TiO2_brookite
+  crystal
+    spg 290
+    cell 9.174 5.449 5.138 90 90 90 ang
+    neq 0.1289 0.0972 0.8628 Ti
+    neq 0.0101 0.1486 0.1824 O
+    neq 0.2304 0.1130 0.5371 O
+  endcrystal
+endstructure
+### marcasite, Pnnm, hall 275
+structure marcasite C18 FeS2_marcasite
+  crystal
+    spg 275
+    cell 4.443 5.424 3.387 90 90 90 ang
+    neq 0 0 0 Fe
+    neq 0.200 0.378 0 S
+  endcrystal
+endstructure
+### baddeleyite, P2_1/c (b1), hall 81
+structure baddeleyite C43 ZrO2_monoclinic zirconia
+  crystal
+    spg 81
+    cell 5.1505 5.2116 5.3173 90 99.23 90 ang
+    neq 0.2758 0.0411 0.2082 Zr
+    neq 0.0703 0.3359 0.3406 O
+    neq 0.4423 0.7549 0.4789 O
+  endcrystal
+endstructure
+### cotunnite, Pnma, hall 292
+structure cotunnite C23 PbCl2
+  crystal
+    spg 292
+    cell 7.622 4.535 9.045 90 90 90 ang
+    neq 0.2537 1/4 0.1090 Pb
+    neq 0.8632 1/4 0.0703 Cl
+    neq 0.4749 1/4 0.8395 Cl
+  endcrystal
+endstructure
+### MgCu2, Fd-3m (origin 2), hall 526
+structure MgCu2 C15 laves_C15 cubic_laves
+  crystal
+    spg 526
+    cell 7.035 7.035 7.035 90 90 90 ang
+    neq 1/8 1/8 1/8 Mg
+    neq 1/2 1/2 1/2 Cu
+  endcrystal
+endstructure
+### MgZn2, P6_3/mmc, hall 488
+structure MgZn2 C14 laves_C14 hexagonal_laves
+  crystal
+    spg 488
+    cell 5.223 5.223 8.566 90 90 120 ang
+    neq 1/3 2/3 0.0629 Mg
+    neq 0 0 0 Zn
+    neq 0.8296 0.6592 1/4 Zn
+  endcrystal
+endstructure
+### MgNi2, P6_3/mmc, hall 488
+structure MgNi2 C36 laves_C36
+  crystal
+    spg 488
+    cell 4.824 4.824 15.826 90 90 120 ang
+    neq 0 0 0.0938 Mg
+    neq 1/3 2/3 0.8438 Mg
+    neq 1/3 2/3 0.1250 Ni
+    neq 1/2 0 0 Ni
+    neq 0.1640 0.3280 1/4 Ni
+  endcrystal
+endstructure
+### antifluorite, Fm-3m, hall 523
+structure antifluorite C1_antifluorite Li2O lithium_oxide
+  crystal
+    spg 523
+    cell 4.6114 4.6114 4.6114 90 90 90 ang
+    neq 1/4 1/4 1/4 Li
+    neq 0 0 0 O
+  endcrystal
+endstructure
+### CdI2, P-3m1, hall 456
+structure CdI2 C6 cadmium_iodide brucite_type
+  crystal
+    spg 456
+    cell 4.24 4.24 6.835 90 90 120 ang
+    neq 0 0 0 Cd
+    neq 1/3 2/3 0.25 I
+  endcrystal
+endstructure
+### CaC2, I4/mmm, hall 424
+structure CaC2 C11_a calcium_carbide
+  crystal
+    spg 424
+    cell 3.62 3.62 6.03 90 90 90 ang
+    neq 0 0 0 Ca
+    neq 0 0 0.4005 C
+  endcrystal
+endstructure
+### MoSi2, I4/mmm, hall 424
+structure MoSi2 C11_b
+  crystal
+    spg 424
+    cell 3.2056 3.2056 7.8451 90 90 90 ang
+    neq 0 0 0 Mo
+    neq 0 0 0.3353 Si
+  endcrystal
+endstructure
+### CuAl2, I4/mcm, hall 425
+structure CuAl2 C16
+  crystal
+    spg 425
+    cell 6.063 6.063 4.872 90 90 90 ang
+    neq 0 0 1/4 Cu
+    neq 0.1581 0.6581 0 Al
+  endcrystal
+endstructure
+### AlB2, P6/mmm, hall 485
+structure AlB2 C32 aluminium_diboride
+  crystal
+    spg 485
+    cell 3.009 3.009 3.262 90 90 120 ang
+    neq 0 0 0 Al
+    neq 1/3 2/3 1/2 B
+  endcrystal
+endstructure
+### Bi2Te3, R-3m (H), hall 458
+structure Bi2Te3 C33 tetradymite
+  crystal
+    spg 458
+    cell 4.3835 4.3835 30.487 90 90 120 ang
+    neq 0 0 0.4001 Bi
+    neq 0 0 0 Te
+    neq 0 0 0.2095 Te
+  endcrystal
+endstructure
+### Fe2P, P-62m, hall 483
+structure Fe2P C22
+  crystal
+    spg 483
+    cell 5.867 5.867 3.458 90 90 120 ang
+    neq 0.2560 0 0 Fe
+    neq 0.5943 0 1/2 Fe
+    neq 0 0 1/2 P
+    neq 1/3 2/3 0 P
+  endcrystal
+endstructure
+### Cu2Sb, P4/nmm (origin 2), hall 409
+structure Cu2Sb C38
+  crystal
+    spg 409
+    cell 3.992 3.992 6.091 90 90 90 ang
+    neq 3/4 1/4 0 Cu
+    neq 1/4 1/4 0.2707 Cu
+    neq 1/4 1/4 0.7275 Sb
+  endcrystal
+endstructure
+### CrSi2, P6_222, hall 474
+structure CrSi2 C40
+  crystal
+    spg 474
+    cell 4.428 4.428 6.369 90 90 120 ang
+    neq 1/2 0 1/2 Cr
+    neq 0.1667 0.3334 1/2 Si
+  endcrystal
+endstructure
+### ZrSi2, Cmcm, hall 298
+structure ZrSi2 C49
+  crystal
+    spg 298
+    cell 3.72 14.76 3.67 90 90 90 ang
+    neq 0 0.1060 1/4 Zr
+    neq 0 0.4400 1/4 Si
+    neq 0 0.7500 1/4 Si
+  endcrystal
+endstructure
+### TiSi2, Fddd (origin 1), hall 335
+structure TiSi2 C54
+  crystal
+    spg 335
+    cell 8.267 4.8 8.551 90 90 90 ang
+    neq 0 0 0 Ti
+    neq 0.3333 0 0 Si
+  endcrystal
+endstructure
+### AuBe5, F-43m, hall 512
+structure AuBe5 C15_b
+  crystal
+    spg 512
+    cell 6.1 6.1 6.1 90 90 90 ang
+    neq 0 0 0 Au
+    neq 1/4 1/4 1/4 Be
+    neq 0.625 0.625 0.625 Be
+  endcrystal
+endstructure
 #xx# Common solids and minerals
 ### nacl-type
 ### MgO, Wyckoff.
-structure MgO
+structure MgO periclase
   crystal
     spg F m -3 m
     cell 4.211 4.211 4.211 90 90 90 ang
@@ -119,7 +587,7 @@ endstructure
 
 ### spinel-type
 ### Idealized full-occupation spinel structure. Peterson et al., Am. Miner. (1991)
-structure spinel
+structure spinel H1_1 MgAl2O4
    crystal
     cell 8.08435 8.08435 8.08435 90 90 90 ang
     spg 526
@@ -129,7 +597,7 @@ structure spinel
   endcrystal
 endstructure
 ### Magnetite, Wechsler et al., Am. Miner. (1984) structure magnetite Fe3O4
-structure magnetite Fe3O4
+structure magnetite Fe3O4 inverse_spinel
   crystal
     cell 8.3958 8.3958 8.3958 90 90 90 ang
     spg 526
@@ -141,7 +609,7 @@ endstructure
 
 ### corundum-type
 ### Corundum, Lewis et al., Acta Cryst. A (1982)
-structure corundum alpha-Al2O3 Al2O3
+structure corundum alpha-Al2O3 Al2O3 D5_1
    crystal
     cell 4.7602 4.7602 12.9933 90 90 120 ang
     spg R -3 c
@@ -161,7 +629,7 @@ endstructure
 
 ### rutile-type
 ### rutile, Wyckoff
-structure rutile TiO2
+structure rutile TiO2 C4 cassiterite_type
   crystal
    cell 4.59373 4.59373 2.95812 90 90 90 ang
    spg P 42/m n m
@@ -172,7 +640,7 @@ endstructure
 
 ### pyrite-type
 ### pyrite, Ramsdell, Am. Miner. (1925)
-structure pyrite FeS2
+structure pyrite FeS2 C2
   crystal
    cell 5.38 5.38 5.38 90 90 90 ang
    spg P a -3
@@ -183,7 +651,7 @@ endstructure
 
 ### layered structures of the AB2 type, with octahedral A (CdCl2,etc.)
 ### CdCl2, ABCABC...
-structure CdCl2
+structure CdCl2 C19
   crystal
    cell 3.85 3.85 17.46 90 90 120 ang
    spg R -3 m
@@ -191,8 +659,8 @@ structure CdCl2
    neq 0.0 0.0 1/4 Cl
   endcrystal
 endstructure
-### CdI2, ABABAB...
-structure CdI2
+### CdI2 4H polytype, ABCB stacking (P 63 m c, c = 13.67 A)
+structure CdI2-4H CdI2_4H
   crystal
    cell 4.24 4.24 13.67 90 90 120 ang
    spg P 63 m c
@@ -202,9 +670,600 @@ structure CdI2
   endcrystal
 endstructure
 
+#xx# Intermetallics and alloy prototypes
+### Cr3Si, Pm-3n, hall 520
+structure Cr3Si A15 beta-W chromium_silicide Nb3Sn_type
+  crystal
+    spg 520
+    cell 4.556 4.556 4.556 90 90 90 ang
+    neq 0 0 0 Si
+    neq 1/4 0 1/2 Cr
+  endcrystal
+endstructure
+### Cu3Au, Pm-3m, hall 517
+structure Cu3Au L1_2 AuCu3
+  crystal
+    spg 517
+    cell 3.7493 3.7493 3.7493 90 90 90 ang
+    neq 0 0 0 Au
+    neq 1/2 1/2 0 Cu
+  endcrystal
+endstructure
+### CuAu, P4/mmm, hall 400
+structure CuAu L1_0 AuCu
+  crystal
+    spg 400
+    cell 2.804 2.804 3.673 90 90 90 ang
+    neq 0 0 0 Cu
+    neq 1/2 1/2 1/2 Au
+  endcrystal
+endstructure
+### Cu2MnAl, Fm-3m, hall 523
+structure Cu2MnAl L2_1 heusler full_heusler
+  crystal
+    spg 523
+    cell 5.949 5.949 5.949 90 90 90 ang
+    neq 1/4 1/4 1/4 Cu
+    neq 0 0 0 Mn
+    neq 1/2 1/2 1/2 Al
+  endcrystal
+endstructure
+### MgAgAs, F-43m, hall 512
+structure MgAgAs C1_b half_heusler
+  crystal
+    spg 512
+    cell 6.259 6.259 6.259 90 90 90 ang
+    neq 0 0 0 Mg
+    neq 1/4 1/4 1/4 Ag
+    neq 1/2 1/2 1/2 As
+  endcrystal
+endstructure
+### Fe3C, Pnma, hall 292
+structure Fe3C D0_11 cementite
+  crystal
+    spg 292
+    cell 5.0787 6.7297 4.5144 90 90 90 ang
+    neq 0.1834 0.0689 0.3378 Fe
+    neq 0.0369 1/4 0.8419 Fe
+    neq 0.8899 1/4 0.4426 C
+  endcrystal
+endstructure
+### Ni3Sn, P6_3/mmc, hall 488
+structure Ni3Sn D0_19 Mg3Cd_type
+  crystal
+    spg 488
+    cell 5.286 5.286 4.243 90 90 120 ang
+    neq 1/6 1/3 1/4 Ni
+    neq 1/3 2/3 3/4 Sn
+  endcrystal
+endstructure
+### Al3Ti, I4/mmm, hall 424
+structure Al3Ti D0_22
+  crystal
+    spg 424
+    cell 3.8537 3.8537 8.5839 90 90 90 ang
+    neq 0 0 0 Ti
+    neq 0 1/2 1/4 Al
+    neq 0 0 1/2 Al
+  endcrystal
+endstructure
+### Ni3Ti, P6_3/mmc, hall 488
+structure Ni3Ti D0_24
+  crystal
+    spg 488
+    cell 5.101 5.101 8.3067 90 90 120 ang
+    neq 0 0 0 Ti
+    neq 1/3 2/3 1/4 Ti
+    neq 1/2 0 0 Ni
+    neq 0.8341 0.6682 1/4 Ni
+  endcrystal
+endstructure
+### CaCu5, P6/mmm, hall 485
+structure CaCu5 D2_d
+  crystal
+    spg 485
+    cell 5.082 5.082 4.078 90 90 120 ang
+    neq 0 0 0 Ca
+    neq 1/3 2/3 0 Cu
+    neq 1/2 0 1/2 Cu
+  endcrystal
+endstructure
+### ThCr2Si2, I4/mmm, hall 424
+structure ThCr2Si2 122_type BaAl4_type
+  crystal
+    spg 424
+    cell 4.043 4.043 10.577 90 90 90 ang
+    neq 0 0 0 Th
+    neq 0 1/2 1/4 Cr
+    neq 0 0 0.3707 Si
+  endcrystal
+endstructure
+### Fe3Al, Fm-3m, hall 523
+structure Fe3Al D0_3 BiF3_type
+  crystal
+    spg 523
+    cell 5.793 5.793 5.793 90 90 90 ang
+    neq 0 0 0 Fe
+    neq 1/4 1/4 1/4 Fe
+    neq 1/2 1/2 1/2 Al
+  endcrystal
+endstructure
+### CaB6, Pm-3m, hall 517
+structure CaB6 D2_1 hexaboride
+  crystal
+    spg 517
+    cell 4.1524 4.1524 4.1524 90 90 90 ang
+    neq 0 0 0 Ca
+    neq 1/2 1/2 0.2032 B
+  endcrystal
+endstructure
+### skutterudite, Im-3, hall 500
+structure skutterudite D0_2 CoAs3
+  crystal
+    spg 500
+    cell 8.2043 8.2043 8.2043 90 90 90 ang
+    neq 1/4 1/4 1/4 Co
+    neq 0 0.3499 0.1512 As
+  endcrystal
+endstructure
+### Na3As, P6_3/mmc, hall 488
+structure Na3As D0_18
+  crystal
+    spg 488
+    cell 5.088 5.088 8.981 90 90 120 ang
+    neq 0 0 1/4 Na
+    neq 1/3 2/3 0.5833 Na
+    neq 1/3 2/3 1/4 As
+  endcrystal
+endstructure
+### Al3Zr, I4/mmm, hall 424
+structure Al3Zr D0_23
+  crystal
+    spg 424
+    cell 4.007 4.007 17.283 90 90 90 ang
+    neq 0 0 0.1189 Zr
+    neq 0 1/2 1/4 Al
+    neq 0 0 0.3722 Al
+    neq 0 1/2 0 Al
+  endcrystal
+endstructure
+### Th3P4, I-43d, hall 516
+structure Th3P4 D7_3
+  crystal
+    spg 516
+    cell 8.6 8.6 8.6 90 90 90 ang
+    neq 3/8 0 1/4 Th
+    neq 0.0725 0.0725 0.0725 P
+  endcrystal
+endstructure
+### Mn5Si3, P6_3/mcm, hall 487
+structure Mn5Si3 D8_8
+  crystal
+    spg 487
+    cell 6.91 6.91 4.814 90 90 120 ang
+    neq 1/3 2/3 0 Mn
+    neq 0.2358 0 1/4 Mn
+    neq 0.5992 0 1/4 Si
+  endcrystal
+endstructure
+### Ti3SiC2, P6_3/mmc, hall 488
+structure Ti3SiC2 MAX_phase 312_MAX
+  crystal
+    spg 488
+    cell 3.0665 3.0665 17.671 90 90 120 ang
+    neq 0 0 0 Ti
+    neq 1/3 2/3 0.1355 Ti
+    neq 0 0 1/4 Si
+    neq 2/3 1/3 0.0722 C
+  endcrystal
+endstructure
+#xx# Perovskites and other oxides
+### perovskite, Pm-3m, hall 517
+structure perovskite E2_1 SrTiO3 strontium_titanate cubic_perovskite
+  crystal
+    spg 517
+    cell 3.905 3.905 3.905 90 90 90 ang
+    neq 0 0 0 Ti
+    neq 1/2 1/2 1/2 Sr
+    neq 1/2 0 0 O
+  endcrystal
+endstructure
+### CaTiO3, Pnma, hall 292
+structure CaTiO3 GdFeO3_type orthorhombic_perovskite perovskite_mineral
+  crystal
+    spg 292
+    cell 5.3796 7.6401 5.4423 90 90 90 ang
+    neq 0 0 1/2 Ti
+    neq 0.0492 1/4 0.9922 Ca
+    neq 0.4881 1/4 0.0710 O
+    neq 0.2887 0.0384 0.7113 O
+  endcrystal
+endstructure
+### BaTiO3, P4mm, hall 376
+structure BaTiO3 tetragonal_perovskite barium_titanate
+  crystal
+    spg 376
+    cell 3.9945 3.9945 4.0335 90 90 90 ang
+    neq 1/2 1/2 0.5150 Ti
+    neq 0 0 0 Ba
+    neq 1/2 1/2 0.9760 O
+    neq 1/2 0 0.4860 O
+  endcrystal
+endstructure
+### LaAlO3, R-3c (H), hall 460
+structure LaAlO3 rhombohedral_perovskite
+  crystal
+    spg 460
+    cell 5.3647 5.3647 13.1113 90 90 120 ang
+    neq 0 0 0 Al
+    neq 0 0 1/4 La
+    neq 0.5290 0 1/4 O
+  endcrystal
+endstructure
+### ReO3, Pm-3m, hall 517
+structure ReO3 D0_9 rhenium_trioxide
+  crystal
+    spg 517
+    cell 3.7504 3.7504 3.7504 90 90 90 ang
+    neq 0 0 0 Re
+    neq 1/2 0 0 O
+  endcrystal
+endstructure
+### K2NiF4, I4/mmm, hall 424
+structure K2NiF4 ruddlesden_popper layered_perovskite
+  crystal
+    spg 424
+    cell 4.006 4.006 13.076 90 90 90 ang
+    neq 0 0 0 Ni
+    neq 0 0 0.3529 K
+    neq 0 1/2 0 F
+    neq 0 0 0.1522 F
+  endcrystal
+endstructure
+### Sr3Ti2O7, I4/mmm, hall 424
+structure Sr3Ti2O7 ruddlesden_popper_n2 layered_perovskite_n2
+  crystal
+    spg 424
+    cell 3.9026 3.9026 20.372 90 90 90 ang
+    neq 0 0 0.0975 Ti
+    neq 0 0 0 Sr
+    neq 0 0 0.3168 Sr
+    neq 0 0 0.1946 O
+    neq 0 1/2 0.0955 O
+    neq 0 0 0 O
+  endcrystal
+endstructure
+### pyrochlore, Fd-3m (origin 2), hall 526
+structure pyrochlore Y2Ti2O7
+  crystal
+    spg 526
+    cell 10.095 10.095 10.095 90 90 90 ang
+    neq 0 0 0 Ti
+    neq 1/2 1/2 1/2 Y
+    neq 0.3268 1/8 1/8 O
+    neq 3/8 3/8 3/8 O
+  endcrystal
+endstructure
+### YBa2Cu3O7, Pmmm, hall 227
+structure YBa2Cu3O7 YBCO 123_superconductor
+  crystal
+    spg 227
+    cell 3.8227 3.8872 11.6802 90 90 90 ang
+    neq 1/2 1/2 1/2 Y
+    neq 1/2 1/2 0.1843 Ba
+    neq 0 0 0 Cu
+    neq 0 0 0.3556 Cu
+    neq 0 1/2 0 O
+    neq 0 0 0.1584 O
+    neq 1/2 0 0.3779 O
+    neq 0 1/2 0.3790 O
+  endcrystal
+endstructure
+### bixbyite, Ia-3, hall 502
+structure bixbyite D5_3 Mn2O3_type
+  crystal
+    spg 502
+    cell 9.4146 9.4146 9.4146 90 90 90 ang
+    neq 1/4 1/4 1/4 Mn
+    neq 0.9679 0 1/4 Mn
+    neq 0.3907 0.1518 0.3800 O
+  endcrystal
+endstructure
+### K2PtCl6, Fm-3m, hall 523
+structure K2PtCl6 antifluorite_complex hexachloroplatinate
+  crystal
+    spg 523
+    cell 9.755 9.755 9.755 90 90 90 ang
+    neq 0 0 0 Pt
+    neq 1/4 1/4 1/4 K
+    neq 0.2394 0 0 Cl
+  endcrystal
+endstructure
+### La2O3, P-3m1, hall 456
+structure La2O3 D5_2 A_type_sesquioxide
+  crystal
+    spg 456
+    cell 3.937 3.937 6.1299 90 90 120 ang
+    neq 1/3 2/3 0.2467 La
+    neq 1/3 2/3 0.6470 O
+    neq 0 0 0 O
+  endcrystal
+endstructure
+### LiNbO3, R3c (H), hall 452
+structure LiNbO3 lithium_niobate
+  crystal
+    spg 452
+    cell 5.1483 5.1483 13.8631 90 90 120 ang
+    neq 0 0 0 Nb
+    neq 0 0 0.2829 Li
+    neq 0.0492 0.3437 0.0629 O
+  endcrystal
+endstructure
+### LiCoO2, R-3m (H), hall 458
+structure LiCoO2 alpha-NaFeO2 layered_rocksalt
+  crystal
+    spg 458
+    cell 2.8166 2.8166 14.0452 90 90 120 ang
+    neq 0 0 0 Co
+    neq 0 0 1/2 Li
+    neq 0 0 0.2604 O
+  endcrystal
+endstructure
+### elpasolite, Fm-3m, hall 523
+structure elpasolite double_perovskite K2NaAlF6
+  crystal
+    spg 523
+    cell 8.114 8.114 8.114 90 90 90 ang
+    neq 1/4 1/4 1/4 K
+    neq 0 0 0 Al
+    neq 1/2 1/2 1/2 Na
+    neq 0.2200 0 0 F
+  endcrystal
+endstructure
+### BaNiO3, P6_3/mmc, hall 488
+structure BaNiO3 hexagonal_perovskite 2H_perovskite
+  crystal
+    spg 488
+    cell 5.629 5.629 4.811 90 90 120 ang
+    neq 0 0 0 Ni
+    neq 1/3 2/3 3/4 Ba
+    neq 0.1467 0.2934 1/4 O
+  endcrystal
+endstructure
+#xx# Silica polymorphs
+### quartz, P3_121, hall 441
+structure quartz alpha-quartz SiO2 silica
+  crystal
+    spg 441
+    cell 4.9134 4.9134 5.4052 90 90 120 ang
+    neq 0.4697 0 1/3 Si
+    neq 0.4135 0.2669 0.2142 O
+  endcrystal
+endstructure
+### beta-quartz, P6_222, hall 474
+structure beta-quartz high_quartz
+  crystal
+    spg 474
+    cell 4.9977 4.9977 5.4601 90 90 120 ang
+    neq 1/2 0 0 Si
+    neq 0.4144 0.2072 1/6 O
+  endcrystal
+endstructure
+### cristobalite, P4_12_12, hall 369
+structure cristobalite alpha-cristobalite C9_low
+  crystal
+    spg 369
+    cell 4.9717 4.9717 6.9223 90 90 90 ang
+    neq 0.3003 0.3003 0 Si
+    neq 0.2392 0.1044 0.1787 O
+  endcrystal
+endstructure
+### stishovite, P4_2/mnm, hall 419
+structure stishovite SiO2_rutile_type
+  crystal
+    spg 419
+    cell 4.179 4.179 2.6649 90 90 90 ang
+    neq 0 0 0 Si
+    neq 0.3062 0.3062 0 O
+  endcrystal
+endstructure
+### coesite, C2/c (b1), hall 90
+structure coesite SiO2_coesite
+  crystal
+    spg 90
+    cell 7.1356 12.3692 7.1736 90 120.34 90 ang
+    neq 0.1403 0.1083 0.0723 Si
+    neq 0.5069 0.1584 0.5405 Si
+    neq 0 0 0 O
+    neq 1/2 0.1163 3/4 O
+    neq 0.2662 0.1235 0.9424 O
+    neq 0.3114 0.1038 0.3277 O
+    neq 0.0175 0.2117 0.4789 O
+  endcrystal
+endstructure
+#xx# Carbonates, silicates and other minerals
+### calcite, R-3c (H), hall 460
+structure calcite CaCO3 calcite_type
+  crystal
+    spg 460
+    cell 4.9896 4.9896 17.061 90 90 120 ang
+    neq 0 0 0 Ca
+    neq 0 0 1/4 C
+    neq 0.2578 0 1/4 O
+  endcrystal
+endstructure
+### aragonite, Pmcn (bca), hall 296
+structure aragonite CaCO3_aragonite
+  crystal
+    spg 296
+    cell 4.9614 7.9671 5.7404 90 90 90 ang
+    neq 0.2500 0.4150 0.7597 Ca
+    neq 0.2500 0.7622 -0.0864 C
+    neq 0.2500 0.9222 -0.0962 O
+    neq 0.4736 0.6812 -0.0862 O
+  endcrystal
+endstructure
+### dolomite, R-3 (H), hall 436
+structure dolomite CaMg(CO3)2
+  crystal
+    spg 436
+    cell 4.8069 4.8069 16.0034 90 90 120 ang
+    neq 0 0 0 Ca
+    neq 0 0 1/2 Mg
+    neq 0 0 0.2430 C
+    neq 0.2477 0.9679 0.2440 O
+  endcrystal
+endstructure
+### forsterite, Pbnm (cab), hall 294
+structure forsterite olivine Mg2SiO4
+  crystal
+    spg 294
+    cell 4.7534 10.1902 5.9783 90 90 90 ang
+    neq 0.4265 0.0940 1/4 Si
+    neq 0 0 0 Mg
+    neq 0.9915 0.2774 1/4 Mg
+    neq 0.7657 0.0913 1/4 O
+    neq 0.2215 0.4474 1/4 O
+    neq 0.2777 0.1631 0.0331 O
+  endcrystal
+endstructure
+### zircon, I4_1/amd (origin 2), hall 427
+structure zircon ZrSiO4 zircon_type
+  crystal
+    spg 427
+    cell 6.6042 6.6042 5.9796 90 90 90 ang
+    neq 0 1/4 3/8 Si
+    neq 0 3/4 1/8 Zr
+    neq 0 0.0661 0.1953 O
+  endcrystal
+endstructure
+### scheelite, I4_1/a (origin 1), hall 364
+structure scheelite CaWO4 scheelite_type
+  crystal
+    spg 364
+    cell 5.2429 5.2429 11.3737 90 90 90 ang
+    neq 0 0 0 W
+    neq 0 0 1/2 Ca
+    neq 0.2415 0.1504 0.0861 O
+  endcrystal
+endstructure
+### pyrope, Ia-3d, hall 530
+structure pyrope garnet Mg3Al2Si3O12
+  crystal
+    spg 530
+    cell 11.459 11.459 11.459 90 90 90 ang
+    neq 3/8 0 1/4 Si
+    neq 0 0 0 Al
+    neq 1/8 0 1/4 Mg
+    neq 0.0331 0.0503 0.6533 O
+  endcrystal
+endstructure
+### ilmenite, R-3 (H), hall 436
+structure ilmenite FeTiO3 E2_2
+  crystal
+    spg 436
+    cell 5.0884 5.0884 14.0855 90 90 120 ang
+    neq 0 0 0.1446 Ti
+    neq 0 0 0.3553 Fe
+    neq 0.3164 0.0214 0.2439 O
+  endcrystal
+endstructure
+### delafossite, R-3m (H), hall 458
+structure delafossite CuFeO2
+  crystal
+    spg 458
+    cell 3.0351 3.0351 17.166 90 90 120 ang
+    neq 0 0 0 Cu
+    neq 0 0 1/2 Fe
+    neq 0 0 0.1057 O
+  endcrystal
+endstructure
+### chalcopyrite, I-42d, hall 399
+structure chalcopyrite E1_1 CuFeS2
+  crystal
+    spg 399
+    cell 5.289 5.289 10.423 90 90 90 ang
+    neq 0 0 0 Cu
+    neq 0 0 1/2 Fe
+    neq 0.2574 1/4 1/8 S
+  endcrystal
+endstructure
+### fluorapatite, P6_3/m, hall 470
+structure fluorapatite apatite Ca5(PO4)3F
+  crystal
+    spg 470
+    cell 9.3684 9.3684 6.8841 90 90 120 ang
+    neq 0.3982 0.3682 1/4 P
+    neq 2/3 1/3 0.0014 Ca
+    neq 0.2416 0.9931 1/4 Ca
+    neq 0.3283 0.4846 1/4 O
+    neq 0.5875 0.4652 1/4 O
+    neq 0.3435 0.2579 0.0705 O
+    neq 0 0 1/4 F
+  endcrystal
+endstructure
+### barite, Pnma, hall 292
+structure barite BaSO4 barite_type
+  crystal
+    spg 292
+    cell 8.884 5.457 7.157 90 90 90 ang
+    neq 0.1843 1/4 0.1584 Ba
+    neq 0.0625 1/4 0.6871 S
+    neq 0.9083 1/4 0.6089 O
+    neq 0.1928 1/4 0.5432 O
+    neq 0.0810 0.0272 0.8114 O
+  endcrystal
+endstructure
+### diopside, C2/c (b1), hall 90
+structure diopside pyroxene CaMgSi2O6
+  crystal
+    spg 90
+    cell 9.746 8.899 5.251 90 105.63 90 ang
+    neq 0 0.3015 1/4 Ca
+    neq 0 0.9082 1/4 Mg
+    neq 0.2862 0.0933 0.2293 Si
+    neq 0.1156 0.0873 0.1422 O
+    neq 0.3611 0.2500 0.3180 O
+    neq 0.3505 0.0176 0.9953 O
+  endcrystal
+endstructure
+### beryl, P6/mcc, hall 486
+structure beryl Be3Al2Si6O18
+  crystal
+    spg 486
+    cell 9.215 9.215 9.192 90 90 120 ang
+    neq 1/2 0 1/4 Be
+    neq 2/3 1/3 1/4 Al
+    neq 0.3875 0.1158 0 Si
+    neq 0.3100 0.2372 0 O
+    neq 0.4989 0.1462 0.1453 O
+  endcrystal
+endstructure
+### stibnite, Pnma, hall 292
+structure stibnite Sb2S3
+  crystal
+    spg 292
+    cell 11.229 3.8389 11.31 90 90 90 ang
+    neq 0.0294 1/4 0.6743 Sb
+    neq 0.3506 1/4 0.5378 Sb
+    neq 0.0512 1/4 0.1281 S
+    neq 0.3757 1/4 0.0596 S
+    neq 0.2162 1/4 0.8083 S
+  endcrystal
+endstructure
+### brucite, P-3m1, hall 456
+structure brucite Mg(OH)2 portlandite_type
+  crystal
+    spg 456
+    cell 3.142 3.142 4.766 90 90 120 ang
+    neq 0 0 0 Mg
+    neq 1/3 2/3 0.2216 O
+    neq 1/3 2/3 0.4303 H
+  endcrystal
+endstructure
 #xx# Molecular crystals
 ### Orthorhombic sulphur, from Wyckoff
-structure sulfur S S8 alpha-sulfur alpha-sulphur alpha-S alpha-S8
+structure sulfur S S8 alpha-sulfur alpha-sulphur alpha-S alpha-S8 A16
   crystal
     spg 336
     cell 10.467 12.870 24.493 90 90 90 ang
