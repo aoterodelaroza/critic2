@@ -18,7 +18,7 @@ structure 1-3-cyclohexadiene
     1 1.275481 0.184982 -2.033348
   endmolecule
 endstructure
-structure 1-3-difluorobenzene
+structure 1-3-difluorobenzene m-difluorobenzene
   molecule
     9 0.000000 2.340835 -0.979943
     6 0.000000 1.186663 -0.307601
@@ -52,7 +52,7 @@ structure 1-4-cyclohexadiene
     1 2.174968 0.000000 -0.869232
   endmolecule
 endstructure
-structure 1-4-difluorobenzene
+structure 1-4-difluorobenzene p-difluorobenzene
   molecule
     6 0.000000 0.000000 1.372056
     6 0.000000 1.212582 0.696145
@@ -68,7 +68,7 @@ structure 1-4-difluorobenzene
     1 0.000000 -2.138076 1.259196
   endmolecule
 endstructure
-structure 1-4-dioxane
+structure 1-4-dioxane dioxane p-dioxane c4h8o2
   molecule
     1 0.558312 1.155616 2.024144
     1 0.558312 1.155616 -2.024144
@@ -86,7 +86,7 @@ structure 1-4-dioxane
     1 -0.558312 -1.155616 2.024144
   endmolecule
 endstructure
-structure 2-5-dihydrothiophene
+structure 2-5-dihydrothiophene c4h6s
   molecule
     16 0.000000 0.000000 1.252214
     6 0.000000 1.352248 -0.002879
@@ -101,7 +101,7 @@ structure 2-5-dihydrothiophene
     1 0.000000 -1.261465 -2.244154
   endmolecule
 endstructure
-structure 2-butyne
+structure 2-butyne dimethylacetylene
   molecule
     6 0.000000 0.000000 2.058184
     6 0.000000 0.000000 0.601790
@@ -115,7 +115,7 @@ structure 2-butyne
     1 -0.883651 -0.510176 -2.457729
   endmolecule
 endstructure
-structure 2-methyl-thiophene
+structure 2-methyl-thiophene 2-methylthiophene c5h6s
   molecule
     1 0.032812 -2.738586 0.000000
     16 -1.079751 -0.550938 0.000000
@@ -155,7 +155,7 @@ structure 3-methylpentane
     1 1.480719 -1.442968 -0.879850
   endmolecule
 endstructure
-structure acetaldehyde-dimethyl-acetal
+structure acetaldehyde-dimethyl-acetal 1-1-dimethoxyethane c4h10o2
   molecule
     1 1.274064 1.368422 -1.159094
     6 0.960251 1.608745 -0.140307
@@ -175,7 +175,7 @@ structure acetaldehyde-dimethyl-acetal
     1 -1.757880 -1.426594 0.276738
   endmolecule
 endstructure
-structure acetaldehyde
+structure acetaldehyde ethanal
   molecule
     8 1.201911 0.394061 0.000000
     6 0.000000 0.461828 0.000000
@@ -186,7 +186,7 @@ structure acetaldehyde
     1 -1.583072 -0.682101 -0.879126
   endmolecule
 endstructure
-structure acetamide
+structure acetamide ethanamide c2h5no
   molecule
     6 -1.373094 -0.296883 -0.000594
     6 0.081087 0.154457 -0.007551
@@ -199,7 +199,7 @@ structure acetamide
     1 -1.999817 0.536525 -0.316769
   endmolecule
 endstructure
-structure acetic-acid
+structure acetic-acid ethanoic-acid
   molecule
     6 0.000000 0.158043 0.000000
     8 0.194257 1.345976 0.000000
@@ -211,7 +211,7 @@ structure acetic-acid
     1 0.940063 -1.554642 -0.880447
   endmolecule
 endstructure
-structure acetic-anhydride
+structure acetic-anhydride ethanoic-anhydride c4h6o3
   molecule
     8 0.000000 0.000000 0.596246
     6 0.000000 1.211006 -0.090837
@@ -228,7 +228,7 @@ structure acetic-anhydride
     1 -1.693602 2.062474 0.890691
   endmolecule
 endstructure
-structure acetone
+structure acetone propanone 2-propanone dimethyl-ketone c3h6o
   molecule
     8 0.000000 0.000000 1.398005
     6 0.000000 0.000000 0.189359
@@ -242,7 +242,7 @@ structure acetone
     1 -0.879355 -1.333032 -1.267025
   endmolecule
 endstructure
-structure acetyl-chloride
+structure acetyl-chloride ethanoyl-chloride c2h3clo
   molecule
     6 0.000000 0.546177 0.000000
     6 1.490995 0.722365 0.000000
@@ -253,7 +253,7 @@ structure acetyl-chloride
     1 1.916389 0.234846 -0.880975
   endmolecule
 endstructure
-structure acetyl-fluoride
+structure acetyl-fluoride ethanoyl-fluoride c2h3fo
   molecule
     6 0.000000 0.187676 0.000000
     8 0.167070 1.360649 0.000000
@@ -264,7 +264,7 @@ structure acetyl-fluoride
     1 0.876888 -1.544863 -0.880608
   endmolecule
 endstructure
-structure acrylonitrile
+structure acrylonitrile propenenitrile vinyl-cyanide c3h3n
   molecule
     6 1.316706 0.985198 0.000000
     6 0.000000 0.769897 0.000000
@@ -275,7 +275,7 @@ structure acrylonitrile
     7 -1.067578 -1.583285 0.000000
   endmolecule
 endstructure
-structure alcl3
+structure alcl3 aluminium-trichloride aluminum-chloride
   molecule
     13 0.000000 0.000000 0.000000
     17 0.000000 2.080077 0.000000
@@ -283,7 +283,7 @@ structure alcl3
     17 -1.801400 -1.040039 0.000000
   endmolecule
 endstructure
-structure alf3
+structure alf3 aluminium-trifluoride
   molecule
     13 0.000000 0.000000 0.000000
     9 0.000000 1.631491 0.000000
@@ -291,7 +291,7 @@ structure alf3
     9 -1.412913 -0.815746 0.000000
   endmolecule
 endstructure
-structure allene
+structure allene propadiene
   molecule
     6 0.000000 0.000000 0.000000
     6 0.000000 0.000000 1.301421
@@ -302,7 +302,7 @@ structure allene
     1 -0.925916 0.000000 -1.869276
   endmolecule
 endstructure
-structure aniline
+structure aniline aminobenzene phenylamine c6h7n
   molecule
     6 0.004487 0.936672 0.000000
     6 0.003118 0.220651 1.205191
@@ -320,7 +320,7 @@ structure aniline
     1 0.006248 0.762639 -2.146684
   endmolecule
 endstructure
-structure aziridine
+structure aziridine ethylenimine c2h5n
   molecule
     6 -0.038191 -0.396782 0.741555
     7 -0.038191 0.874288 0.000000
@@ -354,7 +354,7 @@ structure azulene
     1 2.884711 -2.129199 0.000000
   endmolecule
 endstructure
-structure bcl3
+structure bcl3 boron-trichloride
   molecule
     5 0.000000 0.000000 0.000000
     17 0.000000 1.750738 0.000000
@@ -362,13 +362,13 @@ structure bcl3
     17 -1.516183 -0.875369 0.000000
   endmolecule
 endstructure
-structure beh
+structure beh beryllium-hydride
   molecule
     4 0.000000 0.000000 0.268768
     1 0.000000 0.000000 -1.075071
   endmolecule
 endstructure
-structure benzene
+structure benzene c6h6
   molecule
     6 0.000000 1.393557 0.000000
     6 1.206855 0.696778 0.000000
@@ -384,7 +384,7 @@ structure benzene
     1 -2.146660 1.239375 0.000000
   endmolecule
 endstructure
-structure benzoquinone
+structure benzoquinone p-benzoquinone quinone c6h4o2
   molecule
     6 0.000000 0.000000 1.445056
     6 0.000000 0.000000 -1.445056
@@ -400,7 +400,7 @@ structure benzoquinone
     1 0.000000 2.178129 -1.258744
   endmolecule
 endstructure
-structure bf3
+structure bf3 boron-trifluoride
   molecule
     5 0.000000 0.000000 0.000000
     9 0.000000 1.308813 0.000000
@@ -408,7 +408,7 @@ structure bf3
     9 -1.133465 -0.654406 0.000000
   endmolecule
 endstructure
-structure bicyclobutane
+structure bicyclobutane bicyclo-1-1-0-butane
   molecule
     6 0.000000 1.135138 0.314624
     6 0.000000 -1.135138 0.314624
@@ -422,7 +422,7 @@ structure bicyclobutane
     1 -1.441145 0.000000 -1.143103
   endmolecule
 endstructure
-structure butadiene
+structure butadiene 1-3-butadiene
   molecule
     6 0.599586 1.747721 0.000000
     6 0.599586 0.411296 0.000000
@@ -436,7 +436,7 @@ structure butadiene
     1 -1.519740 -2.320752 0.000000
   endmolecule
 endstructure
-structure butanedinitrile
+structure butanedinitrile succinonitrile
   molecule
     6 -0.424068 1.837402 0.000000
     7 -1.111347 2.765674 0.000000
@@ -450,7 +450,7 @@ structure butanedinitrile
     7 1.111347 -2.765674 0.000000
   endmolecule
 endstructure
-structure butyn-3-one
+structure butyn-3-one 3-butyn-2-one
   molecule
     1 1.946937 0.251433 0.879965
     6 1.496343 0.723157 0.000000
@@ -463,7 +463,7 @@ structure butyn-3-one
     1 -1.066096 -3.070409 0.000000
   endmolecule
 endstructure
-structure c2cl4
+structure c2cl4 tetrachloroethylene perchloroethylene
   molecule
     6 0.000000 0.000000 0.671770
     6 0.000000 0.000000 -0.671770
@@ -473,7 +473,7 @@ structure c2cl4
     17 0.000000 1.454412 -1.596936
   endmolecule
 endstructure
-structure c2f4
+structure c2f4 tetrafluoroethylene
   molecule
     6 0.000000 0.000000 0.661734
     6 0.000000 0.000000 -0.661734
@@ -483,7 +483,7 @@ structure c2f4
     9 0.000000 -1.098604 -1.383197
   endmolecule
 endstructure
-structure c2f6
+structure c2f6 hexafluoroethane
   molecule
     6 0.000000 0.000000 0.774064
     6 0.000000 0.000000 -0.774064
@@ -495,7 +495,7 @@ structure c2f6
     9 1.083663 0.625653 -1.222131
   endmolecule
 endstructure
-structure c2h2
+structure c2h2 acetylene ethyne
   molecule
     6 0.000000 0.000000 0.599455
     6 0.000000 0.000000 -0.599455
@@ -503,7 +503,7 @@ structure c2h2
     1 0.000000 0.000000 1.661636
   endmolecule
 endstructure
-structure c2h3
+structure c2h3 vinyl-radical ethenyl-radical
   molecule
     6 0.048084 -0.585568 0.000000
     6 0.048084 0.719975 0.000000
@@ -512,7 +512,7 @@ structure c2h3
     1 -0.665657 1.530998 0.000000
   endmolecule
 endstructure
-structure c2h4
+structure c2h4 ethylene ethene
   molecule
     6 0.000000 0.000000 0.663625
     6 0.000000 0.000000 -0.663625
@@ -522,7 +522,7 @@ structure c2h4
     1 0.000000 -0.921419 -1.237947
   endmolecule
 endstructure
-structure c2h5
+structure c2h5 ethyl-radical
   molecule
     6 -0.011306 -0.693173 0.000000
     6 -0.011306 0.794548 0.000000
@@ -533,7 +533,7 @@ structure c2h5
     1 0.070808 1.351400 -0.926269
   endmolecule
 endstructure
-structure c2h6
+structure c2h6 ethane
   molecule
     6 0.000000 0.000000 0.765057
     6 0.000000 0.000000 -0.765057
@@ -545,14 +545,14 @@ structure c2h6
     1 0.882946 0.509769 -1.164020
   endmolecule
 endstructure
-structure cch
+structure cch ethynyl-radical c2h
   molecule
     6 0.013467 -0.731907 0.000000
     6 0.013467 0.477370 0.000000
     1 -0.161608 1.527222 0.000000
   endmolecule
 endstructure
-structure ccl4
+structure ccl4 carbon-tetrachloride tetrachloromethane
   molecule
     6 0.000000 0.000000 0.000000
     17 1.030252 1.030252 1.030252
@@ -561,7 +561,7 @@ structure ccl4
     17 1.030252 -1.030252 -1.030252
   endmolecule
 endstructure
-structure cf3cl
+structure cf3cl chlorotrifluoromethane cclf3
   molecule
     6 0.000000 0.000000 -0.366486
     17 0.000000 0.000000 1.420125
@@ -570,7 +570,7 @@ structure cf3cl
     9 -1.077021 -0.621818 -0.812712
   endmolecule
 endstructure
-structure cf3cn
+structure cf3cn trifluoroacetonitrile c2f3n
   molecule
     6 0.000000 0.000000 -0.327611
     6 0.000000 0.000000 1.158088
@@ -580,7 +580,7 @@ structure cf3cn
     7 0.000000 0.000000 2.310437
   endmolecule
 endstructure
-structure cf3
+structure cf3 trifluoromethyl-radical
   molecule
     6 0.000000 0.000000 0.323309
     9 0.000000 1.257269 -0.071846
@@ -588,7 +588,7 @@ structure cf3
     9 -1.088827 -0.628635 -0.071846
   endmolecule
 endstructure
-structure cf4
+structure cf4 carbon-tetrafluoride tetrafluoromethane
   molecule
     6 0.000000 0.000000 0.000000
     9 0.762948 0.762948 0.762948
@@ -597,7 +597,7 @@ structure cf4
     9 0.762948 -0.762948 -0.762948
   endmolecule
 endstructure
-structure ch2cl2
+structure ch2cl2 dichloromethane methylene-chloride
   molecule
     6 0.000000 0.000000 0.769086
     17 0.000000 1.488757 -0.216708
@@ -606,7 +606,7 @@ structure ch2cl2
     1 0.900392 0.000000 1.376772
   endmolecule
 endstructure
-structure ch2f2
+structure ch2f2 difluoromethane
   molecule
     6 0.000000 0.000000 0.496181
     9 0.000000 1.099757 -0.288845
@@ -615,21 +615,21 @@ structure ch2f2
     1 0.909155 0.000000 1.111059
   endmolecule
 endstructure
-structure ch2sing
+structure ch2sing singlet-methylene
   molecule
     6 0.000000 0.000000 0.179998
     1 0.000000 0.854872 -0.539995
     1 0.000000 -0.854872 -0.539995
   endmolecule
 endstructure
-structure ch2trip
+structure ch2trip triplet-methylene
   molecule
     6 0.000000 0.000000 0.105935
     1 0.000000 0.994489 -0.317804
     1 0.000000 -0.994489 -0.317804
   endmolecule
 endstructure
-structure ch3ch2o
+structure ch3ch2o ethoxy-radical c2h5o
   molecule
     6 0.991794 -0.608566 0.000000
     6 0.000000 0.588065 0.000000
@@ -641,7 +641,7 @@ structure ch3ch2o
     1 0.841177 -1.223384 -0.889458
   endmolecule
 endstructure
-structure ch3chch3
+structure ch3chch3 isopropyl-radical c3h7
   molecule
     6 0.011464 0.533613 0.000000
     6 0.011464 -0.196938 1.299298
@@ -655,7 +655,7 @@ structure ch3chch3
     1 0.725596 -1.031050 -1.293345
   endmolecule
 endstructure
-structure ch3cl
+structure ch3cl chloromethane methyl-chloride
   molecule
     6 0.000000 0.000000 -1.136781
     17 0.000000 0.000000 0.662178
@@ -664,7 +664,7 @@ structure ch3cl
     1 -0.895215 -0.516852 -1.478781
   endmolecule
 endstructure
-structure ch3co
+structure ch3co acetyl-radical c2h3o
   molecule
     6 -0.966284 -0.666595 0.000000
     6 0.000000 0.501222 0.000000
@@ -674,7 +674,7 @@ structure ch3co
     8 1.182037 0.473976 0.000000
   endmolecule
 endstructure
-structure ch3o
+structure ch3o methoxy-radical
   molecule
     6 -0.011148 -0.571469 0.000000
     8 -0.011148 0.790976 0.000000
@@ -683,7 +683,7 @@ structure ch3o
     1 -0.451525 -1.015630 -0.908538
   endmolecule
 endstructure
-structure ch3s
+structure ch3s thiomethoxy-radical methylthio-radical
   molecule
     6 -0.004498 1.110498 0.000000
     16 -0.004498 -0.694219 0.000000
@@ -692,7 +692,7 @@ structure ch3s
     1 -0.474842 1.512468 -0.899830
   endmolecule
 endstructure
-structure ch3
+structure ch3 methyl-radical
   molecule
     6 0.000000 0.000000 0.000000
     1 0.000000 1.081259 0.000000
@@ -700,7 +700,7 @@ structure ch3
     1 -0.936398 -0.540630 0.000000
   endmolecule
 endstructure
-structure ch4
+structure ch4 methane
   molecule
     6 0.000000 0.000000 0.000000
     1 0.630367 0.630367 0.630367
@@ -709,7 +709,7 @@ structure ch4
     1 -0.630367 0.630367 -0.630367
   endmolecule
 endstructure
-structure chcl3
+structure chcl3 chloroform trichloromethane
   molecule
     6 0.000000 0.000000 0.456842
     1 0.000000 0.000000 1.541377
@@ -718,7 +718,7 @@ structure chcl3
     17 -1.469469 -0.848398 -0.083969
   endmolecule
 endstructure
-structure chf3
+structure chf3 fluoroform trifluoromethane
   molecule
     6 0.000000 0.000000 0.336108
     1 0.000000 0.000000 1.431598
@@ -727,7 +727,7 @@ structure chf3
     9 -1.082768 -0.625136 -0.127713
   endmolecule
 endstructure
-structure chlorobenzene
+structure chlorobenzene phenyl-chloride c6h5cl
   molecule
     6 0.000000 0.000000 0.502792
     6 0.000000 0.000000 -2.268362
@@ -743,13 +743,13 @@ structure chlorobenzene
     1 0.000000 2.147618 -2.106752
   endmolecule
 endstructure
-structure ch
+structure ch methylidyne
   molecule
     6 0.000000 0.000000 0.161547
     1 0.000000 0.000000 -0.969283
   endmolecule
 endstructure
-structure cl2o2s
+structure cl2o2s sulfuryl-chloride so2cl2
   molecule
     16 0.000000 0.000000 0.518472
     8 0.000000 1.256751 1.192687
@@ -758,7 +758,7 @@ structure cl2o2s
     17 -1.579569 0.000000 -0.805251
   endmolecule
 endstructure
-structure cl2s2
+structure cl2s2 disulfur-dichloride s2cl2
   molecule
     16 0.621729 0.759789 0.739933
     16 -0.621729 -0.759789 0.739933
@@ -766,13 +766,13 @@ structure cl2s2
     17 0.000000 -2.157671 -0.696408
   endmolecule
 endstructure
-structure cl2
+structure cl2 chlorine dichlorine
   molecule
     17 0.000000 0.000000 1.008596
     17 0.000000 0.000000 -1.008596
   endmolecule
 endstructure
-structure clf3
+structure clf3 chlorine-trifluoride
   molecule
     17 0.000000 0.000000 0.364789
     9 0.000000 0.000000 -1.261248
@@ -780,39 +780,39 @@ structure clf3
     9 0.000000 -1.712713 0.286101
   endmolecule
 endstructure
-structure clno
+structure clno nitrosyl-chloride
   molecule
     17 -0.527895 -0.941643 0.000000
     7 0.000000 0.977183 0.000000
     8 1.121776 1.145957 0.000000
   endmolecule
 endstructure
-structure clo
+structure clo chlorine-monoxide
   molecule
     17 0.000000 0.000000 0.509606
     8 0.000000 0.000000 -1.082912
   endmolecule
 endstructure
-structure cn
+structure cn cyano-radical
   molecule
     6 0.000000 0.000000 -0.629709
     7 0.000000 0.000000 0.539750
   endmolecule
 endstructure
-structure co2
+structure co2 carbon-dioxide
   molecule
     6 0.000000 0.000000 0.000000
     8 0.000000 0.000000 1.162888
     8 0.000000 0.000000 -1.162888
   endmolecule
 endstructure
-structure co
+structure co carbon-monoxide
   molecule
     8 0.000000 0.000000 0.484677
     6 0.000000 0.000000 -0.646237
   endmolecule
 endstructure
-structure crotonaldehyde
+structure crotonaldehyde 2-butenal
   molecule
     1 2.822137 -0.986987 0.877710
     6 2.381518 -0.498063 0.000000
@@ -827,14 +827,14 @@ structure crotonaldehyde
     1 -1.695187 -1.024705 0.000000
   endmolecule
 endstructure
-structure cs2
+structure cs2 carbon-disulfide
   molecule
     16 0.000000 0.000000 1.556008
     6 0.000000 0.000000 0.000000
     16 0.000000 0.000000 -1.556008
   endmolecule
 endstructure
-structure cyanogen
+structure cyanogen oxalonitrile c2n2
   molecule
     7 0.000000 0.000000 1.845904
     6 0.000000 0.000000 0.687841
@@ -872,7 +872,7 @@ structure cyclobutene
     1 0.888243 -1.246494 -1.145019
   endmolecule
 endstructure
-structure cyclohexane
+structure cyclohexane c6h12
   molecule
     6 -1.269340 0.732854 0.229778
     6 0.000000 -1.465708 0.229778
@@ -894,7 +894,7 @@ structure cyclohexane
     1 2.161963 -1.248210 0.143145
   endmolecule
 endstructure
-structure cyclooctatetraene
+structure cyclooctatetraene cot c8h8
   molecule
     6 1.568570 0.668923 -0.368893
     6 1.568570 -0.668923 -0.368893
@@ -914,7 +914,7 @@ structure cyclooctatetraene
     1 1.170686 2.365831 0.917106
   endmolecule
 endstructure
-structure cyclopentane
+structure cyclopentane c5h10
   molecule
     6 0.000000 0.000000 1.307273
     6 -0.328285 0.694302 -1.030424
@@ -933,7 +933,7 @@ structure cyclopentane
     1 0.700681 -2.015745 0.698014
   endmolecule
 endstructure
-structure cyclopentanone
+structure cyclopentanone c5h8o
   molecule
     6 0.000000 0.000000 0.929980
     8 0.000000 0.000000 2.133419
@@ -951,7 +951,7 @@ structure cyclopentanone
     1 0.107697 1.342092 -2.174378
   endmolecule
 endstructure
-structure cyclopropane
+structure cyclopropane trimethylene
   molecule
     6 0.000000 0.870139 0.000000
     6 0.753562 -0.435069 0.000000
@@ -975,7 +975,7 @@ structure cyclopropene
     1 0.000000 -1.576073 -1.039899
   endmolecule
 endstructure
-structure diethyl-disulfide
+structure diethyl-disulfide ethyl-disulfide c4h10s2
   molecule
     1 -2.361430 3.118000 1.385874
     1 -3.133761 1.613307 0.863367
@@ -995,7 +995,7 @@ structure diethyl-disulfide
     1 2.585522 -2.791715 -0.340631
   endmolecule
 endstructure
-structure diethyl-ether
+structure diethyl-ether ethoxyethane ether
   molecule
     1 0.000000 3.309415 -0.156974
     6 0.000000 2.376773 0.415186
@@ -1014,7 +1014,7 @@ structure diethyl-ether
     1 0.885905 -2.362050 1.056429
   endmolecule
 endstructure
-structure diethyl-ketone
+structure diethyl-ketone 3-pentanone
   molecule
     1 0.000000 3.451892 -0.491107
     6 0.000000 2.553095 0.131911
@@ -1034,7 +1034,7 @@ structure diethyl-ketone
     1 0.000000 -3.451892 -0.491107
   endmolecule
 endstructure
-structure diisopropyl-ether
+structure diisopropyl-ether dipe c6h14o
   molecule
     8 0.000000 0.000000 0.526235
     6 -0.328107 1.164086 -0.227924
@@ -1059,7 +1059,7 @@ structure diisopropyl-ether
     1 0.233227 -3.302103 0.138433
   endmolecule
 endstructure
-structure dimethylamine
+structure dimethylamine n-methylmethanamine
   molecule
     6 -0.026899 -0.221299 1.212998
     7 -0.026899 0.582750 0.000000
@@ -1073,7 +1073,7 @@ structure dimethylamine
     1 -0.967068 -0.781746 -1.278027
   endmolecule
 endstructure
-structure dimethyl-ether
+structure dimethyl-ether methoxymethane
   molecule
     6 0.000000 1.168863 -0.193964
     8 0.000000 0.000000 0.588125
@@ -1086,7 +1086,7 @@ structure dimethyl-ether
     1 0.891508 -1.230570 -0.839183
   endmolecule
 endstructure
-structure dimethyl-sulfide
+structure dimethyl-sulfide methylthiomethane
   molecule
     6 0.000000 1.390269 -0.513033
     16 0.000000 0.000000 0.660214
@@ -1099,7 +1099,7 @@ structure dimethyl-sulfide
     1 0.894282 -1.375034 -1.141541
   endmolecule
 endstructure
-structure dimethyl-sulfone
+structure dimethyl-sulfone methylsulfonylmethane c2h6o2s
   molecule
     16 0.000000 0.000000 0.195837
     8 -1.256976 0.000000 0.912411
@@ -1114,7 +1114,7 @@ structure dimethyl-sulfone
     1 -0.901890 -1.391116 -1.533286
   endmolecule
 endstructure
-structure dimethylsulfoxide
+structure dimethylsulfoxide dmso c2h6os
   molecule
     16 0.000085 0.244306 -0.437663
     8 0.000966 1.485238 0.387571
@@ -1128,7 +1128,7 @@ structure dimethylsulfoxide
     1 -1.269148 -0.916540 1.263046
   endmolecule
 endstructure
-structure divinyl-ether
+structure divinyl-ether vinyl-ether
   molecule
     8 0.000000 0.000000 0.329071
     6 0.000000 1.170230 -0.369511
@@ -1143,7 +1143,7 @@ structure divinyl-ether
     1 0.000000 -2.439290 1.312517
   endmolecule
 endstructure
-structure ethanethiol
+structure ethanethiol ethyl-mercaptan
   molecule
     6 1.520861 0.701347 0.000000
     6 0.000000 0.833751 0.000000
@@ -1156,7 +1156,7 @@ structure ethanethiol
     1 1.871629 0.163491 -0.885759
   endmolecule
 endstructure
-structure ethanol
+structure ethanol ethyl-alcohol
   molecule
     6 1.171409 -0.413467 0.000000
     6 0.000000 0.554551 0.000000
@@ -1169,7 +1169,7 @@ structure ethanol
     1 1.136237 -1.054317 -0.885805
   endmolecule
 endstructure
-structure ethyl-chloride
+structure ethyl-chloride chloroethane c2h5cl
   molecule
     6 0.000000 0.819875 0.000000
     6 1.510484 0.673903 0.000000
@@ -1181,26 +1181,26 @@ structure ethyl-chloride
     1 1.854007 0.135253 -0.886551
   endmolecule
 endstructure
-structure f2o
+structure f2o oxygen-difluoride
   molecule
     9 0.000000 1.098679 -0.264859
     8 0.000000 0.000000 0.595932
     9 0.000000 -1.098679 -0.264859
   endmolecule
 endstructure
-structure f2
+structure f2 fluorine difluorine
   molecule
     9 0.000000 0.000000 0.694196
     9 0.000000 0.000000 -0.694196
   endmolecule
 endstructure
-structure fcl
+structure fcl chlorine-monofluoride clf
   molecule
     9 0.000000 0.000000 -1.074491
     17 0.000000 0.000000 0.568848
   endmolecule
 endstructure
-structure fluorobenzene
+structure fluorobenzene phenyl-fluoride c6h5f
   molecule
     9 0.000000 0.000000 2.272028
     6 0.000000 0.000000 0.933609
@@ -1216,7 +1216,7 @@ structure fluorobenzene
     1 0.000000 0.000000 -2.915616
   endmolecule
 endstructure
-structure formic-acid
+structure formic-acid methanoic-acid ch2o2
   molecule
     8 -1.029440 -0.444714 0.000000
     6 0.000000 0.419902 0.000000
@@ -1225,7 +1225,7 @@ structure formic-acid
     1 -0.391599 1.448093 0.000000
   endmolecule
 endstructure
-structure furan
+structure furan oxole
   molecule
     8 0.000000 0.000000 1.157167
     6 0.000000 1.091856 0.347277
@@ -1238,7 +1238,7 @@ structure furan
     1 0.000000 -1.372975 -1.814290
   endmolecule
 endstructure
-structure glyoxal
+structure glyoxal ethanedial c2h2o2
   molecule
     6 0.000000 0.762874 0.000000
     6 0.000000 -0.762874 0.000000
@@ -1248,7 +1248,7 @@ structure glyoxal
     1 1.012900 -1.216509 0.000000
   endmolecule
 endstructure
-structure h2coh
+structure h2coh hydroxymethyl-radical
   molecule
     6 0.683163 0.028205 -0.073182
     8 -0.669726 -0.125324 0.024983
@@ -1257,7 +1257,7 @@ structure h2coh
     1 1.229274 -0.887851 0.115274
   endmolecule
 endstructure
-structure h2co
+structure h2co formaldehyde methanal ch2o
   molecule
     8 0.000000 0.000000 0.674542
     6 0.000000 0.000000 -0.525538
@@ -1265,7 +1265,7 @@ structure h2co
     1 0.000000 -0.937257 -1.121552
   endmolecule
 endstructure
-structure h2nnh2
+structure h2nnh2 hydrazine n2h4 h4n2
   molecule
     7 0.000000 0.718650 -0.079021
     7 0.000000 -0.718650 -0.079021
@@ -1275,20 +1275,20 @@ structure h2nnh2
     1 0.949143 -1.011985 -0.287340
   endmolecule
 endstructure
-structure h2o
+structure h2o water
   molecule
     8 0.000000 0.000000 0.118882
     1 0.000000 0.756653 -0.475529
     1 0.000000 -0.756653 -0.475529
   endmolecule
 endstructure
-structure h2
+structure h2 hydrogen dihydrogen
   molecule
     1 0.000000 0.000000 0.371322
     1 0.000000 0.000000 -0.371322
   endmolecule
 endstructure
-structure h3coh
+structure h3coh methanol ch3oh methyl-alcohol ch4o
   molecule
     6 -0.046526 0.659358 0.000000
     8 -0.046526 -0.756494 0.000000
@@ -1298,7 +1298,7 @@ structure h3coh
     1 0.437677 1.084464 -0.891861
   endmolecule
 endstructure
-structure h3csh
+structure h3csh methanethiol ch3sh methyl-mercaptan ch4s
   molecule
     6 -0.047994 1.160676 0.000000
     16 -0.047994 -0.668905 0.000000
@@ -1308,40 +1308,40 @@ structure h3csh
     1 0.432553 1.556037 -0.895739
   endmolecule
 endstructure
-structure hcl
+structure hcl hydrogen-chloride hydrochloric-acid clh
   molecule
     17 0.000000 0.000000 0.071301
     1 0.000000 0.000000 -1.212122
   endmolecule
 endstructure
-structure hcn
+structure hcn hydrogen-cyanide chn
   molecule
     6 0.000000 0.000000 -0.499684
     7 0.000000 0.000000 0.652058
     1 0.000000 0.000000 -1.566306
   endmolecule
 endstructure
-structure hco
+structure hco formyl-radical cho
   molecule
     6 0.062328 0.585199 0.000000
     8 0.062328 -0.591039 0.000000
     1 -0.872596 1.217120 0.000000
   endmolecule
 endstructure
-structure hf
+structure hf hydrogen-fluoride fh
   molecule
     9 0.000000 0.000000 0.091945
     1 0.000000 0.000000 -0.827508
   endmolecule
 endstructure
-structure hocl
+structure hocl hypochlorous-acid clho
   molecule
     8 0.036356 1.108646 0.000000
     1 -0.908905 1.317510 0.000000
     17 0.036356 -0.599216 0.000000
   endmolecule
 endstructure
-structure hooh
+structure hooh hydrogen-peroxide h2o2
   molecule
     8 0.000000 0.722944 -0.058893
     8 0.000000 -0.722944 -0.058893
@@ -1349,7 +1349,7 @@ structure hooh
     1 -0.789982 -0.897694 0.471145
   endmolecule
 endstructure
-structure isobutane
+structure isobutane 2-methylpropane
   molecule
     6 0.000000 0.000000 0.372697
     1 0.000000 0.000000 1.471975
@@ -1367,7 +1367,7 @@ structure isobutane
     1 -2.170952 -0.231331 0.264644
   endmolecule
 endstructure
-structure isobutene
+structure isobutene isobutylene 2-methylpropene
   molecule
     6 0.000000 0.000000 1.456806
     6 0.000000 0.000000 0.124318
@@ -1383,7 +1383,7 @@ structure isobutene
     1 0.878427 -1.327722 -1.334009
   endmolecule
 endstructure
-structure isoprene
+structure isoprene 2-methyl-1-3-butadiene
   molecule
     6 -1.584953 -0.908325 0.000006
     6 -0.515064 -0.101468 -0.000005
@@ -1400,7 +1400,7 @@ structure isoprene
     1 -0.179545 1.843033 0.880089
   endmolecule
 endstructure
-structure isopropanol
+structure isopropanol 2-propanol isopropyl-alcohol
   molecule
     8 0.038706 1.368897 -0.162149
     6 -0.001654 0.043966 0.364364
@@ -1416,7 +1416,7 @@ structure isopropanol
     1 1.169479 -1.792117 0.302006
   endmolecule
 endstructure
-structure isopropyl-acetate
+structure isopropyl-acetate isopropyl-ethanoate c5h10o2
   molecule
     1 2.390360 -0.685712 1.523679
     6 2.455046 -0.649671 0.432437
@@ -1437,7 +1437,7 @@ structure isopropyl-acetate
     1 -1.775693 -1.883808 -0.981231
   endmolecule
 endstructure
-structure ketene
+structure ketene ethenone c2h2o
   molecule
     6 0.000000 0.000000 -1.206963
     6 0.000000 0.000000 0.101326
@@ -1446,25 +1446,25 @@ structure ketene
     8 0.000000 0.000000 1.264863
   endmolecule
 endstructure
-structure li2
+structure li2 dilithium
   molecule
     3 0.000000 0.000000 1.360602
     3 0.000000 0.000000 -1.360602
   endmolecule
 endstructure
-structure lif
+structure lif lithium-fluoride fli
   molecule
     3 0.000000 0.000000 -1.172356
     9 0.000000 0.000000 0.390785
   endmolecule
 endstructure
-structure lih
+structure lih lithium-hydride hli
   molecule
     3 0.000000 0.000000 0.403635
     1 0.000000 0.000000 -1.210905
   endmolecule
 endstructure
-structure methyl-acetate
+structure methyl-acetate methyl-ethanoate c3h6o2
   molecule
     6 0.000000 0.492905 0.000000
     8 -1.173657 0.765063 0.000000
@@ -1479,7 +1479,7 @@ structure methyl-acetate
     1 -1.161693 -1.720715 -0.887615
   endmolecule
 endstructure
-structure methyl-allene
+structure methyl-allene 1-2-butadiene methylallene
   molecule
     1 2.373404 -0.190435 -0.881166
     6 1.744711 -0.364994 0.000000
@@ -1493,7 +1493,7 @@ structure methyl-allene
     1 -2.480887 -0.382289 0.924941
   endmolecule
 endstructure
-structure methylamine
+structure methylamine aminomethane methanamine ch5n
   molecule
     6 0.051792 0.703794 0.000000
     7 0.051792 -0.761030 0.000000
@@ -1504,7 +1504,7 @@ structure methylamine
     1 0.592366 1.064530 -0.881128
   endmolecule
 endstructure
-structure methyl-cyanide
+structure methyl-cyanide acetonitrile ethanenitrile c2h3n
   molecule
     6 0.000000 0.000000 -1.176766
     6 0.000000 0.000000 0.280353
@@ -1514,7 +1514,7 @@ structure methyl-cyanide
     1 -0.887939 -0.512652 -1.556374
   endmolecule
 endstructure
-structure methylene-cyclopropane
+structure methylene-cyclopropane methylenecyclopropane
   molecule
     6 0.000000 0.000000 0.317277
     6 0.000000 0.769212 -0.930613
@@ -1528,7 +1528,7 @@ structure methylene-cyclopropane
     1 0.000000 -0.925298 2.201961
   endmolecule
 endstructure
-structure methyl-ethyl-ether
+structure methyl-ethyl-ether methoxyethane
   molecule
     8 0.015733 -0.708761 0.000000
     6 0.000000 0.703522 0.000000
@@ -1544,7 +1544,7 @@ structure methyl-ethyl-ether
     1 -1.493167 2.265321 0.000000
   endmolecule
 endstructure
-structure methyl-ethyl-ketone
+structure methyl-ethyl-ketone butanone 2-butanone mek
   molecule
     1 2.109582 0.620518 0.879610
     6 2.018584 -0.021736 0.000034
@@ -1561,7 +1561,7 @@ structure methyl-ethyl-ketone
     6 -1.890819 -0.499236 0.000023
   endmolecule
 endstructure
-structure methyl-formate
+structure methyl-formate methyl-methanoate
   molecule
     6 -0.929688 -0.091709 0.000000
     8 -0.719945 -1.273300 0.000000
@@ -1584,7 +1584,7 @@ structure methyl-nitrite
     8 0.696352 -1.169876 0.000000
   endmolecule
 endstructure
-structure methylpropanal
+structure methylpropanal isobutyraldehyde
   molecule
     1 0.317681 0.568957 2.174995
     6 0.037281 1.118037 1.271229
@@ -1601,7 +1601,7 @@ structure methylpropanal
     1 -1.534365 -0.815131 0.000000
   endmolecule
 endstructure
-structure methylpropanenitrile
+structure methylpropanenitrile isobutyronitrile c4h7n
   molecule
     1 0.322896 0.514112 2.175886
     6 -0.027026 1.030105 1.278597
@@ -1617,7 +1617,7 @@ structure methylpropanenitrile
     7 -0.402333 -2.178949 0.000000
   endmolecule
 endstructure
-structure methylsilane
+structure methylsilane methyl-silane ch6si
   molecule
     6 0.000000 0.000000 -1.245569
     14 0.000000 0.000000 0.635363
@@ -1629,26 +1629,26 @@ structure methylsilane
     1 1.203199 -0.694667 1.162347
   endmolecule
 endstructure
-structure n2o
+structure n2o nitrous-oxide
   molecule
     7 0.000000 0.000000 -1.200107
     7 0.000000 0.000000 -0.072441
     8 0.000000 0.000000 1.113479
   endmolecule
 endstructure
-structure n2
+structure n2 nitrogen dinitrogen
   molecule
     7 0.000000 0.000000 0.549399
     7 0.000000 0.000000 -0.549399
   endmolecule
 endstructure
-structure na2
+structure na2 disodium
   molecule
     11 0.000000 0.000000 1.507107
     11 0.000000 0.000000 -1.507107
   endmolecule
 endstructure
-structure nacl
+structure nacl sodium-chloride clna
   molecule
     11 0.000000 0.000000 -1.433581
     17 0.000000 0.000000 0.927612
@@ -1676,7 +1676,7 @@ structure naphthalene
     1 0.000000 3.370868 -1.242976
   endmolecule
 endstructure
-structure n-butyl-chloride
+structure n-butyl-chloride 1-chlorobutane
   molecule
     1 -0.618380 3.119145 0.883825
     6 -1.171540 2.783536 0.000000
@@ -1694,7 +1694,7 @@ structure n-butyl-chloride
     1 -0.724727 -1.335383 -0.887856
   endmolecule
 endstructure
-structure neopentane
+structure neopentane 2-2-dimethylpropane tetramethylmethane
   molecule
     6 0.000000 0.000000 0.000000
     6 0.888553 0.888553 0.888553
@@ -1715,7 +1715,7 @@ structure neopentane
     1 1.534264 -1.534264 -0.282953
   endmolecule
 endstructure
-structure nf3
+structure nf3 nitrogen-trifluoride f3n
   molecule
     7 0.000000 0.000000 0.481564
     9 0.000000 1.231751 -0.124850
@@ -1723,14 +1723,14 @@ structure nf3
     9 -1.066728 -0.615876 -0.124850
   endmolecule
 endstructure
-structure nh2
+structure nh2 amino-radical amidogen h2n
   molecule
     7 0.000000 0.000000 0.144397
     1 0.000000 0.800907 -0.505389
     1 0.000000 -0.800907 -0.505389
   endmolecule
 endstructure
-structure nh3
+structure nh3 ammonia h3n
   molecule
     7 0.000000 0.000000 0.120472
     1 0.000000 0.934537 -0.281102
@@ -1738,7 +1738,7 @@ structure nh3
     1 -0.809333 -0.467268 -0.281102
   endmolecule
 endstructure
-structure n-heptane
+structure n-heptane heptane c7h16
   molecule
     6 0.000000 0.000000 0.495659
     6 0.000000 1.281514 -0.344142
@@ -1765,7 +1765,7 @@ structure n-heptane
     1 0.000000 -4.737058 0.272645
   endmolecule
 endstructure
-structure n-hexane
+structure n-hexane hexane
   molecule
     6 0.000000 0.765962 0.000000
     6 0.000000 -0.765962 0.000000
@@ -1789,7 +1789,7 @@ structure n-hexane
     1 2.411612 -3.316689 0.000000
   endmolecule
 endstructure
-structure nh
+structure nh imidogen hn
   molecule
     7 0.000000 0.000000 0.130623
     1 0.000000 0.000000 -0.914358
@@ -1806,7 +1806,7 @@ structure nitromethane
     1 -1.661729 -0.912094 -0.491592
   endmolecule
 endstructure
-structure nitro-s-butane
+structure nitro-s-butane 2-nitrobutane c4h9no2
   molecule
     1 1.887054 1.483351 -0.049773
     6 1.347819 0.582322 0.264802
@@ -1826,7 +1826,7 @@ structure nitro-s-butane
     8 -1.132141 -0.628208 1.200633
   endmolecule
 endstructure
-structure n-methyl-pyrrole
+structure n-methyl-pyrrole 1-methylpyrrole c5h7n
   molecule
     1 -1.114879 2.408690 0.000000
     7 0.024215 0.623920 0.000000
@@ -1843,14 +1843,14 @@ structure n-methyl-pyrrole
     1 0.032595 -2.350704 -1.360029
   endmolecule
 endstructure
-structure no2
+structure no2 nitrogen-dioxide
   molecule
     7 0.000000 0.000000 0.322643
     8 0.000000 1.102041 -0.141156
     8 0.000000 -1.102041 -0.141156
   endmolecule
 endstructure
-structure n-octane
+structure n-octane octane c8h18
   molecule
     6 0.000000 0.766216 0.000000
     6 0.000000 -0.766216 0.000000
@@ -1880,13 +1880,13 @@ structure n-octane
     1 2.789442 -4.601787 0.000000
   endmolecule
 endstructure
-structure no
+structure no nitric-oxide nitrogen-monoxide
   molecule
     7 0.000000 0.000000 -0.613991
     8 0.000000 0.000000 0.537242
   endmolecule
 endstructure
-structure n-pentane
+structure n-pentane pentane
   molecule
     6 0.000000 0.000000 0.315534
     6 0.000000 1.282210 -0.523324
@@ -1907,33 +1907,33 @@ structure n-pentane
     1 0.000000 -3.455278 -0.301947
   endmolecule
 endstructure
-structure o2
+structure o2 oxygen dioxygen
   molecule
     8 0.000000 0.000000 0.603190
     8 0.000000 0.000000 -0.603190
   endmolecule
 endstructure
-structure o3
+structure o3 ozone
   molecule
     8 0.000000 1.075558 -0.215709
     8 0.000000 0.000000 0.431417
     8 0.000000 -1.075558 -0.215709
   endmolecule
 endstructure
-structure ocs
+structure ocs carbonyl-sulfide cos
   molecule
     8 0.000000 0.000000 -1.684673
     6 0.000000 0.000000 -0.526989
     16 0.000000 0.000000 1.039957
   endmolecule
 endstructure
-structure oh
+structure oh hydroxyl-radical ho
   molecule
     8 0.000000 0.000000 0.108460
     1 0.000000 0.000000 -0.867678
   endmolecule
 endstructure
-structure oxirane
+structure oxirane ethylene-oxide epoxyethane
   molecule
     6 0.000000 0.733437 -0.370244
     8 0.000000 0.000000 0.852327
@@ -1944,13 +1944,13 @@ structure oxirane
     1 0.919692 -1.271961 -0.593921
   endmolecule
 endstructure
-structure p2
+structure p2 diphosphorus
   molecule
     15 0.000000 0.000000 0.947605
     15 0.000000 0.000000 -0.947605
   endmolecule
 endstructure
-structure p4
+structure p4 white-phosphorus tetraphosphorus
   molecule
     15 0.781746 0.781746 0.781746
     15 -0.781746 -0.781746 0.781746
@@ -1958,7 +1958,7 @@ structure p4
     15 -0.781746 0.781746 -0.781746
   endmolecule
 endstructure
-structure pcl3
+structure pcl3 phosphorus-trichloride cl3p
   molecule
     15 0.000000 0.000000 0.733905
     17 0.000000 1.847794 -0.215854
@@ -1966,7 +1966,7 @@ structure pcl3
     17 -1.600237 -0.923897 -0.215854
   endmolecule
 endstructure
-structure pcl5
+structure pcl5 phosphorus-pentachloride cl5p
   molecule
     15 0.000000 0.000000 0.000000
     17 0.000000 0.000000 2.156382
@@ -1976,7 +1976,7 @@ structure pcl5
     17 -1.780107 -1.027745 0.000000
   endmolecule
 endstructure
-structure pf3
+structure pf3 phosphorus-trifluoride f3p
   molecule
     15 0.000000 0.000000 0.499746
     9 0.000000 1.371277 -0.277637
@@ -1984,7 +1984,7 @@ structure pf3
     9 -1.187561 -0.685639 -0.277637
   endmolecule
 endstructure
-structure pf5
+structure pf5 phosphorus-pentafluoride f5p
   molecule
     15 0.000000 0.000000 0.000000
     9 0.000000 0.000000 1.578218
@@ -1994,14 +1994,14 @@ structure pf5
     9 -1.342249 -0.774948 0.000000
   endmolecule
 endstructure
-structure ph2
+structure ph2 phosphino-radical h2p
   molecule
     15 0.000000 0.000000 0.115657
     1 0.000000 1.020130 -0.867427
     1 0.000000 -1.020130 -0.867427
   endmolecule
 endstructure
-structure ph3
+structure ph3 phosphine h3p
   molecule
     15 0.000000 0.000000 0.126411
     1 0.000000 1.191339 -0.632056
@@ -2009,7 +2009,7 @@ structure ph3
     1 -1.031730 -0.595669 -0.632056
   endmolecule
 endstructure
-structure phenol
+structure phenol hydroxybenzene carbolic-acid c6h6o
   molecule
     6 0.000000 0.940284 0.000000
     6 -1.202594 0.231655 0.000000
@@ -2026,7 +2026,7 @@ structure phenol
     1 2.137567 0.822128 0.000000
   endmolecule
 endstructure
-structure phenyl-radical
+structure phenyl-radical phenyl c6h5
   molecule
     6 0.000000 0.000000 1.395574
     6 0.000000 0.000000 -1.321152
@@ -2041,7 +2041,7 @@ structure phenyl-radical
     1 0.000000 -2.150500 -1.176998
   endmolecule
 endstructure
-structure piperidine
+structure piperidine azinane c5h11n
   molecule
     1 -0.534249 -1.206763 2.082516
     6 -0.009264 -0.790764 1.215675
@@ -2062,7 +2062,7 @@ structure piperidine
     1 0.510253 1.097509 2.164586
   endmolecule
 endstructure
-structure pocl3
+structure pocl3 phosphoryl-chloride phosphorus-oxychloride cl3op
   molecule
     15 0.000000 0.000000 0.435409
     8 0.000000 0.000000 1.892122
@@ -2071,7 +2071,7 @@ structure pocl3
     17 -1.589391 -0.917635 -0.424865
   endmolecule
 endstructure
-structure propane
+structure propane c3h8
   molecule
     6 0.000000 0.000000 0.586532
     6 0.000000 1.276095 -0.259780
@@ -2086,7 +2086,7 @@ structure propane
     1 0.883356 -1.320655 -0.906844
   endmolecule
 endstructure
-structure propyl-chloride
+structure propyl-chloride 1-chloropropane c3h7cl
   molecule
     6 0.911825 -0.630417 0.000000
     6 2.389649 -0.219623 0.000000
@@ -2101,7 +2101,7 @@ structure propyl-chloride
     1 0.146486 1.205191 -0.887875
   endmolecule
 endstructure
-structure propylene
+structure propylene propene
   molecule
     6 1.290384 0.153619 0.000000
     6 0.000000 0.472966 0.000000
@@ -2114,7 +2114,7 @@ structure propylene
     1 -1.778229 -0.368201 -0.878776
   endmolecule
 endstructure
-structure propyne
+structure propyne methylacetylene
   molecule
     6 0.000000 0.000000 0.218713
     6 0.000000 0.000000 1.420178
@@ -2125,7 +2125,7 @@ structure propyne
     1 -0.884444 -0.510634 -1.632069
   endmolecule
 endstructure
-structure pyrazine
+structure pyrazine 1-4-diazine
   molecule
     1 0.000000 2.064186 1.253898
     7 0.000000 0.000000 -1.405294
@@ -2139,7 +2139,7 @@ structure pyrazine
     1 0.000000 -2.064186 1.253898
   endmolecule
 endstructure
-structure pyridine
+structure pyridine c5h5n
   molecule
     7 0.000000 0.000000 1.417497
     6 0.000000 0.000000 -1.382528
@@ -2154,7 +2154,7 @@ structure pyridine
     1 0.000000 2.153584 -1.179452
   endmolecule
 endstructure
-structure pyrimidine
+structure pyrimidine 1-3-diazine
   molecule
     6 0.000000 0.000000 -1.306414
     6 0.000000 0.000000 1.352654
@@ -2168,7 +2168,7 @@ structure pyrimidine
     1 0.000000 -2.150200 1.116602
   endmolecule
 endstructure
-structure pyrrole
+structure pyrrole azole c4h5n
   molecule
     1 0.000000 0.000000 2.123888
     7 0.000000 0.000000 1.119524
@@ -2182,26 +2182,26 @@ structure pyrrole
     1 0.000000 -1.358830 -1.845013
   endmolecule
 endstructure
-structure s2
+structure s2 disulfur
   molecule
     16 0.000000 0.000000 0.956035
     16 0.000000 0.000000 -0.956035
   endmolecule
 endstructure
-structure scl2
+structure scl2 sulfur-dichloride cl2s
   molecule
     16 0.000000 0.000000 0.855535
     17 0.000000 1.611693 -0.402605
     17 0.000000 -1.611693 -0.402605
   endmolecule
 endstructure
-structure sc
+structure sc carbon-monosulfide cs
   molecule
     6 0.000000 0.000000 -1.120640
     16 0.000000 0.000000 0.420240
   endmolecule
 endstructure
-structure sf6
+structure sf6 sulfur-hexafluoride f6s
   molecule
     16 0.000000 0.000000 0.000000
     9 0.000000 0.000000 1.575382
@@ -2212,20 +2212,20 @@ structure sf6
     9 0.000000 -1.575382 0.000000
   endmolecule
 endstructure
-structure sh2
+structure sh2 hydrogen-sulfide h2s
   molecule
     16 0.000000 0.000000 0.103450
     1 0.000000 0.971202 -0.827601
     1 0.000000 -0.971202 -0.827601
   endmolecule
 endstructure
-structure sh
+structure sh mercapto-radical hs
   molecule
     16 0.000000 0.000000 0.079412
     1 0.000000 0.000000 -1.270597
   endmolecule
 endstructure
-structure si2h6
+structure si2h6 disilane h6si2
   molecule
     14 0.000000 0.000000 1.177034
     14 0.000000 0.000000 -1.177034
@@ -2237,20 +2237,20 @@ structure si2h6
     1 1.204999 0.695707 -1.697556
   endmolecule
 endstructure
-structure si2
+structure si2 disilicon
   molecule
     14 0.000000 0.000000 1.080933
     14 0.000000 0.000000 -1.080933
   endmolecule
 endstructure
-structure sicl2
+structure sicl2 dichlorosilylene cl2si
   molecule
     14 0.000000 0.000000 0.937513
     17 0.000000 1.631024 -0.386035
     17 0.000000 -1.631024 -0.386035
   endmolecule
 endstructure
-structure sicl4
+structure sicl4 silicon-tetrachloride cl4si
   molecule
     14 0.000000 0.000000 0.000000
     17 1.178376 1.178376 1.178376
@@ -2259,7 +2259,7 @@ structure sicl4
     17 -1.178376 1.178376 -1.178376
   endmolecule
 endstructure
-structure sif4
+structure sif4 silicon-tetrafluoride f4si
   molecule
     14 0.000000 0.000000 0.000000
     9 0.903448 0.903448 0.903448
@@ -2268,21 +2268,21 @@ structure sif4
     9 0.903448 -0.903448 -0.903448
   endmolecule
 endstructure
-structure sih2sing
+structure sih2sing singlet-silylene
   molecule
     14 0.000000 0.000000 0.133313
     1 0.000000 1.091072 -0.933191
     1 0.000000 -1.091072 -0.933191
   endmolecule
 endstructure
-structure sih2trip
+structure sih2trip triplet-silylene
   molecule
     14 0.000000 0.000000 0.095224
     1 0.000000 1.276782 -0.666570
     1 0.000000 -1.276782 -0.666570
   endmolecule
 endstructure
-structure sih3
+structure sih3 silyl-radical h3si
   molecule
     14 0.000000 0.000000 0.080516
     1 0.000000 1.413080 -0.375744
@@ -2290,7 +2290,7 @@ structure sih3
     1 -1.223764 -0.706540 -0.375744
   endmolecule
 endstructure
-structure sih4
+structure sih4 silane h4si
   molecule
     14 0.000000 0.000000 0.000000
     1 0.855859 0.855859 0.855859
@@ -2299,20 +2299,20 @@ structure sih4
     1 0.855859 -0.855859 -0.855859
   endmolecule
 endstructure
-structure sio
+structure sio silicon-monoxide osi
   molecule
     14 0.000000 0.000000 0.550124
     8 0.000000 0.000000 -0.962718
   endmolecule
 endstructure
-structure so2
+structure so2 sulfur-dioxide o2s
   molecule
     16 0.000000 0.000000 0.364797
     8 0.000000 1.244452 -0.364797
     8 0.000000 -1.244452 -0.364797
   endmolecule
 endstructure
-structure so3
+structure so3 sulfur-trioxide o3s
   molecule
     16 0.000000 0.000000 0.000000
     8 0.000000 1.431881 0.000000
@@ -2320,7 +2320,7 @@ structure so3
     8 -1.240045 -0.715940 0.000000
   endmolecule
 endstructure
-structure so
+structure so sulfur-monoxide os
   molecule
     8 0.000000 0.000000 -0.997835
     16 0.000000 0.000000 0.498918
@@ -2343,7 +2343,7 @@ structure spiropentane
     1 -1.268773 0.912080 -1.573558
   endmolecule
 endstructure
-structure t-butanethiol
+structure t-butanethiol tert-butanethiol c4h10s
   molecule
     6 0.000000 0.353189 0.000000
     16 -0.048716 -1.510541 0.000000
@@ -2362,7 +2362,7 @@ structure t-butanethiol
     1 0.215470 0.494867 -2.166329
   endmolecule
 endstructure
-structure t-butanol
+structure t-butanol tert-butanol 2-methyl-2-propanol
   molecule
     6 0.000000 0.016261 0.000000
     8 -0.443839 1.380637 0.000000
@@ -2381,7 +2381,7 @@ structure t-butanol
     1 -0.173504 -0.156192 -2.157825
   endmolecule
 endstructure
-structure t-butylamine
+structure t-butylamine tert-butylamine c4h11n
   molecule
     6 -0.547954 -0.686332 1.258172
     6 -0.011633 0.011871 0.000000
@@ -2401,7 +2401,7 @@ structure t-butylamine
     1 -0.189386 1.888928 -0.810659
   endmolecule
 endstructure
-structure t-butyl-chloride
+structure t-butyl-chloride tert-butyl-chloride 2-chloro-2-methylpropane
   molecule
     17 0.000000 0.000000 1.487902
     6 0.000000 0.000000 -0.367979
@@ -2419,7 +2419,7 @@ structure t-butyl-chloride
     1 -1.274731 -1.759911 -0.449427
   endmolecule
 endstructure
-structure t-butyl-methyl-ether
+structure t-butyl-methyl-ether mtbe methyl-tert-butyl-ether c5h12o
   molecule
     1 -0.595296 2.492692 0.000000
     1 -1.697206 1.415381 0.885317
@@ -2441,7 +2441,7 @@ structure t-butyl-methyl-ether
     1 0.538344 -2.176876 -0.890815
   endmolecule
 endstructure
-structure t-butyl-radical
+structure t-butyl-radical tert-butyl-radical c4h9
   molecule
     6 0.000000 0.000000 0.135611
     6 0.000000 1.487763 -0.013448
@@ -2458,7 +2458,7 @@ structure t-butyl-radical
     1 -2.125791 -0.202042 0.441486
   endmolecule
 endstructure
-structure tetrahydrofuran
+structure tetrahydrofuran thf oxolane
   molecule
     8 0.000000 0.000000 1.248672
     6 0.000000 1.170257 0.431767
@@ -2475,7 +2475,7 @@ structure tetrahydrofuran
     1 -0.113614 -1.365592 -1.757988
   endmolecule
 endstructure
-structure tetrahydropyran
+structure tetrahydropyran oxane thp
   molecule
     8 0.000000 1.425994 0.000000
     6 0.060165 -1.466654 0.000000
@@ -2495,7 +2495,7 @@ structure tetrahydropyran
     1 -1.000228 -1.755284 0.000000
   endmolecule
 endstructure
-structure tetrahydropyrrole
+structure tetrahydropyrrole pyrrolidine c4h9n
   molecule
     1 0.468850 -0.678138 2.073152
     1 0.393862 -2.109718 0.000000
@@ -2513,7 +2513,7 @@ structure tetrahydropyrrole
     1 -1.138386 -0.809574 1.330503
   endmolecule
 endstructure
-structure tetrahydrothiophene
+structure tetrahydrothiophene thiolane c4h8s
   molecule
     1 0.990753 1.811236 0.026093
     16 0.000000 0.000000 1.313837
@@ -2530,7 +2530,7 @@ structure tetrahydrothiophene
     1 -0.023498 1.307163 -2.127566
   endmolecule
 endstructure
-structure tetrahydrothiopyran
+structure tetrahydrothiopyran thiane c5h10s
   molecule
     16 0.000000 1.515458 0.000000
     6 0.047786 -1.725484 0.000000
@@ -2550,7 +2550,7 @@ structure tetrahydrothiopyran
     1 -1.022474 -1.976936 0.000000
   endmolecule
 endstructure
-structure tetramethylsilane
+structure tetramethylsilane tms c4h12si
   molecule
     14 0.000000 0.000000 0.000000
     6 1.089797 1.089797 1.089797
@@ -2571,7 +2571,7 @@ structure tetramethylsilane
     1 -0.486804 1.736724 -1.736724
   endmolecule
 endstructure
-structure thiooxirane
+structure thiooxirane ethylene-sulfide thiirane c2h4s
   molecule
     6 0.000000 0.740479 -0.802949
     16 0.000000 0.000000 0.871546
@@ -2582,7 +2582,7 @@ structure thiooxirane
     1 0.914095 -1.256623 -1.077338
   endmolecule
 endstructure
-structure thiophene
+structure thiophene c4h4s
   molecule
     16 0.000000 0.000000 1.192498
     6 0.000000 1.240224 -0.008545
@@ -2595,7 +2595,7 @@ structure thiophene
     1 0.000000 -1.316475 -2.167173
   endmolecule
 endstructure
-structure toluene
+structure toluene methylbenzene c7h8
   molecule
     6 -0.003698 0.911389 0.000000
     6 -0.007012 0.193797 1.199762
@@ -2614,7 +2614,7 @@ structure toluene
     1 -0.011694 0.733730 -2.142447
   endmolecule
 endstructure
-structure trans-butane
+structure trans-butane n-butane butane
   molecule
     6 0.704177 1.833028 0.000000
     6 0.704177 0.302188 0.000000
@@ -2632,7 +2632,7 @@ structure trans-butane
     1 -1.254182 0.065403 0.876688
   endmolecule
 endstructure
-structure trans-ethylamine
+structure trans-ethylamine ethylamine aminoethane
   molecule
     6 1.215032 -0.360322 0.000000
     6 0.000000 0.574705 0.000000
@@ -2646,7 +2646,7 @@ structure trans-ethylamine
     1 -1.385125 -0.691098 -0.809647
   endmolecule
 endstructure
-structure trimethylamine
+structure trimethylamine n-n-dimethylmethanamine c3h9n
   molecule
     7 0.000000 0.000000 0.367351
     6 0.000000 1.388275 -0.059883
@@ -2663,7 +2663,7 @@ structure trimethylamine
     1 -1.200201 -1.716366 0.331986
   endmolecule
 endstructure
-structure vinyl-chloride
+structure vinyl-chloride chloroethene chloroethylene c2h3cl
   molecule
     6 0.000000 0.763812 0.000000
     6 1.293475 1.044947 0.000000
@@ -2673,7 +2673,7 @@ structure vinyl-chloride
     1 1.615527 2.080480 0.000000
   endmolecule
 endstructure
-structure vinyl-fluoride
+structure vinyl-fluoride fluoroethene c2h3f
   molecule
     6 0.000000 0.426371 0.000000
     6 1.185545 -0.157364 0.000000
