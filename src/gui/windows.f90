@@ -136,6 +136,7 @@ module windows
      logical :: lowresrender = .false. ! last render was at reduced (interactive) resolution
      integer :: viewmode = vm_navigate ! view mode (see vm_* above)
      logical :: viewmode_transient = .false. ! true if view mode is transient (resets every frame)
+     logical :: ishovered = .false. ! whether the mouse was over this window in the last frame
      type(viewmode_data) :: vmdata ! data associated with window_forced view modes
      type(ImVec2) :: mousepos_lastpick ! mouse position at the last atom pick
      integer(c_int) :: mousepos_idx(5) ! identifier for the atom under mouse position
@@ -346,6 +347,7 @@ module windows
   public :: windows_init
   public :: vm_is_forcedpick
   public :: draw_ff_backend_combo
+  public :: paste_clipboard_fragment
 
   ! window types
   integer, parameter, public :: wintype_tree = 1
@@ -692,6 +694,10 @@ module windows
      module subroutine draw_builder(w)
        class(window), intent(inout), target :: w
      end subroutine draw_builder
+     module subroutine paste_clipboard_fragment(isys,iview,xpos,icel)
+       integer, intent(in) :: isys, iview, icel
+       real(c_float), intent(in) :: xpos(2)
+     end subroutine paste_clipboard_fragment
      module subroutine edit_stop(w)
        class(window), intent(inout) :: w
      end subroutine edit_stop

@@ -195,6 +195,10 @@ module systems
      logical :: haslattice = .false. ! whether the copied atoms came with a lattice
      type(crystalseed) :: seed ! the copied atoms
      character(len=:), allocatable :: label ! empirical formula, e.g. "(H2O)6"
+     ! fragment addition anchors (see dat/lib/fragment.dat)
+     integer :: ianchor = 0 ! anchor atom, as an index into seed (0 = empty clipboard)
+     integer :: iattach = 0 ! placeholder atom, as an index into seed (0 = none)
+     real*8 :: xdir(3) = (/1d0,0d0,0d0/) ! attachment direction (unit, Cartesian bohr)
   end type sysclipboard
   type(sysclipboard), public :: sysclip
 

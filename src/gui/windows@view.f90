@@ -1521,8 +1521,9 @@ contains
        BIND_MOVEMOL_CHANGECELL, BIND_MOVEATOM_CHANGECELL,&
        BIND_SELECT_ZOOM, BIND_MDINTERACT_ZOOM, BIND_NAV_MEASURE_ADD,&
        BIND_NAV_MEASURE_REMOVE, BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT,&
-       BIND_CANCEL, bind_mouse_button
-    use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry
+       BIND_CANCEL, BIND_PASTE, bind_mouse_button
+    use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry,&
+       ok_system, sys_init
     use global, only: iunit_bohr
     use gui_main, only: io, ColorHighlightSelectScene, lumweights, ColorBlack, ColorWhite
     class(window), intent(inout), target :: w
@@ -1541,6 +1542,9 @@ contains
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
     real(c_float), parameter :: mousesens_vol0 = 0.05_c_float ! per-notch fractional cell-volume change
     real(c_float), parameter :: selrect_thr = 4._c_float ! click/drag threshold (pixels)
+
+    ! record the hover state before any early return, so it cannot go stale
+    w%ishovered = hover
 
     ! first pass when opened, reset the state
     if (w%firstpass) then
@@ -1621,6 +1625,18 @@ contains
           w%measure_pend = pend_none
     else
        w%measure_pend = pend_none
+    end if
+
+    ! paste the clipboard fragment: only with the cursor over the view, at the
+    ! mouse position and on the atom underneath if there is one
+    if (hover .and. .not.io%WantTextInput .and. ok_system(w%isys,sys_init) .and.&
+       is_bind_event(BIND_PASTE,norepeat=.true.)) then
+       call igGetMousePos(mousepos)
+       texpos = mousepos
+       call w%mousepos_to_texpos(texpos)
+       call paste_clipboard_fragment(w%isys,w%id,(/texpos%x,texpos%y/),w%mousepos_idx(1))
+       if (associated(w%sc)) w%sc%nextbuildlists_fixcam = .true.
+       w%forcerender = .true.
     end if
 
     ! process mode-specific events

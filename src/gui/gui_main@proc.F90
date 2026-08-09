@@ -773,7 +773,7 @@ contains
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_NEW_MOLECULE, BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
        BIND_CANCEL, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO, BIND_COPY_SELECTION,&
-       BIND_CUT_SELECTION,&
+       BIND_CUT_SELECTION, BIND_PASTE,&
        get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
@@ -795,6 +795,7 @@ contains
     character(len=:), allocatable :: errmsg
     integer(c_int) :: idum
     logical :: launchquit, launchnewmol, launch(D_TOTAL), isysok, isysvok, ifieldok, ok
+    logical :: ldum
     logical :: okundo, okredo
     integer :: isys, isysv
 
@@ -956,6 +957,11 @@ contains
           if (iw_menuitem("Copy",BIND_COPY_SELECTION,enabled=isysvok)) &
              call sysc(isysv)%copy_highlighted()
           call iw_tooltip("Copy the selected atoms to the clipboard",ttshown)
+
+          ! Edit -> Paste, only while the cursor is over a view
+          ldum = iw_menuitem("Paste",BIND_PASTE,enabled=(sysclip%isfilled .and.&
+             win(iwin_view)%ishovered))
+          call iw_tooltip("Paste the clipboard fragment at the mouse position",ttshown)
 
           ! Edit -> Paste as...
           str2 = "Paste as..." // c_null_char

@@ -21,7 +21,8 @@ submodule (systems) proc
 
   !xx! private procedures
   ! function initialization_thread_worker(arg)
-  ! subroutine seed_from_highlighted(sysc,seed,nat,molecule)
+  ! subroutine seed_from_highlighted(sysc,seed,nat,iat,molecule)
+  ! subroutine clipboard_anchor(sysc,nat,iat,ianchor,iattach,xdir)
   ! subroutine seed_make_molecule(seed)
   ! function formula_label(seed)
   ! function fmtcount(x)
@@ -1241,6 +1242,7 @@ contains
     logical, intent(in), optional :: forcemolecule
 
     integer :: nat, id
+    integer, allocatable :: iat(:)
     type(crystalseed), allocatable :: seed(:)
     logical :: molecule
 
@@ -1254,7 +1256,7 @@ contains
 
     ! build the seed with the selected atoms; no-op if nothing is selected
     allocate(seed(1))
-    call seed_from_highlighted(sysc,seed(1),nat,molecule)
+    call seed_from_highlighted(sysc,seed(1),nat,iat,molecule)
     if (nat == 0) return
     seed(1)%name = trim(sysc%seed%name) // " (selection)"
 
@@ -1276,7 +1278,9 @@ contains
     use crystalseedmod, only: crystalseed
     class(sysconf), intent(inout) :: sysc
 
-    integer :: nat, id
+    integer :: nat, id, ianchor, iattach
+    integer, allocatable :: iat(:)
+    real*8 :: xdir(3)
     type(crystalseed) :: seed
 
     ! consistency checks
@@ -1284,13 +1288,19 @@ contains
     if (.not.ok_system(id,sys_init)) return
 
     ! build the seed with the selected atoms; keep the old clipboard if none
-    call seed_from_highlighted(sysc,seed,nat,sys(id)%c%ismolecule)
+    call seed_from_highlighted(sysc,seed,nat,iat,sys(id)%c%ismolecule)
     if (nat == 0) return
+
+    ! calculate where the fragment attaches
+    call clipboard_anchor(sysc,nat,iat,ianchor,iattach,xdir)
 
     ! fill the clipboard
     sysclip%seed = seed
     sysclip%label = formula_label(seed)
     sysclip%haslattice = (seed%useabr > 0)
+    sysclip%ianchor = ianchor
+    sysclip%iattach = iattach
+    sysclip%xdir = xdir
     sysclip%isfilled = .true.
 
   end subroutine copy_highlighted
@@ -3288,19 +3298,21 @@ contains
 
   !> Build a seed holding only the selected (highlighted) atoms of
   !> system sysc, and return how many there were (zero if nothing is
-  !> selected). The seed inherits the lattice of the parent system. If
-  !> molecule is true it is turned into a non-periodic molecule with
-  !> absolute Cartesian coordinates instead.
-  subroutine seed_from_highlighted(sysc,seed,nat,molecule)
+  !> selected). iat(1:nat) comes back with the ascending cell indices of
+  !> the selection, so seed atom i is cell atom iat(i). The seed inherits
+  !> the lattice of the parent system. If molecule is true it is turned
+  !> into a non-periodic molecule with absolute Cartesian coordinates
+  !> instead.
+  subroutine seed_from_highlighted(sysc,seed,nat,iat,molecule)
     use crystalseedmod, only: crystalseed
     use types, only: realloc
     type(sysconf), intent(inout) :: sysc
     type(crystalseed), intent(inout) :: seed
     integer, intent(out) :: nat
+    integer, allocatable, intent(inout) :: iat(:)
     logical, intent(in) :: molecule
 
     integer :: i, id
-    integer, allocatable :: iat(:)
 
     ! list the selected cell atoms; no-op if nothing is selected
     id = sysc%id
@@ -3335,6 +3347,176 @@ contains
     if (molecule) call seed_make_molecule(seed)
 
   end subroutine seed_from_highlighted
+
+  !> Choose the anchor atom and the attachment direction for a copied
+  !> selection. nat and iat describe the selection (iat(i) is the cell
+  !> atom that became seed atom i); ianchor and iattach come back as
+  !> seed indices (iattach = 0 if there is no placeholder) and xdir as
+  !> a unit vector in Cartesian bohr.
+  subroutine clipboard_anchor(sysc,nat,iat,ianchor,iattach,xdir)
+    use param, only: maxzat
+    type(sysconf), intent(in) :: sysc
+    integer, intent(in) :: nat
+    integer, intent(in) :: iat(:)
+    integer, intent(out) :: ianchor, iattach
+    real*8, intent(out) :: xdir(3)
+
+    integer :: i, k, ia, j, id, ncel, icase, zi, zj
+    integer :: lvec(3)
+    integer, allocatable :: iseed(:)
+    real*8 :: v(3), d, xcm(3)
+    logical :: inside
+    logical :: found(4)
+    integer :: abest(4), tbest(4), jbest(4), lbest(3,4)
+    real*8 :: dbest(4), vbest(3,4)
+
+    real*8, parameter :: eps_dzero = 1d-10
+
+    ! defaults: a valid anchor and a unit direction, so a fragment with no
+    ! bonding information can still be placed
+    ianchor = 1
+    iattach = 0
+    xdir = (/1d0,0d0,0d0/)
+    if (nat <= 0) return
+    id = sysc%id
+    if (.not.ok_system(id,sys_init)) return
+    ncel = sys(id)%c%ncel
+
+    ! map cell atom -> seed atom, which doubles as the membership test
+    allocate(iseed(ncel))
+    iseed = 0
+    do i = 1, nat
+       if (iat(i) >= 1 .and. iat(i) <= ncel) iseed(iat(i)) = i
+    end do
+
+    ! scan the bonds of the selected atoms, keeping the best candidate of each
+    ! case. Bonding may be unavailable (a system built without an environment),
+    ! in which case every case comes up empty and the fallback below applies;
+    ! copying must not rebond, as that would modify the system being copied.
+    found = .false.
+    dbest = huge(1d0)
+    abest = 0
+    tbest = 0
+    jbest = 0
+    lbest = 0
+    if (allocated(sys(id)%c%nstar)) then
+       if (size(sys(id)%c%nstar,1) >= ncel) then
+          do i = 1, nat
+             ia = iat(i)
+             if (ia < 1 .or. ia > ncel) cycle
+             zi = sys(id)%c%spc(sys(id)%c%atcel(ia)%is)%z
+             ! ghost species and critical-point pseudo-atoms are never anchors
+             if (zi <= 0 .or. zi > maxzat) cycle
+             do k = 1, sys(id)%c%nstar(ia)%ncon
+                ! a bond the user has marked as dashed is not a real bond
+                if (allocated(sys(id)%c%nstar(ia)%ordcon)) then
+                   if (sys(id)%c%nstar(ia)%ordcon(k) == 0) cycle
+                end if
+                j = sys(id)%c%nstar(ia)%idcon(k)
+                if (j < 1 .or. j > ncel) cycle
+                zj = sys(id)%c%spc(sys(id)%c%atcel(j)%is)%z
+                if (zj <= 0 .or. zj > maxzat) cycle
+                lvec = sys(id)%c%nstar(ia)%lcon(:,k)
+
+                ! the bond vector, following the neighbour into its own image
+                v = sys(id)%c%atcel(j)%r + sys(id)%c%x2c(dble(lvec)) - sys(id)%c%atcel(ia)%r
+                d = norm2(v)
+                if (d < eps_dzero) cycle
+
+                ! classify this bond
+                inside = (iseed(j) > 0 .and. all(lvec == 0))
+                if (.not.inside) then
+                   if (zi > 1 .and. zj > 1) then
+                      icase = 1
+                   elseif (zi > 1) then
+                      icase = 2
+                   elseif (zj > 1) then
+                      icase = 3
+                   else
+                      cycle
+                   end if
+                elseif (zi > 1 .and. zj == 1) then
+                   ! only the non-H end is a candidate, so each internal bond
+                   ! is considered once
+                   icase = 4
+                else
+                   cycle
+                end if
+
+                ! keep the shortest, breaking ties on the cell indices and then
+                ! on the lattice vector, so that the answer does not depend on
+                ! the order the bonds happen to be stored in
+                if (found(icase)) then
+                   if (d > dbest(icase) + eps_dzero) cycle
+                   if (abs(d - dbest(icase)) <= eps_dzero) then
+                      if (ia > abest(icase)) cycle
+                      if (ia == abest(icase)) then
+                         if (j > jbest(icase)) cycle
+                         if (j == jbest(icase) .and. &
+                            .not.lvec_lower(lvec,lbest(:,icase))) cycle
+                      end if
+                   end if
+                end if
+                found(icase) = .true.
+                dbest(icase) = d
+                abest(icase) = ia
+                jbest(icase) = j
+                lbest(:,icase) = lvec
+                vbest(:,icase) = v / d
+                if (icase == 4) then
+                   tbest(icase) = iseed(j)
+                else
+                   tbest(icase) = 0
+                end if
+             end do
+          end do
+       end if
+    end if
+
+    ! take the first case that produced a candidate
+    do icase = 1, 4
+       if (.not.found(icase)) cycle
+       ianchor = iseed(abest(icase))
+       iattach = tbest(icase)
+       xdir = vbest(:,icase)
+       return
+    end do
+
+    ! nothing is bonded: anchor the first atom and point away from the rest
+    ianchor = 1
+    iattach = 0
+    if (nat > 1) then
+       xcm = 0d0
+       do i = 2, nat
+          xcm = xcm + sys(id)%c%atcel(iat(i))%r
+       end do
+       xcm = xcm / real(nat-1,8)
+       v = sys(id)%c%atcel(iat(1))%r - xcm
+       d = norm2(v)
+       if (d > eps_dzero) xdir = v / d
+    end if
+
+  contains
+    !> Whether lattice vector l1 comes before l2 lexicographically. Used
+    !> only to break ties between equal-length bonds to different images
+    !> of the same neighbour.
+    pure function lvec_lower(l1,l2)
+      integer, intent(in) :: l1(3), l2(3)
+      logical :: lvec_lower
+
+      integer :: i
+
+      lvec_lower = .false.
+      do i = 1, 3
+         if (l1(i) /= l2(i)) then
+            lvec_lower = (l1(i) < l2(i))
+            return
+         end if
+      end do
+
+    end function lvec_lower
+
+  end subroutine clipboard_anchor
 
   !> Turn a seed into a non-periodic molecule: drop the cell and the
   !> symmetry and use the default molecular box. The coordinates in the

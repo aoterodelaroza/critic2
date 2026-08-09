@@ -184,6 +184,7 @@ contains
     call set_bind(BIND_NEW_MOLECULE,ImGuiKey_N,mod_ctrl)
     call set_bind(BIND_COPY_SELECTION,ImGuiKey_C,mod_ctrl)
     call set_bind(BIND_CUT_SELECTION,ImGuiKey_X,mod_ctrl)
+    call set_bind(BIND_PASTE,ImGuiKey_V,mod_ctrl)
     call set_bind(BIND_OPEN,ImGuiKey_O,mod_ctrl)
     call set_bind(BIND_CLOSE,ImGuiKey_W,mod_ctrl)
     call set_bind(BIND_REOPEN,ImGuiKey_R,mod_ctrl)
