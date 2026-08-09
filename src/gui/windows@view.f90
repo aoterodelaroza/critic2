@@ -1543,9 +1543,6 @@ contains
     real(c_float), parameter :: mousesens_vol0 = 0.05_c_float ! per-notch fractional cell-volume change
     real(c_float), parameter :: selrect_thr = 4._c_float ! click/drag threshold (pixels)
 
-    ! record the hover state before any early return, so it cannot go stale
-    w%ishovered = hover
-
     ! first pass when opened, reset the state
     if (w%firstpass) then
        w%mposlast%x = 0._c_float

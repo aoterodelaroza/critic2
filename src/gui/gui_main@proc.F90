@@ -768,7 +768,8 @@ contains
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
-       wintype_about, wintype_geometry, wintype_water_cluster
+       wintype_about, wintype_geometry, wintype_water_cluster,&
+       paste_clipboard_fragment
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_NEW_MOLECULE, BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
@@ -795,7 +796,6 @@ contains
     character(len=:), allocatable :: errmsg
     integer(c_int) :: idum
     logical :: launchquit, launchnewmol, launch(D_TOTAL), isysok, isysvok, ifieldok, ok
-    logical :: ldum
     logical :: okundo, okredo
     integer :: isys, isysv
 
@@ -959,8 +959,11 @@ contains
           call iw_tooltip("Copy the selected atoms to the clipboard",ttshown)
 
           ! Edit -> Paste, only while the cursor is over a view
-          ldum = iw_menuitem("Paste",BIND_PASTE,enabled=(sysclip%isfilled .and.&
-             win(iwin_view)%ishovered))
+          if (iw_menuitem("Paste",BIND_PASTE,enabled=(sysclip%isfilled .and. isysvok))) then
+             call paste_clipboard_fragment(isysv,iwin_view,(/0._c_float,0._c_float/),0,&
+                atcenter=.true.)
+             sysc(isysv)%sc%nextbuildlists_fixcam = .true.
+          end if
           call iw_tooltip("Paste the clipboard fragment at the mouse position",ttshown)
 
           ! Edit -> Paste as...

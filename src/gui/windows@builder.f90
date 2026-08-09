@@ -1954,16 +1954,19 @@ contains
   !> fragment is placed exactly like a library fragment: on an atom the
   !> anchor replaces it, on empty space it goes at the cursor. Does
   !> nothing if the clipboard is empty.
-  module subroutine paste_clipboard_fragment(isys,iview,xpos,icel)
+  module subroutine paste_clipboard_fragment(isys,iview,xpos,icel,atcenter)
     use systems, only: sysclip, ok_system, sys_init
+    use utils, only: mult
     use tools_math, only: m_x2c_from_cellpar
     integer, intent(in) :: isys, iview, icel
     real(c_float), intent(in) :: xpos(2)
+    logical, intent(in), optional :: atcenter
 
     integer :: i, nat
     integer, allocatable :: z(:)
     real*8, allocatable :: x(:,:)
     real*8 :: x2c(3,3)
+    real(c_float) :: xpos_(2), v0(3)
 
     ! consistency checks
     if (.not.sysclip%isfilled) return
@@ -1990,9 +1993,21 @@ contains
        end if
     end do
 
+    ! when commanded from the menu there is no cursor to place it at, so use
+    ! the middle of the view (the texture position of the scene center)
+    xpos_ = xpos
+    if (present(atcenter)) then
+       if (atcenter) then
+          if (.not.associated(win(iview)%sc)) return
+          call mult(v0,win(iview)%sc%world,win(iview)%sc%scenecenter)
+          call win(iview)%world_to_texpos(v0)
+          xpos_ = (/v0(1),v0(2)/)
+       end if
+    end if
+
     ! a pasted fragment is always a substituent, never a ligand
     call frag_place(isys,iview,nat,z,x,sysclip%ianchor,sysclip%iattach,&
-       sysclip%xdir,0d0,.false.,xpos,icel)
+       sysclip%xdir,0d0,.false.,xpos_,icel)
 
   end subroutine paste_clipboard_fragment
 
