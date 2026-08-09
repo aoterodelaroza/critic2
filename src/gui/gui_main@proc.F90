@@ -763,7 +763,7 @@ contains
     use interfaces_cimgui
     use systems, only: sys, sysc, sys_init, ok_system, are_threads_running, duplicate_system,&
        add_system_empty_molecule, reread_system_from_file, remove_system,&
-       kill_initialization_thread, write_system, sysclip
+       kill_initialization_thread, write_system, sysclip, paste_clipboard
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
@@ -956,6 +956,20 @@ contains
           if (iw_menuitem("Copy",BIND_COPY_SELECTION,enabled=isysvok)) &
              call sysc(isysv)%copy_highlighted()
           call iw_tooltip("Copy the selected atoms to the clipboard",ttshown)
+
+          ! Edit -> Paste as...
+          str2 = "Paste as..." // c_null_char
+          if (igBeginMenu(c_loc(str2),logical(sysclip%isfilled,c_bool))) then
+             if (iw_menuitem("New Molecule")) &
+                call paste_clipboard(.true.)
+             call iw_tooltip("Paste the clipboard as a new system, a molecule",ttshown)
+
+             if (iw_menuitem("New Crystal",enabled=sysclip%haslattice)) &
+                call paste_clipboard(.false.)
+             call iw_tooltip("Paste the clipboard as a new system, a crystal",ttshown)
+
+             call igEndMenu()
+          end if
 
           ! Edit -> Remove selection
           if (iw_menuitem("Remove Selection",BIND_EDITSELECT_REMOVE,enabled=isysvok)) then

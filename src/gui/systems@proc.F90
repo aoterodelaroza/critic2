@@ -22,6 +22,7 @@ submodule (systems) proc
   !xx! private procedures
   ! function initialization_thread_worker(arg)
   ! subroutine seed_from_highlighted(sysc,seed,nat,molecule)
+  ! subroutine seed_make_molecule(seed)
   ! function formula_label(seed)
 
 contains
@@ -1288,9 +1289,58 @@ contains
     ! fill the clipboard
     sysclip%seed = seed
     sysclip%label = formula_label(seed)
+    sysclip%haslattice = (seed%useabr > 0)
     sysclip%isfilled = .true.
 
   end subroutine copy_highlighted
+
+  !> Create a new system from the atoms in the clipboard: a molecule if
+  !> molecule is true, a crystal otherwise. Pasting as a crystal
+  !> requires the clipboard to carry a lattice (i.e. the atoms were
+  !> copied from a crystal). Does nothing if the clipboard is empty.
+  module subroutine paste_clipboard(molecule)
+    use crystalseedmod, only: crystalseed
+    use tools_math, only: m_x2c_from_cellpar
+    use param, only: isformat_r_derived
+    logical, intent(in) :: molecule
+
+    integer :: i
+    type(crystalseed), allocatable :: seed(:)
+    real*8 :: x2c(3,3)
+
+    ! consistency checks
+    if (.not.sysclip%isfilled) return
+    if (.not.molecule .and. .not.sysclip%haslattice) return
+
+    allocate(seed(1))
+    seed(1) = sysclip%seed
+
+    if (molecule) then
+       ! atoms copied from a crystal are in fractional coordinates: put them in
+       ! absolute Cartesian (bohr) before the cell is dropped
+       if (seed(1)%useabr > 0) then
+          if (seed(1)%useabr == 1) then
+             x2c = m_x2c_from_cellpar(seed(1)%aa,seed(1)%bb)
+          else
+             x2c = seed(1)%m_x2c
+          end if
+          do i = 1, seed(1)%nat
+             seed(1)%x(:,i) = matmul(x2c,seed(1)%x(:,i))
+          end do
+       end if
+       call seed_make_molecule(seed(1))
+    end if
+
+    ! derived system
+    seed(1)%name = "clipboard (" // sysclip%label // ")"
+    seed(1)%file = ""
+    seed(1)%isformat = isformat_r_derived
+
+    ! create the new system (add_systems_from_seeds selects it in the tree)
+    call add_systems_from_seeds(1,seed)
+    call launch_initialization_thread()
+
+  end subroutine paste_clipboard
 
   !> Cut the selected atoms of this system: copy them to the clipboard
   !> and then remove them from the system. Does nothing if no atoms are
@@ -3243,7 +3293,6 @@ contains
   subroutine seed_from_highlighted(sysc,seed,nat,molecule)
     use crystalseedmod, only: crystalseed
     use types, only: realloc
-    use global, only: rborder_def
     type(sysconf), intent(inout) :: sysc
     type(crystalseed), intent(inout) :: seed
     integer, intent(out) :: nat
@@ -3275,19 +3324,29 @@ contains
     seed%nat = nat
 
     ! turn the seed into a non-periodic molecule if requested
-    if (molecule) then
-       seed%ismolecule = .true.
-       seed%useabr = 0
-       seed%havesym = 0
-       seed%neqv = 0
-       seed%ncv = 0
-       seed%havex0 = .false.
-       seed%molx0 = 0d0
-       seed%border = rborder_def
-       seed%cubic = .false.
-    end if
+    if (molecule) call seed_make_molecule(seed)
 
   end subroutine seed_from_highlighted
+
+  !> Turn a seed into a non-periodic molecule: drop the cell and the
+  !> symmetry and use the default molecular box. The coordinates in the
+  !> seed must already be absolute Cartesian (bohr).
+  subroutine seed_make_molecule(seed)
+    use crystalseedmod, only: crystalseed
+    use global, only: rborder_def
+    type(crystalseed), intent(inout) :: seed
+
+    seed%ismolecule = .true.
+    seed%useabr = 0
+    seed%havesym = 0
+    seed%neqv = 0
+    seed%ncv = 0
+    seed%havex0 = .false.
+    seed%molx0 = 0d0
+    seed%border = rborder_def
+    seed%cubic = .false.
+
+  end subroutine seed_make_molecule
 
   !> Empirical formula of the atoms in this seed, in the form (F)n
   !> where F is the formula reduced by the greatest common divisor of

@@ -192,6 +192,7 @@ module systems
   ! System clipboard
   type, public :: sysclipboard
      logical :: isfilled = .false. ! whether there is anything to paste
+     logical :: haslattice = .false. ! whether the copied atoms came with a lattice
      type(crystalseed) :: seed ! the copied atoms
      character(len=:), allocatable :: label ! empirical formula, e.g. "(H2O)6"
   end type sysclipboard
@@ -211,6 +212,7 @@ module systems
   public :: add_system_empty_molecule
   public :: regenerate_system_pointers
   public :: ok_system
+  public :: paste_clipboard
 
   !xx! Interfaces
   interface
@@ -327,6 +329,9 @@ module systems
        class(sysconf), intent(inout) :: sysc
        character(len=:), allocatable, intent(inout) :: errmsg
      end subroutine cut_highlighted
+     module subroutine paste_clipboard(molecule)
+       logical, intent(in) :: molecule
+     end subroutine paste_clipboard
      module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate,errmsg)
        class(sysconf), intent(inout) :: sysc
        logical, intent(in), optional :: remove, merge, duplicate
