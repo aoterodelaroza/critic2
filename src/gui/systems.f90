@@ -130,6 +130,7 @@ module systems
      procedure :: edit_highlighted_species
      procedure :: new_system_from_highlighted
      procedure :: copy_highlighted
+     procedure :: cut_highlighted
      ! atlisttype tools
      procedure :: attype_combo_simple
      procedure :: attype_number
@@ -322,6 +323,10 @@ module systems
      module subroutine copy_highlighted(sysc)
        class(sysconf), intent(inout) :: sysc
      end subroutine copy_highlighted
+     module subroutine cut_highlighted(sysc,errmsg)
+       class(sysconf), intent(inout) :: sysc
+       character(len=:), allocatable, intent(inout) :: errmsg
+     end subroutine cut_highlighted
      module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate,errmsg)
        class(sysconf), intent(inout) :: sysc
        logical, intent(in), optional :: remove, merge, duplicate

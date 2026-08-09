@@ -117,7 +117,8 @@ module keybindings
   integer, parameter, public :: BIND_PICKATOM_EXIT = 65 ! persistent builder picks: exit the mode (on empty space)
   integer, parameter, public :: BIND_NEW_MOLECULE = 66 ! create a new empty molecule
   integer, parameter, public :: BIND_COPY_SELECTION = 67 ! copy the selected atoms to the clipboard
-  integer, parameter, public :: BIND_NUM = 67 ! total number of binds
+  integer, parameter, public :: BIND_CUT_SELECTION = 68 ! copy the selected atoms to the clipboard and remove them
+  integer, parameter, public :: BIND_NUM = 68 ! total number of binds
 
   ! Bind names
   character(len=32), parameter, public :: bindnames(BIND_NUM) = (/&
@@ -187,7 +188,8 @@ module keybindings
      "Exit mode                       ",& ! BIND_MOVEATOM_EXIT
      "Exit mode                       ",& ! BIND_PICKATOM_EXIT
      "New molecule                    ",& ! BIND_NEW_MOLECULE
-     "Copy selection                  "&  ! BIND_COPY_SELECTION
+     "Copy selection                  ",& ! BIND_COPY_SELECTION
+     "Cut selection                   "&  ! BIND_CUT_SELECTION
      /)
 
   ! The key associated with each bind, bind -> key
@@ -306,7 +308,8 @@ module keybindings
      group_viewmode_moveatom,&   ! BIND_MOVEATOM_EXIT
      group_viewmode_pickatom,&   ! BIND_PICKATOM_EXIT
      group_global,&              ! BIND_NEW_MOLECULE
-     group_global/)              ! BIND_COPY_SELECTION
+     group_global,&              ! BIND_COPY_SELECTION
+     group_global/)              ! BIND_CUT_SELECTION
 
   ! bindfull -> bindtype
   ! Binding type. If 0, requires pressing a key (not just a modifier)
@@ -379,7 +382,8 @@ module keybindings
      BIND_VIEWMODE_MOVEATOM,&  ! BIND_MOVEATOM_EXIT
      0,&  ! BIND_PICKATOM_EXIT
      0,&  ! BIND_NEW_MOLECULE
-     0/)  ! BIND_COPY_SELECTION
+     0,&  ! BIND_COPY_SELECTION
+     0/)  ! BIND_CUT_SELECTION
 
   ! module procedure interfaces
   interface

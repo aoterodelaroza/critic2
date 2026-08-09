@@ -773,6 +773,7 @@ contains
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_NEW_MOLECULE, BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
        BIND_CANCEL, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO, BIND_COPY_SELECTION,&
+       BIND_CUT_SELECTION,&
        get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
@@ -830,10 +831,14 @@ contains
     if (isysvok .and. is_bind_event(BIND_UNDO)) call sysc(isysv)%undo()
     if (isysvok .and. is_bind_event(BIND_REDO)) call sysc(isysv)%redo()
 
-    !! copy the selected atoms of the view-selected system to the clipboard.
+    !! copy or cut the selected atoms of the view-selected system to the clipboard.
     if (isysvok .and. .not.io%WantTextInput) then
        if (is_bind_event(BIND_COPY_SELECTION,norepeat=.true.)) &
           call sysc(isysv)%copy_highlighted()
+       if (is_bind_event(BIND_CUT_SELECTION,norepeat=.true.)) then
+          call sysc(isysv)%cut_highlighted(errmsg)
+          sysc(isysv)%sc%nextbuildlists_fixcam = .true.
+       end if
     end if
 
     ! start the menu
@@ -940,6 +945,28 @@ contains
           ! Edit -> Separator
           call igSeparator()
 
+          ! Edit -> Cut selection
+          if (iw_menuitem("Cut",BIND_CUT_SELECTION,enabled=isysvok)) then
+             call sysc(isysv)%cut_highlighted(errmsg)
+             sysc(isysv)%sc%nextbuildlists_fixcam = .true.
+          end if
+          call iw_tooltip("Copy the selected atoms to the clipboard and remove them from the system",ttshown)
+
+          ! Edit -> Copy selection
+          if (iw_menuitem("Copy",BIND_COPY_SELECTION,enabled=isysvok)) &
+             call sysc(isysv)%copy_highlighted()
+          call iw_tooltip("Copy the selected atoms to the clipboard",ttshown)
+
+          ! Edit -> Remove selection
+          if (iw_menuitem("Remove Selection",BIND_EDITSELECT_REMOVE,enabled=isysvok)) then
+             call sysc(isysv)%edit_highlighted_atoms(remove=.true.,errmsg=errmsg)
+             sysc(isysv)%sc%nextbuildlists_fixcam = .true.
+          end if
+          call iw_tooltip("Remove the selected atoms from the system",ttshown)
+
+          ! Edit -> Separator
+          call igSeparator()
+
           ! Edit -> Select All
           if (iw_menuitem("Select All",BIND_EDITSELECT_SELECT_ALL,enabled=isysvok)) &
              call sysc(isysv)%highlight_all()
@@ -967,13 +994,6 @@ contains
           if (iw_menuitem("Molecule from Selection",enabled=isysvok)) &
              call sysc(isysv)%new_system_from_highlighted(forcemolecule=.true.)
           call iw_tooltip("Create a new molecule from the selected atoms",ttshown)
-
-          ! Edit -> Remove selection
-          if (iw_menuitem("Remove Selection",BIND_EDITSELECT_REMOVE,enabled=isysvok)) then
-             call sysc(isysv)%edit_highlighted_atoms(remove=.true.,errmsg=errmsg)
-             sysc(isysv)%sc%nextbuildlists_fixcam = .true.
-          end if
-          call iw_tooltip("Remove the selected atoms from the system",ttshown)
 
           ! Edit -> Separator
           call igSeparator()

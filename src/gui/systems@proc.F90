@@ -1292,6 +1292,19 @@ contains
 
   end subroutine copy_highlighted
 
+  !> Cut the selected atoms of this system: copy them to the clipboard
+  !> and then remove them from the system. Does nothing if no atoms are
+  !> selected.
+  module subroutine cut_highlighted(sysc,errmsg)
+    class(sysconf), intent(inout) :: sysc
+    character(len=:), allocatable, intent(inout) :: errmsg
+
+    errmsg = ""
+    call sysc%copy_highlighted()
+    call sysc%edit_highlighted_atoms(remove=.true.,errmsg=errmsg)
+
+  end subroutine cut_highlighted
+
   !> Remove, merge or duplicate the highlighted atoms in the system.
   module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate,errmsg)
     class(sysconf), intent(inout) :: sysc
