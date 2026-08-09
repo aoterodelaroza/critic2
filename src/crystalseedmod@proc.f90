@@ -7155,6 +7155,11 @@ contains
     else
        if (allocated(to%occ)) deallocate(to%occ)
     end if
+    if (allocated(from%mix)) then
+       to%mix = from%mix
+    else
+       if (allocated(to%mix)) deallocate(to%mix)
+    end if
     to%neqlist = from%neqlist
     to%nspc = from%nspc
     if (allocated(from%spc)) then

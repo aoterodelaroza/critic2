@@ -24,6 +24,7 @@ submodule (systems) proc
   ! subroutine seed_from_highlighted(sysc,seed,nat,molecule)
   ! subroutine seed_make_molecule(seed)
   ! function formula_label(seed)
+  ! function fmtcount(x)
 
 contains
 
@@ -3311,6 +3312,9 @@ contains
     call realloc(seed%x,3,nat)
     call realloc(seed%is,nat)
     call realloc(seed%atname,nat)
+    ! site occupancies and mixed-site occupants, for disordered structures
+    if (allocated(seed%occ)) call realloc(seed%occ,nat)
+    if (allocated(seed%mix)) call realloc(seed%mix,nat)
     do i = 1, nat
        if (molecule) then
           ! absolute Cartesian (bohr) coordinates for a molecule seed
@@ -3320,6 +3324,10 @@ contains
        end if
        seed%is(i) = sys(id)%c%atcel(iat(i))%is
        seed%atname(i) = sys(id)%c%at(sys(id)%c%atcel(iat(i))%idx)%name
+       if (allocated(seed%occ)) &
+          seed%occ(i) = sys(id)%c%at(sys(id)%c%atcel(iat(i))%idx)%occ
+       if (allocated(seed%mix)) &
+          seed%mix(i) = sys(id)%c%at(sys(id)%c%atcel(iat(i))%idx)%mix
     end do
     seed%nat = nat
 
@@ -3359,34 +3367,87 @@ contains
     type(crystalseed), intent(in) :: seed
     character(len=:), allocatable :: formula_label
 
-    integer :: i, n
-    integer, allocatable :: count(:)
+    integer :: i, k, n
+    real*8, allocatable :: count(:)
+    integer, allocatable :: icount(:)
+    real*8 :: small
+
+    real*8, parameter :: eps = 1d-4
 
     formula_label = ""
     if (seed%nat == 0 .or. seed%nspc == 0) return
 
-    ! number of atoms of each species
+    ! number of atoms of each species, weighted by the site occupancies. A
+    ! mixed site contributes a fraction to each of its occupants.
     allocate(count(seed%nspc))
-    count = 0
+    count = 0d0
     do i = 1, seed%nat
-       if (seed%is(i) >= 1 .and. seed%is(i) <= seed%nspc) &
-          count(seed%is(i)) = count(seed%is(i)) + 1
+       if (allocated(seed%mix)) then
+          do k = 1, seed%mix(i)%nocc
+             count(seed%mix(i)%is(k)) = count(seed%mix(i)%is(k)) + seed%mix(i)%occ(k)
+          end do
+       elseif (seed%is(i) >= 1 .and. seed%is(i) <= seed%nspc) then
+          count(seed%is(i)) = count(seed%is(i)) + 1d0
+       end if
     end do
 
-    ! the repeat count is the gcd of the species counts
-    n = gcd(count,seed%nspc)
-    if (n <= 0) n = 1
-
-    ! assemble the reduced formula
-    do i = 1, seed%nspc
-       if (count(i) == 0) cycle
-       formula_label = formula_label // trim(seed%spc(i)%name)
-       if (count(i)/n > 1) &
-          formula_label = formula_label // string(count(i)/n)
-    end do
-    if (n > 1) &
-       formula_label = "(" // formula_label // ")" // string(n)
+    if (all(abs(count - nint(count)) < eps)) then
+       ! whole-atom counts: reduce by their greatest common divisor, so that
+       ! the repeat count n is the number of times the formula appears
+       allocate(icount(seed%nspc))
+       icount = nint(count)
+       n = gcd(icount,seed%nspc)
+       if (n <= 0) n = 1
+       do i = 1, seed%nspc
+          if (icount(i) == 0) cycle
+          formula_label = formula_label // trim(seed%spc(i)%name)
+          if (icount(i)/n > 1) &
+             formula_label = formula_label // string(icount(i)/n)
+       end do
+       if (n > 1) &
+          formula_label = "(" // formula_label // ")" // string(n)
+    else
+       ! fractional occupancies: no integer repeat count, so normalize by the
+       ! smallest nonzero count and report the fractions
+       small = minval(count,mask=(count > eps))
+       if (small <= 0d0) small = 1d0
+       do i = 1, seed%nspc
+          if (count(i) < eps) cycle
+          formula_label = formula_label // trim(seed%spc(i)%name) // &
+             fmtcount(count(i)/small)
+       end do
+    end if
 
   end function formula_label
+
+  !> Format an occupancy-weighted atom count for the clipboard label:
+  !> dropped if it is one, an integer if it is whole, and otherwise up to
+  !> three decimals with the trailing zeros removed.
+  function fmtcount(x)
+    use tools_io, only: string
+    real*8, intent(in) :: x
+    character(len=:), allocatable :: fmtcount
+
+    integer :: i
+
+    real*8, parameter :: eps = 1d-4
+
+    if (abs(x - 1d0) < eps) then
+       fmtcount = ""
+    elseif (abs(x - nint(x)) < eps) then
+       fmtcount = string(nint(x))
+    else
+       fmtcount = string(x,'f',decimal=3)
+       do i = len(fmtcount), 1, -1
+          if (fmtcount(i:i) /= "0") exit
+          fmtcount = fmtcount(1:i-1)
+       end do
+       if (len(fmtcount) > 0) then
+          if (fmtcount(len(fmtcount):len(fmtcount)) == ".") &
+             fmtcount = fmtcount(1:len(fmtcount)-1)
+       end if
+    end if
+
+  end function fmtcount
 
 end submodule proc
