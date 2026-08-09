@@ -382,7 +382,10 @@ contains
     integer :: backend
 
     integer :: i
-    integer, parameter :: pref(5) = (/ff_tip4p, ff_gfnxtb, ff_gfnff, ff_dreiding, ff_uff/)
+    ! GFN-FF comes before GFN2/GFN1-xTB: it is much cheaper and is meant for
+    ! geometries, which is what this default is used for (the relaxation and
+    ! MD backend)
+    integer, parameter :: pref(5) = (/ff_tip4p, ff_gfnff, ff_gfnxtb, ff_dreiding, ff_uff/)
 
     backend = ff_uff
     do i = 1, size(pref)
