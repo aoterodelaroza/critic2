@@ -38,6 +38,7 @@ module windows
   integer(c_size_t), parameter :: maxlib = 40000
 
   ! view modes (positive = normal, user-selectable; negative = forced)
+  integer, parameter, public :: vm_builder_trim = -7 ! forced by builder: trim branches (persistent)
   integer, parameter, public :: vm_builder_addfragment = -6 ! forced by builder: add fragments (persistent)
   integer, parameter, public :: vm_builder_addatom = -5 ! forced by builder: add atoms (persistent)
   integer, parameter, public :: vm_builder_remove = -4 ! forced by builder: remove atoms (persistent)
@@ -50,7 +51,8 @@ module windows
   integer, parameter, public :: vm_moveatom  = 3
   integer, parameter, public :: vm_NUM = 3 ! highest user-selectable mode (combo)
 
-  character(len=19), parameter, public :: vmnames(vm_builder_addfragment:vm_NUM) = (/&
+  character(len=19), parameter, public :: vmnames(vm_builder_trim:vm_NUM) = (/&
+     "Trim Branches      ",& ! vm_builder_trim
      "Add Fragments      ",& ! vm_builder_addfragment
      "Add Atoms          ",& ! vm_builder_addatom
      "Remove Atoms       ",& ! vm_builder_remove
@@ -197,7 +199,7 @@ module windows
      integer :: geometry_addbond_iview = 0 ! view window commanded for the add-bond pick
      real*8 :: geometry_addbond_time = 0d0 ! time the add-bond pick was commanded (to detect stale ids)
      ! builder parameters
-     integer :: builder_vm = 0 ! forced mode commanded to the parent view (0 = idle, else vm_builder_valence/remove/addatom)
+     integer :: builder_vm = 0 ! forced mode commanded to the parent view (0 = idle, else vm_builder_valence/remove/trim/addatom)
      integer :: builder_isys = 0 ! system latched for the builder picks (0 = no mode active)
      real*8 :: builder_time = 0d0 ! time of the last click-free poll (stale-click guard)
      integer :: builder_addatom_z = 6 ! add atoms: selected element (Z)
@@ -345,6 +347,7 @@ module windows
   integer, public :: iwin_about
   public :: windows_init
   public :: vm_is_forcedpick
+  public :: vm_exits_on_empty
   public :: draw_ff_backend_combo
   public :: paste_clipboard_fragment
 
@@ -420,6 +423,10 @@ module windows
        integer, intent(in) :: mode
        logical :: vm_is_forcedpick
      end function vm_is_forcedpick
+     pure module function vm_exits_on_empty(mode)
+       integer, intent(in) :: mode
+       logical :: vm_exits_on_empty
+     end function vm_exits_on_empty
      module subroutine windows_init()
      end subroutine windows_init
      module subroutine stack_realloc_maybe()

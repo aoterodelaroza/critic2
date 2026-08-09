@@ -180,6 +180,10 @@ contains
                 ! remove atoms (main pick only): the atom and its
                 ! terminal hydrogens
                 call sysc(w%builder_isys)%remove_atom_hydrogens(icel)
+             elseif (w%builder_vm == vm_builder_trim .and. imode == 1) then
+                ! trim branch (main pick only): the same, plus every
+                ! piece the removal disconnects but the main one
+                call sysc(w%builder_isys)%trim_branch(icel)
              end if
              ! hold the camera of the view the user is clicking in through
              ! the rebuild (the edit routines post the geometry event)
@@ -303,6 +307,11 @@ contains
     end if
     call iw_tooltip("Remove ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//") the clicked"//&
        " atoms in the view, along with their terminal hydrogens",ttshown)
+    if (iw_button("Trim branch",disabled=.not.havesys,sameline=.true.)) then
+       w%errmsg = ""
+       call builder_toggle(vm_builder_trim)
+    end if
+    call iw_tooltip("Remove atoms, their terminal hydrogens, and all disconnected fragments",ttshown)
 
     ! the valence section
     call iw_text("Valence",highlight=.true.)
@@ -1543,6 +1552,9 @@ contains
             else
                msg = msg // "replace the clicked atoms"
             end if
+         elseif (jvm == vm_builder_trim) then
+            msg = "Trim ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
+               ") the branch hanging from the clicked atoms"
          else
             msg = "Remove ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
                ") the atoms and their hydrogens"

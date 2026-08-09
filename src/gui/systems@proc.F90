@@ -2673,43 +2673,122 @@ contains
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: icel
 
-    integer :: isys, j, n, nb, nat
+    integer :: isys, nat
     integer, allocatable :: iat(:)
-    character(len=:), allocatable :: errmsg
 
     ! consistency checks
     isys = sysc%id
     if (.not.ok_system(isys,sys_init)) return
     if (icel < 1 .or. icel > sys(isys)%c%ncel) return
 
-    ! collect the atom and its terminal hydrogens (each neighbor once:
-    ! in a crystal the same cell atom may appear as a neighbor with
-    ! several lattice translations)
-    n = 0
-    if (allocated(sys(isys)%c%nstar)) n = sys(isys)%c%nstar(icel)%ncon
-    allocate(iat(n+1))
-    nat = 1
-    iat(1) = icel
-    do j = 1, n
-       nb = sys(isys)%c%nstar(icel)%idcon(j)
-       if (sys(isys)%c%spc(sys(isys)%c%atcel(nb)%is)%z /= 1) cycle
-       if (sys(isys)%c%nstar(nb)%ncon /= 1) cycle
-       if (any(iat(1:nat) == nb)) cycle
-       nat = nat + 1
-       iat(nat) = nb
-    end do
-
-    ! refuse to remove every atom in the system
-    if (nat >= sys(isys)%c%ncel) return
-
-    ! remove them
-    call sys(isys)%c%edit_atom_list(nat,iat(1:nat),remove=.true.,errmsg=errmsg)
-    if (has_errmsg(errmsg)) return
-
-    ! post the geometry change
-    call sysc%post_event(lastchange_geometry)
+    call atom_with_hydrogens(isys,icel,nat,iat)
+    call remove_atom_list(sysc,nat,iat)
 
   end subroutine remove_atom_hydrogens
+
+  !> Remove cell atom icel and its terminal hydrogen substituents If
+  !> doing so breaks the molecule, keep only one of the disconnected
+  !> pieces: a periodically extended piece if there is any, otherwise
+  !> the largest.
+  module subroutine trim_branch(sysc,icel)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: icel
+
+    integer :: isys, i, j, k, nb, ncel, nat, ncomp, imax, nmemb, nmax, imol0, nq, iq
+    integer :: lv(3)
+    integer, allocatable :: iat(:), icomp(:), queue(:), lvec(:,:)
+    logical, allocatable :: gone(:), discrete(:)
+    logical :: better
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    if (icel < 1 .or. icel > sys(isys)%c%ncel) return
+    ncel = sys(isys)%c%ncel
+
+    ! the atoms a plain removal would take out
+    call atom_with_hydrogens(isys,icel,nat,iat)
+    if (.not.allocated(sys(isys)%c%nstar) .or. .not.allocated(sys(isys)%c%idatcelmol)) then
+       call remove_atom_list(sysc,nat,iat)
+       return
+    end if
+    allocate(gone(ncel))
+    gone = .false.
+    gone(iat(1:nat)) = .true.
+    allocate(icomp(ncel),lvec(3,ncel),queue(ncel),discrete(ncel))
+
+    ! Connected components of the atoms that would be left, each atom
+    ! carrying the lattice translation that connects it to the seed of
+    ! its component. Reaching an atom a second time with a different
+    ! translation means the component extends periodically, so it is
+    ! not a discrete fragment. Only the molecule the clicked atom
+    ! belongs to can come apart, so the walk is confined to it and the
+    ! molecules that were already separate are left alone.
+    imol0 = sys(isys)%c%idatcelmol(1,icel)
+    icomp = 0
+    ncomp = 0
+    imax = 0
+    nmax = 0
+    do i = 1, ncel
+       if (gone(i) .or. icomp(i) > 0) cycle
+       if (sys(isys)%c%idatcelmol(1,i) /= imol0) cycle
+       ncomp = ncomp + 1
+       nmemb = 0
+       discrete(ncomp) = .true.
+       icomp(i) = ncomp
+       lvec(:,i) = 0
+       queue(1) = i
+       nq = 1
+       iq = 0
+       do while (iq < nq)
+          iq = iq + 1
+          j = queue(iq)
+          nmemb = nmemb + 1
+          do k = 1, sys(isys)%c%nstar(j)%ncon
+             nb = sys(isys)%c%nstar(j)%idcon(k)
+             if (gone(nb)) cycle
+             lv = lvec(:,j) + sys(isys)%c%nstar(j)%lcon(:,k)
+             if (icomp(nb) == 0) then
+                icomp(nb) = ncomp
+                lvec(:,nb) = lv
+                nq = nq + 1
+                queue(nq) = nb
+             elseif (any(lvec(:,nb) /= lv)) then
+                discrete(ncomp) = .false.
+             end if
+          end do
+       end do
+
+       ! The piece that stays: a periodically extended one if there is
+       ! any (those can never be removed, so keeping a discrete piece
+       ! instead of one of them would trim nothing), otherwise the
+       ! largest. Ties go to the lowest cell-atom index.
+       if (imax == 0) then
+          better = .true.
+       elseif (discrete(imax) .and. .not.discrete(ncomp)) then
+          better = .true.
+       elseif (discrete(imax) .neqv. discrete(ncomp)) then
+          better = .false.
+       else
+          better = (nmemb > nmax)
+       end if
+       if (better) then
+          imax = ncomp
+          nmax = nmemb
+       end if
+    end do
+
+    ! add the atoms of every other discrete piece to the removal list
+    do i = 1, ncel
+       if (icomp(i) == 0 .or. icomp(i) == imax) cycle
+       if (.not.discrete(icomp(i))) cycle
+       nat = nat + 1
+       iat(nat) = i
+    end do
+
+    call remove_atom_list(sysc,nat,iat)
+
+  end subroutine trim_branch
 
   !> Add nat atoms with atomic numbers zat and Cartesian coordinates x
   !> to this system in a single rebuild.
@@ -3668,5 +3747,54 @@ contains
     end if
 
   end function fmtcount
+
+  !> Return cell atom icel in system isys together with its mobile
+  !> hydrogen substituents (hydrogens whose only bonded neighbor is
+  !> icel).  Returns nat indices in iat, allocated to hold every cell
+  !> atom so the caller can append to the list.
+  subroutine atom_with_hydrogens(isys,icel,nat,iat)
+    integer, intent(in) :: isys, icel
+    integer, intent(out) :: nat
+    integer, allocatable, intent(inout) :: iat(:)
+
+    integer :: j, n, nb
+
+    ! each neighbor once: in a crystal the same cell atom may appear as
+    ! a neighbor with several lattice translations
+    if (allocated(iat)) deallocate(iat)
+    allocate(iat(sys(isys)%c%ncel))
+    nat = 1
+    iat(1) = icel
+    n = 0
+    if (allocated(sys(isys)%c%nstar)) n = sys(isys)%c%nstar(icel)%ncon
+    do j = 1, n
+       nb = sys(isys)%c%nstar(icel)%idcon(j)
+       if (sys(isys)%c%spc(sys(isys)%c%atcel(nb)%is)%z /= 1) cycle
+       if (sys(isys)%c%nstar(nb)%ncon /= 1) cycle
+       if (any(iat(1:nat) == nb)) cycle
+       nat = nat + 1
+       iat(nat) = nb
+    end do
+
+  end subroutine atom_with_hydrogens
+
+  !> Remove the nat cell atoms in iat from this system and post the
+  !> geometry change. Does nothing if that would empty the system.
+  subroutine remove_atom_list(sysc,nat,iat)
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: nat
+    integer, intent(in) :: iat(nat)
+
+    character(len=:), allocatable :: errmsg
+
+    ! refuse to remove every atom in the system
+    if (nat >= sys(sysc%id)%c%ncel) return
+
+    call sys(sysc%id)%c%edit_atom_list(nat,iat,remove=.true.,errmsg=errmsg)
+    if (has_errmsg(errmsg)) return
+
+    call sysc%post_event(lastchange_geometry)
+
+  end subroutine remove_atom_list
 
 end submodule proc

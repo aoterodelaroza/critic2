@@ -1360,7 +1360,7 @@ contains
     pickmode = vm_is_forcedpick(w%viewmode)
     ! modes needing an explicit exit-bind tooltip line: the persistent
     ! builder picks (the move modes list theirs through their own group)
-    emptyexit = (w%viewmode == vm_builder_remove .or. valence)
+    emptyexit = vm_exits_on_empty(w%viewmode)
 
     ! delayed tooltip with info about the key/mouse bindings for this view mode
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
@@ -1369,7 +1369,7 @@ contains
           ! modes share the navigation binds (minus measurements)
           select case (w%viewmode)
           case (vm_navigate, vm_pick_atom, vm_builder_valence, vm_builder_remove,&
-             vm_builder_addatom, vm_builder_addfragment)
+             vm_builder_trim, vm_builder_addatom, vm_builder_addfragment)
              mygroup = group_viewmode_navigation
           case (vm_select)
              mygroup = group_viewmode_select
@@ -1417,6 +1417,8 @@ contains
                 lblline(n) = "Remove Hydrogen from Atom"
              elseif (w%viewmode == vm_builder_remove) then
                 lblline(n) = "Remove Atom"
+             elseif (w%viewmode == vm_builder_trim) then
+                lblline(n) = "Trim Branch at Atom"
              elseif (w%viewmode == vm_builder_addatom) then
                 lblline(n) = "Add Atoms Here"
              elseif (w%viewmode == vm_builder_addfragment) then
@@ -1576,7 +1578,7 @@ contains
        if (ok) ok = .not.is_bind_event(BIND_CANCEL)
        ! the exit bind on empty space also exits the persistent builder
        ! pick modes (not add-atoms, where every click places a fragment)
-       if (ok .and. (w%viewmode == vm_builder_remove .or. w%viewmode == vm_builder_valence)) &
+       if (ok .and. vm_exits_on_empty(w%viewmode)) &
           ok = .not.exit_on_empty(BIND_PICKATOM_EXIT)
        if (.not.ok) then
           w%vmdata%idx = 0
@@ -2646,9 +2648,20 @@ contains
     logical :: vm_is_forcedpick
 
     vm_is_forcedpick = (mode == vm_pick_atom .or. mode == vm_builder_valence .or.&
-       mode == vm_builder_remove .or. mode == vm_builder_addatom .or.&
-       mode == vm_builder_addfragment)
+       mode == vm_builder_remove .or. mode == vm_builder_trim .or.&
+       mode == vm_builder_addatom .or. mode == vm_builder_addfragment)
   end function vm_is_forcedpick
+
+  !> Whether view mode is one of the persistent builder pick modes that
+  !> the exit bind leaves when it is used on empty space (not add-atoms
+  !> or add-fragment, where every click places something).
+  pure module function vm_exits_on_empty(mode)
+    integer, intent(in) :: mode
+    logical :: vm_exits_on_empty
+
+    vm_exits_on_empty = (mode == vm_builder_valence .or. mode == vm_builder_remove .or.&
+       mode == vm_builder_trim)
+  end function vm_exits_on_empty
 
   !> Whether any mouse button was clicked this frame
   function any_mouse_clicked()
