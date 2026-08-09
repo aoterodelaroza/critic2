@@ -763,14 +763,14 @@ contains
     use interfaces_cimgui
     use systems, only: sys, sysc, sys_init, ok_system, are_threads_running, duplicate_system,&
        add_system_empty_molecule, reread_system_from_file, remove_system,&
-       kill_initialization_thread, write_system, sysclip, paste_clipboard
+       kill_initialization_thread, write_system, sysclip, paste_clipboard, clipboard_clear
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
        wintype_preferences, wintype_view, wpurp_view_alternate, wintype_load_field,&
        wintype_about, wintype_geometry, wintype_water_cluster,&
        paste_clipboard_fragment
-    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
+    use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem, iw_button
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_NEW_MOLECULE, BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
        BIND_CANCEL, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO, BIND_COPY_SELECTION,&
@@ -1109,12 +1109,15 @@ contains
           string(io%Framerate,'f',decimal=1) // " FPS)"
        call igSetCursorPosX(iw_calcwidth(len(str2) + len(str1) + 2,0,from_end=.true.))
        call iw_text(str2)
-       if (len(str1) > 0) &
-          call iw_text(str1,highlight=.true.,sameline=.true.)
+       if (len(str1) > 0) then
+          if (iw_button(str1,sameline=.true.)) call clipboard_clear()
+          call iw_tooltip("Contents of the clipboard. Click to empty",ttshown)
+       end if
 #else
        if (len(str1) > 0) then
           call igSetCursorPosX(iw_calcwidth(len(str1),0,from_end=.true.))
-          call iw_text(str1,highlight=.true.)
+          if (iw_button(str1)) call clipboard_clear()
+          call iw_tooltip("Contents of the clipboard. Click to empty",ttshown)
        end if
 #endif
     end if

@@ -1305,6 +1305,19 @@ contains
 
   end subroutine copy_highlighted
 
+  !> Empty the clipboard, releasing the copied atoms.
+  module subroutine clipboard_clear()
+
+    call sysclip%seed%end()
+    sysclip%isfilled = .false.
+    sysclip%haslattice = .false.
+    sysclip%ianchor = 0
+    sysclip%iattach = 0
+    sysclip%xdir = (/1d0,0d0,0d0/)
+    sysclip%label = ""
+
+  end subroutine clipboard_clear
+
   !> Create a new system from the atoms in the clipboard: a molecule if
   !> molecule is true, a crystal otherwise. Pasting as a crystal
   !> requires the clipboard to carry a lattice (i.e. the atoms were

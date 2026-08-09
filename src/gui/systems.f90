@@ -217,6 +217,7 @@ module systems
   public :: regenerate_system_pointers
   public :: ok_system
   public :: paste_clipboard
+  public :: clipboard_clear
 
   !xx! Interfaces
   interface
@@ -336,6 +337,8 @@ module systems
      module subroutine paste_clipboard(molecule)
        logical, intent(in) :: molecule
      end subroutine paste_clipboard
+     module subroutine clipboard_clear()
+     end subroutine clipboard_clear
      module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate,errmsg)
        class(sysconf), intent(inout) :: sysc
        logical, intent(in), optional :: remove, merge, duplicate
