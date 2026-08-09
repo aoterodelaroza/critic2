@@ -21,6 +21,8 @@ submodule (systems) proc
 
   !xx! private procedures
   ! function initialization_thread_worker(arg)
+  ! subroutine seed_from_highlighted(sysc,seed,nat,molecule)
+  ! function formula_label(seed)
 
 contains
 
@@ -1232,14 +1234,11 @@ contains
   !> molecule.
   module subroutine new_system_from_highlighted(sysc,forcemolecule)
     use crystalseedmod, only: crystalseed
-    use types, only: realloc
-    use global, only: rborder_def
     use param, only: isformat_r_derived
     class(sysconf), intent(inout) :: sysc
     logical, intent(in), optional :: forcemolecule
 
-    integer :: i, nat, id
-    integer, allocatable :: iat(:)
+    integer :: nat, id
     type(crystalseed), allocatable :: seed(:)
     logical :: molecule
 
@@ -1247,44 +1246,14 @@ contains
     id = sysc%id
     if (.not.ok_system(id,sys_init)) return
 
-    ! list the selected cell atoms; no-op if nothing is selected
-    call sysc%highlighted_atom_list(nat,iat)
-    if (nat == 0) return
-
     ! whether to force the new system to be a molecule
     molecule = .false.
     if (present(forcemolecule)) molecule = forcemolecule
 
-    ! build a seed from the crystal, then keep only the selected atoms
+    ! build the seed with the selected atoms; no-op if nothing is selected
     allocate(seed(1))
-    call sys(id)%c%makeseed(seed(1),copysym=.false.)
-    call realloc(seed(1)%x,3,nat)
-    call realloc(seed(1)%is,nat)
-    call realloc(seed(1)%atname,nat)
-    do i = 1, nat
-       if (molecule) then
-          ! absolute Cartesian (bohr) coordinates for a molecule seed
-          seed(1)%x(:,i) = sys(id)%c%atcel(iat(i))%r + sys(id)%c%molx0
-       else
-          seed(1)%x(:,i) = sys(id)%c%atcel(iat(i))%x
-       end if
-       seed(1)%is(i) = sys(id)%c%atcel(iat(i))%is
-       seed(1)%atname(i) = sys(id)%c%at(sys(id)%c%atcel(iat(i))%idx)%name
-    end do
-    seed(1)%nat = nat
-
-    ! turn the seed into a non-periodic molecule if requested
-    if (molecule) then
-       seed(1)%ismolecule = .true.
-       seed(1)%useabr = 0
-       seed(1)%havesym = 0
-       seed(1)%neqv = 0
-       seed(1)%ncv = 0
-       seed(1)%havex0 = .false.
-       seed(1)%molx0 = 0d0
-       seed(1)%border = rborder_def
-       seed(1)%cubic = .false.
-    end if
+    call seed_from_highlighted(sysc,seed(1),nat,molecule)
+    if (nat == 0) return
     seed(1)%name = trim(sysc%seed%name) // " (selection)"
 
     ! derived system
@@ -1296,6 +1265,32 @@ contains
     call launch_initialization_thread()
 
   end subroutine new_system_from_highlighted
+
+  !> Copy the selected atoms to the clipboard. A molecule is copied as
+  !> Cartesian coordinates; a crystal keeps its lattice, so the
+  !> fragment can be rebuilt in the periodic frame it came from. Does
+  !> nothing if no atoms are selected.
+  module subroutine copy_highlighted(sysc)
+    use crystalseedmod, only: crystalseed
+    class(sysconf), intent(inout) :: sysc
+
+    integer :: nat, id
+    type(crystalseed) :: seed
+
+    ! consistency checks
+    id = sysc%id
+    if (.not.ok_system(id,sys_init)) return
+
+    ! build the seed with the selected atoms; keep the old clipboard if none
+    call seed_from_highlighted(sysc,seed,nat,sys(id)%c%ismolecule)
+    if (nat == 0) return
+
+    ! fill the clipboard
+    sysclip%seed = seed
+    sysclip%label = formula_label(seed)
+    sysclip%isfilled = .true.
+
+  end subroutine copy_highlighted
 
   !> Remove, merge or duplicate the highlighted atoms in the system.
   module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate,errmsg)
@@ -3226,5 +3221,100 @@ contains
     ti%active = .false.
 
   end function initialization_thread_worker
+
+  !> Build a seed holding only the selected (highlighted) atoms of
+  !> system sysc, and return how many there were (zero if nothing is
+  !> selected). The seed inherits the lattice of the parent system. If
+  !> molecule is true it is turned into a non-periodic molecule with
+  !> absolute Cartesian coordinates instead.
+  subroutine seed_from_highlighted(sysc,seed,nat,molecule)
+    use crystalseedmod, only: crystalseed
+    use types, only: realloc
+    use global, only: rborder_def
+    type(sysconf), intent(inout) :: sysc
+    type(crystalseed), intent(inout) :: seed
+    integer, intent(out) :: nat
+    logical, intent(in) :: molecule
+
+    integer :: i, id
+    integer, allocatable :: iat(:)
+
+    ! list the selected cell atoms; no-op if nothing is selected
+    id = sysc%id
+    call sysc%highlighted_atom_list(nat,iat)
+    if (nat == 0) return
+
+    ! build a seed from the crystal, then keep only the selected atoms
+    call sys(id)%c%makeseed(seed,copysym=.false.)
+    call realloc(seed%x,3,nat)
+    call realloc(seed%is,nat)
+    call realloc(seed%atname,nat)
+    do i = 1, nat
+       if (molecule) then
+          ! absolute Cartesian (bohr) coordinates for a molecule seed
+          seed%x(:,i) = sys(id)%c%atcel(iat(i))%r + sys(id)%c%molx0
+       else
+          seed%x(:,i) = sys(id)%c%atcel(iat(i))%x
+       end if
+       seed%is(i) = sys(id)%c%atcel(iat(i))%is
+       seed%atname(i) = sys(id)%c%at(sys(id)%c%atcel(iat(i))%idx)%name
+    end do
+    seed%nat = nat
+
+    ! turn the seed into a non-periodic molecule if requested
+    if (molecule) then
+       seed%ismolecule = .true.
+       seed%useabr = 0
+       seed%havesym = 0
+       seed%neqv = 0
+       seed%ncv = 0
+       seed%havex0 = .false.
+       seed%molx0 = 0d0
+       seed%border = rborder_def
+       seed%cubic = .false.
+    end if
+
+  end subroutine seed_from_highlighted
+
+  !> Empirical formula of the atoms in this seed, in the form (F)n
+  !> where F is the formula reduced by the greatest common divisor of
+  !> the species counts and n is the number of times it is repeated.
+  !> The parentheses and the count are dropped when n is one.
+  function formula_label(seed)
+    use crystalseedmod, only: crystalseed
+    use tools_math, only: gcd
+    use tools_io, only: string
+    type(crystalseed), intent(in) :: seed
+    character(len=:), allocatable :: formula_label
+
+    integer :: i, n
+    integer, allocatable :: count(:)
+
+    formula_label = ""
+    if (seed%nat == 0 .or. seed%nspc == 0) return
+
+    ! number of atoms of each species
+    allocate(count(seed%nspc))
+    count = 0
+    do i = 1, seed%nat
+       if (seed%is(i) >= 1 .and. seed%is(i) <= seed%nspc) &
+          count(seed%is(i)) = count(seed%is(i)) + 1
+    end do
+
+    ! the repeat count is the gcd of the species counts
+    n = gcd(count,seed%nspc)
+    if (n <= 0) n = 1
+
+    ! assemble the reduced formula
+    do i = 1, seed%nspc
+       if (count(i) == 0) cycle
+       formula_label = formula_label // trim(seed%spc(i)%name)
+       if (count(i)/n > 1) &
+          formula_label = formula_label // string(count(i)/n)
+    end do
+    if (n > 1) &
+       formula_label = "(" // formula_label // ")" // string(n)
+
+  end function formula_label
 
 end submodule proc

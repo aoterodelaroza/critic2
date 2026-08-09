@@ -763,7 +763,7 @@ contains
     use interfaces_cimgui
     use systems, only: sys, sysc, sys_init, ok_system, are_threads_running, duplicate_system,&
        add_system_empty_molecule, reread_system_from_file, remove_system,&
-       kill_initialization_thread, write_system
+       kill_initialization_thread, write_system, sysclip
     use windows, only: win, iwin_tree, iwin_view, iwin_console_input,&
        iwin_console_output, iwin_about, stack_create_window, wintype_dialog,&
        wpurp_dialog_openfiles, wintype_new_struct, wintype_new_struct_library,&
@@ -772,7 +772,7 @@ contains
     use utils, only: igIsItemHovered_delayed, iw_tooltip, iw_text, iw_calcwidth, iw_menuitem
     use keybindings, only: BIND_QUIT, BIND_OPEN, BIND_CLOSE, BIND_REOPEN, BIND_NEW,&
        BIND_NEW_MOLECULE, BIND_GEOMETRY, BIND_SAVE, BIND_EXPORT_NOW, BIND_EDITSELECT_SELECT_ALL,&
-       BIND_CANCEL, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO,&
+       BIND_CANCEL, BIND_EDITSELECT_REMOVE, BIND_UNDO, BIND_REDO, BIND_COPY_SELECTION,&
        get_bind_keyname, is_bind_event
     use interfaces_glfw, only: GLFW_TRUE, glfwSetWindowShouldClose
     use tools_io, only: string
@@ -829,6 +829,12 @@ contains
     !! undo/redo the geometry of the view-selected system
     if (isysvok .and. is_bind_event(BIND_UNDO)) call sysc(isysv)%undo()
     if (isysvok .and. is_bind_event(BIND_REDO)) call sysc(isysv)%redo()
+
+    !! copy the selected atoms of the view-selected system to the clipboard.
+    if (isysvok .and. .not.io%WantTextInput) then
+       if (is_bind_event(BIND_COPY_SELECTION,norepeat=.true.)) &
+          call sysc(isysv)%copy_highlighted()
+    end if
 
     ! start the menu
     if (igBeginMainMenuBar()) then
@@ -1050,10 +1056,24 @@ contains
           ttshown = .false.
        end if
 
-       ! fps message
-       call igSetCursorPosX(iw_calcwidth(30,0,from_end=.true.))
-       call iw_text(string(1000._c_float / io%Framerate,'f',decimal=3) // " ms/frame (" // &
-          string(io%Framerate,'f',decimal=1) // " FPS)")
+       ! right-aligned status: the clipboard contents, and the frame rate in
+       ! debug builds only
+       str1 = ""
+       if (sysclip%isfilled) &
+          str1 = "Clipboard: " // sysclip%label
+#ifdef DEBUG
+       str2 = string(1000._c_float / io%Framerate,'f',decimal=3) // " ms/frame (" // &
+          string(io%Framerate,'f',decimal=1) // " FPS)"
+       call igSetCursorPosX(iw_calcwidth(len(str2) + len(str1) + 2,0,from_end=.true.))
+       call iw_text(str2)
+       if (len(str1) > 0) &
+          call iw_text(str1,highlight=.true.,sameline=.true.)
+#else
+       if (len(str1) > 0) then
+          call igSetCursorPosX(iw_calcwidth(len(str1),0,from_end=.true.))
+          call iw_text(str1,highlight=.true.)
+       end if
+#endif
     end if
     call igEndMainMenuBar()
 

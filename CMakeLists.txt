@@ -187,6 +187,9 @@ foreach(_cfg DEBUG PROFILE RELEASE)
   endif()
 endforeach()
 
+## DEBUG is defined in debug builds only
+add_compile_definitions($<$<CONFIG:Debug>:DEBUG>)
+
 ## openmp
 if (ENABLE_OPENMP)
   find_package(OpenMP MODULE COMPONENTS Fortran)

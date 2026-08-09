@@ -129,6 +129,7 @@ module systems
      procedure :: edit_highlighted_atoms
      procedure :: edit_highlighted_species
      procedure :: new_system_from_highlighted
+     procedure :: copy_highlighted
      ! atlisttype tools
      procedure :: attype_combo_simple
      procedure :: attype_number
@@ -186,6 +187,14 @@ module systems
   integer, public :: nsys = 0
   type(system), allocatable, target, public :: sys(:)
   type(sysconf), allocatable, target, public :: sysc(:)
+
+  ! System clipboard
+  type, public :: sysclipboard
+     logical :: isfilled = .false. ! whether there is anything to paste
+     type(crystalseed) :: seed ! the copied atoms
+     character(len=:), allocatable :: label ! empirical formula, e.g. "(H2O)6"
+  end type sysclipboard
+  type(sysclipboard), public :: sysclip
 
   public :: launch_initialization_thread
   public :: kill_initialization_thread
@@ -310,6 +319,9 @@ module systems
        class(sysconf), intent(inout) :: sysc
        logical, intent(in), optional :: forcemolecule
      end subroutine new_system_from_highlighted
+     module subroutine copy_highlighted(sysc)
+       class(sysconf), intent(inout) :: sysc
+     end subroutine copy_highlighted
      module subroutine edit_highlighted_atoms(sysc,remove,merge,duplicate,errmsg)
        class(sysconf), intent(inout) :: sysc
        logical, intent(in), optional :: remove, merge, duplicate
