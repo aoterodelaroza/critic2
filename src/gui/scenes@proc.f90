@@ -544,7 +544,7 @@ contains
     ! build the window-anchored axes
     do i = 1, s%nrep
        if (s%rep(i)%type == reptype_axes .and. s%rep(i)%axes%placement == 1) then
-          if (s%rep(i)%axes%scale_auto) then
+          if (s%rep(i)%axes%scale_auto .and. sys(s%id)%c%ncel > 0) then
              s%rep(i)%axes%scale = axes_winfrac_def * real(s%scenerad,8) / max(s%rep(i)%axes%length,1d-10)
              s%rep(i)%axes%scale_auto = .false.
           end if
