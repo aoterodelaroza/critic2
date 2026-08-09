@@ -3332,7 +3332,8 @@ contains
           ! absolute Cartesian (bohr) coordinates for a molecule seed
           seed%x(:,i) = sys(id)%c%atcel(iat(i))%r + sys(id)%c%molx0
        else
-          seed%x(:,i) = sys(id)%c%atcel(iat(i))%x
+          ! keep a molecule selected across a cell boundary in one piece
+          seed%x(:,i) = sys(id)%c%atcel(iat(i))%x + cell_unwrap_lvec(id,iat(i))
        end if
        seed%is(i) = sys(id)%c%atcel(iat(i))%is
        seed%atname(i) = sys(id)%c%at(sys(id)%c%atcel(iat(i))%idx)%name
@@ -3363,7 +3364,7 @@ contains
 
     integer :: i, k, ia, j, id, ncel, icase, zi, zj
     integer :: lvec(3)
-    integer, allocatable :: iseed(:)
+    integer, allocatable :: iseed(:), ishift(:,:)
     real*8 :: v(3), d, xcm(3)
     logical :: inside
     logical :: found(4)
@@ -3383,10 +3384,11 @@ contains
     ncel = sys(id)%c%ncel
 
     ! map cell atom -> seed atom, which doubles as the membership test
-    allocate(iseed(ncel))
+    allocate(iseed(ncel),ishift(3,nat))
     iseed = 0
     do i = 1, nat
        if (iat(i) >= 1 .and. iat(i) <= ncel) iseed(iat(i)) = i
+       ishift(:,i) = cell_unwrap_lvec(id,iat(i))
     end do
 
     ! scan the bonds of the selected atoms, keeping the best candidate of each
@@ -3424,7 +3426,11 @@ contains
                 if (d < eps_dzero) cycle
 
                 ! classify this bond
-                inside = (iseed(j) > 0 .and. all(lvec == 0))
+                ! the neighbour is inside when it is selected and the bond does
+                ! not leave the fragment's own frame; a bond that merely wraps
+                ! around the cell inside one molecule is internal
+                inside = .false.
+                if (iseed(j) > 0) inside = all(lvec == ishift(:,iseed(j)) - ishift(:,i))
                 if (.not.inside) then
                    if (zi > 1 .and. zj > 1) then
                       icase = 1
@@ -3517,6 +3523,24 @@ contains
     end function lvec_lower
 
   end subroutine clipboard_anchor
+
+  !> Lattice vector that unwraps cell atom i into the whole molecule
+  !> it belongs to.
+  function cell_unwrap_lvec(id,i)
+    integer, intent(in) :: id, i
+    integer :: cell_unwrap_lvec(3)
+
+    integer :: imol
+
+    cell_unwrap_lvec = 0
+    if (sys(id)%c%ismolecule) return
+    if (.not.allocated(sys(id)%c%idatcelmol) .or. .not.allocated(sys(id)%c%mol)) return
+    imol = sys(id)%c%idatcelmol(1,i)
+    if (imol < 1 .or. imol > sys(id)%c%nmol) return
+    if (.not.sys(id)%c%mol(imol)%discrete) return
+    cell_unwrap_lvec = sys(id)%c%mol(imol)%at(sys(id)%c%idatcelmol(2,i))%lvec
+
+  end function cell_unwrap_lvec
 
   !> Turn a seed into a non-periodic molecule: drop the cell and the
   !> symmetry and use the default molecular box. The coordinates in the
