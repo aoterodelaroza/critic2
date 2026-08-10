@@ -2598,7 +2598,7 @@ contains
        th2end = xrpd_th2end_def
        c2 = s%c
        readc2 = .true.
-    elseif (len(word) - index(word,".peaks") == 6) then
+    elseif (index(word,".peaks") > 0 .and. len(word) - index(word,".peaks") == 6) then
        call p2%from_peaks_file(word,errmsg)
        if (len_trim(errmsg) > 0) &
           call ferror("struct_comparevc_vcgpwdf",errmsg,faterr)
