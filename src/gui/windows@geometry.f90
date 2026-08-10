@@ -220,9 +220,8 @@ contains
        w%sortdir = 1
        w%geometry_input_coord = 0d0
        w%geometry_input_species = 1
-       w%geometry_addbond_iat = 0
+       call w%geometry_addbond%clear()
        w%geometry_addbond_iview = 0
-       w%geometry_addbond_time = 0d0
        w%geometry_cell_simple = .true.
        w%geometry_cell_nrep = 1_c_int
        w%geometry_cell_intmat = reshape((/1,0,0, 0,1,0, 0,0,1/),(/3,3/))
@@ -249,32 +248,32 @@ contains
 
     ! handle a pending add-bond pick commanded to a view window
     ipickhl = 0
-    if (w%geometry_addbond_iat > 0) then
+    if (w%geometry_addbond%is_staged()) then
        iview = w%geometry_addbond_iview
        oksys = (iview >= 1 .and. iview <= nwin)
        if (oksys) oksys = win(iview)%isinit .and. win(iview)%isopen .and. win(iview)%type == wintype_view
        ok = oksys
        if (ok) ok = win(iview)%isys == isys .and. win(iview)%vmdata%owner == w%id .and.&
-          sysc(isys)%timelastchange_geometry < w%geometry_addbond_time
+          .not.w%geometry_addbond%is_stale(sysc(isys)%timelastchange_geometry)
        if (.not.ok) then
           ! the view is gone, shows another system, another window took over
           ! the pick, or the geometry changed (stale cell-atom ids): cancel
           if (oksys) call win(iview)%viewmode_release_forced(w%id)
-          w%geometry_addbond_iat = 0
+          call w%geometry_addbond%clear()
           w%geometry_addbond_iview = 0
        elseif (win(iview)%viewmode >= 0) then
           ! the pick finished: add a single bond if a valid atom was clicked
           ! (self-bonds and duplicates are rejected by add_bond)
           if (win(iview)%vmdata%idx(1) > 0) &
-             call sysc(isys)%add_bond(w%geometry_addbond_iat,win(iview)%vmdata%idx(1),&
+             call sysc(isys)%add_bond(w%geometry_addbond%idx(1),win(iview)%vmdata%idx(1),&
                 win(iview)%vmdata%idx(2:4),1)
           win(iview)%vmdata%idx = 0
-          w%geometry_addbond_iat = 0
+          call w%geometry_addbond%clear()
           w%geometry_addbond_iview = 0
        else
           ! the pick is in progress: highlight the atom receiving the bond
           ! (applied in the hover-highlight section at the end of the draw)
-          ipickhl = w%geometry_addbond_iat
+          ipickhl = w%geometry_addbond%idx(1)
        end if
     end if
 
@@ -1604,9 +1603,8 @@ contains
                    if (igTableSetColumnIndex(icol)) then
                       ! "+" button: pick an atom in the view to add a bond to this atom
                       if (iw_button("+##addbond" // suffix,disabled=(iview == 0))) then
-                         w%geometry_addbond_iat = i
+                         call w%geometry_addbond%stage((/i,0,0,0/))
                          w%geometry_addbond_iview = iview
-                         w%geometry_addbond_time = glfwGetTime()
                          call win(iview)%viewmode_set_forced(vm_pick_atom,&
                             "Pick an atom to bond to atom " // string(i),w%id)
                       end if

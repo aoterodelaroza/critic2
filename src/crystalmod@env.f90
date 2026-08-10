@@ -1771,16 +1771,15 @@ contains
     !> Set the bond order (ord) and aromatic outward direction (vec) for the
     !> entry of atom ja pointing to jb at lattice vector lv.
     subroutine set_bond_data(ja,jb,lv,ord,vec)
+      use types, only: star_find
       integer, intent(in) :: ja, jb, lv(3), ord
       real*8, intent(in) :: vec(3)
       integer :: kkk
-      do kkk = 1, nstar(ja)%ncon
-         if (nstar(ja)%idcon(kkk) == jb .and. all(nstar(ja)%lcon(:,kkk) == lv)) then
-            nstar(ja)%ordcon(kkk) = ord
-            nstar(ja)%aromdir(:,kkk) = vec
-            return
-         end if
-      end do
+      kkk = star_find(nstar(ja),jb,lv)
+      if (kkk > 0) then
+         nstar(ja)%ordcon(kkk) = ord
+         nstar(ja)%aromdir(:,kkk) = vec
+      end if
     end subroutine set_bond_data
 
     !> Branch-and-bound search for the maximum-weight set of double

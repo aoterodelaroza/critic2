@@ -18,7 +18,7 @@
 ! Routines for the builder window.
 submodule (windows) builder
   use interfaces_cimgui
-  use types, only: vstring, neighstar, nstar_subset
+  use types, only: vstring, neighstar, nstar_subset, substituent
   implicit none
 
   ! add-atoms local geometries (see addatom_template for the vertex sets)
@@ -73,7 +73,7 @@ contains
        BIND_OK_FOCUSED_DIALOG, BIND_CANCEL
     use interfaces_glfw, only: glfwGetTime
     use tools_io, only: string, nameguess
-    use tools_math, only: cross, axisangle2mat
+    use tools_math, only: cross, perpendicular, axisangle2mat
     use param, only: bohrtoa, pi, eye
     class(window), intent(inout), target :: w
 
@@ -106,8 +106,7 @@ contains
        w%builder_vm = 0
        w%builder_isys = 0
        w%builder_time = 0d0
-       w%builder_bond_idx = 0
-       w%builder_bond_time = 0d0
+       call w%builder_bond%clear()
        w%edit_kind = 0
        w%edit_isys = 0
        w%edit_idx = 0
@@ -127,9 +126,10 @@ contains
     if (w%builder_vm /= 0) then
        ! a geometry change since an atom was staged for a new bond
        ! invalidates its index: drop it (and its highlight)
-       if (w%builder_bond_idx(1) > 0 .and.&
-          sysc(w%builder_isys)%timelastchange_geometry > w%builder_bond_time) &
-          w%builder_bond_idx = 0
+       if (w%builder_bond%is_staged()) then
+          if (w%builder_bond%is_stale(sysc(w%builder_isys)%timelastchange_geometry)) &
+             call w%builder_bond%clear()
+       end if
        ok = goodparent
        if (ok) ok = win(iview)%viewmode == w%builder_vm .and.&
           win(iview)%vmdata%owner == w%id .and.&
@@ -197,15 +197,14 @@ contains
                 ! create bond (main pick only): the first click stages
                 ! an atom, the second bonds the pair; clicking the
                 ! staged atom again cancels it
-                if (w%builder_bond_idx(1) == 0) then
-                   w%builder_bond_idx = idxpick
-                   w%builder_bond_time = glfwGetTime()
-                elseif (all(w%builder_bond_idx == idxpick)) then
-                   w%builder_bond_idx = 0
+                if (.not.w%builder_bond%is_staged()) then
+                   call w%builder_bond%stage(idxpick)
+                elseif (w%builder_bond%same(idxpick)) then
+                   call w%builder_bond%clear()
                 else
-                   call sysc(w%builder_isys)%create_bond(w%builder_bond_idx,idxpick,&
+                   call sysc(w%builder_isys)%create_bond(w%builder_bond%idx,idxpick,&
                       w%builder_vm == vm_builder_bondh,w%errmsg)
-                   w%builder_bond_idx = 0
+                   call w%builder_bond%clear()
                 end if
              end if
              ! hold the camera of the view the user is clicking in through
@@ -577,8 +576,8 @@ contains
        atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,w%edit_kind))
 
     ! transient highlight of the atom staged for a new bond
-    if (w%builder_bond_idx(1) > 0) &
-       call sysc(w%builder_isys)%highlight_atoms(.true.,w%builder_bond_idx(1:1),&
+    if (w%builder_bond%is_staged()) &
+       call sysc(w%builder_isys)%highlight_atoms(.true.,w%builder_bond%idx(1:1),&
        atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,1))
 
     ! the relax section
@@ -902,21 +901,15 @@ contains
     ! current bond between the two latched atoms.
     function editdist_bondidx() result(idx)
       integer :: idx
-      integer :: ia, j, k, lv(3)
+      integer :: j, k, lv(3)
 
       idx = 0
-      ia = w%edit_idx(1,1)
       lv = w%edit_idx(2:4,2) - w%edit_idx(2:4,1)
-      if (.not.allocated(sys(isys)%c%nstar)) return
-      do j = 1, sys(isys)%c%nstar(ia)%ncon
-         if (sys(isys)%c%nstar(ia)%idcon(j) == w%edit_idx(1,2) .and.&
-            all(sys(isys)%c%nstar(ia)%lcon(:,j) == lv)) then
-            do k = 1, size(bondorder,1)
-               if (sys(isys)%c%nstar(ia)%ordcon(j) == bondorder(k)) then
-                  idx = k
-                  return
-               end if
-            end do
+      j = sys(isys)%c%find_bond(w%edit_idx(1,1),w%edit_idx(1,2),lv)
+      if (j == 0) return
+      do k = 1, size(bondorder,1)
+         if (sys(isys)%c%nstar(w%edit_idx(1,1))%ordcon(j) == bondorder(k)) then
+            idx = k
             return
          end if
       end do
@@ -1031,19 +1024,6 @@ contains
       a = atan2(norm2(cross(va,vc)),dot_product(va,vc))
     end function editang_angat
 
-    ! Unit vector perpendicular to v (assumed nonzero).
-    function editang_perp(v) result(u)
-      real*8, intent(in) :: v(3)
-      real*8 :: u(3)
-
-      if (abs(v(1)) < 0.9d0 * norm2(v)) then
-         u = cross(v,(/1d0,0d0,0d0/))
-      else
-         u = cross(v,(/0d0,1d0,0d0/))
-      end if
-      u = u / norm2(u)
-    end function editang_perp
-
     ! Find the translation (shift) of the central atom along the
     ! internal bisector that makes the angle equal to atgt (radians),
     ! with the terminal atoms fixed. Returns .false. if no such shift
@@ -1093,7 +1073,7 @@ contains
          ! reachable target
          w0 = va / norm2(va) + vc / norm2(vc)
          if (norm2(w0) < eps_dzero) then
-            w0 = editang_perp(va)
+            w0 = perpendicular(va)
          else
             w0 = w0 / norm2(w0)
          end if
@@ -1152,7 +1132,7 @@ contains
          ! rotation axis: perpendicular to the plane of the three atoms;
          ! any direction perpendicular to the arms if they are collinear
          axis = cross(va,vc)
-         if (norm2(axis) < eps_dzero) axis = editang_perp(va)
+         if (norm2(axis) < eps_dzero) axis = perpendicular(va)
       end if
 
       ! build the new positions and apply them in place; the moving set
@@ -1243,7 +1223,7 @@ contains
       if (goodparent) call win(iview)%viewmode_release_forced(w%id,w%builder_vm)
       w%builder_vm = 0
       w%builder_isys = 0
-      w%builder_bond_idx = 0
+      call w%builder_bond%clear()
     end subroutine builder_stop
 
     ! Add-atoms mode: on empty space (icel = 0), unproject the clicked
@@ -1254,10 +1234,10 @@ contains
       real(c_float), intent(in) :: xpos(2)
       integer, intent(in) :: icel
 
-      real*8 :: x0(3), rot(3,3), bl
+      real*8 :: x0(3), rot(3,3)
       real*8 :: tvec(3,maxaddsub), xat(3,maxaddsub+1)
-      integer :: zat(maxaddsub+1), nsub, nat, k
-      logical :: ok
+      integer :: zat(maxaddsub+1), nsub, nat
+      logical :: ok, used(maxaddsub)
 
       call view_click_frame(iview,xpos,x0,rot,ok)
       if (.not.ok) return
@@ -1271,16 +1251,11 @@ contains
       ! the fragment: central atom plus hydrogens (per-system covalent
       ! radii, same source as change_valence)
       call addatom_template(w%builder_addatom_ig,nsub,tvec)
-      nat = 1 + nsub
+      nat = 1
       zat(1) = w%builder_addatom_z
       xat(:,1) = x0
-      if (nsub > 0) then
-         bl = sysc(w%builder_isys)%atmcov(zat(1)) + sysc(w%builder_isys)%atmcov(1)
-         do k = 1, nsub
-            zat(1+k) = 1
-            xat(:,1+k) = x0 + bl * matmul(rot,tvec(:,k))
-         end do
-      end if
+      used = .false.
+      call addatom_cap_hydrogens(w%builder_isys,zat(1),x0,rot,nsub,tvec,used,nat,zat,xat)
       call sysc(w%builder_isys)%add_atoms_fragment(nat,zat(1:nat),xat(:,1:nat))
 
     end subroutine addatom_apply
@@ -1290,13 +1265,14 @@ contains
       integer, intent(in) :: icel
       real*8, intent(in) :: rcam(3,3)
 
-      integer :: isysl, nsub, m, ndel, nadd, k, nb, ncon, znew, zanchor
+      integer :: isysl, nsub, m, ndel, nadd, k, ncon, znew, zanchor
       integer :: zat(maxaddsub+1)
       integer, allocatable :: idel(:)
       real*8 :: tvec(3,maxaddsub), xat(3,maxaddsub+1), rot(3,3)
-      real*8 :: x0(3), dir(3), bl, dnorm
+      real*8 :: x0(3), xtmp(3), dir(3), dnorm
       real*8, allocatable :: ufix(:,:)
-      logical :: used(maxaddsub), isterm
+      type(substituent), allocatable :: sub(:)
+      logical :: used(maxaddsub), lok
 
       isysl = w%builder_isys
       if (icel < 1 .or. icel > sys(isysl)%c%ncel) return
@@ -1305,38 +1281,33 @@ contains
       call addatom_template(w%builder_addatom_ig,nsub,tvec)
 
       ! classify the neighbors: kept substituents vs terminal hydrogens
+      ! (a mono-coordinate atom keeps its only neighbor)
       x0 = sys(isysl)%c%atcel(icel)%r
-      ncon = sys(isysl)%c%nstar(icel)%ncon
+      call sys(isysl)%c%substituents(icel,ncon,sub)
       allocate(idel(ncon+1),ufix(3,max(ncon,1)))
       ndel = 1
       idel(1) = icel
       m = 0
       zanchor = 0
       do k = 1, ncon
-         nb = sys(isysl)%c%nstar(icel)%idcon(k)
-         isterm = ncon > 1 .and. sys(isysl)%c%spc(sys(isysl)%c%atcel(nb)%is)%z == 1
-         if (isterm) isterm = sys(isysl)%c%nstar(nb)%ncon == 1
-         if (isterm) then
-            if (.not.any(idel(1:ndel) == nb)) then
+         if (ncon > 1 .and. sub(k)%z == 1 .and. sub(k)%terminal) then
+            if (.not.any(idel(1:ndel) == sub(k)%id)) then
                ndel = ndel + 1
-               idel(ndel) = nb
+               idel(ndel) = sub(k)%id
             end if
          else
             m = m + 1
-            ufix(:,m) = sys(isysl)%c%x2c(sys(isysl)%c%atcel(nb)%x +&
-               dble(sys(isysl)%c%nstar(icel)%lcon(:,k)))
-            zanchor = sys(isysl)%c%spc(sys(isysl)%c%atcel(nb)%is)%z
+            ufix(:,m) = sys(isysl)%c%atcel(sub(k)%id)%r + sub(k)%tv
+            zanchor = sub(k)%z
          end if
       end do
 
       ! on a single kept substituent, re-bond the new atom at the
       ! covalent distance along the old bond direction
       if (m == 1) then
-         dir = x0 - ufix(:,1)
-         dnorm = norm2(dir)
-         if (dnorm < eps_dzero) return
-         x0 = ufix(:,1) + (sysc(isysl)%atmcov(zanchor) + sysc(isysl)%atmcov(znew)) *&
-            dir / dnorm
+         call cov_point(isysl,ufix(:,1),zanchor,x0,znew,xtmp,lok)
+         if (.not.lok) return
+         x0 = xtmp
       end if
 
       ! enough kept substituents already: replace the element and remove the terminal hydrogens
@@ -1368,16 +1339,33 @@ contains
       nadd = 1
       zat(1) = znew
       xat(:,1) = x0
-      bl = sysc(isysl)%atmcov(znew) + sysc(isysl)%atmcov(1)
-      do k = 1, nsub
-         if (used(k)) cycle
-         nadd = nadd + 1
-         zat(nadd) = 1
-         xat(:,nadd) = x0 + bl * matmul(rot,tvec(:,k))
-      end do
+      call addatom_cap_hydrogens(isysl,znew,x0,rot,nsub,tvec,used,nadd,zat,xat)
       call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:ndel),nadd,zat(1:nadd),xat(:,1:nadd))
 
     end subroutine addatom_replace
+
+    ! Append capping hydrogens at the covalent distance from the atom
+    ! (element z0) at x0, on the template slots tvec not flagged in
+    ! used, rotated by rot; grows the zat/xat fragment arrays from nat.
+    subroutine addatom_cap_hydrogens(isysl,z0,x0,rot,nsub,tvec,used,nat,zat,xat)
+      integer, intent(in) :: isysl, z0, nsub
+      real*8, intent(in) :: x0(3), rot(3,3), tvec(3,maxaddsub)
+      logical, intent(in) :: used(maxaddsub)
+      integer, intent(inout) :: nat
+      integer, intent(inout) :: zat(maxaddsub+1)
+      real*8, intent(inout) :: xat(3,maxaddsub+1)
+
+      integer :: k
+      real*8 :: bl
+
+      bl = sysc(isysl)%atmcov(z0) + sysc(isysl)%atmcov(1)
+      do k = 1, nsub
+         if (used(k)) cycle
+         nat = nat + 1
+         zat(nat) = 1
+         xat(:,nat) = x0 + bl * matmul(rot,tvec(:,k))
+      end do
+    end subroutine addatom_cap_hydrogens
 
     ! Find the rotation rot and the injective assignment of the m unit
     ! directions u to the n template vertices t that best aligns them
@@ -1660,10 +1648,31 @@ contains
   ! and capped with its placeholder atom. On an atom (icel > 0) the
   ! anchor replaces it (see addfrag_target), unless the fragment is a
   ! ligand, in which case it bonds to it (see addfrag_ligand_target).
+  ! Point at the sum of the covalent radii of za (at xa) and zb, from
+  ! xa towards xb (system isys). ok = the two positions are not
+  ! coincident.
+  subroutine cov_point(isys,xa,za,xb,zb,x,ok)
+    use systems, only: sysc
+    integer, intent(in) :: isys, za, zb
+    real*8, intent(in) :: xa(3), xb(3)
+    real*8, intent(out) :: x(3)
+    logical, intent(out) :: ok
+
+    real*8 :: dir(3), dn
+
+    ok = .false.
+    dir = xb - xa
+    dn = norm2(dir)
+    if (dn < eps_dzero) return
+    x = xa + (sysc(isys)%atmcov(za) + sysc(isys)%atmcov(zb)) * dir / dn
+    ok = .true.
+
+  end subroutine cov_point
+
   subroutine frag_place(isys,iview,nat,z,x,ianchor,iattach,xdir,radius,capattach,xpos,icel,&
      nstar0)
     use systems, only: sys, sysc
-    use tools_math, only: cross
+    use tools_math, only: cross, perpendicular
     integer, intent(in) :: isys, iview, nat, ianchor, iattach, icel
     integer, intent(in) :: z(nat)
     real*8, intent(in) :: x(3,nat), xdir(3), radius
@@ -1753,9 +1762,9 @@ contains
       integer, allocatable, intent(inout) :: idel(:)
       logical, intent(out) :: ok
 
-      integer :: isysl, ncon, k, nb, nanch, nrem, m, zkept
-      real*8 :: x0(3), xnb(3), xkept(3), dir(3), dn, sumdir(3)
-      logical :: isterm
+      integer :: isysl, ncon, k, nanch, nrem, m, zkept
+      real*8 :: x0(3), xkept(3), dn, sumdir(3)
+      type(substituent), allocatable :: sub(:)
 
       ok = .false.
       isysl = isys
@@ -1763,7 +1772,7 @@ contains
       if (.not.allocated(sys(isysl)%c%nstar)) return
 
       x0 = sys(isysl)%c%atcel(icel)%r
-      ncon = sys(isysl)%c%nstar(icel)%ncon
+      call sys(isysl)%c%substituents(icel,ncon,sub)
       if (allocated(idel)) deallocate(idel)
       allocate(idel(ncon+1))
       ndel = 1
@@ -1782,24 +1791,16 @@ contains
       sumdir = 0d0
       xkept = 0d0
       do k = 1, ncon
-         nb = sys(isysl)%c%nstar(icel)%idcon(k)
-         isterm = (sys(isysl)%c%spc(sys(isysl)%c%atcel(nb)%is)%z == 1)
-         if (isterm) isterm = (sys(isysl)%c%nstar(nb)%ncon == 1)
-         if (isterm .and. nrem < nanch) then
-            if (any(idel(1:ndel) == nb)) cycle
+         if (sub(k)%z == 1 .and. sub(k)%terminal .and. nrem < nanch) then
+            if (any(idel(1:ndel) == sub(k)%id)) cycle
             nrem = nrem + 1
             ndel = ndel + 1
-            idel(ndel) = nb
+            idel(ndel) = sub(k)%id
          else
-            xnb = sys(isysl)%c%x2c(sys(isysl)%c%atcel(nb)%x +&
-               dble(sys(isysl)%c%nstar(icel)%lcon(:,k)))
-            dir = xnb - x0
-            dn = norm2(dir)
-            if (dn < eps_dzero) cycle
             m = m + 1
-            sumdir = sumdir + dir / dn
-            xkept = xnb
-            zkept = sys(isysl)%c%spc(sys(isysl)%c%atcel(nb)%is)%z
+            sumdir = sumdir + sub(k)%u
+            xkept = sys(isysl)%c%atcel(sub(k)%id)%r + sub(k)%tv
+            zkept = sub(k)%z
          end if
       end do
 
@@ -1813,11 +1814,8 @@ contains
          dattach = sumdir / dn
          ! on a single kept neighbor, re-bond at the sum of covalent radii
          if (m == 1) then
-            dir = x0 - xkept
-            dn = norm2(dir)
-            if (dn < eps_dzero) return
-            p0 = xkept + (sysc(isysl)%atmcov(zkept) +&
-               sysc(isysl)%atmcov(z(ianchor))) * dir / dn
+            call cov_point(isysl,xkept,zkept,x0,z(ianchor),p0,ok)
+            if (.not.ok) return
          end if
       end if
       ok = .true.
@@ -1835,9 +1833,10 @@ contains
       real*8, intent(out) :: p0(3), dattach(3)
       logical, intent(out) :: ok
 
-      integer :: isysl, ncon, k, nb, m, i1, i2, i3, ncand, ibest
-      real*8 :: x0(3), xnb(3), dir(3), dn, sumdir(3), smax, sbest
+      integer :: isysl, ncon, k, m, i1, i2, i3, ncand, ibest
+      real*8 :: x0(3), dir(3), dn, sumdir(3), smax, sbest
       real*8 :: u(3,maxnbcand), cand(3,27)
+      type(substituent), allocatable :: sub(:)
 
       ok = .false.
       isysl = isys
@@ -1846,19 +1845,13 @@ contains
 
       ! unit directions to the neighbors of the clicked atom
       x0 = sys(isysl)%c%atcel(icel)%r
-      ncon = sys(isysl)%c%nstar(icel)%ncon
+      call sys(isysl)%c%substituents(icel,ncon,sub)
       sumdir = 0d0
       m = 0
       do k = 1, ncon
          if (m >= maxnbcand) exit
-         nb = sys(isysl)%c%nstar(icel)%idcon(k)
-         xnb = sys(isysl)%c%x2c(sys(isysl)%c%atcel(nb)%x +&
-            dble(sys(isysl)%c%nstar(icel)%lcon(:,k)))
-         dir = xnb - x0
-         dn = norm2(dir)
-         if (dn < eps_dzero) cycle
          m = m + 1
-         u(:,m) = dir / dn
+         u(:,m) = sub(k)%u
          sumdir = sumdir + u(:,m)
       end do
 
@@ -1974,14 +1967,10 @@ contains
       e(:,3) = e(:,3) - dot_product(e(:,3),e(:,1)) * e(:,1)
       dn = norm2(e(:,3))
       if (dn < eps_dzero) then
-         e(:,3) = (/1d0,0d0,0d0/) - e(1,1) * e(:,1)
-         dn = norm2(e(:,3))
-         if (dn < eps_dzero) then
-            e(:,3) = (/0d0,1d0,0d0/) - e(2,1) * e(:,1)
-            dn = norm2(e(:,3))
-         end if
+         e(:,3) = perpendicular(e(:,1))
+      else
+         e(:,3) = e(:,3) / dn
       end if
-      e(:,3) = e(:,3) / dn
       e(:,2) = cross(e(:,3),e(:,1))
 
     end subroutine addfrag_frame
@@ -2001,14 +1990,10 @@ contains
       dn = norm2(t(:,3))
       if (dn < eps_dzero) then
          ! the attachment points at the viewer: any twist will do
-         t(:,3) = (/1d0,0d0,0d0/) - t(1,1) * t(:,1)
-         dn = norm2(t(:,3))
-         if (dn < eps_dzero) then
-            t(:,3) = (/0d0,1d0,0d0/) - t(2,1) * t(:,1)
-            dn = norm2(t(:,3))
-         end if
+         t(:,3) = perpendicular(t(:,1))
+      else
+         t(:,3) = t(:,3) / dn
       end if
-      t(:,3) = t(:,3) / dn
       t(:,2) = cross(t(:,3),t(:,1))
       rot = matmul(t,transpose(e))
 

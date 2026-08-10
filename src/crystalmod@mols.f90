@@ -131,11 +131,13 @@ contains
     use param, only: icrd_crys
     class(crystal), intent(inout) :: c
 
-    integer :: i, j, k, nat
+    integer :: i, j, k, nat, mnat, nlv, ntot
     integer :: nlvec, lwork, info
-    integer, allocatable :: lvec(:,:), lmol(:,:), nlmol(:)
+    integer, allocatable :: lvec(:,:), lmol(:,:), nlmol(:), lmoloff(:)
+    integer, allocatable :: imem(:), mid(:), mlvec(:,:), lper(:,:)
     integer, allocatable :: fis(:), fidx(:), fcidx(:), flvec(:,:)
     logical, allocatable :: isdiscrete(:)
+    logical :: disc
     real*8, allocatable :: rlvec(:,:), sigma(:), uvec(:,:), vvec(:,:), work(:)
     real*8, allocatable :: fx(:,:)
 
@@ -148,24 +150,41 @@ contains
     ! checks and allocate
     if (.not.allocated(c%nstar)) &
        call ferror('fill_molecular_fragments','no asterisms found',faterr)
-    allocate(c%idatcelmol(2,c%ncel),lvec(3,c%ncel),isdiscrete(20),lmol(3,20),nlmol(20))
+    allocate(c%idatcelmol(2,c%ncel),lvec(3,c%ncel),isdiscrete(20),lmol(3,20))
+    allocate(nlmol(20),lmoloff(20),imem(c%ncel))
     nlmol = 0
+    lmoloff = 0
     c%idatcelmol = 0
+    imem = 0
     isdiscrete = .true.
 
-    ! depth-first search for the connected components
+    ! depth-first search for the connected components; each molecule
+    ! keeps its own slice of the periodicity vectors (lmol, starting at
+    ! lmoloff)
+    ntot = 0
     do i = 1, c%ncel
        if (c%idatcelmol(1,i) > 0) cycle
 
        c%nmol = c%nmol + 1
        if (c%nmol > size(isdiscrete,1)) then
           call realloc(nlmol,2*c%nmol)
-          call realloc(lmol,3,2*c%nmol)
+          call realloc(lmoloff,2*c%nmol)
           call realloc(isdiscrete,2*c%nmol)
           isdiscrete(c%nmol:) = .true.
           nlmol(c%nmol:) = 0
        end if
-       call explore_node(i,c%nmol,(/0,0,0/))
+       call c%walk_component(i,(/0,0,0/),imem,mnat,mid,mlvec,disc,&
+          nlvecper=nlv,lvecper=lper)
+       isdiscrete(c%nmol) = disc
+       nlmol(c%nmol) = nlv
+       lmoloff(c%nmol) = ntot
+       if (ntot + nlv > size(lmol,2)) call realloc(lmol,3,2*(ntot+nlv))
+       if (nlv > 0) lmol(:,ntot+1:ntot+nlv) = lper(:,1:nlv)
+       ntot = ntot + nlv
+       do j = 1, mnat
+          c%idatcelmol(1,mid(j)) = c%nmol
+          lvec(:,mid(j)) = mlvec(:,j)
+       end do
     end do
 
     ! for non-discrete fragments, recompute the per-atom lattice vectors so
@@ -192,7 +211,7 @@ contains
        end do
        call c%mol(i)%build(c%nspc,c%spc,nat,fx(:,1:nat),icrd_crys,fis(1:nat),&
           fidx(1:nat),fcidx(1:nat),c%m_x2c,flvec(:,1:nat),&
-          isdiscrete(i),nlmol(i),lmol(:,1:nlmol(i)))
+          isdiscrete(i),nlmol(i),lmol(:,lmoloff(i)+1:lmoloff(i)+nlmol(i)))
     end do
     deallocate(nlmol,lmol,isdiscrete,lvec,fx,fis,fidx,fcidx,flvec)
 
@@ -242,74 +261,6 @@ contains
     end if
 
   contains
-    subroutine explore_node(istart,nmol,lvecstart)
-      integer, intent(in) :: istart
-      integer, intent(in) :: nmol
-      integer, intent(in) :: lvecstart(3)
-
-      integer :: k, newid, lnew(3), m, i, sp
-      integer :: lveci(3)
-      logical :: found
-      ! explicit DFS stack (replaces recursion to avoid stack overflow
-      ! in large molecules); stores node, neighbor cursor, lattice
-      ! vector
-      integer, allocatable :: stk_i(:), stk_k(:), stk_lvec(:,:)
-
-      allocate(stk_i(64),stk_k(64),stk_lvec(3,64))
-      sp = 1
-      stk_i(1) = istart
-      stk_k(1) = 0
-      stk_lvec(:,1) = lvecstart
-      c%idatcelmol(1,istart) = nmol
-      lvec(:,istart) = lvecstart
-
-      do while (sp > 0)
-         i = stk_i(sp)
-         lveci = stk_lvec(:,sp)
-         stk_k(sp) = stk_k(sp) + 1
-         k = stk_k(sp)
-         if (k > c%nstar(i)%ncon) then
-            sp = sp - 1    ! exhausted this node, pop
-            cycle
-         end if
-
-         newid = c%nstar(i)%idcon(k)
-         if (c%idatcelmol(1,newid) == 0) then
-            ! discover newid, then descend into it (push)
-            c%idatcelmol(1,newid) = nmol
-            lvec(:,newid) = lveci + c%nstar(i)%lcon(:,k)
-            sp = sp + 1
-            if (sp > size(stk_i,1)) then
-               call realloc(stk_i,2*sp)
-               call realloc(stk_k,2*sp)
-               call realloc(stk_lvec,3,2*sp)
-            end if
-            stk_i(sp) = newid
-            stk_k(sp) = 0
-            stk_lvec(:,sp) = lvec(:,newid)
-         else
-            lnew = abs(lveci + c%nstar(i)%lcon(:,k) - lvec(:,newid))
-            if (any(lnew /= 0)) then
-               isdiscrete(nmol) = .false.
-               found = .false.
-               do m = 1, nlmol(nmol)
-                  if (all(lmol(:,m) == lnew)) then
-                     found = .true.
-                     exit
-                  end if
-               end do
-               if (.not.found) then
-                  nlmol(nmol) = nlmol(nmol) + 1
-                  if (size(lmol,2) < nlmol(nmol)) call realloc(lmol,3,2*nlmol(nmol))
-                  lmol(:,nlmol(nmol)) = lnew
-               end if
-            end if
-         end if
-      end do
-
-      deallocate(stk_i,stk_k,stk_lvec)
-    end subroutine explore_node
-
     !> For each non-discrete fragment, find the pieces of the fragment
     !> that are connected without crossing cell boundaries (bonds with
     !> lcon = 0).  A piece is a dangler if all its bonds to the rest
@@ -320,8 +271,11 @@ contains
     !> cell. Overwrites lvec(:,i) for all atoms in non-discrete
     !> fragments (zero for the atoms in the core).
     subroutine reconnect_nondiscrete_pieces()
-      integer :: i, j, k, m, iq, nq, ip, jp, npc, nedge, npeel, ineigh, lab(3)
-      logical :: changed
+      integer :: i, j, k, m, ip, jp, npc, nedge, npeel, ineigh, lab(3)
+      integer :: pnat
+      logical :: changed, pdisc
+      integer, allocatable :: imemp(:), pid(:), plvec(:,:)
+      logical, allocatable :: skipd(:)
       integer, allocatable :: ipiece(:) ! piece id per cell atom (0 = atom in a discrete fragment)
       integer, allocatable :: pshift(:,:) ! lattice shift assigned to each piece
       integer, allocatable :: q(:) ! BFS queue (cell atom ids)
@@ -335,27 +289,20 @@ contains
 
       ! find the pieces: connected components of the lcon = 0 subgraph,
       ! restricted to the atoms of non-discrete fragments
-      allocate(ipiece(c%ncel),q(c%ncel))
+      allocate(ipiece(c%ncel),q(c%ncel),imemp(c%ncel),skipd(c%ncel))
+      imemp = 0
+      do i = 1, c%ncel
+         skipd(i) = isdiscrete(c%idatcelmol(1,i))
+      end do
       ipiece = 0
       npc = 0
       do i = 1, c%ncel
-         if (isdiscrete(c%idatcelmol(1,i))) cycle
-         if (ipiece(i) > 0) cycle
+         if (skipd(i) .or. ipiece(i) > 0) cycle
          npc = npc + 1
-         nq = 1
-         q(1) = i
-         ipiece(i) = npc
-         iq = 0
-         do while (iq < nq)
-            iq = iq + 1
-            j = q(iq)
-            do k = 1, c%nstar(j)%ncon
-               if (any(c%nstar(j)%lcon(:,k) /= 0)) cycle
-               if (ipiece(c%nstar(j)%idcon(k)) > 0) cycle
-               nq = nq + 1
-               q(nq) = c%nstar(j)%idcon(k)
-               ipiece(q(nq)) = npc
-            end do
+         call c%walk_component(i,(/0,0,0/),imemp,pnat,pid,plvec,pdisc,&
+            skipatom=skipd,zeroedge=.true.)
+         do j = 1, pnat
+            ipiece(pid(j)) = npc
          end do
       end do
 
@@ -698,13 +645,12 @@ contains
     type(fragment), intent(out), allocatable :: fr(:)
     logical, intent(out), allocatable :: isdiscrete(:)
 
-    integer :: i, j, k, l, newid, newl(3), jid
+    integer :: i, j, k
     integer :: nat
-    integer, allocatable :: id(:), lvec(:,:)
+    integer, allocatable :: id(:), lvec(:,:), imem(:)
     integer, allocatable :: fis(:), fidx(:), fcidx(:)
     real*8, allocatable :: fx(:,:)
-    logical, allocatable :: ldone(:)
-    logical :: found, ldist
+    logical :: ldist
     integer :: nseed
     integer, allocatable :: idseed(:), lseed(:,:)
     logical, allocatable :: fseed(:)
@@ -720,67 +666,18 @@ contains
 
     ! allocate stuff
     nfrag = 0
-    allocate(fr(1),isdiscrete(1),id(10),lvec(3,10),ldone(10))
+    allocate(fr(1),isdiscrete(1),id(10),lvec(3,10),imem(c%ncel))
     isdiscrete = .true.
 
     do i = 1, nseed
        if (fseed(i)) cycle
 
-       ! initialize the stack with atom i in the seed
-       nat = 1
-       id(1) = idseed(i)
-       lvec(:,1) = lseed(:,i)
-       ldone(1) = .false.
-       ldist = .true.
-       ! run the stack
-       do while (.not.all(ldone(1:nat)))
-          ! find the next atom that is not done
-          do j = 1, nat
-             if (.not.ldone(j)) exit
-          end do
-          ldone(j) = .true.
-          jid = id(j)
-
-          ! run over all neighbors of j
-          do k = 1, c%nstar(jid)%ncon
-             ! id for the atom and lattice vector
-             newid = c%nstar(jid)%idcon(k)
-             newl = c%nstar(jid)%lcon(:,k) + lvec(:,j)
-
-             ! is this atom in the fragment already? -> skip it
-             found = .false.
-             do l = 1, nat
-                found = (newid == id(l)) .and. all(newl == lvec(:,l))
-                if (found) exit
-             end do
-             if (found) cycle
-
-             ! is this atom in the fragment already with a different
-             ! lattice vector?  -> add it to the list but not to the
-             ! stack, and mark the fragment as non-discrete
-             found = .false.
-             do l = 1, nat
-                found = (newid == id(l))
-                if (found) exit
-             end do
-             nat = nat + 1
-             if (nat > size(ldone)) then
-                call realloc(id,2*nat)
-                call realloc(lvec,3,2*nat)
-                call realloc(ldone,2*nat)
-             end if
-             id(nat) = newid
-             lvec(:,nat) = newl
-
-             if (found) then
-                ldone(nat) = .true.
-                ldist = .false.
-             else
-                ! if it wasn't found, then add the atom to the stack
-                ldone(nat) = .false.
-             end if
-          end do
-       end do
+       ! Explore the component of this seed atom, taken at the seed
+       ! lattice vector. The visited map is fresh for every seed: the
+       ! same cell atoms may be walked again for a different image of
+       ! the same molecule.
+       imem = 0
+       call c%walk_component(idseed(i),lseed(:,i),imem,nat,id,lvec,ldist,bfs=.true.)
 
        ! add this fragment to the list
        fseed(i) = .true.
@@ -831,16 +728,12 @@ contains
     logical, intent(out) :: discrete
     integer, intent(in), optional :: imask3, imask4
 
-    integer :: i, k, sp, newid, lveci(3), im3, im4
-    integer, allocatable :: idmol(:), lvec(:,:)
-    integer, allocatable :: stk_i(:), stk_k(:), stk_lvec(:,:)
+    integer :: nmask
+    integer :: skipbond(2,2)
+    integer, allocatable :: imem(:), lvec(:,:)
 
     ! initialize the output; return the single seed atom if there is
     ! no connectivity
-    im3 = 0
-    im4 = 0
-    if (present(imask3)) im3 = imask3
-    if (present(imask4)) im4 = imask4
     nat = 0
     if (.not.allocated(iat)) allocate(iat(10))
     discrete = .true.
@@ -849,61 +742,188 @@ contains
     iat(1) = i0
     if (.not.allocated(c%nstar)) return
 
-    ! visited/lattice-vector bookkeeping
-    allocate(idmol(c%ncel),lvec(3,c%ncel))
-    idmol = 0
-    lvec = 0
-    idmol(i0) = 1
+    nmask = 1
+    skipbond(:,1) = (/imask1,imask2/)
+    if (present(imask3) .and. present(imask4)) then
+       nmask = 2
+       skipbond(:,2) = (/imask3,imask4/)
+    end if
 
-    ! explicit DFS stack over the neighbor stars, same scheme as
-    ! explore_node in fill_molecular_fragments
-    allocate(stk_i(64),stk_k(64),stk_lvec(3,64))
-    sp = 1
-    stk_i(1) = i0
-    stk_k(1) = 0
-    stk_lvec(:,1) = 0
-
-    do while (sp > 0)
-       i = stk_i(sp)
-       lveci = stk_lvec(:,sp)
-       stk_k(sp) = stk_k(sp) + 1
-       k = stk_k(sp)
-       if (k > c%nstar(i)%ncon) then
-          sp = sp - 1
-          cycle
-       end if
-
-       newid = c%nstar(i)%idcon(k)
-       ! skip the masked bonds
-       if ((i == imask1 .and. newid == imask2) .or.&
-          (i == imask2 .and. newid == imask1)) cycle
-       if ((i == im3 .and. newid == im4) .or.&
-          (i == im4 .and. newid == im3)) cycle
-       if (idmol(newid) == 0) then
-          ! discover newid, then descend into it (push)
-          idmol(newid) = 1
-          lvec(:,newid) = lveci + c%nstar(i)%lcon(:,k)
-          nat = nat + 1
-          if (nat > size(iat,1)) call realloc(iat,2*nat)
-          iat(nat) = newid
-          sp = sp + 1
-          if (sp > size(stk_i,1)) then
-             call realloc(stk_i,2*sp)
-             call realloc(stk_k,2*sp)
-             call realloc(stk_lvec,3,2*sp)
-          end if
-          stk_i(sp) = newid
-          stk_k(sp) = 0
-          stk_lvec(:,sp) = lvec(:,newid)
-       elseif (any(lveci + c%nstar(i)%lcon(:,k) /= lvec(:,newid))) then
-          ! reached a visited atom through a different lattice
-          ! vector: the component is connected to its own periodic
-          ! images and is not discrete
-          discrete = .false.
-       end if
-    end do
-    deallocate(stk_i,stk_k,stk_lvec)
+    allocate(imem(c%ncel))
+    imem = 0
+    call c%walk_component(i0,(/0,0,0/),imem,nat,iat,lvec,discrete,&
+       skipbond=skipbond(:,1:nmask))
 
   end subroutine masked_fragment
+
+  !> Explore the connected component of the bond network (c%nstar)
+  !> containing cell atom i0, taken at lattice offset lvec0. imem(ncel)
+  !> is the visited map (0 = not visited); the caller initializes it
+  !> and may reuse it across walks, since disjoint components never
+  !> consult each other's entries. On output, imem(id(j)) = j for the
+  !> nat atoms of the component, listed in id(1:nat) with per-atom
+  !> lattice vectors lvec(:,1:nat) (id and lvec are reallocated as
+  !> needed). discrete = the component was never reached at two
+  !> different lattice vectors. Optional: skipatom(ncel) excludes
+  !> atoms; skipbond(2,:) excludes bonds by unordered cell-atom index
+  !> pair (all their images); zeroedge restricts the walk to bonds with
+  !> a zero lattice vector; nlvecper/lvecper collect the distinct
+  !> absolute lattice-vector mismatches (the periodicity vectors of a
+  !> non-discrete component). Returns nat = 0 if i0 is out of range,
+  !> already visited, or skipped. c%nstar must be allocated.
+  module subroutine walk_component(c,i0,lvec0,imem,nat,id,lvec,discrete,&
+     skipatom,skipbond,zeroedge,bfs,nlvecper,lvecper)
+    use types, only: realloc
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: i0, lvec0(3)
+    integer, intent(inout) :: imem(:)
+    integer, intent(out) :: nat
+    integer, allocatable, intent(inout) :: id(:), lvec(:,:)
+    logical, intent(out) :: discrete
+    logical, intent(in), optional :: skipatom(:)
+    integer, intent(in), optional :: skipbond(:,:)
+    logical, intent(in), optional :: zeroedge
+    logical, intent(in), optional :: bfs
+    integer, intent(out), optional :: nlvecper
+    integer, allocatable, intent(inout), optional :: lvecper(:,:)
+
+    integer :: i, k, sp, iq, lveci(3)
+    logical :: zeroedge_, bfs_
+    integer, allocatable :: stk_i(:), stk_k(:), stk_lvec(:,:)
+
+    nat = 0
+    discrete = .true.
+    if (present(nlvecper)) nlvecper = 0
+    zeroedge_ = .false.
+    if (present(zeroedge)) zeroedge_ = zeroedge
+    bfs_ = .false.
+    if (present(bfs)) bfs_ = bfs
+    if (i0 < 1 .or. i0 > c%ncel) return
+    if (imem(i0) /= 0) return
+    if (present(skipatom)) then
+       if (skipatom(i0)) return
+    end if
+
+    if (.not.allocated(id)) allocate(id(10))
+    if (.not.allocated(lvec)) allocate(lvec(3,10))
+    if (size(lvec,2) < size(id,1)) call realloc(lvec,3,size(id,1))
+    nat = 1
+    id(1) = i0
+    lvec(:,1) = lvec0
+    imem(i0) = 1
+
+    if (bfs_) then
+       ! breadth-first: the member list doubles as the queue
+       iq = 0
+       do while (iq < nat)
+          iq = iq + 1
+          i = id(iq)
+          lveci = lvec(:,iq)
+          do k = 1, c%nstar(i)%ncon
+             call visit_neighbor(i,lveci,k,.false.)
+          end do
+       end do
+    else
+       ! explicit depth-first stack over the neighbor stars (replaces
+       ! recursion to avoid stack overflow in large molecules); stores
+       ! node, neighbor cursor, lattice vector
+       allocate(stk_i(64),stk_k(64),stk_lvec(3,64))
+       sp = 1
+       stk_i(1) = i0
+       stk_k(1) = 0
+       stk_lvec(:,1) = lvec0
+
+       do while (sp > 0)
+          i = stk_i(sp)
+          lveci = stk_lvec(:,sp)
+          stk_k(sp) = stk_k(sp) + 1
+          k = stk_k(sp)
+          if (k > c%nstar(i)%ncon) then
+             sp = sp - 1 ! exhausted this node, pop
+             cycle
+          end if
+          call visit_neighbor(i,lveci,k,.true.)
+       end do
+    end if
+
+  contains
+    ! Process neighbor k of atom i (at lattice vector lveci): apply the
+    ! bond and atom masks, discover the neighbor into the member list
+    ! (descending into it when push is set), or detect a lattice-vector
+    ! mismatch for a visited one.
+    subroutine visit_neighbor(i,lveci,k,push)
+      integer, intent(in) :: i, lveci(3), k
+      logical, intent(in) :: push
+
+      integer :: newid, lnew(3), m
+      logical :: skip, found
+
+      ! skip boundary-crossing bonds, masked bonds, and skipped atoms
+      newid = c%nstar(i)%idcon(k)
+      if (zeroedge_) then
+         if (any(c%nstar(i)%lcon(:,k) /= 0)) return
+      end if
+      if (present(skipbond)) then
+         skip = .false.
+         do m = 1, size(skipbond,2)
+            if ((i == skipbond(1,m) .and. newid == skipbond(2,m)) .or.&
+               (i == skipbond(2,m) .and. newid == skipbond(1,m))) then
+               skip = .true.
+               exit
+            end if
+         end do
+         if (skip) return
+      end if
+      if (present(skipatom)) then
+         if (skipatom(newid)) return
+      end if
+
+      if (imem(newid) == 0) then
+         ! discover newid
+         nat = nat + 1
+         if (nat > size(id,1)) then
+            call realloc(id,2*nat)
+            call realloc(lvec,3,2*nat)
+         end if
+         id(nat) = newid
+         lvec(:,nat) = lveci + c%nstar(i)%lcon(:,k)
+         imem(newid) = nat
+         if (push) then
+            sp = sp + 1
+            if (sp > size(stk_i,1)) then
+               call realloc(stk_i,2*sp)
+               call realloc(stk_k,2*sp)
+               call realloc(stk_lvec,3,2*sp)
+            end if
+            stk_i(sp) = newid
+            stk_k(sp) = 0
+            stk_lvec(:,sp) = lvec(:,nat)
+         end if
+      else
+         ! Reached a visited atom: through a different lattice vector,
+         ! the component is connected to its own periodic images and
+         ! is not discrete. Collect the distinct mismatch vectors.
+         lnew = abs(lveci + c%nstar(i)%lcon(:,k) - lvec(:,imem(newid)))
+         if (any(lnew /= 0)) then
+            discrete = .false.
+            if (present(nlvecper)) then
+               found = .false.
+               do m = 1, nlvecper
+                  if (all(lvecper(:,m) == lnew)) then
+                     found = .true.
+                     exit
+                  end if
+               end do
+               if (.not.found) then
+                  nlvecper = nlvecper + 1
+                  if (.not.allocated(lvecper)) allocate(lvecper(3,10))
+                  if (size(lvecper,2) < nlvecper) call realloc(lvecper,3,2*nlvecper)
+                  lvecper(:,nlvecper) = lnew
+               end if
+            end if
+         end if
+      end if
+    end subroutine visit_neighbor
+  end subroutine walk_component
 
 end submodule mols

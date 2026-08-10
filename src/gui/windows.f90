@@ -69,6 +69,23 @@ module windows
      "Move Atoms         "&  ! vm_moveatom
      /)
 
+  ! A staged atom pick for the operations that need two atoms chosen
+  ! one after the other (create bond, geometry add-bond, editrep bond
+  ! anchor). Holds the first pick and the time it was staged (or the
+  ! pick session was armed), so a geometry change in between
+  ! invalidates the stored cell-atom index.
+  type pairpick
+     integer :: idx(4) = 0 ! staged atom (cell index + lattice vector; 0 = none)
+     real*8 :: time = 0d0 ! time the atom was staged or the pick was armed
+   contains
+     procedure :: arm => pairpick_arm ! stamp the time without staging an atom
+     procedure :: stage => pairpick_stage ! store the atom and stamp the time
+     procedure :: clear => pairpick_clear ! forget the staged atom and the time
+     procedure :: is_staged => pairpick_is_staged ! an atom is staged
+     procedure :: is_stale => pairpick_is_stale ! the geometry changed since the stamp
+     procedure :: same => pairpick_same ! the staged atom equals this pick
+  end type pairpick
+
   ! view mode data structure for window_forced modes
   type viewmode_data
      character(len=:), allocatable :: msg ! message shown in the view bar
@@ -178,8 +195,7 @@ module windows
      real*8 :: timelast_plot_update = 0d0 ! time the plot was last updaed
      integer :: editrep_pick_item = 0 ! text/measurement item waiting for an atom pick (0 = idle)
      integer :: editrep_pick_slot = 0 ! anchor or measurement atom the pick will fill
-     real*8 :: editrep_pick_time = 0d0 ! time the pick was commanded (to detect stale ids)
-     integer(c_int) :: editrep_text_pick_idx(4) = 0 ! staged first bond atom (committed when the pair completes)
+     type(pairpick) :: editrep_pick ! pick session stamp + staged first bond atom (committed when the pair completes)
      ! export image parameters
      integer(c_int) :: nsample ! number of samples for anti-aliasing
      integer(c_int) :: jpgquality ! jpg quality
@@ -199,15 +215,13 @@ module windows
      real(c_float) :: geometry_select_rgba(4) ! highlight color
      real*8 :: geometry_input_coord(3) = 0d0 ! coordinates for the new atom in add button
      integer :: geometry_input_species = 1 ! species for the new atom in add button
-     integer :: geometry_addbond_iat = 0 ! cell atom waiting for an add-bond pick (0 = idle)
+     type(pairpick) :: geometry_addbond ! staged atom waiting for an add-bond pick
      integer :: geometry_addbond_iview = 0 ! view window commanded for the add-bond pick
-     real*8 :: geometry_addbond_time = 0d0 ! time the add-bond pick was commanded (to detect stale ids)
      ! builder parameters
      integer :: builder_vm = 0 ! forced mode commanded to the parent view (0 = idle, else one of the vm_builder_* modes)
      integer :: builder_isys = 0 ! system latched for the builder picks (0 = no mode active)
      real*8 :: builder_time = 0d0 ! time of the last click-free poll (stale-click guard)
-     integer :: builder_bond_idx(4) = 0 ! create bonds: staged first atom (cell atom + lattice vector; 0 = none)
-     real*8 :: builder_bond_time = 0d0 ! create bonds: time the first atom was staged (to detect stale indices)
+     type(pairpick) :: builder_bond ! create bonds: staged first atom
      integer :: builder_addatom_z = 6 ! add atoms: selected element (Z)
      integer :: builder_addatom_ig = 6 ! add atoms: local geometry (0-based combo index, 6 = tetrahedral)
      character(len=:), allocatable :: builder_frag_name ! add fragments: name of the selected fragment
@@ -425,6 +439,30 @@ module windows
   !xx! Interfaces
   interface
      !xx! proc submodule !xx!
+     module subroutine pairpick_arm(pp)
+       class(pairpick), intent(inout) :: pp
+     end subroutine pairpick_arm
+     module subroutine pairpick_stage(pp,idx)
+       class(pairpick), intent(inout) :: pp
+       integer, intent(in) :: idx(4)
+     end subroutine pairpick_stage
+     module subroutine pairpick_clear(pp)
+       class(pairpick), intent(inout) :: pp
+     end subroutine pairpick_clear
+     pure module function pairpick_is_staged(pp)
+       class(pairpick), intent(in) :: pp
+       logical :: pairpick_is_staged
+     end function pairpick_is_staged
+     pure module function pairpick_is_stale(pp,timelastchange)
+       class(pairpick), intent(in) :: pp
+       real*8, intent(in) :: timelastchange
+       logical :: pairpick_is_stale
+     end function pairpick_is_stale
+     pure module function pairpick_same(pp,idx)
+       class(pairpick), intent(in) :: pp
+       integer, intent(in) :: idx(4)
+       logical :: pairpick_same
+     end function pairpick_same
      pure module function vm_is_forcedpick(mode)
        integer, intent(in) :: mode
        logical :: vm_is_forcedpick

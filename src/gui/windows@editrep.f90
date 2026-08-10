@@ -1966,7 +1966,7 @@ contains
     if (w%editrep_pick_item > 0) then
        ok = (w%editrep_pick_item <= w%rep%text%ntext)
        if (ok) ok = (win(iview)%vmdata%owner == w%id) .and.&
-          (sysc(w%isys)%timelastchange_geometry < w%editrep_pick_time)
+          .not.w%editrep_pick%is_stale(sysc(w%isys)%timelastchange_geometry)
        if (.not.ok) then
           ! the item was deleted, another window took over the pick, or the
           ! geometry changed (stale cell-atom ids): cancel
@@ -1980,9 +1980,8 @@ contains
              if (w%editrep_pick_slot == 1) then
                 if (w%rep%text%t(i)%placement == textpos_bond) then
                    ! bond anchor: stage this atom and chain the second pick
-                   w%editrep_text_pick_idx = win(iview)%vmdata%idx(1:4)
+                   call w%editrep_pick%stage(win(iview)%vmdata%idx(1:4))
                    w%editrep_pick_slot = 2
-                   w%editrep_pick_time = glfwGetTime()
                    win(iview)%vmdata%idx = 0
                    call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the second atom of the bond",w%id)
                 else
@@ -1995,8 +1994,8 @@ contains
              else
                 ! second bond atom: complete, unless it repeats the first atom
                 ! (a degenerate bond; treated as a cancel)
-                if (any(win(iview)%vmdata%idx(1:4) /= w%editrep_text_pick_idx)) then
-                   w%rep%text%t(i)%idx1 = w%editrep_text_pick_idx
+                if (.not.w%editrep_pick%same(win(iview)%vmdata%idx(1:4))) then
+                   w%rep%text%t(i)%idx1 = w%editrep_pick%idx
                    w%rep%text%t(i)%idx2 = win(iview)%vmdata%idx(1:4)
                    changed = .true.
                 end if
@@ -2150,7 +2149,7 @@ contains
           if (iw_button("Pick atom##textpickatom",disabled=(w%editrep_pick_item > 0))) then
              w%editrep_pick_item = isel
              w%editrep_pick_slot = 1
-             w%editrep_pick_time = glfwGetTime()
+             call w%editrep_pick%arm()
              call win(iview)%viewmode_set_forced(vm_pick_atom,&
                 "Pick the atom to anchor the text to",w%id)
           end if
@@ -2160,7 +2159,7 @@ contains
           if (iw_button("Pick bond atoms##textpickbond",disabled=(w%editrep_pick_item > 0))) then
              w%editrep_pick_item = isel
              w%editrep_pick_slot = 1
-             w%editrep_pick_time = glfwGetTime()
+             call w%editrep_pick%arm()
              call win(iview)%viewmode_set_forced(vm_pick_atom,"Pick the first atom of the bond",w%id)
           end if
           call iw_tooltip("Click, then pick the two atoms of the bond in the view window",ttshown)
@@ -2249,7 +2248,7 @@ contains
     if (w%editrep_pick_item > 0) then
        ok = (w%editrep_pick_item <= w%rep%measure%nitem)
        if (ok) ok = (win(iview)%vmdata%owner == w%id) .and.&
-          (sysc(w%isys)%timelastchange_geometry < w%editrep_pick_time)
+          .not.w%editrep_pick%is_stale(sysc(w%isys)%timelastchange_geometry)
        if (.not.ok) then
           ! the item was deleted, another window took over the pick, or the
           ! geometry changed (stale cell-atom ids): cancel
@@ -2547,7 +2546,7 @@ contains
       if (clicked) then
          w%editrep_pick_item = iitem
          w%editrep_pick_slot = islot
-         w%editrep_pick_time = glfwGetTime()
+         call w%editrep_pick%arm()
          call win(iview)%viewmode_set_forced(vm_pick_atom,&
             "Pick the replacement atom in the view",w%id)
       end if

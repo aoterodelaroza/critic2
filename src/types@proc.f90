@@ -908,6 +908,25 @@ contains
 
   end subroutine nstar_subset
 
+  !> Index of the entry of neighbor star ns pointing at atom id with
+  !> lattice vector lvec, or 0 if there is no such bond.
+  pure module function star_find(ns,id,lvec)
+    type(neighstar), intent(in) :: ns
+    integer, intent(in) :: id, lvec(3)
+    integer :: star_find
+
+    integer :: k
+
+    do k = 1, ns%ncon
+       if (ns%idcon(k) == id .and. all(ns%lcon(:,k) == lvec)) then
+          star_find = k
+          return
+       end if
+    end do
+    star_find = 0
+
+  end function star_find
+
   !> Resize the neighbor star array to nnew entries, keeping the
   !> current contents; new entries start with no bonds.
   pure module subroutine realloc_neighstar(a,nnew)

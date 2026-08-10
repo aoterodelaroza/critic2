@@ -2229,8 +2229,25 @@ contains
   ! lvec relative to iat1) by editing the neighbor stars in place. Removes both
   ! reciprocal entries (iat2 at lvec from iat1, iat1 at -lvec from iat2) and
   ! recomputes the molecular-fragment data; does NOT rebuild the structure.
+  !> Index of the entry of iat1's neighbor star pointing at iat2 with
+  !> lattice vector lvec, or 0 if there is no such bond (or the
+  !> connectivity is not available).
+  pure module function find_bond(c,iat1,iat2,lvec)
+    use types, only: star_find
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: iat1, iat2
+    integer, intent(in) :: lvec(3)
+    integer :: find_bond
+
+    find_bond = 0
+    if (.not.allocated(c%nstar)) return
+    if (iat1 < 1 .or. iat1 > c%ncel .or. iat2 < 1 .or. iat2 > c%ncel) return
+    find_bond = star_find(c%nstar(iat1),iat2,lvec)
+
+  end function find_bond
+
   module subroutine remove_bond(c,iat1,iat2,lvec)
-    use types, only: neighstar, realloc
+    use types, only: neighstar, star_find
     class(crystal), intent(inout) :: c
     integer, intent(in) :: iat1, iat2
     integer, intent(in) :: lvec(3)
@@ -2251,25 +2268,16 @@ contains
     subroutine remove_one(ns,id,lv)
       type(neighstar), intent(inout) :: ns
       integer, intent(in) :: id, lv(3)
-      integer :: k, knew
-      knew = 0
-      do k = 1, ns%ncon
-         if (ns%idcon(k) == id .and. all(ns%lcon(:,k) == lv)) cycle
-         knew = knew + 1
-         if (knew /= k) then
-            ns%idcon(knew) = ns%idcon(k)
-            ns%lcon(:,knew) = ns%lcon(:,k)
-            ns%ordcon(knew) = ns%ordcon(k)
-            ns%aromdir(:,knew) = ns%aromdir(:,k)
-         end if
+      integer :: k
+      k = star_find(ns,id,lv)
+      do while (k > 0)
+         ns%idcon(k:ns%ncon-1) = ns%idcon(k+1:ns%ncon)
+         ns%lcon(:,k:ns%ncon-1) = ns%lcon(:,k+1:ns%ncon)
+         ns%ordcon(k:ns%ncon-1) = ns%ordcon(k+1:ns%ncon)
+         ns%aromdir(:,k:ns%ncon-1) = ns%aromdir(:,k+1:ns%ncon)
+         ns%ncon = ns%ncon - 1
+         k = star_find(ns,id,lv)
       end do
-      if (knew /= ns%ncon) then
-         ns%ncon = knew
-         call realloc(ns%idcon,knew)
-         call realloc(ns%lcon,3,knew)
-         call realloc(ns%ordcon,knew)
-         call realloc(ns%aromdir,3,knew)
-      end if
     end subroutine remove_one
   end subroutine remove_bond
 
@@ -2278,27 +2286,22 @@ contains
   ! entries in the neighbor stars in place; does not change the connectivity.
   ! Order convention: 0=dashed, 1=single, 2=double, 3=triple.
   module subroutine set_bond_order(c,iat1,iat2,lvec,order)
-    use types, only: neighstar
+    use types, only: star_find
     class(crystal), intent(inout) :: c
     integer, intent(in) :: iat1, iat2
     integer, intent(in) :: lvec(3)
     integer, intent(in) :: order
 
+    integer :: k
+
     if (.not.allocated(c%nstar)) return
     if (iat1 < 1 .or. iat1 > c%ncel .or. iat2 < 1 .or. iat2 > c%ncel) return
 
-    call set_one(c%nstar(iat1),iat2,lvec)
-    call set_one(c%nstar(iat2),iat1,-lvec)
+    k = star_find(c%nstar(iat1),iat2,lvec)
+    if (k > 0) c%nstar(iat1)%ordcon(k) = order
+    k = star_find(c%nstar(iat2),iat1,-lvec)
+    if (k > 0) c%nstar(iat2)%ordcon(k) = order
 
-  contains
-    subroutine set_one(ns,id,lv)
-      type(neighstar), intent(inout) :: ns
-      integer, intent(in) :: id, lv(3)
-      integer :: k
-      do k = 1, ns%ncon
-         if (ns%idcon(k) == id .and. all(ns%lcon(:,k) == lv)) ns%ordcon(k) = order
-      end do
-    end subroutine set_one
   end subroutine set_bond_order
 
   ! Add a bond between cell atoms iat1 and iat2 + lvec with the given
@@ -2307,21 +2310,18 @@ contains
   ! iat2) and recomputes the molecular-fragment data; does NOT rebuild
   ! the structure. Self-bonds and already-existing bonds are ignored.
   module subroutine add_bond(c,iat1,iat2,lvec,order)
+    use types, only: star_find
     class(crystal), intent(inout) :: c
     integer, intent(in) :: iat1, iat2
     integer, intent(in) :: lvec(3)
     integer, intent(in) :: order
-
-    integer :: k
 
     if (iat1 < 1 .or. iat1 > c%ncel .or. iat2 < 1 .or. iat2 > c%ncel) return
     if (iat1 == iat2 .and. all(lvec == 0)) return
     if (.not.allocated(c%nstar)) allocate(c%nstar(c%ncel))
 
     ! ignore the bond if it is already there
-    do k = 1, c%nstar(iat1)%ncon
-       if (c%nstar(iat1)%idcon(k) == iat2 .and. all(c%nstar(iat1)%lcon(:,k) == lvec)) return
-    end do
+    if (star_find(c%nstar(iat1),iat2,lvec) > 0) return
 
     ! add iat2 (at lvec) to iat1's star and the reciprocal iat1 (at -lvec)
     ! to iat2's star
@@ -2351,6 +2351,50 @@ contains
     call nstar_subset(c%nstar(1:c%ncel),imap,nstar,lshift)
 
   end subroutine bonds_subset
+
+  !> Classified list of the bonded neighbors of cell atom icel, one
+  !> entry per bond in the neighbor star (a neighbor may appear once
+  !> per periodic image). Entries at degenerate distances (< 1d-10
+  !> bohr) are skipped. Returns nsub = 0 if the connectivity is not
+  !> available or icel is out of range; sub is (re)allocated to at
+  !> least nsub.
+  module subroutine substituents(c,icel,nsub,sub)
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: icel
+    integer, intent(out) :: nsub
+    type(substituent), allocatable, intent(inout) :: sub(:)
+
+    integer :: k, nb
+    real*8 :: tv(3), v(3), d
+
+    real*8, parameter :: eps_degen = 1d-10 ! coincident-atom threshold (bohr)
+
+    nsub = 0
+    if (.not.allocated(c%nstar)) return
+    if (icel < 1 .or. icel > c%ncel) return
+
+    if (allocated(sub)) then
+       if (size(sub,1) < c%nstar(icel)%ncon) deallocate(sub)
+    end if
+    if (.not.allocated(sub)) allocate(sub(max(c%nstar(icel)%ncon,1)))
+
+    do k = 1, c%nstar(icel)%ncon
+       nb = c%nstar(icel)%idcon(k)
+       tv = c%x2c(dble(c%nstar(icel)%lcon(:,k)))
+       v = c%atcel(nb)%r + tv - c%atcel(icel)%r
+       d = norm2(v)
+       if (d < eps_degen) cycle
+       nsub = nsub + 1
+       sub(nsub)%id = nb
+       sub(nsub)%kstar = k
+       sub(nsub)%z = c%spc(c%atcel(nb)%is)%z
+       sub(nsub)%terminal = (c%nstar(nb)%ncon == 1)
+       sub(nsub)%u = v / d
+       sub(nsub)%dist = d
+       sub(nsub)%tv = tv
+    end do
+
+  end subroutine substituents
 
   !> Recompute the atomic connectivity (asterisms) and the derived
   !> molecular data (fragments, molecular equivalence, periodicity).

@@ -37,6 +37,8 @@ module types
   public :: pointpropable
   public :: neighstar
   public :: nstar_subset
+  public :: star_find
+  public :: substituent
   public :: realloc
   public :: gpathp
   public :: basindat
@@ -334,6 +336,17 @@ module types
      logical :: isaromatic = .false. !< .true. if this atom is in an aromatic ring
   end type neighstar
 
+  !> A bonded neighbor of a cell atom, classified for structure editing
+  type substituent
+     integer :: id !< cell atom index of the neighbor
+     integer :: kstar !< index of this bond in the atom's neighbor star
+     integer :: z !< atomic number of the neighbor
+     logical :: terminal !< the neighbor's only bonded neighbor is this atom
+     real*8 :: u(3) !< unit direction from the atom to the neighbor (Cartesian)
+     real*8 :: dist !< bond length (bohr)
+     real*8 :: tv(3) !< lattice translation of the neighbor image (Cartesian)
+  end type substituent
+
   !> Point along a gradient path
   type gpathp
      integer :: i
@@ -563,6 +576,11 @@ module types
        integer, intent(in), optional :: lshift(:,:)
        logical, intent(in), optional :: droppbc
      end subroutine nstar_subset
+     pure module function star_find(ns,id,lvec)
+       type(neighstar), intent(in) :: ns
+       integer, intent(in) :: id, lvec(3)
+       integer :: star_find
+     end function star_find
   end interface
 
 end module types

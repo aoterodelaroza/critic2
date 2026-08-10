@@ -47,6 +47,7 @@ module tools_math
   public :: rsindex
   public :: cross
   public :: cross_cfloat
+  public :: perpendicular
   public :: mixed
   public :: mnorm2
   public :: det3sym
@@ -264,6 +265,10 @@ module tools_math
        real*8, intent(in) :: v2(3)
        real*8 :: vx(3)
      end function cross
+     pure module function perpendicular(v) result(u)
+       real*8, intent(in) :: v(3)
+       real*8 :: u(3)
+     end function perpendicular
      pure module function cross_cfloat(v1,v2) result (vx)
        use iso_c_binding, only: c_float
        real(c_float), intent(in) :: v1(3)

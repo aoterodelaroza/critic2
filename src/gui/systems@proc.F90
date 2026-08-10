@@ -27,6 +27,9 @@ submodule (systems) proc
   ! function formula_label(seed)
   ! function fmtcount(x)
 
+  ! degenerate-distance threshold shared by the geometry helpers (bohr)
+  real*8, parameter :: eps_dzero = 1d-10
+
 contains
 
   !> Launch the initialization threads, which will go over all systems
@@ -2475,18 +2478,19 @@ contains
   ! change event.
   module subroutine change_valence(sysc,icel,mode)
     use global, only: iunit_bohr
-    use tools_math, only: cross
+    use tools_math, only: cross, perpendicular
+    use types, only: substituent
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: icel, mode
 
-    integer :: isys, i, j, n, nb, nvalid, nfix, nmob, nmv, z0, ish, ihdel
-    real*8 :: r0(3), rj(3), tv(3), dj, uj(3), u1(3), usum(3), uh(3), v(3), dh, vnorm(3)
+    integer :: isys, i, j, nsub, nvalid, nfix, nmob, nmv, z0, ish, ihdel
+    real*8 :: r0(3), u1(3), usum(3), uh(3), v(3), dh, vnorm(3)
     real*8, allocatable :: ufix(:,:), umob(:,:), dmob(:), tvmob(:,:), uall(:,:)
     integer, allocatable :: nbmob(:)
+    type(substituent), allocatable :: sub(:)
     character(len=:), allocatable :: errmsg
     logical :: coplanar
 
-    real*8, parameter :: eps_degen = 1d-10 ! coincident-atom threshold (bohr)
     real*8, parameter :: eps_sum = 1d-6 ! degenerate anti-sum threshold
     real*8, parameter :: eps_coplanar = 0.1d0 ! coplanarity threshold (~6 degrees)
 
@@ -2499,46 +2503,41 @@ contains
     r0 = sys(isys)%c%atcel(icel)%r
     z0 = sys(isys)%c%spc(sys(isys)%c%atcel(icel)%is)%z
 
-    ! classify the substituents of icel as mobile (their only bonded
-    ! neighbor is icel) or fixed; all geometry is read before any edit
-    ! because every edit rebuilds the structure. In decrease mode, the
-    ! first terminal hydrogen found is earmarked for removal instead.
-    n = 0
-    if (allocated(sys(isys)%c%nstar)) n = sys(isys)%c%nstar(icel)%ncon
-    allocate(ufix(3,max(n,1)),umob(3,n+1),dmob(n+1),tvmob(3,n+1),nbmob(n+1))
-    allocate(uall(3,max(n,1)))
+    ! Classify the substituents of icel as mobile (terminal: their only
+    ! bonded neighbor is icel) or fixed; all geometry is read before
+    ! any edit because every edit rebuilds the structure. In decrease
+    ! mode, the first terminal hydrogen found is earmarked for removal
+    ! instead.
+    call sys(isys)%c%substituents(icel,nsub,sub)
+    allocate(ufix(3,max(nsub,1)),umob(3,nsub+1),dmob(nsub+1),tvmob(3,nsub+1),nbmob(nsub+1))
+    allocate(uall(3,max(nsub,1)))
     nvalid = 0
     nfix = 0
     nmob = 0
     ihdel = 0
     usum = 0d0
     u1 = 0d0
-    do j = 1, n
-       nb = sys(isys)%c%nstar(icel)%idcon(j)
-       tv = sys(isys)%c%x2c(dble(sys(isys)%c%nstar(icel)%lcon(:,j)))
-       rj = sys(isys)%c%atcel(nb)%r + tv
-       dj = norm2(rj - r0)
-       if (dj < eps_degen) cycle
-       uj = (rj - r0) / dj
+    do j = 1, nsub
        nvalid = nvalid + 1
-       if (nvalid == 1) u1 = uj
-       uall(:,nvalid) = uj
-       if (sys(isys)%c%nstar(nb)%ncon == 1) then
-          if (mode == 2 .and. ihdel == 0 .and. sys(isys)%c%spc(sys(isys)%c%atcel(nb)%is)%z == 1) then
+       if (nvalid == 1) u1 = sub(j)%u
+       uall(:,nvalid) = sub(j)%u
+       if (sub(j)%terminal) then
+          if (mode == 2 .and. ihdel == 0 .and. sub(j)%z == 1) then
              ! the hydrogen to be removed does not enter the direction sets
-             ihdel = nb
+             ihdel = sub(j)%id
+             nvalid = nvalid - 1
              cycle
           end if
           nmob = nmob + 1
-          umob(:,nmob) = uj
-          dmob(nmob) = dj
-          tvmob(:,nmob) = tv
-          nbmob(nmob) = nb
+          umob(:,nmob) = sub(j)%u
+          dmob(nmob) = sub(j)%dist
+          tvmob(:,nmob) = sub(j)%tv
+          nbmob(nmob) = sub(j)%id
        else
           nfix = nfix + 1
-          ufix(:,nfix) = uj
+          ufix(:,nfix) = sub(j)%u
        end if
-       usum = usum + uj
+       usum = usum + sub(j)%u
     end do
 
     if (mode == 1) then
@@ -2571,10 +2570,7 @@ contains
           end if
        elseif (norm2(usum) < eps_sum) then
           ! zero average direction: along an arbitrary direction
-          v = (/1d0,0d0,0d0/)
-          if (abs(u1(1)) > 0.9d0) v = (/0d0,1d0,0d0/)
-          uh = cross(u1,v)
-          uh = uh / norm2(uh)
+          uh = perpendicular(u1)
        else
           ! along the average direction
           uh = -usum / norm2(usum)
@@ -2702,10 +2698,9 @@ contains
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: icel
 
-    integer :: isys, i, j, k, nb, ncel, nat, ncomp, imax, nmemb, nmax, imol0, nq, iq
-    integer :: lv(3)
-    integer, allocatable :: iat(:), icomp(:), queue(:), lvec(:,:)
-    logical, allocatable :: gone(:), discrete(:)
+    integer :: isys, i, j, ncel, nat, ncomp, imax, nmemb, nmax, imol0
+    integer, allocatable :: iat(:), icomp(:), imem(:), mid(:), mlvec(:,:)
+    logical, allocatable :: skip(:), discrete(:)
     logical :: better
 
     ! consistency checks
@@ -2720,51 +2715,33 @@ contains
        call remove_atom_list(sysc,nat,iat)
        return
     end if
-    allocate(gone(ncel))
-    gone = .false.
-    gone(iat(1:nat)) = .true.
-    allocate(icomp(ncel),lvec(3,ncel),queue(ncel),discrete(ncel))
+    allocate(skip(ncel))
+    skip = .false.
+    skip(iat(1:nat)) = .true.
+    allocate(icomp(ncel),imem(ncel),discrete(ncel))
 
-    ! Connected components of the atoms that would be left, each atom
-    ! carrying the lattice translation that connects it to the seed of
-    ! its component. Reaching an atom a second time with a different
-    ! translation means the component extends periodically, so it is
-    ! not a discrete fragment. Only the molecule the clicked atom
-    ! belongs to can come apart, so the walk is confined to it and the
-    ! molecules that were already separate are left alone.
+    ! Connected components of the atoms that would be left. A component
+    ! reached at two different lattice translations extends
+    ! periodically, so it is not a discrete fragment. Only the molecule
+    ! the clicked atom belongs to can come apart, so the walk is
+    ! confined to it and the molecules that were already separate are
+    ! left alone.
     imol0 = sys(isys)%c%idatcelmol(1,icel)
+    do i = 1, ncel
+       if (.not.skip(i)) skip(i) = (sys(isys)%c%idatcelmol(1,i) /= imol0)
+    end do
     icomp = 0
+    imem = 0
     ncomp = 0
     imax = 0
     nmax = 0
     do i = 1, ncel
-       if (gone(i) .or. icomp(i) > 0) cycle
-       if (sys(isys)%c%idatcelmol(1,i) /= imol0) cycle
+       if (skip(i) .or. icomp(i) > 0) cycle
        ncomp = ncomp + 1
-       nmemb = 0
-       discrete(ncomp) = .true.
-       icomp(i) = ncomp
-       lvec(:,i) = 0
-       queue(1) = i
-       nq = 1
-       iq = 0
-       do while (iq < nq)
-          iq = iq + 1
-          j = queue(iq)
-          nmemb = nmemb + 1
-          do k = 1, sys(isys)%c%nstar(j)%ncon
-             nb = sys(isys)%c%nstar(j)%idcon(k)
-             if (gone(nb)) cycle
-             lv = lvec(:,j) + sys(isys)%c%nstar(j)%lcon(:,k)
-             if (icomp(nb) == 0) then
-                icomp(nb) = ncomp
-                lvec(:,nb) = lv
-                nq = nq + 1
-                queue(nq) = nb
-             elseif (any(lvec(:,nb) /= lv)) then
-                discrete(ncomp) = .false.
-             end if
-          end do
+       call sys(isys)%c%walk_component(i,(/0,0,0/),imem,nmemb,mid,mlvec,&
+          discrete(ncomp),skipatom=skip)
+       do j = 1, nmemb
+          icomp(mid(j)) = ncomp
        end do
 
        ! The piece that stays: a periodically extended one if there is
@@ -2810,10 +2787,8 @@ contains
     logical, intent(in) :: removeh
     character(len=:), allocatable, intent(out) :: errmsg
 
-    integer :: isys, i1, i2, k, lvec(3), idel(2), ndel
+    integer :: isys, i1, i2, lvec(3), idel(2), ndel
     real*8 :: r1(3), r2(3), u(3), d
-
-    real*8, parameter :: eps_degen = 1d-10 ! coincident-atom threshold (bohr)
 
     errmsg = ""
 
@@ -2830,14 +2805,9 @@ contains
     end if
 
     ! refuse a bond that is already there
-    if (allocated(sys(isys)%c%nstar)) then
-       do k = 1, sys(isys)%c%nstar(i1)%ncon
-          if (sys(isys)%c%nstar(i1)%idcon(k) == i2 .and. &
-             all(sys(isys)%c%nstar(i1)%lcon(:,k) == lvec)) then
-             errmsg = "These two atoms are already bonded"
-             return
-          end if
-       end do
+    if (sys(isys)%c%find_bond(i1,i2,lvec) > 0) then
+       errmsg = "These two atoms are already bonded"
+       return
     end if
 
     ! direction of the new bond, from the first atom to the second
@@ -2845,7 +2815,7 @@ contains
     r2 = sys(isys)%c%atcel(i2)%r + sys(isys)%c%x2c(dble(lvec))
     u = r2 - r1
     d = norm2(u)
-    if (d < eps_degen) then
+    if (d < eps_dzero) then
        errmsg = "The two atoms are at the same position"
        return
     end if
@@ -3576,7 +3546,6 @@ contains
     integer :: abest(4), tbest(4), jbest(4), lbest(3,4)
     real*8 :: dbest(4), vbest(3,4)
 
-    real*8, parameter :: eps_dzero = 1d-10
 
     ! defaults: a valid anchor and a unit direction, so a fragment with no
     ! bonding information can still be placed
@@ -3882,27 +3851,26 @@ contains
   !> icel).  Returns nat indices in iat, allocated to hold every cell
   !> atom so the caller can append to the list.
   subroutine atom_with_hydrogens(isys,icel,nat,iat)
+    use types, only: substituent
     integer, intent(in) :: isys, icel
     integer, intent(out) :: nat
     integer, allocatable, intent(inout) :: iat(:)
 
-    integer :: j, n, nb
+    integer :: j, nsub
+    type(substituent), allocatable :: sub(:)
 
-    ! each neighbor once: in a crystal the same cell atom may appear as
-    ! a neighbor with several lattice translations
     if (allocated(iat)) deallocate(iat)
     allocate(iat(sys(isys)%c%ncel))
     nat = 1
     iat(1) = icel
-    n = 0
-    if (allocated(sys(isys)%c%nstar)) n = sys(isys)%c%nstar(icel)%ncon
-    do j = 1, n
-       nb = sys(isys)%c%nstar(icel)%idcon(j)
-       if (sys(isys)%c%spc(sys(isys)%c%atcel(nb)%is)%z /= 1) cycle
-       if (sys(isys)%c%nstar(nb)%ncon /= 1) cycle
-       if (any(iat(1:nat) == nb)) cycle
+    call sys(isys)%c%substituents(icel,nsub,sub)
+    do j = 1, nsub
+       if (sub(j)%z /= 1 .or. .not.sub(j)%terminal) cycle
+       ! each neighbor once: in a crystal the same cell atom may appear
+       ! as a neighbor with several lattice translations
+       if (any(iat(1:nat) == sub(j)%id)) cycle
        nat = nat + 1
-       iat(nat) = nb
+       iat(nat) = sub(j)%id
     end do
 
   end subroutine atom_with_hydrogens
@@ -3912,29 +3880,23 @@ contains
   !> atom has none. A terminal hydrogen is a hydrogen whose only bonded
   !> neighbor is ia.
   function best_terminal_h(isys,ia,udir)
+    use types, only: substituent
     integer, intent(in) :: isys, ia
     real*8, intent(in) :: udir(3)
     integer :: best_terminal_h
 
-    integer :: k, nb
-    real*8 :: rh(3), v(3), d, dotp, dotmax
-
-    real*8, parameter :: eps_degen = 1d-10 ! coincident-atom threshold (bohr)
+    integer :: k, nsub
+    real*8 :: dotp, dotmax
+    type(substituent), allocatable :: sub(:)
 
     best_terminal_h = 0
     dotmax = -2d0 ! below any dot product of two unit vectors
-    if (.not.allocated(sys(isys)%c%nstar)) return
-    do k = 1, sys(isys)%c%nstar(ia)%ncon
-       nb = sys(isys)%c%nstar(ia)%idcon(k)
-       if (sys(isys)%c%spc(sys(isys)%c%atcel(nb)%is)%z /= 1) cycle
-       if (sys(isys)%c%nstar(nb)%ncon /= 1) cycle
-       rh = sys(isys)%c%atcel(nb)%r + sys(isys)%c%x2c(dble(sys(isys)%c%nstar(ia)%lcon(:,k)))
-       v = rh - sys(isys)%c%atcel(ia)%r
-       d = norm2(v)
-       if (d < eps_degen) cycle
-       dotp = dot_product(v/d,udir)
+    call sys(isys)%c%substituents(ia,nsub,sub)
+    do k = 1, nsub
+       if (sub(k)%z /= 1 .or. .not.sub(k)%terminal) cycle
+       dotp = dot_product(sub(k)%u,udir)
        if (dotp > dotmax) then
-          best_terminal_h = nb
+          best_terminal_h = sub(k)%id
           dotmax = dotp
        end if
     end do

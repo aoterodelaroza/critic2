@@ -19,7 +19,7 @@
 ! Structure class and routines for basic crystallography computations
 module crystalmod
   use spglib, only: SpglibDataset
-  use types, only: neqatom, celatom, neighstar, species, cp_type, siteocc
+  use types, only: neqatom, celatom, neighstar, substituent, species, cp_type, siteocc
   use fragmentmod, only: fragment
   use molsymmod, only: point_group
   use param, only: maxzat0, mlen
@@ -315,6 +315,8 @@ module crystalmod
      procedure :: wholemols !< Re-assign atomic types to have an asymmetric unit with whole molecules
      procedure :: edit_atom_list !< Remove/merge/duplicate a list of atoms
      procedure :: bonds_subset !< Subset and renumber the neighbor stars under an atom index map
+     procedure :: substituents !< Classified list of the bonded neighbors of a cell atom
+     procedure :: walk_component !< Connected component of the bond network from a seed atom
      procedure :: change_atom_species !< Change the species of atoms
      procedure :: move_atom !< Move an atom
      procedure :: move_molecule !< Move a molecular fragment (rigid translation)
@@ -324,6 +326,7 @@ module crystalmod
      procedure :: add_atom !< Add an atom
      procedure :: add_fragment !< Add several atoms at once (single rebuild)
      procedure :: replace_fragment !< Delete and add several atoms at once (single rebuild)
+     procedure :: find_bond !< Neighbor-star index of the bond between two cell atoms (0 = absent)
      procedure :: remove_bond !< Remove a single bond between two cell atoms
      procedure :: set_bond_order !< Set the bond order of a single bond between two cell atoms
      procedure :: add_bond !< Add a single bond between two cell atoms
@@ -910,6 +913,27 @@ module crystalmod
        type(neighstar), allocatable, intent(out) :: nstar(:)
        integer, intent(in), optional :: lshift(:,:)
      end subroutine bonds_subset
+     module subroutine substituents(c,icel,nsub,sub)
+       class(crystal), intent(in) :: c
+       integer, intent(in) :: icel
+       integer, intent(out) :: nsub
+       type(substituent), allocatable, intent(inout) :: sub(:)
+     end subroutine substituents
+     module subroutine walk_component(c,i0,lvec0,imem,nat,id,lvec,discrete,&
+        skipatom,skipbond,zeroedge,bfs,nlvecper,lvecper)
+       class(crystal), intent(in) :: c
+       integer, intent(in) :: i0, lvec0(3)
+       integer, intent(inout) :: imem(:)
+       integer, intent(out) :: nat
+       integer, allocatable, intent(inout) :: id(:), lvec(:,:)
+       logical, intent(out) :: discrete
+       logical, intent(in), optional :: skipatom(:)
+       integer, intent(in), optional :: skipbond(:,:)
+       logical, intent(in), optional :: zeroedge
+       logical, intent(in), optional :: bfs
+       integer, intent(out), optional :: nlvecper
+       integer, allocatable, intent(inout), optional :: lvecper(:,:)
+     end subroutine walk_component
      module subroutine change_atom_species(c,nat,iat,is,copybonding,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: nat
@@ -1002,6 +1026,12 @@ module crystalmod
        logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine add_atom
+     pure module function find_bond(c,iat1,iat2,lvec)
+       class(crystal), intent(in) :: c
+       integer, intent(in) :: iat1, iat2
+       integer, intent(in) :: lvec(3)
+       integer :: find_bond
+     end function find_bond
      module subroutine remove_bond(c,iat1,iat2,lvec)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: iat1, iat2

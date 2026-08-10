@@ -1108,6 +1108,20 @@ contains
 
   end function cross
 
+  !> Unit vector perpendicular to the nonzero vector v.
+  pure module function perpendicular(v) result(u)
+    real*8, intent(in) :: v(3)
+    real*8 :: u(3)
+
+    if (abs(v(1)) < 0.9d0 * norm2(v)) then
+       u = cross(v,(/1d0,0d0,0d0/))
+    else
+       u = cross(v,(/0d0,1d0,0d0/))
+    end if
+    u = u / norm2(u)
+
+  end function perpendicular
+
   !> Cross product of two 3-vectors, C float version
   pure module function cross_cfloat(v1,v2) result (vx)
     use iso_c_binding, only: c_float

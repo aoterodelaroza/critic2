@@ -605,11 +605,11 @@ contains
     w%geometry_expression = ""
     w%geometry_expression_ok = .false.
     w%geometry_expr_error = ""
-    w%geometry_addbond_iat = 0
+    call w%geometry_addbond%clear()
     w%geometry_addbond_iview = 0
     w%editrep_pick_item = 0
     w%editrep_pick_slot = 0
-    w%editrep_text_pick_idx = 0
+    call w%editrep_pick%clear()
     w%wc_started = .false.
     w%builder_vm = 0
     w%builder_isys = 0
@@ -1051,5 +1051,68 @@ contains
     end if
 
   end subroutine dialog_user_callback
+
+  !xx! pairpick: a staged atom pick for two-atom operations
+
+  !> Stamp the pick time without staging an atom (the pick session
+  !> starts now; earlier geometry changes do not invalidate it).
+  module subroutine pairpick_arm(pp)
+    use interfaces_glfw, only: glfwGetTime
+    class(pairpick), intent(inout) :: pp
+
+    pp%idx = 0
+    pp%time = glfwGetTime()
+
+  end subroutine pairpick_arm
+
+  !> Stage an atom (cell index + lattice vector) and stamp the time.
+  module subroutine pairpick_stage(pp,idx)
+    use interfaces_glfw, only: glfwGetTime
+    class(pairpick), intent(inout) :: pp
+    integer, intent(in) :: idx(4)
+
+    pp%idx = idx
+    pp%time = glfwGetTime()
+
+  end subroutine pairpick_stage
+
+  !> Forget the staged atom and the time stamp.
+  module subroutine pairpick_clear(pp)
+    class(pairpick), intent(inout) :: pp
+
+    pp%idx = 0
+    pp%time = 0d0
+
+  end subroutine pairpick_clear
+
+  !> Whether an atom is staged.
+  pure module function pairpick_is_staged(pp)
+    class(pairpick), intent(in) :: pp
+    logical :: pairpick_is_staged
+
+    pairpick_is_staged = (pp%idx(1) > 0)
+
+  end function pairpick_is_staged
+
+  !> Whether the stored pick is stale: the geometry changed after the
+  !> stamp, so any stored cell-atom index may point elsewhere.
+  pure module function pairpick_is_stale(pp,timelastchange)
+    class(pairpick), intent(in) :: pp
+    real*8, intent(in) :: timelastchange
+    logical :: pairpick_is_stale
+
+    pairpick_is_stale = (timelastchange > pp%time)
+
+  end function pairpick_is_stale
+
+  !> Whether the staged atom (index and lattice vector) equals idx.
+  pure module function pairpick_same(pp,idx)
+    class(pairpick), intent(in) :: pp
+    integer, intent(in) :: idx(4)
+    logical :: pairpick_same
+
+    pairpick_same = all(pp%idx == idx)
+
+  end function pairpick_same
 
 end submodule proc
