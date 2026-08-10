@@ -850,4 +850,84 @@ contains
 
   end subroutine realloc5cmplx16
 
+  !> Subset and renumber an array of neighbor stars under the atom
+  !> index map imap: imap(i) is the new index of atom i, or 0 if it is
+  !> dropped. The result, in nsout(1:count(imap>0)), keeps only the
+  !> bonds between two kept atoms, with idcon renumbered. If
+  !> lshift(3,:) is given, atom i is understood to move by the lattice
+  !> vector lshift(:,i) and the bond lattice vectors are corrected
+  !> accordingly. With droppbc, bonds whose (corrected) lattice vector
+  !> is nonzero are dropped as well (their reciprocal entries carry the
+  !> opposite vector, so the filtered stars stay symmetric).
+  module subroutine nstar_subset(nsin,imap,nsout,lshift,droppbc)
+    type(neighstar), intent(in) :: nsin(:)
+    integer, intent(in) :: imap(:)
+    type(neighstar), allocatable, intent(out) :: nsout(:)
+    integer, intent(in), optional :: lshift(:,:)
+    logical, intent(in), optional :: droppbc
+
+    integer :: i, in, k, n, lv(3)
+    logical :: droppbc_
+
+    droppbc_ = .false.
+    if (present(droppbc)) droppbc_ = droppbc
+
+    allocate(nsout(count(imap(1:size(nsin,1)) > 0)))
+    do i = 1, size(nsin,1)
+       in = imap(i)
+       if (in == 0) cycle
+
+       ! count the surviving bonds of atom i and allocate its new star
+       n = 0
+       do k = 1, nsin(i)%ncon
+          if (imap(nsin(i)%idcon(k)) == 0) cycle
+          lv = nsin(i)%lcon(:,k)
+          if (present(lshift)) lv = lv + lshift(:,i) - lshift(:,nsin(i)%idcon(k))
+          if (droppbc_ .and. any(lv /= 0)) cycle
+          n = n + 1
+       end do
+       nsout(in)%isaromatic = nsin(i)%isaromatic
+       nsout(in)%ncon = n
+       allocate(nsout(in)%idcon(n),nsout(in)%lcon(3,n),nsout(in)%ordcon(n),&
+          nsout(in)%aromdir(3,n))
+
+       ! fill them, renumbering and correcting for the atom shifts
+       n = 0
+       do k = 1, nsin(i)%ncon
+          if (imap(nsin(i)%idcon(k)) == 0) cycle
+          lv = nsin(i)%lcon(:,k)
+          if (present(lshift)) lv = lv + lshift(:,i) - lshift(:,nsin(i)%idcon(k))
+          if (droppbc_ .and. any(lv /= 0)) cycle
+          n = n + 1
+          nsout(in)%idcon(n) = imap(nsin(i)%idcon(k))
+          nsout(in)%lcon(:,n) = lv
+          nsout(in)%ordcon(n) = nsin(i)%ordcon(k)
+          nsout(in)%aromdir(:,n) = nsin(i)%aromdir(:,k)
+       end do
+    end do
+
+  end subroutine nstar_subset
+
+  !> Resize the neighbor star array to nnew entries, keeping the
+  !> current contents; new entries start with no bonds.
+  pure module subroutine realloc_neighstar(a,nnew)
+    type(neighstar), intent(inout), allocatable :: a(:)
+    integer, intent(in) :: nnew
+
+    type(neighstar), allocatable :: temp(:)
+    integer :: nold
+
+    if (.not.allocated(a)) then
+       allocate(a(1:nnew))
+       return
+    end if
+    nold = size(a)
+    if (nold == nnew) return
+    allocate(temp(nnew))
+
+    temp(1:min(nnew,nold)) = a(1:min(nnew,nold))
+    call move_alloc(temp,a)
+
+  end subroutine realloc_neighstar
+
 end submodule proc

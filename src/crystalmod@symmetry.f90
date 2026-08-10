@@ -1512,7 +1512,8 @@ contains
        xnew(:,i) = c%pg%xcm + xacc(:,i) / real(c%pg%nop,8)
     end do
     call c%update_positions(xnew)
-    call c%rebuild_after_move()
+    ! the symmetrization only nudges the positions: keep the bonding
+    call c%rebuild_after_move(copybonding=.true.)
 
   end subroutine symmetrize_molecule
 

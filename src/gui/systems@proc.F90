@@ -828,7 +828,9 @@ contains
     sysc%md_run = .false.
     if (.not.ok_system(sysc%id,sys_init)) return
     if (.not.sysc%md%ready .and. .not.allocated(sysc%md%r)) return
-    call sys(sysc%id)%c%rebuild_after_move()
+    ! the run only moved atoms: keep the bonding, as the move modes do
+    ! (an explicit Rebond recomputes it)
+    call sys(sysc%id)%c%rebuild_after_move(copybonding=.true.)
     sysc%sc%nextbuildlists_fixcam = .true.
     call sysc%post_event(lastchange_geometry)
 
@@ -1400,8 +1402,10 @@ contains
     call sysc%highlighted_atom_list(nat,iat)
     if (nat == 0) return
 
-    ! remove/merge/duplicate the atoms
-    call sys(id)%c%edit_atom_list(nat,iat(1:nat),remove,merge,duplicate,errmsg=errmsg)
+    ! remove/merge/duplicate the atoms; a removal keeps the bonding of
+    ! the surviving atoms (copybonding is absent when remove is)
+    call sys(id)%c%edit_atom_list(nat,iat(1:nat),remove,merge,duplicate,errmsg=errmsg,&
+       copybonding=remove)
     if (has_errmsg(errmsg)) return
 
     ! the geometry has changed
@@ -1458,16 +1462,19 @@ contains
     if (remove_ .or. merge_) then
        call sysc%highlighted_atom_list(nat,iat)
 
-       ! remove/merge/duplicate the atoms
+       ! remove/merge/duplicate the atoms; a removal keeps the bonding
+       ! of the surviving atoms
        if (nat > 0) then
-          call sys(id)%c%edit_atom_list(nat,iat(1:nat),remove,merge,duplicate,errmsg=errmsg)
+          call sys(id)%c%edit_atom_list(nat,iat(1:nat),remove,merge,duplicate,errmsg=errmsg,&
+             copybonding=remove_)
           if (has_errmsg(errmsg)) return
        end if
     end if
 
     if (remove_ .or. duplicate_) then
-       ! make seed from this crystal
-       call sys(id)%c%makeseed(seed,copysym=.false.)
+       ! make seed from this crystal (the atom set does not change here,
+       ! so the bonding is carried through the species edit)
+       call sys(id)%c%makeseed(seed,copysym=.false.,copybonding=.true.)
 
        if (remove_) then
           ! remove the species
@@ -2059,19 +2066,19 @@ contains
 
     ! add the atom
     if (type == atlisttype_nneq) then
-       call sys(isys)%c%add_atom(is,x_,iunit_fractional,.true.)
+       call sys(isys)%c%add_atom(is,x_,iunit_fractional,.true.,copybonding=.true.)
     elseif (type == atlisttype_ncel_frac) then
-       call sys(isys)%c%add_atom(is,x_,iunit_fractional,.false.)
+       call sys(isys)%c%add_atom(is,x_,iunit_fractional,.false.,copybonding=.true.)
     elseif (type == atlisttype_ncel_bohr) then
        if (sys(isys)%c%ismolecule) x_ = x - sys(isys)%c%molx0
-       call sys(isys)%c%add_atom(is,x_,iunit_bohr,.false.)
+       call sys(isys)%c%add_atom(is,x_,iunit_bohr,.false.,copybonding=.true.)
     elseif (type == atlisttype_ncel_ang) then
        if (sys(isys)%c%ismolecule) then
           x_ = x/bohrtoa - sys(isys)%c%molx0
        else
           x_ = x/bohrtoa
        end if
-       call sys(isys)%c%add_atom(is,x_,iunit_bohr,.false.)
+       call sys(isys)%c%add_atom(is,x_,iunit_bohr,.false.,copybonding=.true.)
     end if
 
     ! the geometry has changed
@@ -2583,7 +2590,7 @@ contains
        ish = sys(isys)%c%identify_spc("H")
        if (ish == 0) ish = -1 ! no H species: have add_atom create one (Z = 1)
        dh = sysc%atmcov(z0) + sysc%atmcov(1)
-       call sys(isys)%c%add_atom(ish,r0 + dh * umob(:,nmv),iunit_bohr,.false.)
+       call sys(isys)%c%add_atom(ish,r0 + dh * umob(:,nmv),iunit_bohr,.false.,copybonding=.true.)
     else
        ! no terminal hydrogen bonded to this atom: nothing to do
        if (ihdel == 0) return
@@ -2591,7 +2598,8 @@ contains
        ! relax the remaining mobile directions
        if (nmob > 0) call spread_directions(nfix,ufix,nmob,umob)
        call apply_moves()
-       call sys(isys)%c%edit_atom_list(1,(/ihdel/),remove=.true.,errmsg=errmsg)
+       call sys(isys)%c%edit_atom_list(1,(/ihdel/),remove=.true.,errmsg=errmsg,&
+          copybonding=.true.)
        if (has_errmsg(errmsg)) return
     end if
 
@@ -2797,14 +2805,13 @@ contains
   !> each of them first, whenever it has one; otherwise nothing but the
   !> connectivity changes. Returns a non-empty errmsg on failure.
   module subroutine create_bond(sysc,idx1,idx2,removeh,errmsg)
-    use param, only: icrd_crys
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: idx1(4), idx2(4)
     logical, intent(in) :: removeh
     character(len=:), allocatable, intent(out) :: errmsg
 
     integer :: isys, i1, i2, k, lvec(3), idel(2), ndel
-    real*8 :: r1(3), r2(3), u(3), d, x1(3), x2(3)
+    real*8 :: r1(3), r2(3), u(3), d
 
     real*8, parameter :: eps_degen = 1d-10 ! coincident-atom threshold (bohr)
 
@@ -2857,25 +2864,18 @@ contains
        idel(1:ndel) = pack(idel,idel > 0)
     end if
 
-    ! Delete them, then bond. The order matters: removing atoms rebuilds
-    ! the structure without copying the connectivity, so a bond created
-    ! first would be lost. The rebuild may renumber the atoms, so the
-    ! two are located again by position (their coordinates do not move).
+    ! Bond first, then delete the hydrogens: the removal carries the
+    ! connectivity (including the new bond) through the rebuild
     if (ndel > 0) then
-       x1 = sys(isys)%c%atcel(i1)%x
-       x2 = sys(isys)%c%atcel(i2)%x
-       call sys(isys)%c%edit_atom_list(ndel,idel(1:ndel),remove=.true.,errmsg=errmsg)
-       if (has_errmsg(errmsg)) return
-       i1 = sys(isys)%c%identify_atom(x1,icrd_crys)
-       i2 = sys(isys)%c%identify_atom(x2,icrd_crys)
-       if (i1 == 0 .or. i2 == 0) then
-          errmsg = "Could not find the atoms after deleting the hydrogens"
+       call sys(isys)%c%add_bond(i1,i2,lvec,1)
+       call sys(isys)%c%edit_atom_list(ndel,idel(1:ndel),remove=.true.,errmsg=errmsg,&
+          copybonding=.true.)
+       if (has_errmsg(errmsg)) then
+          ! the bond was still created: post the connectivity change
+          call sysc%post_event(lastchange_rebond)
           return
        end if
-    end if
-    if (ndel > 0) then
        ! the atom list changed, so the geometry event supersedes the rebond
-       call sys(isys)%c%add_bond(i1,i2,lvec,1)
        call sysc%post_event(lastchange_geometry)
     else
        call sysc%add_bond(i1,i2,lvec,1)
@@ -2894,7 +2894,7 @@ contains
     if (.not.ok_system(sysc%id,sys_init)) return
     if (nat <= 0) return
 
-    call sys(sysc%id)%c%add_fragment(nat,zat,x)
+    call sys(sysc%id)%c%add_fragment(nat,zat,x,copybonding=.true.)
     call sysc%post_event(lastchange_geometry)
 
   end subroutine add_atoms_fragment
@@ -2902,20 +2902,23 @@ contains
   !> Delete the ndel cell atoms in idel and add nadd atoms with atomic
   !> numbers zat and Cartesian coordinates x to this system in a
   !> single rebuild.
-  module subroutine replace_atoms_fragment(sysc,ndel,idel,nadd,zat,x)
+  module subroutine replace_atoms_fragment(sysc,ndel,idel,nadd,zat,x,nstar0)
+    use types, only: neighstar
     class(sysconf), intent(inout) :: sysc
     integer, intent(in) :: ndel
     integer, intent(in) :: idel(ndel)
     integer, intent(in) :: nadd
     integer, intent(in) :: zat(nadd)
     real*8, intent(in) :: x(3,nadd)
+    type(neighstar), intent(in), optional :: nstar0(nadd)
 
     if (.not.ok_system(sysc%id,sys_init)) return
     if (ndel <= 0 .and. nadd <= 0) return
     ! refuse to remove every atom in the system
     if (nadd <= 0 .and. ndel >= sys(sysc%id)%c%ncel) return
 
-    call sys(sysc%id)%c%replace_fragment(ndel,idel,nadd,zat,x)
+    call sys(sysc%id)%c%replace_fragment(ndel,idel,nadd,zat,x,copybonding=.true.,&
+       nstar0=nstar0)
     call sysc%post_event(lastchange_geometry)
 
   end subroutine replace_atoms_fragment
@@ -3148,8 +3151,9 @@ contains
     x0_ = x0
     if (doinv) call matinv(x0_,3)
 
-    ! apply the transformation
-    call sys(isys)%c%newcell(x0_,t0,errmsg=errmsg)
+    ! apply the transformation, keeping the bonding whenever the
+    ! transformation allows it
+    call sys(isys)%c%newcell(x0_,t0,errmsg=errmsg,copybonding=.true.)
     if (has_errmsg(errmsg)) return
 
     ! the geometry has changed
@@ -3498,6 +3502,7 @@ contains
     logical, intent(in) :: molecule
 
     integer :: i, id
+    integer, allocatable :: imap(:), lshift(:,:)
 
     ! list the selected cell atoms; no-op if nothing is selected
     id = sysc%id
@@ -3528,6 +3533,21 @@ contains
           seed%mix(i) = sys(id)%c%at(sys(id)%c%atcel(iat(i))%idx)%mix
     end do
     seed%nat = nat
+
+    ! carry the bonding between the selected atoms into the seed (bonds
+    ! to unselected atoms are dropped), correcting the bond lattice
+    ! vectors for the same unwrap applied to the positions above
+    if (allocated(sys(id)%c%nstar)) then
+       allocate(imap(sys(id)%c%ncel),lshift(3,sys(id)%c%ncel))
+       imap = 0
+       lshift = 0
+       do i = 1, nat
+          imap(iat(i)) = i
+          if (.not.molecule) lshift(:,iat(i)) = cell_unwrap_lvec(id,iat(i))
+       end do
+       call sys(id)%c%bonds_subset(imap,seed%nstar,lshift)
+       seed%havebonds = .true.
+    end if
 
     ! turn the seed into a non-periodic molecule if requested
     if (molecule) call seed_make_molecule(seed)
@@ -3733,7 +3753,12 @@ contains
   subroutine seed_make_molecule(seed)
     use crystalseedmod, only: crystalseed
     use global, only: rborder_def
+    use types, only: neighstar, nstar_subset
     type(crystalseed), intent(inout) :: seed
+
+    integer :: i
+    integer, allocatable :: imap(:)
+    type(neighstar), allocatable :: nsaux(:)
 
     seed%ismolecule = .true.
     seed%useabr = 0
@@ -3744,6 +3769,17 @@ contains
     seed%molx0 = 0d0
     seed%border = rborder_def
     seed%cubic = .false.
+
+    ! there is no lattice anymore: drop the bonds that cross to another
+    ! periodic image
+    if (seed%havebonds) then
+       allocate(imap(seed%nat))
+       do i = 1, seed%nat
+          imap(i) = i
+       end do
+       call nstar_subset(seed%nstar,imap,nsaux,droppbc=.true.)
+       call move_alloc(nsaux,seed%nstar)
+    end if
 
   end subroutine seed_make_molecule
 
@@ -3917,7 +3953,8 @@ contains
     ! refuse to remove every atom in the system
     if (nat >= sys(sysc%id)%c%ncel) return
 
-    call sys(sysc%id)%c%edit_atom_list(nat,iat,remove=.true.,errmsg=errmsg)
+    call sys(sysc%id)%c%edit_atom_list(nat,iat,remove=.true.,errmsg=errmsg,&
+       copybonding=.true.)
     if (has_errmsg(errmsg)) return
 
     call sysc%post_event(lastchange_geometry)

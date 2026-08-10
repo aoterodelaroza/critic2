@@ -314,6 +314,7 @@ module crystalmod
      procedure :: reorder_species !< reorder the species in the crystal/molecule
      procedure :: wholemols !< Re-assign atomic types to have an asymmetric unit with whole molecules
      procedure :: edit_atom_list !< Remove/merge/duplicate a list of atoms
+     procedure :: bonds_subset !< Subset and renumber the neighbor stars under an atom index map
      procedure :: change_atom_species !< Change the species of atoms
      procedure :: move_atom !< Move an atom
      procedure :: move_molecule !< Move a molecular fragment (rigid translation)
@@ -831,7 +832,7 @@ module crystalmod
        complex*16, intent(in) :: evec(:,:)
        real*8, intent(in) :: amplitude, phase
      end subroutine makeseed_nudged
-     module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv,errmsg,ti)
+     module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv,errmsg,copybonding,ti)
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: x00(3,3)
        real*8, intent(in), optional :: t0(3)
@@ -840,6 +841,7 @@ module crystalmod
        integer, intent(in), optional :: isnew(:)
        logical, intent(in), optional :: noenv
        character(len=:), allocatable, intent(out) :: errmsg
+       logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine newcell
      module function cell_standard(c,toprim,doforce,refine,noenv,errmsg,ti,keepcell) result(x0)
@@ -893,14 +895,21 @@ module crystalmod
        class(crystal), intent(inout) :: c
        type(thread_info), intent(in), optional :: ti
      end subroutine wholemols
-     module subroutine edit_atom_list(c,nat,iat,remove,merge,duplicate,errmsg,ti)
+     module subroutine edit_atom_list(c,nat,iat,remove,merge,duplicate,errmsg,copybonding,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: nat
        integer, intent(in) :: iat(nat)
        logical, intent(in), optional :: remove, merge, duplicate
        character(len=:), allocatable, intent(out) :: errmsg
+       logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine edit_atom_list
+     module subroutine bonds_subset(c,imap,nstar,lshift)
+       class(crystal), intent(in) :: c
+       integer, intent(in) :: imap(:)
+       type(neighstar), allocatable, intent(out) :: nstar(:)
+       integer, intent(in), optional :: lshift(:,:)
+     end subroutine bonds_subset
      module subroutine change_atom_species(c,nat,iat,is,copybonding,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: nat
@@ -923,20 +932,24 @@ module crystalmod
        class(crystal), intent(inout) :: c
        real*8, intent(in) :: rnew(:,:)
      end subroutine update_positions
-     module subroutine add_fragment(c,nat,zat,x,ti)
+     module subroutine add_fragment(c,nat,zat,x,copybonding,nstar0,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: nat
        integer, intent(in) :: zat(nat)
        real*8, intent(in) :: x(3,nat)
+       logical, intent(in), optional :: copybonding
+       type(neighstar), intent(in), optional :: nstar0(nat)
        type(thread_info), intent(in), optional :: ti
      end subroutine add_fragment
-     module subroutine replace_fragment(c,ndel,idel,nadd,zat,x,ti)
+     module subroutine replace_fragment(c,ndel,idel,nadd,zat,x,copybonding,nstar0,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: ndel
        integer, intent(in) :: idel(ndel)
        integer, intent(in) :: nadd
        integer, intent(in) :: zat(nadd)
        real*8, intent(in) :: x(3,nadd)
+       logical, intent(in), optional :: copybonding
+       type(neighstar), intent(in), optional :: nstar0(nadd)
        type(thread_info), intent(in), optional :: ti
      end subroutine replace_fragment
      module subroutine update_env_after_move(c)
@@ -980,12 +993,13 @@ module crystalmod
        logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine move_cell_all
-     module subroutine add_atom(c,is,x,iunit_l,isnneq,ti)
+     module subroutine add_atom(c,is,x,iunit_l,isnneq,copybonding,ti)
        class(crystal), intent(inout) :: c
        integer, intent(in) :: is
        real*8, intent(in) :: x(3)
        integer, intent(in) :: iunit_l
        logical, intent(in) :: isnneq
+       logical, intent(in), optional :: copybonding
        type(thread_info), intent(in), optional :: ti
      end subroutine add_atom
      module subroutine remove_bond(c,iat1,iat2,lvec)

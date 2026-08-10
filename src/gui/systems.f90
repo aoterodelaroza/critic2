@@ -537,13 +537,15 @@ module systems
        integer, intent(in) :: zat(nat)
        real*8, intent(in) :: x(3,nat)
      end subroutine add_atoms_fragment
-     module subroutine replace_atoms_fragment(sysc,ndel,idel,nadd,zat,x)
+     module subroutine replace_atoms_fragment(sysc,ndel,idel,nadd,zat,x,nstar0)
+       use types, only: neighstar
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: ndel
        integer, intent(in) :: idel(ndel)
        integer, intent(in) :: nadd
        integer, intent(in) :: zat(nadd)
        real*8, intent(in) :: x(3,nadd)
+       type(neighstar), intent(in), optional :: nstar0(nadd)
      end subroutine replace_atoms_fragment
      module subroutine reread_geometry_from_file(sysc)
        class(sysconf), intent(inout) :: sysc

@@ -36,6 +36,7 @@ module types
   public :: integrable
   public :: pointpropable
   public :: neighstar
+  public :: nstar_subset
   public :: realloc
   public :: gpathp
   public :: basindat
@@ -50,6 +51,7 @@ module types
      module procedure realloc_species
      module procedure realloc_basicatom
      module procedure realloc_siteocc
+     module procedure realloc_neighstar
      module procedure realloc_neqatom
      module procedure realloc_celatom
      module procedure realloc_anyatom
@@ -443,6 +445,10 @@ module types
        type(siteocc), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
      end subroutine realloc_siteocc
+     pure module subroutine realloc_neighstar(a,nnew)
+       type(neighstar), intent(inout), allocatable :: a(:)
+       integer, intent(in) :: nnew
+     end subroutine realloc_neighstar
      pure module subroutine realloc_neqatom(a,nnew)
        type(neqatom), intent(inout), allocatable :: a(:)
        integer, intent(in) :: nnew
@@ -547,6 +553,16 @@ module types
        complex*16, intent(inout), allocatable :: a(:,:,:,:,:)
        integer, intent(in) :: n1, n2, n3, n4, n5
      end subroutine realloc5cmplx16
+  end interface
+
+  interface
+     module subroutine nstar_subset(nsin,imap,nsout,lshift,droppbc)
+       type(neighstar), intent(in) :: nsin(:)
+       integer, intent(in) :: imap(:)
+       type(neighstar), allocatable, intent(out) :: nsout(:)
+       integer, intent(in), optional :: lshift(:,:)
+       logical, intent(in), optional :: droppbc
+     end subroutine nstar_subset
   end interface
 
 end module types

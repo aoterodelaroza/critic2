@@ -18,7 +18,7 @@
 ! Routines for the builder window.
 submodule (windows) builder
   use interfaces_cimgui
-  use types, only: vstring
+  use types, only: vstring, neighstar, nstar_subset
   implicit none
 
   ! add-atoms local geometries (see addatom_template for the vertex sets)
@@ -1660,7 +1660,8 @@ contains
   ! and capped with its placeholder atom. On an atom (icel > 0) the
   ! anchor replaces it (see addfrag_target), unless the fragment is a
   ! ligand, in which case it bonds to it (see addfrag_ligand_target).
-  subroutine frag_place(isys,iview,nat,z,x,ianchor,iattach,xdir,radius,capattach,xpos,icel)
+  subroutine frag_place(isys,iview,nat,z,x,ianchor,iattach,xdir,radius,capattach,xpos,icel,&
+     nstar0)
     use systems, only: sys, sysc
     use tools_math, only: cross
     integer, intent(in) :: isys, iview, nat, ianchor, iattach, icel
@@ -1668,9 +1669,11 @@ contains
     real*8, intent(in) :: x(3,nat), xdir(3), radius
     logical, intent(in) :: capattach
     real(c_float), intent(in) :: xpos(2)
+    type(neighstar), intent(in), optional :: nstar0(nat)
 
     integer :: isysl, i, ia, nadd, ndel
-    integer, allocatable :: idel(:), zadd(:)
+    integer, allocatable :: idel(:), zadd(:), fmap(:)
+    type(neighstar), allocatable :: nstar0add(:)
     real*8, allocatable :: xadd(:,:)
     real*8 :: x0(3), rcam(3,3), e(3,3), rot(3,3), p0(3), t1(3), dattach(3)
     logical :: ok, keepattach
@@ -1709,11 +1712,13 @@ contains
 
     ! the fragment atoms, rotated and translated onto the anchor; the
     ! placeholder is dropped when the anchor bonds to the structure
-    allocate(zadd(nat),xadd(3,nat))
+    allocate(zadd(nat),xadd(3,nat),fmap(nat))
     nadd = 0
     do i = 1, nat
+       fmap(i) = 0
        if (.not.keepattach .and. i == iattach) cycle
        nadd = nadd + 1
+       fmap(i) = nadd
        zadd(nadd) = z(i)
        xadd(:,nadd) = p0 + matmul(rot,x(:,i) - x(:,ia))
     end do
@@ -1726,8 +1731,13 @@ contains
        (sysc(isysl)%atmcov(z(ia)) +&
        sysc(isysl)%atmcov(z(iattach)))
 
+    ! the internal bonding of the fragment, renumbered over the possibly
+    ! dropped placeholder (its bonds die with it)
+    if (present(nstar0)) &
+       call nstar_subset(nstar0,fmap,nstar0add)
+
     call sysc(isysl)%replace_atoms_fragment(ndel,idel(1:max(ndel,1)),nadd,&
-       zadd(1:nadd),xadd(:,1:nadd))
+       zadd(1:nadd),xadd(:,1:nadd),nstar0add)
 
   contains
     ! Add-fragments mode, click on cell atom icel: the anchor of the
@@ -2021,10 +2031,11 @@ contains
     logical, intent(in), optional :: atcenter
 
     integer :: i, nat
-    integer, allocatable :: z(:)
+    integer, allocatable :: z(:), imap(:)
     real*8, allocatable :: x(:,:)
     real*8 :: x2c(3,3)
     real(c_float) :: xpos_(2), v0(3)
+    type(neighstar), allocatable :: nstar0(:)
 
     ! consistency checks
     if (.not.sysclip%isfilled) return
@@ -2063,9 +2074,20 @@ contains
        end if
     end if
 
+    ! The internal bonding of the copied fragment, so the paste restores
+    ! it instead of recomputing it from the distances. The pasted atoms
+    ! form a single piece: bonds to other periodic images are dropped.
+    if (sysclip%seed%havebonds) then
+       allocate(imap(nat))
+       do i = 1, nat
+          imap(i) = i
+       end do
+       call nstar_subset(sysclip%seed%nstar,imap,nstar0,droppbc=.true.)
+    end if
+
     ! a pasted fragment is always a substituent, never a ligand
     call frag_place(isys,iview,nat,z,x,sysclip%ianchor,sysclip%iattach,&
-       sysclip%xdir,0d0,.false.,xpos_,icel)
+       sysclip%xdir,0d0,.false.,xpos_,icel,nstar0)
 
   end subroutine paste_clipboard_fragment
 

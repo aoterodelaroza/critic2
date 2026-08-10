@@ -266,7 +266,7 @@ contains
   !> new positions (xnew) and species (isnew). If noenv is present
   !> and true, do not load the atomic grids or the environments in
   !> the new cell.
-  module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv,errmsg,ti)
+  module subroutine newcell(c,x00,t0,nnew,xnew,isnew,noenv,errmsg,copybonding,ti)
     use crystalseedmod, only: crystalseed
     use tools_math, only: det3, matinv, mnorm2
     use tools_io, only: string, uout
@@ -280,16 +280,17 @@ contains
     integer, intent(in), optional :: isnew(:)
     logical, intent(in), optional :: noenv
     character(len=:), allocatable, intent(out) :: errmsg
+    logical, intent(in), optional :: copybonding
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: ncseed
-    logical :: ok, found, atgiven, issimple
+    logical :: ok, found, atgiven, issimple, copybonding_
     real*8 :: x0(3,3), x0inv(3,3), fvol, dmax0
     real*8 :: x(3), dx(3), dd, t(3), xshift(3)
     integer :: i, j, k, m
     integer :: nn
     integer :: nlat, nlat2, nlatnew, nvec(3), ntot
-    integer, allocatable :: lvec(:,:)
+    integer, allocatable :: lvec(:,:), isrc(:)
     real*8, allocatable :: xlat(:,:)
     character(len=:), allocatable :: errmsg_
 
@@ -307,6 +308,13 @@ contains
     atgiven = (present(nnew).and.present(xnew).and.present(isnew))
     x0 = x00
     dd = det3(x0)
+
+    ! Whether to carry the bonding through the
+    ! transformation. Unavailable when the new positions are given
+    ! directly (atgiven).
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
+    copybonding_ = copybonding_ .and. allocated(c%nstar) .and. .not.atgiven
 
     ! check the new lattice vectors are sane
     if (abs(dd) < eps) then
@@ -369,6 +377,7 @@ contains
           allocate(ncseed%x(3,c%ncel * ntot),ncseed%is(c%ncel * ntot),ncseed%atname(c%ncel * ntot))
           if (c%haveocc) allocate(ncseed%occ(c%ncel * ntot))
           if (c%haveocc) allocate(ncseed%mix(c%ncel * ntot))
+          if (copybonding_) allocate(isrc(c%ncel * ntot))
 
           nn = 0
           do i = 1, nvec(1)
@@ -383,6 +392,7 @@ contains
                       if (c%haveocc) ncseed%occ(nn) = c%at(c%atcel(m)%idx)%occ
                       if (c%haveocc) &
                          ncseed%mix(nn) = c%at(c%atcel(m)%idx)%mix
+                      if (copybonding_) isrc(nn) = m
                    end do
                 end do
              end do
@@ -464,6 +474,7 @@ contains
           allocate(ncseed%x(3,nn),ncseed%is(nn),ncseed%atname(nn))
           if (c%haveocc) allocate(ncseed%occ(nn))
           if (c%haveocc) allocate(ncseed%mix(nn))
+          if (copybonding_) allocate(isrc(nn))
           do i = 1, nlat
              do j = 1, c%ncel
                 ! candidate atom
@@ -489,6 +500,7 @@ contains
                       call realloc(ncseed%atname,2*ncseed%nat)
                       if (c%haveocc) call realloc(ncseed%occ,2*ncseed%nat)
                       if (c%haveocc) call realloc(ncseed%mix,2*ncseed%nat)
+                      if (copybonding_) call realloc(isrc,2*ncseed%nat)
                    end if
                    ncseed%x(:,ncseed%nat) = x
                    ncseed%is(ncseed%nat) = c%atcel(j)%is
@@ -496,6 +508,7 @@ contains
                    if (c%haveocc) ncseed%occ(ncseed%nat) = c%at(c%atcel(j)%idx)%occ
                    if (c%haveocc) &
                       ncseed%mix(ncseed%nat) = c%at(c%atcel(j)%idx)%mix
+                   if (copybonding_) isrc(ncseed%nat) = j
                 end if
              end do
           end do
@@ -505,8 +518,15 @@ contains
           if (c%haveocc) call realloc(ncseed%occ,ncseed%nat)
           if (c%haveocc) call realloc(ncseed%mix,ncseed%nat)
           deallocate(xlat)
+
+          ! a folding transformation (repeated atoms were skipped) does
+          ! not preserve the bonds: fall back to recomputing them
+          if (ncseed%nat /= c%ncel * nlat) copybonding_ = .false.
        end if
     end if
+
+    ! map the bonds of the old cell onto the new atom list
+    if (copybonding_) call map_bonds()
 
     ! rest of the seed information
     ncseed%isused = .true.
@@ -526,6 +546,66 @@ contains
 999 continue
     errmsg = errmsg_
 
+  contains
+    ! Build ncseed%nstar from c%nstar
+    subroutine map_bonds()
+      use types, only: neighstar
+      integer :: i, k, kk, a, b, j, n
+      real*8 :: xinv(3,3), w(3), dn(3)
+      integer, allocatable :: idst(:), inxt(:)
+      logical :: found
+
+      real*8, parameter :: epsint = 1d-4 ! integer-vector threshold (new frac)
+
+      ! inverse transformation (old frac to new frac)
+      xinv = x0
+      call matinv(xinv,3)
+
+      ! per-source linked lists of new atoms (idst = first, inxt = next)
+      allocate(idst(c%ncel),inxt(ncseed%nat))
+      idst = 0
+      do i = ncseed%nat, 1, -1
+         inxt(i) = idst(isrc(i))
+         idst(isrc(i)) = i
+      end do
+
+      allocate(ncseed%nstar(ncseed%nat))
+      do i = 1, ncseed%nat
+         a = isrc(i)
+         n = c%nstar(a)%ncon
+         ncseed%nstar(i)%isaromatic = c%nstar(a)%isaromatic
+         allocate(ncseed%nstar(i)%idcon(n),ncseed%nstar(i)%lcon(3,n),&
+            ncseed%nstar(i)%ordcon(n),ncseed%nstar(i)%aromdir(3,n))
+         kk = 0
+         do k = 1, n
+            b = c%nstar(a)%idcon(k)
+            w = ncseed%x(:,i) + matmul(xinv,c%atcel(b)%x +&
+               real(c%nstar(a)%lcon(:,k),8) - c%atcel(a)%x)
+
+            ! find the image of b an integer vector away from w
+            found = .false.
+            j = idst(b)
+            do while (j > 0)
+               dn = w - ncseed%x(:,j)
+               if (all(abs(dn - nint(dn)) < epsint)) then
+                  found = .true.
+                  exit
+               end if
+               j = inxt(j)
+            end do
+            if (.not.found) cycle
+
+            kk = kk + 1
+            ncseed%nstar(i)%idcon(kk) = j
+            ncseed%nstar(i)%lcon(:,kk) = nint(dn)
+            ncseed%nstar(i)%ordcon(kk) = c%nstar(a)%ordcon(k)
+            ncseed%nstar(i)%aromdir(:,kk) = c%nstar(a)%aromdir(:,k)
+         end do
+         ncseed%nstar(i)%ncon = kk
+      end do
+      ncseed%havebonds = .true.
+
+    end subroutine map_bonds
   end subroutine newcell
 
   !> Transform to the standard cell. If toprim, convert to the
@@ -1143,7 +1223,7 @@ contains
 
   !> Remove or merge the atoms with IDs in the array iat(1:nat) from
   !> the structure.
-  module subroutine edit_atom_list(c,nat,iat,remove,merge,duplicate,errmsg,ti)
+  module subroutine edit_atom_list(c,nat,iat,remove,merge,duplicate,errmsg,copybonding,ti)
     use crystalseedmod, only: crystalseed
     use types, only: realloc
     class(crystal), intent(inout) :: c
@@ -1151,13 +1231,15 @@ contains
     integer, intent(in) :: iat(nat)
     logical, intent(in), optional :: remove, merge, duplicate
     character(len=:), allocatable, intent(out) :: errmsg
+    logical, intent(in), optional :: copybonding
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     logical, allocatable :: useatoms(:), dupatoms(:)
+    integer, allocatable :: imap(:)
     integer :: i, ipres, izmax, mergespc, natnew
     real*8 :: mergex(3), x0(3), xd(3), rdum
-    logical :: remove_, merge_, duplicate_
+    logical :: remove_, merge_, duplicate_, copybonding_
 
     errmsg = ""
 
@@ -1186,6 +1268,15 @@ contains
        errmsg = 'More than one of merge/remove/duplicate'
        return
     end if
+
+    ! carrying the bonding through the edit is only defined for removal
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
+    if (copybonding_ .and. .not.remove_) then
+       errmsg = 'copybonding in edit_atom_list is only available with remove'
+       return
+    end if
+    copybonding_ = copybonding_ .and. allocated(c%nstar)
 
     ! make seed from this crystal
     call c%makeseed(seed,copysym=.false.)
@@ -1270,6 +1361,22 @@ contains
        seed%is(seed%nat) = mergespc
        seed%atname(seed%nat) = c%spc(mergespc)%name
        if (allocated(seed%occ)) seed%occ(seed%nat) = 1d0
+    end if
+
+    ! carry the bonding of the surviving atoms through the rebuild
+    ! (removal only, so the atom map is a plain compaction)
+    if (copybonding_) then
+       allocate(imap(c%ncel))
+       natnew = 0
+       do i = 1, c%ncel
+          imap(i) = 0
+          if (useatoms(i)) then
+             natnew = natnew + 1
+             imap(i) = natnew
+          end if
+       end do
+       call c%bonds_subset(imap,seed%nstar)
+       seed%havebonds = .true.
     end if
 
     ! build the new crystal
@@ -1889,7 +1996,7 @@ contains
   !> Add atom with species is and position x in units of iunit_l (see
   !> global). If is <= 0, add a new species with Z = abs(is) to the
   !> system. If isnneq, replicate the atom by symmetry.
-  module subroutine add_atom(c,is,x,iunit_l,isnneq,ti)
+  module subroutine add_atom(c,is,x,iunit_l,isnneq,copybonding,ti)
     use crystalseedmod, only: crystalseed
     use types, only: realloc, siteocc
     use tools_io, only: nameguess
@@ -1898,19 +2005,24 @@ contains
     real*8, intent(in) :: x(3)
     integer, intent(in) :: iunit_l
     logical, intent(in) :: isnneq
+    logical, intent(in), optional :: copybonding
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     type(siteocc), allocatable :: mixaux(:)
     real*8 :: xx(3)
-    logical :: copysym
+    logical :: copysym, copybonding_
     integer :: is_
 
-    ! whether to use symmetry
+    ! whether to use symmetry; carrying the bonding requires the
+    ! one-to-one atom list a symmetric add does not keep
     copysym = isnneq .and. .not.c%ismolecule .and. c%spgavail
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
+    copybonding_ = copybonding_ .and. .not.copysym .and. allocated(c%nstar)
 
     ! make seed from this crystal; re-fits the molecular cell to the added atom
-    call makeseed_for_edit(c,seed,copysym,.false.)
+    call makeseed_for_edit(c,seed,copysym,copybonding_)
 
     ! interpret units: internal Cartesian for a molecule, crystallographic otherwise
     xx = edit_seed_coords(c,x,iunit_l)
@@ -1931,6 +2043,7 @@ contains
     call realloc(seed%x,3,seed%nat)
     call realloc(seed%is,seed%nat)
     call realloc(seed%atname,seed%nat)
+    if (copybonding_) call realloc(seed%nstar,seed%nat)
     if (allocated(seed%occ)) then
        call realloc(seed%occ,seed%nat)
        seed%occ(seed%nat) = 1d0
@@ -1953,25 +2066,30 @@ contains
     ! build the new crystal
     call c%struct_new(seed,crashfail=.true.,ti=ti)
 
+    ! find the bonds of the added atom
+    if (copybonding_) call bonds_attach_new(c,c%ncel-1,.true.)
+
   end subroutine add_atom
 
   !> Add nat atoms with atomic numbers zat and Cartesian coordinates x
   !> to the crystal in a single rebuild.
-  module subroutine add_fragment(c,nat,zat,x,ti)
+  module subroutine add_fragment(c,nat,zat,x,copybonding,nstar0,ti)
     class(crystal), intent(inout) :: c
     integer, intent(in) :: nat
     integer, intent(in) :: zat(nat)
     real*8, intent(in) :: x(3,nat)
+    logical, intent(in), optional :: copybonding
+    type(neighstar), intent(in), optional :: nstar0(nat)
     type(thread_info), intent(in), optional :: ti
 
-    call c%replace_fragment(0,(/integer::/),nat,zat,x,ti)
+    call c%replace_fragment(0,(/integer::/),nat,zat,x,copybonding,nstar0,ti)
 
   end subroutine add_fragment
 
   !> Delete the ndel cell atoms in idel and add nadd atoms with atomic
   !> numbers zat and Cartesian coordinates x to the crystal, in a
   !> single rebuild.
-  module subroutine replace_fragment(c,ndel,idel,nadd,zat,x,ti)
+  module subroutine replace_fragment(c,ndel,idel,nadd,zat,x,copybonding,nstar0,ti)
     use crystalseedmod, only: crystalseed
     use types, only: realloc, siteocc
     use tools_io, only: nameguess
@@ -1981,26 +2099,63 @@ contains
     integer, intent(in) :: nadd
     integer, intent(in) :: zat(nadd)
     real*8, intent(in) :: x(3,nadd)
+    logical, intent(in), optional :: copybonding
+    type(neighstar), intent(in), optional :: nstar0(nadd)
     type(thread_info), intent(in), optional :: ti
 
     type(crystalseed) :: seed
     type(siteocc), allocatable :: mixaux(:)
     logical, allocatable :: keep(:)
-    integer :: i, j, is, nat0
+    integer, allocatable :: imap(:)
+    integer :: i, j, k, is, nat0
+    logical :: copybonding_
 
     if (ndel <= 0 .and. nadd <= 0) return
+    copybonding_ = .false.
+    if (present(copybonding)) copybonding_ = copybonding
+    copybonding_ = copybonding_ .and. allocated(c%nstar)
 
     ! make seed from this crystal (atoms in atcel order); re-fits the
     ! molecular cell to the new fragment
     call makeseed_for_edit(c,seed,.false.,.false.)
 
+    ! the surviving atoms; they occupy 1..count(keep), in order, of the
+    ! new atom list
+    allocate(keep(seed%nat))
+    keep = .true.
+    do i = 1, ndel
+       if (idel(i) >= 1 .and. idel(i) <= seed%nat) keep(idel(i)) = .false.
+    end do
+
+    ! Bonding of the surviving atoms. The added atoms start with their
+    ! given internal bonding (nstar0, renumbered) or with no bonds;
+    ! either way their bonds to the rest are found after the rebuild.
+    if (copybonding_) then
+       allocate(imap(seed%nat))
+       nat0 = 0
+       do i = 1, seed%nat
+          imap(i) = 0
+          if (keep(i)) then
+             nat0 = nat0 + 1
+             imap(i) = nat0
+          end if
+       end do
+       call c%bonds_subset(imap,seed%nstar)
+       deallocate(imap)
+       call realloc(seed%nstar,nat0+nadd)
+       if (present(nstar0)) then
+          do i = 1, nadd
+             seed%nstar(nat0+i) = nstar0(i)
+             do k = 1, seed%nstar(nat0+i)%ncon
+                seed%nstar(nat0+i)%idcon(k) = seed%nstar(nat0+i)%idcon(k) + nat0
+             end do
+          end do
+       end if
+       seed%havebonds = .true.
+    end if
+
     ! compact out the deleted atoms
     if (ndel > 0) then
-       allocate(keep(seed%nat))
-       keep = .true.
-       do i = 1, ndel
-          if (idel(i) >= 1 .and. idel(i) <= seed%nat) keep(idel(i)) = .false.
-       end do
        nat0 = 0
        do i = 1, seed%nat
           if (.not.keep(i)) cycle
@@ -2063,6 +2218,10 @@ contains
 
     ! build the new crystal
     call c%struct_new(seed,crashfail=.true.,ti=ti)
+
+    ! find the bonds that attach the added atoms to the rest (all their
+    ! bonds, when they did not bring their internal bonding with them)
+    if (copybonding_) call bonds_attach_new(c,seed%nat-nadd,.not.present(nstar0))
 
   end subroutine replace_fragment
 
@@ -2148,7 +2307,6 @@ contains
   ! iat2) and recomputes the molecular-fragment data; does NOT rebuild
   ! the structure. Self-bonds and already-existing bonds are ignored.
   module subroutine add_bond(c,iat1,iat2,lvec,order)
-    use types, only: neighstar, realloc
     class(crystal), intent(inout) :: c
     integer, intent(in) :: iat1, iat2
     integer, intent(in) :: lvec(3)
@@ -2167,34 +2325,32 @@ contains
 
     ! add iat2 (at lvec) to iat1's star and the reciprocal iat1 (at -lvec)
     ! to iat2's star
-    call add_one(c%nstar(iat1),iat2,lvec)
-    call add_one(c%nstar(iat2),iat1,-lvec)
+    call star_append(c%nstar(iat1),iat2,lvec,order)
+    call star_append(c%nstar(iat2),iat1,-lvec,order)
 
     ! keep molecular fragments consistent with the new connectivity (in-place
     ! edit, no asterism recompute)
     call c%refresh_molecular_data()
 
-  contains
-    subroutine add_one(ns,id,lv)
-      type(neighstar), intent(inout) :: ns
-      integer, intent(in) :: id, lv(3)
-      integer :: n
-      n = ns%ncon + 1
-      if (.not.allocated(ns%idcon)) then
-         allocate(ns%idcon(n),ns%lcon(3,n),ns%ordcon(n),ns%aromdir(3,n))
-      elseif (n > size(ns%idcon,1)) then
-         call realloc(ns%idcon,n)
-         call realloc(ns%lcon,3,n)
-         call realloc(ns%ordcon,n)
-         call realloc(ns%aromdir,3,n)
-      end if
-      ns%idcon(n) = id
-      ns%lcon(:,n) = lv
-      ns%ordcon(n) = order
-      ns%aromdir(:,n) = 0d0
-      ns%ncon = n
-    end subroutine add_one
   end subroutine add_bond
+
+  !> Subset and renumber the neighbor stars (c%nstar) under the atom
+  !> index map imap(1:ncel): imap(i) is the new index of cell atom i, or
+  !> 0 if it is dropped. The result, in nstar(1:count(imap>0)), keeps
+  !> only the bonds between two kept atoms, with idcon renumbered. If
+  !> lshift(3,ncel) is given, atom i is understood to move by the
+  !> lattice vector lshift(:,i) (e.g. a molecule unwrap) and the lcon
+  !> vectors are corrected accordingly. c%nstar must be allocated.
+  module subroutine bonds_subset(c,imap,nstar,lshift)
+    use types, only: neighstar, nstar_subset
+    class(crystal), intent(in) :: c
+    integer, intent(in) :: imap(:)
+    type(neighstar), allocatable, intent(out) :: nstar(:)
+    integer, intent(in), optional :: lshift(:,:)
+
+    call nstar_subset(c%nstar(1:c%ncel),imap,nstar,lshift)
+
+  end subroutine bonds_subset
 
   !> Recompute the atomic connectivity (asterisms) and the derived
   !> molecular data (fragments, molecular equivalence, periodicity).
@@ -2278,5 +2434,74 @@ contains
     end if
 
   end function edit_seed_coords
+
+  !> Append the entry (id, lattice vector lv, bond order ord) to the
+  !> neighbor star ns, growing its arrays as needed.
+  subroutine star_append(ns,id,lv,ord)
+    use types, only: neighstar, realloc
+    type(neighstar), intent(inout) :: ns
+    integer, intent(in) :: id, lv(3), ord
+
+    integer :: n
+
+    n = ns%ncon + 1
+    if (.not.allocated(ns%idcon)) then
+       allocate(ns%idcon(n),ns%lcon(3,n),ns%ordcon(n),ns%aromdir(3,n))
+    elseif (n > size(ns%idcon,1)) then
+       call realloc(ns%idcon,n)
+       call realloc(ns%lcon,3,n)
+       call realloc(ns%ordcon,n)
+       call realloc(ns%aromdir,3,n)
+    end if
+    ns%idcon(n) = id
+    ns%lcon(:,n) = lv
+    ns%ordcon(n) = ord
+    ns%aromdir(:,n) = 0d0
+    ns%ncon = n
+
+  end subroutine star_append
+
+  !> The atoms nkeep+1..ncel have just been added to the crystal
+  !> carrying no bonds to the first nkeep: find their distance-based
+  !> bonds and add them to c%nstar, then refresh the derived molecular
+  !> data. Bonds between two added atoms are included only with newnew
+  !> (they are already present when the fragment brought its own
+  !> internal bonding). Bonds among the first nkeep atoms are left
+  !> untouched.
+  subroutine bonds_attach_new(c,nkeep,newnew)
+    use global, only: bondfactor
+    use types, only: neighstar
+    use param, only: atmcov
+    class(crystal), intent(inout) :: c
+    integer, intent(in) :: nkeep
+    logical, intent(in) :: newnew
+
+    type(neighstar), allocatable :: ns(:)
+    integer :: i, k, nb
+
+    ! distance-based connectivity of the current structure, with the
+    ! same radii and factor a full rebuild would use
+    call c%find_asterisms(ns,atmcov,bondfactor)
+
+    ! append the computed bonds involving the added atoms. A bond
+    ! between two added atoms appears in both stars, so each direction
+    ! is appended when the loop visits its origin atom; for a bond to
+    ! one of the first nkeep atoms, the reciprocal entry is appended
+    ! here as well.
+    do i = nkeep+1, c%ncel
+       do k = 1, ns(i)%ncon
+          nb = ns(i)%idcon(k)
+          if (nb <= nkeep) then
+             call star_append(c%nstar(i),nb,ns(i)%lcon(:,k),ns(i)%ordcon(k))
+             call star_append(c%nstar(nb),i,-ns(i)%lcon(:,k),ns(i)%ordcon(k))
+          elseif (newnew) then
+             call star_append(c%nstar(i),nb,ns(i)%lcon(:,k),ns(i)%ordcon(k))
+          end if
+       end do
+    end do
+
+    call c%refresh_molecular_data()
+
+  end subroutine bonds_attach_new
 
 end submodule edit
