@@ -38,6 +38,8 @@ module windows
   integer(c_size_t), parameter :: maxlib = 40000
 
   ! view modes (positive = normal, user-selectable; negative = forced)
+  integer, parameter, public :: vm_builder_bondh = -9 ! forced by builder: create bonds, dropping a hydrogen (persistent)
+  integer, parameter, public :: vm_builder_bond = -8 ! forced by builder: create bonds (persistent)
   integer, parameter, public :: vm_builder_trim = -7 ! forced by builder: trim branches (persistent)
   integer, parameter, public :: vm_builder_addfragment = -6 ! forced by builder: add fragments (persistent)
   integer, parameter, public :: vm_builder_addatom = -5 ! forced by builder: add atoms (persistent)
@@ -51,7 +53,9 @@ module windows
   integer, parameter, public :: vm_moveatom  = 3
   integer, parameter, public :: vm_NUM = 3 ! highest user-selectable mode (combo)
 
-  character(len=19), parameter, public :: vmnames(vm_builder_trim:vm_NUM) = (/&
+  character(len=19), parameter, public :: vmnames(vm_builder_bondh:vm_NUM) = (/&
+     "Create Bonds (-H)  ",& ! vm_builder_bondh
+     "Create Bonds       ",& ! vm_builder_bond
      "Trim Branches      ",& ! vm_builder_trim
      "Add Fragments      ",& ! vm_builder_addfragment
      "Add Atoms          ",& ! vm_builder_addatom
@@ -199,9 +203,11 @@ module windows
      integer :: geometry_addbond_iview = 0 ! view window commanded for the add-bond pick
      real*8 :: geometry_addbond_time = 0d0 ! time the add-bond pick was commanded (to detect stale ids)
      ! builder parameters
-     integer :: builder_vm = 0 ! forced mode commanded to the parent view (0 = idle, else vm_builder_valence/remove/trim/addatom)
+     integer :: builder_vm = 0 ! forced mode commanded to the parent view (0 = idle, else one of the vm_builder_* modes)
      integer :: builder_isys = 0 ! system latched for the builder picks (0 = no mode active)
      real*8 :: builder_time = 0d0 ! time of the last click-free poll (stale-click guard)
+     integer :: builder_bond_idx(4) = 0 ! create bonds: staged first atom (cell atom + lattice vector; 0 = none)
+     real*8 :: builder_bond_time = 0d0 ! create bonds: time the first atom was staged (to detect stale indices)
      integer :: builder_addatom_z = 6 ! add atoms: selected element (Z)
      integer :: builder_addatom_ig = 6 ! add atoms: local geometry (0-based combo index, 6 = tetrahedral)
      character(len=:), allocatable :: builder_frag_name ! add fragments: name of the selected fragment

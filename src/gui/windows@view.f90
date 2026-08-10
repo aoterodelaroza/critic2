@@ -1369,7 +1369,8 @@ contains
           ! modes share the navigation binds (minus measurements)
           select case (w%viewmode)
           case (vm_navigate, vm_pick_atom, vm_builder_valence, vm_builder_remove,&
-             vm_builder_trim, vm_builder_addatom, vm_builder_addfragment)
+             vm_builder_trim, vm_builder_bond, vm_builder_bondh, vm_builder_addatom,&
+             vm_builder_addfragment)
              mygroup = group_viewmode_navigation
           case (vm_select)
              mygroup = group_viewmode_select
@@ -1419,6 +1420,8 @@ contains
                 lblline(n) = "Remove Atom"
              elseif (w%viewmode == vm_builder_trim) then
                 lblline(n) = "Trim Branch at Atom"
+             elseif (w%viewmode == vm_builder_bond .or. w%viewmode == vm_builder_bondh) then
+                lblline(n) = "Pick Bond Atoms"
              elseif (w%viewmode == vm_builder_addatom) then
                 lblline(n) = "Add Atoms Here"
              elseif (w%viewmode == vm_builder_addfragment) then
@@ -2649,6 +2652,7 @@ contains
 
     vm_is_forcedpick = (mode == vm_pick_atom .or. mode == vm_builder_valence .or.&
        mode == vm_builder_remove .or. mode == vm_builder_trim .or.&
+       mode == vm_builder_bond .or. mode == vm_builder_bondh .or.&
        mode == vm_builder_addatom .or. mode == vm_builder_addfragment)
   end function vm_is_forcedpick
 
@@ -2660,7 +2664,8 @@ contains
     logical :: vm_exits_on_empty
 
     vm_exits_on_empty = (mode == vm_builder_valence .or. mode == vm_builder_remove .or.&
-       mode == vm_builder_trim)
+       mode == vm_builder_trim .or. mode == vm_builder_bond .or.&
+       mode == vm_builder_bondh)
   end function vm_exits_on_empty
 
   !> Whether any mouse button was clicked this frame

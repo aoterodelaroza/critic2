@@ -78,6 +78,7 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: isys, iview, icel, imode, nsel, iside, ibold, ibnew, izout, i, j, k
+    integer :: idxpick(4)
     logical :: doquit, goodparent, havesys, ok, lcommit, ldum, relaxing
     real*8 :: dist, ang
     real(c_float) :: xclick(2)
@@ -105,6 +106,8 @@ contains
        w%builder_vm = 0
        w%builder_isys = 0
        w%builder_time = 0d0
+       w%builder_bond_idx = 0
+       w%builder_bond_time = 0d0
        w%edit_kind = 0
        w%edit_isys = 0
        w%edit_idx = 0
@@ -122,6 +125,11 @@ contains
 
     ! handle an active builder mode commanded to the parent view
     if (w%builder_vm /= 0) then
+       ! a geometry change since an atom was staged for a new bond
+       ! invalidates its index: drop it (and its highlight)
+       if (w%builder_bond_idx(1) > 0 .and.&
+          sysc(w%builder_isys)%timelastchange_geometry > w%builder_bond_time) &
+          w%builder_bond_idx = 0
        ok = goodparent
        if (ok) ok = win(iview)%viewmode == w%builder_vm .and.&
           win(iview)%vmdata%owner == w%id .and.&
@@ -167,7 +175,7 @@ contains
           ! An atom click was delivered: apply the edit and stay in
           ! the mode. Discard stale clicks: those delivered while the
           ! builder was not polling.
-          icel = win(iview)%vmdata%idx(1)
+          idxpick = win(iview)%vmdata%idx(1:4)
           imode = win(iview)%vmdata%flag
           win(iview)%vmdata%idx = 0
           if (glfwGetTime() - w%builder_time < stale_gap .and.&
@@ -175,15 +183,30 @@ contains
              if (w%builder_vm == vm_builder_valence) then
                 ! change valence: main pick = add a hydrogen, alternate
                 ! pick = remove one
-                call sysc(w%builder_isys)%change_valence(icel,imode)
+                call sysc(w%builder_isys)%change_valence(idxpick(1),imode)
              elseif (w%builder_vm == vm_builder_remove .and. imode == 1) then
                 ! remove atoms (main pick only): the atom and its
                 ! terminal hydrogens
-                call sysc(w%builder_isys)%remove_atom_hydrogens(icel)
+                call sysc(w%builder_isys)%remove_atom_hydrogens(idxpick(1))
              elseif (w%builder_vm == vm_builder_trim .and. imode == 1) then
                 ! trim branch (main pick only): the same, plus every
                 ! piece the removal disconnects but the main one
-                call sysc(w%builder_isys)%trim_branch(icel)
+                call sysc(w%builder_isys)%trim_branch(idxpick(1))
+             elseif ((w%builder_vm == vm_builder_bond .or. w%builder_vm == vm_builder_bondh)&
+                .and. imode == 1) then
+                ! create bond (main pick only): the first click stages
+                ! an atom, the second bonds the pair; clicking the
+                ! staged atom again cancels it
+                if (w%builder_bond_idx(1) == 0) then
+                   w%builder_bond_idx = idxpick
+                   w%builder_bond_time = glfwGetTime()
+                elseif (all(w%builder_bond_idx == idxpick)) then
+                   w%builder_bond_idx = 0
+                else
+                   call sysc(w%builder_isys)%create_bond(w%builder_bond_idx,idxpick,&
+                      w%builder_vm == vm_builder_bondh,w%errmsg)
+                   w%builder_bond_idx = 0
+                end if
              end if
              ! hold the camera of the view the user is clicking in through
              ! the rebuild (the edit routines post the geometry event)
@@ -331,6 +354,19 @@ contains
     end if
     call iw_tooltip("Recompute the bond connectivity for this system ("//&
        trim(get_bind_keyname(BIND_RECALC_BONDS))//")",ttshown)
+    if (iw_button("Create bond",disabled=.not.havesys,sameline=.true.)) then
+       w%errmsg = ""
+       call builder_toggle(vm_builder_bond)
+    end if
+    call iw_tooltip("Bond two atoms clicked ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
+       ") one after the other in the view. Only the connectivity changes: no atom is moved"//&
+       " or deleted",ttshown)
+    if (iw_button("Create bond (-H)",disabled=.not.havesys,sameline=.true.)) then
+       w%errmsg = ""
+       call builder_toggle(vm_builder_bondh)
+    end if
+    call iw_tooltip("Same as creating a bond, but if both atoms are not hydrogen, each of"//&
+       " them loses a terminal hydrogen, the one pointing most towards the other atom",ttshown)
 
     ! number of measure-selected atoms in the parent view
     nsel = 0
@@ -539,6 +575,11 @@ contains
     if (w%edit_kind /= 0) &
        call sysc(w%edit_isys)%highlight_atoms(.true.,w%edit_idx(1,1:w%edit_kind),&
        atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,w%edit_kind))
+
+    ! transient highlight of the atom staged for a new bond
+    if (w%builder_bond_idx(1) > 0) &
+       call sysc(w%builder_isys)%highlight_atoms(.true.,w%builder_bond_idx(1:1),&
+       atlisttype_ncel_frac,spread(ColorHighlightEditDistScene,2,1))
 
     ! the relax section
     call iw_text("Relax",highlight=.true.)
@@ -1202,6 +1243,7 @@ contains
       if (goodparent) call win(iview)%viewmode_release_forced(w%id,w%builder_vm)
       w%builder_vm = 0
       w%builder_isys = 0
+      w%builder_bond_idx = 0
     end subroutine builder_stop
 
     ! Add-atoms mode: on empty space (icel = 0), unproject the clicked
@@ -1555,6 +1597,10 @@ contains
          elseif (jvm == vm_builder_trim) then
             msg = "Trim ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
                ") the branch hanging from the clicked atoms"
+         elseif (jvm == vm_builder_bond .or. jvm == vm_builder_bondh) then
+            msg = "Click ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
+               ") two atoms to bond them"
+            if (jvm == vm_builder_bondh) msg = msg // ", deleting a hydrogen from each"
          else
             msg = "Remove ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
                ") the atoms and their hydrogens"

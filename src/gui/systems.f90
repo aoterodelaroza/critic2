@@ -163,6 +163,7 @@ module systems
      procedure :: change_valence
      procedure :: remove_atom_hydrogens
      procedure :: trim_branch
+     procedure :: create_bond
      procedure :: add_atoms_fragment
      procedure :: replace_atoms_fragment
      procedure :: reread_geometry_from_file
@@ -524,6 +525,12 @@ module systems
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: icel
      end subroutine trim_branch
+     module subroutine create_bond(sysc,idx1,idx2,removeh,errmsg)
+       class(sysconf), intent(inout) :: sysc
+       integer, intent(in) :: idx1(4), idx2(4)
+       logical, intent(in) :: removeh
+       character(len=:), allocatable, intent(out) :: errmsg
+     end subroutine create_bond
      module subroutine add_atoms_fragment(sysc,nat,zat,x)
        class(sysconf), intent(inout) :: sysc
        integer, intent(in) :: nat

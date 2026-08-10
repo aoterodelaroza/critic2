@@ -2790,6 +2790,99 @@ contains
 
   end subroutine trim_branch
 
+  !> Create a bond between two picked atoms, each given as a cell atom
+  !> index plus the lattice vector of the picked image (idx(1) and
+  !> idx(2:4)). With removeh and if both atoms are non-hydrogen, the
+  !> terminal hydrogen best aligned with the new bond is deleted from
+  !> each of them first, whenever it has one; otherwise nothing but the
+  !> connectivity changes. Returns a non-empty errmsg on failure.
+  module subroutine create_bond(sysc,idx1,idx2,removeh,errmsg)
+    use param, only: icrd_crys
+    class(sysconf), intent(inout) :: sysc
+    integer, intent(in) :: idx1(4), idx2(4)
+    logical, intent(in) :: removeh
+    character(len=:), allocatable, intent(out) :: errmsg
+
+    integer :: isys, i1, i2, k, lvec(3), idel(2), ndel
+    real*8 :: r1(3), r2(3), u(3), d, x1(3), x2(3)
+
+    real*8, parameter :: eps_degen = 1d-10 ! coincident-atom threshold (bohr)
+
+    errmsg = ""
+
+    ! consistency checks
+    isys = sysc%id
+    if (.not.ok_system(isys,sys_init)) return
+    i1 = idx1(1)
+    i2 = idx2(1)
+    if (i1 < 1 .or. i1 > sys(isys)%c%ncel .or. i2 < 1 .or. i2 > sys(isys)%c%ncel) return
+    lvec = idx2(2:4) - idx1(2:4)
+    if (i1 == i2 .and. all(lvec == 0)) then
+       errmsg = "An atom cannot be bonded to itself"
+       return
+    end if
+
+    ! refuse a bond that is already there
+    if (allocated(sys(isys)%c%nstar)) then
+       do k = 1, sys(isys)%c%nstar(i1)%ncon
+          if (sys(isys)%c%nstar(i1)%idcon(k) == i2 .and. &
+             all(sys(isys)%c%nstar(i1)%lcon(:,k) == lvec)) then
+             errmsg = "These two atoms are already bonded"
+             return
+          end if
+       end do
+    end if
+
+    ! direction of the new bond, from the first atom to the second
+    r1 = sys(isys)%c%atcel(i1)%r
+    r2 = sys(isys)%c%atcel(i2)%r + sys(isys)%c%x2c(dble(lvec))
+    u = r2 - r1
+    d = norm2(u)
+    if (d < eps_degen) then
+       errmsg = "The two atoms are at the same position"
+       return
+    end if
+    u = u / d
+
+    ! the terminal hydrogens to delete: the one pointing at the partner
+    ! on each atom, and only if both atoms are non-hydrogen
+    ndel = 0
+    if (removeh .and. sys(isys)%c%spc(sys(isys)%c%atcel(i1)%is)%z /= 1 .and.&
+       sys(isys)%c%spc(sys(isys)%c%atcel(i2)%is)%z /= 1) then
+       idel(1) = best_terminal_h(isys,i1,u)
+       idel(2) = best_terminal_h(isys,i2,-u)
+       ! bonding an atom to its own image can pick the same hydrogen twice
+       if (idel(2) == idel(1)) idel(2) = 0
+       ndel = count(idel > 0)
+       idel(1:ndel) = pack(idel,idel > 0)
+    end if
+
+    ! Delete them, then bond. The order matters: removing atoms rebuilds
+    ! the structure without copying the connectivity, so a bond created
+    ! first would be lost. The rebuild may renumber the atoms, so the
+    ! two are located again by position (their coordinates do not move).
+    if (ndel > 0) then
+       x1 = sys(isys)%c%atcel(i1)%x
+       x2 = sys(isys)%c%atcel(i2)%x
+       call sys(isys)%c%edit_atom_list(ndel,idel(1:ndel),remove=.true.,errmsg=errmsg)
+       if (has_errmsg(errmsg)) return
+       i1 = sys(isys)%c%identify_atom(x1,icrd_crys)
+       i2 = sys(isys)%c%identify_atom(x2,icrd_crys)
+       if (i1 == 0 .or. i2 == 0) then
+          errmsg = "Could not find the atoms after deleting the hydrogens"
+          return
+       end if
+    end if
+    if (ndel > 0) then
+       ! the atom list changed, so the geometry event supersedes the rebond
+       call sys(isys)%c%add_bond(i1,i2,lvec,1)
+       call sysc%post_event(lastchange_geometry)
+    else
+       call sysc%add_bond(i1,i2,lvec,1)
+    end if
+
+  end subroutine create_bond
+
   !> Add nat atoms with atomic numbers zat and Cartesian coordinates x
   !> to this system in a single rebuild.
   module subroutine add_atoms_fragment(sysc,nat,zat,x)
@@ -3777,6 +3870,40 @@ contains
     end do
 
   end subroutine atom_with_hydrogens
+
+  !> Cell index of the terminal hydrogen on cell atom ia whose bond
+  !> direction is best aligned with the unit vector udir, or 0 if the
+  !> atom has none. A terminal hydrogen is a hydrogen whose only bonded
+  !> neighbor is ia.
+  function best_terminal_h(isys,ia,udir)
+    integer, intent(in) :: isys, ia
+    real*8, intent(in) :: udir(3)
+    integer :: best_terminal_h
+
+    integer :: k, nb
+    real*8 :: rh(3), v(3), d, dotp, dotmax
+
+    real*8, parameter :: eps_degen = 1d-10 ! coincident-atom threshold (bohr)
+
+    best_terminal_h = 0
+    dotmax = -2d0 ! below any dot product of two unit vectors
+    if (.not.allocated(sys(isys)%c%nstar)) return
+    do k = 1, sys(isys)%c%nstar(ia)%ncon
+       nb = sys(isys)%c%nstar(ia)%idcon(k)
+       if (sys(isys)%c%spc(sys(isys)%c%atcel(nb)%is)%z /= 1) cycle
+       if (sys(isys)%c%nstar(nb)%ncon /= 1) cycle
+       rh = sys(isys)%c%atcel(nb)%r + sys(isys)%c%x2c(dble(sys(isys)%c%nstar(ia)%lcon(:,k)))
+       v = rh - sys(isys)%c%atcel(ia)%r
+       d = norm2(v)
+       if (d < eps_degen) cycle
+       dotp = dot_product(v/d,udir)
+       if (dotp > dotmax) then
+          best_terminal_h = nb
+          dotmax = dotp
+       end if
+    end do
+
+  end function best_terminal_h
 
   !> Remove the nat cell atoms in iat from this system and post the
   !> geometry change. Does nothing if that would empty the system.
