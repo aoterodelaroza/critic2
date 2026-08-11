@@ -185,9 +185,9 @@ module keybindings
      "Remove measurement              ",& ! BIND_NAV_MEASURE_REMOVE
      "Pick atom, alternate action     ",& ! BIND_PICKATOM_ALT
      "Edit distance/angle/dihedral    ",& ! BIND_EDIT_D_A_PHI
-     "Exit mode                       ",& ! BIND_MOVEMOL_EXIT
-     "Exit mode                       ",& ! BIND_MOVEATOM_EXIT
-     "Exit mode                       ",& ! BIND_PICKATOM_EXIT
+     "Exit mode (empty space)         ",& ! BIND_MOVEMOL_EXIT
+     "Exit mode (empty space)         ",& ! BIND_MOVEATOM_EXIT
+     "Exit mode (empty space)         ",& ! BIND_PICKATOM_EXIT
      "New molecule                    ",& ! BIND_NEW_MOLECULE
      "Copy selection                  ",& ! BIND_COPY_SELECTION
      "Cut selection                   ",& ! BIND_CUT_SELECTION

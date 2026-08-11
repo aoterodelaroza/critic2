@@ -1256,30 +1256,32 @@ contains
 
   end subroutine viewmode_set_mode
 
-  !> Enter a window-forced pick view mode: the message is shown in the
-  !> bar below the view. The mode behaves like navigation (same camera
-  !> binds) with measurements disabled; a click with a pick bind
-  !> stores the ID of the atom under the mouse in w%vmdata%idx
-  !> (mousepos_idx layout; zero = no atom / cancelled) and which pick
-  !> bind fired in w%vmdata%flag (1 = main, 2 = alternate), and the
-  !> cancel keybinding exits the mode (a hint is appended to the
-  !> message in pick-atom mode). idcaller is the window ID (win(:)) of
-  !> the caller, used by the caller to verify it owns the pick result.
+  !> Enter a window-forced pick view mode. The mode behaves like
+  !> navigation (same camera binds) with measurements disabled; a
+  !> click with a pick bind stores the ID of the atom under the mouse
+  !> in w%vmdata%idx (mousepos_idx layout; zero = no atom / cancelled)
+  !> and which pick bind fired in w%vmdata%flag (1 = main, 2 =
+  !> alternate), and the cancel keybinding exits the mode. message is
+  !> the prompt shown in the bar below the view. Without it the bar
+  !> shows the mode hint from viewmode_text. idcaller is the window
+  !> ID (win(:)) of the caller, used by the caller to verify it owns
+  !> the pick result.
   module subroutine viewmode_set_forced(w,mode,message,idcaller)
-    use keybindings, only: get_bind_keyname, BIND_CANCEL
     class(window), intent(inout), target :: w
     integer, intent(in) :: mode
-    character(len=*), intent(in) :: message
+    character(len=*), intent(in), optional :: message
     integer, intent(in) :: idcaller
 
     w%viewmode = mode
     w%viewmode_transient = .false.
     w%vmdata%owner = idcaller
-    w%vmdata%msg = trim(message)
+    if (allocated(w%vmdata%msg)) deallocate(w%vmdata%msg)
+    if (present(message)) w%vmdata%msg = trim(message)
     w%vmdata%idx = 0
     w%vmdata%flag = 0
     w%vmdata%tooltip_ig = -1
     w%vmdata%tooltip_iz = 0
+    w%vmdata%frag_isligand = .false.
     if (allocated(w%vmdata%tooltip_frag)) deallocate(w%vmdata%tooltip_frag)
     ! drop any pending press capture, so a press begun under the previous
     ! mode cannot deliver a pick under this one on release
@@ -1325,9 +1327,114 @@ contains
 
   end subroutine viewmode_to_navigate
 
+  !> The user-facing text for view mode mode: hint is the one-line
+  !> message shown in the bar next to the mode combo, descr is the
+  !> sentence or two heading the mode tooltip, and picklbl/altlbl are
+  !> the tooltip key-table labels for the main and alternate pick binds
+  !> (empty picklbl = use the generic bindnames label, empty altlbl =
+  !> the mode has no alternate action).
+  subroutine viewmode_text(w,mode,hint,descr,picklbl,altlbl)
+    use keybindings, only: get_bind_keyname, BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT,&
+       BIND_CANCEL, BIND_NAV_MEASURE, BIND_SELECT_ATOMS, BIND_SELECT_MOLECULES,&
+       BIND_MOVEMOL_TRANSLATE, BIND_MOVEMOL_ROTATE, BIND_MOVEATOM_TRANSLATE
+    class(window), intent(in) :: w
+    integer, intent(in) :: mode
+    character(len=:), allocatable, intent(out) :: hint, descr, picklbl, altlbl
+
+    character(len=:), allocatable :: frag
+
+    hint = ""
+    descr = ""
+    picklbl = ""
+    altlbl = ""
+
+    ! the armed fragment, for the add-fragments texts
+    frag = "the fragment"
+    if (allocated(w%vmdata%tooltip_frag)) then
+       if (len_trim(w%vmdata%tooltip_frag) > 0) frag = trim(w%vmdata%tooltip_frag)
+    end if
+
+    select case (mode)
+    case (vm_navigate)
+       descr = "Move the camera around the scene, and click atoms ("//kn(BIND_NAV_MEASURE)//&
+          ") to measure distances, angles and dihedrals. The structure is not modified."
+    case (vm_select)
+       hint = "Click to select atoms and molecules"
+       descr = "Click or drag a rectangle to select atoms. Select a "//&
+          "molecule clicking "//kn(BIND_SELECT_MOLECULES)//"."
+    case (vm_movemol)
+       hint = "Translate and rotate molecules"
+       descr = "Drag a molecule to translate ("//kn(BIND_MOVEMOL_TRANSLATE)//") or rotate ("//&
+          kn(BIND_MOVEMOL_ROTATE)//") it as a rigid body, leaving its internal geometry "//&
+          "untouched."
+    case (vm_moveatom)
+       hint = "Translate atoms"
+       descr = "Drag a single atom to move it."
+    case (vm_mdinteract)
+       hint = "Drag atoms and molecules to steer the run"
+       descr = "Steer the running dynamics with the mouse: drag an atom, or translate or "//&
+          "rotate a whole molecule, while the run is active."
+    case (vm_pick_atom)
+       hint = "Pick an atom in the view"
+       descr = "A window is waiting for an atom: click to pick one. Clicking "//&
+          "empty space, or cancelling ("//kn(BIND_CANCEL)//"), aborts the pick."
+    case (vm_builder_valence)
+       hint = "Click to add ("//kn(BIND_PICKATOM_SELECT)//") or remove ("//&
+          kn(BIND_PICKATOM_ALT)//") hydrogens"
+       descr = "Add ("//kn(BIND_PICKATOM_SELECT)//") or remove ("//kn(BIND_PICKATOM_ALT)//&
+          ") hydrogens on the clicked atoms, repositioning the terminal substituents."
+       picklbl = "Add hydrogen to atom"
+       altlbl = "Remove hydrogen from atom"
+    case (vm_builder_remove)
+       hint = "Click to remove atoms"
+       descr = "Remove the clicked atoms, along with their terminal hydrogens."
+       picklbl = "Remove atom"
+    case (vm_builder_trim)
+       hint = "Click to trim branches"
+       descr = "Remove the clicked atoms, their terminal hydrogens, and every fragment the "//&
+          "removal leaves disconnected."
+       picklbl = "Trim branch at atom"
+    case (vm_builder_addatom)
+       hint = "Click to add or replace atoms"
+       descr = "Add an atom of the chosen element with the selected local geometry. "//&
+          "Clicking an atom replaces it, keeping the substituents that are not terminal hydrogens."
+       picklbl = "Add atoms"
+    case (vm_builder_addfragment)
+       hint = "Click to add "//frag
+       if (w%vmdata%frag_isligand) then
+          descr = "Clicking an atom bonds "//frag//" to it as a ligand, keeping the clicked "//&
+             "atom; clicking empty space places "//frag//" there."
+       else
+          descr = "Clicking an atom replaces it with "//frag//&
+             "; clicking empty space places "//frag//" there with a hydrogen cap."
+       end if
+       picklbl = "Add fragment"
+    case (vm_builder_bond,vm_builder_bondh)
+       hint = "Click to bond atoms"
+       descr = "Bond two atoms clicked one after the other. "
+       if (mode == vm_builder_bondh) then
+          hint = hint // ", deleting hydrogens"
+          descr = descr // "If neither is a hydrogen, each loses a terminal hydrogen"
+       else
+          descr = descr // "Only the connectivity changes: no atom is moved or deleted"
+       end if
+       picklbl = "Pick bond atoms"
+    end select
+
+  contains
+    !> The name of the key bound to bind, trimmed for use in a message.
+    function kn(bind)
+      integer, intent(in) :: bind
+      character(len=:), allocatable :: kn
+
+      kn = trim(get_bind_keyname(bind))
+
+    end function kn
+  end subroutine viewmode_text
+
   !> Returns the tooltip message for the current viewmode
   module subroutine viewmode_bar_display(w)
-    use gui_main, only: tooltip_delay, g
+    use gui_main, only: tooltip_delay, tooltip_enabled, tooltip_wrap_factor, fontsize, g
     use keybindings, only: get_bind_keyname, bindnames,&
        BIND_NUM, group_viewmode_navigation, group_viewmode_select,&
        group_viewmode_movemol, group_viewmode_moveatom, group_viewmode_mdinteract,&
@@ -1340,9 +1447,10 @@ contains
 
     integer :: ll, i, n, m, viewmode_before, iforced, mygroup
     character(len=:), allocatable :: viewmode_items
+    character(len=:), allocatable :: hint, descr, picklbl, altlbl
     integer, allocatable :: tips(:)
     character(len=64), allocatable :: keyline(:), lblline(:)
-    logical :: valence, pickmode, emptyexit
+    logical :: pickmode, emptyexit
 
     logical, save :: ttshown = .false. ! tooltip flag
 
@@ -1369,15 +1477,18 @@ contains
        call iw_combo_simple("##viewmode",viewmode_items,w%viewmode)
        if (w%viewmode /= viewmode_before) w%viewmode_transient = .false.
     end if
-    valence = (w%viewmode == vm_builder_valence)
     pickmode = vm_is_forcedpick(w%viewmode)
     ! modes needing an explicit exit-bind tooltip line: the persistent
     ! builder picks (the move modes list theirs through their own group)
     emptyexit = vm_exits_on_empty(w%viewmode)
 
-    ! delayed tooltip with info about the key/mouse bindings for this view mode
+    ! the text for this mode; one table feeds both the tooltip and the bar hint
+    call viewmode_text(w,w%viewmode,hint,descr,picklbl,altlbl)
+
+    ! delayed tooltip describing the mode and its key/mouse bindings
     if (igIsItemHovered_delayed(ImGuiHoveredFlags_None,tooltip_delay,ttshown)) then
-       if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
+       if (tooltip_enabled .and. igIsMouseHoveringRect(g%LastItemData%NavRect%min,&
+          g%LastItemData%NavRect%max,.false._c_bool)) then
           ! the keybinding group for this view mode; the window-forced pick
           ! modes share the navigation binds (minus measurements)
           if (pickmode) then
@@ -1416,7 +1527,7 @@ contains
           ! plus the pick action(s) and the exit gestures
           m = n
           if (pickmode) m = m + 2
-          if (valence) m = m + 1
+          if (len_trim(altlbl) > 0) m = m + 1
           if (emptyexit) m = m + 1
           allocate(keyline(m),lblline(m))
           do i = 1, n
@@ -1424,38 +1535,33 @@ contains
              lblline(i) = trim(bindnames(tips(i)))
           end do
           if (pickmode) then
+             ! what the pick does in this mode, and its alternate action
+             ! if it has one; the modes that do nothing mode-specific
+             ! with the pick fall back to the generic bind name
              n = n + 1
              keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_SELECT))
-             if (valence) then
-                lblline(n) = "Add Hydrogen to Atom"
+             if (len_trim(picklbl) > 0) then
+                lblline(n) = picklbl
+             else
+                lblline(n) = trim(bindnames(BIND_PICKATOM_SELECT))
+             end if
+             if (len_trim(altlbl) > 0) then
                 n = n + 1
                 keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_ALT))
-                lblline(n) = "Remove Hydrogen from Atom"
-             elseif (w%viewmode == vm_builder_remove) then
-                lblline(n) = "Remove Atom"
-             elseif (w%viewmode == vm_builder_trim) then
-                lblline(n) = "Trim Branch at Atom"
-             elseif (w%viewmode == vm_builder_bond .or. w%viewmode == vm_builder_bondh) then
-                lblline(n) = "Pick Bond Atoms"
-             elseif (w%viewmode == vm_builder_addatom) then
-                lblline(n) = "Add Atoms Here"
-             elseif (w%viewmode == vm_builder_addfragment) then
-                lblline(n) = "Add Fragment Here"
-             else
-                lblline(n) = "Pick Atom"
+                lblline(n) = altlbl
              end if
              n = n + 1
              keyline(n) = trim(get_bind_keyname(BIND_CANCEL))
              if (w%viewmode == vm_pick_atom) then
-                lblline(n) = "Cancel Pick Atom"
+                lblline(n) = "Cancel the pick"
              else
-                lblline(n) = "Exit This Mode"
+                lblline(n) = "Exit mode"
              end if
           end if
           if (emptyexit) then
              n = n + 1
              keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_EXIT))
-             lblline(n) = "Exit This Mode"
+             lblline(n) = trim(bindnames(BIND_PICKATOM_EXIT))
           end if
 
           ! align the key column
@@ -1464,8 +1570,16 @@ contains
              ll = max(ll,len_trim(keyline(i)))
           end do
 
-          ! draw the tooltip
+          ! draw the tooltip: the mode name, what the mode does, then the
+          ! key table
           call igBeginTooltip()
+          call iw_text(trim(vmnames(w%viewmode)),highlight=.true.)
+          if (len_trim(descr) > 0) then
+             call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
+             call iw_text(descr)
+             call igPopTextWrapPos()
+          end if
+          call iw_text("")
           do i = 1, n
              call iw_text(string(trim(keyline(i)),length=ll+1),highlight=.true.)
              call iw_text(trim(lblline(i)),sameline=.true.)
@@ -1475,11 +1589,11 @@ contains
        end if
     end if
 
-    ! show the pick message ("pick an atom...", etc.) only while the window-forced
-    ! pick mode is active, so it vanishes as soon as an atom is picked or the view
-    ! mode changes (the string itself lingers allocated until the next pick)
+    ! the mode hint, next to the combo
     if (pickmode .and. allocated(w%vmdata%msg)) then
        call iw_text(w%vmdata%msg,highlight=.true.,sameline=.true.)
+    elseif (len_trim(hint) > 0) then
+       call iw_text(hint,highlight=.true.,sameline=.true.)
     end if
 
   end subroutine viewmode_bar_display

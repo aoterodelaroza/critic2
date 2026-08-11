@@ -55,20 +55,20 @@ module windows
   integer, parameter, public :: vm_builder_lo = vm_builder_bondh ! lower bound of the builder-mode range
   integer, parameter, public :: vm_builder_hi = vm_builder_valence ! upper bound of the builder-mode range
 
-  character(len=19), parameter, public :: vmnames(vm_builder_lo:vm_NUM) = (/&
-     "Create Bonds (-H)  ",& ! vm_builder_bondh
-     "Create Bonds       ",& ! vm_builder_bond
-     "Trim Branches      ",& ! vm_builder_trim
-     "Add Fragments      ",& ! vm_builder_addfragment
-     "Add Atoms          ",& ! vm_builder_addatom
-     "Remove Atoms       ",& ! vm_builder_remove
-     "Change Atom Valence",& ! vm_builder_valence
-     "Interact (MD)      ",& ! vm_mdinteract
-     "Pick Atoms         ",& ! vm_pick_atom
-     "Navigate           ",& ! vm_navigate
-     "Select             ",& ! vm_select
-     "Move Molecules     ",& ! vm_movemol
-     "Move Atoms         "&  ! vm_moveatom
+  character(len=17), parameter, public :: vmnames(vm_builder_lo:vm_NUM) = (/&
+     "Create Bonds (-H)",& ! vm_builder_bondh
+     "Create Bonds     ",& ! vm_builder_bond
+     "Trim Branches    ",& ! vm_builder_trim
+     "Add Fragments    ",& ! vm_builder_addfragment
+     "Add Atoms        ",& ! vm_builder_addatom
+     "Remove Atoms     ",& ! vm_builder_remove
+     "Change Valence   ",& ! vm_builder_valence
+     "Interact (MD)    ",& ! vm_mdinteract
+     "Pick Atoms       ",& ! vm_pick_atom
+     "Navigate         ",& ! vm_navigate
+     "Select           ",& ! vm_select
+     "Move Molecules   ",& ! vm_movemol
+     "Move Atoms       "&  ! vm_moveatom
      /)
 
   ! A staged atom pick for the operations that need two atoms chosen
@@ -90,10 +90,11 @@ module windows
 
   ! view mode data structure for window_forced modes
   type viewmode_data
-     character(len=:), allocatable :: msg ! message shown in the view bar
+     character(len=:), allocatable :: msg ! caller-supplied prompt shown in the view bar (pick-atom mode only)
      integer :: tooltip_ig = -1 ! geometry pictogram shown in the mouse tooltip (add-atoms mode; < 0 = none)
      integer :: tooltip_iz = 0 ! atomic number for the pictogram center (add-atoms mode; <= 0 = filled circle)
      character(len=:), allocatable :: tooltip_frag ! fragment name shown at the cursor (add-fragments mode)
+     logical :: frag_isligand = .false. ! the fragment bonds to the clicked atom instead of replacing it (add-fragments mode)
      integer(c_int) :: idx(4) = 0 ! atom identifier under mouse position (cell index + lattice vector)
      integer :: flag = 0 ! pick bind that fired (1 = main, 2 = alternate)
      real(c_float) :: xpos(2) = 0._c_float ! texture position of the click (add-atoms mode)
@@ -556,7 +557,7 @@ module windows
      module subroutine viewmode_set_forced(w,mode,message,idcaller)
        class(window), intent(inout), target :: w
        integer, intent(in) :: mode
-       character(len=*), intent(in) :: message
+       character(len=*), intent(in), optional :: message
        integer, intent(in) :: idcaller
      end subroutine viewmode_set_forced
      module subroutine viewmode_exit_forced(w)

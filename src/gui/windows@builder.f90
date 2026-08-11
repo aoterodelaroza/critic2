@@ -146,6 +146,7 @@ contains
              win(iview)%vmdata%tooltip_iz = w%builder_addatom_z
           elseif (allocated(w%builder_frag_name)) then
              win(iview)%vmdata%tooltip_frag = w%builder_frag_name
+             win(iview)%vmdata%frag_isligand = (w%builder_frag_radius > 0d0)
           end if
           if (win(iview)%vmdata%flag /= 0) then
              ! a click was delivered: add the atoms or the fragment at the
@@ -1555,8 +1556,6 @@ contains
     subroutine builder_toggle(jvm)
       integer, intent(in) :: jvm
 
-      character(len=:), allocatable :: msg
-
       if (w%builder_vm == jvm) then
          call builder_stop()
       else
@@ -1564,24 +1563,8 @@ contains
          w%builder_vm = jvm
          w%builder_isys = isys
          w%builder_time = glfwGetTime()
-         if (jvm == vm_builder_valence) then
-            msg = "Click to add ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
-               ") or remove ("//trim(get_bind_keyname(BIND_PICKATOM_ALT))//&
-               ") hydrogens"
-         elseif (jvm == vm_builder_addatom) then
-            msg = "Click to add or replace atoms ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//")"
-         elseif (jvm == vm_builder_addfragment) then
-            msg = "Click to add "//trim(w%builder_frag_name)//" ("//&
-               trim(get_bind_keyname(BIND_PICKATOM_SELECT))//")"
-         elseif (jvm == vm_builder_trim) then
-            msg = "Click to trim branches ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//")"
-         elseif (jvm == vm_builder_bond .or. jvm == vm_builder_bondh) then
-            msg = "Click ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//") to bond atoms"
-            if (jvm == vm_builder_bondh) msg = msg // ", deleting hydrogens"
-         else
-            msg = "Click to remove atoms ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//")"
-         end if
-         call win(iview)%viewmode_set_forced(jvm,msg,w%id)
+         ! no message: the bar shows the hint for this mode (viewmode_text)
+         call win(iview)%viewmode_set_forced(jvm,idcaller=w%id)
       end if
     end subroutine builder_toggle
   end subroutine draw_builder
