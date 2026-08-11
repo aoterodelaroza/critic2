@@ -37,7 +37,7 @@ module windows
   character(kind=c_char,len=:), allocatable, target :: inputb
   integer(c_size_t), parameter :: maxlib = 40000
 
-  ! view modes (positive = normal, user-selectable; negative = forced)
+  ! view modes (positive = normal, user-selectable; negative = forced).
   integer, parameter, public :: vm_builder_bondh = -9 ! forced by builder: create bonds, dropping a hydrogen (persistent)
   integer, parameter, public :: vm_builder_bond = -8 ! forced by builder: create bonds (persistent)
   integer, parameter, public :: vm_builder_trim = -7 ! forced by builder: trim branches (persistent)
@@ -52,8 +52,10 @@ module windows
   integer, parameter, public :: vm_movemol   = 2
   integer, parameter, public :: vm_moveatom  = 3
   integer, parameter, public :: vm_NUM = 3 ! highest user-selectable mode (combo)
+  integer, parameter, public :: vm_builder_lo = vm_builder_bondh ! lower bound of the builder-mode range
+  integer, parameter, public :: vm_builder_hi = vm_builder_valence ! upper bound of the builder-mode range
 
-  character(len=19), parameter, public :: vmnames(vm_builder_bondh:vm_NUM) = (/&
+  character(len=19), parameter, public :: vmnames(vm_builder_lo:vm_NUM) = (/&
      "Create Bonds (-H)  ",& ! vm_builder_bondh
      "Create Bonds       ",& ! vm_builder_bond
      "Trim Branches      ",& ! vm_builder_trim
@@ -92,10 +94,10 @@ module windows
      integer :: tooltip_ig = -1 ! geometry pictogram shown in the mouse tooltip (add-atoms mode; < 0 = none)
      integer :: tooltip_iz = 0 ! atomic number for the pictogram center (add-atoms mode; <= 0 = filled circle)
      character(len=:), allocatable :: tooltip_frag ! fragment name shown at the cursor (add-fragments mode)
-     integer(c_int) :: idx(5) ! atom identifier under mouse position
+     integer(c_int) :: idx(4) = 0 ! atom identifier under mouse position (cell index + lattice vector)
      integer :: flag = 0 ! pick bind that fired (1 = main, 2 = alternate)
      real(c_float) :: xpos(2) = 0._c_float ! texture position of the click (add-atoms mode)
-     integer :: owner ! owner window ID
+     integer :: owner = 0 ! owner window ID
   end type viewmode_data
 
   ! user data for the file open dialog
@@ -294,6 +296,7 @@ module windows
      procedure :: viewmode_set_mode ! set the viewmode based on user keypresses
      procedure :: viewmode_set_forced ! enter a window-forced pick view mode (pick an atom, builder)
      procedure :: viewmode_release_forced ! cancel the forced view mode if owned by the caller
+     procedure :: viewmode_exit_forced ! exit any forced view mode, back to navigation
      procedure :: viewmode_bar_display ! bar display for the current view mode
      procedure :: viewmode_activate_picking ! activate picking by view mode
      procedure :: viewmode_process_events ! process mouse events according to view mode
@@ -556,6 +559,9 @@ module windows
        character(len=*), intent(in) :: message
        integer, intent(in) :: idcaller
      end subroutine viewmode_set_forced
+     module subroutine viewmode_exit_forced(w)
+       class(window), intent(inout), target :: w
+     end subroutine viewmode_exit_forced
      module subroutine viewmode_release_forced(w,idcaller,mode)
        class(window), intent(inout), target :: w
        integer, intent(in) :: idcaller

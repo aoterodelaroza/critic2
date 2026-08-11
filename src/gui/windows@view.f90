@@ -130,8 +130,7 @@ contains
     if (w%firstpass) then
        w%mousepos_lastpick%x = 0._c_float
        w%mousepos_lastpick%y = 0._c_float
-       w%viewmode = vm_navigate
-       w%viewmode_transient = .false.
+       call viewmode_to_navigate(w)
     end if
 
     !! update the tree based on time signals between dependent windows
@@ -1172,8 +1171,7 @@ contains
     w%mousepos_idx = 0
 
     ! reset the viewmodes
-    w%viewmode = vm_navigate
-    w%viewmode_transient = .false.
+    call viewmode_to_navigate(w)
 
     ! set the time
     w%timelast_assign = glfwGetTime()
@@ -1215,25 +1213,22 @@ contains
           ! ownerless run (e.g. a builder relaxation): lock the navigation
           ! mode and release any armed pick mode so edits cannot fight the run
           if (vm_is_forcedpick(w%viewmode)) w%vmdata%idx = 0
-          w%viewmode = vm_navigate
-          w%viewmode_transient = .false.
+          call viewmode_to_navigate(w)
           return
        end if
     end if
     if (w%viewmode == vm_mdinteract) then
        ! the run stopped: leave the forced mode
-       w%viewmode = vm_navigate
-       w%viewmode_transient = .false.
+       call viewmode_to_navigate(w)
     end if
 
     ! if the viewmode is forced by another window, check that window is still valid
-    if (w%viewmode < 0) then
+    if (vm_is_forcedpick(w%viewmode)) then
        id = w%vmdata%owner
        ok = (id > 0 .and. id <= nwin)
        if (ok) ok = win(id)%isinit
        if (.not.ok) then
-          w%viewmode = vm_navigate
-          w%viewmode_transient = .false.
+          call viewmode_to_navigate(w)
           w%vmdata%owner = 0
        end if
     end if
@@ -1290,6 +1285,10 @@ contains
     w%vmdata%flag = 0
     w%vmdata%tooltip_ig = -1
     w%vmdata%tooltip_iz = 0
+    if (allocated(w%vmdata%tooltip_frag)) deallocate(w%vmdata%tooltip_frag)
+    ! drop any pending press capture, so a press begun under the previous
+    ! mode cannot deliver a pick under this one on release
+    w%measure_pend = pend_none
 
   end subroutine viewmode_set_forced
 
@@ -1302,15 +1301,34 @@ contains
     integer, intent(in) :: idcaller
     integer, intent(in), optional :: mode
 
-    if (w%vmdata%owner == idcaller .and. w%viewmode < 0) then
+    if (w%vmdata%owner == idcaller .and. vm_is_forcedpick(w%viewmode)) then
        if (present(mode)) then
           if (w%viewmode /= mode) return
        end if
-       w%viewmode = vm_navigate
-       w%viewmode_transient = .false.
+       call viewmode_to_navigate(w)
     end if
 
   end subroutine viewmode_release_forced
+
+  !> Exit any forced view mode: return the view to navigation, dropping
+  !> the pick result and any pending press capture.
+  module subroutine viewmode_exit_forced(w)
+    class(window), intent(inout), target :: w
+
+    w%vmdata%idx = 0
+    call viewmode_to_navigate(w)
+    w%measure_pend = pend_none
+
+  end subroutine viewmode_exit_forced
+
+  !> Return the view to the default (navigation) view mode.
+  subroutine viewmode_to_navigate(w)
+    class(window), intent(inout) :: w
+
+    w%viewmode = vm_navigate
+    w%viewmode_transient = .false.
+
+  end subroutine viewmode_to_navigate
 
   !> Returns the tooltip message for the current viewmode
   module subroutine viewmode_bar_display(w)
@@ -1367,22 +1385,24 @@ contains
        if (igIsMouseHoveringRect(g%LastItemData%NavRect%min,g%LastItemData%NavRect%max,.false._c_bool)) then
           ! the keybinding group for this view mode; the window-forced pick
           ! modes share the navigation binds (minus measurements)
-          select case (w%viewmode)
-          case (vm_navigate, vm_pick_atom, vm_builder_valence, vm_builder_remove,&
-             vm_builder_trim, vm_builder_bond, vm_builder_bondh, vm_builder_addatom,&
-             vm_builder_addfragment)
+          if (pickmode) then
              mygroup = group_viewmode_navigation
-          case (vm_select)
-             mygroup = group_viewmode_select
-          case (vm_movemol)
-             mygroup = group_viewmode_movemol
-          case (vm_moveatom)
-             mygroup = group_viewmode_moveatom
-          case (vm_mdinteract)
-             mygroup = group_viewmode_mdinteract
-          case default
-             mygroup = 0
-          end select
+          else
+             select case (w%viewmode)
+             case (vm_navigate)
+                mygroup = group_viewmode_navigation
+             case (vm_select)
+                mygroup = group_viewmode_select
+             case (vm_movemol)
+                mygroup = group_viewmode_movemol
+             case (vm_moveatom)
+                mygroup = group_viewmode_moveatom
+             case (vm_mdinteract)
+                mygroup = group_viewmode_mdinteract
+             case default
+                mygroup = 0
+             end select
+          end if
 
           ! one tooltip line per bind in this mode's group; measurements
           ! and selection are disabled in the forced pick modes
@@ -1475,7 +1495,8 @@ contains
   module function viewmode_activate_picking(w,hover)
     use keybindings, only: is_bind_event, BIND_NAV_MEASURE, BIND_SELECT_MOLECULES_AND_DESELECT,&
        BIND_NAV_MEASURE_ADD, BIND_NAV_MEASURE_REMOVE, BIND_PICKATOM_SELECT,&
-       BIND_PICKATOM_ALT, BIND_PICKATOM_EXIT, BIND_MOVEMOL_EXIT, BIND_MOVEATOM_EXIT
+       BIND_PICKATOM_ALT, BIND_PICKATOM_EXIT, BIND_MOVEMOL_EXIT, BIND_MOVEATOM_EXIT,&
+       BIND_MDINTERACT_DRAGATOM, BIND_MDINTERACT_MOVEMOL, BIND_MDINTERACT_ROTMOL
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
     logical :: viewmode_activate_picking
@@ -1483,13 +1504,20 @@ contains
     viewmode_activate_picking = .false.
     if (.not.hover) return
 
-    if (w%viewmode < 0) then
+    if (vm_is_forcedpick(w%viewmode)) then
        ! in forced view mode, only the pick binds consume the atom under
        ! the cursor; the exit bind also repicks, so the exit-on-empty-space
        ! gesture never acts on a stale pick
        viewmode_activate_picking = is_bind_event(BIND_PICKATOM_SELECT,norepeat=.true.) .or.&
           (w%viewmode == vm_builder_valence .and. is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.)) .or.&
           is_bind_event(BIND_PICKATOM_EXIT,norepeat=.true.)
+    elseif (w%viewmode == vm_mdinteract) then
+       ! interactive MD: atoms move every frame and the regular repick is
+       ! throttled, so refresh the pick on a grab-bind press so the drag
+       ! latches the atom actually under the cursor
+       viewmode_activate_picking = is_bind_event(BIND_MDINTERACT_DRAGATOM,norepeat=.true.) .or.&
+          is_bind_event(BIND_MDINTERACT_MOVEMOL,norepeat=.true.) .or.&
+          is_bind_event(BIND_MDINTERACT_ROTMOL,norepeat=.true.)
     elseif (w%viewmode == vm_navigate) then
        ! navigate -> when measuring, on a double click (to clear the selection),
        ! or on a right/middle button press (to capture the atom under the cursor
@@ -1535,9 +1563,6 @@ contains
     logical, intent(in) :: hover
 
     type(ImVec2) :: texpos, mousepos, pmin, pmax, ghostpos
-    real(c_float) :: pos3(3), vnew(3), vold(3), axis(3)
-    real(c_float) :: mpos2(2), ang, xc(3), dist, comc(3)
-    real*8 :: dxbohr(3)
     integer :: isys
     integer(c_int) :: col, ibtn, idum
     logical :: ok, dragged, forcedpick
@@ -1584,10 +1609,7 @@ contains
        if (ok .and. vm_exits_on_empty(w%viewmode)) &
           ok = .not.exit_on_empty(BIND_PICKATOM_EXIT)
        if (.not.ok) then
-          w%vmdata%idx = 0
-          w%viewmode = vm_navigate
-          w%viewmode_transient = .false.
-          w%measure_pend = pend_none
+          call w%viewmode_exit_forced()
           return
        end if
     end if
@@ -1747,7 +1769,7 @@ contains
                 w%measure_pend_idx = w%mousepos_idx
                 w%press_p0 = mousepos
              else
-                call deliver_pick(w%mousepos_idx,.false.)
+                call deliver_pick(w%mousepos_idx(1:4),.false.)
              end if
           elseif (hover .and. w%viewmode == vm_builder_valence .and.&
              is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.)) then
@@ -1756,7 +1778,7 @@ contains
                 w%measure_pend_idx = w%mousepos_idx
                 w%press_p0 = mousepos
              else
-                call deliver_pick(w%mousepos_idx,.true.)
+                call deliver_pick(w%mousepos_idx(1:4),.true.)
              end if
           end if
        end if
@@ -1784,7 +1806,7 @@ contains
                    call w%sc%delete_measurement(w%measure_pend_idx)
                    w%forcerender = .true.
                 elseif (w%measure_pend == pend_pick .or. w%measure_pend == pend_pick_alt) then
-                   call deliver_pick(w%measure_pend_idx,w%measure_pend == pend_pick_alt)
+                   call deliver_pick(w%measure_pend_idx(1:4),w%measure_pend == pend_pick_alt)
                 end if
              end if
              w%measure_pend = pend_none
@@ -1887,8 +1909,7 @@ contains
 
        ! the exit bind on empty space exits back to navigation
        if (exit_on_empty(BIND_MOVEMOL_EXIT)) then
-          w%viewmode = vm_navigate
-          w%viewmode_transient = .false.
+          call viewmode_to_navigate(w)
           return
        end if
 
@@ -1902,131 +1923,21 @@ contains
 
        ! translate (right mouse): whole molecule if the fragment is discrete,
        ! otherwise just the single atom; the grabbed atom stays under the cursor
-       if (hover.and.is_bind_event(BIND_MOVEMOL_TRANSLATE,.false.).and.&
-          (w%ilock == ilock_no.or.w%ilock == ilock_right)) then
-          call moveobj_latch()
-          if (w%moveobj_icel > 0) then
-             ! drag on the scene-center depth plane (see note above): the far
-             ! plane (z=1) is at infinity in perspective and crashes unproject
-             vnew = w%sc%scenecenter
-             call w%world_to_texpos(vnew)
-             w%mpos0_r = (/texpos%x,texpos%y,vnew(3)/)
-             w%ilock = ilock_right
-             w%mposlast = mousepos
-          end if
-       elseif (w%ilock == ilock_right) then
-          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-          if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MOVEMOL_TRANSLATE,.true.)) then
-             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
-                ! world (bohr) displacement matching the cursor motion
-                vnew = (/texpos%x,texpos%y,w%mpos0_r(3)/)
-                call w%texpos_to_view(vnew)
-                vold = w%mpos0_r
-                call w%texpos_to_view(vold)
-                xc = vnew - vold
-                call invmult(xc,w%sc%view,notrans=.true.)  ! eye -> tworld
-                call invmult(xc,w%sc%world,notrans=.true.) ! tworld -> world (bohr)
-                dxbohr = real(xc,8)
-                if (w%moveobj_isdiscrete) then
-                   call sys(isys)%c%move_molecule(w%moveobj_imol,dxbohr,iunit_bohr,&
-                      .true.,copybonding=.true.)
-                else
-                   call sys(isys)%c%move_atom(w%moveobj_icel,dxbohr,iunit_bohr,&
-                      .false.,.true.,copybonding=.true.)
-                end if
-                sysc(isys)%sc%nextbuildlists_fixcam = .true.
-                call sysc(isys)%post_event(lastchange_geometry)
-                w%forcerender = .true.
-                w%mpos0_r = (/texpos%x,texpos%y,w%mpos0_r(3)/)
-                w%mposlast = mousepos
-             end if
-          else
-             w%ilock = ilock_no
-          end if
-       end if
+       call movemol_translate()
 
        ! rotate the molecule about its COM (left mouse), discrete fragments only
-       if (hover.and.is_bind_event(BIND_MOVEMOL_ROTATE,.false.).and.&
-          (w%ilock == ilock_no.or.w%ilock == ilock_left)) then
-          call moveobj_latch()
-          if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete) then
-             w%mpos0_l = (/texpos%x,texpos%y,0._c_float/)
-             w%cpos0_l = w%mpos0_l
-             call w%texpos_to_view(w%cpos0_l)
-             w%ilock = ilock_left
-          end if
-       elseif (w%ilock == ilock_left) then
-          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-          if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete .and.&
-             is_bind_event(BIND_MOVEMOL_ROTATE,.true.)) then
-             if (texpos%x /= w%mpos0_l(1) .or. texpos%y /= w%mpos0_l(2)) then
-                ! arcball axis (eye) + angle, same math as scene rotation
-                vnew = (/texpos%x,texpos%y,w%mpos0_l(3)/)
-                call w%texpos_to_view(vnew)
-                pos3 = (/0._c_float,0._c_float,1._c_float/)
-                axis = cross_cfloat(pos3,vnew - w%cpos0_l)
-                mpos2(1) = texpos%x - w%mpos0_l(1)
-                mpos2(2) = texpos%y - w%mpos0_l(2)
-                ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
-                call movemol_rotate_molecule(axis,ang)
-                w%forcerender = .true.
-                w%mpos0_l = (/texpos%x,texpos%y,0._c_float/)
-                w%cpos0_l = w%mpos0_l
-                call w%texpos_to_view(w%cpos0_l)
-             end if
-          else
-             w%ilock = ilock_no
-          end if
-       end if
+       call movemol_rotate()
 
        ! rotate the molecule about the screen-perpendicular axis (middle mouse),
        ! discrete fragments only
-       if (hover.and.is_bind_event(BIND_MOVEMOL_ROTATE_PERP,.false.).and.&
-          (w%ilock == ilock_no.or.w%ilock == ilock_middle)) then
-          call moveobj_latch()
-          if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete) then
-             ! project the molecule center of mass to screen
-             comc = sys(isys)%c%mol(w%moveobj_imol)%cmass()
-             call mult(w%mpos0_m,w%sc%world,comc)
-             call w%world_to_texpos(w%mpos0_m)
-             vnew = (/texpos%x,texpos%y,0._c_float/)
-             vnew = vnew - w%mpos0_m
-             dist = norm2(vnew)
-             if (dist > 0._c_float) then
-                w%cpos0_m = vnew / dist
-             else
-                w%cpos0_m = (/0._c_float,-1._c_float,0._c_float/)
-             end if
-             w%ilock = ilock_middle
-          end if
-       elseif (w%ilock == ilock_middle) then
-          call igSetMouseCursor(ImGuiMouseCursor_Hand)
-          if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete .and.&
-             is_bind_event(BIND_MOVEMOL_ROTATE_PERP,.true.)) then
-             vnew = (/texpos%x,texpos%y,0._c_float/)
-             vnew = vnew - w%mpos0_m
-             dist = norm2(vnew)
-             if (dist > 0._c_float) then
-                vnew = vnew / dist
-                xc = cross_cfloat(w%cpos0_m,vnew)
-                ang = atan2(xc(3),dot_product(w%cpos0_m,vnew))
-                axis = (/0._c_float,0._c_float,1._c_float/)
-                call movemol_rotate_molecule(axis,ang)
-                w%forcerender = .true.
-                w%cpos0_m = vnew
-             end if
-          else
-             w%ilock = ilock_no
-          end if
-       end if
+       call movemol_rotate_perp()
     elseif (w%viewmode == vm_moveatom) then
        ! move-atoms mode: left- or right-drag translates the single atom under
        ! the cursor (never the whole molecule); scroll resizes the cell (crystals)
 
        ! the exit bind on empty space exits back to navigation
        if (exit_on_empty(BIND_MOVEATOM_EXIT)) then
-          w%viewmode = vm_navigate
-          w%viewmode_transient = .false.
+          call viewmode_to_navigate(w)
           return
        end if
 
@@ -2045,10 +1956,8 @@ contains
     ! if this is a transient view mode, reset to default (navigation); the
     ! window-forced modes are never transient (viewmode_set_forced clears
     ! the flag), hence the viewmode >= 0 guard
-    if (w%viewmode_transient .and. w%viewmode >= 0) then
-       w%viewmode = vm_navigate
-       w%viewmode_transient = .false.
-    end if
+    if (w%viewmode_transient .and. w%viewmode >= 0) &
+       call viewmode_to_navigate(w)
 
   contains
     ! whether the given view-mode exit bind fired on empty space this
@@ -2070,14 +1979,13 @@ contains
     ! position), flag whether the main or the alternate pick bind fired,
     ! and stay in the mode for successive edits.
     subroutine deliver_pick(idx,alt)
-      integer(c_int), intent(in) :: idx(5)
+      integer(c_int), intent(in) :: idx(4)
       logical, intent(in) :: alt
 
       if (w%viewmode == vm_pick_atom) then
          w%vmdata%idx = 0
          if (idx(1) > 0) w%vmdata%idx = idx
-         w%viewmode = vm_navigate
-         w%viewmode_transient = .false.
+         call viewmode_to_navigate(w)
       elseif (w%viewmode == vm_builder_addatom .or. w%viewmode == vm_builder_addfragment) then
          ! deliver the click position (texture coordinates), even on empty
          ! space, plus the atom under the cursor if any
@@ -2135,14 +2043,10 @@ contains
     ! translate/pan the camera by dragging with the given bind
     subroutine cam_translate(bindid)
       integer, intent(in) :: bindid
+      real(c_float) :: vnew(3), vold(3), xc(3)
 
       if (hover.and.is_bind_event(bindid,.false.).and.(w%ilock == ilock_no.or.w%ilock == ilock_right)) then
-         ! drag on the scene-center depth plane; unprojecting at the far plane
-         ! (z=1) is degenerate in perspective (point at infinity -> division by
-         ! zero in unproject)
-         vnew = w%sc%scenecenter
-         call w%world_to_texpos(vnew)
-         w%mpos0_r = (/texpos%x,texpos%y,vnew(3)/)
+         call depth_anchor(w%mpos0_r)
          w%oldview = w%sc%view
          w%ilock = ilock_right
          w%mposlast = mousepos
@@ -2168,28 +2072,18 @@ contains
     ! rotate (arcball) the camera by dragging with the given bind
     subroutine cam_rotate(bindid)
       integer, intent(in) :: bindid
+      real(c_float) :: axis(3), ang
 
       if (hover .and. is_bind_event(bindid,.false.) .and. (w%ilock == ilock_no .or. w%ilock == ilock_left)) then
-         w%mpos0_l = (/texpos%x, texpos%y, 0._c_float/)
-         w%cpos0_l = w%mpos0_l
-         call w%texpos_to_view(w%cpos0_l)
+         call arcball_anchor(w%mpos0_l,w%cpos0_l)
          w%ilock = ilock_left
       elseif (w%ilock == ilock_left) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
          if (is_bind_event(bindid,.true.)) then
             if (texpos%x /= w%mpos0_l(1) .or. texpos%y /= w%mpos0_l(2)) then
-               ! arcball axis (eye) and angle
-               vnew = (/texpos%x,texpos%y,w%mpos0_l(3)/)
-               call w%texpos_to_view(vnew)
-               pos3 = (/0._c_float,0._c_float,1._c_float/)
-               axis = cross_cfloat(pos3,vnew - w%cpos0_l)
-               mpos2(1) = texpos%x - w%mpos0_l(1)
-               mpos2(2) = texpos%y - w%mpos0_l(2)
-               ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
+               call arcball_axis_angle(w%mpos0_l,w%cpos0_l,axis,ang)
                call w%sc%cam_rotate(axis,ang)
-               w%mpos0_l = (/texpos%x, texpos%y, 0._c_float/)
-               w%cpos0_l = w%mpos0_l
-               call w%texpos_to_view(w%cpos0_l)
+               call arcball_anchor(w%mpos0_l,w%cpos0_l)
                w%forcerender = .true.
             end if
          else
@@ -2201,34 +2095,20 @@ contains
     ! rotate the camera around the screen-perpendicular axis with the given bind
     subroutine cam_perp(bindid)
       integer, intent(in) :: bindid
+      real(c_float) :: axis(3), ang
+      logical :: okrot
 
       if (hover .and. is_bind_event(bindid,.false.) .and.&
          (w%ilock == ilock_no .or. w%ilock == ilock_middle)) then
-         w%mpos0_m = w%sc%scenecenter
-         call w%world_to_texpos(w%mpos0_m)
-         vnew = (/texpos%x,texpos%y,0._c_float/)
-         vnew = vnew - w%mpos0_m
-         dist = norm2(vnew)
-         if (dist > 0._c_float) then
-            w%cpos0_m = vnew / dist
-         else
-            w%cpos0_m = (/0._c_float, -1._c_float, 0._c_float/)
-         end if
+         call perp_anchor(w%sc%scenecenter)
          w%ilock = ilock_middle
       elseif (w%ilock == ilock_middle) then
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
          if (is_bind_event(bindid,.true.)) then
-            vnew = (/texpos%x,texpos%y,0._c_float/)
-            vnew = vnew - w%mpos0_m
-            dist = norm2(vnew)
-            if (dist > 0._c_float) then
-               vnew = vnew / dist
-               xc = cross_cfloat(w%cpos0_m,vnew)
-               ang = atan2(xc(3),dot_product(w%cpos0_m,vnew))
-               axis = (/0._c_float,0._c_float,1._c_float/)
+            call perp_axis_angle(axis,ang,okrot)
+            if (okrot) then
                call w%sc%cam_rotate(axis,ang)
                w%forcerender = .true.
-               w%cpos0_m = vnew
             end if
          else
             w%ilock = ilock_no
@@ -2267,16 +2147,13 @@ contains
     subroutine moveatom_translate(bindid,ilockval,anchor)
       integer, intent(in) :: bindid, ilockval
       real(c_float), intent(inout) :: anchor(3)
+      real*8 :: dxbohr(3)
 
       if (hover.and.is_bind_event(bindid,.false.).and.&
          (w%ilock == ilock_no.or.w%ilock == ilockval)) then
          call moveobj_latch()
          if (w%moveobj_icel > 0) then
-            ! drag on the scene-center depth plane (the far plane is at infinity
-            ! in perspective and crashes unproject)
-            vnew = w%sc%scenecenter
-            call w%world_to_texpos(vnew)
-            anchor = (/texpos%x,texpos%y,vnew(3)/)
+            call depth_anchor(anchor)
             w%ilock = ilockval
             w%mposlast = mousepos
          end if
@@ -2284,15 +2161,7 @@ contains
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
          if (w%moveobj_icel > 0 .and. is_bind_event(bindid,.true.)) then
             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
-               ! world (bohr) displacement matching the cursor motion
-               vnew = (/texpos%x,texpos%y,anchor(3)/)
-               call w%texpos_to_view(vnew)
-               vold = anchor
-               call w%texpos_to_view(vold)
-               xc = vnew - vold
-               call invmult(xc,w%sc%view,notrans=.true.)  ! eye -> tworld
-               call invmult(xc,w%sc%world,notrans=.true.) ! tworld -> world (bohr)
-               dxbohr = real(xc,8)
+               call drag_delta_world(anchor,dxbohr)
                call sys(isys)%c%move_atom(w%moveobj_icel,dxbohr,iunit_bohr,&
                   .false.,.true.,copybonding=.true.)
                sysc(isys)%sc%nextbuildlists_fixcam = .true.
@@ -2307,12 +2176,113 @@ contains
       end if
     end subroutine moveatom_translate
 
+    ! move-molecules mode: translate the latched object by dragging with the
+    ! right mouse bind: the whole molecule if the fragment is discrete,
+    ! otherwise just the single atom; the grabbed atom stays under the cursor
+    subroutine movemol_translate()
+      real*8 :: dxbohr(3)
+
+      if (hover.and.is_bind_event(BIND_MOVEMOL_TRANSLATE,.false.).and.&
+         (w%ilock == ilock_no.or.w%ilock == ilock_right)) then
+         call moveobj_latch()
+         if (w%moveobj_icel > 0) then
+            call depth_anchor(w%mpos0_r)
+            w%ilock = ilock_right
+            w%mposlast = mousepos
+         end if
+      elseif (w%ilock == ilock_right) then
+         call igSetMouseCursor(ImGuiMouseCursor_Hand)
+         if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MOVEMOL_TRANSLATE,.true.)) then
+            if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
+               call drag_delta_world(w%mpos0_r,dxbohr)
+               if (w%moveobj_isdiscrete) then
+                  call sys(isys)%c%move_molecule(w%moveobj_imol,dxbohr,iunit_bohr,&
+                     .true.,copybonding=.true.)
+               else
+                  call sys(isys)%c%move_atom(w%moveobj_icel,dxbohr,iunit_bohr,&
+                     .false.,.true.,copybonding=.true.)
+               end if
+               sysc(isys)%sc%nextbuildlists_fixcam = .true.
+               call sysc(isys)%post_event(lastchange_geometry)
+               w%forcerender = .true.
+               w%mpos0_r = (/texpos%x,texpos%y,w%mpos0_r(3)/)
+               w%mposlast = mousepos
+            end if
+         else
+            w%ilock = ilock_no
+         end if
+      end if
+    end subroutine movemol_translate
+
+    ! move-molecules mode: rotate the latched molecule about its COM by
+    ! dragging with the left mouse bind, arcball-style; discrete fragments only
+    subroutine movemol_rotate()
+      real(c_float) :: axis(3), ang
+
+      if (hover.and.is_bind_event(BIND_MOVEMOL_ROTATE,.false.).and.&
+         (w%ilock == ilock_no.or.w%ilock == ilock_left)) then
+         call moveobj_latch()
+         if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete) then
+            call arcball_anchor(w%mpos0_l,w%cpos0_l)
+            w%ilock = ilock_left
+         end if
+      elseif (w%ilock == ilock_left) then
+         call igSetMouseCursor(ImGuiMouseCursor_Hand)
+         if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete .and.&
+            is_bind_event(BIND_MOVEMOL_ROTATE,.true.)) then
+            if (texpos%x /= w%mpos0_l(1) .or. texpos%y /= w%mpos0_l(2)) then
+               call arcball_axis_angle(w%mpos0_l,w%cpos0_l,axis,ang)
+               call movemol_rotate_molecule(axis,ang)
+               w%forcerender = .true.
+               call arcball_anchor(w%mpos0_l,w%cpos0_l)
+            end if
+         else
+            w%ilock = ilock_no
+         end if
+      end if
+    end subroutine movemol_rotate
+
+    ! move-molecules mode: rotate the latched molecule about the
+    ! screen-perpendicular axis through its COM by dragging with the middle
+    ! mouse bind; discrete fragments only
+    subroutine movemol_rotate_perp()
+      real(c_float) :: comc(3), comt(3), axis(3), ang
+      logical :: okrot
+
+      if (hover.and.is_bind_event(BIND_MOVEMOL_ROTATE_PERP,.false.).and.&
+         (w%ilock == ilock_no.or.w%ilock == ilock_middle)) then
+         call moveobj_latch()
+         if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete) then
+            ! project the molecule center of mass to screen
+            comc = real(sys(isys)%c%mol(w%moveobj_imol)%cmass(),c_float)
+            call mult(comt,w%sc%world,comc)
+            call perp_anchor(comt)
+            w%ilock = ilock_middle
+         end if
+      elseif (w%ilock == ilock_middle) then
+         call igSetMouseCursor(ImGuiMouseCursor_Hand)
+         if (w%moveobj_icel > 0 .and. w%moveobj_isdiscrete .and.&
+            is_bind_event(BIND_MOVEMOL_ROTATE_PERP,.true.)) then
+            call perp_axis_angle(axis,ang,okrot)
+            if (okrot) then
+               call movemol_rotate_molecule(axis,ang)
+               w%forcerender = .true.
+            end if
+         else
+            w%ilock = ilock_no
+         end if
+      end if
+    end subroutine movemol_rotate_perp
+
     ! Interactive dynamics (vm_mdinteract): grab the atom under the cursor and
     ! drag it to follow the mouse (left button), by setting the MD drag
     ! target that the integrator clamps each step. Latches on the grabbed atom's
     ! depth plane. Does nothing (leaving the camera rotation to run) if the
     ! cursor is not over an atom.
     subroutine md_atom_drag()
+      real(c_float) :: vnew(3)
+      real*8 :: dxbohr(3)
+
       if (hover.and.is_bind_event(BIND_MDINTERACT_DRAGATOM,.false.).and.w%ilock == ilock_no.and.&
          w%mousepos_idx(1) > 0 .and. sysc(isys)%md%ready) then
          sysc(isys)%md%drag_iat = w%mousepos_idx(1)
@@ -2326,7 +2296,7 @@ contains
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
          if (is_bind_event(BIND_MDINTERACT_DRAGATOM,.true.)) then
             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
-               call drag_delta_world(dxbohr)
+               call drag_delta_world(w%mpos0_r,dxbohr)
                sysc(isys)%md%drag_target = sysc(isys)%md%drag_target + dxbohr
                w%mpos0_r = (/texpos%x,texpos%y,w%mpos0_r(3)/)
                w%mposlast = mousepos
@@ -2344,14 +2314,13 @@ contains
     ! MD position buffer. Does nothing (leaving the camera pan to run) if the
     ! cursor is not over an atom.
     subroutine md_mol_move()
+      real*8 :: dxbohr(3)
+
       if (hover.and.is_bind_event(BIND_MDINTERACT_MOVEMOL,.false.).and.w%ilock == ilock_no.and.&
          w%mousepos_idx(1) > 0 .and. sysc(isys)%md%ready) then
          call moveobj_latch()
          if (w%moveobj_icel > 0) then
-            ! drag on the scene-center depth plane (far plane -> unproject crash)
-            vnew = w%sc%scenecenter
-            call w%world_to_texpos(vnew)
-            w%mpos0_r = (/texpos%x,texpos%y,vnew(3)/)
+            call depth_anchor(w%mpos0_r)
             w%ilock = ilock_mdmovemol
             w%mposlast = mousepos
             sysc(isys)%md%interacting = .true.
@@ -2360,7 +2329,7 @@ contains
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
          if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MDINTERACT_MOVEMOL,.true.)) then
             if (mousepos%x /= w%mposlast%x .or. mousepos%y /= w%mposlast%y) then
-               call drag_delta_world(dxbohr)
+               call drag_delta_world(w%mpos0_r,dxbohr)
                call md_move_fragment(dxbohr)
                w%mpos0_r = (/texpos%x,texpos%y,w%mpos0_r(3)/)
                w%mposlast = mousepos
@@ -2378,16 +2347,15 @@ contains
     ! rotating its atoms in the MD position buffer. Does nothing (leaving the
     ! camera perpendicular rotation to run) if the cursor is not over an atom.
     subroutine md_mol_rotate()
-      real(c_float) :: axisw(3), lax
+      real(c_float) :: axis(3), ang, axisw(3)
       real*8 :: rmat(3,3)
+      logical :: okax
 
       if (hover.and.is_bind_event(BIND_MDINTERACT_ROTMOL,.false.).and.w%ilock == ilock_no.and.&
          w%mousepos_idx(1) > 0 .and. sysc(isys)%md%ready) then
          call moveobj_latch()
          if (w%moveobj_icel > 0) then
-            w%mpos0_m = (/texpos%x,texpos%y,0._c_float/)
-            w%cpos0_m = w%mpos0_m
-            call w%texpos_to_view(w%cpos0_m)
+            call arcball_anchor(w%mpos0_m,w%cpos0_m)
             w%ilock = ilock_mdrotmol
             sysc(isys)%md%interacting = .true.
          end if
@@ -2395,28 +2363,16 @@ contains
          call igSetMouseCursor(ImGuiMouseCursor_Hand)
          if (w%moveobj_icel > 0 .and. is_bind_event(BIND_MDINTERACT_ROTMOL,.true.)) then
             if (texpos%x /= w%mpos0_m(1) .or. texpos%y /= w%mpos0_m(2)) then
-               ! arcball axis (eye) + angle, same math as the camera rotation
-               vnew = (/texpos%x,texpos%y,w%mpos0_m(3)/)
-               call w%texpos_to_view(vnew)
-               pos3 = (/0._c_float,0._c_float,1._c_float/)
-               axis = cross_cfloat(pos3,vnew - w%cpos0_m)
-               mpos2(1) = texpos%x - w%mpos0_m(1)
-               mpos2(2) = texpos%y - w%mpos0_m(2)
-               ang = 2._c_float * norm2(mpos2) * mousesens_rot0 / w%FBOside
-               ! axis from eye to world (bohr), then rotate the fragment
-               lax = norm2(axis)
-               if (lax > 1e-10_c_float) then
-                  axisw = axis / lax
-                  call invmult(axisw,w%sc%world,notrans=.true.)
-                  if (norm2(axisw) > 1e-10_c_float) then
-                     rmat = axisangle2mat(real(axisw,8),real(ang,8))
-                     call md_rotate_fragment(rmat)
-                     w%forcerender = .true.
-                  end if
+               ! arcball axis (eye) + angle, same math as the camera rotation,
+               ! then axis from eye to world (bohr) and rotate the fragment
+               call arcball_axis_angle(w%mpos0_m,w%cpos0_m,axis,ang)
+               call axis_eye_to_world(axis,axisw,okax)
+               if (okax) then
+                  rmat = axisangle2mat(real(axisw,8),real(ang,8))
+                  call md_rotate_fragment(rmat)
+                  w%forcerender = .true.
                end if
-               w%mpos0_m = (/texpos%x,texpos%y,0._c_float/)
-               w%cpos0_m = w%mpos0_m
-               call w%texpos_to_view(w%cpos0_m)
+               call arcball_anchor(w%mpos0_m,w%cpos0_m)
             end if
          else
             w%ilock = ilock_no
@@ -2425,15 +2381,120 @@ contains
       end if
     end subroutine md_mol_rotate
 
-    ! world displacement matching the cursor motion from the drag anchor
-    ! w%mpos0_r on its depth plane (used by the MD atom/molecule translation drags)
-    subroutine drag_delta_world(dbohr)
+    ! set the arcball drag anchor at the current cursor position: mpos0 is
+    ! the texture-space anchor and cpos0 its view-space image (used to latch
+    ! and to re-anchor after each applied rotation)
+    subroutine arcball_anchor(mpos0,cpos0)
+      real(c_float), intent(out) :: mpos0(3), cpos0(3)
+
+      mpos0 = (/texpos%x,texpos%y,0._c_float/)
+      cpos0 = mpos0
+      call w%texpos_to_view(cpos0)
+    end subroutine arcball_anchor
+
+    ! arcball rotation from the anchor (mpos0,cpos0) to the current cursor
+    ! position: rotation axis in eye coordinates plus angle (radians)
+    subroutine arcball_axis_angle(mpos0,cpos0,axis,ang)
+      real(c_float), intent(in) :: mpos0(3), cpos0(3)
+      real(c_float), intent(out) :: axis(3), ang
+
+      real(c_float) :: vc(3), zpos(3), dm(2)
+
+      vc = (/texpos%x,texpos%y,mpos0(3)/)
+      call w%texpos_to_view(vc)
+      zpos = (/0._c_float,0._c_float,1._c_float/)
+      axis = cross_cfloat(zpos,vc - cpos0)
+      dm(1) = texpos%x - mpos0(1)
+      dm(2) = texpos%y - mpos0(2)
+      ang = 2._c_float * norm2(dm) * mousesens_rot0 / w%FBOside
+    end subroutine arcball_axis_angle
+
+    ! anchor a screen-perpendicular rotation drag about center (world
+    ! coordinates, after the scene world transformation): project it to
+    ! texture space (w%mpos0_m) and set the reference direction from it to
+    ! the cursor (w%cpos0_m)
+    subroutine perp_anchor(center)
+      real(c_float), intent(in) :: center(3)
+
+      real(c_float) :: vc(3), dc
+
+      w%mpos0_m = center
+      call w%world_to_texpos(w%mpos0_m)
+      vc = (/texpos%x,texpos%y,0._c_float/)
+      vc = vc - w%mpos0_m
+      dc = norm2(vc)
+      if (dc > 0._c_float) then
+         w%cpos0_m = vc / dc
+      else
+         w%cpos0_m = (/0._c_float,-1._c_float,0._c_float/)
+      end if
+    end subroutine perp_anchor
+
+    ! screen-perpendicular rotation from the anchored direction (w%cpos0_m)
+    ! to the current cursor direction about the projected center (w%mpos0_m):
+    ! perpendicular axis + angle, re-anchoring the direction; ok0 = .false.
+    ! if the cursor sits on the projected center
+    subroutine perp_axis_angle(axis,ang,ok0)
+      real(c_float), intent(out) :: axis(3), ang
+      logical, intent(out) :: ok0
+
+      real(c_float) :: vc(3), dc, cx(3)
+
+      ok0 = .false.
+      axis = (/0._c_float,0._c_float,1._c_float/)
+      ang = 0._c_float
+      vc = (/texpos%x,texpos%y,0._c_float/)
+      vc = vc - w%mpos0_m
+      dc = norm2(vc)
+      if (dc <= 0._c_float) return
+      vc = vc / dc
+      cx = cross_cfloat(w%cpos0_m,vc)
+      ang = atan2(cx(3),dot_product(w%cpos0_m,vc))
+      w%cpos0_m = vc
+      ok0 = .true.
+    end subroutine perp_axis_angle
+
+    ! convert a rotation axis from eye/view to world (bohr) coordinates,
+    ! normalized; ok0 = .false. if the axis is degenerate
+    subroutine axis_eye_to_world(axis0,axisw,ok0)
+      real(c_float), intent(in) :: axis0(3)
+      real(c_float), intent(out) :: axisw(3)
+      logical, intent(out) :: ok0
+
+      real(c_float) :: lax
+
+      ok0 = .false.
+      axisw = 0._c_float
+      lax = norm2(axis0)
+      if (lax <= 1e-10_c_float) return
+      axisw = axis0 / lax
+      call invmult(axisw,w%sc%world,notrans=.true.)
+      ok0 = (norm2(axisw) > 1e-10_c_float)
+    end subroutine axis_eye_to_world
+
+    ! set a translation-drag anchor at the current cursor position on the
+    ! scene-center depth plane: the far plane (z=1) is at infinity in
+    ! perspective and crashes unproject
+    subroutine depth_anchor(anchor)
+      real(c_float), intent(out) :: anchor(3)
+      real(c_float) :: vc(3)
+
+      vc = w%sc%scenecenter
+      call w%world_to_texpos(vc)
+      anchor = (/texpos%x,texpos%y,vc(3)/)
+    end subroutine depth_anchor
+
+    ! world (bohr) displacement matching the cursor motion from the given
+    ! drag anchor (texture space + depth) on its depth plane (used by the
+    ! move-mode and MD translation drags)
+    subroutine drag_delta_world(anchor,dbohr)
+      real(c_float), intent(in) :: anchor(3)
       real*8, intent(out) :: dbohr(3)
       real(c_float) :: va(3), vb(3), dc(3)
 
-      va = (/texpos%x,texpos%y,w%mpos0_r(3)/)
+      va = (/texpos%x,texpos%y,anchor(3)/)
       call w%texpos_to_view(va)
-      vb = w%mpos0_r
+      vb = anchor
       call w%texpos_to_view(vb)
       dc = va - vb
       call invmult(dc,w%sc%view,notrans=.true.)  ! eye -> tworld
@@ -2513,19 +2574,17 @@ contains
       real(c_float), intent(in) :: axis0(3)
       real(c_float), intent(in) :: ang0
 
-      real(c_float) :: axisw(3), lax
+      real(c_float) :: axisw(3)
       real*8 :: rinc(3,3)
       integer :: imol
+      logical :: okax
 
       imol = w%moveobj_imol
       if (imol < 1) return
 
       ! axis from eye/view to world (bohr), matching scene_cam_rotate
-      lax = norm2(axis0)
-      if (lax <= 1e-10_c_float) return
-      axisw = axis0 / lax
-      call invmult(axisw,w%sc%world,notrans=.true.)
-      if (norm2(axisw) <= 1e-10_c_float) return
+      call axis_eye_to_world(axis0,axisw,okax)
+      if (.not.okax) return
 
       ! incremental rotation (Rodrigues) about the world-space axis, composed
       ! with the molecule's current standard-frame orientation
@@ -2644,16 +2703,21 @@ contains
     end subroutine select_in_rect
   end subroutine viewmode_process_events
 
+  !> Whether view mode is one of the persistent builder tool modes.
+  pure function vm_is_builder(mode)
+    integer, intent(in) :: mode
+    logical :: vm_is_builder
+
+    vm_is_builder = (mode >= vm_builder_lo .and. mode <= vm_builder_hi)
+  end function vm_is_builder
+
   !> Whether view mode equals one of the window-forced pick modes (an
   !> owner window awaits atom picks; navigation camera binds active).
   pure module function vm_is_forcedpick(mode)
     integer, intent(in) :: mode
     logical :: vm_is_forcedpick
 
-    vm_is_forcedpick = (mode == vm_pick_atom .or. mode == vm_builder_valence .or.&
-       mode == vm_builder_remove .or. mode == vm_builder_trim .or.&
-       mode == vm_builder_bond .or. mode == vm_builder_bondh .or.&
-       mode == vm_builder_addatom .or. mode == vm_builder_addfragment)
+    vm_is_forcedpick = (vm_is_builder(mode) .or. mode == vm_pick_atom)
   end function vm_is_forcedpick
 
   !> Whether view mode is one of the persistent builder pick modes that
@@ -2663,9 +2727,8 @@ contains
     integer, intent(in) :: mode
     logical :: vm_exits_on_empty
 
-    vm_exits_on_empty = (mode == vm_builder_valence .or. mode == vm_builder_remove .or.&
-       mode == vm_builder_trim .or. mode == vm_builder_bond .or.&
-       mode == vm_builder_bondh)
+    vm_exits_on_empty = (vm_is_builder(mode) .and. mode /= vm_builder_addatom .and.&
+       mode /= vm_builder_addfragment)
   end function vm_exits_on_empty
 
   !> Whether any mouse button was clicked this frame

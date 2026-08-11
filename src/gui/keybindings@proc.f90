@@ -480,10 +480,7 @@ contains
     ! the mutually-exclusive mouse-interaction modes (only one active at a time)
     logical function group_is_mousemode(g)
       integer, intent(in) :: g
-      group_is_mousemode = (g == group_viewmode_navigation .or. &
-         g == group_viewmode_select .or. g == group_viewmode_movemol .or. &
-         g == group_viewmode_moveatom .or. g == group_viewmode_mdinteract .or. &
-         g == group_viewmode_pickatom)
+      group_is_mousemode = any(g == group_mousemodes)
     end function group_is_mousemode
   end function groups_clash
 

@@ -602,6 +602,7 @@ contains
     w%irep = 0
     w%viewmode = vm_navigate
     w%viewmode_transient = .false.
+    w%vmdata = viewmode_data() ! drop the stale forced-mode owner and pick data
     w%geometry_expression = ""
     w%geometry_expression_ok = .false.
     w%geometry_expr_error = ""
