@@ -863,11 +863,7 @@ contains
             discrete = .false.
             if (present(nlvecper)) then
                ! The same cycle traversed backwards gives -lnew; flip to
-               ! a canonical sign so that both give the same entry. Do
-               ! not use a componentwise abs() here: it does not
-               ! preserve the lattice these vectors span (it would map
-               ! the independent (1,1,0) and (1,-1,0) to a single
-               ! vector, and a layer would be reported as a chain).
+               ! a canonical sign so that both give the same entry.
                if (lnew(1) < 0 .or. (lnew(1) == 0 .and. lnew(2) < 0) .or.&
                   (lnew(1) == 0 .and. lnew(2) == 0 .and. lnew(3) < 0)) lnew = -lnew
                do m = 1, nlvecper
