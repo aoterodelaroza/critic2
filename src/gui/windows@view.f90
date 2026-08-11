@@ -1275,12 +1275,7 @@ contains
     w%viewmode = mode
     w%viewmode_transient = .false.
     w%vmdata%owner = idcaller
-    if (mode == vm_pick_atom) then
-       w%vmdata%msg = trim(message)//" ("//trim(get_bind_keyname(BIND_CANCEL))//&
-          " cancels)..."
-    else
-       w%vmdata%msg = trim(message)
-    end if
+    w%vmdata%msg = trim(message)
     w%vmdata%idx = 0
     w%vmdata%flag = 0
     w%vmdata%tooltip_ig = -1

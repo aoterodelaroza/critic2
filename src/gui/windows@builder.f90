@@ -1549,8 +1549,6 @@ contains
 
     end function addfrag_load
 
-
-
     ! Toggle builder mode jvm (a vm_* constant): start it on the parent
     ! view, or stop it if it is already the active mode. Starting a mode
     ! while another one is active switches to the new mode.
@@ -1567,31 +1565,21 @@ contains
          w%builder_isys = isys
          w%builder_time = glfwGetTime()
          if (jvm == vm_builder_valence) then
-            msg = "Add ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
+            msg = "Click to add ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
                ") or remove ("//trim(get_bind_keyname(BIND_PICKATOM_ALT))//&
-               ") hydrogens..."
+               ") hydrogens"
          elseif (jvm == vm_builder_addatom) then
-            msg = "Add atoms ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
-               ") at the clicked positions or replace the clicked atoms"
+            msg = "Click to add or replace atoms ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//")"
          elseif (jvm == vm_builder_addfragment) then
-            msg = "Add "//trim(w%builder_frag_name)//" ("//&
-               trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
-               ") at the clicked positions or "
-            if (w%builder_frag_radius > 0d0) then
-               msg = msg // "bond it to the clicked atom"
-            else
-               msg = msg // "replace the clicked atoms"
-            end if
+            msg = "Click to add "//trim(w%builder_frag_name)//" ("//&
+               trim(get_bind_keyname(BIND_PICKATOM_SELECT))//")"
          elseif (jvm == vm_builder_trim) then
-            msg = "Trim ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
-               ") the branch hanging from the clicked atoms"
+            msg = "Click to trim branches ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//")"
          elseif (jvm == vm_builder_bond .or. jvm == vm_builder_bondh) then
-            msg = "Click ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
-               ") two atoms to bond them"
-            if (jvm == vm_builder_bondh) msg = msg // ", deleting a hydrogen from each"
+            msg = "Click ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//") to bond atoms"
+            if (jvm == vm_builder_bondh) msg = msg // ", deleting hydrogens"
          else
-            msg = "Remove ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
-               ") the atoms and their hydrogens"
+            msg = "Click to remove atoms ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//")"
          end if
          call win(iview)%viewmode_set_forced(jvm,msg,w%id)
       end if
