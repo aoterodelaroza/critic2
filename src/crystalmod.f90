@@ -920,7 +920,7 @@ module crystalmod
        type(substituent), allocatable, intent(inout) :: sub(:)
      end subroutine substituents
      module subroutine walk_component(c,i0,lvec0,imem,nat,id,lvec,discrete,&
-        skipatom,skipbond,zeroedge,bfs,nlvecper,lvecper)
+        skipatom,skipbond,zeroedge,nlvecper,lvecper)
        class(crystal), intent(in) :: c
        integer, intent(in) :: i0, lvec0(3)
        integer, intent(inout) :: imem(:)
@@ -930,7 +930,6 @@ module crystalmod
        logical, intent(in), optional :: skipatom(:)
        integer, intent(in), optional :: skipbond(:,:)
        logical, intent(in), optional :: zeroedge
-       logical, intent(in), optional :: bfs
        integer, intent(out), optional :: nlvecper
        integer, allocatable, intent(inout), optional :: lvecper(:,:)
      end subroutine walk_component

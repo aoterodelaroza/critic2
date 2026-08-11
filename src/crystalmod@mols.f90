@@ -158,9 +158,8 @@ contains
     imem = 0
     isdiscrete = .true.
 
-    ! depth-first search for the connected components; each molecule
-    ! keeps its own slice of the periodicity vectors (lmol, starting at
-    ! lmoloff)
+    ! find the connected components; each molecule keeps its own slice
+    ! of the periodicity vectors (lmol, starting at lmoloff)
     ntot = 0
     do i = 1, c%ncel
        if (c%idatcelmol(1,i) > 0) cycle
@@ -677,7 +676,7 @@ contains
        ! same cell atoms may be walked again for a different image of
        ! the same molecule.
        imem = 0
-       call c%walk_component(idseed(i),lseed(:,i),imem,nat,id,lvec,ldist,bfs=.true.)
+       call c%walk_component(idseed(i),lseed(:,i),imem,nat,id,lvec,ldist)
 
        ! add this fragment to the list
        fseed(i) = .true.
@@ -757,22 +756,25 @@ contains
   end subroutine masked_fragment
 
   !> Explore the connected component of the bond network (c%nstar)
-  !> containing cell atom i0, taken at lattice offset lvec0. imem(ncel)
-  !> is the visited map (0 = not visited); the caller initializes it
-  !> and may reuse it across walks, since disjoint components never
-  !> consult each other's entries. On output, imem(id(j)) = j for the
-  !> nat atoms of the component, listed in id(1:nat) with per-atom
-  !> lattice vectors lvec(:,1:nat) (id and lvec are reallocated as
-  !> needed). discrete = the component was never reached at two
-  !> different lattice vectors. Optional: skipatom(ncel) excludes
-  !> atoms; skipbond(2,:) excludes bonds by unordered cell-atom index
-  !> pair (all their images); zeroedge restricts the walk to bonds with
-  !> a zero lattice vector; nlvecper/lvecper collect the distinct
-  !> absolute lattice-vector mismatches (the periodicity vectors of a
-  !> non-discrete component). Returns nat = 0 if i0 is out of range,
-  !> already visited, or skipped. c%nstar must be allocated.
+  !> containing cell atom i0, taken at lattice offset
+  !> lvec0. imem(ncel) is the visited map (0 = not visited); the
+  !> caller initializes it and may reuse it across walks, since
+  !> disjoint components never consult each other's entries. On
+  !> output, imem(id(j)) = j for the nat atoms of the component,
+  !> listed in id(1:nat) in breadth-first discovery order from i0 with
+  !> per-atom lattice vectors lvec(:,1:nat). discrete = the component
+  !> was never reached at two different lattice vectors.  Optional:
+  !> skipatom(ncel) excludes atoms; skipbond(2,:) excludes bonds by
+  !> unordered cell-atom index pair (all their images); zeroedge
+  !> restricts the walk to bonds with a zero lattice vector;
+  !> nlvecper/lvecper (which must be given together) collect the
+  !> distinct lattice-vector mismatches, sign-canonicalized: these
+  !> span the periodicity lattice of a non-discrete component, but
+  !> which generators come out depends on the order of the
+  !> walk. Returns nat = 0 if i0 is out of range, already visited, or
+  !> skipped.  c%nstar must be allocated.
   module subroutine walk_component(c,i0,lvec0,imem,nat,id,lvec,discrete,&
-     skipatom,skipbond,zeroedge,bfs,nlvecper,lvecper)
+     skipatom,skipbond,zeroedge,nlvecper,lvecper)
     use types, only: realloc
     class(crystal), intent(in) :: c
     integer, intent(in) :: i0, lvec0(3)
@@ -783,21 +785,17 @@ contains
     logical, intent(in), optional :: skipatom(:)
     integer, intent(in), optional :: skipbond(:,:)
     logical, intent(in), optional :: zeroedge
-    logical, intent(in), optional :: bfs
     integer, intent(out), optional :: nlvecper
     integer, allocatable, intent(inout), optional :: lvecper(:,:)
 
-    integer :: i, k, sp, iq, lveci(3)
-    logical :: zeroedge_, bfs_
-    integer, allocatable :: stk_i(:), stk_k(:), stk_lvec(:,:)
+    integer :: i, k, iq, lveci(3)
+    logical :: zeroedge_
 
     nat = 0
     discrete = .true.
     if (present(nlvecper)) nlvecper = 0
     zeroedge_ = .false.
     if (present(zeroedge)) zeroedge_ = zeroedge
-    bfs_ = .false.
-    if (present(bfs)) bfs_ = bfs
     if (i0 < 1 .or. i0 > c%ncel) return
     if (imem(i0) /= 0) return
     if (present(skipatom)) then
@@ -812,51 +810,26 @@ contains
     lvec(:,1) = lvec0
     imem(i0) = 1
 
-    if (bfs_) then
-       ! breadth-first: the member list doubles as the queue
-       iq = 0
-       do while (iq < nat)
-          iq = iq + 1
-          i = id(iq)
-          lveci = lvec(:,iq)
-          do k = 1, c%nstar(i)%ncon
-             call visit_neighbor(i,lveci,k,.false.)
-          end do
+    ! breadth-first walk; the member list doubles as the queue, so no
+    ! auxiliary storage is needed. Do not turn this into a recursive
+    ! descent: large molecules would overflow the stack.
+    iq = 0
+    do while (iq < nat)
+       iq = iq + 1
+       i = id(iq)
+       lveci = lvec(:,iq)
+       do k = 1, c%nstar(i)%ncon
+          call visit_neighbor()
        end do
-    else
-       ! explicit depth-first stack over the neighbor stars (replaces
-       ! recursion to avoid stack overflow in large molecules); stores
-       ! node, neighbor cursor, lattice vector
-       allocate(stk_i(64),stk_k(64),stk_lvec(3,64))
-       sp = 1
-       stk_i(1) = i0
-       stk_k(1) = 0
-       stk_lvec(:,1) = lvec0
-
-       do while (sp > 0)
-          i = stk_i(sp)
-          lveci = stk_lvec(:,sp)
-          stk_k(sp) = stk_k(sp) + 1
-          k = stk_k(sp)
-          if (k > c%nstar(i)%ncon) then
-             sp = sp - 1 ! exhausted this node, pop
-             cycle
-          end if
-          call visit_neighbor(i,lveci,k,.true.)
-       end do
-    end if
+    end do
 
   contains
-    ! Process neighbor k of atom i (at lattice vector lveci): apply the
-    ! bond and atom masks, discover the neighbor into the member list
-    ! (descending into it when push is set), or detect a lattice-vector
-    ! mismatch for a visited one.
-    subroutine visit_neighbor(i,lveci,k,push)
-      integer, intent(in) :: i, lveci(3), k
-      logical, intent(in) :: push
-
+    ! Process neighbor k of atom i (at lattice vector lveci), all three
+    ! taken from the walk loop above: apply the bond and atom masks,
+    ! then either discover the neighbor into the member list or detect a
+    ! lattice-vector mismatch for a visited one.
+    subroutine visit_neighbor()
       integer :: newid, lnew(3), m
-      logical :: skip, found
 
       ! skip boundary-crossing bonds, masked bonds, and skipped atoms
       newid = c%nstar(i)%idcon(k)
@@ -864,15 +837,8 @@ contains
          if (any(c%nstar(i)%lcon(:,k) /= 0)) return
       end if
       if (present(skipbond)) then
-         skip = .false.
-         do m = 1, size(skipbond,2)
-            if ((i == skipbond(1,m) .and. newid == skipbond(2,m)) .or.&
-               (i == skipbond(2,m) .and. newid == skipbond(1,m))) then
-               skip = .true.
-               exit
-            end if
-         end do
-         if (skip) return
+         if (any((skipbond(1,:) == i .and. skipbond(2,:) == newid) .or.&
+            (skipbond(2,:) == i .and. skipbond(1,:) == newid))) return
       end if
       if (present(skipatom)) then
          if (skipatom(newid)) return
@@ -888,38 +854,29 @@ contains
          id(nat) = newid
          lvec(:,nat) = lveci + c%nstar(i)%lcon(:,k)
          imem(newid) = nat
-         if (push) then
-            sp = sp + 1
-            if (sp > size(stk_i,1)) then
-               call realloc(stk_i,2*sp)
-               call realloc(stk_k,2*sp)
-               call realloc(stk_lvec,3,2*sp)
-            end if
-            stk_i(sp) = newid
-            stk_k(sp) = 0
-            stk_lvec(:,sp) = lvec(:,nat)
-         end if
       else
          ! Reached a visited atom: through a different lattice vector,
          ! the component is connected to its own periodic images and
          ! is not discrete. Collect the distinct mismatch vectors.
-         lnew = abs(lveci + c%nstar(i)%lcon(:,k) - lvec(:,imem(newid)))
+         lnew = lveci + c%nstar(i)%lcon(:,k) - lvec(:,imem(newid))
          if (any(lnew /= 0)) then
             discrete = .false.
             if (present(nlvecper)) then
-               found = .false.
+               ! The same cycle traversed backwards gives -lnew; flip to
+               ! a canonical sign so that both give the same entry. Do
+               ! not use a componentwise abs() here: it does not
+               ! preserve the lattice these vectors span (it would map
+               ! the independent (1,1,0) and (1,-1,0) to a single
+               ! vector, and a layer would be reported as a chain).
+               if (lnew(1) < 0 .or. (lnew(1) == 0 .and. lnew(2) < 0) .or.&
+                  (lnew(1) == 0 .and. lnew(2) == 0 .and. lnew(3) < 0)) lnew = -lnew
                do m = 1, nlvecper
-                  if (all(lvecper(:,m) == lnew)) then
-                     found = .true.
-                     exit
-                  end if
+                  if (all(lvecper(:,m) == lnew)) return
                end do
-               if (.not.found) then
-                  nlvecper = nlvecper + 1
-                  if (.not.allocated(lvecper)) allocate(lvecper(3,10))
-                  if (size(lvecper,2) < nlvecper) call realloc(lvecper,3,2*nlvecper)
-                  lvecper(:,nlvecper) = lnew
-               end if
+               nlvecper = nlvecper + 1
+               if (.not.allocated(lvecper)) allocate(lvecper(3,10))
+               if (size(lvecper,2) < nlvecper) call realloc(lvecper,3,2*nlvecper)
+               lvecper(:,nlvecper) = lnew
             end if
          end if
       end if
