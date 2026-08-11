@@ -1,0 +1,2 @@
+HIRSHFELD_I [WCUBE] [ONLY iat1.i iat2.i ...]
+            [WFCDIR dir.s] [HITOL tol.r] [HIMAXIT maxit.i]

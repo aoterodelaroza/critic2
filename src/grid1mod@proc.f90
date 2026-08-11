@@ -70,9 +70,9 @@ contains
     ! build the file name
     file = trim(critic_home) // dirsep // "wfc" // dirsep // lower(nameguess(z)) // "_pbe.wfc"
 
-    ! anions not supported
-    if (q < 0) &
-       call ferror('read_db','Anions not supported: neutral atomic density used instead',warning)
+    ! anions: extrapolate from neutral by filling next-available orbital (best
+    ! effort). read_critic now augments occupations when n > sum(occ_neutral).
+    ! A warning is emitted there if the requested anion cannot be represented.
 
     ! do it
     call read_critic(g,file,z-q,.true.,ti=ti)
@@ -198,6 +198,25 @@ contains
 
   end subroutine grid1_clean_grids
 
+  !> Load a user-supplied .wfc-format atomic density file into grid g
+  !> using read_critic. Caller specifies the atomic number z and the
+  !> intended integer charge q; the number of electrons is set to z-q so
+  !> the augmented occupation logic in read_critic produces the right
+  !> ion. This is intended for Hirshfeld-I WFCDIR support.
+  module subroutine grid1_read_file(g,file,z,q,ti)
+    class(grid1), intent(inout) :: g
+    character(len=*), intent(in) :: file
+    integer, intent(in) :: z, q
+    type(thread_info), intent(in), optional :: ti
+
+    call read_critic(g,file,z-q,.true.,ti=ti)
+    if (g%isinit) then
+       g%z = z
+       g%qat = q
+    end if
+
+  end subroutine grid1_read_file
+
   !xx! private procedures
 
   !> Read grid in critic format. This format is adapted from the wfc files
@@ -216,7 +235,8 @@ contains
     integer :: i, j, lu
     real*8, allocatable :: rr(:,:)
     real*8 :: r, r1, r2, r3 ,r4, delta, delta2
-    integer :: ns, ic
+    integer :: ns, ic, cap, room, extra
+    character*1 :: lchar
     logical :: exist
 
     ! check that the file exists
@@ -242,17 +262,51 @@ contains
     read (lu,*) g%ngrid
 
     ! adjust the occupations if this is an ion
-    if (sum(g%occ) /= n) then
-       ns = 0
-       do i = 1, g%norb
-          if (ns + g%occ(i) > n) then
-             g%occ(i) = n - ns
-             g%occ(i+1:g%norb) = 0
-             exit
-          else
-             ns = ns + nint(g%occ(i))
+    if (nint(sum(g%occ)) /= n) then
+       if (n < nint(sum(g%occ))) then
+          ! cation: truncate occupations from outermost orbital inward
+          ns = 0
+          do i = 1, g%norb
+             if (ns + g%occ(i) > n) then
+                g%occ(i) = n - ns
+                g%occ(i+1:g%norb) = 0
+                exit
+             else
+                ns = ns + nint(g%occ(i))
+             end if
+          end do
+       else
+          ! anion: extrapolate by adding electrons to the highest occupied
+          ! orbital up to its angular-momentum capacity (2*(2L+1)). If the
+          ! requested number of electrons exceeds the orbitals stored in the
+          ! .wfc file, emit a warning and keep the best-effort filling.
+          extra = n - nint(sum(g%occ))
+          do i = g%norb, 1, -1
+             if (g%occ(i) <= 0d0) cycle
+             lchar = g%wfcl(i)(2:2)
+             select case (lchar)
+             case ('S','s'); cap = 2
+             case ('P','p'); cap = 6
+             case ('D','d'); cap = 10
+             case ('F','f'); cap = 14
+             case default;   cap = 2
+             end select
+             room = cap - nint(g%occ(i))
+             if (room >= extra) then
+                g%occ(i) = g%occ(i) + dble(extra)
+                extra = 0
+                exit
+             elseif (room > 0) then
+                g%occ(i) = dble(cap)
+                extra = extra - room
+             end if
+          end do
+          if (extra > 0) then
+             call ferror('read_critic', &
+                'Anion electron count exceeds available orbital capacity; using best-effort density', &
+                warning)
           end if
-       end do
+       end if
     end if
 
     ! Read the grid and build the density
