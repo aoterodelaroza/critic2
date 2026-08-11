@@ -142,7 +142,6 @@ contains
        elseif (w%builder_vm == vm_builder_addatom .or. w%builder_vm == vm_builder_addfragment) then
           ! keep the mouse ghost current
           if (w%builder_vm == vm_builder_addatom) then
-             win(iview)%vmdata%tooltip_ig = w%builder_addatom_ig
              win(iview)%vmdata%tooltip_iz = w%builder_addatom_z
           elseif (allocated(w%builder_frag_name)) then
              win(iview)%vmdata%tooltip_frag = w%builder_frag_name

@@ -29,7 +29,7 @@ submodule (icons) proc
      "ui_label_wyck.png","ui_camera.png",&
      "ui_applyall.png","ui_reset.png","ui_draw.png",&
      "ui_objects.png","ui_tools.png","ui_newview.png",&
-     "vm_remove.png","vm_trim.png","vm_bond.png","vm_valence.png",&
+     "vm_remove.png","vm_trim.png","vm_bond.png","vm_fragment.png",&
      "vm_pick.png","vm_select.png","vm_move.png","vm_mdinteract.png"/)
 
   ! format icon PNG file names, in isformat_r_* order

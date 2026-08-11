@@ -91,8 +91,7 @@ module windows
   ! view mode data structure for window_forced modes
   type viewmode_data
      character(len=:), allocatable :: msg ! caller-supplied prompt shown in the view bar (pick-atom mode only)
-     integer :: tooltip_ig = -1 ! geometry pictogram shown in the mouse tooltip (add-atoms mode; < 0 = none)
-     integer :: tooltip_iz = 0 ! atomic number for the pictogram center (add-atoms mode; <= 0 = filled circle)
+     integer :: tooltip_iz = 0 ! atomic number of the element shown at the cursor (add-atoms mode; <= 0 = none)
      character(len=:), allocatable :: tooltip_frag ! fragment name shown at the cursor (add-fragments mode)
      logical :: frag_isligand = .false. ! the fragment bonds to the clicked atom instead of replacing it (add-fragments mode)
      integer(c_int) :: idx(4) = 0 ! atom identifier under mouse position (cell index + lattice vector)

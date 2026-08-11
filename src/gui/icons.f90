@@ -50,7 +50,7 @@ module icons
   integer, parameter, public :: icon_vm_remove = 21  ! remove atoms (X)
   integer, parameter, public :: icon_vm_trim = 22    ! trim branches (scissors)
   integer, parameter, public :: icon_vm_bond = 23    ! create bonds (two atoms and a stick)
-  integer, parameter, public :: icon_vm_valence = 24 ! change valence (+H)
+  integer, parameter, public :: icon_vm_fragment = 24 ! add fragments (ring with a bond stub)
   integer, parameter, public :: icon_vm_pick = 25    ! pick an atom (crosshair)
   integer, parameter, public :: icon_vm_select = 26  ! select atoms (marquee)
   integer, parameter, public :: icon_vm_move = 27    ! move atoms/molecules (four-way arrows)

@@ -1248,7 +1248,6 @@ contains
     if (present(message)) w%vmdata%msg = trim(message)
     w%vmdata%idx = 0
     w%vmdata%flag = 0
-    w%vmdata%tooltip_ig = -1
     w%vmdata%tooltip_iz = 0
     w%vmdata%frag_isligand = .false.
     if (allocated(w%vmdata%tooltip_frag)) deallocate(w%vmdata%tooltip_frag)
@@ -1450,28 +1449,26 @@ contains
   end function hover_identity
 
   !> The image drawn at the mouse cursor for the current view mode: itex
-  !> is the icon texture saying what the next click does (0 = none), tint
-  !> is the colour to draw it in, and ig/iz and frag are the atom symbol
-  !> and the fragment name for the two add modes (ig < 0 / empty frag =
-  !> none).
-  subroutine cursor_icon(w,itex,tint,ig,iz,frag)
+  !> is the icon texture saying what the next click does (0 = none), txt
+  !> is a short label drawn instead when the cue is a chemical symbol
+  !> rather than a glyph (empty = none), and tint is the colour for
+  !> either.
+  subroutine cursor_icon(w,itex,txt,tint)
     use icons, only: icon_tex, icon_vm_remove, icon_vm_trim, icon_vm_bond,&
-       icon_vm_valence, icon_vm_pick, icon_vm_select, icon_vm_move,&
+       icon_vm_fragment, icon_vm_pick, icon_vm_select, icon_vm_move,&
        icon_vm_mdinteract
+    use tools_io, only: nameguess
     class(window), intent(in) :: w
     integer(c_int), intent(out) :: itex
+    character(len=:), allocatable, intent(out) :: txt
     real(c_float), intent(out) :: tint(4)
-    integer, intent(out) :: ig, iz
-    character(len=:), allocatable, intent(out) :: frag
 
     real(c_float), parameter :: col_red(4) = (/0.93_c_float,0.24_c_float,0.24_c_float,1._c_float/)
     real(c_float), parameter :: col_black(4) = (/0._c_float,0._c_float,0._c_float,1._c_float/)
 
     itex = 0
+    txt = ""
     tint = col_red
-    ig = -1
-    iz = 0
-    frag = ""
 
     select case (w%viewmode)
     case (vm_select)
@@ -1487,7 +1484,7 @@ contains
     case (vm_pick_atom)
        itex = icon_tex(icon_vm_pick)
     case (vm_builder_valence)
-       itex = icon_tex(icon_vm_valence)
+       txt = "±H"
     case (vm_builder_remove)
        itex = icon_tex(icon_vm_remove)
     case (vm_builder_trim)
@@ -1500,13 +1497,10 @@ contains
        itex = icon_tex(icon_vm_bond)
        tint = col_black
     case (vm_builder_addatom)
-       ! the element about to be added, drawn on its own: geometry 0 is
-       ! the bare atom, so the local geometry (which the builder window
-       ! shows anyway) does not clutter the cursor
-       if (w%vmdata%tooltip_ig >= 0) ig = 0
-       iz = w%vmdata%tooltip_iz
+       ! the symbol of the element about to be added
+       if (w%vmdata%tooltip_iz > 0) txt = trim(nameguess(w%vmdata%tooltip_iz,.true.))
     case (vm_builder_addfragment)
-       if (allocated(w%vmdata%tooltip_frag)) frag = trim(w%vmdata%tooltip_frag)
+       itex = icon_tex(icon_vm_fragment)
     end select
 
   end subroutine cursor_icon
@@ -2921,19 +2915,18 @@ contains
     integer :: idx1(4), idx2(4), idx3(4), idx4(4)
     real*8 :: x0(3), d, d1, d2, ang
     integer(c_int) :: itex
-    integer :: ig, iz
-    character(len=:), allocatable :: frag
+    character(len=:), allocatable :: txt
     logical :: domeas, havecue
-    real(c_float) :: side, bgrgb(3), tint(4)
-    type(ImVec2) :: sz, p0, mpos
+    real(c_float) :: tint(4)
+    type(ImVec2) :: sz, mpos
 
     ! how far from the cursor hotspot the image sits, in pixels
     real(c_float), parameter :: cursoroffx = 14._c_float
     real(c_float), parameter :: cursoroffy = 29._c_float
 
     ! the image announcing what this mode does
-    call cursor_icon(w,itex,tint,ig,iz,frag)
-    havecue = (itex /= 0 .or. ig >= 0 .or. len_trim(frag) > 0)
+    call cursor_icon(w,itex,txt,tint)
+    havecue = (itex /= 0 .or. len_trim(txt) > 0)
 
     ! the measurement readout, only in navigation: that is the one mode
     ! whose keybinding group carries the measurement binds
@@ -2959,13 +2952,7 @@ contains
        ! further away than this image wants to be (imgui.cpp:6744 applies
        ! the tooltip position only when the caller sets none)
        call igGetMousePos(mpos)
-       if (itex /= 0 .or. ig >= 0) then
-          mpos%x = mpos%x + cursoroffx * g%Style%MouseCursorScale
-       else
-          ! a name starts at its left edge and would run under the
-          ! pointer at the offset that suits a compact icon
-          mpos%x = mpos%x + 4._c_float * cursoroffx * g%Style%MouseCursorScale
-       end if
+       mpos%x = mpos%x + cursoroffx * g%Style%MouseCursorScale
        mpos%y = mpos%y + cursoroffy * g%Style%MouseCursorScale
        call igSetNextWindowPos(mpos,ImGuiCond_Always,ImVec2(0._c_float,0._c_float))
        call igPushStyleColor_Vec4(ImGuiCol_PopupBg,&
@@ -2985,26 +2972,11 @@ contains
              ImVec4(0._c_float,0._c_float,0._c_float,0._c_float))
        end if
 
-       ! the local-geometry pictogram of the atom about to be added:
-       ! reserve the square, then paint it into the overlay's draw list.
-       ! With no backdrop the scene shows through, so contrast against it
-       if (ig >= 0) then
-          side = 1.8_c_float * igGetTextLineHeight()
-          sz%x = side
-          sz%y = side
-          call igDummy(sz)
-          call igGetItemRectMin(p0)
-          if (associated(w%sc)) then
-             bgrgb = w%sc%bgcolor
-          else
-             bgrgb = 0._c_float
-          end if
-          call addatom_geom_paint(ig,p0,side,igGetWindowDrawList(),iz=iz,bgrgb=bgrgb)
-       end if
-
-       ! the name of the fragment about to be added
-       if (len_trim(frag) > 0) &
-          call iw_text(frag,rgba=tint)
+       ! the chemical symbol, for the modes whose cue is a symbol and not
+       ! a glyph (the element being added, the hydrogen being added or
+       ! removed): plain text, so it sits as close in as the icons do
+       if (len_trim(txt) > 0) &
+          call iw_text(txt,rgba=tint)
 
        call igEndTooltip()
        call igPopStyleVar(1_c_int)
