@@ -711,7 +711,10 @@ contains
        call sysc%highlight_clear(.true.)
        call sysc%highlight_clear(.false.)
        sysc%timelastchange_geometry = time
-       ! record in the undo/redo history, unless the caller is restoring a previous state
+    end if
+
+    ! record in the undo/redo history
+    if (level >= lastchange_rebond) then
        if (.not.nocapture_ .and. ok_system(sysc%id,sys_init)) &
           call sysc%undo_capture(time)
     end if
