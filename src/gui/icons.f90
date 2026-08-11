@@ -46,7 +46,16 @@ module icons
   integer, parameter, public :: icon_ui_objects = 18    ! list of objects (list rows)
   integer, parameter, public :: icon_ui_tools = 19      ! tools menu (wrench)
   integer, parameter, public :: icon_ui_newview = 20    ! new view window (window with +)
-  integer, parameter, public :: icon_NUM = 20
+  ! icon IDs: view-mode cursor (what the next click in the view does)
+  integer, parameter, public :: icon_vm_remove = 21  ! remove atoms (X)
+  integer, parameter, public :: icon_vm_trim = 22    ! trim branches (scissors)
+  integer, parameter, public :: icon_vm_bond = 23    ! create bonds (two atoms and a stick)
+  integer, parameter, public :: icon_vm_valence = 24 ! change valence (+H)
+  integer, parameter, public :: icon_vm_pick = 25    ! pick an atom (crosshair)
+  integer, parameter, public :: icon_vm_select = 26  ! select atoms (marquee)
+  integer, parameter, public :: icon_vm_move = 27    ! move atoms/molecules (four-way arrows)
+  integer, parameter, public :: icon_vm_mdinteract = 28 ! interactive dynamics (atom in motion)
+  integer, parameter, public :: icon_NUM = 28
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

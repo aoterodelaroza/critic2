@@ -86,14 +86,13 @@ contains
        icon_ui_applyall, icon_ui_reset, icon_ui_draw, icon_ui_objects,&
        icon_ui_tools, icon_ui_newview
     use crystalmod, only: iperiod_vacthr
-    use global, only: dunit0, iunit_ang
     use systems, only: sysc, sys, sys_init, nsys, ok_system
     use gui_main, only: g, fontsize, lockbehavior, tree_select_updates_view,&
        ColorBlack, ColorWhite, ColorClearTransparent, show_tools_menu
     use tools_io, only: string
     class(window), intent(inout), target :: w
 
-    integer :: i, j, k, nrep, is, icel, ineq
+    integer :: i, j, k, nrep, is
     type(ImVec2) :: szavail, sz0, sz1, szero, pos
     type(ImVec4) :: tintcol, bgcol
     character(kind=c_char,len=:), allocatable, target :: str1, str2, str3
@@ -108,7 +107,7 @@ contains
     real(c_float) :: scal, width, rgba(4)
     real(c_float) :: rscale, tmpuv
     logical :: interacting
-    real*8 :: x0(3), time
+    real*8 :: time
     type(ImVec2) :: sz
     logical :: changedisplay(5) ! 1=atoms, 2=bonds, 3=labels, 4=cell, 5=polyhedra
 
@@ -806,51 +805,21 @@ contains
        w%timelast_view_getpixel = time
     elseif (.not.hover) then
        w%mousepos_idx = 0
+       ! forget where the last pick was taken: the cursor can leave the view
+       ! and come back to the very same pixel, and the "has it moved" test
+       ! above would then never fire, leaving the atom unidentified
+       w%mousepos_lastpick%x = -huge(1._c_float)
+       w%mousepos_lastpick%y = -huge(1._c_float)
     end if
 
-    ! the viewmode display on the bar
+    ! the viewmode display on the bar; it shows the atom under the
+    ! cursor, which it reads from w%mousepos_idx (zeroed above when the
+    ! view is not hovered)
     call w%viewmode_bar_display()
 
-    ! atom hover message
-    if (hover .and. w%mousepos_idx(1) > 0) then
-       call igSameLine(0._c_float,-1._c_float)
-       icel = w%mousepos_idx(1)
-       is = sys(w%isys)%c%atcel(icel)%is
-       ineq = sys(w%isys)%c%atcel(icel)%idx
-       ismol = sys(w%isys)%c%ismolecule
-
-       ! lead with the occupant list for a mixed site, otherwise the atom name
-       ! (mix_string returns empty for a single-occupant site)
-       msg = sys(w%isys)%c%mix_string(ineq)
-       if (len_trim(msg) == 0) &
-          msg = trim(sys(w%isys)%c%at(ineq)%name)
-       if (.not.ismol) then
-          x0 = sys(w%isys)%c%atcel(icel)%x
-
-          msg = trim(msg) // " [cellid=" // string(icel) // "+(" // string(w%mousepos_idx(2)) // "," // string(w%mousepos_idx(3)) //&
-             "," // string(w%mousepos_idx(4)) // "),nneqid=" // string(ineq) // ",wyckoff=" // &
-             string(sys(w%isys)%c%at(ineq)%mult) // string(sys(w%isys)%c%at(ineq)%wyc)
-          if (sys(w%isys)%c%nmol > 1) &
-             msg = msg // ",molid=" // string(sys(w%isys)%c%idatcelmol(1,icel))
-          msg = msg // "] " //&
-             string(x0(1)+w%mousepos_idx(2),'f',decimal=4) //" "// string(x0(2)+w%mousepos_idx(3),'f',decimal=4) //" "//&
-             string(x0(3)+w%mousepos_idx(4),'f',decimal=4) // " (frac)"
-       else
-          x0 = (sys(w%isys)%c%atcel(icel)%r+sys(w%isys)%c%molx0) * dunit0(iunit_ang)
-
-          msg = trim(msg) // " [id=" // string(icel)
-          if (sys(w%isys)%c%nmol > 1) &
-             msg = msg // ",molid=" // string(sys(w%isys)%c%idatcelmol(1,icel))
-          msg = msg // "] " //&
-             string(x0(1),'f',decimal=4) //" "// string(x0(2),'f',decimal=4) //" "//&
-             string(x0(3),'f',decimal=4) // " (Å)"
-       end if
-       call iw_text(msg)
-    end if
-
-    ! tooltip for distance measurement
+    ! the overlay at the mouse cursor: what the next click does here
     if (hover) &
-       call w%draw_selection_tooltip(w%mousepos_idx)
+       call w%draw_cursor_overlay(w%mousepos_idx)
 
     ! Process mouse events
     call w%viewmode_process_events(hover)
@@ -1432,6 +1401,116 @@ contains
     end function kn
   end subroutine viewmode_text
 
+  !> Returns the one-line identity of the atom under the cursor for
+  !> the view bar.
+  function hover_identity(w,idx) result(msg)
+    use systems, only: sys, ok_system, sys_init
+    use global, only: dunit0, iunit_ang
+    use tools_io, only: string
+    class(window), intent(in) :: w
+    integer(c_int), intent(in) :: idx(5)
+    character(len=:), allocatable :: msg
+
+    integer :: icel, ineq
+    real*8 :: x0(3)
+
+    msg = ""
+    if (idx(1) <= 0) return
+    if (.not.ok_system(w%isys,sys_init)) return
+    icel = idx(1)
+    ineq = sys(w%isys)%c%atcel(icel)%idx
+
+    ! lead with the occupant list for a mixed site, otherwise the atom name
+    ! (mix_string returns empty for a single-occupant site)
+    msg = sys(w%isys)%c%mix_string(ineq)
+    if (len_trim(msg) == 0) &
+       msg = trim(sys(w%isys)%c%at(ineq)%name)
+    if (.not.sys(w%isys)%c%ismolecule) then
+       x0 = sys(w%isys)%c%atcel(icel)%x
+
+       msg = trim(msg) // " [cellid=" // string(icel) // "+(" // string(idx(2)) // "," // string(idx(3)) //&
+          "," // string(idx(4)) // "),nneqid=" // string(ineq) // ",wyckoff=" // &
+          string(sys(w%isys)%c%at(ineq)%mult) // string(sys(w%isys)%c%at(ineq)%wyc)
+       if (sys(w%isys)%c%nmol > 1) &
+          msg = msg // ",molid=" // string(sys(w%isys)%c%idatcelmol(1,icel))
+       msg = msg // "] " //&
+          string(x0(1)+idx(2),'f',decimal=4) //" "// string(x0(2)+idx(3),'f',decimal=4) //" "//&
+          string(x0(3)+idx(4),'f',decimal=4) // " (frac)"
+    else
+       x0 = (sys(w%isys)%c%atcel(icel)%r+sys(w%isys)%c%molx0) * dunit0(iunit_ang)
+
+       msg = trim(msg) // " [id=" // string(icel)
+       if (sys(w%isys)%c%nmol > 1) &
+          msg = msg // ",molid=" // string(sys(w%isys)%c%idatcelmol(1,icel))
+       msg = msg // "] " //&
+          string(x0(1),'f',decimal=4) //" "// string(x0(2),'f',decimal=4) //" "//&
+          string(x0(3),'f',decimal=4) // " (Å)"
+    end if
+
+  end function hover_identity
+
+  !> The image drawn at the mouse cursor for the current view mode: itex
+  !> is the icon texture saying what the next click does (0 = none), tint
+  !> is the colour to draw it in, and ig/iz and frag are the atom symbol
+  !> and the fragment name for the two add modes (ig < 0 / empty frag =
+  !> none).
+  subroutine cursor_icon(w,itex,tint,ig,iz,frag)
+    use icons, only: icon_tex, icon_vm_remove, icon_vm_trim, icon_vm_bond,&
+       icon_vm_valence, icon_vm_pick, icon_vm_select, icon_vm_move,&
+       icon_vm_mdinteract
+    class(window), intent(in) :: w
+    integer(c_int), intent(out) :: itex
+    real(c_float), intent(out) :: tint(4)
+    integer, intent(out) :: ig, iz
+    character(len=:), allocatable, intent(out) :: frag
+
+    real(c_float), parameter :: col_red(4) = (/0.93_c_float,0.24_c_float,0.24_c_float,1._c_float/)
+    real(c_float), parameter :: col_black(4) = (/0._c_float,0._c_float,0._c_float,1._c_float/)
+
+    itex = 0
+    tint = col_red
+    ig = -1
+    iz = 0
+    frag = ""
+
+    select case (w%viewmode)
+    case (vm_select)
+       itex = icon_tex(icon_vm_select)
+    case (vm_moveatom)
+       ! moving one atom deforms the molecule, moving a whole one does not
+       itex = icon_tex(icon_vm_move)
+    case (vm_movemol)
+       itex = icon_tex(icon_vm_move)
+       tint = col_black
+    case (vm_mdinteract)
+       itex = icon_tex(icon_vm_mdinteract)
+    case (vm_pick_atom)
+       itex = icon_tex(icon_vm_pick)
+    case (vm_builder_valence)
+       itex = icon_tex(icon_vm_valence)
+    case (vm_builder_remove)
+       itex = icon_tex(icon_vm_remove)
+    case (vm_builder_trim)
+       itex = icon_tex(icon_vm_trim)
+    case (vm_builder_bondh)
+       ! the -H variant deletes a hydrogen from each atom; the plain one
+       ! only adds connectivity
+       itex = icon_tex(icon_vm_bond)
+    case (vm_builder_bond)
+       itex = icon_tex(icon_vm_bond)
+       tint = col_black
+    case (vm_builder_addatom)
+       ! the element about to be added, drawn on its own: geometry 0 is
+       ! the bare atom, so the local geometry (which the builder window
+       ! shows anyway) does not clutter the cursor
+       if (w%vmdata%tooltip_ig >= 0) ig = 0
+       iz = w%vmdata%tooltip_iz
+    case (vm_builder_addfragment)
+       if (allocated(w%vmdata%tooltip_frag)) frag = trim(w%vmdata%tooltip_frag)
+    end select
+
+  end subroutine cursor_icon
+
   !> Returns the tooltip message for the current viewmode
   module subroutine viewmode_bar_display(w)
     use gui_main, only: tooltip_delay, tooltip_enabled, tooltip_wrap_factor, fontsize, g
@@ -1447,7 +1526,7 @@ contains
 
     integer :: ll, i, n, m, viewmode_before, iforced, mygroup
     character(len=:), allocatable :: viewmode_items
-    character(len=:), allocatable :: hint, descr, picklbl, altlbl
+    character(len=:), allocatable :: hint, descr, picklbl, altlbl, idmsg
     integer, allocatable :: tips(:)
     character(len=64), allocatable :: keyline(:), lblline(:)
     logical :: pickmode, emptyexit
@@ -1589,9 +1668,17 @@ contains
        end if
     end if
 
-    ! the mode hint, next to the combo
+    ! Next to the combo, in order of precedence: the prompt of the window
+    ! waiting for a pick (a live instruction, so it survives hovering), the
+    ! atom under the cursor, then the mode hint. The identity takes the
+    ! hint's place instead of being appended to it, so the bar does not
+    ! grow while hovering; it is plain, being data rather than an
+    ! instruction.
+    idmsg = hover_identity(w,w%mousepos_idx)
     if (pickmode .and. allocated(w%vmdata%msg)) then
        call iw_text(w%vmdata%msg,highlight=.true.,sameline=.true.)
+    elseif (len_trim(idmsg) > 0) then
+       call iw_text(idmsg,sameline=.true.)
     elseif (len_trim(hint) > 0) then
        call iw_text(hint,highlight=.true.,sameline=.true.)
     end if
@@ -1667,15 +1754,14 @@ contains
     use systems, only: nsys, sysc, sys, atlisttype_ncel_frac, lastchange_geometry,&
        ok_system, sys_init
     use global, only: iunit_bohr
-    use gui_main, only: io, ColorHighlightSelectScene, lumweights, ColorBlack, ColorWhite
+    use gui_main, only: io, ColorHighlightSelectScene
     class(window), intent(inout), target :: w
     logical, intent(in) :: hover
 
-    type(ImVec2) :: texpos, mousepos, pmin, pmax, ghostpos
+    type(ImVec2) :: texpos, mousepos, pmin, pmax
     integer :: isys
-    integer(c_int) :: col, ibtn, idum
+    integer(c_int) :: col, ibtn
     logical :: ok, dragged, forcedpick
-    character(kind=c_char,len=:), allocatable, target :: strf
 
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
@@ -1832,39 +1918,6 @@ contains
              end if
           end if
        else
-          ! add-atoms mode: show a ghost pictogram of the added
-          ! fragment next to the mouse cursor, contrasted against the
-          ! scene background color
-          if (w%viewmode == vm_builder_addatom .and. hover) then
-             if (w%vmdata%tooltip_ig >= 0 .and. associated(w%sc)) then
-                call igGetMousePos(ghostpos)
-                ghostpos%x = ghostpos%x + 14._c_float
-                ghostpos%y = ghostpos%y + 14._c_float
-                call addatom_geom_paint(w%vmdata%tooltip_ig,ghostpos,&
-                   2.6_c_float*igGetTextLineHeight(),igGetForegroundDrawList_Nil(),&
-                   iz=w%vmdata%tooltip_iz,bgrgb=w%sc%bgcolor)
-             end if
-          end if
-
-          ! add-fragments mode: show the name of the fragment being
-          ! added next to the mouse cursor, contrasted against the
-          ! scene background color
-          if (w%viewmode == vm_builder_addfragment .and. hover) then
-             if (allocated(w%vmdata%tooltip_frag) .and. associated(w%sc)) then
-                call igGetMousePos(ghostpos)
-                ghostpos%x = ghostpos%x + 14._c_float
-                ghostpos%y = ghostpos%y + 14._c_float
-                strf = trim(w%vmdata%tooltip_frag) // c_null_char
-                if (dot_product(lumweights,w%sc%bgcolor) <= 0.5_c_float) then
-                   idum = igGetColorU32_Vec4(ColorWhite)
-                else
-                   idum = igGetColorU32_Vec4(ColorBlack)
-                end if
-                call ImDrawList_AddText_Vec2(igGetForegroundDrawList_Nil(),ghostpos,idum,&
-                   c_loc(strf),c_null_ptr)
-             end if
-          end if
-
           ! forced pick modes: capture the atom under the cursor (possibly
           ! none) on a pick-bind press, resolved on release if the cursor
           ! did not drag past the threshold (so a left/right drag still
@@ -2850,11 +2903,14 @@ contains
 
   end function any_mouse_clicked
 
-  module subroutine draw_selection_tooltip(w,idx)
+  !> Draw overlay at the mouse cursor: the image announcing what the
+  !> active view mode does, and the running measurement readout. idx
+  !> is the atom under the cursor (mousepos_idx layout).
+  module subroutine draw_cursor_overlay(w,idx)
     use interfaces_cimgui
     use utils, only: iw_text
     use systems, only: sys
-    use gui_main, only: fontsize, ColorMeasureSelect
+    use gui_main, only: fontsize, ColorMeasureSelect, tooltip_wrap_factor
     use tools_io, only: string
     use param, only: bohrtoa, pi
     class(window), intent(inout), target :: w
@@ -2864,131 +2920,234 @@ contains
     integer :: msel(5,4)
     integer :: idx1(4), idx2(4), idx3(4), idx4(4)
     real*8 :: x0(3), d, d1, d2, ang
+    integer(c_int) :: itex
+    integer :: ig, iz
+    character(len=:), allocatable :: frag
+    logical :: domeas, havecue
+    real(c_float) :: side, bgrgb(3), tint(4)
+    type(ImVec2) :: sz, p0, mpos
 
-    if (.not.associated(w%sc)) return
+    ! how far from the cursor hotspot the image sits (in units of the
+    ! font height). It tucks under the pointer rather than trailing it,
+    ! so barely any x offset
+    real(c_float), parameter :: cursoroffx = 0.10_c_float
+    real(c_float), parameter :: cursoroffy = 0.55_c_float
 
-    ! check if the tooltip is needed
-    nmsel = w%sc%nmsel
-    if (nmsel == 0) return
-    msel = w%sc%msel
-    if (nmsel == 1 .and. (idx(1) == 0 .or. idx(5) == msel(5,1))) return
+    ! the image announcing what this mode does
+    call cursor_icon(w,itex,tint,ig,iz,frag)
+    havecue = (itex /= 0 .or. ig >= 0 .or. len_trim(frag) > 0)
 
-    ! start tooltip and header
-    call igBeginTooltip()
-    call igPushTextWrapPos(60._c_float * fontsize%x)
-    call iw_text("Distance (d), angle (α), dihedral (φ)")
-
-    ! distance 1-2
-    idx1 = msel(1:4,1)
-    if (nmsel == 1) then
-       idx2 = idx(1:4)
-       if (idx(1) == 0) goto 999
-    else
-       idx2 = msel(1:4,2)
+    ! the measurement readout, only in navigation: that is the one mode
+    ! whose keybinding group carries the measurement binds
+    domeas = (w%viewmode == vm_navigate)
+    if (domeas) domeas = associated(w%sc)
+    if (domeas) then
+       nmsel = w%sc%nmsel
+       domeas = (nmsel > 0)
     end if
-    x0 = sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4)
-    x0 = x0 - (sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4))
-    x0 = sys(w%isys)%c%x2c(x0)
-    d = norm2(x0)*bohrtoa
-    if (abs(d) > 1d-14) then
-       call iw_text("d(")
-       call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
-       if (nmsel > 1) then
-          call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
+    if (domeas) then
+       msel = w%sc%msel
+       if (nmsel == 1 .and. (idx(1) == 0 .or. idx(5) == msel(5,1))) domeas = .false.
+    end if
+    if (.not.havecue .and. .not.domeas) return
+
+    ! The image announcing the mode, drawn on a transparent surface with
+    ! no padding so it marks the cursor without hiding the scene behind
+    ! it. It never coincides with the measurement readout below: the
+    ! modes that show an image are exactly the ones that do not measure.
+    if (havecue) then
+       ! place it ourselves, just off the cursor hotspot: the tooltip's own
+       ! placement leaves room for the mouse cursor imgui draws, which is
+       ! further away than this image wants to be (imgui.cpp:6744 applies
+       ! the tooltip position only when the caller sets none)
+       call igGetMousePos(mpos)
+       if (itex /= 0 .or. ig >= 0) then
+          mpos%x = mpos%x + cursoroffx * fontsize%y
        else
-          call iw_text("*",sameline_nospace=.true.)
+          ! a name starts at its left edge and would run under the
+          ! pointer at the offset that suits a compact icon
+          mpos%x = mpos%x + 4._c_float * cursoroffx * fontsize%y
        end if
-       call iw_text(")=" // string(d,'f',decimal=4) // " Å",sameline_nospace=.true.)
+       mpos%y = mpos%y + cursoroffy * fontsize%y
+       call igSetNextWindowPos(mpos,ImGuiCond_Always,ImVec2(0._c_float,0._c_float))
+       call igPushStyleColor_Vec4(ImGuiCol_PopupBg,&
+          ImVec4(0._c_float,0._c_float,0._c_float,0._c_float))
+       call igPushStyleColor_Vec4(ImGuiCol_Border,&
+          ImVec4(0._c_float,0._c_float,0._c_float,0._c_float))
+       call igPushStyleVar_Vec2(ImGuiStyleVar_WindowPadding,ImVec2(0._c_float,0._c_float))
+       call igBeginTooltip()
+
+       ! the mode icon
+       if (itex /= 0) then
+          sz%x = 1.2_c_float * fontsize%y
+          sz%y = sz%x
+          call igImage(int(itex,c_intptr_t),sz,ImVec2(0._c_float,0._c_float),&
+             ImVec2(1._c_float,1._c_float),&
+             ImVec4(tint(1),tint(2),tint(3),tint(4)),&
+             ImVec4(0._c_float,0._c_float,0._c_float,0._c_float))
+       end if
+
+       ! the local-geometry pictogram of the atom about to be added:
+       ! reserve the square, then paint it into the overlay's draw list.
+       ! With no backdrop the scene shows through, so contrast against it
+       if (ig >= 0) then
+          side = 1.8_c_float * igGetTextLineHeight()
+          sz%x = side
+          sz%y = side
+          call igDummy(sz)
+          call igGetItemRectMin(p0)
+          if (associated(w%sc)) then
+             bgrgb = w%sc%bgcolor
+          else
+             bgrgb = 0._c_float
+          end if
+          call addatom_geom_paint(ig,p0,side,igGetWindowDrawList(),iz=iz,bgrgb=bgrgb)
+       end if
+
+       ! the name of the fragment about to be added
+       if (len_trim(frag) > 0) &
+          call iw_text(frag,rgba=tint)
+
+       call igEndTooltip()
+       call igPopStyleVar(1_c_int)
+       call igPopStyleColor(2_c_int)
     end if
 
-    ! distance and angle with atom 3
-    if (nmsel > 1) then
-       ! distance 2-3
-       idx1 = msel(1:4,2)
-       if (nmsel == 2) then
+    if (domeas) then
+       call igBeginTooltip()
+       call igPushTextWrapPos(tooltip_wrap_factor * fontsize%x)
+       call iw_text("Distance (d), angle (α), dihedral (φ)")
+
+       ! distance 1-2
+       idx1 = msel(1:4,1)
+       if (nmsel == 1) then
           idx2 = idx(1:4)
           if (idx(1) == 0) goto 999
-          if (idx(5) == msel(5,2) .or. idx(5) == msel(5,1)) goto 999
        else
-          idx2 = msel(1:4,3)
+          idx2 = msel(1:4,2)
        end if
        x0 = sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4)
        x0 = x0 - (sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4))
        x0 = sys(w%isys)%c%x2c(x0)
        d = norm2(x0)*bohrtoa
-       if (d > 1d-14) then
+       if (abs(d) > 1d-14) then
           call iw_text("d(")
-          call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
-          if (nmsel > 2) then
-             call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
+          call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
+          if (nmsel > 1) then
+             call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
           else
              call iw_text("*",sameline_nospace=.true.)
           end if
           call iw_text(")=" // string(d,'f',decimal=4) // " Å",sameline_nospace=.true.)
        end if
 
-       ! angle 1-2-3
-       idx3 = msel(1:4,1)
-       d1 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
-          sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
-       d2 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4),&
-          sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
-       if (d1 > 1d-14 .and. d2 > 1d-14) then
-          ang = sys(w%isys)%c%angle(&
+       ! distance and angle with atom 3
+       if (nmsel > 1) then
+          ! distance 2-3
+          idx1 = msel(1:4,2)
+          if (nmsel == 2) then
+             idx2 = idx(1:4)
+             if (idx(1) == 0) goto 999
+             if (idx(5) == msel(5,2) .or. idx(5) == msel(5,1)) goto 999
+          else
+             idx2 = msel(1:4,3)
+          end if
+          x0 = sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4)
+          x0 = x0 - (sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4))
+          x0 = sys(w%isys)%c%x2c(x0)
+          d = norm2(x0)*bohrtoa
+          if (d > 1d-14) then
+             call iw_text("d(")
+             call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
+             if (nmsel > 2) then
+                call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
+             else
+                call iw_text("*",sameline_nospace=.true.)
+             end if
+             call iw_text(")=" // string(d,'f',decimal=4) // " Å",sameline_nospace=.true.)
+          end if
+
+          ! angle 1-2-3
+          idx3 = msel(1:4,1)
+          d1 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
+             sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
+          d2 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4),&
+             sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
+          if (d1 > 1d-14 .and. d2 > 1d-14) then
+             ang = sys(w%isys)%c%angle(&
+                sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
+                sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4),&
+                sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
+             call iw_text(", α(",sameline_nospace=.true.)
+             call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
+             call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
+             if (nmsel > 2) then
+                call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
+             else
+                call iw_text("*",sameline_nospace=.true.)
+             end if
+             call iw_text(")=" // string(ang,'f',decimal=2) // "°",sameline_nospace=.true.)
+          end if
+       end if
+
+       ! distance, angle, dihedral
+       if (nmsel > 2) then
+          ! distance 3-4
+          idx1 = msel(1:4,3)
+          if (nmsel == 3) then
+             idx2 = idx(1:4)
+             if (idx(1) == 0) goto 999
+             if (idx(5) == msel(5,3) .or. idx(5) == msel(5,2) .or. idx(5) == msel(5,1)) goto 999
+          else
+             idx2 = msel(1:4,4)
+          end if
+          x0 = sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4)
+          x0 = x0 - (sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4))
+          x0 = sys(w%isys)%c%x2c(x0)
+          d = norm2(x0)*bohrtoa
+          if (d > 1d-14) then
+             call iw_text("d(")
+             call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
+             if (nmsel > 3) then
+                call iw_text("4",rgb=ColorMeasureSelect(1:3,4),sameline_nospace=.true.)
+             else
+                call iw_text("*",sameline_nospace=.true.)
+             end if
+             call iw_text(")=" // string(d,'f',decimal=4) // " Å",sameline_nospace=.true.)
+          end if
+
+          ! angle 2-3-4
+          idx3 = msel(1:4,2)
+          d1 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
+             sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
+          d2 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4),&
+             sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
+          if (d1 > 1d-14 .and. d2 > 1d-14) then
+             ang = sys(w%isys)%c%angle(&
+                sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
+                sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4),&
+                sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
+             call iw_text(", α(",sameline_nospace=.true.)
+             call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
+             call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
+             if (nmsel > 3) then
+                call iw_text("4",rgb=ColorMeasureSelect(1:3,4),sameline_nospace=.true.)
+             else
+                call iw_text("*",sameline_nospace=.true.)
+             end if
+             call iw_text(")=" // string(ang,'f',decimal=2) // "°",sameline_nospace=.true.)
+          end if
+
+          ! dihedral 1-2-3-4
+          idx4 = msel(1:4,1)
+          ang = sys(w%isys)%c%dihedral(&
+             sys(w%isys)%c%atcel(idx4(1))%x + idx4(2:4),&
              sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
              sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4),&
              sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
-          call iw_text(", α(",sameline_nospace=.true.)
+          call iw_text(", φ(",sameline_nospace=.true.)
           call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
           call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
-          if (nmsel > 2) then
-             call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
-          else
-             call iw_text("*",sameline_nospace=.true.)
-          end if
-          call iw_text(")=" // string(ang,'f',decimal=2) // "°",sameline_nospace=.true.)
-       end if
-    end if
-
-    ! distance, angle, dihedral
-    if (nmsel > 2) then
-       ! distance 3-4
-       idx1 = msel(1:4,3)
-       if (nmsel == 3) then
-          idx2 = idx(1:4)
-          if (idx(1) == 0) goto 999
-          if (idx(5) == msel(5,3) .or. idx(5) == msel(5,2) .or. idx(5) == msel(5,1)) goto 999
-       else
-          idx2 = msel(1:4,4)
-       end if
-       x0 = sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4)
-       x0 = x0 - (sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4))
-       x0 = sys(w%isys)%c%x2c(x0)
-       d = norm2(x0)*bohrtoa
-       if (d > 1d-14) then
-          call iw_text("d(")
-          call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
-          if (nmsel > 3) then
-             call iw_text("4",rgb=ColorMeasureSelect(1:3,4),sameline_nospace=.true.)
-          else
-             call iw_text("*",sameline_nospace=.true.)
-          end if
-          call iw_text(")=" // string(d,'f',decimal=4) // " Å",sameline_nospace=.true.)
-       end if
-
-       ! angle 2-3-4
-       idx3 = msel(1:4,2)
-       d1 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
-          sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
-       d2 = sys(w%isys)%c%distance(sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4),&
-          sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4))
-       if (d1 > 1d-14 .and. d2 > 1d-14) then
-          ang = sys(w%isys)%c%angle(&
-             sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
-             sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4),&
-             sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
-          call iw_text(", α(",sameline_nospace=.true.)
-          call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
           call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
           if (nmsel > 3) then
              call iw_text("4",rgb=ColorMeasureSelect(1:3,4),sameline_nospace=.true.)
@@ -2998,38 +3157,25 @@ contains
           call iw_text(")=" // string(ang,'f',decimal=2) // "°",sameline_nospace=.true.)
        end if
 
-       ! dihedral 1-2-3-4
-       idx4 = msel(1:4,1)
-       ang = sys(w%isys)%c%dihedral(&
-          sys(w%isys)%c%atcel(idx4(1))%x + idx4(2:4),&
-          sys(w%isys)%c%atcel(idx3(1))%x + idx3(2:4),&
-          sys(w%isys)%c%atcel(idx1(1))%x + idx1(2:4),&
-          sys(w%isys)%c%atcel(idx2(1))%x + idx2(2:4)) * 180d0 / pi
-       call iw_text(", φ(",sameline_nospace=.true.)
-       call iw_text("1",rgb=ColorMeasureSelect(1:3,1),sameline_nospace=.true.)
-       call iw_text("2",rgb=ColorMeasureSelect(1:3,2),sameline_nospace=.true.)
-       call iw_text("3",rgb=ColorMeasureSelect(1:3,3),sameline_nospace=.true.)
-       if (nmsel > 3) then
-          call iw_text("4",rgb=ColorMeasureSelect(1:3,4),sameline_nospace=.true.)
-       else
-          call iw_text("*",sameline_nospace=.true.)
-       end if
-       call iw_text(")=" // string(ang,'f',decimal=2) // "°",sameline_nospace=.true.)
     end if
-
 999 continue ! exit here
 
     ! usage hint: how to turn the current selection + hovered atom into a
-    ! persistent measurement, or remove it
-    call igNewLine()
-    call iw_text("Right/middle-click stamps/removes measurement",&
-       rgb=(/0.6_c_float,0.6_c_float,0.6_c_float/))
+    ! persistent measurement, or remove it. Only in navigation: the
+    ! measurement binds do not fire in the other modes
+    if (domeas) then
+       call igNewLine()
+       call iw_text("Right/middle-click stamps/removes measurement",&
+          rgb=(/0.6_c_float,0.6_c_float,0.6_c_float/))
+    end if
 
-    ! finish tooltip
-    call igPopTextWrapPos()
-    call igEndTooltip()
+    ! finish the measurement readout (the image above closed its own)
+    if (domeas) then
+       call igPopTextWrapPos()
+       call igEndTooltip()
+    end if
 
-  end subroutine draw_selection_tooltip
+  end subroutine draw_cursor_overlay
 
   !> Mouse position to texture position (screen coordinates)
   module subroutine mousepos_to_texpos(w,pos)

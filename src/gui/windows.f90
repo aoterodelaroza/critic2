@@ -302,7 +302,7 @@ module windows
      procedure :: viewmode_activate_picking ! activate picking by view mode
      procedure :: viewmode_process_events ! process mouse events according to view mode
      procedure :: select_view ! select the system to show in a view
-     procedure :: draw_selection_tooltip ! draw the measure selection tooltip
+     procedure :: draw_cursor_overlay ! draw the overlay at the mouse cursor (mode icon + measurement)
      procedure :: mousepos_to_texpos ! mouse position to texture position
      procedure :: texpos_to_mousepos ! texture position to mouse position
      procedure :: getpixel ! get depth or color from texture position
@@ -580,10 +580,10 @@ module windows
        class(window), intent(inout), target :: w
        logical, intent(in) :: hover
      end subroutine viewmode_process_events
-     module subroutine draw_selection_tooltip(w,idx)
+     module subroutine draw_cursor_overlay(w,idx)
        class(window), intent(inout), target :: w
        integer(c_int), intent(in) :: idx(5)
-     end subroutine draw_selection_tooltip
+     end subroutine draw_cursor_overlay
      module subroutine mousepos_to_texpos(w,pos)
        class(window), intent(inout), target :: w
        type(ImVec2), intent(inout) :: pos

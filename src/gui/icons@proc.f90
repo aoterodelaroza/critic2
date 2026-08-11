@@ -28,7 +28,9 @@ submodule (icons) proc
      "ui_cell.png","ui_polyhedra.png","ui_label_num.png",&
      "ui_label_wyck.png","ui_camera.png",&
      "ui_applyall.png","ui_reset.png","ui_draw.png",&
-     "ui_objects.png","ui_tools.png","ui_newview.png"/)
+     "ui_objects.png","ui_tools.png","ui_newview.png",&
+     "vm_remove.png","vm_trim.png","vm_bond.png","vm_valence.png",&
+     "vm_pick.png","vm_select.png","vm_move.png","vm_mdinteract.png"/)
 
   ! format icon PNG file names, in isformat_r_* order
   character(len=*), parameter :: fmtfile(0:icon_fmt_MAX) = (/character(len=20) ::&
