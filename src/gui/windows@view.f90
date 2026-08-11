@@ -1304,8 +1304,8 @@ contains
   !> the mode has no alternate action).
   subroutine viewmode_text(w,mode,hint,descr,picklbl,altlbl)
     use keybindings, only: get_bind_keyname, BIND_PICKATOM_SELECT, BIND_PICKATOM_ALT,&
-       BIND_CANCEL, BIND_NAV_MEASURE, BIND_SELECT_ATOMS, BIND_SELECT_MOLECULES,&
-       BIND_MOVEMOL_TRANSLATE, BIND_MOVEMOL_ROTATE, BIND_MOVEATOM_TRANSLATE
+       BIND_CANCEL, BIND_NAV_MEASURE, BIND_SELECT_MOLECULES,&
+       BIND_MOVEMOL_TRANSLATE, BIND_MOVEMOL_ROTATE
     class(window), intent(in) :: w
     integer, intent(in) :: mode
     character(len=:), allocatable, intent(out) :: hint, descr, picklbl, altlbl
@@ -2910,7 +2910,7 @@ contains
     use interfaces_cimgui
     use utils, only: iw_text
     use systems, only: sys
-    use gui_main, only: fontsize, ColorMeasureSelect, tooltip_wrap_factor
+    use gui_main, only: fontsize, ColorMeasureSelect, tooltip_wrap_factor, g
     use tools_io, only: string
     use param, only: bohrtoa, pi
     class(window), intent(inout), target :: w
@@ -2927,11 +2927,9 @@ contains
     real(c_float) :: side, bgrgb(3), tint(4)
     type(ImVec2) :: sz, p0, mpos
 
-    ! how far from the cursor hotspot the image sits (in units of the
-    ! font height). It tucks under the pointer rather than trailing it,
-    ! so barely any x offset
-    real(c_float), parameter :: cursoroffx = 0.10_c_float
-    real(c_float), parameter :: cursoroffy = 0.55_c_float
+    ! how far from the cursor hotspot the image sits, in pixels
+    real(c_float), parameter :: cursoroffx = 14._c_float
+    real(c_float), parameter :: cursoroffy = 29._c_float
 
     ! the image announcing what this mode does
     call cursor_icon(w,itex,tint,ig,iz,frag)
@@ -2962,13 +2960,13 @@ contains
        ! the tooltip position only when the caller sets none)
        call igGetMousePos(mpos)
        if (itex /= 0 .or. ig >= 0) then
-          mpos%x = mpos%x + cursoroffx * fontsize%y
+          mpos%x = mpos%x + cursoroffx * g%Style%MouseCursorScale
        else
           ! a name starts at its left edge and would run under the
           ! pointer at the offset that suits a compact icon
-          mpos%x = mpos%x + 4._c_float * cursoroffx * fontsize%y
+          mpos%x = mpos%x + 4._c_float * cursoroffx * g%Style%MouseCursorScale
        end if
-       mpos%y = mpos%y + cursoroffy * fontsize%y
+       mpos%y = mpos%y + cursoroffy * g%Style%MouseCursorScale
        call igSetNextWindowPos(mpos,ImGuiCond_Always,ImVec2(0._c_float,0._c_float))
        call igPushStyleColor_Vec4(ImGuiCol_PopupBg,&
           ImVec4(0._c_float,0._c_float,0._c_float,0._c_float))
