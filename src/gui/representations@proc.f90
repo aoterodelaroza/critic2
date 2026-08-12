@@ -2197,6 +2197,13 @@ contains
       dcyl%rgbborder = r%bonds%border_rgb
       dcyl%arvec = real(r%bonds%style%nstar(icen)%aromdir(:,ib),c_float)
 
+      ! identity, for picking the bond in the view: the two cell atoms and the
+      ! lattice vector of the bond (lcon)
+      dcyl%bidx(1) = icen
+      dcyl%bidx(2) = ineigh
+      dcyl%bidx(3:5) = r%bonds%style%nstar(icen)%lcon(:,ib)
+      dcyl%brepord = r%bonds%order
+
       if (r%bonds%color_style == 0 .or. r%bonds%hbond_classify) then
          ! single cylinder with the bond color
          dcyl%x1 = real(x1,c_float)
@@ -2231,6 +2238,9 @@ contains
             r%mols%style%tint_rgb(:,c%idatcelmol(1,ineigh))
          call dl_append(obj%cyl,obj%ncyl,dcyl)
       end if
+
+      ! drop the identity
+      dcyl%bidx = 0
 
     end subroutine emit_bond
 

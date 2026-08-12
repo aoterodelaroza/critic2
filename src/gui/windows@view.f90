@@ -106,7 +106,7 @@ contains
     integer(c_int) :: newside, vside
     real(c_float) :: scal, width, rgba(4)
     real(c_float) :: rscale, tmpuv
-    logical :: interacting
+    logical :: interacting, pickbonds
     real*8 :: time
     type(ImVec2) :: sz
     logical :: changedisplay(5) ! 1=atoms, 2=bonds, 3=labels, 4=cell, 5=polyhedra
@@ -673,15 +673,13 @@ contains
     end if
 
     ! Adaptive resolution: while the camera is being manipulated, render at a
-    ! reduced (interactive) resolution to stay responsive on large windows. When
-    ! the user stops, snap back to a full-resolution render. Whenever the desired
-    ! render scale (interacting) differs from what the texture currently holds
-    ! (lowresrender), force a render this frame so the displayed sub-region (the
-    ! UVs below, scaled by rscale) always matches the texture content. Otherwise
-    ! a press that switches to low-res before any motion would sample the
-    ! sub-region of a full-region render (scene out of position).
+    ! reduced (interactive) resolution to stay responsive on large windows.
     interacting = associated(w%sc) .and. (w%ilock /= ilock_no)
     if (interacting .neqv. w%lowresrender) w%forcerender = .true.
+    ! bonds in the pick buffer: only drawn in the bond-picking modes,
+    ! so entering or leaving one needs a fresh pick render.
+    pickbonds = vm_is_bondpick(w%viewmode)
+    if (.not.interacting .and. (pickbonds .neqv. w%pickbonds_last)) w%forcerender = .true.
     if (interacting) then
        rscale = real(min(w%FBOside,interactive_texture_side),c_float) / real(w%FBOside,c_float)
     else
@@ -743,8 +741,11 @@ contains
           call glClearColor(ColorClearTransparent(1),ColorClearTransparent(2),&
              ColorClearTransparent(3),ColorClearTransparent(4))
           call glClear(ior(GL_COLOR_BUFFER_BIT,GL_DEPTH_BUFFER_BIT))
-          if (associated(w%sc)) call w%sc%renderpick()
+          if (associated(w%sc)) call w%sc%renderpick(pickbonds)
           call glBindFramebuffer(GL_FRAMEBUFFER, 0)
+          ! only latch when the pass actually ran, so the buffer and the flag
+          ! cannot disagree after a camera drag suppressed it
+          w%pickbonds_last = pickbonds
        end if
 
        w%lowresrender = interacting
@@ -787,17 +788,27 @@ contains
     if (hover .and. w%isys >= 1 .and. w%isys <= nsys) needpick = needpick .or. &
        (sysc(w%isys)%md_run .and. (w%timelast_view_getpixel + pick_interval < time))
 
-    ! get the ID of the atom under mouse
+    ! get the ID of the atom or bond under mouse
     if (needpick) then
        w%mousepos_idx = 0
+       w%mousepos_bidx = 0
        w%mousepos_lastpick = pos
        call w%mousepos_to_texpos(pos)
        call w%getpixel(pos,rgba=rgba)
 
-       ! transform to atom cell ID and lattice vector
+       ! the red channel holds the draw-list index; a 1 in the green channel
+       ! marks it as a cylinder (bond) instead of a sphere (atom).
        w%mousepos_idx(1:4) = transfer(rgba,w%mousepos_idx(1:4))
        w%mousepos_idx(5) = w%mousepos_idx(1)
-       if (associated(w%sc) .and. w%mousepos_idx(1) > 0 .and. w%mousepos_idx(1) <= w%sc%obj%nsph) then
+       if (rgba(2) > 0.5_c_float) then
+          ! transform to the bond identity: two cell atoms and a lattice vector
+          if (associated(w%sc) .and. w%mousepos_idx(1) > 0 .and. w%mousepos_idx(1) <= w%sc%obj%ncyl) then
+             if (w%sc%obj%cyl(w%mousepos_idx(1))%bidx(1) > 0) &
+                w%mousepos_bidx = w%sc%obj%cyl(w%mousepos_idx(1))%bidx
+          end if
+          w%mousepos_idx = 0
+       elseif (associated(w%sc) .and. w%mousepos_idx(1) > 0 .and. w%mousepos_idx(1) <= w%sc%obj%nsph) then
+          ! transform to atom cell ID and lattice vector
           w%mousepos_idx(1:4) = w%sc%obj%sph(w%mousepos_idx(1))%idx
        else
           w%mousepos_idx = 0
@@ -805,6 +816,7 @@ contains
        w%timelast_view_getpixel = time
     elseif (.not.hover) then
        w%mousepos_idx = 0
+       w%mousepos_bidx = 0
        ! forget where the last pick was taken: the cursor can leave the view
        ! and come back to the very same pixel, and the "has it moved" test
        ! above would then never fire, leaving the atom unidentified
@@ -1181,7 +1193,10 @@ contains
           end do
           ! ownerless run (e.g. a builder relaxation): lock the navigation
           ! mode and release any armed pick mode so edits cannot fight the run
-          if (vm_is_forcedpick(w%viewmode)) w%vmdata%idx = 0
+          if (vm_is_forcedpick(w%viewmode)) then
+             w%vmdata%idx = 0
+             w%vmdata%bidx = 0
+          end if
           call viewmode_to_navigate(w)
           return
        end if
@@ -1247,6 +1262,7 @@ contains
     if (allocated(w%vmdata%msg)) deallocate(w%vmdata%msg)
     if (present(message)) w%vmdata%msg = trim(message)
     w%vmdata%idx = 0
+    w%vmdata%bidx = 0
     w%vmdata%flag = 0
     w%vmdata%tooltip_iz = 0
     w%vmdata%frag_isligand = .false.
@@ -1281,6 +1297,7 @@ contains
     class(window), intent(inout), target :: w
 
     w%vmdata%idx = 0
+    w%vmdata%bidx = 0
     call viewmode_to_navigate(w)
     w%measure_pend = pend_none
 
@@ -1377,6 +1394,16 @@ contains
              "; clicking empty space places "//frag//" there with a hydrogen cap."
        end if
        picklbl = "Add fragment"
+    case (vm_builder_bondremove)
+       hint = "Click to remove bonds"
+       descr = "Remove the clicked bond. Only the connectivity changes: the atoms stay "//&
+          "where they are."
+       picklbl = "Remove bond"
+    case (vm_builder_bondorder)
+       hint = "Click to cycle the bond order"
+       descr = "Cycle the order of the clicked bond: single, double, triple, aromatic, "//&
+          "dashed, and back to single."
+       picklbl = "Cycle bond order"
     case (vm_builder_bond,vm_builder_bondh)
        hint = "Click to bond atoms"
        descr = "Bond two atoms clicked one after the other. "
@@ -1456,7 +1483,7 @@ contains
   subroutine cursor_icon(w,itex,txt,tint)
     use icons, only: icon_tex, icon_vm_remove, icon_vm_trim, icon_vm_bond,&
        icon_vm_fragment, icon_vm_pick, icon_vm_select, icon_vm_move,&
-       icon_vm_mdinteract
+       icon_vm_mdinteract, icon_vm_bondrm, icon_vm_bondorder
     use tools_io, only: nameguess
     class(window), intent(in) :: w
     integer(c_int), intent(out) :: itex
@@ -1489,6 +1516,10 @@ contains
        itex = icon_tex(icon_vm_remove)
     case (vm_builder_trim)
        itex = icon_tex(icon_vm_trim)
+    case (vm_builder_bondremove)
+       itex = icon_tex(icon_vm_bondrm)
+    case (vm_builder_bondorder)
+       itex = icon_tex(icon_vm_bondorder)
     case (vm_builder_bondh)
        ! the -H variant deletes a hydrogen from each atom; the plain one
        ! only adds connectivity
@@ -1762,6 +1793,8 @@ contains
     integer(c_int) :: col, ibtn
     logical :: ok, dragged, forcedpick
 
+    integer(c_int), parameter :: izero5(5) = 0_c_int ! "no bond", for the picks that cannot target one
+
     real(c_float), parameter :: mousesens_zoom0 = 0.15_c_float
     real(c_float), parameter :: mousesens_rot0 = 3._c_float
     real(c_float), parameter :: mousesens_vol0 = 0.05_c_float ! per-notch fractional cell-volume change
@@ -1926,14 +1959,16 @@ contains
              if (bind_mouse_button(BIND_PICKATOM_SELECT) >= 0) then
                 w%measure_pend = pend_pick
                 w%measure_pend_idx = w%mousepos_idx
+                w%measure_pend_bidx = w%mousepos_bidx
                 w%press_p0 = mousepos
              else
-                call deliver_pick(w%mousepos_idx(1:4),.false.)
+                call deliver_pick(w%mousepos_idx(1:4),w%mousepos_bidx,.false.)
              end if
           elseif (hover .and. is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.)) then
              if (bind_mouse_button(BIND_PICKATOM_ALT) >= 0) then
                 w%measure_pend = pend_pick_alt
                 w%measure_pend_idx = w%mousepos_idx
+                w%measure_pend_bidx = w%mousepos_bidx
                 w%press_p0 = mousepos
              else
                 if (resolve_alt_pick(w%mousepos_idx(1:4))) return
@@ -1964,7 +1999,7 @@ contains
                    call w%sc%delete_measurement(w%measure_pend_idx)
                    w%forcerender = .true.
                 elseif (w%measure_pend == pend_pick) then
-                   call deliver_pick(w%measure_pend_idx(1:4),.false.)
+                   call deliver_pick(w%measure_pend_idx(1:4),w%measure_pend_bidx,.false.)
                 elseif (w%measure_pend == pend_pick_alt) then
                    w%measure_pend = pend_none
                    if (resolve_alt_pick(w%measure_pend_idx(1:4))) return
@@ -2128,8 +2163,11 @@ contains
       integer, intent(in) :: bindid
       logical :: exit_on_empty
 
+      ! a bond under the cursor is not empty space, even though it leaves
+      ! mousepos_idx zero: without this a double-click meant to cycle a bond
+      ! order twice would also leave the mode
       exit_on_empty = hover .and. is_bind_event(bindid,norepeat=.true.) .and.&
-         w%mousepos_idx(1) == 0
+         w%mousepos_idx(1) == 0 .and. w%mousepos_bidx(1) == 0
 
     end function exit_on_empty
 
@@ -2144,22 +2182,32 @@ contains
       if (exited) then
          call w%viewmode_exit_forced()
       else
-         call deliver_pick(idx,.true.)
+         call deliver_pick(idx,izero5,.true.)
       end if
 
     end function resolve_alt_pick
 
-    ! Deliver a completed pick to the commanding window. Pick-atom mode:
+    ! Deliver a completed pick to the commanding window. bidx is the bond
+    ! under the cursor, used by the bond modes; idx the atom, used by the
+    ! rest (the two are mutually exclusive). Pick-atom mode:
     ! deliver the atom (or zero = clicked on empty space = cancelled) and
     ! exit the mode. Persistent builder modes: deliver only a real atom
     ! (add-atoms also delivers empty-space clicks, with the click
     ! position), flag whether the main or the alternate pick bind fired,
     ! and stay in the mode for successive edits.
-    subroutine deliver_pick(idx,alt)
+    subroutine deliver_pick(idx,bidx,alt)
       integer(c_int), intent(in) :: idx(4)
+      integer(c_int), intent(in) :: bidx(5)
       logical, intent(in) :: alt
 
-      if (w%viewmode == vm_pick_atom) then
+      if (vm_is_bondpick(w%viewmode)) then
+         ! bond modes: deliver the bond and stay in the mode. Atom hits are
+         ! ignored, there being nothing to do with them here
+         if (bidx(1) > 0 .and. .not.alt) then
+            w%vmdata%bidx = bidx
+            w%vmdata%flag = 1
+         end if
+      elseif (w%viewmode == vm_pick_atom) then
          w%vmdata%idx = 0
          if (idx(1) > 0) w%vmdata%idx = idx
          call viewmode_to_navigate(w)
@@ -2887,6 +2935,16 @@ contains
 
     vm_is_builder = (mode >= vm_builder_lo .and. mode <= vm_builder_hi)
   end function vm_is_builder
+
+  !> Whether view mode is one of the builder modes that act on the bond
+  !> under the cursor. These are the only modes for which the bonds are
+  !> drawn into the pick buffer.
+  pure function vm_is_bondpick(mode)
+    integer, intent(in) :: mode
+    logical :: vm_is_bondpick
+
+    vm_is_bondpick = (mode == vm_builder_bondremove .or. mode == vm_builder_bondorder)
+  end function vm_is_bondpick
 
   !> Whether view mode equals one of the window-forced pick modes (an
   !> owner window awaits atom picks; navigation camera binds active).

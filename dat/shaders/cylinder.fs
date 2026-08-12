@@ -14,6 +14,7 @@ flat in vec3 fBorderColor;
 
 uniform mat4 projection;
 uniform int isortho;
+uniform int uPick;
 
 out vec4 outColor;
 
@@ -84,6 +85,13 @@ void main(){
   // true fragment depth
   vec4 clip = projection * vec4(hitp, 1.0);
   gl_FragDepth = 0.5 * (clip.z / clip.w) + 0.5;
+
+  // picking: fColor carries the bit-packed index instead of a color. It is
+  // flat-interpolated, so the bit pattern arrives here untouched
+  if (uPick != 0){
+    outColor = fColor;
+    return;
+  }
 
   // flat color + silhouette border: the border shows where the surface radial
   // direction lines up with the screen-perpendicular of the axis

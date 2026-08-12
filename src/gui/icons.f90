@@ -55,7 +55,9 @@ module icons
   integer, parameter, public :: icon_vm_select = 26  ! select atoms (marquee)
   integer, parameter, public :: icon_vm_move = 27    ! move atoms/molecules (four-way arrows)
   integer, parameter, public :: icon_vm_mdinteract = 28 ! interactive dynamics (atom in motion)
-  integer, parameter, public :: icon_NUM = 28
+  integer, parameter, public :: icon_vm_bondrm = 29  ! remove bonds (a broken bond)
+  integer, parameter, public :: icon_vm_bondorder = 30 ! cycle the bond order (a double bond)
+  integer, parameter, public :: icon_NUM = 30
 
   ! range of the format icons, indexed by the isformat_r_* constants
   ! in param.F90

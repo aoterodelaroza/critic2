@@ -111,6 +111,8 @@ module shapes
      real(c_float) :: arvec(3) = 0._c_float ! aromatic bonds: outward (ring-exterior) direction; 0 otherwise
      real(c_float) :: alpha = 1._c_float ! opacity (1 = opaque)
      real(c_float) :: dashlen = 0.4_c_float ! dash period for order=0 (dashed), in bohr
+     integer(c_int) :: bidx(5) = 0 ! bond identity for picking: cell atoms 1 and 2, then the lattice vector (0 = not a bond)
+     integer(c_int) :: brepord = 4 ! bond order of the emitting representation (4 = the per-bond order in the connectivity)
   end type dl_cylinder
   public :: dl_cylinder
 

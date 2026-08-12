@@ -789,7 +789,8 @@ contains
       call setuniform_vec3((/real(displ,c_float),real(aimag(displ),c_float),0._c_float/),idxi=uniloc(u_displ))
       if (ishader == shader_sphere .or. ishader == shader_cylinder) &
          call setuniform_int(merge(1_c_int,0_c_int,s%isortho),idxi=uniloc(u_isortho))
-      if (ishader == shader_sphere) &
+      ! both impostor shaders double as pick shaders
+      if (ishader == shader_sphere .or. ishader == shader_cylinder) &
          call setuniform_int(0_c_int,idxi=uniloc(u_upick))
 
     end subroutine setup_shader
@@ -1423,20 +1424,24 @@ contains
 
   end subroutine scene_render
 
-  !> Draw the scene (for object picking)
-  module subroutine scene_render_pick(s)
+  !> Draw the scene into the pick buffer. Spheres always; cylinders only
+  !> when bondpick, and then the atoms become depth-only occluders (they
+  !> return no index) so that only bonds can be picked.
+  module subroutine scene_render_pick(s,bondpick)
     use interfaces_cimgui
     use interfaces_opengl3
     use systems, only: sys
-    use shapes, only: sph_inst_nf, ensure_pack
-    use shaders, only: shader_sphere, useshader, setuniform_int,&
+    use shapes, only: sph_inst_nf, cyl_inst_nf, ensure_pack
+    use shaders, only: shader_sphere, shader_cylinder, useshader, setuniform_int,&
        setuniform_vec3, setuniform_mat4, uniloc, u_world, u_view,&
        u_projection, u_isortho, u_upick, u_isanchored, u_displ
     use param, only: maxzat0
     class(scene), intent(inout), target :: s
+    logical, intent(in) :: bondpick
 
     integer :: i, iz, idx, n
-    real(c_float) :: ridx(4)
+    real(c_float) :: ridx(4), rpick
+    real(c_float), parameter :: zero3(3) = 0._c_float
 
     ! check that the scene and system are initialized
     if (s%isinit < 2) return
@@ -1469,10 +1474,16 @@ contains
           ! skip any non-atom sphere (idx < 1): it carries no cell-atom index
           ! and must not be pickable as an atom
           if (idx < 1) cycle
+          ! ghost spheres are pick-only stand-ins for hidden atoms, with a
+          ! radius of two bond radii: they would swallow the ends of the very
+          ! bonds being picked, and no atom index is wanted here anyway
+          if (bondpick .and. s%obj%sph(i)%ghost) cycle
           iz = sys(s%id)%c%spc(sys(s%id)%c%atcel(idx)%is)%z
           if (iz < maxzat0) then
              n = n + 1
-             ridx = transfer((/i,0,0,0/),ridx)
+             ! when picking bonds the atoms only occlude: index zero
+             ridx = 0._c_float
+             if (.not.bondpick) ridx = transfer((/i,0,0,0/),ridx)
              call sphere_pack(s%gl%packsph(:,n),s%obj%sph(i)%x,s%obj%sph(i)%r,&
                 (/0._c_float,0._c_float,0._c_float,1._c_float/),0._c_float,&
                 (/0._c_float,0._c_float,0._c_float/),s%obj%sph(i)%xdelta,ridx,1._c_float,&
@@ -1480,6 +1491,47 @@ contains
           end if
        end do
        call s%gl%draw_spheres(n,s%gl%packsph,.true.)
+    end if
+
+    ! draw the bonds, each with its loop index in the red channel of the pick
+    ! color and a 1.0 in the green channel marking it as a cylinder. One plain
+    ! cylinder per draw-list entry: the multi-bond and dash expansion of the
+    ! visible pass is skipped, so the gaps between the strands of a double bond
+    ! and between dashes are clickable too. The radius covers the strands, which
+    ! the visible pass draws at 0.5*r displaced by up to 1.35*r
+    if (bondpick .and. s%obj%ncyl > 0) then
+       call useshader(shader_cylinder)
+       call setuniform_mat4(s%world,idxi=uniloc(u_world))
+       call setuniform_mat4(s%view,idxi=uniloc(u_view))
+       call setuniform_mat4(s%projection,idxi=uniloc(u_projection))
+       call setuniform_int(merge(1_c_int,0_c_int,s%isortho),idxi=uniloc(u_isortho))
+       call setuniform_int(1_c_int,idxi=uniloc(u_upick))
+       call setuniform_int(0_c_int,idxi=uniloc(u_isanchored))
+       call setuniform_vec3((/0._c_float,0._c_float,0._c_float/),idxi=uniloc(u_displ))
+
+       call ensure_pack(s%gl%packcyl,cyl_inst_nf,s%obj%ncyl)
+       n = 0
+       do i = 1, s%obj%ncyl
+          ! only bonds carry an identity; axes, measurement sticks and symmetry
+          ! elements are drawn from the same list and are not pickable
+          if (s%obj%cyl(i)%bidx(1) <= 0) cycle
+          select case (s%obj%cyl(i)%order)
+          case (-1,2)
+             rpick = 1.25_c_float * s%obj%cyl(i)%r
+          case (3)
+             rpick = 1.85_c_float * s%obj%cyl(i)%r
+          case default
+             rpick = 0.5_c_float * s%obj%cyl(i)%r
+          end select
+          n = n + 1
+          ridx = 0._c_float
+          ridx(1) = transfer(i,1._c_float)
+          ridx(2) = 1._c_float
+          call cyl_pack(s%gl%packcyl(:,n),s%obj%cyl(i)%x1,s%obj%cyl(i)%x2,rpick,&
+             ridx,0._c_float,zero3,0._c_float,zero3,&
+             s%obj%cyl(i)%x1delta,s%obj%cyl(i)%x2delta)
+       end do
+       call s%gl%draw_cylinders(n,s%gl%packcyl,.true.)
     end if
 
   end subroutine scene_render_pick

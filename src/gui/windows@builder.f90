@@ -78,7 +78,7 @@ contains
     class(window), intent(inout), target :: w
 
     integer :: isys, iview, icel, imode, nsel, iside, ibold, ibnew, izout, i, j, k
-    integer :: idxpick(4)
+    integer :: idxpick(4), ibond(5), iord
     logical :: doquit, goodparent, havesys, ok, lcommit, ldum, relaxing
     real*8 :: dist, ang
     real(c_float) :: xclick(2)
@@ -170,6 +170,43 @@ contains
           else
              ! no click pending: stamp the reference time
              w%builder_time = glfwGetTime()
+          end if
+       elseif (win(iview)%vmdata%bidx(1) > 0) then
+          ! A bond click was delivered: apply the edit and stay in the
+          ! mode. Same stale-click guard as the atom picks below; it keys
+          ! on the geometry, which is right here too, since these edits
+          ! only touch the connectivity and never renumber the atoms
+          ibond = win(iview)%vmdata%bidx
+          win(iview)%vmdata%bidx = 0
+          win(iview)%vmdata%flag = 0
+          if (glfwGetTime() - w%builder_time < stale_gap .and.&
+             sysc(w%builder_isys)%timelastchange_geometry <= w%builder_time) then
+             ! the connectivity is the authority on whether this is a bond at
+             ! all: the pick buffer can be one edit out of date, and a
+             ! representation can draw contacts (van der Waals, hydrogen bonds)
+             ! that were never in it
+             k = sys(w%builder_isys)%c%find_bond(ibond(1),ibond(2),ibond(3:5))
+             if (k == 0) then
+                w%errmsg = "That contact is not a bond in the system connectivity"
+             elseif (w%builder_vm == vm_builder_bondremove) then
+                call sysc(w%builder_isys)%remove_bond(ibond(1),ibond(2),ibond(3:5))
+             else
+                ! single -> double -> triple -> aromatic -> dashed -> single
+                select case (sys(w%builder_isys)%c%nstar(ibond(1))%ordcon(k))
+                case (1)
+                   iord = 2
+                case (2)
+                   iord = 3
+                case (3)
+                   iord = -1
+                case (-1)
+                   iord = 0
+                case default
+                   iord = 1
+                end select
+                call sysc(w%builder_isys)%set_bond_order(ibond(1),ibond(2),ibond(3:5),iord)
+             end if
+             if (associated(win(iview)%sc)) win(iview)%sc%nextbuildlists_fixcam = .true.
           end if
        elseif (win(iview)%vmdata%idx(1) > 0) then
           ! An atom click was delivered: apply the edit and stay in
@@ -366,6 +403,19 @@ contains
     end if
     call iw_tooltip("Same as creating a bond, but if both atoms are not hydrogen, each of"//&
        " them loses a terminal hydrogen, the one pointing most towards the other atom",ttshown)
+    if (iw_button("Remove bond",disabled=.not.havesys)) then
+       w%errmsg = ""
+       call builder_toggle(vm_builder_bondremove)
+    end if
+    call iw_tooltip("Remove the clicked bond ("//trim(get_bind_keyname(BIND_PICKATOM_SELECT))//&
+       ")",ttshown)
+    if (iw_button("Bond order",disabled=.not.havesys,sameline=.true.)) then
+       w%errmsg = ""
+       call builder_toggle(vm_builder_bondorder)
+    end if
+    call iw_tooltip("Cycle the order of the bond clicked ("//&
+       trim(get_bind_keyname(BIND_PICKATOM_SELECT))//"): single, double, triple,"//&
+       " aromatic, dashed.",ttshown)
 
     ! number of measure-selected atoms in the parent view
     nsel = 0
