@@ -1599,8 +1599,7 @@ contains
           ! build the tooltip lines: one per bind in this mode's group,
           ! plus the pick action(s) and the exit gestures
           m = n
-          if (pickmode) m = m + 2
-          if (len_trim(altlbl) > 0) m = m + 1
+          if (pickmode) m = m + 3
           if (emptyexit) m = m + 1
           allocate(keyline(m),lblline(m))
           do i = 1, n
@@ -1618,10 +1617,16 @@ contains
              else
                 lblline(n) = trim(bindnames(BIND_PICKATOM_SELECT))
              end if
+             ! the alternate bind leaves the mode; where it has an action
+             ! of its own it does that on an atom and exits off one
+             n = n + 1
+             keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_ALT))
              if (len_trim(altlbl) > 0) then
-                n = n + 1
-                keyline(n) = trim(get_bind_keyname(BIND_PICKATOM_ALT))
-                lblline(n) = altlbl
+                lblline(n) = trim(altlbl) // ", or exit elsewhere"
+             elseif (w%viewmode == vm_pick_atom) then
+                lblline(n) = "Cancel the pick"
+             else
+                lblline(n) = "Exit mode"
              end if
              n = n + 1
              keyline(n) = trim(get_bind_keyname(BIND_CANCEL))
@@ -1823,18 +1828,16 @@ contains
     end if
 
     ! drop any pending press capture whose mode is gone: measure captures
-    ! (1/2) are only valid in navigation, pick captures (3) only in the
-    ! window-forced pick modes, alternate picks (4) only in the valence
-    ! builder mode; anything else is a stale press (e.g. the mode changed
-    ! or the viewed system switched between the press and the release)
-    ! whose release would otherwise fire an unrelated action later.
+    ! (1/2) are only valid in navigation, pick and alternate-pick captures
+    ! (3/4) only in the window-forced pick modes; anything else is a stale
+    ! press (e.g. the mode changed or the viewed system switched between
+    ! the press and the release) whose release would otherwise fire an
+    ! unrelated action later.
     if (w%viewmode == vm_navigate) then
        if (w%measure_pend == pend_pick .or. w%measure_pend == pend_pick_alt) &
           w%measure_pend = pend_none
     elseif (forcedpick) then
        if (w%measure_pend == pend_measure_add .or. w%measure_pend == pend_measure_remove) &
-          w%measure_pend = pend_none
-       if (w%viewmode /= vm_builder_valence .and. w%measure_pend == pend_pick_alt) &
           w%measure_pend = pend_none
     else
        w%measure_pend = pend_none
@@ -1915,10 +1918,10 @@ contains
           ! forced pick modes: capture the atom under the cursor (possibly
           ! none) on a pick-bind press, resolved on release if the cursor
           ! did not drag past the threshold (so a left/right drag still
-          ! rotates/pans the camera). The alternate pick bind (remove a
-          ! hydrogen) is only active in the valence builder mode. For a
-          ! non-mouse bind there is no drag to disambiguate, so deliver at
-          ! once (once per press: norepeat).
+          ! rotates/pans the camera). The alternate pick bind leaves the
+          ! mode, except on an atom in the valence mode, where it removes
+          ! a hydrogen instead. For a non-mouse bind there is no drag to
+          ! disambiguate, so deliver at once (once per press: norepeat).
           if (hover .and. is_bind_event(BIND_PICKATOM_SELECT,norepeat=.true.)) then
              if (bind_mouse_button(BIND_PICKATOM_SELECT) >= 0) then
                 w%measure_pend = pend_pick
@@ -1927,14 +1930,13 @@ contains
              else
                 call deliver_pick(w%mousepos_idx(1:4),.false.)
              end if
-          elseif (hover .and. w%viewmode == vm_builder_valence .and.&
-             is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.)) then
+          elseif (hover .and. is_bind_event(BIND_PICKATOM_ALT,norepeat=.true.)) then
              if (bind_mouse_button(BIND_PICKATOM_ALT) >= 0) then
                 w%measure_pend = pend_pick_alt
                 w%measure_pend_idx = w%mousepos_idx
                 w%press_p0 = mousepos
              else
-                call deliver_pick(w%mousepos_idx(1:4),.true.)
+                if (resolve_alt_pick(w%mousepos_idx(1:4))) return
              end if
           end if
        end if
@@ -1961,8 +1963,11 @@ contains
                 elseif (w%measure_pend == pend_measure_remove) then
                    call w%sc%delete_measurement(w%measure_pend_idx)
                    w%forcerender = .true.
-                elseif (w%measure_pend == pend_pick .or. w%measure_pend == pend_pick_alt) then
-                   call deliver_pick(w%measure_pend_idx(1:4),w%measure_pend == pend_pick_alt)
+                elseif (w%measure_pend == pend_pick) then
+                   call deliver_pick(w%measure_pend_idx(1:4),.false.)
+                elseif (w%measure_pend == pend_pick_alt) then
+                   w%measure_pend = pend_none
+                   if (resolve_alt_pick(w%measure_pend_idx(1:4))) return
                 end if
              end if
              w%measure_pend = pend_none
@@ -2127,6 +2132,22 @@ contains
          w%mousepos_idx(1) == 0
 
     end function exit_on_empty
+
+    ! Resolve a completed alternate pick Returns .true. if the mode
+    ! was left, so the caller stops processing events for a mode that
+    ! is no longer active.
+    function resolve_alt_pick(idx) result(exited)
+      integer(c_int), intent(in) :: idx(4)
+      logical :: exited
+
+      exited = .not.(w%viewmode == vm_builder_valence .and. idx(1) > 0)
+      if (exited) then
+         call w%viewmode_exit_forced()
+      else
+         call deliver_pick(idx,.true.)
+      end if
+
+    end function resolve_alt_pick
 
     ! Deliver a completed pick to the commanding window. Pick-atom mode:
     ! deliver the atom (or zero = clicked on empty space = cancelled) and
